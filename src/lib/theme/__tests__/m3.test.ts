@@ -8,11 +8,22 @@
 // 읽으므로 이름을 바꾸면 그 전부를 건드려야 한다. 인수 번들의 `px-bridge.css` 도
 // 웹에서 같은 일을 한다(M3 어휘를 PIXEL-CLAY 시맨틱으로 별칭).
 import { m3, m3ColorDark, m3Type, m3Shape, m3Elevation, m3State, m3Persona, m3Spacing } from "../m3";
+import { radii } from "../tokens";
 
 describe("PIXEL-CLAY 절대 규칙이 토큰에 박혀 있다", () => {
   test("모서리가 없다 — 전 화면 radius 0", () => {
     // 절대 규칙 2. `full` 까지 0 이라 알약 모양도 사각이 된다.
     for (const [name, v] of Object.entries(m3Shape)) {
+      expect({ name, radius: v }).toEqual({ name, radius: 0 });
+    }
+  });
+
+  test("`radii` 도 0 이다 — 세 번째 반경 토큰 세트", () => {
+    // ⚠ 이 세트는 `m3Shape` 와 따로 살아 있었고, 값이 4/8/12/16 이라
+    //   규칙 2 위반 252건 중 대부분을 만들고 있었다(`/support` 의 8px 도 이것).
+    //   가드(`check-pixel-rules.ts`)가 `radii.*` 를 허용하는 근거가 이 검사다 —
+    //   여기가 빨개지면 가드의 허용도 같이 무효가 된다.
+    for (const [name, v] of Object.entries(radii)) {
       expect({ name, radius: v }).toEqual({ name, radius: 0 });
     }
   });

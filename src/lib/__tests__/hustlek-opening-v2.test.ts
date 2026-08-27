@@ -44,6 +44,7 @@ type RectRun = [palette: number, x: number, y: number, width: number, height: nu
 type RleAtlas = {
   v: 2;
   u: 1;
+  q: 4;
   p: string[];
   s: {
     png: string;
@@ -67,6 +68,7 @@ type ScenePlan = {
   character: { kind: "walk" | "key"; index: number; centerX: number } | null;
   cameraTop: number;
   polarisSize: number;
+  veilHeight: number;
 };
 
 type LoadingModule = {
@@ -164,16 +166,43 @@ function expectLineagePreserved(source: Uint8Array, rendered: Uint8Array): void 
   let sourceFloor = -1;
   let renderedFloor = -1;
   const width = source.length === 128 * 128 * 4 ? 128 : 96;
+  const height = width;
   for (let offset = 0; offset < source.length; offset += 4) {
     const sourceVisible = source[offset + 3] > 0;
     const renderedVisible = rendered[offset + 3] > 0;
     expect(renderedVisible).toBe(sourceVisible);
     expect([0, 255]).toContain(rendered[offset + 3]);
     if (!sourceVisible) continue;
-    const expectedBand = nearestBand(source[offset], source[offset + 1], source[offset + 2]);
-    expect(Array.from(rendered.slice(offset, offset + 3))).toEqual(hexRgb(PALETTE[expectedBand]));
     sourceFloor = Math.max(sourceFloor, Math.floor(offset / 4 / width));
     renderedFloor = Math.max(renderedFloor, Math.floor(offset / 4 / width));
+  }
+
+  for (let blockY = 0; blockY < height; blockY += 4) {
+    for (let blockX = 0; blockX < width; blockX += 4) {
+      let red = 0;
+      let green = 0;
+      let blue = 0;
+      let count = 0;
+      for (let y = blockY; y < Math.min(blockY + 4, height); y += 1) {
+        for (let x = blockX; x < Math.min(blockX + 4, width); x += 1) {
+          const offset = (y * width + x) * 4;
+          if (source[offset + 3] === 0) continue;
+          red += source[offset];
+          green += source[offset + 1];
+          blue += source[offset + 2];
+          count += 1;
+        }
+      }
+      if (count === 0) continue;
+      const expected = hexRgb(PALETTE[nearestBand(red / count, green / count, blue / count)]);
+      for (let y = blockY; y < Math.min(blockY + 4, height); y += 1) {
+        for (let x = blockX; x < Math.min(blockX + 4, width); x += 1) {
+          const offset = (y * width + x) * 4;
+          if (source[offset + 3] === 0) continue;
+          expect(Array.from(rendered.slice(offset, offset + 3))).toEqual(expected);
+        }
+      }
+    }
   }
   expect(renderedFloor).toBe(sourceFloor);
 }
@@ -271,6 +300,7 @@ describe("HustleK opening v2 deterministic rect atlas", () => {
     expect(atlas).toMatchObject({
       v: 2,
       u: 1,
+      q: 4,
       p: [...PALETTE],
       s: {
         png: SOURCE_FILE_SHA256,
@@ -416,5 +446,37 @@ describe("HustleK opening v2 readiness runtime", () => {
       phase: "done",
       shouldContinue: true,
     });
+  });
+
+  test("all 48 frames preserve establish, walk, turn, hold, pan, Polaris, and exit beats", () => {
+    const module = loadLoadingModule();
+    if (!module.openingSceneForFrame) throw new Error("LoadingScreen must export openingSceneForFrame");
+    const scenes = Array.from({ length: 48 }, (_, frame) => module.openingSceneForFrame?.(frame));
+    expect(scenes.slice(0, 4).every((scene) => scene?.character === null)).toBe(true);
+    expect(scenes.slice(4, 18).map((scene) => scene?.character?.kind)).toEqual(
+      Array.from({ length: 14 }, () => "walk"),
+    );
+    expect(scenes.slice(4, 18).map((scene) => scene?.character?.index)).toEqual([
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 1,
+    ]);
+    expect(scenes.slice(18, 26).map((scene) => scene?.character?.index)).toEqual([
+      0, 1, 1, 2, 2, 3, 4, 5,
+    ]);
+    expect(scenes.slice(26, 32).every((scene) => scene?.character?.index === 5)).toBe(true);
+    expect(scenes.slice(32, 40).map((scene) => scene?.cameraTop)).toEqual([
+      -64, -48, -28, -4, 24, 48, 72, 96,
+    ]);
+    expect(scenes.slice(40, 45).map((scene) => scene?.polarisSize)).toEqual([12, 16, 20, 16, 12]);
+    expect(scenes.slice(45, 48).map((scene) => scene?.veilHeight)).toEqual([86, 174, 260]);
+    for (const scene of scenes) {
+      expect(scene).toBeDefined();
+      expect(Number.isInteger(scene?.cameraTop)).toBe(true);
+      expect(Number.isInteger(scene?.polarisSize)).toBe(true);
+      expect(Number.isInteger(scene?.veilHeight)).toBe(true);
+      if (scene?.character) {
+        expect(Number.isInteger(scene.character.index)).toBe(true);
+        expect(Number.isInteger(scene.character.centerX)).toBe(true);
+      }
+    }
   });
 });

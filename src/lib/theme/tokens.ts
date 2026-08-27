@@ -193,11 +193,11 @@ export const semanticCosmic = {
   surface: "rgba(13,21,48,0.84)", // glassy night panel, aligned to premium village cards
   surfaceAlt: "rgba(22,33,62,0.68)", // graph-slate wash for nested controls
   border: "rgba(141,152,184,0.3)",
-  backdrop: "rgba(0,0,0,0.6)",
-  // Stronger tinted scrim for full-screen takeover modals (quant intro /
-  // celebration) — deeper + blue-tinted so the cosmic background fully
-  // recedes. Same value in both modes, like backdrop.
-  backdropStrong: "rgba(2,4,10,0.78)",
+  // ⚠ `backdrop` / `backdropStrong` 은 2026-08-27 에 **없앴다.**
+  //   모달 스크림은 바탕을 모르는 자리라(어느 화면 위에도 뜬다) 미리 합성이
+  //   불가능하고, PIXEL-CLAY 규칙 4 가 정확히 이 경우를 위해 "평탄화 말고
+  //   디더"라고 못박고 있다. 여덟 호출부 전부 `<PixelScrim />` 로 옮겼다.
+  //   되살리지 말 것 — 알파 스크림을 다시 들이면 규칙 4 가드가 잡는다.
   text: cosmic.moonWhite,
   textMuted: "#C9D0E6", // slightly above mist-gray for body text
   textSubtle: cosmic.mistGray,
@@ -252,8 +252,11 @@ const semanticDeepSpace = {
   surface: "#141b2e",
   surfaceAlt: "#232e4a",
   border: "#232e4a",
-  backdrop: "rgba(0,0,0,0.6)",
-  backdropStrong: "rgba(2,4,10,0.78)",
+  // ⚠ `backdrop` / `backdropStrong` 은 2026-08-27 에 **없앴다.**
+  //   모달 스크림은 바탕을 모르는 자리라(어느 화면 위에도 뜬다) 미리 합성이
+  //   불가능하고, PIXEL-CLAY 규칙 4 가 정확히 이 경우를 위해 "평탄화 말고
+  //   디더"라고 못박고 있다. 여덟 호출부 전부 `<PixelScrim />` 로 옮겼다.
+  //   되살리지 말 것 — 알파 스크림을 다시 들이면 규칙 4 가드가 잡는다.
   text: "#E8F7FF",
   textMuted: "#83bcd5",
   textSubtle: "#608aa1",
@@ -376,8 +379,11 @@ export const semanticLight = {
   surface: lightCosmic.surface,
   surfaceAlt: lightCosmic.surfaceAlt,
   border: lightCosmic.border,
-  backdrop: "rgba(0,0,0,0.6)",
-  backdropStrong: "rgba(2,4,10,0.78)",
+  // ⚠ `backdrop` / `backdropStrong` 은 2026-08-27 에 **없앴다.**
+  //   모달 스크림은 바탕을 모르는 자리라(어느 화면 위에도 뜬다) 미리 합성이
+  //   불가능하고, PIXEL-CLAY 규칙 4 가 정확히 이 경우를 위해 "평탄화 말고
+  //   디더"라고 못박고 있다. 여덟 호출부 전부 `<PixelScrim />` 로 옮겼다.
+  //   되살리지 말 것 — 알파 스크림을 다시 들이면 규칙 4 가드가 잡는다.
   text: lightCosmic.text,
   textMuted: lightCosmic.textMuted,
   textSubtle: lightCosmic.textSubtle,
@@ -443,11 +449,19 @@ export const spacing = {
   xxl: 32,
 } as const;
 
+// PIXEL-CLAY 절대 규칙 2: `border-radius: 0` — 전 화면 강제.
+//
+// 이름을 남긴 이유는 `m3Shape` 과 같다 — 호출부 96곳(37파일)을 건드리지
+// 않기 위해서다. 값만 0 으로 내린다.
+//
+// ⚠ 이 세트가 **세 번째 반경 토큰**이었다. 가드가 허용 목록으로 바뀜 뒤에도
+//   값은 4/8/12/16 로 남아 있어서, 규칙 2 위반 252건 중 대부분이 여기서 나왔다.
+//   `/support` 의 8px 라운드도 이 `md` 다.
 export const radii = {
-  sm: 4,
-  md: 8,
-  lg: 12,
-  xl: 16,
+  sm: 0,
+  md: 0,
+  lg: 0,
+  xl: 0,
 } as const;
 
 export const typography = {

@@ -30,7 +30,7 @@ COLOUR_SAMPLE_BLOCK = 4
 
 EXPECTED_SOURCE_PNG_SHA256 = "2780df89aa6f1d472ec82a03610a6d7e81a20dbf9e767103cd198233e44213be"
 EXPECTED_SOURCE_RGBA_SHA256 = "b077a2d1a4c77c320e92a18b92a722f4a2905340e7b1ba27c47d6a0cf2c8cc49"
-EXPECTED_OUTPUT_JSON_SHA256 = "TO_BE_FILLED_AFTER_FIRST_DETERMINISTIC_BUILD"
+EXPECTED_OUTPUT_JSON_SHA256 = "b599f379db85305b0a2aa82db3f87d7682bc70e59369186bcdcac7c65a79664f"
 
 # Every band is an exact colour already present in the approved v1 cells.
 # Four-by-four colour sampling removes photographic colour noise while the
@@ -237,8 +237,10 @@ def reconstruct(rects: list[Rect], size: tuple[int, int]) -> Image.Image:
 
 
 def masks_match(source: Image.Image, rendered: Image.Image) -> bool:
-    return tuple(255 if value > 0 else 0 for value in source.getchannel("A").getdata()) == tuple(
-        rendered.getchannel("A").getdata()
+    return tuple(
+        255 if value > 0 else 0 for value in source.getchannel("A").get_flattened_data()
+    ) == tuple(
+        rendered.getchannel("A").get_flattened_data()
     )
 
 
@@ -271,7 +273,11 @@ def validate(source: Image.Image, payload: dict[str, object], canonical: bytes, 
     max_visible_rects = max(rect_counts[:-1]) + rect_counts[-1]
     combined_rgba = b"".join(image.tobytes() for image in rendered_all)
     output_hash = sha256_bytes(canonical)
-    all_alpha = {value for image in rendered_all for value in image.getchannel("A").getdata()}
+    all_alpha = {
+        value
+        for image in rendered_all
+        for value in image.getchannel("A").get_flattened_data()
+    }
     gates = {
         "source_file_exact": file_sha256(SOURCE) == EXPECTED_SOURCE_PNG_SHA256,
         "source_pixels_exact": rgba_sha256(source) == EXPECTED_SOURCE_RGBA_SHA256,

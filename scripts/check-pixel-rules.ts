@@ -283,10 +283,25 @@ const RULE1_EXEMPT: readonly { prefix: string; why: string }[] = [
 const RADIUS_PROP =
   /border(?:Top|Bottom)?(?:Left|Right|Start|End)?Radius\s*:\s*([^,\n}]+)/g;
 
-/** 반경 값으로 허용되는 것: 리터럴 0, `m3.shape.*`, 그리고 기기 베젤 예외. */
+/**
+ * 반경 값으로 허용되는 것: 리터럴 0, `m3.shape.*`, `radii.*`, 그리고 기기 베젤 예외.
+ *
+ * ⚠ `radii.*` 를 허용 목록에 넣은 것은 **2026-08-27 에 값을 전부 0 으로 내렸기
+ *   때문**이다. 그 전에는 4/8/12/16 이었고, 규칙 2 위반 252건 중 대부분이
+ *   여기서 나왔다(`/support` 의 8px 도 이것).
+ *
+ *   근거는 `src/lib/theme/__tests__/m3.test.ts` 의 "`radii` 도 0 이다" 검사다.
+ *   **그 검사가 빨개지면 이 허용도 같이 무효가 된다** — 누가 값을 되돌리면
+ *   가드가 아니라 그 검사가 먼저 잡는다. `m3.shape.*` 와 똑같은 구조다.
+ *
+ *   호출부 96곳(37파일)을 `m3.shape.none` 으로 바꾸지 않은 이유도 같다:
+ *   이름을 바꾸는 것은 값을 지키는 것과 다른 일이고, 값은 검사가 지킨다.
+ */
 function radiusAllowed(raw: string): boolean {
   const v = raw.trim();
   if (v.startsWith("m3.shape.")) return true;
+  if (v.startsWith("radii.")) return true;
+  if (v === "gameboy.radius") return true;
   if (EXEMPT_TOKENS.has(v)) return true;
   const n = Number(v);
   return Number.isFinite(n) && n === 0;
@@ -294,8 +309,10 @@ function radiusAllowed(raw: string): boolean {
 
 // 반경 토큰이 **반경 프로퍼티 밖**에서 쓰이는 경우도 있다(스프레드, 변수 대입).
 // 위의 허용 목록은 프로퍼티만 보므로 이 그물을 같이 둔다.
+// ⚠ `radii` 는 2026-08-27 에 값이 0 이 되어 이 그물에서 뺐다(위 `radiusAllowed`
+//   주석 참조). `radius`(단수)와 `deepSpaceRadii` 는 **아직 0 이 아니라** 남는다.
 const LEGACY_TOKEN =
-  /(?<![A-Za-z0-9_.])(?:radius|radii|deepSpaceRadii)\.[A-Za-z0-9"'[\]]+/g;
+  /(?<![A-Za-z0-9_.])(?:radius|deepSpaceRadii)\.[A-Za-z0-9"'[\]]+/g;
 
 // 예외 하나: 기기 목업의 베젤.
 // `radius.phone`(38)은 화면 **안**의 도형이 아니라 화면을 담고 있는 기기 테두리다.
@@ -562,7 +579,7 @@ for (const abs of walkTsx(join(ROOT, "src"))) {
 //
 // ⚠ 기준선을 **올리지 말 것.** 올려야 한다면 그건 규칙을 되돌린 것이다.
 //   줄었을 때만 내린다(줄인 PR 이 같이 내린다).
-const RATCHET_BASELINE = 616;
+const RATCHET_BASELINE = 316;
 
 const rule1Hits = hits.filter((h) => h.why.startsWith("규칙 1"));
 const ratchetHits = hits.filter((h) => !h.why.startsWith("규칙 1"));

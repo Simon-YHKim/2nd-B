@@ -24,6 +24,7 @@ import {
   StatTile,
 } from "@/components/premium";
 import { cosmic, flattenAlpha, semantic, spacing } from "@/lib/theme/tokens";
+import { PixelScrim } from "@/components/pixel/PixelDither";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { PolarisDeck, type PolarisDeckPage } from "@/components/deep-space/PolarisDeck";
@@ -350,6 +351,13 @@ function CoreBrainScreen() {
         accessibilityRole="button"
         accessibilityLabel={t("closeEvidence")}
       >
+        {/* 모달 스크림은 **디더**다. 바탕을 모르는 자리라(모달은 어느 화면 위에도
+            뜬다) `flattenAlpha` 를 쓸 수 없다 — 규칙 4 가 정확히 이 경우를 위해
+            "평탄화 말고 디더"라고 못박고 있다. 타일은 4×4 중 12픽셀이 캐논 바닥색,
+            4픽셀 투명이라 반투명이 한 픽셀도 없다. */}
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <PixelScrim />
+        </View>
         <Pressable style={styles.drawer} onPress={(e) => e.stopPropagation()} accessibilityViewIsModal>
           <View style={styles.drawerHandle} />
           <Text variant="heading">{t("piecesBehind")}</Text>
@@ -879,7 +887,7 @@ const styles = StyleSheet.create({
   fieldDot: { width: 8, height: 8, borderRadius: m3.shape.none },
   evidenceBtn: { paddingVertical: spacing.xs, minHeight: 44, justifyContent: "center" },
   emptyActions: { gap: spacing.md, marginTop: spacing.xl, width: "100%", maxWidth: 320 },
-  backdrop: { flex: 1, backgroundColor: semantic.backdrop, justifyContent: "flex-end" },
+  backdrop: { flex: 1, justifyContent: "flex-end" },
   drawer: {
     backgroundColor: semantic.surface,
     borderTopLeftRadius: 0,
