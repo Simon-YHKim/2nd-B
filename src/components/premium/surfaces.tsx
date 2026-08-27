@@ -19,7 +19,7 @@ import {
 
 import { Text } from "@/components/ui/Text";
 import { BUTTON_PRESS_MS, pixelMotionDuration } from "@/lib/motion/pixel-physical";
-import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
+import { gameboy, pixelShadowStyle, gameboyBorderOn } from "@/lib/theme/gameboy-tokens";
 import { m3 } from "@/lib/theme/m3";
 import { cosmic, deepSpace, flattenAlpha, semantic, spacing, typography, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
@@ -219,6 +219,8 @@ export function PremiumButton({
   const a11yRole = accessibilityRole ?? "button";
   const fullStyle: ViewStyle | null = full ? { alignSelf: "stretch", width: "100%" } : null;
   const resolvedAccessibilityLabel = accessibilityLabel ?? label;
+  // 테두리를 이 배경 위에 합성해야 하므로 한 번만 계산해 둔다.
+  const btnBg = hovered || focused ? BTN_BG_HOVER[variant] : BTN_BG_REST[variant];
   const colorStyle: ViewStyle = isDisabled
     ? {
         backgroundColor: BTN_DISABLED_BG,
@@ -226,9 +228,11 @@ export function PremiumButton({
         shadowColor: BTN_DISABLED_BORDER,
       }
     : {
-        backgroundColor: hovered || focused ? BTN_BG_HOVER[variant] : BTN_BG_REST[variant],
-        borderColor: focused ? gameboy.accent : gameboy.border,
-        shadowColor: focused ? gameboy.accent : gameboy.border,
+        backgroundColor: btnBg,
+        // ⚠ 테두리를 **그 버튼의 배경 위에** 미리 합성한다(규칙 4). 배경이 렌더 때
+        //   정해지므로 그 값을 그대로 바탕으로 넘긴다 — 결과는 지금 렌더와 같다.
+        borderColor: focused ? gameboy.accent : gameboyBorderOn(btnBg),
+        shadowColor: focused ? gameboy.accent : gameboyBorderOn(btnBg),
       };
   const foregroundColor = isDisabled ? BTN_DISABLED_FG : BTN_FG[variant];
   const pressTranslate = pressProgress.interpolate({
@@ -408,11 +412,13 @@ const styles = StyleSheet.create({
   brandChip: {
     borderRadius: gameboy.radius,
     borderWidth: gameboy.borderWidth,
-    borderColor: gameboy.border,
+    // ⚠ 바탕은 바로 아래의 배경이다(규칙 4).
+    borderColor: gameboyBorderOn(surfAlpha(semantic.brand, 0.08)),
     backgroundColor: surfAlpha(semantic.brand, 0.08),
     alignItems: "center",
     justifyContent: "center",
-    ...pixelShadowStyle(gameboy.border),
+    // ⚠ 그림자도 같은 바탕 위에 합성한 색으로(규칙 4).
+    ...pixelShadowStyle(gameboyBorderOn(surfAlpha(semantic.brand, 0.08))),
   },
   brandChipMain: {
     color: semantic.brand,
@@ -435,7 +441,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     gap: spacing.sm,
     borderWidth: gameboy.borderWidth,
-    borderColor: gameboy.border,
+    // ⚠ 바탕은 이 막대의 배경(`gameboy.screen`)이다(규칙 4).
+    borderColor: gameboyBorderOn(gameboy.screen),
     borderRadius: gameboy.radius,
     backgroundColor: gameboy.screen,
     ...pixelShadowStyle(),
@@ -448,7 +455,8 @@ const styles = StyleSheet.create({
   panel: {
     position: "relative",
     backgroundColor: cosmic.panelBg,
-    borderColor: gameboy.border,
+    // ⚠ 바탕은 바로 위의 배경이다(규칙 4).
+    borderColor: gameboyBorderOn(cosmic.panelBg),
     borderWidth: gameboy.borderWidth,
     borderRadius: gameboy.radius,
     padding: spacing.lg,
@@ -468,7 +476,9 @@ const styles = StyleSheet.create({
     minHeight: 48, // O-12 Phase C CC-2: 48dp touch target (app-wide button base)
     borderRadius: gameboy.radius,
     borderWidth: gameboy.borderWidth,
-    borderColor: gameboy.border,
+    // ⚠ 버튼 밑바탕. 배경은 렌더 때 `btnBg` 로 덮이지만, 이 기본값은
+    //   화면 바닥 위에 앉는다(규칙 4).
+    borderColor: gameboyBorderOn(gameboy.screen),
     ...pixelShadowStyle(),
   },
   btnPressed: {
@@ -489,7 +499,8 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: gameboy.radius,
     borderWidth: gameboy.borderWidth,
-    borderColor: gameboy.border,
+    // ⚠ 바탕은 아래의 배경이다(규칙 4).
+    borderColor: gameboyBorderOn(surfAlpha(cosmic.space800, 0.48)),
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: surfAlpha(cosmic.space800, 0.48),
@@ -506,7 +517,8 @@ const styles = StyleSheet.create({
   },
   inputFrame: {
     backgroundColor: gameboy.screen,
-    borderColor: gameboy.border,
+    // ⚠ 바탕은 바로 위의 배경이다(규칙 4).
+    borderColor: gameboyBorderOn(gameboy.screen),
     borderWidth: 1,
     borderRadius: gameboy.radius,
   },
