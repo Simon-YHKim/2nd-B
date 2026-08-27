@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmdirSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -1316,7 +1325,9 @@ test('D axis scores only visible actionable labels and removes only exempted ite
     ['설정'],
     [{ label: '설정', to: '/2nd-B/settings' }],
     [],
-    { baseUrl: 'http://localhost:8977' },
+    {
+      baseUrl: 'http://localhost:8977',
+    },
   );
   assert.equal(safeTarget.score, 15);
   assert.equal(safeTarget.evidence.safeHrefs, 1);
@@ -1497,7 +1508,14 @@ test('D v2 runner probes each safe item once and never invokes an unsafe action'
           locator: { strategy: 'role', role: 'tab', name: '위키' },
         },
         { label: '프로필', kind: 'action', effect: { type: 'selected' } },
-        { label: '지금', kind: 'action', safe: false, why: 'LLM 제안 생성은 자동 클릭하지 않음' },
+        {
+          label: '지금',
+          kind: 'action',
+          safe: false,
+          why: 'LLM 제안 생성은 자동 클릭하지 않음',
+          locator: { strategy: 'role', role: 'button', name: '지금' },
+          effect: { type: 'visible', role: 'button', name: '승인' },
+        },
       ],
       unresolved: [],
     },
@@ -1519,6 +1537,372 @@ test('D v2 runner probes each safe item once and never invokes an unsafe action'
     { index: 1, passed: false, evidence: null, failure: 'probe-failed' },
   ]);
   assert.doesNotMatch(JSON.stringify(results), /raw browser detail/);
+});
+
+test('D manual effect evidence is fresh and bound to export, contract, artifact, and exact effect', async () => {
+  const {
+    isAutomaticPass,
+    isReviewedPass,
+    loadManualEffectEvidence,
+    navigationContractSha256,
+    normalizeNavigationContract,
+    scoreExactNavigationResults,
+    sourceBodySha256,
+    validateManualEffectEvidence,
+  } = await contract();
+  const now = Date.parse('2026-08-28T10:00:00.000Z');
+  const exportedAt = now - 60_000;
+  const exportSha256 = 'a'.repeat(64);
+  const nav = normalizeNavigationContract(
+    {
+      version: 2,
+      items: [
+        ...['병자리', '담기', '세컨비', '위키', '설정'].map((label, index) => ({
+          label,
+          kind: 'route',
+          to: ['/', '/capture', '/secondb', '/records', '/settings'][index],
+          locator: { strategy: 'role', role: 'tab', name: label },
+        })),
+        ...['학창시절', '지금'].map((label) => ({
+          label,
+          kind: 'action',
+          safe: false,
+          why: '사용자별 근거로 제안을 생성하므로 자동 클릭하지 않음',
+          locator: { strategy: 'role', role: 'button', name: label },
+          effect: { type: 'visible', role: 'button', name: '승인', occurrence: 1 },
+        })),
+      ],
+      unresolved: [],
+    },
+    'http://localhost:8977',
+  );
+  const automaticResults = nav.items.slice(0, 5).map((_, index) => ({
+    index,
+    passed: true,
+    evidence: 'exact-route',
+  }));
+  const withoutEvidence = scoreExactNavigationResults(nav, automaticResults);
+  assert.equal(withoutEvidence.score, (5 / 7) * 15);
+  assert.equal(withoutEvidence.matched, 5);
+  assert.deepEqual(withoutEvidence.missing, ['학창시절', '지금']);
+
+  const artifactRoot = mkdtempSync(path.join(os.tmpdir(), 'work0-manual-effect-'));
+  try {
+    const artifacts = ['school.png', 'now.png'].map((name, index) => {
+      const png = new PNG({ width: 1, height: 1 });
+      png.data.set([index, 0, 0, 255]);
+      const body = PNG.sync.write(png);
+      writeFileSync(path.join(artifactRoot, name), body);
+      return { path: name, sha256: sourceBodySha256(body) };
+    });
+    const manifest = {
+      schemaVersion: 1,
+      exportSha256,
+      screens: [
+        {
+          screen: 'review',
+          contractSha256: navigationContractSha256(nav),
+          items: ['학창시절', '지금'].map((label, index) => ({
+            label,
+            occurrence: 1,
+            effect: { type: 'visible', role: 'button', name: '승인', occurrence: 1 },
+            artifact: artifacts[index],
+            attestation: {
+              type: 'human-observed-effect',
+              observedAt: new Date(now - 1_000 + index).toISOString(),
+            },
+          })),
+        },
+      ],
+    };
+    const validate = (candidate) =>
+      validateManualEffectEvidence(candidate, {
+        artifactRoot,
+        contracts: { review: nav },
+        targetIds: ['review'],
+        exportSha256,
+        exportedAt,
+        now,
+      });
+    const validated = validate(manifest);
+    const evidence = validated.get('review');
+    const withEvidence = scoreExactNavigationResults(nav, automaticResults, [], evidence);
+    assert.equal(withEvidence.score, 15);
+    assert.equal(withEvidence.matched, 7);
+    assert.equal(withEvidence.measured, 7);
+    assert.deepEqual(withEvidence.missing, []);
+    assert.deepEqual(withEvidence.manualReviewReasons, ['manual-effect-evidence']);
+    assert.equal(withEvidence.manualEvidenceComplete, true);
+    assert.equal(withEvidence.evidence.manualEffects, 2);
+    const oversizedManifestPath = path.join(artifactRoot, 'oversized-evidence.json');
+    writeFileSync(
+      oversizedManifestPath,
+      `${JSON.stringify(manifest)}${' '.repeat(300 * 1024)}`,
+    );
+    assert.throws(
+      () =>
+        loadManualEffectEvidence(
+          { MANUAL_EFFECT_EVIDENCE: oversizedManifestPath },
+          {
+            contracts: { review: nav },
+            targetIds: ['review'],
+            exportSha256,
+            exportedAt,
+            now,
+          },
+        ),
+      /manual effect evidence/i,
+    );
+    const schoolEffect = nav.items.find((item) => item.label === '학창시절').effect;
+    const originalEffectName = schoolEffect.name;
+    schoolEffect.name = '변조된 승인';
+    try {
+      assert.throws(
+        () => scoreExactNavigationResults(nav, automaticResults, [], evidence),
+        /manual effect evidence/i,
+      );
+    } finally {
+      schoolEffect.name = originalEffectName;
+    }
+    assert.equal(Object.isFrozen(evidence[0].effect), true);
+    assert.equal(isAutomaticPass(100, ['C'], ['D']), false);
+    assert.equal(isReviewedPass(100, ['C'], [], []), false);
+    assert.equal(isReviewedPass(100, ['C'], ['D'], []), false);
+    assert.equal(isReviewedPass(100, ['C'], ['D'], ['D']), true);
+    assert.equal(isReviewedPass(97.9, ['C'], ['D'], ['D']), false);
+    assert.equal(isReviewedPass(100, ['C', 'E'], ['D'], ['D']), false);
+    assert.equal(isReviewedPass(100, ['C'], ['D', 'E'], ['D']), false);
+
+    assert.throws(
+      () => scoreExactNavigationResults(nav, automaticResults, [], manifest.screens[0].items),
+      /manual effect evidence/i,
+    );
+    const corruptArtifact = Buffer.concat([
+      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+      Buffer.from('not-a-decodable-png'),
+    ]);
+    writeFileSync(path.join(artifactRoot, 'corrupt.png'), corruptArtifact);
+    const hiddenPng = new PNG({ width: 1, height: 1 });
+    hiddenPng.data.set([3, 0, 0, 255]);
+    const hiddenArtifact = PNG.sync.write(hiddenPng);
+    writeFileSync(path.join(artifactRoot, 'stream-host.txt'), 'host');
+    writeFileSync(path.join(artifactRoot, 'stream-host.txt:proof.png'), hiddenArtifact);
+    const repeatedPng = new PNG({ width: 1, height: 1 });
+    repeatedPng.data.set([4, 0, 0, 255]);
+    const repeatedFast = PNG.sync.write(repeatedPng, { deflateLevel: 0 });
+    const repeatedCompact = PNG.sync.write(repeatedPng, { deflateLevel: 9 });
+    assert.notEqual(sourceBodySha256(repeatedFast), sourceBodySha256(repeatedCompact));
+    writeFileSync(path.join(artifactRoot, 'repeated-fast.png'), repeatedFast);
+    writeFileSync(path.join(artifactRoot, 'repeated-compact.png'), repeatedCompact);
+    const rejects = [
+      {
+        label: 'stale',
+        mutate: (value) =>
+          (value.screens[0].items[0].attestation.observedAt = new Date(
+            now - 2 * 60 * 60 * 1000 - 1,
+          ).toISOString()),
+      },
+      { label: 'orphan', mutate: (value) => (value.screens[0].items[0].label = '없는 항목') },
+      { label: 'export hash', mutate: (value) => (value.exportSha256 = 'b'.repeat(64)) },
+      {
+        label: 'contract hash',
+        mutate: (value) => (value.screens[0].contractSha256 = 'b'.repeat(64)),
+      },
+      {
+        label: 'artifact hash',
+        mutate: (value) => (value.screens[0].items[0].artifact.sha256 = 'b'.repeat(64)),
+      },
+      {
+        label: 'artifact traversal',
+        mutate: (value) => (value.screens[0].items[0].artifact.path = '../school.png'),
+      },
+      {
+        label: 'alternate data stream',
+        mutate: (value) => {
+          value.screens[0].items[0].artifact = {
+            path: 'stream-host.txt:proof.png',
+            sha256: sourceBodySha256(hiddenArtifact),
+          };
+        },
+      },
+      {
+        label: 'artifact reuse',
+        mutate: (value) =>
+          (value.screens[0].items[1].artifact = structuredClone(
+            value.screens[0].items[0].artifact,
+          )),
+      },
+      {
+        label: 'visual artifact reuse',
+        mutate: (value) => {
+          value.screens[0].items[0].artifact = {
+            path: 'repeated-fast.png',
+            sha256: sourceBodySha256(repeatedFast),
+          };
+          value.screens[0].items[1].artifact = {
+            path: 'repeated-compact.png',
+            sha256: sourceBodySha256(repeatedCompact),
+          };
+        },
+      },
+      { label: 'occurrence', mutate: (value) => (value.screens[0].items[0].occurrence = 2) },
+      { label: 'effect', mutate: (value) => (value.screens[0].items[0].effect.name = '아니요') },
+      {
+        label: 'future attestation',
+        mutate: (value) =>
+          (value.screens[0].items[0].attestation.observedAt = new Date(now + 1).toISOString()),
+      },
+      { label: 'screen outside target', mutate: (value) => (value.screens[0].screen = 'other') },
+      {
+        label: 'unknown key',
+        mutate: (value) => (value.screens[0].items[0].note = '신뢰하지 않음'),
+      },
+      {
+        label: 'corrupt png',
+        mutate: (value) => {
+          value.screens[0].items[0].artifact = {
+            path: 'corrupt.png',
+            sha256: sourceBodySha256(corruptArtifact),
+          };
+        },
+      },
+    ];
+    for (const rejection of rejects) {
+      const candidate = structuredClone(manifest);
+      rejection.mutate(candidate);
+      assert.throws(() => validate(candidate), /manual effect evidence/i, rejection.label);
+    }
+  } finally {
+    for (const name of [
+      'stream-host.txt:proof.png',
+      'stream-host.txt',
+      'repeated-fast.png',
+      'repeated-compact.png',
+      'oversized-evidence.json',
+      'school.png',
+      'now.png',
+      'corrupt.png',
+    ]) {
+      const artifact = path.join(artifactRoot, name);
+      if (existsSync(artifact)) unlinkSync(artifact);
+    }
+    rmdirSync(artifactRoot);
+  }
+});
+
+test('review unsafe actions declare exact role locators and expected effects without evidence', async () => {
+  const { normalizeNavigationContract, scoreExactNavigationResults } = await contract();
+  const navFile = JSON.parse(
+    readFileSync(path.join(REPO, 'design/pixel_clay_260825/data/nav.json'), 'utf8'),
+  );
+  const rawReview = navFile.review;
+  assert.equal(Object.hasOwn(rawReview, 'evidence'), false);
+  assert.equal(Object.hasOwn(rawReview, 'manualEvidence'), false);
+  const review = normalizeNavigationContract(rawReview, 'http://localhost:8977');
+  assert.deepEqual(
+    review.items
+      .filter((item) => item.safe === false)
+      .map((item) => ({
+        label: item.label,
+        occurrence: item.occurrence,
+        locator: item.locator,
+        effect: item.effect,
+      })),
+    ['학창시절', '지금'].map((label) => ({
+      label,
+      occurrence: 1,
+      locator: { strategy: 'role', role: 'button', name: label },
+      effect: { type: 'visible', role: 'button', name: '승인', occurrence: 1 },
+    })),
+  );
+  const withoutEvidence = scoreExactNavigationResults(
+    review,
+    review.items.slice(2).map((_, offset) => ({
+      index: offset + 2,
+      passed: true,
+      evidence: 'exact-route',
+    })),
+  );
+  assert.equal(withoutEvidence.score, (5 / 7) * 15);
+  assert.equal(Math.round(withoutEvidence.score * 1000) / 1000, 10.714);
+  assert.deepEqual(withoutEvidence.missing, ['학창시절', '지금']);
+});
+
+test('D manual effect evidence enforces an aggregate item budget', async () => {
+  const {
+    navigationContractSha256,
+    normalizeNavigationContract,
+    sourceBodySha256,
+    validateManualEffectEvidence,
+  } = await contract();
+  const itemCount = 17;
+  const labels = Array.from({ length: itemCount }, (_, index) => `수동 항목 ${index + 1}`);
+  const nav = normalizeNavigationContract(
+    {
+      version: 2,
+      items: labels.map((label) => ({
+        label,
+        kind: 'action',
+        safe: false,
+        why: '사람이 직접 확인해야 하는 상태 변경',
+        locator: { strategy: 'role', role: 'button', name: label },
+        effect: { type: 'visible', role: 'button', name: '승인' },
+      })),
+      unresolved: [],
+    },
+    'http://localhost:8977',
+  );
+  const artifactRoot = mkdtempSync(path.join(os.tmpdir(), 'work0-manual-budget-'));
+  const names = labels.map((_, index) => `item-${index + 1}.png`);
+  try {
+    const artifacts = names.map((name, index) => {
+      const png = new PNG({ width: 1, height: 1 });
+      png.data.set([index, 1, 0, 255]);
+      const body = PNG.sync.write(png);
+      writeFileSync(path.join(artifactRoot, name), body);
+      return { path: name, sha256: sourceBodySha256(body) };
+    });
+    const now = Date.parse('2026-08-28T10:00:00.000Z');
+    const exportSha256 = 'a'.repeat(64);
+    const manifest = {
+      schemaVersion: 1,
+      exportSha256,
+      screens: [
+        {
+          screen: 'review',
+          contractSha256: navigationContractSha256(nav),
+          items: labels.map((label, index) => ({
+            label,
+            occurrence: 1,
+            effect: { type: 'visible', role: 'button', name: '승인', occurrence: 1 },
+            artifact: artifacts[index],
+            attestation: {
+              type: 'human-observed-effect',
+              observedAt: new Date(now - 1_000 + index).toISOString(),
+            },
+          })),
+        },
+      ],
+    };
+    assert.throws(
+      () =>
+        validateManualEffectEvidence(manifest, {
+          artifactRoot,
+          contracts: { review: nav },
+          targetIds: ['review'],
+          exportSha256,
+          exportedAt: now - 60_000,
+          now,
+        }),
+      /manual effect evidence/i,
+    );
+  } finally {
+    for (const name of names) {
+      const artifact = path.join(artifactRoot, name);
+      if (existsSync(artifact)) unlinkSync(artifact);
+    }
+    rmdirSync(artifactRoot);
+  }
 });
 
 test('exact role navigation target must contain its painted label', async () => {
@@ -1627,7 +2011,8 @@ test('C stays unmeasured while totals renormalize and unexpected missing axes fa
 });
 
 test('deviations distinguish whole-axis review from item-only denominator exclusions', async () => {
-  const { exempt, exemptItems, scoreCopyCoverage, scoreNavigationLabels } = await contract();
+  const { exempt, exemptItems, reviewedNavigationAxes, scoreCopyCoverage, scoreNavigationLabels } =
+    await contract();
   const deviations = {
     deviations: [
       { screen: 'chat', axis: 'D', items: ['새 대화'], why: '상태 뒤에 숨은 목적지' },
@@ -1640,6 +2025,16 @@ test('deviations distinguish whole-axis review from item-only denominator exclus
   assert.equal(exempt('chat', 'D', deviations), false);
   assert.equal(exempt('chat', 'E', deviations), true);
   assert.equal(exempt('chat', 'A', deviations), false);
+  assert.deepEqual(reviewedNavigationAxes('chat', deviations, { manualEvidenceComplete: true }), [
+    'D',
+  ]);
+  const wholeAxisD = {
+    deviations: [...deviations.deviations, { screen: 'chat', axis: 'D', why: '별도 사람 검토' }],
+  };
+  assert.deepEqual(
+    reviewedNavigationAxes('chat', wholeAxisD, { manualEvidenceComplete: true }),
+    [],
+  );
 
   const labels = ['목적지 하나', '목적지 둘', '목적지 셋', '목적지 넷'];
   const halfNavigation = scoreNavigationLabels(labels, [], labels.slice(0, 2));
@@ -1981,6 +2376,87 @@ test('B axis counts actual non-transparent PNG pixels against the token ramp', a
   assert.deepEqual(result.offTop, [{ hex: '#0000ff', pixels: 1 }]);
 });
 
+test('B token ramp derives typed composite and stacked-alpha colors with exact 8-bit sRGB rounding', async () => {
+  const { tokenRamp } = await contract();
+  const tokens = {
+    derivedRamp: {
+      sources: {
+        base: '#0a0e18',
+        'window-rim': '#96B4E6',
+        'nebula-blue': '#285696',
+        'nebula-violet': '#7860D2',
+      },
+      recipes: {
+        'window-rim': {
+          type: 'composite',
+          background: 'base',
+          foreground: 'window-rim',
+          alpha: 0.16,
+        },
+        'shared-nebula': {
+          type: 'stacked-alpha',
+          background: 'base',
+          layers: [
+            { color: 'nebula-blue', alpha: { min: 0, max: 0.34 } },
+            { color: 'nebula-violet', alpha: { min: 0, max: 0.2 } },
+          ],
+        },
+      },
+    },
+  };
+  const first = tokenRamp(tokens);
+  const second = tokenRamp(tokens);
+  assert.equal(first.has('#202939'), true, 'window rim composite');
+  assert.equal(first.has('#202243'), true, 'actual stacked nebula gradient color');
+  assert.equal(first.has('#283260'), true, 'stacked nebula endpoint');
+  assert.equal(first.has('#96b4e6'), false, 'bounded foreground source is not a rendered color');
+  assert.equal(first.has('#285696'), false, 'bounded blue source is not a rendered color');
+  assert.equal(first.has('#7860d2'), false, 'bounded violet source is not a rendered color');
+  assert.deepEqual([...first], [...second], 'derived output is deterministic');
+
+  const actualTokens = JSON.parse(
+    readFileSync(path.join(REPO, 'design/pixel_clay_260825/data/tokens.json'), 'utf8'),
+  );
+  const actualRamp = tokenRamp(actualTokens);
+  assert.equal(actualRamp.has('#202939'), true);
+  assert.equal(actualRamp.has('#202243'), true);
+
+  const rejects = [
+    { label: 'raw array', value: { ...tokens, derivedRamp: ['#202939'] } },
+    {
+      label: 'invalid type',
+      mutate: (value) => (value.derivedRamp.recipes['window-rim'].type = 'colors'),
+    },
+    {
+      label: 'unknown key',
+      mutate: (value) => (value.derivedRamp.recipes['window-rim'].tolerance = 2),
+    },
+    { label: 'range', mutate: (value) => (value.derivedRamp.recipes['window-rim'].alpha = 1.01) },
+    { label: 'layer', mutate: (value) => (value.derivedRamp.recipes['shared-nebula'].layers = []) },
+    {
+      label: 'unrelated literal',
+      mutate: (value) => (value.derivedRamp.recipes['window-rim'].foreground = '#123456'),
+    },
+    {
+      label: 'unknown token',
+      mutate: (value) => (value.derivedRamp.recipes['window-rim'].foreground = 'missing'),
+    },
+    {
+      label: 'layer key',
+      mutate: (value) => (value.derivedRamp.recipes['shared-nebula'].layers[0].screen = 'review'),
+    },
+    {
+      label: 'unrelated source',
+      mutate: (value) => (value.derivedRamp.sources.unrelated = '#123456'),
+    },
+  ];
+  for (const rejection of rejects) {
+    const value = rejection.value ?? structuredClone(tokens);
+    rejection.mutate?.(value);
+    assert.throws(() => tokenRamp(value), /token ramp/i, rejection.label);
+  }
+});
+
 test('C axis uses shallow structure order, count, and relative-height components', async () => {
   const { extractStructureSections, scoreStructure } = await contract();
   assert.equal(typeof extractStructureSections, 'function');
@@ -2107,6 +2583,10 @@ test('current manifest classifies every port:true screen exactly once', async ()
 test('score report exit contract distinguishes pass, score failure, and invalid input', async () => {
   const { reportExitCode } = await contract();
   assert.equal(reportExitCode({ validInput: true, rows: [{ automaticPass: true }] }), 0);
+  assert.equal(
+    reportExitCode({ validInput: true, rows: [{ automaticPass: false, reviewedPass: true }] }),
+    0,
+  );
   assert.equal(reportExitCode({ validInput: true, rows: [{ automaticPass: false }] }), 1);
   assert.equal(reportExitCode({ validInput: true, rows: [{ error: 'capture failed' }] }), 1);
   assert.equal(reportExitCode({ validInput: false, rows: [] }), 2);
