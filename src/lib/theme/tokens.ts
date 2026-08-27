@@ -120,8 +120,9 @@ export function flattenAlpha(hex: string, alpha: number, ground: string): string
 
 const darkSkyLegacy = {
   bg: "#02040A",
-  surface: "rgba(255,255,255,0.04)",
-  border: "rgba(143,183,244,0.18)",
+  // ⚠ 미리 합성한 색이다(PIXEL-CLAY 규칙 4). 바탕은 **바로 위의 `bg`** 다.
+  surface: flattenAlpha("#FFFFFF", 0.04, "#02040A"),
+  border: flattenAlpha("#8FB7F4", 0.18, "#02040A"),
   text: "#E5EDFA",
   textMuted: "#C7D4EA",
   textSubtle: "#7FB3F4",
@@ -136,7 +137,8 @@ const darkSkyLegacy = {
 // is what makes the rebrand visible before login.
 const cosmicSkyLegacy = {
   bg: cosmic.space950,
-  surface: "rgba(167,139,250,0.07)",
+  // ⚠ 미리 합성한 색이다(PIXEL-CLAY 규칙 4). 바탕은 **바로 위의 `bg`** 다.
+  surface: flattenAlpha("#A78BFA", 0.07, cosmic.space950),
   border: cosmic.lineDim,
   text: cosmic.moonWhite,
   textMuted: "#C9D0E6",
@@ -150,8 +152,9 @@ const cosmicSkyLegacy = {
 // cosmic-light palette below is what secondary card surfaces now use.
 export const lightSky = {
   bg: "#F2F7FF",
-  surface: "rgba(15,40,80,0.04)",
-  border: "rgba(47,151,252,0.20)",
+  // ⚠ 미리 합성한 색이다(PIXEL-CLAY 규칙 4). 바탕은 **바로 위의 `bg`** 다.
+  surface: flattenAlpha("#0F2850", 0.04, "#F2F7FF"),
+  border: flattenAlpha("#2F97FC", 0.2, "#F2F7FF"),
   text: "#1A2B45",
   textMuted: "#3A4F6B",
   textSubtle: "#6B7F99",
@@ -188,8 +191,9 @@ export const cosmicSky = UI_MODE === "deep-space" ? skyDeepSpace : cosmicSkyLega
 // AA contrast (>= 4.5:1) as text/CTA on the light haze background.
 export const lightCosmic = {
   bg: "#F4F5FC", // Moon Haze — faint violet-tinted light, never pure white
-  surface: "rgba(124,94,232,0.06)", // soul-violet wash, mirrors the dark card
-  surfaceAlt: "rgba(10,122,87,0.07)", // deep-mint wash, the "active" surface
+  // ⚠ 미리 합성한 색이다(PIXEL-CLAY 규칙 4). 바탕은 **바로 위의 `bg`** 다.
+  surface: flattenAlpha("#7C5EE8", 0.06, "#F4F5FC"), // soul-violet wash, mirrors the dark card
+  surfaceAlt: flattenAlpha("#0A7A57", 0.07, "#F4F5FC"), // deep-mint wash, the "active" surface
   border: "#D6DAEC", // light neural line
   text: "#0D1530", // Night Navy ink
   textMuted: "#3C476A",
@@ -204,9 +208,10 @@ export const lightCosmic = {
 // different values.
 export const semanticCosmic = {
   background: cosmic.space950,
-  surface: "rgba(13,21,48,0.84)", // glassy night panel, aligned to premium village cards
-  surfaceAlt: "rgba(22,33,62,0.68)", // graph-slate wash for nested controls
-  border: "rgba(141,152,184,0.3)",
+  // ⚠ 미리 합성한 색이다(PIXEL-CLAY 규칙 4). 바탕은 **바로 위의 `bg`** 다.
+  surface: flattenAlpha("#0D1530", 0.84, cosmic.space950), // glassy night panel
+  surfaceAlt: flattenAlpha("#16213E", 0.68, cosmic.space950), // graph-slate wash for nested controls
+  border: flattenAlpha("#8D98B8", 0.3, cosmic.space950),
   // ⚠ `backdrop` / `backdropStrong` 은 2026-08-27 에 **없앴다.**
   //   모달 스크림은 바탕을 모르는 자리라(어느 화면 위에도 뜬다) 미리 합성이
   //   불가능하고, PIXEL-CLAY 규칙 4 가 정확히 이 경우를 위해 "평탄화 말고
