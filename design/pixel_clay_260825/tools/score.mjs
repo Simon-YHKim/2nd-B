@@ -1859,24 +1859,52 @@ export function isAutomaticPass(total, unmeasured, manualReviewAxes = []) {
   );
 }
 
+const CAPTURE_OVERLAY_LABELS = [
+  '다시 보지 않기',
+  '건너뛰기',
+  '알겠습니다',
+  '오늘은 그만 보겠습니다',
+];
+const CAPTURE_OVERLAY_MAX_PASSES = 3;
+const CAPTURE_OVERLAY_CLICK_TIMEOUT_MS = 500;
+const CAPTURE_OVERLAY_RECHECK_MS = 400;
+const CAPTURE_OVERLAY_DISMISS_SETTLE_MS = 800;
+
+async function clickFirstOverlayCandidate(candidate) {
+  if (!candidate) return false;
+  try {
+    if ((await candidate.count()) === 0) return false;
+    await candidate.first().click({ timeout: CAPTURE_OVERLAY_CLICK_TIMEOUT_MS });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function allowlistedTextAction(page, label) {
+  const textMatch = page.getByText(label, { exact: true });
+  if (typeof textMatch.locator !== 'function') return null;
+  return textMatch.locator(
+    'xpath=ancestor-or-self::*[self::button or @role="button" or (@tabindex and @tabindex != "-1")][1]',
+  );
+}
+
 export async function dismissCaptureOverlays(page) {
-  const labels = ['다시 보지 않기', '건너뛰기', '알겠습니다', '오늘은 그만 보겠습니다'];
-  for (let pass = 0; pass < 3; pass += 1) {
+  for (let pass = 0; pass < CAPTURE_OVERLAY_MAX_PASSES; pass += 1) {
     let clicked = false;
-    for (const label of labels) {
-      const candidate = page.getByText(label, { exact: false });
-      if ((await candidate.count()) === 0) continue;
-      clicked = await candidate
-        .first()
-        .click()
-        .then(() => true)
-        .catch(() => false);
+    for (const label of CAPTURE_OVERLAY_LABELS) {
+      const button = page.getByRole('button', { name: label, exact: true });
+      clicked = await clickFirstOverlayCandidate(button);
+      if (!clicked) {
+        clicked = await clickFirstOverlayCandidate(allowlistedTextAction(page, label));
+      }
       if (clicked) {
-        await page.waitForTimeout(800);
         break;
       }
     }
-    if (!clicked) break;
+    await page.waitForTimeout(
+      clicked ? CAPTURE_OVERLAY_DISMISS_SETTLE_MS : CAPTURE_OVERLAY_RECHECK_MS,
+    );
   }
   await page.waitForTimeout(500);
 }

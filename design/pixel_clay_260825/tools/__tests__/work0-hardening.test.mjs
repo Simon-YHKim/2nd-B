@@ -553,12 +553,29 @@ test('D axis accepts only visibly painted descendant text, never aria-only label
   }
 });
 
-test('capture and score share the same overlay dismissal contract before evidence collection', async () => {
+test('capture and score prefer an allowlisted button role over a matching text parent', async () => {
   const { dismissCaptureOverlays } = await contract();
   assert.equal(typeof dismissCaptureOverlays, 'function');
   const clicks = [];
   let dismissed = false;
   const page = {
+    getByRole(role, { name, exact }) {
+      assert.equal(role, 'button');
+      assert.equal(exact, true);
+      return {
+        async count() {
+          return name === '알겠습니다' && !dismissed ? 1 : 0;
+        },
+        first() {
+          return {
+            async click() {
+              dismissed = true;
+              clicks.push(`role:${name}`);
+            },
+          };
+        },
+      };
+    },
     getByText(label) {
       return {
         async count() {
@@ -568,7 +585,7 @@ test('capture and score share the same overlay dismissal contract before evidenc
           return {
             async click() {
               dismissed = true;
-              clicks.push(label);
+              clicks.push(`text:${label}`);
             },
           };
         },
@@ -578,13 +595,135 @@ test('capture and score share the same overlay dismissal contract before evidenc
   };
 
   await dismissCaptureOverlays(page);
-  assert.deepEqual(clicks, ['알겠습니다']);
+  assert.deepEqual(clicks, ['role:알겠습니다']);
 
   const captureSource = readFileSync(CAPTURE_CLI, 'utf8');
   assert.match(
     captureSource,
     /waitForSettledPage\(page\);[\s\S]*dismissCaptureOverlays\(page\);[\s\S]*validateFinalUrl[\s\S]*page\.evaluate\(digestPage\)/,
   );
+});
+
+test('overlay dismissal text fallback resolves only an actionable allowlisted ancestor', async () => {
+  const { dismissCaptureOverlays } = await contract();
+  const clicks = [];
+  let dismissed = false;
+  const page = {
+    getByRole() {
+      return {
+        async count() {
+          return 0;
+        },
+      };
+    },
+    getByText(label, { exact }) {
+      assert.equal(exact, true);
+      return {
+        locator(selector) {
+          assert.match(selector, /ancestor-or-self/);
+          return {
+            async count() {
+              return label === '다시 보지 않기' && !dismissed ? 1 : 0;
+            },
+            first() {
+              return {
+                async click() {
+                  dismissed = true;
+                  clicks.push(label);
+                },
+              };
+            },
+          };
+        },
+        first() {
+          throw new Error('the non-actionable text parent must never be clicked directly');
+        },
+      };
+    },
+    async waitForTimeout() {},
+  };
+
+  await dismissCaptureOverlays(page);
+  assert.deepEqual(clicks, ['다시 보지 않기']);
+});
+
+test('overlay dismissal polls for a late allowlisted button within a bounded pass budget', async () => {
+  const { dismissCaptureOverlays } = await contract();
+  const clicks = [];
+  const waits = [];
+  let visible = false;
+  let dismissed = false;
+  const makeLocator = (kind, label) => ({
+    async count() {
+      return label === '오늘은 그만 보겠습니다' && visible && !dismissed ? 1 : 0;
+    },
+    first() {
+      return {
+        async click() {
+          dismissed = true;
+          clicks.push(`${kind}:${label}`);
+        },
+      };
+    },
+  });
+  const page = {
+    getByRole(role, { name }) {
+      assert.equal(role, 'button');
+      return makeLocator('role', name);
+    },
+    getByText(label) {
+      return makeLocator('text', label);
+    },
+    async waitForTimeout(ms) {
+      waits.push(ms);
+      visible = true;
+    },
+  };
+
+  await dismissCaptureOverlays(page);
+  assert.deepEqual(clicks, ['role:오늘은 그만 보겠습니다']);
+  assert.ok(waits.length <= 4, `overlay polling exceeded its bounded budget: ${waits.length}`);
+});
+
+test('overlay dismissal keeps its four-label allowlist and three-pass click ceiling', async () => {
+  const { dismissCaptureOverlays } = await contract();
+  const allowlist = ['다시 보지 않기', '건너뛰기', '알겠습니다', '오늘은 그만 보겠습니다'];
+  const queried = [];
+  const clicks = [];
+  const page = {
+    getByRole(role, { name }) {
+      assert.equal(role, 'button');
+      queried.push(name);
+      return {
+        async count() {
+          return name === '건너뛰기' ? 1 : 0;
+        },
+        first() {
+          return {
+            async click() {
+              clicks.push(name);
+            },
+          };
+        },
+      };
+    },
+    getByText(label) {
+      queried.push(label);
+      return {
+        async count() {
+          return 0;
+        },
+        first() {
+          throw new Error('empty text locator must not be clicked');
+        },
+      };
+    },
+    async waitForTimeout() {},
+  };
+
+  await dismissCaptureOverlays(page);
+  assert.deepEqual(clicks, ['건너뛰기', '건너뛰기', '건너뛰기']);
+  assert.ok(queried.every((label) => allowlist.includes(label)));
 });
 
 test('E copy coverage uses visible leaf and group text with item exemptions', async () => {
