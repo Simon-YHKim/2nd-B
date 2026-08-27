@@ -223,8 +223,11 @@ test('rendered audits exclude transparent, offscreen, and fully clipped DOM', as
     strokeOpacity: '1',
     clipPath: 'none',
     webkitClipPath: 'none',
+    clip: 'auto',
     maskImage: 'none',
     webkitMaskImage: 'none',
+    textIndent: '0px',
+    textShadow: 'none',
   };
   const rect = (left, top, width, height) => ({
     left,
@@ -303,6 +306,32 @@ test('rendered audits exclude transparent, offscreen, and fully clipped DOM', as
     { ...visibleStyle, color: 'rgb(17, 17, 17)', backgroundColor: 'rgb(17, 17, 17)' },
     root,
   );
+  const partialAlphaText = makeElement(
+    'partial-alpha-hidden',
+    rect(250, 325, 120, 20),
+    { ...visibleStyle, color: 'rgba(255, 255, 255, 0.01)' },
+    root,
+  );
+  const svgFillAlphaText = makeElement(
+    'svg-alpha-hidden',
+    rect(120, 350, 120, 20),
+    { ...visibleStyle, fill: 'rgb(255, 255, 255)', fillOpacity: '0.01' },
+    root,
+  );
+  svgFillAlphaText.tagName = 'text';
+  const legacyClippedText = makeElement(
+    'legacy-clip-hidden',
+    rect(250, 350, 120, 20),
+    { ...visibleStyle, position: 'absolute', clip: 'rect(0px, 0px, 0px, 0px)' },
+    root,
+  );
+  const indentedText = makeElement(
+    'indented-hidden',
+    rect(120, 375, 120, 20),
+    { ...visibleStyle, overflow: 'hidden', overflowX: 'hidden', overflowY: 'hidden', textIndent: '-9999px' },
+    root,
+  );
+  indentedText.childNodes[0].getClientRects = () => [rect(-9879, 375, 120, 20)];
   const filteredParent = makeElement(
     '',
     rect(0, 0, 200, 100),
@@ -376,6 +405,10 @@ test('rendered audits exclude transparent, offscreen, and fully clipped DOM', as
     redText,
     slashTransparentText,
     sameColorText,
+    partialAlphaText,
+    svgFillAlphaText,
+    legacyClippedText,
+    indentedText,
     filteredParent,
     clipPathParent,
     nearTransparentParent,
@@ -395,6 +428,10 @@ test('rendered audits exclude transparent, offscreen, and fully clipped DOM', as
       redText,
       slashTransparentText,
       sameColorText,
+      partialAlphaText,
+      svgFillAlphaText,
+      legacyClippedText,
+      indentedText,
       filterHidden,
       clipPathHidden,
       nearTransparent,

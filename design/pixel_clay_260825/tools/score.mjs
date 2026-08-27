@@ -870,6 +870,33 @@ export function digestPage(root = document.body) {
       left: rect.left + pixels(expanded[3], rect.width),
     };
   };
+  const legacyClip = (value, rect) => {
+    const match = /^rect\(([^)]*)\)$/i.exec(String(value || '').trim());
+    if (!match || !rect) return null;
+    const parts = match[1]
+      .trim()
+      .split(/\s*,\s*|\s+/)
+      .filter(Boolean);
+    if (parts.length !== 4) return null;
+    const offset = (part, fallback) => {
+      if (part.toLowerCase() === 'auto') return fallback;
+      const parsed = /^([+-]?(?:\d+\.?\d*|\.\d+))(?:px)?$/i.exec(part);
+      return parsed ? Number(parsed[1]) : null;
+    };
+    const values = [
+      offset(parts[0], 0),
+      offset(parts[1], rect.width),
+      offset(parts[2], rect.height),
+      offset(parts[3], 0),
+    ];
+    if (values.some((part) => part === null || !Number.isFinite(part))) return null;
+    return {
+      top: rect.top + values[0],
+      right: rect.left + values[1],
+      bottom: rect.top + values[2],
+      left: rect.left + values[3],
+    };
+  };
   const transparentPaint = (value) => {
     const normalized = String(value || '')
       .trim()
@@ -881,7 +908,7 @@ export function digestPage(root = document.body) {
       /^(?:rgb|rgba)\([^)]*\/\s*0(?:\.0+)?%?\s*\)$/.test(normalized)
     );
   };
-  const opaqueRgb = (value) => {
+  const parsedRgb = (value) => {
     const normalized = String(value || '')
       .trim()
       .toLowerCase();
@@ -889,34 +916,55 @@ export function digestPage(root = document.body) {
     const components = normalized.match(/[+-]?(?:\d+\.?\d*|\.\d+)%?/g) ?? [];
     if (components.length < 3) return null;
     const hasAlpha = normalized.includes('/') || (normalized.startsWith('rgba(') && components.length > 3);
+    let alpha = 1;
     if (hasAlpha) {
       const token = components[3] ?? '1';
-      const alpha = token.endsWith('%') ? Number(token.slice(0, -1)) / 100 : Number(token);
-      if (!Number.isFinite(alpha) || alpha < 1) return null;
+      alpha = token.endsWith('%') ? Number(token.slice(0, -1)) / 100 : Number(token);
+      if (!Number.isFinite(alpha)) return null;
     }
-    return components
-      .slice(0, 3)
-      .map((token) => {
-        const value = token.endsWith('%') ? (Number(token.slice(0, -1)) / 100) * 255 : Number(token);
-        return Math.round(value);
-      })
-      .join(',');
+    return {
+      alpha,
+      rgb: components
+        .slice(0, 3)
+        .map((token) => {
+          const channel = token.endsWith('%')
+            ? (Number(token.slice(0, -1)) / 100) * 255
+            : Number(token);
+          return Math.round(channel);
+        })
+        .join(','),
+    };
   };
   const readableTextPaint = (element, style, paint) => {
-    if (transparentPaint(paint)) return false;
-    const foreground = opaqueRgb(paint);
+    const tag = element.tagName?.toLowerCase?.();
+    let foregroundPaint = paint;
+    let channelOpacity = 1;
+    if (['text', 'tspan'].includes(tag)) {
+      channelOpacity = Number(style.fillOpacity);
+      if (transparentPaint(foregroundPaint) && !transparentPaint(style.stroke)) {
+        foregroundPaint = style.stroke;
+        channelOpacity = Number(style.strokeOpacity);
+      }
+    }
+    if (transparentPaint(foregroundPaint)) return false;
+    const foreground = parsedRgb(foregroundPaint);
+    if (
+      (foreground && foreground.alpha < 0.1) ||
+      (Number.isFinite(channelOpacity) && channelOpacity < 0.1)
+    )
+      return false;
     if (!foreground || (style.textShadow && style.textShadow !== 'none')) return true;
     for (let current = element; current; current = current.parentElement) {
       const currentStyle = current === element ? style : getComputedStyle(current);
       const backgroundPaint = currentStyle.backgroundColor;
       if (transparentPaint(backgroundPaint)) continue;
-      const background = opaqueRgb(backgroundPaint);
-      return !background || background !== foreground;
+      const background = parsedRgb(backgroundPaint);
+      return !background || background.alpha < 1 || background.rgb !== foreground.rgb;
     }
     return true;
   };
-  const renderedRect = (element, isRoot = false) => {
-    const rect = element.getBoundingClientRect?.();
+  const renderedRect = (element, isRoot = false, subjectRect = null, clipOwnOverflow = false) => {
+    const rect = subjectRect ?? element.getBoundingClientRect?.();
     if (!rect || rect.width < 1 || rect.height < 1) return null;
     const viewportWidth =
       typeof window === 'undefined' ? Number.POSITIVE_INFINITY : window.innerWidth;
@@ -954,9 +1002,18 @@ export function digestPage(root = document.body) {
           top = Math.max(top, clip.top);
           bottom = Math.min(bottom, clip.bottom);
         }
+        const legacyClipValue = String(style.clip || 'auto').trim();
+        if (legacyClipValue !== 'auto') {
+          const clip = legacyClip(legacyClipValue, ancestorRect);
+          if (!clip) return null;
+          left = Math.max(left, clip.left);
+          right = Math.min(right, clip.right);
+          top = Math.max(top, clip.top);
+          bottom = Math.min(bottom, clip.bottom);
+        }
         const maskValue = String(style.maskImage || style.webkitMaskImage || 'none').trim();
         if (maskValue !== 'none') return null;
-        if (current !== element) {
+        if (current !== element || clipOwnOverflow) {
           const overflowX = style.overflowX || style.overflow;
           const overflowY = style.overflowY || style.overflow;
           if (['auto', 'clip', 'hidden', 'scroll'].includes(overflowX)) {
@@ -983,21 +1040,43 @@ export function digestPage(root = document.body) {
   };
   const digestText = (node) =>
     [node?.text || '', ...(node?.kids ?? []).map(digestText)].join(' ').replace(/\s+/g, ' ').trim();
+  const textNodeRects = (node, fallbackRect) => {
+    if (typeof node?.getClientRects === 'function') return [...node.getClientRects()];
+    if (typeof document !== 'undefined' && typeof document.createRange === 'function') {
+      const range = document.createRange();
+      try {
+        range.selectNodeContents(node);
+        return [...range.getClientRects()];
+      } finally {
+        range.detach?.();
+      }
+    }
+    return fallbackRect ? [fallbackRect] : [];
+  };
+  const directVisibleText = (element, style, isRoot) => {
+    const tag = element.tagName.toLowerCase();
+    const paint = ['text', 'tspan'].includes(tag)
+      ? style.fill
+      : style.webkitTextFillColor || style.color;
+    if (!readableTextPaint(element, style, paint)) return '';
+    const fallbackRect = element.getBoundingClientRect?.();
+    return [...(element.childNodes ?? [])]
+      .filter((node) => node.nodeType === 3 && node.textContent?.trim())
+      .filter((node) =>
+        textNodeRects(node, fallbackRect).some((rect) =>
+          renderedRect(element, isRoot, rect, true),
+        ),
+      )
+      .map((node) => node.textContent.trim())
+      .join(' ');
+  };
   const walk = (element, depth) => {
     if (depth > 24) return null;
     const rect = renderedRect(element, element === root);
     if (!rect) return null;
     const style = getComputedStyle(element);
     const tag = element.tagName.toLowerCase();
-    const textPaint = ['text', 'tspan'].includes(tag)
-      ? style.fill
-      : style.webkitTextFillColor || style.color;
-    const readableText = readableTextPaint(element, style, textPaint);
-    const own = (readableText ? [...element.childNodes] : [])
-      .filter((node) => node.nodeType === 3)
-      .map((node) => node.textContent.trim())
-      .filter(Boolean)
-      .join(' ');
+    const own = directVisibleText(element, style, element === root);
     const kids = [...element.children].map((child) => walk(child, depth + 1)).filter(Boolean);
     const interactiveElement =
       element.matches?.('a[href], button, [role="button"], [role="link"]') === true;
@@ -1399,6 +1478,33 @@ export function inspectRenderedPixelRules(
       left: rect.left + pixels(expanded[3], rect.width),
     };
   };
+  const legacyClip = (value, rect) => {
+    const match = /^rect\(([^)]*)\)$/i.exec(String(value || '').trim());
+    if (!match || !rect) return null;
+    const parts = match[1]
+      .trim()
+      .split(/\s*,\s*|\s+/)
+      .filter(Boolean);
+    if (parts.length !== 4) return null;
+    const offset = (part, fallback) => {
+      if (part.toLowerCase() === 'auto') return fallback;
+      const parsed = /^([+-]?(?:\d+\.?\d*|\.\d+))(?:px)?$/i.exec(part);
+      return parsed ? Number(parsed[1]) : null;
+    };
+    const values = [
+      offset(parts[0], 0),
+      offset(parts[1], rect.width),
+      offset(parts[2], rect.height),
+      offset(parts[3], 0),
+    ];
+    if (values.some((part) => part === null || !Number.isFinite(part))) return null;
+    return {
+      top: rect.top + values[0],
+      right: rect.left + values[1],
+      bottom: rect.top + values[2],
+      left: rect.left + values[3],
+    };
+  };
   const transparentPaint = (value) => {
     const normalized = String(value || '')
       .trim()
@@ -1410,7 +1516,7 @@ export function inspectRenderedPixelRules(
       /^(?:rgb|rgba)\([^)]*\/\s*0(?:\.0+)?%?\s*\)$/.test(normalized)
     );
   };
-  const opaqueRgb = (value) => {
+  const parsedRgb = (value) => {
     const normalized = String(value || '')
       .trim()
       .toLowerCase();
@@ -1418,18 +1524,24 @@ export function inspectRenderedPixelRules(
     const components = normalized.match(/[+-]?(?:\d+\.?\d*|\.\d+)%?/g) ?? [];
     if (components.length < 3) return null;
     const hasAlpha = normalized.includes('/') || (normalized.startsWith('rgba(') && components.length > 3);
+    let alpha = 1;
     if (hasAlpha) {
       const token = components[3] ?? '1';
-      const alpha = token.endsWith('%') ? Number(token.slice(0, -1)) / 100 : Number(token);
-      if (!Number.isFinite(alpha) || alpha < 1) return null;
+      alpha = token.endsWith('%') ? Number(token.slice(0, -1)) / 100 : Number(token);
+      if (!Number.isFinite(alpha)) return null;
     }
-    return components
-      .slice(0, 3)
-      .map((token) => {
-        const value = token.endsWith('%') ? (Number(token.slice(0, -1)) / 100) * 255 : Number(token);
-        return Math.round(value);
-      })
-      .join(',');
+    return {
+      alpha,
+      rgb: components
+        .slice(0, 3)
+        .map((token) => {
+          const channel = token.endsWith('%')
+            ? (Number(token.slice(0, -1)) / 100) * 255
+            : Number(token);
+          return Math.round(channel);
+        })
+        .join(','),
+    };
   };
   const result = {
     curves: 0,
@@ -1440,8 +1552,8 @@ export function inspectRenderedPixelRules(
     groups: [],
     interactive: [],
   };
-  const renderedVisibility = (element) => {
-    const rect = element.getBoundingClientRect?.();
+  const renderedVisibility = (element, subjectRect = null, clipOwnOverflow = false) => {
+    const rect = subjectRect ?? element.getBoundingClientRect?.();
     if (rect && (rect.width < 1 || rect.height < 1)) {
       return { pixel: false, content: false };
     }
@@ -1481,9 +1593,20 @@ export function inspectRenderedPixelRules(
               bottom = Math.min(bottom, clip.bottom);
             }
           }
+          const legacyClipValue = String(style.clip || 'auto').trim();
+          if (legacyClipValue !== 'auto') {
+            const clip = legacyClip(legacyClipValue, ancestorRect);
+            if (!clip) supportedContentPaint = false;
+            else {
+              left = Math.max(left, clip.left);
+              right = Math.min(right, clip.right);
+              top = Math.max(top, clip.top);
+              bottom = Math.min(bottom, clip.bottom);
+            }
+          }
           const maskValue = String(style.maskImage || style.webkitMaskImage || 'none').trim();
           if (maskValue !== 'none') supportedContentPaint = false;
-          if (current !== element) {
+          if (current !== element || clipOwnOverflow) {
             const overflowX = style.overflowX || style.overflow;
             const overflowY = style.overflowY || style.overflow;
             if (['auto', 'clip', 'hidden', 'scroll'].includes(overflowX)) {
@@ -1519,32 +1642,67 @@ export function inspectRenderedPixelRules(
   const readableTextPaint = (element) => {
     const style = styleFor(element);
     const tag = element.tagName?.toLowerCase?.();
-    const paint = ['text', 'tspan'].includes(tag)
+    let paint = ['text', 'tspan'].includes(tag)
       ? style.fill
       : style.webkitTextFillColor || style.color || style.fill;
+    let channelOpacity = 1;
+    if (['text', 'tspan'].includes(tag)) {
+      channelOpacity = Number(style.fillOpacity);
+      if (transparentPaint(paint) && !transparentPaint(style.stroke)) {
+        paint = style.stroke;
+        channelOpacity = Number(style.strokeOpacity);
+      }
+    }
     if (transparentPaint(paint)) return false;
-    const foreground = opaqueRgb(paint);
+    const foreground = parsedRgb(paint);
+    if (
+      (foreground && foreground.alpha < 0.1) ||
+      (Number.isFinite(channelOpacity) && channelOpacity < 0.1)
+    )
+      return false;
     if (!foreground || (style.textShadow && style.textShadow !== 'none')) return true;
     for (let current = element; current; current = current.parentElement) {
       const currentStyle = current === element ? style : styleFor(current);
       const backgroundPaint = currentStyle.backgroundColor;
       if (transparentPaint(backgroundPaint)) continue;
-      const background = opaqueRgb(backgroundPaint);
-      return !background || background !== foreground;
+      const background = parsedRgb(backgroundPaint);
+      return !background || background.alpha < 1 || background.rgb !== foreground.rgb;
     }
     return true;
   };
+  const textNodeRects = (node, fallbackRect) => {
+    if (typeof node?.getClientRects === 'function') return [...node.getClientRects()];
+    if (typeof document !== 'undefined' && typeof document.createRange === 'function') {
+      const range = document.createRange();
+      try {
+        range.selectNodeContents(node);
+        return [...range.getClientRects()];
+      } finally {
+        range.detach?.();
+      }
+    }
+    return fallbackRect ? [fallbackRect] : [];
+  };
+  const directVisibleText = (element) => {
+    if (!readableTextPaint(element)) return '';
+    const fallbackRect = element.getBoundingClientRect?.();
+    return [...(element.childNodes ?? [])]
+      .filter((node) => node.nodeType === 3 && node.textContent?.trim())
+      .filter((node) =>
+        textNodeRects(node, fallbackRect).some(
+          (rect) => renderedVisibility(element, rect, true).content,
+        ),
+      )
+      .map((node) => node.textContent || '')
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
   const visibleText = (element, depth = 0) => {
     if (depth > 24) return '';
-    const visibility = renderedVisibility(element);
-    const direct =
-      visibility.content && readableTextPaint(element)
-        ? [...element.childNodes]
-            .filter((node) => node.nodeType === 3)
-            .map((node) => node.textContent || '')
-        : [];
+    const direct = directVisibleText(element);
     const descendants = [...element.children].map((child) => visibleText(child, depth + 1));
-    return [...direct, ...descendants].join(' ').replace(/\s+/g, ' ').trim();
+    return [direct, ...descendants].join(' ').replace(/\s+/g, ' ').trim();
   };
   const descendantCount = (element, limit = 9) => {
     let count = 0;
@@ -1612,15 +1770,10 @@ export function inspectRenderedPixelRules(
     if (alpha) result.alphas += 1;
 
     if (!visibility.content) continue;
-    const readableText = readableTextPaint(element);
     const ignoredCopyTag = /^(STYLE|SCRIPT|NOSCRIPT|TEMPLATE|TITLE)$/.test(element.tagName);
-    if (
-      !ignoredCopyTag &&
-      readableText &&
-      element.children.length === 0 &&
-      (element.textContent || '').trim()
-    ) {
-      result.texts.push(element.textContent);
+    const directText = ignoredCopyTag ? '' : directVisibleText(element);
+    if (!ignoredCopyTag && element.children.length === 0 && directText) {
+      result.texts.push(directText);
     }
     if (!ignoredCopyTag) {
       const descendants = descendantCount(element);
