@@ -38,7 +38,8 @@
     "saveBody": "What you shared is saved as it is. No estimate is invented now; the record feeds star brightness as it accumulates.",
     "saved": "Kept.",
     "scaffoldNote": "Not knowing is fine. \"I don't know\" is data too. Let's come at it another way.",
-    "intro": "No need to polish your answers. \"I don't know\" is data too."
+    "intro": "No need to polish your answers. \"I don't know\" is data too.",
+    "dontKnow": "I'm not sure"
   },
   "period": {
     "childhood": "Childhood",

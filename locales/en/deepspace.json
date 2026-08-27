@@ -409,9 +409,9 @@
   },
   "review": {
     "title": "Review",
-    "status": "If you've changed, we review the constellation together.",
+    "status": "If you've changed, we check the star together.",
     "tip": "Nothing applies until you approve.",
-    "lead": "If you've changed, review the constellation together",
+    "lead": "If you've changed, check the star together",
     "section": "SecondB's suggestion",
     "body": "Recent records suggest your extraversion has risen. Raise the star's brightness?",
     "now": "Now",

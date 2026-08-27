@@ -87,9 +87,31 @@ const tight = (s) => norm(s).split(' ').join('');
 // ⚠ 이스케이프로 쓰지 않는다 — heredoc·grep 을 지나며 조용히 사라진다.
 const SEP = String.fromCharCode(1);
 
+// 한 축 안에서 **비교가 성립하지 않는 항목만** 빼기 위한 것.
+//
+// ⚠ 축 통째 면제와 갈라 쓴다. `chat` 의 D 가 그 이유였다 — 잠긴 칩 두 개는
+//   상태 차이(레퍼런스는 결제된 사용자를 그렸다)지만, 같은 축의 `새 대화` 는
+//   앱에 **정말 없다.** 축을 면제하면 그 결함까지 통과한다.
+// ⚠ 여기서 뺀 항목은 점수의 **분모에서도** 빠진다. 못 잰 것을 만점으로 세지 않는다.
+function exemptItems(screen, axis) {
+  const out = [];
+  for (const d of deviations.deviations || []) {
+    if (d.screen !== screen || d.axis !== axis) continue;
+    if (typeof d.why !== 'string' || !d.why.trim()) continue;
+    if (Array.isArray(d.items) && d.items.length) out.push(...d.items);
+  }
+  return out;
+}
+
 function exempt(screen, axis) {
   return (deviations.deviations || []).some(
-    (d) => d.screen === screen && d.axis === axis && typeof d.why === 'string' && d.why.trim().length > 0,
+    // ⚠ `items` 가 있으면 그건 **항목 면제**지 축 면제가 아니다.
+    (d) =>
+      d.screen === screen &&
+      d.axis === axis &&
+      typeof d.why === 'string' &&
+      d.why.trim().length > 0 &&
+      !(Array.isArray(d.items) && d.items.length),
   );
 }
 
@@ -246,9 +268,12 @@ async function scoreOne(page, id, route) {
 
   // ── B 토큰 충실도 (면적 비율)
   let inRamp = 0, total = 0;
+  const offRamp = {};
   for (const [hex, area] of Object.entries(app.colors)) {
     total += area;
+    // ⚠ 캐논 밖 색은 **이름을 남긴다.** 비율만 알면 어디를 고칠지 모른다.
     if (RAMP.has(hex)) inRamp += area;
+    else offRamp[hex] = (offRamp[hex] || 0) + area;
   }
   const B = exempt(id, 'B') ? WEIGHTS.B : total > 0 ? (inRamp / total) * WEIGHTS.B : WEIGHTS.B;
 
@@ -299,19 +324,22 @@ async function scoreOne(page, id, route) {
   const declared = Array.isArray(nav[id]) ? nav[id] : null;
   if (exempt(id, 'D')) D = WEIGHTS.D;
   else if (declared && declared.length) {
+    // 비교가 성립하지 않는 항목은 분모에서 뺀다(만점 처리가 아니다).
+    const skipD = exemptItems(id, 'D');
+    const scored = declared.filter((L) => !skipD.includes(L));
     // ⚠ 잎 글자 **와** 덩어리 글자를 함께 본다. 잎만 보면 두 줄짜리 칩을 놓치고,
     //   빈 문자열로 이으면 경계를 넘는 거짓 일치가 난다. 그래서 둘 다 넣고 SEP 로 가른다.
     const appTextBlob = app.texts.map(tight).concat((app.groups || []).map(tight)).join(SEP);
     // ⚠ 점수만 내면 고칠 것을 모른다. **빠진 라벨의 이름**을 같이 남긴다.
     const missing = [];
-    const hit = declared.filter((label) => {
+    const hit = scored.filter((label) => {
       const t = tight(label).replace(/[…·]+$/, '');
       const ok = t.length > 0 && appTextBlob.includes(t.slice(0, Math.max(2, Math.min(t.length, 8))));
       if (!ok) missing.push(label);
       return ok;
     }).length;
     missD = missing;
-    D = (hit / declared.length) * WEIGHTS.D;
+    D = scored.length ? (hit / scored.length) * WEIGHTS.D : WEIGHTS.D;
   }
 
   // ── E 카피
@@ -341,6 +369,11 @@ async function scoreOne(page, id, route) {
   // ⚠ **못 잰 축을 만점으로 세지 않는다.** 그렇게 하면 데이터가 없을수록 점수가
   //   올라간다 — 처음 판이 정확히 그랬다(nav 선언이 없어 D 가 전 화면 15/15).
   //   못 잰 축은 총점에서 빼고 남은 축으로 100점 환산하며, 무엇을 못 쟀는지 남긴다.
+  // 면적이 큰 순서로 캐논 밖 색 다섯 개. 이게 곧 할 일 목록이다.
+  const offTop = Object.entries(offRamp)
+    .map(([hex, area]) => ({ hex, area }))
+    .sort((x, y) => y.area - x.area)
+    .slice(0, 5);
   const rawParts = { A, B, C, D, E };
   const measured = Object.entries(rawParts).filter(([, v]) => v !== null);
   const unmeasured = Object.entries(rawParts).filter(([, v]) => v === null).map(([k]) => k);
@@ -351,13 +384,19 @@ async function scoreOne(page, id, route) {
   );
   const total100 = maxSum > 0 ? +((gotSum / maxSum) * 100).toFixed(1) : null;
   return {
-    id, route, ...parts, total: total100, unmeasured, missD, missE,
+    id, route, ...parts, total: total100, unmeasured, missD, missE, offTop,
     why: {
       A: `곡선 ${app.curves} · 라운드 ${app.rounds} · 블러 ${app.blurs} · 반투명 ${app.alphas}`,
-      B: total > 0 ? `램프 면적 ${(100 * inRamp / total).toFixed(1)}%` : '칠한 면적 없음',
+      B:
+        total > 0
+          ? `램프 면적 ${(100 * inRamp / total).toFixed(1)}%` +
+            (offTop.length
+              ? ` · 밖 → ${offTop.map((o) => `${o.hex} ${(100 * o.area / total).toFixed(1)}%`).join(' / ')}`
+              : '')
+          : '칠한 면적 없음',
       C: cWhy,
       D: Array.isArray(declared)
-        ? `선언 ${declared.length} · 없음 ${missD.length}` + (missD.length ? ` → ${missD.slice(0, 8).join(' / ')}` : '')
+        ? `선언 ${declared.length} · 잰 것 ${declared.length - exemptItems(id, 'D').length}` + (exemptItems(id, 'D').length ? ` · 면제 ${exemptItems(id, 'D').length}` : '') + ` · 없음 ${missD.length}` + (missD.length ? ` → ${missD.slice(0, 8).join(' / ')}` : '')
         : 'nav 선언 없음',
       E: ref
         ? `없는 문장 ${missE.length}` + (missE.length ? ` → ${missE.slice(0, 8).map((t) => t.slice(0, 24)).join(' / ')}` : '')

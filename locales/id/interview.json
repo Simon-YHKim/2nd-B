@@ -38,7 +38,8 @@
     "saveBody": "Yang Anda bagikan disimpan apa adanya. Tidak ada perkiraan yang dibuat sekarang; catatan ini menyalakan bintang seiring bertambahnya.",
     "saved": "Tersimpan.",
     "scaffoldNote": "Tidak tahu itu tidak apa-apa. \"Tidak tahu\" juga data. Mari coba sudut lain.",
-    "intro": "Tak perlu memoles jawabanmu. \"Tidak tahu\" juga data."
+    "intro": "Tak perlu memoles jawabanmu. \"Tidak tahu\" juga data.",
+    "dontKnow": "Belum tahu"
   },
   "period": {
     "childhood": "Masa kecil",
