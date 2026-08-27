@@ -15,7 +15,7 @@ import { Field, MdButton, MdCard, MdChip } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
 import { composeStructured } from "@/lib/capture/structured";
-import { deepSpace, spacing, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, flattenAlpha, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 
 type CareerCopyLocale = "en" | "ko" | "es" | "pt" | "id";
@@ -703,11 +703,18 @@ export default function CareerDrilldown() {
   );
 }
 
+// ⚠ **바탕 선언** (PIXEL-CLAY 규칙 4 — 정적 반투명 금지).
+//   이 화면은 `DeepSpaceScreen` 의 스테이지 위에 앉는다 — 스테이지는
+//   `stageFloor` 를 0.92 로 깔고 그 아래가 `bgEdge` 다.
+//   바탕이 틀리면 알파를 그대로 두는 것보다 나쁘니, 옮기는 사람은 여기부터 다시 재야 한다.
+const CD_GROUND = flattenAlpha(m3.accent.stageFloor, 0.92, deepSpace.bgEdge);
+const cdAlpha = (c: string, a: number): string => flattenAlpha(c, a, CD_GROUND);
+
 const styles = StyleSheet.create({
   saveErr: { color: deepSpace.dangerText, marginBottom: spacing.xs, textAlign: "center" },
   body: { flex: 1 },
   scroll: { padding: spacing.lg, paddingBottom: 120, gap: spacing.md },
-  introCard: { backgroundColor: withAlpha(m3.color.tertiary, 0.12) },
+  introCard: { backgroundColor: cdAlpha(m3.color.tertiary, 0.12) },
   introText: { fontSize: 13.5, lineHeight: 21, color: m3.color.onSurface },
   groupCard: { gap: spacing.sm },
   typeButton: {
@@ -750,6 +757,6 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     backgroundColor: deepSpace.bgEdge,
     borderTopWidth: 1,
-    borderTopColor: withAlpha(m3.color.outlineVariant, 0.4),
+    borderTopColor: cdAlpha(m3.color.outlineVariant, 0.4),
   },
 });

@@ -38,7 +38,9 @@
     "saveBody": "O que você compartilhou é salvo como está. Nenhuma estimativa é inventada agora; o registro alimenta o brilho das estrelas conforme se acumula.",
     "saved": "Guardado.",
     "scaffoldNote": "Não saber tudo bem. \"Não sei\" também é um dado. Vamos por outro ângulo.",
-    "intro": "Não precisa polir as respostas. \"Não sei\" também é um dado."
+    "intro": "Não precisa polir as respostas. \"Não sei\" também é um dado.",
+    "dontKnow": "Não sei",
+    "openerHint": "Toque para começar e edite"
   },
   "period": {
     "childhood": "Infância",

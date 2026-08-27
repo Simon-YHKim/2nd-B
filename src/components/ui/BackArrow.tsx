@@ -17,7 +17,7 @@ import { Text } from "@/components/ui/Text";
 import { VILLAGE_IDS, VILLAGE_LABEL, type VillageId } from "@/lib/graph/relatedness";
 import { isPrimaryTabPath, isDeepSpaceDockPath, BACK_ARROW_HIDDEN_PATHS } from "@/lib/nav/tabs";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
-import { cosmic, semantic, withAlpha } from "@/lib/theme/tokens";
+import { cosmic, deepSpace, flattenAlpha, semantic } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 import { m3 } from "@/lib/theme/m3";
 
@@ -34,10 +34,19 @@ import { m3 } from "@/lib/theme/m3";
 // The list itself lives in @/lib/nav/tabs (single nav source of truth — the
 // dock-drift guard reads it too).
 const HIDDEN_PATHS = new Set<string>(BACK_ARROW_HIDDEN_PATHS);
-const BACK_ARROW_BG = withAlpha(cosmic.soulViolet, 0.16);
-const BACK_ARROW_BORDER = withAlpha(cosmic.signalMint, 0.42);
-const BACK_LABEL_BG = withAlpha(cosmic.space950, 0.74);
-const BACK_LABEL_BORDER = withAlpha(cosmic.signalMint, 0.28);
+// ── 이 칩의 바탕 (PIXEL-CLAY 절대 규칙 4) ────────────────────────────
+//
+// ⚠ **바탕 선언**: 이 칩은 화면 위에 **떠 있다**(floating). 그래서 아래 깔린 것이
+//   화면마다 다르다. 딥스페이스 셸의 스테이지를 바탕으로 잡는다 — 모든 배포가
+//   deep-space 고정이고, 칩이 뜨는 자리는 대부분 스테이지 여백이다.
+//   특정 화면에서 칩이 카드 위에 겹쳐 보인다면 그 화면에서 다시 잴 것.
+//
+// 이 칩 하나가 `terms`·`consent-notice`·`refund` 세 화면의 A축을 함께 깎고 있었다.
+const BACK_GROUND = flattenAlpha(m3.accent.stageFloor, 0.92, deepSpace.bgEdge);
+const BACK_ARROW_BG = flattenAlpha(cosmic.soulViolet, 0.16, BACK_GROUND);
+const BACK_ARROW_BORDER = flattenAlpha(cosmic.signalMint, 0.42, BACK_GROUND);
+const BACK_LABEL_BG = flattenAlpha(cosmic.space950, 0.74, BACK_GROUND);
+const BACK_LABEL_BORDER = flattenAlpha(cosmic.signalMint, 0.28, BACK_GROUND);
 
 type Locale = "en" | "ko";
 

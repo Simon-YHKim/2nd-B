@@ -9,11 +9,21 @@ import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
-import { cosmic, spacing, typography, withAlpha } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
+import { cosmic, deepSpace, flattenAlpha, spacing, typography, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { CHARACTERS, type CharacterId } from "@/lib/characters";
 import { SecondBSprite } from "@/components/art/SecondBSprite";
 import { CompanionSprite, type CompanionName } from "@/components/art/CompanionSprite";
+
+// ── 이 파일의 바탕 (PIXEL-CLAY 절대 규칙 4) ──────────────────────────
+//
+// ⚠ **바탕 선언**: 그래프 조각(칩·카드)은 딥스페이스 스테이지 위에 앉는다 —
+//   스테이지가 `m3.accent.stageFloor` 를 0.92 로 깔고 그 아래가 `deepSpace.bgEdge` 다.
+//   바탕이 틀리면 알파를 그냥 두는 것보다 나쁘니 옮기는 사람은 여기부터 다시 잴 것.
+const GB_GROUND = flattenAlpha(m3.accent.stageFloor, 0.92, deepSpace.bgEdge);
+const gbAlpha = (c: string, a: number): string => flattenAlpha(c, a, GB_GROUND);
+
 
 function useCurrentLocale(): "en" | "ko" {
   const { i18n } = useTranslation();
@@ -39,6 +49,7 @@ export const ReferenceShardCard = memo(function ReferenceShardCard({
       accessibilityRole={onPress ? "button" : undefined}
       accessibilityLabel={title}
       style={styles.shard}
+      // ⚠ 리플은 **남긴다** — 정적 반투명이 아니라 터치 순간의 물결이다.
       android_ripple={onPress ? { color: withAlpha(accent, 0.15) } : undefined}
     >
       <View style={[styles.shardGem, { backgroundColor: accent }, pixelShadowStyle(accent)]} />
@@ -86,6 +97,7 @@ export const GraphNodeChip = memo(function GraphNodeChip({
         active ? pixelShadowStyle(accent) : null,
         style,
       ]}
+      // ⚠ 리플은 **남긴다** — 정적 반투명이 아니라 터치 순간의 물결이다.
       android_ripple={onPress ? { color: withAlpha(accent, 0.15) } : undefined}
     >
       <View style={[styles.chipDot, { backgroundColor: accent }]} />
@@ -171,7 +183,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    backgroundColor: withAlpha(cosmic.space950, 0.5),
+    backgroundColor: gbAlpha(cosmic.space950, 0.5),
     borderColor: gameboy.border,
     borderWidth: gameboy.borderWidth,
     borderRadius: gameboy.radius,
@@ -189,10 +201,10 @@ const styles = StyleSheet.create({
     borderRadius: gameboy.radius,
     paddingHorizontal: spacing.sm,
     paddingVertical: 6,
-    backgroundColor: withAlpha(cosmic.space900, 0.7),
+    backgroundColor: gbAlpha(cosmic.space900, 0.7),
     minHeight: 44,
   },
-  chipActive: { backgroundColor: withAlpha(cosmic.signalMint, 0.08) },
+  chipActive: { backgroundColor: gbAlpha(cosmic.signalMint, 0.08) },
   chipLabel: { flexShrink: 1, minWidth: 0 },
   chipDot: { width: 7, height: 7, borderRadius: gameboy.radius },
   badgeWrap: { alignItems: "center" },
@@ -200,7 +212,7 @@ const styles = StyleSheet.create({
     borderWidth: gameboy.borderWidth,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: withAlpha(cosmic.space900, 0.6),
+    backgroundColor: gbAlpha(cosmic.space900, 0.6),
   },
   pill: {
     flexDirection: "row",
@@ -208,7 +220,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     borderWidth: gameboy.borderWidth,
     borderColor: gameboy.border,
-    backgroundColor: withAlpha(cosmic.soulViolet, 0.1),
+    backgroundColor: gbAlpha(cosmic.soulViolet, 0.1),
     borderRadius: gameboy.radius,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,

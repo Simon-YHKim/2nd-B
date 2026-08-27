@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { BirthDateField } from "@/components/auth/BirthDateField";
 import { GoalField, NameField } from "@/components/auth/ProfileIntakeFields";
 import { saveNorthstar } from "@/lib/persona/northstar";
-import { deepSpace, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceSpacing, flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
 import { ageInYears, ensureUserProfile, AgeGateError, EmailInUseError, signOut, MIN_SELF_CONSENT_AGE } from "@/lib/supabase/auth";
@@ -305,6 +305,20 @@ function ChecklistItem({ ok, label }: { ok: boolean; label: string }) {
   );
 }
 
+// PIXEL-CLAY 규칙 4 — 정적 반투명 금지. 이 화면의 배경 워시는 두 겹이라
+// **자리마다 바탕이 다르다**: 글로우는 root(bgEdge) 위, 별 A/B 는 그 글로우 위,
+// 별 C 는 다시 root 위다. 그래서 별 색이 두 개다. 하나로 합치면 글로우 위 별이
+// 어두워진다 — 그건 면제가 아니라 틀린 색이다.
+// ⚠ 알파도 자리마다 다르다 — `star` 기본이 0.7 인데 B·C 가 0.5 로 덮어쓰고 있었다.
+//    그래서 색이 두 개가 아니라 **셋**이다.
+const GLOW_ON_EDGE = flattenAlpha(deepSpace.bgGlow, 0.85, deepSpace.bgEdge);
+const STAR_A = flattenAlpha(deepSpace.accentSoft, 0.7, GLOW_ON_EDGE);
+const STAR_B = flattenAlpha(deepSpace.accentSoft, 0.5, GLOW_ON_EDGE);
+const STAR_C = flattenAlpha(deepSpace.accentSoft, 0.5, deepSpace.bgEdge);
+// 폼 카드는 스크롤 안이라 워시 위에 얹히지만, 헤더 아래(y≳250)에서 시작해
+// 글로우(위 200px)와 겹치지 않는다. 바탕은 root 다.
+const FORM_ON_EDGE = flattenAlpha(deepSpace.bgMid, 0.5, deepSpace.bgEdge);
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: deepSpace.bgEdge },
   spaceWash: { ...StyleSheet.absoluteFill, overflow: "hidden" },
@@ -315,13 +329,13 @@ const styles = StyleSheet.create({
     right: -80,
     height: 320,
     borderRadius: m3.shape.none,
-    backgroundColor: deepSpace.bgGlow,
-    opacity: 0.85,
+    backgroundColor: GLOW_ON_EDGE,
   },
-  star: { position: "absolute", width: 3, height: 3, borderRadius: m3.shape.none, backgroundColor: deepSpace.accentSoft, opacity: 0.7 },
-  starA: { top: 80, left: "20%" },
-  starB: { top: 150, right: "24%", opacity: 0.5 },
-  starC: { bottom: 120, left: "28%", opacity: 0.5 },
+  star: { position: "absolute", width: 3, height: 3, borderRadius: m3.shape.none },
+  // A·B 는 글로우 위, C 는 root 위 — 바탕도 알파(0.7/0.5/0.5)도 달라 색이 셋이다.
+  starA: { top: 80, left: "20%", backgroundColor: STAR_A },
+  starB: { top: 150, right: "24%", backgroundColor: STAR_B },
+  starC: { bottom: 120, left: "28%", backgroundColor: STAR_C },
   scroll: {
     padding: deepSpaceSpacing.lg,
     paddingBottom: deepSpaceSpacing.xl,
@@ -334,7 +348,7 @@ const styles = StyleSheet.create({
   subtitle: { textAlign: "center" },
   form: {
     gap: deepSpaceSpacing.sm,
-    backgroundColor: withAlpha(deepSpace.bgMid, 0.5),
+    backgroundColor: FORM_ON_EDGE,
     borderColor: deepSpace.cardLine,
     borderWidth: 1,
     borderRadius: m3.shape.large,

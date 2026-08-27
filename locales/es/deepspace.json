@@ -207,7 +207,9 @@
     "last7": "Últimos 7 días",
     "thirdParty": "Compartir con terceros",
     "none": "0 elementos",
-    "footer": "El valor por defecto es local primero. Las transferencias externas solo proceden tras tu confirmación."
+    "footer": "El valor por defecto es local primero. Las transferencias externas solo proceden tras tu confirmación.",
+    "dataReview": "Revisión de mis datos",
+    "open": "Abrir"
   },
   "support": {
     "title": "Soporte",
@@ -409,9 +411,9 @@
   },
   "review": {
     "title": "Revisión",
-    "status": "Si has cambiado, revisamos la constelación juntos.",
+    "status": "Si has cambiado, revisamos la estrella juntos.",
     "tip": "Nada se aplica hasta que lo apruebes.",
-    "lead": "Si has cambiado, revisa la constelación juntos",
+    "lead": "Si has cambiado, revisa la estrella juntos",
     "section": "Sugerencia de SecondB",
     "body": "Los registros recientes sugieren que tu extraversión ha subido. ¿Subir el brillo de la estrella?",
     "now": "Ahora",

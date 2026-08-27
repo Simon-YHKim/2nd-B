@@ -7,6 +7,16 @@ import { Text } from "@/components/ui/Text";
 import { colors, radius, spacing } from "@/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { m3 } from "@/lib/theme/m3";
+import { flattenAlpha } from "@/lib/theme/tokens";
+
+// ⚠ **바탕 선언** (PIXEL-CLAY 규칙 4 — 정적 반투명 금지).
+//   이 화면의 바닥은 `colors.bgDeep` 이다(아래 `screen`·`phone`).
+//   바탕이 틀리면 알파를 그대로 두는 것보다 나쁘니 옮기는 사람은 여기부터 다시 재야 한다.
+//
+// ⚠ `pressedButton`·`disabledButton` 은 **하위 트리를 통째로 흐리는** 상태라
+//   남겨둔다 — 요소별 색 쌈이나 디더가 필요한 별건이다.
+const hdAlpha = (c: string, a: number): string => flattenAlpha(c, a, colors.bgDeep);
+
 
 const HEADER_COPY: Record<DeepSpaceHubTab, { text: string; tip: string }> = {
   capture: { text: "담기 화면이에요. 핵심만 추렸어요.", tip: "천천히 둘러보세요." },
@@ -205,15 +215,16 @@ const styles = StyleSheet.create({
   phoneShadow: { width: 320, height: 680, borderRadius: radius.phone, shadowColor: colors.bgDeep, shadowOpacity: 0, shadowRadius: 0, shadowOffset: { width: 0, height: 30 }, elevation: 0, backgroundColor: "transparent" },
   phone: { position: "relative", width: "100%", height: "100%", overflow: "hidden", borderRadius: radius.phone, backgroundColor: colors.bgDeep, borderWidth: 1, borderColor: colors.borderHi },
   starField: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
-  microStar: { position: "absolute", width: 2, height: 2, borderRadius: m3.shape.none, backgroundColor: colors.cyanDim, opacity: 0.5 },
+  microStar: { position: "absolute", width: 2, height: 2, borderRadius: m3.shape.none, backgroundColor: hdAlpha(colors.cyanDim, 0.5) },
   microStarA: { top: 82, left: 72 },
-  microStarB: { top: 108, right: 70, opacity: 0.4 },
+  // 이 별만 한 칸 어둡다 — 불투명도가 아니라 **색**으로 낸다(규칙 4).
+  microStarB: { top: 108, right: 70, backgroundColor: hdAlpha(colors.cyanDim, 0.4) },
   statusBar: { position: "relative", flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 22, paddingTop: 14 },
   statusText: { color: colors.textMid, fontFamily: fontFamilies.pixelKo, fontSize: 12, lineHeight: 16 },
   titleRow: { position: "relative", flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: 20, paddingTop: 16 },
-  back: { color: colors.textTitle, opacity: 0.7, fontSize: 18, lineHeight: 22 },
+  back: { color: hdAlpha(colors.textTitle, 0.7), fontSize: 18, lineHeight: 22 },
   title: { color: colors.textTitle, fontSize: 16 },
-  kicker: { marginLeft: "auto", color: colors.cyanBright, opacity: 0.55, fontSize: 7, lineHeight: 12 },
+  kicker: { marginLeft: "auto", color: hdAlpha(colors.cyanBright, 0.55), fontSize: 7, lineHeight: 12 },
   content: { position: "relative", paddingHorizontal: 20, paddingTop: 14, paddingBottom: 86, minHeight: 454 },
   subtitle: { color: colors.textMid, fontSize: 13, marginBottom: spacing.md },
   modeRow: { flexDirection: "row", flexWrap: "wrap", gap: 7, marginBottom: spacing.md },
@@ -223,12 +234,12 @@ const styles = StyleSheet.create({
   captureText: { flex: 1, color: colors.textTitle, fontSize: 13.5 },
   cursor: { width: 2, height: 15, marginTop: 3, backgroundColor: colors.cyan },
   tagRow: { flexDirection: "row", gap: 7, marginTop: spacing.sm },
-  tag: { color: colors.cyanBright, opacity: 0.55, borderWidth: 1, borderColor: colors.border, borderRadius: m3.shape.none, paddingHorizontal: 8, paddingVertical: 5, fontSize: 6, lineHeight: 10 },
-  sectionLabel: { color: colors.cyanBright, opacity: 0.55, marginTop: spacing.lg, marginBottom: spacing.sm, fontSize: 7, lineHeight: 12 },
+  tag: { color: hdAlpha(colors.cyanBright, 0.55), borderWidth: 1, borderColor: colors.border, borderRadius: m3.shape.none, paddingHorizontal: 8, paddingVertical: 5, fontSize: 6, lineHeight: 10 },
+  sectionLabel: { color: hdAlpha(colors.cyanBright, 0.55), marginTop: spacing.lg, marginBottom: spacing.sm, fontSize: 7, lineHeight: 12 },
   smallRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: colors.ruleSoft, borderRadius: m3.shape.none, backgroundColor: colors.cardBg, marginBottom: spacing.sm },
   rowIcon: { fontSize: 14, lineHeight: 18 },
   rowTitle: { flex: 1, color: colors.textMid, fontSize: 12.5 },
-  rowTime: { color: colors.cyanBright, opacity: 0.4, fontSize: 10 },
+  rowTime: { color: hdAlpha(colors.cyanBright, 0.4), fontSize: 10 },
   primaryButton: { marginTop: spacing.md, padding: 13, borderRadius: m3.shape.none, backgroundColor: colors.cyanBright, alignItems: "center" },
   pressedButton: { opacity: 0.72 },
   disabledButton: { opacity: 0.42 },
@@ -237,7 +248,7 @@ const styles = StyleSheet.create({
   userBubble: { alignSelf: "flex-end", maxWidth: "78%", paddingHorizontal: 14, paddingVertical: 10, borderRadius: m3.shape.none, backgroundColor: colors.mist, color: colors.textTitle, fontSize: 13 },
   aiGroup: { alignSelf: "flex-start", maxWidth: "82%" },
   aiBubble: { paddingHorizontal: 14, paddingVertical: 11, borderWidth: 1, borderColor: colors.border, borderRadius: m3.shape.none, backgroundColor: colors.bgMid, color: colors.cyanSoft, fontSize: 13 },
-  evidence: { alignSelf: "flex-start", marginTop: 7, color: colors.cyanBright, opacity: 0.55, borderWidth: 1, borderColor: colors.ruleSoft, borderRadius: m3.shape.none, paddingHorizontal: 8, paddingVertical: 4, fontSize: 10 },
+  evidence: { alignSelf: "flex-start", marginTop: 7, color: hdAlpha(colors.cyanBright, 0.55), borderWidth: 1, borderColor: colors.ruleSoft, borderRadius: m3.shape.none, paddingHorizontal: 8, paddingVertical: 4, fontSize: 10 },
   inputBar: { marginTop: 218, flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingLeft: 14, paddingRight: 8, paddingVertical: 8, borderWidth: 1, borderColor: colors.borderHi, borderRadius: m3.shape.none, backgroundColor: colors.bgMid },
   inputText: { flex: 1, minHeight: 34, color: colors.textTitle, fontFamily: fontFamilies.readable, fontSize: 13, lineHeight: 18, paddingVertical: 0 },
   sendCircle: { width: 34, height: 34, borderRadius: m3.shape.none, alignItems: "center", justifyContent: "center", backgroundColor: colors.cyanBright },
@@ -257,8 +268,8 @@ const styles = StyleSheet.create({
   scoreLabel: { color: colors.textLo, fontSize: 10 },
   scoreValue: { color: colors.cyanSoft, fontSize: 18 },
   arrow: { color: colors.soul, fontSize: 16, lineHeight: 20 },
-  evidenceRight: { marginLeft: "auto", color: colors.cyanBright, opacity: 0.55, textAlign: "right", fontSize: 10 },
-  reviewNote: { marginTop: spacing.md, textAlign: "center", color: colors.cyanBright, opacity: 0.5, fontSize: 11 },
+  evidenceRight: { marginLeft: "auto", color: hdAlpha(colors.cyanBright, 0.55), textAlign: "right", fontSize: 10 },
+  reviewNote: { marginTop: spacing.md, textAlign: "center", color: hdAlpha(colors.cyanBright, 0.5), fontSize: 11 },
   sentNote: { marginTop: spacing.sm, color: colors.mint, fontSize: 11, textAlign: "center" },
   actionRow: { flexDirection: "row", gap: spacing.sm, marginTop: 138 },
   secondaryButton: { flex: 1, padding: 12, borderWidth: 1, borderColor: colors.borderHi, borderRadius: m3.shape.none, alignItems: "center", backgroundColor: colors.cardBg },
