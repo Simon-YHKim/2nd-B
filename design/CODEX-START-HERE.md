@@ -102,10 +102,14 @@ BASE_URL=http://localhost:8979 node design/pixel_clay_260825/tools/capture-app.m
 | | 작업 | 계약 문서 | 선행 조건 |
 |---|---|---|---|
 | **P1** | 화면 UI/UX 이주 — 5축 98점 루프 | `design/CODEX-UIUX-260827.md` | 없음 |
-| **P2** | 오프닝 원본 확인 | `design/CODEX-OPENING-260827.md` | 없음 |
+| ~~**P2**~~ | ~~오프닝 원본 확인~~ | ✅ **끝났다** — `design/OPENING-AUDIT-260827.md` | — |
 | **P3** | 오프닝 개선·재적용 | `design/CODEX-OPENING-260827.md` | **Simon 결정** (§4) |
 
-P1 과 P2 는 서로 독립이라 **다른 세션에서 동시에** 돌릴 수 있다.
+⚠ **P2 는 2026-08-27 에 이미 수행됐다** — 결과는 `design/OPENING-AUDIT-260827.md`.
+원본은 21개 게이트 전부 PASS 로 재생성되고 프레임 해시가 승인본과 일치한다.
+움직임 비트 목록과 "지금 것에 없는 것"도 거기 있다. **다시 하지 말 것.**
+
+그래서 남은 것은 **P1** 과 **P3** 다.
 
 ---
 
