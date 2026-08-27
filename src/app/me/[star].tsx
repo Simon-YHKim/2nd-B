@@ -14,7 +14,9 @@ import { useCallback, useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
+import Svg from "react-native-svg";
 
+import { PixelStarSvg } from "@/components/pixel/PixelStarSvg";
 import { Text } from "@/components/ui/Text";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
@@ -24,30 +26,40 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import { m3 } from "@/lib/theme/m3";
 import { spacing } from "@/lib/theme/tokens";
 import {
-  SEVEN_STARS,
   getSevenStar,
   isSevenStarId,
   isUnlived,
   type SevenStarId,
 } from "@/lib/persona/seven-stars";
 import { loadCoverage } from "@/lib/interview/coverage-store";
-import { DRILL_LAYERS, LAYER_LABEL, type LifePeriod } from "@/lib/interview/probe";
+import {
+  DRILL_LAYERS,
+  LAYER_LABEL,
+  type DrillLayer,
+  type LifePeriod,
+} from "@/lib/interview/probe";
+import { coveredDrillLayers, meStarStaticParams } from "@/lib/nav/me-star-route";
 
 interface Summary {
   /** 이 별에서 판 칸 수 (0~5). 인터뷰가 없는 별은 null. */
   cells: number | null;
   /** 이 별과 연결된 기록 수. */
   records: number;
+  /** 실제 답변이 있어 켜진 드릴 층. */
+  covered: DrillLayer[];
 }
 
 async function loadSummary(userId: string, period: LifePeriod | null): Promise<Summary> {
-  if (period === null) return { cells: null, records: 0 };
+  if (period === null) return { cells: null, records: 0, covered: [] };
   let cells = 0;
+  let covered: DrillLayer[] = [];
   try {
     const cov = await loadCoverage(userId);
-    for (const l of DRILL_LAYERS) if (cov[period][l] > 0) cells += 1;
+    covered = coveredDrillLayers(cov[period]);
+    cells = covered.length;
   } catch {
     cells = 0;
+    covered = [];
   }
   let records = 0;
   try {
@@ -60,11 +72,11 @@ async function loadSummary(userId: string, period: LifePeriod | null): Promise<S
   } catch {
     records = 0;
   }
-  return { cells, records };
+  return { cells, records, covered };
 }
 
 export default function StarSummaryRoute() {
-  const { t } = useTranslation("home");
+  const { t, i18n } = useTranslation("home");
   const { star } = useLocalSearchParams<{ star?: string }>();
   const { userId, loading, age } = useAuth();
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -89,6 +101,7 @@ export default function StarSummaryRoute() {
   if (!id || !meta) return <Redirect href="/" />;
 
   const name = t(`ds.star.${meta.key}`);
+  const layerLocale = i18n.resolvedLanguage?.startsWith("ko") ? "ko" : "en";
   const range = meta.ageBand
     ? meta.ageBand.to === null
       ? t("ds.audit.rangeFrom", { from: meta.ageBand.from })
@@ -104,10 +117,17 @@ export default function StarSummaryRoute() {
             자리"라는 것이 먼저 읽혀야 하기 때문이다(design/pixel_clay_260825
             captures/me-star.png). */}
         <Text style={[m3TextStyle("labelMedium"), styles.pageLabel]}>{t("ds.star.pageLabel")}</Text>
-        <Text style={[m3TextStyle("headlineSmall"), styles.title]}>{name}</Text>
-        {range.length > 0 ? (
-          <Text style={[m3TextStyle("bodyMedium"), styles.range]}>{range}</Text>
-        ) : null}
+        <View style={styles.hero}>
+          <Svg width={52} height={52} viewBox="0 0 52 52">
+            <PixelStarSvg cx={26} cy={26} r={12} fill={m3.color.primary} />
+          </Svg>
+          <View style={styles.heroCopy}>
+            <Text style={[m3TextStyle("headlineSmall"), styles.title]}>{name}</Text>
+            {range.length > 0 ? (
+              <Text style={[m3TextStyle("bodyMedium"), styles.range]}>{range}</Text>
+            ) : null}
+          </View>
+        </View>
 
         {locked ? (
           // 아직 오지 않은 시기. 들어가지 못하게 하고 이유를 말한다.
@@ -145,6 +165,46 @@ export default function StarSummaryRoute() {
                   <Text style={[m3TextStyle("bodySmall"), styles.muted]}>
                     {t("ds.star.dug", { n: summary.cells ?? 0, total: DRILL_LAYERS.length })}
                   </Text>
+                  <View
+                    style={styles.gauge}
+                    accessible
+                    accessibilityRole="progressbar"
+                    accessibilityLabel={t("ds.star.meter", {
+                      n: summary.covered.length,
+                      total: DRILL_LAYERS.length,
+                    })}
+                    accessibilityValue={{
+                      min: 0,
+                      max: DRILL_LAYERS.length,
+                      now: summary.covered.length,
+                      text: t("ds.star.dug", {
+                        n: summary.covered.length,
+                        total: DRILL_LAYERS.length,
+                      }),
+                    }}
+                  >
+                    {DRILL_LAYERS.map((layer) => {
+                      const isCovered = summary.covered.includes(layer);
+                      return (
+                        <View key={layer} style={styles.gaugeItem}>
+                          <View
+                            style={[
+                              styles.gaugeSegment,
+                              isCovered ? styles.gaugeSegmentOn : styles.gaugeSegmentOff,
+                            ]}
+                          />
+                          <Text
+                            style={[
+                              m3TextStyle("labelSmall"),
+                              isCovered ? styles.layerOn : styles.layerOff,
+                            ]}
+                          >
+                            {LAYER_LABEL[layerLocale][layer]}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
                   <Text style={[m3TextStyle("labelSmall"), styles.sectionLabel]}>
                     {t("ds.star.recordsLabel")}
                   </Text>
@@ -154,17 +214,6 @@ export default function StarSummaryRoute() {
                 </>
               )}
             </MdCard>
-
-            {/* 어느 층을 팠는지. 숫자가 아니라 어디가 비었는지를 보여주는 것이 요점이다. */}
-            {summary && (summary.cells ?? 0) > 0 ? (
-              <View style={styles.layers}>
-                {DRILL_LAYERS.map((l) => (
-                  <Text key={l} style={[m3TextStyle("labelSmall"), styles.layerChip]}>
-                    {LAYER_LABEL.ko[l]}
-                  </Text>
-                ))}
-              </View>
-            ) : null}
 
             <MdButton
               label={summary && (summary.cells ?? 0) > 0 ? t("ds.star.continue") : t("ds.star.start")}
@@ -185,15 +234,27 @@ const styles = StyleSheet.create({
   body: { padding: spacing.lg, gap: spacing.sm },
   pageLabel: { color: m3.color.onSurfaceVariant, marginBottom: spacing.xs },
   sectionLabel: { color: m3.color.onSurfaceVariant, marginTop: spacing.sm },
+  hero: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  heroCopy: { flex: 1 },
   title: { color: m3.color.onSurface },
   range: { color: m3.color.onSurfaceVariant, marginBottom: spacing.sm },
   card: { marginTop: spacing.sm },
   line: { color: m3.color.onSurface },
   muted: { color: m3.color.onSurfaceVariant },
-  layers: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginTop: spacing.sm },
-  layerChip: { color: m3.color.onSurfaceVariant },
+  gauge: { flexDirection: "row", gap: spacing.xs, marginTop: spacing.md },
+  gaugeItem: { flex: 1, gap: spacing.xs },
+  gaugeSegment: { height: 18, borderWidth: 1, borderRadius: m3.shape.none },
+  gaugeSegmentOn: { backgroundColor: m3.color.primary, borderColor: m3.color.primary },
+  gaugeSegmentOff: {
+    backgroundColor: m3.color.surfaceContainerHighest,
+    borderColor: m3.color.outlineVariant,
+  },
+  layerOn: { color: m3.color.onSurface },
+  layerOff: { color: m3.color.onSurfaceVariant },
   cta: { marginTop: spacing.lg },
 });
 
-/** 라우트가 아는 별 목록. 테스트가 이걸로 전수 검사한다. */
-export const STAR_ROUTE_IDS = SEVEN_STARS.map((s) => s.id);
+/** GitHub Pages 정적 export에서도 `/me/<star>` direct hit가 404가 되지 않게 한다. */
+export function generateStaticParams(): { star: string }[] {
+  return meStarStaticParams();
+}

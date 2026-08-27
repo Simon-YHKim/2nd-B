@@ -14,6 +14,7 @@ import { join } from "node:path";
 import { DOMAIN_STARS } from "../domain-stars";
 import { HOME_STAR_IDS, isHomeStarId } from "../home-stars";
 import { SEVEN_STAR_IDS, SEVEN_STARS } from "../seven-stars";
+import { coveredDrillLayers, meStarStaticParams } from "../../nav/me-star-route";
 
 const ROOT = join(__dirname, "..", "..", "..", "..");
 const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8").replace(/\r\n/g, "\n");
@@ -92,6 +93,19 @@ describe("별을 누르면 그 별의 요약이 열린다 (Simon 결정 4 = B)",
     expect(page).toContain("getSevenStar");
     // 잠긴 별을 눌러도 인터뷰로 못 가야 한다.
     expect(page).toContain("isUnlived");
+  });
+
+  it("정적 웹 export도 일곱 요약 경로를 전부 만든다", () => {
+    const page = read("src/app/me/[star].tsx");
+    expect(page).toContain("export function generateStaticParams");
+    expect(page).toContain("return meStarStaticParams();");
+    expect(meStarStaticParams()).toEqual(SEVEN_STAR_IDS.map((star) => ({ star })));
+  });
+
+  it("요약 그래픽은 실제로 판 층만 켠다", () => {
+    expect(
+      coveredDrillLayers({ fact: 2, feeling: 0, meaning: 1, belief: 0, echo: 0 }),
+    ).toEqual(["fact", "meaning"]);
   });
 });
 
