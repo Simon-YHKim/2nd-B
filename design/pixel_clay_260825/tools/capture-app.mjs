@@ -1,341 +1,430 @@
 #!/usr/bin/env node
 /**
- * capture-app.mjs — **앱** 화면을 레퍼런스와 같은 규격으로 찍고, 구조를 대조한다.
- *
- * 키트의 빈 칸을 메운다. capture-bundle.mjs 가 레퍼런스(번들) 93장을 뜨는 도구라면
- * 이쪽은 우리 앱을 같은 눈금(390x820·결정적)으로 떠서 **얼마나 닮았는지**를 숫자로
- * 만든다. 그 전까지 이 저장소가 가진 것은 "레퍼런스가 무엇인지"뿐이었다.
- *
- * ── 이 도구가 밟은 함정 (다시 밟지 말 것) ──────────────────────────────────
- *
- * 1. **baseUrl 이 /2nd-B 다.** dist 를 그냥 서빙하면 에셋이 /2nd-B/assets/... 로
- *    404 나고, http-server 가 HTML 을 돌려줘 "Unexpected token '<'" 만 남는다.
- *    그래서 dist 를 `<root>/2nd-B` 로 두고 그 부모를 서빙한다(정션이면 충분).
- * 2. **`/2nd-B/index.html` 이 아니라 `/2nd-B/`.** 라우터가 .html 경로를 못 알아보고
- *    not-found 를 그린다. 실측으로 확인했다.
- * 3. **env 를 안 넘긴 export 는 조용히 mock 으로 돈다.** Supabase URL·anon key 가
- *    번들에 들어갔는지 확인하고 시작한다(--check-creds 로 강제).
- *
- * 실행:
- *   # 1) export (eas.json preview 의 env 를 그대로 넘긴다)
- *   node design/pixel_clay_260825/tools/capture-app.mjs --print-env > /tmp/webenv.sh
- *   source /tmp/webenv.sh && npx expo export --platform web --output-dir <dist>
- *   # 2) <root>/2nd-B -> <dist> 로 두고 그 부모를 서빙
- *   # 3) 캡처 + 대조
- *   BASE_URL=http://localhost:8977 DIST=<dist> OUT=<out> \
- *     node design/pixel_clay_260825/tools/capture-app.mjs
- *
- * Env: BASE_URL(필수, /2nd-B 를 서빙하는 루트) · OUT(기본 .app-shots, gitignore)
- *      SCREENS(쉼표 id) · QA_EMAIL/QA_PASSWORD(기본은 .env.test 에서 읽음)
- *      PW_PATH(Playwright 모듈 경로)
- *
- * ⚠ 산출 PNG 는 저장소에 커밋하지 않는다(레퍼런스 93장이 이미 3.4MB). 커밋하는 것은
- * 리포트 JSON 하나뿐이고, 그것도 기본 경로는 OUT 아래다 — 필요할 때만 옮긴다.
+ * Capture the live app at the PIXEL-CLAY reference viewport.
+ * Invalid env, selection, route, page health, or final URL fails closed.
  */
-import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  writeFileSync,
+} from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+import {
+  attestServedExport,
+  browserLaunchOptions,
+  captureExportEnv,
+  captureEnvReceiptPath,
+  captureContextOptions,
+  CaptureContractError,
+  captureFailureCodes,
+  createCaptureEnvReceipt,
+  createServedExportAttestation,
+  createShotHealth,
+  createShotNetworkTracker,
+  digestPage,
+  dismissCaptureOverlays,
+  fillQaLogin,
+  isDeviceChromeText,
+  loadCaptureEnvAttestation,
+  makeCaptureDeterminismScript,
+  makeCaptureInitScript,
+  navigateHostedAppRoute,
+  previewEnvLines,
+  previewEnvJson,
+  readPreviewProfileEnv,
+  recordShotFailure,
+  resolveHostedAppUrl,
+  resolveCaptureMarkerTime,
+  resolvePlaywright,
+  servedExportMarkerBody,
+  shotFailureCodes,
+  sourceBodySha256,
+  validateFinalUrl,
+  validateManifestClassification,
+  validateCaptureEnvReceiptMetadata,
+  validateBrowserRuntime,
+  waitForShotNetworkIdle,
+  waitForSettledPage,
+} from './score.mjs';
 
 const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const KIT = path.join(HERE, '..');
 const REPO = path.join(KIT, '..', '..');
+const INVISIBLE = /[\u2060\u200B\u200C\u200D\uFEFF]/g;
 
-// --print-env: eas.json preview 프로필의 값을 셸에 그대로 흘린다. 이 값들이 없으면
-// export 는 성공하는데 앱이 mock 으로 돈다 — 실패가 아니라 침묵이라 더 나쁘다.
-if (process.argv.includes('--print-env')) {
-  const eas = JSON.parse(readFileSync(path.join(REPO, 'eas.json'), 'utf8'));
-  const env = eas.build?.preview?.env ?? {};
-  const wanted = ['EXPO_PUBLIC_SUPABASE_URL', 'EXPO_PUBLIC_SUPABASE_ANON_KEY'];
-  const lines = wanted
-    .filter((k) => env[k])
-    .map((k) => `export ${k}="${env[k]}"`)
-    .concat(['export EXPO_PUBLIC_UI=deep-space', 'export EXPO_PUBLIC_ALLOW_DEV_TIER=true']);
-  process.stdout.write(lines.join('\n') + '\n');
-  process.exit(0);
+function readJson(file, fallback) {
+  return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : fallback;
 }
 
-const BASE_URL = process.env.BASE_URL;
-if (!BASE_URL) {
-  console.error('BASE_URL required — serve the PARENT of a directory named 2nd-B');
-  process.exit(1);
-}
-const OUT = process.env.OUT || path.join(REPO, '.app-shots');
-const PW_PATH = process.env.PW_PATH || 'C:/Users/202502/AppData/Roaming/npm/node_modules/playwright';
-const { chromium } = require(PW_PATH);
-
-// QA 계정: 커밋된 .env.test 가 정본(CLAUDE.md — 새로 만들지 말 것).
-function qaCreds() {
-  if (process.env.QA_EMAIL && process.env.QA_PASSWORD) {
-    return { email: process.env.QA_EMAIL, password: process.env.QA_PASSWORD };
+function qaCreds(env) {
+  if (env.QA_EMAIL && env.QA_PASSWORD) {
+    return { email: env.QA_EMAIL, password: env.QA_PASSWORD };
   }
   const raw = readFileSync(path.join(REPO, '.env.test'), 'utf8');
-  const get = (k) => (raw.match(new RegExp(`^${k}=(.*)$`, 'm')) ?? [])[1]?.trim();
-  return { email: get('QA_TEST_EMAIL'), password: get('QA_TEST_PASSWORD') };
+  const read = (key) => (raw.match(new RegExp(`^${key}=(.*)$`, 'm')) ?? [])[1]?.trim();
+  return { email: read('QA_TEST_EMAIL'), password: read('QA_TEST_PASSWORD') };
 }
 
-// 화면 목록은 키트의 매니페스트 + 앱 라우트 매핑. 매핑이 없는 번들 화면은 아직
-// 대조 대상이 아니다(앱에 대응 화면이 없거나 id 가 다른 것).
-const manifest = JSON.parse(readFileSync(path.join(KIT, 'data', 'screens.json'), 'utf8'));
-const mapPath = path.join(KIT, 'data', 'app-routes.json');
-const mapFile = existsSync(mapPath) ? JSON.parse(readFileSync(mapPath, 'utf8')) : {};
-const routeMap = mapFile.routes || {};
-// 라우트는 맞는데 이 하네스로는 못 재는 화면들(로그인된 세션이면 리다이렉트되는 인증
-// 화면, 유효한 토큰이 없으면 오류 상태를 그리는 화면). 백분율을 내면 그건 디자인
-// 점수가 아니라 하네스 상태를 잰 값이라 **숫자 대신 사유를 낸다.**
-const unmeasurable = { ...(mapFile.unmeasurable || {}) };
-delete unmeasurable._note;
-const only = process.env.SCREENS ? process.env.SCREENS.split(',').map((s) => s.trim()) : null;
-const TARGETS = manifest.screens
-  .filter((s) => s.port === true && routeMap[s.id] && !unmeasurable[s.id])
-  .filter((s) => (only ? only.includes(s.id) : true));
-
-if (TARGETS.length === 0) {
-  console.error('no targets — data/app-routes.json 에 번들 id -> 앱 경로 매핑이 필요하다');
-  process.exit(1);
+function flatten(node, output = []) {
+  if (!node) return output;
+  if (node.text && !isDeviceChromeText(node.text)) {
+    output.push({
+      text: node.text.replace(INVISIBLE, ''),
+      width: node.box?.[0] ?? 0,
+      height: node.box?.[1] ?? 0,
+    });
+  }
+  for (const child of node.kids ?? []) flatten(child, output);
+  return output;
 }
 
-mkdirSync(OUT, { recursive: true });
-mkdirSync(path.join(OUT, 'structure'), { recursive: true });
-
-// ⚠ 시각을 고정하면 **로그인이 조용히 깨진다.** Supabase 세션 토큰의 만료를
-// Date.now() 로 재는데, 고정 시각이 발급 시점보다 뒤면 토큰이 이미 만료된 것으로
-// 보여 매 화면이 로그인 월로 튕긴다(실측: 여섯 화면이 전부 sign-in 으로 찍혔다).
-// 그래서 기본값은 '지금'이다 — 한 번의 실행 안에서는 고정이라 화면 사이 시각
-// 흔들림은 없고, 실행 사이 픽셀 동일이 필요하면 FIXED_ISO 로 과거 시각을 준다
-// (그때는 로그인이 안 되므로 세션을 미리 넣어야 한다).
-const FIXED_TIME = process.env.FIXED_ISO ? new Date(process.env.FIXED_ISO).getTime() : Date.now();
-const report = { baseUrl: BASE_URL, shots: [], consoleErrors: [], compare: [], unmeasurable: {} };
-
-const browser = await chromium.launch();
-const ctx = await browser.newContext({ viewport: { width: 390, height: 820 }, deviceScaleFactor: 1 });
-await ctx.addInitScript(`(function () {
-  var FIXED = ${FIXED_TIME};
-  var RealDate = Date;
-  var FakeDate = function (a, b, c, d, e, f, g) {
-    if (!(this instanceof FakeDate)) return new RealDate(FIXED).toString();
-    switch (arguments.length) {
-      case 0: return new RealDate(FIXED);
-      case 1: return new RealDate(a);
-      default: return new RealDate(a, b, c, d || 0, e || 0, f || 0, g || 0);
-    }
+function captureTargets(manifest, routesFile, requested) {
+  const classification = validateManifestClassification(manifest.screens, routesFile);
+  if (!classification.valid) {
+    return { valid: false, classification, targetIds: [], invalidSelection: [] };
+  }
+  const selected = requested
+    ? [
+        ...new Set(
+          requested
+            .split(',')
+            .map((id) => id.trim())
+            .filter(Boolean),
+        ),
+      ]
+    : null;
+  const invalidSelection = selected
+    ? selected.filter((id) => !classification.targetIds.includes(id))
+    : [];
+  const targetIds = selected ?? classification.targetIds;
+  return {
+    valid: invalidSelection.length === 0 && targetIds.length > 0,
+    classification,
+    targetIds,
+    invalidSelection,
   };
-  FakeDate.now = function () { return FIXED; };
-  FakeDate.parse = RealDate.parse; FakeDate.UTC = RealDate.UTC;
-  FakeDate.prototype = RealDate.prototype;
-  window.Date = FakeDate;
-  var seed = 42;
-  Math.random = function () { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+}
+
+function exportWebFromReceipt(env) {
+  let previewEnv;
+  let receipt;
   try {
-    // 온보딩·코치마크는 클릭으로 넘기지 않는다(안 먹는 경우가 있다) — 저장 키로 연다.
-    localStorage.setItem('secondB_intro_played_v1', '1');
-    localStorage.setItem('sb_onboarded', '1');
-  } catch (e) {}
-})();`);
+    previewEnv = readPreviewProfileEnv(env);
+    receipt = JSON.parse(readFileSync(captureEnvReceiptPath(env), 'utf8'));
+    validateCaptureEnvReceiptMetadata(receipt, previewEnv);
+  } catch {
+    throw new CaptureContractError('environment-attestation');
+  }
+  const output = env.CAPTURE_EXPORT_DIR
+    ? path.resolve(env.CAPTURE_EXPORT_DIR)
+    : path.join(REPO, 'Output', `work0-live-export-${receipt.receiptId}`);
+  if (existsSync(output)) {
+    throw new CaptureContractError('environment-attestation');
+  }
+  const outputParent = path.dirname(output);
+  mkdirSync(outputParent, { recursive: true });
+  const staging = path.join(outputParent, `.work0-export-${receipt.receiptId}-${randomUUID()}`);
+  if (existsSync(staging)) throw new CaptureContractError('environment-attestation');
 
-const page = await ctx.newPage();
-page.on('console', (m) => {
-  if (m.type() === 'error') report.consoleErrors.push(m.text().slice(0, 300));
-});
+  const expoCli = env.EXPO_CLI_PATH
+    ? path.resolve(env.EXPO_CLI_PATH)
+    : require.resolve('expo/bin/cli');
+  if (!existsSync(expoCli)) throw new CaptureContractError('capture-failed');
+  const cleanRuntime = Object.fromEntries(
+    Object.entries(env).filter(([key]) => !/^EXPO_PUBLIC_/i.test(key)),
+  );
+  const result = spawnSync(
+    process.execPath,
+    [expoCli, 'export', '--platform', 'web', '--clear', '--output-dir', staging],
+    {
+      cwd: REPO,
+      env: {
+        ...cleanRuntime,
+        EXPO_NO_DOTENV: '1',
+        ...captureExportEnv(previewEnv, receipt),
+      },
+      stdio: 'inherit',
+    },
+  );
+  if (result.status !== 0) throw new CaptureContractError('capture-failed');
 
-const { email, password } = qaCreds();
-await page.goto(`${BASE_URL}/2nd-B/`, { waitUntil: 'load', timeout: 90000 });
-await page.waitForTimeout(2500);
+  const markerPath = path.join(staging, 'work0-export-marker.js');
+  const indexPath = path.join(staging, 'index.html');
+  if (existsSync(markerPath) || !existsSync(indexPath)) {
+    throw new CaptureContractError('environment-attestation');
+  }
+  const markerBody = servedExportMarkerBody(receipt);
+  writeFileSync(markerPath, markerBody);
+  const indexHtml = readFileSync(indexPath, 'utf8');
+  if (!/<\/head>/i.test(indexHtml)) throw new CaptureContractError('environment-attestation');
+  const finalIndexHtml = indexHtml.replace(
+    /<\/head>/i,
+    '<script defer src="/2nd-B/work0-export-marker.js"></script></head>',
+  );
+  writeFileSync(indexPath, finalIndexHtml);
 
-// 로그인 월이면 QA 계정으로 통과한다. 이미 세션이 있으면 그냥 지나간다.
-if (page.url().includes('/sign-in')) {
-  await page.getByRole('textbox', { name: /이메일|email/i }).fill(email);
-  await page.getByRole('textbox', { name: /비밀번호|password/i }).fill(password);
-  await page.locator('button:has-text("로그인"), button:has-text("Sign in")').first().click();
-  await page.waitForTimeout(5000);
-}
-// 로그인이 됐는지 **확인하고 넘어간다.** 안 되면 모든 화면이 같은 로그인 월로
-// 찍히는데, 캡처는 6/6 성공으로 보이고 대조 수치만 0% 가 된다 — 가장 오래 헤매게
-// 만드는 실패 모양이라 여기서 크게 실패시킨다.
-if (page.url().includes('/sign-in')) {
-  console.error('FAIL: still on /sign-in after login — creds or clock. 캡처를 중단한다.');
-  await browser.close();
-  process.exit(2);
-}
-/** 온보딩을 끝까지 밀어낸다. 건너뛰기가 없으면 '다음'을 눌러 마지막까지 간다. */
-async function passOnboarding(p) {
-  for (let i = 0; i < 8; i += 1) {
-    if (!p.url().includes('/onboarding')) return;
-    let clicked = false;
-    for (const label of ['건너뛰기', 'Skip', '시작하기', 'Get started', '다음', 'Next']) {
-      const el = p.locator(`text=${label}`).first();
-      if ((await el.count()) > 0) {
-        try {
-          await el.click({ timeout: 3000 });
-          clicked = true;
-        } catch {
-          /* 다음 라벨로 */
-        }
-        if (clicked) break;
+  const files = [];
+  const visit = (directory) => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      if (entry.isSymbolicLink()) throw new CaptureContractError('environment-attestation');
+      const absolute = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        visit(absolute);
+      } else if (entry.isFile()) {
+        const body = readFileSync(absolute);
+        files.push({
+          path: path.relative(staging, absolute).split(path.sep).join('/'),
+          sha256: sourceBodySha256(body),
+        });
       }
     }
-    if (!clicked) return;
-    await p.waitForTimeout(1200);
+  };
+  visit(staging);
+  const inlineScripts = [
+    ...finalIndexHtml.matchAll(/<script\b(?![^>]*\bsrc\s*=)[^>]*>([\s\S]*?)<\/script>/gi),
+  ].map((match) => sourceBodySha256(match[1]));
+  writeFileSync(
+    path.join(staging, 'work0-export-attestation.json'),
+    `${JSON.stringify(createServedExportAttestation(receipt, files, inlineScripts), null, 2)}\n`,
+  );
+  // A same-parent rename publishes the complete export in one step. If a
+  // concurrent process wins the destination, this fails without overwriting it.
+  renameSync(staging, output);
+}
+
+export async function main(args = process.argv.slice(2), env = process.env) {
+  const command = args.length === 1 ? args[0] : null;
+  const printFormat = command === '--print-env=json' ? 'json' : 'posix';
+  const isPrintEnv =
+    command === '--print-env' || command === '--print-env=posix' || command === '--print-env=json';
+  const isExportWeb = command === '--export-web';
+  if (args.length > 0 && !isPrintEnv && !isExportWeb) {
+    console.error('invalid arguments');
+    return 2;
   }
-}
-
-if (page.url().includes('/onboarding')) {
-  // 온보딩이 뜨면 건너뛴다. 캡처 대상이 아니고, 여기 갇히면 전부 같은 화면이 찍힌다.
-  await passOnboarding(page);
-  await settle(page);
-}
-
-await page.addStyleTag({
-  content: '*, *::before, *::after { animation-play-state: paused !important; transition: none !important; }',
-});
-
-/**
- * 화면이 자리 잡을 때까지 기다린다.
- *
- * ⚠ 고정 대기(2.2초)로는 **로딩 화면이 찍힌다.** 이 앱은 부팅 뒤 세션·프로필·원장을
- * 차례로 읽어서, 실측상 첫 실행에서 여섯 화면이 전부 "영차영차! 별가루 한 줌"
- * (로딩 문구)으로 찍혔다. 그래서 로딩 문구가 사라지고 본문이 자랄 때까지 본다.
- */
-async function settle(p, maxMs = 20000) {
-  const started = Date.now();
-  let lastLen = -1;
-  let stable = 0;
-  while (Date.now() - started < maxMs) {
-    const info = await p.evaluate(() => {
-      const t = document.body.innerText || '';
-      return { len: t.length, loading: /영차영차|불러오는|Loading|읽는 중/.test(t) };
-    });
-    if (!info.loading && info.len > 40) {
-      // 두 번 연속 같은 길이면 렌더가 멎은 것으로 본다.
-      if (info.len === lastLen && ++stable >= 2) return;
-    } else {
-      stable = 0;
+  if (isPrintEnv) {
+    try {
+      const previewEnv = readPreviewProfileEnv(env);
+      const receipt = createCaptureEnvReceipt(previewEnv);
+      const receiptPath = captureEnvReceiptPath(env);
+      mkdirSync(path.dirname(receiptPath), { recursive: true });
+      writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+      process.stdout.write(
+        printFormat === 'json'
+          ? `${previewEnvJson(previewEnv, receipt)}\n`
+          : `${previewEnvLines(previewEnv, receipt).join('\n')}\n`,
+      );
+      return 0;
+    } catch {
+      console.error('invalid preview env');
+      return 2;
     }
-    lastLen = info.len;
-    await p.waitForTimeout(700);
   }
-}
-
-/**
- * 앱 DOM 을 훑는다.
- *
- * ⚠ 레퍼런스 쪽 다이제스트는 depth 6 에서 끊는데, **앱에는 그 컷이 맞지 않는다.**
- * RN-web 은 View 를 겹겹이 감싸서 실제 글자가 8~12 depth 에 있다. 처음 이 도구를
- * 깊이 6 으로 돌렸더니 앱 노드가 전부 0 으로 나왔다 — 화면은 멀쩡히 찍히는데
- * 대조 수치만 0% 인, 가장 헷갈리는 실패였다. 그래서 앱은 깊이를 24 까지 본다.
- * 대조는 트리 모양이 아니라 **텍스트 집합**으로 하므로 이 비대칭은 문제가 안 된다.
- */
-async function digest() {
-  return page.evaluate(() => {
-    const walk = (el, depth) => {
-      if (depth > 24) return null;
-      const r = el.getBoundingClientRect();
-      if (r.width < 1 || r.height < 1) return null;
-      const own = [...el.childNodes]
-        .filter((n) => n.nodeType === 3)
-        .map((n) => n.textContent.trim())
-        .filter(Boolean)
-        .join(' ');
-      const kids = [...el.children].map((c) => walk(c, depth + 1)).filter(Boolean);
-      if (!own && kids.length === 0) return null;
-      return {
-        tag: el.tagName.toLowerCase(),
-        box: [Math.round(r.width), Math.round(r.height)],
-        ...(own ? { text: own.slice(0, 120) } : {}),
-        ...(kids.length ? { kids } : {}),
-      };
-    };
-    return walk(document.body, 0);
-  });
-}
-
-// ⚠ 앱은 한국어 줄바꿈을 다듬으려고 글자 사이에 **워드 조이너(U+2060)** 를 심는다
-// (src/lib/i18n/keep-all.ts). 눈에는 안 보이지만 문자열 비교에는 잡혀서, 같은 문장이
-// 레퍼런스와 다르다고 나온다 — import-hub 의 '무엇을 들여올까요?' 처럼 앱에 글자
-// 그대로 있는 문장이 미매칭으로 세어졌다. 비교 전에 지운다(제로폭 문자 일괄).
-const INVISIBLE = /[⁠​‌‍﻿]/g;
-const norm = (t) => t.replace(INVISIBLE, "");
-
-// 레퍼런스 프레임에만 있는 기기 크롬(가짜 상태바 시계 등)은 대조에서 뺀다.
-// 앱에는 원래 없는 것이라, 두면 모든 화면이 영구히 한 칸씩 깎인다.
-const CHROME = [/^\d{1,2}\s*[:.]\s*\d{2}$/];
-const isChrome = (t) => CHROME.some((re) => re.test(t));
-
-/** 다이제스트를 (텍스트, 박스) 목록으로 눌러 편다 — 트리 모양이 달라도 견줄 수 있게. */
-function flatten(node, out = []) {
-  if (!node) return out;
-  if (node.text && !isChrome(node.text)) {
-    out.push({ text: norm(node.text), w: node.box?.[0] ?? 0, h: node.box?.[1] ?? 0 });
+  if (isExportWeb) {
+    try {
+      exportWebFromReceipt(env);
+      console.log('web export attested');
+      return 0;
+    } catch (error) {
+      console.error('web export failed');
+      return captureFailureCodes(error).includes('environment-attestation') ? 2 : 1;
+    }
   }
-  for (const k of node.kids ?? []) flatten(k, out);
-  return out;
-}
 
-for (const target of TARGETS) {
-  const route = routeMap[target.id];
+  let manifest;
+  let routesFile;
   try {
-    await page.goto(`${BASE_URL}/2nd-B${route}`, { waitUntil: 'load', timeout: 60000 });
-    await settle(page);
-    // ⚠ 온보딩은 **매 이동마다 다시 뜬다.** 완료 표시가 이 세션의 localStorage 가
-    // 아니라 계정 상태에 걸려 있어서, 루프 앞에서 한 번 건너뛰는 것으로는 홈이
-    // 영영 안 찍힌다(실측: home 이 온보딩으로 찍혀 대조 0%). 화면마다 확인한다.
-    if (page.url().includes('/onboarding') && !route.includes('onboarding')) {
-      await passOnboarding(page);
-      await page.goto(`${BASE_URL}/2nd-B${route}`, { waitUntil: 'load', timeout: 60000 });
-      await settle(page);
-    }
-    await page.screenshot({ path: path.join(OUT, `${target.id}.png`) });
-    const appDigest = await digest();
-    writeFileSync(
-      path.join(OUT, 'structure', `${target.id}.json`),
-      JSON.stringify(appDigest, null, 1) + '\n',
+    manifest = readJson(path.join(KIT, 'data', 'screens.json'), { screens: [] });
+    routesFile = readJson(path.join(KIT, 'data', 'app-routes.json'), {});
+  } catch {
+    console.error('invalid manifest classification');
+    return 2;
+  }
+  const targetSelection = captureTargets(manifest, routesFile, env.SCREENS);
+  if (!targetSelection.valid) {
+    const reason = targetSelection.classification.valid
+      ? 'invalid screen selection'
+      : 'invalid manifest classification';
+    console.error(reason);
+    return 2;
+  }
+
+  const baseUrl = env.BASE_URL;
+  if (!baseUrl) {
+    console.error('BASE_URL required');
+    return 1;
+  }
+  try {
+    resolveHostedAppUrl(baseUrl, '/');
+  } catch {
+    console.error('invalid BASE_URL');
+    return 2;
+  }
+  let playwright;
+  try {
+    playwright = resolvePlaywright(require, env);
+  } catch {
+    console.error('Playwright unavailable: set PW_PATH or install a local module');
+    return 1;
+  }
+  const chromium = playwright.chromium ?? playwright.default.chromium;
+  let environmentAttestation;
+  try {
+    environmentAttestation = loadCaptureEnvAttestation(env);
+  } catch {
+    console.error('environment attestation failed');
+    return 2;
+  }
+  const output = env.OUT || path.join(REPO, '.app-shots');
+  const unmeasurable = { ...(routesFile.unmeasurable ?? {}) };
+  delete unmeasurable._note;
+  let initScript;
+  let determinismScript;
+  try {
+    const markerTime = resolveCaptureMarkerTime(env, environmentAttestation.printedAt);
+    initScript = makeCaptureInitScript(markerTime);
+    determinismScript = makeCaptureDeterminismScript(markerTime);
+  } catch {
+    console.error('FIXED_ISO must be a valid date');
+    return 2;
+  }
+
+  mkdirSync(output, { recursive: true });
+  mkdirSync(path.join(output, 'structure'), { recursive: true });
+  const report = {
+    schemaVersion: 1,
+    baseUrl: new URL(baseUrl).origin,
+    shots: [],
+    compare: [],
+    environmentAttested: true,
+    browserVersion: null,
+    unmeasurable,
+  };
+  let browser;
+  try {
+    browser = await chromium.launch(browserLaunchOptions(env, chromium));
+    report.browserVersion = validateBrowserRuntime(browser);
+    const context = await browser.newContext(captureContextOptions());
+    const page = await context.newPage();
+    let activeShot = createShotHealth();
+    const networkTracker = createShotNetworkTracker();
+    page.on('console', (message) => {
+      if (message.type() === 'error') recordShotFailure(activeShot, 'console-error');
+    });
+    page.on('pageerror', () => {
+      recordShotFailure(activeShot, 'page-error');
+    });
+    page.on('request', (request) => {
+      networkTracker.start(request, activeShot);
+    });
+    page.on('requestfailed', (request) => {
+      networkTracker.fail(request);
+    });
+    page.on('requestfinished', (request) => {
+      networkTracker.finish(request);
+    });
+    page.on('response', (response) => {
+      networkTracker.response(response.request(), baseUrl, response.url(), response.status());
+    });
+
+    const { email, password } = qaCreds(env);
+    await page.goto(resolveHostedAppUrl(baseUrl, '/'), { waitUntil: 'load', timeout: 90000 });
+    await page.waitForTimeout(2500);
+    await waitForShotNetworkIdle(page, activeShot);
+    const bootstrapFailureCodes = shotFailureCodes({ baseUrl, ...activeShot });
+    if (bootstrapFailureCodes.length) throw new CaptureContractError(bootstrapFailureCodes);
+    await attestServedExport(
+      page,
+      environmentAttestation.previewEnv,
+      environmentAttestation.receipt,
     );
+    await waitForShotNetworkIdle(page, activeShot);
+    await page.addScriptTag({ content: initScript });
+    await fillQaLogin(page, { baseUrl, email, password, env });
+    await waitForShotNetworkIdle(page, activeShot);
+    const loginFailureCodes = shotFailureCodes({ baseUrl, ...activeShot });
+    if (loginFailureCodes.length) throw new CaptureContractError(loginFailureCodes);
+    await page.addScriptTag({ content: determinismScript });
 
-    // 대조: 레퍼런스에 있는 텍스트 노드 중 앱에도 있는 비율 + 노드 수 차이.
-    const refPath = path.join(KIT, 'data', 'structure', `${target.id}.json`);
-    if (existsSync(refPath)) {
-      const ref = flatten(JSON.parse(readFileSync(refPath, 'utf8')));
-      const app = flatten(appDigest);
-      const appText = new Set(app.map((n) => n.text));
-      const matched = ref.filter((n) => appText.has(n.text)).length;
-      report.compare.push({
-        id: target.id,
-        route,
-        refNodes: ref.length,
-        appNodes: app.length,
-        textMatched: matched,
-        textMatchPct: ref.length ? Math.round((matched / ref.length) * 100) : null,
-      });
+    for (const id of targetSelection.targetIds) {
+      const route = routesFile.routes[id];
+      activeShot = createShotHealth();
+      try {
+        await navigateHostedAppRoute(page, baseUrl, route);
+        await waitForSettledPage(page);
+        await waitForShotNetworkIdle(page, activeShot);
+        let failureCodes = shotFailureCodes({ baseUrl, ...activeShot });
+        if (failureCodes.length) throw new CaptureContractError(failureCodes);
+        await dismissCaptureOverlays(page);
+        await waitForShotNetworkIdle(page, activeShot);
+        validateFinalUrl(baseUrl, route, page.url());
+        failureCodes = shotFailureCodes({ baseUrl, ...activeShot });
+        if (failureCodes.length) throw new CaptureContractError(failureCodes);
+
+        const digest = await page.evaluate(digestPage);
+        const screenshot = await page.screenshot();
+        await page.waitForTimeout(100);
+        await waitForShotNetworkIdle(page, activeShot);
+        const finalFailureCodes = shotFailureCodes({ baseUrl, ...activeShot });
+        if (finalFailureCodes.length) throw new CaptureContractError(finalFailureCodes);
+
+        writeFileSync(path.join(output, `${id}.png`), screenshot);
+        writeFileSync(
+          path.join(output, 'structure', `${id}.json`),
+          `${JSON.stringify(digest, null, 1)}\n`,
+        );
+        const referencePath = path.join(KIT, 'data', 'structure', `${id}.json`);
+        if (existsSync(referencePath)) {
+          const reference = flatten(JSON.parse(readFileSync(referencePath, 'utf8')));
+          const app = flatten(digest);
+          const appText = new Set(app.map((entry) => entry.text));
+          const matched = reference.filter((entry) => appText.has(entry.text)).length;
+          report.compare.push({
+            id,
+            route,
+            refNodes: reference.length,
+            appNodes: app.length,
+            textMatched: matched,
+            textMatchPct: reference.length ? Math.round((matched / reference.length) * 100) : null,
+          });
+        }
+        report.shots.push({ id, route, ok: true });
+        process.stdout.write(`${id} `);
+      } catch (error) {
+        report.shots.push({
+          id,
+          route,
+          ok: false,
+          failureCodes: captureFailureCodes(error),
+        });
+        process.stdout.write(`${id}(FAIL) `);
+      } finally {
+        activeShot = null;
+      }
     }
-    report.shots.push({ id: target.id, route, ok: true });
-    process.stdout.write(target.id + ' ');
-  } catch (e) {
-    report.shots.push({ id: target.id, route, ok: false, error: String(e).slice(0, 200) });
-    process.stdout.write(target.id + '(FAIL) ');
+    process.stdout.write('\n');
+  } catch {
+    console.error('capture failed');
+    return 1;
+  } finally {
+    if (browser) await browser.close().catch(() => {});
   }
-}
-process.stdout.write('\n');
 
-report.unmeasurable = unmeasurable;
-writeFileSync(path.join(OUT, 'app-report.json'), JSON.stringify(report, null, 2) + '\n');
-await browser.close();
+  writeFileSync(path.join(output, 'app-report.json'), `${JSON.stringify(report, null, 2)}\n`);
+  const failed = report.shots.filter((shot) => !shot.ok);
+  console.log(`app captures ${report.shots.length - failed.length}/${report.shots.length}`);
+  return failed.length ? 1 : 0;
+}
 
-const failed = report.shots.filter((s) => !s.ok);
-console.log(
-  `app captures ${report.shots.length - failed.length}/${report.shots.length} · console errors ${report.consoleErrors.length}`,
-);
-for (const c of report.compare) {
-  console.log(`  ${c.id.padEnd(12)} ref ${String(c.refNodes).padStart(3)} · app ${String(c.appNodes).padStart(3)} · text match ${c.textMatchPct}%`);
-}
-// 못 잰 것을 조용히 빼면 "40장 전부 쟀다"로 읽힌다. 왜 못 쟀는지 같이 말한다.
-const skipped = Object.entries(unmeasurable).filter(([id]) => !only || only.includes(id));
-if (skipped.length) {
-  console.log('');
-  console.log(`측정 불가 ${skipped.length}장 — 하네스 조건 때문이지 디자인 문제가 아니다:`);
-  for (const [id, info] of skipped) {
-    console.log(`  ${id.padEnd(12)} ${info.route} — ${info.why}`);
-    if (info.needs) console.log(`  ${''.padEnd(12)} 필요: ${info.needs}`);
-  }
-}
-process.exit(failed.length ? 1 : 0);
+const invoked =
+  process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+if (invoked) process.exitCode = await main();
