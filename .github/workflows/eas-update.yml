@@ -1,43 +1,14 @@
 name: EAS Update (OTA)
 
-# Ships JS/asset-only changes over-the-air to already-installed builds via
-# EAS Update. An installed build that EMBEDS expo-updates (PR #580) is required
-# for an update to reach a device. OTA only carries the JS bundle + assets,
-# never native code.
-#
-# Reaches a device only when ALL of these match the installed build:
-#   - channel        : "preview" (the internal preview APK on the test phone)
-#   - runtimeVersion : native fingerprint. Native dependencies, config plugins,
-#                      permissions, icons, and native config automatically start
-#                      a new runtime and require a fresh EAS Build.
-#
-# Native changes (new npm packages, app.json native config, plugins, icons)
-# are NOT deliverable over-the-air — rebuild instead.
-#
-# ─────────────────────────────────────────────────────────────────────────────
-# OTA PUBLISH IS GATED (2026-06-26). It used to auto-publish on EVERY main push
-# touching JS paths — which shipped half-finished merges to the test phone and
-# was the structural cause of the 06-26 crash incident (a pre-#590 OTA reached
-# the device unintentionally). Publish now requires EXPLICIT INTENT:
-#   1. Manual run    : Actions → "EAS Update (OTA)" → Run workflow (pick channel)
-#   2. Opt-in marker : the head commit / merge message contains [ota] or [release]
-# Any other push to main runs the cheap `gate` job, logs that it skipped, and
-# never installs deps or publishes (job stays green, `update` is skipped).
-# To ship a merge: add "[ota]" to the squash/merge commit message, or dispatch
-# the workflow manually after the merge.
-# ─────────────────────────────────────────────────────────────────────────────
-#
-# Setup (one-time): add repo secret EXPO_TOKEN
-#   Settings → Secrets and variables → Actions → New repository secret
-#   Name: EXPO_TOKEN   Value: an Expo access token (expo.dev → Account → Access tokens)
-# Until the secret exists, the publish job logs a warning and no-ops (no red X).
+# Gate-only runs and actual publishes are intentionally different outcomes.
+# A successful publish restores both Firebase native config files, creates both
+# Android and iOS updates, and proves that each runtime can reach at least one
+# FINISHED build on the selected channel.
 
 on:
   push:
     branches:
       - main
-    # Only JS/asset-relevant paths can even reach the gate. Docs-only merges are
-    # skipped here; the [ota] marker gate below is the second, explicit layer.
     paths:
       - "src/**"
       - "assets/**"
@@ -51,31 +22,38 @@ on:
       - "metro.config.js"
       - "package.json"
       - "package-lock.json"
-      # The publish step mirrors its EXPO_PUBLIC_* env from eas.json — an env
-      # change there must be able to reach the OTA channel too.
       - "eas.json"
   workflow_dispatch:
     inputs:
       channel:
         description: "EAS Update channel to publish to"
-        required: false
-        default: "preview"
+        required: true
+        type: choice
+        options:
+          - preview
+          - production
+        default: preview
+
+permissions:
+  contents: read
 
 concurrency:
   group: eas-update-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
+
+env:
+  EAS_CLI_VERSION: "22.5.0"
 
 jobs:
-  # Cheap decision job — no npm install. Decides whether this run is allowed to
-  # publish (manual dispatch, or an [ota]/[release] marker on the head commit).
   gate:
     runs-on: ubuntu-latest
     outputs:
       publish: ${{ steps.decide.outputs.publish }}
       channel: ${{ steps.decide.outputs.channel }}
+      outcome: ${{ steps.decide.outputs.outcome }}
     steps:
-      - name: Checkout (head commit only — for the message)
-        uses: actions/checkout@v4
+      - name: Checkout head commit only
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 1
 
@@ -83,31 +61,69 @@ jobs:
         id: decide
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            CH="${{ github.event.inputs.channel || 'preview' }}"
-            echo "publish=true"   >> "$GITHUB_OUTPUT"
-            echo "channel=$CH"     >> "$GITHUB_OUTPUT"
-            echo "::notice title=OTA::Manual dispatch — publishing OTA to '$CH'."
+          if [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo "::error::OTA can only target refs/heads/main."
+            exit 1
+          fi
+          git fetch --no-tags origin main
+          if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+            echo "::error::OTA commit is not the current origin/main head."
+            exit 1
+          fi
+          if [ "${{ github.event_name }}" = workflow_dispatch ]; then
+            CHANNEL="${{ inputs.channel }}"
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "channel=$CHANNEL" >> "$GITHUB_OUTPUT"
+            echo "outcome=publish-requested" >> "$GITHUB_OUTPUT"
           elif git log -1 --pretty=%B | grep -qiE '\[ota\]|\[release\]'; then
-            echo "publish=true"      >> "$GITHUB_OUTPUT"
-            echo "channel=preview"   >> "$GITHUB_OUTPUT"
-            echo "::notice title=OTA::Found [ota]/[release] marker in the head commit — publishing OTA to 'preview'."
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "channel=preview" >> "$GITHUB_OUTPUT"
+            echo "outcome=publish-requested" >> "$GITHUB_OUTPUT"
           else
-            echo "publish=false"     >> "$GITHUB_OUTPUT"
-            echo "channel=preview"   >> "$GITHUB_OUTPUT"
-            echo "::notice title=OTA::OTA publish gated (skipped). This main push has no [ota]/[release] marker and is not a manual dispatch. Add '[ota]' to the commit/merge message, or run this workflow manually, to ship to the test phone."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "channel=preview" >> "$GITHUB_OUTPUT"
+            echo "outcome=gate-only" >> "$GITHUB_OUTPUT"
+            {
+              echo "### OTA gate only"
+              echo
+              echo "No update was published. This main push has no \`[ota]\`/\`[release]\` marker."
+            } >> "$GITHUB_STEP_SUMMARY"
           fi
 
   update:
     needs: gate
     if: needs.gate.outputs.publish == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: ${{ needs.gate.outputs.channel }}
+    outputs:
+      publish_status: ${{ steps.publish.outputs.publish_status }}
+      publish_action: ${{ steps.publish.outputs.publish_action }}
+      android_runtime: ${{ steps.publish.outputs.android_runtime }}
+      ios_runtime: ${{ steps.publish.outputs.ios_runtime }}
+      android_update_id: ${{ steps.publish.outputs.android_update_id }}
+      ios_update_id: ${{ steps.publish.outputs.ios_update_id }}
+      android_group: ${{ steps.publish.outputs.android_group }}
+      ios_group: ${{ steps.publish.outputs.ios_group }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout exact update commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Require the still-current main commit after environment approval
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo "::error::OTA can only target refs/heads/main."
+            exit 1
+          fi
+          git fetch --no-tags origin main
+          if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+            echo "::error::OTA commit became stale while waiting for the protected environment."
+            exit 1
+          fi
 
       - name: Setup Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
           cache: "npm"
@@ -118,131 +134,815 @@ jobs:
       - name: Verify OTA/native runtime policy
         run: npm run check:ota-runtime
 
-      - name: Publish OTA update (EAS Update)
+      - name: Restore and validate Android and iOS Firebase config
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+          GOOGLE_SERVICE_INFO_PLIST_BASE64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_BASE64 }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GOOGLE_SERVICES_JSON_BASE64:-}" ] || [ -z "${GOOGLE_SERVICE_INFO_PLIST_BASE64:-}" ]; then
+            echo "::error::Both Android and iOS Firebase config secrets are required for a two-platform OTA."
+            exit 1
+          fi
+          printf '%s' "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > google-services.json
+          printf '%s' "$GOOGLE_SERVICE_INFO_PLIST_BASE64" | base64 --decode > GoogleService-Info.plist
+          test -s google-services.json
+          test -s GoogleService-Info.plist
+          node <<'NODE'
+          const fs = require("node:fs");
+          const config = require("./app.json").expo;
+          const android = require("./google-services.json");
+          const androidOk = (android.client || []).some(
+            (client) => client.client_info?.android_client_info?.package_name === config.android?.package,
+          );
+          if (!androidOk) throw new Error("Firebase Android package mismatch");
+          const ios = fs.readFileSync("GoogleService-Info.plist", "utf8");
+          const bundle = /<key>BUNDLE_ID<\/key>\s*<string>([^<]+)<\/string>/.exec(ios)?.[1];
+          if (bundle !== config.ios?.bundleIdentifier) throw new Error("Firebase iOS bundle mismatch");
+          NODE
+          echo "GOOGLE_SERVICES_JSON=$GITHUB_WORKSPACE/google-services.json" >> "$GITHUB_ENV"
+          echo "GOOGLE_SERVICE_INFO_PLIST=$GITHUB_WORKSPACE/GoogleService-Info.plist" >> "$GITHUB_ENV"
+
+      - name: Verify the EAS server environment matches the native build profile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          CHANNEL: ${{ needs.gate.outputs.channel }}
+        run: |
+          set -euo pipefail
+          if [ -z "${EXPO_TOKEN:-}" ]; then
+            echo "::error::EXPO_TOKEN is required to verify the EAS server environment."
+            exit 1
+          fi
+          case "$CHANNEL" in preview|production) ;; *) echo "::error::Unsupported EAS environment."; exit 1 ;; esac
+          ENV_CHECKER="$RUNNER_TEMP/verify-eas-public-env.cjs"
+          export ENV_CHECKER VERIFY_EAS_ENV_FILE="$ENV_CHECKER" VERIFY_EAS_ENV_CHANNEL="$CHANNEL"
+          node <<'NODE'
+          const fs = require("node:fs");
+          fs.writeFileSync(process.env.ENV_CHECKER, String.raw`
+          const path = require("node:path");
+          const eas = require(path.join(process.cwd(), "eas.json"));
+          const channel = process.env.VERIFY_EAS_ENV_CHANNEL;
+          if (!new Set(["preview", "production"]).has(channel)) throw new Error("invalid contract channel");
+          const profile = eas.build?.[channel];
+          if (!profile || profile.channel !== channel || profile.environment !== channel) {
+            throw new Error("build profile channel/environment contract mismatch");
+          }
+          const entries = Object.entries(profile.env ?? {}).filter(([key]) => key.startsWith("EXPO_PUBLIC_"));
+          if (entries.length === 0) throw new Error("build profile has no EXPO_PUBLIC contract");
+          const expectedKeys = new Set(entries.map(([key]) => key));
+          const unexpectedKeys = Object.keys(process.env)
+            .filter((key) => key.startsWith("EXPO_PUBLIC_") && !expectedKeys.has(key));
+          const mismatches = entries
+            .filter(([key, value]) => !/^EXPO_PUBLIC_[A-Z0-9_]+$/.test(key) || process.env[key] !== String(value))
+            .map(([key]) => key);
+          if (mismatches.length || unexpectedKeys.length) {
+            throw new Error("EAS server environment does not exactly match the native build profile");
+          }
+          process.stdout.write("verified " + entries.length + " public environment names without printing values\n");
+          `);
+          NODE
+          if ! npx --yes "eas-cli@$EAS_CLI_VERSION" env:exec "$CHANNEL" \
+            'node "$VERIFY_EAS_ENV_FILE"' \
+            --non-interactive > "$RUNNER_TEMP/eas-env-contract.log" 2>&1; then
+            echo "::error::EAS server public environment differs from the native build profile; values were withheld."
+            exit 1
+          fi
+          echo "EAS server public environment matches the native build profile; values were not printed."
+
+      - name: Prepare authenticated EAS provenance verifier
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${EXPO_TOKEN:-}" ]; then
+            echo "::error::EXPO_TOKEN is required for authenticated EAS provenance verification."
+            exit 1
+          fi
+          CHECKER="$RUNNER_TEMP/eas-provenance.cjs"
+          export CHECKER
+          node <<'NODE'
+          const fs = require("node:fs");
+          fs.writeFileSync(process.env.CHECKER, String.raw`
+          "use strict";
+          const fs = require("node:fs");
+          const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          const SHA = /^[0-9a-f]{40}$/i;
+          const UPDATE_PLATFORMS = new Set(["android", "ios"]);
+          const MAX_HISTORY_UPDATE_IDS = 100;
+          const GRAPHQL_CONCURRENCY = 8;
+          const URL = "https://api.expo.dev/graphql";
+          const BUILD_QUERY = "query BuildProvenance($buildId: ID!) { builds { byId(buildId: $buildId) { id isGitWorkingTreeDirty gitCommitHash } } }";
+          const UPDATE_QUERY = "query UpdateProvenance($updateId: ID!) { updates { byId(updateId: $updateId) { id group platform gitCommitHash isGitWorkingTreeDirty environment runtime { version } } } }";
+
+          const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+          const fail = (code) => { throw new Error(code); };
+          const lower = (value) => String(value || "").toLowerCase();
+          const runtimeOf = (value) => value?.runtime?.version ?? value?.runtimeVersion ?? value?.fingerprint?.hash;
+          const channelOf = (value) => value?.updateChannel?.name ?? value?.channel;
+
+          function readJson(file, code) {
+            try {
+              return JSON.parse(fs.readFileSync(file, "utf8"));
+            } catch {
+              fail(code);
+            }
+          }
+
+          async function graphql(query, variables, selector) {
+            if (typeof process.env.EXPO_TOKEN !== "string" || process.env.EXPO_TOKEN.length === 0) {
+              fail("expo-token-missing");
+            }
+            let lastFailure = "graphql-network";
+            for (let attempt = 1; attempt <= 3; attempt += 1) {
+              const controller = new AbortController();
+              const timer = setTimeout(() => controller.abort(), 15_000);
+              try {
+                const response = await fetch(URL, {
+                  method: "POST",
+                  headers: {
+                    authorization: "Bearer " + process.env.EXPO_TOKEN,
+                    "content-type": "application/json",
+                  },
+                  body: JSON.stringify({ query, variables }),
+                  signal: controller.signal,
+                });
+                if (!response.ok) {
+                  lastFailure = "graphql-http";
+                } else {
+                  let payload;
+                  try {
+                    payload = await response.json();
+                  } catch {
+                    lastFailure = "graphql-json";
+                  }
+                  if (payload) {
+                    if (
+                      payload.errors !== undefined &&
+                      (!Array.isArray(payload.errors) || payload.errors.length > 0)
+                    ) {
+                      lastFailure = "graphql-errors";
+                    } else {
+                      const value = selector(payload.data);
+                      if (value) return value;
+                      lastFailure = "graphql-object-missing";
+                    }
+                  }
+                }
+              } catch {
+                lastFailure = "graphql-network";
+              } finally {
+                clearTimeout(timer);
+              }
+              if (attempt < 3) await wait(attempt * 1_000);
+            }
+            fail(lastFailure);
+          }
+
+          const buildById = (buildId) => graphql(
+            BUILD_QUERY,
+            { buildId },
+            (data) => data?.builds?.byId,
+          );
+          const updateById = (updateId) => graphql(
+            UPDATE_QUERY,
+            { updateId },
+            (data) => data?.updates?.byId,
+          );
+
+          async function mapWithConcurrency(items, limit, mapper) {
+            const results = new Array(items.length);
+            let next = 0;
+            const worker = async () => {
+              while (next < items.length) {
+                const index = next;
+                next += 1;
+                results[index] = await mapper(items[index]);
+              }
+            };
+            await Promise.all(
+              Array.from({ length: Math.min(limit, items.length) }, () => worker()),
+            );
+            return results;
+          }
+
+          async function verifyCompatibleBuild(file, platform, runtime, channel) {
+            const config = require(process.cwd() + "/app.json").expo;
+            const value = readJson(file, "build-list-json");
+            const list = Array.isArray(value) ? value : [];
+            const expectedIdentifier = platform === "android"
+              ? config.android?.package
+              : config.ios?.bundleIdentifier;
+            const candidates = list.filter((build) =>
+              lower(build?.platform) === platform &&
+              String(build?.status || "").toUpperCase() === "FINISHED" &&
+              (build?.app ?? build?.project)?.id === config.extra?.eas?.projectId &&
+              build?.appIdentifier === expectedIdentifier &&
+              channelOf(build) === channel &&
+              runtimeOf(build) === runtime,
+            );
+            if (candidates.length === 0 || candidates.length > 10) fail("compatible-build-count");
+            for (const candidate of candidates) {
+              if (!UUID.test(candidate?.id || "")) fail("build-id-malformed");
+              const build = await buildById(candidate.id);
+              if (lower(build?.id) !== lower(candidate.id)) fail("build-id-mismatch");
+              const commit = lower(build?.gitCommitHash);
+              if (!SHA.test(commit)) fail("build-commit-missing");
+              if (build?.isGitWorkingTreeDirty === false) {
+                process.stdout.write(platform + ": authenticated compatible build " + candidate.id + "\n");
+                return;
+              }
+            }
+            fail("no-authenticated-clean-build");
+          }
+
+          function cliUpdateIds(history) {
+            const byId = new Map();
+            let malformed = false;
+            const branches = new Set(
+              Array.isArray(history?.branches) ? history.branches.map((branch) => String(branch)) : [],
+            );
+            if (branches.size === 0 || !Array.isArray(history?.updates)) fail("update-history-shape");
+            const visit = (value) => {
+              if (!value || typeof value !== "object") return;
+              if (
+                !Array.isArray(value) &&
+                Object.prototype.hasOwnProperty.call(value, "id") &&
+                UPDATE_PLATFORMS.has(lower(value.platform))
+              ) {
+                const id = String(value.id || "");
+                const branch = String(value.branch || "");
+                if (UUID.test(id) && branches.has(branch)) byId.set(lower(id), id);
+                else malformed = true;
+              }
+              for (const child of Object.values(value)) visit(child);
+            };
+            visit(history.updates);
+            return { ids: [...byId.values()], malformed };
+          }
+
+          function classifyPlatform(records, platform, runtime, commit) {
+            const clean = [];
+            let rejected = false;
+            for (const { id, update } of records) {
+              if (lower(update?.id) !== lower(id)) fail("update-id-mismatch");
+              const sameIdentity =
+                lower(update?.platform) === platform &&
+                lower(update?.gitCommitHash) === commit &&
+                update?.runtime?.version === runtime;
+              if (!sameIdentity) continue;
+              const group = String(update?.group || "");
+              const valid =
+                UUID.test(group) &&
+                update?.isGitWorkingTreeDirty === false &&
+                lower(update?.environment) === lower(process.env.CHANNEL);
+              if (valid) {
+                clean.push({ id: update.id, group, runtimeVersion: runtime });
+              } else {
+                rejected = true;
+              }
+            }
+            if (rejected || clean.length > 1) {
+              return { state: "DIRTY_OR_AMBIGUOUS", runtimeVersion: runtime };
+            }
+            if (clean.length === 0) return { state: "NO_MATCH", runtimeVersion: runtime };
+            return { state: "CLEAN_MATCH", ...clean[0] };
+          }
+
+          async function classify(file, output) {
+            const history = readJson(file, "update-history-json");
+            const channel = history?.channel;
+            if (channel?.name !== process.env.CHANNEL || channel?.isPaused) fail("channel-contract");
+            const commit = lower(process.env.GITHUB_SHA);
+            if (!SHA.test(commit)) fail("workflow-commit");
+            const { ids, malformed } = cliUpdateIds(history);
+            if (malformed || ids.length > MAX_HISTORY_UPDATE_IDS) fail("history-update-ids");
+            const records = await mapWithConcurrency(
+              ids,
+              GRAPHQL_CONCURRENCY,
+              async (id) => ({ id, update: await updateById(id) }),
+            );
+            const result = {
+              android: classifyPlatform(
+                records,
+                "android",
+                process.env.EXPECTED_ANDROID_RUNTIME,
+                commit,
+              ),
+              ios: classifyPlatform(
+                records,
+                "ios",
+                process.env.EXPECTED_IOS_RUNTIME,
+                commit,
+              ),
+            };
+            fs.writeFileSync(output, JSON.stringify(result));
+            process.stdout.write("android=" + result.android.state + " ios=" + result.ios.state + "\n");
+          }
+
+          async function verifyUpdate(id, platform, runtime, channel, expectedGroup, output) {
+            if (!UUID.test(id) || !UPDATE_PLATFORMS.has(platform)) fail("update-input");
+            const update = await updateById(id);
+            const group = String(update?.group || "");
+            const commit = lower(update?.gitCommitHash);
+            if (
+              lower(update?.id) !== lower(id) ||
+              !UUID.test(group) ||
+              lower(update?.platform) !== platform ||
+              !SHA.test(commit) ||
+              commit !== lower(process.env.GITHUB_SHA) ||
+              update?.isGitWorkingTreeDirty !== false ||
+              lower(update?.environment) !== lower(channel) ||
+              update?.runtime?.version !== runtime ||
+              (expectedGroup && lower(group) !== lower(expectedGroup))
+            ) {
+              fail("update-provenance");
+            }
+            fs.writeFileSync(output, JSON.stringify({ id: update.id, group, runtimeVersion: runtime }));
+          }
+
+          async function main() {
+            const [mode, ...args] = process.argv.slice(2);
+            if (mode === "build" && args.length === 4) {
+              await verifyCompatibleBuild(...args);
+            } else if (mode === "classify" && args.length === 2) {
+              await classify(...args);
+            } else if (mode === "update" && args.length === 6) {
+              await verifyUpdate(...args);
+            } else {
+              fail("usage");
+            }
+          }
+
+          main().catch((error) => {
+            console.error("EAS provenance verifier rejected: " + error.message);
+            process.exitCode = 1;
+          });
+          `);
+          NODE
+          chmod 700 "$CHECKER"
+          echo "EAS_PROVENANCE_CHECKER=$CHECKER" >> "$GITHUB_ENV"
+
+          COLLECTOR="$RUNNER_TEMP/eas-update-history.cjs"
+          export COLLECTOR
+          node <<'NODE'
+          const fs = require("node:fs");
+          fs.writeFileSync(process.env.COLLECTOR, String.raw`
+          "use strict";
+          const fs = require("node:fs");
+          const { spawnSync } = require("node:child_process");
+          const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          const SHA = /^[0-9a-f]{40}$/i;
+          const PLATFORMS = ["android", "ios"];
+          const PAGE_SIZE = 25;
+          const MAX_GROUPS_PER_PLATFORM = 50;
+          const MAX_GROUPS = 100;
+          const MAX_JSON_BYTES = 4 * 1024 * 1024;
+
+          const fail = (code) => { throw new Error(code); };
+          const parse = (value, code) => {
+            try {
+              return JSON.parse(value);
+            } catch {
+              fail(code);
+            }
+          };
+
+          function runEas(args, code) {
+            const version = process.env.EAS_CLI_VERSION;
+            if (!/^\d+\.\d+\.\d+$/.test(version || "")) fail("eas-cli-version");
+            const result = spawnSync("npx", ["--yes", "eas-cli@" + version, ...args], {
+              encoding: "utf8",
+              env: process.env,
+              maxBuffer: MAX_JSON_BYTES,
+              timeout: 30_000,
+              windowsHide: true,
+            });
+            if (result.error || result.status !== 0) fail(code);
+            return parse(result.stdout, code + "-json");
+          }
+
+          function pageGroups(payload, branch, platform) {
+            if (payload?.name !== branch || !Array.isArray(payload?.currentPage)) {
+              fail("update-list-shape");
+            }
+            return payload.currentPage.map((entry) => {
+              const platforms = String(entry?.platforms || "")
+                .split(",")
+                .map((value) => value.trim().toLowerCase())
+                .filter(Boolean);
+              if (
+                entry?.branch !== branch ||
+                !platforms.includes(platform) ||
+                !UUID.test(entry?.group || "")
+              ) {
+                fail("update-list-contract");
+              }
+              return entry.group;
+            });
+          }
+
+          function collect() {
+            const [channelName, androidRuntime, iosRuntime, output] = process.argv.slice(2);
+            if (
+              !new Set(["preview", "production"]).has(channelName) ||
+              !SHA.test(androidRuntime || "") ||
+              !SHA.test(iosRuntime || "") ||
+              !output ||
+              !process.env.EXPO_TOKEN
+            ) {
+              fail("history-input");
+            }
+            const channelPayload = runEas(
+              ["channel:view", channelName, "--offset", "0", "--limit", "100", "--json", "--non-interactive"],
+              "channel-view",
+            );
+            const channel = channelPayload?.currentPage ?? channelPayload;
+            if (
+              channel?.name !== channelName ||
+              channel?.isPaused ||
+              !Array.isArray(channel?.updateBranches) ||
+              channel.updateBranches.length === 0 ||
+              channel.updateBranches.length >= 100
+            ) {
+              fail("channel-contract");
+            }
+            const branches = [...new Set(channel.updateBranches.map((branch) => String(branch?.name || "")))];
+            if (
+              branches.length === 0 ||
+              branches.some((branch) => branch.length === 0 || branch.length > 128)
+            ) {
+              fail("channel-branches");
+            }
+
+            const groupIds = new Set();
+            for (const branch of branches) {
+              for (const platform of PLATFORMS) {
+                for (
+                  let offset = 0;
+                  offset < MAX_GROUPS_PER_PLATFORM;
+                  offset += PAGE_SIZE
+                ) {
+                  const payload = runEas(
+                    [
+                      "update:list",
+                      "--branch",
+                      branch,
+                      "--platform",
+                      platform,
+                      "--offset",
+                      String(offset),
+                      "--limit",
+                      String(PAGE_SIZE),
+                      "--json",
+                      "--non-interactive",
+                    ],
+                    "update-list",
+                  );
+                  const groups = pageGroups(payload, branch, platform);
+                  for (const group of groups) groupIds.add(group.toLowerCase());
+                  if (groupIds.size > MAX_GROUPS) fail("update-history-too-large");
+                  if (groups.length < PAGE_SIZE) break;
+                }
+              }
+            }
+
+            const updates = [];
+            const seen = new Set();
+            for (const group of groupIds) {
+              const view = runEas(["update:view", group, "--json"], "update-view");
+              if (!Array.isArray(view) || view.length === 0 || view.length > 2) {
+                fail("update-view-shape");
+              }
+              for (const update of view) {
+                const id = String(update?.id || "");
+                const platform = String(update?.platform || "").toLowerCase();
+                if (
+                  !UUID.test(id) ||
+                  String(update?.group || "").toLowerCase() !== group ||
+                  !branches.includes(String(update?.branch || "")) ||
+                  !PLATFORMS.includes(platform) ||
+                  typeof update?.runtimeVersion !== "string"
+                ) {
+                  fail("update-view-contract");
+                }
+                if (!seen.has(id.toLowerCase())) {
+                  seen.add(id.toLowerCase());
+                  updates.push({
+                    id,
+                    branch: update.branch,
+                    group: update.group,
+                    platform,
+                    runtimeVersion: update.runtimeVersion,
+                  });
+                }
+              }
+            }
+            fs.writeFileSync(
+              output,
+              JSON.stringify({
+                channel: { name: channel.name, isPaused: channel.isPaused },
+                branches,
+                updates,
+              }),
+            );
+            process.stdout.write("authenticated candidate history collected without response logging\n");
+          }
+
+          try {
+            collect();
+          } catch (error) {
+            console.error("EAS update history rejected: " + error.message);
+            process.exitCode = 1;
+          }
+          `);
+          NODE
+          chmod 700 "$COLLECTOR"
+          echo "EAS_UPDATE_HISTORY_COLLECTOR=$COLLECTOR" >> "$GITHUB_ENV"
+
+      - name: Preflight both platform runtimes and completed builds
+        id: preflight
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          CHANNEL: ${{ needs.gate.outputs.channel }}
+        run: |
+          set -euo pipefail
+          if [ -z "${EXPO_TOKEN:-}" ]; then
+            echo "::error::EXPO_TOKEN is required for OTA preflight."
+            exit 1
+          fi
+          case "$CHANNEL" in preview|production) ;; *) echo "::error::Unsupported OTA channel."; exit 1 ;; esac
+          for platform in android ios; do
+            FINGERPRINT="$RUNNER_TEMP/$platform-fingerprint.json"
+            npx --yes "eas-cli@$EAS_CLI_VERSION" fingerprint:generate \
+              --platform "$platform" \
+              --build-profile "$CHANNEL" \
+              --non-interactive \
+              --json > "$FINGERPRINT"
+            RUNTIME="$(node - "$FINGERPRINT" <<'NODE'
+          const fs = require("node:fs");
+          const value = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+          if (!/^[0-9a-f]{40}$/i.test(value?.hash)) {
+            throw new Error("fingerprint output has no safe 40-hex hash");
+          }
+          process.stdout.write(value.hash.toLowerCase());
+          NODE
+            )"
+            BUILDS="$RUNNER_TEMP/$platform-preflight-builds.json"
+            npx --yes "eas-cli@$EAS_CLI_VERSION" build:list \
+              --platform "$platform" \
+              --status finished \
+              --channel "$CHANNEL" \
+              --runtime-version "$RUNTIME" \
+              --limit 10 \
+              --json \
+              --non-interactive > "$BUILDS"
+            node "$EAS_PROVENANCE_CHECKER" build "$BUILDS" "$platform" "$RUNTIME" "$CHANNEL"
+            echo "${platform}_runtime=$RUNTIME" >> "$GITHUB_OUTPUT"
+          done
+
+      - name: Classify and independently reuse or publish each platform
         id: publish
         env:
-          # eas-cli authenticates non-interactively from EXPO_TOKEN.
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          # Secret EAS file variables are unavailable to the local update
-          # bundler. Mirror the exact Firebase config used by native builds so
-          # fingerprint resolution stays identical.
-          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+          CHANNEL: ${{ needs.gate.outputs.channel }}
+          EXPECTED_ANDROID_RUNTIME: ${{ steps.preflight.outputs.android_runtime }}
+          EXPECTED_IOS_RUNTIME: ${{ steps.preflight.outputs.ios_runtime }}
         run: |
           set -euo pipefail
           if [ -z "${EXPO_TOKEN:-}" ]; then
             echo "::error::EXPO_TOKEN is required for OTA publishing."
             exit 1
           fi
-          if [ -z "${GOOGLE_SERVICES_JSON_BASE64:-}" ]; then
-            echo "::error::GOOGLE_SERVICES_JSON_BASE64 is required to resolve the native fingerprint."
-            exit 1
-          fi
-          printf '%s' "$GOOGLE_SERVICES_JSON_BASE64" | base64 -d > google-services.json
-          export GOOGLE_SERVICES_JSON="$PWD/google-services.json"
-          node -e '
-            const config = require("./google-services.json");
-            const clients = config.client || [];
-            const valid = clients.some(
-              (client) =>
-                client.client_info?.android_client_info?.package_name ===
-                "com.simonk.secondbrain",
-            );
-            if (!valid) throw new Error("Firebase config package mismatch");
-          '
-          CHANNEL="${{ needs.gate.outputs.channel }}"
-          # a2z audit 2026-07-11 (P0): `eas update` inlines EXPO_PUBLIC_* into the
-          # JS bundle at export time. This job used to inject ONLY the Supabase
-          # pair (the 06-26 hotfix), so every published OTA silently DOWNGRADED
-          # the installed build — EXPO_PUBLIC_LLM_MODE fell back to mock (dead AI
-          # harness), the edge-function route + D-27 model pins disappeared, and
-          # the social SDK / Sentry / analytics flags went dark. Mirror the FULL
-          # build-profile env from eas.json — the single source of truth the
-          # installed binary was built with — keyed by channel (channel names ==
-          # profile names), so this job can never drift from the build again.
-          # Every mirrored value is EXPO_PUBLIC_* (public by design, already
-          # committed in eas.json).
-          eval "$(node -e '
-            const eas = require("./eas.json");
-            const env = (eas.build[process.argv[1]] || {}).env || {};
-            for (const [k, v] of Object.entries(env)) {
-              if (!k.startsWith("EXPO_PUBLIC_")) continue;
-              console.log("export " + k + "=" + JSON.stringify(String(v)));
-            }
-          ' "$CHANNEL")"
-          if [ "$CHANNEL" != "development" ] && [ -z "${EXPO_PUBLIC_SUPABASE_URL:-}" ]; then
-            echo "::error::eas.json build profile '$CHANNEL' exposes no EXPO_PUBLIC_* env — refusing to publish an OTA that would downgrade installed builds."
-            exit 1
-          fi
-          echo "Mirrored EXPO_PUBLIC_* env from eas.json profile '$CHANNEL':"
-          env | grep -o '^EXPO_PUBLIC_[A-Z0-9_]*' | sort
-          MESSAGE="$(git log -1 --pretty=%s)"
-          echo "Publishing OTA to channel '$CHANNEL' — \"$MESSAGE\""
-          # --environment is required by newer eas-cli in --non-interactive mode; the
-          # default EAS environments (development/preview/production) match our channels.
-          UPDATE_JSON="$(npx eas-cli update --channel "$CHANNEL" --environment "$CHANNEL" --message "$MESSAGE" --non-interactive --json)"
-          echo "$UPDATE_JSON"
-          RV="$(printf '%s' "$UPDATE_JSON" | node -e '
-            const payload = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
-            const list = Array.isArray(payload) ? payload : [payload];
-            const android = list.find((u) => u.platform === "android") || list[0];
-            process.stdout.write(String(android?.runtimeVersion || ""));
-          ')"
-          echo "runtime_version=$RV" >> "$GITHUB_OUTPUT"
+          case "$CHANNEL" in preview|production) ;; *) echo "::error::Unsupported OTA channel."; exit 1 ;; esac
 
-      # An `eas update` exits 0 whether every device picks it up or none can.
-      # Reach is decided by the runtimeVersion, and the publish output never
-      # says which installed builds carry it. On 2026-08-24 an OTA carrying the
-      # vendor fix reached zero devices, because the eas.json edit that made the
-      # fix necessary is itself a fingerprint source. Never let "published"
-      # read as "delivered" again.
-      - name: Report what this OTA can actually reach
-        if: always() && steps.publish.outputs.runtime_version != ''
+          HISTORY_JSON="$RUNNER_TEMP/eas-update-history-before-publish.json"
+          if ! node "$EAS_UPDATE_HISTORY_COLLECTOR" \
+            "$CHANNEL" "$EXPECTED_ANDROID_RUNTIME" "$EXPECTED_IOS_RUNTIME" "$HISTORY_JSON"; then
+            echo "::error::Existing OTA history lookup failed closed; response details were withheld."
+            exit 1
+          fi
+
+          CLASSIFIED="$RUNNER_TEMP/eas-update-classified.json"
+          if ! node "$EAS_PROVENANCE_CHECKER" classify "$HISTORY_JSON" "$CLASSIFIED"; then
+            echo "::error::Authenticated OTA classification failed closed."
+            exit 1
+          fi
+          ANDROID_STATE="$(node -p "require('$CLASSIFIED').android.state")"
+          IOS_STATE="$(node -p "require('$CLASSIFIED').ios.state")"
+          for state in "$ANDROID_STATE" "$IOS_STATE"; do
+            case "$state" in
+              CLEAN_MATCH|NO_MATCH) ;;
+              DIRTY_OR_AMBIGUOUS)
+                echo "::error::An OTA platform has dirty or ambiguous matching provenance; no publish was attempted."
+                exit 1
+                ;;
+              *) echo "::error::Unknown OTA classification."; exit 1 ;;
+            esac
+          done
+
+          VERIFIED="$RUNNER_TEMP/eas-update-verified.json"
+          cp "$CLASSIFIED" "$VERIFIED"
+          MESSAGE="$(git log -1 --pretty=%s)"
+          PUBLISHED=0
+          REUSED=0
+          for platform in android ios; do
+            PLATFORM_UPPER="${platform^^}"
+            STATE="$(node -p "require('$VERIFIED')['$platform'].state")"
+            if [ "$platform" = android ]; then
+              RUNTIME="$EXPECTED_ANDROID_RUNTIME"
+            else
+              RUNTIME="$EXPECTED_IOS_RUNTIME"
+            fi
+            if [ "$STATE" = CLEAN_MATCH ]; then
+              REUSED=$((REUSED + 1))
+              continue
+            fi
+
+            # This fetch/check is deliberately adjacent to the one external
+            # publish in this loop. It closes the approval/preflight TOCTOU gap
+            # independently for Android and iOS.
+            if ! git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main' >/dev/null 2>&1; then
+              echo "::error::Could not refresh origin/main immediately before $platform OTA publish."
+              exit 1
+            fi
+            if [ "$(git rev-parse HEAD)" != "$GITHUB_SHA" ] || [ "$(git rev-parse origin/main)" != "$GITHUB_SHA" ]; then
+              echo "::error::origin/main advanced before $platform OTA publish; no publish was attempted for this platform."
+              exit 1
+            fi
+            UPDATE_JSON="$RUNNER_TEMP/eas-update-$platform.json"
+            if ! npx --yes "eas-cli@$EAS_CLI_VERSION" update \
+              --platform "$platform" \
+              --channel "$CHANNEL" \
+              --environment "$CHANNEL" \
+              --message "$MESSAGE" \
+              --non-interactive \
+              --json > "$UPDATE_JSON" 2> "$RUNNER_TEMP/eas-update-$platform.err"; then
+              echo "::error::$PLATFORM_UPPER OTA publish failed; response details were withheld."
+              exit 1
+            fi
+            UPDATE_ID="$(node - "$UPDATE_JSON" "$platform" <<'NODE'
+          const fs = require("node:fs");
+          const value = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+          const updates = Array.isArray(value) ? value : [value];
+          const matches = updates.filter(
+            (update) => String(update?.platform || "").toLowerCase() === process.argv[3],
+          );
+          const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          if (matches.length !== 1 || !uuid.test(matches[0]?.id || "")) {
+            throw new Error("publish result has no single well-formed platform update id");
+          }
+          process.stdout.write(matches[0].id);
+          NODE
+            )"
+            PLATFORM_VERIFIED="$RUNNER_TEMP/eas-update-$platform-verified.json"
+            if ! node "$EAS_PROVENANCE_CHECKER" update \
+              "$UPDATE_ID" "$platform" "$RUNTIME" "$CHANNEL" "" "$PLATFORM_VERIFIED"; then
+              echo "::error::$PLATFORM_UPPER OTA exists but authenticated GraphQL provenance verification failed."
+              exit 1
+            fi
+            node - "$VERIFIED" "$PLATFORM_VERIFIED" "$platform" <<'NODE'
+          const fs = require("node:fs");
+          const [combinedPath, platformPath, platform] = process.argv.slice(2);
+          const combined = JSON.parse(fs.readFileSync(combinedPath, "utf8"));
+          const verified = JSON.parse(fs.readFileSync(platformPath, "utf8"));
+          combined[platform] = { state: "CLEAN_MATCH", ...verified };
+          fs.writeFileSync(combinedPath, JSON.stringify(combined));
+          NODE
+            PUBLISHED=$((PUBLISHED + 1))
+          done
+
+          if [ "$PUBLISHED" -eq 0 ] && [ "$REUSED" -eq 2 ]; then
+            PUBLISH_ACTION="reused-existing"
+          elif [ "$PUBLISHED" -eq 2 ]; then
+            PUBLISH_ACTION="published-both"
+          elif [ "$PUBLISHED" -eq 1 ] && [ "$REUSED" -eq 1 ]; then
+            PUBLISH_ACTION="published-one-reused-one"
+          else
+            echo "::error::OTA publish state accounting is inconsistent."
+            exit 1
+          fi
+          ANDROID_RUNTIME="$(node -p "require('$VERIFIED').android.runtimeVersion")"
+          IOS_RUNTIME="$(node -p "require('$VERIFIED').ios.runtimeVersion")"
+          ANDROID_UPDATE_ID="$(node -p "require('$VERIFIED').android.id")"
+          IOS_UPDATE_ID="$(node -p "require('$VERIFIED').ios.id")"
+          ANDROID_GROUP="$(node -p "require('$VERIFIED').android.group")"
+          IOS_GROUP="$(node -p "require('$VERIFIED').ios.group")"
+          {
+            echo "publish_status=verified"
+            echo "publish_action=$PUBLISH_ACTION"
+            echo "android_runtime=$ANDROID_RUNTIME"
+            echo "ios_runtime=$IOS_RUNTIME"
+            echo "android_update_id=$ANDROID_UPDATE_ID"
+            echo "ios_update_id=$IOS_UPDATE_ID"
+            echo "android_group=$ANDROID_GROUP"
+            echo "ios_group=$IOS_GROUP"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Postflight both platforms against compatible completed builds
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          CHANNEL: ${{ needs.gate.outputs.channel }}
+          ANDROID_RUNTIME: ${{ steps.publish.outputs.android_runtime }}
+          IOS_RUNTIME: ${{ steps.publish.outputs.ios_runtime }}
+          ANDROID_UPDATE_ID: ${{ steps.publish.outputs.android_update_id }}
+          IOS_UPDATE_ID: ${{ steps.publish.outputs.ios_update_id }}
+          ANDROID_GROUP: ${{ steps.publish.outputs.android_group }}
+          IOS_GROUP: ${{ steps.publish.outputs.ios_group }}
         run: |
           set -euo pipefail
-          RV="${{ steps.publish.outputs.runtime_version }}"
-          CHANNEL="${{ needs.gate.outputs.channel }}"
-          # ⚠ 이 줄은 전에 `2>/dev/null || echo '[]'` 이었다. 그러면 조회가
-          #   **실패해도 빈 목록**이 되고, 도달 보고는 그걸 "채널에 빌드가 없다"로
-          #   렌더한다 — **없는 것과 못 본 것을 구분할 수 없었다.**
-          #   이 저장소가 반복해서 데인 모양 그대로다(검사가 침묵하면 초록불로 읽힌다).
-          #
-          # ⚠ `npx eas-cli` 는 버전이 고정돼 있지 않다 — 매번 최신본을 받는다.
-          #   22.x 가 `channel`→`updateChannel.name`, `runtimeVersion`→`runtime.version`
-          #   으로 **두 필드를 함께 개명**했고, 그 탓에 2026-08-26 도달 보고가
-          #   방금 띄운 빌드를 "좌초"로 찍었다. 그래서 어떤 버전이 이 보고를
-          #   냈는지 **기록에 남긴다** — 다음에 모양이 또 바뀌면 이 줄이 범인을 짚는다.
-          CLI_VER="$(npx eas-cli --version 2>/dev/null | head -1 || echo unknown)"
-          echo "eas-cli: $CLI_VER"
-          set +e
-          BUILDS="$(npx eas-cli build:list --platform android --limit 30 --json --non-interactive 2>build-list.err)"
-          LIST_CODE=$?
-          set -e
-          if [ "$LIST_CODE" -ne 0 ] || [ -z "$BUILDS" ]; then
-            echo "::warning title=OTA reach::eas build:list 가 실패했다(exit $LIST_CODE). 도달을 판단할 수 없다 — \"빌드 없음\" 과 다르다."
-            {
-              echo "### OTA reach"
-              echo
-              echo "⚠ **판단 불가** — 설치된 빌드 목록을 조회하지 못했다(exit $LIST_CODE)."
-              echo "이것은 \"채널에 빌드가 없다\" 와 **다른 상황**이다. 업데이트 자체는 발행됐다."
-              echo
-              echo '```'
-              head -c 2000 build-list.err || true
-              echo '```'
-            } >> "$GITHUB_STEP_SUMMARY"
-            rm -f build-list.err
-            exit 0
+          HISTORY_JSON="$RUNNER_TEMP/eas-update-history-postflight.json"
+          if ! node "$EAS_UPDATE_HISTORY_COLLECTOR" \
+            "$CHANNEL" "$ANDROID_RUNTIME" "$IOS_RUNTIME" "$HISTORY_JSON"; then
+            echo "::error::Postflight OTA history lookup failed closed; response details were withheld."
+            exit 1
           fi
-          REPORT="$(printf '%s' "$BUILDS" | node scripts/check-ota-reach.js "$RV" "$CHANNEL")"
-          rm -f build-list.err
-          echo "$REPORT"
+          POST_CLASSIFIED="$RUNNER_TEMP/eas-update-postflight-classified.json"
+          if ! node "$EAS_PROVENANCE_CHECKER" classify "$HISTORY_JSON" "$POST_CLASSIFIED"; then
+            echo "::error::Postflight OTA history classification failed closed."
+            exit 1
+          fi
+          node - "$POST_CLASSIFIED" \
+            "$ANDROID_UPDATE_ID" "$ANDROID_GROUP" "$IOS_UPDATE_ID" "$IOS_GROUP" <<'NODE'
+          const fs = require("node:fs");
+          const payload = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+          const expected = {
+            android: { id: process.argv[3], group: process.argv[4] },
+            ios: { id: process.argv[5], group: process.argv[6] },
+          };
+          for (const platform of ["android", "ios"]) {
+            const actual = payload?.[platform];
+            if (
+              actual?.state !== "CLEAN_MATCH" ||
+              String(actual?.id).toLowerCase() !== expected[platform].id.toLowerCase() ||
+              String(actual?.group).toLowerCase() !== expected[platform].group.toLowerCase()
+            ) {
+              throw new Error(`postflight ${platform} history does not contain the exact clean update`);
+            }
+          }
+          NODE
+          for platform in android ios; do
+            if [ "$platform" = android ]; then
+              RUNTIME="$ANDROID_RUNTIME"
+              UPDATE_ID="$ANDROID_UPDATE_ID"
+              GROUP="$ANDROID_GROUP"
+            else
+              RUNTIME="$IOS_RUNTIME"
+              UPDATE_ID="$IOS_UPDATE_ID"
+              GROUP="$IOS_GROUP"
+            fi
+            POST_UPDATE="$RUNNER_TEMP/$platform-postflight-update.json"
+            if ! node "$EAS_PROVENANCE_CHECKER" update \
+              "$UPDATE_ID" "$platform" "$RUNTIME" "$CHANNEL" "$GROUP" "$POST_UPDATE"; then
+              echo "::error::$platform postflight update provenance failed closed."
+              exit 1
+            fi
+            BUILDS="$RUNNER_TEMP/$platform-compatible-builds.json"
+            if ! npx --yes "eas-cli@$EAS_CLI_VERSION" build:list \
+              --platform "$platform" \
+              --status finished \
+              --channel "$CHANNEL" \
+              --runtime-version "$RUNTIME" \
+              --limit 10 \
+              --json \
+              --non-interactive > "$BUILDS" 2> "$RUNNER_TEMP/$platform-postflight-builds.err"; then
+              echo "::error::$platform compatible-build lookup failed; response details were withheld."
+              exit 1
+            fi
+            node "$EAS_PROVENANCE_CHECKER" build "$BUILDS" "$platform" "$RUNTIME" "$CHANNEL"
+          done
           {
-            echo "### OTA reach"
+            echo "### OTA verified and reachable"
             echo
-            echo '```'
-            echo "$REPORT"
-            echo '```'
-            echo
-            echo "<sub>이 보고를 낸 CLI: \`$CLI_VER\` — 출력 필드 이름이 버전마다 다르다.</sub>"
+            echo "- Channel: \`$CHANNEL\`"
+            echo "- Android runtime: \`$ANDROID_RUNTIME\` (FINISHED build verified)"
+            echo "- iOS runtime: \`$IOS_RUNTIME\` (FINISHED build verified)"
+            echo "- Android update/group: \`${{ steps.publish.outputs.android_update_id }}\` / \`${{ steps.publish.outputs.android_group }}\`"
+            echo "- iOS update/group: \`${{ steps.publish.outputs.ios_update_id }}\` / \`${{ steps.publish.outputs.ios_group }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  report:
+    needs:
+      - gate
+      - update
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Distinguish gate-only, publish failure, and reachable publish
+        env:
+          GATE_OUTCOME: ${{ needs.gate.outputs.outcome }}
+          UPDATE_RESULT: ${{ needs.update.result }}
+          PUBLISH_STATUS: ${{ needs.update.outputs.publish_status }}
+          PUBLISH_ACTION: ${{ needs.update.outputs.publish_action }}
+        run: |
+          set -euo pipefail
+          if [ "$GATE_OUTCOME" = gate-only ]; then
+            echo "GATE_ONLY: no OTA publish was attempted." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$UPDATE_RESULT" = success ] && [ "$PUBLISH_STATUS" = verified ]; then
+            echo "VERIFIED_AND_REACHABLE: $PUBLISH_ACTION; Android and iOS compatible builds were verified." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$PUBLISH_STATUS" = verified ]; then
+            echo "::error::UPDATE_EXISTS_BUT_REACH_UNVERIFIED: update exists, but the compatibility gate failed."
+            exit 1
+          else
+            echo "::error::PUBLISH_FAILED: EAS Update did not return verified two-platform metadata."
+            exit 1
+          fi
