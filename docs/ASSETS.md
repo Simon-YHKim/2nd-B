@@ -95,12 +95,22 @@ carries no third-party license obligation.
 | `public/landing/` | 7 PNG | 2026-06-15 | Landing background concepts |
 | `public/proto/` | 7 PNG | 2026-07-04 | Deep-space prototype screens |
 | `public/icons/` | 2 PNG | 2026-06-11 | PWA icons (192 / 512), derived from the app icon |
-| `assets/deepspace/` | 13 PNG | 2026-06-19 | SecondB canonical head pair plus 11 Nebori style-comparison working images added during the competition window |
+| `assets/deepspace/` | 14 PNG | 2026-06-19 | SecondB canonical head pair, 11 Nebori style-comparison working images, and the compact HustleK opening v2 atlas |
 | `assets/images/` | 7 PNG | 2026-05-25 | App icon, adaptive-icon layers, splash, favicon, logo glow. Seeded from the Expo template at initialisation (MIT) and replaced in-window with generated art |
 
-Total: **237 bundled image files**. `scripts/check-constraints.ts` (C12)
+Total: **238 bundled image files**. `scripts/check-constraints.ts` (C12)
 fails if any of these paths stops being mentioned in this file, so a new
 art pack cannot ship undisclosed.
+
+The bundled `assets/deepspace/hustlek-opening-v2.png` is a deterministic
+576x416 repack of the approved v1 pixels: 12 full-body walk cells, six
+turn/contact cells, and one fixed telescope cell. It contains no independently
+generated or third-party pixels. `scripts/build-hustlek-opening-v2.py` verifies
+the immutable v1 PNG and decoded-pixel hashes before copying integer-coordinate
+cells. The committed v2 PNG SHA-256 is
+`af85212e896afb3a4bf70db5d1a4bf58c5b248701ab9b8687167030ace4f8f62`;
+its decoded RGBA SHA-256 is
+`9c711c6c6348ff40ac05f71f02879bc53047a83ab2fa026e41f9b01f5d54a72e`.
 
 **In the repository but not in the build.** Working images also live under
 `docs/` (clone-audit captures, flow thumbnails, QA evidence) and `design/`
