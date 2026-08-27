@@ -51,7 +51,7 @@ import {
   type OAuthProvider,
 } from "@/lib/supabase/auth";
 import { deleteAllUserData, requestAccountDeletion } from "@/lib/records/delete-bulk";
-import { buildPersona } from "@/lib/persona/build";
+import { buildPersona, loadPersonaRatifiableSignals } from "@/lib/persona/build";
 import { proposalContextForStar } from "@/lib/persona/proposal-context";
 import { proposeSelfModelChange } from "@/lib/persona/propose-self-model";
 import { applyRatify, type RatifyDecision, type SelfModelProposal } from "@/lib/persona/proposal";
@@ -1647,13 +1647,26 @@ export function DeepSpaceDiscoverScreen() {
   );
 }
 
+interface DeepSpaceReviewSessionProps {
+  userId: string | null;
+  isMinor: boolean | null;
+}
+
 export function DeepSpaceReviewScreen() {
+  const { userId, isMinor } = useAuth();
+  // A keyed ownership boundary prevents an in-flight proposal for user A from
+  // resurfacing after auth switches to user B. It also resets receipts, sheet,
+  // evidence refs, and result state when the age-safety profile resolves.
+  const sessionKey = `${userId ?? "signed-out"}:${isMinor === null ? "pending" : isMinor ? "minor" : "adult"}`;
+  return <DeepSpaceReviewSession key={sessionKey} userId={userId} isMinor={isMinor} />;
+}
+
+function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps) {
   const { t, i18n } = useTranslation("deepspace");
   // 시기 별 버튼의 이름은 홈 별자리와 **같은 키**에서 온다 -- 화면마다 다른
   // 이름을 배우면 사용자는 같은 별을 두 개로 안다.
   const { t: tHome } = useTranslation("home");
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
-  const { userId, isMinor } = useAuth();
   // Real propose -> ratify (was a static mockup with hardcoded 61->68 and dead
   // buttons). Reuses the same engine as legacy /review; nothing applies until the
   // user ratifies in the sheet. LLM calls go through the C1/C9/C3 gateway inside.
@@ -1681,31 +1694,40 @@ export function DeepSpaceReviewScreen() {
   // 시기 별 후보(2026-08-25) — 근거가 검사지가 아니라 **인터뷰**인 비준.
   // 충분히 판 별(두 층 이상)만 온다. 이게 새 일곱 별이 L5 로 가는 유일한 길이다.
   const [sevenTargets, setSevenTargets] = useState<SevenRatifiableTarget[]>([]);
+  const [targetLoadFailed, setTargetLoadFailed] = useState(false);
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      setTargets([]);
+      setSevenTargets([]);
+      setTargetLoadFailed(false);
+      return;
+    }
     let active = true;
-    buildPersona(userId, locale, isMinor === true)
-      .then((card) => {
-        if (active) setTargets(ratifiableTargets(card));
-      })
-      .catch(() => {
-        // 최선 노력. 실패하면 버튼이 안 뜨고, 그건 조용한 실패가 아니라
-        // "아직 되돌아볼 것이 없다" 와 같은 화면이다.
-      });
-    sevenRatifiableTargets(userId)
-      .then((sts) => {
-        if (active) setSevenTargets(sts);
-      })
-      .catch(() => {
-        // 같은 원칙: 못 읽으면 후보가 없는 것과 같은 화면.
-      });
+    setTargets([]);
+    setSevenTargets([]);
+    setTargetLoadFailed(false);
+    Promise.allSettled([
+      loadPersonaRatifiableSignals(userId),
+      sevenRatifiableTargets(userId),
+    ]).then(([legacyResult, sevenResult]) => {
+      if (!active) return;
+      if (legacyResult.status === "fulfilled") {
+        setTargets(ratifiableTargets(legacyResult.value));
+      }
+      if (sevenResult.status === "fulfilled") {
+        setSevenTargets(sevenResult.value);
+      }
+      setTargetLoadFailed(
+        legacyResult.status === "rejected" || sevenResult.status === "rejected",
+      );
+    });
     return () => {
       active = false;
     };
-  }, [userId, locale, isMinor]);
+  }, [userId]);
 
   async function generate(star: StarId) {
-    if (!userId || loading) return;
+    if (!userId || isMinor === null || loading) return;
     setLoading(true);
     setResult(null);
     setReceipts([]);
@@ -1730,7 +1752,7 @@ export function DeepSpaceReviewScreen() {
   }
 
   async function generateSeven(star: SevenStarId) {
-    if (!userId || loading) return;
+    if (!userId || isMinor === null || loading) return;
     setLoading(true);
     setResult(null);
     setReceipts([]);
@@ -1815,17 +1837,20 @@ export function DeepSpaceReviewScreen() {
       {targets.length > 0 ? (
         <Text variant="caption" style={styles.section}>{t("review.groupTest")}</Text>
       ) : null}
-      {targets.length === 0 && sevenTargets.length === 0 ? (
+      {targetLoadFailed ? (
+        <Text variant="subtle" style={styles.footer}>{t("reviewLoadError")}</Text>
+      ) : null}
+      {!targetLoadFailed && targets.length === 0 && sevenTargets.length === 0 ? (
         <Text variant="subtle" style={styles.footer}>{t("reviewNothingToReview")}</Text>
-      ) : (
-        targets.map((rt) => (
+      ) : null}
+      {targets.map((rt) => (
           <Pressable
             key={rt.target.kind === "star" ? rt.target.star : rt.target.kind}
             style={[styles.primary, loading ? { opacity: 0.5 } : null]}
             onPress={() => {
               if (rt.target.kind === "star") void generate(rt.target.star);
             }}
-            disabled={loading}
+            disabled={loading || isMinor === null}
             accessibilityRole="button"
             accessibilityLabel={t(AXIS_LABEL_KEY[rt.sourceAssessmentId])}
           >
@@ -1833,8 +1858,7 @@ export function DeepSpaceReviewScreen() {
               {loading ? t("reviewLoading") : t(AXIS_LABEL_KEY[rt.sourceAssessmentId])}
             </Text>
           </Pressable>
-        ))
-      )}
+        ))}
       {/* 시기 별 비준(2026-08-25) -- 인터뷰로 충분히 판 별의 한 줄 요약을 제안받고
           승인하면 그 별이 L5 로 간다. 커버리지로는 절대 못 가는 등급이라, 이
           버튼들이 새 일곱 별의 유일한 L5 경로다. 이름은 홈과 같은 키에서 읽는다. */}
@@ -1846,7 +1870,7 @@ export function DeepSpaceReviewScreen() {
           key={`seven-${st.star}`}
           style={[styles.primary, loading ? { opacity: 0.5 } : null]}
           onPress={() => void generateSeven(st.star)}
-          disabled={loading}
+          disabled={loading || isMinor === null}
           accessibilityRole="button"
           accessibilityLabel={tHome(`ds.star.${getSevenStar(st.star).key}`)}
         >
