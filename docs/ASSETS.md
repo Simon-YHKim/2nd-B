@@ -96,6 +96,7 @@ carries no third-party license obligation.
 | `public/proto/` | 7 PNG | 2026-07-04 | Deep-space prototype screens |
 | `public/icons/` | 2 PNG | 2026-06-11 | PWA icons (192 / 512), derived from the app icon |
 | `assets/deepspace/` | 13 PNG | 2026-06-19 | SecondB canonical head pair plus 11 Nebori style-comparison working images added during the competition window |
+| `assets/opening/` | 1 PNG | 2026-08-27 | HustleK opening sprite sheet (48 frames, 8x6 grid, 320x180 cells) built by `scripts/build-opening-strip.py` from the approved atlas. No new art: the builder refuses to run unless the atlas RGBA hash matches the approved value. |
 | `assets/images/` | 7 PNG | 2026-05-25 | App icon, adaptive-icon layers, splash, favicon, logo glow. Seeded from the Expo template at initialisation (MIT) and replaced in-window with generated art |
 
 Total: **237 bundled image files**. `scripts/check-constraints.ts` (C12)
