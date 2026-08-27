@@ -27,7 +27,15 @@ import { DOMAIN_STARS, getDomainStar, isDomainId, domainTagFor, type DomainId } 
 import { loadDomainLevels } from "@/lib/persona/load-domain-levels";
 import type { LadderLevel } from "@/lib/persona/brightness";
 import { m3 } from "@/lib/theme/m3";
-import { withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
+
+// ⚠ **바탕 선언** (PIXEL-CLAY 규칙 4 — 정적 반투명 금지).
+//   이 화면은 `DeepSpaceScreen` 의 스테이지 위에 앉는다 — 스테이지가
+//   `stageFloor` 를 0.92 로 깔고 그 아래가 `bgEdge` 다.
+//   바탕이 틀리면 알파를 그대로 두는 것보다 나쁘니 옮기는 사람은 여기부터 다시 재야 한다.
+const STAR_GROUND = flattenAlpha(m3.accent.stageFloor, 0.92, deepSpace.bgEdge);
+const starAlpha = (c: string, a: number): string => flattenAlpha(c, a, STAR_GROUND);
+
 
 // Layer B remains hidden: this slot mirrors the prototype's compact top-bar
 // caption with the domain's own visual lens, not a psychological construct.
@@ -265,7 +273,7 @@ const s = StyleSheet.create({
   headerGauge: { flexDirection: "row", gap: 4 },
   headerSegment: { width: 12, height: 5, borderRadius: m3.shape.none },
   headerSegmentOn: { backgroundColor: m3.color.primary },
-  headerSegmentOff: { backgroundColor: withAlpha(m3.color.primary, 0.2) },
+  headerSegmentOff: { backgroundColor: starAlpha(m3.color.primary, 0.2) },
   levelText: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.mono, fontWeight: "700" },
   briefCard: {
     flexDirection: "row",
@@ -273,7 +281,7 @@ const s = StyleSheet.create({
     gap: 10,
     padding: 14,
     borderRadius: m3.shape.none,
-    backgroundColor: withAlpha(m3.color.primaryContainer, 0.34),
+    backgroundColor: starAlpha(m3.color.primaryContainer, 0.34),
   },
   briefText: { flex: 1, color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, lineHeight: 20 },
   actions: { flexDirection: "row", gap: 8, marginTop: 14 },

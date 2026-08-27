@@ -1,4 +1,4 @@
-import { cosmic, withAlpha } from "./tokens";
+import { cosmic, flattenAlpha, withAlpha } from "./tokens";
 import { UI_MODE } from "../ui-mode";
 
 // Pixel geometry differs by build: sharp corners + hard offset shadow (legacy)
@@ -56,15 +56,52 @@ export const gameboyCosmic = {
 // 색은 그대로 두고 모서리만 0 이 됐다.
 const gameboyDeepSpace = {
   ...geometryDeepSpace,
-  screen: "#0A0E1A",
+  // ⚠ 캐논 midnight 램프의 `--c00`. 원래 `#0A0E1A` 로 2 만큼 어긋나 있었다.
+  screen: "#0A0E18",
   ink: "#E8F7FF",
   accent: "#46B6FF",
   power: "#5FF0C0",
   amber: "#FFD166",
+  // ⚠ **이 하나는 알파로 남겨둔다** (PIXEL-CLAY 규칙 4의 예외가 아니라 미결).
+  //
+  //   미리 합성하려면 바탕을 골라야 하는데, 이 테두리는 **밝기가 다른 여러 표면**에
+  //   그려진다. 이 팔레트의 `screen`(#0A0E1A) 위에 합성하면 `#3380b6` 가 되고,
+  //   그 색을 더 밝은 `cosmic.space700`(#243056) 위에 놓으면 대비가 **정확히 3.00** —
+  //   비문자 바닥에 여유가 0 이라 반올림만으로도 깨진다. 알파로 두면 3.51 이다.
+  //   (`lib/__tests__/premium-button-a11y.test.ts` 가 그 바닥을 지킨다.)
+  //
+  //   따라서 이건 **자리별 결정**이다 — 이 테두리를 쓰는 표면들이 각자의 바탕으로
+  //   합성한 값을 갖거나, 테두리를 디더로 바꿔야 한다. 전역으로 한 번에 합성하지 말 것.
   border: "rgba(70,182,255,0.68)", // alpha matches cosmic; clears the 3:1 edge floor on dark
 } as const;
 
 export const gameboy = UI_MODE === "deep-space" ? gameboyDeepSpace : gameboyCosmic;
+
+/**
+ * 테두리의 알파. **두 팔레트 모두 `border` 는 `accent` 를 이 알파로 깐 것**이다
+ * (`gameboyCosmic.border = withAlpha(cosmic.signalBlue, 0.68)`,
+ *  `gameboyDeepSpace.border = "rgba(70,182,255,0.68)"` = accent `#46B6FF` 의 0.68).
+ * ⚠ 한쪽만 바꾸면 이 관계가 조용히 깨진다 — 아래 검사가 둘을 묶는다.
+ */
+const GAMEBOY_BORDER_ALPHA = 0.68;
+
+/**
+ * 테두리 색을 **그 자리의 바탕 위에 미리 합성**해 돌려준다 (PIXEL-CLAY 규칙 4).
+ *
+ * RN 은 테두리를 요소 상자 **안쪽**에 그린다 — 아래 깔린 것이 곧 그 요소의 배경이다.
+ * 그래서 배경을 바탕으로 주면 **결과가 지금 렌더와 픽셀 단위로 같다.** 색도 대비도
+ * 바뀌지 않고 정적 반투명만 사라진다.
+ *
+ * ⚠ **전역으로 한 번에 합성하지 말 것.** 이 테두리는 밝기가 다른 여러 표면에
+ *   그려진다. 한 바탕으로 합치면 다른 표면에서 틀린 색이 되고, 대비 바닥(3:1)이
+ *   깨질 수 있다 — 실측: screen(#0A0E1A) 위로 합성한 색을 `cosmic.space700` 에 놓으면
+ *   대비가 **정확히 3.00** 으로 여유가 0 이다(알파로 두면 3.51).
+ *
+ * ⚠ 바탕이 반투명이면 안 된다. 먼저 그 바탕부터 미리 합성할 것.
+ */
+export function gameboyBorderOn(ground: string): string {
+  return flattenAlpha(gameboy.accent, GAMEBOY_BORDER_ALPHA, ground);
+}
 
 export const androidElevation = {
   pixelShadow: 4,

@@ -188,7 +188,14 @@ const MIGRATED: readonly string[] = [
 //
 // ⚠ 주석은 반드시 걷는다. 이 저장소에서 주석 때문에 난 거짓 양성이 이 세션에만
 //   네 번이다 — 이주 메모에 `opacity` 라는 낱말이 널려 있다.
-const NUM_LIT = String.raw`(?:0?\.\d+|0|1(?:\.0+)?)`;
+// ⚠ **0 과 1 은 위반이 아니다** (2026-08-28 정정). 원래 이 패턴은 `0` 과 `1` 도
+//   잡았는데, `opacity: 1` 은 완전 불투명이라 미리 합성할 것이 아예 없고
+//   (`flattenAlpha(c, 1, 바탕)` 은 `c` 를 그대로 돌려준다), `opacity: 0` 은
+//   안 보이는 것이라 섞일 색 자체가 없다. 둘 다 잡으면 고칠 수 없는 위반이
+//   목록을 채워 가드가 못 쓰게 된다 — 규칙 5(동적 불투명도)를 뺀 이유와 같다.
+//   그래서 **소수점이 있고 그 뒤에 0 아닌 숫자가 하나라도 있는** 값만 본다.
+//   실측: `1` 2건 · `0` 1건이 이 정정으로 빠진다(진짜 반투명 76건은 그대로).
+const NUM_LIT = String.raw`(?:0?\.0*[1-9]\d*)`;
 
 /** `opacity: 0.38` — StyleSheet 안의 정적 값. */
 const OPACITY_STYLE = new RegExp(String.raw`\bopacity\s*:\s*(${NUM_LIT})\b`, "g");
@@ -203,6 +210,40 @@ const OPACITY_SVG = new RegExp(
 const RGBA_LIT = /\brgba\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*,\s*0?\.\d+\s*\)/g;
 /** `withAlpha(...)` 호출 — 렌더 때 섞으므로 미리 합성한 것과 다르다. */
 const WITH_ALPHA = /\bwithAlpha\s*\(/g;
+
+/**
+ * `android_ripple={{ ... }}` 의 범위들. 그 안의 알파는 규칙 4에서 뺀다.
+ *
+ * ⚠ **편의 면제가 아니다.** 안드로이드의 리플은 `RippleDrawable` 이 **누른 지점에서
+ * 퍼져 나가며 사라지는 애니메이션**으로 직접 그린다. 색을 불투명하게 미리 합성하면
+ * 누르는 순간 표면 전체가 그 색으로 덮인다 — 고치는 게 아니라 망가뜨리는 것이다.
+ *
+ * 이건 이 가드가 처음부터 `opacity={fadeAnim}`(동적 불투명도)을 빼둔 것과 **같은
+ * 부류**다: 값이 아니라 시간에 걸린 효과라서 미리 합성이라는 개념이 성립하지 않는다.
+ * 섞어서 세면 "고칠 수 없는 위반"이 목록을 채워 가드를 못 쓰게 만든다.
+ *
+ * 실측(2026-08-28): 이 제외로 13건이 빠진다. 남은 규칙 4 는 전부 미리 합성이
+ * 가능하거나 화면 이주가 필요한 것들이다.
+ */
+function rippleRanges(src: string): [number, number][] {
+  const out: [number, number][] = [];
+  const open = /android_ripple\s*=\s*\{/g;
+  for (const m of src.matchAll(open)) {
+    const start = (m.index ?? 0) + m[0].length - 1; // 여는 `{`
+    let depth = 0;
+    for (let i = start; i < src.length; i++) {
+      if (src[i] === "{") depth++;
+      else if (src[i] === "}") {
+        depth--;
+        if (depth === 0) {
+          out.push([m.index ?? 0, i + 1]);
+          break;
+        }
+      }
+    }
+  }
+  return out;
+}
 
 const RULE4_PATTERNS: readonly { re: RegExp; why: string }[] = [
   { re: OPACITY_STYLE, why: "규칙 4 -- 정적 불투명도. `flattenAlpha(색, 알파, 바탕)` 으로 미리 합성하거나 디더를 쓸 것" },
@@ -237,6 +278,30 @@ const SPRING_ANIM = /\b(?:withSpring|Animated\.spring)\s*\(/g;
 // ⚠ **주석은 걷어내고 센다.** 이주 과정을 적은 문장 안에 `<Path>`·`<Circle>`
 //   이라는 글자가 많이 들어 있어서, 안 걷으면 기록을 지워야 통과하게 된다.
 const CURVE_EL = /<(Path|Circle|Ellipse|Polyline|Polygon|path|circle|ellipse|polyline|polygon)\b/g;
+
+/**
+ * 곡선 도형을 **감싼 별칭**. 실측으로 걸렸다 — `/rlss` 화면에 원이 그려지는데
+ * 가드는 "곡선 0건" 이라고 말했다. 범인은 이것이었다:
+ *
+ *     const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+ *     <AnimatedCircle cx cy r />
+ *
+ * `<Circle` 을 찾는 정규식은 `<AnimatedCircle` 에 안 걸린다.
+ *
+ * ⚠ "이름이 곡선 이름으로 끝나면 잡는다" 로 넓히지 않았다 — `LearningPath` 같은
+ *   멀쩡한 컴포넌트가 걸려 무관용 규칙이 오작동한다. **그 파일 안에서 실제로
+ *   선언된 별칭만** 추적한다.
+ */
+const CURVE_ALIAS_DECL =
+  /const\s+([A-Z][A-Za-z0-9_]*)\s*=\s*[A-Za-z0-9_.]*\(\s*(Path|Circle|Ellipse|Polyline|Polygon)\s*\)/g;
+
+/** 이 파일이 선언한 곡선 별칭들의 JSX 사용을 찾는 정규식. 없으면 null. */
+function curveAliasPattern(bare: string): RegExp | null {
+  const names = new Set<string>();
+  for (const m of bare.matchAll(CURVE_ALIAS_DECL)) names.add(m[1]);
+  if (names.size === 0) return null;
+  return new RegExp("<(" + [...names].join("|") + ")\\b", "g");
+}
 
 /** 줄주석과 블록주석을 공백으로 지운다(줄 수는 유지해 줄번호가 안 밀린다). */
 function stripComments(src: string): string {
@@ -424,10 +489,14 @@ for (const rel of RULE_SCOPE) {
   // 규칙 4 — 주석을 걷고 본다.
   {
     const bare4 = stripComments(src);
+    const rippleSpans = rippleRanges(bare4);
     for (const { re, why } of RULE4_PATTERNS) {
       re.lastIndex = 0;
       for (const m of bare4.matchAll(re)) {
-        hits.push({ file: rel, line: lineOf(bare4, m.index ?? 0), text: m[0].trim(), why });
+        const at = m.index ?? 0;
+        // ⚠ `android_ripple` 안의 알파는 **미리 합성할 수 없다** — 아래 설명 참조.
+        if (rippleSpans.some(([s, e]) => at >= s && at < e)) continue;
+        hits.push({ file: rel, line: lineOf(bare4, at), text: m[0].trim(), why });
       }
     }
   }
@@ -565,6 +634,20 @@ for (const abs of walkTsx(join(ROOT, "src"))) {
         "별은 `PixelStarSvg` 를 쓸 것. 화면 실측으로 0 건이 된 규칙이라 래칫이 아니라 무관용이다",
     });
   }
+  // 별칭으로 감싼 곡선 도형도 같이 본다(위 `curveAliasPattern` 주석 참조).
+  const aliasRe = curveAliasPattern(bare);
+  if (aliasRe) {
+    for (const m of bare.matchAll(aliasRe)) {
+      hits.push({
+        file: rel,
+        line: lineOf(bare, m.index ?? 0),
+        text: m[0],
+        why:
+          "규칙 1 -- 곡선 도형. 아이콘은 `PixelGlyph`, 선은 `pixel-line.ts`(stepLine/stepQuad/ringCells), " +
+          "별은 `PixelStarSvg` 를 쓸 것. 화면 실측으로 0 건이 된 규칙이라 래칫이 아니라 무관용이다",
+      });
+    }
+  }
 }
 
 // ── 승격 (2026-08-27): 규칙 2·3·5 가 `src/` 전체를 본다 ────────────────────
@@ -579,8 +662,56 @@ for (const abs of walkTsx(join(ROOT, "src"))) {
 //
 // ⚠ 기준선을 **올리지 말 것.** 올려야 한다면 그건 규칙을 되돌린 것이다.
 //   줄었을 때만 내린다(줄인 PR 이 같이 내린다).
-const RATCHET_BASELINE = 333;
+// 342 → 333 → 315 → 202 → 193 → **165** (2026-08-28).
+//
+// 이번에 내려간 28건의 출처 — **절반은 고친 것이고 절반은 잘못 세던 것이다.**
+//
+//   고친 것 12건: `complete-profile` 5 · `DrillProgress` 5 · `settings` 2
+//                 (전부 `flattenAlpha` 로 바탕을 명시해 미리 합성)
+//   잘못 세던 것 16건: `opacity: 0`·`1` 3건(위 NUM_LIT 정정) ·
+//                      `android_ripple` 13건(위 rippleRanges 참조)
+//
+// 변이 검증 둘 다 통과:
+//   · `opacity: 1`·`0`·`1.0` → 그대로 · `opacity: 0.37`·`.05` → +2
+//   · 리플 안 알파 → 그대로 · 리플 밖 알파(같은 줄이어도) → +1
+const RATCHET_BASELINE = 165;
 
+// 래칫이 통과해도 **남은 빚이 어디 있는지** 볼 수 있어야 한다. 수만 보면 고칠 곳을
+// 모른다(채점기 D·E·B 축도 이름을 붙이고 나서야 고칠 것이 드러났다).
+//
+//     PIXEL_RULES_LIST=1 npx tsx scripts/check-pixel-rules.ts
+//
+// 기본은 조용하다 — CI 로그를 300줄 넘게 채우지 않기 위해서다.
+if (process.env.PIXEL_RULES_LIST === "1") {
+  const byFile = new Map<string, number>();
+  for (const h of hits.filter((x) => !x.why.startsWith("규칙 1"))) {
+    byFile.set(h.file, (byFile.get(h.file) ?? 0) + 1);
+  }
+  const ranked = [...byFile.entries()].sort((a, b) => b[1] - a[1]);
+  console.log(`\n규칙 2·3·4·5 남은 빚: ${hits.filter((x) => !x.why.startsWith("규칙 1")).length}건 · 파일 ${ranked.length}개`);
+  for (const [file, n] of ranked) console.log(`  ${String(n).padStart(4)}  ${file}`);
+  const byRule = new Map<string, number>();
+  for (const h of hits.filter((x) => !x.why.startsWith("규칙 1"))) {
+    const key = h.why.slice(0, 5);
+    byRule.set(key, (byRule.get(key) ?? 0) + 1);
+  }
+  console.log("\n규칙별:");
+  for (const [rule, n] of [...byRule.entries()].sort((a, b) => b[1] - a[1])) {
+    console.log(`  ${String(n).padStart(4)}  ${rule}`);
+  }
+  // 한 파일만 줄 단위로 보고 싶을 때: PIXEL_RULES_FILE=<경로조각>
+  const only = process.env.PIXEL_RULES_FILE;
+  if (only) {
+    console.log(`
+${only} 상세:`);
+    for (const h of hits.filter((x) => !x.why.startsWith("규칙 1") && x.file.includes(only))) {
+      console.log(`  ${h.file}:${h.line}`);
+      console.log(`      ${h.why}`);
+      console.log(`      ${h.text.trim().slice(0, 110)}`);
+    }
+  }
+  console.log("");
+}
 const rule1Hits = hits.filter((h) => h.why.startsWith("규칙 1"));
 const ratchetHits = hits.filter((h) => !h.why.startsWith("규칙 1"));
 

@@ -207,7 +207,9 @@
     "last7": "7 hari terakhir",
     "thirdParty": "Berbagi pihak ketiga",
     "none": "0 item",
-    "footer": "Bawaannya lokal dulu. Transfer eksternal hanya berjalan setelah konfirmasimu."
+    "footer": "Bawaannya lokal dulu. Transfer eksternal hanya berjalan setelah konfirmasimu.",
+    "dataReview": "Tinjauan data saya",
+    "open": "Buka"
   },
   "support": {
     "title": "Dukungan",
@@ -409,9 +411,9 @@
   },
   "review": {
     "title": "Tinjauan",
-    "status": "Kalau kamu berubah, kita tinjau rasi bintangnya bersama.",
+    "status": "Kalau kamu berubah, kita tinjau bintangnya bersama.",
     "tip": "Tidak ada yang berlaku sampai kamu menyetujui.",
-    "lead": "Kalau kamu berubah, tinjau rasi bintangnya bersama",
+    "lead": "Kalau kamu berubah, tinjau bintangnya bersama",
     "section": "Saran SecondB",
     "body": "Catatan terbaru menunjukkan ekstraversimu naik. Naikkan kecerahan bintang?",
     "now": "Sekarang",

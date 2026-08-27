@@ -13,8 +13,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
-import { CompanionSprite } from "@/components/art/CompanionSprite";
-import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { SecondbHead } from "@/components/deepspace/SecondbHead";
+import { cosmic, flattenAlpha, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { useTranslation } from "react-i18next";
 
@@ -127,7 +127,11 @@ export function QuantIntroModal({
           accessibilityHint={description}
         >
           <View style={styles.introHeader}>
-            <CompanionSprite companion="momo" state="read" size={52} />
+            {/* ⚠ 예전에는 마을 캐릭터(모모 반장) 스프라이트였다. 두 가지가 틀렸다:
+                ① 그 배역은 **레거시**다(캐논은 세컨비 하나다).
+                ② 그 아트는 `<path>` **23개**로 그려져 PIXEL-CLAY 규칙 1(곱선 없음)을 깨뜨렸다.
+                `/rlss` 화면의 A축이 0/30 이었던 가장 큰 이유가 이것이다. */}
+            <SecondbHead size={52} track={false} accessibilityLabel={t("quantBeforeStart")} />
             <View style={styles.introHeaderText}>
               {/* KO eyebrow drops tracking to 0 (Hangul reads worse when
                   tracked); EN keeps the stylized caption tracking. */}
@@ -242,7 +246,8 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   stat: { flex: 1, alignItems: "center" },
-  statDivider: { width: 1, alignSelf: "stretch", backgroundColor: semantic.border, opacity: 0.5 },
+  // ⚠ 미리 합성한 색(규칙 4). 바탕은 이 카드의 배경이다.
+  statDivider: { width: 1, alignSelf: "stretch", backgroundColor: flattenAlpha(semantic.border, 0.5, semantic.surface) },
   disclaimerCard: {
     marginTop: spacing.md,
     backgroundColor: semantic.surfaceAlt,

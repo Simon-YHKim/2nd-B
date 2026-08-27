@@ -34,7 +34,7 @@ import { Text } from "@/components/ui/Text";
 import { Input } from "@/components/ui/Input";
 import { MdButton } from "@/components/m3";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { deepSpace, semantic, spacing, withAlpha, flattenAlpha } from "@/lib/theme/tokens";
+import { deepSpace, flattenAlpha, semantic, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -278,7 +278,7 @@ function SettingsActionButton({
 }: SettingsActionButtonProps) {
   const isDisabled = disabled || loading;
   const labelColor = isDisabled
-    ? withAlpha(deepSpace.text, 0.5)
+    ? BTN_DISABLED_LABEL
     : variant === "primary"
       ? deepSpace.onMint
       : variant === "danger"
@@ -1243,6 +1243,12 @@ const m3Styles = StyleSheet.create({
   connectBtn: { minHeight: 36, paddingHorizontal: m3.spacing.s4 },
 });
 
+// PIXEL-CLAY 규칙 4 — 정적 반투명 금지. 비활성 버튼은 바탕이 겹쳐 있다:
+//   섹션 카드(deepSpace.card) → 버튼 배경(text @ 0.08) → 라벨(text @ 0.5).
+// 라벨을 카드 위에서 합성하면 실제보다 어두워진다. 쌓인 순서대로 합성한다.
+const BTN_DISABLED_BG = flattenAlpha(deepSpace.text, 0.08, deepSpace.card);
+const BTN_DISABLED_LABEL = flattenAlpha(deepSpace.text, 0.5, BTN_DISABLED_BG);
+
 const styles = StyleSheet.create({
   // Deep-space shell (replaces the legacy PremiumAppShell light cosmic body).
   screen: { flex: 1, backgroundColor: deepSpace.bg },
@@ -1335,7 +1341,7 @@ const styles = StyleSheet.create({
     borderColor: semantic.zoneRed,
   },
   settingsButtonDisabled: {
-    backgroundColor: withAlpha(deepSpace.text, 0.08),
+    backgroundColor: BTN_DISABLED_BG,
     borderColor: deepSpace.cardLine,
   },
   settingsButtonPressed: {

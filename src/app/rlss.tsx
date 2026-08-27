@@ -15,7 +15,7 @@ import { PremiumAppShell, PremiumLoadingState, PremiumModal, PremiumToast } from
 import { Button } from "@/components/ui/Button";
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
-import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
+import { pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -282,11 +282,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: radii.md,
     padding: spacing.md,
-    shadowColor: cosmic.signalMint,
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 0 },
-    ...androidElevationStyle(androidElevation.card),
+    // ⚠ **흔린 그림자 대신 하드에지 베벨** (PIXEL-CLAY 규칙 3).
+    //   원래 `shadowRadius: 10` 이었다 — 픽셀아트에서 깊이는 흐림이 아니라
+    //   **4방향 베벨과 쌓임 순서**로 낸다. `pixelShadowStyle` 은 blur 0 이다.
+    ...pixelShadowStyle(cosmic.signalMint),
   },
   scaleLegend: { flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
   toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },

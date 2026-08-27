@@ -1033,6 +1033,10 @@ export function DeepSpacePrivacyDesignScreen() {
             document (restored once the policy document existed to open). */}
         <Action label={t("privacy.policy")} value={t("privacy.view")} onPress={() => router.push("/privacy-policy")} />
         <Action label={t("privacy.processingLog")} value={t("privacy.last7")} onPress={() => router.push("/audit")} />
+        {/* ⚠ `내 데이터 리뷰`(/data) 는 화면은 있는데 **들어갈 문이 없었다.**
+            레퍼런스가 이 자리에 그 줄을 두고 있고, 개인정보 화면에서 자기 데이터를
+            열람하러 가는 것은 자연스럽다. */}
+        <Action label={t("privacy.dataReview")} value={t("privacy.open")} onPress={() => router.push("/data")} />
         <View style={styles.action} accessible accessibilityLabel={`${t("privacy.thirdParty")}, ${t("privacy.none")}`}>
           <Text variant="body" style={styles.actionLabel}>{t("privacy.thirdParty")}</Text>
           <Text variant="body" style={styles.actionValue}>{t("privacy.none")}</Text>
@@ -1064,7 +1068,15 @@ export function DeepSpacePrivacyDesignScreen() {
           }}
         />
         <Pressable
-          style={[styles.danger, (delConfirm !== "DELETE" || deleting) && { opacity: 0.5 }]}
+          style={[
+            styles.danger,
+            // ⚠ 비활성은 **미리 합성한 색 한 쌍**이다(PIXEL-CLAY 규칙 4 — 정적 반투명 금지).
+            //   바탕만 바꾸고 글자를 그대로 두면 비활성이 활성보다 또렷해진다.
+            (delConfirm !== "DELETE" || deleting) && {
+              backgroundColor: m3.disabled.primary,
+              borderColor: m3.disabled.outline,
+            },
+          ]}
           onPress={() => void runDeleteAccount()}
           disabled={delConfirm !== "DELETE" || deleting}
           accessibilityRole="button"
