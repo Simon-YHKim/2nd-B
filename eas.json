@@ -1,6 +1,6 @@
 {
   "cli": {
-    "version": ">= 20.0.0",
+    "version": "22.6.0",
     "appVersionSource": "remote"
   },
   "build": {
@@ -95,6 +95,7 @@
       "channel": "preview"
     },
     "production": {
+      "distribution": "store",
       "channel": "production",
       "environment": "production",
       "autoIncrement": true,
@@ -102,7 +103,8 @@
         "buildType": "app-bundle"
       },
       "ios": {
-        "credentialsSource": "local"
+        "credentialsSource": "local",
+        "simulator": false
       },
       "env": {
         "EXPO_PUBLIC_FORCE_TIER": "off",
