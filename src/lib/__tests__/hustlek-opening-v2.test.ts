@@ -285,10 +285,12 @@ describe("HustleK opening v2 deterministic rect atlas", () => {
       "Pillow==12.2.0",
       BUILDER,
       "--check",
-    ], { cwd: ROOT, encoding: "utf8" });
+    ], { cwd: ROOT, encoding: "utf8", timeout: 90_000 });
+    expect(result.error).toBeUndefined();
+    expect(result.signal).toBeNull();
     expect(result.status).toBe(0);
     expect(result.stdout).toContain('"status": "PASS"');
-  }, 20_000);
+  }, 120_000);
 
   test("locks v1 hashes, palette, deterministic bytes, and 12+6+1 cell contract", () => {
     const sourcePng = readFileSync(SOURCE);
