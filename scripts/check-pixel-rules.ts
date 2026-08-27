@@ -579,7 +579,7 @@ for (const abs of walkTsx(join(ROOT, "src"))) {
 //
 // ⚠ 기준선을 **올리지 말 것.** 올려야 한다면 그건 규칙을 되돌린 것이다.
 //   줄었을 때만 내린다(줄인 PR 이 같이 내린다).
-const RATCHET_BASELINE = 315;
+const RATCHET_BASELINE = 290;
 
 // 래칫이 통과해도 **남은 빚이 어디 있는지** 볼 수 있어야 한다. 수만 보면 고칠 곳을
 // 모른다(채점기 D·E·B 축도 이름을 붙이고 나서야 고칠 것이 드러났다).

@@ -20,7 +20,8 @@ import {
 import { Text } from "@/components/ui/Text";
 import { BUTTON_PRESS_MS, pixelMotionDuration } from "@/lib/motion/pixel-physical";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
-import { cosmic, semantic, spacing, typography, withAlpha } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
+import { cosmic, deepSpace, flattenAlpha, semantic, spacing, typography, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { PixelCorner } from "./PixelCorner";
 
@@ -142,16 +143,27 @@ export function PremiumCard({
 
 type BtnVariant = "primary" | "secondary" | "ghost" | "danger";
 
+// ── 이 파일의 바탕 (PIXEL-CLAY 절대 규칙 4) ──────────────────────────
+//
+// ⚠ **바탕 선언**: 프리미엄 표면은 딥스페이스 스테이지 위에 앉는다 — 스테이지가
+//   `m3.accent.stageFloor` 를 0.92 로 깔고 그 아래가 `deepSpace.bgEdge` 다
+//   (`components/deep-space/DeepSpaceScreen.tsx`). 바탕이 틀리면 알파를 그냥 두는
+//   것보다 나쁘니, 옮기는 사람은 여기부터 다시 잴 것.
+//
+// ⚠ 이 파일은 **여러 화면이 함께 쓴다.** `/esm` 의 반투명 넷이 전부 여기서 왔다.
+//   한 곳을 고치면 여러 화면이 같이 오른다.
+const SURF_GROUND = flattenAlpha(m3.accent.stageFloor, 0.92, deepSpace.bgEdge);
+const surfAlpha = (c: string, a: number): string => flattenAlpha(c, a, SURF_GROUND);
 const BTN_BG_REST: Record<BtnVariant, string> = {
   primary: gameboy.power,
   secondary: cosmic.space700,
-  ghost: withAlpha(cosmic.mistGray, 0.08),
+  ghost: surfAlpha(cosmic.mistGray, 0.08),
   danger: semantic.zoneRed,
 };
 const BTN_BG_HOVER: Record<BtnVariant, string> = {
   primary: gameboy.accent,
   secondary: cosmic.space800,
-  ghost: withAlpha(cosmic.signalBlue, 0.16),
+  ghost: surfAlpha(cosmic.signalBlue, 0.16),
   danger: semantic.zoneRed,
 };
 const BTN_FG: Record<BtnVariant, string> = {
@@ -160,9 +172,9 @@ const BTN_FG: Record<BtnVariant, string> = {
   ghost: gameboy.ink,
   danger: gameboy.ink,
 };
-const BTN_DISABLED_BG = withAlpha(cosmic.mistGray, 0.16);
-const BTN_DISABLED_BORDER = withAlpha(cosmic.mistGray, 0.46);
-const BTN_DISABLED_FG = withAlpha(cosmic.moonWhite, 0.72);
+const BTN_DISABLED_BG = surfAlpha(cosmic.mistGray, 0.16);
+const BTN_DISABLED_BORDER = surfAlpha(cosmic.mistGray, 0.46);
+const BTN_DISABLED_FG = surfAlpha(cosmic.moonWhite, 0.72);
 const PRESSED_OFFSET = 3;
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -345,6 +357,7 @@ export function PixelIconButton({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       style={[styles.iconBtn, { shadowColor: accent }]}
+      // ⚠ 리플은 **남긴다** — 정적 반투명이 아니라 터치 순간의 물결이고 안드로이드가 그린다.
       android_ripple={{ color: withAlpha(accent, 0.15) }}
     >
       {children}
@@ -396,7 +409,7 @@ const styles = StyleSheet.create({
     borderRadius: gameboy.radius,
     borderWidth: gameboy.borderWidth,
     borderColor: gameboy.border,
-    backgroundColor: withAlpha(semantic.brand, 0.08),
+    backgroundColor: surfAlpha(semantic.brand, 0.08),
     alignItems: "center",
     justifyContent: "center",
     ...pixelShadowStyle(gameboy.border),
@@ -479,7 +492,7 @@ const styles = StyleSheet.create({
     borderColor: gameboy.border,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: withAlpha(cosmic.space800, 0.48),
+    backgroundColor: surfAlpha(cosmic.space800, 0.48),
     ...pixelShadowStyle(),
   },
 

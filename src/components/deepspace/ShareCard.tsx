@@ -23,7 +23,7 @@ import { Image, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 
-import { flattenAlpha, withAlpha } from "@/lib/theme/tokens";
+import { flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { PixelStarSvg } from "@/components/pixel/PixelStarSvg";
 
@@ -65,7 +65,8 @@ const BASE = 330;
 // below carries layout only.
 const eyebrowColor = () => ({ fontFamily: m3.font.mono, color: m3.accent.shareEyebrow });
 const inkColor = () => ({ color: m3.accent.shareInk });
-const softInk = (a: number) => ({ color: withAlpha(m3.accent.shareInkSoft, a) });
+// ⚠ 미리 합성한 색이다(PIXEL-CLAY 규칙 4). 바탕은 이 파일이 이미 선언한 `SHARE_GROUND`.
+const softInk = (a: number) => ({ color: flattenAlpha(m3.accent.shareInkSoft, a, SHARE_GROUND) });
 
 // sb-more ShareCardScreen star map — percentage positions inside the 220-tall
 // constellation band. The prototype hardcodes which are lit; here the first
@@ -93,7 +94,8 @@ export function ShareCard({ variant, insight, pieceCount, litCount = 4, size = B
           width: size,
           height: size,
           borderRadius: m3.shape.none * k,
-          borderColor: withAlpha(m3.accent.shareEyebrow, 0.18),
+          // ⚠ 미리 합성한 색(규칙 4). 바탕은 `SHARE_GROUND`.
+          borderColor: flattenAlpha(m3.accent.shareEyebrow, 0.18, SHARE_GROUND),
         },
       ]}
     >

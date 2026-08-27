@@ -1064,7 +1064,15 @@ export function DeepSpacePrivacyDesignScreen() {
           }}
         />
         <Pressable
-          style={[styles.danger, (delConfirm !== "DELETE" || deleting) && { opacity: 0.5 }]}
+          style={[
+            styles.danger,
+            // ⚠ 비활성은 **미리 합성한 색 한 쌍**이다(PIXEL-CLAY 규칙 4 — 정적 반투명 금지).
+            //   바탕만 바꾸고 글자를 그대로 두면 비활성이 활성보다 또렷해진다.
+            (delConfirm !== "DELETE" || deleting) && {
+              backgroundColor: m3.disabled.primary,
+              borderColor: m3.disabled.outline,
+            },
+          ]}
           onPress={() => void runDeleteAccount()}
           disabled={delConfirm !== "DELETE" || deleting}
           accessibilityRole="button"
