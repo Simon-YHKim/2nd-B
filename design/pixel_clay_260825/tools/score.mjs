@@ -46,7 +46,9 @@ const DATA = join(KIT, 'data');
 const BASE = process.env.BASE_URL || 'http://localhost:8979';
 const OUT = process.env.SCORE_OUT || join(DATA, 'score.json');
 
-const WEIGHTS = { A: 30, B: 25, C: 20, D: 15, E: 10 };
+const WEIGHTS = { A: 30, B: 25, C: 20, D: 15, E: 10 };
+// 이보다 글자가 적으면 화면이 안 그려진 것으로 본다(빈 페이지 채점 방지).
+const MIN_TEXTS = Number(process.env.MIN_TEXTS || 5);
 const A_PENALTY = 6; // 픽셀 규율 위반 1건당
 
 const routes = JSON.parse(readFileSync(join(DATA, 'app-routes.json'), 'utf8'));
@@ -149,7 +151,23 @@ async function scoreOne(page, id, route) {
     if (await b.count()) { await b.first().click().catch(() => {}); await page.waitForTimeout(900); break; }
   }
   await page.waitForTimeout(500);
-  const app = await page.evaluate(IN_PAGE_SRC);
+  const app = await page.evaluate(IN_PAGE_SRC);
+
+  // ⚠ **빈 화면을 채점하지 않는다.**
+  //
+  // 하네스가 가끔 흰 화면을 찍는다(로그인이 안 끝났거나 라우터가 아직 못 그렸을 때).
+  // 그걸 그대로 채점하면 C·D·E 가 0 으로 나오고 **디자인 실패처럼 보인다.**
+  // 실제로 그랬다 — 같은 빌드를 두 번 재서 한 번은 chat 70, 한 번은 55(C·D·E 전부 0).
+  // 둘 중 하나는 거짓이고 **거짓인 쪽이 조용했다.**
+  //
+  // 글자가 거의 없으면 못 쟀다고 말한다. **0 점과 측정 실패는 다른 값이다.**
+  if (app.texts.length < MIN_TEXTS) {
+    return {
+      id, route, A: null, B: null, C: null, D: null, E: null, total: null,
+      unmeasured: ['A', 'B', 'C', 'D', 'E'],
+      error: `측정 실패 — 화면에 글자가 ${app.texts.length}개뿐이다(빈 페이지로 보임). 하네스를 확인할 것.`,
+    };
+  }
 
   const structPath = join(DATA, 'structure', `${id}.json`);
   const ref = existsSync(structPath) ? JSON.parse(readFileSync(structPath, 'utf8')) : null;
@@ -294,7 +312,7 @@ await browser.close();
 rows.sort((a, b) => (a.total ?? -1) - (b.total ?? -1));
 console.log('id'.padEnd(16) + 'A     B     C     D     E     합계');
 for (const r of rows) {
-  if (r.total === null) { console.log(r.id.padEnd(16) + '측정 실패  ' + r.error); continue; }
+  if (r.total === null) { console.log(r.id.padEnd(16) + '⚠ ' + (r.error || '측정 실패')); continue; }
   console.log(
     r.id.padEnd(16) +
     [r.A, r.B, r.C, r.D, r.E].map((v) => String(v === null ? '-' : v).padStart(5)).join(' ') +
@@ -303,7 +321,9 @@ for (const r of rows) {
   );
 }
 const ok = rows.filter((r) => r.total !== null && r.total >= 98).length;
-console.log(`\n98점 이상: ${ok} / ${rows.filter((r) => r.total !== null).length}`);
+const failed = rows.filter((r) => r.total === null).length;
+console.log(`\n98점 이상: ${ok} / ${rows.filter((r) => r.total !== null).length}` +
+  (failed ? `   ⚠ 측정 실패 ${failed}건 — 이건 0점이 아니라 **모름**이다` : ''));
 writeFileSync(OUT, JSON.stringify({
   note: '5축 채점(A 픽셀규율 30 · B 토큰충실도 25 · C 구조일치 20 · D 내비무결성 15 · E 카피 10). ' +
         '98 은 게이트지 완성이 아니다 — 여백·손맛·타이밍·카피의 온도는 점수로 만들지 않는다.',
