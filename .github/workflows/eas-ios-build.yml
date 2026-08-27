@@ -39,7 +39,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  EAS_CLI_VERSION: "22.5.0"
+  EAS_CLI_VERSION: "22.6.0"
   IOS_BUNDLE_ID: "com.simonk.secondbrain"
   APPLE_TEAM_ID: "7CP84WS5C6"
 

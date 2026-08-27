@@ -33,7 +33,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  EAS_CLI_VERSION: "22.5.0"
+  EAS_CLI_VERSION: "22.6.0"
 
 jobs:
   build:
