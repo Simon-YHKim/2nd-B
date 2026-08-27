@@ -540,7 +540,7 @@ test('D axis accepts only visibly painted descendant text, never aria-only label
     { width: 390, height: 820 },
   );
   assert.equal(
-    scoreNavigationLabels(['설정'], inspected.texts, inspected.groups).score,
+    scoreNavigationLabels(['설정'], inspected.interactive).score,
     15,
   );
   assert.deepEqual(
@@ -569,7 +569,10 @@ test('capture and score prefer an allowlisted button role over a matching text p
   assert.equal(typeof dismissCaptureOverlays, 'function');
   const clicks = [];
   let dismissed = false;
-  const page = {
+  const overlay = {
+    async count() {
+      return dismissed ? 0 : 1;
+    },
     getByRole(role, { name, exact }) {
       assert.equal(role, 'button');
       assert.equal(exact, true);
@@ -602,6 +605,12 @@ test('capture and score prefer an allowlisted button role over a matching text p
         },
       };
     },
+  };
+  const page = {
+    locator(selector) {
+      assert.match(selector, /aria-modal|role="dialog"/);
+      return overlay;
+    },
     async waitForTimeout() {},
   };
 
@@ -619,7 +628,10 @@ test('overlay dismissal text fallback resolves only an actionable allowlisted an
   const { dismissCaptureOverlays } = await contract();
   const clicks = [];
   let dismissed = false;
-  const page = {
+  const overlay = {
+    async count() {
+      return dismissed ? 0 : 1;
+    },
     getByRole() {
       return {
         async count() {
@@ -651,6 +663,12 @@ test('overlay dismissal text fallback resolves only an actionable allowlisted an
         },
       };
     },
+  };
+  const page = {
+    locator(selector) {
+      assert.match(selector, /aria-modal|role="dialog"/);
+      return overlay;
+    },
     async waitForTimeout() {},
   };
 
@@ -677,13 +695,22 @@ test('overlay dismissal polls for a late allowlisted button within a bounded pas
       };
     },
   });
-  const page = {
+  const overlay = {
+    async count() {
+      return dismissed ? 0 : 1;
+    },
     getByRole(role, { name }) {
       assert.equal(role, 'button');
       return makeLocator('role', name);
     },
     getByText(label) {
       return makeLocator('text', label);
+    },
+  };
+  const page = {
+    locator(selector) {
+      assert.match(selector, /aria-modal|role="dialog"/);
+      return overlay;
     },
     async waitForTimeout(ms) {
       waits.push(ms);
@@ -701,7 +728,10 @@ test('overlay dismissal keeps its four-label allowlist and three-pass click ceil
   const allowlist = ['다시 보지 않기', '건너뛰기', '알겠습니다', '오늘은 그만 보겠습니다'];
   const queried = [];
   const clicks = [];
-  const page = {
+  const overlay = {
+    async count() {
+      return 1;
+    },
     getByRole(role, { name }) {
       assert.equal(role, 'button');
       queried.push(name);
@@ -729,12 +759,58 @@ test('overlay dismissal keeps its four-label allowlist and three-pass click ceil
         },
       };
     },
+  };
+  const page = {
+    locator(selector) {
+      assert.match(selector, /aria-modal|role="dialog"/);
+      return overlay;
+    },
     async waitForTimeout() {},
   };
 
   await dismissCaptureOverlays(page);
   assert.deepEqual(clicks, ['건너뛰기', '건너뛰기', '건너뛰기']);
   assert.ok(queried.every((label) => allowlist.includes(label)));
+});
+
+test('overlay dismissal ignores allowlisted product actions outside modal ancestry', async () => {
+  const { dismissCaptureOverlays } = await contract();
+  const clicks = [];
+  const page = {
+    locator(selector) {
+      assert.match(selector, /aria-modal|role="dialog"/);
+      return {
+        async count() {
+          return 0;
+        },
+        getByRole() {
+          throw new Error('an absent overlay scope must not be queried');
+        },
+        getByText() {
+          throw new Error('an absent overlay scope must not be queried');
+        },
+      };
+    },
+    getByRole(role, { name }) {
+      assert.equal(role, 'button');
+      return {
+        async count() {
+          return name === '건너뛰기' ? 1 : 0;
+        },
+        first() {
+          return {
+            async click() {
+              clicks.push(name);
+            },
+          };
+        },
+      };
+    },
+    async waitForTimeout() {},
+  };
+
+  await dismissCaptureOverlays(page);
+  assert.deepEqual(clicks, []);
 });
 
 test('E copy coverage uses visible leaf and group text with item exemptions', async () => {
@@ -748,9 +824,11 @@ test('E copy coverage uses visible leaf and group text with item exemptions', as
   assert.deepEqual(result, {
     matched: 4,
     total: 4,
+    declared: 5,
     ratio: 1,
     score: 10,
     exempted: 1,
+    requiresManualReview: false,
     missing: [],
   });
 });
@@ -1139,22 +1217,61 @@ test('final URL validation is exact for origin, canonical path, query, and hash'
   }
 });
 
-test('D axis scores nav.json labels and removes only exempted items from its denominator', async () => {
+test('D axis scores only visible actionable labels and removes only exempted items', async () => {
   const { scoreNavigationLabels } = await contract();
   const declared = ['설정', '계정 설정…', '새 대화'];
-  const result = scoreNavigationLabels(declared, ['설정'], ['계정 설정 안내'], ['새 대화']);
+  const result = scoreNavigationLabels(
+    declared,
+    [
+      { label: '설정', to: null },
+      { label: '계정 설정 안내', to: '/settings' },
+    ],
+    ['새 대화'],
+  );
 
   assert.equal(result.score, 15);
   assert.equal(result.measurable, true);
   assert.equal(result.declared, 3);
   assert.equal(result.measured, 2);
   assert.equal(result.exempted, 1);
+  assert.equal(result.requiresManualReview, true);
+  assert.deepEqual(result.manualReviewReasons, ['actionable-only-targets']);
   assert.deepEqual(result.missing, []);
 
-  const missing = scoreNavigationLabels(declared, ['설정'], [], ['새 대화']);
+  const missing = scoreNavigationLabels(declared, [{ label: '설정', to: null }], ['새 대화']);
   assert.equal(missing.score, 7.5);
   assert.deepEqual(missing.missing, ['계정 설정…']);
-  assert.equal(scoreNavigationLabels(null, ['설정']).score, null);
+  assert.equal(scoreNavigationLabels(null, [{ label: '설정', to: null }]).score, null);
+
+  const staticLookalike = scoreNavigationLabels(['설정'], []);
+  assert.equal(staticLookalike.score, 0);
+  assert.deepEqual(staticLookalike.missing, ['설정']);
+
+  const duplicateCannotReuseOneAction = scoreNavigationLabels(
+    ['설정', '설정'],
+    [{ label: '설정', to: null }],
+  );
+  assert.equal(duplicateCannotReuseOneAction.score, 7.5);
+  assert.deepEqual(duplicateCannotReuseOneAction.missing, ['설정']);
+
+  const unsafeTarget = scoreNavigationLabels(
+    ['설정'],
+    [{ label: '설정', to: 'https://example.invalid/settings' }],
+    [],
+    { baseUrl: 'http://localhost:8977' },
+  );
+  assert.equal(unsafeTarget.score, 0);
+  assert.equal(unsafeTarget.evidence.unsafeTargets, 1);
+
+  const safeTarget = scoreNavigationLabels(
+    ['설정'],
+    [{ label: '설정', to: '/2nd-B/settings' }],
+    [],
+    { baseUrl: 'http://localhost:8977' },
+  );
+  assert.equal(safeTarget.score, 15);
+  assert.equal(safeTarget.evidence.safeHrefs, 1);
+  assert.equal(safeTarget.requiresManualReview, false);
 });
 
 test('C stays unmeasured while totals renormalize and unexpected missing axes fail the gate', async () => {
@@ -1174,7 +1291,7 @@ test('C stays unmeasured while totals renormalize and unexpected missing axes fa
 });
 
 test('deviations distinguish whole-axis review from item-only denominator exclusions', async () => {
-  const { exempt, exemptItems } = await contract();
+  const { exempt, exemptItems, scoreCopyCoverage, scoreNavigationLabels } = await contract();
   const deviations = {
     deviations: [
       { screen: 'chat', axis: 'D', items: ['새 대화'], why: '상태 뒤에 숨은 목적지' },
@@ -1187,6 +1304,17 @@ test('deviations distinguish whole-axis review from item-only denominator exclus
   assert.equal(exempt('chat', 'D', deviations), false);
   assert.equal(exempt('chat', 'E', deviations), true);
   assert.equal(exempt('chat', 'A', deviations), false);
+
+  const labels = ['목적지 하나', '목적지 둘', '목적지 셋', '목적지 넷'];
+  const halfNavigation = scoreNavigationLabels(labels, [], labels.slice(0, 2));
+  assert.equal(halfNavigation.requiresManualReview, false);
+  const majorityNavigation = scoreNavigationLabels(labels, [], labels.slice(0, 3));
+  assert.equal(majorityNavigation.requiresManualReview, true);
+
+  const halfCopy = scoreCopyCoverage(labels, [], [], labels.slice(0, 2));
+  assert.equal(halfCopy.requiresManualReview, false);
+  const majorityCopy = scoreCopyCoverage(labels, [], [], labels.slice(0, 3));
+  assert.equal(majorityCopy.requiresManualReview, true);
 });
 
 test('capture health emits only safe enum codes and never raw error data', async () => {

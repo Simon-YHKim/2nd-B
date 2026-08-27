@@ -5,7 +5,7 @@
  * A 30: rendered pixel-rule violations
  * B 25: rendered token-color area
  * C 20: screenshot band rhythm (the existing band-signature contract)
- * D 15: rendered label + exact destination
+ * D 15: rendered actionable label + safe same-app href when an href exists
  * E 10: reference-copy coverage
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -63,7 +63,6 @@ const norm = (value) =>
     .replace(/\s+/g, ' ')
     .trim();
 const tight = (value) => norm(value).split(' ').join('');
-const SEP = String.fromCharCode(1);
 const round1 = (value) => Math.round((value + Number.EPSILON) * 10) / 10;
 
 function shellQuote(value) {
@@ -1188,7 +1187,68 @@ export function validateManifestClassification(screens, routesFile) {
   };
 }
 
-export function scoreNavigationLabels(declared, appTexts, appGroups = [], exempted = []) {
+function partitionExemptedItems(values, exempted = []) {
+  const pending = new Map();
+  for (const value of exempted) {
+    const key = tight(value);
+    if (key) pending.set(key, (pending.get(key) ?? 0) + 1);
+  }
+  const declared = (Array.isArray(values) ? values : [])
+    .map((raw) => ({ raw, key: tight(raw) }))
+    .filter(({ key }) => key.length > 0);
+  const scored = [];
+  let exemptedCount = 0;
+  for (const item of declared) {
+    const remaining = pending.get(item.key) ?? 0;
+    if (remaining > 0) {
+      pending.set(item.key, remaining - 1);
+      exemptedCount += 1;
+    } else {
+      scored.push(item);
+    }
+  }
+  return { declared, scored, exemptedCount };
+}
+
+function requiresItemDeviationReview(declaredCount, exemptedCount) {
+  return declaredCount > 0 && exemptedCount / declaredCount > 0.5;
+}
+
+export function isSafeInteractiveHref(value, baseUrl = null) {
+  if (typeof value !== 'string' || value.trim().length === 0) return false;
+  if (!baseUrl) return isSafeAppRoute(value);
+  try {
+    const base = parseBaseUrl(baseUrl);
+    const target = new URL(value, `${base.origin}/2nd-B/`);
+    if (target.origin !== base.origin || target.hash) return false;
+    let routePath;
+    if (target.pathname === '/2nd-B' || target.pathname === '/2nd-B/') routePath = '/';
+    else if (target.pathname.startsWith('/2nd-B/')) routePath = target.pathname.slice(6);
+    else return false;
+    return isSafeAppRoute(`${routePath}${target.search}`);
+  } catch {
+    return false;
+  }
+}
+
+function actionableNavigationEntries(interactions, baseUrl) {
+  const entries = [];
+  let unsafeTargets = 0;
+  for (const interaction of Array.isArray(interactions) ? interactions : []) {
+    const label = tight(interaction?.label);
+    if (!label) continue;
+    const rawTarget = interaction?.to;
+    const hasTarget = typeof rawTarget === 'string' && rawTarget.trim().length > 0;
+    if (hasTarget && !isSafeInteractiveHref(rawTarget, baseUrl)) {
+      unsafeTargets += 1;
+      continue;
+    }
+    entries.push({ label, evidence: hasTarget ? 'safe-href' : 'actionable-only' });
+  }
+  return { entries, unsafeTargets };
+}
+
+export function scoreNavigationLabels(declared, interactions, exempted = [], options = {}) {
   if (!Array.isArray(declared) || declared.length === 0) {
     return {
       score: null,
@@ -1199,30 +1259,53 @@ export function scoreNavigationLabels(declared, appTexts, appGroups = [], exempt
       declared: Array.isArray(declared) ? declared.length : 0,
       measured: 0,
       exempted: 0,
+      requiresManualReview: false,
+      evidence: { actionableOnly: 0, safeHrefs: 0, unsafeTargets: 0 },
       missing: [],
     };
   }
-  const skipped = new Set(exempted.map(tight).filter(Boolean));
-  const scored = declared.filter((label) => !skipped.has(tight(label)));
-  const textBlob = [...appTexts, ...appGroups].map(tight).filter(Boolean).join(SEP);
+  const partition = partitionExemptedItems(declared, exempted);
+  const { entries, unsafeTargets } = actionableNavigationEntries(interactions, options.baseUrl);
+  const used = new Set();
   const missing = [];
   let matched = 0;
-  for (const label of scored) {
-    const normalized = tight(label).replace(/[…·]+$/u, '');
+  let actionableOnly = 0;
+  let safeHrefs = 0;
+  for (const item of partition.scored) {
+    const normalized = item.key.replace(/[…·]+$/u, '');
     const probe = normalized.slice(0, Math.max(2, Math.min(normalized.length, 8)));
-    if (probe && textBlob.includes(probe)) matched += 1;
-    else missing.push(label);
+    const found = entries.findIndex(
+      (entry, index) => !used.has(index) && probe && entry.label.includes(probe),
+    );
+    if (found >= 0) {
+      used.add(found);
+      matched += 1;
+      if (entries[found].evidence === 'safe-href') safeHrefs += 1;
+      else actionableOnly += 1;
+    } else {
+      missing.push(item.raw);
+    }
   }
-  const ratio = scored.length ? matched / scored.length : 1;
+  const ratio = partition.scored.length ? matched / partition.scored.length : 1;
+  const itemDeviationReview = requiresItemDeviationReview(
+    partition.declared.length,
+    partition.exemptedCount,
+  );
   return {
     score: ratio * WEIGHTS.D,
     max: WEIGHTS.D,
     measurable: true,
     ratio,
     matched,
-    declared: declared.length,
-    measured: scored.length,
-    exempted: declared.length - scored.length,
+    declared: partition.declared.length,
+    measured: partition.scored.length,
+    exempted: partition.exemptedCount,
+    requiresManualReview: itemDeviationReview || actionableOnly > 0,
+    manualReviewReasons: [
+      ...(itemDeviationReview ? ['item-deviations-exceed-half'] : []),
+      ...(actionableOnly > 0 ? ['actionable-only-targets'] : []),
+    ],
+    evidence: { actionableOnly, safeHrefs, unsafeTargets },
     missing,
   };
 }
@@ -1245,10 +1328,8 @@ export function referenceCopyTexts(root) {
 }
 
 export function scoreCopyCoverage(referenceTexts, appTexts, appGroups = [], exempted = []) {
-  const skipped = new Set(exempted.map(tight).filter(Boolean));
-  const expected = (Array.isArray(referenceTexts) ? referenceTexts : [])
-    .map(tight)
-    .filter((text) => text && !skipped.has(text));
+  const partition = partitionExemptedItems(referenceTexts, exempted);
+  const expected = partition.scored.map(({ key }) => key);
   const rendered = [...appTexts, ...appGroups].map(tight).filter(Boolean);
   const missing = expected.filter((text) => !rendered.some((actual) => actual.includes(text)));
   const matched = expected.length - missing.length;
@@ -1256,9 +1337,14 @@ export function scoreCopyCoverage(referenceTexts, appTexts, appGroups = [], exem
   return {
     matched,
     total: expected.length,
+    declared: partition.declared.length,
     ratio,
     score: ratio * WEIGHTS.E,
-    exempted: skipped.size,
+    exempted: partition.exemptedCount,
+    requiresManualReview: requiresItemDeviationReview(
+      partition.declared.length,
+      partition.exemptedCount,
+    ),
     missing,
   };
 }
@@ -1870,6 +1956,8 @@ const CAPTURE_OVERLAY_MAX_PASSES = 3;
 const CAPTURE_OVERLAY_CLICK_TIMEOUT_MS = 500;
 const CAPTURE_OVERLAY_RECHECK_MS = 400;
 const CAPTURE_OVERLAY_DISMISS_SETTLE_MS = 800;
+const CAPTURE_OVERLAY_SCOPE_SELECTOR =
+  '[aria-modal="true"], [role="dialog"], [accessibilityviewismodal="true"], [data-capture-overlay="true"]';
 
 async function clickFirstOverlayCandidate(candidate) {
   if (!candidate) return false;
@@ -1882,8 +1970,8 @@ async function clickFirstOverlayCandidate(candidate) {
   }
 }
 
-function allowlistedTextAction(page, label) {
-  const textMatch = page.getByText(label, { exact: true });
+function allowlistedTextAction(scope, label) {
+  const textMatch = scope.getByText(label, { exact: true });
   if (typeof textMatch.locator !== 'function') return null;
   return textMatch.locator(
     'xpath=ancestor-or-self::*[self::button or @role="button" or (@tabindex and @tabindex != "-1")][1]',
@@ -1893,14 +1981,17 @@ function allowlistedTextAction(page, label) {
 export async function dismissCaptureOverlays(page) {
   for (let pass = 0; pass < CAPTURE_OVERLAY_MAX_PASSES; pass += 1) {
     let clicked = false;
-    for (const label of CAPTURE_OVERLAY_LABELS) {
-      const button = page.getByRole('button', { name: label, exact: true });
-      clicked = await clickFirstOverlayCandidate(button);
-      if (!clicked) {
-        clicked = await clickFirstOverlayCandidate(allowlistedTextAction(page, label));
-      }
-      if (clicked) {
-        break;
+    const scope = page.locator(CAPTURE_OVERLAY_SCOPE_SELECTOR);
+    if ((await scope.count()) > 0) {
+      for (const label of CAPTURE_OVERLAY_LABELS) {
+        const button = scope.getByRole('button', { name: label, exact: true });
+        clicked = await clickFirstOverlayCandidate(button);
+        if (!clicked) {
+          clicked = await clickFirstOverlayCandidate(allowlistedTextAction(scope, label));
+        }
+        if (clicked) {
+          break;
+        }
       }
     }
     await page.waitForTimeout(
@@ -1939,9 +2030,12 @@ async function scoreOne({ page, id, route, baseUrl, ramp, navFile, deviations, a
   }
 
   const manualReviewAxes = [];
+  const requireManualReview = (axis) => {
+    if (!manualReviewAxes.includes(axis)) manualReviewAxes.push(axis);
+  };
   const applyDeviation = (axis, score) => {
     if (!exempt(id, axis, deviations)) return score;
-    manualReviewAxes.push(axis);
+    requireManualReview(axis);
     return WEIGHTS[axis];
   };
 
@@ -1963,10 +2057,11 @@ async function scoreOne({ page, id, route, baseUrl, ramp, navFile, deviations, a
   const declared = Array.isArray(navFile?.[id]) ? navFile[id] : null;
   const navigation = scoreNavigationLabels(
     declared,
-    app.texts,
-    app.groups,
+    app.interactive,
     exemptItems(id, 'D', deviations),
+    { baseUrl },
   );
+  if (navigation.requiresManualReview) requireManualReview('D');
   const D = applyDeviation('D', navigation.score);
 
   const copy = reference
@@ -1977,6 +2072,7 @@ async function scoreOne({ page, id, route, baseUrl, ramp, navFile, deviations, a
         exemptItems(id, 'E', deviations),
       )
     : null;
+  if (copy?.requiresManualReview) requireManualReview('E');
   const E = applyDeviation('E', copy?.score ?? null);
 
   await page.waitForTimeout(100);
@@ -2014,17 +2110,21 @@ async function scoreOne({ page, id, route, baseUrl, ramp, navFile, deviations, a
       D: navigation.measurable
         ? `declared ${navigation.declared} · measured ${navigation.measured} · exempt ${navigation.exempted} · missing ${navigation.missing.length}${
             navigation.missing.length ? ` → ${navigation.missing.slice(0, 8).join(' / ')}` : ''
+          } · evidence safe-href ${navigation.evidence.safeHrefs} / actionable-only ${navigation.evidence.actionableOnly} / unsafe-target ${navigation.evidence.unsafeTargets}${
+            navigation.manualReviewReasons.length
+              ? ` · manual review ${navigation.manualReviewReasons.join(' / ')}`
+              : ''
           }`
         : 'nav declaration missing',
       E: copy
-        ? `measured ${copy.total} · exempt ${copy.exempted} · missing ${copy.missing.length}${
+        ? `declared ${copy.declared} · measured ${copy.total} · exempt ${copy.exempted} · missing ${copy.missing.length}${
             copy.missing.length
               ? ` → ${copy.missing
                   .slice(0, 8)
                   .map((text) => text.slice(0, 24))
                   .join(' / ')}`
               : ''
-          }`
+          }${copy.requiresManualReview ? ' · manual review: item deviations exceed half' : ''}`
         : 'reference structure missing',
     },
   };
