@@ -99,15 +99,27 @@ carries no third-party license obligation.
 | `assets/opening/` | 1 PNG | 2026-08-27 | HustleK opening sprite sheet (48 frames, 8x6 grid, 320x180 cells) built by `scripts/build-opening-strip.py` from the approved atlas. No new art: the builder refuses to run unless the atlas RGBA hash matches the approved value. |
 | `assets/images/` | 7 PNG | 2026-05-25 | App icon, adaptive-icon layers, splash, favicon, logo glow. Seeded from the Expo template at initialisation (MIT) and replaced in-window with generated art |
 
-Total: **237 bundled image files**. `scripts/check-constraints.ts` (C12)
+Total: **247 bundled image files**. `scripts/check-constraints.ts` (C12)
 fails if any of these paths stops being mentioned in this file, so a new
 art pack cannot ship undisclosed.
+
+The production opening reads
+`assets/deepspace/hustlek-opening-v2.json`, a deterministic 51,608-byte
+integer-rectangle atlas derived from the approved v1 pixels: 12 full-body walk
+cells, six turn/contact cells, and one fixed telescope cell. It contains no
+independently generated or third-party pixels. Every rectangle has integer
+coordinates, binary alpha, and one of 16 source-derived colour bands.
+`scripts/build-hustlek-opening-v2.py` verifies the immutable v1 PNG and
+decoded-pixel hashes, exact silhouettes and floor anchors, canonical bytes, and
+the committed JSON SHA-256
+`b599f379db85305b0a2aa82db3f87d7682bc70e59369186bcdcac7c65a79664f`.
+The runtime renders the JSON as SVG rectangles and decodes no opening bitmap.
 
 **In the repository but not in the build.** Working images also live under
 `docs/` (clone-audit captures, flow thumbnails, QA evidence) and `design/`
 (prototype renders, reference boards, app screenshots, and reproducible art
 packs). These paths are not packaged into the app or web export, and `src/`
-contains no image files, so the shipped set remains exactly the 237 files
+contains no image files, so the shipped set remains exactly the 247 files
 listed above. The working-material count is intentionally not hard-coded so
 that adding review evidence does not make this registry stale.
 
