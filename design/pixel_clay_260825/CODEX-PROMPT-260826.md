@@ -18,6 +18,7 @@
 ## 0) 먼저 읽을 것 (이 순서대로)
 
   design/pixel_clay_260825/CODEX-HANDOFF.md   ← 현황·점수판·함정. 여기가 출발점이다
+  design/pixel_clay_260825/FINE-TUNING-PROTOCOL.md ← Work 0 캡처·채점 실행 정본
   docs/PIXEL-CLAY-MIGRATION.md                ← 절대 규칙 7개와 결정 D1~D5
   design/pixel_clay_260825/REPO-NOTES.md      ← 받은 문서와 저장소가 어긋나는 곳 6건
   CLAUDE.md                                    ← 저장소 규율(어휘 금지·검사·금지 행동)
@@ -42,15 +43,22 @@
 
 ## 2) 재현 — 5분 안에 숫자가 나와야 한다
 
-  node design/pixel_clay_260825/tools/capture-app.mjs --print-env > /tmp/webenv.sh
-  source /tmp/webenv.sh && npx expo export --platform web --output-dir /tmp/webdist
-  mkdir -p /tmp/webroot && ln -s /tmp/webdist /tmp/webroot/2nd-B      # Windows: mklink /J
-  npx http-server /tmp/webroot -p 8979 -s &
-  BASE_URL=http://localhost:8979 node design/pixel_clay_260825/tools/capture-app.mjs
-  # 일부만: SCREENS=manual,peer-invites BASE_URL=... node ...
+  FINE-TUNING-PROTOCOL.md의 "앱 쪽 캡처" PowerShell 블록을 그대로 실행한다.
+  순서는 managed playwright-core Chromium 설치·exact BROWSER_PATH
+  → 기존 Process의 EXPO_PUBLIC_*를 값 출력 없이 제거
+  → capture-app.mjs --print-env=json을 값 출력 없이 같은 Process env에 적용
+  → capture-app.mjs --export-web의 fresh atomic staging + receipt/proof
+  → attested export 서빙 → 한 화면 capture-app.mjs → score.mjs다.
 
-  숫자가 안 나오면 도구 헤더의 "밟은 함정 다섯"을 먼저 읽어라. 전부 실제로 겪은 것이다.
-  ⚠ EXPO_PUBLIC_* 를 안 넘기면 export 는 성공하는데 앱이 **조용히 mock 으로** 돈다.
+  직접 npx expo export, 기존 dist 재사용, receipt/proof 없는 export는 금지한다.
+  browser executable과 version은 playwright-core 고정 Chromium과 정확히 같아야 한다.
+
+  숫자가 안 나오면 FINE-TUNING-PROTOCOL.md의 "밟은 함정 다섯"을 먼저 읽어라.
+  전부 실제로 겪은 것이다.
+  ⚠ EXPO_PUBLIC_* JSON이나 값은 터미널·로그·보고서에 출력하지 않는다. mock, 로그인 월,
+    /2nd-B 에셋 404는 캡처 성공처럼 보여도 유효한 Work 0 검증이 아니다.
+    auth·hydration은 실제 시각으로 끝내고, 도구가 그 뒤 receipt printedAt/FIXED_ISO로
+    Date/random을 고정하게 둔다.
 
   규칙 점수는 코드를 세면 나온다. 세는 방법은 §5 를 볼 것.
 
