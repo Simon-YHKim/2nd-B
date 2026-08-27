@@ -81,9 +81,7 @@ export function samePlatformPath(left, right, platform = process.platform) {
 export function previewPublicEnv(previewEnv) {
   const env = { ...previewEnv };
   const suppliedPublicEntries = Object.entries(env).filter(([key]) => /^EXPO_PUBLIC_/i.test(key));
-  if (
-    Object.keys(env).some((key) => WORK0_RESERVED_ENV.has(key.toUpperCase()))
-  ) {
+  if (Object.keys(env).some((key) => WORK0_RESERVED_ENV.has(key.toUpperCase()))) {
     throw new Error('invalid preview env: work0 attestation keys are reserved');
   }
   if (
@@ -545,8 +543,38 @@ export async function attestServedExport(page, previewEnv, receipt) {
   validateServedExportSources(servedFiles, previewEnv, receipt, servedAttestation, scriptContract);
 }
 
-export function createShotHealth() {
-  return { failureCodes: [], pendingRequests: 0, networkRevision: 0 };
+function captureOriginHash(value) {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  try {
+    return createHash('sha256').update(new URL(value).origin).digest('hex');
+  } catch {
+    return null;
+  }
+}
+
+function isExpectedNoticeReadUrl(health, responseUrl) {
+  if (!health?.noticeReadOriginHash) return false;
+  try {
+    const response = new URL(responseUrl);
+    return (
+      response.pathname === '/rest/v1/user_notice_reads' &&
+      captureOriginHash(response.origin) === health.noticeReadOriginHash
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function createShotHealth({ noticeReadOrigin } = {}) {
+  return {
+    failureCodes: [],
+    pendingRequests: 0,
+    networkRevision: 0,
+    consoleErrorCount: 0,
+    noticeReadConflictConsoleCount: 0,
+    noticeReadConflictResponseCount: 0,
+    noticeReadOriginHash: captureOriginHash(noticeReadOrigin),
+  };
 }
 
 export function recordShotFailure(health, code) {
@@ -560,11 +588,32 @@ export function recordShotFailure(health, code) {
   }
 }
 
-export function recordShotResponse(health, baseUrl, responseUrl, status) {
-  if (status !== 404) return;
+export function recordShotConsole(health, message) {
+  if (!health || message?.type?.() !== 'error') return;
+  health.consoleErrorCount = (Number(health.consoleErrorCount) || 0) + 1;
+  recordShotFailure(health, 'console-error');
+  let locationUrl = '';
   try {
-    const base = parseBaseUrl(baseUrl);
+    locationUrl = message.location?.().url ?? '';
+  } catch {
+    locationUrl = '';
+  }
+  if (isExpectedNoticeReadUrl(health, locationUrl)) {
+    health.noticeReadConflictConsoleCount =
+      (Number(health.noticeReadConflictConsoleCount) || 0) + 1;
+  }
+}
+
+export function recordShotResponse(health, baseUrl, responseUrl, status, method = null) {
+  try {
     const response = new URL(responseUrl);
+    if (status === 409 && method === 'POST' && isExpectedNoticeReadUrl(health, response.href)) {
+      health.noticeReadConflictResponseCount =
+        (Number(health.noticeReadConflictResponseCount) || 0) + 1;
+      return;
+    }
+    if (status !== 404) return;
+    const base = parseBaseUrl(baseUrl);
     if (
       response.origin === base.origin &&
       (response.pathname === '/2nd-B' || response.pathname.startsWith('/2nd-B/'))
@@ -595,7 +644,12 @@ export function createShotNetworkTracker() {
     health.pendingRequests = Math.max(0, (Number(health.pendingRequests) || 0) - 1);
     bump(health);
     let successfulHeadAbort = false;
-    if (failed && Number.isInteger(responseStatus) && responseStatus >= 200 && responseStatus < 300) {
+    if (
+      failed &&
+      Number.isInteger(responseStatus) &&
+      responseStatus >= 200 &&
+      responseStatus < 300
+    ) {
       try {
         successfulHeadAbort =
           request.method?.() === 'HEAD' && request.failure?.()?.errorText === 'net::ERR_ABORTED';
@@ -625,9 +679,17 @@ export function createShotNetworkTracker() {
     fail(request) {
       release(request, true);
     },
-    response(request, baseUrl, responseUrl, status) {
+    response(request, baseUrl, responseUrl, status, { ignoreAsset404 = false } = {}) {
       if (owners.has(request) && Number.isInteger(status)) responseStatuses.set(request, status);
-      recordShotResponse(owners.get(request), baseUrl, responseUrl, status);
+      let method = null;
+      try {
+        method = request?.method?.() ?? null;
+      } catch {
+        method = null;
+      }
+      if (!ignoreAsset404 || status !== 404) {
+        recordShotResponse(owners.get(request), baseUrl, responseUrl, status, method);
+      }
     },
   };
 }
@@ -856,7 +918,10 @@ export function digestPage(root = document.body) {
   const insetClip = (value, rect) => {
     const match = /^inset\(([^)]*)\)$/i.exec(String(value || '').trim());
     if (!match || !rect) return null;
-    const raw = match[1].split(/\s+round\s+/i)[0].trim().split(/\s+/);
+    const raw = match[1]
+      .split(/\s+round\s+/i)[0]
+      .trim()
+      .split(/\s+/);
     if (raw.length < 1 || raw.length > 4) return null;
     const parsed = raw.map((part) => {
       const token = /^([+-]?(?:\d+\.?\d*|\.\d+))(px|%)?$/.exec(part);
@@ -924,7 +989,8 @@ export function digestPage(root = document.body) {
     if (!/^rgba?\(/.test(normalized)) return null;
     const components = normalized.match(/[+-]?(?:\d+\.?\d*|\.\d+)%?/g) ?? [];
     if (components.length < 3) return null;
-    const hasAlpha = normalized.includes('/') || (normalized.startsWith('rgba(') && components.length > 3);
+    const hasAlpha =
+      normalized.includes('/') || (normalized.startsWith('rgba(') && components.length > 3);
     let alpha = 1;
     if (hasAlpha) {
       const token = components[3] ?? '1';
@@ -1040,10 +1106,7 @@ export function digestPage(root = document.body) {
     const width = right - left;
     const height = bottom - top;
     const visibleRatio = (width * height) / (rect.width * rect.height);
-    if (
-      cumulativeOpacity < 0.1 ||
-      (!isRoot && (width < 2 || height < 2 || visibleRatio < 0.1))
-    )
+    if (cumulativeOpacity < 0.1 || (!isRoot && (width < 2 || height < 2 || visibleRatio < 0.1)))
       return null;
     return { ...rect, left, top, right, bottom, width, height };
   };
@@ -1072,9 +1135,7 @@ export function digestPage(root = document.body) {
     return [...(element.childNodes ?? [])]
       .filter((node) => node.nodeType === 3 && node.textContent?.trim())
       .filter((node) =>
-        textNodeRects(node, fallbackRect).some((rect) =>
-          renderedRect(element, isRoot, rect, true),
-        ),
+        textNodeRects(node, fallbackRect).some((rect) => renderedRect(element, isRoot, rect, true)),
       )
       .map((node) => node.textContent.trim())
       .join(' ');
@@ -1308,6 +1369,411 @@ export function scoreNavigationLabels(declared, interactions, exempted = [], opt
     evidence: { actionableOnly, safeHrefs, unsafeTargets },
     missing,
   };
+}
+
+export function formatNavigationWhy(navigation) {
+  if (!navigation?.measurable) return 'nav declaration missing';
+  const missing = Array.isArray(navigation.missing) ? navigation.missing : [];
+  const parts = [
+    `declared ${navigation.declared} · measured ${navigation.measured} · exempt ${navigation.exempted} · missing ${missing.length}${
+      missing.length ? ` → ${missing.slice(0, 8).join(' / ')}` : ''
+    }`,
+  ];
+  const evidence =
+    navigation.evidence && typeof navigation.evidence === 'object' ? navigation.evidence : {};
+  const exactEvidence = Object.prototype.hasOwnProperty.call(evidence, 'exactRoutes');
+  if (exactEvidence) {
+    const exactFields = [
+      ['exact routes', evidence.exactRoutes],
+      ['exact actions', evidence.exactActions],
+      ['unsafe actions', evidence.unsafeActions],
+      ['unresolved', evidence.unresolved],
+    ];
+    let evidenceCount = 0;
+    for (const [label, value] of exactFields) {
+      const count = Number.isFinite(value) ? value : 0;
+      evidenceCount += count;
+      if (count > 0) parts.push(`${label} ${count}`);
+    }
+    const failures = Object.entries(evidence.failures ?? {}).filter(
+      ([, count]) => Number.isInteger(count) && count > 0,
+    );
+    if (failures.length > 0) {
+      parts.push(`failures ${failures.map(([code, count]) => `${code} ${count}`).join(' / ')}`);
+    } else if (evidenceCount === 0) {
+      parts.push('exact evidence 0');
+    }
+  } else {
+    parts.push(
+      `evidence safe-href ${Number.isFinite(evidence.safeHrefs) ? evidence.safeHrefs : 0} / actionable-only ${
+        Number.isFinite(evidence.actionableOnly) ? evidence.actionableOnly : 0
+      } / unsafe-target ${Number.isFinite(evidence.unsafeTargets) ? evidence.unsafeTargets : 0}`,
+    );
+  }
+  const manualReviewReasons = Array.isArray(navigation.manualReviewReasons)
+    ? navigation.manualReviewReasons
+    : [];
+  if (manualReviewReasons.length > 0) {
+    parts.push(`manual review ${manualReviewReasons.join(' / ')}`);
+  }
+  return parts.join(' · ');
+}
+
+const NAVIGATION_ITEM_KINDS = new Set(['route', 'action']);
+const NAVIGATION_LOCATOR_STRATEGIES = new Set(['text-ancestor', 'role']);
+const NAVIGATION_LOCATOR_ROLES = new Set(['button', 'link', 'tab']);
+const NAVIGATION_EFFECT_TYPES = new Set(['selected', 'visible', 'input-value']);
+const NAVIGATION_FAILURE_CODES = new Set([
+  'probe-failed',
+  'probe-setup',
+  'source-route',
+  'source-health',
+  'painted-label',
+  'action-target',
+  'click-failed',
+  'route-mismatch',
+  'mutation-blocked',
+  'effect-mismatch',
+]);
+
+function navigationContractError() {
+  return new Error('invalid navigation contract');
+}
+
+function assertNavigationKeys(value, allowed) {
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    Array.isArray(value) ||
+    Object.keys(value).some((key) => !allowed.has(key))
+  ) {
+    throw navigationContractError();
+  }
+}
+
+export function captureSetupFailureCodes(baseUrl, health = {}) {
+  const codes = shotFailureCodes({ baseUrl, ...health });
+  const consoleCount = Number(health.consoleErrorCount) || 0;
+  const candidateCount = Number(health.noticeReadConflictConsoleCount) || 0;
+  const responseCount = Number(health.noticeReadConflictResponseCount) || 0;
+  const onlyCorrelatedConflict =
+    consoleCount > 0 && consoleCount === candidateCount && candidateCount <= responseCount;
+  return onlyCorrelatedConflict ? codes.filter((code) => code !== 'console-error') : codes;
+}
+
+function exactNavigationText(value) {
+  if (
+    typeof value !== 'string' ||
+    value.length === 0 ||
+    value !== value.trim() ||
+    /[\u0000-\u001f\u007f\u200b\u200c\u200d\u2060\ufeff]/iu.test(value)
+  ) {
+    throw navigationContractError();
+  }
+  return value;
+}
+
+function normalizeNavigationOccurrence(value) {
+  if (value === undefined) return 1;
+  if (!Number.isSafeInteger(value) || value < 1 || value > 20) {
+    throw navigationContractError();
+  }
+  return value;
+}
+
+function normalizeNavigationLocator(value, label) {
+  if (value === undefined) {
+    return { strategy: 'text-ancestor', role: 'button', name: label };
+  }
+  assertNavigationKeys(value, new Set(['strategy', 'role', 'name']));
+  if (!NAVIGATION_LOCATOR_STRATEGIES.has(value.strategy)) throw navigationContractError();
+  const role = value.role ?? 'button';
+  if (!NAVIGATION_LOCATOR_ROLES.has(role)) throw navigationContractError();
+  if (value.strategy === 'role' && value.name === undefined) throw navigationContractError();
+  return {
+    strategy: value.strategy,
+    role,
+    name: value.name === undefined ? label : exactNavigationText(value.name),
+  };
+}
+
+function normalizeNavigationEffect(value, label) {
+  assertNavigationKeys(value, new Set(['type', 'role', 'name', 'occurrence', 'value']));
+  if (!NAVIGATION_EFFECT_TYPES.has(value.type)) throw navigationContractError();
+  if (value.type === 'selected') {
+    assertNavigationKeys(value, new Set(['type', 'value']));
+    if (value.value !== undefined && typeof value.value !== 'boolean') {
+      throw navigationContractError();
+    }
+    return { type: value.type, value: value.value ?? true };
+  }
+  const occurrence = normalizeNavigationOccurrence(value.occurrence);
+  if (value.type === 'visible') {
+    assertNavigationKeys(value, new Set(['type', 'role', 'name', 'occurrence']));
+    const role = value.role ?? 'button';
+    if (!NAVIGATION_LOCATOR_ROLES.has(role)) throw navigationContractError();
+    return {
+      type: value.type,
+      role,
+      name: exactNavigationText(value.name ?? label),
+      occurrence,
+    };
+  }
+  assertNavigationKeys(value, new Set(['type', 'role', 'name', 'occurrence', 'value']));
+  if (value.role !== undefined && value.role !== 'textbox') throw navigationContractError();
+  return {
+    type: value.type,
+    role: 'textbox',
+    name: value.name === undefined ? null : exactNavigationText(value.name),
+    occurrence,
+    value: exactNavigationText(value.value ?? label),
+  };
+}
+
+export function normalizeNavigationContract(value, baseUrl = null) {
+  assertNavigationKeys(value, new Set(['version', 'items', 'unresolved']));
+  if (value.version !== 2 || !Array.isArray(value.items)) throw navigationContractError();
+  const rawItems = value.items;
+  const items = rawItems.map((item) => {
+    assertNavigationKeys(
+      item,
+      new Set(['label', 'occurrence', 'kind', 'to', 'locator', 'safe', 'why', 'effect']),
+    );
+    const label = exactNavigationText(item.label);
+    const occurrence = normalizeNavigationOccurrence(item.occurrence);
+    if (!NAVIGATION_ITEM_KINDS.has(item.kind)) throw navigationContractError();
+    const locator = normalizeNavigationLocator(item.locator, label);
+    if (item.kind === 'route') {
+      if (
+        item.safe !== undefined ||
+        item.why !== undefined ||
+        item.effect !== undefined ||
+        !isSafeAppRoute(item.to) ||
+        (baseUrl && !isSafeInteractiveHref(resolveHostedAppUrl(baseUrl, item.to), baseUrl))
+      ) {
+        throw navigationContractError();
+      }
+      return { label, occurrence, kind: item.kind, to: item.to, locator, safe: true };
+    }
+    if (item.to !== undefined) throw navigationContractError();
+    if (item.safe !== undefined && typeof item.safe !== 'boolean') {
+      throw navigationContractError();
+    }
+    const safe = item.safe ?? true;
+    if (!safe) {
+      if (item.effect !== undefined || typeof item.why !== 'string' || !norm(item.why)) {
+        throw navigationContractError();
+      }
+      return {
+        label,
+        occurrence,
+        kind: item.kind,
+        locator,
+        safe,
+        why: norm(item.why),
+      };
+    }
+    if (item.why !== undefined || item.effect === undefined) throw navigationContractError();
+    return {
+      label,
+      occurrence,
+      kind: item.kind,
+      locator,
+      safe,
+      effect: normalizeNavigationEffect(item.effect, label),
+    };
+  });
+  const byLabel = new Map();
+  rawItems.forEach((item, index) => {
+    const label = items[index].label;
+    const group = byLabel.get(label) ?? [];
+    group.push({
+      explicit: Object.hasOwn(item, 'occurrence'),
+      occurrence: items[index].occurrence,
+    });
+    byLabel.set(label, group);
+  });
+  for (const group of byLabel.values()) {
+    if (
+      group.length > 1 &&
+      (group.some((item) => !item.explicit) ||
+        new Set(group.map((item) => item.occurrence)).size !== group.length)
+    ) {
+      throw navigationContractError();
+    }
+  }
+
+  const unresolved = (value.unresolved ?? []).map((item) => {
+    assertNavigationKeys(item, new Set(['label', 'occurrence', 'why']));
+    if (typeof item.why !== 'string' || !norm(item.why)) throw navigationContractError();
+    return {
+      label: exactNavigationText(item.label),
+      occurrence: normalizeNavigationOccurrence(item.occurrence),
+      why: norm(item.why),
+    };
+  });
+  if (items.length + unresolved.length === 0) throw navigationContractError();
+  const exactDeclarations = new Set();
+  for (const item of [...items, ...unresolved]) {
+    const key = `${item.label}\u0000${item.occurrence}`;
+    if (exactDeclarations.has(key)) throw navigationContractError();
+    exactDeclarations.add(key);
+  }
+  return { version: 2, items, unresolved };
+}
+
+export function validateStage1NavigationContracts(stage1Ids, navFile, baseUrl) {
+  if (!Array.isArray(stage1Ids) || !navFile || typeof navFile !== 'object') return false;
+  try {
+    for (const id of stage1Ids) {
+      if (!SCREEN_ID_PATTERN.test(id) || navFile[id]?.version !== 2) return false;
+      normalizeNavigationContract(navFile[id], baseUrl);
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function scoreExactNavigationResults(contract, results, exempted = []) {
+  const entries = [
+    ...contract.items.map((item, index) => ({ type: 'item', index, item })),
+    ...contract.unresolved.map((item) => ({ type: 'unresolved', item })),
+  ];
+  if (entries.length === 0) {
+    return {
+      score: null,
+      max: WEIGHTS.D,
+      measurable: false,
+      ratio: null,
+      matched: 0,
+      declared: 0,
+      measured: 0,
+      exempted: 0,
+      requiresManualReview: false,
+      manualReviewReasons: [],
+      evidence: { exactRoutes: 0, exactActions: 0, unsafeActions: 0, unresolved: 0 },
+      missing: [],
+    };
+  }
+  const pendingExemptions = new Map();
+  for (const label of exempted) {
+    const key = tight(label);
+    if (key) pendingExemptions.set(key, (pendingExemptions.get(key) ?? 0) + 1);
+  }
+  const scoredEntries = [];
+  let exemptedCount = 0;
+  for (const entry of entries) {
+    const key = tight(entry.item.label);
+    const remaining = pendingExemptions.get(key) ?? 0;
+    if (remaining > 0) {
+      pendingExemptions.set(key, remaining - 1);
+      exemptedCount += 1;
+    } else {
+      scoredEntries.push(entry);
+    }
+  }
+  const byIndex = new Map();
+  for (const result of Array.isArray(results) ? results : []) {
+    if (
+      !result ||
+      !Number.isSafeInteger(result.index) ||
+      result.index < 0 ||
+      result.index >= contract.items.length ||
+      byIndex.has(result.index)
+    ) {
+      throw navigationContractError();
+    }
+    byIndex.set(result.index, result);
+  }
+  let matched = 0;
+  let measured = 0;
+  let exactRoutes = 0;
+  let exactActions = 0;
+  let unsafeActions = 0;
+  let unresolved = 0;
+  const failures = {};
+  const missing = [];
+  for (const entry of scoredEntries) {
+    if (entry.type === 'unresolved') {
+      unresolved += 1;
+      missing.push(entry.item.label);
+      continue;
+    }
+    if (entry.item.safe === false) {
+      unsafeActions += 1;
+      missing.push(entry.item.label);
+      continue;
+    }
+    measured += 1;
+    const result = byIndex.get(entry.index);
+    const expectedEvidence =
+      entry.item.kind === 'route' ? 'exact-route' : `${entry.item.effect.type}-effect`;
+    if (result?.passed === true && result.evidence === expectedEvidence) {
+      matched += 1;
+      if (entry.item.kind === 'route') exactRoutes += 1;
+      else exactActions += 1;
+    } else {
+      missing.push(entry.item.label);
+      const code = NAVIGATION_FAILURE_CODES.has(result?.failure) ? result.failure : 'probe-failed';
+      failures[code] = (failures[code] ?? 0) + 1;
+    }
+  }
+  const denominator = scoredEntries.length;
+  const ratio = denominator > 0 ? matched / denominator : 1;
+  const itemDeviationReview = requiresItemDeviationReview(entries.length, exemptedCount);
+  const manualReviewReasons = [
+    ...(itemDeviationReview ? ['item-deviations-exceed-half'] : []),
+    ...(unsafeActions > 0 ? ['unsafe-actions'] : []),
+    ...(unresolved > 0 ? ['unresolved-items'] : []),
+  ];
+  return {
+    score: ratio * WEIGHTS.D,
+    max: WEIGHTS.D,
+    measurable: true,
+    ratio,
+    matched,
+    declared: entries.length,
+    measured,
+    exempted: exemptedCount,
+    requiresManualReview: manualReviewReasons.length > 0,
+    manualReviewReasons,
+    evidence: {
+      exactRoutes,
+      exactActions,
+      unsafeActions,
+      unresolved,
+      ...(Object.keys(failures).length > 0 ? { failures } : {}),
+    },
+    missing,
+  };
+}
+
+export async function runExactNavigationChecks(contract, probeItem) {
+  if (typeof probeItem !== 'function') throw navigationContractError();
+  const results = [];
+  for (let index = 0; index < contract.items.length; index += 1) {
+    const item = contract.items[index];
+    if (item.safe === false) continue;
+    try {
+      const result = await probeItem(item, index);
+      results.push({
+        index,
+        passed: result?.passed === true,
+        evidence: typeof result?.evidence === 'string' ? result.evidence : null,
+        ...(result?.passed === true
+          ? {}
+          : {
+              failure: NAVIGATION_FAILURE_CODES.has(result?.failure)
+                ? result.failure
+                : 'probe-failed',
+            }),
+      });
+    } catch {
+      results.push({ index, passed: false, evidence: null, failure: 'probe-failed' });
+    }
+  }
+  return results;
 }
 
 export function isDeviceChromeText(value) {
@@ -1551,7 +2017,10 @@ export function inspectRenderedPixelRules(
   const insetClip = (value, rect) => {
     const match = /^inset\(([^)]*)\)$/i.exec(String(value || '').trim());
     if (!match || !rect) return null;
-    const raw = match[1].split(/\s+round\s+/i)[0].trim().split(/\s+/);
+    const raw = match[1]
+      .split(/\s+round\s+/i)[0]
+      .trim()
+      .split(/\s+/);
     if (raw.length < 1 || raw.length > 4) return null;
     const parsed = raw.map((part) => {
       const token = /^([+-]?(?:\d+\.?\d*|\.\d+))(px|%)?$/.exec(part);
@@ -1619,7 +2088,8 @@ export function inspectRenderedPixelRules(
     if (!/^rgba?\(/.test(normalized)) return null;
     const components = normalized.match(/[+-]?(?:\d+\.?\d*|\.\d+)%?/g) ?? [];
     if (components.length < 3) return null;
-    const hasAlpha = normalized.includes('/') || (normalized.startsWith('rgba(') && components.length > 3);
+    const hasAlpha =
+      normalized.includes('/') || (normalized.startsWith('rgba(') && components.length > 3);
     let alpha = 1;
     if (hasAlpha) {
       const token = components[3] ?? '1';
@@ -1978,6 +2448,318 @@ function allowlistedTextAction(scope, label) {
   );
 }
 
+async function visibleLocatorAt(locator, occurrence = 1) {
+  const count = Math.min(await locator.count(), 50);
+  let visible = 0;
+  for (let index = 0; index < count; index += 1) {
+    const candidate = locator.nth(index);
+    if (!(await candidate.isVisible().catch(() => false))) continue;
+    visible += 1;
+    if (visible === occurrence) return candidate;
+  }
+  return null;
+}
+
+export async function locateExactNavigationTarget(page, item) {
+  if (item.locator.strategy === 'role') {
+    const target = await visibleLocatorAt(
+      page.getByRole(item.locator.role, { name: item.locator.name, exact: true }),
+      item.occurrence,
+    );
+    if (!target) return null;
+    const paintedCandidates = page.getByText(item.label, { exact: true });
+    const count = Math.min(await paintedCandidates.count(), 50);
+    for (let index = 0; index < count; index += 1) {
+      const painted = paintedCandidates.nth(index);
+      if (!(await painted.isVisible().catch(() => false))) continue;
+      let paintedHandle = null;
+      try {
+        paintedHandle = await painted.elementHandle();
+        if (!paintedHandle) continue;
+        const bound = await target.evaluate((targetElement, paintedElement) => {
+          if (
+            targetElement === paintedElement ||
+            targetElement.contains(paintedElement) ||
+            paintedElement.contains(targetElement)
+          ) {
+            return true;
+          }
+          let common = targetElement;
+          let targetDepth = 0;
+          while (common && !common.contains(paintedElement) && targetDepth <= 2) {
+            common = common.parentElement;
+            targetDepth += 1;
+          }
+          let cursor = paintedElement;
+          let paintedDepth = 0;
+          while (cursor && cursor !== common && paintedDepth <= 1) {
+            cursor = cursor.parentElement;
+            paintedDepth += 1;
+          }
+          if (!common || cursor !== common || targetDepth > 2 || paintedDepth > 1) return false;
+          const targetRect = targetElement.getBoundingClientRect();
+          const paintedRect = paintedElement.getBoundingClientRect();
+          const horizontalOverlap =
+            Math.min(targetRect.right, paintedRect.right) -
+            Math.max(targetRect.left, paintedRect.left);
+          const verticalOverlap =
+            Math.min(targetRect.bottom, paintedRect.bottom) -
+            Math.max(targetRect.top, paintedRect.top);
+          return horizontalOverlap > 0 && verticalOverlap > 0;
+        }, paintedHandle);
+        if (bound) return target;
+      } catch {
+        // Keep looking: a detached duplicate label is not target evidence.
+      } finally {
+        await paintedHandle?.dispose?.().catch(() => {});
+      }
+    }
+    return null;
+  }
+
+  const painted = await visibleLocatorAt(
+    page.getByText(item.label, { exact: true }),
+    item.occurrence,
+  );
+  if (!painted) return null;
+  const roleSelector =
+    item.locator.role === 'button'
+      ? 'self::button or @role="button"'
+      : item.locator.role === 'link'
+        ? 'self::a or @role="link"'
+        : '@role="tab"';
+  const target = painted.locator(`xpath=ancestor-or-self::*[${roleSelector}][1]`);
+  if (
+    (await target.count()) === 0 ||
+    !(await target
+      .first()
+      .isVisible()
+      .catch(() => false))
+  ) {
+    return null;
+  }
+  if (typeof target.and !== 'function') return null;
+  const exactRoleTarget = target.and(
+    page.getByRole(item.locator.role, { name: item.locator.name, exact: true }),
+  );
+  if (
+    (await exactRoleTarget.count()) !== 1 ||
+    !(await exactRoleTarget
+      .first()
+      .isVisible()
+      .catch(() => false))
+  ) {
+    return null;
+  }
+  return exactRoleTarget.first();
+}
+
+async function exactNavigationEffectPassed(page, item) {
+  if (item.effect.type === 'selected') {
+    const target = await locateExactNavigationTarget(page, item);
+    if (!target) return false;
+    return (await target.getAttribute('aria-selected')) === String(item.effect.value);
+  }
+  if (item.effect.type === 'visible') {
+    const target = await visibleLocatorAt(
+      page.getByRole(item.effect.role, { name: item.effect.name, exact: true }),
+      item.effect.occurrence,
+    );
+    if (!target) return false;
+    return Boolean(
+      await visibleLocatorAt(
+        page.getByText(item.effect.name, { exact: true }),
+        item.effect.occurrence,
+      ),
+    );
+  }
+  const options = item.effect.name ? { name: item.effect.name, exact: true } : undefined;
+  const target = await visibleLocatorAt(
+    page.getByRole(item.effect.role, options),
+    item.effect.occurrence,
+  );
+  return target ? (await target.inputValue().catch(() => null)) === item.effect.value : false;
+}
+
+function attachNavigationProbeHealth(page, baseUrl, sourceUrl) {
+  const health = createShotHealth();
+  const networkTracker = createShotNetworkTracker();
+  const blockedRequests = new WeakSet();
+  let blockedMutation = false;
+  page.on('console', (message) => {
+    recordShotConsole(health, message);
+  });
+  page.on('pageerror', () => recordShotFailure(health, 'page-error'));
+  page.on('request', (request) => networkTracker.start(request, health));
+  page.on('requestfailed', (request) => {
+    if (blockedRequests.has(request)) networkTracker.finish(request);
+    else networkTracker.fail(request);
+  });
+  page.on('requestfinished', (request) => networkTracker.finish(request));
+  page.on('response', (response) => {
+    const request = response.request();
+    let expectedDeepLink404 = false;
+    try {
+      expectedDeepLink404 =
+        response.status() === 404 &&
+        response.url() === sourceUrl &&
+        request.isNavigationRequest() &&
+        request.frame() === page.mainFrame();
+    } catch {
+      expectedDeepLink404 = false;
+    }
+    networkTracker.response(request, baseUrl, response.url(), response.status(), {
+      ignoreAsset404: expectedDeepLink404,
+    });
+  });
+  return {
+    health,
+    blockedRequests,
+    markBlockedMutation(request) {
+      blockedMutation = true;
+      blockedRequests.add(request);
+    },
+    mutationWasBlocked() {
+      return blockedMutation;
+    },
+    resetBlockedMutation() {
+      blockedMutation = false;
+    },
+  };
+}
+
+export function navigationProbeFailureCode(baseUrl, health, mutationBlocked) {
+  if (mutationBlocked) return 'mutation-blocked';
+  return shotFailureCodes({ baseUrl, ...health }).length ? 'source-health' : null;
+}
+
+export function isCaptureNoticeReadRequest(request, noticeReadOrigin, setupPhase) {
+  if (setupPhase !== true || !request || typeof noticeReadOrigin !== 'string') return false;
+  try {
+    const expected = new URL(noticeReadOrigin);
+    const actual = new URL(request.url());
+    return (
+      request.method() === 'POST' &&
+      actual.origin === expected.origin &&
+      actual.pathname === '/rest/v1/user_notice_reads'
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function probeExactNavigationItem(sourcePage, baseUrl, sourceRoute, item, noticeReadOrigin) {
+  const probe = await sourcePage.context().newPage();
+  const sourceUrl = resolveHostedAppUrl(baseUrl, sourceRoute);
+  const probeHealth = attachNavigationProbeHealth(probe, baseUrl, sourceUrl);
+  let setupPhase = true;
+  let stage = 'probe-setup';
+  try {
+    await probe.route('**/*', async (route) => {
+      const request = route.request();
+      if (['GET', 'HEAD', 'OPTIONS'].includes(request.method())) {
+        await route.continue();
+        return;
+      }
+      if (isCaptureNoticeReadRequest(request, noticeReadOrigin, setupPhase)) {
+        await route.fulfill({ status: 201, contentType: 'application/json', body: '' });
+        return;
+      }
+      probeHealth.markBlockedMutation(request);
+      await route.abort('blockedbyclient');
+    });
+    stage = 'source-route';
+    const response = await probe.goto(sourceUrl, {
+      waitUntil: 'load',
+      timeout: 90000,
+    });
+    if (!response || response.status() >= 400) {
+      await probe.goto(resolveHostedAppUrl(baseUrl, '/'), {
+        waitUntil: 'load',
+        timeout: 90000,
+      });
+      await probe.waitForTimeout(1200);
+      await navigateHostedAppRoute(probe, baseUrl, sourceRoute);
+    }
+    await waitForSettledPage(probe);
+    await waitForShotNetworkIdle(probe, probeHealth.health);
+    await probe.waitForTimeout(300);
+    await dismissNoticeOverlay(probe);
+    await dismissCaptureOverlays(probe);
+    await waitForShotNetworkIdle(probe, probeHealth.health);
+    validateFinalUrl(baseUrl, sourceRoute, probe.url());
+    const sourceFailure = navigationProbeFailureCode(
+      baseUrl,
+      probeHealth.health,
+      probeHealth.mutationWasBlocked(),
+    );
+    if (sourceFailure) {
+      return { passed: false, evidence: null, failure: sourceFailure };
+    }
+
+    stage = 'painted-label';
+    const painted = await visibleLocatorAt(
+      probe.getByText(item.label, { exact: true }),
+      item.occurrence,
+    );
+    if (!painted) return { passed: false, evidence: null, failure: 'painted-label' };
+    stage = 'action-target';
+    const target = await locateExactNavigationTarget(probe, item);
+    if (!target) return { passed: false, evidence: null, failure: 'action-target' };
+    setupPhase = false;
+    probeHealth.resetBlockedMutation();
+    stage = 'click-failed';
+    await target.click({ timeout: 5000 });
+
+    if (item.kind === 'route') {
+      stage = 'route-mismatch';
+      await probe.waitForURL(
+        (url) => {
+          try {
+            validateFinalUrl(baseUrl, item.to, url.href);
+            return true;
+          } catch {
+            return false;
+          }
+        },
+        { timeout: 10000 },
+      );
+      validateFinalUrl(baseUrl, item.to, probe.url());
+      await probe.waitForTimeout(350);
+      stage = 'source-health';
+      await waitForShotNetworkIdle(probe, probeHealth.health);
+      const routeFailure = navigationProbeFailureCode(
+        baseUrl,
+        probeHealth.health,
+        probeHealth.mutationWasBlocked(),
+      );
+      if (routeFailure) return { passed: false, evidence: null, failure: routeFailure };
+      return { passed: true, evidence: 'exact-route' };
+    }
+
+    await probe.waitForTimeout(350);
+    validateFinalUrl(baseUrl, sourceRoute, probe.url());
+    stage = 'source-health';
+    await waitForShotNetworkIdle(probe, probeHealth.health);
+    const actionFailure = navigationProbeFailureCode(
+      baseUrl,
+      probeHealth.health,
+      probeHealth.mutationWasBlocked(),
+    );
+    if (actionFailure) return { passed: false, evidence: null, failure: actionFailure };
+    const passed = await exactNavigationEffectPassed(probe, item);
+    return {
+      passed,
+      evidence: passed ? `${item.effect.type}-effect` : null,
+      ...(passed ? {} : { failure: 'effect-mismatch' }),
+    };
+  } catch {
+    return { passed: false, evidence: null, failure: stage };
+  } finally {
+    await probe.close().catch(() => {});
+  }
+}
+
 export async function dismissCaptureOverlays(page) {
   for (let pass = 0; pass < CAPTURE_OVERLAY_MAX_PASSES; pass += 1) {
     let clicked = false;
@@ -2001,7 +2783,40 @@ export async function dismissCaptureOverlays(page) {
   await page.waitForTimeout(500);
 }
 
-async function scoreOne({ page, id, route, baseUrl, ramp, navFile, deviations, activeShot }) {
+export async function dismissNoticeOverlay(page) {
+  for (let pass = 0; pass < CAPTURE_OVERLAY_MAX_PASSES; pass += 1) {
+    const scope = page.locator(CAPTURE_OVERLAY_SCOPE_SELECTOR);
+    let clicked = false;
+    const scopeCount = Math.min(await scope.count(), 10);
+    for (let index = 0; index < scopeCount && !clicked; index += 1) {
+      const candidate = scope.nth(index);
+      const close = candidate.getByRole('button', { name: '공지 닫기', exact: true });
+      if ((await close.count()) === 0) continue;
+      clicked = await clickFirstOverlayCandidate(close);
+      if (!clicked) {
+        clicked = await clickFirstOverlayCandidate(
+          candidate.getByRole('button', { name: '확인', exact: true }),
+        );
+      }
+    }
+    await page.waitForTimeout(
+      clicked ? CAPTURE_OVERLAY_DISMISS_SETTLE_MS : CAPTURE_OVERLAY_RECHECK_MS,
+    );
+  }
+  await page.waitForTimeout(500);
+}
+
+async function scoreOne({
+  page,
+  id,
+  route,
+  baseUrl,
+  ramp,
+  navFile,
+  deviations,
+  activeShot,
+  noticeReadOrigin,
+}) {
   await navigateHostedAppRoute(page, baseUrl, route);
   await waitForSettledPage(page);
   await waitForShotNetworkIdle(page, activeShot);
@@ -2051,16 +2866,26 @@ async function scoreOne({ page, id, route, baseUrl, ramp, navFile, deviations, a
     ? JSON.parse(readFileSync(structurePath, 'utf8'))
     : null;
   const C = null;
-  const cWhy =
-    '축 꺼짐 — 눈금이 화면을 구별 못 함(자기 짝 찾기 0/6, 무작위 1/6보다 낮음)';
+  const cWhy = '축 꺼짐 — 눈금이 화면을 구별 못 함(자기 짝 찾기 0/6, 무작위 1/6보다 낮음)';
 
-  const declared = Array.isArray(navFile?.[id]) ? navFile[id] : null;
-  const navigation = scoreNavigationLabels(
-    declared,
-    app.interactive,
-    exemptItems(id, 'D', deviations),
-    { baseUrl },
-  );
+  const navigationSpec = navFile?.[id];
+  let navigation;
+  if (Array.isArray(navigationSpec)) {
+    navigation = scoreNavigationLabels(
+      navigationSpec,
+      app.interactive,
+      exemptItems(id, 'D', deviations),
+      { baseUrl },
+    );
+  } else if (navigationSpec?.version === 2) {
+    const contract = normalizeNavigationContract(navigationSpec, baseUrl);
+    const results = await runExactNavigationChecks(contract, (item) =>
+      probeExactNavigationItem(page, baseUrl, route, item, noticeReadOrigin),
+    );
+    navigation = scoreExactNavigationResults(contract, results, exemptItems(id, 'D', deviations));
+  } else {
+    navigation = scoreNavigationLabels(null, app.interactive, [], { baseUrl });
+  }
   if (navigation.requiresManualReview) requireManualReview('D');
   const D = applyDeviation('D', navigation.score);
 
@@ -2107,15 +2932,7 @@ async function scoreOne({ page, id, route, baseUrl, ramp, navFile, deviations, a
             }`
           : 'no painted pixels',
       C: cWhy,
-      D: navigation.measurable
-        ? `declared ${navigation.declared} · measured ${navigation.measured} · exempt ${navigation.exempted} · missing ${navigation.missing.length}${
-            navigation.missing.length ? ` → ${navigation.missing.slice(0, 8).join(' / ')}` : ''
-          } · evidence safe-href ${navigation.evidence.safeHrefs} / actionable-only ${navigation.evidence.actionableOnly} / unsafe-target ${navigation.evidence.unsafeTargets}${
-            navigation.manualReviewReasons.length
-              ? ` · manual review ${navigation.manualReviewReasons.join(' / ')}`
-              : ''
-          }`
-        : 'nav declaration missing',
+      D: formatNavigationWhy(navigation),
       E: copy
         ? `declared ${copy.declared} · measured ${copy.total} · exempt ${copy.exempted} · missing ${copy.missing.length}${
             copy.missing.length
@@ -2180,6 +2997,10 @@ export async function main(args = process.argv.slice(2), env = process.env, data
     console.error('invalid BASE_URL');
     return 2;
   }
+  if (!validateStage1NavigationContracts(classification.stats.stage1, navFile, baseUrl)) {
+    console.error('invalid Stage 1 navigation contract');
+    return 2;
+  }
   let playwright;
   try {
     playwright = resolvePlaywright(require, env);
@@ -2213,10 +3034,12 @@ export async function main(args = process.argv.slice(2), env = process.env, data
     browserVersion = validateBrowserRuntime(browser);
     const context = await browser.newContext(captureContextOptions());
     const page = await context.newPage();
-    let activeShot = createShotHealth();
+    let activeShot = createShotHealth({
+      noticeReadOrigin: environmentAttestation.previewEnv.EXPO_PUBLIC_SUPABASE_URL,
+    });
     const networkTracker = createShotNetworkTracker();
     page.on('console', (message) => {
-      if (message.type() === 'error') recordShotFailure(activeShot, 'console-error');
+      recordShotConsole(activeShot, message);
     });
     page.on('pageerror', () => {
       recordShotFailure(activeShot, 'page-error');
@@ -2249,6 +3072,17 @@ export async function main(args = process.argv.slice(2), env = process.env, data
     await waitForShotNetworkIdle(page, activeShot);
     const loginFailureCodes = shotFailureCodes({ baseUrl, ...activeShot });
     if (loginFailureCodes.length) throw new CaptureContractError(loginFailureCodes);
+    // Dismissing the authenticated notice is capture setup, not screen evidence.
+    // A duplicate append-only read may return HTTP 409 and Chromium reports that
+    // handled response as a console error. Tolerate only that classified conflict;
+    // every other setup health failure remains fatal. The dismissal also seeds the
+    // shared local read mirror before fresh exact-navigation probe pages open.
+    await dismissNoticeOverlay(page);
+    await dismissCaptureOverlays(page);
+    await waitForShotNetworkIdle(page, activeShot);
+    const setupFailureCodes = captureSetupFailureCodes(baseUrl, activeShot);
+    if (setupFailureCodes.length) throw new CaptureContractError(setupFailureCodes);
+    activeShot = createShotHealth();
     // Auth and hydration use real time. Target components then mount through
     // the client router after deterministic Date/random are installed.
     await page.addScriptTag({ content: determinismScript });
@@ -2267,6 +3101,7 @@ export async function main(args = process.argv.slice(2), env = process.env, data
             navFile,
             deviations,
             activeShot,
+            noticeReadOrigin: environmentAttestation.previewEnv.EXPO_PUBLIC_SUPABASE_URL,
           }),
         );
       } catch (error) {
