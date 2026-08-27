@@ -1313,20 +1313,16 @@
    "A": 30,
    "B": 23.9,
    "C": null,
-   "D": 0,
+   "D": 15,
    "E": 10,
-   "total": 79.9,
+   "total": 98.6,
    "unmeasured": ["C"],
-   "missD": ["이어가기", "별자리", "담기", "세컨비", "위키", "설정"],
+   "missD": [],
    "missE": [],
    "offTop": [
     {
      "hex": "#202939",
      "pixels": 2178
-    },
-    {
-     "hex": "#1d222f",
-     "pixels": 694
     },
     {
      "hex": "#16172c",
@@ -1337,15 +1333,19 @@
      "pixels": 390
     },
     {
-     "hex": "#16172d",
-     "pixels": 325
+     "hex": "#0a0e9f",
+     "pixels": 345
+    },
+    {
+     "hex": "#930e18",
+     "pixels": 345
     }
    ],
    "why": {
     "A": "curves 0 · rounds 0 · blur 0 · alpha 0",
-    "B": "token pixels 95.6% (305638/319800) · off-ramp #202939 2178 / #1d222f 694 / #16172c 491 / #17182e 390 / #16172d 325",
+    "B": "token pixels 95.6% (305822/319800) · off-ramp #202939 2178 / #16172c 491 / #17182e 390 / #0a0e9f 345 / #930e18 345",
     "C": "축 꺼짐 — 눈금이 화면을 구별 못 함(자기 짝 찾기 0/6, 무작위 1/6보다 낮음)",
-    "D": "declared 6 · measured 6 · exempt 0 · missing 6 → 이어가기 / 별자리 / 담기 / 세컨비 / 위키 / 설정 · failures source-health 6",
+    "D": "declared 6 · measured 6 · exempt 0 · missing 0 · exact routes 6",
     "E": "declared 8 · measured 8 · exempt 0 · missing 0"
    }
   },
