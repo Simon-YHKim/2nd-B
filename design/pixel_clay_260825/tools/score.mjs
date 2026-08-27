@@ -76,6 +76,16 @@ const RAMP = (() => {
 
 /** ⚠ 앱이 심는 워드 조이너(U+2060)가 문자열 비교를 깨뜨려 **있는 문장을 없다고** 셌다. */
 const norm = (s) => (s || '').replace(/[⁠​-‍﻿]/g, '').replace(/\s+/g, ' ').trim();
+// ⚠ 대조는 **공백을 다 지우고** 한다. 레퍼런스 구조 다이제스트의 라벨은 잎
+//   텍스트를 공백 없이 이어붙인 것(`세컨비2nd-B`)인데 앱은 그걸 두 개의 텍스트
+//   노드로 그린다. 공백을 남기고 대조하면 **화면에 있는 것을 없다고 센다.**
+//   이 저장소에서 같은 종류의 함정을 이미 겪었다 — 워드 조이너 U+2060 이
+//   문자열 비교를 깨뜨려 있는 문장을 없다고 셌다.
+const tight = (s) => norm(s).split(' ').join('');
+// 이어붙일 때 쓰는 구분자. 빈 문자열로 이으면 **경계를 넘는 거짓 일치**가 난다
+// (앞 텍스트의 꼬리 + 뒤 텍스트의 머리). 화면에 안 나오는 제어문자를 쓴다.
+// ⚠ 이스케이프로 쓰지 않는다 — heredoc·grep 을 지나며 조용히 사라진다.
+const SEP = String.fromCharCode(1);
 
 function exempt(screen, axis) {
   return (deviations.deviations || []).some(
@@ -91,7 +101,7 @@ const IN_PAGE = () => {
   const CURVE = ['circle', 'ellipse', 'path', 'polyline', 'polygon'];
   const tr = (v) => /rgba?\([^)]*?,\s*0?\.\d+\s*\)/.test(v || '');
   const SECTION_DEPTH = __DEPTH__;
-  const res = { curves: 0, rounds: 0, blurs: 0, alphas: 0, colors: {}, sections: [], texts: [], links: [] };
+  const res = { curves: 0, rounds: 0, blurs: 0, alphas: 0, colors: {}, sections: [], texts: [], groups: [], links: [] };
   for (const el of document.querySelectorAll('*')) {
     const tag = el.tagName.toLowerCase();
     const cs = getComputedStyle(el);
@@ -142,6 +152,14 @@ const IN_PAGE = () => {
     //   빈 화면 게이트를 그대로 **통과했다.** 게이트를 만든 이유가 그건데.
     if (!/^(STYLE|SCRIPT|NOSCRIPT|TEMPLATE|TITLE)$/.test(el.tagName)) {
       if (el.children.length === 0 && (el.textContent || '').trim()) res.texts.push(el.textContent);
+      // **덩어리 글자**: 누를 수 있는 것 하나가 여러 줄일 수 있다(칩·카드·버튼).
+      //   레퍼런스는 그걸 한 라벨로 적으므로 앱에서도 한 덩어리로 볼 수 있어야 한다.
+      //   자손이 적고 글자가 짧은 요소만 — 크게 잡으면 화면 전체가 한 덩어리가 된다.
+      const kids = el.querySelectorAll('*').length;
+      if (kids > 0 && kids <= 8) {
+        const t = (el.textContent || '').trim();
+        if (t && t.length <= 60) res.groups.push(t);
+      }
     }
     const href = el.getAttribute && el.getAttribute('href');
     if (href) res.links.push(href);
@@ -277,28 +295,46 @@ async function scoreOne(page, id, route) {
   //   그래서 "레퍼런스가 이 화면에서 갈 수 있다고 적은 곳들이 화면에 실제로
   //   있는가"를 잰다.
   let D = null;
+  let missD = [];
   const declared = Array.isArray(nav[id]) ? nav[id] : null;
   if (exempt(id, 'D')) D = WEIGHTS.D;
   else if (declared && declared.length) {
-    const appTextBlob = app.texts.map(norm).join('  ');
+    // ⚠ 잎 글자 **와** 덩어리 글자를 함께 본다. 잎만 보면 두 줄짜리 칩을 놓치고,
+    //   빈 문자열로 이으면 경계를 넘는 거짓 일치가 난다. 그래서 둘 다 넣고 SEP 로 가른다.
+    const appTextBlob = app.texts.map(tight).concat((app.groups || []).map(tight)).join(SEP);
+    // ⚠ 점수만 내면 고칠 것을 모른다. **빠진 라벨의 이름**을 같이 남긴다.
+    const missing = [];
     const hit = declared.filter((label) => {
-      const t = norm(label).replace(/[…·]+$/, '');
-      return t.length > 0 && appTextBlob.includes(t.slice(0, Math.max(2, Math.min(t.length, 8))));
+      const t = tight(label).replace(/[…·]+$/, '');
+      const ok = t.length > 0 && appTextBlob.includes(t.slice(0, Math.max(2, Math.min(t.length, 8))));
+      if (!ok) missing.push(label);
+      return ok;
     }).length;
+    missD = missing;
     D = (hit / declared.length) * WEIGHTS.D;
   }
 
   // ── E 카피
   let E = WEIGHTS.E;
+  let missE = [];
   if (!exempt(id, 'E') && ref) {
     const refTexts = [];
     (function walk(n) {
       if (!n) return;
-      if (n.text) refTexts.push(norm(n.text));
+      // ⚠ 목업이 그린 **가짜 상태바 시계**는 카피가 아니다. 레퍼런스 맨 앞에
+      //   `span "12 : 34"` 가 신호·와이파이·배터리와 함께 있다. 앱은 진짜 OS
+      //   상태바 아래에서 도니 이걸 그리면 오히려 결함이다.
+      //   ⚠ 축을 통째로 면제하지 않는다 — 그러면 진짜 카피 누락까지 가려진다.
+      if (n.text && !/^\d{1,2}\s*:\s*\d{2}$/.test(String(n.text).trim())) {
+        refTexts.push(tight(n.text));
+      }
       (n.kids || []).forEach(walk);
     })(ref);
-    const appTexts = app.texts.map(norm).filter(Boolean);
-    const hit = refTexts.filter((t) => t && appTexts.some((a) => a.includes(t))).length;
+    const appTexts = app.texts.map(tight).concat((app.groups || []).map(tight)).filter(Boolean);
+    // ⚠ 여기도 이름을 남긴다 — 어느 문장이 앱에 없는지가 곧 할 일이다.
+    const missing = refTexts.filter((t) => t && !appTexts.some((a) => a.includes(t)));
+    missE = missing;
+    const hit = refTexts.length - missing.length;
     E = refTexts.length ? (hit / refTexts.length) * WEIGHTS.E : WEIGHTS.E;
   }
 
@@ -315,13 +351,17 @@ async function scoreOne(page, id, route) {
   );
   const total100 = maxSum > 0 ? +((gotSum / maxSum) * 100).toFixed(1) : null;
   return {
-    id, route, ...parts, total: total100, unmeasured,
+    id, route, ...parts, total: total100, unmeasured, missD, missE,
     why: {
       A: `곡선 ${app.curves} · 라운드 ${app.rounds} · 블러 ${app.blurs} · 반투명 ${app.alphas}`,
       B: total > 0 ? `램프 면적 ${(100 * inRamp / total).toFixed(1)}%` : '칠한 면적 없음',
       C: cWhy,
-      D: Array.isArray(declared) ? `선언 링크 ${declared.length}` : 'nav 선언 없음',
-      E: ref ? '레퍼런스 텍스트 대조' : '레퍼런스 구조 없음',
+      D: Array.isArray(declared)
+        ? `선언 ${declared.length} · 없음 ${missD.length}` + (missD.length ? ` → ${missD.slice(0, 8).join(' / ')}` : '')
+        : 'nav 선언 없음',
+      E: ref
+        ? `없는 문장 ${missE.length}` + (missE.length ? ` → ${missE.slice(0, 8).map((t) => t.slice(0, 24)).join(' / ')}` : '')
+        : '레퍼런스 구조 없음',
     },
   };
 }
