@@ -1,12 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import {
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -28,28 +22,31 @@ test('preview export rejects incomplete or mock env and shell-quotes public valu
 
   assert.throws(() => previewEnvLines({}), /preview env/i);
   assert.throws(
-    () => previewEnvLines({
-      EXPO_PUBLIC_SUPABASE_URL: 'https://project.supabase.co',
-      EXPO_PUBLIC_SUPABASE_ANON_KEY: 'public-anon',
-      EXPO_PUBLIC_LLM_MODE: 'mock',
-    }),
+    () =>
+      previewEnvLines({
+        EXPO_PUBLIC_SUPABASE_URL: 'https://project.supabase.co',
+        EXPO_PUBLIC_SUPABASE_ANON_KEY: 'public-anon',
+        EXPO_PUBLIC_LLM_MODE: 'mock',
+      }),
     /live/i,
   );
   assert.throws(
-    () => previewEnvLines({
-      EXPO_PUBLIC_SUPABASE_URL: 'https://project.supabase.co',
-      EXPO_PUBLIC_SUPABASE_ANON_KEY: 'public-anon',
-      EXPO_PUBLIC_LLM_MODE: 'LIVE',
-    }),
+    () =>
+      previewEnvLines({
+        EXPO_PUBLIC_SUPABASE_URL: 'https://project.supabase.co',
+        EXPO_PUBLIC_SUPABASE_ANON_KEY: 'public-anon',
+        EXPO_PUBLIC_LLM_MODE: 'LIVE',
+      }),
     /live/i,
   );
   assert.throws(
-    () => previewEnvLines({
-      EXPO_PUBLIC_SUPABASE_URL: 'https://project.supabase.co',
-      EXPO_PUBLIC_SUPABASE_ANON_KEY: 'public-anon',
-      EXPO_PUBLIC_LLM_MODE: 'live',
-      'EXPO_PUBLIC_BAD;echo': 'unsafe',
-    }),
+    () =>
+      previewEnvLines({
+        EXPO_PUBLIC_SUPABASE_URL: 'https://project.supabase.co',
+        EXPO_PUBLIC_SUPABASE_ANON_KEY: 'public-anon',
+        EXPO_PUBLIC_LLM_MODE: 'live',
+        'EXPO_PUBLIC_BAD;echo': 'unsafe',
+      }),
     /shell-safe/i,
   );
 
@@ -72,14 +69,17 @@ test('preview export rejects incomplete or mock env and shell-quotes public valu
 });
 
 test('capture init freezes Date and seeded randomness while marking gates as seen', async () => {
-  const { makeCaptureInitScript } = await contract();
+  const { makeCaptureDeterminismScript, makeCaptureInitScript } = await contract();
   const marker = Date.parse('2026-08-27T00:00:00.000Z');
-  const script = makeCaptureInitScript(marker);
+  const initScript = makeCaptureInitScript(marker);
+  const determinismScript = makeCaptureDeterminismScript(marker);
 
-  assert.match(script, /onboarding\.cosmicPixel\.v2\.completedAt/);
-  assert.match(script, /onboarding\.ttfv\.v1\.seenAt/);
-  assert.match(script, /onboarding\.coachmarks\.home\.v1\.seenAt/);
-  assert.match(script, /2026-08-27T00:00:00\.000Z/);
+  assert.match(initScript, /onboarding\.cosmicPixel\.v2\.completedAt/);
+  assert.match(initScript, /onboarding\.ttfv\.v1\.seenAt/);
+  assert.match(initScript, /onboarding\.coachmarks\.home\.v1\.seenAt/);
+  assert.match(initScript, /2026-08-27T00:00:00\.000Z/);
+  assert.doesNotMatch(initScript, /window\.Date = FakeDate/);
+  assert.match(determinismScript, /window\.Date = FakeDate/);
 
   const execute = () => {
     const values = new Map();
@@ -95,13 +95,42 @@ test('capture init freezes Date and seeded randomness while marking gates as see
       sessionStorage: { setItem: (key, value) => values.set(key, value) },
     };
     sandbox.window = sandbox;
-    runInNewContext(`${script}\nresult = { now: Date.now(), random: [Math.random(), Math.random()] };`, sandbox);
+    runInNewContext(
+      `${initScript}\n${determinismScript}\nresult = {
+      now: Date.now(),
+      random: [Math.random(), Math.random()],
+      dates: [
+        new Date().getTime(),
+        new Date(0).getTime(),
+        new Date(2026, 0).getTime(),
+        new Date(2026, 0, 2).getTime(),
+        new Date(2026, 0, 2, 3).getTime(),
+        new Date(2026, 0, 2, 3, 4).getTime(),
+        new Date(2026, 0, 2, 3, 4, 5).getTime(),
+        new Date(2026, 0, 2, 3, 4, 5, 6).getTime()
+      ]
+    };`,
+      sandbox,
+    );
     return { result: sandbox.result, values };
   };
   const first = execute();
   const second = execute();
   assert.equal(JSON.stringify(first.result), JSON.stringify(second.result));
   assert.equal(first.result.now, marker);
+  assert.deepEqual(
+    [...first.result.dates],
+    [
+      marker,
+      new Date(0).getTime(),
+      new Date(2026, 0).getTime(),
+      new Date(2026, 0, 2).getTime(),
+      new Date(2026, 0, 2, 3).getTime(),
+      new Date(2026, 0, 2, 3, 4).getTime(),
+      new Date(2026, 0, 2, 3, 4, 5).getTime(),
+      new Date(2026, 0, 2, 3, 4, 5, 6).getTime(),
+    ],
+  );
   assert.equal(first.values.get('onboarding.ttfv.v1.seenAt'), '2026-08-27T00:00:00.000Z');
 });
 
@@ -124,12 +153,15 @@ test('A axis DOM audit counts backdrop blur and partial SVG opacity only', async
     stroke: 'rgb(255, 255, 255)',
     fillOpacity: '1',
     strokeOpacity: '1',
+    display: 'block',
+    visibility: 'visible',
   };
   const elements = [
     { tag: 'div', style: { ...baseStyle, backdropFilter: 'blur(4px)' } },
     { tag: 'line', style: { ...baseStyle, strokeOpacity: '0.5' } },
     { tag: 'rect', style: { ...baseStyle, fillOpacity: '0.5' } },
     { tag: 'div', style: { ...baseStyle, filter: 'blur(0px)' } },
+    { tag: 'path', style: { ...baseStyle, display: 'none' } },
   ].map(({ tag, style }) => ({
     tagName: tag.toUpperCase(),
     style,
@@ -141,6 +173,303 @@ test('A axis DOM audit counts backdrop blur and partial SVG opacity only', async
   const result = inspectRenderedPixelRules(elements, (element) => element.style);
   assert.equal(result.blurs, 1);
   assert.equal(result.alphas, 2);
+  assert.equal(result.curves, 0);
+});
+
+test('rendered audits exclude transparent, offscreen, and fully clipped DOM', async () => {
+  const { digestPage, inspectRenderedPixelRules } = await contract();
+  const visibleStyle = {
+    display: 'block',
+    visibility: 'visible',
+    contentVisibility: 'visible',
+    opacity: '1',
+    overflow: 'visible',
+    overflowX: 'visible',
+    overflowY: 'visible',
+    borderTopLeftRadius: '0px',
+    borderTopRightRadius: '0px',
+    borderBottomLeftRadius: '0px',
+    borderBottomRightRadius: '0px',
+    filter: 'none',
+    backdropFilter: 'none',
+    webkitBackdropFilter: 'none',
+    boxShadow: 'none',
+    backgroundColor: 'rgb(0, 0, 0)',
+    color: 'rgb(255, 255, 255)',
+    borderTopColor: 'rgb(0, 0, 0)',
+    fill: 'rgb(255, 255, 255)',
+    stroke: 'rgb(255, 255, 255)',
+    fillOpacity: '1',
+    strokeOpacity: '1',
+    clipPath: 'none',
+    webkitClipPath: 'none',
+    maskImage: 'none',
+    webkitMaskImage: 'none',
+  };
+  const rect = (left, top, width, height) => ({
+    left,
+    top,
+    width,
+    height,
+    right: left + width,
+    bottom: top + height,
+  });
+  const makeElement = (text, box, style = visibleStyle, parentElement = null) => ({
+    tagName: 'DIV',
+    style,
+    parentElement,
+    hidden: false,
+    children: [],
+    childNodes: text ? [{ nodeType: 3, textContent: text }] : [],
+    textContent: text,
+    innerText: text,
+    getBoundingClientRect: () => box,
+    getAttribute: () => null,
+    matches: () => false,
+  });
+  const root = makeElement('', rect(0, 0, 390, 820));
+  const visible = makeElement('visible', rect(10, 10, 100, 20), visibleStyle, root);
+  const transparentParent = makeElement(
+    '',
+    rect(0, 0, 200, 100),
+    { ...visibleStyle, opacity: '0' },
+    root,
+  );
+  const transparent = makeElement(
+    'transparent',
+    rect(10, 40, 100, 20),
+    visibleStyle,
+    transparentParent,
+  );
+  transparentParent.children = [transparent];
+  const offscreen = makeElement('offscreen', rect(500, 10, 100, 20), visibleStyle, root);
+  const clipParent = makeElement(
+    '',
+    rect(0, 0, 80, 80),
+    { ...visibleStyle, overflow: 'hidden', overflowX: 'hidden', overflowY: 'hidden' },
+    root,
+  );
+  const clipped = makeElement('clipped', rect(100, 100, 40, 20), visibleStyle, clipParent);
+  clipParent.children = [clipped];
+  const sliver = makeElement('hidden-score-copy', rect(-999, -999, 1000, 1000), visibleStyle, root);
+  const partial = makeElement('partial', rect(-50, 100, 100, 20), visibleStyle, root);
+  const roundedSliver = makeElement(
+    'too-clipped-to-read',
+    rect(-91, 200, 100, 100),
+    { ...visibleStyle, borderTopLeftRadius: '4px' },
+    root,
+  );
+  const transparentText = makeElement(
+    'invisible-copy',
+    rect(10, 300, 100, 20),
+    { ...visibleStyle, color: 'rgba(255, 255, 255, 0)' },
+    root,
+  );
+  const filteredParent = makeElement(
+    '',
+    rect(0, 0, 200, 100),
+    { ...visibleStyle, filter: 'opacity(0)' },
+    root,
+  );
+  const filterHidden = makeElement('CHEAT', rect(10, 340, 100, 20), visibleStyle, filteredParent);
+  filterHidden.tagName = 'A';
+  filterHidden.matches = (selector) => selector.includes('a[href]');
+  filterHidden.getAttribute = (name) => (name === 'href' ? '/growth' : null);
+  filteredParent.children = [filterHidden];
+  const clipPathParent = makeElement(
+    '',
+    rect(0, 0, 200, 100),
+    { ...visibleStyle, clipPath: 'inset(50%)' },
+    root,
+  );
+  const clipPathHidden = makeElement(
+    'CHEAT',
+    rect(10, 380, 100, 20),
+    visibleStyle,
+    clipPathParent,
+  );
+  clipPathHidden.tagName = 'A';
+  clipPathHidden.matches = (selector) => selector.includes('a[href]');
+  clipPathHidden.getAttribute = (name) => (name === 'href' ? '/growth' : null);
+  clipPathParent.children = [clipPathHidden];
+  const nearTransparentParent = makeElement(
+    '',
+    rect(0, 0, 200, 100),
+    { ...visibleStyle, opacity: '0.001' },
+    root,
+  );
+  const nearTransparent = makeElement(
+    'CHEAT',
+    rect(10, 420, 100, 20),
+    visibleStyle,
+    nearTransparentParent,
+  );
+  nearTransparent.tagName = 'A';
+  nearTransparent.matches = (selector) => selector.includes('a[href]');
+  nearTransparent.getAttribute = (name) => (name === 'href' ? '/growth' : null);
+  nearTransparentParent.children = [nearTransparent];
+  const unsupportedPaintParents = [
+    { clipPath: 'circle(0)' },
+    { clipPath: 'polygon(0 0, 0 0, 0 0)' },
+    { maskImage: 'linear-gradient(transparent, transparent)' },
+  ].map((paintStyle, index) => {
+    const parent = makeElement(
+      '',
+      rect(0, 0, 200, 100),
+      { ...visibleStyle, ...paintStyle },
+      root,
+    );
+    const child = makeElement('CHEAT', rect(10, 460 + index * 40, 100, 20), visibleStyle, parent);
+    child.tagName = 'A';
+    child.matches = (selector) => selector.includes('a[href]');
+    child.getAttribute = (name) => (name === 'href' ? '/growth' : null);
+    parent.children = [child];
+    return { parent, child };
+  });
+  root.children = [
+    visible,
+    transparentParent,
+    offscreen,
+    clipParent,
+    sliver,
+    partial,
+    roundedSliver,
+    transparentText,
+    filteredParent,
+    clipPathParent,
+    nearTransparentParent,
+    ...unsupportedPaintParents.map(({ parent }) => parent),
+  ];
+
+  const inspected = inspectRenderedPixelRules(
+    [
+      visible,
+      transparent,
+      offscreen,
+      clipped,
+      sliver,
+      partial,
+      roundedSliver,
+      transparentText,
+      filterHidden,
+      clipPathHidden,
+      nearTransparent,
+      ...unsupportedPaintParents.map(({ child }) => child),
+    ],
+    (element) => element.style,
+    { width: 390, height: 820 },
+  );
+  assert.deepEqual(inspected.texts, ['visible', 'partial']);
+  assert.deepEqual(inspected.interactive, []);
+  assert.equal(inspected.rounds, 1);
+
+  const previousWindow = globalThis.window;
+  const previousComputedStyle = globalThis.getComputedStyle;
+  try {
+    globalThis.window = { innerWidth: 390, innerHeight: 820 };
+    globalThis.getComputedStyle = (element) => element.style;
+    const digest = digestPage(root);
+    assert.deepEqual(
+      digest.kids.map((child) => child.text),
+      ['visible', 'partial'],
+    );
+    assert.deepEqual(digest.kids[1].box, [50, 20]);
+  } finally {
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+    if (previousComputedStyle === undefined) delete globalThis.getComputedStyle;
+    else globalThis.getComputedStyle = previousComputedStyle;
+  }
+});
+
+test('D axis accepts only visibly painted descendant text, never aria-only labels', async () => {
+  const { digestPage, inspectRenderedPixelRules, scoreNavigation } = await contract();
+  const style = {
+    display: 'block',
+    visibility: 'visible',
+    contentVisibility: 'visible',
+    opacity: '1',
+    overflow: 'visible',
+    overflowX: 'visible',
+    overflowY: 'visible',
+    color: 'rgb(255, 255, 255)',
+    webkitTextFillColor: 'rgb(255, 255, 255)',
+    fill: 'rgb(255, 255, 255)',
+    borderTopLeftRadius: '0px',
+    borderTopRightRadius: '0px',
+    borderBottomLeftRadius: '0px',
+    borderBottomRightRadius: '0px',
+    filter: 'none',
+    backdropFilter: 'none',
+    webkitBackdropFilter: 'none',
+    boxShadow: 'none',
+    backgroundColor: 'rgb(0, 0, 0)',
+    borderTopColor: 'rgb(0, 0, 0)',
+    stroke: 'rgb(255, 255, 255)',
+    fillOpacity: '1',
+    strokeOpacity: '1',
+  };
+  const box = { left: 10, top: 10, right: 110, bottom: 54, width: 100, height: 44 };
+  const make = (text, elementStyle = style) => ({
+    tagName: 'SPAN',
+    style: elementStyle,
+    hidden: false,
+    parentElement: null,
+    children: [],
+    childNodes: text ? [{ nodeType: 3, textContent: text }] : [],
+    textContent: text,
+    getBoundingClientRect: () => box,
+    getAttribute: () => null,
+    matches: () => false,
+  });
+  const link = (child, ariaLabel) => {
+    const element = make('');
+    element.tagName = 'A';
+    element.children = child ? [child] : [];
+    if (child) child.parentElement = element;
+    element.matches = (selector) => selector.includes('a[href]');
+    element.getAttribute = (name) =>
+      name === 'href' ? '/settings' : name === 'aria-label' ? ariaLabel : null;
+    return element;
+  };
+  const ariaOnly = link(null, '설정');
+  const hiddenText = make('설정', {
+    ...style,
+    color: 'rgba(255, 255, 255, 0)',
+    webkitTextFillColor: 'rgba(255, 255, 255, 0)',
+  });
+  const hiddenLabel = link(hiddenText, null);
+  const visibleText = make('설정');
+  const visibleLabel = link(visibleText, null);
+
+  const inspected = inspectRenderedPixelRules(
+    [ariaOnly, hiddenLabel, hiddenText, visibleLabel, visibleText],
+    (element) => element.style,
+    { width: 390, height: 820 },
+  );
+  assert.equal(
+    scoreNavigation([{ label: '설정', to: '/settings' }], inspected.interactive).score,
+    15,
+  );
+  assert.deepEqual(
+    inspected.interactive.map((entry) => entry.label),
+    ['', '', '설정'],
+  );
+
+  const previousWindow = globalThis.window;
+  const previousComputedStyle = globalThis.getComputedStyle;
+  try {
+    globalThis.window = { innerWidth: 390, innerHeight: 820 };
+    globalThis.getComputedStyle = (element) => element.style;
+    assert.equal(digestPage(ariaOnly), null);
+    assert.equal(digestPage(hiddenLabel), null);
+    assert.equal(digestPage(visibleLabel).interactiveText, '설정');
+  } finally {
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+    if (previousComputedStyle === undefined) delete globalThis.getComputedStyle;
+    else globalThis.getComputedStyle = previousComputedStyle;
+  }
 });
 
 test('E copy coverage uses normalized exact matches and preserves duplicate denominator', async () => {
@@ -157,9 +486,13 @@ test('E copy coverage uses normalized exact matches and preserves duplicate deno
   });
 });
 
-test('live export receipt binds exact runtime env, fresh served bytes, and live mode', async () => {
+test('live export receipt binds the full public env and a unique served proof', async () => {
   const {
+    captureExportEnv,
     createCaptureEnvReceipt,
+    createServedExportAttestation,
+    servedExportMarkerBody,
+    sourceBodySha256,
     validateCaptureEnvReceipt,
     validateServedExportSources,
   } = await contract();
@@ -167,48 +500,290 @@ test('live export receipt binds exact runtime env, fresh served bytes, and live 
     EXPO_PUBLIC_SUPABASE_URL: 'https://project.supabase.co',
     EXPO_PUBLIC_SUPABASE_ANON_KEY: 'public-anon',
     EXPO_PUBLIC_LLM_MODE: 'live',
-  };
-  const runtime = {
-    ...preview,
-    EXPO_PUBLIC_ALLOW_DEV_TIER: 'true',
-    EXPO_PUBLIC_UI: 'deep-space',
+    EXPO_PUBLIC_CHAT_VENDOR: 'openai',
   };
   const printedAt = Date.parse('2026-08-27T00:00:00.000Z');
-  const receipt = createCaptureEnvReceipt(preview, printedAt);
+  const receipt = createCaptureEnvReceipt(
+    preview,
+    printedAt,
+    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  );
+  const runtime = captureExportEnv(preview, receipt);
   const validated = validateCaptureEnvReceipt(receipt, preview, runtime, printedAt + 1000);
   assert.equal(validated.printedAt, printedAt);
+  assert.equal(validated.receipt.receiptId, receipt.receiptId);
   assert.equal(JSON.stringify(receipt).includes('public-anon'), false);
 
-  const liveSource = [
-    'https://project.supabase.co',
-    'public-anon',
-    'EXPO_PUBLIC_LLM_MODE:"live"',
-  ].join(';');
-  assert.doesNotThrow(() => validateServedExportSources(
-    [{ body: liveSource, lastModified: 'Thu, 27 Aug 2026 00:00:02 GMT' }],
-    preview,
-    validated.printedAt,
-  ));
-  assert.throws(() => validateServedExportSources(
-    [{ body: liveSource.replace('"live"', '"mock"'), lastModified: 'Thu, 27 Aug 2026 00:00:02 GMT' }],
-    preview,
-    validated.printedAt,
-  ), /environment-attestation/);
-  assert.throws(() => validateServedExportSources(
-    [{ body: liveSource, lastModified: 'Wed, 26 Aug 2026 23:59:00 GMT' }],
-    preview,
-    validated.printedAt,
-  ), /environment-attestation/);
-  assert.throws(() => validateCaptureEnvReceipt(
+  const sourceBody = 'fresh-app-bundle';
+  const markerBody = servedExportMarkerBody(receipt);
+  const manifest = [
+    { path: '_expo/app.js', sha256: sourceBodySha256(sourceBody) },
+    { path: 'work0-export-marker.js', sha256: sourceBodySha256(markerBody) },
+  ];
+  const inlineScripts = [sourceBodySha256('inline-module')];
+  const served = createServedExportAttestation(receipt, manifest, inlineScripts, printedAt + 1000);
+  const servedFiles = manifest.map((file) => ({
+    ...file,
+    lastModified: 'Thu, 27 Aug 2026 00:00:02 GMT',
+  }));
+  const scriptContract = {
+    externalUrls: [
+      'http://localhost:8977/2nd-B/_expo/app.js',
+      'http://localhost:8977/2nd-B/work0-export-marker.js',
+    ],
+    inlineSha256: inlineScripts,
+    crossOriginCount: 0,
+  };
+  assert.doesNotThrow(() =>
+    validateServedExportSources(
+      servedFiles,
+      preview,
+      validated.receipt,
+      { body: JSON.stringify(served), lastModified: 'Thu, 27 Aug 2026 00:00:02 GMT' },
+      scriptContract,
+    ),
+  );
+
+  const staleReceipt = createCaptureEnvReceipt(
+    { ...preview, EXPO_PUBLIC_CHAT_VENDOR: 'claude' },
+    printedAt,
+    'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  );
+  assert.throws(
+    () =>
+      validateServedExportSources(
+        servedFiles,
+        preview,
+        validated.receipt,
+        {
+          body: JSON.stringify(
+            createServedExportAttestation(staleReceipt, manifest, inlineScripts, printedAt + 1000),
+          ),
+          lastModified: 'Thu, 27 Aug 2026 00:00:02 GMT',
+        },
+        scriptContract,
+      ),
+    /environment-attestation/,
+  );
+  assert.throws(
+    () =>
+      validateServedExportSources(
+        servedFiles,
+        preview,
+        validated.receipt,
+        { body: JSON.stringify(served), lastModified: 'Thu, 27 Aug 2026 00:00:02 GMT' },
+        {
+          ...scriptContract,
+          externalUrls: scriptContract.externalUrls.map((url) => url.replace('/2nd-B/', '/evil/')),
+        },
+      ),
+    /environment-attestation/,
+  );
+  assert.throws(
+    () =>
+      validateServedExportSources(
+        servedFiles,
+        preview,
+        validated.receipt,
+        { body: JSON.stringify(served), lastModified: 'Wed, 26 Aug 2026 23:59:00 GMT' },
+        scriptContract,
+      ),
+    /environment-attestation/,
+  );
+  assert.throws(
+    () =>
+      validateServedExportSources(
+        servedFiles.map((file, index) =>
+          index === 0 ? { ...file, sha256: sourceBodySha256('tampered') } : file,
+        ),
+        preview,
+        validated.receipt,
+        { body: JSON.stringify(served), lastModified: 'Thu, 27 Aug 2026 00:00:02 GMT' },
+        scriptContract,
+      ),
+    /environment-attestation/,
+  );
+  const incompleteProof = createServedExportAttestation(
     receipt,
-    preview,
-    { ...runtime, EXPO_PUBLIC_LLM_MODE: 'mock' },
+    [...manifest, { path: '_expo/lazy.js', sha256: sourceBodySha256('lazy') }],
+    inlineScripts,
     printedAt + 1000,
-  ), /environment-attestation/);
+  );
+  assert.throws(
+    () =>
+      validateServedExportSources(
+        servedFiles,
+        preview,
+        validated.receipt,
+        { body: JSON.stringify(incompleteProof), lastModified: 'Thu, 27 Aug 2026 00:00:02 GMT' },
+        scriptContract,
+      ),
+    /environment-attestation/,
+  );
+  assert.throws(
+    () =>
+      validateCaptureEnvReceipt(
+        receipt,
+        preview,
+        { ...runtime, EXPO_PUBLIC_LLM_MODE: 'mock' },
+        printedAt + 1000,
+      ),
+    /environment-attestation/,
+  );
+});
+
+test('capture marker time is stable across score and capture runs sharing one receipt', async () => {
+  const { resolveCaptureMarkerTime } = await contract();
+  const printedAt = Date.parse('2026-08-27T00:00:00.000Z');
+  assert.equal(resolveCaptureMarkerTime({}, printedAt), printedAt);
+  assert.equal(
+    resolveCaptureMarkerTime({ FIXED_ISO: '2026-08-27T00:01:00.000Z' }, printedAt),
+    printedAt + 60000,
+  );
+  assert.throws(
+    () => resolveCaptureMarkerTime({ FIXED_ISO: 'not-a-date' }, printedAt),
+    /valid date/i,
+  );
+});
+
+test('credential fill is limited to the expected loopback or explicit origin', async () => {
+  const { fillQaLogin } = await contract();
+  let fills = 0;
+  const page = {
+    url: () => 'https://evil.example/2nd-B/sign-in',
+    getByLabel: () => ({
+      async fill() {
+        fills += 1;
+      },
+    }),
+    locator: () => ({ first: () => ({ async click() {} }) }),
+    async waitForTimeout() {},
+  };
+  await assert.rejects(
+    fillQaLogin(page, {
+      baseUrl: 'http://localhost:8977',
+      email: 'qa@example.com',
+      password: 'disposable',
+      env: {},
+    }),
+    /unexpected-final-origin/,
+  );
+  assert.equal(fills, 0);
+
+  const remotePage = { ...page, url: () => 'https://preview.example/2nd-B/sign-in' };
+  await assert.rejects(
+    fillQaLogin(remotePage, {
+      baseUrl: 'https://preview.example',
+      email: 'qa@example.com',
+      password: 'disposable',
+      env: {},
+    }),
+    /unexpected-final-origin/,
+  );
+  assert.equal(fills, 0);
+
+  let ipv6Url = 'http://[::1]:8977/2nd-B/sign-in';
+  const ipv6Page = {
+    url: () => ipv6Url,
+    getByLabel: () => ({
+      async count() {
+        return 1;
+      },
+      async fill() {
+        fills += 1;
+      },
+    }),
+    locator: (selector) =>
+      selector === 'input[type="password"]'
+        ? {
+            async count() {
+              return 1;
+            },
+            async fill() {
+              fills += 1;
+            },
+          }
+        : {
+            first: () => ({
+              async click() {
+                ipv6Url = 'http://[::1]:8977/2nd-B/';
+              },
+            }),
+          },
+    async waitForTimeout() {},
+  };
+  await fillQaLogin(ipv6Page, {
+    baseUrl: 'http://[::1]:8977',
+    email: 'qa@example.com',
+    password: 'disposable',
+    env: {},
+  });
+  assert.equal(fills, 2);
+
+  let emailFilled = false;
+  const ambiguousPasswordPage = {
+    ...ipv6Page,
+    url: () => 'http://localhost:8977/2nd-B/sign-in',
+    getByLabel: () => ({
+      async count() {
+        return 1;
+      },
+      async fill() {
+        emailFilled = true;
+      },
+    }),
+    locator: () => ({
+      async count() {
+        return 2;
+      },
+    }),
+  };
+  await assert.rejects(
+    fillQaLogin(ambiguousPasswordPage, {
+      baseUrl: 'http://localhost:8977',
+      email: 'qa@example.com',
+      password: 'disposable',
+      env: {},
+    }),
+    /capture-failed/,
+  );
+  assert.equal(emailFilled, false);
+});
+
+test('browser executable is explicit and exists before Playwright launch', async () => {
+  const { browserLaunchOptions, captureContextOptions, validateBrowserRuntime } = await contract();
+  const managed = { executablePath: () => process.execPath };
+  assert.throws(() => browserLaunchOptions({}), /BROWSER_PATH/);
+  assert.throws(
+    () =>
+      browserLaunchOptions({ BROWSER_PATH: path.join(os.tmpdir(), 'missing-browser') }, managed),
+    /BROWSER_PATH/,
+  );
+  assert.deepEqual(browserLaunchOptions({ BROWSER_PATH: process.execPath }, managed), {
+    executablePath: process.execPath,
+  });
+  assert.throws(
+    () =>
+      browserLaunchOptions(
+        { BROWSER_PATH: process.execPath },
+        { executablePath: () => path.join(os.tmpdir(), 'different-browser') },
+      ),
+    /pinned Playwright Chromium/,
+  );
+  assert.equal(validateBrowserRuntime({ version: () => '151.0.7922.34' }), '151.0.7922.34');
+  assert.throws(() => validateBrowserRuntime({ version: () => '152.0.0.0' }), /browser version/i);
+  assert.deepEqual(captureContextOptions(), {
+    viewport: { width: 390, height: 820 },
+    deviceScaleFactor: 1,
+    colorScheme: 'dark',
+    locale: 'ko-KR',
+    timezoneId: 'Asia/Seoul',
+    reducedMotion: 'no-preference',
+  });
 });
 
 test('hosted app URLs accept only canonical in-app paths', async () => {
-  const { resolveHostedAppUrl } = await contract();
+  const { navigateHostedAppRoute, resolveHostedAppUrl } = await contract();
 
   assert.equal(
     resolveHostedAppUrl('http://localhost:8977', '/settings?tab=privacy'),
@@ -229,18 +804,37 @@ test('hosted app URLs accept only canonical in-app paths', async () => {
     '/settings#account',
     '/settings bad',
   ]) {
-    assert.throws(() => resolveHostedAppUrl('http://localhost:8977', unsafe), /unsafe app route/i, unsafe);
+    assert.throws(
+      () => resolveHostedAppUrl('http://localhost:8977', unsafe),
+      /unsafe app route/i,
+      unsafe,
+    );
   }
+  let evaluatedTarget;
+  await navigateHostedAppRoute(
+    {
+      async evaluate(callback, target) {
+        assert.match(callback.toString(), /history\.pushState/);
+        assert.match(callback.toString(), /PopStateEvent/);
+        evaluatedTarget = target;
+      },
+    },
+    'http://localhost:8977',
+    '/settings?tab=privacy',
+  );
+  assert.equal(evaluatedTarget, 'http://localhost:8977/2nd-B/settings?tab=privacy');
 });
 
 test('final URL validation is exact for origin, canonical path, query, and hash', async () => {
   const { validateFinalUrl } = await contract();
 
-  assert.doesNotThrow(() => validateFinalUrl(
-    'http://localhost:8977',
-    '/persona?tab=one',
-    'http://localhost:8977/2nd-B/persona?tab=one',
-  ));
+  assert.doesNotThrow(() =>
+    validateFinalUrl(
+      'http://localhost:8977',
+      '/persona?tab=one',
+      'http://localhost:8977/2nd-B/persona?tab=one',
+    ),
+  );
   for (const actual of [
     'http://localhost:8977/2nd-B/persona?tab=two',
     'http://localhost:8977/2nd-B/persona?tab=one#top',
@@ -304,12 +898,105 @@ test('capture health emits only safe enum codes and never raw error data', async
     recordShotFailure(health, 'page-error');
     recordShotFailure(health, 'network-failure');
   }
-  assert.deepEqual(
-    shotFailureCodes({ baseUrl: 'http://localhost:8977', ...health }),
-    ['asset-404', 'page-error', 'console-error', 'network-failure'],
-  );
+  assert.deepEqual(shotFailureCodes({ baseUrl: 'http://localhost:8977', ...health }), [
+    'asset-404',
+    'page-error',
+    'console-error',
+    'network-failure',
+  ]);
   assert.equal(health.failureCodes.length, 4);
   assert.equal(JSON.stringify(health).includes('must-not-survive'), false);
+});
+
+test('network failures stay bound to the route health that started the request', async () => {
+  const { createShotHealth, createShotNetworkTracker, waitForShotNetworkIdle } = await contract();
+  const previous = createShotHealth();
+  const next = createShotHealth();
+  const truncated = createShotHealth();
+  const failedHeadStatus = createShotHealth();
+  const failedHeadError = createShotHealth();
+  const tracker = createShotNetworkTracker();
+  const successfulHead = {
+    method: () => 'HEAD',
+    failure: () => ({ errorText: 'net::ERR_ABORTED' }),
+  };
+  const truncatedGet = {
+    method: () => 'GET',
+    failure: () => ({ errorText: 'net::ERR_FAILED' }),
+  };
+  const previousRequest = {};
+  const nextRequest = {};
+
+  tracker.start(successfulHead, previous);
+  tracker.response(
+    successfulHead,
+    'http://127.0.0.1:8979',
+    'https://project.supabase.co/rest/v1/records',
+    200,
+  );
+  tracker.fail(successfulHead);
+  assert.deepEqual(previous.failureCodes, []);
+
+  tracker.start(truncatedGet, truncated);
+  tracker.response(
+    truncatedGet,
+    'http://127.0.0.1:8979',
+    'https://project.supabase.co/rest/v1/records',
+    200,
+  );
+  tracker.fail(truncatedGet);
+  assert.deepEqual(truncated.failureCodes, ['network-failure']);
+
+  const head500 = {
+    method: () => 'HEAD',
+    failure: () => ({ errorText: 'net::ERR_ABORTED' }),
+  };
+  tracker.start(head500, failedHeadStatus);
+  tracker.response(
+    head500,
+    'http://127.0.0.1:8979',
+    'https://project.supabase.co/rest/v1/records',
+    500,
+  );
+  tracker.fail(head500);
+  assert.deepEqual(failedHeadStatus.failureCodes, ['network-failure']);
+
+  const headNetworkError = {
+    method: () => 'HEAD',
+    failure: () => ({ errorText: 'net::ERR_CONNECTION_RESET' }),
+  };
+  tracker.start(headNetworkError, failedHeadError);
+  tracker.response(
+    headNetworkError,
+    'http://127.0.0.1:8979',
+    'https://project.supabase.co/rest/v1/records',
+    200,
+  );
+  tracker.fail(headNetworkError);
+  assert.deepEqual(failedHeadError.failureCodes, ['network-failure']);
+
+  tracker.start(previousRequest, previous);
+  tracker.start(nextRequest, next);
+  tracker.fail(previousRequest);
+  assert.deepEqual(previous.failureCodes, ['network-failure']);
+  assert.deepEqual(next.failureCodes, []);
+  assert.equal(previous.pendingRequests, 0);
+  assert.equal(next.pendingRequests, 1);
+
+  let clock = 0;
+  const page = {
+    waitForTimeout: async (ms) => {
+      clock += ms;
+      if (clock === ms) tracker.finish(nextRequest);
+    },
+  };
+  await waitForShotNetworkIdle(page, next, {
+    maxMs: 1000,
+    pollMs: 50,
+    quietMs: 100,
+    now: () => clock,
+  });
+  assert.equal(next.pendingRequests, 0);
 });
 
 test('manifest selection is exact-once for port:true and rejects deferred ids', async () => {
@@ -334,7 +1021,10 @@ test('manifest selection is exact-once for port:true and rejects deferred ids', 
     unmapped: {},
   });
   assert.equal(duplicate.valid, false);
-  assert.equal(duplicate.errors.some((entry) => entry.code === 'duplicate-id' && entry.id === 'home'), true);
+  assert.equal(
+    duplicate.errors.some((entry) => entry.code === 'duplicate-id' && entry.id === 'home'),
+    true,
+  );
 });
 
 test('manifest validation rejects unknown port states instead of dropping a target', async () => {
@@ -361,10 +1051,11 @@ test('manifest validation rejects unknown port states instead of dropping a targ
 test('manifest validation rejects screen ids that can escape output directories', async () => {
   const { validateManifestClassification } = await contract();
   for (const id of ['../escape', '..\\escape', '/absolute', '']) {
-    const result = validateManifestClassification(
-      [{ id, port: true }],
-      { routes: { [id]: '/' }, unmeasurable: {}, unmapped: {} },
-    );
+    const result = validateManifestClassification([{ id, port: true }], {
+      routes: { [id]: '/' },
+      unmeasurable: {},
+      unmapped: {},
+    });
     assert.equal(result.valid, false, id);
     assert.equal(
       result.errors.some((entry) => entry.code === 'invalid-screen-id'),
@@ -439,10 +1130,7 @@ test('C axis uses shallow structure order, count, and relative-height components
   assert.equal(heightMismatch.countScore, 5);
   assert.equal(heightMismatch.heightScore, 2.5);
 
-  const reordered = scoreStructure(
-    reference,
-    digest([interactiveSection(200), textSection(100)]),
-  );
+  const reordered = scoreStructure(reference, digest([interactiveSection(200), textSection(100)]));
   assert.equal(reordered.orderScore, 5);
   assert.equal(reordered.countScore, 5);
 
@@ -459,10 +1147,9 @@ test('C axis uses shallow structure order, count, and relative-height components
 
 test('current reference digests expose the documented depth<=3 section order', async () => {
   const { extractStructureSections } = await contract();
-  const home = JSON.parse(readFileSync(
-    path.join(REPO, 'design/pixel_clay_260825/data/structure/home.json'),
-    'utf8',
-  ));
+  const home = JSON.parse(
+    readFileSync(path.join(REPO, 'design/pixel_clay_260825/data/structure/home.json'), 'utf8'),
+  );
   assert.deepEqual(
     extractStructureSections(home).map((section) => section.height),
     [812, 42, 42, 80],
@@ -478,42 +1165,47 @@ test('E copy contract excludes reference device chrome on all 93 structures', as
   for (const file of files) {
     const root = JSON.parse(readFileSync(path.join(structureDir, file), 'utf8'));
     const texts = referenceCopyTexts(root);
-    assert.equal(texts.some((text) => /^\d{1,2}\s*[:.]\s*\d{2}$/.test(text)), false, file);
+    assert.equal(
+      texts.some((text) => /^\d{1,2}\s*[:.]\s*\d{2}$/.test(text)),
+      false,
+      file,
+    );
   }
 });
 
 test('current manifest classifies every port:true screen exactly once', async () => {
   const { validateManifestClassification } = await contract();
-  const screens = JSON.parse(readFileSync(
-    path.join(REPO, 'design/pixel_clay_260825/data/screens.json'),
-    'utf8',
-  ));
-  const routes = JSON.parse(readFileSync(
-    path.join(REPO, 'design/pixel_clay_260825/data/app-routes.json'),
-    'utf8',
-  ));
+  const screens = JSON.parse(
+    readFileSync(path.join(REPO, 'design/pixel_clay_260825/data/screens.json'), 'utf8'),
+  );
+  const routes = JSON.parse(
+    readFileSync(path.join(REPO, 'design/pixel_clay_260825/data/app-routes.json'), 'utf8'),
+  );
   const result = validateManifestClassification(screens.screens, routes);
   const portTrue = screens.screens.filter((screen) => screen.port === true);
   const independentlyClassified = portTrue.map((screen) => [
     screen.id,
-    ['routes', 'unmeasurable', 'unmapped'].filter(
-      (category) => Object.hasOwn(routes[category] ?? {}, screen.id),
+    ['routes', 'unmeasurable', 'unmapped'].filter((category) =>
+      Object.hasOwn(routes[category] ?? {}, screen.id),
     ),
   ]);
   const expectedTargets = portTrue
     .filter((screen) => Object.hasOwn(routes.routes ?? {}, screen.id))
     .map((screen) => screen.id);
-  const expectedStage1 = portTrue
-    .filter((screen) => screen.stage === 1)
-    .map((screen) => screen.id);
+  const expectedStage1 = portTrue.filter((screen) => screen.stage === 1).map((screen) => screen.id);
 
   assert.equal(result.valid, true, JSON.stringify(result.errors));
   assert.equal(result.stats.portTrue, portTrue.length);
-  assert.equal(independentlyClassified.every(([, categories]) => categories.length === 1), true);
+  assert.equal(
+    independentlyClassified.every(([, categories]) => categories.length === 1),
+    true,
+  );
   assert.deepEqual(result.targetIds, expectedTargets);
   assert.deepEqual(result.stats.stage1, expectedStage1);
   assert.equal(
-    result.targetIds.every((id) => screens.screens.find((screen) => screen.id === id)?.port === true),
+    result.targetIds.every(
+      (id) => screens.screens.find((screen) => screen.id === id)?.port === true,
+    ),
     true,
   );
 });
@@ -544,23 +1236,75 @@ test('score CLI rejects an unknown selection before output and preserves a senti
   }
 });
 
-test('score CLI returns runtime failure without overwriting a sentinel', () => {
+test('score CLI returns runtime failure without overwriting a sentinel', async () => {
   const dir = mkdtempSync(path.join(os.tmpdir(), '2ndb-work0-runtime-'));
   const out = path.join(dir, 'score.json');
   try {
+    const { captureExportEnv, createCaptureEnvReceipt } = await contract();
+    const easFile = path.join(dir, 'eas.json');
+    const receiptFile = path.join(dir, 'receipt.json');
+    const preview = {
+      EXPO_PUBLIC_SUPABASE_URL: 'https://project.supabase.co',
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: 'public-anon',
+      EXPO_PUBLIC_LLM_MODE: 'live',
+    };
+    const receipt = createCaptureEnvReceipt(preview);
+    writeFileSync(easFile, JSON.stringify({ build: { preview: { env: preview } } }));
+    writeFileSync(receiptFile, JSON.stringify(receipt));
     writeFileSync(out, 'sentinel-output');
+    const cleanEnv = Object.fromEntries(
+      Object.entries(process.env).filter(([key]) => !key.startsWith('EXPO_PUBLIC_')),
+    );
     const result = spawnSync(process.execPath, [SCORE_CLI, 'home'], {
       cwd: REPO,
       env: {
-        ...process.env,
+        ...cleanEnv,
+        ...captureExportEnv(preview, receipt),
+        BASE_URL: 'http://localhost:8977',
+        CAPTURE_ENV_RECEIPT: receiptFile,
+        EAS_FILE: easFile,
         SCORE_OUT: out,
-        PW_PATH: path.join(dir, 'missing-playwright.cjs'),
       },
       encoding: 'utf8',
     });
     assert.equal(result.status, 1, result.stderr);
     assert.equal(readFileSync(out, 'utf8'), 'sentinel-output');
-    assert.match(result.stderr, /Playwright unavailable/i);
+    assert.match(result.stderr, /score capture failed/i);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('score CLI classifies invalid deterministic time as input failure', async () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), '2ndb-work0-fixed-time-'));
+  try {
+    const { captureExportEnv, createCaptureEnvReceipt } = await contract();
+    const easFile = path.join(dir, 'eas.json');
+    const receiptFile = path.join(dir, 'receipt.json');
+    const preview = {
+      EXPO_PUBLIC_SUPABASE_URL: 'https://project.supabase.co',
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: 'public-anon',
+      EXPO_PUBLIC_LLM_MODE: 'live',
+    };
+    const receipt = createCaptureEnvReceipt(preview);
+    writeFileSync(easFile, JSON.stringify({ build: { preview: { env: preview } } }));
+    writeFileSync(receiptFile, JSON.stringify(receipt));
+    const cleanEnv = Object.fromEntries(
+      Object.entries(process.env).filter(([key]) => !key.startsWith('EXPO_PUBLIC_')),
+    );
+    const result = spawnSync(process.execPath, [SCORE_CLI, 'home'], {
+      cwd: REPO,
+      env: {
+        ...cleanEnv,
+        ...captureExportEnv(preview, receipt),
+        CAPTURE_ENV_RECEIPT: receiptFile,
+        EAS_FILE: easFile,
+        FIXED_ISO: 'not-a-date',
+      },
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 2, result.stderr);
+    assert.match(result.stderr, /FIXED_ISO/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -588,7 +1332,7 @@ test('capture CLI rejects unknown arguments as invalid input', () => {
 test('capture CLI fails closed on a bootstrap console error without retaining raw data', async () => {
   const dir = mkdtempSync(path.join(os.tmpdir(), '2ndb-work0-bootstrap-'));
   try {
-    const { createCaptureEnvReceipt, previewPublicEnv } = await contract();
+    const { captureExportEnv, createCaptureEnvReceipt } = await contract();
     const fakePlaywright = path.join(dir, 'fake-playwright.cjs');
     const easFile = path.join(dir, 'eas.json');
     const receiptFile = path.join(dir, 'receipt.json');
@@ -598,9 +1342,12 @@ test('capture CLI fails closed on a bootstrap console error without retaining ra
       EXPO_PUBLIC_SUPABASE_ANON_KEY: 'public-anon',
       EXPO_PUBLIC_LLM_MODE: 'live',
     };
+    const receipt = createCaptureEnvReceipt(preview);
     writeFileSync(easFile, JSON.stringify({ build: { preview: { env: preview } } }));
-    writeFileSync(receiptFile, JSON.stringify(createCaptureEnvReceipt(preview)));
-    writeFileSync(fakePlaywright, `
+    writeFileSync(receiptFile, JSON.stringify(receipt));
+    writeFileSync(
+      fakePlaywright,
+      `
 const handlers = {};
 let firstNavigation = true;
 let currentUrl = 'http://localhost:8977/2nd-B/';
@@ -630,7 +1377,8 @@ module.exports = {
     },
   },
 };
-`);
+`,
+    );
     const cleanEnv = Object.fromEntries(
       Object.entries(process.env).filter(([key]) => !key.startsWith('EXPO_PUBLIC_')),
     );
@@ -638,8 +1386,9 @@ module.exports = {
       cwd: REPO,
       env: {
         ...cleanEnv,
-        ...previewPublicEnv(preview),
+        ...captureExportEnv(preview, receipt),
         BASE_URL: 'http://localhost:8977',
+        BROWSER_PATH: process.execPath,
         CAPTURE_ENV_RECEIPT: receiptFile,
         EAS_FILE: easFile,
         OUT: out,
@@ -650,6 +1399,121 @@ module.exports = {
     assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
     assert.match(result.stderr, /capture failed/i);
     assert.equal(`${result.stdout}${result.stderr}`.includes('must-not-survive'), false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('capture --export-web disables dotenv and atomically publishes an attested bundle', async () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), '2ndb-work0-export-'));
+  try {
+    const { createCaptureEnvReceipt } = await contract();
+    const fakeExpo = path.join(dir, 'fake-expo.cjs');
+    const easFile = path.join(dir, 'eas.json');
+    const receiptFile = path.join(dir, 'receipt.json');
+    const output = path.join(dir, 'published');
+    const failedOutput = path.join(dir, 'failed-publish');
+    const preview = {
+      EXPO_PUBLIC_SUPABASE_URL: 'https://project.supabase.co',
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: 'public-anon',
+      EXPO_PUBLIC_LLM_MODE: 'live',
+    };
+    const receipt = createCaptureEnvReceipt(preview);
+    writeFileSync(easFile, JSON.stringify({ build: { preview: { env: preview } } }));
+    writeFileSync(receiptFile, JSON.stringify(receipt));
+    writeFileSync(
+      fakeExpo,
+      [
+        "const fs = require('node:fs');",
+        "const path = require('node:path');",
+        "const index = process.argv.indexOf('--output-dir');",
+        'const output = process.argv[index + 1];',
+        "if (process.env.EXPO_NO_DOTENV !== '1' || process.env.EXPO_PUBLIC_ROGUE) process.exit(41);",
+        "if (process.argv.filter((arg) => arg === '--clear').length !== 1) process.exit(42);",
+        "const jsDir = path.join(output, '_expo', 'static', 'js', 'web');",
+        'fs.mkdirSync(jsDir, { recursive: true });',
+        "const body = 'app-bundle-without-attestation-markers';",
+        "fs.writeFileSync(path.join(jsDir, 'app.js'), body);",
+        "fs.writeFileSync(path.join(output, 'index.html'), '<html><head></head><body><script src=\"/2nd-B/_expo/static/js/web/app.js\"></script></body></html>');",
+        "if (process.env.FAKE_EXPORT_FAIL === '1') process.exit(9);",
+      ].join('\n'),
+    );
+    const commonEnv = {
+      ...process.env,
+      CAPTURE_ENV_RECEIPT: receiptFile,
+      EAS_FILE: easFile,
+      EXPO_CLI_PATH: fakeExpo,
+      EXPO_PUBLIC_ROGUE: 'must-be-removed',
+    };
+    const success = spawnSync(process.execPath, [CAPTURE_CLI, '--export-web'], {
+      cwd: REPO,
+      env: { ...commonEnv, CAPTURE_EXPORT_DIR: output },
+      encoding: 'utf8',
+    });
+    assert.equal(success.status, 0, `${success.stdout}\n${success.stderr}`);
+    const proof = JSON.parse(readFileSync(path.join(output, 'work0-export-attestation.json')));
+    assert.equal(proof.schemaVersion, 2);
+    assert.equal(proof.receiptId, receipt.receiptId);
+    assert.deepEqual(
+      proof.files.map((file) => file.path),
+      ['_expo/static/js/web/app.js', 'index.html', 'work0-export-marker.js'],
+    );
+    assert.match(proof.files[0].sha256, /^[0-9a-f]{64}$/);
+    assert.deepEqual(proof.inlineScripts, []);
+
+    const duplicate = spawnSync(process.execPath, [CAPTURE_CLI, '--export-web'], {
+      cwd: REPO,
+      env: { ...commonEnv, CAPTURE_EXPORT_DIR: output },
+      encoding: 'utf8',
+    });
+    assert.equal(duplicate.status, 2);
+
+    const failed = spawnSync(process.execPath, [CAPTURE_CLI, '--export-web'], {
+      cwd: REPO,
+      env: {
+        ...commonEnv,
+        CAPTURE_EXPORT_DIR: failedOutput,
+        FAKE_EXPORT_FAIL: '1',
+      },
+      encoding: 'utf8',
+    });
+    assert.equal(failed.status, 1);
+    assert.equal(existsSync(failedOutput), false);
+    assert.equal(
+      readdirSync(dir).some((name) => name.startsWith('.work0-export-')),
+      true,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('capture --export-web classifies a stale receipt as input failure', async () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), '2ndb-work0-stale-export-'));
+  try {
+    const { createCaptureEnvReceipt } = await contract();
+    const easFile = path.join(dir, 'eas.json');
+    const receiptFile = path.join(dir, 'receipt.json');
+    const preview = {
+      EXPO_PUBLIC_SUPABASE_URL: 'https://project.supabase.co',
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: 'public-anon',
+      EXPO_PUBLIC_LLM_MODE: 'live',
+    };
+    const receipt = createCaptureEnvReceipt(preview, Date.now() - 3 * 60 * 60 * 1000);
+    writeFileSync(easFile, JSON.stringify({ build: { preview: { env: preview } } }));
+    writeFileSync(receiptFile, JSON.stringify(receipt));
+    const result = spawnSync(process.execPath, [CAPTURE_CLI, '--export-web'], {
+      cwd: REPO,
+      env: {
+        ...process.env,
+        CAPTURE_ENV_RECEIPT: receiptFile,
+        EAS_FILE: easFile,
+        CAPTURE_EXPORT_DIR: path.join(dir, 'published'),
+      },
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 2, result.stderr);
+    assert.equal(existsSync(path.join(dir, 'published')), false);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -690,18 +1554,21 @@ test('capture --print-env accepts a complete live profile without private values
   const dir = mkdtempSync(path.join(os.tmpdir(), '2ndb-work0-live-env-'));
   try {
     const easFile = path.join(dir, 'eas.json');
-    writeFileSync(easFile, JSON.stringify({
-      build: {
-        preview: {
-          env: {
-            EXPO_PUBLIC_SUPABASE_URL: 'https://project.supabase.co',
-            EXPO_PUBLIC_SUPABASE_ANON_KEY: 'public-anon',
-            EXPO_PUBLIC_LLM_MODE: 'live',
-            PRIVATE_TOKEN: 'must-not-appear',
+    writeFileSync(
+      easFile,
+      JSON.stringify({
+        build: {
+          preview: {
+            env: {
+              EXPO_PUBLIC_SUPABASE_URL: 'https://project.supabase.co',
+              EXPO_PUBLIC_SUPABASE_ANON_KEY: 'public-anon',
+              EXPO_PUBLIC_LLM_MODE: 'live',
+              PRIVATE_TOKEN: 'must-not-appear',
+            },
           },
         },
-      },
-    }));
+      }),
+    );
     const result = spawnSync(process.execPath, [CAPTURE_CLI, '--print-env'], {
       cwd: REPO,
       env: {
@@ -713,8 +1580,26 @@ test('capture --print-env accepts a complete live profile without private values
     });
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /EXPO_PUBLIC_LLM_MODE='live'/);
+    assert.match(result.stdout, /EXPO_PUBLIC_WORK0_RECEIPT_ID=/);
+    assert.match(result.stdout, /EXPO_PUBLIC_WORK0_ENV_SHA256=/);
     assert.equal(result.stdout.includes('PRIVATE_TOKEN'), false);
     assert.equal(result.stdout.includes('must-not-appear'), false);
+
+    const jsonResult = spawnSync(process.execPath, [CAPTURE_CLI, '--print-env=json'], {
+      cwd: REPO,
+      env: {
+        ...process.env,
+        CAPTURE_ENV_RECEIPT: path.join(dir, 'receipt-json.json'),
+        EAS_FILE: easFile,
+      },
+      encoding: 'utf8',
+    });
+    assert.equal(jsonResult.status, 0, jsonResult.stderr);
+    const publicEnv = JSON.parse(jsonResult.stdout);
+    assert.equal(publicEnv.EXPO_PUBLIC_LLM_MODE, 'live');
+    assert.match(publicEnv.EXPO_PUBLIC_WORK0_RECEIPT_ID, /^[0-9a-f-]{36}$/i);
+    assert.match(publicEnv.EXPO_PUBLIC_WORK0_ENV_SHA256, /^[0-9a-f]{64}$/i);
+    assert.equal(Object.hasOwn(publicEnv, 'PRIVATE_TOKEN'), false);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -723,6 +1608,7 @@ test('capture --print-env accepts a complete live profile without private values
 test('work0 runtime dependencies and tests are declared in package metadata', () => {
   const pkg = JSON.parse(readFileSync(path.join(REPO, 'package.json'), 'utf8'));
   assert.equal(typeof pkg.devDependencies?.pngjs, 'string');
+  assert.equal(pkg.devDependencies?.['playwright-core'], '1.62.1');
   assert.match(pkg.scripts?.['test:ui-work0'] ?? '', /work0-hardening\.test\.mjs/);
   assert.match(pkg.scripts?.verify ?? '', /test:ui-work0/);
 });
