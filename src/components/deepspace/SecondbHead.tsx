@@ -426,7 +426,17 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
     <View ref={rootRef} onLayout={measure} collapsable={false} style={[styles.root, style]}>
       <Animated.View style={trackStyle}>
         <Animated.View style={[styles.wrap, { width: size, height: size }, bobStyle]}>
-          <Image source={HEAD_IMAGE} style={{ width: size, height: size }} contentFit="contain" accessibilityLabel={accessibilityLabel} />
+          {/* ⚠ `transition={0}` — `expo-image` 는 웹에서 그림을 **불투명도로
+              크로스페이드** 한다. 그 전환이 도는 동안 래퍼 div 의 opacity 가
+              소수값이 되어 PIXEL-CLAY 규칙 4 에 걸린다. 픽셀아트에서 스프라이트는
+              페이드하지 않고 튀어나온다. */}
+          <Image
+            source={HEAD_IMAGE}
+            style={{ width: size, height: size }}
+            contentFit="contain"
+            transition={0}
+            accessibilityLabel={accessibilityLabel}
+          />
 
           {/* Eyes — glowing cyan; blink + drift toward touch, expression-shaped
               PER SIDE (wink closes one; smug half-lowers one; sad droops both). */}
