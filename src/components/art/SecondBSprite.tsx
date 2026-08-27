@@ -10,8 +10,15 @@ import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { ShardArt } from "@/components/art/IslandArt";
 import { TierIcon } from "@/components/art/TierIcon";
 import { WorkerSprite } from "@/components/art/WorkerSprite";
-import { cosmic, withAlpha } from "@/lib/theme/tokens";
+import { cosmic, flattenAlpha } from "@/lib/theme/tokens";
 import { prefersReducedMotion } from "@/lib/motion/signature";
+
+// ⚠ **바탕 선언** (PIXEL-CLAY 규칙 4 — 정적 반투명 금지).
+//   이 스프라이트의 말풍선·칩은 가장 깊은 배경(`cosmic.space950`) 위에 앉는다.
+//   바탕이 틀리면 알파를 그대로 두는 것보다 나쁘니 옮기는 사람은 여기부터 다시 재야 한다.
+const SBS_GROUND = cosmic.space950;
+const sbsAlpha = (c: string, a: number): string => flattenAlpha(c, a, SBS_GROUND);
+
 
 export type SecondBState =
   | "idle"
@@ -216,8 +223,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     borderRadius: 0,
     borderWidth: 1,
-    borderColor: withAlpha(cosmic.signalMint, 0.62),
-    backgroundColor: withAlpha(cosmic.space950, 0.76),
+    borderColor: sbsAlpha(cosmic.signalMint, 0.62),
+    backgroundColor: sbsAlpha(cosmic.space950, 0.76),
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -254,8 +261,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: withAlpha(cosmic.signalMint, 0.48),
-    backgroundColor: withAlpha(cosmic.soulViolet, 0.16),
+    borderColor: sbsAlpha(cosmic.signalMint, 0.48),
+    backgroundColor: sbsAlpha(cosmic.soulViolet, 0.16),
     shadowColor: cosmic.signalMint,
     shadowOpacity: 0,
     shadowRadius: 0,
@@ -265,8 +272,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     borderRadius: 0,
     borderWidth: 1,
-    borderColor: withAlpha(cosmic.pixelLamp, 0.86),
-    backgroundColor: withAlpha(cosmic.pixelLamp, 0.24),
+    borderColor: sbsAlpha(cosmic.pixelLamp, 0.86),
+    backgroundColor: sbsAlpha(cosmic.pixelLamp, 0.24),
     alignItems: "center",
     justifyContent: "center",
   },
@@ -280,8 +287,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     borderRadius: 0,
     borderWidth: 1,
-    borderColor: withAlpha(cosmic.signalMint, 0.72),
-    backgroundColor: withAlpha(cosmic.space950, 0.72),
+    borderColor: sbsAlpha(cosmic.signalMint, 0.72),
+    backgroundColor: sbsAlpha(cosmic.space950, 0.72),
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

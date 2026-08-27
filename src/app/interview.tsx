@@ -34,7 +34,7 @@
 // 옛 스크리너로 남긴 기록과 같은 서랍에 들어가야 한다.
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 import { useTranslation } from "react-i18next";
@@ -122,6 +122,8 @@ export default function InterviewRoute() {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [pendingLayer, setPendingLayer] = useState<DrillLayer | null>(null);
+  /** 이번 질문에 딸린 **말문 후보**. 누르면 보내지 않고 입력창을 채운다. */
+  const [openers, setOpeners] = useState<string[]>([]);
   const [done, setDone] = useState(false);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -190,6 +192,8 @@ export default function InterviewRoute() {
             { role: "interviewer", text: t(`loopCheck.${key}`), period },
           ]);
           setPendingLayer(null);
+          // 되묻기에는 말문 후보를 달지 않는다 — 그건 새 질문이 아니라 확인이다.
+          setOpeners([]);
           setNotice(t("drill.loopNote"));
           return;
         }
@@ -237,6 +241,7 @@ export default function InterviewRoute() {
         }
         setTurns([...history, { role: "interviewer", text: probe.question, layer: probe.layer, period }]);
         setPendingLayer(probe.layer);
+        setOpeners(probe.openers);
         if (isScaffold) setNotice(t("drill.scaffoldNote"));
       } catch {
         setNotice(t("drill.failed"));
@@ -306,8 +311,11 @@ export default function InterviewRoute() {
 
   const userTurns = turns.filter((turn) => turn.role === "user").length;
 
-  async function send() {
-    const text = draft.trim();
+  // `override` 는 답변 칩이 쓴다. 칩을 누르면 `setDraft` 후 `send()` 를 부르는 대신
+  // 곧바로 그 말을 보낸다 — 상태 갱신은 다음 렌더에나 반영돼서, 그 사이에 보내면
+  // 직전 draft(대개 빈 문자열)가 나간다.
+  async function send(override?: string) {
+    const text = (override ?? draft).trim();
     if (text.length === 0) {
       setNotice(t("drill.emptyAnswer"));
       return;
@@ -344,6 +352,7 @@ export default function InterviewRoute() {
     setStuckStreak(nextAbandoned !== abandoned ? 0 : nextStreak);
     setAbandoned(nextAbandoned);
     setDraft("");
+    setOpeners([]);
     setPendingLayer(null);
     if (nextTurns.filter((turn) => turn.role === "user").length >= MAX_TURNS) {
       setDone(true);
@@ -478,6 +487,43 @@ export default function InterviewRoute() {
               </Text>
             ) : null}
 
+            {/* **"모르겠어요" 를 누를 수 있게 한다.**
+                화면은 이미 `drill.intro` 로 "모르겠다도 데이터"라고 말하고 있었지만,
+                그걸 하려면 사용자가 직접 타이핑해야 했다. 말과 자리가 어긋나 있었다.
+                누르면 그대로 보내고 `isNonAnswer` 가 받는다 — 칸은 안 채우고 같은
+                층에서 발판을 놓는다(#1357/#1358). 밝기는 정직하게 유지된다.
+                ⚠ 알약(pill)이 아니라 사각이다. PIXEL-CLAY 는 라운드 0 이다. */}
+            {pendingLayer && !busy ? (
+              <View style={styles.answerChips}>
+                {/* ⚠ 말문 후보는 **보내지 않고 입력창을 채운다.**
+                    모델이 쓴 문장이 그대로 기록으로 남으면, 이 제품이 모으려는
+                    "그 사람이 실제로 한 말" 이 아니라 "모델이 그럴듯하게 지어낸 말"
+                    이 위키에 쌓인다. 고쳐 쓰라고 놓는 첫머리다. */}
+                {openers.map((o) => (
+                  <Pressable
+                    key={o}
+                    onPress={() => setDraft(o)}
+                    style={styles.answerChip}
+                    accessibilityRole="button"
+                    accessibilityLabel={o}
+                    accessibilityHint={t("drill.openerHint")}
+                  >
+                    <Text style={[m3TextStyle("labelMedium"), styles.answerChipText]}>{o}</Text>
+                  </Pressable>
+                ))}
+                <Pressable
+                  onPress={() => void send(t("drill.dontKnow"))}
+                  style={styles.answerChip}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("drill.dontKnow")}
+                >
+                  <Text style={[m3TextStyle("labelMedium"), styles.answerChipText]}>
+                    {t("drill.dontKnow")}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
+
             <TextInput
               value={draft}
               onChangeText={setDraft}
@@ -575,6 +621,18 @@ const styles = StyleSheet.create({
     color: m3.color.onSurface,
     textAlignVertical: "top",
   },
+  // 답변 칩. **사각이다** -- PIXEL-CLAY 절대 규칙 1(곡선 없음)·라운드 0.
+  // 터치타깃은 아래 `actions` 와 같은 이유로 48dp 를 못박는다.
+  answerChips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginBottom: spacing.xs },
+  answerChip: {
+    borderWidth: 1,
+    borderColor: m3.color.outline,
+    borderRadius: m3.shape.none,
+    paddingHorizontal: spacing.sm,
+    minHeight: 48,
+    justifyContent: "center",
+  },
+  answerChipText: { color: m3.color.onSurfaceVariant },
   // 터치타깃 최소 48dp. MdButton 이 스스로 보장하더라도 이 화면에서 못박아 둔다 --
   // 대화 화면이라 버튼이 키보드 위에 붙고, 거기서 작으면 그대로 오탭이 된다.
   actions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs, minHeight: 48 },

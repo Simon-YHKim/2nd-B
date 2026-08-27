@@ -9,7 +9,7 @@
 // distribution target) without native config.
 
 import { useCallback, useEffect, useRef } from "react";
-import { Animated, Easing } from "react-native";
+import { Animated } from "react-native";
 
 import {
   SAVE_MOTION,
@@ -18,6 +18,7 @@ import {
   prefersReducedMotion,
 } from "@/lib/motion/signature";
 import { playPop } from "@/lib/audio/pop";
+import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 
 /**
  * 저장 / Save — "루루 뽁". Returns a scale value (bind to transform) and a
@@ -38,13 +39,13 @@ export function useSavePop() {
       Animated.timing(scale, {
         toValue: SAVE_MOTION.overshootScale,
         duration: SAVE_MOTION.attackMs,
-        easing: Easing.out(Easing.cubic),
+        easing: pixelStepsFor(SAVE_MOTION.attackMs),
         useNativeDriver: true,
       }),
       Animated.timing(scale, {
         toValue: 1,
         duration: SAVE_MOTION.settleMs,
-        easing: Easing.inOut(Easing.quad),
+        easing: pixelStepsFor(SAVE_MOTION.settleMs),
         useNativeDriver: true,
       }),
     ]).start();
@@ -69,7 +70,7 @@ export function useConnectionGlow() {
     Animated.timing(opacity, {
       toValue: CONNECTION_MOTION.toOpacity,
       duration: CONNECTION_MOTION.durationMs,
-      easing: Easing.out(Easing.cubic),
+      easing: pixelStepsFor(CONNECTION_MOTION.durationMs),
       // Drives strokeOpacity on NavGraph's <AnimatedLine>, whose x1/y1/x2/y2
       // (drift) run on the JS thread (useNativeDriver:false — SVG props can't
       // go native). Mixing native + JS drivers on one animated node hard-crashes
@@ -105,13 +106,13 @@ export function useImaginePulse(active = true) {
           Animated.timing(opacity, {
             toValue: IMAGINE_MOTION.peakOpacity,
             duration: half,
-            easing: Easing.inOut(Easing.sin),
+            easing: pixelStepsFor(half),
             useNativeDriver: true,
           }),
           Animated.timing(scale, {
             toValue: IMAGINE_MOTION.maxScale,
             duration: half,
-            easing: Easing.inOut(Easing.sin),
+            easing: pixelStepsFor(half),
             useNativeDriver: true,
           }),
         ]),
@@ -119,13 +120,13 @@ export function useImaginePulse(active = true) {
           Animated.timing(opacity, {
             toValue: IMAGINE_MOTION.minOpacity,
             duration: half,
-            easing: Easing.inOut(Easing.sin),
+            easing: pixelStepsFor(half),
             useNativeDriver: true,
           }),
           Animated.timing(scale, {
             toValue: 1,
             duration: half,
-            easing: Easing.inOut(Easing.sin),
+            easing: pixelStepsFor(half),
             useNativeDriver: true,
           }),
         ]),

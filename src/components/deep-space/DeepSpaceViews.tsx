@@ -600,8 +600,10 @@ export function LensView({
         </View>
       ) : state === "error" ? (
         <View style={styles.centerState}>
-          <Svg width={32} height={32} viewBox="0 0 24 24" opacity={0.7}>
-            <PixelGlyphRects name="warning" color={deepSpace.accentSoft} />
+          {/* ⚠ 아이콘을 **미리 합성한 색**으로 흐리게 한다(규칙 4).
+              예전에는 `<Svg opacity={0.7}>` 로 그림 자체를 반투명하게 만들었다. */}
+          <Svg width={32} height={32} viewBox="0 0 24 24">
+            <PixelGlyphRects name="warning" color={dsAlpha(deepSpace.accentSoft, 0.7)} />
           </Svg>
           <Text style={styles.stateTitle}>{t("ds.lens.errorTitle")}</Text>
           <Text style={styles.stateBody}>{t("ds.lens.errorBody")}</Text>
@@ -721,8 +723,9 @@ export function BigFiveLensM3({
     return (
       <ScrollView contentContainerStyle={styles.bfBody}>
         <View style={styles.bfCenterState}>
-          <Svg width={32} height={32} viewBox="0 0 24 24" opacity={0.7}>
-            <PixelGlyphRects name="warning" color={m3.color.onSurfaceVariant} />
+          {/* ⚠ 위와 같은 이유 — 덴이 아니라 색을 흐리게 한다(규칙 4). */}
+          <Svg width={32} height={32} viewBox="0 0 24 24">
+            <PixelGlyphRects name="warning" color={dsAlpha(m3.color.onSurfaceVariant, 0.7)} />
           </Svg>
           <Text style={[m3TextStyle("titleMedium"), styles.bfStateTitle]}>{t("ds.lens.errorTitle")}</Text>
           <Text style={[m3TextStyle("bodyMedium"), styles.bfStateBody]}>{t("ds.lens.errorBody")}</Text>
@@ -855,8 +858,9 @@ export function AttachmentLensM3({
     return (
       <ScrollView contentContainerStyle={styles.bfBody}>
         <View style={styles.bfCenterState}>
-          <Svg width={32} height={32} viewBox="0 0 24 24" opacity={0.7}>
-            <PixelGlyphRects name="warning" color={m3.color.onSurfaceVariant} />
+          {/* ⚠ 위와 같은 이유 — 덴이 아니라 색을 흐리게 한다(규칙 4). */}
+          <Svg width={32} height={32} viewBox="0 0 24 24">
+            <PixelGlyphRects name="warning" color={dsAlpha(m3.color.onSurfaceVariant, 0.7)} />
           </Svg>
           <Text style={[m3TextStyle("titleMedium"), styles.bfStateTitle]}>{t("ds.attachment.errorTitle")}</Text>
           <Text style={[m3TextStyle("bodyMedium"), styles.bfStateBody]}>{t("ds.attachment.errorBody")}</Text>
@@ -987,8 +991,10 @@ export function IdenView({
     return (
       <ScrollView contentContainerStyle={styles.body}>
         <View style={styles.centerState}>
-          <Svg width={32} height={32} viewBox="0 0 24 24" opacity={0.7}>
-            <PixelGlyphRects name="warning" color={deepSpace.accentSoft} />
+          {/* ⚠ 아이콘을 **미리 합성한 색**으로 흐리게 한다(규칙 4).
+              예전에는 `<Svg opacity={0.7}>` 로 그림 자체를 반투명하게 만들었다. */}
+          <Svg width={32} height={32} viewBox="0 0 24 24">
+            <PixelGlyphRects name="warning" color={dsAlpha(deepSpace.accentSoft, 0.7)} />
           </Svg>
           <Text style={styles.stateTitle}>{t("ds.lens.errorTitle")}</Text>
           <Text style={styles.stateBody}>{t("ds.lens.errorBody")}</Text>
@@ -2013,7 +2019,8 @@ const styles = StyleSheet.create({
   // lens — empty / error
   centerState: { alignItems: "center", justifyContent: "center", paddingVertical: 56, gap: 12 },
   stateMark: { fontSize: 34, color: deepSpace.accentSoft },
-  stateMarkDim: { opacity: 0.7 },
+  // ⚠ 흐림은 **색**으로 낸다(규칙 4). 예전에는 `opacity: 0.7` 이었다.
+  stateMarkDim: { color: dsAlpha(deepSpace.accentSoft, 0.7) },
   stateTitle: { color: deepSpace.accentBright, fontSize: 15, fontFamily: fontFamilies.readable, fontWeight: "700" },
   stateBody: { color: dsAlpha(deepSpace.text, 0.6), fontSize: 12, lineHeight: 19, textAlign: "center", fontFamily: fontFamilies.readable },
   obsPanel: { gap: 8, marginBottom: 16, padding: 14, borderRadius: m3.shape.none, borderWidth: 1, borderColor: dsAlpha(deepSpace.accentSoft, 0.3), backgroundColor: dsAlpha(deepSpace.accentSoft, 0.06) },
@@ -2099,7 +2106,15 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: m3.color.surfaceContainer,
   },
-  atQuad: { position: "absolute", color: m3.color.onSurfaceVariant, opacity: 0.7, fontFamily: m3.font.brand },
+  // ⚠ 사분면 라벨(안정·몰입·회피·혼란)은 **미리 합성한 색**이다
+  //   (PIXEL-CLAY 규칙 4 — 정적 반투명 금지). 바탕은 바로 위 `atMap` 의
+  //   `surfaceContainer` 다. 지도 배경을 바꾸면 이 값도 같이 다시 잴 것.
+  //   실측으로 걸렸다: `/attachment` 화면의 A축이 6/30 이었고 그 넷이 전부 이거였다.
+  atQuad: {
+    position: "absolute",
+    color: flattenAlpha(m3.color.onSurfaceVariant, 0.7, m3.color.surfaceContainer),
+    fontFamily: m3.font.brand,
+  },
   atQuadTop: { top: 8 },
   atQuadBottom: { bottom: 8 },
   atQuadLeft: { left: 10 },

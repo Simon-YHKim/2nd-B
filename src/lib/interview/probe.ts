@@ -327,7 +327,12 @@ function buildSystemPrompt(
               + " 애매하면 닿았다고 하지 말고 `none` 으로 두십시오.",
           ]
         : []),
-      "출력: JSON 객체 하나. `question` 에 다음 질문 한 줄, `answeredLayer` 에 위 판정.",
+      // 말문 후보. **답을 대신 써 주는 것이 아니다** — 사용자가 고쳐 쓸 첫머리다.
+      "10) `openers` 에 **말문 후보를 최대 2개** 넣습니다. 사용자가 그대로 보내는 답이 아니라 "
+        + "**고쳐 쓸 첫머리**입니다. 각각 20자 이내, 1인칭, 꾸미지 않은 평범한 말로. "
+        + "서로 다른 방향이어야 합니다(한쪽은 긍정, 한쪽은 부정 같은 식). "
+        + "마땅한 것이 없으면 **빈 배열로 두십시오** — 억지로 지어내지 마십시오.",
+      "출력: JSON 객체 하나. `question` 에 다음 질문 한 줄, `answeredLayer` 에 위 판정, `openers` 에 말문 후보.",
       INJECTION_GUARD.ko,
     ].join("\n");
   }
@@ -381,6 +386,15 @@ function buildUserPrompt(history: InterviewTurn[]): string {
 
 export interface ProbeResult {
   question: string;
+  /**
+   * **말문 후보** — 이 질문에 답을 시작할 만한 짧은 문장 최대 2개.
+   *
+   * ⚠ 이건 답이 아니다. 화면은 이걸 누르면 **보내지 않고 입력창을 채운다** —
+   *   모델이 지어낸 문장이 사용자의 기록으로 남으면 안 되기 때문이다.
+   *   이 저장소의 데이터 방향(위키가 원본, 페르소나가 파생)이 그걸 요구한다.
+   * ⚠ 모델이 안 주면 빈 배열이다. 그때는 칩이 안 뜨고 화면은 그대로 돈다.
+   */
+  openers: string[];
   zone: "green" | "yellow" | "red";
   /** The layer the next question is probing for. Caller increments coverage
    *  with this layer once the user answers. */
@@ -443,6 +457,7 @@ export async function nextProbe(
   const cleaned = raw.trim().split("\n")[0]?.trim() ?? "";
   return {
     question: usableQuestion(cleaned, history, layer, locale, scaffoldStreak),
+    openers: readOpeners(parsed),
     zone: res.safety.zone,
     layer,
     answeredLayer: askedLayer === null ? undefined : readAnsweredLayer(parsed),
@@ -452,6 +467,7 @@ export async function nextProbe(
 interface ProbeReply {
   answeredLayer?: unknown;
   question?: unknown;
+  openers?: unknown;
 }
 
 /** 구조화 출력. 루트는 OBJECT 여야 한다(전사 규약, `assertRootObjectSchema`). */
@@ -465,6 +481,13 @@ const PROBE_SCHEMA: Record<string, unknown> = {
         "Which layer the user's LAST answer actually landed in. Use 'none' if it did not answer at all (refusal, meta-comment about the interview, off-topic).",
     },
     question: { type: "STRING", description: "The next interviewer question, one line." },
+    // ⚠ 선택 필드다. `required` 에 넣지 않는다 — 모델이 못 채워도 질문은 나와야 한다.
+    openers: {
+      type: "ARRAY",
+      items: { type: "STRING" },
+      description:
+        "At most 2 very short first-person sentence STARTERS the user could edit into their own answer. Not answers on the user's behalf. Keep each under 20 characters in the user's language.",
+    },
   },
   required: ["answeredLayer", "question"],
 };
@@ -480,6 +503,26 @@ function parseProbeReply(text: string): ProbeReply | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * 말문 후보를 읽는다. **모델을 믿지 않는다** — 화면에 그대로 나가는 문자열이다.
+ *
+ * 최대 2개 · 각 24자 이내 · 줄바꿈 없음 · 빈 것 제거. 넘치면 버린다.
+ * 길이를 안 자르면 칩이 화면을 밀어내고, 줄바꿈이 들어오면 한 줄 칩이 두 줄이 된다.
+ */
+function readOpeners(reply: ProbeReply | null): string[] {
+  if (!reply || !Array.isArray(reply.openers)) return [];
+  const out: string[] = [];
+  for (const raw of reply.openers) {
+    if (typeof raw !== "string") continue;
+    const one = raw.replace(/\s+/g, " ").trim();
+    if (!one || one.length > 24) continue;
+    if (out.includes(one)) continue;
+    out.push(one);
+    if (out.length === 2) break;
+  }
+  return out;
 }
 
 /** 직전에 인터뷰어가 **겨냥했던** 층. 없으면 null(= 아직 답이 없다). */

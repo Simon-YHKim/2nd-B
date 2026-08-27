@@ -16,11 +16,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Animated, Platform, Pressable, StyleSheet, View } from "react-native";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
-import Svg, { Circle, Rect } from "react-native-svg";
+import Svg, { Rect } from "react-native-svg";
 import { ringCells, stepPolyline } from "@/components/pixel/pixel-line";
 import { useTranslation } from "react-i18next";
 
-import { deepSpace, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceSpacing, flattenAlpha, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { Text } from "@/components/ui/Text";
@@ -43,7 +43,9 @@ export interface DeepSpaceLoaderProps {
   bgLabel?: string;
 }
 
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+// ⚠ 원이 아니라 **사각**이다(PIXEL-CLAY 규칙 1). 예전에는 `Circle` 이었는데,
+//   별칭으로 감싸는 바람에 `<Circle` 을 찾는 가드가 못 봤다.
+const AnimatedRect = Animated.createAnimatedComponent(Rect);
 
 type LoaderLocale = "en" | "ko" | "es" | "pt" | "id";
 
@@ -132,6 +134,11 @@ function useHydrated(): boolean {
 }
 
 // Big-Dipper (북두칠성) layout from the design canon. dim = faint star.
+/** 별의 어두운 상태 — 원래 `fillOpacity` 0.25 / 0.5 가 하던 일.
+ *  바탕은 이 로더가 앉는 화면 배경(`deepSpace.bg`)이다. */
+const STAR_DIM_LO = flattenAlpha(deepSpace.accentDim, 0.25, deepSpace.bg);
+const STAR_SOFT_LO = flattenAlpha(deepSpace.accentSoft, 0.5, deepSpace.bg);
+
 const STARS = [
   { x: 28, y: 104, r: 3.5, dim: true },
   { x: 60, y: 86, r: 3.5, dim: false },
@@ -245,16 +252,27 @@ function Constellation() {
       ).map((p, i) => (
         <Rect key={`ln${i}`} x={p.x} y={p.y} width={2} height={2} fill={deepSpace.cardLine} />
       ))}
-      {STARS.map((s, i) => (
-        <AnimatedCircle
-          key={i}
-          cx={s.x}
-          cy={s.y}
-          r={s.r}
-          fill={s.dim ? deepSpace.accentDim : deepSpace.accentSoft}
-          fillOpacity={vals[i]}
-        />
-      ))}
+      {/* 별 — `<Circle r fillOpacity>` 였다. 픽셀아트에서 밝기는 **투명도가 아니라 색**이라
+          (규칙 4) 어두운 쪽을 바탕 위에 미리 합성해 두고 그 사이를 오간다.
+          지름이 곧 사각형의 변이고, 좌표는 정수로 내린다(규칙 6). */}
+      {STARS.map((s, i) => {
+        const side = Math.round(s.r * 2);
+        const lo = s.dim ? STAR_DIM_LO : STAR_SOFT_LO;
+        const hi = s.dim ? deepSpace.accentDim : deepSpace.accentSoft;
+        return (
+          <AnimatedRect
+            key={i}
+            x={Math.round(s.x - s.r)}
+            y={Math.round(s.y - s.r)}
+            width={side}
+            height={side}
+            fill={vals[i].interpolate({
+              inputRange: [0.25, 1],
+              outputRange: [lo, hi],
+            })}
+          />
+        );
+      })}
     </Svg>
   );
 }

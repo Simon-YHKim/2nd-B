@@ -492,7 +492,7 @@ export function ImportHubScreen() {
             {gErr ? <OpsState variant="error" title={t("errTitle")} body={gErr} /> : null}
             {googleClientId ? (
               <Pressable onPress={connectGoogle} hitSlop={6} style={[styles.primaryBtn, busy ? styles.disabled : null]} disabled={busy}>
-                <Text variant="caption" style={styles.primaryText}>{busy ? t("connecting") : t("googleConnect")}</Text>
+                <Text variant="caption" style={[styles.primaryText, busy ? styles.disabledText : null]}>{busy ? t("connecting") : t("googleConnect")}</Text>
               </Pressable>
             ) : null}
             {s.googleKind === "calendar" ? (
@@ -552,7 +552,7 @@ export function ImportHubScreen() {
           style={[styles.primaryBtn, paste.trim().length === 0 ? styles.disabled : null]}
           disabled={paste.trim().length === 0}
         >
-          <Text variant="caption" style={styles.primaryText}>{t("analyze")}</Text>
+          <Text variant="caption" style={[styles.primaryText, paste.trim().length === 0 ? styles.disabledText : null]}>{t("analyze")}</Text>
         </Pressable>
       </View>
     );
@@ -593,7 +593,7 @@ export function ImportHubScreen() {
           );
         })}
         <Pressable onPress={ratify} hitSlop={6} style={[styles.primaryBtn, count === 0 || busy ? styles.disabled : null]} disabled={count === 0 || busy}>
-          <Text variant="caption" style={styles.primaryText}>{t("applyN").replace("{n}", String(count))}</Text>
+          <Text variant="caption" style={[styles.primaryText, count === 0 || busy ? styles.disabledText : null]}>{t("applyN").replace("{n}", String(count))}</Text>
         </Pressable>
       </View>
     );
@@ -695,7 +695,9 @@ function COPY(ko: boolean): Record<string, string> {
 }
 
 const styles = StyleSheet.create({
-  glow: { position: "absolute", top: 0, left: 0, right: 0, height: 220, backgroundColor: deepSpace.bgGlow, opacity: 0.5 },
+  // ⚠ 상단 불빛은 **미리 합성한 색**이다(PIXEL-CLAY 규칙 4 — 정적 반투명 금지).
+  //   이 띠는 화면 배경 위에 바로 앉으므로 바탕은 deepSpace.bg 다.
+  glow: { position: "absolute", top: 0, left: 0, right: 0, height: 220, backgroundColor: flattenAlpha(deepSpace.bgGlow, 0.5, deepSpace.bg) },
   scroll: { padding: deepSpaceSpacing.lg, paddingBottom: 40, gap: deepSpaceSpacing.md },
   titleRow: { flexDirection: "row", alignItems: "center", gap: deepSpaceSpacing.sm },
   backBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
@@ -762,7 +764,10 @@ const styles = StyleSheet.create({
 
   primaryBtn: { minHeight: 48, alignItems: "center", justifyContent: "center", borderRadius: m3.shape.medium, backgroundColor: deepSpace.mint, marginTop: 4 },
   primaryText: { fontSize: 14, color: deepSpace.onMint },
-  disabled: { opacity: 0.5 },
+  // ⚠ 비활성은 **미리 합성한 색 한 쌍**이다(PIXEL-CLAY 규칙 4).
+  //   바탕만 바꾸고 글자를 그대로 두면 비활성이 활성보다 또렷해진다.
+  disabled: { backgroundColor: flattenAlpha(deepSpace.mint, 0.5, deepSpace.bg) },
+  disabledText: { color: flattenAlpha(deepSpace.onMint, 0.5, flattenAlpha(deepSpace.mint, 0.5, deepSpace.bg)) },
   secondaryBtn: { minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: m3.shape.medium, borderWidth: 1, borderColor: deepSpace.cardLineStrong, backgroundColor: deepSpace.card, marginTop: 4 },
   secondaryText: { fontSize: 13, color: deepSpace.accentSoft },
   fine: { fontSize: 12, color: deepSpace.textLo, textAlign: "center" },

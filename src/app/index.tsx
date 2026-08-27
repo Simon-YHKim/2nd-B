@@ -14,18 +14,7 @@
 
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Animated,
-  AppState,
-  Easing,
-  Pressable,
-  type PressableProps,
-  StyleSheet,
-  type StyleProp,
-  View,
-  type ViewStyle,
-  useWindowDimensions,
-} from "react-native";
+import { Animated, AppState, Pressable, type PressableProps, StyleSheet, type StyleProp, View, type ViewStyle, useWindowDimensions } from "react-native";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -34,7 +23,8 @@ import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
-import { cosmic, semantic, spacing, typography, withAlpha } from "@/lib/theme/tokens";
+import { pixelStepsFor } from "@/lib/motion/pixel-physical";
+import { cosmic, flattenAlpha, semantic, spacing, typography } from "@/lib/theme/tokens";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { useImportPendingCaptures } from "@/lib/capture/use-import-pending";
 import { DeepSpaceShell } from "@/components/deep-space/DeepSpaceShell";
@@ -58,6 +48,15 @@ import { secondbPresence, SLEEP_AFTER_MS } from "@/lib/companion/fab-state";
 import { PowerOnOverlay, PremiumButton, StarNoiseLayer, TAB_BAR_HEIGHT } from "@/components/premium";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 
+// ── 이 화면의 바탕 (PIXEL-CLAY 절대 규칙 4) ──────────────────────────
+//
+// ⚠ **바탕 선언**: 바닥은 `cosmic.space950` 이다 — 아래 `skyContainer` 가 그렇게
+//   깔고 있다. 그 위에 하늘 물결과 카드들이 앉는다. 바탕이 틀리면 알파를 그냥
+//   두는 것보다 나쁘니, 옮기는 사람은 여기부터 다시 잴 것.
+const HOME_GROUND = cosmic.space950;
+const homeAlphaC = (c: string, a: number): string => flattenAlpha(c, a, HOME_GROUND);
+
+
 const logo = require("../../assets/deepspace/secondb-head-front.png");
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -73,7 +72,8 @@ function HomePressable({ children, style, onPressIn, onPressOut, ...props }: Hom
     Animated.timing(opacity, {
       toValue,
       duration: 80,
-      easing: Easing.out(Easing.quad),
+      // ⚠ 계단 이징(규칙 5). 80ms 면 두 칸이다 — 누름 반응은 원래 짧다.
+      easing: pixelStepsFor(80),
       useNativeDriver: true,
     }).start();
   };
@@ -111,13 +111,13 @@ function useSkyDrift() {
         Animated.timing(tide, {
           toValue: 1,
           duration: 10000,
-          easing: Easing.inOut(Easing.sin),
+          easing: pixelStepsFor(10000),
           useNativeDriver: false,
         }),
         Animated.timing(tide, {
           toValue: 0,
           duration: 10000,
-          easing: Easing.inOut(Easing.sin),
+          easing: pixelStepsFor(10000),
           useNativeDriver: false,
         }),
       ]),
@@ -147,9 +147,9 @@ function useSkyDrift() {
   return tide.interpolate({
     inputRange: [0, 0.5, 1],
     outputRange: [
-      withAlpha(cosmic.skyDriftBlue, 0.05),
-      withAlpha(cosmic.skyDriftViolet, 0.05),
-      withAlpha(cosmic.skyDriftCyan, 0.05),
+      homeAlphaC(cosmic.skyDriftBlue, 0.05),
+      homeAlphaC(cosmic.skyDriftViolet, 0.05),
+      homeAlphaC(cosmic.skyDriftCyan, 0.05),
     ],
   });
 }
@@ -337,7 +337,7 @@ export function GraphScreen() {
     const flourish = Animated.timing(entryProgress, {
       toValue: 1,
       duration: 750,
-      easing: Easing.out(Easing.cubic),
+      easing: pixelStepsFor(750),
       useNativeDriver: true,
     });
     flourish.start();
@@ -868,7 +868,7 @@ const styles = StyleSheet.create({
   },
   emptyGraphCard: {
     alignItems: "stretch",
-    backgroundColor: withAlpha(cosmic.space950, 0.92),
+    backgroundColor: homeAlphaC(cosmic.space950, 0.92),
     borderColor: gameboy.border,
     borderWidth: gameboy.borderWidth,
     borderRadius: gameboy.radius,
@@ -944,7 +944,7 @@ const styles = StyleSheet.create({
     borderRadius: gameboy.radius,
     borderWidth: gameboy.borderWidth,
     borderColor: gameboy.border,
-    backgroundColor: withAlpha(cosmic.insightSurface, 0.94),
+    backgroundColor: homeAlphaC(cosmic.insightSurface, 0.94),
     paddingHorizontal: 12,
     paddingVertical: 10,
     ...pixelShadowStyle(cosmic.signalMint),
@@ -990,7 +990,7 @@ const styles = StyleSheet.create({
     borderRadius: gameboy.radius,
     borderWidth: gameboy.borderWidth,
     borderColor: gameboy.border,
-    backgroundColor: withAlpha(cosmic.space950, 0.62),
+    backgroundColor: homeAlphaC(cosmic.space950, 0.62),
     ...pixelShadowStyle(),
   },
   // SecondB sprite frame. Same 52px footprint across idle/sleep states.
@@ -1000,7 +1000,7 @@ const styles = StyleSheet.create({
     borderRadius: gameboy.radius,
     borderWidth: gameboy.borderWidth,
     borderColor: gameboy.border,
-    backgroundColor: withAlpha(cosmic.soulViolet, 0.16),
+    backgroundColor: homeAlphaC(cosmic.soulViolet, 0.16),
     alignItems: "center",
     justifyContent: "center",
     ...pixelShadowStyle(cosmic.coreGlow),

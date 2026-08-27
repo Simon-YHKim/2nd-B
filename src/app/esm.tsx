@@ -7,7 +7,8 @@ import { PremiumAppShell, PremiumButton, PremiumCard, SceneHero, PremiumToast } 
 import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { cosmic, radii, semantic, spacing, typography, withAlpha } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
+import { cosmic, deepSpace, flattenAlpha, radii, semantic, spacing, typography } from "@/lib/theme/tokens";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { CORE_VILLAGE_UI } from "@/lib/village-ui";
@@ -224,6 +225,21 @@ function EsmCheckInScreen() {
   );
 }
 
+// ── 이 화면의 바탕 (PIXEL-CLAY 절대 규칙 4) ──────────────────────────
+//
+// 알파는 아래 깔린 것에 따라 결과가 달라지고 겹치면 색이 미끄러진다. 픽셀아트는
+// 색이 **셀 수 있는 몇 개**여야 하므로 미리 합성한다.
+//
+// ⚠ **바탕 선언**: 이 화면은 `DeepSpaceScreen` 의 스테이지 위에 앉는다. 스테이지는
+//   `m3.accent.stageFloor` 를 0.92 로 깔고 그 아래가 `deepSpace.bgEdge` 다
+//   (`components/deep-space/DeepSpaceScreen.tsx` 의 `root`·stage 스타일).
+//   바탕이 틀리면 알파를 그냥 두는 것보다 나쁘므로, 옮기는 사람은 여기부터 다시 잴 것.
+//
+// ⚠ 레거시 셸(`isDeepSpaceUI()` 가 false)일 때는 바탕이 다르다. 그러나 모든 배포가
+//   deep-space 고정이라 그쪽은 실제로 그려지지 않는다 — 되살리는 사람이 다시 잰다.
+const ESM_GROUND = flattenAlpha(m3.accent.stageFloor, 0.92, deepSpace.bgEdge);
+const esmAlpha = (c: string, a: number): string => flattenAlpha(c, a, ESM_GROUND);
+
 const styles = StyleSheet.create({
   scroll: {
     padding: spacing.lg,
@@ -246,11 +262,11 @@ const styles = StyleSheet.create({
     minHeight: 44,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: withAlpha(semantic.brand, 0.44),
+    borderColor: esmAlpha(semantic.brand, 0.44),
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: spacing.sm,
-    backgroundColor: withAlpha(cosmic.space900, 0.56),
+    backgroundColor: esmAlpha(cosmic.space900, 0.56),
   },
   promptTabActive: {
     backgroundColor: semantic.brand,
@@ -275,10 +291,10 @@ const styles = StyleSheet.create({
     minHeight: 48,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: withAlpha(semantic.brand, 0.42),
+    borderColor: esmAlpha(semantic.brand, 0.42),
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: withAlpha(cosmic.space900, 0.54),
+    backgroundColor: esmAlpha(cosmic.space900, 0.54),
   },
   scaleDotActive: {
     backgroundColor: semantic.brand,
@@ -297,11 +313,11 @@ const styles = StyleSheet.create({
     minHeight: 44,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: withAlpha(cosmic.soulViolet, 0.42),
+    borderColor: esmAlpha(cosmic.soulViolet, 0.42),
     paddingHorizontal: spacing.md,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: withAlpha(cosmic.space900, 0.54),
+    backgroundColor: esmAlpha(cosmic.space900, 0.54),
   },
   tagChipActive: {
     backgroundColor: cosmic.soulViolet,
