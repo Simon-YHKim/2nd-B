@@ -7,18 +7,12 @@
 // in every theme mode (constraint #4), so these read from `cosmic.*`
 // directly rather than the theme palette.
 
-import { useEffect, type ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePathname } from "expo-router";
 import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop, Line } from "react-native-svg";
 import ReAnimated, {
-  cancelAnimation,
-  Easing as ReEasing,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
 } from "react-native-reanimated";
 
 import { cosmic, deepSpace, flattenAlpha, spacing } from "@/lib/theme/tokens";
@@ -128,6 +122,16 @@ const ALCOR: DipperPoint = { name: "Alcor", x: 174, y: 101, r: 1.35 };
 
 /** 숨쉰기 한 주기. */
 const BREATH_MS = 3200;
+/**
+ * 발광의 **두 단계**. 예전 숨쉬기가 0.78↔1 사이를 흘렀으므로, 각 단계의 세기를
+ * 원래 값에 그 두 배율을 곱해 둔다 — 눈에 보이는 진폭이 같다.
+ * ⚠ 이건 도형의 반투명이 아니라 **그라디언트가 사라지는 정도**다. 이게 없으면
+ *   발광이 원이 아니라 사각 덩어리가 된다.
+ */
+const GLOW_STEPS = [
+  { coreLit: 0.39, coreDim: 0.078, midLit: 0.218, midDim: 0.039 },
+  { coreLit: 0.5, coreDim: 0.1, midLit: 0.28, midDim: 0.05 },
+] as const;
 /** 그 주기를 나누는 칸 수. 칸당 40ms ≈ 25fps — 픽셀 애니메이션의 프레임 감각. */
 const BREATH_STEPS = Math.round(BREATH_MS / 40);
 
@@ -161,35 +165,21 @@ export function ConstellationLayer({ width, height }: { width: number; height: n
   const py = (y: number) => oy + y * scale;
   const pr = (r: number) => r * scale;
 
-  // One ambient breath shared by the whole glow group. Static when reduced.
-  const breath = useSharedValue(reduced ? 1 : 0.78);
+  // 발광의 **두 단계 밝기**. 예전에는 그룹의 opacity 를 0.78↔1 로 흘렸는데,
+  // 픽셀아트에서 밝기는 투명도가 아니라 색이고 변화는 마디다(규칙 4).
+  // `reduced` 면 밝은 쪽으로 고정 — 예전과 같은 동작이다.
+  const [glowStep, setGlowStep] = useState(reduced ? 1 : 0);
   useEffect(() => {
     if (reduced) {
-      cancelAnimation(breath);
-      breath.value = 1;
+      setGlowStep(1);
       return;
     }
-    // Slow, low-frequency pulse — sky ambience, not a UI tell.
-    //
-    // ⚠ **계단으로 숨쉰다** (PIXEL-CLAY 규칙 5 — 곱선 이징 금지).
-    //   원래 `ReEasing.inOut(ReEasing.quad)` 였다. 사라지는 것이 아니라
-    //   **마디가 생긴다** — 같은 3200ms 동안 같은 폭으로 움직이되 칸으로 간다.
-    //
-    // 칸수는 칸당 시간에서 유도한다(`lib/motion/pixel-physical` 의 `PIXEL_STEP_MS` 와
-    // 같은 생각) — 3200 / 40 = 80 칸. 주기 동작이라 상호작용보다 촌촌하게 둔다.
-    //
-    // ⚠ 이 숨쉰기가 `/capture-full` 의 A축을 18/30 으로 긎고 있었다. 측정마다
-    //   값이 달라져(0.869621 · 0.927655) "측정 불안정"처럼 보였는데,
-    //   사실은 **끝나지 않는 애니메이션**이었다.
-    breath.value = withRepeat(
-      withTiming(1, { duration: BREATH_MS, easing: ReEasing.steps(BREATH_STEPS, true) }),
-      -1,
-      true,
-    );
-    return () => cancelAnimation(breath);
-  }, [reduced, breath]);
+    // 느린 마디. 한 단계에 머무는 시간이 곧 숨 한 번의 절반이다.
+    const id = setInterval(() => setGlowStep((s: number) => (s === 0 ? 1 : 0)), BREATH_MS / 2);
+    return () => clearInterval(id);
+  }, [reduced]);
 
-  const glowAnimStyle = useAnimatedStyle(() => ({ opacity: breath.value }));
+  // ⚠ 그룹에 **불투명도를 주지 않는다**(규칙 4). 밝기는 아래 `GLOW_STEPS` 가 낸다.
 
   const litByStar = new Map<string, boolean>();
   for (const s of state.stages) litByStar.set(s.star, s.done);
@@ -242,7 +232,7 @@ export function ConstellationLayer({ width, height }: { width: number; height: n
           The gradient Defs live INSIDE this Svg: react-native-svg only resolves
           url(#id) within the same Svg root, so the glow circles and their
           gradients must share this tree (not the static one above). */}
-      <AnimatedG style={[StyleSheet.absoluteFill, glowAnimStyle]} pointerEvents="none">
+      <AnimatedG style={StyleSheet.absoluteFill} pointerEvents="none">
         <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
           <Defs>
             {DIPPER_POINTS.map((p, i) => {
@@ -250,8 +240,8 @@ export function ConstellationLayer({ width, height }: { width: number; height: n
               const glowColor = lit ? deepSpace.accent : cosmic.mistGray;
               return (
                 <RadialGradient key={`g${i}`} id={`starGlow${i}`} cx="50%" cy="50%" r="50%">
-                  <Stop offset="0" stopColor={lit ? deepSpace.accentBright : cosmic.mistGray} stopOpacity={lit ? 0.5 : 0.1} />
-                  <Stop offset="0.4" stopColor={glowColor} stopOpacity={lit ? 0.28 : 0.05} />
+                  <Stop offset="0" stopColor={lit ? deepSpace.accentBright : cosmic.mistGray} stopOpacity={GLOW_STEPS[glowStep][lit ? "coreLit" : "coreDim"]} />
+                  <Stop offset="0.4" stopColor={glowColor} stopOpacity={GLOW_STEPS[glowStep][lit ? "midLit" : "midDim"]} />
                   <Stop offset="1" stopColor={glowColor} stopOpacity="0" />
                 </RadialGradient>
               );
