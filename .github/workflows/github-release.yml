@@ -1,281 +1,603 @@
-name: GitHub Release (APK)
+name: GitHub Release (APK + AAB)
 
-# Publishes a downloadable build as a GitHub Release.
-#
-# WHY THIS EXISTS. Until now the only place an installable APK lived was
-# expo.dev, behind an Expo account. Anyone Simon wanted to hand a build to had
-# to be an EAS collaborator, or be sent a signed URL by hand. A GitHub Release
-# is a plain download link with the version, the notes and the file in one
-# place.
-#
-# ─────────────────────────────────────────────────────────────────────────────
-# IT CAN REUSE A BUILD YOU ALREADY PAID FOR.
-#
-# An EAS Android build costs build minutes and ~20-40 wall-clock minutes. If a
-# build for this commit already exists (eas-preview-build.yml ran, or an
-# earlier attempt at this release), pass its id as `build_id` and this workflow
-# downloads that artifact instead of starting a second one. Leave it empty to
-# build fresh.
-#
-# The reuse path still checks the build actually FINISHED and that its
-# artifact URL exists — a queued or failed build is refused rather than
-# producing an empty release.
-# ─────────────────────────────────────────────────────────────────────────────
-#
-# The version comes from app.json (expo.version), the same source
-# check:ota-runtime and the release-notice pipeline read. The tag is derived
-# from it rather than typed, so a release cannot be tagged v1.2.0 while the
-# binary inside it reports a different version — which is the failure mode that
-# makes a bug report untraceable.
-#
-# Release notes come from the matching CHANGELOG.md section when there is one.
-#
-# Requires: EXPO_TOKEN, GOOGLE_SERVICES_JSON_BASE64 (same secrets as the other
-# EAS workflows). GITHUB_TOKEN is provided by Actions.
+# Creates one immutable draft release from two already-finished EAS Android
+# builds. It never starts a paid build and never deletes/replaces a tag, release,
+# or asset. A rerun is accepted only when the tag target and all three assets are
+# byte-for-byte identical.
 
 on:
   workflow_dispatch:
     inputs:
       profile:
-        description: "EAS build profile (preview = APK for sideloading, production = Play AAB)"
+        description: "Release contract (paired APK + AAB only)"
         required: true
         type: choice
         options:
-          - preview
-          - production
-        default: preview
-      build_id:
-        description: "Reuse an existing finished EAS build id instead of building (leave empty to build)"
-        required: false
+          - paired
+        default: paired
+      preview_build_id:
+        description: "Finished EAS preview build id (APK)"
+        required: true
         type: string
-      draft:
-        description: "Create the release as a draft (publish it yourself afterwards)"
-        required: false
-        type: boolean
-        default: false
+      production_build_id:
+        description: "Finished EAS production build id (AAB)"
+        required: true
+        type: string
       prerelease:
-        description: "Mark as a pre-release"
+        description: "Mark the draft release as a pre-release"
         required: false
         type: boolean
         default: false
 
 permissions:
-  # Creating a release and uploading an asset both write to the repo.
   contents: write
 
 concurrency:
-  group: github-release-${{ github.ref }}
+  # The version tag is read from the checked-out app.json, so serialize every
+  # release mutation for this repository instead of allowing two SHAs to race
+  # for the same tag.
+  group: github-release-${{ github.repository }}
   cancel-in-progress: false
+
+env:
+  EAS_CLI_VERSION: "22.6.0"
+  BUNDLETOOL_VERSION: "1.18.3"
+  BUNDLETOOL_SHA256: "a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29"
 
 jobs:
   release:
     runs-on: ubuntu-latest
-    # An EAS build that has to start from scratch can sit in a queue before it
-    # even compiles. Generous, because a timeout here abandons a build that is
-    # still being paid for.
-    timeout-minutes: 90
+    timeout-minutes: 60
+    environment: production
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout exact release target
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
           cache: "npm"
 
+      - name: Setup Java 17 for bundletool
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Require the current main commit
+        env:
+          RELEASE_PROFILE: ${{ inputs.profile }}
+        run: |
+          set -euo pipefail
+          if [ "$RELEASE_PROFILE" != paired ]; then
+            echo "::error::Only the paired APK + AAB release contract is supported."
+            exit 1
+          fi
+          if [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo "::error::A GitHub release can only target refs/heads/main."
+            exit 1
+          fi
+          git fetch --no-tags origin main
+          if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+            echo "::error::The workflow commit is not the current origin/main head."
+            exit 1
+          fi
+
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
+
+      - name: Self-test Android artifact verifier
+        run: node scripts/check-apk-target-sdk.js --self-test
 
       - name: Verify OTA/native runtime policy
         run: npm run check:ota-runtime
 
-      - name: Resolve version and tag
-        id: version
+      - name: Install pinned bundletool verifier
         run: |
           set -euo pipefail
-          VERSION="$(node -p "require('./app.json').expo.version")"
-          CODE="$(node -p "require('./app.json').expo.android.versionCode")"
-          TAG="v$VERSION"
-          echo "version=$VERSION"     >> "$GITHUB_OUTPUT"
-          echo "version_code=$CODE"   >> "$GITHUB_OUTPUT"
-          echo "tag=$TAG"             >> "$GITHUB_OUTPUT"
-          echo "::notice title=Release::$TAG (versionCode $CODE)"
-          # Refuse to clobber. Re-releasing the same tag would silently replace
-          # a binary someone may already have installed from that link.
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "::error::Release $TAG already exists. Bump expo.version in app.json, or delete the release first."
+          JAR="$RUNNER_TEMP/bundletool-all-$BUNDLETOOL_VERSION.jar"
+          curl --fail --silent --show-error --location --retry 3 \
+            "https://github.com/google/bundletool/releases/download/$BUNDLETOOL_VERSION/bundletool-all-$BUNDLETOOL_VERSION.jar" \
+            --output "$JAR"
+          printf '%s  %s\n' "$BUNDLETOOL_SHA256" "$JAR" | sha256sum --check --strict
+          echo "BUNDLETOOL_JAR=$JAR" >> "$GITHUB_ENV"
+          java -jar "$JAR" version
+
+      - name: Get the build artifacts, validate provenance, and download both
+        id: artifacts
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          ANDROID_APK_SIGNER_SHA256: ${{ secrets.ANDROID_APK_SIGNER_SHA256 }}
+          ANDROID_AAB_SIGNER_SHA256: ${{ secrets.ANDROID_AAB_SIGNER_SHA256 }}
+          PREVIEW_BUILD_ID: ${{ inputs.preview_build_id }}
+          PRODUCTION_BUILD_ID: ${{ inputs.production_build_id }}
+          EXPECTED_COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "${EXPO_TOKEN:-}" ]; then
+            echo "::error::EXPO_TOKEN is required to verify EAS build metadata."
             exit 1
           fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
+          for id in "$PREVIEW_BUILD_ID" "$PRODUCTION_BUILD_ID"; do
+            if ! printf '%s' "$id" | grep -qE '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'; then
+              echo "::error::Malformed EAS build id."
+              exit 1
+            fi
+          done
 
-      - name: Extract release notes from CHANGELOG
-        id: notes
+          PREVIEW_JSON="$RUNNER_TEMP/eas-preview.json"
+          PRODUCTION_JSON="$RUNNER_TEMP/eas-production.json"
+          # This workflow only reuses finished builds; no new build started.
+          for SPEC in \
+            "preview|$PREVIEW_BUILD_ID|$PREVIEW_JSON" \
+            "production|$PRODUCTION_BUILD_ID|$PRODUCTION_JSON"; do
+            IFS='|' read -r ROLE REUSE_BUILD_ID OUTPUT_JSON <<< "$SPEC"
+            echo "Inspecting existing $ROLE EAS build metadata."
+            npx --yes "eas-cli@$EAS_CLI_VERSION" build:view "$REUSE_BUILD_ID" --json > "$OUTPUT_JSON"
+          done
+
+          node - "$PREVIEW_JSON" "$PRODUCTION_JSON" "$RUNNER_TEMP/validated-builds.json" <<'NODE'
+          const fs = require("node:fs");
+          const config = require("./app.json").expo;
+          const [previewPath, productionPath, outputPath] = process.argv.slice(2);
+          const expectedCommit = process.env.EXPECTED_COMMIT.toLowerCase();
+          const expectedProject = config.extra?.eas?.projectId;
+          const query = `
+            query BuildProvenance($buildId: ID!) {
+              builds {
+                byId(buildId: $buildId) {
+                  id
+                  isGitWorkingTreeDirty
+                  gitCommitHash
+                }
+              }
+            }
+          `;
+          const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+          async function fetchBuildProvenance(buildId, profile) {
+            for (let attempt = 1; attempt <= 3; attempt += 1) {
+              const controller = new AbortController();
+              const timer = setTimeout(() => controller.abort(), 15_000);
+              try {
+                const response = await fetch("https://api.expo.dev/graphql", {
+                  method: "POST",
+                  headers: {
+                    authorization: `Bearer ${process.env.EXPO_TOKEN}`,
+                    "content-type": "application/json",
+                  },
+                  body: JSON.stringify({ query, variables: { buildId } }),
+                  signal: controller.signal,
+                });
+                if (!response.ok) throw new Error("http");
+                let payload;
+                try {
+                  payload = await response.json();
+                } catch {
+                  throw new Error("json");
+                }
+                if (
+                  payload?.errors !== undefined &&
+                  (!Array.isArray(payload.errors) || payload.errors.length > 0)
+                ) {
+                  throw new Error("graphql");
+                }
+                const build = payload?.data?.builds?.byId;
+                if (!build) throw new Error("missing");
+                return build;
+              } catch {
+                if (attempt === 3) {
+                  throw new Error(`${profile} build rejected: authenticated Expo GraphQL provenance is unavailable`);
+                }
+                await wait(attempt * 1_000);
+              } finally {
+                clearTimeout(timer);
+              }
+            }
+            throw new Error(`${profile} build rejected: authenticated Expo GraphQL provenance is unavailable`);
+          }
+
+          function validateCliMetadata(path, profile, expectedId) {
+            const value = JSON.parse(fs.readFileSync(path, "utf8"));
+            const build = Array.isArray(value) ? value[0] : value;
+            const fail = (message) => { throw new Error(`${profile} build rejected: ${message}`); };
+            const project = build?.app ?? build?.project;
+            if (String(build?.id).toLowerCase() !== expectedId.toLowerCase()) fail("returned id differs from requested id");
+            if (project?.id !== expectedProject) fail("EAS project id mismatch");
+            if (project?.slug !== config.slug) fail("EAS project slug mismatch");
+            if (project?.ownerAccount?.name !== config.owner) fail("EAS owner mismatch");
+            if (String(build?.platform).toUpperCase() !== "ANDROID") fail("platform is not Android");
+            const status = String(build?.status).toUpperCase();
+            if (status !== "FINISHED") fail(`status is ${build?.status || "missing"}`);
+            if (build?.buildProfile !== profile) fail(`profile is ${build?.buildProfile || "missing"}`);
+            if (build?.appIdentifier !== config.android?.package) fail("Android application id mismatch");
+            if (!build?.appVersion || build.appVersion !== config.version) fail("appVersion does not match app.json");
+            if (!/^[1-9][0-9]*$/.test(String(build?.appBuildVersion || ""))) fail("remote versionCode is missing or invalid");
+            const expectedChannel = profile === "preview" ? "preview" : "production";
+            const channel = build?.updateChannel?.name ?? build?.channel ?? null;
+            if (channel !== expectedChannel) fail(`channel is ${channel || "missing"}, expected ${expectedChannel}`);
+            const runtimeVersion = String(build?.runtime?.version ?? build?.runtimeVersion ?? "").toLowerCase();
+            if (!/^[0-9a-f]{40}$/.test(runtimeVersion)) fail("runtimeVersion is not a fingerprint hash");
+            const artifactUrl = build?.artifacts?.applicationArchiveUrl ?? build?.artifacts?.buildUrl;
+            let parsed;
+            try { parsed = new URL(artifactUrl); } catch { fail("reports no artifact URL or the URL is invalid"); }
+            if (parsed.protocol !== "https:") fail("artifact URL is not HTTPS");
+            return {
+              id: build.id,
+              profile,
+              appVersion: build.appVersion,
+              appBuildVersion: String(build.appBuildVersion),
+              appIdentifier: build.appIdentifier,
+              runtimeVersion,
+              channel,
+              artifactUrl,
+            };
+          }
+
+          function validateProvenance(provenance, profile, expectedId) {
+            const fail = (message) => { throw new Error(`${profile} build rejected: ${message}`); };
+            if (String(provenance?.id).toLowerCase() !== expectedId.toLowerCase()) {
+              fail("authenticated build id mismatch");
+            }
+            if (provenance?.isGitWorkingTreeDirty !== false) {
+              fail("authenticated source working tree was dirty or provenance is missing");
+            }
+            const gitCommitHash = String(provenance?.gitCommitHash || "").toLowerCase();
+            if (!/^[0-9a-f]{40}$/.test(gitCommitHash) || gitCommitHash !== expectedCommit) {
+              fail("authenticated git commit mismatch");
+            }
+            return gitCommitHash;
+          }
+
+          async function main() {
+            const preview = validateCliMetadata(previewPath, "preview", process.env.PREVIEW_BUILD_ID);
+            const production = validateCliMetadata(productionPath, "production", process.env.PRODUCTION_BUILD_ID);
+            const [previewProvenance, productionProvenance] = await Promise.all([
+              fetchBuildProvenance(process.env.PREVIEW_BUILD_ID, "preview"),
+              fetchBuildProvenance(process.env.PRODUCTION_BUILD_ID, "production"),
+            ]);
+            preview.gitCommitHash = validateProvenance(previewProvenance, "preview", process.env.PREVIEW_BUILD_ID);
+            production.gitCommitHash = validateProvenance(productionProvenance, "production", process.env.PRODUCTION_BUILD_ID);
+            if (preview.appVersion !== production.appVersion) throw new Error("APK and AAB appVersion values differ");
+            fs.writeFileSync(outputPath, JSON.stringify({ preview, production }));
+          }
+
+          main().catch((error) => {
+            console.error(error.message);
+            process.exitCode = 1;
+          });
+          NODE
+
+          VERSION="$(node -p "require('$RUNNER_TEMP/validated-builds.json').preview.appVersion")"
+          if ! printf '%s' "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$'; then
+            echo "::error::Remote appVersion cannot safely form a release tag."
+            exit 1
+          fi
+          PREVIEW_CODE="$(node -p "require('$RUNNER_TEMP/validated-builds.json').preview.appBuildVersion")"
+          PRODUCTION_CODE="$(node -p "require('$RUNNER_TEMP/validated-builds.json').production.appBuildVersion")"
+          PREVIEW_URL="$(node -p "require('$RUNNER_TEMP/validated-builds.json').preview.artifactUrl")"
+          PRODUCTION_URL="$(node -p "require('$RUNNER_TEMP/validated-builds.json').production.artifactUrl")"
+          PREVIEW_RUNTIME="$(node -p "require('$RUNNER_TEMP/validated-builds.json').preview.runtimeVersion")"
+          PRODUCTION_RUNTIME="$(node -p "require('$RUNNER_TEMP/validated-builds.json').production.runtimeVersion")"
+          PREVIEW_CHANNEL="$(node -p "require('$RUNNER_TEMP/validated-builds.json').preview.channel")"
+          PRODUCTION_CHANNEL="$(node -p "require('$RUNNER_TEMP/validated-builds.json').production.channel")"
+          SHORT_SHA="${GITHUB_SHA:0:12}"
+          PREVIEW_FILE="2nd-Brain-v$VERSION-preview-vc$PREVIEW_CODE-$SHORT_SHA.apk"
+          PRODUCTION_FILE="2nd-Brain-v$VERSION-production-vc$PRODUCTION_CODE-$SHORT_SHA.aab"
+
+          curl --fail --silent --show-error --location --retry 3 "$PREVIEW_URL" --output "$PREVIEW_FILE"
+          curl --fail --silent --show-error --location --retry 3 "$PRODUCTION_URL" --output "$PRODUCTION_FILE"
+          for file in "$PREVIEW_FILE" "$PRODUCTION_FILE"; do
+            SIZE="$(stat -c%s "$file")"
+            if [ "$SIZE" -lt 1000000 ]; then
+              echo "::error::$file is only $SIZE bytes."
+              exit 1
+            fi
+            if ! unzip -tqq "$file"; then
+              echo "::error::$file is not a zip container with valid entries."
+              exit 1
+            fi
+          done
+
+          PREVIEW_META="$(node scripts/check-apk-target-sdk.js --json "$PREVIEW_FILE")"
+          PRODUCTION_META="$(node scripts/check-apk-target-sdk.js --json "$PRODUCTION_FILE")"
+          export PREVIEW_META PRODUCTION_META PREVIEW_CODE PRODUCTION_CODE VERSION
+          node <<'NODE'
+          for (const [role, raw, code] of [
+            ["preview", process.env.PREVIEW_META, process.env.PREVIEW_CODE],
+            ["production", process.env.PRODUCTION_META, process.env.PRODUCTION_CODE],
+          ]) {
+            const metadata = JSON.parse(raw);
+            const expectedType = role === "preview" ? "apk" : "aab";
+            if (metadata.type !== expectedType) throw new Error(`${role} artifact is not ${expectedType}`);
+            if (String(metadata.versionCode) !== code) throw new Error(`${role} artifact versionCode differs from EAS metadata`);
+            if (metadata.versionName !== process.env.VERSION) throw new Error(`${role} artifact versionName differs from EAS appVersion`);
+            if (!metadata.billingLibrary) throw new Error(`${role} artifact has no verified Billing Library version`);
+          }
+          NODE
+
+          if [ -z "${ANDROID_HOME:-}" ]; then
+            echo "::error::The hosted runner exposes no Android SDK for APK signature verification."
+            exit 1
+          fi
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name apksigner | sort -V | tail -1)"
+          if [ -z "$APKSIGNER" ] || [ ! -x "$APKSIGNER" ]; then
+            echo "::error::No executable apksigner was found in the hosted Android SDK."
+            exit 1
+          fi
+          if ! "$APKSIGNER" verify --verbose --print-certs "$PREVIEW_FILE" \
+            > "$RUNNER_TEMP/apk-signature.txt" 2>&1; then
+            echo "::error::Preview APK signature verification failed."
+            exit 1
+          fi
+          if ! jarsigner -J-Duser.language=en -J-Duser.country=US \
+            -verify -verbose -certs "$PRODUCTION_FILE" \
+            > "$RUNNER_TEMP/aab-signature.txt" 2>&1; then
+            echo "::error::Production AAB JAR signature verification failed."
+            exit 1
+          fi
+          if ! keytool -J-Duser.language=en -J-Duser.country=US \
+            -printcert -jarfile "$PRODUCTION_FILE" \
+            > "$RUNNER_TEMP/aab-certificate.txt" 2>&1; then
+            echo "::error::Production AAB signer certificate could not be read."
+            exit 1
+          fi
+          export APK_SIGNATURE_FILE="$RUNNER_TEMP/apk-signature.txt"
+          export AAB_SIGNATURE_FILE="$RUNNER_TEMP/aab-signature.txt"
+          export AAB_CERTIFICATE_FILE="$RUNNER_TEMP/aab-certificate.txt"
+          node <<'NODE'
+          const fs = require("node:fs");
+          const normalize = (value) => String(value || "").replace(/[^0-9a-f]/gi, "").toLowerCase();
+          const expected = (name) => {
+            const value = normalize(process.env[name]);
+            if (!/^[0-9a-f]{64}$/.test(value)) {
+              throw new Error(`${name} is missing or is not one SHA-256 certificate digest`);
+            }
+            return value;
+          };
+          const apkOutput = fs.readFileSync(process.env.APK_SIGNATURE_FILE, "utf8");
+          const apkDigests = [...apkOutput.matchAll(/Signer #\d+ certificate SHA-256 digest:\s*([0-9a-f:]+)/gi)]
+            .map((match) => normalize(match[1]));
+          if (new Set(apkDigests).size !== 1 || apkDigests[0] !== expected("ANDROID_APK_SIGNER_SHA256")) {
+            throw new Error("Preview APK signer identity does not match the protected expected digest");
+          }
+
+          const aabVerification = fs.readFileSync(process.env.AAB_SIGNATURE_FILE, "utf8");
+          if (!/jar verified\./i.test(aabVerification) || /unsigned entries|not signed/i.test(aabVerification)) {
+            throw new Error("Production AAB contains an unverified or unsigned JAR entry");
+          }
+          const aabCertificate = fs.readFileSync(process.env.AAB_CERTIFICATE_FILE, "utf8");
+          const aabDigests = [...aabCertificate.matchAll(/SHA256:\s*([0-9a-f:]+)/gi)]
+            .map((match) => normalize(match[1]));
+          if (new Set(aabDigests).size !== 1 || aabDigests[0] !== expected("ANDROID_AAB_SIGNER_SHA256")) {
+            throw new Error("Production AAB signer identity does not match the protected expected digest");
+          }
+          process.stdout.write("APK and AAB signer identities match the protected release contract.\n");
+          NODE
+
+          PREVIEW_HASH="$(sha256sum "$PREVIEW_FILE" | awk '{print $1}')"
+          PRODUCTION_HASH="$(sha256sum "$PRODUCTION_FILE" | awk '{print $1}')"
+          printf '%s  %s\n%s  %s\n' \
+            "$PREVIEW_HASH" "$PREVIEW_FILE" \
+            "$PRODUCTION_HASH" "$PRODUCTION_FILE" > SHA256SUMS.txt
+          sha256sum --check --strict SHA256SUMS.txt
+
+          {
+            echo "tag=v$VERSION"
+            echo "version=$VERSION"
+            echo "preview_file=$PREVIEW_FILE"
+            echo "production_file=$PRODUCTION_FILE"
+            echo "preview_code=$PREVIEW_CODE"
+            echo "production_code=$PRODUCTION_CODE"
+            echo "preview_hash=$PREVIEW_HASH"
+            echo "production_hash=$PRODUCTION_HASH"
+            echo "preview_runtime=$PREVIEW_RUNTIME"
+            echo "production_runtime=$PRODUCTION_RUNTIME"
+            echo "preview_channel=$PREVIEW_CHANNEL"
+            echo "production_channel=$PRODUCTION_CHANNEL"
+            echo "preview_meta=$PREVIEW_META"
+            echo "production_meta=$PRODUCTION_META"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Extract release notes and append remote artifact metadata
+        env:
+          VERSION: ${{ steps.artifacts.outputs.version }}
+          PREVIEW_CODE: ${{ steps.artifacts.outputs.preview_code }}
+          PRODUCTION_CODE: ${{ steps.artifacts.outputs.production_code }}
+          PREVIEW_HASH: ${{ steps.artifacts.outputs.preview_hash }}
+          PRODUCTION_HASH: ${{ steps.artifacts.outputs.production_hash }}
+          PREVIEW_RUNTIME: ${{ steps.artifacts.outputs.preview_runtime }}
+          PRODUCTION_RUNTIME: ${{ steps.artifacts.outputs.production_runtime }}
+          PREVIEW_CHANNEL: ${{ steps.artifacts.outputs.preview_channel }}
+          PRODUCTION_CHANNEL: ${{ steps.artifacts.outputs.production_channel }}
+          PREVIEW_META: ${{ steps.artifacts.outputs.preview_meta }}
+          PRODUCTION_META: ${{ steps.artifacts.outputs.production_meta }}
+          PREVIEW_BUILD_ID: ${{ inputs.preview_build_id }}
+          PRODUCTION_BUILD_ID: ${{ inputs.production_build_id }}
         run: |
           set -euo pipefail
-          VERSION="${{ steps.version.outputs.version }}"
-          # The section for this version, up to the next "## [" heading. If the
-          # changelog has no entry, fall back to generated notes rather than
-          # shipping an empty body.
           if awk -v v="## [$VERSION]" 'index($0, v) == 1 {found=1} END {exit !found}' CHANGELOG.md; then
             awk -v v="## [$VERSION]" '
               index($0, v) == 1 {inside=1; next}
               inside && /^## \[/ {exit}
               inside {print}
             ' CHANGELOG.md > RELEASE_NOTES.md
-            echo "have_notes=true" >> "$GITHUB_OUTPUT"
-            echo "Release notes taken from CHANGELOG.md."
           else
-            echo "have_notes=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::CHANGELOG.md has no [$VERSION] section; using generated notes."
+            printf 'Release %s\n' "$VERSION" > RELEASE_NOTES.md
           fi
+          node <<'NODE' >> RELEASE_NOTES.md
+          const p = JSON.parse(process.env.PREVIEW_META);
+          const a = JSON.parse(process.env.PRODUCTION_META);
+          console.log([
+            "",
+            "---",
+            "",
+            "## Verified artifacts",
+            "",
+            "The Preview APK installs directly on Android. The Production AAB cannot be installed directly and is intended for Google Play upload.",
+            "",
+            "| Artifact | EAS build | Remote versionCode | Channel / runtime | SDK (min / target / compile) | Billing | SHA-256 |",
+            "|---|---|---:|---|---|---|---|",
+            `| Preview APK | \`${process.env.PREVIEW_BUILD_ID}\` | \`${process.env.PREVIEW_CODE}\` | \`${process.env.PREVIEW_CHANNEL} / ${process.env.PREVIEW_RUNTIME}\` | \`${p.minSdkVersion} / ${p.targetSdkVersion} / ${p.compileSdkVersion}\` | \`${p.billingLibrary}\` | \`${process.env.PREVIEW_HASH}\` |`,
+            `| Production AAB | \`${process.env.PRODUCTION_BUILD_ID}\` | \`${process.env.PRODUCTION_CODE}\` | \`${process.env.PRODUCTION_CHANNEL} / ${process.env.PRODUCTION_RUNTIME}\` | \`${a.minSdkVersion} / ${a.targetSdkVersion} / ${a.compileSdkVersion}\` | \`${a.billingLibrary}\` | \`${process.env.PRODUCTION_HASH}\` |`,
+            "",
+            `Target commit: \`${process.env.GITHUB_SHA}\``,
+            "",
+            "This release remains a draft until its install/store checks are reviewed.",
+          ].join("\n"));
+          NODE
 
-      - name: Provision google-services.json
-        env:
-          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
-        run: |
-          set -euo pipefail
-          if [ -z "${GOOGLE_SERVICES_JSON_BASE64:-}" ]; then
-            echo "::error::GOOGLE_SERVICES_JSON_BASE64 is required for EAS Android builds."
-            exit 1
-          fi
-          printf '%s' "$GOOGLE_SERVICES_JSON_BASE64" | base64 -d > google-services.json
-          node -e '
-            const config = require("./google-services.json");
-            const valid = (config.client || []).some(
-              (client) =>
-                client.client_info?.android_client_info?.package_name ===
-                "com.simonk.secondbrain",
-            );
-            if (!valid) throw new Error("Firebase config package mismatch");
-          '
-          echo "Real google-services.json provisioned and validated."
-
-      - name: Get the build artifact
-        id: artifact
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          BUILD_PROFILE: ${{ inputs.profile }}
-          REUSE_BUILD_ID: ${{ inputs.build_id }}
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          set -euo pipefail
-          if [ -z "${EXPO_TOKEN:-}" ]; then
-            echo "::error::EXPO_TOKEN is required."
-            exit 1
-          fi
-
-          if [ -n "${REUSE_BUILD_ID:-}" ]; then
-            echo "Reusing existing EAS build $REUSE_BUILD_ID (no new build started)."
-            BUILD_JSON="$(npx eas-cli build:view "$REUSE_BUILD_ID" --json --non-interactive)"
-          else
-            echo "No build_id given — starting a new $BUILD_PROFILE build and waiting for it."
-            BUILD_JSON="$(npx eas-cli build \
-              --platform android \
-              --profile "$BUILD_PROFILE" \
-              --message "GitHub Release $VERSION" \
-              --non-interactive \
-              --wait \
-              --json)"
-          fi
-          printf '%s\n' "$BUILD_JSON" | head -c 4000
-
-          # eas-cli has used more than one field name for the artifact over
-          # time, and a release that quietly attached nothing would be worse
-          # than a failure. Accept either, and insist on a finished build.
-          eval "$(
-            printf '%s' "$BUILD_JSON" | node -e '
-              const fs = require("fs");
-              const payload = JSON.parse(fs.readFileSync(0, "utf8"));
-              const build = Array.isArray(payload) ? payload[0] : payload;
-              const status = String(build?.status ?? "").toUpperCase();
-              const url =
-                build?.artifacts?.applicationArchiveUrl ??
-                build?.artifacts?.buildUrl ??
-                "";
-              if (status !== "FINISHED") {
-                console.log(`echo "::error::EAS build ${build?.id ?? "?"} is ${status || "UNKNOWN"}, not FINISHED."; exit 1`);
-              } else if (!url) {
-                console.log(`echo "::error::EAS build ${build?.id} reports no artifact URL."; exit 1`);
-              } else {
-                console.log(`export BUILD_ID=${JSON.stringify(build.id)}`);
-                console.log(`export ARTIFACT_URL=${JSON.stringify(url)}`);
-              }
-            '
-          )"
-
-          case "$ARTIFACT_URL" in
-            *.aab) EXT="aab" ;;
-            *)     EXT="apk" ;;
-          esac
-          FILE="2nd-Brain-$VERSION.$EXT"
-          echo "Downloading $ARTIFACT_URL -> $FILE"
-          curl -fsSL "$ARTIFACT_URL" -o "$FILE"
-          # A truncated download is a silently broken install. Check it looks
-          # like a zip container (both APK and AAB are zips) and is not tiny.
-          SIZE="$(stat -c%s "$FILE")"
-          if [ "$SIZE" -lt 1000000 ]; then
-            echo "::error::Downloaded artifact is only $SIZE bytes — that is not a build."
-            exit 1
-          fi
-          head -c 2 "$FILE" | grep -q 'PK' || { echo "::error::Downloaded artifact is not a zip container."; exit 1; }
-          # Play stops accepting updates that do not target Android 16 (API 36)
-          # from 2026-08-31. Nothing in this repo pins the target - it comes from
-          # the Expo SDK prebuild template - so the only place the answer exists
-          # is the binary we are about to publish. Read it here rather than
-          # trusting that the toolchain still does the right thing.
-          node scripts/check-apk-target-sdk.js "$FILE"
-          echo "file=$FILE"           >> "$GITHUB_OUTPUT"
-          echo "build_id=$BUILD_ID"   >> "$GITHUB_OUTPUT"
-          echo "size=$SIZE"           >> "$GITHUB_OUTPUT"
-          echo "::notice title=Artifact::$FILE ($SIZE bytes) from build $BUILD_ID"
-
-      - name: Create the GitHub Release
+      - name: Resolve version and Create the GitHub Release once or verify exact idempotent rerun
+        id: publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
-          TAG: ${{ steps.version.outputs.tag }}
-          VERSION: ${{ steps.version.outputs.version }}
-          CODE: ${{ steps.version.outputs.version_code }}
-          FILE: ${{ steps.artifact.outputs.file }}
-          BUILD_ID: ${{ steps.artifact.outputs.build_id }}
-          PROFILE: ${{ inputs.profile }}
+          TAG: ${{ steps.artifacts.outputs.tag }}
+          VERSION: ${{ steps.artifacts.outputs.version }}
+          PREVIEW_FILE: ${{ steps.artifacts.outputs.preview_file }}
+          PRODUCTION_FILE: ${{ steps.artifacts.outputs.production_file }}
+          PREVIEW_HASH: ${{ steps.artifacts.outputs.preview_hash }}
+          PRODUCTION_HASH: ${{ steps.artifacts.outputs.production_hash }}
+          EXPECT_PRERELEASE: ${{ inputs.prerelease }}
         run: |
           set -euo pipefail
-          {
-            echo ""
-            echo "---"
-            echo ""
-            echo "**Build**: EAS \`$PROFILE\` · versionCode \`$CODE\` · build \`$BUILD_ID\`"
-            echo ""
-            if [ "$PROFILE" = "preview" ]; then
-              echo "The attached \`.apk\` installs directly on Android (allow install from unknown sources)."
-            else
-              echo "The attached \`.aab\` is the Play Store upload artifact and cannot be installed directly."
-            fi
-          } >> RELEASE_NOTES.md
-
-          ARGS=(release create "$TAG" "$FILE"
-                --title "2nd-Brain $VERSION"
-                --target "$GITHUB_SHA")
-          if [ "${{ inputs.draft }}" = "true" ]; then ARGS+=(--draft); fi
-          if [ "${{ inputs.prerelease }}" = "true" ]; then ARGS+=(--prerelease); fi
-          if [ "${{ steps.notes.outputs.have_notes }}" = "true" ]; then
-            ARGS+=(--notes-file RELEASE_NOTES.md)
-          else
-            ARGS+=(--generate-notes)
+          RESOLVED_VERSION="$(node -p "require('./app.json').expo.version")"
+          if [ "$RESOLVED_VERSION" != "$VERSION" ]; then
+            echo "::error::Resolved app.json version differs from the verified artifacts."
+            exit 1
           fi
-          gh "${ARGS[@]}"
+          VERSION="$RESOLVED_VERSION"
+          TAG="v$VERSION"
+          grep -Fq "installs directly on Android" RELEASE_NOTES.md
+          grep -Fq "cannot be installed directly" RELEASE_NOTES.md
+          TAG_LINE="$(git ls-remote --tags origin "refs/tags/$TAG" | awk 'NR==1 {print $1}')"
+          PEELED_LINE="$(git ls-remote --tags origin "refs/tags/$TAG^{}" | awk 'NR==1 {print $1}')"
+          TAG_SHA="${PEELED_LINE:-$TAG_LINE}"
+          RELEASE_JSON="$RUNNER_TEMP/existing-release.json"
+          set +e
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" > "$RELEASE_JSON" 2> "$RUNNER_TEMP/release-api.err"
+          API_CODE=$?
+          set -e
+          if [ "$API_CODE" -eq 0 ]; then
+            RELEASE_EXISTS=true
+          elif grep -q 'HTTP 404' "$RUNNER_TEMP/release-api.err"; then
+            RELEASE_EXISTS=false
+          else
+            echo "::error::Could not determine whether the GitHub release exists."
+            exit 1
+          fi
+          if [ -n "$TAG_SHA" ]; then TAG_EXISTS=true; else TAG_EXISTS=false; fi
 
-          URL="$(gh release view "$TAG" --json url --jq .url)"
-          echo "::notice title=Released::$URL"
+          if [ "$TAG_EXISTS" != "$RELEASE_EXISTS" ]; then
+            echo "::error::Only one of tag/release exists for $TAG. Refusing to mutate partial external state."
+            exit 1
+          fi
+
+          if [ "$TAG_EXISTS" = true ]; then
+            if [ "${TAG_SHA,,}" != "${GITHUB_SHA,,}" ]; then
+              echo "::error::Existing tag $TAG targets a different commit."
+              exit 1
+            fi
+            export RELEASE_JSON PREVIEW_FILE PRODUCTION_FILE
+            node <<'NODE'
+          const release = require(process.env.RELEASE_JSON);
+          const fs = require("node:fs");
+          const expected = [process.env.PREVIEW_FILE, process.env.PRODUCTION_FILE, "SHA256SUMS.txt"].sort();
+          const actual = (release.assets || []).map((a) => a.name).sort();
+          if (!release.draft) throw new Error("existing release is not a draft");
+          if (Boolean(release.prerelease) !== (process.env.EXPECT_PRERELEASE === "true")) {
+            throw new Error("existing release prerelease flag differs");
+          }
+          if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+            throw new Error(`existing assets differ: ${JSON.stringify(actual)}`);
+          }
+          if (release.name !== `2nd-Brain ${process.env.VERSION}`) throw new Error("existing release title differs");
+          if (release.target_commitish.toLowerCase() !== process.env.GITHUB_SHA.toLowerCase()) {
+            throw new Error("existing release target commit differs");
+          }
+          if (release.body !== fs.readFileSync("RELEASE_NOTES.md", "utf8")) {
+            throw new Error("existing release notes differ");
+          }
+          NODE
+            EXISTING_DIR="$(mktemp -d)"
+            gh release download "$TAG" --dir "$EXISTING_DIR" \
+              --pattern "$PREVIEW_FILE" --pattern "$PRODUCTION_FILE" --pattern SHA256SUMS.txt
+            test "$(sha256sum "$EXISTING_DIR/$PREVIEW_FILE" | awk '{print $1}')" = "$PREVIEW_HASH"
+            test "$(sha256sum "$EXISTING_DIR/$PRODUCTION_FILE" | awk '{print $1}')" = "$PRODUCTION_HASH"
+            cmp --silent SHA256SUMS.txt "$EXISTING_DIR/SHA256SUMS.txt"
+            BODY="$(node -p "require(process.env.RELEASE_JSON).body || ''")"
+            printf '%s' "$BODY" | grep -Fq "$PREVIEW_HASH"
+            printf '%s' "$BODY" | grep -Fq "$PRODUCTION_HASH"
+            RESULT=verified-existing
+            echo "result=$RESULT" >> "$GITHUB_OUTPUT"
+            echo "Exact immutable rerun verified; no GitHub state changed."
+          else
+            # RELEASE_NOTES.md is authoritative; --generate-notes is deliberately
+            # not executed because generated text would make an exact rerun mutable.
+            ARGS=(release create "$TAG" "$PREVIEW_FILE" "$PRODUCTION_FILE" SHA256SUMS.txt
+                  --title "2nd-Brain $VERSION" --target "$GITHUB_SHA" --draft
+                  --notes-file RELEASE_NOTES.md)
+            if [ "${{ inputs.prerelease }}" = "true" ]; then ARGS+=(--prerelease); fi
+            # One create invocation receives every asset. A failed partial create
+            # is never repaired by replacement: the next run detects mismatch.
+            if ! git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main' >/dev/null 2>&1; then
+              echo "::error::Could not refresh origin/main immediately before GitHub Release creation."
+              exit 1
+            fi
+            if [ "$(git rev-parse HEAD)" != "$GITHUB_SHA" ] || [ "$(git rev-parse origin/main)" != "$GITHUB_SHA" ]; then
+              echo "::error::origin/main advanced before GitHub Release creation; no tag or draft was created."
+              exit 1
+            fi
+            gh "${ARGS[@]}"
+            RESULT=created-draft
+            echo "result=$RESULT" >> "$GITHUB_OUTPUT"
+            CREATED_TAG_SHA="$(git ls-remote --tags origin "refs/tags/$TAG" | awk 'NR==1 {print $1}')"
+            CREATED_PEELED_SHA="$(git ls-remote --tags origin "refs/tags/$TAG^{}" | awk 'NR==1 {print $1}')"
+            CREATED_TAG_SHA="${CREATED_PEELED_SHA:-$CREATED_TAG_SHA}"
+            if [ "${CREATED_TAG_SHA,,}" != "${GITHUB_SHA,,}" ]; then
+              echo "::error::Created tag does not resolve to the requested commit."
+              exit 1
+            fi
+            gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" > "$RUNNER_TEMP/created-release.json"
+            export CREATED_RELEASE_JSON="$RUNNER_TEMP/created-release.json" PREVIEW_FILE PRODUCTION_FILE
+            node <<'NODE'
+          const release = require(process.env.CREATED_RELEASE_JSON);
+          const fs = require("node:fs");
+          const expected = [process.env.PREVIEW_FILE, process.env.PRODUCTION_FILE, "SHA256SUMS.txt"].sort();
+          const actual = (release.assets || []).map((a) => a.name).sort();
+          if (
+            !release.draft ||
+            Boolean(release.prerelease) !== (process.env.EXPECT_PRERELEASE === "true") ||
+            release.name !== `2nd-Brain ${process.env.VERSION}` ||
+            release.target_commitish.toLowerCase() !== process.env.GITHUB_SHA.toLowerCase() ||
+            release.body !== fs.readFileSync("RELEASE_NOTES.md", "utf8") ||
+            JSON.stringify(actual) !== JSON.stringify(expected)
+          ) {
+            throw new Error("created draft release did not retain the exact asset set");
+          }
+          NODE
+            CREATED_DIR="$(mktemp -d)"
+            gh release download "$TAG" --dir "$CREATED_DIR" \
+              --pattern "$PREVIEW_FILE" --pattern "$PRODUCTION_FILE" --pattern SHA256SUMS.txt
+            test "$(sha256sum "$CREATED_DIR/$PREVIEW_FILE" | awk '{print $1}')" = "$PREVIEW_HASH"
+            test "$(sha256sum "$CREATED_DIR/$PRODUCTION_FILE" | awk '{print $1}')" = "$PRODUCTION_HASH"
+            cmp --silent SHA256SUMS.txt "$CREATED_DIR/SHA256SUMS.txt"
+          fi
+
+          URL="$(gh release view "$TAG" --json url --jq .url)" || {
+            echo "::error::Created or existing release cannot be read back."
+            exit 1
+          }
           {
-            echo "### Release published"
+            echo "### GitHub draft release"
             echo
-            echo "- Tag: \`$TAG\`"
-            echo "- Asset: \`$FILE\`"
-            echo "- EAS build: \`$BUILD_ID\`"
+            echo "- Result: \`$RESULT\`"
+            echo "- Tag: \`$TAG\` at \`$GITHUB_SHA\`"
+            echo "- Preview APK: \`$PREVIEW_FILE\`"
+            echo "- Production AAB: \`$PRODUCTION_FILE\`"
             echo "- $URL"
           } >> "$GITHUB_STEP_SUMMARY"
