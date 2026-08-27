@@ -667,14 +667,14 @@
   "shareCard": {
     "barTitle": "공유 카드",
     "loading": "불러오는 중입니다…",
-    "introExport": "1080×1080 정사각 카드로 내보냅니다. 원문은 빼고, 보여줄 한 줄만 담깁니다.",
+    "introExport": "1080×1080 정사각 카드로 내보내요. 보여줄 한 줄만 담겨요.",
     "variantInsight": "통찰 카드",
     "variantConstellation": "별자리 카드",
     "saving": "저장 중…",
     "saveImage": "이미지 저장",
     "opening": "여는 중…",
     "share": "공유",
-    "introPrivacy": "기록 원문·수치는 카드에 포함되지 않습니다. 보여줄 문장만 골라 담습니다.",
+    "introPrivacy": "기록 원문·수치는 카드에 포함되지 않아요. 보여줄 문장만 골라 담아요.",
     "starsFallback": "별 개수를 못 읽어 기본값으로 그렸습니다."
   },
   "coachmarks": {
