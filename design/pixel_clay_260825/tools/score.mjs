@@ -11,7 +11,7 @@
 //
 //   A 픽셀규율  30  DOM 의 곡선·라운드·블러·정적 반투명 위반 수 (위반 1건당 -6)
 //   B 토큰충실도 25  칠한 색이 캐논 램프로 해결되는 **면적** 비율 × 25
-//   C 구조일치  20  섹션 순서·개수·상대 높이 — ⚠ **아직 못 잰다**(아래 C 축 주석)
+//   C 구조일치  20  **세로 밴드 리듬**을 이미지에서 대조 (band-signature.mjs)
 //   D 내비도달   15  nav.json 이 선언한 **이동 가능한 라벨**이 화면에 있는 비율 × 15
 //   E 카피      10  기존 textMatchPct × 0.1
 //
@@ -37,6 +37,7 @@
 //   **모든 화면이 로그인 월로** 찍힌다(캡처는 성공, 대조만 0%).
 import { chromium } from 'playwright';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { bandSignature, compareSignatures } from './band-signature.mjs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -158,40 +159,25 @@ async function scoreOne(page, id, route) {
   }
   const B = exempt(id, 'B') ? WEIGHTS.B : total > 0 ? (inRamp / total) * WEIGHTS.B : WEIGHTS.B;
 
-  // ── C 구조 일치
+  // ── C 구조 일치 (세로 밴드 리듬)
   //
-  // ⚠ **이 축은 아직 믿을 수 없다. 그래서 `null`(못 잼)로 낸다.**
+  // ⚠ 처음엔 DOM 에서 "폭 넓은 블록"을 세었는데, 레퍼런스는 얕은 DOM 이고 앱은
+  //   RN-web 이 View 를 겹겹이 싸서 앱 섹션이 27~41 로 잡혔다. 깊이를 잘라도
+  //   **디자인 차이가 아니라 렌더 엔진 차이**를 재는 값이라 그 축은 버렸다.
   //
-  // 레퍼런스 구조 다이제스트는 얕은 DOM 이고 앱은 RN-web 이라 View 를 겹겹이
-  // 싼다. 깊이를 14로 잘라도 앱 섹션이 27~41 로 잡혀 전 화면이 2~4/20 이 나왔다.
-  // 그건 디자인 차이가 아니라 **렌더 엔진 차이**를 잰 값이다.
-  //
-  // 만점을 주면 데이터가 없을수록 점수가 오르고, 저 값을 그대로 쓰면 모든 화면이
-  // 영원히 98 밑에 머문다. 둘 다 거짓이라 **안 잰다고 말한다.**
-  //
-  // 고치려면: 레퍼런스와 앱 양쪽에서 "섹션"을 같은 규칙으로 뽑아야 한다 —
-  // 후보는 (a) 스크롤 컨테이너의 직계 자식만, (b) 텍스트를 가진 블록만,
-  // (c) 캡처 이미지의 가로 밴드 분할. `SCORE_C=1` 로 실험값을 볼 수 있다.
+  // 픽셀에는 그 비대칭이 없다. 두 화면 모두 가로 밴드의 나열이고, 밴드가 어디서
+  // 시작하고 끝나는지는 엔진과 무관하다. 그래서 **이미지에서** 리듬을 뽑아 댄다.
   let C = null;
-  if (process.env.SCORE_C === '1' && !exempt(id, 'C') && ref) {
-    const refSections = [];
-    (function walk(n) {
-      if (!n) return;
-      if (Array.isArray(n.box) && n.box[0] >= 390 * 0.5 && n.box[1] >= 24) refSections.push(n.box[1]);
-      (n.kids || []).forEach(walk);
-    })(ref);
-    const countScore = refSections.length === 0 ? 1
-      : 1 - Math.min(1, Math.abs(app.sections.length - refSections.length) / Math.max(refSections.length, 1));
-    const n = Math.min(app.sections.length, refSections.length);
-    let close = 0;
-    for (let i = 0; i < n; i++) {
-      const a = app.sections[i], b = refSections[i];
-      if (b > 0 && Math.abs(a - b) / b <= 0.1) close++;
-    }
-    const heightScore = n === 0 ? 1 : close / n;
-    C = (countScore * 0.5 + heightScore * 0.5) * WEIGHTS.C;
-  } else if (exempt(id, 'C')) {
+  let cWhy = '레퍼런스 캡처 없음';
+  const capPath = join(DATA, '..', 'captures', `${id}.png`);
+  if (exempt(id, 'C')) {
     C = WEIGHTS.C;
+    cWhy = '이탈 기록됨';
+  } else if (existsSync(capPath)) {
+    const shot = await page.screenshot();
+    const cmp = compareSignatures(bandSignature(capPath), bandSignature(shot));
+    C = cmp.score * WEIGHTS.C;
+    cWhy = `밴드 ref ${cmp.refBands} / app ${cmp.appBands} · 개수 ${(cmp.countScore * 100).toFixed(0)}% · 겹침 ${(cmp.overlapScore * 100).toFixed(0)}%`;
   }
 
   // ── D 내비 도달
@@ -243,7 +229,7 @@ async function scoreOne(page, id, route) {
     why: {
       A: `곡선 ${app.curves} · 라운드 ${app.rounds} · 블러 ${app.blurs} · 반투명 ${app.alphas}`,
       B: total > 0 ? `램프 면적 ${(100 * inRamp / total).toFixed(1)}%` : '칠한 면적 없음',
-      C: ref ? `앱 섹션 ${app.sections.length}` : '레퍼런스 구조 없음',
+      C: cWhy,
       D: Array.isArray(declared) ? `선언 링크 ${declared.length}` : 'nav 선언 없음',
       E: ref ? '레퍼런스 텍스트 대조' : '레퍼런스 구조 없음',
     },
