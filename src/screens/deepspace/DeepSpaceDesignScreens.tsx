@@ -1033,6 +1033,10 @@ export function DeepSpacePrivacyDesignScreen() {
             document (restored once the policy document existed to open). */}
         <Action label={t("privacy.policy")} value={t("privacy.view")} onPress={() => router.push("/privacy-policy")} />
         <Action label={t("privacy.processingLog")} value={t("privacy.last7")} onPress={() => router.push("/audit")} />
+        {/* ⚠ `내 데이터 리뷰`(/data) 는 화면은 있는데 **들어갈 문이 없었다.**
+            레퍼런스가 이 자리에 그 줄을 두고 있고, 개인정보 화면에서 자기 데이터를
+            열람하러 가는 것은 자연스럽다. */}
+        <Action label={t("privacy.dataReview")} value={t("privacy.open")} onPress={() => router.push("/data")} />
         <View style={styles.action} accessible accessibilityLabel={`${t("privacy.thirdParty")}, ${t("privacy.none")}`}>
           <Text variant="body" style={styles.actionLabel}>{t("privacy.thirdParty")}</Text>
           <Text variant="body" style={styles.actionValue}>{t("privacy.none")}</Text>

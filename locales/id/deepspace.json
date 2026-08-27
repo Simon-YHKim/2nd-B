@@ -207,7 +207,9 @@
     "last7": "7 hari terakhir",
     "thirdParty": "Berbagi pihak ketiga",
     "none": "0 item",
-    "footer": "Bawaannya lokal dulu. Transfer eksternal hanya berjalan setelah konfirmasimu."
+    "footer": "Bawaannya lokal dulu. Transfer eksternal hanya berjalan setelah konfirmasimu.",
+    "dataReview": "Tinjauan data saya",
+    "open": "Buka"
   },
   "support": {
     "title": "Dukungan",

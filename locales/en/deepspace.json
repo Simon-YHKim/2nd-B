@@ -207,7 +207,9 @@
     "last7": "Last 7 days",
     "thirdParty": "Third-party sharing",
     "none": "0 items",
-    "footer": "The default is local-first. External transfers proceed only after your confirmation."
+    "footer": "The default is local-first. External transfers proceed only after your confirmation.",
+    "dataReview": "My data review",
+    "open": "Open"
   },
   "support": {
     "title": "Support",

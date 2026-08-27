@@ -207,7 +207,9 @@
     "last7": "Últimos 7 días",
     "thirdParty": "Compartir con terceros",
     "none": "0 elementos",
-    "footer": "El valor por defecto es local primero. Las transferencias externas solo proceden tras tu confirmación."
+    "footer": "El valor por defecto es local primero. Las transferencias externas solo proceden tras tu confirmación.",
+    "dataReview": "Revisión de mis datos",
+    "open": "Abrir"
   },
   "support": {
     "title": "Soporte",

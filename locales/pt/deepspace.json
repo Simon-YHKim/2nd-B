@@ -207,7 +207,9 @@
     "last7": "Últimos 7 dias",
     "thirdParty": "Compartilhamento com terceiros",
     "none": "0 itens",
-    "footer": "O padrão é local primeiro. Transferências externas só ocorrem após sua confirmação."
+    "footer": "O padrão é local primeiro. Transferências externas só ocorrem após sua confirmação.",
+    "dataReview": "Revisão dos meus dados",
+    "open": "Abrir"
   },
   "support": {
     "title": "Suporte",
