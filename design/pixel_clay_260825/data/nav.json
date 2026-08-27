@@ -942,13 +942,17 @@
         "label": "학창시절",
         "kind": "action",
         "safe": false,
-        "why": "사용자별 근거를 바탕으로 제안을 생성하므로 자동 클릭하지 않음"
+        "why": "사용자별 근거를 바탕으로 제안을 생성하므로 자동 클릭하지 않음",
+        "locator": { "strategy": "role", "role": "button", "name": "학창시절" },
+        "effect": { "type": "visible", "role": "button", "name": "승인", "occurrence": 1 }
       },
       {
         "label": "지금",
         "kind": "action",
         "safe": false,
-        "why": "사용자별 근거를 바탕으로 제안을 생성하므로 자동 클릭하지 않음"
+        "why": "사용자별 근거를 바탕으로 제안을 생성하므로 자동 클릭하지 않음",
+        "locator": { "strategy": "role", "role": "button", "name": "지금" },
+        "effect": { "type": "visible", "role": "button", "name": "승인", "occurrence": 1 }
       },
       {
         "label": "별자리",

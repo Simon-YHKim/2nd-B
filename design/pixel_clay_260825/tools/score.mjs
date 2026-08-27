@@ -8,7 +8,7 @@
  * D 15: rendered actionable label + safe same-app href when an href exists
  * E 10: reference-copy coverage
  */
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -472,6 +472,10 @@ export function validateServedExportSources(
     Number.isFinite(exportedAt) &&
     exportedAt >= printedAt;
   if (!attested) throw new CaptureContractError('environment-attestation');
+  return {
+    exportSha256: sourceBodySha256(servedAttestation.body),
+    exportedAt,
+  };
 }
 
 export async function attestServedExport(page, previewEnv, receipt) {
@@ -540,7 +544,13 @@ export async function attestServedExport(page, previewEnv, receipt) {
       scriptContract: { externalUrls, inlineSha256, crossOriginCount },
     };
   });
-  validateServedExportSources(servedFiles, previewEnv, receipt, servedAttestation, scriptContract);
+  return validateServedExportSources(
+    servedFiles,
+    previewEnv,
+    receipt,
+    servedAttestation,
+    scriptContract,
+  );
 }
 
 function captureOriginHash(value) {
@@ -1387,6 +1397,7 @@ export function formatNavigationWhy(navigation) {
       ['exact routes', evidence.exactRoutes],
       ['exact actions', evidence.exactActions],
       ['unsafe actions', evidence.unsafeActions],
+      ['manual effects', evidence.manualEffects],
       ['unresolved', evidence.unresolved],
     ];
     let evidenceCount = 0;
@@ -1435,6 +1446,17 @@ const NAVIGATION_FAILURE_CODES = new Set([
   'mutation-blocked',
   'effect-mismatch',
 ]);
+const SHA256_PATTERN = /^[0-9a-f]{64}$/;
+const MANUAL_EFFECT_MAX_SCREENS = 100;
+const MANUAL_EFFECT_MAX_ITEMS = 20;
+const MANUAL_EFFECT_MAX_TOTAL_ITEMS = 16;
+const MANUAL_EFFECT_MAX_MANIFEST_BYTES = 256 * 1024;
+const MANUAL_EFFECT_MAX_ARTIFACT_BYTES = 20 * 1024 * 1024;
+const MANUAL_EFFECT_MAX_ARTIFACT_PIXELS = 32 * 1024 * 1024;
+const MANUAL_EFFECT_MAX_TOTAL_ARTIFACT_BYTES = 64 * 1024 * 1024;
+const MANUAL_EFFECT_MAX_TOTAL_ARTIFACT_PIXELS = 32 * 1024 * 1024;
+const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+const VALIDATED_MANUAL_EFFECT_EVIDENCE = new WeakMap();
 
 function navigationContractError() {
   return new Error('invalid navigation contract');
@@ -1561,7 +1583,7 @@ export function normalizeNavigationContract(value, baseUrl = null) {
     }
     const safe = item.safe ?? true;
     if (!safe) {
-      if (item.effect !== undefined || typeof item.why !== 'string' || !norm(item.why)) {
+      if (typeof item.why !== 'string' || !norm(item.why)) {
         throw navigationContractError();
       }
       return {
@@ -1571,6 +1593,9 @@ export function normalizeNavigationContract(value, baseUrl = null) {
         locator,
         safe,
         why: norm(item.why),
+        ...(item.effect === undefined
+          ? {}
+          : { effect: normalizeNavigationEffect(item.effect, label) }),
       };
     }
     if (item.why !== undefined || item.effect === undefined) throw navigationContractError();
@@ -1635,7 +1660,265 @@ export function validateStage1NavigationContracts(stage1Ids, navFile, baseUrl) {
   }
 }
 
-export function scoreExactNavigationResults(contract, results, exempted = []) {
+function manualEffectEvidenceError() {
+  return new Error('invalid manual effect evidence');
+}
+
+function assertManualEffectKeys(value, allowed) {
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    Array.isArray(value) ||
+    Object.keys(value).some((key) => !allowed.has(key))
+  ) {
+    throw manualEffectEvidenceError();
+  }
+}
+
+export function navigationContractSha256(contract) {
+  if (!contract || typeof contract !== 'object' || Array.isArray(contract)) {
+    throw navigationContractError();
+  }
+  return sourceBodySha256(JSON.stringify(contract));
+}
+
+function canonicalArtifactPath(artifactRoot, relativePath) {
+  if (
+    typeof relativePath !== 'string' ||
+    relativePath.length === 0 ||
+    relativePath.length > 512 ||
+    !/^(?!\/)(?!.*(?:^|\/)\.{1,2}(?:\/|$))(?!.*[\\:*?"<>|\u0000-\u001f]).+\.png$/i.test(
+      relativePath,
+    )
+  ) {
+    throw manualEffectEvidenceError();
+  }
+  const root = realpathSync(artifactRoot);
+  const candidate = realpathSync(path.resolve(root, ...relativePath.split('/')));
+  const relative = path.relative(root, candidate);
+  if (relative === '' || relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw manualEffectEvidenceError();
+  }
+  const stats = statSync(candidate);
+  if (
+    !stats.isFile() ||
+    stats.size < PNG_SIGNATURE.length ||
+    stats.size > MANUAL_EFFECT_MAX_ARTIFACT_BYTES
+  ) {
+    throw manualEffectEvidenceError();
+  }
+  return { path: candidate, bytes: stats.size };
+}
+
+function manualEffectPngPixels(artifact, remainingPixels) {
+  if (
+    artifact.length < 33 ||
+    !artifact.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE) ||
+    artifact.readUInt32BE(8) !== 13 ||
+    artifact.toString('ascii', 12, 16) !== 'IHDR'
+  ) {
+    return null;
+  }
+  const width = artifact.readUInt32BE(16);
+  const height = artifact.readUInt32BE(20);
+  const pixels = width * height;
+  if (
+    width < 1 ||
+    height < 1 ||
+    pixels > MANUAL_EFFECT_MAX_ARTIFACT_PIXELS ||
+    pixels > remainingPixels
+  ) {
+    return null;
+  }
+  try {
+    const decoded = PNG.sync.read(artifact);
+    if (decoded.width !== width || decoded.height !== height) return null;
+    const dimensions = Buffer.allocUnsafe(8);
+    dimensions.writeUInt32BE(width, 0);
+    dimensions.writeUInt32BE(height, 4);
+    return {
+      pixels,
+      pixelSha256: createHash('sha256')
+        .update(dimensions)
+        .update(decoded.data)
+        .digest('hex'),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function validateManualEffectEvidenceInternal(manifest, context) {
+  assertManualEffectKeys(manifest, new Set(['schemaVersion', 'exportSha256', 'screens']));
+  if (
+    manifest.schemaVersion !== 1 ||
+    !SHA256_PATTERN.test(manifest.exportSha256 ?? '') ||
+    manifest.exportSha256 !== context?.exportSha256 ||
+    !Array.isArray(manifest.screens) ||
+    manifest.screens.length === 0 ||
+    manifest.screens.length > MANUAL_EFFECT_MAX_SCREENS ||
+    !Number.isFinite(context?.exportedAt) ||
+    !Number.isFinite(context?.now)
+  ) {
+    throw manualEffectEvidenceError();
+  }
+  const targetIds = new Set(context.targetIds);
+  const seenScreens = new Set();
+  const output = new Map();
+  const artifactDigests = new Set();
+  const artifactPixelDigests = new Set();
+  let totalItems = 0;
+  let totalArtifactBytes = 0;
+  let totalArtifactPixels = 0;
+  for (const screen of manifest.screens) {
+    assertManualEffectKeys(screen, new Set(['screen', 'contractSha256', 'items']));
+    if (
+      typeof screen.screen !== 'string' ||
+      !SCREEN_ID_PATTERN.test(screen.screen) ||
+      !targetIds.has(screen.screen) ||
+      seenScreens.has(screen.screen) ||
+      !SHA256_PATTERN.test(screen.contractSha256 ?? '') ||
+      !Array.isArray(screen.items) ||
+      screen.items.length === 0 ||
+      screen.items.length > MANUAL_EFFECT_MAX_ITEMS
+    ) {
+      throw manualEffectEvidenceError();
+    }
+    totalItems += screen.items.length;
+    if (totalItems > MANUAL_EFFECT_MAX_TOTAL_ITEMS) throw manualEffectEvidenceError();
+    seenScreens.add(screen.screen);
+    const contract = context.contracts?.[screen.screen];
+    if (!contract || screen.contractSha256 !== navigationContractSha256(contract)) {
+      throw manualEffectEvidenceError();
+    }
+    const unsafeByDeclaration = new Map(
+      contract.items
+        .filter((item) => item.safe === false && item.effect)
+        .map((item) => [`${item.label}\u0000${item.occurrence}`, item]),
+    );
+    const seenItems = new Set();
+    const validatedItems = [];
+    for (const item of screen.items) {
+      assertManualEffectKeys(
+        item,
+        new Set(['label', 'occurrence', 'effect', 'artifact', 'attestation']),
+      );
+      const label = exactNavigationText(item.label);
+      const occurrence = normalizeNavigationOccurrence(item.occurrence);
+      const declarationKey = `${label}\u0000${occurrence}`;
+      const expected = unsafeByDeclaration.get(declarationKey);
+      if (!expected || seenItems.has(declarationKey)) throw manualEffectEvidenceError();
+      seenItems.add(declarationKey);
+      const observedEffect = normalizeNavigationEffect(item.effect, label);
+      if (JSON.stringify(observedEffect) !== JSON.stringify(expected.effect)) {
+        throw manualEffectEvidenceError();
+      }
+      assertManualEffectKeys(item.artifact, new Set(['path', 'sha256']));
+      if (!SHA256_PATTERN.test(item.artifact.sha256 ?? '')) {
+        throw manualEffectEvidenceError();
+      }
+      const artifactFile = canonicalArtifactPath(context.artifactRoot, item.artifact.path);
+      totalArtifactBytes += artifactFile.bytes;
+      if (totalArtifactBytes > MANUAL_EFFECT_MAX_TOTAL_ARTIFACT_BYTES) {
+        throw manualEffectEvidenceError();
+      }
+      const artifact = readFileSync(artifactFile.path);
+      const decodedArtifact = manualEffectPngPixels(
+        artifact,
+        MANUAL_EFFECT_MAX_TOTAL_ARTIFACT_PIXELS - totalArtifactPixels,
+      );
+      if (
+        decodedArtifact === null ||
+        sourceBodySha256(artifact) !== item.artifact.sha256 ||
+        artifactDigests.has(item.artifact.sha256) ||
+        artifactPixelDigests.has(decodedArtifact.pixelSha256)
+      ) {
+        throw manualEffectEvidenceError();
+      }
+      totalArtifactPixels += decodedArtifact.pixels;
+      artifactDigests.add(item.artifact.sha256);
+      artifactPixelDigests.add(decodedArtifact.pixelSha256);
+      assertManualEffectKeys(item.attestation, new Set(['type', 'observedAt']));
+      const observedAt = Date.parse(item.attestation.observedAt ?? '');
+      if (
+        item.attestation.type !== 'human-observed-effect' ||
+        !Number.isFinite(observedAt) ||
+        new Date(observedAt).toISOString() !== item.attestation.observedAt ||
+        observedAt < context.exportedAt ||
+        observedAt > context.now ||
+        context.now - observedAt > CAPTURE_RECEIPT_MAX_AGE_MS
+      ) {
+        throw manualEffectEvidenceError();
+      }
+      validatedItems.push(
+        Object.freeze({
+          label,
+          occurrence,
+          effect: Object.freeze({ ...expected.effect }),
+          artifactSha256: item.artifact.sha256,
+          observedAt: new Date(observedAt).toISOString(),
+        }),
+      );
+    }
+    const evidence = Object.freeze(validatedItems);
+    VALIDATED_MANUAL_EFFECT_EVIDENCE.set(evidence, screen.contractSha256);
+    output.set(screen.screen, evidence);
+  }
+  return output;
+}
+
+export function validateManualEffectEvidence(manifest, context) {
+  try {
+    return validateManualEffectEvidenceInternal(manifest, context);
+  } catch {
+    throw manualEffectEvidenceError();
+  }
+}
+
+export function loadManualEffectEvidence(env = {}, context) {
+  if (env.MANUAL_EFFECT_EVIDENCE === undefined) return new Map();
+  if (
+    typeof env.MANUAL_EFFECT_EVIDENCE !== 'string' ||
+    env.MANUAL_EFFECT_EVIDENCE.trim().length === 0
+  ) {
+    throw manualEffectEvidenceError();
+  }
+  try {
+    const manifestPath = realpathSync(path.resolve(env.MANUAL_EFFECT_EVIDENCE));
+    const manifestStats = statSync(manifestPath);
+    if (
+      !manifestStats.isFile() ||
+      manifestStats.size === 0 ||
+      manifestStats.size > MANUAL_EFFECT_MAX_MANIFEST_BYTES
+    ) {
+      throw manualEffectEvidenceError();
+    }
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    return validateManualEffectEvidence(manifest, {
+      ...context,
+      artifactRoot: path.dirname(manifestPath),
+    });
+  } catch {
+    throw manualEffectEvidenceError();
+  }
+}
+
+export function scoreExactNavigationResults(
+  contract,
+  results,
+  exempted = [],
+  manualEvidence = null,
+) {
+  const validatedContractSha256 =
+    manualEvidence === null ? null : VALIDATED_MANUAL_EFFECT_EVIDENCE.get(manualEvidence);
+  if (
+    manualEvidence !== null &&
+    (!Array.isArray(manualEvidence) ||
+      validatedContractSha256 === undefined ||
+      validatedContractSha256 !== navigationContractSha256(contract))
+  ) {
+    throw manualEffectEvidenceError();
+  }
   const entries = [
     ...contract.items.map((item, index) => ({ type: 'item', index, item })),
     ...contract.unresolved.map((item) => ({ type: 'unresolved', item })),
@@ -1691,9 +1974,15 @@ export function scoreExactNavigationResults(contract, results, exempted = []) {
   let exactRoutes = 0;
   let exactActions = 0;
   let unsafeActions = 0;
+  let manualEffects = 0;
   let unresolved = 0;
   const failures = {};
   const missing = [];
+  const manualByDeclaration = new Map(
+    (manualEvidence ?? []).map((item) => [`${item.label}\u0000${item.occurrence}`, item]),
+  );
+  const usedManualDeclarations = new Set();
+  const manualArtifactSha256 = [];
   for (const entry of scoredEntries) {
     if (entry.type === 'unresolved') {
       unresolved += 1;
@@ -1702,7 +1991,21 @@ export function scoreExactNavigationResults(contract, results, exempted = []) {
     }
     if (entry.item.safe === false) {
       unsafeActions += 1;
-      missing.push(entry.item.label);
+      const declarationKey = `${entry.item.label}\u0000${entry.item.occurrence}`;
+      const manual = manualByDeclaration.get(declarationKey);
+      if (
+        manual &&
+        entry.item.effect &&
+        JSON.stringify(manual.effect) === JSON.stringify(entry.item.effect)
+      ) {
+        matched += 1;
+        measured += 1;
+        manualEffects += 1;
+        usedManualDeclarations.add(declarationKey);
+        manualArtifactSha256.push(manual.artifactSha256);
+      } else {
+        missing.push(entry.item.label);
+      }
       continue;
     }
     measured += 1;
@@ -1719,14 +2022,23 @@ export function scoreExactNavigationResults(contract, results, exempted = []) {
       failures[code] = (failures[code] ?? 0) + 1;
     }
   }
+  if (usedManualDeclarations.size !== manualByDeclaration.size) {
+    throw manualEffectEvidenceError();
+  }
   const denominator = scoredEntries.length;
   const ratio = denominator > 0 ? matched / denominator : 1;
   const itemDeviationReview = requiresItemDeviationReview(entries.length, exemptedCount);
   const manualReviewReasons = [
     ...(itemDeviationReview ? ['item-deviations-exceed-half'] : []),
-    ...(unsafeActions > 0 ? ['unsafe-actions'] : []),
+    ...(unsafeActions > manualEffects ? ['unsafe-actions'] : []),
+    ...(manualEffects > 0 ? ['manual-effect-evidence'] : []),
     ...(unresolved > 0 ? ['unresolved-items'] : []),
   ];
+  const manualEvidenceComplete =
+    manualEffects > 0 &&
+    manualEffects === unsafeActions &&
+    !itemDeviationReview &&
+    unresolved === 0;
   return {
     score: ratio * WEIGHTS.D,
     max: WEIGHTS.D,
@@ -1738,10 +2050,14 @@ export function scoreExactNavigationResults(contract, results, exempted = []) {
     exempted: exemptedCount,
     requiresManualReview: manualReviewReasons.length > 0,
     manualReviewReasons,
+    manualEvidenceComplete,
     evidence: {
       exactRoutes,
       exactActions,
       unsafeActions,
+      ...(manualEffects > 0
+        ? { manualEffects, manualArtifactSha256: manualArtifactSha256.sort() }
+        : {}),
       unresolved,
       ...(Object.keys(failures).length > 0 ? { failures } : {}),
     },
@@ -1991,7 +2307,11 @@ export function reportExitCode(report) {
   if (report?.validInput !== true) return 2;
   const rows = Array.isArray(report?.rows) ? report.rows : [];
   if (rows.length === 0) return 2;
-  return rows.some((row) => row?.error || row?.automaticPass !== true) ? 1 : 0;
+  return rows.some(
+    (row) => row?.error || (row?.automaticPass !== true && row?.reviewedPass !== true),
+  )
+    ? 1
+    : 0;
 }
 
 export function inspectRenderedPixelRules(
@@ -2356,17 +2676,151 @@ export function inspectRenderedPixelRules(
   return result;
 }
 
-function tokenRamp(tokens) {
+const TOKEN_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+const DERIVED_RAMP_NAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const DERIVED_RAMP_MAX_RECIPES = 32;
+const DERIVED_RAMP_MAX_SOURCES = 32;
+const DERIVED_RAMP_MAX_LAYERS = 4;
+const DERIVED_RAMP_MAX_COMBINATIONS = 8192;
+
+function tokenRampError() {
+  return new Error('invalid token ramp contract');
+}
+
+function assertTokenRampKeys(value, allowed) {
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    Array.isArray(value) ||
+    Object.keys(value).some((key) => !allowed.has(key))
+  ) {
+    throw tokenRampError();
+  }
+}
+
+function resolveRampColor(reference, sources, usedSources) {
+  if (
+    typeof reference !== 'string' ||
+    !DERIVED_RAMP_NAME_PATTERN.test(reference) ||
+    !Object.hasOwn(sources, reference)
+  ) {
+    throw tokenRampError();
+  }
+  usedSources.add(reference);
+  return sources[reference].toLowerCase();
+}
+
+function finiteAlpha(value) {
+  if (!Number.isFinite(value) || value < 0 || value > 1) throw tokenRampError();
+  return value;
+}
+
+function compositeSrgb(background, foreground, alpha) {
+  const channels = (hex) =>
+    [1, 3, 5].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16));
+  const bg = channels(background);
+  const fg = channels(foreground);
+  return `#${bg
+    .map((channel, index) => Math.round(channel * (1 - alpha) + fg[index] * alpha))
+    .map((channel) => channel.toString(16).padStart(2, '0'))
+    .join('')}`;
+}
+
+function alphaByteSamples(value) {
+  assertTokenRampKeys(value, new Set(['min', 'max']));
+  const min = finiteAlpha(value.min);
+  const max = finiteAlpha(value.max);
+  if (min > max) throw tokenRampError();
+  const first = Math.round(min * 255);
+  const last = Math.round(max * 255);
+  return Array.from({ length: last - first + 1 }, (_, index) => (first + index) / 255);
+}
+
+function addDerivedRamp(output, derivedRamp) {
+  assertTokenRampKeys(derivedRamp, new Set(['sources', 'recipes']));
+  const sources = derivedRamp.sources;
+  const recipes = derivedRamp.recipes;
+  if (
+    !sources ||
+    typeof sources !== 'object' ||
+    Array.isArray(sources) ||
+    Object.keys(sources).length === 0 ||
+    Object.keys(sources).length > DERIVED_RAMP_MAX_SOURCES ||
+    Object.entries(sources).some(
+      ([name, color]) =>
+        !DERIVED_RAMP_NAME_PATTERN.test(name) ||
+        name.length > 64 ||
+        !TOKEN_COLOR_PATTERN.test(color),
+    ) ||
+    !recipes ||
+    typeof recipes !== 'object' ||
+    Array.isArray(recipes) ||
+    Object.keys(recipes).length === 0 ||
+    Object.keys(recipes).length > DERIVED_RAMP_MAX_RECIPES
+  ) {
+    throw tokenRampError();
+  }
+  const usedSources = new Set();
+  for (const [name, recipe] of Object.entries(recipes)) {
+    if (!DERIVED_RAMP_NAME_PATTERN.test(name) || name.length > 64) throw tokenRampError();
+    if (recipe?.type === 'composite') {
+      assertTokenRampKeys(recipe, new Set(['type', 'background', 'foreground', 'alpha']));
+      const background = resolveRampColor(recipe.background, sources, usedSources);
+      const foreground = resolveRampColor(recipe.foreground, sources, usedSources);
+      output.add(compositeSrgb(background, foreground, finiteAlpha(recipe.alpha)));
+      continue;
+    }
+    if (recipe?.type !== 'stacked-alpha') throw tokenRampError();
+    assertTokenRampKeys(recipe, new Set(['type', 'background', 'layers']));
+    if (
+      !Array.isArray(recipe.layers) ||
+      recipe.layers.length === 0 ||
+      recipe.layers.length > DERIVED_RAMP_MAX_LAYERS
+    ) {
+      throw tokenRampError();
+    }
+    const background = resolveRampColor(recipe.background, sources, usedSources);
+    const layers = recipe.layers.map((layer) => {
+      assertTokenRampKeys(layer, new Set(['color', 'alpha']));
+      return {
+        color: resolveRampColor(layer.color, sources, usedSources),
+        alphas: alphaByteSamples(layer.alpha),
+      };
+    });
+    const combinations = layers.reduce((count, layer) => count * layer.alphas.length, 1);
+    if (!Number.isSafeInteger(combinations) || combinations > DERIVED_RAMP_MAX_COMBINATIONS) {
+      throw tokenRampError();
+    }
+    const visit = (index, color) => {
+      if (index === layers.length) {
+        output.add(color);
+        return;
+      }
+      const layer = layers[index];
+      for (const alpha of layer.alphas) {
+        visit(index + 1, compositeSrgb(color, layer.color, alpha));
+      }
+    };
+    visit(0, background);
+  }
+  if (usedSources.size !== Object.keys(sources).length) throw tokenRampError();
+}
+
+export function tokenRamp(tokens) {
   const output = new Set();
   const walk = (value) => {
-    for (const child of Object.values(value || {})) {
+    for (const [key, child] of Object.entries(value || {})) {
+      if (key === 'derivedRamp') continue;
       if (child && typeof child === 'object') walk(child);
-      else if (typeof child === 'string' && /^#[0-9a-fA-F]{6}$/.test(child)) {
+      else if (typeof child === 'string' && TOKEN_COLOR_PATTERN.test(child)) {
         output.add(child.toLowerCase());
       }
     }
   };
   walk(tokens);
+  if (tokens?.derivedRamp !== undefined) {
+    addDerivedRamp(output, tokens.derivedRamp);
+  }
   return output;
 }
 
@@ -2413,6 +2867,24 @@ export function isAutomaticPass(total, unmeasured, manualReviewAxes = []) {
     total >= 98 &&
     unmeasured.every((axis) => axis === 'C') &&
     manualReviewAxes.length === 0
+  );
+}
+
+export function reviewedNavigationAxes(screen, deviations, navigation) {
+  return navigation?.manualEvidenceComplete === true && !exempt(screen, 'D', deviations)
+    ? ['D']
+    : [];
+}
+
+export function isReviewedPass(total, unmeasured, manualReviewAxes = [], reviewedManualAxes = []) {
+  const reviewed = new Set(reviewedManualAxes);
+  return (
+    total !== null &&
+    total >= 98 &&
+    manualReviewAxes.length > 0 &&
+    reviewed.size === manualReviewAxes.length &&
+    unmeasured.every((axis) => axis === 'C') &&
+    manualReviewAxes.every((axis) => reviewed.has(axis))
   );
 }
 
@@ -2814,6 +3286,7 @@ async function scoreOne({
   ramp,
   navFile,
   deviations,
+  manualEvidence,
   activeShot,
   noticeReadOrigin,
 }) {
@@ -2839,6 +3312,7 @@ async function scoreOne({
       E: null,
       total: null,
       automaticPass: false,
+      reviewedPass: false,
       unmeasured: ['A', 'B', 'C', 'D', 'E'],
       error: 'page-not-settled',
     };
@@ -2882,7 +3356,12 @@ async function scoreOne({
     const results = await runExactNavigationChecks(contract, (item) =>
       probeExactNavigationItem(page, baseUrl, route, item, noticeReadOrigin),
     );
-    navigation = scoreExactNavigationResults(contract, results, exemptItems(id, 'D', deviations));
+    navigation = scoreExactNavigationResults(
+      contract,
+      results,
+      exemptItems(id, 'D', deviations),
+      manualEvidence,
+    );
   } else {
     navigation = scoreNavigationLabels(null, app.interactive, [], { baseUrl });
   }
@@ -2907,14 +3386,17 @@ async function scoreOne({
 
   const raw = { A, B, C, D, E };
   const { scores, total, unmeasured } = renormalizeScores(raw);
+  const reviewedManualAxes = reviewedNavigationAxes(id, deviations, navigation);
   return {
     id,
     route,
     ...scores,
     total,
     automaticPass: isAutomaticPass(total, unmeasured, manualReviewAxes),
+    reviewedPass: isReviewedPass(total, unmeasured, manualReviewAxes, reviewedManualAxes),
     unmeasured,
     manualReviewAxes,
+    reviewedManualAxes,
     missD: navigation.missing,
     missE: copy?.missing ?? [],
     offTop: tokenPixels.offTop,
@@ -2925,9 +3407,7 @@ async function scoreOne({
         tokenPixels.paintedPixels > 0
           ? `token pixels ${round1(tokenPixels.ratio * 100)}% (${tokenPixels.inRampPixels}/${tokenPixels.paintedPixels})${
               tokenPixels.offTop.length
-                ? ` · off-ramp ${tokenPixels.offTop
-                    .map((entry) => `${entry.hex} ${entry.pixels}`)
-                    .join(' / ')}`
+                ? ` · off-ramp ${tokenPixels.offTop.map((entry) => `${entry.hex} ${entry.pixels}`).join(' / ')}`
                 : ''
             }`
           : 'no painted pixels',
@@ -3001,6 +3481,13 @@ export async function main(args = process.argv.slice(2), env = process.env, data
     console.error('invalid Stage 1 navigation contract');
     return 2;
   }
+  let ramp;
+  try {
+    ramp = tokenRamp(tokens);
+  } catch {
+    console.error('invalid token ramp contract');
+    return 2;
+  }
   let playwright;
   try {
     playwright = resolvePlaywright(require, env);
@@ -3018,6 +3505,7 @@ export async function main(args = process.argv.slice(2), env = process.env, data
   }
   const output = env.SCORE_OUT || path.join(DATA, 'score.json');
   const rows = [];
+  let manualEvidenceByScreen = new Map();
   let markerTime;
   let determinismScript;
   try {
@@ -3061,11 +3549,28 @@ export async function main(args = process.argv.slice(2), env = process.env, data
     await waitForShotNetworkIdle(page, activeShot);
     const bootstrapFailureCodes = shotFailureCodes({ baseUrl, ...activeShot });
     if (bootstrapFailureCodes.length) throw new CaptureContractError(bootstrapFailureCodes);
-    await attestServedExport(
+    const servedExport = await attestServedExport(
       page,
       environmentAttestation.previewEnv,
       environmentAttestation.receipt,
     );
+    try {
+      const contracts = Object.fromEntries(
+        targetIds
+          .filter((id) => navFile?.[id]?.version === 2)
+          .map((id) => [id, normalizeNavigationContract(navFile[id], baseUrl)]),
+      );
+      manualEvidenceByScreen = loadManualEffectEvidence(env, {
+        contracts,
+        targetIds,
+        exportSha256: servedExport.exportSha256,
+        exportedAt: servedExport.exportedAt,
+        now: Date.now(),
+      });
+    } catch {
+      console.error('invalid manual effect evidence');
+      return 2;
+    }
     await waitForShotNetworkIdle(page, activeShot);
     await page.addScriptTag({ content: makeCaptureInitScript(markerTime) });
     await loginForQa(page, baseUrl, env);
@@ -3097,9 +3602,10 @@ export async function main(args = process.argv.slice(2), env = process.env, data
             id,
             route,
             baseUrl,
-            ramp: tokenRamp(tokens),
+            ramp,
             navFile,
             deviations,
+            manualEvidence: manualEvidenceByScreen.get(id) ?? null,
             activeShot,
             noticeReadOrigin: environmentAttestation.previewEnv.EXPO_PUBLIC_SUPABASE_URL,
           }),
@@ -3110,6 +3616,7 @@ export async function main(args = process.argv.slice(2), env = process.env, data
           route,
           total: null,
           automaticPass: false,
+          reviewedPass: false,
           failureCodes: captureFailureCodes(error),
           error: 'capture-failed',
         });
@@ -3130,6 +3637,7 @@ export async function main(args = process.argv.slice(2), env = process.env, data
     baseUrl: new URL(baseUrl).origin,
     manifest: classification.stats,
     environmentAttested: true,
+    manualEffectEvidenceAttested: manualEvidenceByScreen.size > 0,
     browserVersion,
     navigationContract: 'data/nav.json',
     weights: WEIGHTS,
@@ -3138,7 +3646,8 @@ export async function main(args = process.argv.slice(2), env = process.env, data
   writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`);
   const exitCode = reportExitCode(report);
   const passed = rows.filter((row) => row.automaticPass === true).length;
-  console.log(`scored ${rows.length} · >=98 automatic ${passed}`);
+  const reviewed = rows.filter((row) => row.reviewedPass === true).length;
+  console.log(`scored ${rows.length} · >=98 automatic ${passed} · reviewed ${reviewed}`);
   return exitCode;
 }
 
