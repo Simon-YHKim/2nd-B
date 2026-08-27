@@ -9,11 +9,12 @@
  * E 10: reference-copy coverage
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { bandSignature, compareSignatures } from './band-signature.mjs';
+import { PNG } from 'pngjs';
 
 const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -24,6 +25,9 @@ const WEIGHTS = Object.freeze({ A: 30, B: 25, C: 20, D: 15, E: 10 });
 const A_PENALTY = 6;
 const MIN_TEXTS = 5;
 const DUMMY_ROUTE_ORIGIN = 'https://route.invalid';
+const SCREEN_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const PORT_STATES = new Set([true, false, 'deferred']);
+const DEVICE_CHROME = [/^\d{1,2}\s*[:.]\s*\d{2}$/];
 const REQUIRED_PREVIEW_ENV = [
   'EXPO_PUBLIC_SUPABASE_URL',
   'EXPO_PUBLIC_SUPABASE_ANON_KEY',
@@ -33,6 +37,7 @@ const CAPTURE_FAILURE_CODES = new Set([
   'asset-404',
   'capture-failed',
   'console-error',
+  'environment-attestation',
   'network-failure',
   'page-error',
   'page-not-settled',
@@ -41,6 +46,13 @@ const CAPTURE_FAILURE_CODES = new Set([
   'unexpected-final-query',
   'unexpected-final-route',
 ]);
+const SHOT_HEALTH_CODES = [
+  'asset-404',
+  'page-error',
+  'console-error',
+  'network-failure',
+];
+const CAPTURE_RECEIPT_MAX_AGE_MS = 2 * 60 * 60 * 1000;
 
 const norm = (value) => String(value ?? '')
   .replace(/[\u2060\u200B\u200C\u200D\uFEFF]/g, '')
@@ -52,7 +64,7 @@ function shellQuote(value) {
   return `'${value.replaceAll("'", `'"'"'`)}'`;
 }
 
-export function previewEnvLines(previewEnv) {
+export function previewPublicEnv(previewEnv) {
   const env = { ...previewEnv };
   const missing = REQUIRED_PREVIEW_ENV.filter(
     (key) => typeof env[key] !== 'string' || env[key].trim().length === 0,
@@ -73,9 +85,39 @@ export function previewEnvLines(previewEnv) {
   ))) {
     throw new Error('invalid preview env: public keys and values must be shell-safe strings');
   }
-  return publicEntries
-    .sort(([left], [right]) => left.localeCompare(right))
+  return Object.fromEntries(publicEntries.sort(([left], [right]) => left.localeCompare(right)));
+}
+
+export function previewEnvLines(previewEnv) {
+  return Object.entries(previewPublicEnv(previewEnv))
     .map(([key, value]) => `export ${key}=${shellQuote(value)}`);
+}
+
+function publicEnvSha256(previewEnv) {
+  return createHash('sha256')
+    .update(JSON.stringify(previewPublicEnv(previewEnv)))
+    .digest('hex');
+}
+
+export function readPreviewProfileEnv(env = {}) {
+  const easPath = env.EAS_FILE ? path.resolve(env.EAS_FILE) : path.join(REPO, 'eas.json');
+  const eas = JSON.parse(readFileSync(easPath, 'utf8'));
+  const previewEnv = eas.build?.preview?.env;
+  previewPublicEnv(previewEnv);
+  return previewEnv;
+}
+
+export function captureEnvReceiptPath(env = {}) {
+  return env.CAPTURE_ENV_RECEIPT
+    ? path.resolve(env.CAPTURE_ENV_RECEIPT)
+    : path.join(REPO, '.app-shots', 'work0-env-receipt.json');
+}
+
+export function loadCaptureEnvAttestation(env = {}, now = Date.now()) {
+  const previewEnv = readPreviewProfileEnv(env);
+  const receipt = JSON.parse(readFileSync(captureEnvReceiptPath(env), 'utf8'));
+  const { printedAt } = validateCaptureEnvReceipt(receipt, previewEnv, env, now);
+  return { previewEnv, printedAt };
 }
 
 export function resolvePlaywright(load, env = {}) {
@@ -168,6 +210,118 @@ export function captureFailureCodes(error) {
   return safe.length ? [...new Set(safe)] : ['capture-failed'];
 }
 
+export function createCaptureEnvReceipt(previewEnv, now = Date.now()) {
+  if (!Number.isFinite(now)) throw new CaptureContractError('environment-attestation');
+  // Store only a one-way digest. The public env values must never enter reports or errors.
+  return {
+    schemaVersion: 1,
+    printedAt: new Date(now).toISOString(),
+    publicEnvSha256: publicEnvSha256(previewEnv),
+  };
+}
+
+export function validateCaptureEnvReceipt(
+  receipt,
+  previewEnv,
+  runtimeEnv,
+  now = Date.now(),
+) {
+  const expected = previewPublicEnv(previewEnv);
+  const actual = Object.fromEntries(
+    Object.entries(runtimeEnv ?? {})
+      .filter(([key, value]) => key.startsWith('EXPO_PUBLIC_') && typeof value === 'string')
+      .sort(([left], [right]) => left.localeCompare(right)),
+  );
+  const printedAt = Date.parse(receipt?.printedAt ?? '');
+  const exactRuntimeEnv = JSON.stringify(actual) === JSON.stringify(expected);
+  const validReceipt = receipt?.schemaVersion === 1
+    && receipt?.publicEnvSha256 === publicEnvSha256(previewEnv)
+    && Number.isFinite(printedAt)
+    && Number.isFinite(now)
+    && now >= printedAt
+    && now - printedAt <= CAPTURE_RECEIPT_MAX_AGE_MS;
+  if (!exactRuntimeEnv || !validReceipt) {
+    throw new CaptureContractError('environment-attestation');
+  }
+  return { printedAt };
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function validateServedExportSources(sources, previewEnv, printedAt) {
+  const expected = previewPublicEnv(previewEnv);
+  const items = Array.isArray(sources) ? sources : [];
+  const source = items.map((item) => String(item?.body ?? '')).join('\n');
+  const notBefore = Math.floor(printedAt / 1000) * 1000;
+  const fresh = items.length > 0 && items.every((item) => {
+    const modifiedAt = Date.parse(item?.lastModified ?? '');
+    return Number.isFinite(modifiedAt) && modifiedAt >= notBefore;
+  });
+  const modePattern = new RegExp(
+    `["']?EXPO_PUBLIC_LLM_MODE["']?\\s*[:=]\\s*`
+      + `(?:[$A-Za-z_][$\\w]*\\(\\s*)?["']${escapeRegExp(expected.EXPO_PUBLIC_LLM_MODE)}["']\\s*\\)?`,
+  );
+  const attested = fresh
+    && source.includes(expected.EXPO_PUBLIC_SUPABASE_URL)
+    && source.includes(expected.EXPO_PUBLIC_SUPABASE_ANON_KEY)
+    && modePattern.test(source);
+  if (!attested) throw new CaptureContractError('environment-attestation');
+}
+
+export async function attestServedExport(page, previewEnv, printedAt) {
+  const sources = await page.evaluate(async () => {
+    const urls = [...document.scripts]
+      .map((script) => script.src)
+      .filter(Boolean)
+      .filter((value) => {
+        try {
+          return new URL(value, location.href).origin === location.origin;
+        } catch {
+          return false;
+        }
+      });
+    return Promise.all(urls.map(async (url) => {
+      const response = await fetch(url, { cache: 'no-store', credentials: 'same-origin' });
+      if (!response.ok) return { body: '', lastModified: null };
+      return {
+        body: await response.text(),
+        lastModified: response.headers.get('last-modified'),
+      };
+    }));
+  });
+  validateServedExportSources(sources, previewEnv, printedAt);
+}
+
+export function createShotHealth() {
+  return { failureCodes: [] };
+}
+
+export function recordShotFailure(health, code) {
+  if (!health || !SHOT_HEALTH_CODES.includes(code)) return;
+  if (!Array.isArray(health.failureCodes)) health.failureCodes = [];
+  if (!health.failureCodes.includes(code) && health.failureCodes.length < SHOT_HEALTH_CODES.length) {
+    health.failureCodes.push(code);
+  }
+}
+
+export function recordShotResponse(health, baseUrl, responseUrl, status) {
+  if (status !== 404) return;
+  try {
+    const base = parseBaseUrl(baseUrl);
+    const response = new URL(responseUrl);
+    if (
+      response.origin === base.origin
+      && (response.pathname === '/2nd-B' || response.pathname.startsWith('/2nd-B/'))
+    ) {
+      recordShotFailure(health, 'asset-404');
+    }
+  } catch {
+    // Ignore malformed response metadata; never retain its raw URL.
+  }
+}
+
 export function validateFinalUrl(baseUrl, route, finalUrl) {
   const expected = new URL(resolveHostedAppUrl(baseUrl, route));
   let actual;
@@ -190,6 +344,7 @@ export function validateFinalUrl(baseUrl, route, finalUrl) {
 
 export function shotFailureCodes({
   baseUrl,
+  failureCodes = [],
   responses = [],
   pageErrorCount = 0,
   consoleErrorCount = 0,
@@ -206,12 +361,15 @@ export function shotFailureCodes({
       return false;
     }
   });
-  return [
-    asset404 ? 'asset-404' : null,
-    pageErrorCount > 0 ? 'page-error' : null,
-    consoleErrorCount > 0 ? 'console-error' : null,
-    requestFailedCount > 0 ? 'network-failure' : null,
-  ].filter(Boolean);
+  const detected = new Set(
+    (Array.isArray(failureCodes) ? failureCodes : [])
+      .filter((code) => SHOT_HEALTH_CODES.includes(code)),
+  );
+  if (asset404) detected.add('asset-404');
+  if (pageErrorCount > 0) detected.add('page-error');
+  if (consoleErrorCount > 0) detected.add('console-error');
+  if (requestFailedCount > 0) detected.add('network-failure');
+  return SHOT_HEALTH_CODES.filter((code) => detected.has(code));
 }
 
 export async function waitForSettledPage(
@@ -243,10 +401,31 @@ export function makeCaptureInitScript(markerTime) {
   if (Number.isNaN(markerDate.getTime())) throw new Error('FIXED_ISO must be a valid date');
   const markerIso = markerDate.toISOString();
   return `(function () {
+  var fixedTime = ${markerTime};
   var markerIso = ${JSON.stringify(markerIso)};
+  var RealDate = Date;
+  var FakeDate = function (a, b, c, d, e, f, g) {
+    if (!(this instanceof FakeDate)) return new RealDate(fixedTime).toString();
+    switch (arguments.length) {
+      case 0: return new RealDate(fixedTime);
+      case 1: return new RealDate(a);
+      default: return new RealDate(a, b, c, d || 0, e || 0, f || 0, g || 0);
+    }
+  };
+  FakeDate.now = function () { return fixedTime; };
+  FakeDate.parse = RealDate.parse;
+  FakeDate.UTC = RealDate.UTC;
+  FakeDate.prototype = RealDate.prototype;
+  window.Date = FakeDate;
+  var seed = 42;
+  Math.random = function () {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
   try {
     sessionStorage.setItem('secondB_intro_played_v1', '1');
     localStorage.setItem('onboarding.cosmicPixel.v2.completedAt', markerIso);
+    localStorage.setItem('onboarding.ttfv.v1.seenAt', markerIso);
     localStorage.setItem('onboarding.coachmarks.home.v1.seenAt', markerIso);
   } catch (e) {}
   var freezeMotion = function () {
@@ -303,14 +482,20 @@ function hasWhy(value) {
 }
 
 export function validateManifestClassification(screens, routesFile) {
+  const errors = [];
   const screenById = new Map();
   const duplicateScreenIds = new Set();
   for (const screen of Array.isArray(screens) ? screens : []) {
+    if (typeof screen?.id !== 'string' || !SCREEN_ID_PATTERN.test(screen.id)) {
+      errors.push({ code: 'invalid-screen-id', id: typeof screen?.id === 'string' ? screen.id : '' });
+    }
+    if (!PORT_STATES.has(screen?.port)) {
+      errors.push({ code: 'invalid-port', id: typeof screen?.id === 'string' ? screen.id : '' });
+    }
     if (screenById.has(screen.id)) duplicateScreenIds.add(screen.id);
     screenById.set(screen.id, screen);
   }
   const memberships = new Map();
-  const errors = [];
   const nonPortTrueIds = new Set();
   for (const category of ['routes', 'unmeasurable', 'unmapped']) {
     const entries = routesFile?.[category];
@@ -431,6 +616,207 @@ export function flattenInteractive(node, output = []) {
   return output;
 }
 
+export function isDeviceChromeText(value) {
+  const text = norm(value);
+  return DEVICE_CHROME.some((pattern) => pattern.test(text));
+}
+
+export function referenceCopyTexts(root) {
+  const output = [];
+  const walk = (node) => {
+    if (!node) return;
+    const text = norm(node.text);
+    if (text && !isDeviceChromeText(text)) output.push(text);
+    for (const child of node.kids ?? []) walk(child);
+  };
+  walk(root);
+  return output;
+}
+
+export function scoreCopyCoverage(referenceTexts, appTexts) {
+  const expected = (Array.isArray(referenceTexts) ? referenceTexts : [])
+    .map(norm)
+    .filter(Boolean);
+  const rendered = new Set(
+    (Array.isArray(appTexts) ? appTexts : []).map(norm).filter(Boolean),
+  );
+  const matched = expected.filter((text) => rendered.has(text)).length;
+  const ratio = expected.length ? matched / expected.length : 0;
+  return {
+    matched,
+    total: expected.length,
+    ratio,
+    score: ratio * WEIGHTS.E,
+  };
+}
+
+/** B: count the pixels the browser actually painted, not overlapping DOM boxes. */
+export function scoreTokenPixels(source, ramp) {
+  const png = PNG.sync.read(source);
+  let paintedPixels = 0;
+  let inRampPixels = 0;
+  for (let index = 0; index < png.data.length; index += 4) {
+    if (png.data[index + 3] === 0) continue;
+    paintedPixels += 1;
+    const hex = `#${[png.data[index], png.data[index + 1], png.data[index + 2]]
+      .map((channel) => channel.toString(16).padStart(2, '0'))
+      .join('')}`;
+    if (ramp?.has(hex)) inRampPixels += 1;
+  }
+  const ratio = paintedPixels > 0 ? inRampPixels / paintedPixels : 0;
+  return {
+    score: ratio * WEIGHTS.B,
+    ratio,
+    paintedPixels,
+    inRampPixels,
+  };
+}
+
+function structureKind(node) {
+  let hasText = false;
+  let hasInteractive = false;
+  const walk = (current) => {
+    if (!current) return;
+    if (norm(current.text)) hasText = true;
+    if (current.interactive === true || ['a', 'button'].includes(current.tag)) {
+      hasInteractive = true;
+    }
+    for (const child of current.kids ?? []) walk(child);
+  };
+  walk(node);
+  if (hasInteractive) return 'interactive';
+  if (hasText) return 'text';
+  return 'graphic';
+}
+
+function sectionIdentity(node) {
+  const outline = [];
+  const anchors = [];
+  const walk = (current) => {
+    if (!current) return;
+    const text = norm(current.text);
+    const interactive = current.interactive === true || ['a', 'button'].includes(current.tag);
+    const role = interactive ? 'interactive' : text ? 'text' : String(current.tag ?? 'node');
+    outline.push(`${role}:${(current.kids ?? []).length}`);
+    if (text) anchors.push(text);
+    for (const child of current.kids ?? []) walk(child);
+  };
+  walk(node);
+  return {
+    shapeSignature: `${structureKind(node)}|${outline.join('/')}`,
+    textAnchor: anchors.join('\u241f'),
+  };
+}
+
+/**
+ * C's data contract exposes ordered DOM children and [width,height] boxes only.
+ * Apply the documented depth<=3, >=half-viewport, >=24px section rule to both
+ * reference and app digests so renderer wrapper depth is not tuned per side.
+ */
+export function extractStructureSections(root) {
+  const rootWidth = Number(root?.box?.[0]);
+  const rootHeight = Number(root?.box?.[1]);
+  if (!(rootWidth > 0) || !(rootHeight > 0)) return [];
+  const sections = [];
+  const walk = (node, depth) => {
+    const width = Number(node?.box?.[0]);
+    const height = Number(node?.box?.[1]);
+    if (
+      depth >= 1
+      && depth <= 3
+      && width >= rootWidth * 0.5
+      && height >= 24
+    ) {
+      sections.push({
+        kind: structureKind(node),
+        height,
+        heightRatio: height / rootHeight,
+        ...sectionIdentity(node),
+      });
+    }
+    if (depth >= 3) return;
+    for (const child of node?.kids ?? []) walk(child, depth + 1);
+  };
+  walk(root, 0);
+  return sections;
+}
+
+function orderedSectionMatches(expected, observed, reference, actual) {
+  if (!expected || !observed || expected.shapeSignature !== observed.shapeSignature) return false;
+  if (expected.textAnchor === observed.textAnchor) return true;
+
+  // Copy may legitimately differ from the mock reference, so text is only a
+  // disambiguator when either anchor exists elsewhere in the same structural
+  // sequence. That detects A/B reordering without turning C into a second E.
+  const expectedMoved = expected.textAnchor && actual.some(
+    (section) => section.shapeSignature === expected.shapeSignature
+      && section.textAnchor === expected.textAnchor,
+  );
+  const observedMoved = observed.textAnchor && reference.some(
+    (section) => section.shapeSignature === observed.shapeSignature
+      && section.textAnchor === observed.textAnchor,
+  );
+  return !expectedMoved && !observedMoved;
+}
+
+function orderedSectionMatchCount(reference, actual) {
+  const rows = Array.from({ length: reference.length + 1 }, () => (
+    Array(actual.length + 1).fill(0)
+  ));
+  for (let left = 1; left <= reference.length; left += 1) {
+    for (let right = 1; right <= actual.length; right += 1) {
+      rows[left][right] = orderedSectionMatches(
+        reference[left - 1],
+        actual[right - 1],
+        reference,
+        actual,
+      )
+        ? rows[left - 1][right - 1] + 1
+        : Math.max(rows[left - 1][right], rows[left][right - 1]);
+    }
+  }
+  return rows[reference.length][actual.length];
+}
+
+/** C: section order 10 + count 5 + relative-height-within-10% 5. */
+export function scoreStructure(referenceDigest, actualDigest) {
+  const reference = extractStructureSections(referenceDigest);
+  const actual = extractStructureSections(actualDigest);
+  const maxCount = Math.max(reference.length, actual.length);
+  if (maxCount === 0) {
+    return {
+      score: 0,
+      orderScore: 0,
+      countScore: 0,
+      heightScore: 0,
+      referenceCount: 0,
+      actualCount: 0,
+      closeHeightCount: 0,
+    };
+  }
+  const pairedCount = Math.min(reference.length, actual.length);
+  const orderScore = round1((orderedSectionMatchCount(reference, actual) / maxCount) * 10);
+  const countScore = round1((Math.min(reference.length, actual.length) / maxCount) * 5);
+  let closeHeightCount = 0;
+  for (let index = 0; index < pairedCount; index += 1) {
+    const expected = reference[index].heightRatio;
+    const observed = actual[index].heightRatio;
+    if (expected > 0 && Math.abs(observed - expected) / expected <= 0.1) {
+      closeHeightCount += 1;
+    }
+  }
+  const heightScore = round1((closeHeightCount / maxCount) * 5);
+  return {
+    score: round1(orderScore + countScore + heightScore),
+    orderScore,
+    countScore,
+    heightScore,
+    referenceCount: reference.length,
+    actualCount: actual.length,
+    closeHeightCount,
+  };
+}
+
 export function reportExitCode(report) {
   if (report?.validInput !== true) return 2;
   const rows = Array.isArray(report?.rows) ? report.rows : [];
@@ -438,7 +824,10 @@ export function reportExitCode(report) {
   return rows.some((row) => row?.error || row?.automaticPass !== true) ? 1 : 0;
 }
 
-const IN_PAGE = () => {
+export function inspectRenderedPixelRules(
+  elements = document.querySelectorAll('*'),
+  styleFor = getComputedStyle,
+) {
   const curves = ['circle', 'ellipse', 'path', 'polyline', 'polygon'];
   const translucent = (value) => /rgba?\([^)]*?,\s*0?\.\d+\s*\)/.test(value || '');
   const result = {
@@ -446,13 +835,12 @@ const IN_PAGE = () => {
     rounds: 0,
     blurs: 0,
     alphas: 0,
-    colors: {},
     texts: [],
     interactive: [],
   };
-  for (const element of document.querySelectorAll('*')) {
+  for (const element of elements) {
     const tag = element.tagName.toLowerCase();
-    const style = getComputedStyle(element);
+    const style = styleFor(element);
     if (curves.includes(tag)) result.curves += 1;
     for (const property of [
       'borderTopLeftRadius',
@@ -465,15 +853,25 @@ const IN_PAGE = () => {
         break;
       }
     }
-    const filterBlurs = [...String(style.filter || '').matchAll(/blur\(\s*([\d.]+)(?:px)?\s*\)/g)]
-      .some((match) => Number(match[1]) > 0);
-    if (filterBlurs) result.blurs += 1;
+    const hasPositiveBlur = (value) => (
+      [...String(value || '').matchAll(/blur\(\s*([\d.]+)(?:px)?\s*\)/g)]
+        .some((match) => Number(match[1]) > 0)
+    );
+    if (
+      hasPositiveBlur(style.filter)
+      || hasPositiveBlur(style.backdropFilter)
+      || hasPositiveBlur(style.webkitBackdropFilter)
+    ) result.blurs += 1;
     if (style.boxShadow && style.boxShadow !== 'none') {
       const lengths = (style.boxShadow.match(/(-?[\d.]+)px/g) || []).map(Number.parseFloat);
       if (lengths.length >= 3 && Math.abs(lengths[2]) > 0.5) result.blurs += 1;
     }
     const opacity = Number(style.opacity);
     let alpha = opacity > 0 && opacity < 1;
+    if (!alpha) {
+      alpha = ['fillOpacity', 'strokeOpacity']
+        .some((property) => Number(style[property]) > 0 && Number(style[property]) < 1);
+    }
     if (!alpha) {
       for (const property of ['backgroundColor', 'color', 'borderTopColor', 'fill', 'stroke']) {
         if (translucent(style[property])) {
@@ -484,18 +882,6 @@ const IN_PAGE = () => {
     }
     if (alpha) result.alphas += 1;
 
-    const rect = element.getBoundingClientRect();
-    const area = Math.max(0, rect.width) * Math.max(0, rect.height);
-    if (area > 0) {
-      const background = style.backgroundColor;
-      const match = /^rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(background || '');
-      if (match && !/rgba\([^)]*,\s*0\)/.test(background)) {
-        const hex = `#${[match[1], match[2], match[3]]
-          .map((part) => Number(part).toString(16).padStart(2, '0'))
-          .join('')}`;
-        result.colors[hex] = (result.colors[hex] || 0) + area;
-      }
-    }
     if (element.children.length === 0 && (element.textContent || '').trim()) {
       result.texts.push(element.textContent);
     }
@@ -505,7 +891,7 @@ const IN_PAGE = () => {
     }
   }
   return result;
-};
+}
 
 function tokenRamp(tokens) {
   const output = new Set();
@@ -545,7 +931,7 @@ async function scoreOne({
   validateFinalUrl(baseUrl, route, page.url());
   const failureCodes = shotFailureCodes({ baseUrl, ...activeShot });
   if (failureCodes.length) throw new CaptureContractError(failureCodes);
-  const app = await page.evaluate(IN_PAGE);
+  const app = await page.evaluate(inspectRenderedPixelRules);
   if (app.texts.length < MIN_TEXTS) {
     return {
       id,
@@ -572,46 +958,29 @@ async function scoreOne({
   const violations = app.curves + app.rounds + app.blurs + app.alphas;
   const A = applyDeviation('A', Math.max(0, WEIGHTS.A - violations * A_PENALTY));
 
-  let inRamp = 0;
-  let paintedArea = 0;
-  for (const [hex, area] of Object.entries(app.colors)) {
-    paintedArea += area;
-    if (ramp.has(hex.toLowerCase())) inRamp += area;
-  }
-  const B = applyDeviation('B', paintedArea > 0 ? (inRamp / paintedArea) * WEIGHTS.B : 0);
+  const screenshot = await page.screenshot();
+  const tokenPixels = scoreTokenPixels(screenshot, ramp);
+  const B = applyDeviation('B', tokenPixels.score);
 
-  const capturePath = path.join(KIT, 'captures', `${id}.png`);
+  const structurePath = path.join(DATA, 'structure', `${id}.json`);
+  const reference = existsSync(structurePath)
+    ? JSON.parse(readFileSync(structurePath, 'utf8'))
+    : null;
+  const appStructure = await page.evaluate(digestPage);
   let C = null;
-  let cWhy = 'reference capture missing';
-  if (existsSync(capturePath)) {
-    const screenshot = await page.screenshot();
-    const compared = compareSignatures(bandSignature(capturePath), bandSignature(screenshot));
-    C = compared.score * WEIGHTS.C;
-    cWhy = `band ref ${compared.refBands} / app ${compared.appBands}`;
+  let structure = null;
+  if (reference && appStructure) {
+    structure = scoreStructure(reference, appStructure);
+    C = structure.score;
   }
   C = applyDeviation('C', C);
 
   const navigation = scoreNavigation(navFile?.[id], app.interactive);
   const D = applyDeviation('D', navigation.score);
 
-  const structurePath = path.join(DATA, 'structure', `${id}.json`);
-  const reference = existsSync(structurePath)
-    ? JSON.parse(readFileSync(structurePath, 'utf8'))
-    : null;
   let E = 0;
   if (reference) {
-    const referenceTexts = [];
-    const walk = (node) => {
-      if (!node) return;
-      if (node.text) referenceTexts.push(norm(node.text));
-      for (const child of node.kids ?? []) walk(child);
-    };
-    walk(reference);
-    const appTexts = app.texts.map(norm).filter(Boolean);
-    const matched = referenceTexts.filter(
-      (text) => text && appTexts.some((candidate) => candidate.includes(text)),
-    ).length;
-    E = referenceTexts.length ? (matched / referenceTexts.length) * WEIGHTS.E : 0;
+    E = scoreCopyCoverage(referenceCopyTexts(reference), app.texts).score;
   }
   E = applyDeviation('E', E);
 
@@ -638,8 +1007,12 @@ async function scoreOne({
     manualReviewAxes,
     why: {
       A: `curves ${app.curves} · rounds ${app.rounds} · blur ${app.blurs} · alpha ${app.alphas}`,
-      B: paintedArea > 0 ? `token area ${round1((100 * inRamp) / paintedArea)}%` : 'no painted area',
-      C: cWhy,
+      B: tokenPixels.paintedPixels > 0
+        ? `token pixels ${round1(tokenPixels.ratio * 100)}% (${tokenPixels.inRampPixels}/${tokenPixels.paintedPixels})`
+        : 'no painted pixels',
+      C: structure
+        ? `order ${structure.orderScore}/10 · count ${structure.countScore}/5 · height ${structure.heightScore}/5`
+        : 'reference structure missing',
       D: navigation.measurable
         ? `destinations ${navigation.matched}/${navigation.declared}`
         : 'navigation destination contract missing',
@@ -700,6 +1073,13 @@ export async function main(args = process.argv.slice(2), env = process.env) {
     return 1;
   }
   const chromium = playwright.chromium ?? playwright.default.chromium;
+  let environmentAttestation;
+  try {
+    environmentAttestation = loadCaptureEnvAttestation(env);
+  } catch {
+    console.error('environment attestation failed');
+    return 2;
+  }
   const tokens = readJson(path.join(DATA, 'tokens.json'), {});
   const navRoutesPath = path.join(DATA, 'nav-routes.json');
   const navFile = readJson(navRoutesPath, readJson(path.join(DATA, 'nav.json'), {}));
@@ -712,31 +1092,33 @@ export async function main(args = process.argv.slice(2), env = process.env) {
     const context = await browser.newContext({ viewport: { width: 390, height: 820 }, deviceScaleFactor: 1 });
     await context.addInitScript(makeCaptureInitScript(Date.now()));
     const page = await context.newPage();
-    let activeShot = null;
+    let activeShot = createShotHealth();
     page.on('console', (message) => {
-      if (activeShot && message.type() === 'error') activeShot.consoleErrorCount += 1;
+      if (message.type() === 'error') recordShotFailure(activeShot, 'console-error');
     });
     page.on('pageerror', () => {
-      if (activeShot) activeShot.pageErrorCount += 1;
+      recordShotFailure(activeShot, 'page-error');
     });
     page.on('requestfailed', () => {
-      if (activeShot) activeShot.requestFailedCount += 1;
+      recordShotFailure(activeShot, 'network-failure');
     });
     page.on('response', (response) => {
-      if (activeShot) activeShot.responses.push({ url: response.url(), status: response.status() });
+      recordShotResponse(activeShot, baseUrl, response.url(), response.status());
     });
     await page.goto(resolveHostedAppUrl(baseUrl, '/'), { waitUntil: 'load', timeout: 90000 });
     await page.waitForTimeout(2500);
     await loginForQa(page);
+    const bootstrapFailureCodes = shotFailureCodes({ baseUrl, ...activeShot });
+    if (bootstrapFailureCodes.length) throw new CaptureContractError(bootstrapFailureCodes);
+    await attestServedExport(
+      page,
+      environmentAttestation.previewEnv,
+      environmentAttestation.printedAt,
+    );
 
     for (const id of targetIds) {
       const route = routesFile.routes[id];
-      activeShot = {
-        responses: [],
-        pageErrorCount: 0,
-        consoleErrorCount: 0,
-        requestFailedCount: 0,
-      };
+      activeShot = createShotHealth();
       try {
         rows.push(await scoreOne({
           page,
@@ -773,6 +1155,7 @@ export async function main(args = process.argv.slice(2), env = process.env) {
     validInput: true,
     baseUrl: new URL(baseUrl).origin,
     manifest: classification.stats,
+    environmentAttested: true,
     navigationContract: existsSync(navRoutesPath) ? 'data/nav-routes.json' : 'invalid: data/nav.json has labels only',
     weights: WEIGHTS,
     rows,

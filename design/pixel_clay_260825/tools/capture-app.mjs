@@ -14,12 +14,21 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
+  attestServedExport,
   browserLaunchOptions,
+  captureEnvReceiptPath,
   CaptureContractError,
   captureFailureCodes,
+  createCaptureEnvReceipt,
+  createShotHealth,
   digestPage,
+  isDeviceChromeText,
+  loadCaptureEnvAttestation,
   makeCaptureInitScript,
   previewEnvLines,
+  readPreviewProfileEnv,
+  recordShotFailure,
+  recordShotResponse,
   resolveHostedAppUrl,
   resolvePlaywright,
   shotFailureCodes,
@@ -33,7 +42,6 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const KIT = path.join(HERE, '..');
 const REPO = path.join(KIT, '..', '..');
 const INVISIBLE = /[\u2060\u200B\u200C\u200D\uFEFF]/g;
-const DEVICE_CHROME = [/^\d{1,2}\s*[:.]\s*\d{2}$/];
 
 function readJson(file, fallback) {
   return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : fallback;
@@ -50,7 +58,7 @@ function qaCreds(env) {
 
 function flatten(node, output = []) {
   if (!node) return output;
-  if (node.text && !DEVICE_CHROME.some((pattern) => pattern.test(node.text))) {
+  if (node.text && !isDeviceChromeText(node.text)) {
     output.push({
       text: node.text.replace(INVISIBLE, ''),
       width: node.box?.[0] ?? 0,
@@ -88,9 +96,14 @@ export async function main(args = process.argv.slice(2), env = process.env) {
   }
   if (args[0] === '--print-env') {
     try {
-      const easPath = env.EAS_FILE ? path.resolve(env.EAS_FILE) : path.join(REPO, 'eas.json');
-      const eas = JSON.parse(readFileSync(easPath, 'utf8'));
-      const lines = previewEnvLines(eas.build?.preview?.env ?? {});
+      const previewEnv = readPreviewProfileEnv(env);
+      const lines = previewEnvLines(previewEnv);
+      const receiptPath = captureEnvReceiptPath(env);
+      mkdirSync(path.dirname(receiptPath), { recursive: true });
+      writeFileSync(
+        receiptPath,
+        `${JSON.stringify(createCaptureEnvReceipt(previewEnv), null, 2)}\n`,
+      );
       process.stdout.write(`${lines.join('\n')}\n`);
       return 0;
     } catch {
@@ -136,6 +149,13 @@ export async function main(args = process.argv.slice(2), env = process.env) {
     return 1;
   }
   const chromium = playwright.chromium ?? playwright.default.chromium;
+  let environmentAttestation;
+  try {
+    environmentAttestation = loadCaptureEnvAttestation(env);
+  } catch {
+    console.error('environment attestation failed');
+    return 2;
+  }
   const output = env.OUT || path.join(REPO, '.app-shots');
   const unmeasurable = { ...(routesFile.unmeasurable ?? {}) };
   delete unmeasurable._note;
@@ -155,6 +175,7 @@ export async function main(args = process.argv.slice(2), env = process.env) {
     baseUrl: new URL(baseUrl).origin,
     shots: [],
     compare: [],
+    environmentAttested: true,
     unmeasurable,
   };
   let browser;
@@ -166,18 +187,18 @@ export async function main(args = process.argv.slice(2), env = process.env) {
     });
     await context.addInitScript(initScript);
     const page = await context.newPage();
-    let activeShot = null;
+    let activeShot = createShotHealth();
     page.on('console', (message) => {
-      if (activeShot && message.type() === 'error') activeShot.consoleErrorCount += 1;
+      if (message.type() === 'error') recordShotFailure(activeShot, 'console-error');
     });
     page.on('pageerror', () => {
-      if (activeShot) activeShot.pageErrorCount += 1;
+      recordShotFailure(activeShot, 'page-error');
     });
     page.on('requestfailed', () => {
-      if (activeShot) activeShot.requestFailedCount += 1;
+      recordShotFailure(activeShot, 'network-failure');
     });
     page.on('response', (response) => {
-      if (activeShot) activeShot.responses.push({ url: response.url(), status: response.status() });
+      recordShotResponse(activeShot, baseUrl, response.url(), response.status());
     });
 
     const { email, password } = qaCreds(env);
@@ -193,15 +214,17 @@ export async function main(args = process.argv.slice(2), env = process.env) {
     if (page.url().includes('/sign-in')) {
       throw new CaptureContractError('unexpected-final-route');
     }
+    const bootstrapFailureCodes = shotFailureCodes({ baseUrl, ...activeShot });
+    if (bootstrapFailureCodes.length) throw new CaptureContractError(bootstrapFailureCodes);
+    await attestServedExport(
+      page,
+      environmentAttestation.previewEnv,
+      environmentAttestation.printedAt,
+    );
 
     for (const id of targetSelection.targetIds) {
       const route = routesFile.routes[id];
-      activeShot = {
-        responses: [],
-        pageErrorCount: 0,
-        consoleErrorCount: 0,
-        requestFailedCount: 0,
-      };
+      activeShot = createShotHealth();
       try {
         await page.goto(resolveHostedAppUrl(baseUrl, route), {
           waitUntil: 'load',
