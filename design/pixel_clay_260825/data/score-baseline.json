@@ -1,6 +1,6 @@
 {
- "note": "5축 채점(A 픽셀규율 30 · B 토큰충실도 25 · C 구조일치 20 · D 내비무결성 15 · E 카피 10). 98 은 게이트지 완성이 아니다 — 여백·손맛·타이밍·카피의 온도는 점수로 만들지 않는다.",
- "base": "http://localhost:8979",
+ "note": "5축 채점(A 픽셀규율 30 · B 토큰충실도 25 · C 구조일치 20 · D 내비무결성 15 · E 카피 10). 98 은 게이트지 완성이 아니다 — 여백·손맛·타이밍·카피의 온도는 점수로 만들지 않는다. Stage 1의 8개 행은 2026-08-28 실제 EXPO_PUBLIC_* 환경의 attested strict exact-navigation run으로 재측정했고, 나머지 행은 이전 기준선을 유지한다.",
+ "base": "http://localhost:8980",
  "weights": {
   "A": 30,
   "B": 25,
@@ -18,9 +18,7 @@
    "D": 0,
    "E": 10,
    "total": 76.8,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [
     "1939–452차 세계대전",
     "1947트랜지스터",
@@ -103,9 +101,7 @@
    "D": 3.1,
    "E": 8.3,
    "total": 82.8,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [
     "NEW · 회의에서…",
     "사이드 프로젝…",
@@ -127,9 +123,7 @@
     "카페에서 멍…",
     "필터"
    ],
-   "missE": [
-    "18별가루"
-   ],
+   "missE": ["18별가루"],
    "offTop": [
     {
      "hex": "#262b43",
@@ -157,18 +151,8 @@
    "D": 7.5,
    "E": 5,
    "total": 84.4,
-   "unmeasured": [
-    "C"
-   ],
-   "missD": [
-    "전체",
-    "#딥워크",
-    "#회고",
-    "#운동",
-    "#관계",
-    "#독서",
-    "#건강"
-   ],
+   "unmeasured": ["C"],
+   "missD": ["전체", "#딥워크", "#회고", "#운동", "#관계", "#독서", "#건강"],
    "missE": [
     "지금까지개의지식이자라고있어요.",
     "전체",
@@ -197,9 +181,7 @@
    "D": 8.6,
    "E": 5.6,
    "total": 86.2,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [
     "일상 Wiki",
     "Pro Wiki",
@@ -241,9 +223,7 @@
    "D": 4.4,
    "E": 10,
    "total": 86.8,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [
     "전체",
     "#딥워크",
@@ -277,20 +257,9 @@
    "D": 8.2,
    "E": 7.5,
    "total": 87.3,
-   "unmeasured": [
-    "C"
-   ],
-   "missD": [
-    "링크 복사",
-    "응답 3건 근거",
-    "맞아요",
-    "조금 달라요",
-    "설문 더 보내기"
-   ],
-   "missE": [
-    "남이보는나는얼마나같을까요?가까운사람에게익명설문을보내모아요.",
-    "설문더보내기"
-   ],
+   "unmeasured": ["C"],
+   "missD": ["링크 복사", "응답 3건 근거", "맞아요", "조금 달라요", "설문 더 보내기"],
+   "missE": ["남이보는나는얼마나같을까요?가까운사람에게익명설문을보내모아요.", "설문더보내기"],
    "offTop": [
     {
      "hex": "#1c273b",
@@ -326,9 +295,7 @@
    "D": 6.4,
    "E": 8.8,
    "total": 87.7,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [
     "맞아요",
     "나중에",
@@ -339,9 +306,7 @@
     "근거 더 보기",
     "되돌리기"
    ],
-   "missE": [
-    "세컨비는제안하고,반영은늘당신이정해요.어떤분석도동의없이별에반영되지않아요."
-   ],
+   "missE": ["세컨비는제안하고,반영은늘당신이정해요.어떤분석도동의없이별에반영되지않아요."],
    "offTop": [],
    "why": {
     "A": "곡선 0 · 라운드 0 · 블러 0 · 반투명 0",
@@ -355,49 +320,64 @@
    "id": "me",
    "route": "/core-brain",
    "A": 30,
-   "B": 20.3,
+   "B": 10.2,
    "C": null,
-   "D": 12.1,
+   "D": 0,
    "E": 10,
-   "total": 90.5,
-   "unmeasured": [
-    "C"
-   ],
+   "total": 62.8,
+   "unmeasured": ["C"],
    "missD": [
+    "문장 다듬기",
+    "내보내기",
+    "문장 다듬기",
+    "내보내기",
+    "문장 다듬기",
+    "내보내기",
     "검증 보기",
+    "Big Five",
+    "애착",
+    "가치관",
+    "동기",
+    "강점",
     "보여지는 나",
+    "다듬기",
     "AI에 전달",
-    "미리보기"
+    "미리보기",
+    "별자리",
+    "담기",
+    "세컨비",
+    "위키",
+    "설정"
    ],
    "missE": [],
    "offTop": [
     {
      "hex": "#202243",
-     "area": 554772
+     "pixels": 140156
     },
     {
      "hex": "#1c253d",
-     "area": 20580
-    },
-    {
-     "hex": "#25244a",
-     "area": 9248
-    },
-    {
-     "hex": "#262846",
-     "area": 7840
+     "pixels": 17687
     },
     {
      "hex": "#302b5d",
-     "area": 3136
+     "pixels": 2740
+    },
+    {
+     "hex": "#262846",
+     "pixels": 2712
+    },
+    {
+     "hex": "#202939",
+     "pixels": 2178
     }
    ],
    "why": {
-    "A": "곡선 0 · 라운드 0 · 블러 0 · 반투명 0",
-    "B": "램프 면적 81.1% · 밖 → #202243 17.5% / #1c253d 0.7% / #25244a 0.3% / #262846 0.2% / #302b5d 0.1%",
-    "C": "⚠ 축 꺼짐 — 눈금이 화면을 구별 못 함(자기 짝 찾기 0/6, 무작위 1/6 보다 낮음)",
-    "D": "선언 21 · 잰 것 21 · 없음 4 → 검증 보기 / 보여지는 나 / AI에 전달 / 미리보기",
-    "E": "없는 문장 0"
+    "A": "curves 0 · rounds 0 · blur 0 · alpha 0",
+    "B": "token pixels 40.8% (130573/319800) · off-ramp #202243 140156 / #1c253d 17687 / #302b5d 2740 / #262846 2712 / #202939 2178",
+    "C": "축 꺼짐 — 눈금이 화면을 구별 못 함(자기 짝 찾기 0/6, 무작위 1/6보다 낮음)",
+    "D": "declared 21 · measured 21 · exempt 0 · missing 21 → 문장 다듬기 / 내보내기 / 문장 다듬기 / 내보내기 / 문장 다듬기 / 내보내기 / 검증 보기 / Big Five · failures mutation-blocked 21",
+    "E": "declared 6 · measured 6 · exempt 0 · missing 0"
    }
   },
   {
@@ -409,9 +389,7 @@
    "D": 7.5,
    "E": 10,
    "total": 90.6,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [
     "아침 10분 글쓰기성장",
     "물 8잔 마시기건강",
@@ -439,16 +417,8 @@
    "D": 7.5,
    "E": 10,
    "total": 90.6,
-   "unmeasured": [
-    "C"
-   ],
-   "missD": [
-    "확인하기",
-    "읽어보기",
-    "인터뷰 하기",
-    "정리하기",
-    "검토하기"
-   ],
+   "unmeasured": ["C"],
+   "missD": ["확인하기", "읽어보기", "인터뷰 하기", "정리하기", "검토하기"],
    "missE": [],
    "offTop": [],
    "why": {
@@ -468,18 +438,9 @@
    "D": 10.9,
    "E": 7.1,
    "total": 91.3,
-   "unmeasured": [
-    "C"
-   ],
-   "missD": [
-    "보류",
-    "보류",
-    "보류"
-   ],
-   "missE": [
-    "기록에서모인연결제안이에요.무엇이맞는지당신이확인하세요.",
-    "검토할제안3개"
-   ],
+   "unmeasured": ["C"],
+   "missD": ["보류", "보류", "보류"],
+   "missE": ["기록에서모인연결제안이에요.무엇이맞는지당신이확인하세요.", "검토할제안3개"],
    "offTop": [],
    "why": {
     "A": "곡선 0 · 라운드 0 · 블러 0 · 반투명 0",
@@ -498,9 +459,7 @@
    "D": 8.3,
    "E": 10,
    "total": 91.4,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [
     "3",
     "4",
@@ -549,16 +508,8 @@
    "D": 8.2,
    "E": 10,
    "total": 91.5,
-   "unmeasured": [
-    "C"
-   ],
-   "missD": [
-    "배움",
-    "커리어 점검",
-    "진행 중",
-    "계획",
-    "완료"
-   ],
+   "unmeasured": ["C"],
+   "missD": ["배움", "커리어 점검", "진행 중", "계획", "완료"],
    "missE": [],
    "offTop": [
     {
@@ -587,15 +538,8 @@
    "D": 8.3,
    "E": 10,
    "total": 91.7,
-   "unmeasured": [
-    "C"
-   ],
-   "missD": [
-    "검색",
-    "다 읽었어요",
-    "읽는 중으로",
-    "읽는 중으로"
-   ],
+   "unmeasured": ["C"],
+   "missD": ["검색", "다 읽었어요", "읽는 중으로", "읽는 중으로"],
    "missE": [],
    "offTop": [],
    "why": {
@@ -610,37 +554,42 @@
    "id": "star",
    "route": "/star/career",
    "A": 30,
-   "B": 24.8,
+   "B": 21.5,
    "C": null,
-   "D": 10.7,
+   "D": 12.9,
    "E": 8.3,
-   "total": 92.3,
-   "unmeasured": [
-    "C"
-   ],
-   "missD": [
-    "채워 넣기",
-    "세컨비와 대화"
-   ],
-   "missE": [
-    "career"
-   ],
+   "total": 90.8,
+   "unmeasured": ["C"],
+   "missD": ["성과 입력"],
+   "missE": ["career"],
    "offTop": [
     {
      "hex": "#172a51",
-     "area": 25060
+     "pixels": 21722
     },
     {
-     "hex": "#1a2743",
-     "area": 60
+     "hex": "#1d222e",
+     "pixels": 1621
+    },
+    {
+     "hex": "#666f84",
+     "pixels": 1358
+    },
+    {
+     "hex": "#636b80",
+     "pixels": 1102
+    },
+    {
+     "hex": "#2f3543",
+     "pixels": 1006
     }
    ],
    "why": {
-    "A": "곡선 0 · 라운드 0 · 블러 0 · 반투명 0",
-    "B": "램프 면적 99.1% · 밖 → #172a51 0.9% / #1a2743 0.0%",
-    "C": "⚠ 축 꺼짐 — 눈금이 화면을 구별 못 함(자기 짝 찾기 0/6, 무작위 1/6 보다 낮음)",
-    "D": "선언 7 · 잰 것 7 · 없음 2 → 채워 넣기 / 세컨비와 대화",
-    "E": "없는 문장 1 → career"
+    "A": "curves 0 · rounds 0 · blur 0 · alpha 0",
+    "B": "token pixels 85.9% (274642/319800) · off-ramp #172a51 21722 / #1d222e 1621 / #666f84 1358 / #636b80 1102 / #2f3543 1006",
+    "C": "축 꺼짐 — 눈금이 화면을 구별 못 함(자기 짝 찾기 0/6, 무작위 1/6보다 낮음)",
+    "D": "declared 7 · measured 7 · exempt 0 · missing 1 → 성과 입력 · exact routes 6 · failures route-mismatch 1",
+    "E": "declared 6 · measured 6 · exempt 0 · missing 1 → career"
    }
   },
   {
@@ -652,15 +601,8 @@
    "D": 9,
    "E": 10,
    "total": 92.5,
-   "unmeasured": [
-    "C"
-   ],
-   "missD": [
-    "오늘 저녁 8:00",
-    "매일 23:30",
-    "내일 오전 9:00",
-    "6월 28일 10:00"
-   ],
+   "unmeasured": ["C"],
+   "missD": ["오늘 저녁 8:00", "매일 23:30", "내일 오전 9:00", "6월 28일 10:00"],
    "missE": [],
    "offTop": [],
    "why": {
@@ -680,17 +622,9 @@
    "D": 10.5,
    "E": 8.6,
    "total": 92.6,
-   "unmeasured": [
-    "C"
-   ],
-   "missD": [
-    "관계·휴식 기록 23건 근거",
-    "맞아요",
-    "조금 달라요"
-   ],
-   "missE": [
-    "숨은결(레이어B)·도메인행동을삼각측량해추정한제안이에요"
-   ],
+   "unmeasured": ["C"],
+   "missD": ["관계·휴식 기록 23건 근거", "맞아요", "조금 달라요"],
+   "missE": ["숨은결(레이어B)·도메인행동을삼각측량해추정한제안이에요"],
    "offTop": [],
    "why": {
     "A": "곡선 0 · 라운드 0 · 블러 0 · 반투명 0",
@@ -709,17 +643,9 @@
    "D": 12,
    "E": 7.1,
    "total": 92.7,
-   "unmeasured": [
-    "C"
-   ],
-   "missD": [
-    "채팅 문의",
-    "이메일 보내기"
-   ],
-   "missE": [
-    "지원·공지",
-    "2nd-Brain·버전0.9.2(rev2)"
-   ],
+   "unmeasured": ["C"],
+   "missD": ["채팅 문의", "이메일 보내기"],
+   "missE": ["지원·공지", "2nd-Brain·버전0.9.2(rev2)"],
    "offTop": [],
    "why": {
     "A": "곡선 0 · 라운드 0 · 블러 0 · 반투명 0",
@@ -738,14 +664,8 @@
    "D": 9.4,
    "E": 10,
    "total": 93,
-   "unmeasured": [
-    "C"
-   ],
-   "missD": [
-    "커리어 ↑ ›",
-    "루틴으로 담기",
-    "별 다시 살펴보기"
-   ],
+   "unmeasured": ["C"],
+   "missD": ["커리어 ↑ ›", "루틴으로 담기", "별 다시 살펴보기"],
    "missE": [],
    "offTop": [],
    "why": {
@@ -765,9 +685,7 @@
    "D": 10,
    "E": 10,
    "total": 93.2,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [
     "별바라기 시작",
     "북극성 시작",
@@ -797,13 +715,8 @@
    "D": 12.7,
    "E": 7.3,
    "total": 93.7,
-   "unmeasured": [
-    "C"
-   ],
-   "missD": [
-    "회수",
-    "회수"
-   ],
+   "unmeasured": ["C"],
+   "missD": ["회수", "회수"],
    "missE": [
     "나를아는사람에게일회용링크를보내요.세명이상답하면합산그림이보여지는나렌즈에나타나요.개별답변은볼수없어요.",
     "링크는1회용이고14일뒤만료돼요.",
@@ -827,14 +740,8 @@
    "D": 10,
    "E": 10,
    "total": 93.8,
-   "unmeasured": [
-    "C"
-   ],
-   "missD": [
-    "연결",
-    "연결됨",
-    "연결"
-   ],
+   "unmeasured": ["C"],
+   "missD": ["연결", "연결됨", "연결"],
    "missE": [],
    "offTop": [],
    "why": {
@@ -854,14 +761,9 @@
    "D": 15,
    "E": 7.1,
    "total": 93.9,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
-   "missE": [
-    "가벼운체크인",
-    "판단이아니라지금순간의작은신호만남겨요."
-   ],
+   "missE": ["가벼운체크인", "판단이아니라지금순간의작은신호만남겨요."],
    "offTop": [
     {
      "hex": "#0d142e",
@@ -897,14 +799,8 @@
    "D": 11.8,
    "E": 10,
    "total": 95.8,
-   "unmeasured": [
-    "C"
-   ],
-   "missD": [
-    "자유 양식",
-    "W4H1 양식",
-    "날짜를 골라요"
-   ],
+   "unmeasured": ["C"],
+   "missD": ["자유 양식", "W4H1 양식", "날짜를 골라요"],
    "missE": [],
    "offTop": [
     {
@@ -929,9 +825,7 @@
    "D": 15,
    "E": 10,
    "total": 96.8,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
    "missE": [],
    "offTop": [
@@ -973,9 +867,7 @@
    "D": 15,
    "E": 10,
    "total": 97.6,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
    "missE": [],
    "offTop": [
@@ -1013,13 +905,8 @@
    "D": 13.5,
    "E": 10,
    "total": 97.9,
-   "unmeasured": [
-    "C"
-   ],
-   "missD": [
-    "날짜를 골라요",
-    "날짜를 골라요"
-   ],
+   "unmeasured": ["C"],
+   "missD": ["날짜를 골라요", "날짜를 골라요"],
    "missE": [],
    "offTop": [
     {
@@ -1044,13 +931,9 @@
    "D": 15,
    "E": 8.6,
    "total": 98.2,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
-   "missE": [
-    "사용매뉴얼"
-   ],
+   "missE": ["사용매뉴얼"],
    "offTop": [],
    "why": {
     "A": "곡선 0 · 라운드 0 · 블러 0 · 반투명 0",
@@ -1069,13 +952,9 @@
    "D": 15,
    "E": 8.6,
    "total": 98.2,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
-   "missE": [
-    "다른곳에흩어진나를가져와요.가져온것도으로만별에반영돼요."
-   ],
+   "missE": ["다른곳에흩어진나를가져와요.가져온것도으로만별에반영돼요."],
    "offTop": [],
    "why": {
     "A": "곡선 0 · 라운드 0 · 블러 0 · 반투명 0",
@@ -1094,13 +973,9 @@
    "D": 15,
    "E": 8.6,
    "total": 98.2,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
-   "missE": [
-    "삭제와내보내기는언제든직접시작할수있어요."
-   ],
+   "missE": ["삭제와내보내기는언제든직접시작할수있어요."],
    "offTop": [],
    "why": {
     "A": "곡선 0 · 라운드 0 · 블러 0 · 반투명 0",
@@ -1119,13 +994,9 @@
    "D": 15,
    "E": 8.6,
    "total": 98.2,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
-   "missE": [
-    "필요한것만켜세요.끈권한의데이터는절대수집하지않아요."
-   ],
+   "missE": ["필요한것만켜세요.끈권한의데이터는절대수집하지않아요."],
    "offTop": [],
    "why": {
     "A": "곡선 0 · 라운드 0 · 블러 0 · 반투명 0",
@@ -1144,13 +1015,9 @@
    "D": 15,
    "E": 8.6,
    "total": 98.2,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
-   "missE": [
-    "한가지에만집중하는시간이에요.끝나면에한걸음."
-   ],
+   "missE": ["한가지에만집중하는시간이에요.끝나면에한걸음."],
    "offTop": [],
    "why": {
     "A": "곡선 0 · 라운드 0 · 블러 0 · 반투명 0",
@@ -1169,13 +1036,9 @@
    "D": 15,
    "E": 8.8,
    "total": 98.3,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
-   "missE": [
-    "일곱별을종합해세컨비가제안한문장이에요.당신의언어로다듬어보세요."
-   ],
+   "missE": ["일곱별을종합해세컨비가제안한문장이에요.당신의언어로다듬어보세요."],
    "offTop": [
     {
      "hex": "#293e6a",
@@ -1199,13 +1062,9 @@
    "D": 15,
    "E": 8.8,
    "total": 98.4,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
-   "missE": [
-    "1080×1080정사각카드로내보내요.,보여줄한줄만담겨요."
-   ],
+   "missE": ["1080×1080정사각카드로내보내요.,보여줄한줄만담겨요."],
    "offTop": [],
    "why": {
     "A": "곡선 0 · 라운드 0 · 블러 0 · 반투명 0",
@@ -1224,13 +1083,9 @@
    "D": 15,
    "E": 8.8,
    "total": 98.4,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
-   "missE": [
-    "오늘남은카드:4"
-   ],
+   "missE": ["오늘남은카드:4"],
    "offTop": [],
    "why": {
     "A": "곡선 0 · 라운드 0 · 블러 0 · 반투명 0",
@@ -1249,9 +1104,7 @@
    "D": 15,
    "E": 10,
    "total": 99.5,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
    "missE": [],
    "offTop": [
@@ -1275,65 +1128,85 @@
   {
    "id": "home",
    "route": "/",
-   "A": 30,
-   "B": 24.7,
+   "A": 24,
+   "B": 9.9,
    "C": null,
-   "D": 15,
+   "D": 12.7,
    "E": 10,
-   "total": 99.6,
-   "unmeasured": [
-    "C"
-   ],
-   "missD": [],
+   "total": 70.7,
+   "unmeasured": ["C"],
+   "missD": ["북극성", "별자리"],
    "missE": [],
    "offTop": [
     {
-     "hex": "#091427",
-     "area": 23872.0003623832
+     "hex": "#05060b",
+     "pixels": 86760
     },
     {
-     "hex": "#11192c",
-     "area": 4800
+     "hex": "#090c15",
+     "pixels": 23042
     },
     {
-     "hex": "#254891",
-     "area": 1600
+     "hex": "#06080e",
+     "pixels": 6223
+    },
+    {
+     "hex": "#080b14",
+     "pixels": 4346
+    },
+    {
+     "hex": "#05080e",
+     "pixels": 3702
     }
    ],
    "why": {
-    "A": "곡선 0 · 라운드 0 · 블러 0 · 반투명 0",
-    "B": "램프 면적 98.8% · 밖 → #091427 0.9% / #11192c 0.2% / #254891 0.1%",
-    "C": "⚠ 축 꺼짐 — 눈금이 화면을 구별 못 함(자기 짝 찾기 0/6, 무작위 1/6 보다 낮음)",
-    "D": "선언 13 · 잰 것 13 · 없음 0",
-    "E": "없는 문장 0"
+    "A": "curves 0 · rounds 0 · blur 0 · alpha 1",
+    "B": "token pixels 39.6% (126487/319800) · off-ramp #05060b 86760 / #090c15 23042 / #06080e 6223 / #080b14 4346 / #05080e 3702",
+    "C": "축 꺼짐 — 눈금이 화면을 구별 못 함(자기 짝 찾기 0/6, 무작위 1/6보다 낮음)",
+    "D": "declared 13 · measured 13 · exempt 0 · missing 2 → 북극성 / 별자리 · exact routes 4 · exact actions 7 · failures mutation-blocked 1 / effect-mismatch 1",
+    "E": "declared 5 · measured 5 · exempt 0 · missing 0"
    }
   },
   {
    "id": "chat",
    "route": "/secondb",
    "A": 30,
-   "B": 24.8,
+   "B": 22.1,
    "C": null,
-   "D": 15,
+   "D": 7.5,
    "E": 10,
-   "total": 99.8,
-   "unmeasured": [
-    "C"
-   ],
-   "missD": [],
+   "total": 87,
+   "unmeasured": ["C"],
+   "missD": ["2nd-B", "Meta-B", "Twi-B", "세컨비"],
    "missE": [],
    "offTop": [
     {
      "hex": "#23223c",
-     "area": 17495.5
+     "pixels": 15171
+    },
+    {
+     "hex": "#202939",
+     "pixels": 2178
+    },
+    {
+     "hex": "#192136",
+     "pixels": 610
+    },
+    {
+     "hex": "#16172c",
+     "pixels": 491
+    },
+    {
+     "hex": "#17182e",
+     "pixels": 390
     }
    ],
    "why": {
-    "A": "곡선 0 · 라운드 0 · 블러 0 · 반투명 0",
-    "B": "램프 면적 99.3% · 밖 → #23223c 0.7%",
-    "C": "⚠ 축 꺼짐 — 눈금이 화면을 구별 못 함(자기 짝 찾기 0/6, 무작위 1/6 보다 낮음)",
-    "D": "선언 9 · 잰 것 8 · 면제 1 · 없음 0",
-    "E": "없는 문장 0"
+    "A": "curves 0 · rounds 0 · blur 0 · alpha 0",
+    "B": "token pixels 88.3% (282432/319800) · off-ramp #23223c 15171 / #202939 2178 / #192136 610 / #16172c 491 / #17182e 390",
+    "C": "축 꺼짐 — 눈금이 화면을 구별 못 함(자기 짝 찾기 0/6, 무작위 1/6보다 낮음)",
+    "D": "declared 9 · measured 8 · exempt 1 · missing 4 → 2nd-B / Meta-B / Twi-B / 세컨비 · exact routes 4 · failures effect-mismatch 2 / painted-label 2",
+    "E": "declared 5 · measured 5 · exempt 0 · missing 0"
    }
   },
   {
@@ -1345,9 +1218,7 @@
    "D": 15,
    "E": 10,
    "total": 99.9,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
    "missE": [],
    "offTop": [
@@ -1385,9 +1256,7 @@
    "D": 15,
    "E": 10,
    "total": 99.9,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
    "missE": [],
    "offTop": [
@@ -1417,9 +1286,7 @@
    "D": 15,
    "E": 10,
    "total": 99.9,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
    "missE": [],
    "offTop": [
@@ -1444,92 +1311,168 @@
    "id": "me-star",
    "route": "/me/school",
    "A": 30,
-   "B": 25,
+   "B": 23.9,
    "C": null,
-   "D": 15,
+   "D": 0,
    "E": 10,
-   "total": 100,
-   "unmeasured": [
-    "C"
-   ],
-   "missD": [],
+   "total": 79.9,
+   "unmeasured": ["C"],
+   "missD": ["이어가기", "별자리", "담기", "세컨비", "위키", "설정"],
    "missE": [],
-   "offTop": [],
+   "offTop": [
+    {
+     "hex": "#202939",
+     "pixels": 2178
+    },
+    {
+     "hex": "#1d222f",
+     "pixels": 694
+    },
+    {
+     "hex": "#16172c",
+     "pixels": 491
+    },
+    {
+     "hex": "#17182e",
+     "pixels": 390
+    },
+    {
+     "hex": "#16172d",
+     "pixels": 325
+    }
+   ],
    "why": {
-    "A": "곡선 0 · 라운드 0 · 블러 0 · 반투명 0",
-    "B": "램프 면적 100.0%",
-    "C": "⚠ 축 꺼짐 — 눈금이 화면을 구별 못 함(자기 짝 찾기 0/6, 무작위 1/6 보다 낮음)",
-    "D": "선언 6 · 잰 것 6 · 없음 0",
-    "E": "없는 문장 0"
+    "A": "curves 0 · rounds 0 · blur 0 · alpha 0",
+    "B": "token pixels 95.6% (305638/319800) · off-ramp #202939 2178 / #1d222f 694 / #16172c 491 / #17182e 390 / #16172d 325",
+    "C": "축 꺼짐 — 눈금이 화면을 구별 못 함(자기 짝 찾기 0/6, 무작위 1/6보다 낮음)",
+    "D": "declared 6 · measured 6 · exempt 0 · missing 6 → 이어가기 / 별자리 / 담기 / 세컨비 / 위키 / 설정 · failures source-health 6",
+    "E": "declared 8 · measured 8 · exempt 0 · missing 0"
    }
   },
   {
    "id": "interview",
    "route": "/interview",
    "A": 30,
-   "B": 25,
+   "B": 23.7,
    "C": null,
-   "D": 15,
+   "D": 12.5,
    "E": 10,
-   "total": 100,
-   "unmeasured": [
-    "C"
-   ],
-   "missD": [],
+   "total": 95.3,
+   "unmeasured": ["C"],
+   "missD": ["모르겠어요"],
    "missE": [],
-   "offTop": [],
+   "offTop": [
+    {
+     "hex": "#202939",
+     "pixels": 2178
+    },
+    {
+     "hex": "#1d222f",
+     "pixels": 1512
+    },
+    {
+     "hex": "#5b6068",
+     "pixels": 1408
+    },
+    {
+     "hex": "#757e96",
+     "pixels": 734
+    },
+    {
+     "hex": "#d1d5dd",
+     "pixels": 642
+    }
+   ],
    "why": {
-    "A": "곡선 0 · 라운드 0 · 블러 0 · 반투명 0",
-    "B": "램프 면적 100.0%",
-    "C": "⚠ 축 꺼짐 — 눈금이 화면을 구별 못 함(자기 짝 찾기 0/6, 무작위 1/6 보다 낮음)",
-    "D": "선언 8 · 잰 것 6 · 면제 2 · 없음 0",
-    "E": "없는 문장 0"
+    "A": "curves 0 · rounds 0 · blur 0 · alpha 0",
+    "B": "token pixels 95% (303711/319800) · off-ramp #202939 2178 / #1d222f 1512 / #5b6068 1408 / #757e96 734 / #d1d5dd 642",
+    "C": "축 꺼짐 — 눈금이 화면을 구별 못 함(자기 짝 찾기 0/6, 무작위 1/6보다 낮음)",
+    "D": "declared 8 · measured 5 · exempt 2 · missing 1 → 모르겠어요 · exact routes 5 · unsafe actions 1 · manual review unsafe-actions",
+    "E": "declared 6 · measured 6 · exempt 0 · missing 0"
    }
   },
   {
    "id": "trend",
    "route": "/brightness",
    "A": 30,
-   "B": 25,
+   "B": 23.5,
    "C": null,
    "D": 15,
    "E": 10,
-   "total": 100,
-   "unmeasured": [
-    "C"
-   ],
+   "total": 98.1,
+   "unmeasured": ["C"],
    "missD": [],
    "missE": [],
-   "offTop": [],
+   "offTop": [
+    {
+     "hex": "#202939",
+     "pixels": 2178
+    },
+    {
+     "hex": "#e8f7ff",
+     "pixels": 493
+    },
+    {
+     "hex": "#16172c",
+     "pixels": 491
+    },
+    {
+     "hex": "#83bcd5",
+     "pixels": 418
+    },
+    {
+     "hex": "#17182e",
+     "pixels": 390
+    }
+   ],
    "why": {
-    "A": "곡선 0 · 라운드 0 · 블러 0 · 반투명 0",
-    "B": "램프 면적 100.0%",
-    "C": "⚠ 축 꺼짐 — 눈금이 화면을 구별 못 함(자기 짝 찾기 0/6, 무작위 1/6 보다 낮음)",
-    "D": "선언 5 · 잰 것 5 · 없음 0",
-    "E": "없는 문장 0"
+    "A": "curves 0 · rounds 0 · blur 0 · alpha 0",
+    "B": "token pixels 93.9% (300205/319800) · off-ramp #202939 2178 / #e8f7ff 493 / #16172c 491 / #83bcd5 418 / #17182e 390",
+    "C": "축 꺼짐 — 눈금이 화면을 구별 못 함(자기 짝 찾기 0/6, 무작위 1/6보다 낮음)",
+    "D": "declared 5 · measured 5 · exempt 0 · missing 0 · exact routes 5",
+    "E": "declared 8 · measured 8 · exempt 0 · missing 0"
    }
   },
   {
    "id": "review",
    "route": "/review",
    "A": 30,
-   "B": 25,
+   "B": 23.2,
    "C": null,
-   "D": 15,
+   "D": 0,
    "E": 10,
-   "total": 100,
-   "unmeasured": [
-    "C"
-   ],
-   "missD": [],
+   "total": 78.9,
+   "unmeasured": ["C"],
+   "missD": ["학창시절", "지금", "별자리", "담기", "세컨비", "위키", "설정"],
    "missE": [],
-   "offTop": [],
+   "offTop": [
+    {
+     "hex": "#202939",
+     "pixels": 2178
+    },
+    {
+     "hex": "#16172c",
+     "pixels": 491
+    },
+    {
+     "hex": "#17182e",
+     "pixels": 390
+    },
+    {
+     "hex": "#16172d",
+     "pixels": 325
+    },
+    {
+     "hex": "#15162b",
+     "pixels": 321
+    }
+   ],
    "why": {
-    "A": "곡선 0 · 라운드 0 · 블러 0 · 반투명 0",
-    "B": "램프 면적 100.0%",
-    "C": "⚠ 축 꺼짐 — 눈금이 화면을 구별 못 함(자기 짝 찾기 0/6, 무작위 1/6 보다 낮음)",
-    "D": "선언 7 · 잰 것 7 · 없음 0",
-    "E": "없는 문장 0"
+    "A": "curves 0 · rounds 0 · blur 0 · alpha 0",
+    "B": "token pixels 92.6% (296229/319800) · off-ramp #202939 2178 / #16172c 491 / #17182e 390 / #16172d 325 / #15162b 321",
+    "C": "축 꺼짐 — 눈금이 화면을 구별 못 함(자기 짝 찾기 0/6, 무작위 1/6보다 낮음)",
+    "D": "declared 7 · measured 5 · exempt 0 · missing 7 → 학창시절 / 지금 / 별자리 / 담기 / 세컨비 / 위키 / 설정 · unsafe actions 2 · failures mutation-blocked 5 · manual review unsafe-actions",
+    "E": "declared 13 · measured 13 · exempt 0 · missing 0"
    }
   },
   {
@@ -1541,9 +1484,7 @@
    "D": 15,
    "E": 10,
    "total": 100,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
    "missE": [],
    "offTop": [],
@@ -1564,9 +1505,7 @@
    "D": 15,
    "E": 10,
    "total": 100,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
    "missE": [],
    "offTop": [
@@ -1592,9 +1531,7 @@
    "D": 15,
    "E": 10,
    "total": 100,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
    "missE": [],
    "offTop": [],
@@ -1615,9 +1552,7 @@
    "D": 15,
    "E": 10,
    "total": 100,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
    "missE": [],
    "offTop": [],
@@ -1638,9 +1573,7 @@
    "D": 15,
    "E": 10,
    "total": 100,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
    "missE": [],
    "offTop": [],
@@ -1661,9 +1594,7 @@
    "D": 15,
    "E": 10,
    "total": 100,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
    "missE": [],
    "offTop": [
@@ -1701,9 +1632,7 @@
    "D": 15,
    "E": 10,
    "total": 100,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
    "missE": [],
    "offTop": [
@@ -1729,9 +1658,7 @@
    "D": 15,
    "E": 10,
    "total": 100,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
    "missE": [],
    "offTop": [],
@@ -1752,9 +1679,7 @@
    "D": 15,
    "E": 10,
    "total": 100,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
    "missE": [],
    "offTop": [],
@@ -1775,9 +1700,7 @@
    "D": 15,
    "E": 10,
    "total": 100,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
    "missE": [],
    "offTop": [],
@@ -1798,9 +1721,7 @@
    "D": 15,
    "E": 10,
    "total": 100,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
    "missE": [],
    "offTop": [],
@@ -1821,9 +1742,7 @@
    "D": 15,
    "E": 10,
    "total": 100,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
    "missE": [],
    "offTop": [
@@ -1849,9 +1768,7 @@
    "D": 15,
    "E": 10,
    "total": 100,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
    "missE": [],
    "offTop": [
@@ -1877,9 +1794,7 @@
    "D": 15,
    "E": 10,
    "total": 100,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
    "missE": [],
    "offTop": [
@@ -1905,9 +1820,7 @@
    "D": 15,
    "E": 10,
    "total": 100,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
    "missE": [],
    "offTop": [],
@@ -1928,9 +1841,7 @@
    "D": 15,
    "E": 10,
    "total": 100,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
    "missE": [],
    "offTop": [],
@@ -1951,9 +1862,7 @@
    "D": 15,
    "E": 10,
    "total": 100,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
    "missE": [],
    "offTop": [],
@@ -1974,9 +1883,7 @@
    "D": 15,
    "E": 10,
    "total": 100,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
    "missE": [],
    "offTop": [],
@@ -1997,9 +1904,7 @@
    "D": 15,
    "E": 10,
    "total": 100,
-   "unmeasured": [
-    "C"
-   ],
+   "unmeasured": ["C"],
    "missD": [],
    "missE": [],
    "offTop": [

@@ -339,7 +339,13 @@ test('rendered audits exclude transparent, offscreen, and fully clipped DOM', as
   const indentedText = makeElement(
     'indented-hidden',
     rect(120, 375, 120, 20),
-    { ...visibleStyle, overflow: 'hidden', overflowX: 'hidden', overflowY: 'hidden', textIndent: '-9999px' },
+    {
+      ...visibleStyle,
+      overflow: 'hidden',
+      overflowX: 'hidden',
+      overflowY: 'hidden',
+      textIndent: '-9999px',
+    },
     root,
   );
   indentedText.childNodes[0].getClientRects = () => [rect(-9879, 375, 120, 20)];
@@ -360,12 +366,7 @@ test('rendered audits exclude transparent, offscreen, and fully clipped DOM', as
     { ...visibleStyle, clipPath: 'inset(50%)' },
     root,
   );
-  const clipPathHidden = makeElement(
-    'CHEAT',
-    rect(10, 380, 100, 20),
-    visibleStyle,
-    clipPathParent,
-  );
+  const clipPathHidden = makeElement('CHEAT', rect(10, 380, 100, 20), visibleStyle, clipPathParent);
   clipPathHidden.tagName = 'A';
   clipPathHidden.matches = (selector) => selector.includes('a[href]');
   clipPathHidden.getAttribute = (name) => (name === 'href' ? '/growth' : null);
@@ -391,12 +392,7 @@ test('rendered audits exclude transparent, offscreen, and fully clipped DOM', as
     { clipPath: 'polygon(0 0, 0 0, 0 0)' },
     { maskImage: 'linear-gradient(transparent, transparent)' },
   ].map((paintStyle, index) => {
-    const parent = makeElement(
-      '',
-      rect(0, 0, 200, 100),
-      { ...visibleStyle, ...paintStyle },
-      root,
-    );
+    const parent = makeElement('', rect(0, 0, 200, 100), { ...visibleStyle, ...paintStyle }, root);
     const child = makeElement('CHEAT', rect(10, 460 + index * 40, 100, 20), visibleStyle, parent);
     child.tagName = 'A';
     child.matches = (selector) => selector.includes('a[href]');
@@ -539,10 +535,7 @@ test('D axis accepts only visibly painted descendant text, never aria-only label
     (element) => element.style,
     { width: 390, height: 820 },
   );
-  assert.equal(
-    scoreNavigationLabels(['설정'], inspected.interactive).score,
-    15,
-  );
+  assert.equal(scoreNavigationLabels(['설정'], inspected.interactive).score, 15);
   assert.deepEqual(
     inspected.interactive.map((entry) => entry.label),
     ['', '', '설정'],
@@ -723,7 +716,7 @@ test('overlay dismissal polls for a late allowlisted button within a bounded pas
   assert.ok(waits.length <= 4, `overlay polling exceeded its bounded budget: ${waits.length}`);
 });
 
-test('overlay dismissal keeps its four-label allowlist and three-pass click ceiling', async () => {
+test('overlay dismissal keeps its non-mutating allowlist and three-pass click ceiling', async () => {
   const { dismissCaptureOverlays } = await contract();
   const allowlist = ['다시 보지 않기', '건너뛰기', '알겠습니다', '오늘은 그만 보겠습니다'];
   const queried = [];
@@ -771,6 +764,62 @@ test('overlay dismissal keeps its four-label allowlist and three-pass click ceil
   await dismissCaptureOverlays(page);
   assert.deepEqual(clicks, ['건너뛰기', '건너뛰기', '건너뛰기']);
   assert.ok(queried.every((label) => allowlist.includes(label)));
+});
+
+test('notice dismissal isolates its confirm fallback to a notice-marked modal', async () => {
+  const { dismissCaptureOverlays, dismissNoticeOverlay } = await contract();
+  let dismissed = false;
+  let confirmed = false;
+  const overlay = {
+    async count() {
+      return dismissed ? 0 : 1;
+    },
+    nth() {
+      return this;
+    },
+    getByRole(role, { name }) {
+      assert.equal(role, 'button');
+      return {
+        async count() {
+          return ['공지 닫기', '확인'].includes(name) && !dismissed ? 1 : 0;
+        },
+        first() {
+          return {
+            async click() {
+              if (name === '공지 닫기') throw new Error('scrim centre is covered by the card');
+              if (name === '확인') {
+                dismissed = true;
+                confirmed = true;
+              }
+            },
+          };
+        },
+      };
+    },
+    getByText() {
+      return {
+        async count() {
+          return 0;
+        },
+      };
+    },
+  };
+  const page = {
+    locator() {
+      return overlay;
+    },
+    async waitForTimeout() {},
+  };
+
+  await dismissNoticeOverlay(page);
+  assert.equal(dismissed, true);
+  assert.equal(confirmed, true);
+
+  dismissed = false;
+  confirmed = false;
+  await dismissCaptureOverlays(page);
+  assert.equal(dismissed, false);
+  assert.equal(confirmed, false);
 });
 
 test('overlay dismissal ignores allowlisted product actions outside modal ancestry', async () => {
@@ -1218,7 +1267,7 @@ test('final URL validation is exact for origin, canonical path, query, and hash'
 });
 
 test('D axis scores only visible actionable labels and removes only exempted items', async () => {
-  const { scoreNavigationLabels } = await contract();
+  const { formatNavigationWhy, scoreNavigationLabels } = await contract();
   const declared = ['설정', '계정 설정…', '새 대화'];
   const result = scoreNavigationLabels(
     declared,
@@ -1272,6 +1321,293 @@ test('D axis scores only visible actionable labels and removes only exempted ite
   assert.equal(safeTarget.score, 15);
   assert.equal(safeTarget.evidence.safeHrefs, 1);
   assert.equal(safeTarget.requiresManualReview, false);
+  assert.equal(
+    formatNavigationWhy(safeTarget),
+    'declared 1 · measured 1 · exempt 0 · missing 0 · evidence safe-href 1 / actionable-only 0 / unsafe-target 0',
+  );
+});
+
+test('D v2 validates exact route and action contracts without clicking unsafe items', async () => {
+  const { formatNavigationWhy, normalizeNavigationContract, scoreExactNavigationResults } =
+    await contract();
+  const nav = normalizeNavigationContract(
+    {
+      version: 2,
+      items: [
+        { label: '설정', kind: 'route', to: '/settings' },
+        {
+          label: '프로필',
+          kind: 'action',
+          effect: { type: 'visible', role: 'button', name: '여행하기' },
+        },
+        {
+          label: '지금',
+          kind: 'action',
+          safe: false,
+          why: '제안 생성은 LLM 호출과 사용자별 근거가 필요함',
+        },
+      ],
+      unresolved: [
+        { label: '새 대화', why: '현재 앱에서 대응되는 독립 대화 action을 확인할 수 없음' },
+      ],
+    },
+    'http://localhost:8977',
+  );
+
+  assert.equal(nav.items.length, 3);
+  assert.equal(nav.items[0].occurrence, 1);
+  assert.equal(nav.items[0].to, '/settings');
+  assert.equal(nav.items[1].safe, true);
+  assert.equal(nav.items[2].safe, false);
+  assert.equal(nav.unresolved.length, 1);
+
+  const result = scoreExactNavigationResults(nav, [
+    { index: 0, passed: true, evidence: 'exact-route' },
+    { index: 1, passed: true, evidence: 'visible-effect' },
+  ]);
+  assert.equal(result.score, 7.5);
+  assert.equal(result.matched, 2);
+  assert.equal(result.declared, 4);
+  assert.equal(result.measured, 2);
+  assert.equal(result.requiresManualReview, true);
+  assert.deepEqual(result.manualReviewReasons, ['unsafe-actions', 'unresolved-items']);
+  assert.deepEqual(result.missing, ['지금', '새 대화']);
+  assert.deepEqual(result.evidence, {
+    exactRoutes: 1,
+    exactActions: 1,
+    unsafeActions: 1,
+    unresolved: 1,
+  });
+  const explanation = formatNavigationWhy(result);
+  assert.equal(
+    explanation,
+    'declared 4 · measured 2 · exempt 0 · missing 2 → 지금 / 새 대화 · exact routes 1 · exact actions 1 · unsafe actions 1 · unresolved 1 · manual review unsafe-actions / unresolved-items',
+  );
+  assert.doesNotMatch(explanation, /undefined/);
+
+  const failed = scoreExactNavigationResults(nav, [
+    { index: 0, passed: false, failure: 'mutation-blocked' },
+    { index: 1, passed: false, failure: 'effect-mismatch' },
+  ]);
+  const failedExplanation = formatNavigationWhy(failed);
+  assert.equal(
+    failedExplanation,
+    'declared 4 · measured 2 · exempt 0 · missing 4 → 설정 / 프로필 / 지금 / 새 대화 · unsafe actions 1 · unresolved 1 · failures mutation-blocked 1 / effect-mismatch 1 · manual review unsafe-actions / unresolved-items',
+  );
+  assert.doesNotMatch(failedExplanation, /undefined/);
+});
+
+test('D v2 schema is fail-closed for fuzzy, duplicate, unsafe, and incomplete declarations', async () => {
+  const { normalizeNavigationContract } = await contract();
+  const baseUrl = 'http://localhost:8977';
+  const rejects = [
+    { version: 2, items: [], unresolved: [] },
+    { version: 2, items: [{ label: '설정', kind: 'route', to: 'https://example.test/settings' }] },
+    { version: 2, items: [{ label: '설정', kind: 'route' }] },
+    { version: 2, items: [{ label: '설정 안내', kind: 'action' }] },
+    { version: 2, items: [{ label: '지금', kind: 'action', safe: false }] },
+    {
+      version: 2,
+      items: [
+        {
+          label: '지금',
+          kind: 'action',
+          safe: 'false',
+          effect: { type: 'selected' },
+        },
+      ],
+    },
+    {
+      version: 2,
+      items: [
+        {
+          label: '지금',
+          kind: 'action',
+          safe: null,
+          effect: { type: 'selected' },
+        },
+      ],
+    },
+    {
+      version: 2,
+      items: [
+        {
+          label: '지금',
+          kind: 'action',
+          safe: 0,
+          effect: { type: 'selected' },
+        },
+      ],
+    },
+    {
+      version: 2,
+      items: [
+        {
+          label: '프로필',
+          kind: 'action',
+          effect: { type: 'visible', name: '여행하기', value: true },
+        },
+      ],
+    },
+    {
+      version: 2,
+      items: [
+        { label: '설정', kind: 'route', to: '/settings' },
+        { label: '설정', kind: 'route', to: '/settings' },
+      ],
+    },
+    { version: 2, items: [], unresolved: [{ label: '새 대화' }] },
+    {
+      version: 2,
+      items: [{ label: '설정', kind: 'route', to: '/settings' }],
+      unresolved: [{ label: '설정', why: '중복 선언' }],
+    },
+  ];
+  for (const declaration of rejects) {
+    assert.throws(() => normalizeNavigationContract(declaration, baseUrl), /navigation contract/i);
+  }
+
+  const duplicates = normalizeNavigationContract(
+    {
+      version: 2,
+      items: [
+        { label: '문장 다듬기', occurrence: 1, kind: 'route', to: '/northstar' },
+        { label: '문장 다듬기', occurrence: 2, kind: 'route', to: '/northstar' },
+      ],
+      unresolved: [],
+    },
+    baseUrl,
+  );
+  assert.deepEqual(
+    duplicates.items.map((item) => item.occurrence),
+    [1, 2],
+  );
+});
+
+test('D v2 runner probes each safe item once and never invokes an unsafe action', async () => {
+  const { normalizeNavigationContract, runExactNavigationChecks } = await contract();
+  const nav = normalizeNavigationContract(
+    {
+      version: 2,
+      items: [
+        {
+          label: '위키',
+          kind: 'route',
+          to: '/records',
+          locator: { strategy: 'role', role: 'tab', name: '위키' },
+        },
+        { label: '프로필', kind: 'action', effect: { type: 'selected' } },
+        { label: '지금', kind: 'action', safe: false, why: 'LLM 제안 생성은 자동 클릭하지 않음' },
+      ],
+      unresolved: [],
+    },
+    'http://localhost:8977',
+  );
+  const calls = [];
+  const results = await runExactNavigationChecks(nav, async (item, index) => {
+    calls.push({ label: item.label, index });
+    if (index === 1) throw new Error('raw browser detail must not escape');
+    return { passed: true, evidence: 'exact-route' };
+  });
+
+  assert.deepEqual(calls, [
+    { label: '위키', index: 0 },
+    { label: '프로필', index: 1 },
+  ]);
+  assert.deepEqual(results, [
+    { index: 0, passed: true, evidence: 'exact-route' },
+    { index: 1, passed: false, evidence: null, failure: 'probe-failed' },
+  ]);
+  assert.doesNotMatch(JSON.stringify(results), /raw browser detail/);
+});
+
+test('exact role navigation target must contain its painted label', async () => {
+  const { locateExactNavigationTarget } = await contract();
+  const item = {
+    label: '위키',
+    occurrence: 1,
+    locator: { strategy: 'role', role: 'tab', name: '위키' },
+  };
+  const makeCollection = (entries) => ({
+    async count() {
+      return entries.length;
+    },
+    nth(index) {
+      return entries[index];
+    },
+  });
+  const visibleText = {
+    async isVisible() {
+      return true;
+    },
+    async elementHandle() {
+      return { async dispose() {} };
+    },
+  };
+  const makeTarget = (containsPainted) => ({
+    async isVisible() {
+      return true;
+    },
+    async evaluate(callback, paintedHandle) {
+      assert.equal(typeof callback, 'function');
+      assert.equal(typeof paintedHandle.dispose, 'function');
+      return containsPainted;
+    },
+  });
+  const inside = makeTarget(true);
+  const outside = makeTarget(false);
+  const page = (target) => ({
+    getByRole(role, { name, exact }) {
+      assert.equal(role, 'tab');
+      assert.equal(name, '위키');
+      assert.equal(exact, true);
+      return makeCollection([target]);
+    },
+    getByText(label, { exact }) {
+      assert.equal(label, '위키');
+      assert.equal(exact, true);
+      return makeCollection([visibleText]);
+    },
+  });
+
+  assert.equal(await locateExactNavigationTarget(page(inside), item), inside);
+  assert.equal(await locateExactNavigationTarget(page(outside), item), null);
+});
+
+test('every Stage 1 screen requires a valid v2 navigation contract', async () => {
+  const { validateStage1NavigationContracts } = await contract();
+  const valid = {
+    home: {
+      version: 2,
+      items: [{ label: '설정', kind: 'route', to: '/settings' }],
+      unresolved: [],
+    },
+    chat: {
+      version: 2,
+      items: [{ label: '세컨비', kind: 'action', effect: { type: 'selected' } }],
+      unresolved: [],
+    },
+  };
+  assert.equal(
+    validateStage1NavigationContracts(['home', 'chat'], valid, 'http://localhost:8977'),
+    true,
+  );
+  assert.equal(
+    validateStage1NavigationContracts(
+      ['home', 'chat'],
+      { ...valid, chat: ['세컨비'] },
+      'http://localhost:8977',
+    ),
+    false,
+  );
+  assert.equal(
+    validateStage1NavigationContracts(
+      ['home', 'chat'],
+      { home: valid.home },
+      'http://localhost:8977',
+    ),
+    false,
+  );
 });
 
 test('C stays unmeasured while totals renormalize and unexpected missing axes fail the gate', async () => {
@@ -1362,6 +1698,107 @@ test('capture health emits only safe enum codes and never raw error data', async
   ]);
   assert.equal(health.failureCodes.length, 4);
   assert.equal(JSON.stringify(health).includes('must-not-survive'), false);
+});
+
+test('pre-measurement notice dismissal correlates one exact idempotent read conflict', async () => {
+  const {
+    captureSetupFailureCodes,
+    createShotHealth,
+    recordShotConsole,
+    recordShotFailure,
+    recordShotResponse,
+  } = await contract();
+  const message = (url) => ({
+    type: () => 'error',
+    location: () => ({ url }),
+  });
+  const health = createShotHealth({ noticeReadOrigin: 'https://example.supabase.co' });
+  recordShotConsole(health, message('https://example.supabase.co/rest/v1/user_notice_reads'));
+  recordShotResponse(
+    health,
+    'http://localhost:8977',
+    'https://example.supabase.co/rest/v1/user_notice_reads',
+    409,
+    'POST',
+  );
+  assert.deepEqual(captureSetupFailureCodes('http://localhost:8977', health), []);
+
+  recordShotConsole(health, message('https://example.supabase.co/rest/v1/other_table'));
+  assert.deepEqual(captureSetupFailureCodes('http://localhost:8977', health), ['console-error']);
+
+  const wrongOrigin = createShotHealth({ noticeReadOrigin: 'https://expected.supabase.co' });
+  recordShotConsole(wrongOrigin, message('https://example.supabase.co/rest/v1/user_notice_reads'));
+  recordShotResponse(
+    wrongOrigin,
+    'http://localhost:8977',
+    'https://example.supabase.co/rest/v1/user_notice_reads',
+    409,
+    'POST',
+  );
+  assert.deepEqual(captureSetupFailureCodes('http://localhost:8977', wrongOrigin), [
+    'console-error',
+  ]);
+
+  recordShotFailure(health, 'page-error');
+  assert.deepEqual(captureSetupFailureCodes('http://localhost:8977', health), [
+    'page-error',
+    'console-error',
+  ]);
+  assert.equal(JSON.stringify(health).includes('example.supabase.co'), false);
+});
+
+test('navigation probe health and blocked mutation fail before success evidence', async () => {
+  const {
+    createShotHealth,
+    isCaptureNoticeReadRequest,
+    navigationProbeFailureCode,
+    recordShotFailure,
+  } = await contract();
+  const healthy = createShotHealth();
+  assert.equal(navigationProbeFailureCode('http://localhost:8977', healthy, false), null);
+  assert.equal(
+    navigationProbeFailureCode('http://localhost:8977', healthy, true),
+    'mutation-blocked',
+  );
+  recordShotFailure(healthy, 'page-error');
+  assert.equal(
+    navigationProbeFailureCode('http://localhost:8977', healthy, false),
+    'source-health',
+  );
+
+  const request = (method, url) => ({ method: () => method, url: () => url });
+  assert.equal(
+    isCaptureNoticeReadRequest(
+      request('POST', 'https://example.supabase.co/rest/v1/user_notice_reads'),
+      'https://example.supabase.co',
+      true,
+    ),
+    true,
+  );
+  assert.equal(
+    isCaptureNoticeReadRequest(
+      request('POST', 'https://example.supabase.co/rest/v1/user_notice_reads'),
+      'https://example.supabase.co',
+      false,
+    ),
+    false,
+  );
+  assert.equal(
+    isCaptureNoticeReadRequest(
+      request('GET', 'https://example.supabase.co/rest/v1/user_notice_reads'),
+      'https://example.supabase.co',
+      true,
+    ),
+    false,
+  );
+  assert.equal(
+    isCaptureNoticeReadRequest(
+      request('POST', 'https://other.supabase.co/rest/v1/user_notice_reads'),
+      'https://example.supabase.co',
+      true,
+    ),
+    false,
+  );
 });
 
 test('network failures stay bound to the route health that started the request', async () => {
