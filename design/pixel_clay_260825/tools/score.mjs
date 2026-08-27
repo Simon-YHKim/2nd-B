@@ -372,11 +372,16 @@ async function scoreOne(page, id, route) {
       (n.kids || []).forEach(walk);
     })(ref);
     const appTexts = app.texts.map(tight).concat((app.groups || []).map(tight)).filter(Boolean);
+    // ⚠ **항목 면제를 E축에도 적용한다.** 처음엔 D축에만 이어서, `imagine` 의 이탈이
+    //   기록돼 있는데도 점수에서 안 빠졌다. 면제한 문장은 분모에서도 뺀다 —
+    //   못 잰 것을 만점으로 세지 않는다.
+    const skipE = exemptItems(id, 'E').map(tight);
     // ⚠ 여기도 이름을 남긴다 — 어느 문장이 앱에 없는지가 곧 할 일이다.
-    const missing = refTexts.filter((t) => t && !appTexts.some((a) => a.includes(t)));
+    const scoredE = refTexts.filter((t) => t && !skipE.includes(t));
+    const missing = scoredE.filter((t) => !appTexts.some((a) => a.includes(t)));
     missE = missing;
-    const hit = refTexts.length - missing.length;
-    E = refTexts.length ? (hit / refTexts.length) * WEIGHTS.E : WEIGHTS.E;
+    const hit = scoredE.length - missing.length;
+    E = scoredE.length ? (hit / scoredE.length) * WEIGHTS.E : WEIGHTS.E;
   }
 
   // ⚠ **못 잰 축을 만점으로 세지 않는다.** 그렇게 하면 데이터가 없을수록 점수가
@@ -412,7 +417,7 @@ async function scoreOne(page, id, route) {
         ? `선언 ${declared.length} · 잰 것 ${declared.length - exemptItems(id, 'D').length}` + (exemptItems(id, 'D').length ? ` · 면제 ${exemptItems(id, 'D').length}` : '') + ` · 없음 ${missD.length}` + (missD.length ? ` → ${missD.slice(0, 8).join(' / ')}` : '')
         : 'nav 선언 없음',
       E: ref
-        ? `없는 문장 ${missE.length}` + (missE.length ? ` → ${missE.slice(0, 8).map((t) => t.slice(0, 24)).join(' / ')}` : '')
+        ? (exemptItems(id, 'E').length ? `면제 ${exemptItems(id, 'E').length} · ` : '') + `없는 문장 ${missE.length}` + (missE.length ? ` → ${missE.slice(0, 8).map((t) => t.slice(0, 24)).join(' / ')}` : '')
         : '레퍼런스 구조 없음',
     },
   };
