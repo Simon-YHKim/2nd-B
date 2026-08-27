@@ -231,13 +231,19 @@ export function CompanionMoment({ moment, style }: { moment: ActiveMoment; style
     }
     op.setValue(0);
     ty.setValue(8);
+    // ⚠ **스프라이트는 페이드하지 않고 튀어나온다**(PIXEL-CLAY 규칙 4).
+    //   예전에는 200ms 들어오고 300ms 나가며 opacity 를 흘렸다. 이징이
+    //   계단이어도 **순간값은 소수**라 정적 반투명과 같은 문제가 된다
+    //   (`/capture-full` 의 A축에 마지막으로 남은 한 건이 이것이었다).
+    //   나타남은 **0과 1 사이의 즉시 전환**이고, 움직임은 미끄러짐이 맡는다.
+    //   머무는 시간은 예전 페이드 시간만큼 늘려 체감을 맞췄다(1000 -> 1300).
     const anim = Animated.sequence([
       Animated.parallel([
-        Animated.timing(op, { toValue: 1, duration: 200, easing: pixelStepsFor(200), useNativeDriver: true }),
+        Animated.timing(op, { toValue: 1, duration: 0, useNativeDriver: true }),
         Animated.timing(ty, { toValue: 0, duration: 200, easing: pixelStepsFor(200), useNativeDriver: true }),
       ]),
-      Animated.delay(1000),
-      Animated.timing(op, { toValue: 0, duration: 300, easing: pixelStepsFor(300), useNativeDriver: true }),
+      Animated.delay(1300),
+      Animated.timing(op, { toValue: 0, duration: 0, useNativeDriver: true }),
     ]);
     anim.start();
     return () => anim.stop();
