@@ -1395,39 +1395,39 @@
    "id": "trend",
    "route": "/brightness",
    "A": 30,
-   "B": 23.5,
+   "B": 24.2,
    "C": null,
    "D": 15,
    "E": 10,
-   "total": 98.1,
+   "total": 99,
    "unmeasured": ["C"],
    "missD": [],
    "missE": [],
    "offTop": [
     {
-     "hex": "#202939",
-     "pixels": 2178
-    },
-    {
      "hex": "#e8f7ff",
      "pixels": 493
-    },
-    {
-     "hex": "#16172c",
-     "pixels": 491
     },
     {
      "hex": "#83bcd5",
      "pixels": 418
     },
     {
-     "hex": "#17182e",
-     "pixels": 390
+     "hex": "#1a2f49",
+     "pixels": 256
+    },
+    {
+     "hex": "#7bb1cf",
+     "pixels": 245
+    },
+    {
+     "hex": "#212f3c",
+     "pixels": 228
     }
    ],
    "why": {
     "A": "curves 0 · rounds 0 · blur 0 · alpha 0",
-    "B": "token pixels 93.9% (300205/319800) · off-ramp #202939 2178 / #e8f7ff 493 / #16172c 491 / #83bcd5 418 / #17182e 390",
+    "B": "token pixels 96.7% (309146/319800) · off-ramp #e8f7ff 493 / #83bcd5 418 / #1a2f49 256 / #7bb1cf 245 / #212f3c 228",
     "C": "축 꺼짐 — 눈금이 화면을 구별 못 함(자기 짝 찾기 0/6, 무작위 1/6보다 낮음)",
     "D": "declared 5 · measured 5 · exempt 0 · missing 0 · exact routes 5",
     "E": "declared 8 · measured 8 · exempt 0 · missing 0"
