@@ -1629,10 +1629,10 @@ function normalizeNavigationEffect(value, label) {
   if (!NAVIGATION_EFFECT_TYPES.has(value.type)) throw navigationContractError();
   if (value.type === 'selected') {
     assertNavigationKeys(value, new Set(['type', 'value']));
-    if (value.value !== undefined && typeof value.value !== 'boolean') {
+    if (value.value !== undefined && value.value !== true) {
       throw navigationContractError();
     }
-    return { type: value.type, value: value.value ?? true };
+    return { type: value.type, value: true };
   }
   const occurrence = normalizeNavigationOccurrence(value.occurrence);
   if (value.type === 'visible') {
@@ -5457,9 +5457,16 @@ export async function locateExactNavigationTarget(page, item) {
 
 export async function exactNavigationEffectPassed(page, item) {
   if (item.effect.type === 'selected') {
+    const selectedAttribute =
+      item.locator.role === 'button'
+        ? 'aria-pressed'
+        : item.locator.role === 'tab'
+          ? 'aria-selected'
+          : null;
+    if (!selectedAttribute) return false;
     const target = await locateExactNavigationTarget(page, item);
     if (!target) return false;
-    return (await target.getAttribute('aria-selected')) === String(item.effect.value);
+    return (await target.getAttribute(selectedAttribute)) === String(item.effect.value);
   }
   if (item.effect.type === 'visible') {
     return Boolean(await exactRenderedRoleTarget(page, item.effect));

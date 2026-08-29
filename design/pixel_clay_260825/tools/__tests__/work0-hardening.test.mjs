@@ -1520,6 +1520,16 @@ test('D v2 schema is fail-closed for fuzzy, duplicate, unsafe, and incomplete de
       version: 2,
       items: [
         {
+          label: '프로필',
+          kind: 'action',
+          effect: { type: 'selected', value: false },
+        },
+      ],
+    },
+    {
+      version: 2,
+      items: [
+        {
           label: '지금',
           kind: 'action',
           safe: null,
@@ -4660,6 +4670,70 @@ test('post-navigation occurrence is counted after rendered role binding', async 
   assert.deepEqual(calls, ['transparent', 'painted']);
 });
 
+test('selected effects use the role-specific ARIA state and fail closed for other roles', async () => {
+  const { exactNavigationEffectPassed } = await contract();
+  const { chromium } = await import('playwright-core');
+  const executablePath = chromium.executablePath();
+  assert.equal(existsSync(executablePath), true, 'pinned Chromium must exist');
+
+  const browser = await chromium.launch({ executablePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const selected = async ({ markup, role, name, label }) => {
+      await page.setContent(markup);
+      return exactNavigationEffectPassed(page, {
+        label,
+        occurrence: 1,
+        locator: { role, name },
+        effect: { type: 'selected', value: true },
+      });
+    };
+
+    assert.equal(
+      await selected({
+        markup: '<button aria-label="세컨비 · 공감" aria-pressed="true">2nd-B</button>',
+        role: 'button',
+        name: '세컨비 · 공감',
+        label: '2nd-B',
+      }),
+      true,
+      'buttons expose selection through aria-pressed',
+    );
+    assert.equal(
+      await selected({
+        markup: '<button aria-label="세컨비 · 공감" aria-selected="true">2nd-B</button>',
+        role: 'button',
+        name: '세컨비 · 공감',
+        label: '2nd-B',
+      }),
+      false,
+      'aria-selected is not valid selected-state evidence for a button',
+    );
+    assert.equal(
+      await selected({
+        markup: '<div role="tab" aria-label="세컨비" aria-selected="true">세컨비</div>',
+        role: 'tab',
+        name: '세컨비',
+        label: '세컨비',
+      }),
+      true,
+      'tabs expose selection through aria-selected',
+    );
+    assert.equal(
+      await selected({
+        markup: '<a href="#" role="link" aria-label="세컨비" aria-selected="true">세컨비</a>',
+        role: 'link',
+        name: '세컨비',
+        label: '세컨비',
+      }),
+      false,
+      'unsupported roles fail closed',
+    );
+  } finally {
+    await browser.close();
+  }
+});
+
 test('post-navigation orchestration rechecks reveal, health, route, mutation, and final effect', async () => {
   const { createShotHealth, recordShotFailure, verifyPostNavigationEffect } = await contract();
   const baseUrl = 'http://localhost:8977';
@@ -5277,9 +5351,13 @@ test('B token ramp derives typed composite and stacked-alpha colors with exact 8
   const actualTokens = JSON.parse(
     readFileSync(path.join(REPO, 'design/pixel_clay_260825/data/tokens.json'), 'utf8'),
   );
-  const actualRamp = tokenRamp(actualTokens, 'star', ['star', 'home']);
+  const actualRamp = tokenRamp(actualTokens, 'star', ['chat', 'home', 'star']);
   assert.equal(actualRamp.has('#202939'), true);
   assert.equal(actualRamp.has('#202243'), true);
+  const actualChatRamp = tokenRamp(actualTokens, 'chat', ['chat', 'home', 'star']);
+  const actualHomeRamp = tokenRamp(actualTokens, 'home', ['chat', 'home', 'star']);
+  assert.equal(actualChatRamp.has('#23223c'), true, 'chat persona composite');
+  assert.equal(actualHomeRamp.has('#23223c'), false, 'chat composite cannot leak to home');
 
   const rejects = [
     { label: 'raw array', value: { ...tokens, derivedRamp: ['#202939'] } },
