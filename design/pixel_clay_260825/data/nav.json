@@ -957,7 +957,7 @@
       {
         "label": "별자리",
         "kind": "route",
-        "to": "/deepspace-home",
+        "to": "/",
         "locator": { "strategy": "role", "role": "tab", "name": "별자리" }
       },
       {

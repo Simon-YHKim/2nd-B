@@ -1941,8 +1941,8 @@ test('review unsafe actions declare exact role locators and expected effects wit
   const review = normalizeNavigationContract(rawReview, 'http://localhost:8977');
   assert.equal(
     review.items.find((item) => item.label === '별자리')?.to,
-    '/deepspace-home',
-    'Review 별자리 탭은 실제 측정 route를 선언해야 한다',
+    '/',
+    'Review 별자리 탭은 production home redirect 뒤의 실제 route를 선언해야 한다',
   );
   assert.deepEqual(
     review.items
