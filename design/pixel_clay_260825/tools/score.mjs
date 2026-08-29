@@ -5898,11 +5898,15 @@ export async function dismissNoticeOverlay(page) {
       const candidate = scope.nth(index);
       const close = candidate.getByRole('button', { name: '공지 닫기', exact: true });
       if ((await close.count()) === 0) continue;
-      clicked = await clickFirstOverlayCandidate(close);
+      // The full-screen close target sits underneath the notice card. Playwright
+      // can report a successful synthetic click even when the card intercepts it,
+      // leaving the scrim in the screenshot. Prefer the visible notice action;
+      // the close target remains a bounded fallback for older notice variants.
+      clicked = await clickFirstOverlayCandidate(
+        candidate.getByRole('button', { name: '확인', exact: true }),
+      );
       if (!clicked) {
-        clicked = await clickFirstOverlayCandidate(
-          candidate.getByRole('button', { name: '확인', exact: true }),
-        );
+        clicked = await clickFirstOverlayCandidate(close);
       }
     }
     await page.waitForTimeout(
@@ -5929,6 +5933,7 @@ async function scoreOne({
   await waitForShotNetworkIdle(page, activeShot);
   let failureCodes = shotFailureCodes({ baseUrl, ...activeShot });
   if (failureCodes.length) throw new CaptureContractError(failureCodes);
+  await dismissNoticeOverlay(page);
   await dismissCaptureOverlays(page);
   await waitForShotNetworkIdle(page, activeShot);
   validateFinalUrl(baseUrl, route, page.url());

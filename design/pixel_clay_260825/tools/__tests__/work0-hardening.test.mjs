@@ -20,6 +20,7 @@ import { PNG } from 'pngjs';
 
 const SCORE_CLI = fileURLToPath(new URL('../score.mjs', import.meta.url));
 const CAPTURE_CLI = fileURLToPath(new URL('../capture-app.mjs', import.meta.url));
+const NOTICE_UI = fileURLToPath(new URL('../../../../src/app/notices.tsx', import.meta.url));
 const REPO = fileURLToPath(new URL('../../../../', import.meta.url));
 
 async function contract() {
@@ -886,6 +887,82 @@ test('notice dismissal isolates its confirm fallback to a notice-marked modal', 
   await dismissCaptureOverlays(page);
   assert.equal(dismissed, false);
   assert.equal(confirmed, false);
+});
+
+test('notice dismissal prefers the visible confirmation over a covered scrim target', async () => {
+  const { dismissNoticeOverlay } = await contract();
+  const clicks = [];
+  let dismissed = false;
+  const overlay = {
+    async count() {
+      return dismissed ? 0 : 1;
+    },
+    nth() {
+      return this;
+    },
+    getByRole(role, { name }) {
+      assert.equal(role, 'button');
+      return {
+        async count() {
+          return ['공지 닫기', '확인'].includes(name) && !dismissed ? 1 : 0;
+        },
+        first() {
+          return {
+            async click() {
+              clicks.push(name);
+              if (name === '확인') dismissed = true;
+            },
+          };
+        },
+      };
+    },
+  };
+  const page = {
+    locator() {
+      return overlay;
+    },
+    async waitForTimeout() {},
+  };
+
+  await dismissNoticeOverlay(page);
+  assert.equal(dismissed, true);
+  assert.deepEqual(clicks, ['확인']);
+});
+
+test('notice modal explicitly restores pointer events inside the RN-web portal', () => {
+  const noticeSource = readFileSync(NOTICE_UI, 'utf8');
+  assert.match(noticeSource, /if \(!visible\) return null;[\s\S]*return \(\s*<Modal/);
+  assert.match(
+    noticeSource,
+    /<View\s+style=\{styles\.scrim\}\s+pointerEvents="auto"\s+accessibilityViewIsModal>/,
+  );
+});
+
+test('capture and score dismiss a late authenticated notice before measuring pixels', () => {
+  const scoreSource = readFileSync(SCORE_CLI, 'utf8');
+  assert.match(
+    scoreSource,
+    /async function scoreOne[\s\S]*await dismissNoticeOverlay\(page\);\s*await dismissCaptureOverlays\(page\);[\s\S]*const app = await page\.evaluate\(inspectRenderedPixelRules\);/,
+  );
+
+  const captureSource = readFileSync(CAPTURE_CLI, 'utf8');
+  assert.match(
+    captureSource,
+    /waitForSettledPage\(page\);[\s\S]*await dismissNoticeOverlay\(page\);\s*await dismissCaptureOverlays\(page\);[\s\S]*const screenshot = await page\.screenshot\(\);/,
+  );
+});
+
+test('app capture clears the authenticated notice during setup with classified health', () => {
+  const captureSource = readFileSync(CAPTURE_CLI, 'utf8');
+  assert.match(
+    captureSource,
+    /createShotHealth\(\{\s*noticeReadOrigin:\s*environmentAttestation\.previewEnv\.EXPO_PUBLIC_SUPABASE_URL,?\s*\}\)/,
+  );
+  assert.match(captureSource, /page\.on\('console',\s*\(message\)\s*=>\s*\{\s*recordShotConsole\(activeShot, message\);/);
+  assert.match(
+    captureSource,
+    /await fillQaLogin\([\s\S]*const loginFailureCodes[\s\S]*await dismissNoticeOverlay\(page\);\s*await dismissCaptureOverlays\(page\);\s*await waitForShotNetworkIdle\(page, activeShot\);\s*const setupFailureCodes = captureSetupFailureCodes\(baseUrl, activeShot\);[\s\S]*activeShot = createShotHealth\(\);[\s\S]*await page\.addScriptTag\(\{ content: determinismScript \}\);/,
+  );
 });
 
 test('overlay dismissal ignores allowlisted product actions outside modal ancestry', async () => {
