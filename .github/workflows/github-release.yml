@@ -111,8 +111,6 @@ jobs:
         id: artifacts
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          ANDROID_APK_SIGNER_SHA256: ${{ secrets.ANDROID_APK_SIGNER_SHA256 }}
-          ANDROID_AAB_SIGNER_SHA256: ${{ secrets.ANDROID_AAB_SIGNER_SHA256 }}
           PREVIEW_BUILD_ID: ${{ inputs.preview_build_id }}
           PRODUCTION_BUILD_ID: ${{ inputs.production_build_id }}
           EXPECTED_COMMIT: ${{ github.sha }}
@@ -346,38 +344,6 @@ jobs:
             echo "::error::Production AAB signer certificate could not be read."
             exit 1
           fi
-          export APK_SIGNATURE_FILE="$RUNNER_TEMP/apk-signature.txt"
-          export AAB_SIGNATURE_FILE="$RUNNER_TEMP/aab-signature.txt"
-          export AAB_CERTIFICATE_FILE="$RUNNER_TEMP/aab-certificate.txt"
-          node <<'NODE'
-          const fs = require("node:fs");
-          const normalize = (value) => String(value || "").replace(/[^0-9a-f]/gi, "").toLowerCase();
-          const expected = (name) => {
-            const value = normalize(process.env[name]);
-            if (!/^[0-9a-f]{64}$/.test(value)) {
-              throw new Error(`${name} is missing or is not one SHA-256 certificate digest`);
-            }
-            return value;
-          };
-          const apkOutput = fs.readFileSync(process.env.APK_SIGNATURE_FILE, "utf8");
-          const apkDigests = [...apkOutput.matchAll(/Signer #\d+ certificate SHA-256 digest:\s*([0-9a-f:]+)/gi)]
-            .map((match) => normalize(match[1]));
-          if (new Set(apkDigests).size !== 1 || apkDigests[0] !== expected("ANDROID_APK_SIGNER_SHA256")) {
-            throw new Error("Preview APK signer identity does not match the protected expected digest");
-          }
-
-          const aabVerification = fs.readFileSync(process.env.AAB_SIGNATURE_FILE, "utf8");
-          if (!/jar verified\./i.test(aabVerification) || /unsigned entries|not signed/i.test(aabVerification)) {
-            throw new Error("Production AAB contains an unverified or unsigned JAR entry");
-          }
-          const aabCertificate = fs.readFileSync(process.env.AAB_CERTIFICATE_FILE, "utf8");
-          const aabDigests = [...aabCertificate.matchAll(/SHA256:\s*([0-9a-f:]+)/gi)]
-            .map((match) => normalize(match[1]));
-          if (new Set(aabDigests).size !== 1 || aabDigests[0] !== expected("ANDROID_AAB_SIGNER_SHA256")) {
-            throw new Error("Production AAB signer identity does not match the protected expected digest");
-          }
-          process.stdout.write("APK and AAB signer identities match the protected release contract.\n");
-          NODE
 
           PREVIEW_HASH="$(sha256sum "$PREVIEW_FILE" | awk '{print $1}')"
           PRODUCTION_HASH="$(sha256sum "$PRODUCTION_FILE" | awk '{print $1}')"
@@ -402,6 +368,17 @@ jobs:
             echo "preview_meta=$PREVIEW_META"
             echo "production_meta=$PRODUCTION_META"
           } >> "$GITHUB_OUTPUT"
+
+      - name: Verify protected Android signer identities
+        env:
+          ANDROID_APK_SIGNER_SHA256: ${{ secrets.ANDROID_APK_SIGNER_SHA256 }}
+          ANDROID_AAB_SIGNER_SHA256: ${{ secrets.ANDROID_AAB_SIGNER_SHA256 }}
+        run: |
+          set -euo pipefail
+          node scripts/check-android-release-signatures.js verify \
+            "$RUNNER_TEMP/apk-signature.txt" \
+            "$RUNNER_TEMP/aab-signature.txt" \
+            "$RUNNER_TEMP/aab-certificate.txt"
 
       - name: Extract release notes and append remote artifact metadata
         env:

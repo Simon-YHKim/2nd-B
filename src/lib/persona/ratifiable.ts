@@ -45,7 +45,9 @@ export interface RatifiableTarget {
  *
  * 순수 함수다. 순서는 화면에 그대로 나가므로 **근거가 강한 것부터** 둔다.
  */
-export function ratifiableTargets(card: PersonaCard): RatifiableTarget[] {
+export function ratifiableTargets(
+  card: Pick<PersonaCard, "traitsSource" | "attachment" | "values">,
+): RatifiableTarget[] {
   const out: RatifiableTarget[] = [];
 
   if (isMeasuredSource(card.traitsSource)) {
@@ -76,6 +78,8 @@ export function ratifiableTargets(card: PersonaCard): RatifiableTarget[] {
  * 비준할 것이 하나도 없는가. 화면이 "먼저 검사를 하나 해보세요" 로 갈지
  * 판단할 때 쓴다 -- 빈 목록을 그리는 것보다 낫다.
  */
-export function hasNothingToRatify(card: PersonaCard): boolean {
+export function hasNothingToRatify(
+  card: Pick<PersonaCard, "traitsSource" | "attachment" | "values">,
+): boolean {
   return ratifiableTargets(card).length === 0;
 }

@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmdirSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -15,6 +24,63 @@ const REPO = fileURLToPath(new URL('../../../../', import.meta.url));
 
 async function contract() {
   return import('../score.mjs');
+}
+
+function spoofPretendardHangulCmap(original) {
+  const spoof = Buffer.from(original);
+  const tables = {};
+  const tableCount = spoof.readUInt16BE(4);
+  for (let index = 0; index < tableCount; index += 1) {
+    const directoryOffset = 12 + index * 16;
+    const tag = spoof.toString('ascii', directoryOffset, directoryOffset + 4);
+    tables[tag] = {
+      checksumOffset: directoryOffset + 4,
+      length: spoof.readUInt32BE(directoryOffset + 12),
+      offset: spoof.readUInt32BE(directoryOffset + 8),
+    };
+  }
+  const cmap = tables.cmap;
+  const head = tables.head;
+  if (!cmap || !head) throw new Error('test font requires cmap and head tables');
+  const seen = new Set();
+  const cmapBase = cmap.offset;
+  const encodingCount = spoof.readUInt16BE(cmapBase + 2);
+  for (let index = 0; index < encodingCount; index += 1) {
+    const encodingOffset = cmapBase + 4 + index * 8;
+    const subtableOffset = cmapBase + spoof.readUInt32BE(encodingOffset + 4);
+    if (seen.has(subtableOffset) || spoof.readUInt16BE(subtableOffset) !== 12) continue;
+    seen.add(subtableOffset);
+    const groupCount = spoof.readUInt32BE(subtableOffset + 12);
+    for (let group = 0; group < groupCount; group += 1) {
+      const groupOffset = subtableOffset + 16 + group * 12;
+      if (
+        spoof.readUInt32BE(groupOffset) === 0xac00 &&
+        spoof.readUInt32BE(groupOffset + 4) === 0xd7a3
+      ) {
+        spoof.writeUInt32BE((spoof.readUInt32BE(groupOffset + 8) + 1) >>> 0, groupOffset + 8);
+      }
+    }
+  }
+  const sfntSum = (buffer, offset, length) => {
+    let sum = 0;
+    const paddedLength = Math.ceil(length / 4) * 4;
+    for (let cursor = offset; cursor < offset + paddedLength; cursor += 4) {
+      let word = 0;
+      for (let byte = 0; byte < 4; byte += 1) {
+        word =
+          (word * 256 + (cursor + byte < offset + length ? buffer[cursor + byte] : 0)) >>> 0;
+      }
+      sum = (sum + word) >>> 0;
+    }
+    return sum >>> 0;
+  };
+  spoof.writeUInt32BE(0, head.offset + 8);
+  spoof.writeUInt32BE(sfntSum(spoof, cmap.offset, cmap.length), cmap.checksumOffset);
+  spoof.writeUInt32BE(
+    (0xb1b0afba - sfntSum(spoof, 0, spoof.length)) >>> 0,
+    head.offset + 8,
+  );
+  return spoof;
 }
 
 test('preview export rejects incomplete or mock env and shell-quotes public values', async () => {
@@ -1316,7 +1382,9 @@ test('D axis scores only visible actionable labels and removes only exempted ite
     ['설정'],
     [{ label: '설정', to: '/2nd-B/settings' }],
     [],
-    { baseUrl: 'http://localhost:8977' },
+    {
+      baseUrl: 'http://localhost:8977',
+    },
   );
   assert.equal(safeTarget.score, 15);
   assert.equal(safeTarget.evidence.safeHrefs, 1);
@@ -1334,7 +1402,20 @@ test('D v2 validates exact route and action contracts without clicking unsafe it
     {
       version: 2,
       items: [
-        { label: '설정', kind: 'route', to: '/settings' },
+        {
+          label: '설정',
+          kind: 'route',
+          to: '/settings',
+          postNavigation: {
+            reveal: { role: 'button', name: '더보기' },
+            effect: {
+              type: 'visible',
+              role: 'button',
+              name: 'domain:career 해시태그 제거',
+              text: '#domain:career',
+            },
+          },
+        },
         {
           label: '프로필',
           kind: 'action',
@@ -1357,12 +1438,22 @@ test('D v2 validates exact route and action contracts without clicking unsafe it
   assert.equal(nav.items.length, 3);
   assert.equal(nav.items[0].occurrence, 1);
   assert.equal(nav.items[0].to, '/settings');
+  assert.deepEqual(nav.items[0].postNavigation, {
+    reveal: { role: 'button', name: '더보기', occurrence: 1 },
+    effect: {
+      type: 'visible',
+      role: 'button',
+      name: 'domain:career 해시태그 제거',
+      occurrence: 1,
+      text: '#domain:career',
+    },
+  });
   assert.equal(nav.items[1].safe, true);
   assert.equal(nav.items[2].safe, false);
   assert.equal(nav.unresolved.length, 1);
 
   const result = scoreExactNavigationResults(nav, [
-    { index: 0, passed: true, evidence: 'exact-route' },
+    { index: 0, passed: true, evidence: 'exact-route+visible-effect' },
     { index: 1, passed: true, evidence: 'visible-effect' },
   ]);
   assert.equal(result.score, 7.5);
@@ -1375,15 +1466,23 @@ test('D v2 validates exact route and action contracts without clicking unsafe it
   assert.deepEqual(result.evidence, {
     exactRoutes: 1,
     exactActions: 1,
+    postEffects: 1,
     unsafeActions: 1,
     unresolved: 1,
   });
   const explanation = formatNavigationWhy(result);
   assert.equal(
     explanation,
-    'declared 4 · measured 2 · exempt 0 · missing 2 → 지금 / 새 대화 · exact routes 1 · exact actions 1 · unsafe actions 1 · unresolved 1 · manual review unsafe-actions / unresolved-items',
+    'declared 4 · measured 2 · exempt 0 · missing 2 → 지금 / 새 대화 · exact routes 1 · exact actions 1 · post effects 1 · unsafe actions 1 · unresolved 1 · manual review unsafe-actions / unresolved-items',
   );
   assert.doesNotMatch(explanation, /undefined/);
+
+  const routeOnlyBypass = scoreExactNavigationResults(nav, [
+    { index: 0, passed: true, evidence: 'exact-route' },
+    { index: 1, passed: true, evidence: 'visible-effect' },
+  ]);
+  assert.equal(routeOnlyBypass.score, 3.75);
+  assert.deepEqual(routeOnlyBypass.missing, ['설정', '지금', '새 대화']);
 
   const failed = scoreExactNavigationResults(nav, [
     { index: 0, passed: false, failure: 'mutation-blocked' },
@@ -1452,6 +1551,58 @@ test('D v2 schema is fail-closed for fuzzy, duplicate, unsafe, and incomplete de
     {
       version: 2,
       items: [
+        {
+          label: '설정',
+          kind: 'route',
+          to: '/settings',
+          postNavigation: { effect: { type: 'selected' } },
+        },
+      ],
+    },
+    {
+      version: 2,
+      items: [
+        {
+          label: '설정',
+          kind: 'route',
+          to: '/settings',
+          postNavigation: {
+            reveal: { role: 'link', name: '더보기' },
+            effect: { type: 'visible', role: 'button', name: '완료' },
+          },
+        },
+      ],
+    },
+    {
+      version: 2,
+      items: [
+        {
+          label: '설정',
+          kind: 'route',
+          to: '/settings',
+          postNavigation: {
+            reveal: { role: 'button', name: ' 더보기' },
+            effect: { type: 'visible', role: 'button', name: '완료' },
+          },
+        },
+      ],
+    },
+    {
+      version: 2,
+      items: [
+        {
+          label: '프로필',
+          kind: 'action',
+          effect: { type: 'selected' },
+          postNavigation: {
+            effect: { type: 'visible', role: 'button', name: '완료' },
+          },
+        },
+      ],
+    },
+    {
+      version: 2,
+      items: [
         { label: '설정', kind: 'route', to: '/settings' },
         { label: '설정', kind: 'route', to: '/settings' },
       ],
@@ -1497,7 +1648,14 @@ test('D v2 runner probes each safe item once and never invokes an unsafe action'
           locator: { strategy: 'role', role: 'tab', name: '위키' },
         },
         { label: '프로필', kind: 'action', effect: { type: 'selected' } },
-        { label: '지금', kind: 'action', safe: false, why: 'LLM 제안 생성은 자동 클릭하지 않음' },
+        {
+          label: '지금',
+          kind: 'action',
+          safe: false,
+          why: 'LLM 제안 생성은 자동 클릭하지 않음',
+          locator: { strategy: 'role', role: 'button', name: '지금' },
+          effect: { type: 'visible', role: 'button', name: '승인' },
+        },
       ],
       unresolved: [],
     },
@@ -1519,6 +1677,372 @@ test('D v2 runner probes each safe item once and never invokes an unsafe action'
     { index: 1, passed: false, evidence: null, failure: 'probe-failed' },
   ]);
   assert.doesNotMatch(JSON.stringify(results), /raw browser detail/);
+});
+
+test('D manual effect evidence is fresh and bound to export, contract, artifact, and exact effect', async () => {
+  const {
+    isAutomaticPass,
+    isReviewedPass,
+    loadManualEffectEvidence,
+    navigationContractSha256,
+    normalizeNavigationContract,
+    scoreExactNavigationResults,
+    sourceBodySha256,
+    validateManualEffectEvidence,
+  } = await contract();
+  const now = Date.parse('2026-08-28T10:00:00.000Z');
+  const exportedAt = now - 60_000;
+  const exportSha256 = 'a'.repeat(64);
+  const nav = normalizeNavigationContract(
+    {
+      version: 2,
+      items: [
+        ...['병자리', '담기', '세컨비', '위키', '설정'].map((label, index) => ({
+          label,
+          kind: 'route',
+          to: ['/', '/capture', '/secondb', '/records', '/settings'][index],
+          locator: { strategy: 'role', role: 'tab', name: label },
+        })),
+        ...['학창시절', '지금'].map((label) => ({
+          label,
+          kind: 'action',
+          safe: false,
+          why: '사용자별 근거로 제안을 생성하므로 자동 클릭하지 않음',
+          locator: { strategy: 'role', role: 'button', name: label },
+          effect: { type: 'visible', role: 'button', name: '승인', occurrence: 1 },
+        })),
+      ],
+      unresolved: [],
+    },
+    'http://localhost:8977',
+  );
+  const automaticResults = nav.items.slice(0, 5).map((_, index) => ({
+    index,
+    passed: true,
+    evidence: 'exact-route',
+  }));
+  const withoutEvidence = scoreExactNavigationResults(nav, automaticResults);
+  assert.equal(withoutEvidence.score, (5 / 7) * 15);
+  assert.equal(withoutEvidence.matched, 5);
+  assert.deepEqual(withoutEvidence.missing, ['학창시절', '지금']);
+
+  const artifactRoot = mkdtempSync(path.join(os.tmpdir(), 'work0-manual-effect-'));
+  try {
+    const artifacts = ['school.png', 'now.png'].map((name, index) => {
+      const png = new PNG({ width: 1, height: 1 });
+      png.data.set([index, 0, 0, 255]);
+      const body = PNG.sync.write(png);
+      writeFileSync(path.join(artifactRoot, name), body);
+      return { path: name, sha256: sourceBodySha256(body) };
+    });
+    const manifest = {
+      schemaVersion: 1,
+      exportSha256,
+      screens: [
+        {
+          screen: 'review',
+          contractSha256: navigationContractSha256(nav),
+          items: ['학창시절', '지금'].map((label, index) => ({
+            label,
+            occurrence: 1,
+            effect: { type: 'visible', role: 'button', name: '승인', occurrence: 1 },
+            artifact: artifacts[index],
+            attestation: {
+              type: 'human-observed-effect',
+              observedAt: new Date(now - 1_000 + index).toISOString(),
+            },
+          })),
+        },
+      ],
+    };
+    const validate = (candidate) =>
+      validateManualEffectEvidence(candidate, {
+        artifactRoot,
+        contracts: { review: nav },
+        targetIds: ['review'],
+        exportSha256,
+        exportedAt,
+        now,
+      });
+    const validated = validate(manifest);
+    const evidence = validated.get('review');
+    const withEvidence = scoreExactNavigationResults(nav, automaticResults, [], evidence);
+    assert.equal(withEvidence.score, 15);
+    assert.equal(withEvidence.matched, 7);
+    assert.equal(withEvidence.measured, 7);
+    assert.deepEqual(withEvidence.missing, []);
+    assert.deepEqual(withEvidence.manualReviewReasons, ['manual-effect-evidence']);
+    assert.equal(withEvidence.manualEvidenceComplete, true);
+    assert.equal(withEvidence.evidence.manualEffects, 2);
+    const oversizedManifestPath = path.join(artifactRoot, 'oversized-evidence.json');
+    writeFileSync(
+      oversizedManifestPath,
+      `${JSON.stringify(manifest)}${' '.repeat(300 * 1024)}`,
+    );
+    assert.throws(
+      () =>
+        loadManualEffectEvidence(
+          { MANUAL_EFFECT_EVIDENCE: oversizedManifestPath },
+          {
+            contracts: { review: nav },
+            targetIds: ['review'],
+            exportSha256,
+            exportedAt,
+            now,
+          },
+        ),
+      /manual effect evidence/i,
+    );
+    const schoolEffect = nav.items.find((item) => item.label === '학창시절').effect;
+    const originalEffectName = schoolEffect.name;
+    schoolEffect.name = '변조된 승인';
+    try {
+      assert.throws(
+        () => scoreExactNavigationResults(nav, automaticResults, [], evidence),
+        /manual effect evidence/i,
+      );
+    } finally {
+      schoolEffect.name = originalEffectName;
+    }
+    assert.equal(Object.isFrozen(evidence[0].effect), true);
+    assert.equal(isAutomaticPass(100, ['C'], ['D']), false);
+    assert.equal(isReviewedPass(100, ['C'], [], []), false);
+    assert.equal(isReviewedPass(100, ['C'], ['D'], []), false);
+    assert.equal(isReviewedPass(100, ['C'], ['D'], ['D']), true);
+    assert.equal(isReviewedPass(97.9, ['C'], ['D'], ['D']), false);
+    assert.equal(isReviewedPass(100, ['C', 'E'], ['D'], ['D']), false);
+    assert.equal(isReviewedPass(100, ['C'], ['D', 'E'], ['D']), false);
+
+    assert.throws(
+      () => scoreExactNavigationResults(nav, automaticResults, [], manifest.screens[0].items),
+      /manual effect evidence/i,
+    );
+    const corruptArtifact = Buffer.concat([
+      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+      Buffer.from('not-a-decodable-png'),
+    ]);
+    writeFileSync(path.join(artifactRoot, 'corrupt.png'), corruptArtifact);
+    const hiddenPng = new PNG({ width: 1, height: 1 });
+    hiddenPng.data.set([3, 0, 0, 255]);
+    const hiddenArtifact = PNG.sync.write(hiddenPng);
+    writeFileSync(path.join(artifactRoot, 'stream-host.txt'), 'host');
+    writeFileSync(path.join(artifactRoot, 'stream-host.txt:proof.png'), hiddenArtifact);
+    const repeatedPng = new PNG({ width: 1, height: 1 });
+    repeatedPng.data.set([4, 0, 0, 255]);
+    const repeatedFast = PNG.sync.write(repeatedPng, { deflateLevel: 0 });
+    const repeatedCompact = PNG.sync.write(repeatedPng, { deflateLevel: 9 });
+    assert.notEqual(sourceBodySha256(repeatedFast), sourceBodySha256(repeatedCompact));
+    writeFileSync(path.join(artifactRoot, 'repeated-fast.png'), repeatedFast);
+    writeFileSync(path.join(artifactRoot, 'repeated-compact.png'), repeatedCompact);
+    const rejects = [
+      {
+        label: 'stale',
+        mutate: (value) =>
+          (value.screens[0].items[0].attestation.observedAt = new Date(
+            now - 2 * 60 * 60 * 1000 - 1,
+          ).toISOString()),
+      },
+      { label: 'orphan', mutate: (value) => (value.screens[0].items[0].label = '없는 항목') },
+      { label: 'export hash', mutate: (value) => (value.exportSha256 = 'b'.repeat(64)) },
+      {
+        label: 'contract hash',
+        mutate: (value) => (value.screens[0].contractSha256 = 'b'.repeat(64)),
+      },
+      {
+        label: 'artifact hash',
+        mutate: (value) => (value.screens[0].items[0].artifact.sha256 = 'b'.repeat(64)),
+      },
+      {
+        label: 'artifact traversal',
+        mutate: (value) => (value.screens[0].items[0].artifact.path = '../school.png'),
+      },
+      {
+        label: 'alternate data stream',
+        mutate: (value) => {
+          value.screens[0].items[0].artifact = {
+            path: 'stream-host.txt:proof.png',
+            sha256: sourceBodySha256(hiddenArtifact),
+          };
+        },
+      },
+      {
+        label: 'artifact reuse',
+        mutate: (value) =>
+          (value.screens[0].items[1].artifact = structuredClone(
+            value.screens[0].items[0].artifact,
+          )),
+      },
+      {
+        label: 'visual artifact reuse',
+        mutate: (value) => {
+          value.screens[0].items[0].artifact = {
+            path: 'repeated-fast.png',
+            sha256: sourceBodySha256(repeatedFast),
+          };
+          value.screens[0].items[1].artifact = {
+            path: 'repeated-compact.png',
+            sha256: sourceBodySha256(repeatedCompact),
+          };
+        },
+      },
+      { label: 'occurrence', mutate: (value) => (value.screens[0].items[0].occurrence = 2) },
+      { label: 'effect', mutate: (value) => (value.screens[0].items[0].effect.name = '아니요') },
+      {
+        label: 'future attestation',
+        mutate: (value) =>
+          (value.screens[0].items[0].attestation.observedAt = new Date(now + 1).toISOString()),
+      },
+      { label: 'screen outside target', mutate: (value) => (value.screens[0].screen = 'other') },
+      {
+        label: 'unknown key',
+        mutate: (value) => (value.screens[0].items[0].note = '신뢰하지 않음'),
+      },
+      {
+        label: 'corrupt png',
+        mutate: (value) => {
+          value.screens[0].items[0].artifact = {
+            path: 'corrupt.png',
+            sha256: sourceBodySha256(corruptArtifact),
+          };
+        },
+      },
+    ];
+    for (const rejection of rejects) {
+      const candidate = structuredClone(manifest);
+      rejection.mutate(candidate);
+      assert.throws(() => validate(candidate), /manual effect evidence/i, rejection.label);
+    }
+  } finally {
+    for (const name of [
+      'stream-host.txt:proof.png',
+      'stream-host.txt',
+      'repeated-fast.png',
+      'repeated-compact.png',
+      'oversized-evidence.json',
+      'school.png',
+      'now.png',
+      'corrupt.png',
+    ]) {
+      const artifact = path.join(artifactRoot, name);
+      if (existsSync(artifact)) unlinkSync(artifact);
+    }
+    rmdirSync(artifactRoot);
+  }
+});
+
+test('review unsafe actions declare exact role locators and expected effects without evidence', async () => {
+  const { normalizeNavigationContract, scoreExactNavigationResults } = await contract();
+  const navFile = JSON.parse(
+    readFileSync(path.join(REPO, 'design/pixel_clay_260825/data/nav.json'), 'utf8'),
+  );
+  const rawReview = navFile.review;
+  assert.equal(Object.hasOwn(rawReview, 'evidence'), false);
+  assert.equal(Object.hasOwn(rawReview, 'manualEvidence'), false);
+  const review = normalizeNavigationContract(rawReview, 'http://localhost:8977');
+  assert.deepEqual(
+    review.items
+      .filter((item) => item.safe === false)
+      .map((item) => ({
+        label: item.label,
+        occurrence: item.occurrence,
+        locator: item.locator,
+        effect: item.effect,
+      })),
+    ['학창시절', '지금'].map((label) => ({
+      label,
+      occurrence: 1,
+      locator: { strategy: 'role', role: 'button', name: label },
+      effect: { type: 'visible', role: 'button', name: '승인', occurrence: 1 },
+    })),
+  );
+  const withoutEvidence = scoreExactNavigationResults(
+    review,
+    review.items.slice(2).map((_, offset) => ({
+      index: offset + 2,
+      passed: true,
+      evidence: 'exact-route',
+    })),
+  );
+  assert.equal(withoutEvidence.score, (5 / 7) * 15);
+  assert.equal(Math.round(withoutEvidence.score * 1000) / 1000, 10.714);
+  assert.deepEqual(withoutEvidence.missing, ['학창시절', '지금']);
+});
+
+test('D manual effect evidence enforces an aggregate item budget', async () => {
+  const {
+    navigationContractSha256,
+    normalizeNavigationContract,
+    sourceBodySha256,
+    validateManualEffectEvidence,
+  } = await contract();
+  const itemCount = 17;
+  const labels = Array.from({ length: itemCount }, (_, index) => `수동 항목 ${index + 1}`);
+  const nav = normalizeNavigationContract(
+    {
+      version: 2,
+      items: labels.map((label) => ({
+        label,
+        kind: 'action',
+        safe: false,
+        why: '사람이 직접 확인해야 하는 상태 변경',
+        locator: { strategy: 'role', role: 'button', name: label },
+        effect: { type: 'visible', role: 'button', name: '승인' },
+      })),
+      unresolved: [],
+    },
+    'http://localhost:8977',
+  );
+  const artifactRoot = mkdtempSync(path.join(os.tmpdir(), 'work0-manual-budget-'));
+  const names = labels.map((_, index) => `item-${index + 1}.png`);
+  try {
+    const artifacts = names.map((name, index) => {
+      const png = new PNG({ width: 1, height: 1 });
+      png.data.set([index, 1, 0, 255]);
+      const body = PNG.sync.write(png);
+      writeFileSync(path.join(artifactRoot, name), body);
+      return { path: name, sha256: sourceBodySha256(body) };
+    });
+    const now = Date.parse('2026-08-28T10:00:00.000Z');
+    const exportSha256 = 'a'.repeat(64);
+    const manifest = {
+      schemaVersion: 1,
+      exportSha256,
+      screens: [
+        {
+          screen: 'review',
+          contractSha256: navigationContractSha256(nav),
+          items: labels.map((label, index) => ({
+            label,
+            occurrence: 1,
+            effect: { type: 'visible', role: 'button', name: '승인', occurrence: 1 },
+            artifact: artifacts[index],
+            attestation: {
+              type: 'human-observed-effect',
+              observedAt: new Date(now - 1_000 + index).toISOString(),
+            },
+          })),
+        },
+      ],
+    };
+    assert.throws(
+      () =>
+        validateManualEffectEvidence(manifest, {
+          artifactRoot,
+          contracts: { review: nav },
+          targetIds: ['review'],
+          exportSha256,
+          exportedAt: now - 60_000,
+          now,
+        }),
+      /manual effect evidence/i,
+    );
+  } finally {
+    for (const name of names) {
+      const artifact = path.join(artifactRoot, name);
+      if (existsSync(artifact)) unlinkSync(artifact);
+    }
+    rmdirSync(artifactRoot);
+  }
 });
 
 test('exact role navigation target must contain its painted label', async () => {
@@ -1574,6 +2098,2069 @@ test('exact role navigation target must contain its painted label', async () => 
   assert.equal(await locateExactNavigationTarget(page(outside), item), null);
 });
 
+test('post-navigation visible evidence binds painted text to its exact role target', async () => {
+  const { exactNavigationEffectPassed } = await contract();
+  const effect = {
+    type: 'visible',
+    role: 'button',
+    name: 'domain:career 해시태그 제거',
+    text: '#domain:career',
+    occurrence: 1,
+  };
+  const collection = (items) => ({
+    async count() {
+      return items.length;
+    },
+    nth(index) {
+      return items[index];
+    },
+  });
+  const rect = { left: 10, top: 10, right: 110, bottom: 40, width: 100, height: 30 };
+  const defaultStyle = {
+    display: 'block',
+    visibility: 'visible',
+    contentVisibility: 'visible',
+    opacity: '1',
+    filter: 'none',
+    clipPath: 'none',
+    webkitClipPath: 'none',
+    clip: 'auto',
+    maskImage: 'none',
+    webkitMaskImage: 'none',
+    overflow: 'visible',
+    overflowX: 'visible',
+    overflowY: 'visible',
+    webkitTextFillColor: 'rgb(255, 255, 255)',
+    color: 'rgb(255, 255, 255)',
+    fontSize: '16px',
+    letterSpacing: 'normal',
+    fill: 'rgb(255, 255, 255)',
+    fillOpacity: '1',
+    stroke: 'none',
+    strokeOpacity: '1',
+    backgroundColor: 'rgba(0, 0, 0, 0)',
+    textShadow: 'none',
+  };
+  const page = ({ bound = true, paintedStyle = {}, targetStyle = {}, textRect = rect } = {}) => {
+    const textNode = {
+      nodeType: 3,
+      textContent: '#domain:career',
+      parentElement: null,
+    };
+    const targetElement = {
+      hidden: false,
+      parentElement: null,
+      tagName: 'BUTTON',
+      childNodes: [],
+      getBoundingClientRect: () => rect,
+      contains(node) {
+        return bound && node === paintedElement;
+      },
+    };
+    const paintedElement = {
+      hidden: false,
+      parentElement: targetElement,
+      tagName: 'SPAN',
+      childNodes: [textNode],
+      innerText: '#domain:career',
+      textContent: '#domain:career',
+      getBoundingClientRect: () => rect,
+    };
+    textNode.parentElement = paintedElement;
+    targetElement.childNodes = [paintedElement];
+    const styles = new Map([
+      [
+        targetElement,
+        { ...defaultStyle, backgroundColor: 'rgb(17, 17, 17)', ...targetStyle },
+      ],
+      [paintedElement, { ...defaultStyle, ...paintedStyle }],
+    ]);
+    const paintedHandle = { element: paintedElement, async dispose() {} };
+    const target = {
+      async isVisible() {
+        return true;
+      },
+      async scrollIntoViewIfNeeded() {},
+      async evaluate(callback, payload) {
+        assert.equal(typeof callback, 'function');
+        assert.equal(payload.paintedElement, paintedHandle);
+        assert.equal(payload.expectedText, effect.text);
+        const previousWindow = globalThis.window;
+        const previousGetComputedStyle = globalThis.getComputedStyle;
+        const previousDocument = globalThis.document;
+        globalThis.window = { innerWidth: 800, innerHeight: 600 };
+        globalThis.getComputedStyle = (element) => styles.get(element) ?? defaultStyle;
+        globalThis.document = {
+          elementsFromPoint: () => [paintedElement, targetElement],
+          createRange() {
+            return {
+              selectNodeContents() {},
+              getClientRects: () => [textRect],
+              detach() {},
+            };
+          },
+        };
+        try {
+          return callback(targetElement, {
+            paintedElement: payload.paintedElement.element,
+            expectedText: payload.expectedText,
+          });
+        } finally {
+          if (previousWindow === undefined) delete globalThis.window;
+          else globalThis.window = previousWindow;
+          if (previousGetComputedStyle === undefined) delete globalThis.getComputedStyle;
+          else globalThis.getComputedStyle = previousGetComputedStyle;
+          if (previousDocument === undefined) delete globalThis.document;
+          else globalThis.document = previousDocument;
+        }
+      },
+    };
+    const painted = {
+      async isVisible() {
+        return true;
+      },
+      async elementHandle() {
+        return paintedHandle;
+      },
+    };
+    return {
+      getByRole(role, { name, exact }) {
+        assert.equal(role, 'button');
+        assert.equal(name, effect.name);
+        assert.equal(exact, true);
+        return collection([target]);
+      },
+      getByText(text, { exact }) {
+        assert.equal(text, effect.text);
+        assert.equal(exact, true);
+        return collection([painted]);
+      },
+    };
+  };
+
+  assert.equal(await exactNavigationEffectPassed(page(), { effect }), true);
+  assert.equal(await exactNavigationEffectPassed(page({ bound: false }), { effect }), false);
+  assert.equal(
+    await exactNavigationEffectPassed(
+      page({ paintedStyle: { color: 'rgba(255, 255, 255, 0)', webkitTextFillColor: 'transparent' } }),
+      { effect },
+    ),
+    false,
+  );
+  assert.equal(
+    await exactNavigationEffectPassed(page({ targetStyle: { filter: 'opacity(0)' } }), {
+      effect,
+    }),
+    false,
+  );
+  assert.equal(
+    await exactNavigationEffectPassed(page({ paintedStyle: { maskImage: 'linear-gradient(#000)' } }), {
+      effect,
+    }),
+    false,
+  );
+  assert.equal(
+    await exactNavigationEffectPassed(
+      page({
+        targetStyle: { overflow: 'hidden', overflowX: 'hidden', overflowY: 'hidden' },
+        textRect: {
+          left: -9990,
+          top: 10,
+          right: -9890,
+          bottom: 40,
+          width: 100,
+          height: 30,
+        },
+      }),
+      { effect },
+    ),
+    false,
+  );
+  assert.equal(
+    await exactNavigationEffectPassed(
+      page({ targetStyle: { backgroundColor: 'rgb(255, 255, 255)' } }),
+      { effect },
+    ),
+    false,
+  );
+});
+
+test('Chromium rejects offscreen-indent and same-paint post-navigation labels', async (context) => {
+  const { chromium } = await import('playwright-core');
+  const executablePath = chromium.executablePath();
+  if (!existsSync(executablePath)) {
+    context.skip('managed Chromium is unavailable');
+    return;
+  }
+  const { attachFontResponseEvidence, exactNavigationEffectPassed } = await contract();
+  const effect = {
+    type: 'visible',
+    role: 'button',
+    name: 'domain:career 해시태그 제거',
+    text: '#domain:career',
+    occurrence: 1,
+  };
+  const browser = await chromium.launch({ executablePath, headless: true });
+  try {
+    const browserContext = await browser.newContext({ viewport: { width: 800, height: 600 } });
+    const page = await browserContext.newPage();
+    attachFontResponseEvidence(page);
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;overflow:hidden;background:#111;color:#fff">
+        <span style="display:block;text-indent:-9999px">#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff;filter:blur(40px)">
+        <span>#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff;filter:brightness(0)">
+        <span>#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <div style="transform:translate(12px, 8px)">
+        <div role="button" tabindex="0" aria-label="domain:career 해시태그 제거"
+          style="width:160px;height:40px;background:#111;color:#fff;font-family:Arial">
+          <div dir="auto">#domain:career</div>
+        </div>
+      </div>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), true);
+
+    for (const color of [
+      'rgb(105,228,255)',
+      'rgb(138,125,255)',
+      'rgb(102,209,122)',
+      'rgb(255,0,0)',
+      'rgb(255,255,0)',
+    ]) {
+      await page.setContent(`
+        <button aria-label="domain:career 해시태그 제거"
+          style="width:160px;height:40px;background:#070b14;color:${color};font-family:Arial">
+          <span>#domain:career</span>
+        </button>
+      `);
+      assert.equal(await exactNavigationEffectPassed(page, { effect }), true);
+    }
+
+    for (const textStyle of [
+      'font-family:Arial;font-kerning:none',
+      'font-family:Arial;letter-spacing:.1px',
+      'font-family:Arial;letter-spacing:.25px',
+    ]) {
+      await page.setContent(`
+        <button aria-label="domain:career 해시태그 제거"
+          style="width:160px;height:40px;background:#111;color:#fff;${textStyle}">
+          <span>#domain:career</span>
+        </button>
+      `);
+      assert.equal(await exactNavigationEffectPassed(page, { effect }), true);
+    }
+
+    for (const compositorStyle of [
+      'transform:translateZ(0)',
+      'will-change:transform',
+      'backface-visibility:hidden',
+      'contain:paint',
+      'filter:opacity(1)',
+      'isolation:isolate;will-change:transform',
+    ]) {
+      await page.setContent(`
+        <button aria-label="domain:career \ud574\uc2dc\ud0dc\uadf8 \uc81c\uac70"
+          style="width:160px;height:40px;background:#111;color:#fff;font-family:Arial">
+          <span style="${compositorStyle}">#domain:career</span>
+        </button>
+      `);
+      assert.equal(
+        await exactNavigationEffectPassed(page, { effect }),
+        true,
+        compositorStyle,
+      );
+    }
+
+    for (const compositorStyle of ['will-change:transform', 'filter:opacity(1)']) {
+      await page.setContent(`
+        <button aria-label="domain:career \ud574시태그 제거"
+          style="width:160px;height:40px;background:#111;color:#fff;font-family:Arial;${compositorStyle}">
+          <span>#domain:career</span>
+        </button>
+      `);
+      assert.equal(
+        await exactNavigationEffectPassed(page, { effect }),
+        true,
+        `button ${compositorStyle}`,
+      );
+    }
+
+    for (const compositorStyle of ['will-change:transform', 'filter:opacity(1)']) {
+      await page.setContent(`
+        <div style="${compositorStyle}">
+          <button aria-label="domain:career \ud574시태그 제거"
+            style="width:160px;height:40px;background:#111;color:#fff;font-family:Arial">
+            <span>#domain:career</span>
+          </button>
+        </div>
+      `);
+      assert.equal(
+        await exactNavigationEffectPassed(page, { effect }),
+        true,
+        `ancestor ${compositorStyle}`,
+      );
+    }
+
+    for (const fontSize of [10, 13, 14, 15, 16, 17, 18, 20, 24, 30]) {
+      await page.setContent(`
+        <button aria-label="domain:career 해시태그 제거"
+          style="width:220px;height:60px;background:#070b14;color:rgb(105,228,255);font-family:Arial;font-size:${fontSize}px">
+          <span>#domain:career</span>
+        </button>
+      `);
+      assert.equal(await exactNavigationEffectPassed(page, { effect }), true, `Arial ${fontSize}px`);
+    }
+
+    for (const fontCase of [
+      {
+        file: 'Galmuri11-subset.woff2',
+        name: '여행 시작',
+        text: '여행하기',
+        weight: 400,
+      },
+      {
+        file: 'Galmuri11Bold-subset.woff2',
+        name: '제안 승인',
+        text: '승인',
+        weight: 700,
+      },
+    ]) {
+      const fontData = readFileSync(path.join(REPO, 'assets', 'fonts', fontCase.file)).toString(
+        'base64',
+      );
+      await page.setContent(`
+        <style>
+          @font-face {
+            font-family: AuditGalmuri;
+            src: url(data:font/woff2;base64,${fontData}) format('woff2');
+            font-style: normal;
+            font-weight: ${fontCase.weight};
+          }
+        </style>
+        <button aria-label="${fontCase.name}"
+          style="width:180px;height:48px;background:#070b14;color:rgb(105,228,255);font-family:AuditGalmuri;font-size:12px;font-weight:${fontCase.weight};line-height:18px">
+          <span>${fontCase.text}</span>
+        </button>
+      `);
+      await page.evaluate(
+        ({ text, weight }) => document.fonts.load(`${weight} 12px AuditGalmuri`, text),
+        fontCase,
+      );
+      assert.equal(
+        await page.evaluate(
+          ({ text, weight }) => document.fonts.check(`${weight} 12px AuditGalmuri`, text),
+          fontCase,
+        ),
+        true,
+      );
+      assert.equal(
+        await exactNavigationEffectPassed(page, {
+          effect: {
+            type: 'visible',
+            role: 'button',
+            name: fontCase.name,
+            text: fontCase.text,
+            occurrence: 1,
+          },
+        }),
+        true,
+        fontCase.file,
+      );
+    }
+
+    const adoptedGalmuriData = readFileSync(
+      path.join(REPO, 'assets', 'fonts', 'Galmuri11-subset.woff2'),
+    ).toString('base64');
+    await page.setContent(`
+      <button aria-label="adopted font audit"
+        style="width:180px;height:48px;background:#070b14;color:#fff;font-family:AdoptedAudit;font-size:12px;line-height:18px">
+        <span>\uc5ec\ud589\ud558\uae30</span>
+      </button>
+    `);
+    await page.evaluate(async (fontData) => {
+      const sheet = new CSSStyleSheet();
+      sheet.replaceSync(
+        `@font-face{font-family:AdoptedAudit;src:url(data:font/woff2;base64,${fontData}) format("woff2")}`,
+      );
+      document.adoptedStyleSheets = [sheet];
+      await document.fonts.load('12px AdoptedAudit', '\uc5ec\ud589\ud558\uae30');
+    }, adoptedGalmuriData);
+    assert.equal(
+      await exactNavigationEffectPassed(page, {
+        effect: {
+          type: 'visible',
+          role: 'button',
+          name: 'adopted font audit',
+          text: '\uc5ec\ud589\ud558\uae30',
+          occurrence: 1,
+        },
+      }),
+      true,
+      'trusted adopted stylesheet font',
+    );
+    await page.evaluate(() => {
+      document.adoptedStyleSheets = [];
+    });
+
+    const cmapSpoof = spoofPretendardHangulCmap(
+      readFileSync(path.join(REPO, 'assets', 'fonts', 'Pretendard-Regular.otf')),
+    ).toString('base64');
+    await page.setContent(`
+      <style>
+        @font-face {
+          font-family: EvilAuditA;
+          src: url(data:font/otf;base64,${cmapSpoof}) format('opentype');
+        }
+      </style>
+      <button aria-label="cmap audit"
+        style="width:180px;height:48px;background:#070b14;color:#fff;font-family:EvilAuditA;font-size:13px;line-height:18px">
+        <span>\uc2b9\uc778</span>
+      </button>
+    `);
+    await page.evaluate(() => document.fonts.load('13px EvilAuditA', '\uc2b9\uc778'));
+    assert.equal(
+      await exactNavigationEffectPassed(page, {
+        effect: {
+          type: 'visible',
+          role: 'button',
+          name: 'cmap audit',
+          text: '\uc2b9\uc778',
+          occurrence: 1,
+        },
+      }),
+      false,
+      'untrusted cmap remap font',
+    );
+
+    await page.setContent(`
+      <button aria-label="adopted cmap audit"
+        style="width:180px;height:48px;background:#070b14;color:#fff;font-family:AdoptedEvilAudit;font-size:13px;line-height:18px">
+        <span>\uc2b9\uc778</span>
+      </button>
+    `);
+    await page.evaluate(async (fontData) => {
+      const sheet = new CSSStyleSheet();
+      sheet.replaceSync(
+        `@font-face{font-family:AdoptedEvilAudit;src:url(data:font/otf;base64,${fontData}) format("opentype")}`,
+      );
+      document.adoptedStyleSheets = [sheet];
+      await document.fonts.load('13px AdoptedEvilAudit', '\uc2b9\uc778');
+    }, cmapSpoof);
+    assert.equal(
+      await exactNavigationEffectPassed(page, {
+        effect: {
+          type: 'visible',
+          role: 'button',
+          name: 'adopted cmap audit',
+          text: '\uc2b9\uc778',
+          occurrence: 1,
+        },
+      }),
+      false,
+      'untrusted adopted stylesheet cmap font',
+    );
+    await page.evaluate(() => {
+      document.adoptedStyleSheets = [];
+    });
+
+    const trustedGalmuriData = readFileSync(
+      path.join(REPO, 'assets', 'fonts', 'Galmuri11-subset.woff2'),
+    ).toString('base64');
+    await page.setContent(`
+      <style>
+        @font-face {
+          font-family: MixedLocalAudit;
+          src: local("Arial"), url(data:font/woff2;base64,${trustedGalmuriData}) format("woff2");
+        }
+      </style>
+      <button aria-label="mixed local audit"
+        style="width:180px;height:48px;background:#070b14;color:#fff;font-family:MixedLocalAudit;font-size:12px;line-height:18px">
+        <span>\uc5ec\ud589\ud558\uae30</span>
+      </button>
+    `);
+    await page.evaluate(() => document.fonts.load('12px MixedLocalAudit', '\uc5ec\ud589\ud558\uae30'));
+    assert.equal(
+      await exactNavigationEffectPassed(page, {
+        effect: {
+          type: 'visible',
+          role: 'button',
+          name: 'mixed local audit',
+          text: '\uc5ec\ud589\ud558\uae30',
+          occurrence: 1,
+        },
+      }),
+      false,
+      'mixed local and trusted sources fail closed',
+    );
+
+    await page.setContent(`
+      <button aria-label="blob font audit"
+        style="width:180px;height:48px;background:#070b14;color:#fff;font-family:BlobAudit;font-size:12px;line-height:18px">
+        <span>\uc5ec\ud589\ud558\uae30</span>
+      </button>
+    `);
+    await page.evaluate(async (fontData) => {
+      const bytes = Uint8Array.from(atob(fontData), (character) => character.charCodeAt(0));
+      const blobUrl = URL.createObjectURL(new Blob([bytes], { type: 'font/woff2' }));
+      const style = document.createElement('style');
+      style.textContent = `@font-face{font-family:BlobAudit;src:url("${blobUrl}") format("woff2")}`;
+      document.head.append(style);
+      await document.fonts.load('12px BlobAudit', '\uc5ec\ud589\ud558\uae30');
+      window.__work0BlobFontUrl = blobUrl;
+    }, trustedGalmuriData);
+    assert.equal(
+      await exactNavigationEffectPassed(page, {
+        effect: {
+          type: 'visible',
+          role: 'button',
+          name: 'blob font audit',
+          text: '\uc5ec\ud589\ud558\uae30',
+          occurrence: 1,
+        },
+      }),
+      false,
+      'unregistered blob font fails closed',
+    );
+    await page.evaluate(() => URL.revokeObjectURL(window.__work0BlobFontUrl));
+
+    await page.setContent(`
+      <button aria-label="dynamic alias audit"
+        style="width:180px;height:48px;background:#070b14;color:#fff;font-family:DynamicAliasAudit,Arial;font-size:12px;line-height:18px">
+        <span>\uc5ec\ud589\ud558\uae30</span>
+      </button>
+    `);
+    await page.evaluate(async (fontData) => {
+      const face = new FontFace(
+        'DynamicAliasAudit',
+        `url(data:font/woff2;base64,${fontData}) format("woff2")`,
+      );
+      await face.load();
+      document.fonts.add(face);
+      await document.fonts.load('12px DynamicAliasAudit', '\uc5ec\ud589\ud558\uae30');
+    }, trustedGalmuriData);
+    assert.equal(
+      await exactNavigationEffectPassed(page, {
+        effect: {
+          type: 'visible',
+          role: 'button',
+          name: 'dynamic alias audit',
+          text: '\uc5ec\ud589\ud558\uae30',
+          occurrence: 1,
+        },
+      }),
+      false,
+      'unknown FontFace API alias fails closed without a readable rule',
+    );
+
+    for (const dynamicFont of [
+      {
+        family: 'Pretendard',
+        file: 'Pretendard-Regular.otf',
+        format: 'opentype',
+        mime: 'font/otf',
+        size: 13,
+        text: '\uc2b9\uc778',
+        weight: 700,
+      },
+      {
+        family: 'Galmuri11',
+        file: 'Galmuri11-subset.woff2',
+        format: 'woff2',
+        mime: 'font/woff2',
+        size: 12,
+        text: '\uc5ec\ud589\ud558\uae30',
+        weight: 400,
+      },
+      {
+        family: 'Galmuri11Bold',
+        file: 'Galmuri11Bold-subset.woff2',
+        format: 'woff2',
+        mime: 'font/woff2',
+        size: 12,
+        text: '\uc2b9\uc778',
+        weight: 700,
+      },
+      {
+        family: 'Galmuri14',
+        file: 'Galmuri14-subset.woff2',
+        format: 'woff2',
+        mime: 'font/woff2',
+        size: 14,
+        text: '\uc5ec\ud589\ud558\uae30',
+        weight: 400,
+      },
+      {
+        family: 'Galmuri9',
+        file: 'Galmuri9-subset.woff2',
+        format: 'woff2',
+        mime: 'font/woff2',
+        size: 12,
+        text: '\uc5ec\ud589\ud558\uae30',
+        weight: 400,
+      },
+      {
+        family: 'GalmuriMono11',
+        file: 'GalmuriMono11-subset.woff2',
+        format: 'woff2',
+        mime: 'font/woff2',
+        size: 12,
+        text: '\uc5ec\ud589\ud558\uae30',
+        weight: 400,
+      },
+    ]) {
+      const dynamicFontData = readFileSync(
+        path.join(REPO, 'assets', 'fonts', dynamicFont.file),
+      ).toString('base64');
+      const accessibleName = `${dynamicFont.family} \ud14c\uc2a4\ud2b8`;
+      await page.setContent(`
+        <button aria-label="${accessibleName}"
+          style="width:180px;height:48px;background:#070b14;color:rgb(105,228,255);font-family:${dynamicFont.family};font-size:${dynamicFont.size}px;font-style:normal;font-weight:${dynamicFont.weight};line-height:18px">
+          <span>${dynamicFont.text}</span>
+        </button>
+      `);
+      await page.evaluate(async ({ family, fontData, format, mime }) => {
+        const face = new FontFace(
+          family,
+          `url(data:${mime};base64,${fontData}) format('${format}')`,
+        );
+        await face.load();
+        document.fonts.add(face);
+        await document.fonts.ready;
+      }, { ...dynamicFont, fontData: dynamicFontData });
+      assert.equal(
+        await page.evaluate(() =>
+          [...document.styleSheets].every((sheet) => {
+            try {
+              return [...sheet.cssRules].every((rule) => rule.type !== CSSRule.FONT_FACE_RULE);
+            } catch {
+              return true;
+            }
+          }),
+        ),
+        true,
+      );
+      assert.equal(
+        await page.evaluate(
+          ({ family, size, text, weight }) =>
+            document.fonts.check(`${weight} ${size}px ${family}`, text),
+          dynamicFont,
+        ),
+        true,
+      );
+      assert.equal(
+        await exactNavigationEffectPassed(page, {
+          effect: {
+            type: 'visible',
+            role: 'button',
+            name: accessibleName,
+            text: dynamicFont.text,
+            occurrence: 1,
+          },
+        }),
+        true,
+        `FontFace API registered ${dynamicFont.family}`,
+      );
+    }
+
+    const centeredPretendardData = readFileSync(
+      path.join(REPO, 'assets', 'fonts', 'Pretendard-Regular.otf'),
+    ).toString('base64');
+    await page.setContent(`
+      <style>
+        @font-face {
+          font-family: Pretendard;
+          src: url(data:font/otf;base64,${centeredPretendardData}) format("opentype");
+          font-weight: 400;
+        }
+      </style>
+      <div role="button" aria-label="\uc81c\uc548 \uc2b9\uc778" tabindex="0"
+        style="display:flex;width:180px;height:48px;align-items:center;justify-content:center;background:#070b14;color:#fff;font-family:Pretendard;font-size:13px;font-weight:700;line-height:18px">
+        <div dir="auto" style="isolation:isolate;will-change:transform">\uc2b9\uc778</div>
+      </div>
+    `);
+    await page.evaluate(() => document.fonts.load('700 13px Pretendard', '\uc2b9\uc778'));
+    assert.equal(
+      await exactNavigationEffectPassed(page, {
+        effect: {
+          type: 'visible',
+          role: 'button',
+          name: '\uc81c\uc548 \uc2b9\uc778',
+          text: '\uc2b9\uc778',
+          occurrence: 1,
+        },
+      }),
+      true,
+      'centered React Native Web Pretendard compositor text',
+    );
+
+    await page.setContent(`
+      <style>
+        @font-face {
+          font-family: Pretendard;
+          src: url(data:font/otf;base64,${centeredPretendardData}) format("opentype");
+          font-weight: 400;
+        }
+      </style>
+      <div role="button" aria-label="\uc81c\uc548 \uc2b9\uc778 \ub05d" tabindex="0"
+        style="display:flex;flex-direction:row;width:180px;height:48px;align-items:flex-start;justify-content:flex-end;background:#070b14;color:#fff;font-family:Pretendard;font-size:13px;font-weight:700;line-height:18px">
+        <div dir="auto" style="isolation:isolate;will-change:transform">\uc2b9\uc778</div>
+      </div>
+    `);
+    await page.evaluate(() => document.fonts.load('700 13px Pretendard', '\uc2b9\uc778'));
+    assert.equal(
+      await exactNavigationEffectPassed(page, {
+        effect: {
+          type: 'visible',
+          role: 'button',
+          name: '\uc81c\uc548 \uc2b9\uc778 \ub05d',
+          text: '\uc2b9\uc778',
+          occurrence: 1,
+        },
+      }),
+      true,
+      'flex-end React Native Web Pretendard compositor text',
+    );
+
+    const importedFont = readFileSync(
+      path.join(REPO, 'assets', 'fonts', 'Galmuri11-subset.woff2'),
+    );
+    const importedFontRequests = [];
+    await browserContext.route('http://work0-font.test/**', async (route) => {
+      const pathname = new URL(route.request().url()).pathname;
+      importedFontRequests.push(pathname);
+      const common = { headers: { 'access-control-allow-origin': '*' }, status: 200 };
+      if (pathname === '/page') {
+        await route.fulfill({
+          ...common,
+          body: [
+            '<link rel="stylesheet" href="/main.css">',
+            '<button aria-label="\uc5ec\ud589 \uc2dc\uc791"',
+            ' style="width:180px;height:48px;background:#070b14;color:rgb(105,228,255);font-family:DynamicImportAudit,ImportedAudit;font-size:12px;line-height:18px">',
+            '<span>\uc5ec\ud589\ud558\uae30</span></button>',
+          ].join(''),
+          contentType: 'text/html; charset=utf-8',
+        });
+      } else if (pathname === '/main.css') {
+        await route.fulfill({
+          ...common,
+          body: '@import "./sub/font.css";',
+          contentType: 'text/css',
+        });
+      } else if (pathname === '/sub/font.css') {
+        await route.fulfill({
+          ...common,
+          body: [
+            '@font-face {',
+            '  font-family: ImportedAudit;',
+            '  src: url("./font.woff2") format("woff2");',
+            '  font-style: normal;',
+            '  font-weight: 400;',
+            '}',
+          ].join('\n'),
+          contentType: 'text/css',
+        });
+      } else if (pathname === '/sub/font.woff2') {
+        await route.fulfill({ ...common, body: importedFont, contentType: 'font/woff2' });
+      } else {
+        await route.fulfill({ status: 404, body: 'not found' });
+      }
+    });
+    try {
+      await page.goto('http://work0-font.test/page', { waitUntil: 'load' });
+      await page.evaluate(async (fontData) => {
+        const face = new FontFace(
+          'DynamicImportAudit',
+          `url(data:font/woff2;base64,${fontData}) format('woff2')`,
+        );
+        await face.load();
+        document.fonts.add(face);
+        await document.fonts.load('12px DynamicImportAudit', '\uc5ec\ud589\ud558\uae30');
+        await document.fonts.ready;
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      }, importedFont.toString('base64'));
+      assert.equal(
+        await page.evaluate(() =>
+          document.fonts.check('12px DynamicImportAudit', '\uc5ec\ud589\ud558\uae30'),
+        ),
+        true,
+      );
+      assert.equal(
+        await exactNavigationEffectPassed(page, {
+          effect: {
+            type: 'visible',
+            role: 'button',
+            name: '\uc5ec\ud589 \uc2dc\uc791',
+            text: '\uc5ec\ud589\ud558\uae30',
+            occurrence: 1,
+          },
+        }),
+        true,
+        'CSS import repository font',
+      );
+      assert.equal(importedFontRequests.includes('/sub/font.woff2'), true);
+      assert.equal(
+        importedFontRequests.filter((pathname) => pathname === '/sub/font.woff2').length,
+        1,
+        'the expected renderer must not re-fetch the observed font URL',
+      );
+    } finally {
+      await page.goto('about:blank');
+      await browserContext.unroute('http://work0-font.test/**');
+    }
+
+    await browserContext.route('http://work0-cross-page.test/**', async (route) => {
+      await route.fulfill({
+        body: [
+          '<link rel="stylesheet" href="http://work0-cross-style.test/unreadable.css">',
+          '<button aria-label="domain:career \ud574시\ud0dc\uadf8 \uc81c\uac70"',
+          ' style="width:160px;height:40px;background:#111;color:#fff;font-family:Arial">',
+          '<span>#domain:career</span></button>',
+        ].join(''),
+        contentType: 'text/html; charset=utf-8',
+        status: 200,
+      });
+    });
+    await browserContext.route('http://work0-cross-style.test/**', async (route) => {
+      await route.fulfill({
+        body: 'body { margin: 8px; }',
+        contentType: 'text/css',
+        status: 200,
+      });
+    });
+    try {
+      await page.goto('http://work0-cross-page.test/page', { waitUntil: 'load' });
+      assert.equal(
+        await page.evaluate(() => {
+          try {
+            void document.styleSheets[0].cssRules;
+            return false;
+          } catch {
+            return true;
+          }
+        }),
+        true,
+        'fixture stylesheet must be unreadable to CSSOM',
+      );
+      assert.equal(
+        await exactNavigationEffectPassed(page, { effect }),
+        false,
+        'unreadable cross-origin stylesheet fails closed',
+      );
+    } finally {
+      await page.goto('about:blank');
+      await browserContext.unroute('http://work0-cross-page.test/**');
+      await browserContext.unroute('http://work0-cross-style.test/**');
+    }
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff">
+        <span style="transform:rotate(180deg)">#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <div style="transform:rotate(180deg)">
+        <button aria-label="domain:career 해시태그 제거"
+          style="width:160px;height:40px;background:#111;color:#fff">
+          <span>#domain:career</span>
+        </button>
+      </div>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <i style="position:fixed;left:700px;top:500px;width:20px;height:20px;background:#f00;filter:saturate(.5)"></i>
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff">
+        <span>#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), true);
+
+    await page.setContent(`
+      <i style="position:absolute;left:300px;top:0;width:10px;height:10px;background:#f00;filter:drop-shadow(392px 0 0 #000)"></i>
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff">
+        <span>#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), true);
+
+    await page.evaluate(() => {
+      window.__work0MutationCount = 0;
+      window.__work0MutationObserver = new MutationObserver((records) => {
+        window.__work0MutationCount += records.length;
+      });
+      window.__work0MutationObserver.observe(document.documentElement, {
+        attributes: true,
+        childList: true,
+        subtree: true,
+      });
+    });
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), true);
+    assert.equal(
+      await page.evaluate(
+        () =>
+          new Promise((resolve) => {
+            requestAnimationFrame(() => {
+              window.__work0MutationObserver.disconnect();
+              resolve(window.__work0MutationCount);
+            });
+          }),
+      ),
+      0,
+    );
+
+    await page.setContent(`
+      <div style="position:relative;width:180px;height:40px;background:#111">
+        <i style="position:absolute;left:-50px;top:-50px;width:10px;height:10px;z-index:-1;box-shadow:0 0 0 500px #000"></i>
+        <button aria-label="domain:career 해시태그 제거"
+          style="position:relative;z-index:1;width:160px;height:40px;background:#111;color:#fff">
+          <span>#domain:career</span>
+        </button>
+      </div>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), true);
+
+    await page.setContent(`
+      <div style="position:relative;width:180px;height:40px;background:#111">
+        <i style="position:absolute;left:-100px;top:-100px;width:200px;height:60px;z-index:-1;background:#000;filter:drop-shadow(100px 100px 0 #000)"></i>
+        <button aria-label="domain:career 해시태그 제거"
+          style="position:relative;z-index:1;width:160px;height:40px;background:#111;color:#fff">
+          <span>#domain:career</span>
+        </button>
+      </div>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), true);
+
+    await page.setContent(`
+      <i style="display:none;filter:blur(1px)"></i>
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff">
+        <span>#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), true);
+
+    await page.setContent(`
+      <style>
+        .external-pseudo::after {
+          content:"";position:fixed;inset:0;z-index:10;pointer-events:none;background:#111
+        }
+      </style>
+      <i class="external-pseudo" style="position:fixed;left:-100px;top:-100px"></i>
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff">
+        <span>#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <style>
+        #important-pseudo::before {
+          content:"";position:fixed;inset:0;z-index:10;
+          pointer-events:none!important;background:#111
+        }
+      </style>
+      <i id="important-pseudo" style="position:fixed;left:-100px;top:-100px"></i>
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff">
+        <span>#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <style>
+        .outline-pseudo::after {
+          content:"";position:absolute;left:-100px;top:-100px;width:10px;height:10px;
+          pointer-events:none;outline:500px solid #111
+        }
+      </style>
+      <i class="outline-pseudo" style="position:fixed;left:-100px;top:-100px;z-index:10"></i>
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff">
+        <span>#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <style>
+        .detached-outline-pseudo::after {
+          content:"";position:fixed;left:-100px;top:-100px;width:10px;height:10px;
+          pointer-events:none;outline:500px solid #111
+        }
+      </style>
+      <i class="detached-outline-pseudo" style="position:fixed;left:700px;top:500px;z-index:10"></i>
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff">
+        <span>#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <style>
+        .flow-pseudo::before {
+          content:"";display:inline-block;width:180px;height:40px;
+          pointer-events:none;box-shadow:-392px 0 0 #000
+        }
+      </style>
+      <i class="flow-pseudo"
+        style="position:fixed;left:400px;top:0;height:40px;pointer-events:none;z-index:10"></i>
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff">
+        <span>#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <style>
+        .static-pseudo::after {
+          content:"";display:block;width:10px;height:10px;box-shadow:0 0 0 500px #111
+        }
+      </style>
+      <i class="static-pseudo" style="position:fixed;left:-100px;top:-100px"></i>
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff">
+        <span>#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <div style="position:relative;width:180px;height:40px;background:#111">
+        <button aria-label="domain:career 해시태그 제거"
+          style="position:relative;z-index:0;width:160px;height:40px;background:#111;color:#fff">
+          <span>#domain:career</span>
+        </button>
+        <div style="position:absolute;left:-100px;top:-100px;width:1px;height:1px;scale:1">
+          <i style="position:absolute;width:10px;height:10px;z-index:-1;pointer-events:none;box-shadow:0 0 0 500px #000"></i>
+        </div>
+      </div>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="position:relative;z-index:1;width:160px;height:40px;background:#111;color:#fff">
+        <span>#domain:career</span>
+      </button>
+      <div id="top-layer-occluder" popover
+        style="position:fixed;left:-100px;top:-100px;width:10px;height:10px;margin:0;padding:0;border:0;pointer-events:none;z-index:-1;outline:500px solid #000"></div>
+    `);
+    await page.locator('#top-layer-occluder').evaluate((element) => element.showPopover());
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <i style="position:fixed;left:-50px;top:-50px;width:10px;height:10px;z-index:2147483647;box-shadow:0 0 0 500px #000"></i>
+      <div id="top-layer-owner" popover
+        style="position:fixed;left:0;top:0;margin:0;padding:0;border:0;background:#111">
+        <button aria-label="domain:career 해시태그 제거"
+          style="width:160px;height:40px;background:#111;color:#fff">
+          <span>#domain:career</span>
+        </button>
+      </div>
+    `);
+    await page.locator('#top-layer-owner').evaluate((element) => element.showPopover());
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), true);
+
+    await page.setContent(`
+      <i style="position:fixed;inset:0;z-index:10;pointer-events:none;background:#fff"></i>
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff">
+        <span>#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <i style="position:fixed;inset:0;z-index:10;pointer-events:none;background:repeating-linear-gradient(to bottom,#fff 0 3px,#000 3px 16px)"></i>
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff">
+        <span>#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <i style="position:fixed;inset:0;z-index:10;pointer-events:none;background:repeating-linear-gradient(to right,#fff 0 1px,#000 1px 4px)"></i>
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff">
+        <span>#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff">
+        <span>#domain:career</span>
+      </button>
+    `);
+    await page.locator('span').evaluate((span) => {
+      const range = document.createRange();
+      range.selectNodeContents(span);
+      const rect = range.getBoundingClientRect();
+      range.detach?.();
+      const overlay = document.createElement('i');
+      overlay.style.cssText =
+        'position:fixed;inset:0;z-index:10;pointer-events:none;background:#000';
+      for (let row = 0; row < 3; row += 1) {
+        for (let column = 0; column < 21; column += 1) {
+          const pixel = document.createElement('b');
+          const x = Math.floor(rect.left + (column * Math.max(1, rect.width - 1)) / 20);
+          const y = Math.floor(rect.top + 2 + row * Math.max(3, (rect.height - 4) / 2));
+          pixel.style.cssText =
+            `position:absolute;left:${x}px;top:${y}px;width:1px;height:1px;background:#fff`;
+          overlay.append(pixel);
+        }
+      }
+      document.body.append(overlay);
+    });
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    for (const edge of ['top', 'bottom']) {
+      await page.setContent(`
+        <button aria-label="domain:career 해시태그 제거"
+          style="width:160px;height:40px;background:#111;color:#fff">
+          <span>#domain:career</span>
+        </button>
+      `);
+      await page.locator('span').evaluate((span, coveredEdge) => {
+        const range = document.createRange();
+        range.selectNodeContents(span);
+        const rect = range.getBoundingClientRect();
+        range.detach?.();
+        const cover = document.createElement('i');
+        cover.style.cssText = [
+          'position:fixed',
+          `left:${rect.left}px`,
+          `top:${coveredEdge === 'top' ? rect.top : rect.top + rect.height * 0.6}px`,
+          `width:${rect.width}px`,
+          `height:${rect.height * 0.4}px`,
+          'z-index:10',
+          'pointer-events:none',
+          'background:#111',
+        ].join(';');
+        document.body.append(cover);
+      }, edge);
+      assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+    }
+
+    for (const replacement of ['#d0main:career', '#domain:carear', '#domain:career.']) {
+      await page.setContent(`
+        <button aria-label="domain:career 해시태그 제거"
+          style="width:160px;height:40px;background:#111;color:#fff">
+          <span>#domain:career</span>
+        </button>
+      `);
+      await page.locator('span').evaluate((span, visibleReplacement) => {
+        const range = document.createRange();
+        range.selectNodeContents(span);
+        const rect = range.getBoundingClientRect();
+        range.detach?.();
+        const style = getComputedStyle(span);
+        const overlay = document.createElement('i');
+        overlay.textContent = visibleReplacement;
+        overlay.style.cssText = [
+          'position:fixed',
+          `left:${rect.left}px`,
+          `top:${rect.top}px`,
+          `min-width:${rect.width}px`,
+          `height:${rect.height}px`,
+          'z-index:10',
+          'pointer-events:none',
+          'overflow:visible',
+          'white-space:nowrap',
+          'background:#111',
+          `color:${style.color}`,
+          `font:${style.font}`,
+          `line-height:${style.lineHeight}`,
+          `letter-spacing:${style.letterSpacing}`,
+        ].join(';');
+        document.body.append(overlay);
+      }, replacement);
+      assert.equal(await exactNavigationEffectPassed(page, { effect }), false, replacement);
+    }
+
+    for (const attackColor of ['rgb(105,228,255)', 'rgb(255,0,0)']) {
+      await page.setContent(`
+        <button aria-label="domain:career 해시태그 제거"
+          style="width:160px;height:40px;background:#070b14;color:${attackColor};font-family:Arial">
+          <span>#domain:career</span>
+        </button>
+      `);
+      await page.locator('span').evaluate((span) => {
+        const range = document.createRange();
+        range.selectNodeContents(span);
+        const rect = range.getBoundingClientRect();
+        range.detach?.();
+        const style = getComputedStyle(span);
+        const overlay = document.createElement('i');
+        overlay.textContent = '#domain:carear';
+        overlay.style.cssText = [
+          'position:fixed',
+          `left:${rect.left}px`,
+          `top:${rect.top}px`,
+          `min-width:${rect.width}px`,
+          `height:${rect.height}px`,
+          'z-index:10',
+          'pointer-events:none',
+          'white-space:nowrap',
+          'background:#070b14',
+          `color:${style.color}`,
+          `font:${style.font}`,
+          `line-height:${style.lineHeight}`,
+        ].join(';');
+        document.body.append(overlay);
+      });
+      assert.equal(await exactNavigationEffectPassed(page, { effect }), false, attackColor);
+    }
+
+    const approvalEffect = {
+      type: 'visible',
+      role: 'button',
+      name: '제안 승인',
+      text: '승인',
+      occurrence: 1,
+    };
+    await page.setContent(`
+      <button aria-label="제안 승인" style="width:160px;height:40px;background:#111;color:#fff">
+        <span>승인</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect: approvalEffect }), true);
+    await page.locator('span').evaluate((span) => {
+      const range = document.createRange();
+      range.selectNodeContents(span);
+      const rect = range.getBoundingClientRect();
+      range.detach?.();
+      const style = getComputedStyle(span);
+      const overlay = document.createElement('i');
+      overlay.textContent = '거절';
+      overlay.style.cssText = [
+        'position:fixed',
+        `left:${rect.left}px`,
+        `top:${rect.top}px`,
+        `min-width:${rect.width}px`,
+        `height:${rect.height}px`,
+        'z-index:10',
+        'pointer-events:none',
+        'white-space:nowrap',
+        'background:#111',
+        `color:${style.color}`,
+        `font:${style.font}`,
+        `line-height:${style.lineHeight}`,
+      ].join(';');
+      document.body.append(overlay);
+    });
+    assert.equal(await exactNavigationEffectPassed(page, { effect: approvalEffect }), false);
+
+    for (const glyphAttack of [
+      {
+        family: 'PretendardAudit',
+        file: 'Pretendard-Regular.otf',
+        mime: 'font/otf',
+        name: '\uc81c\uc548 \uc2b9\uc778',
+        replacements: ['\uc2b9\uc5b8'],
+        size: 13,
+        text: '\uc2b9\uc778',
+        weight: 700,
+      },
+      {
+        family: 'Galmuri11BoldAudit',
+        file: 'Galmuri11Bold-subset.woff2',
+        mime: 'font/woff2',
+        name: '\uc81c\uc548 \uc2b9\uc778',
+        replacements: ['\uc22d\uc778', '\uc2b9\uc5b8', '\uc22d\uc5b8', '\uc2b9\ubbfc'],
+        size: 12,
+        text: '\uc2b9\uc778',
+        weight: 700,
+      },
+      {
+        family: 'Galmuri11BoldAudit',
+        file: 'Galmuri11Bold-subset.woff2',
+        mime: 'font/woff2',
+        name: '\uc5ec\ud589 \uc2dc\uc791',
+        replacements: ['\uc5ec\ud5f9\ud558\uae30', '\uc5ec\ud615\ud558\uae30', '\uc5ec\ud589\ud558\uac00', '\uc5ec\ud589\ud788\uae30'],
+        size: 12,
+        text: '\uc5ec\ud589\ud558\uae30',
+        weight: 700,
+      },
+    ]) {
+      const fontData = readFileSync(
+        path.join(REPO, 'assets', 'fonts', glyphAttack.file),
+      ).toString('base64');
+      const source = () => `
+        <style>
+          @font-face {
+            font-family: ${glyphAttack.family};
+            src: url(data:${glyphAttack.mime};base64,${fontData});
+            font-style: normal;
+            font-weight: ${glyphAttack.weight};
+          }
+        </style>
+        <button aria-label="${glyphAttack.name}"
+          style="width:180px;height:48px;background:#070b14;color:#fff;font-family:${glyphAttack.family};font-size:${glyphAttack.size}px;font-style:normal;font-weight:${glyphAttack.weight};line-height:18px">
+          <span>${glyphAttack.text}</span>
+        </button>
+      `;
+      const glyphEffect = {
+        type: 'visible',
+        role: 'button',
+        name: glyphAttack.name,
+        text: glyphAttack.text,
+        occurrence: 1,
+      };
+      await page.setContent(source());
+      await page.evaluate(
+        ({ family, size, text, weight }) =>
+          document.fonts.load(`${weight} ${size}px ${family}`, text),
+        glyphAttack,
+      );
+      assert.equal(
+        await exactNavigationEffectPassed(page, { effect: glyphEffect }),
+        true,
+        `${glyphAttack.family} ${glyphAttack.text} baseline`,
+      );
+      for (const replacement of glyphAttack.replacements) {
+        await page.setContent(source());
+        await page.evaluate(
+          ({ family, size, text, weight }) =>
+            document.fonts.load(`${weight} ${size}px ${family}`, text),
+          glyphAttack,
+        );
+        await page.locator('span').evaluate((span, visibleReplacement) => {
+          const range = document.createRange();
+          range.selectNodeContents(span);
+          const rect = range.getBoundingClientRect();
+          range.detach?.();
+          const style = getComputedStyle(span);
+          const overlay = document.createElement('i');
+          overlay.textContent = visibleReplacement;
+          overlay.style.cssText = [
+            'position:fixed',
+            `left:${rect.left}px`,
+            `top:${rect.top}px`,
+            `min-width:${rect.width}px`,
+            `height:${rect.height}px`,
+            'z-index:10',
+            'pointer-events:none',
+            'overflow:visible',
+            'white-space:nowrap',
+            'background:#070b14',
+            `color:${style.color}`,
+            `font:${style.font}`,
+            `line-height:${style.lineHeight}`,
+            `letter-spacing:${style.letterSpacing}`,
+          ].join(';');
+          document.body.append(overlay);
+        }, replacement);
+        assert.equal(
+          await exactNavigationEffectPassed(page, { effect: glyphEffect }),
+          false,
+          `${glyphAttack.family} ${glyphAttack.text} -> ${replacement}`,
+        );
+      }
+    }
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff">
+        <span>#domain:career</span>
+      </button>
+    `);
+    await page.locator('span').evaluate((span) => {
+      const range = document.createRange();
+      range.selectNodeContents(span);
+      const rect = range.getBoundingClientRect();
+      range.detach?.();
+      const cover = document.createElement('i');
+      cover.style.cssText = [
+        'position:fixed',
+        `left:${rect.left + rect.width * 0.47}px`,
+        `top:${rect.top}px`,
+        `width:${rect.width * 0.53}px`,
+        `height:${rect.height}px`,
+        'z-index:10',
+        'pointer-events:none',
+        'background:#111',
+      ].join(';');
+      document.body.append(cover);
+    });
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff">
+        <span style="rotate:180deg">#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff">
+        <span style="scale:-1">#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <div style="rotate:180deg">
+        <button aria-label="domain:career 해시태그 제거"
+          style="width:160px;height:40px;background:#111;color:#fff">
+          <span>#domain:career</span>
+        </button>
+      </div>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff">
+        <span style="offset-path:path('M 0 0 L 0 0');offset-distance:0%;offset-rotate:180deg">
+          #domain:career
+        </span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <div style="perspective:100px">
+        <button aria-label="domain:career 해시태그 제거"
+          style="width:160px;height:40px;background:#111;color:#fff">
+          <span style="transform:translateZ(50px)">#domain:career</span>
+        </button>
+      </div>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:180px;height:40px;background:#000;color:#fff">
+        <span style="mix-blend-mode:multiply">#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:180px;height:40px;background:#000;color:#fff">
+        <span style="-webkit-text-stroke:20px #000">#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <div style="background:#fff">
+        <button aria-label="domain:career 해시태그 제거"
+          style="width:180px;height:40px;background:rgba(255,255,255,.5);color:#fff">
+          <span>#domain:career</span>
+        </button>
+      </div>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <div style="background:#fff">
+        <button aria-label="domain:career 해시태그 제거"
+          style="width:180px;height:40px;background:#000;color:#fff;opacity:.4">
+          <span>#domain:career</span>
+        </button>
+      </div>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:180px;height:40px;background:#000;color:#fff">
+        <span style="text-decoration-line:line-through;text-decoration-color:#000;text-decoration-thickness:30px">
+          #domain:career
+        </span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <style>
+        .ancestor-cover { position:relative;width:180px;height:40px }
+        .ancestor-cover::after {
+          content:"";position:absolute;inset:0;z-index:2;pointer-events:none;background:#000
+        }
+      </style>
+      <div class="ancestor-cover">
+        <button aria-label="domain:career 해시태그 제거"
+          style="width:180px;height:40px;background:#000;color:#fff">
+          <span>#domain:career</span>
+        </button>
+      </div>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <div style="position:relative;width:180px;height:40px">
+        <div style="position:absolute;inset:0;background:#000"></div>
+        <button aria-label="domain:career 해시태그 제거"
+          style="position:relative;width:180px;height:40px;background:transparent;color:#000">
+          <span>#domain:career</span>
+        </button>
+      </div>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:180px;height:40px;background:#000;color:#fff">
+        <span style="font-size:2px">#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:180px;height:40px;background:#000;color:#fff">
+        <span style="font-size:16px;letter-spacing:-6px">#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:180px;height:40px;background:#000;color:#fff">
+        <span style="font-size:16px;zoom:.2">#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <div style="zoom:.2">
+        <button aria-label="domain:career 해시태그 제거"
+          style="width:180px;height:40px;background:#000;color:#fff">
+          <span style="font-size:16px">#domain:career</span>
+        </button>
+      </div>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:180px;height:120px;background:#000;color:#fff">
+        <span style="writing-mode:vertical-rl">#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:180px;height:40px;background:#000;color:#fff">
+        <span style="font-size:16px;font-size-adjust:.1">#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:180px;height:40px;background:#000;color:#fff">
+        <span style="font-size:16px;font-stretch:1%">#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:180px;height:40px;background:#000;color:#fff;outline:100px solid #000;outline-offset:-100px">
+        <span>#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <div style="outline:100px solid #000;outline-offset:-100px">
+        <button aria-label="domain:career 해시태그 제거"
+          style="width:180px;height:40px;background:#000;color:#fff">
+          <span>#domain:career</span>
+        </button>
+      </div>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <div style="position:relative;width:180px;height:40px;background:#000">
+        <i style="position:absolute;left:-50px;top:-50px;width:10px;height:10px;z-index:10;outline:500px solid #000"></i>
+        <button aria-label="domain:career 해시태그 제거"
+          style="position:relative;width:180px;height:40px;background:#000;color:#fff">
+          <span>#domain:career</span>
+        </button>
+      </div>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <div style="position:relative;width:180px;height:40px;background:#000">
+        <i style="position:absolute;left:-50px;top:-50px;width:10px;height:10px;z-index:10;box-shadow:0 0 0 500px #000"></i>
+        <button aria-label="domain:career 해시태그 제거"
+          style="position:relative;width:180px;height:40px;background:#000;color:#fff">
+          <span>#domain:career</span>
+        </button>
+      </div>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <div style="position:relative;width:180px;height:40px;background:#000">
+        <i style="position:absolute;left:300px;top:0;width:1px;height:1px;z-index:10;box-shadow:-310px 0 0 200px #000"></i>
+        <button aria-label="domain:career 해시태그 제거"
+          style="position:relative;width:180px;height:40px;background:#000;color:#fff">
+          <span>#domain:career</span>
+        </button>
+      </div>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <div style="position:relative;width:180px;height:40px;background:#000">
+        <i style="position:absolute;left:-100px;top:-100px;width:200px;height:60px;z-index:10;background:#000;filter:drop-shadow(100px 100px 0 #000)"></i>
+        <button aria-label="domain:career 해시태그 제거"
+          style="position:relative;width:180px;height:40px;background:#000;color:#fff">
+          <span>#domain:career</span>
+        </button>
+      </div>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:180px;height:40px;background:#000;color:#fff">
+        <span style="-webkit-mask-box-image:linear-gradient(transparent,transparent) 1 fill">
+          #domain:career
+        </span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#fff;color:#fff">
+        <span>#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background-image:linear-gradient(#000,#000);color:#000">
+        <span>#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#fff;color:#fff;text-shadow:0 0 0 transparent">
+        <span>#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#fff;color:#fff;text-shadow:0 0 0 #fff">
+        <span>#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="position:relative;width:160px;height:40px;background:#111;color:#fff">
+        <span>#domain:career</span>
+        <i style="pointer-events:none;position:absolute;inset:0;background:#111;clip-path:inset(0)"></i>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="position:relative;width:160px;height:40px;background:#111;color:#fff">
+        <span>#domain:career</span>
+        <i style="position:absolute;inset:0;background:#111"></i>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="position:relative;width:160px;height:40px;background:#111;color:#fff">
+        <span>#domain:career</span>
+        <i style="pointer-events:none;position:absolute;inset:0;background:#111"></i>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="position:relative;width:160px;height:40px;background:#111;color:#fff">
+        <span>#domain:career</span>
+        <i style="pointer-events:none;position:absolute;inset:0;border:20px solid #111;box-sizing:border-box"></i>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="position:relative;width:160px;height:40px;background:#111;color:#fff">
+        <span>#domain:career</span>
+        <i style="pointer-events:none;position:absolute;inset:0;color:#111;font-size:40px;line-height:40px">████</i>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <style>
+        button { position:relative;width:160px;height:40px;background:#111;color:#fff }
+        button::after { content:"";position:absolute;inset:0;background:#111 }
+      </style>
+      <button aria-label="domain:career 해시태그 제거"><span>#domain:career</span></button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:100px;height:40px;background:#111;color:#fff">
+        <span style="position:fixed;left:500px;top:400px">#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff">
+        <span style="text-transform:uppercase">#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff">
+        <span style="-webkit-text-security:disc">#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <div style="height:1400px"></div>
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff">
+        <span>#domain:career</span>
+      </button>
+    `);
+    await page.evaluate(() => scrollTo(0, 0));
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+    assert.equal(await page.evaluate(() => scrollY), 0);
+
+    await page.setContent(`
+      <div style="height:600px"></div>
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff">
+        <span>#domain:career</span>
+      </button>
+      <div style="height:900px"></div>
+    `);
+    await page.evaluate(() => scrollTo(0, 500));
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), true);
+    assert.equal(await page.evaluate(() => scrollY), 500);
+
+    await page.setContent(`
+      <div style="height:1500px"></div>
+      <button aria-label="domain:career 해시태그 제거"
+        style="position:fixed;left:8px;top:100px;width:160px;height:40px;background:#111;color:#fff">
+        <span>#domain:career</span>
+      </button>
+    `);
+    await page.evaluate(() => scrollTo(0, 600));
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), true);
+    assert.equal(await page.evaluate(() => scrollY), 600);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:95px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:#111;color:#fff">
+        <span>#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:48px;height:18px;overflow:hidden;background:#111;color:#fff">
+        <span style="display:block;width:48px;line-height:16px;word-break:break-all">#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff">
+        <span style="position:relative">#domain:career<i style="position:absolute;inset:0;background:#111"></i></span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff">
+        <span style="unicode-bidi:bidi-override;direction:rtl">#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff">
+        <span><span>#domain:</span><span style="display:none">career</span></span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff">
+        <span><span>#domain:</span><span style="color:transparent">career</span></span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <div role="button" tabindex="0" aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;color:#fff">
+        <span>#domain:career</span>
+      </div>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), false);
+
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff">
+        <span>#domain:career</span>
+      </button>
+    `);
+    assert.equal(await exactNavigationEffectPassed(page, { effect }), true);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('post-navigation occurrence is counted after rendered role binding', async () => {
+  const { exactNavigationEffectPassed } = await contract();
+  const effect = {
+    type: 'visible',
+    role: 'button',
+    name: 'domain:career 해시태그 제거',
+    text: '#domain:career',
+    occurrence: 1,
+  };
+  const collection = (items) => ({
+    async count() {
+      return items.length;
+    },
+    nth(index) {
+      return items[index];
+    },
+  });
+  const paintedHandle = { async dispose() {} };
+  const calls = [];
+  const target = (rendered, id) => ({
+    async isVisible() {
+      return true;
+    },
+    async scrollIntoViewIfNeeded() {},
+    async evaluate(callback, payload) {
+      assert.equal(typeof callback, 'function');
+      assert.equal(payload.paintedElement, paintedHandle);
+      assert.equal(payload.expectedText, effect.text);
+      calls.push(id);
+      return rendered;
+    },
+  });
+  const painted = {
+    async isVisible() {
+      return true;
+    },
+    async elementHandle() {
+      return paintedHandle;
+    },
+  };
+  const page = {
+    getByRole() {
+      return collection([target(false, 'transparent'), target(true, 'painted')]);
+    },
+    getByText() {
+      return collection([painted]);
+    },
+  };
+
+  assert.equal(await exactNavigationEffectPassed(page, { effect }), true);
+  assert.deepEqual(calls, ['transparent', 'painted']);
+});
+
+test('post-navigation orchestration rechecks reveal, health, route, mutation, and final effect', async () => {
+  const { createShotHealth, recordShotFailure, verifyPostNavigationEffect } = await contract();
+  const baseUrl = 'http://localhost:8977';
+  const expectedUrl = 'http://localhost:8977/2nd-B/capture-full';
+  const postNavigation = {
+    reveal: { role: 'button', name: '더보기', occurrence: 1 },
+    effect: {
+      type: 'visible',
+      role: 'button',
+      name: 'domain:career 해시태그 제거',
+      text: '#domain:career',
+      occurrence: 1,
+    },
+  };
+  const run = async ({
+    initiallyVisible = false,
+    revealAvailable = true,
+    driftAfterIdle = false,
+    networkFailure = false,
+    mutation = false,
+    fadeAfterFirstCheck = false,
+    driftDuringFinalEffect = false,
+    mutationDuringFinalEffect = false,
+    pendingDuringFinalEffect = false,
+    networkRevisionDuringFinalEffect = false,
+    driftAfterFinalMacrotask = false,
+    fadeAfterFinalMacrotask = false,
+  } = {}) => {
+    const health = createShotHealth();
+    let currentUrl = expectedUrl;
+    let visible = initiallyVisible;
+    let clicks = 0;
+    let checks = 0;
+    let blockedMutation = false;
+    const page = { url: () => currentUrl };
+    const result = await verifyPostNavigationEffect(
+      page,
+      {
+        baseUrl,
+        route: '/capture-full',
+        postNavigation,
+        health,
+        mutationWasBlocked: () => blockedMutation,
+      },
+      {
+        checkEffect: async () => {
+          checks += 1;
+          if (fadeAfterFirstCheck && checks > 1) return false;
+          if (checks > 1 && driftDuringFinalEffect) {
+            currentUrl = 'http://localhost:8977/2nd-B/chat';
+          }
+          if (checks > 1 && driftAfterFinalMacrotask) {
+            setTimeout(() => {
+              currentUrl = 'http://localhost:8977/2nd-B/chat';
+            }, 0);
+          }
+          if (checks > 1 && fadeAfterFinalMacrotask) {
+            setTimeout(() => {
+              visible = false;
+            }, 0);
+          }
+          if (checks > 1 && mutationDuringFinalEffect) blockedMutation = true;
+          if (checks > 1 && (pendingDuringFinalEffect || networkRevisionDuringFinalEffect)) {
+            health.networkRevision += 1;
+            if (pendingDuringFinalEffect) health.pendingRequests += 1;
+          }
+          return visible;
+        },
+        findRenderedRoleTarget: async () =>
+          revealAvailable
+            ? {
+                async click() {
+                  clicks += 1;
+                  visible = true;
+                  blockedMutation = mutation;
+                },
+              }
+            : null,
+        settle: async (milliseconds) => {
+          if (milliseconds === 50) {
+            await new Promise((resolve) => setTimeout(resolve, 0));
+          }
+        },
+        waitForIdle: async () => {
+          if (networkFailure) recordShotFailure(health, 'network-failure');
+          if (driftAfterIdle) currentUrl = 'http://localhost:8977/2nd-B/chat';
+        },
+      },
+    );
+    return { result, clicks, checks };
+  };
+
+  assert.deepEqual((await run({ initiallyVisible: true })).result, {
+    passed: true,
+    evidence: 'exact-route+visible-effect',
+  });
+  assert.equal((await run({ initiallyVisible: true })).clicks, 0);
+  assert.equal((await run()).clicks, 1);
+  assert.equal((await run({ revealAvailable: false })).result.failure, 'reveal-target');
+  assert.equal((await run({ driftAfterIdle: true })).result.failure, 'route-mismatch');
+  assert.equal((await run({ networkFailure: true })).result.failure, 'source-health');
+  assert.equal((await run({ mutation: true })).result.failure, 'mutation-blocked');
+  assert.equal(
+    (await run({ initiallyVisible: true, fadeAfterFirstCheck: true })).result.failure,
+    'effect-mismatch',
+  );
+  assert.equal(
+    (await run({ initiallyVisible: true, driftDuringFinalEffect: true })).result.failure,
+    'route-mismatch',
+  );
+  assert.equal(
+    (await run({ initiallyVisible: true, driftAfterFinalMacrotask: true })).result.failure,
+    'route-mismatch',
+  );
+  assert.equal(
+    (await run({ initiallyVisible: true, fadeAfterFinalMacrotask: true })).result.failure,
+    'effect-mismatch',
+  );
+  assert.equal(
+    (await run({ initiallyVisible: true, mutationDuringFinalEffect: true })).result.failure,
+    'mutation-blocked',
+  );
+  assert.equal(
+    (await run({ initiallyVisible: true, pendingDuringFinalEffect: true })).result.failure,
+    'source-health',
+  );
+  assert.equal(
+    (await run({ initiallyVisible: true, networkRevisionDuringFinalEffect: true })).result.failure,
+    'source-health',
+  );
+});
+
 test('every Stage 1 screen requires a valid v2 navigation contract', async () => {
   const { validateStage1NavigationContracts } = await contract();
   const valid = {
@@ -1627,7 +4214,8 @@ test('C stays unmeasured while totals renormalize and unexpected missing axes fa
 });
 
 test('deviations distinguish whole-axis review from item-only denominator exclusions', async () => {
-  const { exempt, exemptItems, scoreCopyCoverage, scoreNavigationLabels } = await contract();
+  const { exempt, exemptItems, reviewedNavigationAxes, scoreCopyCoverage, scoreNavigationLabels } =
+    await contract();
   const deviations = {
     deviations: [
       { screen: 'chat', axis: 'D', items: ['새 대화'], why: '상태 뒤에 숨은 목적지' },
@@ -1640,6 +4228,16 @@ test('deviations distinguish whole-axis review from item-only denominator exclus
   assert.equal(exempt('chat', 'D', deviations), false);
   assert.equal(exempt('chat', 'E', deviations), true);
   assert.equal(exempt('chat', 'A', deviations), false);
+  assert.deepEqual(reviewedNavigationAxes('chat', deviations, { manualEvidenceComplete: true }), [
+    'D',
+  ]);
+  const wholeAxisD = {
+    deviations: [...deviations.deviations, { screen: 'chat', axis: 'D', why: '별도 사람 검토' }],
+  };
+  assert.deepEqual(
+    reviewedNavigationAxes('chat', wholeAxisD, { manualEvidenceComplete: true }),
+    [],
+  );
 
   const labels = ['목적지 하나', '목적지 둘', '목적지 셋', '목적지 넷'];
   const halfNavigation = scoreNavigationLabels(labels, [], labels.slice(0, 2));
@@ -1698,6 +4296,19 @@ test('capture health emits only safe enum codes and never raw error data', async
   ]);
   assert.equal(health.failureCodes.length, 4);
   assert.equal(JSON.stringify(health).includes('must-not-survive'), false);
+
+  const httpFailure = createShotHealth();
+  recordShotResponse(
+    httpFailure,
+    'http://localhost:8977',
+    'https://project.supabase.co/rest/v1/records?token=must-not-survive',
+    401,
+    'GET',
+  );
+  assert.deepEqual(shotFailureCodes({ baseUrl: 'http://localhost:8977', ...httpFailure }), [
+    'network-failure',
+  ]);
+  assert.equal(JSON.stringify(httpFailure).includes('must-not-survive'), false);
 });
 
 test('pre-measurement notice dismissal correlates one exact idempotent read conflict', async () => {
@@ -1737,6 +4348,7 @@ test('pre-measurement notice dismissal correlates one exact idempotent read conf
   );
   assert.deepEqual(captureSetupFailureCodes('http://localhost:8977', wrongOrigin), [
     'console-error',
+    'network-failure',
   ]);
 
   recordShotFailure(health, 'page-error');
@@ -1981,6 +4593,107 @@ test('B axis counts actual non-transparent PNG pixels against the token ramp', a
   assert.deepEqual(result.offTop, [{ hex: '#0000ff', pixels: 1 }]);
 });
 
+test('B token ramp derives typed composite and stacked-alpha colors with exact 8-bit sRGB rounding', async () => {
+  const { tokenRamp } = await contract();
+  const tokens = {
+    derivedRamp: {
+      sources: {
+        base: '#0a0e18',
+        'window-rim': '#96B4E6',
+        'nebula-blue': '#285696',
+        'nebula-violet': '#7860D2',
+        muted: '#8b96b0',
+      },
+      recipes: {
+        'window-rim': {
+          type: 'composite',
+          background: 'base',
+          foreground: 'window-rim',
+          alpha: 0.16,
+        },
+        'shared-nebula': {
+          type: 'stacked-alpha',
+          background: 'base',
+          layers: [
+            { color: 'nebula-blue', alpha: { min: 0, max: 0.34 } },
+            { color: 'nebula-violet', alpha: { min: 0, max: 0.2 } },
+          ],
+        },
+        'star-muted': {
+          type: 'composite',
+          screen: 'star',
+          background: 'base',
+          foreground: 'muted',
+          alpha: 37 / 255,
+        },
+      },
+    },
+  };
+  assert.throws(() => tokenRamp(tokens), /token ramp/i, 'scoped recipes require a screen');
+  const first = tokenRamp(tokens, 'star', ['star', 'home']);
+  const second = tokenRamp(tokens, 'star', ['star', 'home']);
+  const home = tokenRamp(tokens, 'home', ['star', 'home']);
+  assert.equal(first.has('#202939'), true, 'window rim composite');
+  assert.equal(first.has('#202243'), true, 'actual stacked nebula gradient color');
+  assert.equal(first.has('#283260'), true, 'stacked nebula endpoint');
+  assert.equal(first.has('#96b4e6'), false, 'bounded foreground source is not a rendered color');
+  assert.equal(first.has('#285696'), false, 'bounded blue source is not a rendered color');
+  assert.equal(first.has('#7860d2'), false, 'bounded violet source is not a rendered color');
+  assert.equal(first.has('#1d222e'), true, 'screen-scoped browser text composite');
+  assert.equal(home.has('#1d222e'), false, 'scoped color cannot leak to another screen');
+  assert.deepEqual([...first], [...second], 'derived output is deterministic');
+
+  const actualTokens = JSON.parse(
+    readFileSync(path.join(REPO, 'design/pixel_clay_260825/data/tokens.json'), 'utf8'),
+  );
+  const actualRamp = tokenRamp(actualTokens, 'star', ['star', 'home']);
+  assert.equal(actualRamp.has('#202939'), true);
+  assert.equal(actualRamp.has('#202243'), true);
+
+  const rejects = [
+    { label: 'raw array', value: { ...tokens, derivedRamp: ['#202939'] } },
+    {
+      label: 'invalid type',
+      mutate: (value) => (value.derivedRamp.recipes['window-rim'].type = 'colors'),
+    },
+    {
+      label: 'unknown key',
+      mutate: (value) => (value.derivedRamp.recipes['window-rim'].tolerance = 2),
+    },
+    { label: 'range', mutate: (value) => (value.derivedRamp.recipes['window-rim'].alpha = 1.01) },
+    { label: 'layer', mutate: (value) => (value.derivedRamp.recipes['shared-nebula'].layers = []) },
+    {
+      label: 'unrelated literal',
+      mutate: (value) => (value.derivedRamp.recipes['window-rim'].foreground = '#123456'),
+    },
+    {
+      label: 'unknown token',
+      mutate: (value) => (value.derivedRamp.recipes['window-rim'].foreground = 'missing'),
+    },
+    {
+      label: 'layer key',
+      mutate: (value) => (value.derivedRamp.recipes['shared-nebula'].layers[0].screen = 'review'),
+    },
+    {
+      label: 'unrelated source',
+      mutate: (value) => (value.derivedRamp.sources.unrelated = '#123456'),
+    },
+    {
+      label: 'unknown scoped screen',
+      mutate: (value) => (value.derivedRamp.recipes['star-muted'].screen = 'missing'),
+    },
+  ];
+  for (const rejection of rejects) {
+    const value = rejection.value ?? structuredClone(tokens);
+    rejection.mutate?.(value);
+    assert.throws(
+      () => tokenRamp(value, 'star', ['star', 'home']),
+      /token ramp/i,
+      rejection.label,
+    );
+  }
+});
+
 test('C axis uses shallow structure order, count, and relative-height components', async () => {
   const { extractStructureSections, scoreStructure } = await contract();
   assert.equal(typeof extractStructureSections, 'function');
@@ -2107,6 +4820,10 @@ test('current manifest classifies every port:true screen exactly once', async ()
 test('score report exit contract distinguishes pass, score failure, and invalid input', async () => {
   const { reportExitCode } = await contract();
   assert.equal(reportExitCode({ validInput: true, rows: [{ automaticPass: true }] }), 0);
+  assert.equal(
+    reportExitCode({ validInput: true, rows: [{ automaticPass: false, reviewedPass: true }] }),
+    0,
+  );
   assert.equal(reportExitCode({ validInput: true, rows: [{ automaticPass: false }] }), 1);
   assert.equal(reportExitCode({ validInput: true, rows: [{ error: 'capture failed' }] }), 1);
   assert.equal(reportExitCode({ validInput: false, rows: [] }), 2);

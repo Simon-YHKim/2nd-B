@@ -8,7 +8,7 @@
  * D 15: rendered actionable label + safe same-app href when an href exists
  * E 10: reference-copy coverage
  */
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -56,6 +56,105 @@ const PLAYWRIGHT_CORE_ROOT = path.dirname(require.resolve('playwright-core/packa
 const PLAYWRIGHT_BROWSER_VERSION = JSON.parse(
   readFileSync(path.join(PLAYWRIGHT_CORE_ROOT, 'browsers.json'), 'utf8'),
 ).browsers.find((browser) => browser.name === 'chromium')?.browserVersion;
+const WORK0_TRUSTED_FONT_ASSETS = Object.freeze({
+  Pretendard: Object.freeze({
+    relativePath: 'assets/fonts/Pretendard-Regular.otf',
+    mime: 'font/otf',
+    format: 'opentype',
+    fontStretch: 'normal',
+    fontStyle: 'normal',
+    fontWeight: '400',
+    sha256: '3ffbacde6ab8411f1d2db54bb9b1f0b3ee2a738932033722cf0388c06aed1c93',
+  }),
+  Galmuri11: Object.freeze({
+    relativePath: 'assets/fonts/Galmuri11-subset.woff2',
+    mime: 'font/woff2',
+    format: 'woff2',
+    fontStretch: 'normal',
+    fontStyle: 'normal',
+    fontWeight: '400',
+    sha256: '5a9d7365d0033be03b7460c80ff799636b8b8c427a0430859470734c09b1f2e2',
+  }),
+  Galmuri11Bold: Object.freeze({
+    relativePath: 'assets/fonts/Galmuri11Bold-subset.woff2',
+    mime: 'font/woff2',
+    format: 'woff2',
+    fontStretch: 'normal',
+    fontStyle: 'normal',
+    fontWeight: '700',
+    sha256: 'bbbe1fea11b163a3224c698e69a7ce70ef7c54ab222d43d9069e30d8e06dfd88',
+  }),
+  Galmuri14: Object.freeze({
+    relativePath: 'assets/fonts/Galmuri14-subset.woff2',
+    mime: 'font/woff2',
+    format: 'woff2',
+    fontStretch: 'normal',
+    fontStyle: 'normal',
+    fontWeight: '400',
+    sha256: '309b8ecbe2badd7cdd21fc736dc4c6373621902580dd1379d60baefd0c827bc4',
+  }),
+  Galmuri9: Object.freeze({
+    relativePath: 'assets/fonts/Galmuri9-subset.woff2',
+    mime: 'font/woff2',
+    format: 'woff2',
+    fontStretch: 'normal',
+    fontStyle: 'normal',
+    fontWeight: '400',
+    sha256: 'f7c71b4f2a3d67e389027a7c639ae4f1fca7a1bd39e5073179b38ecae54aba06',
+  }),
+  GalmuriMono11: Object.freeze({
+    relativePath: 'assets/fonts/GalmuriMono11-subset.woff2',
+    mime: 'font/woff2',
+    format: 'woff2',
+    fontStretch: 'normal',
+    fontStyle: 'normal',
+    fontWeight: '400',
+    sha256: '6fc243e742eae8b6bc5ab2cda315b9921dd494b7656577efe570f2c800b2cd82',
+  }),
+});
+const WORK0_MAX_FONT_BYTES = 4 * 1024 * 1024;
+const WORK0_MAX_FONT_FACE_RULES = 16;
+const WORK0_MAX_FONT_SOURCE_CHARS = 4 * 1024 * 1024;
+const WORK0_MAX_FONT_CSS_RULES = 2048;
+const WORK0_MAX_FONT_IMPORT_DEPTH = 8;
+const WORK0_FONT_MIMES = new Set([
+  'application/font-sfnt',
+  'application/font-woff',
+  'application/font-woff2',
+  'application/octet-stream',
+  'font/otf',
+  'font/sfnt',
+  'font/ttf',
+  'font/woff',
+  'font/woff2',
+]);
+const WORK0_SYSTEM_FONT_FAMILIES = new Set([
+  '-apple-system',
+  'apple sd gothic neo',
+  'arial',
+  'arial black',
+  'blinkmacsystemfont',
+  'courier new',
+  'cursive',
+  'fantasy',
+  'georgia',
+  'monospace',
+  'sans-serif',
+  'segoe ui',
+  'serif',
+  'system-ui',
+  'times new roman',
+  'trebuchet ms',
+  'verdana',
+]);
+const WORK0_TRUSTED_FONT_BY_DIGEST = new Map(
+  Object.entries(WORK0_TRUSTED_FONT_ASSETS).map(([family, asset]) => [
+    asset.sha256,
+    { ...asset, family },
+  ]),
+);
+const WORK0_TRUSTED_FONT_RULE_CACHE = new Map();
+const WORK0_PAGE_FONT_RESPONSES = new WeakMap();
 
 const norm = (value) =>
   String(value ?? '')
@@ -472,6 +571,10 @@ export function validateServedExportSources(
     Number.isFinite(exportedAt) &&
     exportedAt >= printedAt;
   if (!attested) throw new CaptureContractError('environment-attestation');
+  return {
+    exportSha256: sourceBodySha256(servedAttestation.body),
+    exportedAt,
+  };
 }
 
 export async function attestServedExport(page, previewEnv, receipt) {
@@ -540,7 +643,13 @@ export async function attestServedExport(page, previewEnv, receipt) {
       scriptContract: { externalUrls, inlineSha256, crossOriginCount },
     };
   });
-  validateServedExportSources(servedFiles, previewEnv, receipt, servedAttestation, scriptContract);
+  return validateServedExportSources(
+    servedFiles,
+    previewEnv,
+    receipt,
+    servedAttestation,
+    scriptContract,
+  );
 }
 
 function captureOriginHash(value) {
@@ -612,14 +721,17 @@ export function recordShotResponse(health, baseUrl, responseUrl, status, method 
         (Number(health.noticeReadConflictResponseCount) || 0) + 1;
       return;
     }
-    if (status !== 404) return;
+    if (!Number.isInteger(status) || status < 400) return;
     const base = parseBaseUrl(baseUrl);
     if (
+      status === 404 &&
       response.origin === base.origin &&
       (response.pathname === '/2nd-B' || response.pathname.startsWith('/2nd-B/'))
     ) {
       recordShotFailure(health, 'asset-404');
+      return;
     }
+    recordShotFailure(health, 'network-failure');
   } catch {
     // Ignore malformed response metadata; never retain its raw URL.
   }
@@ -1386,7 +1498,9 @@ export function formatNavigationWhy(navigation) {
     const exactFields = [
       ['exact routes', evidence.exactRoutes],
       ['exact actions', evidence.exactActions],
+      ['post effects', evidence.postEffects],
       ['unsafe actions', evidence.unsafeActions],
+      ['manual effects', evidence.manualEffects],
       ['unresolved', evidence.unresolved],
     ];
     let evidenceCount = 0;
@@ -1423,6 +1537,7 @@ const NAVIGATION_ITEM_KINDS = new Set(['route', 'action']);
 const NAVIGATION_LOCATOR_STRATEGIES = new Set(['text-ancestor', 'role']);
 const NAVIGATION_LOCATOR_ROLES = new Set(['button', 'link', 'tab']);
 const NAVIGATION_EFFECT_TYPES = new Set(['selected', 'visible', 'input-value']);
+const NAVIGATION_POST_EFFECT_TYPES = new Set(['visible']);
 const NAVIGATION_FAILURE_CODES = new Set([
   'probe-failed',
   'probe-setup',
@@ -1432,9 +1547,21 @@ const NAVIGATION_FAILURE_CODES = new Set([
   'action-target',
   'click-failed',
   'route-mismatch',
+  'reveal-target',
   'mutation-blocked',
   'effect-mismatch',
 ]);
+const SHA256_PATTERN = /^[0-9a-f]{64}$/;
+const MANUAL_EFFECT_MAX_SCREENS = 100;
+const MANUAL_EFFECT_MAX_ITEMS = 20;
+const MANUAL_EFFECT_MAX_TOTAL_ITEMS = 16;
+const MANUAL_EFFECT_MAX_MANIFEST_BYTES = 256 * 1024;
+const MANUAL_EFFECT_MAX_ARTIFACT_BYTES = 20 * 1024 * 1024;
+const MANUAL_EFFECT_MAX_ARTIFACT_PIXELS = 32 * 1024 * 1024;
+const MANUAL_EFFECT_MAX_TOTAL_ARTIFACT_BYTES = 64 * 1024 * 1024;
+const MANUAL_EFFECT_MAX_TOTAL_ARTIFACT_PIXELS = 32 * 1024 * 1024;
+const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+const VALIDATED_MANUAL_EFFECT_EVIDENCE = new WeakMap();
 
 function navigationContractError() {
   return new Error('invalid navigation contract');
@@ -1498,7 +1625,7 @@ function normalizeNavigationLocator(value, label) {
 }
 
 function normalizeNavigationEffect(value, label) {
-  assertNavigationKeys(value, new Set(['type', 'role', 'name', 'occurrence', 'value']));
+  assertNavigationKeys(value, new Set(['type', 'role', 'name', 'occurrence', 'value', 'text']));
   if (!NAVIGATION_EFFECT_TYPES.has(value.type)) throw navigationContractError();
   if (value.type === 'selected') {
     assertNavigationKeys(value, new Set(['type', 'value']));
@@ -1509,7 +1636,7 @@ function normalizeNavigationEffect(value, label) {
   }
   const occurrence = normalizeNavigationOccurrence(value.occurrence);
   if (value.type === 'visible') {
-    assertNavigationKeys(value, new Set(['type', 'role', 'name', 'occurrence']));
+    assertNavigationKeys(value, new Set(['type', 'role', 'name', 'occurrence', 'text']));
     const role = value.role ?? 'button';
     if (!NAVIGATION_LOCATOR_ROLES.has(role)) throw navigationContractError();
     return {
@@ -1517,6 +1644,7 @@ function normalizeNavigationEffect(value, label) {
       role,
       name: exactNavigationText(value.name ?? label),
       occurrence,
+      ...(value.text === undefined ? {} : { text: exactNavigationText(value.text) }),
     };
   }
   assertNavigationKeys(value, new Set(['type', 'role', 'name', 'occurrence', 'value']));
@@ -1530,6 +1658,24 @@ function normalizeNavigationEffect(value, label) {
   };
 }
 
+function normalizePostNavigation(value, label) {
+  assertNavigationKeys(value, new Set(['reveal', 'effect']));
+  const effect = normalizeNavigationEffect(value.effect, label);
+  if (!NAVIGATION_POST_EFFECT_TYPES.has(effect.type)) throw navigationContractError();
+  if (value.reveal === undefined) return { effect };
+  assertNavigationKeys(value.reveal, new Set(['role', 'name', 'occurrence']));
+  const role = value.reveal.role ?? 'button';
+  if (role !== 'button') throw navigationContractError();
+  return {
+    reveal: {
+      role,
+      name: exactNavigationText(value.reveal.name),
+      occurrence: normalizeNavigationOccurrence(value.reveal.occurrence),
+    },
+    effect,
+  };
+}
+
 export function normalizeNavigationContract(value, baseUrl = null) {
   assertNavigationKeys(value, new Set(['version', 'items', 'unresolved']));
   if (value.version !== 2 || !Array.isArray(value.items)) throw navigationContractError();
@@ -1537,7 +1683,17 @@ export function normalizeNavigationContract(value, baseUrl = null) {
   const items = rawItems.map((item) => {
     assertNavigationKeys(
       item,
-      new Set(['label', 'occurrence', 'kind', 'to', 'locator', 'safe', 'why', 'effect']),
+      new Set([
+        'label',
+        'occurrence',
+        'kind',
+        'to',
+        'locator',
+        'safe',
+        'why',
+        'effect',
+        'postNavigation',
+      ]),
     );
     const label = exactNavigationText(item.label);
     const occurrence = normalizeNavigationOccurrence(item.occurrence);
@@ -1553,15 +1709,25 @@ export function normalizeNavigationContract(value, baseUrl = null) {
       ) {
         throw navigationContractError();
       }
-      return { label, occurrence, kind: item.kind, to: item.to, locator, safe: true };
+      return {
+        label,
+        occurrence,
+        kind: item.kind,
+        to: item.to,
+        locator,
+        safe: true,
+        ...(item.postNavigation === undefined
+          ? {}
+          : { postNavigation: normalizePostNavigation(item.postNavigation, label) }),
+      };
     }
-    if (item.to !== undefined) throw navigationContractError();
+    if (item.to !== undefined || item.postNavigation !== undefined) throw navigationContractError();
     if (item.safe !== undefined && typeof item.safe !== 'boolean') {
       throw navigationContractError();
     }
     const safe = item.safe ?? true;
     if (!safe) {
-      if (item.effect !== undefined || typeof item.why !== 'string' || !norm(item.why)) {
+      if (typeof item.why !== 'string' || !norm(item.why)) {
         throw navigationContractError();
       }
       return {
@@ -1571,6 +1737,9 @@ export function normalizeNavigationContract(value, baseUrl = null) {
         locator,
         safe,
         why: norm(item.why),
+        ...(item.effect === undefined
+          ? {}
+          : { effect: normalizeNavigationEffect(item.effect, label) }),
       };
     }
     if (item.why !== undefined || item.effect === undefined) throw navigationContractError();
@@ -1635,7 +1804,265 @@ export function validateStage1NavigationContracts(stage1Ids, navFile, baseUrl) {
   }
 }
 
-export function scoreExactNavigationResults(contract, results, exempted = []) {
+function manualEffectEvidenceError() {
+  return new Error('invalid manual effect evidence');
+}
+
+function assertManualEffectKeys(value, allowed) {
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    Array.isArray(value) ||
+    Object.keys(value).some((key) => !allowed.has(key))
+  ) {
+    throw manualEffectEvidenceError();
+  }
+}
+
+export function navigationContractSha256(contract) {
+  if (!contract || typeof contract !== 'object' || Array.isArray(contract)) {
+    throw navigationContractError();
+  }
+  return sourceBodySha256(JSON.stringify(contract));
+}
+
+function canonicalArtifactPath(artifactRoot, relativePath) {
+  if (
+    typeof relativePath !== 'string' ||
+    relativePath.length === 0 ||
+    relativePath.length > 512 ||
+    !/^(?!\/)(?!.*(?:^|\/)\.{1,2}(?:\/|$))(?!.*[\\:*?"<>|\u0000-\u001f]).+\.png$/i.test(
+      relativePath,
+    )
+  ) {
+    throw manualEffectEvidenceError();
+  }
+  const root = realpathSync(artifactRoot);
+  const candidate = realpathSync(path.resolve(root, ...relativePath.split('/')));
+  const relative = path.relative(root, candidate);
+  if (relative === '' || relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw manualEffectEvidenceError();
+  }
+  const stats = statSync(candidate);
+  if (
+    !stats.isFile() ||
+    stats.size < PNG_SIGNATURE.length ||
+    stats.size > MANUAL_EFFECT_MAX_ARTIFACT_BYTES
+  ) {
+    throw manualEffectEvidenceError();
+  }
+  return { path: candidate, bytes: stats.size };
+}
+
+function manualEffectPngPixels(artifact, remainingPixels) {
+  if (
+    artifact.length < 33 ||
+    !artifact.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE) ||
+    artifact.readUInt32BE(8) !== 13 ||
+    artifact.toString('ascii', 12, 16) !== 'IHDR'
+  ) {
+    return null;
+  }
+  const width = artifact.readUInt32BE(16);
+  const height = artifact.readUInt32BE(20);
+  const pixels = width * height;
+  if (
+    width < 1 ||
+    height < 1 ||
+    pixels > MANUAL_EFFECT_MAX_ARTIFACT_PIXELS ||
+    pixels > remainingPixels
+  ) {
+    return null;
+  }
+  try {
+    const decoded = PNG.sync.read(artifact);
+    if (decoded.width !== width || decoded.height !== height) return null;
+    const dimensions = Buffer.allocUnsafe(8);
+    dimensions.writeUInt32BE(width, 0);
+    dimensions.writeUInt32BE(height, 4);
+    return {
+      pixels,
+      pixelSha256: createHash('sha256')
+        .update(dimensions)
+        .update(decoded.data)
+        .digest('hex'),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function validateManualEffectEvidenceInternal(manifest, context) {
+  assertManualEffectKeys(manifest, new Set(['schemaVersion', 'exportSha256', 'screens']));
+  if (
+    manifest.schemaVersion !== 1 ||
+    !SHA256_PATTERN.test(manifest.exportSha256 ?? '') ||
+    manifest.exportSha256 !== context?.exportSha256 ||
+    !Array.isArray(manifest.screens) ||
+    manifest.screens.length === 0 ||
+    manifest.screens.length > MANUAL_EFFECT_MAX_SCREENS ||
+    !Number.isFinite(context?.exportedAt) ||
+    !Number.isFinite(context?.now)
+  ) {
+    throw manualEffectEvidenceError();
+  }
+  const targetIds = new Set(context.targetIds);
+  const seenScreens = new Set();
+  const output = new Map();
+  const artifactDigests = new Set();
+  const artifactPixelDigests = new Set();
+  let totalItems = 0;
+  let totalArtifactBytes = 0;
+  let totalArtifactPixels = 0;
+  for (const screen of manifest.screens) {
+    assertManualEffectKeys(screen, new Set(['screen', 'contractSha256', 'items']));
+    if (
+      typeof screen.screen !== 'string' ||
+      !SCREEN_ID_PATTERN.test(screen.screen) ||
+      !targetIds.has(screen.screen) ||
+      seenScreens.has(screen.screen) ||
+      !SHA256_PATTERN.test(screen.contractSha256 ?? '') ||
+      !Array.isArray(screen.items) ||
+      screen.items.length === 0 ||
+      screen.items.length > MANUAL_EFFECT_MAX_ITEMS
+    ) {
+      throw manualEffectEvidenceError();
+    }
+    totalItems += screen.items.length;
+    if (totalItems > MANUAL_EFFECT_MAX_TOTAL_ITEMS) throw manualEffectEvidenceError();
+    seenScreens.add(screen.screen);
+    const contract = context.contracts?.[screen.screen];
+    if (!contract || screen.contractSha256 !== navigationContractSha256(contract)) {
+      throw manualEffectEvidenceError();
+    }
+    const unsafeByDeclaration = new Map(
+      contract.items
+        .filter((item) => item.safe === false && item.effect)
+        .map((item) => [`${item.label}\u0000${item.occurrence}`, item]),
+    );
+    const seenItems = new Set();
+    const validatedItems = [];
+    for (const item of screen.items) {
+      assertManualEffectKeys(
+        item,
+        new Set(['label', 'occurrence', 'effect', 'artifact', 'attestation']),
+      );
+      const label = exactNavigationText(item.label);
+      const occurrence = normalizeNavigationOccurrence(item.occurrence);
+      const declarationKey = `${label}\u0000${occurrence}`;
+      const expected = unsafeByDeclaration.get(declarationKey);
+      if (!expected || seenItems.has(declarationKey)) throw manualEffectEvidenceError();
+      seenItems.add(declarationKey);
+      const observedEffect = normalizeNavigationEffect(item.effect, label);
+      if (JSON.stringify(observedEffect) !== JSON.stringify(expected.effect)) {
+        throw manualEffectEvidenceError();
+      }
+      assertManualEffectKeys(item.artifact, new Set(['path', 'sha256']));
+      if (!SHA256_PATTERN.test(item.artifact.sha256 ?? '')) {
+        throw manualEffectEvidenceError();
+      }
+      const artifactFile = canonicalArtifactPath(context.artifactRoot, item.artifact.path);
+      totalArtifactBytes += artifactFile.bytes;
+      if (totalArtifactBytes > MANUAL_EFFECT_MAX_TOTAL_ARTIFACT_BYTES) {
+        throw manualEffectEvidenceError();
+      }
+      const artifact = readFileSync(artifactFile.path);
+      const decodedArtifact = manualEffectPngPixels(
+        artifact,
+        MANUAL_EFFECT_MAX_TOTAL_ARTIFACT_PIXELS - totalArtifactPixels,
+      );
+      if (
+        decodedArtifact === null ||
+        sourceBodySha256(artifact) !== item.artifact.sha256 ||
+        artifactDigests.has(item.artifact.sha256) ||
+        artifactPixelDigests.has(decodedArtifact.pixelSha256)
+      ) {
+        throw manualEffectEvidenceError();
+      }
+      totalArtifactPixels += decodedArtifact.pixels;
+      artifactDigests.add(item.artifact.sha256);
+      artifactPixelDigests.add(decodedArtifact.pixelSha256);
+      assertManualEffectKeys(item.attestation, new Set(['type', 'observedAt']));
+      const observedAt = Date.parse(item.attestation.observedAt ?? '');
+      if (
+        item.attestation.type !== 'human-observed-effect' ||
+        !Number.isFinite(observedAt) ||
+        new Date(observedAt).toISOString() !== item.attestation.observedAt ||
+        observedAt < context.exportedAt ||
+        observedAt > context.now ||
+        context.now - observedAt > CAPTURE_RECEIPT_MAX_AGE_MS
+      ) {
+        throw manualEffectEvidenceError();
+      }
+      validatedItems.push(
+        Object.freeze({
+          label,
+          occurrence,
+          effect: Object.freeze({ ...expected.effect }),
+          artifactSha256: item.artifact.sha256,
+          observedAt: new Date(observedAt).toISOString(),
+        }),
+      );
+    }
+    const evidence = Object.freeze(validatedItems);
+    VALIDATED_MANUAL_EFFECT_EVIDENCE.set(evidence, screen.contractSha256);
+    output.set(screen.screen, evidence);
+  }
+  return output;
+}
+
+export function validateManualEffectEvidence(manifest, context) {
+  try {
+    return validateManualEffectEvidenceInternal(manifest, context);
+  } catch {
+    throw manualEffectEvidenceError();
+  }
+}
+
+export function loadManualEffectEvidence(env = {}, context) {
+  if (env.MANUAL_EFFECT_EVIDENCE === undefined) return new Map();
+  if (
+    typeof env.MANUAL_EFFECT_EVIDENCE !== 'string' ||
+    env.MANUAL_EFFECT_EVIDENCE.trim().length === 0
+  ) {
+    throw manualEffectEvidenceError();
+  }
+  try {
+    const manifestPath = realpathSync(path.resolve(env.MANUAL_EFFECT_EVIDENCE));
+    const manifestStats = statSync(manifestPath);
+    if (
+      !manifestStats.isFile() ||
+      manifestStats.size === 0 ||
+      manifestStats.size > MANUAL_EFFECT_MAX_MANIFEST_BYTES
+    ) {
+      throw manualEffectEvidenceError();
+    }
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    return validateManualEffectEvidence(manifest, {
+      ...context,
+      artifactRoot: path.dirname(manifestPath),
+    });
+  } catch {
+    throw manualEffectEvidenceError();
+  }
+}
+
+export function scoreExactNavigationResults(
+  contract,
+  results,
+  exempted = [],
+  manualEvidence = null,
+) {
+  const validatedContractSha256 =
+    manualEvidence === null ? null : VALIDATED_MANUAL_EFFECT_EVIDENCE.get(manualEvidence);
+  if (
+    manualEvidence !== null &&
+    (!Array.isArray(manualEvidence) ||
+      validatedContractSha256 === undefined ||
+      validatedContractSha256 !== navigationContractSha256(contract))
+  ) {
+    throw manualEffectEvidenceError();
+  }
   const entries = [
     ...contract.items.map((item, index) => ({ type: 'item', index, item })),
     ...contract.unresolved.map((item) => ({ type: 'unresolved', item })),
@@ -1690,10 +2117,17 @@ export function scoreExactNavigationResults(contract, results, exempted = []) {
   let measured = 0;
   let exactRoutes = 0;
   let exactActions = 0;
+  let postEffects = 0;
   let unsafeActions = 0;
+  let manualEffects = 0;
   let unresolved = 0;
   const failures = {};
   const missing = [];
+  const manualByDeclaration = new Map(
+    (manualEvidence ?? []).map((item) => [`${item.label}\u0000${item.occurrence}`, item]),
+  );
+  const usedManualDeclarations = new Set();
+  const manualArtifactSha256 = [];
   for (const entry of scoredEntries) {
     if (entry.type === 'unresolved') {
       unresolved += 1;
@@ -1702,31 +2136,60 @@ export function scoreExactNavigationResults(contract, results, exempted = []) {
     }
     if (entry.item.safe === false) {
       unsafeActions += 1;
-      missing.push(entry.item.label);
+      const declarationKey = `${entry.item.label}\u0000${entry.item.occurrence}`;
+      const manual = manualByDeclaration.get(declarationKey);
+      if (
+        manual &&
+        entry.item.effect &&
+        JSON.stringify(manual.effect) === JSON.stringify(entry.item.effect)
+      ) {
+        matched += 1;
+        measured += 1;
+        manualEffects += 1;
+        usedManualDeclarations.add(declarationKey);
+        manualArtifactSha256.push(manual.artifactSha256);
+      } else {
+        missing.push(entry.item.label);
+      }
       continue;
     }
     measured += 1;
     const result = byIndex.get(entry.index);
     const expectedEvidence =
-      entry.item.kind === 'route' ? 'exact-route' : `${entry.item.effect.type}-effect`;
+      entry.item.kind === 'route'
+        ? entry.item.postNavigation
+          ? `exact-route+${entry.item.postNavigation.effect.type}-effect`
+          : 'exact-route'
+        : `${entry.item.effect.type}-effect`;
     if (result?.passed === true && result.evidence === expectedEvidence) {
       matched += 1;
-      if (entry.item.kind === 'route') exactRoutes += 1;
-      else exactActions += 1;
+      if (entry.item.kind === 'route') {
+        exactRoutes += 1;
+        if (entry.item.postNavigation) postEffects += 1;
+      } else exactActions += 1;
     } else {
       missing.push(entry.item.label);
       const code = NAVIGATION_FAILURE_CODES.has(result?.failure) ? result.failure : 'probe-failed';
       failures[code] = (failures[code] ?? 0) + 1;
     }
   }
+  if (usedManualDeclarations.size !== manualByDeclaration.size) {
+    throw manualEffectEvidenceError();
+  }
   const denominator = scoredEntries.length;
   const ratio = denominator > 0 ? matched / denominator : 1;
   const itemDeviationReview = requiresItemDeviationReview(entries.length, exemptedCount);
   const manualReviewReasons = [
     ...(itemDeviationReview ? ['item-deviations-exceed-half'] : []),
-    ...(unsafeActions > 0 ? ['unsafe-actions'] : []),
+    ...(unsafeActions > manualEffects ? ['unsafe-actions'] : []),
+    ...(manualEffects > 0 ? ['manual-effect-evidence'] : []),
     ...(unresolved > 0 ? ['unresolved-items'] : []),
   ];
+  const manualEvidenceComplete =
+    manualEffects > 0 &&
+    manualEffects === unsafeActions &&
+    !itemDeviationReview &&
+    unresolved === 0;
   return {
     score: ratio * WEIGHTS.D,
     max: WEIGHTS.D,
@@ -1738,10 +2201,15 @@ export function scoreExactNavigationResults(contract, results, exempted = []) {
     exempted: exemptedCount,
     requiresManualReview: manualReviewReasons.length > 0,
     manualReviewReasons,
+    manualEvidenceComplete,
     evidence: {
       exactRoutes,
       exactActions,
+      ...(postEffects > 0 ? { postEffects } : {}),
       unsafeActions,
+      ...(manualEffects > 0
+        ? { manualEffects, manualArtifactSha256: manualArtifactSha256.sort() }
+        : {}),
       unresolved,
       ...(Object.keys(failures).length > 0 ? { failures } : {}),
     },
@@ -1991,7 +2459,11 @@ export function reportExitCode(report) {
   if (report?.validInput !== true) return 2;
   const rows = Array.isArray(report?.rows) ? report.rows : [];
   if (rows.length === 0) return 2;
-  return rows.some((row) => row?.error || row?.automaticPass !== true) ? 1 : 0;
+  return rows.some(
+    (row) => row?.error || (row?.automaticPass !== true && row?.reviewedPass !== true),
+  )
+    ? 1
+    : 0;
 }
 
 export function inspectRenderedPixelRules(
@@ -2356,17 +2828,182 @@ export function inspectRenderedPixelRules(
   return result;
 }
 
-function tokenRamp(tokens) {
+const TOKEN_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+const DERIVED_RAMP_NAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const DERIVED_RAMP_MAX_RECIPES = 32;
+const DERIVED_RAMP_MAX_SOURCES = 32;
+const DERIVED_RAMP_MAX_LAYERS = 4;
+const DERIVED_RAMP_MAX_COMBINATIONS = 8192;
+
+function tokenRampError() {
+  return new Error('invalid token ramp contract');
+}
+
+function assertTokenRampKeys(value, allowed) {
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    Array.isArray(value) ||
+    Object.keys(value).some((key) => !allowed.has(key))
+  ) {
+    throw tokenRampError();
+  }
+}
+
+function resolveRampColor(reference, sources, usedSources) {
+  if (
+    typeof reference !== 'string' ||
+    !DERIVED_RAMP_NAME_PATTERN.test(reference) ||
+    !Object.hasOwn(sources, reference)
+  ) {
+    throw tokenRampError();
+  }
+  usedSources.add(reference);
+  return sources[reference].toLowerCase();
+}
+
+function finiteAlpha(value) {
+  if (!Number.isFinite(value) || value < 0 || value > 1) throw tokenRampError();
+  return value;
+}
+
+function compositeSrgb(background, foreground, alpha) {
+  const channels = (hex) =>
+    [1, 3, 5].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16));
+  const bg = channels(background);
+  const fg = channels(foreground);
+  return `#${bg
+    .map((channel, index) => Math.round(channel * (1 - alpha) + fg[index] * alpha))
+    .map((channel) => channel.toString(16).padStart(2, '0'))
+    .join('')}`;
+}
+
+function alphaByteSamples(value) {
+  assertTokenRampKeys(value, new Set(['min', 'max']));
+  const min = finiteAlpha(value.min);
+  const max = finiteAlpha(value.max);
+  if (min > max) throw tokenRampError();
+  const first = Math.round(min * 255);
+  const last = Math.round(max * 255);
+  return Array.from({ length: last - first + 1 }, (_, index) => (first + index) / 255);
+}
+
+function addDerivedRamp(output, derivedRamp, screenId, knownScreenIds) {
+  assertTokenRampKeys(derivedRamp, new Set(['sources', 'recipes']));
+  const sources = derivedRamp.sources;
+  const recipes = derivedRamp.recipes;
+  if (
+    !sources ||
+    typeof sources !== 'object' ||
+    Array.isArray(sources) ||
+    Object.keys(sources).length === 0 ||
+    Object.keys(sources).length > DERIVED_RAMP_MAX_SOURCES ||
+    Object.entries(sources).some(
+      ([name, color]) =>
+        !DERIVED_RAMP_NAME_PATTERN.test(name) ||
+        name.length > 64 ||
+        !TOKEN_COLOR_PATTERN.test(color),
+    ) ||
+    !recipes ||
+    typeof recipes !== 'object' ||
+    Array.isArray(recipes) ||
+    Object.keys(recipes).length === 0 ||
+    Object.keys(recipes).length > DERIVED_RAMP_MAX_RECIPES
+  ) {
+    throw tokenRampError();
+  }
+  const usedSources = new Set();
+  for (const [name, recipe] of Object.entries(recipes)) {
+    if (!DERIVED_RAMP_NAME_PATTERN.test(name) || name.length > 64) throw tokenRampError();
+    const scopedScreen = recipe?.screen;
+    if (
+      scopedScreen !== undefined &&
+      (typeof scopedScreen !== 'string' ||
+        !SCREEN_ID_PATTERN.test(scopedScreen) ||
+        typeof screenId !== 'string' ||
+        !knownScreenIds?.has(scopedScreen))
+    ) {
+      throw tokenRampError();
+    }
+    const included = scopedScreen === undefined || scopedScreen === screenId;
+    if (recipe?.type === 'composite') {
+      assertTokenRampKeys(
+        recipe,
+        new Set(['type', 'screen', 'background', 'foreground', 'alpha']),
+      );
+      const background = resolveRampColor(recipe.background, sources, usedSources);
+      const foreground = resolveRampColor(recipe.foreground, sources, usedSources);
+      const color = compositeSrgb(background, foreground, finiteAlpha(recipe.alpha));
+      if (included) output.add(color);
+      continue;
+    }
+    if (recipe?.type !== 'stacked-alpha') throw tokenRampError();
+    assertTokenRampKeys(recipe, new Set(['type', 'screen', 'background', 'layers']));
+    if (
+      !Array.isArray(recipe.layers) ||
+      recipe.layers.length === 0 ||
+      recipe.layers.length > DERIVED_RAMP_MAX_LAYERS
+    ) {
+      throw tokenRampError();
+    }
+    const background = resolveRampColor(recipe.background, sources, usedSources);
+    const layers = recipe.layers.map((layer) => {
+      assertTokenRampKeys(layer, new Set(['color', 'alpha']));
+      return {
+        color: resolveRampColor(layer.color, sources, usedSources),
+        alphas: alphaByteSamples(layer.alpha),
+      };
+    });
+    const combinations = layers.reduce((count, layer) => count * layer.alphas.length, 1);
+    if (!Number.isSafeInteger(combinations) || combinations > DERIVED_RAMP_MAX_COMBINATIONS) {
+      throw tokenRampError();
+    }
+    const visit = (index, color) => {
+      if (index === layers.length) {
+        output.add(color);
+        return;
+      }
+      const layer = layers[index];
+      for (const alpha of layer.alphas) {
+        visit(index + 1, compositeSrgb(color, layer.color, alpha));
+      }
+    };
+    if (included) visit(0, background);
+  }
+  if (usedSources.size !== Object.keys(sources).length) throw tokenRampError();
+}
+
+export function tokenRamp(tokens, screenId = null, knownScreens = null) {
+  const knownScreenIds =
+    knownScreens === null
+      ? null
+      : Array.isArray(knownScreens) &&
+          knownScreens.length > 0 &&
+          knownScreens.every((id) => typeof id === 'string' && SCREEN_ID_PATTERN.test(id)) &&
+          new Set(knownScreens).size === knownScreens.length
+        ? new Set(knownScreens)
+        : null;
+  if (
+    (screenId !== null && (typeof screenId !== 'string' || !SCREEN_ID_PATTERN.test(screenId))) ||
+    (knownScreens !== null &&
+      (!knownScreenIds || typeof screenId !== 'string' || !knownScreenIds.has(screenId)))
+  ) {
+    throw tokenRampError();
+  }
   const output = new Set();
   const walk = (value) => {
-    for (const child of Object.values(value || {})) {
+    for (const [key, child] of Object.entries(value || {})) {
+      if (key === 'derivedRamp') continue;
       if (child && typeof child === 'object') walk(child);
-      else if (typeof child === 'string' && /^#[0-9a-fA-F]{6}$/.test(child)) {
+      else if (typeof child === 'string' && TOKEN_COLOR_PATTERN.test(child)) {
         output.add(child.toLowerCase());
       }
     }
   };
   walk(tokens);
+  if (tokens?.derivedRamp !== undefined) {
+    addDerivedRamp(output, tokens.derivedRamp, screenId, knownScreenIds);
+  }
   return output;
 }
 
@@ -2416,6 +3053,24 @@ export function isAutomaticPass(total, unmeasured, manualReviewAxes = []) {
   );
 }
 
+export function reviewedNavigationAxes(screen, deviations, navigation) {
+  return navigation?.manualEvidenceComplete === true && !exempt(screen, 'D', deviations)
+    ? ['D']
+    : [];
+}
+
+export function isReviewedPass(total, unmeasured, manualReviewAxes = [], reviewedManualAxes = []) {
+  const reviewed = new Set(reviewedManualAxes);
+  return (
+    total !== null &&
+    total >= 98 &&
+    manualReviewAxes.length > 0 &&
+    reviewed.size === manualReviewAxes.length &&
+    unmeasured.every((axis) => axis === 'C') &&
+    manualReviewAxes.every((axis) => reviewed.has(axis))
+  );
+}
+
 const CAPTURE_OVERLAY_LABELS = [
   '다시 보지 않기',
   '건너뛰기',
@@ -2456,6 +3111,2115 @@ async function visibleLocatorAt(locator, occurrence = 1) {
     if (!(await candidate.isVisible().catch(() => false))) continue;
     visible += 1;
     if (visible === occurrence) return candidate;
+  }
+  return null;
+}
+
+function parseScreenshotPaint(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!/^rgba?\(/.test(normalized)) return null;
+  const tokens = normalized.match(/[+-]?(?:\d+\.?\d*|\.\d+)%?/g) ?? [];
+  if (tokens.length < 3) return null;
+  const channels = tokens.slice(0, 3).map((token) => {
+    const parsed = Number.parseFloat(token);
+    return token.endsWith('%') ? (parsed / 100) * 255 : parsed;
+  });
+  if (channels.some((channel) => !Number.isFinite(channel))) return null;
+  const alphaToken = tokens[3];
+  const parsedAlpha = alphaToken === undefined ? 1 : Number.parseFloat(alphaToken);
+  if (!Number.isFinite(parsedAlpha)) return null;
+  return {
+    alpha: Math.min(1, Math.max(0, alphaToken?.endsWith('%') ? parsedAlpha / 100 : parsedAlpha)),
+    channels: channels.map((channel) => Math.min(255, Math.max(0, channel))),
+  };
+}
+
+function blendScreenshotPaint(foreground, background) {
+  return foreground.channels.map(
+    (channel, index) => channel * foreground.alpha + background[index] * (1 - foreground.alpha),
+  );
+}
+
+function screenshotLuminance(channels) {
+  const linear = channels.map((channel) => {
+    const value = channel / 255;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  });
+  return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
+}
+
+function screenshotContrast(first, second) {
+  const firstLuminance = screenshotLuminance(first);
+  const secondLuminance = screenshotLuminance(second);
+  return (
+    (Math.max(firstLuminance, secondLuminance) + 0.05) /
+    (Math.min(firstLuminance, secondLuminance) + 0.05)
+  );
+}
+
+function sanitizedFontAlias(value) {
+  let alias = String(value ?? '').trim();
+  if (
+    alias.length >= 2 &&
+    ((alias.startsWith('"') && alias.endsWith('"')) ||
+      (alias.startsWith("'") && alias.endsWith("'")))
+  ) {
+    alias = alias.slice(1, -1).trim();
+  }
+  return /^[\p{L}\p{N} _-]{1,80}$/u.test(alias) ? alias : null;
+}
+
+function normalizedFontFamilies(fontFamily) {
+  return new Set(
+    String(fontFamily ?? '')
+      .split(',')
+      .map(sanitizedFontAlias)
+      .filter(Boolean)
+      .map((family) => family.toLowerCase()),
+  );
+}
+
+function verifiedSystemFontStack(fontFamily) {
+  const families = normalizedFontFamilies(fontFamily);
+  return (
+    families.size > 0 && [...families].every((family) => WORK0_SYSTEM_FONT_FAMILIES.has(family))
+  );
+}
+
+function trustedFontAsset(asset) {
+  let cached = WORK0_TRUSTED_FONT_RULE_CACHE.get(asset.sha256);
+  if (cached !== undefined) return cached;
+  cached = null;
+  try {
+    const fontPath = path.join(REPO, asset.relativePath);
+    const stat = statSync(fontPath);
+    if (!stat.isFile() || stat.size < 1 || stat.size > WORK0_MAX_FONT_BYTES) {
+      WORK0_TRUSTED_FONT_RULE_CACHE.set(asset.sha256, cached);
+      return cached;
+    }
+    const bytes = readFileSync(fontPath);
+    if (createHash('sha256').update(bytes).digest('hex') === asset.sha256) {
+      cached = {
+        ...asset,
+        dataUrl: `data:${asset.mime};base64,${bytes.toString('base64')}`,
+      };
+    }
+  } catch {
+    cached = null;
+  }
+  WORK0_TRUSTED_FONT_RULE_CACHE.set(asset.sha256, cached);
+  return cached;
+}
+
+function sanitizedFontDescriptor(value, kind) {
+  const normalized = String(value ?? '').trim().toLowerCase();
+  if (kind === 'style') {
+    return /^(?:normal|italic|oblique(?: -?(?:\d+(?:\.\d+)?|\.\d+)deg)?)$/.test(normalized)
+      ? normalized
+      : 'normal';
+  }
+  if (kind === 'weight') {
+    return /^(?:normal|bold|[1-9]\d{0,2}|1000)$/.test(normalized) ? normalized : '400';
+  }
+  return /^(?:normal|(?:\d+(?:\.\d+)?|\.\d+)%)$/.test(normalized)
+    ? normalized
+    : 'normal';
+}
+
+function trustedFontRule(alias, asset, descriptors = asset) {
+  const trusted = trustedFontAsset(asset);
+  if (!trusted) return null;
+  return [
+    '@font-face{',
+    `font-family:${JSON.stringify(alias)};`,
+    `src:url(${JSON.stringify(trusted.dataUrl)}) format(${JSON.stringify(asset.format)});`,
+    `font-style:${sanitizedFontDescriptor(descriptors?.fontStyle, 'style')};`,
+    `font-weight:${sanitizedFontDescriptor(descriptors?.fontWeight, 'weight')};`,
+    `font-stretch:${sanitizedFontDescriptor(descriptors?.fontStretch, 'stretch')};`,
+    '}',
+  ].join('');
+}
+
+function trustedFontFaceRules(fontFamily) {
+  const requestedFamilies = new Set(
+    String(fontFamily ?? '')
+      .split(',')
+      .map(sanitizedFontAlias)
+      .filter(Boolean),
+  );
+  const matches = Object.entries(WORK0_TRUSTED_FONT_ASSETS).filter(([family]) =>
+    [...requestedFamilies].some((requested) => requested.toLowerCase() === family.toLowerCase()),
+  );
+  if (matches.length === 0) return { matched: false, rules: [], verified: true };
+  const rules = [];
+  for (const [family, asset] of matches) {
+    const rule = trustedFontRule(family, asset);
+    if (!rule) return { matched: true, rules: [], verified: false };
+    rules.push(rule);
+  }
+  return { matched: true, rules, verified: true };
+}
+
+function normalizedObservedFontUrl(value) {
+  try {
+    const url = new URL(value);
+    if (!['http:', 'https:'].includes(url.protocol)) return null;
+    url.hash = '';
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
+function fontMime(value) {
+  return String(value ?? '')
+    .split(';', 1)[0]
+    .trim()
+    .toLowerCase();
+}
+
+export function attachFontResponseEvidence(page) {
+  if (!page || WORK0_PAGE_FONT_RESPONSES.has(page)) {
+    return WORK0_PAGE_FONT_RESPONSES.get(page) ?? null;
+  }
+  const observations = new Map();
+  WORK0_PAGE_FONT_RESPONSES.set(page, observations);
+  page.on('response', (response) => {
+    let request;
+    let key;
+    try {
+      request = response.request();
+      if (request.resourceType() !== 'font') return;
+      key = normalizedObservedFontUrl(response.url());
+      if (!key) return;
+    } catch {
+      return;
+    }
+    const observation = (async () => {
+      try {
+        if (
+          response.status() < 200 ||
+          response.status() >= 300 ||
+          request.redirectedFrom?.() ||
+          !WORK0_FONT_MIMES.has(fontMime(response.headers()['content-type']))
+        ) {
+          return null;
+        }
+        const bytes = await response.body();
+        if (bytes.length < 1 || bytes.length > WORK0_MAX_FONT_BYTES) return null;
+        return createHash('sha256').update(bytes).digest('hex');
+      } catch {
+        return null;
+      }
+    })();
+    const previous = observations.get(key) ?? [];
+    previous.push(observation);
+    observations.set(key, previous);
+  });
+  return observations;
+}
+
+function parsedFontSourceUrls(source) {
+  if (typeof source !== 'string' || source.length < 1 || source.length > WORK0_MAX_FONT_SOURCE_CHARS) {
+    return null;
+  }
+  if (/\blocal\s*\(/i.test(source)) return null;
+  const urls = [];
+  let malformed = false;
+  let remainder = source.replace(
+    /url\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*?))\s*\)/gi,
+    (_match, doubleQuoted, singleQuoted, unquoted) => {
+      const value = String(doubleQuoted ?? singleQuoted ?? unquoted ?? '').trim();
+      if (!value) malformed = true;
+      else urls.push(value);
+      return '';
+    },
+  );
+  remainder = remainder.replace(
+    /(?:format|tech)\(\s*(?:"[^"]*"|'[^']*'|[^)]*)\s*\)/gi,
+    '',
+  );
+  if (malformed || urls.length === 0 || !/^[\s,]*$/.test(remainder)) return null;
+  return urls;
+}
+
+function dataFontDigest(value) {
+  const comma = value.indexOf(',');
+  if (comma <= 5) return null;
+  const metadata = value.slice(5, comma).toLowerCase();
+  const payload = value.slice(comma + 1);
+  const parts = metadata.split(';');
+  if (parts.length !== 2 || parts[1] !== 'base64' || !WORK0_FONT_MIMES.has(parts[0])) return null;
+  if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(payload)) {
+    return null;
+  }
+  try {
+    const bytes = Buffer.from(payload, 'base64');
+    if (
+      bytes.length < 1 ||
+      bytes.length > WORK0_MAX_FONT_BYTES ||
+      bytes.toString('base64') !== payload
+    ) {
+      return null;
+    }
+    return createHash('sha256').update(bytes).digest('hex');
+  } catch {
+    return null;
+  }
+}
+
+async function observedFontDigest(page, value) {
+  if (/^data:/i.test(value)) return dataFontDigest(value);
+  if (/^blob:/i.test(value)) return null;
+  const key = normalizedObservedFontUrl(value);
+  const observations = key ? WORK0_PAGE_FONT_RESPONSES.get(page)?.get(key) : null;
+  if (!observations?.length) return null;
+  const digests = await Promise.all(observations);
+  if (digests.some((digest) => !digest) || new Set(digests).size !== 1) return null;
+  return digests[0];
+}
+
+async function verifiedAliasFontFaceRules(page, fontFaces, drawing) {
+  if (!Array.isArray(fontFaces) || fontFaces.length < 1 || fontFaces.length > WORK0_MAX_FONT_FACE_RULES) {
+    return null;
+  }
+  const requestedFamilies = normalizedFontFamilies(drawing?.fontFamily);
+  const aliases = new Map();
+  const digests = new Set();
+  let sourceChars = 0;
+  for (const face of fontFaces) {
+    const alias = sanitizedFontAlias(face?.family);
+    if (!alias || !requestedFamilies.has(alias.toLowerCase())) return null;
+    sourceChars += String(face?.source ?? '').length;
+    if (sourceChars > WORK0_MAX_FONT_SOURCE_CHARS) return null;
+    const urls = parsedFontSourceUrls(face.source);
+    if (!urls) return null;
+    for (const value of urls) {
+      const digest = await observedFontDigest(page, value);
+      if (!digest) return null;
+      digests.add(digest);
+    }
+    const descriptor = {
+      fontStretch: sanitizedFontDescriptor(face?.fontStretch, 'stretch'),
+      fontStyle: sanitizedFontDescriptor(face?.fontStyle, 'style'),
+      fontWeight: sanitizedFontDescriptor(face?.fontWeight, 'weight'),
+    };
+    const descriptorKey = JSON.stringify(descriptor);
+    const previous = aliases.get(alias);
+    if (previous && previous.key !== descriptorKey) return null;
+    aliases.set(alias, { descriptor, key: descriptorKey });
+  }
+  if (digests.size !== 1) return null;
+  const [digest] = digests;
+  const asset = WORK0_TRUSTED_FONT_BY_DIGEST.get(digest);
+  if (!asset || !trustedFontAsset(asset)) return null;
+  const rules = [];
+  for (const [alias, { descriptor }] of aliases) {
+    const rule = trustedFontRule(alias, asset, descriptor);
+    if (!rule) return null;
+    rules.push(rule);
+  }
+  return rules;
+}
+
+async function screenshotConfirmsPaintedText(page, paintedHandle, targetHandle, expectedText) {
+  if (typeof page.screenshot !== 'function' || typeof paintedHandle?.evaluate !== 'function') {
+    return true;
+  }
+  try {
+    const evidence = await paintedHandle.evaluate((paintedElement, payload) => {
+      const { fontLimits, targetElement, text } = payload;
+      const normalize = (value) =>
+        String(value ?? '')
+          .replace(/[\u2060\u200B\u200C\u200D\uFEFF]/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+      if (
+        !targetElement?.contains?.(paintedElement) ||
+        normalize(paintedElement.innerText ?? paintedElement.textContent) !== normalize(text)
+      ) {
+        return null;
+      }
+      const textNodes = [];
+      const collect = (node) => {
+        for (const child of node.childNodes ?? []) {
+          if (child.nodeType === 3 && child.textContent?.trim()) textNodes.push(child);
+          else if (child.nodeType === 1) collect(child);
+        }
+      };
+      collect(paintedElement);
+      const rects = [];
+      for (const node of textNodes) {
+        const range = document.createRange();
+        try {
+          range.selectNodeContents(node);
+          for (const rect of range.getClientRects()) {
+            if (rect.width >= 1 && rect.height >= 1) rects.push(rect);
+          }
+        } finally {
+          range.detach?.();
+        }
+      }
+      if (rects.length === 0) return null;
+      const left = Math.min(...rects.map((rect) => rect.left));
+      const top = Math.min(...rects.map((rect) => rect.top));
+      const right = Math.max(...rects.map((rect) => rect.right));
+      const bottom = Math.max(...rects.map((rect) => rect.bottom));
+      if (
+        ![left, top, right, bottom].every(Number.isFinite) ||
+        left < 0 ||
+        top < 0 ||
+        right > window.innerWidth ||
+        bottom > window.innerHeight ||
+        right - left < 1 ||
+        bottom - top < 1
+      ) {
+        return null;
+      }
+      const style = getComputedStyle(paintedElement);
+      let compositorElement = targetElement;
+      const roleTargetStyle = getComputedStyle(targetElement);
+      let compositorStyle = roleTargetStyle;
+      for (let current = targetElement; current; current = current.parentElement) {
+        const currentStyle = getComputedStyle(current);
+        const neutralFilterLayer = /^opacity\(\s*(?:1|100%)\s*\)$/i.test(
+          String(currentStyle.filter || '').trim(),
+        );
+        if (
+          String(currentStyle.willChange || 'auto').trim() !== 'auto' ||
+          neutralFilterLayer
+        ) {
+          compositorElement = current;
+          compositorStyle = currentStyle;
+          break;
+        }
+      }
+      const paintedLayerProxy =
+        style.isolation === 'isolate' && String(style.willChange || 'auto').trim() !== 'auto';
+      const nestedPaintedLayer =
+        paintedLayerProxy &&
+        /^(?:inline-)?(?:flex|grid)$/.test(roleTargetStyle.display);
+      const normalizeFamily = (value) =>
+        String(value ?? '')
+          .trim()
+          .replace(/^['"]|['"]$/g, '')
+          .toLowerCase();
+      const expectedFamilies = new Set(style.fontFamily.split(',').map(normalizeFamily));
+      const fontFaces = [];
+      let fontCollectionFailed = false;
+      let fontRuleCount = 0;
+      let fontSourceChars = 0;
+      const absoluteFontUrls = (cssText, baseHref) =>
+        cssText.replace(
+          /url\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*?))\s*\)/gi,
+          (_match, doubleQuoted, singleQuoted, unquoted) => {
+            const value = String(doubleQuoted ?? singleQuoted ?? unquoted ?? '').trim();
+            if (/^(?:data|blob):/i.test(value)) return `url(${JSON.stringify(value)})`;
+            try {
+              return `url(${JSON.stringify(new URL(value, baseHref).href)})`;
+            } catch {
+              fontCollectionFailed = true;
+              return '';
+            }
+          },
+        );
+      const collectFontFaces = (rules, baseHref, depth = 0) => {
+        if (depth > fontLimits.maxDepth) {
+          fontCollectionFailed = true;
+          return;
+        }
+        for (const rule of rules ?? []) {
+          fontRuleCount += 1;
+          if (fontRuleCount > fontLimits.maxRules) {
+            fontCollectionFailed = true;
+            return;
+          }
+          if (rule.type === 5 && expectedFamilies.has(normalizeFamily(rule.style?.fontFamily))) {
+            const source = absoluteFontUrls(String(rule.style?.src ?? ''), baseHref);
+            fontSourceChars += source.length;
+            if (
+              fontFaces.length >= fontLimits.maxFaces ||
+              fontSourceChars > fontLimits.maxSourceChars
+            ) {
+              fontCollectionFailed = true;
+              return;
+            }
+            fontFaces.push({
+              family: rule.style?.fontFamily ?? '',
+              fontStretch: rule.style?.fontStretch ?? 'normal',
+              fontStyle: rule.style?.fontStyle ?? 'normal',
+              fontWeight: rule.style?.fontWeight ?? '400',
+              source,
+            });
+          } else if (rule.type === 3) {
+            if (!rule.styleSheet) {
+              fontCollectionFailed = true;
+              return;
+            }
+            try {
+              const importBase =
+                rule.styleSheet.href || new URL(rule.href, baseHref || document.baseURI).href;
+              collectFontFaces(rule.styleSheet.cssRules, importBase, depth + 1);
+            } catch {
+              fontCollectionFailed = true;
+            }
+          } else if (rule.cssRules) {
+            collectFontFaces(rule.cssRules, baseHref, depth + 1);
+          }
+        }
+      };
+      const visitedFontSheets = new WeakSet();
+      const collectFontSheet = (sheet, fallbackBase) => {
+        if (!sheet) {
+          fontCollectionFailed = true;
+          return;
+        }
+        if (visitedFontSheets.has(sheet)) return;
+        visitedFontSheets.add(sheet);
+        try {
+          collectFontFaces(sheet.cssRules, sheet.href || fallbackBase || document.baseURI);
+        } catch {
+          fontCollectionFailed = true;
+        }
+      };
+      for (const sheet of document.styleSheets) {
+        collectFontSheet(sheet, document.baseURI);
+      }
+      for (const sheet of document.adoptedStyleSheets ?? []) {
+        collectFontSheet(sheet, document.baseURI);
+      }
+      for (let root = paintedElement.getRootNode?.(); root && root !== document; ) {
+        for (const sheet of root.adoptedStyleSheets ?? []) {
+          collectFontSheet(sheet, document.baseURI);
+        }
+        for (const owner of root.querySelectorAll?.('style,link[rel="stylesheet"]') ?? []) {
+          collectFontSheet(owner.sheet, owner.baseURI || document.baseURI);
+        }
+        root = root.host?.getRootNode?.();
+      }
+      const tag = paintedElement.tagName?.toLowerCase?.();
+      const foreground =
+        tag === 'text' || tag === 'tspan'
+          ? style.fill
+          : style.webkitTextFillColor || style.color;
+      const channelOpacity =
+        tag === 'text' || tag === 'tspan' ? Number(style.fillOpacity || '1') : 1;
+      const backgrounds = [];
+      for (let current = paintedElement; current; current = current.parentElement) {
+        backgrounds.push(getComputedStyle(current).backgroundColor);
+      }
+      const guard = 3;
+      const targetRect = targetElement.getBoundingClientRect();
+      const compositorRect = nestedPaintedLayer
+        ? paintedElement.getBoundingClientRect()
+        : paintedLayerProxy
+          ? targetRect
+          : compositorElement.getBoundingClientRect();
+      const clip = {
+        x: Math.max(0, Math.floor(targetRect.left), Math.floor(left) - guard),
+        y: Math.max(0, Math.floor(targetRect.top), Math.floor(top) - guard),
+      };
+      clip.width =
+        Math.min(window.innerWidth, Math.ceil(targetRect.right), Math.ceil(right) + guard) - clip.x;
+      clip.height =
+        Math.min(window.innerHeight, Math.ceil(targetRect.bottom), Math.ceil(bottom) + guard) - clip.y;
+      const canvas =
+        typeof OffscreenCanvas === 'function'
+          ? new OffscreenCanvas(clip.width, clip.height)
+          : document.createElement('canvas');
+      canvas.width = clip.width;
+      canvas.height = clip.height;
+      const context = canvas.getContext('2d', { willReadFrequently: true });
+      if (!context) return null;
+      const canvasFont =
+        style.font ||
+        [style.fontStyle, style.fontVariant, style.fontWeight, style.fontSize]
+          .filter(Boolean)
+          .join(' ') + ` ${style.fontFamily}`;
+      context.font = canvasFont;
+      if (document.fonts?.check && !document.fonts.check(context.font, normalize(text))) return null;
+      if ('fontKerning' in context) context.fontKerning = style.fontKerning;
+      if ('fontStretch' in context) context.fontStretch = style.fontStretch;
+      if ('fontVariantCaps' in context) context.fontVariantCaps = style.fontVariantCaps;
+      if ('letterSpacing' in context) context.letterSpacing = style.letterSpacing;
+      if ('wordSpacing' in context) context.wordSpacing = style.wordSpacing;
+      if ('textRendering' in context) context.textRendering = style.textRendering;
+      context.direction = 'ltr';
+      context.textAlign = 'left';
+      context.textBaseline = 'alphabetic';
+      const normalizedText = normalize(text);
+      if (textNodes.length !== 1 || normalize(textNodes[0].textContent) !== normalizedText) {
+        return null;
+      }
+      const rawText = String(textNodes[0].textContent ?? '');
+      let rawOffset = rawText.indexOf(normalizedText);
+      if (rawOffset < 0) return null;
+      const glyphBounds = [];
+      for (const character of [...normalizedText]) {
+        const characterRange = document.createRange();
+        try {
+          characterRange.setStart(textNodes[0], rawOffset);
+          rawOffset += character.length;
+          characterRange.setEnd(textNodes[0], rawOffset);
+          const characterRect = characterRange.getBoundingClientRect();
+          if (!/\s/.test(character)) {
+            if (characterRect.width < 1 || characterRect.height < 1) return null;
+            glyphBounds.push({
+              character,
+              end: characterRect.right - clip.x,
+              start: characterRect.left - clip.x,
+            });
+          }
+        } finally {
+          characterRange.detach?.();
+        }
+      }
+      const metrics = context.measureText(normalizedText);
+      const fontAscent = Number.isFinite(metrics.fontBoundingBoxAscent)
+        ? metrics.fontBoundingBoxAscent
+        : metrics.actualBoundingBoxAscent;
+      const fontDescent = Number.isFinite(metrics.fontBoundingBoxDescent)
+        ? metrics.fontBoundingBoxDescent
+        : metrics.actualBoundingBoxDescent;
+      if (
+        !Number.isFinite(metrics.width) ||
+        !Number.isFinite(fontAscent) ||
+        !Number.isFinite(fontDescent) ||
+        metrics.width < 1 ||
+        fontAscent + fontDescent < 1 ||
+        Math.abs(metrics.width - (right - left)) > Math.max(4, (right - left) * 0.2)
+      ) {
+        return null;
+      }
+      const originX = left - clip.x + (right - left - metrics.width) / 2;
+      const baseline = top - clip.y + (bottom - top - fontAscent - fontDescent) / 2 + fontAscent;
+      context.clearRect(0, 0, clip.width, clip.height);
+      context.fillStyle = '#fff';
+      context.fillText(normalizedText, originX, baseline);
+      const mask = context.getImageData(0, 0, clip.width, clip.height).data;
+      const expectedAlpha = [];
+      const expectedInk = [];
+      const expectedCore = [];
+      for (let offset = 3; offset < mask.length; offset += 4) {
+        const alpha = mask[offset];
+        const pixelIndex = (offset - 3) / 4;
+        expectedAlpha.push(alpha);
+        if (alpha >= 32) expectedInk.push(pixelIndex);
+        if (alpha >= 128) expectedCore.push(pixelIndex);
+      }
+      if (expectedCore.length < 3 || expectedInk.length < expectedCore.length) return null;
+      const expectedGlyphs = glyphBounds.map(({ end, start }) => {
+        const owns = (pixelIndex) => {
+          const centerX = (pixelIndex % clip.width) + 0.5;
+          return centerX >= start && centerX < end;
+        };
+        return {
+          core: expectedCore.filter(owns),
+          end,
+          ink: expectedInk.filter(owns),
+          start,
+        };
+      });
+      if (
+        expectedGlyphs.length === 0 ||
+        expectedGlyphs.some(({ core, ink }) => core.length === 0 || ink.length === 0)
+      ) {
+        return null;
+      }
+      return {
+        backgrounds,
+        channelOpacity: Number.isFinite(channelOpacity) ? channelOpacity : 1,
+        clip,
+        expectedCore,
+        expectedGlyphs,
+        expectedInk,
+        fontCollectionFailed,
+        fontFaces,
+        foreground,
+        glyphs: [...normalize(text)].filter((character) => !/\s/.test(character)).length,
+        drawing: {
+          filter: style.filter,
+          font: context.font,
+          fontFamily: style.fontFamily,
+          fontKerning: style.fontKerning,
+          fontSize: style.fontSize,
+          fontStretch: style.fontStretch,
+          fontStyle: style.fontStyle,
+          fontVariant: style.fontVariant,
+          fontVariantCaps: style.fontVariantCaps,
+          fontWeight: style.fontWeight,
+          height: bottom - top,
+          left: left - clip.x,
+          letterSpacing: style.letterSpacing,
+          lineHeight: style.lineHeight,
+          text: normalizedText,
+          textRendering: style.textRendering,
+          top: top - clip.y,
+          targetHeight: compositorRect.height,
+          targetFilter: paintedLayerProxy ? 'none' : compositorStyle.filter,
+          targetLeft: compositorRect.left,
+          targetIsolation: paintedLayerProxy ? style.isolation : compositorStyle.isolation,
+          targetTop: compositorRect.top,
+          targetTransparent: nestedPaintedLayer,
+          targetWillChange: paintedLayerProxy ? style.willChange : compositorStyle.willChange,
+          targetWidth: compositorRect.width,
+          width: right - left,
+          wordSpacing: style.wordSpacing,
+        },
+      };
+    }, {
+      fontLimits: {
+        maxDepth: WORK0_MAX_FONT_IMPORT_DEPTH,
+        maxFaces: WORK0_MAX_FONT_FACE_RULES,
+        maxRules: WORK0_MAX_FONT_CSS_RULES,
+        maxSourceChars: WORK0_MAX_FONT_SOURCE_CHARS,
+      },
+      targetElement: targetHandle,
+      text: expectedText,
+    });
+    if (
+      !evidence ||
+      evidence.clip.width < 1 ||
+      evidence.clip.height < 1 ||
+      evidence.clip.width > 1024 ||
+      evidence.clip.height > 512 ||
+      evidence.glyphs < 1 ||
+      evidence.fontCollectionFailed
+    ) {
+      return false;
+    }
+    const trustedFonts = trustedFontFaceRules(evidence.drawing.fontFamily, evidence.drawing);
+    if (!trustedFonts.verified) return false;
+    if (trustedFonts.matched) {
+      evidence.fontFaceRules = trustedFonts.rules;
+    } else if (evidence.fontFaces.length > 0) {
+      const verifiedRules = await verifiedAliasFontFaceRules(
+        page,
+        evidence.fontFaces,
+        evidence.drawing,
+      );
+      if (!verifiedRules) return false;
+      evidence.fontFaceRules = verifiedRules;
+    } else if (!verifiedSystemFontStack(evidence.drawing.fontFamily)) {
+      return false;
+    } else {
+      evidence.fontFaceRules = [];
+    }
+    let background = [255, 255, 255];
+    for (const value of [...evidence.backgrounds].reverse()) {
+      const paint = parseScreenshotPaint(value);
+      if (paint && paint.alpha > 0) background = blendScreenshotPaint(paint, background);
+    }
+    const foregroundPaint = parseScreenshotPaint(evidence.foreground);
+    if (!foregroundPaint) return false;
+    foregroundPaint.alpha *= Math.min(1, Math.max(0, evidence.channelOpacity));
+    const foreground = blendScreenshotPaint(foregroundPaint, background);
+    const separation = Math.sqrt(
+      foreground.reduce((total, channel, index) => total + (channel - background[index]) ** 2, 0),
+    );
+    if (separation < 32 || screenshotContrast(foreground, background) < 3) return false;
+    const foregroundVector = foreground.map((channel, index) => channel - background[index]);
+    const foregroundMagnitudeSquared = foregroundVector.reduce(
+      (total, channel) => total + channel ** 2,
+      0,
+    );
+    const projectedCoverage = (png) => {
+      const coverage = new Float32Array(png.width * png.height);
+      for (let offset = 0; offset < png.data.length; offset += 4) {
+        const projected = [png.data[offset], png.data[offset + 1], png.data[offset + 2]].reduce(
+          (total, channel, index) =>
+            total + (channel - background[index]) * foregroundVector[index],
+          0,
+        );
+        coverage[offset / 4] = Math.min(1, Math.max(0, projected / foregroundMagnitudeSquared));
+      }
+      return coverage;
+    };
+    const browserContext = typeof page.context === 'function' ? page.context() : null;
+    if (typeof browserContext?.newPage !== 'function') return false;
+    let expectedPage = null;
+    let expectedPng;
+    try {
+      expectedPage = await browserContext.newPage();
+      const sourceViewport = typeof page.viewportSize === 'function' ? page.viewportSize() : null;
+      await expectedPage.setViewportSize(
+        sourceViewport ?? {
+          width: evidence.clip.x + evidence.clip.width,
+          height: evidence.clip.y + evidence.clip.height,
+        },
+      );
+      await expectedPage.setContent('<!doctype html><html><body></body></html>');
+      const rendered = await expectedPage.evaluate(async (payload) => {
+        const { background, baseHref, clip, drawing, fontFaceRules, foreground } = payload;
+        document.documentElement.style.cssText = 'margin:0;padding:0;overflow:hidden';
+        const base = document.createElement('base');
+        base.href = baseHref;
+        document.head.append(base);
+        if (fontFaceRules.length > 0) {
+          const fontStyles = document.createElement('style');
+          fontStyles.textContent = fontFaceRules.join('\n');
+          document.head.append(fontStyles);
+        }
+        document.body.style.cssText = [
+          'margin:0',
+          'padding:0',
+          'overflow:hidden',
+          `background:rgb(${background.join(',')})`,
+        ].join(';');
+        const usesTargetLayer =
+          drawing.targetFilter !== 'none' ||
+          drawing.targetIsolation === 'isolate' ||
+          drawing.targetWillChange !== 'auto';
+        const targetLayer = document.createElement('div');
+        Object.assign(targetLayer.style, {
+          background: drawing.targetTransparent
+            ? 'transparent'
+            : `rgb(${background.join(',')})`,
+          border: '0',
+          filter: drawing.targetFilter,
+          height: `${drawing.targetHeight}px`,
+          isolation: drawing.targetIsolation,
+          left: `${drawing.targetLeft}px`,
+          margin: '0',
+          padding: '0',
+          pointerEvents: 'none',
+          position: 'absolute',
+          top: `${drawing.targetTop}px`,
+          width: `${drawing.targetWidth}px`,
+          willChange: drawing.targetWillChange,
+        });
+        const span = document.createElement('span');
+        span.textContent = drawing.text;
+        Object.assign(span.style, {
+          border: '0',
+          color: `rgb(${foreground.join(',')})`,
+          direction: 'ltr',
+          display: 'inline-block',
+          filter: drawing.filter,
+          fontFamily: drawing.fontFamily,
+          fontKerning: drawing.fontKerning,
+          fontSize: drawing.fontSize,
+          fontStretch: drawing.fontStretch,
+          fontStyle: drawing.fontStyle,
+          fontVariant: drawing.fontVariant,
+          fontVariantCaps: drawing.fontVariantCaps,
+          fontWeight: drawing.fontWeight,
+          left: '0px',
+          letterSpacing: drawing.letterSpacing,
+          lineHeight: drawing.lineHeight,
+          margin: '0',
+          padding: '0',
+          position: 'absolute',
+          textRendering: drawing.textRendering,
+          top: '0px',
+          whiteSpace: 'pre',
+          wordSpacing: drawing.wordSpacing,
+        });
+        if (usesTargetLayer) {
+          targetLayer.append(span);
+          document.body.append(targetLayer);
+        } else {
+          document.body.append(span);
+        }
+        await document.fonts?.load?.(drawing.font, drawing.text);
+        await document.fonts?.ready;
+        if (fontFaceRules.length > 0 && !document.fonts?.check?.(drawing.font, drawing.text)) {
+          return false;
+        }
+        const range = document.createRange();
+        try {
+          range.selectNodeContents(span);
+          const initial = range.getBoundingClientRect();
+          const expectedLeft = clip.x + drawing.left;
+          const expectedTop = clip.y + drawing.top;
+          span.style.left = `${expectedLeft - initial.left}px`;
+          span.style.top = `${expectedTop - initial.top}px`;
+          const aligned = range.getBoundingClientRect();
+          return (
+            Math.abs(aligned.left - expectedLeft) <= 0.1 &&
+            Math.abs(aligned.top - expectedTop) <= 0.1 &&
+            Math.abs(aligned.width - drawing.width) <= 0.5
+          );
+        } finally {
+          range.detach?.();
+        }
+      }, {
+        background,
+        baseHref: page.url(),
+        clip: evidence.clip,
+        drawing: evidence.drawing,
+        fontFaceRules: evidence.fontFaceRules,
+        foreground,
+      });
+      if (!rendered) return false;
+      const expectedScreenshot = await expectedPage.screenshot({
+        animations: 'allow',
+        caret: 'initial',
+        clip: evidence.clip,
+        scale: 'css',
+        type: 'png',
+      });
+      expectedPng = PNG.sync.read(expectedScreenshot);
+    } finally {
+      await expectedPage?.close().catch(() => {});
+    }
+    if (
+      !expectedPng ||
+      expectedPng.width !== evidence.clip.width ||
+      expectedPng.height !== evidence.clip.height
+    ) {
+      return false;
+    }
+    const expectedCoverage = projectedCoverage(expectedPng);
+    const screenshot = await page.screenshot({
+      animations: 'allow',
+      caret: 'initial',
+      clip: evidence.clip,
+      scale: 'css',
+      type: 'png',
+    });
+    const png = PNG.sync.read(screenshot);
+    const foregroundMask = new Uint8Array(png.width * png.height);
+    const foregroundCoverage = projectedCoverage(png);
+    let foregroundPixels = 0;
+    const foregroundColumns = new Set();
+    const foregroundRows = new Set();
+    const expectedCoverageNearby = (x, y) => {
+      for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
+        const candidateY = y + offsetY;
+        if (candidateY < 0 || candidateY >= png.height) continue;
+        for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
+          const candidateX = x + offsetX;
+          if (candidateX < 0 || candidateX >= png.width) continue;
+          if (expectedCoverage[candidateY * png.width + candidateX] >= 0.125) return true;
+        }
+      }
+      return false;
+    };
+    for (let offset = 0; offset < png.data.length; offset += 4) {
+      const pixelIndex = offset / 4;
+      const coverage = foregroundCoverage[pixelIndex];
+      const pixel = [png.data[offset], png.data[offset + 1], png.data[offset + 2]];
+      const residual = Math.sqrt(
+        pixel.reduce((total, channel, index) => {
+          const projectedChannel = background[index] + foregroundVector[index] * coverage;
+          return total + (channel - projectedChannel) ** 2;
+        }, 0),
+      );
+      const x = pixelIndex % png.width;
+      const y = Math.floor(pixelIndex / png.width);
+      if (
+        coverage >= 0.25 &&
+        (expectedCoverageNearby(x, y) || residual <= Math.max(12, separation * 0.12))
+      ) {
+        foregroundMask[offset / 4] = 1;
+        foregroundPixels += 1;
+        foregroundColumns.add(pixelIndex % png.width);
+        foregroundRows.add(Math.floor(pixelIndex / png.width));
+      }
+    }
+    if (
+      png.width !== evidence.clip.width ||
+      png.height !== evidence.clip.height ||
+      foregroundPixels < Math.max(3, evidence.glyphs * 3) ||
+      foregroundColumns.size < Math.min(png.width, Math.max(2, Math.ceil(evidence.glyphs * 1.5))) ||
+      foregroundRows.size < Math.min(png.height, 3)
+    ) {
+      return false;
+    }
+    const countMaskComponents = () => {
+      const visited = new Uint8Array(foregroundMask.length);
+      let components = 0;
+      const queue = [];
+      for (let start = 0; start < foregroundMask.length; start += 1) {
+        if (!foregroundMask[start] || visited[start]) continue;
+        components += 1;
+        visited[start] = 1;
+        queue.push(start);
+        while (queue.length > 0) {
+          const current = queue.pop();
+          const currentX = current % png.width;
+          const currentY = Math.floor(current / png.width);
+          for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
+            for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
+              if (offsetX === 0 && offsetY === 0) continue;
+              const x = currentX + offsetX;
+              const y = currentY + offsetY;
+              if (x < 0 || x >= png.width || y < 0 || y >= png.height) continue;
+              const index = y * png.width + x;
+              if (foregroundMask[index] && !visited[index]) {
+                visited[index] = 1;
+                queue.push(index);
+              }
+            }
+          }
+        }
+      }
+      return components;
+    };
+    const coefficientOfVariation = (counts) => {
+      const mean = counts.reduce((total, value) => total + value, 0) / counts.length;
+      if (mean <= 0) return 0;
+      const variance =
+        counts.reduce((total, value) => total + (value - mean) ** 2, 0) / counts.length;
+      return Math.sqrt(variance) / mean;
+    };
+    const columnCounts = Array(png.width).fill(0);
+    const rowCounts = Array(png.height).fill(0);
+    for (let pixelIndex = 0; pixelIndex < foregroundMask.length; pixelIndex += 1) {
+      if (!foregroundMask[pixelIndex]) continue;
+      columnCounts[pixelIndex % png.width] += 1;
+      rowCounts[Math.floor(pixelIndex / png.width)] += 1;
+    }
+    const foregroundComponents = countMaskComponents();
+    const columnVariation = coefficientOfVariation(columnCounts);
+    const rowVariation = coefficientOfVariation(rowCounts);
+    const expectedReferenceCore = [];
+    const expectedReferenceInk = [];
+    for (let pixelIndex = 0; pixelIndex < expectedCoverage.length; pixelIndex += 1) {
+      if (expectedCoverage[pixelIndex] >= 0.125) expectedReferenceInk.push(pixelIndex);
+      if (expectedCoverage[pixelIndex] >= 0.5) expectedReferenceCore.push(pixelIndex);
+    }
+    if (
+      expectedReferenceCore.length < 3 ||
+      expectedReferenceInk.length < expectedReferenceCore.length
+    ) {
+      return false;
+    }
+    const expectedGlyphs = evidence.expectedGlyphs.map(({ end, start }) => {
+      const owns = (pixelIndex) => {
+        const centerX = (pixelIndex % png.width) + 0.5;
+        return centerX >= start && centerX < end;
+      };
+      return {
+        core: expectedReferenceCore.filter(owns),
+        end,
+        start,
+      };
+    });
+    if (expectedGlyphs.some(({ core }) => core.length === 0)) return false;
+    const expectedInkMask = new Uint8Array(png.width * png.height);
+    for (const pixelIndex of expectedReferenceInk) expectedInkMask[pixelIndex] = 1;
+    const nearby = (mask, x, y, radius = 1) => {
+      for (let offsetY = -radius; offsetY <= radius; offsetY += 1) {
+        const candidateY = y + offsetY;
+        if (candidateY < 0 || candidateY >= png.height) continue;
+        for (let offsetX = -radius; offsetX <= radius; offsetX += 1) {
+          const candidateX = x + offsetX;
+          if (candidateX < 0 || candidateX >= png.width) continue;
+          if (mask[candidateY * png.width + candidateX]) return true;
+        }
+      }
+      return false;
+    };
+    const similarity = (start, end, shiftX, shiftY) => {
+      let dot = 0;
+      let expectedSquare = 0;
+      let actualSquare = 0;
+      let expectedTotal = 0;
+      let actualTotal = 0;
+      let sharedTotal = 0;
+      let rowDot = 0;
+      let expectedRowSquare = 0;
+      let actualRowSquare = 0;
+      const expectedGrid = Array(15).fill(0);
+      const actualGrid = Array(15).fill(0);
+      for (let y = 0; y < png.height; y += 1) {
+        let expectedRow = 0;
+        let actualRow = 0;
+        for (let x = 0; x < png.width; x += 1) {
+          const centerX = x + 0.5;
+          if (centerX < start || centerX >= end) continue;
+          const shiftedX = x + shiftX;
+          const shiftedY = y + shiftY;
+          const actual =
+            shiftedX >= 0 && shiftedX < png.width && shiftedY >= 0 && shiftedY < png.height
+              ? foregroundCoverage[shiftedY * png.width + shiftedX]
+              : 0;
+          const expected = expectedCoverage[y * png.width + x];
+          dot += expected * actual;
+          expectedSquare += expected ** 2;
+          actualSquare += actual ** 2;
+          expectedTotal += expected;
+          actualTotal += actual;
+          sharedTotal += Math.min(expected, actual);
+          expectedRow += expected;
+          actualRow += actual;
+          const columnBin = Math.min(
+            2,
+            Math.max(0, Math.floor(((centerX - start) / Math.max(1, end - start)) * 3)),
+          );
+          const rowBin = Math.min(4, Math.floor((y / png.height) * 5));
+          const gridIndex = rowBin * 3 + columnBin;
+          expectedGrid[gridIndex] += expected;
+          actualGrid[gridIndex] += actual;
+        }
+        rowDot += expectedRow * actualRow;
+        expectedRowSquare += expectedRow ** 2;
+        actualRowSquare += actualRow ** 2;
+      }
+      const gridDot = expectedGrid.reduce(
+        (total, value, index) => total + value * actualGrid[index],
+        0,
+      );
+      const expectedGridSquare = expectedGrid.reduce((total, value) => total + value ** 2, 0);
+      const actualGridSquare = actualGrid.reduce((total, value) => total + value ** 2, 0);
+      return {
+        cosine:
+          expectedSquare > 0 && actualSquare > 0
+            ? dot / Math.sqrt(expectedSquare * actualSquare)
+            : 0,
+        dice:
+          expectedTotal + actualTotal > 0
+            ? (2 * sharedTotal) / (expectedTotal + actualTotal)
+            : 0,
+        gridCosine:
+          expectedGridSquare > 0 && actualGridSquare > 0
+            ? gridDot / Math.sqrt(expectedGridSquare * actualGridSquare)
+            : 0,
+        rowCosine:
+          expectedRowSquare > 0 && actualRowSquare > 0
+            ? rowDot / Math.sqrt(expectedRowSquare * actualRowSquare)
+            : 0,
+      };
+    };
+    const zeroShiftGlobal = similarity(0, png.width, 0, 0);
+    const zeroShiftGlyphs = expectedGlyphs.map((glyph) =>
+      similarity(glyph.start - 0.6, glyph.end + 0.6, 0, 0),
+    );
+    if (
+      zeroShiftGlobal.cosine < 0.995 ||
+      zeroShiftGlobal.dice < 0.96 ||
+      zeroShiftGlobal.gridCosine < 0.995 ||
+      zeroShiftGlobal.rowCosine < 0.995 ||
+      zeroShiftGlyphs.some(
+        ({ cosine, dice, gridCosine, rowCosine }) =>
+          cosine < 0.99 || dice < 0.95 || gridCosine < 0.99 || rowCosine < 0.99,
+      )
+    ) {
+      return false;
+    }
+    let exactGlyphMatch = false;
+    for (let shiftY = -4; shiftY <= 4; shiftY += 1) {
+      for (let shiftX = -2; shiftX <= 2; shiftX += 1) {
+        let matchedCore = 0;
+        for (const pixelIndex of expectedReferenceCore) {
+          const x = (pixelIndex % png.width) + shiftX;
+          const y = Math.floor(pixelIndex / png.width) + shiftY;
+          if (nearby(foregroundMask, x, y)) matchedCore += 1;
+        }
+        let matchedForeground = 0;
+        for (let pixelIndex = 0; pixelIndex < foregroundMask.length; pixelIndex += 1) {
+          if (!foregroundMask[pixelIndex]) continue;
+          const x = (pixelIndex % png.width) - shiftX;
+          const y = Math.floor(pixelIndex / png.width) - shiftY;
+          if (nearby(expectedInkMask, x, y)) matchedForeground += 1;
+        }
+        const recall = matchedCore / expectedReferenceCore.length;
+        const precision = matchedForeground / foregroundPixels;
+        const f1 = recall + precision > 0 ? (2 * recall * precision) / (recall + precision) : 0;
+        let minimumBandRecall = 1;
+        let minimumGlyphCosine = 1;
+        let minimumGlyphDice = 1;
+        let minimumGlyphGridCosine = 1;
+        let minimumGlyphRowCosine = 1;
+        for (const glyph of expectedGlyphs) {
+          let matchedGlyphCore = 0;
+          for (const pixelIndex of glyph.core) {
+            const x = (pixelIndex % png.width) + shiftX;
+            const y = Math.floor(pixelIndex / png.width) + shiftY;
+            if (nearby(foregroundMask, x, y)) matchedGlyphCore += 1;
+          }
+          const glyphRecall = matchedGlyphCore / glyph.core.length;
+          const glyphSimilarity = similarity(glyph.start - 0.6, glyph.end + 0.6, shiftX, shiftY);
+          minimumGlyphCosine = Math.min(minimumGlyphCosine, glyphSimilarity.cosine);
+          minimumGlyphDice = Math.min(minimumGlyphDice, glyphSimilarity.dice);
+          minimumGlyphGridCosine = Math.min(
+            minimumGlyphGridCosine,
+            glyphSimilarity.gridCosine,
+          );
+          minimumGlyphRowCosine = Math.min(
+            minimumGlyphRowCosine,
+            glyphSimilarity.rowCosine,
+          );
+          const glyphRows = glyph.core.map((pixelIndex) => Math.floor(pixelIndex / png.width));
+          const firstRow = Math.min(...glyphRows);
+          const lastRow = Math.max(...glyphRows);
+          const bandHeight = Math.max(1, (lastRow - firstRow + 1) / 3);
+          for (let band = 0; band < 3; band += 1) {
+            const bandStart = firstRow + band * bandHeight;
+            const bandEnd = band === 2 ? lastRow + 1 : firstRow + (band + 1) * bandHeight;
+            const bandCore = glyph.core.filter((pixelIndex) => {
+              const row = Math.floor(pixelIndex / png.width);
+              return row >= bandStart && row < bandEnd;
+            });
+            if (bandCore.length === 0) continue;
+            let matchedBand = 0;
+            for (const pixelIndex of bandCore) {
+              const x = (pixelIndex % png.width) + shiftX;
+              const y = Math.floor(pixelIndex / png.width) + shiftY;
+              if (nearby(foregroundMask, x, y)) matchedBand += 1;
+            }
+            minimumBandRecall = Math.min(minimumBandRecall, matchedBand / bandCore.length);
+          }
+          if (glyphRecall < 0.55) minimumBandRecall = 0;
+        }
+        const globalSimilarity = similarity(0, png.width, shiftX, shiftY);
+        if (
+          recall >= 0.99 &&
+          precision >= 0.999 &&
+          f1 >= 0.99 &&
+          globalSimilarity.cosine >= 0.97 &&
+          globalSimilarity.dice >= 0.9 &&
+          minimumGlyphCosine >= 0.96 &&
+          minimumGlyphDice >= 0.82 &&
+          minimumGlyphGridCosine >= 0.97 &&
+          minimumGlyphRowCosine >= 0.97 &&
+          minimumBandRecall >= 0.7
+        ) {
+          exactGlyphMatch = true;
+        }
+      }
+    }
+    return (
+      exactGlyphMatch &&
+      foregroundComponents >= 1 &&
+      foregroundComponents <= evidence.glyphs * 3 &&
+      columnVariation >= 0.2 &&
+      rowVariation >= 0.2
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function exactRenderedRoleTarget(page, effect) {
+  const targets = page.getByRole(effect.role, { name: effect.name, exact: true });
+  const targetCount = Math.min(await targets.count(), 50);
+  const paintedCandidates = page.getByText(effect.text ?? effect.name, { exact: true });
+  const paintedCount = Math.min(await paintedCandidates.count(), 50);
+  let renderedOccurrence = 0;
+  for (let targetIndex = 0; targetIndex < targetCount; targetIndex += 1) {
+    const target = targets.nth(targetIndex);
+    if (!(await target.isVisible().catch(() => false))) continue;
+    let targetMatched = false;
+    for (let paintedIndex = 0; paintedIndex < paintedCount; paintedIndex += 1) {
+      const painted = paintedCandidates.nth(paintedIndex);
+      if (!(await painted.isVisible().catch(() => false))) continue;
+      let paintedHandle = null;
+      try {
+        paintedHandle = await painted.elementHandle();
+        if (!paintedHandle) continue;
+        targetMatched = await target.evaluate((targetElement, payload) => {
+          const { paintedElement, expectedText, skipDomPaintProbe } = payload;
+          if (
+            targetElement !== paintedElement &&
+            !targetElement.contains(paintedElement)
+          ) {
+            return false;
+          }
+          const safeFilterOpacity = (value) => {
+            const normalized = String(value || '').trim().toLowerCase();
+            if (!normalized || normalized === 'none') return 1;
+            const opacityPattern =
+              /opacity\(\s*([+-]?(?:\d+\.?\d*|\.\d+))\s*(%)?\s*\)/gi;
+            let product = 1;
+            let count = 0;
+            for (const match of normalized.matchAll(opacityPattern)) {
+              const parsed = Number(match[1]);
+              if (!Number.isFinite(parsed)) return null;
+              count += 1;
+              product *= Math.min(1, Math.max(0, match[2] ? parsed / 100 : parsed));
+            }
+            const unsupported = normalized.replace(opacityPattern, '').trim();
+            return count > 0 && unsupported === '' ? product : null;
+          };
+          const paintAlpha = (value) => {
+            const normalized = String(value || '').trim().toLowerCase();
+            if (!normalized || normalized === 'transparent' || normalized === 'none') return 0;
+            if (!/^rgba?\(/.test(normalized)) return 1;
+            const components = normalized.match(/[+-]?(?:\d+\.?\d*|\.\d+)%?/g) ?? [];
+            const hasAlpha =
+              normalized.includes('/') ||
+              (normalized.startsWith('rgba(') && components.length > 3);
+            if (!hasAlpha) return 1;
+            const token = components[3] ?? '1';
+            const alpha = token.endsWith('%')
+              ? Number(token.slice(0, -1)) / 100
+              : Number(token);
+            return Number.isFinite(alpha) ? Math.min(1, Math.max(0, alpha)) : 0;
+          };
+          const parsedPaint = (value) => {
+            const normalized = String(value || '').trim().toLowerCase();
+            if (!/^rgba?\(/.test(normalized)) return null;
+            const components = normalized.match(/[+-]?(?:\d+\.?\d*|\.\d+)%?/g) ?? [];
+            if (components.length < 3) return null;
+            const channels = components.slice(0, 3).map((token) =>
+              Math.round(
+                token.endsWith('%')
+                  ? (Number(token.slice(0, -1)) / 100) * 255
+                  : Number(token),
+              ),
+            );
+            if (channels.some((channel) => !Number.isFinite(channel))) return null;
+            return { alpha: paintAlpha(normalized), channels, rgb: channels.join(',') };
+          };
+          const blendChannels = (foreground, alpha, background) =>
+            foreground.map((channel, index) => channel * alpha + background[index] * (1 - alpha));
+          const relativeLuminance = (channels) => {
+            const linear = channels.map((channel) => {
+              const value = channel / 255;
+              return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+            });
+            return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
+          };
+          const contrastRatio = (first, second) => {
+            const firstLuminance = relativeLuminance(first);
+            const secondLuminance = relativeLuminance(second);
+            return (
+              (Math.max(firstLuminance, secondLuminance) + 0.05) /
+              (Math.min(firstLuminance, secondLuminance) + 0.05)
+            );
+          };
+          const preservesTextOrientation = (value) => {
+            const normalized = String(value || '').trim().toLowerCase();
+            if (!normalized || normalized === 'none') return true;
+            const approximately = (actual, expected) =>
+              Number.isFinite(actual) && Math.abs(actual - expected) <= 0.000001;
+            const parseMatrix = (prefix, length) => {
+              if (!normalized.startsWith(`${prefix}(`) || !normalized.endsWith(')')) return null;
+              const values = normalized
+                .slice(prefix.length + 1, -1)
+                .split(',')
+                .map((token) => Number(token.trim()));
+              return values.length === length && values.every(Number.isFinite) ? values : null;
+            };
+            const matrix = parseMatrix('matrix', 6);
+            if (matrix) {
+              return (
+                approximately(matrix[0], 1) &&
+                approximately(matrix[1], 0) &&
+                approximately(matrix[2], 0) &&
+                approximately(matrix[3], 1)
+              );
+            }
+            const matrix3d = parseMatrix('matrix3d', 16);
+            if (!matrix3d) return false;
+            const identityIndexes = new Set([0, 5, 10, 15]);
+            return matrix3d.every((entry, index) => {
+              if ([12, 13, 14].includes(index)) return Number.isFinite(entry);
+              return approximately(entry, identityIndexes.has(index) ? 1 : 0);
+            });
+          };
+          const preservesIndividualOrientation = (style) => {
+            const rotate = String(style.rotate || 'none').trim().toLowerCase();
+            if (rotate !== 'none' && !/^[+-]?0+(?:\.0+)?(?:deg|grad|rad|turn)?$/.test(rotate)) {
+              return false;
+            }
+            const scale = String(style.scale || 'none').trim().toLowerCase();
+            if (scale === 'none') return true;
+            const components = scale.split(/\s+/).map(Number);
+            return (
+              components.length >= 1 &&
+              components.length <= 3 &&
+              components.every((entry) => Number.isFinite(entry) && Math.abs(entry - 1) <= 0.000001)
+            );
+          };
+          const renderedRect = (element, subjectRect = null, clipOwnOverflow = false) => {
+            const rect = subjectRect ?? element.getBoundingClientRect?.();
+            if (!rect || rect.width < 1 || rect.height < 1) return null;
+            let left = Math.max(0, rect.left);
+            let top = Math.max(0, rect.top);
+            let right = Math.min(window.innerWidth, rect.right);
+            let bottom = Math.min(window.innerHeight, rect.bottom);
+            let cumulativeOpacity = 1;
+            for (let current = element; current; current = current.parentElement) {
+              const style = getComputedStyle(current);
+              if (
+                current.hidden === true ||
+                style.display === 'none' ||
+                style.visibility === 'hidden' ||
+                style.visibility === 'collapse' ||
+                style.contentVisibility === 'hidden'
+              ) {
+                return null;
+              }
+              const opacity = Number(style.opacity);
+              if (Number.isFinite(opacity)) {
+                cumulativeOpacity *= Math.min(1, Math.max(0, opacity));
+              }
+              const filteredOpacity = safeFilterOpacity(style.filter);
+              if (filteredOpacity === null) return null;
+              cumulativeOpacity *= filteredOpacity;
+              if (cumulativeOpacity < 0.1) return null;
+              if (!preservesTextOrientation(style.transform)) return null;
+              if (!preservesIndividualOrientation(style)) return null;
+              if (String(style.offsetPath || 'none').trim().toLowerCase() !== 'none') return null;
+              if (String(style.perspective || 'none').trim().toLowerCase() !== 'none') return null;
+              const clipPath = String(style.clipPath || style.webkitClipPath || 'none').trim();
+              const legacyClip = String(style.clip || 'auto').trim();
+              const mask = String(style.maskImage || style.webkitMaskImage || 'none').trim();
+              const maskBorder = String(
+                style.maskBorderSource ||
+                  style.webkitMaskBoxImageSource ||
+                  style.webkitMaskBoxImage ||
+                  'none',
+              ).trim();
+              if (
+                clipPath !== 'none' ||
+                legacyClip !== 'auto' ||
+                mask !== 'none' ||
+                maskBorder !== 'none'
+              ) {
+                return null;
+              }
+              const ancestorRect = current.getBoundingClientRect?.();
+              if (ancestorRect && (current !== element || clipOwnOverflow)) {
+                const overflowX = style.overflowX || style.overflow;
+                const overflowY = style.overflowY || style.overflow;
+                if (['auto', 'clip', 'hidden', 'scroll'].includes(overflowX)) {
+                  left = Math.max(left, ancestorRect.left);
+                  right = Math.min(right, ancestorRect.right);
+                }
+                if (['auto', 'clip', 'hidden', 'scroll'].includes(overflowY)) {
+                  top = Math.max(top, ancestorRect.top);
+                  bottom = Math.min(bottom, ancestorRect.bottom);
+                }
+              }
+              if (right - left < 2 || bottom - top < 2) return null;
+            }
+            const visibleArea = (right - left) * (bottom - top);
+            const visibleRatio = visibleArea / (rect.width * rect.height);
+            return visibleRatio >= 0.1
+              ? {
+                  left,
+                  top,
+                  right,
+                  bottom,
+                  width: right - left,
+                  height: bottom - top,
+                  visibleRatio,
+                }
+              : null;
+          };
+          const targetVisibleRect = renderedRect(targetElement);
+          if (!targetVisibleRect || !renderedRect(paintedElement)) return false;
+          const readableTextPaint = (element) => {
+            const style = getComputedStyle(element);
+            const fontSize = Number.parseFloat(String(style.fontSize || ''));
+            if (!Number.isFinite(fontSize) || fontSize < 8) return false;
+            if ((style.fontSizeAdjust || 'none') !== 'none') return false;
+            const fontStretch = String(style.fontStretch || '100%').trim().toLowerCase();
+            if (fontStretch !== 'normal' && Math.abs(Number.parseFloat(fontStretch) - 100) > 0.000001) {
+              return false;
+            }
+            if ((style.writingMode || 'horizontal-tb') !== 'horizontal-tb') return false;
+            const letterSpacing = String(style.letterSpacing || 'normal').trim().toLowerCase();
+            if (letterSpacing !== 'normal') {
+              const parsedLetterSpacing = Number.parseFloat(letterSpacing);
+              if (!Number.isFinite(parsedLetterSpacing) || parsedLetterSpacing < 0) return false;
+            }
+            for (let current = element; current; current = current.parentElement) {
+              const currentStyle = getComputedStyle(current);
+              if (
+                (currentStyle.textTransform && currentStyle.textTransform !== 'none') ||
+                (currentStyle.webkitTextSecurity && currentStyle.webkitTextSecurity !== 'none') ||
+                !preservesTextOrientation(currentStyle.transform) ||
+                currentStyle.textOverflow === 'ellipsis' ||
+                (currentStyle.webkitLineClamp && currentStyle.webkitLineClamp !== 'none') ||
+                !['normal', 'isolate'].includes(currentStyle.unicodeBidi || 'normal') ||
+                (currentStyle.direction && currentStyle.direction !== 'ltr')
+              ) {
+                return false;
+              }
+              if (current === targetElement) break;
+            }
+            const tag = element.tagName?.toLowerCase?.();
+            let foreground = style.webkitTextFillColor || style.color;
+            let channelOpacity = 1;
+            if (tag === 'text' || tag === 'tspan') {
+              foreground = style.fill;
+              channelOpacity = Number(style.fillOpacity);
+              if (paintAlpha(foreground) < 0.1 && paintAlpha(style.stroke) >= 0.1) {
+                foreground = style.stroke;
+                channelOpacity = Number(style.strokeOpacity);
+              }
+            }
+            if (
+              paintAlpha(foreground) < 0.1 ||
+              (Number.isFinite(channelOpacity) && channelOpacity < 0.1)
+            ) {
+              return false;
+            }
+            const foregroundPaint = parsedPaint(foreground);
+            if (!foregroundPaint) return false;
+            const ancestry = [];
+            for (let current = element; current; current = current.parentElement) {
+              const currentStyle = getComputedStyle(current);
+              ancestry.push({ element: current, style: currentStyle });
+              const zoom = Number(currentStyle.zoom || 1);
+              if (!Number.isFinite(zoom) || Math.abs(zoom - 1) > 0.000001) return false;
+              if ((currentStyle.outlineStyle || 'none') !== 'none') return false;
+              if ((currentStyle.mixBlendMode || 'normal') !== 'normal') return false;
+              if ((currentStyle.textDecorationLine || 'none') !== 'none') return false;
+              const strokeWidth = String(currentStyle.webkitTextStrokeWidth || '0px').trim();
+              const parsedStrokeWidth = Number.parseFloat(strokeWidth);
+              if (!Number.isFinite(parsedStrokeWidth) || parsedStrokeWidth !== 0) return false;
+              const opacity = Number(currentStyle.opacity);
+              if (!Number.isFinite(opacity) || Math.abs(opacity - 1) > 0.000001) return false;
+              const filteredOpacity = safeFilterOpacity(currentStyle.filter);
+              if (filteredOpacity === null || Math.abs(filteredOpacity - 1) > 0.000001) return false;
+              if (String(currentStyle.backgroundImage || 'none').trim() !== 'none') return false;
+            }
+            let backgroundChannels = [255, 255, 255];
+            let backgroundCoverageAlpha = 0;
+            for (const { style: currentStyle } of ancestry.reverse()) {
+              const background = parsedPaint(currentStyle.backgroundColor);
+              if (!background || background.alpha <= 0) continue;
+              backgroundCoverageAlpha =
+                background.alpha + backgroundCoverageAlpha * (1 - background.alpha);
+              backgroundChannels = blendChannels(
+                background.channels,
+                background.alpha,
+                backgroundChannels,
+              );
+            }
+            if (backgroundCoverageAlpha < 0.999999) return false;
+            const effectiveChannelOpacity = Number.isFinite(channelOpacity)
+              ? Math.min(1, Math.max(0, channelOpacity))
+              : 1;
+            const foregroundAlpha = foregroundPaint.alpha * effectiveChannelOpacity;
+            const renderedForeground = blendChannels(
+              foregroundPaint.channels,
+              foregroundAlpha,
+              backgroundChannels,
+            );
+            return contrastRatio(renderedForeground, backgroundChannels) >= 3;
+          };
+          const textNodes = [];
+          const collectTextNodes = (node) => {
+            for (const child of node.childNodes ?? []) {
+              if (child.nodeType === 3 && child.textContent?.trim()) textNodes.push(child);
+              else if (child.nodeType === 1) collectTextNodes(child);
+            }
+          };
+          collectTextNodes(paintedElement);
+          const normalizeText = (value) =>
+            String(value ?? '')
+              .replace(/[\u2060\u200B\u200C\u200D\uFEFF]/g, '')
+              .replace(/\s+/g, ' ')
+              .trim();
+          if (
+            normalizeText(paintedElement.innerText ?? paintedElement.textContent) !==
+            normalizeText(expectedText)
+          ) {
+            return false;
+          }
+          const pointerTransparentOccluderAt = (owner, x, y) => {
+            const couldPaint = (element) => {
+              let cumulativeOpacity = 1;
+              for (let current = element; current; current = current.parentElement) {
+                const currentStyle = getComputedStyle(current);
+                if (
+                  current.hidden === true ||
+                  currentStyle.display === 'none' ||
+                  currentStyle.visibility === 'hidden' ||
+                  currentStyle.visibility === 'collapse' ||
+                  currentStyle.contentVisibility === 'hidden'
+                ) {
+                  return false;
+                }
+                const opacity = Number(currentStyle.opacity);
+                if (Number.isFinite(opacity)) {
+                  cumulativeOpacity *= Math.min(1, Math.max(0, opacity));
+                }
+                const filteredOpacity = safeFilterOpacity(currentStyle.filter);
+                if (filteredOpacity !== null) cumulativeOpacity *= filteredOpacity;
+                if (cumulativeOpacity < 0.1) return false;
+              }
+              return true;
+            };
+            const splitPaintList = (value) => {
+              const entries = [];
+              let depth = 0;
+              let start = 0;
+              const source = String(value || 'none');
+              for (let index = 0; index < source.length; index += 1) {
+                if (source[index] === '(') depth += 1;
+                else if (source[index] === ')') depth = Math.max(0, depth - 1);
+                else if (source[index] === ',' && depth === 0) {
+                  entries.push(source.slice(start, index).trim());
+                  start = index + 1;
+                }
+              }
+              entries.push(source.slice(start).trim());
+              return entries.filter((entry) => entry && entry !== 'none');
+            };
+            const shadowPaintsPoint = (value, candidateRect, allowSpread) =>
+              splitPaintList(value).some((shadow) => {
+                if (/\binset\b/i.test(shadow)) return false;
+                const lengths = [...shadow.matchAll(/([+-]?(?:\d+\.?\d*|\.\d+))px/gi)].map(
+                  (match) => Number(match[1]),
+                );
+                if (lengths.length < 2 || lengths.some((entry) => !Number.isFinite(entry))) {
+                  return true;
+                }
+                const [offsetX, offsetY, blur = 0, spread = 0] = lengths;
+                const expansion = Math.max(0, blur * 2 + (allowSpread ? spread : 0));
+                return (
+                  x >= candidateRect.left + offsetX - expansion &&
+                  x <= candidateRect.right + offsetX + expansion &&
+                  y >= candidateRect.top + offsetY - expansion &&
+                  y <= candidateRect.bottom + offsetY + expansion
+                );
+              });
+            const outlinePaintsPoint = (style, candidateRect) => {
+              if ((style.outlineStyle || 'none') === 'none') return false;
+              const outlineWidth = Number.parseFloat(String(style.outlineWidth || '0'));
+              const outlineOffset = Number.parseFloat(String(style.outlineOffset || '0'));
+              if (!Number.isFinite(outlineWidth) || !Number.isFinite(outlineOffset)) return true;
+              if (outlineWidth <= 0) return false;
+              const expansion = Math.max(0, outlineWidth + outlineOffset);
+              const outsideBorderBox =
+                x < candidateRect.left ||
+                x > candidateRect.right ||
+                y < candidateRect.top ||
+                y > candidateRect.bottom;
+              return (
+                outsideBorderBox &&
+                x >= candidateRect.left - expansion &&
+                x <= candidateRect.right + expansion &&
+                y >= candidateRect.top - expansion &&
+                y <= candidateRect.bottom + expansion
+              );
+            };
+            const filterPaintsPoint = (value, candidateRect) => {
+              const normalized = String(value || 'none').trim().toLowerCase();
+              if (!normalized || normalized === 'none') return false;
+              const functions = [];
+              for (let index = 0; index < normalized.length; ) {
+                while (/\s/.test(normalized[index] || '')) index += 1;
+                const nameStart = index;
+                while (/[a-z-]/.test(normalized[index] || '')) index += 1;
+                const name = normalized.slice(nameStart, index);
+                if (!name || normalized[index] !== '(') return true;
+                const argsStart = index + 1;
+                let depth = 1;
+                index += 1;
+                while (index < normalized.length && depth > 0) {
+                  if (normalized[index] === '(') depth += 1;
+                  else if (normalized[index] === ')') depth -= 1;
+                  index += 1;
+                }
+                if (depth !== 0) return true;
+                functions.push({ name, args: normalized.slice(argsStart, index - 1) });
+              }
+              let bounds = {
+                left: candidateRect.left,
+                top: candidateRect.top,
+                right: candidateRect.right,
+                bottom: candidateRect.bottom,
+              };
+              for (const entry of functions) {
+                const lengths = [...entry.args.matchAll(/([+-]?(?:\d+\.?\d*|\.\d+))px/gi)].map(
+                  (match) => Number(match[1]),
+                );
+                if (entry.name === 'blur') {
+                  const radius = lengths[0];
+                  if (!Number.isFinite(radius)) return true;
+                  const expansion = Math.max(0, radius * 2);
+                  bounds = {
+                    left: bounds.left - expansion,
+                    top: bounds.top - expansion,
+                    right: bounds.right + expansion,
+                    bottom: bounds.bottom + expansion,
+                  };
+                } else if (entry.name === 'drop-shadow') {
+                  if (lengths.length < 2 || lengths.some((length) => !Number.isFinite(length))) {
+                    return true;
+                  }
+                  const [offsetX, offsetY, blur = 0] = lengths;
+                  const expansion = Math.max(0, blur * 2);
+                  const shadowBounds = {
+                    left: bounds.left + offsetX - expansion,
+                    top: bounds.top + offsetY - expansion,
+                    right: bounds.right + offsetX + expansion,
+                    bottom: bounds.bottom + offsetY + expansion,
+                  };
+                  bounds = {
+                    left: Math.min(bounds.left, shadowBounds.left),
+                    top: Math.min(bounds.top, shadowBounds.top),
+                    right: Math.max(bounds.right, shadowBounds.right),
+                    bottom: Math.max(bounds.bottom, shadowBounds.bottom),
+                  };
+                }
+              }
+              return (
+                x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom
+              );
+            };
+            const isProvablyBehindOwner = (candidate, owner) => {
+              try {
+                if (
+                  candidate.closest?.(':popover-open, :modal') ||
+                  document.fullscreenElement?.contains(candidate)
+                ) {
+                  return false;
+                }
+              } catch {
+                return false;
+              }
+              const createsStackingContext = (element, style) => {
+                if (element === document.documentElement) return true;
+                const position = String(style.position || 'static');
+                const zIndex = String(style.zIndex || 'auto');
+                const parentDisplay = String(
+                  element.parentElement ? getComputedStyle(element.parentElement).display : '',
+                );
+                const isFlexOrGridItem = /^(?:inline-)?(?:flex|grid)$/.test(parentDisplay);
+                const contain = String(style.contain || 'none');
+                const willChange = String(style.willChange || 'auto')
+                  .split(',')
+                  .map((entry) => entry.trim());
+                return (
+                  ['fixed', 'sticky'].includes(position) ||
+                  ((position !== 'static' || isFlexOrGridItem) && zIndex !== 'auto') ||
+                  Number(style.opacity || '1') < 1 ||
+                  String(style.transform || 'none') !== 'none' ||
+                  String(style.scale || 'none') !== 'none' ||
+                  String(style.rotate || 'none') !== 'none' ||
+                  String(style.translate || 'none') !== 'none' ||
+                  String(style.filter || 'none') !== 'none' ||
+                  String(style.backdropFilter || style.webkitBackdropFilter || 'none') !== 'none' ||
+                  String(style.perspective || 'none') !== 'none' ||
+                  String(style.clipPath || style.webkitClipPath || 'none') !== 'none' ||
+                  String(style.maskImage || style.webkitMaskImage || 'none') !== 'none' ||
+                  String(
+                    style.maskBorderSource ||
+                      style.webkitMaskBoxImageSource ||
+                      style.webkitMaskBoxImage ||
+                      'none',
+                  ) !== 'none' ||
+                  String(style.isolation || 'auto') === 'isolate' ||
+                  String(style.mixBlendMode || 'normal') !== 'normal' ||
+                  String(style.containerType || 'normal') !== 'normal' ||
+                  /\b(?:layout|paint|strict|content)\b/.test(contain) ||
+                  willChange.some((entry) =>
+                    [
+                      'transform',
+                      'scale',
+                      'rotate',
+                      'translate',
+                      'opacity',
+                      'filter',
+                      'perspective',
+                      'clip-path',
+                      'mask',
+                    ].includes(entry),
+                  )
+                );
+              };
+              const contextChain = (element) => {
+                const ancestry = [];
+                for (let current = element; current; current = current.parentElement) {
+                  ancestry.unshift(current);
+                }
+                return ancestry.filter((current) =>
+                  createsStackingContext(current, getComputedStyle(current)),
+                );
+              };
+              const candidateChain = contextChain(candidate);
+              const ownerChain = contextChain(owner);
+              let index = 0;
+              while (
+                index < candidateChain.length &&
+                index < ownerChain.length &&
+                candidateChain[index] === ownerChain[index]
+              ) {
+                index += 1;
+              }
+              if (index >= candidateChain.length || index >= ownerChain.length) return false;
+              const zOrder = (element) => {
+                const parsed = Number.parseInt(String(getComputedStyle(element).zIndex || 'auto'), 10);
+                return Number.isFinite(parsed) ? parsed : 0;
+              };
+              return zOrder(candidateChain[index]) < zOrder(ownerChain[index]);
+            };
+            const measuredPseudoRects = (candidate, pseudo, pseudoStyle) => {
+              if (
+                !document.createElement ||
+                !candidate.insertBefore ||
+                !candidate.append ||
+                !candidate.setAttribute ||
+                !candidate.removeAttribute ||
+                !document.head?.append ||
+                !pseudoStyle?.item ||
+                !pseudoStyle?.getPropertyValue
+              ) {
+                return null;
+              }
+              const probe = document.createElement('span');
+              probe.setAttribute('aria-hidden', 'true');
+              for (let index = 0; index < pseudoStyle.length; index += 1) {
+                const property = pseudoStyle.item(index);
+                if (property) {
+                  probe.style.setProperty(property, pseudoStyle.getPropertyValue(property), 'important');
+                }
+              }
+              const content = String(pseudoStyle.content || '').trim();
+              if (/^"(?:[^"\\]|\\.)*"$/.test(content)) {
+                try {
+                  probe.textContent = JSON.parse(content);
+                } catch {
+                  return null;
+                }
+              } else if (/^'(?:[^'\\]|\\.)*'$/.test(content)) {
+                probe.textContent = content.slice(1, -1);
+              } else if (!['', 'none', 'normal'].includes(content)) {
+                return null;
+              }
+              const neutralPaint = {
+                animation: 'none',
+                'background-color': 'transparent',
+                'background-image': 'none',
+                'border-color': 'transparent',
+                'box-shadow': 'none',
+                color: 'transparent',
+                content: 'normal',
+                filter: 'none',
+                opacity: '1',
+                outline: 'none',
+                'pointer-events': 'none',
+                'text-decoration': 'none',
+                'text-shadow': 'none',
+                transition: 'none',
+                visibility: 'visible',
+                '-webkit-backdrop-filter': 'none',
+              };
+              for (const [property, value] of Object.entries(neutralPaint)) {
+                probe.style.setProperty(property, value, 'important');
+              }
+              const marker = 'data-work0-pseudo-measure';
+              const markerValue = pseudo === '::before' ? 'before' : 'after';
+              const hadMarker = candidate.hasAttribute?.(marker) === true;
+              const previousMarker = candidate.getAttribute?.(marker);
+              const suppressionStyle = document.createElement('style');
+              suppressionStyle.textContent =
+                `[${marker}="${markerValue}"]::${markerValue}{content:none!important;display:none!important}`;
+              try {
+                candidate.setAttribute(marker, markerValue);
+                document.head.append(suppressionStyle);
+                const suppressedPseudo = getComputedStyle(candidate, pseudo);
+                if (
+                  suppressedPseudo.display !== 'none' ||
+                  !['none', 'normal', ''].includes(
+                    String(suppressedPseudo.content || 'none').trim(),
+                  )
+                ) {
+                  return null;
+                }
+                if (pseudo === '::before') candidate.insertBefore(probe, candidate.firstChild);
+                else candidate.append(probe);
+                const rects = [...probe.getClientRects()].map((rect) => ({
+                  bottom: rect.bottom,
+                  height: rect.height,
+                  left: rect.left,
+                  right: rect.right,
+                  top: rect.top,
+                  width: rect.width,
+                }));
+                if (rects.length > 0) return rects;
+                const rect = probe.getBoundingClientRect?.();
+                return rect
+                  ? [
+                      {
+                        bottom: rect.bottom,
+                        height: rect.height,
+                        left: rect.left,
+                        right: rect.right,
+                        top: rect.top,
+                        width: rect.width,
+                      },
+                    ]
+                  : null;
+              } finally {
+                probe.remove?.();
+                suppressionStyle.remove?.();
+                if (hadMarker) candidate.setAttribute(marker, previousMarker ?? '');
+                else candidate.removeAttribute(marker);
+              }
+            };
+            const pseudoOccludesPoint = (candidate, visiblePseudos, candidateCanCoverOwner) => {
+              if (
+                !candidate.setAttribute ||
+                !candidate.removeAttribute ||
+                !document.createElement ||
+                !document.head?.append
+              ) {
+                return true;
+              }
+              const marker = 'data-work0-pseudo-probe';
+              const hadMarker = candidate.hasAttribute?.(marker) === true;
+              const previousMarker = candidate.getAttribute?.(marker);
+              const probeStyle = document.createElement('style');
+              probeStyle.textContent =
+                `[${marker}="active"]::before,[${marker}="active"]::after{pointer-events:auto!important}`;
+              let hitTestOccludes = false;
+              let overrideFailures = [];
+              try {
+                candidate.setAttribute(marker, 'active');
+                document.head.append(probeStyle);
+                overrideFailures = visiblePseudos.filter(
+                  ({ pseudo }) => getComputedStyle(candidate, pseudo).pointerEvents !== 'auto',
+                );
+                const topmost = document.elementsFromPoint(x, y)[0];
+                hitTestOccludes = Boolean(
+                  topmost && (topmost === candidate || candidate.contains(topmost)),
+                );
+              } finally {
+                probeStyle.remove?.();
+                if (hadMarker) candidate.setAttribute(marker, previousMarker ?? '');
+                else candidate.removeAttribute(marker);
+              }
+              if (hitTestOccludes) return true;
+              if (!candidateCanCoverOwner) return false;
+              for (const { pseudo, pseudoStyle } of overrideFailures) {
+                const pseudoRects = measuredPseudoRects(candidate, pseudo, pseudoStyle);
+                if (
+                  !pseudoRects ||
+                  pseudoRects.some(
+                    (rect) =>
+                      x >= rect.left &&
+                      x <= rect.right &&
+                      y >= rect.top &&
+                      y <= rect.bottom,
+                  )
+                ) {
+                  return true;
+                }
+              }
+              return false;
+            };
+            const candidates = document.querySelectorAll?.('body *') ?? [];
+            for (const candidate of candidates) {
+              if (candidate === owner || candidate.contains(owner)) continue;
+              const style = getComputedStyle(candidate);
+              const rawCandidateRect = candidate.getBoundingClientRect?.();
+              const candidateCouldPaint = couldPaint(candidate);
+              const candidateCanCoverOwner = !isProvablyBehindOwner(candidate, owner);
+              if (
+                candidateCouldPaint &&
+                candidateCanCoverOwner &&
+                rawCandidateRect &&
+                (filterPaintsPoint(style.filter, rawCandidateRect) ||
+                  (String(style.backdropFilter || style.webkitBackdropFilter || 'none').trim() !==
+                    'none' &&
+                    x >= rawCandidateRect.left &&
+                    x <= rawCandidateRect.right &&
+                    y >= rawCandidateRect.top &&
+                    y <= rawCandidateRect.bottom))
+              ) {
+                return true;
+              }
+              if (candidateCouldPaint) {
+                const visiblePseudos = [];
+                for (const pseudo of ['::before', '::after']) {
+                  const pseudoStyle = getComputedStyle(candidate, pseudo);
+                  const content = String(pseudoStyle.content || 'none').trim();
+                  if (
+                    !['none', 'normal', ''].includes(content) &&
+                    pseudoStyle.display !== 'none' &&
+                    pseudoStyle.visibility !== 'hidden' &&
+                    Number(pseudoStyle.opacity || '1') > 0 &&
+                    safeFilterOpacity(pseudoStyle.filter) !== 0
+                  ) {
+                    visiblePseudos.push({ pseudo, pseudoStyle });
+                    const hasExternalPaint =
+                      String(pseudoStyle.filter || 'none').trim() !== 'none' ||
+                      String(pseudoStyle.boxShadow || 'none').trim() !== 'none' ||
+                      String(pseudoStyle.textShadow || 'none').trim() !== 'none' ||
+                      (pseudoStyle.outlineStyle || 'none') !== 'none';
+                    if (hasExternalPaint && candidateCanCoverOwner) {
+                      const pseudoRects = measuredPseudoRects(candidate, pseudo, pseudoStyle);
+                      if (
+                        !pseudoRects ||
+                        pseudoRects.some(
+                          (pseudoRect) =>
+                            filterPaintsPoint(pseudoStyle.filter, pseudoRect) ||
+                            shadowPaintsPoint(pseudoStyle.boxShadow, pseudoRect, true) ||
+                            shadowPaintsPoint(pseudoStyle.textShadow, pseudoRect, false) ||
+                            outlinePaintsPoint(pseudoStyle, pseudoRect),
+                        )
+                      ) {
+                        return true;
+                      }
+                    }
+                  }
+                }
+                if (
+                  visiblePseudos.length > 0 &&
+                  pseudoOccludesPoint(candidate, visiblePseudos, candidateCanCoverOwner)
+                ) {
+                  return true;
+                }
+              }
+              if (
+                candidateCouldPaint &&
+                candidateCanCoverOwner &&
+                rawCandidateRect &&
+                (shadowPaintsPoint(style.boxShadow, rawCandidateRect, true) ||
+                  shadowPaintsPoint(style.textShadow, rawCandidateRect, false))
+              ) {
+                return true;
+              }
+              if (
+                candidateCanCoverOwner &&
+                rawCandidateRect &&
+                outlinePaintsPoint(style, rawCandidateRect)
+              ) {
+                return true;
+              }
+              if (style.pointerEvents !== 'none') continue;
+              const candidateRect = rawCandidateRect;
+              if (
+                !candidateRect ||
+                !candidateCouldPaint ||
+                candidateRect.width < 1 ||
+                candidateRect.height < 1 ||
+                x < candidateRect.left ||
+                x > candidateRect.right ||
+                y < candidateRect.top ||
+                y > candidateRect.bottom
+              ) {
+                continue;
+              }
+              if (!candidate.style?.setProperty) return true;
+              const previousValue = candidate.style.getPropertyValue('pointer-events');
+              const previousPriority = candidate.style.getPropertyPriority('pointer-events');
+              try {
+                candidate.style.setProperty('pointer-events', 'auto', 'important');
+                const topmost = document.elementsFromPoint(x, y)[0];
+                if (topmost && (topmost === candidate || candidate.contains(topmost))) return true;
+              } finally {
+                if (previousValue) {
+                  candidate.style.setProperty(
+                    'pointer-events',
+                    previousValue,
+                    previousPriority,
+                  );
+                } else {
+                  candidate.style.removeProperty('pointer-events');
+                }
+              }
+            }
+            return false;
+          };
+          const visibleText = textNodes
+            .filter((node) => {
+              const owner = node.parentElement;
+              if (!owner || !readableTextPaint(owner)) return false;
+              for (let current = owner; current; current = current.parentElement) {
+                for (const pseudo of ['::before', '::after']) {
+                  const pseudoStyle = getComputedStyle(current, pseudo);
+                  const content = String(pseudoStyle.content || 'none').trim();
+                  if (
+                    !['none', 'normal', ''].includes(content) &&
+                    pseudoStyle.display !== 'none' &&
+                    pseudoStyle.visibility !== 'hidden' &&
+                    Number(pseudoStyle.opacity || '1') > 0 &&
+                    safeFilterOpacity(pseudoStyle.filter) !== 0
+                  ) {
+                    return false;
+                  }
+                }
+              }
+              const range = document.createRange();
+              try {
+                range.selectNodeContents(node);
+                const rects = [...range.getClientRects()].filter(
+                  (rect) => rect.width >= 1 && rect.height >= 1,
+                );
+                const expectedGlyphCount = [...normalizeText(expectedText)].filter(
+                  (character) => !/\s/.test(character),
+                ).length;
+                if (
+                  rects.some((rect) => rect.height < 8) ||
+                  rects.reduce((total, rect) => total + rect.width, 0) < expectedGlyphCount * 2
+                ) {
+                  return false;
+                }
+                return rects.length > 0 && rects.every((rect) => {
+                  const visibleRect = renderedRect(owner, rect, true);
+                  if (
+                    !visibleRect ||
+                    visibleRect.visibleRatio < 0.999 ||
+                    typeof document.elementsFromPoint !== 'function'
+                  ) {
+                    return false;
+                  }
+                  const overlapLeft = Math.max(visibleRect.left, targetVisibleRect.left);
+                  const overlapTop = Math.max(visibleRect.top, targetVisibleRect.top);
+                  const overlapRight = Math.min(visibleRect.right, targetVisibleRect.right);
+                  const overlapBottom = Math.min(visibleRect.bottom, targetVisibleRect.bottom);
+                  const overlapArea =
+                    Math.max(0, overlapRight - overlapLeft) *
+                    Math.max(0, overlapBottom - overlapTop);
+                  if (overlapArea / (visibleRect.width * visibleRect.height) < 0.999) return false;
+                  const insetX = Math.min(1, visibleRect.width / 4);
+                  const insetY = Math.min(1, visibleRect.height / 4);
+                  const points = [
+                    [visibleRect.left + visibleRect.width / 2, visibleRect.top + visibleRect.height / 2],
+                    [visibleRect.left + insetX, visibleRect.top + insetY],
+                    [visibleRect.right - insetX, visibleRect.top + insetY],
+                    [visibleRect.left + insetX, visibleRect.bottom - insetY],
+                    [visibleRect.right - insetX, visibleRect.bottom - insetY],
+                  ];
+                  return points.every(([x, y]) => {
+                    const topmost = document.elementsFromPoint(x, y)[0];
+                    return Boolean(
+                      topmost === owner &&
+                        (skipDomPaintProbe || !pointerTransparentOccluderAt(owner, x, y)),
+                    );
+                  });
+                });
+              } finally {
+                range.detach?.();
+              }
+            })
+            .map((node) => node.textContent ?? '')
+            .join('');
+          return normalizeText(visibleText) === normalizeText(expectedText);
+        }, {
+          paintedElement: paintedHandle,
+          expectedText: effect.text ?? effect.name,
+          skipDomPaintProbe: typeof page.screenshot === 'function',
+        });
+        if (targetMatched) {
+          const targetHandle =
+            typeof page.screenshot === 'function' ? await target.elementHandle() : null;
+          try {
+            targetMatched =
+              (typeof page.screenshot !== 'function' || Boolean(targetHandle)) &&
+              (await screenshotConfirmsPaintedText(
+                page,
+                paintedHandle,
+                targetHandle,
+                effect.text ?? effect.name,
+              ));
+          } finally {
+            await targetHandle?.dispose?.().catch(() => {});
+          }
+        }
+        if (targetMatched) break;
+      } catch {
+        // Keep looking: unrelated, detached, clipped, or transparent text is not evidence.
+      } finally {
+        await paintedHandle?.dispose?.().catch(() => {});
+      }
+    }
+    if (!targetMatched) continue;
+    renderedOccurrence += 1;
+    if (renderedOccurrence === effect.occurrence) return target;
   }
   return null;
 }
@@ -2554,24 +5318,14 @@ export async function locateExactNavigationTarget(page, item) {
   return exactRoleTarget.first();
 }
 
-async function exactNavigationEffectPassed(page, item) {
+export async function exactNavigationEffectPassed(page, item) {
   if (item.effect.type === 'selected') {
     const target = await locateExactNavigationTarget(page, item);
     if (!target) return false;
     return (await target.getAttribute('aria-selected')) === String(item.effect.value);
   }
   if (item.effect.type === 'visible') {
-    const target = await visibleLocatorAt(
-      page.getByRole(item.effect.role, { name: item.effect.name, exact: true }),
-      item.effect.occurrence,
-    );
-    if (!target) return false;
-    return Boolean(
-      await visibleLocatorAt(
-        page.getByText(item.effect.name, { exact: true }),
-        item.effect.occurrence,
-      ),
-    );
+    return Boolean(await exactRenderedRoleTarget(page, item.effect));
   }
   const options = item.effect.name ? { name: item.effect.name, exact: true } : undefined;
   const target = await visibleLocatorAt(
@@ -2582,6 +5336,7 @@ async function exactNavigationEffectPassed(page, item) {
 }
 
 function attachNavigationProbeHealth(page, baseUrl, sourceUrl) {
+  attachFontResponseEvidence(page);
   const health = createShotHealth();
   const networkTracker = createShotNetworkTracker();
   const blockedRequests = new WeakSet();
@@ -2630,6 +5385,7 @@ function attachNavigationProbeHealth(page, baseUrl, sourceUrl) {
 
 export function navigationProbeFailureCode(baseUrl, health, mutationBlocked) {
   if (mutationBlocked) return 'mutation-blocked';
+  if ((Number(health?.pendingRequests) || 0) > 0) return 'source-health';
   return shotFailureCodes({ baseUrl, ...health }).length ? 'source-health' : null;
 }
 
@@ -2646,6 +5402,99 @@ export function isCaptureNoticeReadRequest(request, noticeReadOrigin, setupPhase
   } catch {
     return false;
   }
+}
+
+export async function verifyPostNavigationEffect(
+  page,
+  { baseUrl, route, postNavigation, health, mutationWasBlocked },
+  hooks = {},
+) {
+  const checkEffect =
+    hooks.checkEffect ??
+    ((effect) => exactNavigationEffectPassed(page, { effect }));
+  const findRenderedRoleTarget =
+    hooks.findRenderedRoleTarget ??
+    ((effect) => exactRenderedRoleTarget(page, effect));
+  const waitForIdle = hooks.waitForIdle ?? (() => waitForShotNetworkIdle(page, health));
+  const settle = hooks.settle ?? ((milliseconds) => page.waitForTimeout(milliseconds));
+  const routeMatches = () => {
+    try {
+      validateFinalUrl(baseUrl, route, page.url());
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const healthFailure = async () => {
+    try {
+      await waitForIdle();
+    } catch {
+      return 'source-health';
+    }
+    return navigationProbeFailureCode(baseUrl, health, mutationWasBlocked());
+  };
+
+  let effectPassed = await checkEffect(postNavigation.effect);
+  if (!effectPassed && postNavigation.reveal) {
+    const reveal = postNavigation.reveal;
+    const revealTarget = await findRenderedRoleTarget({
+      role: reveal.role,
+      name: reveal.name,
+      text: reveal.name,
+      occurrence: reveal.occurrence,
+    });
+    if (!revealTarget) return { passed: false, evidence: null, failure: 'reveal-target' };
+    try {
+      await revealTarget.click({ timeout: 5000 });
+    } catch {
+      return { passed: false, evidence: null, failure: 'click-failed' };
+    }
+    await settle(350);
+    if (!routeMatches()) return { passed: false, evidence: null, failure: 'route-mismatch' };
+    const revealFailure = await healthFailure();
+    if (revealFailure) return { passed: false, evidence: null, failure: revealFailure };
+    effectPassed = await checkEffect(postNavigation.effect);
+  }
+  if (!effectPassed) return { passed: false, evidence: null, failure: 'effect-mismatch' };
+  if (!routeMatches()) return { passed: false, evidence: null, failure: 'route-mismatch' };
+  const finalFailure = await healthFailure();
+  if (finalFailure) return { passed: false, evidence: null, failure: finalFailure };
+  if (!routeMatches()) return { passed: false, evidence: null, failure: 'route-mismatch' };
+  const finalNetworkRevision = Number(health?.networkRevision) || 0;
+  if (!(await checkEffect(postNavigation.effect))) {
+    return { passed: false, evidence: null, failure: 'effect-mismatch' };
+  }
+  await settle(50);
+  if (!routeMatches()) return { passed: false, evidence: null, failure: 'route-mismatch' };
+  if (
+    (Number(health?.pendingRequests) || 0) > 0 ||
+    (Number(health?.networkRevision) || 0) !== finalNetworkRevision
+  ) {
+    return { passed: false, evidence: null, failure: 'source-health' };
+  }
+  const postEffectFailure = navigationProbeFailureCode(baseUrl, health, mutationWasBlocked());
+  if (postEffectFailure) {
+    return { passed: false, evidence: null, failure: postEffectFailure };
+  }
+  if (!routeMatches()) return { passed: false, evidence: null, failure: 'route-mismatch' };
+  if (!(await checkEffect(postNavigation.effect))) {
+    return { passed: false, evidence: null, failure: 'effect-mismatch' };
+  }
+  if (!routeMatches()) return { passed: false, evidence: null, failure: 'route-mismatch' };
+  if (
+    (Number(health?.pendingRequests) || 0) > 0 ||
+    (Number(health?.networkRevision) || 0) !== finalNetworkRevision
+  ) {
+    return { passed: false, evidence: null, failure: 'source-health' };
+  }
+  const acceptanceFailure = navigationProbeFailureCode(baseUrl, health, mutationWasBlocked());
+  if (acceptanceFailure) {
+    return { passed: false, evidence: null, failure: acceptanceFailure };
+  }
+  return {
+    passed: true,
+    evidence: `exact-route+${postNavigation.effect.type}-effect`,
+  };
 }
 
 async function probeExactNavigationItem(sourcePage, baseUrl, sourceRoute, item, noticeReadOrigin) {
@@ -2734,6 +5583,15 @@ async function probeExactNavigationItem(sourcePage, baseUrl, sourceRoute, item, 
         probeHealth.mutationWasBlocked(),
       );
       if (routeFailure) return { passed: false, evidence: null, failure: routeFailure };
+      if (item.postNavigation) {
+        return verifyPostNavigationEffect(probe, {
+          baseUrl,
+          route: item.to,
+          postNavigation: item.postNavigation,
+          health: probeHealth.health,
+          mutationWasBlocked: () => probeHealth.mutationWasBlocked(),
+        });
+      }
       return { passed: true, evidence: 'exact-route' };
     }
 
@@ -2814,6 +5672,7 @@ async function scoreOne({
   ramp,
   navFile,
   deviations,
+  manualEvidence,
   activeShot,
   noticeReadOrigin,
 }) {
@@ -2839,6 +5698,7 @@ async function scoreOne({
       E: null,
       total: null,
       automaticPass: false,
+      reviewedPass: false,
       unmeasured: ['A', 'B', 'C', 'D', 'E'],
       error: 'page-not-settled',
     };
@@ -2882,7 +5742,12 @@ async function scoreOne({
     const results = await runExactNavigationChecks(contract, (item) =>
       probeExactNavigationItem(page, baseUrl, route, item, noticeReadOrigin),
     );
-    navigation = scoreExactNavigationResults(contract, results, exemptItems(id, 'D', deviations));
+    navigation = scoreExactNavigationResults(
+      contract,
+      results,
+      exemptItems(id, 'D', deviations),
+      manualEvidence,
+    );
   } else {
     navigation = scoreNavigationLabels(null, app.interactive, [], { baseUrl });
   }
@@ -2907,14 +5772,17 @@ async function scoreOne({
 
   const raw = { A, B, C, D, E };
   const { scores, total, unmeasured } = renormalizeScores(raw);
+  const reviewedManualAxes = reviewedNavigationAxes(id, deviations, navigation);
   return {
     id,
     route,
     ...scores,
     total,
     automaticPass: isAutomaticPass(total, unmeasured, manualReviewAxes),
+    reviewedPass: isReviewedPass(total, unmeasured, manualReviewAxes, reviewedManualAxes),
     unmeasured,
     manualReviewAxes,
+    reviewedManualAxes,
     missD: navigation.missing,
     missE: copy?.missing ?? [],
     offTop: tokenPixels.offTop,
@@ -2925,9 +5793,7 @@ async function scoreOne({
         tokenPixels.paintedPixels > 0
           ? `token pixels ${round1(tokenPixels.ratio * 100)}% (${tokenPixels.inRampPixels}/${tokenPixels.paintedPixels})${
               tokenPixels.offTop.length
-                ? ` · off-ramp ${tokenPixels.offTop
-                    .map((entry) => `${entry.hex} ${entry.pixels}`)
-                    .join(' / ')}`
+                ? ` · off-ramp ${tokenPixels.offTop.map((entry) => `${entry.hex} ${entry.pixels}`).join(' / ')}`
                 : ''
             }`
           : 'no painted pixels',
@@ -3001,6 +5867,15 @@ export async function main(args = process.argv.slice(2), env = process.env, data
     console.error('invalid Stage 1 navigation contract');
     return 2;
   }
+  let ramps;
+  try {
+    ramps = new Map(
+      targetIds.map((id) => [id, tokenRamp(tokens, id, classification.targetIds)]),
+    );
+  } catch {
+    console.error('invalid token ramp contract');
+    return 2;
+  }
   let playwright;
   try {
     playwright = resolvePlaywright(require, env);
@@ -3018,6 +5893,7 @@ export async function main(args = process.argv.slice(2), env = process.env, data
   }
   const output = env.SCORE_OUT || path.join(DATA, 'score.json');
   const rows = [];
+  let manualEvidenceByScreen = new Map();
   let markerTime;
   let determinismScript;
   try {
@@ -3061,11 +5937,28 @@ export async function main(args = process.argv.slice(2), env = process.env, data
     await waitForShotNetworkIdle(page, activeShot);
     const bootstrapFailureCodes = shotFailureCodes({ baseUrl, ...activeShot });
     if (bootstrapFailureCodes.length) throw new CaptureContractError(bootstrapFailureCodes);
-    await attestServedExport(
+    const servedExport = await attestServedExport(
       page,
       environmentAttestation.previewEnv,
       environmentAttestation.receipt,
     );
+    try {
+      const contracts = Object.fromEntries(
+        targetIds
+          .filter((id) => navFile?.[id]?.version === 2)
+          .map((id) => [id, normalizeNavigationContract(navFile[id], baseUrl)]),
+      );
+      manualEvidenceByScreen = loadManualEffectEvidence(env, {
+        contracts,
+        targetIds,
+        exportSha256: servedExport.exportSha256,
+        exportedAt: servedExport.exportedAt,
+        now: Date.now(),
+      });
+    } catch {
+      console.error('invalid manual effect evidence');
+      return 2;
+    }
     await waitForShotNetworkIdle(page, activeShot);
     await page.addScriptTag({ content: makeCaptureInitScript(markerTime) });
     await loginForQa(page, baseUrl, env);
@@ -3097,9 +5990,10 @@ export async function main(args = process.argv.slice(2), env = process.env, data
             id,
             route,
             baseUrl,
-            ramp: tokenRamp(tokens),
+            ramp: ramps.get(id),
             navFile,
             deviations,
+            manualEvidence: manualEvidenceByScreen.get(id) ?? null,
             activeShot,
             noticeReadOrigin: environmentAttestation.previewEnv.EXPO_PUBLIC_SUPABASE_URL,
           }),
@@ -3110,6 +6004,7 @@ export async function main(args = process.argv.slice(2), env = process.env, data
           route,
           total: null,
           automaticPass: false,
+          reviewedPass: false,
           failureCodes: captureFailureCodes(error),
           error: 'capture-failed',
         });
@@ -3130,6 +6025,7 @@ export async function main(args = process.argv.slice(2), env = process.env, data
     baseUrl: new URL(baseUrl).origin,
     manifest: classification.stats,
     environmentAttested: true,
+    manualEffectEvidenceAttested: manualEvidenceByScreen.size > 0,
     browserVersion,
     navigationContract: 'data/nav.json',
     weights: WEIGHTS,
@@ -3138,7 +6034,8 @@ export async function main(args = process.argv.slice(2), env = process.env, data
   writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`);
   const exitCode = reportExitCode(report);
   const passed = rows.filter((row) => row.automaticPass === true).length;
-  console.log(`scored ${rows.length} · >=98 automatic ${passed}`);
+  const reviewed = rows.filter((row) => row.reviewedPass === true).length;
+  console.log(`scored ${rows.length} · >=98 automatic ${passed} · reviewed ${reviewed}`);
   return exitCode;
 }
 
