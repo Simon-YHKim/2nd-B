@@ -25,7 +25,9 @@
 > 3. **시각 목적지는 PIXEL-CLAY v4** (2026-08-19). v3 의 "픽셀아트 금지"는 cosmic-pixel
 >    레거시 스킨 이야기였고, PIXEL-CLAY 를 거부하는 근거로 인용 금지.
 > 4. **LLM 은 멀티벤더** (2026-08-17~18). 경계 모듈은 `boundary.ts`(구 gemini.ts),
->    벤더는 자리 적합성으로 고른다. Gemini 는 OCR·음성 텍스트화 자리.
+>    벤더는 자리 적합성으로 고른다. ~~Gemini 는 OCR·음성 텍스트화 자리.~~
+>    **2026-08-29 정정:** OCR·음성도 openai 다 — Simon 2026-08-23 "OCR = openai 유지
+>    (gemini 예외 없음)". Gemini 에 남은 자리는 없고 9월에 폐기한다. §8 참조.
 
 ---
 
@@ -217,8 +219,12 @@ SoT = `docs/PIXEL-CLAY-MIGRATION.md`, 인수 자료 = `design/pixel_clay_v4/`(�
 
 - **C1 불변**: 모든 호출은 `src/lib/llm/boundary.ts` 단일 경계로. C9 분류가 선행, C3 감사
   기록이 후행. 경계는 벤더 무관.
-- 벤더: gemini(OCR·음성 텍스트화) · openai(추론 좌석 Phase 2 선언 + 세컨비 대화
-  `EXPO_PUBLIC_CHAT_VENDOR`) · claude(좌석 준비됨) — 프록시 4종(supabase functions).
+- 벤더 (2026-08-29 갱신 — 배포 자세 실측): **openai**(추론 좌석 대부분 · 세컨비 대화 ·
+  **OCR·음성 텍스트화** · 백본) · **claude**(persona_narrative · persona_synthesis ·
+  crosscheck_defend — V-4, 2026-08-23) · xai(스위치 선택지, 바이너리 불가) ·
+  ~~gemini(OCR·음성 텍스트화)~~ gemini 는 **9월 폐기 대상**, 구빌드 설치 앱의 실서빙과
+  스위치 미설정 폴백 때문에만 살아 있다 — 프록시 4종(supabase functions).
+  스위치는 `EXPO_PUBLIC_{LLM,CHAT,MULTIMODAL,BACKBONE,EMBED}_VENDOR` + `_FAILOVER_VENDOR`.
   모델 선택은 서버 소유(env), 항상 최신 모델, 좌석마다 effort 명시.
 - 신규 좌석 추가 시: 프록시 허용목록 재배포가 클라이언트 변수 플립보다 **먼저**
   (`purpose_not_seated` 함정).
