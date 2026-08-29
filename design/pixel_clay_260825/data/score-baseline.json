@@ -1,5 +1,5 @@
 {
- "note": "5축 채점(A 픽셀규율 30 · B 토큰충실도 25 · C 구조일치 20 · D 내비무결성 15 · E 카피 10). 98 은 게이트지 완성이 아니다 — 여백·손맛·타이밍·카피의 온도는 점수로 만들지 않는다. Stage 1의 8개 행은 2026-08-28 실제 EXPO_PUBLIC_* 환경의 attested strict exact-navigation run으로 재측정했고, 나머지 행은 이전 기준선을 유지한다.",
+ "note": "5축 채점(A 픽셀규율 30 · B 토큰충실도 25 · C 구조일치 20 · D 내비무결성 15 · E 카피 10). 98 은 게이트지 완성이 아니다 — 여백·손맛·타이밍·카피의 온도는 점수로 만들지 않는다. Stage 1의 8개 행은 2026-08-28 실제 EXPO_PUBLIC_* 환경의 attested strict exact-navigation run으로 재측정했고, interview와 review는 2026-08-29 최신 구현의 동일 조건 run으로 갱신했다. 나머지 행은 이전 기준선을 유지한다.",
  "base": "http://localhost:8980",
  "weights": {
   "A": 30,
@@ -1353,19 +1353,15 @@
    "id": "interview",
    "route": "/interview",
    "A": 30,
-   "B": 23.7,
+   "B": 24.4,
    "C": null,
-   "D": 12.5,
+   "D": 15,
    "E": 10,
-   "total": 95.3,
+   "total": 99.3,
    "unmeasured": ["C"],
-   "missD": ["모르겠어요"],
+   "missD": [],
    "missE": [],
    "offTop": [
-    {
-     "hex": "#202939",
-     "pixels": 2178
-    },
     {
      "hex": "#1d222f",
      "pixels": 1512
@@ -1381,13 +1377,17 @@
     {
      "hex": "#d1d5dd",
      "pixels": 642
+    },
+    {
+     "hex": "#808aa3",
+     "pixels": 320
     }
    ],
    "why": {
     "A": "curves 0 · rounds 0 · blur 0 · alpha 0",
-    "B": "token pixels 95% (303711/319800) · off-ramp #202939 2178 / #1d222f 1512 / #5b6068 1408 / #757e96 734 / #d1d5dd 642",
+    "B": "token pixels 97.8% (312641/319800) · off-ramp #1d222f 1512 / #5b6068 1408 / #757e96 734 / #d1d5dd 642 / #808aa3 320",
     "C": "축 꺼짐 — 눈금이 화면을 구별 못 함(자기 짝 찾기 0/6, 무작위 1/6보다 낮음)",
-    "D": "declared 8 · measured 5 · exempt 2 · missing 1 → 모르겠어요 · exact routes 5 · unsafe actions 1 · manual review unsafe-actions",
+    "D": "declared 8 · measured 6 · exempt 2 · missing 0 · exact routes 5 · exact actions 1",
     "E": "declared 6 · measured 6 · exempt 0 · missing 0"
    }
   },
@@ -1437,41 +1437,41 @@
    "id": "review",
    "route": "/review",
    "A": 30,
-   "B": 23.2,
+   "B": 24.1,
    "C": null,
-   "D": 0,
+   "D": 10.7,
    "E": 10,
-   "total": 78.9,
+   "total": 93.5,
    "unmeasured": ["C"],
-   "missD": ["학창시절", "지금", "별자리", "담기", "세컨비", "위키", "설정"],
+   "missD": ["학창시절", "지금"],
    "missE": [],
    "offTop": [
     {
-     "hex": "#202939",
-     "pixels": 2178
+     "hex": "#122234",
+     "pixels": 304
     },
     {
-     "hex": "#16172c",
-     "pixels": 491
+     "hex": "#17202c",
+     "pixels": 139
     },
     {
-     "hex": "#17182e",
-     "pixels": 390
+     "hex": "#c2eef3",
+     "pixels": 139
     },
     {
-     "hex": "#16172d",
-     "pixels": 325
+     "hex": "#40a5e7",
+     "pixels": 135
     },
     {
-     "hex": "#15162b",
-     "pixels": 321
+     "hex": "#598096",
+     "pixels": 133
     }
    ],
    "why": {
     "A": "curves 0 · rounds 0 · blur 0 · alpha 0",
-    "B": "token pixels 92.6% (296229/319800) · off-ramp #202939 2178 / #16172c 491 / #17182e 390 / #16172d 325 / #15162b 321",
+    "B": "token pixels 96.4% (308297/319800) · off-ramp #122234 304 / #17202c 139 / #c2eef3 139 / #40a5e7 135 / #598096 133",
     "C": "축 꺼짐 — 눈금이 화면을 구별 못 함(자기 짝 찾기 0/6, 무작위 1/6보다 낮음)",
-    "D": "declared 7 · measured 5 · exempt 0 · missing 7 → 학창시절 / 지금 / 별자리 / 담기 / 세컨비 / 위키 / 설정 · unsafe actions 2 · failures mutation-blocked 5 · manual review unsafe-actions",
+    "D": "declared 7 · measured 5 · exempt 0 · missing 2 → 학창시절 / 지금 · exact routes 5 · unsafe actions 2 · manual review unsafe-actions",
     "E": "declared 13 · measured 13 · exempt 0 · missing 0"
    }
   },
