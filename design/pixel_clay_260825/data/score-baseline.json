@@ -320,63 +320,41 @@
    "id": "me",
    "route": "/core-brain",
    "A": 30,
-   "B": 10.2,
+   "B": 24,
    "C": null,
-   "D": 0,
+   "D": 15,
    "E": 10,
-   "total": 62.8,
+   "total": 98.8,
    "unmeasured": ["C"],
-   "missD": [
-    "문장 다듬기",
-    "내보내기",
-    "문장 다듬기",
-    "내보내기",
-    "문장 다듬기",
-    "내보내기",
-    "검증 보기",
-    "Big Five",
-    "애착",
-    "가치관",
-    "동기",
-    "강점",
-    "보여지는 나",
-    "다듬기",
-    "AI에 전달",
-    "미리보기",
-    "별자리",
-    "담기",
-    "세컨비",
-    "위키",
-    "설정"
-   ],
+   "missD": [],
    "missE": [],
    "offTop": [
     {
-     "hex": "#202243",
-     "pixels": 140156
+     "hex": "#323d59",
+     "pixels": 1824
     },
     {
-     "hex": "#1c253d",
-     "pixels": 17687
+     "hex": "#252d41",
+     "pixels": 1216
     },
     {
-     "hex": "#302b5d",
-     "pixels": 2740
+     "hex": "#79849f",
+     "pixels": 806
     },
     {
-     "hex": "#262846",
-     "pixels": 2712
+     "hex": "#e9edf4",
+     "pixels": 645
     },
     {
-     "hex": "#202939",
-     "pixels": 2178
+     "hex": "#3c4760",
+     "pixels": 629
     }
    ],
    "why": {
     "A": "curves 0 · rounds 0 · blur 0 · alpha 0",
-    "B": "token pixels 40.8% (130573/319800) · off-ramp #202243 140156 / #1c253d 17687 / #302b5d 2740 / #262846 2712 / #202939 2178",
+    "B": "token pixels 96.1% (307409/319800) · off-ramp #323d59 1824 / #252d41 1216 / #79849f 806 / #e9edf4 645 / #3c4760 629",
     "C": "축 꺼짐 — 눈금이 화면을 구별 못 함(자기 짝 찾기 0/6, 무작위 1/6보다 낮음)",
-    "D": "declared 21 · measured 21 · exempt 0 · missing 21 → 문장 다듬기 / 내보내기 / 문장 다듬기 / 내보내기 / 문장 다듬기 / 내보내기 / 검증 보기 / Big Five · failures mutation-blocked 21",
+    "D": "declared 24 · measured 24 · exempt 0 · missing 0 · exact routes 24",
     "E": "declared 6 · measured 6 · exempt 0 · missing 0"
    }
   },
