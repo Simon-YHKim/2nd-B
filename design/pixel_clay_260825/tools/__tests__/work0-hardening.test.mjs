@@ -4672,66 +4672,96 @@ test('post-navigation occurrence is counted after rendered role binding', async 
 
 test('selected effects use the role-specific ARIA state and fail closed for other roles', async () => {
   const { exactNavigationEffectPassed } = await contract();
-  const { chromium } = await import('playwright-core');
-  const executablePath = chromium.executablePath();
-  assert.equal(existsSync(executablePath), true, 'pinned Chromium must exist');
-
-  const browser = await chromium.launch({ executablePath, headless: true });
-  try {
-    const page = await browser.newPage();
-    const selected = async ({ markup, role, name, label }) => {
-      await page.setContent(markup);
-      return exactNavigationEffectPassed(page, {
-        label,
-        occurrence: 1,
-        locator: { role, name },
-        effect: { type: 'selected', value: true },
-      });
+  const collection = (entries) => ({
+    async count() {
+      return entries.length;
+    },
+    nth(index) {
+      return entries[index];
+    },
+  });
+  const selected = async ({ role, name, label, attributes }) => {
+    const paintedHandle = { async dispose() {} };
+    const target = {
+      async isVisible() {
+        return true;
+      },
+      async evaluate() {
+        return true;
+      },
+      async getAttribute(attribute) {
+        return attributes[attribute] ?? null;
+      },
     };
+    const painted = {
+      async isVisible() {
+        return true;
+      },
+      async elementHandle() {
+        return paintedHandle;
+      },
+    };
+    const page = {
+      getByRole(actualRole, options) {
+        assert.deepEqual([actualRole, options], [role, { name, exact: true }]);
+        return collection([target]);
+      },
+      getByText(actualLabel, options) {
+        assert.deepEqual([actualLabel, options], [label, { exact: true }]);
+        return collection([painted]);
+      },
+    };
+    return exactNavigationEffectPassed(page, {
+      label,
+      occurrence: 1,
+      locator: { strategy: 'role', role, name },
+      effect: { type: 'selected', value: true },
+    });
+  };
 
-    assert.equal(
-      await selected({
-        markup: '<button aria-label="세컨비 · 공감" aria-pressed="true">2nd-B</button>',
-        role: 'button',
-        name: '세컨비 · 공감',
-        label: '2nd-B',
-      }),
-      true,
-      'buttons expose selection through aria-pressed',
-    );
-    assert.equal(
-      await selected({
-        markup: '<button aria-label="세컨비 · 공감" aria-selected="true">2nd-B</button>',
-        role: 'button',
-        name: '세컨비 · 공감',
-        label: '2nd-B',
-      }),
-      false,
-      'aria-selected is not valid selected-state evidence for a button',
-    );
-    assert.equal(
-      await selected({
-        markup: '<div role="tab" aria-label="세컨비" aria-selected="true">세컨비</div>',
-        role: 'tab',
-        name: '세컨비',
+  assert.equal(
+    await selected({
+      role: 'button',
+      name: '세컨비 · 공감',
+      label: '2nd-B',
+      attributes: { 'aria-pressed': 'true' },
+    }),
+    true,
+    'buttons expose selection through aria-pressed',
+  );
+  assert.equal(
+    await selected({
+      role: 'button',
+      name: '세컨비 · 공감',
+      label: '2nd-B',
+      attributes: { 'aria-selected': 'true' },
+    }),
+    false,
+    'aria-selected is not valid selected-state evidence for a button',
+  );
+  assert.equal(
+    await selected({
+      role: 'tab',
+      name: '세컨비',
+      label: '세컨비',
+      attributes: { 'aria-selected': 'true' },
+    }),
+    true,
+    'tabs expose selection through aria-selected',
+  );
+  assert.equal(
+    await exactNavigationEffectPassed(
+      {},
+      {
         label: '세컨비',
-      }),
-      true,
-      'tabs expose selection through aria-selected',
-    );
-    assert.equal(
-      await selected({
-        markup: '<a href="#" role="link" aria-label="세컨비" aria-selected="true">세컨비</a>',
-        role: 'link',
-        name: '세컨비',
-        label: '세컨비',
-      }),
-      false,
-      'unsupported roles fail closed',
-    );
-  } finally {
-    await browser.close();
-  }
+        occurrence: 1,
+        locator: { strategy: 'role', role: 'link', name: '세컨비' },
+        effect: { type: 'selected', value: true },
+      },
+    ),
+    false,
+    'unsupported roles fail closed',
+  );
 });
 
 test('post-navigation orchestration rechecks reveal, health, route, mutation, and final effect', async () => {
