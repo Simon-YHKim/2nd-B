@@ -4,6 +4,7 @@
 // wires proposeSelfModelChange + applyRatify + persist. RN component, covered by
 // check-constraints a11y + emulator QA like every screen here (no jest in node env).
 
+import React from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 
 import { Text } from "@/components/ui/Text";
@@ -13,28 +14,49 @@ import { PixelScrim } from "@/components/pixel/PixelDither";
 import { formatProposalForDisplay } from "@/lib/persona/proposal-display";
 import type { RatifyDecision, SelfModelProposal } from "@/lib/persona/proposal";
 
+export async function runRatifyDecisionOnce<T>(
+  pendingRef: { current: boolean },
+  operation: () => Promise<T>,
+): Promise<{ started: false } | { started: true; value: T }> {
+  if (pendingRef.current) return { started: false };
+  pendingRef.current = true;
+  try {
+    return { started: true, value: await operation() };
+  } finally {
+    pendingRef.current = false;
+  }
+}
+
 export function RatifySheet({
   proposal,
   locale,
   visible,
+  pending = false,
+  pendingLabel,
   onDecision,
   onClose,
 }: {
   proposal: SelfModelProposal | null;
   locale: "en" | "ko";
   visible: boolean;
-  onDecision: (decision: RatifyDecision) => void;
+  pending?: boolean;
+  pendingLabel?: string;
+  onDecision: (decision: RatifyDecision) => void | Promise<void>;
   onClose: () => void;
 }) {
   if (!proposal) return null;
   const d = formatProposalForDisplay(proposal, locale);
+  const closeIfIdle = () => {
+    if (!pending) onClose();
+  };
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={closeIfIdle}>
       <Pressable
         style={styles.backdrop}
-        onPress={onClose}
+        onPress={closeIfIdle}
+        disabled={pending}
         accessibilityRole="button"
-        accessibilityLabel={d.declineLabel}
+        accessibilityLabel={pending ? pendingLabel : d.declineLabel}
       >
         {/* 모달 스크림은 **디더**다. 바탕을 모르는 자리라(모달은 어느 화면 위에도
             뜬다) `flattenAlpha` 를 쓸 수 없다 — 규칙 4 가 정확히 이 경우를 위해
@@ -62,9 +84,12 @@ export function RatifySheet({
               "거절해도 된다"를 명시해서, 밀어내는 것도 정당한 사용이 된다. */}
           <Text variant="caption" color="textSubtle" style={styles.note}>{d.mirrorNote}</Text>
 
+          {pending && pendingLabel ? (
+            <Text variant="caption" color="textMuted" style={styles.pending}>{pendingLabel}</Text>
+          ) : null}
           <View style={styles.actions}>
-            <Button label={d.declineLabel} variant="secondary" onPress={() => onDecision("decline")} />
-            <Button label={d.ratifyLabel} variant="primary" onPress={() => onDecision("ratify")} />
+            <Button label={d.declineLabel} variant="secondary" disabled={pending} onPress={() => onDecision("decline")} />
+            <Button label={d.ratifyLabel} variant="primary" disabled={pending} loading={pending} onPress={() => onDecision("ratify")} />
           </View>
         </ScrollView>
       </View>
@@ -98,5 +123,6 @@ const styles = StyleSheet.create({
   afterLabel: { marginTop: spacing.sm },
   rationale: { marginTop: spacing.sm },
   note: { marginTop: 4 },
+  pending: { marginTop: spacing.sm },
   actions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm, justifyContent: "flex-end" },
 });

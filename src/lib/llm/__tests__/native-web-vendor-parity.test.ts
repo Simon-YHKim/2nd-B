@@ -49,6 +49,11 @@ const WEB_POSTURE: Record<string, string> = {
   // CROSSCHECK=1 among them. Its blast radius is one purpose
   // (CROSSCHECKABLE = persona_synthesis) at up to 2 rounds, not 3x everything.
   EXPO_PUBLIC_CROSSCHECK: "1",
+  // Promoted from WEB_POSTURE_REQUESTED on 2026-08-29: the console set the
+  // repo Variable at 12:33 KST (`gh variable list` → none, 2026-08-29T03:33:19Z),
+  // ten minutes after this file had recorded it as unset. eas.json carried it
+  // first (#1479, bundled with the 9/1 build); the web now matches.
+  EXPO_PUBLIC_FAILOVER_VENDOR: "none",
 };
 
 // The third state, and the one this file had no bucket for: native has already
@@ -60,24 +65,18 @@ const WEB_POSTURE: Record<string, string> = {
 // The assertion is the same as WEB_POSTURE's (eas.json must carry the value);
 // what differs is the claim about the web, which is "requested", not "read".
 const WEB_POSTURE_REQUESTED: Record<string, { want: string; asked: string }> = {
-  // 2026-08-29, bundled with the 9/1 EAS build per Simon's order.
+  // Empty as of 2026-08-29 12:33 KST - EXPO_PUBLIC_FAILOVER_VENDOR lived here
+  // for about an hour and was promoted to WEB_POSTURE once the console set the
+  // Variable. The bucket stays: the next switch that moves native-first lands
+  // here, with who was asked and when, until the web is READ to match.
   //
-  // Why now, when docs/LLM-VENDOR-PLACEMENT.md said "not yet": that section's
-  // own reasoning was "put it in the cutover bundle - repo Variable + eas.json
-  // + a new build, at once", because eas.json is a FINGERPRINT INPUT and a solo
-  // edit only strands the builds already out (#1375). 9/1 needs a build anyway,
-  // so this IS the bundle. Nothing was relaxed; the precondition arrived.
-  //
-  // ⚠ eas.json is NOT the only source. The repo Variable feeds TWO more paths:
-  //   web-deploy.yml:140      the web
-  //   android-release.yml:124 the diagnostic gradle APK
-  // Both default to '' when the Variable is unset, and '' resolves to "gemini"
-  // (failoverVendor()). So the diagnostic APK does not read this file at all -
-  // flipping the Variable is the only way that build stops retrying a dead key.
-  EXPO_PUBLIC_FAILOVER_VENDOR: {
-    want: "none",
-    asked: "console, 26-08-29 via _sync/TO-GUI.md - repo Variable not yet confirmed set",
-  },
+  // What that entry recorded, kept because it is the reason the bucket exists:
+  // eas.json is a FINGERPRINT INPUT, so a vendor switch there moves only
+  // bundled with a build (#1375), and it is NOT the only source - the repo
+  // Variable also feeds web-deploy.yml:140 (the web) and android-release.yml:124
+  // (the diagnostic gradle APK), both defaulting to '' → "gemini" when unset.
+  // So "native moved, web asked" is a real intermediate state, and writing the
+  // asked value into WEB_POSTURE would turn a measurement into a wish.
 };
 
 // Deliberate divergences, each with the reason. This list is what stops the

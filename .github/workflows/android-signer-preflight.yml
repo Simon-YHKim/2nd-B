@@ -1,0 +1,90 @@
+name: Android Signer Preflight
+
+# Answers ONE question without spending an EAS build or waiting for a release:
+# do ANDROID_APK_SIGNER_SHA256 / ANDROID_AAB_SIGNER_SHA256 hold the fingerprint
+# of the key that actually signs the public GitHub Release APK?
+#
+# Why: github-release.yml gained a fail-closed signer gate in #1465 (hardened
+# in #1472, 2026-08-28) and has not run since, so the secrets registered on
+# 2026-08-29 have never been compared to anything. Wrong values would stop the
+# first post-quota release at `apk-signer-mismatch` after a full EAS build had
+# been spent.
+# This runs the gate's own parser (scripts/check-android-release-signatures.js)
+# against the latest release APK in under a minute.
+#
+# The APK certificate digest is public; the secrets are compared in-process
+# and never printed (scripts/android-signer-preflight.js prints status words).
+# Measured identities are recorded in docs/ANDROID-BUILD.md "Signer identities".
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to check (blank = newest PUBLISHED release; drafts and pre-releases are skipped, so name the tag to check one of those)"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # SHA-pinned like the release gate (github-release.yml): this job can see
+      # two secrets, so the action it runs first must not be a mutable tag.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Download the release APK
+        id: apk
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          DEST="$RUNNER_TEMP/apk"
+          mkdir -p "$DEST"
+          # gh exits non-zero itself when the release is missing or has no
+          # matching asset, so the annotation has to wrap the call, not follow it.
+          if ! gh release download ${TAG:+"$TAG"} --repo "$GITHUB_REPOSITORY" --pattern '*.apk' --dir "$DEST"; then
+            echo "::error::gh release download failed: no such release, no .apk asset on it, or no access (tag='${TAG:-<latest published>}')."
+            exit 1
+          fi
+          APK="$(find "$DEST" -maxdepth 1 -type f -name '*.apk' | head -1)"
+          if [ -z "$APK" ]; then
+            echo "::error::Download reported success but no .apk landed in $DEST."
+            exit 1
+          fi
+          echo "Checking $(basename "$APK")"
+          echo "apk=$APK" >> "$GITHUB_OUTPUT"
+
+      - name: Print the APK signer certificate (same tool call as the release gate)
+        env:
+          APK: ${{ steps.apk.outputs.apk }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ANDROID_HOME:-}" ]; then
+            echo "::error::ANDROID_HOME is not set on this runner."
+            exit 1
+          fi
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name apksigner | sort -V | tail -1)"
+          if [ -z "$APKSIGNER" ] || [ ! -x "$APKSIGNER" ]; then
+            echo "::error::No executable apksigner was found in the hosted Android SDK."
+            exit 1
+          fi
+          if ! "$APKSIGNER" verify --verbose --print-certs "$APK" > "$RUNNER_TEMP/apk-signature.txt" 2>&1; then
+            echo "::error::apksigner did not verify the release APK (corrupt download or unsigned artifact). Output follows."
+            cat "$RUNNER_TEMP/apk-signature.txt"
+            exit 1
+          fi
+
+      # The only step that can see the secrets. The script prints one status
+      # word per secret and the public APK digest; it never echoes a value.
+      - name: Compare the registered secrets to the release signer
+        env:
+          ANDROID_APK_SIGNER_SHA256: ${{ secrets.ANDROID_APK_SIGNER_SHA256 }}
+          ANDROID_AAB_SIGNER_SHA256: ${{ secrets.ANDROID_AAB_SIGNER_SHA256 }}
+          REPORT: ${{ runner.temp }}/apk-signature.txt
+        run: node scripts/android-signer-preflight.js

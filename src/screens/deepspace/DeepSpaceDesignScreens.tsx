@@ -77,7 +77,7 @@ const AXIS_LABEL_KEY: Record<RatifiableTarget["sourceAssessmentId"], string> = {
 import type { StarId } from "@/lib/persona/stars";
 import { loadEvidenceShards } from "@/lib/persona/load-evidence-shards";
 import { type EvidenceShard } from "@/lib/persona/evidence";
-import { RatifySheet } from "@/components/persona/RatifySheet";
+import { RatifySheet, runRatifyDecisionOnce } from "@/components/persona/RatifySheet";
 import {
   allRequiredAcksChecked,
   setAllRequiredAcks,
@@ -1686,6 +1686,8 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
   const [receipts, setReceipts] = useState<EvidenceShard[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const ratifyPendingRef = useRef(false);
+  const [ratifyPending, setRatifyPending] = useState(false);
 
   // 무엇을 되돌릴 수 있는가는 카드가 정한다. 예전에는 이 화면이 `"now"` 를
   // 하드코딩해서 **Big Five 하나만** 이의를 제기할 수 있었다 -- 애착 검사와
@@ -1728,17 +1730,20 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
 
   async function generate(star: StarId) {
     if (!userId || isMinor === null || loading) return;
+    if (ratifyPendingRef.current) return;
     setLoading(true);
     setResult(null);
-    setReceipts([]);
     try {
       const card = await buildPersona(userId, locale, isMinor === true);
       const ctx = proposalContextForStar(card, star);
-      setCurrentLevel(card.starLevels?.[star] ?? 1);
-      setEvidenceRefs(ctx.evidenceRefs);
-      setReceipts(await loadEvidenceShards(ctx.evidenceRefs, locale));
+      const nextCurrentLevel = card.starLevels?.[star] ?? 1;
+      const nextEvidenceRefs = ctx.evidenceRefs;
+      const nextReceipts = await loadEvidenceShards(nextEvidenceRefs, locale);
       const p = await proposeSelfModelChange(userId, { kind: "star", star }, ctx.before, ctx.evidence, 5, locale, isMinor === true);
       if (p) {
+        setCurrentLevel(nextCurrentLevel);
+        setEvidenceRefs(nextEvidenceRefs);
+        setReceipts(nextReceipts);
         setProposal(p);
         setSheetOpen(true);
       } else {
@@ -1753,9 +1758,9 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
 
   async function generateSeven(star: SevenStarId) {
     if (!userId || isMinor === null || loading) return;
+    if (ratifyPendingRef.current) return;
     setLoading(true);
     setResult(null);
-    setReceipts([]);
     try {
       const ctx = await buildSevenProposalContext(userId, star, locale);
       if (!ctx) {
@@ -1764,9 +1769,7 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
         setResult(t("reviewNoChange"));
         return;
       }
-      setCurrentLevel(ctx.currentLevel);
-      setEvidenceRefs(ctx.evidenceRefs);
-      setReceipts(await loadEvidenceShards(ctx.evidenceRefs, locale));
+      const nextReceipts = await loadEvidenceShards(ctx.evidenceRefs, locale);
       const p = await proposeSelfModelChange(
         userId,
         { kind: "sevenStar", star },
@@ -1777,6 +1780,9 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
         isMinor === true,
       );
       if (p) {
+        setCurrentLevel(ctx.currentLevel);
+        setEvidenceRefs(ctx.evidenceRefs);
+        setReceipts(nextReceipts);
         setProposal(p);
         setSheetOpen(true);
       } else {
@@ -1789,34 +1795,51 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
     }
   }
 
-  function handleDecision(decision: RatifyDecision) {
-    const r = applyRatify(currentLevel, decision);
-    setSheetOpen(false);
-    // propose→ratify quality signal: counts only, consent-gated inside captureEvent.
-    captureEvent(
-      proposalDecided({ flow: "self_model", decision: decision === "ratify" ? "ratify" : "decline", count: 1 }),
-    );
-    if (decision === "ratify" && userId && proposal?.target.kind === "star") {
-      // Cite evidenceRefs (real `record:<id>` for the records this card was built
-      // from), NOT proposal.citations — those are Gemini-emitted labels with no
-      // real-id whitelist. The write boundary re-sanitizes to resolvable refs
-      // only, so a fabricated string can never be persisted (0060).
-      void recordStarTiers(userId, { [proposal.target.star]: r.resultingLevel }, "journal", {
-        origin: "ratify",
-        citations: evidenceRefs,
-      });
-    }
-    if (decision === "ratify" && userId && proposal?.target.kind === "sevenStar") {
-      // ⚠ recordStarTiers 재사용 금지 -- 그쪽 마일스톤이 옛 일곱 기준이라 새 키를
-      // 넘기면 조용히 틀린 숫자가 나간다(seven-tier-history.ts 헤더). 새 별 비준은
-      // seven: 접두사를 다는 자기 경로로만 원장에 남는다. 인용 규율(0060)은 동일.
-      void recordSevenTiers(userId, { [proposal.target.star]: r.resultingLevel }, "ratify", evidenceRefs);
-    }
-    setResult(
-      decision === "ratify"
-        ? t("reviewRatifiedMoved", { level: r.resultingLevel })
-        : t("reviewLeftAsIs"),
-    );
+  async function handleDecision(decision: RatifyDecision) {
+    await runRatifyDecisionOnce(ratifyPendingRef, async () => {
+      setRatifyPending(true);
+      setResult(null);
+      try {
+        const r = applyRatify(currentLevel, decision);
+        // propose→ratify quality signal: counts only, consent-gated inside captureEvent.
+        captureEvent(
+          proposalDecided({ flow: "self_model", decision: decision === "ratify" ? "ratify" : "decline", count: 1 }),
+        );
+        if (decision === "decline") {
+          setProposal(null);
+          setSheetOpen(false);
+          setResult(t("reviewLeftAsIs"));
+          return;
+        }
+
+        let persisted = false;
+        if (userId && proposal?.target.kind === "star") {
+          // Cite evidenceRefs (real `record:<id>` for the records this card was built
+          // from), NOT proposal.citations — those are Gemini-emitted labels with no
+          // real-id whitelist. The write boundary re-sanitizes to resolvable refs
+          // only, so a fabricated string can never be persisted (0060).
+          persisted = await recordStarTiers(userId, { [proposal.target.star]: r.resultingLevel }, "journal", {
+            origin: "ratify",
+            citations: evidenceRefs,
+          });
+        }
+        if (userId && proposal?.target.kind === "sevenStar") {
+          // ⚠ recordStarTiers 재사용 금지 -- 그쪽 마일스톤이 옛 일곱 기준이라 새 키를
+          // 넘기면 조용히 틀린 숫자가 나간다(seven-tier-history.ts 헤더). 새 별 비준은
+          // seven: 접두사를 다는 자기 경로로만 원장에 남는다. 인용 규율(0060)은 동일.
+          persisted = await recordSevenTiers(userId, { [proposal.target.star]: r.resultingLevel }, "ratify", evidenceRefs);
+        }
+        setSheetOpen(false);
+        if (persisted) setProposal(null);
+        setResult(
+          persisted
+            ? t("reviewRatifiedMoved", { level: r.resultingLevel })
+            : t("career.saveFailed"),
+        );
+      } finally {
+        setRatifyPending(false);
+      }
+    });
   }
 
   return (
@@ -1827,10 +1850,6 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
           여기서만 열린다는 것 — 둘 다 이 화면에 온 이유다
           (design/pixel_clay_260825/captures/review.png). */}
       <Text variant="caption" style={styles.footer}>{t("review.rule")}</Text>
-      <Card>
-        <Text variant="heading" style={styles.section}>{t("review.section")}</Text>
-        <Text variant="body" style={styles.planFeatDim}>{t("review.body")}</Text>
-      </Card>
       {/* 측정된 근거가 있는 축마다 하나씩. 근거 없는 축을 비준 대상으로 내밀면
           앱이 지어낸 값을 사용자에게 승인시키는 꼴이 되고, 그건 propose->ratify
           가 막으려던 바로 그 일이다. */}
@@ -1846,11 +1865,12 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
       {targets.map((rt) => (
           <Pressable
             key={rt.target.kind === "star" ? rt.target.star : rt.target.kind}
-            style={[styles.primary, loading ? { opacity: 0.5 } : null]}
+            style={[styles.primary, loading || ratifyPending ? { opacity: 0.5 } : null]}
             onPress={() => {
               if (rt.target.kind === "star") void generate(rt.target.star);
             }}
             disabled={loading || isMinor === null}
+            accessibilityState={{ disabled: loading || ratifyPending || isMinor === null }}
             accessibilityRole="button"
             accessibilityLabel={t(AXIS_LABEL_KEY[rt.sourceAssessmentId])}
           >
@@ -1868,9 +1888,10 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
       {sevenTargets.map((st) => (
         <Pressable
           key={`seven-${st.star}`}
-          style={[styles.primary, loading ? { opacity: 0.5 } : null]}
+          style={[styles.primary, loading || ratifyPending ? { opacity: 0.5 } : null]}
           onPress={() => void generateSeven(st.star)}
           disabled={loading || isMinor === null}
+          accessibilityState={{ disabled: loading || ratifyPending || isMinor === null }}
           accessibilityRole="button"
           accessibilityLabel={tHome(`ds.star.${getSevenStar(st.star).key}`)}
         >
@@ -1883,7 +1904,7 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
       {/* audit med#26: dismissing the sheet (backdrop/back) used to strand the
           generated proposal invisibly — the AI cost was spent and the only way
           "forward" was paying for a new generation. Reopen is free. */}
-      {proposal !== null && !sheetOpen ? (
+      {proposal !== null && !sheetOpen && !loading && !ratifyPending ? (
         <Pressable
           style={styles.primary}
           onPress={() => setSheetOpen(true)}
@@ -1921,7 +1942,17 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
       {/* 거절도 승인도 이력에 남는다는 것을 화면 끝에서 한 번 더 말한다 —
           되돌릴 수 있다는 확신이 있어야 사람이 솔직하게 아니라고 한다. */}
       <Text variant="subtle" style={styles.footer}>{t("review.ledgerNote")}</Text>
-      <RatifySheet proposal={proposal} locale={locale} visible={sheetOpen} onDecision={handleDecision} onClose={() => setSheetOpen(false)} />
+      <RatifySheet
+        proposal={proposal}
+        locale={locale}
+        visible={sheetOpen}
+        pending={ratifyPending}
+        pendingLabel={t("career.saving")}
+        onDecision={handleDecision}
+        onClose={() => {
+          if (!ratifyPendingRef.current) setSheetOpen(false);
+        }}
+      />
     </Shell>
   );
 }

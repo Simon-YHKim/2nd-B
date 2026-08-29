@@ -133,8 +133,9 @@ function getClient(): { client: GoogleGenAI; vertex: boolean } {
   return { client: cachedClient, vertex: cachedClientVertex };
 }
 
-// C-cost (round-4 H4): the gemini-proxy is the ONLY spend-capped LLM egress
-// (bump_gemini_spend, 0035/0036, per-user/day). Reaching the direct @google/genai
+// C-cost (round-4 H4): the vendor edge proxies are the ONLY spend-capped LLM
+// egress (they share one per-user/day cap — bump_gemini_spend, 0035/0036; the
+// name is historical, see CLAUDE.md). Reaching the direct @google/genai
 // client on a LIVE call bypasses that ceiling. The API-key direct path bills the
 // Gemini free tier the $0/mo promise (blueprint §5) protects, so a live call MUST
 // route through the edge proxy. Vertex (USE_VERTEX) is the only permitted direct
@@ -147,7 +148,7 @@ function assertDirectEgressAllowed(env: ReturnType<typeof getEnv>): void {
   if (env.EXPO_PUBLIC_LLM_MODE === "live" && !env.EXPO_PUBLIC_USE_VERTEX) {
     throw new Error(
       "LLM boundary (C-cost): a live call reached the uncapped direct API-key client. " +
-        "Route through the gemini-proxy edge function (EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION=true), " +
+        "Route through the vendor edge proxy (EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION=true), " +
         "which enforces the per-user/day spend cap, or use Vertex (EXPO_PUBLIC_USE_VERTEX=true).",
     );
   }
@@ -579,11 +580,14 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   // callers preserved (historical default was flash; unmapped purposes -> flash).
   const tier = resolveTier(input);
   const model = MODELS[tier];
-  // D-26 Phase 2: purpose-keyed vendor seat (EXPO_PUBLIC_LLM_PHASE=2). The
-  // proxy owns the actual model id; image-bearing calls and the OCR/voice
-  // pins always stay Gemini. Phase 1 (default) resolves "gemini" everywhere —
-  // except that on the reasoning (pro) tier the legacy
-  // EXPO_PUBLIC_REASONING_PROVIDER seam gets the last word (routing.ts).
+  // Vendor seat. The proxy owns the actual model id; this only picks WHICH
+  // proxy. Image-bearing calls and MULTIMODAL_PURPOSES go to multimodalVendor()
+  // first (openai in both deployed postures since 2026-08-24); everything else
+  // follows the chat / seat / backbone switches in routing.ts. "Phase 1 means
+  // gemini" stopped being true once those switches were set — the phase rule
+  // is only reached when EXPO_PUBLIC_LLM_VENDOR is unset. On the reasoning
+  // (pro) tier the legacy EXPO_PUBLIC_REASONING_PROVIDER seam gets the last
+  // word when the axis resolves gemini (routing.ts, opts.reasoningTier).
   const vendorSeat = resolveVendorForPurpose(input.purpose, input.image != null, {
     reasoningTier: tier === "pro",
   });
@@ -604,7 +608,8 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   const reasoningProvider =
     vendorSeat !== "gemini" ? vendorSeat : tier === "pro" ? ("gemini" as const) : undefined;
   // Which backend actually served the answer — reassigned when the D-26
-  // outage failover drops a vendor seat back to the Gemini Phase 1 route.
+  // outage failover retries on failoverVendor() (a switch; "none" in every
+  // deployed posture since 2026-08-29, so today it is never reassigned).
   // Audit rows record THIS, not the intended seat (C3 honesty).
   let servedByProvider = reasoningProvider;
 
@@ -640,8 +645,9 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     return { text: text as unknown as T, safety: outputSafety, audit };
   }
 
-  // Live mode: route through gemini-proxy Edge Function when configured
-  // (key stays server-side) or construct the @google/genai client directly.
+  // Live mode: route through the seat's vendor edge proxy when configured
+  // (proxyFnForVendor(vendorSeat); key stays server-side) or construct the
+  // @google/genai client directly (Gemini only — native / Vertex).
   let text: string;
   let latencyMs: number;
   let modelUsedForAudit: string;
@@ -1149,13 +1155,14 @@ export interface TranscribeAudioResult {
 //        swapped for the fixed crisis template + crisis_events (input is audio,
 //        so the pre-call text classifier has nothing to scan — output gating is
 //        the C9 equivalent, mirroring callLlm's output swap).
-//   Cost live egress rides the spend-capped gemini-proxy when
+//   Cost live egress rides the spend-capped vendor proxy that multimodalVendor()
+//        names (openai-proxy in every deployed posture) when
 //        EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION is on (the production path); a live
 //        API-key direct call is rejected (assertDirectEgressAllowed), so mock,
 //        proxy and Vertex are the only paths, preserving the $0/mo promise.
 //
-// NOTE (device verification PENDING): the recorder + real Gemini audio
-// transcription cannot be exercised in this environment (no microphone). Mock
+// NOTE (device verification PENDING): the recorder + real audio transcription
+// cannot be exercised in this environment (no microphone). Mock
 // mode is fully wired and tested; the live branch follows the same inline-data
 // client pattern as the image path in callLlm but has NOT been run on a real
 // recording yet.
@@ -1202,18 +1209,20 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
 
   if (env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION) {
     // Production path (eas.json ships EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION=true):
-    // the spend-capped gemini-proxy forwards audio inline-data exactly like the
+    // the spend-capped vendor proxy forwards audio inline-data exactly like the
     // image path (same validation: mime allowlist + base64 cap, server-side).
     // Before this branch existed, live transcription ignored the edge flag and
     // ALWAYS threw on the cost guard below (live + !USE_VERTEX), so voice
     // capture and call reflection were structurally dead in production builds.
     const supabase = getSupabaseClient();
-    // Which proxy carries the audio is a vendor decision now, not a constant.
-    // It was hardcoded to gemini-proxy because that was the only function that
+    // Which proxy carries the audio is a vendor decision, not a constant. It
+    // was hardcoded to gemini-proxy because that was the only function that
     // forwarded inline audio; openai-proxy grew a transcription path in
-    // REQ-260821-01, and Gemini is being retired. multimodalVendor() still
-    // answers "gemini" until the console flips it, so this line does not change
-    // behaviour on merge.
+    // REQ-260821-01 (#1300), and the console flipped
+    // EXPO_PUBLIC_MULTIMODAL_VENDOR=openai (web 2026-08-22, native #1370), so
+    // this resolves to openai-proxy in both deployed postures. ⚠ The wire
+    // purpose below is "voice_transcribe", not routing's "capture_voice" — the
+    // proxy allowlist keys on the wire name.
     const audioFn = proxyFnForVendor(multimodalVendor());
     const t0 = Date.now();
     const { data, error } = await supabase.functions.invoke(audioFn, {
@@ -1427,10 +1436,12 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
     };
   }
 
-  // Live mode: real Gemini Pro call. Route through the gemini-proxy Edge
-  // Function (key stays server-side) when configured — REQUIRED for the public
+  // Live mode: real reasoning call on the advisor seat's vendor (openai since
+  // 2026-07-06; proxyFnForVendor(reasoningProvider)). Route through that edge
+  // proxy (key stays server-side) when configured — REQUIRED for the public
   // web bundle, where a direct @google/genai client would need an inlined key.
-  // Otherwise construct the client directly (native / Vertex).
+  // Otherwise construct the @google/genai client directly (Gemini only —
+  // native / Vertex).
   let text: string;
   let latencyMs: number;
   let vertex: boolean;

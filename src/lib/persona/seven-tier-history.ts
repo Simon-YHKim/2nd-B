@@ -49,7 +49,8 @@ export function parseTierKey(starId: string): SevenStarId | null {
 }
 
 /**
- * 지금 등급을 원장에 남긴다. 실패해도 조용하다 -- 기록은 대화를 막지 않는다.
+ * 지금 등급을 원장에 남기고 성공 여부를 돌려준다. 호출자는 대화를 계속할지,
+ * 저장 실패를 보여줄지 문맥에 맞게 결정한다.
  *
  * ⚠ `recordStarTiers` 를 재사용하지 않는다. 그쪽의 activation_milestone 은
  * **옛 일곱**의 id 목록과 `soulCoreBrightness` 로 계산한다 -- 새 키를 넘기면
@@ -67,10 +68,10 @@ export async function recordSevenTiers(
   // 비준 인용(0060). 쓰기 경계에서 sanitize 하므로 모델이 지어낸 문자열은
   // 원장에 도달하지 못한다 -- record-star-tiers 의 규율 그대로.
   citations?: readonly string[],
-): Promise<void> {
-  if (!userId) return;
+): Promise<boolean> {
+  if (!userId) return false;
   const entries = Object.entries(levels) as [SevenStarId, LadderLevel][];
-  if (entries.length === 0) return;
+  if (entries.length === 0) return false;
   try {
     const supabase = getSupabaseClient();
     // 직전 등급. 진짜로 오른 별에만 star_lit 을 쏘기 위해서다. 못 읽으면
@@ -92,7 +93,7 @@ export async function recordSevenTiers(
     }
 
     const cleanCitations = sanitizeCitations(citations);
-    await supabase.from("star_tier_history").insert(
+    const { error } = await supabase.from("star_tier_history").insert(
       entries.map(([id, level]) => ({
         user_id: userId,
         star_id: tierKey(id),
@@ -101,6 +102,7 @@ export async function recordSevenTiers(
         ...(cleanCitations ? { evidence_citations: cleanCitations } : {}),
       })),
     );
+    if (error) return false;
 
     for (const [id, level] of entries) {
       if (level > (prior.get(id) ?? 1)) {
@@ -133,8 +135,9 @@ export async function recordSevenTiers(
         );
       }
     }
+    return true;
   } catch {
-    // 최선 노력. 기록 실패가 인터뷰를 막지 않는다.
+    return false;
   }
 }
 
