@@ -51,51 +51,103 @@ const WEB_POSTURE: Record<string, string> = {
   EXPO_PUBLIC_CROSSCHECK: "1",
 };
 
+// The third state, and the one this file had no bucket for: native has already
+// moved and the web has been ASKED to follow. Neither "matched" nor "a named
+// divergence" describes that, and writing an unconfirmed value into
+// WEB_POSTURE would turn a measurement into a wish - the exact drift this file
+// exists to catch. So it gets its own list, with who was asked and when.
+//
+// The assertion is the same as WEB_POSTURE's (eas.json must carry the value);
+// what differs is the claim about the web, which is "requested", not "read".
+const WEB_POSTURE_REQUESTED: Record<string, { want: string; asked: string }> = {
+  // 2026-08-29, bundled with the 9/1 EAS build per Simon's order.
+  //
+  // Why now, when docs/LLM-VENDOR-PLACEMENT.md said "not yet": that section's
+  // own reasoning was "put it in the cutover bundle - repo Variable + eas.json
+  // + a new build, at once", because eas.json is a FINGERPRINT INPUT and a solo
+  // edit only strands the builds already out (#1375). 9/1 needs a build anyway,
+  // so this IS the bundle. Nothing was relaxed; the precondition arrived.
+  //
+  // ⚠ eas.json is NOT the only source. The repo Variable feeds TWO more paths:
+  //   web-deploy.yml:140      the web
+  //   android-release.yml:124 the diagnostic gradle APK
+  // Both default to '' when the Variable is unset, and '' resolves to "gemini"
+  // (failoverVendor()). So the diagnostic APK does not read this file at all -
+  // flipping the Variable is the only way that build stops retrying a dead key.
+  EXPO_PUBLIC_FAILOVER_VENDOR: {
+    want: "none",
+    asked: "console, 26-08-29 via _sync/TO-GUI.md - repo Variable not yet confirmed set",
+  },
+};
+
 // Deliberate divergences, each with the reason. This list is what stops the
 // test above from being a rule nobody can follow.
 const INTENDED_DIFFERENCES: Record<string, string> = {
-  // Both still gemini in both places, so they are not a divergence yet. They
-  // become one the day the September decommission moves either of them.
-  // FAILOVER in particular moves ONLY bundled with a build: editing eas.json
-  // changes the fingerprint, so a solo flip strands the builds that are out
-  // and changes nothing (docs/LLM-VENDOR-PLACEMENT.md).
-  EXPO_PUBLIC_FAILOVER_VENDOR: "still gemini everywhere until the September cutover",
+  // Still gemini in both places, so it is not a divergence yet. It becomes one
+  // the day the September decommission moves either side.
   EXPO_PUBLIC_SAFETY_VENDOR: "still gemini everywhere; the feature is off by default",
 };
 
+// Shipping profiles - the ones that name an EAS environment of the same name.
 const PROFILES = ["preview", "production"] as const;
 
+// Every profile that carries the vendor switches. preview-emulator is NOT a
+// shipping profile (its `environment` is "preview", so it cannot join PROFILES
+// above), but it is the build QA actually installs on the emulator, and a QA
+// build whose failover posture differs from the shipped one is testing a
+// different app. It was outside every assertion in this file until 2026-08-29.
+const VENDOR_PROFILES = ["preview", "preview-emulator", "production"] as const;
+
 describe("the native posture matches the web", () => {
-  test.each(PROFILES)("%s carries every vendor switch the web sets", (profile) => {
+  test.each(VENDOR_PROFILES)("%s carries every vendor switch the web sets", (profile) => {
     const env = EAS.build[profile]?.env ?? {};
     for (const [key, want] of Object.entries(WEB_POSTURE)) {
       expect(`${profile}.${key}=${env[key]}`).toBe(`${profile}.${key}=${want}`);
     }
   });
 
-  test("preview and production do not disagree with each other", () => {
-    // The APK people install and the AAB Play serves must behave the same.
-    const a = EAS.build.preview?.env ?? {};
-    const b = EAS.build.production?.env ?? {};
-    for (const key of Object.keys(WEB_POSTURE)) expect(a[key]).toBe(b[key]);
+  test.each(VENDOR_PROFILES)("%s carries the switches the web was asked to match", (profile) => {
+    const env = EAS.build[profile]?.env ?? {};
+    for (const [key, { want, asked }] of Object.entries(WEB_POSTURE_REQUESTED)) {
+      // `asked` rides in the assertion string so the failure names the pending
+      // console action instead of just a value mismatch.
+      expect(`${profile}.${key}=${env[key]} (${asked})`).toBe(
+        `${profile}.${key}=${want} (${asked})`,
+      );
+    }
+  });
+
+  test("the three vendor profiles do not disagree with each other", () => {
+    // The APK people install, the APK QA installs on the emulator, and the AAB
+    // Play serves must all behave the same.
+    const keys = [...Object.keys(WEB_POSTURE), ...Object.keys(WEB_POSTURE_REQUESTED)];
+    const [first, ...rest] = VENDOR_PROFILES;
+    const a = EAS.build[first]?.env ?? {};
+    for (const profile of rest) {
+      const b = EAS.build[profile]?.env ?? {};
+      for (const key of keys) expect(`${profile}.${key}=${b[key]}`).toBe(`${profile}.${key}=${a[key]}`);
+    }
   });
 
   test("EXPO_PUBLIC_LLM_VENDOR is PRESENT, because absence is not neutral here", () => {
     // Absent falls through to the phase rule, and EXPO_PUBLIC_LLM_PHASE is "1",
     // which resolves gemini for all twelve reasoning seats. "Unset" reads like
     // "no opinion" and is actually the strongest possible opinion.
-    for (const profile of PROFILES) {
+    for (const profile of VENDOR_PROFILES) {
       expect(EAS.build[profile]?.env?.EXPO_PUBLIC_LLM_VENDOR).toBeTruthy();
     }
   });
 
   test("every divergence from the web list is a named decision", () => {
-    // Anything that is neither matched nor explained is drift.
+    // Anything that is neither matched, requested, nor explained is drift.
     const easKeys = new Set(
-      PROFILES.flatMap((p) => Object.keys(EAS.build[p]?.env ?? {})).filter((k) => /_VENDOR$|CROSSCHECK$/.test(k)),
+      VENDOR_PROFILES.flatMap((p) => Object.keys(EAS.build[p]?.env ?? {})).filter((k) =>
+        /_VENDOR$|CROSSCHECK$/.test(k),
+      ),
     );
     const unexplained = [...easKeys].filter(
-      (k) => !(k in WEB_POSTURE) && !(k in INTENDED_DIFFERENCES),
+      (k) =>
+        !(k in WEB_POSTURE) && !(k in WEB_POSTURE_REQUESTED) && !(k in INTENDED_DIFFERENCES),
     );
     expect(unexplained).toEqual([]);
   });
