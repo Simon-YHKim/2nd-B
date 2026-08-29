@@ -3,7 +3,227 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-08-28 / 자가 두 번 틀렸다 — P1 채점 37/64, 래칫 165, 그리고 **결정 넷이 대기 중**
+## Latest — 2026-08-29 / 0.7.0 나갔다 — 웹에만. 폰을 막는 문은 **둘**이고 하나는 새로 생겼다
+
+> 발행: CLI 코딩 세션. 브랜치 `Simon-YHKim/p1-deviations`(머지 완료) → `release/0.7.0`(머지 완료).
+> 보고서: [자가 두 번 틀렸다](https://claude.ai/code/artifact/feffd35e-c652-44cc-b0f8-a9a7fb50dafa) ·
+> [EAS 키스토어 이관](https://claude.ai/code/artifact/0123cd40-729a-417a-b9d9-8f23e7206c2e)
+
+### ⚠ 새 세션이 먼저 할 일 — 여전히 **작업이 아니라 결정**이다
+
+앞 블록(2026-08-28)의 Simon 지시가 **아직 유효하다**: *"작업을 먼저 하기보다 … 결정 내릴수
+있게 해줘. 각각이 의미하는게 무엇인지, 왜 해야하는지, 하면 어떤게 바뀌는지."*
+
+**결정 넷은 그대로 대기 중이고**(시드 · B축 램프 양자화 · `/capture` 양식·날짜 · 대화 이력)
+그 설명 재료는 아래 §2026-08-28 블록에 있다. **여기에 다섯째가 붙었다** — 안드로이드 서명키.
+
+---
+
+### 어디까지 왔나
+
+- `origin/main` = `0cef9fff` · **`app.json` version = `0.7.0`**
+- 이번 세션 머지: **#1456**(P1 배치 36커밋) · **#1461** · **#1462** · **#1470** · **#1471**(0.7.0 릴리스)
+- `npm run verify` **종료코드 0** · 547 스위트 **5790 테스트** 통과
+- `npm run notice:release` → `classified minor` → **SILENT** (팝업 없음, R5 완료)
+
+| 지표 | 전 | 후 |
+|---|---|---|
+| P1 98점 이상 | 6 / 64 | **37 / 64** |
+| A축(픽셀 규율) 만점 | 48 / 64 | **64 / 64** |
+| 픽셀 래칫(규칙 2·3·4·5) | 333 | **165** |
+| 규칙 1(곡선) | 0 | **0** (무관용 유지) |
+
+래칫 165 구성(검사기 집계): 규칙 4 **114**(기계적 60 · 상태색 33 · 그림 16 · SVG 5) ·
+규칙 3 **39** · 규칙 5 7 · 규칙 2 3 · PRD § 2.
+
+---
+
+### 0.7.0 은 **웹에만 나갔다** — 폰을 막는 문이 둘이다
+
+`web-deploy.yml` 성공 → <https://simon-yhkim.github.io/2nd-B/> 에 0.7.0 이 올라가 있다.
+**설치된 폰(build 35, 0.6.0)에는 안 갔다.** 이유가 둘이고 **둘 다 따로 풀어야 한다.**
+
+#### 문 ① EAS 무료 플랜 할당량 소진 — 2026-09-01 초기화
+
+`eas-preview-build.yml`(run 33122536870) 이 이것 때문에 실패했다. 코드 문제가 아니다:
+
+```
+This account has used its Android builds from the Free plan this month,
+which will reset in 4 days (on Tue Sep 01 2026)
+```
+
+⚠ 실패 전에 `versionCode` 가 원격에서 **35 → 36 으로 이미 올라갔다**(version source remote).
+다음 성공 빌드는 37 이다. 릴리스 노트에서 36 을 찾지 말 것.
+
+#### 문 ② **새로 생겼다** — 서명 지문 시크릿 두 개가 없다 (2026-08-29 실측)
+
+**#1472 `fix: harden Android release signer verification`** 이 `github-release.yml` 에
+서명 지문 게이트를 붙였는데, 그 게이트가 읽는 시크릿이 **등록돼 있지 않다**:
+
+| 시크릿 | 상태 |
+|---|---|
+| `ANDROID_APK_SIGNER_SHA256` | **없음** |
+| `ANDROID_AAB_SIGNER_SHA256` | **없음** |
+
+`verifyReleaseSigners` 를 빈 값으로 직접 불러 확인했다 — **fail-closed** 라
+`apk-expected-digest-invalid` 로 거부한다. 그리고 `github-release.yml` 은 **#1472 이후
+한 번도 안 돌았다**(마지막 성공 8/26~27, 게이트가 붙기 전). 아무도 아직 이 상태를 안 밟았다.
+
+⚠ **그래서 9/1 에 할당량이 풀려도 릴리스는 그 자리에서 멈춘다.** 두 시크릿을 먼저 채울 것.
+값은 EAS 키스토어의 SHA-256 지문이고 `npx eas-cli credentials` 에 표시된다.
+같은 키스토어면 APK 와 AAB 지문이 같다. 콜론 있는 형식과 64자 소문자 둘 다 받는다.
+
+#### OTA 로는 못 간다 — 지문이 두 번 움직였다
+
+커밋마다 `@expo/fingerprint` 를 다시 떠서 짚었다:
+
+| 커밋 | 지문 | |
+|---|---|---|
+| `8ff452ec` #1455 | `0bccbba5…` | 기준 |
+| `99a6881a` #1458 · `7f7a622b` #1459 | `0bccbba5…` | 안 움직였다 |
+| **`2c9d3941` #1460** | **`b2cbfc87…`** | `.easignore` **한 파일**. 여기서 build 35 가 좌초 |
+| **`9afcc482` #1456** | **`fbd41747…`** | `package.json` **스크립트 한 줄** |
+
+⚠ **`package.json` 의 `scripts` 한 줄도 지문을 움직인다** — `@expo/fingerprint` 는
+그 파일을 통째로 해시한다. "의존성을 안 건드렸으니 OTA 로 간다"는 **틀린 추론**이다.
+⚠ #1456 을 되돌려도 소용없다 — #1460 이 이미 좌초시킨 뒤였다.
+
+---
+
+### 결정 다섯 — Simon 이 정해야 움직인다
+
+앞 블록의 **넷**(시드 · B축 램프 양자화 · `/capture` 양식·날짜 · 대화 이력)은
+설명 재료와 함께 아래 §2026-08-28 에 그대로 있다. **다섯째가 새로 붙었다:**
+
+#### E. 안드로이드 서명키를 하나로 합칠 것인가
+
+**① 무엇인지.** GitHub 의 `android-release.yml` 은 `expo prebuild → 로컬 gradle` 로
+**EAS 할당량 없이** APK 를 만든다. main push 마다 이미 돌고 초록이다. 그런데
+`docs/ANDROID-BUILD.md:74` 가 적은 대로 **"a stable, separate keystore"** — EAS 와 다른 키다.
+그래서 그 APK 는 build 35 **위에 덮이지 않고**, 기존 앱을 지워야 설치된다.
+
+**② 왜 정해야 하나.** EAS 할당량이 매달 바닥나는 한, 폰 QA 가 매번 이 문에 걸린다.
+
+**③ 정하면 무엇이 바뀌나.** 두 길이다:
+- **(가) 그냥 지우고 설치한다** — 오늘 바로 되고 **위험 0**. 기기에 남은 상태(온보딩
+  플래그·임시 저장)만 날아가고 계정 데이터는 서버라 안전하다.
+- **(나) EAS 키스토어를 GitHub 시크릿 넷에 옮긴다** — 앞으로 계속 덮어 설치되고
+  EAS 할당량과 영영 무관해진다. 절차는 [키스토어 이관 프롬프트](https://claude.ai/code/artifact/0123cd40-729a-417a-b9d9-8f23e7206c2e) 에 복붙용으로 있다.
+
+**④ 위험.** (나)는 **릴리스 서명키를 진단 워크플로가 쓰는 시크릿에 두는 일**이다. 저장소에
+write 권한이 있는 누구나 이 앱으로 서명할 수 있게 된다. 지금은 혼자 쓰니 실질 위험이 낮지만
+**Play 등록 뒤에는 달라진다** — Play 앱 서명을 켜면 교체 가능한 업로드 키지만, 안 켜면
+유출 시 교체가 불가능하다. **스토어 전에 정하는 편이 낫다.**
+
+⚠ **어느 쪽을 골라도 문 ②(서명 지문 시크릿)는 채워야 한다.** 그건 공개 릴리스 경로의
+게이트라 키 이관 여부와 무관하다.
+
+---
+
+### 이 세션이 알아낸 것 — 먼저 읽어야 오판을 안 한다
+
+1. **래칫 28건이 내려갔는데 절반은 고친 게 아니라 잘못 세던 것이다.**
+   `opacity: 0`·`1` 은 위반이 아니고(완전 불투명은 미리 합성할 것이 없다),
+   `android_ripple` 안의 알파도 아니다(퍼져 나가는 애니메이션이라 불투명하게 만들면
+   누르는 순간 표면이 통째로 덮인다). **둘 다 변이 검증했고 근거가
+   `scripts/check-pixel-rules.ts` 주석에 있다. 되돌리지 말 것.**
+2. **`data/structure/*.json` 다이제스트는 깊이 6에서 잘린다**(`capture-bundle.mjs`).
+   `nav.json` 은 깊이 제한이 없다. **어긋나면 `nav.json` 쪽이 레퍼런스에 더 가깝다.**
+3. **이탈(deviation)은 축마다 따로 달아야 한다.** D축에만 달면 D 는 15/15 로 오르고
+   E 는 0 으로 남는다 — E축은 레퍼런스의 *모든* 텍스트를 센다.
+4. **법률 세 화면에 독이 없는 건 의도다.** `(auth)` 그룹이라 로그아웃 상태에서 열려야 하고,
+   그 상태에서 독의 다섯 목적지는 전부 로그인이 필요하다.
+5. **`TraitRadar` 는 고아다.** 규칙 4 위반 4건이 잡히지만 렌더되지 않고, 오히려
+   `polaris-deck.test.ts` 가 "없어야 한다"를 검사한다. 손대지 말 것.
+6. **대화는 저장되지 않는다 — 기본값 문제가 아니다.** `useState<ChatTurn[]>([])` 뿐이고
+   `autosave.ts` 헤더가 스스로 *"저장소에 대화 테이블이 없다"* 고 적고 있다.
+   `chat_autosave` 를 켜도 남는 건 **위키 기록**이지 되돌아갈 대화가 아니다.
+7. ⚠ **#1452 의 "C축 복구"는 폐기된 눈금이다.** 그 밴드 서명은 앱 캡처에게 자기 짝을
+   고르게 했을 때 **0/6**(무작위 1/6보다 낮다)이었다. DOM 에서 이미지로 옮겨도 **같은
+   함수라 결과가 같다.** 지금 main 은 `const C = null` 이고 그게 근거 있는 쪽이다.
+   다시 켜려는 사람은 **자기 짝 찾기부터 통과시킬 것.**
+
+---
+
+### ⚠ 로컬 환경 함정 — `npm run verify` 가 이것 때문에 빨갛게 뜬다
+
+`test:ui-work0`(#1464·#1467 이 verify 체인에 넣었다)가 `playwright-core` 를 요구하는데,
+**낡은 워크트리 설치에는 없다.** 없으면 `score.mjs` 가 import 시점에 죽어 52개가 전부 실패한다.
+
+```bash
+npm i --no-save --legacy-peer-deps playwright-core@1.62.1   # lockfile 이 고정한 버전
+```
+
+⚠ **전역 playwright 를 정션으로 빌려오지 말 것.** 버전이 다르면
+`browser version does not match pinned Playwright Chromium` 으로 막힌다(이 세션에서 실제로 겪었다).
+스크린샷 때문에 잠깐 빌려야 하면 **쓰고 나서 반드시 걷을 것.**
+
+---
+
+### 다음 작업 큐
+
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | 래칫 **기계적 60건** — `SecondbStatusHeader`(테두리) · `AdvisorFollowupNote`(root 배경) · `FacetBreakdown`(트랙). 바탕만 정하면 된다 | small | ⭐ **결정 없이 지금 할 수 있는 유일한 덩어리** |
+| B | 규칙 3 **39건 = 그림자 → 4방향 베벨**. `PixelSurface` 를 화면에 들이는 이주 | large | 화면 하나를 끝까지 하고 본을 만들 것. 반쯤 옮기지 말 것 |
+| C | 상태색 33건(`PixelPressable`) · 그림 16건(디더) · SVG 알파 5건 | medium | B 다음 |
+| D | 서명 지문 시크릿 둘 채우기 | small | 9/1 릴리스의 **선행 조건** |
+
+⚠ **래칫은 양방향 실패다.** 줄이면 같은 PR 에서 `RATCHET_BASELINE` 을 내려야 한다.
+⚠ **main 이 빠르게 움직인다.** 다른 세션이 이 세션 동안 #1463~#1477 을 올렸다.
+브랜치를 오래 들고 있지 말 것.
+
+### 적용 중인 정책 (영구)
+
+1. `main` 직접 push 금지 · `git add -A` 금지 · 시크릿 하드코딩/값 요청 금지.
+2. `npm run verify` 는 **파이프 없이 종료코드로** 확인 (`| grep` 은 grep 의 종료코드다).
+3. 카피는 `locales` 5로케일 **값**으로. 키를 바꾸면 `check:constraints` 가 깨진다.
+4. 새 가드를 만들면 **변이 검증**하고 결과를 주석에 적는다.
+5. 정규식이 든 스크립트는 heredoc·`node -e` 로 넘기지 않는다(백슬래시가 사라진다). **파일로 쓴다.**
+6. 보고는 항상 **Artifact HTML**. 채팅에는 링크 + 3~5줄 요약.
+7. **점수를 올리려고 시드하거나 기능을 지어내지 않는다.**
+8. **유료 결제를 임의로 하지 않는다** (EAS Starter 업그레이드 등은 Simon 결정).
+
+### 핵심 파일 위치
+
+```
+design/pixel_clay_260825/tools/score.mjs           P1 채점기 (A·B·D·E, C는 꺼져 있음)
+design/pixel_clay_260825/tools/capture-bundle.mjs  레퍼런스 캡처 — ⚠ 다이제스트 depth 6 절단
+design/pixel_clay_260825/tools/serve-sub.mjs       baseUrl(/2nd-B) 앱 서빙 (npx serve -s 로는 안 됨)
+design/pixel_clay_260825/data/deviations.json      이탈 20건 — 축마다 따로 달 것
+design/pixel_clay_260825/data/nav.json             D축 라벨 — 다이제스트와 어긋나면 이쪽이 맞다
+scripts/check-pixel-rules.ts                       픽셀 래칫 (RATCHET_BASELINE = 165)
+scripts/check-android-release-signatures.js        서명 지문 게이트 (#1472, fail-closed)
+docs/RELEASE-PROCESS.md                            버전 자리수 → 팝업 여부. minor 는 조용히 나간다
+docs/ANDROID-BUILD.md                              EAS vs 진단 빌드 서명 — ⚠ 74행 "separate keystore"
+```
+
+### 검증
+
+```bash
+npm i --no-save --legacy-peer-deps playwright-core@1.62.1   # 처음 한 번
+npm run verify && echo "exit=$?"                            # 파이프 없이
+
+# P1 재측정 (전체 64화면, 약 40분)
+node design/pixel_clay_260825/tools/capture-app.mjs --print-env > /tmp/webenv.sh
+source /tmp/webenv.sh && EXPO_PUBLIC_FORCE_TIER=brain \
+  npx expo export --platform web --output-dir distN --clear   # ⚠ --clear 없으면 이전 env 를 물려받는다
+node design/pixel_clay_260825/tools/serve-sub.mjs distN 8979 &
+BASE_URL=http://localhost:8979 node design/pixel_clay_260825/tools/score.mjs
+```
+
+### 다음 세션 시작하는 법
+
+```bash
+git fetch origin main && git pull origin main
+cat docs/HANDOFF.md
+
+# ⚠ 코드를 건드리기 전에 — 위 §결정 다섯을 Simon 에게 설명하고 답을 받는다.
+```
+
+---
+
+## 2026-08-28 / 자가 두 번 틀렸다 — P1 채점 37/64, 래칫 165, 그리고 **결정 넷이 대기 중**
 
 > 발행: CLI 코딩 세션(PIXEL-CLAY P1 측정 트랙).
 > 보고서(Artifact): <https://claude.ai/code/artifact/feffd35e-c652-44cc-b0f8-a9a7fb50dafa>
