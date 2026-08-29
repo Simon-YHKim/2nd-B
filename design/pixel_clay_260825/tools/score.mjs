@@ -1624,6 +1624,17 @@ function normalizeNavigationLocator(value, label) {
   };
 }
 
+function normalizeSourceNavigationReveal(value) {
+  assertNavigationKeys(value, new Set(['role', 'name', 'occurrence']));
+  const role = value.role ?? 'button';
+  if (!['button', 'tab'].includes(role)) throw navigationContractError();
+  return {
+    role,
+    name: exactNavigationText(value.name),
+    occurrence: normalizeNavigationOccurrence(value.occurrence),
+  };
+}
+
 function normalizeNavigationEffect(value, label) {
   assertNavigationKeys(value, new Set(['type', 'role', 'name', 'occurrence', 'value', 'text']));
   if (!NAVIGATION_EFFECT_TYPES.has(value.type)) throw navigationContractError();
@@ -1692,6 +1703,7 @@ export function normalizeNavigationContract(value, baseUrl = null) {
         'safe',
         'why',
         'effect',
+        'reveal',
         'postNavigation',
       ]),
     );
@@ -1699,6 +1711,8 @@ export function normalizeNavigationContract(value, baseUrl = null) {
     const occurrence = normalizeNavigationOccurrence(item.occurrence);
     if (!NAVIGATION_ITEM_KINDS.has(item.kind)) throw navigationContractError();
     const locator = normalizeNavigationLocator(item.locator, label);
+    const reveal =
+      item.reveal === undefined ? {} : { reveal: normalizeSourceNavigationReveal(item.reveal) };
     if (item.kind === 'route') {
       if (
         item.safe !== undefined ||
@@ -1716,6 +1730,7 @@ export function normalizeNavigationContract(value, baseUrl = null) {
         to: item.to,
         locator,
         safe: true,
+        ...reveal,
         ...(item.postNavigation === undefined
           ? {}
           : { postNavigation: normalizePostNavigation(item.postNavigation, label) }),
@@ -1737,6 +1752,7 @@ export function normalizeNavigationContract(value, baseUrl = null) {
         locator,
         safe,
         why: norm(item.why),
+        ...reveal,
         ...(item.effect === undefined
           ? {}
           : { effect: normalizeNavigationEffect(item.effect, label) }),
@@ -1750,6 +1766,7 @@ export function normalizeNavigationContract(value, baseUrl = null) {
       locator,
       safe,
       effect: normalizeNavigationEffect(item.effect, label),
+      ...reveal,
     };
   });
   const byLabel = new Map();
@@ -5455,6 +5472,49 @@ export async function locateExactNavigationTarget(page, item) {
   return exactRoleTarget.first();
 }
 
+export async function revealSourceNavigationItem(page, item, hooks = {}) {
+  if (!item.reveal) return { passed: true, failure: null };
+  const findTarget =
+    hooks.findTarget ??
+    (() =>
+      visibleLocatorAt(
+        page.getByRole(item.reveal.role, { name: item.reveal.name, exact: true }),
+        item.reveal.occurrence,
+      ));
+  const settle = hooks.settle ?? (() => page.waitForTimeout(350));
+  const target = await findTarget();
+  if (!target) return { passed: false, failure: 'reveal-target' };
+  try {
+    await target.click({ timeout: 5000 });
+  } catch {
+    return { passed: false, failure: 'click-failed' };
+  }
+  await settle();
+  return { passed: true, failure: null };
+}
+
+async function scrollSourceNavigationLabelIntoView(page, item) {
+  const candidates = page.getByText(item.label, { exact: true });
+  const count = Math.min(await candidates.count(), 50);
+  let visible = 0;
+  for (let index = 0; index < count; index += 1) {
+    const candidate = candidates.nth(index);
+    if (!(await candidate.isVisible().catch(() => false))) continue;
+    visible += 1;
+    if (visible !== item.occurrence) continue;
+    try {
+      await candidate.evaluate((element) => {
+        element.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'center' });
+      });
+      await page.waitForTimeout(100);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
 export async function exactNavigationEffectPassed(page, item) {
   if (item.effect.type === 'selected') {
     const selectedAttribute =
@@ -5542,6 +5602,26 @@ export function isCaptureNoticeReadRequest(request, noticeReadOrigin, setupPhase
       request.method() === 'POST' &&
       actual.origin === expected.origin &&
       actual.pathname === '/rest/v1/user_notice_reads'
+    );
+  } catch {
+    return false;
+  }
+}
+
+const CAPTURE_READ_ONLY_RPC_PATHS = new Set([
+  '/rest/v1/rpc/credit_summary_self',
+  '/rest/v1/rpc/t5_seen_aggregate',
+]);
+
+export function isCaptureReadOnlyRpcRequest(request, supabaseOrigin) {
+  if (!request || typeof supabaseOrigin !== 'string') return false;
+  try {
+    const expected = new URL(supabaseOrigin);
+    const actual = new URL(request.url());
+    return (
+      request.method() === 'POST' &&
+      actual.origin === expected.origin &&
+      CAPTURE_READ_ONLY_RPC_PATHS.has(actual.pathname)
     );
   } catch {
     return false;
@@ -5658,6 +5738,10 @@ async function probeExactNavigationItem(sourcePage, baseUrl, sourceRoute, item, 
         await route.fulfill({ status: 201, contentType: 'application/json', body: '' });
         return;
       }
+      if (isCaptureReadOnlyRpcRequest(request, noticeReadOrigin)) {
+        await route.continue();
+        return;
+      }
       probeHealth.markBlockedMutation(request);
       await route.abort('blockedbyclient');
     });
@@ -5690,7 +5774,27 @@ async function probeExactNavigationItem(sourcePage, baseUrl, sourceRoute, item, 
       return { passed: false, evidence: null, failure: sourceFailure };
     }
 
+    const revealResult = await revealSourceNavigationItem(probe, item);
+    if (!revealResult.passed) {
+      return { passed: false, evidence: null, failure: revealResult.failure };
+    }
+    if (item.reveal) {
+      validateFinalUrl(baseUrl, sourceRoute, probe.url());
+      await waitForShotNetworkIdle(probe, probeHealth.health);
+      const revealFailure = navigationProbeFailureCode(
+        baseUrl,
+        probeHealth.health,
+        probeHealth.mutationWasBlocked(),
+      );
+      if (revealFailure) {
+        return { passed: false, evidence: null, failure: revealFailure };
+      }
+    }
+
     stage = 'painted-label';
+    if (!(await scrollSourceNavigationLabelIntoView(probe, item))) {
+      return { passed: false, evidence: null, failure: 'painted-label' };
+    }
     const painted = await visibleLocatorAt(
       probe.getByText(item.label, { exact: true }),
       item.occurrence,

@@ -12,20 +12,10 @@ import { subscribeFontStyle } from "@/lib/settings/readable-font";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
-import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
+import { deepSpace } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { MdCard, m3TextStyle } from "@/components/m3";
 import { Text } from "@/components/ui/Text";
-
-/**
- * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
- *
- * 바닥: `deepSpace.bgMid` — 덱 표면.
- *
- * ⚠ 스크림·백드롭은 여기 안 거친다. 아래 깔린 것을 모르는 채 덮는 층이라
- *   미리 합성할 수 없고, 규칙 4가 그 자리에 요구하는 것은 **디더**다.
- */
-const pdAlpha = (c: string, a: number): string => flattenAlpha(c, a, deepSpace.bgMid);
 
 export interface PolarisDeckPage {
   key: string;
@@ -82,7 +72,7 @@ export function PolarisDeck({ pages, isKo }: { pages: PolarisDeckPage[]; isKo: b
                 variant="outlined"
                 style={[
                   styles.card,
-                  page.accent ? { borderColor: pdAlpha(page.accent, 0.48) } : null,
+                  page.accent ? { borderColor: page.accent } : null,
                 ]}
               >
                 <ScrollView
@@ -162,7 +152,7 @@ const makeStyles = () => StyleSheet.create({
     padding: 0,
     overflow: "hidden",
     borderRadius: m3.shape.none,
-    backgroundColor: pdAlpha(m3.color.tertiaryContainer, 0.22),
+    backgroundColor: m3.color.surfaceContainerHighest,
   },
   cardBody: { flex: 1 },
   cardContent: { padding: 18, flexGrow: 1 },
@@ -178,7 +168,7 @@ const makeStyles = () => StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: m3.shape.none,
-    backgroundColor: pdAlpha(deepSpace.accentDim, 0.4),
+    backgroundColor: deepSpace.accentDim,
   },
   dotOn: {
     width: 10,
