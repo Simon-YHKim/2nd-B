@@ -5148,6 +5148,144 @@ test('navigation probe health and blocked mutation fail before success evidence'
   );
 });
 
+test('navigation probes allow only the two exact Supabase read RPCs', async () => {
+  const { isCaptureReadOnlyRpcRequest } = await contract();
+  const request = (method, url) => ({ method: () => method, url: () => url });
+  const origin = 'https://example.supabase.co';
+
+  for (const rpc of ['credit_summary_self', 't5_seen_aggregate']) {
+    assert.equal(
+      isCaptureReadOnlyRpcRequest(
+        request('POST', `${origin}/rest/v1/rpc/${rpc}`),
+        origin,
+      ),
+      true,
+      rpc,
+    );
+  }
+
+  for (const candidate of [
+    request('GET', `${origin}/rest/v1/rpc/credit_summary_self`),
+    request('POST', 'https://other.supabase.co/rest/v1/rpc/credit_summary_self'),
+    request('POST', `${origin}/rest/v1/rpc/credit_summary_self_extra`),
+    request('POST', `${origin}/rest/v1/rpc/t5_seen_aggregate/extra`),
+    request('POST', `${origin}/rest/v1/rpc/spend_credits`),
+    request('POST', `${origin}/rest/v1/rpc/arbitrary_reader`),
+  ]) {
+    assert.equal(isCaptureReadOnlyRpcRequest(candidate, origin), false, candidate.url());
+  }
+});
+
+test('source navigation reveal is explicit, exact, and fail-closed', async () => {
+  const { normalizeNavigationContract, revealSourceNavigationItem } = await contract();
+  const normalized = normalizeNavigationContract({
+    version: 2,
+    items: [
+      {
+        label: '나의 목표',
+        kind: 'route',
+        to: '/secondb?mode=divergent',
+        reveal: { role: 'tab', name: '나의 모습' },
+      },
+    ],
+    unresolved: [],
+  });
+  assert.deepEqual(normalized.items[0].reveal, {
+    role: 'tab',
+    name: '나의 모습',
+    occurrence: 1,
+  });
+
+  for (const reveal of [
+    { role: 'link', name: '나의 모습' },
+    { role: 'tab', name: ' 나의 모습' },
+    { role: 'tab', name: '나의 모습', occurrence: 0 },
+    { role: 'tab', name: '나의 모습', extra: true },
+  ]) {
+    assert.throws(
+      () =>
+        normalizeNavigationContract({
+          version: 2,
+          items: [{ label: '나의 목표', kind: 'route', to: '/secondb', reveal }],
+          unresolved: [],
+        }),
+      /invalid navigation contract/,
+    );
+  }
+
+  let clicked = 0;
+  let settled = 0;
+  const target = { click: async () => { clicked += 1; } };
+  assert.deepEqual(
+    await revealSourceNavigationItem({}, normalized.items[0], {
+      findTarget: async () => target,
+      settle: async () => { settled += 1; },
+    }),
+    { passed: true, failure: null },
+  );
+  assert.equal(clicked, 1);
+  assert.equal(settled, 1);
+  assert.deepEqual(
+    await revealSourceNavigationItem({}, normalized.items[0], {
+      findTarget: async () => null,
+    }),
+    { passed: false, failure: 'reveal-target' },
+  );
+});
+
+test('me Stage 1 contract covers every stable route across all three deck pages', () => {
+  const nav = JSON.parse(
+    readFileSync(path.join(REPO, 'design', 'pixel_clay_260825', 'data', 'nav.json'), 'utf8'),
+  );
+  assert.deepEqual(
+    nav.me.items.map(({ label, kind, to, reveal }) => ({ label, kind, to, reveal })),
+    [
+      { label: '문장 다듬기', kind: 'route', to: '/northstar', reveal: undefined },
+      { label: '내보내기', kind: 'route', to: '/share-card', reveal: undefined },
+      { label: '나는 누구인가', kind: 'route', to: '/core-brain', reveal: { role: 'tab', name: '나의 모습' } },
+      { label: '누구를 위해', kind: 'route', to: '/interview', reveal: { role: 'tab', name: '나의 모습' } },
+      { label: '나의 목표', kind: 'route', to: '/secondb?mode=divergent', reveal: { role: 'tab', name: '나의 모습' } },
+      { label: '무엇을 하는가', kind: 'route', to: '/capture', reveal: { role: 'tab', name: '나의 모습' } },
+      { label: '나의 원동력', kind: 'route', to: '/audit', reveal: { role: 'tab', name: '나의 모습' } },
+      { label: '밝기 변화', kind: 'route', to: '/brightness', reveal: { role: 'tab', name: '나의 모습' } },
+      { label: '확인 이력', kind: 'route', to: '/ratifications', reveal: { role: 'tab', name: '나의 모습' } },
+      { label: '관계 패턴 체크', kind: 'route', to: '/attachment', reveal: { role: 'tab', name: '근거와 검증' } },
+      { label: '생활 만족도 체크', kind: 'route', to: '/rlss', reveal: { role: 'tab', name: '근거와 검증' } },
+      { label: 'Big Five 성격 검사', kind: 'route', to: '/big-five', reveal: { role: 'tab', name: '근거와 검증' } },
+      { label: '성격 깊게 보기 (120문항)', kind: 'route', to: '/ipip-neo', reveal: { role: 'tab', name: '근거와 검증' } },
+      { label: '가치관 체크', kind: 'route', to: '/values', reveal: { role: 'tab', name: '근거와 검증' } },
+      { label: '강점 체크', kind: 'route', to: '/strengths', reveal: { role: 'tab', name: '근거와 검증' } },
+      { label: '동기 체크', kind: 'route', to: '/motivation', reveal: { role: 'tab', name: '근거와 검증' } },
+      { label: '인생 점검', kind: 'route', to: '/audit', reveal: { role: 'tab', name: '근거와 검증' } },
+      { label: '대화로 풀어보기', kind: 'route', to: '/interview', reveal: { role: 'tab', name: '근거와 검증' } },
+      { label: '세컨비에게 이 중심으로 묻기', kind: 'route', to: '/secondb?fromNode=북극성', reveal: { role: 'tab', name: '근거와 검증' } },
+      { label: '별자리', kind: 'route', to: '/', reveal: undefined },
+      { label: '담기', kind: 'route', to: '/capture', reveal: undefined },
+      { label: '세컨비', kind: 'route', to: '/secondb', reveal: undefined },
+      { label: '위키', kind: 'route', to: '/records', reveal: undefined },
+      { label: '설정', kind: 'route', to: '/settings', reveal: undefined },
+    ],
+  );
+  const personaRoute = readFileSync(path.join(REPO, 'src', 'app', 'persona.tsx'), 'utf8');
+  assert.match(personaRoute, /return <Redirect href="\/core-brain" \/>/);
+
+  const deck = readFileSync(
+    path.join(REPO, 'src', 'components', 'deep-space', 'PolarisDeck.tsx'),
+    'utf8',
+  );
+  assert.doesNotMatch(deck, /flattenAlpha|pdAlpha/);
+  assert.match(deck, /backgroundColor: m3\.color\.surfaceContainerHighest/);
+  assert.match(deck, /backgroundColor: deepSpace\.accentDim/);
+
+  const screen = readFileSync(path.join(REPO, 'src', 'app', 'core-brain.tsx'), 'utf8');
+  const start = screen.indexOf('const makeDsDeck');
+  const end = screen.indexOf('let dsDeck', start);
+  assert.ok(start >= 0 && end > start);
+  const deckStyles = screen.slice(start, end);
+  assert.doesNotMatch(deckStyles, /coreAlpha/);
+  assert.match(deckStyles, /backgroundColor: m3\.color\.surfaceContainerLow/);
+});
+
 test('network failures stay bound to the route health that started the request', async () => {
   const { createShotHealth, createShotNetworkTracker, waitForShotNetworkIdle } = await contract();
   const previous = createShotHealth();
