@@ -505,6 +505,11 @@ export function NoticeDialog({
     }
   };
 
+  // RN-web keeps a Modal portal mounted after `visible` flips in some route
+  // transitions. Do not leave an invisible dialog subtree available to input
+  // or capture tooling; native receives the same explicit unmount contract.
+  if (!visible) return null;
+
   return (
     <Modal
       visible={visible}
@@ -513,7 +518,7 @@ export function NoticeDialog({
       statusBarTranslucent
       onRequestClose={onClose}
     >
-      <View style={styles.scrim} accessibilityViewIsModal>
+      <View style={styles.scrim} pointerEvents="auto" accessibilityViewIsModal>
         <Pressable
           style={StyleSheet.absoluteFill}
           onPress={onClose}
