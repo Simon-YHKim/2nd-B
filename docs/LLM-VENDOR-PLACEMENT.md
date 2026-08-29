@@ -299,6 +299,25 @@ v0.2.0 APK   GitHub Releases   태그 08-23 04:25Z    "gemini" 리터럴 12개 �
 
 셋이 같은 지문이라, 26·27 이 설치되면 그때부터 OTA 가 살아 있는 경로가 된다.
 
+### 9월 폐기 체크리스트 — 원장 실측 + 잔재 래칫 (2026-08-30, T1 스윕)
+
+**원장(`ai_audit_log`, 최근 30일, mock·lexicon-only 제외):** 실제 gemini 행은 08-02 ×5(chat) ·
+08-17 ×1 · 08-23~24 ×6(interview_probe 3 · embed_index 2 · secondb_chat 1). **마지막 실제
+Gemini 호출 = 2026-08-24 07:31 KST**(interview_probe, gemini-3.5-flash — 구빌드 설치 앱).
+그 뒤 **6일간 0건.** NULL 벤더 47건은 전부 `mock:` 또는 `lexicon-only` 다. "구빌드가 아직
+gemini-proxy 를 부른다"는 **가능성**이지 관측이 아니다 — 그래도 폐기 전 알파 트랙 새 빌드 게시는
+선행 조건으로 둔다(이 절 아래 순서 3).
+
+같은 원장에 **임베딩 벤더 전환 흔적**이 있다: 08-23 09:38Z 까지 `gemini-embedding-2`, 08-25 부터
+`text-embedding-3-large`. `embedVendor()` 주석이 경고한 대로 **두 모델의 벡터가 한 테이블에 공존**할
+수 있다 — 재색인 여부는 이 스윕 범위 밖이며 별도 확인 항목이다.
+
+**코드 잔재는 래칫으로 고정했다** — `src/lib/llm/__tests__/gemini-residue.test.ts` 가 파일별
+`"gemini"`·`"gemini-proxy"` 리터럴 수(주석 제외)와 routing.ts 의 **미설정→gemini 기본값 11곳**을
+측정값으로 박아둔다. 폐기 전에 잔재가 늘면 실패하고, 폐기 PR 이 기본값을 지우면 표를 같이 고쳐야
+통과한다 — 양방향 래칫이다. `bump_gemini_spend`/`gemini_spend_daily` 는 세지 않는다(4 프록시 공용
+지출 상한, 개명 금지).
+
 ### 9월 폐기 체크리스트 — 알파 트랙 항목 (콘솔 #1368 질의에 대한 답)
 
 **넣는다. 다만 "새 빌드를 게시한다"만으로는 부족하고, 반대로 "OTA 면 된다"도 아니다.**
