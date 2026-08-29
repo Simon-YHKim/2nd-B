@@ -7,7 +7,7 @@
 // `.iden` text (copy/share) and a web "open sheet" (print -> PDF) cover both
 // runtimes with deps already in the app.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { View, StyleSheet, ScrollView, Platform, Share, Pressable } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
@@ -20,11 +20,17 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { type IdenViewData } from "@/components/deep-space/DeepSpaceViews";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
-import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { cosmic, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { exportIden, type IdenExport } from "@/lib/iden/iden-export";
-import { buildIdenDoc } from "@/lib/iden/build-iden";
+import { buildIdenExport } from "@/lib/iden/iden-export";
+import {
+  createIdenSessionController,
+  loadPersistedIden,
+  visibleIdenDocForExport,
+  type IdenSession,
+} from "@/lib/iden/load-persisted-iden";
 import type { IdenDoc } from "@/lib/iden/types";
+import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { m3 } from "@/lib/theme/m3";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { MdButton, MdChip } from "@/components/m3";
@@ -43,16 +49,12 @@ type IdenFormat = "Markdown" | "JSON" | "PDF";
 // render order, the union stays the compile-time contract for `fmt`.
 const IDEN_FORMATS = canonIden.formats as IdenFormat[];
 
-// rev2 IdenScreen include-toggle categories = the 4 fixed canon export sections
-// (canonIden.rows). Each category gates a set of REAL IdenDoc field keys so a
-// toggle is never decorative: turning a category off drops its fields from every
-// export artifact (.iden / JSON / PDF). `raw` maps to no field — raw source text
-// is never composed into the doc — and is off by default (canon "기본 제외").
+// Persisted categories gate real IdenDoc fields. The canon's raw row is filtered
+// out below because this document has no raw payload for such a toggle to gate.
 const ROW_FIELDS: Record<string, string[]> = {
-  northstar: ["patterns", "type", "attachment"], // interpretive identity signals behind the one-liner
-  bigfive: ["traits"], // Big Five trait scores
-  domains: ["cores", "contents", "drivers"], // pattern cores + vault domains + value drivers
-  raw: [], // raw notes: not in the doc, sensitive, off by default
+  northstar: [],
+  bigfive: ["traits"],
+  domains: ["contents", "drivers"],
 };
 
 type IdenLocale = "en" | "ko" | "es" | "pt" | "id";
@@ -60,50 +62,37 @@ type IdenLocale = "en" | "ko" | "es" | "pt" | "id";
 const IDEN_ROW_COPY: Record<IdenLocale, Record<string, { label: string; sub: string }>> = {
   en: {
     northstar: { label: "North-star sentence", sub: "You in one line" },
-    bigfive: { label: "Big Five", sub: "Big Five included" },
-    domains: { label: "7-domain summary", sub: "Starlight · confidence" },
-    raw: { label: "Raw notes", sub: "Sensitive, off by default" },
+    bigfive: { label: "Traits", sub: "Saved derived scores" },
+    domains: { label: "Saved context", sub: "Counts · grounded signals" },
   },
   ko: {
     northstar: { label: "북극성 문장", sub: "나를 한 줄로" },
-    bigfive: { label: "Big Five", sub: "검증 결과 포함" },
-    domains: { label: "7도메인 요약", sub: "별빛 · 신뢰도" },
-    raw: { label: "원문 기록", sub: "민감할 수 있어요. 기본 제외" },
+    bigfive: { label: "특성", sub: "저장된 파생 점수" },
+    domains: { label: "저장된 맥락", sub: "건수 · 근거 신호" },
   },
   es: {
     northstar: { label: "Frase de estrella guía", sub: "Tú en una línea" },
-    bigfive: { label: "Big Five", sub: "Big Five incluido" },
-    domains: { label: "Resumen de 7 dominios", sub: "Luz estelar · confianza" },
-    raw: { label: "Notas originales", sub: "Sensibles, excluidas por defecto" },
+    bigfive: { label: "Rasgos", sub: "Puntuaciones derivadas guardadas" },
+    domains: { label: "Contexto guardado", sub: "Conteos · señales con base" },
   },
   pt: {
     northstar: { label: "Frase da estrela guia", sub: "Você em uma linha" },
-    bigfive: { label: "Big Five", sub: "Big Five incluído" },
-    domains: { label: "Resumo de 7 domínios", sub: "Luz das estrelas · confiança" },
-    raw: { label: "Notas originais", sub: "Sensíveis, excluídas por padrão" },
+    bigfive: { label: "Traços", sub: "Pontuações derivadas salvas" },
+    domains: { label: "Contexto salvo", sub: "Contagens · sinais fundamentados" },
   },
   id: {
     northstar: { label: "Kalimat bintang penuntun", sub: "Dirimu dalam satu baris" },
-    bigfive: { label: "Big Five", sub: "Big Five disertakan" },
-    domains: { label: "Ringkasan 7 domain", sub: "Cahaya bintang · keyakinan" },
-    raw: { label: "Catatan asli", sub: "Sensitif, dikecualikan secara default" },
+    bigfive: { label: "Sifat", sub: "Skor turunan tersimpan" },
+    domains: { label: "Konteks tersimpan", sub: "Jumlah · sinyal berdasar" },
   },
 };
 
 const IDEN_FOOTNOTE_COPY: Record<IdenLocale, string> = {
-  en: "Off = this row leaves in no format. The one-line summary is a separate item and stays included.",
-  ko: "끄면 이 항목 줄은 어떤 형식에도 담기지 않아요. 한 줄 요약 문장은 별도 항목으로 계속 포함돼요.",
-  es: "Si se desactiva, esta fila no se incluye en ningún formato. El resumen de una línea es un elemento separado y sigue incluido.",
-  pt: "Ao desligar, esta linha não entra em nenhum formato. O resumo de uma linha é um item separado e continua incluído.",
-  id: "Jika dimatikan, baris ini tidak masuk ke format apa pun. Ringkasan satu baris adalah item terpisah dan tetap disertakan.",
-};
-
-const IDEN_LOCK_COPY: Record<IdenLocale, string> = {
-  en: "Signed on your device. Raw notes never leave without consent.",
-  ko: "내 기기에서 서명돼요. 원문은 동의 없이 나가지 않아요.",
-  es: "Se firma en tu dispositivo. Las notas originales nunca salen sin consentimiento.",
-  pt: "Assinado no seu dispositivo. As notas originais nunca saem sem consentimento.",
-  id: "Ditandatangani di perangkatmu. Catatan asli tidak pernah keluar tanpa persetujuan.",
+  en: "Only enabled, currently displayed items are serialized into every format.",
+  ko: "켜 둔 현재 표시 항목만 모든 형식에 직렬화돼요.",
+  es: "Solo los elementos visibles y activados se serializan en cada formato.",
+  pt: "Somente os itens atuais, visíveis e ativados são serializados em cada formato.",
+  id: "Hanya item saat ini yang terlihat dan aktif yang diserialkan ke setiap format.",
 };
 
 // Open the rendered CV sheet in a new tab so the browser print dialog can save
@@ -120,28 +109,78 @@ function openSheetInNewTab(html: string): void {
   }
 }
 
+function usePersistedIdenSession(args: {
+  userId: string | null;
+  authLoading: boolean;
+  hasProfile: boolean | null;
+  profileProbeFailed: boolean;
+  isMinor: boolean | null;
+  locale: "en" | "ko";
+}) {
+  const { userId, authLoading, hasProfile, profileProbeFailed, isMinor, locale } = args;
+  const [session, setSession] = useState<IdenSession | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const controllerRef = useRef<ReturnType<typeof createIdenSessionController> | null>(null);
+  if (!controllerRef.current) {
+    controllerRef.current = createIdenSessionController({
+      load: (loadUserId, loadOpts) => loadPersistedIden(loadUserId, loadOpts),
+      onChange: setSession,
+    });
+  }
+  const canRead = Boolean(
+    !authLoading &&
+      userId &&
+      hasProfile === true &&
+      profileProbeFailed === false &&
+      isMinor !== null,
+  );
+
+  useEffect(() => {
+    if (!canRead || !userId) {
+      controllerRef.current?.clear();
+      return;
+    }
+    const loadUserId = userId;
+    const controller = controllerRef.current;
+    if (!controller) return;
+    const request = controller.load(loadUserId, { locale });
+    return () => {
+      controllerRef.current?.cancel(request.requestId);
+    };
+  }, [canRead, userId, locale, reloadKey]);
+
+  useFocusRefetch(() => setReloadKey((key) => key + 1), canRead);
+
+  return {
+    canRead,
+    session: canRead && session?.userId === userId ? session : null,
+    retry: () => setReloadKey((key) => key + 1),
+  };
+}
+
 export default function IdenExportScreen() {
   if (isDeepSpaceUI()) return <IdenExportScreenDeepSpace />;
   return <IdenExportScreenLegacy />;
 }
 
-// Deep-space IDEN: the canonical default surface. Fetches the user's real
-// IdenDoc (buildIdenDoc — persona + vault counts) and feeds IdenView; renders a
-// proper loading/empty/error state instead of the prior hardcoded "simon.iden".
+// Deep-space IDEN: the canonical default surface. Lifecycle events only read
+// the already-persisted snapshot; they never rebuild identity behind the user.
 function IdenExportScreenDeepSpace() {
   const { t, i18n } = useTranslation("iden");
   const isKo = i18n.language === "ko";
   const locale = (isKo ? "ko" : "en") as "en" | "ko";
   const uiLocale = (["ko", "es", "pt", "id"].find((lang) => i18n.language.startsWith(lang)) ?? "en") as IdenLocale;
-  const { userId, loading, isMinor } = useAuth();
-  const [data, setData] = useState<IdenViewData | null | undefined>(undefined);
-  const [hasError, setHasError] = useState(false);
-  const [reloadKey, setReloadKey] = useState(0);
-  // rev2 P5a data sovereignty: the canon include-toggles (canonIden.rows) gate
-  // real doc fields; an excluded category never leaves the device in ANY export
-  // format. `excluded` holds canon ROW ids (not field keys). `raw` starts off.
-  const [doc, setDoc] = useState<IdenDoc | null>(null);
-  const [excluded, setExcluded] = useState<string[]>(["raw"]);
+  const { userId, loading, hasProfile, profileProbeFailed, isMinor } = useAuth();
+  const { session, retry } = usePersistedIdenSession({
+    userId,
+    authLoading: loading,
+    hasProfile,
+    profileProbeFailed,
+    isMinor,
+    locale,
+  });
+  const doc = session?.status === "ready" ? session.doc : null;
+  const [excluded, setExcluded] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
@@ -150,83 +189,56 @@ function IdenExportScreenDeepSpace() {
     return () => clearTimeout(timeout);
   }, [notice]);
 
-  useEffect(() => {
-    if (loading) return;
-    if (!userId) {
-      setData(null);
-      setHasError(false);
-      return;
-    }
-    let cancelled = false;
-    setHasError(false);
-    setData(undefined); // undefined drives the loading state in IdenView
-    buildIdenDoc(userId, { locale, minor: isMinor === true })
-      .then((doc) => {
-        if (cancelled) return;
-        // composeIdenDoc inserts the traits ScoreMap in fixed O,C,E,A,N order
-        // with 0..1 values; map to the "O72 C58 E41 A67 N39" line. Absent when
-        // there's no measured/derived trait field yet (never a fabricated line).
-        const traits = doc.fields.find((f) => f.key === "traits");
-        const letters = ["O", "C", "E", "A", "N"];
-        const bigFive =
+  const traits = doc?.fields.find((field) => field.key === "traits");
+  const data: IdenViewData | null = doc
+    ? {
+        name: `${doc.name}.iden`,
+        version: doc.iden,
+        northStar: doc.oneLiner,
+        bigFive:
           traits && (traits.viz === "radar" || traits.viz === "bar")
-            ? Object.values(traits.data)
-                .map((v, i) => `${letters[i] ?? ""}${Math.round(v * 100)}`)
-                .join(" ")
-            : null;
-        setDoc(doc);
-        setData({ name: `${doc.name}.iden`, version: doc.iden, northStar: doc.oneLiner, bigFive });
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setData(null);
-          setHasError(true);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [userId, loading, locale, isMinor, reloadKey]);
-
-  const hasData = !hasError && data != null;
+            ? Object.entries(traits.data)
+                .map(([label, value]) => `${label} ${Math.round(value * 100)}`)
+                .join(" · ")
+            : null,
+      }
+    : null;
+  const hasData = doc !== null;
 
   // "Send to AI" exports the real `.iden` text and opens the share sheet (queue
   // C export/share path). When there's no IDEN yet, the empty-state CTA instead
   // routes the user to start gathering, so the action always advances them.
-  // Include = every doc field whose canon category is enabled. Excluded ROW ids
-  // expand to their gated field keys (ROW_FIELDS); those keys are dropped.
-  const includeKeys = useCallback(() => {
-    if (!doc) return undefined;
-    const dropped = new Set<string>();
-    for (const rowId of excluded) for (const k of ROW_FIELDS[rowId] ?? []) dropped.add(k);
-    return doc.fields.map((f) => f.key).filter((k) => !dropped.has(k));
+  // Every artifact is serialized from the document currently held by this
+  // user-keyed session. No export action re-fetches or rebuilds identity.
+  const currentExportDoc = useCallback((): IdenDoc => {
+    if (!doc) throw new Error("IDEN snapshot is not ready");
+    return visibleIdenDocForExport(doc, excluded);
   }, [doc, excluded]);
 
   const handleSend = useCallback(async () => {
-    if (!userId) return;
     if (!hasData) {
       router.push("/interview");
       return;
     }
     try {
-      const result = await exportIden(userId, { locale, minor: isMinor === true, include: includeKeys() });
+      const result = buildIdenExport(currentExportDoc(), { locale });
       await Share.share({ message: result.iden });
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[iden] export/share failed", (e as Error).message);
     }
-  }, [userId, hasData, locale, isMinor, includeKeys]);
+  }, [hasData, locale, currentExportDoc]);
 
   const handleCopyJson = useCallback(async () => {
-    if (!userId || !hasData) return;
+    if (!hasData) return;
     try {
-      const result = await exportIden(userId, { locale, minor: isMinor === true, include: includeKeys() });
+      const result = buildIdenExport(currentExportDoc(), { locale });
       await Clipboard.setStringAsync(result.json);
       setNotice(t("ds.jsonCopied"));
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[iden] json copy failed", (e as Error).message);
       setNotice(t("ds.copyFailed"));
     }
-  }, [userId, hasData, locale, isMinor, includeKeys, isKo]);
+  }, [hasData, locale, currentExportDoc, t]);
 
   // rev2 IdenScreen: 형식 chips drive what 내보내기 emits — Markdown = the
   // `.iden` text via the share sheet, JSON = clipboard, PDF = the printable
@@ -234,9 +246,9 @@ function IdenExportScreenDeepSpace() {
   const [fmt, setFmt] = useState<IdenFormat>("Markdown");
 
   const handlePreview = useCallback(async () => {
-    if (!userId || !hasData) return;
+    if (!hasData) return;
     try {
-      const result = await exportIden(userId, { locale, minor: isMinor === true, include: includeKeys() });
+      const result = buildIdenExport(currentExportDoc(), { locale });
       if (Platform.OS === "web") {
         openSheetInNewTab(result.html);
       } else {
@@ -245,7 +257,7 @@ function IdenExportScreenDeepSpace() {
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[iden] preview failed", (e as Error).message);
     }
-  }, [userId, hasData, locale, isMinor, includeKeys, isKo]);
+  }, [hasData, locale, currentExportDoc, t]);
 
   const handleExport = useCallback(async () => {
     if (fmt === "JSON") {
@@ -259,29 +271,38 @@ function IdenExportScreenDeepSpace() {
     await handleSend();
   }, [fmt, handleCopyJson, handlePreview, handleSend]);
 
-  // Non-data states keep the prior IdenView behaviors: spinner while loading,
-  // retry on error, and a gather-first CTA when the vault is empty.
+  if (!loading && !userId) return <Redirect href="/sign-in" />;
+  if (!loading && hasProfile === false && !profileProbeFailed) return <Redirect href="/complete-profile" />;
+
   const stateBody = !hasData ? (
     <View style={dsIden.center}>
-      {!hasError && data === undefined ? (
-        <PremiumLoadingState message={t("ds.loading")} />
-      ) : hasError ? (
+      {session?.status === "error" ? (
         <View style={dsIden.stateBlock}>
           <Text variant="body" color="textMuted">
             {t("ds.loadError")}
           </Text>
-          <MdButton variant="tonal" label={t("ds.retry")} onPress={() => setReloadKey((k) => k + 1)} />
+          <MdButton variant="tonal" label={t("ds.retry")} onPress={retry} />
         </View>
-      ) : (
+      ) : session?.status === "empty" ? (
         <View style={dsIden.stateBlock}>
           <Text variant="body" color="textMuted">
             {t("ds.empty")}
           </Text>
           <MdButton variant="filled" label={t("ds.startGathering")} onPress={() => router.push("/interview")} />
         </View>
+      ) : (
+        <PremiumLoadingState message={t("ds.loading")} />
       )}
     </View>
   ) : null;
+
+  const exportRows = canonIden.rows
+    .filter((row) => row.id !== "raw")
+    .filter((row) => {
+      if (!doc) return false;
+      if (row.id === "northstar") return doc.oneLiner.length > 0;
+      return (ROW_FIELDS[row.id] ?? []).some((key) => doc.fields.some((field) => field.key === key));
+    });
 
   return (
     <DeepSpaceScreen
@@ -303,35 +324,29 @@ function IdenExportScreenDeepSpace() {
               <View style={dsIden.versionChip}>
                 <Text style={dsIden.versionChipText}>{`v${data!.version}`}</Text>
               </View>
-              <View style={dsIden.localChip}>
-                <PixelGlyph name="lock" color={m3.color.onSurfaceVariant} size={13} />
-                <Text style={dsIden.localChipText}>{t("ds.signed")}</Text>
-              </View>
             </View>
           </View>
 
-          {/* 무엇을 담을까요 — the 4 fixed canon export categories (canonIden.rows).
-              Deliberate canon deviation: the canon `bigfive` sub is a fabricated
-              score line ("O72 C58 …"); we render the account's REAL Big Five values
-              (data.bigFive, derived from measured/derived traits) or a neutral
-              descriptor when absent — never a faked score. Toggle = canon blue
-              (m3.color.primary), matching the settings M3 switch. */}
+          {/* Only categories backed by the currently loaded persisted document
+              are shown. Raw notes are absent because the document has no raw
+              payload to gate, and a no-op privacy switch would be misleading. */}
           <Text style={dsIden.sectionLabel}>{t("ds.whatGoesIn")}</Text>
           <View style={dsIden.rowsCard}>
-            {canonIden.rows.map((row, i) => {
+            {exportRows.map((row, i) => {
               const on = !excluded.includes(row.id);
               const rowCopy = IDEN_ROW_COPY[uiLocale][row.id];
               const label = rowCopy?.label ?? row.label;
               const sub =
-                row.id === "bigfive"
-                  ? data!.bigFive ?? IDEN_ROW_COPY[uiLocale].bigfive.sub
+                row.id === "northstar"
+                  ? data!.northStar
+                  : row.id === "bigfive"
+                    ? data!.bigFive ?? IDEN_ROW_COPY[uiLocale].bigfive.sub
                   : rowCopy?.sub ?? row.sub;
-              const sensitive = row.id === "raw";
               return (
                 <View key={row.id} style={[dsIden.row, i > 0 && dsIden.rowDivider]}>
                   <View style={dsIden.rowText}>
                     <Text style={dsIden.rowLabel}>{label}</Text>
-                    <Text style={[dsIden.rowSub, sensitive && dsIden.rowSubSensitive]}>{sub}</Text>
+                    <Text style={dsIden.rowSub}>{sub}</Text>
                   </View>
                   <Pressable
                     accessibilityRole="switch"
@@ -351,10 +366,8 @@ function IdenExportScreenDeepSpace() {
             })}
           </View>
           <Text style={dsIden.rowsFootnote}>
-            {/* med#10: the old claim ("끄면 어떤 형식으로도 나가지 않아요") was
-                broader than the switch — it removes the ROW only, while the
-                one-line summary is a separate top-level doc field. Say exactly
-                what the control does. */}
+              {/* Export applies the same visible-row projection used by these
+                  switches and omits hidden narrative fields. */}
             {IDEN_FOOTNOTE_COPY[uiLocale]}
           </Text>
 
@@ -399,12 +412,6 @@ function IdenExportScreenDeepSpace() {
               {notice}
             </Text>
           ) : null}
-          <View style={dsIden.lockRow}>
-            <PixelGlyph name="lock" color={m3.color.onSurfaceVariant} size={13} />
-            <Text style={dsIden.lockText}>
-              {IDEN_LOCK_COPY[uiLocale]}
-            </Text>
-          </View>
         </ScrollView>
       )}
     </DeepSpaceScreen>
@@ -443,16 +450,6 @@ const dsIden = StyleSheet.create({
     backgroundColor: m3.color.surface,
   },
   versionChipText: { fontSize: 11, fontWeight: "600", color: m3.color.onSurfaceVariant },
-  localChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: m3.shape.none,
-    backgroundColor: m3.color.primary,
-  },
-  localChipText: { fontSize: 11, fontWeight: "600", color: m3.color.onPrimary },
   sectionLabel: {
     marginTop: 12,
     fontSize: 12,
@@ -470,8 +467,6 @@ const dsIden = StyleSheet.create({
   rowText: { flex: 1, gap: 2 },
   rowLabel: { fontSize: 16, lineHeight: 22, color: m3.color.onSurface },
   rowSub: { fontSize: 12, lineHeight: 16, color: m3.color.onSurfaceVariant },
-  // Sensitive (raw notes) sub reads as a caution, matching the canon tertiary tint.
-  rowSubSensitive: { color: m3.color.tertiary },
   // M3 include-switch (1:1 with the settings M3Switch): 52×32 track, 2dp border,
   // thumb 16→24, canon blue (primary) when on. Guarantees the reference accent on
   // web too (the RN built-in Switch renders an off-palette green on react-native-web).
@@ -499,16 +494,22 @@ const dsIden = StyleSheet.create({
   actions: { flexDirection: "row", gap: 8, marginTop: 22 },
   actionMain: { flex: 1 },
   notice: { textAlign: "center", marginTop: 8 },
-  lockRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 12 },
-  lockText: { fontSize: 12, color: m3.color.onSurfaceVariant },
 });
 
 function IdenExportScreenLegacy() {
   const { t, i18n } = useTranslation("iden");
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
-  const { userId, loading } = useAuth();
-  const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<IdenExport | null>(null);
+  const { userId, loading, hasProfile, profileProbeFailed, isMinor } = useAuth();
+  const { session, retry } = usePersistedIdenSession({
+    userId,
+    authLoading: loading,
+    hasProfile,
+    profileProbeFailed,
+    isMinor,
+    locale,
+  });
+  const doc = session?.status === "ready" ? session.doc : null;
+  const [resultOpen, setResultOpen] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
 
   const notify = useCallback((next: Toast) => {
@@ -516,20 +517,18 @@ function IdenExportScreenLegacy() {
     setTimeout(() => setToast(null), 2400);
   }, []);
 
-  const handleBuild = useCallback(async () => {
-    if (!userId || busy) return;
-    setBusy(true);
-    try {
-      setResult(await exportIden(userId, { locale }));
-    } catch (e) {
-      if (typeof console !== "undefined") console.warn("[iden] export failed", (e as Error).message);
-      notify({ tone: "danger", message: t("error") });
-    } finally {
-      setBusy(false);
-    }
-  }, [userId, busy, locale, notify, t]);
+  const currentResult = useCallback(() => {
+    if (!doc) return null;
+    return buildIdenExport(visibleIdenDocForExport(doc, []), { locale });
+  }, [doc, locale]);
+
+  const handleBuild = useCallback(() => {
+    if (!doc) return;
+    setResultOpen(true);
+  }, [doc]);
 
   const handleCopy = useCallback(async () => {
+    const result = currentResult();
     if (!result) return;
     try {
       await Clipboard.setStringAsync(result.iden);
@@ -537,18 +536,21 @@ function IdenExportScreenLegacy() {
     } catch {
       notify({ tone: "danger", message: t("error") });
     }
-  }, [result, notify, t]);
+  }, [currentResult, notify, t]);
 
   const handleShare = useCallback(async () => {
+    const result = currentResult();
     if (!result) return;
     try {
       await Share.share({ message: result.iden });
     } catch {
       /* user dismissed the share sheet */
     }
-  }, [result]);
+  }, [currentResult]);
 
-  if (loading) {
+  if (!loading && !userId) return <Redirect href="/sign-in" />;
+  if (!loading && hasProfile === false && !profileProbeFailed) return <Redirect href="/complete-profile" />;
+  if (loading || !userId || profileProbeFailed || hasProfile !== true || isMinor === null) {
     return (
       <PremiumAppShell>
         <View style={styles.center}>
@@ -557,9 +559,40 @@ function IdenExportScreenLegacy() {
       </PremiumAppShell>
     );
   }
-  if (!userId) return <Redirect href="/sign-in" />;
+  if (session?.status === "error") {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <Text variant="body" color="textMuted">{t("ds.loadError")}</Text>
+          <Button label={t("ds.retry")} onPress={retry} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
+
+  if (session?.status === "empty") {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <Text variant="body" color="textMuted">{t("ds.empty")}</Text>
+          <Button label={t("ds.startGathering")} onPress={() => router.push("/interview")} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
+
+  if (!doc) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={t("loading")} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
 
   const isWeb = Platform.OS === "web";
+  const renderedResult = resultOpen ? currentResult() : null;
 
   return (
     <PremiumAppShell>
@@ -577,28 +610,30 @@ function IdenExportScreenLegacy() {
         <View style={[styles.section, { borderStartColor: cosmic.soulViolet }]}>
           <Text variant="body" color="textMuted">{t("intro.body")}</Text>
           <Button
-            label={t("generate.button")}
+            label={t("ds.export")}
             onPress={handleBuild}
-            loading={busy}
             accessibilityHint={t("generate.accessibilityHint")}
           />
         </View>
       </ScrollView>
 
-      <PremiumModal visible={result !== null} onClose={() => setResult(null)}>
+      <PremiumModal visible={resultOpen && renderedResult !== null} onClose={() => setResultOpen(false)}>
         <Text variant="heading" color="text">{t("result.title")}</Text>
         <Text variant="caption" color="textMuted" style={styles.hint}>{t("result.hint")}</Text>
         <ScrollView style={styles.codeBox}>
-          <Text variant="caption" color="textMuted" style={styles.code} selectable>{result?.iden}</Text>
+          <Text variant="caption" color="textMuted" style={styles.code} selectable>{renderedResult?.iden}</Text>
         </ScrollView>
         <View style={styles.actions}>
           <Button label={t("result.copy")} onPress={handleCopy} />
           {isWeb ? (
-            <Button label={t("result.openSheet")} variant="secondary" onPress={() => result && openSheetInNewTab(result.html)} />
+            <Button label={t("result.openSheet")} variant="secondary" onPress={() => {
+              const result = currentResult();
+              if (result) openSheetInNewTab(result.html);
+            }} />
           ) : (
             <Button label={t("result.share")} variant="secondary" onPress={handleShare} />
           )}
-          <Button label={t("result.close")} variant="ghost" onPress={() => setResult(null)} />
+          <Button label={t("result.close")} variant="ghost" onPress={() => setResultOpen(false)} />
         </View>
       </PremiumModal>
 

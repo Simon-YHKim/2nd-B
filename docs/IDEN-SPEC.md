@@ -1,8 +1,6 @@
 # IDEN-SPEC.md - Identity Export Format & Viewer
 
-> ℹ️ 여기서 **'Soul Core' = 북극성의 내부/에셋 명칭**이다(표시명 '북극성', 내부 키 `soulCoreBrightness` 는 회귀 안전상 유지 — CLAUDE.md Visual Tier System). 개념 정본: `docs/CONCEPT.md`. 스키마·렌더러 등 스펙 본문은 유효.
-
-> Status: **draft** (design locked, schema in review) · Owner: Simon · Last updated: 2026-06-16
+> Status: **draft** (read-only lifecycle locked, schema in review) · Owner: Simon · Last updated: 2026-08-29
 > Axis (VISION 3축): **(2) 개인 비서 기반** - IDEN is the portable substrate the assistant (and any external AI) reads to know *who you are*.
 
 `IDEN` is **the user's identity as one portable file**. It is two things at once:
@@ -16,11 +14,11 @@ The data is the source of truth. Graphics are **rendered from the data**, never 
 
 ## 1. Locked design direction
 
-- **Layout**: two-column CV (mock `E`). Left rail = identity at a glance (mark, name, signals, drivers, traits radar, cores). Right column = Summary, Traits, Profile, Contents.
+- **Layout**: two-column CV (mock `E`). Left rail = identity at a glance (mark, name, signals, drivers, traits radar). Right column = Summary, Traits, Profile, Contents.
 - **Language**: **English is canonical output** (global common). KO is a localized render of the same data (see §7, ties to C7).
 - **Print**: **A4 portrait, print-first.** `@page { size: A4 }`; `Ctrl/Cmd+P` produces a clean one-pager (no shadow, no screen chrome).
-- **Aesthetic**: white paper, **single accent color**, thin 1px rules, aligned label/value rows, tabular numerals. The cosmic Soul Core appears **only as a ~40px monoline mark** - our iconic element is a small portion, per Simon's rule (this file is used everywhere).
-- **Charts carry meaning** (Simon's HTML rule: "visual-first; if explanation is long, the graphic failed"). Inline SVG only: radar, donut, bars, node-graph. No glow, no gradients, no glassmorphism, no pill chips, no em dashes (DESIGN.md + anti-AI-slop).
+- **Aesthetic**: white paper, **single accent color**, thin 1px rules, aligned label/value rows, tabular numerals. The IDEN mark remains small and subordinate to the document.
+- **Charts carry meaning** (Simon's HTML rule: "visual-first; if explanation is long, the graphic failed"). Inline SVG only: radar, donut, and bars. No glow, no gradients, no glassmorphism, no pill chips, no em dashes (DESIGN.md + anti-AI-slop).
 
 ### Color (from `src/lib/theme/tokens.ts`)
 The viewer does **not** introduce hex literals beyond this table; it darkens one cosmic token for white-bg contrast.
@@ -29,14 +27,8 @@ The viewer does **not** introduce hex literals beyond this table; it darkens one
 |---|---|---|---|
 | Accent (single) | `soulViolet` darkened | `#6D51D6` | mark, bar/radar fill, donut primary. (`#A78BFA` is too light on white.) |
 | Ink / body / muted / faint | `moonWhite`→inverted scale | `#1A1726` / `#2C2940` / `#7B7890` / `#A9A6BA` | text hierarchy on paper |
-| Core: Growth | `signalBlue` | `#4CC9F0` | core dot/node (desaturated for print) |
-| Core: Wisdom | `signalMint` | `#72F2C7` | core dot/node |
-| Core: Bond | `pixelLamp` | `#FFD166` | core dot/node |
-| Core: Muse | `dreamPink` | `#FF9FD6` | core dot/node |
-| Core: Record | `mistGray` | `#8D98B8` | core dot/node |
-| Soul Core | `soulViolet` | accent | center node + mark |
 
-Core hues appear **only** as 8px dots / small nodes (meaningful color), never as fills or backgrounds. Everything else is monochrome + accent (≤3 visual colors per surface, DESIGN.md).
+The export stays monochrome + accent (≤3 visual colors per surface, DESIGN.md). It does not emit the deprecated fixed five-node taxonomy.
 
 Font: **Pretendard** (renders Latin well; no Inter).
 
@@ -51,22 +43,16 @@ Plain text. A **machine block** (YAML frontmatter) the AI parses instantly, then
 iden: 0.1                       # format version
 name: Simon
 generated: 2026-06-16
-provenance_summary: { measured: 4, collecting: 1 }
+provenance_summary: { derived: 2, count: 1 }
 identity:
-  one_liner: "INFP, mediator. Driven by autonomy."
+  one_liner: "I build tools that help me understand myself." # newest user-confirmed northstar_sentence only
   fields:                       # ← schema-driven; viewer renders by `viz`
-    - { key: traits, label: "Traits", viz: radar, source: { kind: measured, instrument: BFI-44 },
+    - { key: traits, label: "Traits", viz: radar, source: { kind: derived },
         data: { Openness: .82, Conscientiousness: .68, Extraversion: .35, Agreeableness: .74, Sensitivity: .41 } }
-    - { key: patterns, label: "Patterns", viz: tags, source: { kind: measured, instrument: BFI-44 },
-        data: [Inquisitive, Diligent, Warm] }
-    - { key: type, label: "Type", viz: badge, source: { kind: assessment }, data: INFP }
-    - { key: attachment, label: "Attachment", viz: badge, source: { kind: instrument, instrument: ECR-S }, data: Secure }
-    - { key: drivers, label: "Drivers", viz: list, source: { kind: self_report }, data: [Autonomy, Growth, Authenticity] }
-    - { key: cores, label: "Cores", viz: node-graph, source: { kind: derived },
-        data: { center: Soul, nodes: [Growth, Wisdom, Bond, Muse, Record] } }
+    - { key: drivers, label: "Grounded signals", viz: list, source: { kind: derived }, data: [sdt:autonomy] }
     - { key: contents, label: "Contents", viz: donut, source: { kind: count },
-        data: { Sources: 48, Records: 30, Concepts: 12 }, topics: [habits, psychology, writing] }
-summary:                        # AI narrative, clearly separated from measured data
+        data: { Sources: 48, Records: 30, Concepts: 12 } }
+summary:                        # previously persisted narrative, never generated by the viewer
   text: "A consistent self-documenter, open to new ideas and reflective by habit..."
   source: { kind: ai_summary }  # rendered under an "AI-generated interpretation" label
 rules:                          # instructions to any AI reading this file
@@ -84,7 +70,7 @@ rules:                          # instructions to any AI reading this file
 **Schema-driven (decided):** the viewer renders **whatever `fields` exist**, in order, each by its `viz` hint. Adding/removing a field never breaks the layout. The viewer must degrade gracefully on unknown `viz` (fall back to `list`/`badge`).
 
 ### Images / avatar
-No embedded binary (keeps the file small + AI-friendly). Avatar = the **generated Soul Core mark** (deterministic from name/id). A real photo, if ever wanted, is a **URL reference** only.
+No embedded binary (keeps the file small + AI-friendly). A real photo, if ever wanted, is a **URL reference** only.
 
 ---
 
@@ -95,7 +81,7 @@ No embedded binary (keeps the file small + AI-friendly). Avatar = the **generate
 | `radar` | 3–8 named 0–1 scores | thin-stroke radar + accent polygon (rail) **and** numeric table (main) | both |
 | `bar` | named 0–1 (or 0–100) | aligned horizontal bars, accent fill, tabular numerals | main |
 | `donut` | named counts | monochrome+accent donut, center = total, legend with counts | main |
-| `node-graph` | center + nodes | monoline links + small hued core nodes | rail |
+| `node-graph` | center + nodes | monoline links + small nodes | rail |
 | `badge` | single string | quiet inline value + source tag | main/rail |
 | `tags` | string[] | middot-separated inline list (no pill chips) | main |
 | `list` | string[] | stacked or middot list | rail/main |
@@ -125,29 +111,34 @@ Rule: **never render a value without an honest source.** Missing → `collecting
 
 ## 5. AI summary path (constraint hooks)
 
-The `summary.text` is generated, so it goes through the standard guarded pipeline - it is **not** exempt:
+The `/iden` viewer does not create or refresh `summary.text`. The current screen does not display that persisted narrative, so its default export projection also omits `summary`; only fields represented by visible screen rows are serialized. A future UI may include it only behind an explicit visible control. The originating generation flow is **not** exempt:
 
 - **C1** - generated only via `src/lib/llm/boundary.ts` (no other SDK).
 - **C9** - `classifyInput()` runs before the call; red zone short-circuits.
 - **C3** - `ai_audit_log` INSERT on the call (including mock).
-- **Lexicon** - output passes `src/lib/safety/lexicon.ts` post-filter. No clinical terms. (This is why Big Five's *Neuroticism* axis is surfaced as **"Sensitivity"** in IDEN - brand-safe, non-clinical, while the raw key stays standard internally.)
+- **Lexicon** - output passes `src/lib/safety/lexicon.ts` post-filter. The raw trait key `neuroticism` is displayed as **"Sensitivity"**.
+
+Opening, retrying, or re-focusing `/iden` performs **zero** LLM calls, usage increments, writes, RPC calls, or Edge Function invocations.
 
 ---
 
 ## 6. Renderer architecture
 
 ```
-.iden (data, source of truth)
-   │  parse machine block
+persisted users/personas/records/counts
+   │  SELECT only (`loadPersistedIden`)
    ▼
-IDEN Viewer  ──renders──►  two-column A4 sheet (HTML, this spec's mock E)
-   │
-   ├─ export: print → PDF (A4, the shareable résumé artifact)
-   └─ export: standalone HTML (self-contained, inline SVG, no build)
+current user-keyed IdenDoc
+   │  visible-row projection (hidden `summary` omitted)
+   │  pure serialization (`buildIdenExport`)
+   ├─ `.iden` / JSON
+   └─ standalone A4 HTML → print/PDF
 ```
 
 - One data file, two readers: **human** (rendered sheet) + **AI** (machine block). The sheet includes a "view source `.iden`" affordance.
-- Viewer is **pure render** (no app state). Given the same `.iden`, output is deterministic - printable, diffable, shareable.
+- Mount, retry, and focus use the same read-only loader. A session is keyed by `userId`, so an earlier account's document cannot flash after an auth switch.
+- Viewer export is **pure render**. Preview, copy, and share serialize the current user-keyed document at action time; the legacy modal stores only whether it is open, never a prior user's artifact. Hidden `summary` is excluded from the default projection.
+- Auth is fail-closed: reading starts only when `hasProfile === true`, `profileProbeFailed === false`, and `isMinor` is known.
 
 ---
 
@@ -158,14 +149,14 @@ IDEN Viewer  ──renders──►  two-column A4 sheet (HTML, this spec's mock
 
 ---
 
-## 8. Open questions (flag before build - content may change)
+## 8. Current v0.1 honesty contract
 
-Resolved for v0.1 (2026-06-16). Per Simon's standing note ("if what the system represents changes, ask"), the two marked *may change* are not load-bearing; the schema-driven renderer absorbs either way.
-
-- [x] `fields` set (traits, patterns, type, attachment, drivers, cores, contents) is the v0.1 set. **May change** - render stays schema-driven.
-- [x] Big Five shows **all 5 axes** incl. *Sensitivity*.
-- [x] Cores fixed at **5** for v0.1. **May change** - renderer already handles N nodes.
-- [x] `summary` (AI narrative) **ships in v0.1**, under the "AI-generated interpretation" label, via the guarded path (§5).
+- Fields are sparse. Missing persisted evidence stays absent; a new account returns `null` rather than a fabricated fallback document.
+- `one_liner` comes only from the newest stored `northstar_sentence`, which is the sentence the user confirmed. Derived alternatives do not replace it.
+- Persisted `personas.traits` does not carry instrument provenance. The viewer therefore labels it `derived`, not measured or validated Big Five.
+- The deprecated fixed five-node core graph is not emitted.
+- Raw source text is not part of the current `IdenDoc`; the viewer does not show a no-op raw-data toggle.
+- No signature exists in v0.1, so the viewer makes no "signed on device" claim.
 
 ---
 
@@ -174,17 +165,20 @@ Resolved for v0.1 (2026-06-16). Per Simon's standing note ("if what the system r
 `src/lib/iden/` implements the renderer (pure, tested):
 
 - `types.ts` - `IdenDoc` / `IdenField` / `IdenSource` / `Viz`.
+- `load-persisted-iden.ts` - SELECT-only loader for the current persisted snapshot. It reads the display name, persisted persona payload, newest user-confirmed northstar sentence, and vault counts; empty accounts return `null`.
 - `render-html.ts` - `renderIdenHtml(doc, { locale })` produces the self-contained A4 two-column sheet. Colors sourced only from `theme/tokens` (`lightCosmic` paper/ink + `cosmic` accent/core hues); translucency via SVG `fill-opacity`; zero new hex literals.
 - `serialize.ts` - `serializeIden(doc, { request, body })` produces the `.iden` text (the AI-readable half): the YAML machine block (§2), an optional prose body, and the live `⟦REQUEST⟧` appended last (query-at-end). Hand-emitted compact flow YAML; strings are quoted only when a plain scalar would be unsafe or change type on parse, so the block round-trips. Pure, deterministic, no new dependency at runtime.
-- `build-iden.ts` - `composeIdenDoc(persona, opts)` (pure) maps a `PersonaCard` + vault counts to an `IdenDoc`: BFI traits -> radar (neuroticism surfaced as non-clinical **Sensitivity**), top positive traits -> pattern tags, MBTI -> badge, ECR-S -> badge, value frameworks -> drivers, the fixed pattern cores -> node-graph, live counts -> contents donut. A field appears only with real evidence and an honest `source.kind` (missing -> absent, never faked). `buildIdenDoc(userId, opts)` is the thin fetcher (persona + counts); the AI summary is reused from the persona's already-guarded narrative, so this adds no new LLM call (C1/C9/C3 still hold via `buildPersona`). EN canonical; KO localizes labels/values while core node names stay English (renderer color map; C7).
-- `iden-export.ts` - `buildIdenExport(doc, opts)` (pure) bundles the two shareable artifacts (`.iden` text + standalone A4 HTML) plus a download filename stem; `exportIden(userId, opts)` is the fetcher.
+- `build-iden.ts` - older explicit composition API retained for compatibility and unit tests. It is not a `/iden` mount, retry, focus, preview, copy, or share dependency.
+- `iden-export.ts` - `buildIdenExport(doc, opts)` (pure) bundles the shareable artifacts. `/iden` uses this pure function with its current in-memory document; it does not call the fetching `exportIden()` helper.
 - `sample.ts` - `SAMPLE_IDEN`, the dummy doc mirrored from mock E.
 - `__tests__/render-html.test.ts` - 11 contract tests (radar+bars, full-name radar accessibility, donut, node-graph, provenance, AI-summary separation, schema-driven drop, KO locale, HTML escaping, no em dash / no forbidden lexicon).
 - `__tests__/serialize.test.ts` - 13 contract tests (block/body/request order, parser round-trip, string-typed version+date, provenance tally, summary+rules separation, query-at-end, placeholder, omitted summary/rules, stat+unit, escaping of unsafe scalars, determinism, lexicon-clean).
 - `__tests__/build-iden.test.ts` - 11 contract tests for `composeIdenDoc` (trait radar + Sensitivity, pattern derivation, badges, drivers, cores+contents, summary gating, heuristic vs no-evidence, null-persona fallback, KO parity, both-consumer round-trip, lexicon-clean).
 - `__tests__/iden-export.test.ts` - 5 contract tests (artifact bundle, filename stem, Hangul fallback, locale passthrough, sizes).
+- `__tests__/load-persisted-iden.test.ts` - persisted northstar, empty-account, and SELECT-only contracts.
+- `__tests__/iden-screen-readonly-contract.test.ts` - mount/retry/focus, strict auth, cross-user, pure export, and zero-side-effect contracts.
 
-Not yet built (device-QA gate = Simon, per `ANDROID_QA_GUIDELINES.md`): the viewer UI wiring - an export action on `/wiki` or `/data` that calls `exportIden()`, a WebView preview of the rendered sheet, and native download / PDF share. `buildIdenExport` is the device-independent seam that step calls. PDF export = browser/WebView print of the rendered sheet.
+The `/iden` viewer UI is wired. Native download / PDF share remains a device-QA follow-up; web preview uses the standalone HTML print path.
 
 ---
 
