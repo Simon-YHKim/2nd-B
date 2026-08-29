@@ -29,7 +29,7 @@
     "android": {
       "package": "com.simonk.secondbrain",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 13,
+      "versionCode": 40,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
