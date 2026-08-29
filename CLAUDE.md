@@ -113,8 +113,23 @@ Project-specific guidance for Claude Code sessions in this repo.
 > **원칙 셋.**
 >
 > 1. **제미나이를 쓰는 것은 더 이상 중요하지 않다.** "Build with Gemini"는 XPRIZE 잔재다.
->    **그 자리에 가장 적합한 LLM 을 쓴다.** Gemini 로 남길 자리는 **OCR 과 음성 텍스트화**
->    정도다(그 둘은 gemini-proxy 만 이미지·오디오 inline data 를 전달해서 기술적으로도 그렇다).
+>    **그 자리에 가장 적합한 LLM 을 쓴다.** ~~Gemini 로 남길 자리는 **OCR 과 음성 텍스트화**
+>    정도다(그 둘은 gemini-proxy 만 이미지·오디오 inline data 를 전달해서 기술적으로도 그렇다).~~
+>
+>    **⚠ 2026-08-29 정정 — 그 예외는 없어졌다. OCR·음성에 Gemini 자리는 없다.** 위 취소선
+>    문장은 2026-08-17 에 쓴 것이고, 엿새 뒤 Simon 이 직접 닫았다
+>    (`docs/HANDOFF.md` 2026-08-23 "Simon 결정 2건 추가"):
+>    **"OCR = openai 유지 (gemini 예외 없음, 9월 전체 폐기 원안 그대로)".**
+>    기술적 근거도 함께 사라졌다 — openai-proxy 가 이미지·오디오 경로를 얻었고(#1300,
+>    REQ-260821-01), `EXPO_PUBLIC_MULTIMODAL_VENDOR=openai` 가 웹(저장소 Variable, 08-22)과
+>    네이티브(`eas.json`, #1370) **양쪽에** 걸려 있으며, 받는 쪽 openai-proxy 배포본(v109,
+>    08-24)에 `capture_ocr`·`voice_transcribe` 좌석이 실재한다(2026-08-29 배포본 실측).
+>    OCR 과 음성은 **한 스위치**로 같이 움직인다(`multimodal-vendor-exit.test.ts`).
+>    gemini 값이 남은 곳은 둘뿐이고 둘 다 *자리*가 아니라 *기본값*이다 —
+>    `EXPO_PUBLIC_SAFETY_VENDOR`(기능 자체가 OFF) 와 각 스위치의 미설정 폴백.
+>    `gemini-proxy` 가 9월까지 살아 있는 이유는 **구빌드 설치 앱의 실서빙**과 그 폴백이지
+>    OCR 이 아니다.
+>    이 취소선 문장을 "OCR 은 Gemini 로 남긴다"의 근거로 인용하지 말 것.
 > 2. **항상 최신 모델을 쓴다.** 모델 ID 를 오래 핀해두지 말 것. 모델 선택은 **서버 소유**라
 >    (claude-proxy `ANTHROPIC_MODEL` / `ANTHROPIC_PURPOSE_MODELS`, openai-proxy 동형)
 >    코드 배포 없이 env 로 올릴 수 있다. 클라이언트가 보내는 `model` 필드는 무시된다.
@@ -186,7 +201,10 @@ Project-specific guidance for Claude Code sessions in this repo.
 > **반대로 아직 `gemini` 인 채로 두는 것들은 일부러 그렇다:**
 >
 > - `supabase/functions/gemini-proxy` — **이름이 맞다.** claude-proxy·openai-proxy 와
->   나란한 **벤더별** 프록시고, Gemini 는 OCR·음성 텍스트화에 계속 쓴다.
+>   나란한 **벤더별** 프록시다. ~~Gemini 는 OCR·음성 텍스트화에 계속 쓴다.~~
+>   (2026-08-29 정정: OCR·음성도 openai 로 옮겨졌다 — 위 원칙 1 의 정정 참조. 이 함수가
+>   9월 폐기 전까지 살아 있는 이유는 구빌드 설치 앱이 아직 이 이름으로 호출하고, 각 스위치의
+>   미설정 폴백이 아직 이 이름이기 때문이다.)
 > - `bump_gemini_spend` · `gemini_spend_daily` — 이름은 **틀렸다**(세 벤더 공용 지출
 >   한도다). 그런데 설치된 앱과 프록시 3종이 이 이름으로 호출하고, 계정 삭제·내보내기
 >   경로도 이 테이블을 참조한다. 개명은 호환 래퍼를 낀 마이그레이션이 필요한 별도 작업이다.

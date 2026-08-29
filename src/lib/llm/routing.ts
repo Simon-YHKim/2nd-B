@@ -5,9 +5,13 @@
 // self-select an expensive model). C1 holds: no vendor SDK is ever imported
 // here — "claude" / "openai" are Supabase Edge Function names.
 //
-// Activation: EXPO_PUBLIC_LLM_PHASE=2. Default (unset / "1") keeps the
-// Phase 1 posture — 100% Gemini backbone, XPRIZE-safe, $0/mo — so shipping
-// this file changes nothing until the operator flips the env.
+// Activation, as of 2026-08-29: five switches, not one phase flag.
+// EXPO_PUBLIC_LLM_VENDOR (reasoning seats) · _CHAT_VENDOR · _MULTIMODAL_VENDOR
+// (OCR / voice / any image) · _BACKBONE_VENDOR (everything else) · _EMBED_VENDOR,
+// plus _FAILOVER_VENDOR for the outage retry. Every one resolves "gemini" when
+// unset — that is the Phase 1 posture this file shipped with — and every one is
+// set in both deployed postures (repo Variables; eas.json). EXPO_PUBLIC_LLM_PHASE
+// only matters while _LLM_VENDOR is unset.
 //
 // SAME-QUALITY invariant: seats key on purpose (situation), NEVER on the
 // subscription tier. See docs/LLM-ROUTING.md.
@@ -44,8 +48,8 @@ export function normalizeVendor(raw: string): LlmVendor | null {
 // "perPurpose" to defer to the PHASE2_VENDOR map.
 export type LlmVendorMode = LlmVendor | "perPurpose";
 
-// Read at call time (Expo inlines EXPO_PUBLIC_* literals at build time, same
-// pattern as resolveReasoningProvider in gemini.ts).
+// Read at call time (Expo inlines EXPO_PUBLIC_* literals at build time; every
+// switch in this file reads the same way).
 export function llmPhase(): 1 | 2 {
   const raw = (process.env.EXPO_PUBLIC_LLM_PHASE ?? "1").trim();
   return raw === "2" ? 2 : 1;
@@ -57,10 +61,12 @@ export function llmPhase(): 1 | 2 {
 //   perPurpose                → use the per-seat PHASE2_VENDOR map
 //   unset / unrecognized      → null (back-compat: Phase-1 = Gemini,
 //                               Phase-2 = PHASE2_VENDOR map)
-// Only the reasoning seats (PHASE2_VENDOR keys) are switchable; the Gemini
-// backbone stayers (chat/classification/interview) and the OCR/voice/image pins
-// are never routed to a reasoning proxy by this switch. Default posture is
-// 100% Gemini ($0), unchanged.
+// Only the reasoning seats (PHASE2_VENDOR keys) follow this switch. Chat has
+// its own knob (chatVendorOverride), the binary-carrying purposes follow
+// multimodalVendor(), everything else follows backboneVendor() — none of them
+// is ever routed to a reasoning proxy by this switch. Unset resolves gemini
+// for the seats via the phase rule; the deployed posture is perPurpose
+// (repo Variable 2026-08-23, eas.json #1370).
 export function llmVendorOverride(): LlmVendorMode | null {
   const raw = (process.env.EXPO_PUBLIC_LLM_VENDOR ?? "").trim().toLowerCase();
   const vendor = normalizeVendor(raw);
@@ -220,12 +226,14 @@ export const GEMINI_PINNED_PURPOSES = MULTIMODAL_PURPOSES;
 
 // Which vendor serves the binary-carrying purposes.
 //
-// ⚠ THE DEFAULT IS DELIBERATELY STILL GEMINI. openai-proxy only gained the
-// image + transcription paths in this change, and an edge function does not
-// carry code until it is REDEPLOYED. Flipping the default here would send OCR
-// and voice memos to a function that answers `purpose_not_seated` for them
-// until the deploy lands — the same deploy-before-flip trap as 0127/0130.
-// The console flips EXPO_PUBLIC_MULTIMODAL_VENDOR=openai AFTER redeploying.
+// The unset default is "gemini". It was chosen in #1300 because openai-proxy
+// did not carry the image + transcription seats until it was redeployed, and
+// flipping a default ahead of the deploy is the 0127/0130 trap. That is history
+// now: the deployed openai-proxy carries both seats (v109, 2026-08-24, read
+// back 2026-08-29), the console set EXPO_PUBLIC_MULTIMODAL_VENDOR=openai (repo
+// Variable 2026-08-22; eas.json #1370), and Simon closed the question on
+// 2026-08-23 — "OCR = openai 유지 (gemini 예외 없음)". The default is simply
+// not retired yet; it goes with gemini-proxy in September.
 export function multimodalVendor(): LlmVendor {
   const raw = (process.env.EXPO_PUBLIC_MULTIMODAL_VENDOR ?? "").trim().toLowerCase();
   // "xai" is deliberately NOT accepted. xai-proxy has no image or audio path
@@ -236,9 +244,13 @@ export function multimodalVendor(): LlmVendor {
   return "gemini";
 }
 
-// D-26 Phase 2 vendor seats. Anthropic carries the self-understanding
-// narrative / advice surfaces (KO prose quality + anti-clinical nuance);
-// everything absent from this map stays on the Gemini backbone.
+// D-26 Phase 2 vendor seats. Anthropic carries the two seats whose output is
+// the sentence a user reads (persona_narrative, persona_synthesis — V-4,
+// 2026-08-23) and the cross-check defender; every other seat is openai.
+// Purposes ABSENT from this map are not "gemini": chat takes its own knob, the
+// binary-carrying purposes take multimodalVendor(), and everything else takes
+// backboneVendor() (gemini unless EXPO_PUBLIC_BACKBONE_VENDOR moves it) — see
+// resolveVendorForPurpose.
 // secondb_chat is intentionally ABSENT, but NOT for the reason this comment
 // used to give. It said chat stays Gemini "until claude-proxy streaming lands,
 // because a blocking chat surface cannot take a non-streaming proxy hop."
@@ -397,9 +409,18 @@ export function legacyReasoningProvider(): LlmVendor {
 }
 
 /**
- * Resolve the vendor seat for a call. Image-bearing calls are ALWAYS Gemini
- * (belt-and-suspenders on top of the pinned set — no other proxy forwards
- * inline data).
+ * Resolve the vendor seat for a call. Anything carrying a binary — an image on
+ * the call, or one of MULTIMODAL_PURPOSES — goes to multimodalVendor() before
+ * any other switch is consulted. A text-only proxy cannot serve it at all, so
+ * that is a capability constraint, not a preference. WHICH vendor that is comes
+ * from EXPO_PUBLIC_MULTIMODAL_VENDOR: "openai" in both deployed postures (repo
+ * Variable 2026-08-22, eas.json #1370); "gemini" is still the unset default,
+ * chosen in #1300 for the deploy-before-flip order and not yet retired.
+ *
+ * This comment used to say "image-bearing calls are ALWAYS Gemini". That was
+ * true while gemini-proxy was the only function forwarding inline data; #1300
+ * (REQ-260821-01) ended that and the comment was not updated with the code.
+ * Simon closed the question on 2026-08-23: "OCR = openai 유지 (gemini 예외 없음)".
  *
  * opts.reasoningTier marks a reasoning (pro) tier call: when the purpose axis
  * resolves "gemini", the legacy EXPO_PUBLIC_REASONING_PROVIDER seam gets the
@@ -427,20 +448,20 @@ export function resolveVendorForPurpose(
 
 function resolveTextVendor(purpose: PromptPurpose): LlmVendor {
   // 1b) Chat has its own vendor knob, independent of phase and of the seat
-  //     switch. Placed after the image/OCR pin so an image-bearing turn still
-  //     goes to Gemini (no other proxy forwards inline data), and before the
-  //     seat logic so chat never depends on Phase 2 being on. Unset → falls
-  //     through to the Gemini backbone exactly as before.
+  //     switch. resolveVendorForPurpose has already sent any image-bearing turn
+  //     to the multimodal switch before we get here (the chat vendor is not
+  //     guaranteed to carry inline data), and this sits before the seat logic
+  //     so chat never depends on Phase 2 being on. Unset → "gemini", exactly
+  //     as before.
   if (purpose === "secondb_chat") {
     return chatVendorOverride() ?? "gemini";
   }
 
-  // Only the reasoning SEATS are vendor-switchable. Every other purpose
-  // (secondb_chat, high-volume classification, interview probes) stays on the
-  // Gemini backbone regardless of the switch, so the operator can never
-  // accidentally route chat or a cheap classifier through a reasoning proxy.
-  // ("streaming chat" here was a misnomer -- nothing in this repo streams;
-  // see the note above PHASE2_VENDOR.)
+  // Only the reasoning SEATS follow EXPO_PUBLIC_LLM_VENDOR. Every other purpose
+  // (high-volume classification, interview probes, ingest) takes the BACKBONE
+  // switch instead — backboneVendor(), gemini unless EXPO_PUBLIC_BACKBONE_VENDOR
+  // says otherwise — and chat took its own knob above, so moving the seats can
+  // never accidentally route a cheap classifier through a reasoning proxy.
   const isSeat = purpose in PHASE2_VENDOR;
 
   // 2) EXPO_PUBLIC_LLM_VENDOR global override, when set.

@@ -1,7 +1,9 @@
 # purpose 별 벤더 배치안 (REQ-260821-01)
 
-> **상태: Simon 컨펌 대기.** 발주 원문이 "purpose 별 세분 배치는 코딩 세션이 안을 내면
-> Simon 이 컨펌한다" 이므로 이 문서가 그 안이다.
+> **상태: 컨펌됨** — Simon 2026-08-23 "OCR = openai 유지 (gemini 예외 없음, 9월 전체 폐기
+> 원안 그대로)" (`docs/HANDOFF.md`). 아래 표의 "지금" 열은 2026-08-21 작성 시점 값이다.
+> 발주 원문이 "purpose 별 세분 배치는 코딩 세션이 안을 내면 Simon 이 컨펌한다" 이므로
+> 이 문서가 그 안이었다.
 > 확정된 것은 이미 반영돼 있다: **추론 1차 플립 = OpenAI**, **Gemini 폐기**, **비용 승인**.
 >
 > ⚠ 이 문서에 적힌 배치는 **전부 변수 하나로 켜고 끌 수 있다.** 코드 배포가 필요한 것과
@@ -323,7 +325,7 @@ v0.2.0 APK   GitHub Releases   태그 08-23 04:25Z    "gemini" 리터럴 12개 �
 > | 조각 | 상태 (26-08-29) |
 > |---|---|
 > | `eas.json` 세 프로필(`preview`·`preview-emulator`·`production`) = `none` | **완료** (이 변경) |
-> | 저장소 Variable `EXPO_PUBLIC_FAILOVER_VENDOR` = `none` | **콘솔 대기** — `_sync/TO-GUI.md` 로 요청함 |
+> | 저장소 Variable `EXPO_PUBLIC_FAILOVER_VENDOR` = `none` | **완료** (콘솔, 26-08-29 12:33 KST — `gh variable list` 실측) |
 > | 새 EAS 빌드 | **9/1 대기** (할당량) |
 >
 > ⚠ **`eas.json` 은 세 경로 중 하나만 덮는다.** 나머지 둘은 저장소 Variable 을 읽는다:
@@ -375,8 +377,8 @@ OTA(`b5688832…`)도 향후 빌드와 안 맞게 된다. 웹만 고치면 **웹
 
 | 목록 | 뜻 | 지금 든 것 |
 |---|---|---|
-| `WEB_POSTURE` | 웹에서 **읽은** 값. 네이티브가 따라야 한다 | `_LLM`·`_CHAT`·`_MULTIMODAL`·`_BACKBONE`·`_EMBED`·`CROSSCHECK` |
-| **`WEB_POSTURE_REQUESTED`** | 네이티브는 옮겼고 웹에 **요청만** 해둔 값 | `_FAILOVER` = `none` (콘솔 대기) |
+| `WEB_POSTURE` | 웹에서 **읽은** 값. 네이티브가 따라야 한다 | `_LLM`·`_CHAT`·`_MULTIMODAL`·`_BACKBONE`·`_EMBED`·`CROSSCHECK`·**`_FAILOVER`**(12:33 승격) |
+| **`WEB_POSTURE_REQUESTED`** | 네이티브는 옮겼고 웹에 **요청만** 해둔 값 | (비어 있음 — `_FAILOVER` 가 한 시간 머물다 승격됐다. 칸은 남긴다) |
 | `INTENDED_DIFFERENCES` | 일부러 다른 값 | `_SAFETY` (양쪽 다 gemini, 기능 자체가 off) |
 
 세 번째 칸이 없을 때의 유일한 대안은 아직 확인 못 한 값을 `WEB_POSTURE`(=측정값)에
