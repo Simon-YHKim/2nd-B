@@ -3443,7 +3443,7 @@ async function screenshotConfirmsPaintedText(page, paintedHandle, targetHandle, 
       const textNodes = [];
       const collect = (node) => {
         for (const child of node.childNodes ?? []) {
-          if (child.nodeType === 3 && child.textContent?.trim()) textNodes.push(child);
+          if (child.nodeType === 3 && child.textContent?.length) textNodes.push(child);
           else if (child.nodeType === 1) collect(child);
         }
       };
@@ -3648,28 +3648,82 @@ async function screenshotConfirmsPaintedText(page, paintedHandle, targetHandle, 
       context.textAlign = 'left';
       context.textBaseline = 'alphabetic';
       const normalizedText = normalize(text);
-      if (textNodes.length !== 1 || normalize(textNodes[0].textContent) !== normalizedText) {
+      if (
+        textNodes.length === 0 ||
+        textNodes.some((node) => node.parentElement !== paintedElement)
+      ) {
         return null;
       }
-      const rawText = String(textNodes[0].textContent ?? '');
-      let rawOffset = rawText.indexOf(normalizedText);
-      if (rawOffset < 0) return null;
+      const rawSegments = [];
+      let rawText = '';
+      for (const node of textNodes) {
+        const value = String(node.textContent ?? '');
+        rawSegments.push({ end: rawText.length + value.length, node, start: rawText.length });
+        rawText += value;
+      }
+      const startBoundary = (offset) => {
+        const segment = rawSegments.find(({ end, start }) => offset >= start && offset < end);
+        if (segment) return { node: segment.node, offset: offset - segment.start };
+        const next = rawSegments.find(({ start }) => start === offset);
+        if (next) return { node: next.node, offset: 0 };
+        const last = rawSegments.at(-1);
+        return last && offset === rawText.length
+          ? { node: last.node, offset: last.end - last.start }
+          : null;
+      };
+      const endBoundary = (offset) => {
+        const segment = [...rawSegments]
+          .reverse()
+          .find(({ end, start }) => offset > start && offset <= end);
+        if (segment) return { node: segment.node, offset: offset - segment.start };
+        const first = rawSegments[0];
+        return first && offset === 0 ? { node: first.node, offset: 0 } : null;
+      };
+      const normalizedCharacters = [];
+      const ignoredCharacter = /[\u2060\u200B\u200C\u200D\uFEFF]/;
+      for (let offset = 0; offset < rawText.length; ) {
+        const character = String.fromCodePoint(rawText.codePointAt(offset));
+        const end = offset + character.length;
+        if (ignoredCharacter.test(character)) {
+          offset = end;
+          continue;
+        }
+        if (/\s/.test(character)) {
+          let runEnd = end;
+          while (runEnd < rawText.length) {
+            const next = String.fromCodePoint(rawText.codePointAt(runEnd));
+            if (!/\s/.test(next) && !ignoredCharacter.test(next)) break;
+            runEnd += next.length;
+          }
+          normalizedCharacters.push({ character: ' ', end: runEnd, start: offset });
+          offset = runEnd;
+          continue;
+        }
+        normalizedCharacters.push({ character, end, start: offset });
+        offset = end;
+      }
+      while (normalizedCharacters[0]?.character === ' ') normalizedCharacters.shift();
+      while (normalizedCharacters.at(-1)?.character === ' ') normalizedCharacters.pop();
+      if (normalizedCharacters.map(({ character }) => character).join('') !== normalizedText) {
+        return null;
+      }
       const glyphBounds = [];
-      for (const character of [...normalizedText]) {
+      for (const { character, end, start } of normalizedCharacters) {
+        if (/\s/.test(character)) continue;
+        const rangeStart = startBoundary(start);
+        const rangeEnd = endBoundary(end);
+        if (!rangeStart || !rangeEnd) return null;
         const characterRange = document.createRange();
         try {
-          characterRange.setStart(textNodes[0], rawOffset);
-          rawOffset += character.length;
-          characterRange.setEnd(textNodes[0], rawOffset);
+          characterRange.setStart(rangeStart.node, rangeStart.offset);
+          characterRange.setEnd(rangeEnd.node, rangeEnd.offset);
           const characterRect = characterRange.getBoundingClientRect();
-          if (!/\s/.test(character)) {
-            if (characterRect.width < 1 || characterRect.height < 1) return null;
-            glyphBounds.push({
-              character,
-              end: characterRect.right - clip.x,
-              start: characterRect.left - clip.x,
-            });
-          }
+          if (characterRect.width < 1 || characterRect.height < 1) return null;
+          glyphBounds.push({
+            character,
+            end: characterRect.right - clip.x,
+            start: characterRect.left - clip.x,
+          });
         } finally {
           characterRange.detach?.();
         }
@@ -4599,7 +4653,7 @@ async function exactRenderedRoleTarget(page, effect) {
           const textNodes = [];
           const collectTextNodes = (node) => {
             for (const child of node.childNodes ?? []) {
-              if (child.nodeType === 3 && child.textContent?.trim()) textNodes.push(child);
+              if (child.nodeType === 3 && child.textContent?.length) textNodes.push(child);
               else if (child.nodeType === 1) collectTextNodes(child);
             }
           };
@@ -5139,12 +5193,13 @@ async function exactRenderedRoleTarget(page, effect) {
                 const rects = [...range.getClientRects()].filter(
                   (rect) => rect.width >= 1 && rect.height >= 1,
                 );
-                const expectedGlyphCount = [...normalizeText(expectedText)].filter(
+                const expectedNodeGlyphCount = [...normalizeText(node.textContent)].filter(
                   (character) => !/\s/.test(character),
                 ).length;
                 if (
                   rects.some((rect) => rect.height < 8) ||
-                  rects.reduce((total, rect) => total + rect.width, 0) < expectedGlyphCount * 2
+                  rects.reduce((total, rect) => total + rect.width, 0) <
+                    expectedNodeGlyphCount * 2
                 ) {
                   return false;
                 }

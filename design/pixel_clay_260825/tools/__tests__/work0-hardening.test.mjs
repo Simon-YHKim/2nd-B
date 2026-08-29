@@ -2339,6 +2339,119 @@ test('Chromium rejects offscreen-indent and same-paint post-navigation labels', 
     `);
     assert.equal(await exactNavigationEffectPassed(page, { effect }), true);
 
+    await page.setContent(`
+      <button aria-label="domain:career 해시태그 제거"
+        style="width:160px;height:40px;background:#111;color:#fff;font-family:Arial">
+        <span>#domain:career</span>
+      </button>
+    `);
+    await page.locator('span').evaluate((span) => {
+      span.replaceChildren(
+        document.createTextNode('#'),
+        document.createTextNode('domain:career'),
+      );
+    });
+    assert.equal(
+      await exactNavigationEffectPassed(page, { effect }),
+      true,
+      'adjacent text nodes must be evaluated as one painted label',
+    );
+    await page.locator('span').evaluate((span) => {
+      const range = document.createRange();
+      range.selectNodeContents(span);
+      const rect = range.getBoundingClientRect();
+      range.detach?.();
+      const style = getComputedStyle(span);
+      const overlay = document.createElement('i');
+      overlay.textContent = '#domain:careef';
+      overlay.style.cssText = [
+        'position:fixed',
+        `left:${rect.left}px`,
+        `top:${rect.top}px`,
+        `min-width:${rect.width}px`,
+        `height:${rect.height}px`,
+        'z-index:10',
+        'pointer-events:none',
+        'white-space:nowrap',
+        'background:#111',
+        `color:${style.color}`,
+        `font:${style.font}`,
+        `line-height:${style.lineHeight}`,
+      ].join(';');
+      document.body.append(overlay);
+    });
+    assert.equal(
+      await exactNavigationEffectPassed(page, { effect }),
+      false,
+      'split-node evidence must still reject a wrong-glyph overlay',
+    );
+
+    for (const boundaryCase of [
+      {
+        label: 'whitespace-only sibling',
+        parts: ['hello', ' ', 'world'],
+        replacement: 'hello worle',
+        text: 'hello world',
+      },
+      {
+        label: 'collapsed whitespace boundary',
+        parts: ['hello  ', 'world'],
+        replacement: 'hello worle',
+        text: 'hello world',
+      },
+      {
+        label: 'UTF-16 surrogate boundary',
+        parts: ['A\uD83D', '\uDE00B'],
+        replacement: 'A😁B',
+        text: 'A😀B',
+      },
+    ]) {
+      await page.setContent(`
+        <button aria-label="domain:career 해시태그 제거"
+          style="width:220px;height:60px;background:#070b14;color:rgb(105,228,255);font-family:Arial;font-size:16px">
+          <span></span>
+        </button>
+      `);
+      await page.locator('span').evaluate((span, parts) => {
+        span.replaceChildren(...parts.map((part) => document.createTextNode(part)));
+      }, boundaryCase.parts);
+      const boundaryEffect = { ...effect, text: boundaryCase.text };
+      assert.equal(
+        await exactNavigationEffectPassed(page, { effect: boundaryEffect }),
+        true,
+        `${boundaryCase.label} must preserve the exact painted label`,
+      );
+      await page.locator('span').evaluate((span, replacement) => {
+        const range = document.createRange();
+        range.selectNodeContents(span);
+        const rect = range.getBoundingClientRect();
+        range.detach?.();
+        const style = getComputedStyle(span);
+        const overlay = document.createElement('i');
+        overlay.textContent = replacement;
+        overlay.style.cssText = [
+          'position:fixed',
+          `left:${rect.left}px`,
+          `top:${rect.top}px`,
+          `min-width:${rect.width}px`,
+          `height:${rect.height}px`,
+          'z-index:10',
+          'pointer-events:none',
+          'white-space:nowrap',
+          'background:#070b14',
+          `color:${style.color}`,
+          `font:${style.font}`,
+          `line-height:${style.lineHeight}`,
+        ].join(';');
+        document.body.append(overlay);
+      }, boundaryCase.replacement);
+      assert.equal(
+        await exactNavigationEffectPassed(page, { effect: boundaryEffect }),
+        false,
+        `${boundaryCase.label} must reject a wrong-glyph overlay`,
+      );
+    }
+
     for (const color of [
       'rgb(105,228,255)',
       'rgb(138,125,255)',
