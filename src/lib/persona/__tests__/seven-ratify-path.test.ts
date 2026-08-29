@@ -59,6 +59,7 @@ const ROOT = join(__dirname, "..", "..", "..", "..");
 const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8").replace(/\r\n/g, "\n");
 
 const SCREEN = read("src/screens/deepspace/DeepSpaceDesignScreens.tsx");
+const LEGACY_SCREEN = read("src/app/review.tsx");
 const SHEET = read("src/components/persona/RatifySheet.tsx");
 
 describe("프롬프트가 시기 별을 시기 별이라고 부른다", () => {
@@ -178,6 +179,68 @@ describe("동시 비준 gate", () => {
       started: true,
       value: "retried",
     });
+  });
+  it("작업이 실패해도 gate를 풀어 같은 제안을 다시 저장할 수 있다", async () => {
+    const { runRatifyDecisionOnce } = jest.requireActual(
+      "@/components/persona/RatifySheet",
+    ) as {
+      runRatifyDecisionOnce: <T>(
+        ref: { current: boolean },
+        operation: () => Promise<T>,
+      ) => Promise<{ started: false } | { started: true; value: T }>;
+    };
+    const ref = { current: false };
+
+    await expect(
+      runRatifyDecisionOnce(ref, async () => {
+        throw new Error("offline");
+      }),
+    ).rejects.toThrow("offline");
+    expect(ref.current).toBe(false);
+    await expect(runRatifyDecisionOnce(ref, async () => false)).resolves.toEqual({
+      started: true,
+      value: false,
+    });
+  });
+});
+
+describe("legacy /review 비준 결과", () => {
+  it("writer가 실제 저장한 뒤에만 성공 처리하고 실패하면 제안을 보존한다", () => {
+    expect(LEGACY_SCREEN).toContain("await runRatifyDecisionOnce(ratifyPendingRef");
+    expect(LEGACY_SCREEN).toContain("persisted = await recordStarTiers");
+    expect(LEGACY_SCREEN).toMatch(
+      /if \(persisted\) \{[\s\S]{0,240}?setProposal\(null\)[\s\S]{0,240}?reactExpression\("wink"\)/,
+    );
+    expect(LEGACY_SCREEN).toMatch(
+      /setResult\(\s*persisted\s*\?\s*copy\.ratified\(r\.resultingLevel\)\s*:\s*copy\.saveFailed/,
+    );
+  });
+
+  it("pending 동안 중복 생성·재열기·sheet 닫기를 막는다", () => {
+    expect(LEGACY_SCREEN).toContain("const ratifyPendingRef = useRef(false)");
+    expect(LEGACY_SCREEN).toContain(
+      "if (!userId || isMinor === null || loading || proposal !== null || ratifyPendingRef.current) return;",
+    );
+    expect(LEGACY_SCREEN).toContain("disabled={loading || ratifyPending || proposal !== null || isMinor === null}");
+    expect(LEGACY_SCREEN).toContain("proposal !== null && !sheetOpen && !loading && !ratifyPending");
+    expect(LEGACY_SCREEN).toContain("pending={ratifyPending}");
+    expect(LEGACY_SCREEN).toContain("pendingLabel={copy.saving}");
+    expect(LEGACY_SCREEN).toContain("if (!ratifyPendingRef.current) setSheetOpen(false)");
+  });
+
+  it("보존된 제안을 새 생성으로 덮지 않고 새 근거도 제안 성공 뒤에만 묶는다", () => {
+    expect(LEGACY_SCREEN).toMatch(
+      /const nextEvidenceRefs = ctx\.evidenceRefs;[\s\S]{0,520}?if \(p\) \{\s+setEvidenceRefs\(nextEvidenceRefs\);\s+setProposal\(p\)/,
+    );
+  });
+
+  it("사용자나 연령 안전 프로필이 바뀌면 legacy 제안 session을 새로 연다", () => {
+    expect(LEGACY_SCREEN).toContain(
+      'const sessionKey = `${userId ?? "signed-out"}:${isMinor === null ? "pending" : isMinor ? "minor" : "adult"}`;',
+    );
+    expect(LEGACY_SCREEN).toContain(
+      "<ReviewScreenLegacySession key={sessionKey} userId={userId} isMinor={isMinor} />",
+    );
   });
 });
 

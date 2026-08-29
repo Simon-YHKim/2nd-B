@@ -1939,6 +1939,11 @@ test('review unsafe actions declare exact role locators and expected effects wit
   assert.equal(Object.hasOwn(rawReview, 'evidence'), false);
   assert.equal(Object.hasOwn(rawReview, 'manualEvidence'), false);
   const review = normalizeNavigationContract(rawReview, 'http://localhost:8977');
+  assert.equal(
+    review.items.find((item) => item.label === '별자리')?.to,
+    '/',
+    'Review 별자리 탭은 production home redirect 뒤의 실제 route를 선언해야 한다',
+  );
   assert.deepEqual(
     review.items
       .filter((item) => item.safe === false)
