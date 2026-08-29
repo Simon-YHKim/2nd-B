@@ -68,6 +68,7 @@ import {
   instrumentLabel,
   isMeasuredSource,
   loadPersonaRatifiableSignals,
+  loadPersonaSnapshot,
   personaSummarySig,
   traitConfidenceFor,
   type AuditResponseRow,
@@ -219,6 +220,150 @@ describe("loadPersonaRatifiableSignals", () => {
     ).toHaveLength(2);
     expect(actions).toContain("buildPersona(userId, locale, isMinor === true)");
     expect(actions.match(/disabled=\{loading \|\| isMinor === null\}/g)).toHaveLength(2);
+  });
+});
+
+describe("Core Brain read-only mount", () => {
+  beforeEach(reset);
+
+  test("keeps legacy persisted provenance conservative even when latest IPIP values match", async () => {
+    tableFixtures["personas:select"] = {
+      data: [
+        {
+          version: 1,
+          traits: {
+            openness: 1,
+            conscientiousness: 0.75,
+            extraversion: 0.5,
+            agreeableness: 0.25,
+            neuroticism: 0,
+          },
+          values: [AUDIT_QUESTIONS[0].framework],
+          patterns: { summary: "saved summary" },
+          markdown_export: "saved export",
+        },
+      ],
+      error: null,
+    };
+    tableFixtures["records:select"] = {
+      data: [
+        {
+          id: "evidence-1",
+          prompt: AUDIT_QUESTIONS[0].prompt.en,
+          body: JSON.stringify({
+            domains: {
+              openness: 5,
+              conscientiousness: 4,
+              extraversion: 3,
+              agreeableness: 2,
+              neuroticism: 1,
+            },
+          }),
+          created_at: "2026-08-29T00:00:00Z",
+          tags: [],
+        },
+      ],
+      error: null,
+    };
+
+    const snapshot = await loadPersonaSnapshot("u1");
+
+    expect(snapshot).not.toBeNull();
+    if (!snapshot) throw new Error("expected persisted persona snapshot");
+    expect(snapshot.traitsSource).toBe("heuristic");
+    expect(snapshot.traitConfidence?.openness).toEqual({
+      source: "default",
+      confidence: "low",
+      observationCount: 0,
+    });
+    expect(snapshot.traits.openness).toBe(1);
+    expect(snapshot.values).toContain(AUDIT_QUESTIONS[0].framework);
+    expect(snapshot.patterns.summary).toBe("saved summary");
+    expect(snapshot.markdownExport).toBe("saved export");
+    expect(selectCalls).toContainEqual({
+      table: "personas",
+      columns: "version, traits, values, patterns, markdown_export",
+    });
+    expect(callLlm).not.toHaveBeenCalled();
+    expect(upsertCalls).toEqual([]);
+  });
+
+  test("does not synthesize a persona when no persisted snapshot exists", async () => {
+    tableFixtures["records:select"] = {
+      data: [
+        {
+          id: "new-evidence",
+          prompt: AUDIT_QUESTIONS[0].prompt.en,
+          body: "new evidence that has not been rebuilt yet",
+          created_at: "2026-08-29T00:00:00Z",
+          tags: [],
+        },
+      ],
+      error: null,
+    };
+
+    await expect(loadPersonaSnapshot("u1")).resolves.toBeNull();
+    expect(callLlm).not.toHaveBeenCalled();
+    expect(upsertCalls).toEqual([]);
+  });
+
+  test("keeps persisted traits when newer evidence has not been explicitly rebuilt", async () => {
+    tableFixtures["personas:select"] = {
+      data: [
+        {
+          version: 1,
+          traits: {
+            openness: 0.2,
+            conscientiousness: 0.2,
+            extraversion: 0.2,
+            agreeableness: 0.2,
+            neuroticism: 0.2,
+          },
+          values: [],
+          patterns: {},
+          markdown_export: "",
+        },
+      ],
+      error: null,
+    };
+    tableFixtures["records:select"] = {
+      data: [
+        {
+          body: JSON.stringify({
+            domains: {
+              openness: 5,
+              conscientiousness: 4,
+              extraversion: 3,
+              agreeableness: 2,
+              neuroticism: 1,
+            },
+          }),
+          created_at: "2026-08-29T00:00:00Z",
+        },
+      ],
+      error: null,
+    };
+
+    const snapshot = await loadPersonaSnapshot("u1");
+
+    expect(snapshot?.traits.openness).toBe(0.2);
+    expect(snapshot?.traitsSource).toBe("heuristic");
+    expect(callLlm).not.toHaveBeenCalled();
+    expect(upsertCalls).toEqual([]);
+  });
+
+  test("loads a SELECT-only persona snapshot instead of rebuilding on mount", () => {
+    const root = join(__dirname, "..", "..", "..", "..");
+    const source = readFileSync(join(root, "src/app/core-brain.tsx"), "utf8");
+    const mountStart = source.indexOf("useEffect(() => {");
+    const focusRefreshStart = source.indexOf("useFocusRefetch(", mountStart);
+    const mount = source.slice(mountStart, focusRefreshStart);
+
+    expect(mountStart).toBeGreaterThan(-1);
+    expect(focusRefreshStart).toBeGreaterThan(mountStart);
+    expect(mount).toContain("loadPersonaSnapshot(userId)");
+    expect(mount).not.toContain("buildPersona(");
+    expect(mount).not.toMatch(/\.(?:insert|update|upsert|delete)\(/);
   });
 });
 
