@@ -1248,6 +1248,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                     ]}
                     accessibilityRole="button"
                     accessibilityState={{ selected: on, disabled: locked }}
+                    aria-pressed={on}
                     accessibilityLabel={
                       locked
                         ? `${rev2PersonaLensName(id, locale)} · ${t("rev2.lockedA11y", { plan: lockPlan })}`
@@ -1275,6 +1276,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                 ]}
                 accessibilityRole="button"
                 accessibilityState={{ selected: chatMode === "analytic" }}
+                aria-pressed={chatMode === "analytic"}
                 accessibilityLabel={t("analysisMode")}
               >
                 <Text style={[ds.lensName, { color: chatMode === "analytic" ? lensOnSoft : m3.color.onSurfaceVariant }]}>
@@ -1290,6 +1292,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                 ]}
                 accessibilityRole="button"
                 accessibilityState={{ selected: chatMode === "divergent" }}
+                aria-pressed={chatMode === "divergent"}
                 accessibilityLabel={t("newAngleMode")}
               >
                 <Text style={[ds.lensName, { color: chatMode === "divergent" ? lensOnSoft : m3.color.onSurfaceVariant }]}>
@@ -1559,6 +1562,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
               style={[styles.modeChip, chatMode === "analytic" ? styles.modeChipAnalytic : null]}
             accessibilityRole="button"
             accessibilityState={{ selected: chatMode === "analytic" }}
+            aria-pressed={chatMode === "analytic"}
             accessibilityLabel={t("analysisMode")}
           >
             <Text variant="caption" color={chatMode === "analytic" ? "background" : "textMuted"}>
@@ -1570,6 +1574,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
               style={[styles.modeChip, chatMode === "divergent" ? styles.modeChipDivergent : null]}
             accessibilityRole="button"
             accessibilityState={{ selected: chatMode === "divergent" }}
+            aria-pressed={chatMode === "divergent"}
             accessibilityLabel={t("newAngleMode")}
           >
             <Text variant="caption" color={chatMode === "divergent" ? "text" : "textMuted"}>

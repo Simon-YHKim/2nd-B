@@ -48,6 +48,7 @@ export function MdNavBar({ items, active, onSelect, bottomInset = 0, style }: Md
               onPress={() => onSelect(item.key)}
               accessibilityRole="tab"
               accessibilityState={{ selected: on }}
+              aria-selected={on}
               accessibilityLabel={item.accessibilityLabel ?? item.label}
               android_ripple={{ color: m3.color.secondaryContainer, borderless: true }}
               style={styles.press}

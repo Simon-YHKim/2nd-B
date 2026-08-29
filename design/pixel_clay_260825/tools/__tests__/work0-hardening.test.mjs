@@ -1520,6 +1520,16 @@ test('D v2 schema is fail-closed for fuzzy, duplicate, unsafe, and incomplete de
       version: 2,
       items: [
         {
+          label: '프로필',
+          kind: 'action',
+          effect: { type: 'selected', value: false },
+        },
+      ],
+    },
+    {
+      version: 2,
+      items: [
+        {
           label: '지금',
           kind: 'action',
           safe: null,
@@ -4660,6 +4670,100 @@ test('post-navigation occurrence is counted after rendered role binding', async 
   assert.deepEqual(calls, ['transparent', 'painted']);
 });
 
+test('selected effects use the role-specific ARIA state and fail closed for other roles', async () => {
+  const { exactNavigationEffectPassed } = await contract();
+  const collection = (entries) => ({
+    async count() {
+      return entries.length;
+    },
+    nth(index) {
+      return entries[index];
+    },
+  });
+  const selected = async ({ role, name, label, attributes }) => {
+    const paintedHandle = { async dispose() {} };
+    const target = {
+      async isVisible() {
+        return true;
+      },
+      async evaluate() {
+        return true;
+      },
+      async getAttribute(attribute) {
+        return attributes[attribute] ?? null;
+      },
+    };
+    const painted = {
+      async isVisible() {
+        return true;
+      },
+      async elementHandle() {
+        return paintedHandle;
+      },
+    };
+    const page = {
+      getByRole(actualRole, options) {
+        assert.deepEqual([actualRole, options], [role, { name, exact: true }]);
+        return collection([target]);
+      },
+      getByText(actualLabel, options) {
+        assert.deepEqual([actualLabel, options], [label, { exact: true }]);
+        return collection([painted]);
+      },
+    };
+    return exactNavigationEffectPassed(page, {
+      label,
+      occurrence: 1,
+      locator: { strategy: 'role', role, name },
+      effect: { type: 'selected', value: true },
+    });
+  };
+
+  assert.equal(
+    await selected({
+      role: 'button',
+      name: '세컨비 · 공감',
+      label: '2nd-B',
+      attributes: { 'aria-pressed': 'true' },
+    }),
+    true,
+    'buttons expose selection through aria-pressed',
+  );
+  assert.equal(
+    await selected({
+      role: 'button',
+      name: '세컨비 · 공감',
+      label: '2nd-B',
+      attributes: { 'aria-selected': 'true' },
+    }),
+    false,
+    'aria-selected is not valid selected-state evidence for a button',
+  );
+  assert.equal(
+    await selected({
+      role: 'tab',
+      name: '세컨비',
+      label: '세컨비',
+      attributes: { 'aria-selected': 'true' },
+    }),
+    true,
+    'tabs expose selection through aria-selected',
+  );
+  assert.equal(
+    await exactNavigationEffectPassed(
+      {},
+      {
+        label: '세컨비',
+        occurrence: 1,
+        locator: { strategy: 'role', role: 'link', name: '세컨비' },
+        effect: { type: 'selected', value: true },
+      },
+    ),
+    false,
+    'unsupported roles fail closed',
+  );
+});
+
 test('post-navigation orchestration rechecks reveal, health, route, mutation, and final effect', async () => {
   const { createShotHealth, recordShotFailure, verifyPostNavigationEffect } = await contract();
   const baseUrl = 'http://localhost:8977';
@@ -5277,9 +5381,13 @@ test('B token ramp derives typed composite and stacked-alpha colors with exact 8
   const actualTokens = JSON.parse(
     readFileSync(path.join(REPO, 'design/pixel_clay_260825/data/tokens.json'), 'utf8'),
   );
-  const actualRamp = tokenRamp(actualTokens, 'star', ['star', 'home']);
+  const actualRamp = tokenRamp(actualTokens, 'star', ['chat', 'home', 'star']);
   assert.equal(actualRamp.has('#202939'), true);
   assert.equal(actualRamp.has('#202243'), true);
+  const actualChatRamp = tokenRamp(actualTokens, 'chat', ['chat', 'home', 'star']);
+  const actualHomeRamp = tokenRamp(actualTokens, 'home', ['chat', 'home', 'star']);
+  assert.equal(actualChatRamp.has('#23223c'), true, 'chat persona composite');
+  assert.equal(actualHomeRamp.has('#23223c'), false, 'chat composite cannot leak to home');
 
   const rejects = [
     { label: 'raw array', value: { ...tokens, derivedRamp: ['#202939'] } },
