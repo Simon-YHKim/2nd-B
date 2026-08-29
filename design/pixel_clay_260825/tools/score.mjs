@@ -3480,8 +3480,33 @@ async function screenshotConfirmsPaintedText(page, paintedHandle, targetHandle, 
       let compositorElement = targetElement;
       const roleTargetStyle = getComputedStyle(targetElement);
       let compositorStyle = roleTargetStyle;
+      let neutral3DScrollElement = null;
+      let neutral3DScrollStyle = null;
+      let neutral3DScrollTransform = null;
       for (let current = targetElement; current; current = current.parentElement) {
         const currentStyle = getComputedStyle(current);
+        let typedTransform = '';
+        try {
+          typedTransform = String(current.computedStyleMap?.().get('transform') ?? '').trim();
+        } catch {
+          typedTransform = '';
+        }
+        const neutral3DScrollLayer =
+          !neutral3DScrollElement &&
+          /^translate3d\(\s*0(?:px)?\s*,\s*0(?:px)?\s*,\s*0(?:px)?\s*\)$/i.test(
+            typedTransform,
+          ) &&
+          /^matrix\(\s*1\s*,\s*0\s*,\s*0\s*,\s*1\s*,\s*0\s*,\s*0\s*\)$/i.test(
+            String(currentStyle.transform || '').trim(),
+          ) &&
+          /^(?:auto|scroll)$/.test(currentStyle.overflowY) &&
+          current.scrollHeight > current.clientHeight &&
+          current.scrollTop !== 0;
+        if (neutral3DScrollLayer) {
+          neutral3DScrollElement = current;
+          neutral3DScrollStyle = currentStyle;
+          neutral3DScrollTransform = typedTransform;
+        }
         const neutralFilterLayer = /^opacity\(\s*(?:1|100%)\s*\)$/i.test(
           String(currentStyle.filter || '').trim(),
         );
@@ -3610,6 +3635,7 @@ async function screenshotConfirmsPaintedText(page, paintedHandle, targetHandle, 
       }
       const guard = 3;
       const targetRect = targetElement.getBoundingClientRect();
+      const neutral3DScrollRect = neutral3DScrollElement?.getBoundingClientRect?.() ?? null;
       const compositorRect = nestedPaintedLayer
         ? paintedElement.getBoundingClientRect()
         : paintedLayerProxy
@@ -3791,6 +3817,30 @@ async function screenshotConfirmsPaintedText(page, paintedHandle, targetHandle, 
         fontFaces,
         foreground,
         glyphs: [...normalize(text)].filter((character) => !/\s/.test(character)).length,
+        neutral3DScrollTarget:
+          neutral3DScrollRect &&
+          neutral3DScrollStyle &&
+          neutral3DScrollTransform &&
+          neutral3DScrollRect.width >= 1 &&
+          neutral3DScrollRect.height >= 1
+            ? {
+                targetBackground: neutral3DScrollStyle.backgroundColor,
+                targetFilter: neutral3DScrollStyle.filter,
+                targetHeight: neutral3DScrollRect.height,
+                targetIsolation: neutral3DScrollStyle.isolation,
+                targetLeft: neutral3DScrollRect.left,
+                targetTop: neutral3DScrollRect.top,
+                targetTransform: neutral3DScrollTransform,
+                targetTransparent: ['rgba(0, 0, 0, 0)', 'transparent'].includes(
+                  String(neutral3DScrollStyle.backgroundColor || '')
+                    .trim()
+                    .toLowerCase(),
+                ),
+                targetWidth: neutral3DScrollRect.width,
+                targetWillChange:
+                  String(neutral3DScrollStyle.willChange || 'auto').trim() || 'auto',
+              }
+            : null,
         drawing: {
           filter: style.filter,
           font: context.font,
@@ -3809,11 +3859,13 @@ async function screenshotConfirmsPaintedText(page, paintedHandle, targetHandle, 
           text: normalizedText,
           textRendering: style.textRendering,
           top: top - clip.y,
+          targetBackground: null,
           targetHeight: compositorRect.height,
           targetFilter: paintedLayerProxy ? 'none' : compositorStyle.filter,
           targetLeft: compositorRect.left,
           targetIsolation: paintedLayerProxy ? style.isolation : compositorStyle.isolation,
           targetTop: compositorRect.top,
+          targetTransform: 'none',
           targetTransparent: nestedPaintedLayer,
           targetWillChange: paintedLayerProxy ? style.willChange : compositorStyle.willChange,
           targetWidth: compositorRect.width,
@@ -3891,140 +3943,152 @@ async function screenshotConfirmsPaintedText(page, paintedHandle, targetHandle, 
     };
     const browserContext = typeof page.context === 'function' ? page.context() : null;
     if (typeof browserContext?.newPage !== 'function') return false;
-    let expectedPage = null;
-    let expectedPng;
-    try {
-      expectedPage = await browserContext.newPage();
-      const sourceViewport = typeof page.viewportSize === 'function' ? page.viewportSize() : null;
-      await expectedPage.setViewportSize(
-        sourceViewport ?? {
-          width: evidence.clip.x + evidence.clip.width,
-          height: evidence.clip.y + evidence.clip.height,
-        },
-      );
-      await expectedPage.setContent('<!doctype html><html><body></body></html>');
-      const rendered = await expectedPage.evaluate(async (payload) => {
-        const { background, baseHref, clip, drawing, fontFaceRules, foreground } = payload;
-        document.documentElement.style.cssText = 'margin:0;padding:0;overflow:hidden';
-        const base = document.createElement('base');
-        base.href = baseHref;
-        document.head.append(base);
-        if (fontFaceRules.length > 0) {
-          const fontStyles = document.createElement('style');
-          fontStyles.textContent = fontFaceRules.join('\n');
-          document.head.append(fontStyles);
-        }
-        document.body.style.cssText = [
-          'margin:0',
-          'padding:0',
-          'overflow:hidden',
-          `background:rgb(${background.join(',')})`,
-        ].join(';');
-        const usesTargetLayer =
-          drawing.targetFilter !== 'none' ||
-          drawing.targetIsolation === 'isolate' ||
-          drawing.targetWillChange !== 'auto';
-        const targetLayer = document.createElement('div');
-        Object.assign(targetLayer.style, {
-          background: drawing.targetTransparent
-            ? 'transparent'
-            : `rgb(${background.join(',')})`,
-          border: '0',
-          filter: drawing.targetFilter,
-          height: `${drawing.targetHeight}px`,
-          isolation: drawing.targetIsolation,
-          left: `${drawing.targetLeft}px`,
-          margin: '0',
-          padding: '0',
-          pointerEvents: 'none',
-          position: 'absolute',
-          top: `${drawing.targetTop}px`,
-          width: `${drawing.targetWidth}px`,
-          willChange: drawing.targetWillChange,
-        });
-        const span = document.createElement('span');
-        span.textContent = drawing.text;
-        Object.assign(span.style, {
-          border: '0',
-          color: `rgb(${foreground.join(',')})`,
-          direction: 'ltr',
-          display: 'inline-block',
-          filter: drawing.filter,
-          fontFamily: drawing.fontFamily,
-          fontKerning: drawing.fontKerning,
-          fontSize: drawing.fontSize,
-          fontStretch: drawing.fontStretch,
-          fontStyle: drawing.fontStyle,
-          fontVariant: drawing.fontVariant,
-          fontVariantCaps: drawing.fontVariantCaps,
-          fontWeight: drawing.fontWeight,
-          left: '0px',
-          letterSpacing: drawing.letterSpacing,
-          lineHeight: drawing.lineHeight,
-          margin: '0',
-          padding: '0',
-          position: 'absolute',
-          textRendering: drawing.textRendering,
-          top: '0px',
-          whiteSpace: 'pre',
-          wordSpacing: drawing.wordSpacing,
-        });
-        if (usesTargetLayer) {
-          targetLayer.append(span);
-          document.body.append(targetLayer);
-        } else {
-          document.body.append(span);
-        }
-        await document.fonts?.load?.(drawing.font, drawing.text);
-        await document.fonts?.ready;
-        if (fontFaceRules.length > 0 && !document.fonts?.check?.(drawing.font, drawing.text)) {
-          return false;
-        }
-        const range = document.createRange();
-        try {
-          range.selectNodeContents(span);
-          const initial = range.getBoundingClientRect();
-          const expectedLeft = clip.x + drawing.left;
-          const expectedTop = clip.y + drawing.top;
-          span.style.left = `${expectedLeft - initial.left}px`;
-          span.style.top = `${expectedTop - initial.top}px`;
-          const aligned = range.getBoundingClientRect();
-          return (
-            Math.abs(aligned.left - expectedLeft) <= 0.1 &&
-            Math.abs(aligned.top - expectedTop) <= 0.1 &&
-            Math.abs(aligned.width - drawing.width) <= 0.5
-          );
-        } finally {
-          range.detach?.();
-        }
-      }, {
-        background,
-        baseHref: page.url(),
-        clip: evidence.clip,
-        drawing: evidence.drawing,
-        fontFaceRules: evidence.fontFaceRules,
-        foreground,
-      });
-      if (!rendered) return false;
-      const expectedScreenshot = await expectedPage.screenshot({
-        animations: 'allow',
-        caret: 'initial',
-        clip: evidence.clip,
-        scale: 'css',
-        type: 'png',
-      });
-      expectedPng = PNG.sync.read(expectedScreenshot);
-    } finally {
-      await expectedPage?.close().catch(() => {});
+    const expectedDrawings = [evidence.drawing];
+    if (evidence.neutral3DScrollTarget) {
+      expectedDrawings.push({ ...evidence.drawing, ...evidence.neutral3DScrollTarget });
     }
-    if (
-      !expectedPng ||
-      expectedPng.width !== evidence.clip.width ||
-      expectedPng.height !== evidence.clip.height
-    ) {
-      return false;
+    const renderExpectedPng = async (drawing) => {
+      let expectedPage = null;
+      try {
+        expectedPage = await browserContext.newPage();
+        const sourceViewport = typeof page.viewportSize === 'function' ? page.viewportSize() : null;
+        await expectedPage.setViewportSize(
+          sourceViewport ?? {
+            width: evidence.clip.x + evidence.clip.width,
+            height: evidence.clip.y + evidence.clip.height,
+          },
+        );
+        await expectedPage.setContent('<!doctype html><html><body></body></html>');
+        const rendered = await expectedPage.evaluate(async (payload) => {
+          const { background, baseHref, clip, drawing, fontFaceRules, foreground } = payload;
+          document.documentElement.style.cssText = 'margin:0;padding:0;overflow:hidden';
+          const base = document.createElement('base');
+          base.href = baseHref;
+          document.head.append(base);
+          if (fontFaceRules.length > 0) {
+            const fontStyles = document.createElement('style');
+            fontStyles.textContent = fontFaceRules.join('\n');
+            document.head.append(fontStyles);
+          }
+          document.body.style.cssText = [
+            'margin:0',
+            'padding:0',
+            'overflow:hidden',
+            `background:rgb(${background.join(',')})`,
+          ].join(';');
+          const usesTargetLayer =
+            drawing.targetFilter !== 'none' ||
+            drawing.targetIsolation === 'isolate' ||
+            drawing.targetTransform !== 'none' ||
+            drawing.targetWillChange !== 'auto';
+          const targetLayer = document.createElement('div');
+          Object.assign(targetLayer.style, {
+            background:
+              drawing.targetBackground ??
+              (drawing.targetTransparent ? 'transparent' : `rgb(${background.join(',')})`),
+            border: '0',
+            filter: drawing.targetFilter,
+            height: `${drawing.targetHeight}px`,
+            isolation: drawing.targetIsolation,
+            left: `${drawing.targetLeft}px`,
+            margin: '0',
+            padding: '0',
+            pointerEvents: 'none',
+            position: 'absolute',
+            top: `${drawing.targetTop}px`,
+            transform: drawing.targetTransform,
+            width: `${drawing.targetWidth}px`,
+            willChange: drawing.targetWillChange,
+          });
+          const span = document.createElement('span');
+          span.textContent = drawing.text;
+          Object.assign(span.style, {
+            border: '0',
+            color: `rgb(${foreground.join(',')})`,
+            direction: 'ltr',
+            display: 'inline-block',
+            filter: drawing.filter,
+            fontFamily: drawing.fontFamily,
+            fontKerning: drawing.fontKerning,
+            fontSize: drawing.fontSize,
+            fontStretch: drawing.fontStretch,
+            fontStyle: drawing.fontStyle,
+            fontVariant: drawing.fontVariant,
+            fontVariantCaps: drawing.fontVariantCaps,
+            fontWeight: drawing.fontWeight,
+            left: '0px',
+            letterSpacing: drawing.letterSpacing,
+            lineHeight: drawing.lineHeight,
+            margin: '0',
+            padding: '0',
+            position: 'absolute',
+            textRendering: drawing.textRendering,
+            top: '0px',
+            whiteSpace: 'pre',
+            wordSpacing: drawing.wordSpacing,
+          });
+          if (usesTargetLayer) {
+            targetLayer.append(span);
+            document.body.append(targetLayer);
+          } else {
+            document.body.append(span);
+          }
+          await document.fonts?.load?.(drawing.font, drawing.text);
+          await document.fonts?.ready;
+          if (fontFaceRules.length > 0 && !document.fonts?.check?.(drawing.font, drawing.text)) {
+            return false;
+          }
+          const range = document.createRange();
+          try {
+            range.selectNodeContents(span);
+            const initial = range.getBoundingClientRect();
+            const expectedLeft = clip.x + drawing.left;
+            const expectedTop = clip.y + drawing.top;
+            span.style.left = `${expectedLeft - initial.left}px`;
+            span.style.top = `${expectedTop - initial.top}px`;
+            const aligned = range.getBoundingClientRect();
+            return (
+              Math.abs(aligned.left - expectedLeft) <= 0.1 &&
+              Math.abs(aligned.top - expectedTop) <= 0.1 &&
+              Math.abs(aligned.width - drawing.width) <= 0.5
+            );
+          } finally {
+            range.detach?.();
+          }
+        }, {
+          background,
+          baseHref: page.url(),
+          clip: evidence.clip,
+          drawing,
+          fontFaceRules: evidence.fontFaceRules,
+          foreground,
+        });
+        if (!rendered) return null;
+        const expectedScreenshot = await expectedPage.screenshot({
+          animations: 'allow',
+          caret: 'initial',
+          clip: evidence.clip,
+          scale: 'css',
+          type: 'png',
+        });
+        return PNG.sync.read(expectedScreenshot);
+      } finally {
+        await expectedPage?.close().catch(() => {});
+      }
+    };
+    const expectedPngs = [];
+    for (let index = 0; index < expectedDrawings.length; index += 1) {
+      const expectedPng = await renderExpectedPng(expectedDrawings[index]);
+      if (
+        !expectedPng ||
+        expectedPng.width !== evidence.clip.width ||
+        expectedPng.height !== evidence.clip.height
+      ) {
+        if (index === 0) return false;
+        continue;
+      }
+      expectedPngs.push(expectedPng);
     }
-    const expectedCoverage = projectedCoverage(expectedPng);
     const screenshot = await page.screenshot({
       animations: 'allow',
       caret: 'initial',
@@ -4033,6 +4097,8 @@ async function screenshotConfirmsPaintedText(page, paintedHandle, targetHandle, 
       type: 'png',
     });
     const png = PNG.sync.read(screenshot);
+    const matchesExpectedPng = (expectedPng) => {
+      const expectedCoverage = projectedCoverage(expectedPng);
     const foregroundMask = new Uint8Array(png.width * png.height);
     const foregroundCoverage = projectedCoverage(png);
     let foregroundPixels = 0;
@@ -4335,13 +4401,15 @@ async function screenshotConfirmsPaintedText(page, paintedHandle, targetHandle, 
         }
       }
     }
-    return (
-      exactGlyphMatch &&
-      foregroundComponents >= 1 &&
-      foregroundComponents <= evidence.glyphs * 3 &&
-      columnVariation >= 0.2 &&
-      rowVariation >= 0.2
-    );
+      return (
+        exactGlyphMatch &&
+        foregroundComponents >= 1 &&
+        foregroundComponents <= evidence.glyphs * 3 &&
+        columnVariation >= 0.2 &&
+        rowVariation >= 0.2
+      );
+    };
+    return expectedPngs.some(matchesExpectedPng);
   } catch {
     return false;
   }
@@ -4365,7 +4433,7 @@ async function exactRenderedRoleTarget(page, effect) {
         paintedHandle = await painted.elementHandle();
         if (!paintedHandle) continue;
         targetMatched = await target.evaluate((targetElement, payload) => {
-          const { paintedElement, expectedText, skipDomPaintProbe } = payload;
+          const { paintedElement, expectedText } = payload;
           if (
             targetElement !== paintedElement &&
             !targetElement.contains(paintedElement)
@@ -4814,11 +4882,27 @@ async function exactRenderedRoleTarget(page, effect) {
             };
             const isProvablyBehindOwner = (candidate, owner) => {
               try {
-                if (
+                const candidateTopLayer =
                   candidate.closest?.(':popover-open, :modal') ||
-                  document.fullscreenElement?.contains(candidate)
-                ) {
-                  return false;
+                  (document.fullscreenElement?.contains(candidate)
+                    ? document.fullscreenElement
+                    : null);
+                const ownerTopLayer =
+                  owner.closest?.(':popover-open, :modal') ||
+                  (document.fullscreenElement?.contains(owner) ? document.fullscreenElement : null);
+                if (candidateTopLayer !== ownerTopLayer) {
+                  if (ownerTopLayer && !candidateTopLayer) return true;
+                  if (candidateTopLayer && !ownerTopLayer) return false;
+                  const paintOrder = document.elementsFromPoint(x, y);
+                  const ownerIndex = paintOrder.findIndex(
+                    (element) =>
+                      element === ownerTopLayer || ownerTopLayer?.contains?.(element),
+                  );
+                  const candidateIndex = paintOrder.findIndex(
+                    (element) =>
+                      element === candidateTopLayer || candidateTopLayer?.contains?.(element),
+                  );
+                  return ownerIndex >= 0 && candidateIndex > ownerIndex;
                 }
               } catch {
                 return false;
@@ -5232,8 +5316,7 @@ async function exactRenderedRoleTarget(page, effect) {
                   return points.every(([x, y]) => {
                     const topmost = document.elementsFromPoint(x, y)[0];
                     return Boolean(
-                      topmost === owner &&
-                        (skipDomPaintProbe || !pointerTransparentOccluderAt(owner, x, y)),
+                      topmost === owner && !pointerTransparentOccluderAt(owner, x, y),
                     );
                   });
                 });
@@ -5247,7 +5330,6 @@ async function exactRenderedRoleTarget(page, effect) {
         }, {
           paintedElement: paintedHandle,
           expectedText: effect.text ?? effect.name,
-          skipDomPaintProbe: typeof page.screenshot === 'function',
         });
         if (targetMatched) {
           const targetHandle =

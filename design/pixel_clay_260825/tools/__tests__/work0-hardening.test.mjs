@@ -4089,6 +4089,519 @@ test('Chromium rejects offscreen-indent and same-paint post-navigation labels', 
   }
 });
 
+test('top-layer provenance follows root order and inner stacking', async (context) => {
+  const { chromium } = await import('playwright-core');
+  const executablePath = chromium.executablePath();
+  if (!existsSync(executablePath)) {
+    context.skip('managed Chromium is unavailable');
+    return;
+  }
+  const { captureContextOptions, exactNavigationEffectPassed } = await contract();
+  const effect = {
+    type: 'visible',
+    role: 'button',
+    name: 'domain:career 해시태그 제거',
+    text: '#domain:career',
+    occurrence: 1,
+  };
+  const browser = await chromium.launch({ executablePath, headless: true });
+  try {
+    const browserContext = await browser.newContext(captureContextOptions());
+    const page = await browserContext.newPage();
+    const ownerButton = `
+      <button id="owner" aria-label="domain:career 해시태그 제거"
+        style="position:absolute;left:0;top:0;z-index:10;width:160px;height:40px;border:0;background:#111;color:#fff;font:16px Arial,sans-serif">
+        #domain:career
+      </button>
+    `;
+    const rootStyle =
+      'position:fixed;left:0;top:0;width:180px;height:50px;margin:0;padding:0;border:0;background:transparent';
+    const settle = () =>
+      page.evaluate(
+        () =>
+          new Promise((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+          ),
+      );
+    const topmostId = () =>
+      page.locator('#owner').evaluate((owner) => {
+        const rect = owner.getBoundingClientRect();
+        return document.elementsFromPoint(
+          rect.left + rect.width / 2,
+          rect.top + rect.height / 2,
+        )[0]?.id;
+      });
+
+    const innerBehindCases = [
+      {
+        label: 'shadow',
+        style:
+          'position:absolute;left:-100px;top:-100px;width:10px;height:10px;z-index:-1;pointer-events:none;box-shadow:0 0 0 500px #000',
+      },
+      {
+        label: 'filter',
+        style:
+          'position:absolute;inset:0;z-index:-1;pointer-events:none;background:#fff;filter:opacity(1)',
+      },
+      {
+        label: 'outline',
+        style:
+          'position:absolute;left:-100px;top:-100px;width:10px;height:10px;z-index:-1;pointer-events:none;outline:500px solid #000',
+      },
+    ];
+    for (const { label, style } of innerBehindCases) {
+      await page.setContent(`
+        <div id="root" popover="manual" style="${rootStyle}">
+          <i id="candidate" style="${style}"></i>
+          ${ownerButton}
+        </div>
+      `);
+      await page.locator('#root').evaluate((root) => root.showPopover());
+      await settle();
+      assert.equal(await topmostId(), 'owner', `${label} fixture must keep owner topmost`);
+      assert.equal(
+        await exactNavigationEffectPassed(page, { effect }),
+        true,
+        `${label} behind the owner in one top-layer root must preserve evidence`,
+      );
+    }
+
+    const loadDistinctRoots = async (showOrder) => {
+      await page.setContent(`
+        <div id="candidate-root" popover="manual" style="${rootStyle}">
+          <i id="candidate" style="position:absolute;left:-100px;top:-100px;width:10px;height:10px;pointer-events:none;box-shadow:0 0 0 500px #000"></i>
+        </div>
+        <div id="owner-root" popover="manual" style="${rootStyle}">${ownerButton}</div>
+      `);
+      await page.evaluate((order) => {
+        for (const id of order) document.getElementById(id).showPopover();
+      }, showOrder);
+      await settle();
+    };
+    await loadDistinctRoots(['candidate-root', 'owner-root']);
+    assert.equal(await topmostId(), 'owner');
+    assert.equal(
+      await exactNavigationEffectPassed(page, { effect }),
+      true,
+      'a candidate in an earlier top-layer root must not occlude the later owner root',
+    );
+
+    await loadDistinctRoots(['owner-root', 'candidate-root']);
+    assert.equal(await topmostId(), 'candidate-root');
+    assert.equal(
+      await exactNavigationEffectPassed(page, { effect }),
+      false,
+      'a candidate in a later top-layer root must conservatively occlude the owner',
+    );
+  } finally {
+    await browser.close();
+  }
+});
+
+test('neutral 3D RN scroll compositor keeps exact split glyph evidence', async (context) => {
+  const { chromium } = await import('playwright-core');
+  const executablePath = chromium.executablePath();
+  if (!existsSync(executablePath)) {
+    context.skip('managed Chromium is unavailable');
+    return;
+  }
+  const { attachFontResponseEvidence, captureContextOptions, exactNavigationEffectPassed } =
+    await contract();
+  const fontData = readFileSync(path.join(REPO, 'assets', 'fonts', 'Pretendard-Regular.otf')).toString(
+    'base64',
+  );
+  const effect = {
+    type: 'visible',
+    role: 'button',
+    name: 'domain:career 해시태그 제거',
+    text: '#domain:career',
+    occurrence: 1,
+  };
+  const browser = await chromium.launch({ executablePath, headless: true });
+  try {
+    const browserContext = await browser.newContext(captureContextOptions());
+    const page = await browserContext.newPage();
+    attachFontResponseEvidence(page);
+    await page.setContent(`
+      <style>
+        @font-face {
+          font-family: Pretendard;
+          src: url(data:font/otf;base64,${fontData}) format("opentype");
+          font-style: normal;
+          font-weight: 400;
+        }
+        html, body { width:100%; height:100%; margin:0; overflow:hidden; background:#0a0e18 }
+        #frame {
+          align-items:stretch;
+          box-sizing:border-box;
+          display:flex;
+          flex-basis:0%;
+          flex-direction:column;
+          flex-grow:1;
+          flex-shrink:1;
+          height:657px;
+          left:16px;
+          position:absolute;
+          top:94px;
+          width:358px;
+        }
+        #scroll {
+          align-items:stretch;
+          border:0 solid black;
+          box-sizing:border-box;
+          display:flex;
+          flex-basis:auto;
+          flex-direction:column;
+          flex-shrink:1;
+          flex-grow:1;
+          margin:0;
+          min-height:0;
+          min-width:0;
+          overflow-x:hidden;
+          overflow-y:auto;
+          padding:0;
+          position:relative;
+          transform:translateZ(0px);
+          width:358px;
+          height:657px;
+          z-index:0;
+        }
+        #inner {
+          align-items:stretch;
+          border:0 solid black;
+          box-sizing:border-box;
+          display:flex;
+          flex-direction:column;
+          flex-shrink:0;
+          gap:12px;
+          height:1620px;
+          padding-bottom:106px;
+          position:relative;
+        }
+        .filler { flex-shrink:0; background:#141b2e }
+        #card {
+          align-items:stretch;
+          background:#141b2e;
+          border:1px solid #232e4a;
+          box-sizing:border-box;
+          display:flex;
+          flex-direction:column;
+          flex-shrink:0;
+          height:118px;
+          padding:12px;
+          position:relative;
+        }
+        button {
+          align-items:stretch;
+          background:#232e4a;
+          border:1px solid #5b8def;
+          box-sizing:border-box;
+          color:#5b8def;
+          display:flex;
+          flex-direction:column;
+          flex-shrink:0;
+          height:44px;
+          justify-content:center;
+          left:12px;
+          min-height:44px;
+          min-width:44px;
+          padding:4px 8px;
+          position:absolute;
+          top:36px;
+          width:max-content;
+        }
+        #label-row {
+          align-items:center;
+          box-sizing:border-box;
+          display:flex;
+          flex-direction:row;
+          flex-shrink:0;
+          gap:4px;
+          height:14px;
+          position:relative;
+        }
+        #remove-icon {
+          flex-shrink:0;
+          height:14px;
+          width:14px;
+        }
+        #painted {
+          background:transparent;
+          border:0;
+          box-sizing:border-box;
+          display:block;
+          flex-shrink:1;
+          font-family:Pretendard, "Apple SD Gothic Neo", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+          font-size:12px;
+          font-weight:600;
+          line-height:normal;
+          margin:0;
+          padding:0;
+          white-space:pre-wrap;
+          word-wrap:break-word;
+        }
+      </style>
+      <div id="frame"><div id="scroll"><div id="inner">
+        <div class="filler" style="height:80px"></div>
+        <div class="filler" style="height:100px"></div>
+        <div class="filler" style="height:100px"></div>
+        <div class="filler" style="height:90px"></div>
+        <div class="filler" style="height:110px"></div>
+        <div class="filler" style="height:120px"></div>
+        <div class="filler" style="height:130px"></div>
+        <div class="filler" style="height:139px"></div>
+        <div id="card"><button aria-label="domain:career 해시태그 제거"><div id="label-row">
+          <div id="painted" dir="auto"></div><div id="remove-icon"></div>
+        </div></button></div>
+      </div></div></div>
+    `);
+    await page.locator('#painted').evaluate((painted) => {
+      painted.replaceChildren(
+        document.createTextNode('#'),
+        document.createTextNode('domain:career'),
+      );
+    });
+    await page.evaluate(() => document.fonts.load('600 12px Pretendard', '#domain:career'));
+    await page.evaluate(
+      () =>
+        new Promise((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        ),
+    );
+    await page.locator('#scroll').evaluate((scroll) => {
+      scroll.scrollTop = 629;
+    });
+    await page.evaluate(
+      () =>
+        new Promise((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        ),
+    );
+    assert.deepEqual(
+      await page.locator('#scroll').evaluate((scroll) => {
+        const inner = scroll.firstElementChild.getBoundingClientRect();
+        const target = scroll.querySelector('button').getBoundingClientRect();
+        const painted = scroll.querySelector('#painted').getBoundingClientRect();
+        return {
+          inner: [inner.x, inner.y, inner.width, inner.height],
+          painted: [painted.x, painted.y, painted.width, painted.height],
+          scrollTop: scroll.scrollTop,
+          target: [target.x, target.y, target.width, target.height],
+          transform: getComputedStyle(scroll).transform,
+          typedTransform: scroll.computedStyleMap().get('transform').toString(),
+        };
+      }),
+      {
+        inner: [16, -535, 358, 1620],
+        painted: [38, 482, 84.109375, 14],
+        scrollTop: 629,
+        target: [29, 467, 120.109375, 44],
+        transform: 'matrix(1, 0, 0, 1, 0, 0)',
+        typedTransform: 'translate3d(0px, 0px, 0px)',
+      },
+    );
+    const nativeNewPage = browserContext.newPage.bind(browserContext);
+    let scorerExpectedPages = 0;
+    let expectedLayerStyles = [];
+    browserContext.newPage = async (...args) => {
+      scorerExpectedPages += 1;
+      const expectedPage = await nativeNewPage(...args);
+      const nativeScreenshot = expectedPage.screenshot.bind(expectedPage);
+      expectedPage.screenshot = async (...screenshotArgs) => {
+        expectedLayerStyles.push(
+          await expectedPage.evaluate(() => {
+            const layer = document.body.firstElementChild;
+            if (!layer || layer.tagName === 'SPAN') return null;
+            const style = getComputedStyle(layer);
+            return {
+              backgroundColor: style.backgroundColor,
+              transform: layer.computedStyleMap().get('transform').toString(),
+              willChange: style.willChange,
+            };
+          }),
+        );
+        return nativeScreenshot(...screenshotArgs);
+      };
+      return expectedPage;
+    };
+    const compositorClip = { height: 20, width: 91, x: 35, y: 479 };
+    const settlePaint = () =>
+      page.evaluate(
+        () =>
+          new Promise((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+          ),
+      );
+    scorerExpectedPages = 0;
+    assert.equal(
+      await exactNavigationEffectPassed(page, { effect }),
+      true,
+      'the actual scrolled neutral 3D page must preserve exact split glyph evidence',
+    );
+    assert.equal(
+      scorerExpectedPages,
+      2,
+      'the exact neutral 3D scroll layer must use original and compositor references',
+    );
+    assert.deepEqual(expectedLayerStyles, [
+      null,
+      {
+        backgroundColor: 'rgba(0, 0, 0, 0)',
+        transform: 'translate3d(0px, 0px, 0px)',
+        willChange: 'auto',
+      },
+    ]);
+
+    const exactRaster = await page.screenshot({
+      animations: 'allow',
+      caret: 'initial',
+      clip: compositorClip,
+      scale: 'css',
+      type: 'png',
+    });
+    await page.evaluate(
+      ({ data, height, width, x, y }) => {
+        const overlay = document.createElement('img');
+        overlay.alt = '';
+        overlay.ariaHidden = 'true';
+        overlay.dataset.sameGlyphOverlay = 'true';
+        overlay.src = `data:image/png;base64,${data}`;
+        overlay.style.cssText = [
+          'position:fixed',
+          `left:${x}px`,
+          `top:${y}px`,
+          `width:${width}px`,
+          `height:${height}px`,
+          'z-index:10',
+          'pointer-events:none',
+        ].join(';');
+        document.body.append(overlay);
+      },
+      { data: exactRaster.toString('base64'), ...compositorClip },
+    );
+    await page.locator('[data-same-glyph-overlay]').evaluate((overlay) => overlay.decode());
+    await settlePaint();
+    assert.equal(
+      await exactNavigationEffectPassed(page, { effect }),
+      false,
+      'a pointer-transparent full-cover copy must not launder painted-text provenance',
+    );
+    await page.locator('[data-same-glyph-overlay]').evaluate((overlay) => overlay.remove());
+
+    await page.locator('#scroll').evaluate((scroll) => {
+      scroll.style.transform = 'matrix(1, 0, 0, 1, 0, 0)';
+    });
+    await settlePaint();
+    assert.equal(
+      await page.locator('#scroll').evaluate(
+        (scroll) => scroll.computedStyleMap().get('transform').toString(),
+      ),
+      'matrix(1, 0, 0, 1, 0, 0)',
+    );
+    scorerExpectedPages = 0;
+    assert.equal(
+      await exactNavigationEffectPassed(page, { effect }),
+      true,
+      'a general 2D identity transform must keep the original raster path',
+    );
+    assert.equal(
+      scorerExpectedPages,
+      1,
+      'a general 2D identity transform must not opt into dual compositor references',
+    );
+
+    await page.locator('#scroll').evaluate((scroll) => {
+      scroll.style.transform = 'translate3d(0px, 0px, 1px)';
+    });
+    await settlePaint();
+    assert.equal(
+      await page.locator('#scroll').evaluate(
+        (scroll) => scroll.computedStyleMap().get('transform').toString(),
+      ),
+      'translate3d(0px, 0px, 1px)',
+    );
+    scorerExpectedPages = 0;
+    await exactNavigationEffectPassed(page, { effect });
+    assert.equal(
+      scorerExpectedPages,
+      1,
+      'a non-neutral 3D transform must not opt into dual compositor references',
+    );
+
+    await page.locator('#scroll').evaluate((scroll) => {
+      scroll.style.transform = 'translateZ(0px)';
+      scroll.style.overflowY = 'hidden';
+      scroll.scrollTop = 629;
+    });
+    await settlePaint();
+    assert.deepEqual(
+      await page.locator('#scroll').evaluate((scroll) => ({
+        overflowY: getComputedStyle(scroll).overflowY,
+        overflows: scroll.scrollHeight > scroll.clientHeight,
+        scrollTop: scroll.scrollTop,
+      })),
+      { overflowY: 'hidden', overflows: true, scrollTop: 629 },
+    );
+    scorerExpectedPages = 0;
+    await exactNavigationEffectPassed(page, { effect });
+    assert.equal(
+      scorerExpectedPages,
+      1,
+      'overflow:hidden must not opt into dual compositor references',
+    );
+
+    await page.locator('#scroll').evaluate((scroll) => {
+      scroll.style.overflowY = 'auto';
+      scroll.scrollTop = 0;
+      const inner = scroll.firstElementChild;
+      inner.style.height = '657px';
+      for (const filler of inner.querySelectorAll('.filler')) filler.style.display = 'none';
+    });
+    await settlePaint();
+    assert.deepEqual(
+      await page.locator('#scroll').evaluate((scroll) => ({
+        overflowY: getComputedStyle(scroll).overflowY,
+        overflows: scroll.scrollHeight > scroll.clientHeight,
+        transform: scroll.computedStyleMap().get('transform').toString(),
+      })),
+      { overflowY: 'auto', overflows: false, transform: 'translate3d(0px, 0px, 0px)' },
+    );
+    scorerExpectedPages = 0;
+    await exactNavigationEffectPassed(page, { effect });
+    assert.equal(
+      scorerExpectedPages,
+      1,
+      'a container without overflow must not opt into dual compositor references',
+    );
+
+    await page.locator('#scroll').evaluate((scroll) => {
+      const inner = scroll.firstElementChild;
+      inner.style.height = '1620px';
+      for (const filler of inner.querySelectorAll('.filler')) filler.style.display = '';
+      scroll.querySelector('#card').style.transform = 'translateY(-629px)';
+      scroll.scrollTop = 0;
+    });
+    await settlePaint();
+    assert.deepEqual(
+      await page.locator('#scroll').evaluate((scroll) => ({
+        overflows: scroll.scrollHeight > scroll.clientHeight,
+        scrollTop: scroll.scrollTop,
+        transform: scroll.computedStyleMap().get('transform').toString(),
+      })),
+      { overflows: true, scrollTop: 0, transform: 'translate3d(0px, 0px, 0px)' },
+    );
+    scorerExpectedPages = 0;
+    await exactNavigationEffectPassed(page, { effect });
+    assert.equal(
+      scorerExpectedPages,
+      1,
+      'scrollTop=0 must not opt into dual compositor references',
+    );
+  } finally {
+    await browser.close();
+  }
+});
+
 test('post-navigation occurrence is counted after rendered role binding', async () => {
   const { exactNavigationEffectPassed } = await contract();
   const effect = {
