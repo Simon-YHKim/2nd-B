@@ -60,8 +60,10 @@ import {
   resetAuditWriteOutboxForTests,
 } from "../audit-write-outbox";
 import { insertAiAuditLog } from "../../supabase/audit";
+import { insertCrisisEvent } from "../../supabase/crisis-events";
 
 const insertMock = insertAiAuditLog as jest.MockedFunction<typeof insertAiAuditLog>;
+const crisisMock = insertCrisisEvent as jest.MockedFunction<typeof insertCrisisEvent>;
 
 describe("callLlm", () => {
   beforeEach(async () => {
@@ -69,6 +71,8 @@ describe("callLlm", () => {
     mockGenerateContent.mockClear();
     insertMock.mockClear();
     insertMock.mockResolvedValue(undefined);
+    crisisMock.mockClear();
+    crisisMock.mockResolvedValue(undefined);
   });
 
   test("C9: red-zone input short-circuits and does NOT call Gemini SDK", async () => {
@@ -129,6 +133,116 @@ describe("callLlm", () => {
     expect(arg.safetyZone).toBe("red");
     expect(arg.modelUsed).toBe("none-crisis-routed");
     expect(arg.userId).toBe("u1");
+  });
+
+  test("interview red routing records honest source/purpose in both ledgers without Gemini", async () => {
+    const api = jest.requireActual("../boundary") as {
+      classifyInterviewTextForCrisis?: (
+        text: string,
+        locale: "en" | "ko",
+        userId: string,
+        minor?: boolean,
+      ) => Promise<LlmResult<string> | null>;
+    };
+    expect(api.classifyInterviewTextForCrisis).toBeDefined();
+    if (!api.classifyInterviewTextForCrisis) return;
+
+    const result = await api.classifyInterviewTextForCrisis(
+      "죽고 싶어요. 모르겠어요",
+      "ko",
+      "interview-user",
+      true,
+    );
+
+    expect(result?.safety.zone).toBe("red");
+    expect(mockGenerateContent).not.toHaveBeenCalled();
+    expect(insertMock).toHaveBeenCalledTimes(1);
+    expect(insertMock.mock.calls[0]![0]).toMatchObject({
+      userId: "interview-user",
+      purpose: "interview_probe",
+      safetyZone: "red",
+      modelUsed: "none-crisis-routed",
+    });
+    expect(crisisMock).toHaveBeenCalledTimes(1);
+    expect(crisisMock.mock.calls[0]![0]!.triggerCategories).toContain("interview_input_red");
+  });
+
+  test.each([
+    ["ko", "모르겠어요"],
+    ["en", "I'm not sure"],
+  ] as const)("interview exact CTA %s stays green with zero model/audit/event writes", async (locale, text) => {
+    const { classifyInterviewTextForCrisis } = jest.requireActual("../boundary") as typeof import("../boundary");
+
+    await expect(classifyInterviewTextForCrisis(text, locale, "interview-user")).resolves.toBeNull();
+    expect(mockGenerateContent).not.toHaveBeenCalled();
+    expect(insertMock).not.toHaveBeenCalled();
+    expect(crisisMock).not.toHaveBeenCalled();
+  });
+
+  test("deferred interview ledgers never delay visible UI and concurrent starts route exactly once", async () => {
+    const events: string[] = [];
+    let releaseAudit!: () => void;
+    const deferredAudit = new Promise<void>((resolve) => {
+      releaseAudit = resolve;
+    });
+    insertMock.mockImplementationOnce(async () => {
+      events.push("audit");
+      await deferredAudit;
+    });
+    crisisMock.mockImplementationOnce(async () => {
+      events.push("crisis-event");
+    });
+
+    const api = jest.requireActual("../boundary") as {
+      startInterviewCrisisRouting?: (
+        guard: { current: boolean },
+        input: { text: string; locale: "en" | "ko"; userId: string; minor?: boolean },
+        onVisible: () => void,
+        onSettled: () => void,
+      ) => { started: boolean; done: Promise<LlmResult<string> | null> };
+    };
+    expect(api.startInterviewCrisisRouting).toBeDefined();
+    if (!api.startInterviewCrisisRouting) {
+      releaseAudit();
+      return;
+    }
+
+    const guard = { current: false };
+    const input = {
+      text: "죽고 싶어요. 모르겠어요",
+      locale: "ko" as const,
+      userId: "interview-user",
+      minor: true,
+    };
+    const first = api.startInterviewCrisisRouting(
+      guard,
+      input,
+      () => events.push("visible"),
+      () => events.push("settled"),
+    );
+    const duplicate = api.startInterviewCrisisRouting(
+      guard,
+      input,
+      () => events.push("duplicate-visible"),
+      () => events.push("duplicate-settled"),
+    );
+
+    expect(first.started).toBe(true);
+    expect(duplicate.started).toBe(false);
+    expect(guard.current).toBe(true);
+    expect(events[0]).toBe("visible");
+    expect(events).not.toContain("duplicate-visible");
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(insertMock).toHaveBeenCalledTimes(1);
+    expect(crisisMock).not.toHaveBeenCalled();
+    expect(events.slice(0, 2)).toEqual(["visible", "audit"]);
+
+    releaseAudit();
+    await first.done;
+    expect(crisisMock).toHaveBeenCalledTimes(1);
+    expect(events).toEqual(["visible", "audit", "crisis-event", "settled"]);
+    expect(guard.current).toBe(false);
   });
 
   test("multimodal: image is attached as an inlineData part on the direct/Vertex path", async () => {

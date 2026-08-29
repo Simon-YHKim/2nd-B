@@ -420,6 +420,60 @@ export async function classifyRecordTextForCrisis(
   return routeCrisis(safety, locale, userId, djb2(text), minor, "record_save_red");
 }
 
+// Interview answers are classified by the screen before any non-answer or
+// coverage logic. RED still needs the same C3/DPIA ledgers as an LLM boundary
+// interception, with an honest interview source and purpose. GREEN returns
+// null and therefore performs no write and no model call.
+export async function classifyInterviewTextForCrisis(
+  text: string,
+  locale: "en" | "ko",
+  userId: string,
+  minor = false,
+): Promise<LlmResult<string> | null> {
+  const safety = classifyInputAnyLocale(text, locale, { minor });
+  if (safety.zone !== "red") return null;
+  return routeCrisis(safety, locale, userId, djb2(text), minor, "interview_input_red", {
+    purpose: "interview_probe",
+  });
+}
+
+export interface InterviewCrisisRoutingInput {
+  text: string;
+  locale: "en" | "ko";
+  userId: string;
+  minor?: boolean;
+}
+
+export interface InterviewCrisisRoutingRun {
+  started: boolean;
+  done: Promise<LlmResult<string> | null>;
+}
+
+// The screen owns the synchronous classifier and calls this only for RED.
+// Guard + visibility happen synchronously before either ledger can wait on the
+// network. The returned promise remains observable so the caller can handle a
+// rejected background write without delaying the hotline UI.
+export function startInterviewCrisisRouting(
+  guard: { current: boolean },
+  input: InterviewCrisisRoutingInput,
+  onVisible: () => void,
+  onSettled: () => void,
+): InterviewCrisisRoutingRun {
+  if (guard.current) return { started: false, done: Promise.resolve(null) };
+  guard.current = true;
+  onVisible();
+  const done = classifyInterviewTextForCrisis(
+    input.text,
+    input.locale,
+    input.userId,
+    input.minor,
+  ).finally(() => {
+    guard.current = false;
+    onSettled();
+  });
+  return { started: true, done };
+}
+
 async function routeCrisis(
   result: SafetyResult,
   locale: "en" | "ko",
