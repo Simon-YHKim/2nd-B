@@ -1,7 +1,7 @@
 // D9 writer: persist the current per-star ladder tiers to star_tier_history
 // (0045) so detectTierShift can later spot a changed tendency (memo §10). Append-
-// only insert, one row per star. Best-effort - a write failure never blocks the
-// caller (this runs alongside the persona/brightness read path).
+// only insert, one row per star. Fail-soft for background callers, while the
+// boolean result lets confirmation UI distinguish a stored row from a failure.
 //
 // Funnel (persona-sim memo §7): this is the single chokepoint where a star's
 // ladder level changes (build.ts persists all seven; review.tsx persists one
@@ -60,7 +60,8 @@ export async function recordStarTiers(
   starLevels: Partial<Record<StarId, LadderLevel>>,
   source: StarLitEventProps["source"] = "journal",
   evidence?: TierEvidence,
-): Promise<void> {
+): Promise<boolean> {
+  if (!userId) return false;
   const entries = Object.entries(starLevels) as [StarId, LadderLevel][];
   // Sanitize at the write boundary — drops any model-provided free text so the
   // 0060 ids/slugs-only contract holds no matter what the ratify path forwards.
@@ -73,7 +74,7 @@ export async function recordStarTiers(
     if (citations) row.evidence_citations = citations;
     return row;
   });
-  if (rows.length === 0) return;
+  if (rows.length === 0) return false;
   try {
     // Best-effort read of the prior latest level per star (ids + levels only,
     // bounded). Used purely to detect genuine increases for the funnel events;
@@ -95,7 +96,8 @@ export async function recordStarTiers(
     }
 
     // The existing append-only persist - behavior unchanged.
-    await getSupabaseClient().from("star_tier_history").insert(rows);
+    const { error } = await getSupabaseClient().from("star_tier_history").insert(rows);
+    if (error) return false;
 
     // star_lit: one event per star whose level genuinely increased. A star with
     // no prior row is compared against the implicit default (L1), so a fresh
@@ -121,8 +123,9 @@ export async function recordStarTiers(
         );
       }
     }
+    return true;
   } catch {
-    // Best-effort history + funnel; never block the caller on a failure.
+    return false;
   }
 }
 
