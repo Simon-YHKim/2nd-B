@@ -15,8 +15,9 @@
 //
 //   nextMove(coverage, period, 이번 대화의 답변들, now)
 //     ├─ loopCheck : 같은 자리를 돌고 있다 -> LLM 을 부르지 않고 되묻는다
+//     ├─ scaffold  : 고정 발판을 즉시 표시한다. LLM·audit·network 없음
 //     └─ drill     : nextProbe(...) -> LLM 이 다음 질문 한 줄
-//                    답변을 받으면 그 층의 coverage 를 올린다
+//                    실제 답변을 받으면 그 층의 coverage 를 올린다
 //
 // 되묻기 판정의 재료는 **이번 대화의 사용자 답변들**이다. DB 를 읽지 않는다 --
 // "매번 같은 결론으로 돌아온다"는 바로 이 대화 안에서 관측되는 것이고, 그게
@@ -24,9 +25,8 @@
 //
 // ── C9 (안전) ───────────────────────────────────────────────────────────
 // 옛 화면은 자유서술이 없어서 C9 가 이 경로에 아예 없었다. 이제 있다.
-// 분류는 `callLlm`(경계 모듈) 안에서 돌고 `ProbeResult.zone` 으로 나온다.
-// 이 화면의 책임은 **red 를 만나면 텍스트가 아니라 핫라인을 띄우는 것**이다 --
-// `/secondb` 의 음성 경로와 같은 처리다.
+// 모든 답을 화면에서 dual-locale 분류한다. red 는 coverage/LLM 전에 경계 모듈의
+// source-aware crisis route로 두 원장을 쓴 뒤 핫라인을 띄운다.
 //
 // ── 저장 ────────────────────────────────────────────────────────────────
 // 태그(`interview`/`recall`/`screener`)와 `kind`, `auditPeriod` 는 그대로 둔다.
@@ -47,6 +47,8 @@ import { SecondbHead } from "@/components/deep-space/SecondbHead";
 import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import type { HotlineId } from "@/lib/safety/lexicon";
+import { classifyInputAnyLocale } from "@/lib/safety/classifier";
+import { startInterviewCrisisRouting } from "@/lib/llm/boundary";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { parsePeriodParam, livedPeriods } from "@/lib/interview/periods";
 import { DrillProgress } from "@/components/ui/DrillProgress";
@@ -133,6 +135,7 @@ export default function InterviewRoute() {
     visible: false,
     hotline: "KR_109",
   });
+  const crisisRouting = useRef(false);
   const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -144,6 +147,13 @@ export default function InterviewRoute() {
   const hotlineFor = useCallback(
     (): HotlineId => (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988"),
     [locale, isMinor],
+  );
+
+  // 실제 CTA 번역은 utility의 정규식과 따로 진화할 수 있다. 화면이 내보낸 exact
+  // 문구는 언제나 비-답변으로 인정하고, 자유 입력은 보수적인 공용 판정을 유지한다.
+  const isBlockedAnswer = useCallback(
+    (text: string): boolean => text === t("drill.dontKnow") || isNonAnswer(text, locale),
+    [locale, t],
   );
 
   // 이번 대화의 사용자 답변 -> 되묻기 판정의 재료. theme 를 시기로 두면
@@ -158,14 +168,14 @@ export default function InterviewRoute() {
         // 새로움 0 을 보고 **되묻기**를 띄운다 -- "같은 결론으로 자꾸 돌아오시나요?"
         // 못 답한 사람에게 곱씹는다고 말하는 셈이라 정반대의 대응이다.
         // 커버리지를 안 올리는 것과 같은 이유다: 답이 아닌 것을 답으로 세지 않는다.
-        .filter((turn) => !isNonAnswer(turn.text, locale))
+        .filter((turn) => !isBlockedAnswer(turn.text))
         .map((turn, i) => ({
           id: `t${i}`,
           createdAt: new Date().toISOString(),
           theme: turn.period ?? period,
           text: turn.text,
         })),
-    [period, locale],
+    [period, isBlockedAnswer],
   );
 
   const ask = useCallback(
@@ -197,17 +207,29 @@ export default function InterviewRoute() {
           setNotice(t("drill.loopNote"));
           return;
         }
-        // 발판이면 내려가지 않고 **같은 층**을 더 쉬운 각도로 다시 묻는다.
-        //
-        // ⚠ 층은 **언제나** `move.layer` 를 넘긴다. 예전에는 발판일 때만 넘기고
-        // 평소에는 `nextProbe` 가 스스로 다시 골랐는데, 그쪽은 포기 목록을 모른다.
-        // 그래서 `nextMove` 가 "믿음으로 넘어가라"고 정해도 `nextProbe` 가 "가장 먼저
-        // 비어 있는 칸" 규칙으로 방금 포기한 의미(L3)를 도로 집었다 -- 실측 2026-08-24.
-        // 결정하는 곳은 하나여야 한다.
-        const isScaffold = move.kind === "scaffold";
+        // 발판은 이미 결정된 고정 문장이다. `nextProbe` 로 보내면 같은 한 번의 탭이
+        // LLM·audit·network 를 만들고, 모델의 문장이 고정 발판을 덮을 수 있다.
+        // 못 답한 칸은 그대로 비운 채 같은 층의 발판을 즉시 보여준다.
+        if (move.kind === "scaffold") {
+          setTurns([
+            ...history,
+            {
+              role: "interviewer",
+              text: scaffoldQuestion(move.layer, locale, stuck?.streak ?? 1),
+              layer: move.layer,
+              period,
+            },
+          ]);
+          setPendingLayer(move.layer);
+          setOpeners([]);
+          setNotice(t("drill.scaffoldNote"));
+          return;
+        }
+        // ⚠ 층은 **언제나** `move.layer` 를 넘긴다. `nextMove` 가 포기 목록까지 보고
+        // 고른 층을 후속 질문 경계가 다시 고르면 방금 포기한 칸으로 되돌아갈 수 있다.
         const probe = await nextProbe(
           userId, locale, period, history, cov, isMinor === true,
-          isScaffold && stuck ? stuck.streak : 0, move.layer,
+          0, move.layer,
         );
         if (probe.zone === "red") {
           // C9: 텍스트가 아니라 핫라인. 대화는 여기서 멈춘다.
@@ -242,7 +264,6 @@ export default function InterviewRoute() {
         setTurns([...history, { role: "interviewer", text: probe.question, layer: probe.layer, period }]);
         setPendingLayer(probe.layer);
         setOpeners(probe.openers);
-        if (isScaffold) setNotice(t("drill.scaffoldNote"));
       } catch {
         setNotice(t("drill.failed"));
       } finally {
@@ -315,9 +336,30 @@ export default function InterviewRoute() {
   // 곧바로 그 말을 보낸다 — 상태 갱신은 다음 렌더에나 반영돼서, 그 사이에 보내면
   // 직전 draft(대개 빈 문자열)가 나간다.
   async function send(override?: string) {
+    if (!userId) return;
     const text = (override ?? draft).trim();
     if (text.length === 0) {
       setNotice(t("drill.emptyAnswer"));
+      return;
+    }
+    // C9: `isNonAnswer`보다 먼저 양쪽 언어를 분류한다. "죽고 싶어요. 모르겠어요"
+    // 같은 입력을 단순 막힘으로 보고 로컬 발판으로 보내면 crisis 경로를 건너뛴다.
+    // red는 기존 routeCrisis를 거쳐 필수 audit/event 원장을 쓴 뒤 핫라인으로 끝낸다.
+    // coverage·nextMove·nextProbe는 건드리지 않는다.
+    const safety = classifyInputAnyLocale(text, locale, { minor: isMinor === true });
+    if (safety.zone === "red") {
+      const route = startInterviewCrisisRouting(
+        crisisRouting,
+        { text, locale, userId, minor: isMinor === true },
+        () => {
+          setBusy(true);
+          setCrisis({ visible: true, hotline: hotlineFor() });
+        },
+        () => setBusy(false),
+      );
+      if (route.started) {
+        void route.done.catch(() => setNotice(t("drill.failed")));
+      }
       return;
     }
     // 답변이 붙는 층은 **직전 질문이 겨냥한 층**이다. 되묻기였다면 층이 없다 --
@@ -334,7 +376,7 @@ export default function InterviewRoute() {
     //
     // 판정은 결정론적이고(`stuck.ts`) 보수적이다 -- 사용자가 스스로 포기를
     // 말했을 때만 안 셀다. 밝기가 LLM 의 기분에 달려서는 안 되기 때문이다.
-    const blocked = pendingLayer !== null && isNonAnswer(text, locale);
+    const blocked = pendingLayer !== null && isBlockedAnswer(text);
     const nextCoverage =
       pendingLayer && !blocked ? incrementCoverage(coverage, period, pendingLayer) : coverage;
     const nextStreak = blocked ? stuckStreak + 1 : 0;
@@ -545,12 +587,18 @@ export default function InterviewRoute() {
                 style={styles.actionButton}
               />
               {userTurns > 0 ? (
-                <MdButton
-                  label={t("drill.enough")}
-                  variant="outlined"
+                <Pressable
                   onPress={() => setDone(true)}
-                  style={styles.actionButton}
-                />
+                  style={[styles.answerChip, styles.actionButton]}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("drill.enough")}
+                >
+                  {/* MdButton은 web에서 label을 line-clamp해 exact painted-text
+                      evidence가 읽지 못한다. 이 safe action은 직접 보이는 글자를 둔다. */}
+                  <Text style={[m3TextStyle("labelLarge"), styles.answerChipText]}>
+                    {t("drill.enough")}
+                  </Text>
+                </Pressable>
               ) : null}
             </View>
           </>

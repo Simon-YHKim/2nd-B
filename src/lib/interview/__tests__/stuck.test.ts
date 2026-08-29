@@ -8,6 +8,7 @@ import { emptyCoverage, incrementCoverage, nextMove, type Coverage } from "../pr
 import { isNonAnswer, shouldScaffold, SCAFFOLD_FALLBACK, scaffoldQuestion, MAX_SCAFFOLDS_PER_LAYER } from "../stuck";
 import { narrativeStarLevel } from "../narrative-level";
 import { livedPeriods } from "../periods";
+import { classifyInputAnyLocale } from "../../safety/classifier";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -184,8 +185,8 @@ describe("⚠ 층을 정하는 곳은 하나다 (실행해서 잡은 두 번째 
   const SCREEN = readFileSync(join(__dirname, "..", "..", "..", "app", "interview.tsx"), "utf8");
 
   it("화면이 nextProbe 에 move.layer 를 항상 넘긴다", () => {
-    expect(SCREEN).toContain("isScaffold && stuck ? stuck.streak : 0, move.layer,");
-    // 발판일 때만 넘기던 옛 형태로 되돌아가면 여기서 걸린다.
+    expect(SCREEN).toContain("0, move.layer,");
+    // 발판은 nextProbe 앞에서 반환하고, 평상시에도 nextMove가 고른 층을 넘긴다.
     expect(SCREEN).not.toContain("isScaffold ? move.layer : null");
   });
 
@@ -202,12 +203,119 @@ describe('⚠ "모르겠다"는 성찰 기록이 아니다 (되묻기가 대신 
   const SCREEN = readFileSync(join(__dirname, "..", "..", "..", "app", "interview.tsx"), "utf8");
 
   it("화면이 entriesOf 에서 비-답변을 걸러낸다", () => {
-    expect(SCREEN).toContain(".filter((turn) => !isNonAnswer(turn.text, locale))");
+    expect(SCREEN).toContain(".filter((turn) => !isBlockedAnswer(turn.text))");
   });
 
   it("걸러내면 되묻기 기준(3편 초과)에 안 닿는다", () => {
     const answers = ["잘 모르겠는데", "잘 모르겠는데", "잘 모르겠는데", "잘 모르겠는데"];
     const kept = answers.filter((t) => !isNonAnswer(t, "ko"));
     expect(kept).toHaveLength(0);
+  });
+});
+
+describe("발판은 네트워크 없이 즉시 보여준다", () => {
+  const SCREEN = readFileSync(join(__dirname, "..", "..", "..", "app", "interview.tsx"), "utf8");
+  const BOUNDARY = readFileSync(join(__dirname, "..", "..", "llm", "boundary.ts"), "utf8");
+
+  it.each([
+    ["ko", false, "죽고 싶어요. 모르겠어요"],
+    ["ko", true, "죽고 싶어요. 모르겠어요"],
+    ["en", false, "I want to die. I don't know."],
+    ["en", true, "I want to die. I don't know."],
+  ] as const)("compound red-zone은 locale=%s minor=%s에서도 scaffold가 아니다", (locale, minor, text) => {
+    expect(text.toLowerCase()).toMatch(locale === "ko" ? /모르겠/ : /don't know/);
+    expect(classifyInputAnyLocale(text, locale, { minor }).zone).toBe("red");
+  });
+
+  it.each([
+    ["ko", "모르겠어요"],
+    ["en", "I'm not sure"],
+  ] as const)("exact CTA locale=%s는 green으로 남아 local scaffold를 쓴다", (locale, text) => {
+    expect(classifyInputAnyLocale(text, locale).zone).toBe("green");
+    const screenTreatsAsNonAnswer = text === (locale === "ko" ? "모르겠어요" : "I'm not sure")
+      || isNonAnswer(text, locale);
+    expect(screenTreatsAsNonAnswer).toBe(true);
+  });
+
+  it("화면은 exact locale CTA를 utility 판정과 동등한 non-answer로 처리한다", () => {
+    expect(SCREEN).toContain('text === t("drill.dontKnow") || isNonAnswer(text, locale)');
+    expect(SCREEN).toContain('onPress={() => void send(t("drill.dontKnow"))}');
+  });
+
+  it("C9 분류는 isNonAnswer·coverage·nextProbe보다 먼저 crisis/hotline으로 반환한다", () => {
+    const sendStart = SCREEN.indexOf("async function send(override?: string) {");
+    const classifier = SCREEN.indexOf("classifyInputAnyLocale(text, locale, { minor: isMinor === true })", sendStart);
+    const redStart = SCREEN.indexOf('if (safety.zone === "red") {', classifier);
+    const redReturn = SCREEN.indexOf("return;", redStart);
+    const nonAnswer = SCREEN.indexOf("isBlockedAnswer(text)", sendStart);
+    const coverageWrite = SCREEN.indexOf("setCoverage(nextCoverage)", sendStart);
+    const llmBoundary = SCREEN.indexOf("await ask(nextTurns, nextCoverage", sendStart);
+
+    expect(sendStart).toBeGreaterThan(-1);
+    expect(classifier).toBeGreaterThan(sendStart);
+    expect(nonAnswer).toBeGreaterThan(classifier);
+    expect(coverageWrite).toBeGreaterThan(classifier);
+    expect(llmBoundary).toBeGreaterThan(classifier);
+
+    const redBranch = SCREEN.slice(redStart, redReturn + "return;".length);
+    expect(SCREEN).toContain("const crisisRouting = useRef(false)");
+    expect(redBranch).toContain("startInterviewCrisisRouting(");
+    expect(redBranch).toContain("crisisRouting,");
+    expect(redBranch).toContain("setBusy(true)");
+    expect(redBranch).toContain("setCrisis({ visible: true, hotline: hotlineFor() })");
+    expect(redBranch.indexOf("setCrisis")).toBeLessThan(redBranch.indexOf("route.done"));
+    expect(redBranch).toContain("void route.done.catch(");
+    expect(redBranch).not.toContain("await classifyInterviewTextForCrisis");
+    expect(redBranch).not.toMatch(/isNonAnswer|incrementCoverage|setCoverage|nextProbe|callLlm/);
+    expect(BOUNDARY).toMatch(/export function startInterviewCrisisRouting[\s\S]*onVisible\(\)[\s\S]*classifyInterviewTextForCrisis\(/);
+    expect(BOUNDARY).toMatch(/async function routeCrisis[\s\S]*await writeAiAuditLog\(/);
+    expect(BOUNDARY).toMatch(/async function routeCrisis[\s\S]*await writeCrisisEvent\(/);
+    expect(SCREEN).toContain('isMinor ? "KR_1388" : "KR_109"');
+    expect(SCREEN).toContain(': "GLOBAL_988"');
+  });
+
+  it("scaffold 클릭은 LLM 0회, POST 0회이며 coverage를 바꾸지 않는다", () => {
+    const scaffoldStart = SCREEN.indexOf('if (move.kind === "scaffold") {');
+    const llmBoundary = SCREEN.indexOf("const probe = await nextProbe(");
+
+    expect(scaffoldStart).toBeGreaterThan(-1);
+    expect(llmBoundary).toBeGreaterThan(scaffoldStart);
+
+    const deterministicBranch = SCREEN.slice(scaffoldStart, llmBoundary);
+    expect(deterministicBranch).toContain("scaffoldQuestion(move.layer, locale, stuck?.streak ?? 1)");
+    expect(deterministicBranch).toContain("setPendingLayer(move.layer)");
+    expect(deterministicBranch).toContain("return;");
+    expect(deterministicBranch).not.toMatch(/nextProbe|callLlm|fetch|createRecord|addCoverage/);
+    expect(deterministicBranch).not.toMatch(/(?:increment|decrement|set)Coverage/);
+  });
+
+  it('모르겠어요 action은 "여기까지 할래요"를 보여주는 v2 safe 계약이다', () => {
+    const nav = JSON.parse(
+      readFileSync(
+        join(__dirname, "..", "..", "..", "..", "design", "pixel_clay_260825", "data", "nav.json"),
+        "utf8",
+      ),
+    ) as {
+      interview: {
+        version: number;
+        items: Array<Record<string, unknown>>;
+      };
+    };
+    const action = nav.interview.items.find((item) => item.label === "모르겠어요");
+
+    expect(nav.interview.version).toBe(2);
+    expect(action).toEqual({
+      label: "모르겠어요",
+      kind: "action",
+      safe: true,
+      locator: { strategy: "role", role: "button", name: "모르겠어요" },
+      effect: { type: "visible", role: "button", name: "여기까지 할래요" },
+    });
+  });
+
+  it("stop button은 exact visible 검증이 읽을 수 있는 직접 painted label을 갖는다", () => {
+    expect(SCREEN).toContain('accessibilityLabel={t("drill.enough")}');
+    expect(SCREEN).toContain('<Text style={[m3TextStyle("labelLarge"), styles.answerChipText]}>');
+    expect(SCREEN).toContain('{t("drill.enough")}');
   });
 });

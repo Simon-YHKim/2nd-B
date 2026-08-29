@@ -291,8 +291,9 @@
       {
         "label": "모르겠어요",
         "kind": "action",
-        "safe": false,
-        "why": "자동 클릭 시 LLM 호출과 audit 기록이 발생함"
+        "safe": true,
+        "locator": { "strategy": "role", "role": "button", "name": "모르겠어요" },
+        "effect": { "type": "visible", "role": "button", "name": "여기까지 할래요" }
       },
       {
         "label": "별자리",
