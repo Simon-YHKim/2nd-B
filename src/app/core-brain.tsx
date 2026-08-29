@@ -1,5 +1,6 @@
 // Polaris / Core Brain screen (core-brain pack v2). Internal route and data
-// keys stay "Core Brain"; user-facing name is "북극성". Reuses buildPersona
+// keys stay "Core Brain"; user-facing name is "북극성". Reuses the read-only
+// persona snapshot
 // + buildCenterCards (the §7-2 cards) and a real records fetch for the
 // evidence drawer. Per the pack's data_contract we never fabricate
 // unsupported summaries — sections fall back to a collecting/empty state.
@@ -8,7 +9,7 @@
 // 밝아진 동네 · 자주 보이는 나의 모습 · 이걸 만든 별가루들 · 다음 한 걸음 ·
 // 세컨비에게 이 중심으로 묻기.
 
-import { useEffect, useState, type ReactNode } from "react";
+import React, { useEffect, useState, type ReactNode } from "react";
 import { subscribeFontStyle } from "@/lib/settings/readable-font";
 import { View, StyleSheet, ScrollView, Modal, Pressable, TouchableOpacity } from "react-native";
 import { useTranslation } from "react-i18next";
@@ -33,8 +34,8 @@ import { m3 } from "@/lib/theme/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import {
-  buildPersona,
   loadLatestStrengths,
+  loadPersonaSnapshot,
   type LoadedStrengths,
   type PersonaCard,
 } from "@/lib/persona/build";
@@ -48,7 +49,7 @@ import { loadProfileStarLevel } from "@/lib/persona/load-profile-star";
 import { loadSevenLevels } from "@/lib/persona/load-seven-levels";
 import type { LadderLevel } from "@/lib/persona/brightness";
 import { brightnessVisual, brightnessBand, type BrightnessBand } from "@/lib/persona/brightness-visual";
-import { buildCenterCards } from "@/lib/persona/center";
+import { buildCenterCards, type CenterCard } from "@/lib/persona/center";
 import { mergeEvidence, evidenceTypeLabel, type EvidenceShard, type OriginShard, type RawRecordRow, type RawSourceRow } from "@/lib/persona/evidence";
 import { buildSelfPortrait } from "@/lib/persona/self-portrait";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
@@ -135,6 +136,28 @@ function CoreShell({ children }: { children: ReactNode }) {
 const VALIDATED_TOOLS = OFFERABLE.filter((a) => a.provenance === "validated");
 const SELF_TOOLS = OFFERABLE.filter((a) => a.provenance !== "validated");
 
+function hasUnrecordedPersonaProvenance(persona: PersonaCard): boolean {
+  return Object.values(persona.traitConfidence ?? {}).some(
+    (confidence) => confidence.source === "default",
+  );
+}
+
+function buildCoreCenterCards(persona: PersonaCard, locale: "en" | "ko"): CenterCard[] {
+  if (!hasUnrecordedPersonaProvenance(persona)) return buildCenterCards(persona, locale);
+
+  return [
+    {
+      id: "pieces",
+      title: locale === "ko" ? "기존 저장 결과" : "Previously saved result",
+      body:
+        locale === "ko"
+          ? "기존 저장 결과예요. 출처가 기록되지 않아 지금의 방향으로 단정하지 않아요."
+          : "Previously saved result. Its source was not recorded, so we do not present it as your current direction.",
+      accent: cosmic.pixelLamp,
+    },
+  ];
+}
+
 export default function CoreBrain() {
   return <CoreBrainScreen />;
 }
@@ -155,19 +178,21 @@ function CoreBrainScreen() {
   const [strengths, setStrengths] = useState<LoadedStrengths | null>(null);
   const [building, setBuilding] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [loadErrorUserId, setLoadErrorUserId] = useState<string | null>(null);
+  const [resolvedUserId, setResolvedUserId] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [evidenceReloadKey, setEvidenceReloadKey] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { moment: companionMoment, fire: fireCompanion } = useCompanionMoment();
 
   useEffect(() => {
-    // buildPersona() calls Gemini — don't fire it until auth, profile, and
-    // minor status are fully resolved. The effect runs before render redirects,
-    // so hasProfile=null/isMinor=null must fail closed instead of routing as adult.
+    // The snapshot path is SELECT-only. Still wait for auth/profile hydration so
+    // the effect cannot query under an unresolved or stale user identity.
     if (loading || !userId || hasProfile !== true || isMinor === null) return;
     let cancelled = false;
     setBuilding(true);
     setLoadError(false);
+    setLoadErrorUserId(null);
     (async () => {
       try {
         const [ev, nextDomainBrightness, nextStars, nextStrengths, nextProfileLevel] = await Promise.all([
@@ -177,7 +202,10 @@ function CoreBrainScreen() {
           loadLatestStrengths(getSupabaseClient(), userId).catch(() => null),
           loadProfileStarLevel(userId).catch(() => null),
         ]);
-        const p = ev.length > 0 ? await buildPersona(userId, locale, isMinor === true) : null;
+        const snapshot = ev.length > 0 ? await loadPersonaSnapshot(userId) : null;
+        const p = snapshot && nextStars
+          ? { ...snapshot, soulCoreBrightness: nextStars.northStarBrightness }
+          : snapshot;
         if (!cancelled) {
           setEvidence(ev);
           setPersona(p);
@@ -185,12 +213,23 @@ function CoreBrainScreen() {
           setStarBrightness(nextStars?.northStarBrightness ?? null);
           setProfileLevel(nextProfileLevel);
           setStrengths(nextStrengths);
+          setResolvedUserId(userId);
           // 아치 lights up when the center surfaces a fresh connection (companion pack §3).
           if (p) fireCompanion("connectionFound");
         }
       } catch (e) {
         if (typeof console !== "undefined") console.warn("[core-brain] load failed", (e as Error).message);
-        if (!cancelled) setLoadError(true);
+        if (!cancelled) {
+          setPersona(null);
+          setEvidence([]);
+          setDomainBrightness(null);
+          setStarBrightness(null);
+          setProfileLevel(null);
+          setStrengths(null);
+          setResolvedUserId(null);
+          setLoadError(true);
+          setLoadErrorUserId(userId);
+        }
       } finally {
         if (!cancelled) setBuilding(false);
       }
@@ -199,12 +238,12 @@ function CoreBrainScreen() {
       cancelled = true;
     };
   }, [loading, userId, hasProfile, isMinor, locale, fireCompanion, reloadKey]);
-  // Re-focus refreshes only cheap DB evidence. The initial/manual path above is
-  // the only path that may run buildPersona(), because buildPersona calls Gemini.
-  useFocusRefetch(() => setEvidenceReloadKey((k) => k + 1), Boolean(userId && hasProfile !== false));
+  // Re-focus refreshes only cheap DB evidence. The initial/retry path above is
+  // also read-only; persona synthesis and persistence require an explicit action.
+  useFocusRefetch(() => setEvidenceReloadKey((k) => k + 1), Boolean(userId && hasProfile === true));
 
   useEffect(() => {
-    if (evidenceReloadKey === 0 || !userId || hasProfile === false) return;
+    if (evidenceReloadKey === 0 || !userId || hasProfile !== true || resolvedUserId !== userId) return;
     let cancelled = false;
     (async () => {
       try {
@@ -220,16 +259,20 @@ function CoreBrainScreen() {
           if (nextStars) setStarBrightness(nextStars.northStarBrightness);
           setStrengths(nextStrengths);
           setLoadError(false);
+          setLoadErrorUserId(null);
         }
       } catch (e) {
         if (typeof console !== "undefined") console.warn("[core-brain] evidence refresh failed", (e as Error).message);
-        if (!cancelled) setLoadError(true);
+        if (!cancelled) {
+          setLoadError(true);
+          setLoadErrorUserId(userId);
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [userId, hasProfile, locale, evidenceReloadKey]);
+  }, [userId, hasProfile, locale, evidenceReloadKey, resolvedUserId]);
 
   if (loading) {
     return (
@@ -243,7 +286,13 @@ function CoreBrainScreen() {
   if (!userId) return <Redirect href="/sign-in" />;
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
 
-  if (building) {
+  const hasCurrentLoadError = loadError && loadErrorUserId === userId;
+  if (
+    hasProfile !== true ||
+    isMinor === null ||
+    building ||
+    (resolvedUserId !== userId && !hasCurrentLoadError)
+  ) {
     return (
       <CoreShell>
         <View style={styles.center}>
@@ -256,7 +305,7 @@ function CoreBrainScreen() {
   // Load error — a records query error must NOT masquerade as the empty state,
   // or a user who has pieces sees "your center is still small" on a transient
   // RLS/timeout/token-refresh failure. Offer a retry instead.
-  if (loadError) {
+  if (hasCurrentLoadError) {
     return (
       <CoreShell>
         <View style={styles.center}>
@@ -329,7 +378,8 @@ function CoreBrainScreen() {
     );
   }
 
-  const cards = persona ? buildCenterCards(persona, locale) : [];
+  const hasUnrecordedProvenance = persona ? hasUnrecordedPersonaProvenance(persona) : false;
+  const cards = persona ? buildCoreCenterCards(persona, locale) : [];
   const direction = cards.find((c) => c.id === "direction");
   const neighborhood = cards.find((c) => c.id === "neighborhood");
   const pieces = cards.find((c) => c.id === "pieces");
@@ -337,7 +387,7 @@ function CoreBrainScreen() {
   // 나의 모습 — the 5-field self-portrait (who / forWhom / goal / do / fuel).
   // Data contract: only measured fields are filled; the rest stay collecting
   // and point the user at the one place that would fill them. Never fabricated.
-  const portrait = buildSelfPortrait({ persona }, locale);
+  const portrait = buildSelfPortrait({ persona: hasUnrecordedProvenance ? null : persona }, locale);
 
   const filledFields = portrait.filter((f) => f.status === "filled").length;
   const domainLevels: Record<DomainId, LadderLevel> | undefined = domainBrightness?.domainLevels;
@@ -439,7 +489,7 @@ function CoreBrainScreen() {
         : locale === "ko"
           ? "역할을 모으는 중"
           : "Still gathering my roles";
-    const traitRows = persona
+    const traitRows = persona && !hasUnrecordedProvenance
       ? [
           { key: "openness", ko: "개방", en: "Open", value: persona.traits.openness },
           { key: "conscientiousness", ko: "성실", en: "Order", value: persona.traits.conscientiousness },
@@ -486,21 +536,25 @@ function CoreBrainScreen() {
                   : "As more records gather, SecondB will show the roles that repeat, with their evidence.")}
             </Text>
 
-            <Text style={dsDeck.sectionEyebrow}>BIG FIVE</Text>
-            <View style={dsDeck.traitList}>
-              {traitRows.map((trait) => {
-                const score = Math.round(Math.max(0, Math.min(1, trait.value)) * 100);
-                return (
-                  <View key={trait.key} style={dsDeck.traitRow}>
-                    <Text style={dsDeck.traitLabel}>{locale === "ko" ? trait.ko : trait.en}</Text>
-                    <View style={dsDeck.traitTrack}>
-                      <View style={[dsDeck.traitFill, { width: `${score}%` }]} />
-                    </View>
-                    <Text style={dsDeck.traitValue}>{score}</Text>
-                  </View>
-                );
-              })}
-            </View>
+            {traitRows.length > 0 ? (
+              <>
+                <Text style={dsDeck.sectionEyebrow}>BIG FIVE</Text>
+                <View style={dsDeck.traitList}>
+                  {traitRows.map((trait) => {
+                    const score = Math.round(Math.max(0, Math.min(1, trait.value)) * 100);
+                    return (
+                      <View key={trait.key} style={dsDeck.traitRow}>
+                        <Text style={dsDeck.traitLabel}>{locale === "ko" ? trait.ko : trait.en}</Text>
+                        <View style={dsDeck.traitTrack}>
+                          <View style={[dsDeck.traitFill, { width: `${score}%` }]} />
+                        </View>
+                        <Text style={dsDeck.traitValue}>{score}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </>
+            ) : null}
 
             <Text style={dsDeck.sectionEyebrow}>{locale === "ko" ? "어떤 사람" : "THE PERSON"}</Text>
             <View style={dsDeck.personCard}>

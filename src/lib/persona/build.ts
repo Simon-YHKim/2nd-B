@@ -571,6 +571,82 @@ export async function loadPersonaRatifiableSignals(
   };
 }
 
+/**
+ * Load the last persisted persona for read-only screens, enriching only the
+ * assessment fields that are not stored in the persona row. This path never
+ * derives a new persona, synthesizes a narrative, or persists anything: opening
+ * or retrying a screen must not change the user's model. `buildPersona` remains
+ * the explicit rebuild path.
+ */
+export async function loadPersonaSnapshot(userId: string): Promise<PersonaCard | null> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("personas")
+    .select("version, traits, values, patterns, markdown_export")
+    .eq("user_id", userId)
+    .eq("version", 1)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+
+  const row = data as {
+    version?: unknown;
+    traits?: unknown;
+    values?: unknown;
+    patterns?: unknown;
+    markdown_export?: unknown;
+  };
+  const rawTraits = row.traits as Partial<PersonaTraits> | null;
+  if (
+    !rawTraits ||
+    !BFI_TRAIT_KEYS.every(
+      (key) => typeof rawTraits[key] === "number" && Number.isFinite(rawTraits[key]),
+    )
+  ) {
+    throw new Error("Invalid persisted persona traits");
+  }
+  const traits = rawTraits as PersonaTraits;
+
+  const [mbti, attachment] = await Promise.all([
+    loadLatestMbti(supabase, userId),
+    loadLatestAttachment(supabase, userId),
+  ]);
+
+  // Legacy persona rows do not persist provenance. Never infer a validated
+  // source merely because the saved numbers happen to equal a newer IPIP/BFI
+  // result: equal values are not proof that this row came from that instrument.
+  const traitsSource: TraitsSource = "heuristic";
+  const confidence = traitConfidenceFor(traitsSource, 0);
+  const traitConfidence: Record<keyof PersonaTraits, TraitConfidence> = {
+    openness: confidence,
+    conscientiousness: confidence,
+    extraversion: confidence,
+    agreeableness: confidence,
+    neuroticism: confidence,
+  };
+
+  return {
+    version: 1,
+    traits,
+    traitsSource,
+    traitConfidence,
+    mbti,
+    attachment,
+    values: Array.isArray(row.values)
+      ? row.values.filter((value): value is string => typeof value === "string")
+      : [],
+    patterns:
+      row.patterns && typeof row.patterns === "object" && !Array.isArray(row.patterns)
+        ? Object.fromEntries(
+            Object.entries(row.patterns).filter(
+              (entry): entry is [string, string] => typeof entry[1] === "string",
+            ),
+          )
+        : {},
+    markdownExport: typeof row.markdown_export === "string" ? row.markdown_export : "",
+  };
+}
+
 /** Staleness signature for the cached narrative summary. Pure (exported for
  *  tests). Any new/removed record or locale switch changes it. */
 export function personaSummarySig(
