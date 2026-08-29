@@ -180,7 +180,6 @@ describe("동시 비준 gate", () => {
       value: "retried",
     });
   });
-
   it("작업이 실패해도 gate를 풀어 같은 제안을 다시 저장할 수 있다", async () => {
     const { runRatifyDecisionOnce } = jest.requireActual(
       "@/components/persona/RatifySheet",
