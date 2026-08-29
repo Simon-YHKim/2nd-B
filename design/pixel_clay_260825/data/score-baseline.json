@@ -1171,41 +1171,41 @@
    "id": "chat",
    "route": "/secondb",
    "A": 30,
-   "B": 22.1,
+   "B": 24,
    "C": null,
-   "D": 7.5,
+   "D": 15,
    "E": 10,
-   "total": 87,
+   "total": 98.8,
    "unmeasured": ["C"],
-   "missD": ["2nd-B", "Meta-B", "Twi-B", "세컨비"],
+   "missD": [],
    "missE": [],
    "offTop": [
     {
-     "hex": "#23223c",
-     "pixels": 15171
+     "hex": "#122234",
+     "pixels": 340
     },
     {
-     "hex": "#202939",
-     "pixels": 2178
+     "hex": "#12202e",
+     "pixels": 153
     },
     {
-     "hex": "#192136",
-     "pixels": 610
+     "hex": "#336983",
+     "pixels": 151
     },
     {
-     "hex": "#16172c",
-     "pixels": 491
+     "hex": "#387491",
+     "pixels": 139
     },
     {
-     "hex": "#17182e",
-     "pixels": 390
+     "hex": "#2a576e",
+     "pixels": 124
     }
    ],
    "why": {
     "A": "curves 0 · rounds 0 · blur 0 · alpha 0",
-    "B": "token pixels 88.3% (282432/319800) · off-ramp #23223c 15171 / #202939 2178 / #192136 610 / #16172c 491 / #17182e 390",
+    "B": "token pixels 96% (307068/319800) · off-ramp #122234 340 / #12202e 153 / #336983 151 / #387491 139 / #2a576e 124",
     "C": "축 꺼짐 — 눈금이 화면을 구별 못 함(자기 짝 찾기 0/6, 무작위 1/6보다 낮음)",
-    "D": "declared 9 · measured 8 · exempt 1 · missing 4 → 2nd-B / Meta-B / Twi-B / 세컨비 · exact routes 4 · failures effect-mismatch 2 / painted-label 2",
+    "D": "declared 9 · measured 8 · exempt 1 · missing 0 · exact routes 4 · exact actions 4",
     "E": "declared 5 · measured 5 · exempt 0 · missing 0"
    }
   },
