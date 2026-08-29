@@ -318,6 +318,12 @@ jobs:
           }
           NODE
 
+          if ! java -jar "$BUNDLETOOL_JAR" validate --bundle="$PRODUCTION_FILE" \
+            > "$RUNNER_TEMP/aab-bundletool-validation.txt" 2>&1; then
+            echo "::error::Production AAB failed pinned bundletool validation."
+            exit 1
+          fi
+
           if [ -z "${ANDROID_HOME:-}" ]; then
             echo "::error::The hosted runner exposes no Android SDK for APK signature verification."
             exit 1
@@ -378,7 +384,8 @@ jobs:
           node scripts/check-android-release-signatures.js verify \
             "$RUNNER_TEMP/apk-signature.txt" \
             "$RUNNER_TEMP/aab-signature.txt" \
-            "$RUNNER_TEMP/aab-certificate.txt"
+            "$RUNNER_TEMP/aab-certificate.txt" \
+            "${{ steps.artifacts.outputs.production_file }}"
 
       - name: Extract release notes and append remote artifact metadata
         env:
