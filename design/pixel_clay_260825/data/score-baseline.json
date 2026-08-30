@@ -1,5 +1,5 @@
 {
- "note": "5축 채점(A 픽셀규율 30 · B 토큰충실도 25 · C 구조일치 20 · D 내비무결성 15 · E 카피 10). 98 은 게이트지 완성이 아니다 — 여백·손맛·타이밍·카피의 온도는 점수로 만들지 않는다. Stage 1의 8개 행은 2026-08-28 실제 EXPO_PUBLIC_* 환경의 attested strict exact-navigation run으로 재측정했고, interview와 review는 2026-08-29 최신 구현의 동일 조건 run으로 갱신했다. 나머지 행은 이전 기준선을 유지한다.",
+ "note": "5축 채점(A 픽셀규율 30 · B 토큰충실도 25 · C 구조일치 20 · D 내비무결성 15 · E 카피 10). 98 은 게이트지 완성이 아니다 — 여백·손맛·타이밍·카피의 온도는 점수로 만들지 않는다. Stage 1의 8개 행은 2026-08-28 실제 EXPO_PUBLIC_* 환경의 attested strict exact-navigation run으로 재측정했고, interview와 review는 2026-08-29, home은 2026-08-30 최신 구현의 동일 조건 run으로 갱신했다. 나머지 행은 이전 기준선을 유지한다.",
  "base": "http://localhost:8980",
  "weights": {
   "A": 30,
@@ -1106,42 +1106,42 @@
   {
    "id": "home",
    "route": "/",
-   "A": 24,
-   "B": 9.9,
+   "A": 30,
+   "B": 17.8,
    "C": null,
-   "D": 12.7,
+   "D": 15,
    "E": 10,
-   "total": 70.7,
+   "total": 91,
    "unmeasured": ["C"],
-   "missD": ["북극성", "별자리"],
+   "missD": [],
    "missE": [],
    "offTop": [
     {
-     "hex": "#05060b",
-     "pixels": 86760
+     "hex": "#091427",
+     "pixels": 20425
     },
     {
-     "hex": "#090c15",
-     "pixels": 23042
+     "hex": "#0d121e",
+     "pixels": 4037
     },
     {
-     "hex": "#06080e",
-     "pixels": 6223
+     "hex": "#0e131f",
+     "pixels": 4033
     },
     {
-     "hex": "#080b14",
-     "pixels": 4346
+     "hex": "#000000",
+     "pixels": 2351
     },
     {
-     "hex": "#05080e",
-     "pixels": 3702
+     "hex": "#254891",
+     "pixels": 1211
     }
    ],
    "why": {
-    "A": "curves 0 · rounds 0 · blur 0 · alpha 1",
-    "B": "token pixels 39.6% (126487/319800) · off-ramp #05060b 86760 / #090c15 23042 / #06080e 6223 / #080b14 4346 / #05080e 3702",
+    "A": "curves 0 · rounds 0 · blur 0 · alpha 0",
+    "B": "token pixels 71.1% (227221/319800) · off-ramp #091427 20425 / #0d121e 4037 / #0e131f 4033 / #000000 2351 / #254891 1211",
     "C": "축 꺼짐 — 눈금이 화면을 구별 못 함(자기 짝 찾기 0/6, 무작위 1/6보다 낮음)",
-    "D": "declared 13 · measured 13 · exempt 0 · missing 2 → 북극성 / 별자리 · exact routes 4 · exact actions 7 · failures mutation-blocked 1 / effect-mismatch 1",
+    "D": "declared 13 · measured 13 · exempt 0 · missing 0 · exact routes 5 · exact actions 8",
     "E": "declared 5 · measured 5 · exempt 0 · missing 0"
    }
   },
