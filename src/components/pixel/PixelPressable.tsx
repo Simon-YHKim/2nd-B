@@ -34,8 +34,6 @@ export interface PixelPressableProps {
   accessibilityLabel?: string;
   accessibilityHint?: string;
   disabled?: boolean;
-  /** 면 배경. `PixelSurface.background` 으로 그대로 전달한다. */
-  background?: string;
   style?: StyleProp<ViewStyle>;
   contentStyle?: StyleProp<ViewStyle>;
 }
@@ -47,7 +45,6 @@ export function PixelPressable({
   accessibilityLabel,
   accessibilityHint,
   disabled = false,
-  background,
   style,
   contentStyle,
 }: PixelPressableProps) {
@@ -72,7 +69,6 @@ export function PixelPressable({
         <PixelSurface
           variant={variant}
           pressed={sunken}
-          background={background}
           style={styles.surface}
           contentStyle={[styles.content, contentStyle]}
         >

@@ -75,11 +75,10 @@ export default function NotFound() {
             onPress={goHome}
             accessibilityLabel={t("actions.home")}
             accessibilityHint={t("actions.homeHint")}
-            background={m3.color.primary}
             style={styles.homeAction}
             contentStyle={styles.homeActionContent}
           >
-            <PixelGlyph name="house" color={m3.color.onPrimary} size={24} />
+            <PixelGlyph name="house" color={m3.color.onSurface} size={24} />
             <Text style={[m3TextStyle("labelLarge"), styles.homeLabel]}>
               {t("actions.home")}
             </Text>
@@ -121,5 +120,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: m3.spacing.s2,
   },
-  homeLabel: { color: m3.color.onPrimary, textAlign: "center" },
+  homeLabel: { color: m3.color.onSurface, textAlign: "center" },
 });

@@ -21,7 +21,6 @@ describe("the real Expo Router not-found fallback", () => {
   test("uses the adopted PIXEL-CLAY primitives without reviving the demo screen", () => {
     expect(source).toContain("<PixelSurface");
     expect(source).toContain("<PixelPressable");
-    expect(source).toContain("background={m3.color.primary}");
     expect(source).toContain("<PixelGlyph");
     expect(source).toContain("<SbStarfield cosmic />");
     expect(source).not.toMatch(/PremiumAppShell|SceneHero|CORE_VILLAGE_UI/);
