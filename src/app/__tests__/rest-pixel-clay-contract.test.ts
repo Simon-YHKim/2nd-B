@@ -67,6 +67,10 @@ describe("/rest PIXEL-CLAY contract", () => {
     expect(SOURCE).toContain("onPress={() => void refresh()}");
     expect(SOURCE).toContain("setSaveFailed(true)");
     expect(SOURCE).toContain('t("deepspace:rest.saveFailed")');
+    expect(SOURCE).toContain("const createdItem = await createRecreationItem(userId, {");
+    expect(SOURCE).toMatch(
+      /setItems\(\(currentItems\) => \[\s+createdItem,\s+\.\.\.\(currentItems \?\? \[\]\)\.filter\(\(item\) => item\.id !== createdItem\.id\),/,
+    );
   });
 
   test("drops reverse-order reads and stale save settlement", () => {

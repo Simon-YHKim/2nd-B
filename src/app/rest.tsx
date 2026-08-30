@@ -153,12 +153,19 @@ function RestContent({ userId }: { userId: string }) {
     setSaving(true);
     setSaveFailed(false);
     try {
-      await createRecreationItem(userId, {
+      const createdItem = await createRecreationItem(userId, {
         title: title.trim(),
         category,
         status,
       });
       if (saveGuardRef.current.isStale(token)) return;
+      // The write is already authoritative. Keep its returned row visible even
+      // if the follow-up reconciliation read is offline, and de-dupe if a prior
+      // refresh happened to include it first.
+      setItems((currentItems) => [
+        createdItem,
+        ...(currentItems ?? []).filter((item) => item.id !== createdItem.id),
+      ]);
       setTitle("");
       setAdding(false);
       void refresh();
