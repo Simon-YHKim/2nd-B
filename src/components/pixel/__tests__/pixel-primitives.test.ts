@@ -10,13 +10,25 @@ import path from "node:path";
 
 import { m3 } from "@/lib/theme/m3";
 
+import {
+  PIXEL_GATE_BOTTOM_GUTTER,
+  PIXEL_GATE_IME_CLEARANCE,
+  pixelGateBottomPadding,
+} from "../pixel-gate";
 import { pixelPressTransform, pixelStateDensity } from "../press";
 
 const DIR = path.resolve(__dirname, "..");
 const ROOT = path.resolve(__dirname, "../../../..");
 const read = (f: string): string => readFileSync(path.join(DIR, f), "utf8");
 
-const FILES = ["PixelSurface.tsx", "PixelDither.tsx", "PixelPressable.tsx", "press.ts"];
+const FILES = [
+  "PixelSurface.tsx",
+  "PixelDither.tsx",
+  "PixelPressable.tsx",
+  "PixelGateShell.tsx",
+  "pixel-gate.ts",
+  "press.ts",
+];
 
 describe("절대 규칙이 프리미티브에 박혀 있다", () => {
   test.each(FILES)("%s 에 hex 리터럴이 없다 (규칙 7)", (f) => {
@@ -176,8 +188,55 @@ describe("누름 - 가라앉기와 베벨 반전이 함께 간다", () => {
   });
 
   test("접근성 역할과 상태가 붙어 있다", () => {
-    expect(src).toContain('accessibilityRole="button"');
-    expect(src).toContain("accessibilityState={{ disabled }}");
+    expect(src).toContain('accessibilityRole = "button"');
+    expect(src).toContain("accessibilityRole={accessibilityRole}");
+    expect(src).toContain("accessibilityState={{ ...accessibilityState, disabled }}");
+  });
+
+  test("면 배경과 root/full-width 스타일을 additive prop 으로 전달한다", () => {
+    expect(src).toContain("background?: string;");
+    expect(src).toContain("background={background}");
+    expect(src).toContain("rootStyle?: StyleProp<ViewStyle>;");
+    expect(src).toContain("fullWidth?: boolean;");
+    expect(src).toContain("style={[styles.root, fullWidth && styles.fullWidth, rootStyle]}");
+    expect(src).toContain('fullWidth: { alignSelf: "stretch", width: "100%" }');
+  });
+});
+
+describe("gate 셸 - dock 없는 seeded sky + 키보드 안전 스크롤", () => {
+  const src = read("PixelGateShell.tsx");
+  const index = read("index.ts");
+
+  test("safe area 안에서 seeded sky, iOS KAV, ScrollView 를 한 번씩 소유한다", () => {
+    for (const tag of ["SafeAreaView", "SbStarfield", "KeyboardAvoidingView", "ScrollView"]) {
+      const count = src.match(new RegExp(`^\\s*<${tag}\\b`, "gm"))?.length ?? 0;
+      expect({ tag, count }).toEqual({ tag, count: 1 });
+    }
+    expect(src).toContain("<SbStarfield cosmic />");
+    expect(src).toContain('edges={["top", "bottom"]}');
+    expect(src).toContain('behavior={Platform.OS === "ios" ? "padding" : undefined}');
+    expect(src).toContain('keyboardShouldPersistTaps="handled"');
+  });
+
+  test("인증된 앱 dock 을 끌어오지 않는다", () => {
+    expect(src).not.toMatch(/import[^;]+(DeepSpaceScreen|DeepSpaceDock|SbNavBar)/);
+    expect(src).not.toMatch(/<(MdNavBar|SbNavBar)\b/);
+  });
+
+  test("Android IME 높이가 실제 content padding 으로 이어진다", () => {
+    expect(src).toContain("const keyboardHeight = useKeyboard();");
+    expect(src).toContain("pixelGateBottomPadding(Platform.OS, keyboardHeight)");
+    expect(src).toContain("contentContainerStyle={[styles.content, { paddingBottom }, contentContainerStyle]}");
+
+    expect(pixelGateBottomPadding("android", 300)).toBe(300 + PIXEL_GATE_IME_CLEARANCE);
+    expect(pixelGateBottomPadding("android", 0)).toBe(PIXEL_GATE_BOTTOM_GUTTER);
+    expect(pixelGateBottomPadding("android", Number.NaN)).toBe(PIXEL_GATE_BOTTOM_GUTTER);
+    expect(pixelGateBottomPadding("ios", 300)).toBe(PIXEL_GATE_BOTTOM_GUTTER);
+    expect(pixelGateBottomPadding("web", 300)).toBe(PIXEL_GATE_BOTTOM_GUTTER);
+  });
+
+  test("barrel export 로 화면들이 로컬 셸을 만들지 않고 재사용할 수 있다", () => {
+    expect(index).toContain('export { PixelGateShell, type PixelGateShellProps } from "./PixelGateShell";');
   });
 });
 
