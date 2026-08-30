@@ -163,6 +163,116 @@ jobs:
           echo "GOOGLE_SERVICES_JSON=$GITHUB_WORKSPACE/google-services.json" >> "$GITHUB_ENV"
           echo "GOOGLE_SERVICE_INFO_PLIST=$GITHUB_WORKSPACE/GoogleService-Info.plist" >> "$GITHUB_ENV"
 
+      - name: Synchronize build-profile public values to the named EAS environment
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          CHANNEL: ${{ needs.gate.outputs.channel }}
+        run: |
+          set -euo pipefail
+          if [ -z "${EXPO_TOKEN:-}" ]; then
+            echo "::error::EXPO_TOKEN is required to synchronize the EAS server environment."
+            exit 1
+          fi
+          case "$CHANNEL" in preview|production) ;; *) echo "::error::Unsupported EAS environment."; exit 1 ;; esac
+          SYNC_CHECKER="$RUNNER_TEMP/plan-eas-public-env-sync.cjs"
+          SYNC_PLAN="$RUNNER_TEMP/eas-public-env-sync-plan.json"
+          export EAS_ENV_SYNC_CHECKER="$SYNC_CHECKER" EAS_ENV_SYNC_PLAN="$SYNC_PLAN" EAS_ENV_SYNC_CHANNEL="$CHANNEL"
+          node <<'NODE'
+          const fs = require("node:fs");
+          fs.writeFileSync(process.env.EAS_ENV_SYNC_CHECKER, String.raw`
+          const fs = require("node:fs");
+          const path = require("node:path");
+          const eas = require(path.join(process.cwd(), "eas.json"));
+          const channel = process.env.EAS_ENV_SYNC_CHANNEL;
+          const profile = eas.build?.[channel];
+          if (!profile || profile.channel !== channel || profile.environment !== channel) {
+            throw new Error("build profile channel/environment contract mismatch");
+          }
+          const entries = Object.entries(profile.env ?? {}).filter(([key]) => key.startsWith("EXPO_PUBLIC_"));
+          if (entries.length === 0) throw new Error("build profile has no EXPO_PUBLIC contract");
+          for (const [key, value] of entries) {
+            if (!/^EXPO_PUBLIC_[A-Z0-9_]+$/.test(key) || typeof value !== "string" || /[\r\n]/.test(value)) {
+              throw new Error("invalid build-profile public environment entry");
+            }
+          }
+          const mismatches = entries
+            .filter(([key, value]) => process.env[key] !== value)
+            .map(([key]) => key)
+            .sort();
+          fs.writeFileSync(process.env.EAS_ENV_SYNC_PLAN, JSON.stringify(mismatches));
+          `);
+          NODE
+          if ! npx --yes "eas-cli@$EAS_CLI_VERSION" env:exec "$CHANNEL" \
+            'node "$EAS_ENV_SYNC_CHECKER"' \
+            --non-interactive > "$RUNNER_TEMP/eas-env-sync-plan.log" 2>&1; then
+            echo "::error::Could not compare the EAS server environment; response details were withheld."
+            exit 1
+          fi
+          SYNC_COUNT="$(node - "$SYNC_PLAN" "$CHANNEL" <<'NODE'
+          const fs = require("node:fs");
+          const eas = require("./eas.json");
+          const [planPath, channel] = process.argv.slice(2);
+          const plan = JSON.parse(fs.readFileSync(planPath, "utf8"));
+          const allowed = new Set(
+            Object.keys(eas.build?.[channel]?.env ?? {}).filter((key) => key.startsWith("EXPO_PUBLIC_")),
+          );
+          if (
+            !Array.isArray(plan) ||
+            new Set(plan).size !== plan.length ||
+            plan.some((key) => typeof key !== "string" || !allowed.has(key))
+          ) throw new Error("invalid EAS environment synchronization plan");
+          process.stdout.write(String(plan.length));
+          NODE
+          )"
+          require_current_main() {
+            if ! git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main' >/dev/null 2>&1; then
+              echo "::error::Could not refresh origin/main immediately around EAS environment synchronization."
+              exit 1
+            fi
+            if [ "$(git rev-parse HEAD)" != "$GITHUB_SHA" ] || [ "$(git rev-parse origin/main)" != "$GITHUB_SHA" ]; then
+              echo "::error::origin/main advanced during EAS environment synchronization; no further mutation was attempted."
+              exit 1
+            fi
+          }
+          INDEX=0
+          require_current_main
+          while IFS= read -r KEY; do
+            [ -n "$KEY" ] || continue
+            VALUE="$(node - "$CHANNEL" "$KEY" <<'NODE'
+          const eas = require("./eas.json");
+          const [channel, key] = process.argv.slice(2);
+          const value = eas.build?.[channel]?.env?.[key];
+          if (typeof value !== "string" || /[\r\n]/.test(value)) throw new Error("invalid sync value");
+          process.stdout.write(value);
+          NODE
+            )"
+            INDEX=$((INDEX + 1))
+            require_current_main
+            if ! npx --yes "eas-cli@$EAS_CLI_VERSION" env:set "$CHANNEL" \
+              --name "$KEY" \
+              --value "$VALUE" \
+              --type string \
+              --visibility plaintext \
+              --scope project \
+              --json \
+              --non-interactive \
+              > "$RUNNER_TEMP/eas-env-set-$INDEX.json" 2> "$RUNNER_TEMP/eas-env-set-$INDEX.err"; then
+              echo "::error::EAS public environment synchronization failed; response details were withheld."
+              exit 1
+            fi
+          done < <(node - "$SYNC_PLAN" <<'NODE'
+          const fs = require("node:fs");
+          const plan = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+          process.stdout.write(plan.join("\n"));
+          NODE
+          )
+          require_current_main
+          if [ "$INDEX" -ne "$SYNC_COUNT" ]; then
+            echo "::error::EAS public environment synchronization count mismatch."
+            exit 1
+          fi
+          echo "Synchronized $SYNC_COUNT build-profile public environment names without printing values."
+
       - name: Verify the EAS server environment matches the native build profile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
