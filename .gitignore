@@ -164,3 +164,8 @@ apl_sign.txt
 # 서로 다른 브랜치에서 고쳐 머지에서 충돌한다. 안 커밋하는 것이 설계다.
 # 규칙은 _sync/README.md.
 _sync/
+
+# Supabase CLI writes its link state here (project-ref, pooler-url, *-version).
+# Local per-machine state, never meant for git — it showed up as 7 untracked
+# files in the shared checkout on 2026-08-30 and confused the cleanup.
+supabase/.temp/
