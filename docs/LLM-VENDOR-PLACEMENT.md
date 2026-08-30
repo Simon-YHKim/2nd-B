@@ -379,6 +379,23 @@ Simon 합의 사안이고(CLAUDE.md), 유니언에서 `gemini` 를 빼는 것은
 않는다. 재색인이 아니라 **"동의 시점의 백필 미배선"** 이 결함이고, 배선은 별도 발주(동의 토글 →
 백필, 클램프 준수).
 
+**실제로 돌려 봤다 (2026-08-31 01:03–01:07 KST, 라이브 웹, QA 계정).** 기준선 QA 138/138 NULL ·
+`wiki_pages` 0행(전 사용자 합계도 0) · 동의 켠 사용자 1명. ① `/privacy` "의미 연결 켜기" →
+`records_embedding=true`. ② `/capture` 한 줄 담기 → **7초 뒤** `records.embedding` 有,
+`embedding_model=text-embedding-3-large`, `ai_audit_log` **embed_index / openai / 3,492 ms**.
+③ `/research` "AI 연결 제안 받기"(= `wiki/embeddings.ts` `backfillEmbeddings`) → 원장 행 **0** —
+이 백필은 `wiki_pages` 만 읽는데 0행이라 `embedTexts` 를 부르지 않는다. 그런데 그 화면의 그래프
+("페이지 89 · 연결 9")는 `records` 로 그린다 — **화면과 색인의 데이터원이 다르다.** ④ "의미 연결
+끄기" → pref false, 벡터 삭제(정직한 OFF), 원장 행은 남음. 0072 클램프는 `minor_self` 에만 걸린다
+(QA 는 adult). 결론: 경로는 정상이고 **색인을 만드는 손이 없다** — 동의 기본 OFF · 소급 백필 없음 ·
+위키 0행. 제품 결정(Simon): records 백필을 (a) 동의 켤 때 일괄 / (b) 연결 제안 버튼이 records 색인 /
+(c) 지금처럼 앞으로만.
+
+⚠ 실측이 낸 결함 — 동의 문구가 **"Gemini(해외)로 전송"** 이라고 적혀 있는데 같은 동의의 첫 임베딩은
+**openai** 로 갔다(08-23 벤더 이동, 문구 미갱신). 벤더 이름을 `embedVendor()` 에서 읽도록 별도 PR
+**#1506**(`fix/embed-consent-vendor-copy`). 개인정보처리방침 **문서**의 'Gemini' 는 2단계(Simon 합의)
+그대로.
+
 ### 9월 폐기 체크리스트 — 알파 트랙 항목 (콘솔 #1368 질의에 대한 답)
 
 **넣는다. 다만 "새 빌드를 게시한다"만으로는 부족하고, 반대로 "OTA 면 된다"도 아니다.**
