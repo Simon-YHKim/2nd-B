@@ -13,6 +13,7 @@
 // via the match_records kNN RPC (migration 0071).
 
 import { embedTexts, EMBED_DIM } from "../llm/boundary";
+import { embedVendor, type LlmVendor } from "../llm/routing";
 import { getSupabaseClient } from "../supabase/client";
 
 // D5 consent gate for records (journal) embedding — the MOST sensitive corpus.
@@ -26,6 +27,28 @@ export function recordsEmbeddingAllowed(
   recordsEmbeddingPref: boolean | null | undefined,
 ): boolean {
   return isMinor !== true && recordsEmbeddingPref === true;
+}
+
+/**
+ * The processor named in the records_embedding consent copy.
+ *
+ * The consent screen used to hardcode "Gemini". Measured 2026-08-31 on the live
+ * web with the QA account: opting in and saving one record produced an
+ * ai_audit_log row `embed_index / openai / text-embedding-3-large` — the text
+ * had gone to OpenAI while the screen the user had just read said Gemini
+ * (EXPO_PUBLIC_EMBED_VENDOR moved on 2026-08-23; the copy did not). A consent
+ * that names the wrong processor is not consent to the right one, so the name
+ * is read from the same switch the call follows. Only the two vendors
+ * embedVendor() can return have a label; both process overseas.
+ */
+const EMBED_VENDOR_LABEL: Record<Extract<LlmVendor, "openai" | "gemini">, string> = {
+  openai: "OpenAI",
+  gemini: "Gemini",
+};
+
+export function embedVendorLabel(): string {
+  const vendor = embedVendor();
+  return vendor === "gemini" ? EMBED_VENDOR_LABEL.gemini : EMBED_VENDOR_LABEL.openai;
 }
 
 /** Minimal record shape this module embeds — the semantic-ish text fields. */
