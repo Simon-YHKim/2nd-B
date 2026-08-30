@@ -46,7 +46,10 @@ design/pixel_clay_260825/data/salvage-plan.json의 `dobgate`와 `/onboarding` �
   slide 역이동을 유지한다.
 
 구현:
-- 현재 네 슬라이드의 canon copy와 의미는 유지하되 raw `Pressable`, 장식 wrapper,
+- 현재 네 슬라이드의 순서와 역할은 유지하되, 두 번째 슬라이드가 생활 여섯 영역을
+  별이라고 부르는 낡은 문구는 최신 정본으로 바로잡는다. 새 일곱 별은 프로필·영유아기·
+  학창시절·20대·30대 이후·직장·지금이며, 커리어·재정·관계·건강·성장·휴식은 별이
+  아니라 SecondB 대시보드의 생활 영역이다. 그 뒤 raw `Pressable`, 장식 wrapper,
   수동 alpha 표면을 `PixelSurface`, `PixelPressable`, `PixelGlyph`로 바꾼다.
 - 마지막 장은 SecondB head, 가입 시 연령 확인 안내, `/sign-up`과 `/sign-in` 두 실제
   action만 둔다. 로그인 상태에서는 중복 auth choice 대신 홈 진입 하나만 둔다.
@@ -56,7 +59,7 @@ design/pixel_clay_260825/data/salvage-plan.json의 `dobgate`와 `/onboarding` �
 
 테스트:
 - signed-out pre-auth render와 onboarding-complete redirect
-- 네 canon slide 및 Android Back 역이동
+- 네 slide, 최신 일곱 별 문구, 생활 여섯 영역의 별 오인 부재 및 Android Back 역이동
 - final step의 `/sign-up`, `/sign-in`, signed-in `/` 목적지
 - `markOnboardingComplete()`가 handoff action 전에 실행되지 않음
 - onboarding 내부 DOB input/update, hard-coded 18+, fake guardian/adult state 부재
