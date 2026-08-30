@@ -1,15 +1,15 @@
-name: GitHub Release (APK + AAB)
+name: GitHub Release (APK + AAB + IPA)
 
-# Creates one immutable draft release from two already-finished EAS Android
-# builds. It never starts a paid build and never deletes/replaces a tag, release,
-# or asset. A rerun is accepted only when the tag target and all three assets are
+# Creates one immutable draft release from three already-finished EAS builds.
+# It never starts a paid build and never deletes/replaces a tag, release, or
+# asset. A rerun is accepted only when the tag target and all four assets are
 # byte-for-byte identical.
 
 on:
   workflow_dispatch:
     inputs:
       profile:
-        description: "Release contract (paired APK + AAB only)"
+        description: "Release contract (paired APK + AAB + IPA only)"
         required: true
         type: choice
         options:
@@ -21,6 +21,10 @@ on:
         type: string
       production_build_id:
         description: "Finished EAS production build id (AAB)"
+        required: true
+        type: string
+      ios_build_id:
+        description: "Finished EAS production iOS build id (IPA)"
         required: true
         type: string
       prerelease:
@@ -43,6 +47,7 @@ env:
   EAS_CLI_VERSION: "22.6.0"
   BUNDLETOOL_VERSION: "1.18.3"
   BUNDLETOOL_SHA256: "a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29"
+  APPLE_TEAM_ID: "7CP84WS5C6"
 
 jobs:
   release:
@@ -74,7 +79,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$RELEASE_PROFILE" != paired ]; then
-            echo "::error::Only the paired APK + AAB release contract is supported."
+            echo "::error::Only the paired APK + AAB + IPA release contract is supported."
             exit 1
           fi
           if [ "$GITHUB_REF" != refs/heads/main ]; then
@@ -107,12 +112,13 @@ jobs:
           echo "BUNDLETOOL_JAR=$JAR" >> "$GITHUB_ENV"
           java -jar "$JAR" version
 
-      - name: Get the build artifacts, validate provenance, and download both
+      - name: Get the build artifacts, validate provenance, and download all three
         id: artifacts
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           PREVIEW_BUILD_ID: ${{ inputs.preview_build_id }}
           PRODUCTION_BUILD_ID: ${{ inputs.production_build_id }}
+          IOS_BUILD_ID: ${{ inputs.ios_build_id }}
           EXPECTED_COMMIT: ${{ github.sha }}
         run: |
           set -euo pipefail
@@ -120,7 +126,7 @@ jobs:
             echo "::error::EXPO_TOKEN is required to verify EAS build metadata."
             exit 1
           fi
-          for id in "$PREVIEW_BUILD_ID" "$PRODUCTION_BUILD_ID"; do
+          for id in "$PREVIEW_BUILD_ID" "$PRODUCTION_BUILD_ID" "$IOS_BUILD_ID"; do
             if ! printf '%s' "$id" | grep -qE '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'; then
               echo "::error::Malformed EAS build id."
               exit 1
@@ -129,19 +135,21 @@ jobs:
 
           PREVIEW_JSON="$RUNNER_TEMP/eas-preview.json"
           PRODUCTION_JSON="$RUNNER_TEMP/eas-production.json"
+          IOS_JSON="$RUNNER_TEMP/eas-ios.json"
           # This workflow only reuses finished builds; no new build started.
           for SPEC in \
             "preview|$PREVIEW_BUILD_ID|$PREVIEW_JSON" \
-            "production|$PRODUCTION_BUILD_ID|$PRODUCTION_JSON"; do
+            "production|$PRODUCTION_BUILD_ID|$PRODUCTION_JSON" \
+            "ios|$IOS_BUILD_ID|$IOS_JSON"; do
             IFS='|' read -r ROLE REUSE_BUILD_ID OUTPUT_JSON <<< "$SPEC"
             echo "Inspecting existing $ROLE EAS build metadata."
             npx --yes "eas-cli@$EAS_CLI_VERSION" build:view "$REUSE_BUILD_ID" --json > "$OUTPUT_JSON"
           done
 
-          node - "$PREVIEW_JSON" "$PRODUCTION_JSON" "$RUNNER_TEMP/validated-builds.json" <<'NODE'
+          node - "$PREVIEW_JSON" "$PRODUCTION_JSON" "$IOS_JSON" "$RUNNER_TEMP/validated-builds.json" <<'NODE'
           const fs = require("node:fs");
           const config = require("./app.json").expo;
-          const [previewPath, productionPath, outputPath] = process.argv.slice(2);
+          const [previewPath, productionPath, iosPath, outputPath] = process.argv.slice(2);
           const expectedCommit = process.env.EXPECTED_COMMIT.toLowerCase();
           const expectedProject = config.extra?.eas?.projectId;
           const query = `
@@ -199,22 +207,23 @@ jobs:
             throw new Error(`${profile} build rejected: authenticated Expo GraphQL provenance is unavailable`);
           }
 
-          function validateCliMetadata(path, profile, expectedId) {
+          function validateCliMetadata(path, role, profile, expectedId, expectedPlatform, expectedIdentifier) {
             const value = JSON.parse(fs.readFileSync(path, "utf8"));
             const build = Array.isArray(value) ? value[0] : value;
-            const fail = (message) => { throw new Error(`${profile} build rejected: ${message}`); };
+            const fail = (message) => { throw new Error(`${role} build rejected: ${message}`); };
             const project = build?.app ?? build?.project;
             if (String(build?.id).toLowerCase() !== expectedId.toLowerCase()) fail("returned id differs from requested id");
             if (project?.id !== expectedProject) fail("EAS project id mismatch");
             if (project?.slug !== config.slug) fail("EAS project slug mismatch");
             if (project?.ownerAccount?.name !== config.owner) fail("EAS owner mismatch");
-            if (String(build?.platform).toUpperCase() !== "ANDROID") fail("platform is not Android");
+            if (String(build?.platform).toUpperCase() !== expectedPlatform) fail(`platform is not ${expectedPlatform}`);
+            if (expectedPlatform === "IOS" && build?.isForIosSimulator === true) fail("iOS build targets a simulator");
             const status = String(build?.status).toUpperCase();
             if (status !== "FINISHED") fail(`status is ${build?.status || "missing"}`);
             if (build?.buildProfile !== profile) fail(`profile is ${build?.buildProfile || "missing"}`);
-            if (build?.appIdentifier !== config.android?.package) fail("Android application id mismatch");
+            if (build?.appIdentifier !== expectedIdentifier) fail("application identifier mismatch");
             if (!build?.appVersion || build.appVersion !== config.version) fail("appVersion does not match app.json");
-            if (!/^[1-9][0-9]*$/.test(String(build?.appBuildVersion || ""))) fail("remote versionCode is missing or invalid");
+            if (!/^[1-9][0-9]*$/.test(String(build?.appBuildVersion || ""))) fail("remote build version is missing or invalid");
             const expectedChannel = profile === "preview" ? "preview" : "production";
             const channel = build?.updateChannel?.name ?? build?.channel ?? null;
             if (channel !== expectedChannel) fail(`channel is ${channel || "missing"}, expected ${expectedChannel}`);
@@ -224,8 +233,12 @@ jobs:
             let parsed;
             try { parsed = new URL(artifactUrl); } catch { fail("reports no artifact URL or the URL is invalid"); }
             if (parsed.protocol !== "https:") fail("artifact URL is not HTTPS");
+            if (expectedPlatform === "IOS" && !parsed.pathname.toLowerCase().endsWith(".ipa")) {
+              fail("artifact URL does not identify an IPA");
+            }
             return {
               id: build.id,
+              role,
               profile,
               appVersion: build.appVersion,
               appBuildVersion: String(build.appBuildVersion),
@@ -252,16 +265,29 @@ jobs:
           }
 
           async function main() {
-            const preview = validateCliMetadata(previewPath, "preview", process.env.PREVIEW_BUILD_ID);
-            const production = validateCliMetadata(productionPath, "production", process.env.PRODUCTION_BUILD_ID);
-            const [previewProvenance, productionProvenance] = await Promise.all([
+            const preview = validateCliMetadata(
+              previewPath, "preview", "preview", process.env.PREVIEW_BUILD_ID,
+              "ANDROID", config.android?.package,
+            );
+            const production = validateCliMetadata(
+              productionPath, "production", "production", process.env.PRODUCTION_BUILD_ID,
+              "ANDROID", config.android?.package,
+            );
+            const ios = validateCliMetadata(
+              iosPath, "ios", "production", process.env.IOS_BUILD_ID,
+              "IOS", config.ios?.bundleIdentifier,
+            );
+            const [previewProvenance, productionProvenance, iosProvenance] = await Promise.all([
               fetchBuildProvenance(process.env.PREVIEW_BUILD_ID, "preview"),
               fetchBuildProvenance(process.env.PRODUCTION_BUILD_ID, "production"),
+              fetchBuildProvenance(process.env.IOS_BUILD_ID, "ios"),
             ]);
             preview.gitCommitHash = validateProvenance(previewProvenance, "preview", process.env.PREVIEW_BUILD_ID);
             production.gitCommitHash = validateProvenance(productionProvenance, "production", process.env.PRODUCTION_BUILD_ID);
+            ios.gitCommitHash = validateProvenance(iosProvenance, "ios", process.env.IOS_BUILD_ID);
             if (preview.appVersion !== production.appVersion) throw new Error("APK and AAB appVersion values differ");
-            fs.writeFileSync(outputPath, JSON.stringify({ preview, production }));
+            if (preview.appVersion !== ios.appVersion) throw new Error("Android and iOS appVersion values differ");
+            fs.writeFileSync(outputPath, JSON.stringify({ preview, production, ios }));
           }
 
           main().catch((error) => {
@@ -277,19 +303,26 @@ jobs:
           fi
           PREVIEW_CODE="$(node -p "require('$RUNNER_TEMP/validated-builds.json').preview.appBuildVersion")"
           PRODUCTION_CODE="$(node -p "require('$RUNNER_TEMP/validated-builds.json').production.appBuildVersion")"
+          IOS_BUILD_NUMBER="$(node -p "require('$RUNNER_TEMP/validated-builds.json').ios.appBuildVersion")"
           PREVIEW_URL="$(node -p "require('$RUNNER_TEMP/validated-builds.json').preview.artifactUrl")"
           PRODUCTION_URL="$(node -p "require('$RUNNER_TEMP/validated-builds.json').production.artifactUrl")"
+          IOS_URL="$(node -p "require('$RUNNER_TEMP/validated-builds.json').ios.artifactUrl")"
           PREVIEW_RUNTIME="$(node -p "require('$RUNNER_TEMP/validated-builds.json').preview.runtimeVersion")"
           PRODUCTION_RUNTIME="$(node -p "require('$RUNNER_TEMP/validated-builds.json').production.runtimeVersion")"
+          IOS_RUNTIME="$(node -p "require('$RUNNER_TEMP/validated-builds.json').ios.runtimeVersion")"
           PREVIEW_CHANNEL="$(node -p "require('$RUNNER_TEMP/validated-builds.json').preview.channel")"
           PRODUCTION_CHANNEL="$(node -p "require('$RUNNER_TEMP/validated-builds.json').production.channel")"
+          IOS_CHANNEL="$(node -p "require('$RUNNER_TEMP/validated-builds.json').ios.channel")"
+          IOS_BUNDLE_ID="$(node -p "require('$RUNNER_TEMP/validated-builds.json').ios.appIdentifier")"
           SHORT_SHA="${GITHUB_SHA:0:12}"
           PREVIEW_FILE="2nd-Brain-v$VERSION-preview-vc$PREVIEW_CODE-$SHORT_SHA.apk"
           PRODUCTION_FILE="2nd-Brain-v$VERSION-production-vc$PRODUCTION_CODE-$SHORT_SHA.aab"
+          IOS_FILE="2nd-Brain-v$VERSION-production-build$IOS_BUILD_NUMBER-$SHORT_SHA.ipa"
 
-          curl --fail --silent --show-error --location --retry 3 "$PREVIEW_URL" --output "$PREVIEW_FILE"
-          curl --fail --silent --show-error --location --retry 3 "$PRODUCTION_URL" --output "$PRODUCTION_FILE"
-          for file in "$PREVIEW_FILE" "$PRODUCTION_FILE"; do
+          curl --proto '=https' --proto-redir '=https' --fail --silent --show-error --location --retry 3 "$PREVIEW_URL" --output "$PREVIEW_FILE"
+          curl --proto '=https' --proto-redir '=https' --fail --silent --show-error --location --retry 3 "$PRODUCTION_URL" --output "$PRODUCTION_FILE"
+          curl --proto '=https' --proto-redir '=https' --fail --silent --show-error --location --retry 3 "$IOS_URL" --output "$IOS_FILE"
+          for file in "$PREVIEW_FILE" "$PRODUCTION_FILE" "$IOS_FILE"; do
             SIZE="$(stat -c%s "$file")"
             if [ "$SIZE" -lt 1000000 ]; then
               echo "::error::$file is only $SIZE bytes."
@@ -317,6 +350,123 @@ jobs:
             if (!metadata.billingLibrary) throw new Error(`${role} artifact has no verified Billing Library version`);
           }
           NODE
+
+          export IOS_FILE VERSION IOS_BUILD_NUMBER IOS_BUNDLE_ID
+          python3 <<'PY' > "$RUNNER_TEMP/ipa-info.json"
+          import json
+          import os
+          import plistlib
+          import re
+          import stat
+          import zipfile
+
+          with zipfile.ZipFile(os.environ["IOS_FILE"]) as archive:
+              names = archive.namelist()
+              apps = {match.group(1) for name in names if (match := re.match(r"^(Payload/[^/]+\.app)/", name))}
+              infos = [name for name in names if re.fullmatch(r"Payload/[^/]+\.app/Info\.plist", name)]
+              profiles = [name for name in names if re.fullmatch(r"Payload/[^/]+\.app/embedded\.mobileprovision", name)]
+              signatures = [name for name in names if re.fullmatch(r"Payload/[^/]+\.app/_CodeSignature/CodeResources", name)]
+              if len(apps) != 1:
+                  raise SystemExit(f"IPA contains {len(apps)} top-level app bundles")
+              if len(infos) != 1:
+                  raise SystemExit(f"IPA contains {len(infos)} top-level app Info.plist files")
+              if len(profiles) != 1:
+                  raise SystemExit(f"IPA contains {len(profiles)} embedded provisioning profiles")
+              if len(signatures) != 1:
+                  raise SystemExit(f"IPA contains {len(signatures)} top-level CodeResources signature manifests")
+              app_root = next(iter(apps))
+              if infos[0] != f"{app_root}/Info.plist" or profiles[0] != f"{app_root}/embedded.mobileprovision":
+                  raise SystemExit("IPA identity files are not in the sole top-level app bundle")
+              info = plistlib.loads(archive.read(infos[0]))
+              expected = {
+                  "CFBundleIdentifier": os.environ["IOS_BUNDLE_ID"],
+                  "CFBundleShortVersionString": os.environ["VERSION"],
+                  "CFBundleVersion": os.environ["IOS_BUILD_NUMBER"],
+              }
+              for key, value in expected.items():
+                  if str(info.get(key, "")) != value:
+                      raise SystemExit(f"IPA {key} mismatch")
+              executable_name = str(info.get("CFBundleExecutable", ""))
+              if not executable_name or "/" in executable_name:
+                  raise SystemExit("IPA CFBundleExecutable is missing or unsafe")
+              executable = f"{app_root}/{executable_name}"
+              executable_info = archive.getinfo(executable)
+              signature_info = archive.getinfo(signatures[0])
+              if stat.S_ISLNK(executable_info.external_attr >> 16) or executable_info.file_size <= 0:
+                  raise SystemExit("IPA app executable is empty")
+              if stat.S_ISLNK(signature_info.external_attr >> 16) or archive.getinfo(signatures[0]).file_size <= 0:
+                  raise SystemExit("IPA CodeResources signature manifest is empty")
+              print(json.dumps({"profileEntry": profiles[0]}))
+          PY
+          PROFILE_ENTRY="$(node -p "require('$RUNNER_TEMP/ipa-info.json').profileEntry")"
+          unzip -p "$IOS_FILE" "$PROFILE_ENTRY" > "$RUNNER_TEMP/embedded.mobileprovision"
+          openssl smime -inform der -verify -noverify \
+            -in "$RUNNER_TEMP/embedded.mobileprovision" \
+            -out "$RUNNER_TEMP/embedded-profile.plist" 2> "$RUNNER_TEMP/embedded-profile.err"
+          export EMBEDDED_PROFILE_PLIST="$RUNNER_TEMP/embedded-profile.plist"
+          node <<'NODE'
+          const fs = require("node:fs");
+          const { X509Certificate } = require("node:crypto");
+          const xml = fs.readFileSync(process.env.EMBEDDED_PROFILE_PLIST, "utf8");
+          const value = (key, tag = "string") =>
+            new RegExp(`<key>${key}<\\/key>\\s*<${tag}>([^<]+)<\\/${tag}>`).exec(xml)?.[1];
+          const arrayValues = (key, tag = "string") => {
+            const body = new RegExp(`<key>${key}<\\/key>\\s*<array>([\\s\\S]*?)<\\/array>`).exec(xml)?.[1] ?? "";
+            return [...body.matchAll(new RegExp(`<${tag}>\\s*([\\s\\S]*?)\\s*<\\/${tag}>`, "g"))]
+              .map((match) => match[1].replace(/\\s+/g, ""));
+          };
+          const applicationId = value("application-identifier");
+          const teamId = value("com.apple.developer.team-identifier") ?? arrayValues("TeamIdentifier")[0];
+          const expires = value("ExpirationDate", "date");
+          const expectedAppId = `${process.env.APPLE_TEAM_ID}.${process.env.IOS_BUNDLE_ID}`;
+          const getTaskAllowDenied = /<key>get-task-allow<\/key>\s*<false\s*\/>/.test(xml);
+          const hasDevices = /<key>ProvisionedDevices<\/key>/.test(xml);
+          const provisionsAllDevices = /<key>ProvisionsAllDevices<\/key>\s*<true\s*\/>/.test(xml);
+          const aps = value("aps-environment");
+          const certificates = arrayValues("DeveloperCertificates", "data");
+          if (teamId !== process.env.APPLE_TEAM_ID || applicationId !== expectedAppId) {
+            throw new Error("embedded IPA application-identifier or TeamIdentifier mismatch");
+          }
+          const now = Date.now();
+          if (!expires || Date.parse(expires) - now < 14 * 24 * 60 * 60 * 1000) {
+            throw new Error("embedded IPA provisioning profile expires in less than 14 days or is unreadable");
+          }
+          const normalizedExpires = new Date(expires).toISOString();
+          if (!getTaskAllowDenied) throw new Error("embedded production IPA does not explicitly disable get-task-allow");
+          if (hasDevices || provisionsAllDevices) throw new Error("embedded production IPA is not App Store distribution");
+          if (aps && aps !== "production") throw new Error("embedded production IPA has a non-production push entitlement");
+          if (certificates.length === 0) throw new Error("embedded production IPA has no DeveloperCertificates");
+          const validCertificates = certificates.map((encoded) => {
+            try {
+              const certificate = Buffer.from(encoded, "base64");
+              if (certificate.length < 256) return null;
+              const parsedCertificate = new X509Certificate(certificate);
+              const certificateSubjectHasTeam = parsedCertificate.subject
+                .split(/\n/)
+                .some((part) => part.trim() === `OU=${process.env.APPLE_TEAM_ID}`);
+              if (
+                !certificateSubjectHasTeam ||
+                Date.parse(parsedCertificate.validFrom) > now ||
+                Date.parse(parsedCertificate.validTo) <= now
+              ) return null;
+              return certificate;
+            } catch {
+              return null;
+            }
+          }).filter(Boolean);
+          if (validCertificates.length === 0) {
+            throw new Error("embedded production IPA has no currently valid canonical-team certificate");
+          }
+          const certificate = validCertificates[0];
+          fs.writeFileSync(`${process.env.RUNNER_TEMP}/embedded-distribution.der`, certificate);
+          fs.writeFileSync(
+            `${process.env.RUNNER_TEMP}/ios-profile-summary.json`,
+            JSON.stringify({ expires: normalizedExpires }),
+          );
+          NODE
+          openssl x509 -inform der -in "$RUNNER_TEMP/embedded-distribution.der" -noout -checkend 0 \
+            > "$RUNNER_TEMP/embedded-certificate.txt" 2>&1
+          IOS_PROFILE_EXPIRES="$(node -p "require('$RUNNER_TEMP/ios-profile-summary.json').expires")"
 
           if ! java -jar "$BUNDLETOOL_JAR" validate --bundle="$PRODUCTION_FILE" \
             > "$RUNNER_TEMP/aab-bundletool-validation.txt" 2>&1; then
@@ -353,9 +503,11 @@ jobs:
 
           PREVIEW_HASH="$(sha256sum "$PREVIEW_FILE" | awk '{print $1}')"
           PRODUCTION_HASH="$(sha256sum "$PRODUCTION_FILE" | awk '{print $1}')"
-          printf '%s  %s\n%s  %s\n' \
+          IOS_HASH="$(sha256sum "$IOS_FILE" | awk '{print $1}')"
+          printf '%s  %s\n%s  %s\n%s  %s\n' \
             "$PREVIEW_HASH" "$PREVIEW_FILE" \
-            "$PRODUCTION_HASH" "$PRODUCTION_FILE" > SHA256SUMS.txt
+            "$PRODUCTION_HASH" "$PRODUCTION_FILE" \
+            "$IOS_HASH" "$IOS_FILE" > SHA256SUMS.txt
           sha256sum --check --strict SHA256SUMS.txt
 
           {
@@ -363,14 +515,21 @@ jobs:
             echo "version=$VERSION"
             echo "preview_file=$PREVIEW_FILE"
             echo "production_file=$PRODUCTION_FILE"
+            echo "ios_file=$IOS_FILE"
             echo "preview_code=$PREVIEW_CODE"
             echo "production_code=$PRODUCTION_CODE"
+            echo "ios_build_number=$IOS_BUILD_NUMBER"
             echo "preview_hash=$PREVIEW_HASH"
             echo "production_hash=$PRODUCTION_HASH"
+            echo "ios_hash=$IOS_HASH"
             echo "preview_runtime=$PREVIEW_RUNTIME"
             echo "production_runtime=$PRODUCTION_RUNTIME"
+            echo "ios_runtime=$IOS_RUNTIME"
             echo "preview_channel=$PREVIEW_CHANNEL"
             echo "production_channel=$PRODUCTION_CHANNEL"
+            echo "ios_channel=$IOS_CHANNEL"
+            echo "ios_bundle_id=$IOS_BUNDLE_ID"
+            echo "ios_profile_expires=$IOS_PROFILE_EXPIRES"
             echo "preview_meta=$PREVIEW_META"
             echo "production_meta=$PRODUCTION_META"
           } >> "$GITHUB_OUTPUT"
@@ -394,14 +553,21 @@ jobs:
           PRODUCTION_CODE: ${{ steps.artifacts.outputs.production_code }}
           PREVIEW_HASH: ${{ steps.artifacts.outputs.preview_hash }}
           PRODUCTION_HASH: ${{ steps.artifacts.outputs.production_hash }}
+          IOS_HASH: ${{ steps.artifacts.outputs.ios_hash }}
           PREVIEW_RUNTIME: ${{ steps.artifacts.outputs.preview_runtime }}
           PRODUCTION_RUNTIME: ${{ steps.artifacts.outputs.production_runtime }}
+          IOS_RUNTIME: ${{ steps.artifacts.outputs.ios_runtime }}
           PREVIEW_CHANNEL: ${{ steps.artifacts.outputs.preview_channel }}
           PRODUCTION_CHANNEL: ${{ steps.artifacts.outputs.production_channel }}
+          IOS_CHANNEL: ${{ steps.artifacts.outputs.ios_channel }}
+          IOS_BUILD_NUMBER: ${{ steps.artifacts.outputs.ios_build_number }}
+          IOS_BUNDLE_ID: ${{ steps.artifacts.outputs.ios_bundle_id }}
+          IOS_PROFILE_EXPIRES: ${{ steps.artifacts.outputs.ios_profile_expires }}
           PREVIEW_META: ${{ steps.artifacts.outputs.preview_meta }}
           PRODUCTION_META: ${{ steps.artifacts.outputs.production_meta }}
           PREVIEW_BUILD_ID: ${{ inputs.preview_build_id }}
           PRODUCTION_BUILD_ID: ${{ inputs.production_build_id }}
+          IOS_BUILD_ID: ${{ inputs.ios_build_id }}
         run: |
           set -euo pipefail
           if awk -v v="## [$VERSION]" 'index($0, v) == 1 {found=1} END {exit !found}' CHANGELOG.md; then
@@ -422,12 +588,13 @@ jobs:
             "",
             "## Verified artifacts",
             "",
-            "The Preview APK installs directly on Android. The Production AAB cannot be installed directly and is intended for Google Play upload.",
+            "The Preview APK installs directly on Android. The Production AAB cannot be installed directly and is intended for Google Play upload. The Production IPA is an App Store distribution archive for iOS.",
             "",
-            "| Artifact | EAS build | Remote versionCode | Channel / runtime | SDK (min / target / compile) | Billing | SHA-256 |",
+            "| Artifact | EAS build | Remote build | Channel / runtime | Identity / SDK | Verification | SHA-256 |",
             "|---|---|---:|---|---|---|---|",
-            `| Preview APK | \`${process.env.PREVIEW_BUILD_ID}\` | \`${process.env.PREVIEW_CODE}\` | \`${process.env.PREVIEW_CHANNEL} / ${process.env.PREVIEW_RUNTIME}\` | \`${p.minSdkVersion} / ${p.targetSdkVersion} / ${p.compileSdkVersion}\` | \`${p.billingLibrary}\` | \`${process.env.PREVIEW_HASH}\` |`,
-            `| Production AAB | \`${process.env.PRODUCTION_BUILD_ID}\` | \`${process.env.PRODUCTION_CODE}\` | \`${process.env.PRODUCTION_CHANNEL} / ${process.env.PRODUCTION_RUNTIME}\` | \`${a.minSdkVersion} / ${a.targetSdkVersion} / ${a.compileSdkVersion}\` | \`${a.billingLibrary}\` | \`${process.env.PRODUCTION_HASH}\` |`,
+            `| Preview APK | \`${process.env.PREVIEW_BUILD_ID}\` | versionCode \`${process.env.PREVIEW_CODE}\` | \`${process.env.PREVIEW_CHANNEL} / ${process.env.PREVIEW_RUNTIME}\` | SDK \`${p.minSdkVersion} / ${p.targetSdkVersion} / ${p.compileSdkVersion}\` | Billing \`${p.billingLibrary}\` | \`${process.env.PREVIEW_HASH}\` |`,
+            `| Production AAB | \`${process.env.PRODUCTION_BUILD_ID}\` | versionCode \`${process.env.PRODUCTION_CODE}\` | \`${process.env.PRODUCTION_CHANNEL} / ${process.env.PRODUCTION_RUNTIME}\` | SDK \`${a.minSdkVersion} / ${a.targetSdkVersion} / ${a.compileSdkVersion}\` | Billing \`${a.billingLibrary}\` | \`${process.env.PRODUCTION_HASH}\` |`,
+            `| Production IPA | \`${process.env.IOS_BUILD_ID}\` | buildNumber \`${process.env.IOS_BUILD_NUMBER}\` | \`${process.env.IOS_CHANNEL} / ${process.env.IOS_RUNTIME}\` | bundle \`${process.env.IOS_BUNDLE_ID}\` | App Store profile, expires \`${process.env.IOS_PROFILE_EXPIRES}\` | \`${process.env.IOS_HASH}\` |`,
             "",
             `Target commit: \`${process.env.GITHUB_SHA}\``,
             "",
@@ -444,8 +611,10 @@ jobs:
           VERSION: ${{ steps.artifacts.outputs.version }}
           PREVIEW_FILE: ${{ steps.artifacts.outputs.preview_file }}
           PRODUCTION_FILE: ${{ steps.artifacts.outputs.production_file }}
+          IOS_FILE: ${{ steps.artifacts.outputs.ios_file }}
           PREVIEW_HASH: ${{ steps.artifacts.outputs.preview_hash }}
           PRODUCTION_HASH: ${{ steps.artifacts.outputs.production_hash }}
+          IOS_HASH: ${{ steps.artifacts.outputs.ios_hash }}
           EXPECT_PRERELEASE: ${{ inputs.prerelease }}
         run: |
           set -euo pipefail
@@ -486,11 +655,11 @@ jobs:
               echo "::error::Existing tag $TAG targets a different commit."
               exit 1
             fi
-            export RELEASE_JSON PREVIEW_FILE PRODUCTION_FILE
+            export RELEASE_JSON PREVIEW_FILE PRODUCTION_FILE IOS_FILE
             node <<'NODE'
           const release = require(process.env.RELEASE_JSON);
           const fs = require("node:fs");
-          const expected = [process.env.PREVIEW_FILE, process.env.PRODUCTION_FILE, "SHA256SUMS.txt"].sort();
+          const expected = [process.env.PREVIEW_FILE, process.env.PRODUCTION_FILE, process.env.IOS_FILE, "SHA256SUMS.txt"].sort();
           const actual = (release.assets || []).map((a) => a.name).sort();
           if (!release.draft) throw new Error("existing release is not a draft");
           if (Boolean(release.prerelease) !== (process.env.EXPECT_PRERELEASE === "true")) {
@@ -509,20 +678,22 @@ jobs:
           NODE
             EXISTING_DIR="$(mktemp -d)"
             gh release download "$TAG" --dir "$EXISTING_DIR" \
-              --pattern "$PREVIEW_FILE" --pattern "$PRODUCTION_FILE" --pattern SHA256SUMS.txt
+              --pattern "$PREVIEW_FILE" --pattern "$PRODUCTION_FILE" --pattern "$IOS_FILE" --pattern SHA256SUMS.txt
             test "$(sha256sum "$EXISTING_DIR/$PREVIEW_FILE" | awk '{print $1}')" = "$PREVIEW_HASH"
             test "$(sha256sum "$EXISTING_DIR/$PRODUCTION_FILE" | awk '{print $1}')" = "$PRODUCTION_HASH"
+            test "$(sha256sum "$EXISTING_DIR/$IOS_FILE" | awk '{print $1}')" = "$IOS_HASH"
             cmp --silent SHA256SUMS.txt "$EXISTING_DIR/SHA256SUMS.txt"
             BODY="$(node -p "require(process.env.RELEASE_JSON).body || ''")"
             printf '%s' "$BODY" | grep -Fq "$PREVIEW_HASH"
             printf '%s' "$BODY" | grep -Fq "$PRODUCTION_HASH"
+            printf '%s' "$BODY" | grep -Fq "$IOS_HASH"
             RESULT=verified-existing
             echo "result=$RESULT" >> "$GITHUB_OUTPUT"
             echo "Exact immutable rerun verified; no GitHub state changed."
           else
             # RELEASE_NOTES.md is authoritative; --generate-notes is deliberately
             # not executed because generated text would make an exact rerun mutable.
-            ARGS=(release create "$TAG" "$PREVIEW_FILE" "$PRODUCTION_FILE" SHA256SUMS.txt
+            ARGS=(release create "$TAG" "$PREVIEW_FILE" "$PRODUCTION_FILE" "$IOS_FILE" SHA256SUMS.txt
                   --title "2nd-Brain $VERSION" --target "$GITHUB_SHA" --draft
                   --notes-file RELEASE_NOTES.md)
             if [ "${{ inputs.prerelease }}" = "true" ]; then ARGS+=(--prerelease); fi
@@ -547,11 +718,11 @@ jobs:
               exit 1
             fi
             gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" > "$RUNNER_TEMP/created-release.json"
-            export CREATED_RELEASE_JSON="$RUNNER_TEMP/created-release.json" PREVIEW_FILE PRODUCTION_FILE
+            export CREATED_RELEASE_JSON="$RUNNER_TEMP/created-release.json" PREVIEW_FILE PRODUCTION_FILE IOS_FILE
             node <<'NODE'
           const release = require(process.env.CREATED_RELEASE_JSON);
           const fs = require("node:fs");
-          const expected = [process.env.PREVIEW_FILE, process.env.PRODUCTION_FILE, "SHA256SUMS.txt"].sort();
+          const expected = [process.env.PREVIEW_FILE, process.env.PRODUCTION_FILE, process.env.IOS_FILE, "SHA256SUMS.txt"].sort();
           const actual = (release.assets || []).map((a) => a.name).sort();
           if (
             !release.draft ||
@@ -566,9 +737,10 @@ jobs:
           NODE
             CREATED_DIR="$(mktemp -d)"
             gh release download "$TAG" --dir "$CREATED_DIR" \
-              --pattern "$PREVIEW_FILE" --pattern "$PRODUCTION_FILE" --pattern SHA256SUMS.txt
+              --pattern "$PREVIEW_FILE" --pattern "$PRODUCTION_FILE" --pattern "$IOS_FILE" --pattern SHA256SUMS.txt
             test "$(sha256sum "$CREATED_DIR/$PREVIEW_FILE" | awk '{print $1}')" = "$PREVIEW_HASH"
             test "$(sha256sum "$CREATED_DIR/$PRODUCTION_FILE" | awk '{print $1}')" = "$PRODUCTION_HASH"
+            test "$(sha256sum "$CREATED_DIR/$IOS_FILE" | awk '{print $1}')" = "$IOS_HASH"
             cmp --silent SHA256SUMS.txt "$CREATED_DIR/SHA256SUMS.txt"
           fi
 
@@ -583,5 +755,6 @@ jobs:
             echo "- Tag: \`$TAG\` at \`$GITHUB_SHA\`"
             echo "- Preview APK: \`$PREVIEW_FILE\`"
             echo "- Production AAB: \`$PRODUCTION_FILE\`"
+            echo "- Production IPA: \`$IOS_FILE\`"
             echo "- $URL"
           } >> "$GITHUB_STEP_SUMMARY"

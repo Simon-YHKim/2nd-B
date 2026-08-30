@@ -190,15 +190,37 @@ jobs:
           const entries = Object.entries(profile.env ?? {}).filter(([key]) => key.startsWith("EXPO_PUBLIC_"));
           if (entries.length === 0) throw new Error("build profile has no EXPO_PUBLIC contract");
           const expectedKeys = new Set(entries.map(([key]) => key));
-          const unexpectedKeys = Object.keys(process.env)
-            .filter((key) => key.startsWith("EXPO_PUBLIC_") && !expectedKeys.has(key));
+          const allowedServerOnlyByChannel = {
+            preview: new Set([
+              "EXPO_PUBLIC_CLARITY_PROJECT_ID",
+              "EXPO_PUBLIC_EXIM_FX_KEY",
+              "EXPO_PUBLIC_GA4_MEASUREMENT_ID",
+              "EXPO_PUBLIC_MFDS_FOOD_KEY",
+            ]),
+            production: new Set([
+              "EXPO_PUBLIC_CLARITY_PROJECT_ID",
+              "EXPO_PUBLIC_EXIM_FX_KEY",
+              "EXPO_PUBLIC_GA4_MEASUREMENT_ID",
+              "EXPO_PUBLIC_MFDS_FOOD_KEY",
+              "EXPO_PUBLIC_SENTRY_DSN",
+            ]),
+          };
+          const allowedServerOnly = allowedServerOnlyByChannel[channel];
+          const actualPublicKeys = Object.keys(process.env).filter((key) => key.startsWith("EXPO_PUBLIC_"));
+          const unapprovedServerOnlyKeys = actualPublicKeys
+            .filter((key) => !expectedKeys.has(key) && !allowedServerOnly.has(key));
+          const missingAllowedServerOnlyKeys = [...allowedServerOnly]
+            .filter((key) => !Object.prototype.hasOwnProperty.call(process.env, key));
           const mismatches = entries
             .filter(([key, value]) => !/^EXPO_PUBLIC_[A-Z0-9_]+$/.test(key) || process.env[key] !== String(value))
             .map(([key]) => key);
-          if (mismatches.length || unexpectedKeys.length) {
-            throw new Error("EAS server environment does not exactly match the native build profile");
+          if (mismatches.length || unapprovedServerOnlyKeys.length || missingAllowedServerOnlyKeys.length) {
+            throw new Error("EAS server environment does not match the reviewed native/update union");
           }
-          process.stdout.write("verified " + entries.length + " public environment names without printing values\n");
+          process.stdout.write(
+            "verified " + (entries.length + allowedServerOnly.size) +
+            " public environment names without printing values\n",
+          );
           `);
           NODE
           if ! npx --yes "eas-cli@$EAS_CLI_VERSION" env:exec "$CHANNEL" \
@@ -207,7 +229,7 @@ jobs:
             echo "::error::EAS server public environment differs from the native build profile; values were withheld."
             exit 1
           fi
-          echo "EAS server public environment matches the native build profile; values were not printed."
+          echo "EAS server public environment matches the reviewed native/update union; values were not printed."
 
       - name: Prepare authenticated EAS provenance verifier
         env:

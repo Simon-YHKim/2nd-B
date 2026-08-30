@@ -16,7 +16,13 @@ const CR = String.fromCharCode(13);
 const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8").split(CR).join("");
 
 const RAW = read(".github/workflows/github-release.yml");
-const APP = JSON.parse(read("app.json")) as { expo: { version: string; android: { versionCode: number } } };
+const APP = JSON.parse(read("app.json")) as {
+  expo: {
+    version: string;
+    android: { versionCode: number };
+    ios: { bundleIdentifier: string };
+  };
+};
 const CHANGELOG = read("CHANGELOG.md");
 
 // Read the workflow as text rather than pulling in a YAML parser: js-yaml ships
@@ -33,6 +39,7 @@ function stepOf(fragment: string): string {
   return RAW.slice(start, end);
 }
 const runOf = stepOf;
+const occurrences = (text: string, fragment: string) => text.split(fragment).length - 1;
 
 describe("the workflow can actually publish", () => {
   test("it has contents: write", () => {
@@ -122,6 +129,83 @@ describe("the asset is a real build", () => {
   });
 });
 
+describe("the release is one verified cross-platform set", () => {
+  test("the manual contract requires all three finished EAS build ids", () => {
+    expect(RAW).toContain("GitHub Release (APK + AAB + IPA)");
+    expect(RAW).toMatch(/^ {6}ios_build_id:$/m);
+    expect(RAW).toContain('IOS_BUILD_ID: ${{ inputs.ios_build_id }}');
+    expect(runOf("Get the build artifact")).toContain('for id in "$PREVIEW_BUILD_ID" "$PRODUCTION_BUILD_ID" "$IOS_BUILD_ID"');
+  });
+
+  test("iOS metadata and authenticated provenance are fail-closed", () => {
+    const run = runOf("Get the build artifact");
+    expect(run).toContain('String(build?.platform).toUpperCase() !== expectedPlatform');
+    expect(run).toContain('config.ios?.bundleIdentifier');
+    expect(run).toContain('fetchBuildProvenance(process.env.IOS_BUILD_ID, "ios")');
+    expect(run).toContain('validateProvenance(iosProvenance, "ios", process.env.IOS_BUILD_ID)');
+    expect(run).toContain('preview.appVersion !== ios.appVersion');
+    expect(run).toContain('build?.isForIosSimulator === true');
+    expect(run).toContain('parsed.pathname.toLowerCase().endsWith(".ipa")');
+    expect(run).toContain('iosPath, "ios", "production"');
+  });
+
+  test("the downloaded IPA identity and App Store profile are verified", () => {
+    const run = runOf("Get the build artifact");
+    expect(run).toContain('Payload/[^/]+\\.app/Info\\.plist');
+    expect(run).toContain('Payload/[^/]+\\.app/embedded\\.mobileprovision');
+    expect(run).toContain('CFBundleIdentifier');
+    expect(run).toContain('CFBundleShortVersionString');
+    expect(run).toContain('CFBundleVersion');
+    expect(run).toContain('application-identifier');
+    expect(run).toContain('TeamIdentifier');
+    expect(run).toContain('get-task-allow');
+    expect(run).toContain('DeveloperCertificates');
+    expect(run).toContain('CFBundleExecutable');
+    expect(run).toContain('archive.getinfo(executable)');
+    expect(run).toContain('archive.getinfo(signatures[0]).file_size');
+    expect(run).toContain('new X509Certificate(certificate)');
+    expect(run).toContain('certificateSubjectHasTeam');
+    expect(RAW).toMatch(/^ {2}APPLE_TEAM_ID: "[A-Z0-9]{10}"$/m);
+    expect(run).toContain('teamId !== process.env.APPLE_TEAM_ID');
+    expect(run).toContain('`${process.env.APPLE_TEAM_ID}.${process.env.IOS_BUNDLE_ID}`');
+    expect(run).toContain('certificates.map((encoded)');
+    expect(run).toContain('validCertificates.length === 0');
+    expect(run).toContain('new Date(expires).toISOString()');
+    expect(run).toContain('hasDevices || provisionsAllDevices');
+    expect(run).toContain('getTaskAllowDenied');
+  });
+
+  test("hash manifest, create, and immutable readback all include the IPA", () => {
+    const artifactRun = runOf("Get the build artifact");
+    const publishRun = runOf("Create the GitHub Release");
+    expect(artifactRun).toContain('IOS_HASH="$(sha256sum "$IOS_FILE"');
+    expect(artifactRun).toMatch(/SHA256SUMS\.txt[\s\S]*ios_file=\$IOS_FILE/);
+    expect(publishRun).toContain('process.env.IOS_FILE, "SHA256SUMS.txt"');
+    expect(publishRun).toContain('--pattern "$IOS_FILE"');
+    expect(publishRun).toContain('"$IOS_FILE" SHA256SUMS.txt');
+    expect(publishRun).toContain('"$IOS_HASH"');
+    expect(occurrences(publishRun, 'process.env.IOS_FILE, "SHA256SUMS.txt"')).toBe(2);
+    expect(occurrences(publishRun, '--pattern "$IOS_FILE"')).toBe(2);
+    expect(occurrences(publishRun, 'sha256sum "$EXISTING_DIR/$IOS_FILE"')).toBe(1);
+    expect(occurrences(publishRun, 'sha256sum "$CREATED_DIR/$IOS_FILE"')).toBe(1);
+  });
+
+  test("artifact downloads cannot redirect away from HTTPS", () => {
+    const run = runOf("Get the build artifact");
+    expect(occurrences(run, "--proto '=https' --proto-redir '=https'")).toBe(3);
+  });
+
+  test("release notes identify the iOS build, version, runtime, bundle, and hash", () => {
+    const notes = runOf("Extract release notes");
+    expect(notes).toContain("Production IPA");
+    expect(notes).toContain("IOS_BUILD_ID");
+    expect(notes).toContain("IOS_BUILD_NUMBER");
+    expect(notes).toContain("IOS_RUNTIME");
+    expect(notes).toContain("IOS_BUNDLE_ID");
+    expect(notes).toContain("IOS_HASH");
+  });
+});
+
 describe("the release says what it is", () => {
   test("an AAB is not described as installable", () => {
     // A .aab attached to a release looks like a download but cannot be
@@ -144,6 +228,7 @@ describe("this repo is releasable right now", () => {
   test("app.json carries a three-part version and a positive versionCode", () => {
     expect(APP.expo.version).toMatch(/^\d+\.\d+\.\d+$/);
     expect(APP.expo.android.versionCode).toBeGreaterThan(0);
+    expect(APP.expo.ios.bundleIdentifier).toMatch(/^[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/);
   });
 
   test("the changelog has a section for the current version", () => {

@@ -51,16 +51,14 @@ Conventional Commits.
 - CI: EAS 아카이브에서 서명 시크릿 제외, 릴리스 아티팩트 provenance,
   TestFlight 제출 게이트.
 
-> ### ⚠ 이 릴리스는 **웹에만 나간다**
->
-> 안드로이드 APK/AAB 는 못 만든다 — **EAS 무료 플랜의 이번 달 빌드 할당량이 소진**됐고
-> 2026-09-01 에 초기화된다. `github-release.yml` 은 완료된 EAS 빌드 ID 두 개를
-> 요구하므로 그때까지 릴리스 자산이 없다.
->
-> OTA 로도 못 간다 — `.easignore` 변경(#1460)과 `package.json` 변경(#1456)이 각각
-> 네이티브 지문을 움직여 설치된 build 35 가 **좌초**했다. 새 빌드가 유일한 길이다.
->
-> **웹은 정상이다**: <https://simon-yhkim.github.io/2nd-B/>
+### Distribution
+
+- GitHub draft release는 같은 `main` 커밋에서 완료된 **Preview APK, Production AAB,
+  Production IPA**를 EAS provenance·앱 식별자·버전·런타임·서명 자료·SHA-256까지
+  검증한 뒤 한 번에 묶는다.
+- Android와 iOS OTA는 각 플랫폼의 현재 fingerprint와 호환되는 production 빌드가
+  확인된 뒤에만 같은 named EAS environment로 발행하고, 발행 후 도달성을 다시 검증한다.
+- 웹 배포 경로는 GitHub Pages다: <https://simon-yhkim.github.io/2nd-B/>
 
 ## [0.6.0] - 2026-08-27
 
