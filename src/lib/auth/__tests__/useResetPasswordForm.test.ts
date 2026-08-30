@@ -81,7 +81,11 @@ describe("PIXEL-CLAY reset-password presenter", () => {
 
   test("does not expose a sign-in escape after the recovery session is active", () => {
     expect(resetPixelClaySource).toContain('step === "request" || step === "verify" ? (');
+    expect(resetPixelClaySource).toContain('Platform.OS !== "android"');
     expect(resetPixelClaySource).toContain('BackHandler.addEventListener("hardwareBackPress"');
+    expect(resetPixelClaySource).toContain('navigation.setOptions({ gestureEnabled: step !== "password" })');
+    expect(resetPixelClaySource).toContain('navigation.addListener("beforeRemove"');
+    expect(resetPixelClaySource).toContain("event.preventDefault()");
     expect(resetPixelClaySource).toContain('} else if (step === "done") {');
     expect(resetPixelClaySource).toContain('router.replace("/")');
   });

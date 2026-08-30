@@ -6,7 +6,7 @@
 // TODO(split-2): trim the import set + re-enable lint once the move settles.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
 import { BackHandler, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text as RNText, TextInput, View, useWindowDimensions } from "react-native";
-import { Redirect, router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { Redirect, router, useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
 import { useTranslation } from "react-i18next";
 import Svg, { Circle, Defs, Line, Path, RadialGradient, Rect, Stop } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -835,6 +835,7 @@ function ResetField({
 
 export function DeepSpaceResetPasswordDesignScreen() {
   const { t } = useTranslation(["deepspace", "auth", "common"]);
+  const navigation = useNavigation();
   // Subscribes the raw TextInputs to the readable-font switch. Text components
   // already subscribe themselves; calling m3TextStyle again on this render gives
   // form controls the same current face instead of freezing the boot-time value.
@@ -874,6 +875,8 @@ export function DeepSpaceResetPasswordDesignScreen() {
   // consume Back until the change completes, then send the completed flow home.
   useFocusEffect(
     useCallback(() => {
+      if (Platform.OS !== "android") return undefined;
+
       const sub = BackHandler.addEventListener("hardwareBackPress", () => {
         if (step === "request" || step === "verify") {
           router.replace("/sign-in");
@@ -885,6 +888,20 @@ export function DeepSpaceResetPasswordDesignScreen() {
       return () => sub.remove();
     }, [step]),
   );
+
+  // A verified recovery session is intentionally non-dismissible until the
+  // password update resolves. `beforeRemove` covers browser/native navigation;
+  // disabling the native gesture closes the iOS swipe-back gap as well.
+  useEffect(() => {
+    navigation.setOptions({ gestureEnabled: step !== "password" });
+  }, [navigation, step]);
+
+  useEffect(() => {
+    if (step !== "password") return undefined;
+    return navigation.addListener("beforeRemove", (event) => {
+      event.preventDefault();
+    });
+  }, [navigation, step]);
 
   if (loading) {
     return <InlineLoader />;
