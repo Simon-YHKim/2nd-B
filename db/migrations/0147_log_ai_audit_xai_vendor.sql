@@ -18,11 +18,11 @@
 -- Body is 0095's logic unchanged except the one IN list (0095's two in-body
 -- comment blocks are not repeated here). CREATE OR REPLACE keeps the existing
 -- ACL, but the grants are restated as 0095 stated them, so a reader of this
--- file does not have to trust that. NOTE for the applier: 0039 also REVOKEd
--- service_role on the OLD signature; 0095 did not restate that for this
--- signature and prod today grants service_role EXECUTE. This file does not
--- change that either way — it is a question for the console, not a side
--- effect of adding 'xai'.
+-- file does not have to trust that. The console measured prod on 2026-08-31
+-- (read-only): exactly one signature exists, and its ACL is
+-- postgres=X | authenticated=X | service_role=X. So service_role EXECUTE is
+-- restated below too — this file matches prod, it does not narrow it (0039's
+-- service_role REVOKE targeted the old signature, which no longer exists).
 
 CREATE OR REPLACE FUNCTION public.log_ai_audit(
   p_prompt_hash      text,
@@ -76,6 +76,7 @@ $$;
 REVOKE ALL ON FUNCTION public.log_ai_audit(text, text, text, boolean, text, integer, text, text, text) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.log_ai_audit(text, text, text, boolean, text, integer, text, text, text) FROM anon;
 GRANT EXECUTE ON FUNCTION public.log_ai_audit(text, text, text, boolean, text, integer, text, text, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.log_ai_audit(text, text, text, boolean, text, integer, text, text, text) TO service_role;
 
 COMMENT ON FUNCTION public.log_ai_audit(text, text, text, boolean, text, integer, text, text, text) IS
   'C3 audit insert (0095 signature). reasoning_vendor allowlist: gemini, claude, openai, xai (0147). Other values become NULL.';
