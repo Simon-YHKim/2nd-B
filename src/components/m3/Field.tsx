@@ -1,7 +1,7 @@
 // Field - Material 3 outlined text field (rev2 migration, P1b). Wraps a RN
 // TextInput; the outline + label recolour on focus / error. Consumes m3.*
 // tokens only. Input text uses Pretendard (KR body); the label uses M3 chrome.
-import { useState } from "react";
+import { forwardRef, useState } from "react";
 import { StyleSheet, type StyleProp, Text, TextInput, type TextInputProps, View, type ViewStyle } from "react-native";
 
 import { m3 } from "@/lib/theme/m3";
@@ -15,16 +15,19 @@ export interface FieldProps extends Omit<TextInputProps, "style"> {
   containerStyle?: StyleProp<ViewStyle>;
 }
 
-export function Field({
-  label,
-  error = false,
-  supportingText,
-  containerStyle,
-  onFocus,
-  onBlur,
-  accessibilityLabel,
-  ...rest
-}: FieldProps) {
+export const Field = forwardRef<TextInput, FieldProps>(function Field(
+  {
+    label,
+    error = false,
+    supportingText,
+    containerStyle,
+    onFocus,
+    onBlur,
+    accessibilityLabel,
+    ...rest
+  },
+  ref,
+) {
   const [focused, setFocused] = useState(false);
   const borderColor = error ? m3.color.error : focused ? m3.color.primary : m3.color.outline;
   const labelColor = error ? m3.color.error : focused ? m3.color.primary : m3.color.onSurfaceVariant;
@@ -38,6 +41,7 @@ export function Field({
           </Text>
         ) : null}
         <TextInput
+          ref={ref}
           {...rest}
           onFocus={(e) => {
             setFocused(true);
@@ -59,7 +63,7 @@ export function Field({
       ) : null}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   box: {
