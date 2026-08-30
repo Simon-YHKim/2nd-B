@@ -12,6 +12,7 @@
 import React, { useEffect, useState, type ReactNode } from "react";
 import { subscribeFontStyle } from "@/lib/settings/readable-font";
 import { View, StyleSheet, ScrollView, Modal, Pressable, TouchableOpacity } from "react-native";
+import { Rect, Svg } from "react-native-svg";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, type Href } from "expo-router";
 
@@ -26,11 +27,13 @@ import {
 } from "@/components/premium";
 import { cosmic, semantic, spacing } from "@/lib/theme/tokens";
 import { PixelScrim } from "@/components/pixel/PixelDither";
+import { stepPolyline } from "@/components/pixel/pixel-line";
+import { PixelStarSvg } from "@/components/pixel/PixelStarSvg";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { PolarisDeck, type PolarisDeckPage } from "@/components/deep-space/PolarisDeck";
 import { MdButton, m3TextStyle } from "@/components/m3";
-import { m3 } from "@/lib/theme/m3";
+import { m3, m3BrightnessBand } from "@/lib/theme/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import {
@@ -40,13 +43,13 @@ import {
   type PersonaCard,
 } from "@/lib/persona/build";
 import { STRENGTH_LABEL_EN, STRENGTH_LABEL_KO } from "@/lib/persona/strengths-survey";
-import { DOMAIN_STARS, type DomainId } from "@/lib/persona/domain-stars";
+import type { DomainId } from "@/lib/persona/domain-stars";
 import { loadDomainLevels, type DomainBrightness } from "@/lib/persona/load-domain-levels";
 import { HOME_STAR_IDS } from "@/lib/persona/home-stars";
 import { OFFERABLE } from "@/lib/assess/registry";
-import { getDomainStar } from "@/lib/persona/domain-stars";
 import { loadProfileStarLevel } from "@/lib/persona/load-profile-star";
-import { loadSevenLevels } from "@/lib/persona/load-seven-levels";
+import { loadSevenLevels, type SevenLevels } from "@/lib/persona/load-seven-levels";
+import { SEVEN_STARS, type SevenStarId } from "@/lib/persona/seven-stars";
 import type { LadderLevel } from "@/lib/persona/brightness";
 import { brightnessVisual, brightnessBand, type BrightnessBand } from "@/lib/persona/brightness-visual";
 import { buildCenterCards, type CenterCard } from "@/lib/persona/center";
@@ -60,6 +63,31 @@ import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 // D-25: Polaris brightness shows as a qualitative band, never a raw %.
 const SOUL_CORE_BAND_KO: Record<BrightnessBand, string> = { dim: "흐릿", fair: "보통", bright: "밝음" };
 const SOUL_CORE_BAND_EN: Record<BrightnessBand, string> = { dim: "dim", fair: "fair", bright: "bright" };
+
+// Compact, integer-grid copy of the canonical home topology. The bowl closes,
+// the handle reaches profile, and only the work -> now pointer continues to
+// Polaris as a dotted guide. This is a map, not a claim that profile contributes
+// to headline brightness (the six-way calculation remains in loadSevenLevels).
+const POLARIS_INPUT_POINTS: Record<SevenStarId, readonly [number, number]> = {
+  profile: [38, 120],
+  infancy: [56, 92],
+  school: [78, 86],
+  twenties: [106, 80],
+  later: [120, 96],
+  work: [154, 82],
+  now: [154, 56],
+};
+const POLARIS_OUTPUT_POINT = [100, 24] as const;
+const POLARIS_BOWL_IDS: readonly SevenStarId[] = ["now", "work", "later", "twenties", "now"];
+const POLARIS_HANDLE_IDS: readonly SevenStarId[] = ["twenties", "school", "infancy", "profile"];
+const POLARIS_GUIDE_IDS: readonly SevenStarId[] = ["work", "now"];
+const POLARIS_DIPPER_CELLS = [POLARIS_BOWL_IDS, POLARIS_HANDLE_IDS].flatMap((ids) =>
+  stepPolyline(ids.map((id) => POLARIS_INPUT_POINTS[id]), 3),
+);
+const POLARIS_GUIDE_CELLS = stepPolyline(
+  [...POLARIS_GUIDE_IDS.map((id) => POLARIS_INPUT_POINTS[id]), POLARIS_OUTPUT_POINT],
+  3,
+).filter((_, index) => index % 3 === 0);
 
 async function loadCoreBrainEvidence(userId: string, locale: "en" | "ko"): Promise<OriginShard[]> {
   const supabase = getSupabaseClient();
@@ -163,7 +191,7 @@ function CoreBrainScreen() {
   const [persona, setPersona] = useState<PersonaCard | null>(null);
   const [evidence, setEvidence] = useState<OriginShard[]>([]);
   const [domainBrightness, setDomainBrightness] = useState<DomainBrightness | null>(null);
-  const [starBrightness, setStarBrightness] = useState<number | null>(null);
+  const [sevenLevels, setSevenLevels] = useState<SevenLevels | null>(null);
   const [profileLevel, setProfileLevel] = useState<LadderLevel | null>(null);
   const [strengths, setStrengths] = useState<LoadedStrengths | null>(null);
   const [building, setBuilding] = useState(true);
@@ -185,12 +213,12 @@ function CoreBrainScreen() {
     setLoadErrorUserId(null);
     (async () => {
       try {
-        const [ev, nextDomainBrightness, nextStars, nextStrengths, nextProfileLevel] = await Promise.all([
+        const [ev, nextDomainBrightness, nextStars, nextProfileLevel, nextStrengths] = await Promise.all([
           loadCoreBrainEvidence(userId, locale),
           loadDomainLevels(userId).catch(() => null),
           loadSevenLevels(userId).catch(() => null),
-          loadLatestStrengths(getSupabaseClient(), userId).catch(() => null),
           loadProfileStarLevel(userId).catch(() => null),
+          loadLatestStrengths(getSupabaseClient(), userId).catch(() => null),
         ]);
         const snapshot = ev.length > 0 ? await loadPersonaSnapshot(userId) : null;
         const p = snapshot && nextStars
@@ -200,7 +228,7 @@ function CoreBrainScreen() {
           setEvidence(ev);
           setPersona(p);
           setDomainBrightness(nextDomainBrightness);
-          setStarBrightness(nextStars?.northStarBrightness ?? null);
+          setSevenLevels(nextStars);
           setProfileLevel(nextProfileLevel);
           setStrengths(nextStrengths);
           setResolvedUserId(userId);
@@ -213,7 +241,7 @@ function CoreBrainScreen() {
           setPersona(null);
           setEvidence([]);
           setDomainBrightness(null);
-          setStarBrightness(null);
+          setSevenLevels(null);
           setProfileLevel(null);
           setStrengths(null);
           setResolvedUserId(null);
@@ -246,7 +274,7 @@ function CoreBrainScreen() {
         if (!cancelled) {
           setEvidence(ev);
           if (nextDomainBrightness) setDomainBrightness(nextDomainBrightness);
-          if (nextStars) setStarBrightness(nextStars.northStarBrightness);
+          if (nextStars) setSevenLevels(nextStars);
           setStrengths(nextStrengths);
           setLoadError(false);
           setLoadErrorUserId(null);
@@ -324,22 +352,21 @@ function CoreBrainScreen() {
   }
 
   // Empty state (§7) — never fabricate a summary with no pieces. Show a dimmed,
-  // locked constellation as the lure: the Tier-1 core stays dominant while the
-  // seven stars wait at the L1 dim floor (brightnessVisual(1).opacity = 0.2).
-  // The first relationship check lights one straight away.
+  // locked constellation as the lure: Polaris stays dominant while the seven
+  // canonical self-knowledge stars wait at the L1 color band.
   if (evidence.length === 0) {
-    const dimStar = brightnessVisual(1).opacity;
+    const dimStarColor = m3.starLadder.rest[0];
     return (
       <CoreShell>
         <View style={styles.center}>
           <View style={styles.lockedConstellation}>
             <IslandArt id="core" size={120} />
             <View style={styles.lockedStarRow}>
-              {DOMAIN_STARS.map((star) => (
+              {SEVEN_STARS.map((star) => (
                 <View key={star.id} style={styles.starItem}>
-                  <View style={[styles.starDot, { opacity: dimStar }]} />
+                  <View style={[styles.starDot, { backgroundColor: dimStarColor }]} />
                   <Text variant="caption" color="textSubtle" style={styles.starName}>
-                    {locale === "ko" ? star.nameKo : star.nameEn}
+                    {tHome(`ds.star.${star.key}`)}
                   </Text>
                 </View>
               ))}
@@ -349,13 +376,13 @@ function CoreBrainScreen() {
             {t("sevenStars")}
           </Text>
           <Text variant="body" color="textMuted" style={{ marginTop: spacing.sm, textAlign: "center" }}>
-            {t("threeMin")}
+            {tHome("ds.home.star.now.line")}
           </Text>
           <View style={styles.emptyActions}>
             <Button
-              label={t("startRelCheck")}
+              label={tHome("ds.star.start")}
               variant="primary"
-              onPress={() => router.push("/attachment")}
+              onPress={() => router.push("/me/now")}
             />
             <Button
               label={t("leavePiece")}
@@ -381,6 +408,7 @@ function CoreBrainScreen() {
 
   const filledFields = portrait.filter((f) => f.status === "filled").length;
   const domainLevels: Record<DomainId, LadderLevel> | undefined = domainBrightness?.domainLevels;
+  const starBrightness = sevenLevels?.northStarBrightness ?? null;
 
   // Evidence drawer (§5) — shared by the deep-space deck and the legacy screen.
   const renderEvidenceDrawer = () => (
@@ -455,163 +483,64 @@ function CoreBrainScreen() {
   if (isDeepSpaceUI()) {
     // 북극성 밝기는 이제 **별 여섯**의 평균이다(2026-08-24). 도메인 로더가
     // 그 숫자를 더 이상 들고 있지 않으므로 별 쪽에서 읽는다.
-    const band = brightnessBand(starBrightness ?? 0.2);
-    const bandLabel = locale === "ko" ? SOUL_CORE_BAND_KO[band] : SOUL_CORE_BAND_EN[band];
-    const homeDomains = DOMAIN_STARS.filter((star) => star.id !== "collect");
-    const topDomain = domainLevels
-      ? homeDomains.reduce((best, star) =>
-          domainLevels[star.id] > domainLevels[best.id] ? star : best,
-        homeDomains[0])
-      : null;
-    const topLevel = topDomain && domainLevels ? domainLevels[topDomain.id] : 1;
-    const topDomainName = topDomain
-      ? locale === "ko"
-        ? topDomain.nameKo
-        : topDomain.nameEn
-      : locale === "ko"
-        ? "북극성"
-        : "Polaris";
-    const roleHeadline =
-      topLevel >= 2
-        ? locale === "ko"
-          ? `${topDomainName}가 가장 밝은 나`
-          : `My brightest side is ${topDomainName.toLowerCase()}`
-        : locale === "ko"
-          ? "역할을 모으는 중"
-          : "Still gathering my roles";
-    const traitRows = persona && !hasUnrecordedProvenance
-      ? [
-          { key: "openness", ko: "개방", en: "Open", value: persona.traits.openness },
-          { key: "conscientiousness", ko: "성실", en: "Order", value: persona.traits.conscientiousness },
-          { key: "extraversion", ko: "외향", en: "Social", value: persona.traits.extraversion },
-          { key: "agreeableness", ko: "우호", en: "Warm", value: persona.traits.agreeableness },
-          { key: "neuroticism", ko: "신경", en: "Sensitive", value: persona.traits.neuroticism },
-        ]
-      : [];
-    const strengthLabels = (strengths?.scores ?? []).slice(0, 4).map((score) =>
+    const polarisBandIndex = m3BrightnessBand(starBrightness ?? 0.2) - 1;
+    const strengthSummary = (strengths?.scores ?? []).slice(0, 4).map((score) =>
       locale === "ko" ? STRENGTH_LABEL_KO[score.strength] : STRENGTH_LABEL_EN[score.strength],
     );
-    const traitConfidence = persona?.traitConfidence?.openness?.confidence;
-    const confidence =
-      strengths?.confidence ??
-      (traitConfidence === "high" ? 0.9 : traitConfidence === "medium" ? 0.6 : traitConfidence === "low" ? 0.3 : 0);
-    const confidenceDots = Math.max(0, Math.min(5, Math.round(confidence * 5)));
-    const directionBody = direction?.body?.replace(/\s*—\s*/g, ". ");
     const askPolaris = () =>
       router.push({ pathname: "/secondb", params: { fromNode: t("polaris") } });
     const deckPages: PolarisDeckPage[] = [
       {
         key: "role",
-        title: locale === "ko" ? "내 역할" : "MY ROLE",
+        title: t("polaris"),
         accent: cosmic.soulViolet,
         body: (
           <View style={dsDeck.roleBody}>
-            <View style={dsDeck.roleTop}>
-              <View style={dsDeck.roleGlyph}>
-                <Text style={dsDeck.roleGlyphText}>{"‹›"}</Text>
-              </View>
-              <View style={dsDeck.roleTitleWrap}>
-                <View style={dsDeck.domainTag}>
-                  <Text style={dsDeck.domainTagText}>{topLevel >= 2 ? topDomainName : t("polaris")}</Text>
-                </View>
-                <Text style={dsDeck.roleHeadline}>{roleHeadline}</Text>
-              </View>
-            </View>
-
-            <Text style={dsDeck.sectionEyebrow}>{locale === "ko" ? "어떤 역할" : "THE ROLE"}</Text>
-            <Text style={dsDeck.roleDescription}>
-              {directionBody ??
-                (locale === "ko"
-                  ? "기록이 더 모이면 세컨비가 반복해서 나타나는 역할을 근거와 함께 보여줘요."
-                  : "As more records gather, SecondB will show the roles that repeat, with their evidence.")}
-            </Text>
-
-            {traitRows.length > 0 ? (
-              <>
-                <Text style={dsDeck.sectionEyebrow}>BIG FIVE</Text>
-                <View style={dsDeck.traitList}>
-                  {traitRows.map((trait) => {
-                    const score = Math.round(Math.max(0, Math.min(1, trait.value)) * 100);
-                    return (
-                      <View key={trait.key} style={dsDeck.traitRow}>
-                        <Text style={dsDeck.traitLabel}>{locale === "ko" ? trait.ko : trait.en}</Text>
-                        <View style={dsDeck.traitTrack}>
-                          <View style={[dsDeck.traitFill, { width: `${score}%` }]} />
-                        </View>
-                        <Text style={dsDeck.traitValue}>{score}</Text>
-                      </View>
-                    );
-                  })}
-                </View>
-              </>
-            ) : null}
-
-            <Text style={dsDeck.sectionEyebrow}>{locale === "ko" ? "어떤 사람" : "THE PERSON"}</Text>
-            <View style={dsDeck.personCard}>
-              <Text style={dsDeck.personText}>
-                {neighborhood?.body ??
-                  pieces?.body ??
-                  (locale === "ko"
-                    ? "아직 한 문장으로 단정하지 않고 기록을 더 모으고 있어요."
-                    : "We are gathering more records before naming this in one sentence.")}
-              </Text>
-            </View>
-
-            <Text style={dsDeck.sectionEyebrow}>{locale === "ko" ? "강점" : "STRENGTHS"}</Text>
-            {strengthLabels.length > 0 ? (
-              <View style={dsDeck.strengthRow}>
-                {strengthLabels.map((label) => (
-                  <View key={label} style={dsDeck.strengthChip}>
-                    <View style={dsDeck.strengthDot} />
-                    <Text style={dsDeck.strengthText}>{label}</Text>
-                  </View>
+            <View style={dsDeck.polarisGraphic}>
+              <Svg
+                width="100%"
+                height={132}
+                viewBox="0 0 190 132"
+                accessible
+                accessibilityRole="image"
+                accessibilityLabel={
+                  locale === "ko"
+                    ? "일곱 별자리와 북극성. 북극성 밝기는 프로필을 제외한 여섯 별에서 옵니다."
+                    : "Seven-star constellation and Polaris. Polaris brightness comes from the six stars excluding profile."
+                }
+                testID="polaris-synthesis-graphic"
+              >
+                {POLARIS_DIPPER_CELLS.map((cell, index) => (
+                  <Rect key={`dipper-${index}`} x={cell.x} y={cell.y} width={3} height={3} fill={m3.accent.starDim} />
                 ))}
-              </View>
-            ) : (
-              <View style={dsDeck.strengthEmpty}>
-                <Text style={dsDeck.strengthEmptyText}>
-                  {locale === "ko"
-                    ? "강점 체크를 마치면 근거 있는 강점이 여기에 나타나요."
-                    : "Complete the strengths check to place grounded strengths here."}
-                </Text>
-                <MdButton
-                  variant="text"
-                  label={t("strengthsCheck")}
-                  onPress={() => router.push("/strengths")}
-                />
-              </View>
-            )}
-
-            <View style={dsDeck.evidenceMeta}>
-              <Text style={dsDeck.evidenceText}>
-                {locale === "ko"
-                  ? `${evidence.length}개 기록 · 밝기 ${bandLabel}`
-                  : `${evidence.length} records · ${bandLabel} brightness`}
-              </Text>
-              <View style={dsDeck.confidenceDots}>
-                {[1, 2, 3, 4, 5].map((dot) => (
-                  <View
-                    key={dot}
-                    style={[dsDeck.confidenceDot, dot <= confidenceDots ? dsDeck.confidenceDotOn : null]}
-                  />
+                {POLARIS_GUIDE_CELLS.map((cell, index) => (
+                  <Rect key={`guide-${index}`} x={cell.x} y={cell.y} width={3} height={3} fill={m3.accent.starDim} />
                 ))}
-              </View>
+                {SEVEN_STARS.map((star) => {
+                  const level = sevenLevels?.starLevels?.[star.id] ?? 1;
+                  const point = POLARIS_INPUT_POINTS[star.id];
+                  return (
+                    <PixelStarSvg
+                      key={star.id}
+                      cx={point[0]}
+                      cy={point[1]}
+                      r={2 + level}
+                      fill={m3.starLadder.rest[level - 1]}
+                    />
+                  );
+                })}
+                <PixelStarSvg cx={POLARIS_OUTPUT_POINT[0]} cy={POLARIS_OUTPUT_POINT[1]} r={22} fill={m3.accent.polarisEdge} />
+                <PixelStarSvg cx={POLARIS_OUTPUT_POINT[0]} cy={POLARIS_OUTPUT_POINT[1]} r={14} fill={m3.starLadder.polarisMid[polarisBandIndex]} />
+                <PixelStarSvg cx={POLARIS_OUTPUT_POINT[0]} cy={POLARIS_OUTPUT_POINT[1]} r={6} fill={m3.starLadder.polarisCore[polarisBandIndex]} />
+              </Svg>
             </View>
-
-            <View style={dsDeck.roleActions}>
-              <MdButton
-                variant="filled"
-                label={locale === "ko" ? "문장 다듬기" : "Refine sentence"}
-                onPress={() => router.push("/northstar")}
-                style={dsDeck.roleAction}
-              />
-              <MdButton
-                variant="tonal"
-                label={locale === "ko" ? "내보내기" : "Export"}
-                onPress={() => router.push("/share-card")}
-                style={dsDeck.roleAction}
-              />
-            </View>
+            <Text style={dsDeck.roleStatement}>{t("currentBrightness")}</Text>
+            <MdButton
+              variant="filled"
+              label={t("editNorthStar")}
+              onPress={() => router.push("/northstar")}
+              style={dsDeck.roleAction}
+            />
           </View>
         ),
       },
@@ -652,6 +581,13 @@ function CoreBrainScreen() {
             <Text variant="caption" color="textSubtle" style={{ marginTop: 8 }}>
               {t("aiApprox")}
             </Text>
+            {strengthSummary.length > 0 ? (
+              <View style={dsDeck.progressiveSummary}>
+                <Text style={dsDeck.pageDescription}>
+                  {`${t("strengthsCheck")}: ${strengthSummary.join(" · ")}`}
+                </Text>
+              </View>
+            ) : null}
             <View style={dsDeck.secondaryActions}>
               <MdButton variant="outlined" label={t("brightness")} onPress={() => router.push("/brightness")} />
               <MdButton variant="outlined" label={t("ratLog")} onPress={() => router.push("/ratifications")} />
@@ -707,6 +643,11 @@ function CoreBrainScreen() {
               variant="text"
               label={t("askAboutCenter")}
               onPress={askPolaris}
+            />
+            <MdButton
+              variant="text"
+              label={locale === "ko" ? "내보내기" : "Export"}
+              onPress={() => router.push("/share-card")}
             />
           </View>
         ),
@@ -960,150 +901,20 @@ const styles = StyleSheet.create({
 // `useFontStyle()` 을 구독하기 때문이다.
 const makeDsDeck = () => StyleSheet.create({
   wrap: { flex: 1, paddingHorizontal: 12, paddingTop: 4, paddingBottom: 4 },
-  roleBody: { gap: 0 },
-  roleTop: {
-    flexDirection: "row",
+  roleBody: { flexGrow: 1, alignItems: "center", justifyContent: "center", gap: 20, paddingVertical: 12 },
+  polarisGraphic: {
+    width: "100%",
     alignItems: "center",
-    gap: 14,
-    marginBottom: 20,
+    paddingVertical: 8,
+    backgroundColor: m3.color.surfaceContainerLow,
   },
-  roleGlyph: {
-    width: 56,
-    height: 56,
-    borderRadius: m3.shape.none,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: m3.color.tertiary,
-    backgroundColor: m3.color.tertiaryContainer,
-  },
-  roleGlyphText: {
-    ...m3TextStyle("headlineSmall"),
-    color: m3.color.onTertiaryContainer,
-    fontFamily: m3.font.mono,
-    fontWeight: "700",
-  },
-  roleTitleWrap: { flex: 1, alignItems: "flex-start", gap: 7 },
-  domainTag: {
-    minHeight: 28,
-    justifyContent: "center",
-    paddingHorizontal: 11,
-    borderRadius: m3.shape.none,
-    borderWidth: 1,
-    borderColor: m3.color.tertiary,
-    backgroundColor: m3.color.tertiaryContainer,
-  },
-  domainTagText: {
-    ...m3TextStyle("labelLarge"),
-    color: m3.color.onTertiaryContainer,
-  },
-  roleHeadline: {
-    ...m3TextStyle("headlineSmall"),
-    color: m3.color.onSurface,
-    fontWeight: "700",
-  },
-  sectionEyebrow: {
-    // labelMedium 은 10px 인데 GalmuriMono11 의 x1 은 12px 이라 0.83배로 흐려진다.
-    // 크기를 지키고 얼굴을 놓는다 -- 10px 은 Galmuri9 가 x1 로 선명하게 그리고,
-    // 그건 `m3TextStyle` 이 이미 고르고 있다.
-    ...m3TextStyle("labelMedium"),
-    color: m3.color.tertiary,
-    letterSpacing: 3,
-    marginTop: 17,
-    marginBottom: 8,
-  },
-  roleDescription: {
+  roleStatement: {
     ...m3TextStyle("bodyLarge"),
-    color: m3.color.onSurfaceVariant,
+    color: m3.color.onSurface,
     lineHeight: 24,
+    textAlign: "center",
   },
-  traitList: { gap: 8 },
-  traitRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  traitLabel: {
-    ...m3TextStyle("bodyMedium"),
-    width: 48,
-    color: m3.color.onSurface,
-  },
-  traitTrack: {
-    flex: 1,
-    height: 8,
-    borderRadius: m3.shape.none,
-    overflow: "hidden",
-    backgroundColor: m3.color.surfaceContainerLow,
-  },
-  traitFill: { height: "100%", borderRadius: m3.shape.none, backgroundColor: m3.color.tertiary },
-  traitValue: {
-    ...m3TextStyle("bodyMedium"),
-    width: 30,
-    textAlign: "right",
-    color: m3.color.tertiary,
-    fontFamily: m3.font.mono,
-  },
-  personCard: {
-    padding: 13,
-    borderRadius: m3.shape.none,
-    borderWidth: 1,
-    borderColor: m3.color.tertiary,
-    backgroundColor: m3.color.surfaceContainerLow,
-  },
-  personText: {
-    ...m3TextStyle("bodyMedium"),
-    color: m3.color.onSurfaceVariant,
-    lineHeight: 21,
-  },
-  strengthRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  strengthChip: {
-    minHeight: 34,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-    paddingHorizontal: 11,
-    borderRadius: m3.shape.none,
-    borderWidth: 1,
-    borderColor: m3.color.tertiary,
-    backgroundColor: m3.color.tertiaryContainer,
-  },
-  strengthDot: { width: 7, height: 7, borderRadius: m3.shape.none, backgroundColor: m3.color.tertiary },
-  strengthText: {
-    ...m3TextStyle("labelLarge"),
-    color: m3.color.onSurface,
-  },
-  strengthEmpty: {
-    alignItems: "flex-start",
-    gap: 2,
-    padding: 12,
-    borderRadius: m3.shape.none,
-    backgroundColor: m3.color.surfaceContainerLow,
-  },
-  strengthEmptyText: {
-    ...m3TextStyle("bodySmall"),
-    color: m3.color.onSurfaceVariant,
-  },
-  evidenceMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    marginTop: 20,
-  },
-  evidenceText: {
-    ...m3TextStyle("bodySmall"),
-    color: m3.color.onSurfaceVariant,
-  },
-  confidenceDots: { flexDirection: "row", gap: 5 },
-  confidenceDot: {
-    width: 9,
-    height: 9,
-    borderRadius: m3.shape.none,
-    backgroundColor: m3.color.secondary,
-  },
-  confidenceDotOn: { backgroundColor: m3.color.tertiary },
-  roleActions: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 20,
-  },
-  roleAction: { flex: 1 },
+  roleAction: { alignSelf: "stretch" },
   pageBody: { gap: 12 },
   pageHeadline: {
     ...m3TextStyle("headlineSmall"),
@@ -1113,6 +924,10 @@ const makeDsDeck = () => StyleSheet.create({
   pageDescription: {
     ...m3TextStyle("bodyLarge"),
     color: m3.color.onSurfaceVariant,
+  },
+  progressiveSummary: {
+    padding: 12,
+    backgroundColor: m3.color.surfaceContainerLow,
   },
   validationHead: { marginTop: 16 },
   secondaryActions: {
