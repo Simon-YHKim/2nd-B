@@ -19,6 +19,7 @@ import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
+import { DeepSpaceProfileScreen } from "@/screens/deepspace/dds-profile-screen";
 
 interface HubRoute {
   sectionKey: string;
@@ -100,6 +101,11 @@ function HubGlyph({ itemKey, color }: { itemKey: string; color: string }) {
 }
 
 export default function Profile() {
+  if (isDeepSpaceUI()) return <DeepSpaceProfileScreen />;
+  return <ProfileLegacy />;
+}
+
+function ProfileLegacy() {
   const { t } = useTranslation("profile");
   const { t: tDeepSpace } = useTranslation("deepspace");
   const { t: tHome } = useTranslation("home");
