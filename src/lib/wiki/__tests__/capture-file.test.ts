@@ -57,6 +57,7 @@ import {
   extractText,
   normalizeFileMimeType,
   normalizeFileTextResult,
+  pickAudioFile,
   pickFile,
   pickImportFiles,
 } from "../capture-file";
@@ -276,5 +277,39 @@ describe("pickImportFiles", () => {
     });
 
     await expect(pickImportFiles()).resolves.toEqual([{ name: "a.md", text: "# Note A\n\nbody" }]);
+  });
+});
+
+describe("pickAudioFile", () => {
+  test("offers audio only and normalizes generic Android metadata", async () => {
+    documentPickerMock.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        {
+          uri: "file:///call.m4a",
+          name: "call.m4a",
+          mimeType: "application/octet-stream",
+          size: 456,
+        },
+      ],
+    });
+
+    await expect(pickAudioFile()).resolves.toEqual({
+      uri: "file:///call.m4a",
+      name: "call.m4a",
+      mimeType: "audio/mp4",
+      size: 456,
+      textContent: null,
+    });
+    expect(documentPickerMock.getDocumentAsync).toHaveBeenCalledWith({
+      type: "audio/*",
+      copyToCacheDirectory: true,
+      multiple: false,
+    });
+  });
+
+  test("canceled audio pick returns null", async () => {
+    documentPickerMock.getDocumentAsync.mockResolvedValue({ canceled: true, assets: null });
+    await expect(pickAudioFile()).resolves.toBeNull();
   });
 });
