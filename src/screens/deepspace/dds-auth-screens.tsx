@@ -4,9 +4,9 @@
 // DeepSpaceDesignScreens re-exports them so every route import is unchanged.
 /* eslint-disable */
 // TODO(split-2): trim the import set + re-enable lint once the move settles.
-import { useEffect, useMemo, useRef, type ReactNode, type Ref } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text as RNText, TextInput, View, useWindowDimensions } from "react-native";
-import { Redirect, router, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
+import { BackHandler, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text as RNText, TextInput, View, useWindowDimensions } from "react-native";
+import { Redirect, router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 import Svg, { Circle, Defs, Line, Path, RadialGradient, Rect, Stop } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -26,6 +26,11 @@ import { allRequiredAcksChecked, setAllRequiredAcks, type ConsentSelections } fr
 import { DateField } from "@/components/m3";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { todayISO } from "@/components/m3/date-picker/calendar-math";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { PixelSurface } from "@/components/pixel/PixelSurface";
+import { m3TextStyle } from "@/components/m3/typeface";
+import { useFontStyle } from "@/lib/settings/readable-font";
+import { useKeyboard } from "@/lib/ui/useKeyboard";
 
 // Keyboard-aware shell for the auth screens (sign-in / sign-up / reset). The
 // generic Shell above is for in-app graph screens and has no keyboard handling;
@@ -685,8 +690,155 @@ export function DeepSpaceSignUpDesignScreen() {
   );
 }
 
+const RESET_STARS = [
+  { x: 0.08, y: 0.08, size: 2, color: m3.accent.star },
+  { x: 0.28, y: 0.04, size: 2, color: m3.accent.polaris },
+  { x: 0.46, y: 0.11, size: 2, color: m3.accent.starDim },
+  { x: 0.71, y: 0.06, size: 3, color: m3.accent.star },
+  { x: 0.9, y: 0.14, size: 2, color: m3.accent.starDim },
+  { x: 0.16, y: 0.24, size: 2, color: m3.accent.starDim },
+  { x: 0.39, y: 0.2, size: 2, color: m3.accent.star },
+  { x: 0.62, y: 0.29, size: 2, color: m3.accent.polaris },
+  { x: 0.84, y: 0.25, size: 2, color: m3.accent.star },
+  { x: 0.05, y: 0.4, size: 3, color: m3.accent.starDim },
+  { x: 0.24, y: 0.47, size: 2, color: m3.accent.star },
+  { x: 0.49, y: 0.42, size: 2, color: m3.accent.starDim },
+  { x: 0.73, y: 0.51, size: 2, color: m3.accent.star },
+  { x: 0.94, y: 0.45, size: 2, color: m3.accent.starDim },
+  { x: 0.12, y: 0.64, size: 2, color: m3.accent.polaris },
+  { x: 0.34, y: 0.59, size: 2, color: m3.accent.starDim },
+  { x: 0.57, y: 0.69, size: 3, color: m3.accent.star },
+  { x: 0.81, y: 0.63, size: 2, color: m3.accent.starDim },
+  { x: 0.21, y: 0.82, size: 2, color: m3.accent.star },
+  { x: 0.45, y: 0.9, size: 2, color: m3.accent.starDim },
+  { x: 0.68, y: 0.79, size: 2, color: m3.accent.polaris },
+  { x: 0.91, y: 0.92, size: 3, color: m3.accent.star },
+] as const;
+
+function ResetPasswordBackdrop() {
+  const { width, height } = useWindowDimensions();
+  return (
+    <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
+      <Rect x="0" y="0" width={width} height={height} fill={m3.color.background} />
+      {RESET_STARS.map((star, index) => (
+        <Rect
+          key={index}
+          x={Math.round(star.x * width)}
+          y={Math.round(star.y * height)}
+          width={star.size}
+          height={star.size}
+          fill={star.color}
+        />
+      ))}
+    </Svg>
+  );
+}
+
+function ResetPasswordShell({ children }: { children: ReactNode }) {
+  const insets = useSafeAreaInsets();
+  const keyboardHeight = useKeyboard();
+  const androidKeyboardPadding = Platform.OS === "android" ? keyboardHeight + m3.spacing.s6 * 2 : 0;
+  return (
+    <View style={resetStyles.root}>
+      <ResetPasswordBackdrop />
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={resetStyles.flex}>
+        <ScrollView
+          contentContainerStyle={[
+            resetStyles.scroll,
+            {
+              paddingTop: Math.max(insets.top + m3.spacing.s6, m3.spacing.s6 * 2),
+              paddingBottom: Math.max(insets.bottom + m3.spacing.s6 * 2, androidKeyboardPadding),
+            },
+          ]}
+          keyboardShouldPersistTaps="handled"
+        >
+          {children}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
+  );
+}
+
+function ResetAction({
+  onPress,
+  label,
+  hint,
+  disabled = false,
+  busy = false,
+  secondary = false,
+  role = "button",
+}: {
+  onPress: () => void;
+  label: string;
+  hint?: string;
+  disabled?: boolean;
+  busy?: boolean;
+  secondary?: boolean;
+  role?: "button" | "link";
+}) {
+  const [held, setHeld] = useState(false);
+  const pressed = held && !disabled;
+  const background = disabled
+    ? m3.color.surfaceVariant
+    : secondary
+      ? m3.color.surfaceContainerHigh
+      : m3.color.primary;
+  const foreground = disabled
+    ? m3.color.onSurfaceVariant
+    : secondary
+      ? m3.color.onSurface
+      : m3.color.onPrimary;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onPressIn={() => setHeld(true)}
+      onPressOut={() => setHeld(false)}
+      disabled={disabled}
+      accessibilityRole={role}
+      accessibilityLabel={label}
+      accessibilityHint={hint}
+      accessibilityState={{ disabled, busy }}
+      style={resetStyles.actionHit}
+    >
+      <View style={[resetStyles.actionFrame, pressed && resetStyles.actionPressed]}>
+        <PixelSurface
+          variant={disabled ? "inset" : "bevel"}
+          pressed={pressed}
+          background={background}
+          style={resetStyles.actionSurface}
+          contentStyle={resetStyles.actionContent}
+        >
+          <Text style={[m3TextStyle("labelLarge"), { color: foreground, textAlign: "center" }]}>{label}</Text>
+        </PixelSurface>
+      </View>
+    </Pressable>
+  );
+}
+
+function ResetField({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <View style={resetStyles.fieldGroup}>
+      <Text style={[m3TextStyle("labelMedium"), resetStyles.fieldLabel]}>{label}</Text>
+      <PixelSurface variant="inset" background={m3.color.surfaceContainerHigh} contentStyle={resetStyles.fieldSurface}>
+        {children}
+      </PixelSurface>
+    </View>
+  );
+}
+
 export function DeepSpaceResetPasswordDesignScreen() {
   const { t } = useTranslation(["deepspace", "auth", "common"]);
+  // Subscribes the raw TextInputs to the readable-font switch. Text components
+  // already subscribe themselves; calling m3TextStyle again on this render gives
+  // form controls the same current face instead of freezing the boot-time value.
+  useFontStyle();
   const {
     loading,
     step,
@@ -706,170 +858,288 @@ export function DeepSpaceResetPasswordDesignScreen() {
     confirmPassword,
     setConfirmPassword,
     submitting,
-    complete,
     toast,
     helperKey,
     canSubmit,
     handleSubmit,
   } = useResetPasswordForm();
-  // confirmRef must be created BEFORE the early loading return so the hook order
-  // is stable across renders. AuthContext starts loading:true, so a cold start
-  // from the reset-password mail link renders the spinner first (fewer hooks)
-  // then the form (one more); calling useRef after the return threw "Rendered
-  // more hooks than during the previous render" (the file-level eslint-disable
-  // is why react-hooks/rules-of-hooks never caught it).
+  // Keep this before the loading return. A cold recovery link renders the loader
+  // first and the form after AuthContext hydrates; moving the ref below the return
+  // changes hook count between those renders.
   const confirmRef = useRef<TextInput>(null);
+
+  // Keep native Back aligned with the visible recovery controls. Before a
+  // recovery session exists, Back returns to sign-in. Once the password step
+  // owns a recovery session, leaving early would silently abandon the reset;
+  // consume Back until the change completes, then send the completed flow home.
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+        if (step === "request" || step === "verify") {
+          router.replace("/sign-in");
+        } else if (step === "done") {
+          router.replace("/");
+        }
+        return true;
+      });
+      return () => sub.remove();
+    }, [step]),
+  );
 
   if (loading) {
     return <InlineLoader />;
   }
 
   const helperDanger = helperKey !== "resetPassword.passwordHelper";
+  const title =
+    step === "done"
+      ? t("auth:resetPassword.doneTitle")
+      : step === "password"
+        ? t("auth:resetPassword.title")
+        : step === "verify"
+          ? t("auth:resetPassword.verify")
+          : t("deepspace:auth.forgotPassword");
+  const subtitle =
+    step === "done"
+      ? t("auth:resetPassword.doneSubtitle")
+      : step === "password"
+        ? t("auth:resetPassword.subtitle")
+        : step === "verify"
+          ? t("auth:resetPassword.verifySubtitle")
+          : t("auth:resetPassword.requestSubtitle");
+  const statusGlyph = step === "done" ? "check" : step === "verify" ? "inbox" : "lock";
 
   return (
-    <AuthShell>
-      <View style={styles.authHero}>
-        <SecondbHead size={120} mood={complete ? "positive" : "neutral"} />
-        <Text variant="heading" style={styles.big}>{complete ? t("auth:resetPassword.doneTitle") : t("auth:resetPassword.title")}</Text>
-        <Text variant="body" style={styles.lead}>
-          {step === "done"
-            ? t("auth:resetPassword.doneSubtitle")
-            : step === "password"
-              ? t("auth:resetPassword.subtitle")
-              : step === "verify"
-                ? t("auth:resetPassword.verifySubtitle")
-                : t("auth:resetPassword.requestSubtitle")}
-        </Text>
+    <ResetPasswordShell>
+      <View style={resetStyles.header}>
+        {step === "request" || step === "verify" ? (
+          <Pressable
+            onPress={() => router.replace("/sign-in")}
+            accessibilityRole="link"
+            accessibilityLabel={t("auth:resetPassword.backToSignIn")}
+            accessibilityHint={t("auth:resetPassword.backToSignInHint")}
+            style={resetStyles.back}
+          >
+            <PixelGlyph name="arrow_back" color={m3.color.onBackground} size={24} />
+          </Pressable>
+        ) : (
+          <View style={resetStyles.back} />
+        )}
+        <Text style={[m3TextStyle("titleLarge"), resetStyles.headerTitle]}>{t("deepspace:auth.resetTitle")}</Text>
       </View>
-      <Card>
+
+      <View style={resetStyles.hero}>
+        <PixelSurface variant="frame" background={m3.color.primaryContainer} style={resetStyles.heroGlyph} contentStyle={resetStyles.heroGlyphContent}>
+          <PixelGlyph name={statusGlyph} color={m3.color.onPrimaryContainer} size={24} />
+        </PixelSurface>
+        <View style={resetStyles.heroCopy}>
+          <Text style={[m3TextStyle("headlineSmall"), resetStyles.title]}>{title}</Text>
+          <Text style={[m3TextStyle("bodyLarge"), resetStyles.subtitle]}>{subtitle}</Text>
+        </View>
+      </View>
+
+      <View style={resetStyles.form}>
         {step === "request" || step === "verify" ? (
           <>
-            {/* Flow request #5: the whole recovery lives in this screen now —
-                request a 6-digit code, verify it (recovery session), then set
-                the new password. The mail link stays a working fallback. */}
-            <Text variant="caption" pixelEn style={styles.authLabel}>{t("auth:resetPassword.emailLabel")}</Text>
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoComplete="email"
-              textContentType="emailAddress"
-              placeholder="email@example.com"
-              placeholderTextColor={colors.textLo}
-              accessibilityLabel={t("auth:resetPassword.emailLabel")}
-              style={styles.input}
-              editable={!sendSubmitting}
-            />
-            <Pressable
+            <ResetField label={t("auth:resetPassword.emailLabel")}>
+              <TextInput
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoComplete="email"
+                textContentType="emailAddress"
+                placeholder="email@example.com"
+                placeholderTextColor={m3.color.onSurfaceVariant}
+                accessibilityLabel={t("auth:resetPassword.emailLabel")}
+                accessibilityHint={t("auth:resetPassword.requestSubtitle")}
+                style={[resetStyles.input, m3TextStyle("bodyLarge")]}
+                editable={!sendSubmitting}
+                returnKeyType="send"
+                onSubmitEditing={() => {
+                  if (canSendCode) void handleSendCode();
+                }}
+              />
+            </ResetField>
+            <ResetAction
               onPress={() => void handleSendCode()}
               disabled={!canSendCode}
-              style={[styles.providerBtn, !canSendCode && styles.btnDisabled]}
-              accessibilityRole="button"
-              accessibilityLabel={step === "verify" ? t("auth:resetPassword.resend") : t("auth:resetPassword.sendCode")}
-              accessibilityState={{ disabled: !canSendCode, busy: sendSubmitting }}
-            >
-              <Text variant="caption" style={styles.providerBtnText}>
-                {sendSubmitting
+              busy={sendSubmitting}
+              secondary={step === "verify"}
+              label={
+                sendSubmitting
                   ? t("auth:resetPassword.sending")
                   : resendSeconds > 0
                     ? t("auth:resetPassword.resendWait", { seconds: resendSeconds })
                     : step === "verify"
                       ? t("auth:resetPassword.resend")
-                      : t("auth:resetPassword.sendCode")}
-              </Text>
-            </Pressable>
+                      : t("auth:resetPassword.sendCode")
+              }
+            />
             {step === "verify" ? (
               <>
-                <Text variant="caption" pixelEn style={styles.authLabel}>{t("auth:resetPassword.codeLabel")}</Text>
-                <TextInput
-                  value={code}
-                  onChangeText={setCode}
-                  keyboardType="number-pad"
-                  autoComplete="one-time-code"
-                  textContentType="oneTimeCode"
-                  maxLength={6}
-                  placeholder="000000"
-                  placeholderTextColor={colors.textLo}
-                  accessibilityLabel={t("auth:resetPassword.codeLabel")}
-                  accessibilityHint={t("auth:resetPassword.codeHint")}
-                  style={styles.input}
-                  returnKeyType="go"
-                  onSubmitEditing={() => {
-                    if (canVerify) void handleVerifyCode();
-                  }}
-                />
-                <Text variant="body" style={styles.authHelper}>{t("auth:resetPassword.codeHelper")}</Text>
-                <Pressable
+                <ResetField label={t("auth:resetPassword.codeLabel")}>
+                  <TextInput
+                    value={code}
+                    onChangeText={setCode}
+                    keyboardType="number-pad"
+                    autoComplete="one-time-code"
+                    textContentType="oneTimeCode"
+                    maxLength={6}
+                    placeholder="000000"
+                    placeholderTextColor={m3.color.onSurfaceVariant}
+                    accessibilityLabel={t("auth:resetPassword.codeLabel")}
+                    accessibilityHint={t("auth:resetPassword.codeHint")}
+                    style={[resetStyles.input, resetStyles.codeInput, m3TextStyle("headlineSmall")]}
+                    returnKeyType="go"
+                    onSubmitEditing={() => {
+                      if (canVerify) void handleVerifyCode();
+                    }}
+                  />
+                </ResetField>
+                <Text style={[m3TextStyle("bodySmall"), resetStyles.helper]}>{t("auth:resetPassword.codeHelper")}</Text>
+                <ResetAction
                   onPress={() => void handleVerifyCode()}
                   disabled={!canVerify}
-                  style={[styles.primary, !canVerify && styles.btnDisabled]}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("auth:resetPassword.verify")}
-                  accessibilityState={{ disabled: !canVerify, busy: verifying }}
-                >
-                  <Text variant="caption" style={styles.primaryText}>{verifying ? t("auth:resetPassword.verifying") : t("auth:resetPassword.verify")}</Text>
-                </Pressable>
+                  busy={verifying}
+                  label={verifying ? t("auth:resetPassword.verifying") : t("auth:resetPassword.verify")}
+                />
               </>
             ) : null}
-            <Pressable style={styles.authLinkRow} onPress={() => router.replace("/sign-in")} accessibilityRole="link" accessibilityLabel={t("auth:resetPassword.backToSignIn")}>
-              <Text variant="body" style={styles.link}>{t("auth:resetPassword.backToSignIn")}</Text>
-            </Pressable>
           </>
-        ) : complete ? (
-          <Pressable style={styles.primary} onPress={() => router.replace("/")} accessibilityRole="button" accessibilityLabel={t("auth:resetPassword.continue")}>
-            <Text variant="caption" style={styles.primaryText}>{t("auth:resetPassword.continue")}</Text>
-          </Pressable>
+        ) : step === "done" ? (
+          <ResetAction
+            onPress={() => router.replace("/")}
+            label={t("auth:resetPassword.continue")}
+            hint={t("auth:resetPassword.continueHint")}
+          />
         ) : (
           <>
-            <Text variant="caption" pixelEn style={styles.authLabel}>{t("auth:resetPassword.newPassword")}</Text>
-            <TextInput
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoComplete="new-password"
-              textContentType="newPassword"
-              placeholder="••••••••"
-              placeholderTextColor={colors.textLo}
-              accessibilityLabel={t("auth:resetPassword.newPassword")}
-              returnKeyType="next"
-              blurOnSubmit={false}
-              onSubmitEditing={() => confirmRef.current?.focus()}
-              style={styles.input}
-            />
-            <Text variant="caption" pixelEn style={styles.authLabel}>{t("auth:resetPassword.confirmPassword")}</Text>
-            <TextInput
-              ref={confirmRef}
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry
-              autoComplete="new-password"
-              textContentType="newPassword"
-              placeholder="••••••••"
-              placeholderTextColor={colors.textLo}
-              accessibilityLabel={t("auth:resetPassword.confirmPassword")}
-              style={styles.input}
-              returnKeyType="done"
-              onSubmitEditing={() => {
-                if (canSubmit) void handleSubmit();
-              }}
-            />
-            <Text variant="body" style={[styles.authHelper, helperDanger && styles.authDanger]}>{t(`auth:${helperKey}`)}</Text>
-            <Pressable
+            <ResetField label={t("auth:resetPassword.newPassword")}>
+              <TextInput
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                autoComplete="new-password"
+                textContentType="newPassword"
+                placeholder="••••••••"
+                placeholderTextColor={m3.color.onSurfaceVariant}
+                accessibilityLabel={t("auth:resetPassword.newPassword")}
+                accessibilityHint={t("auth:resetPassword.newPasswordHint")}
+                returnKeyType="next"
+                blurOnSubmit={false}
+                onSubmitEditing={() => confirmRef.current?.focus()}
+                style={[resetStyles.input, m3TextStyle("bodyLarge")]}
+              />
+            </ResetField>
+            <ResetField label={t("auth:resetPassword.confirmPassword")}>
+              <TextInput
+                ref={confirmRef}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry
+                autoComplete="new-password"
+                textContentType="newPassword"
+                placeholder="••••••••"
+                placeholderTextColor={m3.color.onSurfaceVariant}
+                accessibilityLabel={t("auth:resetPassword.confirmPassword")}
+                accessibilityHint={t("auth:resetPassword.confirmPasswordHint")}
+                style={[resetStyles.input, m3TextStyle("bodyLarge")]}
+                returnKeyType="done"
+                onSubmitEditing={() => {
+                  if (canSubmit) void handleSubmit();
+                }}
+              />
+            </ResetField>
+            <Text
+              accessibilityLiveRegion="polite"
+              style={[
+                m3TextStyle("bodySmall"),
+                resetStyles.helper,
+                helperDanger && resetStyles.helperDanger,
+              ]}
+            >
+              {t(`auth:${helperKey}`)}
+            </Text>
+            <ResetAction
               onPress={() => void handleSubmit()}
               disabled={!canSubmit}
-              style={[styles.primary, !canSubmit && styles.btnDisabled]}
-              accessibilityRole="button"
-              accessibilityLabel={t("auth:resetPassword.submit")}
-              accessibilityState={{ disabled: !canSubmit, busy: submitting }}
-            >
-              <Text variant="caption" style={styles.primaryText}>{submitting ? t("auth:resetPassword.submitting") : t("auth:resetPassword.submit")}</Text>
-            </Pressable>
+              busy={submitting}
+              label={submitting ? t("auth:resetPassword.submitting") : t("auth:resetPassword.submit")}
+              hint={t("auth:resetPassword.submitHint")}
+            />
           </>
         )}
-      </Card>
-      {toast ? <AuthToast message={toast.message} tone={toast.tone} /> : null}
-    </AuthShell>
+      </View>
+
+      {toast ? (
+        <View accessibilityRole="alert" accessibilityLiveRegion="assertive">
+          <PixelSurface
+            variant="frame"
+            background={
+              toast.tone === "danger" ? m3.color.errorContainer : m3.color.surfaceContainerHigh
+            }
+            contentStyle={resetStyles.toastContent}
+          >
+            <Text
+              style={[
+                m3TextStyle("bodyMedium"),
+                resetStyles.toastText,
+                toast.tone === "danger" && resetStyles.toastDanger,
+                toast.tone === "success" && resetStyles.toastSuccess,
+              ]}
+            >
+              {toast.message}
+            </Text>
+          </PixelSurface>
+        </View>
+      ) : null}
+    </ResetPasswordShell>
   );
 }
+
+const resetStyles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: m3.color.background },
+  flex: { flex: 1 },
+  scroll: {
+    flexGrow: 1,
+    width: "100%",
+    maxWidth: 520,
+    alignSelf: "center",
+    paddingHorizontal: m3.spacing.s6 * 2,
+    gap: m3.spacing.s8,
+  },
+  header: { minHeight: m3.minTouch, flexDirection: "row", alignItems: "center", gap: m3.spacing.s4 },
+  back: { width: m3.minTouch, height: m3.minTouch, alignItems: "center", justifyContent: "center" },
+  headerTitle: { color: m3.color.onBackground, paddingBottom: Platform.OS === "android" ? m3.spacing.s1 : 0 },
+  hero: { flexDirection: "row", alignItems: "flex-start", gap: m3.spacing.s6 },
+  heroGlyph: { width: m3.minTouch, height: m3.minTouch },
+  heroGlyphContent: { flex: 1, paddingHorizontal: 0, paddingVertical: 0, alignItems: "center", justifyContent: "center" },
+  heroCopy: { flex: 1, gap: m3.spacing.s3 },
+  title: { color: m3.color.onBackground, paddingBottom: Platform.OS === "android" ? m3.spacing.s1 : 0 },
+  subtitle: { color: m3.color.onSurfaceVariant, paddingBottom: Platform.OS === "android" ? m3.spacing.s1 : 0 },
+  form: { gap: m3.spacing.s6 },
+  fieldGroup: { gap: m3.spacing.s2 },
+  fieldLabel: { color: m3.color.onSurfaceVariant, paddingBottom: Platform.OS === "android" ? m3.spacing.s1 : 0 },
+  fieldSurface: { minHeight: m3.minTouch, paddingHorizontal: 0, paddingVertical: 0, justifyContent: "center" },
+  input: {
+    minHeight: m3.minTouch,
+    paddingHorizontal: m3.spacing.s6,
+    paddingVertical: m3.spacing.s4,
+    color: m3.color.onSurface,
+    borderRadius: m3.shape.none,
+  },
+  codeInput: { textAlign: "center", letterSpacing: 0 },
+  helper: { color: m3.color.onSurfaceVariant, paddingBottom: Platform.OS === "android" ? m3.spacing.s1 : 0 },
+  helperDanger: { color: m3.color.error },
+  actionHit: { width: "100%", minHeight: m3.minTouch },
+  actionFrame: { width: "100%" },
+  actionPressed: { transform: [{ translateY: m3.spacing.s1 }] },
+  actionSurface: { width: "100%", minHeight: m3.minTouch },
+  actionContent: { minHeight: m3.minTouch, alignItems: "center", justifyContent: "center" },
+  toastContent: { paddingVertical: m3.spacing.s4, paddingHorizontal: m3.spacing.s6 },
+  toastText: { color: m3.color.primary },
+  toastDanger: { color: m3.color.onErrorContainer },
+  toastSuccess: { color: m3.accent.moodPositive },
+});
 

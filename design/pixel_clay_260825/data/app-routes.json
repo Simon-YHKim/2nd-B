@@ -83,6 +83,11 @@
    "route": "/peer/sample",
    "why": "'sample' 은 실제 토큰이 아니라 앱이 '유효하지 않은 링크입니다' 를 그린다(13%).",
    "needs": "살아 있는 초대 토큰"
+  },
+  "pwreset": {
+   "route": "/reset-password",
+   "why": "유효한 recovery 세션이 있어야 새 비밀번호 상태를 검증할 수 있다. 로그인된 QA 계정의 일반 세션은 같은 userId 신호를 만들지만 recovery 성공 근거가 아니며, 하네스가 그 화면을 캡처하면 인증 상태를 꾸민 결과가 된다.",
+   "needs": "운영 정책을 우회하지 않는 유효한 recovery 세션 또는 전용 QA fixture"
   }
  },
  "unmapped": {
@@ -110,9 +115,6 @@
   },
   "datareview": {
    "why": "번들 내부 검토 프레임. 대응하는 앱 화면을 못 찾았다."
-  },
-  "pwreset": {
-   "why": "복구 세션이 있어야 열리는 화면이라 하네스가 조건을 못 만든다."
   },
   "profilesetup": {
    "why": "가입 직후 1회성 플로. 로그인된 QA 계정에서는 안 열린다."
