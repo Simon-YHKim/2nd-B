@@ -22,6 +22,7 @@ export interface MdChipProps {
   label: string;
   /** filter chips only - the toggled state. */
   selected?: boolean;
+  disabled?: boolean;
   icon?: ReactNode;
   onPress?: () => void;
   /** input chips - trailing close affordance. */
@@ -35,6 +36,7 @@ export function MdChip({
   kind = "assist",
   label,
   selected = false,
+  disabled = false,
   icon,
   onPress,
   onClose,
@@ -47,14 +49,27 @@ export function MdChip({
   // assist/suggestion buttons made TalkBack announce plain chips as untoggled
   // controls the user thinks they must toggle.
   const on = isFilter && selected;
-  const fg = on ? m3.color.onSecondaryContainer : m3.color.onSurfaceVariant;
+  let fg: string = on ? m3.color.onSecondaryContainer : m3.color.onSurfaceVariant;
+  if (disabled) {
+    fg = on ? m3.disabled.onSecondaryContainer : m3.disabled.onSurface;
+  }
   return (
-    <View style={[styles.chip, on ? styles.chipOn : styles.chipOff, style]}>
+    <View
+      style={[
+        styles.chip,
+        on ? styles.chipOn : styles.chipOff,
+        disabled && (on ? styles.chipOnDisabled : styles.chipOffDisabled),
+        style,
+      ]}
+    >
       <Pressable
-        android_ripple={{ color: m3.color.secondaryContainer }}
+        android_ripple={disabled ? undefined : { color: m3.color.secondaryContainer }}
         onPress={onPress}
+        disabled={disabled}
         accessibilityRole={isFilter ? "checkbox" : "button"}
-        accessibilityState={isFilter ? { selected, checked: selected } : undefined}
+        accessibilityState={
+          isFilter ? { selected, checked: selected, disabled } : { disabled }
+        }
         accessibilityLabel={accessibilityLabel ?? label}
         style={styles.hit}
       >
@@ -73,8 +88,10 @@ export function MdChip({
         {onClose ? (
           <Pressable
             onPress={onClose}
+            disabled={disabled}
             hitSlop={8}
             accessibilityRole="button"
+            accessibilityState={{ disabled }}
             accessibilityLabel={removeAccessibilityLabel}
             style={styles.close}
           >
@@ -101,6 +118,8 @@ const styles = StyleSheet.create({
   },
   chipOff: { borderWidth: 1, borderColor: m3.color.outline },
   chipOn: { backgroundColor: m3.color.secondaryContainer },
+  chipOffDisabled: { borderColor: m3.disabled.outline },
+  chipOnDisabled: { backgroundColor: m3.disabled.secondaryContainer },
   icon: { justifyContent: "center" },
   close: { marginLeft: m3.spacing.s1, justifyContent: "center", alignItems: "center" },
 });

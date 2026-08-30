@@ -35,26 +35,46 @@ export interface SegBtnProps {
   selected: string[];
   onSelect: (key: string) => void;
   multiSelect?: boolean;
+  disabled?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
-export function SegBtn({ segments, selected, onSelect, multiSelect = false, style }: SegBtnProps) {
+export function SegBtn({
+  segments,
+  selected,
+  onSelect,
+  multiSelect = false,
+  disabled = false,
+  style,
+}: SegBtnProps) {
   const segWidth = `${100 / Math.max(1, segments.length)}%` as DimensionValue;
   return (
-    <View style={[styles.group, style]} accessibilityRole={multiSelect ? undefined : "radiogroup"}>
+    <View
+      style={[styles.group, disabled && styles.groupDisabled, style]}
+      accessibilityRole={multiSelect ? undefined : "radiogroup"}
+    >
       {segments.map((seg, i) => {
         const on = selected.includes(seg.key);
-        const fg = on ? m3.color.onSecondaryContainer : m3.color.onSurface;
+        let fg: string = on ? m3.color.onSecondaryContainer : m3.color.onSurface;
+        if (disabled) {
+          fg = on ? m3.disabled.onSecondaryContainer : m3.disabled.onSurface;
+        }
         return (
           <View
             key={seg.key}
-            style={[styles.seg, { width: segWidth }, i > 0 && styles.divider, on && styles.segOn]}
+            style={[
+              styles.seg,
+              { width: segWidth },
+              i > 0 && (disabled ? styles.dividerDisabled : styles.divider),
+              on && (disabled ? styles.segOnDisabled : styles.segOn),
+            ]}
           >
             <Pressable
-              android_ripple={{ color: m3.color.secondaryContainer }}
+              android_ripple={disabled ? undefined : { color: m3.color.secondaryContainer }}
               onPress={() => onSelect(seg.key)}
+              disabled={disabled}
               accessibilityRole={multiSelect ? "checkbox" : "radio"}
-              accessibilityState={{ selected: on, checked: on }}
+              accessibilityState={{ selected: on, checked: on, disabled }}
               accessibilityLabel={seg.label}
               style={styles.hit}
             >
@@ -81,6 +101,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     minHeight: 48,
   },
+  groupDisabled: { borderColor: m3.disabled.outline },
   seg: {
     minHeight: 48,
   },
@@ -94,6 +115,8 @@ const styles = StyleSheet.create({
     minHeight: 48,
   },
   divider: { borderLeftWidth: 1, borderLeftColor: m3.color.outline },
+  dividerDisabled: { borderLeftWidth: 1, borderLeftColor: m3.disabled.outline },
   segOn: { backgroundColor: m3.color.secondaryContainer },
+  segOnDisabled: { backgroundColor: m3.disabled.secondaryContainer },
   icon: { justifyContent: "center" },
 });
