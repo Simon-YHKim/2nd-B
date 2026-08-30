@@ -3,6 +3,204 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## Latest — 2026-08-30 / P2·P3·Work0·릴리스 계약 정리, HUMAN PASS와 전체 P1·최종 배포 대기
+
+> 발행: Codex 2nd-B 장기 인계 세션. 작성 시각 `2026-08-30 17:18:50 KST`.
+> 이 블록은 현재 저장소·GitHub·EAS 실측을 요약한다. 완료되지 않은 항목을 완료로 해석하지 말 것.
+
+### 어디까지 왔나
+
+- `origin/main` HEAD: `4a54d76ff458391735d38f674c16bcb1ec047625`
+  (`ci: verify IPA and OTA release contracts (#1501)`).
+- canonical checkout `C:\2ndB`는 `verify-adjustment-unknown`, `origin/main`보다 291 behind / 1 ahead,
+  미추적 10개다. **checkout/reset/clean/stash/delete하지 말 것.** 작업은 최신 `origin/main`에서
+  `.worktrees/codex/*` 새 worktree를 사용한다.
+- `.worktrees/codex/p1-star-screen-final2-20260829`도 4개 파일
+  (`deviations.json`, `nav.json`, `score-baseline.json`, `tokens.json`)이 dirty다.
+  계보 자료이므로 **수정·삭제·재사용하지 말 것.**
+- 이번 장기 인계 흐름에서 확인된 주요 머지:
+  - #1458 `feat(opening): 승인 HustleK를 4초 정수 프레임으로 재생`
+  - #1464 `fix(p1): attest Work 0 capture handoff`
+  - #1465 `fix(ci): harden release artifact provenance`
+  - #1467 `fix(p1): harden Work 0 live scoring proof`
+  - #1479 `feat(llm): failover leaves Gemini, and the diagnostic APK can finally install over build 35`
+  - #1480 `fix(ui): verify scroll compositor text`
+  - #1481 `fix(release): harden AAB archive verification`
+  - #1482·#1484·#1486·#1488 persona/IDEN/review read·ratification 안전 계약
+  - #1487 interview scaffold·crisis routing 안전 계약
+  - #1490~#1493 Stage 1 chat/core-brain 기준선과 내비게이션 계약
+  - #1494 LLM residue/ledger 검증
+  - #1495~#1497 Work0 notice/font/baseline 보강
+  - #1498 x86_64 Android 진단 빌드
+  - #1499 canonical seven-stars Polaris summary
+  - #1501 IPA·OTA 릴리스 계약 검증
+- `P2` 원본 진단 완료: 결정적 합성기 165프레임, 종료코드 0,
+  `validation.json.status = PASS`; 1×/nearest-neighbor 4× 및 F55–80·경계 프레임을 검토했다.
+  추적 대상 원본·atlas·타임라인은 P2에서 수정하지 않았다.
+- `P3` 완료·머지(#1458): 사용자 결정 **(a) 허슬케이 전신**을 앱용 v2 atlas로 구현했고,
+  v1 atlas/hash를 보존했다. 96×96 정수 격자, 보행 12셀 + 회전·접안 6셀,
+  보간 없는 정수 프레임 전환, 최대 4초 구조를 유지했으며 Android 실제 모션까지 확인했다.
+- `P1 Work0` 하네스는 fail-closed route/effect·실제 DOM·A/B/C/D/E 근거를 갖췄다.
+  `screens.json` 실측은 93개 중 `port:true` 80, `port:false` 7, 기타 6이다.
+  `score-baseline.json`은 64행 중 36행만 98점 이상, 28행은 98점 미만이다.
+  즉 **전체 P1 이주는 아직 완료가 아니다**; 측정되지 않은 `port:true` 화면도 남아 있다.
+- Stage 1 8화면 중 main 기준 5개는 98점 이상이다:
+  `chat 98.8`, `me 98.8`, `interview 99.3`, `me-star 98.6`, `trend 99.0`.
+  main 기준 `home 91.0`, `star 90.8`, `review 93.5`이나 Home/Star 개선 PR은 아래처럼 열려 있다.
+- 릴리스 hardening #1501은 main에 머지됐지만, **exact-main `.aab`·`.ipa`·production OTA는 아직 없다.**
+
+### 열려 있는 HUMAN 게이트
+
+| PR | 상태 | 자동 근거 | 사람 검토 |
+|---|---|---|---|
+| [#1500 Home](https://github.com/Simon-YHKim/2nd-B/pull/1500) | Draft · OPEN · MERGEABLE · head `fabc4c7f` | 모든 5 checks SUCCESS · 공식 score `98.0` | `reviewedPass:false`; **`홈 PASS` 필요** |
+| [#1502 Star](https://github.com/Simon-YHKim/2nd-B/pull/1502) | Draft · OPEN · MERGEABLE · head `7364e8b6` | 모든 5 checks SUCCESS · 공식 score `99.1` · 7 exact routes + post-effect 1 | `reviewedPass:false`; **`별 PASS` 필요** |
+
+- 사용자 승인 전에는 두 PR을 ready/merge하지 않는다. PASS를 꾸며내지 않는다.
+- 로컬 승인 도구(ignored, **same-host only**): `C:\2ndB\Output\human-review-home-star-20260830.html`
+  - SHA-256 `1DA74B293A76947606C2B6F7EFA061196937AB3DBA497465AB6274AF00573FC3`
+  - PNG 2개 내장, 외부 요청 0, secret-like 패턴 0, 렌더 오류 0.
+- Home 캡처(ignored, same-host only):
+  `.worktrees/codex/p1-home-token-closure-20260830/Output/home-live-captures-55d934451c16417582c047f81334258c/home.png`
+- Star 캡처(ignored, same-host only):
+  `.worktrees/codex/p1-star-contract-20260830/Output/work0-live-captures-a4962ad0352042eb95f2785dbdd666c0/star.png`
+- `review`의 93.5점은 `학창시절`·`지금` 두 unsafe action을 실제 계정에서 검증해야 닫힌다.
+  최대 4회의 실제 `self_model_propose` 호출이 필요할 수 있으므로 **명시적 USD 상한 승인 전 호출 금지**.
+
+재개에 필요한 권장 사용자 응답:
+
+```text
+홈 PASS / 별 PASS / LLM 최대 USD 1 승인 / iOS 무료 production build 승인 / Android 9월 1일 이후 무료 preview APK + production AAB 2건 승인 / 최종 production OTA 승인
+```
+
+### 현재 검증·릴리스 상태
+
+- exact-main GitHub runs:
+  - CI `33297727973` — SUCCESS
+  - EAS Update `33297727924` — gate/report SUCCESS, `update` job SKIPPED; OTA 미게시
+  - Web preview `33297727987` — SUCCESS / GitHub Pages
+  - Android Diagnostic Build `33297727914` — SUCCESS
+- exact-main APK(ignored):
+  `Output/exact-main-4a54d76-android-run-33297727914/extracted/2ndb-4a54d76.apk`
+  - ZIP/APK CRC PASS, 경로 탈출 없음, 서명 검증 PASS
+  - package `com.simonk.secondbrain`, version `0.7.0`, versionCode `40`
+  - target/compileSdk 36, arm64-v8a only
+  - 이것은 진단 APK이며 Play용 `.aab`를 대신하지 않는다.
+- EAS Free 실측(2026-08-30):
+  - Android 15/15 소진; `2026-09-01 09:00 KST` 무료 주기 갱신
+  - iOS 0/15 사용; 알려진 과금 0
+  - OTA updater 9/1000, bandwidth 436 MiB/100 GiB
+  - 최종 GitHub Release에는 exact-final-main EAS **preview APK와 production AAB 두 Android 빌드**가
+    모두 필요하다. 현재 진단 APK로 대체할 수 없다.
+  - iOS production은 과거 remote-signing 성공 이력이 있지만 현재 인증서 만료일 자체는 재검증하지 않았다.
+- 환경값은 저장소 규칙대로 `.env`/EAS·GitHub secrets에 둔다. QA 계정은 `.env.test`를 재사용한다.
+  민감값·계정 식별자·서명 지문을 HANDOFF, 로그, PR body에 복사하지 않는다.
+
+### 다음 작업 큐
+
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | 사용자에게 Home/Star HUMAN PASS와 LLM USD 상한·빌드 시점·OTA 승인을 받는다 | small | ⭐ 이 입력 없이는 병합·유료 검증 금지 |
+| B | 승인 후 #1500 → #1502를 한 번에 하나씩 ready/merge하고 main CI를 확인한다 | medium | 각 PR 상태·head SHA를 다시 읽은 뒤 수행 |
+| C | 별도 1-file PR로 Home/Star `score-baseline.json` 최신 근거를 반영한다 | small | PR당 최대 5파일 규칙과 화면 분리 유지 |
+| D | 별도 Review worktree에서 실제 환경·USD 상한 안에서 최대 4회 검증, 98+와 HUMAN PASS까지 닫는다 | medium | `capture-app.mjs --print-env`; mock/404/로그인 월 금지 |
+| E | P1 전체 범위를 계속한다: `port:true` 80개를 현재 데이터에서 산출하고 한 화면씩 98+ + HUMAN PASS | large | 동일 화면 3회 무개선이면 구조/harness 문제를 보고하고 중단 |
+| F | 모든 요청 변경이 main에 들어간 뒤 exact-final-main CI → EAS preview `.apk` → production `.aab` → iOS `.ipa` → production OTA → GitHub Release | large | Android는 9/1 09:00 KST 이후 무료 2건이 기본; 즉시 유료는 별도 승인 |
+| G | 요구사항별 완료 감사와 KO/EN easy/expert 자체완결 HTML 완료 보고서 | medium | 모든 artifact·hash·run·release URL을 실제 상태로 대조 |
+
+### 적용 중인 정책 (영구)
+
+1. 정본 우선순위: 현재 `AGENTS.md`의 포인터 → **`CLAUDE.md` 최신 결정 절** →
+   `docs/PRD.md` Draft v4 → `docs/CONCEPT.md`·`docs/CONSTRAINTS.md`·`DESIGN.md` → design bundle.
+   `docs/CONSTELLATION-DESIGN.md`는 2026-08-24 별 개편 이전 **역사 문서**다.
+2. canonical home의 visible 일곱 별(A)은 **프로필·영유아기·학창시절·20대·30대 이후·직장·지금**이다.
+   hidden validation constructs(B)와 Polaris(C)를 구분한다. 생활 도메인 여섯
+   (커리어·재정·성장·관계·건강·휴식)은 세컨비 대시보드이며 home stars가 아니다.
+   deprecated 7-lens/Soul Core/legacy village 모델로 되돌리지 않는다.
+3. P3 주인공은 확정된 **(a) 허슬케이 전신**이다. SecondB 머리 추천이나 (b)/(c)를 다시 묻지 않는다.
+4. P1 UI/UX와 P3 opening은 별도 worktree·branch·PR. 한 세션 최대 추적 파일 5개,
+   한 화면씩 진행하고 worktree는 `.worktrees/` 안에만 둔다.
+5. `C:\2ndB`의 dirty checkout을 checkout/reset/clean/stash/delete하지 않는다.
+   새 작업은 최신 `origin/main`의 `codex/` branch에서 시작한다.
+6. `node_modules`는 `C:\2ndB\node_modules`를 worktree에 junction/symlink로 공유하고 worktree마다 `npm ci`하지 않는다.
+7. main 직접 push, `git add -A`, force push, hard reset, destructive delete 금지.
+8. Pixy, Pixy CLI, `.pix`, `pixy.spec.json`, gstack 사용 금지. `C:\2ndB\.codex\hooks\session-start.sh`도 실행하지 않는다.
+9. HUMAN visual PASS를 자동 점수로 대체하지 않는다. intentional deviation은 비어 있지 않은 `why`와 함께 기록한다.
+10. 실제 DOM으로 위반을 센다. 새 guard는 의도적 red → 원복 → green으로 검증한다.
+11. LLM·EAS 등 비용 가능 호출은 구체적 USD 상한을 받은 뒤에만 실행한다. 시크릿을 출력·요청·하드코딩하지 않는다.
+12. `npm run verify`는 pipe 없이 종료코드 0을 확인하고, `npm run check:constraints`·관련 해시·Android 콜드 스타트를 함께 본다.
+13. Android 구조/UI/lifecycle/data 변경 전 `ANDROID_QA_GUIDELINES.md`를 읽는다. owner 0 사용자·AVD를 wipe/uninstall/delete하지 않는다.
+14. PIXEL-CLAY: 정수 좌표, radius 0, blur/AA/보간 금지, 4방향 bevel, deep-space accent/token만 사용한다.
+
+### 핵심 파일 위치
+
+```text
+docs/HANDOFF.md                                      이 세션 정본 인계
+AGENTS.md                                            프로젝트·Git·안전 규칙
+CLAUDE.md                                            최신 결정 정본(AGENTS가 가리키는 우선 문서)
+docs/PRD.md                                          canonical product model
+docs/CONCEPT.md                                      canonical vs legacy
+docs/CONSTELLATION-DESIGN.md                         2026-08-24 이전 역사 기록(정본 아님)
+docs/CONSTRAINTS.md                                  C1~C12 hard constraints
+DESIGN.md                                            시각 규율
+ANDROID_QA_GUIDELINES.md                             Android 구조·UI·lifecycle 안전
+design/pixel_clay_260825/data/screens.json           93화면/port/stage 정본
+design/pixel_clay_260825/data/score-baseline.json    현재 64행 점수 기준선
+design/pixel_clay_260825/tools/score.mjs             A/B/C/D/E fail-closed 채점기
+design/pixel_clay_260825/tools/capture-app.mjs       실제 EXPO_PUBLIC_* 전달·마스킹
+design/pixel_clay_260825/data/nav.json                route/effect 계약
+design/pixel_clay_260825/data/deviations.json         intentional deviations
+docs/HUSTLEK-OPENING.md                              P2/P3 opening 계약
+scripts/build-hustlek-opening.py                     v1 결정적 합성기
+scripts/build-hustlek-opening-v2.py                  v2 결정적 합성기
+src/components/ui/LoadingScreen.tsx                  앱 opening 재생
+docs/ASSETS.md                                       asset registry
+docs/RELEASE-PROCESS.md                              release 절차
+docs/ANDROID-BUILD.md                                APK/AAB·서명 계약
+```
+
+### 검증
+
+```bash
+# 항상 최신 main과 dirty 상태를 먼저 읽기 전용 확인
+git fetch origin main
+git rev-parse --show-toplevel
+git branch --show-current
+git status --short
+git remote -v
+git worktree list
+
+# 변경 PR마다(출력 pipe 금지)
+npm run verify
+npm run check:constraints
+git diff --check
+git status --short
+
+# Opening을 건드린 경우
+uv run --with Pillow==12.2.0 scripts/build-hustlek-opening.py
+uv run --with Pillow==12.2.0 scripts/build-hustlek-opening-v2.py
+# 각 Output/.../validation.json status가 PASS인지 확인
+
+# Work0 실제 캡처는 반드시 환경 마스킹 helper부터
+node design/pixel_clay_260825/tools/capture-app.mjs --print-env
+# 출력된 실제 EXPO_PUBLIC_* 환경을 전달한 뒤 score.mjs 실행
+```
+
+### 다음 세션 시작하는 법
+
+```bash
+# 현재 same-host dirty checkout에서 안전하게 최신 인계만 읽기
+git fetch origin main && git show origin/main:docs/HANDOFF.md
+
+# fresh clone 또는 이미 clean main checkout인 경우에만
+git fetch origin main && git pull --ff-only origin main && cat docs/HANDOFF.md
+
+# 위 Latest 블록의 A부터 시작한다.
+# HUMAN PASS·USD 상한이 아직 없으면 #1500/#1502 merge, real LLM, 유료 Android build를 실행하지 않는다.
+```
+
+---
+
 ## Latest — 2026-08-29 / 0.7.0 나갔다 — 웹에만. 폰을 막는 문은 **둘**이고 하나는 새로 생겼다
 
 > 발행: CLI 코딩 세션. 브랜치 `Simon-YHKim/p1-deviations`(머지 완료) → `release/0.7.0`(머지 완료).
