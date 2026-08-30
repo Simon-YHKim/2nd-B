@@ -418,7 +418,7 @@ which will reset in 4 days (on Tue Sep 01 2026)
 > 값은 EAS 업로드 키스토어 SHA-256 `0fb37bc0…ce570`(공개 지문). APK·AAB 가 같은 키라는 것은 EAS Build
 > Credentials 가 Default 하나뿐이라는 콘솔 확인에서 **추정**한 것이고 AAB 자체는 측정하지 않았다 —
 > preflight 가 그 동일성을 단언한다. **`android-signer-preflight.yml` 첫 실행(run 33234958667, 08-29
-> 12:5x KST) 이 `match / match / PASS`** 로 실제 릴리스 APK 서명과 대조해 검증했다(#1485). 남은 조건은
+> 13:55 KST = `04:55Z`) 이 `match / match / PASS`** 로 실제 릴리스 APK 서명과 대조해 검증했다(#1485). 남은 조건은
 > **9/1 EAS 할당량**뿐이다. 두 지문의 측정값은 `docs/ANDROID-BUILD.md` "Signer identities" 에 있다.
 > (⚠ 이 갱신의 첫 판은 UTC `02:11` 을 KST 로 잘못 적었다 — 검토가 잡아 정정.)
 
