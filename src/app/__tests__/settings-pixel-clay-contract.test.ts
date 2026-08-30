@@ -57,6 +57,18 @@ describe("PIXEL-CLAY settings screen contract", () => {
     expect(legacyBranch.match(/variant="secondary"/g)).toHaveLength(8);
   });
 
+  test("keeps legacy typography and spacing isolated from PIXEL-CLAY overrides", () => {
+    expect(source).toContain('headline: { ...koType(24, 32, 0, "600")');
+    expect(source).toContain('sectionLabel: { ...koType(14, 20, 0.1, "500")');
+    expect(source).toContain('divider: { height: 1, backgroundColor: m3.color.outlineVariant');
+    expect(source).toContain('row: { flexDirection: "row", alignItems: "center", gap: m3.spacing.s3');
+    expect(source).toContain('pixelRow: { minHeight: 56');
+    expect(source).toContain('pixel ? m3Styles.pixelRow : null');
+    expect(source).toContain('isDeepSpaceUI() ? m3Styles.pixelHeadline : null');
+    expect(source).toContain('styles.pixelDisclosureHeaderPressed');
+    expect(source).toContain('styles.disclosureHeaderPressed');
+  });
+
   test("retains the destructive wizard, confirmation phrase, busy lock, and feedback modals", () => {
     for (const operation of [
       "deleteRecordsByKind",

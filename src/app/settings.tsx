@@ -19,6 +19,7 @@ import {
   View,
   type AccessibilityRole,
   type StyleProp,
+  type TextStyle,
   type ViewStyle,
   KeyboardAvoidingView,
   Platform,
@@ -232,9 +233,10 @@ function M3IconBadge({ icon, active }: { icon: string; active: boolean }) {
 }
 
 function M3SectionLabel({ children, action }: { children: string; action?: ReactNode }) {
+  const pixel = isDeepSpaceUI();
   return (
     <View style={m3Styles.sectionLabelRow}>
-      <RNText style={m3Styles.sectionLabel}>{children}</RNText>
+      <RNText style={[m3Styles.sectionLabel, pixel ? m3Styles.pixelSectionLabel : null]}>{children}</RNText>
       {action}
     </View>
   );
@@ -251,18 +253,19 @@ function M3Group({ children }: { children: ReactNode }) {
   return <View style={m3Styles.card}>{children}</View>;
 }
 function M3Divider() {
-  return <View style={m3Styles.divider} />;
+  return <View style={[m3Styles.divider, isDeepSpaceUI() ? m3Styles.pixelDivider : null]} />;
 }
 
 function M3ToggleRow({ icon, label, sub, subAccessibilityLabel, checked, onChange }: { icon: string; label: string; sub: string; subAccessibilityLabel?: string; checked: boolean; onChange: (v: boolean) => void }) {
+  const pixel = isDeepSpaceUI();
   return (
-    <View style={m3Styles.row}>
+    <View style={[m3Styles.row, pixel ? m3Styles.pixelRow : null]}>
       <M3IconBadge icon={icon} active={checked} />
       <View style={m3Styles.rowText}>
-        <RNText style={m3Styles.rowLabel}>{label}</RNText>
+        <RNText style={[m3Styles.rowLabel, pixel ? m3Styles.pixelRowLabel : null]}>{label}</RNText>
         {/* subAccessibilityLabel: when sub went through keepAllKo, screen readers
             get the raw string (U+2060 joiners disorient braille / char review). */}
-        <RNText style={m3Styles.rowSub} accessibilityLabel={subAccessibilityLabel}>{sub}</RNText>
+        <RNText style={[m3Styles.rowSub, pixel ? m3Styles.pixelRowSub : null]} accessibilityLabel={subAccessibilityLabel}>{sub}</RNText>
       </View>
       <M3Switch checked={checked} onChange={onChange} accessibilityLabel={label} />
     </View>
@@ -276,9 +279,10 @@ function M3ToggleRow({ icon, label, sub, subAccessibilityLabel, checked, onChang
 // state that isn't there.
 function M3LinkRow({ icon, label, sub, badge, onPress }: { icon: string; label: string; sub?: string; badge?: number; onPress: () => void }) {
   const [held, setHeld] = useState(false);
+  const pixel = isDeepSpaceUI();
   return (
     <Pressable
-      style={[m3Styles.row, isDeepSpaceUI() && held ? m3Styles.pixelRowPressed : null]}
+      style={[m3Styles.row, pixel ? m3Styles.pixelRow : null, pixel && held ? m3Styles.pixelRowPressed : null]}
       onPress={onPress}
       onPressIn={() => setHeld(true)}
       onPressOut={() => setHeld(false)}
@@ -288,12 +292,12 @@ function M3LinkRow({ icon, label, sub, badge, onPress }: { icon: string; label: 
     >
       <M3IconBadge icon={icon} active={false} />
       <View style={m3Styles.rowText}>
-        <RNText style={m3Styles.rowLabel}>{label}</RNText>
-        {sub ? <RNText style={m3Styles.rowSub}>{sub}</RNText> : null}
+        <RNText style={[m3Styles.rowLabel, pixel ? m3Styles.pixelRowLabel : null]}>{label}</RNText>
+        {sub ? <RNText style={[m3Styles.rowSub, pixel ? m3Styles.pixelRowSub : null]}>{sub}</RNText> : null}
       </View>
       {badge && badge > 0 ? (
         <View style={m3Styles.rowBadge}>
-          <RNText style={m3Styles.rowBadgeText}>{badge}</RNText>
+          <RNText style={[m3Styles.rowBadgeText, pixel ? m3Styles.pixelRowBadgeText : null]}>{badge}</RNText>
         </View>
       ) : null}
       <M3Icon name="chevron_right" size={20} color={m3.color.onSurfaceVariant} />
@@ -425,6 +429,8 @@ function DisclosureSection({
   tone = "brand",
   children,
 }: DisclosureSectionProps) {
+  const [held, setHeld] = useState(false);
+  const pixel = isDeepSpaceUI();
   const borderStartColor = tone === "warning" ? semantic.warning : semantic.brand;
   const textColor: keyof typeof semantic = tone === "warning" ? "warning" : "brand";
   const contents = (
@@ -434,7 +440,16 @@ function DisclosureSection({
         accessibilityLabel={title}
         accessibilityState={{ expanded }}
         onPress={onToggle}
-        style={styles.disclosureHeader}
+        onPressIn={() => setHeld(true)}
+        onPressOut={() => setHeld(false)}
+        style={[
+          styles.disclosureHeader,
+          held
+            ? pixel
+              ? styles.pixelDisclosureHeaderPressed
+              : styles.disclosureHeaderPressed
+            : null,
+        ]}
       >
         <Text variant="caption" color={textColor} style={styles.sectionEyebrow}>
           {title}
@@ -447,7 +462,7 @@ function DisclosureSection({
     </>
   );
 
-  if (isDeepSpaceUI()) {
+  if (pixel) {
     return (
       <PixelSurface
         variant="frame"
@@ -737,7 +752,7 @@ export default function Settings() {
             }
           />
         )}
-        <RNText style={m3Styles.headline}>{t("settings")}</RNText>
+        <RNText style={[m3Styles.headline, isDeepSpaceUI() ? m3Styles.pixelHeadline : null]}>{t("settings")}</RNText>
         {/* Guidance line (kept from the companion era — OldGuidanceCopyResidue
             pins this SecondB-voiced wording; rev2 drops the header, not the copy). */}
         {isDeepSpaceUI() && (
@@ -1328,13 +1343,17 @@ export default function Settings() {
   );
 }
 
+const koType = (size: number, line: number, tracking: number, weight: TextStyle["fontWeight"]): TextStyle => ({
+  fontFamily: fontFamilies.sans,
+  fontSize: size,
+  lineHeight: line,
+  letterSpacing: tracking,
+  fontWeight: weight,
+});
+
 const m3Styles = StyleSheet.create({
-  headline: {
-    ...m3TextStyle("headlineSmall"),
-    color: m3.color.onSurface,
-    marginTop: m3.spacing.s2,
-    marginBottom: m3.spacing.s1,
-  },
+  headline: { ...koType(24, 32, 0, "600"), color: m3.color.onSurface, marginTop: m3.spacing.s2, marginBottom: m3.spacing.s1 },
+  pixelHeadline: { ...m3TextStyle("headlineSmall") },
   sectionLabelRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1342,28 +1361,27 @@ const m3Styles = StyleSheet.create({
     marginTop: m3.spacing.s5,
     marginBottom: m3.spacing.s3,
   },
-  sectionLabel: { ...m3TextStyle("labelLarge"), color: m3.color.onSurfaceVariant },
+  sectionLabel: { ...koType(14, 20, 0.1, "500"), color: m3.color.onSurfaceVariant },
+  pixelSectionLabel: { ...m3TextStyle("labelLarge") },
   card: { backgroundColor: m3.color.surfaceContainerHighest, borderRadius: m3.shape.medium, padding: m3.spacing.s1 },
   pixelGroup: { alignSelf: "stretch" },
   pixelGroupContent: { paddingHorizontal: 0, paddingVertical: 0 },
-  divider: { height: m3.spacing.s1, backgroundColor: m3.color.surface, marginHorizontal: m3.spacing.s4 },
-  row: {
-    minHeight: 56,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: m3.spacing.s4,
-    paddingVertical: m3.spacing.s4,
-    paddingHorizontal: m3.spacing.s6,
-  },
+  divider: { height: 1, backgroundColor: m3.color.outlineVariant, marginHorizontal: m3.spacing.s3 },
+  pixelDivider: { height: m3.spacing.s1, backgroundColor: m3.color.surface, marginHorizontal: m3.spacing.s4 },
+  row: { flexDirection: "row", alignItems: "center", gap: m3.spacing.s3, paddingVertical: m3.spacing.s3, paddingHorizontal: m3.spacing.s3 },
+  pixelRow: { minHeight: 56, gap: m3.spacing.s4, paddingVertical: m3.spacing.s4, paddingHorizontal: m3.spacing.s6 },
   pixelRowPressed: { transform: [{ translateY: m3.spacing.s1 }], backgroundColor: m3.color.surfaceVariant },
   rowText: { flex: 1, minWidth: 0 },
-  rowLabel: { ...m3TextStyle("titleMedium"), color: m3.color.onSurface },
-  rowSub: { ...m3TextStyle("labelSmall"), color: m3.color.onSurfaceVariant, marginTop: m3.spacing.s1 },
+  rowLabel: { ...koType(16, 22, 0.15, "400"), color: m3.color.onSurface },
+  pixelRowLabel: { ...m3TextStyle("titleMedium") },
+  rowSub: { ...koType(12, 16, 0.3, "400"), color: m3.color.onSurfaceVariant, marginTop: 1 },
+  pixelRowSub: { ...m3TextStyle("labelSmall"), marginTop: m3.spacing.s1 },
   iconBadge: { width: 38, height: 38, borderRadius: m3.shape.none, alignItems: "center", justifyContent: "center" },
   pixelIconBadge: { width: 42, height: 42 },
   pixelIconBadgeContent: { width: 38, height: 38, paddingHorizontal: 0, paddingVertical: 0, alignItems: "center", justifyContent: "center" },
   rowBadge: { minWidth: 24, height: 24, borderRadius: m3.shape.none, paddingHorizontal: 7, alignItems: "center", justifyContent: "center", backgroundColor: m3.accent.alertDot },
-  rowBadgeText: { ...m3TextStyle("labelLarge"), color: m3.color.onPrimary },
+  rowBadgeText: { ...koType(12, 16, 0, "700"), color: m3.color.onPrimary },
+  pixelRowBadgeText: { ...m3TextStyle("labelLarge") },
   switchTrack: { width: 52, height: 32, borderRadius: m3.shape.none, borderWidth: 2, justifyContent: "center" },
   switchThumb: { position: "absolute", borderRadius: m3.shape.none },
   pixelSwitchPressable: { minWidth: m3.minTouch, minHeight: m3.minTouch, alignItems: "center", justifyContent: "center" },
@@ -1412,6 +1430,10 @@ const styles = StyleSheet.create({
   },
   disclosureHeaderPressed: {
     opacity: 0.78,
+  },
+  pixelDisclosureHeaderPressed: {
+    transform: [{ translateY: m3.spacing.s1 }],
+    backgroundColor: m3.color.surfaceVariant,
   },
   disclosureIndicator: {
     minWidth: 24,
