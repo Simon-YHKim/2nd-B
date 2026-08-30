@@ -10,7 +10,11 @@ import { resetHelperKey, resetStep } from "../reset-password-helpers";
 
 const read = (relativePath: string) => readFileSync(join(process.cwd(), relativePath), "utf8");
 const resetScreenSource = read("src/screens/deepspace/dds-auth-screens.tsx");
-const resetPixelClaySource = resetScreenSource.slice(resetScreenSource.indexOf("const RESET_STARS"));
+const resetPixelClaySource = resetScreenSource.slice(resetScreenSource.indexOf("function ResetAction"));
+const resetActionSource = resetScreenSource.slice(
+  resetScreenSource.indexOf("function ResetAction"),
+  resetScreenSource.indexOf("function ResetField"),
+);
 
 describe("resetHelperKey", () => {
   test("empty fields → default helper", () => {
@@ -76,7 +80,9 @@ describe("PIXEL-CLAY reset-password presenter", () => {
     expect(resetPixelClaySource).toContain("helperDanger && resetStyles.helperDanger");
     expect(resetPixelClaySource).toContain('router.replace("/sign-in")');
     expect(resetPixelClaySource).toContain('router.replace("/")');
-    expect(resetPixelClaySource).toContain('accessibilityState={{ disabled, busy }}');
+    expect(resetActionSource).toContain('accessibilityState={{ busy }}');
+    expect(resetActionSource).toContain("disabled={disabled}");
+    expect(resetActionSource).toContain("accessibilityHint={hint}");
   });
 
   test("does not expose a sign-in escape after the recovery session is active", () => {
@@ -99,13 +105,32 @@ describe("PIXEL-CLAY reset-password presenter", () => {
     );
   });
 
-  test("uses the reset-only PIXEL-CLAY shell instead of the rounded mascot card", () => {
-    expect(resetPixelClaySource).toContain("<ResetPasswordShell>");
+  test("uses the shared PIXEL-CLAY gate shell instead of a local shell clone", () => {
+    expect(resetScreenSource).toContain(
+      'import { PixelGateShell, PixelPressable, PixelSurface } from "@/components/pixel";',
+    );
+    expect(resetPixelClaySource).toContain(
+      "<PixelGateShell contentContainerStyle={resetStyles.scroll}>",
+    );
     expect(resetPixelClaySource).toContain("<PixelSurface");
     expect(resetPixelClaySource).toContain("borderRadius: m3.shape.none");
+    expect(resetScreenSource).not.toContain("const RESET_STARS");
+    expect(resetScreenSource).not.toContain("function ResetPasswordBackdrop");
+    expect(resetScreenSource).not.toContain("function ResetPasswordShell");
     expect(resetPixelClaySource).not.toContain("<SecondbHead");
     expect(resetPixelClaySource).not.toContain("<RadialGradient");
     expect(resetPixelClaySource).not.toContain("<Card>");
+  });
+
+  test("delegates press state to PixelPressable while preserving gate CTA semantics", () => {
+    expect(resetActionSource).toContain("<PixelPressable");
+    expect(resetActionSource).toContain("fullWidth");
+    expect(resetActionSource).toContain("background={background}");
+    expect(resetActionSource).toContain('variant={disabled ? "inset" : "bevel"}');
+    expect(resetActionSource).not.toContain("<Pressable");
+    expect(resetActionSource).not.toContain("useState");
+    expect(resetActionSource).not.toContain("onPressIn");
+    expect(resetActionSource).not.toContain("onPressOut");
   });
 
   test("keeps recovery-only capture explicitly unmeasurable", () => {

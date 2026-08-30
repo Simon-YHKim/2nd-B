@@ -26,11 +26,10 @@ import { allRequiredAcksChecked, setAllRequiredAcks, type ConsentSelections } fr
 import { DateField } from "@/components/m3";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { todayISO } from "@/components/m3/date-picker/calendar-math";
+import { PixelGateShell, PixelPressable, PixelSurface } from "@/components/pixel";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
-import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { m3TextStyle } from "@/components/m3/typeface";
 import { useFontStyle } from "@/lib/settings/readable-font";
-import { useKeyboard } from "@/lib/ui/useKeyboard";
 
 // Keyboard-aware shell for the auth screens (sign-in / sign-up / reset). The
 // generic Shell above is for in-app graph screens and has no keyboard handling;
@@ -690,75 +689,6 @@ export function DeepSpaceSignUpDesignScreen() {
   );
 }
 
-const RESET_STARS = [
-  { x: 0.08, y: 0.08, size: 2, color: m3.accent.star },
-  { x: 0.28, y: 0.04, size: 2, color: m3.accent.polaris },
-  { x: 0.46, y: 0.11, size: 2, color: m3.accent.starDim },
-  { x: 0.71, y: 0.06, size: 3, color: m3.accent.star },
-  { x: 0.9, y: 0.14, size: 2, color: m3.accent.starDim },
-  { x: 0.16, y: 0.24, size: 2, color: m3.accent.starDim },
-  { x: 0.39, y: 0.2, size: 2, color: m3.accent.star },
-  { x: 0.62, y: 0.29, size: 2, color: m3.accent.polaris },
-  { x: 0.84, y: 0.25, size: 2, color: m3.accent.star },
-  { x: 0.05, y: 0.4, size: 3, color: m3.accent.starDim },
-  { x: 0.24, y: 0.47, size: 2, color: m3.accent.star },
-  { x: 0.49, y: 0.42, size: 2, color: m3.accent.starDim },
-  { x: 0.73, y: 0.51, size: 2, color: m3.accent.star },
-  { x: 0.94, y: 0.45, size: 2, color: m3.accent.starDim },
-  { x: 0.12, y: 0.64, size: 2, color: m3.accent.polaris },
-  { x: 0.34, y: 0.59, size: 2, color: m3.accent.starDim },
-  { x: 0.57, y: 0.69, size: 3, color: m3.accent.star },
-  { x: 0.81, y: 0.63, size: 2, color: m3.accent.starDim },
-  { x: 0.21, y: 0.82, size: 2, color: m3.accent.star },
-  { x: 0.45, y: 0.9, size: 2, color: m3.accent.starDim },
-  { x: 0.68, y: 0.79, size: 2, color: m3.accent.polaris },
-  { x: 0.91, y: 0.92, size: 3, color: m3.accent.star },
-] as const;
-
-function ResetPasswordBackdrop() {
-  const { width, height } = useWindowDimensions();
-  return (
-    <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Rect x="0" y="0" width={width} height={height} fill={m3.color.background} />
-      {RESET_STARS.map((star, index) => (
-        <Rect
-          key={index}
-          x={Math.round(star.x * width)}
-          y={Math.round(star.y * height)}
-          width={star.size}
-          height={star.size}
-          fill={star.color}
-        />
-      ))}
-    </Svg>
-  );
-}
-
-function ResetPasswordShell({ children }: { children: ReactNode }) {
-  const insets = useSafeAreaInsets();
-  const keyboardHeight = useKeyboard();
-  const androidKeyboardPadding = Platform.OS === "android" ? keyboardHeight + m3.spacing.s6 * 2 : 0;
-  return (
-    <View style={resetStyles.root}>
-      <ResetPasswordBackdrop />
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={resetStyles.flex}>
-        <ScrollView
-          contentContainerStyle={[
-            resetStyles.scroll,
-            {
-              paddingTop: Math.max(insets.top + m3.spacing.s6, m3.spacing.s6 * 2),
-              paddingBottom: Math.max(insets.bottom + m3.spacing.s6 * 2, androidKeyboardPadding),
-            },
-          ]}
-          keyboardShouldPersistTaps="handled"
-        >
-          {children}
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </View>
-  );
-}
-
 function ResetAction({
   onPress,
   label,
@@ -776,8 +706,6 @@ function ResetAction({
   secondary?: boolean;
   role?: "button" | "link";
 }) {
-  const [held, setHeld] = useState(false);
-  const pressed = held && !disabled;
   const background = disabled
     ? m3.color.surfaceVariant
     : secondary
@@ -790,29 +718,20 @@ function ResetAction({
       : m3.color.onPrimary;
 
   return (
-    <Pressable
+    <PixelPressable
       onPress={onPress}
-      onPressIn={() => setHeld(true)}
-      onPressOut={() => setHeld(false)}
       disabled={disabled}
       accessibilityRole={role}
       accessibilityLabel={label}
       accessibilityHint={hint}
-      accessibilityState={{ disabled, busy }}
-      style={resetStyles.actionHit}
+      accessibilityState={{ busy }}
+      fullWidth
+      variant={disabled ? "inset" : "bevel"}
+      background={background}
+      contentStyle={resetStyles.actionContent}
     >
-      <View style={[resetStyles.actionFrame, pressed && resetStyles.actionPressed]}>
-        <PixelSurface
-          variant={disabled ? "inset" : "bevel"}
-          pressed={pressed}
-          background={background}
-          style={resetStyles.actionSurface}
-          contentStyle={resetStyles.actionContent}
-        >
-          <Text style={[m3TextStyle("labelLarge"), { color: foreground, textAlign: "center" }]}>{label}</Text>
-        </PixelSurface>
-      </View>
-    </Pressable>
+      <Text style={[m3TextStyle("labelLarge"), { color: foreground, textAlign: "center" }]}>{label}</Text>
+    </PixelPressable>
   );
 }
 
@@ -927,7 +846,7 @@ export function DeepSpaceResetPasswordDesignScreen() {
   const statusGlyph = step === "done" ? "check" : step === "verify" ? "inbox" : "lock";
 
   return (
-    <ResetPasswordShell>
+    <PixelGateShell contentContainerStyle={resetStyles.scroll}>
       <View style={resetStyles.header}>
         {step === "request" || step === "verify" ? (
           <Pressable
@@ -1111,13 +1030,11 @@ export function DeepSpaceResetPasswordDesignScreen() {
           </PixelSurface>
         </View>
       ) : null}
-    </ResetPasswordShell>
+    </PixelGateShell>
   );
 }
 
 const resetStyles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: m3.color.background },
-  flex: { flex: 1 },
   scroll: {
     flexGrow: 1,
     width: "100%",
@@ -1149,10 +1066,6 @@ const resetStyles = StyleSheet.create({
   codeInput: { textAlign: "center", letterSpacing: 0 },
   helper: { color: m3.color.onSurfaceVariant, paddingBottom: Platform.OS === "android" ? m3.spacing.s1 : 0 },
   helperDanger: { color: m3.color.error },
-  actionHit: { width: "100%", minHeight: m3.minTouch },
-  actionFrame: { width: "100%" },
-  actionPressed: { transform: [{ translateY: m3.spacing.s1 }] },
-  actionSurface: { width: "100%", minHeight: m3.minTouch },
   actionContent: { minHeight: m3.minTouch, alignItems: "center", justifyContent: "center" },
   toastContent: { paddingVertical: m3.spacing.s4, paddingHorizontal: m3.spacing.s6 },
   toastText: { color: m3.color.primary },
