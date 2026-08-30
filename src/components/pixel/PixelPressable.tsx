@@ -21,7 +21,14 @@
 // hover 상태층은 **가져오지 않는다.** 터치에 대응물이 없다
 // (`design/pixel_clay_v4/REPO-NOTES.md` 함정 5).
 import { useCallback, useState, type ReactNode } from "react";
-import { Pressable, StyleSheet, type StyleProp, View, type ViewStyle } from "react-native";
+import {
+  Pressable,
+  StyleSheet,
+  type PressableProps,
+  type StyleProp,
+  View,
+  type ViewStyle,
+} from "react-native";
 
 import { m3 } from "@/lib/theme/m3";
 
@@ -33,6 +40,8 @@ export interface PixelPressableProps {
   children?: ReactNode;
   accessibilityLabel?: string;
   accessibilityHint?: string;
+  accessibilityRole?: PressableProps["accessibilityRole"];
+  accessibilityState?: PressableProps["accessibilityState"];
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
   contentStyle?: StyleProp<ViewStyle>;
@@ -44,6 +53,8 @@ export function PixelPressable({
   children,
   accessibilityLabel,
   accessibilityHint,
+  accessibilityRole = "button",
+  accessibilityState,
   disabled = false,
   style,
   contentStyle,
@@ -59,10 +70,10 @@ export function PixelPressable({
       onPressIn={press}
       onPressOut={release}
       disabled={disabled}
-      accessibilityRole="button"
+      accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
-      accessibilityState={{ disabled }}
+      accessibilityState={{ ...accessibilityState, disabled }}
       style={styles.root}
     >
       <View style={[sunken ? styles.sunk : styles.rest, style]}>

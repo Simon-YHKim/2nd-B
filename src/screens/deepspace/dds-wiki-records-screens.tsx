@@ -38,6 +38,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { deleteRecord, listRecentRecords, updateRecord, updateRecordTags } from "@/lib/records/create";
 import { buildRecordsGraph } from "@/lib/records/records-graph";
+import { selectRecordsForSafeGraph } from "@/lib/records/records-graph-layout";
 import { listSourcePieces } from "@/lib/records/source-pieces";
 import { getPieceById } from "@/lib/records/get-piece";
 import { listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
@@ -180,12 +181,10 @@ const TYPE_CHIPS: { id: RType | "all" | "unfiled"; labelKey: string }[] = [
   { id: "photo", labelKey: "records.typePhoto" },
   { id: "unfiled", labelKey: "records.typeUnfiled" },
 ];
-// The list remains the complete archive. The immersive graph is a legible,
-// bounded map of the newest pieces so making it the default never mounts
-// hundreds of SVG nodes on Android. The compact counter says when the map is a
-// window into a larger archive (`96 / 143 pieces`) instead of pretending every
-// saved piece is on the canvas.
-const GRAPH_RECORD_LIMIT = 96;
+// The list remains the complete archive. The immersive graph uses the newest
+// three pieces per domain: its 44dp node targets then occupy unique safe lattice
+// slots instead of covering one another in a dense fixed fan. The compact count
+// says when this visual map is a subset (`18 / 143 pieces`).
 const URL_RE = /https?:\/\//;
 const DUR_RE = /\(\d+:\d{2}\)/;
 
@@ -409,7 +408,7 @@ export function DeepSpaceRecordsScreen() {
     if (typeFilter === "unfiled") return scoped.filter(isUnfiled);
     return scoped.filter((r) => recordType(r) === typeFilter);
   }, [scoped, typeFilter]);
-  const graphRecords = useMemo(() => filtered.slice(0, GRAPH_RECORD_LIMIT), [filtered]);
+  const graphRecords = useMemo(() => selectRecordsForSafeGraph(filtered), [filtered]);
   // D-27 Phase 1b: the map runs on the user's real merged records+sources set.
   // Build only while graph view is visible, and cap the visual node-set above;
   // the complete archive remains available in the FlatList.
@@ -585,7 +584,7 @@ export function DeepSpaceRecordsScreen() {
               <RNText style={rStyles.railButtonText}>{t("records.viewList")}</RNText>
             </PixelPressable>
             <PixelSurface variant="frame" contentStyle={rStyles.countContent}>
-              <RNText style={rStyles.countText} accessibilityLabel={t("records.headerCount", { count: filtered.length })}>
+              <RNText style={rStyles.countText} accessibilityLabel={graphCountText}>
                 {graphCountText}
               </RNText>
             </PixelSurface>

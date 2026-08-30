@@ -1,8 +1,8 @@
 /**
  * Records tag-graph (D-27 Phase 1b) — the deep-space view of the user's own
  * records as the canonical node-set (NOT wiki_pages). Renders buildRecordsGraph:
- * 북극성(polaris) at center, the domain stars on a ring, each domain's records
- * fanned around it, and DASHED cross-domain tag-links (records in different
+ * 북극성(polaris) at center, the domain stars around it, each domain's records
+ * on dedicated lattice slots, and DASHED cross-domain tag-links (records in different
  * domains that share a user tag) as the visible "connection" surface. Pure tag
  * overlap, no LLM/embeddings ($0, works from record #2). Tapping a record selects
  * it; tapping again opens it. Mirrors WikiGraph's SVG/zoom conventions.
@@ -23,7 +23,12 @@ import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import type { RecordsGraph as RecordsGraphData } from "@/lib/records/records-graph";
 import { initialTagLinksVisible, linkEdgeCount } from "@/lib/records/records-graph";
-import { DOMAIN_COLOR, layoutRecordsGraph } from "@/lib/records/records-graph-layout";
+import {
+  DOMAIN_COLOR,
+  budgetRecordsGraphEdgeCells,
+  layoutRecordsGraph,
+  type GraphEdgeCellBatch,
+} from "@/lib/records/records-graph-layout";
 
 /**
  * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
@@ -41,6 +46,19 @@ const POLARIS_COLOR = m3.accent.polaris;
 const EDGE_CELL = 8;
 const MAX_SOLID_CELLS = 32;
 const MAX_DASHED_CELLS = 16;
+const AUTO_RECORD_LABEL_LIMIT = 7;
+
+interface RenderEdgeCell {
+  key: string;
+  x: number;
+  y: number;
+  size: number;
+  fill: string;
+}
+
+function colorForDomain(domain: string | undefined): string {
+  return (domain && DOMAIN_COLOR[domain as keyof typeof DOMAIN_COLOR]) || m3.accent.starDim;
+}
 
 function sampledEdgeCells(
   ax: number,
@@ -66,9 +84,8 @@ export function RecordsGraph({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [zoomIdx, setZoomIdx] = useState(0);
   const [canvasExtent, setCanvasExtent] = useState(390);
-  // Adaptive default: a dense corpus (125+ records → hundreds of dashed links)
-  // starts with the tag-link overlay OFF so the center stays readable; a small
-  // corpus keeps the proto's default (ON). Initial only — a manual toggle wins.
+  // Adaptive default follows the link density of this bounded visual subset.
+  // Initial only — a manual toggle wins.
   const linkCount = useMemo(() => linkEdgeCount(graph), [graph]);
   const [tagLinksOverride, setTagLinksOverride] = useState<boolean | null>(null);
   const showTagLinks = tagLinksOverride ?? initialTagLinksVisible(linkCount);
@@ -93,10 +110,45 @@ export function RecordsGraph({
   };
 
   const selected = selectedId ? nodeById.get(selectedId) : undefined;
-  const labelEveryRecord = graph.nodes.length <= 32;
+  const recordNodeCount = graph.nodes.filter((node) => node.kind === "record").length;
+  const labelEveryRecord = recordNodeCount <= AUTO_RECORD_LABEL_LIMIT;
+  const edgeCells = useMemo(() => {
+    const nonLinks: GraphEdgeCellBatch<RenderEdgeCell>[] = [];
+    const tagLinks: GraphEdgeCellBatch<RenderEdgeCell>[] = [];
 
-  const colorFor = (domain: string | undefined): string =>
-    (domain && DOMAIN_COLOR[domain as keyof typeof DOMAIN_COLOR]) || m3.accent.starDim;
+    graph.edges.forEach((edge, edgeIndex) => {
+      const a = pos[edge.a];
+      const b = pos[edge.b];
+      if (!a || !b) return;
+      const link = edge.kind === "link";
+      if (link && !showTagLinks) return;
+      const domain = link
+        ? undefined
+        : nodeById.get(edge.b)?.domain ?? nodeById.get(edge.a)?.domain;
+      const fill = link
+        ? rgAlpha(m3.accent.star, 0.42)
+        : edge.kind === "branch"
+          ? rgAlpha(colorForDomain(domain), 0.28)
+          : rgAlpha(m3.accent.starDim, 0.22);
+      const size = Math.max(2, Math.round((link ? 5 : 6) / zoom));
+      const cells = sampledEdgeCells(
+        a.x * CANVAS,
+        a.y * CANVAS,
+        b.x * CANVAS,
+        b.y * CANVAS,
+        link,
+      ).map((cell, cellIndex) => ({
+        key: `${edgeIndex}:${cellIndex}`,
+        x: cell.x,
+        y: cell.y,
+        size,
+        fill,
+      }));
+      (link ? tagLinks : nonLinks).push({ cells });
+    });
+
+    return budgetRecordsGraphEdgeCells(nonLinks, tagLinks);
+  }, [graph.edges, nodeById, pos, showTagLinks, zoom]);
 
   return (
     <View style={styles.root}>
@@ -113,30 +165,18 @@ export function RecordsGraph({
           viewBox={`${vbX} ${vbY} ${span} ${span}`}
           accessibilityLabel={t("deepspace:recordsGraph.a11yGraph")}
         >
-          {/* Edges are sampled integer rect cells, not anti-aliased SVG lines.
-              The per-edge caps keep the native SVG node count bounded. */}
-          {graph.edges.map((e, i) => {
-            const a = pos[e.a];
-            const b = pos[e.b];
-            if (!a || !b) return null;
-            const link = e.kind === "link";
-            // Gate ONLY the tag-shared dashed overlay; spine/branch always draw.
-            if (link && !showTagLinks) return null;
-            const dom = link ? undefined : nodeById.get(e.b)?.domain ?? nodeById.get(e.a)?.domain;
-            const fill = link
-              ? rgAlpha(m3.accent.star, 0.42)
-              : e.kind === "branch"
-                ? rgAlpha(colorFor(dom), 0.28)
-                : rgAlpha(m3.accent.starDim, 0.22);
-            const cellSize = Math.max(2, Math.round((link ? 5 : 6) / zoom));
-            return (
-              <G key={i}>
-                {sampledEdgeCells(a.x * CANVAS, a.y * CANVAS, b.x * CANVAS, b.y * CANVAS, link).map((cell, j) => (
-                  <Rect key={j} x={cell.x} y={cell.y} width={cellSize} height={cellSize} fill={fill} />
-                ))}
-              </G>
-            );
-          })}
+          {/* Non-link cells win the one global primitive budget; tag links use
+              only the remainder. Flat Rects avoid one native G per edge. */}
+          {edgeCells.map((cell) => (
+            <Rect
+              key={cell.key}
+              x={cell.x}
+              y={cell.y}
+              width={cell.size}
+              height={cell.size}
+              fill={cell.fill}
+            />
+          ))}
 
           {graph.nodes.map((node) => {
             const p = pos[node.id];
@@ -148,7 +188,7 @@ export function RecordsGraph({
             // 면적이 훨씬 작다. 반경을 그대로 두면 기록 사각형보다 작아 보여서
             // 서열이 뒤집힌다 — 별자리 홈과 같은 1.35배를 여기에도 준다.
             const r = (isPolaris ? 13 * 1.35 : isDomain ? 9 * 1.35 : 5.5) / Math.sqrt(zoom);
-            const fill = isPolaris ? POLARIS_COLOR : colorFor(node.domain);
+            const fill = isPolaris ? POLARIS_COLOR : colorForDomain(node.domain);
             const alpha = isPolaris ? 1 : isDomain ? 0.95 : 0.8;
             const showLabel = isPolaris || isDomain || isSelected || (labelEveryRecord && node.kind === "record");
             const nodeHitTargetSize = Math.max(hitTargetSize, (r + 6) * 2);
@@ -226,6 +266,8 @@ export function RecordsGraph({
         <PixelPressable
           onPress={() => setTagLinksOverride(!showTagLinks)}
           accessibilityLabel={t("deepspace:recordsGraph.tagLinks")}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: showTagLinks }}
           variant={showTagLinks ? "inset" : "bevel"}
           contentStyle={styles.iconButtonContent}
         >
