@@ -3,6 +3,164 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## Latest — 2026-08-30 / 다른 PC에서도 같은 에셋·계보·검증으로 재개 가능
+
+> 발행: Codex portable handoff 보강 세션. 작성 시각 `2026-08-30 22:11:36 KST`.
+> 로컬 절대경로가 아니라 Git commit과 검증된 바이트를 동일성 기준으로 삼는다.
+
+### 어디까지 왔나
+
+- 작업 기준 `origin/main`: `e7c94f938356b955d693f4132cb62683b8775b41`
+  (`docs: handoff P1 and release gates (#1503)`).
+- canonical checkout `C:\2ndB`의 dirty `verify-adjustment-unknown`과 기존 worktree는 건드리지 않았다.
+  최신 main에서 `.worktrees/codex/portable-handoff-20260830-2156`,
+  `codex/portable-handoff-20260830-2156`를 새로 만들었다.
+- 새 portable 계약:
+  - `docs/handoff/PORTABLE-ASSET-LINEAGE-2026-08-30.md`
+  - `docs/handoff/portable-handoff-report-260830.html`
+  - `scripts/verify-portable-handoff.mjs`
+  - `scripts/__tests__/portable-handoff-assets.test.ts`
+- 새 바이너리를 복사해 넣지 않았다. 필요한 P1/HustleK 정본은 이미 일반 Git object로 추적되고
+  있으며 Git LFS, Downloads, `.codex/visualizations`, ignored `Output/`에 의존하지 않는다.
+- verifier RED→GREEN 확인:
+  - Git index의 필수 파일 추적 여부
+  - 승인 HustleK v1/v2/strip 해시
+  - captures 93개와 structure 93개의 exact stem set·Git-blob tree hash·390×820 기하
+  - checkout dirty·symlink/path escape
+  - 금지 계보 에셋 반입 부재
+  - ignored `Output/**`가 추적되지 않고 대표 재생성 경로가 계속 ignore되는지
+- Windows `core.autocrlf=true`와 Linux checkout이 같게 판정되도록 text working-tree bytes가 아니라
+  **Git index blob bytes**를 해시한다.
+- 로컬 검증:
+  - `node scripts/verify-portable-handoff.mjs` → `PASS`
+  - targeted Jest 6/6 → PASS
+  - `npm run verify` 종료코드 0 → **555 suites / 5,962 tests PASS**, Work0 70/70
+  - 알려진 기존 lint warning과 Jest worker teardown warning만 있었고 실패는 0이다.
+
+### 에셋·계보 portable 계약
+
+| 범위 | 정본 | 동일성 기준 |
+|---|---|---|
+| HustleK v1 atlas | `design/hustlek-opening-v1/hustlek-opening-atlas.png` | SHA-256 `2780df89…13be` |
+| HustleK v1 review | `design/hustlek-opening-v1/hustlek-opening-preview.gif` | SHA-256 `0bb0053c…b89f` |
+| 앱용 v2 atlas | `assets/deepspace/hustlek-opening-v2.json` | SHA-256 `b599f379…964f` |
+| 앱용 opening strip | `assets/opening/hustlek-opening-strip.png` | SHA-256 `4753a818…56bc5` |
+| P1 captures | `design/pixel_clay_260825/captures/` | 93 PNG · exact Git-blob tree hash |
+| P1 structure | `design/pixel_clay_260825/data/structure/` | 93 JSON · exact Git-blob tree hash |
+| 전체 계보·재생성 계약 | `docs/handoff/PORTABLE-ASSET-LINEAGE-2026-08-30.md` | verifier schema 1 |
+
+- 최초 `2ndBcodexhandoff260827.zip`은 SHA-256 `41cc0468…4821`, entry 222,
+  경로 탈출 0, captures/structure 93/93으로 검증됐다. Git과 대조해 211개는 byte-identical,
+  10개는 Git에서 이후 발전, `README-FIRST.md`만 비추적이었다.
+- ZIP과 독립 Markdown 3개는 history/reference이며 다른 PC에 복사할 필요가 없다.
+  Git 정본에 다시 병합하거나 덮어쓰지 않는다.
+- 과거 `hustlek-session-master-archive-20260827`도 read-only 계보 참고일 뿐 필수 입력이나
+  생산 경로가 아니다. archive가 없어도 위 tracked atlas·계약·합성기로 같은 결과를 만든다.
+- `legacy-pixy`, `rejected-associated`, diagnostic 에셋, 삭제된
+  `farm-character-32-native.png`, `.pix`, `pixy.spec.json`을 복원·반입하지 않는다.
+
+### 다른 PC에서 실제 재생성한 계약
+
+```bash
+uv run --with Pillow==12.2.0 scripts/build-hustlek-opening.py
+uv run --with Pillow==12.2.0 scripts/build-hustlek-opening-v2.py --check
+uv run --with Pillow==12.2.0 scripts/build-opening-strip.py --out Output/portable-handoff/hustlek-opening-strip.png
+node scripts/verify-portable-handoff.mjs --generated
+```
+
+- v1: 165 frames / 13,200ms / `validation.status = PASS` /
+  decoded frame stream `be712f38…ff33`
+- v2: source PNG·decoded RGBA·output JSON·12+6+1 셀·silhouette·floor anchor 전부 PASS
+- strip: 48 frames / 320×180 cell / 8×6 / 3,840ms; 생성 PNG가 tracked strip과
+  SHA-256 `4753a818…56bc5`로 byte-exact
+
+### portable 경계
+
+1. **tracked canonical**은 clone으로 받으며 verifier PASS가 기준이다.
+2. `Output/hustlek-opening/**`, v2 validation·preview 등은 ignored 재생성물이다.
+3. 기존 HUMAN review HTML, Home/Star live 캡처, diagnostic APK는 same-host evidence다.
+   다른 PC에서는 현재 main·실제 환경으로 다시 캡처한다. 파일 복사로 HUMAN PASS를 대신하지 않는다.
+4. GitHub Actions artifact는 보조 근거이며 만료될 수 있다. exact-final-main APK/AAB/IPA는
+   최종 main에서 새로 만든다.
+5. `.env`, GitHub/EAS 인증, signing credentials는 Git에 넣지 않는다. 새 PC에서 안전한
+   secret store와 기존 계정으로 다시 연결한다.
+6. exact-current APK/AAB/IPA는 없다. 만료 전 진단 APK는
+   [Actions run 33297727914](https://github.com/Simon-YHKim/2nd-B/actions/runs/33297727914)에서
+   `gh run download`할 수 있지만 exact-final-main 산출물은 아니다. 공개 Release IPA는 0개다.
+
+### 남아 있는 작업
+
+- 아래 17:18 KST Latest 블록의 제품 상태와 HUMAN/비용/릴리스 게이트는 그대로 유효하다.
+- [#1500 Home](https://github.com/Simon-YHKim/2nd-B/pull/1500)과
+  [#1502 Star](https://github.com/Simon-YHKim/2nd-B/pull/1502)는 여전히 사용자 HUMAN PASS 전에는
+  ready/merge하지 않는다. 새 PC에서는 `gh pr checks 1500`과 `gh pr checks 1502`부터 읽는다.
+- 실제 LLM 검증, EAS build, production OTA는 명시된 비용 상한·외부 변경 승인을 먼저 받는다.
+- P1 전체 80개 `port:true` 화면을 한 화면씩 98+ + HUMAN PASS로 닫는 작업은 계속 남아 있다.
+
+### 핵심 파일 위치
+
+```text
+docs/HANDOFF.md                                        최신 작업·게이트·재개 순서
+docs/handoff/PORTABLE-ASSET-LINEAGE-2026-08-30.md     cross-PC asset/history 정본
+docs/handoff/portable-handoff-report-260830.html       한·영/쉬운·전문 완료 보고
+scripts/verify-portable-handoff.mjs                   dependency-free fail-closed verifier
+scripts/__tests__/portable-handoff-assets.test.ts     PASS·empty-clone failure 계약
+docs/HUSTLEK-OPENING.md                               opening 의미·타임라인·해시 계약
+docs/ASSETS.md                                        앱 에셋 registry·권리·계보
+design/pixel_clay_260825/data/screens.json            P1 93화면 유일 목록
+```
+
+### 다음 PC에서 시작하는 법
+
+Git과 Node.js가 필요하며 이 verifier는 Node.js `v22.22.3`에서 검증했다. 일반 public clone과
+raw 문서에는 로그인이 필요 없고, Actions/Release 다운로드는 `gh auth status`와 read 권한이
+필요하다. `uv` 재생성은 Pillow를 받을 네트워크 또는 사전 cache가 필요하다.
+
+```bash
+git clone https://github.com/Simon-YHKim/2nd-B.git
+cd 2nd-B
+git fetch origin main
+git switch main
+git pull --ff-only origin main
+node scripts/verify-portable-handoff.mjs
+cat docs/HANDOFF.md
+```
+
+full history가 필요한데 shallow clone이라면 먼저:
+
+```bash
+git fetch --unshallow --tags origin
+```
+
+검증·변경 준비:
+
+```bash
+npm ci --legacy-peer-deps
+npm run verify
+NAME=portable-next-260830
+mkdir -p .worktrees/codex
+git worktree add ".worktrees/codex/$NAME" -b "codex/$NAME" origin/main
+ln -s "$(pwd)/node_modules" ".worktrees/codex/$NAME/node_modules"
+```
+
+Windows PowerShell에서는 마지막 symlink 대신 다음 junction을 사용한다.
+
+```powershell
+$HandoffName = 'portable-next-260830'
+New-Item -ItemType Directory -Force -Path '.worktrees/codex' | Out-Null
+git worktree add ".worktrees/codex/$HandoffName" -b "codex/$HandoffName" origin/main
+New-Item -ItemType Junction -Path ".worktrees/codex/$HandoffName/node_modules" `
+  -Target (Resolve-Path './node_modules')
+```
+
+같은 branch/path가 있으면 삭제·재사용하지 말고 이름을 바꾼다. EAS local build만 fingerprint
+제약 때문에 junction 예외로 별도 install 또는 remote workflow를 사용한다.
+
+`node scripts/verify-portable-handoff.mjs`가 `FAIL`이면 expected hash를 고치지 말고
+manifest의 실패 절차에 따라 현재 commit·diff·file history부터 확인한다.
+
+---
+
 ## Latest — 2026-08-30 / P2·P3·Work0·릴리스 계약 정리, HUMAN PASS와 전체 P1·최종 배포 대기
 
 > 발행: Codex 2nd-B 장기 인계 세션. 작성 시각 `2026-08-30 17:18:50 KST`.
