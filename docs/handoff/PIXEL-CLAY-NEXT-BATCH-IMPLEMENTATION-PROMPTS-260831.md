@@ -1,7 +1,7 @@
 # PIXEL-CLAY v4 next-batch implementation prompts
 
-작성일: 2026-08-31  
-대상 기준: `origin/main` `5b6bbe71ab1c723ff85d93268dfd0679e6085207`  
+작성일: 2026-08-31
+대상 기준: `origin/main` `5b6bbe71ab1c723ff85d93268dfd0679e6085207`
 순서: `/account` -> `/manual` -> `/profile`
 
 공통 완료 조건은 `PIXEL-CLAY-APP-IMPLEMENTATION-PROMPT-260831.md`를 따른다. 특히 한 화면/한 Draft PR, 실제 데이터와 실제 동작 우선, cosmic-pixel rollback 불변, Android HUMAN 판정 전 PASS 금지를 유지한다.
