@@ -297,7 +297,7 @@ PURPOSE_ROUTE[purpose] = {
 | 1 | `hasImage` 또는 `MULTIMODAL_PURPOSES`(OCR/voice) | ~~**항상 Gemini** (스위치도 못 이김)~~ → **2026-08-29 정정: `EXPO_PUBLIC_MULTIMODAL_VENDOR`** (#1300 이후 스위치. 양쪽 배포 자세 모두 openai. Simon 08-23 "OCR = openai 유지") |
 | 2 | `EXPO_PUBLIC_LLM_VENDOR` ∈ {gemini, openai, claude, xai} | 그 벤더로 **전 추론 좌석**. 비-좌석은 ~~Gemini 유지~~ → 챗 `_CHAT_VENDOR` · 나머지 `_BACKBONE_VENDOR` (2026-08-29 정정) |
 | 2 | `EXPO_PUBLIC_LLM_VENDOR` = perPurpose | 좌석별 `PHASE2_VENDOR` 맵 |
-| 3 | 미설정 | 후방호환: `EXPO_PUBLIC_LLM_PHASE`≠2 → 전량 Gemini, =2 → `PHASE2_VENDOR` 맵 |
+| 3 | 미설정 | 후방호환: `EXPO_PUBLIC_LLM_PHASE`≠2 → ~~전량 Gemini~~ **전량 openai(2026-08-31 T1 1단계, `RETIRED_DEFAULT`)**, =2 → `PHASE2_VENDOR` 맵 |
 
 - ~~**기본값(미설정/`=gemini`) = 100% Gemini($0)** — 현재 상태~~ (2026-08-29 정정: 배포 자세는 `perPurpose` + 나머지 스위치 전부 openai) → **2026-08-31 T1 1단계: 미설정 기본값도 이제 `openai` 다**(`routing.ts` `RETIRED_DEFAULT`, failover 는 `none`). `=gemini` 는 명시값으로만 동작하고 프록시 삭제와 함께 사라진다.
 - **롤백(즉시 $0)**: `EXPO_PUBLIC_LLM_VENDOR=gemini`.

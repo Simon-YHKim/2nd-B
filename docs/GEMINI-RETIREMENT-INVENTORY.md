@@ -11,10 +11,13 @@
 > 요약·순서·결합 조건은 `docs/LLM-VENDOR-PLACEMENT.md` "9월 폐기 체크리스트" 에 있다. 래칫:
 > `src/lib/llm/__tests__/gemini-residue.test.ts`.
 >
-> **진행 (2026-08-31, T1 1단계):** `default` 30 중 `routing.ts` 의 11곳 · `eas.json` `REASONING_PROVIDER`·
-> `SAFETY_VENDOR` 6곳 · `workflow-fallback` 3곳(web-deploy 2 · android-release 1)이 **openai 로 이동**했다.
-> 아래 표의 해당 행은 그 시점의 측정이다(역사). 남은 `default` 는 엣지 함수 안의 것과 `MODEL_*` 이고,
-> `literal`·`proxy-name`·`direct-sdk` 는 프록시 삭제 PR 에서 유니언과 함께 정리한다.
+> **진행 (2026-08-31, T1 1단계, PR #1505):** `routing.ts` 의 미설정 기본값 11곳(10 → `RETIRED_DEFAULT`
+> = openai, failover 1 → `"none"`) · `boundary.ts` 의 프록시 선택 1곳(`vendorSeat`) · `eas.json` 의
+> `REASONING_PROVIDER`·`SAFETY_VENDOR` 값 6곳 · 워크플로의 `|| 'gemini'` 폴백 3곳 + `android-release.yml`
+> 맨 리터럴 1곳이 **openai/none 으로 이동**했다. 아래 표의 해당 행은 08-30 시점 측정이다(역사).
+> 표의 `default` 30 은 클라이언트 lib 와 엣지 함수 내부를 합친 수라 위 11과 1:1 이 아니다. 남는 것 —
+> 엣지 함수 내부 기본값 · `MODEL_*` · `literal`·`proxy-name`·`direct-sdk` — 은 2단계(프록시 삭제 PR)
+> 에서 유니언과 함께 정리한다.
 
 ## 종류별 수
 

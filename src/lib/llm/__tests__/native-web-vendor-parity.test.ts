@@ -34,10 +34,11 @@ const EAS = JSON.parse(read("eas.json")) as {
   build: Record<string, { env?: Record<string, string> }>;
 };
 
-// The repo Variables the web builds from, measured 2026-08-24. If someone
-// changes a Variable and not this list, the next person comparing the two has
-// no way to know which one is stale - which is exactly the state this file was
-// written to end.
+// The values the web builds from, measured 2026-08-24: a repo Variable where
+// one exists, the code default where none does (those entries say so). If
+// someone changes a Variable and not this list, the next person comparing the
+// two has no way to know which one is stale - which is exactly the state this
+// file was written to end.
 const WEB_POSTURE: Record<string, string> = {
   EXPO_PUBLIC_LLM_VENDOR: "perPurpose",
   EXPO_PUBLIC_CHAT_VENDOR: "openai",
@@ -56,10 +57,12 @@ const WEB_POSTURE: Record<string, string> = {
   // another session. The promotion rests on the measurement, not on the actor.
   // eas.json carried it first (#1479, bundled with the 9/1 build).
   EXPO_PUBLIC_FAILOVER_VENDOR: "none",
-  // T1 stage A (2026-08-31): the unset default of every switch is openai now,
-  // so the web (no Variable) and eas.json (explicit "openai") agree. The
-  // feature itself is still off (EXPO_PUBLIC_SERVER_SAFETY); this pins the
-  // seat it would use.
+  // NOT a Variable — the web has none for this key (`gh variable list`,
+  // 2026-08-31), so the web builds from the CODE default, which T1 stage A
+  // made openai (routing.ts RETIRED_DEFAULT). eas.json says "openai"
+  // explicitly, so the two agree; this entry pins that agreement, and it
+  // breaks if either the default or eas.json moves alone. The feature itself
+  // is still off (EXPO_PUBLIC_SERVER_SAFETY); this is the seat it would use.
   EXPO_PUBLIC_SAFETY_VENDOR: "openai",
 };
 
@@ -73,15 +76,18 @@ const WEB_POSTURE: Record<string, string> = {
 // what differs is the claim about the web, which is "requested", not "read".
 const WEB_POSTURE_REQUESTED: Record<string, { want: string; asked: string }> = {
   // Empty as of 2026-08-29 12:33 KST - EXPO_PUBLIC_FAILOVER_VENDOR lived here
-  // for about an hour and was promoted to WEB_POSTURE once the console set the
-  // Variable. The bucket stays: the next switch that moves native-first lands
+  // for about an hour and was promoted to WEB_POSTURE once the Variable was
+  // found set (by whom is unknown, see the entry above). The bucket stays:
+  // the next switch that moves native-first lands
   // here, with who was asked and when, until the web is READ to match.
   //
   // What that entry recorded, kept because it is the reason the bucket exists:
   // eas.json is a FINGERPRINT INPUT, so a vendor switch there moves only
   // bundled with a build (#1375), and it is NOT the only source - the repo
   // Variable also feeds web-deploy.yml:140 (the web) and android-release.yml:124
-  // (the diagnostic gradle APK), both defaulting to '' → "gemini" when unset.
+  // (the diagnostic gradle APK), both passing '' when the Variable is unset —
+  // and '' meant "gemini" in the code until T1 stage A (2026-08-31), "none"
+  // since.
   // So "native moved, web asked" is a real intermediate state, and writing the
   // asked value into WEB_POSTURE would turn a measurement into a wish.
 };
@@ -137,8 +143,10 @@ describe("the native posture matches the web", () => {
 
   test("EXPO_PUBLIC_LLM_VENDOR is PRESENT, because absence is not neutral here", () => {
     // Absent falls through to the phase rule, and EXPO_PUBLIC_LLM_PHASE is "1",
-    // which resolves gemini for all twelve reasoning seats. "Unset" reads like
-    // "no opinion" and is actually the strongest possible opinion.
+    // which resolved gemini for all twelve reasoning seats until T1 stage A
+    // (2026-08-31) and resolves RETIRED_DEFAULT (openai) since. Either way
+    // "unset" reads like "no opinion" and is actually the strongest possible
+    // opinion.
     for (const profile of VENDOR_PROFILES) {
       expect(EAS.build[profile]?.env?.EXPO_PUBLIC_LLM_VENDOR).toBeTruthy();
     }

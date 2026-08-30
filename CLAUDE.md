@@ -200,7 +200,7 @@ Project-specific guidance for Claude Code sessions in this repo.
 > 오해가 세션마다 재생산됐다.
 >
 > **⚠ 2026-08-31 T1 1단계 — 미설정 기본값이 더는 Gemini 로 떨어지지 않는다.** `routing.ts` 의
-> `RETIRED_DEFAULT = "openai"` 가 미설정 스위치 11곳의 착지점이고 failover 미설정은 `"none"` 이다.
+> `RETIRED_DEFAULT = "openai"` 가 미설정 스위치 10곳의 착지점이고, 11번째인 failover 는 미설정이면 `"none"` 이다.
 > `"gemini"` 는 **명시값으로만** 살아 있다(콘솔이 `gemini-proxy` 를 지우기 전까지의 되돌리기 수단).
 > 원장 기준 마지막 실제 Gemini 호출은 2026-08-24 07:31 KST 다. 남은 순서·결합 조건은
 > `docs/LLM-VENDOR-PLACEMENT.md` "9월 폐기 체크리스트" · 전체 잔재는 `docs/GEMINI-RETIREMENT-INVENTORY.md`.

@@ -413,14 +413,16 @@ which will reset in 4 days (on Tue Sep 01 2026)
 
 #### 문 ② ~~새로 생겼다 — 서명 지문 시크릿 두 개가 없다~~ → **닫혔다** (2026-08-29 등록 · preflight PASS)
 
-> **2026-08-31 갱신 (콘솔 위임분, CLI 집행):** 아래 표는 08-29 오전 실측이었고 **같은 날 02:11 KST 에
-> 콘솔이 두 시크릿을 등록**했다(값은 EAS 업로드 키스토어 SHA-256 `0fb37bc0…ce570`, 공개 지문;
-> EAS Build Credentials 가 Default 하나뿐이라 APK·AAB 가 같은 키). **`android-signer-preflight.yml`
-> 첫 실행(run 33234958667, 08-29) 이 `match / match / PASS`** 로 실제 릴리스 APK 서명과 대조해
->검증했다(#1485). 남은 조건은 **9/1 EAS 할당량**뿐이다. 두 지문의 측정값은
-> `docs/ANDROID-BUILD.md` "Signer identities" 에 있다.
+> **2026-08-31 갱신 (콘솔 위임분, CLI 집행):** 아래 표는 08-29 오전 실측이었고 **같은 날 11:11 KST
+> (`2026-08-29T02:11Z`) 에 두 시크릿이 등록**됐다 — 콘솔이 자기 손이라고 회신했다(TO-CLI 08-30 22:52).
+> 값은 EAS 업로드 키스토어 SHA-256 `0fb37bc0…ce570`(공개 지문). APK·AAB 가 같은 키라는 것은 EAS Build
+> Credentials 가 Default 하나뿐이라는 콘솔 확인에서 **추정**한 것이고 AAB 자체는 측정하지 않았다 —
+> preflight 가 그 동일성을 단언한다. **`android-signer-preflight.yml` 첫 실행(run 33234958667, 08-29
+> 12:5x KST) 이 `match / match / PASS`** 로 실제 릴리스 APK 서명과 대조해 검증했다(#1485). 남은 조건은
+> **9/1 EAS 할당량**뿐이다. 두 지문의 측정값은 `docs/ANDROID-BUILD.md` "Signer identities" 에 있다.
+> (⚠ 이 갱신의 첫 판은 UTC `02:11` 을 KST 로 잘못 적었다 — 검토가 잡아 정정.)
 
-| 시크릿 | 상태 (08-29 02:11 이후) |
+| 시크릿 | 상태 (08-29 11:11 KST 이후) |
 |---|---|
 | `ANDROID_APK_SIGNER_SHA256` | **등록됨 · preflight match** |
 | `ANDROID_AAB_SIGNER_SHA256` | **등록됨 · preflight match** |

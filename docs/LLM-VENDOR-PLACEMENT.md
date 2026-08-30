@@ -339,10 +339,11 @@ Supabase Edge 시크릿에만 있고 함수 디렉터리 삭제 ≠ 배포 해�
 
 ### T1 1단계 집행 (2026-08-31) — 기본값이 더는 Gemini 로 떨어지지 않는다
 
-**바꾼 것.** `routing.ts` 에 `RETIRED_DEFAULT = "openai"` 를 두고 **미설정→gemini 11곳을 전부** 거기로
+**바꾼 것.** `routing.ts` 에 `RETIRED_DEFAULT = "openai"` 를 두고 **미설정→gemini 11곳 중 10곳**을 거기로
 보냈다(backbone · safety · embed · multimodal · legacyReasoningProvider · chat · 좌석 폴백 2 · Phase-1
-규칙 · reasoningTier 시드). `failoverVendor()` 미설정은 `"none"`. `proxyFnForVendor(undefined)` 는
-`openai-proxy`. `eas.json` 세 프로필의 `EXPO_PUBLIC_REASONING_PROVIDER`·`EXPO_PUBLIC_SAFETY_VENDOR`
+규칙 · reasoningTier 시드). 11번째 `failoverVendor()` 미설정은 `"none"`. `proxyFnForVendor(undefined)` 는
+`openai-proxy`. `boundary.ts` 는 **코드 한 줄** — 프록시 선택을 `reasoningProvider` 가 아니라 `vendorSeat`
+로(아래 "되돌리기가 두 번 깨질 뻔했다"). `eas.json` 세 프로필의 `EXPO_PUBLIC_REASONING_PROVIDER`·`EXPO_PUBLIC_SAFETY_VENDOR`
 → `openai`(**9/1 빌드와 한 묶음** — #1479 이후 나간 빌드가 없어 좌초 대상 없음). `web-deploy.yml`·
 `android-release.yml` 의 `|| 'gemini'` 폴백 3곳 → `'openai'`.
 
@@ -412,11 +413,12 @@ Simon 합의 사안이고(CLAUDE.md), 유니언에서 `gemini` 를 빼는 것은
 > | 경로 | 값의 출처 | 미설정 시 |
 > |---|---|---|
 > | EAS 빌드 · OTA | **`eas.json`** | — |
-> | 웹 | 저장소 Variable (`web-deploy.yml:140`) | `''` → `gemini` |
-> | **진단 gradle APK** | 저장소 Variable (`android-release.yml:124`) | `''` → `gemini` |
+> | 웹 | 저장소 Variable (`web-deploy.yml:140`) | `''` → ~~`gemini`~~ **`none`** (2026-08-31 T1 1단계) |
+> | **진단 gradle APK** | 저장소 Variable (`android-release.yml:124`) | `''` → ~~`gemini`~~ **`none`** (동일) |
 >
-> 즉 **진단 APK 는 `eas.json` 을 아예 안 읽는다.** 그 빌드에서 failover 를 끄는 방법은
-> 저장소 Variable 뿐이다. 콘솔 조작 없이는 그 경로만 죽은 키로 재시도를 계속한다.
+> 즉 **진단 APK 는 `eas.json` 을 아예 안 읽는다.** 08-29 시점엔 그 빌드에서 failover 를 끄는 방법이
+> 저장소 Variable 뿐이었고(미설정 = gemini), 08-29 12:33 에 Variable 이 `none` 으로 설정됐다.
+> T1 1단계 이후엔 미설정도 `none` 이라 이 표의 위험은 사라졌다 — 역사 기록.
 
 Simon 이 `none` 여부를 물었을 때 답은 "그렇게 하되 **지금은 아니다**"다. 이유가 신중함이
 아니라 **구조**라서 적어둔다.

@@ -76,7 +76,8 @@ export function llmPhase(): 1 | 2 {
 // pick which vendor serves the reasoning seats without a code edit:
 //   gemini | claude | openai  → that vendor for EVERY reasoning seat
 //   perPurpose                → use the per-seat PHASE2_VENDOR map
-//   unset / unrecognized      → null (back-compat: Phase-1 = Gemini,
+//   unset / unrecognized      → null (back-compat: Phase-1 = RETIRED_DEFAULT
+//                               since T1 stage A, Gemini before it;
 //                               Phase-2 = PHASE2_VENDOR map)
 // Only the reasoning seats (PHASE2_VENDOR keys) follow this switch. Chat has
 // its own knob (chatVendorOverride), the binary-carrying purposes follow
@@ -93,9 +94,11 @@ export function llmVendorOverride(): LlmVendorMode | null {
 }
 
 // EXPO_PUBLIC_CHAT_VENDOR — the one knob for 세컨비 대화 (secondb_chat).
-//   gemini (or unset) → gemini-proxy, the behaviour shipped to date
+//   unset             → RETIRED_DEFAULT (openai-proxy) since T1 stage A
+//                       2026-08-31; it was gemini-proxy until then
 //   openai            → openai-proxy   ← Simon's 2026-08-18 direction
 //   claude            → claude-proxy
+//   gemini            → gemini-proxy, explicit rollback only
 //
 // Why chat gets its own knob instead of joining PHASE2_VENDOR: the seats in
 // that map only activate at EXPO_PUBLIC_LLM_PHASE=2, and production is
@@ -134,8 +137,10 @@ export function chatVendorOverride(): LlmVendor | null {
 // the deep-run rationale still calling a key that no longer works, and the
 // failure would have looked like a vendor outage rather than a missed seat.
 //
-// Default stays "gemini", so this file behaves exactly as before until the
-// variable is set. The proxy seats have to exist first - openai-proxy answers
+// The default stayed "gemini" while this switch was new, so the file behaved
+// exactly as before until the variable was set; since T1 stage A (2026-08-31)
+// unset lands on RETIRED_DEFAULT and "gemini" is explicit rollback only.
+// The proxy seats have to exist first - openai-proxy answers
 // 400 purpose_not_seated for anything outside its allowlist BEFORE doing
 // anything else, so this is the same deploy-then-flip ordering as chat.
 // ⚠ "xai" is accepted here and WILL be refused by the proxy. That is the

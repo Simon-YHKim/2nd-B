@@ -15,9 +15,14 @@
 -- rows must keep their vendor. The retirement PR removes it together with the
 -- proxy, not before.
 --
--- Body is 0095's verbatim except the one IN list. CREATE OR REPLACE keeps the
--- existing ACL, but the grants are restated per house rule (0039/0095): a
--- reader of this file must not have to trust that.
+-- Body is 0095's logic unchanged except the one IN list (0095's two in-body
+-- comment blocks are not repeated here). CREATE OR REPLACE keeps the existing
+-- ACL, but the grants are restated as 0095 stated them, so a reader of this
+-- file does not have to trust that. NOTE for the applier: 0039 also REVOKEd
+-- service_role on the OLD signature; 0095 did not restate that for this
+-- signature and prod today grants service_role EXECUTE. This file does not
+-- change that either way — it is a question for the console, not a side
+-- effect of adding 'xai'.
 
 CREATE OR REPLACE FUNCTION public.log_ai_audit(
   p_prompt_hash      text,
