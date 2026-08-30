@@ -1,7 +1,7 @@
 # PIXEL-CLAY v4 salvage batch 3 implementation prompts
 
-작성일: 2026-08-31  
-대상 기준: `codex/pixel-clay-shared-260831` `60ae8f90`  
+작성일: 2026-08-31
+대상 기준: `codex/pixel-clay-shared-260831` `60ae8f90`
 순서: `/onboarding` → `/ttfv` → `/audit`
 
 이 문서는 `design/pixel_clay_260825/data/salvage-plan.json`의 다음 세 항목을 실제 앱에
