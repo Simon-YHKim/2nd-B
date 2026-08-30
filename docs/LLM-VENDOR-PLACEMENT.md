@@ -318,6 +318,24 @@ gemini-proxy 를 부른다"는 **가능성**이지 관측이 아니다 — 그�
 통과한다 — 양방향 래칫이다. `bump_gemini_spend`/`gemini_spend_daily` 는 세지 않는다(4 프록시 공용
 지출 상한, 개명 금지).
 
+**전체 인벤토리는 `docs/GEMINI-RETIREMENT-INVENTORY.md`** — 5영역 적대적 스윕 + 완전성 비평가,
+**총 656곳** 중 기능적 **279곳**(기본값 30 · 리터럴 70 · 프록시 이름 26 · 모델 ID 29 · 시크릿 15 ·
+직접 SDK 30 · 워크플로 폴백 17 · 테스트 핀 62)을 파일:줄·조치·`safe_now` 로 싣는다. 주석 205 ·
+문서 172 는 세기만 했다.
+
+**폐기 PR 이 같은 커밋에서 같이 고쳐야 통과하는 결합 일곱** (비평가가 실측, 상세는 인벤토리 문서):
+① `eas.json` 은 지문 입력 — 9/1 이후 빌드와 한 묶음 ② `@google/genai` 직접 경로를 지우면
+`check:constraints` 의 C1·C2·C9·Cost 네 게이트가 깨진다(`scripts/check-constraints.ts` 동반 수정)
+③ `gemini-proxy/index.ts` 를 디스크에서 읽는 검사 6개(`check:crisis-parity` 포함)가 ENOENT
+④ 개인정보처리방침이 'Gemini' 를 박고 있다(`legal-documents.ts` · `check:legal-snapshot` ·
+`check:legal-html`) — 법률 검토 경로 ⑤ 래칫 테스트 표·핀 문자열 갱신 ⑥ `GEMINI_API_KEY` 는
+Supabase Edge 시크릿에만 있고 함수 디렉터리 삭제 ≠ 배포 해제(`supabase functions delete` 별도) ·
+`GEMINI_*_CALL_CAP`·`GEMINI_SPEND_FAILOPEN` 은 살려둘 것 ⑦ 구빌드(≤35)는 번들 기본값으로
+`gemini-proxy` 를 부른다 — 알파 트랙 새 빌드 게시가 1단계.
+
+부수 발견(티켓감): `db/migrations/0095` 의 `p_reasoning_vendor IN ('gemini','claude','openai')` 에
+**`xai` 가 없다** — xai 가 서빙한 행은 벤더 NULL 로 기록된다.
+
 ### 9월 폐기 체크리스트 — 알파 트랙 항목 (콘솔 #1368 질의에 대한 답)
 
 **넣는다. 다만 "새 빌드를 게시한다"만으로는 부족하고, 반대로 "OTA 면 된다"도 아니다.**
