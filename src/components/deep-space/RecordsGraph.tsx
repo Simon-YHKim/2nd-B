@@ -9,13 +9,16 @@
  */
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, StyleSheet, View } from "react-native";
-import Svg, { G, Line, Text as SvgText } from "react-native-svg";
+import { StyleSheet, View } from "react-native";
+import Svg, { G, Rect, Text as SvgText } from "react-native-svg";
 
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { PixelPressable } from "@/components/pixel/PixelPressable";
+import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { PixelNodeSvg, PixelStarSvg } from "@/components/pixel/PixelStarSvg";
+import { stepLine } from "@/components/pixel/pixel-line";
 
 import { Text } from "@/components/ui/Text";
-import { MdChip } from "@/components/m3";
 import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import type { RecordsGraph as RecordsGraphData } from "@/lib/records/records-graph";
@@ -35,6 +38,22 @@ const rgAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.accent.s
 const CANVAS = 1000;
 const ZOOMS = [1, 1.6, 2.6] as const;
 const POLARIS_COLOR = m3.accent.polaris;
+const EDGE_CELL = 8;
+const MAX_SOLID_CELLS = 32;
+const MAX_DASHED_CELLS = 16;
+
+function sampledEdgeCells(
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  dashed: boolean,
+) {
+  const cells = stepLine(ax, ay, bx, by, EDGE_CELL);
+  const limit = dashed ? MAX_DASHED_CELLS : MAX_SOLID_CELLS;
+  const stride = Math.max(dashed ? 2 : 1, Math.ceil(cells.length / limit));
+  return cells.filter((_, index) => index % stride === 0);
+}
 
 export function RecordsGraph({
   graph,
@@ -46,19 +65,16 @@ export function RecordsGraph({
   const { t } = useTranslation("deepspace");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [zoomIdx, setZoomIdx] = useState(0);
+  const [canvasExtent, setCanvasExtent] = useState(390);
   // Adaptive default: a dense corpus (125+ records → hundreds of dashed links)
   // starts with the tag-link overlay OFF so the center stays readable; a small
   // corpus keeps the proto's default (ON). Initial only — a manual toggle wins.
   const linkCount = useMemo(() => linkEdgeCount(graph), [graph]);
-  const [showTagLinks, setShowTagLinks] = useState(() => initialTagLinksVisible(linkCount));
+  const [tagLinksOverride, setTagLinksOverride] = useState<boolean | null>(null);
+  const showTagLinks = tagLinksOverride ?? initialTagLinksVisible(linkCount);
 
   const pos = useMemo(() => layoutRecordsGraph(graph), [graph]);
   const nodeById = useMemo(() => new Map(graph.nodes.map((n) => [n.id, n])), [graph]);
-  const domainsPresent = useMemo(
-    () => graph.nodes.filter((n) => n.kind === "domain"),
-    [graph],
-  );
-
   const zoom = ZOOMS[zoomIdx];
   const focus = selectedId ? pos[selectedId] : undefined;
   const cx = (focus?.x ?? 0.5) * CANVAS;
@@ -66,6 +82,10 @@ export function RecordsGraph({
   const span = CANVAS / zoom;
   const vbX = Math.min(Math.max(cx - span / 2, 0), CANVAS - span);
   const vbY = Math.min(Math.max(cy - span / 2, 0), CANVAS - span);
+  // The square viewBox is scaled by the canvas's shorter side. Convert the
+  // Android 44dp interaction floor back into viewBox units so tiny record cells
+  // remain comfortably actionable without enlarging their visible paint.
+  const hitTargetSize = (44 * span) / canvasExtent;
 
   const selectNode = (id: string, openable: boolean) => {
     if (selectedId === id && openable) onOpenRecord(id);
@@ -73,20 +93,28 @@ export function RecordsGraph({
   };
 
   const selected = selectedId ? nodeById.get(selectedId) : undefined;
+  const labelEveryRecord = graph.nodes.length <= 32;
 
   const colorFor = (domain: string | undefined): string =>
     (domain && DOMAIN_COLOR[domain as keyof typeof DOMAIN_COLOR]) || m3.accent.starDim;
 
   return (
     <View style={styles.root}>
-      <View style={styles.canvasWrap}>
+      <View
+        style={styles.canvasWrap}
+        onLayout={({ nativeEvent: { layout } }) => {
+          const nextExtent = Math.max(1, Math.min(layout.width, layout.height));
+          setCanvasExtent((current) => (current === nextExtent ? current : nextExtent));
+        }}
+      >
         <Svg
           width="100%"
           height="100%"
           viewBox={`${vbX} ${vbY} ${span} ${span}`}
           accessibilityLabel={t("deepspace:recordsGraph.a11yGraph")}
         >
-          {/* edges — draw links (dashed) under nodes; spine/branch faint */}
+          {/* Edges are sampled integer rect cells, not anti-aliased SVG lines.
+              The per-edge caps keep the native SVG node count bounded. */}
           {graph.edges.map((e, i) => {
             const a = pos[e.a];
             const b = pos[e.b];
@@ -95,23 +123,18 @@ export function RecordsGraph({
             // Gate ONLY the tag-shared dashed overlay; spine/branch always draw.
             if (link && !showTagLinks) return null;
             const dom = link ? undefined : nodeById.get(e.b)?.domain ?? nodeById.get(e.a)?.domain;
+            const fill = link
+              ? rgAlpha(m3.accent.star, 0.42)
+              : e.kind === "branch"
+                ? rgAlpha(colorFor(dom), 0.28)
+                : rgAlpha(m3.accent.starDim, 0.22);
+            const cellSize = Math.max(2, Math.round((link ? 5 : 6) / zoom));
             return (
-              <Line
-                key={i}
-                x1={a.x * CANVAS}
-                y1={a.y * CANVAS}
-                x2={b.x * CANVAS}
-                y2={b.y * CANVAS}
-                stroke={
-                  link
-                    ? rgAlpha(m3.accent.star, 0.42)
-                    : e.kind === "branch"
-                      ? rgAlpha(colorFor(dom), 0.28)
-                      : rgAlpha(m3.accent.starDim, 0.22)
-                }
-                strokeWidth={(link ? 1.4 : 1) / zoom + 0.5}
-                strokeDasharray={link ? `${5 / zoom + 2},${4 / zoom + 2}` : undefined}
-              />
+              <G key={i}>
+                {sampledEdgeCells(a.x * CANVAS, a.y * CANVAS, b.x * CANVAS, b.y * CANVAS, link).map((cell, j) => (
+                  <Rect key={j} x={cell.x} y={cell.y} width={cellSize} height={cellSize} fill={fill} />
+                ))}
+              </G>
             );
           })}
 
@@ -127,7 +150,8 @@ export function RecordsGraph({
             const r = (isPolaris ? 13 * 1.35 : isDomain ? 9 * 1.35 : 5.5) / Math.sqrt(zoom);
             const fill = isPolaris ? POLARIS_COLOR : colorFor(node.domain);
             const alpha = isPolaris ? 1 : isDomain ? 0.95 : 0.8;
-            const showLabel = isPolaris || isDomain || isSelected;
+            const showLabel = isPolaris || isDomain || isSelected || (labelEveryRecord && node.kind === "record");
+            const nodeHitTargetSize = Math.max(hitTargetSize, (r + 6) * 2);
             return (
               <G key={node.id}>
                 {isSelected ? (
@@ -142,8 +166,6 @@ export function RecordsGraph({
                     cy={p.y * CANVAS}
                     r={r}
                     fill={rgAlpha(fill, alpha)}
-                    onPress={() => selectNode(node.id, node.kind === "record")}
-                    accessibilityLabel={node.label}
                   />
                 ) : (
                   <PixelNodeSvg
@@ -151,8 +173,6 @@ export function RecordsGraph({
                     cy={p.y * CANVAS}
                     r={r}
                     fill={rgAlpha(fill, alpha)}
-                    onPress={() => selectNode(node.id, node.kind === "record")}
-                    accessibilityLabel={node.label}
                   />
                 )}
                 {showLabel ? (
@@ -162,11 +182,22 @@ export function RecordsGraph({
                     fill={rgAlpha(m3.accent.skyTextHi, isDomain || isPolaris ? 0.9 : 0.8)}
                     fontSize={(isPolaris || isDomain ? 15 : 12) / Math.sqrt(zoom) + 4}
                     fontWeight={isDomain || isPolaris ? "700" : "400"}
+                    fontFamily={m3.font.mono}
                     textAnchor="middle"
                   >
                     {node.label.length > 14 ? `${node.label.slice(0, 13)}…` : node.label}
                   </SvgText>
                 ) : null}
+                <Rect
+                  x={p.x * CANVAS - nodeHitTargetSize / 2}
+                  y={p.y * CANVAS - nodeHitTargetSize / 2}
+                  width={nodeHitTargetSize}
+                  height={nodeHitTargetSize}
+                  fill="transparent"
+                  onPress={() => selectNode(node.id, node.kind === "record")}
+                  accessible
+                  accessibilityLabel={node.label}
+                />
               </G>
             );
           })}
@@ -174,57 +205,57 @@ export function RecordsGraph({
       </View>
 
       <View style={styles.controls}>
-        <Pressable onPress={() => setZoomIdx((z) => Math.max(0, z - 1))} hitSlop={10} style={styles.zoomBtn} accessibilityRole="button" accessibilityLabel={t("deepspace:recordsGraph.a11yZoomOut")}>
-          <Text style={styles.zoomBtnText}>-</Text>
-        </Pressable>
-        <Pressable onPress={() => setZoomIdx((z) => Math.min(ZOOMS.length - 1, z + 1))} hitSlop={10} style={styles.zoomBtn} accessibilityRole="button" accessibilityLabel={t("deepspace:recordsGraph.a11yZoomIn")}>
-          <Text style={styles.zoomBtnText}>+</Text>
-        </Pressable>
-        {/* Tag-link overlay toggle — no filter panel here (unlike the proto), so it
-            rides beside the zoom controls as an M3 filter chip (checkbox role). */}
-        <MdChip
-          kind="filter"
-          label={t("deepspace:recordsGraph.tagLinks")}
-          selected={showTagLinks}
-          onPress={() => setShowTagLinks((v) => !v)}
-          style={styles.tagChip}
-        />
-        <Text variant="caption" color="textSubtle" style={styles.hint} numberOfLines={1}>
-          {selected && selected.kind === "record"
-            ? t("deepspace:recordsGraph.hintSelected", { label: selected.label })
-            : t("deepspace:recordsGraph.hintDefault")}
-        </Text>
+        <View style={styles.zoomRow}>
+          <PixelPressable
+            onPress={() => setZoomIdx((z) => Math.max(0, z - 1))}
+            disabled={zoomIdx === 0}
+            accessibilityLabel={t("deepspace:recordsGraph.a11yZoomOut")}
+            contentStyle={styles.iconButtonContent}
+          >
+            <Text style={styles.zoomBtnText}>-</Text>
+          </PixelPressable>
+          <PixelPressable
+            onPress={() => setZoomIdx((z) => Math.min(ZOOMS.length - 1, z + 1))}
+            disabled={zoomIdx === ZOOMS.length - 1}
+            accessibilityLabel={t("deepspace:recordsGraph.a11yZoomIn")}
+            contentStyle={styles.iconButtonContent}
+          >
+            <Text style={styles.zoomBtnText}>+</Text>
+          </PixelPressable>
+        </View>
+        <PixelPressable
+          onPress={() => setTagLinksOverride(!showTagLinks)}
+          accessibilityLabel={t("deepspace:recordsGraph.tagLinks")}
+          variant={showTagLinks ? "inset" : "bevel"}
+          contentStyle={styles.iconButtonContent}
+        >
+          <PixelGlyph name="link" color={showTagLinks ? deepSpace.textHi : deepSpace.textMuted} size={18} />
+        </PixelPressable>
       </View>
 
-      <View style={styles.legend}>
-        {domainsPresent.map((d) => (
-          <View key={d.id} style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: colorFor(d.domain) }]} />
-            <Text variant="caption" color="textMuted">{d.label}</Text>
-          </View>
-        ))}
-      </View>
+      {selected && selected.kind === "record" ? (
+        <PixelSurface variant="frame" style={styles.selection} contentStyle={styles.selectionContent}>
+          <Text variant="caption" color="textSubtle" numberOfLines={1}>
+            {t("deepspace:recordsGraph.hintSelected", { label: selected.label })}
+          </Text>
+        </PixelSurface>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { gap: 8 },
+  root: { flex: 1, minHeight: 0 },
   canvasWrap: {
-    aspectRatio: 1,
+    flex: 1,
     width: "100%",
     borderRadius: 0,
-    borderWidth: 1,
-    borderColor: rgAlpha(deepSpace.accentDim, 0.22),
-    backgroundColor: rgAlpha(deepSpace.bgMid, 0.35),
     overflow: "hidden",
   },
-  controls: { flexDirection: "row", alignItems: "center", gap: 8 },
-  zoomBtn: { minWidth: 44, minHeight: 44, borderRadius: 0, borderWidth: 1, borderColor: rgAlpha(deepSpace.accentDim, 0.4), alignItems: "center", justifyContent: "center" },
+  controls: { position: "absolute", top: 76, right: 16, zIndex: 6, alignItems: "flex-end", gap: 8 },
+  zoomRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  iconButtonContent: { width: 44, minHeight: 44, paddingHorizontal: 0, paddingVertical: 0, alignItems: "center", justifyContent: "center" },
   zoomBtnText: { color: deepSpace.textHi, fontSize: 18, lineHeight: 22 },
-  tagChip: { flexShrink: 0 },
-  hint: { flex: 1, minWidth: 0 },
-  legend: { flexDirection: "row", flexWrap: "wrap", gap: 12, rowGap: 6 },
-  legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
-  legendDot: { width: 8, height: 8, borderRadius: 0 },
+  selection: { position: "absolute", left: 16, right: 76, bottom: 14, zIndex: 6 },
+  selectionContent: { minHeight: 44, justifyContent: "center" },
 });

@@ -10,6 +10,7 @@ const ROOT = process.cwd();
 const read = (rel: string): string => readFileSync(join(ROOT, rel), "utf8");
 
 const RECORDS = "src/screens/deepspace/dds-wiki-records-screens.tsx";
+const RECORDS_GRAPH = "src/components/deep-space/RecordsGraph.tsx";
 const IMPORT_HUB = "src/screens/deepspace/import/ImportHubScreen.tsx";
 const IMPORT_INBOX = "src/screens/deepspace/dds-import-inbox-screens.tsx";
 
@@ -45,6 +46,39 @@ describe("records screen honest error state + focus refetch + virtualized list",
     expect(src).not.toContain("filtered.map(");
     // Row is memoized so filter-chip taps do not re-render unchanged cards.
     expect(src).toContain("const RecordCard = memo(");
+  });
+});
+
+describe("PIXEL-CLAY records root composition", () => {
+  const src = read(RECORDS);
+  const graph = read(RECORDS_GRAPH);
+
+  it("opens on the real connection graph while keeping the complete FlatList one tap away", () => {
+    expect(src).toContain('useState<"list" | "graph">("graph")');
+    expect(src).toContain('onPress={() => setView("list")}');
+    expect(src).toContain("<FlatList");
+    expect(src).toContain("data={loadError ? [] : filtered}");
+  });
+
+  it("bounds only the visual graph, never the archive data source", () => {
+    expect(src).toContain("const GRAPH_RECORD_LIMIT = 96;");
+    expect(src).toContain("filtered.slice(0, GRAPH_RECORD_LIMIT)");
+    expect(src).toContain("graphCount < filtered.length");
+    expect(src).not.toContain("setRecords(merged.slice(");
+  });
+
+  it("uses the PIXEL-CLAY rail and integer rect graph cells with 44dp controls", () => {
+    expect(src).toContain('from "@/components/pixel/PixelPressable"');
+    expect(src).toContain('from "@/components/pixel/PixelSurface"');
+    expect(graph).toContain("sampledEdgeCells(");
+    expect(graph).toContain("<Rect key={j}");
+    expect(graph).not.toContain("<Line");
+    expect(graph).toContain("width: 44, minHeight: 44");
+    expect(graph).toContain("root: { flex: 1, minHeight: 0 }");
+    expect(graph).toContain("const hitTargetSize = (44 * span) / canvasExtent;");
+    expect(graph).toContain('fill="transparent"');
+    expect(graph).toContain("accessible");
+    expect(graph).toContain("accessibilityLabel={node.label}");
   });
 });
 
