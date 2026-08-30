@@ -92,6 +92,16 @@ describe("PIXEL-CLAY /profile contract", () => {
     expect(source).not.toMatch(/border(?:Top|Bottom)?(?:Left|Right|Start|End)?Radius\s*:\s*(?!m3\.shape\.none)/);
   });
 
+  test("gives intrinsic PixelPressable roots measured full-row widths", () => {
+    const source = read(SCREEN);
+    expect(source).toContain("useWindowDimensions");
+    expect(source).toContain("const contentWidth = Math.max(m3.minTouch, width - m3.spacing.s6 * 2)");
+    expect(source).toContain("style={{ width: contentWidth }}");
+    expect(source).toContain("style={{ width: tabWidth }}");
+    expect(source).toContain("style={{ width: framedContentWidth }}");
+    expect(source).not.toContain("style={styles.fullWidth}");
+  });
+
   test("registers the dedicated screen with the PIXEL-CLAY rules gate", () => {
     expect(read(PIXEL_RULES)).toContain('"src/screens/deepspace/dds-profile-screen.tsx"');
   });

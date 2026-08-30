@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ScrollView, StyleSheet, Text as RNText, View } from "react-native";
+import { ScrollView, StyleSheet, Text as RNText, useWindowDimensions, View } from "react-native";
 import { Redirect, router, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 
@@ -48,6 +48,7 @@ export function DeepSpaceProfileScreen() {
   const { t: tCommon } = useTranslation("common");
   const { userId, loading } = useAuth();
   const progression = useProgression();
+  const { width } = useWindowDimensions();
   const sections = t("sections", { returnObjects: true }) as Record<string, HubCopy>;
   const [activeSection, setActiveSection] = useState<ProfileSection>("know");
   const [identity, setIdentity] = useState<IdentityState>({ owner: null, value: null, loading: true });
@@ -92,6 +93,15 @@ export function DeepSpaceProfileScreen() {
   const planKey = progression.tier;
   const planName = progression.loading ? tPlans("loading") : tPlans(`tiers.${planKey}.name`);
   const planTagline = progression.loading ? null : tPlans(`tiers.${planKey}.tagline`);
+  const contentWidth = Math.max(m3.minTouch, width - m3.spacing.s6 * 2);
+  const framedContentWidth = Math.max(
+    m3.minTouch,
+    contentWidth - (m3.spacing.s1 + m3.spacing.s2) * 2,
+  );
+  const tabWidth = Math.max(
+    m3.minTouch,
+    (framedContentWidth - m3.spacing.s2) / 2,
+  );
 
   const routeGroups: ProfileRouteGroup[] = [
     {
@@ -230,7 +240,7 @@ export function DeepSpaceProfileScreen() {
             variant="bevel"
             onPress={() => router.push("/plans")}
             accessibilityLabel={`${tPlans("current")}: ${planName}`}
-            style={styles.fullWidth}
+            style={{ width: contentWidth }}
             contentStyle={styles.planContent}
           >
             <PixelSurface variant="inset" contentStyle={styles.planIcon}>
@@ -260,7 +270,7 @@ export function DeepSpaceProfileScreen() {
                   onPress={() => setActiveSection(group.key)}
                   accessibilityLabel={group.label}
                   accessibilityHint={selected ? undefined : group.label}
-                  style={styles.tab}
+                  style={{ width: tabWidth }}
                   contentStyle={styles.tabContent}
                 >
                   <RNText
@@ -285,7 +295,7 @@ export function DeepSpaceProfileScreen() {
                 onPress={() => router.push(item.route)}
                 accessibilityLabel={item.label}
                 accessibilityHint={item.hint}
-                style={styles.fullWidth}
+                style={{ width: framedContentWidth }}
                 contentStyle={styles.routeContent}
               >
                 <RNText numberOfLines={2} style={[m3TextStyle("bodyMedium"), styles.routeLabel]}>
@@ -348,7 +358,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: m3.spacing.s4,
   },
   settingsLabel: { color: m3.color.primary, lineHeight: 16, paddingBottom: m3.spacing.s1 },
-  fullWidth: { width: "100%" },
   planContent: {
     minHeight: 84,
     flexDirection: "row",
@@ -369,7 +378,6 @@ const styles = StyleSheet.create({
   planName: { color: m3.color.onSurface, lineHeight: 24, paddingBottom: m3.spacing.s1 },
   planTagline: { color: m3.color.onSurfaceVariant, lineHeight: 18, paddingBottom: m3.spacing.s1 },
   tabs: { flexDirection: "row", gap: m3.spacing.s2, padding: m3.spacing.s2 },
-  tab: { flex: 1 },
   tabContent: {
     minHeight: m3.minTouch,
     alignItems: "center",
