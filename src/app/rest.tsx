@@ -3,7 +3,7 @@
 // 디자인 번들의 `rest`는 샘플 데이터로 만든 비교 화면이라 이식하지 않는다.
 // 이 화면은 실제 데이터·세 상태·종류·저장 실패 계약은 그대로 두고, 공용
 // PIXEL-CLAY 표면과 가상 목록으로만 표현을 바꾼다.
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -21,6 +21,7 @@ import { m3TextStyle } from "@/components/m3/typeface";
 import { PixelPressable, PixelSurface } from "@/components/pixel";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PremiumLoadingState } from "@/components/premium";
+import { createLatestWins } from "@/lib/async/latest-wins";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
   createRecreationItem,
@@ -64,49 +65,6 @@ const STATUS_COLOR: Readonly<Record<RecreationStatus, string>> = {
 export default function RestScreen() {
   const { t } = useTranslation("deepspace");
   const { userId, loading } = useAuth();
-  const kbHeight = useKeyboard();
-  // `m3TextStyle()` reads this preference synchronously. Subscribing here makes
-  // the virtualized rows re-render when the readable body font is toggled.
-  useFontStyle();
-
-  const [items, setItems] = useState<RecreationItem[] | null>(null);
-  const [adding, setAdding] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saveFailed, setSaveFailed] = useState(false);
-  const [title, setTitle] = useState("");
-  const [category, setCategory] = useState<RecreationCategory>("hobby");
-  const [status, setStatus] = useState<RecreationStatus>("want");
-
-  const ratingLabel = useCallback(
-    (rating: number) =>
-      t("deepspace:rest.ratingLabel", { rating: Math.min(5, rating) }),
-    [t],
-  );
-
-  const refresh = useCallback(() => {
-    if (!userId) return;
-    listRecreationItems(userId)
-      .then(setItems)
-      .catch((e) => {
-        // Preserve the existing fail-soft behavior: a read failure does not
-        // invent records and lands on the same neutral empty surface.
-        console.warn("[rest] list failed", (e as Error).message);
-        setItems([]);
-      });
-  }, [userId]);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  const sections = useMemo(
-    () =>
-      STATUS_ORDER.map((sectionStatus) => ({
-        title: sectionStatus,
-        data: (items ?? []).filter((item) => item.status === sectionStatus),
-      })).filter((section) => section.data.length > 0),
-    [items],
-  );
 
   if (loading) {
     return (
@@ -125,8 +83,73 @@ export default function RestScreen() {
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
+  // AuthContext can replace one signed-in account with another without first
+  // rendering a signed-out frame. A keyed child remount makes every draft and
+  // async guard owner-scoped before the new account can see the old UI state.
+  return <RestContent key={userId} userId={userId} />;
+}
+
+function RestContent({ userId }: { userId: string }) {
+  const { t } = useTranslation("deepspace");
+  const kbHeight = useKeyboard();
+  // `m3TextStyle()` reads this preference synchronously. Subscribing here makes
+  // the virtualized rows re-render when the readable body font is toggled.
+  useFontStyle();
+
+  const [items, setItems] = useState<RecreationItem[] | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState<RecreationCategory>("hobby");
+  const [status, setStatus] = useState<RecreationStatus>("want");
+  const loadGuardRef = useRef(createLatestWins());
+  const saveGuardRef = useRef(createLatestWins());
+
+  const ratingLabel = useCallback(
+    (rating: number) =>
+      t("deepspace:rest.ratingLabel", { rating: Math.min(5, rating) }),
+    [t],
+  );
+
+  const refresh = useCallback(async () => {
+    const token = loadGuardRef.current.begin();
+    setLoadFailed(false);
+    try {
+      const nextItems = await listRecreationItems(userId);
+      if (loadGuardRef.current.isStale(token)) return;
+      setItems(nextItems);
+    } catch (e) {
+      if (loadGuardRef.current.isStale(token)) return;
+      // Do not turn a transport failure into a truthful-looking empty list.
+      // Existing items stay visible when only a background refresh fails.
+      console.warn("[rest] list failed", (e as Error).message);
+      setLoadFailed(true);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    void refresh();
+    return () => {
+      // Ignore read/save settlement from an owner-scoped child after unmount.
+      loadGuardRef.current.begin();
+      saveGuardRef.current.begin();
+    };
+  }, [refresh]);
+
+  const sections = useMemo(
+    () =>
+      STATUS_ORDER.map((sectionStatus) => ({
+        title: sectionStatus,
+        data: (items ?? []).filter((item) => item.status === sectionStatus),
+      })).filter((section) => section.data.length > 0),
+    [items],
+  );
+
   async function handleAdd() {
-    if (!userId || !title.trim() || saving) return;
+    if (!title.trim() || saving) return;
+    const token = saveGuardRef.current.begin();
     setSaving(true);
     setSaveFailed(false);
     try {
@@ -135,20 +158,46 @@ export default function RestScreen() {
         category,
         status,
       });
+      if (saveGuardRef.current.isStale(token)) return;
       setTitle("");
       setAdding(false);
-      refresh();
+      void refresh();
     } catch (e) {
+      if (saveGuardRef.current.isStale(token)) return;
       console.warn("[rest] save failed", (e as Error).message);
       setSaveFailed(true);
     } finally {
-      setSaving(false);
+      if (!saveGuardRef.current.isStale(token)) setSaving(false);
     }
   }
 
   const addLabel = adding
     ? t("deepspace:rest.close")
     : t("deepspace:rest.addRest");
+  const loadErrorSurface = (
+    <PixelSurface variant="inset" contentStyle={styles.loadErrorContent}>
+      <PixelGlyph name="warning" color={m3.color.error} size={24} />
+      <View style={styles.loadErrorCopy}>
+        <RNText
+          accessibilityRole="alert"
+          style={[m3TextStyle("bodyMedium"), styles.loadErrorText]}
+        >
+          {t("common:errors.network")}
+        </RNText>
+        <PixelPressable
+          variant="bevel"
+          onPress={() => void refresh()}
+          accessibilityLabel={t("common:actions.retry")}
+          contentStyle={styles.retryContent}
+        >
+          <PixelGlyph name="refresh" color={m3.color.primary} size={24} />
+          <RNText style={[m3TextStyle("labelLarge"), styles.retryLabel]}>
+            {t("common:actions.retry")}
+          </RNText>
+        </PixelPressable>
+      </View>
+    </PixelSurface>
+  );
 
   return (
     <DeepSpaceScreen
@@ -201,6 +250,8 @@ export default function RestScreen() {
                   </RNText>
                 </PixelPressable>
               </View>
+
+              {loadFailed && items !== null ? loadErrorSurface : null}
 
               {adding ? (
                 <PixelSurface variant="frame" contentStyle={styles.formContent}>
@@ -267,9 +318,13 @@ export default function RestScreen() {
           }
           ListEmptyComponent={
             items === null ? (
-              <View style={styles.listState}>
-                <PremiumLoadingState message={t("deepspace:rest.opening")} />
-              </View>
+              loadFailed ? (
+                loadErrorSurface
+              ) : (
+                <View style={styles.listState}>
+                  <PremiumLoadingState message={t("deepspace:rest.opening")} />
+                </View>
+              )
             ) : (
               <PixelSurface variant="inset" contentStyle={styles.emptyContent}>
                 <PixelGlyph
@@ -378,6 +433,23 @@ const styles = StyleSheet.create({
   saveError: { color: m3.color.error, paddingBottom: m3.spacing.s1 },
   saveButton: { alignSelf: "stretch", width: "100%" },
   listState: { minHeight: 180, alignItems: "center", justifyContent: "center" },
+  loadErrorContent: {
+    minHeight: 120,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: m3.spacing.s4,
+    padding: deepSpaceSpacing.md,
+  },
+  loadErrorCopy: { flex: 1, minWidth: 0, gap: m3.spacing.s3 },
+  loadErrorText: { color: m3.color.error, paddingBottom: m3.spacing.s1 },
+  retryContent: {
+    minHeight: m3.minTouch,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: m3.spacing.s2,
+    paddingHorizontal: m3.spacing.s4,
+  },
+  retryLabel: { color: m3.color.primary, paddingBottom: m3.spacing.s1 },
   emptyContent: {
     minHeight: 160,
     alignItems: "center",

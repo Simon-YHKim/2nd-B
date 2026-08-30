@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { createLatestWins } from "../../lib/async/latest-wins";
+
 const SOURCE = readFileSync(resolve(__dirname, "..", "rest.tsx"), "utf8").replace(/\r\n/g, "\n");
 const CHIP_SOURCE = readFileSync(
   resolve(__dirname, "..", "..", "components", "m3", "MdChip.tsx"),
@@ -17,6 +19,7 @@ describe("/rest PIXEL-CLAY contract", () => {
     expect(SOURCE).toContain("createRecreationItem(userId, {");
     expect(SOURCE).toMatch(/title: title\.trim\(\),\s+category,\s+status/);
     expect(SOURCE).toContain("if (!userId) return <Redirect href=\"/sign-in\" />");
+    expect(SOURCE).toContain("<RestContent key={userId} userId={userId} />");
     expect(SOURCE).toContain("refresh()");
 
     // The port:false comparison screen is sample state, never production data.
@@ -48,7 +51,7 @@ describe("/rest PIXEL-CLAY contract", () => {
     expect(SOURCE).toContain('accessibilityRole="header"');
   });
 
-  test("preserves loading, empty, and inline save-failure behavior", () => {
+  test("separates loading, read failure, empty, and inline save-failure behavior", () => {
     const authLoading = SOURCE.indexOf("if (loading)");
     const signedOut = SOURCE.indexOf('if (!userId) return <Redirect href="/sign-in" />');
     expect(authLoading).toBeGreaterThan(-1);
@@ -57,9 +60,32 @@ describe("/rest PIXEL-CLAY contract", () => {
     expect(SOURCE).toContain("items === null");
     expect(SOURCE).toContain('t("deepspace:rest.opening")');
     expect(SOURCE).toContain('t("deepspace:rest.empty")');
-    expect(SOURCE).toContain("setItems([])");
+    expect(SOURCE).not.toContain("setItems([])");
+    expect(SOURCE).toContain("setLoadFailed(true)");
+    expect(SOURCE).toContain('t("common:errors.network")');
+    expect(SOURCE).toContain('t("common:actions.retry")');
+    expect(SOURCE).toContain("onPress={() => void refresh()}");
     expect(SOURCE).toContain("setSaveFailed(true)");
     expect(SOURCE).toContain('t("deepspace:rest.saveFailed")');
+  });
+
+  test("drops reverse-order reads and stale save settlement", () => {
+    expect(SOURCE).toContain("const loadGuardRef = useRef(createLatestWins())");
+    expect(SOURCE).toContain("const saveGuardRef = useRef(createLatestWins())");
+    expect(SOURCE).toContain("loadGuardRef.current.isStale(token)");
+    expect(SOURCE).toContain("saveGuardRef.current.isStale(token)");
+    expect(SOURCE).toMatch(/return \(\) => \{\s+\/\/[^]*loadGuardRef\.current\.begin\(\);\s+saveGuardRef\.current\.begin\(\);/);
+
+    const reads = createLatestWins();
+    const firstRead = reads.begin();
+    const secondRead = reads.begin();
+    expect(reads.isStale(firstRead)).toBe(true);
+    expect(reads.isStale(secondRead)).toBe(false);
+
+    const saves = createLatestWins();
+    const pendingSave = saves.begin();
+    saves.begin(); // owner-scoped child cleanup invalidates pending settlement
+    expect(saves.isStale(pendingSave)).toBe(true);
   });
 
   test("keeps the inline form keyboard-safe on Android", () => {
@@ -86,6 +112,7 @@ describe("/rest PIXEL-CLAY contract", () => {
       expect(primitive).toContain("disabled={disabled}");
       expect(primitive).toMatch(/accessibilityState=\{[\s\S]*?disabled/);
     }
+    expect(CHIP_SOURCE).toContain("minWidth: m3.minTouch");
   });
 
   test("keeps category/status selection and item provenance visible", () => {

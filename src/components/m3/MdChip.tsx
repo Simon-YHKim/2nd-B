@@ -113,6 +113,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: m3.spacing.s2,
+    // This Pressable owns the semantic checkbox/button target. The outer
+    // visual border does not count toward its DOM/TalkBack hit rectangle.
+    minWidth: m3.minTouch,
     minHeight: 44,
     paddingHorizontal: m3.spacing.s3,
   },
