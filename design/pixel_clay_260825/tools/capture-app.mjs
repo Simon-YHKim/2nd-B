@@ -25,12 +25,14 @@ import {
   captureContextOptions,
   CaptureContractError,
   captureFailureCodes,
+  captureSetupFailureCodes,
   createCaptureEnvReceipt,
   createServedExportAttestation,
   createShotHealth,
   createShotNetworkTracker,
   digestPage,
   dismissCaptureOverlays,
+  dismissNoticeOverlay,
   fillQaLogin,
   isDeviceChromeText,
   loadCaptureEnvAttestation,
@@ -40,6 +42,7 @@ import {
   previewEnvLines,
   previewEnvJson,
   readPreviewProfileEnv,
+  recordShotConsole,
   recordShotFailure,
   resolveHostedAppUrl,
   resolveCaptureMarkerTime,
@@ -315,10 +318,12 @@ export async function main(args = process.argv.slice(2), env = process.env) {
     report.browserVersion = validateBrowserRuntime(browser);
     const context = await browser.newContext(captureContextOptions());
     const page = await context.newPage();
-    let activeShot = createShotHealth();
+    let activeShot = createShotHealth({
+      noticeReadOrigin: environmentAttestation.previewEnv.EXPO_PUBLIC_SUPABASE_URL,
+    });
     const networkTracker = createShotNetworkTracker();
     page.on('console', (message) => {
-      if (message.type() === 'error') recordShotFailure(activeShot, 'console-error');
+      recordShotConsole(activeShot, message);
     });
     page.on('pageerror', () => {
       recordShotFailure(activeShot, 'page-error');
@@ -353,6 +358,12 @@ export async function main(args = process.argv.slice(2), env = process.env) {
     await waitForShotNetworkIdle(page, activeShot);
     const loginFailureCodes = shotFailureCodes({ baseUrl, ...activeShot });
     if (loginFailureCodes.length) throw new CaptureContractError(loginFailureCodes);
+    await dismissNoticeOverlay(page);
+    await dismissCaptureOverlays(page);
+    await waitForShotNetworkIdle(page, activeShot);
+    const setupFailureCodes = captureSetupFailureCodes(baseUrl, activeShot);
+    if (setupFailureCodes.length) throw new CaptureContractError(setupFailureCodes);
+    activeShot = createShotHealth();
     await page.addScriptTag({ content: determinismScript });
 
     for (const id of targetSelection.targetIds) {
@@ -364,6 +375,7 @@ export async function main(args = process.argv.slice(2), env = process.env) {
         await waitForShotNetworkIdle(page, activeShot);
         let failureCodes = shotFailureCodes({ baseUrl, ...activeShot });
         if (failureCodes.length) throw new CaptureContractError(failureCodes);
+        await dismissNoticeOverlay(page);
         await dismissCaptureOverlays(page);
         await waitForShotNetworkIdle(page, activeShot);
         validateFinalUrl(baseUrl, route, page.url());
