@@ -1,7 +1,7 @@
 # `/people` PIXEL-CLAY 실제 앱 적용 프롬프트
 
-> 작성: 2026-08-31 KST  
-> 공통 계약: `docs/handoff/PIXEL-CLAY-APP-IMPLEMENTATION-PROMPT-260831.md`  
+> 작성: 2026-08-31 KST
+> 공통 계약: `docs/handoff/PIXEL-CLAY-APP-IMPLEMENTATION-PROMPT-260831.md`
 > 선행 의존: Draft PR #1515 `codex/pixel-gate-primitives-260831`
 
 ## 코딩 담당 역할
