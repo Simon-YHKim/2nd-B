@@ -51,7 +51,9 @@ export function PixelGateShell({
         <ScrollView
           ref={scrollRef}
           style={styles.scroll}
-          contentContainerStyle={[styles.content, { paddingBottom }, contentContainerStyle]}
+          // Screen alignment may extend the content style, but the shell owns
+          // safe-area/IME clearance and therefore applies it last.
+          contentContainerStyle={[styles.content, contentContainerStyle, { paddingBottom }]}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
         >

@@ -226,7 +226,7 @@ describe("gate 셸 - dock 없는 seeded sky + 키보드 안전 스크롤", () =>
   test("Android IME 높이가 실제 content padding 으로 이어진다", () => {
     expect(src).toContain("const keyboardHeight = useKeyboard();");
     expect(src).toContain("pixelGateBottomPadding(Platform.OS, keyboardHeight)");
-    expect(src).toContain("contentContainerStyle={[styles.content, { paddingBottom }, contentContainerStyle]}");
+    expect(src).toContain("contentContainerStyle={[styles.content, contentContainerStyle, { paddingBottom }]}");
 
     expect(pixelGateBottomPadding("android", 300)).toBe(300 + PIXEL_GATE_IME_CLEARANCE);
     expect(pixelGateBottomPadding("android", 0)).toBe(PIXEL_GATE_BOTTOM_GUTTER);
