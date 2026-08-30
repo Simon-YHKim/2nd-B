@@ -100,7 +100,7 @@ jobs:
           # EXPO_PUBLIC_REASONING_PROVIDER (currently "claude") outranks this
           # fallback — flip it with:
           #   gh variable set EXPO_PUBLIC_REASONING_PROVIDER --body gemini
-          EXPO_PUBLIC_REASONING_PROVIDER: ${{ vars.EXPO_PUBLIC_REASONING_PROVIDER || 'gemini' }}
+          EXPO_PUBLIC_REASONING_PROVIDER: ${{ vars.EXPO_PUBLIC_REASONING_PROVIDER || 'openai' }}
           # D-26 purpose-keyed routing phase. "1" = current posture (no behavior
           # change); flip the repo Variable to "2" to activate Phase 2 routing.
           EXPO_PUBLIC_LLM_PHASE: ${{ vars.EXPO_PUBLIC_LLM_PHASE || '1' }}
@@ -108,7 +108,7 @@ jobs:
           # Deploy openai-proxy BEFORE setting this to "openai": the proxy 400s
           # any purpose outside its allowlist, and the secondb_chat seat only
           # exists once that function is redeployed.
-          EXPO_PUBLIC_CHAT_VENDOR: ${{ vars.EXPO_PUBLIC_CHAT_VENDOR || 'gemini' }}
+          EXPO_PUBLIC_CHAT_VENDOR: ${{ vars.EXPO_PUBLIC_CHAT_VENDOR || 'openai' }}
           # Backbone switch for the nine reasoning seats. Unset is NOT the same as
           # 'gemini' here: unset falls through to the phase rule (Phase 1 = Gemini),
           # which is today's posture, so '' keeps behaviour identical. Setting this

@@ -36,17 +36,20 @@ export const codeOnly = (src: string) =>
 
 const count = (text: string, re: RegExp) => (text.match(re) ?? []).length;
 
-// Measured 2026-08-30 on origin/main afeb0718. `why` says what each number is
-// made of so the retirement PR knows what it is looking for.
+// Measured 2026-08-30 on origin/main afeb0718; routing.ts re-measured after
+// T1 stage A (2026-08-31) moved every unset default to RETIRED_DEFAULT.
+// `why` says what each number is made of so the retirement PR knows what it
+// is looking for.
 const RESIDUE: Record<string, { gemini: number; proxy: number; why: string }> = {
   "src/lib/llm/routing.ts": {
-    gemini: 17,
+    gemini: 7,
     proxy: 2,
     why:
-      "LlmVendor union · normalizeVendor · the unset defaults of backboneVendor/" +
-      "safetyVendor/failoverVendor/embedVendor/multimodalVendor/legacyReasoningProvider/" +
-      "chatVendorOverride · resolveTextVendor's phase fallbacks · the reasoningTier seam; " +
-      "proxy: the LlmProxyFn union and proxyFnForVendor's default branch",
+      "LlmVendor union · normalizeVendor's explicit acceptance · the explicit-value " +
+      "checks in safetyVendor/embedVendor/multimodalVendor · the reasoningTier seam's " +
+      "`resolved === \"gemini\"` · proxyFnForVendor's explicit gemini branch; " +
+      "proxy: the LlmProxyFn union and that explicit branch. Every one is an " +
+      "OPT-IN path (rollback), none is a default",
   },
   "src/lib/llm/boundary.ts": {
     gemini: 5,
@@ -60,11 +63,15 @@ const RESIDUE: Record<string, { gemini: number; proxy: number; why: string }> = 
   "src/lib/llm/crosscheck.ts": { gemini: 2, proxy: 0, why: "vendor comparison for the challenger/defender pairing" },
 };
 
-// The eleven places in routing.ts where an UNSET environment resolves to
-// Gemini. These are the retirement PR's primary targets: after gemini-proxy is
-// gone, an unset switch must resolve to a live vendor or refuse, never to a
-// dead proxy.
-const UNSET_DEFAULT_SITES = 11;
+// The eleven places in routing.ts where an UNSET environment used to resolve
+// to Gemini. T1 stage A (2026-08-31) pointed ten of them at RETIRED_DEFAULT
+// ("openai") and the eleventh — the outage failover — at "none", because the
+// only retry target that ever made sense was the vendor retiring. So an unset
+// switch can no longer land on a proxy that is about to be deleted. All three
+// numbers are pinned; the final deletion PR reshapes them consciously.
+const UNSET_GEMINI_DEFAULT_SITES = 0;
+const RETIRED_DEFAULT_SITES = 10;
+const FAILOVER_NONE_DEFAULT_SITES = 1;
 
 describe("gemini residue is pinned per file (ratchet, both directions)", () => {
   test.each(Object.entries(RESIDUE))("%s carries exactly the measured residue", (rel, want) => {
@@ -75,12 +82,17 @@ describe("gemini residue is pinned per file (ratchet, both directions)", () => {
     );
   });
 
-  test("routing.ts has exactly the measured number of unset→gemini defaults", () => {
+  test("routing.ts: zero unset→gemini defaults, ten unset→RETIRED_DEFAULT, one unset→none (failover)", () => {
     const code = codeOnly(read("src/lib/llm/routing.ts"));
-    const sites = code
-      .split("\n")
-      .filter((l) => /\?\? "gemini"|return "gemini";|\?\? "gemini"\)\.trim/.test(l));
-    expect(sites).toHaveLength(UNSET_DEFAULT_SITES);
+    const lines = code.split("\n");
+    const geminiDefaults = lines.filter((l) => /\?\? "gemini"|return "gemini";|\?\? "gemini"\)\.trim/.test(l));
+    expect(geminiDefaults).toHaveLength(UNSET_GEMINI_DEFAULT_SITES);
+    const retired = lines.filter((l) => /\?\? RETIRED_DEFAULT|return RETIRED_DEFAULT;|\?\? RETIRED_DEFAULT\)\.trim/.test(l));
+    expect(retired).toHaveLength(RETIRED_DEFAULT_SITES);
+    const failoverNone = lines.filter((l) => /normalizeVendor\(raw\) \?\? "none";/.test(l));
+    expect(failoverNone).toHaveLength(FAILOVER_NONE_DEFAULT_SITES);
+    // and the constant itself names a live vendor, not the retiring one
+    expect(code).toMatch(/const RETIRED_DEFAULT: LlmVendor = "openai";/);
   });
 
   test("no file outside the table imports the vendor SDK or names the proxy", () => {

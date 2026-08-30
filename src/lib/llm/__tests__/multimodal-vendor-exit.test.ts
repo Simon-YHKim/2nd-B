@@ -10,10 +10,14 @@
 // choice. openai-proxy grew both paths; this suite pins the two properties that
 // make the switch safe:
 //
-//   1. merging this changes NOTHING - the default is still Gemini, because an
-//      edge function does not carry new code until it is redeployed. Flipping
-//      the default in the same change that adds the server path is the
-//      0127/0130 deploy-before-flip trap.
+//   1. the default moved exactly once, on purpose. Until T1 stage A
+//      (2026-08-31) unset meant Gemini: an edge function does not carry new
+//      code until it is redeployed, and flipping the default in the same change
+//      that adds the server path is the 0127/0130 deploy-before-flip trap.
+//      openai-proxy has carried both seats in production since v109
+//      (2026-08-24), so unset now lands on openai (RETIRED_DEFAULT). "gemini"
+//      stays an ACCEPTED explicit value - the one-variable rollback - until
+//      gemini-proxy is deleted; it just never happens by default any more.
 //   2. one lever moves BOTH surfaces. If OCR and voice could be pointed at
 //      different vendors by accident, the exit would be half-done and the half
 //      left behind would die on Google's calendar, not on ours.
@@ -42,25 +46,39 @@ const setVendor = (v: string | undefined) => {
   else process.env[ENV_KEY] = v;
 };
 
-describe("merging this does not move anybody", () => {
-  test("unset still means Gemini", () => {
+describe("unset lands on the retired default, never on a dead proxy", () => {
+  test("unset means openai since T1 stage A (2026-08-31)", () => {
     setVendor(undefined);
-    expect(multimodalVendor()).toBe("gemini");
+    expect(multimodalVendor()).toBe("openai");
   });
 
   // "grok" is no longer junk anywhere - it is the xai alias. It stays out of
   // the multimodal switch for a different reason: that proxy carries no binary.
   test.each(["", "   ", "anthropic", "OPENAI_PROXY", "true", "xai", "grok"])(
-    "an unrecognised value (%p) falls back to Gemini rather than to nothing",
+    "an unrecognised value (%p) falls back to openai rather than to nothing",
     (v) => {
       setVendor(v);
-      expect(multimodalVendor()).toBe("gemini");
+      expect(multimodalVendor()).toBe("openai");
     },
   );
 
-  test("OCR and voice still route to gemini-proxy by default", () => {
+  test("OCR and voice route to openai-proxy by default", () => {
     setVendor(undefined);
     for (const p of ["capture_ocr", "capture_voice"] as const) {
+      expect(proxyFnForVendor(resolveVendorForPurpose(p, false))).toBe("openai-proxy");
+    }
+    expect(proxyFnForVendor(resolveVendorForPurpose("interview_probe", true))).toBe("openai-proxy");
+  });
+
+  test("explicit gemini is still the one-variable rollback to gemini-proxy", () => {
+    // The rollback property of T1 stage A: "gemini" is no longer a default
+    // anywhere, but it stays an accepted operator value until gemini-proxy is
+    // actually deleted. Pinned here so the final deletion PR has to come back
+    // and change this test, not discover the gap in production.
+    setVendor("gemini");
+    expect(multimodalVendor()).toBe("gemini");
+    for (const p of ["capture_ocr", "capture_voice"] as const) {
+      expect(resolveVendorForPurpose(p, false)).toBe("gemini");
       expect(proxyFnForVendor(resolveVendorForPurpose(p, false))).toBe("gemini-proxy");
     }
     expect(proxyFnForVendor(resolveVendorForPurpose("interview_probe", true))).toBe("gemini-proxy");
@@ -142,12 +160,17 @@ describe("the reasoning seam can actually reach OpenAI", () => {
     // was not.
     // The literal moved into normalizeVendor() when xai joined, so the check
     // is now that the seam DEFERS to that one normalizer rather than keeping a
-    // second copy of the vendor list that could drift from it.
+    // second copy of the vendor list that could drift from it. Since T1 stage A
+    // (2026-08-31) its fallback is RETIRED_DEFAULT, not a "gemini" literal, and
+    // RETIRED_DEFAULT is openai - so an unset seam no longer lands on a proxy
+    // that is being decommissioned.
     const seamStart = routing.indexOf("export function legacyReasoningProvider");
     expect(seamStart).toBeGreaterThan(-1);
     const seam = routing.slice(seamStart, routing.indexOf("}", seamStart) + 1);
-    expect(seam).toMatch(/return normalizeVendor\(raw\) \?\? "gemini";/);
+    expect(seam).toMatch(/return normalizeVendor\(raw\) \?\? RETIRED_DEFAULT;/);
     expect(seam).not.toMatch(/return raw === "claude" \? "claude" : "gemini";/);
+    expect(seam).not.toMatch(/\?\? "gemini"/);
+    expect(routing).toMatch(/^const RETIRED_DEFAULT: LlmVendor = "openai";$/m);
   });
 });
 

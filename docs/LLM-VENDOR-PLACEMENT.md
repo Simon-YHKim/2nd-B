@@ -334,7 +334,30 @@ Supabase Edge 시크릿에만 있고 함수 디렉터리 삭제 ≠ 배포 해�
 `gemini-proxy` 를 부른다 — 알파 트랙 새 빌드 게시가 1단계.
 
 부수 발견(티켓감): `db/migrations/0095` 의 `p_reasoning_vendor IN ('gemini','claude','openai')` 에
-**`xai` 가 없다** — xai 가 서빙한 행은 벤더 NULL 로 기록된다.
+**`xai` 가 없다** — xai 가 서빙한 행은 벤더 NULL 로 기록된다. → **`0147_log_ai_audit_xai_vendor.sql`
+로 파일 생성(2026-08-31). 적용은 콘솔(dry-run + tail 대조 규율).**
+
+### T1 1단계 집행 (2026-08-31) — 기본값이 더는 Gemini 로 떨어지지 않는다
+
+**바꾼 것.** `routing.ts` 에 `RETIRED_DEFAULT = "openai"` 를 두고 **미설정→gemini 11곳을 전부** 거기로
+보냈다(backbone · safety · embed · multimodal · legacyReasoningProvider · chat · 좌석 폴백 2 · Phase-1
+규칙 · reasoningTier 시드). `failoverVendor()` 미설정은 `"none"`. `proxyFnForVendor(undefined)` 는
+`openai-proxy`. `eas.json` 세 프로필의 `EXPO_PUBLIC_REASONING_PROVIDER`·`EXPO_PUBLIC_SAFETY_VENDOR`
+→ `openai`(**9/1 빌드와 한 묶음** — #1479 이후 나간 빌드가 없어 좌초 대상 없음). `web-deploy.yml`·
+`android-release.yml` 의 `|| 'gemini'` 폴백 3곳 → `'openai'`.
+
+**안 바꾼 것 — 일부러.** ① `"gemini"` 는 여전히 **명시값으로 수용**된다(`normalizeVendor` 등). 콘솔이
+`gemini-proxy` 를 지우기 전까지 변수 하나로 되돌릴 수 있어야 한다. ② `LlmVendor` 유니언·`boundary.ts`
+의 `@google/genai` 직접 경로·`EXPO_PUBLIC_MODEL_*` 는 그대로 — 직접 경로는 **C2 대회 잔재**라 제거는
+Simon 합의 사안이고(CLAUDE.md), 유니언에서 `gemini` 를 빼는 것은 프록시 삭제와 같은 PR 이 맞다.
+③ 프록시 함수·`GEMINI_API_KEY`·키 revoke 는 콘솔 몫, **알파 트랙 새 빌드 뒤**.
+
+**임베딩 재색인 — 불필요(실측).** `wiki_pages` 0행 · `records` 159행 중 벡터 1(`text-embedding-3-large`) ·
+`persona_entity` 0행. gemini 가 만든 벡터가 하나도 남아 있지 않다. 다만 **색인 자체가 거의 비어 있다**
+(159 중 1) — 재색인이 아니라 "색인이 안 돌고 있다" 가 살펴볼 일이다.
+
+**래칫 갱신.** `gemini-residue.test.ts`: routing.ts `"gemini"` 17 → 7(전부 opt-in 경로), 미설정→gemini
+0곳 · `RETIRED_DEFAULT` 11곳 고정, 상수가 `"openai"` 인지도 고정.
 
 ### 9월 폐기 체크리스트 — 알파 트랙 항목 (콘솔 #1368 질의에 대한 답)
 
@@ -362,7 +385,7 @@ Supabase Edge 시크릿에만 있고 함수 디렉터리 삭제 ≠ 배포 해�
 > | 조각 | 상태 (26-08-29) |
 > |---|---|
 > | `eas.json` 세 프로필(`preview`·`preview-emulator`·`production`) = `none` | **완료** (이 변경) |
-> | 저장소 Variable `EXPO_PUBLIC_FAILOVER_VENDOR` = `none` | **완료** (콘솔, 26-08-29 12:33 KST — `gh variable list` 실측) |
+> | 저장소 Variable `EXPO_PUBLIC_FAILOVER_VENDOR` = `none` | **완료** (26-08-29 12:33 KST — `gh variable list` 실측. ⚠ **누가 눌렀는지 미상** — 콘솔은 자기 손이 아니라고 회신(08-30). 승격은 측정값 기준이라 유효) |
 > | 새 EAS 빌드 | **9/1 대기** (할당량) |
 >
 > ⚠ **`eas.json` 은 세 경로 중 하나만 덮는다.** 나머지 둘은 저장소 Variable 을 읽는다:

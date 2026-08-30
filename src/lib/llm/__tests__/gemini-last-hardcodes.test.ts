@@ -12,6 +12,12 @@
 //                        means it silently becomes lexicon-only while the flag
 //                        still reads "on" - a safety layer reporting as enabled
 //                        and classifying nothing.
+//
+// T1 stage A (2026-08-31): unset no longer means gemini on either switch. The
+// failover resolves "none" (no retry) and the safety classifier resolves
+// "openai" (RETIRED_DEFAULT). An explicit "gemini" is still accepted by both and
+// still routes to gemini-proxy - that is the one-variable rollback, and the
+// cases below that pin it are the ones that prove it survives.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -42,17 +48,28 @@ const setEnv = (k: string, v: string | undefined) => {
 };
 
 describe("the outage failover", () => {
-  test("unset still retries on Gemini", () => {
+  test("unset means no retry (T1 stage A: the retiring vendor is no longer the default target)", () => {
     setEnv("EXPO_PUBLIC_FAILOVER_VENDOR", undefined);
-    expect(failoverVendor()).toBe("gemini");
+    expect(failoverVendor()).toBe("none");
   });
 
   test("'none' turns the retry off, and that is a supported answer", () => {
     // Once Gemini is gone the remaining targets are the vendor that just
     // failed, or opus prices during an outage. Disabling it is legitimate, so
-    // it is expressible rather than requiring a code change.
+    // it is expressible rather than requiring a code change. Since T1 stage A
+    // it is also what unset resolves to; spelling it out still works.
     setEnv("EXPO_PUBLIC_FAILOVER_VENDOR", "none");
     expect(failoverVendor()).toBe("none");
+  });
+
+  test("explicit 'gemini' still retries on Gemini (rollback property)", () => {
+    // explicit: unset is openai/none since T1 stage A. Naming gemini is the
+    // one-variable rollback and must keep resolving to gemini-proxy.
+    setEnv("EXPO_PUBLIC_FAILOVER_VENDOR", "gemini");
+    const failoverTarget = failoverVendor();
+    expect(failoverTarget).toBe("gemini");
+    // Same narrowing boundary.ts uses at both call sites.
+    expect(failoverTarget === "none" ? null : proxyFnForVendor(failoverTarget)).toBe("gemini-proxy");
   });
 
   test("it accepts the vendors and the grok alias", () => {
@@ -62,10 +79,13 @@ describe("the outage failover", () => {
     }
   });
 
-  test("junk falls back to Gemini rather than to nothing", () => {
+  test("junk falls back to no retry, the same place unset lands", () => {
+    // Before T1 stage A junk fell to gemini "rather than to nothing". Now
+    // nothing IS the default, so junk must land exactly where unset does and
+    // never on a vendor an operator did not name.
     for (const v of ["", "  ", "nope", "off"]) {
       setEnv("EXPO_PUBLIC_FAILOVER_VENDOR", v);
-      expect(failoverVendor()).toBe("gemini");
+      expect(failoverVendor()).toBe("none");
     }
   });
 
@@ -95,20 +115,31 @@ describe("the outage failover", () => {
 });
 
 describe("the server-side safety classifier", () => {
-  test("unset stays on Gemini", () => {
+  test("unset lands on openai (T1 stage A: RETIRED_DEFAULT)", () => {
     setEnv("EXPO_PUBLIC_SAFETY_VENDOR", undefined);
+    expect(safetyVendor()).toBe("openai");
+    expect(proxyFnForVendor(safetyVendor())).toBe("openai-proxy");
+  });
+
+  test("explicit 'gemini' still classifies on Gemini (rollback property)", () => {
+    // explicit: unset is openai since T1 stage A. gemini-proxy is reachable
+    // only by name now, and this is the name.
+    setEnv("EXPO_PUBLIC_SAFETY_VENDOR", "gemini");
     expect(safetyVendor()).toBe("gemini");
+    expect(proxyFnForVendor(safetyVendor())).toBe("gemini-proxy");
   });
 
   test("only the two proxies that can actually serve it are accepted", () => {
     // A safety_classify seat is not enough on its own: the proxy also needs the
     // LLM_SERVER_SAFETY_SEAT exemption, or its own crisis gate 422s exactly the
-    // messages the classifier exists to read. claude and xai have neither.
+    // messages the classifier exists to read. claude and xai have neither, so
+    // naming them falls to the default - openai since T1 stage A - and never
+    // to the proxy that was named.
     setEnv("EXPO_PUBLIC_SAFETY_VENDOR", "openai");
     expect(safetyVendor()).toBe("openai");
     for (const v of ["claude", "xai", "grok", "junk"]) {
       setEnv("EXPO_PUBLIC_SAFETY_VENDOR", v);
-      expect(safetyVendor()).toBe("gemini");
+      expect(safetyVendor()).toBe("openai");
     }
   });
 
@@ -156,11 +187,18 @@ describe("both switches reach every build", () => {
 describe("what is left after this", () => {
   test("the client holds no gemini-proxy literal outside the proxy-name union", () => {
     // The sweep that closes the September client-side work. routing.ts still
-    // names it in LlmProxyFn and in proxyFnForVendor's default - those ARE the
-    // resolver, not a bypass of it.
+    // names it in LlmProxyFn and in proxyFnForVendor's explicit "gemini" arm -
+    // those ARE the resolver, not a bypass of it. (Since T1 stage A it is no
+    // longer the resolver's fall-through; see the next test.)
     for (const rel of ["src/lib/llm/boundary.ts", "src/lib/llm/safety.ts", "src/lib/chat/rag.ts"]) {
       const exec = read(rel).replace(/^\s*\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
       expect(exec).not.toContain('"gemini-proxy"');
     }
+  });
+
+  test("the resolver's fall-through is openai-proxy; gemini-proxy is reached only by name", () => {
+    // T1 stage A. An undefined vendor lands where every unset switch lands.
+    expect(proxyFnForVendor(undefined)).toBe("openai-proxy");
+    expect(proxyFnForVendor("gemini")).toBe("gemini-proxy");
   });
 });

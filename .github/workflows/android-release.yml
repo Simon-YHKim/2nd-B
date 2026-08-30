@@ -116,7 +116,7 @@ jobs:
       EXPO_PUBLIC_LLM_PHASE: ${{ vars.EXPO_PUBLIC_LLM_PHASE || '1' }}
       # Vendor for 세컨비 대화 only. Unset/"gemini" keeps today's behaviour.
       # Deploy openai-proxy BEFORE setting this to "openai" -- see web-deploy.yml.
-      EXPO_PUBLIC_CHAT_VENDOR: ${{ vars.EXPO_PUBLIC_CHAT_VENDOR || 'gemini' }}
+      EXPO_PUBLIC_CHAT_VENDOR: ${{ vars.EXPO_PUBLIC_CHAT_VENDOR || 'openai' }}
       # Backbone switch for the nine reasoning seats -- see web-deploy.yml. Unset
       # falls through to the phase rule, which is today's posture.
       EXPO_PUBLIC_LLM_VENDOR: ${{ vars.EXPO_PUBLIC_LLM_VENDOR || '' }}

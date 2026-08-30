@@ -49,11 +49,18 @@ const WEB_POSTURE: Record<string, string> = {
   // CROSSCHECK=1 among them. Its blast radius is one purpose
   // (CROSSCHECKABLE = persona_synthesis) at up to 2 rounds, not 3x everything.
   EXPO_PUBLIC_CROSSCHECK: "1",
-  // Promoted from WEB_POSTURE_REQUESTED on 2026-08-29: the console set the
-  // repo Variable at 12:33 KST (`gh variable list` → none, 2026-08-29T03:33:19Z),
-  // ten minutes after this file had recorded it as unset. eas.json carried it
-  // first (#1479, bundled with the 9/1 build); the web now matches.
+  // Promoted from WEB_POSTURE_REQUESTED on 2026-08-29: the repo Variable was
+  // set at 12:33 KST (`gh variable list` → none, 2026-08-29T03:33:19Z), ten
+  // minutes after this file had recorded it as unset. WHO set it is unknown —
+  // the console says it was not them (2026-08-30 reply), so it was Simon or
+  // another session. The promotion rests on the measurement, not on the actor.
+  // eas.json carried it first (#1479, bundled with the 9/1 build).
   EXPO_PUBLIC_FAILOVER_VENDOR: "none",
+  // T1 stage A (2026-08-31): the unset default of every switch is openai now,
+  // so the web (no Variable) and eas.json (explicit "openai") agree. The
+  // feature itself is still off (EXPO_PUBLIC_SERVER_SAFETY); this pins the
+  // seat it would use.
+  EXPO_PUBLIC_SAFETY_VENDOR: "openai",
 };
 
 // The third state, and the one this file had no bucket for: native has already
@@ -82,9 +89,9 @@ const WEB_POSTURE_REQUESTED: Record<string, { want: string; asked: string }> = {
 // Deliberate divergences, each with the reason. This list is what stops the
 // test above from being a rule nobody can follow.
 const INTENDED_DIFFERENCES: Record<string, string> = {
-  // Still gemini in both places, so it is not a divergence yet. It becomes one
-  // the day the September decommission moves either side.
-  EXPO_PUBLIC_SAFETY_VENDOR: "still gemini everywhere; the feature is off by default",
+  // Empty since T1 stage A (2026-08-31): SAFETY_VENDOR moved to WEB_POSTURE
+  // when its unset default stopped being gemini. The bucket stays for the
+  // next deliberate divergence, with its reason.
 };
 
 // Shipping profiles - the ones that name an EAS environment of the same name.

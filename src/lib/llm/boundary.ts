@@ -683,7 +683,15 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       // vendor's native ladder server-side and clamps per purpose.
       ...(effort ? { effort } : {}),
     };
-    const primaryFn = proxyFnForVendor(reasoningProvider);
+    // The proxy is picked from the RESOLVED SEAT, not from reasoningProvider.
+    // reasoningProvider collapses a non-pro gemini seat to undefined (audit
+    // parity: lite/flash rows never carried a vendor), and until T1 stage A
+    // proxyFnForVendor(undefined) happened to mean gemini-proxy, so the two
+    // agreed by accident. Now undefined means the retired default, and picking
+    // from reasoningProvider sent an explicit EXPO_PUBLIC_*_VENDOR=gemini on a
+    // flash seat to openai-proxy — the one-variable rollback silently broken
+    // on the highest-volume surfaces. Caught by vendor-routing-live.test.ts.
+    const primaryFn = proxyFnForVendor(vendorSeat);
     const t0 = Date.now();
     let { data, error } = await supabase.functions.invoke(primaryFn, {
       body: proxyBody,

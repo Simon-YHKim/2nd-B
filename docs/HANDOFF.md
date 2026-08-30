@@ -411,22 +411,24 @@ which will reset in 4 days (on Tue Sep 01 2026)
 ⚠ 실패 전에 `versionCode` 가 원격에서 **35 → 36 으로 이미 올라갔다**(version source remote).
 다음 성공 빌드는 37 이다. 릴리스 노트에서 36 을 찾지 말 것.
 
-#### 문 ② **새로 생겼다** — 서명 지문 시크릿 두 개가 없다 (2026-08-29 실측)
+#### 문 ② ~~새로 생겼다 — 서명 지문 시크릿 두 개가 없다~~ → **닫혔다** (2026-08-29 등록 · preflight PASS)
 
-**#1472 `fix: harden Android release signer verification`** 이 `github-release.yml` 에
-서명 지문 게이트를 붙였는데, 그 게이트가 읽는 시크릿이 **등록돼 있지 않다**:
+> **2026-08-31 갱신 (콘솔 위임분, CLI 집행):** 아래 표는 08-29 오전 실측이었고 **같은 날 02:11 KST 에
+> 콘솔이 두 시크릿을 등록**했다(값은 EAS 업로드 키스토어 SHA-256 `0fb37bc0…ce570`, 공개 지문;
+> EAS Build Credentials 가 Default 하나뿐이라 APK·AAB 가 같은 키). **`android-signer-preflight.yml`
+> 첫 실행(run 33234958667, 08-29) 이 `match / match / PASS`** 로 실제 릴리스 APK 서명과 대조해
+>검증했다(#1485). 남은 조건은 **9/1 EAS 할당량**뿐이다. 두 지문의 측정값은
+> `docs/ANDROID-BUILD.md` "Signer identities" 에 있다.
 
-| 시크릿 | 상태 |
+| 시크릿 | 상태 (08-29 02:11 이후) |
 |---|---|
-| `ANDROID_APK_SIGNER_SHA256` | **없음** |
-| `ANDROID_AAB_SIGNER_SHA256` | **없음** |
+| `ANDROID_APK_SIGNER_SHA256` | **등록됨 · preflight match** |
+| `ANDROID_AAB_SIGNER_SHA256` | **등록됨 · preflight match** |
 
-`verifyReleaseSigners` 를 빈 값으로 직접 불러 확인했다 — **fail-closed** 라
-`apk-expected-digest-invalid` 로 거부한다. 그리고 `github-release.yml` 은 **#1472 이후
-한 번도 안 돌았다**(마지막 성공 8/26~27, 게이트가 붙기 전). 아무도 아직 이 상태를 안 밟았다.
-
-⚠ **그래서 9/1 에 할당량이 풀려도 릴리스는 그 자리에서 멈춘다.** 두 시크릿을 먼저 채울 것.
-값은 EAS 키스토어의 SHA-256 지문이고 `npx eas-cli credentials` 에 표시된다.
+(원문 보존 — 역사 기록) **#1472** 가 `github-release.yml` 에 서명 지문 게이트를 붙였는데 그 시점엔
+시크릿이 없었고, `verifyReleaseSigners` 는 **fail-closed** 라 `apk-expected-digest-invalid` 로 거부했다.
+`github-release.yml` 은 #1472 이후 한 번도 안 돌았다(마지막 성공 8/26~27). 게이트 자체의 첫 실행은
+9/1 릴리스가 하지만, 시크릿 값이 맞는지는 preflight 가 이미 답했다.
 같은 키스토어면 APK 와 AAB 지문이 같다. 콜론 있는 형식과 64자 소문자 둘 다 받는다.
 
 #### OTA 로는 못 간다 — 지문이 두 번 움직였다
