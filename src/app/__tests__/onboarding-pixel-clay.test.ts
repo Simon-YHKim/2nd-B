@@ -4,6 +4,12 @@ import path from "node:path";
 import { m3 } from "@/lib/theme/m3";
 
 const SRC = fs.readFileSync(path.resolve(__dirname, "..", "onboarding.tsx"), "utf8");
+const FLOWS = JSON.parse(
+  fs.readFileSync(
+    path.resolve(__dirname, "..", "..", "..", "public", "proto", "data", "screens", "flows.json"),
+    "utf8",
+  ),
+) as { onboardingSlides: { body: string }[] };
 
 function functionBody(name: string): string {
   const start = SRC.indexOf(`function ${name}(`);
@@ -34,6 +40,30 @@ describe("/onboarding PIXEL-CLAY handoff contract", () => {
     expect(SRC).toContain("const AUTH_STEP = SLIDES.length;");
     expect(SRC).toContain('BackHandler.addEventListener("hardwareBackPress"');
     expect(SRC).toMatch(/if \(step > 0\)[\s\S]{0,100}setStep\(\(current\) => current - 1\)/);
+  });
+
+  test("names the current seven stars without framing the six life areas as stars", () => {
+    const koBody = FLOWS.onboardingSlides[1]?.body ?? "";
+    const enBody =
+      SRC.match(/tag: "Getting to know you",[\s\S]*?body: "([^"]+)"/)?.[1] ?? "";
+
+    for (const star of ["프로필", "영유아기", "학창시절", "20대", "30대 이후", "직장", "지금"]) {
+      expect(koBody).toContain(star);
+    }
+    for (const star of [
+      "Profile",
+      "early childhood",
+      "school years",
+      "20s",
+      "30s and beyond",
+      "work",
+      "now",
+    ]) {
+      expect(enBody).toContain(star);
+    }
+
+    expect(koBody).not.toMatch(/커리어|재정|관계|건강|성장|휴식/);
+    expect(enBody).not.toMatch(/Career|money|relationships|health|growth|rest/);
   });
 
   test("the final handoff exposes the real sign-up and sign-in boundaries", () => {

@@ -36,7 +36,7 @@ const SLIDE_EN: { tag: string; title: string; body: string }[] = [
   {
     tag: "Getting to know you",
     title: "Scattered days\nbecome a constellation",
-    body: "Career, money, relationships, health, growth, rest: seven life stars show who you are at a glance.",
+    body: "Profile, early childhood, school years, your 20s, 30s and beyond, work, and now: seven stars for getting to know yourself at a glance.",
   },
   {
     tag: "Helping alongside you",
