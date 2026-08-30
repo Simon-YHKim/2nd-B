@@ -5394,7 +5394,7 @@ test('me Stage 1 contract covers every stable route across all three deck pages'
   assert.deepEqual(
     nav.me.items.map(({ label, kind, to, reveal }) => ({ label, kind, to, reveal })),
     [
-      { label: '문장 다듬기', kind: 'route', to: '/northstar', reveal: undefined },
+      { label: '북극성 문장 편집', kind: 'route', to: '/northstar', reveal: undefined },
       { label: '내보내기', kind: 'route', to: '/share-card', reveal: undefined },
       { label: '나는 누구인가', kind: 'route', to: '/core-brain', reveal: { role: 'tab', name: '나의 모습' } },
       { label: '누구를 위해', kind: 'route', to: '/interview', reveal: { role: 'tab', name: '나의 모습' } },

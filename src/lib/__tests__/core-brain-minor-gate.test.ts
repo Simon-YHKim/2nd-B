@@ -1,6 +1,6 @@
 import type { DependencyList, EffectCallback, ReactElement, SetStateAction } from "react";
 import type { CenterCard } from "../persona/center";
-import type { PersonaCard } from "../persona/build";
+import type { LoadedStrengths, PersonaCard } from "../persona/build";
 
 type AuthState = {
   userId: string | null;
@@ -28,7 +28,9 @@ const mockLoadPersonaSnapshot = jest.fn();
 let mockRealLoadPersonaSnapshot: (userId: string) => Promise<PersonaCard | null>;
 let mockRealBuildCenterCards: (persona: PersonaCard, locale: "en" | "ko") => CenterCard[];
 const mockBuildCenterCards = jest.fn();
-const mockLoadLatestStrengths = jest.fn((..._args: unknown[]) => Promise.resolve(null));
+const mockLoadLatestStrengths = jest.fn<Promise<LoadedStrengths | null>, unknown[]>(
+  (..._args: unknown[]) => Promise.resolve(null),
+);
 const mockLoadDomainLevels = jest.fn((..._args: unknown[]) => Promise.resolve(null));
 const mockLoadSevenLevels = jest.fn((..._args: unknown[]) =>
   Promise.resolve({ northStarBrightness: 0.6 }),
@@ -244,6 +246,7 @@ jest.mock("react-native", () => ({
   TouchableOpacity: "TouchableOpacity",
   StyleSheet: { create: (styles: unknown) => styles, absoluteFill: {} },
 }));
+jest.mock("react-native-svg", () => ({ Svg: "Svg", Rect: "Rect", G: "G" }));
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: mockLanguage.current } }),
 }));
@@ -267,13 +270,21 @@ jest.mock("@/components/pixel/PixelDither", () => ({ PixelScrim: "PixelScrim" })
 jest.mock("@/lib/ui-mode", () => ({ isDeepSpaceUI: () => mockDeepSpaceUI.current }));
 jest.mock("@/components/deep-space/DeepSpaceScreen", () => ({ DeepSpaceScreen: "DeepSpaceScreen" }));
 jest.mock("@/components/deep-space/PolarisDeck", () => ({ PolarisDeck: "PolarisDeck" }));
+jest.mock("@/components/pixel/PixelStarSvg", () => ({ PixelStarSvg: "PixelStarSvg" }));
 jest.mock("@/components/m3", () => ({ MdButton: "MdButton", m3TextStyle: () => ({}) }));
 jest.mock("@/lib/theme/m3", () => ({
   m3: {
+    accent: { starDim: "starDim", polarisEdge: "polarisEdge" },
     color: new Proxy({}, { get: (_target, key) => String(key) }),
     font: new Proxy({}, { get: (_target, key) => String(key) }),
     shape: { none: 0 },
+    starLadder: {
+      rest: ["rest1", "rest2", "rest3", "rest4", "rest5"],
+      polarisMid: ["mid1", "mid2", "mid3", "mid4", "mid5"],
+      polarisCore: ["core1", "core2", "core3", "core4", "core5"],
+    },
   },
+  m3BrightnessBand: () => 1,
 }));
 jest.mock("@/lib/auth/AuthContext", () => ({ useAuth: () => mockAuth.current }));
 jest.mock("@/lib/supabase/client", () => ({ getSupabaseClient: () => mockSupabase }));
@@ -291,7 +302,10 @@ jest.mock("@/lib/llm/boundary", () => ({ callLlm: (...args: unknown[]) => mockFo
 jest.mock("@/lib/entitlements/usage", () => ({
   incrementReasoningUsage: (...args: unknown[]) => mockForbiddenUsage(...args),
 }));
-jest.mock("@/lib/persona/strengths-survey", () => ({ STRENGTH_LABEL_EN: {}, STRENGTH_LABEL_KO: {} }));
+jest.mock("@/lib/persona/strengths-survey", () => ({
+  STRENGTH_LABEL_EN: { curiosity: "Curiosity", grit: "Grit" },
+  STRENGTH_LABEL_KO: { curiosity: "호기심", grit: "끈기" },
+}));
 jest.mock("@/lib/persona/domain-stars", () => ({ DOMAIN_STARS: [], getDomainStar: () => null }));
 jest.mock("@/lib/persona/load-domain-levels", () => ({
   loadDomainLevels: (...args: unknown[]) => mockLoadDomainLevels(...args),
@@ -360,6 +374,17 @@ function findElement(
   return findElement(node.props.children, predicate);
 }
 
+function findElements(
+  node: unknown,
+  predicate: (element: ReactElement<Record<string, unknown>>) => boolean,
+): ReactElement<Record<string, unknown>>[] {
+  if (Array.isArray(node)) return node.flatMap((child) => findElements(child, predicate));
+  const React = jest.requireActual<typeof import("react")>("react");
+  if (!React.isValidElement<Record<string, unknown>>(node)) return [];
+  const matches = predicate(node) ? [node] : [];
+  return matches.concat(findElements(node.props.children, predicate));
+}
+
 function renderedText(node: unknown): string {
   if (typeof node === "string" || typeof node === "number") return String(node);
   if (Array.isArray(node)) return node.map(renderedText).join(" ");
@@ -417,7 +442,7 @@ beforeEach(() => {
         : centerCard,
     ),
   );
-  mockLoadLatestStrengths.mockClear();
+  mockLoadLatestStrengths.mockReset().mockResolvedValue(null);
   mockLoadDomainLevels.mockClear();
   mockLoadSevenLevels.mockClear();
   mockLoadProfileStarLevel.mockClear();
@@ -519,22 +544,66 @@ describe("Core Brain rendered read-only lifecycle", () => {
     assertNoMutationEgress();
   });
 
-  test("focus refresh performs SELECT reads without rebuilding the snapshot", async () => {
+  test("renders the first Polaris page as one message and one seven-to-one graphic", async () => {
     const harness = new HookHarness();
+    mockDeepSpaceUI.current = true;
     mockAuth.current = { userId: "u1", loading: false, hasProfile: true, isMinor: false };
+
+    renderCoreBrainScreen(harness);
+    harness.flushEffects();
+    await flushAsync();
+    const tree = renderCoreBrainScreen(harness);
+    const deck = findElement(tree, (element) => element.type === "PolarisDeck");
+    const pages = deck?.props.pages as { key: string; title: string; body: ReactElement }[];
+    const role = pages[0];
+    const roleBodyProps = role.body.props as { style?: Record<string, unknown> };
+
+    expect(role.key).toBe("role");
+    expect(role.title).toBe("polaris");
+    expect(roleBodyProps.style).toMatchObject({ flexGrow: 1, justifyContent: "center" });
+    expect(findElements(role.body, (element) => element.type === "Text")).toHaveLength(1);
+    expect(findElements(role.body, (element) => element.type === "Svg")).toHaveLength(1);
+    expect(findElements(role.body, (element) => element.type === "PixelStarSvg")).toHaveLength(10);
+    expect(renderedText(role.body).trim()).toBe("currentBrightness");
+    expect(renderedText(role.body)).not.toContain("BIG FIVE");
+    expect(renderedText(role.body)).not.toContain("My brightest side is");
+    assertNoMutationEgress();
+  });
+
+  test("focus refresh reloads the progressive strengths summary without rebuilding the snapshot", async () => {
+    const harness = new HookHarness();
+    mockDeepSpaceUI.current = true;
+    mockAuth.current = { userId: "u1", loading: false, hasProfile: true, isMinor: false };
+    mockLoadLatestStrengths
+      .mockResolvedValueOnce({ scores: [{ strength: "curiosity", score: 91 }], confidence: 0.8 })
+      .mockResolvedValueOnce({ scores: [{ strength: "grit", score: 93 }], confidence: 0.9 });
     renderCoreBrainScreen(harness);
     harness.flushEffects();
     await flushAsync();
     const selectsAfterMount = mockSelectCalls.length;
+    const initialTree = renderCoreBrainScreen(harness);
+    const initialDeck = findElement(initialTree, (element) => element.type === "PolarisDeck");
+    const initialPages = initialDeck?.props.pages as { key: string; body: ReactElement }[];
 
     expect(mockFocus.current?.enabled).toBe(true);
+    expect(mockLoadLatestStrengths).toHaveBeenCalledTimes(1);
+    expect(mockLoadLatestStrengths).toHaveBeenLastCalledWith(mockSupabase, "u1");
+    expect(renderedText(initialPages[0].body)).not.toContain("Curiosity");
+    expect(renderedText(initialPages[1].body)).toContain("strengthsCheck: Curiosity");
     mockFocus.current?.callback();
     renderCoreBrainScreen(harness);
     harness.flushEffects();
     await flushAsync();
+    const refreshedTree = renderCoreBrainScreen(harness);
+    const refreshedDeck = findElement(refreshedTree, (element) => element.type === "PolarisDeck");
+    const refreshedPages = refreshedDeck?.props.pages as { key: string; body: ReactElement }[];
 
     expect(mockSelectCalls.length).toBeGreaterThan(selectsAfterMount);
     expect(mockLoadPersonaSnapshot).toHaveBeenCalledTimes(1);
+    expect(mockLoadLatestStrengths).toHaveBeenCalledTimes(2);
+    expect(mockLoadLatestStrengths).toHaveBeenLastCalledWith(mockSupabase, "u1");
+    expect(renderedText(refreshedPages[1].body)).toContain("strengthsCheck: Grit");
+    expect(renderedText(refreshedPages[1].body)).not.toContain("Curiosity");
     assertNoMutationEgress();
   });
 
