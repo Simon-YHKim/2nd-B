@@ -77,12 +77,16 @@ describe("PIXEL-CLAY /manual renderer contract", () => {
     expect(source).toContain('router.push("/secondb")');
   });
 
-  test("uses shared PIXEL-CLAY primitives and Android-safe token sizing", () => {
+  test("uses shared PIXEL-CLAY primitives with full-width accessible tap roots", () => {
     const source = read(SCREEN);
     expect(source).toContain("PixelSurface");
     expect(source).toContain("PixelPressable");
     expect(source).toContain("PixelGlyph");
     expect(source).toContain("minHeight: m3.minTouch");
+    expect(source.match(/^\s+fullWidth$/gm) ?? []).toHaveLength(4);
+    expect(source).toContain("accessibilityState={{ expanded }}");
+    expect(source.match(/accessibilityRole="link"/g) ?? []).toHaveLength(2);
+    expect(source).not.toContain("style={styles.fullWidth}");
     expect(source).not.toMatch(/<Pressable\b/);
     expect(source).not.toMatch(/style=\{\s*\(\{?\s*pressed\b/);
     expect(source).not.toMatch(/#[0-9a-f]{3,8}\b/i);

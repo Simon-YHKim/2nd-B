@@ -88,7 +88,8 @@ export function DeepSpaceManualScreen() {
                     variant="bevel"
                     onPress={() => setExpandedId(expanded ? null : topic.id)}
                     accessibilityLabel={`${topic.question}. ${expanded ? copy.expanded : copy.collapsed}`}
-                    style={styles.fullWidth}
+                    accessibilityState={{ expanded }}
+                    fullWidth
                     contentStyle={styles.questionContent}
                   >
                     <PixelGlyph name={topic.icon} color={m3.color.primary} size={24} />
@@ -114,7 +115,8 @@ export function DeepSpaceManualScreen() {
                             variant="frame"
                             onPress={() => router.push(action.route as Href)}
                             accessibilityLabel={action.label}
-                            style={styles.fullWidth}
+                            accessibilityRole="link"
+                            fullWidth
                             contentStyle={styles.actionContent}
                           >
                             <RNText style={[m3TextStyle("labelLarge"), styles.actionText]}>
@@ -142,7 +144,8 @@ export function DeepSpaceManualScreen() {
               variant="bevel"
               onPress={() => router.push("/secondb")}
               accessibilityLabel={t("manual.askDirect")}
-              style={styles.fullWidth}
+              accessibilityRole="link"
+              fullWidth
               contentStyle={styles.footerContent}
             >
               <PixelGlyph name="bubble" color={m3.color.primary} size={24} />
@@ -157,7 +160,7 @@ export function DeepSpaceManualScreen() {
                 router.replace("/");
               }}
               accessibilityLabel={t("manual.replayCoachmarks")}
-              style={styles.fullWidth}
+              fullWidth
               contentStyle={styles.footerContent}
             >
               <PixelGlyph name="replay" color={m3.color.onSurfaceVariant} size={24} />
@@ -216,7 +219,6 @@ const styles = StyleSheet.create({
   },
   topicList: { gap: m3.spacing.s4 },
   topicBlock: { width: "100%" },
-  fullWidth: { width: "100%" },
   questionContent: {
     minHeight: m3.minTouch,
     flexDirection: "row",
