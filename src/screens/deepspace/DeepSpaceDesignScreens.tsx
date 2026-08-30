@@ -99,7 +99,7 @@ import { systemLocaleFor } from "@/lib/i18n/locales";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
 import { captureEvent, proposalDecided, setAnalyticsConsent } from "@/lib/analytics";
 import type { PrivacyPrefKey, PrivacyPrefs } from "@/lib/privacy/prefs";
-import { clearRecordEmbeddings } from "@/lib/records/records-embeddings";
+import { clearRecordEmbeddings, embedVendorLabel } from "@/lib/records/records-embeddings";
 import { recordHealthImportConsent, recordRecommendationsConsent } from "@/lib/supabase/consent";
 import { healthImportAllowed, ingestHealthSamples } from "@/lib/health/ingest";
 import { availableHealthSources } from "@/lib/health/registry";
@@ -1041,8 +1041,8 @@ export function DeepSpacePrivacyDesignScreen() {
           <>
             <Text variant="body" style={styles.lead}>
               {ko
-                ? "켜기 전에 알아두세요. 켜면 앞으로 담는 기록의 내용이 의미 벡터로 변환·저장돼, 서로 비슷한 기록을 이어 보여드려요. 변환을 위해 기록 텍스트가 Gemini(해외)로 전송됩니다. 위기 관련 내용은 전송되지 않아요. 성인만 켤 수 있고, 끄면 이후 색인이 멈추고 저장된 벡터도 삭제돼요. 동의는 기록에 남습니다."
-                : "Before you turn it on. New records will be turned into meaning vectors and stored so similar records can be linked. To do that, record text is sent to Gemini (processed overseas). Crisis-related content is not sent. Adults only; turning it off stops indexing and deletes the stored vectors. Your consent is logged."}
+                ? `켜기 전에 알아두세요. 켜면 앞으로 담는 기록의 내용이 의미 벡터로 변환·저장돼, 서로 비슷한 기록을 이어 보여드려요. 변환을 위해 기록 텍스트가 ${embedVendorLabel()}(해외)로 전송됩니다. 위기 관련 내용은 전송되지 않아요. 성인만 켤 수 있고, 끄면 이후 색인이 멈추고 저장된 벡터도 삭제돼요. 동의는 기록에 남습니다.`
+                : `Before you turn it on. New records will be turned into meaning vectors and stored so similar records can be linked. To do that, record text is sent to ${embedVendorLabel()} (processed overseas). Crisis-related content is not sent. Adults only; turning it off stops indexing and deletes the stored vectors. Your consent is logged.`}
             </Text>
             <View style={styles.ctaRow}>
               <Pressable style={styles.secondary} onPress={() => setEmbedUnderstanding(false)} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "취소" : "Cancel"}>
