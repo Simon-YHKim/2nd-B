@@ -92,14 +92,17 @@ describe("PIXEL-CLAY /profile contract", () => {
     expect(source).not.toMatch(/border(?:Top|Bottom)?(?:Left|Right|Start|End)?Radius\s*:\s*(?!m3\.shape\.none)/);
   });
 
-  test("gives intrinsic PixelPressable roots measured full-row widths", () => {
+  test("uses the shared pressable stretch API and exposes navigation semantics", () => {
     const source = read(SCREEN);
-    expect(source).toContain("useWindowDimensions");
-    expect(source).toContain("const contentWidth = Math.max(m3.minTouch, width - m3.spacing.s6 * 2)");
-    expect(source).toContain("style={{ width: contentWidth }}");
-    expect(source).toContain("style={{ width: tabWidth }}");
-    expect(source).toContain("style={{ width: framedContentWidth }}");
-    expect(source).not.toContain("style={styles.fullWidth}");
+    expect(source.match(/\bfullWidth\b/g) ?? []).toHaveLength(2);
+    expect(source).toContain("rootStyle={styles.tab}");
+    expect(source).toContain("style={styles.tabSurface}");
+    expect(source).toContain('accessibilityRole="tab"');
+    expect(source).toContain("accessibilityState={{ selected }}");
+    expect(source.match(/accessibilityRole="link"/g) ?? []).toHaveLength(3);
+    expect(source).not.toContain("useWindowDimensions");
+    expect(source).not.toContain("contentWidth");
+    expect(source).not.toContain("framedContentWidth");
   });
 
   test("registers the dedicated screen with the PIXEL-CLAY rules gate", () => {
