@@ -13,18 +13,14 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { m3 } from "@/lib/theme/m3";
 
 import {
-  dataRightsFor,
-  dataScreenCopyFor,
-  type DataLocale,
+  DATA_RIGHTS,
+  DATA_SCREEN_META,
   type DataRightId,
 } from "./dds-data-content";
 
 export function DeepSpaceDataScreen() {
-  const { t, i18n } = useTranslation(["data", "common"]);
+  const { t } = useTranslation(["data", "common", "deepspace", "consent", "iden"]);
   const { userId, loading } = useAuth();
-  const locale: DataLocale = i18n.language?.toLowerCase().startsWith("ko") ? "ko" : "en";
-  const copy = dataScreenCopyFor(locale);
-  const rights = dataRightsFor(locale);
   const [expandedId, setExpandedId] = useState<DataRightId | null>(null);
 
   if (loading) {
@@ -51,7 +47,7 @@ export function DeepSpaceDataScreen() {
             <PixelGlyph name="arrowBack" color={m3.color.onSurface} size={24} />
           </PixelPressable>
           <RNText accessibilityRole="header" style={[m3TextStyle("titleLarge"), styles.title]}>
-            {copy.title}
+            {t(DATA_SCREEN_META.titleKey)}
           </RNText>
         </View>
 
@@ -63,11 +59,21 @@ export function DeepSpaceDataScreen() {
         >
           <PixelSurface variant="inset" contentStyle={styles.hero}>
             <PixelGlyph name="hub" color={m3.color.primary} size={48} />
-            <RNText style={[m3TextStyle("bodyLarge"), styles.heroText]}>{copy.hero}</RNText>
+            <View style={styles.heroCopy}>
+              <RNText style={[m3TextStyle("titleSmall"), styles.heroTitle]}>
+                {t(DATA_SCREEN_META.heroTitleKey)}
+              </RNText>
+              <RNText style={[m3TextStyle("bodySmall"), styles.heroSubtitle]}>
+                {t(DATA_SCREEN_META.heroSubtitleKey)}
+              </RNText>
+              <RNText style={[m3TextStyle("bodyMedium"), styles.heroBody]}>
+                {t(DATA_SCREEN_META.heroBodyKey)}
+              </RNText>
+            </View>
           </PixelSurface>
 
           <View style={styles.rightsList}>
-            {rights.map((item) => {
+            {DATA_RIGHTS.map((item) => {
               const expanded = item.id === expandedId;
               const accent = item.danger ? m3.color.error : m3.color.primary;
               return (
@@ -75,9 +81,7 @@ export function DeepSpaceDataScreen() {
                   <PixelPressable
                     variant={expanded ? "inset" : "bevel"}
                     onPress={() => setExpandedId(expanded ? null : item.id)}
-                    accessibilityLabel={`${item.title}. ${item.summary}. ${
-                      expanded ? copy.expanded : copy.collapsed
-                    }`}
+                    accessibilityLabel={t(item.titleKey)}
                     accessibilityState={{ expanded }}
                     fullWidth
                     contentStyle={styles.rightHeader}
@@ -90,10 +94,7 @@ export function DeepSpaceDataScreen() {
                           item.danger ? styles.dangerTitle : styles.rightTitle,
                         ]}
                       >
-                        {item.title}
-                      </RNText>
-                      <RNText style={[m3TextStyle("bodySmall"), styles.summary]}>
-                        {item.summary}
+                        {t(item.titleKey)}
                       </RNText>
                     </View>
                     <PixelGlyph
@@ -110,12 +111,13 @@ export function DeepSpaceDataScreen() {
                       contentStyle={styles.detailContent}
                     >
                       <RNText style={[m3TextStyle("bodyMedium"), styles.detailText]}>
-                        {item.detail}
+                        {t(item.bodyKey)}
                       </RNText>
                       <PixelPressable
                         variant="frame"
                         onPress={() => router.push(item.route as Href)}
-                        accessibilityLabel={item.actionLabel}
+                        accessibilityLabel={t(item.actionLabelKey)}
+                        accessibilityHint={t(item.actionHintKey)}
                         accessibilityRole="link"
                         fullWidth
                         contentStyle={styles.actionContent}
@@ -126,7 +128,7 @@ export function DeepSpaceDataScreen() {
                             item.danger ? styles.dangerAction : styles.actionText,
                           ]}
                         >
-                          {item.actionLabel}
+                          {t(item.actionLabelKey)}
                         </RNText>
                         <PixelGlyph name="arrowForward" color={accent} size={24} />
                       </PixelPressable>
@@ -175,12 +177,10 @@ const styles = StyleSheet.create({
     gap: m3.spacing.s6,
     paddingVertical: m3.spacing.s6,
   },
-  heroText: {
-    flex: 1,
-    minWidth: 0,
-    color: m3.color.onSurface,
-    paddingBottom: m3.spacing.s1,
-  },
+  heroCopy: { flex: 1, minWidth: 0, gap: m3.spacing.s2 },
+  heroTitle: { color: m3.color.onSurface, paddingBottom: m3.spacing.s1 },
+  heroSubtitle: { color: m3.color.primary, paddingBottom: m3.spacing.s1 },
+  heroBody: { color: m3.color.onSurfaceVariant, paddingBottom: m3.spacing.s1 },
   rightsList: { gap: m3.spacing.s4 },
   rightBlock: { alignSelf: "stretch" },
   rightHeader: {
@@ -193,7 +193,6 @@ const styles = StyleSheet.create({
   rightCopy: { flex: 1, minWidth: 0, gap: m3.spacing.s1 },
   rightTitle: { color: m3.color.onSurface, paddingBottom: m3.spacing.s1 },
   dangerTitle: { color: m3.color.error, paddingBottom: m3.spacing.s1 },
-  summary: { color: m3.color.onSurfaceVariant, paddingBottom: m3.spacing.s1 },
   detailSurface: { alignSelf: "stretch", marginTop: m3.spacing.s2 },
   detailContent: { gap: m3.spacing.s4, paddingVertical: m3.spacing.s6 },
   detailText: { color: m3.color.onSurfaceVariant, paddingBottom: m3.spacing.s1 },

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { dataRightsFor, dataScreenCopyFor } from "../dds-data-content";
+import { DATA_RIGHTS, DATA_SCREEN_META } from "../dds-data-content";
 
 const ROOT = join(__dirname, "..", "..", "..", "..");
 const ROUTE = join(ROOT, "src", "app", "data.tsx");
@@ -15,13 +15,7 @@ function read(path: string): string {
 
 describe("PIXEL-CLAY /data content contract", () => {
   test("routes the four data rights to their single real owners", () => {
-    expect(dataRightsFor("en").map(({ route }) => route)).toEqual([
-      "/import-hub",
-      "/account?tool=export",
-      "/iden",
-      "/privacy",
-    ]);
-    expect(dataRightsFor("ko").map(({ route }) => route)).toEqual([
+    expect(DATA_RIGHTS.map(({ route }) => route)).toEqual([
       "/import-hub",
       "/account?tool=export",
       "/iden",
@@ -29,18 +23,43 @@ describe("PIXEL-CLAY /data content contract", () => {
     ]);
   });
 
-  test("distinguishes complete account export, wiki context, and portable IDEN", () => {
-    const byId = new Map(dataRightsFor("ko").map((item) => [item.id, item]));
-    expect(byId.get("account-export")?.detail).toContain("위키 context pack과 다릅니다");
-    expect(byId.get("account-export")?.detail).toContain("전체 JSON 묶음");
-    expect(byId.get("iden")?.detail).toContain("전체 계정 백업이 아닙니다");
-    expect(byId.get("iden")?.detail).toContain("포터블 요약");
+  test("binds complete account export and portable IDEN to distinct canonical copy", () => {
+    const byId = new Map(DATA_RIGHTS.map((item) => [item.id, item]));
+    expect(byId.get("account-export")?.bodyKey).toBe("consent:account.export.body");
+    expect(byId.get("iden")?.bodyKey).toBe("iden:entry.body");
+
+    for (const locale of ["en", "ko"] as const) {
+      const consent = JSON.parse(
+        read(join(ROOT, "locales", locale, "consent.json")),
+      ) as { account: { export: { body: string } } };
+      const iden = JSON.parse(read(join(ROOT, "locales", locale, "iden.json"))) as {
+        entry: { body: string };
+      };
+      expect(consent.account.export.body).toMatch(/JSON/i);
+      expect(iden.entry.body).not.toMatch(/JSON/i);
+      expect(consent.account.export.body).not.toBe(iden.entry.body);
+    }
   });
 
-  test("keeps one honest message and never claims counts or an empty account", () => {
-    expect(dataScreenCopyFor("en").hero).toMatch(/import.*move.*control.*deletion/i);
-    expect(dataScreenCopyFor("ko").hero).toMatch(/가져오고.*옮기고.*사용 범위.*삭제/);
+  test("uses existing locale keys without an inline language branch", () => {
+    expect(DATA_SCREEN_META).toEqual({
+      titleKey: "deepspace:account.navData",
+      heroTitleKey: "data:hero.title",
+      heroSubtitleKey: "data:hero.subtitle",
+      heroBodyKey: "data:hero.speech",
+    });
+    expect(
+      DATA_RIGHTS.every(({ titleKey, bodyKey, actionLabelKey, actionHintKey }) =>
+        [titleKey, bodyKey, actionLabelKey, actionHintKey].every((key) => key.includes(":")),
+      ),
+    ).toBe(true);
+    expect(read(CONTENT)).not.toContain("DataLocale");
+    expect(read(SCREEN)).not.toContain("i18n.language");
+    expect(read(SCREEN)).toContain("t(DATA_SCREEN_META.titleKey)");
+    expect(read(SCREEN)).toContain("t(item.bodyKey)");
+  });
 
+  test("never claims fixture counts, an empty account, or a derived-signal reset", () => {
     const source = `${read(SCREEN)}\n${read(CONTENT)}`;
     expect(source).not.toMatch(/(?:124|38|52\s*%|2\.4)/);
     expect(source).not.toMatch(/(?:No data gathered|No data yet|아직 모아둔 데이터|데이터가 없)/i);
