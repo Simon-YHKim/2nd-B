@@ -16,7 +16,7 @@ import { Fragment, memo, useCallback, useEffect, useMemo, useState } from "react
 import { useTranslation } from "react-i18next";
 import { AccessibilityInfo, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { router } from "expo-router";
-import Svg, { Defs, Pattern, RadialGradient, Rect, Stop } from "react-native-svg";
+import Svg, { Defs, Pattern, Rect } from "react-native-svg";
 
 import { PixelStarSvg } from "../pixel/PixelStarSvg";
 
@@ -121,6 +121,13 @@ const LINK_CELL = 3;
 
 /** 신경망 링크를 놓는 셀. 원래 굵기가 1 안팎이라 2가 맞다. */
 const NEURAL_CELL = 2;
+
+/** Background nodes must stay below even a resting home star's visual span. */
+const NEURAL_NODE_OUTER_MAX = 6;
+const NEURAL_NODE_INNER_MAX = 2;
+
+/** Keep SecondB present while the constellation remains the screen's one hero graphic. */
+const HOME_HEAD_SIZE = 152;
 
 /**
  * 선 색 — 원래 `homeAlpha(…, 0.34)` 였다. 미리 합성해 불투명 색으로 둔다(규칙 4).
@@ -326,7 +333,25 @@ function buildNeuralField(w: number, h: number) {
   return { nodes: nodes.map((n) => ({ ...n, fade: near(n) ? 1 : 0.16 })), stars, links };
 }
 
-// The stage washes + static neural field are a pure function of the stage
+/**
+ * The neural field has three opaque, canonical colour bands. Its old
+ * continuously pre-composited alpha values were technically opaque at render
+ * time, but still produced an unbounded colour ramp. Quantizing the signal
+ * keeps depth readable without reintroducing opacity or interpolation.
+ */
+const NEURAL_BAND_FILL = [
+  m3.color.surfaceContainerHighest,
+  m3.color.primaryContainer,
+  m3.accent.starCore,
+] as const;
+
+function neuralBand(signal: number): (typeof NEURAL_BAND_FILL)[number] {
+  if (signal < 0.2) return NEURAL_BAND_FILL[0];
+  if (signal < 0.4) return NEURAL_BAND_FILL[1];
+  return NEURAL_BAND_FILL[2];
+}
+
+// The opaque stage + static neural field are a pure function of the stage
 // dimensions (no per-tap props), so they must not re-reconcile the ~100-element
 // SVG every time a star/head tap flips `bubble` in ConstellationHome. Extracted
 // and memoized on the w/h primitives: it re-renders only on a real stage resize.
@@ -334,26 +359,10 @@ const NeuralFieldBackdrop = memo(function NeuralFieldBackdrop({ w, h }: { w: num
   const neural = useMemo(() => buildNeuralField(w, h), [w, h]);
   return (
     <Svg width={w} height={h} style={StyleSheet.absoluteFill}>
-      <Defs>
-        <RadialGradient id="ds-stage" cx="50%" cy="26%" rx="120%" ry="70%">
-          <Stop offset="0" stopColor={m3.accent.stageGlow} stopOpacity={0.5} />
-          <Stop offset="0.42" stopColor={m3.accent.skySurface} stopOpacity={0.3} />
-          <Stop offset="0.76" stopColor={m3.accent.stageFloor} stopOpacity={1} />
-          <Stop offset="1" stopColor={m3.accent.stageFloor} stopOpacity={1} />
-        </RadialGradient>
-        <RadialGradient id="ds-vignette" cx="50%" cy="30%" rx="72%" ry="72%">
-          <Stop offset="0" stopColor={m3.accent.stageFloor} stopOpacity={0} />
-          <Stop offset="0.4" stopColor={m3.accent.stageFloor} stopOpacity={0} />
-          <Stop offset="0.72" stopColor={m3.accent.stageFloor} stopOpacity={0.3} />
-          <Stop offset="1" stopColor={m3.accent.stageFloor} stopOpacity={0.62} />
-        </RadialGradient>
-        <RadialGradient id="ds-node" cx="50%" cy="50%" r="50%">
-          <Stop offset="0" stopColor={m3.accent.star} stopOpacity={0.3} />
-          <Stop offset="0.4" stopColor={m3.accent.skyText} stopOpacity={0.1} />
-          <Stop offset="1" stopColor={m3.accent.starCore} stopOpacity={0} />
-        </RadialGradient>
-      </Defs>
-      <Rect x={0} y={0} width={w} height={h} fill="url(#ds-stage)" />
+      {/* PIXEL-CLAY uses one opaque canonical floor here. The old radial wash
+          and alpha vignette produced thousands of interpolated colours and
+          contradicted the no-gradient/no-static-opacity contract. */}
+      <Rect x={0} y={0} width={w} height={h} fill={m3.accent.stageFloor} />
       {/* 신경망 링크 — 2차 베지에 곡선이었다. 셀 계단으로(PIXEL-CLAY 규칙 1).
           알파는 미리 합성한다(규칙 4) — 바닥은 무대 바닥색이다. */}
       {neural.links.map((l, i) =>
@@ -364,28 +373,36 @@ const NeuralFieldBackdrop = memo(function NeuralFieldBackdrop({ w, h }: { w: num
             y={p.y}
             width={NEURAL_CELL}
             height={NEURAL_CELL}
-            fill={flattenAlpha(m3.accent.starCore, l.a, m3.accent.stageFloor)}
+            fill={neuralBand(l.a)}
           />
         )),
       )}
       {neural.nodes.map((n, i) => {
         const pulse = 0.72 + Math.sin(n.phase) * 0.24;
+        const outerSize = Math.min(
+          NEURAL_NODE_OUTER_MAX,
+          Math.max(2, Math.round(n.r * (3.4 + pulse) * 2)),
+        );
+        const innerSize = Math.min(
+          NEURAL_NODE_INNER_MAX,
+          Math.max(1, Math.round(n.r * pulse * 2)),
+        );
         return (
           <Fragment key={`n${i}`}>
             {/* 노드 발광 — RadialGradient 원이었다. 한 겹 큰 사각으로(규칙 1·4). */}
             <Rect
-              x={Math.round(n.x - n.r * (3.4 + pulse))}
-              y={Math.round(n.y - n.r * (3.4 + pulse))}
-              width={Math.max(2, Math.round(n.r * (3.4 + pulse) * 2))}
-              height={Math.max(2, Math.round(n.r * (3.4 + pulse) * 2))}
-              fill={flattenAlpha(m3.accent.star, 0.3 * n.depth * n.fade, m3.accent.stageFloor)}
+              x={Math.round(n.x - outerSize / 2)}
+              y={Math.round(n.y - outerSize / 2)}
+              width={outerSize}
+              height={outerSize}
+              fill={neuralBand(0.3 * n.depth * n.fade)}
             />
             <Rect
-              x={Math.round(n.x - n.r * pulse)}
-              y={Math.round(n.y - n.r * pulse)}
-              width={Math.max(1, Math.round(n.r * pulse * 2))}
-              height={Math.max(1, Math.round(n.r * pulse * 2))}
-              fill={homeAlpha(m3.accent.star, Math.min(0.5, (0.26 + 0.26 * n.depth) * pulse) * n.fade)}
+              x={Math.round(n.x - innerSize / 2)}
+              y={Math.round(n.y - innerSize / 2)}
+              width={innerSize}
+              height={innerSize}
+              fill={neuralBand(Math.min(0.5, (0.26 + 0.26 * n.depth) * pulse) * n.fade)}
             />
           </Fragment>
         );
@@ -402,11 +419,10 @@ const NeuralFieldBackdrop = memo(function NeuralFieldBackdrop({ w, h }: { w: num
             y={Math.round(s.y) - Math.floor(d / 2)}
             width={d}
             height={d}
-            fill={homeAlpha(m3.accent.star, Math.max(0, s.a))}
+            fill={neuralBand(Math.max(0, s.a))}
           />
         );
       })}
-      <Rect x={0} y={0} width={w} height={h} fill="url(#ds-vignette)" />
     </Svg>
   );
 });
@@ -533,10 +549,10 @@ export function ConstellationHome({
   const kindOf = (id: HomeStarId) => (id === "profile" ? t("ds.home.kind.profile") : t("ds.home.kind.domain"));
 
   const focusedId = bubble.kind === "star" ? bubble.id : null;
-  // sb-home renders the head at 152×1.05 CSS px; the app asset carries more
-  // transparent padding than the prototype box, so the box is scaled up until
-  // the VISIBLE head width matches the reference capture (~35% of the canvas).
-  const headSize = 200;
+  // The canonical asset stays recognizable at 152px while remaining below 40%
+  // of the reference canvas. At 200px it displaced the constellation as the
+  // screen's hero graphic and contradicted the one-message/one-graphic rule.
+  const headSize = HOME_HEAD_SIZE;
 
   const bubbleTag =
     bubble.kind === "reasoning"
@@ -604,11 +620,10 @@ export function ConstellationHome({
 
   return (
     <View style={styles.root} onLayout={(e) => setStage({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
-      {/* stage washes over the shared starfield (sb-home stage radial), then the
-          static neural field, then the edge vignette. */}
+      {/* Opaque stage floor, shared starfield and static neural field. */}
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-        <SbStarfield />
         {stage ? <NeuralFieldBackdrop w={stage.w} h={stage.h} /> : null}
+        <SbStarfield />
       </View>
 
       {/* home inbox bell (sb-app "home inbox bell": 40dp chip, 4dp under the
@@ -1010,7 +1025,7 @@ const styles = StyleSheet.create({
     borderRadius: 0,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: homeAlpha(m3.accent.bellSurface, 0.7),
+    backgroundColor: m3.color.surfaceContainerHighest,
     ...m3.elevation.level2,
   },
   noticeBell: {
@@ -1022,10 +1037,10 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 0,
     borderWidth: 1,
-    borderColor: homeAlpha(m3.color.primary, 0.42),
+    borderColor: m3.color.primary,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: homeAlpha(m3.color.primaryContainer, 0.72),
+    backgroundColor: m3.color.primaryContainer,
     ...m3.elevation.level2,
   },
   museumChip: {
@@ -1038,7 +1053,7 @@ const styles = StyleSheet.create({
     borderRadius: 0,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: homeAlpha(m3.accent.bellSurface, 0.7),
+    backgroundColor: m3.color.surfaceContainerHighest,
     ...m3.elevation.level2,
   },
   communityChip: {
@@ -1051,7 +1066,7 @@ const styles = StyleSheet.create({
     borderRadius: 0,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: homeAlpha(m3.accent.bellSurface, 0.7),
+    backgroundColor: m3.color.surfaceContainerHighest,
     ...m3.elevation.level2,
   },
   bellDot: {
@@ -1112,8 +1127,8 @@ const styles = StyleSheet.create({
     maxWidth: 268,
     borderRadius: 0,
     borderWidth: 1,
-    borderColor: homeAlpha(m3.accent.starCore, 0.34),
-    backgroundColor: homeAlpha(m3.accent.bubbleSurface, 0.95),
+    borderColor: m3.color.primary,
+    backgroundColor: m3.accent.stageFloor,
     paddingVertical: 13,
     paddingHorizontal: 16,
     alignItems: "center",
@@ -1124,10 +1139,10 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     width: 12,
     height: 12,
-    backgroundColor: homeAlpha(m3.accent.bubbleSurface, 0.95),
+    backgroundColor: m3.accent.stageFloor,
     borderLeftWidth: 1,
     borderTopWidth: 1,
-    borderColor: homeAlpha(m3.accent.starCore, 0.34),
+    borderColor: m3.color.primary,
     transform: [{ rotate: "45deg" }],
   },
   bubbleTag: {
