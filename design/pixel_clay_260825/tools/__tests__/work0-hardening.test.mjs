@@ -4945,6 +4945,7 @@ test('post-navigation orchestration rechecks reveal, health, route, mutation, an
     networkRevisionDuringFinalEffect = false,
     driftAfterFinalMacrotask = false,
     fadeAfterFinalMacrotask = false,
+    revealNeedsScroll = false,
   } = {}) => {
     const health = createShotHealth();
     let currentUrl = expectedUrl;
@@ -4952,6 +4953,7 @@ test('post-navigation orchestration rechecks reveal, health, route, mutation, an
     let clicks = 0;
     let checks = 0;
     let blockedMutation = false;
+    let revealScrolled = false;
     const page = { url: () => currentUrl };
     const result = await verifyPostNavigationEffect(
       page,
@@ -4986,8 +4988,11 @@ test('post-navigation orchestration rechecks reveal, health, route, mutation, an
           }
           return visible;
         },
+        scrollRevealTarget: async () => {
+          revealScrolled = true;
+        },
         findRenderedRoleTarget: async () =>
-          revealAvailable
+          revealAvailable && (!revealNeedsScroll || revealScrolled)
             ? {
                 async click() {
                   clicks += 1;
@@ -5007,7 +5012,7 @@ test('post-navigation orchestration rechecks reveal, health, route, mutation, an
         },
       },
     );
-    return { result, clicks, checks };
+    return { result, clicks, checks, revealScrolled };
   };
 
   assert.deepEqual((await run({ initiallyVisible: true })).result, {
@@ -5016,6 +5021,11 @@ test('post-navigation orchestration rechecks reveal, health, route, mutation, an
   });
   assert.equal((await run({ initiallyVisible: true })).clicks, 0);
   assert.equal((await run()).clicks, 1);
+  assert.deepEqual((await run({ revealNeedsScroll: true })).result, {
+    passed: true,
+    evidence: 'exact-route+visible-effect',
+  });
+  assert.equal((await run({ revealNeedsScroll: true })).revealScrolled, true);
   assert.equal((await run({ revealAvailable: false })).result.failure, 'reveal-target');
   assert.equal((await run({ driftAfterIdle: true })).result.failure, 'route-mismatch');
   assert.equal((await run({ networkFailure: true })).result.failure, 'source-health');
@@ -6285,4 +6295,61 @@ test('work0 runtime dependencies and tests are declared in package metadata', ()
   assert.equal(pkg.devDependencies?.['playwright-core'], '1.62.1');
   assert.match(pkg.scripts?.['test:ui-work0'] ?? '', /work0-hardening\.test\.mjs/);
   assert.match(pkg.scripts?.verify ?? '', /test:ui-work0/);
+});
+
+test('star scoring keeps the career tag handoff and screen-scoped color evidence explicit', () => {
+  const nav = JSON.parse(
+    readFileSync(path.join(REPO, 'design/pixel_clay_260825/data/nav.json'), 'utf8'),
+  );
+  const achievement = nav.star?.items?.find((item) => item.label === '성과 입력');
+  assert.deepEqual(achievement, {
+    label: '성과 입력',
+    kind: 'route',
+    to: '/capture-full',
+    locator: { strategy: 'role', role: 'button', name: '성과 입력' },
+    postNavigation: {
+      reveal: { role: 'button', name: '더보기' },
+      effect: {
+        type: 'visible',
+        role: 'button',
+        name: 'domain:career 해시태그 제거',
+        text: '#domain:career',
+      },
+    },
+  });
+
+  const tokens = JSON.parse(
+    readFileSync(path.join(REPO, 'design/pixel_clay_260825/data/tokens.json'), 'utf8'),
+  );
+  const recipes = tokens.derivedRamp?.recipes ?? {};
+  assert.deepEqual(recipes['star-briefing-card'], {
+    type: 'composite',
+    screen: 'star',
+    background: 'nebula-base',
+    foreground: 'primary-container',
+    alpha: 0.34,
+  });
+  assert.equal(recipes['browser-muted-text']?.type, 'stacked-alpha');
+  assert.equal(recipes['browser-muted-text']?.screen, 'star');
+  assert.deepEqual(recipes['browser-muted-text']?.layers, [
+    { color: 'muted-text', alpha: { min: 0, max: 1 } },
+  ]);
+
+  const deviations = JSON.parse(
+    readFileSync(path.join(REPO, 'design/pixel_clay_260825/data/deviations.json'), 'utf8'),
+  );
+  const slugDeviation = deviations.deviations?.find(
+    (entry) => entry.screen === 'star' && entry.axis === 'E' && entry.items?.includes('career'),
+  );
+  assert.equal(typeof slugDeviation?.why, 'string');
+  assert.ok(slugDeviation.why.trim().length > 0);
+});
+
+test('post-navigation verification settles before the probe page is closed', () => {
+  const source = readFileSync(SCORE_CLI, 'utf8');
+  assert.match(source, /return await verifyPostNavigationEffect\(probe,/);
+  assert.match(
+    source,
+    /locateExactNavigationTarget\(page, \{\s*label: effect\.text \?\? effect\.name,/,
+  );
 });

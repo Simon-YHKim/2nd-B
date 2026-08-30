@@ -5653,9 +5653,36 @@ export async function verifyPostNavigationEffect(
     ((effect) => exactNavigationEffectPassed(page, { effect }));
   const findRenderedRoleTarget =
     hooks.findRenderedRoleTarget ??
-    ((effect) => exactRenderedRoleTarget(page, effect));
+    ((effect) =>
+      locateExactNavigationTarget(page, {
+        label: effect.text ?? effect.name,
+        occurrence: effect.occurrence,
+        locator: {
+          strategy: 'role',
+          role: effect.role,
+          name: effect.name,
+        },
+      }));
   const waitForIdle = hooks.waitForIdle ?? (() => waitForShotNetworkIdle(page, health));
   const settle = hooks.settle ?? ((milliseconds) => page.waitForTimeout(milliseconds));
+  const scrollRevealTarget =
+    hooks.scrollRevealTarget ??
+    (async (reveal) => {
+      const target = await visibleLocatorAt(
+        page.getByRole(reveal.role, { name: reveal.name, exact: true }),
+        reveal.occurrence,
+      );
+      if (!target) return false;
+      try {
+        await target.evaluate((element) => {
+          element.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'center' });
+        });
+        await settle(100);
+        return true;
+      } catch {
+        return false;
+      }
+    });
   const routeMatches = () => {
     try {
       validateFinalUrl(baseUrl, route, page.url());
@@ -5676,6 +5703,7 @@ export async function verifyPostNavigationEffect(
   let effectPassed = await checkEffect(postNavigation.effect);
   if (!effectPassed && postNavigation.reveal) {
     const reveal = postNavigation.reveal;
+    await scrollRevealTarget(reveal);
     const revealTarget = await findRenderedRoleTarget({
       role: reveal.role,
       name: reveal.name,
@@ -5847,7 +5875,7 @@ async function probeExactNavigationItem(sourcePage, baseUrl, sourceRoute, item, 
       );
       if (routeFailure) return { passed: false, evidence: null, failure: routeFailure };
       if (item.postNavigation) {
-        return verifyPostNavigationEffect(probe, {
+        return await verifyPostNavigationEffect(probe, {
           baseUrl,
           route: item.to,
           postNavigation: item.postNavigation,
