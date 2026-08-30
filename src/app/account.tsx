@@ -30,7 +30,7 @@ import { deleteAllUserData, requestAccountDeletion } from "@/lib/records/delete-
 import { requestAccountExport, buildExportFilename } from "@/lib/account/export";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
-import { DeepSpaceAccountDesignScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
+import { DeepSpaceAccountScreen } from "@/screens/deepspace/dds-account-screen";
 
 const CONFIRM_PHRASE = "DELETE";
 type AccountFeedbackModal = "dobRetry" | "deleteConfirm" | "deleteFailed" | null;
@@ -392,6 +392,6 @@ const styles = StyleSheet.create({
 });
 
 export default function Account() {
-  if (isDeepSpaceUI()) return <DeepSpaceAccountDesignScreen />;
+  if (isDeepSpaceUI()) return <DeepSpaceAccountScreen />;
   return <AccountLegacy />;
 }

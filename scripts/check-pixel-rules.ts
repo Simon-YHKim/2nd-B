@@ -152,6 +152,7 @@ const MIGRATED: readonly string[] = [
   "src/components/deepspace/shell/SbStarfield.tsx",
   "src/components/deepspace/shell/SbStatusBar.tsx",
   "src/screens/deepspace/dds-auth-screens.tsx",
+  "src/screens/deepspace/dds-account-screen.tsx",
   "src/screens/deepspace/dds-consent-notice-screen.tsx",
 ];
 
