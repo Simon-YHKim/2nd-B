@@ -95,7 +95,7 @@ describe("/profile-details PIXEL-CLAY contract", () => {
 
   test("keeps the actual input and short filter semantics at the 44dp target", () => {
     expect(source).toContain("style={styles.choiceChip}");
-    expect(source).toContain("choiceChip: { minWidth: m3.minTouch }");
+    expect(source).toContain("choiceChip: { minWidth: m3.minTouch + m3.spacing.s1 }");
   });
 
   test("freezes edits while saving and ignores settlement from an old account operation", () => {

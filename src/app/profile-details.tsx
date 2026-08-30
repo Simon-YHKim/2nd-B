@@ -501,8 +501,8 @@ const styles = StyleSheet.create({
     gap: m3.spacing.s2,
     marginTop: m3.spacing.s1,
   },
-  // Short Korean labels such as "밤" otherwise leave the semantic checkbox
-  // narrower than the visual 44dp target on React Native Web.
-  choiceChip: { minWidth: m3.minTouch },
+  // MdChip's 1px border on each side sits outside its semantic Pressable on
+  // web. Reserve one spacing unit so one-character labels still expose 44px.
+  choiceChip: { minWidth: m3.minTouch + m3.spacing.s1 },
   saveButton: { alignSelf: "stretch", width: "100%" },
 });
