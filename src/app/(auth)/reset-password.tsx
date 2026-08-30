@@ -262,6 +262,12 @@ const styles = StyleSheet.create({
 });
 
 export default function ResetPassword() {
-  if (isDeepSpaceUI()) return <DeepSpaceResetPasswordDesignScreen />;
+  // Auth recovery is a safety-sensitive route: the legacy presenter predates
+  // the request/verify phases and mandatory exit lock. Keep the old component
+  // available for source-level rollback, but never select it at runtime.
+  const recoverySafetyPinsPixelClay = true;
+  if (recoverySafetyPinsPixelClay || isDeepSpaceUI()) {
+    return <DeepSpaceResetPasswordDesignScreen />;
+  }
   return <ResetPasswordLegacy />;
 }

@@ -177,6 +177,10 @@ export const BACK_ARROW_HIDDEN_PATHS = [
   "/sign-in",
   "/sign-up",
   "/complete-profile",
+  // This route owns a stricter recovery exit policy. The global chip uses
+  // router.push("/"), which does not remove the current route and can bypass
+  // usePreventRemove, so only the screen's safe back/cancel controls may show.
+  "/reset-password",
   "/oauth-callback",
   "/",
   "/onboarding",

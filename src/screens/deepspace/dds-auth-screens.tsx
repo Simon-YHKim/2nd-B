@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
 import { BackHandler, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text as RNText, TextInput, View, useWindowDimensions } from "react-native";
 import { Redirect, router, useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
+import { usePreventRemove } from "expo-router/react-navigation";
 import { useTranslation } from "react-i18next";
 import Svg, { Circle, Defs, Line, Path, RadialGradient, Rect, Stop } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -761,7 +762,11 @@ export function DeepSpaceResetPasswordDesignScreen() {
   useFontStyle();
   const {
     loading,
+    userId,
     step,
+    recoveryActive,
+    recoveryPending,
+    exitLocked,
     email,
     setEmail,
     canSendCode,
@@ -778,15 +783,20 @@ export function DeepSpaceResetPasswordDesignScreen() {
     confirmPassword,
     setConfirmPassword,
     submitting,
+    cancelling,
+    cancelled,
     toast,
     helperKey,
     canSubmit,
     handleSubmit,
+    handleCancelRecovery,
   } = useResetPasswordForm();
   // Keep this before the loading return. A cold recovery link renders the loader
   // first and the form after AuthContext hydrates; moving the ref below the return
   // changes hook count between those renders.
   const confirmRef = useRef<TextInput>(null);
+
+  usePreventRemove(exitLocked, useCallback(() => {}, []));
 
   // Keep native Back aligned with the visible recovery controls. Before a
   // recovery session exists, Back returns to sign-in. Once the password step
@@ -797,36 +807,39 @@ export function DeepSpaceResetPasswordDesignScreen() {
       if (Platform.OS !== "android") return undefined;
 
       const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-        if (step === "request" || step === "verify") {
-          router.replace("/sign-in");
-        } else if (step === "done") {
-          router.replace("/");
-        }
+        if (exitLocked) return true;
+        router.replace(step === "done" || userId ? "/" : "/sign-in");
         return true;
       });
       return () => sub.remove();
-    }, [step]),
+    }, [exitLocked, step, userId]),
   );
 
-  // A verified recovery session is intentionally non-dismissible until the
-  // password update resolves. `beforeRemove` covers browser/native navigation;
-  // disabling the native gesture closes the iOS swipe-back gap as well.
+  // usePreventRemove owns route removal; native-stack gestures and the long-press
+  // back menu must read the same lock instead of maintaining a second policy.
   useEffect(() => {
-    navigation.setOptions({ gestureEnabled: step !== "password" });
-  }, [navigation, step]);
+    navigation.setOptions({
+      gestureEnabled: !exitLocked,
+      headerBackButtonMenuEnabled: false,
+    });
+  }, [exitLocked, navigation]);
 
   useEffect(() => {
-    if (step !== "password") return undefined;
-    return navigation.addListener("beforeRemove", (event) => {
-      event.preventDefault();
-    });
-  }, [navigation, step]);
+    if (cancelled && !exitLocked) router.replace("/sign-in");
+  }, [cancelled, exitLocked]);
 
   if (loading) {
     return <InlineLoader />;
   }
 
   const helperDanger = helperKey !== "resetPassword.passwordHelper";
+  const exitHref = userId ? "/" : "/sign-in";
+  const exitLabel = userId
+    ? t("common:actions.back")
+    : t("auth:resetPassword.backToSignIn");
+  const exitHint = userId
+    ? t("auth:resetPassword.continueHint")
+    : t("auth:resetPassword.backToSignInHint");
   const title =
     step === "done"
       ? t("auth:resetPassword.doneTitle")
@@ -848,12 +861,12 @@ export function DeepSpaceResetPasswordDesignScreen() {
   return (
     <PixelGateShell contentContainerStyle={resetStyles.scroll}>
       <View style={resetStyles.header}>
-        {step === "request" || step === "verify" ? (
+        {(step === "request" || step === "verify") && !exitLocked ? (
           <Pressable
-            onPress={() => router.replace("/sign-in")}
+            onPress={() => router.replace(exitHref)}
             accessibilityRole="link"
-            accessibilityLabel={t("auth:resetPassword.backToSignIn")}
-            accessibilityHint={t("auth:resetPassword.backToSignInHint")}
+            accessibilityLabel={exitLabel}
+            accessibilityHint={exitHint}
             style={resetStyles.back}
           >
             <PixelGlyph name="arrow_back" color={m3.color.onBackground} size={24} />
@@ -890,7 +903,7 @@ export function DeepSpaceResetPasswordDesignScreen() {
                 accessibilityLabel={t("auth:resetPassword.emailLabel")}
                 accessibilityHint={t("auth:resetPassword.requestSubtitle")}
                 style={[resetStyles.input, m3TextStyle("bodyLarge")]}
-                editable={!sendSubmitting}
+                editable={!sendSubmitting && !recoveryPending}
                 returnKeyType="send"
                 onSubmitEditing={() => {
                   if (canSendCode) void handleSendCode();
@@ -927,6 +940,7 @@ export function DeepSpaceResetPasswordDesignScreen() {
                     accessibilityLabel={t("auth:resetPassword.codeLabel")}
                     accessibilityHint={t("auth:resetPassword.codeHint")}
                     style={[resetStyles.input, resetStyles.codeInput, m3TextStyle("headlineSmall")]}
+                    editable={!sendSubmitting && !recoveryPending}
                     returnKeyType="go"
                     onSubmitEditing={() => {
                       if (canVerify) void handleVerifyCode();
@@ -962,6 +976,7 @@ export function DeepSpaceResetPasswordDesignScreen() {
                 placeholderTextColor={m3.color.onSurfaceVariant}
                 accessibilityLabel={t("auth:resetPassword.newPassword")}
                 accessibilityHint={t("auth:resetPassword.newPasswordHint")}
+                editable={recoveryActive && !recoveryPending && !submitting}
                 returnKeyType="next"
                 blurOnSubmit={false}
                 onSubmitEditing={() => confirmRef.current?.focus()}
@@ -981,6 +996,7 @@ export function DeepSpaceResetPasswordDesignScreen() {
                 accessibilityLabel={t("auth:resetPassword.confirmPassword")}
                 accessibilityHint={t("auth:resetPassword.confirmPasswordHint")}
                 style={[resetStyles.input, m3TextStyle("bodyLarge")]}
+                editable={recoveryActive && !recoveryPending && !submitting}
                 returnKeyType="done"
                 onSubmitEditing={() => {
                   if (canSubmit) void handleSubmit();
@@ -1003,6 +1019,14 @@ export function DeepSpaceResetPasswordDesignScreen() {
               busy={submitting}
               label={submitting ? t("auth:resetPassword.submitting") : t("auth:resetPassword.submit")}
               hint={t("auth:resetPassword.submitHint")}
+            />
+            <ResetAction
+              onPress={() => void handleCancelRecovery()}
+              disabled={recoveryPending || submitting || cancelling}
+              busy={cancelling}
+              secondary
+              label={t("auth:completeProfile.cancel")}
+              hint={t("auth:completeProfile.cancelHint")}
             />
           </>
         )}
