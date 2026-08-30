@@ -87,9 +87,15 @@ describe("/profile-details PIXEL-CLAY contract", () => {
   test("relays Android IME next through consecutive text fields", () => {
     expect(fieldSource).toContain("forwardRef<TextInput, FieldProps>");
     expect(fieldSource).toContain("ref={ref}");
+    expect(fieldSource).toContain("input: { minHeight: m3.minTouch");
     expect(source).toContain('field.key === "occupation" || field.key === "region" ? "next" : "done"');
     expect(source).toContain("regionRef.current?.focus()");
     expect(source).toContain("householdRef.current?.focus()");
+  });
+
+  test("keeps the actual input and short filter semantics at the 44dp target", () => {
+    expect(source).toContain("style={styles.choiceChip}");
+    expect(source).toContain("choiceChip: { minWidth: m3.minTouch }");
   });
 
   test("freezes edits while saving and ignores settlement from an old account operation", () => {

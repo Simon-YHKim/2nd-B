@@ -392,6 +392,7 @@ export default function ProfileDetailsScreen() {
                       <MdChip
                         key={choice}
                         kind="filter"
+                        style={styles.choiceChip}
                         label={t(`deepspace:profileDetails.${choiceLabelKey(field.key, choice)}`)}
                         selected={value === choice}
                         // 같은 칩을 다시 누르면 해제된다. 한 번 고르면 못 무르는
@@ -500,5 +501,8 @@ const styles = StyleSheet.create({
     gap: m3.spacing.s2,
     marginTop: m3.spacing.s1,
   },
+  // Short Korean labels such as "밤" otherwise leave the semantic checkbox
+  // narrower than the visual 44dp target on React Native Web.
+  choiceChip: { minWidth: m3.minTouch },
   saveButton: { alignSelf: "stretch", width: "100%" },
 });

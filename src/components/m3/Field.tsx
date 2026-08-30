@@ -74,6 +74,8 @@ const styles = StyleSheet.create({
     minHeight: 56,
     justifyContent: "center",
   },
-  input: { fontSize: 16, padding: 0, margin: 0 },
+  // The outlined box is visual chrome; the TextInput itself is the semantic
+  // target on web/TalkBack. Keep that real target at the 44dp minimum too.
+  input: { minHeight: m3.minTouch, fontSize: 16, padding: 0, margin: 0 },
   support: { marginTop: m3.spacing.s1, marginHorizontal: m3.spacing.s4 },
 });
