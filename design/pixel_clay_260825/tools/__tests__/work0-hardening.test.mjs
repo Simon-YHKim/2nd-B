@@ -3694,6 +3694,83 @@ test('Chromium rejects offscreen-indent and same-paint post-navigation labels', 
       }
     }
 
+    const canonicalBoldData = readFileSync(
+      path.join(REPO, 'assets', 'fonts', 'Galmuri11Bold-subset.woff2'),
+    ).toString('base64');
+    await page.setViewportSize({ width: 390, height: 820 });
+    await page.setContent(`
+      <style>
+        @font-face {
+          font-family: Galmuri11Bold;
+          src: url(data:font/woff2;base64,${canonicalBoldData});
+          font-style: normal;
+          font-weight: 400;
+        }
+      </style>
+      <button aria-label="\uc5ec\ud589 \uc2dc\uc791 canonical 400"
+        style="position:absolute;z-index:0;left:159px;top:673.25px;width:72px;height:48px;display:flex;align-items:center;justify-content:center;flex-direction:row;padding:0 12px;border:0;background:rgb(91,141,239)">
+        <div style="position:relative;display:block;box-sizing:border-box;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0;color:rgb(20,27,46);font-family:Galmuri11Bold;font-size:12px;font-style:normal;font-weight:400;line-height:18px;transform:translateZ(0)">
+          \uc5ec\ud589\ud558\uae30
+        </div>
+      </button>
+    `);
+    await page.evaluate(() => document.fonts.load('400 12px Galmuri11Bold', '\uc5ec\ud589\ud558\uae30'));
+    const canonicalEffect = {
+      type: 'visible',
+      role: 'button',
+      name: '\uc5ec\ud589 \uc2dc\uc791 canonical 400',
+      text: '\uc5ec\ud589\ud558\uae30',
+      occurrence: 1,
+    };
+    assert.equal(
+      await exactNavigationEffectPassed(page, { effect: canonicalEffect }),
+      true,
+      'canonical Galmuri11Bold must preserve RN Web 400-weight flex text at a fractional y',
+    );
+
+    const canonicalText = page.locator('button > div');
+    await canonicalText.evaluate((element) => {
+      element.style.width = '18px';
+    });
+    assert.equal(
+      await exactNavigationEffectPassed(page, { effect: canonicalEffect }),
+      false,
+      'element-owned ellipsis must still reject genuinely clipped canonical text',
+    );
+
+    await canonicalText.evaluate((element) => {
+      element.style.removeProperty('width');
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      const overlay = document.createElement('i');
+      overlay.textContent = '\uc5ec\ud589\ud558\uac00';
+      overlay.style.cssText = [
+        'position:fixed',
+        `left:${rect.left}px`,
+        `top:${rect.top}px`,
+        `width:${rect.width}px`,
+        `height:${rect.height}px`,
+        'z-index:10',
+        'pointer-events:none',
+        'display:block',
+        'white-space:nowrap',
+        'overflow:hidden',
+        'text-overflow:ellipsis',
+        'transform:translateZ(0)',
+        'background:rgb(91,141,239)',
+        `color:${style.color}`,
+        `font:${style.font}`,
+        `line-height:${style.lineHeight}`,
+      ].join(';');
+      document.body.append(overlay);
+    });
+    assert.equal(
+      await exactNavigationEffectPassed(page, { effect: canonicalEffect }),
+      false,
+      'clipped grayscale-composited text must reject a wrong-glyph overlay',
+    );
+    await page.setViewportSize({ width: 800, height: 600 });
+
     await page.setContent(`
       <button aria-label="domain:career 해시태그 제거"
         style="width:160px;height:40px;background:#111;color:#fff">

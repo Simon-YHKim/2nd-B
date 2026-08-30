@@ -3875,6 +3875,10 @@ async function screenshotConfirmsPaintedText(page, paintedHandle, targetHandle, 
           lineHeight: style.lineHeight,
           text: normalizedText,
           textRendering: style.textRendering,
+          textCompositorCandidate:
+            ['clip', 'hidden'].includes(style.overflowX) ||
+            ['clip', 'hidden'].includes(style.overflowY),
+          textTransform: 'none',
           top: top - clip.y,
           targetBackground: null,
           targetHeight: compositorRect.height,
@@ -3961,6 +3965,16 @@ async function screenshotConfirmsPaintedText(page, paintedHandle, targetHandle, 
     const browserContext = typeof page.context === 'function' ? page.context() : null;
     if (typeof browserContext?.newPage !== 'function') return false;
     const expectedDrawings = [evidence.drawing];
+    if (evidence.drawing.textCompositorCandidate) {
+      expectedDrawings.push({
+        ...evidence.drawing,
+        // Chromium can rasterize clipped RN Web text as a grayscale-composited
+        // layer even when computed transform is `none`. Preserve the exact
+        // trusted font/glyph geometry and compare that second native raster,
+        // instead of weakening the glyph similarity thresholds.
+        textTransform: 'translateZ(0)',
+      });
+    }
     if (evidence.neutral3DScrollTarget) {
       expectedDrawings.push({ ...evidence.drawing, ...evidence.neutral3DScrollTarget });
     }
@@ -4041,6 +4055,7 @@ async function screenshotConfirmsPaintedText(page, paintedHandle, targetHandle, 
             position: 'absolute',
             textRendering: drawing.textRendering,
             top: '0px',
+            transform: drawing.textTransform,
             whiteSpace: 'pre',
             wordSpacing: drawing.wordSpacing,
           });
@@ -4664,7 +4679,7 @@ async function exactRenderedRoleTarget(page, effect) {
                 (currentStyle.textTransform && currentStyle.textTransform !== 'none') ||
                 (currentStyle.webkitTextSecurity && currentStyle.webkitTextSecurity !== 'none') ||
                 !preservesTextOrientation(currentStyle.transform) ||
-                currentStyle.textOverflow === 'ellipsis' ||
+                (current !== element && currentStyle.textOverflow === 'ellipsis') ||
                 (currentStyle.webkitLineClamp && currentStyle.webkitLineClamp !== 'none') ||
                 !['normal', 'isolate'].includes(currentStyle.unicodeBidi || 'normal') ||
                 (currentStyle.direction && currentStyle.direction !== 'ltr')
