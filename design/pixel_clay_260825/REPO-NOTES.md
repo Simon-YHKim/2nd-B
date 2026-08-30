@@ -23,6 +23,15 @@ location.reload();
 라우트 93개는 앱 셸 모듈(1c6d1aec, sb-app.jsx)의 `ScreenBody` switch 가 정본.
 실측 캡처 5장은 `shots/`.
 
+## 직접 매핑 밖 화면의 생존 계획
+
+`data/salvage-plan.json` 이 직접 대조 route가 없는 디자인 프레임과 직접 대응 디자인이
+없는 production route를 양방향으로 전수 분류한다. 새 고아 route를 만들라는 목록이 아니다.
+실제 기능의 상태로 흡수(`state`/`embed`), 의미만 재사용(`adapt`), 새 정본 필요(`redesign`),
+또는 안전한 제외(`exclude`/`defer`) 중 하나를 근거와 완료 조건까지 적는 구현 계약이다.
+`tools/validate-ref.mjs` 가 `screens.json`·`app-routes.json`·`screen-index.ts`와 exact-set으로
+대조하므로 화면이 추가되거나 사라질 때 계획만 조용히 낡을 수 없다.
+
 ## 브리프 3대 검증 — **3/3 통과**
 
 | 항목 | 판정 | 근거 |

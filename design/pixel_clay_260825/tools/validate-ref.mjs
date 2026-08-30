@@ -19,6 +19,8 @@
  *      레퍼런스 id 가 둘 이상 붙으면 그중 하나는 반드시 다른 화면과 대조된다
  *      (실측 2026-08-26: record/records 가 둘 다 /records 라 record 71% 가 거짓이었다).
  *      unmeasurable/unmapped 항목은 사유(why)가 필수 — 사유 없는 제외는 은폐다.
+ *   7. salvage-plan.json 이 직접 매핑 밖의 디자인 프레임과 production route 를
+ *      정확히 한 번씩 분류한다. 재사용 계획이 새 화면 추가나 조용한 폐기로 변질되면 막는다.
  *
  * 실행: node design/pixel_clay_260825/tools/validate-ref.mjs
  */
@@ -30,6 +32,17 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, '..');
 const fail = [];
 const note = (m) => fail.push(m);
+
+function compareExactSet(label, expected, actual) {
+  const expectedSet = new Set(expected);
+  const actualSet = new Set(actual);
+  for (const value of expectedSet) {
+    if (!actualSet.has(value)) note(`${label}: 누락 ${value}`);
+  }
+  for (const value of actualSet) {
+    if (!expectedSet.has(value)) note(`${label}: 범위 밖 항목 ${value}`);
+  }
+}
 
 const manifestPath = path.join(ROOT, 'data', 'screens.json');
 if (!existsSync(manifestPath)) {
@@ -132,6 +145,134 @@ if (existsSync(routesPath)) {
       if (!seen.has(id)) note(`app-routes.${key}: ${id} 가 screens.json 에 없다`);
       if (!info || !info.why) note(`app-routes.${key}: ${id} 에 why 가 없다 — 왜 못 재는지 적지 않으면 다음 사람이 없는 결함을 쫓는다`);
       if (routes[id]) note(`app-routes: ${id} 가 routes 와 ${key} 에 동시에 있다`);
+    }
+  }
+
+  // 7. 직접 매핑 밖 자산의 생존 계획. route를 억지로 늘리지 않으면서도 모든 프레임과
+  // production 화면의 처리 방향을 명시한다. 이 목록이 screens/screen-index와 같이 낡아야
+  // 하므로 두 정본에서 기대 집합을 매번 다시 계산한다.
+  const salvagePath = path.join(ROOT, 'data', 'salvage-plan.json');
+  if (!existsSync(salvagePath)) {
+    note('data/salvage-plan.json 이 없다 — 직접 매핑 밖 프레임/라우트의 생존 계획이 필요하다');
+  } else {
+    const salvage = JSON.parse(readFileSync(salvagePath, 'utf8'));
+    if (salvage.schema !== 1) note(`salvage-plan: schema 는 1이어야 한다 (${salvage.schema})`);
+
+    const designFrames = salvage.designFrames ?? {};
+    const unmeasurableIds = new Set(
+      Object.keys(rf.unmeasurable ?? {}).filter((id) => id !== '_note'),
+    );
+    const expectedDesignIds = screens
+      .map((screen) => screen.id)
+      .filter((id) => !Object.hasOwn(routes, id) && !unmeasurableIds.has(id));
+    compareExactSet('salvage-plan.designFrames', expectedDesignIds, Object.keys(designFrames));
+
+    const allowedDispositions = new Set([
+      'state',
+      'redesign',
+      'adapt',
+      'defer',
+      'embed',
+      'exclude',
+      'retain',
+    ]);
+    const allowedReferenceUse = new Set(['direct', 'layout-only', 'none']);
+    const screenById = new Map(screens.map((screen) => [screen.id, screen]));
+    for (const [id, plan] of Object.entries(designFrames)) {
+      const screen = screenById.get(id);
+      if (!plan || typeof plan !== 'object') {
+        note(`salvage-plan.designFrames.${id}: 객체여야 한다`);
+        continue;
+      }
+      if (!allowedDispositions.has(plan.disposition)) {
+        note(`salvage-plan.designFrames.${id}: 알 수 없는 disposition ${plan.disposition}`);
+      }
+      if (!allowedReferenceUse.has(plan.referenceUse)) {
+        note(`salvage-plan.designFrames.${id}: 알 수 없는 referenceUse ${plan.referenceUse}`);
+      }
+      if (plan.target !== null && (typeof plan.target !== 'string' || !plan.target.trim())) {
+        note(`salvage-plan.designFrames.${id}: target 은 비어 있지 않은 문자열 또는 null 이어야 한다`);
+      }
+      for (const field of ['activation', 'reason']) {
+        if (typeof plan[field] !== 'string' || !plan[field].trim()) {
+          note(`salvage-plan.designFrames.${id}: ${field} 가 비어 있다`);
+        }
+      }
+      if (screen?.port === false && plan.referenceUse === 'direct') {
+        note(`salvage-plan.designFrames.${id}: port:false 프레임을 direct 참고로 쓸 수 없다`);
+      }
+      if (plan.disposition === 'exclude' && plan.referenceUse !== 'none') {
+        note(`salvage-plan.designFrames.${id}: exclude 는 referenceUse=none 이어야 한다`);
+      }
+    }
+
+    const screenIndexPath = path.join(ROOT, '..', '..', 'src', 'lib', 'dev', 'screen-index.ts');
+    if (!existsSync(screenIndexPath)) {
+      note('src/lib/dev/screen-index.ts 가 없다 — production route 생존 계획을 대조할 수 없다');
+    } else {
+      const screenIndex = readFileSync(screenIndexPath, 'utf8');
+      const productionHrefs = [];
+      for (const line of screenIndex.split(/\r?\n/)) {
+        const entry = line.match(
+          /^\s*\{\s*file:\s*"[^"]+",\s*href:\s*"([^"]+)",\s*label:\s*"[^"]+"(.*)\},?\s*$/,
+        );
+        if (!entry || /(?:^|,\s*)dev:\s*true(?:\s*,|\s*$)/.test(entry[2])) continue;
+        productionHrefs.push(entry[1]);
+      }
+      if (productionHrefs.length === 0) {
+        note('salvage-plan: screen-index.ts 에서 production route 를 하나도 읽지 못했다');
+      }
+      const directlyCoveredHrefs = new Set([
+        ...Object.values(routes),
+        ...Object.entries(rf.unmeasurable ?? {})
+          .filter(([id, info]) => id !== '_note' && info && typeof info === 'object')
+          .map(([, info]) => info.route)
+          .filter(Boolean),
+      ]);
+      const expectedActualHrefs = productionHrefs.filter(
+        (href) => !directlyCoveredHrefs.has(href),
+      );
+      const actualRoutes = salvage.actualRoutes ?? {};
+      compareExactSet(
+        'salvage-plan.actualRoutes',
+        expectedActualHrefs,
+        Object.keys(actualRoutes),
+      );
+
+      const allowedStrategies = new Set([
+        'adapt-reference',
+        'derive-pattern',
+        'state-only',
+        'redesign',
+        'alias',
+        'retain',
+      ]);
+      for (const [href, plan] of Object.entries(actualRoutes)) {
+        if (!plan || typeof plan !== 'object') {
+          note(`salvage-plan.actualRoutes.${href}: 객체여야 한다`);
+          continue;
+        }
+        if (!allowedStrategies.has(plan.strategy)) {
+          note(`salvage-plan.actualRoutes.${href}: 알 수 없는 strategy ${plan.strategy}`);
+        }
+        if (!Array.isArray(plan.references)) {
+          note(`salvage-plan.actualRoutes.${href}: references 는 배열이어야 한다`);
+        } else {
+          for (const id of plan.references) {
+            if (!screenById.has(id)) {
+              note(`salvage-plan.actualRoutes.${href}: references 의 ${id} 가 screens.json 에 없다`);
+            }
+          }
+          if (plan.strategy === 'alias' && plan.references.length > 0) {
+            note(`salvage-plan.actualRoutes.${href}: alias 는 독립 디자인 reference 를 두지 않는다`);
+          }
+        }
+        for (const field of ['implementation', 'doneWhen']) {
+          if (typeof plan[field] !== 'string' || !plan[field].trim()) {
+            note(`salvage-plan.actualRoutes.${href}: ${field} 가 비어 있다`);
+          }
+        }
+      }
     }
   }
 }
