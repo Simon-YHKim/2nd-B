@@ -8,3 +8,4 @@ export { PixelSurface, type PixelSurfaceProps, type PixelSurfaceVariant } from "
 export { PixelDither, PixelScrim, type PixelDitherProps } from "./PixelDither";
 export { pixelPressTransform, pixelStateDensity, type DitherDensity } from "./press";
 export { PixelPressable, type PixelPressableProps } from "./PixelPressable";
+export { PixelGateShell, type PixelGateShellProps } from "./PixelGateShell";
