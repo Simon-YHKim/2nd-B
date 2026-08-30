@@ -79,6 +79,11 @@
    "why": "auth 와 같다 — 로그인 상태에서는 가입 화면에 못 들어간다.",
    "needs": "로그아웃 세션"
   },
+  "profilesetup": {
+   "route": "/complete-profile",
+   "why": "가입 직후 1회성 플로라 기존 프로필이 있는 QA 계정은 홈으로 리다이렉트한다.",
+   "needs": "인증은 완료됐지만 public.users 프로필 행은 아직 없는 신규 OAuth 세션"
+  },
   "peer-token": {
    "route": "/peer/sample",
    "why": "'sample' 은 실제 토큰이 아니라 앱이 '유효하지 않은 링크입니다' 를 그린다(13%).",
@@ -113,9 +118,6 @@
   },
   "pwreset": {
    "why": "복구 세션이 있어야 열리는 화면이라 하네스가 조건을 못 만든다."
-  },
-  "profilesetup": {
-   "why": "가입 직후 1회성 플로. 로그인된 QA 계정에서는 안 열린다."
   },
   "dobgate": {
    "why": "생년월일 게이트는 미성년 판정 전에만 뜬다. 성인 QA 계정에서 재현 불가."

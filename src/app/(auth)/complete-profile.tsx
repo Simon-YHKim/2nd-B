@@ -21,6 +21,7 @@ import { ageInYears, ensureUserProfile, AgeGateError, EmailInUseError, signOut, 
 import { useAuth } from "@/lib/auth/AuthContext";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { ConsentNotice } from "@/components/consent/ConsentNotice";
+import { PixelSurface } from "@/components/pixel";
 import {
   emptyConsentSelections,
   allRequiredAcksChecked,
@@ -53,14 +54,21 @@ export default function CompleteProfile() {
 
   const age = ageInYears(birthDate);
   const isMinorAge = age >= MIN_SELF_CONSENT_AGE && age < ADULT_AGE;
+  // The reference frame shows a 3/4 mock-profile counter, but the production
+  // gate has exactly two required truths: an eligible DOB and every required
+  // consent acknowledgement. Optional name/goal fields must never inflate or
+  // block this progress indicator.
+  const ageReady = age >= MIN_SELF_CONSENT_AGE;
+  const consentReady = allRequiredAcksChecked(consent);
+  const requiredProgress = Number(ageReady) + Number(consentReady);
   const canSubmit = useMemo(() => {
     return (
       userId !== null &&
-      ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE &&
-      allRequiredAcksChecked(consent) &&
+      ageReady &&
+      consentReady &&
       !submitting
     );
-  }, [userId, birthDate, consent, submitting]);
+  }, [userId, ageReady, consentReady, submitting]);
 
   useEffect(() => {
     if (!toast) return;
@@ -220,15 +228,17 @@ export default function CompleteProfile() {
           keyboardShouldPersistTaps="handled"
         >
         <View style={styles.header}>
-          <View accessibilityRole="image" accessibilityLabel={t("common.entryArtwork")}>
-            <SecondbHead size={96} mood="neutral" />
-          </View>
           <Text variant="heading" style={styles.title}>
             {t("completeProfile.title")}
           </Text>
           <Text variant="body" color="textMuted" style={styles.subtitle}>
             {t("completeProfile.subtitle")}
           </Text>
+          <PixelSurface variant="inset" style={styles.portraitFrame} contentStyle={styles.portraitContent}>
+            <View accessibilityRole="image" accessibilityLabel={t("common.entryArtwork")}>
+              <SecondbHead size={80} mood="neutral" />
+            </View>
+          </PixelSurface>
         </View>
 
         <View style={styles.form}>
@@ -237,27 +247,41 @@ export default function CompleteProfile() {
               without. Both fields feed the profile home star, so filling them
               lights it at L2 immediately -- which is the point of asking here
               rather than burying them in settings. */}
-          <NameField value={displayName} onChange={setDisplayName} />
-          <GoalField value={goal} onChange={setGoal} />
+          <PixelSurface variant="frame" style={styles.fieldSurface} contentStyle={styles.fieldSurfaceContent}>
+            <NameField value={displayName} onChange={setDisplayName} />
+            <GoalField value={goal} onChange={setGoal} />
+          </PixelSurface>
 
-          <View style={{ height: deepSpaceSpacing.sm }} />
+          <PixelSurface variant="frame" style={styles.fieldSurface} contentStyle={styles.fieldSurfaceContent}>
+            <BirthDateField value={birthDate} onChange={setBirthDate} />
 
-          <BirthDateField value={birthDate} onChange={setBirthDate} />
+            {birthDate.length > 0 ? (
+              <View style={styles.checklist}>
+                <ChecklistItem
+                  ok={ageReady}
+                  label={ageReady ? t("signUp.checkAge") : t("signUp.checkAgeBlocked")}
+                />
+              </View>
+            ) : null}
 
-          {birthDate.length > 0 ? (
-            <View style={styles.checklist}>
-              <ChecklistItem
-                ok={ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE}
-                label={ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE ? t("signUp.checkAge") : t("signUp.checkAgeBlocked")}
-              />
+            <ConsentNotice minor={isMinorAge} value={consent} onChange={setConsent} />
+          </PixelSurface>
+
+          <View style={styles.progressRow}>
+            <View
+              accessible
+              accessibilityRole="progressbar"
+              accessibilityLabel={t("completeProfile.submitHint")}
+              accessibilityValue={{ min: 0, max: 2, now: requiredProgress }}
+              style={styles.progressTrack}
+            >
+              <View style={[styles.progressCell, ageReady && styles.progressCellDone]} />
+              <View style={[styles.progressCell, consentReady && styles.progressCellDone]} />
             </View>
-          ) : null}
-
-          <View style={{ height: deepSpaceSpacing.sm }} />
-
-          <ConsentNotice minor={isMinorAge} value={consent} onChange={setConsent} />
-
-          <View style={{ height: deepSpaceSpacing.sm }} />
+            <Text variant="subtle" color="textMuted" style={styles.progressCount}>
+              {requiredProgress} / 2
+            </Text>
+          </View>
 
           <Button
             label={t("completeProfile.submit")}
@@ -315,9 +339,9 @@ const GLOW_ON_EDGE = flattenAlpha(deepSpace.bgGlow, 0.85, deepSpace.bgEdge);
 const STAR_A = flattenAlpha(deepSpace.accentSoft, 0.7, GLOW_ON_EDGE);
 const STAR_B = flattenAlpha(deepSpace.accentSoft, 0.5, GLOW_ON_EDGE);
 const STAR_C = flattenAlpha(deepSpace.accentSoft, 0.5, deepSpace.bgEdge);
-// 폼 카드는 스크롤 안이라 워시 위에 얹히지만, 헤더 아래(y≳250)에서 시작해
-// 글로우(위 200px)와 겹치지 않는다. 바탕은 root 다.
-const FORM_ON_EDGE = flattenAlpha(deepSpace.bgMid, 0.5, deepSpace.bgEdge);
+// 진행 레일은 스크롤 안에서 헤더 아래(y≳250)에 놓여 글로우(위 200px)와
+// 겹치지 않는다. 따라서 합성 바탕은 root 다.
+const PROGRESS_ON_EDGE = flattenAlpha(deepSpace.bgMid, 0.5, deepSpace.bgEdge);
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: deepSpace.bgEdge },
@@ -343,18 +367,29 @@ const styles = StyleSheet.create({
     // Web only: cap the auth column (cycle-4 live QA) — no-op on native.
     ...(Platform.OS === "web" ? { width: "100%" as const, maxWidth: 520, alignSelf: "center" as const } : {}),
   },
-  header: { alignItems: "center", gap: deepSpaceSpacing.sm, marginBottom: deepSpaceSpacing.md },
-  title: { marginTop: deepSpaceSpacing.sm, color: deepSpace.textHi, textAlign: "center" },
-  subtitle: { textAlign: "center" },
+  header: { alignItems: "center", gap: deepSpaceSpacing.sm, marginBottom: deepSpaceSpacing.sm },
+  title: { color: deepSpace.textHi, textAlign: "center" },
+  subtitle: { textAlign: "center", maxWidth: 320 },
+  portraitFrame: { width: 104, height: 104, marginTop: deepSpaceSpacing.sm },
+  portraitContent: { flex: 1, alignItems: "center", justifyContent: "center", padding: m3.spacing.s2 },
   form: {
-    gap: deepSpaceSpacing.sm,
-    backgroundColor: FORM_ON_EDGE,
-    borderColor: deepSpace.cardLine,
-    borderWidth: 1,
-    borderRadius: m3.shape.large,
-    padding: deepSpaceSpacing.lg,
+    gap: deepSpaceSpacing.md,
   },
+  fieldSurface: { alignSelf: "stretch" },
+  fieldSurfaceContent: { gap: deepSpaceSpacing.sm, padding: deepSpaceSpacing.md },
   checklist: { gap: deepSpaceSpacing.xs, marginTop: deepSpaceSpacing.xs, marginBottom: deepSpaceSpacing.xs },
+  progressRow: { flexDirection: "row", alignItems: "center", gap: deepSpaceSpacing.sm },
+  progressTrack: {
+    flex: 1,
+    height: m3.spacing.s4,
+    flexDirection: "row",
+    gap: m3.spacing.s1,
+    padding: m3.spacing.s1,
+    backgroundColor: PROGRESS_ON_EDGE,
+  },
+  progressCell: { flex: 1, backgroundColor: deepSpace.cardLine },
+  progressCellDone: { backgroundColor: m3.color.primary },
+  progressCount: { minWidth: 32, textAlign: "right", fontFamily: m3.font.mono },
   submitButton: { alignSelf: "stretch", width: "100%" },
   toastWrap: { position: "absolute", left: deepSpaceSpacing.lg, right: deepSpaceSpacing.lg, bottom: deepSpaceSpacing.xl, alignItems: "stretch" },
   checkRow: { flexDirection: "row", alignItems: "center", gap: deepSpaceSpacing.sm },
