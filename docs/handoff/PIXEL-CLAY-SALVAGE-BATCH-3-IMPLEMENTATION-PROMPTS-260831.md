@@ -1,7 +1,7 @@
 # PIXEL-CLAY v4 salvage batch 3 implementation prompts
 
 작성일: 2026-08-31
-대상 기준: `codex/pixel-clay-shared-260831` `60ae8f90`
+대상 기준: `codex/pixel-gate-primitives-260831` `60ae8f90`
 순서: `/onboarding` → `/ttfv` → `/audit`
 
 이 문서는 `design/pixel_clay_260825/data/salvage-plan.json`의 다음 세 항목을 실제 앱에
@@ -18,7 +18,7 @@
 ## 1. `/onboarding` — `dobgate`를 실제 가입 경계로 흡수
 
 ```text
-`codex/pixel-clay-shared-260831` exact head `60ae8f90`에서 저장소 내부 worktree와
+`codex/pixel-gate-primitives-260831` exact head `60ae8f90`에서 저장소 내부 worktree와
 `codex/pixel-clay-onboarding-260831` branch를 만들고 `/onboarding` 한 화면만
 PIXEL-CLAY v4로 정리하라. Draft PR 하나만 만들고 main에는 직접 작업하거나 push하지
 않는다.
@@ -72,7 +72,7 @@ design/pixel_clay_260825/data/salvage-plan.json의 `dobgate`와 `/onboarding` �
 ## 2. `/ttfv` — 고정 성향 fixture를 실제 첫 기록 검토로 교체
 
 ```text
-`codex/pixel-clay-shared-260831` exact head `60ae8f90`에서 저장소 내부 worktree와
+`codex/pixel-gate-primitives-260831` exact head `60ae8f90`에서 저장소 내부 worktree와
 `codex/pixel-clay-ttfv-260831` branch를 만들고 `/ttfv` 한 화면만 구현하라. 한 Draft
 PR, 최대 5개 추적 파일을 지킨다.
 
@@ -134,7 +134,7 @@ Android HUMAN은 pending이다.
 ## 3. `/audit` — 옛 시기표 대신 새 일곱 별의 실제 근거·변경 이력
 
 ```text
-`codex/pixel-clay-shared-260831` exact head `60ae8f90`에서 저장소 내부 worktree와
+`codex/pixel-gate-primitives-260831` exact head `60ae8f90`에서 저장소 내부 worktree와
 `codex/pixel-clay-audit-260831` branch를 만들고 `/audit`의 deep-space 화면 하나만
 재설계하라. legacy 질문 flow와 styles는 그대로 보존하고 한 Draft PR만 만든다.
 
