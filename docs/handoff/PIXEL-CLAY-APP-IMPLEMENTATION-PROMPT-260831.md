@@ -1,7 +1,7 @@
 # 2nd-B PIXEL-CLAY 실제 앱 적용 — 코딩 담당 인계 프롬프트
 
-> 작성: 2026-08-31 KST  
-> 기준: `origin/main@c823b79f` / PR #1504 병합본  
+> 작성: 2026-08-31 KST
+> 기준: `origin/main@c823b79f` / PR #1504 병합본
 > 목표: `design/pixel_clay_260825`의 채택된 PIXEL-CLAY 화면을 실제 Expo/React Native 앱에 적용하고, 미사용·미매핑 화면을 제품 의미에 맞게 살린다.
 
 ## 역할
