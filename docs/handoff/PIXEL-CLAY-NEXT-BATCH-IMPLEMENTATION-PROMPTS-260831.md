@@ -2,7 +2,7 @@
 
 작성일: 2026-08-31
 대상 기준: `origin/main` `5b6bbe71ab1c723ff85d93268dfd0679e6085207`
-순서: `/account` -> `/manual` -> `/profile`
+순서: `/account` -> `/manual` -> `/profile` -> `/change-password` -> `/data` -> `/beyond`
 
 공통 완료 조건은 `PIXEL-CLAY-APP-IMPLEMENTATION-PROMPT-260831.md`를 따른다. 특히 한 화면/한 Draft PR, 실제 데이터와 실제 동작 우선, cosmic-pixel rollback 불변, Android HUMAN 판정 전 PASS 금지를 유지한다.
 
@@ -124,3 +124,107 @@ QA 계정 read-only로 390x820 캡처를 만들고 Android HUMAN PASS는 사람�
 - `manual`: `redesign`; `referenceUse: layout-only`
 
 `manual`을 단순 직접 이식 대상으로 취급하면 최신 제품 개념을 이전 구조로 되돌리므로, 코드 착수 전에 이 분류를 구현자와 리뷰어가 함께 확인한다.
+
+## 4. `/change-password`
+
+```text
+origin/main 5b6bbe71에서 `/change-password` 한 화면만 PIXEL-CLAY v4로 이식하는 독립 branch와 Draft PR을 만든다. `/reset-password` 복구 화면과 합치지 않는다.
+
+이 화면은 직접 대응 레퍼런스가 없는 actual route다. salvage-plan의 `derive-pattern(account,pwreset)`만 사용하고, 레이아웃보다 실제 `useChangePasswordForm()` 계약을 우선한다.
+
+실제 동작 계약:
+- useAuth loading과 미로그인 Redirect를 유지한다.
+- 현재 비밀번호, 새 비밀번호, 확인 입력과 secureTextEntry, autoCapitalize/autoCorrect 설정을 그대로 유지한다.
+- `useChangePasswordForm()`의 validation, breached-password 검사, Supabase reauthentication, 제출 중 상태, toast, `needsReauth` 분기를 복제하지 말고 그대로 소비한다.
+- reauth CTA는 기존처럼 실제 `/sign-in`으로 이동한다.
+- 비밀번호 값을 로그, 테스트 snapshot, accessibility label에 넣지 않는다.
+- 성공을 fixture로 만들거나 `/reset-password`의 recovery-session 계약을 재사용하지 않는다.
+
+구현:
+- change-password.tsx의 기존 Premium renderer를 `ChangePasswordLegacy`로 보존하고 `isDeepSpaceUI()` 분기만 새 dds-change-password-screen.tsx에 위임한다.
+- hook을 조건부 호출하지 않는다. legacy와 pixel component가 각자 hook을 소유하게 한다.
+- PixelSurface/PixelPressable과 토큰으로 TextInput을 감싸며 radius 0, 4방향 베벨, 44dp, 키보드 회피, 오류 문구 재흐름을 지킨다.
+- 비밀번호 규칙은 기존 번역과 form helperKey를 그대로 사용하고 새 규칙을 지어내지 않는다.
+
+테스트:
+- auth loading/redirect
+- 세 입력과 form setter/submit 배선
+- canSubmit/submitting disabled 상태
+- needsReauth 실제 route
+- secure input과 비밀번호 비노출
+- legacy renderer/style 불변
+- pixel/Fabric/accessibility 계약
+- targeted Jest, ESLint, typecheck, pixel rules, constraints, cycles, 전체 npm run verify
+
+390x820 캡처는 빈 입력 상태에서만 만든다. 실제 비밀번호 입력·제출·reauth는 하지 않으며 Android 키보드 HUMAN QA는 pending이다.
+```
+
+## 5. `/data`
+
+```text
+origin/main 5b6bbe71에서 `/data` 한 화면만 PIXEL-CLAY v4로 재설계하는 독립 branch와 Draft PR을 만든다.
+
+레퍼런스 `datareview`는 layout-only다. 124개 원문, 38개 파생, 확신 52% 같은 fixture와 현재 화면의 무조건적인 "데이터 없음" 문구를 이식하지 않는다. 실제 count를 읽지 않으면 count/empty를 단정하지 않는다.
+
+실제 동작 계약:
+- useAuth loading과 미로그인 Redirect를 deep renderer에도 유지한다.
+- 개인 데이터 가져오기는 실제 `/import-hub`로, IDEN 이동은 `/iden`으로 연결한다.
+- 전체 계정 내보내기는 `/account?tool=export`의 progressive disclosure로 연결한다. account PR이 이 allowlist query를 수용한 뒤 병합 순서를 account -> data로 둔다. query 지원이 빠지면 `/account`로 정직하게 안내하고 죽은 deep link를 만들지 않는다.
+- 계정·데이터 영구 삭제는 실제 단일 소유 화면 `/privacy`로만 연결한다. 삭제 API나 confirmation을 이 화면에 복제하지 않는다.
+- 위키 context pack 내보내기와 전체 계정 export를 같은 기능처럼 말하지 않는다.
+- `datareview`의 파생 신호 초기화는 실제 단일 소유 기능이 확인되기 전까지 동작 버튼으로 만들지 않는다.
+
+구현:
+- DataManagementLegacy와 기존 styles를 그대로 보존한다.
+- 새 dds-data-screen.tsx를 만들고 data.tsx deep 분기만 직접 위임한다. DeepSpaceDesignScreens.tsx의 기존 static clone은 route에서 분리하되 다른 export를 깨지 않는다.
+- 첫 화면은 데이터 권리 설명 한 문장과 실제 네 개 목적지(가져오기, 전체 내보내기, IDEN, 삭제 관리)만 둔다. 상세 설명은 한 행씩 펼치는 progressive disclosure로 제한한다.
+- PixelSurface/PixelPressable/PixelGlyph, 토큰, radius 0, 4방향 베벨, 44dp를 사용한다. danger 색은 삭제 관리 행 하나에만 쓴다.
+
+테스트:
+- auth loading/redirect
+- `/import-hub`, `/account?tool=export` 또는 검증된 fallback, `/iden`, `/privacy` 정확한 route
+- 가짜 count/percentage/empty와 직접 delete/export side effect 부재
+- wiki export와 account export 카피 구분
+- legacy renderer/style 불변
+- targeted Jest, ESLint, typecheck, pixel rules, constraints, cycles, 전체 verify
+
+390x820 캡처는 아무 action도 실행하지 않는 read-only 상태로 만든다. 삭제·내보내기 HUMAN 실행은 금지한다.
+```
+
+## 6. `/beyond`
+
+```text
+origin/main 5b6bbe71에서 `/beyond` 한 화면만 PIXEL-CLAY v4 primitive로 정리하는 독립 branch와 Draft PR을 만든다.
+
+이 화면은 salvage-plan의 `derive-pattern(account,share)`다. 레퍼런스 widget은 OS 표면이라 앱 안에서 live widget처럼 주장할 수 없다. 현재 화면이 지키는 `미리보기` 정직성은 불변이다.
+
+실제 동작 계약:
+- useAuth loading/Redirect를 유지하고 loading에서 null을 렌더하지 않는다.
+- 일반 담기는 `/capture`, 음성 담기는 `/capture-full?mode=voice`, 알림 설정은 `/settings`로 유지한다.
+- 위젯·잠금화면·푸시 카드는 모두 명시적 preview다. 실제 별 등급, live metric, OS 설치 성공 상태를 만들지 않는다.
+- native widget/lock-screen target을 이 PR에서 만들지 않고, 별도 플랫폼 계약이 생길 때까지 앱 내부 설명 화면으로 유지한다.
+
+구현:
+- 현재 `MdCard`, `MdButton`, raw Pressable을 PixelSurface/PixelPressable로 치환한다. PixelGlyph와 SecondbHead는 재사용한다.
+- 사각 glow는 정수 Rect와 pre-flattened token colors를 유지하고 gradient/opacity/blur를 도입하지 않는다.
+- 390px에서 두 preview card의 한글이 잘리지 않게 최소 폭과 세로 재흐름을 검증한다. 모든 실제 action은 44dp 이상이다.
+- 한 화면 한 메시지를 위해 preview 세 묶음은 한 번에 하나만 펼치거나, 첫 화면 높이에서 핵심 CTA와 preview 성격이 먼저 보이게 한다.
+
+테스트:
+- auth loading/redirect
+- 세 실제 목적지와 voice mode param
+- 모든 preview label 존재, live/installed fixture 부재
+- MdCard/MdButton/raw Pressable 제거와 Pixel primitive 사용
+- 44dp, Fabric, pixel rules
+- targeted Jest, ESLint, typecheck, constraints, cycles, 전체 verify
+
+390x820 캡처에서는 실제 담기나 설정 이동을 누르지 않는다. Android 폰트·TalkBack·터치 HUMAN QA는 pending이다.
+```
+
+## 두 번째 묶음 salvage 판정
+
+- `change-password`: `derive-pattern(account,pwreset)`; recovery flow와 분리된 실제 로그인 세션 form
+- `data`: `adapt-reference(datareview)`; layout-only, 실제 데이터 권리 목적지로 흡수
+- `beyond`: `derive-pattern(account,share)`; widget frame은 preview로만 생존
+
+병합 순서는 `/account`의 안전한 `tool=export` disclosure가 먼저, `/data`가 다음이다. 세 화면 모두 새 기능 소유자를 만들기보다 이미 존재하는 실제 작업 경로를 PIXEL-CLAY 계층으로 드러내는 작업이다.
