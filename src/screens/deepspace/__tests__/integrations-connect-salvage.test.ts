@@ -38,7 +38,9 @@ describe("connect frame layout salvage -> production /integrations", () => {
     const app = read(APP_FILE);
     expect(app).toContain("DeepSpaceIntegrationsScreen");
     expect(app).toContain("export default DeepSpaceIntegrationsScreen");
-    expect(integrationRenderer()).toContain("INTEGRATION_ENTRYPOINTS.map");
+    const renderer = integrationRenderer();
+    expect(renderer).toContain('t("connect.lead")');
+    expect(renderer).toContain("INTEGRATION_ENTRYPOINTS.map");
   });
 
   it("keeps the five reference rows but routes each to its real owner", () => {

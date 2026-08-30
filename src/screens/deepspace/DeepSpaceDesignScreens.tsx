@@ -403,6 +403,7 @@ export function DeepSpaceIntegrationsScreen() {
     <DeepSpaceScreen active="lens" header="none" variant="windowed" title={t("connect.title")} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={cx.integrationBody} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <RNText style={[m3TextStyle("headlineSmall"), cx.integrationTitle]}>{t("connect.title")}</RNText>
+        <RNText style={[m3TextStyle("bodyMedium"), cx.integrationLead]}>{t("connect.lead")}</RNText>
         <PixelSurface
           variant="inset"
           background={m3.color.secondaryContainer}
@@ -3565,7 +3566,8 @@ const cx = StyleSheet.create({
 
   // ── integrations (PIXEL-CLAY connect salvage) ──
   integrationBody: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 32 },
-  integrationTitle: { color: m3.color.onSurface, marginTop: 8, marginBottom: 10 },
+  integrationTitle: { color: m3.color.onSurface, marginTop: 8, marginBottom: 4 },
+  integrationLead: { color: m3.color.onSurfaceVariant, marginBottom: 12 },
   integrationConsentFrame: { marginBottom: 12 },
   integrationConsent: { paddingHorizontal: 12, paddingVertical: 10 },
   integrationConsentRow: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
