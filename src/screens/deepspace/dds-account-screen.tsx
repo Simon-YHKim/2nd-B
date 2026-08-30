@@ -84,7 +84,15 @@ export function DeepSpaceAccountScreen() {
 
   const mountedRef = useRef(true);
   const activeUserRef = useRef(userId);
+  const previousUserRef = useRef(userId);
+  const authEpochRef = useRef(0);
+  const birthDateRef = useRef(birthDate);
+  if (previousUserRef.current !== userId) {
+    previousUserRef.current = userId;
+    authEpochRef.current += 1;
+  }
   activeUserRef.current = userId;
+  birthDateRef.current = birthDate;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -124,6 +132,7 @@ export function DeepSpaceAccountScreen() {
   useEffect(() => {
     if (!dobOpen || !userId) return;
     const requestedUser = userId;
+    const requestedEpoch = authEpochRef.current;
     let cancelled = false;
     setDobOwner(null);
     setOrigDob(null);
@@ -132,7 +141,10 @@ export function DeepSpaceAccountScreen() {
     setDobLoadFailed(false);
     setDobLoading(true);
     const isActive = () =>
-      !cancelled && mountedRef.current && activeUserRef.current === requestedUser;
+      !cancelled &&
+      mountedRef.current &&
+      activeUserRef.current === requestedUser &&
+      authEpochRef.current === requestedEpoch;
     void loadAccountDob(requestedUser, isActive)
       .then((result) => {
         if (!isActive() || result.status === "cancelled") return;
@@ -157,19 +169,28 @@ export function DeepSpaceAccountScreen() {
   const onSaveDob = useCallback(async () => {
     if (!userId || dobBusy) return;
     const requestedUser = userId;
+    const requestedEpoch = authEpochRef.current;
+    const submittedDob = birthDate;
     setDobBusy(true);
     setDobFeedback(null);
     const result = await saveAccountDob({
       userId: requestedUser,
       current: origDob,
-      next: birthDate,
+      next: submittedDob,
       refresh,
-      isActive: () => mountedRef.current && activeUserRef.current === requestedUser,
+      isActive: () =>
+        mountedRef.current &&
+        activeUserRef.current === requestedUser &&
+        authEpochRef.current === requestedEpoch,
     });
-    if (!mountedRef.current || activeUserRef.current !== requestedUser) return;
+    if (
+      !mountedRef.current ||
+      activeUserRef.current !== requestedUser ||
+      authEpochRef.current !== requestedEpoch
+    ) return;
     if (result.status === "saved") {
-      setOrigDob(birthDate);
-      setDobFeedback("saved");
+      setOrigDob(submittedDob);
+      if (birthDateRef.current === submittedDob) setDobFeedback("saved");
     } else if (result.status === "failed") {
       warnAccountAction("dob-save");
       setDobFeedback("failed");
@@ -180,14 +201,23 @@ export function DeepSpaceAccountScreen() {
   const onExportData = useCallback(async () => {
     if (!userId || exporting) return;
     const requestedUser = userId;
+    const requestedEpoch = authEpochRef.current;
     setExporting(true);
     setExportFeedback(null);
     const result = await exportAccountData({
       ...accountExportDeps,
       deliver: deliverAccountExport,
-      isActive: () => mountedRef.current && activeUserRef.current === requestedUser,
+      expectedUserId: requestedUser,
+      isActive: () =>
+        mountedRef.current &&
+        activeUserRef.current === requestedUser &&
+        authEpochRef.current === requestedEpoch,
     });
-    if (!mountedRef.current || activeUserRef.current !== requestedUser) return;
+    if (
+      !mountedRef.current ||
+      activeUserRef.current !== requestedUser ||
+      authEpochRef.current !== requestedEpoch
+    ) return;
     if (result.status === "cancelled") {
       setExporting(false);
       return;
@@ -257,7 +287,8 @@ export function DeepSpaceAccountScreen() {
                   variant="bevel"
                   onPress={() => router.push(destination.route)}
                   accessibilityLabel={label}
-                  style={styles.fullWidth}
+                  accessibilityRole="link"
+                  fullWidth
                   contentStyle={styles.routeContent}
                 >
                   <PixelSurface variant="inset" contentStyle={styles.iconContent}>
@@ -283,7 +314,8 @@ export function DeepSpaceAccountScreen() {
               }}
               accessibilityLabel={t("consent:account.dob.label")}
               accessibilityHint={t("consent:account.dob.hint")}
-              style={styles.fullWidth}
+              accessibilityState={{ expanded: dobOpen }}
+              fullWidth
               contentStyle={styles.toolHeader}
             >
               <PixelGlyph name="today" color={m3.color.primary} size={24} />
@@ -313,7 +345,7 @@ export function DeepSpaceAccountScreen() {
                       variant="bevel"
                       onPress={() => setDobLoadAttempt((attempt) => attempt + 1)}
                       accessibilityLabel={t("common:actions.retry")}
-                      style={styles.fullWidth}
+                      fullWidth
                       contentStyle={styles.actionContent}
                     >
                       <PixelGlyph name="refresh" color={m3.color.primary} size={24} />
@@ -327,6 +359,7 @@ export function DeepSpaceAccountScreen() {
                     <BirthDateField
                       value={birthDate}
                       onChange={(next) => {
+                        if (dobBusy) return;
                         setBirthDate(next);
                         setDobFeedback(null);
                       }}
@@ -347,7 +380,8 @@ export function DeepSpaceAccountScreen() {
                       onPress={() => void onSaveDob()}
                       accessibilityLabel={t("consent:account.dob.save")}
                       accessibilityHint={t("consent:account.dob.saveHint")}
-                      style={styles.fullWidth}
+                      accessibilityState={{ busy: dobBusy }}
+                      fullWidth
                       contentStyle={styles.actionContent}
                     >
                       <PixelGlyph
@@ -377,7 +411,8 @@ export function DeepSpaceAccountScreen() {
               }}
               accessibilityLabel={t("consent:account.export.label")}
               accessibilityHint={t("consent:account.export.body")}
-              style={styles.fullWidth}
+              accessibilityState={{ expanded: exportOpen }}
+              fullWidth
               contentStyle={styles.toolHeader}
             >
               <PixelGlyph name="download" color={m3.color.primary} size={24} />
@@ -412,7 +447,8 @@ export function DeepSpaceAccountScreen() {
                   onPress={() => void onExportData()}
                   accessibilityLabel={t("consent:account.export.button")}
                   accessibilityHint={t("consent:account.export.buttonHint")}
-                  style={styles.fullWidth}
+                  accessibilityState={{ busy: exporting }}
+                  fullWidth
                   contentStyle={styles.actionContent}
                 >
                   <PixelGlyph
@@ -437,7 +473,8 @@ export function DeepSpaceAccountScreen() {
               onPress={() => router.push("/privacy")}
               accessibilityLabel={t("deepspace:account.delete")}
               accessibilityHint={t("consent:account.privacy.buttonHint")}
-              style={styles.fullWidth}
+              accessibilityRole="link"
+              fullWidth
               contentStyle={styles.toolHeader}
             >
               <PixelGlyph name="trash" color={m3.color.error} size={24} />
@@ -490,7 +527,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   navGroup: { gap: m3.spacing.s2, padding: m3.spacing.s2 },
-  fullWidth: { width: "100%" },
   routeContent: {
     minHeight: m3.minTouch,
     flexDirection: "row",

@@ -5,7 +5,11 @@ import {
   requestAccountExport,
   type AccountExport,
 } from "@/lib/account/export";
+import { withTimeout } from "@/lib/async/with-timeout";
 import { fetchBirthDate, updateBirthDate } from "@/lib/supabase/account";
+
+export const ACCOUNT_DOB_LOAD_TIMEOUT_MS = 15_000;
+export const ACCOUNT_EXPORT_TIMEOUT_MS = 30_000;
 
 /** The six account-hub destinations retained from the real app contract. */
 export const ACCOUNT_DESTINATIONS: readonly {
@@ -44,7 +48,11 @@ export async function loadAccountDob(
   deps: DobLoadDeps = { fetchBirthDate },
 ): Promise<DobLoadResult> {
   try {
-    const dob = await deps.fetchBirthDate(userId);
+    const dob = await withTimeout(
+      deps.fetchBirthDate(userId),
+      ACCOUNT_DOB_LOAD_TIMEOUT_MS,
+      "account DOB load",
+    );
     if (!isActive()) return { status: "cancelled" };
     // users.birth_date is NOT NULL. The existing helper returns null on a read
     // failure, so null is an unavailable state here, not an editable blank DOB.
@@ -110,6 +118,8 @@ export interface AccountExportDeps {
   requestAccountExport: () => Promise<AccountExport>;
   buildExportFilename: (exportedAtIso: string) => string;
   deliver: (json: string, filename: string) => Promise<void>;
+  /** AuthContext user who initiated this export. */
+  expectedUserId: string;
   /** Still mounted and still showing the user who requested this bundle. */
   isActive: () => boolean;
 }
@@ -119,10 +129,20 @@ export async function exportAccountData(
   deps: AccountExportDeps,
 ): Promise<AccountExportResult> {
   try {
-    const bundle = await deps.requestAccountExport();
+    const bundle = await withTimeout(
+      deps.requestAccountExport(),
+      ACCOUNT_EXPORT_TIMEOUT_MS,
+      "account export",
+    );
     // The edge function derives ownership from the request JWT. If the active
     // session changed while it ran, do not hand user A's bundle to user B.
     if (!deps.isActive()) return { status: "cancelled" };
+    // Treat the returned owner as untrusted until it matches the initiating
+    // account. This is a second boundary for session A -> B -> A races and a
+    // misrouted edge-function response containing another user's private data.
+    if (bundle.user_id !== deps.expectedUserId) {
+      return { status: "failed", error: new Error("account export owner mismatch") };
+    }
     const filename = deps.buildExportFilename(bundle.exported_at);
     await deps.deliver(JSON.stringify(bundle, null, 2), filename);
     return { status: "done" };

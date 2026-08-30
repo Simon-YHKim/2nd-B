@@ -3,7 +3,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import {
+  ACCOUNT_DOB_LOAD_TIMEOUT_MS,
   ACCOUNT_DESTINATIONS,
+  ACCOUNT_EXPORT_TIMEOUT_MS,
   accountToolFromParam,
   exportAccountData,
   loadAccountDob,
@@ -60,12 +62,23 @@ describe("PIXEL-CLAY /account contract", () => {
     expect(source).toContain("PixelGlyph");
     expect(source).toContain('variant="bevel"');
     expect(source).toContain('variant="inset"');
+    expect(source).toContain("fullWidth");
+    expect(source).not.toContain("style={styles.fullWidth}");
     expect(source).toContain("minHeight: m3.minTouch");
     expect(source).not.toMatch(/<Pressable\b/);
     expect(source).not.toMatch(/style=\{\s*\(\{?\s*pressed\b/);
     expect(source).not.toMatch(/\b(?:rgba|withAlpha)\s*\(/);
     expect(source).not.toMatch(/\bopacity\s*:\s*0?\.\d+/);
     expect(source).not.toMatch(/border(?:Top|Bottom)?(?:Left|Right|Start|End)?Radius\s*:\s*(?!m3\.shape\.none)/);
+  });
+
+  test("exposes navigation, disclosure, and busy states to assistive technology", () => {
+    const source = read(SCREEN);
+    expect(source).toContain('accessibilityRole="link"');
+    expect(source).toContain("accessibilityState={{ expanded: dobOpen }}");
+    expect(source).toContain("accessibilityState={{ expanded: exportOpen }}");
+    expect(source).toContain("accessibilityState={{ busy: dobBusy }}");
+    expect(source).toContain("accessibilityState={{ busy: exporting }}");
   });
 
   test("leaves AccountLegacy and its styles byte-for-byte unchanged", () => {
@@ -113,6 +126,13 @@ describe("PIXEL-CLAY /account contract", () => {
     expect(source).toMatch(/setExportOpen\(\(open\) => !open\);\s*setDobOpen\(false\);/);
     expect(source).not.toMatch(/requestedTool[\s\S]{0,180}(?:onExportData|onSaveDob)\(/);
   });
+
+  test("binds session-owned async work to an auth epoch, not only a reusable user id", () => {
+    const source = read(SCREEN);
+    expect(source).toContain("const authEpochRef = useRef(0)");
+    expect(source).toContain("authEpochRef.current += 1");
+    expect(source).toContain("authEpochRef.current === requestedEpoch");
+  });
 });
 
 describe("account DOB load workflow", () => {
@@ -141,6 +161,25 @@ describe("account DOB load workflow", () => {
     await expect(loadAccountDob("user-a", () => active, { fetchBirthDate: fetch })).resolves.toEqual({
       status: "cancelled",
     });
+  });
+
+  test("fails a stalled read at a bounded deadline so retry becomes available", async () => {
+    jest.useFakeTimers();
+    try {
+      const pending = loadAccountDob(
+        "user-a",
+        () => true,
+        { fetchBirthDate: () => new Promise<string | null>(() => {}) },
+      );
+      const assertion = expect(pending).resolves.toMatchObject({
+        status: "failed",
+        error: { name: "TimeoutError" },
+      });
+      jest.advanceTimersByTime(ACCOUNT_DOB_LOAD_TIMEOUT_MS);
+      await assertion;
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   test("treats the helper's fail-soft null as unavailable instead of an editable blank", async () => {
@@ -229,6 +268,7 @@ describe("full account export workflow", () => {
       requestAccountExport: jest.fn().mockResolvedValue(bundle),
       buildExportFilename: jest.fn().mockReturnValue("account.json"),
       deliver: jest.fn().mockResolvedValue(undefined),
+      expectedUserId: "user-a",
       isActive: () => true,
       ...overrides,
     };
@@ -267,5 +307,57 @@ describe("full account export workflow", () => {
     await expect(exportAccountData(actionDeps)).resolves.toEqual({ status: "cancelled" });
     expect(actionDeps.buildExportFilename).not.toHaveBeenCalled();
     expect(actionDeps.deliver).not.toHaveBeenCalled();
+  });
+
+  test("never delivers after an A to B to A auth cycle reuses the same user id", async () => {
+    let activeUser = "user-a";
+    let authEpoch = 0;
+    const requestedEpoch = authEpoch;
+    const actionDeps = deps({
+      requestAccountExport: jest.fn().mockImplementation(async () => {
+        activeUser = "user-b";
+        authEpoch += 1;
+        activeUser = "user-a";
+        authEpoch += 1;
+        return bundle;
+      }),
+      isActive: () => activeUser === "user-a" && authEpoch === requestedEpoch,
+    });
+
+    await expect(exportAccountData(actionDeps)).resolves.toEqual({ status: "cancelled" });
+    expect(actionDeps.buildExportFilename).not.toHaveBeenCalled();
+    expect(actionDeps.deliver).not.toHaveBeenCalled();
+  });
+
+  test("never delivers a bundle owned by a different account", async () => {
+    const actionDeps = deps({
+      requestAccountExport: jest.fn().mockResolvedValue({ ...bundle, user_id: "user-b" }),
+    });
+
+    await expect(exportAccountData(actionDeps)).resolves.toEqual({
+      status: "failed",
+      error: expect.objectContaining({ message: "account export owner mismatch" }),
+    });
+    expect(actionDeps.buildExportFilename).not.toHaveBeenCalled();
+    expect(actionDeps.deliver).not.toHaveBeenCalled();
+  });
+
+  test("fails a stalled export at a bounded deadline without handing off a file", async () => {
+    jest.useFakeTimers();
+    try {
+      const actionDeps = deps({
+        requestAccountExport: () => new Promise<typeof bundle>(() => {}),
+      });
+      const pending = exportAccountData(actionDeps);
+      const assertion = expect(pending).resolves.toMatchObject({
+        status: "failed",
+        error: { name: "TimeoutError" },
+      });
+      jest.advanceTimersByTime(ACCOUNT_EXPORT_TIMEOUT_MS);
+      await assertion;
+      expect(actionDeps.deliver).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
