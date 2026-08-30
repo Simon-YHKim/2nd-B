@@ -186,7 +186,8 @@ export type FailoverTarget = LlmVendor | "none";
 // retrying the thing that just failed, and retrying Claude means paying opus
 // prices for an outage. Turning it off is a legitimate answer, so it is one.
 //
-// Default is "gemini", so behaviour is unchanged until an operator moves it.
+// Unset is "none" since T1 stage A (2026-08-31); it was "gemini" while that
+// was every seat's Phase 1 assignment.
 export function failoverVendor(): FailoverTarget {
   const raw = (process.env.EXPO_PUBLIC_FAILOVER_VENDOR ?? "").trim().toLowerCase();
   if (raw === "none") return "none";
@@ -433,6 +434,19 @@ export function legacyReasoningProvider(): LlmVendor {
   return normalizeVendor(raw) ?? RETIRED_DEFAULT;
 }
 
+// The same seam, but null when the operator has not SET it. The last rung of
+// resolveVendorForPurpose must use this one: while the seam's unset value was
+// "gemini" it could only ever confirm a gemini axis, so reading the default
+// there was harmless. Once the unset value became RETIRED_DEFAULT, reading it
+// would turn an explicit EXPO_PUBLIC_LLM_VENDOR=gemini into openai on every
+// pro-tier seat (advisor, reasoning_connect, imagine) — the rollback broken
+// exactly where it is dearest. An unset legacy variable has no opinion.
+export function legacyReasoningProviderOverride(): LlmVendor | null {
+  const raw = (process.env.EXPO_PUBLIC_REASONING_PROVIDER ?? "").trim().toLowerCase();
+  if (!raw) return null;
+  return normalizeVendor(raw);
+}
+
 /**
  * Resolve the vendor seat for a call. Anything carrying a binary — an image on
  * the call, or one of MULTIMODAL_PURPOSES — goes to multimodalVendor() before
@@ -465,8 +479,12 @@ export function resolveVendorForPurpose(
   if (hasImage || MULTIMODAL_PURPOSES.has(purpose)) return multimodalVendor();
 
   const resolved = resolveTextVendor(purpose);
-  // Last rung: the legacy pro-tier seam, only when the axis said "gemini".
-  if (resolved === "gemini" && opts?.reasoningTier) return legacyReasoningProvider();
+  // Last rung: the legacy pro-tier seam, only when the axis said "gemini" AND
+  // the operator actually set the legacy variable. An unset seam must not
+  // overrule an explicit gemini (see legacyReasoningProviderOverride).
+  if (resolved === "gemini" && opts?.reasoningTier) {
+    return legacyReasoningProviderOverride() ?? resolved;
+  }
   return resolved;
 }
 

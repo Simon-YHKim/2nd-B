@@ -2,12 +2,13 @@
 --
 -- WHY: 0095's vendor allowlist was written when three proxies existed
 -- (gemini, claude, openai). xai-proxy joined on 2026-08-21 (#1317, Simon:
--- "grok 투입 그냥 해") and the client records reasoning_vendor = 'xai' for
--- calls it serves — but the CASE below turned that into NULL, so every
--- xai-served row in ai_audit_log has been logged WITHOUT its vendor. Found by
--- the T1 residue sweep's completeness critic on 2026-08-30 (side finding,
--- docs/GEMINI-RETIREMENT-INVENTORY.md). The ledger is the only place anyone
--- can check which vendor did what; a NULL here is a hole in that ledger.
+-- "grok 투입 그냥 해"). The proxies write their own audit rows directly and
+-- are not affected; this RPC is the CLIENT-side path (mock mode, output-swap
+-- and crisis rows, unaudited proxy replies), and there the CASE below turned
+-- 'xai' into NULL — so those rows carried no vendor. Found by the T1 residue
+-- sweep's completeness critic on 2026-08-30 (docs/GEMINI-RETIREMENT-INVENTORY.md).
+-- The ledger is the only place anyone can check which vendor did what; a NULL
+-- on any path is a hole in it.
 --
 -- 'gemini' stays in the list ON PURPOSE: old installed builds still call
 -- gemini-proxy until the alpha track carries a post-rework build, and their

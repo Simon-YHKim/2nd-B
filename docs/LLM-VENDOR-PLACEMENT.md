@@ -357,7 +357,26 @@ Simon 합의 사안이고(CLAUDE.md), 유니언에서 `gemini` 를 빼는 것은
 (159 중 1) — 재색인이 아니라 "색인이 안 돌고 있다" 가 살펴볼 일이다.
 
 **래칫 갱신.** `gemini-residue.test.ts`: routing.ts `"gemini"` 17 → 7(전부 opt-in 경로), 미설정→gemini
-0곳 · `RETIRED_DEFAULT` 11곳 고정, 상수가 `"openai"` 인지도 고정.
+0곳 · `RETIRED_DEFAULT` 10곳 · failover `"none"` 1곳 고정, 상수가 `"openai"` 인지도 고정.
+
+**되돌리기가 두 번 깨질 뻔했다 — 검토가 잡은 것.** 기본값을 openai 로 옮기자, "미설정 = gemini" 에
+기대던 두 자리가 명시 `gemini` 를 조용히 openai 로 바꿨다: ① `boundary.ts` 가 비-pro 좌석의
+`reasoningProvider = undefined`(감사 관례) **로 프록시를 골랐다** → `proxyFnForVendor(vendorSeat)` 로.
+② `resolveVendorForPurpose` 의 **레거시 pro-tier 시임**이 `EXPO_PUBLIC_REASONING_PROVIDER` 의 미설정
+기본값(이제 openai)을 읽어 pro 좌석(advisor·reasoning_connect·imagine)의 명시 gemini 를 뒤집었다 →
+`legacyReasoningProviderOverride()`(미설정이면 `null`, 의견 없음)만 시임이 읽는다.
+`legacy-seam-rollback.test.ts` 가 세 모양(미설정 시임 · 설정된 시임 · 축이 gemini 가 아닐 때)을 고정.
+교훈: **`undefined` 의 뜻을 바꾸면 그 값이 undefined 일 수 있는 소비자를 전부 grep 할 것.** 그리고
+`android-release.yml:106` 의 **맨 리터럴** `EXPO_PUBLIC_REASONING_PROVIDER: "gemini"` — `|| 'gemini'`
+폴백만 찾은 grep 이 놓쳤다 → openai.
+
+**색인 공백의 답(2026-08-31 실측).** `records` 159건 중 158건 임베딩 없음은 대부분 **설계**다 —
+`recordsEmbeddingAllowed()` 가 `records_embedding` 동의(D5, 기본 OFF, 미성년 클램프 0072)를 요구한다:
+13명 미설정(4건, 0) · 1명 명시 false(**138건**, 0) · 1명 true(17건, **1**). 그 1건은 **쓰기 시점에**
+8초 만에 임베딩됐다(`create.ts` → `embedAndStoreRecord`). 남은 16건은 동의 **이전** 기록인데
+`backfillRecordEmbeddings` 는 **호출부가 `src/` 어디에도 없다** — 켠 뒤에도 기존 기록은 영영 색인되지
+않는다. 재색인이 아니라 **"동의 시점의 백필 미배선"** 이 결함이고, 배선은 별도 발주(동의 토글 →
+백필, 클램프 준수).
 
 ### 9월 폐기 체크리스트 — 알파 트랙 항목 (콘솔 #1368 질의에 대한 답)
 

@@ -87,6 +87,12 @@ describe("unset lands on the retired default, never on a dead proxy", () => {
 
 describe("one lever moves every binary-carrying surface", () => {
   test.each(["openai", "OpenAI", "  openai  "])("%p flips them together", (v) => {
+    // Start from the OTHER vendor, so this proves the lever moves both
+    // surfaces rather than restating the default (openai since T1 stage A).
+    setVendor("gemini");
+    for (const p of ["capture_ocr", "capture_voice"] as const) {
+      expect(resolveVendorForPurpose(p, false)).toBe("gemini");
+    }
     setVendor(v);
     expect(multimodalVendor()).toBe("openai");
     for (const p of ["capture_ocr", "capture_voice"] as const) {
@@ -128,15 +134,12 @@ describe("transcribeAudio no longer names a vendor", () => {
   });
 
   test("the transcribe path itself no longer hardcodes a proxy name", () => {
-    // Scoped to transcribeAudio on purpose. ONE hardcoded "gemini-proxy"
-    // remains elsewhere in this file and is meant to: the D-26 outage failover
-    // in callLlm retries a failed vendor seat on the Phase 1 route.
-    //
-    // ⚠ That failover becomes a trap the moment gemini-proxy is decommissioned -
-    // a failing OpenAI seat would then fail over to a function that no longer
-    // exists. Deliberately left alone here, because the request is explicit
-    // that Gemini references stay until the flip is verified in production;
-    // it is written into the handoff as the console's follow-up.
+    // Scoped to transcribeAudio on purpose — the rest of boundary.ts picks
+    // every proxy through proxyFnForVendor too. (This comment used to say ONE
+    // hardcoded "gemini-proxy" remained for the outage failover; #1361 made
+    // that a switch and T1 stage A made its unset value "none", so no proxy
+    // name is hardcoded anywhere in this file's code any more — the
+    // gemini-residue ratchet pins that at zero.)
     const start = boundary.indexOf("export async function transcribeAudio");
     expect(start).toBeGreaterThan(-1);
     // Bounded to this one function: slicing to EOF would pick up callAdvisor's
