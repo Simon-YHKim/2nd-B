@@ -8,6 +8,10 @@ import dayjs from "dayjs";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { digitalConsentAge, resolveJurisdiction } from "../auth/consent-age";
 import type { ConsentSelections } from "../auth/consent-selections";
+import {
+  recoverySessionIdentity,
+  type RecoverySessionIdentity,
+} from "../auth/recovery-proof-store";
 import { isJudgeEmail } from "../judge/domains";
 import { getEnv } from "../env";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -314,24 +318,84 @@ function authParamsFromUrl(url: string): Record<string, string> {
   return Object.fromEntries(params.entries());
 }
 
-async function createNativeSessionFromUrl(supabase: SupabaseClient, url: string): Promise<void> {
+export interface AuthCallbackSession {
+  userId: string | null;
+  sessionId: string | null;
+  type: string | null;
+}
+
+export function authCallbackType(url: string): string | null {
+  return authParamsFromUrl(url).type ?? null;
+}
+
+/**
+ * Native implicit recovery links carry `type=recovery`. PKCE recovery links
+ * carry only a code in the URL; auth-js restores their type from the stored
+ * verifier after exchange. Limit that provisional form to this exact route so
+ * an OAuth callback code is never consumed by the password-reset screen.
+ */
+export function isPasswordRecoveryCallbackUrl(url: string): boolean {
   const params = authParamsFromUrl(url);
+  try {
+    const parsed = new URL(url);
+    // Expo standalone links may be either scheme://reset-password (host form)
+    // or scheme:///reset-password (path form), depending on the runtime.
+    const callbackPath = parsed.pathname.replace(/\/+$/, "");
+    const resetRoute =
+      callbackPath === "/reset-password" ||
+      (parsed.hostname === "reset-password" && callbackPath === "");
+    return resetRoute && Boolean(
+      params.type === "recovery" ||
+      params.code ||
+      params.error_code ||
+      params.errorCode,
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function createNativeSessionFromUrl(
+  supabase: SupabaseClient,
+  url: string,
+): Promise<AuthCallbackSession> {
+  const params = authParamsFromUrl(url);
+  const type = params.type ?? null;
   const errorCode = params.error_code ?? params.errorCode;
   if (errorCode) throw new Error(params.error_description ?? errorCode);
 
   if (params.code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(params.code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(params.code);
     if (error) throw error;
-    return;
+    // auth-js 2.106.1 returns redirectType at runtime even though the public
+    // AuthTokenResponse type omits it. It is the authoritative PKCE provenance.
+    const redirectType = (data as typeof data & { redirectType?: string | null })
+      .redirectType;
+    const identity = recoverySessionIdentity(data.session);
+    return {
+      userId: identity?.userId ?? null,
+      sessionId: identity?.sessionId ?? null,
+      // PKCE provenance comes only from auth-js. A caller-controlled URL
+      // `type=recovery` must not promote an ordinary exchanged code.
+      type: redirectType ?? null,
+    };
   }
 
   if (params.access_token && params.refresh_token) {
-    const { error } = await supabase.auth.setSession({
+    const { data, error } = await supabase.auth.setSession({
       access_token: params.access_token,
       refresh_token: params.refresh_token,
     });
     if (error) throw error;
+    const identity = recoverySessionIdentity(data.session);
+    return {
+      userId: identity?.userId ?? null,
+      sessionId: identity?.sessionId ?? null,
+      type,
+    };
   }
+
+  return { userId: null, sessionId: null, type };
 }
 
 async function openNativeOAuthSession(
@@ -359,9 +423,9 @@ export async function signInWithEmail(email: string, password: string): Promise<
 // URLs was the in-app OAuth browser path — so on Android/iOS the reset screen
 // always dead-ended at "expired" with no session. The reset screen feeds the
 // deep link here to establish the recovery session.
-export async function consumeAuthCallbackUrl(url: string): Promise<void> {
+export async function consumeAuthCallbackUrl(url: string): Promise<AuthCallbackSession> {
   const supabase = getSupabaseClient();
-  await createNativeSessionFromUrl(supabase, url);
+  return createNativeSessionFromUrl(supabase, url);
 }
 
 export async function sendPasswordResetEmail(email: string): Promise<void> {
@@ -376,10 +440,20 @@ export async function sendPasswordResetEmail(email: string): Promise<void> {
 // 6-digit token alongside the link; verifying it (type "recovery") establishes
 // the session updatePassword needs, with no mail link round-trip. The link in
 // the mail keeps working as a fallback — both consume the same token.
-export async function verifyPasswordResetCode(email: string, code: string): Promise<void> {
+export async function verifyPasswordResetCode(
+  email: string,
+  code: string,
+): Promise<RecoverySessionIdentity> {
   const supabase = getSupabaseClient();
-  const { error } = await supabase.auth.verifyOtp({ type: "recovery", email: email.trim(), token: code.trim() });
+  const { data, error } = await supabase.auth.verifyOtp({
+    type: "recovery",
+    email: email.trim(),
+    token: code.trim(),
+  });
   if (error) throw error;
+  const identity = recoverySessionIdentity(data.session);
+  if (!identity) throw new Error("Recovery verification returned no stable session");
+  return identity;
 }
 
 // Sign-up confirm code (Gmail deliverability P1, 2026-07-18): Gmail buries any
@@ -407,7 +481,12 @@ export async function verifySignUpCode(email: string, code: string): Promise<voi
 // got 200. GoTrue exempts recovery sessions, so enabling the setting does NOT
 // break "forgot password". The caller still handles `current_password_required`
 // in case that exemption ever changes.
-export async function updatePassword(password: string, currentPassword?: string): Promise<void> {
+export async function updatePassword(
+  password: string,
+  currentPassword?: string,
+  expectedUserId?: string,
+  expectedSessionId?: string,
+): Promise<{ userId: string | null }> {
   // The leaked-password check belongs HERE and not in the two forms, because
   // this function is the only place both of them pass through: the settings
   // change AND the forgot-password reset. Sign-up already had the check
@@ -425,10 +504,37 @@ export async function updatePassword(password: string, currentPassword?: string)
   // checks still apply.
   if (await isPasswordBreached(password)) throw new BreachedPasswordError();
   const supabase = getSupabaseClient();
-  const { error } = await supabase.auth.updateUser(
+  if (expectedUserId || expectedSessionId) {
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) throw sessionError;
+    const identity = expectedSessionId ? recoverySessionIdentity(sessionData.session) : null;
+    if (
+      sessionData.session?.user.id !== expectedUserId ||
+      (expectedSessionId && identity?.sessionId !== expectedSessionId)
+    ) {
+      throw new Error("Password recovery session changed before update");
+    }
+  }
+  const { data, error } = await supabase.auth.updateUser(
     currentPassword ? { password, current_password: currentPassword } : { password },
   );
   if (error) throw error;
+  const updatedUserId = data?.user?.id ?? null;
+  if (expectedUserId && updatedUserId !== expectedUserId) {
+    throw new Error("Password recovery session changed during update");
+  }
+  if (expectedUserId || expectedSessionId) {
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) throw sessionError;
+    const identity = expectedSessionId ? recoverySessionIdentity(sessionData.session) : null;
+    if (
+      sessionData.session?.user.id !== expectedUserId ||
+      (expectedSessionId && identity?.sessionId !== expectedSessionId)
+    ) {
+      throw new Error("Password recovery session changed during update");
+    }
+  }
+  return { userId: updatedUserId };
 }
 
 /**
@@ -466,9 +572,11 @@ export function passwordUpdateFailure(error: unknown): PasswordUpdateFailure {
   }
 }
 
-export async function signOut(): Promise<void> {
+export async function signOut(scope: "global" | "local" = "global"): Promise<void> {
   const supabase = getSupabaseClient();
-  const { error } = await supabase.auth.signOut();
+  const { error } = scope === "global"
+    ? await supabase.auth.signOut()
+    : await supabase.auth.signOut({ scope });
   if (error) throw error;
 }
 
