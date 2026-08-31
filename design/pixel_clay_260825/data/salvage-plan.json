@@ -52,13 +52,6 @@
       "activation": "유효한 복구 세션과 만료·오류 상태를 함께 재현할 수 있을 때",
       "reason": "고정 QA 로그인 상태로는 볼 수 없지만 production route가 존재한다."
     },
-    "profilesetup": {
-      "disposition": "state",
-      "target": "/complete-profile",
-      "referenceUse": "direct",
-      "activation": "가입 직후 프로필 미완성 계정으로 실제 제출·오류 흐름을 검증할 때",
-      "reason": "독립 새 route가 아니라 현재 최초 프로필 완성 화면에 대응한다."
-    },
     "dobgate": {
       "disposition": "embed",
       "target": "/onboarding",
@@ -187,12 +180,6 @@
     }
   },
   "actualRoutes": {
-    "/complete-profile": {
-      "strategy": "adapt-reference",
-      "references": ["profilesetup"],
-      "implementation": "가입 직후 실제 프로필 필드와 제출 상태를 PIXEL-CLAY form으로 정리한다.",
-      "doneWhen": "프로필 미완성 QA 세션에서 제출·오류·재진입이 검증된다."
-    },
     "/oauth-callback": {
       "strategy": "state-only",
       "references": [],

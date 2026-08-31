@@ -5869,7 +5869,7 @@ test('salvage plan classifies every non-direct frame and production route exactl
     .sort();
 
   assert.equal(salvage.schema, 1);
-  assert.equal(expectedDesignIds.length, 26);
+  assert.equal(expectedDesignIds.length, 25);
   assert.deepEqual(Object.keys(salvage.designFrames).sort(), expectedDesignIds);
   for (const [id, plan] of Object.entries(salvage.designFrames)) {
     const screen = manifest.screens.find((candidate) => candidate.id === id);
@@ -5900,7 +5900,7 @@ test('salvage plan classifies every non-direct frame and production route exactl
     .sort();
 
   assert.equal(new Set(productionHrefs).size, productionHrefs.length);
-  assert.equal(expectedActualHrefs.length, 24);
+  assert.equal(expectedActualHrefs.length, 23);
   assert.deepEqual(Object.keys(salvage.actualRoutes).sort(), expectedActualHrefs);
   for (const [href, plan] of Object.entries(salvage.actualRoutes)) {
     for (const reference of plan.references) {
