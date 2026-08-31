@@ -184,8 +184,13 @@ export async function relatedRecordsByEmbedding(
 }
 
 export interface BackfillResult {
+  /** Rows with usable text that this page tried to embed. */
   scanned: number;
   embedded: number;
+  /** Rows the page fetched, including empty-text ones (drives pagination). */
+  fetched: number;
+  /** created_at of the oldest fetched row — the keyset cursor for the next page. */
+  oldest: string | null;
 }
 
 /**
@@ -197,25 +202,42 @@ export interface BackfillResult {
  */
 export async function backfillRecordEmbeddings(
   userId: string,
-  opts: { locale?: "en" | "ko"; minor?: boolean; limit?: number; consented?: boolean } = {},
+  opts: {
+    locale?: "en" | "ko";
+    minor?: boolean;
+    limit?: number;
+    consented?: boolean;
+    /** Keyset cursor: only fetch rows with created_at strictly before this. */
+    before?: string;
+  } = {},
 ): Promise<BackfillResult> {
   // D5: fail closed — never batch-embed journal content without explicit consent.
-  if (!recordsEmbeddingAllowed(opts.minor, opts.consented)) return { scanned: 0, embedded: 0 };
+  if (!recordsEmbeddingAllowed(opts.minor, opts.consented)) {
+    return { scanned: 0, embedded: 0, fetched: 0, oldest: null };
+  }
   const limit = opts.limit ?? 50;
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("records")
-    .select("id, topic, summary, body")
+    .select("id, topic, summary, body, created_at")
     .eq("user_id", userId)
     .is("embedding", null)
     .order("created_at", { ascending: false })
     .limit(limit);
+  // Rows that never embed (red-zone → zero vector never stored, empty text)
+  // stay NULL and would occupy this newest-first page forever, hiding every
+  // older row. The cursor steps past them. Sub-microsecond created_at ties at
+  // a page boundary could be skipped; acceptable for a best-effort index that
+  // the next toggle rebuilds in full anyway.
+  if (opts.before) query = query.lt("created_at", opts.before);
+  const { data, error } = await query;
   if (error) throw error;
-  const rows = (data ?? []) as EmbeddableRecord[];
+  const rows = (data ?? []) as (EmbeddableRecord & { created_at: string })[];
+  const oldest = rows.length > 0 ? rows[rows.length - 1].created_at : null;
   const targets = rows
     .map((r) => ({ record: r, text: recordEmbeddingText(r) }))
     .filter((t) => t.text.length > 0);
-  if (targets.length === 0) return { scanned: 0, embedded: 0 };
+  if (targets.length === 0) return { scanned: 0, embedded: 0, fetched: rows.length, oldest };
 
   let embedded = 0;
   try {
@@ -238,12 +260,128 @@ export async function backfillRecordEmbeddings(
   } catch {
     for (const target of targets) {
       try {
-        const ok = await embedAndStoreRecord(userId, target.record, opts.locale ?? "en", opts.minor ?? false);
+        // The 5th argument is the caller's consent — dropping it defaults to
+        // false and recordsEmbeddingAllowed turns this whole rescue loop into
+        // a silent no-op (found by adversarial review the day the first
+        // production caller landed).
+        const ok = await embedAndStoreRecord(
+          userId,
+          target.record,
+          opts.locale ?? "en",
+          opts.minor ?? false,
+          opts.consented ?? false,
+        );
         if (ok) embedded += 1;
       } catch {
         // best-effort; isolate and move on
       }
     }
   }
-  return { scanned: targets.length, embedded };
+  return { scanned: targets.length, embedded, fetched: rows.length, oldest };
+}
+
+export interface BackfillAllResult {
+  rounds: number;
+  fetched: number;
+  embedded: number;
+  /**
+   * True when maxRounds stopped the loop with rows possibly remaining. This is
+   * "this run stopped here", NOT "the next toggle continues": off → on deletes
+   * every vector first and rebuilds from the newest row, so a user with more
+   * than batchSize × maxRounds un-embedded records keeps an un-indexed tail
+   * until a server-side batch exists. Honest cap over silent spend.
+   */
+  capped: boolean;
+  /** True when stillConsented() turned false mid-run and the loop stopped. */
+  aborted: boolean;
+  /** True when the final consent check was false and this run cleared vectors. */
+  cleared: boolean;
+}
+
+/**
+ * REQ-260901-02 (a), Simon 2026-08-31: when the records_embedding consent
+ * flips false → true, index the records that ALREADY exist — the consent copy
+ * now names them, so the index should too. Pages through every NULL-embedding
+ * row with the created_at keyset cursor above and stops at maxRounds as a cost
+ * guard. Fails closed without consent and for minors: the 0072 clamp is
+ * untouched, this only ever narrows on top.
+ *
+ * stillConsented is how a DETACHED run stays honest while the user can still
+ * act (adversarial review, 2026-08-31): it is read from the SERVER before
+ * every round — so an OFF that lands mid-run stops the batch, and a 0072
+ * clamp that silently rewrote the just-saved pref to false stops it before
+ * round 1 ever fetches — and once more after the loop: if consent is off by
+ * then, the run deletes the vectors it stored after the user's own clear ran,
+ * keeping the "끄면 벡터 삭제" promise. Rounds are sequential awaits, so the
+ * final check runs after the last store has settled.
+ *
+ * Retry path: rows that fail (red-zone, store error, batch failure) simply
+ * keep embedding NULL; toggling off (which deletes vectors) → on runs the
+ * whole build again from scratch. See docs/RECORDS-EMBEDDING.md.
+ */
+export async function backfillAllRecordEmbeddings(
+  userId: string,
+  opts: {
+    locale?: "en" | "ko";
+    minor?: boolean;
+    consented?: boolean;
+    batchSize?: number;
+    maxRounds?: number;
+    /** Live consent probe (server truth). Absent → the snapshot governs. */
+    stillConsented?: () => Promise<boolean> | boolean;
+  } = {},
+): Promise<BackfillAllResult> {
+  const none: BackfillAllResult = { rounds: 0, fetched: 0, embedded: 0, capped: false, aborted: false, cleared: false };
+  if (!recordsEmbeddingAllowed(opts.minor, opts.consented)) return none;
+  const batchSize = opts.batchSize ?? 50;
+  const maxRounds = opts.maxRounds ?? 10;
+  let rounds = 0;
+  let fetched = 0;
+  let embedded = 0;
+  let capped = false;
+  let aborted = false;
+  let cleared = false;
+  let before: string | undefined;
+  for (;;) {
+    if (rounds >= maxRounds) {
+      capped = true;
+      break;
+    }
+    if (opts.stillConsented && !(await opts.stillConsented())) {
+      aborted = true;
+      break;
+    }
+    const res = await backfillRecordEmbeddings(userId, {
+      locale: opts.locale,
+      minor: opts.minor,
+      consented: opts.consented,
+      limit: batchSize,
+      before,
+    });
+    rounds += 1;
+    fetched += res.fetched;
+    embedded += res.embedded;
+    if (res.fetched < batchSize || !res.oldest) break; // last page
+    before = res.oldest;
+  }
+  if (opts.stillConsented && !(await opts.stillConsented())) {
+    // Consent went off while (or right after) this run stored vectors. The
+    // user's own clear may have run BEFORE our later stores landed — clean up
+    // after ourselves so no vector survives a consent that is OFF.
+    aborted = true;
+    try {
+      await clearRecordEmbeddings(userId);
+      cleared = true;
+    } catch {
+      // best-effort; the rows are pref-gated for reads either way, and the
+      // next off→on cycle clears again.
+    }
+  }
+  if (fetched > 0 && typeof console !== "undefined") {
+    // Cost-guard visibility: one line per run with the batch counts.
+    console.log(
+      `[records-embedding] backfill on consent: rounds=${rounds} fetched=${fetched} embedded=${embedded}${capped ? " capped" : ""}${aborted ? " aborted" : ""}${cleared ? " cleared" : ""}`,
+    );
+  }
+  return { rounds, fetched, embedded, capped, aborted, cleared };
 }
