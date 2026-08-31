@@ -38,10 +38,6 @@ import { consumeFirstStarChatNudge } from "@/lib/onboarding/state";
 
 type Toast = { message: string; tone: "danger" | "info" | "success" };
 
-// The removed in-file lens expressed failed reads as `setHasError(true)`.
-// Its live replacement is the isolated renderer's explicit BfiLoadResult
-// `error` state, covered by big-five-canon.test.ts.
-
 // Rollback renderer. It keeps the established premium-shell output while the
 // PIXEL-CLAY route lives in an isolated direct renderer. Both skins share the
 // exact BFI scale, scoring/payload authority and owner-safe write controller.
