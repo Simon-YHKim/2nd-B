@@ -521,6 +521,7 @@ describe("개발자 화면 목록", () => {
     expect(source).toContain("canOpenFromDevRegistry(");
     expect(source).toContain("<SectionList");
     expect(source).toContain("stickySectionHeadersEnabled={false}");
+    expect(source).toContain("insets.top + m3.minTouch + m3.spacing.s6");
     expect(source).toContain('screenEntry(screen).kind === "standard"');
     expect(source).toContain("이 목록에서는 열 수 없습니다");
     for (const primitive of ["PixelSurface", "PixelPressable", "PixelGlyph"]) {

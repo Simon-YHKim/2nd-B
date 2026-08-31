@@ -13,6 +13,7 @@
 import { useEffect, useState } from "react";
 import { router } from "expo-router";
 import { Platform, SectionList, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelPressable } from "@/components/pixel/PixelPressable";
@@ -222,6 +223,7 @@ function RegistryHeader({ counts }: { counts: ReturnType<typeof entryRoleCounts>
 }
 
 function DevScreenIndex() {
+  const insets = useSafeAreaInsets();
   const all = devScreens();
   const counts = entryRoleCounts(all);
   const sections = registrySections(all);
@@ -229,7 +231,10 @@ function DevScreenIndex() {
   return (
     <SectionList<DevScreen, ScreenSection>
       style={styles.root}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[
+        styles.content,
+        { paddingTop: insets.top + m3.minTouch + m3.spacing.s6 },
+      ]}
       sections={sections}
       keyExtractor={(screen) => screen.file}
       ListHeaderComponent={<RegistryHeader counts={counts} />}
@@ -311,7 +316,6 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: m3.color.background },
   content: {
     paddingHorizontal: m3.spacing.s6,
-    paddingTop: m3.spacing.s6,
     paddingBottom: m3.spacing.s8,
     ...(Platform.OS === "web" ? { maxWidth: 720, width: "100%", alignSelf: "center" as const } : null),
   },
