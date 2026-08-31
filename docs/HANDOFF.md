@@ -3,7 +3,48 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-08-30 / 다른 PC에서도 같은 에셋·계보·검증으로 재개 가능
+## Latest — 2026-09-01 / T1 1단계는 방아쇠 하나만 남았다 · 백필 (a) 출하 · 결정 E 닫힘
+
+> 발행: Claude Code (Key_performance_4 세션). 작성 `2026-09-01 00:5x KST`. 이 절은 #1505 브랜치에 실려
+> 머지와 함께 main 에 닿는다. 상세 그림·표는 세션 보고서(아티팩트)와 `_sync/history/260829~0901_*`.
+
+### 현재 상태
+
+- **T1 1단계 (#1505, draft)** — 미설정 기본값 10곳 → openai · failover → `"none"` · `"gemini"` 는 명시
+  되돌리기 값으로만. 코드·테스트(래칫 `gemini-residue.test.ts`)·문서·CI 전부 초록. **남은 것은 방아쇠
+  하나**: 9/1 EAS **빌드 A**(main 그대로, vc 36+) 알파 게시 → 콘솔 한 줄 → 머지 → **빌드 B**(새 eas.json
+  값 탑재). 발주서 = **REQ-260901-03**(TO-GUI 09-01 00:30). 머지 직후 콘솔이 Variable
+  `EXPO_PUBLIC_REASONING_PROVIDER`→openai 와 **0147**(xai 화이트리스트, service_role EXECUTE 유지) 적용.
+- **records 백필 (a) 출하** — Simon 결정(REQ-260901-02) 그대로 **#1545 머지**(`7f08d092`): 동의 false→true 가
+  기존 기록을 일괄 색인, 동의 문구가 범위를 말함. 적대적 검토 14건 전건 반영 — `stillConsented` 서버
+  프로브가 비행 중 OFF·0072 클램프 에코를 닫음. 정본 `docs/RECORDS-EMBEDDING.md`. 결정 전에 켜 둔
+  사용자 1명은 off→on 한 번이면 전량 색인.
+- **#1506 머지** — 동의 화면 벤더명이 `embedVendorLabel()`(실제 스위치)에서 나온다. 실측 근거: 문구는
+  Gemini, 원장 첫 임베딩은 openai.
+- **결정 E 닫힘** — (가) "지우고 설치" 집행·문서화, preflight 워크플로 첫 실행 PASS(#1485, 08-29 13:55 KST).
+  (나-1) 은 세 번 왔지만 전부 생성기 체크 경유라 미집행 — **폐기 제안 중**(Q-260829-01).
+- **T1 2단계** — Simon 합의 문장 대기(Q-260830-01): 유니언 제거 · `@google/genai` 직접 경로(C2 잔재) ·
+  제약 게이트 4 · 디스크 읽는 검사 6 · 정책 문서 'Gemini'(법률 검토 경로) · 래칫 0. 프록시 삭제·키
+  revoke 는 콘솔 몫, 마지막.
+- **eject-button**(참고, 다른 저장소) — 1091(1.7.4·targetSdk 36) 프로덕션 활성. 1.7.5(run 92, vc 1092)
+  빌드 완료. ⚠ **Simon 상시 게이트: 1092 업로드·인앱 상품 재활성화는 별도 지시 전까지 금지.**
+
+### 다음 1개
+
+**콘솔의 빌드 A 알파 게시 한 줄** (`_sync/TO-CLI.md`). 그 줄이 오면 CLI 가 #1505 를 머지하고 빌드 B 를
+요청한다 — 순서는 REQ-260901-03 그대로.
+
+### 이 구간의 교훈 (재발 방지, 메모리에도 기록)
+
+- `Z` 가 붙은 API 시각을 KST 로 옮겨 적지 않으면 오기가 회신에 메아리친다(02:11Z → "02:11 KST" 사건).
+- 백그라운드 태스크의 "exited 0" 은 래퍼의 종료코드다 — `VERIFY_EXIT=` 줄을 읽을 것(0xC000012D 메모리
+  플레이크 재실행으로 해소).
+- detached 배치 + 상태 스냅샷 = 취소 불가 경합. 서버 진실을 라운드마다 다시 읽고, 끝나고도 한 번 더
+  읽어 자기 흔적을 지울 것(`stillConsented` 패턴).
+- python heredoc 은 백슬래시를 먹는다 — HTML 속 JS 를 스크립트로 고쳤으면 `<script>` 를 뽑아
+  `node --check`.
+
+## 2026-08-30 / 다른 PC에서도 같은 에셋·계보·검증으로 재개 가능
 
 > 발행: Codex portable handoff 보강 세션. 작성 시각 `2026-08-30 22:11:36 KST`.
 > 로컬 절대경로가 아니라 Git commit과 검증된 바이트를 동일성 기준으로 삼는다.
@@ -161,7 +202,7 @@ manifest의 실패 절차에 따라 현재 commit·diff·file history부터 확�
 
 ---
 
-## Latest — 2026-08-30 / P2·P3·Work0·릴리스 계약 정리, HUMAN PASS와 전체 P1·최종 배포 대기
+## 2026-08-30 / P2·P3·Work0·릴리스 계약 정리, HUMAN PASS와 전체 P1·최종 배포 대기
 
 > 발행: Codex 2nd-B 장기 인계 세션. 작성 시각 `2026-08-30 17:18:50 KST`.
 > 이 블록은 현재 저장소·GitHub·EAS 실측을 요약한다. 완료되지 않은 항목을 완료로 해석하지 말 것.
@@ -359,7 +400,7 @@ git fetch origin main && git pull --ff-only origin main && cat docs/HANDOFF.md
 
 ---
 
-## Latest — 2026-08-29 / 0.7.0 나갔다 — 웹에만. 폰을 막는 문은 **둘**이고 하나는 새로 생겼다
+## 2026-08-29 / 0.7.0 나갔다 — 웹에만. 폰을 막는 문은 **둘**이고 하나는 새로 생겼다
 
 > 발행: CLI 코딩 세션. 브랜치 `Simon-YHKim/p1-deviations`(머지 완료) → `release/0.7.0`(머지 완료).
 > 보고서: [자가 두 번 틀렸다](https://claude.ai/code/artifact/feffd35e-c652-44cc-b0f8-a9a7fb50dafa) ·
