@@ -323,6 +323,14 @@ Android/HUMAN에서 아직 실행하지 않은 항목, 기기 부족, fixture �
 - 온보딩 완료·coachmark 숨김은 폐기형 AVD의 AsyncStorage에만 기록됐고, 설문·record·업로드·
   profile·DOB·비밀번호·결제·export·delete 서버 쓰기는 실행하지 않음
 
+후속 delegated-auth 메타데이터 수정은 Draft PR #1543
+(`aa358fd2d3c536452d8f19551f98c385b12d8382`)에서 완료됐다. 이 PR은 `/plans`의 현재
+PIXEL-CLAY 기본 화면 gate가 있는 #1538을 base로 하며, wrapper/re-export route
+`/capture-full`, `/srs`, `/focus`, `/plans`, `/trends`를 명시된 gate 컴포넌트에 연결한다.
+런타임 redirect는 바꾸지 않는다. #1538 stack 단독 로그인 필요 집계는 57→62이고,
+`/ttfv`가 포함된 위 integration SHA 계열에 적용하면 58→63이어야 한다. GitHub의
+`verify` 2개, `web-export-smoke` 2개, PR title lint는 모두 PASS이며 Draft를 유지했다.
+
 여전히 미실행인 항목은 API 33/35, 320dp, font scale 1.3~1.5, TalkBack, light mode,
 IME·picker·background/resume, 모든 화면의 전체 HUMAN interaction matrix다. 최종 통합 담당자는
 이 선행 smoke를 재사용해 해당 항목을 PASS로 올리지 말고 final merged SHA에서 다시 수행한다.

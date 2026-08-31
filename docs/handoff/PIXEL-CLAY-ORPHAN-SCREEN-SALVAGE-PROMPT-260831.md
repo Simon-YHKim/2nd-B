@@ -60,6 +60,13 @@ Ready 전환, base retarget, merge, `main` push는 사용자의 별도 승인 �
 
 `PIXEL-CLAY-ANDROID-RUNTIME-BLOCKER-PROMPT-260831.md` P1을 그대로 구현한다.
 
+2026-08-31 현재 이 선행 작업은 Draft PR #1543에서 완료됐다. head는
+`aa358fd2d3c536452d8f19551f98c385b12d8382`, base는 #1538의
+`codex/pixel-clay-plans-260831`이며, GitHub의 중복 실행된 `verify` 2개와
+`web-export-smoke` 2개, PR title lint가 모두 통과했다. #1538 stack 단독 집계는
+57에서 62로 바뀌며, `/ttfv` 직접 gate가 포함된 전체 36개 통합에서는 58에서 63이 된다.
+Ready 전환·base retarget·merge는 수행하지 않았다.
+
 - `auth?: true | { gateFile: string; component: string }`
 - `/capture-full`, `/srs`, `/focus`, `/plans`, `/trends` 다섯 wrapper/re-export route만
   delegated gate를 선언한다.
@@ -68,7 +75,8 @@ Ready 전환, base retarget, merge, `main` push는 사용자의 별도 승인 �
 - 테스트는 선언된 한 gate file만 검사하고 import graph 재귀 탐색은 하지 않는다.
 - runtime route에 redirect를 복제하지 않는다.
 
-이 PR이 먼저 green이어야 아래 PR B의 집계 기준이 정확해진다.
+PR #1543이 green이므로 아래 PR B는 해당 head 위에 쌓거나, #1538과 #1543이 병합된 뒤
+최신 `main`에서 시작한다.
 
 #### PR B — `feat(dev): classify route entry roles and add a Pixel Design Lab`
 
