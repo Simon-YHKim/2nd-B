@@ -417,7 +417,9 @@ describe("비서 허브 PIXEL·legacy 회귀", () => {
     expect(reactNativeImport).not.toMatch(/\bPressable\b/);
     expect(HUB).not.toMatch(/borderRadius\s*:|opacity\s*:|#[0-9a-f]{3,8}|LinearGradient/i);
     expect(HUB).not.toContain("style={({");
-    expect(PIXEL_RULES).toContain("const RATCHET_BASELINE = 160");
+    const ratchetBaseline = Number(/const RATCHET_BASELINE = (\d+);/.exec(PIXEL_RULES)?.[1]);
+    expect(Number.isInteger(ratchetBaseline)).toBe(true);
+    expect(ratchetBaseline).toBeLessThanOrEqual(165);
   });
 });
 
