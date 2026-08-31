@@ -145,7 +145,8 @@ Project-specific guidance for Claude Code sessions in this repo.
 > 아니다.** `PHASE2_VENDOR` 맵이 9좌석을 `openai` 로 **선언**하고 있을 뿐이고, 그 맵은
 > `EXPO_PUBLIC_LLM_PHASE=2` 에서만 켜지는데 **저장소 Variable 이 `1` 이다**(2026-07-05
 > 설정, `EXPO_PUBLIC_LLM_VENDOR` 는 아예 없음). Phase 1 에서 `resolveVendorForPurpose` 는
-> 전부 `gemini` 를 돌려준다.
+> 전부 `gemini` 를 돌려준다. *(2026-08-31 정정: 그 미설정 폴백은 이제 `openai` 다 — 아래 T1 1단계
+> 블록. 이 문단의 나머지는 08-18 시점 기록.)*
 >
 > **원장으로 확인했다**(`ai_audit_log`, 2026-08-18): 전체 행에서 `reasoning_vendor` 가
 > **`gemini` 아닌 행이 0건**이다. `ops_recommend` 25 · `ops_daily_brief` 12 ·
@@ -197,6 +198,13 @@ Project-specific guidance for Claude Code sessions in this repo.
 > 개명한 이유는 이름이 사실과 달라서다 — 이 모듈은 gemini·claude·openai 세 벤더를
 > 모두 태우는데 한 벤더 이름을 달고 있었고, 그 이름 때문에 "우리는 Gemini 앱"이라는
 > 오해가 세션마다 재생산됐다.
+>
+> **⚠ 2026-08-31 T1 1단계 — 미설정 기본값이 더는 Gemini 로 떨어지지 않는다.** `routing.ts` 의
+> `RETIRED_DEFAULT = "openai"` 가 미설정 스위치 10곳의 착지점이고, 11번째인 failover 는 미설정이면 `"none"` 이다.
+> `"gemini"` 는 **명시값으로만** 살아 있다(콘솔이 `gemini-proxy` 를 지우기 전까지의 되돌리기 수단).
+> 원장 기준 마지막 실제 Gemini 호출은 2026-08-24 07:31 KST 다. 남은 순서·결합 조건은
+> `docs/LLM-VENDOR-PLACEMENT.md` "9월 폐기 체크리스트" · 전체 잔재는 `docs/GEMINI-RETIREMENT-INVENTORY.md`.
+> 아래 "Phase 1 = 전부 gemini" 서술은 그 이전의 사실이다.
 >
 > **반대로 아직 `gemini` 인 채로 두는 것들은 일부러 그렇다:**
 >

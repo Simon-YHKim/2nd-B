@@ -334,7 +334,76 @@ Supabase Edge 시크릿에만 있고 함수 디렉터리 삭제 ≠ 배포 해�
 `gemini-proxy` 를 부른다 — 알파 트랙 새 빌드 게시가 1단계.
 
 부수 발견(티켓감): `db/migrations/0095` 의 `p_reasoning_vendor IN ('gemini','claude','openai')` 에
-**`xai` 가 없다** — xai 가 서빙한 행은 벤더 NULL 로 기록된다.
+**`xai` 가 없다** — xai 가 서빙한 행은 벤더 NULL 로 기록된다. → **`0147_log_ai_audit_xai_vendor.sql`
+로 파일 생성(2026-08-31). 적용은 콘솔(dry-run + tail 대조 규율).**
+
+### T1 1단계 집행 (2026-08-31) — 기본값이 더는 Gemini 로 떨어지지 않는다
+
+**바꾼 것.** `routing.ts` 에 `RETIRED_DEFAULT = "openai"` 를 두고 **미설정→gemini 11곳 중 10곳**을 거기로
+보냈다(backbone · safety · embed · multimodal · legacyReasoningProvider · chat · 좌석 폴백 2 · Phase-1
+규칙 · reasoningTier 시드). 11번째 `failoverVendor()` 미설정은 `"none"`. `proxyFnForVendor(undefined)` 는
+`openai-proxy`. `boundary.ts` 는 **코드 한 줄** — 프록시 선택을 `reasoningProvider` 가 아니라 `vendorSeat`
+로(아래 "되돌리기가 두 번 깨질 뻔했다"). `eas.json` 세 프로필의 `EXPO_PUBLIC_REASONING_PROVIDER`·`EXPO_PUBLIC_SAFETY_VENDOR`
+→ `openai`(**9/1 빌드와 한 묶음** — #1479 이후 나간 빌드가 없어 좌초 대상 없음). `web-deploy.yml`·
+`android-release.yml` 의 `|| 'gemini'` 폴백 3곳 → `'openai'`.
+
+**안 바꾼 것 — 일부러.** ① `"gemini"` 는 여전히 **명시값으로 수용**된다(`normalizeVendor` 등). 콘솔이
+`gemini-proxy` 를 지우기 전까지 변수 하나로 되돌릴 수 있어야 한다. ② `LlmVendor` 유니언·`boundary.ts`
+의 `@google/genai` 직접 경로·`EXPO_PUBLIC_MODEL_*` 는 그대로 — 직접 경로는 **C2 대회 잔재**라 제거는
+Simon 합의 사안이고(CLAUDE.md), 유니언에서 `gemini` 를 빼는 것은 프록시 삭제와 같은 PR 이 맞다.
+③ 프록시 함수·`GEMINI_API_KEY`·키 revoke 는 콘솔 몫, **알파 트랙 새 빌드 뒤**.
+
+**임베딩 재색인 — 불필요(실측).** `wiki_pages` 0행 · `records` 159행 중 벡터 1(`text-embedding-3-large`) ·
+`persona_entity` 0행. gemini 가 만든 벡터가 하나도 남아 있지 않다. 다만 **색인 자체가 거의 비어 있다**
+(159 중 1) — 재색인이 아니라 "색인이 안 돌고 있다" 가 살펴볼 일이다.
+
+**래칫 갱신.** `gemini-residue.test.ts`: routing.ts `"gemini"` 17 → 7(전부 opt-in 경로), 미설정→gemini
+0곳 · `RETIRED_DEFAULT` 10곳 · failover `"none"` 1곳 고정, 상수가 `"openai"` 인지도 고정.
+
+**되돌리기가 두 번 깨질 뻔했다 — 검토가 잡은 것.** 기본값을 openai 로 옮기자, "미설정 = gemini" 에
+기대던 두 자리가 명시 `gemini` 를 조용히 openai 로 바꿨다: ① `boundary.ts` 가 비-pro 좌석의
+`reasoningProvider = undefined`(감사 관례) **로 프록시를 골랐다** → `proxyFnForVendor(vendorSeat)` 로.
+② `resolveVendorForPurpose` 의 **레거시 pro-tier 시임**이 `EXPO_PUBLIC_REASONING_PROVIDER` 의 미설정
+기본값(이제 openai)을 읽어 pro 좌석(advisor·reasoning_connect·imagine)의 명시 gemini 를 뒤집었다 →
+`legacyReasoningProviderOverride()`(미설정이면 `null`, 의견 없음)만 시임이 읽는다.
+`legacy-seam-rollback.test.ts` 가 세 모양(미설정 시임 · 설정된 시임 · 축이 gemini 가 아닐 때)을 고정.
+교훈: **`undefined` 의 뜻을 바꾸면 그 값이 undefined 일 수 있는 소비자를 전부 grep 할 것.** 그리고
+`android-release.yml:106` 의 **맨 리터럴** `EXPO_PUBLIC_REASONING_PROVIDER: "gemini"` — `|| 'gemini'`
+폴백만 찾은 grep 이 놓쳤다 → openai.
+
+**색인 공백의 답(2026-08-31 실측).** `records` 159건 중 158건 임베딩 없음은 대부분 **설계**다 —
+`recordsEmbeddingAllowed()` 가 `records_embedding` 동의(D5, 기본 OFF, 미성년 클램프 0072)를 요구한다:
+13명 미설정(4건, 0) · 1명 명시 false(**138건**, 0) · 1명 true(17건, **1**). 그 1건은 **쓰기 시점에**
+8초 만에 임베딩됐다(`create.ts` → `embedAndStoreRecord`). 남은 16건은 동의 **이전** 기록인데
+`backfillRecordEmbeddings` 는 **호출부가 `src/` 어디에도 없다** — 켠 뒤에도 기존 기록은 영영 색인되지
+않는다. 재색인이 아니라 **"동의 시점의 백필 미배선"** 이 결함이고, 배선은 별도 발주(동의 토글 →
+백필, 클램프 준수).
+
+**실제로 돌려 봤다 (2026-08-31 01:03–01:07 KST, 라이브 웹, QA 계정).** 기준선 QA 138/138 NULL ·
+`wiki_pages` 0행(전 사용자 합계도 0) · 동의 켠 사용자 1명. ① `/privacy` "의미 연결 켜기" →
+`records_embedding=true`. ② `/capture` 한 줄 담기 → **7초 뒤** `records.embedding` 有,
+`embedding_model=text-embedding-3-large`, `ai_audit_log` **embed_index / openai / 3,492 ms**.
+③ `/research` "AI 연결 제안 받기"(= `wiki/embeddings.ts` `backfillEmbeddings`) → 원장 행 **0** —
+이 백필은 `wiki_pages` 만 읽는데 0행이라 `embedTexts` 를 부르지 않는다. 그런데 그 화면의 그래프
+("페이지 89 · 연결 9")는 `records` 로 그린다 — **화면과 색인의 데이터원이 다르다.** ④ "의미 연결
+끄기" → pref false, 벡터 삭제(정직한 OFF), 원장 행은 남음. 0072 클램프는 `minor_self` 에만 걸린다
+(QA 는 adult). 결론: 경로는 정상이고 **색인을 만드는 손이 없다** — 동의 기본 OFF · 소급 백필 없음 ·
+위키 0행. 제품 결정(Simon): records 백필을 (a) 동의 켤 때 일괄 / (b) 연결 제안 버튼이 records 색인 /
+(c) 지금처럼 앞으로만.
+
+**결정 기록 (2026-08-31 02:06 KST).** 발주 "T1 마무리 (2)" 에 (b)와 (c)가 **동시에** 체크돼 왔다(생성기가
+"둘 이상 체크됨 — 하나만 남길 것" 경고를 붙인 채). 둘은 양립하지 않으므로 **미결로 이월**(Q-260831-01, 이월 1회).
+
+**해소 (2026-08-31 21:59, REQ-260901-02).** Simon 이 **(a)** 로 결정했다 — "records 백필은 (a) 동의를 켤 때
+기존 기록도 일괄 색인하는 쪽으로 간다. 0072 미성년 클램프는 그대로 지킬 것." **PR #1545 로 집행·머지됨**
+(`7f08d092`): 동의 false→true 에 `backfillAllRecordEmbeddings`(키셋 페이지네이션 · 라운드마다 서버 pref
+재확인 `stillConsented` · 종료 후 OFF 면 자가 clear) + 동의 문구 범위 수정. 상세는 `docs/RECORDS-EMBEDDING.md`.
+Q-260831-01 **닫힘.**
+
+⚠ 실측이 낸 결함 — 동의 문구가 **"Gemini(해외)로 전송"** 이라고 적혀 있는데 같은 동의의 첫 임베딩은
+**openai** 로 갔다(08-23 벤더 이동, 문구 미갱신). 벤더 이름을 `embedVendor()` 에서 읽도록 별도 PR
+**#1506**(`fix/embed-consent-vendor-copy`). 개인정보처리방침 **문서**의 'Gemini' 는 2단계(Simon 합의)
+그대로.
 
 ### 9월 폐기 체크리스트 — 알파 트랙 항목 (콘솔 #1368 질의에 대한 답)
 
@@ -362,7 +431,7 @@ Supabase Edge 시크릿에만 있고 함수 디렉터리 삭제 ≠ 배포 해�
 > | 조각 | 상태 (26-08-29) |
 > |---|---|
 > | `eas.json` 세 프로필(`preview`·`preview-emulator`·`production`) = `none` | **완료** (이 변경) |
-> | 저장소 Variable `EXPO_PUBLIC_FAILOVER_VENDOR` = `none` | **완료** (콘솔, 26-08-29 12:33 KST — `gh variable list` 실측) |
+> | 저장소 Variable `EXPO_PUBLIC_FAILOVER_VENDOR` = `none` | **완료** (26-08-29 12:33 KST — `gh variable list` 실측. ⚠ **누가 눌렀는지 미상** — 콘솔은 자기 손이 아니라고 회신(08-30). 승격은 측정값 기준이라 유효) |
 > | 새 EAS 빌드 | **9/1 대기** (할당량) |
 >
 > ⚠ **`eas.json` 은 세 경로 중 하나만 덮는다.** 나머지 둘은 저장소 Variable 을 읽는다:
@@ -370,11 +439,12 @@ Supabase Edge 시크릿에만 있고 함수 디렉터리 삭제 ≠ 배포 해�
 > | 경로 | 값의 출처 | 미설정 시 |
 > |---|---|---|
 > | EAS 빌드 · OTA | **`eas.json`** | — |
-> | 웹 | 저장소 Variable (`web-deploy.yml:140`) | `''` → `gemini` |
-> | **진단 gradle APK** | 저장소 Variable (`android-release.yml:124`) | `''` → `gemini` |
+> | 웹 | 저장소 Variable (`web-deploy.yml:140`) | `''` → ~~`gemini`~~ **`none`** (2026-08-31 T1 1단계) |
+> | **진단 gradle APK** | 저장소 Variable (`android-release.yml:124`) | `''` → ~~`gemini`~~ **`none`** (동일) |
 >
-> 즉 **진단 APK 는 `eas.json` 을 아예 안 읽는다.** 그 빌드에서 failover 를 끄는 방법은
-> 저장소 Variable 뿐이다. 콘솔 조작 없이는 그 경로만 죽은 키로 재시도를 계속한다.
+> 즉 **진단 APK 는 `eas.json` 을 아예 안 읽는다.** 08-29 시점엔 그 빌드에서 failover 를 끄는 방법이
+> 저장소 Variable 뿐이었고(미설정 = gemini), 08-29 12:33 에 Variable 이 `none` 으로 설정됐다.
+> T1 1단계 이후엔 미설정도 `none` 이라 이 표의 위험은 사라졌다 — 역사 기록.
 
 Simon 이 `none` 여부를 물었을 때 답은 "그렇게 하되 **지금은 아니다**"다. 이유가 신중함이
 아니라 **구조**라서 적어둔다.

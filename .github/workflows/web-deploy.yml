@@ -93,25 +93,27 @@ jobs:
           EXPO_PUBLIC_MODEL_LITE: ${{ vars.EXPO_PUBLIC_MODEL_LITE || 'gemini-3.5-flash' }}
           EXPO_PUBLIC_MODEL_FLASH: ${{ vars.EXPO_PUBLIC_MODEL_FLASH || 'gemini-3.5-flash' }}
           EXPO_PUBLIC_MODEL_PRO: ${{ vars.EXPO_PUBLIC_MODEL_PRO || 'gemini-3.5-flash' }}
-          # Reasoning-seat provider parity with the native builds (eas.json +
-          # android-release.yml pin "gemini" since 2026-07-21: Anthropic credits
-          # exhausted 2026-07-06, so "claude" made every pro-tier call pay a dead
-          # claude-proxy hop before the gemini fallback). NOTE the repo Variable
-          # EXPO_PUBLIC_REASONING_PROVIDER (currently "claude") outranks this
-          # fallback — flip it with:
-          #   gh variable set EXPO_PUBLIC_REASONING_PROVIDER --body gemini
-          EXPO_PUBLIC_REASONING_PROVIDER: ${{ vars.EXPO_PUBLIC_REASONING_PROVIDER || 'gemini' }}
+          # Legacy pro-tier seam, parity with eas.json + android-release.yml
+          # ("openai" since T1 stage A, 2026-08-31; it was "gemini" from
+          # 2026-07-21 while Anthropic credits were exhausted). The seam only
+          # speaks when the vendor axis resolves gemini AND the variable is set,
+          # so with EXPO_PUBLIC_LLM_VENDOR=perPurpose it is inert. The repo
+          # Variable outranks this fallback, and as of 2026-08-31 it still
+          # reads "gemini" (set 2026-07-20) — inert today, but a console-side
+          # flip to "openai" (or deleting it) is what makes web match native.
+          EXPO_PUBLIC_REASONING_PROVIDER: ${{ vars.EXPO_PUBLIC_REASONING_PROVIDER || 'openai' }}
           # D-26 purpose-keyed routing phase. "1" = current posture (no behavior
           # change); flip the repo Variable to "2" to activate Phase 2 routing.
           EXPO_PUBLIC_LLM_PHASE: ${{ vars.EXPO_PUBLIC_LLM_PHASE || '1' }}
-          # Vendor for 세컨비 대화 only. Unset/"gemini" keeps today's behaviour.
-          # Deploy openai-proxy BEFORE setting this to "openai": the proxy 400s
-          # any purpose outside its allowlist, and the secondb_chat seat only
-          # exists once that function is redeployed.
-          EXPO_PUBLIC_CHAT_VENDOR: ${{ vars.EXPO_PUBLIC_CHAT_VENDOR || 'gemini' }}
+          # Vendor for 세컨비 대화 only. Unset resolves openai since T1 stage A
+          # (2026-08-31); "gemini" is accepted only as an explicit rollback value
+          # while gemini-proxy still exists. (openai-proxy has carried the
+          # secondb_chat seat since REQ-260821-01 — the deploy-before-flip trap
+          # this comment used to warn about is history.)
+          EXPO_PUBLIC_CHAT_VENDOR: ${{ vars.EXPO_PUBLIC_CHAT_VENDOR || 'openai' }}
           # Backbone switch for the nine reasoning seats. Unset is NOT the same as
-          # 'gemini' here: unset falls through to the phase rule (Phase 1 = Gemini),
-          # which is today's posture, so '' keeps behaviour identical. Setting this
+          # a vendor name here: unset falls through to the phase rule, which
+          # resolves openai since T1 stage A (it was Gemini). Setting this
           # to openai/claude requires that vendor's key AND credit -- and note the
           # seats have never served a production call, so treat a flip as a rollout,
           # not a config tweak.

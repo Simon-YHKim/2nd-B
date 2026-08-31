@@ -112,10 +112,12 @@ describe("a switch nobody's build passes is not a switch", () => {
 
   test("EXPO_PUBLIC_LLM_VENDOR is PRESENT in eas.json, with a real value", () => {
     // This assertion used to say the opposite, and its reasoning was sound
-    // while its conclusion was wrong. The reasoning: the other switches
-    // default to "gemini", so writing "gemini" equals unset, while this one
-    // defers to the phase rule instead - no literal reproduces "unset", and ""
-    // is what broke eas-cli, so absence was the only way to say unset.
+    // while its conclusion was wrong. The reasoning (as of when it was
+    // written; since T1 stage A, 2026-08-31, unset resolves openai): the other
+    // switches default to "gemini", so writing "gemini" equals unset, while
+    // this one defers to the phase rule instead - no literal reproduces
+    // "unset", and "" is what broke eas-cli, so absence was the only way to
+    // say unset.
     //
     // All true. What it missed is that "unset" is not neutral here. Phase 1
     // pins every reasoning seat to Gemini, so leaving the key out was not
@@ -163,7 +165,9 @@ describe("xai is routable", () => {
     expect(proxyFnForVendor("openai")).toBe("openai-proxy");
     expect(proxyFnForVendor("claude")).toBe("claude-proxy");
     expect(proxyFnForVendor("gemini")).toBe("gemini-proxy");
-    expect(proxyFnForVendor(undefined)).toBe("gemini-proxy");
+    // An undefined vendor lands on the retired default's proxy (T1 stage A,
+    // 2026-08-31). gemini-proxy is reachable by NAME only, per the line above.
+    expect(proxyFnForVendor(undefined)).toBe("openai-proxy");
   });
 
   test("the seat, chat and backbone switches accept it", () => {
@@ -177,9 +181,10 @@ describe("xai is routable", () => {
 
   test("an operator typing the product name gets the vendor", () => {
     // The product is Grok; the API host, the secret and the audit ledger all
-    // say xai. Refusing "grok" would fall through to Gemini with no error
-    // anywhere, which is the same silent no-op that made this project believe
-    // for weeks that it was on OpenAI when it was not.
+    // say xai. Refusing "grok" would fall through to the retired default
+    // (openai since T1 stage A; gemini before) with no error anywhere, which
+    // is the same silent no-op that made this project believe for weeks that
+    // it was on OpenAI when it was not.
     setEnv("EXPO_PUBLIC_LLM_VENDOR", "grok");
     expect(llmVendorOverride()).toBe("xai");
     setEnv("EXPO_PUBLIC_CHAT_VENDOR", "  GROK  ");
@@ -188,22 +193,43 @@ describe("xai is routable", () => {
     expect(backboneVendor()).toBe("xai");
   });
 
-  test("a near-miss is still refused rather than guessed at", () => {
+  test("a near-miss is refused and lands on the retired default, not xai", () => {
     // The alias is one exact word. "x-ai" or "grok-4" would be a guess about
     // what the operator meant, and guessing wrong is how a call ends up at a
-    // vendor nobody chose.
+    // vendor nobody chose. A refused value falls to RETIRED_DEFAULT (openai
+    // since T1 stage A, 2026-08-31) - the point is that it is not xai.
     for (const v of ["x-ai", "grok-4", "xAI!", "gr0k"]) {
       setEnv("EXPO_PUBLIC_BACKBONE_VENDOR", v);
-      expect(backboneVendor()).toBe("gemini");
+      expect(backboneVendor()).toBe("openai");
     }
   });
 
-  test("the multimodal switch does NOT accept it", () => {
+  test("the multimodal switch does NOT accept it; it falls to the retired default", () => {
     // xai-proxy has no image or audio path and refuses an attachment outright.
     // Accepting the value here would turn a capability gap into a 415 on every
-    // photo and voice memo.
+    // photo and voice memo. The refusal lands on RETIRED_DEFAULT (openai),
+    // whose proxy carries both binary seats.
     setEnv("EXPO_PUBLIC_MULTIMODAL_VENDOR", "xai");
+    expect(multimodalVendor()).toBe("openai");
+  });
+});
+
+describe("gemini is still reachable by name (one-variable rollback)", () => {
+  // T1 stage A moved every unset switch to openai. "gemini" stays an ACCEPTED
+  // explicit value until gemini-proxy is deleted from the console, so a single
+  // repo Variable can put a switch back. This is the property that makes the
+  // default flip reversible; if it goes, the rollback goes with it.
+  test("each switch this file exercises accepts an explicit gemini", () => {
+    setEnv("EXPO_PUBLIC_LLM_VENDOR", "gemini");
+    expect(llmVendorOverride()).toBe("gemini");
+    setEnv("EXPO_PUBLIC_CHAT_VENDOR", "gemini");
+    expect(chatVendorOverride()).toBe("gemini");
+    setEnv("EXPO_PUBLIC_BACKBONE_VENDOR", "gemini");
+    expect(backboneVendor()).toBe("gemini");
+    setEnv("EXPO_PUBLIC_MULTIMODAL_VENDOR", "gemini");
     expect(multimodalVendor()).toBe("gemini");
+    // and the name resolves to its own proxy, not the default's
+    expect(proxyFnForVendor("gemini")).toBe("gemini-proxy");
   });
 });
 
@@ -331,12 +357,14 @@ describe("what is unverified is behind a lever, not a literal", () => {
 });
 
 describe("nothing routes to xai by default", () => {
-  test("every switch left unset stays off xai", () => {
+  test("every switch left unset lands on the retired default (openai), never xai", () => {
+    // Until T1 stage A (2026-08-31) unset meant gemini. It now means openai;
+    // the invariant this test guards is that it never means xai.
     for (const k of ENV_KEYS) setEnv(k, undefined);
     expect(llmVendorOverride()).toBeNull();
     expect(chatVendorOverride()).toBeNull();
-    expect(backboneVendor()).toBe("gemini");
-    expect(multimodalVendor()).toBe("gemini");
+    expect(backboneVendor()).toBe("openai");
+    expect(multimodalVendor()).toBe("openai");
   });
 
   test("the seat map still ships as openai, not xai", () => {

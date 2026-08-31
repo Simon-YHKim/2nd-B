@@ -11,6 +11,16 @@
 // still dialling a dead key, and the symptom would have read as a vendor
 // outage rather than as a seat nobody moved.
 //
+// T1 stage A (2026-08-31) moved where an UNSET switch lands. Until then every
+// switch in routing.ts fell through to "gemini"; now every one falls through
+// to RETIRED_DEFAULT ("openai"). The "default" block below proves that new
+// landing and keeps one explicit-"gemini" case, because "gemini" is still an
+// accepted operator value: that is the one-variable rollback, and it has to
+// stay provable until gemini-proxy is deleted from the console. The isolation
+// tests pin whichever switch they are exercising to a vendor that is NOT the
+// default ("claude"), so "switch A did not reach group B" is still a
+// discriminating assertion rather than two defaults happening to agree.
+//
 // The assertion that carries the most weight here is the LAST one: every
 // purpose in the union must have some variable that moves it off Gemini. It is
 // written as a sweep over the union rather than a list, so a purpose added
@@ -75,67 +85,95 @@ function proxyMap(name: string): Record<string, string> {
   return out;
 }
 
-describe("the default is unchanged", () => {
-  test("unset keeps every backbone purpose on Gemini", () => {
+describe("the default is the retired-vendor landing (T1 stage A)", () => {
+  test("unset lands every backbone purpose on openai", () => {
     setEnv(ENV.backbone, undefined);
+    expect(backboneVendor()).toBe("openai");
+    for (const p of BACKBONE) expect(resolveVendorForPurpose(p, false)).toBe("openai");
+  });
+
+  test("explicit gemini still resolves gemini for every backbone purpose (one-variable rollback)", () => {
+    // "gemini" stays an accepted operator value until gemini-proxy is deleted
+    // from the console. It just never happens by default any more.
+    setEnv(ENV.backbone, "gemini");
     expect(backboneVendor()).toBe("gemini");
     for (const p of BACKBONE) expect(resolveVendorForPurpose(p, false)).toBe("gemini");
   });
 
-  test("an unrecognized value falls back to Gemini rather than to nothing", () => {
+  test("an unrecognized value falls back to openai rather than to nothing", () => {
     // "grok" and "xai" left this list on 2026-08-21: xai is a real vendor now,
     // and "grok" is accepted as its alias precisely so an operator typing the
-    // product name does not get a silent fallback to Gemini.
+    // product name does not get a silent fallback to the default.
     for (const junk of ["", "  ", "anthropic", "openai!", "x-ai"]) {
       setEnv(ENV.backbone, junk);
-      expect(backboneVendor()).toBe("gemini");
+      expect(backboneVendor()).toBe("openai");
     }
   });
 
   test("the value is read case-insensitively and trimmed, like its neighbours", () => {
     setEnv(ENV.backbone, "  OpenAI  ");
     expect(backboneVendor()).toBe("openai");
+    // openai is also the unset landing now, so the line above alone would pass
+    // for a switch that ignored its input entirely. A non-default vendor is
+    // what proves the trim and the lowercase actually ran.
+    setEnv(ENV.backbone, "  Claude  ");
+    expect(backboneVendor()).toBe("claude");
   });
 });
 
 describe("the switch moves exactly the backbone", () => {
-  test("set to openai, all nine move", () => {
+  test("set explicitly, all nine move together", () => {
     setEnv(ENV.backbone, "openai");
     for (const p of BACKBONE) expect(resolveVendorForPurpose(p, false)).toBe("openai");
+    // openai is the default since T1 stage A, so the loop above no longer
+    // shows the switch doing anything. A non-default vendor does.
+    setEnv(ENV.backbone, "claude");
+    for (const p of BACKBONE) expect(resolveVendorForPurpose(p, false)).toBe("claude");
   });
 
   test("it does not touch the reasoning seats", () => {
-    setEnv(ENV.backbone, "openai");
+    // Backbone pinned to a NON-default vendor: since T1 stage A both the
+    // backbone and the Phase-1 seat rule land on openai when unset, so
+    // backbone=openai could no longer show whether the switch leaked.
+    setEnv(ENV.backbone, "claude");
     setEnv(ENV.seats, undefined);
     setEnv(ENV.phase, "1");
     for (const seat of Object.keys(PHASE2_VENDOR) as PromptPurpose[]) {
-      expect(resolveVendorForPurpose(seat, false)).toBe("gemini");
+      expect(resolveVendorForPurpose(seat, false)).toBe("openai");
     }
   });
 
   test("it does not touch chat or the multimodal pair", () => {
-    setEnv(ENV.backbone, "openai");
+    setEnv(ENV.backbone, "claude");
     setEnv(ENV.chat, undefined);
     setEnv(ENV.multimodal, undefined);
-    expect(resolveVendorForPurpose("secondb_chat", false)).toBe("gemini");
-    expect(resolveVendorForPurpose("capture_ocr", false)).toBe("gemini");
-    expect(resolveVendorForPurpose("capture_voice", false)).toBe("gemini");
+    // Each of these groups has its own knob, and each knob's unset landing is
+    // openai since T1 stage A. The backbone value must not be what shows up.
+    expect(resolveVendorForPurpose("secondb_chat", false)).toBe("openai");
+    expect(resolveVendorForPurpose("capture_ocr", false)).toBe("openai");
+    expect(resolveVendorForPurpose("capture_voice", false)).toBe("openai");
   });
 
   test("the seat switch still does not reach the backbone", () => {
     // This was already true and must stay true: an operator moving the
     // reasoning seats must not silently route a per-capture classifier
-    // through a reasoning proxy.
-    setEnv(ENV.seats, "openai");
+    // through a reasoning proxy. Seats pinned to a non-default vendor for the
+    // same reason as above; the backbone must land on its own unset default.
+    setEnv(ENV.seats, "claude");
     setEnv(ENV.backbone, undefined);
-    for (const p of BACKBONE) expect(resolveVendorForPurpose(p, false)).toBe("gemini");
+    for (const p of BACKBONE) expect(resolveVendorForPurpose(p, false)).toBe("openai");
   });
 
   test("an image still beats every switch", () => {
-    setEnv(ENV.backbone, "openai");
+    setEnv(ENV.backbone, "claude");
     setEnv(ENV.multimodal, undefined);
     // A text-only proxy cannot serve a binary at all, so this is a capability
-    // constraint before it is a preference.
+    // constraint before it is a preference. The multimodal knob's unset
+    // landing is openai since T1 stage A; the backbone value must not win.
+    expect(resolveVendorForPurpose("imagine", true)).toBe("openai");
+    // And it is the multimodal KNOB that wins, not a hardcoded openai: an
+    // explicit gemini there still carries the image (rollback property).
+    setEnv(ENV.multimodal, "gemini");
     expect(resolveVendorForPurpose("imagine", true)).toBe("gemini");
   });
 });

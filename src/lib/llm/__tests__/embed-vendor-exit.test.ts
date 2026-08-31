@@ -11,6 +11,10 @@
 // is not the switch: vectors from two different models are not comparable, and
 // nothing records which model produced a stored row. Search would keep working
 // and start returning unrelated things.
+//
+// T1 stage A (2026-08-31): the UNSET default is now openai (RETIRED_DEFAULT in
+// routing.ts), not gemini. Explicit "gemini" is still accepted and still routes
+// to gemini-proxy - that is the one-variable rollback, and this file proves it.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -37,17 +41,24 @@ const setEnv = (v: string | undefined) => {
   else process.env[KEY] = v;
 };
 
-describe("the default is unchanged", () => {
-  test("unset stays on Gemini", () => {
+describe("the default is openai since T1 stage A", () => {
+  test("unset resolves to openai", () => {
     setEnv(undefined);
-    expect(embedVendor()).toBe("gemini");
+    expect(embedVendor()).toBe("openai");
+    expect(proxyFnForVendor(embedVendor())).toBe("openai-proxy");
   });
 
-  test("junk falls back rather than to nothing", () => {
+  test("junk falls back to openai rather than to nothing", () => {
     for (const v of ["", "  ", "anthropic", "grok", "true"]) {
       setEnv(v);
-      expect(embedVendor()).toBe("gemini");
+      expect(embedVendor()).toBe("openai");
     }
+  });
+
+  test("explicit gemini still resolves to gemini-proxy (one-variable rollback)", () => {
+    setEnv("Gemini");
+    expect(embedVendor()).toBe("gemini");
+    expect(proxyFnForVendor(embedVendor())).toBe("gemini-proxy");
   });
 });
 
@@ -58,14 +69,15 @@ describe("only the two vendors that can actually embed", () => {
     expect(proxyFnForVendor(embedVendor())).toBe("openai-proxy");
   });
 
-  test("claude and xai are refused, because neither can serve it", () => {
+  test("claude and xai are refused and land on the openai default", () => {
     // claude has no embeddings API and xai-proxy has no embed route.
     // Accepting either would turn a capability gap into a 400 on every index
     // build - the same mistake as letting the multimodal switch name a proxy
-    // that cannot carry a binary.
+    // that cannot carry a binary. Refused values fall to RETIRED_DEFAULT, which
+    // is openai since T1 stage A.
     for (const v of ["claude", "xai"]) {
       setEnv(v);
-      expect(embedVendor()).toBe("gemini");
+      expect(embedVendor()).toBe("openai");
     }
   });
 });

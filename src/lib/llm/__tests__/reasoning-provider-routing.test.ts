@@ -1,10 +1,20 @@
 // Locks in the EXPO_PUBLIC_REASONING_PROVIDER routing (claude-proxy edge backend).
-// Two invariants:
+//
+// The seam is the LAST rung of resolveVendorForPurpose (#1395, 2026-08-26): it
+// is consulted only when the purpose axis resolved "gemini" AND the call is on
+// the reasoning (pro) tier. Until T1 stage A (2026-08-31) an unset
+// EXPO_PUBLIC_LLM_VENDOR at Phase 1 resolved "gemini", so the seam was reachable
+// with no other env set. Unset is openai now, so every test below that MEANS to
+// reach the seam pins EXPO_PUBLIC_LLM_VENDOR=gemini explicitly.
+//
+// Invariants:
 //   1. provider=claude routes the reasoning (pro) call to claude-proxy even when
 //      EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION is OFF — Claude has no client-side path
 //      (no key on device), so it MUST go server-side.
-//   2. provider=gemini (default) with the edge flag ON still routes to
-//      gemini-proxy (no regression).
+//   2. provider=gemini (explicit) with the edge flag ON still routes to
+//      gemini-proxy — the one-variable rollback property.
+//   3. With nothing set, the advisor call lands on openai-proxy (the retired
+//      default) and the seam is never consulted.
 // C1 stays intact: the routing only swaps the edge-function NAME; no Anthropic
 // SDK is imported anywhere in the client (enforced separately by
 // check:llm-boundary).
@@ -77,10 +87,18 @@ async function runAdvisorOnce(): Promise<void> {
 
 describe("reasoning provider routing (EXPO_PUBLIC_REASONING_PROVIDER)", () => {
   const prev = process.env.EXPO_PUBLIC_REASONING_PROVIDER;
+  const prevVendor = process.env.EXPO_PUBLIC_LLM_VENDOR;
 
   beforeEach(() => {
     mockInvoke.mockReset();
     mockClassifySafety.mockReset();
+  });
+
+  // The axis pin is per-test: restore it so a pinned test never leaks
+  // "gemini" into the unset-default cases below.
+  afterEach(() => {
+    if (prevVendor === undefined) delete process.env.EXPO_PUBLIC_LLM_VENDOR;
+    else process.env.EXPO_PUBLIC_LLM_VENDOR = prevVendor;
   });
 
   afterAll(() => {
@@ -88,18 +106,41 @@ describe("reasoning provider routing (EXPO_PUBLIC_REASONING_PROVIDER)", () => {
     else process.env.EXPO_PUBLIC_REASONING_PROVIDER = prev;
   });
 
-  test("provider=claude routes to claude-proxy even with the edge flag OFF", async () => {
+  test("provider=claude with the axis pinned to gemini routes to claude-proxy even with the edge flag OFF", async () => {
     process.env.EXPO_PUBLIC_REASONING_PROVIDER = "claude";
+    // explicit: unset is openai since T1 stage A, and the seam is reached only
+    // when the axis says gemini.
+    process.env.EXPO_PUBLIC_LLM_VENDOR = "gemini";
     mockEnv.edge = false;
     await runAdvisorOnce();
     expect(invokedFunctionName()).toBe("claude-proxy");
   });
 
-  test("provider=gemini (default) with the edge flag ON routes to gemini-proxy", async () => {
+  test("provider=gemini (explicit) with the axis pinned to gemini and the edge flag ON routes to gemini-proxy (rollback)", async () => {
     process.env.EXPO_PUBLIC_REASONING_PROVIDER = "gemini";
+    // explicit: unset is openai since T1 stage A.
+    process.env.EXPO_PUBLIC_LLM_VENDOR = "gemini";
     mockEnv.edge = true;
     await runAdvisorOnce();
     expect(invokedFunctionName()).toBe("gemini-proxy");
+  });
+
+  test("nothing set routes to openai-proxy even with the edge flag OFF (T1 stage A retired default)", async () => {
+    delete process.env.EXPO_PUBLIC_REASONING_PROVIDER;
+    delete process.env.EXPO_PUBLIC_LLM_VENDOR;
+    // Edge flag OFF on purpose: a non-gemini vendor must still go server-side,
+    // so the retired default can never fall into the direct @google/genai branch.
+    mockEnv.edge = false;
+    await runAdvisorOnce();
+    expect(invokedFunctionName()).toBe("openai-proxy");
+  });
+
+  test("provider=claude alone is a no-op while the axis resolves the retired default (seam gated on gemini)", async () => {
+    process.env.EXPO_PUBLIC_REASONING_PROVIDER = "claude";
+    delete process.env.EXPO_PUBLIC_LLM_VENDOR;
+    mockEnv.edge = false;
+    await runAdvisorOnce();
+    expect(invokedFunctionName()).toBe("openai-proxy");
   });
 
   // Fold invariants (2026-08-26): the seam became the LAST rung of
