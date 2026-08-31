@@ -778,7 +778,8 @@ export function scrubSentryEvent(
 
 /**
  * Lazy-initialize analytics. Safe to call multiple times - subsequent calls are
- * no-ops. Called once from src/app/_layout.tsx as `void initAnalytics()`.
+ * no-ops. Called from AnalyticsConsentSync only after AuthProvider has resolved,
+ * so web recovery events cannot race a pre-provider Supabase client.
  *
  * Error tracking loads whenever EXPO_PUBLIC_SENTRY_DSN is set. Product analytics load only
  * when analytics consent has been granted (explicit opt-in or a persisted prior

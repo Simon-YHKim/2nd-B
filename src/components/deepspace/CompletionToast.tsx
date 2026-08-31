@@ -9,7 +9,7 @@ import { Animated, Pressable, StyleSheet, View } from "react-native";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
-import { router, type Href } from "expo-router";
+import { router, type Href, usePathname } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { deepSpace, deepSpaceSpacing } from "@/lib/theme/tokens";
@@ -42,8 +42,12 @@ function completionCopyLocale(language: string | undefined): CompletionCopyLocal
 export function CompletionToast() {
   const task = useTaskStatus();
   const { i18n } = useTranslation();
+  const pathname = usePathname();
   const drop = useRef(new Animated.Value(0)).current;
-  const visible = task.phase === "done";
+  // Keep the task queued but expose no global navigation CTA while the reset
+  // route owns a pending/active recovery session. router.push(resultHref) does
+  // not remove the current route, so usePreventRemove cannot intercept it.
+  const visible = task.phase === "done" && pathname !== "/reset-password";
 
   useEffect(() => {
     if (!visible) {

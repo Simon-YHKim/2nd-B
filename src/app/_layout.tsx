@@ -5,6 +5,7 @@ import { useAddressTerm } from "@/lib/persona/use-address";
 import {
   Stack,
   Redirect,
+  usePathname,
   useSegments,
   // ⚠ 라우터의 **네비게이션 테마**다. 화면 팔레트(`@/lib/theme/ThemeContext`)와
   //   다른 물건이라 이름을 갈라 부른다. 아래 ThemedStack 주석 참조.
@@ -28,6 +29,7 @@ import {
   setAnalyticsConsent,
 } from "@/lib/analytics";
 import { AuthProvider, useAuth } from "@/lib/auth/AuthContext";
+import { armWebRecoveryPendingFromLocation } from "@/lib/auth/recovery-proof-store";
 import { requiresGuardianConsent, resolveJurisdiction } from "@/lib/auth/consent-age";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { flushAuditWriteOutbox } from "@/lib/llm/audit-write-outbox";
@@ -68,8 +70,11 @@ function initNativeCrashReporting(): void {
   }
 }
 
+// This runs before AuthProvider creates the lazy Supabase client. On web it
+// broadcasts a provisional cross-tab lock before auth-js mutates shared session
+// storage for a reset callback; non-callback routes are a no-op.
+armWebRecoveryPendingFromLocation();
 initI18n();
-void initAnalytics();
 initNativeCrashReporting();
 void SplashScreen.preventAutoHideAsync();
 
@@ -296,8 +301,17 @@ function markIntroPlayed(): void {
 }
 
 function IntroGate({ children }: { children: React.ReactNode }) {
-  const { userId, loading, hasProfile, profileProbeFailed } = useAuth();
+  const {
+    userId,
+    loading,
+    hasProfile,
+    profileProbeFailed,
+    recoveryUserId,
+    recoveryReady,
+    recoveryPendingGlobal,
+  } = useAuth();
   const segments = useSegments();
+  const pathname = usePathname();
   // Play the cell-team intro only once per tab session. On re-entry (tab
   // switch back, navigating home, a fresh auth event) we go straight to the
   // app instead of re-showing the loader that waits for a tap — that was the
@@ -318,6 +332,19 @@ function IntroGate({ children }: { children: React.ReactNode }) {
     // Hydrate exactly once on mount — introDone is read but deliberately not
     // a dependency (it only flips one way and the effect self-noops then).
   }, []);
+
+  // Cold start must not render an ordinary app route until the persisted
+  // Supabase session and recovery marker have been reconciled. `introDone`
+  // intentionally bypasses later profile re-probes, so this separate one-shot
+  // readiness signal closes the restart window without re-showing the intro.
+  if (!recoveryReady) return <InlineLoader />;
+
+  // Recovery provenance survives restart and owns navigation globally. Exact
+  // pathname matching also catches pushes to another route inside `(auth)`;
+  // a group-level exemption would let /sign-in escape the mandatory reset.
+  if ((recoveryUserId || recoveryPendingGlobal) && pathname !== "/reset-password") {
+    return <Redirect href="/reset-password" />;
+  }
 
   // Global C10 + PIPA-consent gate (re-audit 2026-06-03: per-screen gating was
   // leaky — inbox/wiki kept slipping through). An authenticated session with NO
@@ -391,7 +418,7 @@ function IntroGate({ children }: { children: React.ReactNode }) {
 // Expo Router FILE segments ("/record/[id]"), never live ids or entry text.
 // Renders nothing; analytics never hard-fails the app.
 function AnalyticsConsentSync(): null {
-  const { userId, isMinor, loading } = useAuth();
+  const { userId, isMinor, loading, recoveryUserId, recoveryPendingGlobal } = useAuth();
   const segments = useSegments();
   const routePath = segments.length > 0 ? `/${segments.join("/")}` : "/";
   const [consentSyncVersion, setConsentSyncVersion] = useState(0);
@@ -403,7 +430,13 @@ function AnalyticsConsentSync(): null {
     // account, or an unresolved/minor age state.
     setAnalyticsConsent(false, { isMinor: true, confirmedAdult: false });
     lastTrackedPageRef.current = null;
-    if (loading) return;
+    if (loading || recoveryUserId || recoveryPendingGlobal) return;
+    // AuthProvider must create the web Supabase client and subscribe before
+    // any module starts a query. Otherwise auth-js can emit PASSWORD_RECOVERY
+    // from a cold URL before the listener exists, reducing recovery to an
+    // indistinguishable persisted session. Initialization stays fail-closed;
+    // the server-derived consent decision below may enable product analytics.
+    void initAnalytics();
     if (!userId) {
       setConsentSyncVersion((version) => version + 1);
       return;
@@ -455,7 +488,7 @@ function AnalyticsConsentSync(): null {
     return () => {
       cancelled = true;
     };
-  }, [userId, isMinor, loading]);
+  }, [userId, isMinor, loading, recoveryPendingGlobal, recoveryUserId]);
 
   useEffect(() => {
     const pageKey = `${userId ?? "signed-out"}:${routePath}`;
@@ -472,16 +505,16 @@ function AnalyticsConsentSync(): null {
 // 영역"), 그 값을 화면마다 넘기지 않고 i18next defaultVariables 로 한 번에
 // 채운다. 이름이 없으면 폴백(당신)이라 문장이 깨지지 않는다.
 function AddressTermSync(): null {
-  const { userId } = useAuth();
+  const { userId, recoveryUserId, recoveryPendingGlobal } = useAuth();
   const { i18n } = useTranslation();
-  useAddressTerm(userId, i18n.language);
+  useAddressTerm(recoveryUserId || recoveryPendingGlobal ? null : userId, i18n.language);
   return null;
 }
 
 function AuditWriteOutboxSync(): null {
-  const { userId, loading } = useAuth();
+  const { userId, loading, recoveryUserId, recoveryPendingGlobal } = useAuth();
   useEffect(() => {
-    if (loading || !userId) return;
+    if (loading || !userId || recoveryUserId || recoveryPendingGlobal) return;
 
     const flush = () => {
       void flushAuditWriteOutbox(userId);
@@ -501,6 +534,6 @@ function AuditWriteOutboxSync(): null {
     return () => {
       appStateSub.remove();
     };
-  }, [loading, userId]);
+  }, [loading, recoveryPendingGlobal, recoveryUserId, userId]);
   return null;
 }
