@@ -417,7 +417,7 @@ describe("비서 허브 PIXEL·legacy 회귀", () => {
     expect(reactNativeImport).not.toMatch(/\bPressable\b/);
     expect(HUB).not.toMatch(/borderRadius\s*:|opacity\s*:|#[0-9a-f]{3,8}|LinearGradient/i);
     expect(HUB).not.toContain("style={({");
-    expect(PIXEL_RULES).toContain("const RATCHET_BASELINE = 165");
+    expect(PIXEL_RULES).toContain("const RATCHET_BASELINE = 160");
   });
 });
 
