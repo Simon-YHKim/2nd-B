@@ -3,7 +3,7 @@
 // 10-item screener (Sprint 5) for better per-trait precision. Result is
 // saved as a record so it surfaces in /persona and feeds Inference Engine.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { View, StyleSheet, KeyboardAvoidingView, Platform, BackHandler } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
@@ -14,76 +14,42 @@ import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
-import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { BigFiveLensM3, type LensTraits } from "@/components/deep-space/DeepSpaceViews";
+import { DeepSpaceBigFiveScreen } from "@/screens/deepspace/dds-big-five-screen";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
-import { loadLatestBfi } from "@/lib/persona/build";
-import { getSupabaseClient } from "@/lib/supabase/client";
 import {
   BFI_ITEMS,
-  TRAIT_LABEL_EN,
-  TRAIT_LABEL_KO,
-  bfiMeanToPercent,
   scoreBfi,
   type BfiResponses,
 } from "@/lib/persona/bfi";
+import {
+  BFI_SCALE,
+  BfiOwnerSubmitLock,
+  OneShotGate,
+  bfiSurveyCopy,
+  completeBfiForOwner,
+  saveBfiForOwner,
+} from "@/lib/persona/big-five-screen";
 import { QuantIntroModal } from "@/components/quant/QuantIntroModal";
 import { LikertChoiceGroup } from "@/components/quant/LikertChoiceGroup";
 import { QuantPager } from "@/components/quant/QuantPager";
 import { QuantSaveCelebration } from "@/components/quant/QuantSaveCelebration";
 import { consumeFirstStarChatNudge } from "@/lib/onboarding/state";
 
-const SCALE: { value: number; en: string; ko: string }[] = [
-  { value: 1, en: "Strongly disagree", ko: "전혀 아니다" },
-  { value: 2, en: "Disagree", ko: "아니다" },
-  { value: 3, en: "Neither", ko: "보통" },
-  { value: 4, en: "Agree", ko: "그렇다" },
-  { value: 5, en: "Strongly agree", ko: "매우 그렇다" },
-];
-
 type Toast = { message: string; tone: "danger" | "info" | "success" };
 
-// The BFI-44 questionnaire body, shell-agnostic so the SAME functional survey
-// mounts in both tracks: canon wraps it in DeepSpaceScreen, legacy in
-// PremiumAppShell. It is the ONLY writer of the `bfi`-tagged record that
-// loadLatestBfi reads and buildPersona's trait branch needs. onComplete fires
-// after the save celebration so the caller decides where to go next (canon
-// returns to its results lens and reloads; legacy routes to /persona); onCancel
-// backs out of the intro.
+// The removed in-file lens expressed failed reads as `setHasError(true)`.
+// Its live replacement is the isolated renderer's explicit BfiLoadResult
+// `error` state, covered by big-five-canon.test.ts.
+
+// Rollback renderer. It keeps the established premium-shell output while the
+// PIXEL-CLAY route lives in an isolated direct renderer. Both skins share the
+// exact BFI scale, scoring/payload authority and owner-safe write controller.
 function BigFiveSurvey({ onComplete, onCancel }: { onComplete: () => void; onCancel: () => void }) {
-  const { t, i18n } = useTranslation("big-five");
   const { userId, loading } = useAuth();
-  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
-
-  const [responses, setResponses] = useState<BfiResponses>({});
-  const [submitting, setSubmitting] = useState(false);
-  const [started, setStarted] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [toast, setToast] = useState<Toast | null>(null);
-  const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
-
-  const result = useMemo(() => scoreBfi(responses), [responses]);
-
-  // Android hardware back handler: intercept navigation back requests while the
-  // survey is in progress to prevent accidental loss of responses.
-  useEffect(() => {
-    if (!started || Object.keys(responses).length === 0 || saved) return;
-
-    const onBackPress = () => {
-      setExitConfirmOpen(true);
-      return true; // Consume the event, preventing immediate navigation back
-    };
-
-    const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
-    return () => subscription.remove();
-  }, [started, responses, saved]);
-
-  useEffect(() => {
-    if (!toast) return;
-    const h = setTimeout(() => setToast(null), 3000);
-    return () => clearTimeout(h);
-  }, [toast]);
+  const { t } = useTranslation("big-five");
+  const activeOwnerIdRef = useRef<string | null>(loading ? null : userId);
+  activeOwnerIdRef.current = loading ? null : userId;
 
   if (loading) {
     return (
@@ -96,47 +62,121 @@ function BigFiveSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
     return <Redirect href="/sign-in" />;
   }
 
+  return (
+    <BigFiveSurveyOwner
+      key={userId}
+      ownerId={userId}
+      activeOwnerIdRef={activeOwnerIdRef}
+      onComplete={onComplete}
+      onCancel={onCancel}
+    />
+  );
+}
+
+function BigFiveSurveyOwner({
+  ownerId,
+  activeOwnerIdRef,
+  onComplete,
+  onCancel,
+}: {
+  ownerId: string;
+  activeOwnerIdRef: { current: string | null };
+  onComplete: () => void;
+  onCancel: () => void;
+}) {
+  const { t, i18n } = useTranslation("big-five");
+  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const copy = bfiSurveyCopy(locale);
+
+  const [responses, setResponses] = useState<BfiResponses>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [started, setStarted] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [toast, setToast] = useState<Toast | null>(null);
+  const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
+  const submitLockRef = useRef(new BfiOwnerSubmitLock());
+  const completionGateRef = useRef(new OneShotGate());
+  const mountedRef = useRef(true);
+
+  const result = useMemo(() => scoreBfi(responses), [responses]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    completionGateRef.current = new OneShotGate();
+    return () => {
+      mountedRef.current = false;
+      submitLockRef.current.invalidate();
+      completionGateRef.current.invalidate();
+    };
+  }, []);
+
+  // Android hardware back handler: intercept navigation back requests while the
+  // survey is in progress to prevent accidental loss of responses.
+  useEffect(() => {
+    if (!started || Object.keys(responses).length === 0 || saved) return;
+
+    const onBackPress = () => {
+      if (submitting) return true;
+      setExitConfirmOpen(true);
+      return true; // Consume the event, preventing immediate navigation back
+    };
+
+    const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+    return () => subscription.remove();
+  }, [started, responses, saved, submitting]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const h = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(h);
+  }, [toast]);
+
   function setResponse(itemId: number, value: number) {
+    if (submitting) return;
     setResponses((prev) => ({ ...prev, [itemId]: value }));
   }
 
   async function handleSubmit() {
-    if (!userId || !result.complete) return;
-    setSubmitting(true);
-    try {
-      const labels = locale === "ko" ? TRAIT_LABEL_KO : TRAIT_LABEL_EN;
-      const summary = result.scores
-        .map((s) => `${labels[s.trait]}: ${s.score.toFixed(1)}/5`)
-        .join("  ·  ");
-      const top = [...result.scores].sort((a, b) => b.score - a.score)[0];
-      const conclusion =
-        locale === "ko"
-          ? `오늘 가장 높은 점수: ${labels[top.trait]} (${top.score.toFixed(1)}/5)`
-          : `Highest score today: ${labels[top.trait]} (${top.score.toFixed(1)}/5)`;
-      await createRecord({
-        userId,
-        locale,
-        kind: "note",
-        body: JSON.stringify({ bfi_responses: responses, scores: result.byTrait }),
-        topic: locale === "ko" ? "Big Five (BFI-44) 평가" : "Big Five (BFI-44) assessment",
-        summary,
-        conclusion,
-        tags: ["big_five", "bfi", "assessment"],
-        withFollowup: false,
-      });
+    const outcome = await saveBfiForOwner({
+      ownerId,
+      locale,
+      responses,
+      lock: submitLockRef.current,
+      getActiveOwnerId: () => (mountedRef.current ? activeOwnerIdRef.current : null),
+      onAcquired: () => {
+        setExitConfirmOpen(false);
+        setSubmitting(true);
+        setToast(null);
+      },
+      write: createRecord,
+    });
+
+    if (!mountedRef.current || activeOwnerIdRef.current !== ownerId) return;
+    if (outcome === "saved") {
+      setExitConfirmOpen(false);
+      setSubmitting(false);
       setSaved(true);
-    } catch (e) {
-      if (typeof console !== "undefined") console.warn("[big-five] save failed", (e as Error).message);
+    } else if (outcome === "failed") {
+      setSubmitting(false);
+      if (typeof console !== "undefined") console.warn("[big-five] save failed");
       setToast({
         tone: "danger",
-        message:
-          locale === "ko"
-            ? "저장하지 못했어요. 답변은 그대로 남아 있으니 다시 시도해 주세요."
-            : "Couldn't save. Your answers are still here; please try again.",
+        message: copy.failure,
       });
-    } finally {
-      setSubmitting(false);
     }
+  }
+
+  function handleSavedDone() {
+    completeBfiForOwner({
+      ownerId,
+      getActiveOwnerId: () => (mountedRef.current ? activeOwnerIdRef.current : null),
+      gate: completionGateRef.current,
+      consumeNudge: consumeFirstStarChatNudge,
+      onNudge: () => {
+        router.replace({ pathname: "/secondb", params: { fromNode: t("title") } });
+      },
+      onComplete,
+    });
   }
 
   return (
@@ -148,16 +188,8 @@ function BigFiveSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
           itemCount={BFI_ITEMS.length}
           perPage={5}
           estimatedMinutes={8}
-          description={
-            locale === "ko"
-              ? "성격의 5가지 큰 축을 재는 검증된 자기보고 도구입니다. \"이런 사람이다\" 라는 문장에 1(전혀 아니다) ~ 5(매우 그렇다)로 답해 주세요. 정답은 없어요. 한 페이지에 5문항씩, 9페이지로 나눠집니다."
-              : "A validated self-report measure of the five main personality dimensions. Rate each \"I see myself as someone who…\" statement from 1 (strongly disagree) to 5 (strongly agree). No right answers. Split across 9 pages, 5 items each."
-          }
-          citation={
-            locale === "ko"
-              ? "John, Donahue, & Kentle (1991) · public domain"
-              : "John, Donahue, & Kentle (1991) · public domain"
-          }
+          description={copy.intro}
+          citation={copy.citation}
           locale={locale}
           onStart={() => setStarted(true)}
           onCancel={onCancel}
@@ -171,9 +203,7 @@ function BigFiveSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
               {t("counter")}
             </Text>
             <Text variant="body" color="textMuted">
-              {locale === "ko"
-                ? "다음 문장이 당신과 얼마나 맞는지 골라주세요. 「나는 …」"
-                : "How well does each statement describe you? \"I see myself as someone who…\""}
+              {copy.instruction}
             </Text>
           </View>
 
@@ -198,7 +228,7 @@ function BigFiveSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
                     {locale === "ko" ? item.subtitleKo : item.subtitleEn}
                   </Text>
                   <LikertChoiceGroup
-                    choices={SCALE.map((s) => ({ value: s.value, label: s[locale] }))}
+                    choices={BFI_SCALE.map((s) => ({ value: s.value, label: s[locale] }))}
                     locale={locale}
                     onSelect={(next) => setResponse(item.id, next)}
                     question={`${item.id}. ${locale === "ko" ? item.ko : item.en}`}
@@ -206,10 +236,10 @@ function BigFiveSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
                   />
                   <View style={styles.scaleLegend}>
                     <Text variant="subtle" color="textMuted">
-                      {locale === "ko" ? SCALE[0].ko : SCALE[0].en}
+                      {locale === "ko" ? BFI_SCALE[0].ko : BFI_SCALE[0].en}
                     </Text>
                     <Text variant="subtle" color="textMuted">
-                      {locale === "ko" ? SCALE[4].ko : SCALE[4].en}
+                      {locale === "ko" ? BFI_SCALE[4].ko : BFI_SCALE[4].en}
                     </Text>
                   </View>
                 </View>
@@ -222,15 +252,7 @@ function BigFiveSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
       {saved ? (
         <QuantSaveCelebration
           message={t("saved")}
-          onDone={() => {
-            // med#7: first star ever -> one SecondB chat (activation). This
-            // nudge lived only on /attachment; now every instrument takes it.
-            if (consumeFirstStarChatNudge()) {
-              router.replace({ pathname: "/secondb", params: { fromNode: t("title") } });
-            } else {
-              onComplete();
-            }
-          }}
+          onDone={handleSavedDone}
         />
       ) : null}
 
@@ -249,9 +271,7 @@ function BigFiveSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
           {t("exit.title")}
         </Text>
         <Text variant="body" color="textMuted" style={{ marginVertical: spacing.sm, lineHeight: 21 }}>
-          {locale === "ko"
-            ? "정말 성격 검사를 종료하시겠습니까? 작성 중이던 답변이 저장되지 않고 사라집니다."
-            : "Are you sure you want to exit? Your progress will not be saved."}
+          {copy.exit}
         </Text>
         <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.md }}>
           <Button
@@ -315,97 +335,7 @@ function BigFiveLegacy() {
   );
 }
 
-function BigFiveDeepSpace() {
-  const { t } = useTranslation("home");
-  const { userId, loading } = useAuth();
-  const [traits, setTraits] = useState<LensTraits | null>(null);
-  const [hasError, setHasError] = useState(false);
-  // Bumping reloadKey re-runs the BFI load (retry path from the error state, and
-  // the refresh after a freshly completed survey).
-  const [reloadKey, setReloadKey] = useState(0);
-  // Whether the user is currently taking the questionnaire (vs viewing the lens).
-  const [taking, setTaking] = useState(false);
-
-  useEffect(() => {
-    if (loading) return;
-    if (!userId) {
-      setTraits(null);
-      setHasError(false);
-      return;
-    }
-    let cancelled = false;
-    setHasError(false);
-    loadLatestBfi(getSupabaseClient(), userId)
-      .then((r) => {
-        if (cancelled) return;
-        // BFI trait means are 1-5 Likert; bfiMeanToPercent maps to 0-100 using
-        // the same (v-1)/4 anchor buildPersona uses (1->0%, 3->50%, 5->100%).
-        setTraits(
-          r
-            ? {
-                openness: bfiMeanToPercent(r.openness),
-                conscientiousness: bfiMeanToPercent(r.conscientiousness),
-                extraversion: bfiMeanToPercent(r.extraversion),
-                agreeableness: bfiMeanToPercent(r.agreeableness),
-                neuroticism: bfiMeanToPercent(r.neuroticism),
-              }
-            : null,
-        );
-      })
-      .catch(() => {
-        // Distinguish a fetch failure (offline / query error) from "no result
-        // yet": the former drives LensView's error+retry state, never dummy data.
-        if (!cancelled) {
-          setTraits(null);
-          setHasError(true);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [userId, loading, reloadKey]);
-
-  // The validated BFI-44 questionnaire is the only writer of the bfi record the
-  // lens reads, so canon MUST be able to launch it. Previously the empty-state
-  // CTA routed to /interview (which never writes bfi), so a deep-space-only user
-  // could never fill the trait lens and buildPersona silently fell back to the
-  // journal heuristic. "Start" now opens the real survey inside the deep-space
-  // dock; finishing returns to the lens and reloads the new result.
-  if (taking) {
-    return (
-      <DeepSpaceScreen active="lens">
-        <BigFiveSurvey
-          onComplete={() => {
-            setTaking(false);
-            setReloadKey((k) => k + 1);
-          }}
-          onCancel={() => setTaking(false)}
-        />
-      </DeepSpaceScreen>
-    );
-  }
-
-  return (
-    <DeepSpaceScreen
-      active="lens"
-      variant="windowed"
-      header="none"
-      title={t("ds.lens.headline")}
-      onBack={() => router.back()}
-    >
-      <BigFiveLensM3
-        traits={traits}
-        hasError={hasError}
-        onStart={() => setTaking(true)}
-        onRetry={() => setReloadKey((k) => k + 1)}
-        onAddData={() => router.push("/capture")}
-        onExtraFrameworks={() => router.push("/attachment")}
-      />
-    </DeepSpaceScreen>
-  );
-}
-
 export default function BigFive() {
-  if (isDeepSpaceUI()) return <BigFiveDeepSpace />;
+  if (isDeepSpaceUI()) return <DeepSpaceBigFiveScreen />;
   return <BigFiveLegacy />;
 }
