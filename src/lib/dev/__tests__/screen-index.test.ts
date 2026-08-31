@@ -11,7 +11,15 @@ import { existsSync, readFileSync, readdirSync, realpathSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import * as ts from "typescript";
 
-import { DEV_SCREEN_GROUPS, devScreens, orphanScreens } from "../screen-index";
+import {
+  DEV_SCREEN_GROUPS,
+  canOpenFromDevRegistry,
+  designLabScreens,
+  devScreens,
+  entryRoleCounts,
+  screenEntry,
+  type ScreenEntry,
+} from "../screen-index";
 
 const APP = join(process.cwd(), "src", "app");
 const SRC = join(process.cwd(), "src");
@@ -27,6 +35,17 @@ const EXPECTED_DELEGATED_AUTH: Record<string, DelegatedAuthFixture> = {
   focus: { gateFile: "src/screens/deepspace/DeepSpaceDesignScreens.tsx", component: "DeepSpaceFocusScreen" },
   plans: { gateFile: "src/screens/deepspace/dds-plans-screen.tsx", component: "DeepSpacePlansScreen" },
   trends: { gateFile: "src/screens/deepspace/trends/TrendsScreen.tsx", component: "TrendsScreen" },
+};
+
+const EXPECTED_SPECIAL_ENTRY: Record<string, Exclude<ScreenEntry, { kind: "standard" }>> = {
+  jarvis: { kind: "redirect", destination: "/secondb", lifecycle: "retired" },
+  "community/join/[token]": { kind: "deep-link", contract: "invite" },
+  "peer/[token]": { kind: "deep-link", contract: "peer-response" },
+  "(auth)/oauth-callback": { kind: "deep-link", contract: "oauth-callback" },
+  canon: { kind: "dev", collection: "design-lab" },
+  "deepspace-hub": { kind: "dev", collection: "design-lab" },
+  "deepspace-preview": { kind: "dev", collection: "design-lab" },
+  "deepspace-flowmap": { kind: "dev", collection: "design-lab" },
 };
 
 function isDelegatedAuth(value: unknown): value is DelegatedAuthFixture {
@@ -101,6 +120,19 @@ function defaultRouteFunctionSource(source: string, file: string): string {
   return declaration.getText(parsed);
 }
 
+function firstIfStatementSource(source: string, file: string, component: string): string {
+  const parsed = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const declaration = parsed.statements.find(
+    (statement): statement is ts.FunctionDeclaration =>
+      ts.isFunctionDeclaration(statement) && statement.name?.text === component,
+  );
+  const firstIf = declaration?.body?.statements.find(
+    (statement): statement is ts.IfStatement => ts.isIfStatement(statement),
+  );
+  if (!firstIf) throw new Error(`${file} does not declare an if branch in ${component}`);
+  return firstIf.getText(parsed);
+}
+
 function rendersComponent(source: string, file: string, component: string): boolean {
   const parsed = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   let rendered = false;
@@ -135,6 +167,76 @@ function hasLiteralSignInRedirect(source: string, file: string): boolean {
   };
   visit(parsed);
   return found;
+}
+
+function jsxTagNames(source: string, file: string): string[] {
+  const parsed = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const names: string[] = [];
+  const visit = (node: ts.Node) => {
+    if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
+      names.push(node.tagName.getText(parsed));
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(parsed);
+  return names;
+}
+
+function redirectDestinations(source: string, file: string): string[] {
+  const parsed = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const destinations: string[] = [];
+  const visit = (node: ts.Node) => {
+    if (!ts.isJsxSelfClosingElement(node) || node.tagName.getText(parsed) !== "Redirect") {
+      ts.forEachChild(node, visit);
+      return;
+    }
+    const href = node.attributes.properties.find(
+      (property): property is ts.JsxAttribute =>
+        ts.isJsxAttribute(property) && property.name.getText(parsed) === "href",
+    );
+    const initializer = href?.initializer;
+    if (initializer && ts.isStringLiteral(initializer)) destinations.push(initializer.text);
+    if (
+      initializer &&
+      ts.isJsxExpression(initializer) &&
+      initializer.expression &&
+      ts.isObjectLiteralExpression(initializer.expression)
+    ) {
+      const pathname = initializer.expression.properties.find(
+        (property): property is ts.PropertyAssignment =>
+          ts.isPropertyAssignment(property) && property.name.getText(parsed) === "pathname",
+      );
+      if (pathname && ts.isStringLiteral(pathname.initializer)) destinations.push(pathname.initializer.text);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(parsed);
+  return destinations;
+}
+
+function destinationScreen(destination: string): string {
+  const normalized = destination.replaceAll("\\", "/");
+  if (
+    !normalized.startsWith("/") ||
+    normalized.startsWith("//") ||
+    /^[A-Za-z][A-Za-z\d+.-]*:/.test(normalized) ||
+    normalized.split("/").includes("..")
+  ) {
+    throw new Error(`redirect destination must be an app route: ${destination}`);
+  }
+  const match = devScreens().find((screen) => screen.href === normalized);
+  if (!match) throw new Error(`redirect destination is not registered: ${destination}`);
+  return match.file;
+}
+
+function moduleSpecifiers(source: string, file: string): string[] {
+  const parsed = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  return parsed.statements
+    .filter((statement): statement is ts.ImportDeclaration => ts.isImportDeclaration(statement))
+    .map((statement) =>
+      ts.isStringLiteral(statement.moduleSpecifier) ? statement.moduleSpecifier.text : "",
+    )
+    .filter(Boolean);
 }
 
 /**
@@ -293,7 +395,149 @@ describe("개발자 화면 목록", () => {
   it("개발자 목록의 badge와 집계가 auth 객체도 로그인 필요로 센다", () => {
     const source = readFileSync(join(APP, "dev-screens.tsx"), "utf8");
     expect(source).toContain("if (s.auth !== undefined)");
-    expect(source).toContain("all.filter((s) => s.auth !== undefined).length");
+    expect(source).toContain("const counts = entryRoleCounts(all)");
+    expect(source).not.toContain("all.filter((s) => s.auth !== undefined).length");
+  });
+
+  it("예외 진입 역할은 deep-link 3 · redirect 1 · Design Lab 4와 정확히 일치한다", () => {
+    const special = Object.fromEntries(
+      devScreens()
+        .filter((screen) => screenEntry(screen).kind !== "standard")
+        .map((screen) => [screen.file, screenEntry(screen)]),
+    );
+    expect(special).toEqual(EXPECTED_SPECIAL_ENTRY);
+    for (const file of Object.keys(EXPECTED_SPECIAL_ENTRY)) {
+      expect(devScreens().find((screen) => screen.file === file)?.note?.trim().length).toBeGreaterThan(0);
+    }
+  });
+
+  it("진입 역할은 99 route를 standard 91 + deep-link 3 + redirect 1 + Design Lab 4로 분할한다", () => {
+    const counts = entryRoleCounts();
+    expect({
+      total: counts.total,
+      standard: counts.standard,
+      deepLink: counts.deepLink,
+      redirect: counts.redirect,
+      designLab: counts.designLab,
+      devOnly: counts.devOnly,
+    }).toEqual({
+      total: 99,
+      standard: 91,
+      deepLink: 3,
+      redirect: 1,
+      designLab: 4,
+      devOnly: 8,
+    });
+    expect(counts.standard + counts.deepLink + counts.redirect + counts.designLab).toBe(counts.total);
+    expect(counts.authRequired).toBe(devScreens().filter((screen) => screen.auth !== undefined).length);
+    expect(devScreens().every((screen) => screenEntry(screen).kind.length > 0)).toBe(true);
+    expect(devScreens().some((screen) => "orphan" in screen)).toBe(false);
+
+    const listed = [
+      ...designLabScreens(),
+      ...devScreens().filter((screen) => {
+        const entry = screenEntry(screen);
+        return entry.kind === "deep-link" || entry.kind === "redirect";
+      }),
+      ...DEV_SCREEN_GROUPS.flatMap((group) =>
+        group.screens.filter((screen) => screenEntry(screen).kind === "standard"),
+      ),
+    ];
+    expect(listed).toHaveLength(counts.total);
+    expect(new Set(listed.map((screen) => screen.file)).size).toBe(counts.total);
+  });
+
+  it("외부 진입 3개의 sample·인증 계약과 역할을 고정한다", () => {
+    const byFile = Object.fromEntries(devScreens().map((screen) => [screen.file, screen]));
+    expect({
+      community: {
+        href: byFile["community/join/[token]"]?.href,
+        sample: byFile["community/join/[token]"]?.sample === true,
+        auth: byFile["community/join/[token]"]?.auth !== undefined,
+        dev: byFile["community/join/[token]"]?.dev === true,
+      },
+      peer: {
+        href: byFile["peer/[token]"]?.href,
+        sample: byFile["peer/[token]"]?.sample === true,
+        auth: byFile["peer/[token]"]?.auth !== undefined,
+        dev: byFile["peer/[token]"]?.dev === true,
+      },
+      oauth: {
+        href: byFile["(auth)/oauth-callback"]?.href,
+        sample: byFile["(auth)/oauth-callback"]?.sample === true,
+        auth: byFile["(auth)/oauth-callback"]?.auth !== undefined,
+        dev: byFile["(auth)/oauth-callback"]?.dev === true,
+      },
+    }).toEqual({
+      community: { href: "/community/join/sample", sample: true, auth: true, dev: false },
+      peer: { href: "/peer/sample", sample: true, auth: false, dev: false },
+      oauth: { href: "/oauth-callback", sample: false, auth: false, dev: false },
+    });
+    expect([
+      byFile["community/join/[token]"],
+      byFile["peer/[token]"],
+      byFile["(auth)/oauth-callback"],
+    ].every((screen) => screen !== undefined && !canOpenFromDevRegistry(screen))).toBe(true);
+  });
+
+  it("/jarvis는 등록된 /secondb로만 redirect하며 별도 UI를 렌더하지 않는다", () => {
+    const file = "jarvis.tsx";
+    const fullSource = readFileSync(join(APP, file), "utf8");
+    const source = defaultRouteFunctionSource(fullSource, file);
+    expect(redirectDestinations(source, file)).toEqual(["/secondb"]);
+    expect(jsxTagNames(source, file)).toEqual(["Redirect"]);
+    expect(moduleSpecifiers(fullSource, file)).toEqual(["expo-router"]);
+    expect(destinationScreen("/secondb")).toBe("secondb");
+    expect(canOpenFromDevRegistry(devScreens().find((screen) => screen.file === "jarvis")!)).toBe(true);
+  });
+
+  it("redirect destination의 외부 URL·경로 탈출·없는 route를 거부한다", () => {
+    expect(() => destinationScreen("https://example.test/secondb")).toThrow();
+    expect(() => destinationScreen("/../secondb")).toThrow();
+    expect(() => destinationScreen("/does-not-exist")).toThrow();
+  });
+
+  it("Design Lab 네 화면만 collection에 속하고 모두 DevOnlyRoute 뒤에 있다", () => {
+    const labs = designLabScreens();
+    expect(labs.map((screen) => screen.file)).toEqual([
+      "canon",
+      "deepspace-hub",
+      "deepspace-preview",
+      "deepspace-flowmap",
+    ]);
+    for (const screen of labs) {
+      expect(screen.dev).toBe(true);
+      const file = `${screen.file}.tsx`;
+      const routeSource = defaultRouteFunctionSource(readFileSync(join(APP, file), "utf8"), file);
+      expect(jsxTagNames(routeSource, file)).toContain("DevOnlyRoute");
+      expect(canOpenFromDevRegistry(screen)).toBe(true);
+    }
+  });
+
+  it("개발자 목록이 역할 집계와 PIXEL-CLAY Design Lab 프리미티브를 사용한다", () => {
+    const source = readFileSync(join(APP, "dev-screens.tsx"), "utf8");
+    expect(source).toContain("entryRoleCounts(");
+    expect(source).toContain("designLabScreens(");
+    expect(source).toContain("canOpenFromDevRegistry(");
+    expect(source).toContain("<SectionList");
+    expect(source).toContain("stickySectionHeadersEnabled={false}");
+    expect(source).toContain('screenEntry(screen).kind === "standard"');
+    expect(source).toContain("이 목록에서는 열 수 없습니다");
+    for (const primitive of ["PixelSurface", "PixelPressable", "PixelGlyph"]) {
+      expect(source).toContain(primitive);
+    }
+    expect(source).not.toContain("<ScrollView");
+    expect(source).not.toContain("orphanScreens");
+  });
+
+  it("외부 계약의 정적 ScreenRow 분기는 press나 navigation을 렌더하지 않는다", () => {
+    const file = "dev-screens.tsx";
+    const source = readFileSync(join(APP, file), "utf8");
+    const blockedBranch = firstIfStatementSource(source, file, "ScreenRow");
+    expect(blockedBranch).toContain("canOpenFromDevRegistry");
+    expect(blockedBranch).not.toContain("onPress");
+    expect(blockedBranch).not.toContain("router.push");
+    expect(jsxTagNames(blockedBranch, file)).not.toContain("PixelPressable");
   });
 
   it("그룹 제목이 비어 있지 않고 중복되지 않는다", () => {
@@ -306,9 +550,4 @@ describe("개발자 화면 목록", () => {
     for (const s of devScreens()) expect(s.label.trim().length).toBeGreaterThan(0);
   });
 
-  it("입구 없는 화면을 실제로 짚어낸다", () => {
-    // 이 목록이 존재하는 이유 자체다. 0 이 되면 목록의 값어치가 사라진 것이거나
-    // 표시를 지운 것이므로, 어느 쪽이든 사람이 봐야 한다.
-    expect(orphanScreens().length).toBeGreaterThan(0);
-  });
 });

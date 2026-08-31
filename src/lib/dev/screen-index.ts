@@ -5,11 +5,11 @@
 //    설정 탭에 개발자용 화면으로 진입할 수 있는 버튼이 있었으면 좋겠고, 이곳에서
 //    진입 버튼들을 만들어서 화면들을 보고 기능이 되는지를 확인할 수 있으면 좋겠어."
 //
-// 이 앱에는 **정상 경로로는 못 가는 화면이 실제로 있다.** `/canon` ·
-// `/deepspace-flowmap` · `/deepspace-hub` · `/deepspace-preview` 는 `src/` 전체에
-// 들어오는 링크가 0건이고(직접 URL 입력으로만 열린다), `/peer/[token]` ·
-// `/community/join/[token]` 은 딥링크로만 도달한다. 그런 화면이 살아 있는지
-// 확인할 방법이 지금까지 없었다.
+// 이 앱에는 **production 사용자 동선에 두면 안 되는 화면이 실제로 있다.** `/canon` ·
+// `/deepspace-flowmap` · `/deepspace-hub` · `/deepspace-preview` 는 개발·디자인 검수용이고
+// (`/deepspace-hub` 는 개발용 flow map 안에서는 연결된다), `/peer/[token]` ·
+// `/community/join/[token]` · `/oauth-callback` 은 외부 딥링크/콜백으로만 들어와야 한다.
+// 이들을 모두 "입구 없음"으로 부르면 살아 있는 계약과 죽은 화면을 구분할 수 없다.
 //
 // **이 목록은 손으로 관리하지만 낡지 않는다.**
 // `__tests__/screen-index.test.ts` 가 `src/app` 의 실제 라우트 파일 목록과
@@ -37,6 +37,17 @@ export interface DelegatedAuthGate {
   component: string;
 }
 
+/** 정상 앱 진입 외에 별도 계약이 필요한 화면의 production 진입 역할. */
+export type SpecialScreenEntry =
+  | { kind: "deep-link"; contract: "invite" | "peer-response" | "oauth-callback" }
+  | { kind: "redirect"; destination: string; lifecycle: "retired" }
+  | { kind: "dev"; collection: "design-lab" };
+
+/** `entry`를 생략한 화면은 기존 앱 안의 정상 진입을 그대로 뜻한다. */
+export type ScreenEntry = { kind: "standard" } | SpecialScreenEntry;
+
+const STANDARD_SCREEN_ENTRY = { kind: "standard" } as const satisfies ScreenEntry;
+
 export interface DevScreen {
   /** `src/app` 아래 파일 경로. 예: "(auth)/sign-in", "star/[domain]", "index" */
   file: RouteFile;
@@ -50,8 +61,8 @@ export interface DevScreen {
   dev?: true;
   /** 동적 구간이 있어 견본값으로 들어간다. 진짜 데이터가 아니면 빈 상태가 보인다. */
   sample?: true;
-  /** 정상 경로로 들어오는 링크가 앱 안에 없다. 이 목록이 유일한 입구다. */
-  orphan?: true;
+  /** 생략하면 `standard`. 외부 계약·호환 redirect·Design Lab만 명시한다. */
+  entry?: SpecialScreenEntry;
   /** 화면이 아니라 다른 라우트로 넘기기만 한다. */
   stub?: true;
   /** 한 줄 메모. 왜 비어 보이는지, 무엇을 확인해야 하는지. */
@@ -110,7 +121,14 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
     title: "세컨비 · 대화",
     screens: [
       { file: "secondb", href: "/secondb", label: "세컨비 대화", auth: true },
-      { file: "jarvis", href: "/jarvis", label: "자비스 (은퇴)", stub: true, orphan: true, note: "/secondb 로 넘긴다" },
+      {
+        file: "jarvis",
+        href: "/jarvis",
+        label: "자비스 (은퇴)",
+        stub: true,
+        entry: { kind: "redirect", destination: "/secondb", lifecycle: "retired" },
+        note: "저장된 옛 링크를 위해 /secondb redirect만 유지한다. 일반 메뉴에 다시 노출하지 않는다",
+      },
       { file: "interview", href: "/interview", label: "심층 인터뷰", auth: true },
       { file: "imagine", href: "/imagine", label: "공상하기" },
       { file: "research", href: "/research", label: "연결 찾기", auth: true },
@@ -179,9 +197,24 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
     screens: [
       { file: "community", href: "/community", label: "커뮤니티", auth: true },
       { file: "community/[room]", href: "/community/sample", label: "커뮤니티 방", auth: true, sample: true, note: "실제 방 id 가 아니라서 목록으로 되돌아간다" },
-      { file: "community/join/[token]", href: "/community/join/sample", label: "초대 링크 받기", auth: true, sample: true, orphan: true, note: "원래는 딥링크로만 도달한다" },
+      {
+        file: "community/join/[token]",
+        href: "/community/join/sample",
+        label: "초대 링크 받기",
+        auth: true,
+        sample: true,
+        entry: { kind: "deep-link", contract: "invite" },
+        note: "외부 초대 링크 전용. 유효한 링크를 열면 방 가입을 즉시 시도하므로 이 목록에서는 실행하지 않는다",
+      },
       { file: "peer-invites", href: "/peer-invites", label: "지인에게 물어보기", auth: true },
-      { file: "peer/[token]", href: "/peer/sample", label: "지인 응답 (무계정)", sample: true, orphan: true, note: "원래는 초대 링크로만 도달한다. 로그인 없이 열리는 유일한 화면" },
+      {
+        file: "peer/[token]",
+        href: "/peer/sample",
+        label: "지인 응답 (무계정)",
+        sample: true,
+        entry: { kind: "deep-link", contract: "peer-response" },
+        note: "외부 초대 링크 전용 무계정 응답. 열면 edge load 호출이 생기므로 이 목록에서는 실행하지 않는다",
+      },
     ],
   },
   {
@@ -236,18 +269,52 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       { file: "(auth)/sign-up", href: "/sign-up", label: "회원가입" },
       { file: "(auth)/reset-password", href: "/reset-password", label: "비밀번호 재설정" },
       { file: "(auth)/complete-profile", href: "/complete-profile", label: "프로필 완성", auth: true },
-      { file: "(auth)/oauth-callback", href: "/oauth-callback", label: "OAuth 콜백", orphan: true, note: "소셜 로그인이 되돌아오는 자리. 직접 열면 할 일이 없다" },
+      {
+        file: "(auth)/oauth-callback",
+        href: "/oauth-callback",
+        label: "OAuth 콜백",
+        entry: { kind: "deep-link", contract: "oauth-callback" },
+        note: "OAuth 공급자가 되돌아오는 endpoint. 직접 탐색하거나 이 목록에서 실행하지 않는다",
+      },
     ],
   },
   {
     title: "개발자 전용",
     screens: [
       { file: "dev-screens", href: "/dev-screens", label: "화면 전체 목록", dev: true, note: "이 화면. 설정 → 개발자 에서 들어온다" },
-      { file: "canon", href: "/canon", label: "프로토 캐논", dev: true, orphan: true },
-      { file: "deepspace-hub", href: "/deepspace-hub", label: "딥스페이스 허브", dev: true, orphan: true },
+      {
+        file: "canon",
+        href: "/canon",
+        label: "프로토 캐논",
+        dev: true,
+        entry: { kind: "dev", collection: "design-lab" },
+        note: "캐논 JSON과 앱 연결 상태를 읽기 전용으로 확인한다",
+      },
+      {
+        file: "deepspace-hub",
+        href: "/deepspace-hub",
+        label: "딥스페이스 허브",
+        dev: true,
+        entry: { kind: "dev", collection: "design-lab" },
+        note: "개발용 화면 허브. flow map 안에서는 연결되지만 production 사용자 동선에는 없다",
+      },
       { file: "deepspace-home", href: "/deepspace-home", label: "딥스페이스 홈 시안", dev: true },
-      { file: "deepspace-preview", href: "/deepspace-preview", label: "딥스페이스 미리보기", dev: true, orphan: true },
-      { file: "deepspace-flowmap", href: "/deepspace-flowmap", label: "화면 흐름도", dev: true, orphan: true },
+      {
+        file: "deepspace-preview",
+        href: "/deepspace-preview",
+        label: "딥스페이스 미리보기",
+        dev: true,
+        entry: { kind: "dev", collection: "design-lab" },
+        note: "컴포넌트와 상태를 실제 기기에서 시각 검수한다",
+      },
+      {
+        file: "deepspace-flowmap",
+        href: "/deepspace-flowmap",
+        label: "화면 흐름도",
+        dev: true,
+        entry: { kind: "dev", collection: "design-lab" },
+        note: "개발용 경로 연결을 확인한다. 데모 시작은 메모리 task와 8초 timer를 만든다",
+      },
       { file: "graph", href: "/graph", label: "내 두뇌 지도 (레거시)", dev: true },
       {
         file: "trends",
@@ -268,7 +335,61 @@ export function devScreens(): DevScreen[] {
   return DEV_SCREEN_GROUPS.flatMap((g) => g.screens);
 }
 
-/** 정상 경로로 들어오는 링크가 없는 화면 — 이 목록이 존재하는 이유. */
-export function orphanScreens(): DevScreen[] {
-  return devScreens().filter((s) => s.orphan);
+/** 생략된 entry를 명시적인 정상 앱 진입으로 해석한다. */
+export function screenEntry(screen: DevScreen): ScreenEntry {
+  return screen.entry ?? STANDARD_SCREEN_ENTRY;
+}
+
+/** production 메뉴가 아니라 개발용 디자인 검수 컬렉션에서만 여는 네 화면. */
+export function designLabScreens(): DevScreen[] {
+  return devScreens().filter((screen) => {
+    const entry = screenEntry(screen);
+    return entry.kind === "dev" && entry.collection === "design-lab";
+  });
+}
+
+/**
+ * 외부 딥링크/콜백은 route mount 자체가 조회·가입·세션 변경을 시작할 수 있다.
+ * 개발 목록은 계약만 보여주고 실행하지 않는다. standard, 호환 redirect, Design Lab은
+ * 기존처럼 안전하게 열 수 있다.
+ */
+export function canOpenFromDevRegistry(screen: DevScreen): boolean {
+  return screenEntry(screen).kind !== "deep-link";
+}
+
+export interface EntryRoleCounts {
+  total: number;
+  standard: number;
+  deepLink: number;
+  redirect: number;
+  designLab: number;
+  /** entry role과 직교하는 실제 DevOnlyRoute 접근 게이트 수. */
+  devOnly: number;
+  /** direct와 delegated gate를 모두 포함한다. */
+  authRequired: number;
+}
+
+/** `/dev-screens` 상단과 CI가 함께 쓰는 단일 집계. */
+export function entryRoleCounts(screens: readonly DevScreen[] = devScreens()): EntryRoleCounts {
+  const counts: EntryRoleCounts = {
+    total: screens.length,
+    standard: 0,
+    deepLink: 0,
+    redirect: 0,
+    designLab: 0,
+    devOnly: 0,
+    authRequired: 0,
+  };
+
+  for (const screen of screens) {
+    const entry = screenEntry(screen);
+    if (entry.kind === "standard") counts.standard += 1;
+    if (entry.kind === "deep-link") counts.deepLink += 1;
+    if (entry.kind === "redirect") counts.redirect += 1;
+    if (entry.kind === "dev" && entry.collection === "design-lab") counts.designLab += 1;
+    if (screen.dev) counts.devOnly += 1;
+    if (screen.auth !== undefined) counts.authRequired += 1;
+  }
+
+  return counts;
 }
