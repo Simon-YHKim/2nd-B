@@ -24,8 +24,7 @@ import { useCallback, useState, type ReactNode } from "react";
 import {
   Pressable,
   StyleSheet,
-  type AccessibilityRole,
-  type AccessibilityState,
+  type PressableProps,
   type StyleProp,
   View,
   type ViewStyle,
@@ -42,9 +41,9 @@ export interface PixelPressableProps {
   accessibilityLabel?: string;
   accessibilityHint?: string;
   /** 기본은 button. 링크처럼 다른 네이티브 역할이 필요한 공용 CTA 에서만 바꾼다. */
-  accessibilityRole?: AccessibilityRole;
+  accessibilityRole?: PressableProps["accessibilityRole"];
   /** busy/selected/expanded 등 호출부가 소유한 상태. disabled 는 `disabled` prop 이 정본이다. */
-  accessibilityState?: AccessibilityState;
+  accessibilityState?: PressableProps["accessibilityState"];
   disabled?: boolean;
   /** PixelSurface 면 배경. PIXEL-CLAY 토큰 색만 전달한다. */
   background?: string;

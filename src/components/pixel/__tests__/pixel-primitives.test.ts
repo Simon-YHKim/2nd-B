@@ -164,6 +164,10 @@ describe("디더 - 알파 대신 타일", () => {
 
 describe("누름 - 가라앉기와 베벨 반전이 함께 간다", () => {
   const src = read("PixelPressable.tsx");
+  const recordsGraph = readFileSync(
+    path.join(ROOT, "src", "components", "deep-space", "RecordsGraph.tsx"),
+    "utf8",
+  );
 
   test("눌리면 변환과 베벨 반전이 둘 다 걸린다", () => {
     // 하나만 하면 흔들리거나(변환만) 납작해진다(반전만). 같은 `sunken` 하나가
@@ -187,10 +191,19 @@ describe("누름 - 가라앉기와 베벨 반전이 함께 간다", () => {
     expect(src).toContain("minHeight: m3.minTouch");
   });
 
-  test("접근성 역할과 상태가 붙어 있다", () => {
+  test("기본 button 역할과 disabled 상태를 한 번만 전달한다", () => {
     expect(src).toContain('accessibilityRole = "button"');
     expect(src).toContain("accessibilityRole={accessibilityRole}");
     expect(src).toContain("accessibilityState={{ ...accessibilityState, disabled }}");
+    expect(src.match(/accessibilityRole=/g)).toHaveLength(1);
+    expect(src.match(/accessibilityState=/g)).toHaveLength(1);
+  });
+
+  test("stateful caller의 switch 역할과 checked 상태를 보존한다", () => {
+    expect(src).toContain('accessibilityRole?: PressableProps["accessibilityRole"]');
+    expect(src).toContain('accessibilityState?: PressableProps["accessibilityState"]');
+    expect(recordsGraph).toContain('accessibilityRole="switch"');
+    expect(recordsGraph).toContain("accessibilityState={{ checked: showTagLinks }}");
   });
 
   test("면 배경과 root/full-width 스타일을 additive prop 으로 전달한다", () => {
