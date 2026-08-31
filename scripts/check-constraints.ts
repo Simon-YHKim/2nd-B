@@ -1053,11 +1053,13 @@ results.push(
       completeProfile.includes('accessibilityLabel={t("common.entryArtwork")}') &&
       completeProfile.includes('accessibilityHint={t("completeProfile.submitHint")}') &&
       completeProfile.includes('accessibilityHint={t("completeProfile.cancelHint")}') &&
-        notFound.includes('accessibilityHint={t("actions.homeHint")}') &&
-        notFound.includes('accessibilityHint={t("destinations.capture.hint")}') &&
-        notFound.includes('accessibilityHint={t("destinations.audit.hint")}') &&
-        notFound.includes('accessibilityHint={t("destinations.persona.hint")}') &&
-        notFound.includes('accessibilityHint={t("destinations.manual.hint")}') &&
+      // The real Expo Router fallback has one recovery action. The reference
+      // bundle's four destination rows were an internal demo state, not product
+      // navigation; pin the translated 44px home action instead.
+      notFound.includes('accessibilityRole="header"') &&
+      notFound.includes('accessibilityLabel={t("actions.home")}') &&
+      notFound.includes('accessibilityHint={t("actions.homeHint")}') &&
+      notFound.includes("minHeight: m3.minTouch") &&
       homeRoles >= 4 &&
       home.includes('t("firstPieceHint")') &&
       home.includes('t("lookFirstLabel")') &&
@@ -1870,9 +1872,12 @@ results.push(
       ];
       const ok =
         screen.includes('useTranslation("notFound")') &&
+        screen.includes('t("hero.eyebrow")') &&
         screen.includes('t("hero.title")') &&
+        screen.includes('t("hero.subtitle")') &&
+        screen.includes('t("actions.home")') &&
         screen.includes('t("actions.homeHint")') &&
-        screen.includes('t("destinations.capture.hint")') &&
+        !screen.includes('t("destinations.') &&
         i18n.includes("enNotFound") &&
         i18n.includes("koNotFound") &&
         i18n.includes('"notFound"') &&
@@ -1886,8 +1891,8 @@ results.push(
         id: "NotFoundI18nCopy",
         status: ok ? "PASS" : "FAIL",
         note: ok
-          ? "not-found screen copy lives in locale bundles and avoids old village-center copy"
-          : "not-found screen should source copy from locale bundles and avoid old village-center copy",
+          ? "not-found recovery copy lives in locale bundles and avoids demo destinations and old village-center copy"
+          : "not-found recovery should source copy from locale bundles and avoid demo destinations and old village-center copy",
       };
     }),
   );
