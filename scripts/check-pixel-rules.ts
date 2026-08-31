@@ -111,6 +111,7 @@ const MIGRATED: readonly string[] = [
   "src/screens/deepspace/dds-import-inbox-screens.tsx",
   "src/screens/deepspace/dds-legal-doc-screen.tsx",
   "src/screens/deepspace/dds-plans-screen.tsx",
+  "src/screens/deepspace/dds-record-detail-screen.tsx",
   "src/screens/deepspace/dds-styles.ts",
   "src/screens/deepspace/dds-wiki-records-screens.tsx",
   "src/screens/deepspace/growth/WeeklyGrowthScreen.tsx",
@@ -662,7 +663,7 @@ for (const abs of walkTsx(join(ROOT, "src"))) {
 //
 // ⚠ 기준선을 **올리지 말 것.** 올려야 한다면 그건 규칙을 되돌린 것이다.
 //   줄었을 때만 내린다(줄인 PR 이 같이 내린다).
-// 342 → 333 → 315 → 202 → 193 → 165 → **162** (2026-08-31 integration union).
+// 342 → 333 → 315 → 202 → 193 → 165 → **161** (2026-08-31 integration union).
 //
 // 이번에 내려간 28건의 출처 — **절반은 고친 것이고 절반은 잘못 세던 것이다.**
 //
@@ -674,7 +675,7 @@ for (const abs of walkTsx(join(ROOT, "src"))) {
 // 변이 검증 둘 다 통과:
 //   · `opacity: 1`·`0`·`1.0` → 그대로 · `opacity: 0.37`·`.05` → +2
 //   · 리플 안 알파 → 그대로 · 리플 밖 알파(같은 줄이어도) → +1
-const RATCHET_BASELINE = 162;
+const RATCHET_BASELINE = 161;
 
 // 래칫이 통과해도 **남은 빚이 어디 있는지** 볼 수 있어야 한다. 수만 보면 고칠 곳을
 // 모른다(채점기 D·E·B 축도 이름을 붙이고 나서야 고칠 것이 드러났다).
