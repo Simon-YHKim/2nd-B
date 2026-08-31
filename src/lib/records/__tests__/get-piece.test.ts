@@ -104,16 +104,16 @@ const read = (rel: string): string =>
   );
 
 describe("the live detail screen resolves both kinds", () => {
-  const src = read("screens/deepspace/dds-wiki-records-screens.tsx");
+  const src = read("screens/deepspace/dds-record-detail-screen.tsx");
 
   test("it fetches through getPieceById, not getRecordById", () => {
-    expect(src).toMatch(/getPieceById\(userId, recordId, origin\)/);
+    expect(src).toMatch(/getPieceById\(userId, recordId, requestedOrigin\)/);
     // The old call is what made every source piece a dead tap.
     expect(src).not.toMatch(/getRecordById\(userId, recordId\)/);
   });
 
   test("it reads the origin param", () => {
-    expect(src).toMatch(/params\.origin/);
+    expect(src).toMatch(/originValue = Array\.isArray\(params\.origin\)/);
   });
 });
 
