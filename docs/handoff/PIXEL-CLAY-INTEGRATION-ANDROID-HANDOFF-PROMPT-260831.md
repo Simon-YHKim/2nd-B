@@ -2,9 +2,9 @@
 
 작성일: 2026-08-31 KST
 
-대상: PIXEL-CLAY salvage Draft PR #1507~#1541
+대상: PIXEL-CLAY salvage Draft PR #1507~#1542
 
-이 문서는 화면별 구현이 끝난 뒤의 **통합 담당자용 실행 계약**이다. 현재 35개 PR은
+이 문서는 화면별 구현이 끝난 뒤의 **통합 담당자용 실행 계약**이다. 현재 36개 PR은
 코드와 CI 기준으로 green이지만 서로 독립된 base에서 만들어졌으므로, 이 문서를 근거로
 한 번에 병합하면 안 된다. 최신 `main`에 한 PR씩 직렬로 합치고, 충돌을 의미 단위로
 통합하며, final integrated SHA에서 Android HUMAN QA까지 끝내는 것이 목표다.
@@ -63,7 +63,7 @@ gh pr list --repo Simon-YHKim/2nd-B --state open `
 
 이 문서를 담는 #1507은 문서 commit 자체로 head가 바뀌므로 self-referential SHA를 고정할
 수 없다. #1507은 작업 시작 시 `gh pr view 1507 --json headRefOid`로 동적으로 확인한다.
-아래는 구현 PR #1508~#1541의 감사 시점 exact head다.
+아래는 구현 PR #1508~#1542의 감사 시점 exact head다.
 
 ```text
 #1508 8e526e49ab2e0046054e6cedba458d43a3f9ffd4
@@ -100,11 +100,12 @@ gh pr list --repo Simon-YHKim/2nd-B --state open `
 #1539 091d0090f6b655dec12729e3bfd0a68aa1dbb4b4
 #1540 b0ddb259a1393c090789abfad371aace8539ffb7
 #1541 e0eb62c5fc416f92e62dd6a48db38f807845434c
+#1542 b43bcd6652b08ff0baaa72214ad7ff4803ca42ec
 ```
 
 감사 당시 #1507의 이전 head는 `68a8e488933d822d99830da8a3e51bd828a0192d`였고,
-35개 모두 `OPEN + Draft + MERGEABLE/CLEAN`, 실패·대기 check 0이었다. #1507은 이 문서가
-추가된 현재 remote head와 green check를 새 기준으로 기록한다. #1508~#1541 중 어느
+36개 모두 `OPEN + Draft + MERGEABLE/CLEAN`, 실패·대기 check 0이었다. #1507은 이 문서가
+추가된 현재 remote head와 green check를 새 기준으로 기록한다. #1508~#1542 중 어느
 head라도 달라졌거나 check가 실패·대기·취소 상태이면 그 PR은 멈추고 새 diff와 증거를 다시
 감사한다. 과거 캡처와 검증 수치를 새 head에 재사용하지 않는다.
 
@@ -112,7 +113,7 @@ head라도 달라졌거나 check가 실패·대기·취소 상태이면 그 PR�
 
 ```text
 main ─┬─ #1508 ─ #1509
-      ├─ #1515 ─┬─ #1517, #1518, #1523, #1524, #1529…#1541
+      ├─ #1515 ─┬─ #1517, #1518, #1523, #1524, #1529…#1541 ─ #1542
       │          └─ #1522 ─ #1526, #1527, #1528
       └─ 나머지 main-based PR
 ```
@@ -131,7 +132,7 @@ main ─┬─ #1508 ─ #1509
 9. #1518
 10. #1522 → #1526 → #1527 → #1528
 11. #1523 → #1524 → #1529 → #1530 → #1531 → #1534 → #1536 → #1537 → #1538 → #1539 → #1540 → #1541
-12. #1541 통합 뒤 Big Five stale source-shape test debt를 제거하는 별도 작은 Draft PR
+12. #1541 → #1542
 13. final integrated SHA에서 전체 검증과 Android HUMAN QA
 
 부모 PR #1508, #1515, #1522는 가능하면 repository가 허용하는 **merge commit**으로
@@ -254,6 +255,12 @@ imports, styles를 유지하고 #1535 record-detail renderer만 새 파일로 �
 기존 6005/6005 PASS를 거짓이라고 보고할 필요는 없지만, 이 정적 계약 부채가 제거되기
 전에는 final integration이 끝났다고 말하지 않는다.
 
+이 후속 작업은 #1542 head `b43bcd6652b08ff0baaa72214ad7ff4803ca42ec`에서 완료됐다.
+marker-only 제거가 기존 계약을 17/18 실패로 정확히 재현했고, live loader의 error·timeout과
+DDS retry 소비를 실행하는 계약으로 교체한 뒤 focused 3 suites/77 tests와 full
+557/557 suites, 6006/6006 tests를 통과했다. 통합 시 #1542를 #1541 직후 적용하고 새 head를
+다시 검증한다.
+
 ## 7. 새 head 시각 증거
 
 충돌 해결이나 최신 main merge로 PR head가 바뀌면 기존 캡처는 더 이상 그 head의 증거가
@@ -316,7 +323,7 @@ Android/HUMAN에서 아직 실행하지 않은 항목, 기기 부족, fixture �
 viewport/font scale/TalkBack별 PASS·FAIL·미실행과 재현 경로를 넣는다. 실패한 검증,
 Android 미실행, 개인정보 때문에 공유하지 않은 증거, 롤백 방법을 마지막에 명시한다.
 
-핵심 판단: 지금 35개 Draft가 모두 green인 것은 **통합을 시작할 준비가 됐다**는 뜻이지,
+핵심 판단: 지금 36개 Draft가 모두 green인 것은 **통합을 시작할 준비가 됐다**는 뜻이지,
 이미 최종 앱에 합쳐졌거나 Android에서 검증됐다는 뜻이 아니다. 직렬 retarget·의미 충돌
 해결·Big Five 테스트 부채 제거·final Android HUMAN 증거가 끝난 뒤 Ready/merge 여부를
 결정한다.
