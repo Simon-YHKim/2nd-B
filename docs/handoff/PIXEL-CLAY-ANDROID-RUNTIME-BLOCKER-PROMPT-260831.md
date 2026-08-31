@@ -57,24 +57,48 @@
 5. 로그에는 `FATAL EXCEPTION`, 새 `ReactNativeJS` error, `window.addEventListener` 오류가 없어야 한다.
 6. 빌드 성공은 HUMAN PASS가 아니다. 기기/라우트/관측 범위와 미검증 항목을 분리해 보고한다.
 
-## B. P1 — `/capture-full` 개발 화면 목록의 auth 표시 정합성
+## B. P1 — wrapper/re-export 화면 5개의 auth 표시 정합성
 
 ### 관측 증거
 
-- `src/lib/dev/screen-index.ts`의 `/capture-full` 항목에는 `auth: true`가 없다.
-- `src/app/capture-full.tsx`는 `CaptureLegacy`를 감싸고, 실제 로그인 redirect는 `src/app/capture.tsx` 안에 있다.
-- 현재 `screen-index.test.ts`는 라우트 파일 한 장에서 literal `<Redirect href="/sign-in" />`만 찾으므로 wrapper가 상속한 auth gate를 검출하지 못한다.
-- 결과적으로 목록은 signed-out에서 열 수 있는 화면처럼 보이지만 실제로는 `/sign-in`으로 이동한다.
-- 소유 Draft PR: `#1508` (`codex/pixel-clay-salvage-registry-260831`)
+- 현재 `screen-index.test.ts`는 라우트 파일 한 장에서 literal `<Redirect href="/sign-in" />`만 찾으므로 wrapper/re-export가 상속한 auth gate를 검출하지 못한다.
+- API 36 실제 실행에서 `/capture-full`과 `/plans`가 signed-out 사용자를 `/sign-in`으로 보냈지만 화면 목록에는 로그인 필요 배지가 없었다.
+- 전체 unmarked-route 정적 감사에서 확정된 거짓 음성은 아래 5개다.
+
+| route | route가 렌더하는 컴포넌트 | 실제 gate source |
+|---|---|---|
+| `/capture-full` | `CaptureLegacy` | `src/app/capture.tsx` |
+| `/srs` | `DeepSpaceSrsScreen` | `src/screens/deepspace/DeepSpaceDesignScreens.tsx` |
+| `/focus` | `DeepSpaceFocusScreen` | `src/screens/deepspace/DeepSpaceDesignScreens.tsx` |
+| `/plans` | `DeepSpacePlansScreen` | `src/screens/deepspace/dds-plans-screen.tsx` |
+| `/trends` | `TrendsScreen` | `src/screens/deepspace/trends/TrendsScreen.tsx` |
+
+- `/jarvis`, `/mbti`는 보호 route로 넘기는 stub이고, `/journal`, `/imagine`, `/discover`는 UI mode에 따라 목적지와 auth 동작이 달라 이번 one-hop component 계약에 섞지 않는다.
+- 이 결함은 PR #1508이 만든 것이 아니다. #1508은 디자인 salvage exact-set만 소유하며 `screen-index.ts`의 auth를 읽지 않는다.
 
 ### 구현 계약
 
-1. PR #1508의 기존 브랜치에서 별도 커밋으로 수정한다.
-2. `/capture-full`을 `auth: true`로 표시한다.
-3. 테스트가 wrapper의 명시적 auth 상속을 검증할 수 있게 만든다. 임의의 모든 import를 재귀 검색해 거짓 양성을 만드는 방식은 피하고, registry metadata 또는 좁은 명시적 계약으로 원본 auth source를 추적한다.
-4. 실제 `CaptureLegacy` 로그인/profile/consent gate를 복제하거나 약화하지 않는다.
-5. registry metadata와 실제 원본 gate 중 하나가 바뀌면 테스트가 실패해야 한다.
-6. `npm run verify` 전체 통과가 필수다.
+1. 다섯 gate source가 같은 base에 모인 뒤 `main` 기반 별도 `fix(dev)` Draft PR을 만든다. PR #1508이나 한 화면 소유 PR에 억지로 섞지 않는다.
+2. `DevScreen.auth`를 다음처럼 직접 gate와 위임 gate를 구분하는 union으로 만든다.
+
+   ```ts
+   auth?: true | {
+     gateFile: string;
+     component: string;
+   };
+   ```
+
+3. 기존 직접 gate는 `auth: true`를 유지한다. 위 다섯 항목만 정확한 `gateFile`과 `component` 객체를 선언한다. UI 배지와 집계는 `s.auth !== undefined`로 판단한다.
+4. 테스트는 **명시된 한 파일만** 해석한다. 임의 import 재귀 탐색은 금지한다.
+5. delegated gate마다 다음을 모두 검증한다.
+   - `gateFile`이 저장소 `src/` 내부이고 실제 존재함
+   - gate source에 literal `<Redirect href="/sign-in" />`가 있음
+   - gate source가 선언된 `component`를 선언하거나 export함
+   - route source가 그 `component`를 실제 JSX로 렌더함
+6. 경로 탈출(`..`, 절대 경로), 존재하지 않는 source/component, auth 객체 없이 발생한 간접 gate를 테스트 fixture로 거부한다.
+7. 실제 로그인/profile/consent gate를 route에 복제하거나 약화하지 않는다. runtime 화면 파일은 변경하지 않는다.
+8. registry metadata와 실제 원본 gate·렌더 연결 중 하나가 바뀌면 테스트가 실패해야 한다.
+9. `npm run verify` 전체 통과가 필수다.
 
 ## 완료 보고 형식
 
@@ -86,4 +110,3 @@
 - `.env`, 키, 토큰, 인증서, 사용자 데이터가 diff/log에 없다는 확인
 
 Ready 전환, base retarget, merge는 하지 말고 사용자 승인을 기다린다.
-
