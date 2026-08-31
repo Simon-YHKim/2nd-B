@@ -25,6 +25,7 @@ import {
   Platform,
   Pressable,
   AppState,
+  BackHandler,
 } from "react-native";
 import { Image } from "expo-image";
 import {
@@ -45,7 +46,7 @@ import { PremiumCard, PremiumButton, PremiumLoadingState, TAB_BAR_HEIGHT } from 
 import { ShardArt } from "@/components/art/IslandArt";
 import { Input } from "@/components/ui/Input";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
-import { cosmic, flattenAlpha, semantic, spacing, typography, withAlpha } from "@/lib/theme/tokens";
+import { cosmic, flattenAlpha, semantic, spacing, typography } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -104,10 +105,21 @@ import { canUsePremium, checkUsage } from "@/lib/progression/entitlements";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { PixelPressable, PixelSurface } from "@/components/pixel";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
 import { enqueueAutoReasoningRecord, enqueueAutoReasoningSource } from "@/app/reasoning";
 import { maybeAutoPromoteSource } from "@/lib/wiki/auto-promote";
+import { isDomainTag } from "@/lib/persona/domain-stars";
+import {
+  LIFE_AREA_IDS,
+  LIFE_AREA_INTENT_COPY,
+  isRecordCaptureMode,
+  lifeAreaFromTag,
+  resolveLifeAreaLocale,
+  withSelectedLifeArea,
+  type LifeAreaId,
+} from "@/lib/capture/life-area-intent";
 
 // Deep-space reads these four explicit pixel-font labels in Pretendard (the
 // same build-constant swap as Text.tsx #667); the legacy track keeps pixelKo.
@@ -169,6 +181,15 @@ const MODE_GLYPH: Record<Mode, string> = {
   file: "description",
 };
 
+const LIFE_AREA_GLYPH: Record<LifeAreaId, string> = {
+  career: "briefcase",
+  finance: "account_balance",
+  relation: "groups",
+  health: "favorite",
+  growth: "school",
+  recreation: "bedtime",
+};
+
 function ModeGlyph({ mode, color, label }: { mode: Mode; color: string; label: string }) {
   return (
     <View style={styles.modeGlyph} accessibilityLabel={label}>
@@ -202,10 +223,16 @@ export default function Capture() {
 // Exported for /capture-full: the deep-space track reaches this full multi-mode
 // intake (링크/클립/OCR/파일) through that route, reusing these proven pipes
 // instead of reimplementing them in the design body (QA F1 follow-up).
-export function CaptureLegacy() {
+export interface CaptureLegacyProps {
+  /** `/capture-full` alone enables the embedded life-area intent selector. */
+  enableLifeAreaIntents?: boolean;
+}
+
+export function CaptureLegacy({ enableLifeAreaIntents = false }: CaptureLegacyProps = {}) {
   const { t, i18n } = useTranslation("capture");
   const { userId, loading, isMinor, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const lifeAreaCopy = LIFE_AREA_INTENT_COPY[resolveLifeAreaLocale(i18n.resolvedLanguage ?? i18n.language)];
   const insets = useSafeAreaInsets();
   const keyboardBehavior = Platform.OS === "ios" ? "padding" : "height";
   const keyboardVerticalOffset = Platform.OS === "ios" ? insets.top : 0;
@@ -235,6 +262,8 @@ export function CaptureLegacy() {
 
   const [mode, setMode] = useState<Mode>("journal");
   const [showAdvancedModes, setShowAdvancedModes] = useState(false);
+  const [lifeAreaOpen, setLifeAreaOpen] = useState(false);
+  const [selectedLifeArea, setSelectedLifeArea] = useState<LifeAreaId | null>(null);
   const [track, setTrack] = useState<WikiTrack>("daily");
   const [body, setBody] = useState("");
   const draftsRef = useRef<CaptureDrafts>({});
@@ -405,10 +434,16 @@ export function CaptureLegacy() {
       draftUserRef.current = null;
       preHydrationDirtyRef.current = false;
       shareSkippedRestoreRef.current = false;
+      setLifeAreaOpen(false);
+      setSelectedLifeArea(null);
       return;
     }
     if (draftUserRef.current === userId && draftHydratedRef.current) return;
     let cancelled = false;
+    // Account boundaries also own the unsaved hidden area context. Clear it
+    // before hydrating B so A's selection can never be saved under B.
+    setLifeAreaOpen(false);
+    setSelectedLifeArea(null);
     draftHydratedRef.current = false;
     setDraftHydrated(false);
     shareSkippedRestoreRef.current = false;
@@ -486,13 +521,40 @@ export function CaptureLegacy() {
     const key = `${m ?? ""}:${tg ?? ""}`;
     if (modeParamConsumedRef.current === key) return;
     modeParamConsumedRef.current = key;
+    if (!enableLifeAreaIntents) {
+      if (m) {
+        setShowAdvancedModes(true);
+        setMode(m);
+      }
+      if (tg) setTagsEditable((prev) => (prev.includes(tg) ? prev : [...prev, tg]));
+      router.setParams({ mode: undefined, tag: undefined });
+      return;
+    }
+
+    const area = lifeAreaFromTag(tg);
     if (m) {
       setShowAdvancedModes(true);
-      setMode(m);
+      switchCaptureMode(m);
     }
-    if (tg) setTagsEditable((prev) => (prev.includes(tg) ? prev : [...prev, tg]));
+    if (tg && isDomainTag(tg)) {
+      // Reserved domain values never become visible hashtag chips. A record
+      // composer keeps its instrument-owned classification and ignores them.
+      if (!area || (m !== null && isRecordCaptureMode(m))) {
+        setSelectedLifeArea(null);
+      } else {
+        setSelectedLifeArea(area);
+        setLifeAreaOpen(false);
+        if (!m) {
+          setShowAdvancedModes(true);
+          switchCaptureMode("memo");
+        }
+      }
+    } else if (tg) {
+      // Ordinary user tags retain the existing deep-link contract.
+      setTagsEditable((prev) => (prev.includes(tg) ? prev : [...prev, tg]));
+    }
     router.setParams({ mode: undefined, tag: undefined });
-  }, [draftHydrated, modeParam, tagParam]);
+  }, [draftHydrated, enableLifeAreaIntents, modeParam, tagParam]);
   // Clipboard offer probe: presence-only (no content read, no OS notice) when
   // the user lands on the link box, re-run when the app returns to the
   // foreground — the headline flow is "copy in the browser, switch back here",
@@ -576,6 +638,18 @@ export function CaptureLegacy() {
     useCallback(() => abortSubmitRequest, [abortSubmitRequest]),
   );
 
+  useFocusEffect(
+    useCallback(() => {
+      if (!enableLifeAreaIntents) return undefined;
+      const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+        if (!lifeAreaOpen) return false;
+        setLifeAreaOpen(false);
+        return true;
+      });
+      return () => subscription.remove();
+    }, [enableLifeAreaIntents, lifeAreaOpen]),
+  );
+
   if (loading) {
     return (
       <PremiumAppShell>
@@ -646,6 +720,8 @@ export function CaptureLegacy() {
     setShowExtras(false);
     setTodoDone(false);
     setFourw(EMPTY_FOURW);
+    setLifeAreaOpen(false);
+    setSelectedLifeArea(null);
     resetTransientCaptureState();
   }
 
@@ -659,6 +735,11 @@ export function CaptureLegacy() {
   }
 
   function switchCaptureMode(nextMode: Mode): void {
+    if (enableLifeAreaIntents && isRecordCaptureMode(nextMode)) {
+      // Record composers keep `withDomainTag` as their sole classifier. A
+      // source-only area intent cannot follow them without making the UI lie.
+      setSelectedLifeArea(null);
+    }
     if (nextMode === mode) return;
     rememberCurrentDraft();
     resetTransientCaptureState();
@@ -883,7 +964,11 @@ ${transcript}`;
 
   function addTagFromInput(input: string) {
     const norm = input.trim().toLowerCase().replace(/^#+/, "").replace(/\s+/g, "-");
-    if (norm.length === 0 || tagsEditable.includes(norm)) return;
+    if (
+      norm.length === 0 ||
+      tagsEditable.includes(norm) ||
+      (enableLifeAreaIntents && isDomainTag(norm))
+    ) return;
     setTagsEditable((prev) => [...prev, norm].slice(0, 10));
   }
 
@@ -1258,6 +1343,13 @@ ${transcript}`;
       }
       if (!submitIsCurrent(submitController)) return;
 
+      if (enableLifeAreaIntents && selectedLifeArea) {
+        // Compose after classifier output so its proposal cannot replace the
+        // user's explicit source context. This never runs on record modes:
+        // those returned above and remain owned by `withDomainTag`.
+        finalTags = withSelectedLifeArea(finalTags, selectedLifeArea);
+      }
+
       const result = await captureFromMarkdown({
         userId,
         rawMd: finalBody,
@@ -1407,6 +1499,17 @@ ${transcript}`;
     }
   }
 
+  function selectLifeArea(area: LifeAreaId): void {
+    setSelectedLifeArea(area);
+    setLifeAreaOpen(false);
+    setShowAdvancedModes(true);
+    switchCaptureMode("memo");
+  }
+
+  const selectedLifeAreaCopy = selectedLifeArea
+    ? lifeAreaCopy.cards[selectedLifeArea]
+    : null;
+
   return (
     <PremiumAppShell>
       <KeyboardAvoidingView
@@ -1485,6 +1588,65 @@ ${transcript}`;
                 },
               ]}
             />
+          ) : null}
+
+          {enableLifeAreaIntents && !savedTitle ? (
+            <View style={styles.lifeAreaSection}>
+              <PixelPressable
+                variant={lifeAreaOpen ? "inset" : "bevel"}
+                onPress={() => setLifeAreaOpen((open) => !open)}
+                accessibilityLabel={`${lifeAreaCopy.title}. ${lifeAreaCopy.helper}`}
+                accessibilityState={{ expanded: lifeAreaOpen }}
+                fullWidth
+                contentStyle={styles.lifeAreaHeader}
+              >
+                <PixelGlyph name="grid" color={m3.color.primary} size={24} />
+                <View style={styles.lifeAreaHeaderCopy}>
+                  <Text style={styles.lifeAreaTitle}>{lifeAreaCopy.title}</Text>
+                  <Text style={styles.lifeAreaHelper}>{lifeAreaCopy.helper}</Text>
+                </View>
+                <PixelGlyph
+                  name={lifeAreaOpen ? "expandLess" : "expandMore"}
+                  color={m3.color.onSurfaceVariant}
+                  size={24}
+                />
+              </PixelPressable>
+
+              {lifeAreaOpen ? (
+                <PixelSurface variant="frame" contentStyle={styles.lifeAreaGrid}>
+                  {LIFE_AREA_IDS.map((area) => {
+                    const card = lifeAreaCopy.cards[area];
+                    const selected = selectedLifeArea === area;
+                    return (
+                      <PixelPressable
+                        key={area}
+                        variant={selected ? "inset" : "bevel"}
+                        onPress={() => selectLifeArea(area)}
+                        accessibilityLabel={`${card.label}. ${card.helper}`}
+                        accessibilityState={{ selected }}
+                        background={selected ? m3.color.primaryContainer : m3.color.surfaceContainerHigh}
+                        rootStyle={styles.lifeAreaCardRoot}
+                        contentStyle={styles.lifeAreaCard}
+                      >
+                        <PixelGlyph
+                          name={canonGlyph(LIFE_AREA_GLYPH[area])}
+                          color={selected ? m3.color.onPrimaryContainer : m3.color.primary}
+                          size={24}
+                        />
+                        <View style={styles.lifeAreaCardCopy}>
+                          <Text style={[styles.lifeAreaCardLabel, selected && styles.lifeAreaCardLabelSelected]}>
+                            {card.label}
+                          </Text>
+                          <Text style={[styles.lifeAreaCardHelper, selected && styles.lifeAreaCardHelperSelected]}>
+                            {card.helper}
+                          </Text>
+                        </View>
+                      </PixelPressable>
+                    );
+                  })}
+                </PixelSurface>
+              ) : null}
+            </View>
           ) : null}
 
           {/* Import success → graph link (journal-capture pack §3/§7) */}
@@ -1732,6 +1894,33 @@ ${transcript}`;
                 {t(`modes.${mode}.help`)}
               </Text>
             </>
+          ) : null}
+
+          {enableLifeAreaIntents && selectedLifeArea && selectedLifeAreaCopy && !isRecordCaptureMode(mode) ? (
+            <PixelSurface variant="inset" contentStyle={styles.selectedLifeArea}>
+              <View style={styles.selectedLifeAreaMain}>
+                <PixelGlyph
+                  name={canonGlyph(LIFE_AREA_GLYPH[selectedLifeArea])}
+                  color={m3.color.primary}
+                  size={24}
+                />
+                <View style={styles.selectedLifeAreaCopy}>
+                  <Text style={styles.selectedLifeAreaEyebrow}>{lifeAreaCopy.selected}</Text>
+                  <Text style={styles.selectedLifeAreaTitle}>{selectedLifeAreaCopy.context}</Text>
+                  <Text style={styles.selectedLifeAreaHelper}>{selectedLifeAreaCopy.helper}</Text>
+                </View>
+              </View>
+              <PixelPressable
+                variant="frame"
+                onPress={() => setSelectedLifeArea(null)}
+                accessibilityLabel={lifeAreaCopy.clear}
+                fullWidth
+                contentStyle={styles.lifeAreaClear}
+              >
+                <PixelGlyph name="close" color={m3.color.onSurfaceVariant} size={16} />
+                <Text style={styles.lifeAreaClearLabel}>{lifeAreaCopy.clear}</Text>
+              </PixelPressable>
+            </PixelSurface>
           ) : null}
 
           {/* Journal (일기) gate — feature unlock then free-tier use limit, ported
@@ -2556,6 +2745,112 @@ const styles = StyleSheet.create({
     borderRadius: gameboy.radius,
     padding: spacing.md,
     ...pixelShadowStyle(),
+  },
+  lifeAreaSection: { gap: m3.spacing.s4 },
+  lifeAreaHeader: {
+    minHeight: m3.minTouch,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: m3.spacing.s4,
+    paddingVertical: m3.spacing.s2,
+  },
+  lifeAreaHeaderCopy: { flex: 1, gap: m3.spacing.s1 },
+  lifeAreaTitle: {
+    color: m3.color.onSurface,
+    fontSize: m3.type.labelLarge.size,
+    lineHeight: m3.type.labelLarge.line,
+    fontWeight: "700",
+    paddingBottom: m3.spacing.s1,
+  },
+  lifeAreaHelper: {
+    color: m3.color.onSurfaceVariant,
+    fontSize: m3.type.bodySmall.size,
+    lineHeight: m3.type.bodySmall.line,
+    paddingBottom: m3.spacing.s1,
+  },
+  lifeAreaGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "stretch",
+    gap: m3.spacing.s4,
+    padding: m3.spacing.s4,
+  },
+  lifeAreaCardRoot: {
+    flexBasis: "46%",
+    flexGrow: 1,
+    flexShrink: 1,
+    minWidth: 136,
+    alignSelf: "stretch",
+  },
+  lifeAreaCard: {
+    minHeight: 88,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: m3.spacing.s4,
+    paddingHorizontal: m3.spacing.s2,
+  },
+  lifeAreaCardCopy: { flex: 1, gap: m3.spacing.s1 },
+  lifeAreaCardLabel: {
+    color: m3.color.onSurface,
+    fontSize: m3.type.labelLarge.size,
+    lineHeight: m3.type.labelLarge.line,
+    fontWeight: "700",
+    paddingBottom: m3.spacing.s1,
+  },
+  lifeAreaCardLabelSelected: { color: m3.color.onPrimaryContainer },
+  lifeAreaCardHelper: {
+    color: m3.color.onSurfaceVariant,
+    fontSize: m3.type.bodySmall.size,
+    lineHeight: m3.type.bodySmall.line,
+    paddingBottom: m3.spacing.s1,
+  },
+  lifeAreaCardHelperSelected: { color: m3.color.onPrimaryContainer },
+  selectedLifeArea: {
+    minHeight: m3.minTouch,
+    gap: m3.spacing.s4,
+    padding: m3.spacing.s4,
+  },
+  selectedLifeAreaMain: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: m3.spacing.s4,
+  },
+  selectedLifeAreaCopy: { flex: 1, gap: m3.spacing.s1 },
+  selectedLifeAreaEyebrow: {
+    color: m3.color.primary,
+    fontSize: m3.type.labelSmall.size,
+    lineHeight: m3.type.labelSmall.line,
+    fontWeight: "700",
+    paddingBottom: m3.spacing.s1,
+  },
+  selectedLifeAreaTitle: {
+    color: m3.color.onSurface,
+    fontSize: m3.type.bodyMedium.size,
+    lineHeight: m3.type.bodyMedium.line,
+    fontWeight: "700",
+    paddingBottom: m3.spacing.s1,
+  },
+  selectedLifeAreaHelper: {
+    color: m3.color.onSurfaceVariant,
+    fontSize: m3.type.bodySmall.size,
+    lineHeight: m3.type.bodySmall.line,
+    paddingBottom: m3.spacing.s1,
+  },
+  lifeAreaClear: {
+    minWidth: m3.minTouch,
+    minHeight: m3.minTouch,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: m3.spacing.s2,
+    padding: m3.spacing.s2,
+  },
+  lifeAreaClearLabel: {
+    color: m3.color.onSurfaceVariant,
+    fontSize: m3.type.labelMedium.size,
+    lineHeight: m3.type.labelMedium.line,
+    fontWeight: "700",
+    paddingBottom: m3.spacing.s1,
   },
   proposalDismissLink: {
     alignSelf: "flex-start",

@@ -11,9 +11,9 @@ export default function CaptureFull() {
   if (isDeepSpaceUI()) {
     return (
       <DeepSpaceScreen active="capture">
-        <CaptureLegacy />
+        <CaptureLegacy enableLifeAreaIntents />
       </DeepSpaceScreen>
     );
   }
-  return <CaptureLegacy />;
+  return <CaptureLegacy enableLifeAreaIntents />;
 }
