@@ -132,7 +132,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       { file: "ops", href: "/ops", label: "오늘의 비서", auth: true },
       { file: "focus", href: "/focus", label: "일일 집중" },
       { file: "digest", href: "/digest", label: "오늘의 정리", auth: true, note: "이름이 어긋나 있다 — 캐논 screens.json 은 이 화면을 '주간 다이제스트' 라고 부르지만 화면 자체는 일일 리뷰다 (digest.tsx:1). LLM 좌석 digest_weekly 는 또 다른 것" },
-      { file: "ttfv", href: "/ttfv", label: "첫날 한 컷" },
+      { file: "ttfv", href: "/ttfv", label: "첫날 한 컷", auth: true },
       { file: "insights", href: "/insights", label: "인사이트", auth: true },
       { file: "discover", href: "/discover", label: "발견", stub: true, note: "/insights 로 넘긴다" },
       { file: "reminders", href: "/reminders", label: "예약 리마인더" },
