@@ -11,6 +11,7 @@
 //   - Output is parsed defensively: the model proposes, this module clamps.
 
 import { callLlm } from "../llm/boundary";
+import { resolveVendorForPurpose, type LlmVendor } from "../llm/routing";
 import { sanitizeUntrusted } from "../llm/untrusted";
 import type { SystemLocale } from "../i18n/locales";
 import { exportUserWiki } from "../wiki/export";
@@ -25,6 +26,30 @@ import { OPS_MAX_RECOMMENDATIONS, OPS_RECOMMENDATION_ITEM_SCHEMA, parseOpsRecomm
 // existing `@/lib/ops/recommend` import sites keep working unchanged.
 export { OPS_MAX_RECOMMENDATIONS, parseOpsRecommendations };
 export type { OpsRecommendation };
+
+/**
+ * The processor named in the recommendations consent copy (privacy screen).
+ *
+ * Mirror of #1506's embedVendorLabel: the copy used to hardcode "Gemini",
+ * which becomes a wrong cross-border-transfer disclosure the moment the
+ * vendor switch moves — on a screen that says "동의는 기록에 남습니다"
+ * (found by the console on 2026-09-01, REQ-260901-03 precondition). So the
+ * name is read from the SAME resolution the ops calls follow. ops_recommend
+ * and ops_daily_brief ride the same reasoning-seat axis, so one label speaks
+ * for the whole recommendations flow; every vendor here processes overseas,
+ * which is why the copy keeps "(해외에서 처리)" regardless of the name.
+ */
+const VENDOR_DISPLAY: Record<LlmVendor, string> = {
+  gemini: "Gemini",
+  openai: "OpenAI",
+  claude: "Anthropic Claude",
+  xai: "xAI Grok",
+};
+
+export function recommendationVendorLabel(): string {
+  // hasImage: false — the recommendations flow sends wiki text only.
+  return VENDOR_DISPLAY[resolveVendorForPurpose("ops_recommend", false)];
+}
 
 const SNAPSHOT_CHAR_LIMIT = 600;
 
