@@ -112,7 +112,7 @@ import { loadPickCandidates } from "@/lib/ops/load-picks";
 import { pickToday, type PickId, type TodayPicks } from "@/lib/ops/today-picks";
 import { gatherAdherenceStats } from "@/lib/ops/signals";
 import { adherenceChip } from "@/lib/ops/grounding";
-import { recommendForDomain, recommendationsAllowed, type OpsRecommendation } from "@/lib/ops/recommend";
+import { recommendForDomain, recommendationVendorLabel, recommendationsAllowed, type OpsRecommendation } from "@/lib/ops/recommend";
 import { buildGoogleCalendarUrl } from "@/lib/ops/push";
 import { notifyNow, scheduleRoutineReminder, type ReminderResult } from "@/lib/ops/reminders";
 import {
@@ -990,8 +990,8 @@ export function DeepSpacePrivacyDesignScreen() {
           <>
             <Text variant="body" style={styles.lead}>
               {ko
-                ? "켜기 전에 알아두세요. 추천을 켜면 당신의 기록 묶음이 분석을 위해 Gemini로 전송돼요(해외에서 처리). 연결·패턴 제안에만 쓰이고 언제든 끌 수 있어요. 동의는 기록에 남습니다."
-                : "Before you turn it on. Your records are sent to Gemini for analysis (processed overseas), used only to suggest connections and patterns. You can turn it off anytime. Your consent is logged."}
+                ? `켜기 전에 알아두세요. 추천을 켜면 당신의 기록 묶음이 분석을 위해 ${recommendationVendorLabel()} 서버로 전송돼요(해외에서 처리). 연결·패턴 제안에만 쓰이고 언제든 끌 수 있어요. 동의는 기록에 남습니다.`
+                : `Before you turn it on. Your records are sent to ${recommendationVendorLabel()} for analysis (processed overseas), used only to suggest connections and patterns. You can turn it off anytime. Your consent is logged.`}
             </Text>
             <View style={styles.ctaRow}>
               <Pressable style={styles.secondary} onPress={() => setUnderstanding(false)} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "취소" : "Cancel"}>
