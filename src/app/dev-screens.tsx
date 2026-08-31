@@ -36,7 +36,7 @@ function badgesFor(s: DevScreen): string[] {
   const out: string[] = [];
   if (s.orphan) out.push("입구 없음");
   if (s.dev) out.push("개발 전용");
-  if (s.auth) out.push("로그인 필요");
+  if (s.auth !== undefined) out.push("로그인 필요");
   if (s.sample) out.push("견본 값");
   if (s.stub) out.push("넘김");
   return out;
@@ -88,7 +88,7 @@ function DevScreenIndex() {
       <View style={styles.card}>
         <Text variant="caption">
           화면 {all.length} · 입구 없음 {orphans.length} · 로그인 필요{" "}
-          {all.filter((s) => s.auth).length} · 개발 전용 {all.filter((s) => s.dev).length}
+          {all.filter((s) => s.auth !== undefined).length} · 개발 전용 {all.filter((s) => s.dev).length}
         </Text>
         <Text variant="subtle">
           이 목록은 `src/app` 의 실제 라우트 파일과 1:1 로 대조됩니다. 어긋나면 CI 가 막습니다.
