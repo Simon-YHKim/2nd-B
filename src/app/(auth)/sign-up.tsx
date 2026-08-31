@@ -19,7 +19,7 @@ import { ConsentNotice } from "@/components/consent/ConsentNotice";
 import { useSignUpForm } from "@/lib/auth/useSignUpForm";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
-import { DeepSpaceSignUpDesignScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
+import { DeepSpaceSignUpDesignScreen } from "@/screens/deepspace/dds-sign-up-screen";
 
 const SIGNUP_STICKY_CTA_HEIGHT = 84;
 const SIGNUP_SCROLL_BOTTOM_PADDING = spacing.lg;

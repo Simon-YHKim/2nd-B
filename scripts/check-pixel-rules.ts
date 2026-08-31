@@ -111,6 +111,7 @@ const MIGRATED: readonly string[] = [
   "src/screens/deepspace/dds-import-inbox-screens.tsx",
   "src/screens/deepspace/dds-legal-doc-screen.tsx",
   "src/screens/deepspace/dds-plans-screen.tsx",
+  "src/screens/deepspace/dds-sign-up-screen.tsx",
   "src/screens/deepspace/dds-styles.ts",
   "src/screens/deepspace/dds-wiki-records-screens.tsx",
   "src/screens/deepspace/growth/WeeklyGrowthScreen.tsx",
