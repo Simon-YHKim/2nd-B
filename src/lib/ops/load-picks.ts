@@ -32,7 +32,12 @@ const PROBES: Readonly<Record<Exclude<PickId, "routine">, { table: string; at: s
   esm: { table: "esm_responses", at: "created_at" },
 };
 
-async function probe(table: string, at: string, userId: string): Promise<number | null> {
+async function probe(
+  table: string,
+  at: string,
+  userId: string,
+  failOnReadError: boolean,
+): Promise<number | null> {
   try {
     const supabase = getSupabaseClient();
     const { data, error } = await supabase
@@ -41,11 +46,13 @@ async function probe(table: string, at: string, userId: string): Promise<number 
       .eq("user_id", userId)
       .order(at, { ascending: false })
       .limit(1);
-    if (error || !data || data.length === 0) return null;
+    if (error) throw error;
+    if (!data || data.length === 0) return null;
     const raw = (data[0] as unknown as Record<string, unknown>)[at];
     const ms = typeof raw === "string" ? Date.parse(raw) : NaN;
     return Number.isFinite(ms) ? ms : null;
-  } catch {
+  } catch (error) {
+    if (failOnReadError) throw error;
     // 조용히 빠진다 - 위 헤더 참조. 이 소스는 후보가 되지 않는다.
     return null;
   }
@@ -55,7 +62,11 @@ async function probe(table: string, at: string, userId: string): Promise<number 
  * 루틴만 다르게 읽는다: "오늘 걸려 있는가" 가 점수의 가장 큰 항목이라
  * 존재 여부만으로는 부족하다. 활성 루틴을 받아 오늘 해당하는 것이 있는지 본다.
  */
-async function probeRoutine(userId: string, now: Date): Promise<PickCandidate> {
+async function probeRoutine(
+  userId: string,
+  now: Date,
+  failOnReadError: boolean,
+): Promise<PickCandidate> {
   try {
     const supabase = getSupabaseClient();
     const { data, error } = await supabase
@@ -64,7 +75,8 @@ async function probeRoutine(userId: string, now: Date): Promise<PickCandidate> {
       .eq("user_id", userId)
       .eq("active", true)
       .order("created_at", { ascending: false });
-    if (error || !data || data.length === 0) {
+    if (error) throw error;
+    if (!data || data.length === 0) {
       return { id: "routine", hasData: false };
     }
     const rows = data as unknown as OpsRoutine[];
@@ -84,9 +96,18 @@ async function probeRoutine(userId: string, now: Date): Promise<PickCandidate> {
       dueToday,
       lastActivityAt: newest.length > 0 ? Math.max(...newest) : null,
     };
-  } catch {
+  } catch (error) {
+    if (failOnReadError) throw error;
     return { id: "routine", hasData: false };
   }
+}
+
+export interface LoadPickCandidatesOptions {
+  /**
+   * The hub needs to tell an unavailable read from a genuinely empty source.
+   * Existing background callers keep the historical fail-soft default.
+   */
+  failOnReadError?: boolean;
 }
 
 /**
@@ -95,12 +116,17 @@ async function probeRoutine(userId: string, now: Date): Promise<PickCandidate> {
  * 반환 순서는 `PICK_IDS` 와 같다 - picker 가 동점일 때 이 순서를 쓰기 때문에
  * 흔들리면 안 된다.
  */
-export async function loadPickCandidates(userId: string, now: Date = new Date()): Promise<PickCandidate[]> {
+export async function loadPickCandidates(
+  userId: string,
+  now: Date = new Date(),
+  options: LoadPickCandidatesOptions = {},
+): Promise<PickCandidate[]> {
+  const failOnReadError = options.failOnReadError === true;
   const [routine, ...rest] = await Promise.all([
-    probeRoutine(userId, now),
+    probeRoutine(userId, now, failOnReadError),
     ...(Object.keys(PROBES) as Exclude<PickId, "routine">[]).map(async (id) => {
       const { table, at } = PROBES[id];
-      const ms = await probe(table, at, userId);
+      const ms = await probe(table, at, userId, failOnReadError);
       return { id, hasData: ms != null, lastActivityAt: ms } satisfies PickCandidate;
     }),
   ]);
