@@ -75,7 +75,7 @@ gh pr list --repo Simon-YHKim/2nd-B --state open `
 #1514 98629478bc9c9d1394d5898d2b64a1b9b7e8b0e8
 #1515 60ae8f90bdbb8e7e40ab4f94b29ee8c8224d9fe7
 #1516 d63d59cd2e89ad4ed391205f153334218fb2436e
-#1517 2e0ede96046ffec86404fa38eb35cc744ceaa670
+#1517 c04e7739620d81d318c5f0d58de3ce4ab65a35ad
 #1518 f4bbfd22f3e5aa7aaca00ef83bf40ca998bfffc1
 #1519 ec458d57b046e718e33e4e0b6b803312ec2efb07
 #1520 f29c2f58182ef830c29e60e0c8d82f1f7b104e03
@@ -232,7 +232,7 @@ imports, styles를 유지하고 #1535 record-detail renderer만 새 파일로 �
 - #1517 ↔ #1527 `tabs.ts`: `/reset-password` hidden-back과 `/change-password` dock를 모두 유지
 - #1517 ↔ #1533 `dds-auth-screens.tsx`: reset-password 구현과 sign-in 분리 re-export를 모두 유지
 
-#1517은 15파일, #1521은 6파일을 바꾼다. 둘은 다른 화면과 묶지 말고 각각 독립된 통합
+#1517은 17파일, #1521은 6파일을 바꾼다. 둘은 다른 화면과 묶지 말고 각각 독립된 통합
 체크포인트로 처리한다.
 
 ## 6. Big Five false-positive 테스트 부채
@@ -304,6 +304,28 @@ logcat·스크린샷에 사용자 데이터나 raw body를 남기지 않는다.
 
 Android/HUMAN에서 아직 실행하지 않은 항목, 기기 부족, fixture 부재는 `미실행`으로 적는다.
 소스 테스트나 web 캡처 통과를 근거로 PASS로 바꾸지 않는다.
+
+### 2026-08-31 API 36 선행 smoke 증거
+
+최신 36개 head를 로컬에서 순서대로 합친 integration SHA
+`26f2f5ca4f57c6e4dbda3e1f355742a09e1613a1`에서 다음 선행 검증까지 완료됐다.
+이 기록은 최종 merge나 전체 HUMAN matrix 완료를 뜻하지 않는다.
+
+- `npm run verify`: 584/584 suites, 6342/6342 tests PASS
+- PR #1517 Android 첫 렌더 차단 결함은 head
+  `c04e7739620d81d318c5f0d58de3ce4ab65a35ad`에서 RN-safe storage event 구독으로 수정됨
+- API 36 Google APIs x86_64, Pixel 7 Pro 프로필, dark, font scale 1.0에서 cold launch와
+  signed-out `/sign-in`, `/dev-screens`, `/sign-up`, `/onboarding`, `/manual`,
+  `/integrations`, `/plans` redirect, `/capture-full` redirect, not-found를 실제 렌더함
+- 같은 폐기형 AVD와 공용 QA 계정으로 서버 쓰기 없이 `/`, `/big-five`, `/people`,
+  `/settings`, `/plans`, `/capture-full`, `/dev-screens`를 읽기 전용으로 실제 렌더함
+- 위 각 route 전환 뒤 새 `ReactNativeJS:E`와 `AndroidRuntime:E`는 관측되지 않음
+- 온보딩 완료·coachmark 숨김은 폐기형 AVD의 AsyncStorage에만 기록됐고, 설문·record·업로드·
+  profile·DOB·비밀번호·결제·export·delete 서버 쓰기는 실행하지 않음
+
+여전히 미실행인 항목은 API 33/35, 320dp, font scale 1.3~1.5, TalkBack, light mode,
+IME·picker·background/resume, 모든 화면의 전체 HUMAN interaction matrix다. 최종 통합 담당자는
+이 선행 smoke를 재사용해 해당 항목을 PASS로 올리지 말고 final merged SHA에서 다시 수행한다.
 
 ## 9. 완료 기준과 보고 형식
 
