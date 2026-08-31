@@ -302,6 +302,8 @@ export function DeepSpaceInboxScreen() {
 
   return (
     <Frame title={title}>
+      {/* Auth can publish owner B one render before the child effect invalidates
+          A's session. The owner key makes that first B paint start loading. */}
       <InboxReady key={auth.userId} userId={auth.userId} />
     </Frame>
   );

@@ -263,6 +263,7 @@ describe("route and privacy contract", () => {
     expect(screen).toContain('onRetry={() => retry("proposals")}');
     expect(screen).toContain('onRetry={() => retry("peers")}');
     expect(screen).toContain("onRetry={() => void retryProfile()}");
+    expect(screen).toContain('<InboxReady key={auth.userId} userId={auth.userId} />');
   });
 });
 
