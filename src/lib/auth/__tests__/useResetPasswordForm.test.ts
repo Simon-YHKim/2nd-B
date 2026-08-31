@@ -222,7 +222,7 @@ describe("PIXEL-CLAY reset-password presenter", () => {
     expect(authContextSource).toContain("loadRecoveryProof()");
     expect(authContextSource).toContain("persistRecoveryProof(");
     expect(authContextSource).toContain("recoveryProofMatchesSession(");
-    expect(authContextSource).toContain('window.addEventListener("storage"');
+    expect(authContextSource).toContain("subscribeRecoveryStorageEvent(");
     expect(authContextSource).toContain("recoveryPendingGlobal");
     expect(authContextSource).toContain("activateRecoverySession");
     expect(authContextSource).toContain("completeRecovery");

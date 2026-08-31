@@ -9,6 +9,7 @@ import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { getSupabaseClient } from "../supabase/client";
 import { ageInYears, signOut as signOutAuth } from "../supabase/auth";
 import { preserveKnownMinorForMissingProfile, type ProfileProbe } from "./profile-probe";
+import { subscribeRecoveryStorageEvent } from "./recovery-storage-events";
 import { nextRecoveryProof } from "./reset-password-helpers";
 import {
   clearRecoveryProof,
@@ -510,9 +511,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return failClosedRecovery(stored, error);
         });
     };
-    if (typeof window !== "undefined") {
-      window.addEventListener("storage", handleRecoveryStorage);
-    }
+    const unsubscribeRecoveryStorage = subscribeRecoveryStorageEvent(
+      typeof window === "undefined" ? undefined : window,
+      handleRecoveryStorage,
+    );
 
     void (async () => {
       type ProofLoadResult =
@@ -716,9 +718,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
       sub.subscription.unsubscribe();
-      if (typeof window !== "undefined") {
-        window.removeEventListener("storage", handleRecoveryStorage);
-      }
+      unsubscribeRecoveryStorage();
     };
   }, [publishRecoveryProof]);
 
