@@ -111,11 +111,13 @@ describe("sign-in extraction boundaries", () => {
 
     expect(split).toBeGreaterThan(0);
     expect(tail).toBeGreaterThan(split);
+    // Integration union: #1517 intentionally changes the shared prefix and the
+    // reset-password tail; #1533 must extract only sign-in around those changes.
     expect(sha256(source.slice(0, split))).toBe(
-      "ec659de33c4cf7fce1532cb2ba1d628a4caa8c3a9ace335dfb58c62e4f3a99eb",
+      "a85903fb6f0fb8d18e1cdd76e1f0d86389e22efca872c94c5e7ac9b019127223",
     );
     expect(sha256(source.slice(tail))).toBe(
-      "882e345e25bd5df221f32e98397d72deb924c79d6871f2339a6290b0279a9d29",
+      "25420f9c3b8856627b3d18ffbfcae6c343b6e365f5e202f3cf4b7c33947210a0",
     );
   });
 
