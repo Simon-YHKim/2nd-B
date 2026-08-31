@@ -5848,6 +5848,70 @@ test('current manifest classifies every port:true screen exactly once', async ()
   );
 });
 
+test('salvage plan classifies every non-direct frame and production route exactly once', () => {
+  const manifest = JSON.parse(
+    readFileSync(path.join(REPO, 'design/pixel_clay_260825/data/screens.json'), 'utf8'),
+  );
+  const routeFile = JSON.parse(
+    readFileSync(path.join(REPO, 'design/pixel_clay_260825/data/app-routes.json'), 'utf8'),
+  );
+  const salvage = JSON.parse(
+    readFileSync(path.join(REPO, 'design/pixel_clay_260825/data/salvage-plan.json'), 'utf8'),
+  );
+  const unmeasurableIds = new Set(
+    Object.keys(routeFile.unmeasurable ?? {}).filter((id) => id !== '_note'),
+  );
+  const expectedDesignIds = manifest.screens
+    .map((screen) => screen.id)
+    .filter(
+      (id) => !Object.hasOwn(routeFile.routes ?? {}, id) && !unmeasurableIds.has(id),
+    )
+    .sort();
+
+  assert.equal(salvage.schema, 1);
+  assert.equal(expectedDesignIds.length, 26);
+  assert.deepEqual(Object.keys(salvage.designFrames).sort(), expectedDesignIds);
+  for (const [id, plan] of Object.entries(salvage.designFrames)) {
+    const screen = manifest.screens.find((candidate) => candidate.id === id);
+    assert.ok(screen, id);
+    if (screen.port === false) assert.notEqual(plan.referenceUse, 'direct', id);
+    if (plan.disposition === 'exclude') assert.equal(plan.referenceUse, 'none', id);
+  }
+
+  const screenIndex = readFileSync(path.join(REPO, 'src/lib/dev/screen-index.ts'), 'utf8');
+  const productionHrefs = screenIndex
+    .split(/\r?\n/)
+    .map((line) =>
+      line.match(
+        /^\s*\{\s*file:\s*"[^"]+",\s*href:\s*"([^"]+)",\s*label:\s*"[^"]+"(.*)\},?\s*$/,
+      ),
+    )
+    .filter((entry) => entry && !/(?:^|,\s*)dev:\s*true(?:\s*,|\s*$)/.test(entry[2]))
+    .map((entry) => entry[1]);
+  const directlyCoveredHrefs = new Set([
+    ...Object.values(routeFile.routes ?? {}),
+    ...Object.entries(routeFile.unmeasurable ?? {})
+      .filter(([id, info]) => id !== '_note' && info && typeof info === 'object')
+      .map(([, info]) => info.route)
+      .filter(Boolean),
+  ]);
+  const expectedActualHrefs = productionHrefs
+    .filter((href) => !directlyCoveredHrefs.has(href))
+    .sort();
+
+  assert.equal(new Set(productionHrefs).size, productionHrefs.length);
+  assert.equal(expectedActualHrefs.length, 24);
+  assert.deepEqual(Object.keys(salvage.actualRoutes).sort(), expectedActualHrefs);
+  for (const [href, plan] of Object.entries(salvage.actualRoutes)) {
+    for (const reference of plan.references) {
+      assert.ok(
+        manifest.screens.some((screen) => screen.id === reference),
+        `${href}: ${reference}`,
+      );
+    }
+  }
+});
+
 test('score report exit contract distinguishes pass, score failure, and invalid input', async () => {
   const { reportExitCode } = await contract();
   assert.equal(reportExitCode({ validInput: true, rows: [{ automaticPass: true }] }), 0);
