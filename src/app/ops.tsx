@@ -30,7 +30,7 @@ import { addEventToDeviceCalendar, deviceCalendarSupported } from "@/lib/ops/dev
 import { remindersSupported, scheduleRoutineReminder } from "@/lib/ops/reminders";
 import { OPS_DAILY_LIMIT, bumpOpsUsage, readOpsUsage } from "@/lib/ops/usage";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
-import { DeepSpaceOpsScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
+import { DeepSpaceOpsScreen } from "@/screens/deepspace/dds-ops-screen";
 
 type RunState = "idle" | "working" | "empty" | "error" | "limit" | "off";
 
