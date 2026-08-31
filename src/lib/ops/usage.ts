@@ -15,6 +15,10 @@ export const OPS_DAILY_LIMIT: Record<SubscriptionTier, number> = {
   brain: 50,
 };
 
+export interface ReadOpsUsageOptions {
+  failOnReadError?: boolean;
+}
+
 const KEY_PREFIX = "ops.recs.v1.";
 
 interface StoredUsage {
@@ -69,15 +73,20 @@ function parse(rawValue: string | null, today: string): number {
   }
 }
 
-export async function readOpsUsage(userId: string, now: Date = new Date()): Promise<number> {
+export async function readOpsUsage(
+  userId: string,
+  now: Date = new Date(),
+  options: ReadOpsUsageOptions = {},
+): Promise<number> {
   const today = todayKey(now);
-  const web = ls();
-  if (web) return parse(web.getItem(storageKey(userId)), today);
-  const native = nativeStorage();
-  if (!native) return 0;
   try {
+    const web = ls();
+    if (web) return parse(web.getItem(storageKey(userId)), today);
+    const native = nativeStorage();
+    if (!native) throw new Error("ops_usage_storage_unavailable");
     return parse(await native.getItem(storageKey(userId)), today);
-  } catch {
+  } catch (error) {
+    if (options.failOnReadError) throw error;
     return 0;
   }
 }
