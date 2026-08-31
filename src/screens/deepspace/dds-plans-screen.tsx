@@ -1,103 +1,71 @@
-// Paywall (① 페이월) - rev2 M3 clone of the reference PlansScreen
-// (sb-screens-extra.jsx). Structure matches the reference verbatim: an
-// in-body 요금제 headline, a tertiary-container honesty card, three journey
-// tier cards (별바라기 / 항해자 / 북극성) each carrying its OWN full-width M3
-// button, then the "결제 없이 늘리기" reward-ad row. Tiers are NEVER labelled
-// Free/Plus/Pro in the UI.
-//
-// Wiring preserved exactly: RevenueCat (getOfferings / purchasePackage /
-// getProStatus / restorePurchases) drives the CTAs; the entitlement engine
-// (src/lib/entitlements/tiers.ts → TIER_PRICE_KRW) is the price SoT so on-card
-// copy can never drift from what is actually granted. Per that file's HARD
-// invariant, money buys MORE/LONGER memory + MORE features - never a better
-// answer; this surface must never imply a pricier tier reasons better.
-// revenue_events logging stays server-side via a RevenueCat webhook (C4 schema
-// untouched). The rewarded row tops up COUNTS only, never quality.
-// ──────────────────────────────────────────────────────────────────────────
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { PixelGlyph } from "@/components/pixel/PixelGlyph";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { router, usePathname } from "expo-router";
-import { useTranslation } from "react-i18next";
-
-import { m3 } from "@/lib/theme/m3";
+// Deep-space plans: PIXEL-CLAY renderer over the existing, real billing rails.
+// Prices come from the entitlement SoT, the current plan comes only from the
+// users row via useProgression, and entitlement changes remain webhook-owned.
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
-  TIER_PRICE_KRW,
-  TIER_PRICE_KRW_YEARLY,
-  REWARD_PER_WATCH,
-  REWARD_MONTHLY_CAP,
-} from "@/lib/entitlements/tiers";
-import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
-import { getReasoningUsage, addRewardCredits } from "@/lib/entitlements/usage";
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
+import { Redirect, router, usePathname } from "expo-router";
+import { useTranslation } from "react-i18next";
+import type { PurchasesPackage } from "react-native-purchases";
+
+import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
+import { RewardedSheet } from "@/components/deepspace/RewardedSheet";
+import { PixelScrim } from "@/components/pixel/PixelDither";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { PixelPressable } from "@/components/pixel/PixelPressable";
+import { PixelSurface } from "@/components/pixel/PixelSurface";
+import { Text } from "@/components/ui/Text";
 import { canShowRewardedAds } from "@/lib/ads/policy";
+import { canCompleteRewardedWatch } from "@/lib/ads/rewarded";
 import {
   openPaddleCheckout,
   paddleCheckoutAvailable,
   type CheckoutCadence,
+  type CheckoutTier,
 } from "@/lib/billing/paddle-checkout";
-import { canCompleteRewardedWatch } from "@/lib/ads/rewarded";
-import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
-import { Text } from "@/components/ui/Text";
-import { MdButton, MdCard, SegBtn } from "@/components/m3";
-import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { RewardedSheet } from "@/components/deepspace/RewardedSheet";
-import { PremiumModal } from "@/components/premium";
-import { useAuth } from "@/lib/auth/AuthContext";
-import { useProgression } from "@/lib/progression/useProgression";
+import {
+  REWARD_MONTHLY_CAP,
+  REWARD_PER_WATCH,
+  TIER_PRICE_KRW,
+  TIER_PRICE_KRW_YEARLY,
+} from "@/lib/entitlements/tiers";
+import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
+import { addRewardCredits, monthBucket, weekBucket } from "@/lib/entitlements/usage";
 import {
   arePurchasesAvailable,
   configurePurchases,
-  getOfferings,
-  getProStatus,
+  findMonthlyTierPackage,
+  getOfferingsResult,
   purchasePackage,
   restorePurchases,
 } from "@/lib/payments/purchases";
-import type { PurchasesPackage } from "react-native-purchases";
+import { resolvePrivacyPrefs } from "@/lib/privacy/prefs";
+import { useAuth } from "@/lib/auth/AuthContext";
+import {
+  createOwnerActionGate,
+  rewardCapAllowsWatch,
+  settleAsyncRead,
+  useProgression,
+} from "@/lib/progression/useProgression";
+import { getSupabaseClient } from "@/lib/supabase/client";
+import { m3 } from "@/lib/theme/m3";
 
-function DockShell({ children, title }: { children: ReactNode; title?: string }) {
-  return (
-    <DeepSpaceScreen active="lens" header="none" variant="windowed" title={title ?? ""} onBack={() => router.back()}>
-      <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
-        {children}
-      </ScrollView>
-    </DeepSpaceScreen>
-  );
-}
-
-// Phase 4 launch scope = Free + Plus; Pro ships later. The card stays visible
-// (price anchor + roadmap signal, Simon 확정 2026-07-17) with a "준비 중" pill and
-// no live purchase CTA.
-//
-// Module scope, not component scope: canPurchase() reads it while computing
-// showStoreNotice, which runs earlier in the render body than the old in-component
-// `const` did. A `const` cannot be read before its declaration is evaluated, so
-// leaving it below would have thrown a ReferenceError on every render of this
-// screen rather than merely being untidy.
 const PRO_COMING_SOON = true;
-
-// Format a KRW integer as ₩6,900 without a hardcoded currency literal in copy.
-function krw(n: number): string {
-  return `₩${n.toLocaleString("ko-KR")}`;
-}
-
-// 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
-function LockIcon({ color }: { color: string }) {
-  return <PixelGlyph name="lock" color={color} size={20} />;
-}
-
-function CheckIcon({ color }: { color: string }) {
-  return <PixelGlyph name="check" color={color} size={16} />;
-}
-
-function BoltIcon({ color }: { color: string }) {
-  return <PixelGlyph name="bolt" color={color} size={22} />;
-}
-
-function ChevronRight({ color }: { color: string }) {
-  return <PixelGlyph name="chevron_right" color={color} size={20} />;
-}
+const READ_TIMEOUT_MS = 8_000;
+const NOOP = () => {};
 
 type TierKey = "free" | "plus" | "pro";
+type ReadStatus = "idle" | "loading" | "ready" | "unavailable" | "error" | "timeout";
+type PurchaseState = "idle" | "handed-off" | "purchased" | "cancelled" | "unavailable" | "error";
+
 interface TierCopy {
   key: TierKey;
   name: string;
@@ -106,229 +74,488 @@ interface TierCopy {
   feats: string[];
 }
 
+interface StoreRead {
+  ownerId: string | null;
+  status: ReadStatus;
+  packages: PurchasesPackage[];
+  nativeAvailable: boolean;
+}
+
+interface PrefsRead {
+  ownerId: string | null;
+  status: ReadStatus;
+  adsConsent: boolean | null;
+}
+
+interface UsageRead {
+  ownerId: string | null;
+  status: ReadStatus;
+  used: number;
+  rewardCredits: number;
+  rewardEarned: number;
+}
+
+const EMPTY_STORE: StoreRead = {
+  ownerId: null,
+  status: "idle",
+  packages: [],
+  nativeAvailable: false,
+};
+const EMPTY_PREFS: PrefsRead = { ownerId: null, status: "idle", adsConsent: null };
+const EMPTY_USAGE: UsageRead = {
+  ownerId: null,
+  status: "idle",
+  used: 0,
+  rewardCredits: 0,
+  rewardEarned: 0,
+};
+
+/** Plans needs the read verdict; the shared settings helper intentionally fails soft. */
+async function readPrivacyPrefsStrict(ownerId: string): Promise<PrefsRead> {
+  try {
+    const { data, error } = await getSupabaseClient()
+      .from("users")
+      .select("privacy_prefs")
+      .eq("id", ownerId)
+      .maybeSingle();
+    if (error) return { ownerId, status: "error", adsConsent: null };
+    if (!data) return { ownerId, status: "unavailable", adsConsent: null };
+    const stored = data.privacy_prefs as Record<string, unknown> | null | undefined;
+    return {
+      ownerId,
+      status: "ready",
+      adsConsent: resolvePrivacyPrefs(stored).ads === true,
+    };
+  } catch {
+    return { ownerId, status: "error", adsConsent: null };
+  }
+}
+
+/** Strict counterpart to getReasoningUsage: no zero-filled success on read failure. */
+async function readReasoningUsageStrict(ownerId: string): Promise<UsageRead> {
+  const week = weekBucket();
+  const month = monthBucket();
+  try {
+    const client = getSupabaseClient();
+    const [counters, summary] = await Promise.all([
+      client
+        .from("usage_counters")
+        .select("month_bucket, reasoning_used, reward_credits")
+        .eq("user_id", ownerId)
+        .in("month_bucket", [week, month]),
+      client.rpc("credit_summary_self"),
+    ]);
+    if (counters.error || summary.error) {
+      return { ownerId, status: "error", used: 0, rewardCredits: 0, rewardEarned: 0 };
+    }
+    if (summary.data === null || typeof summary.data !== "object" || Array.isArray(summary.data)) {
+      return { ownerId, status: "unavailable", used: 0, rewardCredits: 0, rewardEarned: 0 };
+    }
+    const weekRow = (counters.data ?? []).find((row) => row.month_bucket === week);
+    const monthRow = (counters.data ?? []).find((row) => row.month_bucket === month);
+    const credit = summary.data as Record<string, unknown>;
+    const summaryEarned = Number(credit.ad_earned_this_month);
+    const mirrorEarned = Math.max(0, Number(monthRow?.reward_credits) || 0);
+    const rewardEarned =
+      credit.ad_earned_this_month !== null &&
+      credit.ad_earned_this_month !== undefined &&
+      Number.isFinite(summaryEarned)
+        ? Math.max(0, summaryEarned)
+        : mirrorEarned;
+    return {
+      ownerId,
+      status: "ready",
+      used: Math.max(0, Number(weekRow?.reasoning_used) || 0),
+      rewardCredits: Math.max(0, Number(credit.available) || 0),
+      rewardEarned,
+    };
+  } catch {
+    return { ownerId, status: "error", used: 0, rewardCredits: 0, rewardEarned: 0 };
+  }
+}
+
+function krw(value: number): string {
+  return `₩${value.toLocaleString("ko-KR")}`;
+}
+
+function DockShell({ children, title }: { children: ReactNode; title?: string }) {
+  return (
+    <DeepSpaceScreen
+      active="lens"
+      header="none"
+      variant="windowed"
+      title={title ?? ""}
+      onBack={() => router.back()}
+    >
+      <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+        {children}
+      </ScrollView>
+    </DeepSpaceScreen>
+  );
+}
+
+function PlanAction({
+  label,
+  onPress,
+  disabled = false,
+  glyph,
+  selected = false,
+  rootStyle,
+}: {
+  label: string;
+  onPress?: () => void;
+  disabled?: boolean;
+  glyph?: "bolt" | "check" | "chevron_right" | "refresh";
+  selected?: boolean;
+  rootStyle?: StyleProp<ViewStyle>;
+}) {
+  return (
+    <PixelPressable
+      onPress={onPress ?? NOOP}
+      disabled={disabled || onPress === undefined}
+      variant={selected ? "inset" : "bevel"}
+      background={
+        disabled
+          ? m3.color.surfaceVariant
+          : selected
+            ? m3.color.secondaryContainer
+            : m3.color.primaryContainer
+      }
+      accessibilityLabel={label}
+      accessibilityState={{ selected }}
+      fullWidth
+      rootStyle={rootStyle}
+      contentStyle={s.actionContent}
+    >
+      <View style={s.actionRow}>
+        {glyph ? (
+          <PixelGlyph
+            name={glyph}
+            size={16}
+            color={disabled ? m3.color.onSurfaceVariant : m3.color.onPrimaryContainer}
+          />
+        ) : null}
+        <Text style={[s.actionText, disabled ? s.actionTextDisabled : null]}>{label}</Text>
+      </View>
+    </PixelPressable>
+  );
+}
+
+function StatusSurface({
+  message,
+  error = false,
+  loading = false,
+  actionLabel,
+  onAction,
+}: {
+  message: string;
+  error?: boolean;
+  loading?: boolean;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <PixelSurface
+      variant="inset"
+      background={error ? m3.color.errorContainer : m3.color.surfaceContainer}
+      contentStyle={s.statusContent}
+    >
+      <View style={s.statusRow}>
+        {loading ? (
+          <ActivityIndicator color={m3.color.primary} accessibilityLabel={message} />
+        ) : (
+          <PixelGlyph
+            name={error ? "warning" : "info"}
+            size={18}
+            color={error ? m3.color.onErrorContainer : m3.color.onSurfaceVariant}
+          />
+        )}
+        <Text style={[s.statusText, error ? s.statusTextError : null]}>{message}</Text>
+      </View>
+      {actionLabel && onAction ? (
+        <PlanAction
+          label={actionLabel}
+          onPress={onAction}
+          glyph="refresh"
+          rootStyle={s.statusAction}
+        />
+      ) : null}
+    </PixelSurface>
+  );
+}
+
+function GateState({
+  title,
+  message,
+  loading = false,
+  actionLabel,
+  onAction,
+}: {
+  title: string;
+  message: string;
+  loading?: boolean;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <DockShell title={title}>
+      <Text style={s.headline}>{title}</Text>
+      <StatusSurface
+        message={message}
+        error={!loading}
+        loading={loading}
+        actionLabel={actionLabel}
+        onAction={onAction}
+      />
+    </DockShell>
+  );
+}
+
 export function DeepSpacePlansScreen() {
   const { t, i18n } = useTranslation("deepspace");
   const ko = i18n.language === "ko";
-
-  const { userId, isMinor } = useAuth();
-  const { tier: currentTier, loading: tierLoading, refresh: refreshTier } = useProgression();
+  const auth = useAuth();
+  const progression = useProgression();
   const pathname = usePathname();
-  const [freeRemaining, setFreeRemaining] = useState<number | null>(null);
-  // users.privacy_prefs.ads - null until resolved; the rewarded gate fails closed.
-  const [adsConsent, setAdsConsent] = useState<boolean | null>(null);
+  const { userId, hasProfile, isMinor, profileProbeFailed, loading: authLoading } = auth;
+  const {
+    tier: currentTier,
+    loading: tierLoading,
+    error: tierError,
+    ownerId: tierOwnerId,
+    refresh: refreshTier,
+  } = progression;
 
-  // Real native IAP scaffold (unchanged): RevenueCat routes the Offering to
-  // Google Play Billing (Android) / Apple IAP (iOS). On web / no key / no
-  // Offering, packages is empty so we show an honest notice instead of a dead
-  // button. No charge until store products are configured.
-  const [loading, setLoading] = useState(true);
-  const [packages, setPackages] = useState<PurchasesPackage[]>([]);
-  const [isPro, setIsPro] = useState(false);
-  const [busyAction, setBusyAction] = useState<"buy" | "restore" | null>(null);
-  const busy = busyAction !== null;
-  const [error, setError] = useState<string | null>(null);
-  const available = arePurchasesAvailable();
-  const [rewardVisible, setRewardVisible] = useState(false);
+  const dataOwner =
+    !authLoading &&
+    userId !== null &&
+    hasProfile === true &&
+    !profileProbeFailed &&
+    !tierLoading &&
+    tierError !== true &&
+    tierOwnerId === userId
+      ? userId
+      : null;
+  const activeOwnerRef = useRef<string | null>(dataOwner);
+  activeOwnerRef.current = dataOwner;
+  const authOwnerRef = useRef<string | null>(userId);
+  authOwnerRef.current = userId;
 
-  // Pre-checkout terms gate. Both money rails run through it, so the renewal
-  // terms are stated once, in one place, rather than per rail. Apple 3.1.2
-  // wants them before the purchase on the native rail; the web rail gets the
-  // same screen because a buyer's right to read the terms is not per-platform.
-  const [pendingTier, setPendingTier] = useState<"plus" | "pro" | null>(null);
+  const [storeRead, setStoreRead] = useState<StoreRead>(EMPTY_STORE);
+  const [prefsRead, setPrefsRead] = useState<PrefsRead>(EMPTY_PREFS);
+  const [usageRead, setUsageRead] = useState<UsageRead>(EMPTY_USAGE);
+  const [readEpoch, setReadEpoch] = useState(0);
+  const storeGeneration = useRef(0);
+  const prefsGeneration = useRef(0);
+  const usageGeneration = useRef(0);
+
+  const [busyState, setBusyState] = useState<{
+    ownerId: string;
+    action: "buy" | "restore";
+  } | null>(null);
+  const actionLockRef = useRef(createOwnerActionGate());
+  actionLockRef.current.discardOtherOwner(userId);
+  const [, setPurchaseState] = useState<PurchaseState>("idle");
+  const [errorState, setError] = useState<string | null>(null);
+  const errorOwnerRef = useRef<string | null>(null);
+  const [pendingTierState, setPendingTier] = useState<"plus" | "pro" | null>(null);
+  const pendingOwnerRef = useRef<string | null>(null);
   const [termsOk, setTermsOk] = useState(false);
-
-  // Billing period. paddle-checkout has resolved a distinct price id per tier
-  // AND cadence since it was written (EXPO_PUBLIC_PADDLE_PRICE_<TIER>_YEARLY),
-  // and web-deploy already injects both, but this screen was the only consumer
-  // and never passed one - so `input.cadence ?? "monthly"` always won and the
-  // yearly price id could not be reached from anywhere in the app.
   const [cadence, setCadence] = useState<CheckoutCadence>("monthly");
-
-  // The control appears ONLY when a yearly price id is actually configured for
-  // a sellable tier. An annual segment that resolves to "" would produce exactly
-  // the dead priced control this file already argues against, and pro is behind
-  // PRO_COMING_SOON so its price id cannot make the segment live on its own.
-  // With no yearly id set, this screen renders exactly as it did before.
-  const yearlyOffered =
-    paddleCheckoutAvailable("cortex", "yearly") ||
-    (!PRO_COMING_SOON && paddleCheckoutAvailable("brain", "yearly"));
-
-  useEffect(() => {
-    if (!userId) return;
-    let cancelled = false;
-    fetchPrivacyPrefs(userId)
-      .then((prefs) => {
-        if (!cancelled) setAdsConsent(prefs.ads === true);
-      })
-      .catch(() => {
-        if (!cancelled) setAdsConsent(false); // fetch failure = no rewarded entry
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [userId]);
-
-  // Rewarded entry eligibility (policy rules 1-5; every null fails closed).
-  // Capability first (Simon B-decision): no CTA when this build cannot
-  // complete a watch.
-  const rewardedAllowed =
-    canCompleteRewardedWatch() &&
-    canShowRewardedAds({
-      tier: tierLoading ? null : currentTier,
-      isMinor,
-      adsConsent,
-      route: pathname ?? "/",
-    });
+  const [rewardVisibleState, setRewardVisible] = useState(false);
+  const rewardOwnerRef = useRef<string | null>(null);
+  const interactionBoundaryRef = useRef<string | null>(dataOwner);
+  if (interactionBoundaryRef.current !== dataOwner) {
+    interactionBoundaryRef.current = dataOwner;
+    errorOwnerRef.current = null;
+    pendingOwnerRef.current = null;
+    rewardOwnerRef.current = null;
+  }
+  const busyAction = busyState?.ownerId === userId ? busyState.action : null;
+  const busy = busyAction !== null || actionLockRef.current.isLocked(userId);
+  const error = errorOwnerRef.current === dataOwner ? errorState : null;
+  const pendingTier = pendingOwnerRef.current === dataOwner ? pendingTierState : null;
+  const rewardVisible = rewardOwnerRef.current === dataOwner && rewardVisibleState;
 
   useEffect(() => {
-    let alive = true;
-    (async () => {
-      configurePurchases();
-      if (!arePurchasesAvailable()) {
-        if (alive) setLoading(false);
-        return;
-      }
-      try {
-        const [pkgs, pro] = await Promise.all([getOfferings(), getProStatus()]);
-        if (!alive) return;
-        setPackages(pkgs);
-        setIsPro(pro);
-      } catch {
-        if (alive) setError(t("ds.plans.loadError"));
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [ko]);
-
-  // This month's remaining free deep-asks - powers the rewarded sheet's
-  // "remaining" prop. Only loaded on the free tier; fails open to null.
-  useEffect(() => {
-    if (!userId || currentTier !== "free") {
-      setFreeRemaining(null);
+    const generation = ++storeGeneration.current;
+    if (!dataOwner) {
+      setStoreRead(EMPTY_STORE);
       return;
     }
     let alive = true;
-    (async () => {
-      const usage = await getReasoningUsage(userId);
-      if (!alive) return;
-      setFreeRemaining(remainingReasoning("free", usage.used, usage.rewardCredits));
-    })();
+    setStoreRead({
+      ownerId: dataOwner,
+      status: "loading",
+      packages: [],
+      nativeAvailable: false,
+    });
+    configurePurchases();
+    const nativeAvailable = arePurchasesAvailable();
+    void settleAsyncRead(getOfferingsResult(), READ_TIMEOUT_MS).then((settlement) => {
+      if (!alive || generation !== storeGeneration.current || activeOwnerRef.current !== dataOwner)
+        return;
+      if (settlement.status === "timeout") {
+        setStoreRead({ ownerId: dataOwner, status: "timeout", packages: [], nativeAvailable });
+      } else if (settlement.status === "error") {
+        setStoreRead({ ownerId: dataOwner, status: "error", packages: [], nativeAvailable });
+      } else if (settlement.value.status === "ready") {
+        setStoreRead({
+          ownerId: dataOwner,
+          status: "ready",
+          packages: settlement.value.packages,
+          nativeAvailable,
+        });
+      } else {
+        setStoreRead({
+          ownerId: dataOwner,
+          status: settlement.value.status,
+          packages: [],
+          nativeAvailable,
+        });
+      }
+    });
     return () => {
       alive = false;
     };
-  }, [userId, currentTier]);
+  }, [dataOwner, readEpoch]);
 
-  // Package resolution (unchanged heuristics): map the current Offering onto
-  // the 항해자 / 북극성 CTAs.
-  const plusPkg = useMemo(() => {
-    if (packages.length === 0) return undefined;
-    const hint = packages.find((p) => {
-      const id = `${p.identifier} ${p.product.identifier}`.toLowerCase();
-      return id.includes("plus") || id.includes("voyager") || id.includes("monthly") || id.includes("month");
-    });
-    return hint ?? packages[0];
-  }, [packages]);
-  const proPkg = useMemo(() => {
-    if (packages.length === 0) return undefined;
-    const hint = packages.find((p) => {
-      const id = `${p.identifier} ${p.product.identifier}`.toLowerCase();
-      return id.includes("pro") || id.includes("northstar") || id.includes("north") || id.includes("year") || id.includes("annual");
-    });
-    return hint && hint !== plusPkg ? hint : undefined;
-  }, [packages, plusPkg]);
-
-  async function buy(pkg: PurchasesPackage) {
-    if (busy) return;
-    setBusyAction("buy");
-    setError(null);
-    const outcome = await purchasePackage(pkg);
-    if (outcome.status === "purchased") {
-      setIsPro(outcome.isPro);
-      // R3 reconciliation: local isPro is optimistic display only -- the DB tier
-      // (users.subscription_tier) is the entitlement authority the whole app gates
-      // on, and it moves ONLY via the store->revenue_events webhook
-      // (TODO(IAP-webhook) in src/lib/payments/purchases.ts, an owner action
-      // before enabling RevenueCat keys). Re-read it so that once the webhook is
-      // live the tier (and every gate) reconciles without a manual reload.
-      void refreshTier();
-    } else if (outcome.status === "error" || outcome.status === "unavailable")
-      setError(t("ds.plans.purchaseError"));
-    setBusyAction(null);
-  }
-
-  async function restore() {
-    if (busy) return;
-    setBusyAction("restore");
-    setError(null);
-    const outcome = await restorePurchases();
-    if (outcome.status === "restored") {
-      setIsPro(outcome.isPro);
-      void refreshTier(); // R3: reconcile the DB tier (the gating authority) too
-      if (!outcome.isPro) setError(t("ds.plans.restoredNone"));
-    } else {
-      setError(t("ds.plans.restoreError"));
+  useEffect(() => {
+    const generation = ++prefsGeneration.current;
+    if (!dataOwner || currentTier !== "free") {
+      setPrefsRead({
+        ownerId: dataOwner,
+        status: dataOwner ? "unavailable" : "idle",
+        adsConsent: null,
+      });
+      return;
     }
-    setBusyAction(null);
-  }
+    let alive = true;
+    setPrefsRead({ ownerId: dataOwner, status: "loading", adsConsent: null });
+    void settleAsyncRead(readPrivacyPrefsStrict(dataOwner), READ_TIMEOUT_MS).then((settlement) => {
+      if (!alive || generation !== prefsGeneration.current || activeOwnerRef.current !== dataOwner)
+        return;
+      if (settlement.status === "ready") setPrefsRead(settlement.value);
+      else setPrefsRead({ ownerId: dataOwner, status: settlement.status, adsConsent: null });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [currentTier, dataOwner, readEpoch]);
 
-  // Which tier the user is currently on. `currentTier` (DB users.subscription_tier)
-  // is the authority every OTHER gate in the app uses; RevenueCat `isPro` here is an
-  // OPTIMISTIC plans-screen-only promotion for the just-purchased moment before the
-  // store->revenue_events webhook reconciles the DB (owner action -- see buy()).
-  // isPro must never leak into real feature gating: payment-tier-authority.test.ts
-  // pins that useProgression/entitlements read the DB tier only, so this optimistic
-  // display can never become a "shows pro / features locked" contradiction elsewhere.
+  useEffect(() => {
+    const generation = ++usageGeneration.current;
+    if (!dataOwner || currentTier !== "free") {
+      setUsageRead({
+        ownerId: dataOwner,
+        status: dataOwner ? "unavailable" : "idle",
+        used: 0,
+        rewardCredits: 0,
+        rewardEarned: 0,
+      });
+      return;
+    }
+    let alive = true;
+    setUsageRead({
+      ownerId: dataOwner,
+      status: "loading",
+      used: 0,
+      rewardCredits: 0,
+      rewardEarned: 0,
+    });
+    void settleAsyncRead(readReasoningUsageStrict(dataOwner), READ_TIMEOUT_MS).then(
+      (settlement) => {
+        if (
+          !alive ||
+          generation !== usageGeneration.current ||
+          activeOwnerRef.current !== dataOwner
+        )
+          return;
+        if (settlement.status === "ready") setUsageRead(settlement.value);
+        else
+          setUsageRead({
+            ownerId: dataOwner,
+            status: settlement.status,
+            used: 0,
+            rewardCredits: 0,
+            rewardEarned: 0,
+          });
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, [currentTier, dataOwner, readEpoch]);
+
+  const ownedStore: StoreRead =
+    storeRead.ownerId === dataOwner
+      ? storeRead
+      : {
+          ownerId: dataOwner,
+          status: dataOwner ? "loading" : "idle",
+          packages: [],
+          nativeAvailable: false,
+        };
+  const ownedPrefs: PrefsRead =
+    prefsRead.ownerId === dataOwner
+      ? prefsRead
+      : { ownerId: dataOwner, status: dataOwner ? "loading" : "idle", adsConsent: null };
+  const ownedUsage: UsageRead =
+    usageRead.ownerId === dataOwner
+      ? usageRead
+      : {
+          ownerId: dataOwner,
+          status: dataOwner ? "loading" : "idle",
+          used: 0,
+          rewardCredits: 0,
+          rewardEarned: 0,
+        };
+
+  const packages = ownedStore.packages;
+  const plusPkg = useMemo(() => findMonthlyTierPackage(packages, "plus"), [packages]);
+  const proPkg = useMemo(() => findMonthlyTierPackage(packages, "pro"), [packages]);
+
+  const yearlyOffered =
+    (paddleCheckoutAvailable("cortex", "yearly") && paddleCheckoutAvailable("cortex", "monthly")) ||
+    (!PRO_COMING_SOON &&
+      paddleCheckoutAvailable("brain", "yearly") &&
+      paddleCheckoutAvailable("brain", "monthly"));
+
   const onNorthStar = currentTier === "brain";
-  const onVoyager = !onNorthStar && (currentTier === "cortex" || currentTier === "soma" || isPro);
+  const onVoyager = !onNorthStar && (currentTier === "cortex" || currentTier === "soma");
   const onStargazer = !onNorthStar && !onVoyager;
-  const isCurrent: Record<TierKey, boolean> = { free: onStargazer, plus: onVoyager, pro: onNorthStar };
+  const isCurrent: Record<TierKey, boolean> = {
+    free: onStargazer,
+    plus: onVoyager,
+    pro: onNorthStar,
+  };
 
-  // Can this tier actually be bought RIGHT NOW, on THIS surface?
-  //
-  // There are two rails and they are mutually exclusive per platform: Paddle is
-  // web-only (paddleCheckoutAvailable returns false off-web and when the price
-  // ids are unset) and RevenueCat is native-only (purchasesAvailable stays false
-  // on web and without a platform key). Before this existed the CTA was enabled
-  // whenever the tier was not the current one, so on every surface where NEITHER
-  // rail was live the button was a priced, live-looking control that failed
-  // 100% of the time with ds.plans.purchaseError - and failed again on retry,
-  // because nothing about the state it complains about is retryable. That is a
-  // dead-end purchase flow (App Review 2.1) and, more to the point, a lie to the
-  // user. A control that cannot succeed must not look like one that can.
   function canPurchase(key: TierKey): boolean {
-    if (key === "free") return false; // nothing to buy; the CTA is a label
+    if (key === "free") return false;
     if (key === "pro" && PRO_COMING_SOON) return false;
-    const paddleTier = key === "plus" ? "cortex" : "brain";
+    const paddleTier: CheckoutTier = key === "plus" ? "cortex" : "brain";
     if (paddleCheckoutAvailable(paddleTier, cadence)) return true;
-    // The RevenueCat Offering this screen reads is monthly. Letting it answer
-    // for the yearly segment would show a yearly price on a control that
-    // charges a monthly package - a worse failure than the dead CTA, because
-    // it succeeds at the wrong thing.
     if (cadence !== "monthly") return false;
     return (key === "plus" ? plusPkg : proPkg) != null;
   }
 
-  // No rail is live for any sellable tier: say so once, plainly, instead of
-  // letting each card imply a checkout that is not there.
-  //
-  // The old condition keyed off RevenueCat alone (`!available || ...`), which
-  // made this notice ALWAYS show on web - including when Paddle checkout was
-  // configured and working - while its copy told the reader to go buy in the
-  // phone app. That advice was false in both directions: web is the only
-  // surface that can currently take money, and the native build has no live
-  // store keys at all, so it sent paying users to a dead end.
-  const showStoreNotice = !loading && !canPurchase("plus") && !canPurchase("pro");
+  const loading = ownedStore.status === "loading";
+  const offeringHasNoSellablePackage =
+    ownedStore.status === "ready" &&
+    plusPkg === undefined &&
+    (PRO_COMING_SOON || proPkg === undefined);
+  const showStoreNotice =
+    (ownedStore.status === "unavailable" || offeringHasNoSellablePackage) &&
+    !loading &&
+    !canPurchase("plus") &&
+    !canPurchase("pro");
+  const showStoreError =
+    (ownedStore.status === "error" || ownedStore.status === "timeout") &&
+    !canPurchase("plus") &&
+    !canPurchase("pro");
 
-  // ── Tier copy (reference PlansScreen tiers[]). Prices from TIER_PRICE_KRW so
-  // display can never drift from the entitlement SoT. ──
   const per = t("ds.plans.per");
   const perYear = t("ds.plans.perYear");
-  // Both figures come from the same SoT (pricing.ts via tiers.ts), so the card
-  // cannot show a yearly number Paddle is not charging.
   const priceFor = (key: "plus" | "pro"): string =>
     cadence === "yearly"
       ? `${krw(TIER_PRICE_KRW_YEARLY[key])}${perYear}`
@@ -357,300 +584,534 @@ export function DeepSpacePlansScreen() {
     },
   ];
 
-  // The CTA no longer reaches money directly. It opens the terms step, and
-  // ONLY the confirm button inside it calls beginPurchase - so there is no
-  // path to a charge that skipped the disclosure.
+  async function buy(pkg: PurchasesPackage) {
+    const owner = dataOwner;
+    if (!owner) return;
+    const request = actionLockRef.current.acquire(owner);
+    if (!request) return;
+    errorOwnerRef.current = owner;
+    setBusyState({ ownerId: owner, action: "buy" });
+    setError(null);
+    try {
+      const outcome = await purchasePackage(pkg);
+      if (authOwnerRef.current !== owner) return;
+      if (outcome.status === "purchased") {
+        setPurchaseState("purchased");
+        await refreshTier();
+      } else if (outcome.status === "cancelled") {
+        setPurchaseState("cancelled");
+      } else if (outcome.status === "unavailable") {
+        setPurchaseState("unavailable");
+        setError(t("ds.plans.purchaseError"));
+      } else {
+        setPurchaseState("error");
+        setError(t("ds.plans.purchaseError"));
+      }
+    } finally {
+      const released = actionLockRef.current.release(request);
+      if (released && authOwnerRef.current === owner) setBusyState(null);
+    }
+  }
+
+  async function buyWithPaddle(tier: CheckoutTier) {
+    const owner = dataOwner;
+    if (!owner) return;
+    const request = actionLockRef.current.acquire(owner);
+    if (!request) return;
+    errorOwnerRef.current = owner;
+    setBusyState({ ownerId: owner, action: "buy" });
+    setError(null);
+    try {
+      const outcome = await openPaddleCheckout({ tier, cadence, locale: ko ? "ko" : "en" });
+      if (authOwnerRef.current !== owner) return;
+      if (outcome.ok) {
+        // The overlay was handed off. Only the webhook may grant the tier.
+        setPurchaseState("handed-off");
+      } else {
+        setPurchaseState(outcome.reason === "not_configured" ? "unavailable" : "error");
+        setError(t("ds.plans.purchaseError"));
+      }
+    } finally {
+      const released = actionLockRef.current.release(request);
+      if (released && authOwnerRef.current === owner) setBusyState(null);
+    }
+  }
+
+  async function restore() {
+    const owner = dataOwner;
+    if (!owner) return;
+    const request = actionLockRef.current.acquire(owner);
+    if (!request) return;
+    errorOwnerRef.current = owner;
+    setBusyState({ ownerId: owner, action: "restore" });
+    setError(null);
+    try {
+      const outcome = await restorePurchases();
+      if (authOwnerRef.current !== owner) return;
+      if (outcome.status === "restored") {
+        if (outcome.isPro) {
+          setPurchaseState("purchased");
+          await refreshTier();
+        } else {
+          setPurchaseState("cancelled");
+          setError(t("ds.plans.restoredNone"));
+        }
+      } else if (outcome.status === "unavailable") {
+        setPurchaseState("unavailable");
+        setError(t("ds.plans.restoreError"));
+      } else {
+        setPurchaseState("error");
+        setError(t("ds.plans.restoreError"));
+      }
+    } finally {
+      const released = actionLockRef.current.release(request);
+      if (released && authOwnerRef.current === owner) setBusyState(null);
+    }
+  }
+
   function onStart(key: TierKey) {
-    if (busy) return;
-    if (key === "free") return; // nothing to buy, nothing to disclose
+    if (busy || actionLockRef.current.isLocked(userId)) return;
+    if (key === "free") return;
     if (key === "pro" && PRO_COMING_SOON) return;
+    errorOwnerRef.current = dataOwner;
+    pendingOwnerRef.current = dataOwner;
     setError(null);
     setTermsOk(false);
     setPendingTier(key);
   }
 
   function beginPurchase(key: TierKey) {
-    if (busy) return;
-    if (key === "pro" && PRO_COMING_SOON) return; // 준비 중, not purchasable at launch
-
-    // RevenueCat is native-only, so before this the web export - which is the
-    // live surface (GitHub Pages) - had no way to take money at all. Paddle is
-    // the Merchant-of-Record path there; native keeps RevenueCat untouched.
-    // paddleCheckoutAvailable() is false off-web and when unconfigured, so this
-    // branch simply does not exist until the price ids are set.
-    const paddleTier = key === "plus" ? "cortex" : key === "pro" ? "brain" : null;
-    if (paddleTier && paddleCheckoutAvailable(paddleTier, cadence)) {
-      setBusyAction("buy");
-      setError(null);
-      void openPaddleCheckout({ tier: paddleTier, cadence, locale: ko ? "ko" : "en" })
-        .then((r) => {
-          // The tier itself is granted server-side by paddle-webhook, never
-          // here - the client never writes entitlement.
-          if (!r.ok) setError(t("ds.plans.purchaseError"));
-        })
-        .finally(() => setBusyAction(null));
+    if (busy || actionLockRef.current.isLocked(userId)) return;
+    if (key === "free") return;
+    if (key === "pro" && PRO_COMING_SOON) return;
+    const paddleTier: CheckoutTier = key === "plus" ? "cortex" : "brain";
+    if (paddleCheckoutAvailable(paddleTier, cadence)) {
+      void buyWithPaddle(paddleTier);
       return;
     }
-
-    // Native rail. canPurchase() already refuses the yearly segment here, and
-    // this repeats the refusal at the money path rather than trusting a caller:
-    // the RevenueCat package is monthly, so buying it under a yearly price would
-    // charge the wrong amount silently.
     if (cadence !== "monthly") {
       setError(t("ds.plans.purchaseError"));
       return;
     }
     if (key === "plus" && plusPkg) void buy(plusPkg);
     else if (key === "pro" && proPkg) void buy(proPkg);
-    else if (key !== "free") setError(t("ds.plans.purchaseError"));
-    // free → nothing to buy (reference no-op).
+    else setError(t("ds.plans.purchaseError"));
+  }
+
+  const adsConsent = ownedPrefs.status === "ready" ? ownedPrefs.adsConsent : null;
+  const rewardPolicyCandidate =
+    canCompleteRewardedWatch() &&
+    canShowRewardedAds({
+      tier: tierLoading ? null : currentTier,
+      isMinor,
+      adsConsent: true,
+      route: pathname ?? "/",
+    });
+  const rewardCapOpen =
+    ownedUsage.status === "ready" &&
+    rewardCapAllowsWatch(ownedUsage.rewardEarned, REWARD_MONTHLY_CAP);
+  const rewardCapReached = ownedUsage.status === "ready" && !rewardCapOpen;
+  const rewardedAllowed =
+    rewardPolicyCandidate && ownedPrefs.status === "ready" && adsConsent === true && rewardCapOpen;
+  const freeRemaining =
+    ownedUsage.status === "ready"
+      ? remainingReasoning("free", ownedUsage.used, ownedUsage.rewardCredits)
+      : 0;
+
+  async function onRewardEarned(credits: number) {
+    const owner = dataOwner;
+    if (!owner || activeOwnerRef.current !== owner || !rewardedAllowed) return;
+    await addRewardCredits(owner, credits);
+    if (activeOwnerRef.current !== owner) return;
+    const generation = ++usageGeneration.current;
+    const settlement = await settleAsyncRead(readReasoningUsageStrict(owner), READ_TIMEOUT_MS);
+    if (generation !== usageGeneration.current || activeOwnerRef.current !== owner) return;
+    if (settlement.status === "ready") setUsageRead(settlement.value);
+    else
+      setUsageRead({
+        ownerId: owner,
+        status: settlement.status,
+        used: 0,
+        rewardCredits: 0,
+        rewardEarned: 0,
+      });
+  }
+
+  if (authLoading) {
+    return <GateState title={t("ds.plans.title")} message={t("ds.plans.loading")} loading />;
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+  if (profileProbeFailed || hasProfile === null) {
+    return (
+      <GateState
+        title={t("ds.plans.title")}
+        message={t("ds.plans.loadError")}
+        actionLabel={t("records.retry")}
+        onAction={() => void auth.refresh()}
+      />
+    );
+  }
+  if (hasProfile === false) return <Redirect href="/complete-profile" />;
+  if (tierLoading || tierOwnerId !== userId) {
+    return <GateState title={t("ds.plans.title")} message={t("ds.plans.loading")} loading />;
+  }
+  if (tierError) {
+    return (
+      <GateState
+        title={t("ds.plans.title")}
+        message={t("ds.plans.loadError")}
+        actionLabel={t("records.retry")}
+        onAction={() => void refreshTier()}
+      />
+    );
   }
 
   return (
     <DockShell title={t("ds.plans.title")}>
       <Text style={s.headline}>{t("ds.plans.title")}</Text>
 
-      {/* honesty note (tertiary-container) */}
-      <MdCard variant="filled" style={s.honesty}>
+      <PixelSurface
+        variant="inset"
+        background={m3.color.tertiaryContainer}
+        contentStyle={s.honestyContent}
+      >
         <View style={s.honestyRow}>
-          <LockIcon color={m3.color.onTertiaryContainer} />
+          <PixelGlyph name="lock" color={m3.color.onTertiaryContainer} size={20} />
           <Text style={s.honestyText}>
             {t("ds.plans.honestyLead")}
             <Text style={s.honestyStrong}>{t("ds.plans.honestyStrong")}</Text>
             {t("ds.plans.honestyTail")}
           </Text>
         </View>
-      </MdCard>
+      </PixelSurface>
 
-      {/* 민법 제5조 고지. Simon 결정 2026-08-16 (G1): disclose, do not block —
-          a minor's purchase is cancellable whether or not we say so, so a gate
-          would remove their access without removing our exposure. Placed above
-          the tier cards so it is read BEFORE the contract, which is what
-          "계약 체결 전 고지" means. isMinor === true only: null (unknown age)
-          must not accuse an adult of being a minor. */}
       {isMinor === true ? (
-        <MdCard variant="outlined" style={s.minorNotice}>
-          <Text style={s.minorNoticeText}>{t("ds.plans.minorPurchaseNotice")}</Text>
-        </MdCard>
+        <PixelSurface variant="frame" contentStyle={s.noticeContent}>
+          <View style={s.honestyRow}>
+            <PixelGlyph name="info" color={m3.color.onSurfaceVariant} size={18} />
+            <Text style={s.noticeText}>{t("ds.plans.minorPurchaseNotice")}</Text>
+          </View>
+        </PixelSurface>
       ) : null}
 
-      {/* Billing period. Rendered only when a yearly price id exists, so the
-          segment can never be a control that resolves to no price. The saving
-          line states the same fact pricing.ts encodes (yearly = 10x monthly)
-          instead of a percentage nobody can check. */}
       {yearlyOffered ? (
         <View style={s.cadence}>
-          <SegBtn
-            segments={[
-              { key: "monthly", label: t("ds.plans.cadenceMonthly") },
-              { key: "yearly", label: t("ds.plans.cadenceYearly") },
-            ]}
-            selected={[cadence]}
-            onSelect={(k) => setCadence(k === "yearly" ? "yearly" : "monthly")}
-          />
+          <View style={s.cadenceRow}>
+            <View style={s.cadenceCell}>
+              <PixelPressable
+                onPress={() => setCadence("monthly")}
+                variant={cadence === "monthly" ? "inset" : "bevel"}
+                background={
+                  cadence === "monthly"
+                    ? m3.color.secondaryContainer
+                    : m3.color.surfaceContainerHigh
+                }
+                accessibilityRole="tab"
+                accessibilityLabel={t("ds.plans.cadenceMonthly")}
+                accessibilityState={{ selected: cadence === "monthly" }}
+                fullWidth
+                contentStyle={s.cadenceAction}
+              >
+                <Text style={s.cadenceText}>{t("ds.plans.cadenceMonthly")}</Text>
+              </PixelPressable>
+            </View>
+            <View style={s.cadenceCell}>
+              <PixelPressable
+                onPress={() => setCadence("yearly")}
+                variant={cadence === "yearly" ? "inset" : "bevel"}
+                background={
+                  cadence === "yearly" ? m3.color.secondaryContainer : m3.color.surfaceContainerHigh
+                }
+                accessibilityRole="tab"
+                accessibilityLabel={t("ds.plans.cadenceYearly")}
+                accessibilityState={{ selected: cadence === "yearly" }}
+                fullWidth
+                contentStyle={s.cadenceAction}
+              >
+                <Text style={s.cadenceText}>{t("ds.plans.cadenceYearly")}</Text>
+              </PixelPressable>
+            </View>
+          </View>
           <Text style={s.cadenceNote}>{t("ds.plans.cadenceSaving")}</Text>
         </View>
       ) : null}
 
-      {/* tier cards */}
+      {loading ? <StatusSurface message={t("ds.plans.loading")} loading /> : null}
+
       <View style={s.tierList}>
         {tiers.map((tr) => {
           const cur = isCurrent[tr.key];
+          const unavailableLabel =
+            ownedStore.status === "loading"
+              ? t("ds.plans.loading")
+              : ownedStore.status === "error" || ownedStore.status === "timeout"
+                ? t("ds.plans.loadError")
+                : !canPurchase(tr.key)
+                  ? t("ds.plans.comingSoon")
+                  : t("ds.plans.startTier", { name: tr.name });
+          const actionLabel = cur
+            ? t("ds.plans.currentPlan")
+            : tr.key === "free"
+              ? t("ds.plans.included")
+              : tr.key === "pro" && PRO_COMING_SOON
+                ? t("ds.plans.comingSoon")
+                : !canPurchase(tr.key)
+                  ? unavailableLabel
+                  : busyAction === "buy"
+                    ? t("ds.plans.purchasing")
+                    : t("ds.plans.startTier", { name: tr.name });
           return (
-            <MdCard key={tr.key} variant={cur ? "elevated" : "outlined"} style={[s.tierCard, cur && s.tierCardCurrent]}>
-              <View style={s.tierHead}>
-                <View style={s.tierNameRow}>
-                  <Text style={s.tierName}>{tr.name}</Text>
+            <PixelSurface
+              key={tr.key}
+              variant={cur ? "inset" : "bevel"}
+              background={cur ? m3.color.secondaryContainer : m3.color.surfaceContainerHigh}
+              contentStyle={s.tierCard}
+            >
+              <View style={s.tierTop}>
+                <Text style={s.tierName}>{tr.name}</Text>
+                <Text style={s.tierSub}>{tr.sub}</Text>
+              </View>
+              <Text style={s.tierPrice}>{tr.price}</Text>
+              {cur || (tr.key === "pro" && PRO_COMING_SOON) ? (
+                <View style={s.badgeRow}>
                   {cur ? (
-                    <View style={s.currentPill}>
-                      <Text style={s.currentPillText}>{t("ds.plans.active")}</Text>
-                    </View>
-                  ) : tr.key === "pro" && PRO_COMING_SOON ? (
-                    <View style={s.currentPill}>
-                      <Text style={s.currentPillText}>{t("ds.plans.comingSoon")}</Text>
-                    </View>
+                    <PixelSurface
+                      variant="inset"
+                      background={m3.color.primary}
+                      contentStyle={s.badgeContent}
+                    >
+                      <Text style={s.badgeTextCurrent}>{t("ds.plans.active")}</Text>
+                    </PixelSurface>
+                  ) : null}
+                  {tr.key === "pro" && PRO_COMING_SOON ? (
+                    <PixelSurface
+                      variant="inset"
+                      background={m3.color.surfaceVariant}
+                      contentStyle={s.badgeContent}
+                    >
+                      <Text style={s.badgeText}>{t("ds.plans.comingSoon")}</Text>
+                    </PixelSurface>
                   ) : null}
                 </View>
-                <Text style={s.tierPrice}>{tr.price}</Text>
-              </View>
-              <Text style={s.tierSub}>{tr.sub}</Text>
-              <View style={s.featList}>
-                {tr.feats.map((f) => (
-                  <View key={f} style={s.featRow}>
-                    <CheckIcon color={m3.color.primary} />
-                    <Text style={s.featText}>{f}</Text>
+              ) : null}
+              <View style={s.featureList}>
+                {tr.feats.map((feature) => (
+                  <View key={feature} style={s.featureRow}>
+                    <PixelGlyph name="check" color={m3.color.primary} size={16} />
+                    <Text style={s.featureText}>{feature}</Text>
                   </View>
                 ))}
               </View>
-              <MdButton
-                variant={cur || !canPurchase(tr.key) ? "tonal" : "filled"}
-                style={s.tierBtn}
+              <PlanAction
+                label={actionLabel}
+                glyph={cur ? "check" : "chevron_right"}
                 disabled={busy || cur || !canPurchase(tr.key)}
-                label={
-                  cur
-                    ? t("ds.plans.currentPlan")
-                    : tr.key === "free"
-                      ? t("ds.plans.included")
-                      : !canPurchase(tr.key)
-                        ? t("ds.plans.comingSoon")
-                        : busyAction === "buy"
-                          ? t("ds.plans.purchasing")
-                          : t("ds.plans.startTier", { name: tr.name })
-                }
-                // med#16: free is not purchasable — for paid users this button
-                // was live but did nothing (reference no-op). It is a fact row
-                // ("기본 포함"), not an action. Pro at launch is the same kind of
-                // fact row ("준비 중") until the tier ships.
-                //
-                // canPurchase() now decides the same way for EVERY tier, so a
-                // tier with no live rail on this surface reads as "준비 중" rather
-                // than offering a purchase it cannot perform. Before this, `plus`
-                // was always live and always failed off-web.
                 onPress={cur || !canPurchase(tr.key) ? undefined : () => onStart(tr.key)}
               />
-            </MdCard>
+            </PixelSurface>
           );
         })}
       </View>
 
-      {/* U6 price disclosure: auto-renewal cadence, VAT-included pricing, and
-          the 30-day refund window must be stated AT the price surface (Korean
-          e-commerce law + Paddle MoR checkout rules), with the documents that
-          back them one tap away -- not buried behind /support. */}
-      <View style={s.disclosure}>
-        <Text style={s.disclosureText}>
-          {cadence === "yearly" ? t("ds.plans.disclosureYearly") : t("ds.plans.disclosure")}
-        </Text>
-        <View style={s.legalLinks}>
-          <Pressable onPress={() => router.push("/terms")} accessibilityRole="link" hitSlop={8} accessibilityLabel={t("ds.plans.legalTerms")}>
-            <Text style={s.legalLink}>{t("ds.plans.legalTerms")}</Text>
-          </Pressable>
-          <Pressable onPress={() => router.push("/refund")} accessibilityRole="link" hitSlop={8} accessibilityLabel={t("ds.plans.legalRefund")}>
-            <Text style={s.legalLink}>{t("ds.plans.legalRefund")}</Text>
-          </Pressable>
-        </View>
-      </View>
+      {error ? <StatusSurface message={error} error /> : null}
 
-      {loading ? (
-        <View style={s.loadingRow}>
-          <ActivityIndicator color={m3.color.primary} />
-          <Text style={s.dim}>{t("ds.plans.loading")}</Text>
-        </View>
-      ) : null}
-      {error ? <Text style={s.error}>{error}</Text> : null}
-
-      {/* free top-up via opt-in rewarded ad (COUNTS only, never quality).
-          Entry requires the FULL rewarded gate (canShowRewardedAds): build
-          flag + free tier + confirmed non-minor + explicit ads consent +
-          rewarded route allow-list. With any of those missing there is no ad
-          that can pay out — hide the lever entirely rather than fake it. */}
-      {rewardedAllowed ? (
-        <>
+      {rewardPolicyCandidate &&
+      ownedPrefs.status === "ready" &&
+      ownedPrefs.adsConsent !== true ? null : rewardPolicyCandidate &&
+        (ownedPrefs.status === "loading" ||
+          (ownedPrefs.status === "ready" && ownedUsage.status === "loading")) ? (
+        <StatusSurface message={t("ds.plans.loading")} loading />
+      ) : rewardPolicyCandidate &&
+        (ownedPrefs.status === "error" ||
+          ownedPrefs.status === "timeout" ||
+          ownedPrefs.status === "unavailable" ||
+          ownedUsage.status === "error" ||
+          ownedUsage.status === "timeout" ||
+          ownedUsage.status === "unavailable") ? (
+        <StatusSurface
+          message={t("ds.plans.loadError")}
+          error
+          actionLabel={t("records.retry")}
+          onAction={() => setReadEpoch((value) => value + 1)}
+        />
+      ) : rewardPolicyCandidate &&
+        ownedPrefs.status === "ready" &&
+        ownedPrefs.adsConsent === true &&
+        rewardCapReached ? (
+        <View style={s.rewardSection}>
           <Text style={s.sectionLabel}>{t("ds.plans.growWithoutPaying")}</Text>
-          <Pressable
-            style={s.rewardRow}
-            onPress={() => setRewardVisible(true)}
-            accessibilityRole="button"
-            accessibilityLabel={t("ds.plans.rewardTitle")}
+          <StatusSurface
+            message={t("ds.reasoningLimit.rewardCapReached", { cap: REWARD_MONTHLY_CAP })}
+          />
+        </View>
+      ) : rewardedAllowed ? (
+        <View style={s.rewardSection}>
+          <Text style={s.sectionLabel}>{t("ds.plans.growWithoutPaying")}</Text>
+          <PixelPressable
+            onPress={() => {
+              rewardOwnerRef.current = dataOwner;
+              setRewardVisible(true);
+            }}
+            variant="bevel"
+            background={m3.color.tertiaryContainer}
+            accessibilityLabel={`${t("ds.plans.rewardTitle")}. ${t("ds.plans.rewardSub", {
+              n: REWARD_PER_WATCH,
+              cap: REWARD_MONTHLY_CAP,
+            })}`}
+            fullWidth
+            contentStyle={s.rewardContent}
           >
-            <BoltIcon color={m3.color.tertiary} />
+            <PixelGlyph name="bolt" color={m3.color.onTertiaryContainer} size={22} />
             <View style={s.rewardText}>
               <Text style={s.rewardTitle}>{t("ds.plans.rewardTitle")}</Text>
               <Text style={s.rewardSub}>
                 {t("ds.plans.rewardSub", { n: REWARD_PER_WATCH, cap: REWARD_MONTHLY_CAP })}
               </Text>
             </View>
-            <ChevronRight color={m3.color.onSurfaceVariant} />
-          </Pressable>
-        </>
+            <PixelGlyph name="chevron_right" color={m3.color.onTertiaryContainer} size={18} />
+          </PixelPressable>
+        </View>
+      ) : null}
+
+      <View style={s.disclosure}>
+        <Text style={s.disclosureText}>
+          {cadence === "yearly" ? t("ds.plans.disclosureYearly") : t("ds.plans.disclosure")}
+        </Text>
+        <View style={s.legalLinks}>
+          <View style={s.legalCell}>
+            <PlanAction label={t("ds.plans.legalTerms")} onPress={() => router.push("/terms")} />
+          </View>
+          <View style={s.legalCell}>
+            <PlanAction label={t("ds.plans.legalRefund")} onPress={() => router.push("/refund")} />
+          </View>
+        </View>
+      </View>
+
+      {showStoreError ? (
+        <StatusSurface
+          message={t("ds.plans.loadError")}
+          error
+          actionLabel={t("records.retry")}
+          onAction={() => setReadEpoch((value) => value + 1)}
+        />
       ) : null}
 
       {showStoreNotice ? (
-        <MdCard variant="outlined" style={s.notice}>
+        <PixelSurface variant="frame" contentStyle={s.noticeContent}>
           <Text style={s.noticeTitle}>{t("ds.plans.noticeTitle")}</Text>
-          <Text style={s.noticeBody}>
-            {t("ds.plans.noticeBody")}
-          </Text>
-          <Pressable onPress={() => router.push("/support")} accessibilityRole="button" hitSlop={12} accessibilityLabel={t("ds.plans.contactSupport")}>
-            <Text style={s.supportLink}>{t("ds.plans.contactSupport")}</Text>
-          </Pressable>
-        </MdCard>
+          <Text style={s.noticeText}>{t("ds.plans.noticeBody")}</Text>
+          <PlanAction
+            label={t("ds.plans.contactSupport")}
+            onPress={() => router.push("/support")}
+            glyph="chevron_right"
+          />
+        </PixelSurface>
       ) : null}
 
-      {available ? (
-        <Pressable onPress={() => void restore()} disabled={busy} accessibilityRole="button" accessibilityLabel={t("ds.plans.restore")} style={busy ? s.dimPress : undefined}>
-          <Text style={s.restore}>{busyAction === "restore" ? t("ds.plans.restoring") : t("ds.plans.restore")}</Text>
-        </Pressable>
+      {ownedStore.nativeAvailable ? (
+        <PlanAction
+          label={busyAction === "restore" ? t("ds.plans.restoring") : t("ds.plans.restore")}
+          onPress={() => void restore()}
+          disabled={busy}
+          glyph="refresh"
+        />
       ) : null}
 
-      {/* Terms before money. Cycle, amount and how to stop it, from the same
-          price source the cards render, then an explicit opt-in. The confirm
-          button is the only caller of beginPurchase in the file. */}
-      <PremiumModal
+      <Modal
         visible={pendingTier !== null}
-        onClose={() => setPendingTier(null)}
-        accessibilityLabel={t("ds.plans.terms.title")}
+        transparent
+        animationType="none"
+        onRequestClose={() => setPendingTier(null)}
+        statusBarTranslucent
       >
-        <Text style={s.termsTitle}>{t("ds.plans.terms.title")}</Text>
-        {pendingTier ? (
-          <>
-            <Text style={s.termsPlan}>
-              {t("ds.plans.terms.charge", {
-                plan: tiers.find((x) => x.key === pendingTier)?.name ?? "",
-                price: priceFor(pendingTier),
-              })}
-            </Text>
-            <Text style={s.termsLine}>
-              {cadence === "yearly" ? t("ds.plans.terms.cycleYearly") : t("ds.plans.terms.cycleMonthly")}
-            </Text>
-            <Text style={s.termsLine}>{t("ds.plans.terms.cancelHow")}</Text>
-            <Pressable
-              onPress={() => setTermsOk((v) => !v)}
-              style={s.termsRow}
-              hitSlop={12}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: termsOk }}
-              accessibilityLabel={t("ds.plans.terms.agree")}
+        <View style={s.modalRoot}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setPendingTier(null)}
+            accessibilityRole="button"
+            accessibilityLabel={t("ds.plans.terms.back")}
+          >
+            <PixelScrim />
+          </Pressable>
+          <ScrollView
+            style={s.modalScroll}
+            contentContainerStyle={s.modalScrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            <PixelSurface
+              variant="bevel"
+              background={m3.color.surfaceContainerHigh}
+              contentStyle={s.termsContent}
             >
-              <View style={[s.termsBox, termsOk ? s.termsBoxOn : null]} />
-              <Text style={s.termsAgree}>{t("ds.plans.terms.agree")}</Text>
-            </Pressable>
-            <View style={s.termsActions}>
-              <MdButton label={t("ds.plans.terms.back")} variant="text" onPress={() => setPendingTier(null)} />
-              {/* Disabled until the box is ticked: the gate is the point. */}
-              <MdButton
-                label={t("ds.plans.terms.cta")}
-                variant="filled"
-                disabled={!termsOk}
-                onPress={() => {
-                  const key = pendingTier;
-                  setPendingTier(null);
-                  if (key) beginPurchase(key);
-                }}
-              />
-            </View>
-          </>
-        ) : null}
-      </PremiumModal>
+              <View accessibilityViewIsModal>
+                <Text style={s.termsTitle}>{t("ds.plans.terms.title")}</Text>
+                {pendingTier ? (
+                  <>
+                    <Text style={s.termsPlan}>
+                      {t("ds.plans.terms.charge", {
+                        plan: tiers.find((item) => item.key === pendingTier)?.name ?? "",
+                        price: priceFor(pendingTier),
+                      })}
+                    </Text>
+                    {/* prettier-ignore */}
+                    <Text style={s.termsLine}>{cadence === "yearly" ? t("ds.plans.terms.cycleYearly") : t("ds.plans.terms.cycleMonthly")}</Text>
+                    <Text style={s.termsLine}>{t("ds.plans.terms.cancelHow")}</Text>
+                    <PixelPressable
+                      onPress={() => setTermsOk((value) => !value)}
+                      variant={termsOk ? "inset" : "frame"}
+                      background={termsOk ? m3.color.secondaryContainer : m3.color.surfaceContainer}
+                      accessibilityRole="checkbox"
+                      accessibilityLabel={t("ds.plans.terms.agree")}
+                      accessibilityState={{ checked: termsOk }}
+                      fullWidth
+                      contentStyle={s.termsCheckContent}
+                    >
+                      <PixelSurface
+                        variant="inset"
+                        background={termsOk ? m3.color.primary : m3.color.surfaceVariant}
+                        contentStyle={s.checkboxContent}
+                      >
+                        {termsOk ? (
+                          <PixelGlyph name="check" color={m3.color.onPrimary} size={16} />
+                        ) : null}
+                      </PixelSurface>
+                      <Text style={s.termsAgree}>{t("ds.plans.terms.agree")}</Text>
+                    </PixelPressable>
+                    <View style={s.termsActions}>
+                      <PlanAction
+                        label={t("ds.plans.terms.back")}
+                        onPress={() => setPendingTier(null)}
+                      />
+                      <PlanAction
+                        label={t("ds.plans.terms.cta")}
+                        disabled={!termsOk}
+                        onPress={
+                          termsOk
+                            ? () => {
+                                const key = pendingTier;
+                                setPendingTier(null);
+                                if (key) beginPurchase(key);
+                              }
+                            : undefined
+                        }
+                        glyph="chevron_right"
+                      />
+                    </View>
+                  </>
+                ) : null}
+              </View>
+            </PixelSurface>
+          </ScrollView>
+        </View>
+      </Modal>
 
       <RewardedSheet
         visible={rewardVisible && rewardedAllowed}
-        onClose={() => setRewardVisible(false)}
-        remaining={freeRemaining ?? 0}
-        onEarned={async (credits) => {
-          if (userId) {
-            try {
-              await addRewardCredits(userId, credits);
-            } catch (e) {
-              if (typeof console !== "undefined") console.warn("[plans] addRewardCredits failed", (e as Error).message);
-            }
-          }
-          if (userId && currentTier === "free") {
-            const usage = await getReasoningUsage(userId);
-            setFreeRemaining(remainingReasoning("free", usage.used, usage.rewardCredits));
-          }
-          setRewardVisible(false);
+        onClose={() => {
+          if (rewardOwnerRef.current === dataOwner) setRewardVisible(false);
         }}
+        remaining={freeRemaining}
+        onEarned={onRewardEarned}
         locale={ko ? "ko" : "en"}
       />
     </DockShell>
@@ -658,67 +1119,221 @@ export function DeepSpacePlansScreen() {
 }
 
 const s = StyleSheet.create({
-  scroll: { padding: m3.spacing.s4, paddingBottom: 40, gap: m3.spacing.s3 },
-  headline: { fontSize: m3.type.headlineSmall.size, lineHeight: m3.type.headlineSmall.line, fontWeight: "500", color: m3.color.onSurface, marginTop: m3.spacing.s2, marginBottom: m3.spacing.s1 },
-  honesty: { backgroundColor: m3.color.tertiaryContainer, padding: 14 },
-  honestyRow: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
-  honestyText: { flex: 1, fontSize: m3.type.bodySmall.size, lineHeight: 18, color: m3.color.onTertiaryContainer },
-  honestyStrong: { fontWeight: "700", color: m3.color.onTertiaryContainer },
-  minorNotice: { padding: 14, borderWidth: 1, borderColor: m3.color.outline },
-  cadence: { gap: m3.spacing.s2 },
-  cadenceNote: { fontSize: m3.type.bodySmall.size, lineHeight: 18, color: m3.color.onSurfaceVariant, textAlign: "center" },
-  minorNoticeText: { fontSize: m3.type.bodySmall.size, lineHeight: 18, color: m3.color.onSurfaceVariant },
-  termsTitle: { fontSize: m3.type.titleMedium.size, lineHeight: m3.type.titleMedium.line, fontWeight: "600", color: m3.color.onSurface },
-  termsPlan: { fontSize: m3.type.titleSmall.size, lineHeight: m3.type.titleSmall.line, fontWeight: "600", color: m3.color.onSurface, marginTop: m3.spacing.s2 },
-  termsLine: { fontSize: m3.type.bodySmall.size, lineHeight: 18, color: m3.color.onSurfaceVariant, marginTop: 4 },
-  termsRow: { flexDirection: "row", alignItems: "flex-start", gap: m3.spacing.s3, marginTop: m3.spacing.s3 },
-  termsBox: { width: 18, height: 18, marginTop: 2, borderWidth: 2, borderColor: m3.color.outline, backgroundColor: "transparent" },
-  termsBoxOn: { borderColor: m3.color.primary, backgroundColor: m3.color.primary },
-  termsAgree: { flex: 1, fontSize: m3.type.bodySmall.size, lineHeight: 18, color: m3.color.onSurface },
-  termsActions: { flexDirection: "row", gap: m3.spacing.s4, marginTop: m3.spacing.s4, justifyContent: "flex-end" },
-  tierList: { gap: m3.spacing.s3 },
-  tierCard: { padding: m3.spacing.s4, gap: 6, borderWidth: 1, borderColor: m3.color.outlineVariant, backgroundColor: m3.color.surfaceContainerLow },
-  tierCardCurrent: { borderWidth: 2, borderColor: m3.color.primary, backgroundColor: m3.color.surfaceContainer },
-  tierHead: { flexDirection: "row", alignItems: "baseline", gap: m3.spacing.s2 },
-  tierNameRow: { flex: 1, flexDirection: "row", alignItems: "center", gap: m3.spacing.s2 },
-  tierName: { fontSize: m3.type.titleLarge.size, lineHeight: m3.type.titleLarge.line, fontWeight: "500", color: m3.color.onSurface },
-  currentPill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: m3.shape.none, backgroundColor: m3.color.primary },
-  currentPillText: { fontSize: 11, fontWeight: "700", color: m3.color.onPrimary },
-  tierPrice: { fontSize: m3.type.titleMedium.size, lineHeight: m3.type.titleMedium.line, fontWeight: "500", color: m3.color.primary },
-  tierSub: { fontSize: m3.type.bodySmall.size, lineHeight: m3.type.bodySmall.line, color: m3.color.onSurfaceVariant, marginTop: 2 },
-  featList: { gap: 6, marginVertical: m3.spacing.s3 },
-  featRow: { flexDirection: "row", alignItems: "center", gap: m3.spacing.s2 },
-  featText: { flex: 1, fontSize: m3.type.bodyMedium.size, lineHeight: m3.type.bodyMedium.line, color: m3.color.onSurface },
-  tierBtn: { alignSelf: "stretch" },
-  loadingRow: { alignItems: "center", gap: m3.spacing.s2, paddingVertical: m3.spacing.s4 },
-  dim: { fontSize: m3.type.bodySmall.size, color: m3.color.onSurfaceVariant },
-  dimPress: { opacity: 0.5 },
-  error: { fontSize: m3.type.bodySmall.size, color: m3.color.error, textAlign: "center" },
-  sectionLabel: { marginTop: m3.spacing.s3, fontSize: 12, fontWeight: "600", letterSpacing: 0.6, color: m3.color.onSurfaceVariant },
-  rewardRow: {
+  scroll: {
+    padding: m3.spacing.s4,
+    paddingBottom: m3.spacing.s8,
+    gap: m3.spacing.s6,
+  },
+  headline: {
+    marginTop: m3.spacing.s2,
+    fontFamily: m3.font.brand,
+    fontSize: m3.type.headlineSmall.size,
+    lineHeight: m3.type.headlineSmall.line,
+    fontWeight: m3.type.headlineSmall.weight,
+    color: m3.color.onSurface,
+  },
+  honestyContent: { padding: m3.spacing.s6 },
+  honestyRow: { flexDirection: "row", alignItems: "flex-start", gap: m3.spacing.s4 },
+  honestyText: {
+    flex: 1,
+    fontFamily: m3.font.brand,
+    fontSize: m3.type.bodyMedium.size,
+    lineHeight: m3.type.bodyMedium.line,
+    color: m3.color.onTertiaryContainer,
+  },
+  honestyStrong: { fontWeight: m3.font.weight.bold, color: m3.color.onTertiaryContainer },
+  cadence: { gap: m3.spacing.s3 },
+  cadenceRow: { flexDirection: "row", gap: m3.spacing.s4 },
+  cadenceCell: { flex: 1, minWidth: 0 },
+  cadenceAction: { alignItems: "center" },
+  cadenceText: {
+    fontFamily: m3.font.brand,
+    fontSize: m3.type.labelLarge.size,
+    lineHeight: m3.type.labelLarge.line,
+    fontWeight: m3.type.labelLarge.weight,
+    color: m3.color.onSurface,
+    textAlign: "center",
+  },
+  cadenceNote: {
+    fontFamily: m3.font.brand,
+    fontSize: m3.type.bodySmall.size,
+    lineHeight: m3.type.bodySmall.line,
+    color: m3.color.onSurfaceVariant,
+    textAlign: "center",
+  },
+  statusContent: { gap: m3.spacing.s4, padding: m3.spacing.s6 },
+  statusRow: { flexDirection: "row", alignItems: "center", gap: m3.spacing.s4 },
+  statusText: {
+    flex: 1,
+    fontFamily: m3.font.brand,
+    fontSize: m3.type.bodyMedium.size,
+    lineHeight: m3.type.bodyMedium.line,
+    color: m3.color.onSurfaceVariant,
+  },
+  statusTextError: { color: m3.color.onErrorContainer },
+  statusAction: { alignSelf: "stretch" },
+  tierList: { gap: m3.spacing.s6 },
+  tierCard: { padding: m3.spacing.s6, gap: m3.spacing.s4 },
+  tierTop: { gap: m3.spacing.s1 },
+  tierName: {
+    fontFamily: m3.font.brand,
+    fontSize: m3.type.titleLarge.size,
+    lineHeight: m3.type.titleLarge.line,
+    fontWeight: m3.type.titleLarge.weight,
+    color: m3.color.onSurface,
+  },
+  tierSub: {
+    fontFamily: m3.font.brand,
+    fontSize: m3.type.bodySmall.size,
+    lineHeight: m3.type.bodySmall.line,
+    color: m3.color.onSurfaceVariant,
+  },
+  tierPrice: {
+    fontFamily: m3.font.mono,
+    fontSize: m3.type.headlineSmall.size,
+    lineHeight: m3.type.headlineSmall.line,
+    fontWeight: m3.type.headlineSmall.weight,
+    color: m3.color.primary,
+  },
+  badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: m3.spacing.s4 },
+  badgeContent: { paddingVertical: m3.spacing.s2, paddingHorizontal: m3.spacing.s4 },
+  badgeText: {
+    fontFamily: m3.font.mono,
+    fontSize: m3.type.labelMedium.size,
+    lineHeight: m3.type.labelMedium.line,
+    color: m3.color.onSurfaceVariant,
+  },
+  badgeTextCurrent: {
+    fontFamily: m3.font.mono,
+    fontSize: m3.type.labelMedium.size,
+    lineHeight: m3.type.labelMedium.line,
+    color: m3.color.onPrimary,
+  },
+  featureList: { gap: m3.spacing.s3 },
+  featureRow: { flexDirection: "row", alignItems: "flex-start", gap: m3.spacing.s3 },
+  featureText: {
+    flex: 1,
+    fontFamily: m3.font.brand,
+    fontSize: m3.type.bodyMedium.size,
+    lineHeight: m3.type.bodyMedium.line,
+    color: m3.color.onSurface,
+  },
+  actionContent: { minHeight: m3.minTouch, alignItems: "center" },
+  actionRow: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: m3.spacing.s3,
-    paddingHorizontal: m3.spacing.s4,
-    paddingVertical: 14,
-    borderRadius: m3.shape.large,
-    backgroundColor: m3.color.surfaceContainer,
-    borderWidth: 1,
-    borderColor: m3.color.outlineVariant,
   },
-  rewardText: { flex: 1 },
-  rewardTitle: { fontSize: m3.type.titleSmall.size, lineHeight: m3.type.titleSmall.line, fontWeight: "600", color: m3.color.onSurface },
-  rewardSub: { fontSize: m3.type.labelSmall.size, lineHeight: m3.type.labelSmall.line, color: m3.color.onSurfaceVariant, marginTop: 2 },
-  disclosure: { marginTop: m3.spacing.s2, gap: m3.spacing.s2 },
-  disclosureText: { fontSize: m3.type.bodySmall.size, lineHeight: 18, color: m3.color.onSurfaceVariant },
-  // ⚠ gap 은 두 링크의 hitSlop(각 8) 합보다 **작으면 안 된다.** s4 가 16 -> 8 이 되면
-  // 두 히트 영역이 8px 겹치고, RN 에서는 나중 형제가 이기므로 '이용약관' 오른쪽
-  // 8px 을 눌러도 /refund 로 간다. 스크린샷에는 안 보이는 오작동이라 s8(16)로 고정한다.
-  legalLinks: { flexDirection: "row", gap: m3.spacing.s8 },
-  legalLink: { fontSize: m3.type.bodySmall.size, color: m3.color.primary },
-  notice: { padding: m3.spacing.s4, gap: m3.spacing.s2, borderColor: m3.color.outlineVariant, borderWidth: 1 },
-  noticeTitle: { fontSize: m3.type.titleSmall.size, fontWeight: "600", color: m3.color.onSurface },
-  noticeBody: { fontSize: m3.type.bodySmall.size, lineHeight: 18, color: m3.color.onSurfaceVariant },
-  supportLink: { fontSize: m3.type.bodySmall.size, color: m3.color.primary, marginTop: m3.spacing.s1 },
-  restore: { fontSize: m3.type.bodySmall.size, color: m3.color.onSurfaceVariant, textAlign: "center", paddingVertical: 11 },
+  actionText: {
+    flexShrink: 1,
+    fontFamily: m3.font.brand,
+    fontSize: m3.type.labelLarge.size,
+    lineHeight: m3.type.labelLarge.line,
+    fontWeight: m3.type.labelLarge.weight,
+    color: m3.color.onPrimaryContainer,
+    textAlign: "center",
+  },
+  actionTextDisabled: { color: m3.color.onSurfaceVariant },
+  rewardSection: { gap: m3.spacing.s3 },
+  sectionLabel: {
+    fontFamily: m3.font.mono,
+    fontSize: m3.type.labelMedium.size,
+    lineHeight: m3.type.labelMedium.line,
+    color: m3.color.onSurfaceVariant,
+  },
+  rewardContent: {
+    minHeight: m3.minTouch,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: m3.spacing.s4,
+    padding: m3.spacing.s6,
+  },
+  rewardText: { flex: 1, minWidth: 0, gap: m3.spacing.s1 },
+  rewardTitle: {
+    fontFamily: m3.font.brand,
+    fontSize: m3.type.titleSmall.size,
+    lineHeight: m3.type.titleSmall.line,
+    fontWeight: m3.type.titleSmall.weight,
+    color: m3.color.onTertiaryContainer,
+  },
+  rewardSub: {
+    fontFamily: m3.font.brand,
+    fontSize: m3.type.bodySmall.size,
+    lineHeight: m3.type.bodySmall.line,
+    color: m3.color.onTertiaryContainer,
+  },
+  disclosure: { gap: m3.spacing.s4 },
+  disclosureText: {
+    fontFamily: m3.font.brand,
+    fontSize: m3.type.bodySmall.size,
+    lineHeight: m3.type.bodySmall.line,
+    color: m3.color.onSurfaceVariant,
+  },
+  legalLinks: { flexDirection: "row", flexWrap: "wrap", gap: m3.spacing.s8 },
+  legalCell: { flexGrow: 1, minWidth: 132 },
+  noticeContent: { gap: m3.spacing.s4, padding: m3.spacing.s6 },
+  noticeTitle: {
+    fontFamily: m3.font.brand,
+    fontSize: m3.type.titleSmall.size,
+    lineHeight: m3.type.titleSmall.line,
+    fontWeight: m3.type.titleSmall.weight,
+    color: m3.color.onSurface,
+  },
+  noticeText: {
+    flex: 1,
+    fontFamily: m3.font.brand,
+    fontSize: m3.type.bodySmall.size,
+    lineHeight: m3.type.bodySmall.line,
+    color: m3.color.onSurfaceVariant,
+  },
+  modalRoot: { flex: 1, justifyContent: "flex-end", padding: m3.spacing.s4 },
+  modalScroll: { maxHeight: "90%" },
+  modalScrollContent: { flexGrow: 1, justifyContent: "flex-end" },
+  termsContent: { padding: m3.spacing.s6 },
+  termsTitle: {
+    fontFamily: m3.font.brand,
+    fontSize: m3.type.titleLarge.size,
+    lineHeight: m3.type.titleLarge.line,
+    fontWeight: m3.type.titleLarge.weight,
+    color: m3.color.onSurface,
+  },
+  termsPlan: {
+    marginTop: m3.spacing.s6,
+    fontFamily: m3.font.mono,
+    fontSize: m3.type.titleSmall.size,
+    lineHeight: m3.type.titleSmall.line,
+    fontWeight: m3.type.titleSmall.weight,
+    color: m3.color.primary,
+  },
+  termsLine: {
+    marginTop: m3.spacing.s4,
+    fontFamily: m3.font.brand,
+    fontSize: m3.type.bodyMedium.size,
+    lineHeight: m3.type.bodyMedium.line,
+    color: m3.color.onSurfaceVariant,
+  },
+  termsCheckContent: {
+    minHeight: m3.minTouch,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: m3.spacing.s4,
+    padding: m3.spacing.s4,
+  },
+  checkboxContent: {
+    width: 20,
+    height: 20,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  termsAgree: {
+    flex: 1,
+    fontFamily: m3.font.brand,
+    fontSize: m3.type.bodyMedium.size,
+    lineHeight: m3.type.bodyMedium.line,
+    color: m3.color.onSurface,
+  },
+  termsActions: { marginTop: m3.spacing.s6, gap: m3.spacing.s4 },
 });
