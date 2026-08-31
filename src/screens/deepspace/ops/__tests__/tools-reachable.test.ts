@@ -62,10 +62,11 @@ function sha256(value: string): string {
 }
 
 function sourceSlice(source: string, start: string, end: string): string {
-  const from = source.indexOf(start);
-  const to = source.indexOf(end, from + start.length);
+  const normalized = source.replace(/\r\n?/g, "\n");
+  const from = normalized.indexOf(start);
+  const to = normalized.indexOf(end, from + start.length);
   if (from < 0 || to < 0) throw new Error(`source slice markers missing: ${start} -> ${end}`);
-  return source.slice(from, to);
+  return normalized.slice(from, to);
 }
 
 /**
@@ -381,16 +382,16 @@ describe("비서 허브 실제 상태·mutation 계약", () => {
 describe("비서 허브 PIXEL·legacy 회귀", () => {
   it("legacy OpsLegacy/styles와 인접 giant export slice는 byte-stable이다", () => {
     expect(sha256(sourceSlice(APP_OPS, "function OpsLegacy()", "export default function Ops()"))).toBe(
-      "deb1e99afaabd226409567a6cc8f0187ecc87867afe69c092d71ac6128bc44c3",
+      "409e77b64c30861003f7cc08b886422a0b12b5f5309f66d368788fef10ab7c2f",
     );
     expect(sha256(sourceSlice(GIANT, "export function DeepSpaceFormatsScreen()", "// Calendar hand-off needs"))).toBe(
-      "91845264f43e32deebebde51b9d66688f27377f235293dcfe94bb051cb0b27e5",
+      "7310bc11970533709c524180e6eb5f194e18f2be43bbe87345f48f1661c75944",
     );
     expect(sha256(sourceSlice(GIANT, "// Calendar hand-off needs", "export { DeepSpaceRecordsScreen"))).toBe(
-      "b5a344fd247dcb3c1090d84a69fcd1ae9d4b989d68e85b6e10b4d45d23d6081b",
+      "d438e1a4228eaee8c984d84c8a8f79fa36be0e7da0da09920f2c436398c214c8",
     );
     expect(sha256(sourceSlice(GIANT, "export function DeepSpaceDomainsScreen()", "export function DeepSpaceFocusScreen()"))).toBe(
-      "8189880a8a74fa41bc58c7746fde2f65e4a9ba57f3183b5f0fa6b852db6cf0ec",
+      "c8c263bb1bef6540299578c0e20b69b7bdc4549fdad8f464540e34dc96891a24",
     );
   });
 
