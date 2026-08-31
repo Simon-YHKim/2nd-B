@@ -83,6 +83,15 @@ PR #1543이 green이므로 아래 PR B는 해당 head 위에 쌓거나, #1538과
 
 #### PR B — `feat(dev): classify route entry roles and add a Pixel Design Lab`
 
+2026-08-31 현재 이 작업은 Draft PR #1544에서 완료됐다. head는
+`8ec2f046e6eec6ccc910628291b6bed4bc2ca8ae`, base는 #1543의
+`codex/pixel-clay-auth-registry-260831`이다. 구현은 임의의 primary/secondary 구분 대신
+`standard` 기본값과 특수 entry 8개만 명시해 `standard 91 + deep-link 3 + redirect 1 +
+Design Lab 4 = 99`를 만든다. `/dev-screens`는 `SectionList`로 가상화했고, 외부 계약
+3개는 press/navigation이 없는 정적 행이다. 최종 head에서 `npm run verify` 557 suites,
+6,012 tests와 로컬 Pixel 7 Pro web runtime 캡처가 통과했다. Ready 전환·base retarget·
+merge는 수행하지 않았다.
+
 `DevScreen`의 `orphan` boolean을 역할 기반 entry metadata로 대체한다. 권장 시작점은 다음과
 같지만 기존 코드와 테스트에 맞춰 더 작은 동등 모델을 선택해도 된다.
 
