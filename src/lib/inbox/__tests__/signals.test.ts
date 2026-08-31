@@ -280,14 +280,19 @@ describe("legacy preservation and pixel registration", () => {
   });
 
   test("keeps InboxLegacy and its styles byte-stable while routing deep-space directly", () => {
-    const source = readFileSync(join(process.cwd(), "src", "app", "inbox.tsx"), "utf8");
+    // Normalize before locating the blank-line slice boundary. Looking for
+    // `\n\n` in raw CRLF text returned -1 on Windows and made the preservation
+    // hash platform-dependent even though sha() normalized afterward.
+    const source = normalize(
+      readFileSync(join(process.cwd(), "src", "app", "inbox.tsx"), "utf8"),
+    );
     const legacy = source.slice(source.indexOf("function InboxLegacy()"), source.indexOf("// The old list used"));
     const styles = source.slice(
       source.indexOf("const styles = StyleSheet.create({"),
       source.indexOf("\n\nexport default function Inbox()"),
     );
     expect(sha(legacy)).toBe("f6fcdafa440555cc23c5db4313ab700d3515b6ab2d27cc575e1df5cd5fbed48a");
-    expect(sha(styles)).toBe("170888d61cf1ac7cee75cd9afd24948324204160230dd80bafdc531a0a8209cb");
+    expect(sha(styles)).toBe("153b02a4df53b3223350e66cad98251e76bfbcab2bcffd5f1a6a1f93782d431b");
     expect(source).toContain('from "@/screens/deepspace/dds-inbox-screen"');
   });
 
