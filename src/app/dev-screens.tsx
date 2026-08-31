@@ -227,39 +227,39 @@ function DevScreenIndex() {
   const all = devScreens();
   const counts = entryRoleCounts(all);
   const sections = registrySections(all);
+  const topHeadroom = insets.top + m3.minTouch + m3.spacing.s6;
 
   return (
-    <SectionList<DevScreen, ScreenSection>
-      style={styles.root}
-      contentContainerStyle={[
-        styles.content,
-        { paddingTop: insets.top + m3.minTouch + m3.spacing.s6 },
-      ]}
-      sections={sections}
-      keyExtractor={(screen) => screen.file}
-      ListHeaderComponent={<RegistryHeader counts={counts} />}
-      renderSectionHeader={({ section }) => (
-        <View style={styles.sectionHeader}>
-          <View style={styles.sectionTitleRow}>
-            {section.kind === "design-lab" ? (
-              <PixelGlyph name="grid" color={m3.color.primary} size={24} />
-            ) : null}
-            <Text variant="caption" accessibilityRole="header">
-              {section.title} ({section.data.length})
-            </Text>
+    <View style={[styles.root, { paddingTop: topHeadroom }]}>
+      <SectionList<DevScreen, ScreenSection>
+        style={styles.list}
+        contentContainerStyle={styles.content}
+        sections={sections}
+        keyExtractor={(screen) => screen.file}
+        ListHeaderComponent={<RegistryHeader counts={counts} />}
+        renderSectionHeader={({ section }) => (
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleRow}>
+              {section.kind === "design-lab" ? (
+                <PixelGlyph name="grid" color={m3.color.primary} size={24} />
+              ) : null}
+              <Text variant="caption" accessibilityRole="header">
+                {section.title} ({section.data.length})
+              </Text>
+            </View>
+            {section.description ? <Text variant="subtle">{section.description}</Text> : null}
           </View>
-          {section.description ? <Text variant="subtle">{section.description}</Text> : null}
-        </View>
-      )}
-      renderItem={({ item, section }) =>
-        section.kind === "design-lab" ? <DesignLabRow screen={item} /> : <ScreenRow screen={item} />
-      }
-      initialNumToRender={12}
-      maxToRenderPerBatch={12}
-      windowSize={7}
-      stickySectionHeadersEnabled={false}
-      showsVerticalScrollIndicator={false}
-    />
+        )}
+        renderItem={({ item, section }) =>
+          section.kind === "design-lab" ? <DesignLabRow screen={item} /> : <ScreenRow screen={item} />
+        }
+        initialNumToRender={12}
+        maxToRenderPerBatch={12}
+        windowSize={7}
+        stickySectionHeadersEnabled={false}
+        showsVerticalScrollIndicator={false}
+      />
+    </View>
   );
 }
 
@@ -314,6 +314,7 @@ function ClarityStatusRow() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: m3.color.background },
+  list: { flex: 1 },
   content: {
     paddingHorizontal: m3.spacing.s6,
     paddingBottom: m3.spacing.s8,
