@@ -25,6 +25,18 @@
 /** 라우트 파일 경로(`src/app` 기준, 확장자 없음). 테스트가 이걸로 파일 존재를 확인한다. */
 export type RouteFile = string;
 
+/**
+ * Wrapper/re-export routes can inherit their login gate from the component
+ * they render. The CI verifier reads this one explicitly declared source only;
+ * it never follows an arbitrary import graph.
+ */
+export interface DelegatedAuthGate {
+  /** Repository-relative source file under `src/` that owns the redirect. */
+  gateFile: string;
+  /** Component exported by the gate source and rendered by this route. */
+  component: string;
+}
+
 export interface DevScreen {
   /** `src/app` 아래 파일 경로. 예: "(auth)/sign-in", "star/[domain]", "index" */
   file: RouteFile;
@@ -32,8 +44,8 @@ export interface DevScreen {
   href: string;
   /** 한국어 이름. 캐논에 제목이 있으면 그걸 썼다. */
   label: string;
-  /** 로그인이 필요하다 (파일에 `<Redirect href="/sign-in" />` 가 있다). */
-  auth?: true;
+  /** 로그인이 필요하다. `true`는 직접 gate, 객체는 명시한 컴포넌트에 위임한 gate다. */
+  auth?: true | DelegatedAuthGate;
   /** 개발 빌드에서만 열린다 (`<DevOnlyRoute>` 뒤). */
   dev?: true;
   /** 동적 구간이 있어 견본값으로 들어간다. 진짜 데이터가 아니면 빈 상태가 보인다. */
@@ -69,7 +81,12 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
     title: "담기 · 기록",
     screens: [
       { file: "capture", href: "/capture", label: "담기", auth: true },
-      { file: "capture-full", href: "/capture-full", label: "담기 전체 (메모·링크·클립·OCR·파일)" },
+      {
+        file: "capture-full",
+        href: "/capture-full",
+        label: "담기 전체 (메모·링크·클립·OCR·파일)",
+        auth: { gateFile: "src/app/capture.tsx", component: "CaptureLegacy" },
+      },
       { file: "records", href: "/records", label: "별가루 목록", auth: true },
       { file: "record/[id]", href: "/record/sample", label: "별가루 상세", auth: true, sample: true, note: "실제 id 가 아니라서 '없음' 상태가 보인다" },
       { file: "wiki", href: "/wiki", label: "위키 둘러보기", auth: true },
@@ -77,7 +94,15 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       { file: "journal", href: "/journal", label: "저널", stub: true, note: "/capture 로 넘긴다" },
       { file: "formats", href: "/formats", label: "클리퍼 형식 관리", auth: true, note: "관리 화면은 /formats?view=manager" },
       { file: "share-card", href: "/share-card", label: "공유 카드", auth: true },
-      { file: "srs", href: "/srs", label: "언어 복습 (SRS)" },
+      {
+        file: "srs",
+        href: "/srs",
+        label: "언어 복습 (SRS)",
+        auth: {
+          gateFile: "src/screens/deepspace/DeepSpaceDesignScreens.tsx",
+          component: "DeepSpaceSrsScreen",
+        },
+      },
       { file: "reading", href: "/reading", label: "읽기 · 배움 선반" },
     ],
   },
@@ -130,7 +155,15 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
     title: "개인 비서",
     screens: [
       { file: "ops", href: "/ops", label: "오늘의 비서", auth: true },
-      { file: "focus", href: "/focus", label: "일일 집중" },
+      {
+        file: "focus",
+        href: "/focus",
+        label: "일일 집중",
+        auth: {
+          gateFile: "src/screens/deepspace/DeepSpaceDesignScreens.tsx",
+          component: "DeepSpaceFocusScreen",
+        },
+      },
       { file: "digest", href: "/digest", label: "오늘의 정리", auth: true, note: "이름이 어긋나 있다 — 캐논 screens.json 은 이 화면을 '주간 다이제스트' 라고 부르지만 화면 자체는 일일 리뷰다 (digest.tsx:1). LLM 좌석 digest_weekly 는 또 다른 것" },
       { file: "ttfv", href: "/ttfv", label: "첫날 한 컷" },
       { file: "insights", href: "/insights", label: "인사이트", auth: true },
@@ -180,7 +213,15 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
   {
     title: "결제 · 법률",
     screens: [
-      { file: "plans", href: "/plans", label: "요금제" },
+      {
+        file: "plans",
+        href: "/plans",
+        label: "요금제",
+        auth: {
+          gateFile: "src/screens/deepspace/dds-plans-screen.tsx",
+          component: "DeepSpacePlansScreen",
+        },
+      },
       { file: "subscription", href: "/subscription", label: "구독 관리", auth: true },
       { file: "(auth)/terms", href: "/terms", label: "이용약관" },
       { file: "(auth)/privacy-policy", href: "/privacy-policy", label: "개인정보 처리방침" },
@@ -208,7 +249,16 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       { file: "deepspace-preview", href: "/deepspace-preview", label: "딥스페이스 미리보기", dev: true, orphan: true },
       { file: "deepspace-flowmap", href: "/deepspace-flowmap", label: "화면 흐름도", dev: true, orphan: true },
       { file: "graph", href: "/graph", label: "내 두뇌 지도 (레거시)", dev: true },
-      { file: "trends", href: "/trends", label: "밝기 추이", dev: true },
+      {
+        file: "trends",
+        href: "/trends",
+        label: "밝기 추이",
+        dev: true,
+        auth: {
+          gateFile: "src/screens/deepspace/trends/TrendsScreen.tsx",
+          component: "TrendsScreen",
+        },
+      },
     ],
   },
 ];
