@@ -52,6 +52,55 @@ const ADULT_AGE = 18;
 export type SignUpToastTone = "info" | "success" | "danger";
 export type SignUpToast = { message: string; tone: SignUpToastTone };
 
+export type SignUpAction = "email" | "oauth" | "naver" | "verify";
+
+/**
+ * One lock is shared by every auth write on the sign-up screen. The monotonically
+ * increasing owner prevents a stale action's `finally` from releasing a newer
+ * action after the component lifetime has been invalidated.
+ */
+export interface SignUpActionLock {
+  active: SignUpAction | null;
+  owner: number;
+}
+
+export function createSignUpActionLock(): SignUpActionLock {
+  return { active: null, owner: 0 };
+}
+
+export function beginSignUpAction(
+  lock: SignUpActionLock,
+  action: SignUpAction,
+): number | null {
+  if (lock.active !== null) return null;
+  lock.owner += 1;
+  lock.active = action;
+  return lock.owner;
+}
+
+export function ownsSignUpAction(
+  lock: SignUpActionLock,
+  action: SignUpAction,
+  owner: number,
+): boolean {
+  return lock.active === action && lock.owner === owner;
+}
+
+export function releaseSignUpAction(
+  lock: SignUpActionLock,
+  action: SignUpAction,
+  owner: number,
+): boolean {
+  if (!ownsSignUpAction(lock, action, owner)) return false;
+  lock.active = null;
+  return true;
+}
+
+export function invalidateSignUpActions(lock: SignUpActionLock): void {
+  lock.owner += 1;
+  lock.active = null;
+}
+
 // The Supabase-native providers, in display order. (Re-export for callers/tests.)
 export const SIGN_UP_PROVIDERS = SUPABASE_OAUTH_PROVIDERS;
 export { startOAuthProvider as startSignUpProvider };
@@ -95,6 +144,8 @@ export interface UseSignUpForm {
   handleSubmit: () => Promise<void>;
   handleOAuth: (provider: OAuthProvider) => Promise<void>;
   handleNaver: () => Promise<void>;
+  /** Synchronous navigation guard used before links can unmount an owned write. */
+  canLeaveGate: () => boolean;
 }
 
 export function useSignUpForm(): UseSignUpForm {
@@ -127,6 +178,9 @@ export function useSignUpForm(): UseSignUpForm {
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const deepLinkUrl = useURL();
   const consumedUrlRef = useRef<string | null>(null);
+  const actionLockRef = useRef<SignUpActionLock>(createSignUpActionLock());
+  const mountedRef = useRef(true);
+  const judgeRouteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     // The confirm-email state is the screen's current status, not a transient
@@ -137,6 +191,15 @@ export function useSignUpForm(): UseSignUpForm {
     return () => clearTimeout(timeout);
   }, [toast]);
 
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      invalidateSignUpActions(actionLockRef.current);
+      if (judgeRouteTimerRef.current) clearTimeout(judgeRouteTimerRef.current);
+    };
+  }, []);
+
   // Supabase's detectSessionInUrl handles web confirmation links. Native links
   // need the same token/code consumption used by password recovery. The email
   // redirects to /sign-up, so this hook is mounted for cold and warm app links;
@@ -146,25 +209,41 @@ export function useSignUpForm(): UseSignUpForm {
     if (!/[?#&](?:code|access_token|error_code)=/.test(deepLinkUrl)) return;
     if (consumedUrlRef.current === deepLinkUrl) return;
     consumedUrlRef.current = deepLinkUrl;
+    let current = true;
     consumeAuthCallbackUrl(deepLinkUrl)
       .then(async () => {
+        if (!current || !mountedRef.current) return;
+        // A callback established the session outside the button-owned flow.
+        // Retire any manual action so its late response cannot repaint the gate.
+        invalidateSignUpActions(actionLockRef.current);
+        setSubmitting(false);
+        setOauthSubmitting(false);
+        setConfirmVerifying(false);
         await refresh();
+        if (!current || !mountedRef.current) return;
         setToast(null);
         setConfirmSentTo(null);
         setConfirmCode("");
       })
-      .catch((e) => {
+      .catch(() => {
+        if (!current || !mountedRef.current) return;
         setToast({ tone: "danger", message: t("errors.signUpFailed") });
         if (typeof console !== "undefined") {
-          console.warn("[auth] confirmation link consume failed", (e as Error).message);
+          console.warn("[auth] confirmation link consume failed");
         }
       });
+    return () => {
+      current = false;
+    };
   }, [deepLinkUrl, refresh, t, userId]);
 
   // Stage 3 (O-31): hardware Back on the auth gate returns to the constellation
   // home instead of exiting the app (no dead-end). Web uses the browser back.
   useEffect(() => {
     const onBackPress = () => {
+      // Consume hardware Back while any auth write owns the synchronous lock.
+      // This closes the same-frame gap before React can paint disabled links.
+      if (actionLockRef.current.active !== null) return true;
       router.push("/");
       return true;
     };
@@ -184,12 +263,27 @@ export function useSignUpForm(): UseSignUpForm {
       password.length >= 8 &&
       ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE &&
       allRequiredAcksChecked(consent) &&
+      !loading &&
+      !userId &&
+      !confirmSentTo &&
       !submitting &&
       // R3: the email submit must cross-disable against an opening OAuth browser
       // so two concurrent auth flows can't race the same guard.
-      !oauthSubmitting
+      !oauthSubmitting &&
+      !confirmVerifying
     );
-  }, [email, password, birthDate, consent, submitting, oauthSubmitting]);
+  }, [
+    birthDate,
+    confirmSentTo,
+    confirmVerifying,
+    consent,
+    email,
+    loading,
+    oauthSubmitting,
+    password,
+    submitting,
+    userId,
+  ]);
 
   const setEmailAndClearHelp = useCallback((value: string) => {
     setEmail(value);
@@ -201,10 +295,18 @@ export function useSignUpForm(): UseSignUpForm {
     setToast((prev) => (prev?.tone === "info" ? null : prev));
   }, []);
 
+  const canLeaveGate = useCallback(
+    () => actionLockRef.current.active === null,
+    [],
+  );
+
   // E2E-3/E2E-4: the submit sequencing lives in sign-up-flow.ts (unit-tested).
   // The flow settles the context (refresh) BEFORE returning; this hook only maps
   // results to UI.
   const handleSubmit = useCallback(async () => {
+    if (!canSubmit) return;
+    const owner = beginSignUpAction(actionLockRef.current, "email");
+    if (owner === null) return;
     setSubmitting(true);
     setExistingAccountHelp(false);
     try {
@@ -224,11 +326,14 @@ export function useSignUpForm(): UseSignUpForm {
         isBreachedPasswordError: (e) => e instanceof BreachedPasswordError,
         isExistingAccountLikelyError: (e) => e instanceof ExistingAccountLikelyError,
       });
+      if (!mountedRef.current || !ownsSignUpAction(actionLockRef.current, "email", owner)) return;
       if (result.kind === "confirmationRequired") {
+        // This boundary only accepts the normalized address used by signUp.
+        const rememberConfirmationTarget = (email: string) => setConfirmSentTo(email);
+        rememberConfirmationTarget(email.trim());
         // Persistent card with the target address (judge-rehearsal #1); it
         // stays until the address changes or the confirmation callback
         // establishes a session.
-        setConfirmSentTo(email);
         setToast(null);
         return;
       }
@@ -236,7 +341,9 @@ export function useSignUpForm(): UseSignUpForm {
         if (result.judgeMode) {
           setJudgeWelcome(true); // hold the guest guard open for the toast
           setToast({ tone: "success", message: t("judge.welcome") });
-          setTimeout(() => router.replace("/"), 900);
+          judgeRouteTimerRef.current = setTimeout(() => {
+            if (mountedRef.current) router.replace("/");
+          }, 900);
           return;
         }
         // Post-signup hand-off → graph view (main).
@@ -258,11 +365,13 @@ export function useSignUpForm(): UseSignUpForm {
         return;
       }
       setToast({ tone: "danger", message: t("errors.signUpFailed") });
-      if (typeof console !== "undefined") console.warn("[auth] signUp error", result.message);
+      if (typeof console !== "undefined") console.warn("[auth] sign-up failed");
     } finally {
-      setSubmitting(false);
+      const current = ownsSignUpAction(actionLockRef.current, "email", owner);
+      releaseSignUpAction(actionLockRef.current, "email", owner);
+      if (current && mountedRef.current) setSubmitting(false);
     }
-  }, [email, password, birthDate, locale, isMinorAge, consent, refresh, t]);
+  }, [birthDate, canSubmit, consent, email, isMinorAge, locale, password, refresh, t]);
 
   // Verifies the mailed 6-digit confirmation code (verifySignUpCode). Success
   // establishes the session server-side; refresh() settles the context (the
@@ -272,67 +381,131 @@ export function useSignUpForm(): UseSignUpForm {
   const handleVerifyConfirmCode = useCallback(async () => {
     const target = confirmSentTo;
     const token = confirmCode.trim();
-    if (!target || token.length < 6 || confirmVerifying) return;
+    if (
+      !target ||
+      !/^\d{6}$/.test(token) ||
+      loading ||
+      userId ||
+      confirmVerifying ||
+      submitting ||
+      oauthSubmitting
+    ) {
+      return;
+    }
+    const owner = beginSignUpAction(actionLockRef.current, "verify");
+    if (owner === null) return;
     setConfirmVerifying(true);
     try {
       await verifySignUpCode(target, token);
       await refresh();
+      if (!mountedRef.current || !ownsSignUpAction(actionLockRef.current, "verify", owner)) return;
       setToast(null);
       setConfirmSentTo(null);
       setConfirmCode("");
-    } catch (e) {
+    } catch {
+      if (!mountedRef.current || !ownsSignUpAction(actionLockRef.current, "verify", owner)) return;
       setToast({ tone: "danger", message: t("signUp.confirmCodeInvalid") });
-      if (typeof console !== "undefined") console.warn("[auth] confirm code verify error", (e as Error).message);
+      if (typeof console !== "undefined") console.warn("[auth] confirmation code verification failed");
     } finally {
-      setConfirmVerifying(false);
+      const current = ownsSignUpAction(actionLockRef.current, "verify", owner);
+      releaseSignUpAction(actionLockRef.current, "verify", owner);
+      if (current && mountedRef.current) setConfirmVerifying(false);
     }
-  }, [confirmCode, confirmSentTo, confirmVerifying, refresh, t]);
+  }, [
+    confirmCode,
+    confirmSentTo,
+    confirmVerifying,
+    loading,
+    oauthSubmitting,
+    refresh,
+    submitting,
+    t,
+    userId,
+  ]);
 
   // Social sign-up: the OAuth flow creates the auth user, then /complete-profile
   // collects date of birth (C10) and records consent — so the age gate + consent
   // ledger still apply to provider sign-ups, just at the post-redirect step.
   const handleOAuth = useCallback(
     async (provider: OAuthProvider) => {
+      if (
+        loading ||
+        userId ||
+        confirmSentTo !== null ||
+        submitting ||
+        oauthSubmitting ||
+        confirmVerifying ||
+        !isProviderEnabled(provider)
+      ) {
+        return;
+      }
+      const owner = beginSignUpAction(actionLockRef.current, "oauth");
+      if (owner === null) return;
       setOauthSubmitting(true);
       try {
         await startOAuthProvider(provider);
-      } catch (e) {
-        const msg = (e as Error).message ?? "";
+      } catch {
+        if (!mountedRef.current || !ownsSignUpAction(actionLockRef.current, "oauth", owner)) return;
         setToast({
           tone: "danger",
           message: t("errors.oauthSignUpStartFailed", { provider: PROVIDER_LABEL[provider] }),
         });
-        if (typeof console !== "undefined") console.warn(`[auth] ${provider} oauth error`, msg);
+        if (typeof console !== "undefined") console.warn("[auth] OAuth sign-up start failed");
       } finally {
-        setOauthSubmitting(false);
+        const current = ownsSignUpAction(actionLockRef.current, "oauth", owner);
+        releaseSignUpAction(actionLockRef.current, "oauth", owner);
+        if (current && mountedRef.current) setOauthSubmitting(false);
       }
     },
-    [t],
+    [confirmSentTo, confirmVerifying, loading, oauthSubmitting, submitting, t, userId],
   );
 
   // Naver: custom redirect flow (not Supabase-native). Native awaits the
   // browser bridge; web navigates immediately.
   const handleNaver = useCallback(async () => {
+    if (
+      loading ||
+      userId ||
+      confirmSentTo !== null ||
+      submitting ||
+      oauthSubmitting ||
+      confirmVerifying ||
+      !isNaverEnabled()
+    ) {
+      return;
+    }
+    const owner = beginSignUpAction(actionLockRef.current, "naver");
+    if (owner === null) return;
     setOauthSubmitting(true);
     try {
       await signInWithNaver();
-    } catch (e) {
+    } catch {
+      if (!mountedRef.current || !ownsSignUpAction(actionLockRef.current, "naver", owner)) return;
       setToast({
         tone: "danger",
         message: t("errors.oauthSignUpStartFailed", { provider: "Naver" }),
       });
-      if (typeof console !== "undefined") console.warn("[auth] naver oauth error", (e as Error).message);
+      if (typeof console !== "undefined") console.warn("[auth] Naver sign-up start failed");
     } finally {
-      setOauthSubmitting(false);
+      const current = ownsSignUpAction(actionLockRef.current, "naver", owner);
+      releaseSignUpAction(actionLockRef.current, "naver", owner);
+      if (current && mountedRef.current) setOauthSubmitting(false);
     }
-  }, [t]);
+  }, [confirmSentTo, confirmVerifying, loading, oauthSubmitting, submitting, t, userId]);
 
   const visibleProviders = useMemo(
     () => SIGN_UP_PROVIDERS.filter((p) => isProviderEnabled(p)),
     [],
   );
 
-  const canVerifyConfirmCode = confirmSentTo !== null && confirmCode.trim().length >= 6 && !confirmVerifying;
+  const canVerifyConfirmCode =
+    confirmSentTo !== null &&
+    /^\d{6}$/.test(confirmCode.trim()) &&
+    !loading &&
+    !userId &&
+    !confirmVerifying &&
+    !submitting &&
+    !oauthSubmitting;
 
   return {
     loading,
@@ -364,5 +537,6 @@ export function useSignUpForm(): UseSignUpForm {
     handleSubmit,
     handleOAuth,
     handleNaver,
+    canLeaveGate,
   };
 }
