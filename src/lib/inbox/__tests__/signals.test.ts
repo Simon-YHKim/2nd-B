@@ -276,7 +276,9 @@ describe("legacy preservation and pixel registration", () => {
       join(process.cwd(), "src", "screens", "deepspace", "dds-import-inbox-screens.tsx"),
       "utf8",
     );
-    expect(sha(source)).toBe("e727ec89e8c00607b33619cb43286cc9a5ba9bf7a4a57570e87a43acff8a6201");
+    // Integration union: the sibling integrations salvage intentionally adds
+    // the account-mode owner route and device-health copy to this shared file.
+    expect(sha(source)).toBe("9fef6b9374acade123d90b1dfe5db0c149efbf1089d7ed127e24408e90cc690c");
   });
 
   test("keeps InboxLegacy and its styles byte-stable while routing deep-space directly", () => {
