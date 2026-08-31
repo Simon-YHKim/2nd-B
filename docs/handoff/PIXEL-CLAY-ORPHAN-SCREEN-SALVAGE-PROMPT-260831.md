@@ -42,7 +42,7 @@ Ready 전환, base retarget, merge, `main` push는 사용자의 별도 승인 �
 | route | 현재 역할 | 살리는 방식 |
 |---|---|---|
 | `/jarvis` | 은퇴한 `/secondb` 별칭 | redirect 호환성 유지, 일반 메뉴 복원 금지 |
-| `/community/join/[token]` | 초대 딥링크 landing | 외부 진입 계약과 sample 검수 경로 유지 |
+| `/community/join/[token]` | 초대 딥링크 landing | 외부 진입 계약 유지. 유효한 token으로 열면 자동 가입 write가 시작되므로 개발 목록에서 실행 금지 |
 | `/peer/[token]` | 무계정 지인 응답 딥링크 | 외부 진입 계약과 sample 검수 경로 유지 |
 | `/oauth-callback` | OAuth 복귀 endpoint | 직접 탐색 메뉴가 아닌 callback 계약으로 유지 |
 | `/canon` | 개발용 캐논 확인 | Design Lab에서만 노출 |
@@ -51,6 +51,9 @@ Ready 전환, base retarget, merge, `main` push는 사용자의 별도 승인 �
 | `/deepspace-flowmap` | 개발용 흐름도 | Design Lab에서만 노출 |
 
 따라서 `orphan?: true` 하나로 모두 “죽은 화면”처럼 부르는 현재 모델을 역할 기반으로 바꾼다.
+여기서 `입구 없음`은 기존 boolean의 이름일 뿐 실제로 “어디에서도 링크되지 않음”을 뜻하지
+않는다. `/deepspace-hub`는 `/deepspace-flowmap` 안에서 연결되지만 production 사용자
+navigation에는 없다. 앞으로는 **production 진입 역할**을 분류 기준으로 삼는다.
 
 ### PR 분리 계약
 
@@ -99,7 +102,9 @@ type ScreenEntry =
    제품 명칭을 다시 만들지 않는다.
 3. `/community/join/[token]`, `/peer/[token]`, `/oauth-callback`은 production route를 유지하되
    정상 메뉴에 추가하지 않는다. 개발 목록에서는 `외부 링크`, `무계정`, `콜백` 역할과 sample
-   제약을 명확히 표시한다.
+   제약을 명확히 표시하되 **실행 버튼을 제공하지 않는다.** 특히 community join은 유효한
+   로그인·성인·token이면 mount 즉시 `ensureCommunityProfile()` → `joinByToken()`을 호출해
+   가입 write를 시도한다. read-only QA 화면처럼 열어서는 안 된다.
 4. 네 개발 route는 기존 `DevOnlyRoute`를 유지한다. `/dev-screens` 안에 PIXEL-CLAY
    `Design Lab` section을 만들고 `PixelSurface`, `PixelPressable`, `PixelGlyph`, `m3.*` token으로
    한곳에 모은다. production build나 일반 설정에는 노출하지 않는다.
@@ -130,7 +135,7 @@ type ScreenEntry =
 
 - `src/app` 99 route와 registry exact 1:1
 - 모든 route에 유효한 entry role 또는 명시적 기본값
-- deep-link 3개의 실제 path/sample/인증 계약과 production route 보존
+- deep-link 3개의 실제 path/sample/인증 계약과 production route 보존, 개발 목록 실행 버튼 0
 - `/jarvis`가 `/secondb`로만 redirect하고 render/write가 없음
 - design-lab 4개가 `DevOnlyRoute` 뒤에 있고 production에서 열리지 않음
 - role별 집계 정확성, auth delegated 5개 포함 로그인 필요 수 정확성
@@ -146,7 +151,9 @@ API 36 개발 빌드에서 설정 → 개발자 → 화면 전체 목록으로 �
 
 - 상단 역할별 count와 실제 목록을 대조한다.
 - Design Lab 4개를 열고 hardware Back으로 목록에 정확히 한 번 돌아오는지 확인한다.
-- deep-link sample은 보기만 하고 초대 수락, 응답 제출, OAuth 실행을 하지 않는다.
+- deep-link/callback 3개는 목록의 역할·path·주의문만 확인하고 그 목록에서 열지 않는다.
+  community invite는 화면 mount가 곧 자동 가입 시도이므로 “보기만”이 성립하지 않는다.
+  실제 딥링크 QA는 별도 폐기형 초대·계정과 서버 write 승인을 받은 세션에서만 수행한다.
 - `/jarvis`는 `/secondb`로 한 번만 넘고 back loop가 없는지만 본다.
 - API 33/35, 320dp, font scale 1.3~1.5, TalkBack에서 label/reflow/focus를 별도로 기록한다.
 - 화면 캡처와 logcat에 QA email, token, user/record id, body, citation, raw provider error를
