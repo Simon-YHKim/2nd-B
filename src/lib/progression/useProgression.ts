@@ -24,26 +24,169 @@ export interface Progression {
    */
   judge: boolean;
   loading: boolean;
+  /** Opt-in read verdict for surfaces that must not present a failed DB read
+   *  as the free tier. Optional keeps existing typed consumers compatible. */
+  error?: boolean;
+  /** Owner whose DB snapshot is currently published. Optional for backwards
+   *  compatibility; owner-sensitive screens can reject mismatched snapshots. */
+  ownerId?: string | null;
   refresh: () => Promise<void>;
+}
+
+export interface ProgressionSnapshot {
+  ownerId: string | null;
+  totalXp: number;
+  tier: SubscriptionTier;
+  judge: boolean;
+  loading: boolean;
+  error: boolean;
+}
+
+export interface ProgressionRequest {
+  ownerId: string | null;
+  token: number;
+}
+
+export interface OwnerActionRequest {
+  ownerId: string;
+  token: number;
+}
+
+/**
+ * Synchronous, owner-scoped double-submit guard for explicit user actions.
+ * Changing owner discards A's lock immediately, while A's eventual `release`
+ * cannot unlock or clear B's newer action.
+ */
+export function createOwnerActionGate() {
+  let sequence = 0;
+  let active: OwnerActionRequest | null = null;
+  return {
+    acquire(ownerId: string): OwnerActionRequest | null {
+      if (active?.ownerId === ownerId) return null;
+      active = { ownerId, token: ++sequence };
+      return active;
+    },
+    discardOtherOwner(ownerId: string | null): void {
+      if (active?.ownerId !== ownerId) active = null;
+    },
+    isLocked(ownerId: string | null): boolean {
+      return active?.ownerId === ownerId;
+    },
+    release(request: OwnerActionRequest): boolean {
+      if (active?.ownerId !== request.ownerId || active.token !== request.token) return false;
+      active = null;
+      return true;
+    },
+  };
+}
+
+export type AsyncReadSettlement<T> =
+  | { status: "ready"; value: T }
+  | { status: "error" }
+  | { status: "timeout" };
+
+/**
+ * Settle a UI read without leaking a late rejection. Both fulfillment and
+ * rejection handlers are installed before the timer starts winning races, so
+ * a promise that rejects after timeout is still consumed rather than becoming
+ * an unhandled rejection.
+ */
+export function settleAsyncRead<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+): Promise<AsyncReadSettlement<T>> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (result: AsyncReadSettlement<T>) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(result);
+    };
+    const timer = setTimeout(() => finish({ status: "timeout" }), timeoutMs);
+    void promise.then(
+      (value) => finish({ status: "ready", value }),
+      () => finish({ status: "error" }),
+    );
+  });
+}
+
+/** Purchased/promo credits never count toward this ad-earned monthly cap. */
+export function rewardCapAllowsWatch(rewardEarned: number, monthlyCap: number): boolean {
+  return (
+    Number.isFinite(rewardEarned) &&
+    Number.isFinite(monthlyCap) &&
+    rewardEarned >= 0 &&
+    monthlyCap > 0 &&
+    rewardEarned < monthlyCap
+  );
+}
+
+/**
+ * Request token plus owner identity. A later refresh or owner transition
+ * invalidates every older response, even when the older promise resolves last.
+ */
+export function createProgressionOwnerGate() {
+  const latest = createLatestWins();
+  return {
+    begin(ownerId: string | null): ProgressionRequest {
+      return { ownerId, token: latest.begin() };
+    },
+    isStale(request: ProgressionRequest, activeOwnerId: string | null): boolean {
+      return request.ownerId !== activeOwnerId || latest.isStale(request.token);
+    },
+  };
+}
+
+function emptySnapshot(ownerId: string | null): ProgressionSnapshot {
+  return {
+    ownerId,
+    totalXp: 0,
+    tier: "free",
+    judge: false,
+    loading: ownerId !== null,
+    error: false,
+  };
+}
+
+/**
+ * Render projection used before the owner-change effect gets a chance to run.
+ * It prevents even one paint of owner A's tier after AuthContext publishes B
+ * (or signed-out), while the new DB read is still being scheduled.
+ */
+export function progressionSnapshotForOwner(
+  snapshot: ProgressionSnapshot,
+  activeOwnerId: string | null,
+): ProgressionSnapshot {
+  return snapshot.ownerId === activeOwnerId ? snapshot : emptySnapshot(activeOwnerId);
 }
 
 export function useProgression(): Progression {
   const { userId } = useAuth();
-  const [totalXp, setTotalXp] = useState(0);
-  const [tier, setTier] = useState<SubscriptionTier>("free");
-  const [judge, setJudge] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [snapshot, setSnapshot] = useState<ProgressionSnapshot>({
+    ...emptySnapshot(null),
+    loading: true,
+  });
   // refresh() is exposed so screens re-pull after a stage completes; two calls (or a
   // userId A->B switch) can overlap, and the slower/older response must not overwrite
   // the newer one, regressing XP/tier. Latest-wins guard drops superseded results.
-  const guardRef = useRef(createLatestWins());
+  const guardRef = useRef(createProgressionOwnerGate());
+  // Render-time assignment is intentional: an auth owner change invalidates an
+  // older request before the next effect has a chance to begin B's request.
+  const ownerRef = useRef(userId);
+  ownerRef.current = userId;
 
   const refresh = useCallback(async () => {
+    const request = guardRef.current.begin(userId);
+    setSnapshot((previous) =>
+      previous.ownerId === userId
+        ? { ...previous, loading: userId !== null, error: false }
+        : emptySnapshot(userId),
+    );
     if (!userId) {
-      setLoading(false);
+      setSnapshot(emptySnapshot(null));
       return;
     }
-    const token = guardRef.current.begin();
     try {
       const supabase = getSupabaseClient();
       const { data, error } = await supabase
@@ -52,8 +195,7 @@ export function useProgression(): Progression {
         .eq("id", userId)
         .maybeSingle();
       if (error) throw error;
-      if (guardRef.current.isStale(token)) return;
-      setTotalXp(data?.total_xp ?? 0);
+      if (guardRef.current.isStale(request, ownerRef.current)) return;
       // F10: collapse an EXPIRED subscription to free client-side, mirroring the
       // server's effective_subscription_tier (0088). The cancel webhook can lag, so
       // the raw subscription_tier column may still read 'cortex'/'brain' after
@@ -64,12 +206,18 @@ export function useProgression(): Progression {
       const rawTier = (data?.subscription_tier as SubscriptionTier) ?? "free";
       const expiresAt = data?.subscription_expires_at as string | null | undefined;
       const lapsed = expiresAt != null && Date.parse(expiresAt) < Date.now();
-      setTier(lapsed ? "free" : rawTier);
-      setJudge(data?.judge_mode === true);
-    } catch (e) {
-      if (typeof console !== "undefined") console.warn("[progression] load failed", e);
-    } finally {
-      if (!guardRef.current.isStale(token)) setLoading(false);
+      setSnapshot({
+        ownerId: userId,
+        totalXp: data?.total_xp ?? 0,
+        tier: lapsed ? "free" : rawTier,
+        judge: data?.judge_mode === true,
+        loading: false,
+        error: false,
+      });
+    } catch {
+      if (guardRef.current.isStale(request, ownerRef.current)) return;
+      if (typeof console !== "undefined") console.warn("[progression] load failed");
+      setSnapshot({ ...emptySnapshot(userId), loading: false, error: true });
     }
   }, [userId]);
 
@@ -88,14 +236,17 @@ export function useProgression(): Progression {
   // precedence over the env FORCE_TIER, so one deployment yields per-tier links.
   const urlOverride = getUrlTierOverride();
   const override = urlOverride !== "off" ? urlOverride : forcedTier;
+  const owned = progressionSnapshotForOwner(snapshot, userId);
 
   return {
-    totalXp,
-    level: levelForXp(totalXp),
-    progress: levelProgress(totalXp),
-    tier: resolveTier(override, tier),
-    judge,
-    loading,
+    totalXp: owned.totalXp,
+    level: levelForXp(owned.totalXp),
+    progress: levelProgress(owned.totalXp),
+    tier: resolveTier(override, owned.tier),
+    judge: owned.judge,
+    loading: owned.loading,
+    error: owned.error,
+    ownerId: owned.ownerId,
     refresh,
   };
 }
