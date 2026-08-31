@@ -795,12 +795,23 @@ export function DeepSpacePrivacyDesignScreen() {
       // consent lands — this is the only caller of the records backfill.
       // Detached for the same reason create.ts detaches its embed call: a batch
       // must never keep the toggle spinning, and a failure must never undo the
-      // consent that was saved. 0072: a minor cannot reach this line (guards
-      // above return first) and the lib fails closed on top of that.
+      // consent that was saved. stillConsented re-reads the SERVER pref every
+      // round: an OFF tapped mid-batch stops it (and the run self-clears any
+      // vectors stored after the user's own clear), and if the 0072 trigger
+      // silently clamped the just-saved pref back to false (minor_self), the
+      // first probe reads that clamped truth and nothing is ever fetched.
       void backfillAllRecordEmbeddings(targetUserId, {
         locale: ko ? "ko" : "en",
         minor: minorRef.current,
         consented: true,
+        stillConsented: async () => {
+          try {
+            const live = await fetchPrivacyPrefs(targetUserId);
+            return live.records_embedding === true;
+          } catch {
+            return false; // fail closed: no probe, no batch
+          }
+        },
       }).catch(() => {
         // Best-effort: unembedded rows keep embedding NULL; toggling off → on
         // runs the backfill again, and the write-time path still indexes every
@@ -1008,7 +1019,7 @@ export function DeepSpacePrivacyDesignScreen() {
         ) : embedOn ? (
           <>
             <Text variant="body" style={styles.lead}>
-              {ko ? "켜져 있어요. 담아 둔 기록과 새로 담는 기록을 의미로 색인해 비슷한 기록을 이어 보여줘요." : "On. Your existing and new records are indexed by meaning to surface similar ones."}
+              {ko ? "켜져 있어요. 기록을 의미로 색인해 비슷한 기록을 이어 보여줘요." : "On. Records are indexed by meaning to surface similar ones."}
             </Text>
             <Pressable style={styles.secondary} onPress={() => void disableEmbedding()} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "의미 연결 끄기" : "Turn off semantic connections"}>
               <Text variant="body" style={styles.secondaryText}>{ko ? "끄고 벡터 삭제" : "Turn off and delete vectors"}</Text>
