@@ -20,8 +20,8 @@ import {
 const ROOT = join(__dirname, "..", "..", "..", "..");
 const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8").replace(/\r\n/g, "\n");
 
-/** 라우트 -> 화면 파일. */
-const screenFor = (route: string) => `src/app${route}.tsx`;
+/** URL 라우트 -> Expo 화면 파일. query/hash는 화면 파일명이 아니다. */
+const screenFor = (route: string) => `src/app${route.split(/[?#]/, 1)[0]}.tsx`;
 
 describe("레지스트리가 실재하는 화면을 가리킨다", () => {
   it("검사가 놀고 있지 않다", () => {
@@ -35,6 +35,24 @@ describe("레지스트리가 실재하는 화면을 가리킨다", () => {
   it("id 와 라우트가 유일하다", () => {
     expect(new Set(ASSESSMENTS.map((a) => a.id)).size).toBe(ASSESSMENTS.length);
     expect(new Set(ASSESSMENTS.map((a) => a.route)).size).toBe(ASSESSMENTS.length);
+  });
+
+  it("Life Audit은 deep-space에서도 고정 스크리너를 명시적으로 연다", () => {
+    const audit = getAssessment("audit");
+    expect(audit.route).toBe("/audit?screener=1");
+    expect(screenFor(audit.route)).toBe("src/app/audit.tsx");
+
+    const screen = read(screenFor(audit.route));
+    expect(screen).toContain("useLocalSearchParams");
+    expect(screen).toMatch(/screener\s*===\s*["']1["']/);
+  });
+
+  it("직접 만든 Life Audit 진입점도 PastMe 기본 경로로 새지 않는다", () => {
+    const explicitRoute = 'route: "/audit?screener=1"';
+    const persona = read("src/app/persona.tsx");
+    expect(persona).not.toContain('route: "/audit"');
+    expect(persona.split(explicitRoute).length - 1).toBeGreaterThanOrEqual(5);
+    expect(read("src/app/capture.tsx")).toContain('router.push("/audit?screener=1")');
   });
 });
 

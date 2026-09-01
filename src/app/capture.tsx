@@ -2969,7 +2969,7 @@ ${transcript}`;
                 <Button
                   label={t("journal.locked.start")}
                   variant="secondary"
-                  onPress={() => router.push("/audit")}
+                  onPress={() => router.push("/audit?screener=1")}
                 />
               </View>
             </View>

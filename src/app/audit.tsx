@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, BackHandler } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect, router, useLocalSearchParams } from "expo-router";
 
 import { PremiumAppShell, PremiumLoadingState, PremiumToast, PremiumModal } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
@@ -485,6 +485,11 @@ function AuditDeepSpace() {
 }
 
 export default function Audit() {
+  const { screener } = useLocalSearchParams<{ screener?: string }>();
+  // `/audit` is currently the deep-space PastMe compatibility entry. The
+  // assessment registry uses this explicit query so the fixed 25-question
+  // Life Audit remains reachable regardless of the active visual skin.
+  if (screener === "1") return <AuditLegacy />;
   if (isDeepSpaceUI()) return <AuditDeepSpace />;
   return <AuditLegacy />;
 }

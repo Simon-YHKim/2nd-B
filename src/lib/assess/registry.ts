@@ -154,7 +154,7 @@ export const ASSESSMENTS: readonly Assessment[] = [
   {
     id: "audit",
     labelKey: "auditCheck",
-    route: "/audit",
+    route: "/audit?screener=1",
     items: 25,
     minutes: 8,
     provenance: "screener", // 5개 프레임워크 18축을 얕게 훑는다.
