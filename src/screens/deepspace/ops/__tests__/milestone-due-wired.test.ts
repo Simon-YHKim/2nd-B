@@ -46,3 +46,14 @@ describe("milestone due date is wired end to end", () => {
     expect(src).toContain("<DateField");
   });
 });
+
+describe("milestone domain labels follow the active locale", () => {
+  test("the screen reads domain labels from the ops namespace", () => {
+    expect(src).toMatch(/const\s+\{\s*t\s*\}\s*=\s*useTranslation\("ops"\)/);
+    expect(src).toContain("label: t(`domains.${d}`)");
+  });
+
+  test("the routed picker does not fall back to the English-only label map", () => {
+    expect(src).not.toMatch(/label:\s*EN_DOMAIN_LABEL\[d\]/);
+  });
+});
