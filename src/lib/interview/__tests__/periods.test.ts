@@ -6,6 +6,7 @@
 // 하므로 칸은 고정이 됐다. 대신 살지 않은 별은 잠근다.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import * as ts from "typescript";
 
 import {
   livedPeriods,
@@ -16,10 +17,37 @@ import {
 import { LIFE_PERIODS, PERIOD_LABEL, seedQuestion, emptyCoverage } from "../probe";
 import { SEVEN_STARS, hasInterview, isUnlived } from "../../persona/seven-stars";
 
-const INTERVIEW_SCREEN = readFileSync(
-  join(__dirname, "..", "..", "..", "app", "interview.tsx"),
-  "utf8",
-).replace(/\r\n/g, "\n");
+const ROOT = join(__dirname, "..", "..", "..", "..");
+const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8").replace(/\r\n/g, "\n");
+const INTERVIEW_SCREEN = read("src/app/interview.tsx");
+const DOMAIN_STAR_SCREEN = read("src/app/star/[domain].tsx");
+const DOMAIN_STAR_LENS = read("src/components/deep-space/DomainStarLens.tsx");
+const DEEP_SPACE_VIEWS = read("src/components/deep-space/DeepSpaceViews.tsx");
+
+type GrowthRecord = { audit_period: string | null; created_at: string };
+type GrowthChapterKeyFn = (record: GrowthRecord) => string;
+
+// Exercise the actual shipped grouping function without importing the RN screen
+// and its native Expo dependencies into this pure Jest suite.
+function loadGrowthChapterKey(): GrowthChapterKeyFn {
+  const start = DOMAIN_STAR_LENS.indexOf("type GrowthChapterKey");
+  const end = DOMAIN_STAR_LENS.indexOf("\nfunction localeFromLanguage", start);
+  if (start < 0 || end < 0) throw new Error("growth chapter source not found");
+
+  const snippet =
+    DOMAIN_STAR_LENS.slice(start, end) + "\nexports.growthChapterKey = growthChapterKey;\n";
+  const js = ts.transpileModule(snippet, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText;
+  const exportsObj: { growthChapterKey?: GrowthChapterKeyFn } = {};
+  new Function("exports", js)(exportsObj);
+  if (typeof exportsObj.growthChapterKey !== "function") {
+    throw new Error("growthChapterKey did not evaluate to a function");
+  }
+  return exportsObj.growthChapterKey;
+}
+
+const growthChapterKey = loadGrowthChapterKey();
 
 describe("별 일곱이 정본이다", () => {
   it("일곱이다", () => {
@@ -212,12 +240,41 @@ describe("인터뷰 화면이 엄격한 라우트 계약을 지킨다", () => {
     expect(INTERVIEW_SCREEN).toContain('resolution.kind === "locked"');
     expect(INTERVIEW_SCREEN).toContain('homeT("ds.star.lockedBody")');
     expect(INTERVIEW_SCREEN).toContain(
-      "<InterviewSession key={resolution.period} period={resolution.period} />",
+      'key={`${resolution.period}:${growthOrigin ? "domain-growth" : "default"}`}',
     );
+    expect(INTERVIEW_SCREEN).toContain("period={resolution.period}");
+    expect(INTERVIEW_SCREEN).toContain("growthOrigin={growthOrigin}");
   });
 
   it("담은 인터뷰는 해당 별 요약으로 돌아간다", () => {
     expect(INTERVIEW_SCREEN).toContain('router.replace(`/me/${period}`)');
     expect(INTERVIEW_SCREEN).not.toContain('router.replace("/big-five")');
+  });
+
+  it("성장별 회상 출처를 선택·저장·복귀까지 보존한다", () => {
+    expect(DOMAIN_STAR_SCREEN).toContain('route: "/audit?origin=domain-growth"');
+    expect(DOMAIN_STAR_SCREEN).toContain('.select("id, topic, body, created_at, audit_period")');
+    expect(DOMAIN_STAR_LENS).toContain('router.push("/audit?origin=domain-growth")');
+    expect(DEEP_SPACE_VIEWS).toContain("useLocalSearchParams<{ origin?: string | string[] }>()");
+    expect(DEEP_SPACE_VIEWS).toContain('{ period: star.period ?? "now", origin: "domain-growth" }');
+    expect(INTERVIEW_SCREEN).toContain('domainIntent: growthOrigin ? "growth" : undefined');
+    expect(INTERVIEW_SCREEN).toContain('router.replace("/star/growth")');
+    expect(INTERVIEW_SCREEN).not.toContain('"domain:growth"');
+  });
+
+  it("성장 렌즈는 audit_period를 먼저 쓰고 작성 연도는 fallback으로만 쓴다", () => {
+    expect(DOMAIN_STAR_LENS).toContain("audit_period: string | null;");
+
+    const record = (audit_period: string | null, created_at: string): GrowthRecord => ({
+      audit_period,
+      created_at,
+    });
+
+    expect(growthChapterKey(record("school", "2026-09-01T00:00:00Z"))).toBe("period:school");
+    expect(growthChapterKey(record("20s", "2026-09-01T00:00:00Z"))).toBe("period:twenties");
+    expect(growthChapterKey(record("current", "1998-01-01T00:00:00Z"))).toBe("period:now");
+    expect(growthChapterKey(record(null, "1998-01-01T00:00:00Z"))).toBe("decade:1990");
+    expect(growthChapterKey(record("unknown", "1981-01-01T00:00:00Z"))).toBe("decade:1980");
+    expect(growthChapterKey(record(null, "not-a-date"))).toBe("undated");
   });
 });
