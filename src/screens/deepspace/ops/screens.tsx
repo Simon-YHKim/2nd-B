@@ -879,7 +879,7 @@ export function LedgerScreen() {
 
 // --- (5) Side project · github -----------------------------------------
 
-export function SideProjectScreen() {
+export function SideProjectScreen({ userId }: { userId: string }) {
   const c = useOpsCopy();
   const [username, setUsername] = useState("");
   const [pushes, setPushes] = useState<PushActivity[] | null>(null);
@@ -895,10 +895,10 @@ export function SideProjectScreen() {
     }
   };
 
-  // B: remember the GitHub connection (device-local) and reconnect on open.
+  // Owner-scoped persistence prevents one account from restoring another's handle.
   useEffect(() => {
     let alive = true;
-    void getGithubUsername().then((saved) => {
+    void getGithubUsername(userId).then((saved) => {
       if (alive && saved) {
         setUsername(saved);
         void connect(saved);
@@ -907,11 +907,10 @@ export function SideProjectScreen() {
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [userId]);
 
   const onConnect = async () => {
-    await setGithubUsername(username);
+    await setGithubUsername(userId, username);
     await connect(username);
   };
   const summary = summarizeGithubActivity(pushes ?? []);
