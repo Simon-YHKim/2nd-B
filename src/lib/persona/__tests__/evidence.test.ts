@@ -32,7 +32,8 @@ describe("recordKindToType", () => {
 describe("evidenceRoute", () => {
   test("each type maps to its real (non-retired) destination", () => {
     expect(evidenceRoute("journal")).toBe("/capture");
-    expect(evidenceRoute("audit")).toBe("/audit");
+    expect(evidenceRoute("audit")).toBe("/audit?screener=1");
+    expect(evidenceRoute("audit")).not.toBe("/audit");
     expect(evidenceRoute("interview")).toBe("/interview");
     expect(evidenceRoute("wiki")).toBe("/wiki");
     expect(evidenceRoute("imagine")).toBe("/secondb?mode=divergent");
