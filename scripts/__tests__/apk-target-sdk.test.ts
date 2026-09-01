@@ -13,7 +13,14 @@
 // which we depend on and do not control, and the only place its value exists is
 // the built binary. This checks the binary.
 
-import { verdictFor, billingVerdictFor, REQUIRED_TARGET_SDK } from "../check-apk-target-sdk";
+import {
+  verdictFor,
+  billingVerdictFor,
+  forbiddenPermissionVerdictFor,
+  manifestFromText,
+  FORBIDDEN_PERMISSIONS,
+  REQUIRED_TARGET_SDK,
+} from "../check-apk-target-sdk";
 
 const manifest = (over: Record<string, unknown> = {}) => ({
   minSdkVersion: 26,
@@ -116,5 +123,91 @@ billing_client=${v}
   test("a key that merely ends in billing_client is not the key", () => {
     // `x_billing_client=1.0.0` must not satisfy the check.
     expect(billingVerdictFor("x_billing_client=1.0.0").ok).toBe(false);
+  });
+});
+
+// Play flagged FOREGROUND_SERVICE_MEDIA_PLAYBACK on vc 38 (2026-09-01). It is
+// not ours: expo-audio pulls androidx.media3:media3-session, and that AAR
+// declares it, so it exists only in the MERGED manifest. app.json blocks it —
+// and this proves the block landed in the binary rather than trusting config.
+describe("forbidden permissions in the built artifact", () => {
+  const forbidden = FORBIDDEN_PERMISSIONS[0].name;
+
+  test("the entry we care about is the media-playback foreground service", () => {
+    expect(forbidden).toBe("android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK");
+  });
+
+  test("a clean permission list passes", () => {
+    const v = forbiddenPermissionVerdictFor({
+      permissions: ["android.permission.CAMERA", "android.permission.RECORD_AUDIO"],
+    });
+    expect(v.ok).toBe(true);
+    expect(v.unconfirmed).toBeUndefined();
+  });
+
+  test("the forbidden permission fails, and the reason names it", () => {
+    const v = forbiddenPermissionVerdictFor({
+      permissions: ["android.permission.RECORD_AUDIO", forbidden],
+    });
+    expect(v.ok).toBe(false);
+    expect(v.reason).toContain(forbidden);
+    // The reason has to carry WHY, or the next person just re-derives it.
+    expect(v.reason).toMatch(/expo-audio|media3/);
+  });
+
+  test("an unreadable list passes but says it proved nothing", () => {
+    // Empty is ambiguous — "declares none" vs "this tool prints none" — so it
+    // must not fail the release, and must not read as a clean bill either.
+    for (const manifest of [{ permissions: [] }, {}, { permissions: null }]) {
+      const v = forbiddenPermissionVerdictFor(manifest as never);
+      expect(v.ok).toBe(true);
+      expect(v.unconfirmed).toBe(true);
+      expect(v.reason).toMatch(/proved nothing/);
+    }
+  });
+});
+
+describe("permission extraction from manifest-tool text", () => {
+  test("aapt badging lines", () => {
+    const text = [
+      "package: name='com.simonk.secondbrain' versionCode='38'",
+      "uses-permission: name='android.permission.CAMERA'",
+      "uses-permission: name='android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK'",
+    ].join("\n");
+    expect(manifestFromText(text).permissions).toEqual([
+      "android.permission.CAMERA",
+      "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+    ]);
+  });
+
+  test("apkanalyzer/bundletool XML", () => {
+    const xml = [
+      '<manifest xmlns:android="http://schemas.android.com/apk/res/android">',
+      '  <uses-permission android:name="android.permission.RECORD_AUDIO"/>',
+      '  <uses-permission android:name="android.permission.CAMERA" />',
+      "</manifest>",
+    ].join("\n");
+    expect(manifestFromText(xml).permissions).toEqual([
+      "android.permission.CAMERA",
+      "android.permission.RECORD_AUDIO",
+    ]);
+  });
+
+  test("a manifest with no permissions yields an empty list, not undefined", () => {
+    // Which then routes to the "proved nothing" branch above rather than
+    // silently skipping the check.
+    expect(manifestFromText("package: name='x' versionCode='1'").permissions).toEqual([]);
+  });
+
+  test("duplicates collapse and order is stable", () => {
+    const text = [
+      "uses-permission: name='android.permission.CAMERA'",
+      '<uses-permission android:name="android.permission.CAMERA"/>',
+      "uses-permission: name='android.permission.RECORD_AUDIO'",
+    ].join("\n");
+    expect(manifestFromText(text).permissions).toEqual([
+      "android.permission.CAMERA",
+      "android.permission.RECORD_AUDIO",
+    ]);
   });
 });

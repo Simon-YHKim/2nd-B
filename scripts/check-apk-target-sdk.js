@@ -49,6 +49,33 @@ const ATTR = {
   0x0101021c: "versionName",
 };
 
+// android:name — the attribute that carries a <uses-permission> value. Not in
+// ATTR because it is not a manifest-wide scalar: it means something different
+// on every element, so it is read positionally where the element is
+// uses-permission and nowhere else.
+const ANDROID_NAME_ATTR = 0x01010003;
+
+// Permissions that must never reach a published artifact, with the reason a
+// reader needs to judge whether the entry is still right.
+//
+// FOREGROUND_SERVICE_MEDIA_PLAYBACK arrives transitively: expo-audio depends on
+// androidx.media3:media3-session (node_modules/expo-audio/android/build.gradle),
+// and that AAR declares the permission, so it appears only in the MERGED
+// manifest — no JS package manifest in the tree contains the string. Play
+// flagged it on vc 38 (2026-09-01) and demands a "media playback" declaration.
+// This app never plays media: expo-audio is used for recording only
+// (useAudioRecorder in call-reflection/capture/secondb; zero uses of
+// useAudioPlayer/createAudioPlayer, no MediaSession, no background audio), so
+// declaring media playback would be a false statement to Play. app.json blocks
+// the permission instead; this check proves the block actually worked in the
+// binary rather than trusting the config.
+const FORBIDDEN_PERMISSIONS = [
+  {
+    name: "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+    why: "pulled in transitively by androidx.media3 via expo-audio; this app records audio but never plays media, so Play's media-playback declaration would be false. Blocked in app.json (android.blockedPermissions).",
+  },
+];
+
 function parseManifest(buf) {
   const u16 = (o) => buf.readUInt16LE(o);
   const u32 = (o) => buf.readUInt32LE(o);
@@ -94,16 +121,26 @@ function parseManifest(buf) {
   // Pass two: the elements. Attribute offsets are relative to the node header,
   // not the chunk — attributeStart lives at +24 and counts from +16.
   const found = {};
+  const permissions = new Set();
   for (let pos = poolAt + poolSize; pos < buf.length - 8; ) {
     const type = u16(pos);
     const size = u32(pos + 4);
     if (size <= 0) break;
     if (type === 0x0102) {
+      // START_ELEMENT: 16-byte chunk header, then lineNumber + comment (8),
+      // then ns and name string indices. The element name decides whether the
+      // android:name attribute below is a permission or something unrelated.
+      const elementName = str(u32(pos + 20));
       const attrCount = u16(pos + 28);
       const attrStart = pos + 16 + u16(pos + 24);
       for (let i = 0; i < attrCount; i++) {
         const a = attrStart + i * 20;
-        const key = ATTR[resIds.get(u32(a + 4))];
+        const id = resIds.get(u32(a + 4));
+        if (elementName === "uses-permission" && id === ANDROID_NAME_ATTR) {
+          const value = str(u32(a + 8));
+          if (value) permissions.add(value);
+        }
+        const key = ATTR[id];
         if (!key) continue;
         const raw = str(u32(a + 8));
         found[key] = raw === null ? u32(a + 16) : raw;
@@ -111,6 +148,7 @@ function parseManifest(buf) {
     }
     pos += size;
   }
+  found.permissions = [...permissions].sort();
   return found;
 }
 
@@ -242,6 +280,53 @@ function manifestFromText(text) {
       /android:name=["']com\.google\.android\.play\.billingclient\.version["'][^>]*android:value=["']([0-9]+\.[0-9]+\.[0-9]+)["']/,
       /android:value=["']([0-9]+\.[0-9]+\.[0-9]+)["'][^>]*android:name=["']com\.google\.android\.play\.billingclient\.version["']/,
     ),
+    // Both shapes a manifest tool emits: aapt/aapt2 badging lines and the XML
+    // that apkanalyzer/bundletool print.
+    permissions: [
+      ...new Set([
+        ...[...source.matchAll(/uses-permission[^\n]*?name=['"]([A-Za-z0-9_.]+)['"]/g)].map(
+          (m) => m[1],
+        ),
+        ...[...source.matchAll(/<uses-permission[^>]*android:name=["']([^"']+)["']/g)].map(
+          (m) => m[1],
+        ),
+      ]),
+    ].sort(),
+  };
+}
+
+/**
+ * Refuse an artifact that carries a permission we have decided never to ship.
+ *
+ * Deliberately NOT symmetric with verdictFor's "unreadable is a failure": an
+ * empty list can mean either "the artifact declares none" or "this manifest
+ * tool does not print permissions", and those are indistinguishable from here.
+ * Failing the release on the second would break publishing over a tooling
+ * detail we have not observed, so an empty list passes and says out loud that
+ * it proved nothing. Tighten once a real AAB's output has been seen.
+ */
+function forbiddenPermissionVerdictFor(manifest) {
+  const list = Array.isArray(manifest?.permissions) ? manifest.permissions : [];
+  if (list.length === 0) {
+    return {
+      ok: true,
+      unconfirmed: true,
+      reason:
+        "no permission list came out of this manifest tool, so the forbidden-permission check proved nothing (not a pass on the permissions themselves)",
+    };
+  }
+  const hits = FORBIDDEN_PERMISSIONS.filter((p) => list.includes(p.name));
+  if (hits.length > 0) {
+    return {
+      ok: false,
+      reason: hits
+        .map((p) => `${p.name} is present in the built manifest — ${p.why}`)
+        .join(" · "),
+    };
+  }
+  return {
+    ok: true,
+    reason: `none of the ${FORBIDDEN_PERMISSIONS.length} forbidden permission(s) present (read ${list.length} from the artifact)`,
   };
 }
 
@@ -462,6 +547,29 @@ function runSelfTest() {
   assert.equal(billingVerdictFor("billing_client=8.3.0", { required: true }).ok, true);
   assert.equal(billingVerdictFor(null, { required: true }).ok, false);
 
+  // Forbidden permissions: present fails, absent passes, unreadable passes but
+  // is flagged as having proved nothing.
+  const forbidden = FORBIDDEN_PERMISSIONS[0].name;
+  assert.equal(
+    forbiddenPermissionVerdictFor({ permissions: ["android.permission.CAMERA"] }).ok,
+    true,
+  );
+  assert.equal(
+    forbiddenPermissionVerdictFor({ permissions: ["android.permission.CAMERA", forbidden] }).ok,
+    false,
+  );
+  assert.equal(forbiddenPermissionVerdictFor({ permissions: [] }).unconfirmed, true);
+  assert.equal(forbiddenPermissionVerdictFor({}).unconfirmed, true);
+  // Both manifest-tool output shapes must yield the permission list.
+  assert.deepEqual(
+    manifestFromText("uses-permission: name='android.permission.CAMERA'").permissions,
+    ["android.permission.CAMERA"],
+  );
+  assert.deepEqual(
+    manifestFromText('<uses-permission android:name="android.permission.CAMERA"/>').permissions,
+    ["android.permission.CAMERA"],
+  );
+
   const parsed =
     manifestFromText(`package: name='com.example.app' versionCode='42' versionName='1.2.3'
 sdkVersion:'26'
@@ -568,6 +676,8 @@ module.exports = {
   verdictFor,
   billingVerdictFor,
   artifactMetadataVerdictFor,
+  forbiddenPermissionVerdictFor,
+  FORBIDDEN_PERMISSIONS,
   manifestFromText,
   parseAabManifest,
   artifactStructureFor,
@@ -645,6 +755,7 @@ if (require.main === module) {
     const v = verdictFor(manifest);
     const m = artifactMetadataVerdictFor(manifest);
     const b = billingVerdictFor(billingProps, { required: true });
+    const fp = forbiddenPermissionVerdictFor(manifest);
     const metadata = {
       type,
       minSdkVersion: Number(manifest.minSdkVersion),
@@ -680,6 +791,16 @@ if (require.main === module) {
       failed = true;
     } else {
       if (!json) console.log(`OK: ${b.reason}`);
+    }
+    if (!fp.ok) {
+      console.error(`::error title=Forbidden Android permission::${fp.reason}`);
+      failed = true;
+    } else if (fp.unconfirmed) {
+      // Visible on purpose: a silent pass here would read as "checked and
+      // clean" when nothing was checked at all.
+      console.error(`::warning title=Forbidden Android permission::${fp.reason}`);
+    } else {
+      if (!json) console.log(`OK: ${fp.reason}`);
     }
     // Both are reported before exiting. Bailing on the first would hide the
     // second finding until someone fixed the first and ran again.
