@@ -326,6 +326,22 @@ describe("개발자 화면 목록", () => {
     expect(new Set(listed.map((screen) => screen.file)).size).toBe(counts.total);
   });
 
+  it("개인정보 처리 기록은 전용 route와 읽기·프로필 계약을 가진다", () => {
+    const screen = devScreens().find((entry) => entry.file === "processing-log");
+    expect(screen).toEqual(expect.objectContaining({ href: "/processing-log", auth: true }));
+
+    const routeSource = readFileSync(join(APP, "processing-log.tsx"), "utf8");
+    const routeBody = defaultRouteFunctionSource(routeSource, "processing-log.tsx");
+    expect(routeBody).toContain('<Redirect href="/sign-in" />');
+    expect(routeBody).toContain('<Redirect href="/complete-profile" />');
+    expect(routeBody).toContain("profileProbeFailed");
+    expect(routeBody).toContain("hasProfile !== true");
+    expect(routeBody).toContain("<FlatList");
+    expect(routeBody).toContain("accessibilityLabel={title}");
+    expect(routeBody).toContain("removeClippedSubviews={false}");
+    expect(routeBody).not.toContain("<ScrollView");
+  });
+
   it("외부 진입 3개의 sample·인증 계약과 역할을 고정한다", () => {
     const byFile = Object.fromEntries(devScreens().map((screen) => [screen.file, screen]));
     expect({
