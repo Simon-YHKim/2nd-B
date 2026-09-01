@@ -20,7 +20,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { FORBIDDEN_PERMISSIONS } = require("../../../../scripts/check-apk-target-sdk") as {
   FORBIDDEN_PERMISSIONS: { name: string; why: string }[];
 };

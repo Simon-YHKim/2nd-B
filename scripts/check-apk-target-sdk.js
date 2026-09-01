@@ -26,6 +26,10 @@
 // build did.
 const REQUIRED_TARGET_SDK = 36;
 const ENFORCED_FROM = "2026-08-31";
+// fast-xml-parser 5.7.0's CJS declaration has an upstream `devlare` typo.
+// `module.require` keeps this plain Node release script on the working runtime
+// entry without making this repo's older TypeScript parser ingest fxp.d.cts.
+const { XMLValidator } = module.require("fast-xml-parser");
 
 // Play's second notice on the same app was the Billing Library floor. The APK
 // records the resolved version in billing.properties, so it is readable from
@@ -54,6 +58,30 @@ const ATTR = {
 // on every element, so it is read positionally where the element is
 // uses-permission and nowhere else.
 const ANDROID_NAME_ATTR = 0x01010003;
+const ANDROID_FOREGROUND_SERVICE_TYPE_ATTR = 0x01010599;
+const MEDIA_PLAYBACK_SERVICE_TYPE = 0x02;
+const FOREGROUND_SERVICE_TYPE_VALUES = new Map([
+  ["dataSync", 0x01],
+  ["mediaPlayback", 0x02],
+  ["phoneCall", 0x04],
+  ["location", 0x08],
+  ["connectedDevice", 0x10],
+  ["mediaProjection", 0x20],
+  ["camera", 0x40],
+  ["microphone", 0x80],
+  ["health", 0x100],
+  ["remoteMessaging", 0x200],
+  ["systemExempted", 0x400],
+  ["shortService", 0x800],
+  ["fileManagement", 0x1000],
+  ["mediaProcessing", 0x2000],
+  ["specialUse", 0x40000000],
+]);
+
+// This app always records audio. Seeing RECORD_AUDIO in the built manifest is
+// therefore a stable canary that the permission extractor read the real list,
+// rather than returning an empty or partial result that only looks clean.
+const REQUIRED_PERMISSION_EVIDENCE = ["android.permission.RECORD_AUDIO"];
 
 // Permissions that must never reach a published artifact, with the reason a
 // reader needs to judge whether the entry is still right.
@@ -83,66 +111,263 @@ const FORBIDDEN_PERMISSIONS = [
   },
 ];
 
+function mediaPlaybackFlagFor(value) {
+  if (Number.isInteger(value) && value >= 0 && value <= 0xffffffff) {
+    return {
+      confirmed: true,
+      present: (value & MEDIA_PLAYBACK_SERVICE_TYPE) !== 0,
+      mask: value,
+    };
+  }
+
+  const raw = value === null || value === undefined ? "" : String(value).trim();
+  if (!raw) return { confirmed: false, present: false };
+
+  let numeric;
+  if (/^0x[0-9a-f]+$/i.test(raw)) numeric = Number.parseInt(raw.slice(2), 16);
+  else if (/^[0-9]+$/.test(raw)) numeric = Number.parseInt(raw, 10);
+  if (Number.isInteger(numeric) && numeric >= 0 && numeric <= 0xffffffff) {
+    return {
+      confirmed: true,
+      present: (numeric & MEDIA_PLAYBACK_SERVICE_TYPE) !== 0,
+      mask: numeric,
+    };
+  }
+
+  const names = raw.split("|").map((name) => name.trim());
+  if (names.length > 0 && names.every((name) => FOREGROUND_SERVICE_TYPE_VALUES.has(name))) {
+    const mask = names.reduce(
+      (combined, name) => (combined | FOREGROUND_SERVICE_TYPE_VALUES.get(name)) >>> 0,
+      0,
+    );
+    return {
+      confirmed: true,
+      present: (mask & MEDIA_PLAYBACK_SERVICE_TYPE) !== 0,
+      mask,
+    };
+  }
+  return { confirmed: false, present: false };
+}
+
+function serviceTypeEvidenceFor(raw, dataType, typedData, stringAt) {
+  const rawEvidence = raw === null ? null : mediaPlaybackFlagFor(raw);
+  let typedEvidence;
+  if (dataType === 0x03) typedEvidence = mediaPlaybackFlagFor(stringAt(typedData));
+  else if (dataType >= 0x10 && dataType <= 0x1f) {
+    typedEvidence = mediaPlaybackFlagFor(typedData);
+  } else typedEvidence = { confirmed: false, present: false };
+
+  const evidence = [rawEvidence, typedEvidence].filter(Boolean);
+  // Either representation naming mediaPlayback is sufficient to block. A
+  // contradictory "clean" representation must never override a violation.
+  if (evidence.some((item) => item.present)) return { confirmed: true, present: true };
+  if (evidence.some((item) => !item.confirmed)) return { confirmed: false, present: false };
+  if (
+    rawEvidence &&
+    typedEvidence &&
+    rawEvidence.mask !== typedEvidence.mask
+  ) {
+    return { confirmed: false, present: false };
+  }
+  return evidence.length > 0
+    ? { confirmed: true, present: false }
+    : { confirmed: false, present: false };
+}
+
 function parseManifest(buf) {
+  if (!Buffer.isBuffer(buf) || buf.length < 8) {
+    throw new Error("compiled AndroidManifest is truncated");
+  }
   const u16 = (o) => buf.readUInt16LE(o);
   const u32 = (o) => buf.readUInt32LE(o);
 
-  if (u16(0) !== 3) throw new Error("not a compiled AndroidManifest");
+  if (u16(0) !== 3 || u16(2) !== 8) throw new Error("not a compiled AndroidManifest");
+  if (u32(4) !== buf.length) {
+    throw new Error("compiled AndroidManifest declared size does not match its length");
+  }
 
   const poolAt = 8;
+  if (poolAt + 28 > buf.length || u16(poolAt) !== 0x0001 || u16(poolAt + 2) < 28) {
+    throw new Error("compiled AndroidManifest has no valid string pool");
+  }
+  const poolHeaderSize = u16(poolAt + 2);
   const poolSize = u32(poolAt + 4);
   const count = u32(poolAt + 8);
+  const styleCount = u32(poolAt + 12);
   const isUtf8 = Boolean(u32(poolAt + 16) & (1 << 8));
   const stringsStart = u32(poolAt + 20);
+  const stylesStart = u32(poolAt + 24);
+  const poolEnd = poolAt + poolSize;
+  const stringIndexStart = poolAt + poolHeaderSize;
+  const stringAndStyleIndexEnd = stringIndexStart + 4 * count + 4 * styleCount;
+  const stringDataEnd = stylesStart === 0 ? poolEnd : poolAt + stylesStart;
+  if (
+    poolSize < poolHeaderSize ||
+    poolEnd > buf.length ||
+    stringAndStyleIndexEnd > poolEnd ||
+    poolAt + stringsStart < stringAndStyleIndexEnd ||
+    poolAt + stringsStart > stringDataEnd ||
+    stringDataEnd > poolEnd ||
+    (styleCount > 0 && stylesStart === 0)
+  ) {
+    throw new Error("compiled AndroidManifest string-pool bounds are invalid");
+  }
   const offsets = [];
-  for (let i = 0; i < count; i++) offsets.push(u32(poolAt + 28 + 4 * i));
+  for (let i = 0; i < count; i++) offsets.push(u32(stringIndexStart + 4 * i));
+
+  const readUtf8Length = (offset) => {
+    if (offset >= stringDataEnd) {
+      throw new Error("compiled AndroidManifest UTF-8 length exceeds its pool");
+    }
+    const first = buf[offset];
+    if ((first & 0x80) === 0) return { value: first, next: offset + 1 };
+    if (offset + 1 >= stringDataEnd) {
+      throw new Error("compiled AndroidManifest UTF-8 length is truncated");
+    }
+    return { value: ((first & 0x7f) << 8) | buf[offset + 1], next: offset + 2 };
+  };
+
+  const readUtf16Length = (offset) => {
+    if (offset + 2 > stringDataEnd) {
+      throw new Error("compiled AndroidManifest UTF-16 length exceeds its pool");
+    }
+    const first = u16(offset);
+    if ((first & 0x8000) === 0) return { value: first, next: offset + 2 };
+    if (offset + 4 > stringDataEnd) {
+      throw new Error("compiled AndroidManifest UTF-16 length is truncated");
+    }
+    return {
+      value: ((first & 0x7fff) << 16) | u16(offset + 2),
+      next: offset + 4,
+    };
+  };
 
   const str = (i) => {
-    if (i === 0xffffffff || i >= count) return null;
-    let p = poolAt + stringsStart + offsets[i];
-    if (isUtf8) {
-      if (buf[p] & 0x80) p += 1; // 2-byte character count
-      let len = buf[p + 1];
-      if (len & 0x80) {
-        len = ((len & 0x7f) << 8) | buf[p + 2];
-        p += 1;
-      }
-      return buf.toString("utf8", p + 2, p + 2 + len);
+    if (i === 0xffffffff) return null;
+    if (i >= count) {
+      throw new Error(`compiled AndroidManifest string index ${i} is out of bounds`);
     }
-    const len = u16(p);
-    return buf.toString("utf16le", p + 2, p + 2 + len * 2);
+    let p = poolAt + stringsStart + offsets[i];
+    if (p < poolAt + stringsStart || p >= stringDataEnd) {
+      throw new Error("compiled AndroidManifest string offset exceeds its pool");
+    }
+    if (isUtf8) {
+      const characterLength = readUtf8Length(p);
+      const byteLength = readUtf8Length(characterLength.next);
+      p = byteLength.next;
+      if (p + byteLength.value + 1 > stringDataEnd) {
+        throw new Error("compiled AndroidManifest UTF-8 string exceeds its pool");
+      }
+      if (buf[p + byteLength.value] !== 0) {
+        throw new Error("compiled AndroidManifest UTF-8 string has no terminator");
+      }
+      return buf.toString("utf8", p, p + byteLength.value);
+    }
+    const length = readUtf16Length(p);
+    p = length.next;
+    if (p + length.value * 2 + 2 > stringDataEnd) {
+      throw new Error("compiled AndroidManifest UTF-16 string exceeds its pool");
+    }
+    if (u16(p + length.value * 2) !== 0) {
+      throw new Error("compiled AndroidManifest UTF-16 string has no terminator");
+    }
+    return buf.toString("utf16le", p, p + length.value * 2);
+  };
+
+  const walkChunks = (visit) => {
+    let pos = poolEnd;
+    while (pos < buf.length) {
+      if (pos + 8 > buf.length) {
+        throw new Error("compiled AndroidManifest contains a truncated chunk header");
+      }
+      const type = u16(pos);
+      const headerSize = u16(pos + 2);
+      const size = u32(pos + 4);
+      if (headerSize < 8 || size < headerSize || pos + size > buf.length) {
+        throw new Error("compiled AndroidManifest chunk bounds are invalid");
+      }
+      visit({ pos, type, headerSize, size });
+      pos += size;
+    }
+    if (pos !== buf.length) {
+      throw new Error("compiled AndroidManifest traversal did not reach the document end");
+    }
   };
 
   // Pass one: the resource map, so attribute ids can be resolved.
   const resIds = new Map();
-  for (let pos = poolAt + poolSize; pos < buf.length - 8; ) {
-    const type = u16(pos);
-    const size = u32(pos + 4);
-    if (size <= 0) break;
+  walkChunks(({ pos, type, size }) => {
     if (type === 0x0180) {
+      if ((size - 8) % 4 !== 0) {
+        throw new Error("compiled AndroidManifest resource map is malformed");
+      }
       for (let i = 0; i < (size - 8) / 4; i++) resIds.set(i, u32(pos + 8 + 4 * i));
     }
-    pos += size;
-  }
+  });
 
   // Pass two: the elements. Attribute offsets are relative to the node header,
   // not the chunk — attributeStart lives at +24 and counts from +16.
   const found = {};
   const permissions = new Set();
-  for (let pos = poolAt + poolSize; pos < buf.length - 8; ) {
-    const type = u16(pos);
-    const size = u32(pos + 4);
-    if (size <= 0) break;
+  const mediaPlaybackServices = new Set();
+  const unresolvedServiceTypes = [];
+  let sawManifest = false;
+  let sawApplication = false;
+  let rootClosed = false;
+  const elementStack = [];
+  walkChunks(({ pos, type, size }) => {
     if (type === 0x0102) {
       // START_ELEMENT: 16-byte chunk header, then lineNumber + comment (8),
       // then ns and name string indices. The element name decides whether the
       // android:name attribute below is a permission or something unrelated.
+      if (size < 36) throw new Error("compiled AndroidManifest start element is truncated");
       const elementName = str(u32(pos + 20));
+      if (!elementName) throw new Error("compiled AndroidManifest element name is missing");
+      if (rootClosed) {
+        throw new Error("compiled AndroidManifest contains an element after the root closed");
+      }
+      if (elementStack.length === 0) {
+        if (sawManifest || elementName !== "manifest") {
+          throw new Error("compiled AndroidManifest root element is not exactly one manifest");
+        }
+        sawManifest = true;
+      } else if (elementName === "manifest") {
+        throw new Error("compiled AndroidManifest contains a nested manifest element");
+      }
+      if (elementName === "application") {
+        if (sawApplication || elementStack.at(-1) !== "manifest") {
+          throw new Error("compiled AndroidManifest application structure is invalid");
+        }
+        sawApplication = true;
+      }
+      if (
+        (elementName === "uses-permission" || elementName === "uses-permission-sdk-23") &&
+        elementStack.at(-1) !== "manifest"
+      ) {
+        throw new Error("compiled AndroidManifest permission element is outside manifest");
+      }
+      if (elementName === "service" && elementStack.at(-1) !== "application") {
+        throw new Error("compiled AndroidManifest service element is outside application");
+      }
+      elementStack.push(elementName);
       const attrCount = u16(pos + 28);
+      const attrSize = u16(pos + 26);
       const attrStart = pos + 16 + u16(pos + 24);
+      if (attrSize < 20 || attrStart < pos + 36 || attrStart + attrCount * attrSize > pos + size) {
+        throw new Error("compiled AndroidManifest attribute bounds are invalid");
+      }
+      let serviceName = "(unnamed service)";
+      let serviceTypeSeen = false;
+      let serviceType = { confirmed: true, present: false };
       for (let i = 0; i < attrCount; i++) {
-        const a = attrStart + i * 20;
-        const id = resIds.get(u32(a + 4));
+        const a = attrStart + i * attrSize;
+        const attrNameIndex = u32(a + 4);
+        const attrName = str(attrNameIndex);
+        const id = resIds.get(attrNameIndex);
+        const raw = str(u32(a + 8));
+        const dataType = buf[a + 15];
+        const typedData = u32(a + 16);
+        const stringValue = raw ?? (dataType === 0x03 ? str(typedData) : null);
         // uses-permission-sdk-23 declares a permission just as much as
         // uses-permission does; the text regexes below match both, and a
         // parser that disagreed with them would make the APK and the AAB
@@ -154,20 +379,55 @@ function parseManifest(buf) {
           // rawValue can be absent (0xFFFFFFFF) with the string living in the
           // typed value instead — the ATTR branch below already knows this.
           // Without the same fallback a permission reads as "not there", and
-          // "not there" is defined to pass, so the guard would fail open.
-          const raw = str(u32(a + 8));
-          const value = raw ?? (buf[a + 15] === 0x03 ? str(u32(a + 16)) : null);
-          if (value) permissions.add(value);
+          // missing evidence would otherwise look like a clean list.
+          if (stringValue) permissions.add(stringValue);
+        }
+        if (elementName === "service" && id === ANDROID_NAME_ATTR && stringValue) {
+          serviceName = stringValue;
+        }
+        if (
+          elementName === "service" &&
+          (id === ANDROID_FOREGROUND_SERVICE_TYPE_ATTR || attrName === "foregroundServiceType")
+        ) {
+          if (serviceTypeSeen) {
+            throw new Error("compiled AndroidManifest service repeats foregroundServiceType");
+          }
+          serviceTypeSeen = true;
+          if (id !== ANDROID_FOREGROUND_SERVICE_TYPE_ATTR) {
+            serviceType = { confirmed: false, present: false };
+          } else serviceType = serviceTypeEvidenceFor(raw, dataType, typedData, str);
         }
         const key = ATTR[id];
         if (!key) continue;
-        const raw = str(u32(a + 8));
-        found[key] = raw === null ? u32(a + 16) : raw;
+        found[key] = raw === null ? typedData : raw;
       }
+      if (elementName === "service" && serviceTypeSeen) {
+        if (!serviceType.confirmed) unresolvedServiceTypes.push(serviceName);
+        else if (serviceType.present) mediaPlaybackServices.add(serviceName);
+      }
+    } else if (type === 0x0103) {
+      if (size < 24) throw new Error("compiled AndroidManifest end element is truncated");
+      const elementName = str(u32(pos + 20));
+      const expected = elementStack.pop();
+      if (!expected || elementName !== expected) {
+        throw new Error(
+          `compiled AndroidManifest element nesting is unbalanced (expected ${expected || "none"}, read ${elementName || "none"})`,
+        );
+      }
+      if (elementStack.length === 0) rootClosed = true;
     }
-    pos += size;
+  });
+  if (elementStack.length > 0 || !rootClosed) {
+    throw new Error("compiled AndroidManifest root element is not closed");
   }
   found.permissions = [...permissions].sort();
+  found.mediaPlaybackServices = [...mediaPlaybackServices].sort();
+  found.policyScanConfirmed = sawManifest && sawApplication && unresolvedServiceTypes.length === 0;
+  if (!found.policyScanConfirmed) {
+    found.policyScanIssue = unresolvedServiceTypes.length
+      ? `foregroundServiceType could not be read for: ${unresolvedServiceTypes.join(", ")}`
+      : "compiled manifest did not contain both manifest and application elements";
+  }
   return found;
 }
 
@@ -269,6 +529,40 @@ function manifestFromText(text) {
     }
     return undefined;
   };
+  const permissions = [
+    ...new Set([
+      ...[...source.matchAll(/uses-permission[^\n]*?name=['"]([A-Za-z0-9_.]+)['"]/g)].map(
+        (match) => match[1],
+      ),
+      ...[...source.matchAll(/<uses-permission[^>]*android:name=["']([^"']+)["']/g)].map(
+        (match) => match[1],
+      ),
+    ]),
+  ].sort();
+  const mediaPlaybackServices = new Set();
+  const unresolvedServiceTypes = [];
+  for (const match of source.matchAll(/<service\b[^>]*>/gi)) {
+    const tag = match[0];
+    const name = /android:name=["']([^"']+)["']/i.exec(tag)?.[1] ?? "(unnamed service)";
+    const rawType = /android:foregroundServiceType=["']([^"']+)["']/i.exec(tag)?.[1];
+    if (rawType === undefined) continue;
+    const serviceType = mediaPlaybackFlagFor(rawType);
+    if (!serviceType.confirmed) unresolvedServiceTypes.push(name);
+    else if (serviceType.present) mediaPlaybackServices.add(name);
+  }
+  // `aapt dump badging` can expose permissions but never service declarations.
+  // Only a well-formed, complete manifest document can prove that no
+  // mediaPlayback service is present. bundletool/apkanalyzer produce this
+  // shape; XMLValidator rejects regex-lookalikes with missing close tags.
+  const xmlValidation = /<manifest\b/i.test(source) ? XMLValidator.validate(source) : null;
+  const rootElement = /^\s*(?:<\?xml[\s\S]*?\?>\s*)?(?:<!--[\s\S]*?-->\s*)*<([A-Za-z_][\w:.-]*)\b/.exec(
+    source,
+  )?.[1];
+  const hasFullManifest =
+    xmlValidation === true &&
+    rootElement === "manifest" &&
+    /<application(?:\s|\/|>)/i.test(source);
+  const policyScanConfirmed = hasFullManifest && unresolvedServiceTypes.length === 0;
   return {
     minSdkVersion: first(
       /android:minSdkVersion=["']([0-9]+)["']/,
@@ -299,39 +593,46 @@ function manifestFromText(text) {
       /android:name=["']com\.google\.android\.play\.billingclient\.version["'][^>]*android:value=["']([0-9]+\.[0-9]+\.[0-9]+)["']/,
       /android:value=["']([0-9]+\.[0-9]+\.[0-9]+)["'][^>]*android:name=["']com\.google\.android\.play\.billingclient\.version["']/,
     ),
-    // Both shapes a manifest tool emits: aapt/aapt2 badging lines and the XML
-    // that apkanalyzer/bundletool print.
-    permissions: [
-      ...new Set([
-        ...[...source.matchAll(/uses-permission[^\n]*?name=['"]([A-Za-z0-9_.]+)['"]/g)].map(
-          (m) => m[1],
-        ),
-        ...[...source.matchAll(/<uses-permission[^>]*android:name=["']([^"']+)["']/g)].map(
-          (m) => m[1],
-        ),
-      ]),
-    ].sort(),
+    permissions,
+    mediaPlaybackServices: [...mediaPlaybackServices].sort(),
+    policyScanConfirmed,
+    ...(policyScanConfirmed
+      ? {}
+      : {
+          policyScanIssue: unresolvedServiceTypes.length
+            ? `foregroundServiceType could not be read for: ${unresolvedServiceTypes.join(", ")}`
+            : xmlValidation && xmlValidation !== true
+              ? `manifest tool returned malformed XML: ${xmlValidation.err?.msg || "validation failed"}`
+              : "manifest tool did not return a complete XML manifest with an application element",
+        }),
   };
 }
 
 /**
  * Refuse an artifact that carries a permission we have decided never to ship.
- *
- * Deliberately NOT symmetric with verdictFor's "unreadable is a failure": an
- * empty list can mean either "the artifact declares none" or "this manifest
- * tool does not print permissions", and those are indistinguishable from here.
- * Failing the release on the second would break publishing over a tooling
- * detail we have not observed, so an empty list passes and says out loud that
- * it proved nothing. Tighten once a real AAB's output has been seen.
+ * Missing evidence is a failure: RECORD_AUDIO is the stable canary expected in
+ * every supported build, so a list without it is empty/partial, not clean.
  */
 function forbiddenPermissionVerdictFor(manifest) {
-  const list = Array.isArray(manifest?.permissions) ? manifest.permissions : [];
-  if (list.length === 0) {
+  if (manifest?.policyScanConfirmed !== true) {
     return {
-      ok: true,
-      unconfirmed: true,
+      ok: false,
+      reason: `the built permission list cannot be confirmed: ${manifest?.policyScanIssue || "full manifest scan is incomplete"}`,
+    };
+  }
+  if (!Array.isArray(manifest?.permissions)) {
+    return {
+      ok: false,
       reason:
-        "no permission list came out of this manifest tool, so the forbidden-permission check proved nothing (not a pass on the permissions themselves)",
+        "the built permission list cannot be confirmed because the manifest parser returned no array",
+    };
+  }
+  const list = manifest.permissions;
+  const missingEvidence = REQUIRED_PERMISSION_EVIDENCE.filter((name) => !list.includes(name));
+  if (missingEvidence.length > 0) {
+    return {
+      ok: false,
+      reason: `the built permission list cannot be confirmed because required evidence is missing: ${missingEvidence.join(", ")}`,
     };
   }
   const hits = FORBIDDEN_PERMISSIONS.filter((p) => list.includes(p.name));
@@ -346,6 +647,25 @@ function forbiddenPermissionVerdictFor(manifest) {
   return {
     ok: true,
     reason: `none of the ${FORBIDDEN_PERMISSIONS.length} forbidden permission(s) present (read ${list.length} from the artifact)`,
+  };
+}
+
+function forbiddenServiceVerdictFor(manifest) {
+  if (manifest?.policyScanConfirmed !== true || !Array.isArray(manifest?.mediaPlaybackServices)) {
+    return {
+      ok: false,
+      reason: `foreground-service policy cannot be confirmed: ${manifest?.policyScanIssue || "manifest scan is incomplete"}`,
+    };
+  }
+  if (manifest.mediaPlaybackServices.length > 0) {
+    return {
+      ok: false,
+      reason: `mediaPlayback foreground service type is present in the built manifest: ${manifest.mediaPlaybackServices.join(", ")}. This app records audio but never plays media, so the Play declaration would be false.`,
+    };
+  }
+  return {
+    ok: true,
+    reason: "no mediaPlayback foreground service type is present in the built manifest",
   };
 }
 
@@ -398,11 +718,6 @@ function parseAabManifest(
         command: "apkanalyzer",
         args: ["manifest", "print", file],
       },
-      {
-        label: "aapt2",
-        command: "aapt2",
-        args: ["dump", "badging", file],
-      },
     );
   }
 
@@ -417,13 +732,31 @@ function parseAabManifest(
       continue;
     }
     const manifest = manifestFromText(result.output);
-    if (manifest.targetSdkVersion && manifest.compileSdkVersion && manifest.versionCode) {
+    const missingFields = ["targetSdkVersion", "compileSdkVersion", "versionCode"].filter(
+      (field) => !manifest[field],
+    );
+    const missingPermissionEvidence = REQUIRED_PERMISSION_EVIDENCE.filter(
+      (name) => !manifest.permissions.includes(name),
+    );
+    if (
+      missingFields.length === 0 &&
+      missingPermissionEvidence.length === 0 &&
+      manifest.policyScanConfirmed === true
+    ) {
       return { manifest, tool: candidate.label };
     }
-    attempts.push(`${candidate.label}: output did not contain required manifest fields`);
+    const gaps = [];
+    if (missingFields.length > 0) gaps.push(`missing fields ${missingFields.join(", ")}`);
+    if (missingPermissionEvidence.length > 0) {
+      gaps.push(`missing permission evidence ${missingPermissionEvidence.join(", ")}`);
+    }
+    if (manifest.policyScanConfirmed !== true) {
+      gaps.push(manifest.policyScanIssue || "foreground-service policy scan is incomplete");
+    }
+    attempts.push(`${candidate.label}: ${gaps.join("; ")}`);
   }
   throw new Error(
-    `no Android App Bundle verifier produced a complete manifest (${attempts.join("; ")}). Install a pinned bundletool jar and set BUNDLETOOL_JAR; verification is mandatory.`,
+    `no Android App Bundle verifier produced a complete manifest and policy scan (${attempts.join("; ")}). Install a pinned bundletool jar and set BUNDLETOOL_JAR; verification is mandatory.`,
   );
 }
 
@@ -448,6 +781,18 @@ function artifactStructureFor(type, entries) {
     entries.includes("BundleConfig.pb") && entries.includes("base/manifest/AndroidManifest.xml");
   if ((type === "apk" && !isApk) || (type === "aab" && !isAab)) {
     throw new Error(`archive structure does not match the .${type} extension`);
+  }
+  if (type === "aab") {
+    const extraModuleManifests = entries.filter(
+      (entry) =>
+        /^[^/]+\/manifest\/AndroidManifest\.xml$/.test(entry) &&
+        entry !== "base/manifest/AndroidManifest.xml",
+    );
+    if (extraModuleManifests.length > 0) {
+      throw new Error(
+        `AAB contains unsupported extra module manifest(s) that the policy scan cannot prove clean: ${extraModuleManifests.join(", ")}`,
+      );
+    }
   }
   return { isApk, isAab };
 }
@@ -566,19 +911,37 @@ function runSelfTest() {
   assert.equal(billingVerdictFor("billing_client=8.3.0", { required: true }).ok, true);
   assert.equal(billingVerdictFor(null, { required: true }).ok, false);
 
-  // Forbidden permissions: present fails, absent passes, unreadable passes but
-  // is flagged as having proved nothing.
+  // Forbidden permissions and services: a proven-clean artifact passes;
+  // violations and missing evidence fail closed.
   const forbidden = FORBIDDEN_PERMISSIONS[0].name;
   assert.equal(
-    forbiddenPermissionVerdictFor({ permissions: ["android.permission.CAMERA"] }).ok,
+    forbiddenPermissionVerdictFor({
+      policyScanConfirmed: true,
+      permissions: ["android.permission.RECORD_AUDIO"],
+    }).ok,
     true,
   );
   assert.equal(
-    forbiddenPermissionVerdictFor({ permissions: ["android.permission.CAMERA", forbidden] }).ok,
+    forbiddenPermissionVerdictFor({
+      policyScanConfirmed: true,
+      permissions: ["android.permission.RECORD_AUDIO", forbidden],
+    }).ok,
     false,
   );
-  assert.equal(forbiddenPermissionVerdictFor({ permissions: [] }).unconfirmed, true);
-  assert.equal(forbiddenPermissionVerdictFor({}).unconfirmed, true);
+  assert.equal(forbiddenPermissionVerdictFor({ permissions: [] }).ok, false);
+  assert.equal(forbiddenPermissionVerdictFor({}).ok, false);
+  assert.equal(
+    forbiddenServiceVerdictFor({ policyScanConfirmed: true, mediaPlaybackServices: [] }).ok,
+    true,
+  );
+  assert.equal(
+    forbiddenServiceVerdictFor({
+      policyScanConfirmed: true,
+      mediaPlaybackServices: ["com.example.Player"],
+    }).ok,
+    false,
+  );
+  assert.equal(forbiddenServiceVerdictFor({ policyScanConfirmed: false }).ok, false);
   // Both manifest-tool output shapes must yield the permission list.
   assert.deepEqual(
     manifestFromText("uses-permission: name='android.permission.CAMERA'").permissions,
@@ -606,6 +969,10 @@ compileSdkVersion:'36'`);
     // release workflow's first step) while `npm run verify` stayed green,
     // because nothing ran the self-test — apk-target-sdk.test.ts now does.
     permissions: [],
+    mediaPlaybackServices: [],
+    policyScanConfirmed: false,
+    policyScanIssue:
+      "manifest tool did not return a complete XML manifest with an application element",
   });
 
   assert.equal(REQUIRED_BILLING_MAJOR, 8);
@@ -676,7 +1043,7 @@ compileSdkVersion:'36'`);
   const mockBundletool = () => ({
     available: true,
     output:
-      '<manifest android:versionCode="42" android:versionName="1.2.3"><uses-sdk android:minSdkVersion="26" android:targetSdkVersion="36" android:compileSdkVersion="36"/></manifest>',
+      '<manifest android:versionCode="42" android:versionName="1.2.3"><uses-sdk android:minSdkVersion="26" android:targetSdkVersion="36" android:compileSdkVersion="36"/><uses-permission android:name="android.permission.RECORD_AUDIO"/><application/></manifest>',
   });
   const aab = parseAabManifest("fixture.aab", {
     runTool: mockBundletool,
@@ -692,7 +1059,7 @@ compileSdkVersion:'36'`);
       }),
     /no Android App Bundle verifier produced a complete manifest/,
   );
-  return 22;
+  return 29;
 }
 
 module.exports = {
@@ -701,6 +1068,7 @@ module.exports = {
   billingVerdictFor,
   artifactMetadataVerdictFor,
   forbiddenPermissionVerdictFor,
+  forbiddenServiceVerdictFor,
   FORBIDDEN_PERMISSIONS,
   manifestFromText,
   parseAabManifest,
@@ -780,6 +1148,7 @@ if (require.main === module) {
     const m = artifactMetadataVerdictFor(manifest);
     const b = billingVerdictFor(billingProps, { required: true });
     const fp = forbiddenPermissionVerdictFor(manifest);
+    const fsvc = forbiddenServiceVerdictFor(manifest);
     const metadata = {
       type,
       minSdkVersion: Number(manifest.minSdkVersion),
@@ -791,6 +1160,7 @@ if (require.main === module) {
         String(billingProps || ""),
       )?.[1],
       manifestTool,
+      policyScanConfirmed: manifest.policyScanConfirmed === true,
     };
     if (!json) {
       console.log(
@@ -819,12 +1189,14 @@ if (require.main === module) {
     if (!fp.ok) {
       console.error(`::error title=Forbidden Android permission::${fp.reason}`);
       failed = true;
-    } else if (fp.unconfirmed) {
-      // Visible on purpose: a silent pass here would read as "checked and
-      // clean" when nothing was checked at all.
-      console.error(`::warning title=Forbidden Android permission::${fp.reason}`);
     } else {
       if (!json) console.log(`OK: ${fp.reason}`);
+    }
+    if (!fsvc.ok) {
+      console.error(`::error title=Forbidden Android foreground service::${fsvc.reason}`);
+      failed = true;
+    } else {
+      if (!json) console.log(`OK: ${fsvc.reason}`);
     }
     // Both are reported before exiting. Bailing on the first would hide the
     // second finding until someone fixed the first and ran again.

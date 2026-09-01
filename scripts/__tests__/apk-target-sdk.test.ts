@@ -17,8 +17,11 @@ import {
   verdictFor,
   billingVerdictFor,
   forbiddenPermissionVerdictFor,
+  forbiddenServiceVerdictFor,
   manifestFromText,
+  parseAabManifest,
   parseManifest,
+  artifactStructureFor,
   runSelfTest,
   FORBIDDEN_PERMISSIONS,
   REQUIRED_TARGET_SDK,
@@ -143,14 +146,15 @@ describe("forbidden permissions in the built artifact", () => {
 
   test("a clean permission list passes", () => {
     const v = forbiddenPermissionVerdictFor({
+      policyScanConfirmed: true,
       permissions: ["android.permission.CAMERA", "android.permission.RECORD_AUDIO"],
     });
     expect(v.ok).toBe(true);
-    expect(v.unconfirmed).toBeUndefined();
   });
 
   test("the forbidden permission fails, and the reason names it", () => {
     const v = forbiddenPermissionVerdictFor({
+      policyScanConfirmed: true,
       permissions: ["android.permission.RECORD_AUDIO", forbidden],
     });
     expect(v.ok).toBe(false);
@@ -159,15 +163,48 @@ describe("forbidden permissions in the built artifact", () => {
     expect(v.reason).toMatch(/expo-audio|media3/);
   });
 
-  test("an unreadable list passes but says it proved nothing", () => {
-    // Empty is ambiguous — "declares none" vs "this tool prints none" — so it
-    // must not fail the release, and must not read as a clean bill either.
-    for (const manifest of [{ permissions: [] }, {}, { permissions: null }]) {
+  test("missing or partial permission evidence fails closed", () => {
+    // RECORD_AUDIO is deliberately present in every supported build. It is the
+    // canary that distinguishes a real clean list from a parser/tool that saw
+    // none (or only part) of the manifest.
+    for (const manifest of [
+      { policyScanConfirmed: true, permissions: [] },
+      {},
+      { policyScanConfirmed: true, permissions: null },
+      { policyScanConfirmed: true, permissions: "android.permission.RECORD_AUDIO" },
+      { policyScanConfirmed: true, permissions: ["android.permission.CAMERA"] },
+      { permissions: ["android.permission.RECORD_AUDIO"] },
+    ]) {
       const v = forbiddenPermissionVerdictFor(manifest as never);
-      expect(v.ok).toBe(true);
-      expect(v.unconfirmed).toBe(true);
-      expect(v.reason).toMatch(/proved nothing/);
+      expect(v.ok).toBe(false);
+      expect(v.reason).toMatch(/cannot be confirmed|RECORD_AUDIO/);
     }
+  });
+});
+
+describe("forbidden foreground-service types in the built artifact", () => {
+  test("a confirmed scan with no media-playback service passes", () => {
+    expect(
+      forbiddenServiceVerdictFor({ policyScanConfirmed: true, mediaPlaybackServices: [] }),
+    ).toEqual(expect.objectContaining({ ok: true }));
+  });
+
+  test("missing or incomplete service evidence fails closed", () => {
+    for (const manifest of [{}, { policyScanConfirmed: false }, { policyScanConfirmed: true }]) {
+      const v = forbiddenServiceVerdictFor(manifest as never);
+      expect(v.ok).toBe(false);
+      expect(v.reason).toMatch(/cannot be confirmed|incomplete/);
+    }
+  });
+
+  test("any mediaPlayback service fails regardless of its class name", () => {
+    const v = forbiddenServiceVerdictFor({
+      policyScanConfirmed: true,
+      mediaPlaybackServices: ["com.example.NotTheExpoService"],
+    });
+    expect(v.ok).toBe(false);
+    expect(v.reason).toContain("com.example.NotTheExpoService");
+    expect(v.reason).toContain("mediaPlayback");
   });
 });
 
@@ -182,6 +219,7 @@ describe("permission extraction from manifest-tool text", () => {
       "android.permission.CAMERA",
       "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
     ]);
+    expect(manifestFromText(text).policyScanConfirmed).toBe(false);
   });
 
   test("apkanalyzer/bundletool XML, including the attribute-per-line shape", () => {
@@ -193,17 +231,18 @@ describe("permission extraction from manifest-tool text", () => {
       "  <uses-permission",
       '      android:name="android.permission.RECORD_AUDIO" />',
       '  <uses-permission android:name="android.permission.CAMERA" />',
+      "  <application />",
       "</manifest>",
     ].join("\n");
     expect(manifestFromText(xml).permissions).toEqual([
       "android.permission.CAMERA",
       "android.permission.RECORD_AUDIO",
     ]);
+    expect(manifestFromText(xml).policyScanConfirmed).toBe(true);
+    expect(manifestFromText(xml).mediaPlaybackServices).toEqual([]);
   });
 
   test("a manifest with no permissions yields an empty list, not undefined", () => {
-    // Which then routes to the "proved nothing" branch above rather than
-    // silently skipping the check.
     expect(manifestFromText("package: name='x' versionCode='1'").permissions).toEqual([]);
   });
 
@@ -218,31 +257,156 @@ describe("permission extraction from manifest-tool text", () => {
       "android.permission.RECORD_AUDIO",
     ]);
   });
+
+  test.each([
+    ["symbolic", "mediaPlayback"],
+    ["symbolic flags", "microphone | mediaPlayback"],
+    ["hex", "0x2"],
+    ["mixed hex bitmask", "0x82"],
+    ["decimal", "2"],
+  ])("detects a %s media-playback service", (_label, serviceType) => {
+    const xml = [
+      '<manifest xmlns:android="http://schemas.android.com/apk/res/android" android:versionCode="42">',
+      '  <uses-permission android:name="android.permission.RECORD_AUDIO" />',
+      "  <application>",
+      "    <service",
+      `      android:foregroundServiceType="${serviceType}"`,
+      '      android:name="com.example.Player" />',
+      "  </application>",
+      "</manifest>",
+    ].join("\n");
+    const parsed = manifestFromText(xml);
+    expect(parsed.policyScanConfirmed).toBe(true);
+    expect(parsed.mediaPlaybackServices).toEqual(["com.example.Player"]);
+    expect(forbiddenServiceVerdictFor(parsed).ok).toBe(false);
+  });
+
+  test("a non-playback service stays clean while unreadable types fail confirmation", () => {
+    const clean = manifestFromText(
+      '<manifest><application><service android:name="rec" android:foregroundServiceType="0x80" /></application></manifest>',
+    );
+    expect(clean.policyScanConfirmed).toBe(true);
+    expect(clean.mediaPlaybackServices).toEqual([]);
+
+    const unreadable = manifestFromText(
+      '<manifest><application><service android:name="mystery" android:foregroundServiceType="@string/type" /></application></manifest>',
+    );
+    expect(unreadable.policyScanConfirmed).toBe(false);
+    expect(forbiddenServiceVerdictFor(unreadable).ok).toBe(false);
+
+    const unknownAlias = manifestFromText(
+      '<manifest><application><service android:name="future" android:foregroundServiceType="futureAlias" /></application></manifest>',
+    );
+    expect(unknownAlias.policyScanConfirmed).toBe(false);
+    expect(forbiddenServiceVerdictFor(unknownAlias).ok).toBe(false);
+  });
+
+  test("malformed XML cannot masquerade as a complete manifest", () => {
+    const malformed = manifestFromText(
+      '<manifest><uses-permission android:name="android.permission.RECORD_AUDIO"/><application><service android:name="rec" android:foregroundServiceType="microphone"></manifest>',
+    );
+    expect(malformed.policyScanConfirmed).toBe(false);
+    expect(malformed.policyScanIssue).toMatch(/malformed XML|closing tag/);
+    expect(forbiddenPermissionVerdictFor(malformed).ok).toBe(false);
+    expect(forbiddenServiceVerdictFor(malformed).ok).toBe(false);
+  });
 });
 
 // The compiled-manifest parser is the path that actually judges the preview
-// APK, and it had no test at all: a silent break there produces an empty
-// permission list, which the verdict defines as "proved nothing" — a PASS. So
-// the one code path whose failure mode is a green release was the one nobody
-// exercised. This builds a real AXML buffer and reads it back.
+// APK. Its failure mode must be red, so these fixtures exercise the actual
+// binary string pool, balanced element chunks, attributes, and typed values.
 describe("parseManifest reads permissions out of a compiled manifest", () => {
   const NAME_ATTR_RES_ID = 0x01010003;
+  const FOREGROUND_SERVICE_TYPE_ATTR_RES_ID = 0x01010599;
+
+  type ServiceFixture = {
+    name: string;
+    type: number | string;
+    rawType?: string | null;
+    typedType?: number | string;
+  };
+
+  type ElementFixture = {
+    name: string;
+    attrs: Array<{
+      name: "name" | "foregroundServiceType";
+      value: string | number;
+      viaTypedValue?: boolean;
+      rawValue?: string | null;
+      typedValue?: string | number;
+    }>;
+  };
 
   /** Minimal binary AndroidManifest: string pool + resource map + elements. */
-  function buildAxml(
-    elements: { name: string; permission: string; viaTypedValue?: boolean }[],
-  ): Buffer {
-    const pool = ["", "name"];
+  function buildAxml({
+    permissions = [],
+    sdk23Permissions = [],
+    services = [],
+    extraElements = [],
+  }: {
+    permissions?: Array<{ value: string; viaTypedValue?: boolean }>;
+    sdk23Permissions?: string[];
+    services?: ServiceFixture[];
+    extraElements?: ElementFixture[];
+  } = {}): Buffer {
+    const pool = ["", "name", "foregroundServiceType"];
     const idx = (s: string) => {
       const at = pool.indexOf(s);
       if (at >= 0) return at;
       pool.push(s);
       return pool.length - 1;
     };
-    const plan = elements.map((e) => ({
-      nameIdx: idx(e.name),
-      valueIdx: idx(e.permission),
-      viaTypedValue: e.viaTypedValue === true,
+
+    const elements: ElementFixture[] = [
+      { name: "manifest", attrs: [] },
+      ...permissions.map((permission) => ({
+        name: "uses-permission",
+        attrs: [
+          {
+            name: "name" as const,
+            value: permission.value,
+            viaTypedValue: permission.viaTypedValue,
+          },
+        ],
+      })),
+      ...sdk23Permissions.map((permission) => ({
+        name: "uses-permission-sdk-23",
+        attrs: [{ name: "name" as const, value: permission }],
+      })),
+      { name: "application", attrs: [] },
+      ...services.map((service) => ({
+        name: "service",
+        attrs: [
+          { name: "name" as const, value: service.name },
+          {
+            name: "foregroundServiceType" as const,
+            value: service.type,
+            rawValue: service.rawType,
+            typedValue: service.typedType,
+          },
+        ],
+      })),
+      ...extraElements,
+    ];
+
+    const plan = elements.map((element) => ({
+      nameIdx: idx(element.name),
+      attrs: element.attrs.map((attr) => {
+        const rawValue = attr.viaTypedValue
+          ? null
+          : attr.rawValue !== undefined
+            ? attr.rawValue
+            : typeof attr.value === "string"
+              ? attr.value
+              : null;
+        const typedValue = attr.typedValue === undefined ? attr.value : attr.typedValue;
+        return {
+          nameIdx: idx(attr.name),
+          rawValueIdx: rawValue === null ? null : idx(rawValue),
+          typedStringIdx: typeof typedValue === "string" ? idx(typedValue) : null,
+          numericValue: typeof typedValue === "number" ? typedValue : null,
+        };
+      }),
     }));
 
     // UTF-8 string pool: [charLen][byteLen][bytes][NUL] per entry.
@@ -262,7 +426,7 @@ describe("parseManifest reads permissions out of a compiled manifest", () => {
     const poolHeaderSize = 28 + 4 * pool.length;
     const poolSize = poolHeaderSize + stringData.length;
     const poolChunk = Buffer.alloc(poolHeaderSize);
-    poolChunk.writeUInt16LE(0x001c, 0); // RES_STRING_POOL_TYPE
+    poolChunk.writeUInt16LE(0x0001, 0); // RES_STRING_POOL_TYPE
     poolChunk.writeUInt16LE(28, 2);
     poolChunk.writeUInt32LE(poolSize, 4);
     poolChunk.writeUInt32LE(pool.length, 8);
@@ -279,9 +443,13 @@ describe("parseManifest reads permissions out of a compiled manifest", () => {
     mapChunk.writeUInt16LE(8, 2);
     mapChunk.writeUInt32LE(mapSize, 4);
     mapChunk.writeUInt32LE(NAME_ATTR_RES_ID, 8 + 4 * pool.indexOf("name"));
+    mapChunk.writeUInt32LE(
+      FOREGROUND_SERVICE_TYPE_ATTR_RES_ID,
+      8 + 4 * pool.indexOf("foregroundServiceType"),
+    );
 
-    const elementChunks = plan.map((p) => {
-      const size = 36 + 20;
+    const startElement = (element: (typeof plan)[number]) => {
+      const size = 36 + 20 * element.attrs.length;
       const b = Buffer.alloc(size);
       b.writeUInt16LE(0x0102, 0); // RES_XML_START_ELEMENT_TYPE
       b.writeUInt16LE(16, 2);
@@ -289,22 +457,55 @@ describe("parseManifest reads permissions out of a compiled manifest", () => {
       b.writeUInt32LE(1, 8); // lineNumber
       b.writeUInt32LE(0xffffffff, 12); // comment
       b.writeUInt32LE(0xffffffff, 16); // ns
-      b.writeUInt32LE(p.nameIdx, 20); // element name
+      b.writeUInt32LE(element.nameIdx, 20); // element name
       b.writeUInt16LE(20, 24); // attributeStart, from +16
       b.writeUInt16LE(20, 26); // attributeSize
-      b.writeUInt16LE(1, 28); // attributeCount
-      const a = 36;
-      b.writeUInt32LE(0xffffffff, a); // attr ns
-      b.writeUInt32LE(pool.indexOf("name"), a + 4); // attr name -> resource id
-      // The two ways AXML stores the value. viaTypedValue is the shape that
-      // used to be dropped silently.
-      b.writeUInt32LE(p.viaTypedValue ? 0xffffffff : p.valueIdx, a + 8);
-      b.writeUInt16LE(8, a + 12); // typedValue size
-      b.writeUInt8(0, a + 14); // res0
-      b.writeUInt8(0x03, a + 15); // TYPE_STRING
-      b.writeUInt32LE(p.valueIdx, a + 16);
+      b.writeUInt16LE(element.attrs.length, 28); // attributeCount
+      element.attrs.forEach((attr, index) => {
+        const a = 36 + index * 20;
+        b.writeUInt32LE(0xffffffff, a); // attr ns
+        b.writeUInt32LE(attr.nameIdx, a + 4); // attr name -> resource id
+        const numeric = attr.numericValue !== null;
+        b.writeUInt32LE(attr.rawValueIdx === null ? 0xffffffff : attr.rawValueIdx, a + 8);
+        b.writeUInt16LE(8, a + 12); // typedValue size
+        b.writeUInt8(0, a + 14); // res0
+        b.writeUInt8(numeric ? 0x11 : 0x03, a + 15); // TYPE_INT_HEX or TYPE_STRING
+        b.writeUInt32LE(numeric ? attr.numericValue! : attr.typedStringIdx!, a + 16);
+      });
       return b;
-    });
+    };
+
+    const endElement = (element: (typeof plan)[number]) => {
+      const b = Buffer.alloc(24);
+      b.writeUInt16LE(0x0103, 0); // RES_XML_END_ELEMENT_TYPE
+      b.writeUInt16LE(16, 2);
+      b.writeUInt32LE(24, 4);
+      b.writeUInt32LE(1, 8); // lineNumber
+      b.writeUInt32LE(0xffffffff, 12); // comment
+      b.writeUInt32LE(0xffffffff, 16); // ns
+      b.writeUInt32LE(element.nameIdx, 20);
+      return b;
+    };
+
+    let planIndex = 0;
+    const manifestElement = plan[planIndex++];
+    const permissionElements = plan.slice(planIndex, (planIndex += permissions.length));
+    const sdk23Elements = plan.slice(planIndex, (planIndex += sdk23Permissions.length));
+    const applicationElement = plan[planIndex++];
+    const childElements = plan.slice(planIndex);
+    const leafChunks = (element: (typeof plan)[number]) => [
+      startElement(element),
+      endElement(element),
+    ];
+    const elementChunks = [
+      startElement(manifestElement),
+      ...permissionElements.flatMap(leafChunks),
+      ...sdk23Elements.flatMap(leafChunks),
+      startElement(applicationElement),
+      ...childElements.flatMap(leafChunks),
+      endElement(applicationElement),
+      endElement(manifestElement),
+    ];
 
     const body = Buffer.concat([poolChunk, stringData, mapChunk, ...elementChunks]);
     const header = Buffer.alloc(8);
@@ -315,17 +516,20 @@ describe("parseManifest reads permissions out of a compiled manifest", () => {
   }
 
   test("a plain uses-permission is read", () => {
-    const buf = buildAxml([
-      { name: "uses-permission", permission: "android.permission.CAMERA" },
-    ]);
+    const buf = buildAxml({
+      permissions: [{ value: "android.permission.CAMERA" }],
+    });
     expect(parseManifest(buf).permissions).toEqual(["android.permission.CAMERA"]);
+    expect(parseManifest(buf).policyScanConfirmed).toBe(true);
   });
 
   test("the forbidden permission is caught end to end", () => {
-    const buf = buildAxml([
-      { name: "uses-permission", permission: "android.permission.RECORD_AUDIO" },
-      { name: "uses-permission", permission: FORBIDDEN_PERMISSIONS[0].name },
-    ]);
+    const buf = buildAxml({
+      permissions: [
+        { value: "android.permission.RECORD_AUDIO" },
+        { value: FORBIDDEN_PERMISSIONS[0].name },
+      ],
+    });
     const manifest = parseManifest(buf);
     expect(manifest.permissions).toContain(FORBIDDEN_PERMISSIONS[0].name);
     expect(forbiddenPermissionVerdictFor(manifest).ok).toBe(false);
@@ -335,23 +539,201 @@ describe("parseManifest reads permissions out of a compiled manifest", () => {
     // rawValue = 0xFFFFFFFF with the string in typedValue. Without the
     // fallback this returned [], which the verdict calls "proved nothing" —
     // i.e. the guard would have failed open on the artifact it exists to check.
-    const buf = buildAxml([
-      { name: "uses-permission", permission: FORBIDDEN_PERMISSIONS[0].name, viaTypedValue: true },
-    ]);
+    const buf = buildAxml({
+      permissions: [{ value: FORBIDDEN_PERMISSIONS[0].name, viaTypedValue: true }],
+    });
     expect(parseManifest(buf).permissions).toEqual([FORBIDDEN_PERMISSIONS[0].name]);
   });
 
   test("uses-permission-sdk-23 counts too, matching the text parser", () => {
     // Otherwise the APK path and the AAB path could disagree about the same
     // permission in the same release.
-    const buf = buildAxml([
-      { name: "uses-permission-sdk-23", permission: FORBIDDEN_PERMISSIONS[0].name },
-    ]);
+    const buf = buildAxml({ sdk23Permissions: [FORBIDDEN_PERMISSIONS[0].name] });
     expect(parseManifest(buf).permissions).toEqual([FORBIDDEN_PERMISSIONS[0].name]);
   });
 
   test("a manifest with no permission elements yields an empty list", () => {
-    expect(parseManifest(buildAxml([])).permissions).toEqual([]);
+    expect(parseManifest(buildAxml()).permissions).toEqual([]);
+  });
+
+  test.each([
+    ["exact bit", 0x02],
+    ["combined with dataSync", 0x03],
+    ["combined with microphone", 0x82],
+  ])("detects mediaPlayback from the typed %s", (_label, type) => {
+    const manifest = parseManifest(
+      buildAxml({ services: [{ name: "com.example.Player", type }] }),
+    );
+    expect(manifest.mediaPlaybackServices).toEqual(["com.example.Player"]);
+    expect(forbiddenServiceVerdictFor(manifest).ok).toBe(false);
+  });
+
+  test("a microphone-only service is clean", () => {
+    const manifest = parseManifest(
+      buildAxml({ services: [{ name: "com.example.Recorder", type: 0x80 }] }),
+    );
+    expect(manifest.policyScanConfirmed).toBe(true);
+    expect(manifest.mediaPlaybackServices).toEqual([]);
+    expect(forbiddenServiceVerdictFor(manifest).ok).toBe(true);
+  });
+
+  test("raw and typed service types cannot contradict their way to a clean verdict", () => {
+    const typedViolation = parseManifest(
+      buildAxml({
+        services: [
+          {
+            name: "com.example.TypedPlayer",
+            type: "microphone",
+            typedType: 0x02,
+          },
+        ],
+      }),
+    );
+    expect(typedViolation.mediaPlaybackServices).toEqual(["com.example.TypedPlayer"]);
+    expect(forbiddenServiceVerdictFor(typedViolation).ok).toBe(false);
+
+    const rawViolation = parseManifest(
+      buildAxml({
+        services: [
+          {
+            name: "com.example.RawPlayer",
+            type: "mediaPlayback",
+            typedType: 0x80,
+          },
+        ],
+      }),
+    );
+    expect(rawViolation.mediaPlaybackServices).toEqual(["com.example.RawPlayer"]);
+    expect(forbiddenServiceVerdictFor(rawViolation).ok).toBe(false);
+
+    const conflictingCleanValues = parseManifest(
+      buildAxml({
+        services: [
+          {
+            name: "com.example.Conflicting",
+            type: "microphone",
+            typedType: 0x01,
+          },
+        ],
+      }),
+    );
+    expect(conflictingCleanValues.policyScanConfirmed).toBe(false);
+    expect(forbiddenServiceVerdictFor(conflictingCleanValues).ok).toBe(false);
+  });
+
+  test("the same resource attribute on a non-service element is ignored", () => {
+    const manifest = parseManifest(
+      buildAxml({
+        extraElements: [
+          {
+            name: "receiver",
+            attrs: [{ name: "foregroundServiceType", value: 0x02 }],
+          },
+        ],
+      }),
+    );
+    expect(manifest.mediaPlaybackServices).toEqual([]);
+  });
+
+  test("an unreadable service type and a truncated document fail closed", () => {
+    const unreadable = parseManifest(
+      buildAxml({ services: [{ name: "com.example.Unknown", type: "@string/type" }] }),
+    );
+    expect(unreadable.policyScanConfirmed).toBe(false);
+    expect(forbiddenServiceVerdictFor(unreadable).ok).toBe(false);
+
+    const valid = buildAxml();
+    expect(() => parseManifest(valid.subarray(0, valid.length - 1))).toThrow(
+      /bounds|size|truncated|length/,
+    );
+
+    // A coherent truncation rewrites the outer length, so byte-count checks
+    // alone pass. Missing the final END_ELEMENT must still be rejected.
+    const missingRootClose = Buffer.from(valid.subarray(0, valid.length - 24));
+    missingRootClose.writeUInt32LE(missingRootClose.length, 4);
+    expect(() => parseManifest(missingRootClose)).toThrow(/not closed|unbalanced/);
+  });
+
+  test("out-of-range string references and overlapping string tables are rejected", () => {
+    const invalidIndex = buildAxml();
+    const poolSize = invalidIndex.readUInt32LE(12);
+    const resourceMapAt = 8 + poolSize;
+    const resourceMapSize = invalidIndex.readUInt32LE(resourceMapAt + 4);
+    const manifestStartAt = resourceMapAt + resourceMapSize;
+    const stringCount = invalidIndex.readUInt32LE(16);
+    invalidIndex.writeUInt32LE(stringCount, manifestStartAt + 20);
+    expect(() => parseManifest(invalidIndex)).toThrow(/string index.*out of bounds/);
+
+    const overlappingStrings = buildAxml();
+    overlappingStrings.writeUInt32LE(28, 28); // pool stringsStart
+    expect(() => parseManifest(overlappingStrings)).toThrow(/string-pool bounds/);
+  });
+});
+
+describe("AAB manifest-tool evidence", () => {
+  const badging = [
+    "package: name='com.example.app' versionCode='42' versionName='1.2.3'",
+    "sdkVersion:'26'",
+    "targetSdkVersion:'36'",
+    "compileSdkVersion:'36'",
+    "uses-permission: name='android.permission.RECORD_AUDIO'",
+  ].join("\n");
+
+  const cleanXml = [
+    '<manifest xmlns:android="http://schemas.android.com/apk/res/android" android:versionCode="42" android:versionName="1.2.3">',
+    '  <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="36" android:compileSdkVersion="36" />',
+    '  <uses-permission android:name="android.permission.RECORD_AUDIO" />',
+    "  <application />",
+    "</manifest>",
+  ].join("\n");
+
+  test("metadata-complete badging is skipped for a later full manifest", () => {
+    let calls = 0;
+    const parsed = parseAabManifest("fixture.aab", {
+      bundletoolJar: null as never,
+      runTool: () => ({ available: true, output: calls++ === 0 ? badging : cleanXml }),
+    });
+    expect(parsed.tool).toBe("apkanalyzer");
+    expect(parsed.manifest.policyScanConfirmed).toBe(true);
+  });
+
+  test("every metadata-complete but policy-incomplete candidate still fails", () => {
+    expect(() =>
+      parseAabManifest("fixture.aab", {
+        bundletoolJar: null as never,
+        runTool: () => ({ available: true, output: badging }),
+      }),
+    ).toThrow(/policy|complete manifest|permission/i);
+  });
+
+  test("a complete manifest with a violation is accepted as evidence, then fails policy", () => {
+    const violatingXml = cleanXml.replace(
+      "  <application />",
+      '  <application><service android:name="bad" android:foregroundServiceType="0x2" /></application>',
+    );
+    const parsed = parseAabManifest("fixture.aab", {
+      bundletoolJar: null as never,
+      runTool: () => ({ available: true, output: violatingXml }),
+    });
+    expect(parsed.tool).toBe("bundletool");
+    expect(forbiddenServiceVerdictFor(parsed.manifest).ok).toBe(false);
+  });
+});
+
+describe("AAB module coverage", () => {
+  const baseEntries = ["BundleConfig.pb", "base/manifest/AndroidManifest.xml"];
+
+  test("a base-only AAB is supported", () => {
+    expect(artifactStructureFor("aab", baseEntries)).toEqual({ isApk: false, isAab: true });
+  });
+
+  test("an extra module manifest fails until every module can be inspected", () => {
+    expect(() =>
+      artifactStructureFor("aab", [
+        ...baseEntries,
+        "feature/manifest/AndroidManifest.xml",
+      ]),
+    ).toThrow(/module|manifest|unsupported/i);
   });
 });
 
