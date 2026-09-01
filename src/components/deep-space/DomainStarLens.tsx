@@ -21,6 +21,7 @@ import { useTranslation } from "react-i18next";
 import { MdButton, MdCard, ProgressLinear, m3TextStyle } from "@/components/m3";
 import type { LadderLevel } from "@/lib/persona/brightness";
 import type { DomainId } from "@/lib/persona/domain-stars";
+import type { LifePeriod } from "@/lib/interview/probe";
 import {
   listEntriesForMonth,
   monthBucket,
@@ -61,6 +62,7 @@ export interface DomainLensRecord {
   topic: string | null;
   body: string | null;
   created_at: string;
+  audit_period: string | null;
 }
 
 interface StructuredLensData {
@@ -394,6 +396,37 @@ function recordsCountLabel(locale: LensLocale, count: number) {
   if (locale === "pt") return `${count} registros`;
   if (locale === "id") return `${count} catatan`;
   return `${count} records`;
+}
+
+type GrowthChapterKey = `period:${LifePeriod}` | `decade:${number}` | "undated";
+
+// Canonical interview periods plus links created before the seven-star rename.
+// Unknown values deliberately fall through to created_at instead of being
+// silently called "now".
+const GROWTH_PERIOD_ALIAS: Readonly<Record<string, LifePeriod>> = {
+  infancy: "infancy",
+  childhood: "infancy",
+  school: "school",
+  teens: "school",
+  twenties: "twenties",
+  "20s": "twenties",
+  later: "later",
+  thirties: "later",
+  forties: "later",
+  fifties: "later",
+  sixties: "later",
+  seventies: "later",
+  work: "work",
+  now: "now",
+  current: "now",
+};
+
+function growthChapterKey(record: DomainLensRecord): GrowthChapterKey {
+  const period = record.audit_period ? GROWTH_PERIOD_ALIAS[record.audit_period] : undefined;
+  if (period) return `period:${period}`;
+
+  const year = new Date(record.created_at).getFullYear();
+  return Number.isFinite(year) ? `decade:${Math.floor(year / 10) * 10}` : "undated";
 }
 
 function localeFromLanguage(language: string | undefined, koFallback: boolean): LensLocale {
@@ -749,16 +782,18 @@ function RelationLens({ people, locale }: { people: Person[] | undefined; locale
 }
 
 function GrowthLens({ records, locale }: { records: DomainLensRecord[]; locale: LensLocale }) {
+  const { t } = useTranslation("home");
   const groups = useMemo(() => {
-    const map = new Map<number, DomainLensRecord[]>();
+    const map = new Map<GrowthChapterKey, DomainLensRecord[]>();
     for (const record of records.slice(0, 40)) {
-      const year = new Date(record.created_at).getFullYear();
-      const decade = Math.floor(year / 10) * 10;
-      const bucket = map.get(decade) ?? [];
+      const chapter = growthChapterKey(record);
+      const bucket = map.get(chapter) ?? [];
       bucket.push(record);
-      map.set(decade, bucket);
+      map.set(chapter, bucket);
     }
-    return [...map.entries()].sort((a, b) => b[0] - a[0]).slice(0, 6);
+    // listDomainRecords is newest-first. Map insertion order therefore keeps
+    // the chapter whose latest record is newest at the top.
+    return [...map.entries()].slice(0, 6);
   }, [records]);
 
   return (
@@ -770,29 +805,40 @@ function GrowthLens({ records, locale }: { records: DomainLensRecord[]; locale: 
             <RNText style={[m3TextStyle("bodyMedium"), styles.muted]}>
               {lensCopy(locale, "growth.empty")}
             </RNText>
-            <MdButton variant="text" label={lensCopy(locale, "growth.start")} onPress={() => router.push("/audit")} />
+            <MdButton
+              variant="text"
+              label={lensCopy(locale, "growth.start")}
+              onPress={() => router.push("/audit?origin=domain-growth")}
+            />
           </View>
         ) : (
-          groups.map(([decade, items], index) => (
-            <View key={decade} style={styles.chapterRow}>
-              <View style={styles.chapterRail}>
-                <View style={[styles.chapterDot, index === 0 && styles.chapterDotNow]} />
-                {index < groups.length - 1 ? <View style={styles.chapterLine} /> : null}
-              </View>
-              <View style={styles.chapterBody}>
-                <View style={styles.chapterHead}>
-                  <RNText style={[m3TextStyle("titleMedium"), styles.onSurface]}>{decadeLabel(locale, decade)}</RNText>
-                  <RNText style={[m3TextStyle("labelSmall"), styles.monoMuted]}>
-                    {recordsCountLabel(locale, items.length)}
+          groups.map(([chapter, items], index) => {
+            const chapterLabel = chapter.startsWith("period:")
+              ? t(`ds.star.${chapter.slice("period:".length)}`)
+              : chapter.startsWith("decade:")
+                ? decadeLabel(locale, Number(chapter.slice("decade:".length)))
+                : lensCopy(locale, "growth.section");
+            return (
+              <View key={chapter} style={styles.chapterRow}>
+                <View style={styles.chapterRail}>
+                  <View style={[styles.chapterDot, index === 0 && styles.chapterDotNow]} />
+                  {index < groups.length - 1 ? <View style={styles.chapterLine} /> : null}
+                </View>
+                <View style={styles.chapterBody}>
+                  <View style={styles.chapterHead}>
+                    <RNText style={[m3TextStyle("titleMedium"), styles.onSurface]}>{chapterLabel}</RNText>
+                    <RNText style={[m3TextStyle("labelSmall"), styles.monoMuted]}>
+                      {recordsCountLabel(locale, items.length)}
+                    </RNText>
+                  </View>
+                  <ProgressLinear value={Math.min(1, items.length / 10)} style={styles.chapterProgress} />
+                  <RNText style={[m3TextStyle("bodySmall"), styles.muted]} numberOfLines={2}>
+                    {items[0]?.topic ?? items[0]?.body?.split("\n")[0]}
                   </RNText>
                 </View>
-                <ProgressLinear value={Math.min(1, items.length / 10)} style={styles.chapterProgress} />
-                <RNText style={[m3TextStyle("bodySmall"), styles.muted]} numberOfLines={2}>
-                  {items[0]?.topic ?? items[0]?.body?.split("\n")[0]}
-                </RNText>
               </View>
-            </View>
-          ))
+            );
+          })
         )}
       </MdCard>
     </>

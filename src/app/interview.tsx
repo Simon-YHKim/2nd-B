@@ -111,7 +111,11 @@ function InterviewFrame({ children }: { children: ReactNode }) {
 export default function InterviewRoute() {
   const { t } = useTranslation("interview");
   const { t: homeT } = useTranslation("home");
-  const { period: periodParam } = useLocalSearchParams<{ period?: string }>();
+  const { period: periodParam, origin: originParam } = useLocalSearchParams<{
+    period?: string | string[];
+    origin?: string | string[];
+  }>();
+  const growthOrigin = (Array.isArray(originParam) ? originParam[0] : originParam) === "domain-growth";
   const { userId, loading, hasProfile, profileProbeFailed, age, refresh } = useAuth();
 
   useEffect(() => {
@@ -192,16 +196,21 @@ export default function InterviewRoute() {
 
   // URL의 시기가 바뀌면 세션 전체를 갈아 끼운다. turns/coverage/started가 다른
   // 시기의 대화와 섞이지 않고, 저장 시기 역시 이 prop 하나로 고정된다.
-  return <InterviewSession key={resolution.period} period={resolution.period} />;
+  return (
+    <InterviewSession
+      key={`${resolution.period}:${growthOrigin ? "domain-growth" : "default"}`}
+      period={resolution.period}
+      growthOrigin={growthOrigin}
+    />
+  );
 }
 
-function InterviewSession({ period }: { period: LifePeriod }) {
+function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growthOrigin: boolean }) {
   const { t, i18n } = useTranslation("interview");
   const locale = (i18n.language === "ko" ? "ko" : "en") as "ko" | "en";
-  // 기록에 남기는 시기도 같은 id 로 쓴다. `records.audit_period` 는 CHECK 없는 자유
-  // 텍스트고 **지금 읽는 코드가 없다**(완료 판정은 태그가 한다). 옛 행은 `20s`·`teens`
-  // 를 담고 있어 어휘가 섞이지만, 40대 인터뷰를 `current` 로 접어 넣는 쪽이 틀린
-  // 기록을 남기므로 그쪽을 고르지 않았다.
+  // 기록에 남기는 시기도 같은 id 로 쓴다. Growth 렌즈가 이 값을 생애 장의 정본으로
+  // 읽고, 값이 없는 일반 성장 기록만 created_at 연대로 되돌아간다. 옛 행의
+  // `20s`·`teens` 값은 렌즈 쪽 호환표가 새 id로 읽는다.
   const auditPeriod: string = period;
 
   const { userId, isMinor, age } = useAuth();
@@ -502,6 +511,7 @@ function InterviewSession({ period }: { period: LifePeriod }) {
         // 옛 스크리너와 같은 태그. assess/registry.ts 가 이걸로 완료를 판정한다.
         tags: ["interview", "recall", "screener"],
         auditPeriod,
+        domainIntent: growthOrigin ? "growth" : undefined,
         withFollowup: false,
       });
       // 판 자리를 남긴다. **내용과 같은 동의 경로**다 -- 사용자가 담기로 했을
@@ -521,7 +531,10 @@ function InterviewSession({ period }: { period: LifePeriod }) {
       void loadSevenLevels(userId).then((s) => recordSevenTiers(userId, s.starLevels));
       setToast({ tone: "success", message: t("drill.saved") });
       navigating = true;
-      setTimeout(() => router.replace(`/me/${period}`), 700);
+      setTimeout(() => {
+        if (growthOrigin) router.replace("/star/growth");
+        else router.replace(`/me/${period}`);
+      }, 700);
     } catch {
       setFailModal(true);
     } finally {
