@@ -951,4 +951,98 @@ describe("runtime analytics web transitions", () => {
     expect(writes).toContain("_ga=; Max-Age=0; path=/");
     analytics.__resetAnalytics();
   });
+
+  // Injection is gated on the allow-list, but until 2026-09-01 nothing happened
+  // when the session LEFT it: Clarity kept recording through /record/* for the
+  // rest of the page lifetime, while the privacy screen promised it stopped.
+  // clarity("stop") is undocumented but real (microsoft/clarity#535); restart
+  // is not, so leaving is one-way.
+  describe("Clarity stops when the session leaves the allow-list", () => {
+    const onRows = () => ({
+      current: [
+        { key: "analytics_enabled", enabled: true },
+        { key: "clarity_enabled", enabled: true },
+      ],
+    });
+    const stopCalls = (clarity: jest.Mock) =>
+      clarity.mock.calls.filter((c) => c[0] === "stop");
+    const injected = (appendChild: jest.Mock) =>
+      appendChild.mock.calls.filter((c) => String((c[0] as { src?: string })?.src ?? "").includes("clarity.ms"));
+
+    async function armed() {
+      const harness = loadWebModule(onRows());
+      await harness.analytics.initAnalytics({
+        analyticsConsent: true,
+        isMinor: false,
+        confirmedAdult: true,
+      });
+      // Sanity: the thing we are about to stop is actually running.
+      expect(injected(harness.appendChild).length).toBe(1);
+      return harness;
+    }
+
+    test("navigating to a private route stops recording", async () => {
+      const { analytics, clarity } = await armed();
+      expect(stopCalls(clarity)).toHaveLength(0);
+      analytics.captureEvent(analytics.pageView({ path: "/record/abc123" }));
+      expect(stopCalls(clarity)).toHaveLength(1);
+      analytics.__resetAnalytics();
+    });
+
+    test("stop is sent once, not on every further private navigation", async () => {
+      const { analytics, clarity } = await armed();
+      analytics.captureEvent(analytics.pageView({ path: "/record/abc123" }));
+      analytics.captureEvent(analytics.pageView({ path: "/secondb" }));
+      analytics.captureEvent(analytics.pageView({ path: "/journal" }));
+      expect(stopCalls(clarity)).toHaveLength(1);
+      analytics.__resetAnalytics();
+    });
+
+    test("returning to an allowed route neither resumes nor re-injects", async () => {
+      // The vendor's restart is unverified (#535 reports start() not resuming),
+      // so a fresh page load is the only honest way back.
+      const { analytics, clarity, appendChild } = await armed();
+      analytics.captureEvent(analytics.pageView({ path: "/record/abc123" }));
+      analytics.captureEvent(analytics.pageView({ path: "/settings" }));
+      analytics.captureEvent(analytics.pageView({ path: "/" }));
+      expect(clarity.mock.calls.filter((c) => c[0] === "resume" || c[0] === "start")).toHaveLength(0);
+      expect(injected(appendChild).length).toBe(1);
+      analytics.__resetAnalytics();
+    });
+
+    test("nothing is stopped when Clarity was never running", async () => {
+      // The runtime kill-switch is off, so there is no session to stop and no
+      // reason to poke an SDK that was never loaded.
+      const rows = {
+        current: [
+          { key: "analytics_enabled", enabled: true },
+          { key: "clarity_enabled", enabled: false },
+        ],
+      };
+      const { analytics, clarity, appendChild } = loadWebModule(rows);
+      await analytics.initAnalytics({
+        analyticsConsent: true,
+        isMinor: false,
+        confirmedAdult: true,
+      });
+      expect(injected(appendChild).length).toBe(0);
+      analytics.captureEvent(analytics.pageView({ path: "/record/abc123" }));
+      expect(stopCalls(clarity)).toHaveLength(0);
+      analytics.__resetAnalytics();
+    });
+
+    test("a stop that throws is retried on the next navigation", async () => {
+      // The API is undocumented; if the vendor removes it the call throws. The
+      // honest state is then "not stopped", so the flag must not latch.
+      const { analytics, clarity } = await armed();
+      clarity.mockImplementationOnce(() => {
+        throw new Error("stop is gone");
+      });
+      analytics.captureEvent(analytics.pageView({ path: "/record/abc123" }));
+      expect(stopCalls(clarity)).toHaveLength(1);
+      analytics.captureEvent(analytics.pageView({ path: "/journal" }));
+      expect(stopCalls(clarity)).toHaveLength(2);
+      analytics.__resetAnalytics();
+    });
+  });
 });

@@ -1,18 +1,20 @@
 // Microsoft Clarity on native (Android), gated exactly like native Firebase.
 //
-// The web loader next door carries a warning worth repeating, because the
-// native SDK removes the constraint that forced it:
+// The web loader next door used to carry a warning that this file repeated —
+// "Clarity has no pause/stop command", so never injecting on an
+// identifier-carrying screen was the only control, and once injected, later
+// navigation in the same page lifetime WAS recorded.
 //
-//   "Clarity ... has no pause/stop command - so the only reliable control is
-//    to never INJECT it while the session sits on an identifier-carrying
-//    screen. Residual risk stays real: once injected on an allowed route,
-//    later same-page-lifetime navigation IS recorded."
+// Half of that was wrong, corrected 2026-09-01: the DOCUMENTED client API has
+// no stop, but `clarity("stop")` works undocumented (microsoft/clarity#535),
+// while `clarity("start", ...)` does not reliably bring it back. So the web
+// now stops on leaving the allow-list, one-way for the page lifetime.
 //
-// The React Native SDK has pause() and resume(), and it records a screen NAME
-// we choose rather than a URL we cannot hide. So native gets the discipline the
-// web could only approximate:
+// The React Native SDK is still the stronger position: it has supported
+// pause() AND resume(), and it records a screen NAME we choose rather than a
+// URL we cannot hide. So the two differ by what the vendor guarantees:
 //
-//   web     inject on an allowed route, then hope; the live URL goes with it
+//   web     inject on an allowed route; stop on leaving, no resume (unsupported)
 //   native  resume on an allowed screen, pause on leaving; the name is ours
 //
 // Everything else is deliberately identical to the Firebase path, because the

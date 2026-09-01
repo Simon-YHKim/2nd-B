@@ -421,6 +421,9 @@ let pendingProductEvents: PreparedProductEvent[] = [];
 let sentryClient: { captureException: (err: unknown, context?: Record<string, unknown>) => void } | null = null;
 let ga4Id: string | null = null; // set once GA4 is loaded
 let clarityLoaded = false;
+// Set once the session has left the allow-list and Clarity has been told to
+// stop. One-way for the page lifetime — see stopClarityIfRouteDisallowed.
+let clarityStopped = false;
 let currentAnalyticsRoute = "/";
 
 type WebGlobal = {
@@ -879,6 +882,48 @@ async function loadProductAnalytics(env: Env): Promise<void> {
 }
 
 /**
+ * Leaving an allow-listed route stops Clarity for the rest of the page
+ * lifetime.
+ *
+ * Until 2026-09-01 this did not exist, and the comment next door said the
+ * vendor gave us nothing to call: "Clarity has no pause/stop command - so the
+ * only reliable control is to never INJECT it while the session sits on an
+ * identifier-carrying screen. Residual risk stays real: once injected on an
+ * allowed route, later same-page-lifetime navigation IS recorded." Half of
+ * that was wrong. The DOCUMENTED client API (learn.microsoft.com,
+ * clarity-api, checked 2026-09-01) still lists only consent / identify / set /
+ * event / upgrade — no stop. But `clarity("stop")` exists and works
+ * undocumented; microsoft/clarity#535 (open, labelled documentation, no
+ * maintainer reply) is a user confirming exactly that, and in the same breath
+ * reporting that `clarity("start", {...})` does NOT bring it back.
+ *
+ * So this is deliberately one-way. A pause/resume ping-pong across routes —
+ * what the native module does, where the SDK really has resume() — cannot be
+ * ported here on an unverifiable restart. Stopping matches what the privacy
+ * screen and the policy promise ("개인 화면에서는 수집을 멈춰요"); resuming is
+ * what a fresh page load does anyway.
+ *
+ * Honest about the residue: recording stops when the app reports the new
+ * route, not at the instant the screen renders. That shrinks exposure from
+ * "the whole session after one navigation" to "the moment of navigation" — it
+ * does not erase it. The document-wide data-clarity-mask still applies.
+ */
+function stopClarityIfRouteDisallowed(): void {
+  if (!clarityLoaded || clarityStopped) return;
+  if (isClarityAllowedRoute(currentAnalyticsRoute)) return;
+  const w = webWindow();
+  if (!w?.clarity) return;
+  try {
+    w.clarity("stop");
+    clarityStopped = true;
+  } catch {
+    // Undocumented API: if the vendor ever removes it this throws, and the
+    // flag stays false so the next navigation tries again. Leaving it false is
+    // the honest state — nothing was stopped.
+  }
+}
+
+/**
  * Clarity injects lazily: consent may resolve while the session sits on a
  * disallowed route (the loader skips injection there), so the first
  * page_view on an allow-listed route retries the load. Every gate that the
@@ -889,6 +934,9 @@ function maybeLoadClarityForRoute(): void {
   if (
     !analyticsConsent ||
     clarityLoaded ||
+    // Redundant with clarityLoaded today (stopping never unloads), but stated
+    // so the one-way rule survives a future refactor of the load guards.
+    clarityStopped ||
     !runtimeAnalyticsFlags.clarityEnabled ||
     !isClarityAllowedRoute(currentAnalyticsRoute) ||
     !webWindow()
@@ -1151,6 +1199,9 @@ export function captureEvent(event: AnalyticsEvent): boolean {
   // receive the correct redacted route rather than the browser's live URL.
   if (event.name === "page_view") {
     currentAnalyticsRoute = sanitizeAnalyticsRoutePath(event.props.path);
+    // Leaving the allow-list stops recording. Must run BEFORE the loader so a
+    // single navigation cannot both stop and re-arm.
+    stopClarityIfRouteDisallowed();
     maybeLoadClarityForRoute();
     // Native has no injection step, so navigation is where pause/resume and the
     // screen name are decided. A disallowed screen pauses rather than hoping.
@@ -1225,6 +1276,7 @@ export function __resetAnalytics(): void {
   sentryClient = null;
   ga4Id = null;
   clarityLoaded = false;
+  clarityStopped = false;
   currentAnalyticsRoute = "/";
   nativeApplierOverride = null;
   nativeApplyTarget = null;
