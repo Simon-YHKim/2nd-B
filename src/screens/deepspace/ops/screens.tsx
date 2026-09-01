@@ -447,6 +447,7 @@ const NEXT_STATUS: Record<MilestoneStatus, MilestoneStatus> = {
 
 export function MilestonesScreen() {
   const c = useOpsCopy();
+  const { t } = useTranslation("ops");
   const { userId } = useAuth();
   // A failed WRITE. The empty catches below used to claim it was "surfaced on reload",
   // but reload() sits INSIDE the try -- so on the failure path it never ran, and the tap
@@ -536,7 +537,7 @@ export function MilestonesScreen() {
 
   const tabs: DomainTab[] = MILESTONE_DOMAINS.map((d) => ({
     id: d,
-    label: EN_DOMAIN_LABEL[d],
+    label: t(`domains.${d}`),
     color: domainColorFor(d),
   }));
 
