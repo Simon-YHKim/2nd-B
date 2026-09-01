@@ -40,6 +40,15 @@ export interface SaveFinalizeState {
    * 발행이라 그 재허용이 곧 남의 최신 초안 소실이다.
    */
   lastWriterId: number | null;
+  /**
+   * 이 인스턴스가 **포커스 소유자이면서 초안 재수화까지 끝냈는가.**
+   *
+   * 이 값이 참이면 다른 인스턴스가 마지막으로 쓴 내용은 이미 이 인스턴스가
+   * 읽어온 것이다 — 즉 내 스냅샷은 낡지 않았다. 그래서 마지막 발행자가 남이어도
+   * 정리를 막을 이유가 없다. 화면을 옮겨 재수화한 뒤 저장하는 흔한 흐름이
+   * 여기 걸려 정리도 성공 표시도 없이 중복 저장으로 이어졌었다.
+   */
+  focusedHydrated: boolean;
   /** 이 인스턴스가 지금 포커스를 쥐고 있는가 (UI 판정 전용). */
   focused: boolean;
   /** 제출을 시작한 시점의 그 모드 mutation epoch. */
@@ -79,8 +88,14 @@ export function mayFinalizeDurableCleanup(state: SaveFinalizeState): boolean {
   if (state.currentEpoch !== state.startEpoch) return false;
   // 아무도 안 들고 있으면(blur 직후) 저장을 시작한 이 인스턴스가 마무리한다.
   if (state.focusedOwnerId !== null && state.focusedOwnerId !== state.instanceId) return false;
-  // 내가 마지막 writer 가 아니면 내 스냅샷으로 발행하지 않는다.
-  if (state.lastWriterId !== null && state.lastWriterId !== state.instanceId) return false;
+  // 내가 마지막 writer 가 아니면 내 스냅샷은 낡았을 수 있으니 발행하지 않는다.
+  // 단 지금 포커스를 쥐고 재수화까지 끝냈다면 그 쓰기를 이미 읽어온 것이라
+  // 낡지 않았다 — 화면을 옮겨 재수화한 뒤 저장하는 흐름이 여기 걸리면 안 된다.
+  if (
+    !state.focusedHydrated &&
+    state.lastWriterId !== null &&
+    state.lastWriterId !== state.instanceId
+  ) return false;
   return true;
 }
 

@@ -29,6 +29,7 @@ function scene(initial?: Partial<SaveFinalizeState>) {
     instanceId: ME,
     focusedOwnerId: ME,
     lastWriterId: ME,
+    focusedHydrated: true,
     focused: true,
     startEpoch: 0,
     currentEpoch: 0,
@@ -47,13 +48,14 @@ function scene(initial?: Partial<SaveFinalizeState>) {
       state = {
         ...state,
         focused: false,
+        focusedHydrated: false,
         focusedOwnerId: state.focusedOwnerId === state.instanceId ? null : state.focusedOwnerId,
       };
       return api;
     },
     /** 다른 capture 인스턴스가 포커스를 잡는다 (/capture 와 /capture-full 공존). */
     otherTakesOver() {
-      state = { ...state, focused: false, focusedOwnerId: OTHER };
+      state = { ...state, focused: false, focusedHydrated: false, focusedOwnerId: OTHER };
       return api;
     },
     /** 그 다른 인스턴스가 초안을 발행한다 (편집 후 자동 저장·blur freeze 등). */
@@ -75,6 +77,7 @@ function scene(initial?: Partial<SaveFinalizeState>) {
       state = {
         ...state,
         focused: true,
+        focusedHydrated: true,
         focusedOwnerId: state.instanceId,
         currentEpoch: state.currentEpoch + 1,
       };
@@ -169,6 +172,23 @@ describe("저장 완주 권한 — 도착 순서 (#1551 회귀)", () => {
     // 발행이 없었으면 내 스냅샷은 아직 최신이다. 과하게 막지 않는다.
     const v = scene().submit().blur().otherTakesOver().otherLeaves().verdict();
     expect(v.cleanup).toBe(true);
+  });
+
+  test("화면을 옮겨 재수화한 뒤 저장하면, 이전 화면이 마지막 writer 여도 정리한다 (Codex P2)", () => {
+    // /capture -> /capture-full 로 옮기면 이전 화면의 blur freeze 가 마지막
+    // writer 로 남는다. 그런데 새 화면은 그 쓰기를 **읽어와서** 재수화했으므로
+    // 스냅샷이 낡지 않았다. 여기서 막으면 저장이 끝나도 정리도 성공 표시도
+    // 없어 그대로 중복 저장을 부른다 — 고치려던 바로 그 증상이다.
+    const v = scene({ lastWriterId: OTHER, focusedOwnerId: ME, focusedHydrated: true })
+      .submit()
+      .verdict();
+    expect(v).toEqual({ cleanup: true, ui: true });
+  });
+
+  test("반대로 포커스를 잃은 채라면 남의 쓰기가 여전히 정리를 막는다", () => {
+    // 재수화로 읽어온 것이 아니라 낡은 스냅샷이므로 P0 보호가 살아 있어야 한다.
+    const v = scene({ lastWriterId: OTHER }).submit().blur().verdict();
+    expect(v.cleanup).toBe(false);
   });
 
   test("내가 마지막 writer 면(내 blur freeze 포함) 정리한다", () => {

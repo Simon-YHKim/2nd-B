@@ -773,6 +773,9 @@ function CaptureLegacySession() {
       instanceId: captureInstanceId,
       focusedOwnerId: (userId ? focusedCaptureOwners.get(userId)?.id : undefined) ?? null,
       lastWriterId: (userId ? lastCaptureDraftWriters.get(userId) : undefined) ?? null,
+      // focusDraftHydratedRef 는 "포커스 소유자 + 재수화 완료" 를 이미 한 값으로
+      // 들고 있다(blur 가 false 로 되돌린다). 그 조건이 곧 "내 스냅샷이 최신이다".
+      focusedHydrated: focusDraftHydratedRef.current,
       focused: captureFocusedRef.current,
       startEpoch,
       currentEpoch,
