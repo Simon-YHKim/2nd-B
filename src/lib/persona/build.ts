@@ -540,6 +540,36 @@ const MAX_SUMMARY_INPUT_CHARS = 7400;
 // so the cache signature keeps moving as records are added.
 const MAX_PERSONA_ROWS = 1000;
 
+export type SelfPortraitSignals = Pick<PersonaCard, "mbti" | "attachment" | "values">;
+
+/**
+ * Read only the three backing signals rendered by Self Portrait. Unlike a
+ * persisted PersonaCard, these measurements can exist before the first persona
+ * synthesis and must refresh after a user returns from an assessment or audit.
+ * This path is SELECT-only: no LLM call, synthesis, or persona write.
+ */
+export async function loadSelfPortraitSignals(userId: string): Promise<SelfPortraitSignals> {
+  const supabase = getSupabaseClient();
+  const [recordsResult, mbti, attachment] = await Promise.all([
+    supabase
+      .from("records")
+      .select("prompt")
+      .eq("user_id", userId)
+      .eq("kind", "audit_response")
+      .order("created_at", { ascending: false })
+      .limit(MAX_PERSONA_ROWS),
+    loadLatestMbti(supabase, userId),
+    loadLatestAttachment(supabase, userId),
+  ]);
+  if (recordsResult.error) throw recordsResult.error;
+
+  return {
+    mbti,
+    attachment,
+    values: deriveValues(recordsResult.data ?? []),
+  };
+}
+
 /**
  * Read only the measured evidence needed to decide which `/review` actions can
  * be offered. Unlike `buildPersona`, this never calls the LLM, derives star

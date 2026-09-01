@@ -39,8 +39,10 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import {
   loadLatestStrengths,
   loadPersonaSnapshot,
+  loadSelfPortraitSignals,
   type LoadedStrengths,
   type PersonaCard,
+  type SelfPortraitSignals,
 } from "@/lib/persona/build";
 import { STRENGTH_LABEL_EN, STRENGTH_LABEL_KO } from "@/lib/persona/strengths-survey";
 import type { DomainId } from "@/lib/persona/domain-stars";
@@ -203,6 +205,7 @@ function CoreBrainScreen() {
   const [evidenceReloadKey, setEvidenceReloadKey] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [pendingLinkCount, setPendingLinkCount] = useState(0);
+  const [portraitSignals, setPortraitSignals] = useState<SelfPortraitSignals | null>(null);
   const { moment: companionMoment, fire: fireCompanion } = useCompanionMoment();
 
   useEffect(() => {
@@ -213,6 +216,7 @@ function CoreBrainScreen() {
     setBuilding(true);
     setLoadError(false);
     setLoadErrorUserId(null);
+    setPortraitSignals(null);
     (async () => {
       try {
         const [ev, nextDomainBrightness, nextStars, nextProfileLevel, nextStrengths] = await Promise.all([
@@ -246,6 +250,7 @@ function CoreBrainScreen() {
           setSevenLevels(null);
           setProfileLevel(null);
           setStrengths(null);
+          setPortraitSignals(null);
           setResolvedUserId(null);
           setLoadError(true);
           setLoadErrorUserId(userId);
@@ -311,6 +316,26 @@ function CoreBrainScreen() {
       cancelled = true;
     };
   }, [userId, hasProfile, locale, evidenceReloadKey, resolvedUserId]);
+
+  // Direct portrait measurements are optional, SELECT-only companions to the
+  // synthesized persona. Load them independently so an assessment read failure
+  // cannot turn the whole Core Brain into an error screen; focus/retry refreshes
+  // them without calling the LLM or writing a persona row.
+  useEffect(() => {
+    if (loading || !userId || hasProfile !== true || isMinor === null) return;
+    let cancelled = false;
+    loadSelfPortraitSignals(userId)
+      .then((signals) => {
+        if (!cancelled) setPortraitSignals(signals);
+      })
+      .catch(() => {
+        // Optional field data stays at its prior/collecting state; the main
+        // evidence loader owns the screen-level error surface.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [loading, userId, hasProfile, isMinor, reloadKey, evidenceReloadKey]);
 
   if (loading) {
     return (
@@ -422,9 +447,12 @@ function CoreBrainScreen() {
   const pieces = cards.find((c) => c.id === "pieces");
 
   // 나의 모습 — the 5-field self-portrait (who / forWhom / goal / do / fuel).
-  // Data contract: only measured fields are filled; the rest stay collecting
-  // and point the user at the one place that would fill them. Never fabricated.
-  const portrait = buildSelfPortrait({ persona: hasUnrecordedProvenance ? null : persona }, locale);
+  // Data contract: only measured fields are filled. Collecting rows point to an
+  // honest next step; filled rows point to records filtered to their evidence.
+  // The remaining three fields disclose that automatic summary is not wired yet.
+  // Trait provenance gates generated role/direction copy, not these independent
+  // measurement reads. They refresh on focus and can predate persona synthesis.
+  const portrait = buildSelfPortrait({ persona: portraitSignals }, locale);
 
   const filledFields = portrait.filter((f) => f.status === "filled").length;
   const domainLevels: Record<DomainId, LadderLevel> | undefined = domainBrightness?.domainLevels;
@@ -579,7 +607,8 @@ function CoreBrainScreen() {
                   activeOpacity={0.7}
                   onPress={() => router.push(field.route as never)}
                   accessibilityRole="button"
-                  accessibilityLabel={field.label}
+                  accessibilityLabel={field.value ? `${field.label}: ${field.value}` : field.label}
+                  accessibilityHint={field.actionHint}
                 >
                   <View
                     style={[styles.fieldDot, { backgroundColor: field.status === "filled" ? cosmic.signalMint : semantic.border }]}
@@ -592,9 +621,14 @@ function CoreBrainScreen() {
                       <Text variant="subtle" color="textSubtle">{field.hint}</Text>
                     )}
                   </View>
-                  {field.status === "collecting" ? (
-                    <Text variant="caption" color="brand">{t("fill")}</Text>
-                  ) : null}
+                  <Text
+                    variant="caption"
+                    color="brand"
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                  >
+                    →
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -738,7 +772,8 @@ function CoreBrainScreen() {
                 activeOpacity={0.7}
                 onPress={() => router.push(field.route as never)}
                 accessibilityRole="button"
-                accessibilityLabel={field.label}
+                accessibilityLabel={field.value ? `${field.label}: ${field.value}` : field.label}
+                accessibilityHint={field.actionHint}
               >
                 <View
                   style={[styles.fieldDot, { backgroundColor: field.status === "filled" ? cosmic.signalMint : semantic.border }]}
@@ -751,9 +786,14 @@ function CoreBrainScreen() {
                     <Text variant="subtle" color="textSubtle">{field.hint}</Text>
                   )}
                 </View>
-                {field.status === "collecting" ? (
-                  <Text variant="caption" color="brand">{t("fill")}</Text>
-                ) : null}
+                <Text
+                  variant="caption"
+                  color="brand"
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                >
+                  →
+                </Text>
               </TouchableOpacity>
             ))}
           </View>
