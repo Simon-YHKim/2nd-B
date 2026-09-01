@@ -19,6 +19,7 @@ import { fetchPrivacyPrefs } from "../supabase/privacy";
 import { withTimeout } from "../async/with-timeout";
 import { getEnv } from "../env";
 import type { StructuredPayload } from "../capture/structured";
+import type { DomainId } from "../persona/domain-stars";
 import { withDomainTag } from "./detect-domain";
 import { embedAndStoreRecord, recordsEmbeddingAllowed } from "./records-embeddings";
 import type { RecordFollowup } from "./followup";
@@ -51,6 +52,16 @@ export interface CreateRecordArgs {
   summary?: string;
   conclusion?: string;
   tags?: string[];
+  /**
+   * Domain the capture files under (별 담기: /star/<id> → capture), so the
+   * piece lands on the star it was captured from. A permitted UX override —
+   * the user choosing their own record's classification — not a trust
+   * boundary: the value originates in a forgeable URL param, so the gate is
+   * the runtime DomainId allowlist (withDomainTag re-checks isDomainId). Raw
+   * `domain:*` string tags are still stripped; this typed field is the only
+   * way past the detector.
+   */
+  domainIntent?: DomainId;
   /**
    * Machine-readable form payload (0066): set by form-shaped captures (4W1H,
    * career 3C4P) alongside the flattened human body, so the system and the AI
@@ -269,8 +280,13 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
         // Constellation layer A: tag the record with its life-domain slug at
         // insert (deterministic, no LLM) so the home's load-domain-levels can
         // group it. Detect from the user's own text (body + topic), not the AI
-        // prompt; withDomainTag drops any user-forced domain:* tag first.
-        tags: withDomainTag(args.tags, [args.body, args.topic].filter(Boolean).join("\n")),
+        // prompt; withDomainTag drops any user-forced domain:* tag first, and
+        // a typed domainIntent (별 담기 screen context) wins over the detector.
+        tags: withDomainTag(
+          args.tags,
+          [args.body, args.topic].filter(Boolean).join("\n"),
+          args.domainIntent,
+        ),
         // 0066: machine-readable form payload for form-shaped captures.
         structured: args.structured ?? null,
       })

@@ -89,6 +89,7 @@ import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionS
 import { reactExpression } from "@/lib/companion/expression";
 import { AdvisorFollowupNote } from "@/components/records/AdvisorFollowupNote";
 import { createRecord } from "@/lib/records/create";
+import { domainTagFor, isDomainId, type DomainId } from "@/lib/persona/domain-stars";
 import type { RecordFollowup } from "@/lib/records/followup";
 import { computeStreak } from "@/lib/journal/streak";
 import { dailyPrompt } from "@/lib/journal/daily-prompts";
@@ -279,6 +280,12 @@ export function CaptureLegacy() {
   // height, background) and the target collapsed under the finger.
   const [submitPressed, setSubmitPressed] = useState(false);
   const [tagsEditable, setTagsEditable] = useState<string[]>([]);
+  // 별 담기(/star/<id> → ?tag=domain:<id>)의 domain 의도. URL 파라미터라 누구나
+  // 만들 수 있는 값이므로 신뢰 경계가 아니다 — 사용자가 자기 기록의 분류를 직접
+  // 고르는 **허용된 UX** 이고, 게이트는 isDomainId 런타임 허용목록이다.
+  // createRecord 는 raw domain:* 문자열 태그를 계속 걷어내므로, 허용목록을
+  // 통과한 값만 typed 인자로 승격해 전달한다.
+  const [domainIntent, setDomainIntent] = useState<DomainId | null>(null);
   // med#4: true once the user taps a 트랙 chip this visit — the AI classifier
   // then keeps its hands off the track (mirrors the user-hashtags-win rule).
   const trackTouchedRef = useRef(false);
@@ -490,7 +497,14 @@ export function CaptureLegacy() {
       setShowAdvancedModes(true);
       setMode(m);
     }
-    if (tg) setTagsEditable((prev) => (prev.includes(tg) ? prev : [...prev, tg]));
+    if (tg) {
+      setTagsEditable((prev) => (prev.includes(tg) ? prev : [...prev, tg]));
+      // domain:<id> 이고 <id> 가 허용목록(isDomainId)을 통과하면 intent 로 쓰고,
+      // 아니면 이전 intent 를 명시적으로 지운다 — 같은 mount 에서 뒤에 온 일반/
+      // 무효 tag 가 옛 의도를 조용히 살려두지 않게. 칩 추가 UX 는 그대로다.
+      const candidate = tg.startsWith("domain:") ? tg.slice("domain:".length) : null;
+      setDomainIntent(candidate !== null && isDomainId(candidate) ? candidate : null);
+    }
     router.setParams({ mode: undefined, tag: undefined });
   }, [draftHydrated, modeParam, tagParam]);
   // Clipboard offer probe: presence-only (no content read, no OS notice) when
@@ -623,6 +637,9 @@ export function CaptureLegacy() {
     setPickedImage(null);
     setExtracting(false);
     setTagsEditable([]);
+    // 저장 성공(reset)·모드 전환이 지나간 뒤에도 typed intent 가 남으면 다음
+    // 저장이 보이지 않는 의도에 좌우된다 — 태그 칩과 같은 수명으로 지운다.
+    setDomainIntent(null);
     setAskAdvisor(false);
     setProposalCtx(null);
     setProposal(null);
@@ -879,6 +896,9 @@ ${transcript}`;
 
   function removeTag(t: string) {
     setTagsEditable((prev) => prev.filter((x) => x !== t));
+    // 칩은 지웠는데 typed intent 만 살아 있으면 화면에 안 보이는 의도가 저장을
+    // 좌우한다 — 같은 별의 칩 제거는 intent 도 함께 지운다.
+    setDomainIntent((prev) => (prev !== null && domainTagFor(prev) === t ? null : prev));
   }
 
   function addTagFromInput(input: string) {
@@ -958,6 +978,7 @@ ${transcript}`;
         body: body.trim(),
         topic: topic.trim().length > 0 ? topic.trim() : undefined,
         tags: tagsEditable.length > 0 ? tagsEditable : undefined,
+        domainIntent: domainIntent ?? undefined,
         conclusion: conclusion.trim().length > 0 ? conclusion.trim() : undefined,
         withFollowup: askAdvisor && advisorUnlocked,
         tier: progression.tier,
@@ -1046,6 +1067,7 @@ ${transcript}`;
         kind: "note",
         body: noteBody,
         tags,
+        domainIntent: domainIntent ?? undefined,
         tier: progression.tier,
         // 0066: 4W1H keeps the machine-readable payload beside the flattened body.
         structured: noteMode === "fourw" ? composeStructured("fourw", fourw) ?? undefined : undefined,

@@ -38,6 +38,9 @@ jest.mock("../../supabase/client", () => ({
   }),
 }));
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { createRecord } from "../create";
 
 const ADVISOR_OK = {
@@ -214,5 +217,92 @@ describe("createRecord — Advisor premium gate", () => {
         fixedTemplate: true,
       }),
     );
+  });
+});
+
+describe("createRecord — typed domainIntent (별 담기 provenance)", () => {
+  beforeEach(() => {
+    mockCallAdvisor.mockReset().mockResolvedValue(ADVISOR_OK);
+    mockCallLlm.mockReset().mockResolvedValue({ text: "ok", safety: { zone: "green" } });
+    mockClassifyRecordCrisis.mockReset().mockResolvedValue(null);
+    mockInsert.mockClear();
+  });
+
+  test("domainIntent reaches the insert payload as the record's one domain tag", async () => {
+    await createRecord({
+      userId: "u1",
+      locale: "ko",
+      kind: "journal",
+      body: "그냥 떠오른 생각",
+      tags: ["mine"],
+      domainIntent: "growth",
+    });
+
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({ tags: ["domain:growth", "mine"] }),
+    );
+  });
+
+  test("intent wins over the detector, raw domain:* still stripped", async () => {
+    await createRecord({
+      userId: "u1",
+      locale: "ko",
+      kind: "note",
+      body: "회사 면접 준비",
+      tags: ["domain:finance", "keep"],
+      domainIntent: "growth",
+    });
+
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({ tags: ["domain:growth", "keep"] }),
+    );
+  });
+
+  test("no intent keeps detector-owned tagging unchanged", async () => {
+    await createRecord({
+      userId: "u1",
+      locale: "ko",
+      kind: "note",
+      body: "회사 면접 준비",
+      tags: ["domain:finance", "keep"],
+    });
+
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({ tags: ["domain:career", "keep"] }),
+    );
+  });
+});
+
+// capture 화면의 domainIntent 배선. 컴포넌트 렌더 테스트는 이 저장소에서 막혀
+// 있으므로(RN 0.85 upstream) 소스 계약으로 고정한다 — 배선이 사라지면 여기서
+// 걸린다.
+describe("capture 화면 — domainIntent 배선 (source contract)", () => {
+  const src = readFileSync(join(process.cwd(), "src", "app", "capture.tsx"), "utf8");
+
+  test("허용목록(isDomainId) 통과 tag 만 intent 가 되고, 일반/무효 tag 는 이전 intent 를 지운다", () => {
+    // 삼항 한 줄이 두 회귀를 함께 막는다: 무효 값 승격(허용목록), 그리고 같은
+    // mount 에서 뒤에 온 tagParam 이 옛 의도를 조용히 살려두는 stale override.
+    expect(src).toContain(
+      "setDomainIntent(candidate !== null && isDomainId(candidate) ? candidate : null);",
+    );
+    expect(src).not.toContain("if (candidate !== null && isDomainId(candidate)) setDomainIntent(");
+  });
+
+  test("journal·note 두 createRecord 경로 모두에 intent 를 전달한다", () => {
+    expect((src.match(/domainIntent: domainIntent \?\? undefined/g) ?? []).length).toBe(2);
+  });
+
+  test("성공(reset)·모드 전환이 지나는 resetTransientCaptureState 가 intent 를 지운다", () => {
+    const fn = src.split("function resetTransientCaptureState")[1]?.split("\n  }")[0] ?? "";
+    expect(fn).toContain("setDomainIntent(null)");
+  });
+
+  test("같은 별의 태그 칩을 지우면 숨은 intent 도 함께 사라진다", () => {
+    const fn = src.split("function removeTag")[1]?.split("\n  }")[0] ?? "";
+    expect(fn).toContain("domainTagFor(prev) === t ? null : prev");
+  });
+
+  test("기존 tagParam UX 는 보존된다 — 칩 추가는 그대로", () => {
+    expect(src).toContain("setTagsEditable((prev) => (prev.includes(tg) ? prev : [...prev, tg]))");
   });
 });
