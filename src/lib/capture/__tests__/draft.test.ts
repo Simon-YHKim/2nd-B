@@ -7,6 +7,14 @@ import {
   saveCaptureDraftState,
   sharedDeliveryKey,
   clearCaptureDraft,
+  clearSubmittedCaptureDraft,
+  claimCaptureSubmission,
+  completeCaptureSubmission,
+  markCaptureSubmissionSaved,
+  acknowledgeCaptureSubmissionIfOwned,
+  acknowledgeCaptureSubmissionState,
+  omitSavedCaptureSubmissionDrafts,
+  __resetCaptureSubmissionGuards,
   type CaptureParamPlan,
 } from "../draft";
 import { composeFourWBody, fourWHasContent } from "../fourw";
@@ -78,6 +86,7 @@ async function withMockNativeStorage(run: () => Promise<void>): Promise<void> {
 describe("capture draft persistence (persona sim P1-5)", () => {
   beforeEach(() => {
     localStorage.clear();
+    __resetCaptureSubmissionGuards();
   });
 
   test("round-trips journal body + topic through the compatibility helpers, scoped by user", async () => {
@@ -272,9 +281,628 @@ describe("capture draft persistence (persona sim P1-5)", () => {
     expect(cleared.drafts.linkclip).toEqual(withVoice.drafts.linkclip);
     expect(cleared.transientDrafts).toBeUndefined();
   });
+
+  test("submitted storage cleanup deletes only an exact canonical match", async () => {
+    await saveCaptureDraftState("u1", {
+      lastMode: "memo",
+      drafts: {
+        memo: { body: "saved A", topic: "" },
+        file: { body: "keep file", topic: "" },
+      },
+      transientDrafts: { voice: { mode: "voice", body: "keep voice" } },
+    });
+
+    await expect(clearSubmittedCaptureDraft("u1", {
+      bucket: "storage",
+      mode: "memo",
+      expected: { body: "saved A", topic: "" },
+    })).resolves.toBe("cleared");
+
+    await expect(loadCaptureDraftState("u1")).resolves.toEqual({
+      lastMode: "journal",
+      drafts: {
+        file: {
+          body: "keep file",
+          topic: "",
+          conclusion: "",
+          ocrReviewApproved: false,
+        },
+      },
+      transientDrafts: { voice: { mode: "voice", body: "keep voice" } },
+    });
+  });
+
+  test("submitted cleanup preserves a newer storage draft without rewriting state", async () => {
+    await saveCaptureDraftState("u1", {
+      lastMode: "memo",
+      drafts: { memo: { body: "new B", topic: "" } },
+    });
+    const before = localStorage.getItem("capture.drafts.v2.u1");
+    const setItem = jest.spyOn(localStorage, "setItem");
+
+    await expect(clearSubmittedCaptureDraft("u1", {
+      bucket: "storage",
+      mode: "memo",
+      expected: { body: "submitted A", topic: "" },
+    })).resolves.toBe("mismatch");
+
+    expect(setItem).not.toHaveBeenCalled();
+    expect(localStorage.getItem("capture.drafts.v2.u1")).toBe(before);
+    setItem.mockRestore();
+  });
+
+  test("submitted cleanup treats an already-absent draft as idempotently cleared", async () => {
+    await saveCaptureDraftState("u1", {
+      lastMode: "file",
+      drafts: { file: { body: "keep", topic: "" } },
+    });
+    const before = localStorage.getItem("capture.drafts.v2.u1");
+    const setItem = jest.spyOn(localStorage, "setItem");
+
+    await expect(clearSubmittedCaptureDraft("u1", {
+      bucket: "storage",
+      mode: "memo",
+      expected: { body: "submitted A", topic: "" },
+    })).resolves.toBe("cleared");
+
+    expect(setItem).not.toHaveBeenCalled();
+    expect(localStorage.getItem("capture.drafts.v2.u1")).toBe(before);
+    setItem.mockRestore();
+  });
+
+  test("submitted transient cleanup uses the same exact-match contract", async () => {
+    await saveCaptureDraftState("u1", {
+      lastMode: "todo",
+      drafts: { journal: { body: "keep journal", topic: "" } },
+      transientDrafts: {
+        todo: { mode: "todo", body: "saved A", todoDone: false },
+        voice: { mode: "voice", body: "keep voice" },
+      },
+    });
+
+    await expect(clearSubmittedCaptureDraft("u1", {
+      bucket: "transient",
+      mode: "todo",
+      expected: { mode: "todo", body: "saved A", todoDone: false },
+    })).resolves.toBe("cleared");
+    const cleared = await loadCaptureDraftState("u1");
+    expect(cleared.lastMode).toBe("journal");
+    expect(cleared.transientDrafts?.todo).toBeUndefined();
+    expect(cleared.transientDrafts?.voice?.body).toBe("keep voice");
+    expect(cleared.drafts.journal?.body).toBe("keep journal");
+
+    await expect(clearSubmittedCaptureDraft("u1", {
+      bucket: "transient",
+      mode: "voice",
+      expected: { mode: "voice", body: "older voice" },
+    })).resolves.toBe("mismatch");
+    expect((await loadCaptureDraftState("u1")).transientDrafts?.voice?.body).toBe("keep voice");
+
+    const submittedFourw = {
+      mode: "fourw" as const,
+      fourw: { who: "동료", when: "오늘", where: "", what: "합의", how: "대화" },
+    };
+    await saveCaptureDraftState("u1", {
+      lastMode: "fourw",
+      drafts: { journal: { body: "keep journal", topic: "" } },
+      transientDrafts: { fourw: submittedFourw },
+    });
+    await expect(clearSubmittedCaptureDraft("u1", {
+      bucket: "transient",
+      mode: "fourw",
+      expected: submittedFourw,
+    })).resolves.toBe("cleared");
+    expect((await loadCaptureDraftState("u1")).transientDrafts?.fourw).toBeUndefined();
+  });
+
+  test("non-journal cleanup never probes or removes the legacy journal key", async () => {
+    await saveCaptureDraftState("u1", {
+      lastMode: "memo",
+      drafts: {
+        memo: { body: "saved A", topic: "" },
+        journal: { body: "keep journal", topic: "" },
+      },
+    });
+    const legacyKey = "capture.journalDraft.v1.u1";
+    localStorage.setItem(legacyKey, JSON.stringify({ body: "keep legacy", topic: "" }));
+    const getItem = jest.spyOn(localStorage, "getItem");
+    const removeItem = jest.spyOn(localStorage, "removeItem");
+
+    try {
+      await expect(clearSubmittedCaptureDraft("u1", {
+        bucket: "storage",
+        mode: "memo",
+        expected: { body: "saved A", topic: "" },
+      })).resolves.toBe("cleared");
+
+      expect(getItem).not.toHaveBeenCalledWith(legacyKey);
+      expect(removeItem).not.toHaveBeenCalledWith(legacyKey);
+      expect(localStorage.getItem(legacyKey)).not.toBeNull();
+    } finally {
+      getItem.mockRestore();
+      removeItem.mockRestore();
+    }
+  });
+
+  test("journal cleanup retries an exact legacy-key removal after a partial failure", async () => {
+    const submitted = { body: "saved A", topic: "" };
+    await saveCaptureDraftState("u1", {
+      drafts: { journal: submitted },
+      lastMode: "journal",
+    });
+    localStorage.setItem("capture.journalDraft.v1.u1", JSON.stringify(submitted));
+    const removeItem = jest.spyOn(localStorage, "removeItem")
+      .mockImplementationOnce(() => { throw new Error("legacy remove failed"); })
+      .mockImplementation((key: string) => { store.delete(key); });
+
+    const request = {
+      bucket: "storage" as const,
+      mode: "journal" as const,
+      expected: submitted,
+    };
+    try {
+      await expect(clearSubmittedCaptureDraft("u1", request)).resolves.toBe("failed");
+      expect((await loadCaptureDraftState("u1")).drafts.journal).toBeUndefined();
+      expect(localStorage.getItem("capture.journalDraft.v1.u1")).not.toBeNull();
+
+      await expect(clearSubmittedCaptureDraft("u1", request)).resolves.toBe("cleared");
+      expect(localStorage.getItem("capture.journalDraft.v1.u1")).toBeNull();
+    } finally {
+      removeItem.mockRestore();
+    }
+  });
+});
+
+describe("cross-owner capture submission guard", () => {
+  const submittedA = {
+    bucket: "storage" as const,
+    mode: "journal" as const,
+    expected: { body: "submitted A", topic: "" },
+  };
+
+  beforeEach(() => {
+    localStorage.clear();
+    __resetCaptureSubmissionGuards();
+  });
+
+  test("blocks only the exact pending snapshot across owners", async () => {
+    const first = claimCaptureSubmission({
+      userId: "u1",
+      ownerId: 1,
+      semanticEpoch: 0,
+      submitted: submittedA,
+    });
+    expect(first.accepted).toBe(true);
+    if (!first.accepted) throw new Error("first claim must be accepted");
+
+    const duplicate = claimCaptureSubmission({
+      userId: "u1",
+      ownerId: 2,
+      semanticEpoch: 0,
+      submitted: submittedA,
+    });
+    expect(duplicate.accepted).toBe(false);
+
+    const different = claimCaptureSubmission({
+      userId: "u1",
+      ownerId: 2,
+      semanticEpoch: 1,
+      submitted: {
+        ...submittedA,
+        expected: { body: "genuinely different B", topic: "" },
+      },
+    });
+    expect(different.accepted).toBe(true);
+    if (different.accepted) {
+      completeCaptureSubmission(different.ticket, { outcome: "failed" });
+    }
+
+    completeCaptureSubmission(first.ticket, { outcome: "saved", cleanup: "cleared" });
+    if (duplicate.accepted) throw new Error("duplicate claim must be blocked");
+    await expect(duplicate.completion).resolves.toEqual({ outcome: "saved", cleanup: "cleared" });
+  });
+
+  test("frozen writes omit exact A only after its save succeeded", async () => {
+    const state = {
+      drafts: {
+        journal: { body: "submitted A", topic: "" },
+        memo: { body: "keep memo", topic: "" },
+      },
+      transientDrafts: { voice: { mode: "voice" as const, body: "keep voice" } },
+      lastMode: "journal" as const,
+    };
+    const first = claimCaptureSubmission({
+      userId: "u1",
+      ownerId: 1,
+      semanticEpoch: 0,
+      submitted: submittedA,
+    });
+    if (!first.accepted) throw new Error("first claim must be accepted");
+
+    expect(omitSavedCaptureSubmissionDrafts("u1", state)).toBe(state);
+    markCaptureSubmissionSaved(first.ticket);
+    const omitted = omitSavedCaptureSubmissionDrafts("u1", state);
+    expect(omitted).not.toBe(state);
+    expect(omitted).toEqual({
+      drafts: { memo: { body: "keep memo", topic: "" } },
+      transientDrafts: { voice: { mode: "voice", body: "keep voice" } },
+      lastMode: "journal",
+    });
+    expect(state.drafts.journal?.body).toBe("submitted A");
+
+    const durableB = {
+      ...state,
+      drafts: { ...state.drafts, journal: { body: "durable B", topic: "" } },
+    };
+    expect(omitSavedCaptureSubmissionDrafts("u1", durableB)).toBe(durableB);
+    await expect(saveCaptureDraftState("u1", state)).resolves.toBe(true);
+    expect((await loadCaptureDraftState("u1")).drafts.journal).toBeUndefined();
+    expect((await loadCaptureDraftState("u1")).drafts.memo?.body).toBe("keep memo");
+    completeCaptureSubmission(first.ticket, { outcome: "saved", cleanup: "failed" });
+  });
+
+  test("committed phase tombstones writes but keeps duplicate claims waiting for cleanup", async () => {
+    const first = claimCaptureSubmission({
+      userId: "u1",
+      ownerId: 1,
+      semanticEpoch: 0,
+      submitted: submittedA,
+    });
+    if (!first.accepted) throw new Error("first claim must be accepted");
+    const duplicate = claimCaptureSubmission({
+      userId: "u1",
+      ownerId: 2,
+      semanticEpoch: 0,
+      submitted: submittedA,
+    });
+    if (duplicate.accepted) throw new Error("duplicate claim must be blocked");
+    let settled = false;
+    void duplicate.completion.then(() => { settled = true; });
+
+    markCaptureSubmissionSaved(first.ticket);
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    // Once committed, even a mistaken failed completion must fail closed as a
+    // saved record whose cleanup is unknown.
+    completeCaptureSubmission(first.ticket, { outcome: "failed" });
+    await expect(duplicate.completion).resolves.toEqual({
+      outcome: "saved",
+      cleanup: "failed",
+    });
+  });
+
+  test("a failed save releases the exact snapshot for retry", async () => {
+    const first = claimCaptureSubmission({
+      userId: "u1",
+      ownerId: 1,
+      semanticEpoch: 0,
+      submitted: submittedA,
+    });
+    if (!first.accepted) throw new Error("first claim must be accepted");
+    completeCaptureSubmission(first.ticket, { outcome: "failed" });
+
+    const retry = claimCaptureSubmission({
+      userId: "u1",
+      ownerId: 2,
+      semanticEpoch: 0,
+      submitted: submittedA,
+    });
+    expect(retry.accepted).toBe(true);
+  });
+
+  test("a saved snapshot stays guarded until fresh durable state no longer contains it", () => {
+    const first = claimCaptureSubmission({
+      userId: "u1",
+      ownerId: 1,
+      semanticEpoch: 0,
+      submitted: submittedA,
+    });
+    if (!first.accepted) throw new Error("first claim must be accepted");
+    completeCaptureSubmission(first.ticket, { outcome: "saved", cleanup: "cleared" });
+
+    expect(claimCaptureSubmission({
+      userId: "u1",
+      ownerId: 2,
+      semanticEpoch: 0,
+      submitted: submittedA,
+    }).accepted).toBe(false);
+
+    acknowledgeCaptureSubmissionState("u1", { drafts: {}, lastMode: "journal" });
+    expect(claimCaptureSubmission({
+      userId: "u1",
+      ownerId: 2,
+      semanticEpoch: 0,
+      submitted: submittedA,
+    }).accepted).toBe(true);
+  });
+
+  test("same owner refocus with the same semantic epoch cannot resubmit exact A", () => {
+    const first = claimCaptureSubmission({
+      userId: "u1",
+      ownerId: 7,
+      semanticEpoch: 3,
+      submitted: submittedA,
+    });
+    if (!first.accepted) throw new Error("first claim must be accepted");
+    completeCaptureSubmission(first.ticket, { outcome: "saved", cleanup: "mismatch" });
+
+    expect(claimCaptureSubmission({
+      userId: "u1",
+      ownerId: 7,
+      semanticEpoch: 3,
+      submitted: submittedA,
+    }).accepted).toBe(false);
+  });
+
+  test("failed cleanup cannot be bypassed by the same owner's newer epoch", () => {
+    const first = claimCaptureSubmission({
+      userId: "u1",
+      ownerId: 7,
+      semanticEpoch: 3,
+      submitted: submittedA,
+    });
+    if (!first.accepted) throw new Error("first claim must be accepted");
+    completeCaptureSubmission(first.ticket, { outcome: "saved", cleanup: "failed" });
+
+    expect(claimCaptureSubmission({
+      userId: "u1",
+      ownerId: 7,
+      semanticEpoch: 4,
+      submitted: submittedA,
+    }).accepted).toBe(false);
+
+    acknowledgeCaptureSubmissionState("u1", { drafts: {}, lastMode: "journal" });
+    expect(claimCaptureSubmission({
+      userId: "u1",
+      ownerId: 7,
+      semanticEpoch: 4,
+      submitted: submittedA,
+    }).accepted).toBe(true);
+  });
+
+  test("mismatch cleanup cannot be bypassed without a fresh durable ACK", () => {
+    const first = claimCaptureSubmission({
+      userId: "u1",
+      ownerId: 7,
+      semanticEpoch: 3,
+      submitted: submittedA,
+    });
+    if (!first.accepted) throw new Error("first claim must be accepted");
+    completeCaptureSubmission(first.ticket, { outcome: "saved", cleanup: "mismatch" });
+
+    expect(claimCaptureSubmission({
+      userId: "u1",
+      ownerId: 7,
+      semanticEpoch: 5,
+      submitted: submittedA,
+    }).accepted).toBe(false);
+
+    acknowledgeCaptureSubmissionState("u1", {
+      drafts: { journal: { body: "durable B", topic: "" } },
+      lastMode: "journal",
+    });
+    expect(claimCaptureSubmission({
+      userId: "u1",
+      ownerId: 7,
+      semanticEpoch: 5,
+      submitted: submittedA,
+    }).accepted).toBe(true);
+  });
+
+  test("the original owner may intentionally submit the same value after a newer edit epoch", () => {
+    const first = claimCaptureSubmission({
+      userId: "u1",
+      ownerId: 7,
+      semanticEpoch: 3,
+      submitted: submittedA,
+    });
+    if (!first.accepted) throw new Error("first claim must be accepted");
+    completeCaptureSubmission(first.ticket, { outcome: "saved", cleanup: "cleared" });
+
+    expect(claimCaptureSubmission({
+      userId: "u1",
+      ownerId: 7,
+      semanticEpoch: 4,
+      submitted: submittedA,
+    }).accepted).toBe(true);
+  });
+
+  test("blurred owner cannot ACK before a stale new-owner timer is sanitized", async () => {
+    const userId = "owner-handoff";
+    const otherUserId = "unrelated-user";
+    await saveCaptureDraftState(userId, {
+      drafts: {
+        journal: submittedA.expected,
+        memo: { body: "keep memo", topic: "" },
+      },
+      lastMode: "journal",
+    });
+    await saveCaptureDraftState(otherUserId, {
+      drafts: { journal: { body: "other user's draft", topic: "" } },
+      lastMode: "journal",
+    });
+    const first = claimCaptureSubmission({
+      userId,
+      ownerId: 1,
+      semanticEpoch: 0,
+      submitted: submittedA,
+    });
+    if (!first.accepted) throw new Error("first claim must be accepted");
+    markCaptureSubmissionSaved(first.ticket);
+    await expect(clearSubmittedCaptureDraft(userId, submittedA)).resolves.toBe("cleared");
+    completeCaptureSubmission(first.ticket, { outcome: "saved", cleanup: "cleared" });
+
+    let focusedOwner = 1;
+    let releaseSettle!: (durable: boolean) => void;
+    const settle = jest.fn(() => new Promise<boolean>((resolve) => {
+      releaseSettle = resolve;
+    }));
+    const load = jest.fn(() => loadCaptureDraftState(userId));
+    const oldOwnerAck = acknowledgeCaptureSubmissionIfOwned({
+      userId,
+      owns: () => focusedOwner === 1,
+      settle,
+      load,
+    });
+    expect(settle).toHaveBeenCalledTimes(1);
+
+    // A different capture route focuses with a stale A snapshot while the old
+    // owner's non-visual ACK is waiting for registered handoffs to settle.
+    focusedOwner = 2;
+    releaseSettle(true);
+    await expect(oldOwnerAck).resolves.toBe("stale");
+    expect(load).not.toHaveBeenCalled();
+    expect(claimCaptureSubmission({
+      userId,
+      ownerId: 2,
+      semanticEpoch: 0,
+      submitted: submittedA,
+    }).accepted).toBe(false);
+
+    // The new route's delayed debounce executes after the CAS. The committed
+    // tombstone removes only stale A at actual write time and keeps unrelated B.
+    await expect(saveCaptureDraftState(userId, {
+      drafts: {
+        journal: submittedA.expected,
+        memo: { body: "new owner B", topic: "" },
+      },
+      lastMode: "journal",
+    })).resolves.toBe(true);
+    const afterTimer = await loadCaptureDraftState(userId);
+    expect(afterTimer.drafts.journal).toBeUndefined();
+    expect(afterTimer.drafts.memo?.body).toBe("new owner B");
+
+    await expect(acknowledgeCaptureSubmissionIfOwned({
+      userId,
+      owns: () => focusedOwner === 2,
+      settle: async () => true,
+      load: () => loadCaptureDraftState(userId),
+    })).resolves.toBe("acknowledged");
+    expect(claimCaptureSubmission({
+      userId,
+      ownerId: 2,
+      semanticEpoch: 1,
+      submitted: submittedA,
+    }).accepted).toBe(true);
+    expect((await loadCaptureDraftState(otherUserId)).drafts.journal?.body)
+      .toBe("other user's draft");
+  });
+
+  test("account change during durable load cannot release the old user's guard", async () => {
+    const first = claimCaptureSubmission({
+      userId: "u1",
+      ownerId: 1,
+      semanticEpoch: 0,
+      submitted: submittedA,
+    });
+    if (!first.accepted) throw new Error("first claim must be accepted");
+    markCaptureSubmissionSaved(first.ticket);
+    completeCaptureSubmission(first.ticket, { outcome: "saved", cleanup: "cleared" });
+
+    let activeUser = "u1";
+    let releaseLoad!: (state: { drafts: {}; lastMode: "journal" }) => void;
+    const load = jest.fn(() => new Promise<{ drafts: {}; lastMode: "journal" }>((resolve) => {
+      releaseLoad = resolve;
+    }));
+    const ack = acknowledgeCaptureSubmissionIfOwned({
+      userId: "u1",
+      owns: () => activeUser === "u1",
+      settle: async () => true,
+      load,
+    });
+    await Promise.resolve();
+    expect(load).toHaveBeenCalledTimes(1);
+    activeUser = "u2";
+    releaseLoad({ drafts: {}, lastMode: "journal" });
+
+    await expect(ack).resolves.toBe("stale");
+    expect(claimCaptureSubmission({
+      userId: "u1",
+      ownerId: 2,
+      semanticEpoch: 0,
+      submitted: submittedA,
+    }).accepted).toBe(false);
+
+    const skippedLoad = jest.fn(() => loadCaptureDraftState("u1"));
+    await expect(acknowledgeCaptureSubmissionIfOwned({
+      userId: "u1",
+      owns: () => true,
+      settle: async () => false,
+      load: skippedLoad,
+    })).resolves.toBe("failed");
+    expect(skippedLoad).not.toHaveBeenCalled();
+    await expect(acknowledgeCaptureSubmissionIfOwned({
+      userId: "u1",
+      owns: () => true,
+      settle: async () => true,
+      load: async () => { throw new Error("durable read failed"); },
+    })).rejects.toThrow("durable read failed");
+    expect(claimCaptureSubmission({
+      userId: "u1",
+      ownerId: 2,
+      semanticEpoch: 0,
+      submitted: submittedA,
+    }).accepted).toBe(false);
+  });
 });
 
 describe("native AsyncStorage queue and durable acknowledgement", () => {
+  test("conditional cleanup freezes caller-owned expected data before queueing", async () => {
+    await withMockNativeStorage(async () => {
+      const userId = "immutable-cas";
+      await saveCaptureDraftState(userId, {
+        drafts: { memo: { body: "submitted A", topic: "" } },
+        lastMode: "memo",
+      });
+      const submitted = {
+        bucket: "storage" as const,
+        mode: "memo" as const,
+        expected: { body: "submitted A", topic: "" },
+      };
+      const cleanup = clearSubmittedCaptureDraft(userId, submitted);
+      submitted.expected.body = "mutated B";
+
+      await expect(cleanup).resolves.toBe("cleared");
+      expect((await loadCaptureDraftState(userId)).drafts.memo).toBeUndefined();
+    });
+  });
+
+  test("a failed native full-snapshot retry observes the committed tombstone", async () => {
+    __resetCaptureSubmissionGuards();
+    await withMockNativeStorage(async () => {
+      const userId = "committed-retry";
+      const submitted = {
+        bucket: "storage" as const,
+        mode: "journal" as const,
+        expected: { body: "submitted A", topic: "" },
+      };
+      const claim = claimCaptureSubmission({
+        userId,
+        ownerId: 1,
+        semanticEpoch: 0,
+        submitted,
+      });
+      if (!claim.accepted) throw new Error("claim must be accepted");
+      const frozen = {
+        drafts: {
+          journal: submitted.expected,
+          memo: { body: "keep memo", topic: "" },
+        },
+        lastMode: "journal" as const,
+      };
+      mockAsyncStorage.setItem.mockRejectedValueOnce(new Error("first handoff failed"));
+      await expect(saveCaptureDraftState(userId, frozen)).resolves.toBe(false);
+
+      markCaptureSubmissionSaved(claim.ticket);
+      await expect(saveCaptureDraftState(userId, frozen)).resolves.toBe(true);
+      const stored = await loadCaptureDraftState(userId);
+      expect(stored.drafts.journal).toBeUndefined();
+      expect(stored.drafts.memo?.body).toBe("keep memo");
+      completeCaptureSubmission(claim.ticket, { outcome: "saved", cleanup: "failed" });
+    });
+    __resetCaptureSubmissionGuards();
+  });
+
   test("a transient hydration read failure rejects instead of authorizing an empty overwrite", async () => {
     await withMockNativeStorage(async () => {
       const userId = "hydrate-retry";
@@ -387,6 +1015,131 @@ describe("native AsyncStorage queue and durable acknowledgement", () => {
       const state = await loadCaptureDraftState(userId);
       expect(state.drafts.memo).toBeUndefined();
       expect(state.drafts.file?.body).toBe("keep");
+    });
+  });
+
+  test("conditional cleanup is FIFO behind an older full snapshot and removes submitted A", async () => {
+    await withMockNativeStorage(async () => {
+      const userId = "queue-cas-after-a";
+      let releaseA!: () => void;
+      let markAStarted!: () => void;
+      const aGate = new Promise<void>((resolve) => { releaseA = resolve; });
+      const aStarted = new Promise<void>((resolve) => { markAStarted = resolve; });
+      mockAsyncStorage.setItem
+        .mockImplementationOnce(async (key: string, value: string) => {
+          markAStarted();
+          await aGate;
+          mockNativeBacking.set(key, value);
+        })
+        .mockImplementation(async (key: string, value: string) => {
+          mockNativeBacking.set(key, value);
+        });
+
+      const staleFullSnapshot = saveCaptureDraftState(userId, {
+        lastMode: "memo",
+        drafts: { memo: { body: "submitted A", topic: "" } },
+      });
+      await aStarted;
+      const cleanup = clearSubmittedCaptureDraft(userId, {
+        bucket: "storage",
+        mode: "memo",
+        expected: { body: "submitted A", topic: "" },
+      });
+      expect(mockAsyncStorage.getItem).not.toHaveBeenCalled();
+      releaseA();
+
+      await expect(staleFullSnapshot).resolves.toBe(true);
+      await expect(cleanup).resolves.toBe("cleared");
+      expect((await loadCaptureDraftState(userId)).drafts.memo).toBeUndefined();
+    });
+  });
+
+  test("conditional cleanup preserves B queued before it and B queued after it", async () => {
+    await withMockNativeStorage(async () => {
+      const userId = "queue-cas-b";
+      await saveCaptureDraftState(userId, {
+        lastMode: "memo",
+        drafts: { memo: { body: "submitted A", topic: "" } },
+      });
+      const saveBFirst = saveCaptureDraftState(userId, {
+        lastMode: "memo",
+        drafts: { memo: { body: "new B", topic: "" } },
+      });
+      const cleanupAfterB = clearSubmittedCaptureDraft(userId, {
+        bucket: "storage",
+        mode: "memo",
+        expected: { body: "submitted A", topic: "" },
+      });
+      await expect(saveBFirst).resolves.toBe(true);
+      await expect(cleanupAfterB).resolves.toBe("mismatch");
+      expect((await loadCaptureDraftState(userId)).drafts.memo?.body).toBe("new B");
+
+      await saveCaptureDraftState(userId, {
+        lastMode: "memo",
+        drafts: { memo: { body: "submitted A", topic: "" } },
+      });
+      const cleanupBeforeB = clearSubmittedCaptureDraft(userId, {
+        bucket: "storage",
+        mode: "memo",
+        expected: { body: "submitted A", topic: "" },
+      });
+      const saveBAfter = saveCaptureDraftState(userId, {
+        lastMode: "memo",
+        drafts: { memo: { body: "newer B", topic: "" } },
+      });
+      await expect(cleanupBeforeB).resolves.toBe("cleared");
+      await expect(saveBAfter).resolves.toBe(true);
+      expect((await loadCaptureDraftState(userId)).drafts.memo?.body).toBe("newer B");
+    });
+  });
+
+  test("conditional cleanup reports failed and the native queue recovers", async () => {
+    await withMockNativeStorage(async () => {
+      const userId = "queue-cas-failure";
+      mockNativeBacking.set(`capture.drafts.v2.${userId}`, JSON.stringify({
+        lastMode: "memo",
+        drafts: { memo: { body: "submitted A", topic: "" } },
+      }));
+      mockAsyncStorage.setItem
+        .mockRejectedValueOnce(new Error("disk full"))
+        .mockImplementation(async (key: string, value: string) => {
+          mockNativeBacking.set(key, value);
+        });
+      const submitted = {
+        bucket: "storage" as const,
+        mode: "memo" as const,
+        expected: { body: "submitted A", topic: "" },
+      };
+
+      await expect(clearSubmittedCaptureDraft(userId, submitted)).resolves.toBe("failed");
+      await expect(clearSubmittedCaptureDraft(userId, submitted)).resolves.toBe("cleared");
+      expect((await loadCaptureDraftState(userId)).drafts.memo).toBeUndefined();
+    });
+  });
+
+  test("native non-journal cleanup never probes or removes the legacy journal key", async () => {
+    await withMockNativeStorage(async () => {
+      const userId = "non-journal-no-legacy";
+      const stateKey = `capture.drafts.v2.${userId}`;
+      const legacyKey = `capture.journalDraft.v1.${userId}`;
+      mockNativeBacking.set(stateKey, JSON.stringify({
+        lastMode: "memo",
+        drafts: {
+          memo: { body: "saved A", topic: "" },
+          journal: { body: "keep journal", topic: "" },
+        },
+      }));
+      mockNativeBacking.set(legacyKey, JSON.stringify({ body: "keep legacy", topic: "" }));
+
+      await expect(clearSubmittedCaptureDraft(userId, {
+        bucket: "storage",
+        mode: "memo",
+        expected: { body: "saved A", topic: "" },
+      })).resolves.toBe("cleared");
+
+      expect(mockAsyncStorage.getItem).not.toHaveBeenCalledWith(legacyKey);
+      expect(mockAsyncStorage.removeItem).not.toHaveBeenCalledWith(legacyKey);
+      expect(mockNativeBacking.get(legacyKey)).toBeDefined();
     });
   });
 

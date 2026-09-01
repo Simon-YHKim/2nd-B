@@ -90,6 +90,24 @@ export type CaptureTransientDrafts = {
   [Mode in CaptureTransientMode]?: Extract<CaptureTransientDraft, { mode: Mode }>;
 };
 
+export type CaptureDraftCleanupResult = "cleared" | "mismatch" | "failed";
+
+/**
+ * Immutable composer value accepted by a save. Cleanup may remove only this
+ * exact value; a different durable value belongs to a later edit/owner.
+ */
+export type SubmittedCaptureDraft =
+  | {
+      bucket: "storage";
+      mode: CaptureDraftMode;
+      expected: CaptureDraft;
+    }
+  | {
+      bucket: "transient";
+      mode: CaptureTransientMode;
+      expected: CaptureTransientDraft;
+    };
+
 type CaptureTransientDraftUpdate = {
   [Mode in CaptureTransientMode]: {
     mode: Mode;
@@ -362,7 +380,9 @@ export async function loadCaptureDraftState(userId: string): Promise<CaptureDraf
 }
 
 export function saveCaptureDraftState(userId: string, state: CaptureDraftState): Promise<boolean> {
-  const raw = serializeState(state);
+  // Evaluate committed submission tombstones at call time. Frozen handoff
+  // closures may have captured A while its network save was still pending.
+  const raw = serializeState(omitSavedCaptureSubmissionDrafts(userId, state));
   const local = ls();
   if (local) {
     try {
@@ -989,4 +1009,358 @@ export function clearCaptureDraft(userId: string, mode: CaptureDraftMode = "jour
       return true;
     })
     .catch(() => false);
+}
+
+function sameCanonicalDraft(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+/** Compare a live/ref value with the canonical snapshot accepted by a save. */
+export function submittedCaptureDraftMatchesCurrent(
+  submitted: SubmittedCaptureDraft,
+  current: unknown,
+): boolean {
+  if (submitted.bucket === "storage") {
+    const expected = normalizeDraft(submitted.mode, submitted.expected);
+    const actual = normalizeDraft(
+      submitted.mode,
+      current as Partial<CaptureDraft> | null | undefined,
+    );
+    return expected !== null && actual !== null && sameCanonicalDraft(actual, expected);
+  }
+  const expected = normalizeTransientDraft(submitted.mode, submitted.expected);
+  const actual = normalizeTransientDraft(submitted.mode, current);
+  return expected !== null && actual !== null && sameCanonicalDraft(actual, expected);
+}
+
+function applySubmittedDraftCleanup(
+  state: CaptureDraftState,
+  submitted: SubmittedCaptureDraft,
+): { result: Exclude<CaptureDraftCleanupResult, "failed">; changed: boolean } {
+  if (submitted.bucket === "storage") {
+    const expected = normalizeDraft(submitted.mode, submitted.expected);
+    // An empty/tampered expected value must never authorize deletion.
+    if (expected === null) return { result: "mismatch", changed: false };
+    const current = state.drafts[submitted.mode];
+    if (current === undefined) return { result: "cleared", changed: false };
+    if (!submittedCaptureDraftMatchesCurrent(submitted, current)) {
+      return { result: "mismatch", changed: false };
+    }
+    delete state.drafts[submitted.mode];
+    if (state.lastMode === submitted.mode) state.lastMode = DEFAULT_CAPTURE_DRAFT_MODE;
+    return { result: "cleared", changed: true };
+  }
+
+  const expected = normalizeTransientDraft(submitted.mode, submitted.expected);
+  if (expected === null) return { result: "mismatch", changed: false };
+  const current = state.transientDrafts?.[submitted.mode];
+  if (current === undefined) return { result: "cleared", changed: false };
+  if (!submittedCaptureDraftMatchesCurrent(submitted, current)) {
+    return { result: "mismatch", changed: false };
+  }
+  delete state.transientDrafts?.[submitted.mode];
+  if (state.lastMode === submitted.mode) state.lastMode = DEFAULT_CAPTURE_DRAFT_MODE;
+  return { result: "cleared", changed: true };
+}
+
+function legacyJournalMatchesSubmitted(
+  raw: string | null,
+  submitted: SubmittedCaptureDraft,
+): boolean {
+  return submitted.bucket === "storage" &&
+    submitted.mode === "journal" &&
+    submittedCaptureDraftMatchesCurrent(submitted, parseLegacyDraft(raw));
+}
+
+/**
+ * Delete a successfully submitted draft only if durable storage still contains
+ * the exact canonical value that was submitted. This is an RMW operation over
+ * the latest full blob, so unrelated modes survive and native calls share the
+ * same per-user FIFO as full-state saves.
+ *
+ * `mismatch` is a safe outcome: a newer value was intentionally preserved.
+ * Only `failed` means storage could not confirm or apply the cleanup.
+ */
+export function clearSubmittedCaptureDraft(
+  userId: string,
+  submitted: SubmittedCaptureDraft,
+): Promise<CaptureDraftCleanupResult> {
+  // Freeze caller-owned arrays/objects before any native queue wait.
+  const accepted = canonicalSubmittedCaptureDraft(submitted);
+  if (accepted === null) return Promise.resolve("mismatch");
+  const local = ls();
+  if (local) {
+    try {
+      const state = readLocalState(userId);
+      const outcome = applySubmittedDraftCleanup(state, accepted);
+      if (outcome.changed) local.setItem(stateKey(userId), serializeState(state));
+      if (
+        outcome.result === "cleared" &&
+        accepted.bucket === "storage" &&
+        accepted.mode === "journal" &&
+        legacyJournalMatchesSubmitted(local.getItem(legacyDraftKey(userId)), accepted)
+      ) {
+        local.removeItem(legacyDraftKey(userId));
+      }
+      return Promise.resolve(outcome.result);
+    } catch {
+      return Promise.resolve("failed");
+    }
+  }
+
+  const native = nativeStorage();
+  if (!native) return Promise.resolve("failed");
+  return runNativeExclusive(userId, native, async (key) => {
+    const state = await readNativeState(native, userId);
+    const outcome = applySubmittedDraftCleanup(state, accepted);
+    if (outcome.changed) await native.setItem(key, serializeState(state));
+    if (
+      outcome.result === "cleared" &&
+      accepted.bucket === "storage" &&
+      accepted.mode === "journal" &&
+      legacyJournalMatchesSubmitted(
+        await native.getItem(legacyDraftKey(userId)),
+        accepted,
+      )
+    ) {
+      await native.removeItem(legacyDraftKey(userId));
+    }
+    return outcome.result;
+  }).catch(() => "failed");
+}
+
+export type CaptureSubmissionOutcome =
+  | { outcome: "saved"; cleanup: CaptureDraftCleanupResult }
+  | { outcome: "failed" };
+
+export type CaptureSubmissionAcknowledgementResult =
+  | "acknowledged"
+  | "stale"
+  | "failed";
+
+export type CaptureSubmissionTicket = Readonly<{ key: string; id: number }>;
+
+export type CaptureSubmissionClaim =
+  | { accepted: true; ticket: CaptureSubmissionTicket }
+  | { accepted: false; completion: Promise<CaptureSubmissionOutcome> };
+
+type CaptureSubmissionGuard = {
+  userId: string;
+  ownerId: number;
+  semanticEpoch: number;
+  submitted: SubmittedCaptureDraft;
+  ticket: CaptureSubmissionTicket;
+  completion: Promise<CaptureSubmissionOutcome>;
+  resolve: (outcome: CaptureSubmissionOutcome) => void;
+  saveCommitted: boolean;
+  final: CaptureSubmissionOutcome | null;
+};
+
+const captureSubmissionGuards = new Map<string, CaptureSubmissionGuard>();
+let captureSubmissionTicketSequence = 0;
+
+function canonicalSubmittedCaptureDraft(
+  submitted: SubmittedCaptureDraft,
+): SubmittedCaptureDraft | null {
+  if (submitted.bucket === "storage") {
+    const expected = normalizeDraft(submitted.mode, submitted.expected);
+    return expected === null ? null : { ...submitted, expected };
+  }
+  const expected = normalizeTransientDraft(submitted.mode, submitted.expected);
+  return expected === null ? null : { ...submitted, expected };
+}
+
+function sameSubmittedCaptureDraft(
+  left: SubmittedCaptureDraft,
+  right: SubmittedCaptureDraft,
+): boolean {
+  return left.bucket === right.bucket &&
+    left.mode === right.mode &&
+    submittedCaptureDraftMatchesCurrent(left, right.expected);
+}
+
+/**
+ * Claims one exact semantic snapshot across concurrently mounted capture
+ * screens. Different content is never blocked. A successful entry remains as
+ * an in-memory fence until fresh durable hydration proves that submitted
+ * A is gone; this closes the save-success/CAS/refocus window without making
+ * draft hydration wait on the network request itself.
+ */
+export function claimCaptureSubmission(input: {
+  userId: string;
+  ownerId: number;
+  semanticEpoch: number;
+  submitted: SubmittedCaptureDraft;
+}): CaptureSubmissionClaim {
+  const submitted = canonicalSubmittedCaptureDraft(input.submitted);
+  if (submitted === null) {
+    return { accepted: false, completion: Promise.resolve({ outcome: "failed" }) };
+  }
+  let existingKey: string | null = null;
+  let existing: CaptureSubmissionGuard | null = null;
+  for (const [candidateKey, candidate] of captureSubmissionGuards) {
+    if (
+      candidate.userId === input.userId &&
+      sameSubmittedCaptureDraft(candidate.submitted, submitted)
+    ) {
+      existingKey = candidateKey;
+      existing = candidate;
+      break;
+    }
+  }
+  if (existing) {
+    // Only `cleared` proves A absent. A local semantic mismatch may skip the
+    // durable read entirely, so `mismatch` and `failed` remain fenced until a
+    // fresh hydration ACK. After a proven clear, the same owner may intentionally
+    // return to the same value following a real semantic edit.
+    if (
+      existing.final?.outcome === "saved" &&
+      existing.final.cleanup === "cleared" &&
+      existing.ownerId === input.ownerId &&
+      existing.semanticEpoch !== input.semanticEpoch
+    ) {
+      if (existingKey !== null) captureSubmissionGuards.delete(existingKey);
+    } else {
+      return { accepted: false, completion: existing.completion };
+    }
+  }
+
+  let resolve!: (outcome: CaptureSubmissionOutcome) => void;
+  const completion = new Promise<CaptureSubmissionOutcome>((done) => {
+    resolve = done;
+  });
+  const id = ++captureSubmissionTicketSequence;
+  const ticket = { key: `capture-submission-${id}`, id } as const;
+  captureSubmissionGuards.set(ticket.key, {
+    userId: input.userId,
+    ownerId: input.ownerId,
+    semanticEpoch: input.semanticEpoch,
+    submitted,
+    ticket,
+    completion,
+    resolve,
+    saveCommitted: false,
+    final: null,
+  });
+  return { accepted: true, ticket };
+}
+
+/**
+ * Publish the point-of-no-return immediately after the record/source write.
+ * The completion promise remains pending until conditional draft cleanup ends,
+ * but frozen full-state retries must stop carrying exact A from this point.
+ */
+export function markCaptureSubmissionSaved(ticket: CaptureSubmissionTicket): void {
+  const guard = captureSubmissionGuards.get(ticket.key);
+  if (!guard || guard.ticket.id !== ticket.id || guard.final !== null) return;
+  guard.saveCommitted = true;
+}
+
+export function completeCaptureSubmission(
+  ticket: CaptureSubmissionTicket,
+  outcome: CaptureSubmissionOutcome,
+): void {
+  const guard = captureSubmissionGuards.get(ticket.key);
+  if (!guard || guard.ticket.id !== ticket.id || guard.final !== null) return;
+  const finalOutcome: CaptureSubmissionOutcome =
+    guard.saveCommitted && outcome.outcome === "failed"
+      ? { outcome: "saved", cleanup: "failed" }
+      : outcome;
+  if (finalOutcome.outcome === "saved") guard.saveCommitted = true;
+  guard.final = finalOutcome;
+  guard.resolve(finalOutcome);
+  // A failed database/source save created nothing, so the exact draft must be
+  // immediately claimable again. Successful saves stay fenced until fresh
+  // durable state no longer contains submitted A.
+  if (finalOutcome.outcome === "failed") captureSubmissionGuards.delete(ticket.key);
+}
+
+function stateContainsSubmittedDraft(
+  state: CaptureDraftState,
+  submitted: SubmittedCaptureDraft,
+): boolean {
+  if (submitted.bucket === "storage") {
+    return submittedCaptureDraftMatchesCurrent(submitted, state.drafts[submitted.mode]);
+  }
+  return submittedCaptureDraftMatchesCurrent(submitted, state.transientDrafts?.[submitted.mode]);
+}
+
+/**
+ * Remove exact A snapshots whose record/source save is already known to have
+ * succeeded. This is applied when a frozen full-state write actually executes,
+ * not when it is captured: another screen may have scheduled that write while
+ * the original network save was still pending, before its later CAS clear.
+ */
+export function omitSavedCaptureSubmissionDrafts(
+  userId: string,
+  state: CaptureDraftState,
+): CaptureDraftState {
+  let next: CaptureDraftState | null = null;
+  for (const guard of captureSubmissionGuards.values()) {
+    if (
+      guard.userId !== userId ||
+      !guard.saveCommitted ||
+      !stateContainsSubmittedDraft(next ?? state, guard.submitted)
+    ) continue;
+    if (next === null) {
+      next = {
+        drafts: { ...state.drafts },
+        ...(state.transientDrafts
+          ? { transientDrafts: { ...state.transientDrafts } }
+          : {}),
+        lastMode: state.lastMode,
+      };
+    }
+    if (guard.submitted.bucket === "storage") {
+      delete next.drafts[guard.submitted.mode];
+    } else {
+      delete next.transientDrafts?.[guard.submitted.mode];
+    }
+    if (next.lastMode === guard.submitted.mode) {
+      next.lastMode = DEFAULT_CAPTURE_DRAFT_MODE;
+    }
+  }
+  return next ?? state;
+}
+
+/** Remove completed guards only after a fresh durable read proves A is absent. */
+export function acknowledgeCaptureSubmissionState(
+  userId: string,
+  state: CaptureDraftState,
+): void {
+  for (const [key, guard] of captureSubmissionGuards) {
+    if (guard.userId !== userId || guard.final?.outcome !== "saved") continue;
+    if (!stateContainsSubmittedDraft(state, guard.submitted)) {
+      captureSubmissionGuards.delete(key);
+    }
+  }
+}
+
+/**
+ * Release successful submission tombstones only while the caller continuously
+ * owns the same visible composer. The ownership checks straddle both awaits so
+ * a blur, account change, mode switch, or semantic B cannot turn a background
+ * durable read into permission to release another screen's stale-A fence.
+ */
+export async function acknowledgeCaptureSubmissionIfOwned(input: {
+  userId: string;
+  owns: () => boolean;
+  settle: () => Promise<boolean>;
+  load: () => Promise<CaptureDraftState>;
+}): Promise<CaptureSubmissionAcknowledgementResult> {
+  if (!input.owns()) return "stale";
+  if (!await input.settle()) return "failed";
+  if (!input.owns()) return "stale";
+  const state = await input.load();
+  if (!input.owns()) return "stale";
+  acknowledgeCaptureSubmissionState(input.userId, state);
+  return "acknowledged";
+}
+
+export function __resetCaptureSubmissionGuards(): void {
+  for (const guard of captureSubmissionGuards.values()) {
+    if (guard.final === null) guard.resolve({ outcome: "failed" });
+  }
+  captureSubmissionGuards.clear();
+  captureSubmissionTicketSequence = 0;
 }

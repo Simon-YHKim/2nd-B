@@ -337,18 +337,50 @@ describe("capture 화면 — domainIntent 배선 (source contract)", () => {
   });
 
   test("stale-completion fence: 저장 완주 정리가 이후의 변경(B)을 덮지 않는다", () => {
-    // 모든 저장 경로가 해당 모드의 내용 epoch를 쓴다. 단순 모드 전환은
-    // epoch를 올리지 않으므로 이미 저장된 A를 지우되, 같은 모드의 B는 지킨다.
+    // Every path freezes the accepted A before its first save await and claims
+    // the same module-level identity guard. Exact A cannot be inserted twice
+    // by /capture and /capture-full, while a genuinely different B is allowed.
     expect(src).toContain("const storageMutationEpochRef = useRef<Record<CaptureDraftMode, number>>");
     expect(src).toContain("const startModeEpoch = storageMutationEpochRef.current.journal");
     expect(src).toContain("const startModeEpoch = storageMutationEpochRef.current[submittedMode]");
-    expect(src).toContain("await clearSubmittedStorageDraft(\"journal\", startModeEpoch)");
-    expect(src).toContain("await clearSubmittedStorageDraft(submittedMode, startModeEpoch)");
     expect(src).toContain("const startModeEpoch = transientMutationEpochRef.current[noteMode]");
-    expect(src).toContain("transientMutationEpochRef.current[noteMode] === startModeEpoch");
-    expect(src).toContain("activeModeRef.current === noteMode");
-    expect(src).toContain("await clearSubmittedTransientDraft(noteMode, startModeEpoch)");
-    expect(src).not.toContain('clearModeDraft("linkclip")');
+    expect(src).toContain('const journalDraft = draftFromFields("journal")');
+    expect(src).toContain("const noteDraft = transientDraftFromFields(noteMode)");
+    expect(src).toContain("const sourceDraft = draftFromFields(submittedMode)");
+    expect((src.match(/claimSubmittedDraft\(submitted, startModeEpoch\)/g) ?? []).length).toBe(3);
+    expect((src.match(/markSubmittedDraftCleanup\(submitted, startModeEpoch\)/g) ?? []).length).toBe(1);
+    expect(src).toContain("claimCaptureSubmission({");
+    expect(src).toContain("completeCaptureSubmission(submissionTicket");
+    expect((src.match(/markCaptureSubmissionSaved\(submissionTicket\)/g) ?? []).length).toBe(3);
+    expect(src).toContain("acknowledgeCaptureSubmissionState(userId, state)");
+    expect((src.match(/requestDurableSubmittedDraftAck\(submitted, startModeEpoch\)/g) ?? []).length).toBe(3);
+    expect(src).toContain("await clearAcceptedSubmittedDraft(submitted, startModeEpoch)");
+    expect(src).not.toContain("clearSubmittedStorageDraft");
+    expect(src).not.toContain("clearSubmittedTransientDraft");
+    expect(src).not.toContain("function clearModeDraft");
+
+    const cleanup = src.split("async function clearAcceptedSubmittedDraft")[1]
+      ?.split("function switchCaptureMode")[0] ?? "";
+    expect(cleanup).not.toContain("captureOwnsFocusedSession()");
+    expect(cleanup).toContain("submittedDraftEpoch(submitted) !== startModeEpoch");
+    expect(cleanup).toContain("submittedCaptureDraftMatchesCurrent(submitted, currentDraft)");
+    expect(cleanup).toContain("markSubmittedDraftCleanup(submitted, startModeEpoch)");
+    expect(cleanup).toContain("delete next[submitted.mode]");
+    expect(cleanup).toContain("registerCaptureDraftHandoff(");
+    expect(cleanup).toContain("clearSubmittedCaptureDraft(cleanupUserId, submitted)");
+    expect(cleanup.indexOf("delete next[submitted.mode]")).toBeLessThan(
+      cleanup.indexOf("registerCaptureDraftHandoff("),
+    );
+    expect(cleanup.indexOf("submittedDraftEpoch(submitted) !== startModeEpoch")).toBeLessThan(
+      cleanup.indexOf("markSubmittedDraftCleanup(submitted, startModeEpoch)"),
+    );
+    expect(cleanup.indexOf("submittedCaptureDraftMatchesCurrent(submitted, currentDraft)")).toBeLessThan(
+      cleanup.indexOf("markSubmittedDraftCleanup(submitted, startModeEpoch)"),
+    );
+    expect(cleanup.indexOf("if (hydrationWasPending) draftHydrationGenerationRef.current += 1")).toBeLessThan(
+      cleanup.indexOf("markSubmittedDraftCleanup(submitted, startModeEpoch)"),
+    );
+
     // Focus/mode changes never abort an accepted save; only UI cleanup ownership changes.
     expect(src).not.toContain("submitAbortRef.current?.abort()");
     expect(src).toContain("const submitBusyRef = useRef(false)");
@@ -362,22 +394,69 @@ describe("capture 화면 — domainIntent 배선 (source contract)", () => {
     expect(src).not.toMatch(/useEffect\(\(\) => \{\s*captureRevisionRef\.current \+= 1;/);
     expect((src.match(/stale (?:journal|note-like|source) save failed/g) ?? []).length).toBe(3);
 
-    const blocks = [
+    const storageBlocks = [
       src.split("async function handleJournalSubmit")[1]?.split("async function handleNoteLikeSubmit")[0] ?? "",
       src.split("async function handleSubmit")[1]?.split("async function runPropose")[0] ?? "",
     ];
-    for (const block of blocks) {
-      const clear = block.indexOf("await clearSubmittedStorageDraft");
-      const reset = block.indexOf("reset();", clear);
+    for (const block of storageBlocks) {
+      const clear = block.indexOf("await clearAcceptedSubmittedDraft(submitted, startModeEpoch)");
+      const clearedGate = block.indexOf('draftCleanupResult === "cleared"', clear);
+      const focusGate = block.indexOf("captureOwnsFocusedSession()", clearedGate);
+      const epochGate = block.indexOf("=== startModeEpoch", focusGate);
+      const durableAck = block.indexOf("requestDurableSubmittedDraftAck(submitted, startModeEpoch)", epochGate);
+      const reset = block.indexOf("reset();", epochGate);
       expect(clear).toBeGreaterThan(0);
-      expect(reset).toBeGreaterThan(clear);
-      expect(block.slice(reset)).toContain("setSavedTitle(");
+      expect(clearedGate).toBeGreaterThan(clear);
+      expect(focusGate).toBeGreaterThan(clearedGate);
+      expect(epochGate).toBeGreaterThan(focusGate);
+      expect(durableAck).toBeGreaterThan(epochGate);
+      expect(reset).toBeGreaterThan(durableAck);
+      expect(reset).toBeGreaterThan(epochGate);
     }
     const noteBlock = src.split("async function handleNoteLikeSubmit")[1]?.split("async function handleStartRecording")[0] ?? "";
-    const clear = noteBlock.indexOf("await clearSubmittedTransientDraft(noteMode, startModeEpoch)");
-    const reset = noteBlock.indexOf("reset();", clear);
-    expect(clear).toBeGreaterThan(0);
-    expect(reset).toBeGreaterThan(clear);
+    const noteClear = noteBlock.indexOf("await clearAcceptedSubmittedDraft(submitted, startModeEpoch)");
+    const noteClearedGate = noteBlock.indexOf('draftCleanupResult === "cleared"', noteClear);
+    const noteFocusGate = noteBlock.indexOf("captureOwnsFocusedSession()", noteClearedGate);
+    const noteEpochGate = noteBlock.indexOf("=== startModeEpoch", noteFocusGate);
+    const noteDurableAck = noteBlock.indexOf(
+      "requestDurableSubmittedDraftAck(submitted, startModeEpoch)",
+      noteEpochGate,
+    );
+    const noteReset = noteBlock.indexOf("reset();", noteEpochGate);
+    expect(noteClear).toBeGreaterThan(0);
+    expect(noteClearedGate).toBeGreaterThan(noteClear);
+    expect(noteFocusGate).toBeGreaterThan(noteClearedGate);
+    expect(noteEpochGate).toBeGreaterThan(noteFocusGate);
+    expect(noteDurableAck).toBeGreaterThan(noteEpochGate);
+    expect(noteReset).toBeGreaterThan(noteDurableAck);
+    expect(noteReset).toBeGreaterThan(noteEpochGate);
+
+    const commitBlocks = [storageBlocks[0], noteBlock, storageBlocks[1]];
+    for (const block of commitBlocks) {
+      const committed = block.indexOf("markCaptureSubmissionSaved(submissionTicket)");
+      const clear = block.indexOf("await clearAcceptedSubmittedDraft(submitted, startModeEpoch)");
+      expect(committed).toBeGreaterThan(0);
+      expect(clear).toBeGreaterThan(committed);
+    }
+
+    const sourceBlock = storageBlocks[1];
+    expect(sourceBlock).toContain("const submittedPickedFile = pickedFile");
+    expect(sourceBlock).toContain("await captureFromMarkdown({");
+    expect(sourceBlock).toContain("sourceSaved = true");
+    expect(sourceBlock.indexOf("const submittedPickedFile = pickedFile")).toBeLessThan(
+      sourceBlock.indexOf("await captureFromMarkdown({"),
+    );
+    expect(sourceBlock.indexOf("sourceSaved = true")).toBeLessThan(
+      sourceBlock.indexOf("setPickedFile((current) =>"),
+    );
+    expect(sourceBlock).toContain("current?.uri === submittedPickedFile.uri");
+    expect(sourceBlock).toContain("current?.uri === submittedPickedImageUri");
+    expect(sourceBlock).toMatch(
+      /setPickedFile\(\(current\) => \{[\s\S]*?storageMutationEpochRef\.current\[submittedMode\] !== startModeEpoch/,
+    );
+    expect(sourceBlock).toMatch(
+      /setPickedImage\(\(current\) => \([\s\S]*?storageMutationEpochRef\.current\[submittedMode\] === startModeEpoch/,
+    );
   });
 
   test("durable ACK만 URL을 지우고 이전 배달·이전 session ACK는 무시한다", () => {
@@ -442,10 +521,6 @@ describe("capture 화면 — domainIntent 배선 (source contract)", () => {
   });
 
   test("capture instance 전환은 이전 초안을 먼저 flush하고 이후 stale timer/clear를 막는다", () => {
-    const clearHelper = src.split("async function clearSubmittedStorageDraft")[1]
-      ?.split("function showDraftCleanupFailure")[0] ?? "";
-    expect(clearHelper).toContain("if (!captureOwnsFocusedSession()) return false");
-    expect(clearHelper).toMatch(/captureOwnsFocusedSession\(\)[\s\S]*?draftsRef\.current\[targetMode\]/);
     expect(src).toMatch(
       /function captureOwnsFocusedSession[\s\S]*?sessionActiveRef\.current[\s\S]*?focusedCaptureOwners\.get\(userId\)\?\.id === captureInstanceId/,
     );
@@ -461,11 +536,53 @@ describe("capture 화면 — domainIntent 배선 (source contract)", () => {
     expect(src).toContain("const draftWriteGenerationRef = useRef(0)");
     expect(src).toContain("existing.generation > generation");
     expect(src).toContain("return registerCaptureDraftHandoff(");
-    expect(src).toMatch(/function clearModeDraft[\s\S]*?return persistDrafts\(lastMode\);/);
+    // Save cleanup is registered as the old owner's newest generation and is
+    // deliberately focus-independent. Cleanup epoch markers keep a later blur
+    // snapshot from resurrecting accepted A while its CAS is queued.
+    expect(src).toContain("const storageCleanupEpochRef");
+    expect(src).toContain("const transientCleanupEpochRef");
+    expect(src).toContain("storageCleanupEpochRef.current[activeMode] !== storageMutationEpochRef.current[activeMode]");
+    expect(src).toContain("transientCleanupEpochRef.current[activeMode] !== transientMutationEpochRef.current[activeMode]");
+    expect(src).toContain("const generation = ++draftWriteGenerationRef.current");
+    expect(src).toContain("clearSubmittedCaptureDraft(cleanupUserId, submitted)");
+    expect((src.match(/saveCaptureDraftState\(userId, snapshot\)/g) ?? []).length).toBe(2);
     expect(src).toContain("settleCaptureDraftHandoffs(userId)");
     expect(src).toContain("draftLoadedUserRef.current = userId");
     expect(src).toContain("focusDraftHydratedRef.current = !!userId");
-    expect(src).toContain("invalidateAllDraftMutationEpochs()");
+    expect(src).toContain("const draftHydrationGenerationRef = useRef(0)");
+    expect(src).toContain("const hydrationGeneration = ++draftHydrationGenerationRef.current");
+    expect(src).toContain("draftHydrationGenerationRef.current !== hydrationGeneration");
+    expect(src).toContain("const hydrationWasPending = !draftHydratedRef.current");
+    expect(src).toContain("requestFreshSubmittedDraft(submitted, startModeEpoch)");
+    expect(src).toContain("function requestDurableSubmittedDraftAck(");
+    const durableAck = src.split("function requestDurableSubmittedDraftAck")[1]
+      ?.split("function claimSubmittedDraft")[0] ?? "";
+    expect(durableAck).toContain("!submittedDraftOwnsDurableAck(submitted, blockedEpoch)");
+    expect(durableAck).toContain("acknowledgeCaptureSubmissionIfOwned({");
+    expect(durableAck).toContain("owns: () => submittedDraftOwnsDurableAck(submitted, blockedEpoch)");
+    expect(durableAck).toContain("settle: () => settleCaptureDraftHandoffs(ackUserId)");
+    expect(durableAck).toContain("load: () => loadCaptureDraftState(ackUserId)");
+    expect(durableAck).not.toContain("setMode(");
+    expect(durableAck).not.toContain("applyDraftToFields(");
+    const submittedCleanup = src.split("async function clearAcceptedSubmittedDraft")[1]
+      ?.split("function switchCaptureMode")[0] ?? "";
+    expect(submittedCleanup).toMatch(
+      /if \(hydrationWasPending\) \{[\s\S]*?restartDraftHydration\(\);/,
+    );
+    expect((submittedCleanup.match(/return finishCleanup\("mismatch"\)/g) ?? []).length).toBe(2);
+    expect(submittedCleanup).toContain('return finishCleanup(durable ? result : "failed")');
+    expect(submittedCleanup).not.toContain("requestFreshSubmittedDraft(");
+    const hydrationRestart = src.split("function restartDraftHydration")[1]
+      ?.split("function requestFreshSubmittedDraft")[0] ?? "";
+    expect(hydrationRestart.indexOf("draftHydrationGenerationRef.current += 1")).toBeLessThan(
+      hydrationRestart.indexOf("if (!captureOwnsFocusedSession()) return"),
+    );
+    expect(src).toContain("invalidateCaptureRevisionForHydration()");
+    const hydrationFence = src.split("function invalidateCaptureRevisionForHydration")[1]
+      ?.split("function captureOwnsFocusedSession")[0] ?? "";
+    expect(hydrationFence).toContain("advanceCaptureRevision();");
+    expect(hydrationFence).not.toContain("storageMutationEpochRef");
+    expect(hydrationFence).not.toContain("transientMutationEpochRef");
     expect(src).toContain("modeParamConsumedRef.current = null");
     expect(src).toContain("pendingSharedRef.current = sharedDeliveryRef.current !== null");
     expect(src).toContain('previousState === "active" && nextState !== "active"');
@@ -525,7 +642,8 @@ describe("capture 화면 — domainIntent 배선 (source contract)", () => {
   });
 
   test("journal·note 두 createRecord 경로 모두에 intent 를 전달한다", () => {
-    expect((src.match(/domainIntent: domainIntent \?\? undefined/g) ?? []).length).toBe(2);
+    expect(src).toContain("domainIntent: journalDraft.domainIntent");
+    expect(src).toContain("domainIntent: noteDraft.domainIntent");
   });
 
   test("성공(reset)·모드 전환이 지나는 resetTransientCaptureState 가 intent 를 지운다", () => {
