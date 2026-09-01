@@ -204,7 +204,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       { file: "growth", href: "/growth", label: "나의 변화" },
       { file: "rest", href: "/rest", label: "취미 · 여가", auth: true },
       { file: "meals", href: "/meals", label: "주간 식사" },
-      { file: "side-project", href: "/side-project", label: "사이드 프로젝트" },
+      { file: "side-project", href: "/side-project", label: "사이드 프로젝트", auth: true },
       { file: "people", href: "/people", label: "사람 기록", auth: true },
       { file: "call-reflection", href: "/call-reflection", label: "통화 회고", auth: true },
     ],
