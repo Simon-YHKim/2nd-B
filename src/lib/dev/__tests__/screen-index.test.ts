@@ -330,6 +330,16 @@ describe("개발자 화면 목록", () => {
     const screen = devScreens().find((entry) => entry.file === "processing-log");
     expect(screen).toEqual(expect.objectContaining({ href: "/processing-log", auth: true }));
 
+    const privacySource = readFileSync(
+      join(process.cwd(), "src", "screens", "deepspace", "DeepSpaceDesignScreens.tsx"),
+      "utf8",
+    );
+    const processingAction = privacySource.match(
+      /<Action label=\{t\("privacy\.processingLog"\)\}[\s\S]*?\/>/,
+    )?.[0] ?? "";
+    expect(processingAction).toContain('router.push("/processing-log")');
+    expect(processingAction).not.toContain('router.push("/audit")');
+
     const routeSource = readFileSync(join(APP, "processing-log.tsx"), "utf8");
     const routeBody = defaultRouteFunctionSource(routeSource, "processing-log.tsx");
     expect(routeBody).toContain('<Redirect href="/sign-in" />');

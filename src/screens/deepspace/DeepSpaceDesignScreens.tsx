@@ -1119,12 +1119,12 @@ export function DeepSpacePrivacyDesignScreen() {
 
       <Card>
         {/* audit med#17: these rows rendered as buttons with no onPress — dead
-            taps on a privacy surface. 처리 기록 now opens the real ai_audit_log
-            viewer (/audit); 제3자 제공 "없음" is a FACT, so it renders static
+            taps on a privacy surface. 처리 기록 opens the read-only ai_audit_log
+            viewer (/processing-log); 제3자 제공 "없음" is a FACT, so it renders static
             (no button role); the 처리방침 row opens the /privacy-policy
             document (restored once the policy document existed to open). */}
         <Action label={t("privacy.policy")} value={t("privacy.view")} onPress={() => router.push("/privacy-policy")} />
-        <Action label={t("privacy.processingLog")} value={t("privacy.last7")} onPress={() => router.push("/audit")} />
+        <Action label={t("privacy.processingLog")} value={t("privacy.last7")} onPress={() => router.push("/processing-log")} />
         {/* ⚠ `내 데이터 리뷰`(/data) 는 화면은 있는데 **들어갈 문이 없었다.**
             레퍼런스가 이 자리에 그 줄을 두고 있고, 개인정보 화면에서 자기 데이터를
             열람하러 가는 것은 자연스럽다. */}
