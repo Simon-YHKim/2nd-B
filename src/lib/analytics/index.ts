@@ -1,24 +1,22 @@
 // Lightweight analytics + error-tracking abstraction.
 //
-// Why: the blueprint promises $0 fixed cost. GA4, MS Clarity, and
-// Sentry all have free tiers, but we do not load an SDK until it is actually
-// configured. This module is a no-op when the relevant env id is
-// unset (so dev/preview builds stay dependency-free) and wires up the real
-// tools when Simon adds the ids to GitHub Actions / EAS Variables.
+// Why: the blueprint promises $0 fixed cost. GA4, MS Clarity, and Sentry all
+// have free tiers, but cost is not the only gate: the web Clarity loader is
+// deliberately absent because its SPA auto-restart violates the private-route
+// collection boundary. Other SDKs load only when configured.
 //
-// Web SDKs (GA4/Clarity/Sentry) load on Expo Web (GitHub Pages).
-// Native Android builds mirror the same consent decision into Firebase
-// Analytics via syncNativeAnalyticsCollection below: collection is OFF at the
-// build level (firebase.json) and turns on only through that gate.
+// Web SDKs: GA4 + Sentry. Native Android: Firebase Analytics + Clarity. Native
+// collection mirrors the same consent decision via syncNativeAnalyticsCollection
+// below; it is OFF at the build level (firebase.json) and turns on only through
+// that gate.
 //
-// PRIVACY / PIPA: product analytics (GA4, Clarity) load ONLY after the
-// user grants the optional `analytics` consent (consent-selections.ts) AND the
-// server-derived birth date confirms the user is 18+. Unknown age fails closed.
+// PRIVACY / PIPA: product analytics load ONLY after the user grants the optional
+// `analytics` consent (consent-selections.ts) AND the server-derived birth date
+// confirms the user is 18+. Unknown age fails closed.
 // The consent decision is persisted on web (localStorage) so it gates the next
 // load too. Error tracking (Sentry) is operational, carries no PII
 // (sendDefaultPii off), and loads independently. GA4 runs with IP anonymization
-// + no ad signals; Clarity is loaded only post-consent and its project must be
-// set to mask text (the app shows sensitive self-knowledge content).
+// + no ad signals. Native Clarity uses its supported pause/resume route gate.
 
 import { NativeModules, Platform, TurboModuleRegistry } from "react-native";
 
@@ -362,9 +360,8 @@ function syncNativeAnalyticsCollection(enabled: boolean): void {
  * adds the two gates Clarity needs on top: its own runtime kill-switch
  * (clarity_enabled) and the route allow-list.
  *
- * On web this is a no-op - the DOM loader owns Clarity there. The split exists
- * because the two SDKs have genuinely different controls: the web script cannot
- * be stopped once injected, while the native SDK pauses.
+ * On web this is a no-op because web Clarity is hard-disabled. The native SDK
+ * has supported pause/resume controls, so it can enforce the route boundary.
  */
 function syncNativeClarityForRoute(enabled: boolean): void {
   if (Platform.OS === "web") return;
@@ -420,14 +417,21 @@ type PreparedProductEvent = {
 let pendingProductEvents: PreparedProductEvent[] = [];
 let sentryClient: { captureException: (err: unknown, context?: Record<string, unknown>) => void } | null = null;
 let ga4Id: string | null = null; // set once GA4 is loaded
-let clarityLoaded = false;
 let currentAnalyticsRoute = "/";
+
+/**
+ * Web Clarity is intentionally unavailable, even when the remote flag and
+ * project id are both present. The vendor's SPA history hook stops and then
+ * restarts itself after pushState/replaceState, so an app-side route stop
+ * cannot uphold the privacy promise on personal screens. Native Clarity uses
+ * its supported pause/resume API in clarity-native.ts and remains independent.
+ */
+export const WEB_CLARITY_HARD_DISABLED = true;
 
 type WebGlobal = {
   localStorage?: { getItem: (k: string) => string | null; setItem: (k: string, v: string) => void };
   dataLayer?: unknown[];
   gtag?: (...args: unknown[]) => void;
-  clarity?: (...args: unknown[]) => void;
   location?: { origin?: string; hostname?: string };
 };
 
@@ -473,24 +477,10 @@ function applyRuntimeAnalyticsFlags(flags: AnalyticsRuntimeFlags): void {
       // ignore
     }
   }
-  if (clarityLoaded && w.clarity) {
-    try {
-      const clarityGranted = flags.analyticsEnabled && flags.clarityEnabled;
-      w.clarity("consentv2", {
-        ad_Storage: "denied",
-        analytics_Storage: clarityGranted ? "granted" : "denied",
-      });
-      if (!clarityGranted) w.clarity("consent", false);
-    } catch {
-      // ignore
-    }
-  }
   const shouldLoad =
     runtimeAnalyticsBootstrapped &&
     flags.analyticsEnabled &&
-    (!previous.analyticsEnabled ||
-      (!previous.clarityEnabled && flags.clarityEnabled) ||
-      !productAnalyticsReady);
+    (!previous.analyticsEnabled || !productAnalyticsReady);
   if (shouldLoad) {
     try {
       void loadProductAnalytics(getEnv());
@@ -573,9 +563,9 @@ function scheduleRuntimeAnalyticsPolling(): void {
 }
 
 function hasProductAnalyticsConfig(env: Env): boolean {
-  return Boolean(
-    env.EXPO_PUBLIC_GA4_MEASUREMENT_ID || env.EXPO_PUBLIC_CLARITY_PROJECT_ID,
-  );
+  // Web Clarity is structurally disabled above. Its project id must not keep
+  // the web polling loop alive or be mistaken for an active product SDK.
+  return Boolean(env.EXPO_PUBLIC_GA4_MEASUREMENT_ID);
 }
 
 function cleanProps(props: AnalyticsProps | undefined): Record<string, AnalyticsPropValue> {
@@ -649,15 +639,14 @@ export const CLARITY_ALLOWED_ROUTE_PREFIXES: readonly string[] = [
  * 콘솔이 없다. 그래서 "대시보드에 안 뜬다"만 알 뿐 **어느 고리가 끊겼는지**를 알
  * 방법이 없었다. 각 값은 결정에 실제로 쓰이는 바로 그 변수를 읽는다.
  *
- * ⚠ 이 스냅샷을 보는 화면(/dev-screens)은 Clarity 허용 라우트가 **아니다**. 그래서
- * 그 화면에 서 있는 동안 allowedRoute 는 정직하게 false 이고 capturing 도 false 다 —
- * 그건 고장이 아니라 설계다. 켜졌는지 보려면 허용 라우트(/ 또는 /settings)에 다녀온
- * 뒤 sessionUrl 이 생겼는지로 판단한다.
+ * clarityEnabled 는 서버의 원시 flag, webHardDisabled 는 코드 안전장치다. 둘을 따로
+ * 보여 줘야 "운영 flag는 ON이지만 웹은 차단"인 상태를 숨기지 않는다.
  */
 export function clarityGateSnapshot(): {
   consent: boolean;
   analyticsEnabled: boolean;
   clarityEnabled: boolean;
+  webHardDisabled: boolean;
   projectId: boolean;
   route: string;
   allowedRoute: boolean;
@@ -666,6 +655,7 @@ export function clarityGateSnapshot(): {
     consent: analyticsConsent,
     analyticsEnabled: runtimeAnalyticsFlags.analyticsEnabled,
     clarityEnabled: runtimeAnalyticsFlags.clarityEnabled,
+    webHardDisabled: Platform.OS === "web" && WEB_CLARITY_HARD_DISABLED,
     projectId: Boolean(clarityProjectIdForNative()),
     route: currentAnalyticsRoute,
     allowedRoute: isClarityAllowedRoute(currentAnalyticsRoute),
@@ -697,7 +687,7 @@ function gaContextProps(w: WebGlobal, routePath = currentAnalyticsRoute): Record
 }
 
 function deliverProductEvent(event: PreparedProductEvent): boolean {
-  let delivered = clarityLoaded && runtimeAnalyticsFlags.clarityEnabled;
+  let delivered = false;
   const w = webWindow();
   if (ga4Id && w?.gtag) {
     try {
@@ -859,10 +849,10 @@ export async function initAnalytics(opts?: { analyticsConsent?: boolean } & Anal
 }
 
 /**
- * Load the consent-gated product-analytics SDKs (GA4 + Clarity). Each
- * is independently gated on its id/key and on already-loaded guards, so this is
- * safe to call more than once (e.g. from initAnalytics and again from
- * setAnalyticsConsent when the user opts in mid-session).
+ * Load the consent-gated web product analytics SDK (GA4). Web Clarity is
+ * structurally disabled; native Clarity is controlled by clarity-native.ts.
+ * This remains safe to call more than once (e.g. from initAnalytics and again
+ * from setAnalyticsConsent when the user opts in mid-session).
  */
 async function loadProductAnalytics(env: Env): Promise<void> {
   if (!webWindow() || !analyticsConsent || !runtimeAnalyticsFlags.analyticsEnabled) return;
@@ -876,30 +866,6 @@ async function loadProductAnalytics(env: Env): Promise<void> {
     }
   });
   return productAnalyticsLoad;
-}
-
-/**
- * Clarity injects lazily: consent may resolve while the session sits on a
- * disallowed route (the loader skips injection there), so the first
- * page_view on an allow-listed route retries the load. Every gate that the
- * loader itself enforces (consent, runtime flags, web platform, per-SDK
- * loaded guards) is re-checked inside; this only avoids pointless calls.
- */
-function maybeLoadClarityForRoute(): void {
-  if (
-    !analyticsConsent ||
-    clarityLoaded ||
-    !runtimeAnalyticsFlags.clarityEnabled ||
-    !isClarityAllowedRoute(currentAnalyticsRoute) ||
-    !webWindow()
-  ) {
-    return;
-  }
-  try {
-    void loadProductAnalytics(getEnv());
-  } catch {
-    // invalid build env keeps analytics off
-  }
 }
 
 async function performProductAnalyticsLoad(env: Env): Promise<void> {
@@ -948,47 +914,6 @@ async function performProductAnalyticsLoad(env: Env): Promise<void> {
     }
   }
 
-  // MS Clarity - loaded only post-consent AND only while the session sits on
-  // an allow-listed route (injection is irreversible for the page lifetime;
-  // captureEvent retries via maybeLoadClarityForRoute on later navigations).
-  // The project must be configured to mask text (sensitive content); signal
-  // cookie consent after load.
-  if (
-    runtimeAnalyticsFlags.clarityEnabled &&
-    !clarityLoaded &&
-    env.EXPO_PUBLIC_CLARITY_PROJECT_ID &&
-    isClarityAllowedRoute(currentAnalyticsRoute)
-  ) {
-    try {
-      const id = env.EXPO_PUBLIC_CLARITY_PROJECT_ID;
-      // Mask the entire rendered document even if an operator later weakens the
-      // project setting. Clarity still sees the live URL, so routes containing
-      // ids/tokens require a separate console/vendor review before production.
-      document.documentElement.setAttribute("data-clarity-mask", "true");
-      const c = w as unknown as Record<string, unknown>;
-      const clarity = (...args: unknown[]) => {
-        const q = (c.clarity as { q?: unknown[] } | undefined)?.q;
-        ((c.clarity as { q?: unknown[] }).q = q || []).push(args);
-      };
-      if (!c.clarity) c.clarity = clarity;
-      const t = document.createElement("script");
-      t.async = true;
-      t.src = `https://www.clarity.ms/tag/${encodeURIComponent(id)}`;
-      const first = document.getElementsByTagName("script")[0];
-      if (first?.parentNode) first.parentNode.insertBefore(t, first);
-      else document.head.appendChild(t);
-      // ConsentV2 is the current Clarity API. Advertising storage stays denied;
-      // this product consent covers usage analytics only.
-      w.clarity?.("consentv2", {
-        ad_Storage: "denied",
-        analytics_Storage: "granted",
-      });
-      clarityLoaded = true;
-    } catch (e) {
-      if (typeof console !== "undefined") console.warn("[analytics] clarity init skipped:", (e as Error).message);
-    }
-  }
-
   if (hasProductAnalyticsConfig(env)) {
     scheduleRuntimeAnalyticsPolling();
   }
@@ -997,8 +922,8 @@ async function performProductAnalyticsLoad(env: Env): Promise<void> {
 /**
  * Record the user's analytics-consent decision. Persists it (web) so it gates
  * the next load, and - when granting in-session after init - loads the product
- * analytics SDKs immediately. Revoking stops app-driven events synchronously,
- * updates GA4/Clarity consent, and clears Clarity cookies in the current session.
+ * analytics SDK immediately. Revoking stops app-driven events synchronously,
+ * updates GA4 consent, and clears any legacy Clarity cookies in the session.
  */
 export interface AnalyticsConsentApplyOptions {
   /** Ignore a server read if a newer privacy action changed consent meanwhile. */
@@ -1090,18 +1015,6 @@ export function setAnalyticsConsent(
     } catch {
       // ignore
     }
-    if (clarityLoaded && w.clarity) {
-      try {
-        w.clarity("consentv2", {
-          ad_Storage: "denied",
-          analytics_Storage: "denied",
-        });
-        // ConsentV1's false form is still the documented cookie-erasure API.
-        w.clarity("consent", false);
-      } catch {
-        // ignore
-      }
-    }
     // Expire tracker cookies (_clck/_clsk/_ga*) on a REAL revoke (granted ->
     // denied in this session) or a server-resolved denial (expectedRevision
     // present = the AnalyticsConsentSync outcome, catching a revoke made on
@@ -1129,12 +1042,6 @@ export function setAnalyticsConsent(
           ad_user_data: "denied",
           ad_personalization: "denied",
         });
-        if (flags.clarityEnabled && clarityLoaded && w.clarity) {
-          w.clarity("consentv2", {
-            ad_Storage: "denied",
-            analytics_Storage: "granted",
-          });
-        }
       } catch {
         // ignore
       }
@@ -1151,13 +1058,12 @@ export function captureEvent(event: AnalyticsEvent): boolean {
   // receive the correct redacted route rather than the browser's live URL.
   if (event.name === "page_view") {
     currentAnalyticsRoute = sanitizeAnalyticsRoutePath(event.props.path);
-    maybeLoadClarityForRoute();
     // Native has no injection step, so navigation is where pause/resume and the
     // screen name are decided. A disallowed screen pauses rather than hoping.
     syncNativeClarityForRoute(analyticsConsent);
   }
   // Re-check at most once per minute. The current event uses the last safe
-  // snapshot; a newly disabled flag revokes loaded GA/Clarity immediately
+  // snapshot; a newly disabled flag revokes loaded GA immediately
   // when the asynchronous refresh resolves.
   if (initialized && webWindow()) void refreshRuntimeAnalyticsFlags();
   const prepared = {
@@ -1224,7 +1130,6 @@ export function __resetAnalytics(): void {
   pendingProductEvents = [];
   sentryClient = null;
   ga4Id = null;
-  clarityLoaded = false;
   currentAnalyticsRoute = "/";
   nativeApplierOverride = null;
   nativeApplyTarget = null;
