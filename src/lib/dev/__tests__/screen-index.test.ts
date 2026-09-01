@@ -42,7 +42,7 @@ const EXPECTED_SPECIAL_ENTRY: Record<string, SpecialScreenEntry> = {
   "deepspace-flowmap": { kind: "dev", collection: "design-lab" },
 };
 
-/** 실화면이 아닌 렌더 전부 — journal/mbti/jarvis 는 항상 redirect, 넷은 UI 모드 분기. */
+/** 실화면이 아닌 렌더 전부 — journal/mbti/jarvis 는 항상 redirect, 다섯은 UI 모드 분기. */
 const EXPECTED_SPECIAL_RENDER: Record<string, SpecialRenderBehavior> = {
   journal: { kind: "redirect", to: "/capture", lifecycle: "retired" },
   mbti: { kind: "redirect", to: "/persona", lifecycle: "retired" },
@@ -61,6 +61,11 @@ const EXPECTED_SPECIAL_RENDER: Record<string, SpecialRenderBehavior> = {
     kind: "ui-mode-split",
     deepspace: { kind: "redirect", to: "/core-brain" },
     legacy: { kind: "screen" },
+  },
+  seen: {
+    kind: "ui-mode-split",
+    deepspace: { kind: "screen" },
+    legacy: { kind: "redirect", to: "/persona" },
   },
   trinity: {
     kind: "ui-mode-split",
@@ -376,7 +381,7 @@ describe("개발자 화면 목록", () => {
 
   // ── 렌더 축 ────────────────────────────────────────────────────────────
 
-  it("특수 렌더는 항상 redirect 3 · UI 모드 분기 4 와 정확히 일치하고 전부 메모가 있다", () => {
+  it("특수 렌더는 항상 redirect 3 · UI 모드 분기 5 와 정확히 일치하고 전부 메모가 있다", () => {
     const special = Object.fromEntries(
       devScreens()
         .filter((screen) => screenRender(screen).kind !== "screen")
@@ -389,7 +394,7 @@ describe("개발자 화면 목록", () => {
     const counts = entryRoleCounts();
     expect({ alwaysRedirect: counts.alwaysRedirect, modeSplit: counts.modeSplit }).toEqual({
       alwaysRedirect: 3,
-      modeSplit: 4,
+      modeSplit: 5,
     });
   });
 
@@ -421,7 +426,7 @@ describe("개발자 화면 목록", () => {
     expect(() => destinationScreen("/does-not-exist")).toThrow();
   });
 
-  it("UI 모드 분기 4개의 선언이 라우트 소스의 실제 분기와 일치한다", () => {
+  it("UI 모드 분기 5개의 선언이 라우트 소스의 실제 분기와 일치한다", () => {
     for (const [routeFile, render] of Object.entries(EXPECTED_SPECIAL_RENDER)) {
       if (render.kind !== "ui-mode-split") continue;
       const file = `${routeFile}.tsx`;
@@ -474,7 +479,9 @@ describe("개발자 화면 목록", () => {
     expect(source).toContain("const topHeadroom = insets.top + m3.minTouch + m3.spacing.s6");
     expect(source).toContain("<View style={[styles.root, { paddingTop: topHeadroom }]}");
     expect(source).toContain("style={styles.list}");
-    expect(source).toContain("contentContainerStyle={styles.content}");
+    // 아래쪽 safe-area — 고정 여백으로 되돌아가면 gesture bar 가 마지막 행을 가린다.
+    expect(source).toContain("const bottomHeadroom = insets.bottom + m3.spacing.s8");
+    expect(source).toContain("contentContainerStyle={[styles.content, { paddingBottom: bottomHeadroom }]}");
     expect(source).toContain("list: { flex: 1 }");
     expect(source).toContain("이 목록에서는 열 수 없습니다");
     for (const primitive of ["PixelSurface", "PixelGlyph"]) {

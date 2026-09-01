@@ -250,12 +250,15 @@ function DevScreenIndex() {
   // 전역 floating control(뒤로 가기)이 화면 위에 떠 있어서, 목록 viewport 자체를
   // 그 아래에서 시작시킨다. 스크롤 콘텐츠가 컨트롤 밑으로 지나가며 겹치지 않는다.
   const topHeadroom = insets.top + m3.minTouch + m3.spacing.s6;
+  // 아래쪽도 safe-area 만큼 비운다. 고정 여백만 두면 Android gesture nav bar 와
+  // iPhone home indicator 가 마지막 행을 가린다.
+  const bottomHeadroom = insets.bottom + m3.spacing.s8;
 
   return (
     <View style={[styles.root, { paddingTop: topHeadroom }]}>
       <SectionList<DevScreen, ScreenSection>
         style={styles.list}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: bottomHeadroom }]}
         sections={sections}
         keyExtractor={(screen) => screen.file}
         ListHeaderComponent={<RegistryHeader counts={counts} />}
@@ -335,9 +338,9 @@ function ClarityStatusRow() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: m3.color.background },
   list: { flex: 1 },
+  // paddingBottom 은 여기 두지 않는다 — safe-area 를 더한 bottomHeadroom 이 인라인으로 준다.
   content: {
     paddingHorizontal: m3.spacing.s6,
-    paddingBottom: m3.spacing.s8,
     ...(Platform.OS === "web" ? { maxWidth: 720, width: "100%", alignSelf: "center" as const } : null),
   },
   header: { gap: m3.spacing.s2 },
