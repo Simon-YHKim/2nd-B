@@ -67,15 +67,23 @@ import { pickFile, isAudioMime, MAX_AUDIO_FILE_BYTES, type PickedFile } from "@/
 import {
   CAPTURE_MODES,
   createCaptureTransientDraft,
+  acknowledgeCaptureSubmissionIfOwned,
+  acknowledgeCaptureSubmissionState,
+  claimCaptureSubmission,
+  clearSubmittedCaptureDraft,
+  completeCaptureSubmission,
   DEFAULT_CAPTURE_DRAFT_MODE,
   isCaptureDraftMode,
   isCaptureTransientMode,
   loadCaptureDraftState,
+  markCaptureSubmissionSaved,
   planCaptureParamConsumption,
   planSharedConsumption,
   saveCaptureDraftState,
   sharedDeliveryKey,
+  submittedCaptureDraftMatchesCurrent,
   type CaptureDraft,
+  type CaptureDraftCleanupResult,
   type CaptureDraftMode,
   type CaptureDrafts,
   type CaptureDraftState,
@@ -83,6 +91,8 @@ import {
   type CaptureTransientDraft,
   type CaptureTransientDrafts,
   type CaptureTransientMode,
+  type CaptureSubmissionTicket,
+  type SubmittedCaptureDraft,
 } from "@/lib/capture/draft";
 import { classifyRecordTextForCrisis, transcribeAudio } from "@/lib/llm/boundary";
 import { discardRecording, recordingUriToBase64 } from "@/lib/audio/recording-uri";
@@ -389,6 +399,7 @@ function CaptureLegacySession() {
   const [draftHydrationError, setDraftHydrationError] = useState(false);
   const [draftHydrationRetry, setDraftHydrationRetry] = useState(0);
   const [draftFocusRefresh, setDraftFocusRefresh] = useState(0);
+  const draftHydrationGenerationRef = useRef(0);
   const hasFocusedOnceRef = useRef(false);
   const draftUserRef = useRef<string | null>(null);
   const draftLoadedUserRef = useRef<string | null>(null);
@@ -520,7 +531,7 @@ function CaptureLegacySession() {
   const submitBusyRef = useRef(false);
   // 날아가는 저장(A) 뒤에 온 변경(B: 사용자 수정·모드 전환·share 소비)을 A 의
   // 완주 정리가 지우지 못하게 하는 revision fence. 제출 시작 때 값을 캡처하고,
-  // 완료 때 달라져 있으면 reset/clearModeDraft/saved 패널을 건너뛴다 — 저장
+  // 완료 때 달라져 있으면 reset/submitted-draft cleanup/saved 패널을 건너뛴다 — 저장
   // 자체(레코드·크라이시스 안내·enqueue)는 그대로 유효하다.
   const captureRevisionRef = useRef(0);
   const draftWriteGenerationRef = useRef(0);
@@ -606,12 +617,13 @@ function CaptureLegacySession() {
         // A mounted /capture and /capture-full each retain their own React
         // state. On refocus, that local snapshot may be older than the other
         // route's just-flushed draft. Close every persistence path
-        // synchronously, invalidate pre-blur submit cleanup, then make the
+        // synchronously, fence stale async UI producers, then make the
         // hydration effect reload the queued durable state before editing.
         const needsFocusRefresh = hasFocusedOnceRef.current ||
           draftLoadedUserRef.current === userId ||
           (previous !== undefined && previous.id !== captureInstanceId);
         if (needsFocusRefresh) {
+          draftHydrationGenerationRef.current += 1;
           draftHydratedRef.current = false;
           setDraftHydrated(false);
           setDraftHydrationError(false);
@@ -626,7 +638,7 @@ function CaptureLegacySession() {
           paramAckGenerationRef.current += 1;
           setSharedDurableAck(null);
           setParamDurableAck(null);
-          invalidateAllDraftMutationEpochs();
+          invalidateCaptureRevisionForHydration();
           setDraftFocusRefresh((visit) => visit + 1);
         }
         hasFocusedOnceRef.current = true;
@@ -723,13 +735,11 @@ function CaptureLegacySession() {
     transientMutationEpochRef.current[targetMode] += 1;
   }
 
-  function invalidateAllDraftMutationEpochs(): void {
-    for (const targetMode of Object.keys(storageMutationEpochRef.current) as CaptureDraftMode[]) {
-      storageMutationEpochRef.current[targetMode] += 1;
-    }
-    for (const targetMode of Object.keys(transientMutationEpochRef.current) as CaptureTransientMode[]) {
-      transientMutationEpochRef.current[targetMode] += 1;
-    }
+  function invalidateCaptureRevisionForHydration(): void {
+    // Hydration/refocus is not itself a semantic edit. Keeping the per-mode
+    // epoch stable lets an in-flight save recognise reloaded exact A and clear
+    // it, while durable CAS still preserves a genuinely different B. The broad
+    // revision invalidation continues to fence async UI producers.
     advanceCaptureRevision();
   }
 
@@ -969,6 +979,7 @@ function CaptureLegacySession() {
   // Composer UI is gated until hydration below, so an empty pre-hydration
   // render can never overwrite the user's loaded draft.
   useEffect(() => {
+    const hydrationGeneration = ++draftHydrationGenerationRef.current;
     if (!userId) {
       draftsRef.current = {};
       transientDraftsRef.current = {};
@@ -997,7 +1008,14 @@ function CaptureLegacySession() {
         return loadCaptureDraftState(userId);
       })
       .then((state) => {
-        if (cancelled) return;
+        if (
+          cancelled ||
+          draftHydrationGenerationRef.current !== hydrationGeneration
+        ) return;
+        // A completed save stays guarded across /capture and /capture-full
+        // until a fresh durable read proves submitted A is gone (or replaced
+        // by semantic B). This read is that acknowledgement boundary.
+        acknowledgeCaptureSubmissionState(userId, state);
         draftsRef.current = state.drafts;
         transientDraftsRef.current = state.transientDrafts ?? {};
         draftLoadedUserRef.current = userId;
@@ -1027,7 +1045,10 @@ function CaptureLegacySession() {
         }
       })
       .catch((e) => {
-        if (cancelled) return;
+        if (
+          cancelled ||
+          draftHydrationGenerationRef.current !== hydrationGeneration
+        ) return;
         // Keep the composer and every persistence effect closed. A failed read
         // is unknown state, never permission to replace storage with emptiness.
         draftHydratedRef.current = false;
@@ -1623,45 +1644,6 @@ function CaptureLegacySession() {
     resetTransientCaptureState();
   }
 
-  function clearModeDraft(targetMode: StorageMode): Promise<boolean> {
-    const next = { ...draftsRef.current };
-    delete next[targetMode];
-    draftsRef.current = next;
-    // Publish a full snapshot, not a partial storage RMW. If an older failed
-    // handoff also contains another mode, a journal-only clear must not erase
-    // that unrelated unsaved draft from the retry ledger.
-    const lastMode = activeModeRef.current === targetMode
-      ? DEFAULT_CAPTURE_DRAFT_MODE
-      : activeModeRef.current;
-    return persistDrafts(lastMode);
-  }
-
-  async function clearSubmittedStorageDraft(
-    targetMode: StorageMode,
-    startModeEpoch: number,
-  ): Promise<boolean> {
-    if (!captureOwnsFocusedSession()) return false;
-    storageCleanupEpochRef.current[targetMode] = startModeEpoch;
-    try {
-      let durable = await clearModeDraft(targetMode);
-      // A mode switch or an older debounce may have folded submitted A back into
-      // the full-state blob behind clear #1. If this mode still has no semantic
-      // B, queue one final clear after that write.
-      if (
-        captureOwnsFocusedSession() &&
-        storageMutationEpochRef.current[targetMode] === startModeEpoch &&
-        (draftsRef.current[targetMode] !== undefined || !durable)
-      ) {
-        durable = await clearModeDraft(targetMode);
-      }
-      return durable;
-    } finally {
-      if (storageCleanupEpochRef.current[targetMode] === startModeEpoch) {
-        delete storageCleanupEpochRef.current[targetMode];
-      }
-    }
-  }
-
   function showDraftCleanupFailure(): void {
     if (!captureOwnsFocusedSession()) return;
     showFeedback(
@@ -1672,40 +1654,186 @@ function CaptureLegacySession() {
     );
   }
 
-  function clearTransientModeDraft(targetMode: CaptureTransientMode): Promise<boolean> {
-    const next = { ...transientDraftsRef.current };
-    delete next[targetMode];
-    transientDraftsRef.current = next;
-    // If the user moved elsewhere while this save was in flight, preserve that
-    // active mode as lastMode. A just-cleared active transient has no restorable
-    // envelope, so journal is its safe reload landing.
-    const lastMode = activeModeRef.current === targetMode
-      ? DEFAULT_CAPTURE_DRAFT_MODE
-      : activeModeRef.current;
-    return persistDrafts(lastMode);
+  function submittedDraftEpoch(submitted: SubmittedCaptureDraft): number {
+    return submitted.bucket === "storage"
+      ? storageMutationEpochRef.current[submitted.mode]
+      : transientMutationEpochRef.current[submitted.mode];
   }
 
-  async function clearSubmittedTransientDraft(
-    targetMode: CaptureTransientMode,
-    startModeEpoch: number,
-  ): Promise<boolean> {
-    if (!captureOwnsFocusedSession()) return false;
-    transientCleanupEpochRef.current[targetMode] = startModeEpoch;
-    try {
-      let durable = await clearTransientModeDraft(targetMode);
-      if (
-        captureOwnsFocusedSession() &&
-        transientMutationEpochRef.current[targetMode] === startModeEpoch &&
-        (transientDraftsRef.current[targetMode] !== undefined || !durable)
-      ) {
-        durable = await clearTransientModeDraft(targetMode);
+  function markSubmittedDraftCleanup(submitted: SubmittedCaptureDraft, epoch: number): void {
+    if (submitted.bucket === "storage") storageCleanupEpochRef.current[submitted.mode] = epoch;
+    else transientCleanupEpochRef.current[submitted.mode] = epoch;
+  }
+
+  function releaseSubmittedDraftCleanup(submitted: SubmittedCaptureDraft, epoch: number): void {
+    if (submitted.bucket === "storage") {
+      if (storageCleanupEpochRef.current[submitted.mode] === epoch) {
+        delete storageCleanupEpochRef.current[submitted.mode];
       }
-      return durable;
-    } finally {
-      if (transientCleanupEpochRef.current[targetMode] === startModeEpoch) {
-        delete transientCleanupEpochRef.current[targetMode];
-      }
+      return;
     }
+    if (transientCleanupEpochRef.current[submitted.mode] === epoch) {
+      delete transientCleanupEpochRef.current[submitted.mode];
+    }
+  }
+
+  function restartDraftHydration(): void {
+    // Invalidate a load that may already have read stale A before the save's
+    // conditional clear entered the handoff/native queue.
+    draftHydrationGenerationRef.current += 1;
+    if (!captureOwnsFocusedSession()) return;
+    focusDraftHydratedRef.current = false;
+    draftHydratedRef.current = false;
+    setDraftHydrated(false);
+    setDraftHydrationError(false);
+    invalidateCaptureRevisionForHydration();
+    setDraftFocusRefresh((visit) => visit + 1);
+  }
+
+  function requestFreshSubmittedDraft(
+    submitted: SubmittedCaptureDraft,
+    blockedEpoch: number,
+  ): void {
+    if (
+      !captureOwnsFocusedSession() ||
+      activeModeRef.current !== submitted.mode ||
+      submittedDraftEpoch(submitted) !== blockedEpoch
+    ) return;
+    restartDraftHydration();
+  }
+
+  function submittedDraftOwnsDurableAck(
+    submitted: SubmittedCaptureDraft,
+    blockedEpoch: number,
+  ): boolean {
+    return captureOwnsFocusedSession() &&
+      activeModeRef.current === submitted.mode &&
+      submittedDraftEpoch(submitted) === blockedEpoch;
+  }
+
+  function requestDurableSubmittedDraftAck(
+    submitted: SubmittedCaptureDraft,
+    blockedEpoch: number,
+  ): void {
+    if (!userId || !submittedDraftOwnsDurableAck(submitted, blockedEpoch)) return;
+    const ackUserId = userId;
+    void acknowledgeCaptureSubmissionIfOwned({
+      userId: ackUserId,
+      owns: () => submittedDraftOwnsDurableAck(submitted, blockedEpoch),
+      settle: () => settleCaptureDraftHandoffs(ackUserId),
+      load: () => loadCaptureDraftState(ackUserId),
+    }).catch((e) => {
+      // No ACK is fail-safe: the successful snapshot stays fenced until the
+      // next fresh hydration proves it absent or replaced by B.
+      if (typeof console !== "undefined") {
+        console.warn("[capture] submission acknowledgement failed", (e as Error).message);
+      }
+    });
+  }
+
+  function claimSubmittedDraft(
+    submitted: SubmittedCaptureDraft,
+    startModeEpoch: number,
+  ): CaptureSubmissionTicket | null {
+    if (!userId) return null;
+    const claim = claimCaptureSubmission({
+      userId,
+      ownerId: captureInstanceId,
+      semanticEpoch: startModeEpoch,
+      submitted,
+    });
+    if (claim.accepted) return claim.ticket;
+
+    showFeedback(
+      locale === "ko" ? "같은 내용의 저장을 확인하고 있어요" : "Checking the same save",
+      locale === "ko"
+        ? "이전 화면에서 시작한 저장 결과를 확인한 뒤 초안을 다시 불러올게요. 다른 내용은 계속 담을 수 있어요."
+        : "We'll reload the draft after checking the save started on the previous screen. You can still capture different content.",
+    );
+    void claim.completion.then((outcome) => {
+      if (outcome.outcome === "saved") {
+        requestFreshSubmittedDraft(submitted, startModeEpoch);
+      } else if (
+        captureOwnsFocusedSession() &&
+        activeModeRef.current === submitted.mode &&
+        submittedDraftEpoch(submitted) === startModeEpoch
+      ) {
+        showFeedback(
+          locale === "ko" ? "이전 저장이 끝나지 않았어요" : "The previous save didn't finish",
+          locale === "ko" ? "초안은 그대로예요. 다시 저장해 주세요." : "Your draft is unchanged. Please save it again.",
+        );
+      }
+    });
+    return null;
+  }
+
+  async function clearAcceptedSubmittedDraft(
+    submitted: SubmittedCaptureDraft,
+    startModeEpoch: number,
+  ): Promise<CaptureDraftCleanupResult> {
+    if (!userId) return "failed";
+    const cleanupUserId = userId;
+    const hydrationWasPending = !draftHydratedRef.current;
+    // Phase 1: revoke an already-read stale snapshot before the first cleanup
+    // await. Otherwise its `.then` can reinsert A into refs during CAS, and a
+    // blur can queue that resurrected full snapshot behind the clear.
+    if (hydrationWasPending) draftHydrationGenerationRef.current += 1;
+    const finishCleanup = (value: CaptureDraftCleanupResult): CaptureDraftCleanupResult => {
+      if (hydrationWasPending) {
+        // Phase 2: after CAS settles, reload the resulting full state. This is a
+        // storage-consistency fence, so active mode/epoch do not narrow it.
+        restartDraftHydration();
+      }
+      return value;
+    };
+    // Semantic B in this component wins. Its next full-state write will replace
+    // A, and the completed-submission guard blocks only the exact old snapshot.
+    if (submittedDraftEpoch(submitted) !== startModeEpoch) {
+      return finishCleanup("mismatch");
+    }
+    const currentDraft = submitted.bucket === "storage"
+      ? draftsRef.current[submitted.mode]
+      : transientDraftsRef.current[submitted.mode];
+    // Refocus hydration deliberately does not count as a user mutation. Compare
+    // its actual value too: exact reloaded A may be cleared, but a B loaded from
+    // another owner must not be removed from refs while CAS is in flight.
+    if (
+      currentDraft !== undefined &&
+      !submittedCaptureDraftMatchesCurrent(submitted, currentDraft)
+    ) return finishCleanup("mismatch");
+
+    // Do this only after the record/source save succeeded. Marking A before the
+    // network write would let an immediate blur drop a not-yet-debounced draft
+    // when the original save later fails. While the save is pending, the exact
+    // submission guard safely blocks a second insert instead.
+    markSubmittedDraftCleanup(submitted, startModeEpoch);
+
+    // The database/source save is already durable. Remove A from this old
+    // owner's refs synchronously so any later blur/debounce snapshot cannot
+    // resurrect it after the queued conditional clear.
+    if (submitted.bucket === "storage") {
+      const next = { ...draftsRef.current };
+      delete next[submitted.mode];
+      draftsRef.current = next;
+    } else {
+      const next = { ...transientDraftsRef.current };
+      delete next[submitted.mode];
+      transientDraftsRef.current = next;
+    }
+
+    let result: CaptureDraftCleanupResult = "failed";
+    const generation = ++draftWriteGenerationRef.current;
+    const handoff = registerCaptureDraftHandoff(
+      cleanupUserId,
+      captureInstanceId,
+      generation,
+      async () => {
+        result = await clearSubmittedCaptureDraft(cleanupUserId, submitted);
+        return result !== "failed";
+      },
+    );
+    const durable = await handoff.completion;
+    return finishCleanup(durable ? result : "failed");
   }
 
   function switchCaptureMode(nextMode: Mode): void {
@@ -2043,22 +2171,46 @@ ${transcript}`;
   // 일기(journal) mode writes to `records` via createRecord: streak, optional
   // topic/conclusion, and an opt-in Advisor reply. Crisis routing is honoured.
   async function handleJournalSubmit() {
-    if (!userId || !body.trim() || !beginSubmit()) return;
+    if (!userId || !body.trim()) return;
     const startModeEpoch = storageMutationEpochRef.current.journal;
+    const journalDraft = draftFromFields("journal");
+    const submitted: SubmittedCaptureDraft = {
+      bucket: "storage",
+      mode: "journal",
+      expected: journalDraft,
+    };
+    const submissionTicket = claimSubmittedDraft(submitted, startModeEpoch);
+    if (submissionTicket === null) return;
+    if (!beginSubmit()) {
+      completeCaptureSubmission(submissionTicket, { outcome: "failed" });
+      return;
+    }
+    let recordSaved = false;
+    let submissionSettled = false;
+    let completedCleanupResult: CaptureDraftCleanupResult | null = null;
     try {
       const res = await createRecord({
         userId,
         locale,
         minor: isMinor === true,
         kind: "journal",
-        body: body.trim(),
-        topic: topic.trim().length > 0 ? topic.trim() : undefined,
-        tags: tagsEditable.length > 0 ? tagsEditable : undefined,
-        domainIntent: domainIntent ?? undefined,
-        conclusion: conclusion.trim().length > 0 ? conclusion.trim() : undefined,
+        body: journalDraft.body.trim(),
+        topic: journalDraft.topic.trim().length > 0 ? journalDraft.topic.trim() : undefined,
+        tags: journalDraft.tags,
+        domainIntent: journalDraft.domainIntent,
+        conclusion: (journalDraft.conclusion ?? "").trim() || undefined,
         withFollowup: askAdvisor && advisorUnlocked,
         tier: progression.tier,
       });
+      recordSaved = true;
+      markCaptureSubmissionSaved(submissionTicket);
+      const draftCleanupResult = await clearAcceptedSubmittedDraft(submitted, startModeEpoch);
+      completedCleanupResult = draftCleanupResult;
+      completeCaptureSubmission(submissionTicket, {
+        outcome: "saved",
+        cleanup: draftCleanupResult,
+      });
+      submissionSettled = true;
       if (res.followup?.zone === "red") {
         setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
       } else {
@@ -2068,24 +2220,21 @@ ${transcript}`;
           minor: isMinor === true,
           tier: progression.tier,
           id: res.id,
-          body: body.trim(),
-          title: topic.trim() || undefined,
-          tags: tagsEditable,
+          body: journalDraft.body.trim(),
+          title: journalDraft.topic.trim() || undefined,
+          tags: journalDraft.tags ?? [],
         });
       }
       // Cleanup ownership is per mode: a plain mode switch does not make saved
       // A new, while an edit/tag/advisor/share mutation of journal does.
-      if (
-        captureOwnsFocusedSession() &&
-        storageMutationEpochRef.current.journal === startModeEpoch
-      ) {
-        const savedTopic = topic.trim();
-        const draftClearDurable = await clearSubmittedStorageDraft("journal", startModeEpoch);
+      if (draftCleanupResult === "cleared") {
+        const savedTopic = journalDraft.topic.trim();
         if (
           captureOwnsFocusedSession() &&
           storageMutationEpochRef.current.journal === startModeEpoch &&
           activeModeRef.current === "journal"
         ) {
+          requestDurableSubmittedDraftAck(submitted, startModeEpoch);
           reset();
           companion.fire("journalSaved");
           setSavedTitle(savedTopic.length > 0 ? savedTopic : t("savedTitleFallback"));
@@ -2095,8 +2244,7 @@ ${transcript}`;
           setSavedFollowup(res.followup ?? null);
           setSavedPending(false);
         }
-        if (!draftClearDurable) showDraftCleanupFailure();
-      }
+      } else if (draftCleanupResult === "failed") showDraftCleanupFailure();
       // Refresh streak + journal use count (free-tier limit) + XP (the entry
       // earns progression, mirroring the retired /journal screen).
       void progression.refresh();
@@ -2116,6 +2264,13 @@ ${transcript}`;
           if (typeof console !== "undefined") console.warn("[capture] streak refresh failed", (e as Error).message);
         });
     } catch (e) {
+      if (recordSaved) {
+        if (typeof console !== "undefined") console.warn("[capture] journal post-save step failed", (e as Error).message);
+        if (completedCleanupResult === null || completedCleanupResult === "failed") {
+          showDraftCleanupFailure();
+        }
+        return;
+      }
       if (
         !captureOwnsFocusedSession() ||
         storageMutationEpochRef.current.journal !== startModeEpoch ||
@@ -2132,6 +2287,15 @@ ${transcript}`;
         () => void handleJournalSubmit(),
       );
     } finally {
+      if (!submissionSettled) {
+        completeCaptureSubmission(
+          submissionTicket,
+          recordSaved ? { outcome: "saved", cleanup: "failed" } : { outcome: "failed" },
+        );
+      }
+      if (!recordSaved || completedCleanupResult !== "failed") {
+        releaseSubmittedDraftCleanup(submitted, startModeEpoch);
+      }
       finishSubmit();
     }
   }
@@ -2145,16 +2309,36 @@ ${transcript}`;
   // (transcribeAudio) into `body` for review/edit before this save runs; the
   // typed-transcript box stays as the fallback (web / permission denied).
   async function handleNoteLikeSubmit(noteMode: "voice" | "todo" | "fourw") {
-    // 4W1H composes its five boxes into the note body; voice/todo use the box.
-    const noteBody = noteMode === "fourw" ? composeFourWBody(fourw, locale) : body.trim();
-    if (!userId || !noteBody || !beginSubmit()) return;
+    if (!userId) return;
     const startModeEpoch = transientMutationEpochRef.current[noteMode];
+    const noteDraft = transientDraftFromFields(noteMode);
+    if (noteDraft === null) return;
+    // 4W1H composes its immutable five-box snapshot; voice/todo use the
+    // accepted body snapshot. Later edits belong to semantic B.
+    const noteBody = noteDraft.mode === "fourw"
+      ? composeFourWBody(noteDraft.fourw, locale)
+      : noteDraft.body.trim();
+    if (!noteBody) return;
+    const submitted: SubmittedCaptureDraft = {
+      bucket: "transient",
+      mode: noteMode,
+      expected: noteDraft,
+    };
+    const submissionTicket = claimSubmittedDraft(submitted, startModeEpoch);
+    if (submissionTicket === null) return;
+    if (!beginSubmit()) {
+      completeCaptureSubmission(submissionTicket, { outcome: "failed" });
+      return;
+    }
+    let recordSaved = false;
+    let submissionSettled = false;
+    let completedCleanupResult: CaptureDraftCleanupResult | null = null;
     try {
       const baseTag = noteMode;
       const tags = [
         baseTag,
-        ...(noteMode === "todo" && todoDone ? ["done"] : []),
-        ...tagsEditable,
+        ...(noteDraft.mode === "todo" && noteDraft.todoDone ? ["done"] : []),
+        ...(noteDraft.tags ?? []),
       ];
       const res = await createRecord({
         userId,
@@ -2163,11 +2347,22 @@ ${transcript}`;
         kind: "note",
         body: noteBody,
         tags,
-        domainIntent: domainIntent ?? undefined,
+        domainIntent: noteDraft.domainIntent,
         tier: progression.tier,
         // 0066: 4W1H keeps the machine-readable payload beside the flattened body.
-        structured: noteMode === "fourw" ? composeStructured("fourw", fourw) ?? undefined : undefined,
+        structured: noteDraft.mode === "fourw"
+          ? composeStructured("fourw", noteDraft.fourw) ?? undefined
+          : undefined,
       });
+      recordSaved = true;
+      markCaptureSubmissionSaved(submissionTicket);
+      const draftCleanupResult = await clearAcceptedSubmittedDraft(submitted, startModeEpoch);
+      completedCleanupResult = draftCleanupResult;
+      completeCaptureSubmission(submissionTicket, {
+        outcome: "saved",
+        cleanup: draftCleanupResult,
+      });
+      submissionSettled = true;
       // Crisis routing parity with journal (:934): voice/todo/4W1H are the
       // user's own words on the SAME createRecord path, but this handler used
       // to drop res.followup on the floor (setSavedFollowup(null)) — a red-zone
@@ -2189,12 +2384,8 @@ ${transcript}`;
       // Cleanup ownership is per transient mode. Switching away changes the
       // global screen revision but does not make the already-saved A draft new;
       // editing/re-sharing that mode does, and then it must survive as B.
-      if (
-        captureOwnsFocusedSession() &&
-        transientMutationEpochRef.current[noteMode] === startModeEpoch
-      ) {
+      if (draftCleanupResult === "cleared") {
         const savedBody = noteBody;
-        const draftClearDurable = await clearSubmittedTransientDraft(noteMode, startModeEpoch);
         // The clear ACK can itself take long enough for a same-mode B to arrive.
         // Its queued write follows this clear; never reset that newer composer.
         if (
@@ -2202,6 +2393,7 @@ ${transcript}`;
           transientMutationEpochRef.current[noteMode] === startModeEpoch &&
           activeModeRef.current === noteMode
         ) {
+          requestDurableSubmittedDraftAck(submitted, startModeEpoch);
           reset();
           companion.fire("captureSaved");
           setSavedTitle(savedBody.length > 0 ? savedBody : t("savedTitleFallback"));
@@ -2213,15 +2405,7 @@ ${transcript}`;
           setSavedFollowup(res.followup ?? null);
           setSavedPending(false);
         }
-        if (!draftClearDurable && captureOwnsFocusedSession()) {
-          showFeedback(
-            locale === "ko" ? "저장은 끝났지만 초안을 정리하지 못했어요" : "Saved, but draft cleanup failed",
-            locale === "ko"
-              ? "기록은 안전하게 저장됐어요. 앱을 다시 열면 같은 초안이 보일 수 있으니 다시 저장하지 말고 비워 주세요."
-              : "Your record is safe. If the same draft reappears after restart, clear it instead of saving it again.",
-          );
-        }
-      }
+      } else if (draftCleanupResult === "failed") showDraftCleanupFailure();
       void progression.refresh();
       void Promise.all([
         listRecentRecords(userId),
@@ -2236,6 +2420,13 @@ ${transcript}`;
           if (typeof console !== "undefined") console.warn("[capture] recent refresh failed", (e as Error).message);
         });
     } catch (e) {
+      if (recordSaved) {
+        if (typeof console !== "undefined") console.warn("[capture] note post-save step failed", (e as Error).message);
+        if (completedCleanupResult === null || completedCleanupResult === "failed") {
+          showDraftCleanupFailure();
+        }
+        return;
+      }
       if (
         !captureOwnsFocusedSession() ||
         transientMutationEpochRef.current[noteMode] !== startModeEpoch ||
@@ -2252,6 +2443,15 @@ ${transcript}`;
         () => void handleNoteLikeSubmit(noteMode),
       );
     } finally {
+      if (!submissionSettled) {
+        completeCaptureSubmission(
+          submissionTicket,
+          recordSaved ? { outcome: "saved", cleanup: "failed" } : { outcome: "failed" },
+        );
+      }
+      if (!recordSaved || completedCleanupResult !== "failed") {
+        releaseSubmittedDraftCleanup(submitted, startModeEpoch);
+      }
       finishSubmit();
     }
   }
@@ -2365,30 +2565,48 @@ ${transcript}`;
     if (mode === "journal") return handleJournalSubmit();
     if (mode === "voice" || mode === "todo" || mode === "fourw") return handleNoteLikeSubmit(mode);
     const submittedMode = mode;
-    if (!beginSubmit()) return;
+    const startModeEpoch = storageMutationEpochRef.current[submittedMode];
+    const sourceDraft = draftFromFields(submittedMode);
+    const submitted: SubmittedCaptureDraft | null = hasRestorableDraft(sourceDraft)
+      ? { bucket: "storage", mode: submittedMode, expected: sourceDraft }
+      : null;
+    const submissionTicket = submitted === null
+      ? null
+      : claimSubmittedDraft(submitted, startModeEpoch);
+    if (submitted !== null && submissionTicket === null) return;
+    if (!beginSubmit()) {
+      if (submissionTicket !== null) {
+        completeCaptureSubmission(submissionTicket, { outcome: "failed" });
+      }
+      return;
+    }
     const submitController = new AbortController();
     submitAbortRef.current = submitController;
     const submitSignal = submitController.signal;
-    // Accepted A always finishes. Its mode epoch distinguishes a harmless mode
-    // switch from a semantic B edit that cleanup must preserve.
-    const startModeEpoch = storageMutationEpochRef.current[submittedMode];
+    const submittedPickedFile = pickedFile;
+    const submittedPickedImageUri = pickedImage?.uri ?? null;
+    const submittedTrack = track;
+    const submittedTrackTouched = trackTouchedRef.current;
+    let sourceSaved = false;
+    let submissionSettled = submissionTicket === null;
+    let completedCleanupResult: CaptureDraftCleanupResult | null = null;
     try {
       // Compose the body that captureFromMarkdown will index.
       // memo / ocr already have body. linkclip: a bare URL becomes a titled
       // stub; pasted markdown is used as-is. file falls back to filename.
-      const isBareLink = mode === "linkclip" && linkClipKind === "url";
+      const isBareLink = submittedMode === "linkclip" && classifyLinkOrClip(sourceDraft.body) === "url";
       // fallbackUrl: the bare URL, or the first URL found inside clipped md.
       const fallbackUrl =
-        mode === "linkclip"
-          ? (isBareLink ? body.trim() : firstUrlIn(body))
+        submittedMode === "linkclip"
+          ? (isBareLink ? sourceDraft.body.trim() : firstUrlIn(sourceDraft.body))
           : null;
 
-      let finalBody = body.trim();
+      let finalBody = sourceDraft.body.trim();
       if (isBareLink) {
-        finalBody = `# ${body.trim()}\n\n${body.trim()}`;
+        finalBody = `# ${sourceDraft.body.trim()}\n\n${sourceDraft.body.trim()}`;
       }
-      if (mode === "file" && pickedFile && finalBody.length === 0) {
-        finalBody = `# ${pickedFile.name}\n\nFile attachment - ${pickedFile.mimeType}, ${pickedFile.size} bytes.`;
+      if (submittedMode === "file" && submittedPickedFile && finalBody.length === 0) {
+        finalBody = `# ${submittedPickedFile.name}\n\nFile attachment - ${submittedPickedFile.mimeType}, ${submittedPickedFile.size} bytes.`;
       }
 
       // AI clipper classification on toss (2026-06-01 directive): one call
@@ -2396,23 +2614,23 @@ ${transcript}`;
       // frontmatter (target-category / simon-relevance / actionable-takeaway /
       // kind-specific props). User-curated hashtags win; failure never blocks
       // the save (degrades to the URL-derived kind + no extra frontmatter).
-      let finalTags = tagsEditable;
-      let suggestedTrack: WikiTrack = track;
-      const trackChosenByUser = trackTouchedRef.current;
+      let finalTags = sourceDraft.tags ?? [];
+      let suggestedTrack: WikiTrack = submittedTrack;
+      const trackChosenByUser = submittedTrackTouched;
       // OCR is user-authored knowledge → keep self_knowledge; else let the AI pick.
-      let kindOverride: SourceKind | null = mode === "ocr" ? "self_knowledge" : null;
+      let kindOverride: SourceKind | null = submittedMode === "ocr" ? "self_knowledge" : null;
       let extraFrontmatter: Record<string, unknown> | undefined;
       let simonRelevance: number | null = null;
       if (finalBody.length > 0) {
         try {
           const cls = await classifyClipper(userId, finalBody, fallbackUrl, locale, isMinor === true, submitSignal);
           if (!submitIsCurrent(submitController)) return;
-          if (tagsEditable.length === 0) finalTags = cls.tags;
+          if ((sourceDraft.tags ?? []).length === 0) finalTags = cls.tags;
           // audit med#4: the AI used to overwrite the user's explicit 트랙 pick
           // unconditionally — the chip only "worked" when the AI failed. Same
           // rule as hashtags one line up: the user's curation wins.
           if (!trackChosenByUser) suggestedTrack = cls.track;
-          if (mode !== "ocr") kindOverride = cls.kind;
+          if (submittedMode !== "ocr") kindOverride = cls.kind;
           extraFrontmatter = {
             ...cls.props,
             "target-category": cls.targetCategory,
@@ -2438,7 +2656,43 @@ ${transcript}`;
         simonRelevance,
         signal: submitSignal,
       });
-      if (!submitIsCurrent(submitController)) return;
+      sourceSaved = true;
+      if (submissionTicket !== null) markCaptureSubmissionSaved(submissionTicket);
+      // Binary file-only captures have no durable text draft to CAS. Clear the
+      // accepted in-memory asset even when this route blurred, but preserve a
+      // newer file/image B selected while A was saving.
+      if (submittedMode === "file" && submittedPickedFile !== null) {
+        setPickedFile((current) => {
+          if (storageMutationEpochRef.current[submittedMode] !== startModeEpoch) {
+            return current;
+          }
+          return current?.uri === submittedPickedFile.uri &&
+            current.name === submittedPickedFile.name &&
+            current.mimeType === submittedPickedFile.mimeType &&
+            current.size === submittedPickedFile.size
+              ? null
+              : current;
+        });
+      }
+      if (submittedMode === "ocr" && submittedPickedImageUri !== null) {
+        setPickedImage((current) => (
+          storageMutationEpochRef.current[submittedMode] === startModeEpoch &&
+          current?.uri === submittedPickedImageUri
+            ? null
+            : current
+        ));
+      }
+      const draftCleanupResult = submitted === null
+        ? "cleared"
+        : await clearAcceptedSubmittedDraft(submitted, startModeEpoch);
+      completedCleanupResult = draftCleanupResult;
+      if (submissionTicket !== null) {
+        completeCaptureSubmission(submissionTicket, {
+          outcome: "saved",
+          cleanup: draftCleanupResult,
+        });
+      }
+      submissionSettled = true;
 
       // Memo is self-authored text like journal, but it lands on the sources
       // path which never ran crisis classification — a red-zone memo surfaced
@@ -2482,16 +2736,13 @@ ${transcript}`;
         void maybeAutoPromoteSource(userId, result.source.id);
       }
 
-      if (
-        captureOwnsFocusedSession() &&
-        storageMutationEpochRef.current[submittedMode] === startModeEpoch
-      ) {
-        const draftClearDurable = await clearSubmittedStorageDraft(submittedMode, startModeEpoch);
+      if (draftCleanupResult === "cleared") {
         if (
           captureOwnsFocusedSession() &&
           storageMutationEpochRef.current[submittedMode] === startModeEpoch &&
           activeModeRef.current === submittedMode
         ) {
+          if (submitted !== null) requestDurableSubmittedDraftAck(submitted, startModeEpoch);
           reset();
           // 루루 carries the shard home; an imported link gets the "success" beat.
           companion.fire(isBareLink ? "linkImported" : "captureSaved");
@@ -2510,9 +2761,16 @@ ${transcript}`;
             setProposalCtx({ content: finalBody, url: fallbackUrl });
           }
         }
-        if (!draftClearDurable) showDraftCleanupFailure();
-      }
+      } else if (draftCleanupResult === "failed") showDraftCleanupFailure();
     } catch (e) {
+      if (sourceSaved) {
+        if (typeof console !== "undefined") console.warn("[capture] source post-save step failed", (e as Error).message);
+        if (
+          submitted !== null &&
+          (completedCleanupResult === null || completedCleanupResult === "failed")
+        ) showDraftCleanupFailure();
+        return;
+      }
       if (isAbortError(e) || !submitIsCurrent(submitController)) return;
       if (
         !captureOwnsFocusedSession() ||
@@ -2530,6 +2788,16 @@ ${transcript}`;
         () => void handleSubmit(),
       );
     } finally {
+      if (submissionTicket !== null && !submissionSettled) {
+        completeCaptureSubmission(
+          submissionTicket,
+          sourceSaved ? { outcome: "saved", cleanup: "failed" } : { outcome: "failed" },
+        );
+      }
+      if (
+        submitted !== null &&
+        (!sourceSaved || completedCleanupResult !== "failed")
+      ) releaseSubmittedDraftCleanup(submitted, startModeEpoch);
       if (submitAbortRef.current === submitController) {
         submitAbortRef.current = null;
         finishSubmit();

@@ -3,6 +3,22 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## Latest — 2026-09-02 / web Clarity hard-disable 결정
+
+- **출시 결정:** web Clarity는 원격 `clarity_enabled`, 사용자 동의, project id가 모두
+  있어도 로드하지 않는다. Android 네이티브 Clarity의 지원된 pause/resume 경로는 유지한다.
+- **이유:** Microsoft Clarity의 SPA history hook은 `pushState`/`replaceState` 뒤 자체
+  `stop()`과 250ms 지연 `start()`를 예약한다. React page-view effect의 뒤늦은 stop은 이미
+  inactive인 런타임에서 no-op인데 앱만 성공으로 오판할 수 있고, vendor timer가 개인
+  화면에서 다시 수집을 시작한다. #1569의 mock 테스트는 이 vendor history/timer를
+  실행하지 않아 해당 경합을 증명하지 못했다.
+- **재활성화 조건:** 주입 전 history 차단은 별도 실험으로만 다룬다. real vendor script를
+  사용하는 Chrome/Firefox/Safari에서 허용→개인 화면, 1초 이상 체류·상호작용,
+  private→private, back/forward, flag/consent 전환을 검증하고 경계 이후 Clarity collect가
+  0건인 HAR와 dashboard URL 부재가 있어야 재검토한다.
+- **PR 상태:** #1569는 DO NOT MERGE/HOLD. 운영 DB의 실제 flag 값은 별도 콘솔 증거 없이는
+  OFF라고 단정하지 않으며, 코드 hard-disable을 정본 안전장치로 삼는다.
+
 ## Latest — 2026-09-01 / 화면 감사 결정 집행: 배선 4건 · 대장 정정 3건 (Q1 봉인은 전제 반증으로 보류)
 
 > 발행: Claude Code (orca Design 워크스페이스). 감사 보고서 아티팩트:
