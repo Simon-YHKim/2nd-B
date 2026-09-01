@@ -45,6 +45,8 @@ describe("레지스트리가 실재하는 화면을 가리킨다", () => {
     const screen = read(screenFor(audit.route));
     expect(screen).toContain("useLocalSearchParams");
     expect(screen).toMatch(/screener\s*===\s*["']1["']/);
+    expect(screen).toMatch(/function AuditScreenerShell[\s\S]*isDeepSpaceUI\(\)[\s\S]*<DeepSpaceScreen/);
+    expect(screen).toMatch(/<DeepSpaceScreen[\s\S]*active="lens"[\s\S]*onBack=\{\(\) => router\.back\(\)\}/);
   });
 
   it("직접 만든 Life Audit 진입점도 PastMe 기본 경로로 새지 않는다", () => {

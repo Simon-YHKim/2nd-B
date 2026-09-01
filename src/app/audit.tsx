@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, BackHandler } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
@@ -120,6 +120,24 @@ function dataLocaleFor(language: string | undefined): AuditDataLocale {
   return language?.toLowerCase().startsWith("ko") ? "ko" : "en";
 }
 
+function AuditScreenerShell({ children }: { children: ReactNode }) {
+  const { t } = useTranslation("core-brain");
+  if (isDeepSpaceUI()) {
+    return (
+      <DeepSpaceScreen
+        active="lens"
+        header="none"
+        variant="windowed"
+        title={t("auditCheck")}
+        onBack={() => router.back()}
+      >
+        {children}
+      </DeepSpaceScreen>
+    );
+  }
+  return <PremiumAppShell>{children}</PremiumAppShell>;
+}
+
 function AuditLegacy() {
   const { t, i18n } = useTranslation("audit");
   const { userId, loading, isMinor, hasProfile } = useAuth();
@@ -165,11 +183,11 @@ function AuditLegacy() {
 
   if (loading) {
     return (
-      <PremiumAppShell>
+      <AuditScreenerShell>
         <View style={styles.center}>
           <PremiumLoadingState message={t("loading")} />
         </View>
-      </PremiumAppShell>
+      </AuditScreenerShell>
     );
   }
   if (!userId) return <Redirect href="/sign-in" />;
@@ -216,7 +234,7 @@ function AuditLegacy() {
 
   if (period === null) {
     return (
-      <PremiumAppShell>
+      <AuditScreenerShell>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
 <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.introCard}>
@@ -249,13 +267,13 @@ function AuditLegacy() {
           </View>
         </ScrollView>
 </KeyboardAvoidingView>
-      </PremiumAppShell>
+      </AuditScreenerShell>
     );
   }
 
   if (done) {
     return (
-      <PremiumAppShell>
+      <AuditScreenerShell>
         <View style={styles.center}>
           <View style={styles.completeBadge}>
             <Text variant="subtle" style={styles.completeBadgeText}>
@@ -285,12 +303,12 @@ function AuditLegacy() {
         {companion.moment ? (
           <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
         ) : null}
-      </PremiumAppShell>
+      </AuditScreenerShell>
     );
   }
 
   return (
-    <PremiumAppShell>
+    <AuditScreenerShell>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
 <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {index === 0 ? (
@@ -402,7 +420,7 @@ function AuditLegacy() {
           />
         </View>
       </PremiumModal>
-    </PremiumAppShell>
+    </AuditScreenerShell>
   );
 }
 
