@@ -709,7 +709,7 @@ describe("runtime analytics web transitions", () => {
     }
   });
 
-  test("60-second polling keeps running while OFF and restores GA and Clarity", async () => {
+  test("60-second polling restores GA while web Clarity stays hard-disabled", async () => {
     const rows = {
       current: [
         { key: "analytics_enabled", enabled: false },
@@ -733,7 +733,9 @@ describe("runtime analytics web transitions", () => {
       await jest.advanceTimersByTimeAsync(60_000);
       await flushAsyncWork();
       expect(fetchFlags).toHaveBeenCalledTimes(2);
-      expect(appendChild).toHaveBeenCalledTimes(2);
+      // The server may enable clarity_enabled, but web Clarity has no loader.
+      // Only the GA script is appended.
+      expect(appendChild).toHaveBeenCalledTimes(1);
 
       rows.current = [
         { key: "analytics_enabled", enabled: false },
@@ -751,7 +753,7 @@ describe("runtime analytics web transitions", () => {
       await jest.advanceTimersByTimeAsync(60_000);
       await flushAsyncWork();
       expect(fetchFlags).toHaveBeenCalledTimes(4);
-      expect(appendChild).toHaveBeenCalledTimes(2);
+      expect(appendChild).toHaveBeenCalledTimes(1);
       expect(analytics.captureEvent(analytics.pageView({ path: "/restored" }))).toBe(true);
 
       const gaConsentStates = dataLayer
@@ -761,7 +763,11 @@ describe("runtime analytics web transitions", () => {
       const clarityConsentStates = clarity.mock.calls
         .filter(([command]) => command === "consentv2")
         .map(([, state]) => (state as { analytics_Storage: string }).analytics_Storage);
-      expect(clarityConsentStates).toEqual(["granted", "denied", "granted"]);
+      expect(clarityConsentStates).toEqual([]);
+      // Keep the raw operator flag visible while the independent code gate
+      // proves that it cannot inject the web SDK.
+      expect(analytics.clarityGateSnapshot().clarityEnabled).toBe(true);
+      expect(analytics.WEB_CLARITY_HARD_DISABLED).toBe(true);
       expect(jest.getTimerCount()).toBe(1);
     } finally {
       analytics.__resetAnalytics();
@@ -850,28 +856,47 @@ describe("runtime analytics web transitions", () => {
     analytics.__resetAnalytics();
   });
 
-  test("Clarity injects only on allow-listed routes and retries on the first allowed page_view", async () => {
+  test("web Clarity cannot be enabled by consent, route, project id, or runtime flag", async () => {
     const rows = {
       current: [
         { key: "analytics_enabled", enabled: true },
         { key: "clarity_enabled", enabled: true },
       ],
     };
-    const { analytics, appendChild, clarity } = loadWebModule(rows);
-    // Land on an identifier route BEFORE consent resolves.
+    const { analytics, appendChild, clarity, dataLayer } = loadWebModule(rows);
+    await analytics.initAnalytics({ analyticsConsent: true, isMinor: false, confirmedAdult: true });
+    await flushAsyncWork();
+    // GA4 injects; web Clarity never does, regardless of the current route.
+    expect(appendChild).toHaveBeenCalledTimes(1);
+    expect(clarity).not.toHaveBeenCalled();
+    // Exercise both sides of the old SPA boundary and dwell beyond Clarity's
+    // 250ms vendor restart window. None of these transitions can create an
+    // operator-controlled escape hatch around the code-level posture.
+    analytics.captureEvent(analytics.pageView({ path: "/plans" }));
+    await jest.advanceTimersByTimeAsync(1_000);
     analytics.captureEvent(
       analytics.pageView({ path: "/record/9c820f74-17a2-4d0a-9a6e-234b86a6c120" }),
     );
-    await analytics.initAnalytics({ analyticsConsent: true, isMinor: false, confirmedAdult: true });
+    await jest.advanceTimersByTimeAsync(1_000);
+    analytics.captureEvent(analytics.pageView({ path: "/settings" }));
     await flushAsyncWork();
-    // GA4 injected; Clarity withheld because the session sits on /record/[id].
     expect(appendChild).toHaveBeenCalledTimes(1);
     expect(clarity).not.toHaveBeenCalled();
-    // The first page_view on an allow-listed route performs the lazy injection.
-    analytics.captureEvent(analytics.pageView({ path: "/plans" }));
-    await flushAsyncWork();
-    expect(appendChild).toHaveBeenCalledTimes(2);
-    expect(clarity.mock.calls.some(([command]) => command === "consentv2")).toBe(true);
+    const pageViews = dataLayer.filter(
+      (entry) => isGtagCommand(entry) && entry[0] === "event" && entry[1] === "page_view",
+    ) as Array<[string, string, { path?: string }]>;
+    expect(pageViews.map((entry) => entry[2].path)).toEqual([
+      "/plans",
+      "/record/[id]",
+      "/settings",
+    ]);
+    expect(analytics.clarityGateSnapshot()).toMatchObject({
+      clarityEnabled: true,
+      webHardDisabled: true,
+      route: "/settings",
+      allowedRoute: true,
+    });
+    expect(analytics.WEB_CLARITY_HARD_DISABLED).toBe(true);
     analytics.__resetAnalytics();
   });
 
