@@ -27,8 +27,9 @@ interface AsyncStorageLike {
 
 export type CaptureDraftMode = "journal" | "memo" | "linkclip" | "ocr" | "file";
 
-/** 담기 화면의 전체 모드. StorageMode(위) + draft 를 남기지 않는 셋. */
+/** 담기 화면의 전체 모드. Storage-shaped modes + typed record-draft modes. */
 export type CaptureMode = CaptureDraftMode | "voice" | "todo" | "fourw";
+export type CaptureTransientMode = "voice" | "todo" | "fourw";
 
 /** UI 순서 그대로. capture.tsx 의 모드 칩과 딥링크 mode 검증이 함께 쓴다. */
 export const CAPTURE_MODES: readonly CaptureMode[] = [
@@ -54,13 +55,61 @@ export interface CaptureDraft {
    * 않게 한다. journal 초안에만 실리고, 로드 시 isDomainId 로 재검증한다.
    */
   domainIntent?: DomainId;
+  /**
+   * 일반(비 domain:*) 태그 칩. 라우트 tag 로 붙은 칩이 URL strip + 재마운트
+   * 뒤에도 본문과 함께 살아남게 한다. domain 칩은 여기 두지 않는다 —
+   * domainIntent 가 단일 원천이고 복원이 정본 칩을 파생한다.
+   */
+  tags?: string[];
 }
 
 export type CaptureDrafts = Partial<Record<CaptureDraftMode, CaptureDraft>>;
 
+export type CaptureTransientDraft =
+  | {
+      mode: "voice";
+      body: string;
+      tags?: string[];
+      domainIntent?: DomainId;
+    }
+  | {
+      mode: "todo";
+      body: string;
+      todoDone: boolean;
+      tags?: string[];
+      domainIntent?: DomainId;
+    }
+  | {
+      mode: "fourw";
+      fourw: FourWFields;
+      tags?: string[];
+      domainIntent?: DomainId;
+    };
+
+export type CaptureTransientDrafts = {
+  [Mode in CaptureTransientMode]?: Extract<CaptureTransientDraft, { mode: Mode }>;
+};
+
+type CaptureTransientDraftUpdate = {
+  [Mode in CaptureTransientMode]: {
+    mode: Mode;
+    draft: Extract<CaptureTransientDraft, { mode: Mode }>;
+  };
+}[CaptureTransientMode];
+
+function assignTransientDraft(
+  target: CaptureTransientDrafts,
+  draft: CaptureTransientDraft,
+): void {
+  if (draft.mode === "voice") target.voice = draft;
+  else if (draft.mode === "todo") target.todo = draft;
+  else target.fourw = draft;
+}
+
 export interface CaptureDraftState {
   drafts: CaptureDrafts;
-  lastMode: CaptureDraftMode;
+  transientDrafts?: CaptureTransientDrafts;
+  lastMode: CaptureMode;
 }
 
 export const DEFAULT_CAPTURE_DRAFT_MODE: CaptureDraftMode = "journal";
@@ -68,6 +117,10 @@ export const DEFAULT_CAPTURE_DRAFT_MODE: CaptureDraftMode = "journal";
 const MODES: CaptureDraftMode[] = ["journal", "memo", "linkclip", "ocr", "file"];
 const LEGACY_KEY_PREFIX = "capture.journalDraft.v1.";
 const STATE_KEY_PREFIX = "capture.drafts.v2.";
+
+// AsyncStorage has no compare-and-swap. Reads and writes of one user's single
+// draft blob share this queue so a slow clear cannot land after a newer save.
+const nativeOperationTails = new Map<string, Promise<void>>();
 
 function legacyDraftKey(userId: string): string {
   return `${LEGACY_KEY_PREFIX}${userId}`;
@@ -79,6 +132,14 @@ function stateKey(userId: string): string {
 
 export function isCaptureDraftMode(value: unknown): value is CaptureDraftMode {
   return typeof value === "string" && MODES.includes(value as CaptureDraftMode);
+}
+
+export function isCaptureTransientMode(value: unknown): value is CaptureTransientMode {
+  return value === "voice" || value === "todo" || value === "fourw";
+}
+
+function isCaptureMode(value: unknown): value is CaptureMode {
+  return typeof value === "string" && (CAPTURE_MODES as readonly string[]).includes(value);
 }
 
 function ls(): Storage | null {
@@ -116,6 +177,21 @@ function hasDraftContent(draft: CaptureDraft): boolean {
   );
 }
 
+/** 저장된 태그 칩 정화: 문자열만, 공백 제거, domain:* 제외, 중복 제거, 10개 상한
+ *  (addTagFromInput 의 상한과 같다). 스토리지는 손으로 편집될 수 있는 표면이다. */
+function sanitizeChips(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const out: string[] = [];
+  for (const item of value) {
+    if (typeof item !== "string") continue;
+    const norm = item.trim();
+    if (norm.length === 0 || isDomainTag(norm) || out.includes(norm)) continue;
+    out.push(norm);
+    if (out.length >= 10) break;
+  }
+  return out;
+}
+
 function normalizeDraft(mode: CaptureDraftMode, value: Partial<CaptureDraft> | null | undefined): CaptureDraft | null {
   if (!value) return null;
   // 저장돼 있던 값도 런타임 허용목록으로 다시 거른다 — 스토리지는 손으로
@@ -124,12 +200,14 @@ function normalizeDraft(mode: CaptureDraftMode, value: Partial<CaptureDraft> | n
     mode === "journal" && typeof value.domainIntent === "string" && isDomainId(value.domainIntent)
       ? value.domainIntent
       : undefined;
+  const chips = sanitizeChips(value.tags);
   const draft: CaptureDraft = {
     body: typeof value.body === "string" ? value.body : "",
     topic: typeof value.topic === "string" ? value.topic : "",
     conclusion: typeof value.conclusion === "string" ? value.conclusion : "",
     ocrReviewApproved: mode === "ocr" && value.ocrReviewApproved === true,
     ...(intent !== undefined ? { domainIntent: intent } : {}),
+    ...(chips.length > 0 ? { tags: chips } : {}),
   };
   if (!hasDraftContent(draft)) return null;
   return draft;
@@ -142,6 +220,84 @@ function normalizeDrafts(value: unknown): CaptureDrafts {
     if (draft) acc[mode] = draft;
     return acc;
   }, {});
+}
+
+const TRANSIENT_MODES: readonly CaptureTransientMode[] = ["voice", "todo", "fourw"];
+
+function normalizeFourw(value: unknown): FourWFields {
+  const source = value && typeof value === "object" ? (value as Partial<Record<keyof FourWFields, unknown>>) : {};
+  return {
+    who: typeof source.who === "string" ? source.who : "",
+    when: typeof source.when === "string" ? source.when : "",
+    where: typeof source.where === "string" ? source.where : "",
+    what: typeof source.what === "string" ? source.what : "",
+    how: typeof source.how === "string" ? source.how : "",
+  };
+}
+
+function hasAnyFourwDraftContent(fields: FourWFields): boolean {
+  // `fourWHasContent` is the submit gate (What is required). Draft durability is
+  // broader: a user may fill Who/When/Where/How first and must not lose it.
+  return Object.values(fields).some((value) => value.trim().length > 0);
+}
+
+function normalizeTransientDraft(
+  mode: CaptureTransientMode,
+  value: unknown,
+): CaptureTransientDraft | null {
+  if (!value || typeof value !== "object") return null;
+  const source = value as Partial<CaptureTransientDraft>;
+  if (source.mode !== mode) return null;
+  const tags = sanitizeChips(source.tags);
+  const domainIntent = typeof source.domainIntent === "string" && isDomainId(source.domainIntent)
+    ? source.domainIntent
+    : undefined;
+  const common = {
+    ...(tags.length > 0 ? { tags } : {}),
+    ...(domainIntent !== undefined ? { domainIntent } : {}),
+  };
+  if (mode === "fourw") {
+    const fourw = normalizeFourw((source as Partial<Extract<CaptureTransientDraft, { mode: "fourw" }>>).fourw);
+    return hasAnyFourwDraftContent(fourw) ? { mode, fourw, ...common } : null;
+  }
+  const body = typeof (source as { body?: unknown }).body === "string"
+    ? (source as { body: string }).body
+    : "";
+  if (body.trim().length === 0) return null;
+  return mode === "todo"
+    ? { mode, body, todoDone: (source as { todoDone?: unknown }).todoDone === true, ...common }
+    : { mode, body, ...common };
+}
+
+function normalizeTransientDrafts(value: unknown): CaptureTransientDrafts {
+  if (!value || typeof value !== "object") return {};
+  return TRANSIENT_MODES.reduce<CaptureTransientDrafts>((acc, mode) => {
+    const draft = normalizeTransientDraft(
+      mode,
+      (value as Partial<Record<CaptureTransientMode, unknown>>)[mode],
+    );
+    if (draft) assignTransientDraft(acc, draft);
+    return acc;
+  }, {});
+}
+
+export function createCaptureTransientDraft(input: {
+  mode: CaptureTransientMode;
+  body: string;
+  fourw: FourWFields | null;
+  todoDone: boolean;
+  tags?: readonly string[];
+  domainIntent?: DomainId | null;
+}): CaptureTransientDraft | null {
+  return normalizeTransientDraft(input.mode, {
+    mode: input.mode,
+    ...(input.mode === "fourw"
+      ? { fourw: input.fourw ?? EMPTY_FOURW }
+      : { body: input.body }),
+    ...(input.mode === "todo" ? { todoDone: input.todoDone } : {}),
+    tags: input.tags,
+    domainIntent: input.domainIntent,
+  });
 }
 
 function parseLegacyDraft(raw: string | null): CaptureDraft | null {
@@ -160,9 +316,16 @@ function parseState(raw: string | null): CaptureDraftState | null {
   try {
     const parsed = JSON.parse(raw) as Partial<CaptureDraftState> | null;
     if (!parsed || typeof parsed !== "object") return null;
+    const transientDrafts = normalizeTransientDrafts(parsed.transientDrafts);
+    const parsedLastMode = isCaptureMode(parsed.lastMode) ? parsed.lastMode : DEFAULT_CAPTURE_DRAFT_MODE;
+    const lastMode =
+      isCaptureTransientMode(parsedLastMode) && transientDrafts[parsedLastMode]?.mode !== parsedLastMode
+        ? DEFAULT_CAPTURE_DRAFT_MODE
+        : parsedLastMode;
     return {
       drafts: normalizeDrafts(parsed.drafts),
-      lastMode: isCaptureDraftMode(parsed.lastMode) ? parsed.lastMode : DEFAULT_CAPTURE_DRAFT_MODE,
+      ...(Object.keys(transientDrafts).length > 0 ? { transientDrafts } : {}),
+      lastMode,
     };
   } catch {
     return null;
@@ -182,7 +345,8 @@ function readLocalState(userId: string): CaptureDraftState {
 function serializeState(state: CaptureDraftState): string {
   return JSON.stringify({
     drafts: normalizeDrafts(state.drafts),
-    lastMode: isCaptureDraftMode(state.lastMode) ? state.lastMode : DEFAULT_CAPTURE_DRAFT_MODE,
+    transientDrafts: normalizeTransientDrafts(state.transientDrafts),
+    lastMode: isCaptureMode(state.lastMode) ? state.lastMode : DEFAULT_CAPTURE_DRAFT_MODE,
   });
 }
 
@@ -191,33 +355,30 @@ export async function loadCaptureDraftState(userId: string): Promise<CaptureDraf
   if (local) return readLocalState(userId);
   const native = nativeStorage();
   if (!native) return emptyState();
-  try {
-    const state = parseState(await native.getItem(stateKey(userId)));
-    if (state) return state;
-    const legacy = parseLegacyDraft(await native.getItem(legacyDraftKey(userId)));
-    if (!legacy) return emptyState();
-    return { drafts: { journal: legacy }, lastMode: "journal" };
-  } catch {
-    return emptyState();
-  }
+  // A read error is not an empty draft. Let the caller keep hydration closed
+  // and retry; treating it as empty lets a later debounce overwrite real data
+  // as soon as AsyncStorage recovers.
+  return runNativeExclusive(userId, native, () => readNativeState(native, userId));
 }
 
-export function saveCaptureDraftState(userId: string, state: CaptureDraftState): void {
+export function saveCaptureDraftState(userId: string, state: CaptureDraftState): Promise<boolean> {
   const raw = serializeState(state);
   const local = ls();
   if (local) {
     try {
       local.setItem(stateKey(userId), raw);
+      return Promise.resolve(true);
     } catch {
       /* quota/private mode: best-effort */
+      return Promise.resolve(false);
     }
-    return;
   }
-  void nativeStorage()
-    ?.setItem(stateKey(userId), raw)
-    .catch(() => {
-      /* best-effort */
-    });
+  const native = nativeStorage();
+  if (!native) return Promise.resolve(false);
+  return runNativeExclusive(userId, native, async (key) => {
+    await native.setItem(key, raw);
+    return true;
+  }).catch(() => false);
 }
 
 export async function loadCaptureDraft(userId: string): Promise<CaptureDraft | null> {
@@ -226,19 +387,23 @@ export async function loadCaptureDraft(userId: string): Promise<CaptureDraft | n
 }
 
 export function saveCaptureDraft(userId: string, draft: CaptureDraft): void {
-  const apply = (state: CaptureDraftState): void => {
+  const apply = (state: CaptureDraftState): CaptureDraftState => {
     const normalized = normalizeDraft("journal", draft);
     if (normalized) state.drafts.journal = normalized;
     else delete state.drafts.journal;
     state.lastMode = "journal";
-    saveCaptureDraftState(userId, state);
+    return state;
   };
   if (ls()) {
-    apply(readLocalState(userId));
+    void saveCaptureDraftState(userId, apply(readLocalState(userId)));
     return;
   }
-  void loadCaptureDraftState(userId)
-    .then(apply)
+  const native = nativeStorage();
+  if (!native) return;
+  void runNativeExclusive(userId, native, async (key) => {
+    const state = apply(await readNativeState(native, userId));
+    await native.setItem(key, serializeState(state));
+  })
     .catch(() => {
       /* best-effort */
     });
@@ -295,6 +460,45 @@ export interface CaptureParamPlan {
    * (domainTagFor), clear 는 일반 tag 그대로 — 무효 reserved 는 null(칩 없음).
    */
   appendChip: string | null;
+  /**
+   * Historical property name; applies to any non-empty record-backed draft
+   * (journal/voice/todo/4W1H). A conflicting explicit tag is consumed without
+   * silently relabeling that draft.
+   */
+  journalConflict: { existing: DomainId | null; incoming: DomainId | null } | null;
+  /**
+   * Non-empty storage draft after applying set/clear/tag. Persist this snapshot
+   * before stripping the URL; null means there is no durable body to update.
+   */
+  durableDraftUpdate: { mode: CaptureDraftMode; draft: CaptureDraft } | null;
+  durableTransientUpdate: CaptureTransientDraftUpdate | null;
+}
+
+function runNativeExclusive<T>(
+  userId: string,
+  storage: AsyncStorageLike,
+  operation: (key: string) => Promise<T>,
+): Promise<T> {
+  const key = stateKey(userId);
+  const previous = nativeOperationTails.get(key) ?? Promise.resolve();
+  const result = previous.catch(() => undefined).then(() => operation(key));
+  // Failure is returned to this caller but never poisons later operations.
+  const tail = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  nativeOperationTails.set(key, tail);
+  void tail.finally(() => {
+    if (nativeOperationTails.get(key) === tail) nativeOperationTails.delete(key);
+  });
+  return result;
+}
+
+async function readNativeState(storage: AsyncStorageLike, userId: string): Promise<CaptureDraftState> {
+  const state = parseState(await storage.getItem(stateKey(userId)));
+  if (state) return state;
+  const legacy = parseLegacyDraft(await storage.getItem(legacyDraftKey(userId)));
+  return legacy ? { drafts: { journal: legacy }, lastMode: "journal" } : emptyState();
 }
 
 const EMPTY_PLAN: CaptureParamPlan = {
@@ -304,6 +508,9 @@ const EMPTY_PLAN: CaptureParamPlan = {
   showAdvanced: false,
   intent: { kind: "preserve" },
   appendChip: null,
+  journalConflict: null,
+  durableDraftUpdate: null,
+  durableTransientUpdate: null,
 };
 
 export function planCaptureParamConsumption(input: {
@@ -312,6 +519,11 @@ export function planCaptureParamConsumption(input: {
   currentMode: CaptureMode;
   /** 화면이 들고 있는 latch (직전에 소비한 key, 없으면 null). */
   consumedKey: string | null;
+  /** 영속 초안 + 현재 storage composer의 최신(debounce 전) 스냅샷. */
+  drafts?: CaptureDrafts;
+  currentDraft?: CaptureDraft | null;
+  transientDrafts?: CaptureTransientDrafts;
+  currentTransient?: CaptureTransientDraft | null;
 }): CaptureParamPlan {
   const m =
     typeof input.modeParam === "string" && (CAPTURE_MODES as readonly string[]).includes(input.modeParam)
@@ -332,21 +544,129 @@ export function planCaptureParamConsumption(input: {
   const candidate = reserved ? tg.slice(DOMAIN_TAG_PREFIX.length) : null;
   const starIntent = candidate !== null && isDomainId(candidate) ? candidate : null;
   const requested = m ?? input.currentMode;
-  const target =
+  const requestedTarget =
     starIntent !== null && !RECORD_BACKED_MODES.includes(requested) ? "journal" : requested;
+
+  // A route tag must not relabel a non-empty record draft. Prefer debounce-
+  // fresh live state over persisted state for both journal and transient modes.
+  const journalDraft =
+    input.currentMode === "journal" && input.currentDraft !== undefined
+      ? input.currentDraft
+      : input.drafts?.journal;
+  const targetTransientMode = isCaptureTransientMode(requestedTarget) ? requestedTarget : null;
+  const transientDraft =
+    targetTransientMode === null
+      ? undefined
+      : requestedTarget === input.currentMode && input.currentTransient !== undefined
+        ? input.currentTransient ?? undefined
+        : input.transientDrafts?.[targetTransientMode];
+  const recordDraft = requestedTarget === "journal" ? journalDraft : transientDraft;
+  const recordHasContent =
+    requestedTarget === "journal"
+      ? recordDraft != null && hasDraftContent(recordDraft as CaptureDraft)
+      : recordDraft !== undefined;
+  const journalConflict =
+    tg !== null &&
+    (requestedTarget === "journal" || targetTransientMode !== null) &&
+    recordHasContent &&
+    (recordDraft?.domainIntent ?? null) !== starIntent
+      ? { existing: recordDraft?.domainIntent ?? null, incoming: starIntent }
+      : null;
+  const target = journalConflict === null ? requestedTarget : input.currentMode;
 
   // 라우트발 모드 전환은 이전 live 별 컨텍스트를 가져가지 않는다 (원계약:
   // 성공/reset/모드 전환 뒤 stale intent 금지). 원인 구분은 IntentTransition
   // 문서 참조 — 특히 clear 는 전환과 겹쳐도 집행돼야 한다.
   const transition = target !== input.currentMode;
   const intent: IntentTransition =
-    tg !== null
+    journalConflict !== null
+      ? { kind: "preserve" }
+      : tg !== null
       ? starIntent !== null
         ? { kind: "set", domain: starIntent }
         : { kind: "clear" }
       : transition
         ? { kind: "defer-to-draft" }
         : { kind: "preserve" };
+
+  const appendChip =
+    journalConflict !== null || tg === null
+      ? null
+      : starIntent !== null
+        ? domainTagFor(starIntent)
+        : reserved
+          ? null
+          : tg;
+  const targetStorageMode = isCaptureDraftMode(target) ? target : null;
+  const targetDraft =
+    targetStorageMode === null
+      ? undefined
+      : target === input.currentMode && input.currentDraft !== undefined
+        ? input.currentDraft ?? undefined
+        : input.drafts?.[targetStorageMode];
+  let durableDraftUpdate: CaptureParamPlan["durableDraftUpdate"] = null;
+  if (
+    journalConflict === null &&
+    targetStorageMode !== null &&
+    targetDraft !== undefined &&
+    hasDraftContent(targetDraft) &&
+    (intent.kind === "set" || intent.kind === "clear")
+  ) {
+    const updated: CaptureDraft = {
+      ...targetDraft,
+      tags: sanitizeChips([
+        ...(targetDraft.tags ?? []),
+        ...(appendChip !== null && !isDomainTag(appendChip) ? [appendChip] : []),
+      ]),
+    };
+    delete updated.domainIntent;
+    if (targetStorageMode === "journal" && intent.kind === "set") {
+      updated.domainIntent = intent.domain;
+    }
+    if (updated.tags?.length === 0) delete updated.tags;
+    durableDraftUpdate = { mode: targetStorageMode, draft: updated };
+  }
+
+  const durableTargetTransientMode = isCaptureTransientMode(target) ? target : null;
+  const targetTransientDraft =
+    durableTargetTransientMode === null
+      ? undefined
+      : target === input.currentMode && input.currentTransient !== undefined
+        ? input.currentTransient ?? undefined
+        : input.transientDrafts?.[durableTargetTransientMode];
+  let durableTransientUpdate: CaptureParamPlan["durableTransientUpdate"] = null;
+  if (
+    journalConflict === null &&
+    durableTargetTransientMode !== null &&
+    targetTransientDraft?.mode === durableTargetTransientMode &&
+    (intent.kind === "set" || intent.kind === "clear")
+  ) {
+    const tags = sanitizeChips([
+      ...(targetTransientDraft.tags ?? []),
+      ...(appendChip !== null && !isDomainTag(appendChip) ? [appendChip] : []),
+    ]);
+    const common = {
+      ...(tags.length > 0 ? { tags } : {}),
+      ...(intent.kind === "set" ? { domainIntent: intent.domain } : {}),
+    };
+    const updated: CaptureTransientDraft =
+      targetTransientDraft.mode === "fourw"
+        ? { mode: "fourw", fourw: targetTransientDraft.fourw, ...common }
+        : targetTransientDraft.mode === "todo"
+          ? {
+              mode: "todo",
+              body: targetTransientDraft.body,
+              todoDone: targetTransientDraft.todoDone,
+              ...common,
+            }
+          : { mode: "voice", body: targetTransientDraft.body, ...common };
+    durableTransientUpdate =
+      updated.mode === "voice"
+        ? { mode: "voice", draft: updated }
+        : updated.mode === "todo"
+          ? { mode: "todo", draft: updated }
+          : { mode: "fourw", draft: updated };
+  }
 
   return {
     consumeKey: key,
@@ -356,8 +676,10 @@ export function planCaptureParamConsumption(input: {
     intent,
     // 유효 별 칩은 정본 표기(domainTagFor)로 단다 — 배달이 어떤 표기였든
     // 화면 칩과 insert 가 같은 문자열을 본다. 무효 reserved 는 칩도 없다.
-    appendChip:
-      tg === null ? null : starIntent !== null ? domainTagFor(starIntent) : reserved ? null : tg,
+    appendChip,
+    journalConflict,
+    durableDraftUpdate,
+    durableTransientUpdate,
   };
 }
 
@@ -371,9 +693,24 @@ export function planCaptureParamConsumption(input: {
 // 지우는** 소실이 난다. 그래서 둘을 한 계획으로 소비한다: payload 는 요청된
 // 모드의 composer 로 가고, restoreSkipped 면 live 는 폴드하지 않는다.
 
+/**
+ * share 배달의 identity. content(url/text/title)만으로 latch 하면 같은 텍스트가
+ * mode/tag 만 바꿔 곧바로 재배달될 때(A→B, 중간 공백 없음) 차단된다 — 배달은
+ * 파라미터 조합 전체가 한 건이다.
+ */
+export function sharedDeliveryKey(contentKey: string, modeParam: unknown, tagParam: unknown): string {
+  return JSON.stringify([
+    contentKey,
+    typeof modeParam === "string" ? modeParam : "",
+    typeof tagParam === "string" ? tagParam : "",
+  ]);
+}
+
 export interface SharedRoutePlan {
   /** leaving live 반영 + payload 폴드가 끝난 드래프트 집합. */
   drafts: CaptureDrafts;
+  /** voice/todo/fourw의 구조·별·완료 상태까지 보존한 내구 초안. */
+  transientDrafts: CaptureTransientDrafts;
   /** 화면이 전환할 모드. */
   mode: CaptureMode;
   /** 전환 후 composer 에 보일 본문 (storage 모드는 폴드된 초안 본문과 같다). */
@@ -381,17 +718,61 @@ export interface SharedRoutePlan {
   /**
    * mode === "fourw" 일 때만 non-null. 4W1H 은 body 가 아니라 다섯 칸 state 만
    * 읽고 저장하므로(composeFourWBody), payload 를 유일한 필수 칸 '무엇을'(what)
-   * 에 싣는다 — 보이는 곳과 저장되는 곳이 같아진다.
+   * 에 싣는다 — 같은 모드 재배달이면 기존 다섯 칸을 보존하고 what 에만 덧붙인다.
    */
   liveFourw: FourWFields | null;
+  /** 배달 뒤 화면에 보일 일반 칩 + 정본 domain 칩. */
+  liveTags: string[];
+  /** 배달 뒤 record-backed composer 가 createRecord 에 넘길 typed intent. */
+  liveDomainIntent: DomainId | null;
+  /** todo target의 완료 상태. 실제 새 payload가 붙으면 false로 돌아간다. */
+  liveTodoDone: boolean;
   /** persistDrafts 에 넘길 lastMode — payload 의 내구 사본이 있는 자리. */
-  persistMode: CaptureDraftMode;
-  /** mode 파라미터를 여기서 함께 소비했으면 그 값 (param effect latch 용). */
-  consumedModeParam: CaptureMode | null;
+  persistMode: CaptureMode;
+  /** mode 파라미터를 여기서 함께 소비했으면 그 원시 문자열 (무효값도 URL 에서 걷는다). */
+  consumedModeParam: string | null;
+  /**
+   * 별 충돌 폴백이 tag 파라미터까지 소비(억제)했으면 그 원시값 — 집행부가
+   * URL 에서 걷고 latch 를 걸어 param effect 의 journal 재전환을 막는다.
+   */
+  consumedTagParam: string | null;
+  /**
+   * 기존 record-backed 초안의 별 ≠ 배달된 intent(일반/무효 tag의 명시적 clear
+   * 포함). **서로 다른 분류는 절대 병합·재분류하지 않는다** — 기존 초안은
+   * 그대로 두고 payload 는 sources/linkclip 으로 보내며 사용자에게 알린다.
+   */
+  starConflict: { existing: DomainId | null; incoming: DomainId | null } | null;
+}
+
+/** tagParam 에서 유효 별 intent 만 뽑는다 (isDomainTag 대소문자 무시 규약). */
+function starIntentFromTagParam(tagParam: unknown): DomainId | null {
+  const tg = typeof tagParam === "string" && tagParam.trim().length > 0 ? tagParam.trim() : null;
+  if (tg === null || !isDomainTag(tg)) return null;
+  const candidate = tg.slice(DOMAIN_TAG_PREFIX.length);
+  return isDomainId(candidate) ? candidate : null;
+}
+
+/**
+ * Append one normalized share delivery unless that exact delivery already
+ * occupies a whole paragraph block. Substring matching is unsafe: sharing
+ * "alpha" after writing "alphabet soup" is a new piece, not a duplicate.
+ */
+function appendSharedChunk(existingRaw: string, contentRaw: string): string {
+  const existing = existingRaw.trim();
+  const content = contentRaw.trim();
+  if (content.length === 0) return existing;
+  if (existing.length === 0) return content;
+  const alreadyPresent =
+    existing === content ||
+    existing.startsWith(`${content}\n\n`) ||
+    existing.endsWith(`\n\n${content}`) ||
+    existing.includes(`\n\n${content}\n\n`);
+  return alreadyPresent ? existing : `${existing}\n\n${content}`;
 }
 
 export function planSharedConsumption(input: {
   drafts: CaptureDrafts;
+  transientDrafts?: CaptureTransientDrafts;
   /** 떠나는 모드의 live 스냅샷 (storage 모드가 아니면 빈 값). */
   liveDraft: CaptureDraft;
   liveMode: CaptureDraftMode;
@@ -401,59 +782,191 @@ export function planSharedConsumption(input: {
   content: string;
   /** 함께 배달된 mode 파라미터 원시값. */
   modeParam: unknown;
+  /**
+   * 함께 배달된 tag 파라미터 원시값. tag 의 set/clear 자체는 이후 param effect
+   * 소관이지만, 유효 별 intent 는 최종 모드를 바꾸므로(P1: records 강제) 여기서
+   * 미리 반영해야 한다 — 모르면 이 planner 가 sources 모드에 폴드한 걸 param
+   * effect 가 다시 journal 로 끌고 가 공유 텍스트가 화면에서 사라진다.
+   */
+  tagParam: unknown;
+  /** 지금 화면의 모드 — fourw 재배달 병합 판단에 쓴다. */
+  currentMode: CaptureMode;
+  /** voice/todo 같은 transient composer의 debounce 전 최신 본문. */
+  liveBody?: string;
+  liveTodoDone?: boolean;
+  /** currentMode 가 fourw 일 때의 live 다섯 칸 스냅샷 (아니면 null). */
+  liveFourw: FourWFields | null;
+  /** 지금 composer 의 칩·typed intent — transient 모드 재배달도 파괴하지 않는다. */
+  liveTags?: readonly string[];
+  liveDomainIntent?: DomainId | null;
 }): SharedRoutePlan {
-  const requested =
-    typeof input.modeParam === "string" && (CAPTURE_MODES as readonly string[]).includes(input.modeParam)
-      ? (input.modeParam as CaptureMode)
+  const rawMode =
+    typeof input.modeParam === "string" && input.modeParam.trim().length > 0
+      ? input.modeParam.trim()
       : null;
+  const modeRequested =
+    rawMode !== null && (CAPTURE_MODES as readonly string[]).includes(rawMode)
+      ? (rawMode as CaptureMode)
+      : null;
+  const rawTag =
+    typeof input.tagParam === "string" && input.tagParam.trim().length > 0 ? input.tagParam.trim() : null;
+  // 유효 별 intent 동반 시 effective target 을 선결정한다: 요청이 records 계열
+  // (journal/voice/todo/fourw)이면 유지, 없거나 sources 계열이면 journal.
+  // 일반/무효 tag 는 모드에 영향이 없다 (requested ?? linkclip 그대로).
+  const starIntent = starIntentFromTagParam(input.tagParam);
+  let requested =
+    starIntent !== null
+      ? modeRequested !== null && RECORD_BACKED_MODES.includes(modeRequested)
+        ? modeRequested
+        : "journal"
+      : modeRequested;
   const next: CaptureDrafts = { ...input.drafts };
-  // 떠나는 모드의 live 를 기억한다 — restoreSkipped 면 폴드하지 않는다:
-  // 빈 live 를 접어 넣으면 저장돼 있던 초안(콜드 스타트의 journal 등)이
-  // 지워진다 (P1-5 생존 계약, consumeSharedIntoDrafts 와 같은 규칙).
+  const nextTransient: CaptureTransientDrafts = { ...(input.transientDrafts ?? {}) };
+  // 떠나는 모드의 debounce 전 live 를 먼저 기억한다. restoreSkipped면 hydration이
+  // 화면에 아무것도 적용하지 않았으므로 빈 껍데기를 접지 않는다.
   if (!input.restoreSkipped) {
-    if (hasDraftContent(input.liveDraft)) next[input.liveMode] = input.liveDraft;
-    else delete next[input.liveMode];
+    if (isCaptureDraftMode(input.currentMode)) {
+      if (hasDraftContent(input.liveDraft)) next[input.liveMode] = input.liveDraft;
+      else delete next[input.liveMode];
+    } else {
+      const liveTransient = createCaptureTransientDraft({
+        mode: input.currentMode,
+        body: input.liveBody ?? "",
+        fourw: input.liveFourw,
+        todoDone: input.liveTodoDone === true,
+        tags: input.liveTags,
+        domainIntent: input.liveDomainIntent,
+      });
+      if (liveTransient) assignTransientDraft(nextTransient, liveTransient);
+      else delete nextTransient[input.currentMode];
+    }
   }
-  // payload 의 내구 사본 자리: 요청 모드가 storage 면 그 초안, 비영속 모드
-  // (voice/todo/fourw)면 linkclip(기존 의미 유지 — 끄면 날아가는 자리에만
-  // 두지 않는다). 요청이 없거나 무효면 오늘의 linkclip 폴드 그대로다.
-  const storageTarget: CaptureDraftMode =
-    requested !== null && isCaptureDraftMode(requested) ? requested : "linkclip";
-  const existing = next[storageTarget];
-  const existingBody = (existing?.body ?? "").trim();
-  const mergedBody =
-    existingBody.length === 0
-      ? input.content
-      : existingBody.includes(input.content)
-        ? existingBody
-        : `${existingBody}\n\n${input.content}`;
-  next[storageTarget] = {
-    body: mergedBody,
-    // 기존 초안의 나머지 필드는 파괴하지 않는다 (journal 의 topic/결론/별 intent).
-    topic: existing?.topic ?? "",
-    conclusion: existing?.conclusion ?? "",
-    // OCR 본문이 바뀌면 승인은 무효다 (updateOcrBody 와 같은 규칙).
-    ...(storageTarget === "ocr"
-      ? { ocrReviewApproved: false }
-      : existing?.ocrReviewApproved !== undefined
-        ? { ocrReviewApproved: existing.ocrReviewApproved }
-        : {}),
-    ...(storageTarget === "journal" && existing?.domainIntent !== undefined
-      ? { domainIntent: existing.domainIntent }
-      : {}),
-  };
+
+  // Explicit incoming intent (valid star or explicit clear via ordinary/invalid
+  // tag) cannot relabel a non-empty record draft. This applies to journal and
+  // the now-durable transient record modes alike.
+  const existingRecordDraft =
+    requested === "journal"
+      ? next.journal
+      : requested !== null && isCaptureTransientMode(requested)
+        ? nextTransient[requested]
+        : undefined;
+  const existingRecordIntent = existingRecordDraft?.domainIntent ?? null;
+  const incomingIntentSpecified = rawTag !== null;
+  const starConflict =
+    incomingIntentSpecified &&
+    (requested === "journal" || (requested !== null && isCaptureTransientMode(requested))) &&
+    existingRecordDraft !== undefined &&
+    existingRecordIntent !== starIntent
+      ? { existing: existingRecordIntent, incoming: starIntent }
+      : null;
+  if (starConflict !== null) {
+    requested =
+      modeRequested !== null && isCaptureDraftMode(modeRequested) && modeRequested !== "journal"
+        ? modeRequested
+        : "linkclip";
+  }
+
   const mode = requested ?? "linkclip";
+  const ordinaryTag = rawTag !== null && !isDomainTag(rawTag) ? rawTag : null;
+  let liveBody = "";
+  let liveFourw: FourWFields | null = null;
+  let liveTodoDone = false;
+  let liveDomainIntent: DomainId | null = null;
+  let liveOrdinaryTags: string[] = [];
+
+  if (isCaptureDraftMode(mode)) {
+    const existing = next[mode];
+    const mergedBody = appendSharedChunk(existing?.body ?? "", input.content);
+    const storedTags = ordinaryTag === null
+      ? sanitizeChips(existing?.tags)
+      : sanitizeChips([...(existing?.tags ?? []), ordinaryTag]);
+    const journalIntent =
+      mode !== "journal"
+        ? undefined
+        : rawTag === null
+          ? existing?.domainIntent
+          : starIntent ?? undefined;
+    next[mode] = {
+      body: mergedBody,
+      topic: existing?.topic ?? "",
+      conclusion: existing?.conclusion ?? "",
+      ...(mode === "ocr"
+        ? { ocrReviewApproved: false }
+        : existing?.ocrReviewApproved !== undefined
+          ? { ocrReviewApproved: existing.ocrReviewApproved }
+          : {}),
+      ...(mode === "journal" && journalIntent !== undefined ? { domainIntent: journalIntent } : {}),
+      ...(storedTags.length > 0 ? { tags: storedTags } : {}),
+    };
+    liveBody = mergedBody;
+    liveDomainIntent = mode === "journal" ? next.journal?.domainIntent ?? null : null;
+    liveOrdinaryTags = next[mode]?.tags ?? [];
+  } else {
+    const existing = nextTransient[mode];
+    const existingTags = sanitizeChips(existing?.tags);
+    const targetTags = ordinaryTag === null
+      ? existingTags
+      : sanitizeChips([...existingTags, ordinaryTag]);
+    const targetIntent = rawTag === null ? existing?.domainIntent : starIntent ?? undefined;
+    const common = {
+      ...(targetTags.length > 0 ? { tags: targetTags } : {}),
+      ...(targetIntent !== undefined ? { domainIntent: targetIntent } : {}),
+    };
+    if (mode === "fourw") {
+      const base = existing?.mode === "fourw" ? existing.fourw : EMPTY_FOURW;
+      const draft: CaptureTransientDraft = {
+        mode,
+        fourw: { ...base, what: appendSharedChunk(base.what, input.content) },
+        ...common,
+      };
+      nextTransient.fourw = draft;
+      liveFourw = draft.fourw;
+    } else {
+      const existingBody = existing?.mode === mode ? existing.body : "";
+      const mergedBody = appendSharedChunk(existingBody, input.content);
+      const appended = mergedBody !== existingBody.trim();
+      if (mode === "todo") {
+        const draft: CaptureTransientDraft = {
+          mode,
+          body: mergedBody,
+          todoDone: existing?.mode === "todo" && !appended ? existing.todoDone : false,
+          ...common,
+        };
+        nextTransient.todo = draft;
+        liveTodoDone = draft.todoDone;
+      } else {
+        nextTransient.voice = { mode, body: mergedBody, ...common };
+      }
+      liveBody = mergedBody;
+    }
+    liveDomainIntent = targetIntent ?? null;
+    liveOrdinaryTags = targetTags;
+  }
+
+  const liveTags = [
+    ...liveOrdinaryTags,
+    ...(liveDomainIntent === null ? [] : [domainTagFor(liveDomainIntent)]),
+  ];
   return {
     drafts: next,
+    transientDrafts: nextTransient,
     mode,
-    liveBody: isCaptureDraftMode(mode) ? mergedBody : input.content,
-    liveFourw: mode === "fourw" ? { ...EMPTY_FOURW, what: input.content } : null,
-    persistMode: storageTarget,
-    consumedModeParam: requested,
+    liveBody,
+    liveFourw,
+    liveTags,
+    liveDomainIntent,
+    liveTodoDone,
+    persistMode: mode,
+    // latch 는 실제 배달 원시값 기준이다. 무효 mode 와 일반/무효 tag 도 이
+    // delivery 가 끝냈으므로 URL 에 남겨 후속 effect 가 다시 해석하지 않는다.
+    consumedModeParam: rawMode,
+    consumedTagParam: rawTag,
+    starConflict,
   };
 }
 
-export function clearCaptureDraft(userId: string, mode: CaptureDraftMode = "journal"): void {
+export function clearCaptureDraft(userId: string, mode: CaptureDraftMode = "journal"): Promise<boolean> {
   const local = ls();
   if (local) {
     try {
@@ -461,22 +974,19 @@ export function clearCaptureDraft(userId: string, mode: CaptureDraftMode = "jour
       delete state.drafts[mode];
       local.setItem(stateKey(userId), serializeState(state));
       if (mode === "journal") local.removeItem(legacyDraftKey(userId));
+      return Promise.resolve(true);
     } catch {
-      /* best-effort */
+      return Promise.resolve(false);
     }
-    return;
   }
   const native = nativeStorage();
-  if (!native) return;
-  void native
-    .getItem(stateKey(userId))
-    .then((raw) => {
-      const state = parseState(raw) ?? emptyState();
+  if (!native) return Promise.resolve(false);
+  return runNativeExclusive(userId, native, async (key) => {
+      const state = await readNativeState(native, userId);
       delete state.drafts[mode];
-      return native.setItem(stateKey(userId), serializeState(state));
+      await native.setItem(key, serializeState(state));
+      if (mode === "journal") await native.removeItem(legacyDraftKey(userId));
+      return true;
     })
-    .then(() => (mode === "journal" ? native.removeItem(legacyDraftKey(userId)) : undefined))
-    .catch(() => {
-      /* best-effort */
-    });
+    .catch(() => false);
 }

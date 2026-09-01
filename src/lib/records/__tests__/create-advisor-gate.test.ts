@@ -322,19 +322,205 @@ describe("capture 화면 — domainIntent 배선 (source contract)", () => {
     expect(src).toContain("plan.consumedModeParam !== null");
     // 4W1H 은 body 가 아니라 다섯 칸 state 를 읽는다 — payload 는 setFourw 로 싣는다.
     expect(src).toContain("setFourw(plan.liveFourw)");
+    // planner 가 tag 를 알아야 유효 별 동반 시 이중 전환이 없다 (fourw 스냅샷도).
+    expect(src).toMatch(/planSharedConsumption\(\{[\s\S]*?tagParam,[\s\S]*?liveFourw: mode === "fourw" \? fourw : null,/);
+    // 별 충돌 폴백: tag 소비 latch + 사용자 알림.
+    expect(src).toContain("plan.consumedTagParam !== null");
+    expect(src).toContain("plan.starConflict !== null");
     // linkclip 하드코딩 폴드로 되돌아가면 mode 동반 share 텍스트가 화면에서 사라진다.
     expect(src).not.toContain("consumeSharedIntoDrafts");
+  });
+
+  test("배달 identity 는 content+mode+tag 조합이다 (A→B 무공백 재배달 차단 방지)", () => {
+    expect(src).toContain("sharedDeliveryKey(shared.key, modeParam, tagParam)");
+    expect(src).toContain("sharedConsumedRef.current !== sharedDelivery");
+  });
+
+  test("stale-completion fence: 저장 완주 정리가 이후의 변경(B)을 덮지 않는다", () => {
+    // 모든 저장 경로가 해당 모드의 내용 epoch를 쓴다. 단순 모드 전환은
+    // epoch를 올리지 않으므로 이미 저장된 A를 지우되, 같은 모드의 B는 지킨다.
+    expect(src).toContain("const storageMutationEpochRef = useRef<Record<CaptureDraftMode, number>>");
+    expect(src).toContain("const startModeEpoch = storageMutationEpochRef.current.journal");
+    expect(src).toContain("const startModeEpoch = storageMutationEpochRef.current[submittedMode]");
+    expect(src).toContain("await clearSubmittedStorageDraft(\"journal\", startModeEpoch)");
+    expect(src).toContain("await clearSubmittedStorageDraft(submittedMode, startModeEpoch)");
+    expect(src).toContain("const startModeEpoch = transientMutationEpochRef.current[noteMode]");
+    expect(src).toContain("transientMutationEpochRef.current[noteMode] === startModeEpoch");
+    expect(src).toContain("activeModeRef.current === noteMode");
+    expect(src).toContain("await clearSubmittedTransientDraft(noteMode, startModeEpoch)");
+    expect(src).not.toContain('clearModeDraft("linkclip")');
+    // Focus/mode changes never abort an accepted save; only UI cleanup ownership changes.
+    expect(src).not.toContain("submitAbortRef.current?.abort()");
+    expect(src).toContain("const submitBusyRef = useRef(false)");
+    expect(src).toContain("captureRevisionRef.current += 1;");
+    expect(src).toContain("function changeBody(text: string): void {");
+    expect(src).toMatch(/function changeBody[\s\S]*?commitComposerMutation\(\);[\s\S]*?setBody\(text\);/);
+    const mutationFn = src.split("function commitComposerMutation")[1]?.split("function markStorageMutation")[0] ?? "";
+    expect(mutationFn).toContain("storageMutationEpochRef");
+    expect(mutationFn).toContain("transientMutationEpochRef");
+    expect(mutationFn).toContain("advanceCaptureRevision();");
+    expect(src).not.toMatch(/useEffect\(\(\) => \{\s*captureRevisionRef\.current \+= 1;/);
+    expect((src.match(/stale (?:journal|note-like|source) save failed/g) ?? []).length).toBe(3);
+
+    const blocks = [
+      src.split("async function handleJournalSubmit")[1]?.split("async function handleNoteLikeSubmit")[0] ?? "",
+      src.split("async function handleSubmit")[1]?.split("async function runPropose")[0] ?? "",
+    ];
+    for (const block of blocks) {
+      const clear = block.indexOf("await clearSubmittedStorageDraft");
+      const reset = block.indexOf("reset();", clear);
+      expect(clear).toBeGreaterThan(0);
+      expect(reset).toBeGreaterThan(clear);
+      expect(block.slice(reset)).toContain("setSavedTitle(");
+    }
+    const noteBlock = src.split("async function handleNoteLikeSubmit")[1]?.split("async function handleStartRecording")[0] ?? "";
+    const clear = noteBlock.indexOf("await clearSubmittedTransientDraft(noteMode, startModeEpoch)");
+    const reset = noteBlock.indexOf("reset();", clear);
+    expect(clear).toBeGreaterThan(0);
+    expect(reset).toBeGreaterThan(clear);
+  });
+
+  test("durable ACK만 URL을 지우고 이전 배달·이전 session ACK는 무시한다", () => {
+    expect(src).toContain("sharedAckGenerationRef.current !== ackGeneration");
+    expect(src).toContain("paramAckGenerationRef.current !== ackGeneration");
+    expect(src).toContain("!sessionActiveRef.current");
+    expect(src).toContain("sharedConsumedRef.current !== sharedDelivery");
+    expect(src).toContain("modeParamConsumedRef.current !== consumeKey");
+    expect(src).toContain("durableWrite.then((durable) =>");
+    expect(src).not.toContain("durableWrite.finally(");
+    expect(src).toContain("sharedAckGenerationRef.current += 1;");
+    expect(src).toContain("paramAckGenerationRef.current += 1;");
+    // Promise completion publishes evidence only. The focused, latest-render
+    // effects own the only two router mutations (shared + param).
+    expect(src).toContain("setSharedDurableAck({");
+    expect(src).toContain("setParamDurableAck({");
+    expect(src).toContain("sharedDelivery !== sharedDurableAck.delivery");
+    expect(src).toContain("paramDeliveryIdentity !== paramDurableAck.identity");
+    expect(src).toContain("!captureFocusedRef.current");
+    expect((src.match(/router\.setParams\(/g) ?? []).length).toBe(2);
+  });
+
+  test("share write 대기 중 편집도 최신 snapshot으로 다시 저장된다", () => {
+    const debounce = src.split("let hasDurableComposerSnapshot = false;")[1]?.split("// Load recent record dates")[0] ?? "";
+    expect(debounce).not.toContain("if (pendingSharedRef.current) return;");
+    expect(debounce).toContain("storeDraftForMode(mode, draft)");
+    expect(debounce).toContain("storeTransientDraftForMode(mode, draft)");
+    expect(debounce).toContain("persistDrafts(mode).then((durable)");
+    expect(debounce).toContain("sharedAckGenerationRef.current === sharedAck.generation");
+    // Hydration skipped restore on the share-consume commit; its stale empty
+    // closure must not fold over the planner's loaded draft map.
+    expect(debounce).toContain("shareRestoreSkipped");
+    expect(src).toContain("setShareRestoreSkipped(true)");
+    // Any share/tag planner can update refs before its state setters commit.
+    // The old render's later debounce/focus flush must not fold stale fields.
+    expect(src).toContain("routeApplyPendingCommitRef.current ||");
+    expect(src).toContain("setRouteCommitGeneration((generation) => generation + 1)");
+  });
+
+  test("hydration 전 빈 composer는 상호작용할 수 없어 기존 초안을 덮지 않는다", () => {
+    expect(src).not.toContain("preHydrationDirtyRef");
+    expect(src).toContain("if (!draftHydrated) {");
+    expect(src).toContain('<PremiumLoadingState message={t("loading")} />');
+    expect(src).toContain('return <CaptureLegacySession key={userId ?? "signed-out"} />');
+    expect(src).toContain("setDraftHydrationError(true)");
+    expect(src).toContain("setDraftHydrationRetry((attempt) => attempt + 1)");
+    expect(src).toContain("draftHydratedRef.current = false;");
+  });
+
+  test("OCR·picker 비동기 완료는 최신 composer/mode만 갱신한다", () => {
+    expect(src).toContain("function beginAsyncProducer()");
+    expect(src).toContain("function asyncProducerIsCurrent(");
+    expect(src).toMatch(/function switchCaptureMode[\s\S]*?asyncProducerGenerationRef\.current \+= 1;/);
+    expect(src).toMatch(/async function pasteCopiedContent[\s\S]*?beginAsyncProducer\(\)[\s\S]*?asyncProducerIsCurrent\(ticket, "linkclip", false\)/);
+    expect(src).toMatch(/function beginAsyncProducer[\s\S]*?setExtracting\(false\)/);
+    expect(src).toContain("const stopVoiceCaptureForModeExit");
+    expect(src).toContain("voicePhaseRef.current");
+    expect((src.match(/asyncProducerIsCurrent\(ticket, "ocr"\)/g) ?? []).length).toBeGreaterThanOrEqual(4);
+    expect((src.match(/asyncProducerIsCurrent\(ticket, "file"/g) ?? []).length).toBeGreaterThanOrEqual(4);
+    const ocrBlock = src.split("async function runExtract")[1]?.split("async function transcribePickedAudio")[0] ?? "";
+    expect(ocrBlock.indexOf('asyncProducerIsCurrent(ticket, "ocr")')).toBeLessThan(ocrBlock.indexOf("setBody(md)"));
+  });
+
+  test("capture instance 전환은 이전 초안을 먼저 flush하고 이후 stale timer/clear를 막는다", () => {
+    const clearHelper = src.split("async function clearSubmittedStorageDraft")[1]
+      ?.split("function showDraftCleanupFailure")[0] ?? "";
+    expect(clearHelper).toContain("if (!captureOwnsFocusedSession()) return false");
+    expect(clearHelper).toMatch(/captureOwnsFocusedSession\(\)[\s\S]*?draftsRef\.current\[targetMode\]/);
+    expect(src).toMatch(
+      /function captureOwnsFocusedSession[\s\S]*?sessionActiveRef\.current[\s\S]*?focusedCaptureOwners\.get\(userId\)\?\.id === captureInstanceId/,
+    );
+    const debounce = src.split("let hasDurableComposerSnapshot = false;")[1]
+      ?.split("// Durable writes publish ACK evidence")[0] ?? "";
+    expect(debounce).toContain("if (!captureOwnsFocusedSession()) return;");
+    expect(debounce).toContain("captureFocused");
+    expect(src).toContain("const focusedCaptureOwners = new Map<string, FocusedCaptureOwner>()");
+    expect(src).toContain("startCaptureDraftHandoff(userId, previous)");
+    expect(src).toContain("startCaptureDraftHandoff(userId, owner)");
+    expect(src).toContain("freezeDraftOnBlurRef.current = () =>");
+    expect(src).toContain("type FrozenCaptureDraft = { generation: number; write: () => Promise<boolean> }");
+    expect(src).toContain("const draftWriteGenerationRef = useRef(0)");
+    expect(src).toContain("existing.generation > generation");
+    expect(src).toContain("return registerCaptureDraftHandoff(");
+    expect(src).toMatch(/function clearModeDraft[\s\S]*?return persistDrafts\(lastMode\);/);
+    expect(src).toContain("settleCaptureDraftHandoffs(userId)");
+    expect(src).toContain("draftLoadedUserRef.current = userId");
+    expect(src).toContain("focusDraftHydratedRef.current = !!userId");
+    expect(src).toContain("invalidateAllDraftMutationEpochs()");
+    expect(src).toContain("modeParamConsumedRef.current = null");
+    expect(src).toContain("pendingSharedRef.current = sharedDeliveryRef.current !== null");
+    expect(src).toContain('previousState === "active" && nextState !== "active"');
+  });
+
+  test("format proposal 비동기 응답은 reset된 다른 composer에 되살아나지 않는다", () => {
+    expect(src).toContain("const proposalGenerationRef = useRef(0)");
+    expect(src).toContain("proposalGenerationRef.current += 1;");
+    expect(src).toContain("proposalGenerationRef.current !== generation");
+    expect(src).toContain("const proposalToSave = proposal");
+  });
+
+  test("딥스페이스에서도 Web Share Target 이 도달한다 (manifest → 소비 배선)", () => {
+    // manifest 의 share_target 은 /capture 로 온다. 딥스페이스 기본 화면
+    // (CaptureView)은 share 를 소비하지 않으므로, 유효 share 는 legacy 소비
+    // 배선으로 라우팅되고 그 결정은 mount 동안 state latch 된다. mode/tag 단독
+    // 진입과 onboarding entry도 같은 full intake를 타야 한다.
+    const manifest = JSON.parse(
+      readFileSync(join(process.cwd(), "public", "manifest.webmanifest"), "utf8"),
+    ) as { share_target?: { action?: string } };
+    expect(manifest.share_target?.action?.endsWith("/capture")).toBe(true);
+    const wrapper = src.split("export function CaptureLegacy")[0] ?? "";
+    expect(wrapper).toContain("const hasFullCaptureParams =");
+    expect(wrapper).toContain("(CAPTURE_MODES as readonly string[]).includes(captureParams.mode)");
+    expect(wrapper).toContain("captureParams.tag.trim().length > 0");
+    expect(wrapper).toContain('captureParams.entry === "firstRun"');
+    expect(wrapper).toContain("useState(hasFullCaptureParams)");
+    expect(wrapper).toContain("hasFullCaptureParams || fullCaptureActive");
+    expect(wrapper).toContain("<CaptureLegacy />");
+    expect(wrapper).toContain("<CaptureView />");
+    expect(wrapper).not.toContain("sharedEverRef.current =");
+  });
+
+  test("일반 칩도 초안과 함께 영속·복원된다 (라우트 tag 의 재마운트 생존)", () => {
+    expect(src).toContain("tags: tagsEditable.filter((x) => !isDomainTag(x))");
+    expect(src).toContain("const base = draft?.tags ?? [];");
+    expect(src).toContain("prev.filter((x) => !isDomainTag(x)).slice(0, 10)");
+    expect(src).toContain("base.includes(chip) || base.length >= 10 ? base : [...base, chip]");
+    const debounce = src.split("let hasDurableComposerSnapshot = false;")[1]?.split("// Load recent record dates")[0] ?? "";
+    expect(debounce).toContain("ocrReviewApproved");
+    expect(debounce).toContain("domainIntent");
+    expect(debounce).toContain("tagsEditable");
   });
 
   test("별 intent 는 journal 초안과 함께 영속되고 복원 시 칩과 같이 돌아온다", () => {
     expect(src).toContain('...(targetMode === "journal" && domainIntent !== null ? { domainIntent } : {})');
     expect(src).toContain("draft?.domainIntent");
-    // 본문 변경 없이 intent 만 바뀌어도 디바운스 저장이 따라간다.
-    expect(src).toContain("ocrReviewApproved, domainIntent]");
-    // 복원도 딥링크 집행과 같은 교체 계약이다: domain:* 칩을 전부 걷어낸 뒤
-    // 정본 칩 하나만 — intent 없는 초안은 domain 칩 0개로 복원된다.
+    // 본문 변경 없이 intent·칩만 바뀌어도 디바운스 저장이 따라간다.
+    const debounce = src.split("let hasDurableComposerSnapshot = false;")[1]?.split("// Load recent record dates")[0] ?? "";
+    expect(debounce).toContain("domainIntent");
+    expect(debounce).toContain("tagsEditable");
+    // 복원은 초안이 정본이다: 이전 화면 칩을 물려받지 않고, intent 있으면 정본
+    // domain 칩 하나가 초안 칩 뒤에 붙는다.
     expect(src).toContain(
-      "return restoredIntent === null ? base : [...base, domainTagFor(restoredIntent)];",
+      "return restoredIntent === null ? [...base] : [...base, domainTagFor(restoredIntent)];",
     );
   });
 
@@ -352,7 +538,11 @@ describe("capture 화면 — domainIntent 배선 (source contract)", () => {
     expect(fn).toContain("domainTagFor(prev) === t ? null : prev");
   });
 
-  test("일반 tag 의 칩 추가 UX 는 보존된다 (dedupe 후 append)", () => {
-    expect(src).toContain("base.includes(chip) ? base : [...base, chip]");
+  test("일반 tag 의 칩 추가 UX 는 dedupe·10개 상한을 화면과 저장에 같이 적용한다", () => {
+    expect(src).toContain("base.includes(chip) || base.length >= 10 ? base : [...base, chip]");
+    const addTag = src.split("function addTagFromInput")[1]?.split("function updateOcrBody")[0] ?? "";
+    expect(addTag).toContain("isDomainTag(norm)");
+    expect(addTag).toContain("ordinaryTags.length >= 10");
+    expect(addTag).toContain("...prev.filter((tag) => isDomainTag(tag)).slice(0, 1)");
   });
 });
