@@ -87,7 +87,9 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       { file: "secondb", href: "/secondb", label: "세컨비 대화", auth: true },
       { file: "jarvis", href: "/jarvis", label: "자비스 (은퇴)", stub: true, orphan: true, note: "/secondb 로 넘긴다" },
       { file: "interview", href: "/interview", label: "심층 인터뷰", auth: true },
-      { file: "imagine", href: "/imagine", label: "공상하기" },
+      // 고아 아님(2026-09-01 재검증): /ops 도구 격자와 /growth 버튼에서 들어온다.
+      // 09-01 감사 1차의 '고아' 판정은 grep 함정(MSYS 경로 변환)이 만든 오판이었다.
+      { file: "imagine", href: "/imagine", label: "공상하기", note: "진입: /ops 도구 격자 · /growth" },
       { file: "research", href: "/research", label: "연결 찾기", auth: true },
       { file: "reasoning", href: "/reasoning", label: "리즈닝", auth: true },
       { file: "review", href: "/review", label: "제안 확인 (propose→ratify)" },
@@ -134,7 +136,9 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       { file: "digest", href: "/digest", label: "오늘의 정리", auth: true, note: "이름이 어긋나 있다 — 캐논 screens.json 은 이 화면을 '주간 다이제스트' 라고 부르지만 화면 자체는 일일 리뷰다 (digest.tsx:1). LLM 좌석 digest_weekly 는 또 다른 것" },
       { file: "ttfv", href: "/ttfv", label: "첫날 한 컷" },
       { file: "insights", href: "/insights", label: "인사이트", auth: true },
-      { file: "discover", href: "/discover", label: "발견", stub: true, note: "/insights 로 넘긴다" },
+      // ⚠ stub 아님(2026-09-01 감사 정정): legacy 스킨에서만 /insights 로 넘기고,
+      // 프로덕션(딥스페이스 기본)은 실화면이다. 진입은 /insights 의 '발견' 카드.
+      { file: "discover", href: "/discover", label: "발견", note: "legacy 에서만 /insights 로 넘긴다. 프로덕션은 실화면 (진입: /insights 카드)" },
       { file: "reminders", href: "/reminders", label: "예약 리마인더" },
       { file: "inbox", href: "/inbox", label: "알림함", auth: true },
       { file: "museum", href: "/museum", label: "AI 뮤지엄" },
@@ -204,7 +208,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       { file: "dev-screens", href: "/dev-screens", label: "화면 전체 목록", dev: true, note: "이 화면. 설정 → 개발자 에서 들어온다" },
       { file: "canon", href: "/canon", label: "프로토 캐논", dev: true, orphan: true },
       { file: "deepspace-hub", href: "/deepspace-hub", label: "딥스페이스 허브", dev: true, orphan: true },
-      { file: "deepspace-home", href: "/deepspace-home", label: "딥스페이스 홈 시안", dev: true },
+      { file: "deepspace-home", href: "/deepspace-home", label: "딥스페이스 홈 시안", dev: true, note: "08-24 '일곱 한 벌' 이전 별 모델 스냅샷. 현행 홈 검증 대용 금지 (HANDOFF 2026-07-07 교훈)" },
       { file: "deepspace-preview", href: "/deepspace-preview", label: "딥스페이스 미리보기", dev: true, orphan: true },
       { file: "deepspace-flowmap", href: "/deepspace-flowmap", label: "화면 흐름도", dev: true, orphan: true },
       { file: "graph", href: "/graph", label: "내 두뇌 지도 (레거시)", dev: true },
