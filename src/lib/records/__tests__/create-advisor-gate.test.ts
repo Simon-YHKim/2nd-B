@@ -363,7 +363,15 @@ describe("capture 화면 — domainIntent 배선 (source contract)", () => {
     // 떠난 뒤 낡은 인스턴스가 그 내용을 덮어쓴다(자체 감사 P0).
     expect(src).toContain("const lastCaptureDraftWriters = new Map<string, number>();");
     expect(src).toContain("lastWriterId: (userId ? lastCaptureDraftWriters.get(userId) : undefined) ?? null,");
+    // 장부는 **모든** 발행 지점에서 적혀야 한다. 한 곳이라도 빠지면 그 쓰기가
+    // 안 남아 낡은 인스턴스가 자기를 마지막 writer 로 알고 덮어쓴다 — blur
+    // freeze 가 persistDrafts 를 우회해 직접 발행하는 것이 실제 그 구멍이었다.
+    const publishSites = (src.match(/saveCaptureDraftState\(userId, snapshot\)/g) ?? []).length;
+    const writerStamps = (src.match(/lastCaptureDraftWriters\.set\(userId, captureInstanceId\);/g) ?? []).length;
+    expect(publishSites).toBe(2); // persistDrafts + blur freeze
+    expect(writerStamps).toBe(publishSites);
     expect(src).toMatch(/function persistDrafts[\s\S]*?lastCaptureDraftWriters\.set\(userId, captureInstanceId\);/);
+    expect(src).toMatch(/lastCaptureDraftWriters\.set\(userId, captureInstanceId\);[\s\S]{0,200}?write: \(\) => saveCaptureDraftState\(userId, snapshot\)/);
     expect(src).not.toContain('clearModeDraft("linkclip")');
     // Focus/mode changes never abort an accepted save; only UI cleanup ownership changes.
     expect(src).not.toContain("submitAbortRef.current?.abort()");

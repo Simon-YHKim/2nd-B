@@ -968,6 +968,11 @@ function CaptureLegacySession() {
         lastMode: restoreWasSkipped ? lastHydratedModeRef.current : activeMode,
       });
       const generation = ++draftWriteGenerationRef.current;
+      // freeze 는 persistDrafts 를 거치지 않고 곧장 발행한다 — 그래서 마지막
+      // 발행자 표시도 여기서 직접 남긴다. 빠뜨리면 다른 화면이 편집한 뒤
+      // 디바운스 전에 떠났을 때 그 쓰기가 장부에 안 남아, 낡은 인스턴스가
+      // 아직 자기가 마지막 writer 인 줄 알고 그 초안을 덮어쓴다.
+      lastCaptureDraftWriters.set(userId, captureInstanceId);
       return {
         generation,
         write: () => saveCaptureDraftState(userId, snapshot),
