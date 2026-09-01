@@ -23,7 +23,7 @@ import { SELF_UNDERSTANDING_STARS, type SelfUnderstandingStar, type StarId } fro
 export type NextStepKey = "bigFive" | "attachment" | "esm" | "values";
 
 interface StepRoute {
-  route: "/big-five" | "/attachment" | "/esm" | "/audit";
+  route: "/big-five" | "/attachment" | "/esm" | "/audit?screener=1";
   key: NextStepKey;
 }
 
@@ -34,7 +34,7 @@ const STEP_ROUTES: Partial<Record<StarId, StepRoute>> = {
   now: { route: "/big-five", key: "bigFive" },
   relational: { route: "/attachment", key: "attachment" },
   rhythm: { route: "/esm", key: "esm" },
-  values: { route: "/audit", key: "values" },
+  values: { route: "/audit?screener=1", key: "values" },
 };
 
 // A star is "lit" once it reaches L2; below that it is still dim and offerable.
