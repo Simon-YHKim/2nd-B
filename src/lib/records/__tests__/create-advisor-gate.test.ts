@@ -345,9 +345,25 @@ describe("capture 화면 — domainIntent 배선 (source contract)", () => {
     expect(src).toContain("await clearSubmittedStorageDraft(\"journal\", startModeEpoch)");
     expect(src).toContain("await clearSubmittedStorageDraft(submittedMode, startModeEpoch)");
     expect(src).toContain("const startModeEpoch = transientMutationEpochRef.current[noteMode]");
-    expect(src).toContain("transientMutationEpochRef.current[noteMode] === startModeEpoch");
-    expect(src).toContain("activeModeRef.current === noteMode");
     expect(src).toContain("await clearSubmittedTransientDraft(noteMode, startModeEpoch)");
+    // 완주 판정은 두 갈래다(lib/capture/save-finalize.ts, 순서 회귀는 그쪽 테스트):
+    // 내구 초안 삭제는 포커스를 요구하지 않고, 완주 UI 만 요구한다. 한 조건으로
+    // 묶으면 blur 한 번에 이미 저장된 글이 초안으로 되살아난다(#1551 회귀).
+    for (const mode of ['"journal"', "noteMode", "submittedMode"]) {
+      expect(src).toContain(`captureMayFinalizeSave(${mode}, startModeEpoch)`);
+      expect(src).toContain(`captureMayApplyCompletionUi(${mode}, startModeEpoch)`);
+    }
+    expect(src).toContain("function captureMayFinalizeSave(submittedMode: Mode, startEpoch: number): boolean {");
+    expect(src).toContain("mayFinalizeDurableCleanup(saveFinalizeSnapshot(submittedMode, startEpoch))");
+    expect(src).toContain("mayApplyCompletionUi(saveFinalizeSnapshot(submittedMode, startEpoch))");
+    // 스냅샷은 "포커스 중인가" 가 아니라 "남이 넘겨받았는가" 를 싣는다.
+    expect(src).toContain("focusedOwnerId: (userId ? focusedCaptureOwners.get(userId)?.id : undefined) ?? null,");
+    // 그리고 blur 로 지워지지 않는 "마지막 발행자" 도 함께 싣는다. 초안 저장이
+    // 부분 삭제가 아니라 전체 스냅샷 발행이라, 이게 없으면 다른 화면이 쓰고
+    // 떠난 뒤 낡은 인스턴스가 그 내용을 덮어쓴다(자체 감사 P0).
+    expect(src).toContain("const lastCaptureDraftWriters = new Map<string, number>();");
+    expect(src).toContain("lastWriterId: (userId ? lastCaptureDraftWriters.get(userId) : undefined) ?? null,");
+    expect(src).toMatch(/function persistDrafts[\s\S]*?lastCaptureDraftWriters\.set\(userId, captureInstanceId\);/);
     expect(src).not.toContain('clearModeDraft("linkclip")');
     // Focus/mode changes never abort an accepted save; only UI cleanup ownership changes.
     expect(src).not.toContain("submitAbortRef.current?.abort()");
@@ -444,8 +460,11 @@ describe("capture 화면 — domainIntent 배선 (source contract)", () => {
   test("capture instance 전환은 이전 초안을 먼저 flush하고 이후 stale timer/clear를 막는다", () => {
     const clearHelper = src.split("async function clearSubmittedStorageDraft")[1]
       ?.split("function showDraftCleanupFailure")[0] ?? "";
-    expect(clearHelper).toContain("if (!captureOwnsFocusedSession()) return false");
-    expect(clearHelper).toMatch(/captureOwnsFocusedSession\(\)[\s\S]*?draftsRef\.current\[targetMode\]/);
+    // 인계 보호는 그대로다 — 다른 인스턴스가 초안을 넘겨받았으면 지우지 않는다.
+    // 달라진 것은 blur 뿐이다: 화면 이탈은 인계가 아니므로 삭제를 막지 않는다.
+    expect(clearHelper).toContain("if (!captureMayFinalizeSave(targetMode, startModeEpoch)) return false");
+    expect(clearHelper).toMatch(/captureMayFinalizeSave\([\s\S]*?draftsRef\.current\[targetMode\]/);
+    expect(clearHelper).not.toContain("captureOwnsFocusedSession()");
     expect(src).toMatch(
       /function captureOwnsFocusedSession[\s\S]*?sessionActiveRef\.current[\s\S]*?focusedCaptureOwners\.get\(userId\)\?\.id === captureInstanceId/,
     );

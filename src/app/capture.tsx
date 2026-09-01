@@ -84,6 +84,11 @@ import {
   type CaptureTransientDrafts,
   type CaptureTransientMode,
 } from "@/lib/capture/draft";
+import {
+  mayApplyCompletionUi,
+  mayFinalizeDurableCleanup,
+  type SaveFinalizeState,
+} from "@/lib/capture/save-finalize";
 import { classifyRecordTextForCrisis, transcribeAudio } from "@/lib/llm/boundary";
 import { discardRecording, recordingUriToBase64 } from "@/lib/audio/recording-uri";
 import { classifyClipper, type WikiTrack } from "@/lib/wiki/classify-clipper";
@@ -163,6 +168,19 @@ type CaptureDraftHandoff = {
 };
 let captureInstanceSequence = 0;
 const focusedCaptureOwners = new Map<string, FocusedCaptureOwner>();
+
+/**
+ * 이 사용자의 초안 blob 을 마지막으로 발행한 capture 인스턴스.
+ *
+ * `focusedCaptureOwners` 와 짝이지만 **지워지지 않는다** — 그쪽은 blur 마다
+ * delete 되므로 "지금 누가 보고 있나" 만 답하고, 화면을 떠난 뒤에는 아무도
+ * 없는 것처럼 보인다. 그런데 초안 저장은 부분 삭제가 아니라 **전체 스냅샷
+ * 발행**이라(persistDrafts → saveCaptureDraftState 는 단일 setItem), 낡은
+ * 인스턴스가 자기 in-memory 스냅샷으로 다시 발행하면 그 사이 다른 화면이 쓴
+ * 내용이 통째로 사라진다. "누가 마지막으로 썼나" 는 그래서 blur 로 잊으면
+ * 안 되는 사실이고, 완주 정리의 안전 조건이 된다.
+ */
+const lastCaptureDraftWriters = new Map<string, number>();
 const captureDraftHandoffs = new Map<string, Map<number, CaptureDraftHandoff>>();
 
 function cloneCaptureDraftState(state: CaptureDraftState): CaptureDraftState {
@@ -740,6 +758,43 @@ function CaptureLegacySession() {
       focusedCaptureOwners.get(userId)?.id === captureInstanceId;
   }
 
+  /**
+   * 저장 A 완주 시점의 상태 스냅샷. 판정 자체는 lib/capture/save-finalize.ts 가
+   * 순수 함수로 내린다 — 그래야 "완주와 blur 가 어느 순서로 도착했는가" 를
+   * 렌더 없이 테스트할 수 있다(이 저장소는 컴포넌트 렌더 테스트가 막혀 있다).
+   */
+  function saveFinalizeSnapshot(submittedMode: Mode, startEpoch: number): SaveFinalizeState {
+    const currentEpoch = isCaptureTransientMode(submittedMode)
+      ? transientMutationEpochRef.current[submittedMode]
+      : storageMutationEpochRef.current[submittedMode as StorageMode];
+    return {
+      sessionActive: sessionActiveRef.current,
+      userId: userId ?? null,
+      instanceId: captureInstanceId,
+      focusedOwnerId: (userId ? focusedCaptureOwners.get(userId)?.id : undefined) ?? null,
+      lastWriterId: (userId ? lastCaptureDraftWriters.get(userId) : undefined) ?? null,
+      focused: captureFocusedRef.current,
+      startEpoch,
+      currentEpoch,
+      submittedMode,
+      activeMode: activeModeRef.current,
+    };
+  }
+
+  /**
+   * 내구 초안 삭제를 마쳐도 되는가. **포커스를 요구하지 않는다** — blur 는
+   * 작성기 변경이 아니고, 여기서 멈추면 이미 저장된 글이 초안으로 되살아나
+   * 사용자가 중복 저장한다(#1551 회귀). 막는 것은 세션 종료와 인스턴스 인계뿐.
+   */
+  function captureMayFinalizeSave(submittedMode: Mode, startEpoch: number): boolean {
+    return mayFinalizeDurableCleanup(saveFinalizeSnapshot(submittedMode, startEpoch));
+  }
+
+  /** 완주 UI(작성기 reset · 성공 패널 · 컴패니언)를 적용해도 되는가. 포커스 필요. */
+  function captureMayApplyCompletionUi(submittedMode: Mode, startEpoch: number): boolean {
+    return mayApplyCompletionUi(saveFinalizeSnapshot(submittedMode, startEpoch));
+  }
+
   function beginAsyncProducer(): { generation: number; revision: number } {
     // A newer producer owns the loading surface. This also releases a stale
     // OCR/audio spinner when the replacement action is a picker or paste that
@@ -863,6 +918,11 @@ function CaptureLegacySession() {
       lastMode,
     });
     const writeGeneration = ++draftWriteGenerationRef.current;
+    // 발행을 예약하는 순간 이 인스턴스를 마지막 writer 로 기록한다. 완료를
+    // 기다리지 않는 이유는 이 표시의 쓸모가 "내 스냅샷이 아직 최신인가" 이지
+    // "쓰기가 끝났는가" 가 아니기 때문이다 — 다른 인스턴스가 발행을 예약한
+    // 순간부터 내 스냅샷은 낡은 것으로 취급해야 안전하다.
+    lastCaptureDraftWriters.set(userId, captureInstanceId);
     return registerCaptureDraftHandoff(
       userId,
       captureInstanceId,
@@ -1280,6 +1340,15 @@ function CaptureLegacySession() {
           ? "기존 초안을 저장하거나 비운 뒤 다른 별에서 다시 담아 주세요. 내용과 별은 바꾸지 않았어요."
           : "Save or clear the existing draft before capturing from another star. Its text and star were not changed.",
       );
+      // 충돌 억제는 "이 파라미터로 바꿀 durable 상태가 없다" 는 **확정 판정**이라
+      // 기다릴 내구 증거가 없다. durable ACK 만 기다리면 URL 의 tag 가 영영 안
+      // 걷히고, 재포커스가 소비 latch 를 풀 때마다 같은 충돌을 다시 계획해
+      // 이 모달이 영구히 재생된다. 판정 자체를 소비 완료로 친다.
+      setParamDurableAck({
+        key: consumeKey,
+        identity: paramDeliveryIdentity,
+        generation: ackGeneration,
+      });
     }
     void durableWrite.then((durable) => {
       if (
@@ -1640,7 +1709,7 @@ function CaptureLegacySession() {
     targetMode: StorageMode,
     startModeEpoch: number,
   ): Promise<boolean> {
-    if (!captureOwnsFocusedSession()) return false;
+    if (!captureMayFinalizeSave(targetMode, startModeEpoch)) return false;
     storageCleanupEpochRef.current[targetMode] = startModeEpoch;
     try {
       let durable = await clearModeDraft(targetMode);
@@ -1648,8 +1717,7 @@ function CaptureLegacySession() {
       // the full-state blob behind clear #1. If this mode still has no semantic
       // B, queue one final clear after that write.
       if (
-        captureOwnsFocusedSession() &&
-        storageMutationEpochRef.current[targetMode] === startModeEpoch &&
+        captureMayFinalizeSave(targetMode, startModeEpoch) &&
         (draftsRef.current[targetMode] !== undefined || !durable)
       ) {
         durable = await clearModeDraft(targetMode);
@@ -1689,13 +1757,12 @@ function CaptureLegacySession() {
     targetMode: CaptureTransientMode,
     startModeEpoch: number,
   ): Promise<boolean> {
-    if (!captureOwnsFocusedSession()) return false;
+    if (!captureMayFinalizeSave(targetMode, startModeEpoch)) return false;
     transientCleanupEpochRef.current[targetMode] = startModeEpoch;
     try {
       let durable = await clearTransientModeDraft(targetMode);
       if (
-        captureOwnsFocusedSession() &&
-        transientMutationEpochRef.current[targetMode] === startModeEpoch &&
+        captureMayFinalizeSave(targetMode, startModeEpoch) &&
         (transientDraftsRef.current[targetMode] !== undefined || !durable)
       ) {
         durable = await clearTransientModeDraft(targetMode);
@@ -2075,17 +2142,10 @@ ${transcript}`;
       }
       // Cleanup ownership is per mode: a plain mode switch does not make saved
       // A new, while an edit/tag/advisor/share mutation of journal does.
-      if (
-        captureOwnsFocusedSession() &&
-        storageMutationEpochRef.current.journal === startModeEpoch
-      ) {
+      if (captureMayFinalizeSave("journal", startModeEpoch)) {
         const savedTopic = topic.trim();
         const draftClearDurable = await clearSubmittedStorageDraft("journal", startModeEpoch);
-        if (
-          captureOwnsFocusedSession() &&
-          storageMutationEpochRef.current.journal === startModeEpoch &&
-          activeModeRef.current === "journal"
-        ) {
+        if (captureMayApplyCompletionUi("journal", startModeEpoch)) {
           reset();
           companion.fire("journalSaved");
           setSavedTitle(savedTopic.length > 0 ? savedTopic : t("savedTitleFallback"));
@@ -2189,19 +2249,12 @@ ${transcript}`;
       // Cleanup ownership is per transient mode. Switching away changes the
       // global screen revision but does not make the already-saved A draft new;
       // editing/re-sharing that mode does, and then it must survive as B.
-      if (
-        captureOwnsFocusedSession() &&
-        transientMutationEpochRef.current[noteMode] === startModeEpoch
-      ) {
+      if (captureMayFinalizeSave(noteMode, startModeEpoch)) {
         const savedBody = noteBody;
         const draftClearDurable = await clearSubmittedTransientDraft(noteMode, startModeEpoch);
         // The clear ACK can itself take long enough for a same-mode B to arrive.
         // Its queued write follows this clear; never reset that newer composer.
-        if (
-          captureOwnsFocusedSession() &&
-          transientMutationEpochRef.current[noteMode] === startModeEpoch &&
-          activeModeRef.current === noteMode
-        ) {
+        if (captureMayApplyCompletionUi(noteMode, startModeEpoch)) {
           reset();
           companion.fire("captureSaved");
           setSavedTitle(savedBody.length > 0 ? savedBody : t("savedTitleFallback"));
@@ -2482,16 +2535,9 @@ ${transcript}`;
         void maybeAutoPromoteSource(userId, result.source.id);
       }
 
-      if (
-        captureOwnsFocusedSession() &&
-        storageMutationEpochRef.current[submittedMode] === startModeEpoch
-      ) {
+      if (captureMayFinalizeSave(submittedMode, startModeEpoch)) {
         const draftClearDurable = await clearSubmittedStorageDraft(submittedMode, startModeEpoch);
-        if (
-          captureOwnsFocusedSession() &&
-          storageMutationEpochRef.current[submittedMode] === startModeEpoch &&
-          activeModeRef.current === submittedMode
-        ) {
+        if (captureMayApplyCompletionUi(submittedMode, startModeEpoch)) {
           reset();
           // 루루 carries the shard home; an imported link gets the "success" beat.
           companion.fire(isBareLink ? "linkImported" : "captureSaved");
