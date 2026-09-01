@@ -3,7 +3,59 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-08-30 / 다른 PC에서도 같은 에셋·계보·검증으로 재개 가능
+## Latest — 2026-09-01 / 화면 감사 결정 집행: 배선 4건 · 대장 정정 3건 (Q1 봉인은 전제 반증으로 보류)
+
+> 발행: Claude Code (orca Design 워크스페이스). 감사 보고서 아티팩트:
+> <https://claude.ai/code/artifact/988013c7-7180-4f24-8500-779ccb125912>
+
+### 무엇을 했나 (Simon 결정 회신 2026-09-01 집행)
+
+- **Q2 배선 4건 (전부 부모 맥락 CTA, 전역 메뉴 없음):**
+  1. `/career` 빈 상태 카드에 '성과 담기' CTA — 같은 화면 안 중복이라 "입력 경로는
+     하나"(career.tsx 헤더) 결정과 충돌하지 않는다. 기존 `career.addAchievement` 키 재사용.
+  2. `/core-brain` "다음 한 걸음"에 `/digest` **조건부** 버튼 신설 — 대기 추론 링크
+     1건 이상일 때만 렌더(알림함 카드와 같은 게이트). **기존 /review 버튼은 #807 의
+     의도적 재배정이라 목적지 불변.** i18n `core-brain.openDigest` 5로케일.
+  3. `/community` 만들기 카드에 '받은 초대 링크' 붙여넣기 수신구(접힌 보조 행, 성인
+     게이트 안쪽). 파서는 `src/lib/community/invite-paste.ts`(+테스트) — 토큰은 여전히
+     공유 링크로만 유통되고 검증은 기존 `/community/join/[token]` 이 한다.
+     `community.joinLink*` 5키 × 5로케일.
+  4. `/peer/[token]` done 카드에 '이 앱 알아보기' 정적 링크 — form(동의·제출) 단계
+     금지 전제 유지. `peer.aboutApp` 5로케일.
+- **판단 위임분 — 화면 대장(screen-index.ts) 정정 3건:** `/discover` 의 stub 오기 제거
+  (legacy 에서만 리다이렉트, 프로덕션은 실화면) · `/imagine` 에 진입 메모(/ops 격자 ·
+  /growth) · `/deepspace-home` 에 "08-24 이전 별 모델 스냅샷, 현행 홈 검증 대용 금지" 메모.
+
+### ⚠ Q1(/imagine C안 DevOnlyRoute 봉인)은 집행하지 않았다 — 전제가 반증됐다
+
+- `/imagine` 은 고아가 아니다. 프로덕션 진입 2곳 실측: `/ops` 도구 격자
+  (DeepSpaceDesignScreens `opsTools`, "공상하기" 타일)와 `/growth`
+  (WeeklyGrowthScreen 의 GO 버튼 `router.push("/imagine")`).
+- 감사 1차의 "고아, 진입 0" 판정은 오판 — Git Bash 에서 **`/`로 시작하는 grep 패턴을
+  MSYS 경로 변환이 조용히 망가뜨려 0건**이 나온 것(Codex 교차검토가 잡았다.
+  재검은 `MSYS_NO_PATHCONV=1`). 봉인하면 살아 있는 문 2개가 끊긴다.
+- 처분: 연결 상태 유지. 숨기고 싶다면 ops 타일·growth 버튼 제거까지 포함한 별도
+  결정이 필요하다(이번 Q2의 "화면을 잇는다" 방향과 상충).
+
+### 방향 합의 기록 (코드 변경 없음)
+
+- Q3-1: PIXEL-CLAY 이주 완주 후 `/deepspace-flowmap`·`hub`·`preview` 묶음 정리 재심.
+  제거 시 캐논 screens.json **두 벌**(design/proto_rev2 + public/proto) + canon.test 핀
+  + check-pixel-rules.ts·qc-mobile-web.mjs 동일 PR 규율.
+- Q3-2: 레거시 스킨 일몰 시점에 `/trinity` 동반 제거. check:constraints 가 trinity.tsx
+  본문을 문자열 스캔하므로 가드도 같은 PR 에서 정리(핀 8곳: _layout·i18n 5로케일
+  import·BackArrow·characters·DeepSpaceDesignScreens·캐논 screens.json·tokens.ts trinity 색·screen-index).
+- Q3-3(위임 판단): `/graph` 는 **휴면 유지** — 실데이터 지도는 /records 의 Graph 토글이
+  이미 제공하고, 파일 헤더가 mock-as-real 금지를 명시한다.
+
+### 미착수 — 다음 결정 대상
+
+- `core-brain.tsx` 의 `router.push("/persona")` 버튼: 딥스페이스에서 /persona 가 즉시
+  /core-brain 으로 되돌려 제자리 튕김(교차검토 확인). 제거냐 목적지 교체냐는 제품 판단.
+- 검사 목록 이원화: /core-brain 은 registry(OFFERABLE) 렌더, /profile analyze 메뉴는
+  하드코딩 7행 — registry 렌더로 일원화 제안.
+
+## 2026-08-30 / 다른 PC에서도 같은 에셋·계보·검증으로 재개 가능
 
 > 발행: Codex portable handoff 보강 세션. 작성 시각 `2026-08-30 22:11:36 KST`.
 > 로컬 절대경로가 아니라 Git commit과 검증된 바이트를 동일성 기준으로 삼는다.

@@ -3,7 +3,7 @@
 // Adults only, fail-closed: isMinor null (unknown) gates exactly like true;
 // the server re-asserts via users.minor_tier in every RPC (0117).
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ScrollView, Share, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, Share, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useFocusEffect } from "expo-router";
 
@@ -11,6 +11,7 @@ import { Text } from "@/components/ui/Text";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { Field, MdButton, MdCard, MdChip } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { inviteTokenFromInput } from "@/lib/community/invite-paste";
 import { deepSpace, spacing, withAlpha } from "@/lib/theme/tokens";
 import {
   COMMUNITY_GROUP_TITLE_MAX,
@@ -33,6 +34,8 @@ export default function Community() {
   const [groupTitle, setGroupTitle] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [joinOpen, setJoinOpen] = useState(false);
+  const [joinInput, setJoinInput] = useState("");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const adult = isMinor === false;
@@ -138,6 +141,36 @@ export default function Community() {
                 <Text variant="caption" style={styles.notice} accessibilityRole="alert">{notice}</Text>
               ) : null}
               <Text variant="caption" color="textSubtle">{t("inviteModelNote")}</Text>
+              {/* 초대 수신구(2026-09-01 감사 Q2-3 승인). 접힌 보조 행 — 화면당 메시지
+                  1개 규율을 지키기 위해 기본은 캡션 한 줄이다. 성인 게이트 분기 안쪽. */}
+              {joinOpen ? (
+                <>
+                  <Field
+                    label={t("joinLinkLabel")}
+                    value={joinInput}
+                    onChangeText={setJoinInput}
+                    placeholder={t("joinLinkPlaceholder")}
+                  />
+                  <MdButton
+                    variant="tonal"
+                    label={t("joinLinkCta")}
+                    disabled={!joinInput.trim()}
+                    onPress={() => {
+                      const token = inviteTokenFromInput(joinInput);
+                      if (!token) {
+                        setNotice(t("joinLinkInvalid"));
+                        return;
+                      }
+                      setNotice(null);
+                      router.push({ pathname: "/community/join/[token]", params: { token } });
+                    }}
+                  />
+                </>
+              ) : (
+                <Pressable onPress={() => setJoinOpen(true)} accessibilityRole="button">
+                  <Text variant="caption" color="brand">{t("joinLinkToggle")}</Text>
+                </Pressable>
+              )}
             </MdCard>
 
             {rooms === null ? (
