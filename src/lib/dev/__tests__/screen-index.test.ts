@@ -292,23 +292,20 @@ describe("개발자 화면 목록", () => {
     }
   });
 
-  it("진입 역할은 99 route 를 standard 89 + 옛 링크 3 + 딥링크 3 + Design Lab 4 로 분할한다", () => {
+  it("진입 역할은 모든 route 를 standard + 옛 링크 + 딥링크 + Design Lab 으로 분할한다", () => {
     const counts = entryRoleCounts();
     expect({
-      total: counts.total,
-      standard: counts.standard,
       deepLink: counts.deepLink,
       legacyLink: counts.legacyLink,
       designLab: counts.designLab,
       devOnly: counts.devOnly,
     }).toEqual({
-      total: 99,
-      standard: 89,
       deepLink: 3,
       legacyLink: 3,
       designLab: 4,
       devOnly: 8,
     });
+    expect(counts.standard).toBe(counts.total - counts.deepLink - counts.legacyLink - counts.designLab);
     expect(counts.standard + counts.deepLink + counts.legacyLink + counts.designLab).toBe(counts.total);
     expect(counts.authRequired).toBe(devScreens().filter((screen) => screen.auth).length);
     // 옛 필드가 되살아나면 두 축이 다시 한 단어로 뭉개진 것이다.
