@@ -105,4 +105,48 @@ describe("buildSelfPortrait — data contract", () => {
       expect(koFields.find((field) => field.id === id)?.hint).toContain("자동 요약");
     }
   });
+
+  it("keeps state-dependent portrait routes aligned with the design navigation contract", () => {
+    const nav = JSON.parse(
+      readFileSync(
+        resolve(process.cwd(), "design/pixel_clay_260825/data/nav.json"),
+        "utf8",
+      ),
+    ) as {
+      me: {
+        items: Array<{ label: string; kind: string; to?: string; toAnyOf?: string[] }>;
+      };
+    };
+    const portraits = [
+      buildSelfPortrait({ persona: null }, "ko"),
+      buildSelfPortrait(
+        {
+          persona: makePersona({
+            mbti: {
+              type: "INFJ",
+              scores: { E: 0, I: 1, S: 0, N: 1, T: 0, F: 1, J: 1, P: 0 },
+            },
+            values: ["big_five"],
+          }),
+        },
+        "ko",
+      ),
+      buildSelfPortrait(
+        { persona: makePersona({ attachment: { style: "secure", anxiety: 2, avoidance: 2 } }) },
+        "ko",
+      ),
+    ];
+    const runtimeRoutes = (id: "who" | "fuel") =>
+      [...new Set(portraits.map((fields) => fields.find((field) => field.id === id)!.route))].sort();
+    const declaredRoutes = (label: string) => {
+      const item = nav.me.items.find((candidate) => candidate.label === label)!;
+      expect(item.kind).toBe("route");
+      expect(item.to).toBeUndefined();
+      expect(item.toAnyOf).toBeDefined();
+      return [...item.toAnyOf!].sort();
+    };
+
+    expect(declaredRoutes("나는 누구인가")).toEqual(runtimeRoutes("who"));
+    expect(declaredRoutes("나의 원동력")).toEqual(runtimeRoutes("fuel"));
+  });
 });
