@@ -58,21 +58,28 @@ const ANDROID_NAME_ATTR = 0x01010003;
 // Permissions that must never reach a published artifact, with the reason a
 // reader needs to judge whether the entry is still right.
 //
-// FOREGROUND_SERVICE_MEDIA_PLAYBACK arrives transitively: expo-audio depends on
-// androidx.media3:media3-session (node_modules/expo-audio/android/build.gradle),
-// and that AAR declares the permission, so it appears only in the MERGED
-// manifest — no JS package manifest in the tree contains the string. Play
-// flagged it on vc 38 (2026-09-01) and demands a "media playback" declaration.
-// This app never plays media: expo-audio is used for recording only
-// (useAudioRecorder in call-reflection/capture/secondb; zero uses of
-// useAudioPlayer/createAudioPlayer, no MediaSession, no background audio), so
-// declaring media playback would be a false statement to Play. app.json blocks
-// the permission instead; this check proves the block actually worked in the
-// binary rather than trusting the config.
+// FOREGROUND_SERVICE_MEDIA_PLAYBACK: Play flagged it on vc 38 (2026-09-01) and
+// demanded a "media playback" declaration. We cannot make that declaration —
+// expo-audio is used for RECORDING only (useAudioRecorder in
+// call-reflection/capture/secondb; zero uses of useAudioPlayer or
+// createAudioPlayer), so it would be false.
+//
+// ⚠ The first version of this comment said the permission arrived transitively
+// from the androidx.media3 AAR. That was wrong, and the error mattered: it
+// argued for stripping the permission out of the built manifest instead of
+// removing it at its source. The real source is expo-audio's own config
+// plugin — node_modules/expo-audio/plugin/build/withAudio.js defaults
+// `enableBackgroundPlayback = true`, and that default BOTH pushes this
+// permission AND declares AudioControlsService with
+// android:foregroundServiceType="mediaPlayback". Blocking only the permission
+// would have left the service standing, which is the thing Play actually
+// scans for. app.json now sets enableBackgroundPlayback:false, which drops
+// both; blockedPermissions stays as a second net, and this check is the proof
+// that the binary really came out clean.
 const FORBIDDEN_PERMISSIONS = [
   {
     name: "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
-    why: "pulled in transitively by androidx.media3 via expo-audio; this app records audio but never plays media, so Play's media-playback declaration would be false. Blocked in app.json (android.blockedPermissions).",
+    why: "added by expo-audio's config plugin when enableBackgroundPlayback is left at its default true, together with a mediaPlayback foreground service; this app records audio but never plays media, so Play's media-playback declaration would be false. app.json turns the plugin option off and also lists it in android.blockedPermissions.",
   },
 ];
 
@@ -136,8 +143,20 @@ function parseManifest(buf) {
       for (let i = 0; i < attrCount; i++) {
         const a = attrStart + i * 20;
         const id = resIds.get(u32(a + 4));
-        if (elementName === "uses-permission" && id === ANDROID_NAME_ATTR) {
-          const value = str(u32(a + 8));
+        // uses-permission-sdk-23 declares a permission just as much as
+        // uses-permission does; the text regexes below match both, and a
+        // parser that disagreed with them would make the APK and the AAB
+        // contradict each other about the same artifact.
+        if (
+          (elementName === "uses-permission" || elementName === "uses-permission-sdk-23") &&
+          id === ANDROID_NAME_ATTR
+        ) {
+          // rawValue can be absent (0xFFFFFFFF) with the string living in the
+          // typed value instead — the ATTR branch below already knows this.
+          // Without the same fallback a permission reads as "not there", and
+          // "not there" is defined to pass, so the guard would fail open.
+          const raw = str(u32(a + 8));
+          const value = raw ?? (buf[a + 15] === 0x03 ? str(u32(a + 16)) : null);
           if (value) permissions.add(value);
         }
         const key = ATTR[id];
@@ -582,6 +601,11 @@ compileSdkVersion:'36'`);
     versionCode: "42",
     versionName: "1.2.3",
     billingLibrary: undefined,
+    // deepEqual here is STRICT, so every field manifestFromText returns has to
+    // be listed. Forgetting this one broke --self-test (and with it the
+    // release workflow's first step) while `npm run verify` stayed green,
+    // because nothing ran the self-test — apk-target-sdk.test.ts now does.
+    permissions: [],
   });
 
   assert.equal(REQUIRED_BILLING_MAJOR, 8);
@@ -668,7 +692,7 @@ compileSdkVersion:'36'`);
       }),
     /no Android App Bundle verifier produced a complete manifest/,
   );
-  return 15;
+  return 22;
 }
 
 module.exports = {
