@@ -10,6 +10,7 @@
 
 import { getSupabaseClient } from "../supabase/client";
 import { invalidateDomainLevels } from "../persona/load-domain-levels";
+import { withTimeout } from "../async/with-timeout";
 
 // Must match the CHECK constraints in db/migrations/0058_relation_people.sql.
 export type RelationKind = "family" | "partner" | "friend" | "colleague" | "mentor" | "other";
@@ -19,6 +20,8 @@ const RELATION_KINDS: readonly RelationKind[] = [
   "family", "partner", "friend", "colleague", "mentor", "other",
 ];
 const CONTACT_CADENCES: readonly ContactCadence[] = ["daily", "weekly", "monthly", "rarely"];
+const PEOPLE_LIST_TIMEOUT_MS = 20_000;
+const PEOPLE_SAVE_TIMEOUT_MS = 20_000;
 
 export interface Person {
   id: string;
@@ -112,11 +115,15 @@ export async function createPerson(userId: string, input: NewPerson): Promise<Pe
   const norm = normalizePersonInput(input);
   if (!norm.display_name) throw new Error("display_name is required");
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase
-    .from("relation_people")
-    .insert({ user_id: userId, ...norm })
-    .select()
-    .single();
+  const { data, error } = await withTimeout(
+    supabase
+      .from("relation_people")
+      .insert({ user_id: userId, ...norm })
+      .select()
+      .single(),
+    PEOPLE_SAVE_TIMEOUT_MS,
+    "people save",
+  );
   if (error) throw error;
   // A new person lifts the 관계 (relation) domain star, so the home sky's cached
   // levels are stale for this user.
@@ -127,11 +134,15 @@ export async function createPerson(userId: string, input: NewPerson): Promise<Pe
 /** All of the user's people, most-recently-interacted first (nulls last). */
 export async function listPeople(userId: string): Promise<Person[]> {
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase
-    .from("relation_people")
-    .select("*")
-    .eq("user_id", userId)
-    .order("last_interaction_on", { ascending: false, nullsFirst: false });
+  const { data, error } = await withTimeout(
+    supabase
+      .from("relation_people")
+      .select("*")
+      .eq("user_id", userId)
+      .order("last_interaction_on", { ascending: false, nullsFirst: false }),
+    PEOPLE_LIST_TIMEOUT_MS,
+    "people list",
+  );
   if (error) throw error;
   return (data ?? []).map((r) => rowToPerson(r as Record<string, unknown>));
 }

@@ -3,7 +3,7 @@
 // for the per-person drilldown; the add form is the first WRITE surface for
 // relation_people (0058) — the writer lib existed with no screen, so the 관계
 // star finally receives real data (its brightness folds relation_people).
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
@@ -18,6 +18,8 @@ import { deepSpace, flattenAlpha, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { ringCells, stepLine } from "@/components/pixel/pixel-line";
 import { PixelNodeSvg, PixelStarSvg } from "@/components/pixel/PixelStarSvg";
+import { createLatestWins } from "@/lib/async/latest-wins";
+import { isTimeoutError } from "@/lib/async/with-timeout";
 
 /**
  * 관계 지도 색 — 원래 `withAlpha(…)` 였다. 미리 합성해 둔다(PIXEL-CLAY 규칙 4).
@@ -54,35 +56,6 @@ export default function PeopleMapScreen() {
   const { t } = useTranslation("deepspace");
   const { userId, loading } = useAuth();
 
-  const [people, setPeople] = useState<Person[] | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saveFailed, setSaveFailed] = useState(false);
-  const [name, setName] = useState("");
-  const [kind, setKind] = useState<RelationKind>("friend");
-  const [closeness, setCloseness] = useState<number>(3);
-
-  const refresh = useCallback(() => {
-    if (!userId) return;
-    listPeople(userId)
-      .then(setPeople)
-      .catch((e) => {
-        console.warn("[people] list failed", (e as Error).message);
-        setPeople([]);
-      });
-  }, [userId]);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  const nodes = useMemo(() => layoutPeopleMap(people ?? []), [people]);
-  const selected = useMemo(
-    () => (people ?? []).find((p) => p.id === selectedId) ?? null,
-    [people, selectedId],
-  );
-
   if (loading) {
     return (
       <DeepSpaceScreen active="lens" header="none" variant="museumLike" title={t("deepspace:people.title")} onBack={() => router.back()}>
@@ -94,17 +67,83 @@ export default function PeopleMapScreen() {
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
+  // AuthContext can publish A -> B without a signed-out frame (for example,
+  // another browser tab signs into a different account). Keying the complete
+  // owner-bound state tree prevents A's map, draft, and late callbacks from
+  // surviving under B's session.
+  return <PeopleMapBody key={userId} userId={userId} />;
+}
+
+function PeopleMapBody({ userId }: { userId: string }) {
+  const { t } = useTranslation("deepspace");
+
+  const [people, setPeople] = useState<Person[] | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const [name, setName] = useState("");
+  const [kind, setKind] = useState<RelationKind>("friend");
+  const [closeness, setCloseness] = useState<number>(3);
+  const loadGuardRef = useRef(createLatestWins());
+
+  const refresh = useCallback(async () => {
+    const token = loadGuardRef.current.begin();
+    try {
+      const next = await listPeople(userId);
+      if (loadGuardRef.current.isStale(token)) return;
+      setPeople(next);
+      setLoadFailed(false);
+    } catch (e) {
+      if (loadGuardRef.current.isStale(token)) return;
+      console.warn("[people] list failed", (e as Error).message);
+      // Keep the last successful map. A network failure is not an empty account.
+      setLoadFailed(true);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    void refresh();
+    return () => {
+      // Invalidate work owned by the previous user or an unmounted screen.
+      loadGuardRef.current.begin();
+    };
+  }, [refresh]);
+
+  const nodes = useMemo(() => layoutPeopleMap(people ?? []), [people]);
+  const selected = useMemo(
+    () => (people ?? []).find((p) => p.id === selectedId) ?? null,
+    [people, selectedId],
+  );
+
   async function handleAdd() {
-    if (!userId || !name.trim() || saving) return;
+    if (!name.trim() || saving) return;
     setSaving(true);
     setSaveFailed(false);
     try {
-      await createPerson(userId, { display_name: name.trim(), relation_kind: kind, closeness });
+      const created = await createPerson(userId, {
+        display_name: name.trim(),
+        relation_kind: kind,
+        closeness,
+      });
+      // The write is already confirmed. Show it immediately so a follow-up
+      // list timeout cannot make a successful save look lost and invite a
+      // duplicate entry. The background refresh then reconciles server order.
+      setPeople((previous) =>
+        previous === null
+          ? [created]
+          : [...previous.filter((person) => person.id !== created.id), created],
+      );
       setName("");
       setAdding(false);
-      refresh();
+      void refresh();
     } catch (e) {
       console.warn("[people] save failed", (e as Error).message);
+      // A timed-out write may still have reached Postgres after the client
+      // stopped waiting. Reconcile once before the user retries so a late row
+      // can surface instead of encouraging an accidental duplicate.
+      if (isTimeoutError(e)) void refresh();
       setSaveFailed(true);
     } finally {
       setSaving(false);
@@ -172,8 +211,19 @@ export default function PeopleMapScreen() {
           </MdCard>
         ) : null}
 
+        {loadFailed ? (
+          <MdCard variant="outlined" style={styles.cardPad}>
+            <Text variant="body" color="textMuted">
+              {t("common:errors.network")}
+            </Text>
+            <MdButton variant="tonal" label={t("common:actions.retry")} onPress={refresh} />
+          </MdCard>
+        ) : null}
+
         {people === null ? (
-          <PremiumLoadingState message={t("deepspace:people.openingMap")} />
+          loadFailed ? null : (
+            <PremiumLoadingState message={t("deepspace:people.openingMap")} />
+          )
         ) : nodes.length === 0 ? (
           <MdCard variant="outlined" style={styles.cardPad}>
             <Text variant="body" color="textMuted">
