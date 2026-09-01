@@ -434,7 +434,29 @@ let clarityStopped = false;
 // `/?highlightRecordId=<uuid>` from capture.tsx and record/[id].tsx. The path
 // allow-list cannot see those, so the flag is kept beside the route.
 let clarityRouteHasQuery = false;
+// Pending re-assertion of a stop, because Clarity restarts ITSELF after a
+// history change — see enforceClarityStop.
+let clarityStopReassert: ReturnType<typeof setTimeout> | null = null;
 let currentAnalyticsRoute = "/";
+
+/**
+ * How long to wait before re-issuing a stop the vendor is about to undo.
+ *
+ * Read out of clarity-js on 2026-09-02, not guessed:
+ *   core/history.ts   on pushState/replaceState with a changed URL, Clarity
+ *                     calls stop() synchronously and then
+ *                     setTimeout(restart, config.restart ?? Setting.RestartDelay)
+ *   types/data.d.ts   RestartDelay = 250  // "Wait for 250ms before starting to wire up again"
+ *   clarity.ts        stop() is `if (core.active())` — a NO-OP while inactive
+ *
+ * Those three together defeat a naive stop: the router's pushState makes
+ * Clarity stop itself, our stop then lands on an inactive instance and does
+ * nothing, and 250ms later the vendor starts again — on the private URL. So
+ * the stop that matters is the one issued AFTER the restart. 400ms is 250 plus
+ * margin; the vendor restarts once per history change, so one re-assertion per
+ * navigation is enough (each further navigation schedules its own).
+ */
+const CLARITY_RESTART_REASSERT_MS = 400;
 
 type WebGlobal = {
   localStorage?: { getItem: (k: string) => string | null; setItem: (k: string, v: string) => void };
@@ -956,8 +978,51 @@ async function loadProductAnalytics(env: Env): Promise<void> {
  * does not erase it. The document-wide data-clarity-mask still applies.
  */
 function stopClarityIfRouteDisallowed(): void {
-  if (clarityWebRouteAllowed()) return;
+  if (clarityWebRouteAllowed()) {
+    // Back inside the allow-list: a queued re-assertion would now stop a
+    // session that is allowed to run.
+    if (clarityStopReassert) {
+      clearTimeout(clarityStopReassert);
+      clarityStopReassert = null;
+    }
+    return;
+  }
+  enforceClarityStop();
+}
+
+/**
+ * Stop now AND after the vendor's own restart.
+ *
+ * The immediate call is usually a no-op — the router's pushState already made
+ * Clarity stop itself, and stop() does nothing while inactive. It is kept
+ * because not every route change goes through pushState (replaceState with an
+ * unchanged URL, a first render, a programmatic route update), and in those
+ * cases the immediate call is the one that works.
+ *
+ * The delayed call is the one that carries the promise: it lands after
+ * Setting.RestartDelay, when the instance the vendor just restarted is active
+ * again and stop() actually tears down.
+ *
+ * ⚠ Residual window, stated plainly: between the vendor's restart and our
+ * re-assertion, Clarity is recording the private URL for roughly
+ * CLARITY_RESTART_REASSERT_MS minus RestartDelay. This narrows the exposure
+ * from "the rest of the page lifetime" to "a fraction of a second per
+ * navigation" — it does not remove it, and it depends on an undocumented
+ * timer (config.restart can move it). The only exposure-free posture is the
+ * runtime kill-switch, which is what production has been using.
+ */
+function enforceClarityStop(): void {
+  if (!clarityLoaded) return;
   stopClarityNow();
+  if (clarityStopReassert) clearTimeout(clarityStopReassert);
+  const timer = setTimeout(() => {
+    clarityStopReassert = null;
+    // Re-check: the session may have navigated back to an allowed route while
+    // this was pending.
+    if (!clarityWebRouteAllowed()) stopClarityNow();
+  }, CLARITY_RESTART_REASSERT_MS);
+  unrefTimer(timer);
+  clarityStopReassert = timer;
 }
 
 /**
@@ -1368,6 +1433,8 @@ export function __resetAnalytics(): void {
   clarityLoaded = false;
   clarityStopped = false;
   clarityRouteHasQuery = false;
+  if (clarityStopReassert) clearTimeout(clarityStopReassert);
+  clarityStopReassert = null;
   currentAnalyticsRoute = "/";
   nativeApplierOverride = null;
   nativeApplyTarget = null;

@@ -769,7 +769,11 @@ describe("runtime analytics web transitions", () => {
       // would have recorded a private screen. GA is unaffected and still
       // restores; only Clarity is one-way.
       expect(clarityConsentStates).toEqual(["granted", "denied", "denied"]);
-      expect(jest.getTimerCount()).toBe(1);
+      // Two pending timers now, not one: the 60s poll, plus the stop
+      // re-assertion queued by the last navigation ("/restored" is off the
+      // Clarity allow-list). The re-assertion exists because Clarity restarts
+      // itself 250ms after a history change — see enforceClarityStop.
+      expect(jest.getTimerCount()).toBe(2);
     } finally {
       analytics.__resetAnalytics();
     }
@@ -1032,6 +1036,69 @@ describe("runtime analytics web transitions", () => {
       );
       expect(stopCalls(clarity)).toHaveLength(1);
       expect(analytics.clarityGateSnapshot().allowedRoute).toBe(false);
+      analytics.__resetAnalytics();
+    });
+
+    test("the re-assertion lands AFTER the vendor restarts itself", async () => {
+      // The race a plain jest.fn() cannot show, and the reason the first
+      // version of this fix did not work. Verified in clarity-js on
+      // 2026-09-02: core/history.ts stops synchronously on pushState and
+      // schedules restart at Setting.RestartDelay (250ms), and clarity.ts's
+      // stop() is `if (core.active())` — a no-op while inactive. So the
+      // immediate stop hits a dead instance and only the delayed one counts.
+      const { analytics } = await armed();
+
+      // Stateful stand-in for the real SDK: only an ACTIVE instance can be
+      // stopped, exactly like core.active().
+      let active = true;
+      const effectiveStops: number[] = [];
+      const vendor = jest.fn((...args: unknown[]) => {
+        if (args[0] !== "stop") return;
+        if (!active) return; // no-op, like the real one
+        active = false;
+        effectiveStops.push(Date.now());
+      });
+      (globalThis as { window?: { clarity?: unknown } }).window!.clarity = vendor;
+
+      // The router's pushState: Clarity stops itself and queues its restart.
+      active = false;
+      setTimeout(() => {
+        active = true;
+      }, 250);
+
+      analytics.captureEvent(analytics.pageView({ path: "/record/abc123" }));
+      // Our immediate stop landed on the dead instance — nothing torn down.
+      expect(effectiveStops).toHaveLength(0);
+
+      await jest.advanceTimersByTimeAsync(250);
+      expect(active).toBe(true); // the vendor is recording the private URL
+
+      await jest.advanceTimersByTimeAsync(200); // past our 400ms re-assertion
+      expect(effectiveStops).toHaveLength(1);
+      expect(active).toBe(false);
+      analytics.__resetAnalytics();
+    });
+
+    test("a re-assertion queued on the way out is cancelled by coming back", async () => {
+      // Otherwise a pending stop would fire on an allow-listed route and kill
+      // a session that is permitted to record.
+      const { analytics } = await armed();
+      let active = true;
+      const effectiveStops: number[] = [];
+      const vendor = jest.fn((...args: unknown[]) => {
+        if (args[0] !== "stop" || !active) return;
+        active = false;
+        effectiveStops.push(Date.now());
+      });
+      (globalThis as { window?: { clarity?: unknown } }).window!.clarity = vendor;
+
+      analytics.captureEvent(analytics.pageView({ path: "/record/abc123" }));
+      effectiveStops.length = 0;
+      active = true; // pretend the vendor restarted
+      analytics.captureEvent(analytics.pageView({ path: "/settings" }));
+      await jest.advanceTimersByTimeAsync(1000);
+      expect(effectiveStops).toHaveLength(0);
+      expect(active).toBe(true);
       analytics.__resetAnalytics();
     });
 
