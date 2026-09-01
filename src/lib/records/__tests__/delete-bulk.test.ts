@@ -4,6 +4,9 @@
 // account deletion routes through the delete-account Edge Function (the only
 // path that reaches RLS-protected tables + the public.users cascade).
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 jest.mock("../../supabase/client", () => {
   const tablesDeleted: string[] = [];
   const invoke = jest.fn().mockResolvedValue({ data: { deleted: true }, error: null });
@@ -74,5 +77,60 @@ describe("requestAccountDeletion (terminal erasure)", () => {
   test("throws when the function reports failure", async () => {
     clientMock.__invoke.mockResolvedValueOnce({ data: null, error: { message: "boom" } });
     await expect(requestAccountDeletion()).rejects.toBeDefined();
+  });
+});
+
+describe("account deletion UI routing", () => {
+  const account = readFileSync(join(process.cwd(), "src/app/account.tsx"), "utf8");
+  const deepSpace = readFileSync(
+    join(process.cwd(), "src/screens/deepspace/DeepSpaceDesignScreens.tsx"),
+    "utf8",
+  );
+
+  test("full account deletion never runs the non-atomic client content wipe first", () => {
+    expect(account).not.toContain("deleteAllUserData");
+    expect(deepSpace).not.toContain("deleteAllUserData");
+    expect(account).toContain("await requestAccountDeletion()");
+    expect(deepSpace).toContain("await requestAccountDeletion()");
+  });
+
+  test("both deletion surfaces synchronously fence duplicate terminal calls", () => {
+    expect(account).toContain("deleteConfirmUserRef.current !== userId");
+    expect(account).toContain("deleteInFlightRef.current = true");
+    expect(deepSpace).toContain("deleteConfirmUserRef.current !== userId");
+    expect(deepSpace).toContain("deleteInFlightRef.current = true");
+  });
+
+  test("deep-space confirms twice and blocks route removal while erasure is in flight", () => {
+    expect(account).toContain('navigation.addListener("beforeRemove"');
+    expect(deepSpace).toContain('navigation.addListener("beforeRemove"');
+    expect(deepSpace).toContain("event.preventDefault()");
+    expect(deepSpace).toContain("setDeleteConfirmOpen(true)");
+    expect(deepSpace).toContain("onPress={requestDeleteAccountConfirm}");
+    expect(deepSpace).not.toContain("onPress={() => void runDeleteAccount()}");
+  });
+
+  test("a late deletion result cannot sign out a newly active user", () => {
+    expect(account).toContain("activeUserRef.current !== targetUserId");
+    expect(deepSpace).toContain("activeUserRef.current !== targetUserId");
+  });
+
+  test("a final confirmation is bound to the user who opened it", () => {
+    for (const source of [account, deepSpace]) {
+      expect(source).toContain("deleteConfirmUserRef.current = userId");
+      expect(source).toContain("deleteConfirmUserRef.current !== userId");
+      expect(source).toContain("deleteConfirmUserRef.current = null");
+    }
+  });
+
+  test("local sign-out failure is not treated as a retryable deletion failure", () => {
+    for (const source of [account, deepSpace]) {
+      const terminalCall = source.indexOf("await requestAccountDeletion()");
+      const localSignOutWarning = source.indexOf("local sign-out after deletion failed");
+      const redirect = source.indexOf('router.replace("/sign-in")', localSignOutWarning);
+      expect(terminalCall).toBeGreaterThan(-1);
+      expect(localSignOutWarning).toBeGreaterThan(terminalCall);
+      expect(redirect).toBeGreaterThan(localSignOutWarning);
+    }
   });
 });

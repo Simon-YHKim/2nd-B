@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AppState, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text as RNText, TextInput, View } from "react-native";
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from "expo-audio";
-import { Redirect, router } from "expo-router";
+import { Redirect, router, useNavigation } from "expo-router";
 import { useTranslation } from "react-i18next";
 import Svg, { Rect, SvgXml } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -26,6 +26,7 @@ import { kstDateToday } from "@/lib/chat/limits";
 import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { MdButton, MdCard, MdChip, ProgressLinear, m3TextStyle } from "@/components/m3";
+import { PremiumModal } from "@/components/premium";
 import { TIER_PRICE_KRW } from "@/lib/entitlements/tiers";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
 import { getReasoningUsage } from "@/lib/entitlements/usage";
@@ -50,7 +51,7 @@ import {
   signOut,
   type OAuthProvider,
 } from "@/lib/supabase/auth";
-import { deleteAllUserData, requestAccountDeletion } from "@/lib/records/delete-bulk";
+import { requestAccountDeletion } from "@/lib/records/delete-bulk";
 import { buildPersona, loadPersonaRatifiableSignals } from "@/lib/persona/build";
 import { proposalContextForStar } from "@/lib/persona/proposal-context";
 import { proposeSelfModelChange } from "@/lib/persona/propose-self-model";
@@ -541,6 +542,8 @@ export function DeepSpaceAccountDesignScreen() {
 
 export function DeepSpacePrivacyDesignScreen() {
   const { t, i18n } = useTranslation("deepspace");
+  const { t: consentT } = useTranslation("consent");
+  const navigation = useNavigation();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
   const { userId, isMinor } = useAuth();
   // AuthContext derives this from users.birth_date. Unknown age fails closed,
@@ -569,8 +572,15 @@ export function DeepSpacePrivacyDesignScreen() {
   // Right-to-erasure in deep-space (was legacy-only). Terminal + irreversible, so
   // it is gated behind a typed "DELETE" confirm and reuses the proven cascade.
   const [delConfirm, setDelConfirm] = useState("");
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [delError, setDelError] = useState(false);
+  // State alone cannot fence two events in the same render frame (keyboard
+  // submit + tap, or a rapid modal double-tap). Keep the destructive call
+  // single-flight synchronously.
+  const deleteInFlightRef = useRef(false);
+  const allowDeletionNavigationRef = useRef(false);
+  const deleteConfirmUserRef = useRef<string | null>(null);
 
   useEffect(() => {
     privacyMountedRef.current = true;
@@ -580,27 +590,70 @@ export function DeepSpacePrivacyDesignScreen() {
   }, []);
 
   async function runDeleteAccount() {
-    if (!userId || deleting || delConfirm !== "DELETE") return;
+    if (
+      !userId
+      || deleteInFlightRef.current
+      || delConfirm !== "DELETE"
+      || deleteConfirmUserRef.current !== userId
+    ) return;
     const targetUserId = userId;
+    deleteConfirmUserRef.current = null;
+    deleteInFlightRef.current = true;
     setDeleting(true);
     setDelError(false);
     try {
-      await deleteAllUserData(targetUserId);
-      // Never let a delayed A-user wipe continue into an account-deletion call
-      // after the active session has become B.
-      if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
+      // The Edge Function is the single terminal boundary: auth deletion first,
+      // then the database cascade and Storage cleanup. A client pre-wipe here
+      // can only make failure non-atomic.
       await requestAccountDeletion();
-      if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
-      await signOut();
-      router.replace("/sign-in");
     } catch {
-      // Some content may already be gone; tell the truth and let them retry.
+      deleteInFlightRef.current = false;
       if (privacyMountedRef.current && activeUserRef.current === targetUserId) {
         setDelError(true);
         setDeleting(false);
       }
+      return;
+    }
+
+    // Terminal erasure already succeeded. Do not let a local sign-out failure
+    // expose a destructive Retry, and never sign out a newly active B session
+    // after an A request resolves late.
+    if (!privacyMountedRef.current) return;
+    if (activeUserRef.current !== targetUserId) {
+      deleteInFlightRef.current = false;
+      setDeleting(false);
+      return;
+    }
+    // Successful erasure may itself trigger an auth-driven route removal.
+    // Let that navigation, sign-out, and the explicit replacement proceed.
+    allowDeletionNavigationRef.current = true;
+    try {
+      await signOut();
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[privacy] local sign-out after deletion failed", (e as Error).message);
+    } finally {
+      router.replace("/sign-in");
     }
   }
+
+  function requestDeleteAccountConfirm() {
+    if (!userId || deleteInFlightRef.current || delConfirm !== "DELETE") return;
+    deleteConfirmUserRef.current = userId;
+    setDeleteConfirmOpen(true);
+  }
+
+  // Shell's top back action and persistent dock both remove this route. Once
+  // the user confirms terminal erasure, keep the screen mounted until the Edge
+  // Function reports success/failure so navigation cannot strand a half-flow.
+  useEffect(() => {
+    // Register once instead of waiting for the deleting-state render. The ref
+    // flips synchronously inside runDeleteAccount, so even a same-frame dock tap
+    // after final confirmation is fenced.
+    return navigation.addListener("beforeRemove", (event) => {
+      if (!deleteInFlightRef.current || allowDeletionNavigationRef.current) return;
+      event.preventDefault();
+    });
+  }, [navigation]);
 
   useEffect(() => {
     prefsRef.current = null;
@@ -616,8 +669,16 @@ export function DeepSpacePrivacyDesignScreen() {
     setEmbedErr(false);
     setBusy(false);
     setDelConfirm("");
-    setDeleting(false);
-    setDelError(false);
+    setDeleteConfirmOpen(false);
+    deleteConfirmUserRef.current = null;
+    // An A -> B auth change must not reopen navigation or allow a B deletion
+    // while A's terminal request is still unresolved. The owning async flow
+    // clears the fence after it observes the user mismatch.
+    if (!deleteInFlightRef.current) {
+      setDeleting(false);
+      setDelError(false);
+      allowDeletionNavigationRef.current = false;
+    }
     if (!userId) return;
     const targetUserId = userId;
     let cancelled = false;
@@ -1095,7 +1156,7 @@ export function DeepSpacePrivacyDesignScreen() {
           accessibilityLabel={ko ? "삭제 확인 입력" : "Deletion confirmation"}
           returnKeyType="done"
           onSubmitEditing={() => {
-            if (delConfirm === "DELETE" && !deleting) void runDeleteAccount();
+            requestDeleteAccountConfirm();
           }}
         />
         <Pressable
@@ -1108,7 +1169,7 @@ export function DeepSpacePrivacyDesignScreen() {
               borderColor: m3.disabled.outline,
             },
           ]}
-          onPress={() => void runDeleteAccount()}
+          onPress={requestDeleteAccountConfirm}
           disabled={delConfirm !== "DELETE" || deleting}
           accessibilityRole="button"
           accessibilityLabel={ko ? "계정 영구 삭제" : "Delete account permanently"}
@@ -1125,6 +1186,35 @@ export function DeepSpacePrivacyDesignScreen() {
           </Text>
         ) : null}
       </Card>
+      <PremiumModal
+        visible={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        accessibilityLabel={consentT("account.delete.confirmLabel")}
+      >
+        <Text variant="heading">{consentT("account.delete.confirmTitle")}</Text>
+        <Text variant="body" style={styles.lead}>{consentT("account.delete.confirmBody")}</Text>
+        <View style={styles.ctaRow}>
+          <Pressable
+            style={styles.secondary}
+            onPress={() => setDeleteConfirmOpen(false)}
+            accessibilityRole="button"
+            accessibilityLabel={consentT("account.delete.cancel")}
+          >
+            <Text variant="body" style={styles.secondaryText}>{consentT("account.delete.cancel")}</Text>
+          </Pressable>
+          <Pressable
+            style={styles.danger}
+            onPress={() => {
+              setDeleteConfirmOpen(false);
+              void runDeleteAccount();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={consentT("account.delete.confirmCta")}
+          >
+            <Text variant="body" style={styles.dangerText}>{consentT("account.delete.confirmCta")}</Text>
+          </Pressable>
+        </View>
+      </PremiumModal>
       <Text variant="subtle" style={styles.footer}>{t("privacy.footer")}</Text>
     </Shell>
   );
