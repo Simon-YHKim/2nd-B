@@ -304,10 +304,24 @@ describe("capture 화면 — domainIntent 배선 (source contract)", () => {
     // 라우트발 모드 변경도 손 전환과 같은 계약을 탄다 — raw setMode 금지.
     expect(src).toContain("switchCaptureMode(plan.targetMode)");
     expect(src).not.toContain("setMode(m)");
-    // preserve/set/clear 세 값이 그대로 집행된다 — clear 는 null 설정이다.
-    expect(src).toContain('if (plan.intent !== "preserve") setDomainIntent(plan.intent);');
+    // IntentTransition 네 원인이 그대로 집행된다 — set/clear 만 칩·intent 를
+    // 만지고(전환을 가로질러도), preserve/defer-to-draft 는 손대지 않는다.
+    expect(src).toContain('if (intent.kind === "set" || intent.kind === "clear")');
+    expect(src).toContain('setDomainIntent(intent.kind === "set" ? intent.domain : null);');
     // domain 칩 걷어내기는 insert 와 같은 규약(isDomainTag, 대소문자 무시)을 쓴다.
     expect(src).toContain("prev.filter((x) => !isDomainTag(x))");
+  });
+
+  test("shared + mode 는 한 계획으로 원자 소비한다 (콜드 스타트 초안 소실 방지)", () => {
+    // 폴드·전환 규칙은 planSharedConsumption + draft.test.ts 가 지킨다.
+    expect(src).toContain("planSharedConsumption({");
+    // param effect 는 미소비 share 가 있으면 물러난다 — 낡은 closure 로
+    // 전환을 걸면 폴드 전 상태를 접어 넣는다.
+    expect(src).toContain("if (pendingSharedRef.current) return;");
+    // share 가 mode 를 함께 소비하면 param effect 이중 소비를 latch 로 막는다.
+    expect(src).toContain("plan.consumedModeParam !== null");
+    // linkclip 하드코딩 폴드로 되돌아가면 mode 동반 share 텍스트가 화면에서 사라진다.
+    expect(src).not.toContain("consumeSharedIntoDrafts");
   });
 
   test("별 intent 는 journal 초안과 함께 영속되고 복원 시 칩과 같이 돌아온다", () => {

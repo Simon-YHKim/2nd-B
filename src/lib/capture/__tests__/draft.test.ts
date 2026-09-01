@@ -2,6 +2,7 @@ import {
   loadCaptureDraft,
   loadCaptureDraftState,
   planCaptureParamConsumption,
+  planSharedConsumption,
   saveCaptureDraft,
   saveCaptureDraftState,
   clearCaptureDraft,
@@ -151,11 +152,11 @@ describe("journal 초안의 domainIntent 영속 (별 담기 P3)", () => {
 });
 
 describe("planCaptureParamConsumption — 딥링크 소비 계획 (렌더 없는 상태 전이)", () => {
-  // capture.tsx 집행부(chip 처리)의 거울 — 계획의 칩 연산을 배열에 적용한다.
+  // capture.tsx 집행부(chip 처리)의 거울 — set/clear 에서만 domain 칩을 전부
+  // 걷어내고 appendChip 을 더한다. preserve/defer 는 칩을 만지지 않는다.
   function applyChips(prev: string[], plan: CaptureParamPlan): string[] {
-    const base = plan.stripDomainChips
-      ? prev.filter((x) => !x.toLowerCase().startsWith("domain:"))
-      : prev;
+    if (plan.intent.kind !== "set" && plan.intent.kind !== "clear") return prev;
+    const base = prev.filter((x) => !x.toLowerCase().startsWith("domain:"));
     if (plan.appendChip === null) return base;
     return base.includes(plan.appendChip) ? base : [...base, plan.appendChip];
   }
@@ -168,7 +169,7 @@ describe("planCaptureParamConsumption — 딥링크 소비 계획 (렌더 없는
       consumedKey: null,
     });
     expect(plan.targetMode).toBe("journal");
-    expect(plan.intent).toBe("growth");
+    expect(plan.intent).toEqual({ kind: "set", domain: "growth" });
     expect(applyChips([], plan)).toEqual(["domain:growth"]);
   });
 
@@ -180,10 +181,10 @@ describe("planCaptureParamConsumption — 딥링크 소비 계획 (렌더 없는
       consumedKey: null,
     });
     expect(plan.targetMode).toBeNull();
-    expect(plan.intent).toBe("health");
+    expect(plan.intent).toEqual({ kind: "set", domain: "health" });
   });
 
-  test("mode 전용 파라미터도 전환 계약을 탄다 — intent 는 preserve", () => {
+  test("mode 전용 전환: intent 는 defer-to-draft — 전환의 reset·초안 복원이 수명을 소유한다", () => {
     const plan = planCaptureParamConsumption({
       modeParam: "voice",
       tagParam: undefined,
@@ -192,9 +193,21 @@ describe("planCaptureParamConsumption — 딥링크 소비 계획 (렌더 없는
     });
     expect(plan.targetMode).toBe("voice");
     expect(plan.showAdvanced).toBe(true);
-    expect(plan.intent).toBe("preserve");
-    expect(plan.stripDomainChips).toBe(false);
+    expect(plan.intent).toEqual({ kind: "defer-to-draft" });
+    expect(plan.appendChip).toBeNull();
+    // 집행부는 칩도 만지지 않는다 (reset 이 비우고 복원이 되살린다).
     expect(applyChips(["domain:growth", "mine"], plan)).toEqual(["domain:growth", "mine"]);
+  });
+
+  test("현재 모드와 같은 mode 파라미터: 전환 없음 — intent preserve", () => {
+    const plan = planCaptureParamConsumption({
+      modeParam: "journal",
+      tagParam: undefined,
+      currentMode: "journal",
+      consumedKey: null,
+    });
+    expect(plan.targetMode).toBeNull();
+    expect(plan.intent).toEqual({ kind: "preserve" });
   });
 
   test("latch: 같은 key 는 재소비하지 않고, 파라미터 공백이 latch 를 푼 뒤엔 같은 tag 도 새 배달로 소비한다", () => {
@@ -206,7 +219,6 @@ describe("planCaptureParamConsumption — 딥링크 소비 계획 (렌더 없는
     });
     expect(first.consumeKey).toBe(":domain:growth");
 
-    // 같은 key 가 아직 latch 에 있으면 noop.
     const repeat = planCaptureParamConsumption({
       modeParam: undefined,
       tagParam: "domain:growth",
@@ -216,7 +228,6 @@ describe("planCaptureParamConsumption — 딥링크 소비 계획 (렌더 없는
     expect(repeat.consumeKey).toBeNull();
     expect(repeat.releaseLatch).toBe(false);
 
-    // setParams 가 파라미터를 비우면 latch 해제.
     const emptied = planCaptureParamConsumption({
       modeParam: undefined,
       tagParam: undefined,
@@ -226,7 +237,6 @@ describe("planCaptureParamConsumption — 딥링크 소비 계획 (렌더 없는
     expect(emptied.releaseLatch).toBe(true);
     expect(emptied.consumeKey).toBeNull();
 
-    // reset·칩 제거 뒤 같은 별 담기가 다시 와도(같은 mount) 새 배달로 소비.
     const redelivered = planCaptureParamConsumption({
       modeParam: undefined,
       tagParam: "domain:growth",
@@ -234,10 +244,10 @@ describe("planCaptureParamConsumption — 딥링크 소비 계획 (렌더 없는
       consumedKey: null,
     });
     expect(redelivered.consumeKey).toBe(":domain:growth");
-    expect(redelivered.intent).toBe("growth");
+    expect(redelivered.intent).toEqual({ kind: "set", domain: "growth" });
   });
 
-  test("유효 별 → 일반 tag 전이: intent 해제 + domain 칩 제거, 일반 칩만 남는다 (P2 clear)", () => {
+  test("유효 별 → 일반 tag 전이: clear — intent 해제 + domain 칩 제거, 일반 칩만 남는다", () => {
     const star = planCaptureParamConsumption({
       modeParam: undefined,
       tagParam: "domain:growth",
@@ -251,12 +261,12 @@ describe("planCaptureParamConsumption — 딥링크 소비 계획 (렌더 없는
       currentMode: "journal",
       consumedKey: null,
     });
-    expect(ordinary.intent).toBeNull();
+    expect(ordinary.intent).toEqual({ kind: "clear" });
     // downstream tags(enqueueAutoReasoningRecord 등)에 stale domain 이 없다.
     expect(applyChips(chips, ordinary)).toEqual(["meeting-notes"]);
   });
 
-  test("유효 별 → 무효 reserved 전이: intent 해제, 오해를 부르는 칩도 남기지 않는다", () => {
+  test("유효 별 → 무효 reserved 전이: clear, 오해를 부르는 칩도 남기지 않는다", () => {
     const star = planCaptureParamConsumption({
       modeParam: undefined,
       tagParam: "domain:growth",
@@ -270,9 +280,39 @@ describe("planCaptureParamConsumption — 딥링크 소비 계획 (렌더 없는
       currentMode: "journal",
       consumedKey: null,
     });
-    expect(invalid.intent).toBeNull();
+    expect(invalid.intent).toEqual({ kind: "clear" });
     expect(invalid.appendChip).toBeNull();
     expect(applyChips(chips, invalid)).toEqual([]);
+  });
+
+  test("mode+일반 tag 동시 배달: clear 는 전환을 가로질러 집행된다 (초안의 별도 대체)", () => {
+    // 회귀(P2): memo → ?mode=journal&tag=meeting-notes, 저장된 journal 초안에
+    // domainIntent=finance. 전환의 초안 복원이 finance pair 를 되살려도, 명시적
+    // tag 배달의 clear 가 그 위에서 집행돼야 한다 — defer 와 뭉개면 못 지운다.
+    const plan = planCaptureParamConsumption({
+      modeParam: "journal",
+      tagParam: "meeting-notes",
+      currentMode: "memo",
+      consumedKey: null,
+    });
+    expect(plan.targetMode).toBe("journal");
+    expect(plan.intent).toEqual({ kind: "clear" });
+    expect(plan.appendChip).toBe("meeting-notes");
+    // 복원이 되살린 finance 칩 위에 clear 집행 → domain 칩 0 + 일반 칩만.
+    expect(applyChips(["domain:finance"], plan)).toEqual(["meeting-notes"]);
+  });
+
+  test("mode+무효 reserved 동시 배달: clear, 칩 없음", () => {
+    const plan = planCaptureParamConsumption({
+      modeParam: "journal",
+      tagParam: "domain:hacker",
+      currentMode: "memo",
+      consumedKey: null,
+    });
+    expect(plan.targetMode).toBe("journal");
+    expect(plan.intent).toEqual({ kind: "clear" });
+    expect(plan.appendChip).toBeNull();
+    expect(applyChips(["domain:finance"], plan)).toEqual([]);
   });
 
   test("reserved 판정은 대소문자를 무시하고, 유효 별 칩은 정본 표기로 단다", () => {
@@ -283,7 +323,7 @@ describe("planCaptureParamConsumption — 딥링크 소비 계획 (렌더 없는
       currentMode: "journal",
       consumedKey: null,
     });
-    expect(upper.intent).toBe("growth");
+    expect(upper.intent).toEqual({ kind: "set", domain: "growth" });
     expect(upper.appendChip).toBe("domain:growth");
 
     const upperInvalid = planCaptureParamConsumption({
@@ -292,9 +332,8 @@ describe("planCaptureParamConsumption — 딥링크 소비 계획 (렌더 없는
       currentMode: "journal",
       consumedKey: null,
     });
-    expect(upperInvalid.intent).toBeNull();
+    expect(upperInvalid.intent).toEqual({ kind: "clear" });
     expect(upperInvalid.appendChip).toBeNull();
-    expect(upperInvalid.stripDomainChips).toBe(true);
   });
 
   test("일반 tag 단독 배달의 칩 추가 UX 는 기존 그대로다", () => {
@@ -307,5 +346,108 @@ describe("planCaptureParamConsumption — 딥링크 소비 계획 (렌더 없는
     expect(plan.targetMode).toBeNull();
     expect(applyChips(["keep"], plan)).toEqual(["keep", "mine"]);
     expect(applyChips(["keep", "mine"], plan)).toEqual(["keep", "mine"]);
+  });
+});
+
+describe("planSharedConsumption — shared + mode 원자 소비 (데이터 소실 방지)", () => {
+  const JOURNAL_DRAFT = {
+    body: "소중한 일기",
+    topic: "지킬 것",
+    conclusion: "",
+    domainIntent: "growth" as const,
+  };
+  const EMPTY_LIVE = { body: "", topic: "", conclusion: "" };
+
+  test("콜드 스타트 회귀: 기존 journal 초안 + text+ocr — journal 초안이 살아남고 요청 composer 가 텍스트를 받는다", () => {
+    // hydration 복원이 share 때문에 건너뛰어졌다(restoreSkipped): live 는 빈
+    // 껍데기다. 이걸 폴드하면 journal 초안이 지워진다 — 계획은 폴드하지 않는다.
+    const plan = planSharedConsumption({
+      drafts: { journal: JOURNAL_DRAFT },
+      liveDraft: EMPTY_LIVE,
+      liveMode: "journal",
+      restoreSkipped: true,
+      content: "공유된 OCR 캡션",
+      modeParam: "ocr",
+    });
+    expect(plan.drafts.journal).toEqual(JOURNAL_DRAFT);
+    expect(plan.mode).toBe("ocr");
+    expect(plan.liveBody).toBe("공유된 OCR 캡션");
+    expect(plan.drafts.ocr?.body).toBe("공유된 OCR 캡션");
+    expect(plan.drafts.ocr?.ocrReviewApproved).toBe(false);
+    expect(plan.persistMode).toBe("ocr");
+    expect(plan.consumedModeParam).toBe("ocr");
+  });
+
+  test("text+voice: composer 는 voice, 내구 사본은 linkclip — journal 초안 무접촉", () => {
+    const plan = planSharedConsumption({
+      drafts: { journal: JOURNAL_DRAFT },
+      liveDraft: EMPTY_LIVE,
+      liveMode: "journal",
+      restoreSkipped: true,
+      content: "음성 메모 텍스트",
+      modeParam: "voice",
+    });
+    expect(plan.mode).toBe("voice");
+    expect(plan.liveBody).toBe("음성 메모 텍스트");
+    expect(plan.drafts.linkclip?.body).toBe("음성 메모 텍스트");
+    expect(plan.drafts.journal).toEqual(JOURNAL_DRAFT);
+    expect(plan.persistMode).toBe("linkclip");
+    expect(plan.consumedModeParam).toBe("voice");
+  });
+
+  test("mode 없음/무효면 오늘의 linkclip 폴드 그대로다", () => {
+    for (const modeParam of [undefined, "not-a-mode"]) {
+      const plan = planSharedConsumption({
+        drafts: { linkclip: { body: "이전 클립", topic: "" } },
+        liveDraft: EMPTY_LIVE,
+        liveMode: "journal",
+        restoreSkipped: true,
+        content: "새 공유",
+        modeParam,
+      });
+      expect(plan.mode).toBe("linkclip");
+      expect(plan.liveBody).toBe("이전 클립\n\n새 공유");
+      expect(plan.consumedModeParam).toBeNull();
+    }
+  });
+
+  test("restoreSkipped=false 면 떠나는 모드의 live 를 기억한다 (기존 폴드 의미)", () => {
+    const plan = planSharedConsumption({
+      drafts: {},
+      liveDraft: { body: "쓰던 메모", topic: "" },
+      liveMode: "memo",
+      restoreSkipped: false,
+      content: "공유 텍스트",
+      modeParam: "ocr",
+    });
+    expect(plan.drafts.memo?.body).toBe("쓰던 메모");
+    expect(plan.drafts.ocr?.body).toBe("공유 텍스트");
+  });
+
+  test("journal 로의 공유는 기존 초안 아래에 덧붙이고 topic·별 intent 를 파괴하지 않는다", () => {
+    const plan = planSharedConsumption({
+      drafts: { journal: JOURNAL_DRAFT },
+      liveDraft: EMPTY_LIVE,
+      liveMode: "journal",
+      restoreSkipped: true,
+      content: "공유 문장",
+      modeParam: "journal",
+    });
+    expect(plan.drafts.journal?.body).toBe("소중한 일기\n\n공유 문장");
+    expect(plan.drafts.journal?.topic).toBe("지킬 것");
+    expect(plan.drafts.journal?.domainIntent).toBe("growth");
+  });
+
+  test("ocr 초안에 본문이 합쳐지면 기존 승인은 무효가 된다", () => {
+    const plan = planSharedConsumption({
+      drafts: { ocr: { body: "승인된 텍스트", topic: "", ocrReviewApproved: true } },
+      liveDraft: EMPTY_LIVE,
+      liveMode: "journal",
+      restoreSkipped: true,
+      content: "추가 텍스트",
+      modeParam: "ocr",
+    });
+    expect(plan.drafts.ocr?.body).toBe("승인된 텍스트\n\n추가 텍스트");
+    expect(plan.drafts.ocr?.ocrReviewApproved).toBe(false);
   });
 });

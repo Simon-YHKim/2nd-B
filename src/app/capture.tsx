@@ -71,6 +71,7 @@ import {
   isCaptureDraftMode,
   loadCaptureDraftState,
   planCaptureParamConsumption,
+  planSharedConsumption,
   saveCaptureDraftState,
   type CaptureDraft,
   type CaptureDraftMode,
@@ -84,7 +85,7 @@ import { proposeClipperTemplate, type ProposedClipperTemplate } from "@/lib/wiki
 import { saveTemplate } from "@/lib/wiki/template-queries";
 import type { SourceKind } from "@/lib/wiki/types";
 import { classifyLinkOrClip, firstUrlIn } from "@/lib/wiki/link-or-clip";
-import { consumeSharedIntoDrafts, normalizeSharedCaptureParams } from "@/lib/capture/share-params";
+import { normalizeSharedCaptureParams } from "@/lib/capture/share-params";
 import { clipboardHasContent, readClipboardText } from "@/lib/capture/clipboard";
 import { composeFourWBody, EMPTY_FOURW, FOURW_KEYS, fourWHasContent, type FourWFields } from "@/lib/capture/fourw";
 import { composeStructured } from "@/lib/capture/structured";
@@ -465,10 +466,16 @@ export function CaptureLegacy() {
     };
   }, [userId]);
   // Shared-content reception (O-R2 scrap track): apply the share-sheet payload
-  // to the link-or-clip box once drafts are hydrated. Existing draft text is
-  // never destroyed — the leaving mode's live fields are remembered (unless
-  // the restore never populated them) and the payload appends below any
-  // existing linkclip draft. The fold itself is pure + unit-tested.
+  // once drafts are hydrated. Existing draft text is never destroyed — the
+  // leaving mode's live fields are remembered (unless the restore never
+  // populated them: restoreSkipped 면 폴드하지 않는다 — 빈 live 를 접으면
+  // 저장돼 있던 journal 초안이 지워진다).
+  //
+  // mode 파라미터가 함께 배달되면 **여기서 한 번에** 소비한다(원자 소비,
+  // planSharedConsumption): payload 가 요청된 composer 로 실려 가고, param
+  // effect 는 latch 로 이중 소비가 막힌다. 전환·폴드를 두 effect 가 나누면
+  // 전환이 빈 target 초안을 복원해 공유 텍스트가 화면에서 사라진다.
+  const modeParamConsumedRef = useRef<string | null>(null);
   useEffect(() => {
     if (!shared || !userId || !draftHydrated) return;
     if (sharedConsumedRef.current === shared.key) return;
@@ -477,25 +484,45 @@ export function CaptureLegacy() {
     shareSkippedRestoreRef.current = false;
     // Voice/todo are transient (not draft-persisted): there is no live draft to
     // fold back in, and they have no StorageMode key. Treat the fold as having
-    // no live source mode in that case so the share still lands in linkclip.
-    const liveStorageMode: StorageMode = isStorageMode(mode) ? mode : "linkclip";
-    const { drafts: nextDrafts, linkclipDraft } = consumeSharedIntoDrafts({
+    // no live source mode in that case.
+    const plan = planSharedConsumption({
       drafts: draftsRef.current,
       liveDraft: isStorageMode(mode) ? draftFromFields(mode) : { body: "", topic: "", conclusion: "" },
-      liveMode: liveStorageMode,
+      liveMode: isStorageMode(mode) ? mode : "linkclip",
       restoreSkipped: restoreSkipped || !isStorageMode(mode),
       content: shared.content,
+      modeParam,
     });
-    draftsRef.current = nextDrafts;
+    draftsRef.current = plan.drafts;
     resetTransientCaptureState();
     setShowAdvancedModes(true);
-    setMode("linkclip");
-    applyDraftToFields("linkclip", linkclipDraft);
-    persistDrafts("linkclip");
+    setMode(plan.mode);
+    if (isStorageMode(plan.mode)) {
+      applyDraftToFields(plan.mode, plan.drafts[plan.mode]);
+    } else {
+      // 비영속 모드(voice/todo/fourw): payload 를 composer 에 직접 싣는다.
+      // 내구 사본은 계획이 linkclip 초안에 남겼다.
+      setBody(plan.liveBody);
+      setTopic("");
+      setConclusion("");
+      setShowExtras(false);
+      setOcrReviewApproved(false);
+    }
+    setTodoDone(false);
+    persistDrafts(plan.persistMode);
+    if (plan.consumedModeParam !== null) {
+      // param effect 가 같은 mode 를 다시 소비하지 않게 latch 를 건다.
+      modeParamConsumedRef.current = `${plan.consumedModeParam}:`;
+    }
     // Strip the consumed payload from the URL so a web refresh (or back/
     // forward) doesn't resurrect content the user may have since edited away.
-    router.setParams({ url: undefined, text: undefined, title: undefined });
-  }, [shared, userId, draftHydrated]);
+    router.setParams({
+      url: undefined,
+      text: undefined,
+      title: undefined,
+      ...(plan.consumedModeParam !== null ? { mode: undefined } : {}),
+    });
+  }, [shared, userId, draftHydrated, modeParam]);
 
   // Deep links can open a specific composer with a pre-attached tag:
   // /capture-full?mode=voice (사진·음성 quick buttons, /beyond mic — med#3/#24)
@@ -507,9 +534,11 @@ export function CaptureLegacy() {
   // 여기는 그 계획을 집행만 한다 — 상태 전이를 렌더 없이 테스트하기 위해서다.
   // 라우트발 모드 변경도 손 전환과 같은 계약(switchCaptureMode)을 탄다: draft
   // 보존·복원과 transient reset 을 건너뛰지 않고, intent·칩은 그 뒤에 놓는다.
-  const modeParamConsumedRef = useRef<string | null>(null);
   useEffect(() => {
     if (!draftHydrated) return;
+    // 미소비 share 가 있으면 그쪽(원자 소비)이 먼저다 — 같은 flush 에서 여기가
+    // 낡은 closure(mode·live)로 전환을 걸면 폴드 전 상태를 접어 넣게 된다.
+    if (pendingSharedRef.current) return;
     const plan = planCaptureParamConsumption({
       modeParam,
       tagParam,
@@ -526,17 +555,26 @@ export function CaptureLegacy() {
     modeParamConsumedRef.current = plan.consumeKey;
     if (plan.showAdvanced) setShowAdvancedModes(true);
     if (plan.targetMode !== null) switchCaptureMode(plan.targetMode);
-    if (plan.stripDomainChips || plan.appendChip !== null) {
+    // intent 집행은 계획이 가른 원인을 따른다 (IntentTransition 문서):
+    //   preserve·defer-to-draft — 손대지 않는다 (defer 는 전환의 reset+초안
+    //   복원이 수명을 소유한다; 초안이 되살린 칩+intent pair 는 stale 이 아니다).
+    //   set·clear — 전환을 가로질러도 domain 칩을 전부 걷고 집행한다. clear 를
+    //   defer 와 뭉개면 mode+일반tag 배달이 초안의 별을 못 지운다 (P2).
+    const intent = plan.intent;
+    if (intent.kind === "set" || intent.kind === "clear") {
       const chip = plan.appendChip;
       setTagsEditable((prev) => {
-        const base = plan.stripDomainChips ? prev.filter((x) => !isDomainTag(x)) : prev;
+        const base = prev.filter((x) => !isDomainTag(x));
         if (chip === null) return base;
         return base.includes(chip) ? base : [...base, chip];
       });
+      setDomainIntent(intent.kind === "set" ? intent.domain : null);
     }
-    if (plan.intent !== "preserve") setDomainIntent(plan.intent);
     router.setParams({ mode: undefined, tag: undefined });
-  }, [draftHydrated, modeParam, tagParam, mode]);
+    // `shared` 가 deps 에 있는 이유: share+tag 동시 배달에서 share 소비가 mode 를
+    // 안 바꾸면 이 effect 를 다시 깨울 다른 신호가 없다 — shared 가 null 로
+    // 바뀌는 순간(위 guard 해제) 남은 tag 를 소비한다.
+  }, [draftHydrated, modeParam, tagParam, mode, shared]);
   // Clipboard offer probe: presence-only (no content read, no OS notice) when
   // the user lands on the link box, re-run when the app returns to the
   // foreground — the headline flow is "copy in the browser, switch back here",

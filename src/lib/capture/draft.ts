@@ -262,6 +262,23 @@ export function saveCaptureDraft(userId: string, draft: CaptureDraft): void {
 //     없어야 한다. 무효 reserved tag(domain:hacker)는 칩으로도 안 남긴다.
 //     일반 tag 의 칩 추가 UX 는 그대로다.
 
+/**
+ * intent 전이 — **원인**을 가른다. clear 의 두 원인은 집행이 다르다:
+ *   · preserve       — tag 도 전환도 없다. live intent 그대로.
+ *   · defer-to-draft — tag 없이 전환만 있다. switchCaptureMode 의 reset +
+ *     초안 복원이 수명을 소유한다(journal 초안이 되살린 칩+intent pair 는
+ *     stale 이 아니다 — 집행부는 손대지 않는다).
+ *   · set            — 유효 별 배달. 복원 위에도 새 별을 얹는다.
+ *   · clear          — tag 가 배달됐는데 유효 별이 아니다. **전환을 가로질러도**
+ *     intent 해제 + domain 칩 제거를 집행한다(초안이 되살린 별도 이 새 진입이
+ *     대체한다). defer 와 뭉개면 mode+일반tag 배달이 초안의 별을 못 지운다.
+ */
+export type IntentTransition =
+  | { kind: "preserve" }
+  | { kind: "defer-to-draft" }
+  | { kind: "set"; domain: DomainId }
+  | { kind: "clear" };
+
 export interface CaptureParamPlan {
   /** 소비할 파라미터가 없으면 null (latch 해제만 있을 수 있다). */
   consumeKey: string | null;
@@ -271,14 +288,11 @@ export interface CaptureParamPlan {
   targetMode: CaptureMode | null;
   /** mode 파라미터가 있었다 — 고급 모드 줄을 편다 (기존 동작 보존). */
   showAdvanced: boolean;
+  intent: IntentTransition;
   /**
-   * intent 전이. "preserve" = tag 파라미터 없음(이전 유지) ·
-   * DomainId = 유효 별 배달(설정) · null = 명시적 해제(clear).
+   * set/clear 에서 domain 칩을 전부 걷어낸 뒤 추가할 칩. set 은 정본 표기
+   * (domainTagFor), clear 는 일반 tag 그대로 — 무효 reserved 는 null(칩 없음).
    */
-  intent: DomainId | null | "preserve";
-  /** 화면의 domain:* 칩을 전부 걷어낸다 (set 은 그 뒤 자기 칩을 더한다). */
-  stripDomainChips: boolean;
-  /** 걷어낸 뒤 추가할 칩. 무효 reserved tag 는 칩으로도 남기지 않는다. */
   appendChip: string | null;
 }
 
@@ -287,8 +301,7 @@ const EMPTY_PLAN: CaptureParamPlan = {
   releaseLatch: false,
   targetMode: null,
   showAdvanced: false,
-  intent: "preserve",
-  stripDomainChips: false,
+  intent: { kind: "preserve" },
   appendChip: null,
 };
 
@@ -321,19 +334,114 @@ export function planCaptureParamConsumption(input: {
   const target =
     starIntent !== null && !RECORD_BACKED_MODES.includes(requested) ? "journal" : requested;
 
+  // 라우트발 모드 전환은 이전 live 별 컨텍스트를 가져가지 않는다 (원계약:
+  // 성공/reset/모드 전환 뒤 stale intent 금지). 원인 구분은 IntentTransition
+  // 문서 참조 — 특히 clear 는 전환과 겹쳐도 집행돼야 한다.
+  const transition = target !== input.currentMode;
+  const intent: IntentTransition =
+    tg !== null
+      ? starIntent !== null
+        ? { kind: "set", domain: starIntent }
+        : { kind: "clear" }
+      : transition
+        ? { kind: "defer-to-draft" }
+        : { kind: "preserve" };
+
   return {
     consumeKey: key,
     releaseLatch: false,
-    targetMode: target !== input.currentMode ? target : null,
+    targetMode: transition ? target : null,
     showAdvanced: m !== null,
-    // tag 가 배달됐는데 유효 별이 아니면 clear — 이전 별 담기 컨텍스트는 이
-    // 새 진입으로 대체된 것이다. tag 자체가 없으면 preserve.
-    intent: tg === null ? "preserve" : starIntent,
-    stripDomainChips: tg !== null,
+    intent,
     // 유효 별 칩은 정본 표기(domainTagFor)로 단다 — 배달이 어떤 표기였든
     // 화면 칩과 insert 가 같은 문자열을 본다. 무효 reserved 는 칩도 없다.
     appendChip:
       tg === null ? null : starIntent !== null ? domainTagFor(starIntent) : reserved ? null : tg,
+  };
+}
+
+// ── shared + mode 원자 소비 계획 ────────────────────────────────────────────
+//
+// Web Share Target 은 /capture?url=&text=&title= 로 열리고, 딥링크는 mode 를
+// 함께 실을 수 있다. 텍스트 폴드와 모드 전환을 서로 다른 effect 가 나눠 들면
+// 순서 경쟁이 생긴다 — 전환이 빈 target 초안을 복원해 공유 텍스트가 화면에서
+// 사라지거나, 콜드 스타트에서 hydration 복원이 share 때문에 건너뛰어진 채
+// 전환의 rememberCurrentDraft 가 **빈 live 를 폴드해 저장된 journal 초안을
+// 지우는** 소실이 난다. 그래서 둘을 한 계획으로 소비한다: payload 는 요청된
+// 모드의 composer 로 가고, restoreSkipped 면 live 는 폴드하지 않는다.
+
+export interface SharedRoutePlan {
+  /** leaving live 반영 + payload 폴드가 끝난 드래프트 집합. */
+  drafts: CaptureDrafts;
+  /** 화면이 전환할 모드. */
+  mode: CaptureMode;
+  /** 전환 후 composer 에 보일 본문 (storage 모드는 폴드된 초안 본문과 같다). */
+  liveBody: string;
+  /** persistDrafts 에 넘길 lastMode — payload 의 내구 사본이 있는 자리. */
+  persistMode: CaptureDraftMode;
+  /** mode 파라미터를 여기서 함께 소비했으면 그 값 (param effect latch 용). */
+  consumedModeParam: CaptureMode | null;
+}
+
+export function planSharedConsumption(input: {
+  drafts: CaptureDrafts;
+  /** 떠나는 모드의 live 스냅샷 (storage 모드가 아니면 빈 값). */
+  liveDraft: CaptureDraft;
+  liveMode: CaptureDraftMode;
+  /** hydration 복원이 이 share 때문에 건너뛰어졌다 — live 는 빈 껍데기다. */
+  restoreSkipped: boolean;
+  /** normalizeSharedCaptureParams().content */
+  content: string;
+  /** 함께 배달된 mode 파라미터 원시값. */
+  modeParam: unknown;
+}): SharedRoutePlan {
+  const requested =
+    typeof input.modeParam === "string" && (CAPTURE_MODES as readonly string[]).includes(input.modeParam)
+      ? (input.modeParam as CaptureMode)
+      : null;
+  const next: CaptureDrafts = { ...input.drafts };
+  // 떠나는 모드의 live 를 기억한다 — restoreSkipped 면 폴드하지 않는다:
+  // 빈 live 를 접어 넣으면 저장돼 있던 초안(콜드 스타트의 journal 등)이
+  // 지워진다 (P1-5 생존 계약, consumeSharedIntoDrafts 와 같은 규칙).
+  if (!input.restoreSkipped) {
+    if (hasDraftContent(input.liveDraft)) next[input.liveMode] = input.liveDraft;
+    else delete next[input.liveMode];
+  }
+  // payload 의 내구 사본 자리: 요청 모드가 storage 면 그 초안, 비영속 모드
+  // (voice/todo/fourw)면 linkclip(기존 의미 유지 — 끄면 날아가는 자리에만
+  // 두지 않는다). 요청이 없거나 무효면 오늘의 linkclip 폴드 그대로다.
+  const storageTarget: CaptureDraftMode =
+    requested !== null && isCaptureDraftMode(requested) ? requested : "linkclip";
+  const existing = next[storageTarget];
+  const existingBody = (existing?.body ?? "").trim();
+  const mergedBody =
+    existingBody.length === 0
+      ? input.content
+      : existingBody.includes(input.content)
+        ? existingBody
+        : `${existingBody}\n\n${input.content}`;
+  next[storageTarget] = {
+    body: mergedBody,
+    // 기존 초안의 나머지 필드는 파괴하지 않는다 (journal 의 topic/결론/별 intent).
+    topic: existing?.topic ?? "",
+    conclusion: existing?.conclusion ?? "",
+    // OCR 본문이 바뀌면 승인은 무효다 (updateOcrBody 와 같은 규칙).
+    ...(storageTarget === "ocr"
+      ? { ocrReviewApproved: false }
+      : existing?.ocrReviewApproved !== undefined
+        ? { ocrReviewApproved: existing.ocrReviewApproved }
+        : {}),
+    ...(storageTarget === "journal" && existing?.domainIntent !== undefined
+      ? { domainIntent: existing.domainIntent }
+      : {}),
+  };
+  const mode = requested ?? "linkclip";
+  return {
+    drafts: next,
+    mode,
+    liveBody: isCaptureDraftMode(mode) ? mergedBody : input.content,
+    persistMode: storageTarget,
+    consumedModeParam: requested,
   };
 }
 
