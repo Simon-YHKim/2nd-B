@@ -95,6 +95,12 @@ describe("별을 누르면 그 별의 요약이 열린다 (Simon 결정 4 = B)",
     expect(page).toContain("isUnlived");
   });
 
+  it("프로필 별의 채우기 CTA가 실제 입력 화면으로 직행한다", () => {
+    const page = read("src/app/me/[star].tsx");
+    expect(page).toContain('router.push("/profile-details")');
+    expect(page).not.toContain('router.push("/profile")');
+  });
+
   it("정적 웹 export도 일곱 요약 경로를 전부 만든다", () => {
     const page = read("src/app/me/[star].tsx");
     expect(page).toContain("export function generateStaticParams");
