@@ -187,6 +187,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         file: "seen",
         href: "/seen",
         label: "보여지는 나",
+        auth: true,
         render: { kind: "ui-mode-split", deepspace: { kind: "screen" }, legacy: { kind: "redirect", to: "/persona" } },
         note: "legacy 는 독립 스킨이 없어 /persona 의 종합으로 넘긴다. 진입: 프로필 허브 분석 그룹",
       },
