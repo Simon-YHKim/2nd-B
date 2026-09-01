@@ -60,6 +60,15 @@ describe("레지스트리가 실재하는 화면을 가리킨다", () => {
     expect(shell).not.toContain("onBack={() => router.back()}");
     expect(screen).toContain('BackHandler.addEventListener("hardwareBackPress", requestBack)');
     expect(screen.split("<AuditScreenerShell onBack={requestBack}>").length - 1).toBe(4);
+    expect(screen).toContain('navigation.addListener("beforeRemove"');
+    expect(screen).toContain("const hasUnsavedProgress =");
+    expect(screen).toContain("if (allowNavigationRef.current) return;");
+    expect(screen).toContain("event.preventDefault()");
+    expect(screen).toContain("navigation.dispatch(event.data.action)");
+    expect(screen).toContain("finally {");
+    expect(screen).toContain("const continueNavigation = pendingNavigationRef.current;");
+    expect(screen).toContain("if (continueNavigation) continueNavigation();");
+    expect(screen.split("pendingNavigationRef.current = null;").length - 1).toBeGreaterThanOrEqual(3);
     expect(screen).toMatch(/const requestBack = useCallback\([\s\S]*setExitConfirmOpen\(true\)[\s\S]*router\.back\(\)/);
     expect(screen).toMatch(/current:\s*"now"[\s\S]*teens:\s*"school"[\s\S]*"20s":\s*"twenties"/);
     expect(screen).toContain("isUnlived(AUDIT_PERIOD_STAR[p.id], age)");

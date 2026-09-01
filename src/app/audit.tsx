@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, BackHandler } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect, router, useLocalSearchParams } from "expo-router";
+import { Redirect, router, useLocalSearchParams, useNavigation } from "expo-router";
 
 import { PremiumAppShell, PremiumLoadingState, PremiumToast, PremiumModal } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
@@ -147,6 +147,7 @@ function AuditScreenerShell({ children, onBack }: { children: ReactNode; onBack:
 function AuditLegacy() {
   const { t, i18n } = useTranslation("audit");
   const { userId, loading, isMinor, hasProfile, age } = useAuth();
+  const navigation = useNavigation();
   const displayLocale = displayLocaleFor(i18n.language);
   const locale = dataLocaleFor(i18n.language);
   const copy = DISPLAY_COPY[displayLocale];
@@ -160,11 +161,15 @@ function AuditLegacy() {
   const [done, setDone] = useState(false);
   const [toast, setToast] = useState<AuditToast | null>(null);
   const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
+  const pendingNavigationRef = useRef<(() => void) | null>(null);
+  const allowNavigationRef = useRef(false);
   const companion = useCompanionMoment();
+  const hasUnsavedProgress = period !== null && !done && (index > 0 || answer.trim().length > 0);
 
   const requestBack = useCallback(() => {
     if (period !== null && !done) {
-      if (index > 0 || answer.trim().length > 0) {
+      if (hasUnsavedProgress) {
+        pendingNavigationRef.current = null;
         setExitConfirmOpen(true);
       } else {
         setPeriod(null);
@@ -174,7 +179,7 @@ function AuditLegacy() {
 
     router.back();
     return true;
-  }, [answer, done, index, period]);
+  }, [done, hasUnsavedProgress, period]);
 
   useEffect(() => {
     if (!toast) return;
@@ -190,6 +195,27 @@ function AuditLegacy() {
     const subscription = BackHandler.addEventListener("hardwareBackPress", requestBack);
     return () => subscription.remove();
   }, [done, period, requestBack]);
+
+  // The persistent deep-space dock navigates inside DeepSpaceScreen, outside
+  // AuditScreenerShell's onBack prop. Gate every route removal while a response
+  // is in progress, then replay the exact attempted action only after consent.
+  useEffect(() => {
+    if (!hasUnsavedProgress) return;
+
+    return navigation.addListener("beforeRemove", (event) => {
+      if (allowNavigationRef.current) return;
+      event.preventDefault();
+      pendingNavigationRef.current = () => {
+        allowNavigationRef.current = true;
+        try {
+          navigation.dispatch(event.data.action);
+        } finally {
+          allowNavigationRef.current = false;
+        }
+      };
+      setExitConfirmOpen(true);
+    });
+  }, [hasUnsavedProgress, navigation]);
 
   if (loading) {
     return (
@@ -404,7 +430,10 @@ function AuditLegacy() {
 
       <PremiumModal
         visible={exitConfirmOpen}
-        onClose={() => setExitConfirmOpen(false)}
+        onClose={() => {
+          pendingNavigationRef.current = null;
+          setExitConfirmOpen(false);
+        }}
         accessibilityLabel={t("exit.notice")}
       >
         <Text variant="heading">
@@ -417,7 +446,10 @@ function AuditLegacy() {
           <Button
             label={t("exit.cancel")}
             variant="secondary"
-            onPress={() => setExitConfirmOpen(false)}
+            onPress={() => {
+              pendingNavigationRef.current = null;
+              setExitConfirmOpen(false);
+            }}
             style={{ flex: 1 }}
             accessibilityHint={t("exit.cancelHint")}
           />
@@ -425,10 +457,13 @@ function AuditLegacy() {
             label={t("exit.confirm")}
             variant="primary"
             onPress={() => {
+              const continueNavigation = pendingNavigationRef.current;
+              pendingNavigationRef.current = null;
               setExitConfirmOpen(false);
               setPeriod(null);
               setIndex(0);
               setAnswer("");
+              if (continueNavigation) continueNavigation();
             }}
             style={{ flex: 1 }}
             accessibilityHint={t("exit.confirmHint")}
