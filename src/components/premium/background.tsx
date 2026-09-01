@@ -20,6 +20,7 @@ import { ForceDark } from "@/lib/theme/ThemeContext";
 import { useConstellation } from "@/lib/constellation/useConstellation";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { backArrowVisible, isTabPath } from "@/components/ui/BackArrow";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { TAB_BAR_HEIGHT } from "./tab-bar";
 import { starField } from "./star-field";
 import { PixelStarSvg } from "@/components/pixel/PixelStarSvg";
@@ -340,7 +341,13 @@ export function PremiumAppShell({
   // Tab screens render under the absolute bottom tab bar; reserve its height so
   // a screen's last element (e.g. the 세컨비 chat composer / send button) isn't
   // hidden behind it. Applies regardless of `padded` (horizontal-only).
-  const onTabBar = isTabPath(pathname);
+  //
+  // ⚠ deep-space 에서는 PremiumTabBar 가 무조건 null 을 반환한다(tab-bar.tsx).
+  // 그리는 조건과 자리를 비우는 조건이 갈리면 아무것도 없는 자리를 비워 두게
+  // 된다 — 딥스페이스 /capture 가 공유로 full intake 를 렌더하면서 실제로 그
+  // 사공간이 났다. nav/tabs.ts 가 "이 세 소비자는 어긋나지 않는다" 고 적어 둔
+  // 그 약속을 여기서 지킨다.
+  const onTabBar = isTabPath(pathname) && !isDeepSpaceUI();
 
   // Dynamic bottom padding: clears the absolute bottom tab bar, safe area bottom (insets.bottom)
   // and maintains a visual gap on Android/iOS.

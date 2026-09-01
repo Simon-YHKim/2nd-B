@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import {
   DEEP_SPACE_DOCK_PATHS,
   PRIMARY_TAB_PATHS,
@@ -63,5 +66,27 @@ describe("deep-space dock routes", () => {
     expect(isDeepSpaceDockPath("/record")).toBe(false);
     // Prefixes must not swallow unrelated routes.
     expect(isDeepSpaceDockPath("/starship")).toBe(false);
+  });
+});
+
+// 이 파일 헤더가 약속한 것: 탭 목록의 세 소비자(탭바가 어디서 **뜨는가**,
+// back 화살표가 어디서 **숨는가**, 앱 셸이 어디서 하단 **자리를 비우는가**)가
+// 서로 어긋나지 않는다. deep-space 가 들어오면서 그 약속이 반쪽 깨졌다 —
+// PremiumTabBar 는 deep-space 에서 무조건 null 인데 PremiumAppShell 은 그
+// 조건을 몰라, 아무것도 없는 자리를 78dp + safe-area 만큼 비워 뒀다. 공유로
+// 열린 딥스페이스 /capture 에서 실제 사공간으로 드러났다(#1551 사후 검증 P2).
+describe("탭바를 그리는 조건과 자리를 비우는 조건은 같아야 한다", () => {
+  const read = (path: string): string =>
+    readFileSync(join(process.cwd(), "src", "components", "premium", path), "utf8");
+
+  test("PremiumTabBar 는 deep-space 에서 아무것도 그리지 않는다", () => {
+    expect(read("tab-bar.tsx")).toContain("if (isDeepSpaceUI()) return null;");
+  });
+
+  test("PremiumAppShell 의 하단 예약도 같은 조건을 본다", () => {
+    const shell = read("background.tsx");
+    expect(shell).toContain("const onTabBar = isTabPath(pathname) && !isDeepSpaceUI();");
+    // 예약 자체는 그대로 살아 있어야 한다 — legacy 스킨에는 탭바가 실재한다.
+    expect(shell).toContain("onTabBar ? TAB_BAR_HEIGHT");
   });
 });

@@ -1301,6 +1301,15 @@ function CaptureLegacySession() {
           ? "기존 초안을 저장하거나 비운 뒤 다른 별에서 다시 담아 주세요. 내용과 별은 바꾸지 않았어요."
           : "Save or clear the existing draft before capturing from another star. Its text and star were not changed.",
       );
+      // 충돌 억제는 "이 파라미터로 바꿀 durable 상태가 없다" 는 **확정 판정**이라
+      // 기다릴 내구 증거가 없다. durable ACK 만 기다리면 URL 의 tag 가 영영 안
+      // 걷히고, 재포커스가 소비 latch 를 풀 때마다 같은 충돌을 다시 계획해
+      // 이 모달이 영구히 재생된다. 판정 자체를 소비 완료로 친다.
+      setParamDurableAck({
+        key: consumeKey,
+        identity: paramDeliveryIdentity,
+        generation: ackGeneration,
+      });
     }
     void durableWrite.then((durable) => {
       if (
