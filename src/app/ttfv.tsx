@@ -4,13 +4,21 @@
 // (src/app/index.tsx via useAutoTriggerTTFV). Viewing it marks it seen so the
 // auto-trigger fires exactly once; manual visits also count as seen.
 import { useEffect } from "react";
+import { Redirect } from "expo-router";
 
 import { TTFVScreen } from "@/screens/deepspace/onboarding/TTFVScreen";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { markTTFVSeen } from "@/lib/onboarding/ttfv-gate";
 
 export default function Ttfv() {
+  const { userId, loading } = useAuth();
+
   useEffect(() => {
-    markTTFVSeen();
-  }, []);
+    if (userId) markTTFVSeen();
+  }, [userId]);
+
+  if (loading) return null;
+  if (!userId) return <Redirect href="/sign-in" />;
+
   return <TTFVScreen />;
 }
