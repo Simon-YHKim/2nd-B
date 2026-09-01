@@ -65,14 +65,17 @@ import {
 } from "@/lib/wiki/capture-image";
 import { pickFile, isAudioMime, MAX_AUDIO_FILE_BYTES, type PickedFile } from "@/lib/wiki/capture-file";
 import {
+  CAPTURE_MODES,
   DEFAULT_CAPTURE_DRAFT_MODE,
   clearCaptureDraft,
   isCaptureDraftMode,
   loadCaptureDraftState,
+  planCaptureParamConsumption,
   saveCaptureDraftState,
   type CaptureDraft,
   type CaptureDraftMode,
   type CaptureDrafts,
+  type CaptureMode,
 } from "@/lib/capture/draft";
 import { classifyRecordTextForCrisis, transcribeAudio } from "@/lib/llm/boundary";
 import { discardRecording, recordingUriToBase64 } from "@/lib/audio/recording-uri";
@@ -89,7 +92,7 @@ import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionS
 import { reactExpression } from "@/lib/companion/expression";
 import { AdvisorFollowupNote } from "@/components/records/AdvisorFollowupNote";
 import { createRecord } from "@/lib/records/create";
-import { domainTagFor, isDomainId, type DomainId } from "@/lib/persona/domain-stars";
+import { domainTagFor, isDomainTag, type DomainId } from "@/lib/persona/domain-stars";
 import type { RecordFollowup } from "@/lib/records/followup";
 import { computeStreak } from "@/lib/journal/streak";
 import { dailyPrompt } from "@/lib/journal/daily-prompts";
@@ -127,7 +130,9 @@ const CAPTURE_LABEL_FONT = isDeepSpaceUI() ? fontFamilies.readable : fontFamilie
 // text-capture modes that save through createRecord(kind:"note") with a
 // distinguishing tag — no new DB kind is introduced.
 type StorageMode = CaptureDraftMode;
-type Mode = CaptureDraftMode | "voice" | "todo" | "fourw";
+// 모드 목록·record/sources 분류·딥링크 소비 계획은 lib/capture/draft.ts 가
+// 정본이다 — 렌더 없이 테스트하기 위해서다. 여기는 별칭만 둔다.
+type Mode = CaptureMode;
 type CaptureFeedbackModal = { title: string; body: string; retry?: () => void } | null;
 // One row of the 최근 조각 recent list — a subset of listRecentRecords output.
 type RecentRow = { id: string; kind: string; topic: string | null; body: string | null; created_at: string };
@@ -140,8 +145,7 @@ function isStorageMode(m: Mode): m is StorageMode {
   return (STORAGE_MODES as readonly string[]).includes(m);
 }
 
-const CAPTURE_MODES: Mode[] = ["journal", "memo", "fourw", "linkclip", "ocr", "voice", "todo", "file"];
-const BASIC_CAPTURE_MODES: Mode[] = ["journal"];
+const BASIC_CAPTURE_MODES: readonly Mode[] = ["journal"];
 
 const TRACK_OPTIONS: WikiTrack[] = ["daily", "pro"];
 
@@ -366,6 +370,10 @@ export function CaptureLegacy() {
       topic: targetMode === "journal" ? topic : "",
       conclusion: targetMode === "journal" ? conclusion : "",
       ocrReviewApproved: targetMode === "ocr" && ocrReviewApproved,
+      // 별 담기 intent 는 journal 초안과 함께 산다 — 재마운트·재시작 뒤에도
+      // 저장이 키워드 분류로 조용히 되돌아가지 않게 (본문 없는 초안은 draft
+      // 스토어가 버리므로, 빈 화면만 남긴 intent 는 함께 사라진다).
+      ...(targetMode === "journal" && domainIntent !== null ? { domainIntent } : {}),
     };
   }
 
@@ -394,6 +402,16 @@ export function CaptureLegacy() {
     setConclusion(conclusionDraft);
     setShowExtras(targetMode === "journal" && conclusionDraft.trim().length > 0);
     setOcrReviewApproved(targetMode === "ocr" && draft?.ocrReviewApproved === true && (draft?.body ?? "").trim().length > 0);
+    // journal 초안에 실려 온 별 intent 를 칩과 함께 복원한다(칩 = 저장될 별).
+    // 스토어 로드는 normalizeDraft 가 isDomainId 로 이미 걸렀다. 딥링크 집행과
+    // 같은 교체 계약: 화면의 domain:* 칩을 전부 걷어낸 뒤 정본 칩 하나만 —
+    // intent 없는 초안 복원이 이전 화면의 domain 칩을 물려받지 않게 한다.
+    const restoredIntent = targetMode === "journal" ? draft?.domainIntent ?? null : null;
+    setDomainIntent(restoredIntent);
+    setTagsEditable((prev) => {
+      const base = prev.filter((x) => !isDomainTag(x));
+      return restoredIntent === null ? base : [...base, domainTagFor(restoredIntent)];
+    });
   }
   // A fast first sentence typed before AsyncStorage hydration resolved used to
   // be silently overwritten by the restored draft (audit A-3) — track live
@@ -483,30 +501,42 @@ export function CaptureLegacy() {
   // /capture-full?mode=voice (사진·음성 quick buttons, /beyond mic — med#3/#24)
   // and ?tag=domain:career (별 화면의 담기 — med#1, so the piece lands on the
   // star it was captured from instead of wherever auto-classification guesses).
-  // Consumed once after draft hydration, same sequencing as the share effect.
+  //
+  // 소비 규칙(latch 해제·별 intent 의 record 모드 강제·칩 교체)은 전부
+  // planCaptureParamConsumption(lib/capture/draft.ts)이 순수 함수로 정하고,
+  // 여기는 그 계획을 집행만 한다 — 상태 전이를 렌더 없이 테스트하기 위해서다.
+  // 라우트발 모드 변경도 손 전환과 같은 계약(switchCaptureMode)을 탄다: draft
+  // 보존·복원과 transient reset 을 건너뛰지 않고, intent·칩은 그 뒤에 놓는다.
   const modeParamConsumedRef = useRef<string | null>(null);
   useEffect(() => {
     if (!draftHydrated) return;
-    const m = typeof modeParam === "string" && (CAPTURE_MODES as string[]).includes(modeParam) ? (modeParam as Mode) : null;
-    const tg = typeof tagParam === "string" && tagParam.trim().length > 0 ? tagParam.trim() : null;
-    if (!m && !tg) return;
-    const key = `${m ?? ""}:${tg ?? ""}`;
-    if (modeParamConsumedRef.current === key) return;
-    modeParamConsumedRef.current = key;
-    if (m) {
-      setShowAdvancedModes(true);
-      setMode(m);
+    const plan = planCaptureParamConsumption({
+      modeParam,
+      tagParam,
+      currentMode: mode,
+      consumedKey: modeParamConsumedRef.current,
+    });
+    if (plan.releaseLatch) {
+      // setParams 가 파라미터를 비운 직후 — latch 를 풀어야 같은 별 담기가
+      // 같은 mount 에 다시 와도 새 배달로 소비된다.
+      modeParamConsumedRef.current = null;
+      return;
     }
-    if (tg) {
-      setTagsEditable((prev) => (prev.includes(tg) ? prev : [...prev, tg]));
-      // domain:<id> 이고 <id> 가 허용목록(isDomainId)을 통과하면 intent 로 쓰고,
-      // 아니면 이전 intent 를 명시적으로 지운다 — 같은 mount 에서 뒤에 온 일반/
-      // 무효 tag 가 옛 의도를 조용히 살려두지 않게. 칩 추가 UX 는 그대로다.
-      const candidate = tg.startsWith("domain:") ? tg.slice("domain:".length) : null;
-      setDomainIntent(candidate !== null && isDomainId(candidate) ? candidate : null);
+    if (plan.consumeKey === null) return;
+    modeParamConsumedRef.current = plan.consumeKey;
+    if (plan.showAdvanced) setShowAdvancedModes(true);
+    if (plan.targetMode !== null) switchCaptureMode(plan.targetMode);
+    if (plan.stripDomainChips || plan.appendChip !== null) {
+      const chip = plan.appendChip;
+      setTagsEditable((prev) => {
+        const base = plan.stripDomainChips ? prev.filter((x) => !isDomainTag(x)) : prev;
+        if (chip === null) return base;
+        return base.includes(chip) ? base : [...base, chip];
+      });
     }
+    if (plan.intent !== "preserve") setDomainIntent(plan.intent);
     router.setParams({ mode: undefined, tag: undefined });
-  }, [draftHydrated, modeParam, tagParam]);
+  }, [draftHydrated, modeParam, tagParam, mode]);
   // Clipboard offer probe: presence-only (no content read, no OS notice) when
   // the user lands on the link box, re-run when the app returns to the
   // foreground — the headline flow is "copy in the browser, switch back here",
@@ -540,7 +570,9 @@ export function CaptureLegacy() {
     storeDraftForMode(mode, draftFromFields(mode));
     const handle = setTimeout(() => persistDrafts(mode), 800);
     return () => clearTimeout(handle);
-  }, [userId, mode, body, topic, conclusion, ocrReviewApproved]);
+    // domainIntent 도 초안의 일부다 — 본문 변경 없이 intent 만 바뀌어도(설정·
+    // 해제) 저장된 journal 초안이 그걸 따라가야 복원이 화면과 어긋나지 않는다.
+  }, [userId, mode, body, topic, conclusion, ocrReviewApproved, domainIntent]);
 
   // Load recent record dates (journal streak) + journal use count (free-tier
   // limit) once we have a user.

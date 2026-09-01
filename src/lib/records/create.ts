@@ -19,7 +19,7 @@ import { fetchPrivacyPrefs } from "../supabase/privacy";
 import { withTimeout } from "../async/with-timeout";
 import { getEnv } from "../env";
 import type { StructuredPayload } from "../capture/structured";
-import type { DomainId } from "../persona/domain-stars";
+import { domainTagFor, isDomainId, stripDomainTags, type DomainId } from "../persona/domain-stars";
 import { withDomainTag } from "./detect-domain";
 import { embedAndStoreRecord, recordsEmbeddingAllowed } from "./records-embeddings";
 import type { RecordFollowup } from "./followup";
@@ -57,9 +57,9 @@ export interface CreateRecordArgs {
    * piece lands on the star it was captured from. A permitted UX override —
    * the user choosing their own record's classification — not a trust
    * boundary: the value originates in a forgeable URL param, so the gate is
-   * the runtime DomainId allowlist (withDomainTag re-checks isDomainId). Raw
-   * `domain:*` string tags are still stripped; this typed field is the only
-   * way past the detector.
+   * the runtime DomainId allowlist (re-checked at insert with isDomainId).
+   * Raw `domain:*` string tags are still stripped; this typed field is the
+   * only way past the detector, and detect-domain.ts stays detector-owned.
    */
   domainIntent?: DomainId;
   /**
@@ -280,13 +280,13 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
         // Constellation layer A: tag the record with its life-domain slug at
         // insert (deterministic, no LLM) so the home's load-domain-levels can
         // group it. Detect from the user's own text (body + topic), not the AI
-        // prompt; withDomainTag drops any user-forced domain:* tag first, and
-        // a typed domainIntent (별 담기 screen context) wins over the detector.
-        tags: withDomainTag(
-          args.tags,
-          [args.body, args.topic].filter(Boolean).join("\n"),
-          args.domainIntent,
-        ),
+        // prompt; withDomainTag drops any user-forced domain:* tag first. A
+        // runtime-valid typed domainIntent (별 담기) wins over the detector —
+        // same shape: exactly one domain tag first, raw domain:* stripped.
+        tags:
+          args.domainIntent !== undefined && isDomainId(args.domainIntent)
+            ? [domainTagFor(args.domainIntent), ...stripDomainTags(args.tags ?? [])]
+            : withDomainTag(args.tags, [args.body, args.topic].filter(Boolean).join("\n")),
         // 0066: machine-readable form payload for form-shaped captures.
         structured: args.structured ?? null,
       })

@@ -9,7 +9,7 @@
 // domain; ties break by Big-Dipper order (career first). When nothing matches we
 // fall to "collect" — the canonical catch-all (담아내기), never a wrong guess.
 
-import { DOMAIN_STARS, domainTagFor, isDomainId, isDomainTag, type DomainId } from "../persona/domain-stars";
+import { DOMAIN_STARS, domainTagFor, isDomainTag, type DomainId } from "../persona/domain-stars";
 
 // Keyword votes per domain. Lowercased substring match (Korean has no word
 // boundaries, so substring is the norm; English keywords are chosen to be
@@ -121,27 +121,12 @@ export function detectDomain(text: string): DomainId {
 export const domainTag = domainTagFor;
 
 /**
- * Merge the domain tag into a record's tags, dropping any caller- or
- * user-supplied raw `domain:*` string tag first (no hijack, exactly one domain
- * tag per record). Order: domain tag first, then the remaining user tags
- * unchanged.
- *
- * Which domain wins:
- *   1. `domainIntent`, when present AND on the runtime allowlist (`isDomainId`)
- *      — the one sanctioned override: the user filing their own record under
- *      the star they started from (별 담기: /star/<id> → capture). This is a
- *      permitted UX choice, NOT a trust boundary — the value ultimately comes
- *      from a forgeable URL param, which is exactly why the gate is the
- *      DomainId allowlist and why arbitrary strings still cannot mint a tag.
- *   2. otherwise the deterministic keyword detector, exactly as before.
+ * Merge the detected domain tag into a record's tags, dropping any caller- or
+ * user-supplied `domain:*` tag first so the instrument owns the domain slug (no
+ * hijack, exactly one domain tag per record). Order: domain tag first, then the
+ * remaining user tags unchanged.
  */
-export function withDomainTag(
-  tags: readonly string[] | undefined,
-  text: string,
-  domainIntent?: DomainId,
-): string[] {
+export function withDomainTag(tags: readonly string[] | undefined, text: string): string[] {
   const userTags = (tags ?? []).filter((t) => !isDomainTag(t));
-  const domain: DomainId =
-    domainIntent !== undefined && isDomainId(domainIntent) ? domainIntent : detectDomain(text);
-  return [domainTagFor(domain), ...userTags];
+  return [domainTagFor(detectDomain(text)), ...userTags];
 }

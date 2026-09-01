@@ -271,6 +271,22 @@ describe("createRecord — typed domainIntent (별 담기 provenance)", () => {
       expect.objectContaining({ tags: ["domain:career", "keep"] }),
     );
   });
+
+  test("runtime-invalid intent falls back to the detector (insert is the last gate)", async () => {
+    // 타입은 컴파일 타임 방벽일 뿐 — 값의 근원이 URL 파라미터라 insert 에서
+    // isDomainId 로 한 번 더 거른다. 무효 값은 없는 것처럼 동작한다.
+    await createRecord({
+      userId: "u1",
+      locale: "ko",
+      kind: "journal",
+      body: "회사 면접 준비",
+      domainIntent: "hacker" as never,
+    });
+
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({ tags: ["domain:career"] }),
+    );
+  });
 });
 
 // capture 화면의 domainIntent 배선. 컴포넌트 렌더 테스트는 이 저장소에서 막혀
@@ -279,13 +295,31 @@ describe("createRecord — typed domainIntent (별 담기 provenance)", () => {
 describe("capture 화면 — domainIntent 배선 (source contract)", () => {
   const src = readFileSync(join(process.cwd(), "src", "app", "capture.tsx"), "utf8");
 
-  test("허용목록(isDomainId) 통과 tag 만 intent 가 되고, 일반/무효 tag 는 이전 intent 를 지운다", () => {
-    // 삼항 한 줄이 두 회귀를 함께 막는다: 무효 값 승격(허용목록), 그리고 같은
-    // mount 에서 뒤에 온 tagParam 이 옛 의도를 조용히 살려두는 stale override.
+  test("딥링크 소비는 순수 계획(planCaptureParamConsumption)을 집행만 한다", () => {
+    // 전이 규칙 자체는 lib/capture/draft.ts + draft.test.ts 가 지킨다. 여기는
+    // 화면이 그 계획을 우회하지 않는지만 본다.
+    expect(src).toContain("planCaptureParamConsumption({");
+    // latch 해제 — 파라미터 공백이 오면 같은 tag 재배달을 새로 소비할 수 있다.
+    expect(src).toContain("modeParamConsumedRef.current = null;");
+    // 라우트발 모드 변경도 손 전환과 같은 계약을 탄다 — raw setMode 금지.
+    expect(src).toContain("switchCaptureMode(plan.targetMode)");
+    expect(src).not.toContain("setMode(m)");
+    // preserve/set/clear 세 값이 그대로 집행된다 — clear 는 null 설정이다.
+    expect(src).toContain('if (plan.intent !== "preserve") setDomainIntent(plan.intent);');
+    // domain 칩 걷어내기는 insert 와 같은 규약(isDomainTag, 대소문자 무시)을 쓴다.
+    expect(src).toContain("prev.filter((x) => !isDomainTag(x))");
+  });
+
+  test("별 intent 는 journal 초안과 함께 영속되고 복원 시 칩과 같이 돌아온다", () => {
+    expect(src).toContain('...(targetMode === "journal" && domainIntent !== null ? { domainIntent } : {})');
+    expect(src).toContain("draft?.domainIntent");
+    // 본문 변경 없이 intent 만 바뀌어도 디바운스 저장이 따라간다.
+    expect(src).toContain("ocrReviewApproved, domainIntent]");
+    // 복원도 딥링크 집행과 같은 교체 계약이다: domain:* 칩을 전부 걷어낸 뒤
+    // 정본 칩 하나만 — intent 없는 초안은 domain 칩 0개로 복원된다.
     expect(src).toContain(
-      "setDomainIntent(candidate !== null && isDomainId(candidate) ? candidate : null);",
+      "return restoredIntent === null ? base : [...base, domainTagFor(restoredIntent)];",
     );
-    expect(src).not.toContain("if (candidate !== null && isDomainId(candidate)) setDomainIntent(");
   });
 
   test("journal·note 두 createRecord 경로 모두에 intent 를 전달한다", () => {
@@ -302,7 +336,7 @@ describe("capture 화면 — domainIntent 배선 (source contract)", () => {
     expect(fn).toContain("domainTagFor(prev) === t ? null : prev");
   });
 
-  test("기존 tagParam UX 는 보존된다 — 칩 추가는 그대로", () => {
-    expect(src).toContain("setTagsEditable((prev) => (prev.includes(tg) ? prev : [...prev, tg]))");
+  test("일반 tag 의 칩 추가 UX 는 보존된다 (dedupe 후 append)", () => {
+    expect(src).toContain("base.includes(chip) ? base : [...base, chip]");
   });
 });
