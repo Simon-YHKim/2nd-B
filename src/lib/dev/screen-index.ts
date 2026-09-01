@@ -238,7 +238,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
           deepspace: { kind: "dev-gated-screen", productionRedirect: "/core-brain" },
           legacy: { kind: "screen" },
         },
-        note: "딥스페이스 production 빌드는 /core-brain 으로 넘어가고, 개발 빌드는 M3 리메이크를 참조용으로 연다. legacy 는 실화면",
+        note: "딥스페이스 production 빌드는 /core-brain 으로 넘어가고, 개발 빌드는 M3 리메이크를 참조용으로 연다. legacy 는 /profile quickGrid 에서 실화면으로 들어간다",
       },
     ],
   },
