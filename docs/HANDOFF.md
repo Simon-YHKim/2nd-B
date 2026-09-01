@@ -3,7 +3,40 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-09-02 / web Clarity hard-disable 결정
+## Latest — 2026-09-02 / 담기 P2 2건 머지(#1573) · 남은 관찰 3건은 orca 후속 태스크로
+
+> 발행: Claude Code (orca Design 워크스페이스). #1551 사후 적대적 검증(계약 8종)에서
+> 확정된 3건의 마감 기록이다.
+
+- **#1573 머지 — main `46585730`.** P2 2건:
+  1. **별 충돌로 억제된 `?tag=` 가 URL 에서 안 걷혔다** (`src/app/capture.tsx`) — 다른
+     별의 일기 초안이 있을 때 담기 진입이 의도적으로 아무것도 적용하지 않는데(그 보호는
+     올바름), 적용된 게 없으니 durable ACK 가 영영 안 떠 `?tag=` 가 남고, 재포커스마다
+     같은 충돌 모달이 재생됐다. 억제 판정 자체를 소비 완료로 쳐 ACK 한다.
+  2. **deep-space 가 그리지도 않는 탭바 자리를 비워 뒀다** (`src/components/premium/background.tsx`)
+     — `PremiumTabBar` 는 deep-space 에서 무조건 null 인데 `PremiumAppShell` 이
+     `TAB_BAR_HEIGHT + spacing.lg + insets.bottom` 을 계속 예약해 공유로 열린 deep-space
+     `/capture` 하단에 사공간이 났다. `isTabPath(pathname) && !isDeepSpaceUI()` 로 회복,
+     두 소비자가 같은 조건을 보는지를 `src/lib/nav/__tests__/tabs.test.ts` 계약 테스트로 고정.
+- **P1(저장 중 blur → 초안 부활 → 중복 저장)은 #1572 가 이미 해결했다** — immutable
+  snapshot + committed tombstone + per-user FIFO **compare-and-swap**. 같은 문제를 두
+  세션이 동시에 잡았고, 전체 스냅샷 발행이라는 근본 원인을 직접 없애는 CAS 쪽이
+  우월해서 내 쪽 PR #1571(포커스 게이트 분리 + 마지막 발행자 장부)은 닫았다.
+- **머지 게이트 실측**: CI 5/5 · Codex head `6f8ee21` finding 0 · main drift 0 ·
+  독립 감사(감사 4 + 반증 4) blocking 0 · 변이 검증(수정을 되돌리면 테스트 1건 실패).
+  감사의 핵심 근거 — deep-space 에서 `PremiumAppShell` 을 탭 경로로 렌더하는 화면은
+  `/capture` 하나뿐이고, 같은 본문이 `/capture-full` 에서 이미 축소된 clearance 로
+  출시돼 있었다(= 새 동작이 아니라 검증된 동작의 정렬).
+- **비차단 관찰 3건 → orca 후속 태스크 등록**(run_beb2548887d4):
+  | 태스크 | 무엇 |
+  |---|---|
+  | `task_bf8712887a5c` | deep-space `/capture` 의 ScrollView 가 여전히 `TAB_BAR_HEIGHT` 를 더해 약 118dp 사각 스크롤 여백 잔존 (`capture.tsx:362-365`, 부분 수정 상태) |
+  | `task_f10903cb5d3e` | 같은 표면에서 `insets.bottom` 이중 적용 (DeepSpaceScreen SafeAreaView + PremiumAppShell, 기존 사안) — deps: 위 태스크 |
+  | `task_d8dcced54b83` | `tabs.test.ts` 계약 테스트가 소스 문자열 정확 일치라 Prettier 재포맷에 깨질 수 있음 — 관용 매칭으로 바꾸되 변이 검증 유지 |
+
+  셋 다 여백이 **남는** 쪽 실패(콘텐츠를 가리지 않음)라 급하지 않다.
+
+## 2026-09-02 / web Clarity hard-disable 결정
 
 - **출시 결정:** web Clarity는 원격 `clarity_enabled`, 사용자 동의, project id가 모두
   있어도 로드하지 않는다. Android 네이티브 Clarity의 지원된 pause/resume 경로는 유지한다.
@@ -19,7 +52,7 @@
 - **PR 상태:** #1569는 DO NOT MERGE/HOLD. 운영 DB의 실제 flag 값은 별도 콘솔 증거 없이는
   OFF라고 단정하지 않으며, 코드 hard-disable을 정본 안전장치로 삼는다.
 
-## Latest — 2026-09-01 / 화면 감사 결정 집행: 배선 4건 · 대장 정정 3건 (Q1 봉인은 전제 반증으로 보류)
+## 2026-09-01 / 화면 감사 결정 집행: 배선 4건 · 대장 정정 3건 (Q1 봉인은 전제 반증으로 보류)
 
 > 발행: Claude Code (orca Design 워크스페이스). 감사 보고서 아티팩트:
 > <https://claude.ai/code/artifact/988013c7-7180-4f24-8500-779ccb125912>
@@ -236,7 +269,7 @@ manifest의 실패 절차에 따라 현재 commit·diff·file history부터 확�
 
 ---
 
-## Latest — 2026-08-30 / P2·P3·Work0·릴리스 계약 정리, HUMAN PASS와 전체 P1·최종 배포 대기
+## 2026-08-30 / P2·P3·Work0·릴리스 계약 정리, HUMAN PASS와 전체 P1·최종 배포 대기
 
 > 발행: Codex 2nd-B 장기 인계 세션. 작성 시각 `2026-08-30 17:18:50 KST`.
 > 이 블록은 현재 저장소·GitHub·EAS 실측을 요약한다. 완료되지 않은 항목을 완료로 해석하지 말 것.
@@ -434,7 +467,7 @@ git fetch origin main && git pull --ff-only origin main && cat docs/HANDOFF.md
 
 ---
 
-## Latest — 2026-08-29 / 0.7.0 나갔다 — 웹에만. 폰을 막는 문은 **둘**이고 하나는 새로 생겼다
+## 2026-08-29 / 0.7.0 나갔다 — 웹에만. 폰을 막는 문은 **둘**이고 하나는 새로 생겼다
 
 > 발행: CLI 코딩 세션. 브랜치 `Simon-YHKim/p1-deviations`(머지 완료) → `release/0.7.0`(머지 완료).
 > 보고서: [자가 두 번 틀렸다](https://claude.ai/code/artifact/feffd35e-c652-44cc-b0f8-a9a7fb50dafa) ·
