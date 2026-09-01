@@ -320,6 +320,8 @@ describe("capture 화면 — domainIntent 배선 (source contract)", () => {
     expect(src).toContain("if (pendingSharedRef.current) return;");
     // share 가 mode 를 함께 소비하면 param effect 이중 소비를 latch 로 막는다.
     expect(src).toContain("plan.consumedModeParam !== null");
+    // 4W1H 은 body 가 아니라 다섯 칸 state 를 읽는다 — payload 는 setFourw 로 싣는다.
+    expect(src).toContain("setFourw(plan.liveFourw)");
     // linkclip 하드코딩 폴드로 되돌아가면 mode 동반 share 텍스트가 화면에서 사라진다.
     expect(src).not.toContain("consumeSharedIntoDrafts");
   });

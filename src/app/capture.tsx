@@ -499,8 +499,17 @@ export function CaptureLegacy() {
     setMode(plan.mode);
     if (isStorageMode(plan.mode)) {
       applyDraftToFields(plan.mode, plan.drafts[plan.mode]);
+    } else if (plan.liveFourw !== null) {
+      // 4W1H 은 body 가 아니라 다섯 칸 state 만 읽고 저장한다 — payload 는
+      // 계획이 필수 칸(무엇을)에 실어 보이는 곳과 저장되는 곳을 일치시킨다.
+      setFourw(plan.liveFourw);
+      setBody("");
+      setTopic("");
+      setConclusion("");
+      setShowExtras(false);
+      setOcrReviewApproved(false);
     } else {
-      // 비영속 모드(voice/todo/fourw): payload 를 composer 에 직접 싣는다.
+      // 비영속 모드(voice/todo): payload 를 composer 에 직접 싣는다.
       // 내구 사본은 계획이 linkclip 초안에 남겼다.
       setBody(plan.liveBody);
       setTopic("");

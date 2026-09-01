@@ -17,6 +17,7 @@ import {
   isDomainTag,
   type DomainId,
 } from "../persona/domain-stars";
+import { EMPTY_FOURW, type FourWFields } from "./fourw";
 
 interface AsyncStorageLike {
   getItem(key: string): Promise<string | null>;
@@ -377,6 +378,12 @@ export interface SharedRoutePlan {
   mode: CaptureMode;
   /** 전환 후 composer 에 보일 본문 (storage 모드는 폴드된 초안 본문과 같다). */
   liveBody: string;
+  /**
+   * mode === "fourw" 일 때만 non-null. 4W1H 은 body 가 아니라 다섯 칸 state 만
+   * 읽고 저장하므로(composeFourWBody), payload 를 유일한 필수 칸 '무엇을'(what)
+   * 에 싣는다 — 보이는 곳과 저장되는 곳이 같아진다.
+   */
+  liveFourw: FourWFields | null;
   /** persistDrafts 에 넘길 lastMode — payload 의 내구 사본이 있는 자리. */
   persistMode: CaptureDraftMode;
   /** mode 파라미터를 여기서 함께 소비했으면 그 값 (param effect latch 용). */
@@ -440,6 +447,7 @@ export function planSharedConsumption(input: {
     drafts: next,
     mode,
     liveBody: isCaptureDraftMode(mode) ? mergedBody : input.content,
+    liveFourw: mode === "fourw" ? { ...EMPTY_FOURW, what: input.content } : null,
     persistMode: storageTarget,
     consumedModeParam: requested,
   };

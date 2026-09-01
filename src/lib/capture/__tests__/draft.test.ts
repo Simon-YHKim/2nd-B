@@ -8,6 +8,7 @@ import {
   clearCaptureDraft,
   type CaptureParamPlan,
 } from "../draft";
+import { composeFourWBody, fourWHasContent } from "../fourw";
 
 // The jest environment is node (no DOM), so pin the web path with an
 // in-memory localStorage shim. The native path shares the same parse/serialize
@@ -389,10 +390,31 @@ describe("planSharedConsumption — shared + mode 원자 소비 (데이터 소�
     });
     expect(plan.mode).toBe("voice");
     expect(plan.liveBody).toBe("음성 메모 텍스트");
+    expect(plan.liveFourw).toBeNull();
     expect(plan.drafts.linkclip?.body).toBe("음성 메모 텍스트");
     expect(plan.drafts.journal).toEqual(JOURNAL_DRAFT);
     expect(plan.persistMode).toBe("linkclip");
     expect(plan.consumedModeParam).toBe("voice");
+  });
+
+  test("text+fourw: payload 가 필수 칸(무엇을)에 실려 보이고 저장 가능하다", () => {
+    // 4W1H composer/submit 은 body 가 아니라 다섯 칸 state 만 읽는다 — body 에만
+    // 실으면 화면에도 저장에도 안 나타난다 (P2 회귀).
+    const plan = planSharedConsumption({
+      drafts: {},
+      liveDraft: EMPTY_LIVE,
+      liveMode: "journal",
+      restoreSkipped: true,
+      content: "공유된 4W1H 재료",
+      modeParam: "fourw",
+    });
+    expect(plan.mode).toBe("fourw");
+    expect(plan.liveFourw).toEqual({ who: "", when: "", where: "", what: "공유된 4W1H 재료", how: "" });
+    expect(fourWHasContent(plan.liveFourw!)).toBe(true);
+    expect(composeFourWBody(plan.liveFourw!, "ko")).toContain("공유된 4W1H 재료");
+    // 내구 사본은 linkclip 에 남는다 (voice/todo 와 같은 규칙).
+    expect(plan.drafts.linkclip?.body).toBe("공유된 4W1H 재료");
+    expect(plan.persistMode).toBe("linkclip");
   });
 
   test("mode 없음/무효면 오늘의 linkclip 폴드 그대로다", () => {
