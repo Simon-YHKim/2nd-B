@@ -46,6 +46,8 @@ export const DEEP_SPACE_DOCK_PATHS = [
   "/manual",
   "/permissions",
   "/privacy",
+  // 개인정보 처리 기록 — windowed dock + 자체 M3 top-app-bar back.
+  "/processing-log",
   "/research",
   "/review",
   "/srs",
