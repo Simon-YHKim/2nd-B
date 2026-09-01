@@ -363,8 +363,11 @@ function syncNativeAnalyticsCollection(enabled: boolean): void {
  * (clarity_enabled) and the route allow-list.
  *
  * On web this is a no-op - the DOM loader owns Clarity there. The split exists
- * because the two SDKs have genuinely different controls: the web script cannot
- * be stopped once injected, while the native SDK pauses.
+ * because the two SDKs offer different guarantees: the native SDK has a
+ * supported pause()/resume() pair, so native can ping-pong across screens,
+ * while the web tag has only an UNDOCUMENTED clarity("stop") and no verified
+ * restart (microsoft/clarity#535), so web stops one way and waits for the next
+ * page load. See stopClarityIfRouteDisallowed.
  */
 function syncNativeClarityForRoute(enabled: boolean): void {
   if (Platform.OS === "web") return;
@@ -421,9 +424,16 @@ let pendingProductEvents: PreparedProductEvent[] = [];
 let sentryClient: { captureException: (err: unknown, context?: Record<string, unknown>) => void } | null = null;
 let ga4Id: string | null = null; // set once GA4 is loaded
 let clarityLoaded = false;
-// Set once the session has left the allow-list and Clarity has been told to
-// stop. One-way for the page lifetime — see stopClarityIfRouteDisallowed.
+// Set once a stop has actually been issued. One-way for the page lifetime —
+// see stopClarityIfRouteDisallowed. It gates RE-INJECTION only; whether the
+// vendor may be told "granted" is decided by the live route instead, because a
+// latch cannot tell a stopped session from one that never started.
 let clarityStopped = false;
+// The raw path carried a query or fragment. Clarity records document.location,
+// and ids travel in the query on otherwise allow-listed routes — e.g.
+// `/?highlightRecordId=<uuid>` from capture.tsx and record/[id].tsx. The path
+// allow-list cannot see those, so the flag is kept beside the route.
+let clarityRouteHasQuery = false;
 let currentAnalyticsRoute = "/";
 
 type WebGlobal = {
@@ -478,7 +488,14 @@ function applyRuntimeAnalyticsFlags(flags: AnalyticsRuntimeFlags): void {
   }
   if (clarityLoaded && w.clarity) {
     try {
-      const clarityGranted = flags.analyticsEnabled && flags.clarityEnabled;
+      const clarityGranted =
+        flags.analyticsEnabled &&
+        flags.clarityEnabled &&
+        // Never re-grant a session we have stopped, or one sitting on a route
+        // it is not allowed to record. This poll runs every 60s, so without
+        // the check it would keep telling a stopped session it may record.
+        !clarityStopped &&
+        clarityWebRouteAllowed();
       w.clarity("consentv2", {
         ad_Storage: "denied",
         analytics_Storage: clarityGranted ? "granted" : "denied",
@@ -488,6 +505,17 @@ function applyRuntimeAnalyticsFlags(flags: AnalyticsRuntimeFlags): void {
       // ignore
     }
   }
+  // ⚠ Known limitation, decided rather than overlooked (2026-09-02). Turning
+  // clarity_enabled off does NOT stop a session that is already recording — the
+  // calls above make it cookieless, which is not the same thing. Issuing
+  // clarity("stop") here would fix that, and was tried; it also breaks the
+  // documented restore path this poll exists for ("60-second polling keeps
+  // running while OFF and restores GA and Clarity"), because the web stop is
+  // one-way with no verified restart. Stopping on a flag flip would mean the
+  // operator can never turn Clarity back on without every client reloading.
+  // So the kill-switch keeps its current job — no NEW session is ever injected
+  // while it is off — and the route rule below is what protects a running one.
+  // Revisit if the vendor ever documents a working start().
   const shouldLoad =
     runtimeAnalyticsBootstrapped &&
     flags.analyticsEnabled &&
@@ -664,6 +692,10 @@ export function clarityGateSnapshot(): {
   projectId: boolean;
   route: string;
   allowedRoute: boolean;
+  /** Web: the tag has been injected in this page lifetime. */
+  loaded: boolean;
+  /** Web: a stop has been issued — one-way, so nothing will record again. */
+  stopped: boolean;
 } {
   return {
     consent: analyticsConsent,
@@ -671,12 +703,27 @@ export function clarityGateSnapshot(): {
     clarityEnabled: runtimeAnalyticsFlags.clarityEnabled,
     projectId: Boolean(clarityProjectIdForNative()),
     route: currentAnalyticsRoute,
-    allowedRoute: isClarityAllowedRoute(currentAnalyticsRoute),
+    // The web rule, so the snapshot answers the question it is read for: a
+    // query-carrying URL on an allowed path is NOT allowed to record.
+    allowedRoute: clarityWebRouteAllowed(),
+    loaded: clarityLoaded,
+    // Without this the snapshot cannot explain the one state that is now
+    // permanent: stopped sessions look identical to never-started ones.
+    stopped: clarityStopped,
   };
 }
 
 export function isClarityAllowedRoute(routePath: string): boolean {
-  const route = sanitizeAnalyticsRoutePath(routePath);
+  // Expo group segments are layout scaffolding, not user-visible path. The
+  // router reports sign-in as /(auth)/sign-in, so comparing the raw sanitized
+  // route against "/sign-in" never matched — the entry was dead, and a signed-in
+  // user bounced to sign-in was treated as leaving the allow-list.
+  const route =
+    "/" +
+    sanitizeAnalyticsRoutePath(routePath)
+      .split("/")
+      .filter((s) => s && !/^\([^)]+\)$/.test(s))
+      .join("/");
   return CLARITY_ALLOWED_ROUTE_PREFIXES.some((p) =>
     p === "/" ? route === "/" : route === p || route.startsWith(`${p}/`),
   );
@@ -909,8 +956,24 @@ async function loadProductAnalytics(env: Env): Promise<void> {
  * does not erase it. The document-wide data-clarity-mask still applies.
  */
 function stopClarityIfRouteDisallowed(): void {
-  if (!clarityLoaded || clarityStopped) return;
-  if (isClarityAllowedRoute(currentAnalyticsRoute)) return;
+  if (clarityWebRouteAllowed()) return;
+  stopClarityNow();
+}
+
+/**
+ * Issue the stop, whatever the reason (left the allow-list, kill-switch off,
+ * consent revoked).
+ *
+ * NOT guarded on clarityStopped, deliberately. `w.clarity` starts life as the
+ * injection shim that pushes into `clarity.q` until the async tag arrives, so
+ * a stop sent during that window may only have been QUEUED — treating the
+ * first push as proof would let a lost call latch as done. The vendor call is
+ * cheap and idempotent, so it is re-issued while the reason persists; the flag
+ * records only that a stop has been issued at least once, which is what blocks
+ * re-injection and re-granting.
+ */
+function stopClarityNow(): void {
+  if (!clarityLoaded) return;
   const w = webWindow();
   if (!w?.clarity) return;
   try {
@@ -921,6 +984,21 @@ function stopClarityIfRouteDisallowed(): void {
     // flag stays false so the next navigation tries again. Leaving it false is
     // the honest state — nothing was stopped.
   }
+}
+
+/**
+ * Whether web Clarity may record the route the session is on right now.
+ *
+ * Stricter than isClarityAllowedRoute because Clarity records the live
+ * document.location, and identifiers reach it through the QUERY string on
+ * otherwise allow-listed paths — `/?highlightRecordId=<uuid>` is pushed by
+ * capture.tsx, record/[id].tsx and wiki.tsx. The path allow-list was built on
+ * "identifier-carrying routes stay out by construction" and never saw those.
+ * Native is unaffected: it records a screen name we choose, not a URL, so
+ * syncNativeClarityForRoute keeps using the path rule.
+ */
+function clarityWebRouteAllowed(): boolean {
+  return isClarityAllowedRoute(currentAnalyticsRoute) && !clarityRouteHasQuery;
 }
 
 /**
@@ -938,7 +1016,7 @@ function maybeLoadClarityForRoute(): void {
     // so the one-way rule survives a future refactor of the load guards.
     clarityStopped ||
     !runtimeAnalyticsFlags.clarityEnabled ||
-    !isClarityAllowedRoute(currentAnalyticsRoute) ||
+    !clarityWebRouteAllowed() ||
     !webWindow()
   ) {
     return;
@@ -1177,7 +1255,15 @@ export function setAnalyticsConsent(
           ad_user_data: "denied",
           ad_personalization: "denied",
         });
-        if (flags.clarityEnabled && clarityLoaded && w.clarity) {
+        if (
+          flags.clarityEnabled &&
+          clarityLoaded &&
+          w.clarity &&
+          // Same rule as the poll: a stopped session, or one on a route we do
+          // not record, must not be told it may record.
+          !clarityStopped &&
+          clarityWebRouteAllowed()
+        ) {
           w.clarity("consentv2", {
             ad_Storage: "denied",
             analytics_Storage: "granted",
@@ -1199,8 +1285,12 @@ export function captureEvent(event: AnalyticsEvent): boolean {
   // receive the correct redacted route rather than the browser's live URL.
   if (event.name === "page_view") {
     currentAnalyticsRoute = sanitizeAnalyticsRoutePath(event.props.path);
-    // Leaving the allow-list stops recording. Must run BEFORE the loader so a
-    // single navigation cannot both stop and re-arm.
+    // Recorded before the route is sanitized, because sanitizing drops the
+    // query — and the query is where record/wiki ids ride on allowed paths.
+    clarityRouteHasQuery = /[?#]/.test(event.props.path);
+    // Leaving the allow-list stops recording. The two calls are mutually
+    // exclusive on the same predicate, so the order is not load-bearing today;
+    // stop runs first anyway so the one-way rule reads in the order it holds.
     stopClarityIfRouteDisallowed();
     maybeLoadClarityForRoute();
     // Native has no injection step, so navigation is where pause/resume and the
@@ -1277,6 +1367,7 @@ export function __resetAnalytics(): void {
   ga4Id = null;
   clarityLoaded = false;
   clarityStopped = false;
+  clarityRouteHasQuery = false;
   currentAnalyticsRoute = "/";
   nativeApplierOverride = null;
   nativeApplyTarget = null;

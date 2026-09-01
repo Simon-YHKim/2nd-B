@@ -709,7 +709,7 @@ describe("runtime analytics web transitions", () => {
     }
   });
 
-  test("60-second polling keeps running while OFF and restores GA and Clarity", async () => {
+  test("60-second polling keeps running while OFF and restores GA (Clarity only until it is stopped)", async () => {
     const rows = {
       current: [
         { key: "analytics_enabled", enabled: false },
@@ -761,7 +761,14 @@ describe("runtime analytics web transitions", () => {
       const clarityConsentStates = clarity.mock.calls
         .filter(([command]) => command === "consentv2")
         .map(([, state]) => (state as { analytics_Storage: string }).analytics_Storage);
-      expect(clarityConsentStates).toEqual(["granted", "denied", "granted"]);
+      // Was ["granted", "denied", "granted"]. The third grant is gone on
+      // purpose: this run navigates to "/blocked" above, which is off the
+      // Clarity allow-list, so the session is stopped there. Re-granting a
+      // stopped session is what the old expectation encoded — and since the
+      // route stays disallowed, no further stop would follow, so a re-arm
+      // would have recorded a private screen. GA is unaffected and still
+      // restores; only Clarity is one-way.
+      expect(clarityConsentStates).toEqual(["granted", "denied", "denied"]);
       expect(jest.getTimerCount()).toBe(1);
     } finally {
       analytics.__resetAnalytics();
@@ -989,12 +996,59 @@ describe("runtime analytics web transitions", () => {
       analytics.__resetAnalytics();
     });
 
-    test("stop is sent once, not on every further private navigation", async () => {
+    test("stop is re-issued on every private navigation, not latched after one", async () => {
+      // `w.clarity` is the injection shim until the async tag lands, so a stop
+      // sent in that window may only have been QUEUED. Treating the first push
+      // as proof would let a lost call latch as done, leaving the session
+      // recording with the code believing it had stopped. The vendor call is
+      // cheap and idempotent, so it is repeated while the reason persists.
       const { analytics, clarity } = await armed();
       analytics.captureEvent(analytics.pageView({ path: "/record/abc123" }));
       analytics.captureEvent(analytics.pageView({ path: "/secondb" }));
       analytics.captureEvent(analytics.pageView({ path: "/journal" }));
+      expect(stopCalls(clarity)).toHaveLength(3);
+      analytics.__resetAnalytics();
+    });
+
+    test("staying inside the allow-list never stops recording", async () => {
+      // The negative half of the rule. Without it, inverting the guard (or
+      // dropping it) would leave every other test green while web session
+      // recording quietly died.
+      const { analytics, clarity } = await armed();
+      analytics.captureEvent(analytics.pageView({ path: "/" }));
+      analytics.captureEvent(analytics.pageView({ path: "/settings" }));
+      analytics.captureEvent(analytics.pageView({ path: "/plans" }));
+      expect(stopCalls(clarity)).toHaveLength(0);
+      expect(analytics.clarityGateSnapshot().stopped).toBe(false);
+      analytics.__resetAnalytics();
+    });
+
+    test("an id in the query string is not an allowed route, even on /", async () => {
+      // Clarity records document.location, and capture.tsx/record/[id].tsx push
+      // `/?highlightRecordId=<uuid>`. The path allow-list cannot see that.
+      const { analytics, clarity } = await armed();
+      analytics.captureEvent(
+        analytics.pageView({ path: "/?highlightRecordId=3f2c1a90-0000-4000-8000-000000000000" }),
+      );
       expect(stopCalls(clarity)).toHaveLength(1);
+      expect(analytics.clarityGateSnapshot().allowedRoute).toBe(false);
+      analytics.__resetAnalytics();
+    });
+
+    test("a stopped session is never told it may record again", async () => {
+      // The 60s poll and setAnalyticsConsent both send consentv2; sending
+      // "granted" to a stopped session could re-arm what we just stopped, and
+      // no further stop would follow while the route stays disallowed.
+      const { analytics, clarity, fetchFlags } = await armed();
+      analytics.captureEvent(analytics.pageView({ path: "/record/abc123" }));
+      clarity.mockClear();
+      await jest.advanceTimersByTimeAsync(60_000);
+      await Promise.resolve();
+      expect(fetchFlags).toHaveBeenCalled();
+      const grants = clarity.mock.calls.filter(
+        (c) => c[0] === "consentv2" && (c[1] as { analytics_Storage?: string })?.analytics_Storage === "granted",
+      );
+      expect(grants).toHaveLength(0);
       analytics.__resetAnalytics();
     });
 
