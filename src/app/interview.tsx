@@ -43,6 +43,7 @@ import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { Text } from "@/components/ui/Text";
 import { PremiumLoadingState, PremiumModal, PremiumToast } from "@/components/premium";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
+import { PastMeErasView } from "@/components/deep-space/DeepSpaceViews";
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
 import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
@@ -50,7 +51,7 @@ import type { HotlineId } from "@/lib/safety/lexicon";
 import { classifyInputAnyLocale } from "@/lib/safety/classifier";
 import { startInterviewCrisisRouting } from "@/lib/llm/boundary";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { parsePeriodParam, livedPeriods } from "@/lib/interview/periods";
+import { livedPeriods, resolveInterviewRoutePeriod } from "@/lib/interview/periods";
 import { DrillProgress } from "@/components/ui/DrillProgress";
 import { isNonAnswer, scaffoldQuestion, shouldScaffold, MAX_SCAFFOLDS_PER_LAYER } from "@/lib/interview/stuck";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
@@ -89,21 +90,121 @@ function Glyph({ name, color, size = 20 }: { name: string; color: string; size?:
 // 않는다는 것이 이 화면의 기존 약속이고, 그건 유지한다. 그래서 여기서는 **비용과
 // 피로**로만 끊는다. 사용자는 언제든 "여기까지"로 먼저 끝낼 수 있다.
 const MAX_TURNS = 12;
+const PROFILE_RETRY_INITIAL_MS = 2_000;
+const PROFILE_RETRY_MAX_MS = 30_000;
+
+function InterviewFrame({ children }: { children: ReactNode }) {
+  const { t } = useTranslation("interview");
+  return (
+    <DeepSpaceScreen
+      active="lens"
+      header="none"
+      variant="windowed"
+      title={t("title")}
+      onBack={() => router.back()}
+    >
+      {children}
+    </DeepSpaceScreen>
+  );
+}
 
 export default function InterviewRoute() {
+  const { t } = useTranslation("interview");
+  const { t: homeT } = useTranslation("home");
+  const { period: periodParam } = useLocalSearchParams<{ period?: string }>();
+  const { userId, loading, hasProfile, profileProbeFailed, age, refresh } = useAuth();
+
+  useEffect(() => {
+    // 첫 프로필 프로브 실패는 "프로필 없음"이 아니라 "아직 모름"이다. 아래
+    // 게이트가 화면을 안전하게 붙드는 동안, 겹치는 요청 없이 백오프로 재조회한다.
+    if (loading || !userId || hasProfile !== false || !profileProbeFailed) return;
+    let active = true;
+    let retryDelayMs = PROFILE_RETRY_INITIAL_MS;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const scheduleRetry = () => {
+      if (!active) return;
+      timer = setTimeout(() => {
+        void refresh()
+          .catch(() => undefined)
+          .finally(() => {
+            retryDelayMs = Math.min(retryDelayMs * 2, PROFILE_RETRY_MAX_MS);
+            scheduleRetry();
+          });
+      }, retryDelayMs);
+    };
+    scheduleRetry();
+    return () => {
+      active = false;
+      if (timer !== null) clearTimeout(timer);
+    };
+  }, [hasProfile, loading, profileProbeFailed, refresh, userId]);
+
+  // 프로필 프로브가 끝나기 전의 age=null을 "나이를 모름"으로 해석하면 잠긴 미래
+  // 시기가 잠깐 세션으로 마운트될 수 있다. 인증과 프로필 상태를 먼저 확정한다.
+  if (loading) {
+    return (
+      <InterviewFrame>
+        <View style={styles.center}>
+          <PremiumLoadingState message={t("loading")} />
+        </View>
+      </InterviewFrame>
+    );
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+  // 실패한 프로브의 hasProfile=false는 "프로필 없음"이 아니라 "아직 모름"이다.
+  // 기존 DeepSpace 인증 게이트처럼 완료 프로필로 내보내지 않고 다음 프로브를 기다린다.
+  if (profileProbeFailed || hasProfile === null) {
+    return (
+      <InterviewFrame>
+        <View style={styles.center}>
+          <PremiumLoadingState message={t("loading")} />
+        </View>
+      </InterviewFrame>
+    );
+  }
+  if (hasProfile === false) return <Redirect href="/complete-profile" />;
+
+  const resolution = resolveInterviewRoutePeriod(periodParam, age);
+  if (resolution.kind === "missing" || resolution.kind === "invalid") {
+    return (
+      <InterviewFrame>
+        <PastMeErasView />
+      </InterviewFrame>
+    );
+  }
+  if (resolution.kind === "locked") {
+    return (
+      <InterviewFrame>
+        <View style={[styles.center, styles.routeState]}>
+          <MdCard variant="outlined" style={styles.lockedCard}>
+            <Text style={[m3TextStyle("titleMedium"), styles.saveTitle]}>
+              {homeT(`ds.star.${resolution.period}`)}
+            </Text>
+            <Text style={[m3TextStyle("bodyMedium"), styles.note]}>
+              {homeT("ds.star.lockedBody")}
+            </Text>
+          </MdCard>
+        </View>
+      </InterviewFrame>
+    );
+  }
+
+  // URL의 시기가 바뀌면 세션 전체를 갈아 끼운다. turns/coverage/started가 다른
+  // 시기의 대화와 섞이지 않고, 저장 시기 역시 이 prop 하나로 고정된다.
+  return <InterviewSession key={resolution.period} period={resolution.period} />;
+}
+
+function InterviewSession({ period }: { period: LifePeriod }) {
   const { t, i18n } = useTranslation("interview");
   const locale = (i18n.language === "ko" ? "ko" : "en") as "ko" | "en";
-  const { period: periodParam } = useLocalSearchParams<{ period?: string }>();
-  // 라우트가 주는 시기. `/audit` 이 이제 사용자가 살아온 칸을 그대로 보내므로
-  // 9개 전부를 받는다. 옛 링크(`?period=20s`)는 `parsePeriodParam` 이 계속 살린다.
-  const period: LifePeriod = parsePeriodParam(periodParam);
   // 기록에 남기는 시기도 같은 id 로 쓴다. `records.audit_period` 는 CHECK 없는 자유
   // 텍스트고 **지금 읽는 코드가 없다**(완료 판정은 태그가 한다). 옛 행은 `20s`·`teens`
   // 를 담고 있어 어휘가 섞이지만, 40대 인터뷰를 `current` 로 접어 넣는 쪽이 틀린
   // 기록을 남기므로 그쪽을 고르지 않았다.
   const auditPeriod: string = period;
 
-  const { userId, loading, isMinor, hasProfile, age } = useAuth();
+  const { userId, isMinor, age } = useAuth();
   const kbHeight = useKeyboard();
 
   const [turns, setTurns] = useState<InterviewTurn[]>([]);
@@ -304,32 +405,6 @@ export default function InterviewRoute() {
     if (turns.length > 0) scrollRef.current?.scrollToEnd({ animated: true });
   }, [turns.length]);
 
-  function Frame({ children }: { children: ReactNode }) {
-    return (
-      <DeepSpaceScreen
-        active="lens"
-        header="none"
-        variant="windowed"
-        title={t("title")}
-        onBack={() => router.back()}
-      >
-        {children}
-      </DeepSpaceScreen>
-    );
-  }
-
-  if (loading) {
-    return (
-      <Frame>
-        <View style={styles.center}>
-          <PremiumLoadingState message={t("loading")} />
-        </View>
-      </Frame>
-    );
-  }
-  if (!userId) return <Redirect href="/sign-in" />;
-  if (hasProfile === false) return <Redirect href="/complete-profile" />;
-
   const userTurns = turns.filter((turn) => turn.role === "user").length;
 
   // `override` 는 답변 칩이 쓴다. 칩을 누르면 `setDraft` 후 `send()` 를 부르는 대신
@@ -446,7 +521,7 @@ export default function InterviewRoute() {
       void loadSevenLevels(userId).then((s) => recordSevenTiers(userId, s.starLevels));
       setToast({ tone: "success", message: t("drill.saved") });
       navigating = true;
-      setTimeout(() => router.replace("/big-five"), 700);
+      setTimeout(() => router.replace(`/me/${period}`), 700);
     } catch {
       setFailModal(true);
     } finally {
@@ -455,7 +530,7 @@ export default function InterviewRoute() {
   }
 
   return (
-    <Frame>
+    <InterviewFrame>
       <ScrollView
         ref={scrollRef}
         contentContainerStyle={[styles.body, { paddingBottom: kbHeight + spacing.sm }]}
@@ -639,7 +714,7 @@ export default function InterviewRoute() {
         hotline={crisis.hotline}
         onClose={() => setCrisis((c) => ({ ...c, visible: false }))}
       />
-    </Frame>
+    </InterviewFrame>
   );
 }
 
@@ -650,6 +725,8 @@ void _loopKeys;
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
+  routeState: { padding: spacing.md },
+  lockedCard: { width: "100%", maxWidth: 480, padding: spacing.md, gap: spacing.xs },
   body: { padding: spacing.md, gap: spacing.sm },
   askRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
   askText: { flex: 1, color: m3.color.onSurface },

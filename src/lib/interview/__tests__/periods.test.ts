@@ -4,9 +4,22 @@
 // ⚠ 2026-08-24 에 역할이 바뀌었다. 예전에는 나이에서 시기 목록 자체를 만들어
 // 사람마다 칸 수가 달랐는데(스물다섯 4개·마흔여섯 6개), 별자리는 모양이 있어야
 // 하므로 칸은 고정이 됐다. 대신 살지 않은 별은 잠근다.
-import { livedPeriods, lockedStars, parsePeriodParam } from "../periods";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+import {
+  livedPeriods,
+  lockedStars,
+  parsePeriodParam,
+  resolveInterviewRoutePeriod,
+} from "../periods";
 import { LIFE_PERIODS, PERIOD_LABEL, seedQuestion, emptyCoverage } from "../probe";
 import { SEVEN_STARS, hasInterview, isUnlived } from "../../persona/seven-stars";
+
+const INTERVIEW_SCREEN = readFileSync(
+  join(__dirname, "..", "..", "..", "app", "interview.tsx"),
+  "utf8",
+).replace(/\r\n/g, "\n");
 
 describe("별 일곱이 정본이다", () => {
   it("일곱이다", () => {
@@ -131,5 +144,80 @@ describe("옛 링크가 죽지 않는다", () => {
     expect(parsePeriodParam("")).toBe("now");
     expect(parsePeriodParam("babyhood")).toBe("now");
     expect(parsePeriodParam(["teens", "20s"])).toBe("school");
+  });
+});
+
+describe("인터뷰 라우트는 시기를 조용히 지어내지 않는다", () => {
+  it.each([undefined, "", [] as string[]])("누락된 값 %p은 재선택으로 보낸다", (raw) => {
+    expect(resolveInterviewRoutePeriod(raw, 25)).toEqual({ kind: "missing" });
+  });
+
+  it.each(["babyhood", " ", ["babyhood", "now"]])("모르는 값 %p은 오류로 남긴다", (raw) => {
+    expect(resolveInterviewRoutePeriod(raw, 25)).toEqual({ kind: "invalid" });
+  });
+
+  it("새 이름과 옛 링크를 같은 정본 시기로 해석한다", () => {
+    expect(resolveInterviewRoutePeriod("school", 25)).toEqual({ kind: "ok", period: "school" });
+    expect(resolveInterviewRoutePeriod("teens", 25)).toEqual({ kind: "ok", period: "school" });
+    expect(resolveInterviewRoutePeriod(["20s", "now"], 25)).toEqual({
+      kind: "ok",
+      period: "twenties",
+    });
+  });
+
+  it("직접 URL로 아직 살지 않은 시기를 열 수 없다", () => {
+    expect(resolveInterviewRoutePeriod("later", 25)).toEqual({ kind: "locked", period: "later" });
+    expect(resolveInterviewRoutePeriod("20s", 14)).toEqual({
+      kind: "locked",
+      period: "twenties",
+    });
+  });
+
+  it("직장·지금은 나이와 무관하고, 나이를 모르면 기존 정책대로 막지 않는다", () => {
+    for (const age of [14, 25, 80, null]) {
+      expect(resolveInterviewRoutePeriod("work", age)).toEqual({ kind: "ok", period: "work" });
+      expect(resolveInterviewRoutePeriod("now", age)).toEqual({ kind: "ok", period: "now" });
+    }
+    expect(resolveInterviewRoutePeriod("later", null)).toEqual({ kind: "ok", period: "later" });
+  });
+});
+
+describe("인터뷰 화면이 엄격한 라우트 계약을 지킨다", () => {
+  it("인증·프로필 판정을 끝낸 뒤에만 시기를 해석한다", () => {
+    const loadingGate = INTERVIEW_SCREEN.indexOf("if (loading)");
+    const signedOutGate = INTERVIEW_SCREEN.indexOf("if (!userId)");
+    const probeFailureGate = INTERVIEW_SCREEN.indexOf("if (profileProbeFailed");
+    const missingProfileGate = INTERVIEW_SCREEN.indexOf('if (hasProfile === false)');
+    const resolver = INTERVIEW_SCREEN.indexOf("resolveInterviewRoutePeriod(periodParam, age)");
+
+    expect(loadingGate).toBeGreaterThanOrEqual(0);
+    expect(signedOutGate).toBeGreaterThan(loadingGate);
+    expect(probeFailureGate).toBeGreaterThan(signedOutGate);
+    expect(missingProfileGate).toBeGreaterThan(probeFailureGate);
+    expect(resolver).toBeGreaterThan(missingProfileGate);
+  });
+
+  it("실패한 프로필 프로브는 로더에 고정하지 않고 다시 확인한다", () => {
+    expect(INTERVIEW_SCREEN).toContain("hasProfile !== false || !profileProbeFailed");
+    expect(INTERVIEW_SCREEN).toContain("void refresh()");
+    expect(INTERVIEW_SCREEN).toContain("PROFILE_RETRY_INITIAL_MS = 2_000");
+    expect(INTERVIEW_SCREEN).toContain("PROFILE_RETRY_MAX_MS = 30_000");
+    expect(INTERVIEW_SCREEN).toContain("retryDelayMs = Math.min(retryDelayMs * 2");
+    expect(INTERVIEW_SCREEN).toContain("active = false");
+    expect(INTERVIEW_SCREEN).toContain("clearTimeout(timer)");
+  });
+
+  it("누락·오류·잠금·정상 시기를 서로 다른 화면 상태로 유지한다", () => {
+    expect(INTERVIEW_SCREEN).toContain("PastMeErasView");
+    expect(INTERVIEW_SCREEN).toContain('resolution.kind === "locked"');
+    expect(INTERVIEW_SCREEN).toContain('homeT("ds.star.lockedBody")');
+    expect(INTERVIEW_SCREEN).toContain(
+      "<InterviewSession key={resolution.period} period={resolution.period} />",
+    );
+  });
+
+  it("담은 인터뷰는 해당 별 요약으로 돌아간다", () => {
+    expect(INTERVIEW_SCREEN).toContain('router.replace(`/me/${period}`)');
+    expect(INTERVIEW_SCREEN).not.toContain('router.replace("/big-five")');
   });
 });
