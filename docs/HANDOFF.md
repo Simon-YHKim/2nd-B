@@ -50,8 +50,15 @@
 
 ### 미착수 — 다음 결정 대상
 
-- `core-brain.tsx` 의 `router.push("/persona")` 버튼: 딥스페이스에서 /persona 가 즉시
-  /core-brain 으로 되돌려 제자리 튕김(교차검토 확인). 제거냐 목적지 교체냐는 제품 판단.
+- **재검증 정정:** `core-brain.tsx` 의 `router.push("/persona")` 버튼은 legacy 분기에만
+  있고, 딥스페이스 분기는 그보다 먼저 return한다. `/persona`의 `/core-brain` redirect는
+  딥스페이스에서만 적용되므로 같은 UI 모드의 자기루프는 없다. 두 모드의 코드를 합쳐
+  읽은 감사 오류였고 core-brain 코드는 변경하지 않는다.
+- `/me/profile`의 CTA는 중간 `/profile` 허브를 거치지 않고 실제 입력 화면인
+  `/profile-details`로 직행하도록 후속 수정했다. 기존 홈 별 계약 테스트가 이를 고정한다.
+- #1544의 외부 계약 실행 차단·Design Lab은 #1538 paywall 스택과 분리해 main 기반
+  독립 PR로 재구성한다. #1547의 `/discover`·`/imagine`·`/deepspace-home` 정정을 보존하고
+  entry source와 UI-mode별 render behavior를 서로 다른 축으로 기록한다.
 - 검사 목록 이원화: /core-brain 은 registry(OFFERABLE) 렌더, /profile analyze 메뉴는
   하드코딩 7행 — registry 렌더로 일원화 제안.
 

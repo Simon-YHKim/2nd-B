@@ -8,7 +8,7 @@
 
 **활성 제품 화면 중 완전 고립은 0개다.** screen-index 의 orphan 8은 전부 의도 상태
 (호환 1 · 외부 계약 3 · 개발 레퍼런스 4)이고, 남은 것은 고아 발굴이 아니라 IA 결함
-3건의 수리와 growth 데이터 계약 복구다.
+2건의 수리와 growth 데이터 계약 복구다.
 
 ## 검증으로 확정된 사실
 
@@ -16,7 +16,7 @@
 |---|---|
 | /imagine 은 고아가 아니다 — 프로덕션 진입 2곳 | /ops 도구격자 `DeepSpaceDesignScreens.tsx:2653-2656`(렌더 `:2896`, `ops.tsx:501`) · /growth GO `WeeklyGrowthScreen.tsx:242-245`(`growth.tsx:7`) |
 | 1차 감사의 "/imagine 유일 고아" 는 오판 — 철회 | 원인 추정: MSYS 선행-슬래시 grep 함정 (패턴이 `/`로 시작하면 조용히 0건) |
-| core-brain→persona 자기루프 (프로덕션 체감 버그) | `core-brain.tsx:750` push("/persona") → `persona.tsx:711-712` 딥스페이스 즉시 /core-brain Redirect. D4(persona.tsx:695-699)의 마지막 낡은 호출자 |
+| core-brain→persona 자기루프는 없음 — 감사 정정 | `core-brain.tsx:503-684` 딥스페이스 분기는 먼저 return하며 `/persona` CTA는 legacy 분기(`:767-771`)에만 있다. `persona.tsx:711-714`의 /core-brain Redirect는 딥스페이스에서만, legacy에서는 실화면을 렌더한다. 두 모드의 코드를 합쳐 읽은 오판이었다. |
 | /me/profile 은 한 단계 우회 | `me/[star].tsx:139-147` CTA 가 /profile 허브로 — 채우는 화면은 /profile-details (`profile.tsx:177-178` 주석이 자인) |
 | /discover 는 stub 아님 (장부 오기였음) | `discover.tsx:6-8` 딥스페이스 실화면 · /insights 문 `DeepSpaceDesignScreens.tsx:1292-1296` → screen-index 정정 완료 (이 PR) |
 | /community/join/sample 직접 실행 = 실제 DB write | `community/join/[token].tsx:30-49` 마운트 시 `ensureCommunityProfile()` (RPC `community_ensure_profile`, `chat.ts:108-114`) 가 토큰 실패보다 먼저 |
@@ -25,13 +25,13 @@
 | /mbti 는 보류 아닌 은퇴 확정 + 이중 리다이렉트 | `mbti.tsx:10-16` · 딥스페이스에선 /mbti→/persona→/core-brain (착지 의미가 D4 로 조용히 변경됨) |
 | /deepspace-flowmap 은 낡은 7렌즈 모델 표시 중 | `DeepSpaceFlowMapScreen.tsx:110` "7 lenses" — 08-24 "일곱 한 벌" 이전 모델 |
 
-## 합의 우선순위 1~5 (Claude·Codex 양측 서명, Simon 승인 대기)
+## 재검증 반영 우선순위 1~5 (Claude·Codex 양측 서명)
 
 | # | 작업 | 크기 |
 |---|---|---|
-| 1 | `core-brain.tsx:750` 자기루프 버튼 제거/재지정 | 1줄 |
-| 2 | Codex #1543→#1544 머지 — /dev-screens 외부 계약 실행 차단(위 DB write) + Design Lab 섹션(새 라우트 아님, 기존 화면 내부) | PR 존재 (Draft, #1538 스택) |
-| 3 | `me/[star].tsx:146` → /profile-details 재지정 | 소형 |
+| 1 | 자기루프 주장을 철회하고 기록만 정정 — core-brain 코드는 변경하지 않는다 | 완료 |
+| 2 | #1544의 안전 핵심을 main 기반 새 PR로 분리 — /dev-screens 외부 계약 실행 차단(위 DB write) + Design Lab 섹션. paywall #1538 스택은 끌어오지 않는다 | 소형 PR |
+| 3 | `me/[star].tsx:146` → /profile-details 재지정 | 완료 |
 | 4 | growth 데이터 계약 복구: 인터뷰에 origin/domain 전달 + `domain:growth` 태그 + **audit_period 기반 표시** — 태그만 붙이면 회상 기록이 전부 현재 decade 에 쌓이므로 둘은 분리 불가 한 묶음 | 중형 |
 | 5 | /audit 정체성 분리(검사↔과거회상) + flowmap stale 경고·데모 비활성화(자동생성 관계뷰 도입 시 은퇴) | 중형 |
 
@@ -51,4 +51,8 @@ entry source 와 UI-mode 별 render behavior 를 분리해 기록해야 롤백 �
   별도 보조 이펙트로 분리 (core-brain-minor-gate.test 가 계약을 지키고 있었다)
 - 이 합의 문서 + HANDOFF 갱신
 
-포함하지 않은 것: 우선순위 1·3·4·5 (Simon 승인 후 별도 PR), #1543/#1544 머지(Codex 스택 소관).
+원 PR #1547에 포함하지 않은 것: 우선순위 3·4·5, #1538/#1543/#1544 스택 머지.
+
+2026-09-01 후속 재검증에서 우선순위 1은 서로 다른 UI 모드의 코드를 합쳐 읽은
+오판으로 철회했고, 우선순위 3은 `/profile-details` 직행으로 집행했다. 우선순위 2는
+대형 paywall 스택을 합치지 않고 main 기반 독립 PR로 재구성한다.
