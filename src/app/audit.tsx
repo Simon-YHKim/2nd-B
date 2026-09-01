@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, BackHandler } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
@@ -14,6 +14,7 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { PastMeErasView } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { questionsForPeriod, type AuditPeriod } from "@/lib/audit/questions";
+import { isUnlived, type SevenStarId } from "@/lib/persona/seven-stars";
 import { createRecord } from "@/lib/records/create";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 
@@ -22,6 +23,11 @@ const PERIOD_OPTIONS: { id: AuditPeriod; label: { en: string; ko: string } }[] =
   { id: "20s", label: { en: "Your 20s", ko: "20대" } },
   { id: "teens", label: { en: "Your teens", ko: "10대" } },
 ];
+const AUDIT_PERIOD_STAR: Record<AuditPeriod, SevenStarId> = {
+  current: "now",
+  teens: "school",
+  "20s": "twenties",
+};
 type AuditDisplayLocale = "en" | "ko" | "es" | "pt" | "id";
 type AuditDataLocale = "en" | "ko";
 type AuditToast = { message: string; tone: "info" | "success" | "danger" };
@@ -120,7 +126,7 @@ function dataLocaleFor(language: string | undefined): AuditDataLocale {
   return language?.toLowerCase().startsWith("ko") ? "ko" : "en";
 }
 
-function AuditScreenerShell({ children }: { children: ReactNode }) {
+function AuditScreenerShell({ children, onBack }: { children: ReactNode; onBack: () => void }) {
   const { t } = useTranslation("core-brain");
   if (isDeepSpaceUI()) {
     return (
@@ -129,7 +135,7 @@ function AuditScreenerShell({ children }: { children: ReactNode }) {
         header="none"
         variant="windowed"
         title={t("auditCheck")}
-        onBack={() => router.back()}
+        onBack={onBack}
       >
         {children}
       </DeepSpaceScreen>
@@ -140,7 +146,7 @@ function AuditScreenerShell({ children }: { children: ReactNode }) {
 
 function AuditLegacy() {
   const { t, i18n } = useTranslation("audit");
-  const { userId, loading, isMinor, hasProfile } = useAuth();
+  const { userId, loading, isMinor, hasProfile, age } = useAuth();
   const displayLocale = displayLocaleFor(i18n.language);
   const locale = dataLocaleFor(i18n.language);
   const copy = DISPLAY_COPY[displayLocale];
@@ -156,6 +162,20 @@ function AuditLegacy() {
   const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
   const companion = useCompanionMoment();
 
+  const requestBack = useCallback(() => {
+    if (period !== null && !done) {
+      if (index > 0 || answer.trim().length > 0) {
+        setExitConfirmOpen(true);
+      } else {
+        setPeriod(null);
+      }
+      return true;
+    }
+
+    router.back();
+    return true;
+  }, [answer, done, index, period]);
+
   useEffect(() => {
     if (!toast) return;
     const timeout = setTimeout(() => setToast(null), 2800);
@@ -167,23 +187,13 @@ function AuditLegacy() {
   useEffect(() => {
     if (period === null || done) return;
 
-    const onBackPress = () => {
-      if (index > 0 || answer.trim().length > 0) {
-        setExitConfirmOpen(true);
-        return true; // Consume the event, preventing immediate navigation back
-      }
-      // If they haven't written anything yet on the first question, just let them return to selector
-      setPeriod(null);
-      return true;
-    };
-
-    const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+    const subscription = BackHandler.addEventListener("hardwareBackPress", requestBack);
     return () => subscription.remove();
-  }, [period, index, answer, done]);
+  }, [done, period, requestBack]);
 
   if (loading) {
     return (
-      <AuditScreenerShell>
+      <AuditScreenerShell onBack={requestBack}>
         <View style={styles.center}>
           <PremiumLoadingState message={t("loading")} />
         </View>
@@ -234,7 +244,7 @@ function AuditLegacy() {
 
   if (period === null) {
     return (
-      <AuditScreenerShell>
+      <AuditScreenerShell onBack={requestBack}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
 <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.introCard}>
@@ -246,19 +256,24 @@ function AuditLegacy() {
             </Text>
           </View>
           <View style={{ gap: spacing.sm }}>
-            {PERIOD_OPTIONS.map((p) => (
-              <Button
-                key={p.id}
-                label={p.label[locale]}
-                variant="secondary"
-                onPress={() => {
-                  setPeriod(p.id);
-                  setIndex(0);
-                  setAnswer("");
-                  setDone(false);
-                }}
-              />
-            ))}
+            {PERIOD_OPTIONS.map((p) => {
+              const locked = isUnlived(AUDIT_PERIOD_STAR[p.id], age);
+              return (
+                <Button
+                  key={p.id}
+                  label={p.label[locale]}
+                  variant="secondary"
+                  disabled={locked}
+                  onPress={() => {
+                    if (locked) return;
+                    setPeriod(p.id);
+                    setIndex(0);
+                    setAnswer("");
+                    setDone(false);
+                  }}
+                />
+              );
+            })}
             <Button
               label={t("back")}
               variant="secondary"
@@ -273,7 +288,7 @@ function AuditLegacy() {
 
   if (done) {
     return (
-      <AuditScreenerShell>
+      <AuditScreenerShell onBack={requestBack}>
         <View style={styles.center}>
           <View style={styles.completeBadge}>
             <Text variant="subtle" style={styles.completeBadgeText}>
@@ -308,7 +323,7 @@ function AuditLegacy() {
   }
 
   return (
-    <AuditScreenerShell>
+    <AuditScreenerShell onBack={requestBack}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
 <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {index === 0 ? (
@@ -505,8 +520,8 @@ function AuditDeepSpace() {
 export default function Audit() {
   const { screener } = useLocalSearchParams<{ screener?: string }>();
   // `/audit` is currently the deep-space PastMe compatibility entry. The
-  // assessment registry uses this explicit query so the fixed 25-question
-  // Life Audit remains reachable regardless of the active visual skin.
+  // assessment registry uses this explicit query so the period-specific
+  // 5–15-question Life Audit remains reachable regardless of the active visual skin.
   if (screener === "1") return <AuditLegacy />;
   if (isDeepSpaceUI()) return <AuditDeepSpace />;
   return <AuditLegacy />;
