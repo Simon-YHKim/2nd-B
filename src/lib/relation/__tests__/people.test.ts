@@ -1,4 +1,10 @@
-import { normalizePersonInput } from "../people";
+const mockFrom = jest.fn();
+
+jest.mock("../../supabase/client", () => ({
+  getSupabaseClient: () => ({ from: mockFrom }),
+}));
+
+import { createPerson, listPeople, normalizePersonInput } from "../people";
 
 describe("normalizePersonInput (enforces 0058 CHECK constraints, node-pure)", () => {
   test("valid input passes through, name/note trimmed", () => {
@@ -45,5 +51,52 @@ describe("normalizePersonInput (enforces 0058 CHECK constraints, node-pure)", ()
     expect(n.last_interaction_on).toBeNull();
     expect(n.note).toBeNull();
     expect(n.tags).toEqual([]);
+  });
+});
+
+describe("people query timeouts", () => {
+  afterEach(() => {
+    jest.useRealTimers();
+    mockFrom.mockReset();
+  });
+
+  test("rejects a stalled Supabase query instead of loading forever", async () => {
+    jest.useFakeTimers();
+    const stalled = new Promise<never>(() => {});
+    const order = jest.fn(() => stalled);
+    const eq = jest.fn(() => ({ order }));
+    const select = jest.fn(() => ({ eq }));
+    mockFrom.mockReturnValue({ select });
+
+    const result = listPeople("user-1").then(
+      () => null,
+      (error: unknown) => error,
+    );
+    await jest.advanceTimersByTimeAsync(20_000);
+
+    await expect(result).resolves.toMatchObject({
+      name: "TimeoutError",
+      message: "people list timed out after 20000ms",
+    });
+  });
+
+  test("rejects a stalled insert instead of leaving save locked forever", async () => {
+    jest.useFakeTimers();
+    const stalled = new Promise<never>(() => {});
+    const single = jest.fn(() => stalled);
+    const select = jest.fn(() => ({ single }));
+    const insert = jest.fn(() => ({ select }));
+    mockFrom.mockReturnValue({ insert });
+
+    const result = createPerson("user-1", { display_name: "소하" }).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    await jest.advanceTimersByTimeAsync(20_000);
+
+    await expect(result).resolves.toMatchObject({
+      name: "TimeoutError",
+      message: "people save timed out after 20000ms",
+    });
   });
 });
