@@ -6,13 +6,15 @@
 // surfaces cannot drift apart. Lives in the (auth) group: IntroGate-exempt,
 // reachable while signed out mid-sign-up. Canon-only (no legacy skin).
 import { useCallback, useRef } from "react";
-import { Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { BackHandler, Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { colors, spacing } from "@/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { Text } from "@/components/ui/Text";
 import { REQUIRED_ACK_KEYS } from "@/lib/auth/consent-selections";
+import { registerOwnBack } from "@/lib/nav/own-back";
 import { ddsStyles as styles } from "./dds-styles";
 import { AuthShell } from "./dds-auth-screens";
 
@@ -29,6 +31,30 @@ export function DeepSpaceConsentNoticeScreen() {
     : null;
   const scrollRef = useRef<ScrollView>(null);
   const scrolled = useRef(false);
+  const requestBack = useCallback(() => {
+    if (router.canGoBack()) router.back();
+    // replace, not push: a cold deep-link/web entry has no history, and push
+    // would leave THIS screen mounted underneath — its own-back registration
+    // would keep suppressing the global chip on the home it just opened.
+    else router.replace("/");
+    return true;
+  }, []);
+
+  // Focus-scoped, not mount-scoped: the native stack keeps buried screens
+  // MOUNTED, so a mount-scoped registration would keep suppressing the global
+  // BackArrow (own-back.ts is one global counter) and keep a hardware-back
+  // handler alive underneath whatever is pushed on top. One effect owns both
+  // registrations so blur releases them together.
+  useFocusEffect(
+    useCallback(() => {
+      const unregister = registerOwnBack();
+      const sub = BackHandler.addEventListener("hardwareBackPress", requestBack);
+      return () => {
+        sub.remove();
+        unregister();
+      };
+    }, [requestBack]),
+  );
 
   // Sections lay out top-down; when the target section reports its y, jump once.
   const onSectionLayout = useCallback(
@@ -46,8 +72,9 @@ export function DeepSpaceConsentNoticeScreen() {
     <AuthShell scrollRef={scrollRef}>
       <View style={styles.titleRow}>
         <Pressable
-          onPress={() => router.back()}
+          onPress={requestBack}
           hitSlop={12}
+          style={local.backTarget}
           accessibilityRole="button"
           accessibilityLabel={t("common:navGraph.drilldown.back")}
         >
@@ -92,6 +119,14 @@ export function DeepSpaceConsentNoticeScreen() {
 }
 
 const local = StyleSheet.create({
+  // The floating chip this screen replaces was a 44x44 target; the in-content
+  // chevron must not shrink below it (hitSlop stays as extra margin on top).
+  backTarget: {
+    minWidth: m3.minTouch,
+    minHeight: m3.minTouch,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   // ddsStyles.consentLabel carries flex:1 for its checkbox row; standalone legal
   // paragraphs need their own style or flexBasis:0 collapses them in a column.
   body: { color: colors.textMid, fontSize: 12, lineHeight: 18 },
