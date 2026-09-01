@@ -1027,15 +1027,42 @@ describe("runtime analytics web transitions", () => {
       analytics.__resetAnalytics();
     });
 
-    test("an id in the query string is not an allowed route, even on /", async () => {
-      // Clarity records document.location, and capture.tsx/record/[id].tsx push
-      // `/?highlightRecordId=<uuid>`. The path allow-list cannot see that.
-      const { analytics, clarity } = await armed();
-      analytics.captureEvent(
-        analytics.pageView({ path: "/?highlightRecordId=3f2c1a90-0000-4000-8000-000000000000" }),
+    // The shape the app actually produces. capture.tsx:1995 and
+    // record/[id].tsx:224 do router.push({ pathname: "/", params: {
+    // highlightRecordId } }), so the browser URL becomes
+    // `/?highlightRecordId=<uuid>` while _layout.tsx:396 reports the path as
+    // plain "/" — it builds it from useSegments(), which has no query. A guard
+    // that reads the reported path therefore sees nothing. This pair pins the
+    // difference: same page_view argument, opposite verdicts, decided only by
+    // the live location that Clarity itself records.
+    const setLocation = (over: { search?: string; hash?: string }) => {
+      Object.assign(
+        (globalThis.window as { location: { search?: string; hash?: string } }).location,
+        { search: "", hash: "", ...over },
       );
+    };
+
+    test("an id in the live query string stops recording, though the path is just /", async () => {
+      const { analytics, clarity } = await armed();
+      setLocation({ search: "?highlightRecordId=3f2c1a90-0000-4000-8000-000000000000" });
+      // Note the argument: "/" with no query, exactly as _layout.tsx sends it.
+      analytics.captureEvent(analytics.pageView({ path: "/" }));
       expect(stopCalls(clarity)).toHaveLength(1);
       expect(analytics.clarityGateSnapshot().allowedRoute).toBe(false);
+      setLocation({});
+      analytics.__resetAnalytics();
+    });
+
+    test("a fragment counts too, and a bare / on the same path does not", async () => {
+      // The negative half matters as much: if this stopped as well, the test
+      // above would pass for the wrong reason and every navigation would stop.
+      const { analytics, clarity } = await armed();
+      analytics.captureEvent(analytics.pageView({ path: "/" }));
+      expect(stopCalls(clarity)).toHaveLength(0);
+      setLocation({ hash: "#token=abc" });
+      analytics.captureEvent(analytics.pageView({ path: "/settings" }));
+      expect(stopCalls(clarity)).toHaveLength(1);
+      setLocation({});
       analytics.__resetAnalytics();
     });
 

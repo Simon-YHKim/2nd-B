@@ -429,11 +429,6 @@ let clarityLoaded = false;
 // vendor may be told "granted" is decided by the live route instead, because a
 // latch cannot tell a stopped session from one that never started.
 let clarityStopped = false;
-// The raw path carried a query or fragment. Clarity records document.location,
-// and ids travel in the query on otherwise allow-listed routes — e.g.
-// `/?highlightRecordId=<uuid>` from capture.tsx and record/[id].tsx. The path
-// allow-list cannot see those, so the flag is kept beside the route.
-let clarityRouteHasQuery = false;
 // Pending re-assertion of a stop, because Clarity restarts ITSELF after a
 // history change — see enforceClarityStop.
 let clarityStopReassert: ReturnType<typeof setTimeout> | null = null;
@@ -463,7 +458,9 @@ type WebGlobal = {
   dataLayer?: unknown[];
   gtag?: (...args: unknown[]) => void;
   clarity?: (...args: unknown[]) => void;
-  location?: { origin?: string; hostname?: string };
+  // search/hash are read, not just origin/hostname: they are the only place an
+  // id appears in the URL Clarity records. See clarityWebRouteAllowed.
+  location?: { origin?: string; hostname?: string; search?: string; hash?: string };
 };
 
 function webWindow(): WebGlobal | null {
@@ -1057,13 +1054,29 @@ function stopClarityNow(): void {
  * Stricter than isClarityAllowedRoute because Clarity records the live
  * document.location, and identifiers reach it through the QUERY string on
  * otherwise allow-listed paths — `/?highlightRecordId=<uuid>` is pushed by
- * capture.tsx, record/[id].tsx and wiki.tsx. The path allow-list was built on
+ * capture.tsx:1995 and record/[id].tsx:224. The path allow-list was built on
  * "identifier-carrying routes stay out by construction" and never saw those.
+ *
+ * ⚠ The first version of this guard tested the page_view path for `?` and was
+ * DEAD CODE in production. _layout.tsx:396 builds that path from useSegments()
+ * — `/${segments.join("/")}` — which structurally cannot contain a query or a
+ * fragment. So `/?highlightRecordId=<uuid>` arrived as the string "/", the
+ * test for `?` was false, "/" is allow-listed, and the exact leak the guard
+ * was written to close stayed open while reading as closed. Worse, when the
+ * session was already on "/" the ref dedupe in _layout.tsx:461 meant no
+ * page_view fired at all. The lesson is the one this repo keeps relearning:
+ * a guard has to read the same source as the thing it is guarding. Clarity
+ * reads window.location, so this reads window.location.
+ *
  * Native is unaffected: it records a screen name we choose, not a URL, so
- * syncNativeClarityForRoute keeps using the path rule.
+ * syncNativeClarityForRoute keeps using the path rule. A missing window is
+ * therefore "no URL to leak", not "unknown".
  */
 function clarityWebRouteAllowed(): boolean {
-  return isClarityAllowedRoute(currentAnalyticsRoute) && !clarityRouteHasQuery;
+  if (!isClarityAllowedRoute(currentAnalyticsRoute)) return false;
+  const location = webWindow()?.location;
+  if (!location) return true;
+  return !location.search && !location.hash;
 }
 
 /**
@@ -1350,9 +1363,6 @@ export function captureEvent(event: AnalyticsEvent): boolean {
   // receive the correct redacted route rather than the browser's live URL.
   if (event.name === "page_view") {
     currentAnalyticsRoute = sanitizeAnalyticsRoutePath(event.props.path);
-    // Recorded before the route is sanitized, because sanitizing drops the
-    // query — and the query is where record/wiki ids ride on allowed paths.
-    clarityRouteHasQuery = /[?#]/.test(event.props.path);
     // Leaving the allow-list stops recording. The two calls are mutually
     // exclusive on the same predicate, so the order is not load-bearing today;
     // stop runs first anyway so the one-way rule reads in the order it holds.
@@ -1432,7 +1442,6 @@ export function __resetAnalytics(): void {
   ga4Id = null;
   clarityLoaded = false;
   clarityStopped = false;
-  clarityRouteHasQuery = false;
   if (clarityStopReassert) clearTimeout(clarityStopReassert);
   clarityStopReassert = null;
   currentAnalyticsRoute = "/";
