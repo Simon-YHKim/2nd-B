@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>2nd-Brain · API 연결 현황 (2026-06-27)</title>
+<title>2nd-Brain · API 연결 현황 역사 스냅샷</title>
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <style>
   :root{
@@ -73,8 +73,8 @@
 <div class="wrap">
 <header>
   <h1>2nd-Brain <span class="dot">·</span> API 연결 현황 대시보드</h1>
-  <div class="sub">앱(제품)과 에이전트 워크플로우가 의존하는 외부 API를 <b>연결 완료 / 필수 / 있으면 더 좋아짐</b> 3축으로 정리.</div>
-  <div class="meta">생성 2026-06-27 · 소스: 2nd-B repo (eas.json · src · supabase/functions). ※ LLM 키·EXPO_TOKEN 등 secret 기반 항목은 CI/Supabase secret 설정에서 추론한 것으로, 레포 파일에서 직접 값을 확인한 것이 아님.</div>
+  <div class="sub"><b>2026-06-27 역사 스냅샷</b>이다. 외부 API 전체 상태의 최신 정본으로 사용하지 말 것. Sentry 카드는 2026-09-02 코드 계약에 맞춰 정정했다.</div>
+  <div class="meta">원본 소스: 2nd-B repo (eas.json · src · supabase/functions). LLM 키·EXPO_TOKEN 등 secret 기반 항목은 당시 CI/Supabase 설정에서 추론한 것으로, 현재 외부 설정을 증명하지 않는다.</div>
 </header>
 
 <div class="legend">
@@ -158,13 +158,13 @@
 <!-- ============ 3. NICE TO HAVE ============ -->
 <section>
   <div class="shead"><h2>③ API 있으면 더 좋아지는 것</h2><span class="tag">선택 · 켜면 기능 활성화</span></div>
-  <div class="sdesc">코드엔 이미 자리(EXPO_PUBLIC_* 키)가 있지만 값이 비어 해당 기능이 꺼져 있는 상태. eas.json에 이들 값은 0건 — 키만 넣으면(일부는 리빌드 필요) 켜짐.</div>
+  <div class="sdesc">아래는 원본 스냅샷의 선택 기능 목록이다. 현재 상태는 각각 다시 검증해야 한다. 특히 Sentry는 환경 키만으로 켤 수 없도록 source에서 초기화 경로를 제거했다.</div>
   <div class="grid">
 
     <div class="card warn">
-      <div class="crow"><span class="cname">Sentry</span><span class="badge b-warn">미설정</span></div>
+      <div class="crow"><span class="cname">Sentry</span><span class="badge b-warn">HARD OFF</span></div>
       <div class="crole">에러 모니터링</div>
-      <div class="cnote">현재 SDK는 <b>@sentry/browser = 웹 전용</b>. DSN만 넣으면 <b>웹</b> 에러 리포팅 즉시 가동(리빌드 X). <b>네이티브 Android 크래시</b>까지 잡으려면 @sentry/react-native로 교체 + EAS 리빌드 필요 — <code>docs/sentry-setup.md</code> 참고.</div>
+      <div class="cnote"><b>@sentry/browser</b>와 <b>@sentry/react-native</b> 의존성은 OTA fingerprint 호환을 위해 남아 있지만 Web·Native 초기화 경로는 0건이다. DSN만 추가하거나 재배포해도 켜지지 않는다. 법적 고지·DPA·버전 인지 재확인·Native 정제 계약을 완료한 뒤 별도 source PR과 새 빌드로 검토한다. <code>docs/sentry-setup.md</code> 참고.</div>
     </div>
 
     <div class="card warn">
@@ -243,19 +243,18 @@
   </div>
   <div class="cnote" style="border:none;margin-top:12px;color:var(--mut)">
     개발에 직접 쓰이는 핵심: <b>GitHub·Supabase·Vercel·Figma·Context7</b>. 나머지는 보조/개인용.
-    제품 안정성을 위해 추가하면 좋은 MCP: <b>Sentry</b>(③의 모니터링과 짝).
+    Sentry 제품 런타임 연결은 현재 hard-off이며, 에이전트 통합과 별개로 법적·개인정보 게이트를 먼저 통과해야 한다.
   </div>
 </section>
 
 <!-- ============ PRIORITY ============ -->
 <div class="pri">
-  <h3>출시(2026-08-17) 전 추천 우선순위</h3>
+  <h3>Sentry 재활성화 전 우선순위</h3>
   <ol class="steps">
-    <li><b>Sentry DSN 연결(웹)</b> <span class="why">— DSN만 넣으면 웹 에러 리포팅 즉시 가동, 무료, 리빌드 불필요. 가장 ROI 높음. 네이티브 크래시는 별도 리빌드.</span></li>
-    <li><b>Kakao/Google 소셜 로그인</b> <span class="why">— 한국 타깃 가입 마찰 제거. 전환율 직결.</span></li>
-    <li><b>PostHog 또는 Clarity</b> <span class="why">— 3축 퍼널 측정 = XPRIZE 임팩트 증빙 데이터.</span></li>
-    <li><b>Vertex AI 전환</b> <span class="why">— 트래픽 늘기 전, 쿼터·과금 안정화(C2).</span></li>
-    <li><b>RevenueCat</b> <span class="why">— 수익화 시작 시점에. 출시 직후엔 후순위 OK.</span></li>
+    <li><b>처리 사실과 계약 정합성</b> <span class="why">개인정보 처리방침·국외 이전 고지, DPA, 보유·삭제 절차를 실제 운영과 일치시킨다.</span></li>
+    <li><b>버전 인지 재확인</b> <span class="why">기존 사용자도 변경된 정책 버전을 확인하는 흐름을 만든다.</span></li>
+    <li><b>Web·Native 정제 계약</b> <span class="why">URL·breadcrumb·request data 제거, tracing 기본 OFF, source map·release 운영을 테스트한다.</span></li>
+    <li><b>별도 source PR과 빌드</b> <span class="why">환경 변수만으로 재활성화하지 않고 Web·Android·iOS에서 동의 전 전송 0건을 검증한다.</span></li>
   </ol>
 </div>
 
