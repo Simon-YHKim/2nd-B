@@ -1,12 +1,9 @@
-name: Web preview (GitHub Pages)
+name: Web build / manual publish (GitHub Pages)
 
-# Publishes the Expo Web static export to GitHub Pages via the
-# legacy/branch source (peaceiris/actions-gh-pages). This bypasses
-# the github-pages environment entirely — which is necessary because
-# that environment defaults to a main-only branch policy that the
-# default GITHUB_TOKEN cannot relax (administration:write is required
-# to mutate env policies, but enabling that permission causes this
-# workflow to fail to register on non-main branches).
+# Every main push verifies and exports an immutable artifact, but never writes
+# gh-pages. Publishing is a separate workflow_dispatch decision bound to an
+# exact source SHA and the protected Production environment. The Pages source
+# is already gh-pages; this workflow does not mutate repository Pages settings.
 #
 # URL after first successful deploy:
 #   https://simon-yhkim.github.io/2nd-B/
@@ -22,29 +19,187 @@ on:
       - main
   workflow_dispatch:
     inputs:
+      mode:
+        description: "No-write build, current-main publish, or approved rollback"
+        required: true
+        type: choice
+        options:
+          - build-only
+          - publish
+          - rollback
+        default: build-only
+      source_sha:
+        description: "Exact 40-character lowercase commit SHA to build"
+        required: true
+        type: string
+      compliance_floor_sha:
+        description: "Rollback only: approved post-boundary floor SHA"
+        required: false
+        type: string
+        default: ""
+      confirmation:
+        description: "build-only:<sha>, publish:<sha>, or rollback:<sha>:<floor-sha>"
+        required: true
+        type: string
       allow_dev_tier:
-        description: "QA ONLY - honor ?tier= URL links (self-grants a paid tier). Ignored on a push to main."
+        description: "Build-only QA artifact: honor ?tier= links; publish/rollback reject true"
         type: boolean
         default: false
 
 permissions:
-  contents: write
-  pages: write
+  contents: read
 
 concurrency:
-  group: pages
-  cancel-in-progress: true
+  group: web-build-${{ github.run_id }}
+  cancel-in-progress: false
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
+    outputs:
+      artifact_name: ${{ steps.gate.outputs.artifact_name }}
+      compliance_floor_sha: ${{ steps.gate.outputs.compliance_floor_sha }}
+      mode: ${{ steps.gate.outputs.mode }}
+      source_sha: ${{ steps.gate.outputs.source_sha }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Resolve and validate the requested immutable source
+        id: gate
+        env:
+          DISPATCH_ALLOW_DEV_TIER: ${{ inputs.allow_dev_tier && 'true' || 'false' }}
+          DISPATCH_CONFIRMATION: ${{ inputs.confirmation || '' }}
+          DISPATCH_FLOOR_SHA: ${{ inputs.compliance_floor_sha || '' }}
+          DISPATCH_MODE: ${{ inputs.mode || '' }}
+          DISPATCH_SOURCE_SHA: ${{ inputs.source_sha || '' }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SHA: ${{ github.sha }}
+          REF_NAME: ${{ github.ref }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ "$REPOSITORY" != "Simon-YHKim/2nd-B" ]; then
+            echo "::error::This workflow may run only in Simon-YHKim/2nd-B."
+            exit 1
+          fi
+
+          if [ "$EVENT_NAME" = "push" ]; then
+            MODE="build-only"
+            SOURCE_SHA="$EVENT_SHA"
+            FLOOR_SHA=""
+            CONFIRMATION="build-only:$SOURCE_SHA"
+            ALLOW_DEV_TIER="false"
+          elif [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            if [ "$REF_NAME" != "refs/heads/main" ]; then
+              echo "::error::Manual web builds and publishes must run from refs/heads/main."
+              exit 1
+            fi
+            MODE="$DISPATCH_MODE"
+            SOURCE_SHA="$DISPATCH_SOURCE_SHA"
+            FLOOR_SHA="$DISPATCH_FLOOR_SHA"
+            CONFIRMATION="$DISPATCH_CONFIRMATION"
+            ALLOW_DEV_TIER="$DISPATCH_ALLOW_DEV_TIER"
+          else
+            echo "::error::Unsupported event."
+            exit 1
+          fi
+
+          if ! printf '%s' "$SOURCE_SHA" | grep -qE '^[0-9a-f]{40}$'; then
+            echo "::error::source_sha must be an exact 40-character lowercase commit SHA."
+            exit 1
+          fi
+          case "$MODE" in
+            build-only)
+              EXPECTED_CONFIRMATION="build-only:$SOURCE_SHA"
+              ;;
+            publish)
+              EXPECTED_CONFIRMATION="publish:$SOURCE_SHA"
+              if [ -n "$FLOOR_SHA" ] || [ "$ALLOW_DEV_TIER" != "false" ]; then
+                echo "::error::Publish forbids a rollback floor and the QA tier override."
+                exit 1
+              fi
+              ;;
+            rollback)
+              if ! printf '%s' "$FLOOR_SHA" | grep -qE '^[0-9a-f]{40}$'; then
+                echo "::error::Rollback requires an exact 40-character compliance floor SHA."
+                exit 1
+              fi
+              if [ "$ALLOW_DEV_TIER" != "false" ]; then
+                echo "::error::Rollback forbids the QA tier override."
+                exit 1
+              fi
+              EXPECTED_CONFIRMATION="rollback:$SOURCE_SHA:$FLOOR_SHA"
+              ;;
+            *)
+              echo "::error::Unsupported mode."
+              exit 1
+              ;;
+          esac
+          if [ "$CONFIRMATION" != "$EXPECTED_CONFIRMATION" ]; then
+            echo "::error::Confirmation does not exactly match the requested mode and SHA."
+            exit 1
+          fi
+
+          ARTIFACT_NAME="web-dist-$SOURCE_SHA-${{ github.run_id }}"
+          {
+            echo "artifact_name=$ARTIFACT_NAME"
+            echo "compliance_floor_sha=$FLOOR_SHA"
+            echo "mode=$MODE"
+            echo "source_sha=$SOURCE_SHA"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Checkout the exact source commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ steps.gate.outputs.source_sha }}
+
+      - name: Prove source membership and publication eligibility
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SHA: ${{ github.sha }}
+          FLOOR_SHA: ${{ steps.gate.outputs.compliance_floor_sha }}
+          MODE: ${{ steps.gate.outputs.mode }}
+          SOURCE_SHA: ${{ steps.gate.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+          if [ "$(git rev-parse HEAD)" != "$SOURCE_SHA" ]; then
+            echo "::error::Checkout does not match source_sha."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$SOURCE_SHA" origin/main; then
+            echo "::error::source_sha is not an ancestor of origin/main."
+            exit 1
+          fi
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$(git rev-parse origin/main)" != "$EVENT_SHA" ]; then
+            echo "::error::The main workflow ref became stale before verification."
+            exit 1
+          fi
+          if [ "$MODE" = "publish" ] && [ "$(git rev-parse origin/main)" != "$SOURCE_SHA" ]; then
+            echo "::error::Publish requires source_sha to equal fresh origin/main."
+            exit 1
+          fi
+          if [ "$MODE" = "rollback" ]; then
+            git cat-file -e "$FLOOR_SHA^{commit}"
+            if ! git merge-base --is-ancestor "$FLOOR_SHA" "$SOURCE_SHA"; then
+              echo "::error::Rollback source is below the approved compliance floor."
+              exit 1
+            fi
+          fi
+
+      - name: Setup Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "22"
           cache: "npm"
-      - run: npm ci --legacy-peer-deps
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Verify repository contracts
+        run: npm run verify
+
       - name: Build Expo Web (static export)
         env:
           # UI track: the LIVE web build now ships the deep-space character shell
@@ -204,41 +359,130 @@ jobs:
           # SPA fallback + Jekyll opt-out.
           cp dist/index.html dist/404.html 2>/dev/null || true
           touch dist/.nojekyll
-      - name: Deploy to gh-pages branch
-        # H1 (docs/security/2026-05-26-SUMMARY.md): pin third-party action by SHA
-        # to prevent a tag retargeting / repo takeover from injecting a malicious
-        # release. v4.0.0 → 4f9cc6602d3f66b9c108549d475ec49e8ef4d45e.
+
+      - name: Bind the artifact to its reviewed source
+        env:
+          MODE: ${{ steps.gate.outputs.mode }}
+          SOURCE_SHA: ${{ steps.gate.outputs.source_sha }}
+        run: |
+          node - <<'NODE'
+          const fs = require("node:fs");
+          const sha = process.env.SOURCE_SHA;
+          if (!/^[0-9a-f]{40}$/.test(sha ?? "")) throw new Error("invalid source SHA");
+          fs.writeFileSync(
+            "dist/.release-source.json",
+            `${JSON.stringify({ sourceSha: sha, mode: process.env.MODE })}\n`,
+          );
+          NODE
+
+      - name: Upload immutable web artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ steps.gate.outputs.artifact_name }}
+          path: dist
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 7
+
+  deploy:
+    needs: build
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      (needs.build.outputs.mode == 'publish' || needs.build.outputs.mode == 'rollback')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    environment:
+      name: Production
+      url: https://simon-yhkim.github.io/2nd-B/
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - name: Checkout the workflow commit for the final ref check
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Download the artifact from this run
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ${{ needs.build.outputs.artifact_name }}
+          path: dist
+
+      - name: Revalidate the exact SHA immediately before gh-pages write
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+          FLOOR_SHA: ${{ needs.build.outputs.compliance_floor_sha }}
+          MODE: ${{ needs.build.outputs.mode }}
+          SOURCE_SHA: ${{ needs.build.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.repository }}" != "Simon-YHKim/2nd-B" ] || [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "::error::Deploy job is restricted to the owner repository's main ref."
+            exit 1
+          fi
+          if [ "${{ inputs.allow_dev_tier && 'true' || 'false' }}" != "false" ]; then
+            echo "::error::Public deployment cannot contain the QA tier override."
+            exit 1
+          fi
+
+          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+          MAIN_SHA="$(git rev-parse origin/main)"
+          if [ "$(git rev-parse HEAD)" != "${{ github.sha }}" ] || [ "$MAIN_SHA" != "${{ github.sha }}" ]; then
+            echo "::error::main advanced while this run waited for Production approval."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$SOURCE_SHA" origin/main; then
+            echo "::error::source_sha is no longer an origin/main ancestor."
+            exit 1
+          fi
+
+          case "$MODE" in
+            publish)
+              [ "$SOURCE_SHA" = "$MAIN_SHA" ] || {
+                echo "::error::Publish source is no longer the fresh origin/main head."
+                exit 1
+              }
+              EXPECTED_CONFIRMATION="publish:$SOURCE_SHA"
+              ;;
+            rollback)
+              git cat-file -e "$FLOOR_SHA^{commit}"
+              git merge-base --is-ancestor "$FLOOR_SHA" "$SOURCE_SHA" || {
+                echo "::error::Rollback source fell below the approved compliance floor."
+                exit 1
+              }
+              EXPECTED_CONFIRMATION="rollback:$SOURCE_SHA:$FLOOR_SHA"
+              ;;
+            *)
+              echo "::error::Deploy job received a non-deploy mode."
+              exit 1
+              ;;
+          esac
+          if [ "$CONFIRMATION" != "$EXPECTED_CONFIRMATION" ]; then
+            echo "::error::Confirmation changed or no longer matches."
+            exit 1
+          fi
+
+          export SOURCE_SHA MODE
+          node - <<'NODE'
+          const fs = require("node:fs");
+          const provenance = JSON.parse(fs.readFileSync("dist/.release-source.json", "utf8"));
+          if (provenance.sourceSha !== process.env.SOURCE_SHA || provenance.mode !== process.env.MODE) {
+            throw new Error("artifact provenance does not match the approved request");
+          }
+          NODE
+
+      - name: Deploy the approved artifact to gh-pages
+        # H1: third-party action pinned by immutable commit SHA.
         uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e # v4.0.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
           publish_branch: gh-pages
           force_orphan: true
-          user_name: 'github-actions[bot]'
-          user_email: 'github-actions[bot]@users.noreply.github.com'
-          commit_message: "deploy: ${{ github.sha }}"
-      # Switch Pages source AFTER gh-pages exists. On the very first run
-      # this is the moment the branch becomes valid as a Pages source.
-      - name: Switch Pages source to gh-pages branch
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
-        run: |
-          # POST creates Pages if it doesn't exist (201) or 409 if it does.
-          POST_STATUS=$(curl -s -o /tmp/pages-post.json -w "%{http_code}" -X POST \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${{ github.repository }}/pages" \
-            -d '{"source":{"branch":"gh-pages","path":"/"}}')
-          echo "POST /pages (source:gh-pages) → $POST_STATUS"
-          # PUT switches an existing Pages site to the gh-pages branch source.
-          PUT_STATUS=$(curl -s -o /tmp/pages-put.json -w "%{http_code}" -X PUT \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${{ github.repository }}/pages" \
-            -d '{"source":{"branch":"gh-pages","path":"/"},"build_type":"legacy"}')
-          echo "PUT /pages (build_type:legacy) → $PUT_STATUS"
-          if [ "$POST_STATUS" != "201" ] && [ "$PUT_STATUS" != "200" ] && [ "$PUT_STATUS" != "204" ]; then
-            echo "POST body:"; cat /tmp/pages-post.json
-            echo "PUT body:";  cat /tmp/pages-put.json
-          fi
+          user_name: "github-actions[bot]"
+          user_email: "github-actions[bot]@users.noreply.github.com"
+          commit_message: "deploy(${{ needs.build.outputs.mode }}): ${{ needs.build.outputs.source_sha }}"
