@@ -5,7 +5,8 @@
 // LAYOUT NOTE (PR 680): Fabric Android drops function-form Pressable styles,
 // so the 40dp chip layout lives on a View and the Pressable inside is a bare
 // touch surface with an android_ripple state layer.
-import { useEffect, type ReactNode } from "react";
+import { useCallback, type ReactNode } from "react";
+import { useFocusEffect } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { m3 } from "@/lib/theme/m3";
@@ -25,10 +26,10 @@ export function MdTopAppBar({
   action?: ReactNode;
   backAccessibilityLabel?: string;
 }) {
-  // This bar carries its own back icon; announce it so the root-mounted
-  // floating BackArrow chip stands down (the two rendered overlapping in the
-  // same top-left corner on windowed sub-screens).
-  useEffect(() => registerOwnBack(), []);
+  // Native stacks retain buried screens. Register only while this screen is
+  // focused, otherwise a hidden app bar keeps the root BackArrow suppressed on
+  // every screen pushed above it.
+  useFocusEffect(useCallback(() => registerOwnBack(), []));
   return (
     <View style={styles.bar}>
       <View style={styles.backChip}>
