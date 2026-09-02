@@ -9,9 +9,9 @@
   },
   "notice": {
     "title": "A quick heads-up before you start",
-    "intro": "2nd-Brain keeps your entries private, stores them encrypted, and uses Google Gemini, Anthropic Claude, or OpenAI only to generate the responses you ask for. Please review and agree before continuing.",
+    "intro": "2nd-Brain keeps your entries private and stores them encrypted. When you use an AI feature, content needed for that feature may be sent to OpenAI or Anthropic; older builds or builds or runtimes without the dedicated vendor settings may route it to Google Gemini. Please review the required processing below before continuing.",
     "trustTitle": "Your records are not for sale",
-    "trustBody": "Your entries are private by default. They are processed only for responses you ask for, automatic safety checks, and service audit records.",
+    "trustBody": "Your entries are not sold or used for advertising. Automatic safety checks and service audit records do not, by themselves, trigger an additional transfer of entry text to an AI provider.",
     "purposesTitle": "What we collect and why",
     "items": "Collected: your email, date of birth, and the entries you write (journals, notes, captures).",
     "purposeService": "Used to run the service: saving your entries, your growth graph, and your assistant.",
@@ -21,12 +21,12 @@
     "optionalLabel": "Optional",
     "agreeAll": "Agree to all required items",
     "ackService": "I agree to the collection and use above so the service can run.",
-    "ackLlm": "I understand my entries are processed only when needed to generate responses I request, for automatic safety checks, and for service audit records, and only in those cases may be sent to Google Gemini, Anthropic Claude, or OpenAI.",
-    "ackOverseas": "I understand encrypted service data (account and entry data) is stored in Supabase's Seoul region but may be processed abroad for support, and content needed for an AI response may be sent abroad to Google Gemini, Anthropic Claude, or OpenAI when I use AI features.",
+    "ackLlm": "I understand that when I use an AI feature, text requests and related entries needed for that feature may be sent to the configured provider: OpenAI or Anthropic, or Google Gemini for older builds or builds or runtimes without the dedicated vendor settings. The provider may process them for responses, analysis, or generation. Images and audio may be processed for image analysis or voice transcription, and, if server-side record-search indexing is enabled, entry content may be processed to generate embeddings. Automatic safety checks and service audit records do not, by themselves, trigger an additional transfer of entry text to an AI provider.",
+    "ackOverseas": "I understand that essential processing uses encrypted service data (account and entry data) in Supabase's primary Seoul storage and its Edge Functions in South Korea or abroad, and that content needed when I use an AI feature may be sent abroad to OpenAI, Anthropic, or, from an older or unconfigured build or runtime, Google Gemini. I cannot complete sign-up without acknowledging this essential processing.",
     "ackSensitive": "I understand my entries may include sensitive details, and 2nd-Brain treats them as private account data.",
     "ackSafety": "I agree that if crisis wording appears, 2nd-Brain shows help lines and logs that it did. It is not an emergency service and does not report on my behalf.",
     "optMarketing": "Send me occasional product updates (optional).",
-    "minorBanner": "You are signing up as a teen (14 to 17). High-privacy is on by default: sharing, ads, analytics, model training, and outside analysis stay off.",
+    "minorBanner": "You are signing up as a teen (14 to 17). Sharing, ads, and external usage analytics are off. However, when you use an AI feature, the content needed for it may be sent to an overseas AI provider within the scope described at sign-up.",
     "detailLink": "View details"
   },
   "detail": {
@@ -38,11 +38,11 @@
     },
     "llmProcessing": {
       "title": "Processing entries for AI responses",
-      "body": "What happens: when you ask for a response, the relevant entries and your request are sent to an AI model (Google Gemini, Anthropic Claude, or OpenAI).\nOnly in these cases: responses you ask for, automatic safety checks, and service audit records. Nothing else.\nWhat we never do: sell your entries, use them for ads, or hand them to train outside models.\nYour choice: you can decline, but AI responses are core to the service, so sign-up cannot continue without it."
+      "body": "What happens: when you use an AI feature, text requests and the related entries needed for that feature are sent to the configured provider: OpenAI or Anthropic, or Google Gemini for older builds or builds or runtimes without the dedicated vendor settings. Images and audio may be processed for image analysis or voice transcription, and entry content may be processed to generate embeddings if server-side record-search indexing is enabled.\nPurpose: responses, analysis, generation, and voice transcription that you request and, when enabled, embeddings for record search.\nSafety and audit: automatic safety checks currently use rule-based checks in the app and service gateway. Service audit records store hashes instead of raw text, together with metadata such as provider, model, processing purpose, and processing time. Safety checks and audit records do not by themselves cause an additional transfer of raw text to an AI provider.\nWhat we do not do: we do not sell entries, use them for advertising, or send raw text that is not needed for the requested feature or health and activity measurements to an AI provider.\nYour choice: you may decline, but AI processing is necessary for the core Service, so sign-up cannot continue without this acknowledgement."
     },
     "overseasTransfer": {
       "title": "Processing outside your country",
-      "body": "Who receives it: Supabase (authentication and database hosting; primary storage in its Seoul region) and, depending on the AI feature, Google Gemini, Anthropic Claude, or OpenAI.\nWhat is transferred: Supabase stores encrypted account and entry data, which may be processed abroad for support. An AI provider receives only the relevant content needed to create the response you request.\nWhen and how: data is sent over TLS when you use the service; AI content is sent abroad only when you use an AI feature.\nHow long: Supabase follows account and legal retention periods. AI providers follow the provider-specific limited periods and exceptions described in the Privacy Policy.\nYour choice: you can decline, but core processing cannot run without this transfer, so sign-up cannot continue."
+      "body": "Who receives it: Supabase, Inc. (United States; authentication, database hosting, and Edge Functions, with primary storage in Seoul), OpenAI OpCo, LLC (United States), Anthropic PBC (United States), and Google Gemini for older builds or builds or runtimes without the dedicated vendor settings.\nWhat is transferred: Supabase processes account and entry data, content needed for the requested service function, and request metadata. An AI provider receives only the text, related entries, images, or audio needed for the AI feature you use; if server-side record-search indexing is enabled, entry content may also be processed to generate embeddings.\nWhen and how: data is sent over TLS while you use the Service. Supabase Edge Functions are not currently region-pinned and may run in South Korea or abroad. AI content is sent only when you use an AI feature.\nHow long: account data and User Content follow the periods in Section 3 of the Privacy Policy. Supabase API and function logs are retained for one day under the current Free plan. AI-provider retention and exceptions follow the provider-specific terms and actual service tier and settings described in Section 5; no unverified account-specific period is asserted here.\nYour choice: sign-up cannot continue without acknowledging this essential overseas processing. After sign-up, you may request account deletion to stop future use of the Service and future overseas processing."
     },
     "sensitiveData": {
       "title": "How sensitive entries are handled",
