@@ -41,6 +41,7 @@ describe("people map load failures stay distinct from an empty account", () => {
 
   test("a confirmed save is merged before the background reconciliation", () => {
     expect(BODY).toContain("const created = await createPerson(userId");
+    expect(BODY).toContain("}, attempt.id, attempt.rev);");
     expect(BODY).toContain("previous.filter((person) => person.id !== created.id)");
     const merge = BODY.indexOf("setPeople((previous)");
     const refresh = BODY.indexOf("void refresh();", merge);
@@ -52,5 +53,25 @@ describe("people map load failures stay distinct from an empty account", () => {
     const handleAdd = BODY.slice(BODY.indexOf("async function handleAdd"));
     expect(SRC).toContain('import { isTimeoutError } from "@/lib/async/with-timeout"');
     expect(handleAdd).toContain("if (isTimeoutError(e)) void refresh();");
+  });
+
+  test("save identity survives retries and synchronous double presses are blocked", () => {
+    expect(BODY).toContain("const attemptGenRef = useRef(0)");
+    expect(BODY).toContain("const saveIdRef = useRef<PersonSaveIdentity | null>(null)");
+    expect(BODY).toContain("const inFlightRef = useRef(false)");
+    expect(BODY).toContain("beginPersonSaveAttempt(");
+    expect(BODY).toContain("() => Crypto.randomUUID()");
+  });
+
+  test("every post-await mutation is gated and closing rotates the logical attempt", () => {
+    const handleAdd = BODY.slice(BODY.indexOf("async function handleAdd"), BODY.indexOf("function closeAddForm"));
+    expect(handleAdd.match(/isCurrentPersonSaveAttempt\(attemptGenRef, attempt\)/g)).toHaveLength(2);
+    expect(handleAdd).toContain("rotatePersonSaveIdentity(attemptGenRef, saveIdRef, attempt)");
+    expect(handleAdd).toContain("releasePersonSaveAttempt(attemptGenRef, inFlightRef, attempt)");
+
+    const closeForm = BODY.slice(BODY.indexOf("function closeAddForm"), BODY.indexOf("function toggleAddForm"));
+    expect(closeForm).toContain("abandonPersonSaveAttempt(attemptGenRef, saveIdRef, inFlightRef)");
+    expect(BODY).toContain("onPress={toggleAddForm}");
+    expect(BODY).not.toMatch(/set(?:Timeout|Interval)\s*\(/);
   });
 });
