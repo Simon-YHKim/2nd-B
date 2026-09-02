@@ -325,12 +325,15 @@ export function PremiumAppShell({
   stars = true,
   constellation = true,
   padded = true,
+  bottomClearanceOwner = "shell",
 }: {
   children: ReactNode;
   glow?: boolean;
   stars?: boolean;
   constellation?: boolean;
   padded?: boolean;
+  /** Parent chrome already owns the dock + bottom safe area when embedded. */
+  bottomClearanceOwner?: "shell" | "parent";
 }) {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
@@ -347,11 +350,18 @@ export function PremiumAppShell({
   // 된다 — 딥스페이스 /capture 가 공유로 full intake 를 렌더하면서 실제로 그
   // 사공간이 났다. nav/tabs.ts 가 "이 세 소비자는 어긋나지 않는다" 고 적어 둔
   // 그 약속을 여기서 지킨다.
-  const onTabBar = isTabPath(pathname) && !isDeepSpaceUI();
+  const ownsBottomClearance = bottomClearanceOwner === "shell";
+  const onTabBar = ownsBottomClearance && isTabPath(pathname) && !isDeepSpaceUI();
 
   // Dynamic bottom padding: clears the absolute bottom tab bar, safe area bottom (insets.bottom)
-  // and maintains a visual gap on Android/iOS.
-  const bottomClearance = onTabBar ? TAB_BAR_HEIGHT + spacing.lg + insets.bottom : insets.bottom;
+  // and maintains a visual gap on Android/iOS. An embedding parent such as
+  // DeepSpaceScreen already keeps its dock in normal flow and owns that safe
+  // area, so the child shell must not reserve the same inset a second time.
+  const bottomClearance = !ownsBottomClearance
+    ? 0
+    : onTabBar
+      ? TAB_BAR_HEIGHT + spacing.lg + insets.bottom
+      : insets.bottom;
 
   // Dynamic top padding: states insets.top, plus optional breathing room
   const topClearance = insets.top + (padded ? spacing.sm : 0) + (padded && needsArrowHeadroom ? 60 : 0);

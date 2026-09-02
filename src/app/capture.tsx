@@ -41,7 +41,7 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { CaptureView } from "@/components/deep-space/DeepSpaceViews";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
-import { PremiumCard, PremiumButton, PremiumLoadingState, TAB_BAR_HEIGHT } from "@/components/premium";
+import { PremiumCard, PremiumButton, PremiumLoadingState } from "@/components/premium";
 import { ShardArt } from "@/components/art/IslandArt";
 import { Input } from "@/components/ui/Input";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
@@ -49,6 +49,7 @@ import { cosmic, flattenAlpha, semantic, spacing, typography, withAlpha } from "
 import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { isAbortError } from "@/lib/async/abort";
 import { detectClipperKind } from "@/lib/wiki/clipper-kind";
@@ -331,7 +332,7 @@ export default function Capture() {
     if (hasFullCaptureParams || fullCaptureActive) {
       return (
         <DeepSpaceScreen active="capture" variant="windowed">
-          <CaptureLegacy />
+          <CaptureLegacy embeddedInDock />
         </DeepSpaceScreen>
       );
     }
@@ -347,22 +348,27 @@ export default function Capture() {
 // Exported for /capture-full: the deep-space track reaches this full multi-mode
 // intake (링크/클립/OCR/파일) through that route, reusing these proven pipes
 // instead of reimplementing them in the design body (QA F1 follow-up).
-export function CaptureLegacy() {
+export interface CaptureLegacyProps {
+  /** DeepSpaceScreen already owns the bottom dock and its safe-area clearance. */
+  embeddedInDock?: boolean;
+}
+
+export function CaptureLegacy({ embeddedInDock = false }: CaptureLegacyProps = {}) {
   const { userId } = useAuth();
+  if (embeddedInDock) {
+    return <CaptureLegacySession key={userId ?? "signed-out"} embeddedInDock />;
+  }
   return <CaptureLegacySession key={userId ?? "signed-out"} />;
 }
 
-function CaptureLegacySession() {
+function CaptureLegacySession({ embeddedInDock = false }: { embeddedInDock?: boolean }) {
   const { t, i18n } = useTranslation("capture");
   const { userId, loading, isMinor, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const insets = useSafeAreaInsets();
-  const keyboardBehavior = Platform.OS === "ios" ? "padding" : "height";
+  const kbHeight = useKeyboard();
+  const keyboardBehavior = Platform.OS === "ios" ? "padding" : undefined;
   const keyboardVerticalOffset = Platform.OS === "ios" ? insets.top : 0;
-  const scrollBottomPadding = Math.max(
-    styles.scroll.paddingBottom,
-    insets.bottom + TAB_BAR_HEIGHT + spacing.xxl + spacing.md,
-  );
   // KO eyebrows drop tracking to 0 (Hangul reads worse when tracked); EN keeps
   // the light caption tracking.
   const eyebrowTracking = { letterSpacing: locale === "ko" ? 0 : 0.3 };
@@ -1538,7 +1544,7 @@ function CaptureLegacySession() {
   const visibleModes = advancedModesExpanded ? CAPTURE_MODES : BASIC_CAPTURE_MODES;
   if (loading) {
     return (
-      <PremiumAppShell>
+      <PremiumAppShell bottomClearanceOwner={embeddedInDock ? "parent" : "shell"}>
         <View style={styles.center}>
           <PremiumLoadingState message={t("loading")} />
         </View>
@@ -1553,7 +1559,7 @@ function CaptureLegacySession() {
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
   if (!draftHydrated) {
     return (
-      <PremiumAppShell>
+      <PremiumAppShell bottomClearanceOwner={embeddedInDock ? "parent" : "shell"}>
         <View style={styles.center}>
           {draftHydrationError ? (
             <>
@@ -2887,14 +2893,19 @@ ${transcript}`;
   }
 
   return (
-    <PremiumAppShell>
+    <PremiumAppShell bottomClearanceOwner={embeddedInDock ? "parent" : "shell"}>
       <KeyboardAvoidingView
         behavior={keyboardBehavior}
         keyboardVerticalOffset={keyboardVerticalOffset}
         style={{ flex: 1 }}
       >
         <ScrollView
-          contentContainerStyle={[styles.scroll, { paddingBottom: scrollBottomPadding }]}
+          contentContainerStyle={[
+            styles.scroll,
+            Platform.OS === "android" && {
+              paddingBottom: Math.max(styles.scroll.paddingBottom, kbHeight + spacing.xl),
+            },
+          ]}
           keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
           keyboardShouldPersistTaps="handled"
         >
