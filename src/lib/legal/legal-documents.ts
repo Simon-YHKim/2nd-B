@@ -290,9 +290,9 @@ _시행일: 2026-09-02 · 최종 개정: 2026-09-02_
 | 수탁사 | 위탁 업무 | 비고 |
 |---|---|---|
 | Supabase (Supabase, Inc.) | 인증·데이터베이스 호스팅 | 이용자 계정·콘텐츠 저장. 저장 위치는 대한민국(서울) 리전입니다 |
-| OpenAI OpCo, LLC (OpenAI API) | AI 처리(대화·분석·생성·임베딩·음성 전사) | 이용자가 해당 AI 기능을 사용할 때 |
+| OpenAI OpCo, LLC (OpenAI API) | AI 처리(대화·분석·생성·음성 전사, 임베딩은 활성화된 경우) | 이용자가 해당 AI 기능을 사용할 때 |
 | Anthropic PBC (Claude API) | AI 처리(페르소나 서술·종합, 교차 검증의 일부) | 이용자가 해당 AI 기능을 사용할 때 |
-| Google (Gemini API, \`@google/genai\`) | AI 처리(구버전 앱 및 일부 예비 경로) | 구버전 앱의 AI 요청과 일부 미설정 예비 경로에 한함 |
+| Google (Gemini API, \`@google/genai\`) | AI 처리(구버전 앱 등) | 구버전 앱 또는 전용 벤더 변수가 주입되지 않은 빌드의 AI 요청에 한함 |
 | Functional Software, Inc. (dba Sentry) | 앱 오류·크래시 수집 및 분석 | 최신 앱에서는 초기화하지 않습니다(제5조 참조). 세션 녹화는 사용하지 않음 |
 | 소셜 로그인 제공자 (Google/Apple/Kakao/Naver 등) | 인증 | 이용자가 선택한 로그인 수단 |
 | Google (Google Analytics 4) | 서비스 이용 통계(웹) | 이용자가 사용 통계에 동의한 경우에만. 기본값은 꺼짐 |
@@ -305,7 +305,7 @@ AI 처리 등 서비스 제공에 필요한 일부 수탁사(Google, OpenAI, Ant
 
 **데이터 저장(Supabase)**: 이용자 데이터베이스와 인증 정보는 Supabase, Inc.가 제공하는 인프라의 **대한민국(서울) 리전**에 저장됩니다. 다만 Supabase, Inc.는 미국 법인으로, 서비스 운영·기술 지원 과정에서 국외(미국 등)에서 데이터에 접근하거나 처리할 가능성이 있습니다(문의: privacy@supabase.com). 대상 항목은 제1조의 계정 정보·이용자 콘텐츠·프로필·건강 및 활동 데이터, 방법은 서비스 이용 시 TLS 전송, 보유는 제3조의 기간과 같습니다.
 
-**AI 처리**: AI 기능을 이용할 때 이용자가 해당 기능에 제공한 콘텐츠가 OpenAI OpCo, LLC(미국)의 OpenAI API로 TLS 전송되어 안전 분류·분석·생성·임베딩·음성 전사 등에 처리됩니다. 일부 AI 기능(페르소나 서술·종합, 교차 검증의 일부)은 Anthropic PBC(미국)의 Claude API로 전송되어 처리될 수 있습니다. 구버전 앱의 AI 요청과 일부 미설정 예비 경로는 Google(미국)의 Gemini API로 처리될 수 있으며, 과거에는 Gemini API가 주된 AI 처리 경로였습니다. 건강·활동 측정값은 어떤 AI 제공자에게도 전송하지 않습니다.
+**AI 처리**: AI 기능을 이용할 때 이용자가 해당 기능에 제공한 콘텐츠가 OpenAI OpCo, LLC(미국)의 OpenAI API로 TLS 전송되어 분석·생성·음성 전사 등에 처리되며, 임베딩(기록 검색 색인) 기능이 서버에서 활성화된 경우에는 임베딩 생성에도 처리됩니다. 일부 AI 기능(페르소나 서술·종합, 교차 검증의 일부)은 Anthropic PBC(미국)의 Claude API로 전송되어 처리될 수 있습니다. 구버전 앱 또는 전용 벤더 변수가 주입되지 않은 빌드의 AI 요청은 Google(미국)의 Gemini API로 처리될 수 있으며, 과거에는 Gemini API가 주된 AI 처리 경로였습니다(Google 개인정보 문의: policies.google.com/privacy). 건강·활동 측정값은 어떤 AI 제공자에게도 전송하지 않습니다.
 
 각 사의 공개 정책 기준(각 사 정책 변경에 따라 달라질 수 있음): OpenAI API 입력·출력은 이용자가 별도로 데이터 공유를 선택하지 않는 한 모델 학습에 사용되지 않으며, 적용 대상 API의 남용 감시 로그는 기본적으로 최대 30일 보관되고 법률상 의무 또는 서비스·제3자 보호를 위해 더 오래 보관될 수 있습니다. 현재 OpenAI 음성 전사 API는 남용 감시 로그와 애플리케이션 상태를 보관하지 않습니다. Anthropic API의 입력·출력은 기본적으로 수신·생성 후 30일 이내 삭제되며, 별도 보관 기능 사용·별도 합의·정책 집행 또는 법률상 의무가 있는 경우는 예외입니다.
 
@@ -375,9 +375,9 @@ The Company entrusts processing as below; processors act only within the stated 
 | Processor | Function | Notes |
 |---|---|---|
 | Supabase (Supabase, Inc.) | Auth & database hosting | Stores accounts/User Content. Stored in the Seoul (South Korea) region |
-| OpenAI OpCo, LLC (OpenAI API) | AI processing (chat, analysis, generation, embeddings, voice transcription) | When you use the relevant AI feature |
+| OpenAI OpCo, LLC (OpenAI API) | AI processing (chat, analysis, generation, voice transcription; embeddings when enabled) | When you use the relevant AI feature |
 | Anthropic PBC (Claude API) | AI processing (persona narrative/synthesis, part of cross-checking) | When you use the relevant AI feature |
-| Google (Gemini API, \`@google/genai\`) | AI processing (older app versions and certain fallback paths) | Limited to AI requests from older app versions and certain unset fallback paths |
+| Google (Gemini API, \`@google/genai\`) | AI processing (older app versions, etc.) | Limited to AI requests from older app versions or builds where the dedicated vendor variables were not injected |
 | Functional Software, Inc. (dba Sentry) | App error and crash reporting and analysis | Not initialized in the latest app (see Section 5). No session replay |
 | Social-login providers (Google/Apple/Kakao/Naver, etc.) | Authentication | Login method you choose |
 | Google (Google Analytics 4) | Service usage statistics (web) | Only if you turn usage statistics on. Off by default |
@@ -390,7 +390,7 @@ Some processors required to provide the Service, such as Google, OpenAI, and Ant
 
 **Data storage (Supabase)**: your database and authentication data are stored in the **Seoul (South Korea) region** of infrastructure provided by Supabase, Inc. However, Supabase, Inc. is a United States company, and data may be accessed or processed abroad (including in the United States) in the course of operations and technical support (contact: privacy@supabase.com). The items are the account data, User Content, profile, and health and activity data in Section 1; the method is TLS transmission while you use the Service; retention follows Section 3.
 
-**AI processing**: when you use an AI feature, content you provide to that feature is transferred over TLS to OpenAI OpCo, LLC (United States) via the OpenAI API for safety classification, analysis, generation, embeddings, or voice transcription. Some AI features (persona narrative/synthesis and part of cross-checking) may be transferred to and processed by Anthropic PBC (United States) via the Claude API. AI requests from older app versions and certain unset fallback paths may be processed by Google's Gemini API (United States), which was historically the primary AI processing path. Health and activity measurements are not sent to any AI provider.
+**AI processing**: when you use an AI feature, content you provide to that feature is transferred over TLS to OpenAI OpCo, LLC (United States) via the OpenAI API for analysis, generation, or voice transcription, and, where the embeddings (record search indexing) feature is enabled on the server, for generating embeddings. Some AI features (persona narrative/synthesis and part of cross-checking) may be transferred to and processed by Anthropic PBC (United States) via the Claude API. AI requests from older app versions or builds where the dedicated vendor variables were not injected may be processed by Google's Gemini API (United States), which was historically the primary AI processing path (Google privacy inquiries: policies.google.com/privacy). Health and activity measurements are not sent to any AI provider.
 
 Per each provider's published policies (subject to change by each provider): OpenAI API inputs and outputs are not used to train models unless the customer separately opts in to data sharing; abuse-monitoring logs for applicable APIs are retained by default for up to 30 days and may be kept longer where required by law or reasonably necessary to protect the service or a third party; the OpenAI audio transcription API currently retains neither abuse-monitoring logs nor application state. Anthropic API inputs and outputs are deleted by default within 30 days of receipt or generation, except where a storage feature is used, a separate agreement applies, or retention is needed for policy enforcement or legal obligations.
 
