@@ -156,6 +156,13 @@ describe("legal document snapshots", () => {
     expect(PRIVACY_DOC.body).toContain("standard aggregated reports are not governed by that retention setting");
     // xAI is not selected by any deployed env value and must not be listed.
     expect(PRIVACY_DOC.body).not.toMatch(/xAI|X\.AI/);
+    // Official privacy contacts for the two active AI recipients, verified
+    // against each vendor's published privacy policy (openai.com/policies,
+    // anthropic.com/legal/privacy). KO and EN each carry both; no other
+    // (unverified) vendor mailbox may be invented for them.
+    expect(PRIVACY_DOC.body.match(/privacy@openai\.com/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(PRIVACY_DOC.body.match(/privacy@anthropic\.com/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(PRIVACY_DOC.body).not.toMatch(/(?:dpo|support|legal|contact)@(?:openai|anthropic)\.com/);
   });
 
   test("finalized 2026-07-17: no [기입]/[fill] markers remain, badge off", () => {
