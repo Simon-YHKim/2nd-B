@@ -2,8 +2,14 @@
 
 3개 렌즈(repo 일치성·보안·완결성) 적대적 검증 + repo 문서(docs/AUTH_PROVIDERS.md, docs/EXTERNAL-API-INTEGRATION.md) 대조 반영.
 
+> **2026-09-02 정정:** 아래 프롬프트 1의 Sentry·PostHog·Clarity 등록 절차는 폐기됐다.
+> Web Clarity와 Web·Native Sentry는 source hard-off이고 PostHog는 제거됐다. 관련 vendor
+> project나 GitHub Variable을 새로 만들거나 수정하지 말 것. 현재 Sentry 계약은
+> `docs/sentry-setup.md`가 정본이다.
+
 ## 공통 규칙 (모든 프롬프트)
-- 키/DSN/Project ID는 GitHub **Variables 탭**에 넣는다(Secrets 아님 — `EXPO_PUBLIC_`은 워크플로우가 `${{ vars.* }}`로 읽음).
+- 공개 client id나 project id를 등록하는 작업은 각 활성 기능의 최신 runbook을 먼저 확인한다.
+  Sentry DSN·Clarity id·PostHog key는 이 문서로 등록하지 않는다.
 - **OAuth Client Secret은 Supabase 대시보드에만** 입력. **절대 GitHub·채팅에 남기지 않는다.**
 - DSN/anon 키는 클라이언트-공개값. 단 **EXIM/MFDS 정부 API 키는 저민감이지만 웹 번들에 인라인되는 자격증명** — 공개데이터 키로 취급, 남용 시 재발급. (하드닝 경로: Supabase Secret + 엣지 프록시, docs/EXTERNAL-API-INTEGRATION.md.)
 - GitHub Variables 등록은 **저장소 Admin 권한** 필요. "New variable" 버튼이 없으면 권한/계정 문제 → STOP·보고. (Actions 비활성 시 Variables 탭이 없을 수 있음 → Settings → Actions → General 확인.)
@@ -18,37 +24,13 @@
 
 ---
 
-## 프롬프트 1 — 무료·즉시 분석/모니터링 (Sentry · PostHog · Clarity)
+## 프롬프트 1 — 폐기됨: Sentry · PostHog · Clarity 등록 금지
 
 ```
-[작업] GitHub Variables(Secrets 아님)를 감사하고, 없으면 Sentry·PostHog·Clarity를 등록.
-목적: 2nd-Brain "웹 빌드"의 에러/제품 분석 활성화. 보고서에 "WEB only" 명시.
-
-# Phase 0 — 감사
-1. https://github.com/Simon-YHKim/2nd-B/settings/variables/actions 열기.
-   ("New variable" 안 보이면 Admin 권한/계정 문제 → STOP·보고.)
-2. 다음이 이미 있는지 확인·보고: EXPO_PUBLIC_SENTRY_DSN, EXPO_PUBLIC_POSTHOG_KEY,
-   EXPO_PUBLIC_POSTHOG_HOST, EXPO_PUBLIC_CLARITY_PROJECT_ID. 있는 건 건드리지 말 것.
-
-# Sentry (없으면)
-3. sentry.io → Create Project → "Browser/JavaScript", 이름 "2nd-brain-web".
-4. Project Settings → "Client Keys (DSN)"(SDK Setup 하위)에서 DSN 복사
-   (https://<key>@oXXXX.ingest.sentry.io/<id>). 라벨 다르면 "DSN"으로 검색.
-5. Variables → New variable: EXPO_PUBLIC_SENTRY_DSN = 그 DSN.
-
-# PostHog (없으면)
-6. posthog.com 가입/로그인 → 프로젝트 생성. 리전(US/EU) 기억.
-7. Settings(또는 Project settings) → Project 섹션의 "Project API Key"(phc_로 시작) 복사 +
-   호스트 확인(US=https://us.i.posthog.com, EU=https://eu.i.posthog.com). 라벨 다르면 "API Key"로 검색.
-8. Variables: EXPO_PUBLIC_POSTHOG_KEY = phc_..., EXPO_PUBLIC_POSTHOG_HOST = 그 호스트.
-
-# Microsoft Clarity (없으면)
-9. clarity.microsoft.com → New project(이름 "2nd-brain", 웹).
-10. Settings → Overview/Setup에서 Project ID(짧은 영숫자) 복사. 라벨 다르면 "Project ID"로 검색.
-11. Variables: EXPO_PUBLIC_CLARITY_PROJECT_ID = 그 ID.
-
-# 보고: 등록/스킵 표 + Variables 목록 스크린샷(값 가려진 상태) + "WEB only" 명시.
-# 키 평문 채팅 금지.
+[작업 금지]
+이 블록은 역사 기록이다. Sentry·PostHog·Clarity project 생성, GitHub Variable 추가·수정·삭제,
+재배포를 수행하지 않는다. 현황이 필요하면 값은 출력하지 않고 변수 이름의 존재 여부만
+읽기 전용으로 감사한 뒤 `docs/sentry-setup.md`와 현재 source 계약을 보고한다.
 ```
 
 ---
