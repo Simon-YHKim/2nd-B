@@ -12,6 +12,18 @@ const migrationDir = join(process.cwd(), "db", "migrations");
 const AUTH = readFileSync(join(process.cwd(), "src", "lib", "supabase", "auth.ts"), "utf8")
   .split(CR)
   .join("");
+
+// Append new revisions; never change an existing tuple. A revision identifies
+// the exact documents that its client displayed, so reusing it would create a
+// false historical receipt for already-installed clients.
+const FROZEN_SIGNUP_REVISION_TUPLES = {
+  "email-v2": {
+    consentVersion: "2026-08-16",
+    policyVersion: "2026-08-30",
+    termsVersion: "2026-08-16",
+  },
+} as const;
+
 const matchingMigrations = readdirSync(migrationDir)
   .filter((name) => /^\d{4}_.+\.sql$/.test(name))
   .filter((name) =>
@@ -54,6 +66,18 @@ function authSignupRevision(): string {
   return match[1];
 }
 
+function frozenRevisionTuple(revision: string) {
+  if (!Object.prototype.hasOwnProperty.call(FROZEN_SIGNUP_REVISION_TUPLES, revision)) {
+    throw new Error(
+      `${revision} has no frozen document tuple; append a new revision mapping instead of reusing one`,
+    );
+  }
+
+  return FROZEN_SIGNUP_REVISION_TUPLES[
+    revision as keyof typeof FROZEN_SIGNUP_REVISION_TUPLES
+  ];
+}
+
 describe("verified-email consent ledger", () => {
   test("uses the same server-owned document versions as the client writer", () => {
     expect(declaredVersion("ledger_consent_version")).toBe(CONSENT_VERSION);
@@ -61,8 +85,21 @@ describe("verified-email consent ledger", () => {
     expect(declaredVersion("ledger_terms_version")).toBe(TERMS_VERSION);
   });
 
+  test("never reuses a signup revision for a different document tuple", () => {
+    expect({
+      consentVersion: declaredVersion("ledger_consent_version"),
+      policyVersion: declaredVersion("ledger_policy_version"),
+      termsVersion: declaredVersion("ledger_terms_version"),
+    }).toEqual(frozenRevisionTuple(declaredVersion("ledger_signup_revision")));
+  });
+
   test("maps only the matching client consent revision", () => {
-    expect(authSignupRevision()).toBe("email-v2");
+    expect(
+      Object.prototype.hasOwnProperty.call(
+        FROZEN_SIGNUP_REVISION_TUPLES,
+        authSignupRevision(),
+      ),
+    ).toBe(true);
     expect(declaredVersion("ledger_signup_revision")).toBe(authSignupRevision());
     expect(AUTH).toMatch(/signup_flow:\s*VERIFIED_EMAIL_SIGNUP_REVISION/);
     expect(AUTH).toMatch(
