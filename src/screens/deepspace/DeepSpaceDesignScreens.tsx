@@ -945,8 +945,8 @@ export function DeepSpacePrivacyDesignScreen() {
               ? "생년월일 기준 만 18세 미만은 사용 통계와 광고가 잠겨 있어요."
               : "Usage analytics and ads are locked when the birth date shows an age under 18."
             : ko
-              ? "선택 사항이에요. 웹에서는 Google Analytics를, Android 앱에서는 Firebase Analytics와 Microsoft Clarity를 사용해요. Android Clarity는 기록·대화 같은 개인 화면에서 일시 중지돼요."
-              : "Optional. The web uses Google Analytics; the Android app uses Firebase Analytics and Microsoft Clarity. Android Clarity pauses on personal screens such as records and chat."}
+              ? "선택 사항이며 설정은 저장돼요. 웹에서는 Google Analytics에 적용되고, Android의 Firebase Analytics와 Microsoft Clarity는 현재 비활성화되어 있어요."
+              : "Optional. Your choice is saved and applies to Google Analytics on the web. Firebase Analytics and Microsoft Clarity are currently disabled on Android."}
         </Text>
         {analyticsOn === null || adsOn === null ? (
           <Text variant="subtle" style={styles.footer}>
@@ -969,8 +969,8 @@ export function DeepSpacePrivacyDesignScreen() {
                     : "Locked under 18"
                   : analyticsOn
                     ? ko
-                      ? "웹 GA4 · Android Firebase·Clarity"
-                      : "Web GA4 · Android Firebase and Clarity"
+                      ? "웹 GA4 적용 · Android Firebase·Clarity 비활성"
+                      : "Web GA4 applied · Android Firebase and Clarity disabled"
                     : ko
                       ? "꺼짐"
                       : "Off"
