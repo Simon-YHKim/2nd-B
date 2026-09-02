@@ -354,10 +354,10 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       {
         file: "deepspace-flowmap",
         href: "/deepspace-flowmap",
-        label: "화면 흐름도",
+        label: "화면 흐름도 보관본",
         dev: true,
         entry: { kind: "dev", collection: "design-lab" },
-        note: "개발용 경로 연결을 확인한다. 데모 시작은 메모리 task 와 8초 timer 를 만든다",
+        note: "현행 일곱 별 모델 이전 Design Lab 보관본. 현재 동선의 정본이 아니며 작업이나 타이머를 시작하지 않는다",
       },
       { file: "graph", href: "/graph", label: "내 두뇌 지도 (레거시)", dev: true },
       { file: "trends", href: "/trends", label: "밝기 추이", dev: true },

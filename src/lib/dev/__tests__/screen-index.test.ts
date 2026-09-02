@@ -402,6 +402,36 @@ describe("개발자 화면 목록", () => {
     }
   });
 
+  it("flowmap 보관본은 현행 정본을 주장하거나 데모 작업을 시작하지 않는다", () => {
+    const flowmap = designLabScreens().find((screen) => screen.file === "deepspace-flowmap");
+    expect(flowmap).toMatchObject({
+      label: "화면 흐름도 보관본",
+      entry: { kind: "dev", collection: "design-lab" },
+    });
+    expect(flowmap?.note).toContain("현재 동선의 정본이 아니며");
+
+    const source = readFileSync(
+      join(process.cwd(), "src", "screens", "deepspace", "DeepSpaceFlowMapScreen.tsx"),
+      "utf8",
+    );
+    expect(source).toContain("DESIGN LAB · ARCHIVE");
+    expect(source).toContain("Design Lab archive");
+    expect(source).toContain("이전 자기이해 축");
+    expect(source).not.toMatch(/\bstartTask\s*\(/);
+    expect(source).not.toMatch(/\bsetTimeout\s*\(/);
+    expect(source).not.toMatch(/7\s*(?:렌즈|lenses|lentes|lensa)/i);
+    expect(source).not.toMatch(/(?:canonical|정본|canonico|kanonis)\s+flowmap/i);
+    for (const inactiveNotice of [
+      "Inactive · starts no task or timer",
+      "비활성 · 작업이나 타이머를 시작하지 않음",
+      "Inactiva · no inicia tareas ni temporizadores",
+      "Inativa · não inicia tarefas nem temporizadores",
+      "Nonaktif · tidak memulai tugas atau timer",
+    ]) {
+      expect(source).toContain(inactiveNotice);
+    }
+  });
+
   // ── 렌더 축 ────────────────────────────────────────────────────────────
 
   it("특수 렌더는 항상 redirect 3 · UI 모드 분기 5 와 정확히 일치하고 전부 메모가 있다", () => {
