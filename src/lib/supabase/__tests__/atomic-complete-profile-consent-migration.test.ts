@@ -10,7 +10,11 @@ const INTRO_SQL = readFileSync(
   join(process.cwd(), "db", "migrations", "0149_atomic_complete_profile_signup_consent.sql"),
   "utf8",
 ).replaceAll("\r", "");
-const INTRO_EXEC = INTRO_SQL.replace(/^\s*--.*$/gm, "");
+const CONTRACT_SQL = readFileSync(
+  join(process.cwd(), "db", "migrations", "0150_signup_consent_contract_20260902.sql"),
+  "utf8",
+).replaceAll("\r", "");
+const CONTRACT_EXEC = CONTRACT_SQL.replace(/^\s*--.*$/gm, "");
 const migrationDir = join(process.cwd(), "db", "migrations");
 const rpcSignature =
   /CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.complete_profile_signup_consent\s*\(/gi;
@@ -52,7 +56,9 @@ if (rpcStart < 0 || bodyStart < 0 || rpcEnd < 0 || !bodyMarker) {
 
 const RPC = LATEST_EXEC.slice(rpcStart, rpcEnd + bodyMarker.length + 1);
 const SIGNATURE = RPC.slice(0, RPC.indexOf("RETURNS jsonb"));
-const ACL = LATEST_EXEC.slice(rpcEnd + bodyMarker.length + 1);
+const CONTRACT_ACL_MUTATIONS = [
+  ...CONTRACT_EXEC.matchAll(/(?:GRANT EXECUTE|REVOKE ALL)\s+ON FUNCTION[\s\S]*?;/gi),
+];
 
 describe("0149 atomic complete-profile signup consent", () => {
   test("exposes one non-overloaded PostgREST signature with only screen inputs", () => {
@@ -146,20 +152,27 @@ describe("0149 atomic complete-profile signup consent", () => {
     expect(RPC).toContain("INSERT INTO public.consent_records");
   });
 
-  test("keeps the helper private and exposes only the RPC to authenticated", () => {
-    expect(INTRO_EXEC).toMatch(
+  test("keeps every helper private and leaves the dormant v1 RPC revoked", () => {
+    expect(CONTRACT_EXEC).toMatch(
       /REVOKE ALL ON FUNCTION public\.signup_consent_contract\(text\)\s+FROM PUBLIC, anon, authenticated, service_role;/,
     );
-    expect(INTRO_EXEC).toMatch(
+    expect(CONTRACT_EXEC).toMatch(
       /REVOKE ALL ON FUNCTION public\.complete_verified_email_signup\(\)\s+FROM PUBLIC, anon, authenticated, service_role;/,
     );
-    expect(ACL).toMatch(
+    expect(CONTRACT_EXEC).toMatch(
       /REVOKE ALL ON FUNCTION public\.complete_profile_signup_consent\([\s\S]*?\) FROM PUBLIC, anon, authenticated, service_role;/,
     );
-    expect(ACL).toMatch(
-      /GRANT EXECUTE ON FUNCTION public\.complete_profile_signup_consent\([\s\S]*?\) TO authenticated;/,
+    expect(CONTRACT_EXEC).not.toMatch(
+      /GRANT EXECUTE ON FUNCTION public\.complete_profile_signup_consent/i,
     );
-    expect(ACL).toContain("NOTIFY pgrst, 'reload schema'");
+    expect(CONTRACT_EXEC).not.toContain("complete-profile-v2");
+    expect(latestRpcMigration?.name).toBe("0149_atomic_complete_profile_signup_consent.sql");
+    expect(CONTRACT_EXEC).toContain("NOTIFY pgrst, 'reload schema'");
+
+    const finalAclMutation = CONTRACT_ACL_MUTATIONS.at(-1)?.[0] ?? "";
+    expect(finalAclMutation).toMatch(
+      /^REVOKE ALL ON FUNCTION public\.complete_profile_signup_consent\([\s\S]*authenticated, service_role;$/i,
+    );
   });
 
   test("never rewrites or deletes the append-only consent history", () => {

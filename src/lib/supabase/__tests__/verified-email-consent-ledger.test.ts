@@ -28,6 +28,12 @@ const FROZEN_SIGNUP_REVISION_TUPLES = {
     termsVersion: "2026-08-16",
     confirmationEligible: false,
   },
+  "email-v3": {
+    consentVersion: "2026-09-02",
+    policyVersion: "2026-09-02",
+    termsVersion: "2026-08-16",
+    confirmationEligible: true,
+  },
 } as const;
 
 const migrations = readdirSync(migrationDir)
@@ -138,9 +144,10 @@ describe("verified-email consent ledger", () => {
     });
   });
 
-  test("allows only the pinned email revision through confirmation", () => {
+  test("keeps historical and next email revisions confirmation-eligible", () => {
     expect(authSignupRevision()).toBe("email-v2");
     expect(contractTuple(authSignupRevision() as "email-v2").confirmationEligible).toBe(true);
+    expect(contractTuple("email-v3").confirmationEligible).toBe(true);
     expect(contractTuple("complete-profile-v1").confirmationEligible).toBe(false);
     expect(AUTH).toMatch(/signup_flow:\s*VERIFIED_EMAIL_SIGNUP_REVISION/);
     expect(FUNCTION).toContain("public.signup_consent_contract(signup_meta ->> 'signup_flow')");
