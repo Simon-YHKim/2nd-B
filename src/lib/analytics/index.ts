@@ -5,18 +5,17 @@
 // deliberately absent because its SPA auto-restart violates the private-route
 // collection boundary. Other SDKs load only when configured.
 //
-// Web SDKs: GA4 + Sentry. Native Android: Firebase Analytics + Clarity. Native
-// collection mirrors the same consent decision via syncNativeAnalyticsCollection
-// below; it is OFF at the build level (firebase.json) and turns on only through
-// that gate.
+// Web SDKs: GA4 + Sentry. Native Android includes Firebase Analytics + Clarity,
+// but this JS bundle emits only OFF decisions to both native product-analytics
+// SDKs. Web GA4 retains the adult/consent and runtime gates below.
 //
 // PRIVACY / PIPA: product analytics load ONLY after the user grants the optional
 // `analytics` consent (consent-selections.ts) AND the server-derived birth date
 // confirms the user is 18+. Unknown age fails closed.
 // The consent decision is persisted on web (localStorage) so it gates the next
-// load too. Error tracking (Sentry) is operational, carries no PII
-// (sendDefaultPii off), and loads independently. GA4 runs with IP anonymization
-// + no ad signals. Native Clarity uses its supported pause/resume route gate.
+// load too. Error tracking (Sentry) has default PII forwarding disabled and
+// loads through a separate operational path. GA4 runs with IP anonymization +
+// no ad signals; this bundle has no native product-analytics ON path.
 
 import { NativeModules, Platform, TurboModuleRegistry } from "react-native";
 
@@ -257,26 +256,24 @@ export function canLoadProductAnalytics(granted: boolean, gate?: AnalyticsSubjec
 // react-native.config.js until a static-frameworks pass lands).
 //
 // Build-level default is OFF: firebase.json ships
-// analytics_auto_collection_enabled=false plus denied consent-mode defaults,
-// so the SDK collects nothing between process start and this gate running.
-// At runtime the SAME canLoadProductAnalytics decision that gates the web
-// SDKs is mirrored into the native SDK: collection turns ON only for a
-// server-confirmed adult (18+) whose external_analytics pref is granted;
-// 14-17 minors, under-14, and unresolved age stay OFF (fail closed).
+// analytics_auto_collection_enabled=false plus denied consent-mode defaults.
+// The runtime OFF below also clears an ON override persisted by an older bundle
+// once the native bridge becomes available.
+// Native Firebase collection is intentionally OFF for every consent state.
+// Web GA4 keeps its adult/consent gate below; Android receives an explicit OFF
+// on every native sync so an ON value persisted by an older bundle is cleared.
 //
 // The SDK is imported lazily and every call is guarded: in Expo Go, on web,
 // or when the native module / google-services config is absent, the import or
 // call rejects and the build-level OFF default simply stands.
 
-type NativeAnalyticsApplier = (enabled: boolean) => Promise<void>;
+type NativeAnalyticsApplier = (enabled: false) => Promise<void>;
 type NativeModuleLookup = (name: string) => unknown;
 
 const RNFB_ANALYTICS_MODULE = "RNFBAnalyticsModule";
 
 let nativeApplierOverride: NativeAnalyticsApplier | null = null;
-let nativeApplyTarget: boolean | null = null;
-let nativeApplyChain: Promise<void> = Promise.resolve();
-let nativeRuntimeFlagsOverride: AnalyticsRuntimeFlags | null = null;
+let nativeLatestApply: Promise<void> = Promise.resolve();
 
 /**
  * OTA compatibility gate for binaries built before native Firebase landed.
@@ -296,81 +293,82 @@ export function hasNativeFirebaseAnalyticsModule(
   }
 }
 
-async function applyNativeAnalyticsCollection(enabled: boolean): Promise<void> {
+function absorbNativeOffCall(factory: () => Promise<unknown>): Promise<void> {
+  try {
+    return Promise.resolve(factory()).then(
+      () => {},
+      () => {},
+    );
+  } catch {
+    return Promise.resolve();
+  }
+}
+
+async function applyNativeAnalyticsOff(): Promise<void> {
   if (!hasNativeFirebaseAnalyticsModule()) return;
   try {
     const mod = await import("@react-native-firebase/analytics");
     const analytics = mod.getAnalytics();
-    // Consent mode first so an enable can never race ahead of its storage
-    // grant; ad signals stay denied in every state (analytics-only consent).
-    await mod.setConsent(analytics, {
-      analytics_storage: enabled,
-      ad_storage: false,
-      ad_user_data: false,
-      ad_personalization: false,
-    });
-    await mod.setAnalyticsCollectionEnabled(analytics, enabled);
+    // A wedged consent acknowledgement must not prevent collection OFF. Ad
+    // signals remain denied in every state.
+    await Promise.all([
+      absorbNativeOffCall(() =>
+        mod.setConsent(analytics, {
+          analytics_storage: false,
+          ad_storage: false,
+          ad_user_data: false,
+          ad_personalization: false,
+        }),
+      ),
+      absorbNativeOffCall(() => mod.setAnalyticsCollectionEnabled(analytics, false)),
+    ]);
   } catch {
     // Fail closed: without the SDK/native module the build-level OFF stands.
   }
 }
 
 /**
- * Mirror the resolved product-analytics decision into the native Firebase
- * SDK. Serialized so rapid toggles apply in submission order; deduped on the
- * target state. No-op on web (loadProductAnalytics handles the web SDKs).
+ * Native Firebase OFF attempts are independent: no failed or never-settling
+ * bridge call may head-of-line block the next explicit OFF assertion.
  */
-// The #1054 runtime kill-switch covers native too: an enable is honored only
-// while runtime_flags.analytics_enabled is true (missing rows or a failed
-// fetch fail closed, matching the web SDK gate). Evaluated when the decision
-// is applied - a mid-session flip lands at the next consent sync (cold start,
-// auth change, privacy toggle). No native timer is added (Android QA rule:
-// no background timers); a disable never waits on the network.
-async function resolveNativeCollectionTarget(enabled: boolean): Promise<boolean> {
-  if (!enabled) return false;
-  if (nativeRuntimeFlagsOverride) return nativeRuntimeFlagsOverride.analyticsEnabled;
+function startNativeAnalyticsOffAttempt(): void {
+  const applier = nativeApplierOverride ?? applyNativeAnalyticsOff;
+  let raw: Promise<void>;
   try {
-    return (await refreshRuntimeAnalyticsFlags()).analyticsEnabled;
+    raw = Promise.resolve(applier(false));
   } catch {
-    return false;
+    raw = Promise.resolve();
   }
-}
-
-function syncNativeAnalyticsCollection(enabled: boolean): void {
-  if (Platform.OS === "web") return;
-  if (nativeApplyTarget === enabled) return;
-  nativeApplyTarget = enabled;
-  const applier = nativeApplierOverride ?? applyNativeAnalyticsCollection;
-  nativeApplyChain = nativeApplyChain
-    .then(async () => {
-      await applier(await resolveNativeCollectionTarget(enabled));
-      // The flags arrived inside resolveNativeCollectionTarget. Clarity read
-      // them BEFORE that fetch (client default: both false), so without this
-      // second pass it stays paused until the user happens to navigate again -
-      // and a user who grants consent and then reads the same screen never
-      // does. Firebase gets its answer from the applier above; this is the
-      // matching line for the SDK that has its own gate.
-      syncNativeClarityForRoute(enabled);
-    })
-    .catch(() => {});
+  nativeLatestApply = raw.catch(() => {});
 }
 
 /**
- * Native Clarity rides the SAME adult/consent decision as native Firebase, and
- * adds the two gates Clarity needs on top: its own runtime kill-switch
- * (clarity_enabled) and the route allow-list.
- *
- * On web this is a no-op because web Clarity is hard-disabled. The native SDK
- * has supported pause/resume controls, so it can enforce the route boundary.
+ * Reassert both native product-analytics SDKs OFF. Firebase goes first and its
+ * attempt is never chained; Clarity is separately exception-isolated.
  */
-function syncNativeClarityForRoute(enabled: boolean): void {
+function syncNativeAnalyticsOff(): void {
   if (Platform.OS === "web") return;
-  syncNativeClarity({
-    enabled: enabled && runtimeAnalyticsFlags.clarityEnabled,
-    route: currentAnalyticsRoute,
-    allowedRoute: isClarityAllowedRoute(currentAnalyticsRoute),
-    projectId: clarityProjectIdForNative(),
-  });
+  startNativeAnalyticsOffAttempt();
+  syncNativeClarityOff();
+}
+
+/**
+ * Send native Clarity only OFF decisions until its disclosure/processing
+ * contract is complete. This removes new ON paths; it does not claim that a
+ * previously running native instance has acknowledged pause.
+ */
+function syncNativeClarityOff(): void {
+  if (Platform.OS === "web") return;
+  try {
+    syncNativeClarity({
+      enabled: false,
+      route: currentAnalyticsRoute,
+      allowedRoute: isClarityAllowedRoute(currentAnalyticsRoute),
+      projectId: clarityProjectIdForNative(),
+    });
+  } catch {
+    // Firebase OFF and app startup must not depend on the optional Clarity SDK.
+  }
 }
 
 /** Read the build-time project id without throwing on an invalid build env. */
@@ -387,14 +385,9 @@ export function __setNativeAnalyticsApplierForTests(applier: NativeAnalyticsAppl
   nativeApplierOverride = applier;
 }
 
-/** Test hook only: pin the runtime flags the native gate consults (null = live fetch). */
-export function __setRuntimeAnalyticsFlagsForTests(flags: AnalyticsRuntimeFlags | null): void {
-  nativeRuntimeFlagsOverride = flags;
-}
-
-/** Test hook only: await the native apply queue. */
+/** Test hook only: await the most recently issued native OFF attempt. */
 export function __flushNativeAnalyticsForTests(): Promise<void> {
-  return nativeApplyChain;
+  return nativeLatestApply;
 }
 
 const CONSENT_KEY = "2ndb_analytics_consent";
@@ -423,10 +416,11 @@ let currentAnalyticsRoute = "/";
  * Web Clarity is intentionally unavailable, even when the remote flag and
  * project id are both present. The vendor's SPA history hook stops and then
  * restarts itself after pushState/replaceState, so an app-side route stop
- * cannot uphold the privacy promise on personal screens. Native Clarity uses
- * its supported pause/resume API in clarity-native.ts and remains independent.
+ * cannot uphold the privacy promise on personal screens. Native Clarity is
+ * likewise kept OFF by the native sync path above.
  */
 export const WEB_CLARITY_HARD_DISABLED = true;
+export const NATIVE_CLARITY_HARD_DISABLED = true;
 
 type WebGlobal = {
   localStorage?: { getItem: (k: string) => string | null; setItem: (k: string, v: string) => void };
@@ -639,14 +633,15 @@ export const CLARITY_ALLOWED_ROUTE_PREFIXES: readonly string[] = [
  * 콘솔이 없다. 그래서 "대시보드에 안 뜬다"만 알 뿐 **어느 고리가 끊겼는지**를 알
  * 방법이 없었다. 각 값은 결정에 실제로 쓰이는 바로 그 변수를 읽는다.
  *
- * clarityEnabled 는 서버의 원시 flag, webHardDisabled 는 코드 안전장치다. 둘을 따로
- * 보여 줘야 "운영 flag는 ON이지만 웹은 차단"인 상태를 숨기지 않는다.
+ * clarityEnabled 는 서버의 원시 flag, webHardDisabled/nativeHardDisabled 는
+ * 코드 안전장치다. 원시 운영값과 실제 실행 가능 상태를 분리해서 보여 준다.
  */
 export function clarityGateSnapshot(): {
   consent: boolean;
   analyticsEnabled: boolean;
   clarityEnabled: boolean;
   webHardDisabled: boolean;
+  nativeHardDisabled: boolean;
   projectId: boolean;
   route: string;
   allowedRoute: boolean;
@@ -656,6 +651,7 @@ export function clarityGateSnapshot(): {
     analyticsEnabled: runtimeAnalyticsFlags.analyticsEnabled,
     clarityEnabled: runtimeAnalyticsFlags.clarityEnabled,
     webHardDisabled: Platform.OS === "web" && WEB_CLARITY_HARD_DISABLED,
+    nativeHardDisabled: Platform.OS !== "web" && NATIVE_CLARITY_HARD_DISABLED,
     projectId: Boolean(clarityProjectIdForNative()),
     route: currentAnalyticsRoute,
     allowedRoute: isClarityAllowedRoute(currentAnalyticsRoute),
@@ -781,12 +777,9 @@ export async function initAnalytics(opts?: { analyticsConsent?: boolean } & Anal
   if (initialized) return;
   initialized = true;
 
-  // Native (Android) Firebase Analytics: assert the fail-closed default
-  // synchronously at boot, before any env/web checks. _layout calls this with
-  // no opts, so a cold start always re-applies OFF until the server-derived
-  // decision arrives through setAnalyticsConsent.
-  syncNativeAnalyticsCollection(canLoadProductAnalytics(opts?.analyticsConsent ?? false, opts));
-  syncNativeClarityForRoute(canLoadProductAnalytics(opts?.analyticsConsent ?? false, opts));
+  // Assert both native product-analytics SDKs OFF synchronously at boot, before
+  // any env/web checks. Web GA4 keeps its independent consent/runtime flow.
+  syncNativeAnalyticsOff();
 
   let env: Env;
   try {
@@ -803,8 +796,8 @@ export async function initAnalytics(opts?: { analyticsConsent?: boolean } & Anal
   // the default after that await would overwrite a newer server-derived grant.
   analyticsConsent = canLoadProductAnalytics(opts?.analyticsConsent ?? false, opts);
 
-  // Sentry error tracking - operational, no PII, loads independently of the
-  // analytics consent gate.
+  // Sentry error tracking - operational, with default PII forwarding disabled,
+  // and loaded independently of the analytics consent gate.
   const sentryDsn = env.EXPO_PUBLIC_SENTRY_DSN || env.SENTRY_DSN;
   if (sentryDsn) {
     try {
@@ -840,8 +833,8 @@ export async function initAnalytics(opts?: { analyticsConsent?: boolean } & Anal
   // decision. Product analytics now load ONLY from an explicit, server-derived
   // decision: initAnalytics({analyticsConsent}) or setAnalyticsConsent() once
   // AuthContext resolves external_analytics + minor status (see the
-  // AnalyticsConsentSync effect in _layout). Sentry (above) is operational +
-  // PII-free, so it loads regardless of this gate.
+  // AnalyticsConsentSync effect in _layout). Sentry (above) uses its separate
+  // operational path, so it loads regardless of this gate.
   if (analyticsConsent && runtimeAnalyticsFlags.analyticsEnabled) {
     await loadProductAnalytics(env);
   }
@@ -989,10 +982,9 @@ export function setAnalyticsConsent(
   analyticsConsentRevision += 1;
   const wasGranted = analyticsConsent;
   analyticsConsent = canLoadProductAnalytics(granted, gate);
-  // Native builds mirror the same resolved decision (revision-guarded above);
-  // a native revoke is immediate (setAnalyticsCollectionEnabled false), unlike
-  // the web SDKs which also need their consent-update calls below.
-  syncNativeAnalyticsCollection(analyticsConsent);
+  // Both native product-analytics SDKs are reasserted OFF for every resolved
+  // decision; web SDK consent is handled below.
+  syncNativeAnalyticsOff();
   const w = webWindow();
   try {
     w?.localStorage?.setItem(CONSENT_KEY, analyticsConsent ? "granted" : "denied");
@@ -1058,9 +1050,9 @@ export function captureEvent(event: AnalyticsEvent): boolean {
   // receive the correct redacted route rather than the browser's live URL.
   if (event.name === "page_view") {
     currentAnalyticsRoute = sanitizeAnalyticsRoutePath(event.props.path);
-    // Native has no injection step, so navigation is where pause/resume and the
-    // screen name are decided. A disallowed screen pauses rather than hoping.
-    syncNativeClarityForRoute(analyticsConsent);
+    // Native Clarity is OFF-only; navigation reasserts that state with the
+    // already-sanitized route metadata.
+    syncNativeClarityOff();
   }
   // Re-check at most once per minute. The current event uses the last safe
   // snapshot; a newly disabled flag revokes loaded GA immediately
@@ -1132,7 +1124,5 @@ export function __resetAnalytics(): void {
   ga4Id = null;
   currentAnalyticsRoute = "/";
   nativeApplierOverride = null;
-  nativeApplyTarget = null;
-  nativeApplyChain = Promise.resolve();
-  nativeRuntimeFlagsOverride = null;
+  nativeLatestApply = Promise.resolve();
 }
