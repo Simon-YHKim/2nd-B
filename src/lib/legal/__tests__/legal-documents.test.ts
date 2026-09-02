@@ -158,11 +158,13 @@ describe("legal document snapshots", () => {
     expect(PRIVACY_DOC.body).not.toMatch(/xAI|X\.AI/);
     // Official privacy contacts for the two active AI recipients, verified
     // against each vendor's published privacy policy (openai.com/policies,
-    // anthropic.com/legal/privacy). KO and EN each carry both; no other
-    // (unverified) vendor mailbox may be invented for them.
+    // anthropic.com/legal/privacy). The document deliberately lists each
+    // vendor's privacy@ address as its inquiry route, in KO and EN alike.
+    // (Both vendors also publish other official addresses such as dpo@; the
+    // choice of privacy@ here is editorial, not a claim that others are
+    // unofficial, so their absence is not asserted.)
     expect(PRIVACY_DOC.body.match(/privacy@openai\.com/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
     expect(PRIVACY_DOC.body.match(/privacy@anthropic\.com/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
-    expect(PRIVACY_DOC.body).not.toMatch(/(?:dpo|support|legal|contact)@(?:openai|anthropic)\.com/);
   });
 
   test("finalized 2026-07-17: no [기입]/[fill] markers remain, badge off", () => {
