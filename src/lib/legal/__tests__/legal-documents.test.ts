@@ -6,7 +6,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { PRIVACY_DOC, REFUND_DOC, TERMS_DOC, isDraft } from "../legal-documents";
-import { PRIVACY_POLICY_VERSION } from "../../supabase/consent";
+import { CONSENT_VERSION, PRIVACY_POLICY_VERSION } from "../../supabase/consent";
 import {
   parseLegalMarkdown,
   splitLegalLanguageSections,
@@ -133,6 +133,10 @@ describe("legal document snapshots", () => {
     expect(md).toContain("_시행일: 2026-09-02 · 최종 개정: 2026-09-02_");
     expect(PRIVACY_DOC.body).toContain("시행일: 2026-09-02");
     expect(PRIVACY_POLICY_VERSION).toBe("2026-09-02");
+    // #1589 revises the sign-up consent notice itself (ackOverseas and
+    // overseasTransfer.body), so the notice version moves with the policy:
+    // final tuple = consent 09-02 / policy 09-02 / terms 08-16.
+    expect(CONSENT_VERSION).toBe("2026-09-02");
     // Anthropic is a configured-active AI processor (perPurpose seat map) and
     // must be disclosed in both section 4 and section 5, in both languages.
     expect(PRIVACY_DOC.body.match(/Anthropic PBC/g)?.length ?? 0).toBeGreaterThanOrEqual(4);

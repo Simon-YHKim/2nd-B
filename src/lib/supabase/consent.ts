@@ -4,7 +4,12 @@
 // re-consent on a version bump, age-out re-consent). Records WHAT the user
 // agreed to and under which document versions, for PIPA accountability
 // (general consent §15/§17/§22 + §23 sensitive-data ack + overseas-transfer
-// notice for Gemini/Supabase processing).
+// notice for the AI processors — OpenAI/Anthropic today, Gemini for older
+// builds — plus Supabase hosting, stored in the Seoul region).
+//
+// CONTRACT: bump the version constants below whenever the consent notice,
+// the purposes, or the published documents change — the ledger must stamp
+// the version the user actually saw.
 //
 // WIRED at sign-up: recordConsentBestEffort() is called after the consent UI
 // collects the acknowledgements — src/app/(auth)/sign-up.tsx:103 and
@@ -25,12 +30,16 @@
 
 import { getSupabaseClient } from "./client";
 
-export const CONSENT_VERSION = "2026-08-16" as const;
+// 2026-09-02 동반 개정: #1589가 가입 동의 notice 자체(ackOverseas·overseasTransfer.body)를
+// 실질 변경하므로 notice 버전도 함께 올린다. 방침 버전만 올리고 이걸 08-16으로 두면
+// 새 화면에 동의한 가입자의 원장이 구 notice 버전으로 찍힌다 — 위 CONTRACT 위반이다.
+// 최종 tuple: consent 09-02 / policy 09-02 / terms 08-16.
+export const CONSENT_VERSION = "2026-09-02" as const;
 // 2026-09-02 개정(제4조·제5조 정비: OpenAI·Anthropic 고지, Supabase 서울 리전 명확화,
 // Paddle 독립 판매자 구분, Sentry 최신 앱 비활성 기준 정정, 앱 통계 도구 현재 비활성 명시)에
 // 맞춰 올린다. 이걸 안 올리면 그날 이후 가입자의 원장에 구판에 동의했다고 남는데,
 // 정작 화면에는 09-02 판이 떠 있다. 원장이 거짓이 된다.
-// ⚠ 위 주석대로 이 값을 올려도 **기존 계정에는 닿지 않는다.** 재동의 흐름은 별도 작업이다
+// ⚠ 위 주석대로 이 값들을 올려도 **기존 계정에는 닿지 않는다.** 재동의 흐름은 별도 작업이다
 // (알려진 공백: 기존 계정은 새 판을 다시 안내받지 않는다).
 export const PRIVACY_POLICY_VERSION = "2026-09-02" as const;
 export const TERMS_VERSION = "2026-08-16" as const;
