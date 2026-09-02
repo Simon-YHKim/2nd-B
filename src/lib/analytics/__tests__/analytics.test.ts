@@ -2,7 +2,7 @@
 // platform checks, env ids, runtime flags, and consent, so the default test path should be a
 // no-op without throwing.
 
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 
 import {
@@ -29,13 +29,40 @@ import {
   purchase,
   resolveAnalyticsRuntimeFlags,
   sanitizeAnalyticsRoutePath,
-  scrubSentryEvent,
   __resetAnalytics,
   __setNativeAnalyticsApplierForTests,
   __flushNativeAnalyticsForTests,
 } from "../index";
 
 const ROOT = resolve(__dirname, "../../../..");
+
+function runtimeSourceFiles(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = resolve(directory, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name === "__tests__" || entry.name === "__mocks__") return [];
+      return runtimeSourceFiles(path);
+    }
+    return /\.(?:[cm]?[jt]s|[jt]sx)$/.test(entry.name) &&
+      !/\.test\.(?:[cm]?[jt]s|[jt]sx)$/.test(entry.name)
+      ? [path]
+      : [];
+  });
+}
+
+const RUNTIME_SOURCE_TEXT = runtimeSourceFiles(resolve(ROOT, "src"))
+  .map((path) => readFileSync(path, "utf8"))
+  .join("\n");
+const RUNTIME_CONFIG_TEXT = readdirSync(ROOT, { withFileTypes: true })
+  .filter(
+    (entry) =>
+      entry.isFile() &&
+      /^(?:app(?:\.config)?\.(?:json|[cm]?[jt]s)|babel\.config\.[cm]?js|metro\.config\.[cm]?js)$/.test(
+        entry.name,
+      ),
+  )
+  .map((entry) => readFileSync(resolve(ROOT, entry.name), "utf8"))
+  .join("\n");
 
 describe("analytics — no-op when no keys configured", () => {
   beforeEach(() => {
@@ -65,6 +92,92 @@ describe("analytics — no-op when no keys configured", () => {
     expect(warn).toHaveBeenCalledWith("[exception]", err, { source: "test" });
     warn.mockRestore();
   });
+
+  test("runtime source and native build config contain no Sentry SDK entry point", () => {
+    expect(RUNTIME_SOURCE_TEXT).not.toMatch(/@sentry\//);
+    expect(RUNTIME_SOURCE_TEXT).not.toMatch(/\bSentry\.init\s*\(/);
+    expect(RUNTIME_SOURCE_TEXT).not.toMatch(/initNativeCrashReporting/);
+    expect(RUNTIME_CONFIG_TEXT).not.toMatch(
+      /@sentry\/|sentry-expo|useNativeInit|(?:with|get)Sentry(?:Expo)?Config/i,
+    );
+  });
+
+  test.each([false, true])(
+    "configured crash-reporting credentials remain inert when analytics consent is %s",
+    async (analyticsConsent) => {
+      jest.resetModules();
+      let analytics: typeof import("../index") | undefined;
+      let consoleError: jest.SpyInstance | undefined;
+      const mockSentryBrowserFactory = jest.fn(() => ({
+        init: jest.fn(),
+        captureException: jest.fn(),
+      }));
+      jest.doMock("@sentry/browser", mockSentryBrowserFactory);
+      jest.doMock("react-native", () => ({
+        NativeModules: {},
+        Platform: { OS: "web" },
+        TurboModuleRegistry: { get: () => null },
+      }));
+      jest.doMock("../clarity-native", () => ({ syncNativeClarity: jest.fn() }));
+      jest.doMock("../../env", () => ({
+        getEnv: () => ({
+          EXPO_PUBLIC_SENTRY_DSN: "https://configured.invalid/1",
+        }),
+      }));
+      jest.doMock("../../supabase/client", () => ({
+        getSupabaseClient: () => ({
+          from: () => ({
+            select: () => ({
+              in: () =>
+                Promise.resolve({
+                  data: [
+                    { key: "analytics_enabled", enabled: false },
+                    { key: "clarity_enabled", enabled: false },
+                  ],
+                  error: null,
+                }),
+            }),
+          }),
+        }),
+      }));
+      (globalThis as { window?: unknown }).window = {
+        localStorage: { getItem: jest.fn(), setItem: jest.fn() },
+        location: { origin: "https://example.test" },
+      };
+      try {
+        const loadedAnalytics = require("../index") as typeof import("../index");
+        analytics = loadedAnalytics;
+        await expect(
+          loadedAnalytics.initAnalytics({
+            analyticsConsent,
+            isMinor: false,
+            confirmedAdult: true,
+          }),
+        ).resolves.toBeUndefined();
+        await expect(
+          loadedAnalytics.initAnalytics({
+            analyticsConsent: !analyticsConsent,
+            isMinor: false,
+            confirmedAdult: true,
+          }),
+        ).resolves.toBeUndefined();
+        expect(mockSentryBrowserFactory).not.toHaveBeenCalled();
+        consoleError = jest.spyOn(console, "error").mockImplementation(() => {});
+        expect(() => loadedAnalytics.captureException(new Error("local-only"))).not.toThrow();
+        expect(consoleError).toHaveBeenCalledTimes(1);
+      } finally {
+        consoleError?.mockRestore();
+        analytics?.__resetAnalytics();
+        delete (globalThis as { window?: unknown }).window;
+        jest.dontMock("@sentry/browser");
+        jest.dontMock("react-native");
+        jest.dontMock("../clarity-native");
+        jest.dontMock("../../env");
+        jest.dontMock("../../supabase/client");
+        jest.resetModules();
+      }
+    },
+  );
 
   test("initAnalytics() is idempotent", async () => {
     await initAnalytics();
@@ -186,37 +299,6 @@ describe("analytics — no-op when no keys configured", () => {
         }),
       ),
     ).toEqual({ path: "/record/[id]" });
-  });
-
-  test("Sentry events redact live URLs, request material, and navigation breadcrumbs", () => {
-    const scrubbed = scrubSentryEvent(
-      {
-        request: {
-          url: "https://example.test/record/private?email=private@example.com",
-          headers: { referer: "private" },
-          cookies: "private",
-          data: "private",
-          query_string: "private",
-        },
-        breadcrumbs: [
-          {
-            category: "navigation",
-            message: "https://example.test/peer/private-token",
-            data: { from: "/record/private", to: "/peer/private" },
-          },
-        ],
-      },
-      "/record/[id]",
-      "https://simon-yhkim.github.io",
-    );
-    expect(scrubbed.request).toEqual({
-      url: "https://simon-yhkim.github.io/2nd-B/record/[id]",
-    });
-    expect(scrubbed.transaction).toBe("/record/[id]");
-    expect(scrubbed.breadcrumbs?.[0]).toMatchObject({
-      message: "[redacted]",
-      data: { from: "[redacted]", to: "[redacted]" },
-    });
   });
 
   test("conversion-funnel creators emit their canonical event names", () => {

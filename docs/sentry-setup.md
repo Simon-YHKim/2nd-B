@@ -1,83 +1,72 @@
-# Sentry 에러/크래시 모니터링 연결 가이드 — 2026-06-27
+# Sentry 에러/크래시 모니터링 운영 상태
 
-> 현재 상태 진단 + 활성화 경로 2가지(웹: 즉시 / 네이티브: 리빌드). 동반 문서: `docs/api-status.html` ③ Sentry 카드.
-> 핵심 한 줄: **웹 에러 리포팅은 DSN만 넣으면 바로 켜진다. 네이티브 Android 크래시 캡처는 SDK 교체 + EAS 리빌드가 필요하다.**
+> 현재 상태: **새 JS 번들에서 Web·Native Sentry 초기화가 완전히 비활성화돼 있다.**
+> DSN을 GitHub/EAS 환경에 두거나 배포만 다시 해도 Sentry가 켜지지 않는다.
 
-## 1. 지금 코드가 어떤 상태인가 (실측)
+## 1. 현재 코드 계약
 
-| 항목 | 사실 |
+| 항목 | 현재 사실 |
 |---|---|
-| 설치된 SDK | `@sentry/browser ^10.56.0` (package.json) — **웹/DOM 전용**. `@sentry/react-native`/`sentry-expo` 미설치. |
-| 초기화 위치 | `src/lib/analytics/index.ts` `initAnalytics()` — `@sentry/browser`를 동적 import 후 `Sentry.init({ dsn, sendDefaultPii:false, tracesSampleRate:0.1 })` 호출. |
-| 호출 시점 | `src/app/_layout.tsx`에서 모듈 로드 시 `void initAnalytics()` 1회. |
-| 결정적 게이트 | `index.ts`에서 `if (!webWindow()) return;` — `Platform.OS !== "web"`이면 Sentry 블록 도달 **전에 종료**. 즉 **네이티브에서는 Sentry.init이 절대 실행되지 않음**. |
-| DSN | `src/lib/env.ts`의 `EXPO_PUBLIC_SENTRY_DSN`(.optional). **현재 값 없음** → 웹에서도 no-op. |
-| 네이티브 플러그인 | `app.json` plugins[]·`babel.config.js`에 sentry 항목 **없음** (네이티브 미배선 확인). |
+| 설치된 SDK | `@sentry/browser ^10.56.0`, `@sentry/react-native ~7.11.0`이 의존성에 남아 있다. |
+| Web 초기화 | `src/lib/analytics/index.ts`에 SDK import와 `Sentry.init` 경로가 없다. |
+| Native 초기화 | `src/app/_layout.tsx`에 SDK require와 초기화 경로가 없다. |
+| DSN | `src/lib/env.ts`가 기존 환경 키를 파싱하지만, 앱 런타임은 이를 Sentry 초기화에 사용하지 않는다. |
+| 명시적 예외 보고 | `captureException()`은 호환성을 위해 남아 있으며 로컬 `console.error`로만 기록한다. 외부 전송은 하지 않는다. |
+| Source map | Sentry용 Metro/Expo plugin, release 매핑, 업로드 토큰 파이프라인이 없다. |
 
-결론: **웹 배선은 완성돼 있고 DSN만 비어 있다.** 네이티브 크래시 캡처는 SDK 자체가 불가능(@sentry/browser는 네이티브 크래시 신호에 접근 못 함).
+Native SDK 의존성을 이번 변경에서 제거하지 않은 이유는 현재
+`runtimeVersion.policy=fingerprint`와 기존 설치 바이너리의 OTA 호환 범위를 바꾸지 않기
+위해서다. 환경 키 파싱과 배포 wiring은 비활성 legacy 입력으로 남지만 보편적 kill switch도,
+활성화 경로도 아니다. 의존성과 환경 키가 남아 있다는 사실은 활성 상태를 뜻하지 않는다.
+런타임 소스와 테스트가 SDK 진입점 0건을 고정한다.
 
----
+## 2. 비활성화 이유
 
-## 2. Path A — 웹 에러 리포팅 켜기 (리빌드 불필요, 코드 변경 0)
+다음 조건이 아직 함께 해결되지 않았다.
 
-웹 빌드(Vercel, `web-deploy.yml`)에만 적용. JS/웹 에러를 잡는다.
+- 개인정보 처리방침과 국외 이전 고지의 Sentry 처리 사실 정합성
+- Sentry DPA와 운영 책임자 승인
+- 기존 사용자에게 변경된 정책 버전을 다시 확인받는 절차
+- Web·Native 공통 URL, breadcrumb, request data 제거 계약
+- Native tracing 기본값과 source map/release 운영 계약
 
-1. [sentry.io](https://sentry.io) 로그인 → 새 프로젝트 생성 (**Browser / JavaScript** 플랫폼).
-2. 프로젝트 DSN 복사: `https://<key>@oXXXX.ingest.sentry.io/<project>`.
-3. GitHub repo → **Settings → Secrets and variables → Actions → Variables** 탭 → New variable
-   - Name: `EXPO_PUBLIC_SENTRY_DSN`  ·  Value: 위 DSN
-   - (`web-deploy.yml`이 이 변수를 웹 빌드에 주입하도록 이미 배선됨)
-4. `web-deploy` 워크플로우 재실행(또는 다음 main 푸시) → 재배포 후 `Sentry.init` 실행, 웹 에러 리포팅 라이브.
+따라서 운영 환경의 DSN 존재 여부와 관계없이 source code에서 초기화 경로를 제거한다.
 
-> 자동 캡처 범위: `window.onerror`·`unhandledrejection`은 @sentry/browser가 자동 후킹. React 렌더 에러까지 잡고 싶으면 루트에 `Sentry.ErrorBoundary`를 두는 순수 JS 추가가 선택적으로 가능(리빌드 불필요).
+## 3. 재활성화 전 필수 게이트
 
----
+Sentry를 다시 켜는 작업은 환경 변수 변경이 아니라 별도 source PR과 릴리스 검토로 진행한다.
+최소한 아래 항목을 같은 결정 기록에서 확인해야 한다.
 
-## 3. Path B — 네이티브 Android/iOS 크래시 캡처 (EAS 리빌드 필수)
+1. 한국어·영어 개인정보 처리방침과 국외 이전 항목을 실제 처리와 일치시킨다.
+2. DPA, 보유기간, 처리지역, 연락처, 삭제 절차를 운영 증거로 확인한다.
+3. 정책 버전을 인지하는 재확인 흐름을 구현하고 기존 사용자 적용 범위를 결정한다.
+4. Web·Native 모두 `beforeSend`·breadcrumb 정제와 tracing 기본 OFF를 테스트로 고정한다.
+5. source map, release 식별자, 접근권한, 보유기간을 포함한 운영 절차를 검증한다.
+6. 새 Web 배포와 Android/iOS 빌드에서 동의 전 전송 0건을 실제로 확인한다.
 
-@sentry/browser로는 **불가능**. 아래는 RN SDK로 교체하는 정식 절차다. 네이티브 모듈/설정 변경이라 **OTA로는 못 나가고 EAS 빌드가 반드시 필요**하다.
+위 게이트가 끝나기 전에는 DSN 추가, DSN 복원, SDK 초기화 코드 복원을 활성화 절차로
+안내하지 않는다.
 
-1. `npx expo install @sentry/react-native` (네이티브 모듈 + Expo config plugin 포함).
-2. `app.json` plugins[]에 Sentry Expo plugin 추가(org/project), 소스맵 업로드용 auth 구성.
-3. `metro.config.js`를 `getSentryExpoConfig`로 래핑(소스맵). **주의: 메트로 설정 실수는 번들러 전체를 깨뜨림 — 반드시 로컬 번들/EAS 빌드로 검증.**
-4. `Sentry.init`을 웹 게이트 **밖**, 앱 엔트리(`src/app/_layout.tsx` 최상단)에서 DSN 있을 때 무조건 호출.
-5. 루트 컴포넌트를 `Sentry.wrap()`으로 감싸기.
-6. **EAS 빌드 1회** 후 신규 APK 설치 → 네이티브 크래시 리포팅 검증.
+## 4. 배포와 잔여 범위
 
-> ⚠️ 이 변경은 `ANDROID_QA_GUIDELINES.md`가 경계하는 "네이티브 빌드 위험" 영역이다. 단독 PR로 만들고, 머지 전 EAS 빌드가 초록인지 반드시 확인할 것. 마감(2026-08-17) 전 안정성이 최우선이면 Path A(웹)부터 켜고, Path B는 별도 안전 슬롯에서 진행 권장.
+- 이 source 변경은 새 Web bundle, 새 OTA bundle, 새 Native build가 로드된 뒤에만 적용된다.
+- 이미 열린 Web tab과 이미 실행 중인 Native process의 기존 Sentry handler를 소급 해제하지 못한다.
+- OTA는 대상 바이너리와 runtime fingerprint가 일치해야 하며, 다운로드한 bundle이 다음 launch에
+  적용될 수 있다.
+- 과거 bundle까지 즉시 중지해야 한다면 Sentry 조직에서 해당 client key를 비활성화하는 별도
+  운영 조치가 필요하다. 이는 외부 설정 변경이므로 명시적 승인 후 수행한다.
+- GitHub/EAS의 DSN 제거는 미래 배포 입력을 줄일 뿐 과거 bundle의 보편적 kill switch가 아니다.
+  EAS production 환경 키를 제거할 때는 update workflow의 환경 allowlist와 계약 테스트도 같은
+  변경에서 맞춰야 한다.
 
----
+## 5. 검증 명령
 
-## 4. Cowork(브라우저/컴퓨터 use)용 DSN 발급+등록 프롬프트
-
-```
-[작업] Sentry 프로젝트를 만들고 DSN을 GitHub 레포 Variable로 등록해줘.
-2nd-Brain 웹 빌드의 에러 모니터링을 켜는 게 목적.
-
-# 사전
-- Sentry: sentry.io (계정 없으면 만들고, 만들 수 없으면 멈추고 보고)
-- GitHub repo: Simon-YHKim/2nd-B (PRIVATE), 로그인 돼 있을 것
-
-# STEP 1 — Sentry 프로젝트 + DSN
-1. https://sentry.io 로그인 → Create Project.
-2. 플랫폼은 "Browser" 또는 "JavaScript" 선택. 프로젝트 이름 "2nd-brain-web".
-3. 생성 후 Settings → Client Keys (DSN)에서 DSN 문자열 복사
-   (형식: https://<key>@oXXXX.ingest.sentry.io/<project>). 채팅에 평문 노출 금지.
-
-# STEP 2 — GitHub Variable 등록
-4. https://github.com/Simon-YHKim/2nd-B/settings/variables/actions 열기.
-5. New repository variable 클릭.
-6. Name 칸에 정확히  EXPO_PUBLIC_SENTRY_DSN  입력.
-7. Value 칸에 STEP 1의 DSN 붙여넣기 → Add variable.
-8. 변수 목록에 EXPO_PUBLIC_SENTRY_DSN 보이는지 확인.
-
-# 주의
-- 이건 secret이 아니라 Variable 탭이다(DSN은 공개 식별자라 Variable이 맞음).
-- 비밀번호/2FA는 직접 입력하지 말고 보고.
-
-# 보고
-- 성공: "EXPO_PUBLIC_SENTRY_DSN 등록 완료" + 변수 목록 스크린샷 1장.
-- 막히면: 어느 STEP에서 멈췄는지 스크린샷과 함께 보고.
+```sh
+npx jest src/lib/analytics/__tests__/analytics.test.ts --runInBand
+npm run check:cycles
+npm run verify
 ```
 
-등록 후 `web-deploy` 재배포 → 웹 에러 리포팅 라이브.
+회귀 테스트는 비테스트 `src`의 JS/JSX/CJS/MJS/CTS/MTS/TS/TSX와 Expo·Babel·Metro 설정에서
+`@sentry/*`, `Sentry.init`, Native 자동 초기화/plugin 진입점이 다시 들어오는 것을 막는다.
+또한 DSN이 존재하며 분석 동의가 true/false인 경우에도 Web SDK가 평가되지 않는지 확인한다.
