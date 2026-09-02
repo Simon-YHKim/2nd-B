@@ -632,6 +632,7 @@ export function DeepSpacePrivacyDesignScreen() {
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[privacy] local sign-out after deletion failed", (e as Error).message);
     } finally {
+      router.dismissAll();
       router.replace("/sign-in");
     }
   }
