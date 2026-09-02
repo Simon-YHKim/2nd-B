@@ -1122,6 +1122,7 @@ export default function Settings() {
                 await signOut();
                 // Go straight to /sign-in. Routing via "/" could briefly render
                 // with a stale session before the SIGNED_OUT event lands.
+                router.dismissAll();
                 router.replace("/sign-in");
               } catch (e) {
                 showActionError(

@@ -6,7 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useEffect, useMemo, useState } from "react";
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect, router, useNavigationContainerRef } from "expo-router";
 
 import { PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
@@ -36,6 +36,7 @@ type CompleteProfileToast = { message: string; tone: "info" | "success" | "dange
 export default function CompleteProfile() {
   const { t, i18n } = useTranslation("auth");
   const { userId, hasProfile, loading, refresh, profileProbeFailed } = useAuth();
+  const rootNavigationRef = useNavigationContainerRef();
   const [birthDate, setBirthDate] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [goal, setGoal] = useState("");
@@ -67,6 +68,30 @@ export default function CompleteProfile() {
     const timeout = setTimeout(() => setToast(null), 2600);
     return () => clearTimeout(timeout);
   }, [toast]);
+
+  function resetSignedOutNavigation(): void {
+    const rootNavigation = rootNavigationRef.current;
+    if (!rootNavigation) {
+      // The screen cannot normally be mounted before the root container, but
+      // retain the safe queued fallback for a disappearing ref.
+      router.dismissAll();
+      router.replace("/sign-in");
+      return;
+    }
+    // `dismissAll()` targets the closest Stack first. This screen lives inside
+    // `(auth)`, so an auth history with more than one scene could consume that
+    // action before it reaches the root Stack. Reset the root explicitly to
+    // make both the root and nested auth histories a single sign-in scene.
+    rootNavigation.resetRoot({
+      index: 0,
+      routes: [
+        {
+          name: "(auth)",
+          state: { index: 0, routes: [{ name: "sign-in" }] },
+        },
+      ],
+    });
+  }
 
   // Still resolving the session/profile — show the branded checking state. The
   // redirects below read userId === null while loading, which would otherwise
@@ -160,7 +185,9 @@ export default function CompleteProfile() {
         setToast({ tone: "danger", message: t("errors.emailInUse") });
         await new Promise((resolve) => setTimeout(resolve, 1600));
         const { signedOut } = await signOutAndSettle({ signOutUser: signOut, refreshAuth: refresh });
-        if (signedOut) router.replace("/sign-in");
+        if (signedOut) {
+          resetSignedOutNavigation();
+        }
         return;
       }
       if (result.kind === "ageGate") {
@@ -174,7 +201,9 @@ export default function CompleteProfile() {
         // session is what redirect-warred with IntroGate (E2E-2). If the
         // sign-out failed the session is still live, so stay on the form.
         const { signedOut } = await signOutAndSettle({ signOutUser: signOut, refreshAuth: refresh });
-        if (signedOut) router.replace("/sign-in");
+        if (signedOut) {
+          resetSignedOutNavigation();
+        }
         return;
       }
       setToast({ tone: "danger", message: t("errors.completeProfileSaveFailed") });
@@ -194,7 +223,7 @@ export default function CompleteProfile() {
         // contradictory signed-in-without-profile snapshot that crashed with
         // "Maximum update depth exceeded" (E2E-2; settings.tsx documents the
         // same stale-session race on its sign-out button).
-        router.replace("/sign-in");
+        resetSignedOutNavigation();
         return;
       }
       setToast({ tone: "danger", message: t("errors.signOutFailed") });

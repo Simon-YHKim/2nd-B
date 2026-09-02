@@ -3,7 +3,47 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-09-02 / 담기 P2 2건 머지(#1573) · 남은 관찰 3건은 orca 후속 태스크로
+## Latest — 2026-09-02 / people 핫픽스 #1576 머지 · legal-screen-shell 감사 블로커 3건은 #1577·#1578 로 닫힘
+
+> 발행: Claude Code (orca Design 워크스페이스). 사용자 직접 지시 "people 핫픽스 4파일
+> 그대로 적용" 집행 + orca 읽기 전용 감사(task_329c06e65a7c) 사후 대조.
+
+- **#1576 머지 — main `b5b0024e`.** `/people` 이 오류·지연에서 조용히 죽던 3건
+  (감사 task_ab1aa131e459):
+  | 증상 | 고침 | 위치 |
+  |---|---|---|
+  | 네트워크 오류가 "기록된 사람 없음"과 동일하게 보임 | catch 에서 `setPeople([])` 제거, 마지막 성공 지도 유지 + 네트워크 안내 + 재시도 버튼 | `src/app/people.tsx` |
+  | 소켓 멈춤 → 영원한 스피너 | `listPeople` 을 `withTimeout(…, 20_000, "people list")` 로 감쌈(`records/create.ts` 와 같은 예산) | `src/lib/relation/people.ts` |
+  | 늦게 온 응답이 지도를 옛 행으로 되돌림 | `createLatestWins` 가드 + effect cleanup 이 이전 사용자 요청 무효화 | `src/app/people.tsx` |
+
+  테스트: 멈춘 쿼리 타임아웃(`people.test.ts`) + 소스 스캔 계약(`people-error-state.test.ts`,
+  `ratifications-empty-state.test.ts` 와 같은 형태). 로컬 verify 568 suites / 6206 tests,
+  CI 5/5. ⚠ 구현은 다른 세션이 `fix/people-resilient-loading-260902` 에 미커밋으로
+  올려 둔 것을 이 세션이 verify·커밋·PR 했다. draft #1518(PIXEL-CLAY 이식)이 같은 가드를
+  다시 구현하므로 그쪽이 머지되면 깨끗하게 대체된다.
+- **legal-screen-shell 읽기 전용 감사 → 결론은 머지본과 일치.** 감사 시점 워크트리
+  (`.worktrees/codex/legal-screen-shell-260902`, 미커밋 스냅샷)에서 블로커 3건을 확정했다:
+  ① 두 legal 화면이 전역 참조계수형 own-back 과 BackHandler 를 mount-scoped 로 등록하는데
+  무이력 폴백이 `router.push("/")` 라 blur 뒤에도 살아남아 카운트가 세션 내내 ≥1
+  (BackArrow 칩 실종) + 홈에서 셸이 리스너를 안 걸어(`DeepSpaceScreen.tsx:109-118`)
+  Android 뒤로가기가 홈→약관으로 되돌아감 ② 신규 테스트가 그 버그 패턴을 문자열로 고정
+  ③ (비블로커) `MdTopAppBar.tsx` 동류 패턴. **판정: 하나의 `useFocusEffect(useCallback)`
+  로 두 등록 통합 + `router.replace("/")` + 테스트 재작성 — 셋 다 필요.**
+  사후 대조: **#1577(`b39c8dcf`)** 이 정확히 그 형태로 머지됐고(cleanup 에서 `sub.remove()`
+  + `unregister()`, 테스트는 `not useEffect(() => registerOwnBack` · `not router.push("/")`
+  음성 단언 포함), **#1578(`afa7eaa2`)** 이 `MdTopAppBar` 까지 focus 스코프로 옮겼다.
+  top-inset 은 ScrollView 외곽 → `KeyboardAvoidingView` 로 한 단 올라갔는데 children 이
+  ScrollView 직접 자식이라 `onLayout.y`/`scrollTo` 좌표계는 그대로 일관(자동 스크롤 정확).
+  **남은 것 없음.** worker_done 은 capability 회수로 거부됐다(원인은 하트비트 공백 또는
+  태스크 종결 — 미확인). 보고서는 세션 scratchpad 에만 있고 결론은 이 항목이 정본.
+- **아래 항목의 orca 후속 3건 중 2건은 #1580(`ed499ead`)이 닫았다** — `task_bf8712887a5c`
+  (`capture.tsx` 에 `TAB_BAR_HEIGHT` 0건 실측) · `task_f10903cb5d3e`(`bottomClearanceOwner`
+  로 parent 가 dock/safe-area 를 소유하면 child 예약 0). `task_d8dcced54b83`(tabs.test.ts
+  정확 문자열 매칭)은 같은 PR 이 파일을 고쳤으나 관용 매칭으로 바뀌었는지 **미확인**.
+- **다음 1개:** #1580 이 스스로 남긴 Android ≤API 29 수동 QA(최하단 입력 포커스 ·
+  키보드 열림/닫힘 · dock 중복 여백 부재). 막힌 것 없음.
+
+## 2026-09-02 / 담기 P2 2건 머지(#1573) · 남은 관찰 3건은 orca 후속 태스크로
 
 > 발행: Claude Code (orca Design 워크스페이스). #1551 사후 적대적 검증(계약 8종)에서
 > 확정된 3건의 마감 기록이다.

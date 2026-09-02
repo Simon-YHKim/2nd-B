@@ -293,9 +293,8 @@ function DevScreenIndex() {
  * 안 뜬다는 것만 알 뿐 **어느 고리가 끊겼는지** 알 방법이 없었다. 게이트 값을 전부
  * 한 줄에 편다.
  *
- * ⚠ 읽는 법: 이 화면(/dev-screens)은 Clarity **허용 라우트가 아니다.** 그래서 여기
- * 서 있는 동안 route/allowed 는 false 이고 capturing 도 false 인 것이 정상이다.
- * 판정은 허용 라우트(/ 또는 /settings)를 다녀온 뒤 **session** 이 생겼는지로 한다.
+ * 현재 웹과 네이티브 Clarity 는 모두 코드에서 비활성이다. flags 는 원시 운영값이고,
+ * 실제 기대값은 hardOff=true, init=false, capturing=false, session=no 다.
  */
 function ClarityStatusRow() {
   const [line, setLine] = useState<string>("...");
@@ -309,6 +308,7 @@ function ClarityStatusRow() {
         [
           `consent=${g.consent}`,
           `flags=${g.analyticsEnabled}/${g.clarityEnabled}`,
+          `hardOff=${g.webHardDisabled}/${g.nativeHardDisabled}`,
           `projectId=${g.projectId}`,
           `route=${g.route}${g.allowedRoute ? "(allowed)" : "(not-allowed)"}`,
           `module=${p.modulePresent}`,
@@ -327,8 +327,8 @@ function ClarityStatusRow() {
     <PixelSurface variant="frame" style={styles.cardFrame} contentStyle={styles.cardContent}>
       <Text variant="caption">Clarity 상태</Text>
       <Text variant="subtle">
-        이 화면은 허용 라우트가 아니라 여기서는 capturing=false 가 정상입니다. 홈이나 설정을 다녀온 뒤
-        session 이 yes 로 바뀌는지로 판정하세요.
+        웹과 네이티브 모두 현재 코드상 비활성입니다. flags 값과 무관하게 init=false, capturing=false,
+        session=no 가 정상입니다.
       </Text>
       <Text variant="subtle">{line}</Text>
     </PixelSurface>
