@@ -54,6 +54,9 @@ const RAW = readFileSync(resolve(ROOT, ".github/workflows/web-deploy.yml"), "utf
   /\r\n?/g,
   "\n",
 );
+const CI_WORKFLOW = parse(
+  readFileSync(resolve(ROOT, ".github/workflows/ci.yml"), "utf8").replace(/\r\n?/g, "\n"),
+) as WebWorkflow;
 const RUNBOOK = readFileSync(resolve(ROOT, "docs/WEB-PUBLISH-RUNBOOK.md"), "utf8").replace(
   /\r\n?/g,
   "\n",
@@ -130,6 +133,23 @@ describe("web publish event and permission boundary", () => {
 });
 
 describe("web artifact is verified and immutable", () => {
+  test("the build installs CI's pinned uv before dependency install and full verify", () => {
+    const uvAction = "astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e";
+    const steps = BUILD?.steps ?? [];
+    const ciUv = CI_WORKFLOW.jobs?.verify?.steps?.find((step) => step.uses === uvAction);
+    const uvIndexes = steps
+      .map((step, index) => (step.uses === uvAction ? index : -1))
+      .filter((index) => index >= 0);
+    const installIndex = steps.findIndex((step) => step.name === "Install dependencies");
+    const verifyIndex = steps.findIndex((step) => step.name === "Verify repository contracts");
+
+    expect(ciUv?.with?.version).toBe("0.11.19");
+    expect(uvIndexes).toHaveLength(1);
+    expect(steps[uvIndexes[0]]?.with?.version).toBe(ciUv?.with?.version);
+    expect(uvIndexes[0]).toBeLessThan(installIndex);
+    expect(installIndex).toBeLessThan(verifyIndex);
+  });
+
   test("every push runs full verify, exports, records provenance, and uploads only an artifact", () => {
     expect(namedStep(BUILD, "Verify repository contracts").run).toContain("npm run verify");
     expect(namedStep(BUILD, "Build Expo Web (static export)").run).toContain(
