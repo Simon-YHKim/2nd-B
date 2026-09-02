@@ -108,10 +108,10 @@ function getFlashClient(): GoogleGenAI | null {
 
 // Observability for audit H1 / decision D4: on a LIVE non-Vertex build the Flash
 // client is null, so crisis detection is permanently lexicon-only - a silent
-// degradation. Surface it once per session (console.warn is captured by Sentry)
-// so the gap is visible until the server-side classifier is wired. This only
+// degradation. Surface it once per session in local logs and the queryable audit
+// row below until the server-side classifier is wired. This only
 // logs; it does NOT change any classification. (Full server-side safety_classify
-// routing is the flag-gated clinical follow-up, gated on a crisis eval set +
+// routing is the flag-gated safety follow-up, gated on a crisis eval set +
 // safety-owner sign-off.)
 let _semanticDarkWarned = false;
 let _semanticDarkAudited = false;
@@ -133,8 +133,9 @@ function noteSemanticUnavailable(opts?: { userId?: string; lexiconZone?: SafetyZ
       }
     }
 
-    // R5: console.warn is ephemeral and only reaches Sentry when the native SDK is
-    // in the binary. Also record ONE best-effort, queryable health row per session
+    // R5: console.warn is ephemeral and is not an external telemetry channel while
+    // third-party crash reporting is hard-disabled. Also record ONE best-effort,
+    // queryable health row per session
     // in ai_audit_log (the ledger ops already monitor), marked modelUsed
     // 'lexicon-only', so "the Layer-2 classifier ran dark for real users" is
     // visible in prod (SELECT ... WHERE model_used='lexicon-only') without relying

@@ -5,6 +5,10 @@
 > code plan. Companion: `docs/AUTH_PROVIDERS.md` (browser-brokered baseline), `docs/sentry-setup.md`
 > (Path B detail), `docs/EXTERNAL-API-INTEGRATION.md` (provisioning state).
 
+> **2026-09-02 정정:** 이 문서의 Sentry 결정과 Stage B는 폐기됐다. Web·Native Sentry
+> 초기화는 source에서 제거됐고 DSN만으로 재활성화할 수 없다. 소셜 로그인 기록은 별개로
+> 읽을 수 있지만 Sentry 작업에는 `docs/sentry-setup.md`의 현재 게이트만 사용한다.
+
 ## Why native-SDK (vs the browser-brokered path already in code)
 
 The shipped flow (`signInWithProvider` in `src/lib/supabase/auth.ts`) is browser-brokered: it opens
@@ -107,18 +111,12 @@ Supabase Google "Authorized Client IDs" includes the web client.
 PR #617 mirrored the public web env into `eas.json` (LLM live, `ENABLE_KAKAO`, Sentry DSN, OAuth ids).
 This already fixes the phone build running the AI in mock mode and the hidden Kakao button.
 
-### Stage B — Sentry native crash capture (Path B) — UNBLOCKED (no console value needed; DSN exists)
+### Stage B — Sentry native crash capture — RETIRED / HARD OFF
 
-Per `docs/sentry-setup.md` Path B:
-1. `npx expo install @sentry/react-native`.
-2. `metro.config.js`: wrap with `getSentryExpoConfig` **preserving** the existing
-   `unstable_enablePackageExports=false` (Hermes fix), the svg transformer, NativeWind, and the
-   `.worktrees` blockList.
-3. `app.json` plugins: add `@sentry/react-native/expo` (org/project).
-4. Move `Sentry.init` out of the web-only gate in `src/lib/analytics/index.ts` to the app entry
-   (`src/app/_layout.tsx`), fired when `EXPO_PUBLIC_SENTRY_DSN` is set; wrap the root export with
-   `Sentry.wrap()`. Keep web behavior intact.
-5. Verify, open PR, **EAS build must be green before merge**.
+SDK 의존성과 DSN 환경 키가 남아 있어도 앱 source에는 Web·Native 초기화 경로가 없다.
+`getSentryExpoConfig`, Expo plugin, `Sentry.init`, `Sentry.wrap`을 이 문서대로 추가하지 않는다.
+재활성화에는 처리방침·국외 이전 고지, DPA, 버전 인지 재확인, Web·Native 정제 계약,
+source map/release 운영과 새 빌드 검증을 포함한 별도 승인 PR이 필요하다.
 
 ### Stage C — native-SDK social login — gated on PART 1 values
 
@@ -141,14 +139,15 @@ Per `docs/sentry-setup.md` Path B:
 ### Stage D — build + verify (Simon)
 
 `eas build -p android --profile preview` (arm64 APK), install on device, confirm: Google native sheet
-login, Kakao(Talk) login, the analytics/Sentry events. iOS is a later profile (needs the iOS client +
-Sign in with Apple per guideline 4.8).
+login and Kakao(Talk) login. Native Firebase·Clarity와 Web·Native Sentry는 이 소셜 로그인
+검증과 별개로 OFF를 유지한다. iOS is a later profile (needs the iOS client + Sign in with Apple
+per guideline 4.8).
 
 ---
 
 ## Guardrails honored
 
-- $0/mo: both auth libs + `@sentry/react-native` are free.
+- $0/mo: both auth libs are free. Dormant `@sentry/react-native` is not an activation instruction.
 - C1–C12: no LLM/safety path changes; `classifyInput` and the edge-function LLM route are untouched.
 - Secrets: only the Supabase dashboard holds provider **secrets**; eas.json carries public client
   ids/keys only (same class as the already-public web bundle values).
