@@ -11,7 +11,7 @@ export default function CaptureFull() {
   if (isDeepSpaceUI()) {
     return (
       <DeepSpaceScreen active="capture">
-        <CaptureLegacy />
+        <CaptureLegacy embeddedInDock />
       </DeepSpaceScreen>
     );
   }
