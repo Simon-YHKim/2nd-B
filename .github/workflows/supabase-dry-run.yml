@@ -834,11 +834,28 @@ jobs:
           END $$;
           RESET ROLE;
 
+          -- The auth.users BEFORE INSERT guard correctly rejects a mailbox
+          -- already present in auth/public, so create the target auth row
+          -- first. A later mismatched profile models privileged drift or the
+          -- race that the RPC's public.users unique-violation backstop owns.
           INSERT INTO auth.users (id, email, email_confirmed_at)
           VALUES (
             '01490000-0000-0000-0000-000000000011',
-            'atomic-new-ci@example.invalid',
+            'atomic-public-collision-ci@example.invalid',
             clock_timestamp()
+          );
+          INSERT INTO auth.users (id, email, email_confirmed_at)
+          VALUES (
+            '01490000-0000-0000-0000-000000000010',
+            'atomic-collision-owner-ci@example.invalid',
+            clock_timestamp()
+          );
+          INSERT INTO public.users (id, email, birth_date, locale)
+          VALUES (
+            '01490000-0000-0000-0000-000000000010',
+            'atomic-public-collision-ci@example.invalid',
+            DATE '1990-01-01',
+            'en'
           );
           SET LOCAL request.jwt.claims =
             '{"sub":"01490000-0000-0000-0000-000000000011","role":"authenticated"}';
