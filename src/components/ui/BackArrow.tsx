@@ -119,8 +119,8 @@ export function BackArrow() {
   const insets = useSafeAreaInsets();
   const locale = (i18n.language === "ko" ? "ko" : "en") as Locale;
   // Screens that carry their own back affordance (MdTopAppBar) register while
-  // mounted. Rendering the floating chip on top of them stacked two overlapping
-  // back arrows in the same corner (emulator, windowed record-detail screen).
+  // focused. Native stacks keep buried screens mounted, so mount-scoped
+  // registration would hide this chip on unrelated screens pushed above them.
   const screenHasOwnBack = useSyncExternalStore(subscribeOwnBack, hasOwnBack, hasOwnBack);
 
   if (screenHasOwnBack) return null;
