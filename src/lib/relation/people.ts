@@ -83,14 +83,16 @@ export interface PersonSaveAttempt extends PersonSaveIdentity {
 export function beginPersonSaveAttempt(
   attemptGenRef: MutablePeopleSaveRef<number>,
   saveIdRef: MutablePeopleSaveRef<PersonSaveIdentity | null>,
-  inFlightRef: MutablePeopleSaveRef<boolean>,
+  inFlightRef: MutablePeopleSaveRef<PersonSaveIdentity | null>,
   createId: () => string,
 ): PersonSaveAttempt | null {
-  if (inFlightRef.current) return null;
-  const identity = saveIdRef.current ?? { id: createId(), rev: 0 };
-  identity.rev += 1;
+  if (inFlightRef.current !== null) return null;
+  const previous = saveIdRef.current;
+  const identity = previous
+    ? { id: previous.id, rev: previous.rev + 1 }
+    : { id: createId(), rev: 1 };
   saveIdRef.current = identity;
-  inFlightRef.current = true;
+  inFlightRef.current = { ...identity };
   const gen = ++attemptGenRef.current;
   return { id: identity.id, rev: identity.rev, gen };
 }
@@ -102,34 +104,44 @@ export function isCurrentPersonSaveAttempt(
   return attemptGenRef.current === attempt.gen;
 }
 
-export function rotatePersonSaveIdentity(
-  attemptGenRef: MutablePeopleSaveRef<number>,
-  saveIdRef: MutablePeopleSaveRef<PersonSaveIdentity | null>,
+function ownsPersonSaveAttempt(
+  owner: PersonSaveIdentity | null,
   attempt: PersonSaveAttempt,
 ): boolean {
-  if (!isCurrentPersonSaveAttempt(attemptGenRef, attempt)) return false;
+  return owner?.id === attempt.id && owner.rev === attempt.rev;
+}
+
+/**
+ * Settle a confirmed write. UI visibility is deliberately irrelevant here:
+ * closing the form may stale its presentation generation, but the request
+ * still owns this exact id+revision until its database outcome is known.
+ */
+export function completePersonSaveAttempt(
+  saveIdRef: MutablePeopleSaveRef<PersonSaveIdentity | null>,
+  inFlightRef: MutablePeopleSaveRef<PersonSaveIdentity | null>,
+  attempt: PersonSaveAttempt,
+): boolean {
+  if (!ownsPersonSaveAttempt(inFlightRef.current, attempt)) return false;
+  if (!ownsPersonSaveAttempt(saveIdRef.current, attempt)) return false;
   saveIdRef.current = null;
+  inFlightRef.current = null;
   return true;
 }
 
 export function releasePersonSaveAttempt(
-  attemptGenRef: MutablePeopleSaveRef<number>,
-  inFlightRef: MutablePeopleSaveRef<boolean>,
+  inFlightRef: MutablePeopleSaveRef<PersonSaveIdentity | null>,
   attempt: PersonSaveAttempt,
 ): boolean {
-  if (!isCurrentPersonSaveAttempt(attemptGenRef, attempt)) return false;
-  inFlightRef.current = false;
+  if (!ownsPersonSaveAttempt(inFlightRef.current, attempt)) return false;
+  inFlightRef.current = null;
   return true;
 }
 
-export function abandonPersonSaveAttempt(
+/** Hide/invalidate presentation only; never release a request still in flight. */
+export function invalidatePersonSaveAttemptUi(
   attemptGenRef: MutablePeopleSaveRef<number>,
-  saveIdRef: MutablePeopleSaveRef<PersonSaveIdentity | null>,
-  inFlightRef: MutablePeopleSaveRef<boolean>,
 ): void {
   attemptGenRef.current += 1;
-  saveIdRef.current = null;
-  inFlightRef.current = false;
 }
 
 export function normalizePersonInput(input: NewPerson): NormalizedPerson {

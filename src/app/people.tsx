@@ -40,13 +40,13 @@ const PEOPLE_MAP_TEXT = flattenAlpha(m3.accent.skyTextHi, 0.8, PEOPLE_MAP_BG);
 const PEOPLE_MAP_TEXT_HI = flattenAlpha(m3.accent.skyTextHi, 0.85, PEOPLE_MAP_BG);
 const peopleNodeFill = (c: string) => flattenAlpha(c, 0.92, PEOPLE_GROUND);
 import {
-  abandonPersonSaveAttempt,
   beginPersonSaveAttempt,
+  completePersonSaveAttempt,
   createPerson,
+  invalidatePersonSaveAttemptUi,
   isCurrentPersonSaveAttempt,
   listPeople,
   releasePersonSaveAttempt,
-  rotatePersonSaveIdentity,
   type Person,
   type PersonSaveIdentity,
   type RelationKind,
@@ -101,7 +101,7 @@ function PeopleMapBody({ userId }: { userId: string }) {
   const loadGuardRef = useRef(createLatestWins());
   const attemptGenRef = useRef(0);
   const saveIdRef = useRef<PersonSaveIdentity | null>(null);
-  const inFlightRef = useRef(false);
+  const inFlightRef = useRef<PersonSaveIdentity | null>(null);
 
   const refresh = useCallback(async () => {
     const token = loadGuardRef.current.begin();
@@ -123,7 +123,7 @@ function PeopleMapBody({ userId }: { userId: string }) {
     return () => {
       // Invalidate work owned by the previous user or an unmounted screen.
       loadGuardRef.current.begin();
-      attemptGenRef.current += 1;
+      invalidatePersonSaveAttemptUi(attemptGenRef);
     };
   }, [refresh]);
 
@@ -150,37 +150,42 @@ function PeopleMapBody({ userId }: { userId: string }) {
         relation_kind: kind,
         closeness,
       }, attempt.id, attempt.rev);
-      if (!isCurrentPersonSaveAttempt(attemptGenRef, attempt)) return;
-      rotatePersonSaveIdentity(attemptGenRef, saveIdRef, attempt);
-      // The write is already confirmed. Show it immediately so a follow-up
-      // list timeout cannot make a successful save look lost and invite a
-      // duplicate entry. The background refresh then reconciles server order.
-      setPeople((previous) =>
-        previous === null
-          ? [created]
-          : [...previous.filter((person) => person.id !== created.id), created],
-      );
+      const isCurrentUi = isCurrentPersonSaveAttempt(attemptGenRef, attempt);
+      if (!completePersonSaveAttempt(saveIdRef, inFlightRef, attempt)) return;
+      setSaving(false);
       setName("");
-      setAdding(false);
+      setSaveFailed(false);
+      if (isCurrentUi) {
+        // The write is already confirmed. Show it immediately so a follow-up
+        // list timeout cannot make a successful save look lost and invite a
+        // duplicate entry. The background refresh then reconciles server order.
+        setPeople((previous) =>
+          previous === null
+            ? [created]
+            : [...previous.filter((person) => person.id !== created.id), created],
+        );
+        setAdding(false);
+      }
+      // A hidden form deliberately skips its stale local merge, but the
+      // confirmed row still needs to appear and its draft must stay consumed.
       void refresh();
     } catch (e) {
-      if (!isCurrentPersonSaveAttempt(attemptGenRef, attempt)) return;
+      const isCurrentUi = isCurrentPersonSaveAttempt(attemptGenRef, attempt);
+      if (!releasePersonSaveAttempt(inFlightRef, attempt)) return;
+      setSaving(false);
       console.warn("[people] save failed", (e as Error).message);
       // A timed-out write may still have reached Postgres after the client
       // stopped waiting. Reconcile once before the user retries so a late row
       // can surface instead of encouraging an accidental duplicate.
       if (isTimeoutError(e)) void refresh();
-      setSaveFailed(true);
-    } finally {
-      if (releasePersonSaveAttempt(attemptGenRef, inFlightRef, attempt)) {
-        setSaving(false);
-      }
+      // Closing hides the old presentation generation. Preserve its draft and
+      // id so reopening can retry the same row at rev+1 without stale UI copy.
+      if (isCurrentUi) setSaveFailed(true);
     }
   }
 
   function closeAddForm() {
-    abandonPersonSaveAttempt(attemptGenRef, saveIdRef, inFlightRef);
-    setSaving(false);
+    invalidatePersonSaveAttemptUi(attemptGenRef);
     setSaveFailed(false);
     setAdding(false);
   }
@@ -188,7 +193,7 @@ function PeopleMapBody({ userId }: { userId: string }) {
   function toggleAddForm() {
     if (adding) {
       closeAddForm();
-    } else {
+    } else if (!saving) {
       setAdding(true);
     }
   }
@@ -202,6 +207,7 @@ function PeopleMapBody({ userId }: { userId: string }) {
           </Text>
           <MdButton
             variant="tonal"
+            disabled={!adding && saving}
             label={adding ? t("deepspace:people.close") : t("deepspace:people.addPerson")}
             onPress={toggleAddForm}
           />

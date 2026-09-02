@@ -13,15 +13,15 @@ jest.mock("../../persona/load-domain-levels", () => ({
 }));
 
 import {
-  abandonPersonSaveAttempt,
   AUTHORITATIVE_WRITE_REVISION,
   beginPersonSaveAttempt,
+  completePersonSaveAttempt,
   createPerson,
+  invalidatePersonSaveAttemptUi,
   isCurrentPersonSaveAttempt,
   listPeople,
   normalizePersonInput,
   releasePersonSaveAttempt,
-  rotatePersonSaveIdentity,
   type PersonSaveIdentity,
   updatePerson,
 } from "../people";
@@ -117,7 +117,7 @@ describe("person save attempt state machine", () => {
     return {
       gen: { current: 0 },
       identity: { current: null as PersonSaveIdentity | null },
-      inFlight: { current: false },
+      inFlight: { current: null as PersonSaveIdentity | null },
     };
   }
 
@@ -128,30 +128,53 @@ describe("person save attempt state machine", () => {
     expect(first).toEqual({ id: "id-x", rev: 1, gen: 1 });
     expect(beginPersonSaveAttempt(state.gen, state.identity, state.inFlight, createId)).toBeNull();
 
-    expect(releasePersonSaveAttempt(state.gen, state.inFlight, first!)).toBe(true);
+    expect(releasePersonSaveAttempt(state.inFlight, first!)).toBe(true);
     const retry = beginPersonSaveAttempt(state.gen, state.identity, state.inFlight, createId);
     expect(retry).toEqual({ id: "id-x", rev: 2, gen: 2 });
     expect(createId).toHaveBeenCalledTimes(1);
   });
 
-  test("close/reopen makes late A unable to rotate or release B", () => {
+  test("close invalidates only UI and blocks a second request until late success settles", () => {
     const state = refs();
-    const ids = ["id-a", "id-b"];
-    const first = beginPersonSaveAttempt(state.gen, state.identity, state.inFlight, () => ids.shift()!);
-    abandonPersonSaveAttempt(state.gen, state.identity, state.inFlight);
-    const second = beginPersonSaveAttempt(state.gen, state.identity, state.inFlight, () => ids.shift()!);
-
+    const createId = jest.fn(() => "id-a");
+    const first = beginPersonSaveAttempt(state.gen, state.identity, state.inFlight, createId);
+    invalidatePersonSaveAttemptUi(state.gen);
     expect(isCurrentPersonSaveAttempt(state.gen, first!)).toBe(false);
-    expect(isCurrentPersonSaveAttempt(state.gen, second!)).toBe(true);
-    expect(rotatePersonSaveIdentity(state.gen, state.identity, first!)).toBe(false);
-    expect(releasePersonSaveAttempt(state.gen, state.inFlight, first!)).toBe(false);
-    expect(state.identity.current).toEqual({ id: "id-b", rev: 1 });
-    expect(state.inFlight.current).toBe(true);
+    expect(beginPersonSaveAttempt(state.gen, state.identity, state.inFlight, createId)).toBeNull();
+    expect(createId).toHaveBeenCalledTimes(1);
 
-    expect(rotatePersonSaveIdentity(state.gen, state.identity, second!)).toBe(true);
-    expect(releasePersonSaveAttempt(state.gen, state.inFlight, second!)).toBe(true);
+    expect(completePersonSaveAttempt(state.identity, state.inFlight, first!)).toBe(true);
     expect(state.identity.current).toBeNull();
-    expect(state.inFlight.current).toBe(false);
+    expect(state.inFlight.current).toBeNull();
+  });
+
+  test("late failure unlocks a retry with the same id and the next revision", () => {
+    const state = refs();
+    const createId = jest.fn(() => "id-a");
+    const first = beginPersonSaveAttempt(state.gen, state.identity, state.inFlight, createId);
+    invalidatePersonSaveAttemptUi(state.gen);
+
+    expect(releasePersonSaveAttempt(state.inFlight, first!)).toBe(true);
+    expect(state.identity.current).toEqual({ id: "id-a", rev: 1 });
+    expect(state.inFlight.current).toBeNull();
+
+    const retry = beginPersonSaveAttempt(state.gen, state.identity, state.inFlight, createId);
+    expect(retry).toEqual({ id: "id-a", rev: 2, gen: 3 });
+    expect(createId).toHaveBeenCalledTimes(1);
+  });
+
+  test("a stale attempt cannot complete or release a newer id+revision owner", () => {
+    const state = refs();
+    const first = beginPersonSaveAttempt(state.gen, state.identity, state.inFlight, () => "id-a");
+    invalidatePersonSaveAttemptUi(state.gen);
+    expect(releasePersonSaveAttempt(state.inFlight, first!)).toBe(true);
+    const second = beginPersonSaveAttempt(state.gen, state.identity, state.inFlight, () => "id-b");
+
+    expect(second).toEqual({ id: "id-a", rev: 2, gen: 3 });
+    expect(completePersonSaveAttempt(state.identity, state.inFlight, first!)).toBe(false);
+    expect(releasePersonSaveAttempt(state.inFlight, first!)).toBe(false);
+    expect(state.identity.current).toEqual({ id: "id-a", rev: 2 });
+    expect(state.inFlight.current).toEqual({ id: "id-a", rev: 2 });
   });
 });
 

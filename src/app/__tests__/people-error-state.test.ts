@@ -58,20 +58,42 @@ describe("people map load failures stay distinct from an empty account", () => {
   test("save identity survives retries and synchronous double presses are blocked", () => {
     expect(BODY).toContain("const attemptGenRef = useRef(0)");
     expect(BODY).toContain("const saveIdRef = useRef<PersonSaveIdentity | null>(null)");
-    expect(BODY).toContain("const inFlightRef = useRef(false)");
+    expect(BODY).toContain("const inFlightRef = useRef<PersonSaveIdentity | null>(null)");
     expect(BODY).toContain("beginPersonSaveAttempt(");
     expect(BODY).toContain("() => Crypto.randomUUID()");
   });
 
-  test("every post-await mutation is gated and closing rotates the logical attempt", () => {
+  test("closing invalidates only UI while the request keeps its id+revision lock", () => {
     const handleAdd = BODY.slice(BODY.indexOf("async function handleAdd"), BODY.indexOf("function closeAddForm"));
     expect(handleAdd.match(/isCurrentPersonSaveAttempt\(attemptGenRef, attempt\)/g)).toHaveLength(2);
-    expect(handleAdd).toContain("rotatePersonSaveIdentity(attemptGenRef, saveIdRef, attempt)");
-    expect(handleAdd).toContain("releasePersonSaveAttempt(attemptGenRef, inFlightRef, attempt)");
+    expect(handleAdd).toContain("completePersonSaveAttempt(saveIdRef, inFlightRef, attempt)");
+    expect(handleAdd).toContain("releasePersonSaveAttempt(inFlightRef, attempt)");
 
     const closeForm = BODY.slice(BODY.indexOf("function closeAddForm"), BODY.indexOf("function toggleAddForm"));
-    expect(closeForm).toContain("abandonPersonSaveAttempt(attemptGenRef, saveIdRef, inFlightRef)");
+    expect(closeForm).toContain("invalidatePersonSaveAttemptUi(attemptGenRef)");
+    expect(closeForm).not.toContain("setSaving(false)");
+    expect(closeForm).not.toContain("saveIdRef");
+    expect(closeForm).not.toContain("inFlightRef");
     expect(BODY).toContain("onPress={toggleAddForm}");
+    expect(BODY).toContain("disabled={!adding && saving}");
+    expect(BODY).toContain("} else if (!saving) {");
     expect(BODY).not.toMatch(/set(?:Timeout|Interval)\s*\(/);
+  });
+
+  test("a hidden success consumes the draft while a hidden failure preserves it for retry", () => {
+    const handleAdd = BODY.slice(BODY.indexOf("async function handleAdd"), BODY.indexOf("function closeAddForm"));
+    const catchStart = handleAdd.indexOf("} catch (e) {");
+    const success = handleAdd.slice(0, catchStart);
+    const failure = handleAdd.slice(catchStart);
+
+    const settle = success.indexOf("completePersonSaveAttempt(saveIdRef, inFlightRef, attempt)");
+    const clearDraft = success.indexOf('setName("")');
+    const visibleOnly = success.indexOf("if (isCurrentUi) {");
+    expect(settle).toBeGreaterThan(-1);
+    expect(clearDraft).toBeGreaterThan(settle);
+    expect(visibleOnly).toBeGreaterThan(clearDraft);
+
+    expect(failure).toContain("releasePersonSaveAttempt(inFlightRef, attempt)");
+    expect(failure).not.toContain('setName("")');
   });
 });
