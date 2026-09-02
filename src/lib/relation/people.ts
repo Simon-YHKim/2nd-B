@@ -235,7 +235,7 @@ export async function createPerson(
   const updateRaw = Promise.resolve(
     supabase
       .from("relation_people")
-      .update({ ...norm, client_revision: revision })
+      .update({ ...norm, client_revision: revision, updated_at: new Date().toISOString() })
       .eq("user_id", userId)
       .eq("id", requestId)
       .lt("client_revision", revision)

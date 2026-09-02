@@ -354,6 +354,7 @@ describe("createPerson retry convergence", () => {
       display_name: "소하",
       last_interaction_on: "2026-09-02",
       client_revision: 2,
+      updated_at: expect.any(String),
     }));
     expect(updateEqUser).toHaveBeenCalledWith("user_id", "user-1");
     expect(updateEqId).toHaveBeenCalledWith("id", "request-1");
