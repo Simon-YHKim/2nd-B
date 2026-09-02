@@ -140,24 +140,45 @@ describe("legal document snapshots", () => {
     // Anthropic is a configured-active AI processor (perPurpose seat map) and
     // must be disclosed in both section 4 and section 5, in both languages.
     expect(PRIVACY_DOC.body.match(/Anthropic PBC/g)?.length ?? 0).toBeGreaterThanOrEqual(4);
-    // Supabase storage is the Seoul region; the flat US-storage claim must not return.
+    // Supabase keeps primary storage in Seoul while unpinned Edge execution and
+    // the currently verified Free-plan log period remain visible in both languages.
     expect(PRIVACY_DOC.body).toContain("대한민국(서울) 리전");
-    expect(PRIVACY_DOC.body).toContain("Seoul (South Korea) region");
+    expect(PRIVACY_DOC.body).toContain("Seoul, South Korea region");
+    expect(PRIVACY_DOC.body).toContain("Edge Functions는 현재 실행 리전이 고정되지 않아");
+    expect(PRIVACY_DOC.body).toContain("Edge Functions are not currently region-pinned");
+    expect(PRIVACY_DOC.body).toContain("API·함수 로그의 보유기간은 1일");
+    expect(PRIVACY_DOC.body).toContain("API and function logs for one day");
     expect(PRIVACY_DOC.body).not.toContain("Supabase, Inc.(미국)는 제1조의");
     // No account-specific Sentry retention claim (the account setting is unverified).
     expect(PRIVACY_DOC.body).not.toMatch(/Sentry 계정에 설정된|Company's Sentry account|최대 90일|no longer than 90 days/);
-    // Post-#1586 posture: the latest app does not initialize Sentry.
-    expect(PRIVACY_DOC.body).toContain("최신 버전의 앱은 오류 수집 도구(Sentry)를 초기화하지 않습니다");
-    expect(PRIVACY_DOC.body).toContain("the latest version of the app does not initialize the error-reporting tool (Sentry)");
+    // Earlier Sentry builds can keep transmitting until updated/restarted or refreshed.
+    expect(PRIVACY_DOC.body).toContain("계속 TLS 전송할 수 있습니다");
+    expect(PRIVACY_DOC.body).toContain("may continue to transmit");
+    expect(PRIVACY_DOC.body).toContain("compliance@sentry.io");
+    expect(PRIVACY_DOC.body).not.toContain("최신 버전의 앱은 오류 수집 도구(Sentry)를 초기화하지 않습니다");
+    expect(PRIVACY_DOC.body).not.toContain("the latest version of the app does not initialize the error-reporting tool (Sentry)");
     // Firebase/Clarity are currently disabled, not "collected upon consent".
     expect(PRIVACY_DOC.body).toContain("현재 앱에서 비활성화되어 있어 수집하지 않습니다");
     expect(PRIVACY_DOC.body).toContain("Currently disabled in the app; nothing is collected");
-    // Paddle is framed as an independent Merchant of Record, not a mere processor.
+    // Paddle is an independent Merchant of Record and receives the account link key.
     expect(PRIVACY_DOC.body).toContain("판매자(Merchant of Record)인 Paddle");
     expect(PRIVACY_DOC.body).toContain("Paddle as the Merchant of Record");
-    // GA4 keeps the aggregated-reports caveat instead of a flat 14-month claim.
+    expect(PRIVACY_DOC.body).toContain("내부 계정 식별자(user_id)");
+    expect(PRIVACY_DOC.body).toContain("internal account identifier (user_id)");
+    expect(PRIVACY_DOC.body).toContain("무료 기능은 계속 이용할 수 있습니다");
+    expect(PRIVACY_DOC.body).toContain("continue to use the free features");
+    // Required overseas processing blocks sign-up; optional payments/analytics do not.
+    expect(PRIVACY_DOC.body).toContain("가입을 완료할 수 없습니다");
+    expect(PRIVACY_DOC.body).toContain("cannot complete sign-up");
+    // GA4 names its pseudonymous identifiers and keeps the aggregated-report caveat.
+    expect(PRIVACY_DOC.body).toContain("가명 클라이언트·기기 식별자");
+    expect(PRIVACY_DOC.body).toContain("pseudonymous client and device identifiers");
     expect(PRIVACY_DOC.body).toContain("표준 집계 보고서는 이 보존 설정의 적용을 받지 않습니다");
     expect(PRIVACY_DOC.body).toContain("standard aggregated reports are not governed by that retention setting");
+    // Drafts and generated copies must not ship editorial fill markers.
+    expect(PRIVACY_DOC.body).not.toMatch(
+      /\[(?:배포일|N|서버 차단일|확인된|deployment date|server-block date|verified)/,
+    );
     // xAI is not selected by any deployed env value and must not be listed.
     expect(PRIVACY_DOC.body).not.toMatch(/xAI|X\.AI/);
     // Official privacy contacts for the two active AI recipients, verified
