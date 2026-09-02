@@ -10,7 +10,11 @@ const INTRO_SQL = readFileSync(
   join(process.cwd(), "db", "migrations", "0149_atomic_complete_profile_signup_consent.sql"),
   "utf8",
 ).replaceAll("\r", "");
-const INTRO_EXEC = INTRO_SQL.replace(/^\s*--.*$/gm, "");
+const CONTRACT_SQL = readFileSync(
+  join(process.cwd(), "db", "migrations", "0150_signup_consent_contract_20260902.sql"),
+  "utf8",
+).replaceAll("\r", "");
+const CONTRACT_EXEC = CONTRACT_SQL.replace(/^\s*--.*$/gm, "");
 const migrationDir = join(process.cwd(), "db", "migrations");
 const rpcSignature =
   /CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.complete_profile_signup_consent\s*\(/gi;
@@ -52,7 +56,34 @@ if (rpcStart < 0 || bodyStart < 0 || rpcEnd < 0 || !bodyMarker) {
 
 const RPC = LATEST_EXEC.slice(rpcStart, rpcEnd + bodyMarker.length + 1);
 const SIGNATURE = RPC.slice(0, RPC.indexOf("RETURNS jsonb"));
-const ACL = LATEST_EXEC.slice(rpcEnd + bodyMarker.length + 1);
+const functionAclMutationPattern =
+  /\b(GRANT|REVOKE)\s+(ALL(?:\s+PRIVILEGES)?|EXECUTE)\s+ON\s+FUNCTION\s+([\s\S]*?)\s+(TO|FROM)\s+([^;]+);/gi;
+
+function normalizeFunctionTarget(target: string) {
+  return target.replace(/\s+/g, "").toLowerCase();
+}
+
+const functionAclMutations = migrations.flatMap((migration) =>
+  [...migration.exec.matchAll(new RegExp(functionAclMutationPattern))].map((match) => ({
+    migration: migration.name,
+    action: match[1].toUpperCase(),
+    target: normalizeFunctionTarget(match[3]),
+    direction: match[4].toUpperCase(),
+    roles: match[5]
+      .split(",")
+      .map((role) => role.trim().toLowerCase()),
+  })),
+);
+
+const RPC_ACL_TARGET = normalizeFunctionTarget(
+  "public.complete_profile_signup_consent(text,text,text,text,boolean,boolean,boolean,boolean,boolean,boolean)",
+);
+const CONTRACT_ACL_TARGET = normalizeFunctionTarget("public.signup_consent_contract(text)");
+const TRIGGER_ACL_TARGET = normalizeFunctionTarget("public.complete_verified_email_signup()");
+
+function latestAclMutation(target: string) {
+  return functionAclMutations.filter((mutation) => mutation.target === target).at(-1);
+}
 
 describe("0149 atomic complete-profile signup consent", () => {
   test("exposes one non-overloaded PostgREST signature with only screen inputs", () => {
@@ -146,20 +177,26 @@ describe("0149 atomic complete-profile signup consent", () => {
     expect(RPC).toContain("INSERT INTO public.consent_records");
   });
 
-  test("keeps the helper private and exposes only the RPC to authenticated", () => {
-    expect(INTRO_EXEC).toMatch(
-      /REVOKE ALL ON FUNCTION public\.signup_consent_contract\(text\)\s+FROM PUBLIC, anon, authenticated, service_role;/,
+  test("keeps every helper private and leaves the dormant v1 RPC revoked", () => {
+    const historicalRpcGrant = functionAclMutations.find(
+      (mutation) =>
+        mutation.migration === "0149_atomic_complete_profile_signup_consent.sql" &&
+        mutation.target === RPC_ACL_TARGET &&
+        mutation.action === "GRANT" &&
+        mutation.roles.includes("authenticated"),
     );
-    expect(INTRO_EXEC).toMatch(
-      /REVOKE ALL ON FUNCTION public\.complete_verified_email_signup\(\)\s+FROM PUBLIC, anon, authenticated, service_role;/,
-    );
-    expect(ACL).toMatch(
-      /REVOKE ALL ON FUNCTION public\.complete_profile_signup_consent\([\s\S]*?\) FROM PUBLIC, anon, authenticated, service_role;/,
-    );
-    expect(ACL).toMatch(
-      /GRANT EXECUTE ON FUNCTION public\.complete_profile_signup_consent\([\s\S]*?\) TO authenticated;/,
-    );
-    expect(ACL).toContain("NOTIFY pgrst, 'reload schema'");
+    expect(historicalRpcGrant).toBeDefined();
+
+    for (const target of [CONTRACT_ACL_TARGET, TRIGGER_ACL_TARGET, RPC_ACL_TARGET]) {
+      const mutation = latestAclMutation(target);
+      expect(mutation).toBeDefined();
+      expect(mutation).toMatchObject({ action: "REVOKE", direction: "FROM" });
+      expect(mutation?.roles).toContain("authenticated");
+    }
+
+    expect(CONTRACT_EXEC).not.toContain("complete-profile-v2");
+    expect(latestRpcMigration?.name).toBe("0149_atomic_complete_profile_signup_consent.sql");
+    expect(CONTRACT_EXEC).toContain("NOTIFY pgrst, 'reload schema'");
   });
 
   test("never rewrites or deletes the append-only consent history", () => {

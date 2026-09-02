@@ -135,8 +135,59 @@ jobs:
                OR ledger.llm_processing_ack IS NOT TRUE
                OR ledger.overseas_transfer_ack IS NOT TRUE
                OR ledger.sensitive_data_ack IS NOT TRUE
-               OR ledger.safety_notice_ack IS NOT TRUE THEN
+               OR ledger.safety_notice_ack IS NOT TRUE
+               OR ledger.purposes IS DISTINCT FROM '["service"]'::jsonb
+               OR ledger.optional_consents IS DISTINCT FROM '{"marketing":false}'::jsonb THEN
               RAISE EXCEPTION 'verified sign-up lost a required acknowledgement';
+            END IF;
+          END $$;
+
+          -- The next email surface is staged server-first. It records the new
+          -- document tuple and the literal positive optional marketing choice;
+          -- forged client version metadata remains irrelevant.
+          INSERT INTO auth.users (id, email, raw_user_meta_data)
+          VALUES (
+            '01500000-0000-0000-0000-000000000001',
+            'verified-consent-v3-ci@example.invalid',
+            jsonb_build_object(
+              'signup_flow', 'email-v3',
+              'signup_birth_date', '1990-01-01',
+              'signup_locale', 'en',
+              'signup_consent_service', true,
+              'signup_consent_llm_processing', true,
+              'signup_consent_overseas_transfer', true,
+              'signup_consent_sensitive_data', true,
+              'signup_consent_safety_notice', true,
+              'signup_consent_marketing', true,
+              'signup_consent_version', 'forged-client-version',
+              'signup_policy_version', 'forged-client-version',
+              'signup_terms_version', 'forged-client-version'
+            )
+          );
+
+          UPDATE auth.users
+          SET email_confirmed_at = clock_timestamp()
+          WHERE id = '01500000-0000-0000-0000-000000000001';
+
+          DO $$
+          DECLARE
+            ledger public.consent_records%ROWTYPE;
+          BEGIN
+            SELECT * INTO STRICT ledger
+            FROM public.consent_records
+            WHERE user_id = '01500000-0000-0000-0000-000000000001';
+
+            IF ledger.consent_version IS DISTINCT FROM '2026-09-02'
+               OR ledger.policy_version IS DISTINCT FROM '2026-09-02'
+               OR ledger.terms_version IS DISTINCT FROM '2026-08-16'
+               OR ledger.purposes IS DISTINCT FROM '["service", "marketing"]'::jsonb
+               OR ledger.optional_consents IS DISTINCT FROM '{"marketing":true}'::jsonb
+               OR ledger.required_ack IS NOT TRUE
+               OR ledger.llm_processing_ack IS NOT TRUE
+               OR ledger.overseas_transfer_ack IS NOT TRUE
+               OR ledger.sensitive_data_ack IS NOT TRUE
+               OR ledger.safety_notice_ack IS NOT TRUE THEN
+              RAISE EXCEPTION 'email-v3 did not write its exact consent contract';
             END IF;
           END $$;
 
@@ -188,7 +239,7 @@ jobs:
 
           -- v0.2 used email-v1 with a different policy document. Even when all
           -- present-day keys are forged into its metadata, it must not receive
-          -- the email-v2 document tuple.
+          -- any supported document tuple.
           INSERT INTO auth.users (id, email, raw_user_meta_data)
           VALUES (
             '01480000-0000-0000-0000-000000000003',
@@ -316,20 +367,49 @@ jobs:
                OR to_regprocedure(rpc_signature) IS NULL THEN
               RAISE EXCEPTION 'complete-profile consent RPC is missing or overloaded';
             END IF;
-            IF NOT has_function_privilege('authenticated', rpc_signature, 'EXECUTE') THEN
-              RAISE EXCEPTION 'authenticated cannot execute complete-profile consent RPC';
-            END IF;
-            IF has_function_privilege('anon', rpc_signature, 'EXECUTE')
+            IF has_function_privilege('authenticated', rpc_signature, 'EXECUTE')
+               OR has_function_privilege('anon', rpc_signature, 'EXECUTE')
                OR has_function_privilege('service_role', rpc_signature, 'EXECUTE')
                OR has_function_privilege('supabase_auth_admin', rpc_signature, 'EXECUTE') THEN
-              RAISE EXCEPTION 'non-authenticated role can execute complete-profile consent RPC';
+              RAISE EXCEPTION 'dormant complete-profile consent RPC remains externally executable';
             END IF;
             IF has_function_privilege('authenticated', 'public.signup_consent_contract(text)', 'EXECUTE')
                OR has_function_privilege('anon', 'public.signup_consent_contract(text)', 'EXECUTE')
-               OR has_function_privilege('service_role', 'public.signup_consent_contract(text)', 'EXECUTE') THEN
-              RAISE EXCEPTION 'private signup consent contract is externally executable';
+               OR has_function_privilege('service_role', 'public.signup_consent_contract(text)', 'EXECUTE')
+               OR has_function_privilege('authenticated', 'public.complete_verified_email_signup()', 'EXECUTE')
+               OR has_function_privilege('anon', 'public.complete_verified_email_signup()', 'EXECUTE')
+               OR has_function_privilege('service_role', 'public.complete_verified_email_signup()', 'EXECUTE') THEN
+              RAISE EXCEPTION 'private signup consent helper is externally executable';
             END IF;
           END $$;
+
+          -- 0150 intentionally leaves complete-profile-v1 dormant. Prove an
+          -- authenticated caller is denied before temporarily reopening it for
+          -- the behavior tests in this transaction. ROLLBACK removes the grant.
+          SET LOCAL request.jwt.claims =
+            '{"sub":"01490000-0000-0000-0000-000000000099","role":"authenticated"}';
+          SET LOCAL ROLE authenticated;
+          DO $$
+          DECLARE
+            rejected boolean := false;
+          BEGIN
+            BEGIN
+              PERFORM public.complete_profile_signup_consent(
+                '1990-01-01', 'en', NULL, 'complete-profile-v1',
+                true, true, true, true, true, false
+              );
+            EXCEPTION WHEN insufficient_privilege THEN
+              rejected := true;
+            END;
+            IF NOT rejected THEN
+              RAISE EXCEPTION 'revoked complete-profile-v1 RPC remained callable';
+            END IF;
+          END $$;
+          RESET ROLE;
+
+          GRANT EXECUTE ON FUNCTION public.complete_profile_signup_consent(
+            text, text, text, text, boolean, boolean, boolean, boolean, boolean, boolean
+          ) TO authenticated;
 
           -- New profile: identity, tier, and versions come from server-owned
           -- sources, while the visible UI supplies only its collected values.
@@ -1005,6 +1085,17 @@ jobs:
           END $$;
 
           ROLLBACK;
+
+          DO $$
+          BEGIN
+            IF has_function_privilege(
+              'authenticated',
+              'public.complete_profile_signup_consent(text,text,text,text,boolean,boolean,boolean,boolean,boolean,boolean)',
+              'EXECUTE'
+            ) THEN
+              RAISE EXCEPTION 'test-only complete-profile RPC grant escaped rollback';
+            END IF;
+          END $$;
           SQL
       - name: Exercise concurrent complete-profile convergence
         env:
@@ -1038,9 +1129,11 @@ jobs:
           call_rpc() {
             local app_name="$1"
             PGAPPNAME="$app_name" psql -qAt -h localhost -U postgres -v ON_ERROR_STOP=1 <<'SQL'
+          -- The production ACL remains revoked. These owner sessions exercise
+          -- convergence with only the JWT subject injected; they do not grant
+          -- authenticated across concurrent connections.
           SET request.jwt.claims =
             '{"sub":"01490000-0000-0000-0000-000000000010","role":"authenticated"}';
-          SET ROLE authenticated;
           SELECT public.complete_profile_signup_consent(
             '1990-01-01', 'en', 'Race User', 'complete-profile-v1',
             true, true, true, true, true, false
