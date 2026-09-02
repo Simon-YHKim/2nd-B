@@ -1,0 +1,803 @@
+{
+  "canvas": {
+    "w": 390,
+    "h": 820
+  },
+  "screens": [
+    {
+      "id": "home",
+      "component": "ConstellationHome",
+      "root": true,
+      "layout": "immersive",
+      "label": "홈 · 별자리",
+      "route": "index"
+    },
+    {
+      "id": "capture",
+      "component": "CaptureScreen",
+      "root": true,
+      "layout": "windowed",
+      "companion": true,
+      "route": "capture"
+    },
+    {
+      "id": "chat",
+      "component": "ChatScreen",
+      "root": true,
+      "layout": "windowed",
+      "companion": true,
+      "route": "secondb"
+    },
+    {
+      "id": "records",
+      "component": "RecordsScreen",
+      "root": true,
+      "layout": "immersive",
+      "companion": true,
+      "route": "records"
+    },
+    {
+      "id": "me",
+      "component": "MeScreen",
+      "layout": "windowed",
+      "title": "북극성",
+      "route": "core-brain"
+    },
+    {
+      "id": "profile",
+      "component": null,
+      "title": "프로필",
+      "route": "profile",
+      "appOnly": true
+    },
+    {
+      "id": "star-summary",
+      "component": null,
+      "title": "별 요약",
+      "route": "me/[star]",
+      "appOnly": true
+    },
+    {
+      "id": "star",
+      "component": "StarScreen",
+      "layout": "museumLike",
+      "title": "별",
+      "route": "star/[domain]"
+    },
+    {
+      "id": "record",
+      "component": "RecordDetailScreen",
+      "layout": "windowed",
+      "title": "별가루 상세",
+      "route": "record/[id]"
+    },
+    {
+      "id": "interview",
+      "component": "InterviewScreen",
+      "layout": "windowed",
+      "title": "심층 인터뷰",
+      "route": "interview"
+    },
+    {
+      "id": "bigfive",
+      "component": "BigFiveScreen",
+      "layout": "windowed",
+      "title": "검증 · Big Five",
+      "route": "big-five"
+    },
+    {
+      "id": "audit",
+      "component": "AuditScreen",
+      "layout": "windowed",
+      "title": "성장 · 과거의 나",
+      "route": "audit"
+    },
+    {
+      "id": "iden",
+      "component": "IdenScreen",
+      "layout": "windowed",
+      "title": "IDEN · 포터블 정체성",
+      "route": "iden"
+    },
+    {
+      "id": "connect",
+      "component": "ConnectScreen",
+      "layout": "windowed",
+      "title": "데이터 연동",
+      "route": "integrations"
+    },
+    {
+      "id": "plans",
+      "component": "PlansScreen",
+      "layout": "windowed",
+      "title": "요금제",
+      "route": "plans"
+    },
+    {
+      "id": "settings",
+      "component": "SettingsScreen",
+      "root": true,
+      "layout": "windowed",
+      "route": "settings"
+    },
+    {
+      "id": "museum",
+      "component": "MuseumScreen",
+      "layout": "museumLike",
+      "title": "AI 뮤지엄",
+      "route": "museum"
+    },
+    {
+      "id": "exhibit",
+      "component": "MuseumDeck",
+      "layout": "museumLike",
+      "title": "AI 뮤지엄",
+      "route": null
+    },
+    {
+      "id": "callrec",
+      "component": "CallRecScreen",
+      "layout": "windowed",
+      "title": "통화 녹음",
+      "route": "call-reflection"
+    },
+    {
+      "id": "attachment",
+      "component": "AttachmentScreen",
+      "layout": "windowed",
+      "title": "애착 유형",
+      "route": "attachment"
+    },
+    {
+      "id": "northstar",
+      "component": "NorthStarEditor",
+      "layout": "windowed",
+      "title": "북극성 문장",
+      "route": "northstar"
+    },
+    {
+      "id": "inbox",
+      "component": "InboxScreen",
+      "layout": "windowed",
+      "title": "알림",
+      "route": "inbox"
+    },
+    {
+      "id": "values",
+      "component": "ValuesScreen",
+      "layout": "windowed",
+      "title": "가치관",
+      "route": "values"
+    },
+    {
+      "id": "ratify",
+      "component": "RatifyScreen",
+      "layout": "windowed",
+      "title": "승인 이력",
+      "route": "ratifications"
+    },
+    {
+      "id": "trend",
+      "component": "GrowthTrendScreen",
+      "layout": "windowed",
+      "title": "밝기 변화",
+      "route": "trends"
+    },
+    {
+      "id": "motivation",
+      "component": "MotivationScreen",
+      "layout": "windowed",
+      "title": "동기",
+      "route": "motivation"
+    },
+    {
+      "id": "strengths",
+      "component": "StrengthsScreen",
+      "layout": "windowed",
+      "title": "강점",
+      "route": "strengths"
+    },
+    {
+      "id": "widget",
+      "component": "WidgetScreen",
+      "layout": "windowed",
+      "title": "앱 밖에서",
+      "route": null
+    },
+    {
+      "id": "auth",
+      "component": "AuthScreen",
+      "layout": "gate",
+      "title": "로그인",
+      "route": "(auth)/sign-in"
+    },
+    {
+      "id": "ops",
+      "component": "OpsScreen",
+      "layout": "windowed",
+      "title": "오늘의 비서",
+      "route": "ops"
+    },
+    {
+      "id": "focus",
+      "component": "FocusScreen",
+      "layout": "windowed",
+      "title": "일일 집중",
+      "route": "focus"
+    },
+    {
+      "id": "reminders",
+      "component": "RemindersScreen",
+      "layout": "windowed",
+      "title": "예약 리마인더",
+      "route": "reminders"
+    },
+    {
+      "id": "import",
+      "component": "ImportScreen",
+      "layout": "windowed",
+      "title": "외부 가져오기",
+      "route": "import"
+    },
+    {
+      "id": "datareview",
+      "component": "DataReviewScreen",
+      "layout": "windowed",
+      "title": "내 데이터 리뷰",
+      "route": null
+    },
+    {
+      "id": "share",
+      "component": "ShareCardScreen",
+      "layout": "windowed",
+      "title": "공유 카드",
+      "route": "share-card"
+    },
+    {
+      "id": "imagine",
+      "component": "ImagineScreen",
+      "layout": "windowed",
+      "title": "공상하기",
+      "route": "imagine"
+    },
+    {
+      "id": "peer",
+      "component": "PeerScreen",
+      "layout": "windowed",
+      "title": "보여지는 나",
+      "route": "seen"
+    },
+    {
+      "id": "triage",
+      "component": "TriageScreen",
+      "layout": "windowed",
+      "title": "정리함",
+      "route": null
+    },
+    {
+      "id": "research",
+      "component": "ResearchScreen",
+      "layout": "windowed",
+      "title": "연결 찾기",
+      "route": "research"
+    },
+    {
+      "id": "pwreset",
+      "component": "PwResetScreen",
+      "layout": "gate",
+      "title": "비밀번호 재설정",
+      "route": "(auth)/reset-password"
+    },
+    {
+      "id": "profilesetup",
+      "component": "ProfileSetupScreen",
+      "layout": "gate",
+      "title": "프로필 완성",
+      "route": "(auth)/complete-profile"
+    },
+    {
+      "id": "dobgate",
+      "component": "DobGateScreen",
+      "layout": "gate",
+      "title": "생년월일 확인",
+      "route": null
+    },
+    {
+      "id": "permissions",
+      "component": "PermissionsScreen",
+      "layout": "windowed",
+      "title": "권한 관리",
+      "route": "permissions"
+    },
+    {
+      "id": "privacy",
+      "component": "PrivacyScreen",
+      "layout": "windowed",
+      "title": "개인정보 · 약관",
+      "route": "privacy"
+    },
+    {
+      "id": "support",
+      "component": "SupportScreen",
+      "layout": "windowed",
+      "title": "지원 · 공지",
+      "route": "support"
+    },
+    {
+      "id": "audit-full",
+      "component": "LifeAuditScreen",
+      "layout": "windowed",
+      "title": "라이프 오딧",
+      "route": null
+    },
+    {
+      "id": "domains",
+      "component": "DomainDashScreen",
+      "layout": "windowed",
+      "title": "내 영역",
+      "route": null
+    },
+    {
+      "id": "lifeinput",
+      "component": "DomainInputScreen",
+      "layout": "windowed",
+      "title": "영역 기록",
+      "route": null
+    },
+    {
+      "id": "hobbyinput",
+      "component": "HobbyInputScreen",
+      "layout": "windowed",
+      "title": "취미·여가 기록",
+      "route": "rest"
+    },
+    {
+      "id": "healthinput",
+      "component": "HealthInputScreen",
+      "layout": "windowed",
+      "title": "건강 기록",
+      "route": null
+    },
+    {
+      "id": "careerinput",
+      "component": "CareerInputScreen",
+      "layout": "windowed",
+      "title": "성과 입력",
+      "route": "career-input"
+    },
+    {
+      "id": "drilldown",
+      "component": "DrillDownScreen",
+      "layout": "windowed",
+      "title": "Drill Down",
+      "route": "career-drilldown"
+    },
+    {
+      "id": "relcontacts",
+      "component": "RelContactsScreen",
+      "layout": "windowed",
+      "title": "주소록",
+      "route": null
+    },
+    {
+      "id": "relperson",
+      "component": "RelPersonScreen",
+      "layout": "windowed",
+      "title": "사람 기록",
+      "route": "people"
+    },
+    {
+      "id": "healthdata",
+      "component": "HealthDataScreen",
+      "layout": "windowed",
+      "title": "건강 데이터 항목",
+      "route": null
+    },
+    {
+      "id": "manual",
+      "component": "ManualScreen",
+      "layout": "windowed",
+      "title": "사용 매뉴얼",
+      "route": "manual"
+    },
+    {
+      "id": "journal",
+      "component": "JournalScreen",
+      "layout": "windowed",
+      "title": "저널",
+      "route": "journal"
+    },
+    {
+      "id": "reward",
+      "component": "RewardScreen",
+      "layout": "windowed",
+      "title": "담기 가속",
+      "route": null
+    },
+    {
+      "id": "digest",
+      "component": "DigestScreen",
+      "layout": "windowed",
+      "title": "주간 다이제스트",
+      "route": null
+    },
+    {
+      "id": "consent-notice",
+      "component": null,
+      "appOnly": true,
+      "title": "동의 항목 안내",
+      "route": "(auth)/consent-notice"
+    },
+    {
+      "id": "oauth-callback",
+      "component": null,
+      "appOnly": true,
+      "title": "OAuth 콜백",
+      "route": "(auth)/oauth-callback"
+    },
+    {
+      "id": "privacy-policy",
+      "component": null,
+      "appOnly": true,
+      "title": "개인정보 처리방침",
+      "route": "(auth)/privacy-policy"
+    },
+    {
+      "id": "refund",
+      "component": null,
+      "appOnly": true,
+      "title": "환불 정책",
+      "route": "(auth)/refund"
+    },
+    {
+      "id": "sign-up",
+      "component": null,
+      "appOnly": true,
+      "title": "회원가입",
+      "route": "(auth)/sign-up"
+    },
+    {
+      "id": "terms",
+      "component": null,
+      "appOnly": true,
+      "title": "이용약관",
+      "route": "(auth)/terms"
+    },
+    {
+      "id": "account",
+      "component": null,
+      "appOnly": true,
+      "title": "계정",
+      "route": "account"
+    },
+    {
+      "id": "beyond",
+      "component": null,
+      "appOnly": true,
+      "title": "앱 밖에서",
+      "route": "beyond"
+    },
+    {
+      "id": "brightness",
+      "component": null,
+      "appOnly": true,
+      "title": "밝기 변화 8주",
+      "route": "brightness"
+    },
+    {
+      "id": "canon",
+      "component": null,
+      "appOnly": true,
+      "title": "프로토 캐논",
+      "route": "canon"
+    },
+    {
+      "id": "capture-full",
+      "component": null,
+      "appOnly": true,
+      "title": "담기 전체 (메모·링크·클립·OCR·파일)",
+      "route": "capture-full"
+    },
+    {
+      "id": "career",
+      "component": null,
+      "appOnly": true,
+      "title": "커리어 타임라인",
+      "route": "career"
+    },
+    {
+      "id": "change-password",
+      "component": null,
+      "appOnly": true,
+      "title": "비밀번호 변경",
+      "route": "change-password"
+    },
+    {
+      "id": "community",
+      "component": null,
+      "appOnly": true,
+      "title": "커뮤니티",
+      "route": "community"
+    },
+    {
+      "id": "community-room",
+      "component": null,
+      "appOnly": true,
+      "title": "커뮤니티 방",
+      "route": "community/[room]"
+    },
+    {
+      "id": "community-join-token",
+      "component": null,
+      "appOnly": true,
+      "title": "초대 링크 받기",
+      "route": "community/join/[token]"
+    },
+    {
+      "id": "data",
+      "component": null,
+      "appOnly": true,
+      "title": "데이터 관리",
+      "route": "data"
+    },
+    {
+      "id": "deepspace-flowmap",
+      "component": null,
+      "appOnly": true,
+      "title": "화면 흐름도",
+      "route": "deepspace-flowmap"
+    },
+    {
+      "id": "deepspace-home",
+      "component": null,
+      "appOnly": true,
+      "title": "딥스페이스 홈 시안",
+      "route": "deepspace-home"
+    },
+    {
+      "id": "deepspace-hub",
+      "component": null,
+      "appOnly": true,
+      "title": "딥스페이스 허브",
+      "route": "deepspace-hub"
+    },
+    {
+      "id": "deepspace-preview",
+      "component": null,
+      "appOnly": true,
+      "title": "딥스페이스 미리보기",
+      "route": "deepspace-preview"
+    },
+    {
+      "id": "dev-screens",
+      "component": null,
+      "appOnly": true,
+      "title": "화면 전체 목록",
+      "route": "dev-screens"
+    },
+    {
+      "id": "digest-today",
+      "component": null,
+      "appOnly": true,
+      "title": "오늘의 정리",
+      "route": "digest"
+    },
+    {
+      "id": "discover",
+      "component": null,
+      "appOnly": true,
+      "title": "발견",
+      "route": "discover"
+    },
+    {
+      "id": "esm",
+      "component": null,
+      "appOnly": true,
+      "title": "순간 기록 (ESM)",
+      "route": "esm"
+    },
+    {
+      "id": "formats",
+      "component": null,
+      "appOnly": true,
+      "title": "클리퍼 형식 관리",
+      "route": "formats"
+    },
+    {
+      "id": "graph",
+      "component": null,
+      "appOnly": true,
+      "title": "내 두뇌 지도 (레거시)",
+      "route": "graph"
+    },
+    {
+      "id": "growth",
+      "component": null,
+      "appOnly": true,
+      "title": "나의 변화",
+      "route": "growth"
+    },
+    {
+      "id": "import-hub",
+      "component": null,
+      "appOnly": true,
+      "title": "가져오기 허브",
+      "route": "import-hub"
+    },
+    {
+      "id": "insights",
+      "component": null,
+      "appOnly": true,
+      "title": "인사이트",
+      "route": "insights"
+    },
+    {
+      "id": "ipip-neo",
+      "component": null,
+      "appOnly": true,
+      "title": "IPIP-NEO-120",
+      "route": "ipip-neo"
+    },
+    {
+      "id": "jarvis",
+      "component": null,
+      "appOnly": true,
+      "title": "자비스 (은퇴)",
+      "route": "jarvis"
+    },
+    {
+      "id": "ledger",
+      "component": null,
+      "appOnly": true,
+      "title": "돈 점검",
+      "route": "ledger"
+    },
+    {
+      "id": "mbti",
+      "component": null,
+      "appOnly": true,
+      "title": "MBTI (은퇴)",
+      "route": "mbti"
+    },
+    {
+      "id": "meals",
+      "component": null,
+      "appOnly": true,
+      "title": "주간 식사",
+      "route": "meals"
+    },
+    {
+      "id": "milestones",
+      "component": null,
+      "appOnly": true,
+      "title": "목표 · 마일스톤",
+      "route": "milestones"
+    },
+    {
+      "id": "notices",
+      "component": null,
+      "appOnly": true,
+      "title": "공지",
+      "route": "notices"
+    },
+    {
+      "id": "onboarding",
+      "component": null,
+      "appOnly": true,
+      "title": "첫 실행 온보딩",
+      "route": "onboarding"
+    },
+    {
+      "id": "peer-invites",
+      "component": null,
+      "appOnly": true,
+      "title": "지인에게 물어보기",
+      "route": "peer-invites"
+    },
+    {
+      "id": "peer-token",
+      "component": null,
+      "appOnly": true,
+      "title": "지인 응답 (무계정)",
+      "route": "peer/[token]"
+    },
+    {
+      "id": "persona",
+      "component": null,
+      "appOnly": true,
+      "title": "페르소나",
+      "route": "persona"
+    },
+    {
+      "id": "processing-log",
+      "component": null,
+      "appOnly": true,
+      "title": "데이터 처리 기록",
+      "route": "processing-log"
+    },
+    {
+      "id": "profile-details",
+      "component": null,
+      "appOnly": true,
+      "title": "내 생활 정보",
+      "route": "profile-details"
+    },
+    {
+      "id": "reading",
+      "component": null,
+      "appOnly": true,
+      "title": "읽기 · 배움 선반",
+      "route": "reading"
+    },
+    {
+      "id": "reasoning",
+      "component": null,
+      "appOnly": true,
+      "title": "리즈닝",
+      "route": "reasoning"
+    },
+    {
+      "id": "review",
+      "component": null,
+      "appOnly": true,
+      "title": "제안 확인 (propose→ratify)",
+      "route": "review"
+    },
+    {
+      "id": "rlss",
+      "component": null,
+      "appOnly": true,
+      "title": "삶의 만족도 (RLSS)",
+      "route": "rlss"
+    },
+    {
+      "id": "side-project",
+      "component": null,
+      "appOnly": true,
+      "title": "사이드 프로젝트",
+      "route": "side-project"
+    },
+    {
+      "id": "srs",
+      "component": null,
+      "appOnly": true,
+      "title": "언어 복습 (SRS)",
+      "route": "srs"
+    },
+    {
+      "id": "subscription",
+      "component": null,
+      "appOnly": true,
+      "title": "구독 관리",
+      "route": "subscription"
+    },
+    {
+      "id": "theme",
+      "component": null,
+      "appOnly": true,
+      "title": "테마",
+      "route": "theme"
+    },
+    {
+      "id": "trinity",
+      "component": null,
+      "appOnly": true,
+      "title": "브레인 트리니티 (레거시)",
+      "route": "trinity"
+    },
+    {
+      "id": "ttfv",
+      "component": null,
+      "appOnly": true,
+      "title": "첫날 한 컷",
+      "route": "ttfv"
+    },
+    {
+      "id": "wiki",
+      "component": null,
+      "appOnly": true,
+      "title": "위키 둘러보기",
+      "route": "wiki"
+    }
+  ]
+}

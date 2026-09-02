@@ -1,0 +1,30 @@
+2ndB Production Premium Assets v1
+All PNG files are RGBA with transparent background. No text is baked into images. No baked rectangular frame is intentionally included.
+shards/ and tier-icons/ are promoted premium cue assets copied from the refine pack so runtime code can reference a single production-premium namespace.
+2026-06-01 polish pass: app-used HQ/auth/island/wiki/worker-redraw/shard/tier-icon PNGs received a conservative alpha cleanup, mild unsharp mask, and tiny contrast/saturation lift. No AI regeneration; transparent RGBA preserved.
+
+- archi_premium_idle.png / 128x128 / transparent=True / 01_character_sheet_premium.png; extracted/recomposited transparent idle sprite; accent glow preserved
+- archi_premium_walk_strip_6f.png / 768x128 / transparent=True / 01_character_sheet_premium.png; 6-frame sprite strip derived from premium idle; transparent
+- auth_secondb_gate_hero_clean.png / 768x360 / transparent=True / 08_onboarding_premium.png + 04_core_brain_premium.png; SecondB + core; transparent; no baked rectangle
+- core_center_premium_clean.png / 512x512 / transparent=True / 04_core_brain_premium.png + 02_main_graph_premium.png; accent soul-violet #A78BFA; transparent; no cyan/square frame
+- domain_imagine_premium.png / 512x512 / transparent=True / 02_main_graph_premium.png; domain motif imagine; accent #FF9FD6; transparent island sprite
+- domain_inspiration_premium.png / 512x512 / transparent=True / 02_main_graph_premium.png; domain motif inspiration; accent #FFD166; transparent island sprite
+- domain_knowledge_premium.png / 512x512 / transparent=True / 02_main_graph_premium.png; domain motif knowledge; accent #72F2C7; transparent island sprite
+- domain_records_premium.png / 512x512 / transparent=True / 02_main_graph_premium.png; domain motif records; accent #FFD166; transparent island sprite
+- domain_relationship_premium.png / 512x512 / transparent=True / 02_main_graph_premium.png; domain motif relationship; accent #FF7A90; transparent island sprite
+- domain_work_growth_premium.png / 512x512 / transparent=True / 02_main_graph_premium.png; domain motif work; accent #4CC9F0; transparent island sprite
+- gadi_premium_idle.png / 128x128 / transparent=True / 01_character_sheet_premium.png; extracted/recomposited transparent idle sprite; accent glow preserved
+- gadi_premium_walk_strip_6f.png / 768x128 / transparent=True / 01_character_sheet_premium.png; 6-frame sprite strip derived from premium idle; transparent
+- lulu_premium_idle.png / 128x128 / transparent=True / 01_character_sheet_premium.png; extracted/recomposited transparent idle sprite; accent glow preserved
+- lulu_premium_walk_strip_6f.png / 768x128 / transparent=True / 01_character_sheet_premium.png; 6-frame sprite strip derived from premium idle; transparent
+- lumi_premium_idle.png / 128x128 / transparent=True / New design, consistent with 01_character_sheet_premium.png style; inspiration companion; accent #FFD166; transparent
+- lumi_premium_walk_strip_6f.png / 768x128 / transparent=True / New design, 6-frame strip; inspiration companion; accent #FFD166; transparent
+- momo_premium_idle.png / 128x128 / transparent=True / 01_character_sheet_premium.png; extracted/recomposited transparent idle sprite; accent glow preserved
+- momo_premium_walk_strip_6f.png / 768x128 / transparent=True / 01_character_sheet_premium.png; 6-frame sprite strip derived from premium idle; transparent
+- secondb_premium_idle.png / 128x128 / transparent=True / 01_character_sheet_premium.png; extracted/recomposited transparent idle sprite; accent glow preserved
+- secondb_premium_walk_strip_6f.png / 768x128 / transparent=True / 01_character_sheet_premium.png; 6-frame sprite strip derived from premium idle; transparent
+- vela_premium_idle.png / 128x128 / transparent=True / 01_character_sheet_premium.png; extracted/recomposited transparent idle sprite; accent glow preserved
+- vela_premium_walk_strip_6f.png / 768x128 / transparent=True / 01_character_sheet_premium.png; 6-frame sprite strip derived from premium idle; transparent
+- wiki_card_thumb_core_brain_premium.png / 256x256 / transparent=True / 07_wiki_records_premium.png style; optional wiki card thumbnail; transparent
+- wiki_card_thumb_imagine_premium.png / 256x256 / transparent=True / 07_wiki_records_premium.png style; optional wiki card thumbnail; transparent
+- wiki_card_thumb_library_premium.png / 256x256 / transparent=True / 07_wiki_records_premium.png style; optional wiki card thumbnail; transparent

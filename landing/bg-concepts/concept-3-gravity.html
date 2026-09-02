@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=510, initial-scale=1">
+<title>2nd-B Gravity Concept</title>
+<style>
+  :root {
+    --bg: #0A0E1A;
+    --blue: #46B6FF;
+    --ice: #CCFAFF;
+    --cyan: #5FD4FF;
+    --head-x: 255px;
+    --head-y: 386px;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  body {
+    display: grid;
+    place-items: center;
+  }
+
+  .stage {
+    position: relative;
+    width: 510px;
+    height: 900px;
+    overflow: hidden;
+    isolation: isolate;
+    background:
+      radial-gradient(circle at 50% 43%, rgba(95, 212, 255, 0.13), transparent 23%),
+      radial-gradient(circle at 50% 43%, rgba(70, 182, 255, 0.07), transparent 44%),
+      linear-gradient(180deg, #0B1021 0%, var(--bg) 54%, #070914 100%);
+  }
+
+  .field-glow {
+    position: absolute;
+    left: var(--head-x);
+    top: var(--head-y);
+    width: 620px;
+    height: 620px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    pointer-events: none;
+    background:
+      repeating-radial-gradient(circle, rgba(95, 212, 255, 0.09) 0 2px, transparent 3px 42px),
+      radial-gradient(circle, rgba(204, 250, 255, 0.12), rgba(70, 182, 255, 0.045) 36%, transparent 66%);
+    filter: blur(0.2px);
+    opacity: 0.52;
+    animation: fieldPulse 12s ease-in-out infinite;
+    z-index: 1;
+  }
+
+  svg {
+    position: absolute;
+    inset: 0;
+    width: 510px;
+    height: 900px;
+    display: block;
+    z-index: 2;
+  }
+
+  .ring {
+    fill: none;
+    stroke: var(--cyan);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+    filter: drop-shadow(0 0 7px rgba(95, 212, 255, 0.45));
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: ringDrift 13s ease-in-out infinite;
+  }
+
+  .ring:nth-of-type(2n) {
+    stroke: var(--blue);
+    animation-duration: 15s;
+    animation-delay: -4s;
+  }
+
+  .ring:nth-of-type(3n) {
+    stroke: var(--ice);
+    animation-duration: 18s;
+    animation-delay: -8s;
+  }
+
+  .grid-arc {
+    fill: none;
+    stroke: rgba(70, 182, 255, 0.14);
+    stroke-width: 2;
+    stroke-linecap: round;
+    filter: drop-shadow(0 0 5px rgba(70, 182, 255, 0.22));
+    animation: arcBreathe 16s ease-in-out infinite;
+  }
+
+  .pulse-dot {
+    fill: var(--ice);
+    filter: drop-shadow(0 0 8px rgba(204, 250, 255, 0.75));
+    animation: dotOrbit 20s ease-in-out infinite;
+  }
+
+  .soft-vignette {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 50% 50%, transparent 0 27%, rgba(10, 14, 26, 0.18) 49%, rgba(10, 14, 26, 0.74) 100%),
+      linear-gradient(180deg, rgba(10, 14, 26, 0.12), transparent 26%, transparent 72%, rgba(10, 14, 26, 0.30));
+    z-index: 3;
+  }
+
+  .rim-halo {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 340px;
+    height: 340px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    pointer-events: none;
+    background:
+      radial-gradient(circle, rgba(204, 250, 255, 0.16), rgba(95, 212, 255, 0.10) 31%, rgba(70, 182, 255, 0.04) 50%, transparent 68%);
+    filter: blur(12px);
+    opacity: 0.82;
+    animation: haloBreath 8.5s ease-in-out infinite;
+    z-index: 4;
+  }
+
+  .character {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 240px;
+    transform: translate(-50%, -50%);
+    z-index: 5;
+    filter:
+      drop-shadow(0 0 14px rgba(70, 182, 255, 0.86))
+      drop-shadow(0 0 36px rgba(95, 212, 255, 0.36));
+    animation: floatBot 9.5s ease-in-out infinite;
+  }
+
+  @keyframes fieldPulse {
+    0%,
+    100% {
+      transform: translate(-50%, -50%) scale(0.985);
+      opacity: 0.44;
+    }
+    50% {
+      transform: translate(-50%, -50%) scale(1.025);
+      opacity: 0.62;
+    }
+  }
+
+  @keyframes ringDrift {
+    0%,
+    100% {
+      transform: scale(0.985);
+      opacity: 0.36;
+    }
+    50% {
+      transform: scale(1.035);
+      opacity: 0.72;
+    }
+  }
+
+  @keyframes arcBreathe {
+    0%,
+    100% {
+      opacity: 0.28;
+      stroke-dashoffset: 0;
+    }
+    50% {
+      opacity: 0.48;
+      stroke-dashoffset: -24;
+    }
+  }
+
+  @keyframes dotOrbit {
+    0%,
+    100% {
+      opacity: 0.28;
+      transform: translate(0, 0);
+    }
+    50% {
+      opacity: 0.82;
+      transform: translate(6px, -4px);
+    }
+  }
+
+  @keyframes haloBreath {
+    0%,
+    100% {
+      transform: translate(-50%, -50%) scale(0.97);
+      opacity: 0.70;
+    }
+    50% {
+      transform: translate(-50%, -50%) scale(1.04);
+      opacity: 0.98;
+    }
+  }
+
+  @keyframes floatBot {
+    0%,
+    100% {
+      transform: translate(-50%, -50%) translateY(0);
+    }
+    50% {
+      transform: translate(-50%, -50%) translateY(-5px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .field-glow,
+    .ring,
+    .grid-arc,
+    .pulse-dot,
+    .rim-halo,
+    .character {
+      animation: none;
+    }
+  }
+</style>
+</head>
+<body>
+  <main class="stage" aria-hidden="true">
+    <div class="field-glow"></div>
+    <svg viewBox="0 0 510 900" role="img">
+      <g opacity="0.95">
+        <ellipse class="ring" cx="255" cy="386" rx="58" ry="42" stroke-width="2.4" opacity="0.72"/>
+        <ellipse class="ring" cx="255" cy="386" rx="100" ry="74" stroke-width="2.1" opacity="0.58"/>
+        <ellipse class="ring" cx="255" cy="386" rx="148" ry="112" stroke-width="1.9" opacity="0.50"/>
+        <ellipse class="ring" cx="255" cy="386" rx="198" ry="152" stroke-width="1.6" opacity="0.42"/>
+        <ellipse class="ring" cx="255" cy="386" rx="250" ry="196" stroke-width="1.35" opacity="0.34"/>
+        <ellipse class="ring" cx="255" cy="386" rx="306" ry="244" stroke-width="1.1" opacity="0.28"/>
+        <ellipse class="ring" cx="255" cy="386" rx="370" ry="298" stroke-width="0.9" opacity="0.22"/>
+      </g>
+      <g stroke-dasharray="15 24">
+        <path class="grid-arc" d="M44 247 C123 183 201 160 255 166 C310 160 389 183 466 247"/>
+        <path class="grid-arc" d="M24 361 C111 314 195 294 255 297 C316 294 401 314 486 361"/>
+        <path class="grid-arc" d="M31 514 C116 557 199 574 255 570 C312 574 395 557 480 514"/>
+        <path class="grid-arc" d="M70 662 C139 715 214 737 255 735 C297 737 370 715 440 662"/>
+        <path class="grid-arc" d="M126 119 C168 234 183 323 181 386 C183 449 168 538 126 653"/>
+        <path class="grid-arc" d="M384 119 C342 234 327 323 329 386 C327 449 342 538 384 653"/>
+      </g>
+      <g>
+        <circle class="pulse-dot" cx="126" cy="292" r="4.5" style="animation-delay:-1s"/>
+        <circle class="pulse-dot" cx="382" cy="296" r="5.2" style="animation-delay:-6s"/>
+        <circle class="pulse-dot" cx="96" cy="529" r="3.8" style="animation-delay:-11s"/>
+        <circle class="pulse-dot" cx="421" cy="522" r="4.4" style="animation-delay:-15s"/>
+      </g>
+    </svg>
+    <div class="soft-vignette"></div>
+    <div class="rim-halo"></div>
+    <img class="character" src="../assets/head-angle-v2/secondb_head_angle_v2_r02_level_c01_front.png" alt="">
+  </main>
+</body>
+</html>

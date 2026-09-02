@@ -1,0 +1,106 @@
+{
+  "domains": {
+    "career": {
+      "icon": "workspaces",
+      "cov": 70,
+      "conf": 52,
+      "related": "성실성 · 외향성",
+      "insight": "최근 3주, 일 관련 기록이 전체의 64%예요. 몰입은 깊은데 회복 신호가 적어요.",
+      "recs": [
+        0,
+        3
+      ],
+      "next": {
+        "label": "이 도메인에 담기",
+        "route": "capture"
+      }
+    },
+    "finance": {
+      "icon": "savings",
+      "cov": 30,
+      "conf": 24,
+      "related": "신경성",
+      "insight": "이번 달 예산의 68%를 썼어요. 고정지출은 안정적인데, 여가 지출이 지난달보다 22% 늘었어요.",
+      "recs": [
+        5
+      ],
+      "next": {
+        "label": "지출 한 줄 담기",
+        "route": "capture"
+      }
+    },
+    "growth": {
+      "icon": "auto_stories",
+      "cov": 58,
+      "conf": 61,
+      "related": "개방성",
+      "insight": "청년기의 전환점들이 지금의 호기심을 잘 설명해요. 회상으로 더 또렷해져요.",
+      "recs": [
+        1,
+        3
+      ],
+      "next": {
+        "label": "회상으로 더 캐기",
+        "route": "audit"
+      }
+    },
+    "relation": {
+      "icon": "forum",
+      "cov": 64,
+      "conf": 55,
+      "related": "우호성 · 애착",
+      "insight": "가까운 사람에게 먼저 다가가는 패턴이 또렷해지고 있어요.",
+      "recs": [
+        4,
+        0
+      ],
+      "next": {
+        "label": "관계 인터뷰",
+        "route": "interview"
+      }
+    },
+    "health": {
+      "icon": "bedtime",
+      "cov": 38,
+      "conf": 30,
+      "related": "신경성",
+      "insight": "수면·컨디션 기록이 들쭉날쭉해요. 리듬이 흔들릴 때 신경성 신호가 올라가요.",
+      "recs": [
+        5
+      ],
+      "next": {
+        "label": "오늘 컨디션 담기",
+        "route": "capture"
+      }
+    },
+    "leisure": {
+      "icon": "lightbulb",
+      "cov": 36,
+      "conf": 31,
+      "related": "개방성",
+      "insight": "쉼은 대부분 ‘혼자’였어요. 그게 정말 회복인지 같이 살펴볼까요?",
+      "recs": [
+        2
+      ],
+      "next": {
+        "label": "트위비로 아이디어 얻기",
+        "route": "chat"
+      }
+    },
+    "catchall": {
+      "icon": "inbox",
+      "cov": 82,
+      "conf": 18,
+      "related": "—",
+      "insight": "아직 어느 별에도 닿지 못한 별가루이 8개예요. 정리하면 다른 별이 밝아져요.",
+      "recs": [
+        2
+      ],
+      "next": {
+        "label": "정리함 열기",
+        "route": "records"
+      }
+    }
+  },
+  "starBg": "radial-gradient(120% 62% at 50% 1%, rgba(40,86,150,.40), transparent 56%), radial-gradient(86% 56% at 85% 13%, rgba(120,96,210,.22), transparent 58%), #05070F"
+}

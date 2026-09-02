@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" shape-rendering="crispEdges" role="img" aria-label="Lumen thinking">
+  <title>Lumen thinking</title>
+  <desc>Game Boy inspired Cosmic Pixel Graph Village sprite for Lumen, state thinking; transparent background, named token fills.</desc>
+  <defs>
+  <style><![CDATA[
+    .space950{fill:#070A18}.space900{fill:#0D1530}.space800{fill:#16213E}.space700{fill:#243056}
+    .signalBlue{fill:#4CC9F0}.signalMint{fill:#72F2C7}.soulViolet{fill:#A78BFA}.pixelLamp{fill:#FFD166}
+    .moonWhite{fill:#E8ECF8}.mistGray{fill:#8D98B8}.dreamPink{fill:#FF9FD6}
+    .strokeSpace700{stroke:#243056}.strokeSignalBlue{stroke:#4CC9F0}.strokeSignalMint{stroke:#72F2C7}
+    .strokeSoulViolet{stroke:#A78BFA}.strokePixelLamp{stroke:#FFD166}.strokeMoonWhite{stroke:#E8ECF8}.strokeDreamPink{stroke:#FF9FD6}
+  ]]></style>
+</defs>
+  <rect x="18" y="55" width="28" height="4" class="space900" opacity="0.42"/>
+  <rect x="31" y="9" width="2" height="7" class="space700"/>
+  <rect x="28" y="5" width="8" height="6" class="space900"/>
+  <rect x="30" y="3" width="4" height="2" class="signalMint"/>
+  <rect x="31" y="1" width="2" height="2" class="pixelLamp"/>
+  <rect x="21" y="17" width="22" height="4" class="space950"/>
+  <rect x="17" y="21" width="30" height="4" class="space950"/>
+  <rect x="15" y="25" width="34" height="20" class="space950"/>
+  <rect x="17" y="45" width="30" height="4" class="space950"/>
+  <rect x="21" y="49" width="22" height="5" class="space950"/>
+  <rect x="22" y="17" width="20" height="4" class="space700"/>
+  <rect x="20" y="21" width="24" height="4" class="signalMint"/>
+  <rect x="18" y="25" width="28" height="19" class="signalMint"/>
+  <rect x="20" y="44" width="24" height="4" class="space700"/>
+  <rect x="24" y="48" width="16" height="4" class="space700"/>
+  <rect x="22" y="27" width="20" height="11" class="space800"/>
+  <rect x="24" y="29" width="16" height="7" class="space900"/>
+  <rect x="25" y="31" width="3" height="4" class="moonWhite"/>
+  <rect x="36" y="31" width="3" height="4" class="moonWhite"/>
+  <rect x="26" y="32" width="1" height="1" class="signalMint"/>
+  <rect x="37" y="32" width="1" height="1" class="signalMint"/>
+  <rect x="30" y="40" width="4" height="2" class="space900"/>
+  <rect x="48" y="12" width="4" height="4" class="signalMint"/>
+  <rect x="53" y="8" width="3" height="3" class="signalMint" opacity="0.78"/>
+  <rect x="57" y="5" width="2" height="2" class="signalMint" opacity="0.5"/>
+  <rect x="11" y="34" width="5" height="10" class="space950"/>
+  <rect x="48" y="34" width="5" height="10" class="space950"/>
+  <rect x="12" y="35" width="3" height="7" class="space700"/>
+  <rect x="49" y="35" width="3" height="7" class="space700"/>
+  <rect x="24" y="52" width="5" height="5" class="space950"/>
+  <rect x="35" y="52" width="5" height="5" class="space950"/>
+  <rect x="25" y="52" width="3" height="2" class="space700"/>
+  <rect x="36" y="52" width="3" height="2" class="space700"/>
+  <rect x="48" y="18" width="5" height="5" class="pixelLamp"/>
+  <rect x="50" y="14" width="1" height="4" class="pixelLamp"/>
+  <rect x="46" y="20" width="3" height="1" class="pixelLamp"/>
+  <rect x="54" y="20" width="3" height="1" class="pixelLamp"/>
+</svg>

@@ -1,0 +1,160 @@
+{
+  "stars": [
+    {
+      "id": "polaris",
+      "x": 140,
+      "y": -16,
+      "big": true,
+      "label": "북극성",
+      "kind": "북극성",
+      "star": "Polaris",
+      "line": "삶의 별이 고르게 밝아질수록, 내가 또렷해져요.",
+      "route": "me"
+    },
+    {
+      "id": "now",
+      "x": 228,
+      "y": 90,
+      "kind": "나를 알아가는 자리",
+      "star": "Dubhe",
+      "level": 3,
+      "line": "지금 진짜로 어떻게 지내고 있나요?",
+      "route": "me",
+      "label": "지금"
+    },
+    {
+      "id": "work",
+      "x": 230,
+      "y": 131,
+      "kind": "나를 알아가는 자리",
+      "star": "Merak",
+      "level": 2,
+      "line": "일하는 나는 어떤 사람인가요?",
+      "route": "me",
+      "label": "직장"
+    },
+    {
+      "id": "later",
+      "x": 174,
+      "y": 152,
+      "kind": "나를 알아가는 자리",
+      "star": "Phecda",
+      "level": 3,
+      "line": "서른을 넘기고 무엇이 달라졌나요?",
+      "route": "me",
+      "label": "30대 이후"
+    },
+    {
+      "id": "twenties",
+      "x": 151,
+      "y": 126,
+      "kind": "나를 알아가는 자리",
+      "star": "Megrez",
+      "level": 3,
+      "line": "20대의 나는 무엇을 좇았나요?",
+      "route": "me",
+      "label": "20대"
+    },
+    {
+      "id": "school",
+      "x": 108,
+      "y": 135,
+      "kind": "나를 알아가는 자리",
+      "star": "Alioth",
+      "level": 2,
+      "line": "그 시절에서 아직 돌아오는 장면은?",
+      "route": "me",
+      "label": "학창시절"
+    },
+    {
+      "id": "infancy",
+      "x": 76,
+      "y": 143,
+      "kind": "나를 알아가는 자리",
+      "star": "Mizar",
+      "level": 2,
+      "line": "가장 어릴 때 떠오르는 장면은?",
+      "route": "me",
+      "label": "영유아기"
+    },
+    {
+      "id": "profile",
+      "x": 50,
+      "y": 187,
+      "domain": "프로필",
+      "kind": "나를 알아가는 자리",
+      "star": "Alkaid",
+      "line": "가입할 때 넣은 기본 정보예요.",
+      "route": "me",
+      "label": "프로필"
+    }
+  ],
+  "lines": [
+    "M228,90 L230,131 L174,152 L151,126 Z",
+    "M151,126 L108,135 L76,143 L50,187"
+  ],
+  "polarisGuide": "M230,131 L228,90 L140,-16",
+  "polarisBrightness": {
+    "decision": {
+      "owner": "Simon",
+      "decidedAt": "2026-08-24T00:00:00+09:00",
+      "rule": "Polaris averages only the six self-knowledge stars drawn on home; profile is excluded because it describes you rather than evidencing you.",
+      "supersedes": "2026-07-29 rule (average of the six life domains) - the domains left the constellation for the dashboard."
+    },
+    "includedDomainIds": [
+      "infancy",
+      "school",
+      "twenties",
+      "later",
+      "work",
+      "now"
+    ],
+    "excludedDomainIds": [],
+    "excludedHomeNodeIds": [
+      "profile"
+    ],
+    "allLitMinimumLevel": 2,
+    "allLitBonus": 0.05,
+    "goldens": [
+      {
+        "id": "profile-does-not-inflate",
+        "levels": {
+          "infancy": 1,
+          "school": 1,
+          "twenties": 1,
+          "later": 1,
+          "work": 1,
+          "now": 1,
+          "profile": 4
+        },
+        "expected": 0.2
+      },
+      {
+        "id": "six-all-lit",
+        "levels": {
+          "infancy": 2,
+          "school": 2,
+          "twenties": 2,
+          "later": 2,
+          "work": 2,
+          "now": 2,
+          "profile": 1
+        },
+        "expected": 0.45
+      },
+      {
+        "id": "qa-2026-08-24",
+        "levels": {
+          "infancy": 4,
+          "school": 3,
+          "twenties": 4,
+          "later": 4,
+          "work": 4,
+          "now": 3,
+          "profile": 4
+        },
+        "expected": 0.7833333333333333
+      }
+    ]
+  }
+}

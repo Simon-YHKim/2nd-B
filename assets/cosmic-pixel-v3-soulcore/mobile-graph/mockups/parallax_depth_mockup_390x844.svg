@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844" fill="none" shape-rendering="crispEdges" role="img" aria-label="Parallax depth mockup 390x844">
+  <title>Parallax depth mockup 390x844</title>
+  <desc>Cosmic Pixel Graph Village v3 soulcore asset with named token fills.</desc>
+  <defs>
+  <style><![CDATA[
+    .space950{fill:#070A18}.space900{fill:#0D1530}.space800{fill:#16213E}.space700{fill:#243056}
+    .signalBlue{fill:#4CC9F0}.signalMint{fill:#72F2C7}.soulViolet{fill:#A78BFA}.pixelLamp{fill:#FFD166}
+    .moonWhite{fill:#E8ECF8}.mistGray{fill:#8D98B8}.dreamPink{fill:#FF9FD6}
+    .strokeSpace700{stroke:#243056}.strokeSignalBlue{stroke:#4CC9F0}.strokeSignalMint{stroke:#72F2C7}
+    .strokeSoulViolet{stroke:#A78BFA}.strokePixelLamp{stroke:#FFD166}.strokeMoonWhite{stroke:#E8ECF8}.strokeDreamPink{stroke:#FF9FD6}
+  ]]></style>
+  <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="tinyGlow" x="-70%" y="-70%" width="240%" height="240%"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <radialGradient id="violetCore" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#A78BFA" stop-opacity="0.95"/><stop offset="60%" stop-color="#A78BFA" stop-opacity="0.18"/><stop offset="100%" stop-color="#A78BFA" stop-opacity="0"/></radialGradient>
+  <radialGradient id="mintGlow" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#72F2C7" stop-opacity="0.9"/><stop offset="100%" stop-color="#72F2C7" stop-opacity="0"/></radialGradient>
+  <linearGradient id="nodeSurface" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#16213E"/><stop offset="1" stop-color="#0D1530"/></linearGradient>
+</defs>
+  <rect x="0" y="0" width="390" height="844" class="space950"/>
+  <rect x="40" y="92" width="2" height="2" class="mistGray" opacity="0.18"/>
+  <rect x="310" y="120" width="2" height="2" class="signalMint" opacity="0.16"/>
+  <rect x="78" y="720" width="2" height="2" class="mistGray" opacity="0.14"/>
+  <rect x="340" y="670" width="2" height="2" class="pixelLamp" opacity="0.16"/>
+  <rect x="210" y="72" width="2" height="2" class="soulViolet" opacity="0.18"/>
+  <rect x="25" y="510" width="2" height="2" class="signalBlue" opacity="0.12"/>
+  <path d="M80 474 C140 390 228 410 306 318" class="strokeSpace700" stroke-width="2" opacity="0.32"/>
+  <path d="M108 446 C172 378 220 374 282 366" class="strokeSignalBlue" stroke-width="3" opacity="0.56"/>
+  <path d="M74 402 C134 304 238 296 318 240" class="strokeSignalMint" stroke-width="5" opacity="0.88"/>
+  <circle cx="195" cy="346" r="110" fill="url(#violetCore)" opacity="0.28"/>
+  <rect x="172" y="286" width="46" height="46" class="soulViolet" opacity="0.88"/>
+  <rect x="182" y="248" width="26" height="38" class="space800"/>
+  <rect x="185" y="252" width="20" height="28" class="soulViolet" filter="url(#tinyGlow)"/>
+  <path d="M92 416 L122 436 L122 478 L92 498 L62 478 L62 436 Z" fill="url(#nodeSurface)" class="strokePixelLamp" stroke-width="2" opacity="0.94"/>
+  <path d="M304 202 L334 222 L334 264 L304 284 L274 264 L274 222 Z" fill="url(#nodeSurface)" class="strokeSignalMint" stroke-width="2" opacity="0.94"/>
+  <path d="M274 586 L304 606 L304 648 L274 668 L244 648 L244 606 Z" fill="url(#nodeSurface)" class="strokeDreamPink" stroke-width="2" opacity="0.74"/>
+  <path d="M122 654 L146 670 L146 704 L122 722 L98 704 L98 670 Z" fill="url(#nodeSurface)" class="strokeSpace700" stroke-width="2" opacity="0.5"/>
+  <path d="M202 578 L217 593 L210 617 L192 612 L186 592 Z" class="space800" opacity="0.82"/><path d="M202 578 L217 593 L210 617 L192 612 L186 592 Z" class="strokePixelLamp" stroke-width="2" opacity="0.72"/>
+  <rect x="112" y="750" width="166" height="24" class="space900" opacity="0.72"/>
+  <rect x="134" y="754" width="112" height="6" class="mistGray" opacity="0.5"/>
+</svg>

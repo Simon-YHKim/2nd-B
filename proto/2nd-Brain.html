@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>2nd-Brain · Material 3</title>
+<link rel="stylesheet" href="m3-theme.css">
+<meta name="ext-resource-dependency" content="assets/secondb-head.png">
+<meta name="ext-resource-dependency" content="assets/deepspace/secondb-head-front.png">
+<meta name="ext-resource-dependency" content="assets/deepspace/secondb-head-blank.png">
+<meta name="ext-resource-dependency" content="assets/deepspace/secondb-meta-face.png">
+<meta name="ext-resource-dependency" content="assets/deepspace/secondb-meta-blank.png">
+<meta name="ext-resource-dependency" content="assets/deepspace/secondb-twi-face.png">
+<meta name="ext-resource-dependency" content="assets/deepspace/secondb-twi-blank.png">
+</head>
+<body>
+<div id="root"></div>
+
+<template id="__bundler_thumbnail">
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <rect width="100" height="100" fill="#0A0C14"/>
+  <circle cx="50" cy="30" r="4" fill="#CFBDFF"/>
+  <circle cx="30" cy="46" r="2.4" fill="#82D8F6"/>
+  <circle cx="66" cy="44" r="2.4" fill="#82D8F6"/>
+  <circle cx="40" cy="58" r="2" fill="#82D8F6"/>
+  <rect x="36" y="64" width="28" height="22" rx="8" fill="#4C2F92"/>
+  <rect x="43" y="71" width="4" height="6" rx="2" fill="#82D8F6"/>
+  <rect x="53" y="71" width="4" height="6" rx="2" fill="#82D8F6"/>
+</svg>
+</template>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="sb-boot.js"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script src="image-slot.js"></script>
+<script type="text/babel" src="sb-data.jsx"></script>
+<script type="text/babel" src="sb-neural.jsx"></script>
+<script type="text/babel" src="sb-wikigraph.jsx"></script>
+<script type="text/babel" src="sb-relgraph.jsx"></script>
+<script type="text/babel" src="sb-persona.jsx"></script>
+<script type="text/babel" src="sb-home.jsx"></script>
+<script type="text/babel" src="sb-screens-core.jsx"></script>
+<script type="text/babel" src="sb-screens-know.jsx"></script>
+<script type="text/babel" src="sb-screens-extra.jsx"></script>
+<style>
+  image-slot[id^="mz-photo-"]::part(frame){ background: transparent; }
+  image-slot[id^="mz-photo-"]::part(empty){ opacity: 0; }
+</style>
+<script type="text/babel" src="sb-enrich.jsx"></script>
+<script type="text/babel" src="sb-museum.jsx"></script>
+<script type="text/babel" src="sb-flows.jsx"></script>
+<script type="text/babel" src="sb-validate.jsx"></script>
+<script type="text/babel" src="sb-more.jsx"></script>
+<script type="text/babel" src="sb-surfaces.jsx"></script>
+<script type="text/babel" src="sb-gaps.jsx"></script>
+<script type="text/babel" src="sb-digest.jsx"></script>
+<script type="text/babel" src="sb-audit.jsx"></script>
+<script type="text/babel" src="sb-hobby.jsx"></script>
+<script type="text/babel" src="sb-health.jsx"></script>
+<script type="text/babel" src="sb-healthinput.jsx"></script>
+<script type="text/babel" src="sb-careerinput.jsx"></script>
+<script type="text/babel" src="sb-drilldown.jsx"></script>
+<script type="text/babel" src="sb-relinput.jsx"></script>
+<script type="text/babel" src="sb-me.jsx"></script>
+<script type="text/babel" src="sb-ops.jsx"></script>
+<script type="text/babel" src="sb-app.jsx"></script>
+</body>
+</html>

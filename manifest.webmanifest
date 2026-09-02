@@ -1,0 +1,31 @@
+{
+  "name": "2nd-Brain",
+  "short_name": "2nd-Brain",
+  "id": "/2nd-B/",
+  "start_url": "/2nd-B/",
+  "scope": "/2nd-B/",
+  "display": "standalone",
+  "background_color": "#070A18",
+  "theme_color": "#070A18",
+  "icons": [
+    {
+      "src": "/2nd-B/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/2nd-B/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "share_target": {
+    "action": "/2nd-B/capture",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
+}

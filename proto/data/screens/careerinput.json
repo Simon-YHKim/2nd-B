@@ -1,0 +1,12 @@
+{
+  "headAsset": "assets/deepspace/secondb-head-front.png",
+  "suggest": [
+    { "name": "전환율 (CVR)", "unit": "%" },
+    { "name": "리텐션 (D30)", "unit": "%" },
+    { "name": "과업 성공률", "unit": "%" },
+    { "name": "사용성 점수 (SUS)", "unit": "점" },
+    { "name": "순추천지수 (NPS)", "unit": "" },
+    { "name": "출시 리드타임", "unit": "일" },
+    { "name": "디자인 QA 통과율", "unit": "%" }
+  ]
+}

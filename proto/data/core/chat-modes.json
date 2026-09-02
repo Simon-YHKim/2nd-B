@@ -1,0 +1,40 @@
+{
+  "modes": [
+    {
+      "id": "2nd",
+      "name": "세컨비",
+      "tag": "2nd-B",
+      "desc": "나를 가장 잘 아는 두 번째 뇌",
+      "face": "assets/deepspace/secondb-head-front.png",
+      "blank": "assets/deepspace/secondb-head-blank.png",
+      "accent": "#A78BFA",
+      "soft": "rgba(167,139,250,.16)",
+      "onSoft": "#E2D6FF",
+      "glow": "rgba(167,139,250,.5)"
+    },
+    {
+      "id": "meta",
+      "name": "메타비",
+      "tag": "Meta-B",
+      "desc": "나를 객관적으로 들여다보는 뇌",
+      "face": "assets/deepspace/secondb-meta-face.png",
+      "blank": "assets/deepspace/secondb-meta-blank.png",
+      "accent": "#46B6FF",
+      "soft": "rgba(70,182,255,.16)",
+      "onSoft": "#BFE7FF",
+      "glow": "rgba(70,182,255,.5)"
+    },
+    {
+      "id": "twi",
+      "name": "트위비",
+      "tag": "Twi-B",
+      "desc": "내 데이터로 엉뚱한 가능성을 여는 뇌",
+      "face": "assets/deepspace/secondb-twi-face.png",
+      "blank": "assets/deepspace/secondb-twi-blank.png",
+      "accent": "#CFC4E8",
+      "soft": "rgba(207,196,232,.16)",
+      "onSoft": "#EDE7F7",
+      "glow": "rgba(245,230,190,.55)"
+    }
+  ]
+}

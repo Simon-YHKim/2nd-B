@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>concept-5b-hybrid-rev</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0A0E1A;
+      --cyan-a: #46B6FF;
+      --cyan-b: #CCFAFF;
+      --cyan-c: #5FD4FF;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: var(--bg);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .scene {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      isolation: isolate;
+      background:
+        radial-gradient(circle at 18% 24%, rgba(70, 182, 255, 0.10), rgba(70, 182, 255, 0.00) 28%),
+        radial-gradient(circle at 79% 78%, rgba(95, 212, 255, 0.075), rgba(95, 212, 255, 0.00) 31%),
+        radial-gradient(circle at 48% 52%, rgba(204, 250, 255, 0.055), rgba(204, 250, 255, 0.00) 34%),
+        linear-gradient(180deg, #0A0E1A 0%, #080D18 58%, #070B15 100%);
+    }
+
+    .depth {
+      position: absolute;
+      left: -9vw;
+      top: -9vh;
+      width: 118vw;
+      height: 118vh;
+      pointer-events: none;
+      transform: translate3d(0, 0, 0);
+      will-change: transform;
+      contain: layout paint style;
+    }
+
+    .depth-far {
+      z-index: 1;
+      opacity: 0.72;
+      filter: blur(1px);
+    }
+
+    .depth-mid {
+      z-index: 2;
+      opacity: 0.88;
+    }
+
+    .depth-near {
+      z-index: 3;
+      opacity: 1;
+    }
+
+    .web {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    .link {
+      opacity: var(--line-base-o);
+      stroke-linecap: round;
+      animation-name: link-pulse;
+      animation-duration: var(--line-d);
+      animation-delay: var(--line-delay);
+      animation-timing-function: ease-in-out;
+      animation-iteration-count: infinite;
+      animation-direction: alternate;
+    }
+
+    .nodes {
+      position: absolute;
+      inset: 0;
+    }
+
+    .node {
+      position: absolute;
+      left: var(--x);
+      top: var(--y);
+      width: var(--s);
+      height: var(--s);
+      border-radius: 50%;
+      background: rgba(var(--rgb), var(--color-a));
+      opacity: var(--base-o);
+      transform: translate3d(0, 0, 0);
+      will-change: transform, opacity;
+      animation-name: node-drift, node-pulse;
+      animation-duration: var(--drift-d), var(--pulse-d);
+      animation-delay: var(--drift-delay), var(--pulse-delay);
+      animation-timing-function: ease-in-out, ease-in-out;
+      animation-iteration-count: infinite, infinite;
+      animation-direction: alternate, alternate;
+    }
+
+    .node::after {
+      content: "";
+      position: absolute;
+      inset: 28%;
+      border-radius: inherit;
+      background: rgba(204, 250, 255, 0.36);
+      opacity: var(--core-o);
+    }
+
+    .character-wrap {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      z-index: 8;
+      width: 240px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .character-rim {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      z-index: 0;
+      width: 286px;
+      height: 364px;
+      transform: translate(-50%, -50%);
+      border: 1px solid rgba(95, 212, 255, 0.18);
+      border-radius: 49% 51% 47% 53% / 42% 44% 56% 58%;
+      background:
+        linear-gradient(90deg, rgba(70, 182, 255, 0.12), rgba(204, 250, 255, 0.035) 48%, rgba(95, 212, 255, 0.10)),
+        radial-gradient(ellipse at 50% 52%, rgba(204, 250, 255, 0.08), rgba(204, 250, 255, 0.00) 66%);
+      opacity: 0.78;
+    }
+
+    .character-rim::after {
+      content: "";
+      position: absolute;
+      left: 11%;
+      right: 11%;
+      bottom: 13%;
+      height: 22%;
+      border-top: 1px solid rgba(204, 250, 255, 0.14);
+      border-radius: 50%;
+      opacity: 0.8;
+    }
+
+    .character {
+      position: relative;
+      z-index: 1;
+      display: block;
+      width: 240px;
+      height: auto;
+      filter: none;
+    }
+
+    .quiet-mask {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      pointer-events: none;
+      background:
+        linear-gradient(90deg, rgba(10, 14, 26, 0.16), rgba(10, 14, 26, 0.00) 18%, rgba(10, 14, 26, 0.00) 82%, rgba(10, 14, 26, 0.16)),
+        linear-gradient(180deg, rgba(10, 14, 26, 0.20), rgba(10, 14, 26, 0.00) 22%, rgba(10, 14, 26, 0.00) 76%, rgba(10, 14, 26, 0.18));
+    }
+
+    @keyframes node-drift {
+      0% {
+        transform: translate3d(var(--dx-a), var(--dy-a), 0) scale(var(--scale-a));
+      }
+      48% {
+        transform: translate3d(var(--dx-b), var(--dy-b), 0) scale(var(--scale-b));
+      }
+      100% {
+        transform: translate3d(var(--dx-c), var(--dy-c), 0) scale(var(--scale-c));
+      }
+    }
+
+    @keyframes node-pulse {
+      0%,
+      100% {
+        opacity: var(--base-o);
+      }
+      47% {
+        opacity: var(--peak-o);
+      }
+      74% {
+        opacity: var(--rest-o);
+      }
+    }
+
+    @keyframes link-pulse {
+      0%,
+      100% {
+        opacity: var(--line-base-o);
+      }
+      52% {
+        opacity: var(--line-peak-o);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .node,
+      .link {
+        animation-duration: 30s, 34s;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="scene" aria-label="deep space neural background">
+    <section class="depth depth-far" data-layer="far">
+      <svg class="web" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+      <div class="nodes" aria-hidden="true"></div>
+    </section>
+    <section class="depth depth-mid" data-layer="mid">
+      <svg class="web" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+      <div class="nodes" aria-hidden="true"></div>
+    </section>
+    <section class="depth depth-near" data-layer="near">
+      <svg class="web" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+      <div class="nodes" aria-hidden="true"></div>
+    </section>
+    <div class="quiet-mask" aria-hidden="true"></div>
+    <div class="character-wrap" aria-hidden="true">
+      <div class="character-rim"></div>
+      <img class="character" src="character.png" width="240" alt="">
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const NS = "http://www.w3.org/2000/svg";
+      const colors = [
+        [70, 182, 255],
+        [204, 250, 255],
+        [95, 212, 255]
+      ];
+
+      const configs = {
+        far: {
+          count: 92,
+          networkRatio: 0.34,
+          linkLimit: 52,
+          linkChance: 0.52,
+          parallax: 3.2,
+          opacity: [0.10, 0.42],
+          peak: [0.20, 0.52],
+          colorAlpha: [0.20, 0.34],
+          lineOpacity: [0.06, 0.18],
+          linePeak: [0.12, 0.30],
+          lineAlpha: [0.20, 0.32],
+          drift: [0.3, 5.6],
+          size: {
+            tiny: [1, 1.8],
+            mid: [2.1, 2.9],
+            large: [3.2, 4.4]
+          },
+          largeWeight: 0.10
+        },
+        mid: {
+          count: 64,
+          networkRatio: 0.50,
+          linkLimit: 45,
+          linkChance: 0.58,
+          parallax: 7.2,
+          opacity: [0.12, 0.64],
+          peak: [0.26, 0.74],
+          colorAlpha: [0.24, 0.44],
+          lineOpacity: [0.08, 0.24],
+          linePeak: [0.16, 0.38],
+          lineAlpha: [0.22, 0.42],
+          drift: [0.8, 12.5],
+          size: {
+            tiny: [1, 2.0],
+            mid: [2.7, 4.0],
+            large: [4.9, 6.8]
+          },
+          largeWeight: 0.18
+        },
+        near: {
+          count: 38,
+          networkRatio: 0.58,
+          linkLimit: 30,
+          linkChance: 0.62,
+          parallax: 12.6,
+          opacity: [0.18, 0.80],
+          peak: [0.36, 0.88],
+          colorAlpha: [0.28, 0.50],
+          lineOpacity: [0.10, 0.30],
+          linePeak: [0.20, 0.48],
+          lineAlpha: [0.26, 0.50],
+          drift: [1.2, 20],
+          size: {
+            tiny: [1.2, 2.2],
+            mid: [3.0, 4.2],
+            large: [5.6, 8.4]
+          },
+          largeWeight: 0.30
+        }
+      };
+
+      const rand = (min, max) => min + Math.random() * (max - min);
+      const pick = (list) => list[Math.floor(Math.random() * list.length)];
+      const px = (value) => `${value.toFixed(2)}px`;
+      const pct = (value) => `${value.toFixed(3)}%`;
+      const num = (value) => value.toFixed(3);
+
+      function weightedSize(config) {
+        const r = Math.random();
+        if (r < 0.62 - config.largeWeight * 0.34) {
+          return rand(config.size.tiny[0], config.size.tiny[1]);
+        }
+        if (r < 0.78) {
+          return rand(config.size.mid[0], config.size.mid[1]);
+        }
+        return rand(config.size.large[0], config.size.large[1]);
+      }
+
+      function createPoint(config, index) {
+        const size = weightedSize(config);
+        const base = rand(config.opacity[0], config.opacity[1]);
+        const peak = Math.min(0.92, Math.max(base + rand(0.05, 0.28), rand(config.peak[0], config.peak[1])));
+        const drift = rand(config.drift[0], config.drift[1]);
+        const angleA = rand(0, Math.PI * 2);
+        const angleB = angleA + rand(1.0, 4.7);
+        const angleC = angleB + rand(0.8, 4.2);
+
+        return {
+          x: rand(-3, 103),
+          y: rand(-3, 103),
+          size,
+          base,
+          peak,
+          rest: Math.max(0.08, base * rand(0.54, 0.88)),
+          drift,
+          rgb: pick(colors).join(", "),
+          colorAlpha: rand(config.colorAlpha[0], config.colorAlpha[1]),
+          core: rand(0.04, 0.34),
+          network: Math.random() < config.networkRatio || index < 4,
+          dxA: Math.cos(angleA) * drift * rand(0.35, 1.0),
+          dyA: Math.sin(angleA) * drift * rand(0.35, 1.0),
+          dxB: Math.cos(angleB) * drift * rand(0.55, 1.35),
+          dyB: Math.sin(angleB) * drift * rand(0.55, 1.35),
+          dxC: Math.cos(angleC) * drift * rand(0.35, 1.2),
+          dyC: Math.sin(angleC) * drift * rand(0.35, 1.2),
+          scaleA: rand(0.84, 1.08),
+          scaleB: rand(0.92, 1.22),
+          scaleC: rand(0.78, 1.14),
+          driftDuration: rand(18, 52),
+          pulseDuration: rand(6.5, 19),
+          driftDelay: rand(-42, 0),
+          pulseDelay: rand(-18, 0)
+        };
+      }
+
+      function applyPoint(node, point) {
+        node.style.setProperty("--x", pct(point.x));
+        node.style.setProperty("--y", pct(point.y));
+        node.style.setProperty("--s", px(point.size));
+        node.style.setProperty("--rgb", point.rgb);
+        node.style.setProperty("--color-a", num(point.colorAlpha));
+        node.style.setProperty("--base-o", num(point.base));
+        node.style.setProperty("--peak-o", num(point.peak));
+        node.style.setProperty("--rest-o", num(point.rest));
+        node.style.setProperty("--core-o", num(point.core));
+        node.style.setProperty("--dx-a", px(point.dxA));
+        node.style.setProperty("--dy-a", px(point.dyA));
+        node.style.setProperty("--dx-b", px(point.dxB));
+        node.style.setProperty("--dy-b", px(point.dyB));
+        node.style.setProperty("--dx-c", px(point.dxC));
+        node.style.setProperty("--dy-c", px(point.dyC));
+        node.style.setProperty("--scale-a", num(point.scaleA));
+        node.style.setProperty("--scale-b", num(point.scaleB));
+        node.style.setProperty("--scale-c", num(point.scaleC));
+        node.style.setProperty("--drift-d", `${point.driftDuration.toFixed(2)}s`);
+        node.style.setProperty("--pulse-d", `${point.pulseDuration.toFixed(2)}s`);
+        node.style.setProperty("--drift-delay", `${point.driftDelay.toFixed(2)}s`);
+        node.style.setProperty("--pulse-delay", `${point.pulseDelay.toFixed(2)}s`);
+      }
+
+      function distance(a, b) {
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        return Math.sqrt(dx * dx + dy * dy);
+      }
+
+      function makeLinks(svg, points, config) {
+        const network = points.filter((point) => point.network);
+        const links = [];
+
+        network.forEach((point, index) => {
+          const nearest = network
+            .map((other, otherIndex) => ({
+              other,
+              otherIndex,
+              d: otherIndex === index ? Infinity : distance(point, other)
+            }))
+            .sort((a, b) => a.d - b.d)
+            .slice(0, Math.floor(rand(2, 5)));
+
+          nearest.forEach(({ other, otherIndex, d }) => {
+            const key = index < otherIndex ? `${index}:${otherIndex}` : `${otherIndex}:${index}`;
+            if (links.length >= config.linkLimit || links.includes(key)) return;
+            if (d < rand(18, 43) && Math.random() < config.linkChance) {
+              links.push(key);
+              const color = pick(colors);
+              const line = document.createElementNS(NS, "line");
+              line.classList.add("link");
+              line.setAttribute("x1", num(point.x));
+              line.setAttribute("y1", num(point.y));
+              line.setAttribute("x2", num(other.x));
+              line.setAttribute("y2", num(other.y));
+              line.setAttribute("vector-effect", "non-scaling-stroke");
+              line.setAttribute("stroke-width", num(rand(0.45, 1.15)));
+              line.style.stroke = `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${num(rand(config.lineAlpha[0], config.lineAlpha[1]))})`;
+              line.style.setProperty("--line-base-o", num(rand(config.lineOpacity[0], config.lineOpacity[1])));
+              line.style.setProperty("--line-peak-o", num(rand(config.linePeak[0], config.linePeak[1])));
+              line.style.setProperty("--line-d", `${rand(10, 28).toFixed(2)}s`);
+              line.style.setProperty("--line-delay", `${rand(-22, 0).toFixed(2)}s`);
+              svg.appendChild(line);
+            }
+          });
+        });
+      }
+
+      function buildLayer(name) {
+        const layer = document.querySelector(`[data-layer="${name}"]`);
+        const nodes = layer.querySelector(".nodes");
+        const svg = layer.querySelector(".web");
+        const config = configs[name];
+        const points = Array.from({ length: config.count }, (_, index) => createPoint(config, index));
+        const fragment = document.createDocumentFragment();
+
+        points.forEach((point) => {
+          const node = document.createElement("span");
+          node.className = "node";
+          applyPoint(node, point);
+          fragment.appendChild(node);
+        });
+
+        nodes.appendChild(fragment);
+        makeLinks(svg, points, config);
+        return { layer, parallax: config.parallax };
+      }
+
+      const depthLayers = ["far", "mid", "near"].map(buildLayer);
+
+      let targetX = 0;
+      let targetY = 0;
+      let currentX = 0;
+      let currentY = 0;
+      let raf = 0;
+
+      function renderParallax() {
+        currentX += (targetX - currentX) * 0.075;
+        currentY += (targetY - currentY) * 0.075;
+
+        depthLayers.forEach(({ layer, parallax }) => {
+          layer.style.transform = `translate3d(${(currentX * parallax).toFixed(2)}px, ${(currentY * parallax).toFixed(2)}px, 0)`;
+        });
+
+        if (Math.abs(targetX - currentX) + Math.abs(targetY - currentY) > 0.002) {
+          raf = requestAnimationFrame(renderParallax);
+        } else {
+          raf = 0;
+        }
+      }
+
+      function setPointer(clientX, clientY) {
+        const w = Math.max(1, window.innerWidth);
+        const h = Math.max(1, window.innerHeight);
+        targetX = ((clientX / w) - 0.5) * -1;
+        targetY = ((clientY / h) - 0.5) * -1;
+        if (!raf) raf = requestAnimationFrame(renderParallax);
+      }
+
+      window.addEventListener("pointermove", (event) => {
+        setPointer(event.clientX, event.clientY);
+      }, { passive: true });
+
+      window.addEventListener("touchmove", (event) => {
+        const touch = event.touches[0];
+        if (touch) setPointer(touch.clientX, touch.clientY);
+      }, { passive: true });
+    })();
+  </script>
+</body>
+</html>
