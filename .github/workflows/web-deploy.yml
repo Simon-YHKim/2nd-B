@@ -204,6 +204,13 @@ jobs:
           node-version: "22"
           cache: "npm"
 
+      # `npm run verify` executes the deterministic HustleK atlas verifier,
+      # which invokes the repository's pinned Pillow toolchain through uv.
+      # Match the CI job so this clean runner can execute the same contract.
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: "0.11.19"
+
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
