@@ -22,7 +22,7 @@
     "agreeAll": "Agree to all required items",
     "ackService": "I agree to the collection and use above so the service can run.",
     "ackLlm": "I understand my entries are processed only when needed to generate responses I request, for automatic safety checks, and for service audit records, and only in those cases may be sent to Google Gemini, Anthropic Claude, or OpenAI.",
-    "ackOverseas": "I understand encrypted service data may be processed outside my country by Google or Supabase to run the app.",
+    "ackOverseas": "I understand encrypted service data (account and entry data) is stored in Supabase's Seoul region but may be processed abroad for support, and content needed for an AI response may be sent abroad to Google Gemini, Anthropic Claude, or OpenAI when I use AI features.",
     "ackSensitive": "I understand my entries may include sensitive details, and 2nd-Brain treats them as private account data.",
     "ackSafety": "I agree that if crisis wording appears, 2nd-Brain shows help lines and logs that it did. It is not an emergency service and does not report on my behalf.",
     "optMarketing": "Send me occasional product updates (optional).",
@@ -42,7 +42,7 @@
     },
     "overseasTransfer": {
       "title": "Processing outside your country",
-      "body": "Who receives it: Google (AI responses) and Supabase (database and sign-in hosting).\nWhat is transferred: encrypted service data (account details and entries) and the content needed to generate a response.\nWhere and how: servers these providers operate outside your country, over encrypted connections, at the moment you use the service.\nHow long: only to run the app, for the same period as your account.\nYour choice: you can decline, but the service cannot run without this processing, so sign-up cannot continue."
+      "body": "Who receives it: Supabase (authentication and database hosting; primary storage in its Seoul region) and, depending on the AI feature, Google Gemini, Anthropic Claude, or OpenAI.\nWhat is transferred: Supabase stores encrypted account and entry data, which may be processed abroad for support. An AI provider receives only the relevant content needed to create the response you request.\nWhen and how: data is sent over TLS when you use the service; AI content is sent abroad only when you use an AI feature.\nHow long: Supabase follows account and legal retention periods. AI providers follow the provider-specific limited periods and exceptions described in the Privacy Policy.\nYour choice: you can decline, but core processing cannot run without this transfer, so sign-up cannot continue."
     },
     "sensitiveData": {
       "title": "How sensitive entries are handled",
