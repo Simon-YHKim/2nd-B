@@ -1,21 +1,21 @@
-// Lightweight analytics + error-tracking abstraction.
+// Lightweight product-analytics abstraction.
 //
-// Why: the blueprint promises $0 fixed cost. GA4, MS Clarity, and Sentry all
-// have free tiers, but cost is not the only gate: the web Clarity loader is
-// deliberately absent because its SPA auto-restart violates the private-route
-// collection boundary. Other SDKs load only when configured.
+// Why: the blueprint promises $0 fixed cost. GA4 and MS Clarity have free
+// tiers, but cost is not the only gate: the web Clarity loader is deliberately
+// absent because its SPA auto-restart violates the private-route collection
+// boundary. Third-party crash reporting is likewise absent while its processor
+// disclosure, DPA, and native redaction contract remain unresolved.
 //
-// Web SDKs: GA4 + Sentry. Native Android includes Firebase Analytics + Clarity,
-// but this JS bundle emits only OFF decisions to both native product-analytics
-// SDKs. Web GA4 retains the adult/consent and runtime gates below.
+// Web SDK: GA4. Native Android includes Firebase Analytics + Clarity, but this
+// JS bundle emits only OFF decisions to both native product-analytics SDKs.
+// Web GA4 retains the adult/consent and runtime gates below.
 //
 // PRIVACY / PIPA: product analytics load ONLY after the user grants the optional
 // `analytics` consent (consent-selections.ts) AND the server-derived birth date
 // confirms the user is 18+. Unknown age fails closed.
 // The consent decision is persisted on web (localStorage) so it gates the next
-// load too. Error tracking (Sentry) has default PII forwarding disabled and
-// loads through a separate operational path. GA4 runs with IP anonymization +
-// no ad signals; this bundle has no native product-analytics ON path.
+// load too. GA4 runs with IP anonymization + no ad signals; this bundle has no
+// native product-analytics ON path and no third-party crash-reporting init path.
 
 import { NativeModules, Platform, TurboModuleRegistry } from "react-native";
 
@@ -408,7 +408,6 @@ type PreparedProductEvent = {
   route: string;
 };
 let pendingProductEvents: PreparedProductEvent[] = [];
-let sentryClient: { captureException: (err: unknown, context?: Record<string, unknown>) => void } | null = null;
 let ga4Id: string | null = null; // set once GA4 is loaded
 let currentAnalyticsRoute = "/";
 
@@ -713,62 +712,13 @@ function flushPendingProductEvents(): void {
   for (const event of queued) deliverProductEvent(event);
 }
 
-type SentryBreadcrumb = {
-  category?: string;
-  message?: string;
-  data?: Record<string, unknown>;
-};
-
-type SentryEvent = {
-  request?: {
-    url?: string;
-    headers?: Record<string, unknown>;
-    cookies?: unknown;
-    data?: unknown;
-    query_string?: unknown;
-  };
-  transaction?: string;
-  breadcrumbs?: SentryBreadcrumb[];
-};
-
-function scrubSentryBreadcrumb(breadcrumb: SentryBreadcrumb): SentryBreadcrumb {
-  const data = { ...breadcrumb.data };
-  for (const key of Object.keys(data)) {
-    if (/(url|uri|href|path|query|referr|from|to)/i.test(key)) data[key] = "[redacted]";
-  }
-  const message =
-    typeof breadcrumb.message === "string" &&
-    /(https?:\/\/|\/record\/|\/peer\/|[?&](code|token|email)=)/i.test(breadcrumb.message)
-      ? "[redacted]"
-      : breadcrumb.message;
-  return { ...breadcrumb, message, data };
-}
-
-/** Remove live URLs and request material from consent-independent Sentry events. */
-export function scrubSentryEvent(
-  event: SentryEvent,
-  routePath = "/",
-  origin?: string,
-): SentryEvent {
-  if (event.request) {
-    event.request.url = buildAnalyticsPageLocation(routePath, origin);
-    delete event.request.headers;
-    delete event.request.cookies;
-    delete event.request.data;
-    delete event.request.query_string;
-  }
-  event.transaction = sanitizeAnalyticsRoutePath(routePath);
-  if (event.breadcrumbs) event.breadcrumbs = event.breadcrumbs.map(scrubSentryBreadcrumb);
-  return event;
-}
-
 /**
  * Lazy-initialize analytics. Safe to call multiple times - subsequent calls are
  * no-ops. Called once from src/app/_layout.tsx as `void initAnalytics()`.
  *
- * Error tracking loads whenever EXPO_PUBLIC_SENTRY_DSN is set. Product analytics load only
- * when analytics consent has been granted (explicit opt-in or a persisted prior
- * grant) AND the relevant id/key is configured.
+ * Product analytics load only when analytics consent has been granted AND the
+ * relevant id/key is configured. Third-party crash reporting is hard-disabled:
+ * configured crash-reporting credentials are deliberately not read here.
  *
  * Failure modes (network, ad blockers, no ids, SSR): swallowed. Analytics must
  * never be a hard dependency for the app working.
@@ -791,36 +741,10 @@ export async function initAnalytics(opts?: { analyticsConsent?: boolean } & Anal
   // Web SDK path from here down; the native gate was already applied above.
   if (!webWindow()) return; // also covers SSR / static export
 
-  // Establish the initial gate BEFORE the first await. Auth may resolve and call
-  // setAnalyticsConsent() while Sentry's dynamic import is in flight; assigning
+  // Establish the initial gate before the first await. Auth may resolve and call
+  // setAnalyticsConsent() while the runtime flag fetch is in flight; assigning
   // the default after that await would overwrite a newer server-derived grant.
   analyticsConsent = canLoadProductAnalytics(opts?.analyticsConsent ?? false, opts);
-
-  // Sentry error tracking - operational, with default PII forwarding disabled,
-  // and loaded independently of the analytics consent gate.
-  const sentryDsn = env.EXPO_PUBLIC_SENTRY_DSN || env.SENTRY_DSN;
-  if (sentryDsn) {
-    try {
-      const mod = (await import("@sentry/browser")) as {
-        init: (opts: Record<string, unknown>) => void;
-        captureException: (err: unknown, context?: Record<string, unknown>) => void;
-      };
-      mod.init({
-        dsn: sentryDsn,
-        sendDefaultPii: false,
-        tracesSampleRate: 0,
-        tracePropagationTargets: [],
-        replaysSessionSampleRate: 0,
-        replaysOnErrorSampleRate: 0,
-        beforeSend: (event: SentryEvent) =>
-          scrubSentryEvent(event, currentAnalyticsRoute, webWindow()?.location?.origin),
-        beforeBreadcrumb: (breadcrumb: SentryBreadcrumb) => scrubSentryBreadcrumb(breadcrumb),
-      });
-      sentryClient = { captureException: mod.captureException };
-    } catch (e) {
-      if (typeof console !== "undefined") console.warn("[analytics] sentry init skipped:", (e as Error).message);
-    }
-  }
 
   // Deployment-free operator gate. Consent and confirmed-adult status remain
   // mandatory, but neither can override an operator shutdown. Migration lag,
@@ -833,8 +757,7 @@ export async function initAnalytics(opts?: { analyticsConsent?: boolean } & Anal
   // decision. Product analytics now load ONLY from an explicit, server-derived
   // decision: initAnalytics({analyticsConsent}) or setAnalyticsConsent() once
   // AuthContext resolves external_analytics + minor status (see the
-  // AnalyticsConsentSync effect in _layout). Sentry (above) uses its separate
-  // operational path, so it loads regardless of this gate.
+  // AnalyticsConsentSync effect in _layout).
   if (analyticsConsent && runtimeAnalyticsFlags.analyticsEnabled) {
     await loadProductAnalytics(env);
   }
@@ -1093,18 +1016,10 @@ export function identifyUser(_userId: string): void {
   // Intentionally empty.
 }
 
-/** Report an exception with structured context. No-op when Sentry isn't configured. */
+/** Local compatibility fallback while third-party crash reporting is hard-disabled. */
 export function captureException(err: unknown, context?: Record<string, unknown>): void {
-  if (!sentryClient) {
-    // Fall back to console so failures aren't silent in dev.
-    if (typeof console !== "undefined") console.error("[exception]", err, context);
-    return;
-  }
-  try {
-    sentryClient.captureException(err, context);
-  } catch {
-    // ignore
-  }
+  // Keep failures visible to local development without transmitting them.
+  if (typeof console !== "undefined") console.error("[exception]", err, context);
 }
 
 /** Test hook only. */
@@ -1120,7 +1035,6 @@ export function __resetAnalytics(): void {
   productAnalyticsReady = false;
   productAnalyticsLoad = null;
   pendingProductEvents = [];
-  sentryClient = null;
   ga4Id = null;
   currentAnalyticsRoute = "/";
   nativeApplierOverride = null;
