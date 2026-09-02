@@ -144,10 +144,10 @@ describe("verified-email consent ledger", () => {
     });
   });
 
-  test("keeps historical and next email revisions confirmation-eligible", () => {
-    expect(authSignupRevision()).toBe("email-v2");
-    expect(contractTuple(authSignupRevision() as "email-v2").confirmationEligible).toBe(true);
-    expect(contractTuple("email-v3").confirmationEligible).toBe(true);
+  test("keeps current and historical email revisions confirmation-eligible", () => {
+    expect(authSignupRevision()).toBe("email-v3");
+    expect(contractTuple(authSignupRevision() as "email-v3").confirmationEligible).toBe(true);
+    expect(contractTuple("email-v2").confirmationEligible).toBe(true);
     expect(contractTuple("complete-profile-v1").confirmationEligible).toBe(false);
     expect(AUTH).toMatch(/signup_flow:\s*VERIFIED_EMAIL_SIGNUP_REVISION/);
     expect(FUNCTION).toContain("public.signup_consent_contract(signup_meta ->> 'signup_flow')");
