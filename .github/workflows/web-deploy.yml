@@ -1,9 +1,10 @@
 name: Web build / manual publish (GitHub Pages)
 
-# Every main push verifies and exports an immutable artifact, but never writes
-# gh-pages. Publishing is a separate workflow_dispatch decision bound to an
-# exact source SHA and the protected Production environment. The Pages source
-# is already gh-pages; this workflow does not mutate repository Pages settings.
+# Every main push verifies and exports an immutable Pages artifact, but never
+# deploys it. Publishing is a separate workflow_dispatch decision bound to an
+# exact source SHA and the protected Production environment. A one-time,
+# explicitly approved repository setting must select GitHub Actions as the
+# Pages source; this workflow never mutates repository Pages settings.
 #
 # URL after first successful deploy:
 #   https://simon-yhkim.github.io/2nd-B/
@@ -20,33 +21,38 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "No-write build, current-main publish, or approved rollback"
+        description: "No-write current-main build or approved current-main publish"
         required: true
         type: choice
         options:
           - build-only
           - publish
-          - rollback
         default: build-only
       source_sha:
         description: "Exact 40-character lowercase commit SHA to build"
         required: true
         type: string
-      compliance_floor_sha:
-        description: "Rollback only: approved post-boundary floor SHA"
-        required: false
+      public_config_sha256:
+        description: "Publish: approved resolved public-config SHA-256; blank probes in build-only"
+        required: true
+        type: string
+        default: ""
+      artifact_content_sha256:
+        description: "Publish: approved canonical dist-content SHA-256; blank probes in build-only"
+        required: true
         type: string
         default: ""
       confirmation:
-        description: "build-only:<sha>, publish:<sha>, or rollback:<sha>:<floor-sha>"
+        description: "build-only:<sha> or publish:<sha>:<public-config-sha256>:<artifact-content-sha256>"
         required: true
         type: string
       allow_dev_tier:
-        description: "Build-only QA artifact: honor ?tier= links; publish/rollback reject true"
+        description: "Build-only QA artifact: honor ?tier= links; publish rejects true"
         type: boolean
         default: false
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
@@ -57,18 +63,26 @@ jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
-      artifact_name: ${{ steps.gate.outputs.artifact_name }}
-      compliance_floor_sha: ${{ steps.gate.outputs.compliance_floor_sha }}
+      artifact_digest: ${{ steps.artifact-attestation.outputs.artifact_digest }}
+      artifact_head_sha: ${{ steps.artifact-attestation.outputs.artifact_head_sha }}
+      artifact_id: ${{ steps.artifact-attestation.outputs.artifact_id }}
+      artifact_name: ${{ steps.artifact-attestation.outputs.artifact_name }}
+      artifact_run_attempt: ${{ steps.artifact-attestation.outputs.artifact_run_attempt }}
+      artifact_run_id: ${{ steps.artifact-attestation.outputs.artifact_run_id }}
+      artifact_size_in_bytes: ${{ steps.artifact-attestation.outputs.artifact_size_in_bytes }}
+      artifact_content_sha256: ${{ steps.content-digest.outputs.artifact_content_sha256 }}
       mode: ${{ steps.gate.outputs.mode }}
+      public_config_sha256: ${{ steps.web-build.outputs.public_config_sha256 }}
       source_sha: ${{ steps.gate.outputs.source_sha }}
     steps:
       - name: Resolve and validate the requested immutable source
         id: gate
         env:
           DISPATCH_ALLOW_DEV_TIER: ${{ inputs.allow_dev_tier && 'true' || 'false' }}
+          DISPATCH_ARTIFACT_CONTENT_SHA256: ${{ inputs.artifact_content_sha256 || '' }}
           DISPATCH_CONFIRMATION: ${{ inputs.confirmation || '' }}
-          DISPATCH_FLOOR_SHA: ${{ inputs.compliance_floor_sha || '' }}
           DISPATCH_MODE: ${{ inputs.mode || '' }}
+          DISPATCH_PUBLIC_CONFIG_SHA256: ${{ inputs.public_config_sha256 || '' }}
           DISPATCH_SOURCE_SHA: ${{ inputs.source_sha || '' }}
           EVENT_NAME: ${{ github.event_name }}
           EVENT_SHA: ${{ github.sha }}
@@ -84,7 +98,8 @@ jobs:
           if [ "$EVENT_NAME" = "push" ]; then
             MODE="build-only"
             SOURCE_SHA="$EVENT_SHA"
-            FLOOR_SHA=""
+            CONFIG_SHA=""
+            CONTENT_SHA=""
             CONFIRMATION="build-only:$SOURCE_SHA"
             ALLOW_DEV_TIER="false"
           elif [ "$EVENT_NAME" = "workflow_dispatch" ]; then
@@ -94,7 +109,8 @@ jobs:
             fi
             MODE="$DISPATCH_MODE"
             SOURCE_SHA="$DISPATCH_SOURCE_SHA"
-            FLOOR_SHA="$DISPATCH_FLOOR_SHA"
+            CONFIG_SHA="$DISPATCH_PUBLIC_CONFIG_SHA256"
+            CONTENT_SHA="$DISPATCH_ARTIFACT_CONTENT_SHA256"
             CONFIRMATION="$DISPATCH_CONFIRMATION"
             ALLOW_DEV_TIER="$DISPATCH_ALLOW_DEV_TIER"
           else
@@ -106,27 +122,32 @@ jobs:
             echo "::error::source_sha must be an exact 40-character lowercase commit SHA."
             exit 1
           fi
+          if [ -n "$CONFIG_SHA" ] && ! printf '%s' "$CONFIG_SHA" | grep -qE '^[0-9a-f]{64}$'; then
+            echo "::error::public_config_sha256 must be blank or an exact lowercase SHA-256."
+            exit 1
+          fi
+          if [ -n "$CONTENT_SHA" ] && ! printf '%s' "$CONTENT_SHA" | grep -qE '^[0-9a-f]{64}$'; then
+            echo "::error::artifact_content_sha256 must be blank or an exact lowercase SHA-256."
+            exit 1
+          fi
           case "$MODE" in
             build-only)
+              if [ -n "$CONFIG_SHA" ] || [ -n "$CONTENT_SHA" ]; then
+                echo "::error::Build-only requires blank public_config_sha256 and artifact_content_sha256 inputs."
+                exit 1
+              fi
               EXPECTED_CONFIRMATION="build-only:$SOURCE_SHA"
               ;;
             publish)
-              EXPECTED_CONFIRMATION="publish:$SOURCE_SHA"
-              if [ -n "$FLOOR_SHA" ] || [ "$ALLOW_DEV_TIER" != "false" ]; then
-                echo "::error::Publish forbids a rollback floor and the QA tier override."
+              if [ -z "$CONFIG_SHA" ] || [ -z "$CONTENT_SHA" ]; then
+                echo "::error::Publish requires approved public_config_sha256 and artifact_content_sha256 values."
                 exit 1
               fi
-              ;;
-            rollback)
-              if ! printf '%s' "$FLOOR_SHA" | grep -qE '^[0-9a-f]{40}$'; then
-                echo "::error::Rollback requires an exact 40-character compliance floor SHA."
-                exit 1
-              fi
+              EXPECTED_CONFIRMATION="publish:$SOURCE_SHA:$CONFIG_SHA:$CONTENT_SHA"
               if [ "$ALLOW_DEV_TIER" != "false" ]; then
-                echo "::error::Rollback forbids the QA tier override."
+                echo "::error::Publish forbids the QA tier override."
                 exit 1
               fi
-              EXPECTED_CONFIRMATION="rollback:$SOURCE_SHA:$FLOOR_SHA"
               ;;
             *)
               echo "::error::Unsupported mode."
@@ -138,11 +159,13 @@ jobs:
             exit 1
           fi
 
-          ARTIFACT_NAME="web-dist-$SOURCE_SHA-${{ github.run_id }}"
+          ARTIFACT_NAME="github-pages-${{ github.run_id }}-${{ github.run_attempt }}"
           {
             echo "artifact_name=$ARTIFACT_NAME"
-            echo "compliance_floor_sha=$FLOOR_SHA"
+            echo "artifact_run_attempt=${{ github.run_attempt }}"
+            echo "artifact_content_sha256=$CONTENT_SHA"
             echo "mode=$MODE"
+            echo "public_config_sha256=$CONFIG_SHA"
             echo "source_sha=$SOURCE_SHA"
           } >> "$GITHUB_OUTPUT"
 
@@ -157,7 +180,6 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           EVENT_SHA: ${{ github.sha }}
-          FLOOR_SHA: ${{ steps.gate.outputs.compliance_floor_sha }}
           MODE: ${{ steps.gate.outputs.mode }}
           SOURCE_SHA: ${{ steps.gate.outputs.source_sha }}
         run: |
@@ -167,25 +189,13 @@ jobs:
             echo "::error::Checkout does not match source_sha."
             exit 1
           fi
-          if ! git merge-base --is-ancestor "$SOURCE_SHA" origin/main; then
-            echo "::error::source_sha is not an ancestor of origin/main."
-            exit 1
-          fi
-
           if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$(git rev-parse origin/main)" != "$EVENT_SHA" ]; then
             echo "::error::The main workflow ref became stale before verification."
             exit 1
           fi
-          if [ "$MODE" = "publish" ] && [ "$(git rev-parse origin/main)" != "$SOURCE_SHA" ]; then
-            echo "::error::Publish requires source_sha to equal fresh origin/main."
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$(git rev-parse origin/main)" != "$SOURCE_SHA" ]; then
+            echo "::error::Manual builds and publishes require source_sha to equal fresh origin/main."
             exit 1
-          fi
-          if [ "$MODE" = "rollback" ]; then
-            git cat-file -e "$FLOOR_SHA^{commit}"
-            if ! git merge-base --is-ancestor "$FLOOR_SHA" "$SOURCE_SHA"; then
-              echo "::error::Rollback source is below the approved compliance floor."
-              exit 1
-            fi
           fi
 
       - name: Setup Node 22
@@ -201,7 +211,12 @@ jobs:
         run: npm run verify
 
       - name: Build Expo Web (static export)
+        id: web-build
         env:
+          APPROVED_PUBLIC_CONFIG_SHA256: ${{ steps.gate.outputs.public_config_sha256 }}
+          BUILD_MODE: ${{ steps.gate.outputs.mode }}
+          # EXPO_PUBLIC_* values are client-bundle-public and may be rendered by
+          # Actions logs. Never map confidential secrets into this environment.
           # UI track: the LIVE web build now ships the deep-space character shell
           # (cutover 2026-06-17, design handoff). The integrated shell — status
           # header + 5-tab dock + constellation home + 담기/세컨비/나/IDEN views —
@@ -349,55 +364,354 @@ jobs:
           EXPO_PUBLIC_ENABLE_ADS: ${{ vars.EXPO_PUBLIC_ENABLE_ADS || 'false' }}
           EXPO_PUBLIC_ADSENSE_CLIENT: ${{ vars.EXPO_PUBLIC_ADSENSE_CLIENT }}
           EXPO_PUBLIC_ADSENSE_SLOT_RECORDS: ${{ vars.EXPO_PUBLIC_ADSENSE_SLOT_RECORDS }}
+          # Prevent Expo from loading an un-attested .env file after the digest
+          # has been computed. CI supplies the complete public build contract.
+          EXPO_NO_DOTENV: "1"
           EXPO_USE_STATIC: "true"
         run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const { createHash, timingSafeEqual } = require("node:crypto");
+          const fs = require("node:fs");
+
+          const publicConfig = Object.keys(process.env)
+            .filter(
+              (key) =>
+                key.startsWith("EXPO_PUBLIC_") ||
+                key === "EXPO_NO_DOTENV" ||
+                key === "EXPO_USE_STATIC",
+            )
+            .sort()
+            .map((key) => [key, process.env[key] ?? ""]);
+          const digest = createHash("sha256").update(JSON.stringify(publicConfig)).digest("hex");
+          const approved = process.env.APPROVED_PUBLIC_CONFIG_SHA256 ?? "";
+          const mode = process.env.BUILD_MODE;
+          const deployMode = mode === "publish";
+
+          if (approved && !/^[0-9a-f]{64}$/.test(approved)) {
+            throw new Error("approved public-config digest is malformed");
+          }
+          if (deployMode) {
+            const expected = Buffer.from(approved, "hex");
+            const actual = Buffer.from(digest, "hex");
+            if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
+              throw new Error("resolved public-config digest does not match approval");
+            }
+          }
+
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `public_config_sha256=${digest}\n`);
+          fs.appendFileSync(
+            process.env.GITHUB_STEP_SUMMARY,
+            [
+              "### Resolved public build contract",
+              `- source: \`${{ steps.gate.outputs.source_sha }}\``,
+              `- public config SHA-256: \`${digest}\``,
+              `- run/attempt: \`${{ github.run_id }}/${{ github.run_attempt }}\``,
+              "",
+            ].join("\n"),
+          );
+          NODE
           # base-path (/2nd-B) comes from expo.experiments.baseUrl in app.json,
           # so `expo export` emits correctly-prefixed asset AND client-router
           # paths. No manual sed patching needed (that only fixed asset URLs
           # and left the router unaware of the subpath — the root-URL 404 bug).
           npx expo export --platform web --output-dir dist
-          # SPA fallback + Jekyll opt-out.
-          cp dist/index.html dist/404.html 2>/dev/null || true
-          touch dist/.nojekyll
+
+      - name: Reject unsafe Pages artifact entries
+        run: |
+          set -euo pipefail
+          if [ ! -d dist ]; then
+            echo "::error::The Pages artifact directory is missing."
+            exit 1
+          fi
+          if [ -n "$(find dist -type l -print -quit)" ]; then
+            echo "::error::The Pages artifact must not contain symlinks."
+            exit 1
+          fi
+          if [ -n "$(find dist -mindepth 1 \( -iname .git -o -iname .github \) -print -quit)" ]; then
+            echo "::error::The Pages artifact must not contain Git control paths."
+            exit 1
+          fi
+          if [ -n "$(find dist -mindepth 1 ! -type f ! -type d -print -quit)" ]; then
+            echo "::error::The Pages artifact must contain regular files and directories only."
+            exit 1
+          fi
+          if [ -e dist/.release-source.json ]; then
+            echo "::error::.release-source.json must not exist in exported content."
+            exit 1
+          fi
+
+      - name: Finalize trusted Pages fallback files
+        run: |
+          set -euo pipefail
+          if [ ! -f dist/index.html ] || [ -L dist/index.html ]; then
+            echo "::error::The exported index must be a regular file."
+            exit 1
+          fi
+          if [ -e dist/404.html ] && { [ ! -f dist/404.html ] || [ -L dist/404.html ]; }; then
+            echo "::error::The fallback path is not a regular file."
+            exit 1
+          fi
+          if [ -e dist/.nojekyll ] && { [ ! -f dist/.nojekyll ] || [ -L dist/.nojekyll ]; }; then
+            echo "::error::The Jekyll opt-out path is not a regular file."
+            exit 1
+          fi
+          cp -- dist/index.html dist/404.html
+          : > dist/.nojekyll
+
+      - name: Hash and approve immutable Pages content
+        id: content-digest
+        env:
+          APPROVED_ARTIFACT_CONTENT_SHA256: ${{ steps.gate.outputs.artifact_content_sha256 }}
+          BUILD_MODE: ${{ steps.gate.outputs.mode }}
+        run: |
+          set -euo pipefail
+          if [ -e dist/.release-source.json ]; then
+            echo "::error::.release-source.json must not exist before the initial content digest."
+            exit 1
+          fi
+
+          # CONTENT_HASH_SCRIPT_BEGIN
+          cat > "$RUNNER_TEMP/hash-pages-content.cjs" <<'NODE'
+          const { createHash } = require("node:crypto");
+          const fs = require("node:fs");
+          const path = require("node:path");
+
+          const root = path.resolve(process.argv[2] ?? "");
+          if (!fs.statSync(root).isDirectory()) throw new Error("content root is not a directory");
+
+          const files = [];
+          function visit(directory) {
+            for (const name of fs.readdirSync(directory)) {
+              const absolute = path.join(directory, name);
+              const relative = path.relative(root, absolute).split(path.sep).join("/");
+              const stat = fs.lstatSync(absolute);
+              if (stat.isSymbolicLink()) throw new Error(`symlink is forbidden: ${relative}`);
+              if (stat.isDirectory()) {
+                visit(absolute);
+              } else if (stat.isFile()) {
+                if (relative !== ".release-source.json") files.push(relative);
+              } else {
+                throw new Error(`special file is forbidden: ${relative}`);
+              }
+            }
+          }
+          visit(root);
+          files.sort((left, right) => Buffer.compare(Buffer.from(left, "utf8"), Buffer.from(right, "utf8")));
+
+          const hash = createHash("sha256");
+          hash.update(Buffer.from("2nd-B/pages-artifact-content-sha256/v1\0", "utf8"));
+          for (const relative of files) {
+            const pathBytes = Buffer.from(relative, "utf8");
+            const content = fs.readFileSync(path.join(root, ...relative.split("/")));
+            const pathLength = Buffer.alloc(8);
+            const contentLength = Buffer.alloc(8);
+            pathLength.writeBigUInt64BE(BigInt(pathBytes.length));
+            contentLength.writeBigUInt64BE(BigInt(content.length));
+            hash.update(pathLength);
+            hash.update(pathBytes);
+            hash.update(contentLength);
+            hash.update(content);
+          }
+          process.stdout.write(hash.digest("hex"));
+          NODE
+          # CONTENT_HASH_SCRIPT_END
+
+          CONTENT_SHA="$(node "$RUNNER_TEMP/hash-pages-content.cjs" dist)"
+          if ! printf '%s' "$CONTENT_SHA" | grep -qE '^[0-9a-f]{64}$'; then
+            echo "::error::Canonical artifact-content digest is missing or malformed."
+            exit 1
+          fi
+          if [ "$BUILD_MODE" = "publish" ]; then
+            APPROVED_SHA256="$APPROVED_ARTIFACT_CONTENT_SHA256" ACTUAL_SHA256="$CONTENT_SHA" node - <<'NODE'
+          const { timingSafeEqual } = require("node:crypto");
+          const approved = Buffer.from(process.env.APPROVED_SHA256 ?? "", "hex");
+          const actual = Buffer.from(process.env.ACTUAL_SHA256 ?? "", "hex");
+          if (approved.length !== actual.length || !timingSafeEqual(approved, actual)) {
+            throw new Error("artifact-content digest does not match approval");
+          }
+          NODE
+          elif [ -n "$APPROVED_ARTIFACT_CONTENT_SHA256" ]; then
+            echo "::error::Build-only must not carry an approved artifact-content digest."
+            exit 1
+          fi
+          echo "artifact_content_sha256=$CONTENT_SHA" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Canonical Pages content"
+            echo "- source: \`${{ steps.gate.outputs.source_sha }}\`"
+            echo "- artifact content SHA-256: \`$CONTENT_SHA\`"
+            echo "- run/attempt: \`${{ github.run_id }}/${{ github.run_attempt }}\`"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Bind the artifact to its reviewed source
         env:
+          ARTIFACT_CONTENT_SHA256: ${{ steps.content-digest.outputs.artifact_content_sha256 }}
+          ARTIFACT_NAME: ${{ steps.gate.outputs.artifact_name }}
           MODE: ${{ steps.gate.outputs.mode }}
+          PUBLIC_CONFIG_SHA256: ${{ steps.web-build.outputs.public_config_sha256 }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          RUN_ID: ${{ github.run_id }}
           SOURCE_SHA: ${{ steps.gate.outputs.source_sha }}
+          WORKFLOW_SHA: ${{ github.sha }}
         run: |
           node - <<'NODE'
           const fs = require("node:fs");
           const sha = process.env.SOURCE_SHA;
           if (!/^[0-9a-f]{40}$/.test(sha ?? "")) throw new Error("invalid source SHA");
+          if (!/^[0-9a-f]{40}$/.test(process.env.WORKFLOW_SHA ?? "")) {
+            throw new Error("invalid workflow SHA");
+          }
+          if (!/^[0-9a-f]{64}$/.test(process.env.PUBLIC_CONFIG_SHA256 ?? "")) {
+            throw new Error("invalid public-config digest");
+          }
+          if (!/^[0-9a-f]{64}$/.test(process.env.ARTIFACT_CONTENT_SHA256 ?? "")) {
+            throw new Error("invalid artifact-content digest");
+          }
+          if (!/^\d+$/.test(process.env.RUN_ID ?? "") || !/^\d+$/.test(process.env.RUN_ATTEMPT ?? "")) {
+            throw new Error("invalid workflow run identity");
+          }
+          const expectedArtifactName = `github-pages-${process.env.RUN_ID}-${process.env.RUN_ATTEMPT}`;
+          if (process.env.ARTIFACT_NAME !== expectedArtifactName) {
+            throw new Error("artifact name is not bound to this run attempt");
+          }
           fs.writeFileSync(
             "dist/.release-source.json",
-            `${JSON.stringify({ sourceSha: sha, mode: process.env.MODE })}\n`,
+            `${JSON.stringify({
+              sourceSha: sha,
+              workflowSha: process.env.WORKFLOW_SHA,
+              mode: process.env.MODE,
+              publicConfigSha256: process.env.PUBLIC_CONFIG_SHA256,
+              artifactContentSha256: process.env.ARTIFACT_CONTENT_SHA256,
+              workflowRunId: process.env.RUN_ID,
+              workflowRunAttempt: process.env.RUN_ATTEMPT,
+              artifactName: process.env.ARTIFACT_NAME,
+            })}\n`,
+            { flag: "wx", mode: 0o644 },
           );
           NODE
 
-      - name: Upload immutable web artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - name: Revalidate sealed Pages content
+        env:
+          ARTIFACT_NAME: ${{ steps.gate.outputs.artifact_name }}
+          EXPECTED_ARTIFACT_CONTENT_SHA256: ${{ steps.content-digest.outputs.artifact_content_sha256 }}
+          MODE: ${{ steps.gate.outputs.mode }}
+          PUBLIC_CONFIG_SHA256: ${{ steps.web-build.outputs.public_config_sha256 }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          RUN_ID: ${{ github.run_id }}
+          SOURCE_SHA: ${{ steps.gate.outputs.source_sha }}
+          WORKFLOW_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ ! -f dist/.release-source.json ] || [ -L dist/.release-source.json ]; then
+            echo "::error::Artifact provenance is missing or unsafe."
+            exit 1
+          fi
+          if [ -n "$(find dist -type l -print -quit)" ]; then
+            echo "::error::The sealed Pages artifact must not contain symlinks."
+            exit 1
+          fi
+          if [ -n "$(find dist -mindepth 1 \( -iname .git -o -iname .github \) -print -quit)" ]; then
+            echo "::error::The sealed Pages artifact must not contain Git control paths."
+            exit 1
+          fi
+          if [ -n "$(find dist -mindepth 1 ! -type f ! -type d -print -quit)" ]; then
+            echo "::error::The sealed Pages artifact must contain regular files and directories only."
+            exit 1
+          fi
+
+          # PROVENANCE_VERIFY_SCRIPT_BEGIN
+          node - <<'NODE'
+          const fs = require("node:fs");
+          const expected = {
+            sourceSha: process.env.SOURCE_SHA,
+            workflowSha: process.env.WORKFLOW_SHA,
+            mode: process.env.MODE,
+            publicConfigSha256: process.env.PUBLIC_CONFIG_SHA256,
+            artifactContentSha256: process.env.EXPECTED_ARTIFACT_CONTENT_SHA256,
+            workflowRunId: process.env.RUN_ID,
+            workflowRunAttempt: process.env.RUN_ATTEMPT,
+            artifactName: process.env.ARTIFACT_NAME,
+          };
+          const actual = JSON.parse(fs.readFileSync("dist/.release-source.json", "utf8"));
+          if (!actual || Array.isArray(actual) || typeof actual !== "object") {
+            throw new Error("artifact provenance must be a JSON object");
+          }
+          const expectedKeys = Object.keys(expected).sort();
+          const actualKeys = Object.keys(actual).sort();
+          if (JSON.stringify(actualKeys) !== JSON.stringify(expectedKeys)) {
+            throw new Error("artifact provenance has missing or unexpected fields");
+          }
+          for (const key of expectedKeys) {
+            if (typeof actual[key] !== "string" || actual[key] !== expected[key]) {
+              throw new Error(`artifact provenance mismatch: ${key}`);
+            }
+          }
+          NODE
+          # PROVENANCE_VERIFY_SCRIPT_END
+
+          SEALED_SHA="$(node "$RUNNER_TEMP/hash-pages-content.cjs" dist)"
+          EXPECTED_SHA256="$EXPECTED_ARTIFACT_CONTENT_SHA256" ACTUAL_SHA256="$SEALED_SHA" node - <<'NODE'
+          const { timingSafeEqual } = require("node:crypto");
+          const expected = Buffer.from(process.env.EXPECTED_SHA256 ?? "", "hex");
+          const actual = Buffer.from(process.env.ACTUAL_SHA256 ?? "", "hex");
+          if (expected.length !== 32 || actual.length !== 32 || !timingSafeEqual(expected, actual)) {
+            throw new Error("Pages content changed after its approved digest was computed");
+          }
+          NODE
+
+      - name: Upload immutable Pages artifact
+        id: upload
+        # Official GitHub action pinned to v5.0.0's immutable commit.
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           name: ${{ steps.gate.outputs.artifact_name }}
           path: dist
-          if-no-files-found: error
           include-hidden-files: true
           retention-days: 7
+
+      - name: Attest uploaded Pages artifact identity
+        id: artifact-attestation
+        env:
+          CURRENT_RUN_ATTEMPT: ${{ github.run_attempt }}
+          CURRENT_RUN_ID: ${{ github.run_id }}
+          CURRENT_WORKFLOW_SHA: ${{ github.sha }}
+          EXPECTED_ARTIFACT_DIGEST: ""
+          EXPECTED_ARTIFACT_HEAD_SHA: ${{ github.sha }}
+          EXPECTED_ARTIFACT_ID: ${{ steps.upload.outputs.artifact_id }}
+          EXPECTED_ARTIFACT_NAME: ${{ steps.gate.outputs.artifact_name }}
+          EXPECTED_ARTIFACT_RUN_ATTEMPT: ${{ steps.gate.outputs.artifact_run_attempt }}
+          EXPECTED_ARTIFACT_RUN_ID: ${{ github.run_id }}
+          EXPECTED_ARTIFACT_SIZE: ""
+          GH_TOKEN: ${{ github.token }}
+          REQUIRE_ATTESTED_OUTPUTS: "false"
+          WRITE_ARTIFACT_OUTPUTS: "true"
+        run: |
+          set -euo pipefail
+          if ! printf '%s' "$EXPECTED_ARTIFACT_ID" | grep -qE '^[1-9][0-9]*$'; then
+            echo "::error::upload-pages-artifact did not return a numeric artifact_id."
+            exit 1
+          fi
+          node scripts/verify-pages-artifact-identity.mjs
 
   deploy:
     needs: build
     if: >-
       github.event_name == 'workflow_dispatch' &&
-      (needs.build.outputs.mode == 'publish' || needs.build.outputs.mode == 'rollback')
+      needs.build.outputs.mode == 'publish'
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      actions: read
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: Production
-      url: https://simon-yhkim.github.io/2nd-B/
+      url: ${{ steps.deployment.outputs.page_url }}
     concurrency:
       group: pages
       cancel-in-progress: false
+      queue: max
     steps:
       - name: Checkout the workflow commit for the final ref check
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -406,18 +720,26 @@ jobs:
           persist-credentials: false
           ref: ${{ github.sha }}
 
-      - name: Download the artifact from this run
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: ${{ needs.build.outputs.artifact_name }}
-          path: dist
-
-      - name: Revalidate the exact SHA immediately before gh-pages write
+      - name: Revalidate exact SHA immediately before official Pages deployment
         env:
+          CONTENT_SHA: ${{ needs.build.outputs.artifact_content_sha256 }}
           CONFIRMATION: ${{ inputs.confirmation }}
-          FLOOR_SHA: ${{ needs.build.outputs.compliance_floor_sha }}
+          CONFIG_SHA: ${{ needs.build.outputs.public_config_sha256 }}
+          CURRENT_RUN_ATTEMPT: ${{ github.run_attempt }}
+          CURRENT_RUN_ID: ${{ github.run_id }}
+          CURRENT_WORKFLOW_SHA: ${{ github.sha }}
+          EXPECTED_ARTIFACT_DIGEST: ${{ needs.build.outputs.artifact_digest }}
+          EXPECTED_ARTIFACT_HEAD_SHA: ${{ needs.build.outputs.artifact_head_sha }}
+          EXPECTED_ARTIFACT_ID: ${{ needs.build.outputs.artifact_id }}
+          EXPECTED_ARTIFACT_NAME: ${{ needs.build.outputs.artifact_name }}
+          EXPECTED_ARTIFACT_RUN_ATTEMPT: ${{ needs.build.outputs.artifact_run_attempt }}
+          EXPECTED_ARTIFACT_RUN_ID: ${{ needs.build.outputs.artifact_run_id }}
+          EXPECTED_ARTIFACT_SIZE: ${{ needs.build.outputs.artifact_size_in_bytes }}
+          GH_TOKEN: ${{ github.token }}
           MODE: ${{ needs.build.outputs.mode }}
+          REQUIRE_ATTESTED_OUTPUTS: "true"
           SOURCE_SHA: ${{ needs.build.outputs.source_sha }}
+          WRITE_ARTIFACT_OUTPUTS: "false"
         run: |
           set -euo pipefail
           if [ "${{ github.repository }}" != "Simon-YHKim/2nd-B" ] || [ "${{ github.ref }}" != "refs/heads/main" ]; then
@@ -428,33 +750,17 @@ jobs:
             echo "::error::Public deployment cannot contain the QA tier override."
             exit 1
           fi
-
-          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
-          MAIN_SHA="$(git rev-parse origin/main)"
-          if [ "$(git rev-parse HEAD)" != "${{ github.sha }}" ] || [ "$MAIN_SHA" != "${{ github.sha }}" ]; then
-            echo "::error::main advanced while this run waited for Production approval."
+          if ! printf '%s' "$CONFIG_SHA" | grep -qE '^[0-9a-f]{64}$'; then
+            echo "::error::Resolved public-config digest is missing or malformed."
             exit 1
           fi
-          if ! git merge-base --is-ancestor "$SOURCE_SHA" origin/main; then
-            echo "::error::source_sha is no longer an origin/main ancestor."
+          if ! printf '%s' "$CONTENT_SHA" | grep -qE '^[0-9a-f]{64}$'; then
+            echo "::error::Resolved artifact-content digest is missing or malformed."
             exit 1
           fi
-
           case "$MODE" in
             publish)
-              [ "$SOURCE_SHA" = "$MAIN_SHA" ] || {
-                echo "::error::Publish source is no longer the fresh origin/main head."
-                exit 1
-              }
-              EXPECTED_CONFIRMATION="publish:$SOURCE_SHA"
-              ;;
-            rollback)
-              git cat-file -e "$FLOOR_SHA^{commit}"
-              git merge-base --is-ancestor "$FLOOR_SHA" "$SOURCE_SHA" || {
-                echo "::error::Rollback source fell below the approved compliance floor."
-                exit 1
-              }
-              EXPECTED_CONFIRMATION="rollback:$SOURCE_SHA:$FLOOR_SHA"
+              EXPECTED_CONFIRMATION="publish:$SOURCE_SHA:$CONFIG_SHA:$CONTENT_SHA"
               ;;
             *)
               echo "::error::Deploy job received a non-deploy mode."
@@ -466,23 +772,54 @@ jobs:
             exit 1
           fi
 
-          export SOURCE_SHA MODE
-          node - <<'NODE'
-          const fs = require("node:fs");
-          const provenance = JSON.parse(fs.readFileSync("dist/.release-source.json", "utf8"));
-          if (provenance.sourceSha !== process.env.SOURCE_SHA || provenance.mode !== process.env.MODE) {
-            throw new Error("artifact provenance does not match the approved request");
-          }
-          NODE
+          # Re-read the exact build artifact after Production approval. The name
+          # comes only from the attested build output, never this rerun's attempt.
+          if ! printf '%s' "$EXPECTED_ARTIFACT_ID" | grep -qE '^[1-9][0-9]*$'; then
+            echo "::error::Verified build artifact_id is missing or malformed."
+            exit 1
+          fi
+          if [ "$EXPECTED_ARTIFACT_RUN_ATTEMPT" != "$CURRENT_RUN_ATTEMPT" ]; then
+            echo "::error::Deploy-only reruns cannot reuse a prior-attempt artifact; re-run all jobs or start a new dispatch."
+            exit 1
+          fi
+          node scripts/verify-pages-artifact-identity.mjs
 
-      - name: Deploy the approved artifact to gh-pages
-        # H1: third-party action pinned by immutable commit SHA.
-        uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e # v4.0.0
+          # deploy-pages must be a separate action step. This fresh read is the
+          # strongest available pre-deploy ref check; the protected environment,
+          # exact confirmation, same-run artifact, and OIDC bind the decision.
+          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+          MAIN_SHA="$(git rev-parse origin/main)"
+          if [ "$(git rev-parse HEAD)" != "${{ github.sha }}" ] || [ "$MAIN_SHA" != "${{ github.sha }}" ]; then
+            echo "::error::main advanced while this run waited for Production approval."
+            exit 1
+          fi
+          if [ "$SOURCE_SHA" != "$MAIN_SHA" ]; then
+            echo "::error::Publish source is no longer the fresh origin/main head."
+            exit 1
+          fi
+
+          # Pages identifies a deployment by GITHUB_SHA. Reusing one can collide
+          # with the official deployment API, so allow only a never-deployed SHA.
+          # Any API, auth, transport, or response-shape failure is fail-closed.
+          if ! DEPLOYMENT_STATUS="$(
+            gh api --method GET \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'Cache-Control: no-cache' \
+              "repos/Simon-YHKim/2nd-B/pages/deployments/$SOURCE_SHA" \
+              --jq 'if (type == "object" and has("status") and (.status | type) == "string") then .status else "__malformed__" end'
+          )"; then
+            echo "::error::Could not prove that source_sha has never been deployed."
+            exit 1
+          fi
+          if [ -n "$DEPLOYMENT_STATUS" ]; then
+            echo "::error::Every Pages deployment requires a new, never-deployed main SHA."
+            exit 1
+          fi
+
+      - name: Deploy the approved artifact with GitHub Pages OIDC
+        id: deployment
+        # Official GitHub action pinned to v5.0.1's immutable commit.
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
-          publish_branch: gh-pages
-          force_orphan: true
-          user_name: "github-actions[bot]"
-          user_email: "github-actions[bot]@users.noreply.github.com"
-          commit_message: "deploy(${{ needs.build.outputs.mode }}): ${{ needs.build.outputs.source_sha }}"
+          artifact_name: ${{ needs.build.outputs.artifact_name }}
+          preview: false
