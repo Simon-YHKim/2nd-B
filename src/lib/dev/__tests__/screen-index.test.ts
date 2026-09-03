@@ -405,7 +405,7 @@ describe("개발자 화면 목록", () => {
   it("flowmap 보관본은 현행 정본을 주장하거나 데모 작업을 시작하지 않는다", () => {
     const flowmap = designLabScreens().find((screen) => screen.file === "deepspace-flowmap");
     expect(flowmap).toMatchObject({
-      label: "화면 흐름도 보관본",
+      label: "화면 흐름도",
       entry: { kind: "dev", collection: "design-lab" },
     });
     expect(flowmap?.note).toContain("현재 동선의 정본이 아니며");
