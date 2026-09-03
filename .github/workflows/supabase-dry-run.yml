@@ -90,7 +90,9 @@ jobs:
           set -euo pipefail
 
           staged_project="$(mktemp -d)"
+          trap 'rm -rf -- "$staged_project"' EXIT
           supabase init --workdir "$staged_project"
+          mkdir -p -- "$staged_project/supabase/migrations"
 
           staged_migrations=()
           for f in db/migrations/*.sql; do
