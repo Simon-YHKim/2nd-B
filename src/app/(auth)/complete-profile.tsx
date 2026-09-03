@@ -34,6 +34,15 @@ const ADULT_AGE = 18;
 type CompleteProfileToast = { message: string; tone: "info" | "success" | "danger" };
 
 export default function CompleteProfile() {
+  const { userId } = useAuth();
+
+  // The auth group can stay mounted while sessions change, but this form's
+  // DOB, display name, goal, and consent draft belong to exactly one account.
+  // A direct A -> B hand-off must remount before B can submit A's draft.
+  return <CompleteProfileBody key={userId ?? "anon"} />;
+}
+
+function CompleteProfileBody() {
   const { t, i18n } = useTranslation("auth");
   const { userId, hasProfile, loading, refresh, profileProbeFailed } = useAuth();
   const rootNavigationRef = useNavigationContainerRef();

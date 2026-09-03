@@ -223,7 +223,10 @@ import idRlss from "../../../locales/id/rlss.json";
 import idTrinity from "../../../locales/id/trinity.json";
 import { detectLanguage, loadNativeLanguagePreference, saveLanguagePreference } from "./languageDetector";
 import { isAvailableUiLocale, type AvailableUiLocale } from "./locales";
-import { seedAddressDefault } from "@/lib/persona/use-address";
+import {
+  ADDRESS_VARIABLES_CHANGED_EVENT,
+  seedAddressDefault,
+} from "@/lib/persona/use-address";
 
 export const NAMESPACES = ["common", "auth", "safety", "consent", "capture", "community", "inbox", "secondb", "plans", "wiki", "support", "data", "esm", "formats", "insights", "research", "recordDetail", "theme", "import", "notFound", "ops", "profile", "permissions", "settings", "iden", "home", "deepspace", "peer", "attachment", "audit", "big-five", "brightness", "core-brain", "imagine", "interview", "ipip-neo", "manual", "persona", "privacy", "ratifications", "records", "review", "rlss", "trinity"] as const;
 export type Namespace = (typeof NAMESPACES)[number];
@@ -264,6 +267,10 @@ export function initI18n(): typeof i18next {
     ns: [...NAMESPACES],
     defaultNS: "common",
     interpolation: { escapeValue: false },
+    // Address interpolation changes need existing useTranslation consumers to
+    // rerender, but must not impersonate languageChanged: that event persists
+    // the locale as an explicit preference below.
+    react: { bindI18n: `languageChanged ${ADDRESS_VARIABLES_CHANGED_EVENT}` },
     compatibilityJSON: "v3",
   });
   // ⚠ `{{who}}` 의 폴백을 **여기서 동기적으로** 심는다.
