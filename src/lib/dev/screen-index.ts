@@ -122,7 +122,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         render: { kind: "redirect", to: "/capture", lifecycle: "retired" },
         note: "저장된 옛 링크 호환 전용. 일기는 /capture 의 '일기' 모드로 들어갔다",
       },
-      { file: "formats", href: "/formats", label: "클리퍼 형식 관리", auth: true, note: "관리 화면은 /formats?view=manager" },
+      { file: "formats", href: "/formats?view=manager", label: "클리퍼 형식 관리", auth: true, note: "관리 화면은 /formats?view=manager" },
       { file: "share-card", href: "/share-card", label: "공유 카드", auth: true },
       { file: "srs", href: "/srs", label: "언어 복습 (SRS)" },
       { file: "reading", href: "/reading", label: "읽기 · 배움 선반" },

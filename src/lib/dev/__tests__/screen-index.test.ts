@@ -231,6 +231,15 @@ describe("개발자 화면 목록", () => {
     }
   });
 
+  it("클리퍼 형식 관리 항목은 manager 변형을 직접 연다", () => {
+    expect(devScreens().find((screen) => screen.file === "formats")).toEqual(
+      expect.objectContaining({
+        href: "/formats?view=manager",
+        label: "클리퍼 형식 관리",
+      }),
+    );
+  });
+
   it("동적 라우트는 견본 표시를 달고 있다", () => {
     for (const s of devScreens()) {
       if (s.file.includes("[")) expect(s.sample).toBe(true);
