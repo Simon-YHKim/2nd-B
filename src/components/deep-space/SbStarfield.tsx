@@ -34,7 +34,7 @@
  *   생기면 `ground` 를 prop 으로 받아야지, 알파로 되돌리지 말 것.
  */
 import { Fragment, memo } from "react";
-import { StyleSheet } from "react-native";
+import { Platform, StyleSheet } from "react-native";
 import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 
 import { flattenAlpha } from "@/lib/theme/tokens";
@@ -45,6 +45,14 @@ const SKY_W = 390;
 const SKY_H = 820;
 
 type SkyStar = { x: number; y: number; s: number; band: number; c: string };
+
+const STARFIELD_A11Y_PROPS =
+  Platform.OS === "web"
+    ? ({ "aria-hidden": true } as const)
+    : ({
+        accessibilityElementsHidden: true,
+        importantForAccessibility: "no-hide-descendants",
+      } as const);
 
 // sb-app.jsx sbSkyRng — LCG, seed 70730219, >>> 0 wraparound.
 function skyRng(seed: number): () => number {
@@ -156,8 +164,7 @@ export const SbStarfield = memo(function SbStarfield({ cosmic = false }: { cosmi
       style={[StyleSheet.absoluteFill, cosmic && { backgroundColor: m3.accent.cosmicBase }]}
       viewBox={`0 0 ${SKY_W} ${SKY_H}`}
       preserveAspectRatio="xMidYMid slice"
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
+      {...STARFIELD_A11Y_PROPS}
     >
       {cosmic ? (
         <>

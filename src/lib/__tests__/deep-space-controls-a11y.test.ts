@@ -21,6 +21,20 @@ describe("deep-space Action nav row a11y", () => {
   });
 });
 
+describe("SbStarfield decorative a11y contract", () => {
+  test("keeps native-only accessibility props off the web SVG element", () => {
+    const starfield = read("components/deep-space/SbStarfield.tsx");
+    const svgTags = Array.from(starfield.matchAll(/<Svg\b[\s\S]*?>/g), (match) => match[0]);
+
+    expect(svgTags).toHaveLength(1);
+    expect(svgTags[0]).toContain("{...STARFIELD_A11Y_PROPS}");
+    expect(svgTags[0]).not.toMatch(/\b(?:accessibilityElementsHidden|importantForAccessibility)\b/);
+    expect(starfield).toMatch(
+      /Platform\.OS === "web"\s*\? \(\{ "aria-hidden": true \} as const\)\s*: \(\{\s*accessibilityElementsHidden: true,\s*importantForAccessibility: "no-hide-descendants",\s*\} as const\)/,
+    );
+  });
+});
+
 describe("deep-space theme screen is wired to real settings", () => {
   test("reads and writes the same hooks as the legacy screen", () => {
     expect(dds).toContain("const { mode, setMode } = useTheme();");
