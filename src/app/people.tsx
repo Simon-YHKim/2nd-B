@@ -3,10 +3,11 @@
 // for the per-person drilldown; the add form is the first WRITE surface for
 // relation_people (0058) — the writer lib existed with no screen, so the 관계
 // star finally receives real data (its brightness folds relation_people).
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
+import * as Crypto from "expo-crypto";
 import Svg, { G, Rect, Text as SvgText } from "react-native-svg";
 
 import { Text } from "@/components/ui/Text";
@@ -18,6 +19,8 @@ import { deepSpace, flattenAlpha, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { ringCells, stepLine } from "@/components/pixel/pixel-line";
 import { PixelNodeSvg, PixelStarSvg } from "@/components/pixel/PixelStarSvg";
+import { createLatestWins } from "@/lib/async/latest-wins";
+import { isTimeoutError } from "@/lib/async/with-timeout";
 
 /**
  * 관계 지도 색 — 원래 `withAlpha(…)` 였다. 미리 합성해 둔다(PIXEL-CLAY 규칙 4).
@@ -36,7 +39,18 @@ const PEOPLE_MAP_BORDER = flattenAlpha(deepSpace.accentDim, 0.22, PEOPLE_GROUND)
 const PEOPLE_MAP_TEXT = flattenAlpha(m3.accent.skyTextHi, 0.8, PEOPLE_MAP_BG);
 const PEOPLE_MAP_TEXT_HI = flattenAlpha(m3.accent.skyTextHi, 0.85, PEOPLE_MAP_BG);
 const peopleNodeFill = (c: string) => flattenAlpha(c, 0.92, PEOPLE_GROUND);
-import { createPerson, listPeople, type Person, type RelationKind } from "@/lib/relation/people";
+import {
+  beginPersonSaveAttempt,
+  completePersonSaveAttempt,
+  createPerson,
+  invalidatePersonSaveAttemptUi,
+  isCurrentPersonSaveAttempt,
+  listPeople,
+  releasePersonSaveAttempt,
+  type Person,
+  type PersonSaveIdentity,
+  type RelationKind,
+} from "@/lib/relation/people";
 import { layoutPeopleMap, RELATION_SECTORS } from "@/lib/relation/people-map-layout";
 
 const CANVAS = 1000;
@@ -54,35 +68,6 @@ export default function PeopleMapScreen() {
   const { t } = useTranslation("deepspace");
   const { userId, loading } = useAuth();
 
-  const [people, setPeople] = useState<Person[] | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saveFailed, setSaveFailed] = useState(false);
-  const [name, setName] = useState("");
-  const [kind, setKind] = useState<RelationKind>("friend");
-  const [closeness, setCloseness] = useState<number>(3);
-
-  const refresh = useCallback(() => {
-    if (!userId) return;
-    listPeople(userId)
-      .then(setPeople)
-      .catch((e) => {
-        console.warn("[people] list failed", (e as Error).message);
-        setPeople([]);
-      });
-  }, [userId]);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  const nodes = useMemo(() => layoutPeopleMap(people ?? []), [people]);
-  const selected = useMemo(
-    () => (people ?? []).find((p) => p.id === selectedId) ?? null,
-    [people, selectedId],
-  );
-
   if (loading) {
     return (
       <DeepSpaceScreen active="lens" header="none" variant="museumLike" title={t("deepspace:people.title")} onBack={() => router.back()}>
@@ -94,20 +79,122 @@ export default function PeopleMapScreen() {
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
+  // AuthContext can publish A -> B without a signed-out frame (for example,
+  // another browser tab signs into a different account). Keying the complete
+  // owner-bound state tree prevents A's map, draft, and late callbacks from
+  // surviving under B's session.
+  return <PeopleMapBody key={userId} userId={userId} />;
+}
+
+function PeopleMapBody({ userId }: { userId: string }) {
+  const { t } = useTranslation("deepspace");
+
+  const [people, setPeople] = useState<Person[] | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const [name, setName] = useState("");
+  const [kind, setKind] = useState<RelationKind>("friend");
+  const [closeness, setCloseness] = useState<number>(3);
+  const loadGuardRef = useRef(createLatestWins());
+  const attemptGenRef = useRef(0);
+  const saveIdRef = useRef<PersonSaveIdentity | null>(null);
+  const inFlightRef = useRef<PersonSaveIdentity | null>(null);
+
+  const refresh = useCallback(async () => {
+    const token = loadGuardRef.current.begin();
+    try {
+      const next = await listPeople(userId);
+      if (loadGuardRef.current.isStale(token)) return;
+      setPeople(next);
+      setLoadFailed(false);
+    } catch (e) {
+      if (loadGuardRef.current.isStale(token)) return;
+      console.warn("[people] list failed", (e as Error).message);
+      // Keep the last successful map. A network failure is not an empty account.
+      setLoadFailed(true);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    void refresh();
+    return () => {
+      // Invalidate work owned by the previous user or an unmounted screen.
+      loadGuardRef.current.begin();
+      invalidatePersonSaveAttemptUi(attemptGenRef);
+    };
+  }, [refresh]);
+
+  const nodes = useMemo(() => layoutPeopleMap(people ?? []), [people]);
+  const selected = useMemo(
+    () => (people ?? []).find((p) => p.id === selectedId) ?? null,
+    [people, selectedId],
+  );
+
   async function handleAdd() {
-    if (!userId || !name.trim() || saving) return;
+    if (!name.trim()) return;
+    const attempt = beginPersonSaveAttempt(
+      attemptGenRef,
+      saveIdRef,
+      inFlightRef,
+      () => Crypto.randomUUID(),
+    );
+    if (attempt === null) return;
     setSaving(true);
     setSaveFailed(false);
     try {
-      await createPerson(userId, { display_name: name.trim(), relation_kind: kind, closeness });
-      setName("");
-      setAdding(false);
-      refresh();
-    } catch (e) {
-      console.warn("[people] save failed", (e as Error).message);
-      setSaveFailed(true);
-    } finally {
+      const created = await createPerson(userId, {
+        display_name: name.trim(),
+        relation_kind: kind,
+        closeness,
+      }, attempt.id, attempt.rev);
+      const isCurrentUi = isCurrentPersonSaveAttempt(attemptGenRef, attempt);
+      if (!completePersonSaveAttempt(saveIdRef, inFlightRef, attempt)) return;
       setSaving(false);
+      setName("");
+      setSaveFailed(false);
+      if (isCurrentUi) {
+        // The write is already confirmed. Show it immediately so a follow-up
+        // list timeout cannot make a successful save look lost and invite a
+        // duplicate entry. The background refresh then reconciles server order.
+        setPeople((previous) =>
+          previous === null
+            ? [created]
+            : [...previous.filter((person) => person.id !== created.id), created],
+        );
+        setAdding(false);
+      }
+      // A hidden form deliberately skips its stale local merge, but the
+      // confirmed row still needs to appear and its draft must stay consumed.
+      void refresh();
+    } catch (e) {
+      const isCurrentUi = isCurrentPersonSaveAttempt(attemptGenRef, attempt);
+      if (!releasePersonSaveAttempt(inFlightRef, attempt)) return;
+      setSaving(false);
+      console.warn("[people] save failed", (e as Error).message);
+      // A timed-out write may still have reached Postgres after the client
+      // stopped waiting. Reconcile once before the user retries so a late row
+      // can surface instead of encouraging an accidental duplicate.
+      if (isTimeoutError(e)) void refresh();
+      // Closing hides the old presentation generation. Preserve its draft and
+      // id so reopening can retry the same row at rev+1 without stale UI copy.
+      if (isCurrentUi) setSaveFailed(true);
+    }
+  }
+
+  function closeAddForm() {
+    invalidatePersonSaveAttemptUi(attemptGenRef);
+    setSaveFailed(false);
+    setAdding(false);
+  }
+
+  function toggleAddForm() {
+    if (adding) {
+      closeAddForm();
+    } else if (!saving) {
+      setAdding(true);
     }
   }
 
@@ -120,8 +207,9 @@ export default function PeopleMapScreen() {
           </Text>
           <MdButton
             variant="tonal"
+            disabled={!adding && saving}
             label={adding ? t("deepspace:people.close") : t("deepspace:people.addPerson")}
-            onPress={() => setAdding((v) => !v)}
+            onPress={toggleAddForm}
           />
         </View>
 
@@ -172,8 +260,19 @@ export default function PeopleMapScreen() {
           </MdCard>
         ) : null}
 
+        {loadFailed ? (
+          <MdCard variant="outlined" style={styles.cardPad}>
+            <Text variant="body" color="textMuted">
+              {t("common:errors.network")}
+            </Text>
+            <MdButton variant="tonal" label={t("common:actions.retry")} onPress={refresh} />
+          </MdCard>
+        ) : null}
+
         {people === null ? (
-          <PremiumLoadingState message={t("deepspace:people.openingMap")} />
+          loadFailed ? null : (
+            <PremiumLoadingState message={t("deepspace:people.openingMap")} />
+          )
         ) : nodes.length === 0 ? (
           <MdCard variant="outlined" style={styles.cardPad}>
             <Text variant="body" color="textMuted">

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AppState, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text as RNText, TextInput, View } from "react-native";
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from "expo-audio";
-import { Redirect, router } from "expo-router";
+import { Redirect, router, useNavigation } from "expo-router";
 import { useTranslation } from "react-i18next";
 import Svg, { Rect, SvgXml } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -26,6 +26,7 @@ import { kstDateToday } from "@/lib/chat/limits";
 import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { MdButton, MdCard, MdChip, ProgressLinear, m3TextStyle } from "@/components/m3";
+import { PremiumModal } from "@/components/premium";
 import { TIER_PRICE_KRW } from "@/lib/entitlements/tiers";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
 import { getReasoningUsage } from "@/lib/entitlements/usage";
@@ -50,7 +51,7 @@ import {
   signOut,
   type OAuthProvider,
 } from "@/lib/supabase/auth";
-import { deleteAllUserData, requestAccountDeletion } from "@/lib/records/delete-bulk";
+import { requestAccountDeletion } from "@/lib/records/delete-bulk";
 import { buildPersona, loadPersonaRatifiableSignals } from "@/lib/persona/build";
 import { proposalContextForStar } from "@/lib/persona/proposal-context";
 import { proposeSelfModelChange } from "@/lib/persona/propose-self-model";
@@ -98,7 +99,11 @@ import { systemLocaleFor } from "@/lib/i18n/locales";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
 import { captureEvent, proposalDecided, setAnalyticsConsent } from "@/lib/analytics";
 import type { PrivacyPrefKey, PrivacyPrefs } from "@/lib/privacy/prefs";
-import { clearRecordEmbeddings, embedVendorLabel } from "@/lib/records/records-embeddings";
+import {
+  backfillAllRecordEmbeddings,
+  clearRecordEmbeddings,
+  embedVendorLabel,
+} from "@/lib/records/records-embeddings";
 import { recordHealthImportConsent, recordRecommendationsConsent } from "@/lib/supabase/consent";
 import { healthImportAllowed, ingestHealthSamples } from "@/lib/health/ingest";
 import { availableHealthSources } from "@/lib/health/registry";
@@ -108,7 +113,7 @@ import { loadPickCandidates } from "@/lib/ops/load-picks";
 import { pickToday, type PickId, type TodayPicks } from "@/lib/ops/today-picks";
 import { gatherAdherenceStats } from "@/lib/ops/signals";
 import { adherenceChip } from "@/lib/ops/grounding";
-import { recommendForDomain, recommendationsAllowed, type OpsRecommendation } from "@/lib/ops/recommend";
+import { recommendForDomain, recommendationVendorLabel, recommendationsAllowed, type OpsRecommendation } from "@/lib/ops/recommend";
 import { buildGoogleCalendarUrl } from "@/lib/ops/push";
 import { notifyNow, scheduleRoutineReminder, type ReminderResult } from "@/lib/ops/reminders";
 import {
@@ -537,6 +542,8 @@ export function DeepSpaceAccountDesignScreen() {
 
 export function DeepSpacePrivacyDesignScreen() {
   const { t, i18n } = useTranslation("deepspace");
+  const { t: consentT } = useTranslation("consent");
+  const navigation = useNavigation();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
   const { userId, isMinor } = useAuth();
   // AuthContext derives this from users.birth_date. Unknown age fails closed,
@@ -565,8 +572,15 @@ export function DeepSpacePrivacyDesignScreen() {
   // Right-to-erasure in deep-space (was legacy-only). Terminal + irreversible, so
   // it is gated behind a typed "DELETE" confirm and reuses the proven cascade.
   const [delConfirm, setDelConfirm] = useState("");
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [delError, setDelError] = useState(false);
+  // State alone cannot fence two events in the same render frame (keyboard
+  // submit + tap, or a rapid modal double-tap). Keep the destructive call
+  // single-flight synchronously.
+  const deleteInFlightRef = useRef(false);
+  const allowDeletionNavigationRef = useRef(false);
+  const deleteConfirmUserRef = useRef<string | null>(null);
 
   useEffect(() => {
     privacyMountedRef.current = true;
@@ -576,27 +590,71 @@ export function DeepSpacePrivacyDesignScreen() {
   }, []);
 
   async function runDeleteAccount() {
-    if (!userId || deleting || delConfirm !== "DELETE") return;
+    if (
+      !userId
+      || deleteInFlightRef.current
+      || delConfirm !== "DELETE"
+      || deleteConfirmUserRef.current !== userId
+    ) return;
     const targetUserId = userId;
+    deleteConfirmUserRef.current = null;
+    deleteInFlightRef.current = true;
     setDeleting(true);
     setDelError(false);
     try {
-      await deleteAllUserData(targetUserId);
-      // Never let a delayed A-user wipe continue into an account-deletion call
-      // after the active session has become B.
-      if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
+      // The Edge Function is the single terminal boundary: auth deletion first,
+      // then the database cascade and Storage cleanup. A client pre-wipe here
+      // can only make failure non-atomic.
       await requestAccountDeletion();
-      if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
-      await signOut();
-      router.replace("/sign-in");
     } catch {
-      // Some content may already be gone; tell the truth and let them retry.
+      deleteInFlightRef.current = false;
       if (privacyMountedRef.current && activeUserRef.current === targetUserId) {
         setDelError(true);
         setDeleting(false);
       }
+      return;
+    }
+
+    // Terminal erasure already succeeded. Do not let a local sign-out failure
+    // expose a destructive Retry, and never sign out a newly active B session
+    // after an A request resolves late.
+    if (!privacyMountedRef.current) return;
+    if (activeUserRef.current !== targetUserId) {
+      deleteInFlightRef.current = false;
+      setDeleting(false);
+      return;
+    }
+    // Successful erasure may itself trigger an auth-driven route removal.
+    // Let that navigation, sign-out, and the explicit replacement proceed.
+    allowDeletionNavigationRef.current = true;
+    try {
+      await signOut();
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[privacy] local sign-out after deletion failed", (e as Error).message);
+    } finally {
+      router.dismissAll();
+      router.replace("/sign-in");
     }
   }
+
+  function requestDeleteAccountConfirm() {
+    if (!userId || deleteInFlightRef.current || delConfirm !== "DELETE") return;
+    deleteConfirmUserRef.current = userId;
+    setDeleteConfirmOpen(true);
+  }
+
+  // Shell's top back action and persistent dock both remove this route. Once
+  // the user confirms terminal erasure, keep the screen mounted until the Edge
+  // Function reports success/failure so navigation cannot strand a half-flow.
+  useEffect(() => {
+    // Register once instead of waiting for the deleting-state render. The ref
+    // flips synchronously inside runDeleteAccount, so even a same-frame dock tap
+    // after final confirmation is fenced.
+    return navigation.addListener("beforeRemove", (event) => {
+      if (!deleteInFlightRef.current || allowDeletionNavigationRef.current) return;
+      event.preventDefault();
+    });
+  }, [navigation]);
 
   useEffect(() => {
     prefsRef.current = null;
@@ -612,8 +670,16 @@ export function DeepSpacePrivacyDesignScreen() {
     setEmbedErr(false);
     setBusy(false);
     setDelConfirm("");
-    setDeleting(false);
-    setDelError(false);
+    setDeleteConfirmOpen(false);
+    deleteConfirmUserRef.current = null;
+    // An A -> B auth change must not reopen navigation or allow a B deletion
+    // while A's terminal request is still unresolved. The owning async flow
+    // clears the fence after it observes the user mismatch.
+    if (!deleteInFlightRef.current) {
+      setDeleting(false);
+      setDelError(false);
+      allowDeletionNavigationRef.current = false;
+    }
     if (!userId) return;
     const targetUserId = userId;
     let cancelled = false;
@@ -786,6 +852,33 @@ export function DeepSpacePrivacyDesignScreen() {
       prefsUserRef.current = targetUserId;
       setEmbedOn(true);
       setEmbedUnderstanding(false);
+      // (a) Simon 2026-08-31: the consent the user just gave covers records that
+      // ALREADY exist ("지금까지 담아 둔 기록"), so build their index the moment
+      // consent lands — this is the only caller of the records backfill.
+      // Detached for the same reason create.ts detaches its embed call: a batch
+      // must never keep the toggle spinning, and a failure must never undo the
+      // consent that was saved. stillConsented re-reads the SERVER pref every
+      // round: an OFF tapped mid-batch stops it (and the run self-clears any
+      // vectors stored after the user's own clear), and if the 0072 trigger
+      // silently clamped the just-saved pref back to false (minor_self), the
+      // first probe reads that clamped truth and nothing is ever fetched.
+      void backfillAllRecordEmbeddings(targetUserId, {
+        locale: ko ? "ko" : "en",
+        minor: minorRef.current,
+        consented: true,
+        stillConsented: async () => {
+          try {
+            const live = await fetchPrivacyPrefs(targetUserId);
+            return live.records_embedding === true;
+          } catch {
+            return false; // fail closed: no probe, no batch
+          }
+        },
+      }).catch(() => {
+        // Best-effort: unembedded rows keep embedding NULL; toggling off → on
+        // runs the backfill again, and the write-time path still indexes every
+        // new record. See docs/RECORDS-EMBEDDING.md.
+      });
     } catch {
       if (privacyMountedRef.current && activeUserRef.current === targetUserId) setEmbedErr(true);
     } finally {
@@ -852,8 +945,8 @@ export function DeepSpacePrivacyDesignScreen() {
               ? "생년월일 기준 만 18세 미만은 사용 통계와 광고가 잠겨 있어요."
               : "Usage analytics and ads are locked when the birth date shows an age under 18."
             : ko
-              ? "선택 사항이에요. 켜면 화면 이동과 조작 기록이 Google Analytics·Microsoft Clarity 로 전송돼요. 웹과 안드로이드 앱에 모두 적용되고, 기록·대화 같은 개인 화면에서는 수집을 멈춰요."
-              : "Optional. When on, screen navigation and interactions are sent to Google Analytics and Microsoft Clarity. This applies to both the web and the Android app, and collection pauses on personal screens such as records and chat."}
+              ? "선택 사항이며 설정은 저장돼요. 웹에서는 Google Analytics에 적용되고, Android의 Firebase Analytics와 Microsoft Clarity는 현재 비활성화되어 있어요."
+              : "Optional. Your choice is saved and applies to Google Analytics on the web. Firebase Analytics and Microsoft Clarity are currently disabled on Android."}
         </Text>
         {analyticsOn === null || adsOn === null ? (
           <Text variant="subtle" style={styles.footer}>
@@ -876,8 +969,8 @@ export function DeepSpacePrivacyDesignScreen() {
                     : "Locked under 18"
                   : analyticsOn
                     ? ko
-                      ? "웹·앱에서 GA4·Clarity 사용"
-                      : "GA4 and Clarity on web and app"
+                      ? "웹 GA4 적용 · Android Firebase·Clarity 비활성"
+                      : "Web GA4 applied · Android Firebase and Clarity disabled"
                     : ko
                       ? "꺼짐"
                       : "Off"
@@ -959,8 +1052,8 @@ export function DeepSpacePrivacyDesignScreen() {
           <>
             <Text variant="body" style={styles.lead}>
               {ko
-                ? "켜기 전에 알아두세요. 추천을 켜면 당신의 기록 묶음이 분석을 위해 Gemini로 전송돼요(해외에서 처리). 연결·패턴 제안에만 쓰이고 언제든 끌 수 있어요. 동의는 기록에 남습니다."
-                : "Before you turn it on. Your records are sent to Gemini for analysis (processed overseas), used only to suggest connections and patterns. You can turn it off anytime. Your consent is logged."}
+                ? `켜기 전에 알아두세요. 추천을 켜면 당신의 기록 묶음이 분석을 위해 ${recommendationVendorLabel()} 서버로 전송돼요(해외에서 처리). 연결·패턴 제안에만 쓰이고 언제든 끌 수 있어요. 동의는 기록에 남습니다.`
+                : `Before you turn it on. Your records are sent to ${recommendationVendorLabel()} for analysis (processed overseas), used only to suggest connections and patterns. You can turn it off anytime. Your consent is logged.`}
             </Text>
             <View style={styles.ctaRow}>
               <Pressable style={styles.secondary} onPress={() => setUnderstanding(false)} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "취소" : "Cancel"}>
@@ -988,7 +1081,7 @@ export function DeepSpacePrivacyDesignScreen() {
         ) : embedOn ? (
           <>
             <Text variant="body" style={styles.lead}>
-              {ko ? "켜져 있어요. 담는 기록을 의미로 색인해 비슷한 기록을 이어 보여줘요." : "On. New records are indexed by meaning to surface similar ones."}
+              {ko ? "켜져 있어요. 기록을 의미로 색인해 비슷한 기록을 이어 보여줘요." : "On. Records are indexed by meaning to surface similar ones."}
             </Text>
             <Pressable style={styles.secondary} onPress={() => void disableEmbedding()} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "의미 연결 끄기" : "Turn off semantic connections"}>
               <Text variant="body" style={styles.secondaryText}>{ko ? "끄고 벡터 삭제" : "Turn off and delete vectors"}</Text>
@@ -1007,8 +1100,8 @@ export function DeepSpacePrivacyDesignScreen() {
           <>
             <Text variant="body" style={styles.lead}>
               {ko
-                ? `켜기 전에 알아두세요. 켜면 앞으로 담는 기록의 내용이 의미 벡터로 변환·저장돼, 서로 비슷한 기록을 이어 보여드려요. 변환을 위해 기록 텍스트가 ${embedVendorLabel()}(해외)로 전송됩니다. 위기 관련 내용은 전송되지 않아요. 성인만 켤 수 있고, 끄면 이후 색인이 멈추고 저장된 벡터도 삭제돼요. 동의는 기록에 남습니다.`
-                : `Before you turn it on. New records will be turned into meaning vectors and stored so similar records can be linked. To do that, record text is sent to ${embedVendorLabel()} (processed overseas). Crisis-related content is not sent. Adults only; turning it off stops indexing and deletes the stored vectors. Your consent is logged.`}
+                ? `켜기 전에 알아두세요. 켜면 지금까지 담아 둔 기록과 앞으로 담는 기록의 내용이 의미 벡터로 변환·저장돼, 서로 비슷한 기록을 이어 보여드려요. 변환을 위해 기록 텍스트가 ${embedVendorLabel()}(해외)로 전송됩니다. 위기 관련 내용은 전송되지 않아요. 성인만 켤 수 있고, 끄면 이후 색인이 멈추고 저장된 벡터도 삭제돼요. 동의는 기록에 남습니다.`
+                : `Before you turn it on. Your existing records and every new record will be turned into meaning vectors and stored so similar records can be linked. To do that, record text is sent to ${embedVendorLabel()} (processed overseas). Crisis-related content is not sent. Adults only; turning it off stops indexing and deletes the stored vectors. Your consent is logged.`}
             </Text>
             <View style={styles.ctaRow}>
               <Pressable style={styles.secondary} onPress={() => setEmbedUnderstanding(false)} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "취소" : "Cancel"}>
@@ -1027,12 +1120,12 @@ export function DeepSpacePrivacyDesignScreen() {
 
       <Card>
         {/* audit med#17: these rows rendered as buttons with no onPress — dead
-            taps on a privacy surface. 처리 기록 now opens the real ai_audit_log
-            viewer (/audit); 제3자 제공 "없음" is a FACT, so it renders static
+            taps on a privacy surface. 처리 기록 opens the read-only ai_audit_log
+            viewer (/processing-log); 제3자 제공 "없음" is a FACT, so it renders static
             (no button role); the 처리방침 row opens the /privacy-policy
             document (restored once the policy document existed to open). */}
         <Action label={t("privacy.policy")} value={t("privacy.view")} onPress={() => router.push("/privacy-policy")} />
-        <Action label={t("privacy.processingLog")} value={t("privacy.last7")} onPress={() => router.push("/audit")} />
+        <Action label={t("privacy.processingLog")} value={t("privacy.last7")} onPress={() => router.push("/processing-log")} />
         {/* ⚠ `내 데이터 리뷰`(/data) 는 화면은 있는데 **들어갈 문이 없었다.**
             레퍼런스가 이 자리에 그 줄을 두고 있고, 개인정보 화면에서 자기 데이터를
             열람하러 가는 것은 자연스럽다. */}
@@ -1064,7 +1157,7 @@ export function DeepSpacePrivacyDesignScreen() {
           accessibilityLabel={ko ? "삭제 확인 입력" : "Deletion confirmation"}
           returnKeyType="done"
           onSubmitEditing={() => {
-            if (delConfirm === "DELETE" && !deleting) void runDeleteAccount();
+            requestDeleteAccountConfirm();
           }}
         />
         <Pressable
@@ -1077,7 +1170,7 @@ export function DeepSpacePrivacyDesignScreen() {
               borderColor: m3.disabled.outline,
             },
           ]}
-          onPress={() => void runDeleteAccount()}
+          onPress={requestDeleteAccountConfirm}
           disabled={delConfirm !== "DELETE" || deleting}
           accessibilityRole="button"
           accessibilityLabel={ko ? "계정 영구 삭제" : "Delete account permanently"}
@@ -1094,6 +1187,35 @@ export function DeepSpacePrivacyDesignScreen() {
           </Text>
         ) : null}
       </Card>
+      <PremiumModal
+        visible={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        accessibilityLabel={consentT("account.delete.confirmLabel")}
+      >
+        <Text variant="heading">{consentT("account.delete.confirmTitle")}</Text>
+        <Text variant="body" style={styles.lead}>{consentT("account.delete.confirmBody")}</Text>
+        <View style={styles.ctaRow}>
+          <Pressable
+            style={styles.secondary}
+            onPress={() => setDeleteConfirmOpen(false)}
+            accessibilityRole="button"
+            accessibilityLabel={consentT("account.delete.cancel")}
+          >
+            <Text variant="body" style={styles.secondaryText}>{consentT("account.delete.cancel")}</Text>
+          </Pressable>
+          <Pressable
+            style={styles.danger}
+            onPress={() => {
+              setDeleteConfirmOpen(false);
+              void runDeleteAccount();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={consentT("account.delete.confirmCta")}
+          >
+            <Text variant="body" style={styles.dangerText}>{consentT("account.delete.confirmCta")}</Text>
+          </Pressable>
+        </View>
+      </PremiumModal>
       <Text variant="subtle" style={styles.footer}>{t("privacy.footer")}</Text>
     </Shell>
   );

@@ -11,8 +11,9 @@
 | Ad policy (single source of truth) | `src/lib/ads/policy.ts` (+tests) | paying tiers / minors / no-consent / sensitive routes always OFF |
 | Web AdSense slot | `src/components/ads/AdSlot.tsx` | records list footer only; AdBlock/no-fill → subscription upsell line |
 | Build flags | `EXPO_PUBLIC_ENABLE_ADS` (default false), `EXPO_PUBLIC_ADSENSE_CLIENT`, `EXPO_PUBLIC_ADSENSE_SLOT_RECORDS` | unset = invisible |
-| Analytics (GA4 / Clarity / Sentry) | `src/lib/analytics` + consent gate, wired since #258 | ids never injected → **collecting nothing** until Variables set |
-| Build wiring | `.github/workflows/web-deploy.yml` | all seven Variables now flow into the web build |
+| Web analytics (GA4) | `src/lib/analytics` + consent/runtime gate | confirmed adult + explicit consent + runtime ON일 때만 로드 |
+| Clarity / native Firebase / Sentry | `src/lib/analytics`, `src/app/_layout.tsx` | 새 JS에서 **hard OFF**; 환경 id나 DSN만으로 켤 수 없음 |
+| Build wiring | `.github/workflows/web-deploy.yml` | Variables가 빌드에 들어가도 source hard-off를 우회하지 못함 |
 
 Deliberate rollout gate: the **ads-consent toggle is not collected yet** (privacy
 screen wiring, register item I1). Until it ships, `AdSlot` passes
@@ -21,12 +22,12 @@ Variables set. Never default that to true.
 
 ## Simon console steps (in order of value)
 
-### 1. Analytics ids — 15 minutes, unblocks "이용자 경험 파악" immediately
+### 1. GA4 id — 성인 동의·runtime gate를 유지한 웹 분석
 1. GA4: analytics.google.com → property for `simon-yhkim.github.io/2nd-B` → Variable `EXPO_PUBLIC_GA4_MEASUREMENT_ID` (G-xxxx).
-2. Clarity: clarity.microsoft.com → new project → `EXPO_PUBLIC_CLARITY_PROJECT_ID`.
-3. Sentry: sentry.io → Browser/JS project DSN → `EXPO_PUBLIC_SENTRY_DSN` (the web build uses @sentry/browser; DSNs are cross-platform anyway).
-4. PostHog: removed 2026-08-10. The loader was never wired (posthog-js was never a dependency, so the dynamic import always threw into a silent catch) and GA4 + Clarity cover the funnel. Re-adding it means adding the package back, not just Variables.
-→ GitHub repo → Settings → Variables → add → re-run web-deploy. Done.
+2. GitHub repo → Settings → Variables에서 GA4 id만 확인하고, 변경 후 `web-deploy`를 검증한다.
+3. Clarity와 Sentry는 현재 source hard-off다. project id나 DSN을 추가·복원하지 말고
+   각각의 개인정보·법적 재활성화 게이트를 먼저 통과한다(`docs/sentry-setup.md`).
+4. PostHog는 2026-08-10 제거됐다. 환경 변수만으로 다시 켤 수 없다.
 
 ### 2. AdSense (web) — needs site approval
 1. adsense.google.com → add site `simon-yhkim.github.io` (approval review takes days; content policy applies).
@@ -42,10 +43,10 @@ Variables set. Never default that to true.
 4. iOS: ATT prompt + Google UMP consent form before personalized ads; KR/EU non-personalized fallback.
 5. Same in-app policy layer applies (`canShowAds`); AdMob banner goes only where AdSense goes on web.
 
-### 4. Firebase Analytics (native) — same trigger as AdMob
-GA4 on web IS the Firebase Analytics data plane; native parity needs
-`@react-native-firebase/analytics` (config plugin, native rebuild). Queue it
-with the EAS track; until then web GA4 covers the funnel.
+### 4. Firebase Analytics (native) — 현재 새 JS에서 OFF-only
+Native SDK가 일부 바이너리에 링크돼 있어도 현재 JS는 collection/consent OFF 명령만 보낸다.
+AdMob 빌드와 함께 자동 활성화하지 않는다. 재활성화에는 별도 개인정보 검토, source PR,
+native build와 실기기 전송 검증이 필요하다.
 
 ## Revenue/UX guardrails encoded in policy (do not weaken)
 

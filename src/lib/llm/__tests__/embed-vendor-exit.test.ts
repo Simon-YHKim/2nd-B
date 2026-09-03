@@ -25,6 +25,8 @@ const BOUNDARY = read("src/lib/llm/boundary.ts");
 const ROUTING = read("src/lib/llm/routing.ts");
 const OPENAI = read("supabase/functions/openai-proxy/index.ts");
 const GEMINI = read("supabase/functions/gemini-proxy/index.ts");
+const EMBED_EGRESS_KEY = "EMBED_EGRESS_ENABLED";
+const PUBLIC_EMBED_EGRESS_KEY = `EXPO_PUBLIC_${EMBED_EGRESS_KEY}`;
 
 const KEY = "EXPO_PUBLIC_EMBED_VENDOR";
 const saved = process.env[KEY];
@@ -76,6 +78,41 @@ describe("the call site actually uses it", () => {
     // sweep that checks the switches.
     expect(BOUNDARY).toContain('invoke(proxyFnForVendor(embedVendor())');
     expect(BOUNDARY).not.toMatch(/invoke\("gemini-proxy", \{\s*\n\s*body: \{ op: "embed"/);
+  });
+});
+
+describe("embedding vendor egress is server-only and fail-closed", () => {
+  test.each([
+    ["openai-proxy", OPENAI, "fetch(OPENAI_EMBED_ENDPOINT"],
+    ["gemini-proxy", GEMINI, "fetch(EMBED_ENDPOINT"],
+  ])("%s requires an explicit opt-in before spend or upstream", (_name, source, fetchNeedle) => {
+    const branch = source.indexOf("if (body?.op === 'embed')");
+    const gate = source.indexOf(`Deno.env.get('${EMBED_EGRESS_KEY}') !== 'true'`, branch);
+    const disabled = source.indexOf("{ error: 'embedding_egress_disabled' }, 503", gate);
+    const spend = source.indexOf(".rpc('bump_gemini_spend'", branch);
+    const upstream = source.indexOf(fetchNeedle, branch);
+
+    expect(source).toMatch(
+      /if \(body\?\.op === 'embed'\) \{\s*if \(Deno\.env\.get\('EMBED_EGRESS_ENABLED'\) !== 'true'\) \{\s*return jsonResponse\(req, \{ error: 'embedding_egress_disabled' \}, 503\);\s*\}/,
+    );
+    expect(gate).toBeGreaterThan(branch);
+    expect(disabled).toBeGreaterThan(gate);
+    expect(spend).toBeGreaterThan(disabled);
+    expect(upstream).toBeGreaterThan(disabled);
+  });
+
+  test("the opt-in cannot be exposed as an Expo public key", () => {
+    for (const source of [
+      BOUNDARY,
+      ROUTING,
+      OPENAI,
+      GEMINI,
+      read("eas.json"),
+      read(".github/workflows/web-deploy.yml"),
+      read(".github/workflows/android-release.yml"),
+    ]) {
+      expect(source).not.toContain(PUBLIC_EMBED_EGRESS_KEY);
+    }
   });
 });
 

@@ -1,6 +1,8 @@
 import type { LadderLevel } from "../brightness";
 import { nextActivationStep } from "../next-step";
 import type { StarId } from "../stars";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 // Helper: start every star dim (L1), then override.
 function levels(over: Partial<Record<StarId, LadderLevel>> = {}): Record<StarId, LadderLevel> {
@@ -40,8 +42,18 @@ describe("nextActivationStep", () => {
     const step = nextActivationStep(levels({ relational: 4, now: 2 }));
     expect(step).not.toBeNull();
     expect(step!.star.id).toBe("values");
-    expect(step!.route).toBe("/audit");
+    expect(step!.route).toBe("/audit?screener=1");
+    expect(step!.route).not.toBe("/audit");
     expect(step!.key).toBe("values");
+  });
+
+  it("keeps every localized FlowMap values action on the Life Audit screener", () => {
+    const flowMap = readFileSync(
+      resolve(__dirname, "../../../screens/deepspace/DeepSpaceFlowMapScreen.tsx"),
+      "utf8",
+    );
+    expect(flowMap.match(/path: "\/audit\?screener=1", note: "values"/g)).toHaveLength(5);
+    expect(flowMap.match(/path: "\/audit", note: "values"/g)).toBeNull();
   });
 
   it("offers the rhythm check-in last (retention step, trails the validated instruments)", () => {

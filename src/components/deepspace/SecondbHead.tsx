@@ -31,7 +31,7 @@
 // Driver layout (avoids native/JS driver conflicts on one node):
 //   static measure node  ->  tracking node (JS)  ->  bob node (native)  ->  face
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import { Animated, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { Image } from "expo-image";
@@ -144,7 +144,11 @@ function GlowCells({ cells, cell, glow, core }: { cells: LineCell[]; cell: numbe
 
 // ⚠ 원이 아니라 **사각**이다. 곡선 도형을 감싼 별칭은 가드가 추적한다
 //   (`check:pixel-rules` 의 `curveAliasPattern`) — Rect 는 걸리지 않는다.
-const AnimatedRect = Animated.createAnimatedComponent(Rect);
+function SvgRect({ collapsable: _collapsable, ...props }: ComponentProps<typeof Rect> & { collapsable?: boolean }) {
+  return <Rect {...props} />;
+}
+
+const AnimatedRect = Animated.createAnimatedComponent(SvgRect);
 
 /** Tiny cyan eighth-note that floats beside the mouth while whistling. */
 function WhistleNote({ size, accent, reduce }: { size: number; accent: string; reduce: boolean }) {

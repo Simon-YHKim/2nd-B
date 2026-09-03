@@ -447,6 +447,7 @@ const NEXT_STATUS: Record<MilestoneStatus, MilestoneStatus> = {
 
 export function MilestonesScreen() {
   const c = useOpsCopy();
+  const { t } = useTranslation("ops");
   const { userId } = useAuth();
   // A failed WRITE. The empty catches below used to claim it was "surfaced on reload",
   // but reload() sits INSIDE the try -- so on the failure path it never ran, and the tap
@@ -536,7 +537,7 @@ export function MilestonesScreen() {
 
   const tabs: DomainTab[] = MILESTONE_DOMAINS.map((d) => ({
     id: d,
-    label: EN_DOMAIN_LABEL[d],
+    label: t(`domains.${d}`),
     color: domainColorFor(d),
   }));
 
@@ -879,7 +880,7 @@ export function LedgerScreen() {
 
 // --- (5) Side project · github -----------------------------------------
 
-export function SideProjectScreen() {
+export function SideProjectScreen({ userId }: { userId: string }) {
   const c = useOpsCopy();
   const [username, setUsername] = useState("");
   const [pushes, setPushes] = useState<PushActivity[] | null>(null);
@@ -895,10 +896,10 @@ export function SideProjectScreen() {
     }
   };
 
-  // B: remember the GitHub connection (device-local) and reconnect on open.
+  // Owner-scoped persistence prevents one account from restoring another's handle.
   useEffect(() => {
     let alive = true;
-    void getGithubUsername().then((saved) => {
+    void getGithubUsername(userId).then((saved) => {
       if (alive && saved) {
         setUsername(saved);
         void connect(saved);
@@ -907,11 +908,10 @@ export function SideProjectScreen() {
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [userId]);
 
   const onConnect = async () => {
-    await setGithubUsername(username);
+    await setGithubUsername(userId, username);
     await connect(username);
   };
   const summary = summarizeGithubActivity(pushes ?? []);

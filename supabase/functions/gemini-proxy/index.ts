@@ -449,6 +449,9 @@ Deno.serve(async (req: Request) => {
   // latencyMs, audited }. Same auth (above), same shared per-user/day spend
   // counter (one batch = one call), same crisis backstop, own audit row.
   if (body?.op === 'embed') {
+    if (Deno.env.get('EMBED_EGRESS_ENABLED') !== 'true') {
+      return jsonResponse(req, { error: 'embedding_egress_disabled' }, 503);
+    }
     const rawTexts = body?.texts;
     if (!Array.isArray(rawTexts) || rawTexts.length === 0) {
       return jsonResponse(req, { error: 'texts_required' }, 400);

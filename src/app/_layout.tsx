@@ -1,10 +1,19 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useTranslation } from "react-i18next";
 
 import { useAddressTerm } from "@/lib/persona/use-address";
 import {
   Stack,
   Redirect,
+  router,
+  useRootNavigationState,
   useSegments,
   // ⚠ 라우터의 **네비게이션 테마**다. 화면 팔레트(`@/lib/theme/ThemeContext`)와
   //   다른 물건이라 이름을 갈라 부른다. 아래 ThemedStack 주석 참조.
@@ -41,6 +50,14 @@ import { pixelStackTransition } from "@/lib/motion/pixel-physical";
 import { fontAssets } from "@/theme/typography";
 import { ThemeProvider, useThemePalette } from "@/lib/theme/ThemeContext";
 import { hydrateFirstStarChatNudge } from "@/lib/onboarding/state";
+import {
+  accountEpochFromSnapshot,
+  accountTransitionPendingFromSnapshot,
+  accountTransitionSnapshot,
+  clearAccountTransition,
+  shouldReleaseAccountTransition,
+  subscribeAccountTransition,
+} from "@/lib/auth/account-epoch";
 
 // Expo Router uses a route's named `ErrorBoundary` export as that segment's
 // render-error fallback. Exporting it from the root layout makes it the app-wide
@@ -49,28 +66,8 @@ import { hydrateFirstStarChatNudge } from "@/lib/onboarding/state";
 // RootErrorBoundary.tsx (handoff queue B, post-2026-06-26 crash hardening).
 export { ErrorBoundary } from "@/components/ui/RootErrorBoundary";
 
-// Native-only crash reporting. Web keeps its own @sentry/browser path in
-// src/lib/analytics; jest/node and web never load the React Native SDK, guarded by
-// the RN-runtime check (mirroring nativeIntroStorage below). Sentry.init installs the
-// native crash handlers on its own, so this captures native + JS crashes once the app
-// is rebuilt with the SDK in the binary. Source-map symbolication (the Sentry metro
-// plugin + SENTRY_AUTH_TOKEN upload) is a deliberate follow-up; raw crashes report now.
-function initNativeCrashReporting(): void {
-  const nav = globalThis.navigator as { product?: string } | undefined;
-  if (nav?.product !== "ReactNative") return;
-  const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
-  if (!dsn) return;
-  try {
-    const Sentry = require("@sentry/react-native") as typeof import("@sentry/react-native");
-    Sentry.init({ dsn, sendDefaultPii: false, tracesSampleRate: 0.1 });
-  } catch {
-    // RN SDK not in the binary yet (pre-rebuild) — no-op.
-  }
-}
-
 initI18n();
 void initAnalytics();
-initNativeCrashReporting();
 void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
@@ -103,6 +100,7 @@ export default function RootLayout() {
         <ThemeProvider>
           <AuthProvider>
             <ThemedStatusBar />
+            <PendingAccountTransitionResolver />
             <AnalyticsConsentSync />
             <AddressTermSync />
             <AuditWriteOutboxSync />
@@ -200,6 +198,9 @@ function ThemedStack({ children }: { children: React.ReactNode }) {
   return (
     <NavThemeProvider value={navTheme}>
       <Stack
+        screenLayout={({ children: screen, route }) => (
+          <AccountScope routeName={route.name}>{screen}</AccountScope>
+        )}
         screenOptions={{
           headerShown: false,
           ...transition,
@@ -210,6 +211,104 @@ function ThemedStack({ children }: { children: React.ReactNode }) {
       </Stack>
     </NavThemeProvider>
   );
+}
+
+/**
+ * Per-scene owner boundary. Auth screens keep their own hand-off state (sign-up
+ * and password recovery), while product scenes remount on every account epoch.
+ * During an unproven cross-owner transition, product children do not mount at
+ * all, so retained A routes cannot run effects under B.
+ */
+function AccountScope({
+  children,
+  routeName,
+}: {
+  children: React.ReactNode;
+  routeName: string;
+}) {
+  const transitionSnapshot = useSyncExternalStore(
+    subscribeAccountTransition,
+    accountTransitionSnapshot,
+    accountTransitionSnapshot,
+  );
+  const pending = accountTransitionPendingFromSnapshot(transitionSnapshot);
+  const epoch = accountEpochFromSnapshot(transitionSnapshot);
+  if (routeName === "(auth)") return <>{children}</>;
+  if (pending) return null;
+  return <Fragment key={epoch}>{children}</Fragment>;
+}
+
+const ACCOUNT_RESET_RETRY_RENDER_PASSES = 2;
+const ACCOUNT_RESET_MAX_ATTEMPTS = 3;
+
+/**
+ * Reset retained navigation for a new owner, but release the opaque hold only
+ * after both the route segments and root stack prove that `/` is the sole
+ * scene. Expo Router imperative actions are queued, so clearing in the same
+ * effect that dispatches them would expose the old scene for one commit.
+ */
+function PendingAccountTransitionResolver(): null {
+  const transitionSnapshot = useSyncExternalStore(
+    subscribeAccountTransition,
+    accountTransitionSnapshot,
+    accountTransitionSnapshot,
+  );
+  const pending = accountTransitionPendingFromSnapshot(transitionSnapshot);
+  const epoch = accountEpochFromSnapshot(transitionSnapshot);
+  const segments = useSegments();
+  const rootState = useRootNavigationState();
+  const [resetPass, setResetPass] = useState(0);
+  const resetDispatchRef = useRef<{
+    attempts: number;
+    epoch: number;
+    lastDispatchPass: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!pending) {
+      resetDispatchRef.current = null;
+      return;
+    }
+    // Keep password recovery/sign-up uninterrupted. The pending proof is
+    // resolved as soon as the user exits the auth group.
+    if (segments[0] === "(auth)") return;
+    if (shouldReleaseAccountTransition(segments, rootState)) {
+      clearAccountTransition(epoch);
+      resetDispatchRef.current = null;
+      return;
+    }
+    // A populated root state proves the navigation container is ready; this
+    // avoids Expo Router's documented silent drop when its ref is still null.
+    if (!rootState?.key) return;
+
+    let dispatch = resetDispatchRef.current;
+    if (dispatch?.epoch !== epoch) {
+      dispatch = { attempts: 0, epoch, lastDispatchPass: resetPass };
+    }
+    const shouldDispatch =
+      dispatch.attempts === 0 ||
+      (dispatch.attempts < ACCOUNT_RESET_MAX_ATTEMPTS &&
+        resetPass - dispatch.lastDispatchPass >= ACCOUNT_RESET_RETRY_RENDER_PASSES);
+    if (shouldDispatch) {
+      router.dismissAll();
+      router.replace("/");
+      dispatch = {
+        attempts: dispatch.attempts + 1,
+        epoch,
+        lastDispatchPass: resetPass,
+      };
+    }
+    resetDispatchRef.current = dispatch;
+
+    // Expo Router can silently drop a queued action if its ref disappears
+    // before the queue drains. Drive two proof renders and retry the idempotent
+    // reset, but cap attempts; if proof never arrives the hold stays fail-closed.
+    if (dispatch.attempts < ACCOUNT_RESET_MAX_ATTEMPTS) {
+      setResetPass((pass) => pass + 1);
+    }
+  }, [epoch, pending, resetPass, rootState, segments]);
+
+  return null;
 }
 
 /** Locale-aware premium bottom tab bar (shows only on primary routes). */

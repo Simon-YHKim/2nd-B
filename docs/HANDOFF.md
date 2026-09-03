@@ -3,7 +3,155 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-08-30 / 다른 PC에서도 같은 에셋·계보·검증으로 재개 가능
+## Latest — 2026-09-02 / people 핫픽스 #1576 머지 · legal-screen-shell 감사 블로커 3건은 #1577·#1578 로 닫힘
+
+> 발행: Claude Code (orca Design 워크스페이스). 사용자 직접 지시 "people 핫픽스 4파일
+> 그대로 적용" 집행 + orca 읽기 전용 감사(task_329c06e65a7c) 사후 대조.
+
+- **#1576 머지 — main `b5b0024e`.** `/people` 이 오류·지연에서 조용히 죽던 3건
+  (감사 task_ab1aa131e459):
+  | 증상 | 고침 | 위치 |
+  |---|---|---|
+  | 네트워크 오류가 "기록된 사람 없음"과 동일하게 보임 | catch 에서 `setPeople([])` 제거, 마지막 성공 지도 유지 + 네트워크 안내 + 재시도 버튼 | `src/app/people.tsx` |
+  | 소켓 멈춤 → 영원한 스피너 | `listPeople` 을 `withTimeout(…, 20_000, "people list")` 로 감쌈(`records/create.ts` 와 같은 예산) | `src/lib/relation/people.ts` |
+  | 늦게 온 응답이 지도를 옛 행으로 되돌림 | `createLatestWins` 가드 + effect cleanup 이 이전 사용자 요청 무효화 | `src/app/people.tsx` |
+
+  테스트: 멈춘 쿼리 타임아웃(`people.test.ts`) + 소스 스캔 계약(`people-error-state.test.ts`,
+  `ratifications-empty-state.test.ts` 와 같은 형태). 로컬 verify 568 suites / 6206 tests,
+  CI 5/5. ⚠ 구현은 다른 세션이 `fix/people-resilient-loading-260902` 에 미커밋으로
+  올려 둔 것을 이 세션이 verify·커밋·PR 했다. draft #1518(PIXEL-CLAY 이식)이 같은 가드를
+  다시 구현하므로 그쪽이 머지되면 깨끗하게 대체된다.
+- **legal-screen-shell 읽기 전용 감사 → 결론은 머지본과 일치.** 감사 시점 워크트리
+  (`.worktrees/codex/legal-screen-shell-260902`, 미커밋 스냅샷)에서 블로커 3건을 확정했다:
+  ① 두 legal 화면이 전역 참조계수형 own-back 과 BackHandler 를 mount-scoped 로 등록하는데
+  무이력 폴백이 `router.push("/")` 라 blur 뒤에도 살아남아 카운트가 세션 내내 ≥1
+  (BackArrow 칩 실종) + 홈에서 셸이 리스너를 안 걸어(`DeepSpaceScreen.tsx:109-118`)
+  Android 뒤로가기가 홈→약관으로 되돌아감 ② 신규 테스트가 그 버그 패턴을 문자열로 고정
+  ③ (비블로커) `MdTopAppBar.tsx` 동류 패턴. **판정: 하나의 `useFocusEffect(useCallback)`
+  로 두 등록 통합 + `router.replace("/")` + 테스트 재작성 — 셋 다 필요.**
+  사후 대조: **#1577(`b39c8dcf`)** 이 정확히 그 형태로 머지됐고(cleanup 에서 `sub.remove()`
+  + `unregister()`, 테스트는 `not useEffect(() => registerOwnBack` · `not router.push("/")`
+  음성 단언 포함), **#1578(`afa7eaa2`)** 이 `MdTopAppBar` 까지 focus 스코프로 옮겼다.
+  top-inset 은 ScrollView 외곽 → `KeyboardAvoidingView` 로 한 단 올라갔는데 children 이
+  ScrollView 직접 자식이라 `onLayout.y`/`scrollTo` 좌표계는 그대로 일관(자동 스크롤 정확).
+  **남은 것 없음.** worker_done 은 capability 회수로 거부됐다(원인은 하트비트 공백 또는
+  태스크 종결 — 미확인). 보고서는 세션 scratchpad 에만 있고 결론은 이 항목이 정본.
+- **아래 항목의 orca 후속 3건 중 2건은 #1580(`ed499ead`)이 닫았다** — `task_bf8712887a5c`
+  (`capture.tsx` 에 `TAB_BAR_HEIGHT` 0건 실측) · `task_f10903cb5d3e`(`bottomClearanceOwner`
+  로 parent 가 dock/safe-area 를 소유하면 child 예약 0). `task_d8dcced54b83`(tabs.test.ts
+  정확 문자열 매칭)은 같은 PR 이 파일을 고쳤으나 관용 매칭으로 바뀌었는지 **미확인**.
+- **다음 1개:** #1580 이 스스로 남긴 Android ≤API 29 수동 QA(최하단 입력 포커스 ·
+  키보드 열림/닫힘 · dock 중복 여백 부재). 막힌 것 없음.
+
+## 2026-09-02 / 담기 P2 2건 머지(#1573) · 남은 관찰 3건은 orca 후속 태스크로
+
+> 발행: Claude Code (orca Design 워크스페이스). #1551 사후 적대적 검증(계약 8종)에서
+> 확정된 3건의 마감 기록이다.
+
+- **#1573 머지 — main `46585730`.** P2 2건:
+  1. **별 충돌로 억제된 `?tag=` 가 URL 에서 안 걷혔다** (`src/app/capture.tsx`) — 다른
+     별의 일기 초안이 있을 때 담기 진입이 의도적으로 아무것도 적용하지 않는데(그 보호는
+     올바름), 적용된 게 없으니 durable ACK 가 영영 안 떠 `?tag=` 가 남고, 재포커스마다
+     같은 충돌 모달이 재생됐다. 억제 판정 자체를 소비 완료로 쳐 ACK 한다.
+  2. **deep-space 가 그리지도 않는 탭바 자리를 비워 뒀다** (`src/components/premium/background.tsx`)
+     — `PremiumTabBar` 는 deep-space 에서 무조건 null 인데 `PremiumAppShell` 이
+     `TAB_BAR_HEIGHT + spacing.lg + insets.bottom` 을 계속 예약해 공유로 열린 deep-space
+     `/capture` 하단에 사공간이 났다. `isTabPath(pathname) && !isDeepSpaceUI()` 로 회복,
+     두 소비자가 같은 조건을 보는지를 `src/lib/nav/__tests__/tabs.test.ts` 계약 테스트로 고정.
+- **P1(저장 중 blur → 초안 부활 → 중복 저장)은 #1572 가 이미 해결했다** — immutable
+  snapshot + committed tombstone + per-user FIFO **compare-and-swap**. 같은 문제를 두
+  세션이 동시에 잡았고, 전체 스냅샷 발행이라는 근본 원인을 직접 없애는 CAS 쪽이
+  우월해서 내 쪽 PR #1571(포커스 게이트 분리 + 마지막 발행자 장부)은 닫았다.
+- **머지 게이트 실측**: CI 5/5 · Codex head `6f8ee21` finding 0 · main drift 0 ·
+  독립 감사(감사 4 + 반증 4) blocking 0 · 변이 검증(수정을 되돌리면 테스트 1건 실패).
+  감사의 핵심 근거 — deep-space 에서 `PremiumAppShell` 을 탭 경로로 렌더하는 화면은
+  `/capture` 하나뿐이고, 같은 본문이 `/capture-full` 에서 이미 축소된 clearance 로
+  출시돼 있었다(= 새 동작이 아니라 검증된 동작의 정렬).
+- **비차단 관찰 3건 → orca 후속 태스크 등록**(run_beb2548887d4):
+  | 태스크 | 무엇 |
+  |---|---|
+  | `task_bf8712887a5c` | deep-space `/capture` 의 ScrollView 가 여전히 `TAB_BAR_HEIGHT` 를 더해 약 118dp 사각 스크롤 여백 잔존 (`capture.tsx:362-365`, 부분 수정 상태) |
+  | `task_f10903cb5d3e` | 같은 표면에서 `insets.bottom` 이중 적용 (DeepSpaceScreen SafeAreaView + PremiumAppShell, 기존 사안) — deps: 위 태스크 |
+  | `task_d8dcced54b83` | `tabs.test.ts` 계약 테스트가 소스 문자열 정확 일치라 Prettier 재포맷에 깨질 수 있음 — 관용 매칭으로 바꾸되 변이 검증 유지 |
+
+  셋 다 여백이 **남는** 쪽 실패(콘텐츠를 가리지 않음)라 급하지 않다.
+
+## 2026-09-02 / web Clarity hard-disable 결정
+
+- **출시 결정:** web Clarity는 원격 `clarity_enabled`, 사용자 동의, project id가 모두
+  있어도 로드하지 않는다. Android 네이티브 Clarity의 지원된 pause/resume 경로는 유지한다.
+- **이유:** Microsoft Clarity의 SPA history hook은 `pushState`/`replaceState` 뒤 자체
+  `stop()`과 250ms 지연 `start()`를 예약한다. React page-view effect의 뒤늦은 stop은 이미
+  inactive인 런타임에서 no-op인데 앱만 성공으로 오판할 수 있고, vendor timer가 개인
+  화면에서 다시 수집을 시작한다. #1569의 mock 테스트는 이 vendor history/timer를
+  실행하지 않아 해당 경합을 증명하지 못했다.
+- **재활성화 조건:** 주입 전 history 차단은 별도 실험으로만 다룬다. real vendor script를
+  사용하는 Chrome/Firefox/Safari에서 허용→개인 화면, 1초 이상 체류·상호작용,
+  private→private, back/forward, flag/consent 전환을 검증하고 경계 이후 Clarity collect가
+  0건인 HAR와 dashboard URL 부재가 있어야 재검토한다.
+- **PR 상태:** #1569는 DO NOT MERGE/HOLD. 운영 DB의 실제 flag 값은 별도 콘솔 증거 없이는
+  OFF라고 단정하지 않으며, 코드 hard-disable을 정본 안전장치로 삼는다.
+
+## 2026-09-01 / 화면 감사 결정 집행: 배선 4건 · 대장 정정 3건 (Q1 봉인은 전제 반증으로 보류)
+
+> 발행: Claude Code (orca Design 워크스페이스). 감사 보고서 아티팩트:
+> <https://claude.ai/code/artifact/988013c7-7180-4f24-8500-779ccb125912>
+
+### 무엇을 했나 (Simon 결정 회신 2026-09-01 집행)
+
+- **Q2 배선 4건 (전부 부모 맥락 CTA, 전역 메뉴 없음):**
+  1. `/career` 빈 상태 카드에 '성과 담기' CTA — 같은 화면 안 중복이라 "입력 경로는
+     하나"(career.tsx 헤더) 결정과 충돌하지 않는다. 기존 `career.addAchievement` 키 재사용.
+  2. `/core-brain` "다음 한 걸음"에 `/digest` **조건부** 버튼 신설 — 대기 추론 링크
+     1건 이상일 때만 렌더(알림함 카드와 같은 게이트). **기존 /review 버튼은 #807 의
+     의도적 재배정이라 목적지 불변.** i18n `core-brain.openDigest` 5로케일.
+  3. `/community` 만들기 카드에 '받은 초대 링크' 붙여넣기 수신구(접힌 보조 행, 성인
+     게이트 안쪽). 파서는 `src/lib/community/invite-paste.ts`(+테스트) — 토큰은 여전히
+     공유 링크로만 유통되고 검증은 기존 `/community/join/[token]` 이 한다.
+     `community.joinLink*` 5키 × 5로케일.
+  4. `/peer/[token]` done 카드에 '이 앱 알아보기' 정적 링크 — form(동의·제출) 단계
+     금지 전제 유지. `peer.aboutApp` 5로케일.
+- **판단 위임분 — 화면 대장(screen-index.ts) 정정 3건:** `/discover` 의 stub 오기 제거
+  (legacy 에서만 리다이렉트, 프로덕션은 실화면) · `/imagine` 에 진입 메모(/ops 격자 ·
+  /growth) · `/deepspace-home` 에 "08-24 이전 별 모델 스냅샷, 현행 홈 검증 대용 금지" 메모.
+
+### ⚠ Q1(/imagine C안 DevOnlyRoute 봉인)은 집행하지 않았다 — 전제가 반증됐다
+
+- `/imagine` 은 고아가 아니다. 프로덕션 진입 2곳 실측: `/ops` 도구 격자
+  (DeepSpaceDesignScreens `opsTools`, "공상하기" 타일)와 `/growth`
+  (WeeklyGrowthScreen 의 GO 버튼 `router.push("/imagine")`).
+- 감사 1차의 "고아, 진입 0" 판정은 오판 — Git Bash 에서 **`/`로 시작하는 grep 패턴을
+  MSYS 경로 변환이 조용히 망가뜨려 0건**이 나온 것(Codex 교차검토가 잡았다.
+  재검은 `MSYS_NO_PATHCONV=1`). 봉인하면 살아 있는 문 2개가 끊긴다.
+- 처분: 연결 상태 유지. 숨기고 싶다면 ops 타일·growth 버튼 제거까지 포함한 별도
+  결정이 필요하다(이번 Q2의 "화면을 잇는다" 방향과 상충).
+
+### 방향 합의 기록 (코드 변경 없음)
+
+- Q3-1: PIXEL-CLAY 이주 완주 후 `/deepspace-flowmap`·`hub`·`preview` 묶음 정리 재심.
+  제거 시 캐논 screens.json **두 벌**(design/proto_rev2 + public/proto) + canon.test 핀
+  + check-pixel-rules.ts·qc-mobile-web.mjs 동일 PR 규율.
+- Q3-2: 레거시 스킨 일몰 시점에 `/trinity` 동반 제거. check:constraints 가 trinity.tsx
+  본문을 문자열 스캔하므로 가드도 같은 PR 에서 정리(핀 8곳: _layout·i18n 5로케일
+  import·BackArrow·characters·DeepSpaceDesignScreens·캐논 screens.json·tokens.ts trinity 색·screen-index).
+- Q3-3(위임 판단): `/graph` 는 **휴면 유지** — 실데이터 지도는 /records 의 Graph 토글이
+  이미 제공하고, 파일 헤더가 mock-as-real 금지를 명시한다.
+
+### 미착수 — 다음 결정 대상
+
+- **재검증 정정:** `core-brain.tsx` 의 `router.push("/persona")` 버튼은 legacy 분기에만
+  있고, 딥스페이스 분기는 그보다 먼저 return한다. `/persona`의 `/core-brain` redirect는
+  딥스페이스에서만 적용되므로 같은 UI 모드의 자기루프는 없다. 두 모드의 코드를 합쳐
+  읽은 감사 오류였고 core-brain 코드는 변경하지 않는다.
+- `/me/profile`의 CTA는 중간 `/profile` 허브를 거치지 않고 실제 입력 화면인
+  `/profile-details`로 직행하도록 후속 수정했다. 기존 홈 별 계약 테스트가 이를 고정한다.
+- #1544의 외부 계약 실행 차단·Design Lab은 #1538 paywall 스택과 분리해 main 기반
+  독립 PR로 재구성한다. #1547의 `/discover`·`/imagine`·`/deepspace-home` 정정을 보존하고
+  entry source와 UI-mode별 render behavior를 서로 다른 축으로 기록한다.
+- 검사 목록 이원화: /core-brain 은 registry(OFFERABLE) 렌더, /profile analyze 메뉴는
+  하드코딩 7행 — registry 렌더로 일원화 제안.
+
+## 2026-08-30 / 다른 PC에서도 같은 에셋·계보·검증으로 재개 가능
 
 > 발행: Codex portable handoff 보강 세션. 작성 시각 `2026-08-30 22:11:36 KST`.
 > 로컬 절대경로가 아니라 Git commit과 검증된 바이트를 동일성 기준으로 삼는다.
@@ -161,7 +309,7 @@ manifest의 실패 절차에 따라 현재 commit·diff·file history부터 확�
 
 ---
 
-## Latest — 2026-08-30 / P2·P3·Work0·릴리스 계약 정리, HUMAN PASS와 전체 P1·최종 배포 대기
+## 2026-08-30 / P2·P3·Work0·릴리스 계약 정리, HUMAN PASS와 전체 P1·최종 배포 대기
 
 > 발행: Codex 2nd-B 장기 인계 세션. 작성 시각 `2026-08-30 17:18:50 KST`.
 > 이 블록은 현재 저장소·GitHub·EAS 실측을 요약한다. 완료되지 않은 항목을 완료로 해석하지 말 것.
@@ -359,7 +507,7 @@ git fetch origin main && git pull --ff-only origin main && cat docs/HANDOFF.md
 
 ---
 
-## Latest — 2026-08-29 / 0.7.0 나갔다 — 웹에만. 폰을 막는 문은 **둘**이고 하나는 새로 생겼다
+## 2026-08-29 / 0.7.0 나갔다 — 웹에만. 폰을 막는 문은 **둘**이고 하나는 새로 생겼다
 
 > 발행: CLI 코딩 세션. 브랜치 `Simon-YHKim/p1-deviations`(머지 완료) → `release/0.7.0`(머지 완료).
 > 보고서: [자가 두 번 틀렸다](https://claude.ai/code/artifact/feffd35e-c652-44cc-b0f8-a9a7fb50dafa) ·

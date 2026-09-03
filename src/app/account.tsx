@@ -2,11 +2,10 @@
 //   - DOB correction (re-validated server-side by the 0030 trigger).
 //   - Privacy & consent controls (link to /privacy, where sharing / profiling /
 //     processing are withdrawn per-key; teens stay locked to high-privacy).
-//   - Account deletion (terminal): a best-effort client content wipe, then the
-//     delete-account Edge Function (service role) erases public.users -> cascade
-//     across every owned table + the auth.users row, then sign out. If the
-//     function isn't deployed yet the content wipe + sign out still run and the
-//     residual erasure is logged for the operator (C11 SLA backstop).
+//   - Account deletion (terminal): the delete-account Edge Function removes the
+//     auth account first, then the database cascade + Storage cleanup erase the
+//     owned data. Full deletion never runs the non-atomic client content-wipe
+//     helper first; that helper is reserved for "keep my account" resets.
 //
 // Age-out (17 -> 18) needs no dedicated flow: useAuth().isMinor is computed live
 // from birth_date, so a former minor's locks lift automatically on /privacy.
@@ -14,7 +13,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View, KeyboardAvoidingView, Platform, Share } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect, router, useNavigation } from "expo-router";
 
 import { PremiumAppShell, PremiumLoadingState, PremiumModal, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
@@ -26,7 +25,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { signOut } from "@/lib/supabase/auth";
 import { fetchBirthDate, updateBirthDate } from "@/lib/supabase/account";
 import { canSubmitDobCorrection } from "@/lib/account/dob";
-import { deleteAllUserData, requestAccountDeletion } from "@/lib/records/delete-bulk";
+import { requestAccountDeletion } from "@/lib/records/delete-bulk";
 import { requestAccountExport, buildExportFilename } from "@/lib/account/export";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
@@ -38,6 +37,7 @@ type AccountFeedbackModal = "dobRetry" | "deleteConfirm" | "deleteFailed" | null
 function AccountLegacy() {
   const { t, i18n } = useTranslation("consent");
   const { userId, loading, refresh } = useAuth();
+  const navigation = useNavigation();
   const locale: "en" | "ko" = i18n.language === "ko" ? "ko" : "en";
   // KO eyebrows drop tracking to 0 (Hangul reads worse when tracked); EN keeps
   // the light caption tracking.
@@ -53,6 +53,15 @@ function AccountLegacy() {
   const [exportNote, setExportNote] = useState<"done" | "failed" | null>(null);
   const [feedbackModal, setFeedbackModal] = useState<AccountFeedbackModal>(null);
   const mounted = useRef(true);
+  const activeUserRef = useRef(userId);
+  activeUserRef.current = userId;
+  // React state updates on the next render. This synchronous fence prevents a
+  // rapid double-tap on the terminal modal action from invoking erasure twice.
+  const deleteInFlightRef = useRef(false);
+  const allowDeletionNavigationRef = useRef(false);
+  // Bind the final modal to the user who opened it. A stale confirmation from
+  // A must never authorize deletion after the active session becomes B.
+  const deleteConfirmUserRef = useRef<string | null>(null);
 
   useEffect(() => {
     mounted.current = true;
@@ -60,6 +69,15 @@ function AccountLegacy() {
       mounted.current = false;
     };
   }, []);
+
+  // Register for the component lifetime so the synchronous in-flight ref also
+  // catches a same-frame back/dock action after the final confirmation.
+  useEffect(() => {
+    return navigation.addListener("beforeRemove", (event) => {
+      if (!deleteInFlightRef.current || allowDeletionNavigationRef.current) return;
+      event.preventDefault();
+    });
+  }, [navigation]);
 
   useEffect(() => {
     if (!userId) return;
@@ -74,6 +92,12 @@ function AccountLegacy() {
     return () => {
       cancelled = true;
     };
+  }, [userId]);
+
+  useEffect(() => {
+    deleteConfirmUserRef.current = null;
+    setDeleteConfirm("");
+    setFeedbackModal((current) => current === "deleteConfirm" ? null : current);
   }, [userId]);
 
   const onSaveDob = useCallback(async () => {
@@ -99,40 +123,53 @@ function AccountLegacy() {
   }, [userId, origDob, birthDate, refresh]);
 
   const runDeleteAccount = useCallback(() => {
-    if (!userId) return;
+    if (!userId || deleteInFlightRef.current || deleteConfirmUserRef.current !== userId) return;
+    const targetUserId = userId;
+    deleteConfirmUserRef.current = null;
+    deleteInFlightRef.current = true;
     void (async () => {
       setDeleting(true);
-      // Once deleteAllUserData resolves, the client content (wiki pages, sources,
-      // records, chat usage, ...) is irreversibly gone. Track that so a later
-      // failure does not falsely claim the data is intact, and does not offer a
-      // Retry that would re-run the (now destructive no-op) wipe.
       try {
-        // The destructive cascade is irreversible AND not atomic: deleteAllUserData
-        // deletes wiki_pages -> sources -> records -> chat_usage sequentially and
-        // can throw partway (leaving some content already gone), and even a fully
-        // successful client wipe is followed by the terminal service-role cascade
-        // (requestAccountDeletion, which throws unless the edge function confirms
-        // { deleted: true }). From the moment we invoke it we can no longer promise
-        // the data is intact, so any failure below must tell the truth and must
-        // NOT offer a re-wipe Retry.
-        await deleteAllUserData(userId);
+        // One terminal operation owns the destructive boundary. The Edge
+        // Function deletes auth.users first and lets the FK cascade erase owned
+        // rows atomically; a client-side pre-wipe would reintroduce partial loss.
         await requestAccountDeletion();
-        await signOut();
-        router.replace("/sign-in");
       } catch (e) {
-        // Do NOT sign out with a false "deleted" confirmation while the account
-        // row / RLS-protected data may still remain. Erasure is terminal only on
-        // success. Some content may already be gone, so never claim the data is
-        // intact, and offer no Retry (it could re-run an already-destructive wipe).
+        // Do NOT sign out with a false confirmation while terminal erasure is
+        // unconfirmed. The support path handles ambiguous network outcomes.
         if (typeof console !== "undefined") console.warn("[account] deletion failed", (e as Error).message);
-        setFeedbackModal("deleteFailed");
-        if (mounted.current) setDeleting(false);
+        deleteInFlightRef.current = false;
+        if (mounted.current && activeUserRef.current === targetUserId) {
+          setFeedbackModal("deleteFailed");
+          setDeleting(false);
+        }
+        return;
+      }
+
+      // The account is already terminally erased. Never turn a local sign-out
+      // failure into a retryable deletion failure, and never sign out a newly
+      // active B session after an A deletion resolves late.
+      if (!mounted.current) return;
+      if (activeUserRef.current !== targetUserId) {
+        deleteInFlightRef.current = false;
+        setDeleting(false);
+        return;
+      }
+      allowDeletionNavigationRef.current = true;
+      try {
+        await signOut();
+      } catch (e) {
+        if (typeof console !== "undefined") console.warn("[account] local sign-out after deletion failed", (e as Error).message);
+      } finally {
+        router.dismissAll();
+        router.replace("/sign-in");
       }
     })();
   }, [userId]);
 
   const onDeleteAccount = useCallback(() => {
     if (!userId) return;
+    deleteConfirmUserRef.current = userId;
     setFeedbackModal("deleteConfirm");
   }, [userId]);
 

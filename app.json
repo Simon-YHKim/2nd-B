@@ -41,6 +41,9 @@
         "android.permission.health.READ_SLEEP",
         "android.permission.health.READ_HEART_RATE"
       ],
+      "blockedPermissions": [
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#070A18",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -134,7 +137,8 @@
       [
         "expo-audio",
         {
-          "microphonePermission": "The app needs microphone access to record a voice memo and turn it into text you can save."
+          "microphonePermission": "The app needs microphone access to record a voice memo and turn it into text you can save.",
+          "enableBackgroundPlayback": false
         }
       ],
       "expo-sharing",

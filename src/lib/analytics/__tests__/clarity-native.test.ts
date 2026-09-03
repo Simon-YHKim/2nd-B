@@ -270,40 +270,35 @@ describe("what actually reaches the SDK", () => {
   });
 });
 
-// ── 플래그가 도착한 뒤에도 Clarity 가 깨어나는가 (2026-08-26) ─────────────────
-//
-// 네이티브에는 웹의 주입 단계가 없어서 Clarity 의 시작/정지는 두 곳에서만
-// 결정된다: 부팅(initAnalytics)과 화면 이동(page_view). 그런데 런타임 플래그
-// (clarity_enabled)는 **부팅 시점에 아직 없다** — 네이티브에서 그 값을 가져오는
-// 유일한 경로가 Firebase 쪽 동의 동기화 안쪽이기 때문이다. 클라이언트 기본값은
-// false 이므로, 플래그가 도착한 뒤 아무도 Clarity 를 다시 물어보지 않으면
-// **동의를 켠 그 화면에 머무는 사용자에게는 영원히 시작되지 않는다.**
-//
-// 그래서 동의 동기화 체인 끝에서 Clarity 를 한 번 더 동기화한다. 아래 두 검사는
-// 그 고리가 있는지를 소스로 확인한다 — 이 파일의 나머지처럼 SDK 를 세울 수는
-// 없다(그 경로는 analytics/index.ts 의 모듈 상태를 탄다).
-describe("동의 동기화가 끝나면 Clarity 를 다시 물어본다", () => {
+// ── 네이티브 제품 분석 OFF-only 계약 (2026-09-02) ──────────────────────────
+// 새 JS는 고지/처리 계약이 완성되기 전까지 Firebase와 Clarity에 OFF만 보낸다.
+// Firebase OFF 시도는 Clarity bridge 상태와 무관하게 먼저 발행되어야 한다.
+describe("네이티브 제품 분석은 OFF 결정만 발행한다", () => {
   const src = require("node:fs").readFileSync(
     require("node:path").join(__dirname, "..", "index.ts"),
     "utf8",
   ) as string;
 
-  test("syncNativeAnalyticsCollection 의 체인이 applier 뒤에 Clarity 를 동기화한다", () => {
-    const start = src.indexOf("function syncNativeAnalyticsCollection");
+  test("동의 동기화는 Firebase OFF를 먼저 발행하고 Clarity OFF를 뒤에 격리한다", () => {
+    const start = src.indexOf("function syncNativeAnalyticsOff");
     expect(start).toBeGreaterThan(-1);
     const body = src.slice(start, src.indexOf("\n}", start));
-    // applier 호출과 Clarity 재동기화가 같은 함수 안에 있고, 순서가 applier 먼저다.
-    const applierAt = body.indexOf("applier(");
-    const clarityAt = body.indexOf("syncNativeClarityForRoute");
-    expect(applierAt).toBeGreaterThan(-1);
-    expect(clarityAt).toBeGreaterThan(applierAt);
+    const firebaseOffAt = body.indexOf("startNativeAnalyticsOffAttempt()");
+    const clarityOffAt = body.indexOf("syncNativeClarityOff()");
+    expect(firebaseOffAt).toBeGreaterThan(-1);
+    expect(clarityOffAt).toBeGreaterThan(firebaseOffAt);
+    expect(body).not.toContain("await");
   });
 
-  test("Clarity 재동기화가 await 뒤에 있다 (플래그가 도착한 다음이어야 의미가 있다)", () => {
-    const start = src.indexOf("function syncNativeAnalyticsCollection");
-    const body = src.slice(start, src.indexOf("\n}", start));
-    const awaitAt = body.indexOf("await applier(");
-    expect(awaitAt).toBeGreaterThan(-1);
-    expect(body.indexOf("syncNativeClarityForRoute")).toBeGreaterThan(awaitAt);
+  test("화면 이동도 Clarity OFF만 재확인하고 Firebase sync를 만들지 않는다", () => {
+    const helperStart = src.indexOf("function syncNativeClarityOff");
+    const helperBody = src.slice(helperStart, src.indexOf("\n}", helperStart));
+    expect(helperBody).toContain("enabled: false");
+    expect(helperBody).not.toContain("enabled: true");
+
+    const captureStart = src.indexOf("export function captureEvent");
+    const routeBody = src.slice(captureStart, src.indexOf("// Re-check", captureStart));
+    expect(routeBody).toContain("syncNativeClarityOff()");
+    expect(routeBody).not.toContain("syncNativeAnalyticsOff");
   });
 });

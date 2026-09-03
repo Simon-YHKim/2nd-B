@@ -49,11 +49,14 @@ describe("proto_rev2 canon integrity", () => {
     expect(canonCanvas).toEqual({ w: 390, h: 820 });
   });
 
-  it("registers 112 screens with unique ids", () => {
-    // 58 prototype screens + 53 app-only routes registered 2026-08-19 (V3),
-    // + `me/[star]` (별 요약, 2026-08-24 -- 홈에서 별을 누르면 여는 자리).
-    expect(canonScreens).toHaveLength(112);
-    expect(new Set(canonScreens.map((s) => s.id)).size).toBe(112);
+  it("registers every screen id once and keeps the prototype inventory stable", () => {
+    // App-only routes can grow without changing the prototype contract. The
+    // exact app route set is checked below against src/app, while prototype-only
+    // gaps are pinned by name. A duplicated total here added no extra signal.
+    const prototypeScreens = canonScreens.filter((screen) => !screen.appOnly);
+    expect(prototypeScreens).toHaveLength(57);
+    expect(new Set(prototypeScreens.map((screen) => screen.component)).size).toBe(57);
+    expect(new Set(canonScreens.map((screen) => screen.id)).size).toBe(canonScreens.length);
   });
 
   it("uses only known layout kinds, and only where a layout can be known", () => {
@@ -93,9 +96,10 @@ describe("proto_rev2 canon integrity", () => {
     for (const s of canonScreens) {
       expect(s.appOnly === true && s.route === null).toBe(false);
     }
-    // 53 app routes registered 2026-08-19 + `profile` (which already had an app
-    // screen and no prototype counterpart) + `me/[star]` (2026-08-24).
-    expect(canonAppOnlyScreens()).toHaveLength(55);
+    // The prototype count is pinned above. App-only growth is instead guarded
+    // by full route coverage, real route modules, unique routes, and title
+    // parity with the developer screen registry below.
+    expect(canonAppOnlyScreens()).toHaveLength(canonScreens.length - 57);
   });
 
   it("titles every non-root screen (top app bar contract)", () => {
@@ -194,8 +198,8 @@ describe("proto_rev2 canon integrity", () => {
     // gate added 2026-08-19: the four login-flow screens moved off `windowed`,
     // which had been claiming phone chrome they do not render.
     expect(stats.byLayout.gate).toBe(4);
-    // profile lost its layout 2026-08-19: it is appOnly, so it has no prototype
-    // layout to declare. 2+3+4+48 = 57 declared, 54 appOnly, 111 total.
+    // App-only screens deliberately declare no prototype layout, so adding an
+    // app route must not change these prototype layout counts.
     expect(stats.byLayout.windowed).toBe(48);
   });
 });

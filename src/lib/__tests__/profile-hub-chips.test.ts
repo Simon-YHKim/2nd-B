@@ -8,6 +8,29 @@ function readRepoFile(file: string): string {
 }
 
 describe("profile hub chips", () => {
+  test("legacy profile hub opens Trinity from the analysis section", () => {
+    const source = readRepoFile("src/app/profile.tsx");
+
+    expect(source).toContain(
+      '{ sectionKey: "analyze", key: "trinity", route: "/trinity", accent: mascot.trinity }',
+    );
+    expect(source).toContain('trinity: "hub"');
+
+    const deepSpaceStart = source.indexOf("const deepSpaceSections");
+    const deepSpaceEnd = source.indexOf("const activeDeepSpaceGroup");
+    expect(deepSpaceStart).toBeGreaterThan(-1);
+    expect(deepSpaceEnd).toBeGreaterThan(deepSpaceStart);
+    expect(source.slice(deepSpaceStart, deepSpaceEnd)).not.toContain('route: "/trinity"');
+
+    for (const locale of ["en", "ko", "es", "pt", "id"]) {
+      const profile = JSON.parse(readRepoFile(`locales/${locale}/profile.json`)) as {
+        sections?: { analyze?: { items?: { trinity?: { label?: string; hint?: string } } } };
+      };
+      expect(profile.sections?.analyze?.items?.trinity?.label?.trim().length).toBeGreaterThan(0);
+      expect(profile.sections?.analyze?.items?.trinity?.hint?.trim().length).toBeGreaterThan(0);
+    }
+  });
+
   test("quick hub chips expose glyph, label, and hint hierarchy", () => {
     const source = readRepoFile("src/app/profile.tsx");
 

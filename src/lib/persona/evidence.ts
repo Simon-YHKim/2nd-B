@@ -57,7 +57,10 @@ export function evidenceRoute(type: EvidenceType): string {
     // journal -> /capture, imagine -> /secondb Divergent mode.
     case "journal": return "/capture";
     case "interview": return "/interview";
-    case "audit": return "/audit";
+    // This evidence type is the non-interview `audit_response` shown as
+    // "Life audit" below. Bare `/audit` is the Past Me timeline in the
+    // default UI, so keep the screener identity explicit.
+    case "audit": return "/audit?screener=1";
     case "wiki": return "/wiki";
     case "imagine": return "/secondb?mode=divergent";
     case "capture": return "/capture";

@@ -2,7 +2,7 @@
 // platform checks, env ids, runtime flags, and consent, so the default test path should be a
 // no-op without throwing.
 
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 
 import {
@@ -29,14 +29,40 @@ import {
   purchase,
   resolveAnalyticsRuntimeFlags,
   sanitizeAnalyticsRoutePath,
-  scrubSentryEvent,
   __resetAnalytics,
   __setNativeAnalyticsApplierForTests,
   __flushNativeAnalyticsForTests,
-  __setRuntimeAnalyticsFlagsForTests,
 } from "../index";
 
 const ROOT = resolve(__dirname, "../../../..");
+
+function runtimeSourceFiles(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = resolve(directory, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name === "__tests__" || entry.name === "__mocks__") return [];
+      return runtimeSourceFiles(path);
+    }
+    return /\.(?:[cm]?[jt]s|[jt]sx)$/.test(entry.name) &&
+      !/\.test\.(?:[cm]?[jt]s|[jt]sx)$/.test(entry.name)
+      ? [path]
+      : [];
+  });
+}
+
+const RUNTIME_SOURCE_TEXT = runtimeSourceFiles(resolve(ROOT, "src"))
+  .map((path) => readFileSync(path, "utf8"))
+  .join("\n");
+const RUNTIME_CONFIG_TEXT = readdirSync(ROOT, { withFileTypes: true })
+  .filter(
+    (entry) =>
+      entry.isFile() &&
+      /^(?:app(?:\.config)?\.(?:json|[cm]?[jt]s)|babel\.config\.[cm]?js|metro\.config\.[cm]?js)$/.test(
+        entry.name,
+      ),
+  )
+  .map((entry) => readFileSync(resolve(ROOT, entry.name), "utf8"))
+  .join("\n");
 
 describe("analytics — no-op when no keys configured", () => {
   beforeEach(() => {
@@ -66,6 +92,92 @@ describe("analytics — no-op when no keys configured", () => {
     expect(warn).toHaveBeenCalledWith("[exception]", err, { source: "test" });
     warn.mockRestore();
   });
+
+  test("runtime source and native build config contain no Sentry SDK entry point", () => {
+    expect(RUNTIME_SOURCE_TEXT).not.toMatch(/@sentry\//);
+    expect(RUNTIME_SOURCE_TEXT).not.toMatch(/\bSentry\.init\s*\(/);
+    expect(RUNTIME_SOURCE_TEXT).not.toMatch(/initNativeCrashReporting/);
+    expect(RUNTIME_CONFIG_TEXT).not.toMatch(
+      /@sentry\/|sentry-expo|useNativeInit|(?:with|get)Sentry(?:Expo)?Config/i,
+    );
+  });
+
+  test.each([false, true])(
+    "configured crash-reporting credentials remain inert when analytics consent is %s",
+    async (analyticsConsent) => {
+      jest.resetModules();
+      let analytics: typeof import("../index") | undefined;
+      let consoleError: jest.SpyInstance | undefined;
+      const mockSentryBrowserFactory = jest.fn(() => ({
+        init: jest.fn(),
+        captureException: jest.fn(),
+      }));
+      jest.doMock("@sentry/browser", mockSentryBrowserFactory);
+      jest.doMock("react-native", () => ({
+        NativeModules: {},
+        Platform: { OS: "web" },
+        TurboModuleRegistry: { get: () => null },
+      }));
+      jest.doMock("../clarity-native", () => ({ syncNativeClarity: jest.fn() }));
+      jest.doMock("../../env", () => ({
+        getEnv: () => ({
+          EXPO_PUBLIC_SENTRY_DSN: "https://configured.invalid/1",
+        }),
+      }));
+      jest.doMock("../../supabase/client", () => ({
+        getSupabaseClient: () => ({
+          from: () => ({
+            select: () => ({
+              in: () =>
+                Promise.resolve({
+                  data: [
+                    { key: "analytics_enabled", enabled: false },
+                    { key: "clarity_enabled", enabled: false },
+                  ],
+                  error: null,
+                }),
+            }),
+          }),
+        }),
+      }));
+      (globalThis as { window?: unknown }).window = {
+        localStorage: { getItem: jest.fn(), setItem: jest.fn() },
+        location: { origin: "https://example.test" },
+      };
+      try {
+        const loadedAnalytics = require("../index") as typeof import("../index");
+        analytics = loadedAnalytics;
+        await expect(
+          loadedAnalytics.initAnalytics({
+            analyticsConsent,
+            isMinor: false,
+            confirmedAdult: true,
+          }),
+        ).resolves.toBeUndefined();
+        await expect(
+          loadedAnalytics.initAnalytics({
+            analyticsConsent: !analyticsConsent,
+            isMinor: false,
+            confirmedAdult: true,
+          }),
+        ).resolves.toBeUndefined();
+        expect(mockSentryBrowserFactory).not.toHaveBeenCalled();
+        consoleError = jest.spyOn(console, "error").mockImplementation(() => {});
+        expect(() => loadedAnalytics.captureException(new Error("local-only"))).not.toThrow();
+        expect(consoleError).toHaveBeenCalledTimes(1);
+      } finally {
+        consoleError?.mockRestore();
+        analytics?.__resetAnalytics();
+        delete (globalThis as { window?: unknown }).window;
+        jest.dontMock("@sentry/browser");
+        jest.dontMock("react-native");
+        jest.dontMock("../clarity-native");
+        jest.dontMock("../../env");
+        jest.dontMock("../../supabase/client");
+        jest.resetModules();
+      }
+    },
+  );
 
   test("initAnalytics() is idempotent", async () => {
     await initAnalytics();
@@ -189,37 +301,6 @@ describe("analytics — no-op when no keys configured", () => {
     ).toEqual({ path: "/record/[id]" });
   });
 
-  test("Sentry events redact live URLs, request material, and navigation breadcrumbs", () => {
-    const scrubbed = scrubSentryEvent(
-      {
-        request: {
-          url: "https://example.test/record/private?email=private@example.com",
-          headers: { referer: "private" },
-          cookies: "private",
-          data: "private",
-          query_string: "private",
-        },
-        breadcrumbs: [
-          {
-            category: "navigation",
-            message: "https://example.test/peer/private-token",
-            data: { from: "/record/private", to: "/peer/private" },
-          },
-        ],
-      },
-      "/record/[id]",
-      "https://simon-yhkim.github.io",
-    );
-    expect(scrubbed.request).toEqual({
-      url: "https://simon-yhkim.github.io/2nd-B/record/[id]",
-    });
-    expect(scrubbed.transaction).toBe("/record/[id]");
-    expect(scrubbed.breadcrumbs?.[0]).toMatchObject({
-      message: "[redacted]",
-      data: { from: "[redacted]", to: "[redacted]" },
-    });
-  });
-
   test("conversion-funnel creators emit their canonical event names", () => {
     expect(starLit({ star_id: "now", ladder_level: 3, source: "journal" }).name).toBe("star_lit");
     expect(activationMilestone({ stars_lit_count: 7, soul_core_brightness: 0.8 }).name).toBe(
@@ -273,10 +354,23 @@ describe("analytics — no-op when no keys configured", () => {
   });
 });
 
-// Native Firebase Analytics gate (Android builds; jest's react-native mock
-// reports Platform.OS "ios" = non-web, so the native sync path runs here).
-// Collection may turn ON only for a server-confirmed adult with the
-// external_analytics pref granted; every other state applies OFF.
+function nativeDeferred<T>(): {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+} {
+  let resolvePromise!: (value: T) => void;
+  const promise = new Promise<T>((resolve) => {
+    resolvePromise = resolve;
+  });
+  return { promise, resolve: resolvePromise };
+}
+
+async function flushNativeMicrotasks(turns = 20): Promise<void> {
+  for (let turn = 0; turn < turns; turn += 1) await Promise.resolve();
+}
+
+// Every non-web sync emits only OFF decisions to both native product-analytics
+// SDKs. Web GA4 keeps its independent adult/consent/runtime gates.
 describe("native Firebase Analytics collection gate", () => {
   const applied: boolean[] = [];
 
@@ -286,26 +380,19 @@ describe("native Firebase Analytics collection gate", () => {
     __setNativeAnalyticsApplierForTests(async (enabled) => {
       applied.push(enabled);
     });
-    // Default the #1054 runtime kill-switch to ON so the consent/age matrix
-    // below tests exactly one variable; the kill-switch cases pin it OFF.
-    __setRuntimeAnalyticsFlagsForTests({ analyticsEnabled: true, clarityEnabled: false });
   });
 
   afterEach(() => {
     __setNativeAnalyticsApplierForTests(null);
-    __setRuntimeAnalyticsFlagsForTests(null);
   });
 
-  test("old OTA binaries without RNFirebase fail closed before importing the SDK", () => {
+  test("the legacy binary probe fails closed and recognizes a linked module", () => {
     expect(hasNativeFirebaseAnalyticsModule(() => null)).toBe(false);
     expect(
       hasNativeFirebaseAnalyticsModule(() => {
         throw new Error("native module registry unavailable");
       }),
     ).toBe(false);
-  });
-
-  test("rebuilt binaries expose the linked analytics module", () => {
     const lookup = jest.fn((name: string) =>
       name === "RNFBAnalyticsModule" ? {} : null,
     );
@@ -313,112 +400,155 @@ describe("native Firebase Analytics collection gate", () => {
     expect(lookup).toHaveBeenCalledWith("RNFBAnalyticsModule");
   });
 
-  test("boot with no opts asserts OFF (fail-closed default)", async () => {
+  test("boot, adult grant, revoke, and an unresolved gate all reassert OFF", async () => {
     await initAnalytics();
-    await __flushNativeAnalyticsForTests();
-    expect(applied).toEqual([false]);
-  });
-
-  test("server-confirmed adult with granted pref turns collection ON", async () => {
-    setAnalyticsConsent(true, { isMinor: false, confirmedAdult: true });
-    await __flushNativeAnalyticsForTests();
-    expect(applied).toEqual([true]);
-  });
-
-  test("14-17 minor stays OFF even with a granted pref", async () => {
-    setAnalyticsConsent(true, { isMinor: true, confirmedAdult: false });
-    await __flushNativeAnalyticsForTests();
-    expect(applied).toEqual([false]);
-  });
-
-  test("unresolved age stays OFF (no confirmedAdult)", async () => {
-    setAnalyticsConsent(true, { isMinor: null });
-    await __flushNativeAnalyticsForTests();
-    expect(applied).toEqual([false]);
-  });
-
-  test("under digital-consent age stays OFF even when marked adult", async () => {
-    setAnalyticsConsent(true, {
-      isMinor: false,
-      confirmedAdult: true,
-      underDigitalConsentAge: true,
-    });
-    await __flushNativeAnalyticsForTests();
-    expect(applied).toEqual([false]);
-  });
-
-  test("revoke after grant applies OFF immediately (no reload needed)", async () => {
     setAnalyticsConsent(true, { isMinor: false, confirmedAdult: true });
     setAnalyticsConsent(false, { isMinor: false, confirmedAdult: true });
-    await __flushNativeAnalyticsForTests();
-    expect(applied).toEqual([true, false]);
-  });
-
-  test("repeated same-state syncs are deduped to one native apply", async () => {
-    await initAnalytics();
-    setAnalyticsConsent(false, { isMinor: true, confirmedAdult: false });
     setAnalyticsConsent(true, { isMinor: null });
     await __flushNativeAnalyticsForTests();
-    expect(applied).toEqual([false]);
+    expect(applied).toEqual([false, false, false, false]);
   });
 
-  test("a stale server read cannot enable native collection (revision guard)", async () => {
-    await initAnalytics();
-    const staleRevision = getAnalyticsConsentRevision();
-    setAnalyticsConsent(false, { isMinor: true, confirmedAdult: false });
-    setAnalyticsConsent(
-      true,
-      { isMinor: false, confirmedAdult: true },
-      { expectedRevision: staleRevision },
-    );
-    await __flushNativeAnalyticsForTests();
-    expect(applied).toEqual([false]);
-  });
-
-  test("a rejecting native applier never throws and the queue stays alive", async () => {
-    __setNativeAnalyticsApplierForTests(() => Promise.reject(new Error("native module missing")));
-    expect(() => setAnalyticsConsent(true, { isMinor: false, confirmedAdult: true })).not.toThrow();
-    await __flushNativeAnalyticsForTests();
+  test("a rejected OFF is absorbed and the next sync retries", async () => {
+    let attempts = 0;
     __setNativeAnalyticsApplierForTests(async (enabled) => {
+      attempts += 1;
+      if (attempts === 1) throw new Error("native module missing");
       applied.push(enabled);
     });
+    await initAnalytics();
+    await __flushNativeAnalyticsForTests();
     setAnalyticsConsent(false, { isMinor: false, confirmedAdult: true });
     await __flushNativeAnalyticsForTests();
+    expect(attempts).toBe(2);
     expect(applied).toEqual([false]);
   });
 
-  test("runtime kill-switch OFF blocks a native enable for a consenting adult", async () => {
-    __setRuntimeAnalyticsFlagsForTests({ analyticsEnabled: false, clarityEnabled: false });
-    setAnalyticsConsent(true, { isMinor: false, confirmedAdult: true });
-    await __flushNativeAnalyticsForTests();
-    expect(applied).toEqual([false]);
+  test("a never-settling OFF cannot head-of-line block the next OFF", async () => {
+    const firstOff = nativeDeferred<void>();
+    let attempts = 0;
+    __setNativeAnalyticsApplierForTests((enabled) => {
+      attempts += 1;
+      applied.push(enabled);
+      return attempts === 1 ? firstOff.promise : Promise.resolve();
+    });
+    await initAnalytics();
+    setAnalyticsConsent(false, { isMinor: false, confirmedAdult: true });
+    expect(applied).toEqual([false, false]);
+    await expect(__flushNativeAnalyticsForTests()).resolves.toBeUndefined();
+    firstOff.resolve(undefined);
   });
 
-  test("unavailable runtime flags fail closed for a native enable", async () => {
-    // Live path (no seam): the runtime_flags source is unreachable, so the
-    // fetch resolves to the OFF defaults and the enable must not go through.
-    // Isolated module registry with supabase mocked to throw - constructing
-    // the real client in the node test env leaks an AsyncStorage rejection.
+  test("the native Firebase and Clarity source contains no SDK ON path", () => {
+    const source = readFileSync(resolve(ROOT, "src/lib/analytics/index.ts"), "utf8");
+    const nativeBlock = source.slice(
+      source.indexOf("// Native Firebase Analytics"),
+      source.indexOf("const CONSENT_KEY"),
+    );
+    expect(nativeBlock).toContain("applier(false)");
+    expect(nativeBlock).not.toMatch(/analytics_storage:\s*true/);
+    expect(nativeBlock).not.toMatch(/setAnalyticsCollectionEnabled\([^;]*\btrue\b/);
+    expect(nativeBlock).not.toContain("applier(true)");
+    expect(nativeBlock).not.toMatch(/syncNativeClarity\(\{[\s\S]*?enabled:\s*true/);
+  });
+
+  test("the production bridge issues consent OFF and collection OFF independently", async () => {
     jest.resetModules();
-    jest.doMock("react-native", () => ({ Platform: { OS: "ios" } }));
-    jest.doMock("../../supabase/client", () => ({
-      getSupabaseClient: () => {
-        throw new Error("no runtime flags source");
-      },
+    const consentOff = nativeDeferred<unknown>();
+    const analyticsInstance = {};
+    const sdk = {
+      getAnalytics: jest.fn(() => analyticsInstance),
+      setConsent: jest.fn(() => consentOff.promise),
+      setAnalyticsCollectionEnabled: jest.fn(() => Promise.resolve()),
+    };
+    jest.doMock("react-native", () => ({
+      NativeModules: { RNFBAnalyticsModule: {} },
+      Platform: { OS: "android" },
+      TurboModuleRegistry: { get: () => ({}) },
     }));
+    jest.doMock("@react-native-firebase/analytics", () => sdk);
+    jest.doMock("../clarity-native", () => ({ syncNativeClarity: jest.fn() }));
+    try {
+      const analytics = require("../index") as typeof import("../index");
+      await analytics.initAnalytics();
+      await flushNativeMicrotasks();
+      expect(sdk.setConsent).toHaveBeenCalledWith(analyticsInstance, {
+        analytics_storage: false,
+        ad_storage: false,
+        ad_user_data: false,
+        ad_personalization: false,
+      });
+      expect(sdk.setAnalyticsCollectionEnabled).toHaveBeenCalledWith(
+        analyticsInstance,
+        false,
+      );
+      consentOff.resolve(undefined);
+      await analytics.__flushNativeAnalyticsForTests();
+      analytics.__resetAnalytics();
+    } finally {
+      jest.dontMock("react-native");
+      jest.dontMock("@react-native-firebase/analytics");
+      jest.dontMock("../clarity-native");
+      jest.resetModules();
+    }
+  });
+
+  test("a synchronous Clarity failure cannot block Firebase OFF or app calls", async () => {
+    jest.resetModules();
+    const clarity = jest.fn((_decision: { enabled: boolean }) => {
+      throw new Error("Clarity bridge unavailable");
+    });
+    jest.doMock("react-native", () => ({
+      NativeModules: { RNFBAnalyticsModule: {} },
+      Platform: { OS: "android" },
+      TurboModuleRegistry: { get: () => ({}) },
+    }));
+    jest.doMock("../clarity-native", () => ({ syncNativeClarity: clarity }));
     try {
       const analytics = require("../index") as typeof import("../index");
       const localApplied: boolean[] = [];
       analytics.__setNativeAnalyticsApplierForTests(async (enabled) => {
         localApplied.push(enabled);
       });
-      analytics.setAnalyticsConsent(true, { isMinor: false, confirmedAdult: true });
+      await expect(analytics.initAnalytics()).resolves.toBeUndefined();
+      expect(() =>
+        analytics.setAnalyticsConsent(true, { isMinor: false, confirmedAdult: true }),
+      ).not.toThrow();
+      expect(() => analytics.captureEvent(analytics.pageView({ path: "/plans" }))).not.toThrow();
       await analytics.__flushNativeAnalyticsForTests();
-      expect(localApplied).toEqual([false]);
+      expect(localApplied).toEqual([false, false]);
+      expect(clarity.mock.calls).toHaveLength(3);
+      expect(clarity.mock.calls.every(([decision]) => decision.enabled === false)).toBe(true);
+      expect(analytics.clarityGateSnapshot().nativeHardDisabled).toBe(true);
       analytics.__resetAnalytics();
     } finally {
       jest.dontMock("react-native");
-      jest.dontMock("../../supabase/client");
+      jest.dontMock("../clarity-native");
+      jest.resetModules();
+    }
+  });
+
+  test("web consent changes never invoke the native OFF applier", async () => {
+    jest.resetModules();
+    jest.doMock("react-native", () => ({
+      NativeModules: {},
+      Platform: { OS: "web" },
+      TurboModuleRegistry: { get: () => null },
+    }));
+    jest.doMock("../clarity-native", () => ({ syncNativeClarity: jest.fn() }));
+    try {
+      const analytics = require("../index") as typeof import("../index");
+      const localApplied: boolean[] = [];
+      analytics.__setNativeAnalyticsApplierForTests(async (enabled) => {
+        localApplied.push(enabled);
+      });
+      await analytics.initAnalytics();
+      analytics.setAnalyticsConsent(true, { isMinor: false, confirmedAdult: true });
+      expect(localApplied).toEqual([]);
+      analytics.__resetAnalytics();
+    } finally {
+      jest.dontMock("react-native");
+      jest.dontMock("../clarity-native");
       jest.resetModules();
     }
   });
@@ -709,7 +839,7 @@ describe("runtime analytics web transitions", () => {
     }
   });
 
-  test("60-second polling keeps running while OFF and restores GA and Clarity", async () => {
+  test("60-second polling restores GA while web Clarity stays hard-disabled", async () => {
     const rows = {
       current: [
         { key: "analytics_enabled", enabled: false },
@@ -733,7 +863,9 @@ describe("runtime analytics web transitions", () => {
       await jest.advanceTimersByTimeAsync(60_000);
       await flushAsyncWork();
       expect(fetchFlags).toHaveBeenCalledTimes(2);
-      expect(appendChild).toHaveBeenCalledTimes(2);
+      // The server may enable clarity_enabled, but web Clarity has no loader.
+      // Only the GA script is appended.
+      expect(appendChild).toHaveBeenCalledTimes(1);
 
       rows.current = [
         { key: "analytics_enabled", enabled: false },
@@ -751,7 +883,7 @@ describe("runtime analytics web transitions", () => {
       await jest.advanceTimersByTimeAsync(60_000);
       await flushAsyncWork();
       expect(fetchFlags).toHaveBeenCalledTimes(4);
-      expect(appendChild).toHaveBeenCalledTimes(2);
+      expect(appendChild).toHaveBeenCalledTimes(1);
       expect(analytics.captureEvent(analytics.pageView({ path: "/restored" }))).toBe(true);
 
       const gaConsentStates = dataLayer
@@ -761,7 +893,12 @@ describe("runtime analytics web transitions", () => {
       const clarityConsentStates = clarity.mock.calls
         .filter(([command]) => command === "consentv2")
         .map(([, state]) => (state as { analytics_Storage: string }).analytics_Storage);
-      expect(clarityConsentStates).toEqual(["granted", "denied", "granted"]);
+      expect(clarityConsentStates).toEqual([]);
+      // Keep the raw operator flag visible while the independent code gate
+      // proves that it cannot inject the web SDK.
+      expect(analytics.clarityGateSnapshot().clarityEnabled).toBe(true);
+      expect(analytics.WEB_CLARITY_HARD_DISABLED).toBe(true);
+      expect(analytics.clarityGateSnapshot().nativeHardDisabled).toBe(false);
       expect(jest.getTimerCount()).toBe(1);
     } finally {
       analytics.__resetAnalytics();
@@ -850,28 +987,48 @@ describe("runtime analytics web transitions", () => {
     analytics.__resetAnalytics();
   });
 
-  test("Clarity injects only on allow-listed routes and retries on the first allowed page_view", async () => {
+  test("web Clarity cannot be enabled by consent, route, project id, or runtime flag", async () => {
     const rows = {
       current: [
         { key: "analytics_enabled", enabled: true },
         { key: "clarity_enabled", enabled: true },
       ],
     };
-    const { analytics, appendChild, clarity } = loadWebModule(rows);
-    // Land on an identifier route BEFORE consent resolves.
+    const { analytics, appendChild, clarity, dataLayer } = loadWebModule(rows);
+    await analytics.initAnalytics({ analyticsConsent: true, isMinor: false, confirmedAdult: true });
+    await flushAsyncWork();
+    // GA4 injects; web Clarity never does, regardless of the current route.
+    expect(appendChild).toHaveBeenCalledTimes(1);
+    expect(clarity).not.toHaveBeenCalled();
+    // Exercise both sides of the old SPA boundary and dwell beyond Clarity's
+    // 250ms vendor restart window. None of these transitions can create an
+    // operator-controlled escape hatch around the code-level posture.
+    analytics.captureEvent(analytics.pageView({ path: "/plans" }));
+    await jest.advanceTimersByTimeAsync(1_000);
     analytics.captureEvent(
       analytics.pageView({ path: "/record/9c820f74-17a2-4d0a-9a6e-234b86a6c120" }),
     );
-    await analytics.initAnalytics({ analyticsConsent: true, isMinor: false, confirmedAdult: true });
+    await jest.advanceTimersByTimeAsync(1_000);
+    analytics.captureEvent(analytics.pageView({ path: "/settings" }));
     await flushAsyncWork();
-    // GA4 injected; Clarity withheld because the session sits on /record/[id].
     expect(appendChild).toHaveBeenCalledTimes(1);
     expect(clarity).not.toHaveBeenCalled();
-    // The first page_view on an allow-listed route performs the lazy injection.
-    analytics.captureEvent(analytics.pageView({ path: "/plans" }));
-    await flushAsyncWork();
-    expect(appendChild).toHaveBeenCalledTimes(2);
-    expect(clarity.mock.calls.some(([command]) => command === "consentv2")).toBe(true);
+    const pageViews = dataLayer.filter(
+      (entry) => isGtagCommand(entry) && entry[0] === "event" && entry[1] === "page_view",
+    ) as Array<[string, string, { path?: string }]>;
+    expect(pageViews.map((entry) => entry[2].path)).toEqual([
+      "/plans",
+      "/record/[id]",
+      "/settings",
+    ]);
+    expect(analytics.clarityGateSnapshot()).toMatchObject({
+      clarityEnabled: true,
+      webHardDisabled: true,
+      nativeHardDisabled: false,
+      route: "/settings",
+      allowedRoute: true,
+    });
+    expect(analytics.WEB_CLARITY_HARD_DISABLED).toBe(true);
     analytics.__resetAnalytics();
   });
 

@@ -826,6 +826,18 @@ export function validateFinalUrl(baseUrl, route, finalUrl) {
   if (actual.hash !== '') throw new CaptureContractError('unexpected-final-hash');
 }
 
+export function exactFinalRouteMatch(baseUrl, routes, finalUrl) {
+  for (const route of Array.isArray(routes) ? routes : []) {
+    try {
+      validateFinalUrl(baseUrl, route, finalUrl);
+      return route;
+    } catch {
+      // A state-dependent navigation contract is satisfied by one exact candidate.
+    }
+  }
+  return null;
+}
+
 export function resolveCaptureMarkerTime(env = {}, printedAt) {
   const markerTime = env.FIXED_ISO ? Date.parse(env.FIXED_ISO) : printedAt;
   if (!Number.isFinite(markerTime)) throw new Error('FIXED_ISO must be a valid date');
@@ -1699,6 +1711,7 @@ export function normalizeNavigationContract(value, baseUrl = null) {
         'occurrence',
         'kind',
         'to',
+        'toAnyOf',
         'locator',
         'safe',
         'why',
@@ -1714,12 +1727,29 @@ export function normalizeNavigationContract(value, baseUrl = null) {
     const reveal =
       item.reveal === undefined ? {} : { reveal: normalizeSourceNavigationReveal(item.reveal) };
     if (item.kind === 'route') {
+      const hasTo = Object.hasOwn(item, 'to');
+      const hasToAnyOf = Object.hasOwn(item, 'toAnyOf');
+      if (hasTo === hasToAnyOf) throw navigationContractError();
+      const routes = hasToAnyOf ? item.toAnyOf : [item.to];
+      const canonicalRoutes = Array.isArray(routes)
+        ? routes.map((route) => {
+            const parsed = parseSafeAppRoute(route);
+            return parsed ? `${parsed.pathname}${parsed.search}` : null;
+          })
+        : [];
       if (
         item.safe !== undefined ||
         item.why !== undefined ||
         item.effect !== undefined ||
-        !isSafeAppRoute(item.to) ||
-        (baseUrl && !isSafeInteractiveHref(resolveHostedAppUrl(baseUrl, item.to), baseUrl))
+        (hasToAnyOf && item.postNavigation !== undefined) ||
+        !Array.isArray(routes) ||
+        (hasToAnyOf && (routes.length < 2 || routes.length > 3)) ||
+        canonicalRoutes.some((route) => route === null) ||
+        new Set(canonicalRoutes).size !== canonicalRoutes.length ||
+        (baseUrl &&
+          routes.some(
+            (route) => !isSafeInteractiveHref(resolveHostedAppUrl(baseUrl, route), baseUrl),
+          ))
       ) {
         throw navigationContractError();
       }
@@ -1727,7 +1757,7 @@ export function normalizeNavigationContract(value, baseUrl = null) {
         label,
         occurrence,
         kind: item.kind,
-        to: item.to,
+        ...(hasTo ? { to: item.to } : { toAnyOf: [...routes] }),
         locator,
         safe: true,
         ...reveal,
@@ -1736,7 +1766,13 @@ export function normalizeNavigationContract(value, baseUrl = null) {
           : { postNavigation: normalizePostNavigation(item.postNavigation, label) }),
       };
     }
-    if (item.to !== undefined || item.postNavigation !== undefined) throw navigationContractError();
+    if (
+      Object.hasOwn(item, 'to') ||
+      Object.hasOwn(item, 'toAnyOf') ||
+      Object.hasOwn(item, 'postNavigation')
+    ) {
+      throw navigationContractError();
+    }
     if (item.safe !== undefined && typeof item.safe !== 'boolean') {
       throw navigationContractError();
     }
@@ -5825,18 +5861,14 @@ async function probeExactNavigationItem(sourcePage, baseUrl, sourceRoute, item, 
 
     if (item.kind === 'route') {
       stage = 'route-mismatch';
+      const routes = item.toAnyOf ?? [item.to];
       await probe.waitForURL(
-        (url) => {
-          try {
-            validateFinalUrl(baseUrl, item.to, url.href);
-            return true;
-          } catch {
-            return false;
-          }
-        },
+        (url) => exactFinalRouteMatch(baseUrl, routes, url.href) !== null,
         { timeout: 10000 },
       );
-      validateFinalUrl(baseUrl, item.to, probe.url());
+      if (exactFinalRouteMatch(baseUrl, routes, probe.url()) === null) {
+        return { passed: false, evidence: null, failure: 'route-mismatch' };
+      }
       await probe.waitForTimeout(350);
       stage = 'source-health';
       await waitForShotNetworkIdle(probe, probeHealth.health);
@@ -5846,6 +5878,9 @@ async function probeExactNavigationItem(sourcePage, baseUrl, sourceRoute, item, 
         probeHealth.mutationWasBlocked(),
       );
       if (routeFailure) return { passed: false, evidence: null, failure: routeFailure };
+      if (exactFinalRouteMatch(baseUrl, routes, probe.url()) === null) {
+        return { passed: false, evidence: null, failure: 'route-mismatch' };
+      }
       if (item.postNavigation) {
         return verifyPostNavigationEffect(probe, {
           baseUrl,
