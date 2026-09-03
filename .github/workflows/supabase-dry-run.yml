@@ -126,7 +126,7 @@ jobs:
           # before any live db push. This command targets only the job-local DB;
           # it never reads a production URL, project ref, or repository secret.
           supabase db push \
-            --db-url "postgresql://postgres:postgres@localhost:5432/postgres" \
+            --db-url "postgresql://postgres:postgres@localhost:5432/postgres?sslmode=disable" \
             --workdir "$staged_project" \
             --include-all \
             --skip-vault \
