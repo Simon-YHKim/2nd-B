@@ -191,7 +191,13 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         render: { kind: "ui-mode-split", deepspace: { kind: "screen" }, legacy: { kind: "redirect", to: "/persona" } },
         note: "legacy 는 독립 스킨이 없어 /persona 의 종합으로 넘긴다. 진입: 프로필 허브 분석 그룹",
       },
-      { file: "audit", href: "/audit", label: "과거의 나", auth: true },
+      {
+        file: "audit",
+        href: "/audit",
+        label: "과거의 나",
+        auth: true,
+        note: "스크리너(Life Audit)는 /audit?screener=1",
+      },
     ],
   },
   {
