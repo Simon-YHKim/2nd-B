@@ -37,7 +37,12 @@ jobs:
           psql -h localhost -U postgres -v ON_ERROR_STOP=1 <<'SQL'
           CREATE SCHEMA IF NOT EXISTS auth;
           CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid
-            LANGUAGE sql STABLE AS $$ SELECT '00000000-0000-0000-0000-000000000000'::uuid $$;
+            LANGUAGE sql STABLE AS $$
+              SELECT COALESCE(
+                NULLIF(pg_catalog.current_setting('request.jwt.claim.sub', true), ''),
+                NULLIF(pg_catalog.current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub'
+              )::uuid
+            $$;
           CREATE TABLE IF NOT EXISTS auth.users (
             id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
             email              text,
@@ -409,6 +414,817 @@ jobs:
           END $$;
 
           ROLLBACK;
+          SQL
+      - name: Exercise atomic complete-profile signup consent
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -v ON_ERROR_STOP=1 <<'SQL'
+          BEGIN;
+
+          DO $$
+          DECLARE
+            rpc_signature text := 'public.complete_profile_signup_consent(text,text,text,text,boolean,boolean,boolean,boolean,boolean,boolean)';
+          BEGIN
+            IF (SELECT count(*)
+                FROM pg_proc AS procedure
+                JOIN pg_namespace AS namespace ON namespace.oid = procedure.pronamespace
+                WHERE namespace.nspname = 'public'
+                  AND procedure.proname = 'complete_profile_signup_consent') <> 1
+               OR to_regprocedure(rpc_signature) IS NULL THEN
+              RAISE EXCEPTION 'complete-profile consent RPC is missing or overloaded';
+            END IF;
+            IF NOT has_function_privilege('authenticated', rpc_signature, 'EXECUTE') THEN
+              RAISE EXCEPTION 'authenticated cannot execute complete-profile consent RPC';
+            END IF;
+            IF has_function_privilege('anon', rpc_signature, 'EXECUTE')
+               OR has_function_privilege('service_role', rpc_signature, 'EXECUTE')
+               OR has_function_privilege('supabase_auth_admin', rpc_signature, 'EXECUTE') THEN
+              RAISE EXCEPTION 'non-authenticated role can execute complete-profile consent RPC';
+            END IF;
+            IF has_function_privilege('authenticated', 'public.signup_consent_contract(text)', 'EXECUTE')
+               OR has_function_privilege('anon', 'public.signup_consent_contract(text)', 'EXECUTE')
+               OR has_function_privilege('service_role', 'public.signup_consent_contract(text)', 'EXECUTE') THEN
+              RAISE EXCEPTION 'private signup consent contract is externally executable';
+            END IF;
+          END $$;
+
+          -- New profile: identity, tier, and versions come from server-owned
+          -- sources, while the visible UI supplies only its collected values.
+          INSERT INTO auth.users (id, email, email_confirmed_at)
+          VALUES (
+            '01490000-0000-0000-0000-000000000001',
+            'atomic-new-ci@example.invalid',
+            clock_timestamp()
+          );
+
+          SET LOCAL request.jwt.claims =
+            '{"sub":"01490000-0000-0000-0000-000000000001","role":"authenticated"}';
+          SET LOCAL ROLE authenticated;
+          DO $$
+          DECLARE
+            result jsonb;
+          BEGIN
+            result := public.complete_profile_signup_consent(
+              '1990-01-01', 'ko', '  Test User  ', 'complete-profile-v1',
+              true, true, true, true, true, false
+            );
+            IF result ->> 'profile_created' IS DISTINCT FROM 'true'
+               OR result ->> 'consent_created' IS DISTINCT FROM 'true'
+               OR result ->> 'repaired' IS DISTINCT FROM 'false'
+               OR result ->> 'already_complete' IS DISTINCT FROM 'false'
+               OR result ->> 'judge_mode' IS DISTINCT FROM 'false'
+               OR result ->> 'display_name' IS DISTINCT FROM 'Test User' THEN
+              RAISE EXCEPTION 'unexpected new-profile result: %', result;
+            END IF;
+          END $$;
+          RESET ROLE;
+
+          DO $$
+          DECLARE
+            receipt public.consent_records%ROWTYPE;
+          BEGIN
+            IF NOT EXISTS (
+              SELECT 1 FROM public.users
+              WHERE id = '01490000-0000-0000-0000-000000000001'
+                AND email = 'atomic-new-ci@example.invalid'
+                AND birth_date = DATE '1990-01-01'
+                AND locale = 'ko'
+                AND display_name = 'Test User'
+                AND minor_tier = 'adult'
+                AND account_status = 'active'
+                AND judge_mode = false
+            ) THEN
+              RAISE EXCEPTION 'new profile did not preserve server-owned fields';
+            END IF;
+
+            SELECT * INTO STRICT receipt
+            FROM public.consent_records
+            WHERE user_id = '01490000-0000-0000-0000-000000000001';
+
+            IF receipt.age_band IS DISTINCT FROM 'adult'
+               OR receipt.minor_tier IS DISTINCT FROM 'adult'
+               OR receipt.consent_version IS DISTINCT FROM '2026-08-16'
+               OR receipt.policy_version IS DISTINCT FROM '2026-08-30'
+               OR receipt.terms_version IS DISTINCT FROM '2026-08-16'
+               OR receipt.purposes IS DISTINCT FROM '["service"]'::jsonb
+               OR receipt.optional_consents IS DISTINCT FROM '{"marketing":false}'::jsonb
+               OR receipt.required_ack IS NOT TRUE
+               OR receipt.llm_processing_ack IS NOT TRUE
+               OR receipt.overseas_transfer_ack IS NOT TRUE
+               OR receipt.sensitive_data_ack IS NOT TRUE
+               OR receipt.safety_notice_ack IS NOT TRUE
+               OR receipt.locale IS DISTINCT FROM 'ko' THEN
+              RAISE EXCEPTION 'new receipt is not the canonical full receipt';
+            END IF;
+          END $$;
+
+          -- A lost response may be retried with malformed profile-only fields
+          -- and a different UI locale. Existing profile fields stay immutable;
+          -- locale does not invalidate an otherwise exact historical receipt.
+          SET LOCAL ROLE authenticated;
+          DO $$
+          DECLARE
+            result jsonb;
+          BEGIN
+            result := public.complete_profile_signup_consent(
+              'not-used-for-existing-profile', 'en', 'Different Name', 'complete-profile-v1',
+              true, true, true, true, true, false
+            );
+            IF result ->> 'profile_created' IS DISTINCT FROM 'false'
+               OR result ->> 'consent_created' IS DISTINCT FROM 'false'
+               OR result ->> 'repaired' IS DISTINCT FROM 'false'
+               OR result ->> 'already_complete' IS DISTINCT FROM 'true' THEN
+              RAISE EXCEPTION 'exact retry was not an idempotent no-op: %', result;
+            END IF;
+          END $$;
+          RESET ROLE;
+
+          DO $$
+          BEGIN
+            IF (SELECT count(*) FROM public.consent_records
+                WHERE user_id = '01490000-0000-0000-0000-000000000001') <> 1 THEN
+              RAISE EXCEPTION 'exact retry duplicated the consent receipt';
+            END IF;
+            IF NOT EXISTS (
+              SELECT 1 FROM public.users
+              WHERE id = '01490000-0000-0000-0000-000000000001'
+                AND birth_date = DATE '1990-01-01'
+                AND locale = 'ko'
+                AND display_name = 'Test User'
+            ) THEN
+              RAISE EXCEPTION 'exact retry rewrote profile fields';
+            END IF;
+          END $$;
+
+          -- Marketing is not a profile-completion retry concern. Until an
+          -- accessible grant/revoke flow writes consent_changes explicitly, a
+          -- changed optional selection must fail without inventing a snapshot.
+          SET LOCAL ROLE authenticated;
+          DO $$
+          DECLARE
+            rejected boolean := false;
+          BEGIN
+            BEGIN
+              PERFORM public.complete_profile_signup_consent(
+                'ignored', 'ko', 'Ignored', 'complete-profile-v1',
+                true, true, true, true, true, true
+              );
+            EXCEPTION WHEN SQLSTATE '55000' THEN
+              IF SQLERRM IS DISTINCT FROM 'marketing_change_requires_dedicated_flow' THEN
+                RAISE;
+              END IF;
+              rejected := true;
+            END;
+            IF NOT rejected THEN
+              RAISE EXCEPTION 'marketing change was silently swallowed or appended';
+            END IF;
+          END $$;
+          RESET ROLE;
+
+          -- Even if both optional choices already appear as otherwise complete
+          -- snapshots, this RPC must not select the requested side and call it
+          -- an idempotent retry. That history requires an explicit transition.
+          INSERT INTO public.consent_records (
+            user_id, age_band, minor_tier, consent_version, policy_version,
+            terms_version, purposes, required_ack, optional_consents,
+            llm_processing_ack, overseas_transfer_ack, sensitive_data_ack,
+            safety_notice_ack, locale
+          ) VALUES (
+            '01490000-0000-0000-0000-000000000001', 'adult', 'adult',
+            '2026-08-16', '2026-08-30', '2026-08-16',
+            '["service", "marketing"]'::jsonb, true, '{"marketing":true}'::jsonb,
+            true, true, true, true, 'en'
+          );
+
+          SET LOCAL ROLE authenticated;
+          DO $$
+          DECLARE
+            rejected boolean := false;
+          BEGIN
+            BEGIN
+              PERFORM public.complete_profile_signup_consent(
+                'ignored', 'ko', 'Ignored', 'complete-profile-v1',
+                true, true, true, true, true, false
+              );
+            EXCEPTION WHEN SQLSTATE '55000' THEN
+              IF SQLERRM IS DISTINCT FROM 'marketing_change_requires_dedicated_flow' THEN
+                RAISE;
+              END IF;
+              rejected := true;
+            END;
+            IF NOT rejected THEN
+              RAISE EXCEPTION 'two-sided marketing history was treated as an exact retry';
+            END IF;
+          END $$;
+          RESET ROLE;
+
+          -- Existing profile + zero ledger rows is the only historical repair.
+          INSERT INTO auth.users (id, email, email_confirmed_at)
+          VALUES (
+            '01490000-0000-0000-0000-000000000002',
+            'atomic-repair-ci@example.invalid',
+            clock_timestamp()
+          );
+          INSERT INTO public.users (id, email, birth_date, locale, display_name)
+          VALUES (
+            '01490000-0000-0000-0000-000000000002',
+            'atomic-repair-ci@example.invalid',
+            DATE '1995-02-03',
+            'en',
+            'Stored Name'
+          );
+
+          SET LOCAL request.jwt.claims =
+            '{"sub":"01490000-0000-0000-0000-000000000002","role":"authenticated"}';
+          SET LOCAL ROLE authenticated;
+          DO $$
+          DECLARE
+            result jsonb;
+          BEGIN
+            result := public.complete_profile_signup_consent(
+              'not-a-date-and-intentionally-ignored', 'ko', 'Ignored Name', 'complete-profile-v1',
+              true, true, true, true, true, true
+            );
+            IF result ->> 'profile_created' IS DISTINCT FROM 'false'
+               OR result ->> 'consent_created' IS DISTINCT FROM 'true'
+               OR result ->> 'repaired' IS DISTINCT FROM 'true'
+               OR result ->> 'already_complete' IS DISTINCT FROM 'false'
+               OR result ->> 'display_name' IS DISTINCT FROM 'Stored Name' THEN
+              RAISE EXCEPTION 'unexpected zero-row repair result: %', result;
+            END IF;
+          END $$;
+          RESET ROLE;
+
+          DO $$
+          BEGIN
+            IF NOT EXISTS (
+              SELECT 1 FROM public.users
+              WHERE id = '01490000-0000-0000-0000-000000000002'
+                AND birth_date = DATE '1995-02-03'
+                AND locale = 'en'
+                AND display_name = 'Stored Name'
+            ) THEN
+              RAISE EXCEPTION 'repair rewrote stored profile fields';
+            END IF;
+            IF NOT EXISTS (
+              SELECT 1 FROM public.consent_records
+              WHERE user_id = '01490000-0000-0000-0000-000000000002'
+                AND locale = 'ko'
+                AND purposes = '["service", "marketing"]'::jsonb
+                AND optional_consents = '{"marketing":true}'::jsonb
+            ) THEN
+              RAISE EXCEPTION 'repair did not record the actual UI locale/selection';
+            END IF;
+          END $$;
+
+          -- C10 boundary: a 16-year-old is provisioned as minor_self in both
+          -- rows, while a 13-year-old leaves neither row behind.
+          INSERT INTO auth.users (id, email, email_confirmed_at)
+          VALUES (
+            '01490000-0000-0000-0000-000000000007',
+            'atomic-minor-ci@example.invalid',
+            clock_timestamp()
+          );
+          SET LOCAL request.jwt.claims =
+            '{"sub":"01490000-0000-0000-0000-000000000007","role":"authenticated"}';
+          SET LOCAL ROLE authenticated;
+          DO $$
+          DECLARE
+            result jsonb;
+          BEGIN
+            result := public.complete_profile_signup_consent(
+              to_char((current_date - interval '16 years')::date, 'YYYY-MM-DD'),
+              'en', NULL, 'complete-profile-v1',
+              true, true, true, true, true, false
+            );
+            IF result ->> 'profile_created' IS DISTINCT FROM 'true'
+               OR result ->> 'consent_created' IS DISTINCT FROM 'true' THEN
+              RAISE EXCEPTION 'minor boundary did not provision atomically: %', result;
+            END IF;
+          END $$;
+          RESET ROLE;
+
+          DO $$
+          BEGIN
+            IF NOT EXISTS (
+              SELECT 1 FROM public.users
+              WHERE id = '01490000-0000-0000-0000-000000000007'
+                AND minor_tier = 'minor_self'
+                AND account_status = 'active'
+            ) OR NOT EXISTS (
+              SELECT 1 FROM public.consent_records
+              WHERE user_id = '01490000-0000-0000-0000-000000000007'
+                AND age_band = 'minor_self'
+                AND minor_tier = 'minor_self'
+            ) THEN
+              RAISE EXCEPTION 'minor boundary lost the server-derived tier';
+            END IF;
+          END $$;
+
+          INSERT INTO auth.users (id, email, email_confirmed_at)
+          VALUES (
+            '01490000-0000-0000-0000-000000000008',
+            'atomic-underage-ci@example.invalid',
+            clock_timestamp()
+          );
+          SET LOCAL request.jwt.claims =
+            '{"sub":"01490000-0000-0000-0000-000000000008","role":"authenticated"}';
+          SET LOCAL ROLE authenticated;
+          DO $$
+          DECLARE
+            rejected boolean := false;
+          BEGIN
+            BEGIN
+              PERFORM public.complete_profile_signup_consent(
+                to_char((current_date - interval '13 years')::date, 'YYYY-MM-DD'),
+                'en', NULL, 'complete-profile-v1',
+                true, true, true, true, true, false
+              );
+            EXCEPTION WHEN SQLSTATE '23514' THEN
+              IF SQLERRM IS DISTINCT FROM 'signup_consent_age_below_floor' THEN
+                RAISE;
+              END IF;
+              rejected := true;
+            END;
+            IF NOT rejected THEN
+              RAISE EXCEPTION 'under-14 profile was accepted';
+            END IF;
+          END $$;
+          RESET ROLE;
+
+          DO $$
+          BEGIN
+            IF EXISTS (SELECT 1 FROM public.users
+                       WHERE id = '01490000-0000-0000-0000-000000000008')
+               OR EXISTS (SELECT 1 FROM public.consent_records
+                          WHERE user_id = '01490000-0000-0000-0000-000000000008') THEN
+              RAISE EXCEPTION 'under-14 rejection left a partial row';
+            END IF;
+          END $$;
+
+          -- Any non-empty, non-exact history belongs to a dedicated re-consent
+          -- flow. Purpose-scoped rows must never be mistaken for signup proof.
+          INSERT INTO auth.users (id, email, email_confirmed_at)
+          VALUES (
+            '01490000-0000-0000-0000-000000000003',
+            'atomic-history-ci@example.invalid',
+            clock_timestamp()
+          );
+          INSERT INTO public.users (id, email, birth_date, locale)
+          VALUES (
+            '01490000-0000-0000-0000-000000000003',
+            'atomic-history-ci@example.invalid',
+            DATE '1992-01-01',
+            'en'
+          );
+          INSERT INTO public.consent_records (
+            user_id, age_band, minor_tier, consent_version, policy_version,
+            terms_version, purposes, required_ack, optional_consents,
+            llm_processing_ack, overseas_transfer_ack, sensitive_data_ack,
+            safety_notice_ack, locale
+          ) VALUES (
+            '01490000-0000-0000-0000-000000000003', 'adult', 'adult',
+            '2026-08-16', '2026-08-30', '2026-08-16', '["health_import"]'::jsonb,
+            true, '{}'::jsonb, false, false, true, false, 'en'
+          );
+
+          SET LOCAL request.jwt.claims =
+            '{"sub":"01490000-0000-0000-0000-000000000003","role":"authenticated"}';
+          SET LOCAL ROLE authenticated;
+          DO $$
+          DECLARE
+            rejected boolean := false;
+          BEGIN
+            BEGIN
+              PERFORM public.complete_profile_signup_consent(
+                'ignored', 'en', NULL, 'complete-profile-v1',
+                true, true, true, true, true, false
+              );
+            EXCEPTION WHEN SQLSTATE '55000' THEN
+              IF SQLERRM IS DISTINCT FROM 'signup_consent_history_conflict' THEN
+                RAISE;
+              END IF;
+              rejected := true;
+            END;
+            IF NOT rejected THEN
+              RAISE EXCEPTION 'purpose-scoped history received signup consent';
+            END IF;
+          END $$;
+          RESET ROLE;
+
+          -- Each near-exact row differs in exactly one required acknowledgement.
+          -- Omitting any conjunct from the exact predicate would make one of
+          -- these rows a false idempotent success.
+          INSERT INTO auth.users (id, email, email_confirmed_at)
+          VALUES (
+            '01490000-0000-0000-0000-000000000012',
+            'atomic-near-exact-ci@example.invalid',
+            clock_timestamp()
+          );
+          INSERT INTO public.users (id, email, birth_date, locale)
+          VALUES (
+            '01490000-0000-0000-0000-000000000012',
+            'atomic-near-exact-ci@example.invalid',
+            DATE '1990-01-01',
+            'en'
+          );
+          INSERT INTO public.consent_records (
+            user_id, age_band, minor_tier, consent_version, policy_version,
+            terms_version, purposes, required_ack, optional_consents,
+            llm_processing_ack, overseas_transfer_ack, sensitive_data_ack,
+            safety_notice_ack, locale
+          )
+          SELECT
+            '01490000-0000-0000-0000-000000000012', 'adult', 'adult',
+            '2026-08-16', '2026-08-30', '2026-08-16', '["service"]'::jsonb,
+            missing.field <> 'required_ack', '{"marketing":false}'::jsonb,
+            missing.field <> 'llm_processing_ack',
+            missing.field <> 'overseas_transfer_ack',
+            missing.field <> 'sensitive_data_ack',
+            missing.field <> 'safety_notice_ack',
+            'en'
+          FROM (VALUES
+            ('required_ack'),
+            ('llm_processing_ack'),
+            ('overseas_transfer_ack'),
+            ('sensitive_data_ack'),
+            ('safety_notice_ack')
+          ) AS missing(field);
+
+          SET LOCAL request.jwt.claims =
+            '{"sub":"01490000-0000-0000-0000-000000000012","role":"authenticated"}';
+          SET LOCAL ROLE authenticated;
+          DO $$
+          DECLARE
+            rejected boolean := false;
+          BEGIN
+            BEGIN
+              PERFORM public.complete_profile_signup_consent(
+                'ignored', 'en', NULL, 'complete-profile-v1',
+                true, true, true, true, true, false
+              );
+            EXCEPTION WHEN SQLSTATE '55000' THEN
+              IF SQLERRM IS DISTINCT FROM 'signup_consent_history_conflict' THEN
+                RAISE;
+              END IF;
+              rejected := true;
+            END;
+            IF NOT rejected THEN
+              RAISE EXCEPTION 'near-exact acknowledgement history passed as exact';
+            END IF;
+          END $$;
+          RESET ROLE;
+
+          -- A stored tier that no longer agrees with stored DOB is an age-out
+          -- transition, not a signup-ledger repair. Keep the profile untouched.
+          INSERT INTO auth.users (id, email, email_confirmed_at)
+          VALUES (
+            '01490000-0000-0000-0000-000000000004',
+            'atomic-ageout-ci@example.invalid',
+            clock_timestamp()
+          );
+          INSERT INTO public.users (id, email, birth_date, locale)
+          VALUES (
+            '01490000-0000-0000-0000-000000000004',
+            'atomic-ageout-ci@example.invalid',
+            DATE '1990-01-01',
+            'en'
+          );
+          SET LOCAL request.jwt.claim.role = 'service_role';
+          UPDATE public.users
+          SET minor_tier = 'minor_self'
+          WHERE id = '01490000-0000-0000-0000-000000000004';
+          SET LOCAL request.jwt.claim.role = '';
+
+          SET LOCAL request.jwt.claims =
+            '{"sub":"01490000-0000-0000-0000-000000000004","role":"authenticated"}';
+          SET LOCAL ROLE authenticated;
+          DO $$
+          DECLARE
+            rejected boolean := false;
+          BEGIN
+            BEGIN
+              PERFORM public.complete_profile_signup_consent(
+                'ignored', 'en', NULL, 'complete-profile-v1',
+                true, true, true, true, true, false
+              );
+            EXCEPTION WHEN SQLSTATE '55000' THEN
+              IF SQLERRM IS DISTINCT FROM 'signup_consent_age_transition_required' THEN
+                RAISE;
+              END IF;
+              rejected := true;
+            END;
+            IF NOT rejected THEN
+              RAISE EXCEPTION 'stale stored tier was repaired through signup RPC';
+            END IF;
+          END $$;
+          RESET ROLE;
+
+          -- Auth state and canonical mailbox conflicts fail with stable errors
+          -- before any caller-owned public row survives.
+          INSERT INTO auth.users (id, email)
+          VALUES (
+            '01490000-0000-0000-0000-000000000009',
+            'atomic-unconfirmed-ci@example.invalid'
+          );
+          SET LOCAL request.jwt.claims =
+            '{"sub":"01490000-0000-0000-0000-000000000009","role":"authenticated"}';
+          SET LOCAL ROLE authenticated;
+          DO $$
+          DECLARE
+            rejected boolean := false;
+          BEGIN
+            BEGIN
+              PERFORM public.complete_profile_signup_consent(
+                '1990-01-01', 'en', NULL, 'complete-profile-v1',
+                true, true, true, true, true, false
+              );
+            EXCEPTION WHEN SQLSTATE '42501' THEN
+              IF SQLERRM IS DISTINCT FROM 'signup_consent_email_unconfirmed' THEN
+                RAISE;
+              END IF;
+              rejected := true;
+            END;
+            IF NOT rejected THEN
+              RAISE EXCEPTION 'unconfirmed email was accepted';
+            END IF;
+          END $$;
+          RESET ROLE;
+
+          -- The auth.users BEFORE INSERT guard correctly rejects a mailbox
+          -- already present in auth/public, so create the target auth row
+          -- first. A later mismatched profile models privileged drift or the
+          -- race that the RPC's public.users unique-violation backstop owns.
+          INSERT INTO auth.users (id, email, email_confirmed_at)
+          VALUES (
+            '01490000-0000-0000-0000-000000000011',
+            'atomic-public-collision-ci@example.invalid',
+            clock_timestamp()
+          );
+          INSERT INTO auth.users (id, email, email_confirmed_at)
+          VALUES (
+            '01490000-0000-0000-0000-000000000010',
+            'atomic-collision-owner-ci@example.invalid',
+            clock_timestamp()
+          );
+          INSERT INTO public.users (id, email, birth_date, locale)
+          VALUES (
+            '01490000-0000-0000-0000-000000000010',
+            'atomic-public-collision-ci@example.invalid',
+            DATE '1990-01-01',
+            'en'
+          );
+          SET LOCAL request.jwt.claims =
+            '{"sub":"01490000-0000-0000-0000-000000000011","role":"authenticated"}';
+          SET LOCAL ROLE authenticated;
+          DO $$
+          DECLARE
+            rejected boolean := false;
+          BEGIN
+            BEGIN
+              PERFORM public.complete_profile_signup_consent(
+                '1990-01-01', 'en', NULL, 'complete-profile-v1',
+                true, true, true, true, true, false
+              );
+            EXCEPTION WHEN SQLSTATE '23505' THEN
+              IF SQLERRM IS DISTINCT FROM 'signup_consent_email_in_use' THEN
+                RAISE;
+              END IF;
+              rejected := true;
+            END;
+            IF NOT rejected THEN
+              RAISE EXCEPTION 'canonical email collision was accepted';
+            END IF;
+          END $$;
+          RESET ROLE;
+
+          DO $$
+          BEGIN
+            IF EXISTS (
+              SELECT 1 FROM public.users
+              WHERE id IN (
+                '01490000-0000-0000-0000-000000000009',
+                '01490000-0000-0000-0000-000000000011'
+              )
+            ) OR EXISTS (
+              SELECT 1 FROM public.consent_records
+              WHERE user_id IN (
+                '01490000-0000-0000-0000-000000000009',
+                '01490000-0000-0000-0000-000000000011'
+              )
+            ) THEN
+              RAISE EXCEPTION 'auth/email rejection left a partial row';
+            END IF;
+          END $$;
+
+          -- Unknown surface revisions and missing required acknowledgements are
+          -- rejected before either table is written.
+          INSERT INTO auth.users (id, email, email_confirmed_at)
+          VALUES (
+            '01490000-0000-0000-0000-000000000005',
+            'atomic-invalid-ci@example.invalid',
+            clock_timestamp()
+          );
+          SET LOCAL request.jwt.claims =
+            '{"sub":"01490000-0000-0000-0000-000000000005","role":"authenticated"}';
+          SET LOCAL ROLE authenticated;
+          DO $$
+          DECLARE
+            invalid_revision boolean := false;
+            missing_ack boolean := false;
+          BEGIN
+            BEGIN
+              PERFORM public.complete_profile_signup_consent(
+                '1990-01-01', 'en', NULL, 'email-v2',
+                true, true, true, true, true, false
+              );
+            EXCEPTION WHEN SQLSTATE '22023' THEN
+              invalid_revision := SQLERRM = 'signup_consent_revision_invalid';
+            END;
+            BEGIN
+              PERFORM public.complete_profile_signup_consent(
+                '1990-01-01', 'en', NULL, 'complete-profile-v1',
+                true, true, true, false, true, false
+              );
+            EXCEPTION WHEN SQLSTATE '22023' THEN
+              missing_ack := SQLERRM = 'signup_consent_required_ack_missing';
+            END;
+            IF NOT invalid_revision OR NOT missing_ack THEN
+              RAISE EXCEPTION 'invalid revision or missing ack did not fail closed';
+            END IF;
+          END $$;
+          RESET ROLE;
+
+          DO $$
+          BEGIN
+            IF EXISTS (SELECT 1 FROM public.users
+                       WHERE id = '01490000-0000-0000-0000-000000000005') THEN
+              RAISE EXCEPTION 'invalid RPC input created a profile';
+            END IF;
+          END $$;
+
+          -- Force the second write to fail after profile insertion. The
+          -- function statement must roll the profile insert back with it.
+          INSERT INTO auth.users (id, email, email_confirmed_at)
+          VALUES (
+            '01490000-0000-0000-0000-000000000006',
+            'atomic-rollback-ci@example.invalid',
+            clock_timestamp()
+          );
+          CREATE FUNCTION public.ci_reject_atomic_receipt()
+          RETURNS trigger
+          LANGUAGE plpgsql
+          SET search_path = ''
+          AS $$
+          BEGIN
+            IF NEW.user_id = '01490000-0000-0000-0000-000000000006'::uuid THEN
+              RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'ci_forced_receipt_failure';
+            END IF;
+            RETURN NEW;
+          END;
+          $$;
+          CREATE TRIGGER trg_ci_reject_atomic_receipt
+            BEFORE INSERT ON public.consent_records
+            FOR EACH ROW EXECUTE FUNCTION public.ci_reject_atomic_receipt();
+
+          SET LOCAL request.jwt.claims =
+            '{"sub":"01490000-0000-0000-0000-000000000006","role":"authenticated"}';
+          SET LOCAL ROLE authenticated;
+          DO $$
+          DECLARE
+            rejected boolean := false;
+          BEGIN
+            BEGIN
+              PERFORM public.complete_profile_signup_consent(
+                '1990-01-01', 'en', NULL, 'complete-profile-v1',
+                true, true, true, true, true, false
+              );
+            EXCEPTION WHEN SQLSTATE 'P0001' THEN
+              IF SQLERRM IS DISTINCT FROM 'ci_forced_receipt_failure' THEN
+                RAISE;
+              END IF;
+              rejected := true;
+            END;
+            IF NOT rejected THEN
+              RAISE EXCEPTION 'forced receipt failure did not reach caller';
+            END IF;
+          END $$;
+          RESET ROLE;
+
+          DO $$
+          BEGIN
+            IF EXISTS (SELECT 1 FROM public.users
+                       WHERE id = '01490000-0000-0000-0000-000000000006')
+               OR EXISTS (SELECT 1 FROM public.consent_records
+                          WHERE user_id = '01490000-0000-0000-0000-000000000006') THEN
+              RAISE EXCEPTION 'receipt failure left a partial profile or ledger row';
+            END IF;
+          END $$;
+
+          ROLLBACK;
+          SQL
+      - name: Exercise concurrent complete-profile convergence
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -v ON_ERROR_STOP=1 <<'SQL'
+          INSERT INTO auth.users (id, email, email_confirmed_at)
+          VALUES (
+            '01490000-0000-0000-0000-000000000010',
+            'atomic-race-ci@example.invalid',
+            clock_timestamp()
+          );
+
+          CREATE FUNCTION public.ci_delay_atomic_receipt()
+          RETURNS trigger
+          LANGUAGE plpgsql
+          SET search_path = ''
+          AS $$
+          BEGIN
+            IF NEW.user_id = '01490000-0000-0000-0000-000000000010'::uuid THEN
+              PERFORM pg_catalog.pg_sleep(3);
+            END IF;
+            RETURN NEW;
+          END;
+          $$;
+          CREATE TRIGGER trg_ci_delay_atomic_receipt
+            BEFORE INSERT ON public.consent_records
+            FOR EACH ROW EXECUTE FUNCTION public.ci_delay_atomic_receipt();
+          SQL
+
+          call_rpc() {
+            local app_name="$1"
+            PGAPPNAME="$app_name" psql -qAt -h localhost -U postgres -v ON_ERROR_STOP=1 <<'SQL'
+          SET request.jwt.claims =
+            '{"sub":"01490000-0000-0000-0000-000000000010","role":"authenticated"}';
+          SET ROLE authenticated;
+          SELECT public.complete_profile_signup_consent(
+            '1990-01-01', 'en', 'Race User', 'complete-profile-v1',
+            true, true, true, true, true, false
+          );
+          SQL
+          }
+
+          call_rpc atomic-rpc-1 > "$RUNNER_TEMP/atomic-rpc-1.json" &
+          rpc_pid_1=$!
+          call_rpc atomic-rpc-2 > "$RUNNER_TEMP/atomic-rpc-2.json" &
+          rpc_pid_2=$!
+
+          contention_observed=0
+          for _attempt in $(seq 1 80); do
+            waiting_count=$(psql -qAt -h localhost -U postgres -v ON_ERROR_STOP=1 -c "
+              SELECT count(*)
+              FROM pg_locks AS lock_row
+              JOIN pg_stat_activity AS activity ON activity.pid = lock_row.pid
+              WHERE lock_row.locktype = 'advisory'
+                AND lock_row.granted IS FALSE
+                AND activity.application_name LIKE 'atomic-rpc-%'
+            ")
+            if [ "$waiting_count" -gt 0 ]; then
+              contention_observed=1
+              break
+            fi
+            sleep 0.05
+          done
+          test "$contention_observed" -eq 1
+
+          set +e
+          wait "$rpc_pid_1"
+          rpc_status_1=$?
+          wait "$rpc_pid_2"
+          rpc_status_2=$?
+          set -e
+
+          if [ "$rpc_status_1" -ne 0 ] || [ "$rpc_status_2" -ne 0 ]; then
+            echo "concurrent RPC process failed: $rpc_status_1 / $rpc_status_2"
+            exit 1
+          fi
+
+          created_count=$(grep -h -c '"profile_created": true' "$RUNNER_TEMP/atomic-rpc-1.json" "$RUNNER_TEMP/atomic-rpc-2.json" | awk '{s+=$1} END {print s}')
+          complete_count=$(grep -h -c '"already_complete": true' "$RUNNER_TEMP/atomic-rpc-1.json" "$RUNNER_TEMP/atomic-rpc-2.json" | awk '{s+=$1} END {print s}')
+          test "$created_count" -eq 1
+          test "$complete_count" -eq 1
+
+          psql -h localhost -U postgres -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          BEGIN
+            IF (SELECT count(*) FROM public.users
+                WHERE id = '01490000-0000-0000-0000-000000000010') <> 1 THEN
+              RAISE EXCEPTION 'concurrent RPCs did not converge to one profile';
+            END IF;
+            IF (SELECT count(*) FROM public.consent_records
+                WHERE user_id = '01490000-0000-0000-0000-000000000010') <> 1 THEN
+              RAISE EXCEPTION 'concurrent RPCs did not converge to one receipt';
+            END IF;
+          END $$;
+
+          DROP TRIGGER trg_ci_delay_atomic_receipt ON public.consent_records;
+          DROP FUNCTION public.ci_delay_atomic_receipt();
+          DELETE FROM public.users
+          WHERE id = '01490000-0000-0000-0000-000000000010';
+          DELETE FROM auth.users
+          WHERE id = '01490000-0000-0000-0000-000000000010';
           SQL
       - name: Confirm key constraints
         env:

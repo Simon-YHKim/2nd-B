@@ -1,6 +1,6 @@
-// The email-confirm path records consent inside Postgres, while auto-confirm and
-// OAuth paths use consent.ts. This guard keeps those two writers on the same
-// published document versions and pins the safety acknowledgement added in 0130.
+// The email-confirm path and complete-profile RPC share one frozen revision
+// contract in Postgres. This guard pins every historical tuple and keeps the
+// email trigger aligned with the versions rendered by the current client.
 
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -13,49 +13,104 @@ const AUTH = readFileSync(join(process.cwd(), "src", "lib", "supabase", "auth.ts
   .split(CR)
   .join("");
 
-// Append new revisions; never change an existing tuple. A revision identifies
-// the exact documents that its client displayed, so reusing it would create a
-// false historical receipt for already-installed clients.
+// Append new revisions; never edit an existing tuple. A revision identifies
+// the exact documents and consent surface shown by an already-installed client.
 const FROZEN_SIGNUP_REVISION_TUPLES = {
   "email-v2": {
     consentVersion: "2026-08-16",
     policyVersion: "2026-08-30",
     termsVersion: "2026-08-16",
+    confirmationEligible: true,
+  },
+  "complete-profile-v1": {
+    consentVersion: "2026-08-16",
+    policyVersion: "2026-08-30",
+    termsVersion: "2026-08-16",
+    confirmationEligible: false,
   },
 } as const;
 
-const matchingMigrations = readdirSync(migrationDir)
+const migrations = readdirSync(migrationDir)
   .filter((name) => /^\d{4}_.+\.sql$/.test(name))
-  .filter((name) =>
-    readFileSync(join(migrationDir, name), "utf8").includes(
-      "CREATE OR REPLACE FUNCTION public.complete_verified_email_signup()",
-    ),
-  )
-  .sort();
-const latestMigration = matchingMigrations[matchingMigrations.length - 1];
+  .sort()
+  .map((name) => {
+    const sql = readFileSync(join(migrationDir, name), "utf8").split(CR).join("");
+    return { name, exec: sql.replace(/^\s*--.*$/gm, "") };
+  });
 
-if (!latestMigration) {
-  throw new Error("verified-email consent ledger migration not found");
+function lastPatternMatch(source: string, pattern: RegExp) {
+  const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
+  const matches = [...source.matchAll(new RegExp(pattern.source, flags))];
+  return matches[matches.length - 1];
 }
 
-const SQL = readFileSync(join(migrationDir, latestMigration), "utf8").split(CR).join("");
-const EXEC = SQL.replace(/^\s*--.*$/gm, "");
-const functionStart = EXEC.indexOf("CREATE OR REPLACE FUNCTION public.complete_verified_email_signup()");
-const functionEnd = EXEC.indexOf(
-  "REVOKE ALL ON FUNCTION public.complete_verified_email_signup()",
-  functionStart,
+function latestFunctionDefinition(label: string, signature: RegExp) {
+  for (const migration of [...migrations].reverse()) {
+    const signatureMatch = lastPatternMatch(migration.exec, signature);
+    if (signatureMatch?.index === undefined) continue;
+
+    const start = signatureMatch.index;
+    const bodyMatch = migration.exec.slice(start).match(/\bAS\s+(\$[A-Za-z0-9_]*\$)/i);
+    const bodyMarker = bodyMatch?.[1];
+    const bodyStart = bodyMatch?.index === undefined ? -1 : start + bodyMatch.index;
+    const closing = bodyMarker
+      ? migration.exec.indexOf(`${bodyMarker};`, bodyStart + bodyMarker.length)
+      : -1;
+    if (!bodyMarker || bodyStart < 0 || closing < 0) {
+      throw new Error(`${migration.name} has an unterminated ${label}`);
+    }
+    return {
+      migration: migration.name,
+      definition: migration.exec.slice(start, closing + bodyMarker.length + 1),
+    };
+  }
+  throw new Error(`${label} migration not found`);
+}
+
+const CONTRACT_DEF = latestFunctionDefinition(
+  "signup consent contract",
+  /CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.signup_consent_contract\s*\(\s*p_revision\s+text\s*\)/i,
 );
+const TRIGGER_DEF = latestFunctionDefinition(
+  "verified-email signup trigger",
+  /CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.complete_verified_email_signup\s*\(\s*\)/i,
+);
+const CONTRACT = CONTRACT_DEF.definition;
+const FUNCTION = TRIGGER_DEF.definition;
+const EXEC = `${CONTRACT}\n${FUNCTION}`;
 
-if (functionStart < 0 || functionEnd < 0) {
-  throw new Error(`${latestMigration} does not replace complete_verified_email_signup()`);
+type FrozenRevision = keyof typeof FROZEN_SIGNUP_REVISION_TUPLES;
+
+function allContractTuples() {
+  const tuples: Record<
+    string,
+    {
+      consentVersion: string;
+      policyVersion: string;
+      termsVersion: string;
+      confirmationEligible: boolean;
+    }
+  > = {};
+  const rows = CONTRACT.matchAll(
+    /\('([^']+)'::text,\s*'([^']+)'::text,\s*'([^']+)'::text,\s*'([^']+)'::text,\s*(true|false)\)/gi,
+  );
+  for (const match of rows) {
+    const revision = match[1];
+    if (tuples[revision]) throw new Error(`${revision} is duplicated in ${CONTRACT_DEF.migration}`);
+    tuples[revision] = {
+      consentVersion: match[2],
+      policyVersion: match[3],
+      termsVersion: match[4],
+      confirmationEligible: match[5].toLowerCase() === "true",
+    };
+  }
+  return tuples;
 }
 
-const FUNCTION = EXEC.slice(functionStart, functionEnd);
-
-function declaredVersion(name: string): string {
-  const match = FUNCTION.match(new RegExp(`${name}\\s+constant\\s+text\\s*:=\\s*'([^']+)'`, "i"));
-  if (!match?.[1]) throw new Error(`${name} is not declared in ${latestMigration}`);
-  return match[1];
+function contractTuple(revision: FrozenRevision) {
+  const tuple = allContractTuples()[revision];
+  if (!tuple) throw new Error(`${revision} is not frozen in ${CONTRACT_DEF.migration}`);
+  return tuple;
 }
 
 function authSignupRevision(): string {
@@ -66,49 +121,30 @@ function authSignupRevision(): string {
   return match[1];
 }
 
-function frozenRevisionTuple(revision: string) {
-  if (!Object.prototype.hasOwnProperty.call(FROZEN_SIGNUP_REVISION_TUPLES, revision)) {
-    throw new Error(
-      `${revision} has no frozen document tuple; append a new revision mapping instead of reusing one`,
-    );
-  }
-
-  return FROZEN_SIGNUP_REVISION_TUPLES[
-    revision as keyof typeof FROZEN_SIGNUP_REVISION_TUPLES
-  ];
-}
-
 describe("verified-email consent ledger", () => {
-  test("uses the same server-owned document versions as the client writer", () => {
-    expect(declaredVersion("ledger_consent_version")).toBe(CONSENT_VERSION);
-    expect(declaredVersion("ledger_policy_version")).toBe(PRIVACY_POLICY_VERSION);
-    expect(declaredVersion("ledger_terms_version")).toBe(TERMS_VERSION);
+  test("keeps every frozen surface tuple append-only and exact", () => {
+    expect(allContractTuples()).toEqual(FROZEN_SIGNUP_REVISION_TUPLES);
   });
 
-  test("never reuses a signup revision for a different document tuple", () => {
-    expect({
-      consentVersion: declaredVersion("ledger_consent_version"),
-      policyVersion: declaredVersion("ledger_policy_version"),
-      termsVersion: declaredVersion("ledger_terms_version"),
-    }).toEqual(frozenRevisionTuple(declaredVersion("ledger_signup_revision")));
+  test("pins only the revision emitted by today's email client to current documents", () => {
+    const revision = authSignupRevision();
+    if (!(revision in FROZEN_SIGNUP_REVISION_TUPLES)) {
+      throw new Error(`${revision} has no frozen server contract`);
+    }
+    expect(contractTuple(revision as FrozenRevision)).toMatchObject({
+      consentVersion: CONSENT_VERSION,
+      policyVersion: PRIVACY_POLICY_VERSION,
+      termsVersion: TERMS_VERSION,
+    });
   });
 
-  test("maps only the matching client consent revision", () => {
-    expect(
-      Object.prototype.hasOwnProperty.call(
-        FROZEN_SIGNUP_REVISION_TUPLES,
-        authSignupRevision(),
-      ),
-    ).toBe(true);
-    expect(declaredVersion("ledger_signup_revision")).toBe(authSignupRevision());
+  test("allows only the pinned email revision through confirmation", () => {
+    expect(authSignupRevision()).toBe("email-v2");
+    expect(contractTuple(authSignupRevision() as "email-v2").confirmationEligible).toBe(true);
+    expect(contractTuple("complete-profile-v1").confirmationEligible).toBe(false);
     expect(AUTH).toMatch(/signup_flow:\s*VERIFIED_EMAIL_SIGNUP_REVISION/);
-    expect(AUTH).toMatch(
-      /signup_consent_safety_notice:\s*args\.consent\.safetyNotice/,
-    );
-    expect(FUNCTION).toMatch(
-      /signup_meta ->> 'signup_flow' IS DISTINCT FROM ledger_signup_revision/,
-    );
-    expect(AUTH).toContain("if (!allRequiredAcksChecked(args.consent))");
+    expect(FUNCTION).toContain("public.signup_consent_contract(signup_meta ->> 'signup_flow')");
+    expect(FUNCTION).toContain("contract.confirmation_eligible IS TRUE");
   });
 
   test("never lets auth metadata choose a document version", () => {
@@ -116,8 +152,9 @@ describe("verified-email consent ledger", () => {
     expect(FUNCTION).not.toContain("2026-06-02");
   });
 
-  test("requires and records the separately collected safety notice", () => {
-    expect(FUNCTION).toContain("signup_consent_safety_notice");
+  test("requires and records every separately collected acknowledgement", () => {
+    expect(AUTH).toMatch(/signup_consent_safety_notice:\s*args\.consent\.safetyNotice/);
+    expect(AUTH).toContain("if (!allRequiredAcksChecked(args.consent))");
     expect(FUNCTION).toMatch(
       /IF NOT \(service_ack AND llm_ack AND overseas_ack AND sensitive_ack AND safety_ack\) THEN/,
     );
@@ -129,7 +166,7 @@ describe("verified-email consent ledger", () => {
     expect(insert).toMatch(/sensitive_ack,\s*safety_ack,\s*signup_locale/);
   });
 
-  test("accepts only JSON boolean literals for acknowledgements", () => {
+  test("accepts only JSON boolean literals from confirmation metadata", () => {
     const keys = [
       "signup_consent_service",
       "signup_consent_llm_processing",
@@ -147,23 +184,33 @@ describe("verified-email consent ledger", () => {
     }
   });
 
-  test("keeps the first-confirmation and exact-version idempotence guards", () => {
+  test("keeps first-confirmation and full-receipt idempotence guards", () => {
     expect(FUNCTION).toContain(
       "OLD.email_confirmed_at IS NOT NULL OR NEW.email_confirmed_at IS NULL",
     );
-    expect(FUNCTION).toContain("consent_version = ledger_consent_version");
-    expect(FUNCTION).toContain("policy_version = ledger_policy_version");
-    expect(FUNCTION).toContain("terms_version = ledger_terms_version");
-    expect(FUNCTION).toContain("safety_notice_ack = true");
+    for (const field of [
+      "consent_version",
+      "policy_version",
+      "terms_version",
+      "age_band",
+      "minor_tier",
+      "required_ack",
+      "llm_processing_ack",
+      "overseas_transfer_ack",
+      "sensitive_data_ack",
+      "safety_notice_ack",
+      "purposes",
+      "optional_consents",
+    ]) {
+      expect(FUNCTION).toContain(`receipt.${field}`);
+    }
   });
 
   test("writes consent only for the profile inserted by this confirmation", () => {
     expect(FUNCTION).toMatch(/WITH inserted_user AS \(\s*INSERT INTO public\.users/);
     expect(FUNCTION).toMatch(/ON CONFLICT DO NOTHING\s*RETURNING id/);
     expect(FUNCTION).toMatch(/FROM inserted_user\s*WHERE id = NEW\.id/);
-    expect(FUNCTION).not.toContain(
-      "WHERE EXISTS (SELECT 1 FROM public.users WHERE id = NEW.id)",
-    );
+    expect(FUNCTION).not.toContain("WHERE EXISTS (SELECT 1 FROM public.users WHERE id = NEW.id)");
   });
 
   test("accepts only an exact ISO date string before casting", () => {
@@ -175,7 +222,9 @@ describe("verified-email consent ledger", () => {
     );
   });
 
-  test("does not rewrite the append-only historical ledger", () => {
+  test("serializes with the complete-profile RPC and keeps history append-only", () => {
+    expect(FUNCTION).toContain("pg_catalog.pg_advisory_xact_lock(");
+    expect(FUNCTION).toContain("'signup-consent:' || NEW.id::text");
     expect(EXEC).not.toMatch(/UPDATE\s+public\.consent_records/i);
     expect(EXEC).not.toMatch(/DELETE\s+FROM\s+public\.consent_records/i);
   });
