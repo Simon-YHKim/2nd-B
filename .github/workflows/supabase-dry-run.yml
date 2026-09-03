@@ -146,10 +146,9 @@ jobs:
             name="${base#*_}"
             name="${name%.sql}"
             row="$(psql -h localhost -U postgres -AtF '|' \
-              -v "wanted_version=$version" \
               -c "SELECT version, name, COALESCE(cardinality(statements), 0)
                   FROM supabase_migrations.schema_migrations
-                  WHERE version = :'wanted_version'")"
+                  WHERE version = '$version'")"
             IFS='|' read -r actual_version actual_name statement_count <<< "$row"
             if [[ "$actual_version" != "$version" \
                || "$actual_name" != "$name" \
