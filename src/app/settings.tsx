@@ -850,7 +850,7 @@ export default function Settings() {
 
         {/* 데이터 연동 — honest hand-offs only. The old three rows here showed
             "연결됨·동기화 중" off a local toggle while syncing NOTHING. */}
-        <M3SectionLabel action={<MdButton label={t("all")} variant="text" onPress={() => router.push("/integrations")} accessibilityLabel={t("allIntegrations")} />}>
+        <M3SectionLabel>
           {t("dataConnections")}
         </M3SectionLabel>
         <M3Group>

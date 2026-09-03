@@ -19,6 +19,8 @@ describe("PIXEL-CLAY settings screen contract", () => {
       ...source.matchAll(/router\.(?:push|replace)\("([^"]+)"\)/g),
     ].map((match) => match[1]);
 
+    expect(routes.filter((route) => route === "/integrations")).toHaveLength(1);
+
     expect(new Set(routes)).toEqual(
       new Set([
         "/",
