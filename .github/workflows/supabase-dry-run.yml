@@ -61,14 +61,132 @@ jobs:
             IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_auth_admin') THEN CREATE ROLE supabase_auth_admin; END IF;
           END $$;
           SQL
-      - name: Apply migrations in order
+      - name: Apply baseline migrations (0001-0146) in order
         env:
           PGPASSWORD: postgres
         run: |
+          set -euo pipefail
           for f in db/migrations/*.sql; do
-            echo "Applying $f"
-            psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f "$f"
+            base="${f##*/}"
+            version="${base%%_*}"
+            if [[ ! "$version" =~ ^[0-9]+$ ]]; then
+              echo "Migration filename has no numeric version: $base" >&2
+              exit 1
+            fi
+            if (( 10#$version <= 146 )); then
+              echo "Applying baseline $f"
+              psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f "$f"
+            fi
           done
+      # Pin the executable because its statement splitting and migration-ledger
+      # writes are part of this test contract, not an ambient runner detail.
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.116.0
+      - name: Apply staged migrations (0147+) through Supabase CLI
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+
+          staged_project="$(mktemp -d)"
+          supabase init --workdir "$staged_project"
+
+          staged_migrations=()
+          for f in db/migrations/*.sql; do
+            base="${f##*/}"
+            version="${base%%_*}"
+            if [[ ! "$version" =~ ^[0-9]+$ ]]; then
+              echo "Migration filename has no numeric version: $base" >&2
+              exit 1
+            fi
+            if (( 10#$version >= 147 )); then
+              staged_migrations+=("$f")
+            fi
+          done
+
+          if (( ${#staged_migrations[@]} == 0 )); then
+            echo "No CLI-managed migrations found at version 0147 or later" >&2
+            exit 1
+          fi
+
+          transaction_re='^[[:space:]]*(BEGIN([[:space:]]+(WORK|TRANSACTION))?|COMMIT([[:space:]]+WORK)?)[[:space:]]*;([[:space:]]*--.*)?$'
+          for f in "${staged_migrations[@]}"; do
+            if grep -HEn "$transaction_re" "$f"; then
+              echo "Top-level transaction wrapper is forbidden in CLI-managed migration: $f" >&2
+              exit 1
+            fi
+            cp -- "$f" "$staged_project/supabase/migrations/"
+          done
+
+          # Four-digit 0147+ versions are a CI-scratch convention only. A
+          # production bundle must receive separate monotonic timestamp versions
+          # before any live db push. This command targets only the job-local DB;
+          # it never reads a production URL, project ref, or repository secret.
+          supabase db push \
+            --db-url "postgresql://postgres:postgres@localhost:5432/postgres" \
+            --workdir "$staged_project" \
+            --include-all \
+            --skip-vault \
+            --yes
+
+          expected_count="${#staged_migrations[@]}"
+          actual_count="$(psql -h localhost -U postgres -Atc \
+            'SELECT count(*) FROM supabase_migrations.schema_migrations')"
+          if [[ "$actual_count" != "$expected_count" ]]; then
+            echo "Migration ledger has $actual_count rows; expected $expected_count" >&2
+            exit 1
+          fi
+
+          for f in "${staged_migrations[@]}"; do
+            base="${f##*/}"
+            version="${base%%_*}"
+            name="${base#*_}"
+            name="${name%.sql}"
+            row="$(psql -h localhost -U postgres -AtF '|' \
+              -v "wanted_version=$version" \
+              -c "SELECT version, name, COALESCE(cardinality(statements), 0)
+                  FROM supabase_migrations.schema_migrations
+                  WHERE version = :'wanted_version'")"
+            IFS='|' read -r actual_version actual_name statement_count <<< "$row"
+            if [[ "$actual_version" != "$version" \
+               || "$actual_name" != "$name" \
+               || ! "$statement_count" =~ ^[1-9][0-9]*$ ]]; then
+              echo "Incomplete migration ledger record for $base" >&2
+              exit 1
+            fi
+          done
+
+          psql -h localhost -U postgres -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          BEGIN
+            IF NOT EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_schema = 'public'
+                AND table_name = 'relation_people'
+                AND column_name = 'client_revision'
+                AND is_nullable = 'NO'
+            ) THEN
+              RAISE EXCEPTION '0147 end state is missing relation_people.client_revision';
+            END IF;
+
+            IF to_regprocedure('public.complete_verified_email_signup()') IS NULL THEN
+              RAISE EXCEPTION '0148 end state is missing complete_verified_email_signup()';
+            END IF;
+
+            IF NOT EXISTS (
+              SELECT 1
+              FROM pg_trigger
+              WHERE tgname = 'trg_complete_verified_email_signup'
+                AND tgrelid = 'auth.users'::regclass
+                AND tgfoid = 'public.complete_verified_email_signup()'::regprocedure
+                AND tgenabled <> 'D'
+            ) THEN
+              RAISE EXCEPTION 'verified-email completion trigger is missing or disabled';
+            END IF;
+          END $$;
+          SQL
       - name: Exercise verified-email consent ledger
         env:
           PGPASSWORD: postgres

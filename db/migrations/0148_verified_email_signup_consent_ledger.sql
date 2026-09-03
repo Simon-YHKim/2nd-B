@@ -22,7 +22,6 @@
 -- materially different from false. This repair applies only to confirmations
 -- whose first unconfirmed -> confirmed transition happens after 0148 is live.
 
-BEGIN;
 
 CREATE OR REPLACE FUNCTION public.complete_verified_email_signup()
 RETURNS trigger
@@ -176,5 +175,3 @@ $$;
 -- CREATE OR REPLACE retains the old ACL, but restate the deny-list so this
 -- forward migration independently satisfies the DEFINER grant guard.
 REVOKE ALL ON FUNCTION public.complete_verified_email_signup() FROM PUBLIC, anon, authenticated;
-
-COMMIT;
