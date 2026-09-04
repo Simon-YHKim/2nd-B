@@ -35,6 +35,7 @@
 // substantive left.
 
 import { callLlm } from "./boundary";
+import { INJECTION_GUARD, wrapUntrusted } from "./untrusted";
 import { resolveVendorForPurpose } from "./routing";
 import type { LlmVendor } from "./routing";
 import type { PromptPurpose, ReasoningEffort } from "./types";
@@ -192,8 +193,14 @@ export async function crosscheck(input: CrosscheckInput): Promise<CrosscheckResu
     try {
       const challenge = await callLlm<CrosscheckRound>({
         purpose: "crosscheck_challenge",
-        system: CHALLENGE_SYSTEM,
-        user: `EVIDENCE:\n${input.evidence}\n\nCLAIM:\n${current}`,
+        // F-07 (audit 260904): evidence is user-influenced (clipped/imported
+        // content, user tags) and the claim is a prior model draft — either can
+        // carry instruction-like text into this reviewer prompt. Fence both as
+        // untrusted data and prepend the injection guard, the same protection
+        // every other LLM surface uses (src/lib/llm/untrusted.ts). The final
+        // persona parser still re-grounds the output, so this is defense in depth.
+        system: `${INJECTION_GUARD[input.locale]}\n\n${CHALLENGE_SYSTEM}`,
+        user: `EVIDENCE:\n${wrapUntrusted("evidence", input.evidence)}\n\nCLAIM:\n${wrapUntrusted("claim", current)}`,
         responseSchema: CHALLENGE_SCHEMA as unknown as Record<string, unknown>,
         userId: input.userId,
         locale: input.locale,
@@ -221,13 +228,17 @@ export async function crosscheck(input: CrosscheckInput): Promise<CrosscheckResu
     try {
       const defence = await callLlm({
         purpose: "crosscheck_defend",
-        system: input.outputContract ? `${DEFEND_SYSTEM}
-
-${input.outputContract}` : DEFEND_SYSTEM,
+        // Same F-07 fencing. The objections are the challenger's own output re-fed
+        // here, so they are model-generated-but-untrusted too. outputContract is a
+        // hardcoded caller constant (persona-synthesis.ts), the one genuinely
+        // trusted instruction in this prompt, so it stays OUTSIDE the fence.
+        system: input.outputContract
+          ? `${INJECTION_GUARD[input.locale]}\n\n${DEFEND_SYSTEM}\n\n${input.outputContract}`
+          : `${INJECTION_GUARD[input.locale]}\n\n${DEFEND_SYSTEM}`,
         user: [
-          `EVIDENCE:\n${input.evidence}`,
-          `YOUR CLAIM:\n${current}`,
-          `OBJECTIONS:\n${round.objections.map((o, n) => `${n + 1}. ${o}`).join("\n")}`,
+          `EVIDENCE:\n${wrapUntrusted("evidence", input.evidence)}`,
+          `YOUR CLAIM:\n${wrapUntrusted("claim", current)}`,
+          `OBJECTIONS:\n${wrapUntrusted("objections", round.objections.map((o, n) => `${n + 1}. ${o}`).join("\n"))}`,
         ].join("\n\n"),
         userId: input.userId,
         locale: input.locale,
