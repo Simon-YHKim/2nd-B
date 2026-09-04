@@ -18,10 +18,14 @@ import {
   DEV_SCREEN_GROUPS,
   canOpenFromDevRegistry,
   designLabScreens,
+  devScreenVariants,
   devScreens,
   entryRoleCounts,
+  hrefPathname,
+  openableVariants,
   screenEntry,
   screenRender,
+  screenVariants,
   type SpecialRenderBehavior,
   type SpecialScreenEntry,
 } from "../screen-index";
@@ -73,6 +77,52 @@ const EXPECTED_SPECIAL_RENDER: Record<string, SpecialRenderBehavior> = {
     legacy: { kind: "screen" },
   },
 };
+
+/**
+ * 등록된 QA 변형 전부 — 소유 파일과 href, **순서까지** 고정한다.
+ *
+ * 여기 없는 변형이 생기거나 여기 있는 변형이 사라지면 실패한다. 변형은
+ * "라우트 소스가 그 값을 실제로 읽는가" 하나로만 자격이 생기므로, 목록이
+ * 늘어날 때 그 근거를 반드시 아래 소스 대조 테스트와 함께 넣어야 한다.
+ */
+const EXPECTED_QA_VARIANTS: Record<string, string[]> = {
+  capture: ["/capture?entry=firstRun"],
+  "capture-full": [
+    "/capture-full?mode=journal",
+    "/capture-full?mode=memo",
+    "/capture-full?mode=linkclip",
+    "/capture-full?mode=ocr",
+    "/capture-full?mode=file",
+    "/capture-full?mode=voice",
+    "/capture-full?mode=todo",
+    "/capture-full?mode=fourw",
+  ],
+  formats: ["/formats?view=export"],
+  secondb: [
+    "/secondb?panel=dashboard",
+    "/secondb?mode=divergent",
+    "/secondb?fromNode=%EC%BB%A4%EB%A6%AC%EC%96%B4",
+  ],
+  audit: ["/audit?screener=1"],
+};
+
+/**
+ * 등록하면 안 되는 값들. 공통점은 **에러 없이 무시된다**는 것이다 — 예외도
+ * 빈 화면도 안 나고 기본 화면이 그냥 열린다. 그래서 검수자는 "이 변형이 원래
+ * 이렇게 생겼구나" 하고 넘어간다. 조용한 거짓말이 이 목록의 유일한 실패 모드다.
+ *
+ * link · photo 가 특히 위험한 이유: 화면에 보이는 한국어 이름이 linkclip 은
+ * "링크", ocr 은 "사진" 이라(locales/ko/capture.json) 라벨을 그대로 옮겨 적으면
+ * 정확히 이 두 값이 나온다.
+ */
+const FORBIDDEN_VARIANT_HREFS = [
+  "/capture?mode=link",
+  "/capture?mode=photo",
+  "/capture-full?mode=link",
+  "/capture-full?mode=photo",
+  // 무동작 별칭 — 눌러도 기본과 같은 화면이 열린다 (formats.tsx 의 주석이 그렇게 적고 있다).
+  "/formats?view=manager",
+];
 
 /**
  * `src/lib/canon/__tests__/canon.test.ts` 의 appRoutes() 와 **같은 규칙**이어야
@@ -549,6 +599,135 @@ describe("개발자 화면 목록", () => {
     expect(byFile["deepspace-home"]?.note).toContain("일곱 한 벌");
   });
 
+  // ── QA 변형 ────────────────────────────────────────────────────────────
+
+  it("QA 변형은 등록된 집합·순서와 정확히 일치한다", () => {
+    const actual = Object.fromEntries(
+      devScreens()
+        .filter((screen) => screenVariants(screen).length > 0)
+        .map((screen) => [screen.file, screenVariants(screen).map((variant) => variant.href)]),
+    );
+    expect(actual).toEqual(EXPECTED_QA_VARIANTS);
+    // 라벨이 비어 있으면 버튼에 이름이 없다.
+    for (const { variant } of devScreenVariants()) {
+      expect(variant.label.trim().length).toBeGreaterThan(0);
+    }
+  });
+
+  it("변형 href 는 유일하고 라우트 href 와 겹치지 않는다", () => {
+    const variantHrefs = devScreenVariants().map(({ variant }) => variant.href);
+    expect(new Set(variantHrefs).size).toBe(variantHrefs.length);
+
+    // 파라미터 없는 기본과 같은 href 를 단 변형은 같은 화면을 두 번 여는 버튼이다.
+    const routeHrefs = new Set(devScreens().map((screen) => screen.href));
+    for (const href of variantHrefs) expect(routeHrefs.has(href)).toBe(false);
+  });
+
+  it("변형은 소유 화면과 같은 pathname 을 연다", () => {
+    for (const { screen, variant } of devScreenVariants()) {
+      // 다른 화면으로 가는 버튼이 소유 화면 밑에 붙으면 목록이 소속을 거짓말한다.
+      expect({ file: screen.file, path: hrefPathname(variant.href) }).toEqual({
+        file: screen.file,
+        path: screen.href,
+      });
+      // 쿼리가 없으면 그냥 소유 화면이다 — 변형일 이유가 없다.
+      expect(variant.href.length).toBeGreaterThan(screen.href.length);
+      expect(variant.href.startsWith(`${screen.href}?`)).toBe(true);
+      expect(variant.href).not.toContain("[");
+      expect(variant.href).not.toContain("(");
+    }
+  });
+
+  it("변형은 라우트 레코드를 늘리지 않는다", () => {
+    // 대장은 라우트 100건이고 변형은 그 안의 여는 방법이다. 변형이 레코드로
+    // 새면 `src/app` 대조가 유령 항목으로 실패한다 — 개수 핀이 아니라 파일
+    // 목록과의 동치로 지킨다(개수만 세면 하나 지우고 하나 더할 때 통과한다).
+    expect(entryRoleCounts().total).toBe(routeFiles().length);
+    expect(devScreens()).toHaveLength(routeFiles().length);
+    expect(devScreenVariants().length).toBeGreaterThan(0);
+    // 세 번째 분류 축이 생기면 두 축 계약이 무너진다.
+    for (const screen of devScreens()) {
+      expect("classification" in screen).toBe(false);
+      expect("orphan" in screen).toBe(false);
+      expect("stub" in screen).toBe(false);
+    }
+  });
+
+  it("capture 계열 변형은 CAPTURE_MODES 의 id 만 쓴다", () => {
+    // 선언이 아니라 정본 소스를 읽어 대조한다 — 모드 id 가 draft.ts 에서 바뀌면
+    // 여기서 잡힌다. 화면 라벨("링크"·"사진")을 옮겨 적은 값은 통과할 수 없다.
+    const draftSource = readFileSync(
+      join(process.cwd(), "src", "lib", "capture", "draft.ts"),
+      "utf8",
+    );
+    const declared = draftSource.match(/export const CAPTURE_MODES[^=]*=\s*\[([\s\S]*?)\]/)?.[1] ?? "";
+    const modes = [...declared.matchAll(/"([a-z]+)"/g)].map((m) => m[1]);
+    expect(modes.length).toBeGreaterThan(0);
+
+    const used = devScreenVariants()
+      .map(({ variant }) => variant.href.match(/^\/capture-full\?mode=(.+)$/)?.[1])
+      .filter((mode): mode is string => typeof mode === "string");
+    expect(used).toEqual(EXPECTED_QA_VARIANTS["capture-full"].map((href) => href.split("=")[1]));
+    for (const mode of used) expect(modes).toContain(mode);
+    // 여덟 모드 전부를 덮는다 — 하나라도 빠지면 그 모드는 앱 안에서 열 수 없다.
+    expect([...used].sort()).toEqual([...modes].sort());
+  });
+
+  it("조용히 무시되는 파라미터는 등록하지 않는다", () => {
+    const hrefs = new Set(devScreenVariants().map(({ variant }) => variant.href));
+    for (const forbidden of FORBIDDEN_VARIANT_HREFS) {
+      expect({ forbidden, registered: hrefs.has(forbidden) }).toEqual({ forbidden, registered: false });
+    }
+  });
+
+  it("변형을 선언한 라우트가 실제로 그 파라미터를 읽는다", () => {
+    // 읽지 않는 파라미터를 단 버튼은 기본 화면을 열면서 변형인 척한다.
+    const read = (file: string) => readFileSync(join(APP, file), "utf8");
+
+    expect(read("audit.tsx")).toContain('if (screener === "1")');
+    expect(read("formats.tsx")).toContain('view === "export"');
+    expect(read("secondb.tsx")).toContain('params.panel === "dashboard"');
+    expect(read("secondb.tsx")).toContain('params.mode === "divergent"');
+    expect(read("secondb.tsx")).toContain("params.fromNode");
+    expect(read("capture.tsx")).toContain('entry === "firstRun"');
+
+    // /capture-full 은 자기 파일에서 파라미터를 읽지 않는다 — CaptureLegacy 를
+    // 재사용하고 그쪽이 현재 라우트의 쿼리를 읽는다. 그 배선이 끊기면 여덟 개
+    // 버튼이 전부 조용히 일기 모드를 연다.
+    expect(read("capture-full.tsx")).toContain('import { CaptureLegacy } from "./capture"');
+    expect(read("capture-full.tsx")).toContain("<CaptureLegacy");
+    expect(read("capture.tsx")).toContain("mode: modeParam");
+    expect(read("capture.tsx")).toContain("planCaptureParamConsumption({");
+    expect(read("capture.tsx")).toContain("switchCaptureMode(plan.targetMode)");
+  });
+
+  it("한글이 든 변형 href 는 URL 인코딩돼 있다", () => {
+    for (const { variant } of devScreenVariants()) {
+      // 날 한글을 href 에 그대로 두면 플랫폼마다 인코딩이 갈린다. URLSearchParams
+      // 는 읽는 순간 디코딩하므로 파싱 결과가 아니라 **원문 문자열**을 봐야 한다.
+      expect(variant.href).toMatch(/^[\x20-\x7E]*$/);
+      const query = variant.href.slice(variant.href.indexOf("?") + 1);
+      for (const [, value] of new URLSearchParams(query)) {
+        expect(value.trim().length).toBeGreaterThan(0);
+      }
+    }
+    // 인코딩된 값이 실제로 뜻 있는 견본으로 풀린다 — 깨진 바이트가 아니다.
+    const node = devScreenVariants().find(({ variant }) => variant.href.includes("fromNode="));
+    expect(node?.variant.href).toContain("%EC%BB%A4");
+    expect(new URLSearchParams(node?.variant.href.split("?")[1] ?? "").get("fromNode")).toBe("커리어");
+  });
+
+  it("딥링크 계약에는 실행 가능한 변형이 붙지 않는다", () => {
+    for (const screen of devScreens()) {
+      if (canOpenFromDevRegistry(screen)) {
+        expect(openableVariants(screen)).toEqual(screenVariants(screen));
+        continue;
+      }
+      // 계약 화면은 mount 자체가 조회·가입·세션 변경을 시작할 수 있다.
+      expect(openableVariants(screen)).toHaveLength(0);
+    }
+  });
+
   // ── /dev-screens 화면 자체 ─────────────────────────────────────────────
 
   it("개발자 목록이 역할 집계·가상화 목록·PIXEL-CLAY 프리미티브를 사용한다", () => {
@@ -572,6 +751,24 @@ describe("개발자 화면 목록", () => {
     }
     expect(source).not.toContain("<ScrollView");
     expect(source).not.toContain("orphanScreens");
+  });
+
+  it("개발자 목록이 변형을 소유 행 아래에서 실제로 연다", () => {
+    const source = readFileSync(join(APP, "dev-screens.tsx"), "utf8");
+    // 목록이 변형을 그리기만 하고 안 열면 버튼은 장식이다. 선언이 아니라
+    // 화면 소스가 그 href 로 이동하는지를 본다.
+    expect(source).toContain("router.push(variant.href)");
+    expect(source).toContain('accessibilityRole="button"');
+    // 계약 판정은 openableVariants 한 곳이 소유한다 — 화면이 따로 판정하면 갈린다.
+    expect(source).toContain("openableVariants(screen)");
+    expect(source).not.toContain("screenVariants(screen)");
+    // 소유 행 바로 아래에 붙는다.
+    expect(source).toMatch(/<ScreenRow screen=\{item\} section=\{section\} \/>\s*<VariantList screen=\{item\} \/>/);
+    // 탭 표적은 줄이지 않는다. (줄바꿈이 CRLF 일 수 있어 공백은 느슨하게 본다.)
+    expect(source).toMatch(/variantContent:\s*\{\s*minHeight:\s*m3\.minTouch,/);
+    for (const primitive of ["PixelSurface", "PixelGlyph"]) {
+      expect(source).toContain(primitive);
+    }
   });
 
   it("외부 계약의 정적 ScreenRow 분기는 press 나 navigation 을 렌더하지 않는다", () => {
