@@ -231,13 +231,25 @@ describe("개발자 화면 목록", () => {
     }
   });
 
-  it("클리퍼 형식 관리 항목은 manager 변형을 직접 연다", () => {
+  it("클리퍼 형식 관리 항목은 맨 라우트를 열고 내보내기 변형을 안내한다", () => {
     expect(devScreens().find((screen) => screen.file === "formats")).toEqual(
       expect.objectContaining({
-        href: "/formats?view=manager",
+        note: expect.stringContaining("?view=export"),
+        href: "/formats",
         label: "클리퍼 형식 관리",
       }),
     );
+  });
+
+  it("formats 라우트의 파라미터 없는 기본이 실제로 관리 화면이다", () => {
+    // 대장의 label 과 라우트의 기본 분기가 어긋나면 개발자 목록이 거짓말을 한다.
+    // #1597 은 그 어긋남을 href 에 쿼리를 박아 우회했고, 2026-09-04 에 기본 분기를
+    // 뒤집어 원인을 없앴다. 되돌아가면 여기서 잡는다 — 선언이 아니라 소스를 읽는다.
+    const body = defaultRouteFunctionSource(readFileSync(join(APP, "formats.tsx"), "utf8"), "formats.tsx");
+    expect(body).toContain('view === "export"');
+    // 마지막 폴백이 관리 화면이어야 한다. 딥스페이스 기본이 내보내기로 돌아가면 실패.
+    expect(body).not.toMatch(/if\s*\(isDeepSpaceUI\(\)\)\s*return\s*<DeepSpaceFormatsScreen/);
+    expect(body).toContain("return <FormatsLegacy />;");
   });
 
   it("과거의 나 항목은 같은 파일의 Life Audit 변형을 안내한다", () => {
