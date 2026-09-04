@@ -170,6 +170,15 @@
       "kakao": "Lanjut dengan Kakao",
       "facebook": "Lanjut dengan Facebook",
       "github": "Lanjut dengan GitHub"
+    },
+    "business": {
+      "company": "Perusahaan",
+      "ceo": "Direktur",
+      "address": "Alamat",
+      "bizNo": "No. registrasi usaha",
+      "mailOrderNo": "No. laporan penjualan jarak jauh",
+      "privacyOfficer": "Petugas privasi",
+      "phone": "Telepon"
     }
   },
   "account": {

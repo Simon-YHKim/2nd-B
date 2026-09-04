@@ -25,7 +25,9 @@ import { ageInYears, MIN_SELF_CONSENT_AGE, type OAuthProvider } from "@/lib/supa
 import { allRequiredAcksChecked, setAllRequiredAcks, type ConsentSelections } from "@/lib/auth/consent-selections";
 import { DateField } from "@/components/m3";
 import { InlineLoader } from "@/components/ui/InlineLoader";
+import { BusinessFooter } from "@/components/deepspace/BusinessFooter";
 import { todayISO } from "@/components/m3/date-picker/calendar-math";
+import { checkboxSpaceKeyProps } from "@/lib/ui/checkbox-space-key";
 
 // Keyboard-aware shell for the auth screens (sign-in / sign-up / reset). The
 // generic Shell above is for in-app graph screens and has no keyboard handling;
@@ -101,9 +103,11 @@ export function AuthShell({ children, scrollRef }: { children: ReactNode; scroll
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={{ flex: 1, paddingTop: insets.top }}
       >
+        {/* AuthShell also hosts legal copy. Bound its content, not the shared
+            graph shell or full-bleed backdrop; small screens keep 100% width. */}
         <ScrollView
           ref={scrollRef}
-          contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(40, insets.bottom + 24) }]}
+          contentContainerStyle={[styles.scroll, { width: "100%", maxWidth: 640, alignSelf: "center", paddingBottom: Math.max(40, insets.bottom + 24) }]}
           keyboardShouldPersistTaps="handled"
         >
           {children}
@@ -341,6 +345,20 @@ export function DeepSpaceSignInDesignScreen() {
           <Text variant="body" style={styles.authPrimaryText}>{submitting ? t("auth:signIn.submitting") : t("auth:signIn.submit")}</Text>
         </Pressable>
 
+        {/* PIXEL-CLAY auth (design/pixel_clay_260825/captures/auth.png): sign-up
+            is a full-width outlined button directly under sign-in. It replaces the
+            "New here? Sign up" prompt line that used to sit below the providers,
+            so the screen keeps ONE sign-up door instead of two. Label is our own
+            reviewed copy (deepspace:auth.signUp), not the mockup's. */}
+        <Pressable
+          onPress={() => router.push("/sign-up")}
+          style={[styles.providerPill, styles.authSecondary]}
+          accessibilityRole="button"
+          accessibilityLabel={t("deepspace:auth.signUp")}
+        >
+          <Text variant="body" style={styles.authSecondaryText}>{t("deepspace:auth.signUp")}</Text>
+        </Pressable>
+
         {/* Forgot-password now NAVIGATES: the code entry, resend, and new
             password all live on /reset-password (flow request #5). The typed
             address rides along so the user does not retype it. */}
@@ -372,11 +390,6 @@ export function DeepSpaceSignInDesignScreen() {
           onProvider={(provider) => void handleOAuth(provider)}
           onNaver={() => void handleNaver()}
         />
-
-        <Pressable onPress={() => router.push("/sign-up")} style={styles.authSignUpRow} accessibilityRole="link" accessibilityLabel={`${t("deepspace:auth.signUpPrompt")} ${t("deepspace:auth.signUp")}`}>
-          <Text variant="body" style={styles.authSignUpPrompt}>{t("deepspace:auth.signUpPrompt")}</Text>
-          <Text variant="body" style={styles.authSignUpCta}>{t("deepspace:auth.signUp")}</Text>
-        </Pressable>
       </View>
 
       {/* U4: the consent line now OPENS the terms it references (readable
@@ -389,6 +402,9 @@ export function DeepSpaceSignInDesignScreen() {
       >
         <Text variant="caption" style={[styles.authLegal, { textDecorationLine: "underline" }]}>{t("deepspace:auth.legalConsent")}</Text>
       </Pressable>
+      {/* 전자상거래법 표시의무 푸터 (PIXEL-CLAY auth 목적지 하단). 값이 등록되기
+          전(BUSINESS_INFO null)에는 아무것도 그리지 않는다: src/lib/legal/business-info.ts */}
+      <BusinessFooter />
       {toast ? <AuthToast message={toast.message} tone={toast.tone} /> : null}
     </AuthShell>
   );
@@ -407,8 +423,10 @@ function ConsentCheckRow({ checked, label, emphasize, onToggle, onDetail, detail
       <Pressable
         style={styles.consentToggleArea}
         onPress={onToggle}
+        {...checkboxSpaceKeyProps(onToggle)}
         accessibilityRole="checkbox"
         accessibilityState={{ checked }}
+        aria-checked={checked}
         accessibilityLabel={label}
       >
         <View style={[styles.consentCheckbox, checked && styles.consentCheckboxOn]}>
