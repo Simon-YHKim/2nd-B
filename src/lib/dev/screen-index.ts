@@ -105,7 +105,15 @@ export interface DevScreen {
   href: string;
   /** 한국어 이름. 캐논에 제목이 있으면 그걸 썼다. */
   label: string;
-  /** 로그인이 필요하다 (파일에 `<Redirect href="/sign-in" />` 가 있다). */
+  /**
+   * 로그인이 필요하다.
+   *
+   * 대개는 라우트 파일이 직접 `<Redirect href="/sign-in" />` 를 그린다. 다만
+   * 게이트를 다른 컴포넌트에 **위임한** 라우트가 셋 있어서(capture-full · srs ·
+   * trends) "파일에 리터럴이 있다"로 정의하면 그 셋과 모순된다. 그래서 뜻은
+   * **직접 가드이거나 검증된 위임 가드**다 — 테스트의 `AUTH_DELEGATES` 가 각
+   * 위임 체인(import → 렌더 → 가드)을 AST 로 대조해 이 표시를 뒷받침한다.
+   */
   auth?: true;
   /** 개발 빌드에서만 열린다 (`<DevOnlyRoute>` 뒤). */
   dev?: true;
@@ -152,7 +160,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
           {
             label: "첫 실행 안내",
             href: "/capture?entry=firstRun",
-            note: "온보딩이 넘겨주는 진입. 일기 모드에 '한 문장이면 충분' 힌트가 붙고(capture.tsx:2945), 딥스페이스에서 CaptureView 대신 전체 intake 가 열린다(capture.tsx:326)",
+            note: "온보딩이 넘겨주는 진입. `firstRun` 플래그가 일기 모드에 '한 문장이면 충분' 힌트를 붙이고, `hasFullCaptureParams` 가 딥스페이스에서 CaptureView 대신 전체 intake 를 연다",
           },
         ],
       },
@@ -160,9 +168,18 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         file: "capture-full",
         href: "/capture-full",
         label: "담기 전체 (메모·링크·클립·OCR·파일)",
+        // 이 파일에는 `<Redirect href="/sign-in" />` 리터럴이 **없다** — 인증 경계를
+        // `CaptureLegacy`(→ `CaptureLegacySession`)에 위임하기 때문이다. 그래도
+        // 로그인은 실제로 필요하다. 라우트 파일 안만 보는 판정은 여기서 거짓 음성을
+        // 내고, 그러면 이 화면과 아래 여덟 변형이 '로그인 필요' 배지 없이 보인다.
+        auth: true,
         // 여덟 모드는 화면에서 '고급 펼치기' 뒤에 있어서 눌러보기 전에는 안 보인다.
-        // `?mode=` 는 CaptureLegacySession 이 읽고 switchCaptureMode 까지 간다
-        // (capture.tsx:384 → planCaptureParamConsumption → capture.tsx:1268).
+        // `?mode=` 는 `CaptureLegacySession` 이 읽고 `planCaptureParamConsumption`
+        // 의 계획을 거쳐 `switchCaptureMode` 까지 간다.
+        //
+        // 등급: 여덟 모드 자체는 **무료로 전부 열린다** — `FREE_LIMIT` 가 비어 있고
+        // `FEATURE_UNLOCK_LEVEL` 이 전부 Lv1 이다. 여기에 등급 안내를 달지 말 것
+        // (담기 할당량과 아래 세컨비 페르소나 등급은 서로 다른 이야기다).
         //
         // ⚠ 이름은 **CAPTURE_MODES 의 id** 여야 한다. 화면에 보이는 한국어 이름이
         // 아니다 — linkclip 의 이름은 "링크", ocr 의 이름은 "사진"이라서 라벨을
@@ -180,6 +197,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
           { label: "할 일", href: "/capture-full?mode=todo" },
           { label: "4W1H", href: "/capture-full?mode=fourw" },
         ],
+        note: "로그인이 필요하다 — 이 파일이 아니라 위임받은 CaptureLegacySession 이 게이트를 가진다. 여덟 모드는 등급 제한 없이 전부 열린다",
       },
       { file: "records", href: "/records", label: "별가루 목록", auth: true },
       { file: "record/[id]", href: "/record/sample", label: "별가루 상세", auth: true, sample: true, note: "실제 id 가 아니라서 '없음' 상태가 보인다" },
@@ -203,15 +221,16 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
           {
             label: "내보내기 시안",
             href: "/formats?view=export",
-            // ?view=manager 는 일부러 안 넣는다 — 무동작 별칭이라(formats.tsx:778)
-            // 눌러도 기본과 같은 화면이 열린다. 아무것도 안 하는 버튼은 검수자에게
-            // "변형이 원래 기본과 같구나" 라는 틀린 확신을 준다.
-            note: "앱 내 진입점 0건이라 이 버튼이 유일한 통로다. formats.tsx:780 이 읽고, 딥스페이스(기본 빌드)에서만 갈린다",
+            // ?view=manager 는 일부러 안 넣는다 — 무동작 별칭이라 눌러도 기본과 같은
+            // 화면이 열린다(`Formats` 가 그 값을 분기에 쓰지 않는다). 아무것도 안 하는
+            // 버튼은 검수자에게 "변형이 원래 기본과 같구나" 라는 틀린 확신을 준다.
+            note: "앱 내 진입점 0건이라 이 버튼이 유일한 통로다. `Formats` 의 `view === \"export\"` 분기가 읽고, 딥스페이스(기본 빌드)에서만 갈린다",
           },
         ],
       },
       { file: "share-card", href: "/share-card", label: "공유 카드", auth: true },
-      { file: "srs", href: "/srs", label: "언어 복습 (SRS)" },
+      // 위임 게이트 — 이 파일에는 리다이렉트 리터럴이 없고 `DeepSpaceSrsScreen` 이 갖는다.
+      { file: "srs", href: "/srs", label: "언어 복습 (SRS)", auth: true, note: "로그인이 필요하다 — 게이트는 이 파일이 아니라 DeepSpaceSrsScreen 에 있다" },
       { file: "reading", href: "/reading", label: "읽기 · 배움 선반" },
     ],
   },
@@ -229,17 +248,23 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
           {
             label: "대시보드 펴고 시작",
             href: "/secondb?panel=dashboard",
-            note: "세컨비 머리를 터치했을 때의 진입(Simon 결정 6). 생활 여섯 영역이 대화창 안에 펴진다. secondb.tsx:485 가 읽는다",
+            note: "세컨비 머리를 터치했을 때의 진입(Simon 결정 6). 생활 여섯 영역이 대화창 안에 펴진다. `showDashboard` 의 초기값이 이 값을 읽는다",
           },
           {
             label: "새 관점 모드",
             href: "/secondb?mode=divergent",
-            note: "chatMode 를 divergent 로, 페르소나를 트위비로 심는다(secondb.tsx:596,603). 초기값일 뿐이라 보내기 전에는 호출이 없다",
+            // ⚠ 이 변형만 등급을 탄다. 트위비는 pro(=brain) 전용이라
+            // (`personaAllowed`, tier-map `pro ↔ brain`) free·plus 에서는 tier 를
+            // 알게 된 직후 effect 가 `rev2Persona` 를 조용히 secondb 로 되돌린다.
+            // 에러도 잠금 표시도 없다 — 이 목록이 막으려는 그 조용한 되돌림과
+            // 같은 모양이라, 안내 없이 두면 검수자가 "트위비가 원래 이렇구나" 한다.
+            // 담기 모드 할당량과는 **별개 이야기**다(그쪽은 등급 제한이 없다).
+            note: "`chatMode` 를 divergent 로, `rev2Persona` 를 트위비로 심는다. 초기값일 뿐이라 보내기 전에는 호출이 없다. ⚠ 트위비는 Brain(pro) 전용 — free·plus 로 열면 페르소나가 조용히 2nd-B 로 되돌아간다. 확인하려면 EXPO_PUBLIC_FORCE_TIER=brain (QA 계정은 free)",
           },
           {
             label: "노드에서 이어 묻기 (견본)",
             href: "/secondb?fromNode=%EC%BB%A4%EB%A6%AC%EC%96%B4",
-            note: "그래프 노드에서 넘어온 진입. 견본값 '커리어' 가 입력창 초안과 맥락 칩에 들어간다(secondb.tsx:264,1018). 한글이라 URL 인코딩이 필요하다",
+            note: "그래프 노드에서 넘어온 진입. 견본값 '커리어' 가 `fromNode` 로 들어가 입력창 초안과 맥락 칩에 쓰인다. 한글이라 URL 인코딩이 필요하다",
           },
         ],
       },
@@ -312,7 +337,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
           {
             label: "스크리너 (Life Audit)",
             href: "/audit?screener=1",
-            note: "같은 파일의 옛 스크리너 화면. audit.tsx:579 가 정확히 \"1\" 일 때만 갈린다 — screener=true 는 무시된다",
+            note: "같은 파일의 옛 스크리너 화면. `Audit` 의 `screener === \"1\"` 분기라 정확히 \"1\" 일 때만 갈린다 — screener=true 는 무시된다",
           },
         ],
       },
@@ -484,7 +509,9 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         note: "현행 일곱 별 모델 이전 Design Lab 보관본. 현재 동선의 정본이 아니며 작업이나 타이머를 시작하지 않는다",
       },
       { file: "graph", href: "/graph", label: "내 두뇌 지도 (레거시)", dev: true },
-      { file: "trends", href: "/trends", label: "밝기 추이", dev: true },
+      // 위임 게이트 — 리다이렉트는 `TrendsScreen` 이 갖는다. dev 축과는 직교한다:
+      // DevOnlyRoute 를 통과해 실제로 그려질 때 로그인이 필요하다.
+      { file: "trends", href: "/trends", label: "밝기 추이", dev: true, auth: true, note: "로그인이 필요하다 — 게이트는 이 파일이 아니라 TrendsScreen 에 있다. 캐논 정적 데이터를 그리는 참조 화면이라 실데이터는 /brightness 다" },
     ],
   },
 ];
