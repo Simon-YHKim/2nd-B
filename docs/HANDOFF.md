@@ -3,7 +3,75 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-09-02 / people 핫픽스 #1576 머지 · legal-screen-shell 감사 블로커 3건은 #1577·#1578 로 닫힘
+## Latest — 2026-09-04 / 화면 처분 감사: /formats 기본 뒤집기(#1601) · /audit 인증 게이트(#1602) · 나머지 20건은 손댈 것 없음
+
+> 발행: Claude Code (orca Design 워크스페이스). Simon 전건 승인(Q1 집행 · Q2 보류 · Q3 별건 · Q4 롤백 유지).
+> 보고서 아티팩트: <https://claude.ai/code/artifact/6f4eee66-b4ca-4692-b335-6f18edae94e1>
+
+### 무엇을 했나
+
+미사용·저도달 화면 22건을 읽기 전용으로 실측하고(7클러스터 + 적대적 반증) 처분을 판정했다.
+**20건은 이미 제자리에 있었고 새로 바꾼 것은 2건이다.**
+
+- **#1601 머지 — main `e591c222`.** `/formats` 의 딥스페이스 기본이 내보내기 화면이라
+  이름표와 실제 화면이 어긋나 있었다. 기본 분기를 **클리퍼 형식 관리**로 뒤집었다.
+  - 앱 내 진입점은 정확히 2곳이고 **둘 다 이미 `?view=manager`** 를 달고 온다
+    (`capture.tsx:2970`, `:3116`) — 그래서 깨지는 동선이 0이다(측정값).
+  - 캐논 `screens.json:600-604` 가 이 라우트를 `component: null, appOnly: true,
+    title: "클리퍼 형식 관리"` 로 적는다. 내보내기 화면은 캐논 컴포넌트가 없다.
+  - **부수로 실동작 결함 하나가 닫혔다** — `/formats` 가 `DEEP_SPACE_DOCK_PATHS` 에 있어
+    back 칩이 숨는데 실제로 열리는 변형은 dock 없는 `PremiumAppShell` 이고 `formats.tsx` 에는
+    자체 back 이 0건이었다. 즉 **dock 도 back 도 없는 화면**이었다.
+  - 내보내기 화면은 **지우지 않고** `?view=export` 뒤에 살려 뒀다. 최종 거처는 미결(아래).
+- **#1602 머지 — main `5a909804`.** 맨 `/audit` 인증 게이트. 같은 파일의 `AuditLegacy`(`?screener=1`)와 같은
+  `PastMeErasView` 를 그리는 `/interview` 는 둘 다 게이트가 있는데 `AuditDeepSpace` 만 없었다.
+  공개 웹 URL 이 북마크 가능하고, `PastMeErasView` 가 `useAuth().age` 로 계산하는 시기 잠금이
+  로그아웃(age=null)에서 **전부 풀린 채** 그려졌다. 개인 데이터 노출은 아니다(목록 정적·문구 i18n).
+
+### 브리프 오류 3건 (인용 금지)
+
+| 감사 브리프 주장 | 실제 |
+|---|---|
+| `/trinity` → `/core-brain` 은 호환 redirect | 세 갈래다. legacy = **실화면**, 딥스페이스 dev = 실화면, 딥스페이스 production 에서만 redirect |
+| `/persona` 는 redirect 체인의 일부 | redirect 아님. legacy 실화면이고 "나를 보는 자리" 스킨 번역을 혼자 소유 |
+| `/iden` 이 정식 데이터 내보내기 정본 | 아니다. 정본은 `/account` 의 `export-account` 엣지함수 |
+
+### 새로 확정된 사실 (다음 세션이 재조사하지 말 것)
+
+- **화면 대장은 문서가 아니라 2축 CI 계약이다.** `entry` × `render` + 플래그, 기수가 핀돼 있다
+  (옛링크 3 · 딥링크 3 · Design Lab 4 · DevOnlyRoute 8 · 항상redirect 3 · UI모드분기 5 / 총 100).
+  어떤 처분 변경도 **라벨이 아니라 계약 개정**이다.
+- ⚠ **한 단어 처분 필드는 검사가 금지한다.** `screen-index.test.ts` 가 `"orphan" in screen` ·
+  `"stub" in screen` 을 false 로 단언하고, 주석이 *"두 축이 다시 한 단어로 뭉개진 것이다"* 라고 적는다.
+  KEEP/MERGE/DEV_ONLY/RETIRE 같은 분류를 **대장에 적으려 하지 말 것.**
+- **`EXPO_PUBLIC_UI=legacy` 를 켜는 배포가 하나도 없다.** 롤백 스킨은 코드에 있지만 나가 있지 않다.
+  `/persona`·`/trinity`·`/mbti` 2홉을 지키는 근거가 전부 여기 걸려 있다.
+- ⚠ **`/graph` 는 legacy 자산이 아니다.** legacy 마을 그래프는 `/` 에 있다(`index.tsx:239-241`).
+  `/graph` 는 딥스페이스 mock 시안. **CLAUDE.md 의 "village graph `/graph` + `/trinity` ...
+  Preserved behind legacy" 서술 자체가 부정확하다** — 인용 금지.
+- **개발 화면 8개는 이미 `DevOnlyRoute` 뒤에 있고 CI 가 소스와 대조한다.** "전역 메뉴에서 빼자"는
+  제안은 이미 참이고 실제는 그보다 두 단계 깊다.
+- **지우자고 나온 5개 중 지워도 되는 건 `OpsHomeScreen` 하나다.** `TraitRadar` 는 HANDOFF 에
+  두 번 "손대지 말 것"이고 `polaris-deck.test.ts` 가 미렌더를 강제하며, 지우면 픽셀 규칙 래칫이
+  **줄었다는 이유로** CI 를 깬다. 렌즈 뷰 3종 재배선은 #773 이 금지. ⚠ `stars.ts` 의 구인
+  `relational`/`values` 와 컴포넌트는 **이름만 같고 코드 연결 0** — 구인 보호를 컴포넌트 보존
+  근거로 쓰지 말 것.
+
+### 반증된 내 가설 1건
+
+`/graph` 가 가드 뒤에 있으면 legacy 롤백이 깨진다고 의심했으나 **틀렸다**(위 참조).
+
+### 남은 것
+
+- **미결 결정**: 내보내기 화면의 최종 거처(`?view=export` 유지 / `/account` 옆 / `/data`).
+  아무것도 막지 않는다 — #1601 이 아무것도 지우지 않았기 때문이다. 이 축의 전제 두 개가
+  반증된 상태라 지금 정하면 또 틀린다.
+- **비차단 관찰 3건**: `/srs` 가 개발자 목록에서 "로그인 필요" 배지를 잃는다(auth 검사가 위임
+  화면을 안 따라간다) · `/wiki` 의 "그래프에서 보기"가 배포본에서 무동작 · `/discover` 의 유일한
+  문이 `summary.isFirstWeek` 뒤라 신규 사용자에게는 문이 없다.
+- **다음 1개**: 위 관찰 3건 중 `/wiki` 무동작 버튼이 사용자에게 가장 먼저 보인다.
+
+## 2026-09-02 / people 핫픽스 #1576 머지 · legal-screen-shell 감사 블로커 3건은 #1577·#1578 로 닫힘
 
 > 발행: Claude Code (orca Design 워크스페이스). 사용자 직접 지시 "people 핫픽스 4파일
 > 그대로 적용" 집행 + orca 읽기 전용 감사(task_329c06e65a7c) 사후 대조.
