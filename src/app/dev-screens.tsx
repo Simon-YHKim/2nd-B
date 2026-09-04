@@ -25,11 +25,14 @@ import {
   DEV_SCREEN_GROUPS,
   canOpenFromDevRegistry,
   designLabScreens,
+  devScreenVariants,
   devScreens,
   entryRoleCounts,
+  openableVariants,
   screenEntry,
   screenRender,
   type DevScreen,
+  type DevScreenVariant,
   type ModeRender,
 } from "@/lib/dev/screen-index";
 import { m3 } from "@/lib/theme/m3";
@@ -147,6 +150,68 @@ function PressRow({
   );
 }
 
+/**
+ * 소유 화면 **바로 밑**에 붙는 QA 변형 버튼.
+ *
+ * 들여쓰기 + `tune` 글리프로 "새 화면이 아니라 같은 화면을 다른 파라미터로
+ * 여는 것"을 형태로 말한다. 이걸 일반 행과 똑같이 그리면 100개 대장을 눈으로
+ * 세는 사람이 개수를 잘못 읽는다 — 변형은 라우트가 아니다.
+ */
+function VariantRow({ screen, variant }: { screen: DevScreen; variant: DevScreenVariant }) {
+  const [held, setHeld] = useState(false);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      // 목록 안 버튼이라 소유 화면 이름을 label 에 함께 넣는다. 스크린리더로는
+      // 앞 행이 안 보여서 "내보내기 시안" 하나만으로는 어느 화면의 변형인지 모른다.
+      accessibilityLabel={`${screen.label} 변형 · ${variant.label} 열기`}
+      accessibilityHint={`${variant.href} 로 이동합니다. 같은 화면을 다른 파라미터로 엽니다.`}
+      onPress={() => router.push(variant.href)}
+      onPressIn={() => setHeld(true)}
+      onPressOut={() => setHeld(false)}
+      style={styles.variantRoot}
+    >
+      <View style={held ? styles.rowSunk : null}>
+        <PixelSurface variant="bevel" pressed={held} contentStyle={styles.variantContent}>
+          <View style={styles.rowGlyph}>
+            <PixelGlyph name="tune" color={m3.color.primary} size={24} />
+          </View>
+          <View style={styles.rowMain}>
+            <Text variant="body">{variant.label}</Text>
+            <Text variant="caption" color="textSubtle">
+              {variant.href}
+            </Text>
+            {variant.note ? (
+              <Text variant="caption" color="textSubtle">
+                {variant.note}
+              </Text>
+            ) : null}
+          </View>
+          <View style={styles.rowAction}>
+            <PixelGlyph name="arrow_forward" color={m3.color.primary} size={24} />
+          </View>
+        </PixelSurface>
+      </View>
+    </Pressable>
+  );
+}
+
+/**
+ * 한 화면의 변형들. `openableVariants` 가 딥링크 계약의 변형을 비워 주므로
+ * 여기서 계약을 다시 판정하지 않는다 — 판정이 두 곳에 있으면 갈린다.
+ */
+function VariantList({ screen }: { screen: DevScreen }) {
+  const variants = openableVariants(screen);
+  if (variants.length === 0) return null;
+  return (
+    <View style={styles.variantGroup}>
+      {variants.map((variant) => (
+        <VariantRow key={variant.href} screen={screen} variant={variant} />
+      ))}
+    </View>
+  );
+}
+
 function designLabGlyph(file: DevScreen["file"]): "grid" | "hub" | "visibility" | "share" {
   if (file === "deepspace-hub") return "hub";
   if (file === "deepspace-preview") return "visibility";
@@ -233,6 +298,9 @@ function RegistryHeader({ counts }: { counts: ReturnType<typeof entryRoleCounts>
           항상 redirect {counts.alwaysRedirect} · UI 모드 분기 {counts.modeSplit} · 개발 전용 {counts.devOnly} ·
           로그인 필요 {counts.authRequired}
         </Text>
+        <Text variant="caption">
+          QA 변형 {devScreenVariants().length} — 라우트 수에 세지 않습니다. 소유 화면 바로 아래에 붙습니다.
+        </Text>
         <Text variant="subtle">
           이 목록은 `src/app` 실제 라우트와 1:1 로 대조됩니다. 역할이나 파일이 어긋나면 CI 가 막습니다.
         </Text>
@@ -275,7 +343,12 @@ function DevScreenIndex() {
             {section.description ? <Text variant="subtle">{section.description}</Text> : null}
           </View>
         )}
-        renderItem={({ item, section }) => <ScreenRow screen={item} section={section} />}
+        renderItem={({ item, section }) => (
+          <View>
+            <ScreenRow screen={item} section={section} />
+            <VariantList screen={item} />
+          </View>
+        )}
         initialNumToRender={12}
         maxToRenderPerBatch={12}
         windowSize={7}
@@ -362,6 +435,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: m3.spacing.s4,
   },
   rowMain: { flex: 1, gap: m3.spacing.s1 },
+  // 변형은 소유 행에서 한 단 들여쓴다 — 형태가 소속을 말한다. 아래 여백은
+  // 소유 행과 붙여 두어 "이 화면에 딸린 것" 으로 읽히게 한다.
+  variantGroup: { marginLeft: m3.spacing.s6, marginBottom: m3.spacing.s2 },
+  variantRoot: { marginBottom: m3.spacing.s1 },
+  // minTouch 는 줄이지 않는다. 들여쓴 보조 행이라고 탭 표적까지 작아지면
+  // 손가락 큰 사람과 흔들리는 손에서 먼저 못 쓰게 된다.
+  variantContent: {
+    minHeight: m3.minTouch,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: m3.spacing.s3,
+    paddingVertical: m3.spacing.s2,
+    paddingHorizontal: m3.spacing.s4,
+  },
   rowGlyph: { flexShrink: 0 },
   rowAction: {
     flexShrink: 0,
