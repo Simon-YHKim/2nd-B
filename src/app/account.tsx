@@ -429,6 +429,29 @@ const styles = StyleSheet.create({
 });
 
 export default function Account() {
+  const { t } = useTranslation("consent");
+  const { userId, loading, hasProfile, profileProbeFailed } = useAuth();
+
+  if (loading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={t("account.loading")} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+  if (profileProbeFailed || hasProfile === null) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={t("account.loading")} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
+  if (hasProfile === false) return <Redirect href="/complete-profile" />;
   if (isDeepSpaceUI()) return <DeepSpaceAccountDesignScreen />;
   return <AccountLegacy />;
 }
