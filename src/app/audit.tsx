@@ -537,9 +537,17 @@ const styles = StyleSheet.create({
 // "또렷함 L{n}" dots were fixed constants (fabricated brightness, 정직한 밝기 위반)
 // and were removed by the 2026-07-21 logic audit; see PastMeErasView.
 function AuditDeepSpace() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("audit");
   const isKo = i18n.language === "ko";
-  return (
+  // 2026-09-04: 이 분기에는 인증 게이트가 없었다. 같은 파일의 AuditLegacy(:229-232)와
+  // 같은 컴포넌트를 그리는 /interview(:158-170) 는 둘 다 게이트를 갖는데 여기만 빠져
+  // 있어서, 로그아웃 방문자가 공개 웹 URL 로 들어오면 로그인한 것처럼 보이는 시기
+  // 목록을 받고 아무거나 누르면 /sign-in 으로 튕겼다. 게다가 PastMeErasView 는
+  // useAuth().age 로 "아직 안 온 시기"를 잠그는데(isUnlived), 로그아웃이면 age 가
+  // null 이라 그 잠금이 전부 풀린 채 그려진다 — 살지 않은 시기까지 열려 보인다.
+  // 개인 데이터가 새지는 않는다(목록은 SEVEN_STARS 정적, 문구는 i18n).
+  const { userId, loading, hasProfile } = useAuth();
+  const frame = (children: ReactNode) => (
     <DeepSpaceScreen
       active="lens"
       header="none"
@@ -547,9 +555,20 @@ function AuditDeepSpace() {
       title={isKo ? "성장 · 과거의 나" : "Growth · Past me"}
       onBack={() => router.back()}
     >
-      <PastMeErasView isKo={isKo} />
+      {children}
     </DeepSpaceScreen>
   );
+  if (loading) {
+    return frame(
+      <View style={styles.center}>
+        <PremiumLoadingState message={t("loading")} />
+      </View>,
+    );
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+  // DOB 가 없으면 age 도 없어서 시기 잠금이 의미를 잃는다. AuditLegacy 와 같은 목적지.
+  if (hasProfile === false) return <Redirect href="/complete-profile" />;
+  return frame(<PastMeErasView isKo={isKo} />);
 }
 
 export default function Audit() {
