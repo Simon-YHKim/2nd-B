@@ -105,7 +105,15 @@ export interface DevScreen {
   href: string;
   /** 한국어 이름. 캐논에 제목이 있으면 그걸 썼다. */
   label: string;
-  /** 로그인이 필요하다 (파일에 `<Redirect href="/sign-in" />` 가 있다). */
+  /**
+   * 로그인이 필요하다.
+   *
+   * 대개는 라우트 파일이 직접 `<Redirect href="/sign-in" />` 를 그린다. 다만
+   * 게이트를 다른 컴포넌트에 **위임한** 라우트가 셋 있어서(capture-full · srs ·
+   * trends) "파일에 리터럴이 있다"로 정의하면 그 셋과 모순된다. 그래서 뜻은
+   * **직접 가드이거나 검증된 위임 가드**다 — 테스트의 `AUTH_DELEGATES` 가 각
+   * 위임 체인(import → 렌더 → 가드)을 AST 로 대조해 이 표시를 뒷받침한다.
+   */
   auth?: true;
   /** 개발 빌드에서만 열린다 (`<DevOnlyRoute>` 뒤). */
   dev?: true;

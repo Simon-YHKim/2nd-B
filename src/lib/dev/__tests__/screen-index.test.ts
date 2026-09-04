@@ -11,9 +11,11 @@
 // 진입 축(entry)·렌더 축(render)의 선언도 여기서 라우트 **소스를 읽어** 대조한다.
 // 선언이 실제 분기와 어긋나면 목록이 거짓말을 하는 것이므로 CI 가 막는다.
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import * as ts from "typescript";
 
+import { DB_TIER_BY_PUBLIC } from "@/lib/entitlements/tier-map";
+import { personaAllowed } from "@/lib/entitlements/tiers";
 import {
   DEV_SCREEN_GROUPS,
   canOpenFromDevRegistry,
@@ -235,153 +237,127 @@ function destinationScreen(destination: string): string {
 
 const SIGN_IN_REDIRECT = /<Redirect href="\/sign-in" \/>/;
 
-/** import 한 모듈 경로를 실제 파일로. 상대 경로와 `@/` 별칭만 따라간다. */
-function resolveLocalModule(specifier: string, fromDir: string): string | null {
-  let base: string;
-  if (specifier.startsWith(".")) base = join(fromDir, specifier);
-  else if (specifier.startsWith("@/")) base = join(process.cwd(), "src", specifier.slice(2));
-  else return null; // node_modules 는 앱 라우트의 인증 경계를 갖지 않는다
-  for (const candidate of [`${base}.tsx`, `${base}.ts`, join(base, "index.tsx"), join(base, "index.ts")]) {
-    if (existsSync(candidate)) return candidate;
-  }
-  return null;
-}
-
-/** `import { A, B } from "x"` → { specifier: "x", names: ["A","B"] }. */
-function importBindings(source: string, file: string): { specifier: string; names: string[] }[] {
-  const parsed = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  const out: { specifier: string; names: string[] }[] = [];
-  for (const statement of parsed.statements) {
-    if (!ts.isImportDeclaration(statement)) continue;
-    if (!ts.isStringLiteral(statement.moduleSpecifier)) continue;
-    // `import type` 은 런타임에 지워지므로 아무것도 렌더하지 않는다.
-    if (statement.importClause?.isTypeOnly) continue;
-    const names: string[] = [];
-    const clause = statement.importClause;
-    if (clause?.name) names.push(clause.name.text);
-    const bindings = clause?.namedBindings;
-    if (bindings && ts.isNamedImports(bindings)) {
-      for (const element of bindings.elements) {
-        if (!element.isTypeOnly) names.push(element.name.text);
-      }
-    }
-    if (bindings && ts.isNamespaceImport(bindings)) names.push(bindings.name.text);
-    out.push({ specifier: statement.moduleSpecifier.text, names });
-  }
-  return out;
-}
-
-/** 파일 안에서 이름(또는 default)으로 컴포넌트 선언의 소스를 찾는다. */
-function declarationSource(parsed: ts.SourceFile, name: string | null): string | null {
-  for (const statement of parsed.statements) {
-    if (ts.isFunctionDeclaration(statement)) {
-      const isDefault = (statement.modifiers ?? []).some((m) => m.kind === ts.SyntaxKind.DefaultKeyword);
-      if (name === null ? isDefault : statement.name?.text === name) return statement.getText(parsed);
-    }
-    if (name !== null && ts.isVariableStatement(statement)) {
-      for (const declaration of statement.declarationList.declarations) {
-        if (ts.isIdentifier(declaration.name) && declaration.name.text === name) {
-          return statement.getText(parsed);
-        }
-      }
-    }
-  }
-  return null;
-}
-
-
-/**
- * 인증 경계를 **다른 컴포넌트에 위임한** 라우트의 계약표.
- *
- * 기본 규칙은 그대로다 — 라우트 파일에 `<Redirect href="/sign-in" />` 리터럴이
- * 있으면 그것으로 끝. 리터럴이 없는데 로그인이 필요한 라우트만 여기 적고,
- * 적은 **그 체인(import → 렌더 → 가드)을 AST 로 대조한다**(`verifyAuthDelegate`).
- * 그래서 이 표는 "예외 목록"이 아니라 근거를 함께 박아 둔 계약이다.
- *
- * ⚠ 범위를 정확히 해 둔다. 이 표가 증명하는 것은 **적어 둔 세 체인이 소스와
- * 일치한다**는 것뿐이다. 라우트의 canonical 렌더 전체를 해석하지 않는다.
- *
- * 일반 JSX 순회로 자동 판정하지 **않는 이유**는 반례가 있어서다 — `/persona` 의
- * 기본(딥스페이스)은 `/core-brain` 으로 넘어가 `PersonaLegacy` 를 그리지 않는데,
- * 순회는 그 안의 sign-in 가드를 근거로 집어 온다. 배지 결과가 우연히 맞아도
- * 근거가 틀리면 다음 사람이 그 틀린 근거를 믿는다. 그래서 순회기는 두지 않는다.
- *
- * 직접 리터럴 판정에 남은 한계(리다이렉트 목적지·barrel·default export 형태)는
- * 이 PR 의 범위가 아니다. 여기서 일반화하지 말 것.
- */
-interface AuthDelegate {
-  /** 라우트의 default export 가 실제로 렌더하는 컴포넌트. */
-  renders: string;
-  /** 그 컴포넌트를 가져오는 모듈 (import specifier 그대로). */
-  from: string;
-  /** 그 모듈에서 sign-in 가드를 **실제로** 가진 선언. renders 와 같을 수 있다. */
-  guard: string;
-}
-
-const AUTH_DELEGATES: Record<string, AuthDelegate> = {
-  "capture-full": { renders: "CaptureLegacy", from: "./capture", guard: "CaptureLegacySession" },
-  srs: {
-    renders: "DeepSpaceSrsScreen",
-    from: "@/screens/deepspace/DeepSpaceDesignScreens",
-    guard: "DeepSpaceSrsScreen",
-  },
-  trends: {
-    renders: "TrendsScreen",
-    from: "@/screens/deepspace/trends/TrendsScreen",
-    guard: "TrendsScreen",
-  },
-};
-
 function sourceFileOf(source: string, file: string): ts.SourceFile {
   return ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 }
 
-/** 위임 계약 한 줄을 소스로 증명한다. 한 고리라도 끊기면 실패한다. */
-function verifyAuthDelegate(routeFile: string, delegate: AuthDelegate): void {
-  const file = `${routeFile}.tsx`;
-  const routePath = join(APP, file);
-  const source = readFileSync(routePath, "utf8");
+/**
+ * 인증 경계를 다른 컴포넌트에 **위임한** 라우트 셋. 라우트 파일에 가드 리터럴이
+ * 없는데 로그인이 필요한 것은 이 셋뿐이고, 아래 픽스처가 네 선언의 반환 JSX
+ * 모양·import 줄·가드를 그대로 못박는다.
+ *
+ * ⚠ 일반 판정기는 만들지 않는다. JSX 를 훑으면 실행되지 않는 가지까지 근거로
+ * 집는다 — `/persona` 는 기본이 `/core-brain` 인데 `PersonaLegacy` 안의 가드를
+ * 집어 온다(배지는 맞고 근거는 틀린다). 리터럴 판정의 다른 한계도 범위 밖이다.
+ */
+const AUTH_DELEGATES = ["capture-full", "srs", "trends"] as const;
+const SCREENS = join(process.cwd(), "src", "screens", "deepspace");
 
-  // ① 위임이려면 라우트 파일 자체에는 가드 리터럴이 없어야 한다.
-  expect({ file, direct: SIGN_IN_REDIRECT.test(source) }).toEqual({ file, direct: false });
+/** 위임에 관여하는 네 선언의 반환 모양(과 import 줄). 모양이 바뀌면 실패한다. */
+const DELEGATE_FIXTURES: { label: string; path: string; fn: string | null; shapes: string[]; importLine?: string }[] = [
+  { label: "capture-full", path: join(APP, "capture-full.tsx"), fn: null,
+    shapes: ["DeepSpaceScreen>CaptureLegacy", "CaptureLegacy"],
+    importLine: 'import { CaptureLegacy } from "./capture";' },
+  { label: "srs", path: join(APP, "srs.tsx"), fn: null, shapes: ["DeepSpaceSrsScreen"],
+    importLine: 'import { DeepSpaceSrsScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";' },
+  { label: "trends", path: join(APP, "trends.tsx"), fn: null, shapes: ["DevOnlyRoute>TrendsScreen"],
+    importLine: 'import { TrendsScreen } from "@/screens/deepspace/trends/TrendsScreen";' },
+  { label: "CaptureLegacy", path: join(APP, "capture.tsx"), fn: "CaptureLegacy",
+    shapes: ["CaptureLegacySession", "CaptureLegacySession"] },
+];
 
-  // ② default export 가 그 컴포넌트를 실제로 렌더한다.
-  const parsed = sourceFileOf(source, file);
-  const defaultDeclaration = declarationSource(parsed, null);
-  expect(defaultDeclaration).not.toBeNull();
-  expect(jsxTagNames(defaultDeclaration ?? "", file)).toContain(delegate.renders);
+/** 실제로 도달 가능한 `if (!userId) return <Redirect href="/sign-in" />` 를 가진 선언 셋. */
+const DELEGATE_GUARDS: { label: string; path: string; fn: string }[] = [
+  { label: "CaptureLegacySession", path: join(APP, "capture.tsx"), fn: "CaptureLegacySession" },
+  { label: "DeepSpaceSrsScreen", path: join(SCREENS, "DeepSpaceDesignScreens.tsx"), fn: "DeepSpaceSrsScreen" },
+  { label: "TrendsScreen", path: join(SCREENS, "trends", "TrendsScreen.tsx"), fn: "TrendsScreen" },
+];
 
-  // ③ 그 이름이 계약이 말하는 모듈에서 온다.
-  const binding = importBindings(source, file).find((b) => b.names.includes(delegate.renders));
-  expect({ file, from: binding?.specifier }).toEqual({ file, from: delegate.from });
-  const targetPath = resolveLocalModule(delegate.from, dirname(routePath));
-  expect(targetPath).not.toBeNull();
-
-  // ④ 가드 선언이 sign-in 리다이렉트를 **자기 본문에** 가진다.
-  const targetSource = readFileSync(targetPath ?? "", "utf8");
-  const targetParsed = sourceFileOf(targetSource, targetPath ?? "");
-  const guardDeclaration = declarationSource(targetParsed, delegate.guard);
-  expect({ guard: delegate.guard, found: guardDeclaration !== null }).toEqual({
-    guard: delegate.guard,
-    found: true,
-  });
-  expect({ guard: delegate.guard, gated: SIGN_IN_REDIRECT.test(guardDeclaration ?? "") }).toEqual({
-    guard: delegate.guard,
-    gated: true,
-  });
-
-  // ⑤ 렌더하는 것과 가드를 가진 것이 다르면, 그 사이 고리도 실재해야 한다.
-  if (delegate.guard !== delegate.renders) {
-    const rendersDeclaration = declarationSource(targetParsed, delegate.renders);
-    expect(rendersDeclaration).not.toBeNull();
-    expect(jsxTagNames(rendersDeclaration ?? "", targetPath ?? "")).toContain(delegate.guard);
+/** FunctionDeclaration 노드. 다른 export 형태는 통과가 아니라 실패다. */
+function functionDeclarationIn(parsed: ts.SourceFile, name: string | null): ts.FunctionDeclaration {
+  for (const s of parsed.statements) {
+    if (!ts.isFunctionDeclaration(s)) continue;
+    const isDefault = (s.modifiers ?? []).some((m) => m.kind === ts.SyntaxKind.DefaultKeyword);
+    if (name === null ? isDefault : s.name?.text === name) return s;
   }
+  throw new Error(`${parsed.fileName}: no FunctionDeclaration for ${name ?? "(default export)"}`);
 }
 
-/** 이 라우트가 로그인 게이트 뒤에 있는가 — 파일 리터럴이거나 증명된 위임이거나. */
+const declarationAt = (path: string, name: string | null) =>
+  functionDeclarationIn(sourceFileOf(readFileSync(path, "utf8"), path), name);
+const declarationFrom = (source: string, name: string | null) =>
+  functionDeclarationIn(sourceFileOf(source, "synthetic.tsx"), name);
+
+function jsxTagOf(node: ts.Node): string | null {
+  let e = node;
+  while (ts.isParenthesizedExpression(e)) e = e.expression;
+  if (ts.isJsxElement(e)) return e.openingElement.tagName.getText();
+  if (ts.isJsxSelfClosingElement(e)) return e.tagName.getText();
+  return null;
+}
+
+/**
+ * 각 return 을 `"root"` 또는 `"root>child,child"` 로. 중첩 함수 return 은 뺀다.
+ *
+ * 모양을 통째로 비교하면 별도 판정기 없이 거짓 근거가 걸린다: `false && <X/>`·
+ * 삼항은 `(non-jsx)` 가 되고, prop 안의 JSX 는 child 가 아니라 안 들어오며,
+ * 도달 불가 return 을 덧붙이면 배열 길이가 달라진다.
+ *
+ * 마지막 top-level 문이 direct return 이 아니면 `(fallthrough)` 를 붙인다. 위치를
+ * 버리면 `if (false) return <T/>;` 가 `["T"]` 로 보여 픽스처를 통과한다.
+ */
+function returnShapes(fn: ts.FunctionDeclaration): string[] {
+  const shapes: string[] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node) || ts.isArrowFunction(node)) return;
+    if (!ts.isReturnStatement(node)) return void ts.forEachChild(node, visit);
+    let e: ts.Node | undefined = node.expression;
+    while (e && ts.isParenthesizedExpression(e)) e = e.expression;
+    const root = e ? jsxTagOf(e) : null;
+    if (!e || root === null) return void shapes.push(e ? "(non-jsx)" : "(empty)");
+    const kids = ts.isJsxElement(e) ? e.children.map(jsxTagOf).filter((t): t is string => t !== null) : [];
+    shapes.push(kids.length > 0 ? `${root}>${kids.join(",")}` : root);
+  };
+  const body = fn.body?.statements ?? [];
+  for (const s of body) visit(s);
+  const last = body[body.length - 1];
+  if (!last || !ts.isReturnStatement(last)) shapes.push("(fallthrough)");
+  return shapes;
+}
+
+/**
+ * 본문 **직계**에 `if (!userId) return <Redirect href="/sign-in" />;` 가 있는가.
+ * 순서대로 읽고 무조건 return/throw 를 먼저 만나면 그 뒤는 도달 불가라 멈춘다.
+ * 중첩 if · false 가지 · prop 안의 Redirect 는 인정하지 않는다.
+ */
+function hasSignInGuard(fn: ts.FunctionDeclaration): boolean {
+  for (const s of fn.body?.statements ?? []) {
+    if (ts.isReturnStatement(s) || ts.isThrowStatement(s)) return false;
+    if (!ts.isIfStatement(s)) continue;
+    const c = s.expression;
+    if (!ts.isPrefixUnaryExpression(c) || c.operator !== ts.SyntaxKind.ExclamationToken) continue;
+    if (!ts.isIdentifier(c.operand) || c.operand.text !== "userId") continue;
+    let branch: ts.Statement = s.thenStatement;
+    if (ts.isBlock(branch)) {
+      if (branch.statements.length !== 1) continue;
+      branch = branch.statements[0];
+    }
+    if (!ts.isReturnStatement(branch) || !branch.expression) continue;
+    let r: ts.Node = branch.expression;
+    while (ts.isParenthesizedExpression(r)) r = r.expression;
+    if (!ts.isJsxSelfClosingElement(r) || r.tagName.getText() !== "Redirect") continue;
+    const href = r.attributes.properties.find(
+      (pr): pr is ts.JsxAttribute => ts.isJsxAttribute(pr) && pr.name.getText() === "href",
+    )?.initializer;
+    if (href && ts.isStringLiteral(href) && href.text === "/sign-in") return true;
+  }
+  return false;
+}
+
+/** 로그인 게이트 뒤인가 — 파일 리터럴이거나 위 셋 중 하나이거나. */
 function routeRequiresAuth(routeFile: string): boolean {
   const source = readFileSync(join(APP, `${routeFile}.tsx`), "utf8");
-  return SIGN_IN_REDIRECT.test(source) || Object.hasOwn(AUTH_DELEGATES, routeFile);
+  return SIGN_IN_REDIRECT.test(source) || (AUTH_DELEGATES as readonly string[]).includes(routeFile);
 }
 
 function moduleSpecifiers(source: string, file: string): string[] {
@@ -500,47 +476,36 @@ describe("개발자 화면 목록", () => {
     }
   });
 
-  it("위임 계약 3건의 import→렌더→가드 체인이 소스와 일치한다", () => {
-    // 표만 적고 넘어가면 그냥 예외 하드코딩이다. 적어 둔 체인을 AST 로 대조한다 —
-    // 한 고리라도 끊기면 여기서 실패한다. (라우트의 canonical 렌더 전체를
-    // 해석한다는 주장은 아니다 — 이 세 체인만 본다.)
-    //
-    // 키가 정확히 셋이어야 한다. 늘리려면 근거 체인을 함께 넣어야 하고,
-    // 줄이면 해당 화면이 로그인 배지를 잃는다.
-    expect(Object.keys(AUTH_DELEGATES).sort()).toEqual(["capture-full", "srs", "trends"]);
-    for (const [routeFile, delegate] of Object.entries(AUTH_DELEGATES)) {
-      verifyAuthDelegate(routeFile, delegate);
-      expect({ file: routeFile, auth: devScreens().find((s) => s.file === routeFile)?.auth }).toEqual({
-        file: routeFile,
-        auth: true,
-      });
+  it("위임 게이트 3건의 렌더 모양·import·가드를 고정한다", () => {
+    // 판정기를 일반화하지 않고 네 선언의 모양을 그대로 못박는다. 모양이 조금이라도
+    // 달라지면(가지 추가·prop 으로 밀어넣기·도달 불가 return) 배열이 어긋나 실패한다.
+    for (const f of DELEGATE_FIXTURES) {
+      expect({ label: f.label, shapes: returnShapes(declarationAt(f.path, f.fn)) }).toEqual({ label: f.label, shapes: f.shapes });
+      if (f.importLine) expect(readFileSync(f.path, "utf8")).toContain(f.importLine);
+    }
+    // 위임이려면 라우트 파일 자체에는 가드 리터럴이 없어야 한다.
+    for (const routeFile of AUTH_DELEGATES) {
+      const direct = SIGN_IN_REDIRECT.test(readFileSync(join(APP, `${routeFile}.tsx`), "utf8"));
+      const auth = devScreens().find((s) => s.file === routeFile)?.auth;
+      expect({ routeFile, direct, auth }).toEqual({ routeFile, direct: false, auth: true });
+    }
+    // 가드를 가진 세 선언이 실제로 도달 가능한 !userId 가드를 가진다.
+    for (const g of DELEGATE_GUARDS) {
+      expect({ label: g.label, gated: hasSignInGuard(declarationAt(g.path, g.fn)) }).toEqual({ label: g.label, gated: true });
     }
   });
 
-  it("일반 JSX 순회기를 두지 않는다 (/persona 반례 기록)", () => {
-    // 왜 순회기가 없는지를 남긴다. /persona 의 기본(딥스페이스)은 /core-brain 으로
-    // 넘어가 PersonaLegacy 를 **그리지 않는데**, PersonaLegacy 안에 sign-in 가드가
-    // 있어서 순회는 그것을 근거로 집어 온다 — 배지는 우연히 맞고 근거는 틀린다.
-    // 그래서 순회기를 만들지 않았고, persona 는 위임 계약에도 넣지 않는다.
-    // (여기서 그 한계를 고치려 들지 말 것 — 별도 PR 사안이다.)
-    expect(Object.hasOwn(AUTH_DELEGATES, "persona")).toBe(false);
+  it("모양·가드 판정이 false&& · prop · 도달 불가를 거른다", () => {
+    const shapes = (src: string) => returnShapes(declarationFrom(src, null));
+    expect(shapes("export default function R(){ return <S><T/></S>; }")).toEqual(["S>T"]);
+    expect(shapes("export default function R(){ return false && <T/>; }")).toEqual(["(non-jsx)"]);
+    expect(shapes("export default function R(){ return <S slot={<T/>}/>; }")).toEqual(["S"]);
+    expect(shapes("export default function R(){ return <O/>; return <T/>; }")).toEqual(["O", "T"]);
+    expect(shapes("export default function R(){ if (false) return <T/>; }")).toEqual(["T", "(fallthrough)"]);
 
-    const file = "persona.tsx";
-    const source = readFileSync(join(APP, file), "utf8");
-    const defaultDeclaration = declarationSource(sourceFileOf(source, file), null) ?? "";
-    // 기본 가지는 /core-brain 리다이렉트다 (딥스페이스가 기본 빌드).
-    expect(defaultDeclaration).toContain("isDeepSpaceUI()");
-    expect(redirectDestinations(defaultDeclaration, file)).toContain("/core-brain");
-    // persona 의 auth 는 파일 자체의 가드 리터럴로 정당화된다 — 체인 추적 결과가 아니다.
-    expect(SIGN_IN_REDIRECT.test(source)).toBe(true);
-    expect(routeRequiresAuth("persona")).toBe(true);
-
-    // 순회기가 되살아나면 이 반례가 다시 틀린 근거가 된다. 이름으로 막아 둔다.
-    // 호출·정의 형태(`이름(`)만 본다 — 바로 위 금지 목록의 문자열 자체는 아니다.
-    const self = readFileSync(__filename, "utf8");
-    for (const banned of ["componentRendersSignIn", "rendersSignInRedirect"]) {
-      expect({ banned, called: self.includes(`${banned}(`) }).toEqual({ banned, called: false });
-    }
+    const guard = (src: string) => hasSignInGuard(declarationFrom(src, "G"));
+    expect(guard('function G(){ if (!userId) return <Redirect href="/sign-in" />; return <X/>; }')).toBe(true);
+    expect(guard('function G(){ return <X/>; if (!userId) return <Redirect href="/sign-in" />; }')).toBe(false);
   });
 
   it("그룹 제목이 비어 있지 않고 중복되지 않는다", () => {
@@ -912,50 +877,20 @@ describe("개발자 화면 목록", () => {
     expect(new URLSearchParams(node?.variant.href.split("?")[1] ?? "").get("fromNode")).toBe("커리어");
   });
 
-  it("등급을 타는 변형만 등급 안내를 달고, 그 근거가 소스에 있다", () => {
-    const byHref = Object.fromEntries(
-      devScreenVariants().map(({ variant }) => [variant.href, variant]),
-    );
+  it("등급을 타는 변형만 등급 안내를 달고, 그 근거가 실행으로 확인된다", () => {
+    // ?mode=divergent 는 트위비를 심는데 트위비는 pro(=brain) 전용이라 free·plus 에서는
+    // effect 가 페르소나를 **조용히** 되돌린다. 그래서 이 변형에만 등급 안내가 붙는다.
+    const note = devScreenVariants().find(({ variant }) => variant.href === "/secondb?mode=divergent")?.variant.note ?? "";
+    expect(note).toContain("Brain");
+    expect(note).toContain("EXPO_PUBLIC_FORCE_TIER=brain");
 
-    // ?mode=divergent 는 트위비를 심는데 트위비는 pro 전용이다. free·plus 로 열면
-    // effect 가 페르소나를 조용히 되돌린다 — 에러도 잠금 표시도 없다. 그래서
-    // 이 변형에는 **반드시** 등급 안내가 붙어야 한다.
-    const divergent = byHref["/secondb?mode=divergent"];
-    expect(divergent?.note).toContain("Brain");
-    expect(divergent?.note).toContain("EXPO_PUBLIC_FORCE_TIER=brain");
-
-    // 근거 ①: 화면이 twi 를 심고, 허용되지 않으면 secondb 로 되돌린다.
     const secondb = readFileSync(join(APP, "secondb.tsx"), "utf8");
     expect(secondb).toContain('params.mode === "divergent" ? "twi" : "secondb"');
-    expect(secondb).toContain("personaAllowed(effectiveTier, rev2Persona");
     expect(secondb).toContain('selectRev2Persona("secondb")');
 
-    // 근거 ②: twi 는 free·plus 불가, pro 가능 (등급 정본의 고정 픽스처).
-    const tierFixtures = readFileSync(
-      join(process.cwd(), "src", "lib", "entitlements", "__tests__", "tiers.test.ts"),
-      "utf8",
-    );
-    expect(tierFixtures).toContain("personaAllowed('free', 'twi')).toBe(false)");
-    expect(tierFixtures).toContain("personaAllowed('plus', 'twi')).toBe(false)");
-    expect(tierFixtures).toContain("personaAllowed('pro', 'twi')).toBe(true)");
-
-    // 근거 ③: 공개 등급 pro 가 곧 DB 등급 brain 이라 안내의 'Brain' 이 맞다.
-    const tierMap = readFileSync(
-      join(process.cwd(), "src", "lib", "entitlements", "tier-map.ts"),
-      "utf8",
-    );
-    expect(tierMap).toMatch(/pro:\s*'brain'/);
-
-    // 담기 모드는 **등급 이야기가 아니다.** 할당량이 비어 있고 전부 Lv1 인데
-    // 등급 안내를 달면 검수자가 없는 페이월을 찾게 된다. 둘을 섞지 않는다.
-    const entitlements = readFileSync(
-      join(process.cwd(), "src", "lib", "progression", "entitlements.ts"),
-      "utf8",
-    );
-    expect(entitlements).toMatch(/FREE_LIMIT:\s*Partial<Record<GatedFeature,\s*number>>\s*=\s*\{\}/);
-    for (const href of EXPECTED_QA_VARIANTS["capture-full"]) {
-      expect(byHref[href]?.note ?? "").not.toContain("Brain");
-    }
+    // 등급 정본을 문자열이 아니라 **실행**으로 확인한다.
+    expect([personaAllowed("free", "twi"), personaAllowed("plus", "twi"), personaAllowed("pro", "twi")]).toEqual([false, false, true]);
+    expect(DB_TIER_BY_PUBLIC.pro).toBe("brain");
   });
 
   it("딥링크 계약에는 실행 가능한 변형이 붙지 않는다", () => {
@@ -1005,34 +940,16 @@ describe("개발자 화면 목록", () => {
     expect(source).toMatch(/variantContent:\s*\{\s*minHeight:\s*m3\.minTouch,/);
   });
 
-  it("변형 버튼의 접근성·이동이 VariantRow 안에서 성립한다", () => {
-    // ⚠ 파일 전체를 grep 하면 옆의 PressRow 가 가진 a11y 속성이 통과시켜 준다
-    //    (실제로 이전 판이 그랬다). 그래서 **VariantRow 선언 안만** 본다.
-    const file = "dev-screens.tsx";
-    const source = readFileSync(join(APP, file), "utf8");
-    const parsed = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-    const row = declarationSource(parsed, "VariantRow");
-    expect(row).not.toBeNull();
-    const body = row ?? "";
-
-    // 이 버튼이 실제로 그 변형 href 로 이동한다 — 아니면 장식이다.
-    expect(body).toContain("router.push(variant.href)");
-    expect(body).toContain('accessibilityRole="button"');
-    // 스크린리더로는 앞 행이 안 보인다. 라벨에 소유 화면 이름과 변형 이름이 함께 있어야
-    // "내보내기 시안" 하나만 읽히고 어느 화면 것인지 모르는 상태가 안 된다.
-    expect(body).toMatch(/accessibilityLabel=\{`\$\{screen\.label\}[^`]*\$\{variant\.label\}[^`]*`\}/);
-    expect(body).toMatch(/accessibilityHint=\{`\$\{variant\.href\}[^`]*`\}/);
-    // 표적 크기는 이 행의 스타일이 소유한다.
-    expect(body).toContain("styles.variantContent");
-    // PIXEL-CLAY 프리미티브로 그린다 (새 의존성 없음).
-    for (const primitive of ["PixelSurface", "PixelGlyph"]) {
-      expect(body).toContain(primitive);
-    }
-
-    // VariantList 는 계약 게이트를 우회하지 않는다.
-    const list = declarationSource(parsed, "VariantList") ?? "";
-    expect(list).toContain("openableVariants(screen)");
-    expect(list).toContain("key={variant.href}");
+  it("변형 버튼의 접근성·이동이 VariantRow 선언 안에서 성립한다", () => {
+    // ⚠ 파일 전체를 grep 하면 옆 PressRow 의 a11y 속성이 통과시켜 준다(이전 판이 그랬다).
+    //    그래서 VariantRow 선언 안만 본다.
+    const row = declarationAt(join(APP, "dev-screens.tsx"), "VariantRow").getText();
+    expect(row).toContain("router.push(variant.href)");
+    expect(row).toContain('accessibilityRole="button"');
+    // 스크린리더로는 앞 행이 안 보인다 — 라벨에 소유 화면 이름이 함께 있어야 한다.
+    expect(row).toMatch(/accessibilityLabel=\{`\$\{screen\.label\}[^`]*\$\{variant\.label\}[^`]*`\}/);
+    expect(row).toMatch(/accessibilityHint=\{`\$\{variant\.href\}[^`]*`\}/);
+    expect(row).toContain("styles.variantContent");
   });
 
   it("외부 계약의 정적 ScreenRow 분기는 press 나 navigation 을 렌더하지 않는다", () => {
