@@ -297,6 +297,8 @@ function TrackGlyph({ id, color }: { id: WikiTrack; color: string }) {
 }
 
 export default function Capture() {
+  const { t } = useTranslation("capture");
+  const { userId, loading, hasProfile } = useAuth();
   // Deep-space build renders the design body inside the shared chrome; the legacy
   // capture screen stays for the legacy track. isDeepSpaceUI() is build-constant,
   // and the two hooks below run identically on every path so hook order is stable.
@@ -328,6 +330,17 @@ export default function Capture() {
   useEffect(() => {
     if (hasFullCaptureParams) setFullCaptureActive(true);
   }, [hasFullCaptureParams]);
+  if (loading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={t("loading")} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+  if (hasProfile === false) return <Redirect href="/complete-profile" />;
   if (isDeepSpaceUI()) {
     if (hasFullCaptureParams || fullCaptureActive) {
       return (
