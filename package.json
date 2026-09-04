@@ -132,5 +132,10 @@
     "ts-jest": "^29.4.11",
     "tsx": "^4.19.0",
     "typescript": "~6.0.3"
+  },
+  "overrides": {
+    "query-string": {
+      "decode-uri-component": "0.5.0"
+    }
   }
 }
