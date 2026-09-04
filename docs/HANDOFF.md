@@ -3,7 +3,136 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-09-04 / 화면 처분 감사: /formats 기본 뒤집기(#1601) · /audit 인증 게이트(#1602) · 나머지 20건은 손댈 것 없음
+## Latest — 2026-09-04 / 실앱 화면 QA 인계 · PIXEL-CLAY 전체 이주 미완료 판정
+
+> 발행: Codex (orca Design 워크스페이스) · `simon-handoff` 절차.
+> 기준 시각: 2026-09-04 20:49:53 KST.
+> 완료 보고서: [design-migration-handoff-260904.html](handoff/design-migration-handoff-260904.html)
+
+### 어디까지 왔나
+
+- 작업 기준 `origin/main`: `3c567d8cbb55103db89844109c5d9e3b057fa773` (#1608).
+- 이번 세션 병합 PR:
+
+  | PR | 제목 |
+  |---|---|
+  | #1601 | `fix(formats): open the clipper format manager at the bare route` |
+  | #1602 | `fix(audit): gate the deep-space past-me entry like its two twins` |
+  | #1603 | `docs(handoff): 화면 처분 감사 집행 기록 (#1601 · #1602)` |
+  | #1604 | `fix(capture): gate route before UI branches` |
+  | #1605 | `feat(dev): open parameter-only QA variants from the screen registry` |
+  | #1606 | `fix(auth): align deep-space route guards` |
+  | #1608 | `fix(dev): mark the three delegated auth gates in the screen registry` |
+
+- #1607 `fix(deps): secure decode-uri-component CJS compatibility`는 **OPEN·미병합**이다.
+  GitHub 검사 5개는 성공했지만 네이티브 fingerprint/rebuild 판단 전에는 병합 완료로 쓰지 말 것.
+- 테스트 상태: 기준 main의 GitHub Actions 4/4 success(EAS Update · CI · Web build · Android
+  Diagnostic Build). #1608 기준 targeted Jest 40/40. 이 handoff branch에서도
+  `verify-portable-handoff` 8/8와 `npm run verify` 577 suites / 6,316 tests를 통과했다.
+- 작업 트리: 정본 체크아웃의 tracked 파일은 clean. 사용자 소유 미추적 `eas_runs.json`은 보존했고,
+  로컬 `main`도 직접 갱신하거나 편집하지 않았다.
+
+### 핵심 판정: 화면 접근 완료와 디자인 이주 완료를 분리할 것
+
+**PIXEL-CLAY v4 디자인 마이그레이션은 끝나지 않았다.** 100 routes + 14 QA variants는
+실제 앱에서 화면과 상태를 열어 보는 검수 인프라이지, 93개 디자인 프레임의 시각 일치 완료
+수가 아니다. QA variant는 기존 다섯 route의 query/state이며 100 route 수에도 포함되지 않는다.
+
+| 범위 | 현재 수치 | 뜻 |
+|---|---:|---|
+| 디자인 인계 자료 | 93 | Git에 들어온 reference capture/structure |
+| `port:true` 이식 대상 | 80 | 완료 수가 아니라 마이그레이션 대상 수 |
+| 자동 점수 98 이상 | 35 | 자동 게이트 통과, HUMAN PASS는 별도 |
+| 자동 점수 98 미만 | 26 | 보완 후 재측정 필요 |
+| 미측정 | 19 | 실제 캡처·채점부터 필요 |
+| `port:false` 제외 | 7 | 이식 대상 아님 |
+| 보류 | 6 | 별도 결정/의존성 대기 |
+
+원파일 `score-baseline.json` 전체는 64행(36 pass / 28 fail)이지만, 그 안에 보류 3행
+(`wiki`, `esm`, `ipip-neo`)이 섞여 있다. **80개 `port:true`와 조인한 35 / 26 / 19가
+마이그레이션 진척의 정확한 분모·분자다.** 98점도 파일 자체가 "완성이 아닌 게이트"라고
+명시한다. 완료 선언은 각 대상의 `98+`와 **HUMAN PASS**가 모두 있을 때만 가능하다.
+
+### 실앱 검증 증거와 한계
+
+- Web: QA variants 14/14를 390×844로 캡처했고, signed-out 인증 redirect 5종
+  (`capture`, `account`, `data`, `theme`, `support`)을 확인했다. 이 세션에서는 console/page
+  error, HTTP 400+, 가로 overflow가 0이었다.
+- Android API 36: 빌드·설치 성공, `/dev-screens`에서 `전체 100`, `QA 변형 14`를 확인했다.
+  `firstRun`, `linkclip`, `audit?screener=1`의 고유 UI를 확인했고 `divergent`는 딥링크·Activity·
+  무크래시까지 확인했으나 intro modal이 본문을 덮어 네이티브 본문 시각 검수는 미완료다.
+- 위 캡처는 같은 PC의 `%TEMP%\2ndb-qa-8148-auth-variants`,
+  `%TEMP%\2ndb-qa-8147-signedout`, `%TEMP%\2ndb-android-qa-260904`에 있는 **비영속 증거**다.
+  다음 PC나 새 세션에서는 현재 main으로 다시 만들어야 한다.
+
+### 활성 인프라
+
+- 작성 시점 로컬 Android: `emulator-5554` device, 앱 PID `9336`.
+- Metro: `http://127.0.0.1:8081`, PID `44172`. 세션 종료·재부팅 후 유지된다고 가정하지 말 것.
+- Node: `v24.14.1` (요청한 Node 22는 이 PC에 없었음). 패키지 추가 설치 없음.
+- Supabase·edge function·DB migration·환경변수는 이번 화면 QA 세션에서 변경하지 않았다.
+- GitHub Actions 성공은 확인했지만, 외부 스토어/운영 데이터 변경을 뜻하지 않는다.
+
+### 다음 작업 큐
+
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | 80개 `port:true` 화면의 구현·실앱 캡처·자동 98+·HUMAN PASS 원장을 만들고 미달/미측정 45개를 닫기 | large | ⭐ 사용자가 요구한 "모든 디자인 반영"의 실제 완료 조건 |
+| B | 우선 화면 `home` 91.0 · `star` 90.8 · `review` 93.5를 보완하고 strict exact-navigation으로 재측정 | medium | Stage 1부터 거짓 완료 상태를 없앰 |
+| C | `/wiki`의 "그래프에서 보기" 무동작 조사·수정 | small | 이전 감사에서 남은 사용자 가시 결함 |
+| D | `/discover`의 유일한 진입이 `summary.isFirstWeek` 뒤에 있는 도달성 재검토 | small | 신규 사용자 외에는 문이 없음 |
+| E | `/formats?view=export`의 최종 위치 결정(`/formats` 유지 / `/account` / `/data`) | small | 현재 기능은 보존돼 있어 비차단 |
+| F | #1607 네이티브 fingerprint/rebuild 증거 확인 후 병합 여부 결정 | medium | CI green만으로 네이티브 패치를 확정하지 않음 |
+
+### 적용 중인 정책 (영구)
+
+1. `100 routes`는 화면 대장의 `entry × render` 계약이고, 14 variants는 QA 상태다. 둘을
+   PIXEL-CLAY 이주 완료 수치로 사용하지 않는다.
+2. 디자인 이주 완료는 `port:true` 대상별 자동 98+ **그리고** HUMAN PASS 둘 다로 판정한다.
+3. `OpsHomeScreen`과 `TraitRadar`는 연결하지 않는다. 전자는 mount 추천 호출 위험이 있고,
+   후자는 `DEFAULT_TRAITS=0.5` 기반 오해 소지와 미렌더 테스트 계약이 있다.
+4. legacy redirect·외부 deep link는 호환성 계약이다. 제품 메뉴에 보이지 않는다는 이유로
+   제거하지 않는다.
+5. 최신 `origin/main`에서 저장소 내부 `.worktrees/<name>`로 분기하고, main 직접 push 없이
+   항상 PR을 사용한다. push 전 `npm run verify`를 통과시킨다.
+
+### 핵심 파일 위치
+
+```text
+docs/HANDOFF.md                                      세션 간 최신 정본
+docs/handoff/design-migration-handoff-260904.html   이번 인계 시각 보고
+design/pixel_clay_260825/data/screens.json           93개 reference와 port 분류
+design/pixel_clay_260825/data/score-baseline.json    자동 비교 기준선
+design/CODEX-START-HERE.md                           98+와 HUMAN PASS 완료 정의
+src/lib/dev/screen-index.ts                          100 routes와 14 QA variants 계약
+src/app/dev-screens.tsx                              실앱 화면 전체 목록
+```
+
+### 검증
+
+```bash
+node scripts/verify-portable-handoff.mjs
+npm run verify
+```
+
+- HTML은 Pretendard subset을 base64로 내장했고 script·외부 URL이 0이다.
+- Headless Chromium으로 light/dark 1440×1900 캡처를 생성했다. Playwright의 light/dark ×
+  desktop/mobile 4조합에서 body horizontal overflow 0, font load true를 확인했다. 모바일의
+  차트 내부 스크롤 258px는 의도된 컨테이너 스크롤이다.
+- ⚠ 캡처의 **사람 눈 최종 확인은 미완료**다. 이 환경의 `view_image`가 반복해서
+  `unknown field code_mode_host_duration_ns`로 실패했다. 자동 렌더 성공을 HUMAN PASS로
+  바꿔 적지 말고, 다음 세션에서 두 PNG 또는 HTML을 직접 열어 확인할 것.
+
+### 다음 세션 시작하는 법
+
+```bash
+git fetch origin main && git switch main && git pull --ff-only origin main && cat docs/HANDOFF.md
+# A 작업부터 시작: 80개 port:true 화면 완료 원장과 45개 미완료 화면 닫기
+```
+
+---
+
+## 2026-09-04 / 화면 처분 감사: /formats 기본 뒤집기(#1601) · /audit 인증 게이트(#1602) · 나머지 20건은 손댈 것 없음
 
 > 발행: Claude Code (orca Design 워크스페이스). Simon 전건 승인(Q1 집행 · Q2 보류 · Q3 별건 · Q4 롤백 유지).
 > 보고서 아티팩트: <https://claude.ai/code/artifact/6f4eee66-b4ca-4692-b335-6f18edae94e1>
