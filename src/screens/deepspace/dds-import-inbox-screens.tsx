@@ -232,7 +232,7 @@ export function DeepSpaceImportScreen() {
   }, [userId]);
 
   useEffect(() => {
-    void getImportHistory().then(setHistory);
+    void getImportHistory(userId).then(setHistory);
   }, [userId]);
 
   const canHealth = healthImportAllowed(isMinor, healthPref);
@@ -272,7 +272,7 @@ export function DeepSpaceImportScreen() {
       // created source rows that the "철회 가능" consent card promised were
       // revocable, but nothing pointed at them — leaving them unrevokable.
       if (createdIds.length > 0) {
-        await addImportHistory({
+        await addImportHistory(userId, {
           id: `${Date.now()}`,
           sourceKey: "file",
           name: t("ds.import.fileSource"),
@@ -280,7 +280,7 @@ export function DeepSpaceImportScreen() {
           summary: t("ds.import.summaryPieces", { count: tally.imported }),
           sourceIds: createdIds,
         });
-        setHistory(await getImportHistory());
+        setHistory(await getImportHistory(userId));
       }
     } catch {
       // Picker cancel / permission errors are non-fatal.
@@ -304,8 +304,8 @@ export function DeepSpaceImportScreen() {
         return;
       }
     }
-    await removeImportHistory(entry.id);
-    setHistory(await getImportHistory());
+    await removeImportHistory(userId, entry.id);
+    setHistory(await getImportHistory(userId));
   }
 
   // Opt in: persist the pref AND write an explicit sensitive-data consent record
