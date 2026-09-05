@@ -1,0 +1,335 @@
+{
+  "schema": 1,
+  "note": "직접 측정 route가 없는 디자인 프레임과 디자인 직접 대응이 없는 production route의 생존 계획. 새 route 수를 늘리는 목록이 아니라 실제 기능에 흡수하거나 안전하게 제외하는 계약이다.",
+  "source": "screens.json + app-routes.json + src/lib/dev/screen-index.ts + docs/PRD.md Draft v4",
+  "designFrames": {
+    "record": {
+      "disposition": "state",
+      "target": "/record/:id",
+      "referenceUse": "direct",
+      "activation": "QA 계정이 소유한 실제 기록 id로 상세 상태를 캡처할 수 있을 때",
+      "reason": "목록 /records와 다른 단건 상세다. sample id의 없음 상태를 성공 화면으로 채점하지 않는다."
+    },
+    "audit": {
+      "disposition": "redesign",
+      "target": "/audit",
+      "referenceUse": "none",
+      "activation": "옛 ERAS 대신 seven-stars.ts 기반 provenance 화면이 별도 승인될 때",
+      "reason": "레퍼런스의 13-18/19-28 시기표는 새 일곱 시기와 충돌한다."
+    },
+    "connect": {
+      "disposition": "adapt",
+      "target": "/integrations",
+      "referenceUse": "layout-only",
+      "activation": "실제 연동 제공자와 import 진입을 한 허브에서 정직하게 구분할 때",
+      "reason": "독립 고아 화면 대신 현재 integrations의 연결 허브 시각 구조로 살린다."
+    },
+    "callrec": {
+      "disposition": "adapt",
+      "target": "/call-reflection",
+      "referenceUse": "layout-only",
+      "activation": "파일 업로드와 서버 전사 계약만으로 통화 되돌아보기 흐름을 표현할 때",
+      "reason": "마이크 실녹음과 온디바이스 STT 주장은 F3·Play 정책·실구현과 충돌한다."
+    },
+    "widget": {
+      "disposition": "defer",
+      "target": null,
+      "referenceUse": "none",
+      "activation": "별도 네이티브 OS 위젯 target과 업데이트 계약이 생길 때",
+      "reason": "앱 내부 route가 아닌 운영체제 표면이다."
+    },
+    "datareview": {
+      "disposition": "embed",
+      "target": "/data",
+      "referenceUse": "layout-only",
+      "activation": "가져온 데이터의 실제 확인 단계가 /data 또는 import flow에 연결될 때",
+      "reason": "비교용 독립 화면보다 데이터 관리의 검토 상태로 흡수하는 편이 실제 작업과 맞다."
+    },
+    "pwreset": {
+      "disposition": "state",
+      "target": "/reset-password",
+      "referenceUse": "direct",
+      "activation": "유효한 복구 세션과 만료·오류 상태를 함께 재현할 수 있을 때",
+      "reason": "고정 QA 로그인 상태로는 볼 수 없지만 production route가 존재한다."
+    },
+    "profilesetup": {
+      "disposition": "state",
+      "target": "/complete-profile",
+      "referenceUse": "direct",
+      "activation": "가입 직후 프로필 미완성 계정으로 실제 제출·오류 흐름을 검증할 때",
+      "reason": "독립 새 route가 아니라 현재 최초 프로필 완성 화면에 대응한다."
+    },
+    "dobgate": {
+      "disposition": "embed",
+      "target": "/onboarding",
+      "referenceUse": "layout-only",
+      "activation": "연령 확인 전 QA 상태에서 C10 관할·동의 규칙과 함께 검증할 때",
+      "reason": "성인 완료 계정에서는 나타나지 않는 온보딩 단계다."
+    },
+    "audit-full": {
+      "disposition": "exclude",
+      "target": "/audit",
+      "referenceUse": "none",
+      "activation": "새 7별 provenance 설계가 승인된 뒤 별도 새 레퍼런스를 만들 때",
+      "reason": "port:false audit의 옛 시기표를 확장한 잔재라 현재 캡처를 이식할 수 없다."
+    },
+    "domains": {
+      "disposition": "embed",
+      "target": "/secondb?panel=dashboard",
+      "referenceUse": "layout-only",
+      "activation": "생활 여섯 영역 카피와 실제 단계 데이터를 사용한 채팅 내 패널로 구현할 때",
+      "reason": "독립 route가 아니며 레퍼런스의 7개 영역 카피는 최신 모델과 충돌한다."
+    },
+    "lifeinput": {
+      "disposition": "embed",
+      "target": "/capture-full",
+      "referenceUse": "layout-only",
+      "activation": "현재 capture mode에서 해당 생활 입력 상태와 저장 목적지가 확인될 때",
+      "reason": "독립 route보다 실제 담기 흐름의 단계로 살린다."
+    },
+    "hobbyinput": {
+      "disposition": "embed",
+      "target": "/capture-full",
+      "referenceUse": "layout-only",
+      "activation": "휴식 영역 태그와 현재 capture 저장 계약을 연결할 때",
+      "reason": "입력 조각만을 별도 화면으로 만들면 고아가 되므로 담기 상태로 흡수한다."
+    },
+    "healthinput": {
+      "disposition": "embed",
+      "target": "/capture-full",
+      "referenceUse": "layout-only",
+      "activation": "건강 영역 태그와 현재 capture 저장 계약을 연결할 때",
+      "reason": "권한 데이터와 수동 입력을 구분한 담기 상태로 흡수한다."
+    },
+    "relcontacts": {
+      "disposition": "embed",
+      "target": "/people",
+      "referenceUse": "layout-only",
+      "activation": "연락처 권한 허용·거부·빈 상태를 모두 구현한 sheet가 생길 때",
+      "reason": "권한과 실제 연락처가 필요한 사람 기록의 하위 상태다."
+    },
+    "relperson": {
+      "disposition": "state",
+      "target": "/people",
+      "referenceUse": "layout-only",
+      "activation": "실제 사람 id 데이터 모델과 상세 sheet 또는 route가 확정될 때",
+      "reason": "sample id를 만들지 않고 현재 사람 기록의 실제 상세 상태로 살린다."
+    },
+    "healthdata": {
+      "disposition": "embed",
+      "target": "/integrations",
+      "referenceUse": "layout-only",
+      "activation": "Health Connect/HealthKit 권한과 실제 데이터 상태를 정직하게 표시할 때",
+      "reason": "건강 연동 허브의 provider detail 상태로 흡수한다."
+    },
+    "reward": {
+      "disposition": "embed",
+      "target": "src/components/deepspace/RewardedSheet.tsx",
+      "referenceUse": "layout-only",
+      "activation": "build flag·free tier·성인·광고 동의·허용 route의 전체 gate가 통과할 때",
+      "reason": "독립 route가 아니라 기존 fail-closed 보상 sheet가 소유해야 한다."
+    },
+    "digest": {
+      "disposition": "exclude",
+      "target": "/digest",
+      "referenceUse": "none",
+      "activation": "없음. 실제 화면은 이미 digest-today가 /digest에 연결된다.",
+      "reason": "레퍼런스 digest는 새·기존안을 나란히 둔 설계 비교 페이지다."
+    },
+    "privacy-policy": {
+      "disposition": "exclude",
+      "target": "/privacy-policy",
+      "referenceUse": "none",
+      "activation": "정책 목차가 별도 제품 요구로 승인될 때만 새 레퍼런스를 만든다.",
+      "reason": "현재 route는 가입 전에도 읽는 법률 문서이며 레퍼런스는 하단 독이 있는 정책 목차다."
+    },
+    "notfound": {
+      "disposition": "redesign",
+      "target": "/+not-found",
+      "referenceUse": "layout-only",
+      "activation": "Expo Router의 실제 +not-found 복구 동작과 홈 이동을 검증할 때",
+      "reason": "레퍼런스 내부 상태가 아니라 실제 시스템 fallback 화면으로 다시 그린다."
+    },
+    "community": {
+      "disposition": "redesign",
+      "target": "/community",
+      "referenceUse": "none",
+      "activation": "성인 전용 초대 room/DM 제품 모델로 새 PIXEL-CLAY 레퍼런스를 승인할 때",
+      "reason": "공개 기록 피드 캡처는 현재 앱의 초대형 커뮤니티와 의미가 완전히 다르다."
+    },
+    "rest": {
+      "disposition": "retain",
+      "target": "/rest",
+      "referenceUse": "none",
+      "activation": "현재 휴식 기능을 기준으로 새 production 캡처를 만들 때",
+      "reason": "레퍼런스는 CompareShell 실험이라 실제 route의 제품 상태가 아니다."
+    },
+    "people": {
+      "disposition": "retain",
+      "target": "/people",
+      "referenceUse": "none",
+      "activation": "현재 사람 기록 데이터와 권한 흐름을 기준으로 새 디자인을 만들 때",
+      "reason": "레퍼런스는 CompareShell 실험이라 실제 사람 기록을 대체할 수 없다."
+    },
+    "crisis": {
+      "disposition": "retain",
+      "target": "src/components/safety/CrisisRouter.tsx",
+      "referenceUse": "none",
+      "activation": "분류기 red-zone을 거친 실제 위기 routing QA에서",
+      "reason": "독립 데모 route가 아니라 안전 분류기가 소유하는 필수 중단 surface다."
+    },
+    "applock": {
+      "disposition": "state",
+      "target": "/privacy",
+      "referenceUse": "layout-only",
+      "activation": "실제 네이티브 잠금 기능과 저장 상태가 존재하고 설정에서 켤 수 있을 때",
+      "reason": "구현 없는 가짜 toggle을 만들지 않고 privacy의 실제 잠금 상태로만 노출한다."
+    }
+  },
+  "actualRoutes": {
+    "/complete-profile": {
+      "strategy": "adapt-reference",
+      "references": ["profilesetup"],
+      "implementation": "가입 직후 실제 프로필 필드와 제출 상태를 PIXEL-CLAY form으로 정리한다.",
+      "doneWhen": "프로필 미완성 QA 세션에서 제출·오류·재진입이 검증된다."
+    },
+    "/oauth-callback": {
+      "strategy": "state-only",
+      "references": [],
+      "implementation": "직접 방문용 화면을 만들지 않고 OAuth 반환의 진행·오류 상태만 명확히 표시한다.",
+      "doneWhen": "실제 provider 반환과 오류 시 안전한 목적지 이동이 검증된다."
+    },
+    "/reset-password": {
+      "strategy": "adapt-reference",
+      "references": ["pwreset"],
+      "implementation": "유효·만료 복구 세션의 실제 form을 PIXEL-CLAY로 정리한다.",
+      "doneWhen": "복구 성공·만료·비밀번호 불일치가 모두 검증된다."
+    },
+    "/integrations": {
+      "strategy": "adapt-reference",
+      "references": ["connect", "healthdata"],
+      "implementation": "실제 provider 연결 상태와 import 진입을 한 허브에서 구분한다.",
+      "doneWhen": "연결됨·미연결·권한 거부·미지원 상태가 정직하게 렌더된다."
+    },
+    "/trinity": {
+      "strategy": "alias",
+      "references": [],
+      "implementation": "production에서 /core-brain으로 보내고 두 번째 Polaris 구현을 만들지 않는다.",
+      "doneWhen": "dev/prod gate와 redirect 테스트가 유지된다."
+    },
+    "/ttfv": {
+      "strategy": "derive-pattern",
+      "references": ["digest-today"],
+      "implementation": "첫날 한 컷의 한 메시지·한 그래픽 원칙만 PIXEL-CLAY로 정리한다.",
+      "doneWhen": "최초 사용 상태와 재방문 상태가 실제 데이터로 검증된다."
+    },
+    "/audit": {
+      "strategy": "redesign",
+      "references": [],
+      "implementation": "seven-stars.ts 기반 근거·변경 이력 화면으로 새로 설계한다.",
+      "doneWhen": "옛 ERAS가 전혀 없고 실제 provenance만 표시한다."
+    },
+    "/mbti": {
+      "strategy": "alias",
+      "references": [],
+      "implementation": "/persona 호환 redirect만 유지한다.",
+      "doneWhen": "독립 렌더 없이 redirect 테스트가 통과한다."
+    },
+    "/persona": {
+      "strategy": "alias",
+      "references": [],
+      "implementation": "기본 deep-space에서 /core-brain으로 보내고 호환 경계만 유지한다.",
+      "doneWhen": "production에서 두 번째 Polaris 화면이 없다."
+    },
+    "/privacy-policy": {
+      "strategy": "retain",
+      "references": [],
+      "implementation": "가입 전 접근 가능한 독립 법률 문서를 유지한다.",
+      "doneWhen": "하단 독 없이 KO/EN 법률 snapshot과 접근성이 통과한다."
+    },
+    "/journal": {
+      "strategy": "alias",
+      "references": [],
+      "implementation": "/capture redirect만 유지한다.",
+      "doneWhen": "두 번째 담기 구현 없이 redirect 테스트가 통과한다."
+    },
+    "/record/sample": {
+      "strategy": "state-only",
+      "references": ["record"],
+      "implementation": "sample 없음 상태는 QA용으로만 두고 실제 id 상세를 디자인 대상으로 삼는다.",
+      "doneWhen": "사용자 소유 실제 id에서 상세·없음·권한 거부가 구분된다."
+    },
+    "/call-reflection": {
+      "strategy": "adapt-reference",
+      "references": ["callrec"],
+      "implementation": "마이크 녹음은 버리고 파일 업로드·서버 전사 기반 흐름을 PIXEL-CLAY로 재구성한다.",
+      "doneWhen": "업로드·전사 대기·실패·완료가 실제 계약으로 검증된다."
+    },
+    "/people": {
+      "strategy": "redesign",
+      "references": ["relcontacts", "relperson"],
+      "implementation": "현재 사람 기록과 권한 모델을 유지한 PIXEL-CLAY 목록·상세 상태를 만든다.",
+      "doneWhen": "빈 목록·권한 거부·실제 사람 상세가 검증된다."
+    },
+    "/rest": {
+      "strategy": "redesign",
+      "references": [],
+      "implementation": "CompareShell을 버리고 현재 휴식 기능을 기준으로 새 화면을 만든다.",
+      "doneWhen": "실제 저장 데이터와 비어 있는 상태가 모두 렌더된다."
+    },
+    "/change-password": {
+      "strategy": "derive-pattern",
+      "references": ["account", "pwreset"],
+      "implementation": "기존 auth form과 account 시각 패턴으로 비밀번호 변경 화면을 정리한다.",
+      "doneWhen": "재인증·불일치·성공 상태가 검증된다."
+    },
+    "/data": {
+      "strategy": "adapt-reference",
+      "references": ["datareview"],
+      "implementation": "내보내기·삭제·가져오기 검토를 실제 데이터 관리 단계로 구분한다.",
+      "doneWhen": "파괴적 동작 확인과 Android Back이 검증된다."
+    },
+    "/onboarding": {
+      "strategy": "adapt-reference",
+      "references": ["dobgate"],
+      "implementation": "C10 연령 확인을 실제 온보딩 단계에 통합한다.",
+      "doneWhen": "성인·미성년·미입력 흐름이 정책대로 분기한다."
+    },
+    "/profile-details": {
+      "strategy": "derive-pattern",
+      "references": ["profile", "profilesetup"],
+      "implementation": "실제 생활 정보 필드에 profile form의 PIXEL-CLAY 계층을 적용한다.",
+      "doneWhen": "저장·취소·오류와 한글 clipping이 검증된다."
+    },
+    "/jarvis": {
+      "strategy": "alias",
+      "references": [],
+      "implementation": "/secondb redirect만 유지한다.",
+      "doneWhen": "은퇴 이름이 사용자 내비에 노출되지 않고 redirect가 통과한다."
+    },
+    "/community": {
+      "strategy": "redesign",
+      "references": [],
+      "implementation": "공개 피드가 아닌 성인 초대 기반 room/DM을 PIXEL-CLAY로 새로 그린다.",
+      "doneWhen": "성인 gate·초대·빈 목록·방 진입이 실제 데이터로 검증된다."
+    },
+    "/community/join/sample": {
+      "strategy": "state-only",
+      "references": [],
+      "implementation": "sample은 오류 상태로 유지하고 살아 있는 초대 token에서만 성공 디자인을 검증한다.",
+      "doneWhen": "유효·만료·이미 참가·권한 오류가 구분된다."
+    },
+    "/community/sample": {
+      "strategy": "state-only",
+      "references": [],
+      "implementation": "sample은 목록 복귀 상태로 유지하고 실제 room id에서 메시지 화면을 검증한다.",
+      "doneWhen": "실제 방·없는 방·접근 거부가 구분된다."
+    },
+    "/beyond": {
+      "strategy": "derive-pattern",
+      "references": ["account", "share"],
+      "implementation": "앱 밖으로 가져가는 데이터와 공유 경계를 account 패턴으로 정리한다.",
+      "doneWhen": "실제 export/share 목적지와 취소 상태가 검증된다."
+    }
+  }
+}
