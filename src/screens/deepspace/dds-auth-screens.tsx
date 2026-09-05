@@ -27,7 +27,6 @@ import { DateField } from "@/components/m3";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { BusinessFooter } from "@/components/deepspace/BusinessFooter";
 import { todayISO } from "@/components/m3/date-picker/calendar-math";
-import { checkboxSpaceKeyProps } from "@/lib/ui/checkbox-space-key";
 
 // Keyboard-aware shell for the auth screens (sign-in / sign-up / reset). The
 // generic Shell above is for in-app graph screens and has no keyboard handling;
@@ -103,11 +102,9 @@ export function AuthShell({ children, scrollRef }: { children: ReactNode; scroll
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={{ flex: 1, paddingTop: insets.top }}
       >
-        {/* AuthShell also hosts legal copy. Bound its content, not the shared
-            graph shell or full-bleed backdrop; small screens keep 100% width. */}
         <ScrollView
           ref={scrollRef}
-          contentContainerStyle={[styles.scroll, { width: "100%", maxWidth: 640, alignSelf: "center", paddingBottom: Math.max(40, insets.bottom + 24) }]}
+          contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(40, insets.bottom + 24) }]}
           keyboardShouldPersistTaps="handled"
         >
           {children}
@@ -423,10 +420,8 @@ function ConsentCheckRow({ checked, label, emphasize, onToggle, onDetail, detail
       <Pressable
         style={styles.consentToggleArea}
         onPress={onToggle}
-        {...checkboxSpaceKeyProps(onToggle)}
         accessibilityRole="checkbox"
         accessibilityState={{ checked }}
-        aria-checked={checked}
         accessibilityLabel={label}
       >
         <View style={[styles.consentCheckbox, checked && styles.consentCheckboxOn]}>
