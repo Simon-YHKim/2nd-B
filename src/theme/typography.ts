@@ -1,6 +1,9 @@
-// Typography — Deep-Space design canon.
-// Body Korean: Pretendard. Pixel title/Korean mono: Galmuri11. Tiny labels/tags:
-// Press Start 2P. Fonts are loaded in src/app/_layout.tsx through fontAssets.
+// Typography (PIXEL-CLAY; Simon 2026-09-05: app-wide Galmuri).
+// Every <Text variant> renders a Galmuri face on the M3 pixel grid
+// (src/components/ui/Text.tsx + src/components/m3/typeface.ts). Pretendard is
+// the readable-font preference for reading text only (body, subtle). Tiny
+// labels/tags: Press Start 2P (legacy track) / GalmuriMono11 (deep-space).
+// Fonts are loaded in src/app/_layout.tsx through fontAssets.
 
 import { Platform } from "react-native";
 
