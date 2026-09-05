@@ -26,6 +26,7 @@ import {
 } from "react-native";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
+import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
@@ -33,6 +34,7 @@ import { PremiumLoadingState, PremiumModal, PremiumToast } from "@/components/pr
 import { Text } from "@/components/ui/Text";
 import { Input } from "@/components/ui/Input";
 import { MdButton } from "@/components/m3";
+import { m3TextStyle } from "@/components/m3/typeface";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { deepSpace, flattenAlpha, semantic, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
@@ -41,7 +43,6 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { useTheme } from "@/lib/theme/ThemeContext";
 import { signOut } from "@/lib/supabase/auth";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
-import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
 // Direct module import (NOT the components/deepspace barrel) — the barrel has a
 // known require cycle that crashed the /settings path once already (PR 711).
 import { SecondbStatusHeader } from "@/components/deep-space/SecondbStatusHeader";
@@ -162,6 +163,31 @@ function M3Icon({ name, color, size = 20 }: { name: string; color: string; size?
 // M3 Switch (1:1 from reference-app MdSwitch): 52×32 track, 2dp border, thumb
 // 16→24. Colors via m3.color tokens (no hex). Announces switch role + checked.
 function M3Switch({ checked, onChange, accessibilityLabel }: { checked: boolean; onChange: (v: boolean) => void; accessibilityLabel?: string }) {
+  if (isDeepSpaceUI()) {
+    return (
+      <Pressable
+        accessibilityRole="switch"
+        accessibilityState={{ checked }}
+        accessibilityLabel={accessibilityLabel}
+        onPress={() => onChange(!checked)}
+        hitSlop={12}
+        style={m3Styles.pixelSwitchPressable}
+      >
+        <PixelSurface
+          variant={checked ? "bevel" : "inset"}
+          background={checked ? m3.color.primaryContainer : m3.color.surfaceVariant}
+          contentStyle={m3Styles.pixelSwitchContent}
+        >
+          <View
+            style={[
+              m3Styles.pixelSwitchThumb,
+              checked ? m3Styles.pixelSwitchThumbChecked : m3Styles.pixelSwitchThumbOff,
+            ]}
+          />
+        </PixelSurface>
+      </Pressable>
+    );
+  }
   return (
     <Pressable
       accessibilityRole="switch"
@@ -187,6 +213,18 @@ function M3Switch({ checked, onChange, accessibilityLabel }: { checked: boolean;
 }
 
 function M3IconBadge({ icon, active }: { icon: string; active: boolean }) {
+  if (isDeepSpaceUI()) {
+    return (
+      <PixelSurface
+        variant={active ? "bevel" : "inset"}
+        background={active ? m3.color.primaryContainer : m3.color.surfaceVariant}
+        style={m3Styles.pixelIconBadge}
+        contentStyle={m3Styles.pixelIconBadgeContent}
+      >
+        <M3Icon name={icon} fill={active} color={active ? m3.color.onPrimaryContainer : m3.color.onSurfaceVariant} />
+      </PixelSurface>
+    );
+  }
   return (
     <View style={[m3Styles.iconBadge, { backgroundColor: active ? m3.color.primary : m3.color.surfaceContainerHighest }]}>
       <M3Icon name={icon} fill={active} color={active ? m3.color.onPrimary : m3.color.onSurfaceVariant} />
@@ -195,30 +233,39 @@ function M3IconBadge({ icon, active }: { icon: string; active: boolean }) {
 }
 
 function M3SectionLabel({ children, action }: { children: string; action?: ReactNode }) {
+  const pixel = isDeepSpaceUI();
   return (
     <View style={m3Styles.sectionLabelRow}>
-      <RNText style={m3Styles.sectionLabel}>{children}</RNText>
+      <RNText style={[m3Styles.sectionLabel, pixel ? m3Styles.pixelSectionLabel : null]}>{children}</RNText>
       {action}
     </View>
   );
 }
 
 function M3Group({ children }: { children: ReactNode }) {
+  if (isDeepSpaceUI()) {
+    return (
+      <PixelSurface variant="bevel" style={m3Styles.pixelGroup} contentStyle={m3Styles.pixelGroupContent}>
+        {children}
+      </PixelSurface>
+    );
+  }
   return <View style={m3Styles.card}>{children}</View>;
 }
 function M3Divider() {
-  return <View style={m3Styles.divider} />;
+  return <View style={[m3Styles.divider, isDeepSpaceUI() ? m3Styles.pixelDivider : null]} />;
 }
 
 function M3ToggleRow({ icon, label, sub, subAccessibilityLabel, checked, onChange }: { icon: string; label: string; sub: string; subAccessibilityLabel?: string; checked: boolean; onChange: (v: boolean) => void }) {
+  const pixel = isDeepSpaceUI();
   return (
-    <View style={m3Styles.row}>
+    <View style={[m3Styles.row, pixel ? m3Styles.pixelRow : null]}>
       <M3IconBadge icon={icon} active={checked} />
       <View style={m3Styles.rowText}>
-        <RNText style={m3Styles.rowLabel}>{label}</RNText>
+        <RNText style={[m3Styles.rowLabel, pixel ? m3Styles.pixelRowLabel : null]}>{label}</RNText>
         {/* subAccessibilityLabel: when sub went through keepAllKo, screen readers
             get the raw string (U+2060 joiners disorient braille / char review). */}
-        <RNText style={m3Styles.rowSub} accessibilityLabel={subAccessibilityLabel}>{sub}</RNText>
+        <RNText style={[m3Styles.rowSub, pixel ? m3Styles.pixelRowSub : null]} accessibilityLabel={subAccessibilityLabel}>{sub}</RNText>
       </View>
       <M3Switch checked={checked} onChange={onChange} accessibilityLabel={label} />
     </View>
@@ -230,17 +277,27 @@ function M3ToggleRow({ icon, label, sub, subAccessibilityLabel, checked, onChang
 // pattern A, fake success). Until a real per-source connector exists, settings
 // hands off honestly to the import/integration surfaces instead of claiming a
 // state that isn't there.
-function M3LinkRow({ icon, label, sub, badge, onPress }: { icon: string; label: string; sub: string; badge?: number; onPress: () => void }) {
+function M3LinkRow({ icon, label, sub, badge, onPress }: { icon: string; label: string; sub?: string; badge?: number; onPress: () => void }) {
+  const [held, setHeld] = useState(false);
+  const pixel = isDeepSpaceUI();
   return (
-    <Pressable style={m3Styles.row} onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
+    <Pressable
+      style={[m3Styles.row, pixel ? m3Styles.pixelRow : null, pixel && held ? m3Styles.pixelRowPressed : null]}
+      onPress={onPress}
+      onPressIn={() => setHeld(true)}
+      onPressOut={() => setHeld(false)}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={sub}
+    >
       <M3IconBadge icon={icon} active={false} />
       <View style={m3Styles.rowText}>
-        <RNText style={m3Styles.rowLabel}>{label}</RNText>
-        <RNText style={m3Styles.rowSub}>{sub}</RNText>
+        <RNText style={[m3Styles.rowLabel, pixel ? m3Styles.pixelRowLabel : null]}>{label}</RNText>
+        {sub ? <RNText style={[m3Styles.rowSub, pixel ? m3Styles.pixelRowSub : null]}>{sub}</RNText> : null}
       </View>
       {badge && badge > 0 ? (
         <View style={m3Styles.rowBadge}>
-          <RNText style={m3Styles.rowBadgeText}>{badge}</RNText>
+          <RNText style={[m3Styles.rowBadgeText, pixel ? m3Styles.pixelRowBadgeText : null]}>{badge}</RNText>
         </View>
       ) : null}
       <M3Icon name="chevron_right" size={20} color={m3.color.onSurfaceVariant} />
@@ -276,6 +333,7 @@ function SettingsActionButton({
   full = true,
   selected,
 }: SettingsActionButtonProps) {
+  const [held, setHeld] = useState(false);
   const isDisabled = disabled || loading;
   const labelColor = isDisabled
     ? BTN_DISABLED_LABEL
@@ -284,6 +342,42 @@ function SettingsActionButton({
       : variant === "danger"
         ? deepSpace.textHi
         : deepSpace.text;
+
+  if (isDeepSpaceUI()) {
+    const background = isDisabled
+      ? BTN_DISABLED_BG
+      : variant === "primary"
+        ? deepSpace.mint
+        : variant === "danger"
+          ? semantic.zoneRed
+          : m3.color.surfaceContainerHigh;
+    return (
+      <Pressable
+        accessibilityRole={accessibilityRole}
+        accessibilityLabel={accessibilityLabel ?? label}
+        accessibilityHint={accessibilityHint}
+        accessibilityState={{ disabled: isDisabled, busy: loading, selected }}
+        disabled={isDisabled}
+        onPress={onPress ? () => void onPress() : undefined}
+        onPressIn={() => setHeld(true)}
+        onPressOut={() => setHeld(false)}
+        style={[styles.pixelButtonRoot, full ? styles.settingsButtonFull : null, style]}
+      >
+        <View style={held ? styles.pixelButtonHeld : null}>
+          <PixelSurface
+            variant={isDisabled ? "frame" : "bevel"}
+            pressed={held && !isDisabled}
+            background={background}
+            style={styles.pixelButtonSurface}
+            contentStyle={styles.pixelButtonContent}
+          >
+            {loading ? <ActivityIndicator size="small" color={labelColor} /> : null}
+            <Text style={[styles.pixelButtonLabel, { color: labelColor }]}>{label}</Text>
+          </PixelSurface>
+        </View>
+      </Pressable>
+    );
+  }
 
   return (
     <View
@@ -335,18 +429,27 @@ function DisclosureSection({
   tone = "brand",
   children,
 }: DisclosureSectionProps) {
+  const [held, setHeld] = useState(false);
+  const pixel = isDeepSpaceUI();
   const borderStartColor = tone === "warning" ? semantic.warning : semantic.brand;
   const textColor: keyof typeof semantic = tone === "warning" ? "warning" : "brand";
-
-  return (
-    <View style={[styles.section, { borderStartColor }]}>
-      <TouchableOpacity
+  const contents = (
+    <>
+      <Pressable
         accessibilityRole="button"
         accessibilityLabel={title}
         accessibilityState={{ expanded }}
         onPress={onToggle}
-        style={styles.disclosureHeader}
-        activeOpacity={0.78}
+        onPressIn={() => setHeld(true)}
+        onPressOut={() => setHeld(false)}
+        style={[
+          styles.disclosureHeader,
+          held
+            ? pixel
+              ? styles.pixelDisclosureHeaderPressed
+              : styles.disclosureHeaderPressed
+            : null,
+        ]}
       >
         <Text variant="caption" color={textColor} style={styles.sectionEyebrow}>
           {title}
@@ -354,8 +457,28 @@ function DisclosureSection({
         <Text variant="caption" color={textColor} style={styles.disclosureIndicator}>
           {expanded ? "-" : "+"}
         </Text>
-      </TouchableOpacity>
+      </Pressable>
       {expanded ? <View style={styles.disclosureBody}>{children}</View> : null}
+    </>
+  );
+
+  if (pixel) {
+    return (
+      <PixelSurface
+        variant="frame"
+        background={m3.color.surfaceContainer}
+        style={styles.pixelDisclosure}
+        contentStyle={styles.pixelDisclosureContent}
+      >
+        <View pointerEvents="none" style={[styles.pixelDisclosureTone, { backgroundColor: borderStartColor }]} />
+        {contents}
+      </PixelSurface>
+    );
+  }
+
+  return (
+    <View style={[styles.section, { borderStartColor }]}>
+      {contents}
     </View>
   );
 }
@@ -614,7 +737,10 @@ export default function Settings() {
   return (
     <Chrome>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={[styles.scroll, isDeepSpaceUI() ? styles.pixelScroll : null]}
+          keyboardShouldPersistTaps="handled"
+        >
         {/* Legacy track keeps its pre-rev2 companion header EXACTLY (it is the
             live-pinned track); only the deep-space track trades it for the
             caption below (sb-app §4: no companion outside capture/chat/records). */}
@@ -626,7 +752,7 @@ export default function Settings() {
             }
           />
         )}
-        <RNText style={m3Styles.headline}>{t("settings")}</RNText>
+        <RNText style={[m3Styles.headline, isDeepSpaceUI() ? m3Styles.pixelHeadline : null]}>{t("settings")}</RNText>
         {/* Guidance line (kept from the companion era — OldGuidanceCopyResidue
             pins this SecondB-voiced wording; rev2 drops the header, not the copy). */}
         {isDeepSpaceUI() && (
@@ -634,6 +760,23 @@ export default function Settings() {
             {t("subtitleFull")}
           </Text>
         )}
+
+        {/* PIXEL-CLAY reference starts with identity. We keep the production
+            profile route and user-owned data instead of importing its sample
+            avatar/name. Legacy keeps the original lower navigation cluster. */}
+        {isDeepSpaceUI() ? (
+          <>
+            <M3SectionLabel>{t("myAccount")}</M3SectionLabel>
+            <M3Group>
+              <M3LinkRow
+                icon="person"
+                label={t("nav.profile")}
+                sub={t("nav.profileHint")}
+                onPress={() => router.push("/profile")}
+              />
+            </M3Group>
+          </>
+        ) : null}
 
         {/* ── rev2 M3 toggle-card clone (모양 / 기능 / 데이터 연동) ── */}
         {/* 모양 */}
@@ -707,7 +850,7 @@ export default function Settings() {
 
         {/* 데이터 연동 — honest hand-offs only. The old three rows here showed
             "연결됨·동기화 중" off a local toggle while syncing NOTHING. */}
-        <M3SectionLabel action={<MdButton label={t("all")} variant="text" onPress={() => router.push("/integrations")} accessibilityLabel={t("allIntegrations")} />}>
+        <M3SectionLabel>
           {t("dataConnections")}
         </M3SectionLabel>
         <M3Group>
@@ -738,112 +881,101 @@ export default function Settings() {
             and sign-out are disabled, instead of letting the user escape a
             half-finished wipe by navigating away or signing out. */}
         {busy !== null ? (
-          <View style={styles.busyBanner} accessibilityRole="alert" accessibilityLiveRegion="polite">
-            <Text variant="caption" color="textMuted">
-              {t("workingPaused")}
-            </Text>
-          </View>
+          isDeepSpaceUI() ? (
+            <PixelSurface
+              variant="inset"
+              style={styles.pixelBusyBanner}
+              contentStyle={styles.pixelBusyContent}
+            >
+              <View accessibilityRole="alert" accessibilityLiveRegion="polite">
+                <Text variant="caption" color="textMuted">
+                  {t("workingPaused")}
+                </Text>
+              </View>
+            </PixelSurface>
+          ) : (
+            <View style={styles.busyBanner} accessibilityRole="alert" accessibilityLiveRegion="polite">
+              <Text variant="caption" color="textMuted">
+                {t("workingPaused")}
+              </Text>
+            </View>
+          )
         ) : null}
 
-        {/* O-R1 settings restructure (39-screen audit, 4.5/10: "25+ choices,
-            no grouping"): the seven equal-weight nav buttons split into two
-            scannable groups (Gestalt: same meaning, same cluster), and the
-            "Theme (quick toggle)" disclosure is GONE — it duplicated the
-            /theme page button two rows above it (same action, two places). */}
-        <View style={styles.section}>
-          <Text variant="caption" color="textMuted" style={styles.sectionEyebrow}>
-            {t("myAccount")}
-          </Text>
-          <Button
-            label={t("nav.profile")}
-            accessibilityHint={t("nav.profileHint")}
-            variant="secondary"
-            onPress={() => router.push("/profile")}
-          />
-          <Button
-            label={t("nav.privacy")}
-            accessibilityHint={t("nav.privacyHint")}
-            variant="secondary"
-            onPress={() => router.push("/privacy")}
-          />
-          <Button
-            label={t("nav.account")}
-            accessibilityHint={t("nav.accountHint")}
-            variant="secondary"
-            onPress={() => router.push("/account")}
-          />
-        </View>
-
-        <View style={styles.section}>
-          <Text variant="caption" color="textMuted" style={styles.sectionEyebrow}>
-            {t("app")}
-          </Text>
-          <Button
-            label={t("nav.theme")}
-            accessibilityHint={t("nav.themeHint")}
-            variant="secondary"
-            onPress={() => router.push("/theme")}
-          />
-          {/* Screen-Spec 09: 코치마크 리셋 — clears the seen flag and returns
-              home so the 4-step guide plays again immediately. */}
-          <Button
-            label={t("resetCoachmarks")}
-            accessibilityHint={
-              t("resetCoachmarksDesc")
-            }
-            variant="secondary"
-            onPress={() => {
-              resetCoachmarks();
-              router.replace("/");
-            }}
-          />
-          <Button
-            label={t("nav.data")}
-            accessibilityHint={t("nav.dataHint")}
-            variant="secondary"
-            onPress={() => router.push("/data")}
-          />
-          <Button
-            label={t("nav.records")}
-            accessibilityHint={t("nav.recordsHint")}
-            variant="secondary"
-            onPress={() => router.push("/records")}
-          />
-          <Button
-            label={t("nav.support")}
-            accessibilityHint={t("nav.supportHint")}
-            variant="secondary"
-            onPress={() => router.push("/support")}
-          />
-        </View>
-
-        {/* O-31 Stage③ (nav-contract §3): in deep-space mode, surface the full
-            설정 second-tier so 요금제 /plans, 권한 /permissions, 운영진단 /ops
-            (no legacy nav button) are reachable directly from 설정 (누락 0).
-            Legacy mode renders nothing here — the sections above are its nav. */}
+        {/* The active PIXEL-CLAY surface exposes every production destination
+            once. The old DeepSpaceLinks block repeated routes already shown
+            above; legacy retains its original two button clusters. */}
         {isDeepSpaceUI() ? (
-          <DeepSpaceLinks
-            groups={[
-              {
-                title: t("settings"),
-                items: [
-                  { key: "account", label: t("account"), route: "/account" },
-                  { key: "subscription", label: t("subscription.rowLabel"), route: "/subscription" },
-                  { key: "plans", label: t("plans"), route: "/plans" },
-                  { key: "privacy", label: t("privacy"), route: "/privacy" },
-                  { key: "permissions", label: t("permissions"), route: "/permissions" },
-                  { key: "data", label: t("data"), route: "/data" },
-                  { key: "theme", label: t("theme"), route: "/theme" },
-                  { key: "support", label: t("support"), route: "/support" },
-                  { key: "manual", label: t("manual"), route: "/manual" },
-                  { key: "integrations", label: t("integrations"), route: "/integrations" },
-                  { key: "museum", label: t("aiMuseum"), route: "/museum" },
-                  { key: "ops", label: t("routines"), route: "/ops" },
-                ],
-              },
-            ]}
-          />
-        ) : null}
+          <>
+            <M3SectionLabel>{t("account")}</M3SectionLabel>
+            <M3Group>
+              <M3LinkRow icon="person" label={t("nav.account")} sub={t("nav.accountHint")} onPress={() => router.push("/account")} />
+              <M3Divider />
+              <M3LinkRow icon="lock" label={t("nav.privacy")} sub={t("nav.privacyHint")} onPress={() => router.push("/privacy")} />
+            </M3Group>
+
+            <M3SectionLabel>{t("app")}</M3SectionLabel>
+            <M3Group>
+              <M3LinkRow icon="settings" label={t("nav.theme")} sub={t("nav.themeHint")} onPress={() => router.push("/theme")} />
+              <M3Divider />
+              <M3LinkRow icon="article" label={t("nav.data")} sub={t("nav.dataHint")} onPress={() => router.push("/data")} />
+              <M3Divider />
+              <M3LinkRow icon="book" label={t("nav.records")} sub={t("nav.recordsHint")} onPress={() => router.push("/records")} />
+              <M3Divider />
+              <M3LinkRow icon="lock" label={t("permissions")} onPress={() => router.push("/permissions")} />
+            </M3Group>
+
+            <M3SectionLabel>{t("support")}</M3SectionLabel>
+            <M3Group>
+              <M3LinkRow icon="info" label={t("nav.support")} sub={t("nav.supportHint")} onPress={() => router.push("/support")} />
+              <M3Divider />
+              <M3LinkRow icon="book" label={t("manual")} onPress={() => router.push("/manual")} />
+              <M3Divider />
+              <M3LinkRow icon="box" label={t("aiMuseum")} onPress={() => router.push("/museum")} />
+              <M3Divider />
+              <M3LinkRow icon="ops" label={t("routines")} onPress={() => router.push("/ops")} />
+              <M3Divider />
+              <M3LinkRow
+                icon="refresh"
+                label={t("resetCoachmarks")}
+                sub={t("resetCoachmarksDesc")}
+                onPress={() => {
+                  resetCoachmarks();
+                  router.replace("/");
+                }}
+              />
+            </M3Group>
+          </>
+        ) : (
+          <>
+            <View style={styles.section}>
+              <Text variant="caption" color="textMuted" style={styles.sectionEyebrow}>
+                {t("myAccount")}
+              </Text>
+              <Button label={t("nav.profile")} accessibilityHint={t("nav.profileHint")} variant="secondary" onPress={() => router.push("/profile")} />
+              <Button label={t("nav.privacy")} accessibilityHint={t("nav.privacyHint")} variant="secondary" onPress={() => router.push("/privacy")} />
+              <Button label={t("nav.account")} accessibilityHint={t("nav.accountHint")} variant="secondary" onPress={() => router.push("/account")} />
+            </View>
+            <View style={styles.section}>
+              <Text variant="caption" color="textMuted" style={styles.sectionEyebrow}>
+                {t("app")}
+              </Text>
+              <Button label={t("nav.theme")} accessibilityHint={t("nav.themeHint")} variant="secondary" onPress={() => router.push("/theme")} />
+              <Button
+                label={t("resetCoachmarks")}
+                accessibilityHint={t("resetCoachmarksDesc")}
+                variant="secondary"
+                onPress={() => {
+                  resetCoachmarks();
+                  router.replace("/");
+                }}
+              />
+              <Button label={t("nav.data")} accessibilityHint={t("nav.dataHint")} variant="secondary" onPress={() => router.push("/data")} />
+              <Button label={t("nav.records")} accessibilityHint={t("nav.recordsHint")} variant="secondary" onPress={() => router.push("/records")} />
+              <Button label={t("nav.support")} accessibilityHint={t("nav.supportHint")} variant="secondary" onPress={() => router.push("/support")} />
+            </View>
+          </>
+        )}
 
         <DisclosureSection
           // O-R2 (2) language-pack infra: first in-app language switch for
@@ -1222,6 +1354,7 @@ const koType = (size: number, line: number, tracking: number, weight: TextStyle[
 
 const m3Styles = StyleSheet.create({
   headline: { ...koType(24, 32, 0, "600"), color: m3.color.onSurface, marginTop: m3.spacing.s2, marginBottom: m3.spacing.s1 },
+  pixelHeadline: { ...m3TextStyle("headlineSmall") },
   sectionLabelRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1230,18 +1363,33 @@ const m3Styles = StyleSheet.create({
     marginBottom: m3.spacing.s3,
   },
   sectionLabel: { ...koType(14, 20, 0.1, "500"), color: m3.color.onSurfaceVariant },
+  pixelSectionLabel: { ...m3TextStyle("labelLarge") },
   card: { backgroundColor: m3.color.surfaceContainerHighest, borderRadius: m3.shape.medium, padding: m3.spacing.s1 },
+  pixelGroup: { alignSelf: "stretch" },
+  pixelGroupContent: { paddingHorizontal: 0, paddingVertical: 0 },
   divider: { height: 1, backgroundColor: m3.color.outlineVariant, marginHorizontal: m3.spacing.s3 },
+  pixelDivider: { height: m3.spacing.s1, backgroundColor: m3.color.surface, marginHorizontal: m3.spacing.s4 },
   row: { flexDirection: "row", alignItems: "center", gap: m3.spacing.s3, paddingVertical: m3.spacing.s3, paddingHorizontal: m3.spacing.s3 },
+  pixelRow: { minHeight: 56, gap: m3.spacing.s4, paddingVertical: m3.spacing.s4, paddingHorizontal: m3.spacing.s6 },
+  pixelRowPressed: { transform: [{ translateY: m3.spacing.s1 }], backgroundColor: m3.color.surfaceVariant },
   rowText: { flex: 1, minWidth: 0 },
   rowLabel: { ...koType(16, 22, 0.15, "400"), color: m3.color.onSurface },
+  pixelRowLabel: { ...m3TextStyle("titleMedium") },
   rowSub: { ...koType(12, 16, 0.3, "400"), color: m3.color.onSurfaceVariant, marginTop: 1 },
+  pixelRowSub: { ...m3TextStyle("labelSmall"), marginTop: m3.spacing.s1 },
   iconBadge: { width: 38, height: 38, borderRadius: m3.shape.none, alignItems: "center", justifyContent: "center" },
+  pixelIconBadge: { width: 42, height: 42 },
+  pixelIconBadgeContent: { width: 38, height: 38, paddingHorizontal: 0, paddingVertical: 0, alignItems: "center", justifyContent: "center" },
   rowBadge: { minWidth: 24, height: 24, borderRadius: m3.shape.none, paddingHorizontal: 7, alignItems: "center", justifyContent: "center", backgroundColor: m3.accent.alertDot },
   rowBadgeText: { ...koType(12, 16, 0, "700"), color: m3.color.onPrimary },
+  pixelRowBadgeText: { ...m3TextStyle("labelLarge") },
   switchTrack: { width: 52, height: 32, borderRadius: m3.shape.none, borderWidth: 2, justifyContent: "center" },
   switchThumb: { position: "absolute", borderRadius: m3.shape.none },
-  connectBtn: { minHeight: 36, paddingHorizontal: m3.spacing.s4 },
+  pixelSwitchPressable: { minWidth: m3.minTouch, minHeight: m3.minTouch, alignItems: "center", justifyContent: "center" },
+  pixelSwitchContent: { width: 36, height: 20, paddingHorizontal: 0, paddingVertical: 0, justifyContent: "center" },
+  pixelSwitchThumb: { position: "absolute", width: 12, height: 12, backgroundColor: m3.color.onPrimaryContainer },
+  pixelSwitchThumbChecked: { right: m3.spacing.s2 },
+  pixelSwitchThumbOff: { left: m3.spacing.s2, backgroundColor: m3.color.onSurfaceVariant },
 });
 
 // PIXEL-CLAY 규칙 4 — 정적 반투명 금지. 비활성 버튼은 바탕이 겹쳐 있다:
@@ -1256,6 +1404,12 @@ const styles = StyleSheet.create({
   glow: { position: "absolute", top: 0, left: 0, right: 0, height: 200, backgroundColor: deepSpace.bgGlow },
   center: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
   scroll: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xl, gap: spacing.lg },
+  pixelScroll: {
+    paddingHorizontal: m3.spacing.s8,
+    paddingTop: m3.spacing.s4,
+    paddingBottom: m3.spacing.s8,
+    gap: 0,
+  },
   header: { gap: spacing.xs, marginBottom: spacing.md },
   title: { fontSize: 20, color: deepSpace.textHi, marginBottom: spacing.xs },
   guidance: { marginTop: -6, marginBottom: spacing.xs },
@@ -1278,6 +1432,10 @@ const styles = StyleSheet.create({
   disclosureHeaderPressed: {
     opacity: 0.78,
   },
+  pixelDisclosureHeaderPressed: {
+    transform: [{ translateY: m3.spacing.s1 }],
+    backgroundColor: m3.color.surfaceVariant,
+  },
   disclosureIndicator: {
     minWidth: 24,
     textAlign: "right",
@@ -1285,6 +1443,19 @@ const styles = StyleSheet.create({
   },
   disclosureBody: {
     gap: spacing.sm,
+  },
+  pixelDisclosure: { alignSelf: "stretch", marginTop: m3.spacing.s5 },
+  pixelDisclosureContent: {
+    position: "relative",
+    paddingHorizontal: m3.spacing.s6,
+    paddingVertical: m3.spacing.s4,
+  },
+  pixelDisclosureTone: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: m3.spacing.s1,
   },
   destructiveGroup: {
     gap: spacing.sm,
@@ -1309,6 +1480,24 @@ const styles = StyleSheet.create({
     borderRadius: m3.shape.medium,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+  },
+  pixelBusyBanner: { alignSelf: "stretch", marginTop: m3.spacing.s5 },
+  pixelBusyContent: { paddingHorizontal: m3.spacing.s6, paddingVertical: m3.spacing.s4 },
+  pixelButtonRoot: { alignSelf: "stretch", minHeight: m3.minTouch },
+  pixelButtonHeld: { transform: [{ translateY: m3.spacing.s1 }] },
+  pixelButtonSurface: { alignSelf: "stretch", minHeight: m3.minTouch },
+  pixelButtonContent: {
+    minHeight: 40,
+    paddingHorizontal: m3.spacing.s6,
+    paddingVertical: m3.spacing.s3,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: m3.spacing.s4,
+  },
+  pixelButtonLabel: {
+    ...m3TextStyle("labelLarge"),
+    textAlign: "center",
   },
   settingsButton: {
     minHeight: 48,
