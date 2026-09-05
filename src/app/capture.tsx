@@ -350,7 +350,7 @@ export default function Capture() {
       );
     }
     return (
-      <DeepSpaceScreen active="capture" variant="windowed">
+      <DeepSpaceScreen active="capture" header="none" variant="windowed">
         <CaptureView />
       </DeepSpaceScreen>
     );
