@@ -1,69 +1,99 @@
-// 통화 녹음 (call recording flow, docs/CALL-RECORDING-SPEC.md §5). Real on-device
-// capture → transcript: the user records their OWN call (speakerphone so both
-// voices reach the mic), the audio is transcribed via transcribeAudio and then
-// DROPPED — only the text is kept, saved as a call_reflection record.
-// idle → rec → stt → result. Reuses the exact capture(음성) pipeline
-// (useAudioRecorder + recordingUriToBase64 + transcribeAudio, C9 red-zone gate).
-//
-// Platform reality (CALL-RECORDING-SPEC §legal-safe): Android/iOS block third-
-// party capture of the call's own audio stream, so there is NO silent auto-
-// record. The sanctioned path is speakerphone mic capture the user starts — the
-// UI says so honestly rather than promising an impossible call-audio API.
-import { useEffect, useState } from "react";
-import { Platform, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
+// Call reflection follows the F3 decision in CLAUDE.md: the app never records
+// a call. The user selects an audio file that already exists on their device,
+// the server turns it into text, and only text the user explicitly approves is
+// saved as a call_reflection record. The original file remains the user's file.
+import { useEffect, useRef, useState } from "react";
+import { ScrollView, StyleSheet, Text as RNText, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
-import { useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync } from "expo-audio";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { DeepSpaceLoader } from "@/components/deepspace/DeepSpaceLoader";
 import { MdButton } from "@/components/m3";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
-import type { HotlineId } from "@/lib/safety/lexicon";
+import { recordingUriToBase64 } from "@/lib/audio/recording-uri";
+import { isAbortError } from "@/lib/async/abort";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { useProgression } from "@/lib/progression/useProgression";
-import { createRecord } from "@/lib/records/create";
 import { composeStructured } from "@/lib/capture/structured";
 import { transcribeAudio } from "@/lib/llm/boundary";
-import { discardRecording, recordingUriToBase64 } from "@/lib/audio/recording-uri";
+import { useProgression } from "@/lib/progression/useProgression";
+import { createRecord } from "@/lib/records/create";
+import type { HotlineId } from "@/lib/safety/lexicon";
 import { m3 } from "@/lib/theme/m3";
-import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { isAudioMime, MAX_AUDIO_FILE_BYTES, pickAudioFile } from "@/lib/wiki/capture-file";
 
-type Phase = "idle" | "rec" | "stt" | "result";
+type Phase = "idle" | "stt" | "result";
 type UiLocale = "en" | "ko" | "es" | "pt" | "id";
 
 const CALL_REFLECTION_COPY: Record<
   UiLocale,
   {
+    title: string;
+    intro: string;
+    fileHint: string;
+    fairText: string;
+    loadingTitle: string;
     loadingSub: string;
     privacyNote: string;
-    fairText: string;
+    unsupported: string;
+    pickFailed: string;
   }
 > = {
   en: {
-    loadingSub: "Turning speech into text. The recording is deleted shortly.",
-    privacyNote: "The original audio was never saved. Only text remains.",
-    fairText: "Only calls you're part of. Please let the other person know.",
+    title: "Reflect on a call file",
+    intro: "Choose an audio file already on this device. 2nd-B does not record calls.",
+    fileHint: "The file is sent only to turn speech into text. Data charges may apply.",
+    fairText: "Use only calls you're part of and let the other person know.",
+    loadingTitle: "Turning the call into text",
+    loadingSub: "The selected file is being sent to the transcription service. 2nd-B will not save the audio.",
+    privacyNote: "Your original file stays on your device. Only text you approve is saved.",
+    unsupported: "Choose an audio file such as M4A, MP3, WAV, WEBM, OGG, AAC, or 3GP.",
+    pickFailed: "Couldn't open that audio file. Please choose it again.",
   },
   ko: {
-    loadingSub: "음성을 텍스트로 바꾸고 있어요. 원본 녹음은 곧 삭제돼요.",
-    privacyNote: "원본 음성은 저장하지 않았어요. 텍스트만 남아요.",
-    fairText: "내가 낀 통화만 녹음돼요. 상대에게 녹음을 알려 주세요.",
+    title: "통화 파일 돌아보기",
+    intro: "이 기기에 이미 있는 통화 음성 파일을 골라 주세요. 2nd-B는 통화를 직접 녹음하지 않아요.",
+    fileHint: "음성을 글로 옮길 때만 파일을 전사 서비스로 보내요. 데이터 사용료가 들 수 있어요.",
+    fairText: "내가 참여한 통화만 사용하고, 상대에게 녹음 사실을 알려 주세요.",
+    loadingTitle: "통화 파일을 글로 옮기는 중",
+    loadingSub: "선택한 파일을 전사 서비스로 보내고 있어요. 2nd-B는 음성 파일을 저장하지 않아요.",
+    privacyNote: "원본 파일은 내 기기에 그대로 있어요. 승인한 텍스트만 저장돼요.",
+    unsupported: "M4A, MP3, WAV, WEBM, OGG, AAC, 3GP 형식의 음성 파일을 골라 주세요.",
+    pickFailed: "음성 파일을 열지 못했어요. 다시 골라 주세요.",
   },
   es: {
-    loadingSub: "Convirtiendo la voz en texto. La grabación se eliminará pronto.",
-    privacyNote: "El audio original no se guardó. Solo queda el texto.",
-    fairText: "Solo llamadas en las que participas. Avísale a la otra persona.",
+    title: "Reflexionar sobre una llamada",
+    intro: "Elige un archivo de audio que ya esté en este dispositivo. 2nd-B no graba llamadas.",
+    fileHint: "El archivo se envía solo para convertir la voz en texto. Puede consumir datos.",
+    fairText: "Usa solo llamadas en las que participes y avisa a la otra persona.",
+    loadingTitle: "Convirtiendo la llamada en texto",
+    loadingSub: "El archivo se está enviando al servicio de transcripción. 2nd-B no guardará el audio.",
+    privacyNote: "El archivo original sigue en tu dispositivo. Solo se guarda el texto que apruebes.",
+    unsupported: "Elige un archivo de audio M4A, MP3, WAV, WEBM, OGG, AAC o 3GP.",
+    pickFailed: "No se pudo abrir el archivo de audio. Elígelo de nuevo.",
   },
   pt: {
-    loadingSub: "Convertendo a fala em texto. A gravação será apagada em breve.",
-    privacyNote: "O áudio original não foi salvo. Só o texto permanece.",
-    fairText: "Apenas chamadas em que você participa. Avise a outra pessoa.",
+    title: "Relembrar uma chamada",
+    intro: "Escolha um arquivo de áudio que já esteja neste dispositivo. O 2nd-B não grava chamadas.",
+    fileHint: "O arquivo é enviado apenas para transformar fala em texto. Pode haver uso de dados.",
+    fairText: "Use apenas chamadas das quais você participou e avise a outra pessoa.",
+    loadingTitle: "Transformando a chamada em texto",
+    loadingSub: "O arquivo está sendo enviado ao serviço de transcrição. O 2nd-B não salvará o áudio.",
+    privacyNote: "O arquivo original continua no seu dispositivo. Só o texto aprovado é salvo.",
+    unsupported: "Escolha um áudio M4A, MP3, WAV, WEBM, OGG, AAC ou 3GP.",
+    pickFailed: "Não foi possível abrir o áudio. Escolha o arquivo novamente.",
   },
   id: {
-    loadingSub: "Mengubah suara menjadi teks. Rekaman akan segera dihapus.",
-    privacyNote: "Audio asli tidak disimpan. Hanya teks yang tersisa.",
-    fairText: "Hanya panggilan yang kamu ikuti. Beri tahu lawan bicara.",
+    title: "Tinjau file panggilan",
+    intro: "Pilih file audio yang sudah ada di perangkat ini. 2nd-B tidak merekam panggilan.",
+    fileHint: "File hanya dikirim untuk mengubah ucapan menjadi teks. Penggunaan data mungkin berlaku.",
+    fairText: "Gunakan hanya panggilan yang kamu ikuti dan beri tahu lawan bicara.",
+    loadingTitle: "Mengubah panggilan menjadi teks",
+    loadingSub: "File dikirim ke layanan transkripsi. 2nd-B tidak akan menyimpan audionya.",
+    privacyNote: "File asli tetap di perangkatmu. Hanya teks yang kamu setujui yang disimpan.",
+    unsupported: "Pilih file audio M4A, MP3, WAV, WEBM, OGG, AAC, atau 3GP.",
+    pickFailed: "File audio tidak dapat dibuka. Silakan pilih lagi.",
   },
 };
 
@@ -76,51 +106,42 @@ function hotlineFor(ko: boolean, minor: boolean): HotlineId {
   return ko ? (minor ? "KR_1388" : "KR_109") : "GLOBAL_988";
 }
 
-function MicGlyph({ color, size = 52 }: { color: string; size?: number }) {
-  return (
-    <PixelGlyph name="mic" color={color} size={size} />
-  );
-}
-
 export default function CallReflection() {
   const { t, i18n } = useTranslation("capture");
-  const ko = i18n.language === "ko";
+  const uiLocale = uiLocaleFor(i18n.language);
+  const ko = uiLocale === "ko";
   const locale = ko ? "ko" : "en";
-  const copy = CALL_REFLECTION_COPY[uiLocaleFor(i18n.language)];
+  const copy = CALL_REFLECTION_COPY[uiLocale];
   const { userId, isMinor, loading } = useAuth();
   const progression = useProgression();
-  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
   const [phase, setPhase] = useState<Phase>("idle");
-  const [secs, setSecs] = useState(0);
   const [busy, setBusy] = useState(false);
   const [transcript, setTranscript] = useState("");
+  const [selectedName, setSelectedName] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [crisis, setCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
     visible: false,
     hotline: "GLOBAL_988",
   });
+  const mountedRef = useRef(true);
+  const transcribeAbortRef = useRef<AbortController | null>(null);
 
-  // Recording timer — a plain 1s interval (not an animation frame loop).
   useEffect(() => {
-    if (phase !== "rec") return;
-    const id = setInterval(() => setSecs((v) => v + 1), 1000);
-    return () => clearInterval(id);
-  }, [phase]);
+    return () => {
+      mountedRef.current = false;
+      transcribeAbortRef.current?.abort();
+    };
+  }, []);
 
   if (loading) return null;
   if (!userId) return <Redirect href="/sign-in" />;
 
-  // Jurisdiction + age gate (Simon decision 2026-07-06): call recording is
-  // offered only to ADULT users on the KR locale. Korea permits one-party-consent
-  // recording of a call you are part of, but many jurisdictions (US two-party
-  // states, Germany, etc.) require all-party consent, so we scope the feature to
-  // the KR locale rather than open it globally, and exclude minors. Locale is the
-  // only jurisdiction signal available (no geolocation) — revisit if a region
-  // signal is added. The "notify the other party" disclosure lives in the idle UI.
+  // Keep the existing adult + KR availability gate. F3 changes the capture
+  // mechanism, not the consent and jurisdiction scope of recorded call files.
   if (!ko || isMinor === true) {
     return (
-      <DeepSpaceScreen active="home" variant="windowed" header="none" title={t("callReflection.title")} onBack={() => router.back()}>
+      <DeepSpaceScreen active="home" variant="windowed" header="none" title={copy.title} onBack={() => router.back()}>
         <View style={s.blockedWrap}>
           <RNText style={s.blockedTitle}>{t("callReflection.blockedTitle")}</RNText>
           <RNText style={s.blockedBody}>{t("callReflection.blockedBody")}</RNText>
@@ -130,71 +151,72 @@ export default function CallReflection() {
     );
   }
 
-  const mmss = `${String(Math.floor(secs / 60)).padStart(2, "0")}:${String(secs % 60).padStart(2, "0")}`;
-
-  // ---- start recording (idle → rec) ----
-  async function startRecording() {
+  async function chooseAndTranscribe() {
+    if (!userId || phase === "stt") return;
     setNotice(null);
-    if (Platform.OS === "web") {
-      setNotice(t("callReflection.webUnreliable"));
+    setSelectedName(null);
+
+    let file;
+    try {
+      file = await pickAudioFile();
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[call-reflection] file pick failed", (e as Error).message);
+      if (mountedRef.current) setNotice(copy.pickFailed);
       return;
     }
-    try {
-      const perm = await requestRecordingPermissionsAsync();
-      if (!perm.granted) {
-        setNotice(t("callReflection.micPermission"));
-        return;
-      }
-      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
-      await audioRecorder.prepareToRecordAsync();
-      audioRecorder.record();
-      setSecs(0);
-      setPhase("rec");
-    } catch (e) {
-      if (typeof console !== "undefined") console.warn("[call-reflection] start failed", (e as Error).message);
-      setPhase("idle");
-      setNotice(t("callReflection.startFailed"));
-    }
-  }
+    if (!mountedRef.current || !file) return;
+    setSelectedName(file.name);
 
-  // ---- stop + transcribe (rec → stt → result) ----
-  async function stopAndTranscribe() {
-    if (!userId || phase !== "rec") return;
+    if (!isAudioMime(file.mimeType)) {
+      setNotice(copy.unsupported);
+      return;
+    }
+    if (file.size > MAX_AUDIO_FILE_BYTES) {
+      setNotice(t("file.audioTooLarge", { mb: Math.floor(MAX_AUDIO_FILE_BYTES / 1_000_000) }));
+      return;
+    }
+
+    const controller = new AbortController();
+    transcribeAbortRef.current?.abort();
+    transcribeAbortRef.current = controller;
     setPhase("stt");
-    let recordingUri: string | null = null;
     try {
-      await audioRecorder.stop();
-      recordingUri = audioRecorder.uri;
-      if (!recordingUri) {
-        setPhase("idle");
-        setNotice(t("callReflection.noRecording"));
-        return;
-      }
-      const { base64, mimeType } = await recordingUriToBase64(recordingUri);
-      const reply = await transcribeAudio({ userId, locale, base64, mimeType, minor: isMinor === true });
-      // C9: a red-zone transcript was swapped server-side for the fixed crisis
-      // template — route to the hotline instead of keeping it.
+      const { base64 } = await recordingUriToBase64(file.uri);
+      const reply = await transcribeAudio({
+        userId,
+        locale,
+        base64,
+        // DocumentPicker's normalized MIME is more reliable for file:// URIs
+        // than the blob type returned by fetch on Android.
+        mimeType: file.mimeType,
+        minor: isMinor === true,
+        signal: controller.signal,
+      });
+      if (!mountedRef.current || transcribeAbortRef.current !== controller) return;
+
+      // C9: a red-zone transcript is swapped server-side for the fixed crisis
+      // response. Route to the hotline instead of showing or saving that text.
       if (reply.safety?.zone === "red") {
         setPhase("idle");
+        setSelectedName(null);
         setCrisis({ visible: true, hotline: hotlineFor(ko, isMinor === true) });
         return;
       }
       const text = reply.text.trim();
       if (text.length === 0) {
         setPhase("idle");
-        setNotice(t("callReflection.nothingToTranscribe"));
+        setNotice(t("file.transcriptEmpty"));
         return;
       }
       setTranscript(text);
       setPhase("result");
     } catch (e) {
+      if (isAbortError(e) || !mountedRef.current || transcribeAbortRef.current !== controller) return;
       if (typeof console !== "undefined") console.warn("[call-reflection] transcribe failed", (e as Error).message);
       setPhase("idle");
-      setNotice(t("callReflection.transcribeFailed"));
+      setNotice(t("file.transcribeFailed"));
     } finally {
-      // Honor the "원본 녹음은 곧 삭제돼요" promise: drop the temp audio once the
-      // text has been extracted (runs on the crisis / empty / error paths too).
-      await discardRecording(recordingUri);
+      if (transcribeAbortRef.current === controller) transcribeAbortRef.current = null;
     }
   }
 
@@ -221,20 +243,34 @@ export default function CallReflection() {
     }
   }
 
+  function discardTranscript() {
+    setTranscript("");
+    setSelectedName(null);
+    setNotice(null);
+    setPhase("idle");
+  }
+
   const crisisModal = (
     <CrisisRouter
       visible={crisis.visible}
       hotline={crisis.hotline}
-      onClose={() => setCrisis((c) => ({ ...c, visible: false }))}
+      onClose={() => setCrisis((current) => ({ ...current, visible: false }))}
     />
   );
 
-  // ---- STT (loading) ----
   if (phase === "stt") {
     return (
-      <DeepSpaceScreen active="home" variant="windowed" header="none" title={t("callReflection.title")} onBack={() => router.back()}>
+      <DeepSpaceScreen active="home" variant="windowed" header="none" title={copy.title} onBack={() => router.back()}>
         <View style={s.loadingWrap}>
-          <DeepSpaceLoader variant="dots" caption={t("callReflection.transcribing")} />
+          <DeepSpaceLoader variant="dots" caption={copy.loadingTitle} />
+          {selectedName ? (
+            <View style={s.selectedRow}>
+              <PixelGlyph name="upload_file" color={m3.color.primary} size={18} />
+              <RNText style={s.selectedText} numberOfLines={1}>
+                {t("file.selected")}: {selectedName}
+              </RNText>
+            </View>
+          ) : null}
           <RNText style={s.loadingSub}>{copy.loadingSub}</RNText>
         </View>
         {crisisModal}
@@ -242,23 +278,27 @@ export default function CallReflection() {
     );
   }
 
-  // ---- Result ----
   if (phase === "result") {
     return (
-      <DeepSpaceScreen active="home" variant="windowed" header="none" title={t("callReflection.title")} onBack={() => router.back()}>
+      <DeepSpaceScreen active="home" variant="windowed" header="none" title={copy.title} onBack={() => router.back()}>
         <ScrollView contentContainerStyle={s.resultScroll} showsVerticalScrollIndicator={false}>
           <View style={s.resultHead}>
-            <PixelGlyph name="task_alt" color={m3.color.primary} size={22} />
+            <PixelGlyph name="task_alt" color={m3.color.primary} size={24} />
             <RNText style={s.resultTitle}>{t("callReflection.transcribed")}</RNText>
           </View>
 
+          {selectedName ? (
+            <RNText style={s.fileName} numberOfLines={1}>
+              {t("file.selected")}: {selectedName}
+            </RNText>
+          ) : null}
           <RNText style={s.section}>{t("callReflection.transcriptLabel")}</RNText>
           <View style={s.transcriptCard}>
             <RNText style={s.transcriptText}>{transcript}</RNText>
           </View>
 
           <View style={s.resultBtns}>
-            <MdButton variant="outlined" label={t("callReflection.discard")} onPress={() => router.push("/")} style={s.btnFlex1} />
+            <MdButton variant="outlined" label={t("callReflection.discard")} onPress={discardTranscript} style={s.btnFlex1} />
             <MdButton variant="filled" label={t("callReflection.approve")} loading={busy} onPress={() => void approve()} style={s.btnFlex2} />
           </View>
           <View style={s.privacyRow}>
@@ -271,67 +311,42 @@ export default function CallReflection() {
     );
   }
 
-  // ---- idle / rec ----
-  const recording = phase === "rec";
   return (
-    <DeepSpaceScreen active="home" variant="windowed" header="none" title={t("callReflection.title")} onBack={() => router.back()}>
+    <DeepSpaceScreen active="home" variant="windowed" header="none" title={copy.title} onBack={() => router.back()}>
       <View style={s.frame}>
         <View style={s.hero}>
-          <View style={[s.circle, recording ? s.circleRec : s.circleIdle]}>
-            <MicGlyph color={recording ? m3.color.error : m3.color.onSurfaceVariant} />
+          <View style={s.uploadTile}>
+            <PixelGlyph name="upload_file" color={m3.color.primary} size={52} />
+          </View>
+          <RNText style={s.title}>{copy.title}</RNText>
+          <RNText style={s.desc}>{copy.intro}</RNText>
+
+          <View style={s.infoCol}>
+            <View style={s.infoRow}>
+              <View style={s.infoBadge}>
+                <RNText style={s.infoBadgeText}>{t("callReflection.howBadge")}</RNText>
+              </View>
+              <RNText style={s.infoText}>{copy.fileHint}</RNText>
+            </View>
+            <View style={s.infoRow}>
+              <View style={s.infoBadge}>
+                <RNText style={s.infoBadgeText}>{t("callReflection.fairBadge")}</RNText>
+              </View>
+              <RNText style={s.infoText}>{copy.fairText}</RNText>
+            </View>
           </View>
 
-          {recording ? (
-            <>
-              <RNText style={s.timer}>{mmss}</RNText>
-              <RNText style={s.desc}>{t("callReflection.recordingDesc")}</RNText>
-            </>
-          ) : (
-            <>
-              <RNText style={s.title}>{t("callReflection.title")}</RNText>
-              <RNText style={s.desc}>{t("callReflection.idleDesc")}</RNText>
-              {/* Honest platform note: the OS blocks silent call-audio capture, so
-                  this is user-started speakerphone mic capture, party-to-the-call only. */}
-              <View style={s.platformCol}>
-                <View style={s.platformRow}>
-                  <View style={[s.osBadge, s.osHint]}><RNText style={s.osHintTxt}>{t("callReflection.howBadge")}</RNText></View>
-                  <RNText style={s.platformTxt}>{t("callReflection.howText")}</RNText>
-                </View>
-                <View style={s.platformRow}>
-                  <View style={[s.osBadge, s.osHint]}><RNText style={s.osHintTxt}>{t("callReflection.fairBadge")}</RNText></View>
-                  <RNText style={s.platformTxt}>{copy.fairText}</RNText>
-                </View>
-              </View>
-            </>
-          )}
+          {selectedName ? (
+            <RNText style={s.fileName} numberOfLines={1}>
+              {t("file.selected")}: {selectedName}
+            </RNText>
+          ) : null}
           {notice ? <RNText style={s.notice}>{notice}</RNText> : null}
         </View>
 
         <View style={s.footer}>
-          {recording ? (
-            <>
-              <MdButton variant="filled" label={t("callReflection.stopAnalyse")} onPress={() => void stopAndTranscribe()} style={s.stopBtn} />
-              <MdButton
-                variant="text"
-                label={t("callReflection.cancelNoSave")}
-                onPress={() => {
-                  // "저장 안 함" must also DELETE the temp audio file — every
-                  // other exit path discards it; this one left it on disk.
-                  void audioRecorder
-                    .stop()
-                    .then(() => discardRecording(audioRecorder.uri))
-                    .catch(() => {});
-                  setSecs(0);
-                  setPhase("idle");
-                }}
-              />
-            </>
-          ) : (
-            <>
-              <MdButton variant="filled" label={t("callReflection.startRecording")} onPress={() => void startRecording()} />
-              <MdButton variant="text" label={t("callReflection.maybeLater")} onPress={() => router.push("/settings")} />
-            </>
-          )}
+          <MdButton variant="filled" label={t("file.pick")} onPress={() => void chooseAndTranscribe()} />
+          <MdButton variant="text" label={t("callReflection.maybeLater")} onPress={() => router.back()} />
         </View>
       </View>
       {crisisModal}
@@ -341,37 +356,59 @@ export default function CallReflection() {
 
 const s = StyleSheet.create({
   frame: { flex: 1 },
-  hero: { flex: 1, alignItems: "center", justifyContent: "center", gap: 20, paddingHorizontal: 28 },
-  circle: { width: 120, height: 120, borderRadius: m3.shape.none, alignItems: "center", justifyContent: "center" },
-  circleIdle: { backgroundColor: m3.color.surfaceContainerHighest },
-  circleRec: { backgroundColor: m3.color.errorContainer },
+  hero: { flex: 1, alignItems: "center", justifyContent: "center", gap: 18, paddingHorizontal: 28 },
+  uploadTile: {
+    width: 120,
+    height: 120,
+    borderRadius: m3.shape.none,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: m3.color.primaryContainer,
+  },
   title: { color: m3.color.onSurface, fontSize: 22, fontWeight: "500", textAlign: "center" },
-  timer: { fontFamily: m3.font.mono, fontSize: 30, fontWeight: "700", color: m3.color.onSurface },
-  desc: { color: m3.color.onSurfaceVariant, fontSize: 14, lineHeight: 20, textAlign: "center", maxWidth: 288 },
-  platformCol: { alignSelf: "stretch", gap: 8, marginTop: 4 },
-  platformRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10, paddingHorizontal: 12, borderRadius: m3.shape.none, backgroundColor: m3.color.surfaceContainerHighest },
-  osBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: m3.shape.none },
-  osHint: { backgroundColor: m3.color.secondaryContainer },
-  osHintTxt: { color: m3.color.onSecondaryContainer, fontSize: 11, fontWeight: "700" },
-  platformTxt: { flex: 1, color: m3.color.onSurface, fontSize: 12, lineHeight: 16 },
-  notice: { color: m3.color.error, fontSize: 13, textAlign: "center", marginTop: 4 },
+  desc: { color: m3.color.onSurfaceVariant, fontSize: 14, lineHeight: 20, textAlign: "center", maxWidth: 300 },
+  infoCol: { alignSelf: "stretch", gap: 8, marginTop: 4 },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    minHeight: 48,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: m3.shape.none,
+    backgroundColor: m3.color.surfaceContainerHighest,
+  },
+  infoBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: m3.shape.none, backgroundColor: m3.color.secondaryContainer },
+  infoBadgeText: { color: m3.color.onSecondaryContainer, fontSize: 11, fontWeight: "700" },
+  infoText: { flex: 1, color: m3.color.onSurface, fontSize: 12, lineHeight: 17 },
+  fileName: { alignSelf: "stretch", color: m3.color.onSurfaceVariant, fontSize: 12, textAlign: "center" },
+  notice: { color: m3.color.error, fontSize: 13, lineHeight: 18, textAlign: "center" },
   footer: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 18, gap: 8 },
-  stopBtn: { backgroundColor: m3.color.error },
   blockedWrap: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14, paddingHorizontal: 32 },
   blockedTitle: { color: m3.color.onSurface, fontSize: 18, fontWeight: "600", textAlign: "center" },
   blockedBody: { color: m3.color.onSurfaceVariant, fontSize: 14, lineHeight: 21, textAlign: "center", maxWidth: 300 },
   blockedBtn: { marginTop: 6 },
   loadingWrap: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16, paddingHorizontal: 32 },
-  loadingSub: { color: m3.color.onSurfaceVariant, fontSize: 13, lineHeight: 19, textAlign: "center" },
+  selectedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    maxWidth: 300,
+    minHeight: 44,
+    paddingHorizontal: 12,
+    backgroundColor: m3.color.surfaceContainerHighest,
+  },
+  selectedText: { flexShrink: 1, color: m3.color.onSurface, fontSize: 12 },
+  loadingSub: { color: m3.color.onSurfaceVariant, fontSize: 13, lineHeight: 19, textAlign: "center", maxWidth: 304 },
   resultScroll: { padding: m3.spacing.s4, paddingBottom: 40, gap: m3.spacing.s2 },
   resultHead: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6, marginBottom: 8 },
   resultTitle: { color: m3.color.onSurface, fontSize: 22, fontWeight: "500" },
   section: { color: m3.color.onSurface, fontSize: 13, fontWeight: "500", marginTop: 12, marginBottom: 2 },
-  transcriptCard: { backgroundColor: m3.color.surfaceContainerHighest, borderRadius: m3.shape.medium, padding: 14 },
+  transcriptCard: { backgroundColor: m3.color.surfaceContainerHighest, borderRadius: m3.shape.none, padding: 14 },
   transcriptText: { color: m3.color.onSurface, fontSize: 14, lineHeight: 21 },
   resultBtns: { flexDirection: "row", gap: 8, marginTop: 22 },
   btnFlex1: { flex: 1 },
   btnFlex2: { flex: 2 },
   privacyRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 12 },
-  privacyTxt: { color: m3.color.onSurfaceVariant, fontSize: 12 },
+  privacyTxt: { flexShrink: 1, color: m3.color.onSurfaceVariant, fontSize: 12, lineHeight: 17, textAlign: "center" },
 });
