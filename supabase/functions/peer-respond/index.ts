@@ -51,6 +51,8 @@ const OPTIONAL_TRAITS = ['openness', 'neuroticism'] as const;
 
 /** C10 floor, mirroring the sign-up gate. Keep in sync with src/app/peer/[token].tsx. */
 const MIN_INFORMANT_AGE = 14;
+/** C10 adult boundary. Below this the informant is a minor and needs a guardian. */
+const ADULT_AGE = 18;
 
 function validRatings(raw: unknown): Record<string, number> | null {
   if (raw == null || typeof raw !== 'object') return null;
@@ -161,7 +163,22 @@ Deno.serve(async (req) => {
       return jsonResponse(req, { error: 'too_young' }, 403);
     }
 
-    const isMinor = body.informantIsMinor === true;
+    // Minority is DERIVED, not asserted. The line above already trusted birthYear
+    // enough to reject an under-14 informant; reading the same number for the adult
+    // boundary costs one subtraction and closes the hole where an informant simply
+    // sends informantIsMinor:false and walks past the guardian check. The screen is
+    // not the gate here — there is no account, so a request that never touches
+    // src/app/peer/[token].tsx is the normal case, not the attack case.
+    //
+    // Year granularity, same as the floor above, reads one year YOUNGER than the
+    // true age until the birthday passes. For the floor that could only exclude a
+    // just-turned-14. Here it can only hold a just-turned-18 as a minor for one more
+    // birthday, asking for a guardian where none is strictly required. Both errors
+    // land on the cautious side, which is the direction this endpoint must fail.
+    //
+    // The client flag is still honoured, but only where it ADDS protection: it can
+    // declare a minority the year did not imply, never remove one that it did.
+    const isMinor = nowYear - birthYear < ADULT_AGE || body.informantIsMinor === true;
     // Decision 5 (0064 CHECK): a minor informant needs recorded guardian consent.
     if (isMinor && body.guardianConsent !== true) {
       return jsonResponse(req, { error: 'guardian_required' }, 400);
