@@ -2,11 +2,12 @@ import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from 
 import { AccessibilityInfo, FlatList, Pressable, ScrollView, StyleSheet, Text as RNText, TextInput, View } from "react-native";
 import { Redirect, router, useLocalSearchParams, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
-import Svg, { Circle, Path, Rect } from "react-native-svg";
 
 import { colors, spacing } from "@/theme/tokens";
 import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { PixelPressable } from "@/components/pixel/PixelPressable";
+import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 import { m3 } from "@/lib/theme/m3";
 import { reactExpression } from "@/lib/companion/expression";
@@ -25,7 +26,7 @@ import { parseStructured, structuredFieldLabel } from "@/lib/capture/structured"
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { PremiumModal } from "@/components/premium";
-import { DeepSpaceLoader, SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
+import { DeepSpaceLoader, SecondbHead } from "@/components/deepspace";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { WikiGraph } from "@/components/deep-space/WikiGraph";
 import { RecordsGraph } from "@/components/deep-space/RecordsGraph";
@@ -37,6 +38,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { deleteRecord, listRecentRecords, updateRecord, updateRecordTags } from "@/lib/records/create";
 import { buildRecordsGraph } from "@/lib/records/records-graph";
+import { selectRecordsForSafeGraph } from "@/lib/records/records-graph-layout";
 import { listSourcePieces } from "@/lib/records/source-pieces";
 import { getPieceById } from "@/lib/records/get-piece";
 import { listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
@@ -179,6 +181,10 @@ const TYPE_CHIPS: { id: RType | "all" | "unfiled"; labelKey: string }[] = [
   { id: "photo", labelKey: "records.typePhoto" },
   { id: "unfiled", labelKey: "records.typeUnfiled" },
 ];
+// The list remains the complete archive. The immersive graph uses the newest
+// three pieces per domain: its 44dp node targets then occupy unique safe lattice
+// slots instead of covering one another in a dense fixed fan. The compact count
+// says when this visual map is a subset (`18 / 143 pieces`).
 const URL_RE = /https?:\/\//;
 const DUR_RE = /\(\d+:\d{2}\)/;
 
@@ -305,33 +311,9 @@ export function DeepSpaceRecordsScreen() {
   // read before the next one commits, so overlapping loads never race.
   const [reloadKey, setReloadKey] = useState(0);
   const [typeFilter, setTypeFilter] = useState<RType | "all" | "unfiled">("all");
-  const [view, setView] = useState<"list" | "graph">("list");
-  // Reserve exactly the floating companion header's measured height so the
-  // 목록/그래프 toggle never sits under the briefing bubble when its tip wraps to
-  // two lines (the previous fixed clearance under-reserved it). Falls back to 88.
-  const [headerH, setHeaderH] = useState(88);
-  // Graph mode reuses the deterministic knowledge-graph view (wiki pages/edges).
-  // D-27 Phase 1b: the /records graph runs on the user's RECORDS (the canonical
-  // node-set), connected by shared tags — not the near-empty wiki_pages track
-  // that left the graph blank for a normal user.
-  // Only run the O(n^2) shared-tag graph build when the graph view is actually
-  // open; passing [] otherwise yields the same-shaped empty graph at ~0 cost, so
-  // list-only users stop paying the full compute on every data load (audit wave-3).
-  const recordsGraph = useMemo(
-    () =>
-      buildRecordsGraph(view === "graph" ? records : [], {
-        locale: isKo ? "ko" : "en",
-        // Localized node labels: the same names the home constellation uses, so
-        // one star never carries two names across screens (es saw "Relaciones"
-        // on home but "Relationship" here before this).
-        labels: {
-          polaris: t("home:ds.home.polaris"),
-          star: (id) => t(`home:ds.home.domainName.${id}`),
-          untitled: t("deepspace:recordsGraph.untitled"),
-        },
-      }),
-    [records, isKo, view, t],
-  );
+  // PIXEL-CLAY `records` is the connection map. Keep the real, virtualized list
+  // one tap away instead of replacing it with the reference's sample corpus.
+  const [view, setView] = useState<"list" | "graph">("graph");
 
   useEffect(() => {
     if (!userId) return;
@@ -426,6 +408,22 @@ export function DeepSpaceRecordsScreen() {
     if (typeFilter === "unfiled") return scoped.filter(isUnfiled);
     return scoped.filter((r) => recordType(r) === typeFilter);
   }, [scoped, typeFilter]);
+  const graphRecords = useMemo(() => selectRecordsForSafeGraph(filtered), [filtered]);
+  // D-27 Phase 1b: the map runs on the user's real merged records+sources set.
+  // Build only while graph view is visible, and cap the visual node-set above;
+  // the complete archive remains available in the FlatList.
+  const recordsGraph = useMemo(
+    () =>
+      buildRecordsGraph(view === "graph" ? graphRecords : [], {
+        locale: isKo ? "ko" : "en",
+        labels: {
+          polaris: t("home:ds.home.polaris"),
+          star: (id) => t(`home:ds.home.domainName.${id}`),
+          untitled: t("deepspace:recordsGraph.untitled"),
+        },
+      }),
+    [graphRecords, isKo, view, t],
+  );
 
   const renderRecord = useCallback(
     ({ item }: { item: RecordsTimelineRecord }) => (
@@ -443,17 +441,17 @@ export function DeepSpaceRecordsScreen() {
   if (authLoading) {
     return (
       <DeepSpaceScreen active="wiki" header="none">
-        <View style={styles.wikiFloatClear}><GraphLoading /></View>
+        <View style={rStyles.centerState}><GraphLoading /></View>
       </DeepSpaceScreen>
     );
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
-  const total = scoped.length;
+  const graphCount = graphRecords.length;
+  const graphCountText = `${graphCount}${graphCount < filtered.length ? ` / ${filtered.length}` : ""} ${t("domains.unit")}`;
 
-  // Header pieces are shared by the list (as FlatList ListHeaderComponent) and
-  // the graph view (inside its ScrollView). Only one view renders at a time, so
-  // reusing the same elements across the two branches is safe.
+  // The list header keeps the title, triage, and filters together inside the
+  // FlatList. Graph mode uses the compact absolute rail below instead.
   const viewToggleRow = (
     <View style={rStyles.titleRow}>
       <RNText style={rStyles.wikiTitle}>{t("records.wikiTitle")}</RNText>
@@ -535,24 +533,11 @@ export function DeepSpaceRecordsScreen() {
 
   return (
     <DeepSpaceScreen active="wiki" header="none">
-      {/* rev2 위키: companion FLOATS over the immersive surface (sb-app §4). */}
-      <View
-        pointerEvents="box-none"
-        style={rStyles.floatHeader}
-        onLayout={(e) => setHeaderH(e.nativeEvent.layout.height)}
-      >
-        <SecondbStatusHeader
-          text={total > 0 ? t("records.headerCount", { count: total }) : t("records.headerEmpty")}
-          tip={unfiledCount > 0 ? t("records.tip", { count: unfiledCount }) : t("records.tipClear")}
-        />
-      </View>
-      <View style={[styles.wikiFloatClear, { paddingTop: headerH + 8 }]}>
-        {view === "list" ? (
-          // The records list is virtualized (FlatList) and is the ONLY vertical
-          // scroller here — the deep-space shell's fullbleed body is a plain flex
-          // View (no outer ScrollView), so there is no nested-VirtualizedList
-          // conflict. The header/triage/filter chips ride as ListHeaderComponent;
-          // the chip strip is a cross-axis (horizontal) scroller, safe to nest.
+      {view === "list" ? (
+        <View style={rStyles.listPane}>
+          {/* The records list is virtualized (FlatList) and is the ONLY vertical
+              scroller here. The deep-space shell's fullbleed body is a plain flex
+              View, so there is no nested-VirtualizedList conflict. */}
           <FlatList
             data={loadError ? [] : filtered}
             keyExtractor={(r) => r.id}
@@ -586,33 +571,68 @@ export function DeepSpaceRecordsScreen() {
             windowSize={5}
             removeClippedSubviews
           />
-        ) : (
-          <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-            {viewToggleRow}
-            {triageCards}
-            {loadError ? (
-              errorState
-            ) : loading ? (
-              <GraphLoading />
-            ) : records.length > 0 ? (
-              <RecordsGraph graph={recordsGraph} onOpenRecord={(id) => router.push({ pathname: "/record/[id]", params: recordRouteParamsById(id, records) })} />
-            ) : (
+        </View>
+      ) : (
+        <View style={rStyles.graphPane}>
+          <View pointerEvents="box-none" style={rStyles.graphRail}>
+            <PixelPressable
+              onPress={() => setView("list")}
+              accessibilityLabel={t("records.viewList")}
+              contentStyle={rStyles.railButtonContent}
+            >
+              <PixelGlyph name="article" color={colors.cyanSoft} size={18} />
+              <RNText style={rStyles.railButtonText}>{t("records.viewList")}</RNText>
+            </PixelPressable>
+            <PixelSurface variant="frame" contentStyle={rStyles.countContent}>
+              <RNText style={rStyles.countText} accessibilityLabel={graphCountText}>
+                {graphCountText}
+              </RNText>
+            </PixelSurface>
+          </View>
+          {loadError ? (
+            <View style={rStyles.centerState}>{errorState}</View>
+          ) : loading ? (
+            <View style={rStyles.centerState}><GraphLoading /></View>
+          ) : filtered.length > 0 ? (
+            <RecordsGraph
+              graph={recordsGraph}
+              onOpenRecord={(id) => router.push({ pathname: "/record/[id]", params: recordRouteParamsById(id, records) })}
+            />
+          ) : (
+            <View style={rStyles.centerState}>
               <View style={styles.wikiPageOpen}>
                 <Text variant="body" style={styles.wikiBody}>{t("records.graphEmpty")}</Text>
                 <Pressable style={styles.primary} onPress={() => router.push("/capture")} accessibilityRole="button">
                   <Text variant="caption" style={styles.primaryText}>{t("wiki.addPiece")}</Text>
                 </Pressable>
               </View>
-            )}
-          </ScrollView>
-        )}
-      </View>
+            </View>
+          )}
+        </View>
+      )}
     </DeepSpaceScreen>
   );
 }
 
 const rStyles = StyleSheet.create({
-  floatHeader: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 6 },
+  listPane: { flex: 1, minHeight: 0 },
+  graphPane: { flex: 1, minHeight: 0 },
+  graphRail: {
+    position: "absolute",
+    top: spacing.md,
+    left: spacing.md,
+    right: spacing.md,
+    zIndex: 8,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+  },
+  railButtonContent: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: spacing.xs, paddingVertical: 0 },
+  railButtonText: { color: colors.textTitle, fontSize: 12, fontFamily: m3.font.mono },
+  countContent: { minHeight: 44, justifyContent: "center", paddingVertical: 0, paddingHorizontal: spacing.sm },
+  countText: { color: colors.cyanSoft, fontSize: 12, fontFamily: m3.font.mono },
+  centerState: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.lg },
   titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
   wikiTitle: { color: colors.textTitle, fontSize: 26, fontWeight: "800", flexShrink: 1 },
   viewToggle: { width: 148, flexShrink: 0 },
