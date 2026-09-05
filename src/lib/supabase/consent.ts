@@ -30,7 +30,14 @@ export const CONSENT_VERSION = "2026-08-16" as const;
 // 맞춰 올린다. 이걸 안 올리면 그날 이후 가입자의 원장에 '08-16 판에 동의했다'고
 // 남는데, 정작 화면에는 08-30 판이 떠 있다 — 원장이 거짓이 된다.
 // ⚠ 위 주석대로 이 값을 올려도 **기존 계정에는 닿지 않는다.** 재동의 흐름은 별도 작업이다.
-export const PRIVACY_POLICY_VERSION = "2026-08-30" as const;
+//
+// 2026-09-04: 같은 이유로 다시 올린다. 이번 개정은 §4 수탁사에 OpenAI(대화·OCR·
+// 음성 전사·임베딩)와 Google(Firebase Analytics)을 추가하고, §5 의 "음성·오디오는
+// 텍스트 전사를 위해 Google에 전송됩니다" 를 OpenAI 로 정정한 것이다. 앞의 개정과
+// 성격이 다르다 — 그때는 빠진 것을 채웠고, 이번엔 **적혀 있던 회사 이름이 틀렸다.**
+// 문서의 시행일만 09-04 로 옮기고 이 상수를 08-30 에 두면 원장이 가리키는 판과
+// 화면에 뜨는 판이 어긋난다. 그게 위 문단이 말하는 바로 그 거짓이다.
+export const PRIVACY_POLICY_VERSION = "2026-09-04" as const;
 export const TERMS_VERSION = "2026-08-16" as const;
 
 export type ConsentAgeBand = "minor_self" | "adult";
