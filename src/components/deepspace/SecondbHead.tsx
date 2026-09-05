@@ -1,11 +1,13 @@
-// SecondB character head (deep-space canon — design/2nd-Brain 화면설계.dc.html).
+// SecondB character head (deep-space canon — design/2nd-Brain 화면설계.dc.html;
+// PIXEL-CLAY hull from design/pixel_clay_260825 px-primitives `SbHead`, 2026-09-05).
 //
-// The head asset is a flat PNG; the LIFE is layered over it in RN exactly like the
-// canon .dc.html: a dark face "screen", two glowing cyan eyes, and a mouth. The
-// eyes BLINK on a random cadence and the whole face TRACKS the user's touch — the
-// head does a 2.5D look-at turn toward the touch while the eyes/mouth shift a few
-// px the same way. There is NO floating orb above the head (the canon has none;
-// emotion is read from the live face, not a dot).
+// The head is a 16x16 pixel hull (secondb-hull.ts: antenna, crown, pods, visor,
+// chin as integer rects) and the LIFE is layered over it in RN: two glowing cyan
+// eyes and a mouth on the visor. The eyes BLINK on a random cadence and the face
+// TRACKS the user's touch: the head shifts toward the touch while the eyes/mouth
+// shift a few px the same way. It does NOT tilt: the bundle's SbHead treats tilt as
+// a grid violation, and a rotated 16 grid resamples into blur. There is NO floating
+// orb above the head (the canon has none; emotion is read from the live face).
 //
 // EXPRESSIONS: the face vocabulary is 13 deep (lib/companion/faces.ts is the
 // geometry SoT — per-eye lids/tilt/arc, six mouth kinds, gaze offsets, blink
@@ -34,7 +36,6 @@
 import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import { Animated, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
-import { Image } from "expo-image";
 import Svg, { Rect } from "react-native-svg";
 
 import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
@@ -44,6 +45,7 @@ import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { subscribeExpression, subscribeHold, type Expression } from "@/lib/companion/expression";
 import { FACES, nextIdleDelayMs, pickIdleAction, type FaceSpec, type MouthKind } from "@/lib/companion/faces";
 import { useSecondbTracking } from "./SecondbHeadTrack";
+import { SECONDB_FACE, SECONDB_GRID, secondbHullRects, snapHeadSize, type HullPalette } from "./secondb-hull";
 
 export type SecondbMood = "positive" | "neutral" | "negative";
 
@@ -62,12 +64,11 @@ interface SecondbHeadProps {
   style?: StyleProp<ViewStyle>;
 }
 
-// Face-BLANK head (clean black visor): the face is drawn ENTIRELY by this
-// component, matching the baked face of secondb-head-front.png 1:1 in the
-// neutral pose — that PNG (the loading screen / static contexts) is the
-// reference design, so every context shows the same face (사용자 지시
-// 2026-07-16: 로딩 화면의 세컨비가 레퍼런스).
-const HEAD_IMAGE = require("../../../assets/deepspace/secondb-head-blank.png");
+// Face-BLANK hull: the body comes from secondb-hull.ts (the bundle's `head-blank`,
+// 11 integer rects on a 16 grid) and the face is drawn ENTIRELY by this component
+// on the visor. secondb-head-front.png (loading screen) stays the static reference
+// for the neutral pose (사용자 지시 2026-07-16). Colors are canon ramp tokens only:
+// the canon test forbids hex literals in this file.
 
 /** Heads at or above this size are "big" and track by default. */
 const BIG_HEAD_MIN = 80;
@@ -199,7 +200,11 @@ function WhistleNote({ size, accent, reduce }: { size: number; accent: string; r
   );
 }
 
-export function SecondbHead({ mood = "neutral", persona, size = 48, track, accessibilityLabel, style }: SecondbHeadProps) {
+export function SecondbHead({ mood = "neutral", persona, size: sizeProp = 48, track, accessibilityLabel, style }: SecondbHeadProps) {
+  // PIXEL-CLAY: the drawn head is the largest multiple of 16 that fits the requested
+  // box, so every grid cell is a whole number of px (72 -> 64, 158 -> 144). Every
+  // fraction below is of this snapped size; `sizeProp` still decides tracking.
+  const size = snapHeadSize(sizeProp);
   const reduce = useReducedMotionPref();
   const bob = useRef(new Animated.Value(0)).current;
   const blink = useRef(new Animated.Value(1)).current; // 1 = eyes open, ~0.08 = shut
@@ -283,7 +288,7 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
 
   const tracking = useSecondbTracking();
   // Auto by size when `track` is omitted: big heads follow touch, small heads don't.
-  const wantsTrack = track ?? size >= BIG_HEAD_MIN;
+  const wantsTrack = track ?? sizeProp >= BIG_HEAD_MIN;
   const enabled = wantsTrack && !!tracking && !reduce;
   const rootRef = useRef<View>(null);
   const [center, setCenter] = useState<{ x: number; y: number; ready: boolean }>({ x: 0, y: 0, ready: false });
@@ -355,9 +360,11 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
     [bob],
   );
 
-  // Head 2.5D look-at toward the touch, scaled by engage (eases in on touch, springs
-  // back to a centered, face-forward rest on release). perspective FIRST or the
-  // rotateX/rotateY collapse to a flat shear.
+  // Head look-at toward the touch, scaled by engage (eases in on touch, springs
+  // back to a centered rest on release). PIXEL-CLAY: translate ONLY. The bundle's
+  // SbHead ignores tilt as a grid violation, and the former perspective +
+  // rotateX/rotateY + scale resampled the 16 grid into subpixel blur. The eyes
+  // carry the gaze (eyeOffset below).
   const trackStyle = useMemo(() => {
     if (!enabled || !center.ready || !tracking) return null;
     const { touch, engage } = tracking;
@@ -372,23 +379,7 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
         d.interpolate({ inputRange: [-reach, reach], outputRange: [-maxShift, maxShift], extrapolate: "clamp" }),
       );
 
-    const turnY = Animated.multiply(
-      engage,
-      dx.interpolate({ inputRange: [-reach, reach], outputRange: [-20, 20], extrapolate: "clamp" }),
-    );
-    const rotateY = turnY.interpolate({ inputRange: [-20, 20], outputRange: ["-20deg", "20deg"], extrapolate: "clamp" });
-
-    const turnX = Animated.multiply(
-      engage,
-      dy.interpolate({ inputRange: [-reach, reach], outputRange: [16, -16], extrapolate: "clamp" }),
-    );
-    const rotateX = turnX.interpolate({ inputRange: [-16, 16], outputRange: ["-16deg", "16deg"], extrapolate: "clamp" });
-
-    const scale = engage.interpolate({ inputRange: [0, 1], outputRange: [1, 1.03] });
-    const perspective = 600 + size * 1.5;
-    return {
-      transform: [{ perspective }, { translateX: shift(dx) }, { translateY: shift(dy) }, { rotateX }, { rotateY }, { scale }],
-    };
+    return { transform: [{ translateX: shift(dx) }, { translateY: shift(dy) }] };
   }, [enabled, center.x, center.y, center.ready, size, tracking]);
 
   // Eyes drift a few px toward the touch (smaller than the head shift). null when
@@ -408,43 +399,58 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
     };
   }, [enabled, center.x, center.y, center.ready, size, tracking]);
 
-  // Face geometry as canon fractions of the head size, then expression-shaped.
-  const eyeW = Math.max(4, size * 0.062);
-  // Reference eyes are SQUARES (the baked face of the loading logo) —
-  // height == width at h: 1; expression h-multipliers squash them into lids.
-  const eyeHBase = eyeW;
-  // PIXEL-CLAY 규칙 2 — 격자에는 모서리가 없다. 전에는 eyeW * 0.24 로 살짝
-  // 둥근 사각형이었다. 위 주석이 이미 "SQUARES" 라고 적고 있었으니, 이제
-  // 이름과 모양이 같아졌다.
+  // Face geometry on the 16 grid (secondb-hull.ts, from the bundle's SbHead): eyes
+  // are 2x3 cells at columns 4 and 10 with top row 6; the mouth sits on row 10, the
+  // hull band right under the visor. One grid cell is the pixel unit for every face
+  // shape so lids, arcs and mouth curves land on whole cells.
+  const cell = size / SECONDB_GRID;
+  const eyeW = size * SECONDB_FACE.eyeW;
+  const eyeHBase = size * SECONDB_FACE.eyeH;
+  // 눈의 세로 중심. faces.ts 의 `top` 은 3D 렌더 PNG 의 바이저에 맞춘 값이라 더
+  // 쓰지 않는다: 격자에서는 모든 표정이 같은 행에 앉고, 표정은 h/tilt/arc 로 낸다.
+  const eyeCy = SECONDB_FACE.eyeTop + SECONDB_FACE.eyeH / 2;
+  // PIXEL-CLAY 규칙 2 — 격자에는 모서리가 없다.
   // 발광의 한 칸: 밝은 심 둘레에 accentGlow 테두리를 두른다. RN 의 border 는
   // 안쪽으로 그려지므로 상자를 2칸씩 키우고 그만큼 위치를 당겨, **심의 크기와
   // 자리는 그대로** 두고 테두리만 바깥에 생기게 한다.
   const glowBand = 2;
-  const mouthW = Math.max(6, size * 0.058) * (face.mouthScale ?? 1);
-  const mouthBoxH = Math.max(4, size * 0.05);
-  const mouthStroke = Math.max(1.5, size * 0.012);
+  const mouthW = size * SECONDB_FACE.mouthW * (face.mouthScale ?? 1);
+  const mouthBoxH = cell * 2;
+  const mouthStroke = cell;
   const gazeX = (face.lookX ?? 0) * size;
   const gazeY = (face.lookY ?? 0) * size;
+
+  // Hull palette: canon ramp tokens only (the canon test forbids hex literals here).
+  // c03 hull, c02 pods and chin, c04 crown highlight, c00 visor (the bundle's own
+  // visor token sits one step off the ramp; the sunken ground stands in for it),
+  // antenna tip = mood color, like the bundle's `--sb-mood-*`.
+  const hull: HullPalette = {
+    hull: m3.color.surfaceBright,
+    hullDark: m3.color.surfaceContainerHigh,
+    hullLight: m3.color.onSurfaceVariant,
+    visor: deepSpace.bgEdge,
+    antenna: mood === "positive" ? m3.accent.moodPositive : mood === "negative" ? m3.accent.moodNegative : m3.accent.moodNeutral,
+  };
 
   return (
     <View ref={rootRef} onLayout={measure} collapsable={false} style={[styles.root, style]}>
       <Animated.View style={trackStyle}>
-        <Animated.View style={[styles.wrap, { width: size, height: size }, bobStyle]}>
-          {/* ⚠ `transition={0}` — `expo-image` 는 웹에서 그림을 **불투명도로
-              크로스페이드** 한다. 그 전환이 도는 동안 래퍼 div 의 opacity 가
-              소수값이 되어 PIXEL-CLAY 규칙 4 에 걸린다. 픽셀아트에서 스프라이트는
-              페이드하지 않고 튀어나온다. */}
-          <Image
-            source={HEAD_IMAGE}
-            style={{ width: size, height: size }}
-            contentFit="contain"
-            transition={0}
-            accessibilityLabel={accessibilityLabel}
-          />
+        <Animated.View
+          style={[styles.wrap, { width: size, height: size }, bobStyle]}
+          accessible
+          accessibilityRole="image"
+          accessibilityLabel={accessibilityLabel}
+        >
+          {/* 16x16 pixel hull. No image and no fade: sprites pop (PIXEL-CLAY 규칙 4). */}
+          <Svg width={size} height={size} viewBox="0 0 16 16" pointerEvents="none">
+            {secondbHullRects(hull).map(([x, y, w, h, fill], i) => (
+              <SvgRect key={i} x={x} y={y} width={w} height={h} fill={fill} />
+            ))}
+          </Svg>
 
           {/* Eyes — glowing cyan; blink + drift toward touch, expression-shaped
               PER SIDE (wink closes one; smug half-lowers one; sad droops both). */}
-          {[0.385, 0.615].map((cx, i) => {
+          {SECONDB_FACE.eyeCx.map((cx, i) => {
             const spec = face.eyes[i];
             const eyeH = eyeHBase * spec.h;
             // Sad: outer corners drop — left eye tilts one way, right eye mirrors.
@@ -461,14 +467,14 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
                   pointerEvents="none"
                   style={[
                     styles.arcEye,
-                    { left: size * cx - arcW / 2 + gazeX, top: size * spec.top - arcH / 2 + gazeY, shadowColor: accent },
+                    { left: size * cx - arcW / 2 + gazeX, top: size * eyeCy - arcH / 2 + gazeY, shadowColor: accent },
                   ]}
                 >
                   <Svg width={arcW} height={arcH}>
                     {/* 아래: 굵은 셀. 위: 작은 셀. 두 겹이 발광을 만든다. */}
                     <GlowCells
-                      cells={stepQuad(1, 1, arcW / 2, arcH * 1.6, arcW - 1, 1, Math.max(2, size * 0.02))}
-                      cell={Math.max(2, size * 0.02)}
+                      cells={stepQuad(1, 1, arcW / 2, arcH * 1.6, arcW - 1, 1, cell)}
+                      cell={cell}
                       glow={deepSpace.accentGlow}
                       core={accent}
                     />
@@ -490,7 +496,7 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
                     width: eyeW + glowBand * 2,
                     height: eyeH + glowBand * 2,
                     left: size * cx - eyeW / 2 + gazeX - glowBand,
-                    top: size * spec.top - eyeH / 2 + gazeY - glowBand,
+                    top: size * eyeCy - eyeH / 2 + gazeY - glowBand,
                     transform,
                     backgroundColor: accent,
                     shadowColor: accent,
@@ -506,7 +512,7 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
             pointerEvents="none"
             style={[
               styles.mouth,
-              { width: mouthW, height: mouthBoxH, left: size * 0.5 - mouthW / 2, top: size * 0.655 - mouthBoxH / 2 },
+              { width: mouthW, height: mouthBoxH, left: size * 0.5 - mouthW / 2, top: size * SECONDB_FACE.mouthCy - mouthBoxH / 2 },
             ]}
           >
             <Svg width={mouthW} height={mouthBoxH}>
@@ -532,7 +538,7 @@ const styles = StyleSheet.create({
   root: { flexShrink: 0, alignItems: "center", justifyContent: "center" },
   // No rectangular shadow/elevation on the head: on web it renders as a square
   // box-shadow halo and on Android elevation casts a rectangular outline around
-  // the transparent head PNG. The eyes carry their own (circular) glow.
+  // the transparent hull. The eyes carry their own glow band.
   wrap: { position: "relative", flexShrink: 0, alignItems: "center", justifyContent: "center" },
   // 발광은 블러가 아니라 **한 칸 어두운 테두리**다(PIXEL-CLAY 규칙 3·6).
   // borderWidth 는 안쪽으로 그려지므로 심(accent)은 그대로 남고 둘레만 밴드가 된다.
