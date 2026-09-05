@@ -1986,62 +1986,81 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
 
   return (
     <Shell title={t("review.title")}>
-      <SecondbStatusHeader text={t("review.status")} tip={t("review.tip")} />
-      <Text variant="body" style={styles.lead}>{t("review.lead")}</Text>
+      {/* The reference keeps this stack screen to one message instead of
+          repeating it inside a companion bubble. The candidate groups below
+          are the supporting graphic and the actual production actions. */}
+      <Text variant="body" style={styles.planFeatDim}>{t("review.status")}</Text>
       {/* 이 화면의 규칙을 맨 위에 한 줄로 둔다. 확인해야만 반영된다는 것과, L5 가
           여기서만 열린다는 것 — 둘 다 이 화면에 온 이유다
           (design/pixel_clay_260825/captures/review.png). */}
-      <Text variant="caption" style={styles.footer}>{t("review.rule")}</Text>
-      {/* 측정된 근거가 있는 축마다 하나씩. 근거 없는 축을 비준 대상으로 내밀면
-          앱이 지어낸 값을 사용자에게 승인시키는 꼴이 되고, 그건 propose->ratify
-          가 막으려던 바로 그 일이다. */}
-      {targets.length > 0 ? (
-        <Text variant="caption" style={styles.section}>{t("review.groupTest")}</Text>
-      ) : null}
+      <Text variant="caption" style={styles.reviewLabel}>{t("review.rule")}</Text>
       {targetLoadFailed ? (
         <Text variant="subtle" style={styles.footer}>{t("reviewLoadError")}</Text>
       ) : null}
       {!targetLoadFailed && targets.length === 0 && sevenTargets.length === 0 ? (
         <Text variant="subtle" style={styles.footer}>{t("reviewNothingToReview")}</Text>
       ) : null}
-      {targets.map((rt) => (
-          <Pressable
-            key={rt.target.kind === "star" ? rt.target.star : rt.target.kind}
-            style={[styles.primary, loading || ratifyPending ? { opacity: 0.5 } : null]}
-            onPress={() => {
-              if (rt.target.kind === "star") void generate(rt.target.star);
-            }}
-            disabled={loading || isMinor === null}
-            accessibilityState={{ disabled: loading || ratifyPending || isMinor === null }}
-            accessibilityRole="button"
-            accessibilityLabel={t(AXIS_LABEL_KEY[rt.sourceAssessmentId])}
-          >
-            <Text variant="caption" style={styles.primaryText}>
-              {loading ? t("reviewLoading") : t(AXIS_LABEL_KEY[rt.sourceAssessmentId])}
-            </Text>
-          </Pressable>
-        ))}
       {/* 시기 별 비준(2026-08-25) -- 인터뷰로 충분히 판 별의 한 줄 요약을 제안받고
           승인하면 그 별이 L5 로 간다. 커버리지로는 절대 못 가는 등급이라, 이
-          버튼들이 새 일곱 별의 유일한 L5 경로다. 이름은 홈과 같은 키에서 읽는다. */}
+          버튼들이 새 일곱 별의 유일한 L5 경로다. 이름은 홈과 같은 키에서 읽는다.
+          레퍼런스처럼 검사 후보보다 먼저, 44px 가로 버튼으로 보여준다. */}
       {sevenTargets.length > 0 ? (
-        <Text variant="caption" style={styles.section}>{t("review.groupSeven")}</Text>
+        <>
+          <Text variant="caption" style={styles.reviewLabel}>{t("review.groupSeven")}</Text>
+          <View style={styles.filterRow}>
+            {sevenTargets.map((st) => (
+              <Pressable
+                key={`seven-${st.star}`}
+                style={[styles.fchip, styles.fchipActive]}
+                onPress={() => void generateSeven(st.star)}
+                disabled={loading || ratifyPending || isMinor === null}
+                accessibilityState={{ disabled: loading || ratifyPending || isMinor === null }}
+                accessibilityRole="button"
+                accessibilityLabel={tHome(`ds.star.${getSevenStar(st.star).key}`)}
+              >
+                <Text variant="caption" style={[styles.fchipText, styles.fchipTextActive]}>
+                  {loading ? t("reviewLoading") : tHome(`ds.star.${getSevenStar(st.star).key}`)}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </>
       ) : null}
-      {sevenTargets.map((st) => (
-        <Pressable
-          key={`seven-${st.star}`}
-          style={[styles.primary, loading || ratifyPending ? { opacity: 0.5 } : null]}
-          onPress={() => void generateSeven(st.star)}
-          disabled={loading || isMinor === null}
-          accessibilityState={{ disabled: loading || ratifyPending || isMinor === null }}
-          accessibilityRole="button"
-          accessibilityLabel={tHome(`ds.star.${getSevenStar(st.star).key}`)}
-        >
-          <Text variant="caption" style={styles.primaryText}>
-            {loading ? t("reviewLoading") : tHome(`ds.star.${getSevenStar(st.star).key}`)}
-          </Text>
-        </Pressable>
-      ))}
+      {/* 측정된 근거가 있는 축마다 하나씩. 근거 없는 축을 비준 대상으로 내밀면
+          앱이 지어낸 값을 사용자에게 승인시키는 꼴이고, 그건 propose->ratify
+          가 막으려던 바로 그 일이다. 레퍼런스의 한 카드·여러 행 구조를 따르되,
+          근거 없는 L3→L4 숫자를 만들지 않고 실제 제안 동작을 그대로 연결한다. */}
+      {targets.length > 0 ? (
+        <>
+          <Text variant="caption" style={styles.reviewLabel}>{t("review.groupTest")}</Text>
+          <Card>
+            {targets.map((rt) => (
+              <Pressable
+                key={rt.target.kind === "star" ? rt.target.star : rt.target.kind}
+                style={styles.action}
+                onPress={() => {
+                  if (rt.target.kind === "star") void generate(rt.target.star);
+                }}
+                disabled={loading || ratifyPending || isMinor === null}
+                accessibilityState={{ disabled: loading || ratifyPending || isMinor === null }}
+                accessibilityRole="button"
+                accessibilityLabel={t(AXIS_LABEL_KEY[rt.sourceAssessmentId])}
+              >
+                <Text variant="body" style={styles.actionLabel}>
+                  {loading ? t("reviewLoading") : t(AXIS_LABEL_KEY[rt.sourceAssessmentId])}
+                </Text>
+                <RNText
+                  style={styles.chev}
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                >
+                  ›
+                </RNText>
+              </Pressable>
+            ))}
+          </Card>
+        </>
+      ) : null}
       {result ? <Text variant="subtle" style={styles.footer}>{result}</Text> : null}
       {/* audit med#26: dismissing the sheet (backdrop/back) used to strand the
           generated proposal invisibly — the AI cost was spent and the only way

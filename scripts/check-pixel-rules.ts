@@ -675,7 +675,7 @@ for (const abs of walkTsx(join(ROOT, "src"))) {
 // 변이 검증 둘 다 통과:
 //   · `opacity: 1`·`0`·`1.0` → 그대로 · `opacity: 0.37`·`.05` → +2
 //   · 리플 안 알파 → 그대로 · 리플 밖 알파(같은 줄이어도) → +1
-const RATCHET_BASELINE = 165;
+const RATCHET_BASELINE = 163;
 
 // 래칫이 통과해도 **남은 빚이 어디 있는지** 볼 수 있어야 한다. 수만 보면 고칠 곳을
 // 모른다(채점기 D·E·B 축도 이름을 붙이고 나서야 고칠 것이 드러났다).
