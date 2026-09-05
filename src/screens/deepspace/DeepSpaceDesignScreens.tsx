@@ -1326,6 +1326,26 @@ export function DeepSpaceInsightsScreen() {
             <Text variant="caption" style={styles.primaryText}>{t("wiki.addPiece")}</Text>
           </Pressable>
         </View>
+        {/* Reachability (audit 260904 A3): the /discover door lived ONLY in the
+            filled state below, gated on a full week-over-week comparison. But a
+            user with weeks of history whose RECENT week is quiet still reads as
+            first-week here — verified live on the QA account (102 records, quiet
+            recent week) which showed this state with no path to /discover. The
+            rising-interests screen is built on all historical data, not this
+            week's, so it has content for exactly those users. Reuse the same
+            door element verbatim (no new visual work); a brand-new user with no
+            history simply sees /discover's own empty state, no worse than the
+            missing door. The capture CTA above stays the primary next action. */}
+        <Pressable
+          onPress={() => router.push("/discover")}
+          android_ripple={{ color: ddsAlpha2(m3.color.tertiary, 0.12) }}
+          accessibilityRole="button"
+        >
+          <Card>
+            <Text variant="heading" style={styles.section}>{t("insights.sectionDiscover")}</Text>
+            <Text variant="body" style={styles.lead}>{t("insights.discoverLead")}</Text>
+          </Card>
+        </Pressable>
       </Shell>
     );
   }
