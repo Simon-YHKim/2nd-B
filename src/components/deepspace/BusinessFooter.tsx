@@ -46,9 +46,9 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
     gap: 4,
   },
+  // Size and face come from variant="subtle" (Galmuri9 at its native 10px). An
+  // explicit 11px here would sit off the pixel grid and blur.
   line: {
     color: colors.textLo,
-    fontSize: 11,
-    lineHeight: 16,
   },
 });
