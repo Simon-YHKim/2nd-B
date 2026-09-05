@@ -106,4 +106,33 @@ describe("edge function JWT hardening (reject the anon-key JWT)", () => {
       expect(requiresAuthenticatedRole(fn.code)).toBe(true);
     }
   );
+
+  // Second layer (audit 260904 M-01): the code gate above rejects a valid-but-
+  // anon token, but it reads role/sub WITHOUT verifying the JWT SIGNATURE — that
+  // is the gateway's job, driven by config.toml `verify_jwt`. xai-proxy was the
+  // only JWT-trusting proxy missing its declaration, so an unsigned forged token
+  // claiming role==='authenticated' would have passed the code gate if a deploy
+  // ever left verify_jwt off. Pin the declaration for every function whose code
+  // trusts the JWT sub so the two layers cannot drift apart.
+  describe("gateway verify_jwt is declared for every JWT-trusting function", () => {
+    // Raw file, NOT stripComments (that only handles // and /* */, not TOML #).
+    // The match below anchors to line start so a `#`-comment that merely mentions
+    // "verify_jwt=true" in prose cannot be read as the declaration — the exact
+    // trap a mutation (setting the real line to false) caught while proving this.
+    const CONFIG = readFileSync(resolve(__dirname, "../../../../supabase/config.toml"), "utf8");
+    function verifyJwtFor(fnName: string): string | null {
+      const block = new RegExp(
+        `\\[functions\\.${fnName.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}\\]([\\s\\S]*?)(?:\\n\\[|$)`,
+      ).exec(CONFIG);
+      if (!block) return null;
+      // Declaration only: start of a line (TOML keys sit at column 0), so the
+      // in-comment mentions are excluded.
+      const m = /^[ \t]*verify_jwt\s*=\s*(true|false)/m.exec(block[1]);
+      return m ? m[1] : null;
+    }
+
+    test.each(jwtFns.map((f) => f.name))("%s declares verify_jwt = true", (name) => {
+      expect(verifyJwtFor(name)).toBe("true");
+    });
+  });
 });
