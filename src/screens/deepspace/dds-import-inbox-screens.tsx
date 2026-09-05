@@ -10,7 +10,7 @@
 
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
-import { Redirect, router } from "expo-router";
+import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { canonGlyph, type AnyGlyphName } from "@/components/pixel/pixel-glyphs";
@@ -204,14 +204,17 @@ type ImportMode = "file" | "account";
 // ── 29-import / reference ImportScreen (sb-more.jsx) ─────────────────────────
 // A windowed 외부 가져오기 hub: file/account mode toggle, a file drop zone, the
 // 3-block 가져오기 전 약속 consent, and the 가져오기 이력 list. The 파일 선택
-// button runs the real pick → captureFromMarkdown import; the Apple 건강 account
-// row runs the real health opt-in/ingest (minors stay hard-locked).
+// button runs the real pick → captureFromMarkdown import; the device-health account
+// row runs the real device-health opt-in/ingest (minors stay hard-locked).
 export function DeepSpaceImportScreen() {
   const { t, i18n } = useTranslation("deepspace");
   const { userId, loading: authLoading, isMinor } = useAuth();
+  const { mode: requestedMode } = useLocalSearchParams<{ mode?: string }>();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
 
-  const [mode, setMode] = useState<ImportMode>("file");
+  // `/integrations` can point straight at the account/health owner. Unknown or
+  // absent values stay fail-closed on the existing file-import default.
+  const [mode, setMode] = useState<ImportMode>(requestedMode === "account" ? "account" : "file");
   const [picking, setPicking] = useState(false);
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
@@ -395,7 +398,7 @@ export function DeepSpaceImportScreen() {
     { k: "ChatGPT", icon: "bubble" },
     { k: "Notion", icon: "description" },
     { k: t("ds.import.providerGoogleCalendar"), icon: "event" },
-    { k: t("ds.import.providerAppleHealth"), icon: "favorite", health: true },
+    { k: t("import.healthName"), icon: "favorite", health: true },
   ];
 
   const healthCta = isMinor === true

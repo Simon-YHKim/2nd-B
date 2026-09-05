@@ -11,6 +11,7 @@ import { colors, spacing } from "@/theme/tokens";
 import { GLYPH_ALIAS, glyphMarkup, type GlyphAliasName } from "@/components/pixel/pixel-glyphs";
 import { ringCells, stepLine } from "@/components/pixel/pixel-line";
 import { PixelNodeSvg, PixelStarSvg } from "@/components/pixel/PixelStarSvg";
+import { PixelSurface } from "@/components/pixel";
 
 /**
  * `/graph`(개발 전용 화면)의 노드 지도 색.
@@ -178,6 +179,10 @@ import {
 import {
   type TimelineLabels,
 } from "./records-timeline";
+import {
+  INTEGRATION_ENTRYPOINTS,
+  type IntegrationEntrypoint,
+} from "./integrations/sources";
 
 // i18n label builders for the pure date helpers (which stay i18n-free).
 type Tx = (key: string, options?: Record<string, unknown>) => string;
@@ -342,53 +347,82 @@ export function DeepSpaceGraphDesignScreen() {
   return <Shell title={t("graph.title")} subtitle={t("graph.subtitle", { nodes: nodeCount, edges: edgeCount })}><SecondbStatusHeader text={t("graph.status")} tip={t("graph.tip")} /><Card style={styles.graphCard}><View style={styles.graphStage}><Svg width={300} height={310} viewBox="0 0 300 310">{clusters.map((c,i)=>stepLine(150,160,c.x,c.y,3).map((p,j)=><Rect key={'l'+i+'-'+j} x={p.x} y={p.y} width={3} height={3} fill={colors.borderHi}/>))}<PixelStarSvg cx={150} cy={160} r={34} fill={GRAPH_ME_FILL} onPress={() => router.push('/account')}/>{clusters.map((c,i)=><PixelNodeSvg key={'c'+i} cx={c.x} cy={c.y} r={22} fill={GRAPH_NODE_FILL} onPress={() => router.push(c.route)}/>) }<PixelStarSvg cx={150} cy={160} r={9} fill={colors.textHi} onPress={() => router.push('/account')}/>{[42,86,118,244,257,188,72].map((x,i)=><PixelStarSvg key={i} cx={x} cy={70+i*30%190} r={4} fill={GRAPH_DOT_FILL}/>)}</Svg><Text variant="caption" style={styles.centerCaption}>{t("graph.me")}</Text>{clusters.map((c)=><Pressable key={c.t} onPress={() => router.push(c.route)} accessibilityRole="button" accessibilityLabel={c.t} style={{position:'absolute',left:c.x-18,top:c.y+23}}><Text variant="body" style={[styles.clusterLabel,{position:'relative'}]}>{c.t}</Text></Pressable>)}</View></Card><View style={styles.ctaRow}><Pressable style={styles.primary} onPress={() => router.push('/records')}><Text variant="caption" style={styles.primaryText}>{t("graph.viewClusters")}</Text></Pressable><Pressable style={styles.secondary} onPress={() => router.push('/research')}><Text variant="caption" style={styles.secondaryText}>{t("graph.findConnections")}</Text></Pressable></View></Shell>;
 }
 
-// rev2 clone (28-connect / reference ConnectScreen): a windowed 데이터 연동 list.
-// Real per-source OAuth is not built yet, so every row is an HONEST hand-off
-// to the flow that actually works today: file/paste import (/import-hub), or
-// the capture screen for photos. No "연결됨" state exists on this screen at
-// all — the old local toggle flipped a checkmark plus a screen-reader
-// "연결됨" without connecting anything (the audit's fake-success pattern A),
-// which directly contradicted this very comment.
+function IntegrationEntryRow({ source, t }: { source: IntegrationEntrypoint; t: Tx }) {
+  const [held, setHeld] = useState(false);
+  const name = source.nameKey ? t(source.nameKey) : source.name ?? source.id;
+  const detail = t(source.detailKey);
+  const action = t(source.actionKey);
+
+  return (
+    <Pressable
+      onPress={() => router.push(source.route)}
+      onPressIn={() => setHeld(true)}
+      onPressOut={() => setHeld(false)}
+      accessibilityRole="button"
+      accessibilityLabel={t("connect.a11yGo", { name })}
+      accessibilityHint={detail}
+      style={cx.integrationHit}
+    >
+      <View style={held ? cx.integrationPressed : cx.integrationRest}>
+        <PixelSurface
+          variant="bevel"
+          pressed={held}
+          background={m3.color.surfaceContainerHigh}
+          contentStyle={cx.integrationRow}
+        >
+          <PixelSurface
+            variant="inset"
+            background={m3.color.surfaceContainerHighest}
+            style={cx.integrationIconFrame}
+            contentStyle={cx.integrationIcon}
+          >
+            <CloneIcon name={source.icon} color={m3.color.onSurfaceVariant} size={22} />
+          </PixelSurface>
+          <View style={cx.flex1}>
+            <RNText numberOfLines={1} style={[m3TextStyle("titleSmall"), cx.integrationName]}>{name}</RNText>
+            <RNText numberOfLines={2} style={[m3TextStyle("bodySmall"), cx.integrationDetail]}>{detail}</RNText>
+          </View>
+          <PixelSurface
+            variant="bevel"
+            pressed={held}
+            background={m3.color.primary}
+            style={cx.integrationActionFrame}
+            contentStyle={cx.integrationAction}
+          >
+            <RNText numberOfLines={2} style={[m3TextStyle("labelSmall"), cx.integrationActionText]}>{action}</RNText>
+          </PixelSurface>
+        </PixelSurface>
+      </View>
+    </Pressable>
+  );
+}
+
+// PIXEL-CLAY `connect` 프레임을 실제 `/integrations` 진입 허브로 살린다.
+// 이 화면은 연결 상태를 소유하지 않는다. 각 행은 그 상태를 실제로 소유하는
+// production flow 로 이동한다: OAuth/export는 /import-hub, 네이티브 건강 권한과
+// denied/unavailable/empty 상태는 /import, 사진은 /capture. 따라서 여기에는
+// local toggle도, 근거 없는 "연결됨" 상태도 없다.
 export function DeepSpaceIntegrationsScreen() {
-  const { t } = useTranslation("deepspace");
-  const sources: { id: string; icon: CloneIconName; k: string; sub: string; route: "/import-hub" | "/capture" }[] = [
-    { id: "cal", icon: "forum", k: t("connect.sources.cal.name"), sub: t("connect.sources.cal.sub"), route: "/import-hub" },
-    { id: "health", icon: "bedtime", k: t("connect.sources.health.name"), sub: t("connect.sources.health.sub"), route: "/import-hub" },
-    { id: "notion", icon: "book", k: "Notion", sub: t("connect.sources.notion.sub"), route: "/import-hub" },
-    { id: "photos", icon: "camera", k: t("connect.sources.photos.name"), sub: t("connect.sources.photos.sub"), route: "/capture" },
-    { id: "gpt", icon: "bubble", k: t("connect.sources.gpt.name"), sub: t("connect.sources.gpt.sub"), route: "/import-hub" },
-  ];
+  const { t } = useTranslation(["deepspace", "import"]);
   return (
     <DeepSpaceScreen active="lens" header="none" variant="windowed" title={t("connect.title")} onBack={() => router.back()}>
-      <ScrollView contentContainerStyle={cx.body} keyboardShouldPersistTaps="handled">
-        <RNText style={[m3TextStyle("headlineSmall"), { color: m3.color.onSurface, fontFamily: m3.font.brand, marginTop: 8 }]}>{t("connect.title")}</RNText>
-        <RNText style={[m3TextStyle("bodyMedium"), cx.lead]}>{t("connect.lead")}</RNText>
-        <MdCard variant="filled" style={cx.consentCard}>
-          <View style={cx.consentRow}>
+      <ScrollView contentContainerStyle={cx.integrationBody} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <RNText style={[m3TextStyle("headlineSmall"), cx.integrationTitle]}>{t("connect.title")}</RNText>
+        <RNText style={[m3TextStyle("bodyMedium"), cx.integrationLead]}>{t("connect.lead")}</RNText>
+        <PixelSurface
+          variant="inset"
+          background={m3.color.secondaryContainer}
+          style={cx.integrationConsentFrame}
+          contentStyle={cx.integrationConsent}
+        >
+          <View style={cx.integrationConsentRow}>
             <CloneIcon name="lock" color={m3.color.onSecondaryContainer} size={20} />
-            <RNText style={[m3TextStyle("bodySmall"), cx.consentText]}>{t("connect.consent")}</RNText>
+            <RNText style={[m3TextStyle("bodySmall"), cx.integrationConsentText]}>{t("connect.consent")}</RNText>
           </View>
-        </MdCard>
-        <View style={cx.stack8}>
-          {sources.map((s) => (
-            <MdCard key={s.id} variant="outlined" style={cx.sourceCard}>
-              <View style={cx.sourceRow}>
-                <View style={[cx.iconBox, cx.iconBoxOff]}>
-                  <CloneIcon name={s.icon} color={m3.color.onSurfaceVariant} size={22} />
-                </View>
-                <View style={cx.flex1}>
-                  <RNText style={[m3TextStyle("titleSmall"), cx.sourceName]}>{s.k}</RNText>
-                  <RNText style={[m3TextStyle("bodySmall"), cx.sourceSub]}>{s.sub}</RNText>
-                </View>
-                <MdButton
-                  label={s.route === "/capture" ? t("connect.openCapture") : t("connect.openImport")}
-                  variant="filled"
-                  onPress={() => router.push(s.route)}
-                  style={cx.connectBtn}
-                  accessibilityLabel={t("connect.a11yGo", { name: s.k })}
-                />
-              </View>
-            </MdCard>
+        </PixelSurface>
+        <View style={cx.integrationStack}>
+          {INTEGRATION_ENTRYPOINTS.map((source) => (
+            <IntegrationEntryRow key={source.id} source={source} t={t} />
           ))}
         </View>
       </ScrollView>
@@ -3672,21 +3706,30 @@ const cx = StyleSheet.create({
   summaryTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand },
   summarySub: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
 
-  // ── connect / datareview shared ──
-  consentCard: { padding: 14, marginBottom: 12, backgroundColor: m3.color.secondaryContainer },
-  consentRow: { flexDirection: "row", gap: 10 },
-  consentText: { flex: 1, color: m3.color.onSecondaryContainer, fontFamily: m3.font.brand },
-  sourceCard: { padding: 14 },
-  sourceRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  iconBox: { width: 42, height: 42, borderRadius: m3.shape.none, alignItems: "center", justifyContent: "center" },
-  iconBoxOn: { backgroundColor: m3.color.primary },
-  iconBoxOff: { backgroundColor: m3.color.surfaceContainerHighest },
-  sourceName: { color: m3.color.onSurface, fontFamily: m3.font.brand },
-  sourceSub: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
-  connectBtn: { paddingHorizontal: 16, minHeight: 40 },
-  smallBtnCompact: { paddingHorizontal: 12, minHeight: 36 },
+  // ── integrations (PIXEL-CLAY connect salvage) ──
+  integrationBody: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 32 },
+  integrationTitle: { color: m3.color.onSurface, marginTop: 8, marginBottom: 4 },
+  integrationLead: { color: m3.color.onSurfaceVariant, marginBottom: 12 },
+  integrationConsentFrame: { marginBottom: 12 },
+  integrationConsent: { paddingHorizontal: 12, paddingVertical: 10 },
+  integrationConsentRow: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  integrationConsentText: { flex: 1, color: m3.color.onSecondaryContainer, paddingBottom: 2 },
+  integrationStack: { gap: 8 },
+  integrationHit: { alignSelf: "stretch", minHeight: 72 },
+  integrationRest: {},
+  integrationPressed: { transform: [{ translateY: m3.spacing.s1 }] },
+  integrationRow: { minHeight: 64, flexDirection: "row", alignItems: "center", gap: 12 },
+  integrationIconFrame: { width: 44, height: 44 },
+  integrationIcon: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 0, paddingVertical: 0 },
+  integrationName: { color: m3.color.onSurface, paddingBottom: 2 },
+  integrationDetail: { color: m3.color.onSurfaceVariant, marginTop: 2, paddingBottom: 2 },
+  integrationActionFrame: { minWidth: 72, maxWidth: 96 },
+  integrationAction: { minHeight: 44, alignItems: "center", justifyContent: "center", paddingHorizontal: 8, paddingVertical: 4 },
+  integrationActionText: { color: m3.color.onPrimary, textAlign: "center", paddingBottom: 2 },
 
   // ── datareview ──
+  sourceCard: { padding: 14 },
+  smallBtnCompact: { paddingHorizontal: 12, minHeight: 36 },
   statGrid: { flexDirection: "row", gap: 8 },
   statCard: { flex: 1, padding: 12, alignItems: "center" },
   statNum: { fontFamily: m3.font.mono, fontSize: 15, fontWeight: "700", color: m3.color.onSurface, marginTop: 6 },
