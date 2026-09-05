@@ -65,10 +65,14 @@ describe("import withdrawal integrity", () => {
     // handlePickFiles now records an import-history entry pointing at the created
     // source rows, so they show up in the import-hub withdrawal list.
     expect(src).toContain("createdIds.push(r.source.id)");
-    expect(src).toContain("addImportHistory({");
+    // Per-user scoping (F-08): the history call carries userId, so B never sees
+    // A's log on a shared device. The bare `addImportHistory({` form is the
+    // pre-F-08 global-key regression and must stay gone.
+    expect(src).toContain("addImportHistory(userId, {");
+    expect(src).not.toContain("addImportHistory({");
     // Revoke actually withdraws (delete rows + remove log), not a local filter.
     expect(src).toContain("deleteSourcesByIds(userId, entry.sourceIds)");
-    expect(src).toContain("removeImportHistory(entry.id)");
+    expect(src).toContain("removeImportHistory(userId, entry.id)");
     expect(src).not.toContain("xs.filter((x) => x.id !== h.id)");
   });
 });
