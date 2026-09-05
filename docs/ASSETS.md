@@ -47,10 +47,11 @@ libraries used under their respective licenses. The full list:
   face. Galmuri11 is the only face upstream ships a Bold for.
 - Press Start 2P — SIL OFL, loaded via
   `@expo-google-fonts/press-start-2p` (^0.4.1)
-- Roboto (400 / 500 / 700) — Apache-2.0, loaded via
-  `@expo-google-fonts/roboto` (^0.4.3); Material 3 chrome/label face (rev2)
-- Roboto Mono — Apache-2.0, loaded via
-  `@expo-google-fonts/roboto-mono` (^0.4.2); M3 numeric face (rev2)
+- Roboto (400 / 500 / 700) and Roboto Mono — **removed 2026-09-05.** They were
+  the Material 3 rev2 chrome/label and numeric faces (`@expo-google-fonts/roboto`,
+  `@expo-google-fonts/roboto-mono`); after PIXEL-CLAY stage 2 moved `m3.font.*`
+  to Galmuri they had no `fontFamily` consumer in either UI mode, so the packages
+  and their `fontAssets` entries were dropped. Not bundled any more.
 
 ## Bundled dither tiles (assets/dither/)
 
