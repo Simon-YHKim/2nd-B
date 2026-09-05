@@ -50,7 +50,7 @@ select:focus-visible,
    2026-05-29 (user directive) this was NeoDunggeunmo. That family is no longer
    in fontAssets (src/theme/typography.ts), so useFonts() never injected its
    @font-face and this rule silently fell through to the browser's monospace.
-   PIXEL-CLAY (Simon 2026-09-05, "Galmuri 전면"): the base is Galmuri11, which
+   PIXEL-CLAY (Simon 2026-09-05, app-wide Galmuri): the base is Galmuri11, which
    useFonts() does register on web, so raw text finally gets the pixel face. */
 html, body, #root, #__next, button, input, textarea, select {
   font-family: "Galmuri11", "GalmuriMono11", monospace;
