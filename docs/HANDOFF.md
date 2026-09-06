@@ -3,7 +3,103 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-09-06 / 감사 결정 11문항 집행 · PR 14건 · 안전 결함 1건 닫힘
+## Latest — 2026-09-06 / Codex 보안 전수 점검 로컬 인계: 통합·배포·운영 적용 미완료
+
+> 발행: Codex 보안 세션. 기준 시각 2026-09-06 23:20:41 KST.
+> 새 Claude 세션용 전체 프롬프트: [CLAUDE-SECURITY-HANDOFF-260906.md](handoff/CLAUDE-SECURITY-HANDOFF-260906.md)
+> 로컬 보고서: Output/security-handoff-260906/security-handoff-report.html
+
+### 결론부터
+
+**보안 작업은 끝나지 않았고, 통합·푸시·배포·운영 DB 적용이 없었다.**
+이번 기존 PR 릴리스 #1642에서 security-* 변경은 명시적으로 제외됐다.
+각 영역의 하드닝 후보를 격리된 로컬 worktree에 커밋했지만, 한 줄로 통합하거나 릴리스한 상태가 아니다.
+
+### 외부·릴리스 상태
+
+| 항목 | 인계 시점 상태 |
+|---|---|
+| origin/main | 9f852ff73bd8b0ba8cc9b17819f78d144662df8f |
+| 정본 local main | HEAD 177a5962, origin/main보다 1 commit 뒤. 사용자 미추적 PNG 8개로 pull/reset/clean 금지 |
+| PR #1642 | DRAFT·MERGEABLE, head 656edb8d2ce855fb0d39ccfbbddc1b650fd09604, 표시된 4 CI 성공 |
+| #1642 범위 | #1607 + #1505 통합, migrations 0147_relation_people_client_revision.sql + 0165_log_ai_audit_xai_vendor.sql; 보안 브랜치는 제외 |
+| 운영 DB | readonly 조회에서 0147 후보의 client_revision 컬럼 없음. 0147+0165 적용 승인 미응답. **DB write 0** |
+| 서버 활성화 | 콘솔 세션 소유. 현재 활성화 계획이나 동시 0147 적용 증거 없음 |
+| Orca | term_e9ecf6f7-00bb-4509-977f-eca25c2d9ad3가 가장 가까운 후보지만 **Supabase DB 소유권 미검증**. idle term_302555c5...에도 자동 전송 금지 |
+| consent 6 | 09-04 최신 계약을 09-02로 되돌리는 충돌 때문에 보류. 0166~0168은 HOLD 예약일 뿐 실제 파일 없음 |
+| local migration 증거 | active-local-migrations.json은 18:38 기준이라 0171~0181 미반영. 번호 판단의 단독 근거로 사용 금지 |
+
+### 현재 권위 있는 통합 축
+
+| 영역 | worktree / branch | 순서 보존 커밋 |
+|---|---|---|
+| 공개 데이터 프록시 | security-integration-260906 / fix/security-integration-260906 | 1aeca012 → 4b80778b → baeaafd7 → 8de490ee → 6a00b865 → 2b23f158 → 009b0c39 |
+| 네이티브 암호화 | security-native-storage-integration-260906 / fix/security-native-storage-integration-260906 | bee94d82 → b0e81d28 → 3f05defc |
+| DB 하드닝 후보 | security-db-integration-260906 / fix/security-db-integration-260906 | ae7d71e9 (0172~0176) → 58d1399b (0177~0181) |
+| 로컬 파일 수명주기 | security-recorder-temp-disposal-260906 / fix/security-recorder-temp-disposal-260906 | 8a4dc3bb → 8f12c625 → 6e44995c → 2ed2bad4 → 2a873ab3 → f625f7b5 → 30c20f1f |
+
+공개 데이터 통합 축은 #1642 head에서 시작했다. 다른 완료 브랜치들은 아직 이 축에 합쳐지지 않았다.
+커밋 해시가 있다는 사실을 릴리스 가능 판정으로 오해하지 말 것.
+
+### 검증 상태와 한계
+
+- #1642 표시 CI 4건 성공. 코디네이터 보고 full verify 594 suites / 6,448 tests.
+- recorder 축 최종 30c20f1f에서 full verify 596 suites / 6,540 tests, runtime require cycles 0.
+- 공개 데이터 통합 축 focused test·lint·typecheck 통과. 마지막 문서 배치 7 suites / 70 tests 통과.
+- 통합 축 full verify는 공유 node_modules의 단 하나의 환경 불일치 때문에 green이 아니다.
+  설치본 decode-uri-component는 0.2.2, lock과 정상 물리 설치본은 0.5.0이며 정상 설치본에서 해당 테스트는 통과했다.
+- 이 인계는 문서 3개만 별도 로컬 커밋한다. 코드, DB, 설정, 외부 상태를 바꾸지 않는다.
+- AI 기반 감사는 전문 보안 감사·침투테스트를 대체하지 않는다. 결제·개인정보 영역의 전문가 검토가 남았다.
+
+### 반드시 보존할 경계
+
+1. E:\2ndB\.worktrees\2ndB\TTL-Work는 **772 changes (collapsed) / 1,360 changes (expanded)**의 공유 dirty tree다. 수정·스테이징·정리하지 말 것.
+2. E:\2ndB main의 미추적 아바타 PNG 8개는 사용자 소유다. 보존할 것.
+3. push·PR·merge·deploy·운영 DB/config 변경·키 회전·삭제는 **그 순간의 명시적 사용자 승인 전 0건**.
+4. 운영 DB apply·Edge Function 배포·시크릿·변수·백업은 docs/SESSION-OWNERSHIP.md대로 콘솔 세션 소유.
+5. MFDS·EXIM 공개 키는 값을 문서·채팅·로그에 쓰지 말 것. 프록시 컷오버 뒤 회전 필요 상태로만 기록.
+6. push 직전 remote/open PR/local migration 전체 재스캔. #1642 0147·0165, consent HOLD 0166~0168(실제 파일 없음),
+   local 0169·0170·0171, security 0172+는 현재 **임시 배정**이다.
+7. 로컬 WSL 미완 클론, 임시 PostgreSQL 폴더, npm 백업, worktree를 삭제하지 말 것. 삭제 승인도 없었다.
+
+### 다음 작업 큐
+
+| 우선 | 작업 | 완료 게이트 |
+|---:|---|---|
+| 1 | origin/open PR/local branch와 migration을 read-only 재스캔 | 번호·head·소유권 재확인 |
+| 2 | Native AuthContext 저장소 복구 상태머신과 명시적 2단계 데이터 손실 동의 UI | unreadable 기존 client에 signOut 없음, 복구 뒤 새 client 재구독 |
+| 3 | DB 후보 0182~0187 작성·정적 검증 | peer atomicity → Naver rate → billing → purpose quota → account deletion → knowledge HTTPS |
+| 4 | recorder/native/import/GitHub/notification/Paddle/LLM/workflow 등 격리 커밋 이식 | 배치마다 수정 파일 5개 이하, focused test와 diff review |
+| 5 | dirty TTL에만 있는 audit outbox·account local purge를 clean branch로 새 포팅 | dirty 코드 맹목 cherry-pick 금지 |
+| 6 | package/lock 수동 통합 | decode 0.5.0 + Metro 0.84.5 override + expo-secure-store 선언·plugin 보존 |
+| 7 | 정상 0.5.0 설치본에서 full verify, SQL dry-run, Android/iOS 실기기 검증 | 전체 green, cycles 0, 실기기 증거 |
+| 8 | 명시 승인 뒤만 push/PR; 콘솔 소유자에게 DB·proxy 순서 인계 | 서버 먼저, 클라이언트 나중 |
+| 9 | 인증·실패 smoke 뒤 클라이언트 릴리스, 마지막에 public var 제거·키 회전 | 이전에는 “보안 완료” 주장 금지 |
+
+### 핵심 경로
+
+~~~text
+docs/handoff/CLAUDE-SECURITY-HANDOFF-260906.md    Claude에 그대로 붙여넣을 전체 프롬프트
+Output/security-handoff-260906/security-handoff-report.html  로컬 상태 보고서
+Output/vibe-release-260906/session-owner-a.md     기존 릴리스 코디네이터 소유권 회신
+E:\2ndB\.worktrees\security-integration-260906               공개 데이터 통합 축
+E:\2ndB\.worktrees\security-native-storage-integration-260906 네이티브 저장소 통합 축
+E:\2ndB\.worktrees\security-db-integration-260906             DB 통합 축
+E:\2ndB\.worktrees\security-recorder-temp-disposal-260906     캡처·녹음 수명주기 축
+~~~
+
+### 재개 방법
+
+~~~powershell
+Set-Location 'E:\2ndB\.worktrees\security-handoff-260906'
+git status --short
+Get-Content -LiteralPath 'docs\handoff\CLAUDE-SECURITY-HANDOFF-260906.md' -Raw
+# 위 파일 전체를 새 Claude Code 세션에 그대로 붙여넣기
+~~~
+
+---
+
+## 2026-09-06 / 감사 결정 11문항 집행 · PR 14건 · 안전 결함 1건 닫힘
 
 > 발행: Claude Code (TTL-Work 세션). 기준 시각 2026-09-06 15:0x KST.
 > 보고서: <https://claude.ai/code/artifact/851c682c-844e-4c34-ac69-1e6776d16b0f> ·

@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>2nd-Brain 보안 인수인계 준비 보고서</title>
+<style>
+:root{color-scheme:light dark;--bg:#f7f9fb;--card:#fff;--text:#17212b;--muted:#607080;--accent:#087e8b;--line:#c9d4dc}
+@media(prefers-color-scheme:dark){:root{--bg:#10171d;--card:#182229;--text:#eef5f7;--muted:#9aabb5;--accent:#58d3df;--line:#3a4c56}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1080px;margin:auto;padding:32px 20px 56px}h1,h2{line-height:1.2}h1{font-size:clamp(28px,5vw,48px);margin:.25rem 0}
+.eyebrow,.muted{color:var(--muted)}.badge{display:inline-block;border:1px solid var(--accent);color:var(--accent);padding:4px 10px;font-weight:700}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:24px 0}.card,details{background:var(--card);border:1px solid var(--line);padding:16px}
+.card b{display:block;font-size:1.35rem}.ok{color:var(--accent)}.warn{border-left:5px solid var(--accent)}
+svg{width:100%;height:auto;background:var(--card);border:1px solid var(--line);margin:8px 0 22px}
+svg text{font:600 14px system-ui;fill:var(--text)}svg .muted{fill:var(--muted)}svg .box{fill:var(--card);stroke:var(--line);stroke-width:2}svg .active{stroke:var(--accent);stroke-width:3}svg .arrow{stroke:var(--accent);stroke-width:3;fill:none}
+details{margin:12px 0}summary{cursor:pointer;font-weight:700}code,pre{font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace}pre{overflow:auto;background:var(--bg);border:1px solid var(--line);padding:12px}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;vertical-align:top;border-bottom:1px solid var(--line);padding:8px}
+footer{margin-top:28px;color:var(--muted)}
+@media(max-width:760px){.grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<main>
+<p class="eyebrow">2nd-Brain · 2026-09-06 23:20:41 KST</p>
+<span class="badge">LOCAL ONLY · PUSH PENDING</span>
+<h1>Claude가 안전하게 이어갈 준비를 마쳤습니다</h1>
+<p class="muted">보안 작업 완료 보고가 아닙니다. 인수인계 문서와 복붙 프롬프트를 별도 worktree에 보존한 상태입니다.</p>
+
+<section class="grid" aria-label="요약 지표">
+<div class="card"><span>수정 파일</span><b>3</b><small>handoff 범위만</small></div>
+<div class="card"><span>운영 DB write</span><b>0</b><small>콘솔 소유</small></div>
+<div class="card"><span>외부 push</span><b>0</b><small>명시 승인 필요</small></div>
+<div class="card"><span>통합 축</span><b>4</b><small>모두 로컬 clean</small></div>
+</section>
+
+<svg viewBox="0 0 980 230" role="img" aria-labelledby="flowTitle flowDesc">
+<title id="flowTitle">보안 인수인계 흐름</title>
+<desc id="flowDesc">로컬 격리 커밋에서 Claude 통합과 전체 검증을 거쳐 사용자 승인, 콘솔 배포로 이어진다. 현재는 로컬 인계 단계다.</desc>
+<defs><marker id="head" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="var(--accent)"/></marker></defs>
+<rect class="box active" x="30" y="60" width="190" height="100"/><text x="125" y="95" text-anchor="middle">로컬 격리 커밋</text><text class="muted" x="125" y="125" text-anchor="middle">현재 위치</text>
+<path class="arrow" d="M220 110H280" marker-end="url(#head)"/>
+<rect class="box" x="290" y="60" width="180" height="100"/><text x="380" y="95" text-anchor="middle">Claude 통합</text><text class="muted" x="380" y="125" text-anchor="middle">아직 미완료</text>
+<path class="arrow" d="M470 110H530" marker-end="url(#head)"/>
+<rect class="box" x="540" y="60" width="180" height="100"/><text x="630" y="95" text-anchor="middle">전체 검증·승인</text><text class="muted" x="630" y="125" text-anchor="middle">push 전 게이트</text>
+<path class="arrow" d="M720 110H780" marker-end="url(#head)"/>
+<rect class="box" x="790" y="60" width="160" height="100"/><text x="870" y="95" text-anchor="middle">콘솔 배포</text><text class="muted" x="870" y="125" text-anchor="middle">서버 먼저</text>
+</svg>
+
+<section class="card warn">
+<h2>핵심 판정</h2>
+<p><strong>보안 작업은 끝나지 않았고 #1642 릴리스에도 포함되지 않았습니다.</strong>
+로컬 하드닝 후보를 인계했을 뿐, 통합·PR·CI·운영 migration·proxy 배포·실기기 smoke·키 회전이 남았습니다.</p>
+</section>
+
+<details open>
+<summary>생성한 인수인계 산출물 [자세히]</summary>
+<table>
+<thead><tr><th>경로</th><th>역할</th></tr></thead>
+<tbody>
+<tr><td><code>docs/HANDOFF.md</code></td><td>최상단 단일 Latest 블록. 이전 Latest는 본문 보존 후 날짜 heading으로 demote.</td></tr>
+<tr><td><code>docs/handoff/CLAUDE-SECURITY-HANDOFF-260906.md</code></td><td>새 Claude Code 세션에 그대로 붙여넣는 전체 한국어 실행 프롬프트.</td></tr>
+<tr><td><code>Output/security-handoff-260906/security-handoff-report.html</code></td><td>이 로컬 준비 상태를 보여 주는 자체완결 보고서.</td></tr>
+</tbody>
+</table>
+</details>
+
+<details>
+<summary>기준 상태 [자세히]</summary>
+<ul>
+<li><code>origin/main</code>: <code>9f852ff73bd8b0ba8cc9b17819f78d144662df8f</code></li>
+<li>#1642: draft·mergeable, head <code>656edb8d…</code>, 0147+0165 포함, security-* 제외.</li>
+<li>운영 0147 부재는 코디네이터 최신 진술이며 새 세션에서 read-only 재검증 필요. DB write 0.</li>
+<li>보안 통합 축: public data <code>009b0c39</code>, native <code>3f05defc</code>, DB <code>58d1399b</code>,
+recorder <code>30c20f1f</code>.</li>
+<li><code>TTL-Work</code>: 772 changes collapsed / 1,360 expanded. 수정 금지.</li>
+</ul>
+</details>
+
+<details>
+<summary>금지·승인 경계 [자세히]</summary>
+<ul>
+<li>push, PR, merge, deploy, 운영 DB/config, 시크릿, 키 회전, 삭제는 행동 직전 명시 승인 전 0건.</li>
+<li>운영 DB·Edge Function·repo secrets/variables는 콘솔 세션 소유.</li>
+<li>MFDS·EXIM 실제 키 값은 어느 산출물에도 기록하지 않음. rotation-required 상태만 인계.</li>
+<li>공유 <code>node_modules</code>의 decode 0.2.2 환경 불일치가 알려진 full verify 실패 1건. install 금지.</li>
+<li>AI 검사는 전문 보안 감사·침투테스트를 대체하지 않음.</li>
+</ul>
+</details>
+
+<details>
+<summary>새 Claude 세션 시작 명령 [자세히]</summary>
+<pre><code>Set-Location 'E:\2ndB\.worktrees\security-handoff-260906'
+git status --short
+Get-Content -LiteralPath 'docs\handoff\CLAUDE-SECURITY-HANDOFF-260906.md' -Raw
+# 출력 전체를 새 Claude Code 세션에 그대로 붙여넣기</code></pre>
+</details>
+
+<details>
+<summary>이번 준비에서 실행한 검증 [자세히]</summary>
+<ul>
+<li>origin/main SHA와 별도 worktree base 확인</li>
+<li>CLAUDE.md, SESSION-OWNERSHIP.md, HANDOFF 최신 블록 확인</li>
+<li>네 개 통합 worktree의 clean status와 HEAD 재확인</li>
+<li>수정 파일 3개 한정, diff·Latest heading 개수·credential pattern 검사 통과</li>
+<li>문서 전용 로컬 Conventional Commit 예정; push·PR·merge 없음</li>
+</ul>
+</details>
+
+<footer>
+<p>브랜치: <code>docs/security-handoff-260906</code> · worktree:
+<code>E:\2ndB\.worktrees\security-handoff-260906</code></p>
+<p>simon-handoff의 영속 repo 파일 조건은 충족하지만 origin/main merge 성공 조건은 사용자 지시로 미충족입니다.
+따라서 이 보고서는 “인수인계 준비 완료”이지 “simon-handoff 성공” 선언이 아닙니다.</p>
+</footer>
+</main>
+</body>
+</html>
