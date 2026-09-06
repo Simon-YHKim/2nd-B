@@ -3,7 +3,87 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-09-06 / PIXEL-CLAY 실행 1차: 마스코트·본문 폰트·로그인 (PR #1616)
+## Latest — 2026-09-06 / 감사 결정 11문항 집행 · PR 14건 · 안전 결함 1건 닫힘
+
+> 발행: Claude Code (TTL-Work 세션). 기준 시각 2026-09-06 15:0x KST.
+> 보고서: <https://claude.ai/code/artifact/851c682c-844e-4c34-ac69-1e6776d16b0f> ·
+> 부록(근거·3렌즈 원문): <https://claude.ai/code/artifact/041ece08-bdfe-4acb-b834-a426a3b2eca6>
+
+### 무엇을 했나
+
+2026-09-05 전수 감사의 결정 11문항에 Simon 회신이 오고, 그것을 집행했다. **여섯을 닫았고 하나는 착수했다가 되돌렸다.**
+
+| PR | 무엇 | 측정 |
+|---|---|---|
+| #1628 | `index` i18n 네임스페이스 등록 + 낡은 문서 정정 + 워크플로 최소 권한 | 가드 3종 신설 |
+| #1629 | **담은 남의 글이 1인칭 위기로 처리되던 결함 (A5)** | 거짓 핫라인 + `crisis_events` 차단 |
+| #1630 | Pretendard 웹 서브셋 | 첫 페인트 −433 KB |
+| #1631 | C2·C6 대회 제약 폐지 + judge 이메일 경로 + `types.gen.ts` | −3,805줄 |
+| #1632 | 세컨비 머리 PNG 정수배 축소 | −1,269 KB |
+| #1505 | Gemini T1 리베이스 (draft 유지) | CONFLICTING → MERGEABLE |
+
+앞서 같은 날 머지된 것: #1617 #1618 #1619 #1620 #1621 #1622 #1624 #1625 #1626.
+
+### 새로 확정된 사실 (다음 세션이 재조사하지 말 것)
+
+- **`boundary.ts:564` 가 모든 `callLlm` 입력을 1인칭 위기 분류기에 넣는다.** `clipper_classify` ·
+  `import_ingest` 의 입력은 **제3자 원문**이라, 자살예방 기사를 담으면 핫라인 응답과
+  `crisis_events` 행이 생겼다. #1629 가 `ingest-policy.ts` 를 두 호출부 앞단에 배선해 닫았다.
+  **boundary 의 C9 를 고치면 엣지 프록시 4종 재배포가 딸려온다.**
+- **`CaptureLegacy` 는 이름과 달리 딥스페이스에서도 렌더된다** (`capture.tsx:344`, 공유 경로).
+  반면 `/import` 의 LLM 경로는 레거시 전용이고 `DeepSpaceImportScreen` 은 LLM 을 안 부른다.
+- **워크플로 18개 전수 감사 완료.** 최근 실행 전부 초록이고, 머지된 정리 PR 이 워크플로가
+  참조하는 경로를 깨뜨린 곳은 0건이다. `db-backup.yml` 은 이제 초록이다(여기 적혀 있던
+  "시크릿 미등록이라 매일 red" 서술은 낡았다).
+- **Galmuri TTF 13.3 MB 는 압축률 11%** 라 APK 안에서 1.5 MB 다. 단일 최대 폰트는
+  Pretendard OTF 였고(압축률 66%, 전송 1,046 KB), #1630 이 그걸 닫았다.
+- **`index` i18n 네임스페이스는 한 번도 등록된 적이 없었다.** `useTranslation("index")` 로 28개
+  키를 부르는데 `NAMESPACES` 에 없어 레거시 홈이 키 이름을 렌더하고 있었다. #1628 이 등록하고
+  재발 방지 검사 3종을 붙였다.
+
+### ⚠ Q-01 (레거시 스킨 폐기) 은 착수했다가 되돌렸다
+
+1단계(마을 그래프 제거)를 실제로 만들어 봤다. 파일 삭제는 계획대로였고, **가드가 문제였다.**
+
+감사가 잡아둔 핀은 6개였는데, `src/app/index.tsx` 하나만으로 **가드 5개가 그 파일을 디스크에서
+읽고**, 상당수가 **레거시 전용 문자열의 존재를 요구**한다:
+
+| 가드 | index.tsx 관련 단언 |
+|---|---|
+| `scripts/check-constraints.ts` | :915 버튼 수 · :1062-1065 `t("firstPieceHint")` 등 4개 · :2927-2928 `mascotLabel` |
+| `visible-trust-copy.test.ts` | :231-237 첫 실행 카드 문구 3건을 **포함하라**고 요구 (그 문구는 레거시에만 있다) |
+| `visible-core-copy.test.ts` | :41-43 NavGraph 중앙 노드 카피 |
+| `focus-refetch-contract.test.ts` | 단언 16 (미조사) |
+| `home-cta-design-system.test.ts` | 단언 14 (미조사) |
+
+여기에 `check-pixel-rules` 래칫(파일이 사라지면 히트 수가 **줄어서** 실패한다) ·
+`check-mascot-voice` · `worldview-naming` 이 더 붙는다. 편집 중 두 번은 타입체크가 잡아준
+뒤에야 다음 결합이 드러났다.
+
+**반쯤 뜯긴 삭제는 안 한 것보다 나쁘다.** 그래서 푸시하지 않고 되돌렸다. 다음 세션은 위 표를
+출발점으로 쓰면 된다. 가드마다 "이 단언의 주어가 사라졌는가, 아니면 딥스페이스로 옮겨야
+하는가" 를 판단하는 것이 작업의 실체다.
+
+### 미결
+
+- **Q-08 (LFS)** — 최대 대상 둘(`hustlek-opening-preview.gif` 7.7 MB, `app-offline.html`
+  9.8 MB)이 `verify-portable-handoff.mjs` 의 `EXPECTED_CANONICAL_FILES` 에 **인덱스 blob
+  sha256 으로 핀**돼 있다. LFS 는 blob 을 포인터로 바꾸므로 검증기가 FAIL 하고, 이 문서는
+  "FAIL 이면 기대 해시를 고치지 말 것" 이다. ⓐ 두 파일만 LFS 제외 / ⓑ 검증기 계약 개정 /
+  **ⓒ Release 자산으로 옮기고 리포에서 삭제(추천 — 핀의 목적 자체가 폐기 대상이 된다)** 중 택일.
+- **Q-02 후반부** — `@google/genai` 를 번들에서 빼는 것은 #1505 머지와 네이티브 빌드 뒤에.
+- **`users.judge_mode` 컬럼** — comp 분기와 함께 의도적으로 남겼다. 제거는 마이그레이션이다.
+- **C12** — 결정 문구는 "해제" 였지만 **유지했다.** SIL OFL 고지 의무를 지키는 유일한 검사라서다.
+  자율에 맡기려면 20줄 삭제다.
+
+### 다음 1개
+
+Q-01 1단계를 **가드부터 풀어서** 다시 만든다. 삭제 대상(`components/graph` 전체 ·
+`lib/graph` 9개 + 테스트 · `GraphScreen`)과 가드 목록은 위 표에 그대로 있다.
+
+---
+
+## 2026-09-06 / PIXEL-CLAY 실행 1차: 마스코트·본문 폰트·로그인 (PR #1616)
 
 > 발행: Claude Code (TTL-Work 세션, PR 워크트리 `.worktrees/2ndB/pixelclay-260905`).
 > 기준 시각: 2026-09-06 13:30 KST. 기준 main: 2f05ab97(머지 커밋 ca06bf70 으로 따라잡음).
