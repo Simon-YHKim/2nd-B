@@ -7,6 +7,18 @@ BEGIN;
 
 SET LOCAL lock_timeout = '10s';
 
+-- These tables contain account-owned invitations and third-party response
+-- material. Keep their policies authoritative even for a non-BYPASSRLS owner,
+-- and remove every direct client privilege from the response tables.
+ALTER TABLE public.peer_invitations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.peer_invitations FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.informant_consents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.informant_consents FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.peer_observations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.peer_observations FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.informant_consents, public.peer_observations
+  FROM PUBLIC, anon, authenticated;
+
 -- Withdrawal is an absorbing state. This also protects the rollout window in
 -- which an older Edge isolate may still attempt its final direct status update.
 CREATE OR REPLACE FUNCTION public.keep_peer_withdrawal_terminal()
@@ -16,11 +28,32 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 BEGIN
+  IF NEW.id IS DISTINCT FROM OLD.id
+     OR NEW.user_id IS DISTINCT FROM OLD.user_id
+     OR NEW.invite_token_hash IS DISTINCT FROM OLD.invite_token_hash
+     OR NEW.created_at IS DISTINCT FROM OLD.created_at
+     OR NEW.expires_at IS DISTINCT FROM OLD.expires_at THEN
+    RAISE EXCEPTION 'peer_invitation_identity_is_immutable'
+      USING ERRCODE = '23514';
+  END IF;
   IF OLD.status = 'withdrawn' AND NEW.status <> 'withdrawn' THEN
     RAISE EXCEPTION 'peer_invitation_withdrawal_is_final'
       USING ERRCODE = '23514';
   END IF;
-  IF NEW.status = 'withdrawn' THEN
+  IF OLD.status <> NEW.status AND NOT (
+    (OLD.status = 'pending' AND NEW.status IN ('accepted', 'declined', 'expired'))
+    OR NEW.status = 'withdrawn'
+  ) THEN
+    RAISE EXCEPTION 'peer_invitation_transition_invalid'
+      USING ERRCODE = '23514';
+  END IF;
+  IF OLD.status <> NEW.status
+     AND NEW.status IN ('accepted', 'declined')
+     AND public.billing_request_role() IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'peer_invitation_service_transition_required'
+      USING ERRCODE = '42501';
+  END IF;
+  IF NEW.status = 'withdrawn' AND OLD.status <> 'withdrawn' THEN
     UPDATE public.informant_consents
        SET withdrawn_at = pg_catalog.clock_timestamp()
      WHERE invitation_id = NEW.id
@@ -42,7 +75,7 @@ REVOKE ALL ON FUNCTION public.keep_peer_withdrawal_terminal()
 DROP TRIGGER IF EXISTS peer_invitation_withdrawal_is_final
   ON public.peer_invitations;
 CREATE TRIGGER peer_invitation_withdrawal_is_final
-  BEFORE UPDATE OF status ON public.peer_invitations
+  BEFORE UPDATE ON public.peer_invitations
   FOR EACH ROW
   EXECUTE FUNCTION public.keep_peer_withdrawal_terminal();
 
@@ -57,6 +90,7 @@ SET search_path = ''
 AS $$
 DECLARE
   v_status text;
+  v_subject_user_id uuid;
 BEGIN
   -- UPDATE already holds the child row. Never acquire the parent after it: the
   -- withdrawal path locks parent then child, so doing so would invert lock order.
@@ -66,23 +100,42 @@ BEGIN
       RAISE EXCEPTION 'peer_response_reactivation_forbidden'
         USING ERRCODE = '23514';
     END IF;
-    IF NEW.invitation_id IS DISTINCT FROM OLD.invitation_id THEN
-      RAISE EXCEPTION 'peer_response_invitation_is_immutable'
+    IF (pg_catalog.to_jsonb(NEW) - 'withdrawn_at')
+       IS DISTINCT FROM (pg_catalog.to_jsonb(OLD) - 'withdrawn_at') THEN
+      RAISE EXCEPTION 'peer_response_identity_is_immutable'
         USING ERRCODE = '23514';
     END IF;
     RETURN NEW;
   END IF;
 
-  IF NEW.withdrawn_at IS NOT NULL THEN
-    RETURN NEW;
-  END IF;
-
-  SELECT status
-    INTO v_status
+  SELECT status, user_id
+    INTO v_status, v_subject_user_id
     FROM public.peer_invitations
    WHERE id = NEW.invitation_id
    FOR UPDATE;
-  IF v_status IS DISTINCT FROM 'pending' THEN
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'peer_response_invitation_not_found'
+      USING ERRCODE = '23503';
+  END IF;
+  IF NEW.subject_user_id IS DISTINCT FROM v_subject_user_id THEN
+    RAISE EXCEPTION 'peer_response_subject_mismatch'
+      USING ERRCODE = '23514';
+  END IF;
+
+  IF TG_TABLE_NAME = 'peer_observations' THEN
+    PERFORM 1
+      FROM public.informant_consents AS consent
+     WHERE consent.id = NEW.informant_consent_id
+       AND consent.invitation_id = NEW.invitation_id
+       AND consent.subject_user_id = NEW.subject_user_id
+       AND (NEW.withdrawn_at IS NOT NULL OR consent.withdrawn_at IS NULL);
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'peer_response_consent_mismatch'
+        USING ERRCODE = '23514';
+    END IF;
+  END IF;
+
+  IF NEW.withdrawn_at IS NULL AND v_status IS DISTINCT FROM 'pending' THEN
     RAISE EXCEPTION 'active_peer_response_requires_pending_invitation'
       USING ERRCODE = '23514';
   END IF;
@@ -90,10 +143,15 @@ BEGIN
 END;
 $$;
 
+-- Trigger invocation does not require EXECUTE. Do not expose the validator as
+-- an RPC surface.
+REVOKE ALL ON FUNCTION public.require_pending_invitation_for_active_peer_row()
+  FROM PUBLIC, anon, authenticated, service_role;
+
 DROP TRIGGER IF EXISTS informant_consent_requires_pending_invitation
   ON public.informant_consents;
 CREATE TRIGGER informant_consent_requires_pending_invitation
-  BEFORE INSERT OR UPDATE OF invitation_id, withdrawn_at
+  BEFORE INSERT OR UPDATE
   ON public.informant_consents
   FOR EACH ROW
   EXECUTE FUNCTION public.require_pending_invitation_for_active_peer_row();
@@ -101,7 +159,7 @@ CREATE TRIGGER informant_consent_requires_pending_invitation
 DROP TRIGGER IF EXISTS peer_observation_requires_pending_invitation
   ON public.peer_observations;
 CREATE TRIGGER peer_observation_requires_pending_invitation
-  BEFORE INSERT OR UPDATE OF invitation_id, withdrawn_at
+  BEFORE INSERT OR UPDATE
   ON public.peer_observations
   FOR EACH ROW
   EXECUTE FUNCTION public.require_pending_invitation_for_active_peer_row();
@@ -350,7 +408,70 @@ BEGIN
        'public.keep_peer_withdrawal_terminal()',
        'EXECUTE'
      )
+     OR has_function_privilege(
+       'anon',
+       'public.require_pending_invitation_for_active_peer_row()',
+       'EXECUTE'
+     )
+     OR has_function_privilege(
+       'authenticated',
+       'public.require_pending_invitation_for_active_peer_row()',
+       'EXECUTE'
+     )
+     OR has_function_privilege(
+       'service_role',
+       'public.require_pending_invitation_for_active_peer_row()',
+       'EXECUTE'
+     )
      OR pg_catalog.to_regprocedure('public.claim_peer_invitation(uuid)') IS NOT NULL
+     OR EXISTS (
+       SELECT 1
+         FROM pg_catalog.pg_class
+        WHERE oid IN (
+          'public.peer_invitations'::regclass,
+          'public.informant_consents'::regclass,
+          'public.peer_observations'::regclass
+        )
+          AND (NOT relrowsecurity OR NOT relforcerowsecurity)
+     )
+     OR has_table_privilege(
+       'anon', 'public.informant_consents',
+       'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+     )
+     OR has_table_privilege(
+       'anon', 'public.peer_observations',
+       'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+     )
+     OR has_table_privilege(
+       'authenticated', 'public.informant_consents',
+       'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+     )
+     OR has_table_privilege(
+       'authenticated', 'public.peer_observations',
+       'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+     )
+     OR NOT EXISTS (
+       SELECT 1
+         FROM pg_catalog.pg_proc
+        WHERE oid = 'public.finalize_peer_response(text,text,jsonb,boolean,boolean,boolean,boolean,text,text)'::regprocedure
+          AND prosecdef
+          AND EXISTS (
+            SELECT 1
+              FROM pg_catalog.unnest(proconfig) AS setting(value)
+             WHERE setting.value LIKE 'search_path=%'
+          )
+     )
+     OR NOT EXISTS (
+       SELECT 1
+         FROM pg_catalog.pg_proc
+        WHERE oid = 'public.keep_peer_withdrawal_terminal()'::regprocedure
+          AND prosecdef
+          AND EXISTS (
+            SELECT 1
+              FROM pg_catalog.unnest(proconfig) AS setting(value)
+             WHERE setting.value LIKE 'search_path=%'
+          )
+     )
      OR NOT EXISTS (
        SELECT 1
          FROM pg_catalog.pg_trigger
