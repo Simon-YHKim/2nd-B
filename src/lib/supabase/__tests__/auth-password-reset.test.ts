@@ -415,6 +415,7 @@ describe("password reset helpers", () => {
 
 describe("Naver native OAuth bridge", () => {
   test("the retired native bridge never recognizes a state", () => {
+    expect(isNativeNaverCallbackState(`native.${"a".repeat(64)}`)).toBe(false);
     expect(isNativeNaverCallbackState("native.abc123")).toBe(false);
     expect(isNativeNaverCallbackState("abc123")).toBe(false);
   });
