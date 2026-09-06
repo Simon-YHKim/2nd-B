@@ -160,10 +160,10 @@ GPT스러운 렌더링은 금지한다. 기존 Growth/Bond/Wisdom/Narrative/Muse
 
 | 파일 | 용도 |
 |---|---|
-| `public/assets/tesseract-v10/rhythm_core.png` | **프로덕션 기본**(DEFAULT_ASSET_VARIANT=v10) |
+| `assets/legacy-art/tesseract-v10/rhythm_core.png` | **프로덕션 기본**(DEFAULT_ASSET_VARIANT=v10) |
 | `public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier2_rhythm_core_v49_256.png` | v49 변형 |
-| `public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/rhythm_core_256.png` + `_128.png` | v45 변형 |
-| `public/assets/2ndb-production-premium-v1/graph/islands/domain_routine_premium_hq.png` | 레거시 폴백 |
+| `assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/rhythm_core_256.png` + `_128.png` | v45 변형 |
+| `assets/legacy-art/2ndb-production-premium-v1/graph/islands/domain_routine_premium_hq.png` | 레거시 폴백 |
 
 이름 변경(예: Rhythm → 다른 이름) 원하면 `VILLAGE_LABEL.rhythm`(relatedness.ts) +
 NavGraph 라벨 + ops.json hero만 수정. 색은 `VILLAGE_UI.rhythm.accent`(village-ui.ts) 1곳.

@@ -29,7 +29,7 @@ wiring work are both required.
 
 ## Part 2 — Asset Audit (spec ↔ asset ↔ wiring)
 
-Refined worldview (from your spec) vs what exists in `public/assets/cosmic-pixel-v3-soulcore/`:
+Refined worldview (from your spec) vs what exists in `assets/legacy-art/cosmic-pixel-v3-soulcore/`:
 
 | Layer / element | v3 asset present | Wired in code | Matches refined spec | Action |
 |---|---|---|---|---|

@@ -82,7 +82,7 @@ const schema = z.object({
     .union([z.literal("true"), z.literal("false")])
     .default("false")
     .transform((v) => v === "true"),
-  // Render the Soul Core v3 SVG art pack (public/assets/cosmic-pixel-v3-soulcore/)
+  // Render the Soul Core v3 SVG art pack (assets/legacy-art/cosmic-pixel-v3-soulcore/)
   // instead of the legacy PNG art. Default true (Simon concept: the worldview
   // Soul/Pattern Core tesseract art + Foreman-Momo crew are the intended visuals).
   // Set "false" to fall back to the legacy PNG art.
