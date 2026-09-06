@@ -29,11 +29,6 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
-  JsonBodyError,
-  PADDLE_WEBHOOK_BODY_LIMIT_BYTES,
-  readBodyBytes,
-} from '../_shared/request-json.ts';
-import {
   hasMatchingPaddleWebhookSignature,
   parsePaddleWebhookSignature,
   verifyCheckoutBindingWithSecrets,
@@ -242,7 +237,8 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const rawBytes = await readBodyBytes(req, PADDLE_WEBHOOK_BODY_LIMIT_BYTES);
+    const raw = await req.text();
+    const rawBytes = new TextEncoder().encode(raw);
     const { timestamp, signatures } = parsePaddleWebhookSignature(
       req.headers.get('Paddle-Signature') ?? '',
     );
@@ -261,7 +257,6 @@ Deno.serve(async (req: Request) => {
 
     let event: PaddleEvent;
     try {
-      const raw = new TextDecoder('utf-8', { fatal: true }).decode(rawBytes);
       const parsed: unknown = JSON.parse(raw);
       if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
         return json({ error: 'bad_payload' }, 400);
@@ -527,12 +522,6 @@ Deno.serve(async (req: Request) => {
     }
     return json({ ok: true, result });
   } catch (e) {
-    if (e instanceof JsonBodyError) {
-      if (e.code === 'request_body_too_large') {
-        return json({ error: e.code, max: e.maxBytes }, 413);
-      }
-      return json({ error: 'bad_payload' }, 400);
-    }
     console.error('[paddle-webhook] error:', String(e));
     return json({ error: 'server_error' }, 500);
   }

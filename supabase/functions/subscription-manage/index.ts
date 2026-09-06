@@ -52,11 +52,6 @@
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import {
-  JsonBodyError,
-  SUBSCRIPTION_MANAGE_JSON_BODY_LIMIT_BYTES,
-  readJsonObject,
-} from '../_shared/request-json.ts';
 import { createCheckoutBinding } from '../_shared/paddle-checkout-binding.ts';
 
 const ALLOWED_ORIGINS = new Set<string>([
@@ -199,14 +194,8 @@ Deno.serve(async (req: Request) => {
 
   let body: Record<string, unknown>;
   try {
-    body = await readJsonObject(req, SUBSCRIPTION_MANAGE_JSON_BODY_LIMIT_BYTES);
-  } catch (error) {
-    if (error instanceof JsonBodyError && error.code === 'request_body_too_large') {
-      return jsonResponse(req, {
-        error: error.code,
-        max: error.maxBytes,
-      }, 413);
-    }
+    body = (await req.json()) as Record<string, unknown>;
+  } catch {
     body = {};
   }
 
@@ -216,36 +205,6 @@ Deno.serve(async (req: Request) => {
   }
   const effectiveFrom: EffectiveFrom =
     action === 'cancel' && body.effective_from === 'immediately' ? 'immediately' : 'next_billing_period';
-
-  // Claim the rolling per-user window before the first eligibility read or
-  // ledger write. The service-only RPC locks one user row, so concurrent calls
-  // cannot all observe nineteen requests and admit a burst past twenty.
-  let retryAfter: unknown;
-  try {
-    const rate = await admin.rpc('claim_billing_self_service_rate_limit', {
-      p_user_id: userId,
-    });
-    if (rate.error) {
-      console.error('[subscription-manage] rate claim failed:', rate.error.message);
-      return jsonResponse(req, { error: 'rate_check_unavailable' }, 503);
-    }
-    retryAfter = rate.data;
-  } catch {
-    console.error('[subscription-manage] rate claim threw');
-    return jsonResponse(req, { error: 'rate_check_unavailable' }, 503);
-  }
-  if (
-    typeof retryAfter !== 'number' ||
-    !Number.isSafeInteger(retryAfter) ||
-    retryAfter < 0 ||
-    retryAfter > 3600
-  ) {
-    console.error('[subscription-manage] rate claim returned an invalid result');
-    return jsonResponse(req, { error: 'rate_check_unavailable' }, 503);
-  }
-  if (retryAfter > 0) {
-    return jsonResponse(req, { error: 'too_many_requests', retry_after_seconds: retryAfter }, 429);
-  }
 
   // The browser may choose checkout presentation, but it must never choose the
   // account that receives an entitlement. Bind the gateway-verified JWT subject
@@ -305,6 +264,28 @@ Deno.serve(async (req: Request) => {
   if (action === 'cancel' && eligibility.tier === 'free') {
     await settleTerminal('rejected', 'not_subscribed');
     return jsonResponse(req, { ok: false, outcome: 'rejected', reason: 'not_subscribed', eligibility }, 200);
+  }
+
+  // Abuse guard. This endpoint writes a ledger row and can reach a paid API on
+  // every call, and nothing else throttles it (the LLM proxies have
+  // bump_gemini_spend; there is no generic limiter). A loop with any valid user
+  // token could otherwise grow the ledger without bound and, once enabled, keep
+  // re-opening released claims against Paddle's rate limits. service_role
+  // bypasses RLS, so this counts the caller's OWN rows only.
+  const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { count: recent, error: rateErr } = await admin
+    .from('billing_self_service_log')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .gte('created_at', since);
+  if (rateErr) {
+    // Fail CLOSED: an unreadable ledger is exactly when we cannot tell a retry
+    // from an attack, and this endpoint spends money.
+    console.error('[subscription-manage] rate check failed:', rateErr.message);
+    return jsonResponse(req, { error: 'rate_check_unavailable' }, 503);
+  }
+  if ((recent ?? 0) >= 20) {
+    return jsonResponse(req, { error: 'too_many_requests', retry_after_seconds: 3600 }, 429);
   }
 
   const enabled = Deno.env.get('PADDLE_SELF_SERVICE_ENABLED') === '1';
