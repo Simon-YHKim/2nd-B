@@ -5,6 +5,8 @@
 
 import { Platform } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 const originalFetch = globalThis.fetch;
 
@@ -14,6 +16,10 @@ jest.mock("react-native", () => ({
 
 jest.mock("expo-document-picker", () => ({
   getDocumentAsync: jest.fn(),
+}));
+
+jest.mock("../../storage/owned-temp", () => ({
+  leaseOwnedTempFile: jest.fn(),
 }));
 
 jest.mock("../pdf-worker", () => ({
@@ -74,6 +80,16 @@ import {
 const documentPickerMock = DocumentPicker as unknown as {
   getDocumentAsync: jest.Mock;
 };
+
+const ownedTempMock = require("../../storage/owned-temp") as {
+  leaseOwnedTempFile: jest.Mock;
+};
+
+type ReleasePickedFile = (file: Awaited<ReturnType<typeof pickFile>>) => Promise<void>;
+
+function releasePickedFileUnderTest(): ReleasePickedFile | undefined {
+  return (require("../capture-file") as { releasePickedFile?: ReleasePickedFile }).releasePickedFile;
+}
 
 function mockFetch(body: string | ArrayBuffer) {
   const bytes =
@@ -186,6 +202,11 @@ afterEach(() => {
   (require("pdfjs-dist") as { getDocument: jest.Mock }).getDocument.mockClear();
   (require("mammoth") as { extractRawText: jest.Mock }).extractRawText.mockClear();
   (require("../pdf-worker") as { ensurePdfWorker: jest.Mock }).ensurePdfWorker.mockReset().mockResolvedValue(undefined);
+  ownedTempMock.leaseOwnedTempFile.mockReset();
+});
+
+beforeEach(() => {
+  ownedTempMock.leaseOwnedTempFile.mockResolvedValue({ ok: false, error: "unsupported_runtime" });
 });
 
 describe("extractText", () => {
@@ -582,6 +603,118 @@ describe("extractText", () => {
   });
 });
 
+describe("picker cache-copy lifecycle", () => {
+  test("a single picked cache copy is disposed once even when release races", async () => {
+    const dispose = jest.fn().mockResolvedValue({ ok: true, status: "deleted" });
+    ownedTempMock.leaseOwnedTempFile.mockResolvedValue({ ok: true, lease: { dispose } });
+    mockFetch("picked file body");
+    documentPickerMock.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        {
+          uri: "file:///cache/owned-note.txt",
+          name: "owned-note.txt",
+          mimeType: "text/plain",
+          size: 16,
+        },
+      ],
+    });
+
+    const file = await pickFile();
+    const releasePickedFile = releasePickedFileUnderTest();
+
+    expect(typeof releasePickedFile).toBe("function");
+    if (!releasePickedFile) return;
+    await Promise.all([releasePickedFile(file), releasePickedFile(file)]);
+
+    expect(ownedTempMock.leaseOwnedTempFile).toHaveBeenCalledWith("file:///cache/owned-note.txt");
+    expect(dispose).toHaveBeenCalledTimes(1);
+  });
+
+  test("cleanup failure is contained and never logs the URI or raw error", async () => {
+    const dispose = jest.fn().mockResolvedValue({
+      ok: false,
+      error: "file:///cache/private-name.txt bearer-private-marker",
+    });
+    ownedTempMock.leaseOwnedTempFile.mockResolvedValue({ ok: true, lease: { dispose } });
+    mockFetch("private body");
+    documentPickerMock.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        {
+          uri: "file:///cache/private-name.txt",
+          name: "private-name.txt",
+          mimeType: "text/plain",
+          size: 12,
+        },
+      ],
+    });
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    const file = await pickFile();
+    const releasePickedFile = releasePickedFileUnderTest();
+    expect(typeof releasePickedFile).toBe("function");
+    if (!releasePickedFile) return;
+    await expect(releasePickedFile(file)).resolves.toBeUndefined();
+
+    const logged = JSON.stringify(warn.mock.calls);
+    expect(logged).toContain("cache copy cleanup failed");
+    expect(logged).not.toContain("private-name");
+    expect(logged).not.toContain("bearer-private-marker");
+    warn.mockRestore();
+  });
+
+  test("provider/original URIs never gain a deletion lease", async () => {
+    ownedTempMock.leaseOwnedTempFile.mockResolvedValue({ ok: false, error: "unsafe_target" });
+    mockFetch("provider body");
+    documentPickerMock.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        {
+          uri: "content://provider/original-note.txt",
+          name: "original-note.txt",
+          mimeType: "text/plain",
+          size: 13,
+        },
+      ],
+    });
+
+    const file = await pickFile();
+    const releasePickedFile = releasePickedFileUnderTest();
+    expect(typeof releasePickedFile).toBe("function");
+    if (!releasePickedFile) return;
+    await expect(releasePickedFile(file)).resolves.toBeUndefined();
+
+    expect(ownedTempMock.leaseOwnedTempFile).toHaveBeenCalledWith(
+      "content://provider/original-note.txt",
+    );
+  });
+
+  test("capture screen releases stale and terminal picked-file copies", () => {
+    const source = readFileSync(resolve(__dirname, "../../../app/capture.tsx"), "utf8");
+    const transcription = source.slice(
+      source.indexOf("async function transcribePickedAudio"),
+      source.indexOf("async function runFilePick"),
+    );
+    const picker = source.slice(
+      source.indexOf("async function runFilePick"),
+      source.indexOf("function removeTag"),
+    );
+
+    expect(source).toContain('releasePickedFile');
+    expect(source).toContain("releaseCurrentPickedFile");
+    expect(source).toContain("replacePickedFile(null)");
+    expect(source).toContain("pickedFileInUseRef.current !== previous");
+    expect(transcription).toContain("pickedFileInUseRef.current = file");
+    expect(transcription).toContain("pickedFileInUseRef.current = null");
+    expect(transcription).toContain("await releasePickedFile(file)");
+    expect(picker).toContain("finally");
+    expect(picker).toContain("await releasePickedFile(selectedFile)");
+    expect(source).toContain("await releasePickedFile(submittedPickedFile)");
+    expect(source).toContain("pickedFileInUseRef.current !== submittedPickedFile");
+  });
+});
+
 describe("pickImportFiles", () => {
   test("canceled pick → empty array", async () => {
     documentPickerMock.getDocumentAsync.mockResolvedValue({ canceled: true, assets: null });
@@ -609,6 +742,11 @@ describe("pickImportFiles", () => {
 
   test("fails closed before reading when file count or declared aggregate exceeds its cap", async () => {
     const fetchSpy = jest.fn();
+    const cappedDispose = jest.fn().mockResolvedValue({ ok: true, status: "deleted" });
+    ownedTempMock.leaseOwnedTempFile.mockResolvedValue({
+      ok: true,
+      lease: { dispose: cappedDispose },
+    });
     globalThis.fetch = fetchSpy as unknown as typeof fetch;
     documentPickerMock.getDocumentAsync.mockResolvedValueOnce({
       canceled: false,
@@ -620,6 +758,13 @@ describe("pickImportFiles", () => {
       })),
     });
     await expect(pickImportFiles()).resolves.toEqual([]);
+    expect(ownedTempMock.leaseOwnedTempFile).toHaveBeenCalledTimes(MAX_IMPORT_FILE_COUNT);
+    expect(cappedDispose).toHaveBeenCalledTimes(MAX_IMPORT_FILE_COUNT);
+
+    ownedTempMock.leaseOwnedTempFile.mockReset().mockResolvedValue({
+      ok: false,
+      error: "unsupported_runtime",
+    });
 
     documentPickerMock.getDocumentAsync.mockResolvedValueOnce({
       canceled: false,
@@ -677,5 +822,56 @@ describe("pickImportFiles", () => {
     expect(result.reduce((sum, file) => sum + file.text.length, 0)).toBeLessThanOrEqual(MAX_IMPORT_TOTAL_TEXT_CHARS);
     expect(result.length).toBeGreaterThan(0);
     expect(result.length).toBeLessThan(12);
+  });
+
+  test("disposes every selected cache copy, including skipped assets", async () => {
+    const disposals = [
+      jest.fn().mockResolvedValue({ ok: true, status: "deleted" }),
+      jest.fn().mockResolvedValue({ ok: true, status: "deleted" }),
+    ];
+    ownedTempMock.leaseOwnedTempFile
+      .mockResolvedValueOnce({ ok: true, lease: { dispose: disposals[0] } })
+      .mockResolvedValueOnce({ ok: true, lease: { dispose: disposals[1] } });
+    const note = new TextEncoder().encode("# Kept");
+    globalThis.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      headers: { get: () => String(note.byteLength) },
+      body: streamFromBytes(note),
+    }) as unknown as typeof fetch;
+    documentPickerMock.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        { uri: "file:///cache/kept.md", name: "kept.md", mimeType: "text/markdown", size: 6 },
+        { uri: "file:///cache/skipped.bin", name: "skipped.bin", mimeType: "application/octet-stream", size: 4 },
+      ],
+    });
+
+    await expect(pickImportFiles()).resolves.toEqual([{ name: "kept.md", text: "# Kept" }]);
+    expect(ownedTempMock.leaseOwnedTempFile).toHaveBeenCalledTimes(2);
+    expect(disposals[0]).toHaveBeenCalledTimes(1);
+    expect(disposals[1]).toHaveBeenCalledTimes(1);
+  });
+
+  test("disposes all copies when aggregate declarations reject the batch before reads", async () => {
+    const disposals = Array.from({ length: 3 }, () =>
+      jest.fn().mockResolvedValue({ ok: true, status: "deleted" }),
+    );
+    disposals.forEach((dispose) => {
+      ownedTempMock.leaseOwnedTempFile.mockResolvedValueOnce({ ok: true, lease: { dispose } });
+    });
+    const fetchSpy = jest.fn();
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+    documentPickerMock.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        { uri: "file:///cache/a.md", name: "a.md", mimeType: "text/markdown", size: MAX_EXTRACT_BYTES },
+        { uri: "file:///cache/b.md", name: "b.md", mimeType: "text/markdown", size: MAX_EXTRACT_BYTES },
+        { uri: "file:///cache/c.md", name: "c.md", mimeType: "text/markdown", size: 1 },
+      ],
+    });
+
+    await expect(pickImportFiles()).resolves.toEqual([]);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    disposals.forEach((dispose) => expect(dispose).toHaveBeenCalledTimes(1));
   });
 });

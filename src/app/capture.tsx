@@ -65,7 +65,13 @@ import {
   isImageOcrInvalidDataError,
   isImageOcrMissingDataError,
 } from "@/lib/wiki/capture-image";
-import { pickFile, isAudioMime, MAX_AUDIO_FILE_BYTES, type PickedFile } from "@/lib/wiki/capture-file";
+import {
+  pickFile,
+  releasePickedFile,
+  isAudioMime,
+  MAX_AUDIO_FILE_BYTES,
+  type PickedFile,
+} from "@/lib/wiki/capture-file";
 import {
   CAPTURE_MODES,
   createCaptureTransientDraft,
@@ -505,6 +511,27 @@ function CaptureLegacySession({ embeddedInDock = false }: { embeddedInDock?: boo
     pendingSharedRef.current = sharedDelivery !== null && sharedConsumedRef.current !== sharedDelivery;
   }, [shared, modeParam, tagParam, sharedDelivery]);
   const [pickedFile, setPickedFile] = useState<PickedFile | null>(null);
+  const pickedFileRef = useRef<PickedFile | null>(null);
+  const pickedFileInUseRef = useRef<PickedFile | null>(null);
+  const replacePickedFile = useCallback((next: PickedFile | null): void => {
+    const previous = pickedFileRef.current;
+    pickedFileRef.current = next;
+    setPickedFile(next);
+    if (
+      previous &&
+      previous !== next &&
+      pickedFileInUseRef.current !== previous
+    ) {
+      void releasePickedFile(previous);
+    }
+  }, []);
+  const releaseCurrentPickedFile = useCallback((): void => {
+    const current = pickedFileRef.current;
+    if (!current) return;
+    pickedFileRef.current = null;
+    if (pickedFileInUseRef.current !== current) void releasePickedFile(current);
+  }, []);
+  useEffect(() => () => releaseCurrentPickedFile(), [releaseCurrentPickedFile]);
   // Status line under the picked-file card. Audio files take a round trip to
   // Gemini, so the card has to say something other than "no preview available"
   // while that runs and after it lands.
@@ -1650,7 +1677,7 @@ function CaptureLegacySession({ embeddedInDock = false }: { embeddedInDock?: boo
 
   function resetTransientCaptureState() {
     proposalGenerationRef.current += 1;
-    setPickedFile(null);
+    replacePickedFile(null);
     setFileNotice(null);
     setPickedImage(null);
     setExtracting(false);
@@ -2040,16 +2067,20 @@ function CaptureLegacySession({ embeddedInDock = false }: { embeddedInDock?: boo
   // the string "File attachment - audio/mp4, 812345 bytes." and nothing else, so
   // the recording the user cared about was never actually captured.
   //
-  // One deliberate difference from the recorder: the file is NOT deleted
-  // afterwards. discardRecording exists because the recorder writes a temp file
-  // the app owns; this one is the user's own file and deleting it would be a
-  // capture tool destroying the thing it was pointed at.
+  // DocumentPicker copies the selection into app cache. The provider/original
+  // URI is never owned or deleted; only that verified cache copy is released
+  // after transcription no longer needs it.
   async function transcribePickedAudio(file: PickedFile) {
-    if (!userId) return;
-    if (file.size > MAX_AUDIO_FILE_BYTES) {
-      setFileNotice(t("file.audioTooLarge", { mb: Math.floor(MAX_AUDIO_FILE_BYTES / 1_000_000) }));
+    if (!userId) {
+      await releasePickedFile(file);
       return;
     }
+    if (file.size > MAX_AUDIO_FILE_BYTES) {
+      setFileNotice(t("file.audioTooLarge", { mb: Math.floor(MAX_AUDIO_FILE_BYTES / 1_000_000) }));
+      await releasePickedFile(file);
+      return;
+    }
+    pickedFileInUseRef.current = file;
     const ticket = beginAsyncProducer();
     setExtracting(true);
     setFileNotice(t("file.transcribing"));
@@ -2096,6 +2127,8 @@ ${transcript}`;
       if (typeof console !== "undefined") console.warn("[capture] file transcription failed", (e as Error).message);
       setFileNotice(t("file.transcribeFailed"));
     } finally {
+      if (pickedFileInUseRef.current === file) pickedFileInUseRef.current = null;
+      await releasePickedFile(file);
       if (sessionActiveRef.current && asyncProducerGenerationRef.current === ticket.generation) {
         setExtracting(false);
       }
@@ -2104,12 +2137,14 @@ ${transcript}`;
 
   async function runFilePick() {
     const ticket = beginAsyncProducer();
+    let selectedFile: PickedFile | null = null;
     try {
-      const f = await pickFile();
+      selectedFile = await pickFile();
+      const f = selectedFile;
       if (!f) return;
       if (!asyncProducerIsCurrent(ticket, "file")) return;
       commitComposerMutation();
-      setPickedFile(f);
+      replacePickedFile(f);
       setFileNotice(null);
       if (f.textContent) setBody(f.textContent);
       if (isAudioMime(f.mimeType)) await transcribePickedAudio(f);
@@ -2121,6 +2156,8 @@ ${transcript}`;
         t("alerts.fileOpen.message"),
         () => void runFilePick(),
       );
+    } finally {
+      await releasePickedFile(selectedFile);
     }
   }
 
@@ -2707,12 +2744,14 @@ ${transcript}`;
           if (storageMutationEpochRef.current[submittedMode] !== startModeEpoch) {
             return current;
           }
-          return current?.uri === submittedPickedFile.uri &&
+          const matchesSubmitted = current?.uri === submittedPickedFile.uri &&
             current.name === submittedPickedFile.name &&
             current.mimeType === submittedPickedFile.mimeType &&
-            current.size === submittedPickedFile.size
-              ? null
-              : current;
+            current.size === submittedPickedFile.size;
+          if (!matchesSubmitted) return current;
+          if (pickedFileRef.current === current) pickedFileRef.current = null;
+          if (pickedFileInUseRef.current !== current) void releasePickedFile(current);
+          return null;
         });
       }
       if (submittedMode === "ocr" && submittedPickedImageUri !== null) {
@@ -2829,6 +2868,11 @@ ${transcript}`;
         () => void handleSubmit(),
       );
     } finally {
+      // A stale render can dispatch submit before `extracting` disables the CTA.
+      // Keep the cache copy alive until the transcription that reads it settles.
+      if (pickedFileInUseRef.current !== submittedPickedFile) {
+        await releasePickedFile(submittedPickedFile);
+      }
       if (submissionTicket !== null && !submissionSettled) {
         completeCaptureSubmission(
           submissionTicket,
