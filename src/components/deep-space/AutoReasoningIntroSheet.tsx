@@ -15,8 +15,8 @@ import { useTranslation } from "react-i18next";
 
 import { MdButton } from "@/components/m3";
 import { m3 } from "@/lib/theme/m3";
+import { m3TextStyle } from "@/components/m3/typeface";
 import { deepSpace, flattenAlpha, withAlpha } from "@/lib/theme/tokens";
-import { fontFamilies } from "@/theme/typography";
 
 /**
  * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
@@ -134,8 +134,8 @@ export function AutoReasoningIntroSheet({ visible, ko, onConfirm, onClose }: Aut
         <Animated.View style={[styles.sheet, { paddingBottom: sheetBottom }, { transform: [{ translateY }] }]}>
           <View style={styles.grabber} />
           <RNText style={styles.title}>{copy.title}</RNText>
-          <RNText style={styles.line}>{copy.groupLine}</RNText>
-          <RNText style={styles.line}>{copy.limitLine}</RNText>
+          <RNText style={[styles.line, m3TextStyle("bodyMedium")]}>{copy.groupLine}</RNText>
+          <RNText style={[styles.line, m3TextStyle("bodyMedium")]}>{copy.limitLine}</RNText>
           <View style={styles.actions}>
             <MdButton
               label={copy.confirm}
@@ -180,19 +180,21 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     marginBottom: m3.spacing.s4,
   },
+  // 얼굴·크기·줄간격은 캐논 역할에서 온다(m3TextStyle). 전에는 여기서
+  // Pretendard 를 직접 박아 저시력 옵션과 무관하게 항상 벡터 얼굴이었고,
+  // 18/26 은 Galmuri 격자 밖이었다. titleLarge = 15px(Galmuri14 x1)/23.
+  // 굵기는 보내지 않는다 - Galmuri14 에는 굵은 컷이 없고, 합성 굵기는 격자를 깬다.
   title: {
+    ...m3TextStyle("titleLarge"),
     color: m3.color.onSurface,
-    fontFamily: fontFamilies.readable,
-    fontSize: 18,
-    lineHeight: 26,
-    fontWeight: "700",
     textAlign: "center",
   },
+  // 읽는 글이라 얼굴·크기는 bodyMedium 역할에서 온다 - 단 **렌더 때** 붙인다.
+  // StyleSheet.create 는 모듈 초기화 때 한 번 얼기 때문에, 여기서 m3TextStyle 을
+  // 부르면 저시력 옵션 값이 그 시점에 박제된다(check:pixel-rules 규칙 4가 잡는다).
+  // 그래서 이 시트에는 색·정렬만 두고, 타이포는 콜사이트에서 합친다.
   line: {
     color: m3.color.onSurfaceVariant,
-    fontFamily: fontFamilies.readable,
-    fontSize: 13,
-    lineHeight: 19,
     textAlign: "center",
     marginTop: m3.spacing.s3,
   },
