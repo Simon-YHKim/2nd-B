@@ -203,6 +203,32 @@ Deno.serve(async (req: Request) => {
   if (action !== 'cancel' && action !== 'refund_request' && action !== 'checkout_binding') {
     return jsonResponse(req, { error: 'invalid_action' }, 400);
   }
+
+  // Consume the rolling allowance before ANY valid action can read eligibility,
+  // write the billing ledger, mint a checkout HMAC, or call Paddle. The RPC owns
+  // the row lock and count in one transaction; a count-then-act query here would
+  // let concurrent requests all observe the same remaining slot.
+  const { data: rateLimitRaw, error: rateLimitError } = await admin.rpc(
+    'claim_billing_self_service_rate_limit',
+    { p_user_id: userId },
+  );
+  if (rateLimitError) {
+    console.error('[subscription-manage] atomic rate check failed:', rateLimitError.message);
+    return jsonResponse(req, { error: 'rate_check_unavailable' }, 503);
+  }
+  const retryAfterSeconds = typeof rateLimitRaw === 'number' ? rateLimitRaw : Number.NaN;
+  if (!Number.isInteger(retryAfterSeconds) || retryAfterSeconds < 0) {
+    console.error('[subscription-manage][ALERT] atomic rate check returned an invalid result');
+    return jsonResponse(req, { error: 'rate_check_unavailable' }, 503);
+  }
+  if (retryAfterSeconds > 0) {
+    return jsonResponse(
+      req,
+      { error: 'too_many_requests', retry_after_seconds: retryAfterSeconds },
+      429,
+    );
+  }
+
   const effectiveFrom: EffectiveFrom =
     action === 'cancel' && body.effective_from === 'immediately' ? 'immediately' : 'next_billing_period';
 
@@ -264,28 +290,6 @@ Deno.serve(async (req: Request) => {
   if (action === 'cancel' && eligibility.tier === 'free') {
     await settleTerminal('rejected', 'not_subscribed');
     return jsonResponse(req, { ok: false, outcome: 'rejected', reason: 'not_subscribed', eligibility }, 200);
-  }
-
-  // Abuse guard. This endpoint writes a ledger row and can reach a paid API on
-  // every call, and nothing else throttles it (the LLM proxies have
-  // bump_gemini_spend; there is no generic limiter). A loop with any valid user
-  // token could otherwise grow the ledger without bound and, once enabled, keep
-  // re-opening released claims against Paddle's rate limits. service_role
-  // bypasses RLS, so this counts the caller's OWN rows only.
-  const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-  const { count: recent, error: rateErr } = await admin
-    .from('billing_self_service_log')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .gte('created_at', since);
-  if (rateErr) {
-    // Fail CLOSED: an unreadable ledger is exactly when we cannot tell a retry
-    // from an attack, and this endpoint spends money.
-    console.error('[subscription-manage] rate check failed:', rateErr.message);
-    return jsonResponse(req, { error: 'rate_check_unavailable' }, 503);
-  }
-  if ((recent ?? 0) >= 20) {
-    return jsonResponse(req, { error: 'too_many_requests', retry_after_seconds: 3600 }, 429);
   }
 
   const enabled = Deno.env.get('PADDLE_SELF_SERVICE_ENABLED') === '1';
