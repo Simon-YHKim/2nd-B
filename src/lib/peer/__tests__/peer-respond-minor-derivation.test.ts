@@ -1,8 +1,10 @@
-// peer-respond derives minority from birthYear. It does not ask the informant.
+// peer-respond derives minority from birthYear. The client flag may only add
+// protection, and the database owns the resulting consent row.
 //
-// The endpoint already refused an under-14 informant by computing
-// `nowYear - birthYear < MIN_INFORMANT_AGE`, so it plainly trusted that number.
-// One line later it stopped trusting it and read `body.informantIsMinor` instead,
+// The endpoint intended to refuse an under-14 informant by computing
+// `nowYear - birthYear < MIN_INFORMANT_AGE`, but that year-only calculation can
+// overstate age by one. One line later it also stopped trusting the same number
+// and read `body.informantIsMinor` instead,
 // and that boolean decided BOTH whether guardian consent was required and what
 // went into informant_consents.informant_is_minor / guardian_consent_at.
 //
@@ -27,6 +29,10 @@ const SOURCE = readFileSync(
   join(__dirname, "..", "..", "..", "..", "supabase", "functions", "peer-respond", "index.ts"),
   "utf8",
 );
+const MIGRATION = readFileSync(
+  join(__dirname, "..", "..", "..", "..", "db", "migrations", "0158_peer_response_atomicity.sql"),
+  "utf8",
+);
 
 describe("peer-respond: informant minority is server-derived", () => {
   test("the adult boundary is a named constant, not an inline literal", () => {
@@ -37,7 +43,12 @@ describe("peer-respond: informant minority is server-derived", () => {
   });
 
   test("minority is computed from birthYear", () => {
-    expect(SOURCE).toMatch(/nowYear - birthYear < ADULT_AGE/);
+    expect(SOURCE).toMatch(/const yearAge = nowYear - birthYear/);
+    expect(SOURCE).toMatch(/yearAge <= ADULT_AGE/);
+  });
+
+  test("the ambiguous year-only floor fails closed", () => {
+    expect(SOURCE).toMatch(/if \(yearAge <= MIN_INFORMANT_AGE\)/);
   });
 
   test("the client flag can only ADD minority, never remove it", () => {
@@ -47,7 +58,7 @@ describe("peer-respond: informant minority is server-derived", () => {
     const assignment = /const isMinor = ([^;]+);/.exec(SOURCE);
     expect(assignment).not.toBeNull();
     const expr = assignment![1];
-    expect(expr).toContain("nowYear - birthYear < ADULT_AGE");
+    expect(expr).toContain("yearAge <= ADULT_AGE");
     expect(expr).toContain("||");
     expect(expr).not.toContain("&&");
   });
@@ -58,11 +69,14 @@ describe("peer-respond: informant minority is server-derived", () => {
     expect(SOURCE).not.toMatch(/const isMinor = body\.informantIsMinor === true;/);
   });
 
-  test("the guardian check and both stored fields still hang off that one value", () => {
-    // If a later edit splits the derived value away from what gets written, the
-    // consent ledger can disagree with the check that let the response through.
+  test("the guardian check and atomic RPC arguments hang off that one value", () => {
+    // The Edge never writes consent fields directly; 0158 derives timestamps and
+    // subject identity from the locked invitation in the same transaction.
     expect(SOURCE).toMatch(/if \(isMinor && body\.guardianConsent !== true\)/);
-    expect(SOURCE).toMatch(/informant_is_minor: isMinor/);
-    expect(SOURCE).toMatch(/guardian_consent_at: isMinor \? now : null/);
+    expect(SOURCE).toMatch(/p_informant_is_minor: isMinor/);
+    expect(SOURCE).toMatch(/p_guardian_consent: body\.guardianConsent === true/);
+    expect(SOURCE).not.toMatch(/guardian_consent_at:/);
+    expect(MIGRATION).toMatch(/CASE WHEN p_informant_is_minor THEN v_now ELSE NULL END/);
+    expect(MIGRATION).toMatch(/v_invitation\.user_id,[\s\S]*v_now,[\s\S]*p_informant_is_minor/);
   });
 });
