@@ -142,12 +142,9 @@ const schema = z.object({
   EXPO_PUBLIC_GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLOUD_PROJECT: z.string().optional(),
   GOOGLE_CLOUD_LOCATION: z.string().default("us-central1"),
-  // GOOGLE_API_KEY without EXPO_PUBLIC_ is server-side only (native / Edge
-  // Function). For Expo Web we accept EXPO_PUBLIC_GOOGLE_API_KEY too so the
-  // key gets inlined into the client bundle. SECURITY: any key inlined in
-  // the web bundle is extractable by anyone who visits the deployed site —
-  // only use this for test keys. Production should route Gemini through a
-  // Supabase Edge Function or Vertex with a service account.
+  // Server-side only. Never add an EXPO_PUBLIC_ alias: Expo inlines public
+  // variables into distributable bundles. Web calls must use the authenticated
+  // Gemini Edge Function instead of exposing this credential to clients.
   GOOGLE_API_KEY: z.string().optional(),
   EXPO_PUBLIC_SENTRY_DSN: z.string().optional(),
   SENTRY_DSN: z.string().optional(),
@@ -219,7 +216,6 @@ function readRaw(): Record<string, string | undefined> {
   const enableFacebook = process.env.EXPO_PUBLIC_ENABLE_FACEBOOK;
   const enableGithub = process.env.EXPO_PUBLIC_ENABLE_GITHUB;
   const googleClientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
-  const publicGoogleKey = process.env.EXPO_PUBLIC_GOOGLE_API_KEY;
   const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
   const ga4Id = process.env.EXPO_PUBLIC_GA4_MEASUREMENT_ID;
   const clarityId = process.env.EXPO_PUBLIC_CLARITY_PROJECT_ID;
@@ -259,9 +255,7 @@ function readRaw(): Record<string, string | undefined> {
     EXPO_PUBLIC_GOOGLE_CLIENT_ID: presentOrUndefined(googleClientId),
     GOOGLE_CLOUD_PROJECT: proc.GOOGLE_CLOUD_PROJECT,
     GOOGLE_CLOUD_LOCATION: proc.GOOGLE_CLOUD_LOCATION,
-    // Prefer the inlined EXPO_PUBLIC_ variant when present (Web), fall back
-    // to the non-public one (native / Edge Function).
-    GOOGLE_API_KEY: (publicGoogleKey && publicGoogleKey.length > 0) ? publicGoogleKey : proc.GOOGLE_API_KEY,
+    GOOGLE_API_KEY: proc.GOOGLE_API_KEY,
     EXPO_PUBLIC_SENTRY_DSN: presentOrUndefined(sentryDsn),
     SENTRY_DSN: proc.SENTRY_DSN,
     EXPO_PUBLIC_GA4_MEASUREMENT_ID: presentOrUndefined(ga4Id),

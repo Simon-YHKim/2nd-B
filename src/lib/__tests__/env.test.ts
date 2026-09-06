@@ -1,6 +1,5 @@
 // Env validation tests. Verifies the zod schema's defaults, refinements,
-// and the EXPO_PUBLIC_GOOGLE_API_KEY → GOOGLE_API_KEY priority that
-// powers the client-side Gemini path.
+// and that Google API credentials remain server-only.
 
 describe("getEnv", () => {
   const ORIGINAL_ENV = process.env;
@@ -36,34 +35,39 @@ describe("getEnv", () => {
     expect(env.EXPO_PUBLIC_LLM_MODE).toBe("mock");
   });
 
-  test("LLM_MODE defaults to live when EXPO_PUBLIC_GOOGLE_API_KEY is set", async () => {
+  test("public-prefixed Google key is ignored and cannot enable live mode", async () => {
     process.env.EXPO_PUBLIC_SUPABASE_URL = "https://x.supabase.co";
     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = "x".repeat(40);
     delete process.env.EXPO_PUBLIC_LLM_MODE;
+    delete process.env.GOOGLE_API_KEY;
+    delete process.env.EXPO_PUBLIC_USE_VERTEX;
     process.env.EXPO_PUBLIC_GOOGLE_API_KEY = "AIza-fake-key-for-test";
     const { getEnv } = await import("../env");
     const env = getEnv();
-    expect(env.EXPO_PUBLIC_LLM_MODE).toBe("live");
-    expect(env.GOOGLE_API_KEY).toBe("AIza-fake-key-for-test");
+    expect(env.EXPO_PUBLIC_LLM_MODE).toBe("mock");
+    expect(env.GOOGLE_API_KEY).toBeUndefined();
   });
 
-  test("EXPO_PUBLIC_GOOGLE_API_KEY wins over GOOGLE_API_KEY when both set", async () => {
+  test("server Google key wins even when a public-prefixed alias is present", async () => {
     process.env.EXPO_PUBLIC_SUPABASE_URL = "https://x.supabase.co";
     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = "x".repeat(40);
     process.env.EXPO_PUBLIC_GOOGLE_API_KEY = "public-variant";
     process.env.GOOGLE_API_KEY = "server-variant";
     const { getEnv } = await import("../env");
     const env = getEnv();
-    expect(env.GOOGLE_API_KEY).toBe("public-variant");
+    expect(env.GOOGLE_API_KEY).toBe("server-variant");
   });
 
-  test("GOOGLE_API_KEY used as fallback when EXPO_PUBLIC variant absent", async () => {
+  test("server Google key enables live mode", async () => {
     process.env.EXPO_PUBLIC_SUPABASE_URL = "https://x.supabase.co";
     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = "x".repeat(40);
+    delete process.env.EXPO_PUBLIC_LLM_MODE;
     delete process.env.EXPO_PUBLIC_GOOGLE_API_KEY;
+    delete process.env.EXPO_PUBLIC_USE_VERTEX;
     process.env.GOOGLE_API_KEY = "server-only";
     const { getEnv } = await import("../env");
     const env = getEnv();
+    expect(env.EXPO_PUBLIC_LLM_MODE).toBe("live");
     expect(env.GOOGLE_API_KEY).toBe("server-only");
   });
 
