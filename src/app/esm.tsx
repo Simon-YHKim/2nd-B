@@ -8,7 +8,7 @@ import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { m3 } from "@/lib/theme/m3";
-import { cosmic, deepSpace, flattenAlpha, radii, semantic, spacing, typography } from "@/lib/theme/tokens";
+import { cosmic, deepSpace, flattenAlpha, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { CORE_VILLAGE_UI } from "@/lib/village-ui";
@@ -148,7 +148,7 @@ function EsmCheckInScreen() {
                       accessibilityState={{ checked: active }}
                       accessibilityLabel={t("energy.optionLabel", { value })}
                     >
-                      <Text variant="body" color={active ? "background" : "brand"} style={styles.scaleText}>
+                      <Text variant="body" color={active ? "background" : "brand"}>
                         {value}
                       </Text>
                     </Pressable>
@@ -272,9 +272,10 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.brand,
     borderColor: semantic.brand,
   },
+  // <Text variant="body"> 가 이미 격자 위의 Galmuri 얼굴과 크기를 준다. 전에는
+  // 여기서 fontFamily 를 시스템 폰트로 덮고 fontWeight 를 굵게 합성했다 - 픽셀
+  // 얼굴에서는 둘 다 격자를 깬다. 정렬만 남긴다.
   promptTabText: {
-    fontFamily: typography.fontFamily,
-    fontWeight: typography.weights.bold,
     textAlign: "center",
   },
   scaleBlock: {
@@ -299,10 +300,6 @@ const styles = StyleSheet.create({
   scaleDotActive: {
     backgroundColor: semantic.brand,
     borderColor: semantic.brand,
-  },
-  scaleText: {
-    fontFamily: typography.fontFamily,
-    fontWeight: typography.weights.bold,
   },
   tagGrid: {
     flexDirection: "row",

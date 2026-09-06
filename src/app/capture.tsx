@@ -48,6 +48,7 @@ import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { cosmic, flattenAlpha, semantic, spacing, typography, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
+import { galmuriFor } from "@/components/m3/typeface";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
@@ -131,11 +132,23 @@ import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
 import { enqueueAutoReasoningRecord, enqueueAutoReasoningSource } from "@/app/reasoning";
 import { maybeAutoPromoteSource } from "@/lib/wiki/auto-promote";
 
-// Deep-space reads these four explicit pixel-font labels in Pretendard (the
-// same build-constant swap as Text.tsx #667); the legacy track keeps pixelKo.
-// This is what makes /capture-full read as the deep-space design instead of
-// retro chrome (the gameboy/semantic tokens are already track-aware).
-const CAPTURE_LABEL_FONT = isDeepSpaceUI() ? fontFamilies.readable : fontFamilies.pixelKo;
+// 이 넷은 크롬 라벨(칩·모드·버튼)이지 읽는 글이 아니다.
+//
+// 전에는 딥스페이스에서 Pretendard 로 갈아끼웠다 - Text.tsx #667 의 같은
+// 빌드상수 스왑이었다. PIXEL-CLAY (Simon 2026-09-05, 앱 전역 Galmuri)로 그
+// 스왑은 Text.tsx 에서 되돌아갔고(읽는 글만 Pretendard), 여기만 남아 있었다.
+//
+// 얼굴만 바꾸면 안 된다: Galmuri 는 자기 고유 크기의 정수배에서만 선명하다
+// (Galmuri11 = 12px, Galmuri14 = 15px). 그래서 크기도 같이 스냅한다
+// (sm 14 -> 12, md 16 -> 15) 그리고 굵기는 보내지 않는다 - 비트맵 얼굴에
+// fontWeight 를 주면 RN 이 가짜 굵기를 합성해 격자가 깨진다. 굵기는 얼굴
+// 이름 안에 있다(Galmuri11Bold). 레거시 트랙은 손대지 않는다.
+const CAPTURE_DS = isDeepSpaceUI();
+const capSize = (legacy: number, grid: number): number => (CAPTURE_DS ? grid : legacy);
+const capFont = (grid: number, weight: "500" | "700"): string =>
+  CAPTURE_DS ? galmuriFor(grid, weight) : fontFamilies.pixelKo;
+const capWeight = (legacy: "600" | "700"): "600" | "700" | undefined =>
+  (CAPTURE_DS ? undefined : legacy);
 
 // Unified 담기 (menu restructure Phase 2): the journal (오늘의 조각) and the
 // capture modes live on one screen. "일기" writes to `records` (createRecord —
@@ -4126,8 +4139,8 @@ const styles = StyleSheet.create({
   },
   trackChipActive: { backgroundColor: semantic.brand, borderColor: semantic.brand },
   trackGlyph: { width: 16, height: 16 },
-  trackChipText: { color: semantic.textMuted, fontSize: typography.sizes.sm, fontWeight: "600", fontFamily: CAPTURE_LABEL_FONT },
-  trackChipTextActive: { color: semantic.background, fontWeight: "700" },
+  trackChipText: { color: semantic.textMuted, fontSize: capSize(typography.sizes.sm, 12), fontWeight: capWeight("600"), fontFamily: capFont(12, "500") },
+  trackChipTextActive: { color: semantic.background, fontWeight: capWeight("700"), fontFamily: capFont(12, "700") },
   modeRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -4159,9 +4172,9 @@ const styles = StyleSheet.create({
   },
   modeMoreTabExpanded: { borderColor: semantic.brand },
   modeGlyph: { width: 24, height: 24 },
-  modeLabel: { color: semantic.textMuted, fontSize: typography.sizes.xs, fontWeight: "600", fontFamily: CAPTURE_LABEL_FONT },
-  modeLabelActive: { color: semantic.background, fontWeight: "700" },
-  modeMoreLabel: { color: semantic.brand, fontSize: typography.sizes.sm, fontWeight: "700", fontFamily: CAPTURE_LABEL_FONT },
+  modeLabel: { color: semantic.textMuted, fontSize: capSize(typography.sizes.xs, 12), fontWeight: capWeight("600"), fontFamily: capFont(12, "500") },
+  modeLabelActive: { color: semantic.background, fontWeight: capWeight("700"), fontFamily: capFont(12, "700") },
+  modeMoreLabel: { color: semantic.brand, fontSize: capSize(typography.sizes.sm, 12), fontWeight: capWeight("700"), fontFamily: capFont(12, "700") },
   modeHelp: { lineHeight: 18, marginTop: -spacing.xs },
   fieldGroup: {
     gap: spacing.xs,
@@ -4316,6 +4329,8 @@ const styles = StyleSheet.create({
     backgroundColor: CAPTURE_BTN_DISABLED_BG,
     borderColor: CAPTURE_BTN_DISABLED_BORDER,
   },
-  tossBtnText: { color: semantic.background, fontSize: typography.sizes.md, fontWeight: "700", fontFamily: CAPTURE_LABEL_FONT },
+  // 15px = Galmuri14 x1. 이 얼굴에는 굵은 변형이 없어서(galmuri 패키지는 Galmuri11-Bold
+  // 하나만 판다) 딥스페이스에서는 크기가 강조를 지고, 굵기는 합성하지 않는다.
+  tossBtnText: { color: semantic.background, fontSize: capSize(typography.sizes.md, 15), fontWeight: capWeight("700"), fontFamily: capFont(15, "700") },
   tossBtnTextDisabled: { color: CAPTURE_BTN_DISABLED_INK },
 });
