@@ -6,6 +6,9 @@ const CR = String.fromCharCode(13);
 const RAW = readFileSync(join(ROOT, ".github/workflows/eas-update.yml"), "utf8")
   .split(CR)
   .join("");
+const WEB_RAW = readFileSync(join(ROOT, ".github/workflows/web-deploy.yml"), "utf8")
+  .split(CR)
+  .join("");
 const STEP_HEADERS = [...RAW.matchAll(/^ {6}- name: (.+)$/gm)];
 
 function stepOf(fragment: string): string {
@@ -52,15 +55,26 @@ describe("EAS Update public environment contract", () => {
     expect(RAW).toContain("allowedServerOnlyByChannel");
     for (const name of [
       "EXPO_PUBLIC_CLARITY_PROJECT_ID",
-      "EXPO_PUBLIC_EXIM_FX_KEY",
       "EXPO_PUBLIC_GA4_MEASUREMENT_ID",
-      "EXPO_PUBLIC_MFDS_FOOD_KEY",
       "EXPO_PUBLIC_SENTRY_DSN",
     ]) {
       expect(RAW).toContain(name);
     }
     expect(RAW).toContain("unapprovedServerOnlyKeys");
     expect(RAW).not.toContain("unexpectedKeys");
+  });
+
+  test("public-data credentials never enter a client build environment", () => {
+    for (const workflow of [RAW, WEB_RAW]) {
+      for (const name of [
+        "EXPO_PUBLIC_EXIM_FX_KEY",
+        "EXPO_PUBLIC_MFDS_FOOD_KEY",
+        "EXIM_FX_API_KEY",
+        "MFDS_FOOD_API_KEY",
+      ]) {
+        expect(workflow).not.toContain(name);
+      }
+    }
   });
 
   test("the verifier reports names/counts without printing values", () => {
