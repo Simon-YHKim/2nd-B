@@ -520,17 +520,17 @@ Never weaken these. They're enforced at code/schema/CI level:
 | ID | Rule |
 |---|---|
 | C1 | All LLM calls go through **one boundary module** (`src/lib/llm/boundary.ts`, renamed from `gemini.ts` 2026-08-17); ESLint blocks vendor SDK imports anywhere else. **The rule is the single boundary, NOT the vendor** — see "제미나이는 더 이상 요건이 아니다" below. |
-| C2 | ~~`@google/genai` with `vertexai: true`~~ **대회 잔재. 요건 아님.** Vertex 분기는 코드에 남아 있고 CI가 존재만 확인한다. 새 기능의 근거로 인용 금지. |
+| C2 | ~~`@google/genai` with `vertexai: true`~~ **폐지됨 2026-09-06** (Simon 결정 Q-260905-02). 검사는 `check:constraints` 에서 제거했다. Vertex 분기 코드 자체는 남아 있고 이제 Gemini 폐기(#1505)와 함께 자유롭게 나갈 수 있다. 번호는 재사용하지 않는다. |
 | C3 | `ai_audit_log` INSERT on every Gemini call (including mock + crisis). |
 | C4 | `revenue_events` has `month_bucket` + `is_related_party` + `customer_relation_type`. |
 | C5 | `testimonials.consent_given_at NOT NULL`. |
-| C6 | Judge mode auto-flag for `@xprize.org`, `@devpost.com`, `@hacker.fund`. **(대회 잔재: 코드·CI 에서는 계속 유효하니 깨뜨리지 말 것. 단 새 기능의 근거로 인용 금지 — 위 XPRIZE 블록 참조.)** |
+| C6 | ~~Judge mode auto-flag~~ **폐지됨 2026-09-06** (Simon 결정 Q-260905-02). 기능은 #1302·마이그레이션 0138 이 이미 걷어냈고, 은퇴를 지키던 검사도 이제 지킬 대상이 없다 — `src/lib/judge/domains.ts` 와 클라이언트 경로가 삭제됐다. **`users.judge_mode` 컬럼과 comp 분기는 여전히 의도적으로 남아 있다**(#1302). 제거는 마이그레이션이다. |
 | C7 | i18n EN ↔ KO key parity. EN is canonical. |
 | C8 | `knowledge_sources` requires DOI/URL + verification pair. |
 | C9 | `classifyInput()` runs before any LLM call. Red zone short-circuits. |
 | C10 | Age-tiered sign-up: 14-17 self-consent minors and adult users register direct; under-14 needs verifiable guardian consent (PIPA §22-2/COPPA). Phased rollout; see docs/CONSTRAINTS.md. |
 | C11 | Support SLA = 2 business days (KST). |
-| C12 | README "Pre-existing assets used" section per rulebook §04. **(대회 잔재: 위 C6 과 동일 취급.)** |
+| C12 | README 의 번들 에셋 공개 절 + `docs/ASSETS.md`. 대회 규정집에서 왔지만 **의무는 남아 있다** — 싣는 폰트가 SIL OFL 이고 저작권·Reserved Font Name 고지를 기록하는 곳이 여기뿐이다. 그래서 검사는 유지하고 근거만 다시 썼다(2026-09-06). |
 
 When uncertain whether a change weakens a constraint, run `npm run check:constraints`.
 

@@ -32,7 +32,6 @@ import {
   MIN_SELF_CONSENT_AGE,
   type OAuthProvider,
 } from "@/lib/supabase/auth";
-import { isJudgeEmail } from "@/lib/judge/domains";
 import {
   emptyConsentSelections,
   allRequiredAcksChecked,
@@ -75,7 +74,6 @@ export interface UseSignUpForm {
   consent: ConsentSelections;
   setConsent: (next: ConsentSelections) => void;
   // derived
-  judge: boolean;
   isMinorAge: boolean;
   canSubmit: boolean;
   oauthSubmitting: boolean;
@@ -172,7 +170,6 @@ export function useSignUpForm(): UseSignUpForm {
     return () => sub.remove();
   }, []);
 
-  const judge = useMemo(() => isJudgeEmail(email), [email]);
   // A valid DOB in the 14-17 band drives the high-privacy notice variant and
   // the minor_self consent band.
   const age = ageInYears(birthDate);
@@ -348,7 +345,6 @@ export function useSignUpForm(): UseSignUpForm {
     setBirthDate,
     consent,
     setConsent,
-    judge,
     isMinorAge,
     canSubmit,
     oauthSubmitting,
