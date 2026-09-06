@@ -1,4 +1,6 @@
-// Aggregated C1~C12 self-check. CI runs this after all other checks pass.
+// Aggregated hard-constraint self-check. CI runs this after all other checks
+// pass. C2, C6 and C12 were retired on 2026-09-06 (Simon decision
+// Q-260905-02); their numbers are not reused.
 // Each check does static inspection only (no DB connection, no SDK calls).
 
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
@@ -563,12 +565,15 @@ results.push(
   }),
 );
 
-// C12 - bundled asset disclosure. The contest rulebook asked for this and
-// the contest is over, but the obligation is not: the fonts we ship are SIL
-// OFL, which requires the copyright and Reserved Font Name notice to travel
-// with them, and docs/ASSETS.md is the only thing recording it. So the check
-// stays and only its justification changes (2026-09-06). Delete it if you
-// want the disclosure to be voluntary; it is about twenty lines.
+// Bundled asset + licence disclosure. This began as C12, a contest rulebook
+// requirement, and the contest ended 2026-08-15. Simon retired the constraint on
+// 2026-09-06 (Q-260905-02) and it is no longer numbered -- but the duty it was
+// accidentally enforcing is real and outlives the rulebook: the fonts we ship
+// are SIL OFL, which requires the copyright and Reserved Font Name notice to
+// travel with them, and docs/ASSETS.md is the only place that records it. So the
+// mechanism survives its constraint under its own name, like the Cost check
+// below. Delete it if you want the disclosure to be voluntary; it is about
+// twenty lines.
 //
 // The README heading is necessary but NOT sufficient. Until 2026-08-06 this check
 // was a single grep for that heading, so it reported PASS while 226 committed
@@ -584,14 +589,14 @@ results.push(
 // Loose files directly under assets/ or public/ are skipped. Those are almost
 // always untracked scratch files on a developer machine, and failing a local run
 // on them trains people to disable the check. Anything inside a directory counts.
-const C12_IMAGE_RE = /\.(png|jpe?g|svg|webp|gif|avif)$/i;
+const ASSET_IMAGE_RE = /\.(png|jpe?g|svg|webp|gif|avif)$/i;
 
 function c12CollectImages(rel: string, out: string[] = []): string[] {
   if (!exists(rel)) return out;
   for (const entry of readdirSync(join(ROOT, rel))) {
     const child = `${rel}/${entry}`;
     if (statSync(join(ROOT, child)).isDirectory()) c12CollectImages(child, out);
-    else if (C12_IMAGE_RE.test(entry)) out.push(child);
+    else if (ASSET_IMAGE_RE.test(entry)) out.push(child);
   }
   return out;
 }
@@ -604,12 +609,12 @@ function c12PackOf(path: string): string | null {
 }
 
 results.push(
-  check("C12", () => {
+  check("AssetLicenseDisclosure", () => {
     const readme = read("README.md");
-    if (!/pre-existing assets used/i.test(readme))
-      return { id: "C12", status: "FAIL", note: "README missing the bundled-asset disclosure section" };
+    if (!/bundled assets and licenses/i.test(readme))
+      return { id: "AssetLicenseDisclosure", status: "FAIL", note: "README missing the bundled-asset disclosure section" };
 
-    if (!exists("docs/ASSETS.md")) return { id: "C12", status: "FAIL", note: "docs/ASSETS.md registry missing" };
+    if (!exists("docs/ASSETS.md")) return { id: "AssetLicenseDisclosure", status: "FAIL", note: "docs/ASSETS.md registry missing" };
     const registry = read("docs/ASSETS.md");
 
     const images = [...c12CollectImages("assets"), ...c12CollectImages("public")];
@@ -618,13 +623,13 @@ results.push(
 
     if (missing.length > 0)
       return {
-        id: "C12",
+        id: "AssetLicenseDisclosure",
         status: "FAIL",
         note: `docs/ASSETS.md does not disclose ${missing.length} bundled asset pack(s): ${missing.join(", ")}`,
       };
 
     return {
-      id: "C12",
+      id: "AssetLicenseDisclosure",
       status: "PASS",
       note: `README section + docs/ASSETS.md discloses all ${packs.length} bundled asset packs (${images.length} image files)`,
     };

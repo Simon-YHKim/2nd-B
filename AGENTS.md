@@ -39,7 +39,8 @@ Codex 및 그 밖의 에이전트 세션용 진입 파일.
 - **마감은 없다.** 외부 마감을 근거로 스코프를 줄이지 말 것.
 - **XPRIZE 는 종료됐다** (Simon 결정 2026-08-15). 심사자·규정집·마감·인용가능성을
   판단 근거로 삼지 말 것. C2·C6 은 2026-09-06 에 폐지했고(Simon 결정 Q-260905-02),
-  C12 는 SIL OFL 고지 때문에 근거만 바꿔 유지한다. `users.judge_mode` 컬럼은 남아 있다.
+  C12 도 함께 폐지했다. 그 검사는 `AssetLicenseDisclosure` 라는 번호 없는 이름으로 남아 SIL OFL
+  고지를 지킨다. `users.judge_mode` 컬럼은 남아 있다.
 - **시각 방향은 PIXEL-CLAY v4** (Simon 결정 2026-08-19). SoT 는
   `docs/PIXEL-CLAY-MIGRATION.md`, 인수 자료는 `design/pixel_clay_v4/`
   (착수 전 `REPO-NOTES.md` 필독). M3-deepspace 는 목적지가 아니라 **출발점**이고
@@ -54,7 +55,7 @@ Codex 및 그 밖의 에이전트 세션용 진입 파일.
 | 최근 결정 전문 (V1~V6) | `docs/DECISIONS-260819.md` |
 | 시각 방향과 이주 계획 | `docs/PIXEL-CLAY-MIGRATION.md` |
 | 개념 · 정본 vs 레거시 | `docs/CONCEPT.md` · `docs/PRD.md` · `docs/CONSTELLATION-DESIGN.md` |
-| 하드 제약 C1~C12 | `docs/CONSTRAINTS.md` |
+| 하드 제약 | `docs/CONSTRAINTS.md` |
 | 시각 규율 | `DESIGN.md` |
 | Android 크래시 예방 (**구조·UI·생명주기 변경 전 필독**) | `ANDROID_QA_GUIDELINES.md` |
 | 세션 간 소유 경계 | `docs/SESSION-OWNERSHIP.md` |
@@ -115,7 +116,7 @@ git worktree remove .worktrees/<name>              # 지우기
 - LLM 호출 경로에서 안전 분류기 건너뛰기
 - `.claude/settings.local.json` 스테이징 (사용자별, gitignored)
 
-## 하드 제약 C1~C12
+## 하드 제약
 
 **약화 금지.** 코드·스키마·CI 로 강제된다. 전문은 `docs/CONSTRAINTS.md`,
 요약표는 `CLAUDE.md` 의 같은 절에 있다. 어떤 변경이 제약을 약화시키는지 불확실하면:
