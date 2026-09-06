@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>2nd-Brain Claude 보안 인수인계 2026-09-07</title>
+<style>
+:root{color-scheme:light dark;--bg:#f7f9fb;--card:#fff;--text:#17212b;--muted:#607080;--accent:#087e8b;--line:#c9d4dc}
+@media(prefers-color-scheme:dark){:root{--bg:#10171d;--card:#182229;--text:#eef5f7;--muted:#9aabb5;--accent:#58d3df;--line:#3a4c56}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1060px;margin:auto;padding:32px 20px 56px}h1,h2{line-height:1.2}h1{font-size:clamp(28px,5vw,46px);margin:.25rem 0}
+.eyebrow,.muted{color:var(--muted)}.badge{display:inline-block;border:1px solid var(--accent);color:var(--accent);padding:4px 10px;font-weight:700}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:24px 0}.card,details{background:var(--card);border:1px solid var(--line);padding:16px}
+.card b{display:block;font-size:1.25rem}.warn{border-left:5px solid var(--accent)}details{margin:12px 0}summary{cursor:pointer;font-weight:700}
+code,pre{font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace}pre{overflow:auto;background:var(--bg);border:1px solid var(--line);padding:12px}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;vertical-align:top;border-bottom:1px solid var(--line);padding:8px}
+svg{width:100%;height:auto;background:var(--card);border:1px solid var(--line);margin:8px 0 22px}svg text{font:600 14px system-ui;fill:var(--text)}
+svg .muted{fill:var(--muted)}svg .box{fill:var(--card);stroke:var(--line);stroke-width:2}svg .active{stroke:var(--accent);stroke-width:3}svg .arrow{stroke:var(--accent);stroke-width:3;fill:none}
+footer{margin-top:28px;color:var(--muted)}@media(max-width:760px){.grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body><main>
+<p class="eyebrow">2nd-Brain · 2026-09-07 00:24:49 KST</p>
+<span class="badge">LOCAL ONLY · HANDOFF READY</span>
+<h1>Claude 재개 지점을 clean commits로 고정했습니다</h1>
+<p class="muted">보안 완료 보고가 아닙니다. 현재 증거·차단점·다음 순서를 재현 가능한 로컬 문서로 보존했습니다.</p>
+
+<section class="grid" aria-label="핵심 지표">
+<div class="card"><span>canonical</span><b>cc2f131b</b><small>clean</small></div>
+<div class="card"><span>Auth candidate</span><b>103d180b</b><small>review pending</small></div>
+<div class="card"><span>package candidate</span><b>943d8164</b><small>not integrated</small></div>
+<div class="card"><span>external writes</span><b>0</b><small>approval boundary</small></div>
+</section>
+
+<svg viewBox="0 0 980 220" role="img" aria-labelledby="flowTitle flowDesc">
+<title id="flowTitle">보안 작업 인수인계 흐름</title><desc id="flowDesc">현재 로컬 부분 통합에서 재리뷰와 마지막 통합, 전체 검증, 사용자 승인, 콘솔 배포로 이어진다.</desc>
+<defs><marker id="head" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="var(--accent)"/></marker></defs>
+<rect class="box active" x="25" y="60" width="190" height="95"/><text x="120" y="94" text-anchor="middle">로컬 부분 통합</text><text class="muted" x="120" y="122" text-anchor="middle">현재 위치</text>
+<path class="arrow" d="M215 108H280" marker-end="url(#head)"/><rect class="box" x="290" y="60" width="180" height="95"/><text x="380" y="94" text-anchor="middle">재리뷰·통합</text><text class="muted" x="380" y="122" text-anchor="middle">Auth / recorder / package</text>
+<path class="arrow" d="M470 108H535" marker-end="url(#head)"/><rect class="box" x="545" y="60" width="180" height="95"/><text x="635" y="94" text-anchor="middle">전체 검증·승인</text><text class="muted" x="635" y="122" text-anchor="middle">아직 미완</text>
+<path class="arrow" d="M725 108H790" marker-end="url(#head)"/><rect class="box" x="800" y="60" width="155" height="95"/><text x="878" y="94" text-anchor="middle">콘솔 배포</text><text class="muted" x="878" y="122" text-anchor="middle">서버 먼저</text>
+</svg>
+
+<section class="card warn"><h2>핵심 판정</h2><p><strong>인수인계는 준비됐지만 보안 작업은 끝나지 않았습니다.</strong>
+Auth 독립 재리뷰, recorder 마지막 2단계, package canonical 이식, remaining matrix, full verify, 실기기 QA와 운영 rollout이 남았습니다.</p></section>
+
+<details open><summary>이번에 고정한 진전 [자세히]</summary><ul>
+<li>Auth P1 <code>103d180b</code>: focused 76/76, auth/storage 298/298, lint/typecheck/cycles 등 통과.</li>
+<li>Recorder canonical <code>cc2f131b</code>: step 1~5, mock focused 134/134. 다음 test commit 전 1건 red.</li>
+<li>Package <code>943d8164</code>: Metro 0.84.5와 기존 decode/secure-store/fastxml 핀 결합, exact 2 files.</li>
+<li>모든 권위 worktree clean, push·deploy·운영 write·실제 delete 0.</li>
+</ul></details>
+
+<details><summary>다음 정확한 순서 [자세히]</summary><ol>
+<li><code>103d180b</code> 독립 적대적 재리뷰</li><li><code>f625f7b5</code> → <code>30c20f1f</code></li>
+<li><code>943d8164</code> canonical 이식</li><li>Auth range + recovery/retry UI</li>
+<li>remaining matrix와 dirty-only 두 기능 clean re-port</li><li>full verify·실기기 QA·승인·console rollout</li>
+</ol></details>
+
+<details><summary>Claude 시작 문구 [자세히]</summary><pre><code>E:\2ndB\.worktrees\security-handoff-260906\docs\handoff\CLAUDE-SECURITY-HANDOFF-260907.md를 처음부터 끝까지 읽고, 명시된 승인·소유권 경계를 지키며 이어서 진행해줘.</code></pre></details>
+
+<details><summary>남은 위험 [자세히]</summary><ul>
+<li>Auth 후보는 독립 재리뷰와 full verify 전.</li><li>package 후보는 fresh dependency/native smoke 전.</li>
+<li>운영 migration/proxy/key rotation은 console owner와 사용자 승인 전 0건.</li>
+<li>AI 감사는 전문 보안 감사·침투테스트를 대체하지 않음.</li>
+</ul></details>
+
+<footer><p>branch <code>docs/security-handoff-260906</code> · local-only. origin/main merge 조건은 push/PR 승인이 없어 충족하지 않았습니다.</p></footer>
+</main></body></html>

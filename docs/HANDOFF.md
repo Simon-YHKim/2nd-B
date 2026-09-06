@@ -3,7 +3,73 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-09-06 / Codex 보안 인계 최신화: DB 0171~0187 통합·Native P1 차단점 확정
+## Latest — 2026-09-07 / Claude 최종 인계: Auth P1 GREEN·recorder 5단계·package 후보 확정
+
+> 발행: Codex 보안 세션. 기준 시각 2026-09-07 00:24:49 KST.
+> 새 Claude 세션용 정본 프롬프트: [CLAUDE-SECURITY-HANDOFF-260907.md](handoff/CLAUDE-SECURITY-HANDOFF-260907.md)
+> 로컬 보고서: Output/security-handoff-260906/security-handoff-report-260907.html
+> 세션 snapshot: .simonk/session-20260907-002449.md
+
+### 결론
+
+**보안 작업 전체는 미완료이며, 외부 push·PR·배포·운영 DB/config·키 회전·실제 삭제는 0건이다.**
+다만 이전 인계 뒤 세 가지 로컬 진전이 clean commit으로 확정됐다.
+
+| 영역 | 권위 상태 | 판정 |
+|---|---|---|
+| canonical local | `fix/security-integration-260906` @ `cc2f131b` | public data + native storage core + DB 0171~0187 + recorder step 1~5. clean |
+| Native Auth | `fix/security-native-storage-integration-260906` @ `103d180b` | P1 race hardening GREEN. 독립 적대적 재리뷰와 UI는 미완 |
+| package/lock | `fix/security-package-integration-260907` @ `943d8164` | Metro 0.84.5 graph + 기존 decode/secure-store/fastxml 보존. canonical 미이식 |
+| recorder source | `fix/security-recorder-temp-disposal-260906` @ `30c20f1f` | source 보존. 다음은 `f625f7b5`, 그다음 `30c20f1f`만 이식 |
+
+### 최신 외부 상태
+
+- `origin/main`: `9f852ff73bd8b0ba8cc9b17819f78d144662df8f`
+- PR #1642: OPEN / DRAFT / MERGEABLE, head `656edb8d2ce855fb0d39ccfbbddc1b650fd09604`, 표시된 checks 성공.
+- #1642는 0147+0165를 포함하고 security-*는 제외한다. 운영 적용 승인·상태는 새 세션에서 read-only 재검증한다.
+- local main은 `177a5962`, 사용자 미추적 avatar PNG 8개. pull/reset/clean 금지.
+- 공유 `TTL-Work`는 773 collapsed / 1,377 expanded changes. 수정·stage·정리 금지.
+
+### 이번 인계 직전 확정한 검증
+
+- Auth `103d180b`: RED 24건 → focused 76/76, auth+storage 298/298, ESLint, typecheck, cycles 0,
+  lexicon, em-dash, staged secret scan 통과. full `npm run verify`와 독립 재리뷰는 미실행.
+- recorder `cc2f131b`: mock focused 134/134, lint/typecheck/cycles 통과. `chat-voice-input.test.ts` 1건은
+  다음 `f625f7b5`가 바꿀 구식 문자열 기대라 현재 canonical 전체 green 증거는 아니다.
+- package `943d8164`: exact 2 files, synthesized lock graph 검증 통과. 새 WT에 node_modules가 없어 Jest/full verify/native smoke 미실행.
+- handoff 생성 전 모든 권위 worktree는 clean이었다.
+
+### 다음 세션의 정확한 첫 순서
+
+1. 이 Latest와 새 정본 프롬프트를 읽고 origin/main, #1642, migration 번호, 각 worktree HEAD/clean을 read-only 재검증한다.
+2. `103d180b` 최종 range를 독립적으로 적대적 재리뷰한다. 통과 전 canonical에 넣지 않는다.
+3. recorder `f625f7b5`(1 file) → `30c20f1f`(3 files)를 canonical에 순서대로 이식하고 focused test를 green으로 만든다.
+4. `943d8164`를 canonical에 이식해 package/lock 정적 계약을 재검증한다.
+5. Auth 최종 리뷰가 통과하면 `e267e19f` → `49f5b621` → `103d180b`를 순서대로 이식하고,
+   recovery-required + retry-only UI를 `_layout.tsx` loader보다 먼저 배선한다.
+6. 새 정본 프롬프트의 remaining integration matrix를 작은 배치로 진행한다.
+7. audit outbox/account local purge를 dirty TTL에서 cherry-pick하지 말고 clean branch에서 새 포팅한다.
+8. 정상 독립 dependency 환경에서 full verify, SQL 검증, Android/iOS 실기기 QA를 끝낸 뒤에만 push/PR 승인을 다시 묻는다.
+
+### 절대 경계
+
+- 운영 DB migration, Edge Function, secrets/variables, 백업·복원, 서버 활성화는 console owner 전용이다.
+- MFDS/EXIM 등 credential 값은 출력하지 않는다. proxy 검증 후 별도 승인으로 public var 제거·키 회전한다.
+- 실제 계정·데이터·DB·파일 삭제 테스트를 하지 않는다.
+- user 승인 전 push/PR/merge/deploy/운영 write/delete를 하지 않는다.
+- AI 감사는 전문 보안 감사·침투테스트를 대체하지 않는다.
+
+### 재개
+
+~~~powershell
+Set-Location 'E:\2ndB\.worktrees\security-handoff-260906'
+Get-Content -LiteralPath 'docs\handoff\CLAUDE-SECURITY-HANDOFF-260907.md' -Raw
+# 출력 전체를 새 Claude Code 세션의 첫 메시지로 전달
+~~~
+
+---
+
+## 2026-09-06 / Codex 보안 인계 최신화: DB 0171~0187 통합·Native P1 차단점 확정
 
 > 발행: Codex 보안 세션. 기준 시각 2026-09-06 23:56:55 KST.
 > 새 Claude 세션용 전체 프롬프트: [CLAUDE-SECURITY-HANDOFF-260906.md](handoff/CLAUDE-SECURITY-HANDOFF-260906.md)
