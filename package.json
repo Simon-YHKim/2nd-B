@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "postinstall": "patch-package",
+    "postinstall": "patch-package --error-on-warn",
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
