@@ -38,8 +38,8 @@ Codex 및 그 밖의 에이전트 세션용 진입 파일.
 
 - **마감은 없다.** 외부 마감을 근거로 스코프를 줄이지 말 것.
 - **XPRIZE 는 종료됐다** (Simon 결정 2026-08-15). 심사자·규정집·마감·인용가능성을
-  판단 근거로 삼지 말 것. 단 코드에 남은 잔재(judge mode · C6 · C12)는 **동작 중이므로
-  임의로 걷어내지 말 것.**
+  판단 근거로 삼지 말 것. C2·C6 은 2026-09-06 에 폐지했고(Simon 결정 Q-260905-02),
+  C12 는 SIL OFL 고지 때문에 근거만 바꿔 유지한다. `users.judge_mode` 컬럼은 남아 있다.
 - **시각 방향은 PIXEL-CLAY v4** (Simon 결정 2026-08-19). SoT 는
   `docs/PIXEL-CLAY-MIGRATION.md`, 인수 자료는 `design/pixel_clay_v4/`
   (착수 전 `REPO-NOTES.md` 필독). M3-deepspace 는 목적지가 아니라 **출발점**이고
@@ -124,8 +124,9 @@ git worktree remove .worktrees/<name>              # 지우기
 npm run check:constraints
 ```
 
-⚠ C2(Vertex)·C6(judge mode)·C12(README rulebook 절)는 **대회 잔재**다. CI 에서는 계속
-유효하니 깨뜨리지 말되, **새 기능의 근거로 인용하지 말 것.**
+⚠ C2(Vertex)·C6(judge mode)는 **2026-09-06 폐지**됐다(Simon 결정 Q-260905-02). 번호는
+재사용하지 않는다. C12 는 대회 규정집에서 왔지만 SIL OFL 고지 의무 때문에 **유지**하며,
+근거만 다시 썼다. 나머지는 **새 기능의 근거로 인용하지 말 것.**
 
 ## 어휘 정책
 
