@@ -167,6 +167,64 @@ const __TWEAKS_STYLE = `
     filter:drop-shadow(0 1px 1px rgba(0,0,0,.3))}
 `;
 
+// The edit host can persist arbitrary tweak values, so bind its protocol to the
+// exact embedding window. Browsers expose the immediate parent through either
+// ancestorOrigins (Chromium/WebKit) or document.referrer (portable fallback).
+function __twkSafeParentOrigin(value) {
+  if (typeof value !== 'string' || !value) return null;
+  try {
+    const parsed = new URL(value);
+    if (parsed.origin === 'null' || parsed.username || parsed.password) return null;
+    const localHttp = parsed.protocol === 'http:' &&
+      ['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname);
+    if (parsed.protocol !== 'https:' && !localHttp) return null;
+    return parsed.origin;
+  } catch {
+    return null;
+  }
+}
+
+function __twkResolveParentOrigin() {
+  if (window.parent === window) return null;
+
+  const candidates = [];
+  const ancestorOrigins = window.location?.ancestorOrigins;
+  if (ancestorOrigins?.length) {
+    const ancestorOrigin = __twkSafeParentOrigin(ancestorOrigins[0]);
+    if (!ancestorOrigin) return null;
+    candidates.push(ancestorOrigin);
+  }
+  if (document.referrer) {
+    const referrerOrigin = __twkSafeParentOrigin(document.referrer);
+    if (!referrerOrigin) return null;
+    candidates.push(referrerOrigin);
+  }
+  if (!candidates.length || candidates.some((origin) => origin !== candidates[0])) {
+    return null;
+  }
+  return candidates[0];
+}
+
+const __TWEAKS_PARENT_ORIGIN = __twkResolveParentOrigin();
+
+function __twkPostToParent(message) {
+  if (!__TWEAKS_PARENT_ORIGIN) return;
+  window.parent.postMessage(message, __TWEAKS_PARENT_ORIGIN);
+}
+
+function __twkControlType(data) {
+  if (data === null || typeof data !== 'object' || Array.isArray(data)) return null;
+  const prototype = Object.getPrototypeOf(data);
+  if (prototype !== Object.prototype && prototype !== null) return null;
+  if (Object.keys(data).length !== 1 || !Object.prototype.hasOwnProperty.call(data, 'type')) {
+    return null;
+  }
+  if (data.type === '__activate_edit_mode' || data.type === '__deactivate_edit_mode') {
+    return data.type;
+  }
+  return null;
+}
+
 // ── useTweaks ───────────────────────────────────────────────────────────────
 // Single source of truth for tweak values. setTweak persists via the host
 // (__edit_mode_set_keys → host rewrites the EDITMODE block on disk).
@@ -179,7 +237,7 @@ function useTweaks(defaults) {
     const edits = typeof keyOrEdits === 'object' && keyOrEdits !== null
       ? keyOrEdits : { [keyOrEdits]: val };
     setValues((prev) => ({ ...prev, ...edits }));
-    window.parent.postMessage({ type: '__edit_mode_set_keys', edits }, '*');
+    __twkPostToParent({ type: '__edit_mode_set_keys', edits });
     // Same-window signal so in-page listeners (deck-stage rail thumbnails)
     // can react — the parent message only reaches the host, not peers.
     window.dispatchEvent(new CustomEvent('tweakchange', { detail: edits }));
@@ -227,19 +285,21 @@ function TweaksPanel({ title = 'Tweaks', children }) {
   }, [open, clampToViewport]);
 
   React.useEffect(() => {
-    const onMsg = (e) => {
-      const t = e?.data?.type;
+    if (!__TWEAKS_PARENT_ORIGIN) return undefined;
+    const onMsg = (event) => {
+      if (event.source !== window.parent || event.origin !== __TWEAKS_PARENT_ORIGIN) return;
+      const t = __twkControlType(event.data);
       if (t === '__activate_edit_mode') setOpen(true);
       else if (t === '__deactivate_edit_mode') setOpen(false);
     };
     window.addEventListener('message', onMsg);
-    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    __twkPostToParent({ type: '__edit_mode_available' });
     return () => window.removeEventListener('message', onMsg);
   }, []);
 
   const dismiss = () => {
     setOpen(false);
-    window.parent.postMessage({ type: '__edit_mode_dismissed' }, '*');
+    __twkPostToParent({ type: '__edit_mode_dismissed' });
   };
 
   const onDragStart = (e) => {

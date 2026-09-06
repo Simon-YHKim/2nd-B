@@ -37,14 +37,17 @@ Placeholder **name / bio / contact** ("Elian Voss") are fictional — swap them 
 
 ## Run
 
-ES modules + an import map, so it must be served over HTTP (not `file://`):
+Build from the repository root, then serve the generated static files over HTTP:
 
 ```bash
-python -m http.server 8777      # -> http://127.0.0.1:8777/index.html
-# or:  npx serve .
+npm run build:static
+python -m http.server 8777 --directory dist
+# -> http://127.0.0.1:8777/landing/
 ```
 
-No build step. Three.js (r160) loads from a CDN; everything else is local.
+The deterministic `esbuild` step resolves the pinned local `three` package and
+its post-processing modules into `dist/landing/main.bundle.js`. The page has no
+CDN, import map, or runtime compiler dependency.
 
 ## Customise
 
@@ -69,10 +72,10 @@ const LOOK = {
 
 ## Stack
 
-- [three.js](https://threejs.org) r160 — WebGL billboard + `EffectComposer`
-  post-processing (bloom, chromatic aberration, blur).
-- Fonts: **Space Mono** (UI) + system serif (bio).
-- Vanilla JS, no framework, no bundler.
+- three.js r160 (local pinned package) — WebGL billboard + `EffectComposer`
+  post-processing (bloom, chromatic aberration, blur), bundled by `esbuild`.
+- Fonts: local system monospace fallback stack (UI) + system serif (bio).
+- Vanilla JS source with a deterministic local bundle for deployment.
 
 ## Notes
 
