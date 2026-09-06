@@ -1,4 +1,17 @@
-import { convertToKrw, fxRateFor, parseEximFx, parseRateNumber } from "../fx";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+const mockInvoke = jest.fn();
+
+jest.mock("../../supabase/client", () => ({
+  getSupabaseClient: () => ({ functions: { invoke: mockInvoke } }),
+}));
+
+import { convertToKrw, fetchFxRates, fxRateFor, parseEximFx, parseRateNumber } from "../fx";
+
+beforeEach(() => {
+  mockInvoke.mockReset();
+});
 
 describe("parseRateNumber (Eximbank comma strings)", () => {
   test("parses comma decimals and integers", () => {
@@ -47,5 +60,68 @@ describe("fxRateFor / convertToKrw", () => {
     expect(convertToKrw(10, "USD", rates)).toBe(13000); // 10 * 1300
     expect(convertToKrw(1000, "JPY", rates)).toBe(9000); // 1000 * (900/100)
     expect(convertToKrw(5, "EUR", rates)).toBeUndefined();
+  });
+});
+
+describe("fetchFxRates (authenticated public-data proxy)", () => {
+  test("invokes the fixed proxy operation and normalizes its envelope", async () => {
+    const signal = new AbortController().signal;
+    mockInvoke.mockResolvedValue({
+      data: {
+        provider: "exim_fx",
+        data: [{ result: 1, cur_unit: "USD", cur_nm: "미국 달러", deal_bas_r: "1,303.5" }],
+      },
+      error: null,
+    });
+
+    await expect(fetchFxRates({ authKey: "legacy-client-key", signal })).resolves.toEqual([
+      { currency: "USD", rateKrw: 1303.5, name: "미국 달러" },
+    ]);
+    expect(mockInvoke).toHaveBeenCalledWith("public-data-proxy", {
+      body: { provider: "exim_fx" },
+      signal,
+    });
+    expect(JSON.stringify(mockInvoke.mock.calls)).not.toContain("legacy-client-key");
+  });
+
+  test("surfaces provider and quota failures as typed error codes", async () => {
+    mockInvoke.mockResolvedValueOnce({
+      data: null,
+      error: {
+        context: new Response(JSON.stringify({ error: "provider_quota_exceeded" }), {
+          status: 429,
+          headers: { "content-type": "application/json" },
+        }),
+      },
+    });
+    await expect(fetchFxRates()).rejects.toBe("provider_quota_exceeded");
+
+    mockInvoke.mockResolvedValueOnce({
+      data: null,
+      error: {
+        context: new Response(JSON.stringify({ error: "provider_key_rejected" }), {
+          status: 502,
+          headers: { "content-type": "application/json" },
+        }),
+      },
+    });
+    await expect(fetchFxRates()).rejects.toBe("provider_key_rejected");
+  });
+
+  test("rejects a malformed or wrong-provider proxy envelope", async () => {
+    mockInvoke.mockResolvedValue({
+      data: { provider: "mfds_food", data: [] },
+      error: null,
+    });
+    await expect(fetchFxRates()).rejects.toBe("bad_response");
+  });
+
+  test("contains no direct Eximbank fetch target or public provider-key env", () => {
+    const source = readFileSync(join(__dirname, "..", "fx.ts"), "utf8");
+    expect(source).not.toContain("EXPO_PUBLIC_EXIM_FX_KEY");
+    expect(source).not.toContain("oapi.koreaexim.go.kr");
+    expect(source).not.toMatch(/\bfetch\s*\(/u);
+    expect(source).not.toContain("process.env");
+    expect(source).not.toContain("opts.authKey");
   });
 });

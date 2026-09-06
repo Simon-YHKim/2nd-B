@@ -4,15 +4,15 @@
 // a guess.
 //
 // Harness-first / constraints:
-//   - data.go.kr is the $0 Korea-first public-data goldmine. Free, but requires a
-//     free service key the user registers once (mild Simon-console gate). The
-//     client is fully implemented and KEY-PARAMETERIZED: with no key it returns
-//     [] so the planner still works in idea-only mode.
+//   - The authenticated public-data-proxy owns provider credentials, quotas,
+//     and upstream routing. The app sends only a fixed operation and search input.
 //   - Deterministic source (no LLM → no C1/C3/C9). No new dependency.
 //   - NOT medical/diet advice: nutrition numbers are a reference only; surfaces
 //     keep the plan/idea framing (vocabulary policy).
 //   - Defensive parser tolerates the common data.go.kr response shapes and
 //     several field-name spellings; junk is dropped, never trusted.
+
+import { getSupabaseClient } from "../supabase/client";
 
 export interface FoodNutrition {
   name: string;
@@ -26,8 +26,6 @@ export interface FoodNutrition {
 const QUERY_MAX = 60;
 const RESULT_MAX = 10;
 const NAME_MAX = 120;
-// I2790 = 식품영양성분DB info service (data.go.kr). JSON output.
-const MFDS_ENDPOINT = "https://apis.data.go.kr/1471000/FoodNtrCpntDbInfo01/getFoodNtrCpntDbInq01";
 
 function num(value: unknown): number | undefined {
   if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
@@ -100,46 +98,93 @@ export function parseFoodItems(json: unknown, max = RESULT_MAX): FoodNutrition[]
   return out;
 }
 
-/** Pure: build the keyed search URL (JSON output). */
-export function buildFoodSearchUrl(query: string, serviceKey: string, max = RESULT_MAX): string {
-  const numOfRows = Math.min(Math.max(1, Math.floor(max)), RESULT_MAX);
-  const params = new URLSearchParams({
-    serviceKey,
-    FOOD_NM_KR: query.trim().slice(0, QUERY_MAX),
-    pageNo: "1",
-    numOfRows: String(numOfRows),
-    type: "json",
-  });
-  return `${MFDS_ENDPOINT}?${params.toString()}`;
+/** @deprecated Direct provider URLs are disabled; use `searchFoods`. */
+export function buildFoodSearchUrl(
+  _query: string,
+  _serviceKey: string,
+  _max = RESULT_MAX,
+): string {
+  throw new Error("direct_provider_url_disabled");
 }
 
-export type FoodSearchError = "no_key" | "empty_query" | "fetch_failed" | "bad_response";
+function normalizeQuery(value: string): string {
+  const normalized = value
+    .normalize("NFKC")
+    .replace(/[\u0000-\u001f\u007f-\u009f]/g, " ")
+    .replace(/\s+/gu, " ")
+    .trim();
+  return Array.from(normalized).slice(0, QUERY_MAX).join("");
+}
+
+export type FoodSearchError =
+  | "no_key"
+  | "empty_query"
+  | "fetch_failed"
+  | "bad_response"
+  | "proxy_unavailable"
+  | "proxy_quota_exceeded"
+  | "provider_key_rejected"
+  | "provider_quota_exceeded"
+  | "provider_rejected";
+
+const PASSTHROUGH_PROXY_ERRORS = new Set<FoodSearchError>([
+  "proxy_quota_exceeded",
+  "provider_key_rejected",
+  "provider_quota_exceeded",
+  "provider_rejected",
+]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+async function classifyInvokeError(error: unknown): Promise<FoodSearchError> {
+  const context = isRecord(error) && isRecord(error.context) ? error.context : undefined;
+  const status = typeof context?.status === "number" ? context.status : undefined;
+  try {
+    const readable = typeof context?.clone === "function" ? context.clone() : context;
+    const payload =
+      readable && typeof readable.json === "function" ? await readable.json() : undefined;
+    const code = isRecord(payload) && typeof payload.error === "string" ? payload.error : "";
+    if (PASSTHROUGH_PROXY_ERRORS.has(code as FoodSearchError)) return code as FoodSearchError;
+    if (code === "upstream_bad_payload") return "bad_response";
+  } catch {
+    // Fall back to the HTTP status when the error body is unavailable.
+  }
+  if (status === 429) return "proxy_quota_exceeded";
+  if (status === 502 || status === 504) return "fetch_failed";
+  return "proxy_unavailable";
+}
 
 /**
- * Search the MFDS nutrition DB. With no service key (env unset and none passed)
- * it returns [] — idea-only mode — instead of throwing, so the planner is never
- * blocked by the missing free key. Empty query → [] (no request).
+ * Search the MFDS nutrition DB through the authenticated public-data proxy.
+ * `serviceKey` remains as an ignored compatibility field so older callers
+ * compile; credentials are never accepted from or forwarded by the client.
+ * Empty query → [] (no request).
  */
 export async function searchFoods(
   query: string,
   opts: { serviceKey?: string; max?: number; signal?: AbortSignal } = {},
 ): Promise<FoodNutrition[]> {
-  if (query.trim().length === 0) return [];
-  const serviceKey = opts.serviceKey ?? process.env.EXPO_PUBLIC_MFDS_FOOD_KEY ?? "";
-  if (!serviceKey) return [];
-  const url = buildFoodSearchUrl(query, serviceKey, opts.max);
-  let res: Response;
+  const normalizedQuery = normalizeQuery(query);
+  if (normalizedQuery.length === 0) return [];
+  const limit = Math.min(Math.max(1, Math.floor(opts.max ?? RESULT_MAX)), RESULT_MAX);
+  let result: Awaited<ReturnType<ReturnType<typeof getSupabaseClient>["functions"]["invoke"]>>;
   try {
-    res = await fetch(url, { signal: opts.signal, headers: { Accept: "application/json" } });
+    result = await getSupabaseClient().functions.invoke("public-data-proxy", {
+      body: { provider: "mfds_food", query: normalizedQuery, limit },
+      signal: opts.signal,
+    });
   } catch {
-    throw "fetch_failed" as FoodSearchError;
+    throw "proxy_unavailable" as FoodSearchError;
   }
-  if (!res.ok) throw "fetch_failed" as FoodSearchError;
-  let json: unknown;
-  try {
-    json = await res.json();
-  } catch {
+  if (result.error) throw await classifyInvokeError(result.error);
+  if (
+    !isRecord(result.data) ||
+    result.data.provider !== "mfds_food" ||
+    !isRecord(result.data.data)
+  ) {
     throw "bad_response" as FoodSearchError;
   }
-  return parseFoodItems(json, opts.max);
+  return parseFoodItems(result.data.data, limit);
 }
