@@ -19,9 +19,19 @@ export type ParsedProviderBody =
   | { ok: true; data: unknown }
   | { ok: false; error: PublicDataUpstreamError; providerCode?: string };
 
+export type PublicDataRequestBodyErrorCode =
+  | "unsupported_media_type"
+  | "invalid_content_length"
+  | "request_body_too_large"
+  | "content_length_mismatch"
+  | "invalid_json"
+  | "duplicate_json_key"
+  | "json_too_deep";
+
 const FOOD_QUERY_MAX = 60;
 const FOOD_RESULT_MAX = 10;
 const FOOD_RESULT_DEFAULT = 10;
+const PROVIDER_CODE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$/;
 
 const SECRET_ENV: Record<PublicDataProvider, string> = {
   exim_fx: "EXIM_FX_API_KEY",
@@ -38,12 +48,273 @@ function hasOnlyKeys(value: Record<string, unknown>, allowed: readonly string[])
 }
 
 function normalizeFoodQuery(value: string): string {
-  const normalized = value
+  return value
     .normalize("NFKC")
     .replace(/[\u0000-\u001f\u007f-\u009f]/g, " ")
     .replace(/\s+/gu, " ")
     .trim();
-  return Array.from(normalized).slice(0, FOOD_QUERY_MAX).join("");
+}
+
+function hasWellFormedUtf16(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const codeUnit = value.charCodeAt(index);
+    if (codeUnit >= 0xd800 && codeUnit <= 0xdbff) {
+      if (index + 1 >= value.length) return false;
+      const next = value.charCodeAt(index + 1);
+      if (next < 0xdc00 || next > 0xdfff) return false;
+      index += 1;
+    } else if (codeUnit >= 0xdc00 && codeUnit <= 0xdfff) {
+      return false;
+    }
+  }
+  return true;
+}
+
+export class PublicDataRequestBodyError extends Error {
+  constructor(
+    public readonly code: PublicDataRequestBodyErrorCode,
+    public readonly status: 400 | 413 | 415,
+  ) {
+    super(code);
+    this.name = "PublicDataRequestBodyError";
+  }
+}
+
+class StrictJsonScanner {
+  private index = 0;
+
+  constructor(
+    private readonly source: string,
+    private readonly maxDepth: number,
+  ) {}
+
+  scan(): void {
+    this.skipWhitespace();
+    this.scanValue(0);
+    this.skipWhitespace();
+    if (this.index !== this.source.length) this.fail("invalid_json");
+  }
+
+  private scanValue(depth: number): void {
+    this.skipWhitespace();
+    const token = this.source[this.index];
+    if (token === "{") {
+      this.scanObject(depth + 1);
+      return;
+    }
+    if (token === "[") {
+      this.scanArray(depth + 1);
+      return;
+    }
+    if (token === '"') {
+      this.scanString();
+      return;
+    }
+    if (token === "t") {
+      this.scanLiteral("true");
+      return;
+    }
+    if (token === "f") {
+      this.scanLiteral("false");
+      return;
+    }
+    if (token === "n") {
+      this.scanLiteral("null");
+      return;
+    }
+    if (token === "-" || (token >= "0" && token <= "9")) {
+      this.scanNumber();
+      return;
+    }
+    this.fail("invalid_json");
+  }
+
+  private scanObject(depth: number): void {
+    this.assertDepth(depth);
+    this.index += 1;
+    this.skipWhitespace();
+    if (this.consume("}")) return;
+
+    const keys = new Set<string>();
+    while (true) {
+      if (this.source[this.index] !== '"') this.fail("invalid_json");
+      const key = this.scanString();
+      if (keys.has(key)) this.fail("duplicate_json_key");
+      keys.add(key);
+
+      this.skipWhitespace();
+      if (!this.consume(":")) this.fail("invalid_json");
+      this.scanValue(depth);
+      this.skipWhitespace();
+      if (this.consume("}")) return;
+      if (!this.consume(",")) this.fail("invalid_json");
+      this.skipWhitespace();
+    }
+  }
+
+  private scanArray(depth: number): void {
+    this.assertDepth(depth);
+    this.index += 1;
+    this.skipWhitespace();
+    if (this.consume("]")) return;
+
+    while (true) {
+      this.scanValue(depth);
+      this.skipWhitespace();
+      if (this.consume("]")) return;
+      if (!this.consume(",")) this.fail("invalid_json");
+      this.skipWhitespace();
+    }
+  }
+
+  private scanString(): string {
+    const start = this.index;
+    this.index += 1;
+    while (this.index < this.source.length) {
+      const token = this.source[this.index];
+      if (token === '"') {
+        this.index += 1;
+        let value: string;
+        try {
+          value = JSON.parse(this.source.slice(start, this.index)) as string;
+        } catch {
+          this.fail("invalid_json");
+        }
+        if (!hasWellFormedUtf16(value)) this.fail("invalid_json");
+        return value;
+      }
+      if (token === "\\") {
+        this.index += 1;
+        const escaped = this.source[this.index];
+        if (escaped === "u") {
+          const hex = this.source.slice(this.index + 1, this.index + 5);
+          if (!/^[0-9a-fA-F]{4}$/.test(hex)) this.fail("invalid_json");
+          this.index += 5;
+          continue;
+        }
+        if (!escaped || !'"\\/bfnrt'.includes(escaped)) this.fail("invalid_json");
+        this.index += 1;
+        continue;
+      }
+      if (token.charCodeAt(0) <= 0x1f) this.fail("invalid_json");
+      this.index += 1;
+    }
+    this.fail("invalid_json");
+  }
+
+  private scanNumber(): void {
+    const match = /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/.exec(
+      this.source.slice(this.index),
+    );
+    if (!match) this.fail("invalid_json");
+    this.index += match[0].length;
+  }
+
+  private scanLiteral(literal: "true" | "false" | "null"): void {
+    if (!this.source.startsWith(literal, this.index)) this.fail("invalid_json");
+    this.index += literal.length;
+  }
+
+  private assertDepth(depth: number): void {
+    if (depth > this.maxDepth) this.fail("json_too_deep");
+  }
+
+  private skipWhitespace(): void {
+    while (
+      this.source[this.index] === " " ||
+      this.source[this.index] === "\t" ||
+      this.source[this.index] === "\n" ||
+      this.source[this.index] === "\r"
+    ) {
+      this.index += 1;
+    }
+  }
+
+  private consume(token: string): boolean {
+    if (this.source[this.index] !== token) return false;
+    this.index += 1;
+    return true;
+  }
+
+  private fail(code: "invalid_json" | "duplicate_json_key" | "json_too_deep"): never {
+    throw new PublicDataRequestBodyError(code, 400);
+  }
+}
+
+function declaredRequestLength(request: Request, maxBytes: number): number | null {
+  const raw = request.headers.get("content-length");
+  if (raw === null) return null;
+  if (!/^(?:0|[1-9]\d*)$/.test(raw)) {
+    throw new PublicDataRequestBodyError("invalid_content_length", 400);
+  }
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value)) {
+    throw new PublicDataRequestBodyError("invalid_content_length", 400);
+  }
+  if (value > maxBytes) {
+    throw new PublicDataRequestBodyError("request_body_too_large", 413);
+  }
+  return value;
+}
+
+export async function readJsonRequestBounded(
+  request: Request,
+  maxBytes: number,
+  maxDepth: number,
+): Promise<unknown> {
+  const contentType = request.headers.get("content-type") ?? "";
+  if (!/^application\/json(?:\s*;\s*charset=(?:utf-8|"utf-8"))?$/i.test(contentType)) {
+    throw new PublicDataRequestBodyError("unsupported_media_type", 415);
+  }
+
+  const declared = declaredRequestLength(request, maxBytes);
+  if (!request.body) throw new PublicDataRequestBodyError("invalid_json", 400);
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel().catch(() => undefined);
+        throw new PublicDataRequestBodyError("request_body_too_large", 413);
+      }
+      chunks.push(value);
+    }
+  } catch (error) {
+    if (error instanceof PublicDataRequestBodyError) throw error;
+    throw new PublicDataRequestBodyError("invalid_json", 400);
+  } finally {
+    reader.releaseLock();
+  }
+
+  if (declared !== null && declared !== total) {
+    throw new PublicDataRequestBodyError("content_length_mismatch", 400);
+  }
+
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  let text: string;
+  try {
+    text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    throw new PublicDataRequestBodyError("invalid_json", 400);
+  }
+
+  new StrictJsonScanner(text, maxDepth).scan();
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    throw new PublicDataRequestBodyError("invalid_json", 400);
+  }
 }
 
 export function parsePublicDataRequest(value: unknown): ParsedRequest {
@@ -64,15 +335,20 @@ export function parsePublicDataRequest(value: unknown): ParsedRequest {
 
   const query = normalizeFoodQuery(value.query);
   if (query.length === 0) return { ok: false, error: "query_required" };
+  if (Array.from(query).length > FOOD_QUERY_MAX) {
+    return { ok: false, error: "invalid_request" };
+  }
 
   if (
     value.limit !== undefined &&
-    (typeof value.limit !== "number" || !Number.isFinite(value.limit))
+    (typeof value.limit !== "number" ||
+      !Number.isInteger(value.limit) ||
+      value.limit < 1 ||
+      value.limit > FOOD_RESULT_MAX)
   ) {
     return { ok: false, error: "invalid_request" };
   }
-  const requestedLimit = value.limit === undefined ? FOOD_RESULT_DEFAULT : Math.floor(value.limit);
-  const limit = Math.min(FOOD_RESULT_MAX, Math.max(1, requestedLimit));
+  const limit = value.limit === undefined ? FOOD_RESULT_DEFAULT : value.limit;
   return { ok: true, value: { provider: "mfds_food", query, limit } };
 }
 
@@ -110,7 +386,11 @@ function providerFailure(
   error: PublicDataUpstreamError,
   providerCode?: string,
 ): ParsedProviderBody {
-  return providerCode ? { ok: false, error, providerCode } : { ok: false, error };
+  const sanitizedProviderCode =
+    providerCode && PROVIDER_CODE_PATTERN.test(providerCode) ? providerCode : undefined;
+  return sanitizedProviderCode
+    ? { ok: false, error, providerCode: sanitizedProviderCode }
+    : { ok: false, error };
 }
 
 function mfdsFailureFromCode(code: string): ParsedProviderBody | null {

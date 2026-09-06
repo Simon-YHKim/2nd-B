@@ -1,10 +1,20 @@
 import {
+  PublicDataRequestBodyError,
   PublicDataProxyError,
   buildUpstreamUrl,
   parseProviderBody,
   parsePublicDataRequest,
+  readJsonRequestBounded,
   readTextBodyBounded,
 } from "../public-data-proxy";
+
+function jsonRequest(body: BodyInit, headers: Record<string, string> = {}): Request {
+  return new Request("https://example.test/functions/v1/public-data-proxy", {
+    method: "POST",
+    headers: { "content-type": "application/json; charset=utf-8", ...headers },
+    body,
+  });
+}
 
 describe("public-data proxy request contract", () => {
   test("accepts only the two fixed operations", () => {
@@ -31,26 +41,27 @@ describe("public-data proxy request contract", () => {
     }
   });
 
-  test("NFKC-normalizes, folds controls/whitespace, and clamps food queries", () => {
+  test("NFKC-normalizes and folds controls/whitespace in bounded food queries", () => {
     const normalized = parsePublicDataRequest({
       provider: "mfds_food",
       query: "\u3000ＡＢＣ\t\n라면\u0000  ",
-      limit: 999,
+      limit: 10,
     });
     expect(normalized).toEqual({
       ok: true,
       value: { provider: "mfds_food", query: "ABC 라면", limit: 10 },
     });
+  });
 
-    const clamped = parsePublicDataRequest({
-      provider: "mfds_food",
-      query: "가".repeat(80),
-      limit: -12,
-    });
-    expect(clamped).toEqual({
-      ok: true,
-      value: { provider: "mfds_food", query: "가".repeat(60), limit: 1 },
-    });
+  test("rejects oversized queries and out-of-range or fractional result limits", () => {
+    for (const request of [
+      { provider: "mfds_food", query: "가".repeat(61), limit: 10 },
+      { provider: "mfds_food", query: "사과", limit: 0 },
+      { provider: "mfds_food", query: "사과", limit: 11 },
+      { provider: "mfds_food", query: "사과", limit: 1.5 },
+    ]) {
+      expect(parsePublicDataRequest(request)).toEqual({ ok: false, error: "invalid_request" });
+    }
   });
 
   test("rejects an empty food query instead of turning it into a bulk-table read", () => {
@@ -58,6 +69,117 @@ describe("public-data proxy request contract", () => {
       ok: false,
       error: "query_required",
     });
+  });
+});
+
+describe("bounded public-data request reads", () => {
+  test("accepts a small JSON request with the exact media type", async () => {
+    await expect(
+      readJsonRequestBounded(jsonRequest('{"provider":"exim_fx"}'), 4096, 3),
+    ).resolves.toEqual({ provider: "exim_fx" });
+  });
+
+  test("rejects absent or ambiguous JSON content types before reading", async () => {
+    const missing = new Request("https://example.test/functions/v1/public-data-proxy", {
+      method: "POST",
+      body: '{"provider":"exim_fx"}',
+    });
+    const ambiguous = jsonRequest('{"provider":"exim_fx"}', {
+      "content-type": "application/json, text/plain",
+    });
+
+    for (const request of [missing, ambiguous]) {
+      await expect(readJsonRequestBounded(request, 4096, 3)).rejects.toMatchObject({
+        code: "unsupported_media_type",
+      });
+    }
+  });
+
+  test("rejects malformed, duplicate, and oversized Content-Length values", async () => {
+    for (const contentLength of ["22x", "+22", "22, 22", "4097"]) {
+      const request = jsonRequest('{"provider":"exim_fx"}', {
+        "content-length": contentLength,
+      });
+      await expect(readJsonRequestBounded(request, 4096, 3)).rejects.toBeInstanceOf(
+        PublicDataRequestBodyError,
+      );
+    }
+  });
+
+  test("enforces the actual streaming byte ceiling even without Content-Length", async () => {
+    const request = jsonRequest(
+      JSON.stringify({ provider: "mfds_food", query: "가".repeat(1400), limit: 10 }),
+    );
+    await expect(readJsonRequestBounded(request, 4096, 3)).rejects.toMatchObject({
+      code: "request_body_too_large",
+    });
+  });
+
+  test("rejects a declared/actual length mismatch", async () => {
+    const request = jsonRequest('{"provider":"exim_fx"}', { "content-length": "1" });
+    await expect(readJsonRequestBounded(request, 4096, 3)).rejects.toMatchObject({
+      code: "content_length_mismatch",
+    });
+  });
+
+  test("rejects malformed UTF-8 instead of accepting replacement characters", async () => {
+    const prefix = new TextEncoder().encode('{"provider":"mfds_food","query":"');
+    const suffix = new TextEncoder().encode('","limit":1}');
+    const body = new Uint8Array(prefix.byteLength + 2 + suffix.byteLength);
+    body.set(prefix, 0);
+    body.set([0xc3, 0x28], prefix.byteLength);
+    body.set(suffix, prefix.byteLength + 2);
+
+    await expect(readJsonRequestBounded(jsonRequest(body), 4096, 3)).rejects.toMatchObject({
+      code: "invalid_json",
+    });
+  });
+
+  test("rejects duplicate object keys instead of silently taking the last value", async () => {
+    for (const body of [
+      '{"provider":"mfds_food","query":"safe","query":"attacker","limit":1}',
+      '{"provider":"exim_fx","pro\\u0076ider":"mfds_food"}',
+    ]) {
+      await expect(readJsonRequestBounded(jsonRequest(body), 4096, 3)).rejects.toMatchObject({
+        code: "duplicate_json_key",
+      });
+    }
+  });
+
+  test("rejects escaped unpaired UTF-16 surrogates but accepts a valid pair", async () => {
+    for (const body of [
+      '{"provider":"mfds_food","query":"\\ud800","limit":1}',
+      '{"provider":"mfds_food","query":"\\udc00","limit":1}',
+    ]) {
+      await expect(readJsonRequestBounded(jsonRequest(body), 4096, 3)).rejects.toMatchObject({
+        code: "invalid_json",
+      });
+    }
+
+    await expect(
+      readJsonRequestBounded(
+        jsonRequest('{"provider":"mfds_food","query":"\\ud83d\\ude00","limit":1}'),
+        4096,
+        3,
+      ),
+    ).resolves.toEqual({ provider: "mfds_food", query: "😀", limit: 1 });
+  });
+
+  test("rejects deeply nested JSON before native JSON parsing", async () => {
+    const request = jsonRequest('{"provider":"exim_fx","a":{"b":{"c":{"d":1}}}}');
+    await expect(readJsonRequestBounded(request, 4096, 3)).rejects.toMatchObject({
+      code: "json_too_deep",
+    });
+  });
+
+  test("does not treat JSON punctuation inside a string as structure", async () => {
+    await expect(
+      readJsonRequestBounded(
+        jsonRequest('{"provider":"mfds_food","query":"{[still text]}","limit":1}'),
+        4096,
+        3,
+      ),
+    ).resolves.toEqual({ provider: "mfds_food", query: "{[still text]}", limit: 1 });
   });
 });
 
@@ -70,7 +192,7 @@ describe("fixed upstream URL construction", () => {
     expect(url.searchParams.get("data")).toBe("AP01");
   });
 
-  test("pins MFDS to the current Info02 operation and clamped search shape", () => {
+  test("pins MFDS to the current Info02 operation and bounded search shape", () => {
     const url = buildUpstreamUrl(
       { provider: "mfds_food", query: "사과", limit: 7 },
       "server-only-key",
@@ -114,6 +236,27 @@ describe("typed provider failures", () => {
       error: "provider_quota_exceeded",
       providerCode: "4",
     });
+  });
+
+  test("omits provider codes unless they have a short ASCII token shape", () => {
+    expect(parseProviderBody("exim_fx", JSON.stringify([{ result: "ERR_42" }]))).toEqual({
+      ok: false,
+      error: "provider_rejected",
+      providerCode: "ERR_42",
+    });
+
+    for (const providerCode of [
+      "x".repeat(33),
+      "bad code",
+      "bad/code",
+      "line\nbreak",
+      "\ud800",
+    ]) {
+      expect(parseProviderBody("exim_fx", JSON.stringify([{ result: providerCode }]))).toEqual({
+        ok: false,
+        error: "provider_rejected",
+      });
+    }
   });
 
   test("accepts the current MFDS Info02 success envelope and Eximbank rows", () => {

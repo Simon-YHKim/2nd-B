@@ -10,6 +10,10 @@ const SHARED = readFileSync(
   join(ROOT, "supabase", "functions", "_shared", "public-data-proxy.ts"),
   "utf8",
 );
+const COMMON = readFileSync(
+  join(ROOT, "supabase", "functions", "_shared", "llm-proxy-common.ts"),
+  "utf8",
+);
 const CONFIG = readFileSync(join(ROOT, "supabase", "config.toml"), "utf8");
 function stripComments(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:])\/\/.*$/gm, "$1");
@@ -17,8 +21,16 @@ function stripComments(source: string): string {
 
 const code = stripComments(EDGE);
 const sharedCode = stripComments(SHARED);
+const commonCode = stripComments(COMMON);
 
 describe("public-data-proxy adversarial boundary", () => {
+  test("rejects non-POST methods and never reflects an untrusted Origin", () => {
+    expect(code).toMatch(/req\.method\s*!==\s*["']POST["'][\s\S]*?method_not_allowed[\s\S]*?405/);
+    expect(code).toMatch(/req\.method\s*===\s*["']OPTIONS["'][\s\S]*?corsPreflight\(req\)/);
+    expect(commonCode).toMatch(/if\s*\(ALLOWED_ORIGINS\.has\(origin\)\)/);
+    expect(commonCode).not.toMatch(/access-control-allow-origin["']?\s*[:=]\s*["']\*["']/i);
+  });
+
   test("requires a gateway-verified, signed-in user", () => {
     expect(CONFIG).toMatch(/\[functions\.public-data-proxy\][\s\S]*?verify_jwt\s*=\s*true/);
     expect(code).toMatch(/userIdFromJwt\(authHeader\)/);
@@ -47,6 +59,23 @@ describe("public-data-proxy adversarial boundary", () => {
     expect(code).toMatch(/quotaAllowed !== true[\s\S]*?["']proxy_quota_exceeded["'][\s\S]*?429/);
     expect(code).not.toMatch(/new\s+(Map|Set)\s*</);
     expect(code).not.toMatch(/in.?memory/i);
+  });
+
+  test("bounds and strictly parses the request before secrets, quota, or upstream dispatch", () => {
+    const bodyAt = code.indexOf("readJsonRequestBounded(req, MAX_REQUEST_BYTES, MAX_JSON_DEPTH)");
+    const schemaAt = code.indexOf("parsePublicDataRequest(body)");
+    const secretAt = code.indexOf("providerSecretEnv(request.provider)");
+    const quotaAt = code.search(/rpc\(["']consume_public_data_quota["']/);
+    const fetchAt = code.indexOf("await fetch(");
+
+    expect(code).not.toMatch(/req\.json\(\)/);
+    expect(bodyAt).toBeGreaterThan(-1);
+    expect(schemaAt).toBeGreaterThan(bodyAt);
+    expect(secretAt).toBeGreaterThan(schemaAt);
+    expect(quotaAt).toBeGreaterThan(secretAt);
+    expect(fetchAt).toBeGreaterThan(quotaAt);
+    expect(code).toMatch(/MAX_REQUEST_BYTES\s*=\s*4096/);
+    expect(code).toMatch(/PublicDataRequestBodyError/);
   });
 
   test("blocks redirects, aborts in 5-8 seconds, and bounds bytes before JSON parsing", () => {
