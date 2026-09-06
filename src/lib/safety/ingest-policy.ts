@@ -21,6 +21,14 @@
 import { classifyInput } from "./classifier";
 import type { Locale } from "./lexicon";
 
+/**
+ * Tag written onto a quarantined clip so downstream surfaces (ambient
+ * resurfacing, digests) can hold it back and a human can find it later.
+ * Prefixed like the other machine tags (`domain:`) so it never collides with a
+ * user hashtag.
+ */
+export const INGEST_QUARANTINE_TAG = "safety:review";
+
 export type IngestPolicyAction = "allow" | "quarantine";
 
 export interface IngestPolicyResult {
