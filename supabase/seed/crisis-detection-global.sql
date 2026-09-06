@@ -156,7 +156,7 @@ values
   ),
   (
     'Evaluation of alignment between large language models and expert clinicians in suicide risk assessment',
-    ARRAY['Ryan K. McBain','Jonathan H. Cantor','Li Ang Zhang','Olesya Baker','Fang Zhang','Aaron Burnett','Aaron Kofner','Joshua Breslau','Bradley D. Stein','Ateev Mehrotra','Hao Yu'],
+    ARRAY['Ryan K. McBain','Jonathan H. Cantor','Li Ang Zhang','Olesya Baker','Fang Zhang','Alyssa Burnett','Aaron Kofner','Joshua Breslau','Bradley D. Stein','Ateev Mehrotra','Hao Yu'],
     '10.1176/appi.ps.20250086',
     'https://doi.org/10.1176/appi.ps.20250086',
     'crisis_detection_global',
