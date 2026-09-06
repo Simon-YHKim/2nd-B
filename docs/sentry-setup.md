@@ -7,7 +7,7 @@
 
 | 항목 | 현재 사실 |
 |---|---|
-| 설치된 SDK | `@sentry/browser ^10.56.0`, `@sentry/react-native ~7.11.0`이 의존성에 남아 있다. |
+| 설치된 SDK | `@sentry/react-native ~7.11.0`만 의존성에 남아 있다. `@sentry/browser`는 import 0건이라 2026-09-05에 제거했다(JS 전용이라 fingerprint 무관). |
 | Web 초기화 | `src/lib/analytics/index.ts`에 SDK import와 `Sentry.init` 경로가 없다. |
 | Native 초기화 | `src/app/_layout.tsx`에 SDK require와 초기화 경로가 없다. |
 | DSN | `src/lib/env.ts`가 기존 환경 키를 파싱하지만, 앱 런타임은 이를 Sentry 초기화에 사용하지 않는다. |
