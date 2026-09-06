@@ -1,4 +1,4 @@
--- 0147: log_ai_audit accepts 'xai' as a reasoning vendor.
+-- 0148: log_ai_audit accepts 'xai' as a reasoning vendor.
 --
 -- WHY: 0095's vendor allowlist was written when three proxies existed
 -- (gemini, claude, openai). xai-proxy joined on 2026-08-21 (#1317, Simon:
