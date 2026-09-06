@@ -303,15 +303,11 @@ jobs:
           const allowedServerOnlyByChannel = {
             preview: new Set([
               "EXPO_PUBLIC_CLARITY_PROJECT_ID",
-              "EXPO_PUBLIC_EXIM_FX_KEY",
               "EXPO_PUBLIC_GA4_MEASUREMENT_ID",
-              "EXPO_PUBLIC_MFDS_FOOD_KEY",
             ]),
             production: new Set([
               "EXPO_PUBLIC_CLARITY_PROJECT_ID",
-              "EXPO_PUBLIC_EXIM_FX_KEY",
               "EXPO_PUBLIC_GA4_MEASUREMENT_ID",
-              "EXPO_PUBLIC_MFDS_FOOD_KEY",
               "EXPO_PUBLIC_SENTRY_DSN",
             ]),
           };

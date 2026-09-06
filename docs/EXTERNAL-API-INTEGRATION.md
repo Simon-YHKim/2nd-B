@@ -1,31 +1,42 @@
 # 작업지시서 — 외부 API 연동 (Claude Code 인계)
 
 > 작성: Cowork 세션 / 2026-06-26 KST · repo `Simon-YHKim/2nd-B` (main) · Supabase ref `zoacryukmdeivmolvyhj`
-> 목적: 외부 API "키/시크릿 프로비저닝"은 콘솔에서 완료됨. 이제 **이 키들을 쓰는 코드(엣지 함수·프록시)와 배포**가 남았음. 아래가 현재 상태 + 해야 할 코드 작업.
+> 목적: 외부 API 자격증명의 보관 위치와 안전한 배포 순서를 기록한다. 값은 이 문서, GitHub,
+> EAS, 빌드 로그에 적지 않는다.
 >
-> 상태: **프로비저닝 DONE / 코드 TODO** — 다음 세션이 B 섹션부터 착수.
+> 상태: `public-data-proxy`와 클라이언트 호출 경로는 구현됨. 운영 마이그레이션 적용,
+> Edge Function 배포, 스모크 테스트와 레거시 변수 회수는 아직 별도 승인과 실행 증거가 필요하다.
+> 현재 통합 브랜치는 이 선행 증거가 없어 **비배포 상태**다.
 
 ---
 
-## A. 이미 완료된 프로비저닝 (콘솔/저장소) — 코드에서 "있다고 가정" 가능
+## A. 자격증명 보관 계약
 
 ### GitHub Variables (공개값, 빌드 시 EXPO_PUBLIC_* 로 번들에 인라인)
 | 이름 | 값/비고 |
 |---|---|
-| `EXPO_PUBLIC_EXIM_FX_KEY` | 수출입은행 현재환율 authkey. **표본 호출 성공 확인됨.** |
-| `EXPO_PUBLIC_NAVER_CLIENT_ID` | `A1Su7C7EgyR49be6V4rT` (네이버 앱 Client ID, 공개) |
-| `EXPO_PUBLIC_MFDS_FOOD_KEY` | data.go.kr serviceKey(64자 hex). **활용신청 승인됨, 게이트웨이 활성화 대기**(수십분~수시간 후 유효) |
+| `EXPO_PUBLIC_NAVER_CLIENT_ID` | 네이버 앱 Client ID. 값은 GitHub 설정에서만 관리한다. |
 | `EXPO_PUBLIC_ENABLE_KAKAO` | `true` |
 | `EXPO_PUBLIC_ENABLE_NAVER` | **미설정(=OFF). oauth-naver 엣지함수 배포 + 네이버 콘솔 콜백 확인 전까지 절대 켜지 말 것** (과거 콘솔 미완 + ON → raw JSON 에러 전례) |
+
+환율·식품 API 자격증명은 클라이언트 공개값이 아니다. 레거시
+`EXPO_PUBLIC_EXIM_FX_KEY`, `EXPO_PUBLIC_MFDS_FOOD_KEY`를 새 빌드에 전달하거나 다시
+등록하지 않는다.
 
 ### GitHub Secrets
 - `EXPO_TOKEN` — 기존 등록·검증됨(EAS Update OTA용).
 
-### Supabase Edge Function Secrets (서버측, 콘솔에 저장 완료)
+### Supabase Edge Function Secrets (서버측 전용)
 - `KAKAO_REST_API_KEY` — 카카오 REST 키(Local 키워드 장소검색용)
 - `NAVER_OAUTH_CLIENT_SECRET` — 네이버 로그인용 secret
-- `NAVER_SEARCH_CLIENT_ID` = `A1Su7C7EgyR49be6V4rT`
+- `NAVER_SEARCH_CLIENT_ID` — 네이버 검색용 Client ID
 - `NAVER_SEARCH_CLIENT_SECRET` — 네이버 검색용 secret (단일 앱이라 OAUTH secret과 동일 값)
+- `EXIM_FX_API_KEY` — 한국수출입은행 환율 API 서버 전용 키
+- `MFDS_FOOD_API_KEY` — 식약처 식품영양 API 서버 전용 키
+
+운영 환경에 이미 있다는 가정은 금지한다. 시크릿의 존재 여부만 확인하고 값을 출력하지
+않는다. 두 공개데이터 서버 키는 GitHub
+Variables, EAS environment, `EXPO_PUBLIC_*` 이름으로 복제하지 않는다.
 
 ### Supabase Auth
 - **Kakao provider 활성화 완료** (REST 키=client id, 클라이언트 시크릿=secret). 앱은 `supabase.auth.signInWithOAuth({ provider: 'kakao' })`로 호출하면 됨. 콜백 `https://zoacryukmdeivmolvyhj.supabase.co/auth/v1/callback` 카카오에 등록됨.
@@ -53,36 +64,75 @@
 - 프로필 `GET https://openapi.naver.com/v1/nid/me` → Supabase 세션 연결(자체 사용자 매핑).
 - **배포 완료 후에만** `EXPO_PUBLIC_ENABLE_NAVER=true` 설정(내가/Simon). state·CSRF 검증 필수.
 
-### 3. FX edge proxy 하드닝 (수출입은행)
-- `GET https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON?authkey=${KEY}&data=AP01`
-- 주말/장 시작 전엔 빈 배열 가능 → graceful 처리.
-- **하드닝**: 현재 키가 공개 Variable(`EXPO_PUBLIC_EXIM_FX_KEY`)이라 웹 번들 노출됨. 엣지 프록시로 옮기고 **키를 Supabase Secret(`EXIM_FX_KEY`)으로 이전** 후 public Variable 제거 권장(CLAUDE.md: 진짜 키는 EXPO_PUBLIC_ 금지).
+### 3. 공개데이터 프록시 (구현 완료, 운영 배포 전)
 
-### 4. 식약처(MFDS) food nutrition edge proxy
-- ⚠️ **올바른 엔드포인트는 `02`**: `https://apis.data.go.kr/1471000/FoodNtrCpntDbInfo02/getFoodNtrCpntDbInq02`
-  (작업지침 원문의 `...Info01/...Inq01`은 틀림 — 콘솔 상세의 End Point가 `FoodNtrCpntDbInfo02`)
-- params: `serviceKey`(=`EXPO_PUBLIC_MFDS_FOOD_KEY`), `type=json`, `pageNo`, `numOfRows`, 음식명 검색파라미터. **02 버전 정확한 파라미터명은 참고문서 `출력메세지_식품영양성분DB정보.xlsx` 확인**(01의 `FOOD_NM_KR`과 다를 수 있음).
-- 키 활성화 대기 중 — 활성화 후 `numOfRows=1` 표본으로 검증. "Unauthorized"=아직 미활성.
-- **하드닝**: FX와 동일하게 키를 Supabase Secret(`MFDS_FOOD_KEY`)로 이전 + 프록시화 권장.
+`supabase/functions/public-data-proxy` 하나가 두 provider를 처리한다.
+
+- `exim_fx`: 한국수출입은행 현재환율 `AP01`
+- `mfds_food`: 식약처 `FoodNtrCpntDbInfo02/getFoodNtrCpntDbInq02`
+- 앱은 로그인 세션으로 `functions.invoke("public-data-proxy")`만 호출한다. 공급자 URL이나
+  키를 직접 호출하는 폴백은 없다.
+- `supabase/config.toml`의 `verify_jwt = true`와 함수의 사용자 ID 추출을 모두 통과해야 한다.
+- 함수는 공급자 키 누락, Supabase 환경 누락, 쿼터 RPC 오류를 `503`으로 닫는다. 사용자 또는
+  공급자 일일 한도 도달은 `429`, 공급자 오류·잘못된 응답은 `502` 또는 `429`로 정규화한다.
+- 사용자 일일 상한은 `exim_fx=20`, `mfds_food=50`; 공급자 전체 상한은 각각 UTC 일자당
+  `900`이다. 공급자 전체 상한은 클라이언트 인자로 올릴 수 없다.
+- upstream timeout은 7초, redirect는 차단, 응답 본문은 256 KiB로 제한한다.
+
+쿼터 계약은 `db/migrations/0171_public_data_quota.sql`에 최종 번호로 확정됐다.
+코드 통합은 완료됐지만 운영 적용 증거가 없으므로, 아래 선행 순서가 끝나기 전에는
+`public-data-proxy`나 프록시 전용 클라이언트를 배포하지 않는다.
 
 ### 5. 앱 측 토글/통합
 - Kakao 로그인 버튼: `EXPO_PUBLIC_ENABLE_KAKAO`로 게이팅(이미 true), `signInWithOAuth({provider:'kakao'})`.
 - Naver 로그인 버튼: `EXPO_PUBLIC_ENABLE_NAVER`로 게이팅(OFF 유지 → 2번 배포 후 ON).
-- places-search / FX / 식약처: 각 엣지함수 호출 래퍼.
+- places-search: 전용 엣지함수 호출 래퍼.
+- FX / 식약처: 인증된 `public-data-proxy` 호출. 공개 키가 없거나 프록시가 실패해도 공급자에
+  직접 요청하지 않는다.
 
 ---
 
 ## C. 제약·체크리스트 (CLAUDE.md 준수)
 - 시크릿 하드코딩 금지 → `.env`/Supabase Secret/Deno.env. `.env`는 `.gitignore`.
-- **EXPO_PUBLIC_*에 진짜 시크릿 금지** → FX/MFDS 키 하드닝(프록시+Secret 이전)이 그 일환.
+- **EXPO_PUBLIC_*에 진짜 시크릿 금지** → FX/MFDS 키는 Supabase server secret에만 둔다.
 - 어휘정책: 임상/의료 표현 금지(places는 비임상 길안내). 식약처는 식품영양 데이터(비임상) OK.
 - 프로덕션 기능엔 테스트 동반(엣지함수 단위테스트), push 전 `npm run verify` 통과.
 - main 직접 push 금지 → 브랜치+PR, `verify`(CI) 통과 후 머지. (현재 branch protection: main에 verify required)
 - 라이브 검증 사이클은 허브 PROTOCOL 따름.
 
-## D. 적용(배포) 순서
-1. Simon: 네이버 콘솔 Callback URL 2개 확인 / 식약처 키 활성화 대기.
-2. Claude Code: 위 1~5 엣지함수·프록시 작성 + 테스트 → 브랜치 PR → `verify` 통과 → main 머지.
-3. 머지 후: 웹배포/EAS Update OTA 워크플로 실행 → `EXPO_PUBLIC_*` 값이 번들에 반영.
-4. oauth-naver 배포 확인되면 `EXPO_PUBLIC_ENABLE_NAVER=true`.
-5. 라이브에서 카카오/네이버 로그인 · 장소검색 · 환율 · 식품영양 동작 확인.
+## D. 공개데이터 운영 적용 순서
+
+순서를 바꾸지 않는다. 서버 활성화와 운영 변경은 콘솔 소유자만 수행한다.
+
+1. 명시적 운영 승인을 받은 콘솔 소유자가 `db/migrations/0171_public_data_quota.sql`을
+   먼저 적용한다. 두 원장 테이블의 RLS/FORCE RLS, RPC의 `service_role` 전용 EXECUTE,
+   사용자·공급자 상한과 `public_data_quota_regression.sql` 결과를 확인한다.
+2. 0171 적용이 확인된 뒤 Supabase server secret `EXIM_FX_API_KEY`,
+   `MFDS_FOOD_API_KEY`에 공급자 키를 입력한다. 값은 명령 출력, 로그, 캡처, 채팅,
+   문서에 남기지 않고 이름과 성공/실패 상태만 기록한다.
+3. 콘솔 소유자가 `public-data-proxy`를 `verify_jwt=true`로 배포한다.
+4. 로그인 테스트 계정으로 `exim_fx`, `mfds_food` 성공 응답을 각각 스모크한다. 함께
+   무인증 `401`, 허용되지 않은 provider `400`, 쿼터/RPC 불가 시 `429`/`503`
+   fail-closed도 확인한다.
+5. 프록시 스모크 증거와 별도 릴리스 승인이 모두 확보된 뒤 프록시 전용
+   클라이언트·workflow 변경을 릴리스하고, 새 빌드가 공급자 직접 호출이나 공개데이터
+   `EXPO_PUBLIC_*` 키를 사용하지 않음을 확인한다.
+6. **별도 명시 승인 후에만** GitHub repository Variables와 EAS preview/production
+   environment에 남은 레거시 `EXPO_PUBLIC_EXIM_FX_KEY`,
+   `EXPO_PUBLIC_MFDS_FOOD_KEY`를 제거한다. 자동 삭제하지 않으며 각 환경에서 이름의
+   부재만 기록한다.
+7. 같은 승인 범위에서 노출 이력이 있는 두 공급자 키를 모두 rotation하고, 새 값은 오직
+   같은 이름의 Supabase server secret에 비노출 방식으로 입력한다. 두 provider를 다시
+   스모크하고 이전 키가 무효화됐다는 상태만 기록한다.
+
+## E. 중단·롤백 원칙
+
+- 1~4단계 중 하나라도 실패하면 클라이언트 릴리스, 레거시 변수 제거와 키 rotation을 중단한다.
+- 6~7단계는 명시 승인 없이는 시작하지 않는다. EAS 동기화 workflow도 서버 전용 이름을
+  자동 삭제하거나 rotation하지 않는다.
+- 새 클라이언트는 프록시 오류 시 직접 공급자 호출로 우회하지 않는다. 쿼터 RPC 부재/오류,
+  server secret 누락, 인증 실패는 의도적으로 fail-closed다.
+- 함수 배포 후 문제가 생기면 마지막 검증된 함수·클라이언트 버전으로 되돌리거나 수정
+  버전을 재배포한다. 긴급 복구를 이유로 서버 키를 `EXPO_PUBLIC_*`에 다시 넣지 않는다.
+- 레거시 변수 제거 또는 rotation 뒤 문제가 생겨도 회수한 키를 공개 빌드 환경에 복원하지
+  않는다. 서버 경로를 고치고 다시 스모크한 뒤 별도 릴리스 승인을 받는다.

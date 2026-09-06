@@ -11,7 +11,9 @@
 - 공개 client id나 project id를 등록하는 작업은 각 활성 기능의 최신 runbook을 먼저 확인한다.
   Sentry DSN·Clarity id·PostHog key는 이 문서로 등록하지 않는다.
 - **OAuth Client Secret은 Supabase 대시보드에만** 입력. **절대 GitHub·채팅에 남기지 않는다.**
-- DSN/anon 키는 클라이언트-공개값. 단 **EXIM/MFDS 정부 API 키는 저민감이지만 웹 번들에 인라인되는 자격증명** — 공개데이터 키로 취급, 남용 시 재발급. (하드닝 경로: Supabase Secret + 엣지 프록시, docs/EXTERNAL-API-INTEGRATION.md.)
+- DSN/anon 키는 클라이언트-공개값. **EXIM/MFDS 정부 API 키는 Supabase server secret**이며
+  GitHub Variables, EAS environment, `EXPO_PUBLIC_*`, 로그나 채팅에 값을 넣지 않는다.
+  정본 배포 순서는 `docs/EXTERNAL-API-INTEGRATION.md`를 따른다.
 - GitHub Variables 등록은 **저장소 Admin 권한** 필요. "New variable" 버튼이 없으면 권한/계정 문제 → STOP·보고. (Actions 비활성 시 Variables 탭이 없을 수 있음 → Settings → Actions → General 확인.)
 - 비밀번호/2FA는 직접 입력하지 말고 사용자에게 넘긴다. 다른 계정 로그인 시 STOP·보고.
 - 모든 작업은 **웹 빌드** 기준. **폰(네이티브) 앱은 별도**(개발자가 eas.json + native client ID + `secondbrain://` 반영 후 APK 재빌드) — 이 프롬프트로는 폰 로그인이 동작하지 않음. **보고서에 "WEB only — 폰 앱 미반영" 명시.**
@@ -90,36 +92,75 @@
 
 ---
 
-## 프롬프트 3 — 정부 무료 API (환율 · 식약처 식품)
+## 프롬프트 3 — 정부 무료 API 서버 프록시 롤아웃 (환율 · 식약처 식품)
 
 ```
-[작업] data.go.kr에서 환율·식품 API 활용신청 + 키를 GitHub Variable 등록.
-승인이 자동(즉시)일 수도, 수동 심의(1~3 영업일)일 수도 있음 — 무한 새로고침 금지.
-"WEB only — 폰 앱 미반영" 명시.
+[작업] 환율·식품 API 키를 Supabase server secret으로 프로비저닝하고, 인증된
+public-data-proxy를 순서대로 롤아웃한다. 실제 키 값은 화면 캡처·채팅·로그·보고서에 남기지 않는다.
+GitHub Variable이나 EAS environment에 공개데이터 키를 추가하지 않는다.
+현재 통합은 운영 적용·server secret 입력·console 배포·스모크 증거가 없는 **비배포 상태**다.
 
 # Phase 0 — 감사
-1. GitHub Variables에서 EXPO_PUBLIC_EXIM_FX_KEY, EXPO_PUBLIC_MFDS_FOOD_KEY 존재 확인. 있으면 skip.
+1. repo의 public-data-proxy, verify_jwt=true, 클라이언트 functions.invoke 경로와 관련 테스트를 확인.
+2. 최종 `db/migrations/0171_public_data_quota.sql`과 회귀 테스트를 확인한다. 운영 적용
+   증거가 없으면 proxy·클라이언트 배포를 중단 상태로 유지한다.
+3. Supabase Edge Function Secrets에서 EXIM_FX_API_KEY, MFDS_FOOD_API_KEY의 존재 여부만
+   읽기 전용으로 확인한다. 값 열람·출력 금지. 실제 입력은 0171 적용 뒤 Phase 1에서만 한다.
+4. GitHub repository Variables와 EAS preview/production environment에 레거시
+   EXPO_PUBLIC_EXIM_FX_KEY, EXPO_PUBLIC_MFDS_FOOD_KEY가 남았는지 이름만 읽기 전용 감사.
+   이 단계에서는 삭제하지 않음.
 
 # 환율 (한국수출입은행)
-2. data.go.kr 로그인 → "한국수출입은행 환율" 검색 → 오픈API 활용신청.
-3. 신청 후 상태 확인:
+5. data.go.kr 로그인 → "한국수출입은행 환율" 검색 → 오픈API 활용신청.
+6. 신청 후 상태 확인:
    - "승인"(자동) → 마이페이지 → 데이터활용 → 오픈API → 개발계정 상세에서 일반 인증키 복사.
    - "신청/심의중" → STOP, [대기]로 보고(무한 새로고침 금지).
-4. GitHub Variables: EXPO_PUBLIC_EXIM_FX_KEY = 그 키.
-   ★주의: 이 API 실제 호출 도메인은 oapi.koreaexim.go.kr이며, 일부 구성에선 koreaexim.go.kr
-   오픈API 페이지 발급 authkey가 필요. 첫 호출 인증오류 시 koreaexim.go.kr 키로 같은 Variable 갱신.
+7. 승인·발급 상태만 확인하고 콘솔 소유자에게 Phase 1 입력을 인계한다. 키 값은 복사한
+   화면, 명령 출력, 채팅이나 보고에 남기지 않으며 아직 GitHub/EAS에는 등록하지 않는다.
 
 # 식약처 식품영양
-5. data.go.kr → "식품영양성분 데이터베이스"(식약처) 검색 → 활용신청.
-6. 상태 확인:
-   - "승인" → 마이페이지 개발계정에서 인증키 복사 → EXPO_PUBLIC_MFDS_FOOD_KEY 등록.
-   - "신청/심의" → 등록 말고 STOP, [대기]로 보고("승인 메일 후 Variable 등록만 마저").
+8. data.go.kr → "식품영양성분 데이터베이스"(식약처) 검색 → 활용신청.
+9. 상태 확인:
+   - "승인" → 마이페이지 개발계정에서 인증키 확인.
+   - "신청/심의" → 저장하지 말고 STOP, [대기]로 보고.
+10. 승인·발급 상태만 확인하고 콘솔 소유자에게 Phase 1 입력을 인계한다. 값은 출력하지
+    않고 아직 GitHub/EAS에는 등록하지 않는다.
 
-# 보고: 각 API 상태(즉시승인/대기) + 등록 Variable 목록.
+# Phase 1 — 서버 선적용 (순서 고정)
+11. 명시적 운영 승인을 받은 콘솔 소유자가 0171 migration을 먼저 적용하고
+    public_data_quota_regression.sql, RLS/FORCE RLS, service_role 전용 RPC 권한과
+    사용자·공급자 일일 상한을 확인.
+12. 0171 적용 성공 뒤 EXIM_FX_API_KEY, MFDS_FOOD_API_KEY 값을 Supabase server secret에
+    비노출 방식으로 입력. 화면 캡처·명령 출력·로그·보고에는 이름과 성공 여부만 남김.
+13. 콘솔 소유자가 그 다음 public-data-proxy를 verify_jwt=true로 배포.
+14. 로그인 테스트 계정으로 exim_fx와 mfds_food를 각각 스모크. 무인증 401,
+    잘못된 provider 400, 쿼터/RPC 오류 429 또는 503 fail-closed도 확인.
+
+# Phase 2 — 클라이언트 릴리스와 레거시 자격증명 회수
+15. 스모크 성공 증거와 별도 릴리스 승인이 있을 때만 프록시 전용 클라이언트와 workflow를 릴리스.
+16. 새 빌드가 공급자 직접 호출이나 EXPO_PUBLIC 공개데이터 키를 사용하지 않음을 확인.
+17. **별도 명시 승인 후에만** GitHub repository Variables와 EAS preview/production
+    environment에서 레거시 EXPO_PUBLIC_EXIM_FX_KEY, EXPO_PUBLIC_MFDS_FOOD_KEY를 제거.
+    자동 삭제하지 않으며 각 환경에서 이름의 부재만 확인.
+18. 같은 승인 범위에서 두 공급자 키를 모두 rotation하고, 새 값은 Supabase의
+    EXIM_FX_API_KEY, MFDS_FOOD_API_KEY에만 비노출 입력. 두 provider를 다시 스모크하고
+    이전 키 무효화 상태만 기록.
+
+# 중단/롤백
+- 11~14 중 하나라도 실패하면 릴리스, 레거시 변수 제거와 키 rotation을 중단. 새 클라이언트는
+  직접 공급자 호출로 우회하지 않으며 proxy가 503/429로 닫히는 것이 정상.
+- 17~18은 명시 승인 없이 수행하지 않음. proxy 문제는 마지막 검증된 Edge Function/app
+  버전으로 롤백하거나 수정 버전을 재배포.
+- 긴급 복구나 rotation 실패를 이유로 server key를 EXPO_PUBLIC_*에 복원하지 않음.
+- 모든 보고는 키 이름, 존재 여부, 테스트 결과만 포함. 실제 값 금지.
+
+# 보고: 공급자 승인 상태, Supabase secret 존재 상태, 0171 적용 상태, proxy 배포/스모크 결과,
+# 레거시 repo/EAS 변수 회수와 두 키 rotation 여부. 실제 키 값은 생략.
 ```
 
 ---
 
 ## 등록 후 반영
-- 세 그룹 다 다음 **web-deploy** 재배포(Actions에서 web-deploy 재실행 또는 다음 main push) 시 웹에 반영.
-- 네이티브(폰): 위 값은 웹 빌드 전용. 폰 반영은 개발자가 eas.json + EAS 리빌드로 별도.
+- OAuth 공개 설정은 해당 릴리스 워크플로 계약을 따른다.
+- 환율·식품 키는 웹·네이티브 빌드에 반영하지 않는다. 두 플랫폼 모두 인증된
+  `public-data-proxy`를 호출하고, 실제 키는 Supabase Edge Function 런타임에만 존재한다.
