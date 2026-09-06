@@ -18,6 +18,11 @@ import {
   decodeBoundedUtf8Bytes,
   fetchBoundedLocalBytes,
 } from "../import/bounded-file-read";
+import {
+  leaseOwnedTempFile,
+  type OwnedTempFileLease,
+  type OwnedTempLeaseError,
+} from "../storage/owned-temp";
 import { ensurePdfWorker } from "./pdf-worker";
 
 export interface PickedFile {
@@ -27,6 +32,67 @@ export interface PickedFile {
   size: number;
   /** UTF-8 text read from the file. Null when extraction is unsupported (native PDF/DOCX) or failed. */
   textContent: string | null;
+}
+
+const pickedFileLeases = new WeakMap<PickedFile, OwnedTempFileLease>();
+const pickedFileReleases = new WeakMap<PickedFile, Promise<void>>();
+
+function safeCleanupFailureReason(
+  reason: unknown,
+): OwnedTempLeaseError | "unexpected_failure" {
+  switch (reason) {
+    case "unsupported_runtime":
+    case "filesystem_unavailable":
+    case "unsafe_target":
+    case "not_a_file":
+    case "inspect_failed":
+    case "target_changed":
+    case "delete_failed":
+    case "verification_failed":
+      return reason;
+    default:
+      return "unexpected_failure";
+  }
+}
+
+function warnCacheCopyCleanupFailure(reason: unknown): void {
+  if (typeof console !== "undefined") {
+    console.warn("[capture-file] cache copy cleanup failed", {
+      reason: safeCleanupFailureReason(reason),
+    });
+  }
+}
+
+async function acquireCacheCopyLease(uri: string): Promise<OwnedTempFileLease | null> {
+  try {
+    const result = await leaseOwnedTempFile(uri);
+    return result.ok ? result.lease : null;
+  } catch {
+    return null;
+  }
+}
+
+async function disposeCacheCopyLease(lease: OwnedTempFileLease | null): Promise<void> {
+  if (!lease) return;
+  try {
+    const result = await lease.dispose();
+    if (!result.ok) warnCacheCopyCleanupFailure(result.error);
+  } catch {
+    warnCacheCopyCleanupFailure("unexpected_failure");
+  }
+}
+
+/** Releases only the verified app-cache copy associated with this picker result. */
+export function releasePickedFile(file: PickedFile | null | undefined): Promise<void> {
+  if (!file) return Promise.resolve();
+  const pending = pickedFileReleases.get(file);
+  if (pending) return pending;
+
+  const lease = pickedFileLeases.get(file) ?? null;
+  pickedFileLeases.delete(file);
+  const release = disposeCacheCopyLease(lease);
+  pickedFileReleases.set(file, release);
+  return release;
 }
 
 const TEXT_MIMES = new Set([
@@ -215,17 +281,26 @@ export async function pickFile(): Promise<PickedFile | null> {
   const asset = res.assets?.[0];
   if (!asset) return null;
 
-  const mimeType = normalizeFileMimeType(asset.mimeType, asset.name);
-  const size = asset.size ?? 0;
-  const text = await extractText(asset.uri, mimeType, size);
-
-  return {
-    uri: asset.uri,
-    name: asset.name,
-    mimeType,
-    size,
-    textContent: text,
-  };
+  let lease = await acquireCacheCopyLease(asset.uri);
+  try {
+    const mimeType = normalizeFileMimeType(asset.mimeType, asset.name);
+    const size = asset.size ?? 0;
+    const text = await extractText(asset.uri, mimeType, size);
+    const pickedFile: PickedFile = {
+      uri: asset.uri,
+      name: asset.name,
+      mimeType,
+      size,
+      textContent: text,
+    };
+    if (lease) {
+      pickedFileLeases.set(pickedFile, lease);
+      lease = null;
+    }
+    return pickedFile;
+  } finally {
+    await disposeCacheCopyLease(lease);
+  }
 }
 
 /**
@@ -273,10 +348,20 @@ export async function pickImportFiles(): Promise<PickedImportFile[]> {
   });
   if (res.canceled) return [];
   const assets = res.assets ?? [];
-  if (assets.length > MAX_IMPORT_FILE_COUNT || !hasSafeDeclaredImportSize(assets)) return [];
+  // A malformed/oversized picker result must not turn cleanup into unbounded
+  // filesystem work. Prove ownership only for the same bounded prefix the
+  // importer accepts; any excess remains OS-cache managed and is never guessed
+  // from a provider/original URI.
+  const cleanupAssetCount = Math.min(assets.length, MAX_IMPORT_FILE_COUNT);
+  const leases = await Promise.all(
+    Array.from({ length: cleanupAssetCount }, (_, index) =>
+      acquireCacheCopyLease(assets[index].uri),
+    ),
+  );
 
   const out: PickedImportFile[] = [];
   try {
+    if (assets.length > MAX_IMPORT_FILE_COUNT || !hasSafeDeclaredImportSize(assets)) return [];
     return await runWithExtractionDeadline(async (deadline) => {
       let actualBytes = 0;
       let outputChars = 0;
@@ -318,6 +403,8 @@ export async function pickImportFiles(): Promise<PickedImportFile[]> {
     });
   } catch {
     return out;
+  } finally {
+    await Promise.all(leases.map((lease) => disposeCacheCopyLease(lease)));
   }
 }
 
