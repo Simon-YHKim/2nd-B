@@ -46,11 +46,11 @@ import {
   BRAIN_RANK,
   MAX_ASSEMBLED_LEN,
   MAX_USER_LEN,
-  PREMIUM_PURPOSES,
   SAFETY_PREAMBLE,
   TIER_RANK,
   UPSTREAM_DETAIL_TRUNCATE,
   auditUpstreamFailure,
+  clampLlmPurposeEffort,
   corsPreflight,
   dailyCapForRank,
   djb2,
@@ -58,7 +58,10 @@ import {
   isUsableHeaderValue,
   jsonResponse,
   normalizeResponseSchema,
+  requestMatchesLlmPurposeModality,
   resolveApiKey,
+  resolveLlmPurposePolicy,
+  type LlmPolicyModelTier,
   userIdFromJwt,
   utcDay,
 } from '../_shared/llm-proxy-common.ts';
@@ -96,10 +99,7 @@ const PURPOSE_MODEL: Record<string, string> = {
   secondb_chat: DEFAULT_XAI_MODEL,
 };
 
-// Same ladder and same vocabulary as the siblings. Do not change the words:
-// PURPOSE_EFFORT_MAX is a cross-proxy contract (none < low < medium < high < xhigh).
-const EFFORT_RANK: Record<string, number> = { none: 0, low: 1, medium: 2, high: 3, xhigh: 4 };
-
+// Vendor-local ceilings can only lower the shared purpose ceiling.
 const PURPOSE_EFFORT_MAX: Record<string, string> = {
   advisor: 'high',
   persona_narrative: 'high',
@@ -125,7 +125,17 @@ const PURPOSE_EFFORT_MAX: Record<string, string> = {
  * Identical to the sibling proxies so an operator does not have to remember a
  * different order per vendor.
  */
-function resolveModel(purpose: string): string {
+function serverModelForTier(modelTier: LlmPolicyModelTier): string | null {
+  // Only one xAI model has been provisioned and its cheaper families have not
+  // been verified. The logical tier is still enforced here: fixed/lite labels
+  // cannot silently inherit the frontier model. Flash/pro currently share the
+  // same server-owned model until a cheaper verified model is configured.
+  return modelTier === 'flash' || modelTier === 'pro' ? DEFAULT_XAI_MODEL : null;
+}
+
+function resolveModel(purpose: string, modelTier: LlmPolicyModelTier): string | null {
+  const baseline = serverModelForTier(modelTier);
+  if (!baseline) return null;
   const raw = (Deno.env.get('XAI_PURPOSE_MODELS') ?? '').trim();
   if (raw.length > 0) {
     try {
@@ -138,13 +148,7 @@ function resolveModel(purpose: string): string {
   }
   const global = (Deno.env.get('XAI_MODEL') ?? '').trim();
   if (global.length > 0) return global;
-  return PURPOSE_MODEL[purpose] ?? DEFAULT_XAI_MODEL;
-}
-
-function clampEffort(effort: string | null, purpose: string): string {
-  const requested = effort === 'max' ? 'xhigh' : effort && effort in EFFORT_RANK ? effort : 'high';
-  const ceiling = PURPOSE_EFFORT_MAX[purpose] ?? 'medium';
-  return EFFORT_RANK[requested] <= EFFORT_RANK[ceiling] ? requested : ceiling;
+  return PURPOSE_MODEL[purpose] ?? baseline;
 }
 
 // Output ceiling per clamped effort. Roomy for the same reason as the siblings:
@@ -235,6 +239,10 @@ Deno.serve(async (req: Request) => {
   const purpose: string | null = typeof body?.purpose === 'string' ? body.purpose : null;
   const effort: string | null = typeof body?.effort === 'string' ? body.effort : null;
   const responseSchema = normalizeResponseSchema(body?.responseSchema);
+  const purposePolicy = resolveLlmPurposePolicy(purpose, 'xai');
+  if (!purpose || !purposePolicy) {
+    return jsonResponse(req, { error: 'purpose_not_seated', purpose: purpose ?? null }, 400);
+  }
 
   // This proxy has no image or audio path. Refusing the payload is better than
   // silently dropping it: a caller that attached a photo and got a confident
@@ -244,6 +252,9 @@ Deno.serve(async (req: Request) => {
   if ((body?.image && typeof body.image === 'object') || (body?.audio && typeof body.audio === 'object')) {
     return jsonResponse(req, { error: 'attachment_not_supported', vendor: 'xai' }, 415);
   }
+  if (!requestMatchesLlmPurposeModality(purposePolicy, 'text')) {
+    return jsonResponse(req, { error: 'purpose_modality_mismatch' }, 400);
+  }
 
   if (userText.length === 0) return jsonResponse(req, { error: 'user_required' }, 400);
   if (userText.length > MAX_USER_LEN) {
@@ -251,17 +262,6 @@ Deno.serve(async (req: Request) => {
   }
   if (systemText && systemText.length > MAX_ASSEMBLED_LEN) {
     return jsonResponse(req, { error: 'system_too_long', max: MAX_ASSEMBLED_LEN, got: systemText.length }, 413);
-  }
-
-  // Purpose allowlist -- this proxy serves EXACTLY its seats, and rejects
-  // everything else before the tier lookup and any paid call, so a tampered
-  // client cannot use XAI_API_KEY as a generic completion source.
-  //
-  // hasOwnProperty, NOT `in`: `in` walks the prototype chain, so 'toString' /
-  // 'constructor' / '__proto__' passed the same gate in openai-proxy, and
-  // resolveModel then returned the inherited FUNCTION as the model. Own-key.
-  if (!purpose || !Object.prototype.hasOwnProperty.call(PURPOSE_MODEL, purpose)) {
-    return jsonResponse(req, { error: 'purpose_not_seated', purpose: purpose ?? null }, 400);
   }
 
   // R1-A: server-side crisis classifier, before any paid call. Scans ONLY the
@@ -275,24 +275,45 @@ Deno.serve(async (req: Request) => {
   }
 
   // EFFECTIVE tier (0088), not the raw column: the raw one stays 'brain' after
-  // expiry until the cancel webhook lands. Fail open on a lookup ERROR -- the
-  // daily cap still bounds cost.
+  // expiry until the cancel webhook lands. The lookup also selects the daily
+  // cap, so an error or unknown tier fails closed for every xAI seat.
   let tierRank: number | null = null;
+  let tierLookupFailed = false;
   {
     const { data: effTier, error: tierErr } = await supabaseAdmin.rpc(
       'effective_subscription_tier',
       { p_user_id: userId },
     );
     if (tierErr) {
+      tierLookupFailed = true;
       console.error('[xai-proxy] effective-tier lookup failed:', tierErr.message ?? String(tierErr));
     } else {
-      const t = (effTier as string | null) ?? 'free';
-      tierRank = TIER_RANK[t] ?? 0;
+      const t = typeof effTier === 'string' ? effTier : '';
+      if (!Object.prototype.hasOwnProperty.call(TIER_RANK, t)) {
+        tierLookupFailed = true;
+        console.error('[xai-proxy] effective-tier lookup returned an unknown tier');
+      } else {
+        tierRank = TIER_RANK[t];
+      }
     }
   }
-  if (purpose && PREMIUM_PURPOSES.has(purpose) && tierRank !== null && tierRank < BRAIN_RANK) {
+  if (tierLookupFailed || tierRank === null) {
+    return jsonResponse(req, { error: 'entitlement_check_unavailable' }, 503);
+  }
+  if (purposePolicy.minimumTier === 'brain' && tierRank < BRAIN_RANK) {
     return jsonResponse(req, { error: 'entitlement_required', feature: purpose }, 403);
   }
+
+  const xaiModel = resolveModel(purpose, purposePolicy.modelTier);
+  if (!xaiModel) {
+    return jsonResponse(req, { error: 'purpose_model_unavailable', purpose }, 503);
+  }
+  const clampedEffort = clampLlmPurposeEffort(
+    purposePolicy,
+    effort,
+    'xai',
+    PURPOSE_EFFORT_MAX[purpose],
+  );
 
   // Spend cap -- the SAME shared per-user/day counter as the other three
   // proxies. Adding a vendor must not add an allowance.
@@ -343,9 +364,6 @@ Deno.serve(async (req: Request) => {
     }
     if (!consentOk) return jsonResponse(req, { error: 'consent_required' }, 403);
   }
-
-  const xaiModel = resolveModel(purpose);
-  const clampedEffort = clampEffort(effort, purpose);
 
   // D-27: sign with the (model x effort) combo key when one is provisioned,
   // else the base XAI_API_KEY. Only changes WHICH key signs an

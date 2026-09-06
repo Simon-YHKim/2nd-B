@@ -1,7 +1,7 @@
 // Shared security/plumbing for the LLM proxy Edge Functions (D-26 backlog #10:
 // the crisis lexicon + auth + caps used to live as 3 hand-mirrored copies —
 // this module is the single source for claude-proxy and openai-proxy, while
-// the purpose policy below is authoritative for all three primary proxies).
+// the purpose policy below is authoritative for all four generation proxies).
 //
 // gemini-proxy still carries its own inlined copy of the remaining plumbing
 // (it is the live-critical $0-backbone function; migrating that code is a
@@ -18,7 +18,7 @@ export { isUsableHeaderValue };
 //
 // `purpose` comes from an authenticated client, but authentication does not
 // make the label trustworthy. This table is therefore the authority for all
-// three paid generation proxies: whether a vendor has a seat, the highest cost
+// four paid generation proxies: whether a vendor has a seat, the highest cost
 // family/effort that label may reach, its wire modality, and its entitlement.
 // A missing row or missing vendor is a rejection, never a generic fallback.
 //
@@ -26,7 +26,7 @@ export { isUsableHeaderValue };
 // audit labels (embed_index, safety_classify, voice_transcribe). capture_voice
 // is the client routing alias; the paid wire label is voice_transcribe, so it
 // is deliberately known but unseated.
-export type LlmProxyVendor = 'gemini' | 'openai' | 'claude';
+export type LlmProxyVendor = 'gemini' | 'openai' | 'claude' | 'xai';
 export type LlmPolicyModelTier = 'lite' | 'flash' | 'pro' | 'fixed';
 export type LlmPolicyEffort = 'none' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 export type LlmPolicyModality = 'text' | 'image' | 'audio' | 'embed';
@@ -39,34 +39,34 @@ export interface LlmPurposePolicy {
 }
 
 export const LLM_PURPOSE_POLICY = {
-  advisor: { modelTier: 'pro', maxEffort: 'high', modality: 'text', minimumTier: 'brain', vendors: ['gemini', 'openai'] },
+  advisor: { modelTier: 'pro', maxEffort: 'high', modality: 'text', minimumTier: 'brain', vendors: ['gemini', 'openai', 'xai'] },
   audit_qa: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
-  axis_estimate: { modelTier: 'flash', maxEffort: 'high', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'claude'] },
+  axis_estimate: { modelTier: 'flash', maxEffort: 'high', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'claude', 'xai'] },
   capture_classify: { modelTier: 'lite', maxEffort: 'none', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
   capture_ocr: { modelTier: 'flash', maxEffort: 'none', modality: 'image', minimumTier: 'free', vendors: ['gemini', 'openai'] },
   capture_voice: { modelTier: 'flash', maxEffort: 'none', modality: 'audio', minimumTier: 'free', vendors: [] },
   clipper_classify: { modelTier: 'lite', maxEffort: 'none', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
   clipper_template_propose: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
-  cluster_infer: { modelTier: 'flash', maxEffort: 'medium', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
+  cluster_infer: { modelTier: 'flash', maxEffort: 'medium', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'xai'] },
   crosscheck_challenge: { modelTier: 'pro', maxEffort: 'high', modality: 'text', minimumTier: 'free', vendors: ['openai'] },
   crosscheck_defend: { modelTier: 'pro', maxEffort: 'max', modality: 'text', minimumTier: 'free', vendors: ['claude'] },
-  digest_weekly: { modelTier: 'pro', maxEffort: 'max', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'claude'] },
+  digest_weekly: { modelTier: 'pro', maxEffort: 'max', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'claude', 'xai'] },
   embed_index: { modelTier: 'fixed', maxEffort: 'none', modality: 'embed', minimumTier: 'free', vendors: ['gemini', 'openai'] },
-  gap_synthesize: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
+  gap_synthesize: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'xai'] },
   imagine: { modelTier: 'pro', maxEffort: 'high', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
   import_ingest: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
   interview_probe: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
-  northstar_propose: { modelTier: 'flash', maxEffort: 'high', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
-  ops_daily_brief: { modelTier: 'flash', maxEffort: 'medium', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
-  ops_recommend: { modelTier: 'flash', maxEffort: 'medium', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
-  persona_narrative: { modelTier: 'flash', maxEffort: 'high', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'claude'] },
-  persona_synthesis: { modelTier: 'flash', maxEffort: 'max', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'claude'] },
+  northstar_propose: { modelTier: 'flash', maxEffort: 'high', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'xai'] },
+  ops_daily_brief: { modelTier: 'flash', maxEffort: 'medium', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'xai'] },
+  ops_recommend: { modelTier: 'flash', maxEffort: 'medium', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'xai'] },
+  persona_narrative: { modelTier: 'flash', maxEffort: 'high', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'claude', 'xai'] },
+  persona_synthesis: { modelTier: 'flash', maxEffort: 'max', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'claude', 'xai'] },
   reasoning_connect: { modelTier: 'pro', maxEffort: 'high', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
   safety_classify: { modelTier: 'lite', maxEffort: 'none', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
-  secondb_chat: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
-  self_model_propose: { modelTier: 'flash', maxEffort: 'high', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
+  secondb_chat: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'xai'] },
+  self_model_propose: { modelTier: 'flash', maxEffort: 'high', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'xai'] },
   source_ingest: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
-  ttfv_first_insight: { modelTier: 'flash', maxEffort: 'xhigh', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
+  ttfv_first_insight: { modelTier: 'flash', maxEffort: 'xhigh', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'xai'] },
   voice_transcribe: { modelTier: 'flash', maxEffort: 'none', modality: 'audio', minimumTier: 'free', vendors: ['gemini', 'openai'] },
 } as const satisfies Record<string, LlmPurposePolicy>;
 
