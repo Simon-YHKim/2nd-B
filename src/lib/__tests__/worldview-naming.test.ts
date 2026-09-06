@@ -66,13 +66,18 @@ describe("worldview v-final naming", () => {
     expect(PERSONAS.archi.role.en).toBe("Career consultant");
     expect(PERSONAS.archi.systemHint.en).toContain("career consultant for work and growth");
 
-    // D-21 (+ persona-sim gate): gadi re-registered from warm/companion guide to
-    // an observational, record-sourced relationship-pattern reflector. The role
-    // and systemHint are user-addressed copy governed by check-mascot-voice.ts.
+    // Relia can speak warmly while grounding observations in the user's records.
+    // Current policy allows a friendly tone and prohibits invented personal
+    // relationships or emotional dependence (STYLE.md, 2026-09-06).
     expect(PERSONAS.gadi.role.en).toBe("relationship-pattern reflector");
-    expect(PERSONAS.gadi.systemHint.en).toContain("relationship and inner-world patterns");
+    // Same responsibility, plainer words: the 2026-09-06 round replaced
+    // "relationship and inner-world patterns" with the phrasing below.
+    expect(PERSONAS.gadi.systemHint.en).toContain("relationships and recurring patterns");
     expect(PERSONAS.gadi.systemHint.en).toContain("the user's own records");
-    expect(PERSONAS.gadi.systemHint.en).toContain("do not position yourself as a friend or companion");
+    expect(PERSONAS.gadi.systemHint.en).toContain("Be friendly");
+    expect(PERSONAS.gadi.systemHint.en).toContain(
+      "do not claim to have a real personal relationship with the user or to depend on them emotionally",
+    );
 
     expect(PERSONAS.lulu.role.en).toBe("Life-applied wisdom sage");
     expect(PERSONAS.lulu.systemHint.en).toContain("Not raw facts");

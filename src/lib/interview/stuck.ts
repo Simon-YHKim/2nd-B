@@ -71,7 +71,7 @@ export function isNonAnswer(text: string, locale: "en" | "ko"): boolean {
 export const SCAFFOLD_FALLBACK: Record<"en" | "ko", Record<DrillLayer, readonly [string, string]>> = {
   ko: {
     fact: [
-      "크게 중요한 장면이 아니어도 괜찮아요. 그날 눈에 들어온 것 하나만 떠올려 보면요?",
+      "그날 눈에 들어왔던 것이 있나요? 기억나는 것부터 말해 주세요.",
       "그때 옆에 누가 있었는지만 먼저 말해 주실 수 있어요?",
     ],
     feeling: [
@@ -84,7 +84,7 @@ export const SCAFFOLD_FALLBACK: Record<"en" | "ko", Record<DrillLayer, readonly 
     ],
     belief: [
       "그 뒤로 비슷한 상황이 오면 어떻게 하게 되던가요?",
-      "그때 이후로 사람들한테 기대를 더 하게 됐어요, 덜 하게 됐어요?",
+      "그 뒤 사람들을 대하는 방식에 달라진 점이 있나요?",
     ],
     echo: [
       "요즘 그때랑 비슷하다고 느껴지는 순간이 있다면 언제예요?",
@@ -93,7 +93,7 @@ export const SCAFFOLD_FALLBACK: Record<"en" | "ko", Record<DrillLayer, readonly 
   },
   en: {
     fact: [
-      "It doesn't have to be a big scene. What's one thing you remember noticing that day?",
+      "What do you remember noticing that day? Start with anything you recall.",
       "Could you start with just who else was there?",
     ],
     feeling: [
@@ -106,7 +106,7 @@ export const SCAFFOLD_FALLBACK: Record<"en" | "ko", Record<DrillLayer, readonly 
     ],
     belief: [
       "When something similar came up later, what did you end up doing?",
-      "After that, did you expect more from people, or less?",
+      "Did anything change in how you relate to people after that?",
     ],
     echo: [
       "Is there a moment lately that feels a bit like that one?",

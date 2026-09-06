@@ -98,6 +98,25 @@ export function hrefPathname(href: string): string {
 
 const NO_VARIANTS: readonly DevScreenVariant[] = [];
 
+/**
+ * Wrapper/re-export routes can inherit their login gate from the component
+ * they render. The CI verifier reads this one explicitly declared source only;
+ * it never follows an arbitrary import graph.
+ */
+export interface DelegatedAuthGate {
+  /** Repository-relative source file under `src/` that owns the redirect. */
+  gateFile: string;
+  /** Component exported by the gate source and rendered by this route. */
+  component: string;
+  /**
+   * When `component` only forwards, the component in the SAME gate file that
+   * actually owns the redirect. `/capture-full` is the case: it renders
+   * `CaptureLegacy`, which renders `CaptureLegacySession`, and the guard lives
+   * in the session. Still one declared file -- no import graph is followed.
+   */
+  via?: string;
+}
+
 export interface DevScreen {
   /** `src/app` 아래 파일 경로. 예: "(auth)/sign-in", "star/[domain]", "index" */
   file: RouteFile;
@@ -109,12 +128,16 @@ export interface DevScreen {
    * 로그인이 필요하다.
    *
    * 대개는 라우트 파일이 직접 `<Redirect href="/sign-in" />` 를 그린다. 다만
-   * 게이트를 다른 컴포넌트에 **위임한** 라우트가 셋 있어서(capture-full · srs ·
-   * trends) "파일에 리터럴이 있다"로 정의하면 그 셋과 모순된다. 그래서 뜻은
-   * **직접 가드이거나 검증된 위임 가드**다 — 테스트의 `AUTH_DELEGATES` 가 각
-   * 위임 체인(import → 렌더 → 가드)을 AST 로 대조해 이 표시를 뒷받침한다.
+   * 게이트를 다른 컴포넌트에 **위임한** 라우트가 있어서 "파일에 리터럴이 있다" 로
+   * 정의하면 그것들과 모순된다. 그래서 뜻은 **직접 가드이거나 검증된 위임 가드**다.
+   *
+   * `true` 는 직접 가드다. 객체(`DelegatedAuthGate`)는 위임이고, 어디에 위임하는지를
+   * **데이터로 적는다** — 전에는 그 대상이 테스트 안 목록에만 있었다. 두 검사가
+   * 함께 이걸 뒷받침한다: `AUTH_DELEGATES` 가 위임 체인(import → 렌더 → 도달 가능한
+   * `!userId` 가드)을 AST 로 대조하고, `EXPECTED_DELEGATED_AUTH` 가 여기 적힌
+   * gateFile·component 가 실제로 존재하고 라우트가 그걸 그리는지 확인한다.
    */
-  auth?: true;
+  auth?: true | DelegatedAuthGate;
   /** 개발 빌드에서만 열린다 (`<DevOnlyRoute>` 뒤). */
   dev?: true;
   /** 동적 구간이 있어 견본값으로 들어간다. 진짜 데이터가 아니면 빈 상태가 보인다. */
@@ -172,7 +195,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         // `CaptureLegacy`(→ `CaptureLegacySession`)에 위임하기 때문이다. 그래도
         // 로그인은 실제로 필요하다. 라우트 파일 안만 보는 판정은 여기서 거짓 음성을
         // 내고, 그러면 이 화면과 아래 여덟 변형이 '로그인 필요' 배지 없이 보인다.
-        auth: true,
+        auth: { gateFile: "src/app/capture.tsx", component: "CaptureLegacy", via: "CaptureLegacySession" },
         // 여덟 모드는 화면에서 '고급 펼치기' 뒤에 있어서 눌러보기 전에는 안 보인다.
         // `?mode=` 는 `CaptureLegacySession` 이 읽고 `planCaptureParamConsumption`
         // 의 계획을 거쳐 `switchCaptureMode` 까지 간다.
@@ -230,7 +253,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       },
       { file: "share-card", href: "/share-card", label: "공유 카드", auth: true },
       // 위임 게이트 — 이 파일에는 리다이렉트 리터럴이 없고 `DeepSpaceSrsScreen` 이 갖는다.
-      { file: "srs", href: "/srs", label: "언어 복습 (SRS)", auth: true, note: "로그인이 필요하다 — 게이트는 이 파일이 아니라 DeepSpaceSrsScreen 에 있다" },
+      { file: "srs", href: "/srs", label: "언어 복습 (SRS)", auth: { gateFile: "src/screens/deepspace/DeepSpaceDesignScreens.tsx", component: "DeepSpaceSrsScreen" }, note: "로그인이 필요하다 — 게이트는 이 파일이 아니라 DeepSpaceSrsScreen 에 있다" },
       { file: "reading", href: "/reading", label: "읽기 · 배움 선반" },
     ],
   },
@@ -362,6 +385,10 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
     title: "개인 비서",
     screens: [
       { file: "ops", href: "/ops", label: "오늘의 비서", auth: true },
+      // #1543 은 focus 를 위임으로 선언했지만 그건 분기 시점 사실이다. main 의
+      // `5cc8cdeb fix(auth): align deep-space route guards` 가 이 파일에 직접 가드를
+      // 넣어서 지금은 focus.tsx 가 `<Redirect href="/sign-in" />` 를 스스로 그린다.
+      // 그래서 위임이 아니라 `true` 다 — #1543 자신의 위임 검사가 이 stale 선언을 잡았다.
       { file: "focus", href: "/focus", label: "일일 집중", auth: true },
       { file: "digest", href: "/digest", label: "오늘의 정리", auth: true, note: "이름이 어긋나 있다 — 캐논 screens.json 은 이 화면을 '주간 다이제스트' 라고 부르지만 화면 자체는 일일 리뷰다 (digest.tsx:1). LLM 좌석 digest_weekly 는 또 다른 것" },
       { file: "ttfv", href: "/ttfv", label: "첫날 한 컷", auth: true },
@@ -447,7 +474,15 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
   {
     title: "결제 · 법률",
     screens: [
-      { file: "plans", href: "/plans", label: "요금제" },
+      {
+        file: "plans",
+        href: "/plans",
+        label: "요금제",
+        auth: {
+          gateFile: "src/screens/deepspace/dds-plans-screen.tsx",
+          component: "DeepSpacePlansScreen",
+        },
+      },
       { file: "subscription", href: "/subscription", label: "구독 관리", auth: true },
       { file: "(auth)/terms", href: "/terms", label: "이용약관" },
       { file: "(auth)/privacy-policy", href: "/privacy-policy", label: "개인정보 처리방침" },
@@ -511,7 +546,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       { file: "graph", href: "/graph", label: "내 두뇌 지도 (레거시)", dev: true },
       // 위임 게이트 — 리다이렉트는 `TrendsScreen` 이 갖는다. dev 축과는 직교한다:
       // DevOnlyRoute 를 통과해 실제로 그려질 때 로그인이 필요하다.
-      { file: "trends", href: "/trends", label: "밝기 추이", dev: true, auth: true, note: "로그인이 필요하다 — 게이트는 이 파일이 아니라 TrendsScreen 에 있다. 캐논 정적 데이터를 그리는 참조 화면이라 실데이터는 /brightness 다" },
+      { file: "trends", href: "/trends", label: "밝기 추이", dev: true, auth: { gateFile: "src/screens/deepspace/trends/TrendsScreen.tsx", component: "TrendsScreen" }, note: "로그인이 필요하다 — 게이트는 이 파일이 아니라 TrendsScreen 에 있다. 캐논 정적 데이터를 그리는 참조 화면이라 실데이터는 /brightness 다" },
     ],
   },
 ];

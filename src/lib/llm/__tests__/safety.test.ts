@@ -194,21 +194,21 @@ describe("fixedCrisisResponse", () => {
     const r = fixedCrisisResponse("ko");
     expect(r.text).toContain("109");
     expect(r.text).not.toContain("1393");
-    expect(r.version).toBe("red-ko-v2");
+    expect(r.version).toBe("red-ko-v3");
   });
 
   test("Korean minor template surfaces the youth line 1388 alongside 109", () => {
     const r = fixedCrisisResponse("ko", true);
     expect(r.text).toContain("1388");
     expect(r.text).toContain("109");
-    expect(r.version).toBe("red-ko-minor-v1");
+    expect(r.version).toBe("red-ko-minor-v2");
   });
 
   test("English template includes 988 and findahelpline", () => {
     const r = fixedCrisisResponse("en");
     expect(r.text).toContain("988");
     expect(r.text).toContain("findahelpline.com");
-    expect(r.version).toBe("red-en-v1");
+    expect(r.version).toBe("red-en-v2");
   });
 
   test("templates never include AI-improvised crisis language", () => {
@@ -218,8 +218,10 @@ describe("fixedCrisisResponse", () => {
     expect(en).not.toMatch(/have you tried/i);
     expect(en).not.toMatch(/you should/i);
     expect(ko).not.toMatch(/해보세요/);
-    // AI step-back language present.
-    expect(ko).toContain("두번째 뇌");
-    expect(en).toContain("2nd-Brain");
+    // The concrete hand-off remains; the app does not narrate a farewell.
+    expect(ko).toContain("가까운 응급실");
+    expect(en).toContain("nearest emergency room");
+    expect(ko).not.toContain("한 발 물러나");
+    expect(en).not.toContain("step back");
   });
 });

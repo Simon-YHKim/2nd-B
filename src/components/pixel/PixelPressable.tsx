@@ -21,7 +21,15 @@
 // hover 상태층은 **가져오지 않는다.** 터치에 대응물이 없다
 // (`design/pixel_clay_v4/REPO-NOTES.md` 함정 5).
 import { useCallback, useState, type ReactNode } from "react";
-import { Pressable, StyleSheet, type StyleProp, View, type ViewStyle } from "react-native";
+import {
+  Pressable,
+  StyleSheet,
+  type AccessibilityRole,
+  type AccessibilityState,
+  type StyleProp,
+  View,
+  type ViewStyle,
+} from "react-native";
 
 import { m3 } from "@/lib/theme/m3";
 
@@ -33,7 +41,17 @@ export interface PixelPressableProps {
   children?: ReactNode;
   accessibilityLabel?: string;
   accessibilityHint?: string;
+  /** 기본은 button. 링크처럼 다른 네이티브 역할이 필요한 공용 CTA 에서만 바꾼다. */
+  accessibilityRole?: AccessibilityRole;
+  /** busy/selected/expanded 등 호출부가 소유한 상태. disabled 는 `disabled` prop 이 정본이다. */
+  accessibilityState?: AccessibilityState;
   disabled?: boolean;
+  /** PixelSurface 면 배경. PIXEL-CLAY 토큰 색만 전달한다. */
+  background?: string;
+  /** Pressable 바깥 루트 스타일. 기존 `style` 은 계속 눌림 래퍼에 적용된다. */
+  rootStyle?: StyleProp<ViewStyle>;
+  /** 게이트 CTA 처럼 부모 가로폭을 채우는 경우의 명시적 편의 prop. */
+  fullWidth?: boolean;
   style?: StyleProp<ViewStyle>;
   contentStyle?: StyleProp<ViewStyle>;
 }
@@ -44,7 +62,12 @@ export function PixelPressable({
   children,
   accessibilityLabel,
   accessibilityHint,
+  accessibilityRole = "button",
+  accessibilityState,
   disabled = false,
+  background,
+  rootStyle,
+  fullWidth = false,
   style,
   contentStyle,
 }: PixelPressableProps) {
@@ -59,16 +82,17 @@ export function PixelPressable({
       onPressIn={press}
       onPressOut={release}
       disabled={disabled}
-      accessibilityRole="button"
+      accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
-      accessibilityState={{ disabled }}
-      style={styles.root}
+      accessibilityState={{ ...accessibilityState, disabled }}
+      style={[styles.root, fullWidth && styles.fullWidth, rootStyle]}
     >
-      <View style={[sunken ? styles.sunk : styles.rest, style]}>
+      <View style={[sunken ? styles.sunk : styles.rest, fullWidth && styles.fullWidth, style]}>
         <PixelSurface
           variant={variant}
           pressed={sunken}
+          background={background}
           style={styles.surface}
           contentStyle={[styles.content, contentStyle]}
         >
@@ -81,6 +105,7 @@ export function PixelPressable({
 
 const styles = StyleSheet.create({
   root: { alignSelf: "flex-start" },
+  fullWidth: { alignSelf: "stretch", width: "100%" },
   rest: {},
   // 절대 규칙 5: 계단 모션. 이 변환은 상태 전환이라 애니메이션이 없다 - 한 프레임에
   // 붙는다. 그게 곧 steps(1) 이다.

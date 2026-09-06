@@ -15,7 +15,13 @@ describe("root account scene boundary wiring", () => {
   test("every AuthContext state publication has a synchronous owner note", () => {
     const publications = AUTH.match(/\bsetState\s*\(/g) ?? [];
     const notes = AUTH.match(/\bnoteResolvedOwner\s*\(/g) ?? [];
-    expect(publications).toHaveLength(8);
+    // 9 since AUTH-01 (2026-09-06), not 8: publishSessionUnavailable() ends an
+    // ordinary startup whose session lookup never answered. It is a real state
+    // publication, so it carries its own synchronous noteResolvedOwner(null)
+    // immediately before setState — which is exactly the invariant this test
+    // exists to hold, and why the second assertion (equal counts) is the load-
+    // bearing one. The count was raised only after adding the matching note.
+    expect(publications).toHaveLength(9);
     expect(notes).toHaveLength(publications.length);
 
     const earlyProbe = AUTH.indexOf(

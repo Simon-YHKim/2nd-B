@@ -134,13 +134,29 @@ describe("값은 지어내지 않는다", () => {
 });
 
 describe("사인인 화면이 푸터를 동의 링크 아래에 붙인다", () => {
+  // #1533 이 이 화면을 dds-auth-screens.tsx 에서 들어내 자기 파일로 옮겼다.
+  // 푸터는 화면을 따라가야 하므로 검사도 따라간다 — 지키는 대상(동의 링크 아래에
+  // 사업자 정보 푸터가 붙는다)은 그대로다. 추출본에는 푸터가 딸려오지 않았고,
+  // 이 검사가 통합 중에 그걸 잡았다.
   const src = readFileSync(
-    resolve(__dirname, "../../../screens/deepspace/dds-auth-screens.tsx"),
+    resolve(__dirname, "../../../screens/deepspace/dds-sign-in-screen.tsx"),
     "utf8",
   ).replace(/\r\n/g, "\n");
   const start = src.indexOf("export function DeepSpaceSignInDesignScreen");
   const end = src.indexOf("\nexport function", start + 1);
   const body = src.slice(start, end === -1 ? src.length : end);
+
+  test("옛 자리에는 재수출만 남는다", () => {
+    // 두 벌이 남으면 한쪽만 고쳐서 푸터가 다시 빠질 수 있다.
+    const old = readFileSync(
+      resolve(__dirname, "../../../screens/deepspace/dds-auth-screens.tsx"),
+      "utf8",
+    ).replace(/\r\n/g, "\n");
+    expect(old).toContain(
+      'export { DeepSpaceSignInDesignScreen } from "./dds-sign-in-screen";',
+    );
+    expect(old).not.toContain("export function DeepSpaceSignInDesignScreen");
+  });
 
   test("가드가 진짜 함수 본문을 읽는다", () => {
     expect(start).toBeGreaterThan(-1);
@@ -156,7 +172,9 @@ describe("사인인 화면이 푸터를 동의 링크 아래에 붙인다", () =
   });
 
   test("가입 문은 하나다: 로그인 아래 버튼이고, 하단 안내 행은 없다", () => {
-    expect(body).toContain("styles.authSecondary");
+    // PIXEL-CLAY 추출본의 이름으로 옮겼다. 뜻은 같다 — 가입 문은 로그인 폼
+    // **아래** 버튼 하나뿐이고, 하단에 중복 안내 행을 만들지 않는다.
+    expect(body).toContain("styles.signUpContent");
     expect(body).not.toContain("styles.authSignUpRow");
     expect((body.match(/router\.push\("\/sign-up"\)/g) ?? []).length).toBe(1);
   });

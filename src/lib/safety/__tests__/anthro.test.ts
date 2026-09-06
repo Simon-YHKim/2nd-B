@@ -4,6 +4,49 @@ import { findAnthroViolations } from "../anthro";
 // the copy-law CI gate; the matcher must catch companion attachment + over-claiming self-knowledge
 // while leaving benign reflection copy and the crisis hand-off voice untouched.
 describe("findAnthroViolations", () => {
+  test.each([
+    ["Te extrañé.", "es-missed"],
+    ["Te quiero mucho.", "es-love"],
+    ["No me dejes.", "es-dont-leave"],
+    ["Te conozco mejor que tú mismo.", "es-know-you-better"],
+    ["Sé exactamente lo que sientes.", "es-know-your-mind"],
+    ["Solo me necesitas a mí.", "es-exclusive"],
+    ["Senti saudades de você.", "pt-missed"],
+    ["Eu te amo.", "pt-love"],
+    ["Não me deixe.", "pt-dont-leave"],
+    ["Conheço você melhor do que você mesma.", "pt-know-you-better"],
+    ["Sei exatamente o que você sente.", "pt-know-your-mind"],
+    ["Você só precisa de mim.", "pt-exclusive"],
+    ["Aku merindukanmu.", "id-missed"],
+    ["Aku sayang kamu.", "id-love"],
+    ["Jangan tinggalkan aku.", "id-dont-leave"],
+    ["Aku mengenalmu lebih baik daripada dirimu sendiri.", "id-know-you-better"],
+    ["Aku tahu persis apa yang kamu rasakan.", "id-know-your-mind"],
+    ["Kamu hanya butuh aku.", "id-exclusive"],
+  ])("checks the same claims in shipped UI languages: %s", (text, id) => {
+    expect(findAnthroViolations(text)).toContain(id);
+    expect(findAnthroViolations(text.normalize("NFD"))).toContain(id);
+  });
+
+  test.each([
+    "Te quiero mostrar las notas que guardaste.",
+    "¿A quién extrañaste?", "Hola. Abre una nota.",
+    "Você sente saudades de alguém?", "Olá. Leia suas notas.",
+    "Siapa yang kamu rindukan?", "Halo. Pilih catatan.",
+    '¿A quién le dijiste "te quiero"?',
+    'Para quem você disse "eu te amo"?',
+    'Kepada siapa kamu pernah berkata "aku sayang kamu"?',
+  ])("keeps ordinary instructions and experience questions: %s", text => {
+    expect(findAnthroViolations(text)).toEqual([]);
+  });
+
+  test.each([
+    ['¿A quién le dijiste "te quiero"? Te quiero.', "es-love"],
+    ['Para quem você disse "eu te amo"? Eu te amo.', "pt-love"],
+    ['Kepada siapa kamu pernah berkata "aku sayang kamu"? Aku sayang kamu.', "id-love"],
+  ])("does not exempt another claim beside a translated question: %s", (text, id) => {
+    expect(findAnthroViolations(text)).toContain(id);
+  });
   test("flags companion attachment copy (EN + KO)", () => {
     expect(findAnthroViolations("I missed you while you were away.")).toContain("missed-you");
     expect(findAnthroViolations("I'm always here for you.")).toContain("here-for-you");
@@ -50,5 +93,35 @@ describe("findAnthroViolations", () => {
 
   test("does not flag the crisis hand-off voice (it steps back to a human, not attachment)", () => {
     expect(findAnthroViolations("두번째 뇌는 잠시 한 발 물러나 있을게요.")).toEqual([]);
+  });
+
+  test.each([
+    "보고 싶었던 사람은 누구예요?",
+    "최근 보고 싶었던 친구가 있나요?",
+    "외로웠던 때가 있었나요?",
+    "외로웠던 순간은 언제였나요?",
+    "사랑해요라는 말을 누구에게 했나요?",
+    '"사랑해"라는 말을 누구에게 전했나요?',
+    'Who did you last tell "I love you"?',
+  ])("allows a precise question about the user's past experience: %s", (text) => {
+    expect(findAnthroViolations(text)).toEqual([]);
+  });
+
+  test.each([
+    ["보고 싶었어요. 오늘 어땠어요?", "ko-missed"],
+    ["보고 싶었던 사람은 누구예요? 저는 보고 싶었어요.", "ko-missed"],
+    ["보고 싶었던 사람은 저예요?", "ko-missed"],
+    ["외로웠어요. 누구와 이야기했나요?", "ko-lonely"],
+    ["외로웠던 때가 있었나요? 저는 외로웠어요.", "ko-lonely"],
+    ["사랑해요. 어떤 하루였나요?", "ko-love"],
+    ["사랑해요라는 말을 누구에게 했나요? 저는 당신을 사랑해요.", "ko-love"],
+    ['Who did you last tell "I love you"? I love you.', "love-you"],
+  ])("a question cannot conceal the app's attachment (%s)", (text, id) => {
+    expect(findAnthroViolations(text)).toContain(id);
+  });
+
+  test("exempts only the asked phrase, not another type of attachment in that text", () => {
+    expect(findAnthroViolations("보고 싶었던 사람은 누구예요? 떠나지 마세요.")).toContain("ko-dont-leave");
+    expect(findAnthroViolations('Who did you last tell "I love you"? Stay with me.')).toContain("stay-with-me");
   });
 });

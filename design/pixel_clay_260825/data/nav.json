@@ -242,7 +242,21 @@
   "star": {
     "version": 2,
     "items": [
-      { "label": "성과 입력", "kind": "route", "to": "/capture-full?tag=domain%3Acareer" },
+      {
+        "label": "성과 입력",
+        "kind": "route",
+        "to": "/capture-full",
+        "locator": { "strategy": "role", "role": "button", "name": "성과 입력" },
+        "postNavigation": {
+          "reveal": { "role": "button", "name": "더보기" },
+          "effect": {
+            "type": "visible",
+            "role": "button",
+            "name": "domain:career 해시태그 제거",
+            "text": "#domain:career"
+          }
+        }
+      },
       { "label": "Drill Down", "kind": "route", "to": "/career-drilldown" },
       {
         "label": "별자리",

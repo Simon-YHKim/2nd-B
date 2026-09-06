@@ -5,12 +5,19 @@
 // "untested" meant the app's only audio feature could be broken in production
 // while CI stayed green.
 //
-// What these tests can and cannot prove. They cannot prove Gemini returns a good
-// transcript -- that needs a live key and a real voice. They CAN prove every part
-// that fails silently: that real audio bytes survive the base64 round trip, that
-// the request is assembled in the shape each backend expects, and that a
-// crisis-bearing transcript is intercepted rather than handed back. Those are the
-// failure modes that would otherwise be discovered by a user.
+// What these tests can and cannot prove. They cannot prove the vendor returns a
+// good transcript -- that needs a live key and a real voice. They CAN prove every
+// part that fails silently: that real audio bytes survive the base64 round trip,
+// that the request is assembled in the shape each backend expects, that the audio
+// lands on the proxy the multimodal switch names, and that a crisis-bearing
+// transcript is intercepted rather than handed back. Those are the failure modes
+// that would otherwise be discovered by a user.
+//
+// Which proxy carries the audio is EXPO_PUBLIC_MULTIMODAL_VENDOR (routing.ts
+// multimodalVendor()). Since T1 stage A (2026-08-31) an UNSET switch resolves to
+// openai-proxy; "gemini" is still accepted explicitly and routes to gemini-proxy,
+// which is the one-variable rollback. Both are pinned below so a default flip in
+// either direction shows up here instead of on a user's voice memo.
 //
 // The audio here is synthesised, not a fixture: a real RIFF/WAVE container with
 // real PCM samples, generated in-process. That keeps the suite hermetic while
@@ -102,11 +109,23 @@ function synthWavBase64(seconds = 0.25, sampleRate = 8000, hz = 440): string {
 const AUDIO = synthWavBase64();
 const BASE = { userId: "u-1", locale: "ko" as const, base64: AUDIO, mimeType: "audio/wav" };
 
+// multimodalVendor() reads process.env directly, not getEnv(), so the mocked
+// env above does not reach it. Start every test from the UNSET posture and put
+// the shell's value back afterwards so this suite cannot leak into another.
+const MULTIMODAL_KEY = "EXPO_PUBLIC_MULTIMODAL_VENDOR";
+const originalMultimodal = process.env[MULTIMODAL_KEY];
+
 beforeEach(() => {
   jest.clearAllMocks();
   envMode = "live";
   viaEdge = true;
+  delete process.env[MULTIMODAL_KEY];
   mockClassifySafety.mockResolvedValue({ zone: "green", triggers: [], confidence: 0.1, cssrsLevel: 0 });
+});
+
+afterAll(() => {
+  if (originalMultimodal === undefined) delete process.env[MULTIMODAL_KEY];
+  else process.env[MULTIMODAL_KEY] = originalMultimodal;
 });
 
 describe("transcribeAudio · synthesised audio survives the byte path", () => {
@@ -120,7 +139,28 @@ describe("transcribeAudio · synthesised audio survives the byte path", () => {
     expect(declared).toBeGreaterThan(0);
   });
 
-  it("forwards the audio to the proxy byte-identically", async () => {
+  it("forwards the audio to openai-proxy byte-identically when the multimodal switch is unset", async () => {
+    mockInvoke.mockResolvedValue({ data: { text: "안녕하세요", audited: true }, error: null });
+    await transcribeAudio(BASE);
+
+    expect(mockInvoke).toHaveBeenCalledTimes(1);
+    const [fn, opts] = mockInvoke.mock.calls[0] as [string, { body: Record<string, unknown> }];
+    // Unset is openai since T1 stage A (2026-08-31); gemini-proxy is no longer
+    // the fallback for the binary-carrying seats.
+    expect(fn).toBe("openai-proxy");
+    const audio = opts.body.audio as { mimeType: string; data: string };
+    // The exact bytes matter: a truncating or re-encoding step here would still
+    // "work" for a short clip and fail on a real recording.
+    expect(audio.data).toBe(AUDIO);
+    expect(audio.mimeType).toBe("audio/wav");
+    expect(opts.body.purpose).toBe("voice_transcribe");
+  });
+
+  it("still forwards the same audio to gemini-proxy when EXPO_PUBLIC_MULTIMODAL_VENDOR=gemini (rollback)", async () => {
+    // The one-variable rollback: an explicit "gemini" must keep landing on
+    // gemini-proxy with the identical wire shape, or the exit cannot be undone
+    // from the console.
+    process.env[MULTIMODAL_KEY] = "gemini";
     mockInvoke.mockResolvedValue({ data: { text: "안녕하세요", audited: true }, error: null });
     await transcribeAudio(BASE);
 
@@ -128,8 +168,6 @@ describe("transcribeAudio · synthesised audio survives the byte path", () => {
     const [fn, opts] = mockInvoke.mock.calls[0] as [string, { body: Record<string, unknown> }];
     expect(fn).toBe("gemini-proxy");
     const audio = opts.body.audio as { mimeType: string; data: string };
-    // The exact bytes matter: a truncating or re-encoding step here would still
-    // "work" for a short clip and fail on a real recording.
     expect(audio.data).toBe(AUDIO);
     expect(audio.mimeType).toBe("audio/wav");
     expect(opts.body.purpose).toBe("voice_transcribe");
