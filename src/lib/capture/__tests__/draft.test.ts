@@ -20,7 +20,7 @@ import {
 import { composeFourWBody, fourWHasContent } from "../fourw";
 
 const mockNativeBacking = new Map<string, string>();
-const mockAsyncStorage = {
+const mockEncryptedStorage = {
   getItem: jest.fn(async (key: string) => mockNativeBacking.get(key) ?? null),
   setItem: jest.fn(async (key: string, value: string) => {
     mockNativeBacking.set(key, value);
@@ -29,10 +29,22 @@ const mockAsyncStorage = {
     mockNativeBacking.delete(key);
   }),
 };
+const mockGetEncryptedNativeStorage = jest.fn(() => mockEncryptedStorage);
+const mockMigrateLegacyNativePlaintextAtStartup = jest.fn();
+const mockRawAsyncStorage = {
+  getItem: jest.fn(async (_key: string) => null),
+  setItem: jest.fn(async (_key: string, _value: string) => undefined),
+  removeItem: jest.fn(async (_key: string) => undefined),
+};
+
+jest.mock("../../storage/encrypted-native-storage", () => ({
+  getEncryptedNativeStorage: () => mockGetEncryptedNativeStorage(),
+  migrateLegacyNativePlaintextAtStartup: () => mockMigrateLegacyNativePlaintextAtStartup(),
+}));
 
 jest.mock("@react-native-async-storage/async-storage", () => ({
   __esModule: true,
-  default: mockAsyncStorage,
+  default: mockRawAsyncStorage,
 }));
 
 // The jest environment is node (no DOM), so pin the web path with an
@@ -55,24 +67,32 @@ afterAll(() => {
   delete (globalThis as { localStorage?: unknown }).localStorage;
 });
 
-async function withMockNativeStorage(run: () => Promise<void>): Promise<void> {
+async function withMockNativeStorage(
+  run: () => Promise<void>,
+  keepLocalStorage = false,
+): Promise<void> {
   const localDescriptor = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
   const navigatorDescriptor = Object.getOwnPropertyDescriptor(globalThis, "navigator");
-  delete (globalThis as { localStorage?: unknown }).localStorage;
+  if (!keepLocalStorage) delete (globalThis as { localStorage?: unknown }).localStorage;
   Object.defineProperty(globalThis, "navigator", {
     configurable: true,
     value: { product: "ReactNative" },
   });
   mockNativeBacking.clear();
-  mockAsyncStorage.getItem.mockReset().mockImplementation(
+  mockEncryptedStorage.getItem.mockReset().mockImplementation(
     async (key: string) => mockNativeBacking.get(key) ?? null,
   );
-  mockAsyncStorage.setItem.mockReset().mockImplementation(async (key: string, value: string) => {
+  mockEncryptedStorage.setItem.mockReset().mockImplementation(async (key: string, value: string) => {
     mockNativeBacking.set(key, value);
   });
-  mockAsyncStorage.removeItem.mockReset().mockImplementation(async (key: string) => {
+  mockEncryptedStorage.removeItem.mockReset().mockImplementation(async (key: string) => {
     mockNativeBacking.delete(key);
   });
+  mockGetEncryptedNativeStorage.mockReset().mockReturnValue(mockEncryptedStorage);
+  mockMigrateLegacyNativePlaintextAtStartup.mockReset();
+  mockRawAsyncStorage.getItem.mockClear();
+  mockRawAsyncStorage.setItem.mockClear();
+  mockRawAsyncStorage.removeItem.mockClear();
   try {
     await run();
   } finally {
@@ -846,7 +866,43 @@ describe("cross-owner capture submission guard", () => {
   });
 });
 
-describe("native AsyncStorage queue and durable acknowledgement", () => {
+describe("native encrypted-storage queue and durable acknowledgement", () => {
+  test("uses only the JIT encrypted adapter with the core-managed capture keys", async () => {
+    await withMockNativeStorage(async () => {
+      const userId = "encrypted-route";
+      await expect(saveCaptureDraftState(userId, {
+        drafts: { memo: { body: "private draft", topic: "" } },
+        lastMode: "memo",
+      })).resolves.toBe(true);
+      await expect(loadCaptureDraftState(userId)).resolves.toMatchObject({
+        drafts: { memo: { body: "private draft" } },
+      });
+
+      expect(mockGetEncryptedNativeStorage).toHaveBeenCalled();
+      expect(mockEncryptedStorage.setItem).toHaveBeenCalledWith(
+        "capture.drafts.v2.encrypted-route",
+        expect.any(String),
+      );
+      expect(mockRawAsyncStorage.getItem).not.toHaveBeenCalled();
+      expect(mockRawAsyncStorage.setItem).not.toHaveBeenCalled();
+      expect(mockRawAsyncStorage.removeItem).not.toHaveBeenCalled();
+      expect(mockMigrateLegacyNativePlaintextAtStartup).not.toHaveBeenCalled();
+      expect(localStorage.getItem("capture.drafts.v2.encrypted-route")).toBeNull();
+    }, true);
+  });
+
+  test("fails closed when the encrypted adapter cannot initialize", async () => {
+    await withMockNativeStorage(async () => {
+      const failure = new Error("secure_storage_key_unavailable");
+      mockGetEncryptedNativeStorage.mockImplementationOnce(() => {
+        throw failure;
+      });
+
+      await expect(loadCaptureDraftState("adapter-failure")).rejects.toBe(failure);
+      expect(mockRawAsyncStorage.getItem).not.toHaveBeenCalled();
+    });
+  });
+
   test("conditional cleanup freezes caller-owned expected data before queueing", async () => {
     await withMockNativeStorage(async () => {
       const userId = "immutable-cas";
@@ -890,7 +946,7 @@ describe("native AsyncStorage queue and durable acknowledgement", () => {
         },
         lastMode: "journal" as const,
       };
-      mockAsyncStorage.setItem.mockRejectedValueOnce(new Error("first handoff failed"));
+      mockEncryptedStorage.setItem.mockRejectedValueOnce(new Error("first handoff failed"));
       await expect(saveCaptureDraftState(userId, frozen)).resolves.toBe(false);
 
       markCaptureSubmissionSaved(claim.ticket);
@@ -910,7 +966,7 @@ describe("native AsyncStorage queue and durable acknowledgement", () => {
         drafts: { memo: { body: "must survive", topic: "" } },
         lastMode: "memo",
       }));
-      mockAsyncStorage.getItem
+      mockEncryptedStorage.getItem
         .mockRejectedValueOnce(new Error("temporary read failure"))
         .mockImplementation(async (key: string) => mockNativeBacking.get(key) ?? null);
 
@@ -942,7 +998,7 @@ describe("native AsyncStorage queue and durable acknowledgement", () => {
       let markFirstStarted!: () => void;
       const firstGate = new Promise<void>((resolve) => { releaseFirst = resolve; });
       const firstStarted = new Promise<void>((resolve) => { markFirstStarted = resolve; });
-      mockAsyncStorage.setItem
+      mockEncryptedStorage.setItem
         .mockImplementationOnce(async (writeKey: string, value: string) => {
           markFirstStarted();
           await firstGate;
@@ -959,11 +1015,11 @@ describe("native AsyncStorage queue and durable acknowledgement", () => {
         transientDrafts: { voice: { mode: "voice", body: "new voice" } },
         lastMode: "voice",
       });
-      expect(mockAsyncStorage.setItem).toHaveBeenCalledTimes(1);
+      expect(mockEncryptedStorage.setItem).toHaveBeenCalledTimes(1);
       releaseFirst();
       await expect(clear).resolves.toBe(true);
       await expect(save).resolves.toBe(true);
-      expect(mockAsyncStorage.setItem).toHaveBeenCalledTimes(2);
+      expect(mockEncryptedStorage.setItem).toHaveBeenCalledTimes(2);
       await expect(loadCaptureDraftState(userId)).resolves.toEqual({
         drafts: {},
         transientDrafts: { voice: { mode: "voice", body: "new voice" } },
@@ -975,7 +1031,7 @@ describe("native AsyncStorage queue and durable acknowledgement", () => {
   test("a failed write reports false and does not poison the next queued save", async () => {
     await withMockNativeStorage(async () => {
       const userId = "queue-failure";
-      mockAsyncStorage.setItem
+      mockEncryptedStorage.setItem
         .mockRejectedValueOnce(new Error("disk full"))
         .mockImplementation(async (key: string, value: string) => {
           mockNativeBacking.set(key, value);
@@ -1004,7 +1060,7 @@ describe("native AsyncStorage queue and durable acknowledgement", () => {
         },
         lastMode: "file",
       }));
-      mockAsyncStorage.setItem
+      mockEncryptedStorage.setItem
         .mockRejectedValueOnce(new Error("disk full"))
         .mockImplementation(async (key: string, value: string) => {
           mockNativeBacking.set(key, value);
@@ -1025,7 +1081,7 @@ describe("native AsyncStorage queue and durable acknowledgement", () => {
       let markAStarted!: () => void;
       const aGate = new Promise<void>((resolve) => { releaseA = resolve; });
       const aStarted = new Promise<void>((resolve) => { markAStarted = resolve; });
-      mockAsyncStorage.setItem
+      mockEncryptedStorage.setItem
         .mockImplementationOnce(async (key: string, value: string) => {
           markAStarted();
           await aGate;
@@ -1045,7 +1101,7 @@ describe("native AsyncStorage queue and durable acknowledgement", () => {
         mode: "memo",
         expected: { body: "submitted A", topic: "" },
       });
-      expect(mockAsyncStorage.getItem).not.toHaveBeenCalled();
+      expect(mockEncryptedStorage.getItem).not.toHaveBeenCalled();
       releaseA();
 
       await expect(staleFullSnapshot).resolves.toBe(true);
@@ -1100,7 +1156,7 @@ describe("native AsyncStorage queue and durable acknowledgement", () => {
         lastMode: "memo",
         drafts: { memo: { body: "submitted A", topic: "" } },
       }));
-      mockAsyncStorage.setItem
+      mockEncryptedStorage.setItem
         .mockRejectedValueOnce(new Error("disk full"))
         .mockImplementation(async (key: string, value: string) => {
           mockNativeBacking.set(key, value);
@@ -1137,8 +1193,8 @@ describe("native AsyncStorage queue and durable acknowledgement", () => {
         expected: { body: "saved A", topic: "" },
       })).resolves.toBe("cleared");
 
-      expect(mockAsyncStorage.getItem).not.toHaveBeenCalledWith(legacyKey);
-      expect(mockAsyncStorage.removeItem).not.toHaveBeenCalledWith(legacyKey);
+      expect(mockEncryptedStorage.getItem).not.toHaveBeenCalledWith(legacyKey);
+      expect(mockEncryptedStorage.removeItem).not.toHaveBeenCalledWith(legacyKey);
       expect(mockNativeBacking.get(legacyKey)).toBeDefined();
     });
   });
@@ -1149,7 +1205,7 @@ describe("native AsyncStorage queue and durable acknowledgement", () => {
       let markUserOneStarted!: () => void;
       const userOneGate = new Promise<void>((resolve) => { releaseUserOne = resolve; });
       const userOneStarted = new Promise<void>((resolve) => { markUserOneStarted = resolve; });
-      mockAsyncStorage.setItem.mockImplementation(async (key: string, value: string) => {
+      mockEncryptedStorage.setItem.mockImplementation(async (key: string, value: string) => {
         if (key.endsWith("user-one")) {
           markUserOneStarted();
           await userOneGate;
