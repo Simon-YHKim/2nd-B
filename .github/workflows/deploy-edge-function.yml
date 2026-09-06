@@ -1,12 +1,8 @@
 name: Deploy edge function
 
-# Why: openai-proxy / gemini-proxy / peer-respond deploys had no repeatable path.
-# The console session has no Supabase CLI and no login token, so deploys were
-# being hand-carried file by file, which risks a transcription error on a live
-# function. This deploys straight from the repo source instead.
-#
-# Requires the SUPABASE_ACCESS_TOKEN + SUPABASE_PROJECT_REF repo secrets.
-# Without the token the job stops before touching anything.
+# Deploys one repository-owned Edge Function from the current main revision.
+# Production environment approval and a shared mutation lane protect the live
+# project. Function auth behavior comes only from reviewed supabase/config.toml.
 
 on:
   workflow_dispatch:
@@ -15,83 +11,169 @@ on:
         description: Function slug under supabase/functions (e.g. openai-proxy)
         required: true
         type: string
-      verify_jwt:
-        description: Keep JWT verification on (leave true unless the function does its own auth)
-        required: true
-        type: boolean
-        default: true
 
 permissions:
   contents: read
 
+concurrency:
+  group: supabase-production-mutations
+  cancel-in-progress: false
+
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    if: ${{ github.repository == 'Simon-YHKim/2nd-B' && github.ref == 'refs/heads/main' }}
+    environment: Production
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout trusted revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 1
+          persist-credentials: false
 
-      - name: Refuse to run without the token
+      - name: Gate current origin/main
+        id: main_gate
+        env:
+          RUN_REPOSITORY: ${{ github.repository }}
+          RUN_REF: ${{ github.ref }}
+          RUN_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ "$RUN_REPOSITORY" != "Simon-YHKim/2nd-B" ] || [ "$RUN_REF" != "refs/heads/main" ]; then
+            echo "::error title=Edge deploy gate::trusted-main-ref-required"
+            exit 1
+          fi
+          if ! git fetch --no-tags --depth=1 origin '+refs/heads/main:refs/remotes/origin/main' >/dev/null 2>&1; then
+            echo "::error title=Edge deploy gate::remote-main-fetch-failed"
+            exit 1
+          fi
+          HEAD_SHA="$(git rev-parse HEAD)"
+          REMOTE_MAIN_SHA="$(git rev-parse refs/remotes/origin/main)"
+          if [ "$HEAD_SHA" != "$RUN_SHA" ] || [ "$REMOTE_MAIN_SHA" != "$RUN_SHA" ]; then
+            echo "::error title=Edge deploy gate::checkout-is-not-current-remote-main"
+            exit 1
+          fi
+          echo "main_sha=$REMOTE_MAIN_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Validate repository-owned function and auth config
+        id: function_gate
+        env:
+          FUNCTION_INPUT: ${{ inputs.function }}
+        run: |
+          set -euo pipefail
+          if [ -z "$FUNCTION_INPUT" ] || [ ${#FUNCTION_INPUT} -gt 63 ] || \
+             ! [[ "$FUNCTION_INPUT" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+            echo "::error title=Edge deploy gate::invalid-function-slug"
+            exit 1
+          fi
+
+          FUNCTION_ROOT="$(realpath -e -- supabase/functions)"
+          REQUESTED_DIR="$FUNCTION_ROOT/$FUNCTION_INPUT"
+          if [ ! -d "$REQUESTED_DIR" ] || [ -L "$REQUESTED_DIR" ]; then
+            echo "::error title=Edge deploy gate::function-directory-not-regular"
+            exit 1
+          fi
+          if ! FUNCTION_DIR="$(realpath -e -- "$REQUESTED_DIR")"; then
+            echo "::error title=Edge deploy gate::function-path-unresolvable"
+            exit 1
+          fi
+          case "$FUNCTION_DIR" in
+            "$FUNCTION_ROOT"/*) ;;
+            *)
+              echo "::error title=Edge deploy gate::function-path-escaped-root"
+              exit 1
+              ;;
+          esac
+          if [ ! -f "$FUNCTION_DIR/index.ts" ] || [ -L "$FUNCTION_DIR/index.ts" ]; then
+            echo "::error title=Edge deploy gate::function-index-not-regular"
+            exit 1
+          fi
+
+          FUNCTION_SLUG="$FUNCTION_INPUT"
+          CONFIG_SECTION="[functions.$FUNCTION_SLUG]"
+          SECTION_COUNT="$(grep -Fxc -- "$CONFIG_SECTION" supabase/config.toml || true)"
+          if [ "$SECTION_COUNT" != "1" ]; then
+            echo "::error title=Edge deploy gate::function-config-section-required"
+            exit 1
+          fi
+          VERIFY_JWT="$(
+            awk -v section="$CONFIG_SECTION" '
+              $0 == section { inside = 1; next }
+              inside && /^\[/ { inside = 0 }
+              inside && $1 == "verify_jwt" && $2 == "=" { print $3 }
+            ' supabase/config.toml
+          )"
+          case "$VERIFY_JWT" in
+            true|false) ;;
+            *)
+              echo "::error title=Edge deploy gate::function-verify-jwt-boolean-required"
+              exit 1
+              ;;
+          esac
+          echo "function_slug=$FUNCTION_SLUG" >> "$GITHUB_OUTPUT"
+          echo "verify_jwt=$VERIFY_JWT" >> "$GITHUB_OUTPUT"
+
+      - name: Validate production credentials
         env:
           TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
         run: |
           set -euo pipefail
           if [ -z "${TOKEN:-}" ]; then
-            echo "SUPABASE_ACCESS_TOKEN is not set. Add it in Settings > Secrets and variables > Actions." >&2
+            echo "::error title=Edge deploy gate::access-token-required"
             exit 1
           fi
-          if [ -z "${REF:-}" ]; then
-            echo "SUPABASE_PROJECT_REF is not set." >&2
+          if ! [[ "${PROJECT_REF:-}" =~ ^[a-z0-9]{20}$ ]]; then
+            echo "::error title=Edge deploy gate::invalid-project-ref"
             exit 1
           fi
 
-      - name: Check the function exists in this repo
-        run: |
-          set -euo pipefail
-          DIR="supabase/functions/${{ inputs.function }}"
-          if [ ! -f "$DIR/index.ts" ]; then
-            echo "No such function: $DIR/index.ts" >&2
-            echo "Available:" >&2
-            ls -1 supabase/functions >&2
-            exit 1
-          fi
-          echo "deploying $DIR"
-
-      - uses: supabase/setup-cli@v1
+      - name: Setup pinned Supabase CLI
+        uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1 # v1
         with:
-          version: latest
+          version: "2.116.0"
 
-      - name: Record the version before deploying
+      - name: Record version before deploying
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
         run: |
           set -euo pipefail
-          supabase functions list --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" \
-            | tee before.txt
+          supabase functions list --project-ref "$PROJECT_REF" | tee before.txt
 
-      - name: Deploy
+      - name: Recheck main and deploy config-owned auth policy
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          FUNCTION_SLUG: ${{ steps.function_gate.outputs.function_slug }}
+          MAIN_SHA: ${{ steps.main_gate.outputs.main_sha }}
         run: |
           set -euo pipefail
-          FLAGS=""
-          if [ "${{ inputs.verify_jwt }}" != "true" ]; then
-            FLAGS="--no-verify-jwt"
+          if ! git fetch --no-tags --depth=1 origin '+refs/heads/main:refs/remotes/origin/main' >/dev/null 2>&1; then
+            echo "::error title=Edge deploy gate::remote-main-recheck-failed"
+            exit 1
           fi
-          supabase functions deploy "${{ inputs.function }}" \
-            --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" $FLAGS
+          if [ "$(git rev-parse HEAD)" != "$MAIN_SHA" ] || \
+             [ "$(git rev-parse refs/remotes/origin/main)" != "$MAIN_SHA" ]; then
+            echo "::error title=Edge deploy gate::main-advanced-before-deploy"
+            exit 1
+          fi
+          supabase functions deploy "$FUNCTION_SLUG" --project-ref "$PROJECT_REF"
 
-      - name: Report the version after deploying
+      - name: Report version after deploying
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          FUNCTION_SLUG: ${{ steps.function_gate.outputs.function_slug }}
+          VERIFY_JWT: ${{ steps.function_gate.outputs.verify_jwt }}
         run: |
           set -euo pipefail
-          supabase functions list --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" \
-            | tee after.txt
+          supabase functions list --project-ref "$PROJECT_REF" | tee after.txt
           {
-            echo "## Deployed \`${{ inputs.function }}\`"
+            echo "## Deployed \`$FUNCTION_SLUG\`"
             echo ""
-            echo "verify_jwt: \`${{ inputs.verify_jwt }}\`"
+            echo "JWT verification from config: \`$VERIFY_JWT\`"
             echo ""
             echo "### After"
             echo '```'
