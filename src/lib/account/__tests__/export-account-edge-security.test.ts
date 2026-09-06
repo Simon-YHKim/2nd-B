@@ -400,7 +400,7 @@ describe("export-account bounded owned readers", () => {
 
 describe("account export cooldown migration contract", () => {
   test("is an atomic service-role-only claim with FORCE RLS", () => {
-    const migrationPath = join(__dirname, "../../../../db/migrations/0151_account_export_rate_limit.sql");
+    const migrationPath = join(__dirname, "../../../../db/migrations/0175_account_export_rate_limit.sql");
     expect(existsSync(migrationPath)).toBe(true);
     const migration = readFileSync(migrationPath, "utf8");
     expect(migration).toMatch(/CREATE TABLE IF NOT EXISTS public\.account_export_rate_limits/i);
