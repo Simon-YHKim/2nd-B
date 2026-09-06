@@ -58,6 +58,7 @@ Usage
 -----
     pip install "fonttools[woff]" brotli
     npm ci --legacy-peer-deps          # puts the sources in node_modules/galmuri
+                                       # (galmuri is a devDependency; npm ci installs it)
     python scripts/build-font-subsets.py [--check]
 
 `--check` rebuilds into a temp dir and reports the size delta against what is
