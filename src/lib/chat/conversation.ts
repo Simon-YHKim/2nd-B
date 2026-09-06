@@ -340,6 +340,11 @@ ${sanitizeUntrusted(structuredBlock)}
     reply,
     used: newCount,
     limit,
-    remaining: Math.max(0, limit - newCount),
+    // `limit` is the tier cap WITHOUT today's rewarded-ad bonus: checkChatLimit
+    // returns cap and allowance as separate fields on purpose (limits.ts), and
+    // the server RPC gates on `count < cap + ad_bonus`. Recomputing remaining
+    // from `limit` therefore understates it by exactly the bonus the user just
+    // earned by watching an ad. Ask the one function that knows the allowance.
+    remaining: checkChatLimit(input.tier, newCount, adBonus).remaining,
   };
 }
