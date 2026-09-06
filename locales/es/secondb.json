@@ -172,6 +172,7 @@
   "longPressCopyThis": "Mantén pulsado para copiar este mensaje",
   "copied": "Copiado",
   "copyFailed": "No se pudo copiar. Selecciona el texto para copiarlo.",
+  "keepFailed": "No se pudo confirmar el guardado. Revisa la wiki y vuelve a pulsar Guardar en la wiki.",
   "aboutNode": "Sobre '{{node}}': ",
   "drewOnPieces": "Esta respuesta se basó en {{n}} de tus fragmentos. Toca para ver el detalle.",
   "nSources": "{{n}} fuentes",
