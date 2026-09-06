@@ -88,11 +88,16 @@ date.
 under the image tool's terms for generated content. The generated art
 carries no third-party license obligation.
 
+The three `assets/legacy-art/` packs lived under `public/assets/` until 2026-09-05.
+They are consumed only through Metro `require()`, so `public/` made every web
+export ship them twice (verbatim copy + hashed copy). Same files, same history;
+only the path moved.
+
 | Path | Files | First in git | Contents |
 |------|-------|--------------|----------|
-| `public/assets/cosmic-pixel-v3-soulcore/` | 142 (79 PNG · 63 SVG) | 2026-06-02 | Legacy "cosmic pixel" skin, still shipped behind `EXPO_PUBLIC_UI=legacy`: soul-core tiers 1–4, pattern cores / data / logs, pattern links, mobile graph, companion sprites (`archon`, `iris`, `lumen`, `relia`, `foreman_momo`), momo-crew, sprite sheets |
-| `public/assets/2ndb-production-premium-v1/` | 52 PNG | 2026-05-30 | Current production skin: graph islands, tier icons, worker redraws, shards, auth gate hero |
-| `public/assets/tesseract-v10/` | 7 PNG | 2026-06-04 | Tesseract worldview set generated from `docs/V3_GPT_IMAGE_PROMPT.md` |
+| `assets/legacy-art/cosmic-pixel-v3-soulcore/` | 142 (79 PNG · 63 SVG) | 2026-06-02 | Legacy "cosmic pixel" skin, still shipped behind `EXPO_PUBLIC_UI=legacy`: soul-core tiers 1–4, pattern cores / data / logs, pattern links, mobile graph, companion sprites (`archon`, `iris`, `lumen`, `relia`, `foreman_momo`), momo-crew, sprite sheets |
+| `assets/legacy-art/2ndb-production-premium-v1/` | 52 PNG | 2026-05-30 | Current production skin: graph islands, tier icons, worker redraws, shards, auth gate hero |
+| `assets/legacy-art/tesseract-v10/` | 7 PNG | 2026-06-04 | Tesseract worldview set generated from `docs/V3_GPT_IMAGE_PROMPT.md` |
 | `public/landing/` | 7 PNG | 2026-06-15 | Landing background concepts |
 | `public/proto/` | 7 PNG | 2026-07-04 | Deep-space prototype screens |
 | `public/icons/` | 2 PNG | 2026-06-11 | PWA icons (192 / 512), derived from the app icon |
