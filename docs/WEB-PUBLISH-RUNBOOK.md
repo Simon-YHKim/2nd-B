@@ -244,19 +244,36 @@ gh api --method GET --paginate 'repos/Simon-YHKim/2nd-B/actions/runs?per_page=10
 
 ## 게시
 
-1. 게시할 fresh `origin/main`의 exact 40자리 SHA와 CI 성공을 확인한다. build-only probe를 먼저
-   실행한다. Digest script 자체는 설정값을 echo하지 않고 digest만 Summary와
+1. 게시할 fresh `origin/main`의 exact 40자리 SHA와 CI 성공을 확인한다. 두 digest는 **따로 만들
+   필요가 없다** — main에 push가 들어오면 같은 workflow가 `build-only`로 자동 실행되기 때문이다
+   (`EVENT_NAME=push` → `MODE=build-only`, 두 digest input은 blank). 그 run에서 읽는다.
+   Digest script 자체는 설정값을 echo하지 않고 digest만 Summary와
    `.release-source.json`에 기록한다. 다만 Actions가 step environment를 렌더링하며
    `EXPO_PUBLIC_*` repo Variable 값을 로그에 보일 수 있다. 이 값들은 client-bundle-public이어야
    하며 confidential secret은 절대로 `EXPO_PUBLIC_*`나 해당 repo Variables에 넣지 않는다.
 
    ```powershell
    $sha = gh api --method GET repos/Simon-YHKim/2nd-B/commits/main --jq .sha
-   gh workflow run web-deploy.yml --repo Simon-YHKim/2nd-B --ref main `
-     -f mode=build-only -f source_sha=$sha -f public_config_sha256="" `
-     -f artifact_content_sha256="" `
-     -f confirmation="build-only:$sha" -f allow_dev_tier=false
+   $run = gh api --method GET "repos/Simon-YHKim/2nd-B/actions/workflows/web-deploy.yml/runs?event=push&head_sha=$sha" --jq ".workflow_runs[0].id"
+   gh run view $run --repo Simon-YHKim/2nd-B --log |
+     Select-String -Pattern "PUBLIC_CONFIG_SHA256: [0-9a-f]{64}", "ARTIFACT_CONTENT_SHA256: [0-9a-f]{64}"
    ```
+
+   ⚠ **`mode=build-only`는 API/CLI로 dispatch할 수 없다. 시도하지 말 것.**
+   `public_config_sha256`과 `artifact_content_sha256`은 `required: true`인데(2026-09-03
+   `e09b36b5`) build-only gate는 이 둘이 **blank일 것을 요구**한다
+   (`Build-only requires blank public_config_sha256 and artifact_content_sha256 inputs.`).
+   GitHub은 required input의 빈 문자열을 "제공되지 않음"으로 보고 **422로 거부**하므로 두 조건을
+   동시에 만족시킬 수 없다. 2026-09-03 이후 성공한 build-only dispatch run은 **0건**이고, 그
+   사이의 성공 dispatch run은 전부 `deploy` job을 가진 publish run이다. push run이 같은 빌드를
+   이미 돌려두므로 잃는 것도 없다.
+
+   **두 digest가 함께 움직였는지 따로 움직였는지를 본다.** `public_config_sha256`은 resolved
+   public build contract(정렬된 `EXPO_PUBLIC_*` 등)의 digest이고 `artifact_content_sha256`은
+   export된 `dist` 내용의 digest다. 커밋만 바뀌면 **content만** 움직인다. 실측(2026-09-07):
+   `f9fbd39c` → `6f6d76b0`에서 config는 `9e479567…`로 **같고** content만
+   `bb21e584…` → `de4ec8f3…`로 바뀌었다. **config까지 같이 움직였다면 코드가 아니라 repo
+   Variable이 바뀐 것**이므로, 게시를 이어가기 전에 무엇이 바뀌었는지부터 확인한다.
 
 2. probe의 Summary에서 두 64자리 lowercase digest를 읽고 source SHA, run ID, run attempt,
    `github-pages-<run_id>-<run_attempt>` artifact 이름을 대조한다. Upload 직후 helper는 official GET으로
@@ -289,6 +306,34 @@ gh api --method GET --paginate 'repos/Simon-YHKim/2nd-B/actions/runs?per_page=10
    final gate는 실패한다.
 6. 성공 후 OIDC run과 `.release-source.json`의 `sourceSha`, `workflowSha`,
    `publicConfigSha256`, `artifactContentSha256`, run/attempt, artifact name 및 공개 URL을 대조한다.
+
+### main이 조용해야 하는 시간
+
+publish run은 **dispatch부터 deploy 완료까지** `origin/main`이 움직이지 않아야 한다. 대기 중
+main이 이동하면 그 run은 버려진다. 이것은 **낡은 커밋을 공개하지 않으려는 의도된 동작**이지
+결함이 아니다 — 이 실패를 이유로 gate를 느슨하게 만들지 말 것.
+
+실제 실패 지점은 approval이 아니라 **build job의 freshness gate**이고, approval보다 훨씬 앞에서
+터진다(2026-09-07 실측, run `34065246344`):
+
+```
+::error::Checkout does not match source_sha.
+::error::Manual builds and publishes require source_sha to equal fresh origin/main.
+::error::The main workflow ref became stale before verification.
+```
+
+main이 움직인 뒤 content digest만 어긋나면 `Hash and approve immutable Pages content`에서
+대신 터진다(run `34065192766`). 두 경우 모두 `deploy` job은 `skipped`다.
+
+필요한 창의 길이는 고정값이 아니라 **그 run이 끝날 때까지**다. 성공한 publish run 3건의 실측
+소요는 `5m58s` · `6m00s` · `11m29s`였다(2026-09-06). **6분은 승인이 즉시일 때의 하한**이고
+승인이 늦으면 그만큼 길어진다. 그러므로:
+
+- 게시 전에 다른 세션에 **머지 정지**를 알리고, 회신으로 확인을 받는다.
+- 정지 동안 **armed된 auto-merge가 없는지** 확인한다. auto-merge는 아무도 보고 있지 않아도
+  CI가 초록이 되는 순간 main을 움직인다 — 사람에게 알리는 것만으로는 막히지 않는다.
+- 실패하면 새 `source_sha`로 처음부터 다시 한다. 같은 SHA 재시도는 아래 forward-only 규칙에
+  걸린다.
 
 ## 복구는 forward-only
 
