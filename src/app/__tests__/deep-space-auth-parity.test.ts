@@ -9,7 +9,7 @@ type RouteContract = {
 };
 
 const ROUTES: RouteContract[] = [
-  { file: "account", deepComponent: "DeepSpaceAccountDesignScreen", legacyComponent: "AccountLegacy" },
+  { file: "account", deepComponent: "DeepSpaceAccountScreen", legacyComponent: "AccountLegacy" },
   { file: "data", deepComponent: "DeepSpaceDataDesignScreen", legacyComponent: "DataManagementLegacy" },
   { file: "theme", deepComponent: "DeepSpaceThemeScreen", legacyComponent: "ThemeScreenLegacy" },
   { file: "support", deepComponent: "DeepSpaceSupportDesignScreen", legacyComponent: "SupportLegacy" },
