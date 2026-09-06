@@ -986,6 +986,48 @@ export function planSharedConsumption(input: {
   };
 }
 
+/**
+ * Remove EVERY local draft of one user, both storage generations.
+ *
+ * Terminal account deletion erases the server side - auth.users, the cascade,
+ * and the raw-clippings sweep - and then signs out. Nothing cleared what this
+ * module had written, so `capture.drafts.v2.<userId>` and
+ * `capture.journalDraft.v1.<userId>` survived on the device: unsent journal
+ * text, which is the most personal content the app holds, outliving the account
+ * it belonged to.
+ *
+ * Scoped to the one user id on purpose. `clearCaptureDraft` empties a single
+ * mode and rewrites the blob; this drops both keys outright. It never touches
+ * another user's keys, so it is safe on the deletion path even while an account
+ * switch is in flight - the caller passes the id it just erased, not the id that
+ * happens to be active now.
+ *
+ * Best-effort by the same rule as the deletion receipt: the account is already
+ * gone, so a storage failure must not be reported as a failed deletion. Returns
+ * whether the purge was observed to succeed, and never throws.
+ */
+export function purgeCaptureDraftsForDeletedAccount(userId: string): Promise<boolean> {
+  if (!userId) return Promise.resolve(false);
+  const local = ls();
+  if (local) {
+    try {
+      local.removeItem(stateKey(userId));
+      local.removeItem(legacyDraftKey(userId));
+      return Promise.resolve(true);
+    } catch {
+      return Promise.resolve(false);
+    }
+  }
+  const native = nativeStorage();
+  if (!native) return Promise.resolve(false);
+  return runNativeExclusive(userId, native, async (key) => {
+      await native.removeItem(key);
+      await native.removeItem(legacyDraftKey(userId));
+      return true;
+    })
+    .catch(() => false);
+}
+
 export function clearCaptureDraft(userId: string, mode: CaptureDraftMode = "journal"): Promise<boolean> {
   const local = ls();
   if (local) {
