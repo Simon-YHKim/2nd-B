@@ -36,6 +36,10 @@ export default [
       ".worktrees/**",
       ".expo/**",
       "dist/**",
+      // Untracked Expo export dirs (dist-smoke from ci.yml, dist-audit /
+      // dist-check from local QA exports): linting one cost 46-110 s and
+      // crashed eslint when the dir was deleted mid-run (D7-10).
+      "dist-*/**",
       // Vendored design-asset packs (reference SVGs / example components) —
       // static deliverables served as-is, not project source to lint.
       "public/**",
