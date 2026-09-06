@@ -5,13 +5,14 @@
 // self-select an expensive model). C1 holds: no vendor SDK is ever imported
 // here — "claude" / "openai" are Supabase Edge Function names.
 //
-// Activation, as of 2026-08-29: five switches, not one phase flag.
+// Activation, as of 2026-08-31: five switches, not one phase flag.
 // EXPO_PUBLIC_LLM_VENDOR (reasoning seats) · _CHAT_VENDOR · _MULTIMODAL_VENDOR
 // (OCR / voice / any image) · _BACKBONE_VENDOR (everything else) · _EMBED_VENDOR,
-// plus _FAILOVER_VENDOR for the outage retry. Every one resolves "gemini" when
-// unset — that is the Phase 1 posture this file shipped with — and every one is
-// set in both deployed postures (repo Variables; eas.json). EXPO_PUBLIC_LLM_PHASE
-// only matters while _LLM_VENDOR is unset.
+// plus _FAILOVER_VENDOR for the outage retry. Every one resolves RETIRED_DEFAULT
+// (openai) when unset — until T1 stage A they resolved "gemini", the Phase 1
+// posture this file shipped with — and every one is set in both deployed
+// postures anyway (repo Variables; eas.json). EXPO_PUBLIC_LLM_PHASE only
+// matters while _LLM_VENDOR is unset.
 //
 // SAME-QUALITY invariant: seats key on purpose (situation), NEVER on the
 // subscription tier. See docs/LLM-ROUTING.md.
@@ -48,6 +49,22 @@ export function normalizeVendor(raw: string): LlmVendor | null {
 // "perPurpose" to defer to the PHASE2_VENDOR map.
 export type LlmVendorMode = LlmVendor | "perPurpose";
 
+// T1 — where every UNSET switch lands now that Gemini is retiring (Google
+// stops accepting Standard keys in September; Simon retired the vendor on
+// 2026-08-21; last real gemini call in the ledger 2026-08-24 07:31 KST).
+//
+// Until 2026-08-31 each switch fell through to "gemini" when unset. That was
+// the Phase 1 posture this file shipped with, and after the retirement it
+// would have been a dead proxy: a build missing one variable would 404 on
+// every call of that seat. openai is the vendor every deployed posture already
+// names for chat, backbone, multimodal and embeddings, and openai-proxy seats
+// every purpose (REQ-260821-01). "gemini" is still ACCEPTED as an explicit
+// operator value — normalizeVendor keeps it — so the one-variable rollback
+// stays possible until the console deletes gemini-proxy; it just never
+// happens by default any more. gemini-residue.test.ts pins the count of
+// places that still say "gemini" so the final deletion PR cannot miss one.
+const RETIRED_DEFAULT: LlmVendor = "openai";
+
 // Read at call time (Expo inlines EXPO_PUBLIC_* literals at build time; every
 // switch in this file reads the same way).
 export function llmPhase(): 1 | 2 {
@@ -59,14 +76,15 @@ export function llmPhase(): 1 | 2 {
 // pick which vendor serves the reasoning seats without a code edit:
 //   gemini | claude | openai  → that vendor for EVERY reasoning seat
 //   perPurpose                → use the per-seat PHASE2_VENDOR map
-//   unset / unrecognized      → null (back-compat: Phase-1 = Gemini,
+//   unset / unrecognized      → null (back-compat: Phase-1 = RETIRED_DEFAULT
+//                               since T1 stage A, Gemini before it;
 //                               Phase-2 = PHASE2_VENDOR map)
 // Only the reasoning seats (PHASE2_VENDOR keys) follow this switch. Chat has
 // its own knob (chatVendorOverride), the binary-carrying purposes follow
 // multimodalVendor(), everything else follows backboneVendor() — none of them
-// is ever routed to a reasoning proxy by this switch. Unset resolves gemini
-// for the seats via the phase rule; the deployed posture is perPurpose
-// (repo Variable 2026-08-23, eas.json #1370).
+// is ever routed to a reasoning proxy by this switch. Unset resolves
+// RETIRED_DEFAULT for the seats via the phase rule; the deployed posture is
+// perPurpose (repo Variable 2026-08-23, eas.json #1370).
 export function llmVendorOverride(): LlmVendorMode | null {
   const raw = (process.env.EXPO_PUBLIC_LLM_VENDOR ?? "").trim().toLowerCase();
   const vendor = normalizeVendor(raw);
@@ -76,9 +94,11 @@ export function llmVendorOverride(): LlmVendorMode | null {
 }
 
 // EXPO_PUBLIC_CHAT_VENDOR — the one knob for 세컨비 대화 (secondb_chat).
-//   gemini (or unset) → gemini-proxy, the behaviour shipped to date
+//   unset             → RETIRED_DEFAULT (openai-proxy) since T1 stage A
+//                       2026-08-31; it was gemini-proxy until then
 //   openai            → openai-proxy   ← Simon's 2026-08-18 direction
 //   claude            → claude-proxy
+//   gemini            → gemini-proxy, explicit rollback only
 //
 // Why chat gets its own knob instead of joining PHASE2_VENDOR: the seats in
 // that map only activate at EXPO_PUBLIC_LLM_PHASE=2, and production is
@@ -117,8 +137,10 @@ export function chatVendorOverride(): LlmVendor | null {
 // the deep-run rationale still calling a key that no longer works, and the
 // failure would have looked like a vendor outage rather than a missed seat.
 //
-// Default stays "gemini", so this file behaves exactly as before until the
-// variable is set. The proxy seats have to exist first - openai-proxy answers
+// The default stayed "gemini" while this switch was new, so the file behaved
+// exactly as before until the variable was set; since T1 stage A (2026-08-31)
+// unset lands on RETIRED_DEFAULT and "gemini" is explicit rollback only.
+// The proxy seats have to exist first - openai-proxy answers
 // 400 purpose_not_seated for anything outside its allowlist BEFORE doing
 // anything else, so this is the same deploy-then-flip ordering as chat.
 // ⚠ "xai" is accepted here and WILL be refused by the proxy. That is the
@@ -129,7 +151,7 @@ export function chatVendorOverride(): LlmVendor | null {
 // call answers purpose_not_seated - loud, and free. Seat them in xai-proxy when
 // a cheap tier is confirmed, and this comment stops being true.
 export function backboneVendor(): LlmVendor {
-  return normalizeVendor(process.env.EXPO_PUBLIC_BACKBONE_VENDOR ?? "") ?? "gemini";
+  return normalizeVendor(process.env.EXPO_PUBLIC_BACKBONE_VENDOR ?? "") ?? RETIRED_DEFAULT;
 }
 
 // EXPO_PUBLIC_SAFETY_VENDOR - the server-side crisis classifier's vendor.
@@ -150,7 +172,7 @@ export function backboneVendor(): LlmVendor {
 export function safetyVendor(): LlmVendor {
   const raw = (process.env.EXPO_PUBLIC_SAFETY_VENDOR ?? "").trim().toLowerCase();
   if (raw === "openai" || raw === "gemini") return raw;
-  return "gemini";
+  return RETIRED_DEFAULT;
 }
 
 /** Where a failed primary retries. "none" disables the retry entirely. */
@@ -169,11 +191,14 @@ export type FailoverTarget = LlmVendor | "none";
 // retrying the thing that just failed, and retrying Claude means paying opus
 // prices for an outage. Turning it off is a legitimate answer, so it is one.
 //
-// Default is "gemini", so behaviour is unchanged until an operator moves it.
+// Unset is "none" since T1 stage A (2026-08-31); it was "gemini" while that
+// was every seat's Phase 1 assignment.
 export function failoverVendor(): FailoverTarget {
   const raw = (process.env.EXPO_PUBLIC_FAILOVER_VENDOR ?? "").trim().toLowerCase();
   if (raw === "none") return "none";
-  return normalizeVendor(raw) ?? "gemini";
+  // Unset → no retry. Every deployed posture says "none" (2026-08-29), and the
+  // only vendor that used to be a sensible retry target is the one retiring.
+  return normalizeVendor(raw) ?? "none";
 }
 
 // EXPO_PUBLIC_EMBED_VENDOR - the last live Gemini hardcode.
@@ -201,7 +226,12 @@ export function embedVendor(): LlmVendor {
   // embed route - accepting either would turn a capability gap into a runtime
   // 400 on every index build.
   if (raw === "openai" || raw === "gemini") return raw;
-  return "gemini";
+  // Unset → openai. Measured 2026-08-31 before flipping this: wiki_pages holds
+  // no vectors and records holds exactly one, made by text-embedding-3-large —
+  // so there is no gemini-made vector for this default to become inconsistent
+  // with (embedding_model, 0142). The re-index hazard above still applies to
+  // any FUTURE flip.
+  return RETIRED_DEFAULT;
 }
 
 // OCR and voice memos are the two purposes that carry BINARY payloads, so they
@@ -226,14 +256,15 @@ export const GEMINI_PINNED_PURPOSES = MULTIMODAL_PURPOSES;
 
 // Which vendor serves the binary-carrying purposes.
 //
-// The unset default is "gemini". It was chosen in #1300 because openai-proxy
-// did not carry the image + transcription seats until it was redeployed, and
-// flipping a default ahead of the deploy is the 0127/0130 trap. That is history
-// now: the deployed openai-proxy carries both seats (v109, 2026-08-24, read
-// back 2026-08-29), the console set EXPO_PUBLIC_MULTIMODAL_VENDOR=openai (repo
-// Variable 2026-08-22; eas.json #1370), and Simon closed the question on
-// 2026-08-23 — "OCR = openai 유지 (gemini 예외 없음)". The default is simply
-// not retired yet; it goes with gemini-proxy in September.
+// The unset default was "gemini" until T1 stage A (2026-08-31). It was chosen
+// in #1300 because openai-proxy did not carry the image + transcription seats
+// until it was redeployed, and flipping a default ahead of the deploy is the
+// 0127/0130 trap. That is history: the deployed openai-proxy carries both
+// seats (v109, 2026-08-24, read back 2026-08-29), the console set
+// EXPO_PUBLIC_MULTIMODAL_VENDOR=openai (repo Variable 2026-08-22; eas.json
+// #1370), and Simon closed the question on 2026-08-23 — "OCR = openai 유지
+// (gemini 예외 없음)". Unset now lands on RETIRED_DEFAULT; "gemini" is still
+// accepted explicitly until gemini-proxy is deleted.
 export function multimodalVendor(): LlmVendor {
   const raw = (process.env.EXPO_PUBLIC_MULTIMODAL_VENDOR ?? "").trim().toLowerCase();
   // "xai" is deliberately NOT accepted. xai-proxy has no image or audio path
@@ -241,7 +272,7 @@ export function multimodalVendor(): LlmVendor {
   // capability gap into a runtime 415 on every photo and voice memo. A vendor
   // that cannot carry a binary is not a choice for the binary-carrying seats.
   if (raw === "openai" || raw === "gemini") return raw;
-  return "gemini";
+  return RETIRED_DEFAULT;
 }
 
 // D-26 Phase 2 vendor seats. Anthropic carries the two seats whose output is
@@ -401,11 +432,24 @@ export const PHASE2_EFFORT: Readonly<Partial<Record<PromptPurpose, ReasoningEffo
 // docs/LLM-ROUTING.md; until then vendor-switch-reachability.test.ts keeps the
 // env key wired through eas.json + both deploy workflows.
 export function legacyReasoningProvider(): LlmVendor {
-  const raw = (process.env.EXPO_PUBLIC_REASONING_PROVIDER ?? "gemini").trim().toLowerCase();
+  const raw = (process.env.EXPO_PUBLIC_REASONING_PROVIDER ?? RETIRED_DEFAULT).trim().toLowerCase();
   // 'openai' used to fall through to Gemini here, which meant the operator
   // could set EXPO_PUBLIC_REASONING_PROVIDER=openai, see no error, and still be
   // on Gemini. The seam accepts every vendor normalizeVendor can route to.
-  return normalizeVendor(raw) ?? "gemini";
+  return normalizeVendor(raw) ?? RETIRED_DEFAULT;
+}
+
+// The same seam, but null when the operator has not SET it. The last rung of
+// resolveVendorForPurpose must use this one: while the seam's unset value was
+// "gemini" it could only ever confirm a gemini axis, so reading the default
+// there was harmless. Once the unset value became RETIRED_DEFAULT, reading it
+// would turn an explicit EXPO_PUBLIC_LLM_VENDOR=gemini into openai on every
+// pro-tier seat (advisor, reasoning_connect, imagine) — the rollback broken
+// exactly where it is dearest. An unset legacy variable has no opinion.
+export function legacyReasoningProviderOverride(): LlmVendor | null {
+  const raw = (process.env.EXPO_PUBLIC_REASONING_PROVIDER ?? "").trim().toLowerCase();
+  if (!raw) return null;
+  return normalizeVendor(raw);
 }
 
 /**
@@ -414,8 +458,7 @@ export function legacyReasoningProvider(): LlmVendor {
  * any other switch is consulted. A text-only proxy cannot serve it at all, so
  * that is a capability constraint, not a preference. WHICH vendor that is comes
  * from EXPO_PUBLIC_MULTIMODAL_VENDOR: "openai" in both deployed postures (repo
- * Variable 2026-08-22, eas.json #1370); "gemini" is still the unset default,
- * chosen in #1300 for the deploy-before-flip order and not yet retired.
+ * Variable 2026-08-22, eas.json #1370) and, since T1 stage A, also when unset.
  *
  * This comment used to say "image-bearing calls are ALWAYS Gemini". That was
  * true while gemini-proxy was the only function forwarding inline data; #1300
@@ -441,8 +484,12 @@ export function resolveVendorForPurpose(
   if (hasImage || MULTIMODAL_PURPOSES.has(purpose)) return multimodalVendor();
 
   const resolved = resolveTextVendor(purpose);
-  // Last rung: the legacy pro-tier seam, only when the axis said "gemini".
-  if (resolved === "gemini" && opts?.reasoningTier) return legacyReasoningProvider();
+  // Last rung: the legacy pro-tier seam, only when the axis said "gemini" AND
+  // the operator actually set the legacy variable. An unset seam must not
+  // overrule an explicit gemini (see legacyReasoningProviderOverride).
+  if (resolved === "gemini" && opts?.reasoningTier) {
+    return legacyReasoningProviderOverride() ?? resolved;
+  }
   return resolved;
 }
 
@@ -454,7 +501,7 @@ function resolveTextVendor(purpose: PromptPurpose): LlmVendor {
   //     so chat never depends on Phase 2 being on. Unset → "gemini", exactly
   //     as before.
   if (purpose === "secondb_chat") {
-    return chatVendorOverride() ?? "gemini";
+    return chatVendorOverride() ?? RETIRED_DEFAULT;
   }
 
   // Only the reasoning SEATS follow EXPO_PUBLIC_LLM_VENDOR. Every other purpose
@@ -471,7 +518,7 @@ function resolveTextVendor(purpose: PromptPurpose): LlmVendor {
     // moving the reasoning seats must not silently re-route a cheap classifier
     // through a reasoning proxy. The backbone has its own switch for that.
     if (!isSeat) return backboneVendor();
-    if (override === "perPurpose") return PHASE2_VENDOR[purpose] ?? "gemini";
+    if (override === "perPurpose") return PHASE2_VENDOR[purpose] ?? RETIRED_DEFAULT;
     return override; // gemini | claude | openai — applied to every seat
   }
 
@@ -479,8 +526,8 @@ function resolveTextVendor(purpose: PromptPurpose): LlmVendor {
   //    per-seat map. Non-seat purposes take the backbone switch instead, which
   //    defaults to Gemini, so this line reads the same as before for them.
   if (!isSeat) return backboneVendor();
-  if (llmPhase() !== 2) return "gemini";
-  return PHASE2_VENDOR[purpose] ?? "gemini";
+  if (llmPhase() !== 2) return RETIRED_DEFAULT;
+  return PHASE2_VENDOR[purpose] ?? RETIRED_DEFAULT;
 }
 
 /** D-26 Phase 2 effort default for a purpose (non-Gemini seats only). */
@@ -492,5 +539,9 @@ export function proxyFnForVendor(vendor: LlmVendor | undefined): LlmProxyFn {
   if (vendor === "claude") return "claude-proxy";
   if (vendor === "openai") return "openai-proxy";
   if (vendor === "xai") return "xai-proxy";
-  return "gemini-proxy";
+  // gemini-proxy is reachable only by NAME now — an explicit "gemini" from an
+  // operator switch — never by falling through. An undefined vendor lands on
+  // the retired default's proxy, the same place every unset switch lands.
+  if (vendor === "gemini") return "gemini-proxy";
+  return "openai-proxy";
 }

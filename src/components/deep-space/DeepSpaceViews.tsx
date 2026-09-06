@@ -22,13 +22,14 @@ import { canonCaptureModes } from "@/lib/canon";
 import { deepSpace, deepSpaceGradients, flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { PixelGlyph, PixelGlyphRects } from "@/components/pixel/PixelGlyph";
-import { canonGlyph, type AnyGlyphName, type GlyphAliasName } from "@/components/pixel/pixel-glyphs";
+import { PixelSurface } from "@/components/pixel/PixelSurface";
+import { canonGlyph, type AnyGlyphName } from "@/components/pixel/pixel-glyphs";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import { type HotlineId } from "@/lib/safety/lexicon";
-import { MdButton, MdCard, MdChip, ProgressLinear, m3TextStyle } from "@/components/m3";
+import { MdButton, MdCard, ProgressLinear, m3TextStyle } from "@/components/m3";
 import { composeFourWBody, EMPTY_FOURW, fourWHasContent, type FourWFields } from "@/lib/capture/fourw";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { loadLatestBfi } from "@/lib/persona/build";
@@ -128,20 +129,6 @@ function Chip({ label }: { label: string }) {
 
 // ── 담기 / Capture ───────────────────────────────────────────────────────────
 
-// 담기 화면이 쓰는 아이콘 **이름 목록**. 그림은 `pixel-glyphs` 정본에서 온다.
-//
-// 원래 여기에 열여덟 개짜리 문자열 SVG 레지스트리(`CAPTURE_ICON_INNER`)가 있었다.
-// 저장소에서 **네 번째** 레지스트리였고, 앞의 셋과 마찬가지로 소문자 마크업이라
-// 규칙 1 위반 집계에 안 잡혔다. 열여덟 중 열둘은 다른 레지스트리와 **같은
-// 아이콘**이었다 — 그래서 손댈 때마다 다섯 벌 중 한 벌만 고쳐지곤 했다.
-const CAPTURE_ICON_NAMES = [
-  "edit", "link", "photo_camera", "mic", "check_circle", "check", "edit_note",
-  "calendar_today", "north_east", "person", "bolt", "auto_awesome",
-  "radio_unchecked", "add", "trending_up", "forum", "chevron_right", "replay",
-] as const satisfies readonly GlyphAliasName[];
-
-type CaptureIconName = (typeof CAPTURE_ICON_NAMES)[number];
-
 function CaptureIcon({ name, color, size = 18 }: { name: AnyGlyphName; color: string; size?: number }) {
   return <PixelGlyph name={name} color={color} size={size} />;
 }
@@ -201,14 +188,76 @@ type CaptureMode = "text" | "link" | "photo" | "voice" | "todo";
 const CAPTURE_MODE_ROW: { id: CaptureMode; icon: AnyGlyphName }[] =
   canonCaptureModes.map((m) => ({ id: m.id as CaptureMode, icon: canonGlyph(m.icon) }));
 
+type CaptureTextFormat = "free" | "fourw";
+
+/** PIXEL-CLAY tile whose outer View owner supplies layout on Android Fabric. */
+function CaptureTile({
+  label,
+  icon,
+  selected,
+  disabled = false,
+  horizontal = false,
+  accessibilityHint,
+  role,
+  onPress,
+}: {
+  label: string;
+  icon?: AnyGlyphName;
+  selected: boolean;
+  disabled?: boolean;
+  horizontal?: boolean;
+  accessibilityHint?: string;
+  role: "button" | "radio" | "tab";
+  onPress: () => void;
+}) {
+  const [held, setHeld] = useState(false);
+  const active = selected && !disabled;
+  const color = active ? m3.color.onPrimary : m3.color.onSurfaceVariant;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onPressIn={() => setHeld(true)}
+      onPressOut={() => setHeld(false)}
+      disabled={disabled}
+      accessibilityRole={role}
+      accessibilityLabel={label}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{
+        disabled,
+        selected: role === "button" ? undefined : selected,
+        checked: role === "radio" ? selected : undefined,
+      }}
+      aria-selected={role === "button" ? undefined : selected}
+      style={styles.capTileHit}
+    >
+      <View style={held && !disabled ? styles.capTileSunk : styles.capTileRest}>
+        <PixelSurface
+          variant={active ? "inset" : "bevel"}
+          pressed={held && !disabled}
+          background={active ? m3.color.primary : m3.color.surfaceContainerHigh}
+          style={styles.capTileSurface}
+          contentStyle={[styles.capTileContent, horizontal && styles.capTileContentHorizontal]}
+        >
+          {icon ? <CaptureIcon name={icon} color={color} size={horizontal ? 16 : 18} /> : null}
+          <Text style={[styles.capTileLabel, { color }]} numberOfLines={1}>
+            {label}
+          </Text>
+        </PixelSurface>
+      </View>
+    </Pressable>
+  );
+}
+
 export function CaptureView() {
-  const { t, i18n } = useTranslation("home");
+  const { t, i18n } = useTranslation(["home", "capture"]);
   const { userId, isMinor } = useAuth();
   const locale = i18n.language === "ko" ? "ko" : "en";
   // rev2 P4a (device QA 2026-07-02) + clone-audit 06-capture: the deep-space 담기
   // matches the reference — 5 format modes, and 글(text) opens the W4H1 form as
   // the default. All modes save through the same createRecord(kind:"note") path.
   const [mode, setMode] = useState<CaptureMode>("text");
+  const [textFormat, setTextFormat] = useState<CaptureTextFormat>("fourw");
   const [fourw, setFourw] = useState<FourWFields>(EMPTY_FOURW);
   const [text, setText] = useState(""); // link / photo caption / voice transcript
   const [todos, setTodos] = useState<string[]>(["", ""]);
@@ -226,7 +275,9 @@ export function CaptureView() {
   const cleanTodos = todos.map((v) => v.trim()).filter((v) => v.length > 0);
   const hasContent =
     mode === "text"
-      ? fourWHasContent(fourw)
+      ? textFormat === "fourw"
+        ? fourWHasContent(fourw)
+        : text.trim().length > 0
       : mode === "todo"
         ? cleanTodos.length > 0
         : text.trim().length > 0;
@@ -254,9 +305,15 @@ export function CaptureView() {
       let topic: string | undefined;
       let tag: string;
       if (mode === "text") {
-        body = composeFourWBody(fourw, locale);
-        topic = fourw.what.trim().slice(0, 80);
-        tag = "fourw";
+        if (textFormat === "fourw") {
+          body = composeFourWBody(fourw, locale);
+          topic = fourw.what.trim().slice(0, 80);
+          tag = "fourw";
+        } else {
+          body = text.trim();
+          topic = body.slice(0, 80);
+          tag = "memo";
+        }
       } else if (mode === "todo") {
         body = cleanTodos.map((v) => `- ${v}`).join("\n");
         topic = cleanTodos[0]?.slice(0, 80);
@@ -299,7 +356,8 @@ export function CaptureView() {
     }
   }
 
-  // 4W1H single-line fields relay focus what→when→where→who→how on Android.
+  // W4H1 single-line fields relay focus when→where→who→what on Android.
+  const whatRef = useRef<TextInput>(null);
   const whenRef = useRef<TextInput>(null);
   const whereRef = useRef<TextInput>(null);
   const whoRef = useRef<TextInput>(null);
@@ -309,51 +367,82 @@ export function CaptureView() {
   const saveLabel = saving ? f("saving") : saved ? f("saved") : f("save");
 
   return (
-    <ScrollView contentContainerStyle={styles.capBody} keyboardShouldPersistTaps="handled">
-      <Text style={styles.capTitle}>{f("title")}</Text>
-      <Text style={styles.capSubtitle}>{f("subtitle")}</Text>
-
-      {/* format selector — 5 M3 filter chips */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.capChipScroll}
-        contentContainerStyle={styles.capChipRow}
-        keyboardShouldPersistTaps="handled"
-      >
+    <ScrollView
+      style={styles.capScroll}
+      contentContainerStyle={styles.capBody}
+      keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets
+    >
+      {/* The reference uses five fixed square tiles, not a scrolling chip row. */}
+      <View style={styles.capModeRow} accessibilityRole="tablist">
         {CAPTURE_MODE_ROW.map((m) => {
           const on = mode === m.id;
-          const fg = on ? m3.color.onSecondaryContainer : m3.color.onSurfaceVariant;
           return (
-            <MdChip
-              key={m.id}
-              kind="filter"
-              selected={on}
-              label={t("ds.capture.modes." + m.id)}
-              icon={<CaptureIcon name={on ? "check" : m.icon} color={fg} size={18} />}
-              onPress={() => {
-                setMode(m.id);
-                dirty();
-              }}
-            />
+            <View key={m.id} style={styles.capModeCell}>
+              <CaptureTile
+                role="tab"
+                selected={on}
+                label={t("ds.capture.modes." + m.id)}
+                icon={m.icon}
+                onPress={() => {
+                  setMode(m.id);
+                  dirty();
+                }}
+              />
+            </View>
           );
         })}
-      </ScrollView>
+      </View>
 
       {/* mode-specific input */}
       {mode === "text" ? (
-        <View style={styles.capForm}>
-          <CaptureField
-            icon="edit_note"
-            label={f("fields.what.label")}
-            hint={f("fields.what.hint")}
-            value={fourw.what}
-            onChange={(v) => setField("what", v)}
-            multiline
-            required
-          />
-          <View style={styles.capFieldRow}>
-            <View style={styles.capFieldCol}>
+        <>
+          <View style={styles.capFormatRow} accessibilityRole="radiogroup">
+            <View style={styles.capFormatCell}>
+              <CaptureTile
+                role="radio"
+                selected={textFormat === "free"}
+                horizontal
+                icon="edit_note"
+                label={t("capture:modes.memo.label")}
+                onPress={() => {
+                  setTextFormat("free");
+                  dirty();
+                }}
+              />
+            </View>
+            <View style={styles.capFormatCell}>
+              <CaptureTile
+                role="radio"
+                selected={textFormat === "fourw"}
+                horizontal
+                icon="grid"
+                label={t("capture:modes.fourw.label")}
+                onPress={() => {
+                  setTextFormat("fourw");
+                  dirty();
+                }}
+              />
+            </View>
+          </View>
+          {textFormat === "free" ? (
+            <View style={styles.capForm}>
+              <TextInput
+                value={text}
+                onChangeText={(next) => {
+                  setText(next);
+                  dirty();
+                }}
+                placeholder={f("fields.what.hint")}
+                placeholderTextColor={m3.color.onSurfaceVariant}
+                multiline
+                textAlignVertical="top"
+                style={[styles.capFieldInput, styles.capFreeInput]}
+                accessibilityLabel={t("capture:modes.memo.label")}
+              />
+            </View>
+          ) : (
+            <View style={styles.capForm}>
               <CaptureField
                 ref={whenRef}
                 icon="calendar_today"
@@ -364,8 +453,6 @@ export function CaptureView() {
                 returnKeyType="next"
                 onSubmitEditing={() => whereRef.current?.focus()}
               />
-            </View>
-            <View style={styles.capFieldCol}>
               <CaptureField
                 ref={whereRef}
                 icon="north_east"
@@ -376,28 +463,38 @@ export function CaptureView() {
                 returnKeyType="next"
                 onSubmitEditing={() => whoRef.current?.focus()}
               />
+              <CaptureField
+                ref={whoRef}
+                icon="person"
+                label={f("fields.who.label")}
+                hint={f("fields.who.hint")}
+                value={fourw.who}
+                onChange={(v) => setField("who", v)}
+                returnKeyType="next"
+                onSubmitEditing={() => whatRef.current?.focus()}
+              />
+              <CaptureField
+                ref={whatRef}
+                icon="edit_note"
+                label={f("fields.what.label")}
+                hint={f("fields.what.hint")}
+                value={fourw.what}
+                onChange={(v) => setField("what", v)}
+                multiline
+                required
+              />
+              <CaptureField
+                ref={howRef}
+                icon="bolt"
+                label={f("fields.how.label")}
+                hint={f("fields.how.hint")}
+                value={fourw.how}
+                onChange={(v) => setField("how", v)}
+                returnKeyType="done"
+              />
             </View>
-          </View>
-          <CaptureField
-            ref={whoRef}
-            icon="person"
-            label={f("fields.who.label")}
-            hint={f("fields.who.hint")}
-            value={fourw.who}
-            onChange={(v) => setField("who", v)}
-            returnKeyType="next"
-            onSubmitEditing={() => howRef.current?.focus()}
-          />
-          <CaptureField
-            ref={howRef}
-            icon="bolt"
-            label={f("fields.how.label")}
-            hint={f("fields.how.hint")}
-            value={fourw.how}
-            onChange={(v) => setField("how", v)}
-            returnKeyType="done"
-          />
-        </View>
+          )}
+        </>
       ) : mode === "link" ? (
         <View style={styles.capForm}>
           <Text style={styles.capHint}>{f("linkHint")}</Text>
@@ -487,22 +584,18 @@ export function CaptureView() {
         </View>
       )}
 
-      {/* auto-classify banner (tertiary tonal) */}
-      <View style={styles.capBanner}>
-        <CaptureIcon name="auto_awesome" color={m3.color.onTertiaryContainer} size={18} />
-        <Text style={styles.capBannerText}>{f("banner")}</Text>
+      <View style={styles.capSubmit}>
+        <CaptureTile
+          role="button"
+          selected={canSave || saving || saved}
+          disabled={!canSave}
+          horizontal
+          icon={saving ? undefined : "add"}
+          label={saveLabel}
+          accessibilityHint={!canSave && !saving ? f("saveHint") : undefined}
+          onPress={savePiece}
+        />
       </View>
-
-      <MdButton
-        variant="filled"
-        icon={saving ? undefined : <CaptureIcon name="add" color={m3.color.onPrimary} size={18} />}
-        label={saveLabel}
-        loading={saving}
-        disabled={!canSave}
-        accessibilityHint={!canSave && !saving ? f("saveHint") : undefined}
-        onPress={savePiece}
-        style={styles.capSubmit}
-      />
 
       {saved ? (
         <MdButton
@@ -1859,16 +1952,32 @@ const styles = StyleSheet.create({
   pixelTitle: { color: deepSpace.accentBright, fontSize: 16, fontFamily: fontFamilies.readable, fontWeight: "700" },
 
   // ── 담기 / Capture (M3 track, clone-audit 06-capture) ──────────────────────
-  capBody: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 24 },
-  capTitle: { color: m3.color.onSurface, fontSize: 24, lineHeight: 30, fontFamily: m3.font.brand, fontWeight: "700" },
-  capSubtitle: { color: m3.color.onSurfaceVariant, fontSize: 15, lineHeight: 20, fontFamily: m3.font.brand, marginTop: 4 },
-  capChipScroll: { marginTop: 16, marginHorizontal: -16 },
-  capChipRow: { flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingBottom: 4 },
-  capForm: { gap: 14, marginTop: 16 },
+  capScroll: { flex: 1 },
+  capBody: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 20 },
+  capModeRow: { flexDirection: "row", gap: 4 },
+  capModeCell: { flex: 1, minWidth: 0 },
+  capFormatRow: { flexDirection: "row", gap: 4, marginTop: 8 },
+  capFormatCell: { flex: 1, minWidth: 0 },
+  capTileHit: { width: "100%", minHeight: 48 },
+  capTileRest: { flex: 1 },
+  capTileSunk: { flex: 1, transform: [{ translateY: m3.spacing.s1 }] },
+  capTileSurface: { flex: 1 },
+  capTileContent: {
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+  },
+  capTileContentHorizontal: { flexDirection: "row", gap: 6 },
+  capTileLabel: { ...m3TextStyle("labelMedium"), textAlign: "center" },
+  capForm: { gap: 10, marginTop: 10 },
   capFieldHead: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 },
   capFieldLabel: { color: m3.color.onSurfaceVariant, fontSize: 12, lineHeight: 16, fontFamily: m3.font.brand, fontWeight: "500" },
   capFieldRequired: { color: m3.color.primary, fontSize: 12, lineHeight: 16, marginLeft: 2, fontFamily: m3.font.brand, fontWeight: "700" },
   capFieldInput: {
+    minHeight: 44,
     borderWidth: 1,
     borderColor: m3.color.outlineVariant,
     borderRadius: m3.shape.none,
@@ -1880,12 +1989,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   capFieldInputTall: { minHeight: 96 },
+  capFreeInput: { minHeight: 300 },
   capMono: { fontFamily: m3.font.mono, fontSize: 12 },
-  capFieldRow: { flexDirection: "row", gap: 12 },
-  capFieldCol: { flex: 1 },
   capHint: { color: m3.color.onSurfaceVariant, fontSize: 12, lineHeight: 18, fontFamily: m3.font.brand },
   capTodoCol: { gap: 8, marginTop: 16 },
   capTodoRow: {
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
@@ -1898,18 +2007,7 @@ const styles = StyleSheet.create({
   },
   capTodoInput: { flex: 1, color: m3.color.onSurface, fontFamily: m3.font.brand, fontSize: 15, padding: 0 },
   capTodoAdd: { alignSelf: "flex-start" },
-  capBanner: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    marginTop: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: m3.shape.none,
-    backgroundColor: m3.color.tertiaryContainer,
-  },
-  capBannerText: { flex: 1, color: m3.color.onTertiaryContainer, fontSize: 12, lineHeight: 18, fontFamily: m3.font.brand },
-  capSubmit: { alignSelf: "stretch", marginTop: 14 },
+  capSubmit: { alignSelf: "stretch", marginTop: 12 },
   capFullWidth: { alignSelf: "stretch", marginTop: 8 },
   capErrorCard: {
     marginTop: 12,

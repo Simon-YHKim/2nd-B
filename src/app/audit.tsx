@@ -7,11 +7,11 @@ import { PremiumAppShell, PremiumLoadingState, PremiumToast, PremiumModal } from
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { semantic, spacing, radii } from "@/lib/theme/tokens";
+import { semantic, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { PastMeErasView } from "@/components/deep-space/DeepSpaceViews";
+import { DdsAuditScreen } from "@/screens/deepspace/dds-audit-screen";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { questionsForPeriod, type AuditPeriod } from "@/lib/audit/questions";
 import { isUnlived, type SevenStarId } from "@/lib/persona/seven-stars";
@@ -530,45 +530,16 @@ const styles = StyleSheet.create({
   },
 });
 
-// Deep-space 성장 · 과거의 나: the reference AuditScreen era timeline (clone-audit
-// 17-audit) — a "과거의 나" headline + subtitle over a left-rail timeline of five
-// life eras (유아기/아동기/청소년기/청년기/현재). Tapping an era opens the open-ended
-// interview (reference go('interview')). Navigation-only: the reference's per-era
-// "또렷함 L{n}" dots were fixed constants (fabricated brightness, 정직한 밝기 위반)
-// and were removed by the 2026-07-21 logic audit; see PastMeErasView.
+// Deep-space /audit is the new-seven provenance hub. The legacy questionnaire
+// above remains isolated and unchanged behind the rollback UI branch.
 function AuditDeepSpace() {
-  const { t, i18n } = useTranslation("audit");
-  const isKo = i18n.language === "ko";
-  // 2026-09-04: 이 분기에는 인증 게이트가 없었다. 같은 파일의 AuditLegacy(:229-232)와
-  // 같은 컴포넌트를 그리는 /interview(:158-170) 는 둘 다 게이트를 갖는데 여기만 빠져
-  // 있어서, 로그아웃 방문자가 공개 웹 URL 로 들어오면 로그인한 것처럼 보이는 시기
-  // 목록을 받고 아무거나 누르면 /sign-in 으로 튕겼다. 게다가 PastMeErasView 는
-  // useAuth().age 로 "아직 안 온 시기"를 잠그는데(isUnlived), 로그아웃이면 age 가
-  // null 이라 그 잠금이 전부 풀린 채 그려진다 — 살지 않은 시기까지 열려 보인다.
-  // 개인 데이터가 새지는 않는다(목록은 SEVEN_STARS 정적, 문구는 i18n).
-  const { userId, loading, hasProfile } = useAuth();
-  const frame = (children: ReactNode) => (
-    <DeepSpaceScreen
-      active="lens"
-      header="none"
-      variant="windowed"
-      title={isKo ? "성장 · 과거의 나" : "Growth · Past me"}
-      onBack={() => router.back()}
-    >
-      {children}
-    </DeepSpaceScreen>
-  );
-  if (loading) {
-    return frame(
-      <View style={styles.center}>
-        <PremiumLoadingState message={t("loading")} />
-      </View>,
-    );
-  }
-  if (!userId) return <Redirect href="/sign-in" />;
-  // DOB 가 없으면 age 도 없어서 시기 잠금이 의미를 잃는다. AuditLegacy 와 같은 목적지.
-  if (hasProfile === false) return <Redirect href="/complete-profile" />;
-  return frame(<PastMeErasView isKo={isKo} />);
+  // 2026-09-04(#1602) 이 자리에 인증 게이트를 붙였다. #1531 이 딥스페이스 본문을
+  // `dds-audit-screen.tsx` 로 옮기면서 그 게이트도 같이 옮겼고, 거기서 더 촘촘해졌다
+  // — loading · !userId · hasProfile===null · profileProbeFailed · hasProfile===false
+  // 다섯 단계를 다 갖고, `isUnlived(star.id, age)` 잠금도 그 안에서 건다.
+  // 여기에 게이트 없는 본문을 다시 인라인하지 말 것 — 그게 #1602 가 고친 버그다.
+  // 검사는 `src/app/__tests__/audit-auth-gate.test.ts` 가 두 파일에 걸쳐 지킨다.
+  return <DdsAuditScreen />;
 }
 
 export default function Audit() {

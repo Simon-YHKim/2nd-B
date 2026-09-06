@@ -16,7 +16,7 @@ import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tok
 import { useAuth } from "@/lib/auth/AuthContext";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
-import { DeepSpaceDataDesignScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
+import { DeepSpaceDataScreen } from "@/screens/deepspace/dds-data-screen";
 
 function DataManagementLegacy() {
   const { t } = useTranslation("data");
@@ -156,6 +156,6 @@ export default function DataManagement() {
     );
   }
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
-  if (isDeepSpaceUI()) return <DeepSpaceDataDesignScreen />;
+  if (isDeepSpaceUI()) return <DeepSpaceDataScreen />;
   return <DataManagementLegacy />;
 }

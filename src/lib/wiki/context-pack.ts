@@ -80,13 +80,13 @@ const PACK_STRINGS = {
   en: {
     title: (name: string | null) => `# ${name ? `${name}'s` : "Your"} personal context — read this first`,
     whoH: "## Who this is",
-    whoFallback: "A person building a record of themselves — their knowledge, notes, and patterns — to think with.",
+    whoFallback: "No personal introduction has been added yet.",
     patterns: (p: string[]) => (p.length > 0 ? ` Recurring patterns: ${p.join(", ")}.` : ""),
     rulesH: "## How to use this (rules)",
     rules: (name: string) => [
       `1. This file is ${name}'s own context — saved knowledge, notes, and patterns. Ground answers in it; do not invent facts about ${name}.`,
       `2. Cite by section name when you use something from here.`,
-      `3. Treat ${name} as a capable thinking partner pursuing self-understanding and growth — not as someone to assess. Avoid clinical framing.`,
+      `3. Describe what the records say about ${name}, without judging the person or using clinical framing. Use plain, conversational language without stock praise, promotional wording or elaborate metaphors.`,
       `4. If a section you need is not attached, ask for it instead of guessing.`,
       `5. Read these rules first; the specific request is at the very bottom of this file.`,
     ],
@@ -100,13 +100,13 @@ const PACK_STRINGS = {
   ko: {
     title: (name: string | null) => `# ${name ? `${name}의` : "나의"} 개인 컨텍스트 — 먼저 읽어주세요`,
     whoH: "## 이 사람은",
-    whoFallback: "자기 자신을 기록으로 쌓아가는 사람 — 지식·노트·패턴을 모아 함께 생각하기 위해.",
+    whoFallback: "아직 작성된 소개가 없어요.",
     patterns: (p: string[]) => (p.length > 0 ? ` 반복되는 패턴: ${p.join(", ")}.` : ""),
     rulesH: "## 사용 방법 (규칙)",
     rules: (name: string) => [
       `1. 이 파일은 ${name}의 컨텍스트입니다 — 저장한 지식·노트·패턴. 답변은 여기에 근거하고, ${name}에 대해 없는 사실을 지어내지 마세요.`,
       `2. 여기서 가져온 내용은 섹션 이름으로 인용하세요.`,
-      `3. ${name}을(를) 자기 이해와 성장을 추구하는 유능한 사고 파트너로 대하세요 — 평가 대상이 아니라. 임상적 표현은 피하세요.`,
+      `3. ${name}에 관해 기록에 나타난 내용을 설명하되, 사람을 평가하거나 임상적 표현을 쓰지 마세요. 쉬운 일상어와 자연스러운 해요체를 쓰고 상투적인 칭찬, 과장, 추상적인 비유는 피하세요.`,
       `4. 필요한 섹션이 첨부되지 않았다면, 추측하지 말고 요청하세요.`,
       `5. 이 규칙을 먼저 읽으세요. 구체적인 요청은 이 파일 맨 아래에 있습니다.`,
     ],

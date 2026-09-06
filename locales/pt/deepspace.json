@@ -45,7 +45,7 @@
     "surprise": "Encontrei um vínculo inesperado. '{{from}}' e '{{to}}' são temas diferentes e, mesmo assim, se conectam.",
     "islandChip": "Grupos de conhecimento {{count}}",
     "proposalsLabel": "Conexões propostas",
-    "noProposals": "Ainda não há propostas. Crie o índice semântico e peça sugestões de vínculos.",
+    "noProposals": "Ainda não há conexões sugeridas. Use o botão abaixo para buscar registros relacionados.",
     "confidence": "{{percent}}% de correspondência",
     "reject": "Rejeitar",
     "ratify": "Aceitar",
@@ -216,7 +216,7 @@
     "last7": "Últimos 7 dias",
     "thirdParty": "Compartilhamento com terceiros",
     "none": "0 itens",
-    "footer": "O padrão é local primeiro. Transferências externas só ocorrem após sua confirmação.",
+    "footer": "O tratamento e armazenamento dos dados depende de cada função. Consulte o aviso de uso de dados.",
     "dataReview": "Revisão dos meus dados",
     "open": "Abrir"
   },
@@ -259,18 +259,18 @@
     "sources": {
       "cal": {
         "name": "Google Calendar",
-        "sub": "Sinais de ritmo e relacionamentos da sua agenda"
+        "sub": "Importe compromissos de um arquivo de calendário"
       },
       "health": {
         "name": "Apple Health",
-        "sub": "Sono e atividade alimentam sua estrela da saúde"
+        "sub": "Importe um arquivo exportado do app de saúde"
       },
       "notion": {
         "sub": "Importe notas e documentos"
       },
       "photos": {
         "name": "Álbum de fotos",
-        "sub": "Descanso e relacionamentos a partir das suas cenas"
+        "sub": "Leia o texto de uma foto e salve como nota"
       },
       "gpt": {
         "name": "Exportação do ChatGPT",
@@ -345,7 +345,7 @@
     "sectionStart": "Primeiros passos",
     "q1": "Quais são as 7 estrelas do Carro Maior?",
     "q2": "Como a Estrela Polar se ilumina?",
-    "q3": "Como os resultados dos testes ficam mais precisos?",
+    "q3": "Como leio os resultados?",
     "sectionData": "Dados · Privacidade",
     "q4": "O que é um arquivo IDEN?",
     "q5": "Onde meus dados são armazenados?",
@@ -879,9 +879,9 @@
       "healthCtaReflected": "Refletido",
       "healthCtaReflectToday": "Refletir hoje",
       "healthCtaConnect": "Conectar",
-      "leadStart": "Reúna as partes de você que estão espalhadas. Até o que é importado se reflete ",
-      "leadStrong": "apenas conforme o seu próprio peso",
-      "leadEnd": " nas estrelas.",
+      "leadStart": "Traga registros de outros apps. As notas importadas de arquivos vão para ",
+      "leadStrong": "sua caixa de entrada",
+      "leadEnd": ", onde você pode revisar e organizar tudo.",
       "toggleFile": "Por arquivo",
       "toggleAccount": "Conectar conta",
       "sectionChooseFile": "Escolha um arquivo",
@@ -1043,16 +1043,16 @@
   },
   "trends": {
     "title": "Tendência de brilho",
-    "subtitle": "Nas últimas 8 semanas sua constelação foi ficando cada vez mais nítida.",
+    "subtitle": "Estes números são exemplos. Não são calculados a partir dos seus registros.",
     "overall": "Brilho geral",
-    "delta8w": "+34% · 8 sem",
-    "perStar": "Mudança por estrela",
-    "log": "Histórico de brilho",
-    "shareCta": "Compartilhe esta mudança como cartão"
+    "delta8w": "Exemplo +34% · 8 semanas",
+    "perStar": "Exemplos de mudanças por tema",
+    "log": "Exemplo de histórico de mudanças",
+    "shareCta": "Criar um cartão para compartilhar"
   },
   "profileDetails": {
     "screenTitle": "Sobre a sua vida",
-    "intro": "Opcional. Cada resposta faz uma sugestão servir para você, não para todos.",
+    "intro": "Preencha só o que quiser compartilhar. Salve estes dados no perfil e altere depois.",
     "progress": "{{filled}} de {{total}} preenchidos",
     "save": "Guardar",
     "saved": "Guardado",
@@ -1066,13 +1066,13 @@
     "householdLabel": "Com quem você mora",
     "householdHint": "Sozinho, com família, com colega...",
     "busiestSeasonLabel": "Sua época mais ocupada",
-    "busiestSeasonHint": "Para não colocar grandes planos nessa altura.",
+    "busiestSeasonHint": "Por exemplo: provas, fim de ano ou alta temporada de verão",
     "dailyRhythmLabel": "Seu ritmo diário",
-    "dailyRhythmHint": "Define a que horas as sugestões chegam.",
+    "dailyRhythmHint": "Escolha a opção que mais combina com seu dia a dia.",
     "workHoursLabel": "Quando você costuma trabalhar ou estudar",
-    "workHoursHint": "Para procurar os intervalos.",
+    "workHoursHint": "Escolha quando costuma trabalhar ou estudar.",
     "workDaysLabel": "Quais dias",
-    "workDaysHint": "Para as rotinas semanais caírem no dia certo.",
+    "workDaysHint": "Escolha Por turnos ou Varia se seus dias de trabalho mudam.",
     "rhythmMorning": "Matutino",
     "rhythmEvening": "Noturno",
     "rhythmFlexible": "Flexível",

@@ -17,9 +17,25 @@
 //     Types come from ./purchases via type-only imports (erased at compile).
 //   - Keep the export surface identical to ./purchases.ts.
 
-import type { PurchaseOutcome, PurchasesPackage, RestoreOutcome } from "./purchases";
+import type {
+  OfferingsOutcome,
+  PurchaseOutcome,
+  PurchasesPackage,
+  RestoreOutcome,
+} from "./purchases";
 
-export type { PurchaseOutcome, PurchasesPackage, RestoreOutcome } from "./purchases";
+export type {
+  OfferingsOutcome,
+  PurchaseOutcome,
+  PurchasesPackage,
+  RestoreOutcome,
+} from "./purchases";
+
+// The tier selector is pure and must give the same answer on every platform, so
+// both variants re-export the one copy in ./purchases-select. That module is
+// structurally typed and never names the SDK, which keeps it clear of the seam
+// scan in web-bundle-shims.test.ts.
+export { findMonthlyTierPackage, type PlansPackageTier } from "./purchases-select";
 
 export const PRO_ENTITLEMENT = "pro";
 
@@ -50,3 +66,16 @@ export async function restorePurchases(): Promise<RestoreOutcome> {
 export async function getProStatus(): Promise<boolean> {
   return false;
 }
+
+/**
+ * Web: the strict read reports "unavailable", which is exactly what the native
+ * file answers on web -- its ensureConfigured() gate is false without an SDK
+ * key, so the plans screen shows the "upgrade in the mobile app" notice instead
+ * of presenting a store outage.
+ */
+export async function getOfferingsResult(): Promise<OfferingsOutcome> {
+  return { status: "unavailable" };
+}
+
+/** Web: no configure state to clear. Present for export-surface parity. */
+export function __resetPurchasesForTests(): void {}

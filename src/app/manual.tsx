@@ -18,7 +18,7 @@ import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tok
 import { fontFamilies } from "@/theme/typography";
 import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
-import { DeepSpaceManualScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
+import { DeepSpaceManualScreen } from "@/screens/deepspace/dds-manual-screen";
 
 interface ManualSection {
   emoji: string; // semantic anchor only — kept ASCII-art-ish for the design

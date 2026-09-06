@@ -4,6 +4,12 @@
 // for a one-sentence JSON classification — wrong generation, base-key
 // attribution, wasted thinking. These tests pin the fixed body shape so the
 // defect cannot silently return.
+//
+// T1 stage A (2026-08-31): an UNSET EXPO_PUBLIC_SAFETY_VENDOR now resolves
+// "openai" (routing.ts RETIRED_DEFAULT), so the default wire is openai-proxy
+// with no model hint (openai-proxy seats safety_classify server-side). The
+// gemini-proxy + MODELS.flash pin below is kept as the explicit-"gemini"
+// rollback case; it is no longer what unset means.
 
 const invokeMock = jest.fn<Promise<{ data: unknown; error: unknown }>, [string, { body: Record<string, unknown> }]>();
 jest.mock("../../supabase/client", () => ({
@@ -27,10 +33,32 @@ import { MODELS } from "../types";
 afterEach(() => {
   jest.clearAllMocks();
   delete process.env.EXPO_PUBLIC_SERVER_SAFETY;
+  delete process.env.EXPO_PUBLIC_SAFETY_VENDOR;
 });
 
 describe("classifyViaProxy wire contract (D4 seat)", () => {
-  it("pins the env-routed flash model + low effort on the safety_classify body", async () => {
+  it("unset safety vendor routes to openai-proxy at low effort with no model hint", async () => {
+    process.env.EXPO_PUBLIC_SERVER_SAFETY = "true";
+    invokeMock.mockResolvedValue({
+      data: { text: '{"zone":"green","triggers":[],"confidence":0.9}' },
+      error: null,
+    });
+    const r = await classifySafety("오늘 산책을 했다", "ko");
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+    const [fn, { body }] = invokeMock.mock.calls[0];
+    expect(fn).toBe("openai-proxy");
+    expect(body.purpose).toBe("safety_classify");
+    // The flash model is a Gemini-only hint; openai-proxy owns its model
+    // server-side, so the body must not carry one (safety.ts vendor guard).
+    expect(body).not.toHaveProperty("model");
+    expect(body.effort).toBe("low");
+    expect(r.zone).toBe("green");
+    expect(r.source).toBe("lexicon+llm");
+  });
+
+  it("explicit gemini still pins gemini-proxy + env-routed flash model + low effort (rollback)", async () => {
+    // explicit: unset is openai since T1 stage A
+    process.env.EXPO_PUBLIC_SAFETY_VENDOR = "gemini";
     process.env.EXPO_PUBLIC_SERVER_SAFETY = "true";
     invokeMock.mockResolvedValue({
       data: { text: '{"zone":"green","triggers":[],"confidence":0.9,"cssrsLevel":null}' },

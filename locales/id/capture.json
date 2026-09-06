@@ -6,16 +6,16 @@
     "fileRequired": "Pilih file atau tempel teks yang dapat dibaca sebelum menyimpan.",
     "ocrRequired": "Pilih foto dan tinjau teks yang diekstrak sebelum menyimpan.",
     "journalLocked": "Capai Lv{{level}} sebelum menyimpan entri jurnal.",
-    "journalLimit": "Entri jurnal gratis sudah habis. Mode tangkap lain masih tersedia.",
+    "journalLimit": "Jatah jurnal gratis sudah habis. Kamu masih bisa menyimpan dengan cara lain.",
     "saving": "Penyimpanan sedang berlangsung.",
     "voiceRequired": "Tulis teks memo suara sebelum menyimpan.",
     "todoRequired": "Tulis tugas sebelum menyimpan.",
     "fourwRequired": "Isi kotak Apa dulu"
   },
   "savedTitleFallback": "Kepingan hari ini",
-  "loading": "Memuat tangkapan...",
+  "loading": "Memuat catatan...",
   "hero": {
-    "eyebrow": "01. Tangkapan",
+    "eyebrow": "01. Simpan",
     "title": "Simpan catatan atau sumber",
     "subtitle": "Jurnal · catatan · tautan · foto · file",
     "speechSaved": "Tersimpan. Kamu bisa melihatnya di graf.",
@@ -33,11 +33,11 @@
       "accessibilityLabel": "Pilihan wiki"
     },
     "mode": {
-      "accessibilityLabel": "Mode tangkapan",
+      "accessibilityLabel": "Cara menambahkan catatan",
       "more": "Lainnya",
       "moreHint": "Menampilkan opsi catatan, tautan, foto, dan file.",
       "less": "Lebih sedikit",
-      "lessHint": "Menyembunyikan opsi tangkapan tambahan dan kembali ke Jurnal jika diperlukan."
+      "lessHint": "Menyembunyikan pilihan tambahan dan kembali ke Jurnal jika diperlukan."
     }
   },
   "tracks": {
@@ -99,7 +99,7 @@
     "seeOcrGraphHint": "Membuka graf dan menandai catatan foto ini.",
     "seeRecords": "Lihat catatanku",
     "seeRecordsHint": "Membuka catatanmu agar kamu bisa menemukan entri ini lagi.",
-    "captureMore": "Tangkap lagi",
+    "captureMore": "Simpan bahan lain",
     "recordsOwnership": "Satu kalimat cukup untuk hari ini. Entri ini ada di Catatan, jadi kamu bisa membacanya lagi dan memasukkannya ke ekspor nanti.",
     "recordsAiOptIn": "SecondB hanya merefleksikan entri ini saat kamu menyalakan tombol itu.",
     "storagePending": "Tersimpan, tapi salinan file cadangan belum terunggah kali ini. Teksmu aman tersimpan.",
@@ -131,7 +131,7 @@
     "limit": {
       "title": "Entri jurnal gratis habis",
       "body": "Kamu sudah menulis semua {{limit}} entri jurnal gratis. Semua yang telah kamu tulis tetap ada dan bisa dibaca kapan saja.",
-      "helper": "Tangkapan catatan, tautan, file, dan foto tetap terbuka tanpa batas."
+      "helper": "Catatan, tautan, file, dan foto masih bisa disimpan tanpa batas."
     },
     "streak": {
       "label": "Hari tercatat: {{count}}{{suffix}}",
@@ -213,9 +213,9 @@
     "placeholder": "tagar"
   },
   "feedback": {
-    "accessibilityLabel": "Pemberitahuan umpan balik tangkapan",
+    "accessibilityLabel": "Pemberitahuan hasil penyimpanan",
     "dismissHint": "Menutup pemberitahuan ini.",
-    "retryHint": "Mencoba ulang tindakan tangkapan yang gagal."
+    "retryHint": "Mencoba lagi tindakan penyimpanan yang gagal."
   },
   "alerts": {
     "common": {
@@ -350,7 +350,7 @@
     "startRecording": "Mulai merekam",
     "maybeLater": "Nanti saja"
   },
-  "captureTab": "Tangkap",
+  "captureTab": "Simpan",
   "formatsTab": "Format",
   "importTab": "Impor",
   "inboxTab": "Kotak masuk",
