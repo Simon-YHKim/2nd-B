@@ -11,9 +11,11 @@
 //     notice is the user's intent already being satisfied, not an error.
 //
 // The client is untyped (src/lib/supabase/client.ts calls createClient with no
-// <Database> generic and src/lib/supabase/types.gen.ts is stale and imported by
-// nothing), so row shapes are hand-declared here and cast at the boundary -
-// same as src/lib/wiki/template-queries.ts:35-49.
+// <Database> generic), so row shapes are hand-declared here and cast at the
+// boundary - same as src/lib/wiki/template-queries.ts:35-49. The generated
+// types.gen.ts that used to sit beside it was deleted 2026-09-06: nothing
+// imported it and it had drifted from the schema. Regenerate on demand with
+// `supabase gen types typescript --project-id <ref>`.
 
 import { getSupabaseClient } from "../supabase/client";
 import { REMOTE_NOTICE_KINDS, type RemoteNotice, type RemoteNoticeKind } from "./types";

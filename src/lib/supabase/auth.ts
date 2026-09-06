@@ -8,7 +8,6 @@ import dayjs from "dayjs";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { digitalConsentAge, resolveJurisdiction } from "../auth/consent-age";
 import type { ConsentSelections } from "../auth/consent-selections";
-import { isJudgeEmail } from "../judge/domains";
 import { getEnv } from "../env";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getSupabaseClient } from "./client";
@@ -193,7 +192,13 @@ export async function signUpWithEmail(args: SignUpArgs): Promise<SignUpResult> {
   if (!session) return { kind: "confirmationRequired" };
   if (!user || !session) throw new Error("Sign-up returned no session");
 
-  const judgeMode = isJudgeEmail(args.email);
+  // A brand-new row is never comped. The email-domain derivation that used to
+  // decide this was deleted 2026-09-06 (Simon decision Q-260905-02) along with
+  // src/lib/judge/domains.ts, whose JUDGE_DOMAINS had been empty since #1302,
+  // so this call could only ever return false. Existing rows still report the
+  // stored users.judge_mode below: that column stays on purpose (#1302) so an
+  // account can be comped by hand.
+  const judgeMode = false;
   const { error: insertErr } = await supabase.from("users").insert({
     id: user.id,
     email: args.email,
@@ -742,7 +747,7 @@ export async function ensureUserProfile(args: CompleteProfileArgs): Promise<Comp
   const { data: existing } = await supabase.from("users").select("id, judge_mode").eq("id", user.id).maybeSingle();
   if (existing) return { created: false, judgeMode: existing.judge_mode === true };
 
-  const judgeMode = isJudgeEmail(user.email ?? "");
+  const judgeMode = false; // see the note above: no email-domain derivation any more
   // Trim to null rather than storing "" — an empty string would count as a
   // filled profile slot and light the star for someone who typed nothing.
   const displayName = args.displayName?.trim() ? args.displayName.trim().slice(0, 40) : null;

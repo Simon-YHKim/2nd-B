@@ -4,7 +4,6 @@
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-import { JUDGE_DOMAINS } from "../src/lib/judge/domains";
 import { FORBIDDEN_TERMS, CRISIS_TERMS } from "../src/lib/safety/lexicon";
 
 const ROOT = process.cwd();
@@ -50,23 +49,14 @@ results.push(
   }),
 );
 
-results.push(
-  check("C2", () => {
-    const wrapper = read("src/lib/llm/boundary.ts");
-    const envFile = read("src/lib/env.ts");
-    const ok =
-      wrapper.includes("vertexai: true") &&
-      envFile.includes("EXPO_PUBLIC_USE_VERTEX") &&
-      envFile.includes("GOOGLE_CLOUD_PROJECT");
-    return {
-      id: "C2",
-      status: ok ? "PASS" : "FAIL",
-      note: ok
-        ? "wrapper branches on EXPO_PUBLIC_USE_VERTEX; env requires GOOGLE_CLOUD_PROJECT when vertex"
-        : "Vertex AI branching incomplete",
-    };
-  }),
-);
+// C2 is gone (Simon decision Q-260905-02, 2026-09-06). It required
+// `vertexai: true` in the LLM boundary plus GOOGLE_CLOUD_PROJECT in env,
+// because the contest asked entries to use a Google Cloud product. The contest
+// ended 2026-08-15, so the requirement has no author left. The Vertex code it
+// pinned is still there and still works; it is now free to leave with the rest
+// of the Gemini retirement (#1505) instead of being held in place by a rule
+// nobody is enforcing. Numbers are not reused: C2 stays retired so that older
+// audits, CLAUDE.md and AGENTS.md keep pointing at the same thing.
 
 results.push(
   check("C3", () => {
@@ -120,82 +110,15 @@ results.push(
   }),
 );
 
-results.push(
-  // C6 was "auto-flag judge emails". The contest ended 2026-08-15 and Simon
-  // ordered the remnant removed on 2026-08-21 (REQ-260820-04), so the check now
-  // guards the RETIREMENT instead of the feature. Kept as C6 rather than
-  // renumbered: the id is referenced from CLAUDE.md, AGENTS.md and past audits,
-  // and a silently reused number is worse than a retired one.
-  //
-  // What it must prevent coming back, and why each half matters:
-  //   - a comp domain in JUDGE_DOMAINS. Comp by email domain granted the TOP
-  //     PAID TIER from a string the user picks at sign-up.
-  //   - the email-domain DERIVATION. enforce_judge_mode() was doing double duty as the
-  //     privilege guard, because the "column-level revoke" 0011's comment
-  //     promised did not actually exist (measured on prod 2026-08-21: anon and
-  //     authenticated both held UPDATE on users.judge_mode).
-  //
-  //     [!] The first draft of 0138 answered that by revoking the column and
-  //     dropping both triggers. A production dry run showed the revoke is a
-  //     NO-OP: anon/authenticated hold TABLE-level privileges on public.users,
-  //     and a column REVOKE cannot cut a table GRANT. Dropping the guard on the
-  //     strength of it would have opened self-escalation to the top paid tier.
-  //     So 0138 now REPLACES enforce_judge_mode() with a pure guard instead of
-  //     dropping it, and this check follows: the derivation must be gone, the
-  //     guard must still be sitting in the trigger seat.
-  check("C6", () => {
-    const libEmpty = JUDGE_DOMAINS.length === 0;
-    const retire = read("db/migrations/0138_retire_judge_auto_flag.sql");
-    const revoked =
-      /REVOKE UPDATE \(judge_mode\) ON public\.users FROM anon, authenticated/.test(retire) &&
-      /REVOKE INSERT \(judge_mode\) ON public\.users FROM anon, authenticated/.test(retire);
-    // The INSERT-side derivation goes away outright: an INSERT has no OLD row
-    // to compare against, so there is nothing there for a guard to do.
-    const dropped = retire.includes("DROP FUNCTION IF EXISTS public.auto_judge_mode()");
-    // The UPDATE-side seat keeps a trigger, but it must no longer read the
-    // email. Checking for the ABSENCE of the derivation is the point: a check
-    // that merely asserted "a function exists" would have passed the original.
-    // Comments are stripped first, so the header may narrate the retired
-    // domains without failing the check and, more importantly, executable SQL
-    // cannot hide behind prose.
-    const retireSql = retire.replace(/^\s*--.*$/gm, "");
-    const guarded =
-      retire.includes("CREATE OR REPLACE FUNCTION public.enforce_judge_mode()") &&
-      retire.includes("CREATE TRIGGER trg_users_enforce_judge") &&
-      !/split_part\s*\(\s*NEW\.email/.test(retireSql) &&
-      !/xprize\.org|devpost\.com|hacker\.fund/.test(retireSql);
-    // No LATER migration may re-create them. 0010/0011 still contain the
-    // originals and are history, so only files above 0138 are scanned.
-    const revived = readdirSync(join(ROOT, "db", "migrations"))
-      .filter((f) => f.endsWith(".sql"))
-      // Numeric comparison rather than a filename pattern: the previous regex
-      // skipped 0139 entirely, which is the very next file anyone would write.
-      .filter((f) => Number.parseInt(f.slice(0, 4), 10) > 138)
-      // What must not come back is the DERIVATION, not a function name. The
-      // name check this used to be flagged 0139's enforce_judge_mode_insert(),
-      // which is a GUARD closing the INSERT path 0138 leaves open - the
-      // opposite of a revival. Matching on the behaviour is both stricter
-      // (a differently named function reading NEW.email is caught) and
-      // correct (a guard is not a revival). Comments stripped, so a migration
-      // may narrate the history without failing, and cannot hide SQL in prose.
-      .filter((f) => {
-        const sql = read(`db/migrations/${f}`).replace(/^\s*--.*$/gm, "");
-        return (
-          /CREATE (OR REPLACE )?FUNCTION [^\n]*auto_judge_mode/.test(sql) ||
-          /split_part\s*\(\s*NEW\.email/.test(sql) ||
-          /xprize\.org|devpost\.com|hacker\.fund/.test(sql)
-        );
-      });
-    const ok = libEmpty && revoked && dropped && guarded && revived.length === 0;
-    return {
-      id: "C6",
-      status: ok ? "PASS" : "FAIL",
-      note: ok
-        ? "judge comp retired: JUDGE_DOMAINS empty, 0138 drops the email derivation and keeps a pure write guard, no revival"
-        : `judge retirement incomplete: domains=${JUDGE_DOMAINS.length} revoked=${revoked} dropped=${dropped} guarded=${guarded} revived=[${revived.join(", ")}]`,
-    };
-  }),
-);
+// C6 is gone (Simon decision Q-260905-02, 2026-09-06). It guarded the
+// RETIREMENT of the judge-email comp flag after #1302 and migration 0138 took
+// the feature out. With src/lib/judge/domains.ts deleted in this change there
+// is no JUDGE_DOMAINS array left to re-fill and no client that reads one, so
+// the guard has nothing to hold. What it protected against on the DB side --
+// a trigger deriving privilege from an email domain -- stays gone in 0138,
+// which is applied to production. The users.judge_mode column and its comp
+// branch are still there ON PURPOSE (#1302) and removing them is a migration,
+// not a code change.
 
 results.push(
   check("C7", () => {
@@ -640,7 +563,12 @@ results.push(
   }),
 );
 
-// C12 — pre-existing / bundled asset disclosure (rulebook §04).
+// C12 - bundled asset disclosure. The contest rulebook asked for this and
+// the contest is over, but the obligation is not: the fonts we ship are SIL
+// OFL, which requires the copyright and Reserved Font Name notice to travel
+// with them, and docs/ASSETS.md is the only thing recording it. So the check
+// stays and only its justification changes (2026-09-06). Delete it if you
+// want the disclosure to be voluntary; it is about twenty lines.
 //
 // The README heading is necessary but NOT sufficient. Until 2026-08-06 this check
 // was a single grep for that heading, so it reported PASS while 226 committed
@@ -679,7 +607,7 @@ results.push(
   check("C12", () => {
     const readme = read("README.md");
     if (!/pre-existing assets used/i.test(readme))
-      return { id: "C12", status: "FAIL", note: "README missing required section per rulebook §04" };
+      return { id: "C12", status: "FAIL", note: "README missing the bundled-asset disclosure section" };
 
     if (!exists("docs/ASSETS.md")) return { id: "C12", status: "FAIL", note: "docs/ASSETS.md registry missing" };
     const registry = read("docs/ASSETS.md");
