@@ -710,11 +710,20 @@ jobs:
             gh "${ARGS[@]}"
             RESULT=created-draft
             echo "result=$RESULT" >> "$GITHUB_OUTPUT"
+            # A draft release has NO tag. GitHub creates the ref only when the
+            # draft is published, so requiring one here could never pass: the
+            # v0.7.0 release (2026-09-07) died on exactly this line after the
+            # draft and all four assets had been created correctly.
+            #
+            # What binds the release to the commit while it is still a draft is
+            # target_commitish, and the node check below asserts it equals
+            # GITHUB_SHA. The tag is checked here only if one somehow already
+            # exists -- then it must still point at this commit.
             CREATED_TAG_SHA="$(git ls-remote --tags origin "refs/tags/$TAG" | awk 'NR==1 {print $1}')"
             CREATED_PEELED_SHA="$(git ls-remote --tags origin "refs/tags/$TAG^{}" | awk 'NR==1 {print $1}')"
             CREATED_TAG_SHA="${CREATED_PEELED_SHA:-$CREATED_TAG_SHA}"
-            if [ "${CREATED_TAG_SHA,,}" != "${GITHUB_SHA,,}" ]; then
-              echo "::error::Created tag does not resolve to the requested commit."
+            if [ -n "$CREATED_TAG_SHA" ] && [ "${CREATED_TAG_SHA,,}" != "${GITHUB_SHA,,}" ]; then
+              echo "::error::Tag $TAG already exists and does not resolve to the requested commit."
               exit 1
             fi
             gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" > "$RUNNER_TEMP/created-release.json"

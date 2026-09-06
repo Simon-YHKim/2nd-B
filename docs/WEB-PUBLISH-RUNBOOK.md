@@ -8,7 +8,7 @@
 
 ## 현재 legacy 위험
 
-2026-09-03 read-only 확인 결과 Pages는 `build_type=legacy`, source는 `gh-pages:/`다.
+2026-09-03 read-only 확인 결과 Pages는 `build_type=legacy`, source는 `gh-pages:/`다. (2026-09-07 재확인: 그대로다. ⚠ 다만 **이 값으로 라이브를 판정하면 안 된다** — 아래 "라이브가 어느 커밋인지 판정하는 법" 절을 볼 것.)
 과거 구 `web-deploy.yml` run은 당시 YAML의 `contents:write`/`pages:write`, peaceiris push,
 `PUT /pages` legacy-source 복구 단계를 가지고 재실행될 수 있다. GitHub-managed
 `pages-build-deployment` 과거 run도 남아 있고, legacy `github-pages` environment는
@@ -16,6 +16,124 @@
 
 반면 별도 `Production` environment는 read-only 확인상 main-only, required reviewer,
 `admins bypass=false`다. 새 수동 deploy는 이 environment만 사용한다.
+
+## 라이브가 어느 커밋인지 판정하는 법
+
+**이 저장소에서 이 오진이 최소 세 번 반복됐다.** 매번 다른 세션이, 매번 같은 이유로 틀렸다.
+문제는 "확인을 안 해서"가 아니라 **확인에 쓴 지표가 조용히 낡기 때문**이다. 셋 다 에러를
+내지 않고 그럴듯한 커밋 SHA 를 돌려주므로, 틀린 답을 받고도 자각할 방법이 없다.
+
+### 거짓말하는 지표 셋 — 쓰지 말 것
+
+2026-09-07 03:4x KST 동시 실측. 라이브는 실제로 `177a5962` 였다.
+
+| 지표 | 그때 돌려준 값 | 왜 틀리나 |
+|---|---|---|
+| `gh-pages` 브랜치 팁 | `16368d66` · 09-02 | 아티팩트 배포는 브랜치를 **안 건드린다** |
+| `gh api repos/:o/:r/pages` | `build_type=legacy`, `source=gh-pages:/` | 설정 필드가 **컷오버 전 상태로 남아 있다** |
+| `gh api .../pages/builds/latest` | `16368d66` · 09-02 | 레거시 브랜치 빌드 기록 전용 |
+
+⚠ **`deployments?environment=github-pages` 도 같이 낡는다** (`16368d66` · 09-02). 이름이 가장
+그럴듯해서 제일 잘 속는다. 새 배포는 그 환경을 **안 쓴다**.
+
+⚠⚠ **`deployments?environment=Production` 은 더 나쁘다 — 이건 대개 맞다가 릴리즈 때만 틀린다.**
+
+`Production` 환경은 web-deploy 전용이 아니라 **EAS 빌드·github-release 도 함께 쓴다.** 그래서
+웹 게시 뒤 아무도 그 환경을 안 쓴 동안에는 맞는 값을 돌려주다가, 네이티브 빌드가 승인되는
+순간 그 SHA 로 덮인다. 2026-09-06 18:12 실측:
+
+```
+18:12:36  061e7c08   ← EAS 빌드 승인
+18:12:31  061e7c08   ← EAS 빌드 승인
+18:08:29  4038300d
+18:00:24  4038300d   ← EAS iOS 빌드 승인
+18:00:19  4038300d   ← EAS Android 빌드 승인
+09:07:30  177a5962   ← 진짜 웹 게시
+09-01     c00be380   ← 09-01 Android 프로덕션 빌드 (웹 아님)
+```
+
+`per_page=1` 이 그 시점에 돌려준 값은 `061e7c08` 인데 라이브 웹은 `177a5962` 였다. 목록 맨
+아래 `c00be380`(09-01 Android 빌드)이 **이 환경이 원래부터 공유였다**는 증거다.
+
+**항상 틀리는 지표보다 이쪽이 위험하다.** 늘 틀리면 한 번 데이고 안 쓰는데, 이건 평소에
+맞으므로 신뢰가 쌓이고 **정확히 릴리즈 중에**, 즉 답이 제일 중요한 순간에 거짓말한다.
+
+### 진실을 말하는 것 둘
+
+**① `deploy` 잡이 성공한 가장 최근 dispatch run — SHA 를 정확히 준다**
+
+같은 워크플로가 `mode=build-only` 로도 돌기 때문에 **run 이 성공했다는 것만으로는 부족하다.**
+구분은 `deploy` 잡에 있다 — build-only 에서는 그 잡이 `skipped` 다. 그러니 **`deploy` 가
+`success` 인 가장 최근 run 의 `head_sha`** 가 라이브다.
+
+```bash
+gh api --method GET "repos/Simon-YHKim/2nd-B/actions/workflows/web-deploy.yml/runs?event=workflow_dispatch&status=success&per_page=10"   --jq '.workflow_runs[] | "\(.id) \(.head_sha[0:8]) \(.created_at)"'
+# 각 id 에 대해, 위에서부터
+gh api --method GET "repos/Simon-YHKim/2nd-B/actions/runs/<id>/jobs"   --jq '.jobs[] | "\(.name) \(.conclusion)"'
+# deploy 가 success 인 첫 run 의 head_sha 가 라이브
+```
+
+⚠ `display_title`·`name` 으로는 못 가른다 — publish 든 build-only 든 같은 문자열이다(실측).
+`deployments` API 에는 워크플로 필터가 없어서 그 경로로는 좁힐 수 없다.
+
+⚠ **①은 "무엇이 게시됐나"를 답하지 "지금 무엇이 서빙되나"를 답하지 않는다.** deploy 잡이
+성공한 뒤에도 Pages 전파에 짧은 창이 있다. 방금 게시했거나 시각이 촉박하면 **최종 확인은
+②로** 한다. (그 뒤의 publish 가 실패한 경우는 문제없다 — 그때도 "deploy 가 success 인 가장
+최근 run" 이 여전히 라이브를 가리킨다.)
+
+**② 서빙 중인 번들을 직접 받아 확인 — 가장 확실하다**
+
+**"라이브가 바뀌었나"만 알면 될 때는 `index.html` 만 받으면 된다 (60KB).** 엔트리 파일명이
+콘텐츠 해시라 소스가 다르면 반드시 다르다. 어느 SHA 인지까지는 ①이나 아래 grep 이 필요하다.
+
+```bash
+curl -s https://simon-yhkim.github.io/2nd-B/ | grep -o 'entry-[a-f0-9]*\.js'
+```
+
+```bash
+curl -sL https://simon-yhkim.github.io/2nd-B/   | grep -oE '/2nd-B/_expo/static/js/web/entry-[a-f0-9]+\.js'
+curl -sL "https://simon-yhkim.github.io/2nd-B/<위 경로>" | grep -c "<찾는 식별자>"
+```
+
+⚠ **판별력 있는 문자열을 골라야 한다.** 그 이름이 **의심하는 커밋에서 처음 생겼는지** 먼저
+확인한다. 안 그러면 이전부터 있던 이름을 찾고 "배포됐다"고 결론 낸다.
+
+```bash
+git grep -c "<식별자>" <이전_라이브_SHA> -- src/    # 0 이어야 판별력이 있다
+```
+
+### 왜 이 조합이 생기나
+
+Pages **설정**은 여전히 레거시 `gh-pages` 를 가리키는데(컷오버가 승인되지 않았다 — 위 절 참조)
+**서빙되는 것은 `actions/deploy-pages` OIDC 아티팩트**다. 그래서 브랜치·설정·레거시 빌드
+기록은 컷오버 전 마지막 상태에 얼어붙고, 실제 내용만 앞서 나간다.
+
+*(설정이 `legacy` 인데 아티팩트가 서빙되는 GitHub 내부 동작은 **추론**이다. 실측한 것은 위
+표의 값들과 번들 내용이다.)*
+
+### 파급
+
+- **"머지 = 라이브"가 아니다.** 게시는 별도 `workflow_dispatch` 다.
+- **"라이브에 없으니 안전하다"는 판정에 위 셋을 쓰면 반대로 결론 난다.** 2026-09-06 에
+  `#1626` 의 로더 게이트를 "어디에도 미출시, 이론적 위험"으로 보고했는데, 실제로는
+  `es`/`pt`/`id` 웹 사용자에게 이미 열려 있었다. 같은 오진이 `client_revision` 건에서도 났다.
+- **무신고를 안전의 증거로 쓰지 말 것.** 노출이 없어서 조용한 것과, 노출됐는데 아직 안 걸린
+  것은 다르다. 어느 쪽인지는 위 두 방법으로만 갈린다.
+
+### 작동 예 (2026-09-07 04:1x)
+
+라이브가 한 시간 사이에 두 번 바뀌었고, 두 방법이 같은 답을 줬다.
+
+```
+index.html 엔트리 해시   entry-c6ff6171….js  →  entry-134375b4….js       ← 바뀐 것을 60KB 로 감지
+deploy 잡 성공 run       34050495646 · head_sha 4038300d · 18:03:19Z     ← 그 SHA
+번들 grep                localePackAttached 1 · openGateWhenSettledOrTimedOut 2
+                         → #1646 이 라이브. 두 문자열 다 그 PR 이 처음 넣은 것
+같은 시각 거짓 지표      deployments?environment=Production → 061e7c08  (EAS 빌드 SHA)
+                         gh-pages / pages/builds            → 16368d66 · 09-02
+```
+
+**세 지표가 동시에 서로 다른 답을 냈고, 맞은 것은 위 둘뿐이다.**
 
 ## 최초 publication boundary
 
