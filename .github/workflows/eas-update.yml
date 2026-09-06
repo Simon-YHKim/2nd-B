@@ -263,7 +263,13 @@ jobs:
           done < <(node - "$SYNC_PLAN" <<'NODE'
           const fs = require("node:fs");
           const plan = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
-          process.stdout.write(plan.join("\n"));
+          // Every key must be newline-TERMINATED, not newline-separated. `read`
+          // returns non-zero on a final line with no newline, so the while loop
+          // above skips its body for that key: INDEX ends at N-1 while
+          // SYNC_COUNT is N, and the step fails its own count check. With
+          // join("\n") this step could only pass when the plan was empty, which
+          // is why it went unnoticed until a real drift appeared (2026-09-07).
+          process.stdout.write(plan.map((key) => key + "\n").join(""));
           NODE
           )
           require_current_main
@@ -517,10 +523,17 @@ jobs:
             let rejected = false;
             for (const { id, update } of records) {
               if (lower(update?.id) !== lower(id)) fail("update-id-mismatch");
+              // runtimeOf, not update.runtime.version: the runtime arrives under
+              // a different key depending on which shape the API answers with,
+              // which is exactly why that helper exists. Reading one key made
+              // every record fail identity, so the 2026-09-07 postflight
+              // reported android=NO_MATCH ios=NO_MATCH for two updates whose
+              // platform, gitCommitHash and runtime were all correct. The build
+              // path already goes through runtimeOf; the update path did not.
               const sameIdentity =
                 lower(update?.platform) === platform &&
                 lower(update?.gitCommitHash) === commit &&
-                update?.runtime?.version === runtime;
+                runtimeOf(update) === runtime;
               if (!sameIdentity) continue;
               const group = String(update?.group || "");
               const valid =
@@ -584,7 +597,7 @@ jobs:
               commit !== lower(process.env.GITHUB_SHA) ||
               update?.isGitWorkingTreeDirty !== false ||
               lower(update?.environment) !== lower(channel) ||
-              update?.runtime?.version !== runtime ||
+              runtimeOf(update) !== runtime ||
               (expectedGroup && lower(group) !== lower(expectedGroup))
             ) {
               fail("update-provenance");

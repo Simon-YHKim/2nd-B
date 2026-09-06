@@ -80,8 +80,8 @@ import { SecondBSprite } from "@/components/art/SecondBSprite";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { PremiumAppShell, ContextPill, ReferenceShardCard, SceneHero } from "@/components/premium";
 import { InlineLoader } from "@/components/ui/InlineLoader";
-import { ChatRewardCapReachedError, grantChatAdBonus, readChatUsage } from "@/lib/chat/usage";
-import { CHAT_DAILY_LIMIT, kstDateToday } from "@/lib/chat/limits";
+import { ChatRewardCapReachedError, grantChatAdBonus, readChatUsageDetail } from "@/lib/chat/usage";
+import { CHAT_DAILY_LIMIT, chatAllowance, kstDateToday } from "@/lib/chat/limits";
 import { RewardedSheet } from "@/components/deepspace/RewardedSheet";
 import { personaAllowed } from "@/lib/entitlements/tiers";
 import { PUBLIC_TIER_BY_DB } from "@/lib/entitlements/tier-map";
@@ -601,6 +601,11 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   );
   const [sending, setSending] = useState(false);
   const [usedToday, setUsedToday] = useState<number | null>(null);
+  // TODAY's rewarded-ad bonus. The screen used to not know this existed, so it
+  // gated on the bare tier cap while the engine and the server both accept
+  // `used < cap + adBonus` -- a user who watched an ad still found the composer
+  // locked. 0 is the honest default: no bonus until the read says otherwise.
+  const [adBonusToday, setAdBonusToday] = useState(0);
   const [introOpen, setIntroOpen] = useState(false);
   // SecondB conversation mode (worldview v-final). Analytic = data-grounded
   // analysis; Divergent = data-grounded but explores radically different angles.
@@ -741,7 +746,14 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     // gates resolve.
   }, [fromNode, locale, isCharacterChat, persona]);
 
+  // `limit` stays the TIER CAP -- it is what the paywall copy and the funnel
+  // event mean by "your limit". `allowance` is the wall the user actually hits
+  // today, and every gate below uses that one.
   const limit = useMemo(() => CHAT_DAILY_LIMIT[progression.tier], [progression.tier]);
+  const allowance = useMemo(
+    () => chatAllowance(progression.tier, adBonusToday),
+    [progression.tier, adBonusToday],
+  );
 
   useEffect(() => {
     // Intro modal opens on first entry only — guarded by device storage
@@ -766,24 +778,41 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     return () => clearTimeout(timer);
   }, [authLoading, userId, hasProfile, profileProbeFailed, refresh]);
 
-  useEffect(() => {
+  // One reader for used + today's bonus. The rewarded flow has to re-run it:
+  // granting the bonus moves the allowance on the SERVER, and until the client
+  // re-reads it the composer stays locked at the old wall.
+  const refreshChatUsage = useCallback(async () => {
     if (!userId) return;
-    void readChatUsage(userId)
-      .then((n) => setUsedToday(n))
+    await readChatUsageDetail(userId)
+      .then((d) => {
+        setUsedToday(d.used);
+        setAdBonusToday(d.adBonus);
+      })
       .catch((e) => {
         // Unknown is not zero: a fake 0/5 told capped users they had sends
         // left. null renders as "..." and the server still enforces the cap.
-        if (typeof console !== "undefined") console.warn("[secondb] readChatUsage failed", (e as Error).message);
+        // The bonus falls back to 0 rather than to a guess -- understating the
+        // allowance keeps the client stricter than the server, never looser.
+        if (typeof console !== "undefined") console.warn("[secondb] readChatUsageDetail failed", (e as Error).message);
         setUsedToday(null);
+        setAdBonusToday(0);
       });
   }, [userId]);
+
+  useEffect(() => {
+    void refreshChatUsage();
+  }, [refreshChatUsage]);
 
   // Funnel: the AI cap is the conversion gate. Fire ai_limit_hit once per mount
   // the moment usage reaches the tier limit (whether hit by a sent turn or
   // already at the cap on entry). Scalars only - tier/limit/upgrade target.
   useEffect(() => {
     if (limitHitFiredRef.current) return;
-    if (usedToday === null || usedToday < limit) return;
+    // Trigger on the real wall, not the bare cap: firing while the user still
+    // has bonus sends would report a paywall hit that did not happen. The
+    // payload keeps `limit` as the TIER cap so the event schema and its
+    // cross-tier comparisons stay what they were.
+    if (usedToday === null || usedToday < allowance) return;
     limitHitFiredRef.current = true;
     captureEvent(
       aiLimitHit({
@@ -792,7 +821,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
         upgrade_to: pendingUpgrade ?? "soma",
       }),
     );
-  }, [usedToday, limit, progression.tier, pendingUpgrade]);
+  }, [usedToday, allowance, limit, progression.tier, pendingUpgrade]);
 
   useEffect(() => {
     // Scroll to bottom after each new turn.
@@ -950,7 +979,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // but the UI should not look actionable). usedToday===null means the count is
   // still loading, so allow until we know. ChatComposer ANDs this with a
   // non-empty draft.
-  const sendEnabled = !sending && (usedToday === null || usedToday < limit);
+  const sendEnabled = !sending && (usedToday === null || usedToday < allowance);
   const usedDisplay = usedToday === null ? "..." : String(usedToday);
   const chatUiByWorker = {
     secondb: CORE_VILLAGE_UI,
@@ -971,9 +1000,9 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // tier (limit 2, monetization v2) still has a reachable neutral state.
   const warnAt = Math.min(2, limit - 1);
   const usageColor: keyof typeof semantic =
-    usedToday !== null && usedToday >= limit
+    usedToday !== null && usedToday >= allowance
       ? "danger"
-      : usedToday !== null && limit - usedToday <= warnAt
+      : usedToday !== null && allowance - usedToday <= warnAt
         ? "warning"
         : "textMuted";
   const compactModeLabel = chatMode === "divergent" ? "New angle" : "Analysis";
@@ -984,7 +1013,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // live entirely inside sendChatMessage -> callLlm, untouched here.
   if (isDeepSpace) {
     const dsUsage = usedToday === null ? "..." : String(usedToday);
-    const atLimit = usedToday !== null && usedToday >= limit;
+    const atLimit = usedToday !== null && usedToday >= allowance;
     // Per-lens recolor (reference CHAT_MODES): the whole chat surface tints to
     // the selected persona's accent / soft fill / on-soft ink / glow. Character
     // chat (legacy roster) keeps the canonical cyan.
@@ -1461,13 +1490,17 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
         ) : null}
 
         {/* 0090: chat daily-cap top-up (+2 sends today, monthly earn cap). The
-            grant RPC enforces day/month/ceiling server-side; on success the
-            user just sends again — the next send re-reads the allowance. */}
+            grant RPC enforces day/month/ceiling server-side.
+
+            (This used to say "on success the user just sends again". They
+            could not: the composer was gated on the bare tier cap, so after
+            earning the bonus there was nothing to send WITH. The grant now
+            re-reads usage, so the wall moves right away.) */}
         <RewardedSheet
           kind="chat"
           visible={chatRewardVisible && rewardedAllowed}
           onClose={() => setChatRewardVisible(false)}
-          remaining={Math.max(0, limit - (usedToday ?? 0))}
+          remaining={Math.max(0, allowance - (usedToday ?? 0))}
           onEarned={async () => {
             if (userId) {
               try {
@@ -1478,6 +1511,10 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                   console.warn("[secondb] grantChatAdBonus", capped ? "monthly cap reached" : (e as Error).message);
                 }
               }
+              // Re-read even when the grant threw: a monthly-cap rejection
+              // still means the server number is the truth, and a stale
+              // allowance is exactly what this change exists to remove.
+              await refreshChatUsage();
             }
             setChatRewardVisible(false);
           }}
@@ -1544,7 +1581,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
           fromNode={fromNode}
         />
 
-        {usedToday !== null && usedToday >= limit ? (
+        {usedToday !== null && usedToday >= allowance ? (
           <Pressable
             onPress={() => router.push("/plans?from=ai_limit")}
             hitSlop={14}
@@ -1872,7 +1909,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
         kind="chat"
         visible={chatRewardVisible && rewardedAllowed}
         onClose={() => setChatRewardVisible(false)}
-        remaining={Math.max(0, limit - (usedToday ?? 0))}
+        remaining={Math.max(0, allowance - (usedToday ?? 0))}
         onEarned={async () => {
           if (userId) {
             try {
@@ -1883,6 +1920,8 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                 console.warn("[secondb] grantChatAdBonus", capped ? "monthly cap reached" : (e as Error).message);
               }
             }
+            // Same as above: the server number wins, even on a rejected grant.
+            await refreshChatUsage();
           }
           setChatRewardVisible(false);
         }}
