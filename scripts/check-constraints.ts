@@ -2902,10 +2902,21 @@ results.push(
     const home = read("src/app/index.tsx");
     const jarvis = read("src/app/secondb.tsx");
     const graphBits = read("src/components/premium/graph-bits.tsx");
+    // The live home labels its mascot the other way round, and better: the art
+    // stays unlabelled and the Pressable that wraps it carries the role and the
+    // name. One announcement instead of two, and the name says what tapping it
+    // does. Pin that shape, not the legacy `mascotLabel` local.
+    const liveHome = read("src/components/deep-space/ConstellationHome.tsx");
     const ok =
       secondbSprite.includes('accessibilityRole: "image"') &&
+      liveHome.includes("<SecondbHead") &&
+      liveHome.includes('accessibilityLabel={t("ds.home.headA11y")}') &&
+      // ── legacy skin (EXPO_PUBLIC_UI=legacy) ───────────────────────────
+      // Drop these two with GraphScreen; the deep-space tree has no
+      // `mascotLabel` (measured 0) because it does not need one.
       home.includes("const mascotLabel") &&
       home.includes("label={mascotLabel}") &&
+      // ── end legacy skin block ─────────────────────────────────────────
       jarvis.includes('label={t("readyToChat")}') &&
       graphBits.includes('accessible accessibilityRole="image" accessibilityLabel={meta.name[locale]}') &&
       islandArt.includes("accessibilityElementsHidden") &&
