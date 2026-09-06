@@ -44,6 +44,13 @@ export interface BoundedUtf8ReadOptions {
   maxBytes?: number;
   signal?: AbortSignal;
   timeoutMs?: number;
+  /** Absolute wall-clock deadline shared by a multi-stage extraction. */
+  deadlineAtMs?: number;
+}
+
+export interface BoundedLocalReadOptions extends BoundedUtf8ReadOptions {
+  /** Browser pickers use blob: URLs; callers must opt in explicitly. */
+  allowWebBlob?: boolean;
 }
 
 interface ChunkReader {
@@ -74,6 +81,15 @@ function validatedTimeoutMs(value: number | undefined): number {
     throw fail("read_failed");
   }
   return timeoutMs;
+}
+
+function timeoutForOptions(options: BoundedUtf8ReadOptions): number {
+  const timeoutMs = validatedTimeoutMs(options.timeoutMs);
+  if (options.deadlineAtMs == null) return timeoutMs;
+  if (!Number.isSafeInteger(options.deadlineAtMs) || options.deadlineAtMs <= 0) throw fail("read_failed");
+  const remainingMs = options.deadlineAtMs - Date.now();
+  if (remainingMs <= 0) throw fail("timed_out");
+  return Math.max(1, Math.min(timeoutMs, remainingMs));
 }
 
 function validatedOptionalSize(value: number | null | undefined, maxBytes: number): number | null {
@@ -176,7 +192,57 @@ async function decodeReader(
   };
 
   try {
-    return await runWithDeadline(operation, validatedTimeoutMs(options.timeoutMs), options.signal, () =>
+    return await runWithDeadline(operation, timeoutForOptions(options), options.signal, () =>
+      stopQuietly(reader),
+    );
+  } catch (error) {
+    stopQuietly(reader);
+    throw sanitized(error);
+  } finally {
+    try {
+      reader.releaseLock?.();
+    } catch {
+      // A timed-out provider may still have a pending read; cancellation is enough.
+    }
+  }
+}
+
+async function readByteReader(
+  reader: ChunkReader,
+  options: BoundedUtf8ReadOptions,
+  maxBytes: number,
+  expectedBytes: number | null,
+): Promise<Uint8Array> {
+  const fixed = expectedBytes == null ? null : new Uint8Array(expectedBytes);
+  const chunks: Uint8Array[] = [];
+  let actualBytes = 0;
+
+  const operation = async () => {
+    while (true) {
+      const result = await reader.read();
+      if (result.done) break;
+      const chunk = result.value;
+      if (!(chunk instanceof Uint8Array)) throw fail("read_failed");
+      if (chunk.byteLength > maxBytes - actualBytes) throw fail("too_large");
+      if (fixed && chunk.byteLength > fixed.byteLength - actualBytes) throw fail("size_mismatch");
+      if (fixed) fixed.set(chunk, actualBytes);
+      else chunks.push(chunk);
+      actualBytes += chunk.byteLength;
+    }
+    requireMatchingSizes(expectedBytes, actualBytes);
+    if (fixed) return fixed;
+
+    const bytes = new Uint8Array(actualBytes);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return bytes;
+  };
+
+  try {
+    return await runWithDeadline(operation, timeoutForOptions(options), options.signal, () =>
       stopQuietly(reader),
     );
   } catch (error) {
@@ -205,6 +271,22 @@ export async function readBoundedUtf8Stream(
     throw sanitized(error);
   }
   return decodeReader(reader, options, maxBytes, declaredBytes);
+}
+
+/** Read a byte stream without accepting or retaining bytes beyond the cap. */
+export async function readBoundedByteStream(
+  stream: ReadableStream<Uint8Array>,
+  options: BoundedUtf8ReadOptions = {},
+): Promise<Uint8Array> {
+  const maxBytes = validatedMaxBytes(options.maxBytes);
+  const declaredBytes = validatedOptionalSize(options.declaredBytes, maxBytes);
+  let reader: ChunkReader;
+  try {
+    reader = stream.getReader();
+  } catch (error) {
+    throw sanitized(error);
+  }
+  return readByteReader(reader, options, maxBytes, declaredBytes);
 }
 
 /** Read a browser File/Blob via its stream, or bounded slices on older browsers. */
@@ -268,9 +350,55 @@ export async function readBoundedUtf8Response(
   return decodeReader(reader, options, maxBytes, declaredBytes);
 }
 
-function isLocalFileUri(uri: string): boolean {
+/** Read raw response bytes with strict length verification and bounded fallback. */
+export async function readBoundedByteResponse(
+  response: Response,
+  options: BoundedUtf8ReadOptions = {},
+): Promise<Uint8Array> {
+  const maxBytes = validatedMaxBytes(options.maxBytes);
+  const declaredBytes = validatedOptionalSize(options.declaredBytes, maxBytes);
+  const contentLength = parsedContentLength(response, maxBytes);
+  requireMatchingSizes(declaredBytes, contentLength);
+  if (response.ok === false) throw fail("read_failed");
+  const expectedBytes = declaredBytes ?? contentLength;
+
+  if (response.body && typeof response.body.getReader === "function") {
+    return readBoundedByteStream(response.body, { ...options, declaredBytes: expectedBytes });
+  }
+
+  if (declaredBytes == null) throw fail("unverifiable_size");
+  if (typeof response.arrayBuffer !== "function") throw fail("read_failed");
+  let consumed = false;
+  const reader: ChunkReader = {
+    async read() {
+      if (consumed) return { done: true, value: undefined };
+      consumed = true;
+      const buffer = await response.arrayBuffer();
+      return { done: false, value: new Uint8Array(buffer) };
+    },
+  };
+  return readByteReader(reader, options, maxBytes, declaredBytes);
+}
+
+function currentWebOrigin(): string | null {
+  const origin = globalThis.location?.origin;
+  if (!origin || origin === "null") return null;
+  try {
+    const parsed = new URL(origin);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.origin : null;
+  } catch {
+    return null;
+  }
+}
+
+function isLocalFileUri(uri: string, allowWebBlob = false): boolean {
+  if (uri.length === 0 || uri.length > 8_192) return false;
   try {
     const parsed = new URL(uri);
+    if (parsed.protocol === "blob:") {
+      const origin = currentWebOrigin();
+      return allowWebBlob && origin != null && parsed.origin !== "null" && parsed.origin === origin;
+    }
     if (parsed.protocol === "content:") return uri.startsWith("content://");
     if (parsed.protocol !== "file:") return false;
     return parsed.hostname === "" || parsed.hostname === "localhost";
@@ -279,22 +407,40 @@ function isLocalFileUri(uri: string): boolean {
   }
 }
 
-/** Fetch only a picker-provided local URI and decode it within one deadline. */
-export async function fetchBoundedLocalUtf8(
+/** Decode bytes as UTF-8 without replacement characters or provider detail leaks. */
+export function decodeBoundedUtf8Bytes(bytes: Uint8Array): string {
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    throw fail("invalid_encoding");
+  }
+}
+
+/** Fetch only a picker-provided local source and return bounded raw bytes. */
+export async function fetchBoundedLocalBytes(
   uri: string,
-  options: BoundedUtf8ReadOptions = {},
-): Promise<string> {
+  options: BoundedLocalReadOptions = {},
+): Promise<Uint8Array> {
   const maxBytes = validatedMaxBytes(options.maxBytes);
   const declaredBytes = validatedOptionalSize(options.declaredBytes, maxBytes);
-  if (!isLocalFileUri(uri)) throw fail("unsafe_source");
+  if (!isLocalFileUri(uri, options.allowWebBlob === true)) throw fail("unsafe_source");
   if (typeof globalThis.fetch !== "function") throw fail("read_failed");
 
-  const timeoutMs = validatedTimeoutMs(options.timeoutMs);
+  const timeoutMs = timeoutForOptions(options);
   const controller = new AbortController();
   return runWithDeadline(
     async () => {
-      const response = await globalThis.fetch(uri, { signal: controller.signal });
-      return readBoundedUtf8Response(response, {
+      const response = await globalThis.fetch(uri, {
+        redirect: "error",
+        signal: controller.signal,
+      });
+      if (
+        response.redirected === true ||
+        (response.url && !isLocalFileUri(response.url, options.allowWebBlob === true))
+      ) {
+        throw fail("unsafe_source");
+      }
+      return readBoundedByteResponse(response, {
         ...options,
         declaredBytes,
         signal: controller.signal,
@@ -305,4 +451,12 @@ export async function fetchBoundedLocalUtf8(
     options.signal,
     () => controller.abort(),
   );
+}
+
+/** Fetch only a picker-provided local URI and decode it within one deadline. */
+export async function fetchBoundedLocalUtf8(
+  uri: string,
+  options: BoundedLocalReadOptions = {},
+): Promise<string> {
+  return decodeBoundedUtf8Bytes(await fetchBoundedLocalBytes(uri, options));
 }
