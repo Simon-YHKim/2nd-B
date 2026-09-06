@@ -66,15 +66,11 @@ import { getPersona, PERSONAS } from "@/lib/chat/personas";
 import {
   REV2_PERSONA_IDS,
   rev2PersonaAccent,
-  rev2PersonaDesc,
   rev2PersonaGlow,
   rev2PersonaHint,
-  rev2PersonaLensName,
   rev2PersonaMode,
   rev2PersonaOnSoft,
-  rev2PersonaRole,
   rev2PersonaSoftBg,
-  rev2PersonaTag,
   type Rev2PersonaId,
 } from "@/lib/chat/rev2-personas";
 import { m3 } from "@/lib/theme/m3";
@@ -974,7 +970,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     const lensSoftBg = isCharacterChat ? sbAlpha(deepSpace.accent, 0.16) : rev2PersonaSoftBg(rev2Persona);
     const lensOnSoft = isCharacterChat ? deepSpace.accentBright : rev2PersonaOnSoft(rev2Persona);
     const lensGlow = isCharacterChat ? sbAlpha(deepSpace.accent, 0.5) : rev2PersonaGlow(rev2Persona);
-    const lensName = isCharacterChat ? persona.name[locale] : rev2PersonaLensName(rev2Persona, locale);
+    const lensName = isCharacterChat ? persona.name[locale] : t(`rev2.${rev2Persona}.lensName`);
     const inkOnAccent = m3.accent.onAccentInk; // reference send/mic glyph ink on the accent fill
     return (
       <DeepSpaceScreen active="chat" variant="windowed" personaTint={isCharacterChat ? undefined : rev2Persona}>
@@ -984,15 +980,15 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
           keyboardVerticalOffset={keyboardVerticalOffset}
         >
           {/* persona banner (reference ChatScreen header): status dot + mono tag +
-              one-line lens description, tinted by the selected lens. Usage counter
+              wrapping lens description, tinted by the selected lens. Usage counter
               and clear affordance ride the right edge. */}
           <View style={[ds.banner, { backgroundColor: lensSoftBg }]}>
             <View style={[ds.bannerDot, { backgroundColor: lensAccent, shadowColor: lensGlow }]} />
             <Text style={[ds.bannerTag, { color: lensOnSoft }]} numberOfLines={1}>
-              {isCharacterChat ? t("title") : rev2PersonaTag(rev2Persona, locale)}
+              {isCharacterChat ? t("title") : t(`rev2.${rev2Persona}.tag`)}
             </Text>
-            <Text style={ds.bannerDesc} numberOfLines={1}>
-              {isCharacterChat ? persona.role[locale] : rev2PersonaDesc(rev2Persona, locale)}
+            <Text style={ds.bannerDesc}>
+              {isCharacterChat ? persona.role[locale] : t(`rev2.${rev2Persona}.desc`)}
             </Text>
             <Text style={[ds.bannerUsage, atLimit ? ds.headerMetaDanger : null]} numberOfLines={1}>
               {dsUsage}/{limit}
@@ -1251,15 +1247,15 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                     aria-pressed={on}
                     accessibilityLabel={
                       locked
-                        ? `${rev2PersonaLensName(id, locale)} · ${t("rev2.lockedA11y", { plan: lockPlan })}`
-                        : `${rev2PersonaLensName(id, locale)} · ${rev2PersonaRole(id, locale)}`
+                        ? `${t(`rev2.${id}.lensName`)} · ${t("rev2.lockedA11y", { plan: lockPlan })}`
+                        : `${t(`rev2.${id}.lensName`)} · ${t(`rev2.${id}.role`)}`
                     }
                   >
                     <Text style={[ds.lensName, { color: locked ? LOCKED_CHIP_INK : on ? rev2PersonaOnSoft(id) : m3.color.onSurfaceVariant }]}>
-                      {rev2PersonaLensName(id, locale)}
+                      {t(`rev2.${id}.lensName`)}
                     </Text>
                     <Text style={[ds.lensTag, { color: locked ? LOCKED_CHIP_INK : on ? accent : m3.color.onSurfaceVariant }]}>
-                      {locked ? lockPlan : rev2PersonaTag(id, locale)}
+                      {locked ? lockPlan : t(`rev2.${id}.tag`)}
                     </Text>
                   </Pressable>
                 );
@@ -2107,6 +2103,7 @@ const ds = StyleSheet.create({
     minWidth: 0,
     color: m3.color.onSurfaceVariant,
     fontSize: 12,
+    lineHeight: 18,
     fontFamily: fontFamilies.readable,
   },
   bannerUsage: {

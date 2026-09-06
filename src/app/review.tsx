@@ -84,7 +84,7 @@ const REVIEW_COPY: Record<
     reopenProposal: "Reabrir a proposta",
   },
   id: {
-    lede: "Asisten Anda mengusulkan langkah berikutnya dari catatan Anda. Ini hanya berlaku saat Anda meratifikasinya.",
+    lede: "Asistenmu mengusulkan langkah berikutnya dari catatanmu. Usulan baru dijalankan setelah kamu menyetujuinya.",
     loadError: "Tidak dapat memuat usulan. Coba lagi.",
     ratified: (level) => `Diratifikasi - naik ke dapat ditindaklanjuti (L${level}).`,
     declined: "Disimpan. Usulan ini tidak diterapkan dan tidak meninggalkan catatan.",

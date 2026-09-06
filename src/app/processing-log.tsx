@@ -165,7 +165,7 @@ const COPY: Record<AvailableUiLocale, ProcessingLogCopy> = {
       connection: "Menghubungkan catatan",
       "self-understanding": "Pembaruan pemahaman diri",
       conversation: "Percakapan SecondB",
-      capture: "Penataan tangkapan",
+      capture: "Penataan bahan",
       import: "Penataan impor",
       planning: "Dukungan perencanaan",
       summary: "Ringkasan",

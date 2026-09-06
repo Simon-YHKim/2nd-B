@@ -2934,7 +2934,12 @@ results.push(
       characters.includes('en: "Trainer and curator"') &&
       personaText.includes("central AI for the North Star synthesis") &&
       personaText.includes("career consultant for work and growth") &&
-      personaText.includes("inner-world patterns") &&
+      // 2026-09-06 plain-language round: Relia's systemHint dropped the
+      // "inner-world patterns" phrasing for "relationships and recurring
+      // patterns in the user's own records". Same responsibility, plainer
+      // words — the pin follows the copy so the guard keeps checking Relia's
+      // registration rather than one retired sentence.
+      personaText.includes("relationships and recurring patterns in the user's own records") &&
       personaText.includes("Not raw facts") &&
       personaText.includes("you do NOT give advice") &&
       personaText.includes("healthy life balance");

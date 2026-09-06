@@ -1,10 +1,10 @@
 {
   "title": "Kotak Masuk",
-  "subtitle": "Semua yang kamu tangkap. Ketuk untuk pratinjau.",
-  "captureMore": "Tangkap lagi",
+  "subtitle": "Semua bahan yang kamu simpan. Ketuk untuk melihat isinya.",
+  "captureMore": "Tambah bahan",
   "back": "Kembali ke jurnal",
-  "empty": "Belum ada yang ditangkap. Ketuk Tangkap untuk menambah yang pertama.",
-  "error": "Tidak bisa memuat tangkapanmu:",
+  "empty": "Belum ada bahan tersimpan. Ketuk Simpan untuk menambahkan yang pertama.",
+  "error": "Tidak bisa memuat bahan yang kamu simpan:",
   "ingested": "Telah diproses",
   "feedback": {
     "noticeLabel": "Pemberitahuan umpan balik kotak masuk",
@@ -30,10 +30,10 @@
   "sourceBrief": "Ringkasan sumber",
   "cannotDelete": "Tidak dapat dihapus",
   "cannotDeleteBody": "Sumber yang sudah dipromosikan perlu halaman wiki-nya dihapus dulu.",
-  "deleteConfirmTitle": "Hapus tangkapan ini?",
+  "deleteConfirmTitle": "Hapus bahan ini?",
   "deleteConfirmBody": "Berkas isi yang terlampir bisa tetap ada di akunmu. Item kotak masuk akan dihapus.",
-  "captureDeleted": "Tangkapan dihapus.",
-  "deleteError": "Tidak dapat menghapus tangkapan",
+  "captureDeleted": "Bahan dihapus.",
+  "deleteError": "Tidak bisa menghapus bahan",
   "deleteErrorBody": "Coba lagi sebentar lagi. Jika terus gagal, segarkan lalu hapus lagi.",
   "wikiError": "Tidak dapat membuat halaman wiki",
   "wikiErrorBody": "Coba lagi sebentar lagi. Jika terus gagal, buat dulu ringkasan dan 4 pertanyaan, lalu coba lagi.",
@@ -41,10 +41,10 @@
   "eyebrow": "Kotak masuk",
   "heroTitle": "Perhalus bagian yang ditangkap",
   "heroSubtitle": "Ringkasan · pertanyaan · promosi wiki",
-  "addSourceHint": "Membuka tangkapan untuk menambah sumber lain.",
+  "addSourceHint": "Membuka halaman Simpan untuk menambahkan sumber lain.",
   "retryLabel": "Coba muat kotak masuk lagi",
   "tryAgain": "Coba lagi",
-  "firstCaptureLabel": "Tangkap sumber pertamamu",
-  "firstCaptureHint": "Membuka tangkapan untuk menyimpan sumber pertamamu.",
-  "firstCapture": "Tangkap yang pertama"
+  "firstCaptureLabel": "Simpan sumber pertamamu",
+  "firstCaptureHint": "Membuka halaman Simpan untuk menambahkan sumber pertama.",
+  "firstCapture": "Simpan yang pertama"
 }

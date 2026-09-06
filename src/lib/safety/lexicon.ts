@@ -270,19 +270,19 @@ export function isLexiconScanAllowed(posixPath: string): boolean {
 // frameworks + Voice layer) introduces vocabulary the clinical lexicon
 // above does not cover — IQ claims, percentile-without-population,
 // diagnosis-shaped verdicts, Title-Act-reserved labels. Without an
-// explicit policy these slip into product copy and trigger Tier-1
-// jurisdiction risk (EU AI Act, EU GDPR Art.9, US Practice Acts,
-// US FTC §5, KR 의료법 §27).
+// explicit policy these can misstate what the product knows or provides.
+// Applicable legal duties depend on the actual claim, service and processing;
+// a term match is not itself a jurisdictional or legal conclusion.
 //
-// Hard ban — these terms must never appear in user-facing copy in any
-// jurisdiction. They are the universal floor. Jurisdiction-specific
-// additions are below.
+// Conservative product-copy policy, not words automatically prohibited by law.
+// See docs/legal/lexicon-policy-review-260906.md for the corrected legal context.
+// CI recognises explicit prohibitions and exact non-clinical spans below; raw
+// runtime output matching stays conservative and does not use those exceptions.
 //
 // CI enforcement: ANALYSIS_UNIVERSAL_FORBIDDEN is wired into
-// scripts/check-forbidden-lexicon.ts (line-granular, with a guardrail-
-// negation filter so safety prompts like "Never diagnose" pass).
-// Jurisdiction lists + claim patterns below are not CI-wired yet —
-// they activate per-market at distribution time.
+// scripts/check-forbidden-lexicon.ts (clause-level prohibition checks).
+// Jurisdiction lists + claim patterns below are reference definitions, not
+// wired to a CI or runtime market gate. Do not claim that they auto-activate.
 
 export const ANALYSIS_UNIVERSAL_FORBIDDEN: Record<Locale, readonly string[]> = {
   en: [
@@ -347,12 +347,31 @@ export const ANALYSIS_UNIVERSAL_FORBIDDEN: Record<Locale, readonly string[]> = {
   ],
 } as const;
 
+// CI-only, exact contexts where a homonym describes software or ordinary prose.
+// Mask just this span, never its line or file: a separate product claim must
+// still fail. Raw runtime matching and crisis routing do not use these rules.
+export const LEXICON_NON_CLINICAL_CONTEXTS: Record<Locale, readonly RegExp[]> = {
+  en: [
+    /\b(?:visual|palette|typographic|color|colour) treatment\b/gi,
+    /\b(?:network|system|error|fault) diagnosis\b/gi,
+  ],
+  ko: [
+    /(?:서버|네트워크|연결|저장|동작|응답|로그인|동기화|실행|설치|빌드|테스트|배포|업로드|다운로드|데이터|호출|쿼리|요청|앱|웹|순서)(?: 상태)?(?:가|이|는|은)?\s+정상이/g,
+    /(?:도전|개척|기업가|창업|실험|협동)\s+정신과/g,
+    /(?:네트워크|통신|서버|시스템|연결)(?:에|에는|의)?\s+장애가 있/g,
+    /(?:코드|설계|구현|소프트웨어)(?:에|에는|의)?\s+결함이 있/g,
+    /회귀가 없어야 정상이/g,
+    /거절되는 것이 정상이/g,
+    /예외 결함이 있/g,
+    /대처방(?:안|법)/g,
+  ],
+};
+
 export type Jurisdiction = "EU" | "US" | "KR" | "JP" | "UK" | "AU" | "CA" | "SG";
 
-// Jurisdiction-specific tripwires. Triggered only when distributing to
-// the named market. Universal list covers everywhere; this catches the
-// market-specific traps (EU AI Act emotion-recognition framing, KR 의료법
-// reserved titles, JP 公認心理師法 title protection, etc.).
+// Jurisdiction-specific reference terms for a market review. These lists are
+// not connected to an automatic distribution gate. Review the relevant feature
+// and law; mentioning an institution or a term is not itself a violation.
 export const ANALYSIS_JURISDICTION_FORBIDDEN: Record<Jurisdiction, readonly string[]> = {
   EU: [
     "emotion recognition",
@@ -397,9 +416,9 @@ export const ANALYSIS_JURISDICTION_FORBIDDEN: Record<Jurisdiction, readonly stri
   ],
 } as const;
 
-// Banned claim *shapes* — even with all individual words OK, certain
-// templates trigger FTC §5 deception or EU AI Act framing risk. Stored
-// as regex sources so the runtime classifier can compile + match.
+// Reference claim *shapes*: wording can overclaim even without a listed word.
+// Stored as regex sources with tests, but not connected to a general runtime
+// or CI consumer. Do not report these definitions as enforced output checks.
 // Each pattern carries a Voice-safe replacement suggestion.
 export const ANALYSIS_BANNED_CLAIM_PATTERNS: ReadonlyArray<{
   pattern: string;
@@ -433,9 +452,8 @@ export const ANALYSIS_BANNED_CLAIM_PATTERNS: ReadonlyArray<{
   },
 ];
 
-// Versioning + counsel-review cadence. CI may compare
-// LEXICON_LAST_LEGAL_REVIEW to today and warn when older than 365d
-// (next-PR work — scaffold now to make sure the field exists).
+// scripts/check-legal-review.ts warns when the recorded review date is stale.
+// The date is a process record, not proof of external-counsel approval.
 export const LEXICON_VERSION = "0.1" as const;
 // 2026-06-10: review sign-off recorded on Simon's direct instruction (owner
 // holds the legal gate). Next review due within 365d of this date.

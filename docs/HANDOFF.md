@@ -6114,7 +6114,7 @@ cat docs/HANDOFF.md
 
 > **lib는 거의 항상 옳다** (`if (error) throw error`). **삼키는 건 거의 항상 화면이다.**
 
-41건 중 **17건이 `impl`을 앵커로 보고**됐고 전부 **아무 문제 없는 파일로 수정자를 보냈다**. 이제 **`bugAnchor`**가 "결함이 있는 곳"이고, `_anchorContract`가 파일 안에서 이걸 설명한다. `flow-map-anchors.test.ts`가 `bugAnchor`가 `src/lib/`를 가리키면 실패한다.
+41건 중 **17건이 `impl`을 앵커로 보고**됐고 전부 **아무 문제 없는 파일로 수정자를 보냈다**. 이제 **`bugAnchor`**가 "수정할 코드 위치"이고, `_anchorContract`가 파일 안에서 이걸 설명한다. `flow-map-anchors.test.ts`가 `bugAnchor`가 `src/lib/`를 가리키면 실패한다.
 
 `FLOW-HANDOFF.md`는 **생성물**이다. 손으로 고치지 말고 `flow-map.json`을 고쳐라.
 

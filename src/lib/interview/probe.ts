@@ -122,20 +122,20 @@ export const LAYER_LABEL: Record<"en" | "ko", Record<DrillLayer, string>> = {
 // 시기 별에서는 "그때 어떤 사람이었나", 직장 별에서는 "일하는 나"를 묻는다.
 const SEED_QUESTION: Record<"en" | "ko", Record<LifePeriod, string>> = {
   en: {
-    infancy: "Pick one early sensation - light, a smell, a sound, how your body sat. It doesn't have to make sense. What comes up?",
-    school: "Go back to your school years: what sense arrives first? The room's smell, the sounds, the seat you sat in - anything counts.",
-    twenties: "What's something from your twenties that you almost never tell anyone?",
+    infancy: "Is there a sound or smell you remember from early childhood? If you don't remember, you can say so.",
+    school: "When you think of your school years, is there a place or sound you remember?",
+    twenties: "Is there an experience from your twenties that you'd like to talk about?",
     later: "Since turning thirty, what changed in you that you didn't expect?",
     work: "Think of a day at work you still remember. What was happening?",
-    now: "What's the thing you'd say first if I asked, 'what's really going on for you right now?'",
+    now: "What's been happening lately that you'd like to talk about?",
   },
   ko: {
-    infancy: "아주 어릴 때의 감각 하나만 떠올려 볼까요? 빛, 냄새, 소리, 몸의 자세. 말이 안 되어도 괜찮아요.",
-    school: "학창시절로 돌아가면 먼저 오는 감각이 뭔가요? 교실 냄새, 복도의 소리, 그때 앉아 있던 자리 같은 것들요.",
-    twenties: "20대에 거의 누구에게도 말하지 않은 무언가가 있다면 무엇인가요?",
+    infancy: "아주 어릴 때 기억나는 소리나 냄새가 있나요? 기억나지 않으면 그렇게 말해 주세요.",
+    school: "학창시절을 떠올리면 기억나는 장소나 소리가 있나요?",
+    twenties: "20대에 겪은 일 중 이야기하고 싶은 일이 있나요?",
     later: "서른을 넘기고 나서 생각지 못하게 달라진 것이 있다면 무엇인가요?",
-    work: "아직도 기억나는 회사에서의 하루가 있다면, 그날 무슨 일이 있었나요?",
-    now: "'지금 진짜로 어떻게 지내?' 라고 물으면 가장 먼저 떠오르는 한마디는?",
+    work: "일하면서 기억에 남은 하루가 있다면, 그날 무슨 일이 있었나요?",
+    now: "요즘 어떻게 지내는지, 이야기하고 싶은 일이 있나요?",
   },
 };
 
@@ -196,17 +196,15 @@ export function isPeriodComplete(c: Coverage, period: LifePeriod): boolean {
  *      to keep the period balanced even past its first pass.
  */
 /**
- * 다음에 무엇을 할 것인가 -- **더 파기 전에 되물을 때인지 먼저 본다.**
+ * 다음 질문 선택 순서: loopCheck 후보, scaffold, drill.
  *
- * `nextLayerSuggestion` 은 "어느 층을 팔까" 만 답한다. 그런데
- * `docs/research/batches/self-knowledge.md` 는 그 앞에 질문이 하나 더 있다고
- * 말한다: **지금 더 파는 것이 맞는가.** 같은 주제를 새 틀 없이 반복해서 쓰고
- * 있으면, 더 캐묻는 것은 도움이 아니라 그 고리를 굳힌다.
+ * loop-check.ts의 문자 집합 비교는 검증되지 않은 제품 휴리스틱이다.
+ * 후보가 있으면 선택 질문을 먼저 돌려주는 것은 제품의 순서 결정이며,
+ * 더 쓰는 것이 해롭거나 이 질문이 효과적이라는 연구 결과가 아니다.
  *
- *   "surface the loop-check question rather than continuing to invite more
- *    entry on that theme."
- *
- * 그래서 이 함수가 진입점이다. 되물을 것이 있으면 그것을 먼저 돌려준다.
+ * `docs/research/batches/self-knowledge.md`의 측정·적용 한계를 따른다.
+ * 이 함수는 사용자 상태·안전 위험을 판정하지 않는다. LLM 호출의 안전 분류는
+ * `src/lib/llm/boundary.ts`가 담당한다. 거절·중단 선택권 처리는 호출부의 책임이다.
  */
 export type NextMove =
   | { kind: "drill"; layer: DrillLayer }
@@ -228,13 +226,12 @@ export function nextMove(
 ): NextMove {
   const loops = detectLoops(recentEntries, now);
   if (loops.length > 0) {
-    // 가장 제자리인 것 하나만. 여러 개를 한꺼번에 들이밀면 되묻기가 아니라
-    // 지적이 된다.
+    // 문자 새 원소 비율이 가장 낮은 후보 하나를 선택한다. 의미나 위험의 순위가 아니다.
     const finding = loops[0];
     return { kind: "loopCheck", finding, questionKey: loopCheckKeyFor(finding) };
   }
-  // 되묻기보다 늦고 내려가기보다 이르다. 반복(rumination)은 안전 쪽 판단이라
-  // 먼저이고, 막힘은 그 다음이며, 둘 다 아니면 빈 칸을 찾아 내려간다.
+  // 제품의 질문 선택 순서다. loopCheck 다음 scaffold를 보고, 둘 다 없으면 drill.
+  // 이 우선순위가 boundary의 안전 분류를 대신하거나 앞선다는 뜻은 아니다.
   if (stuck && shouldScaffold(stuck.streak)) return { kind: "scaffold", layer: stuck.layer };
   return { kind: "drill", layer: nextLayerSuggestion(c, period, abandoned) };
 }
@@ -295,11 +292,13 @@ function buildSystemPrompt(
       echo: "울림(L5) — 그 믿음이 지금의 결정/관계/일에 어떻게 작용하는지 묻는 질문",
     };
     return [
-      "당신은 노련한 인터뷰어입니다. 사용자가 자신의 속마음을 단계적으로 더 깊이 드러낼 수 있도록 돕습니다.",
+      "사용자가 나누고 싶은 경험을 구체적으로 돌아볼 수 있도록 질문하는 인터뷰어입니다.",
       `시기 초점: ${periodLabel}.`,
       `다음 깊이 단계: ${layerLabel} — ${layerGuide[nextLayer]}.`,
       "규칙:",
       "1) 한 번에 한 가지 질문만 합니다. 짧고, 구체적이고, 부드럽게.",
+      "말투는 쉬운 일상어와 자연스러운 해요체를 씁니다. 상투적인 칭찬·공감이나 추상적인 비유 없이 바로 묻고, 층·단계 같은 내부 용어를 질문에 드러내지 마세요.",
+      "비밀이나 말하기 불편한 일을 요구하지 마세요. 기억나지 않는 내용을 상상해서 채우게 하지 마세요. 직접 기억한 것과 나중에 들은 이야기를 구분하세요. 사용자가 답하지 않겠다고 하면 그 뜻을 존중하는 것이 깊이 단계보다 우선합니다.",
       "2) 사용자의 마지막 답에 직접 이어붙입니다 — 답의 어느 부분을 더 듣고 싶은지 명확히 합니다.",
       "3) 진단·조언·해석은 절대 하지 않습니다. 그저 더 듣는 다음 질문만.",
       "4) 사용자가 '그만' 같은 신호를 보내면, '여기서 멈춰도 좋아요'로 마무리합니다.",
@@ -316,7 +315,7 @@ function buildSystemPrompt(
             "8) **사용자가 방금 '모르겠다'고 했습니다.** 같은 단계를 더 쉬운 각도로 다시 묻습니다. "
               + "해석을 요구하지 말고 **비교·가정·구체적인 예**로 우회합니다"
               + "(예: '무엇을 의미했나요' → '그 일이 없었다면 뭔가 달랐을까요'). "
-              + "모르겠다는 것을 문제 삼거나 다극지 않습니다.",
+              + "모르겠다는 것을 문제 삼거나 다그치지 않습니다.",
           ]
         : []),
       ...(askedLayer !== null
@@ -344,11 +343,13 @@ function buildSystemPrompt(
     echo: "Echo (L5) — how that belief still shows up in current decisions/relationships/work",
   };
   return [
-    "You are a skilled interviewer. Help the user reveal their inner experience one careful step deeper.",
+    "You are an interviewer helping the user reflect on experiences they choose to share.",
     `Period in focus: ${periodLabel}.`,
     `Next depth layer to probe: ${layerLabel} — ${layerGuide[nextLayer]}.`,
     "Rules:",
     "1) ONE question at a time. Short, specific, gentle.",
+    "Use plain, conversational language. Ask directly without canned praise, stock empathy, elaborate metaphors, or internal layer labels.",
+    "Do not ask for secrets or uncomfortable disclosures. Do not ask the user to imagine missing memories. Distinguish direct memories from stories heard later. Respecting a choice not to answer takes priority over reaching a depth layer.",
     "2) Anchor directly on the user's last answer — make clear which part you want to hear more about.",
     "3) NEVER diagnose, advise, or interpret. Just the next question that elicits more.",
     "4) If the user signals 'stop' or 'enough', close warmly: 'It's okay to pause here.'",
@@ -577,9 +578,9 @@ function usableQuestion(
 /**
  * 층마다 하나씩 준비된 물음. 모델이 반복하거나 빈 줄을 낼 때만 쓴다.
  *
- * 결은 `docs/research/batches/self-knowledge.md` 의 reflection-promoting 목록을
- * 따랐다 -- 장면에 닻을 내리고(L1), 몸의 감각을 묻고(L2), 지금으로 이어 붙인다(L5).
- * 진단·조언은 없고 전부 더 듣는 질문이다.
+ * 각 제품 층에 맞춰 자체 작성한 질문이며 검증된 척도 문항이나 효과 측정이 아니다.
+ * `docs/research/batches/self-knowledge.md`의 적용 한계를 따른다. 사용자가 해석을
+ * 모르거나 더 말하고 싶지 않을 수 있으며, 그 선택을 존중하는 처리는 호출부가 맡는다.
  */
 const LAYER_FALLBACK: Record<"en" | "ko", Record<DrillLayer, string>> = {
   ko: {
