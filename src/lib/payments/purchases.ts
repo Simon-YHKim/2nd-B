@@ -56,37 +56,10 @@ export type OfferingsOutcome =
   | { status: "unavailable" }
   | { status: "error" };
 
-export type PlansPackageTier = "plus" | "pro";
-
-/**
- * Select only an unambiguous monthly package for the requested plans tier.
- * There is deliberately no packages[0] fallback: a wrong product is a real
- * charge at the wrong entitlement, not a cosmetic matching error.
- */
-export function findMonthlyTierPackage(
-  packages: PurchasesPackage[],
-  tier: PlansPackageTier,
-): PurchasesPackage | undefined {
-  const requested =
-    tier === "plus" ? ["plus", "voyager", "cortex"] : ["pro", "northstar", "north", "brain"];
-  const other =
-    tier === "plus" ? ["pro", "northstar", "north", "brain"] : ["plus", "voyager", "cortex"];
-  return packages.find((pkg) => {
-    const tokens = `${pkg.identifier} ${pkg.product.identifier}`
-      .toLowerCase()
-      .split(/[^a-z0-9]+/)
-      .filter(Boolean);
-    const hasRequestedTier = requested.some((hint) => tokens.includes(hint));
-    const hasOtherTier = other.some((hint) => tokens.includes(hint));
-    const monthly = tokens.some(
-      (token) => token === "monthly" || token === "month" || token === "p1m",
-    );
-    const yearly = tokens.some(
-      (token) => token === "yearly" || token === "annual" || token === "year" || token === "p1y",
-    );
-    return hasRequestedTier && !hasOtherTier && monthly && !yearly;
-  });
-}
+// The tier selector is pure and is ALSO needed by purchases.web.ts, which may
+// not name react-native-purchases. It lives in ./purchases-select so both
+// platform variants share one implementation instead of drifting copies.
+export { findMonthlyTierPackage, type PlansPackageTier } from "./purchases-select";
 
 // True only on a native platform with a configured public key. Drives every
 // guard below; flipped during configurePurchases().
