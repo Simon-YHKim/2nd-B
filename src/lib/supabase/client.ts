@@ -18,6 +18,7 @@ export function getSupabaseClient(): SupabaseClient {
   const storage = resolveStorageAdapter();
   client = createClient(env.EXPO_PUBLIC_SUPABASE_URL, env.EXPO_PUBLIC_SUPABASE_ANON_KEY, {
     auth: {
+      flowType: "pkce",
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: IS_WEB,
