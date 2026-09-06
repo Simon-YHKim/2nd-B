@@ -10,7 +10,7 @@ deadline.
 
 [Master Blueprint](./docs/ARCHITECTURE.md) ·
 [Constraints](./docs/CONSTRAINTS.md) ·
-[Pre-existing assets used](./docs/ASSETS.md)
+[Bundled assets and licenses](./docs/ASSETS.md)
 
 ---
 
@@ -49,7 +49,7 @@ remote Supabase, real Gemini API calls) are deferred to Sprint 1.
 | Aggregated constraints self-check | done |
 | Auth flow with birth-date age gate + email password reset (C10) | done |
 | Judge mode auto-detect (C6) | retired 2026-08-21 (#1302 + migration 0138); the CI check now guards the retirement |
-| Pre-existing assets section (C12) | done |
+| Bundled asset + license disclosure | done (was C12; the constraint retired 2026-09-06, the check stays under its own name) |
 | Support SLA section (C11) | done (auto-responder Sprint 1) |
 
 > **Age-gate jurisdiction (current):** there is no country/jurisdiction detection
@@ -93,11 +93,11 @@ npm run type-check         # tsc --noEmit
 npm run check:i18n         # C7 EN/KO key parity
 npm run check:lexicon      # forbidden vocabulary scan
 npm run check:llm-boundary # @google/genai stays in gemini.ts
-npm run check:constraints  # C1~C12 aggregate
+npm run check:constraints  # hard-constraint aggregate
 npm test                   # jest (C9 ordering, C3 audit insertion)
 ```
 
-## Pre-existing assets used
+## Bundled assets and licenses
 
 Asset provenance: see [`docs/ASSETS.md`](./docs/ASSETS.md) for
 the full registry. Summary: the codebase was initialized from a clean
