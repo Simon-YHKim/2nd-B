@@ -1,9 +1,30 @@
 name: CI
 
+# D7-01 (CI audit 2026-09-05): `push: branches: ["**"]` + `pull_request`
+# ran the same verify twice for every push to a PR branch (414 duplicate
+# pull_request runs in 10.6 days, ~9,100 job-minutes/month). Branch
+# protection only requires the `verify` context and `pull_request` produces
+# it, so PR branches now run once. `push` stays on main so the badge and the
+# main branch history keep their CI signal (dropping that is a separate call).
 on:
-  push:
-    branches: ["**"]
   pull_request:
+  push:
+    branches: [main]
+
+# D7-03: pure verification workflow (no deploy side effects), so a newer push
+# to the same ref cancels the run it supersedes. `refs/heads/*` (push) and
+# `refs/pull/N/merge` (pull_request) are distinct groups and never cancel each
+# other. web-deploy.yml keeps cancel-in-progress: false because it publishes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege: this workflow only reads the repo (checkout + local tooling).
+# It never uses GITHUB_TOKEN to write, so it does not inherit the repository's
+# default token scope. Audited 2026-09-06 (C-22): ci.yml, pr-title.yml and
+# supabase-dry-run.yml were the three workflows with no permissions block.
+permissions:
+  contents: read
 
 jobs:
   verify:

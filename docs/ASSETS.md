@@ -29,7 +29,7 @@ libraries used under their respective licenses. The full list:
 - `i18next`, `react-i18next` — MIT
 - `zod` — MIT
 - `dayjs` — MIT
-- Development tooling: TypeScript, ESLint, Prettier, Jest, tsx, globby —
+- Development tooling: TypeScript, ESLint, Prettier, Jest, tsx —
   MIT / Apache-2.0
 
 ## Bundled fonts (assets/fonts/)
@@ -37,7 +37,9 @@ libraries used under their respective licenses. The full list:
 - `Galmuri11-subset.*`, `Galmuri11Bold-subset.*`, `Galmuri14-subset.*`,
   `Galmuri9-subset.*`, `GalmuriMono11-subset.*` (`.ttf` native + `.woff2` web) —
   Galmuri (c) 2019–2025 Lee Minseo (quiple), Reserved Font Name "Galmuri",
-  **SIL OFL 1.1**; subsets derived from the `galmuri` npm package (^2.40.3).
+  **SIL OFL 1.1**; subsets derived from the `galmuri` npm package (^2.40.3,
+  a devDependency since 2026-09-05: only the subset script reads it, the app
+  ships these vendored files).
   Rebuild with `python scripts/build-font-subsets.py` — that script carries the
   character-set recipe and the reason for every range it keeps. Galmuri11 was
   vendored in #282 (2026-06-08); the other four were added for PIXEL-CLAY

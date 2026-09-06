@@ -113,26 +113,51 @@ function walkFiles(root, directory) {
   };
 }
 
-function indexBytes(root, relativePath) {
-  const result = spawnSync("git", ["-C", root, "show", `:${relativePath}`], {
+// Hashes the INDEX blob of every path (same bytes `git show :<path>` prints)
+// through ONE `git cat-file --batch` process instead of one `git show` spawn
+// per file. D7-05 (CI audit 2026-09-05): ~195 spawns made this script the
+// wall-clock critical path of every local jest run on Windows. Fail-closed:
+// a path git reports as missing/ambiguous, a non-blob entry, or any parse
+// drift in the batch stream leaves that path's hash null, which the callers
+// turn into FAIL exactly as the per-file spawn did.
+function hashIndexFiles(root, relativePaths) {
+  const hashes = new Map(relativePaths.map((path) => [path, null]));
+  const specs = [...hashes.keys()];
+  if (specs.length === 0) return hashes;
+  const result = spawnSync("git", ["-C", root, "cat-file", "--batch"], {
+    input: `${specs.map((path) => `:${path}`).join("\n")}\n`,
     encoding: null,
-    maxBuffer: 64 * 1024 * 1024,
+    maxBuffer: 1024 * 1024 * 1024,
     windowsHide: true,
   });
-  return result.status === 0 && Buffer.isBuffer(result.stdout) ? result.stdout : null;
-}
-
-function hashIndexFile(root, relativePath) {
-  const bytes = indexBytes(root, relativePath);
-  return bytes ? sha256(bytes) : null;
+  if (result.status !== 0 || !Buffer.isBuffer(result.stdout)) return hashes;
+  const out = result.stdout;
+  let offset = 0;
+  for (const path of specs) {
+    const newline = out.indexOf(0x0a, offset);
+    if (newline < 0) break;
+    const header = out.subarray(offset, newline).toString("utf8");
+    offset = newline + 1;
+    // "<spec> missing" / "<spec> ambiguous" carry no body.
+    if (header.endsWith(" missing") || header.endsWith(" ambiguous")) continue;
+    // "<oid> <type> <size>" followed by <size> bytes and one LF.
+    const parts = header.split(" ");
+    const size = parts.length === 3 ? Number(parts[2]) : Number.NaN;
+    if (!Number.isSafeInteger(size) || size < 0 || offset + size > out.length) break;
+    const bytes = out.subarray(offset, offset + size);
+    offset += size + 1;
+    if (parts[1] === "blob") hashes.set(path, sha256(bytes));
+  }
+  return hashes;
 }
 
 function hashIndexTree(root, directory, tracked) {
   const prefix = `${directory}/`;
   const files = tracked.files.filter((file) => file.startsWith(prefix)).sort(sortCodepoint);
   const digest = createHash("sha256");
+  const hashes = hashIndexFiles(root, files);
   for (const file of files) {
-    const fileSha256 = hashIndexFile(root, file);
+    const fileSha256 = hashes.get(file);
     if (!fileSha256) return { files, count: files.length, sha256: null };
     digest.update(file, "utf8");
     digest.update(Buffer.from([0]));
@@ -223,8 +248,9 @@ function verifyTracked(root) {
 }
 
 function verifyCanonicalFiles(root) {
+  const hashes = hashIndexFiles(root, Object.keys(EXPECTED_CANONICAL_FILES));
   const files = Object.entries(EXPECTED_CANONICAL_FILES).map(([path, expectedSha256]) => {
-    const actualSha256 = hashIndexFile(root, path);
+    const actualSha256 = hashes.get(path);
     return {
       path,
       status: actualSha256 === expectedSha256 ? "PASS" : "FAIL",
