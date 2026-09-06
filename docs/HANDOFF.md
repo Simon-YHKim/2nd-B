@@ -3,7 +3,65 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-09-04 / 실앱 화면 QA 인계 · PIXEL-CLAY 전체 이주 미완료 판정
+## Latest — 2026-09-06 / 워크트리 94개 정리 · C: 21→70GB · PR 6건 머지(#1610~#1615)
+
+> 발행: Claude Code (`E:/2ndB/.worktrees/claude/cleanup-260905`). 기준 시각: 2026-09-06 10:30 KST.
+> 보고서: [worktree-cleanup-260905.html](handoff/worktree-cleanup-260905.html) · 아카이브: `E:/2ndB/_sync/history/260905_cleanup/README.md`
+
+### 왜 시작했나
+
+C: 드라이브가 98%(여유 21GB)였다. 원인은 Orca 가 C: 에 만든 워크스페이스, 그중에서도
+`C:/Users/202502/orca/workspaces/2ndB/Design/2nd-B` — **저장소 전체 클론 하나가 통째로 C: 에 있고
+그 안에 워크트리 77개**(codex/pixel-clay-*, fix/* 시리즈)가 쌓여 있었다. 여기에 별도 설치본
+`node_modules`(각 ≈4.5GB) 5벌이 겹쳤다.
+
+### 무엇을 했나 (전부 실측·검증 후 집행)
+
+| 항목 | 결과 |
+|---|---|
+| 워크트리 삭제 | **94개** — 중첩 클론 77 · E:/2ndB 9 · Orca C: 루트 8(2ndB 7 + Eject Button/kelp). Design 루트는 활성 세션이라 유지 |
+| 삭제 전 검증 | 적대적 검증 에이전트 6개가 워크트리마다 "유일본이 있는가·살아 있는 프로세스가 있는가"를 반증 시도. 유일본 9건은 전부 `_sync/history/260905_cleanup/` 에 번들·패치로 보존한 뒤 삭제 |
+| PR 머지 | #1610 법무 처리자 · #1611 peer 미성년 파생 · #1612 임포트 이력 스코프 · #1613 xai verify_jwt · #1614 크로스체크 인젝션 펜스 · #1615 /discover 도달성. main 보호 규칙(strict)이라 한 건씩 `update-branch` → CI → squash |
+| 로컬 브랜치 | E:/2ndB 448→243(머지된 205 삭제) · 중첩 클론 99→50. **origin 브랜치 403개는 손대지 않음** |
+| 임시파일 | 3,802MB — expo 웹 렌더 소스맵 2,199MB(133개) · codex-* 임시 1,072MB · 2ndb-decode 284MB · Orca 회전 로그 90MB · `~/.codex/.tmp` 157MB |
+| main 동기화 | `E:/2ndB` main · 중첩 클론 main 둘 다 origin/main 으로 ff |
+| 디스크 | C: 여유 **21GB(98%) → 70GB(93%)**. ⚠ 같은 날 다른 세션이 C: 를 ±20~30GB 흔들었으므로 df 차이가 곧 내 회수량은 아니다. 추정 회수: node_modules 5벌 ≈22GB + 체크아웃 ≈84개×184MB ≈15GB + 임시 3.8GB |
+
+### 지운 것과 남긴 것
+
+- **지움**: 머지·폐기 판정된 워크트리와 그 브랜치의 로컬 사본. 초안 PR 브랜치는 origin 에 그대로 있다.
+- **남김(활성 세션)**: `TTL-Work`(7 터미널) · `pixelclay-260905` · `legacy-audit-260905` · `claude/pr-*-260905` 9개(다른 세션이 오늘 만든 것, #1618 머지·#1620~#1622 열림) · Orca `Design` 루트.
+- **아카이브 유일본**: hustlek-imagegen-pilot 64 commits 번들(아바타 RN 엔진 + native128 에셋 · **origin 에 없음** · 로컬 브랜치도 유지) · `recovery-proof-store.ts` 미커밋 작업 · HANDOFF 08-21 01:30 dangling 커밋 · MBTI 폐기 초안 · 아바타 발주 프롬프트(→ `docs/handoff/PROFILE-AVATAR-HANDOFF-2026-08-21.md` 로도 커밋).
+
+### 사고·편차 (숨기지 않음)
+
+1. 중첩 클론의 `handoff-design-260904-2035` 는 남기려 했는데 v1 스크립트의 경로 패턴(끝 슬래시) 때문에 같이 지워졌다. 클린·팁이 main 안 → **잃은 것 0**. 브랜치 `docs/handoff-design-260904-2035` 는 남아 있다.
+2. `Key_performance_4` 를 `orca worktree rm` 하는 순간 Orca 런타임이 연결을 한 번 끊었다(유휴 터미널 2개 강제 종료 중). 폴더는 비워졌고 런타임은 즉시 복귀, TTL-Work 7 · Design 4 터미널 무사 확인.
+3. `cmd //c rmdir` 로 정션을 끊는 종래 방법이 MSYS 에서 경로가 깨져 전부 실패했다 → `[System.IO.Directory]::Delete()` 로 교체(대상 보존 확인 779/779). 메모리에 기록.
+4. 09-05 13:00 경 세션 한도(5:10pm 리셋)로 하루 멈췄다. 삭제는 09-06 에 집행.
+
+### 다음 1개
+
+**Q-260906-01 hustlek-imagegen-pilot 번들을 origin 에 올릴 것인가.** `PORTABLE-ASSET-LINEAGE-2026-08-30.md` 의
+"금지된 계보 에셋" 계약 때문에 push 하지 않았다. 안 정하면: 이 64 commits 는 E: 로컬에만 있다(백업 없음).
+
+### 미결 (결정 탭)
+
+- Q-260906-02 초안 PR 25개(codex pixel-clay 19 · consent 6)의 운명 — 머지하려면 HUMAN PASS(디자인)·마이그레이션 게이트(consent) 통과 필요. 안 정하면: origin 브랜치 25개가 계속 남고 GitHub 목록이 어지럽다.
+- Q-260906-03 #1607 decode-uri 패치 — 네이티브 fingerprint 판단 대기(F 항목 그대로).
+- Q-260906-04 확인 후 지울 것 ≈11GB: Orca codex 세션 롤아웃 중복(`AppData/Roaming/orca/codex-runtime-home/home/sessions` 7.9GB ≒ `~/.codex/sessions` 7.7GB 중 한쪽) · gstack 물리 사본 1.4GB · `~/.codex/workspace-deps` 1.0GB · 에이전트 스크래치패드 ≈1.4GB · Orca 업데이터 설치본 중복 358MB.
+- 보고만: `.android` AVD 30GB · system-images 10.5GB · `.gradle` 8.9GB · npm-cache 4GB — 삭제 대상 아님.
+
+### 다음 세션 시작하는 법
+
+```bash
+git fetch origin main && git switch main && git pull --ff-only origin main && cat docs/HANDOFF.md
+cat E:/2ndB/_sync/history/260905_cleanup/README.md   # 아카이브 복원법
+```
+
+---
+
+## 2026-09-04 / 실앱 화면 QA 인계 · PIXEL-CLAY 전체 이주 미완료 판정
 
 > 발행: Codex (orca Design 워크스페이스) · `simon-handoff` 절차.
 > 기준 시각: 2026-09-04 20:49:53 KST.
