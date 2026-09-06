@@ -8,17 +8,15 @@ import { useEffect, useRef } from "react";
 import { Animated, Pressable, StyleSheet, View } from "react-native";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Image } from "expo-image";
 import { router, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { deepSpace, deepSpaceSpacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { Text } from "@/components/ui/Text";
+import { SecondbHead } from "@/components/deepspace/SecondbHead";
 import { dismissTask, useTaskStatus } from "@/lib/tasks/store";
 import { reactExpression } from "@/lib/companion/expression";
-
-const HEAD_IMAGE = require("../../../assets/deepspace/secondb-head-front.png");
 
 const COMPLETION_COPY = {
   en: { done: "Analysis is ready", sub: "Take a look?", see: "See result", later: "Later" },
@@ -72,7 +70,7 @@ export function CompletionToast() {
       <Animated.View style={[styles.toast, { opacity: drop, transform: [{ translateY }] }]}>
         <View style={styles.row}>
           <View style={styles.avatar}>
-            <Image source={HEAD_IMAGE} style={styles.head} contentFit="contain" />
+            <SecondbHead size={32} />
           </View>
           <View style={styles.body}>
             <Text variant="caption" style={styles.title}>{C.done}</Text>
@@ -117,7 +115,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  head: { width: 22, height: 22 },
   body: { flex: 1 },
   title: { fontSize: 13, color: deepSpace.accentBright },
   sub: { fontSize: 11, color: deepSpace.mint, marginTop: 1 },
