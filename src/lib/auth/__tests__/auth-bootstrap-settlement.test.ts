@@ -403,4 +403,89 @@ describe("provider and screen wiring", () => {
       }
     }
   });
+
+  test("encrypted-storage failures lock before any fail-closed sign-out", () => {
+    const failClosedStart = AUTH.indexOf("const failClosedRecovery = async");
+    const failClosedEnd = AUTH.indexOf("const handleAuthEvent", failClosedStart);
+    const failClosed = AUTH.slice(failClosedStart, failClosedEnd);
+    const classify = failClosed.indexOf("detectEncryptedStorageRecovery(error)");
+    const signOut = failClosed.indexOf('signOutAuth("local")');
+
+    expect(failClosedStart).toBeGreaterThan(-1);
+    expect(classify).toBeGreaterThan(-1);
+    expect(signOut).toBeGreaterThan(classify);
+  });
+
+  test("bootstrap classifies session and marker reads before ordinary recovery settlement", () => {
+    const bootStart = AUTH.indexOf("void (async () => {");
+    const settle = AUTH.indexOf("settleAuthBootstrap<Session>({", bootStart);
+    const boot = AUTH.slice(bootStart, settle);
+
+    expect(boot).toContain("detectEncryptedStorageRecovery(sessionResult.error)");
+    expect(boot).toContain("detectEncryptedStorageRecovery(markerResult.error)");
+    expect(boot).toContain("detectEncryptedStorageRecovery(pendingResult.error)");
+    expect(boot).toContain("if (!isCurrentEffect()) return;");
+  });
+
+  test("the bootstrap outer catch classifies storage before local sign-out", () => {
+    const catchStart = AUTH.indexOf("})().catch((error) => {");
+    const effectCleanup = AUTH.indexOf("return () => {", catchStart);
+    const block = AUTH.slice(catchStart, effectCleanup);
+    const classify = block.indexOf("detectEncryptedStorageRecovery(error)");
+    const failClosed = block.indexOf("failClosedRecovery(recoveryProofRef.current, error)");
+
+    expect(catchStart).toBeGreaterThan(-1);
+    expect(classify).toBeGreaterThan(-1);
+    expect(failClosed).toBeGreaterThan(classify);
+  });
+
+  test("all auth-storage entry points share the exact recovery classifier", () => {
+    const activateStart = AUTH.indexOf("const activateRecoverySession = useCallback");
+    const completeStart = AUTH.indexOf("const completeRecovery = useCallback", activateStart);
+    const effectStart = AUTH.indexOf("useEffect(() => {", completeStart);
+    const refreshStart = AUTH.indexOf("const refresh = useCallback", effectStart);
+    const recoverStart = AUTH.indexOf("const recoverEncryptedStorage = useCallback", refreshStart);
+    const activate = AUTH.slice(activateStart, completeStart);
+    const complete = AUTH.slice(completeStart, effectStart);
+    const effect = AUTH.slice(effectStart, refreshStart);
+    const refresh = AUTH.slice(refreshStart, recoverStart);
+
+    expect(activate).toContain("detectEncryptedStorageRecovery(error)");
+    expect(complete).toContain("detectEncryptedStorageRecovery(error)");
+    expect(refresh).toContain("detectEncryptedStorageRecovery(probed.error)");
+    expect(effect).toContain("void supabase.auth.getSession()");
+    expect(effect).toContain("return failClosedRecovery(stored, error);");
+    expect(effect).toContain("detectEncryptedStorageRecovery(sessionResult.error)");
+    expect(effect).toContain("detectEncryptedStorageRecovery(markerResult.error)");
+    expect(effect).toContain("detectEncryptedStorageRecovery(pendingResult.error)");
+  });
+
+  test("a stale activate sign-out cannot clear proof after the client epoch changes", () => {
+    const activateStart = AUTH.indexOf("const activateRecoverySession = useCallback");
+    const activateEnd = AUTH.indexOf("const completeRecovery = useCallback", activateStart);
+    const activate = AUTH.slice(activateStart, activateEnd);
+    const signOut = activate.indexOf('await signOutAuth("local");');
+    const epochGuard = activate.indexOf(
+      "authClientEpochRef.current !== authClientEpoch",
+      signOut,
+    );
+    const lockGuard = activate.indexOf("storageRecoveryRequiredRef.current", epochGuard);
+    const clearProof = activate.indexOf("publishRecoveryProof(null);", lockGuard);
+
+    expect(signOut).toBeGreaterThan(-1);
+    expect(epochGuard).toBeGreaterThan(signOut);
+    expect(lockGuard).toBeGreaterThan(epochGuard);
+    expect(clearProof).toBeGreaterThan(lockGuard);
+  });
+
+  test("fresh-client bootstrap is the only path that releases recovery readiness", () => {
+    const recoveryStart = AUTH.indexOf("const recoverEncryptedStorage = useCallback");
+    const recoveryEnd = AUTH.indexOf("const value = useMemo", recoveryStart);
+    const recovery = AUTH.slice(recoveryStart, recoveryEnd);
+
+    expect(recovery).toContain("setRecoveryReady(false);");
+    expect(recovery).not.toContain("setRecoveryReady(true);");
+    expect(AUTH).toContain("const effectEpoch = authClientEpoch;");
+    expect(AUTH).toContain("authClientEpochRef.current === effectEpoch");
+  });
 });

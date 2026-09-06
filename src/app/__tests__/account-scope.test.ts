@@ -15,13 +15,15 @@ describe("root account scene boundary wiring", () => {
   test("every AuthContext state publication has a synchronous owner note", () => {
     const publications = AUTH.match(/\bsetState\s*\(/g) ?? [];
     const notes = AUTH.match(/\bnoteResolvedOwner\s*\(/g) ?? [];
-    // 9 since AUTH-01 (2026-09-06), not 8: publishSessionUnavailable() ends an
+    // 10 after encrypted-storage recovery, not 9: successful explicit recovery
+    // destroys the local auth material and publishes a fresh-bootstrap frame.
+    // The earlier AUTH-01 publication still ends an
     // ordinary startup whose session lookup never answered. It is a real state
     // publication, so it carries its own synchronous noteResolvedOwner(null)
     // immediately before setState — which is exactly the invariant this test
     // exists to hold, and why the second assertion (equal counts) is the load-
     // bearing one. The count was raised only after adding the matching note.
-    expect(publications).toHaveLength(9);
+    expect(publications).toHaveLength(10);
     expect(notes).toHaveLength(publications.length);
 
     const earlyProbe = AUTH.indexOf(
@@ -35,6 +37,22 @@ describe("root account scene boundary wiring", () => {
     const refreshPublish = AUTH.indexOf("setState({", refreshNote);
     expect(refreshGuard).toBeLessThan(refreshNote);
     expect(refreshNote).toBeLessThan(refreshPublish);
+  });
+
+  test("storage fault detection stays unresolved, while consented reset notes owner-null", () => {
+    const detectStart = AUTH.indexOf("const detectEncryptedStorageRecovery = useCallback");
+    const detectEnd = AUTH.indexOf("const activateRecoverySession", detectStart);
+    const detect = AUTH.slice(detectStart, detectEnd);
+    expect(detect).toContain("publishUnresolvedAuthState({");
+    expect(detect).not.toContain("noteResolvedOwner(");
+
+    const recoverStart = AUTH.indexOf("const recoverEncryptedStorage = useCallback");
+    const recoverEnd = AUTH.indexOf("const value = useMemo", recoverStart);
+    const recover = AUTH.slice(recoverStart, recoverEnd);
+    const note = recover.indexOf("noteResolvedOwner(null);");
+    const publish = recover.indexOf("setState({", note);
+    expect(note).toBeGreaterThan(-1);
+    expect(publish).toBeGreaterThan(note);
   });
 
   test("screenLayout holds product children but exempts the auth group", () => {

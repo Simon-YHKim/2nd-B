@@ -1,4 +1,6 @@
 import { AuthUnknownError } from "@supabase/supabase-js";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { ENCRYPTED_STORAGE_RECOVERY_REQUIRED } from "../../storage/encrypted-native-storage";
 import {
   attemptEncryptedNativeStorageRecovery,
@@ -14,6 +16,12 @@ const recoveryDependencies = {
   recreateClient: getClient,
   resetClient,
 };
+
+const ROOT = resolve(__dirname, "../../../..");
+const AUTH = readFileSync(resolve(ROOT, "src/lib/auth/AuthContext.tsx"), "utf8").replace(
+  /\r\n/g,
+  "\n",
+);
 
 function errorWithCause(message: string, cause: unknown): Error {
   const error = new Error(message);
@@ -161,5 +169,66 @@ describe("explicit recovery consent", () => {
       acknowledgedDataLoss: true,
       action: "discard-unreadable-encrypted-local-data",
     }, recoveryDependencies)).resolves.toBe("failed");
+  });
+});
+
+describe("AuthContext encrypted-storage recovery boundary", () => {
+  test("exposes a distinct lock and an exact-consent recovery action", () => {
+    expect(AUTH).toContain("storageRecoveryRequired: boolean;");
+    expect(AUTH).toContain(
+      "recoverEncryptedStorage: (consent: EncryptedNativeStorageRecoveryConsent) => Promise<boolean>;",
+    );
+    expect(AUTH).toContain("storageRecoveryRequired: false,");
+    expect(AUTH).toContain("recoverEncryptedStorage: async () => false,");
+  });
+
+  test("the exact classifier masks every identity field without resolving owner-null", () => {
+    const start = AUTH.indexOf("const detectEncryptedStorageRecovery = useCallback");
+    const end = AUTH.indexOf("const activateRecoverySession", start);
+    const block = AUTH.slice(start, end);
+
+    expect(start).toBeGreaterThan(-1);
+    expect(block).toContain("isEncryptedStorageRecoveryRequired(error)");
+    expect(block).toContain("storageRecoveryRequiredRef.current = true;");
+    expect(block).toContain("setStorageRecoveryRequired(true);");
+    expect(block).toContain("setRecoveryReady(false);");
+    expect(block).toContain("userId: null,");
+    expect(block).toContain("hasProfile: null,");
+    expect(block).toContain("isMinor: null,");
+    expect(block).toContain("age: null,");
+    expect(block).not.toContain("noteResolvedOwner(");
+    expect(block).not.toContain("signOutAuth(");
+  });
+
+  test("successful consent retires old callbacks and starts a locked fresh bootstrap", () => {
+    const start = AUTH.indexOf("const recoverEncryptedStorage = useCallback");
+    const end = AUTH.indexOf("const value = useMemo", start);
+    const block = AUTH.slice(start, end);
+    const attempt = block.indexOf("attemptEncryptedNativeStorageRecovery(consent)");
+    const invalidate = block.indexOf("authClientEpochRef.current = nextEpoch;");
+    const ownerNote = block.indexOf("noteResolvedOwner(null);");
+    const publish = block.indexOf("setState({", ownerNote);
+    const rerender = block.indexOf("setAuthClientEpoch(nextEpoch);");
+
+    expect(start).toBeGreaterThan(-1);
+    expect(block).toContain("authClientEpochRef.current !== authClientEpoch");
+    expect(block).toContain("|| !storageRecoveryRequiredRef.current");
+    expect(block).toContain('if (result !== "recovered")');
+    expect(block).toContain("setRecoveryReady(false);");
+    expect(block).toContain("loading: true,");
+    expect(attempt).toBeGreaterThan(-1);
+    expect(invalidate).toBeGreaterThan(attempt);
+    expect(ownerNote).toBeGreaterThan(invalidate);
+    expect(publish).toBeGreaterThan(ownerNote);
+    expect(rerender).toBeGreaterThan(publish);
+  });
+
+  test("recovery failures are phase-only and never interpolate raw operands", () => {
+    const calls = AUTH.match(/console\.warn\("\[auth\] encrypted storage[^\n]*/g) ?? [];
+    expect(calls.length).toBeGreaterThan(0);
+    for (const call of calls) {
+      expect(call).toMatch(/^console\.warn\("\[auth\] encrypted storage[^\"]*"\);$/);
+      expect(call).toContain("phase=");
+    }
   });
 });
