@@ -500,7 +500,10 @@ describe("capture 화면 — domainIntent 배선 (source contract)", () => {
     expect(src).not.toContain("preHydrationDirtyRef");
     expect(src).toContain("if (!draftHydrated) {");
     expect(src).toContain('<PremiumLoadingState message={t("loading")} />');
-    expect(src).toContain('return <CaptureLegacySession key={userId ?? "signed-out"} />');
+    // #1532 added `enableLifeAreaIntents`, which both branches now thread
+    // through. What this assertion protects is the owner key, so it pins the
+    // key on BOTH branches rather than one exact single-prop literal.
+    expect(src.match(/<CaptureLegacySession\s+key=\{userId \?\? "signed-out"\}/g)).toHaveLength(2);
     expect(src).toContain("setDraftHydrationError(true)");
     expect(src).toContain("setDraftHydrationRetry((attempt) => attempt + 1)");
     expect(src).toContain("draftHydratedRef.current = false;");

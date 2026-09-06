@@ -44,6 +44,9 @@ const domainCore = coeff("DOMAIN_CORE_R");
 const focusMult = coeff("DOMAIN_FOCUS_MULT");
 const haloRest = coeff("DOMAIN_HALO_MULT_REST");
 const haloFocus = coeff("DOMAIN_HALO_MULT_FOCUS");
+const homeHeadSize = coeff("HOME_HEAD_SIZE");
+const neuralOuterMax = coeff("NEURAL_NODE_OUTER_MAX");
+const neuralInnerMax = coeff("NEURAL_NODE_INNER_MAX");
 
 // On-screen coefficients (× k) for a domain star's core and its halo.
 const focusedCore = domainCore * focusMult;
@@ -106,5 +109,43 @@ describe("the constellation draws stars as rects, not circles (PIXEL-CLAY 규칙
     expect(SRC).toContain("<PixelStarSvg");
     expect(SRC).toContain("POLARIS_CORE_R * k");
     expect(SRC).toContain("DOMAIN_CORE_R * k");
+  });
+});
+
+describe("the home stage uses discrete PIXEL-CLAY surfaces", () => {
+  it("does not paint the stage or vignette with radial gradients", () => {
+    expect(SRC).not.toMatch(/import Svg, \{[^}]*RadialGradient/);
+    expect(SRC).not.toContain("<RadialGradient");
+    expect(SRC).not.toContain("<Stop");
+    expect(SRC).not.toContain('fill="url(#ds-stage)"');
+    expect(SRC).not.toContain('fill="url(#ds-vignette)"');
+  });
+
+  it("grounds both the stage and speech bubble on the canonical opaque floor", () => {
+    expect(SRC).toContain(
+      '<Rect x={0} y={0} width={w} height={h} fill={m3.accent.stageFloor} />',
+    );
+    expect(SRC).toContain("backgroundColor: m3.accent.stageFloor");
+    expect(SRC).not.toContain("backgroundColor: homeAlpha(");
+  });
+
+  it("quantizes the neural field into a finite opaque token band", () => {
+    const backdrop = SRC.slice(
+      SRC.indexOf("const NeuralFieldBackdrop"),
+      SRC.indexOf("const POLARIS_CORE_R"),
+    );
+    expect(SRC).toContain("const NEURAL_BAND_FILL = [");
+    expect(backdrop).toContain("neuralBand(");
+    expect(backdrop).not.toContain("flattenAlpha(");
+    expect(backdrop).not.toContain("homeAlpha(");
+  });
+
+  it("keeps background nodes below a resting home star's drawn span", () => {
+    expect(neuralInnerMax).toBeLessThan(neuralOuterMax);
+    expect(neuralOuterMax).toBeLessThan(drawn(restingCore));
+  });
+
+  it("keeps the companion supporting, not replacing, the constellation graphic", () => {
+    expect(homeHeadSize / 390).toBeLessThanOrEqual(0.4);
   });
 });

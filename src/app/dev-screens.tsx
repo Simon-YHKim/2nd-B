@@ -78,7 +78,7 @@ function badgesFor(s: DevScreen): string[] {
     out.push(`딥스페이스 ${modeRenderText(render.deepspace)} · legacy ${modeRenderText(render.legacy)}`);
   }
   if (s.dev) out.push("개발 전용");
-  if (s.auth) out.push("로그인 필요");
+  if (s.auth !== undefined) out.push("로그인 필요");
   if (s.sample) out.push("견본 값");
   return out;
 }

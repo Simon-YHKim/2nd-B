@@ -10,8 +10,12 @@
 //
 // 진입 축(entry)·렌더 축(render)의 선언도 여기서 라우트 **소스를 읽어** 대조한다.
 // 선언이 실제 분기와 어긋나면 목록이 거짓말을 하는 것이므로 CI 가 막는다.
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+//
+// 위임 auth 는 두 겹으로 지킨다: AUTH_DELEGATES 가 위임 체인의 반환 모양과
+// 도달 가능한 가드를 AST 로 못박고, EXPECTED_DELEGATED_AUTH 가 레지스트리에
+// 데이터로 적힌 gateFile·component 를 실제 소스와 대조한다.
+import { existsSync, readFileSync, readdirSync, realpathSync } from "node:fs";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import * as ts from "typescript";
 
 import { DB_TIER_BY_PUBLIC } from "@/lib/entitlements/tier-map";
@@ -33,6 +37,132 @@ import {
 } from "../screen-index";
 
 const APP = join(process.cwd(), "src", "app");
+const SRC = join(process.cwd(), "src");
+
+interface DelegatedAuthFixture {
+  gateFile: string;
+  component: string;
+  via?: string;
+}
+
+// focus 는 여기 없다. #1543 은 위임으로 적었지만 main 의 5cc8cdeb 가 focus.tsx 에
+// 직접 가드를 넣어서 지금은 라우트가 스스로 리다이렉트한다. 그 stale 선언은
+// #1543 자신의 위임 검사가 통합 중에 잡아냈다.
+const EXPECTED_DELEGATED_AUTH: Record<string, DelegatedAuthFixture> = {
+  "capture-full": { gateFile: "src/app/capture.tsx", component: "CaptureLegacy", via: "CaptureLegacySession" },
+  srs: { gateFile: "src/screens/deepspace/DeepSpaceDesignScreens.tsx", component: "DeepSpaceSrsScreen" },
+  plans: { gateFile: "src/screens/deepspace/dds-plans-screen.tsx", component: "DeepSpacePlansScreen" },
+  trends: { gateFile: "src/screens/deepspace/trends/TrendsScreen.tsx", component: "TrendsScreen" },
+};
+
+function isDelegatedAuth(value: unknown): value is DelegatedAuthFixture {
+  if (value === null || typeof value !== "object") return false;
+  const candidate = value as Partial<DelegatedAuthFixture>;
+  return typeof candidate.gateFile === "string" && typeof candidate.component === "string";
+}
+
+/** Read only the explicitly declared gate source. Never walk its import graph. */
+function readDelegatedGate(fixture: DelegatedAuthFixture): string {
+  const normalizedGateFile = fixture.gateFile.replaceAll("\\", "/");
+  if (
+    isAbsolute(fixture.gateFile) ||
+    !normalizedGateFile.startsWith("src/") ||
+    normalizedGateFile.split("/").includes("..")
+  ) {
+    throw new Error(`delegated auth gate must be a repo-relative src path: ${fixture.gateFile}`);
+  }
+  if (!/^[A-Za-z_$][\w$]*$/.test(fixture.component)) {
+    throw new Error(`delegated auth component must be an identifier: ${fixture.component}`);
+  }
+
+  const full = resolve(process.cwd(), fixture.gateFile);
+  const insideSrc = relative(SRC, full);
+  if (insideSrc === "" || insideSrc === ".." || insideSrc.startsWith(`..${sep}`) || isAbsolute(insideSrc)) {
+    throw new Error(`delegated auth gate escapes src: ${fixture.gateFile}`);
+  }
+  if (!existsSync(full)) throw new Error(`delegated auth gate does not exist: ${fixture.gateFile}`);
+  const realSrc = realpathSync(SRC);
+  const realFull = realpathSync(full);
+  const realInsideSrc = relative(realSrc, realFull);
+  if (
+    realInsideSrc === "" ||
+    realInsideSrc === ".." ||
+    realInsideSrc.startsWith(`..${sep}`) ||
+    isAbsolute(realInsideSrc)
+  ) {
+    throw new Error(`delegated auth gate resolves outside src: ${fixture.gateFile}`);
+  }
+  return readFileSync(realFull, "utf8");
+}
+
+function exportedFunctionSource(source: string, file: string, component: string): string {
+  const parsed = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const declaration = parsed.statements.find(
+    (statement): statement is ts.FunctionDeclaration =>
+      ts.isFunctionDeclaration(statement) && statement.name?.text === component,
+  );
+  if (!declaration) throw new Error(`${file} does not declare ${component}`);
+
+  const directlyExported = declaration.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) ?? false;
+  const separatelyExported = parsed.statements.some(
+    (statement) =>
+      ts.isExportDeclaration(statement) &&
+      statement.exportClause !== undefined &&
+      ts.isNamedExports(statement.exportClause) &&
+      statement.exportClause.elements.some((element) => element.name.text === component),
+  );
+  if (!directlyExported && !separatelyExported) throw new Error(`${file} does not export ${component}`);
+  return declaration.getText(parsed);
+}
+
+/** 라우트 파일의 default export 함수 선언 본문 소스. export+default 를 둘 다 요구한다. */
+function defaultRouteFunctionSource(source: string, file: string): string {
+  const parsed = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const declaration = parsed.statements.find(
+    (statement): statement is ts.FunctionDeclaration =>
+      ts.isFunctionDeclaration(statement) &&
+      (statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) ?? false) &&
+      (statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword) ?? false),
+  );
+  if (!declaration) throw new Error(`${file} does not declare a default route function`);
+  return declaration.getText(parsed);
+}
+
+function rendersComponent(source: string, file: string, component: string): boolean {
+  const parsed = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  let rendered = false;
+  const visit = (node: ts.Node) => {
+    if (
+      (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
+      node.tagName.getText(parsed) === component
+    ) {
+      rendered = true;
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(parsed);
+  return rendered;
+}
+
+function hasLiteralSignInRedirect(source: string, file: string): boolean {
+  const parsed = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  let found = false;
+  const visit = (node: ts.Node) => {
+    if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(parsed) === "Redirect") {
+      const href = node.attributes.properties.find(
+        (property): property is ts.JsxAttribute => ts.isJsxAttribute(property) && property.name.getText(parsed) === "href",
+      );
+      if (href?.initializer && ts.isStringLiteral(href.initializer) && href.initializer.text === "/sign-in") {
+        found = true;
+        return;
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(parsed);
+  return found;
+}
 
 /** 정상 진입이 아닌 화면 전부. 여기 없는 화면이 특수 entry 를 달면 실패한다. */
 const EXPECTED_SPECIAL_ENTRY: Record<string, SpecialScreenEntry> = {
@@ -145,18 +275,6 @@ function routeFiles(dir = APP, base = ""): string[] {
     out.push(base ? `${base}/${name}` : name);
   }
   return out;
-}
-
-/** 라우트 파일의 default export 함수 선언 본문 소스. */
-function defaultRouteFunctionSource(source: string, file: string): string {
-  const parsed = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  const declaration = parsed.statements.find(
-    (statement): statement is ts.FunctionDeclaration =>
-      ts.isFunctionDeclaration(statement) &&
-      (statement.modifiers ?? []).some((m) => m.kind === ts.SyntaxKind.DefaultKeyword),
-  );
-  if (!declaration) throw new Error(`${file} does not export a default function declaration`);
-  return declaration.getText(parsed);
 }
 
 /** 이름 붙은 함수의 첫 if 문 소스 — 외부 계약 정적 분기를 짚는 데 쓴다. */
@@ -357,7 +475,9 @@ function hasSignInGuard(fn: ts.FunctionDeclaration): boolean {
 /** 로그인 게이트 뒤인가 — 파일 리터럴이거나 위 셋 중 하나이거나. */
 function routeRequiresAuth(routeFile: string): boolean {
   const source = readFileSync(join(APP, `${routeFile}.tsx`), "utf8");
-  return SIGN_IN_REDIRECT.test(source) || (AUTH_DELEGATES as readonly string[]).includes(routeFile);
+  // 위임 목록은 이제 레지스트리가 데이터로 갖는다. 하드코딩된 세 이름을 쓰면
+  // focus·plans 처럼 뒤에 늘어난 위임이 조용히 빠진다.
+  return SIGN_IN_REDIRECT.test(source) || routeFile in EXPECTED_DELEGATED_AUTH;
 }
 
 function moduleSpecifiers(source: string, file: string): string[] {
@@ -465,13 +585,23 @@ describe("개발자 화면 목록", () => {
     }
   });
 
-  it("auth 표시가 실제 로그인 리다이렉트와 일치한다 (위임 계약 포함)", () => {
-    // 판정은 둘 중 하나로만 참이 된다 — 라우트 파일의 가드 리터럴이거나,
-    // AUTH_DELEGATES 에 적히고 아래 테스트가 체인을 증명한 위임이거나.
+  it("auth=true 표시만 route 자체의 로그인 리다이렉트와 일치한다", () => {
     for (const s of devScreens()) {
-      expect({ file: s.file, auth: s.auth === true }).toEqual({
+      const routeSource = readFileSync(join(APP, `${s.file}.tsx`), "utf8");
+      expect({ file: s.file, directAuth: s.auth === true }).toEqual({
         file: s.file,
-        auth: routeRequiresAuth(s.file),
+        directAuth: hasLiteralSignInRedirect(routeSource, `${s.file}.tsx`),
+      });
+    }
+  });
+
+  it("로그인 게이트 뒤인 화면은 직접이든 위임이든 auth 를 선언한다", () => {
+    // main 의 routeRequiresAuth 계약 그대로다 — 리터럴이 있거나 증명된 위임이면
+    // 배지가 붙어야 한다. 위임이 데이터로 내려온 뒤에도 뜻은 바뀌지 않는다.
+    for (const s of devScreens()) {
+      expect({ file: s.file, declared: s.auth !== undefined }).toEqual({
+        file: s.file,
+        declared: routeRequiresAuth(s.file),
       });
     }
   });
@@ -487,7 +617,12 @@ describe("개발자 화면 목록", () => {
     for (const routeFile of AUTH_DELEGATES) {
       const direct = SIGN_IN_REDIRECT.test(readFileSync(join(APP, `${routeFile}.tsx`), "utf8"));
       const auth = devScreens().find((s) => s.file === routeFile)?.auth;
-      expect({ routeFile, direct, auth }).toEqual({ routeFile, direct: false, auth: true });
+      // 위임이므로 라우트 파일에는 리터럴이 없어야 하고, 배지는 이제 `true` 가
+      // 아니라 대상을 적은 객체다.
+      expect({ routeFile, direct, delegated: isDelegatedAuth(auth) })
+        .toEqual({ routeFile, direct: false, delegated: true });
+      // AST 로 모양을 못박는 이 목록이 레지스트리 밖으로 새지 않게 한다.
+      expect(Object.keys(EXPECTED_DELEGATED_AUTH)).toContain(routeFile);
     }
     // 가드를 가진 세 선언이 실제로 도달 가능한 !userId 가드를 가진다.
     for (const g of DELEGATE_GUARDS) {
@@ -506,6 +641,88 @@ describe("개발자 화면 목록", () => {
     const guard = (src: string) => hasSignInGuard(declarationFrom(src, "G"));
     expect(guard('function G(){ if (!userId) return <Redirect href="/sign-in" />; return <X/>; }')).toBe(true);
     expect(guard('function G(){ return <X/>; if (!userId) return <Redirect href="/sign-in" />; }')).toBe(false);
+  });
+
+  it("wrapper/re-export auth 위임은 확정된 네 화면만 정확히 선언한다", () => {
+    const delegated = Object.fromEntries(
+      devScreens()
+        .filter((s) => isDelegatedAuth(s.auth))
+        .map((s) => [s.file, s.auth]),
+    );
+    expect(delegated).toEqual(EXPECTED_DELEGATED_AUTH);
+  });
+
+  it("위임 gate는 선언한 컴포넌트를 export하고 route가 실제로 렌더한다", () => {
+    for (const [file, expected] of Object.entries(EXPECTED_DELEGATED_AUTH)) {
+      const screen = devScreens().find((candidate) => candidate.file === file);
+      expect(isDelegatedAuth(screen?.auth)).toBe(true);
+      if (!isDelegatedAuth(screen?.auth)) continue;
+
+      const routeSource = readFileSync(join(APP, `${file}.tsx`), "utf8");
+      const gateSource = exportedFunctionSource(
+        readDelegatedGate(screen.auth),
+        screen.auth.gateFile,
+        screen.auth.component,
+      );
+      expect(screen.auth).toEqual(expected);
+      // 가드는 선언한 컴포넌트에 있거나, 그 컴포넌트가 같은 파일 안에서 렌더하는
+      // `via` 컴포넌트에 있다. 두 번째 홉도 **선언된 것만** 따라간다 — 임의의
+      // import 그래프를 걷지 않는다는 이 검사의 원칙은 그대로다.
+      if (screen.auth.via === undefined) {
+        expect(hasLiteralSignInRedirect(gateSource, screen.auth.gateFile)).toBe(true);
+      } else {
+        expect(hasLiteralSignInRedirect(gateSource, screen.auth.gateFile)).toBe(false);
+        expect(rendersComponent(gateSource, screen.auth.gateFile, screen.auth.via)).toBe(true);
+        // `via` 는 같은 파일 안의 내부 컴포넌트라 export 를 요구하지 않는다
+        // (CaptureLegacySession 은 일부러 module-private 다). 대신 리터럴이
+        // 있는지가 아니라 **도달 가능한** 가드인지까지 본다 — 리터럴 스캔보다
+        // 강하고, main 의 DELEGATE_GUARDS 와 같은 판정기를 쓴다.
+        expect(
+          hasSignInGuard(declarationFrom(readDelegatedGate(screen.auth), screen.auth.via)),
+        ).toBe(true);
+      }
+      expect(
+        rendersComponent(
+          defaultRouteFunctionSource(routeSource, `${file}.tsx`),
+          `${file}.tsx`,
+          screen.auth.component,
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("다른 함수의 redirect나 주석 속 JSX를 위임 gate 증거로 세지 않는다", () => {
+    const gateFile = "fixture.tsx";
+    const gateSource = [
+      "export function Target() { return null; }",
+      'export function Other() { return <Redirect href="/sign-in" />; }',
+    ].join("\n");
+    expect(hasLiteralSignInRedirect(exportedFunctionSource(gateSource, gateFile, "Target"), gateFile)).toBe(false);
+    const routeSource = [
+      "function Unused() { return <Target />; }",
+      "// <Target />",
+      "export default function Route() { return null; }",
+    ].join("\n");
+    expect(rendersComponent(defaultRouteFunctionSource(routeSource, gateFile), gateFile, "Target")).toBe(false);
+    expect(() => exportedFunctionSource("export function Other() { return null; }", gateFile, "Missing")).toThrow();
+  });
+
+  it("위임 gate fixture의 경로 탈출·절대 경로·없는 파일·잘못된 컴포넌트를 거부한다", () => {
+    expect(() => readDelegatedGate({ gateFile: "../outside.tsx", component: "Outside" })).toThrow();
+    expect(() => readDelegatedGate({ gateFile: "src/../src/app/capture.tsx", component: "CaptureLegacy" })).toThrow();
+    expect(() => readDelegatedGate({ gateFile: resolve(process.cwd(), "outside.tsx"), component: "Outside" })).toThrow();
+    expect(() => readDelegatedGate({ gateFile: "src/does-not-exist.tsx", component: "Missing" })).toThrow();
+    expect(() => readDelegatedGate({ gateFile: "src/app/capture.tsx", component: "CaptureLegacy />" })).toThrow();
+  });
+
+  it("개발자 목록의 badge와 집계가 auth 객체도 로그인 필요로 센다", () => {
+    const source = readFileSync(join(APP, "dev-screens.tsx"), "utf8");
+    expect(source).toContain("if (s.auth !== undefined)");
+    // 집계는 이제 entryRoleCounts 가 소유한다(#1549 의 2축 헤더). 세는 규칙은 같은
+    // 뜻이어야 한다 — `if (screen.auth)` 는 true 와 위임 객체를 둘 다 센다.
+    expect(source).toContain("로그인 필요 {counts.authRequired}");
+    expect(readFileSync(join(process.cwd(), "src", "lib", "dev", "screen-index.ts"), "utf8"))
+      .toContain("if (screen.auth) counts.authRequired += 1;");
   });
 
   it("그룹 제목이 비어 있지 않고 중복되지 않는다", () => {
