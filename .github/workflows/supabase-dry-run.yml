@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "db/migrations/**"
+      - "db/tests/**"
       - ".github/workflows/supabase-dry-run.yml"
 
 # Least privilege: this workflow only reads the repo (checkout + local tooling).
@@ -80,6 +81,11 @@ jobs:
             echo "Applying $f"
             psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f "$f"
           done
+      - name: Exercise public-data quota contract
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/public_data_quota_regression.sql
       - name: Confirm key constraints
         env:
           PGPASSWORD: postgres

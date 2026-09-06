@@ -1,6 +1,6 @@
-// Authenticated, server-keyed foundation for the two public-data enrichments
-// already present in the app. This function is deliberately NOT deployable yet:
-// its atomic quota RPC does not exist until the deferred migration batch lands.
+// Authenticated, server-keyed gateway for the two public-data enrichments
+// already present in the app. Its quota migration is currently provisional
+// 0151: renumber, land, and apply that migration before deploying this function.
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -63,7 +63,7 @@ Deno.serve(async (req: Request) => {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  // Deferred migration contract (do not weaken to a process-local Map):
+  // Database quota contract (do not weaken to a process-local Map):
   // public.consume_public_data_quota(
   //   p_user_id uuid, p_provider text, p_day date, p_cap integer
   // ) RETURNS boolean. It must atomically insert/increment per user+provider+day,
