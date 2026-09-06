@@ -40,6 +40,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import {
   BRAIN_RANK,
+  LlmBodyError,
   MAX_ASSEMBLED_LEN,
   MAX_USER_LEN,
   SAFETY_PREAMBLE,
@@ -47,17 +48,25 @@ import {
   UPSTREAM_DETAIL_TRUNCATE,
   auditUpstreamFailure,
   clampLlmPurposeEffort,
+  consumeLlmPurposeQuota,
   corsPreflight,
   dailyCapForRank,
   djb2,
   hasCrisisTerm,
+  isLlmJsonObject,
   isUsableHeaderValue,
   jsonResponse,
+  llmCapacityWeight,
   normalizeResponseSchema,
+  readLlmProxyJsonObject,
+  readLlmUpstreamErrorText,
+  readLlmUpstreamJsonObject,
   requestMatchesLlmPurposeModality,
+  reserveLlmProxyCapacity,
   resolveApiKey,
   resolveLlmPurposePolicy,
   type LlmPolicyModelTier,
+  transitionLlmProxyCapacity,
   userIdFromJwt,
   utcDay,
 } from '../_shared/llm-proxy-common.ts';
@@ -68,6 +77,9 @@ const OPENAI_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
 // than folded in, because everything else about the request differs.
 const OPENAI_TRANSCRIBE_ENDPOINT = 'https://api.openai.com/v1/audio/transcriptions';
 const OPENAI_EMBED_ENDPOINT = 'https://api.openai.com/v1/embeddings';
+const PROVIDER_TIMEOUT_MS = 30_000;
+const REASONING_RUN_ID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Embeddings (2026-08-24). The ONLY live path off Gemini that no vendor switch
 // reached: embedTexts invoked gemini-proxy by name, so the four routing
@@ -358,6 +370,10 @@ Deno.serve(async (req: Request) => {
   const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
+  const capacityRpc = (functionName: string, args: Record<string, unknown>) =>
+    supabaseAdmin.rpc(functionName, args);
+  const auditUpstreamFailureSupplemental = (options: Parameters<typeof auditUpstreamFailure>[1]) =>
+    auditUpstreamFailure(supabaseAdmin, options);
 
   let body: {
     op?: unknown;
@@ -369,12 +385,60 @@ Deno.serve(async (req: Request) => {
     responseSchema?: unknown;
     image?: unknown;
     audio?: unknown;
+    reasoningRunId?: unknown;
+    reasoningSlot?: unknown;
   };
   try {
-    body = await req.json();
-  } catch {
+    body = await readLlmProxyJsonObject(req) as typeof body;
+  } catch (error) {
+    if (error instanceof LlmBodyError && error.code === 'request_body_too_large') {
+      return jsonResponse(req, { error: error.code, max: error.maxBytes }, 413);
+    }
     return jsonResponse(req, { error: 'invalid_json' }, 400);
   }
+
+  const requestPolicy = resolveLlmPurposePolicy(body?.purpose, 'openai');
+  if (!requestPolicy) {
+    return jsonResponse(req, { error: 'purpose_not_seated', purpose: body?.purpose ?? null }, 400);
+  }
+
+  // One mandatory, withdrawal-aware gate covers both paid routes.
+  try {
+    const { data: consentOk, error: consentErr } = await supabaseAdmin.rpc(
+      'effective_llm_consent',
+      { p_user_id: userId },
+    );
+    if (consentErr) {
+      console.error('[openai-proxy] effective consent lookup failed');
+      return jsonResponse(req, { error: 'consent_check_unavailable' }, 503);
+    }
+    if (consentOk !== true) return jsonResponse(req, { error: 'consent_required' }, 403);
+  } catch {
+    console.error('[openai-proxy] effective consent lookup threw');
+    return jsonResponse(req, { error: 'consent_check_unavailable' }, 503);
+  }
+
+  const readEffectiveTierRank = async (): Promise<number | null> => {
+    try {
+      const { data: effTier, error: tierErr } = await supabaseAdmin.rpc(
+        'effective_subscription_tier',
+        { p_user_id: userId },
+      );
+      if (tierErr) {
+        console.error('[openai-proxy] effective-tier lookup failed');
+        return null;
+      }
+      const tier = (effTier as string | null) ?? 'free';
+      if (!Object.prototype.hasOwnProperty.call(TIER_RANK, tier)) {
+        console.error('[openai-proxy] effective-tier lookup returned an unknown tier');
+        return null;
+      }
+      return TIER_RANK[tier];
+    } catch {
+      console.error('[openai-proxy] effective-tier lookup threw');
+      return null;
+    }
+  };
 
   // ── op:'embed' ────────────────────────────────────────────────────────────
   // Mirrors gemini-proxy's route deliberately: same limits, same crisis
@@ -385,11 +449,7 @@ Deno.serve(async (req: Request) => {
     if (Deno.env.get('EMBED_EGRESS_ENABLED') !== 'true') {
       return jsonResponse(req, { error: 'embedding_egress_disabled' }, 503);
     }
-    const embedPolicy = resolveLlmPurposePolicy(body?.purpose, 'openai');
-    if (!embedPolicy) {
-      return jsonResponse(req, { error: 'purpose_not_seated', purpose: body?.purpose ?? null }, 400);
-    }
-    if (!requestMatchesLlmPurposeModality(embedPolicy, 'embed')) {
+    if (!requestMatchesLlmPurposeModality(requestPolicy, 'embed')) {
       return jsonResponse(req, { error: 'purpose_modality_mismatch' }, 400);
     }
     const rawTexts = body?.texts;
@@ -416,11 +476,27 @@ Deno.serve(async (req: Request) => {
       texts.push(t);
     }
 
-    const { error: embedSpendErr } = await supabaseAdmin.rpc('bump_gemini_spend', {
-      p_user_id: userId,
-      p_day: utcDay(),
-      p_cap: dailyCapForRank(null),
-    });
+    const tierRank = await readEffectiveTierRank();
+    if (tierRank === null) {
+      return jsonResponse(req, { error: 'entitlement_check_unavailable' }, 503);
+    }
+    const purposeQuota = await consumeLlmPurposeQuota(capacityRpc, userId, 'embed_index');
+    if (!purposeQuota.ok) {
+      return jsonResponse(req, { error: 'purpose_limit_unavailable' }, 503);
+    }
+
+    let embedSpendErr: { message?: string } | null = null;
+    try {
+      const result = await supabaseAdmin.rpc('bump_gemini_spend', {
+        p_user_id: userId,
+        p_day: utcDay(),
+        p_cap: dailyCapForRank(tierRank),
+      });
+      embedSpendErr = result.error;
+    } catch {
+      console.error('[openai-proxy][ALERT] embed spend check threw -- failing closed');
+      return jsonResponse(req, { error: 'spend_check_unavailable' }, 503);
+    }
     if (embedSpendErr) {
       const msg = embedSpendErr.message ?? '';
       if (msg.includes('gemini_spend_exceeded')) {
@@ -430,13 +506,40 @@ Deno.serve(async (req: Request) => {
       return jsonResponse(req, { error: 'spend_check_unavailable' }, 503);
     }
 
+    const refundEmbedBeforeDispatch = async () => {
+      try {
+        await supabaseAdmin.rpc('refund_gemini_spend', { p_user_id: userId, p_day: utcDay() });
+      } catch (error) {
+        console.warn('[openai-proxy] embed spend refund failed:', String(error).slice(0, UPSTREAM_DETAIL_TRUNCATE));
+      }
+    };
+    // This failure alias is intentionally scoped to the pre-dispatch branch;
+    // billed or billing-ambiguous paths below must never call it.
+    const refundOnFailure = refundEmbedBeforeDispatch;
+
     const embedModel = OPENAI_EMBED_MODEL();
     const embedKey = resolveApiKey('OPENAI', embedModel, 'none', apiKey);
     if (!isUsableHeaderValue(embedKey.apiKey)) {
+      await refundOnFailure();
       return jsonResponse(req, {
         error: 'server_misconfigured_malformed_api_key',
         secret: embedKey.usedCombo ? embedKey.secretName : 'OPENAI_API_KEY',
       }, 500);
+    }
+
+    const capacity = await reserveLlmProxyCapacity(
+      capacityRpc,
+      'openai',
+      embedModel,
+      llmCapacityWeight(0, texts.length),
+    );
+    if (!capacity.ok) {
+      await refundEmbedBeforeDispatch();
+      return jsonResponse(
+        req,
+        { error: capacity.reason === 'limited' ? 'llm_capacity_exceeded' : 'llm_capacity_unavailable' },
+        capacity.reason === 'limited' ? 429 : 503,
+      );
     }
 
     const et0 = Date.now();
@@ -444,6 +547,8 @@ Deno.serve(async (req: Request) => {
     try {
       embedUpstream = await fetch(OPENAI_EMBED_ENDPOINT, {
         method: 'POST',
+        redirect: 'error',
+        signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
         headers: { 'content-type': 'application/json', 'authorization': `Bearer ${embedKey.apiKey}` },
         // `dimensions` is what makes this vendor able to serve the existing
         // vector(768) column at all. Without it the reply is the model's native
@@ -451,11 +556,30 @@ Deno.serve(async (req: Request) => {
         body: JSON.stringify({ model: embedModel, input: texts, dimensions: EMBED_DIM }),
       });
     } catch (e) {
+      await transitionLlmProxyCapacity(capacityRpc, capacity.reservationId, 'settle');
+      await auditUpstreamFailureSupplemental({
+        userId, purpose: 'embed_index', model: embedModel, vendor: 'openai',
+        outcome: 'upstream_unreachable', latencyMs: Date.now() - et0,
+        keyCombo: embedKey.usedCombo ? embedKey.secretName : 'OPENAI_API_KEY',
+        promptHash: djb2(texts.join(' ')),
+      });
       return jsonResponse(req, { error: 'upstream_unreachable', detail: String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE) }, 502);
     }
+    await transitionLlmProxyCapacity(capacityRpc, capacity.reservationId, 'settle');
     const embedLatencyMs = Date.now() - et0;
     if (!embedUpstream.ok) {
-      const errBody = await embedUpstream.text();
+      let errBody = '';
+      try {
+        errBody = await readLlmUpstreamErrorText(embedUpstream);
+      } catch {
+        errBody = 'upstream response unavailable';
+      }
+      await auditUpstreamFailureSupplemental({
+        userId, purpose: 'embed_index', model: embedModel, vendor: 'openai',
+        outcome: `upstream_${embedUpstream.status}`, latencyMs: embedLatencyMs,
+        keyCombo: embedKey.usedCombo ? embedKey.secretName : 'OPENAI_API_KEY',
+        promptHash: djb2(texts.join(' ')),
+      });
       return jsonResponse(req, {
         error: 'upstream_error',
         status: embedUpstream.status,
@@ -465,8 +589,14 @@ Deno.serve(async (req: Request) => {
 
     let embedData: { data?: { embedding?: unknown; index?: unknown }[] };
     try {
-      embedData = await embedUpstream.json();
-    } catch (_e) {
+      embedData = await readLlmUpstreamJsonObject(embedUpstream) as typeof embedData;
+    } catch {
+      await auditUpstreamFailureSupplemental({
+        userId, purpose: 'embed_index', model: embedModel, vendor: 'openai',
+        outcome: 'upstream_bad_payload', latencyMs: embedLatencyMs,
+        keyCombo: embedKey.usedCombo ? embedKey.secretName : 'OPENAI_API_KEY',
+        promptHash: djb2(texts.join(' ')),
+      });
       return jsonResponse(req, { error: 'upstream_bad_payload' }, 502);
     }
     // Sorted by index rather than trusted in order. The caller matches vectors
@@ -474,9 +604,29 @@ Deno.serve(async (req: Request) => {
     // to the wrong page - and the result would still look like a working
     // search, just one that returns unrelated things.
     const rows = Array.isArray(embedData?.data) ? [...embedData.data] : [];
-    rows.sort((a, b) => (Number(a?.index) || 0) - (Number(b?.index) || 0));
-    const vectors: number[][] = rows.map((r) => (Array.isArray(r?.embedding) ? (r.embedding as number[]) : []));
-    if (vectors.length !== texts.length || vectors.some((v) => v.length !== EMBED_DIM)) {
+    const rowsAreObjects = rows.every(
+      (row) => Boolean(row) && typeof row === 'object' && !Array.isArray(row),
+    );
+    if (rowsAreObjects) {
+      rows.sort((a, b) => (Number(a?.index) || 0) - (Number(b?.index) || 0));
+    }
+    const vectors: number[][] = rowsAreObjects
+      ? rows.map((row) => Array.isArray(row.embedding) ? row.embedding as number[] : [])
+      : [];
+    const legacyShapeMismatch =
+      vectors.length !== texts.length || vectors.some((v) => v.length !== EMBED_DIM);
+    if (
+      !rowsAreObjects ||
+      legacyShapeMismatch ||
+      rows.some((row, index) => !Number.isSafeInteger(row.index) || row.index !== index) ||
+      vectors.some((v) => v.length !== EMBED_DIM || v.some((value) => !Number.isFinite(value)))
+    ) {
+      await auditUpstreamFailureSupplemental({
+        userId, purpose: 'embed_index', model: embedModel, vendor: 'openai',
+        outcome: 'embed_shape_mismatch', latencyMs: embedLatencyMs,
+        keyCombo: embedKey.usedCombo ? embedKey.secretName : 'OPENAI_API_KEY',
+        promptHash: djb2(texts.join(' ')),
+      });
       // Refusing beats returning a short or mis-sized batch: the caller would
       // write whatever it got, and a wrong-width vector is a corrupt index.
       return jsonResponse(req, {
@@ -490,6 +640,7 @@ Deno.serve(async (req: Request) => {
     try {
       const { error: auditErr } = await supabaseAdmin.from('ai_audit_log').insert({
         user_id: userId,
+        event_source: 'server_verified',
         prompt_hash: djb2(texts.join(' ')),
         output_hash: djb2(String(vectors.length)),
         model_used: embedModel,
@@ -512,10 +663,19 @@ Deno.serve(async (req: Request) => {
   const systemText: string | null = typeof body?.system === 'string' ? body.system : null;
   const purpose: string | null = typeof body?.purpose === 'string' ? body.purpose : null;
   const effort: string | null = typeof body?.effort === 'string' ? body.effort : null;
+  const reasoningRunId = typeof body?.reasoningRunId === 'string' ? body.reasoningRunId : '';
+  const reasoningSlot =
+    body?.reasoningSlot === 'records' || body?.reasoningSlot === 'sources'
+      ? body.reasoningSlot
+      : '';
+  const responseSchemaProvided = body?.responseSchema !== undefined;
   const responseSchema = normalizeResponseSchema(body?.responseSchema);
   const purposePolicy = resolveLlmPurposePolicy(purpose, 'openai');
   if (!purpose || !purposePolicy) {
     return jsonResponse(req, { error: 'purpose_not_seated', purpose: purpose ?? null }, 400);
+  }
+  if (responseSchemaProvided && (!responseSchema || responseSchema.type !== 'object')) {
+    return jsonResponse(req, { error: 'response_schema_invalid' }, 400);
   }
 
   // Optional image / audio attachments. Validated exactly as gemini-proxy does
@@ -587,85 +747,60 @@ Deno.serve(async (req: Request) => {
   // let a lapsed subscriber keep the brain-only premium purposes + the brain
   // daily ceiling, and 403'd a comped judge. The RPC collapses expired->free and
   // comps judge->brain. A lookup error uses the free cap for ordinary seats and
-  // fails closed for a brain-gated seat.
-  let tierRank: number | null = null;
-  let tierLookupFailed = false;
-  {
-    const { data: effTier, error: tierErr } = await supabaseAdmin.rpc(
-      'effective_subscription_tier',
-      { p_user_id: userId },
-    );
-    if (tierErr) {
-      tierLookupFailed = true;
-      console.error('[openai-proxy] effective-tier lookup failed:', tierErr.message ?? String(tierErr));
-    } else {
-      const t = (effTier as string | null) ?? 'free';
-      tierRank = TIER_RANK[t] ?? 0;
-    }
+  // fails closed because this result authorizes both tier and cost ceilings.
+  const tierRank = await readEffectiveTierRank();
+  const tierLookupFailed = tierRank === null;
+  if (tierLookupFailed || tierRank === null) {
+    return jsonResponse(req, { error: 'entitlement_check_unavailable' }, 503);
   }
   if (purposePolicy.minimumTier === 'brain') {
-    if (tierLookupFailed || tierRank === null) {
-      return jsonResponse(req, { error: 'entitlement_check_unavailable' }, 503);
-    }
     if (tierRank < BRAIN_RANK) {
       return jsonResponse(req, { error: 'entitlement_required', feature: purpose }, 403);
     }
   }
 
+  const purposeQuota = await consumeLlmPurposeQuota(capacityRpc, userId, purpose);
+  if (!purposeQuota.ok) {
+    if (purposeQuota.reason === 'limited') {
+      return jsonResponse(req, { error: 'purpose_limit_exceeded', feature: purpose }, 429);
+    }
+    console.error('[openai-proxy] purpose quota unavailable');
+    return jsonResponse(req, { error: 'purpose_limit_unavailable' }, 503);
+  }
+
   // Spend cap -- the SAME shared per-user/day counter as gemini/claude proxies.
-  const { error: spendErr } = await supabaseAdmin.rpc('bump_gemini_spend', {
-    p_user_id: userId,
-    p_day: utcDay(),
-    p_cap: dailyCapForRank(tierRank),
-  });
+  let spendErr: { message?: string } | null = null;
+  try {
+    const result = await supabaseAdmin.rpc('bump_gemini_spend', {
+      p_user_id: userId,
+      p_day: utcDay(),
+      p_cap: dailyCapForRank(tierRank),
+    });
+    spendErr = result.error;
+  } catch {
+    console.error('[openai-proxy][ALERT] spend check threw -- failing closed');
+    return jsonResponse(req, { error: 'spend_check_unavailable' }, 503);
+  }
   if (spendErr) {
     const msg = spendErr.message ?? '';
     if (msg.includes('gemini_spend_exceeded')) {
       return jsonResponse(req, { error: 'daily_limit_exceeded' }, 429);
     }
-    const code = (spendErr as { code?: string }).code ?? '';
-    const rpcMissing =
-      code === 'PGRST202' || code === '42883' || msg.includes('Could not find the function');
-    if (rpcMissing && Deno.env.get('GEMINI_SPEND_FAILOPEN') === '1') {
-      console.error('[openai-proxy][ALERT] spend RPC missing -- allowing WITHOUT a cap. Apply 0035/0036:', msg);
-    } else {
-      console.error('[openai-proxy][ALERT] spend check unavailable -- failing closed:', msg);
-      return jsonResponse(req, { error: 'spend_check_unavailable' }, 503);
-    }
+    console.error('[openai-proxy][ALERT] spend check unavailable -- failing closed:', msg);
+    return jsonResponse(req, { error: 'spend_check_unavailable' }, 503);
   }
-  // True only on the clean-bump path (not the rpc-missing fail-open), so a
-  // refund can never decrement a counter that was never incremented.
+  // True only on the clean-bump path, so a refund can never decrement a counter
+  // that was never incremented.
   const spentBumped = !spendErr;
 
-  // D6 (audit M5): consent egress gate. Flag-gated by LLM_REQUIRE_CONSENT
-  // (default off) -- enable once legal finalizes the consent copy/versions. When
-  // on, require a current consent row (llm_processing_ack + overseas_transfer_ack)
-  // before sending user content to the overseas vendor; fail CLOSED if unverifiable.
-  // NOTE (R1 / pre-deploy review P2): consent_records is an append-only GRANT
-  // ledger (0031). Withdrawal lives ELSEWHERE -- users.privacy_prefs (current
-  // state) + the consent_changes ledger (0062, grant/revoke per pref key). This
-  // grant-only read does NOT see a withdrawal, so BEFORE enabling
-  // LLM_REQUIRE_CONSENT the read MUST become withdrawal-aware (effective consent =
-  // granted acks AND the driving external-processing pref still ON, PIPA 37 /
-  // GDPR 7(3)). Which prefs constitute "overseas transfer consent" is a
-  // legal/data-model decision -- resolve first. See docs/RISK-REMEDIATION-260726.md (R1).
-  if ((Deno.env.get('LLM_REQUIRE_CONSENT') ?? 'false') === 'true') {
-    let consentOk = false;
+  const refundBeforeDispatch = async () => {
+    if (!spentBumped) return;
     try {
-      const { data: consentRow, error: consentErr } = await supabaseAdmin
-        .from('consent_records')
-        .select('llm_processing_ack, overseas_transfer_ack')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      consentOk = !consentErr && !!consentRow &&
-        consentRow.llm_processing_ack === true && consentRow.overseas_transfer_ack === true;
-    } catch (_e) {
-      consentOk = false;
+      await supabaseAdmin.rpc('refund_gemini_spend', { p_user_id: userId, p_day: utcDay() });
+    } catch (error) {
+      console.warn('[openai-proxy] spend refund failed:', String(error).slice(0, UPSTREAM_DETAIL_TRUNCATE));
     }
-    if (!consentOk) return jsonResponse(req, { error: 'consent_required' }, 403);
-  }
+  };
 
   const openaiModel = resolveModel(purpose, purposePolicy.modelTier);
   const clampedEffort = clampLlmPurposeEffort(
@@ -694,13 +829,7 @@ Deno.serve(async (req: Request) => {
     // misconfigured secret quietly eats a user's whole allowance, one unit per
     // attempt, while they see only an error. refund_gemini_spend (0110) floors at
     // 0 and no-ops when there is no row, so a stray refund is safe.
-    if (spentBumped) {
-      try {
-        await supabaseAdmin.rpc('refund_gemini_spend', { p_user_id: userId, p_day: utcDay() });
-      } catch (e) {
-        console.warn('[openai-proxy] spend refund failed:', String(e).slice(0, 80));
-      }
-    }
+    await refundBeforeDispatch();
     console.error(
       `[openai-proxy] OPENAI_API_KEY is not usable as a header value (control character in the secret?)`,
     );
@@ -755,26 +884,59 @@ Deno.serve(async (req: Request) => {
       : {}),
   };
 
-  // Give back the daily-cap unit when the call produced nothing billable, so a
-  // vendor outage can't burn a user's whole allowance on answers they never got.
-  // Refund ONLY on no-upstream-billing failures (unreachable / non-2xx reject),
-  // never on refusal/truncation (the model ran and billed). refund_gemini_spend
-  // (0110) floors at 0 and no-ops when no row exists, so a stray refund is safe.
-  const refundOnFailure = async () => {
-    if (!spentBumped) return;
-    try {
-      await supabaseAdmin.rpc('refund_gemini_spend', { p_user_id: userId, p_day: utcDay() });
-    } catch (e) {
-      console.warn('[openai-proxy] spend refund failed:', String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE));
-    }
-  };
-
   // Transcription takes a different endpoint, a different body (multipart) and
   // returns a different shape. Everything AFTER the call -- refund, audit,
   // response envelope -- is deliberately shared, so the two paths cannot drift
   // on the parts that touch money and the audit ledger.
   const isTranscription = audioPart !== null;
   const transcribeModelId = transcribeModel();
+  const capacityModel = isTranscription ? transcribeModelId : openaiModel;
+  const capacity = await reserveLlmProxyCapacity(
+    capacityRpc,
+    'openai',
+    capacityModel,
+    llmCapacityWeight(isTranscription ? 1_024 : openaiBody.max_completion_tokens),
+  );
+  if (!capacity.ok) {
+    await refundBeforeDispatch();
+    return jsonResponse(
+      req,
+      { error: capacity.reason === 'limited' ? 'llm_capacity_exceeded' : 'llm_capacity_unavailable' },
+      capacity.reason === 'limited' ? 429 : 503,
+    );
+  }
+  const releaseCapacity = () =>
+    transitionLlmProxyCapacity(capacityRpc, capacity.reservationId, 'release');
+
+  if (purpose === 'reasoning_connect') {
+    if (!REASONING_RUN_ID_RE.test(reasoningRunId) || !reasoningSlot) {
+      await releaseCapacity();
+      await refundBeforeDispatch();
+      return jsonResponse(req, { error: 'reasoning_reservation_required' }, 403);
+    }
+    try {
+      const { data: claimOk, error: claimErr } = await supabaseAdmin.rpc(
+        'claim_reasoning_proxy_call',
+        { p_user_id: userId, p_run_id: reasoningRunId, p_slot: reasoningSlot },
+      );
+      if (claimErr) {
+        console.error('[openai-proxy] reasoning reservation claim unavailable');
+        await releaseCapacity();
+        await refundBeforeDispatch();
+        return jsonResponse(req, { error: 'reasoning_reservation_unavailable' }, 503);
+      }
+      if (claimOk !== true) {
+        await releaseCapacity();
+        await refundBeforeDispatch();
+        return jsonResponse(req, { error: 'reasoning_reservation_required' }, 403);
+      }
+    } catch {
+      console.error('[openai-proxy] reasoning reservation claim threw');
+      await releaseCapacity();
+      await refundBeforeDispatch();
+      return jsonResponse(req, { error: 'reasoning_reservation_unavailable' }, 503);
+    }
+  }
 
   const t0 = Date.now();
   let upstream: Response;
@@ -793,6 +955,8 @@ Deno.serve(async (req: Request) => {
       form.append('response_format', 'json');
       upstream = await fetch(OPENAI_TRANSCRIBE_ENDPOINT, {
         method: 'POST',
+        redirect: 'error',
+        signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
         // NO content-type header: fetch must set the multipart boundary itself.
         headers: { 'authorization': `Bearer ${resolvedKey.apiKey}` },
         body: form,
@@ -800,6 +964,8 @@ Deno.serve(async (req: Request) => {
     } else {
       upstream = await fetch(OPENAI_ENDPOINT, {
         method: 'POST',
+        redirect: 'error',
+        signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
         headers: {
           'content-type': 'application/json',
           'authorization': `Bearer ${resolvedKey.apiKey}`,
@@ -808,23 +974,28 @@ Deno.serve(async (req: Request) => {
       });
     }
   } catch (e) {
-    await refundOnFailure();
+    await transitionLlmProxyCapacity(capacityRpc, capacity.reservationId, 'settle');
     // REQ-260824-01: leave a trace. Without this a seat can fail every call for
     // a week and ai_audit_log looks like a quiet week.
     await auditUpstreamFailure(supabaseAdmin, {
-      userId, purpose, model: openaiModel, vendor: 'openai',
+      userId, purpose, model: capacityModel, vendor: 'openai',
       outcome: 'upstream_unreachable', latencyMs: Date.now() - t0,
       keyCombo, promptHash: djb2(`${systemText ?? ''}${userText}`),
     });
     return jsonResponse(req, { error: 'upstream_unreachable', detail: String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE) }, 502);
   }
+  await transitionLlmProxyCapacity(capacityRpc, capacity.reservationId, 'settle');
   const latencyMs = Date.now() - t0;
 
   if (!upstream.ok) {
-    const errBody = await upstream.text();
-    await refundOnFailure();
+    let errBody = '';
+    try {
+      errBody = await readLlmUpstreamErrorText(upstream);
+    } catch {
+      errBody = 'upstream response unavailable';
+    }
     await auditUpstreamFailure(supabaseAdmin, {
-      userId, purpose, model: openaiModel, vendor: 'openai',
+      userId, purpose, model: capacityModel, vendor: 'openai',
       outcome: `upstream_${upstream.status}`, latencyMs,
       keyCombo, promptHash: djb2(`${systemText ?? ''}${userText}`),
     });
@@ -838,14 +1009,52 @@ Deno.serve(async (req: Request) => {
   // A 200 with a non-JSON body previously threw here unhandled -> 500 with no
   // CORS headers, after the model may already have billed. Catch and 502 without
   // refunding (billing is ambiguous once we have a 200).
-  let data: { choices?: unknown; model?: unknown; usage?: { total_tokens?: number } };
+  let data: { choices?: unknown; model?: unknown; text?: unknown; usage?: { total_tokens?: number } };
   try {
-    data = await upstream.json();
-  } catch (_e) {
+    data = await readLlmUpstreamJsonObject(upstream) as typeof data;
+    if (data.model !== undefined && typeof data.model !== 'string') {
+      throw new LlmBodyError('upstream_bad_payload');
+    }
+    if (data.usage !== undefined) {
+      if (!isLlmJsonObject(data.usage)) throw new LlmBodyError('upstream_bad_payload');
+      const totalTokens = data.usage.total_tokens;
+      if (
+        totalTokens !== undefined &&
+        (!Number.isSafeInteger(totalTokens) || totalTokens < 0)
+      ) throw new LlmBodyError('upstream_bad_payload');
+    }
+    if (isTranscription) {
+      if (typeof data.text !== 'string') throw new LlmBodyError('upstream_bad_payload');
+    } else {
+      if (!Array.isArray(data.choices) || data.choices.length === 0) {
+        throw new LlmBodyError('upstream_bad_payload');
+      }
+      const firstChoice = data.choices[0];
+      if (!isLlmJsonObject(firstChoice) || !isLlmJsonObject(firstChoice.message)) {
+        throw new LlmBodyError('upstream_bad_payload');
+      }
+      const finishReason = firstChoice.finish_reason;
+      const content = firstChoice.message.content;
+      const refusal = firstChoice.message.refusal;
+      if (
+        (finishReason !== undefined && finishReason !== null && typeof finishReason !== 'string') ||
+        (refusal !== undefined && refusal !== null && typeof refusal !== 'string') ||
+        (typeof content !== 'string' && typeof refusal !== 'string' && finishReason !== 'content_filter')
+      ) throw new LlmBodyError('upstream_bad_payload');
+    }
+  } catch {
+    await auditUpstreamFailureSupplemental({
+      userId, purpose, model: capacityModel, vendor: 'openai',
+      outcome: 'upstream_bad_payload', latencyMs,
+      keyCombo, promptHash: djb2(`${systemText ?? ''}${userText}`),
+    });
     return jsonResponse(req, { error: 'upstream_bad_payload' }, 502);
   }
-  const choice = Array.isArray(data?.choices) ? data.choices[0] : null;
-  const rawContent = choice?.message?.content;
+  const choice = Array.isArray(data?.choices) && isLlmJsonObject(data.choices[0])
+    ? data.choices[0]
+    : null;
+  const message = isLlmJsonObject(choice?.message) ? choice.message : null;
+  const rawContent = message?.content;
   // The transcription endpoint answers { text } with no choices array, so the
   // chat extraction below would silently yield '' for a perfectly good call.
   const text: string = isTranscription
@@ -859,7 +1068,7 @@ Deno.serve(async (req: Request) => {
   const refused =
     !isTranscription &&
     (choice?.finish_reason === 'content_filter' ||
-      typeof choice?.message?.refusal === 'string');
+      typeof message?.refusal === 'string');
   // Truncation (finish_reason:"length"): reasoning tokens count against
   // max_completion_tokens on gpt-5.x, so a truncated reply can be a mid-JSON
   // stump or empty. Surfaced as 502, never a silent 200 (parity claude-proxy).
@@ -872,6 +1081,7 @@ Deno.serve(async (req: Request) => {
   try {
     const { error: auditErr } = await supabaseAdmin.from('ai_audit_log').insert({
       user_id: userId,
+      event_source: 'server_verified',
       prompt_hash: djb2(`${systemText ?? ''}${userText}`),
       output_hash: djb2(text),
       model_used: refused ? `${modelUsed}+refusal` : truncated ? `${modelUsed}+truncated` : modelUsed,

@@ -260,6 +260,93 @@ export function dailyCapForRank(tierRank: number | null): number {
   return freeCap;
 }
 
+// --- per-purpose LLM proxy quota -------------------------------------------
+
+// High-unit-cost purposes share one server-derived KST-day counter across
+// vendors. Limits live exclusively in the database RPC, so a caller cannot
+// widen a quota by changing providers or supplying a cap.
+export const LLM_PURPOSE_DAILY_QUOTAS = new Set([
+  'secondb_chat',
+  'crosscheck_challenge',
+  'crosscheck_defend',
+  'persona_synthesis',
+  'persona_narrative',
+  'axis_estimate',
+  'digest_weekly',
+]);
+
+export type LlmPurposeQuotaRpcResult = {
+  data?: unknown;
+  error?: { message?: string } | null;
+};
+export type LlmPurposeQuotaRpc = (
+  functionName: string,
+  args: Record<string, unknown>,
+) => PromiseLike<LlmPurposeQuotaRpcResult>;
+export type LlmPurposeQuotaResult =
+  | { ok: true; protected: false }
+  | { ok: true; protected: true; used: number; limit: number }
+  | { ok: false; reason: 'limited'; used: number; limit: number }
+  | { ok: false; reason: 'unavailable' };
+
+export async function consumeLlmPurposeQuota(
+  executeRpc: LlmPurposeQuotaRpc,
+  userId: string,
+  purpose: string,
+): Promise<LlmPurposeQuotaResult> {
+  if (!LLM_PURPOSE_DAILY_QUOTAS.has(purpose)) {
+    return { ok: true, protected: false };
+  }
+
+  let result: LlmPurposeQuotaRpcResult;
+  try {
+    result = await executeRpc('consume_llm_proxy_purpose_quota', {
+      p_user_id: userId,
+      p_purpose: purpose,
+    });
+  } catch {
+    return { ok: false, reason: 'unavailable' };
+  }
+  if (result.error || !Array.isArray(result.data) || result.data.length !== 1) {
+    return { ok: false, reason: 'unavailable' };
+  }
+
+  const row = result.data[0];
+  if (!row || typeof row !== 'object' || Array.isArray(row)) {
+    return { ok: false, reason: 'unavailable' };
+  }
+  const record = row as Record<string, unknown>;
+  const used = record.used;
+  const limit = record.quota_limit;
+  if (
+    typeof record.allowed !== 'boolean' ||
+    !Number.isSafeInteger(used) ||
+    !Number.isSafeInteger(limit) ||
+    (used as number) < 1 ||
+    (limit as number) < 1 ||
+    (limit as number) > 10_000 ||
+    (record.allowed && (used as number) > (limit as number)) ||
+    (!record.allowed && (used as number) < (limit as number))
+  ) {
+    return { ok: false, reason: 'unavailable' };
+  }
+
+  if (!record.allowed) {
+    return {
+      ok: false,
+      reason: 'limited',
+      used: used as number,
+      limit: limit as number,
+    };
+  }
+  return {
+    ok: true,
+    protected: true,
+    used: used as number,
+    limit: limit as number,
+  };
+}
+
 // --- misc --------------------------------------------------------------------
 
 // Mirror of src/lib/llm/boundary.ts:djb2 so proxy audit rows hash prompt/output
@@ -277,6 +364,248 @@ export function utcDay(): string {
 export const MAX_USER_LEN = 8000;
 export const MAX_ASSEMBLED_LEN = 24000;
 export const UPSTREAM_DETAIL_TRUNCATE = 80;
+export const LLM_PROXY_JSON_BODY_LIMIT_BYTES = 8 * 1024 * 1024;
+export const LLM_UPSTREAM_RESPONSE_LIMIT_BYTES = 2 * 1024 * 1024;
+
+export type LlmBodyErrorCode =
+  | 'invalid_json'
+  | 'request_body_too_large'
+  | 'upstream_bad_payload'
+  | 'upstream_response_too_large';
+
+export class LlmBodyError extends Error {
+  constructor(
+    readonly code: LlmBodyErrorCode,
+    readonly maxBytes?: number,
+  ) {
+    super(code);
+    this.name = 'LlmBodyError';
+  }
+}
+
+async function readBoundedBody(
+  source: Pick<Request | Response, 'body' | 'headers'>,
+  maxBytes: number,
+  tooLargeCode: Extract<LlmBodyErrorCode, 'request_body_too_large' | 'upstream_response_too_large'>,
+  malformedCode: Extract<LlmBodyErrorCode, 'invalid_json' | 'upstream_bad_payload'>,
+): Promise<Uint8Array> {
+  const stream = source.body;
+  if (!stream) throw new LlmBodyError(malformedCode);
+
+  const declaredLength = source.headers.get('content-length')?.trim();
+  if (declaredLength && /^\d+$/.test(declaredLength)) {
+    const declaredBytes = Number(declaredLength);
+    if (!Number.isSafeInteger(declaredBytes) || declaredBytes > maxBytes) {
+      await stream.cancel().catch(() => undefined);
+      throw new LlmBodyError(tooLargeCode, maxBytes);
+    }
+  }
+
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  const reader = stream.getReader();
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel().catch(() => undefined);
+        throw new LlmBodyError(tooLargeCode, maxBytes);
+      }
+      chunks.push(value.slice());
+    }
+  } catch (error) {
+    if (error instanceof LlmBodyError) throw error;
+    await reader.cancel().catch(() => undefined);
+    throw new LlmBodyError(malformedCode);
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
+}
+
+export function isLlmJsonObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function decodeJsonObject(bytes: Uint8Array, code: LlmBodyErrorCode): Record<string, unknown> {
+  try {
+    const decoded = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    const parsed: unknown = JSON.parse(decoded);
+    if (!isLlmJsonObject(parsed)) {
+      throw new LlmBodyError(code);
+    }
+    return parsed;
+  } catch (error) {
+    if (error instanceof LlmBodyError) throw error;
+    throw new LlmBodyError(code);
+  }
+}
+
+export async function readLlmProxyJsonObject(req: Request): Promise<Record<string, unknown>> {
+  const bytes = await readBoundedBody(
+    req,
+    LLM_PROXY_JSON_BODY_LIMIT_BYTES,
+    'request_body_too_large',
+    'invalid_json',
+  );
+  return decodeJsonObject(bytes, 'invalid_json');
+}
+
+export async function readLlmUpstreamJsonObject(response: Response): Promise<Record<string, unknown>> {
+  const bytes = await readBoundedBody(
+    response,
+    LLM_UPSTREAM_RESPONSE_LIMIT_BYTES,
+    'upstream_response_too_large',
+    'upstream_bad_payload',
+  );
+  return decodeJsonObject(bytes, 'upstream_bad_payload');
+}
+
+export async function readLlmUpstreamErrorText(response: Response): Promise<string> {
+  const bytes = await readBoundedBody(
+    response,
+    LLM_UPSTREAM_RESPONSE_LIMIT_BYTES,
+    'upstream_response_too_large',
+    'upstream_bad_payload',
+  );
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    throw new LlmBodyError('upstream_bad_payload');
+  }
+}
+
+// --- global LLM capacity guard ----------------------------------------------
+
+export type LlmCapacityProvider = LlmProxyVendor;
+export type LlmCapacityRpcResult = {
+  data?: unknown;
+  error?: { message?: string } | null;
+};
+export type LlmCapacityRpc = (
+  functionName: string,
+  args: Record<string, unknown>,
+) => PromiseLike<LlmCapacityRpcResult>;
+export type LlmCapacityReservation =
+  | { ok: true; reservationId: string }
+  | { ok: false; reason: 'limited' | 'disabled' | 'config_unavailable' | 'unavailable' };
+
+const POSTGRES_INT_MAX = 2_147_483_647;
+const CAPACITY_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function requiredCapacityInt(name: string): number | null {
+  let raw = '';
+  try {
+    raw = (Deno.env.get(name) ?? '').trim();
+  } catch {
+    return null;
+  }
+  if (!/^[1-9][0-9]{0,9}$/.test(raw)) return null;
+  const value = Number(raw);
+  return Number.isSafeInteger(value) && value <= POSTGRES_INT_MAX ? value : null;
+}
+
+export function llmCapacityWeight(maxTokens: number, batchItems = 1): number {
+  if (
+    !Number.isSafeInteger(maxTokens) ||
+    maxTokens < 0 ||
+    !Number.isSafeInteger(batchItems) ||
+    batchItems < 0
+  ) {
+    return POSTGRES_INT_MAX;
+  }
+  return Math.min(
+    POSTGRES_INT_MAX,
+    Math.max(1, Math.ceil(maxTokens / 1_024), Math.ceil(batchItems / 10)),
+  );
+}
+
+export async function reserveLlmProxyCapacity(
+  executeRpc: LlmCapacityRpc,
+  provider: LlmCapacityProvider,
+  model: string,
+  weight: number,
+): Promise<LlmCapacityReservation> {
+  const prefix = provider.toUpperCase();
+  const globalMinute = requiredCapacityInt('LLM_GLOBAL_MINUTE_WEIGHT_CAP');
+  const providerMinute = requiredCapacityInt(`LLM_${prefix}_MINUTE_WEIGHT_CAP`);
+  const globalConcurrency = requiredCapacityInt('LLM_GLOBAL_CONCURRENCY_CAP');
+  const providerConcurrency = requiredCapacityInt(`LLM_${prefix}_CONCURRENCY_CAP`);
+  if (
+    globalMinute === null ||
+    providerMinute === null ||
+    globalConcurrency === null ||
+    providerConcurrency === null ||
+    !Number.isSafeInteger(weight) ||
+    weight <= 0 ||
+    weight > POSTGRES_INT_MAX
+  ) {
+    return { ok: false, reason: 'config_unavailable' };
+  }
+
+  const reservationId = crypto.randomUUID();
+  let result: LlmCapacityRpcResult;
+  try {
+    result = await executeRpc('reserve_llm_proxy_capacity', {
+      p_reservation_id: reservationId,
+      p_provider: provider,
+      p_model: model,
+      p_weight: weight,
+      p_global_minute_weight_cap: globalMinute,
+      p_provider_minute_weight_cap: providerMinute,
+      p_global_concurrency_cap: globalConcurrency,
+      p_provider_concurrency_cap: providerConcurrency,
+    });
+  } catch {
+    return { ok: false, reason: 'unavailable' };
+  }
+
+  if (result.error) {
+    const message = result.error.message ?? '';
+    if (message.includes('llm_capacity_exceeded')) return { ok: false, reason: 'limited' };
+    if (message.includes('llm_runtime_disabled')) return { ok: false, reason: 'disabled' };
+    if (message.includes('llm_capacity_config_')) return { ok: false, reason: 'config_unavailable' };
+    return { ok: false, reason: 'unavailable' };
+  }
+
+  const data = result.data && typeof result.data === 'object'
+    ? result.data as Record<string, unknown>
+    : null;
+  if (
+    data?.accepted !== true ||
+    data.reservation_id !== reservationId ||
+    !CAPACITY_UUID_RE.test(reservationId)
+  ) {
+    return { ok: false, reason: 'unavailable' };
+  }
+  return { ok: true, reservationId };
+}
+
+export async function transitionLlmProxyCapacity(
+  executeRpc: LlmCapacityRpc,
+  reservationId: string,
+  transition: 'settle' | 'release',
+): Promise<boolean> {
+  if (!CAPACITY_UUID_RE.test(reservationId)) return false;
+  try {
+    const result = await executeRpc(`${transition}_llm_proxy_capacity`, {
+      p_reservation_id: reservationId,
+    });
+    return !result.error && result.data === true;
+  } catch {
+    return false;
+  }
+}
 
 // --- responseSchema normalization --------------------------------------------
 
@@ -287,37 +616,141 @@ export const UPSTREAM_DETAIL_TRUNCATE = 80;
 // This keeps the client single-dialect (C1) and converts at the edge.
 export function normalizeResponseSchema(node: unknown): Record<string, unknown> | null {
   if (!node || typeof node !== 'object' || Array.isArray(node)) return null;
-  const src = node as Record<string, unknown>;
-  const out: Record<string, unknown> = {};
-  if (typeof src.type === 'string') {
-    out.type = src.type.toLowerCase();
-  } else if (Array.isArray(src.type)) {
-    // Union types (e.g. ["number","null"] — valid JSON Schema, used by some
-    // Gemini-dialect schemas in-repo). Lowercase each member.
-    out.type = (src.type as unknown[]).map((t) => (typeof t === 'string' ? t.toLowerCase() : t));
-  }
-  if (typeof src.description === 'string') out.description = src.description;
-  if (Array.isArray(src.enum)) out.enum = src.enum;
-  if (src.properties && typeof src.properties === 'object' && !Array.isArray(src.properties)) {
-    const props: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(src.properties as Record<string, unknown>)) {
-      const n = normalizeResponseSchema(v);
-      if (n) props[k] = n;
+  const MAX_BYTES = 32 * 1024;
+  const MAX_RAW_DEPTH = 64;
+  const MAX_SCHEMA_DEPTH = 16;
+  const MAX_RAW_NODES = 2_048;
+  const MAX_SCHEMA_NODES = 512;
+  const MAX_PROPERTIES = 256;
+  const encoder = new TextEncoder();
+
+  // Account for the complete supplied value, including unsupported fields.
+  // The iterative walk avoids stack exhaustion from deeply nested input and
+  // rejects non-JSON cycles used by unit/fuzz callers.
+  let bytes = 0;
+  let rawNodes = 0;
+  let properties = 0;
+  const seen = new WeakSet<object>();
+  const budgetStack: Array<{ value: unknown; depth: number }> = [{ value: node, depth: 0 }];
+  while (budgetStack.length > 0) {
+    const current = budgetStack.pop()!;
+    rawNodes += 1;
+    if (rawNodes > MAX_RAW_NODES || current.depth > MAX_RAW_DEPTH) return null;
+    const value = current.value;
+    if (typeof value === 'string') {
+      bytes += encoder.encode(value).byteLength + 2;
+    } else if (value === null) {
+      bytes += 4;
+    } else if (typeof value === 'number' || typeof value === 'boolean') {
+      bytes += String(value).length;
+    } else if (Array.isArray(value)) {
+      if (value.length > MAX_RAW_NODES) return null;
+      bytes += value.length + 2;
+      for (let index = value.length - 1; index >= 0; index -= 1) {
+        budgetStack.push({ value: value[index], depth: current.depth + 1 });
+      }
+    } else if (value && typeof value === 'object') {
+      if (seen.has(value)) return null;
+      seen.add(value);
+      const record = value as Record<string, unknown>;
+      const entries = Object.entries(record);
+      if (entries.length > MAX_RAW_NODES) return null;
+      bytes += entries.length + 2;
+      const schemaProperties = record.properties;
+      if (schemaProperties && typeof schemaProperties === 'object' && !Array.isArray(schemaProperties)) {
+        properties += Object.keys(schemaProperties).length;
+        if (properties > MAX_PROPERTIES) return null;
+      }
+      for (let index = entries.length - 1; index >= 0; index -= 1) {
+        const [key, child] = entries[index];
+        bytes += encoder.encode(key).byteLength + 3;
+        budgetStack.push({ value: child, depth: current.depth + 1 });
+      }
+    } else {
+      return null;
     }
-    out.properties = props;
-    out.additionalProperties = false;
-    // Preserve the source's required subset when present (fields the model may
-    // omit stay omittable); default to all keys otherwise. Either way, filter
-    // to keys that actually SURVIVED normalization — a required key whose
-    // property node was dropped would make the closed schema unsatisfiable.
-    const requested = Array.isArray(src.required) ? src.required : Object.keys(props);
-    out.required = requested.filter((k) => typeof k === 'string' && k in props);
+    if (bytes > MAX_BYTES) return null;
   }
-  if (src.items) {
-    const n = normalizeResponseSchema(src.items);
-    if (n) out.items = n;
+
+  type Frame = {
+    src: Record<string, unknown>;
+    out: Record<string, unknown>;
+    depth: number;
+    exit: boolean;
+    parent?: Record<string, unknown>;
+    parentKey?: string;
+  };
+  const root: Record<string, unknown> = {};
+  const frames: Frame[] = [{ src: node as Record<string, unknown>, out: root, depth: 0, exit: false }];
+  let schemaNodes = 0;
+
+  while (frames.length > 0) {
+    const frame = frames.pop()!;
+    if (frame.exit) {
+      const props = frame.out.properties;
+      if (props && typeof props === 'object' && !Array.isArray(props)) {
+        const ownProps = props as Record<string, unknown>;
+        const requested = Array.isArray(frame.src.required) ? frame.src.required : Object.keys(ownProps);
+        frame.out.required = requested.filter(
+          (key) => typeof key === 'string' && Object.prototype.hasOwnProperty.call(ownProps, key),
+        );
+      }
+      if (Object.keys(frame.out).length === 0 && frame.parent && frame.parentKey !== undefined) {
+        delete frame.parent[frame.parentKey];
+      }
+      continue;
+    }
+
+    schemaNodes += 1;
+    if (schemaNodes > MAX_SCHEMA_NODES || frame.depth > MAX_SCHEMA_DEPTH) return null;
+    frames.push({ ...frame, exit: true });
+
+    if (typeof frame.src.type === 'string') {
+      frame.out.type = frame.src.type.toLowerCase();
+    } else if (Array.isArray(frame.src.type)) {
+      frame.out.type = frame.src.type.map((type) => typeof type === 'string' ? type.toLowerCase() : type);
+    }
+    if (typeof frame.src.description === 'string') frame.out.description = frame.src.description;
+    if (Array.isArray(frame.src.enum)) frame.out.enum = [...frame.src.enum];
+
+    const srcProperties = frame.src.properties;
+    if (srcProperties && typeof srcProperties === 'object' && !Array.isArray(srcProperties)) {
+      const normalizedProperties: Record<string, unknown> = Object.create(null);
+      frame.out.properties = normalizedProperties;
+      frame.out.additionalProperties = false;
+      const entries = Object.entries(srcProperties as Record<string, unknown>);
+      for (let index = entries.length - 1; index >= 0; index -= 1) {
+        const [key, child] = entries[index];
+        if (!child || typeof child !== 'object' || Array.isArray(child)) continue;
+        const normalizedChild: Record<string, unknown> = {};
+        normalizedProperties[key] = normalizedChild;
+        frames.push({
+          src: child as Record<string, unknown>,
+          out: normalizedChild,
+          depth: frame.depth + 1,
+          exit: false,
+          parent: normalizedProperties,
+          parentKey: key,
+        });
+      }
+    }
+
+    const srcItems = frame.src.items;
+    if (srcItems && typeof srcItems === 'object' && !Array.isArray(srcItems)) {
+      const normalizedItems: Record<string, unknown> = {};
+      frame.out.items = normalizedItems;
+      frames.push({
+        src: srcItems as Record<string, unknown>,
+        out: normalizedItems,
+        depth: frame.depth + 1,
+        exit: false,
+        parent: frame.out,
+        parentKey: 'items',
+      });
+    }
   }
-  return Object.keys(out).length > 0 ? out : null;
+
+  return Object.keys(root).length > 0 ? root : null;
 }
 
 // --- (vendor × model × effort) axis API-key attribution (D-27) ----------------
@@ -374,6 +807,7 @@ export async function auditUpstreamFailure(
   try {
     await admin.from('ai_audit_log').insert({
       user_id: opts.userId,
+      event_source: 'server_verified',
       prompt_hash: opts.promptHash,
       // No output to hash. '0' rather than a hash of '' so a failure row is
       // distinguishable from a successful empty completion at a glance.
