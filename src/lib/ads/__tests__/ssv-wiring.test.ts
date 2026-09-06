@@ -2,14 +2,12 @@
 // Edge Function; these source pins prevent a later edit from bypassing the
 // provider signature or dropping a DB-owned authorization dimension.
 //
-// Existing UI callers still pass a UUID-shaped local kind hint. The native
-// ticket adapter lands separately; the server callback implemented here only
-// accepts an opaque ticket plus the JWT-derived user id signed by Google.
-// These pins keep the two call sites (the only rewarded surfaces) wired.
+// Existing UI callers pass a UUID-shaped local placement hint. The native
+// adapter must validate it against the authenticated session, exchange it for
+// an opaque ticket, and send only server-issued values to Google.
 //
 // Source pins by design (component render tests are blocked in this repo);
-// the seam-level behavior (customData riding the ad request) is covered in
-// rewarded.test.ts.
+// the seam-level ordering and failure behavior are covered in rewarded.test.ts.
 
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -17,15 +15,14 @@ import path from "node:path";
 const read = (rel: string) => readFileSync(path.resolve(__dirname, "../../../..", rel), "utf8");
 
 describe("SSV callback wiring", () => {
-  test("ReasoningLimitSheet requests the ad with bare userId (reasoning kind)", () => {
+  test("ReasoningLimitSheet supplies the exact reasoning placement hint", () => {
     const src = read("src/components/deep-space/ReasoningLimitSheet.tsx");
     expect(src).toMatch(/showRewardedAd\(\{\s*ssvCustomData:\s*userId\s*\}\)/);
   });
 
-  test("RewardedSheet routes the kind into the customData suffix", () => {
+  test("RewardedSheet supplies one of the two exact placement hints", () => {
     const src = read("src/components/deepspace/RewardedSheet.tsx");
-    // chat gets "<userId>|chat"; reasoning stays bare (0091: bare custom_data
-    // must remain the reasoning path so fielded clients keep their behavior).
+    // These values are local compatibility hints, never provider custom data.
     expect(src).toMatch(/kind === "chat" \? `\$\{userId\}\|chat` : userId/);
     expect(src).toMatch(/showRewardedAd\(ssvCustomData \? \{ ssvCustomData \} : undefined\)/);
   });
@@ -41,6 +38,35 @@ describe("SSV callback wiring", () => {
     expect(edge.indexOf("await signatureValid", handlerAt)).toBeLessThan(
       edge.indexOf("consume_reward_ssv_ticket", handlerAt),
     );
+  });
+
+  test("native exchanges the authenticated placement hint for server SSV values", () => {
+    const native = read("src/lib/ads/rewarded.native.ts");
+    const ticketAt = native.indexOf('functions.invoke("rewarded-ssv"');
+    const adAt = native.indexOf("RewardedAd.createForAdRequest");
+    expect(native).toMatch(/auth\.getSession\(\)/);
+    expect(native).toMatch(/Authorization:\s*`Bearer \$\{accessToken\}`/);
+    expect(native).toMatch(/body:\s*\{ kind \}/);
+    expect(ticketAt).toBeGreaterThan(0);
+    expect(ticketAt).toBeLessThan(adAt);
+    expect(native).toMatch(/serverSideVerificationOptions:\s*\{\s*userId:\s*ticket\.userId,\s*customData:\s*ticket\.customData/);
+    expect(native).not.toMatch(/customData:\s*opts\??\.ssvCustomData/);
+    expect(native).not.toMatch(/\.rpc\(/);
+  });
+
+  test("native capability is SSV-only and the web/native export surfaces match", () => {
+    const native = read("src/lib/ads/rewarded.native.ts");
+    const web = read("src/lib/ads/rewarded.ts");
+    expect(native).toMatch(/EXPO_PUBLIC_REWARD_SSV\s*!==\s*"true"/);
+    const exportedFunctions = (source: string) =>
+      [...source.matchAll(/export (?:async )?function (\w+)/g)].map((match) => match[1]).sort();
+    expect(exportedFunctions(native)).toEqual(exportedFunctions(web));
+  });
+
+  test("native reward path does not log identity, bearer, or ticket material", () => {
+    const native = read("src/lib/ads/rewarded.native.ts");
+    expect(native).not.toMatch(/console\.(?:error|warn|log)/);
+    expect(native).not.toMatch(/JSON\.stringify\([^)]*(?:session|ticket|accessToken|userId)/);
   });
 
   test("issues a JWT-owned ticket with the complete expected reward contract", () => {
