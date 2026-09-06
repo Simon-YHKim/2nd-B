@@ -13,7 +13,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = join(__dirname, "..", "..", "..", "..");
-const fn = readFileSync(join(ROOT, "supabase", "functions", "subscription-manage", "index.ts"), "utf8");
+const fn = readFileSync(
+  join(ROOT, "supabase", "functions", "subscription-manage", "index.ts"),
+  "utf8",
+).replace(/\r\n?/g, "\n");
 const config = readFileSync(join(ROOT, "supabase", "config.toml"), "utf8");
 const rateLimitSql = readFileSync(
   join(ROOT, "db", "migrations", "0161_billing_self_service_rate_limit.sql"),
@@ -30,18 +33,56 @@ describe("subscription-manage - auth boundary", () => {
     expect(config).toMatch(/\[functions\.subscription-manage\][\s\S]*?verify_jwt = true/);
   });
 
-  test("requires a real signed-in user, not merely a valid token", () => {
-    // The public anon key is itself a valid JWT; role must be checked in CODE
-    // (this is also what src/lib/safety/__tests__/edge-jwt-hardening.test.ts scans for).
-    expect(code).toMatch(/role !== 'authenticated'/);
-    expect(code).toMatch(/'missing_authorization'/);
-    expect(code).toMatch(/'invalid_jwt'/);
+  test("strictly parses and bounds one JWT bearer credential", () => {
+    expect(code).toMatch(/MAX_ACCESS_TOKEN_CHARS = 8 \* 1024/);
+    expect(code).toMatch(/MAX_AUTHORIZATION_HEADER_CHARS = MAX_ACCESS_TOKEN_CHARS \+ 'Bearer '\.length/);
+    expect(code).toMatch(
+      /BEARER_JWT_PATTERN = \/\^Bearer \(\[A-Za-z0-9_-\]\+\\\.\[A-Za-z0-9_-\]\+\\\.\[A-Za-z0-9_-\]\+\)\$\/i/,
+    );
+    expect(code).toMatch(/authHeader\.length > MAX_AUTHORIZATION_HEADER_CHARS/);
+    expect(code).toMatch(/accessToken\.length > MAX_ACCESS_TOKEN_CHARS/);
+    expect(code).not.toMatch(/authHeader\.slice/);
   });
 
-  test("the acting user comes from the JWT, never from the request body", () => {
-    expect(code).toMatch(/const userId = userIdFromJwt\(authHeader\)/);
+  test("requires a live signed-in user, not merely a gateway-valid token", () => {
+    // The decoded claims are only a bounded hint. The Auth server must confirm
+    // that the session still exists and has not been revoked.
+    expect(code).toMatch(/role !== 'authenticated'/);
+    expect(code).toMatch(/UUID_PATTERN\.test\(sub\)/);
+    expect(code).toMatch(/await admin\.auth\.getUser\(accessToken\)/);
+    expect(code).toMatch(/UUID_PATTERN\.test\(verifiedUser\.id\)/);
+    expect(code).toMatch(/verifiedUser\.id === userIdHint/);
+  });
+
+  test("every authentication failure is the same generic 401 without auth logging", () => {
+    expect(code).toMatch(/function unauthorized\(req: Request\)/);
+    expect(code).toMatch(/\{ error: 'authentication_required' \}, 401/);
+    expect(code).not.toMatch(/'missing_authorization'|'invalid_jwt'/);
+
+    const verifyAt = code.indexOf("await admin.auth.getUser(accessToken)");
+    const userIdAt = code.indexOf("const userId = verifiedUser.id", verifyAt);
+    expect(verifyAt).toBeGreaterThan(-1);
+    expect(userIdAt).toBeGreaterThan(verifyAt);
+    expect(code.slice(verifyAt, userIdAt)).not.toMatch(/console\./);
+  });
+
+  test("the acting user is the Auth-verified exact JWT subject, never request input", () => {
+    expect(code).toMatch(/const userId = verifiedUser\.id/);
     expect(code).toMatch(/p_user_id: userId/);
     expect(code).not.toMatch(/body\.user_id/);
+  });
+
+  test("live user verification precedes every quota, eligibility, or Paddle side effect", () => {
+    const verifyAt = code.indexOf("await admin.auth.getUser(accessToken)");
+    for (const later of [
+      code.indexOf("'claim_billing_self_service_rate_limit'"),
+      code.indexOf("rpc('refund_eligibility'"),
+      code.indexOf("rpc('claim_billing_self_service'"),
+      code.lastIndexOf("await callPaddle("),
+    ]) {
+      expect(verifyAt).toBeGreaterThan(-1);
+      expect(later).toBeGreaterThan(verifyAt);
+    }
   });
 
   test("non-POST and preflight are handled before any work", () => {
@@ -59,9 +100,9 @@ describe("subscription-manage - bounded request schema", () => {
     expect(code).not.toMatch(/await req\.json\(\)/);
 
     const bodyAt = code.indexOf("readBoundedUtf8Body(req");
-    const authAt = code.indexOf("const authHeader");
+    const authAt = code.indexOf("const accessToken = accessTokenFromAuthorization");
     const adminAt = code.indexOf("const admin = createClient");
-    const rateAt = code.indexOf("rpc(\n    'claim_billing_self_service_rate_limit'");
+    const rateAt = code.indexOf("'claim_billing_self_service_rate_limit'");
     expect(bodyAt).toBeGreaterThan(-1);
     expect(bodyAt).toBeLessThan(authAt);
     expect(authAt).toBeLessThan(adminAt);
