@@ -172,6 +172,7 @@
   "longPressCopyThis": "Long press to copy this message",
   "copied": "Copied",
   "copyFailed": "Copy failed. Select the text to copy it.",
+  "keepFailed": "Could not confirm the save. Check your wiki, then tap Keep to wiki again.",
   "aboutNode": "About '{{node}}': ",
   "drewOnPieces": "This answer drew on {{n}} of your pieces. Tap for detail.",
   "nSources": "{{n}} sources",
