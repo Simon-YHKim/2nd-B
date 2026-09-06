@@ -15,7 +15,11 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const PEER_RESPONSE_BODY_LIMIT_BYTES = 4 * 1024;
+const PEER_RESPONSE_BODY_DEADLINE_MS = 3_000;
 const PEER_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+const NETWORK_HINT_PATTERN = /^[0-9a-f:.]{3,64}$/i;
+const UNKNOWN_NETWORK_HINT = 'unknown';
+const USER_AGENT_HASH_LIMIT = 512;
 
 type PeerAction = 'load' | 'submit' | 'withdraw';
 type BodyReadErrorCode = 'bad_json' | 'request_body_too_large';
@@ -49,7 +53,12 @@ function resolveOrigin(req: Request): string {
   return ALLOWED_ORIGINS.has(origin) ? origin : 'null';
 }
 
-function jsonResponse(req: Request, body: unknown, status = 200): Response {
+function jsonResponse(
+  req: Request,
+  body: unknown,
+  status = 200,
+  extraHeaders: Record<string, string> = {},
+): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
@@ -60,8 +69,17 @@ function jsonResponse(req: Request, body: unknown, status = 200): Response {
       'cache-control': 'no-store',
       'x-content-type-options': 'nosniff',
       vary: 'Origin',
+      ...extraHeaders,
     },
   });
+}
+
+function hasSupportedJsonEnvelope(request: Request): boolean {
+  const contentType = request.headers.get('content-type') ?? '';
+  if (!/^application\/json(?:\s*;\s*charset=utf-8)?$/i.test(contentType)) return false;
+
+  const contentEncoding = request.headers.get('content-encoding');
+  return contentEncoding === null || contentEncoding.toLowerCase() === 'identity';
 }
 
 async function sha256Hex(input: string): Promise<string> {
@@ -69,7 +87,7 @@ async function sha256Hex(input: string): Promise<string> {
   return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-async function versionedHmacSha256Hex(pepper: string, input: string): Promise<string> {
+async function hmacSha256Hex(pepper: string, input: string): Promise<string> {
   const key = await crypto.subtle.importKey(
     'raw',
     new TextEncoder().encode(pepper),
@@ -78,47 +96,102 @@ async function versionedHmacSha256Hex(pepper: string, input: string): Promise<st
     ['sign'],
   );
   const digest = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(input));
-  const hex = Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
-  return `v1:${hex}`;
+  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function versionedHmacSha256Hex(pepper: string, input: string): Promise<string> {
+  return `v1:${await hmacSha256Hex(pepper, input)}`;
+}
+
+function normalizeNetworkHint(value: string): string | null {
+  if (!NETWORK_HINT_PATTERN.test(value)) return null;
+  return value.toLowerCase();
+}
+
+function trustedGatewayNetworkHint(request: Request): string {
+  // Supabase's Cloudflare edge overwrites this hop header. If it is absent or
+  // malformed, share one fail-safe bucket instead of trusting a caller value.
+  const cloudflare = request.headers.get('cf-connecting-ip');
+  if (cloudflare !== null) {
+    return normalizeNetworkHint(cloudflare) ?? UNKNOWN_NETWORK_HINT;
+  }
+
+  // The gateway also rewrites x-forwarded-for. Bound the whole chain before
+  // selecting its first hop so a malformed header cannot become work input.
+  const forwarded = request.headers.get('x-forwarded-for');
+  if (forwarded === null || forwarded.length > 256) return UNKNOWN_NETWORK_HINT;
+  const firstHop = forwarded.split(',', 2)[0] ?? '';
+  return normalizeNetworkHint(firstHop) ?? UNKNOWN_NETWORK_HINT;
+}
+
+function parseQuotaResult(data: unknown): { allowed: boolean; retryAfterSeconds: number } | null {
+  if (!Array.isArray(data) || data.length !== 1) return null;
+  const row: unknown = data[0];
+  if (row === null || typeof row !== 'object' || Array.isArray(row)) return null;
+  const value = row as Record<string, unknown>;
+  const keys = Object.keys(value).sort();
+  if (keys.length !== 2 || keys[0] !== 'allowed' || keys[1] !== 'retry_after_seconds') return null;
+  if (typeof value.allowed !== 'boolean'
+      || typeof value.retry_after_seconds !== 'number'
+      || !Number.isInteger(value.retry_after_seconds)
+      || value.retry_after_seconds < 0
+      || value.retry_after_seconds > 60
+      || (value.allowed && value.retry_after_seconds !== 0)
+      || (!value.allowed && value.retry_after_seconds < 1)) {
+    return null;
+  }
+  return { allowed: value.allowed, retryAfterSeconds: value.retry_after_seconds };
 }
 
 async function readJsonObject(request: Request, maxBytes: number): Promise<Record<string, unknown>> {
-  const declaredLength = request.headers.get('content-length')?.trim();
-  if (declaredLength && /^\d+$/.test(declaredLength) && Number(declaredLength) > maxBytes) {
+  const declaredLengthHeader = request.headers.get('content-length');
+  let declaredLength: number | null = null;
+  if (declaredLengthHeader !== null) {
+    if (!/^(?:0|[1-9][0-9]{0,4})$/.test(declaredLengthHeader)) {
+      throw new BodyReadError('bad_json');
+    }
+    declaredLength = Number(declaredLengthHeader);
+  }
+  if (declaredLength !== null && declaredLength > maxBytes) {
     throw new BodyReadError('request_body_too_large');
   }
   if (!request.body) throw new BodyReadError('bad_json');
 
   const reader = request.body.getReader();
-  const chunks: Uint8Array[] = [];
+  const bytes = new Uint8Array(maxBytes);
   let bytesRead = 0;
+  let deadlineExpired = false;
+  const deadline = setTimeout(() => {
+    deadlineExpired = true;
+    void reader.cancel().catch(() => undefined);
+  }, PEER_RESPONSE_BODY_DEADLINE_MS);
   try {
     while (true) {
       const { done, value } = await reader.read();
+      if (deadlineExpired) throw new BodyReadError('bad_json');
       if (done) break;
-      bytesRead += value.byteLength;
-      if (bytesRead > maxBytes) {
+      if (bytesRead + value.byteLength > maxBytes) {
         await reader.cancel().catch(() => undefined);
         throw new BodyReadError('request_body_too_large');
       }
-      chunks.push(value.slice());
+      bytes.set(value, bytesRead);
+      bytesRead += value.byteLength;
+    }
+    if (declaredLength !== null && bytesRead !== declaredLength) {
+      throw new BodyReadError('bad_json');
     }
   } catch (error) {
     if (error instanceof BodyReadError) throw error;
     throw new BodyReadError('bad_json');
   } finally {
+    clearTimeout(deadline);
     reader.releaseLock();
   }
 
-  const bytes = new Uint8Array(bytesRead);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-
   try {
-    const parsed: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+    const parsed: unknown = JSON.parse(
+      new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(0, bytesRead)),
+    );
     if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
       throw new BodyReadError('bad_json');
     }
@@ -170,6 +243,9 @@ function validRatings(raw: unknown): Record<string, number> | null {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return jsonResponse(req, { ok: true });
   if (req.method !== 'POST') return jsonResponse(req, { error: 'method_not_allowed' }, 405);
+  if (!hasSupportedJsonEnvelope(req)) {
+    return jsonResponse(req, { error: 'unsupported_media_type' }, 415);
+  }
 
   let body: Record<string, unknown>;
   try {
@@ -195,7 +271,8 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  if (!supabaseUrl || !serviceRoleKey) {
+  const pepper = Deno.env.get('PEER_HASH_PEPPER_V1');
+  if (!supabaseUrl || !serviceRoleKey || !pepper || pepper.length < 32) {
     return jsonResponse(req, { error: 'server_misconfigured' }, 500);
   }
   const admin = createClient(
@@ -203,6 +280,29 @@ Deno.serve(async (req) => {
     serviceRoleKey,
     { auth: { persistSession: false } },
   );
+
+  const networkHint = trustedGatewayNetworkHint(req);
+  const abuseKeyHash = await hmacSha256Hex(
+    pepper,
+    `peer-respond:abuse:v1:${networkHint}`,
+  );
+  const { data: quotaData, error: quotaError } = await admin.rpc(
+    'consume_peer_response_rate_limit',
+    { p_action: action, p_key_hash: abuseKeyHash },
+  );
+  const quota = quotaError ? null : parseQuotaResult(quotaData);
+  if (!quota) {
+    console.warn('[peer-respond] rate limiter unavailable');
+    return jsonResponse(req, { error: 'rate_limit_unavailable' }, 503);
+  }
+  if (!quota.allowed) {
+    return jsonResponse(
+      req,
+      { error: 'rate_limited' },
+      429,
+      { 'retry-after': String(quota.retryAfterSeconds) },
+    );
+  }
 
   const tokenHash = await sha256Hex(token);
   if (action === 'load') {
@@ -260,14 +360,11 @@ Deno.serve(async (req) => {
       return jsonResponse(req, { error: 'guardian_required' }, 400);
     }
 
-    const pepper = Deno.env.get('PEER_HASH_PEPPER_V1');
-    if (!pepper || pepper.length < 32) {
-      return jsonResponse(req, { error: 'server_misconfigured' }, 500);
-    }
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? '';
-    const ua = req.headers.get('user-agent') ?? '';
+    const ua = (req.headers.get('user-agent') ?? '').slice(0, USER_AGENT_HASH_LIMIT);
 
-    const ipHash = ip ? await versionedHmacSha256Hex(pepper, `v1:ip:${ip}`) : null;
+    const ipHash = networkHint !== UNKNOWN_NETWORK_HINT
+      ? await versionedHmacSha256Hex(pepper, `v1:ip:${networkHint}`)
+      : null;
     const uaHash = ua ? await versionedHmacSha256Hex(pepper, `v1:ua:${ua}`) : null;
 
     Object.assign(rpcArgs, {
