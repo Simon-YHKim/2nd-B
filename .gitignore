@@ -169,3 +169,6 @@ _sync/
 # Local per-machine state, never meant for git — it showed up as 7 untracked
 # files in the shared checkout on 2026-08-30 and confused the cleanup.
 supabase/.temp/
+
+# Compiled Python caches (scripts/*.py). One .pyc was tracked by mistake until 2026-09-06 (audit D8-15).
+__pycache__/
