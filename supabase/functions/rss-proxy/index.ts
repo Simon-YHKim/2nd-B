@@ -1,106 +1,77 @@
-// RSS proxy Edge Function (Codex P2 #4 — Web CORS).
-//
-// Why: on Expo web the client bundle runs in a browser. A direct fetch() to a
-// third-party RSS host (yna.co.kr, hani.co.kr, mk.co.kr, bbci.co.uk) is blocked
-// by the browser's CORS policy, so the digest silently shows []. This function
-// fetches the feed XML SERVER-SIDE (no browser CORS) and returns it to the web
-// client with permissive CORS headers. Native keeps the direct fetch and never
-// touches this function.
-//
-// Request shape:   POST { url: string }
-// Response shape:  { xml: string }  (200) | { error: string }  (4xx/5xx)
-//
-// SSRF guard: the `url` is validated against an EXACT-MATCH allowlist that
-// mirrors src/lib/news/feeds.ts:NEWS_FEED_URLS. Only those exact strings may be
-// fetched — an attacker cannot make this function fetch an internal/metadata
-// endpoint (e.g. http://169.254.169.254/) or any arbitrary host. KEEP THIS LIST
-// IN SYNC with feeds.ts (this Deno function cannot import the RN module).
-//
-// Deploy gate: this function MUST be deployed for the web build's news digest to
-// work (`supabase functions deploy rss-proxy`). The web client treats a missing/
-// unreachable function as an explicit "proxy_unavailable" error state (not a
-// silent []), so an undeployed proxy surfaces a clear failure.
-//
-// Auth: verify_jwt=true (default) proves the bearer token is VALID, but the
-// public anon key is itself a valid token — so a valid token alone is not a
-// signed-in user, and anyone holding the anon key could otherwise invoke this
-// proxy and burn Edge Function quota/bandwidth. We additionally require the JWT
-// to represent an AUTHENTICATED user (a real `sub` + role==='authenticated',
-// NOT 'anon'), mirroring the user-auth posture of gemini-proxy. CORS is an
-// explicit origin allowlist (no wildcard).
+// Authenticated, bounded proxy for the four curated RSS feeds used by web.
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+import { createClient } from 'jsr:@supabase/supabase-js@2';
+import {
+  readBoundedUtf8Body,
+  parseJsonWithLimits,
+  RequestBoundaryError,
+} from '../_shared/request-boundary.ts';
 
-// Read the JWT claims without re-verifying the signature (the gateway already
-// did, verify_jwt=true). Mirrors gemini-proxy/userIdFromJwt. A signed-in user's
-// token carries role==='authenticated' and a real `sub`; the anon key's token
-// carries role==='anon'. Returns null for malformed/non-authenticated tokens so
-// the caller rejects anon/invalid with 401 before any upstream fetch.
-function authenticatedUserIdFromJwt(authHeader: string): string | null {
-  try {
-    const token = authHeader.slice(authHeader.toLowerCase().indexOf('bearer ') + 7).trim();
-    const payload = token.split('.')[1];
-    if (!payload) return null;
-    const b64 = payload.replace(/-/g, '+').replace(/_/g, '/');
-    const json = JSON.parse(atob(b64 + '=='.slice(0, (4 - (b64.length % 4)) % 4)));
-    const sub = typeof json?.sub === 'string' ? json.sub : '';
-    const role = typeof json?.role === 'string' ? json.role : '';
-    // A signed-in user only: real subject AND the 'authenticated' role. The anon
-    // key's JWT has role==='anon' (and no user sub) — reject it.
-    if (role !== 'authenticated' || sub.length === 0) return null;
-    return sub;
-  } catch {
-    return null;
-  }
-}
-
-// SSRF allowlist — EXACT mirror of src/lib/news/feeds.ts:NEWS_FEED_URLS.
 const ALLOWED_FEED_URLS = new Set<string>([
   'https://www.yna.co.kr/rss/news.xml',
   'https://www.hani.co.kr/rss/',
   'https://www.mk.co.kr/rss/30000001/',
   'https://feeds.bbci.co.uk/news/world/rss.xml',
 ]);
+if (ALLOWED_FEED_URLS.size !== 4) throw new Error('invalid_feed_allowlist');
 
-const FETCH_TIMEOUT_MS = 8000;
-// Cap the upstream body we read + return. Mirrors src/lib/news/parse.ts:
-// MAX_XML_CHARS so a compromised/huge feed cannot OOM the function or the web
-// client. Bytes here vs chars in the parser — same order of magnitude, both are
-// generous relative to any real feed.
-const MAX_UPSTREAM_BYTES = 2_000_000;
+// Hankyoreh currently redirects /rss/ to /rss. Keep the public request
+// contract aligned with NEWS_FEEDS while selecting the measured canonical
+// endpoint directly, so redirect:'manual' can remain fail closed for every hop.
+const FIXED_UPSTREAM_OVERRIDES = new Map<string, string>([
+  ['https://www.hani.co.kr/rss/', 'https://www.hani.co.kr/rss'],
+]);
 
-// Static origins: GitHub Pages prod + Expo web dev servers. The Vercel deploy
-// origin is NOT pinned here (the *.vercel.app host varies per project/preview),
-// so it is supplied at deploy time via RSS_PROXY_ALLOWED_ORIGINS — see below.
 const STATIC_ALLOWED_ORIGINS: readonly string[] = [
   'https://simon-yhkim.github.io',
   'http://localhost:8081',
   'http://localhost:19006',
 ];
+const ALLOWED_UPSTREAM_CONTENT_TYPES: readonly string[] = [
+  'application/rss+xml',
+  'application/atom+xml',
+  'application/xml',
+  'text/xml',
+];
 
-// Codex P2 #3 (Web CORS on Vercel): on a Vercel deploy the browser origin is the
-// project's `https://<name>.vercel.app` (and per-PR preview origins), so a static
-// GitHub-Pages-only allowlist returns 'null' and web RSS fails with
-// proxy_unavailable. Make the allowlist ENV-DRIVEN: RSS_PROXY_ALLOWED_ORIGINS is
-// a comma-separated list of exact origins (e.g.
-// "https://2nd-brain.vercel.app,https://2nd-brain-git-main.vercel.app") merged
-// with the static set. Set it alongside the function's other secrets
-// (`supabase secrets set RSS_PROXY_ALLOWED_ORIGINS=...`) to the Vercel
-// production/preview origin(s). Keeps the explicit allowlist posture (no wildcard
-// echo) and leaves the SSRF feed allowlist + the user-auth check untouched.
+const MAX_REQUEST_BYTES = 1024;
+const REQUEST_TIMEOUT_MS = 3000;
+const FETCH_TIMEOUT_MS = 5000;
+const MAX_UPSTREAM_BYTES = 512 * 1024;
+const MAX_ACCESS_TOKEN_BYTES = 4096;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 function parseEnvOrigins(): string[] {
   const raw = Deno.env.get('RSS_PROXY_ALLOWED_ORIGINS') ?? '';
-  return raw
-    .split(',')
-    .map((o) => o.trim())
-    .filter((o) => o.length > 0);
+  if (raw.length > 4096) return [];
+
+  const configured: string[] = [];
+  for (const part of raw.split(',').slice(0, 20)) {
+    const candidate = part.trim();
+    if (candidate.length === 0) continue;
+    try {
+      const candidateUrl = new URL(candidate);
+      if (candidateUrl.origin === candidate && candidateUrl.protocol === 'https:') {
+        configured.push(candidate);
+      }
+    } catch {
+      // Invalid configured origins are ignored and therefore fail closed.
+    }
+  }
+  return configured;
 }
 
 const ALLOWED_ORIGINS = new Set<string>([...STATIC_ALLOWED_ORIGINS, ...parseEnvOrigins()]);
 
-function resolveOrigin(req: Request): string {
-  const origin = req.headers.get('origin') ?? '';
-  return ALLOWED_ORIGINS.has(origin) ? origin : 'null';
+function requestOriginAllowed(req: Request): boolean {
+  const origin = req.headers.get('origin');
+  return origin !== null && ALLOWED_ORIGINS.has(origin);
+}
+
+function responseOrigin(req: Request): string {
+  const origin = req.headers.get('origin');
+  return origin !== null && ALLOWED_ORIGINS.has(origin) ? origin : 'null';
 }
 
 function jsonResponse(req: Request, body: unknown, status = 200): Response {
@@ -108,9 +79,16 @@ function jsonResponse(req: Request, body: unknown, status = 200): Response {
     status,
     headers: {
       'content-type': 'application/json; charset=utf-8',
-      'access-control-allow-origin': resolveOrigin(req),
-      'vary': 'origin',
+      'cache-control': 'no-store',
+      'cdn-cache-control': 'no-store',
+      'surrogate-control': 'no-store',
+      'pragma': 'no-cache',
+      'expires': '0',
+      'x-content-type-options': 'nosniff',
+      'content-security-policy': "default-src 'none'",
+      'access-control-allow-origin': responseOrigin(req),
       'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type',
+      'vary': 'origin, authorization',
     },
   });
 }
@@ -119,71 +97,160 @@ function corsPreflight(req: Request): Response {
   return new Response(null, {
     status: 204,
     headers: {
-      'access-control-allow-origin': resolveOrigin(req),
-      'vary': 'origin',
+      'cache-control': 'no-store',
+      'cdn-cache-control': 'no-store',
+      'surrogate-control': 'no-store',
+      'access-control-allow-origin': responseOrigin(req),
       'access-control-allow-methods': 'POST, OPTIONS',
       'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type',
       'access-control-max-age': '86400',
+      'vary': 'origin, authorization',
     },
   });
 }
 
+interface GatewayIdentityHint {
+  readonly accessToken: string;
+  readonly subject: string;
+}
+
+// This decoded payload is only a cheap gateway/configuration hint. Authorization
+// below comes from Supabase Auth getUser(), and the verified id must match it.
+function gatewayIdentityHintFromJwt(authHeader: string): GatewayIdentityHint | null {
+  const match = /^Bearer\s+([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/i.exec(authHeader);
+  if (!match) return null;
+  const accessToken = match[1];
+  if (accessToken.length > MAX_ACCESS_TOKEN_BYTES) return null;
+
+  try {
+    const encoded = accessToken.split('.')[1];
+    if (encoded.length === 0 || encoded.length > 2048) return null;
+    const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+    const padding = '='.repeat((4 - (base64.length % 4)) % 4);
+    const payload = JSON.parse(atob(base64 + padding));
+    const subject = typeof payload?.sub === 'string' ? payload.sub.toLowerCase() : '';
+    if (payload?.role !== 'authenticated' || !UUID_PATTERN.test(subject)) return null;
+    return { accessToken, subject };
+  } catch {
+    return null;
+  }
+}
+
 Deno.serve(async (req: Request) => {
+  if (!requestOriginAllowed(req)) {
+    return jsonResponse(req, { error: 'origin_not_allowed' }, 403);
+  }
   if (req.method === 'OPTIONS') return corsPreflight(req);
   if (req.method !== 'POST') return jsonResponse(req, { error: 'method_not_allowed' }, 405);
 
-  // Require a real signed-in USER, not merely a valid token. verify_jwt=true
-  // proves the bearer is valid, but the public anon key is a valid token — so a
-  // valid token alone is not authorization. Reject anon/invalid with 401 BEFORE
-  // any upstream fetch so anon callers cannot burn Edge Function quota.
-  const authHeader = req.headers.get('authorization') ?? '';
-  if (!authHeader.toLowerCase().startsWith('bearer ')) {
-    return jsonResponse(req, { error: 'missing_authorization' }, 401);
-  }
-  if (!authenticatedUserIdFromJwt(authHeader)) {
-    return jsonResponse(req, { error: 'authentication_required' }, 401);
+  const contentEncoding = req.headers.get('content-encoding');
+  if (contentEncoding !== null && contentEncoding.toLowerCase() !== 'identity') {
+    return jsonResponse(req, { error: 'unsupported_content_encoding' }, 415);
   }
 
-  let body: { url?: unknown };
+  let parsed: unknown;
   try {
-    body = await req.json();
-  } catch {
+    const { text } = await readBoundedUtf8Body(req, {
+      maxBytes: MAX_REQUEST_BYTES,
+      timeoutMs: REQUEST_TIMEOUT_MS,
+      allowedContentTypes: ['application/json'],
+      requireLengthMatch: true,
+    });
+    parsed = parseJsonWithLimits(text, 2);
+  } catch (error) {
+    if (error instanceof RequestBoundaryError) {
+      return jsonResponse(req, { error: error.code }, error.status);
+    }
     return jsonResponse(req, { error: 'invalid_json' }, 400);
   }
 
-  const url = typeof body?.url === 'string' ? body.url : '';
-  if (!url) return jsonResponse(req, { error: 'url_required' }, 400);
-
-  // SSRF guard: only an exact allowlist match may be fetched.
-  if (!ALLOWED_FEED_URLS.has(url)) {
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return jsonResponse(req, { error: 'invalid_request' }, 400);
+  }
+  const body = parsed as Record<string, unknown>;
+  if (Object.keys(body).length !== 1 || typeof body.url !== 'string') {
+    return jsonResponse(req, { error: 'invalid_request' }, 400);
+  }
+  if (!ALLOWED_FEED_URLS.has(body.url)) {
     return jsonResponse(req, { error: 'url_not_allowed' }, 403);
   }
+  const url = FIXED_UPSTREAM_OVERRIDES.get(body.url) ?? body.url;
+
+  const authHeader = req.headers.get('authorization') ?? '';
+  const identity = gatewayIdentityHintFromJwt(authHeader);
+  if (!identity) return jsonResponse(req, { error: 'authentication_required' }, 401);
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!supabaseUrl || !serviceRoleKey) {
+    return jsonResponse(req, { error: 'server_misconfigured' }, 500);
+  }
+  const admin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  let verifiedUserId: string | null = null;
+  try {
+    const { data, error } = await admin.auth.getUser(identity.accessToken);
+    if (!error && data.user && UUID_PATTERN.test(data.user.id)) {
+      verifiedUserId = data.user.id.toLowerCase();
+    }
+  } catch {
+    verifiedUserId = null;
+  }
+  if (verifiedUserId === null || verifiedUserId !== identity.subject) {
+    return jsonResponse(req, { error: 'authentication_required' }, 401);
+  }
+  const userId = verifiedUserId;
+
+  let quotaAllowed: unknown = null;
+  let quotaError: unknown = null;
+  try {
+    const quota = await admin.rpc('consume_rss_proxy_quota', { p_user_id: userId });
+    quotaAllowed = quota.data;
+    quotaError = quota.error;
+  } catch {
+    return jsonResponse(req, { error: 'quota_unavailable' }, 503);
+  }
+  if (quotaError) return jsonResponse(req, { error: 'quota_unavailable' }, 503);
+  if (quotaAllowed !== true) return jsonResponse(req, { error: 'quota_exceeded' }, 429);
 
   const controller = new AbortController();
+  const deadline = Date.now() + FETCH_TIMEOUT_MS;
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  let upstream: Response | null = null;
   try {
-    // redirect:'manual' so the exact-match SSRF allowlist protects EVERY hop, not
-    // just the first. The allowlisted feed URLs are the canonical endpoints and
-    // serve 200 directly; a 30x would point at an off-allowlist host (a CDN, or —
-    // if a publisher is compromised/misconfigured — an internal/metadata host),
-    // which we MUST NOT follow. So we reject any redirect rather than chase it.
-    const upstream = await fetch(url, {
+    upstream = await fetch(url, {
       method: 'GET',
-      headers: { Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml' },
+      headers: {
+        Accept: ALLOWED_UPSTREAM_CONTENT_TYPES.join(', '),
+        'Accept-Encoding': 'identity',
+      },
       redirect: 'manual',
       signal: controller.signal,
     });
-    // 'manual' surfaces a 3xx as the real status (or an opaqueredirect response).
-    if (upstream.type === 'opaqueredirect' || (upstream.status >= 300 && upstream.status < 400)) {
-      return jsonResponse(req, { error: 'upstream_redirect_blocked', status: upstream.status }, 502);
+    if (
+      upstream.type === 'opaqueredirect'
+      || (upstream.status >= 300 && upstream.status < 400)
+      || !upstream.ok
+    ) {
+      await upstream.body?.cancel().catch(() => undefined);
+      return jsonResponse(req, { error: 'upstream_unavailable' }, 502);
     }
-    if (!upstream.ok) {
-      return jsonResponse(req, { error: 'upstream_error', status: upstream.status }, 502);
+
+    const { bytes, text: xml } = await readBoundedUtf8Body(upstream, {
+      maxBytes: MAX_UPSTREAM_BYTES,
+      timeoutMs: Math.max(1, deadline - Date.now()),
+      allowedContentTypes: ALLOWED_UPSTREAM_CONTENT_TYPES,
+    });
+    if (bytes.byteLength === 0 || xml.trim().length === 0) {
+      return jsonResponse(req, { error: 'upstream_unavailable' }, 502);
     }
-    const xml = (await upstream.text()).slice(0, MAX_UPSTREAM_BYTES);
     return jsonResponse(req, { xml }, 200);
   } catch {
-    return jsonResponse(req, { error: 'upstream_fetch_failed' }, 502);
+    controller.abort();
+    await upstream?.body?.cancel().catch(() => undefined);
+    return jsonResponse(req, { error: 'upstream_unavailable' }, 502);
   } finally {
     clearTimeout(timer);
   }
