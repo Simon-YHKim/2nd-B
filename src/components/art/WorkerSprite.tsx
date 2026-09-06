@@ -21,23 +21,23 @@ const PIXELATED = { imageRendering: "pixelated" } as unknown as ImageStyle;
 export type WorkerId = "secondb" | "momo" | "lulu" | "archi" | "gadi" | "lumi";
 
 const STRIPS: Record<WorkerId, number> = {
-  secondb: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/secondb_premium_walk_strip_6f.png"),
-  momo: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/momo_premium_walk_strip_6f.png"),
-  lulu: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/lulu_premium_walk_strip_6f.png"),
-  archi: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/archi_premium_walk_strip_6f.png"),
-  gadi: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/gadi_premium_walk_strip_6f.png"),
-  lumi: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/lumi_premium_walk_strip_6f.png"),
+  secondb: require("../../../assets/legacy-art/2ndb-production-premium-v1/workers-redraw-v1/secondb_premium_walk_strip_6f.png"),
+  momo: require("../../../assets/legacy-art/2ndb-production-premium-v1/workers-redraw-v1/momo_premium_walk_strip_6f.png"),
+  lulu: require("../../../assets/legacy-art/2ndb-production-premium-v1/workers-redraw-v1/lulu_premium_walk_strip_6f.png"),
+  archi: require("../../../assets/legacy-art/2ndb-production-premium-v1/workers-redraw-v1/archi_premium_walk_strip_6f.png"),
+  gadi: require("../../../assets/legacy-art/2ndb-production-premium-v1/workers-redraw-v1/gadi_premium_walk_strip_6f.png"),
+  lumi: require("../../../assets/legacy-art/2ndb-production-premium-v1/workers-redraw-v1/lumi_premium_walk_strip_6f.png"),
 };
 
 // Single-frame standing poses (128x128), shown instead of the walk strip when
 // motion is reduced so a held worker reads as "idle" rather than mid-step.
 const IDLES: Record<WorkerId, number> = {
-  secondb: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/secondb_premium_idle.png"),
-  momo: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/momo_premium_idle.png"),
-  lulu: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/lulu_premium_idle.png"),
-  archi: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/archi_premium_idle.png"),
-  gadi: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/gadi_premium_idle.png"),
-  lumi: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/lumi_premium_idle.png"),
+  secondb: require("../../../assets/legacy-art/2ndb-production-premium-v1/workers-redraw-v1/secondb_premium_idle.png"),
+  momo: require("../../../assets/legacy-art/2ndb-production-premium-v1/workers-redraw-v1/momo_premium_idle.png"),
+  lulu: require("../../../assets/legacy-art/2ndb-production-premium-v1/workers-redraw-v1/lulu_premium_idle.png"),
+  archi: require("../../../assets/legacy-art/2ndb-production-premium-v1/workers-redraw-v1/archi_premium_idle.png"),
+  gadi: require("../../../assets/legacy-art/2ndb-production-premium-v1/workers-redraw-v1/gadi_premium_idle.png"),
+  lumi: require("../../../assets/legacy-art/2ndb-production-premium-v1/workers-redraw-v1/lumi_premium_idle.png"),
 };
 
 const FRAMES = 6;

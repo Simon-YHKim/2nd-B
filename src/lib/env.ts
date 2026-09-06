@@ -68,7 +68,7 @@ const schema = z.object({
   //   - "soma" | "cortex" | "free": pin everyone to that tier to test a
   //     specific paywall boundary.
   // Restore real billing by setting EXPO_PUBLIC_FORCE_TIER=off.
-  // 2026-06-08 (O-5, launch prep): default is now "off" so a release/judge build
+  // 2026-06-08 (O-5, launch prep): default is now "off" so a release build
   // gates billing for real. Set "brain" explicitly in a local .env only for
   // testing-phase paywall bypass.
   EXPO_PUBLIC_FORCE_TIER: z
@@ -82,7 +82,7 @@ const schema = z.object({
     .union([z.literal("true"), z.literal("false")])
     .default("false")
     .transform((v) => v === "true"),
-  // Render the Soul Core v3 SVG art pack (public/assets/cosmic-pixel-v3-soulcore/)
+  // Render the Soul Core v3 SVG art pack (assets/legacy-art/cosmic-pixel-v3-soulcore/)
   // instead of the legacy PNG art. Default true (Simon concept: the worldview
   // Soul/Pattern Core tesseract art + Foreman-Momo crew are the intended visuals).
   // Set "false" to fall back to the legacy PNG art.
@@ -280,7 +280,7 @@ let cached: Env | null = null;
 export function getEnv(): Env {
   if (cached) return cached;
   cached = refined.parse(readRaw());
-  // Audit MED: EXPO_PUBLIC_FORCE_TIER defaults to "brain", so a release/judge
+  // Audit MED: EXPO_PUBLIC_FORCE_TIER defaults to "brain", so a release
   // build that forgets to set it ships with the paywall fully open. Flipping
   // the default is a launch-time call (it would change what testers see today),
   // so for now make the unsafe state loud instead of silent: warn once in a
@@ -294,9 +294,4 @@ export function getEnv(): Env {
     );
   }
   return cached;
-}
-
-// Test-only reset. Not exported publicly via index.
-export function __resetEnvCache(): void {
-  cached = null;
 }

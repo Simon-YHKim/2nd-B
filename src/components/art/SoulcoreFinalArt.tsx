@@ -47,41 +47,41 @@ export type FinalLogId = "work" | "relationship" | "knowledge" | "love" | "hobby
 export type FinalPatternLinkId = "near" | "mid" | "far" | "current";
 
 const FINAL_CORE_ART: Record<FinalCoreId, ImageSourcePropType> = {
-  core: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier1_soul_core/soul_core_256.png"),
-  work_growth: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/growth_core_256.png"),
-  relationship: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/bond_core_256.png"),
-  knowledge: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/wisdom_core_256.png"),
-  records: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/narrative_core_256.png"),
-  inspiration: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/muse_core_256.png"),
+  core: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier1_soul_core/soul_core_256.png"),
+  work_growth: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/growth_core_256.png"),
+  relationship: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/bond_core_256.png"),
+  knowledge: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/wisdom_core_256.png"),
+  records: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/narrative_core_256.png"),
+  inspiration: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/muse_core_256.png"),
   // PLACEHOLDER (O-R3 G1): narrative copy - overwrite rhythm_core_256.png to apply the real asset.
-  routine: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/rhythm_core_256.png"),
+  routine: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/rhythm_core_256.png"),
 };
 
 const FINAL_PATTERN_DATA_ART: Record<FinalPatternDataId, ImageSourcePropType> = {
-  bond: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier3_pattern_data/bond_pattern_data_96.png"),
-  wisdom: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier3_pattern_data/wisdom_pattern_data_96.png"),
-  narrative: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier3_pattern_data/narrative_pattern_data_96.png"),
-  muse: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier3_pattern_data/muse_pattern_data_96.png"),
-  growth: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier3_pattern_data/growth_pattern_data_96.png"),
+  bond: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier3_pattern_data/bond_pattern_data_96.png"),
+  wisdom: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier3_pattern_data/wisdom_pattern_data_96.png"),
+  narrative: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier3_pattern_data/narrative_pattern_data_96.png"),
+  muse: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier3_pattern_data/muse_pattern_data_96.png"),
+  growth: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier3_pattern_data/growth_pattern_data_96.png"),
 };
 
 const FINAL_LOG_ART: Record<FinalLogId, ImageSourcePropType> = {
-  work: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier4_logs/work_log_96x72.png"),
-  relationship: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier4_logs/relationship_log_96x72.png"),
-  knowledge: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier4_logs/knowledge_log_96x72.png"),
-  love: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier4_logs/love_log_96x72.png"),
-  hobby: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier4_logs/hobby_log_96x72.png"),
+  work: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier4_logs/work_log_96x72.png"),
+  relationship: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier4_logs/relationship_log_96x72.png"),
+  knowledge: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier4_logs/knowledge_log_96x72.png"),
+  love: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier4_logs/love_log_96x72.png"),
+  hobby: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier4_logs/hobby_log_96x72.png"),
 };
 
 const FINAL_PATTERN_LINK_ART: Record<FinalPatternLinkId, ImageSourcePropType> = {
-  near: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/pattern_links/pattern_link_near_320x64.png"),
-  mid: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/pattern_links/pattern_link_mid_320x64.png"),
-  far: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/pattern_links/pattern_link_far_320x64.png"),
-  current: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/pattern_links/pattern_link_current_320x64.png"),
+  near: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/pattern_links/pattern_link_near_320x64.png"),
+  mid: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/pattern_links/pattern_link_mid_320x64.png"),
+  far: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/pattern_links/pattern_link_far_320x64.png"),
+  current: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/pattern_links/pattern_link_current_320x64.png"),
 };
 
 // ─── Tesseract art variants (v45 legacy PNG, v10 production default) ─────────
-// 2026-06-04 — the v10 clean-cutout reviewed set (public/assets/tesseract-v10)
+// 2026-06-04 — the v10 clean-cutout reviewed set (assets/legacy-art/tesseract-v10)
 // is the PRODUCTION DEFAULT (better cutouts, 18px safe margins). The legacy v45
 // set stays reachable via the `variant` prop for comparison. v10 covers tier1
 // cores + tier3 pattern-data; tier-4 Log + pattern_link still use the v45 set.
@@ -91,14 +91,14 @@ export type AssetVariant = "v45" | "v10";
 // manifest. NOTE: ids archi/gadi/lulu/momo/lumi are not renamed this PR (large
 // scope — asset filenames key off them); see TODO at finalPatternDataIdForDomain.
 const FINAL_CORE_ART_V10: Record<FinalCoreId, ImageSourcePropType> = {
-  core: require("../../../public/assets/tesseract-v10/soul_core.png"),
-  work_growth: require("../../../public/assets/tesseract-v10/growth_core.png"),
-  relationship: require("../../../public/assets/tesseract-v10/bond_core.png"),
-  knowledge: require("../../../public/assets/tesseract-v10/wisdom_core.png"),
-  records: require("../../../public/assets/tesseract-v10/narrative_core.png"),
-  inspiration: require("../../../public/assets/tesseract-v10/muse_core.png"),
+  core: require("../../../assets/legacy-art/tesseract-v10/soul_core.png"),
+  work_growth: require("../../../assets/legacy-art/tesseract-v10/growth_core.png"),
+  relationship: require("../../../assets/legacy-art/tesseract-v10/bond_core.png"),
+  knowledge: require("../../../assets/legacy-art/tesseract-v10/wisdom_core.png"),
+  records: require("../../../assets/legacy-art/tesseract-v10/narrative_core.png"),
+  inspiration: require("../../../assets/legacy-art/tesseract-v10/muse_core.png"),
   // PLACEHOLDER (O-R3 G1): production default variant - overwrite rhythm_core.png to apply.
-  routine: require("../../../public/assets/tesseract-v10/rhythm_core.png"),
+  routine: require("../../../assets/legacy-art/tesseract-v10/rhythm_core.png"),
 };
 
 const CORE_ART_BY_VARIANT: Record<AssetVariant, Record<FinalCoreId, ImageSourcePropType>> = {

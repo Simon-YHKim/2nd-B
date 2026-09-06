@@ -28,7 +28,6 @@ import { cosmic, flattenAlpha, semantic, spacing, typography } from "@/lib/theme
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { useImportPendingCaptures } from "@/lib/capture/use-import-pending";
 import { DeepSpaceShell } from "@/components/deep-space/DeepSpaceShell";
-import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
 import { NavGraph, type DataNode } from "@/components/graph/NavGraph";
 import { SecondBSprite } from "@/components/art/SecondBSprite";
 import { PixelScrim } from "@/components/pixel/PixelDither";
@@ -793,41 +792,6 @@ export function GraphScreen() {
         </Pressable>
       </Animated.View>
 
-      {/* O-31 Stage③ (nav-contract §3): in deep-space mode the graph IS the
-          그래프 primary (reached via /graph from the shell). Surface its
-          second-tier — 위키 /wiki · 기록 /records · 리서치 /research — as a
-          bottom strip so all three are reachable directly (누락 0). Gated on
-          isDeepSpaceUI() so legacy "/" (the same GraphScreen) is untouched. */}
-      {isDeepSpaceUI() ? (
-        <View
-          style={[styles.deepSpaceGraphNav, { bottom: insets.bottom + TAB_BAR_HEIGHT + 12 }]}
-          pointerEvents="box-none"
-        >
-          <DeepSpaceLinks
-            groups={[
-              {
-                title: t("navGraph"),
-                items: [
-                  { key: "wiki", label: t("navWiki"), route: "/wiki" },
-                  { key: "records", label: t("navRecords"), route: "/records" },
-                  { key: "research", label: t("navResearch"), route: "/research" },
-                ],
-              },
-              {
-                // IA (ops-ia §1): single home entry into the assistant (Ops).
-                // /ops is the hub; no duplicate entry (dedup).
-                title: t("navAssistant"),
-                items: [
-                  { key: "ops", label: t("navToday"), route: "/ops" },
-                  { key: "growth", label: t("navMyChange"), route: "/growth" },
-                  { key: "import", label: t("navImport"), route: "/import-hub" },
-                ],
-              },
-            ]}
-          />
-        </View>
-      ) : null}
-
       <PowerOnOverlay />
 
       {/* Top-right cluster removed (graph-ux #2/#4): language is auto-detected
@@ -845,9 +809,6 @@ function GraphStarHost() {
 
 const styles = StyleSheet.create({
   skyContainer: { flex: 1, backgroundColor: cosmic.space950 },
-  // O-31 Stage③: deep-space graph second-tier strip (nav-contract §3). Sits
-  // above the tab bar; only mounted when isDeepSpaceUI() (legacy "/" untouched).
-  deepSpaceGraphNav: { position: "absolute", left: 10, right: 10, zIndex: 26 },
   skyLogo: {
     position: "absolute",
     width: 220,

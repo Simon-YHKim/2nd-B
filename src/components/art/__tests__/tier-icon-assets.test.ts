@@ -37,7 +37,7 @@ const EXPECTED_TIER_ICON_FILES = [
 
 describe("TierIcon asset map", () => {
   test("maps every production tier icon asset", () => {
-    const dir = path.join(process.cwd(), "public", "assets", "2ndb-production-premium-v1", "tier-icons");
+    const dir = path.join(process.cwd(), "assets", "legacy-art", "2ndb-production-premium-v1", "tier-icons");
     const files = readdirSync(dir).filter((name) => name.endsWith(".png")).sort();
 
     expect(files).toEqual(EXPECTED_TIER_ICON_FILES);
