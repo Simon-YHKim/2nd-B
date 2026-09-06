@@ -151,6 +151,12 @@ verify_jwt = false
 # the web build's news digest to work; native fetches feeds directly.
 verify_jwt = true
 
+[functions.public-data-proxy]
+# Server-keyed EXIM/MFDS foundation. The gateway verifies the JWT signature and
+# the function additionally rejects anon-role tokens. Do not deploy until the
+# consume_public_data_quota RPC migration exists and its fail-closed path passes.
+verify_jwt = true
+
 [functions.xai-proxy]
 # The Grok backend, a sibling of gemini/claude/openai-proxy. It was the ONLY
 # authenticated proxy without an explicit verify_jwt declaration here (audit
