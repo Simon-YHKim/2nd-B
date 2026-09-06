@@ -1,7 +1,7 @@
 # Claude Code 인수인계 프롬프트: 2nd-Brain 보안 전수 점검·개선 계속
 
 당신은 2nd-Brain 저장소의 보안 전수 점검과 개선 작업을 Codex에서 인수받는다.
-아래 상태는 2026-09-06 23:20 KST 기준이다. 결론부터 말하면 **보안 작업은 완료되지 않았고 배포되지 않았다.**
+아래 상태는 2026-09-06 23:56 KST 기준이다. 결론부터 말하면 **보안 작업은 완료되지 않았고 배포되지 않았다.**
 이미 만들어진 로컬 격리 커밋을 보존하면서, 통합·검증·운영 인계까지 정확하게 이어가라.
 
 ## 0. 첫 응답과 작업 방식
@@ -36,7 +36,7 @@
 
 | 경로 | 상태 | 규칙 |
 |---|---|---|
-| E:\2ndB\.worktrees\2ndB\TTL-Work | 공유 dirty tree. 기본 status 772 changes, untracked 전체 확장 시 1,360 | **수정·스테이징·정리·reset·checkout·clean 금지. 권위 있는 코드 원본으로도 보지 말 것** |
+| E:\2ndB\.worktrees\2ndB\TTL-Work | 공유 dirty tree. 최신 status 773 changes, untracked 전체 확장 시 1,377 | **수정·스테이징·정리·reset·checkout·clean 금지. 권위 있는 코드 원본으로도 보지 말 것** |
 | E:\2ndB | local main HEAD 177a5962, origin/main보다 1 commit 뒤, 사용자 미추적 avatar PNG 8개 | pull/reset/clean 금지. 8개 파일 보존 |
 | E:\2ndB\.worktrees\security-handoff-260906 | 이 인수인계 전용 branch | 읽기 기준. 기능 통합 작업을 섞지 말 것 |
 | 모든 security-* worktree | 로컬 커밋 보존소 | 삭제·재생성 금지. 먼저 clean/HEAD 확인 |
@@ -66,7 +66,7 @@ worktree를 지울 일이 생겨도 지금은 승인받지 않았다. 이 저장
   - Claude 시작 시 이 외부 상태는 변할 수 있으므로 read-only로 재검증
 - consent 6은 09-04 최신 계약을 09-02로 되돌리는 계약 충돌 때문에 보류.
   0166~0168은 HOLD 예약일 뿐 실제 migration 파일이 아니다.
-- Output/vibe-release-260906/active-local-migrations.json은 18:38 기준이라 0171~0181을 반영하지 않은 stale 증거다.
+- Output/vibe-release-260906/active-local-migrations.json은 18:38 기준이라 0171~0187을 반영하지 않은 stale 증거다.
   번호 판단에 단독 사용하지 않는다.
 - 현재 서버 활성화 계획 또는 동시 0147 적용 증거는 없다.
 - Orca terminal:
@@ -84,13 +84,13 @@ worktree를 지울 일이 생겨도 지금은 승인받지 않았다. 이 저장
 
 | 영역 | worktree | branch | 순서 보존 커밋 |
 |---|---|---|---|
-| 공개 데이터 proxy·quota·키 경계·문서 | E:\2ndB\.worktrees\security-integration-260906 | fix/security-integration-260906 | 1aeca012 → 4b80778b → baeaafd7 → 8de490ee → 6a00b865 → 2b23f158 → 009b0c39 |
-| Native encrypted storage | E:\2ndB\.worktrees\security-native-storage-integration-260906 | fix/security-native-storage-integration-260906 | bee94d82 → b0e81d28 → 3f05defc |
-| DB hardening 후보 | E:\2ndB\.worktrees\security-db-integration-260906 | fix/security-db-integration-260906 | ae7d71e9 → 58d1399b |
+| canonical 로컬 통합 | E:\2ndB\.worktrees\security-integration-260906 | fix/security-integration-260906 | 1aeca012 → 4b80778b → baeaafd7 → 8de490ee → 6a00b865 → 2b23f158 → 009b0c39 → 051a9d9a → fb27622e → 22a50056 → bdb602a4 → 69771038 → c78a0a91 → 34e8e04a |
+| Native AuthContext 후보 | E:\2ndB\.worktrees\security-native-storage-integration-260906 | fix/security-native-storage-integration-260906 | bee94d82 → b0e81d28 → 3f05defc → e267e19f → 49f5b621; **P1 수정 전 canonical 이식 금지** |
+| DB source 보존 | E:\2ndB\.worktrees\security-db-integration-260906 | fix/security-db-integration-260906 | ae7d71e9 → 58d1399b → 8e9ed2b7 → 9d1e1b50 |
 | recorder/image cache ownership | E:\2ndB\.worktrees\security-recorder-temp-disposal-260906 | fix/security-recorder-temp-disposal-260906 | 8a4dc3bb → 8f12c625 → 6e44995c → 2ed2bad4 → 2a873ab3 → f625f7b5 → 30c20f1f |
 
-공개 데이터 통합 축은 #1642 head를 기반으로 한다. 다른 세 축은 아직 공개 데이터 최종 HEAD에 합쳐지지 않았다.
-전체 integration branch 하나가 완성된 상태로 오해하지 않는다.
+canonical 로컬 통합 축은 #1642 head를 기반으로 하며 public data, native storage core, DB 0171~0187을 포함한다.
+Native AuthContext·UI와 recorder 등은 아직 합쳐지지 않았다. 전체 릴리스 integration이 완성됐다고 오해하지 않는다.
 
 ### 공개 데이터 통합 축이 닫은 것
 
@@ -146,10 +146,10 @@ worktree를 지울 일이 생겨도 지금은 승인받지 않았다. 이 저장
 | GitHub handle | fix/security-native-github-handle-260906 | f2ae2730, full verify 통과 |
 | capture picker disposal | fix/security-capture-temp-disposal-260906 | 2ed2bad4, recorder chain에도 포함 |
 | GitHub caller resilience | fix/security-native-github-caller-260906 | 6321bed7 |
-| native integration | fix/security-native-storage-integration-260906 | bee94d82 → b0e81d28 → 3f05defc |
+| native integration | fix/security-native-storage-integration-260906 | bee94d82 → b0e81d28 → 3f05defc → e267e19f → 49f5b621; e267은 P1 review blocker |
 | recorder integration | fix/security-recorder-temp-disposal-260906 | 8a4dc3bb → 8f12c625 → 6e44995c → 2ed2bad4 → 2a873ab3 → f625f7b5 → 30c20f1f |
-| DB integration | fix/security-db-integration-260906 | ae7d71e9 → 58d1399b |
-| public-data integration | fix/security-integration-260906 | 1aeca012 → 4b80778b → baeaafd7 → 8de490ee → 6a00b865 → 2b23f158 → 009b0c39 |
+| DB integration | fix/security-db-integration-260906 | ae7d71e9 → 58d1399b → 8e9ed2b7 → 9d1e1b50 |
+| canonical integration | fix/security-integration-260906 | 1aeca012 → 4b80778b → baeaafd7 → 8de490ee → 6a00b865 → 2b23f158 → 009b0c39 → 051a9d9a → fb27622e → 22a50056 → bdb602a4 → 69771038 → c78a0a91 → 34e8e04a |
 
 old fix/security-naver-oauth-260906의 96832542와 fix/security-auth-pkce-260906의 ccd2211f는
 combined 1ddbff4c가 대체한다. old DB/export 905d49c4도 최신 base에 선택 포팅해야 하며 whole cherry-pick하지 않는다.
@@ -171,23 +171,22 @@ combined 1ddbff4c가 대체한다. old DB/export 905d49c4도 최신 base에 선�
 | 0179 | audit outbox idempotency | 58d1399b |
 | 0180 | LLM capacity retention | 58d1399b |
 | 0181 | client audit ingest | 58d1399b |
+| 0182 | peer response atomicity | 8e9ed2b7 |
+| 0183 | Naver rate limit combined final | 8e9ed2b7 |
+| 0184 | billing self-service | 8e9ed2b7 |
+| 0185 | LLM purpose quota | 8e9ed2b7 |
+| 0186 | account deletion | 8e9ed2b7 |
+| 0187 | knowledge HTTPS contract | 9d1e1b50 |
 
-0172~0176은 ae7d71e9, 0177~0181은 58d1399b에서 정확히 5 SQL 파일씩이며 worktree는 clean이다.
-static/ACL/constraints/migration-readiness/secret/diff 검사가 통과했다. psql, Docker, 운영 DB 적용, push는 0건이다.
+0172~0176은 ae7d71e9, 0177~0181은 58d1399b, 0182~0186은 8e9ed2b7, 0187+계약 테스트는
+9d1e1b50에 있다. canonical 대응 커밋은 bdb602a4 → 69771038 → c78a0a91 → 34e8e04a다.
+static/ACL/constraints/migration-readiness/secret/diff 검사와 0171~0187 연속·고유 검사가 통과했다.
+psql, Docker, 운영 DB 적용, push는 0건이다.
 
-### 다음 provisional 매핑
-
-| 번호 | 목적 | 권위 소스 |
-|---:|---|---|
-| 0182 | peer response atomicity | f363af94 final |
-| 0183 | Naver rate limit | 1ddbff4c combined final, f363의 옛 Naver 사용 금지 |
-| 0184 | billing self-service | dc7ba553 final |
-| 0185 | LLM purpose quota | f363af94 final |
-| 0186 | account deletion | 0565f4c0 |
-| 0187 | knowledge HTTPS | e10663bf |
+### 현재 provisional 매핑의 재검증 규칙
 
 0169 RSS와 0170 peer-rate는 독립 로컬 후보다. 0171은 public quota다.
-0182 이후 번호는 현재 로컬 스캔에서 비었지만 **새 파일을 쓰기 직전과 push 직전에**
+0172~0187은 최신 로컬 전수 스캔 시 충돌 0이었지만 **새 migration을 쓰기 직전과 push 직전에**
 origin/main, 모든 open PR, 모든 remote/local branch를 다시 스캔한다. 충돌하면 번호를 재배정하고
 파일명·헤더·내부 참조·테스트를 함께 바꾼다. 어떤 production DB apply도 코딩 세션이 하지 않는다.
 
@@ -201,29 +200,33 @@ origin/main, 모든 open PR, 모든 remote/local branch를 다시 스캔한다. 
 
 ## 7. Native encrypted storage 다음 정확한 작업
 
-현재 clean HEAD는 3f05defc다.
+현재 clean HEAD는 49f5b621이다. 하지만 e267e19f는 적대적 리뷰의 P1 차단점 때문에 canonical 이식 금지다.
 
 - bee94d82: encrypted native storage core + expo-secure-store package/app plugin 반영
 - b0e81d28: React Native Supabase auth session adapter와 storage recovery core
 - 3f05defc: recovery proof/pending keys까지 native에서 암호화
+- e267e19f: AuthContext recovery-required 상태와 명시 복구 API. focused 60/60, auth+storage 257/257 통과했지만 경합 미검증
+- 49f5b621: en/ko/es/id/pt `storageRecovery` 10키. JSON/i18n/lexicon 검사 통과
 - 공유 node_modules에는 expo-secure-store가 설치되지 않아 실제 native runtime 검증은 아직 불가능하다.
   require는 lazy이고 테스트 virtual mock만 통과했다. npm install/ci를 현재 공유 설치본에 실행하지 않는다.
 
-다음 AuthContext batch는 아직 clean-not-started다. 다음 계약을 지킨다.
+먼저 다음 P1을 TDD로 고친다.
 
-1. recoveryReady, proof, pending, sessionUnavailable 상태를 보존한다.
-2. getSession과 recovery marker read 양쪽의 **정확한 encrypted-storage 오류만** 분류한다.
-3. unreadable old client에는 signOut을 절대 호출하지 않는다.
-4. storageRecoveryRequired를 별도 상태로 노출하고 user/profile/isMinor/age를 null로 두되
-   noteResolvedOwner(null)은 호출하지 않는다.
-5. 사용자가 정확한 데이터 손실 동의를 2단계로 완료하면 storage recover → Supabase client reset →
-   새 epoch/resubscribe/getSession 순서로 복구한다.
-6. encrypted storage recovery UI는 recoveryReady signed-out/product gate보다 먼저 보여야 한다.
-7. 테스트를 먼저 쓴다. 추천 첫 batch는 AuthContext.tsx + storage-recovery test +
-   auth-bootstrap integration test 등 3~4파일이다.
-8. UI 로케일은 en/ko/es/id/pt auth.json 다섯 파일을 별도 batch로 맞춘 뒤,
-   component/layout/test를 최대 3파일로 만든다.
-9. 데이터 손실 동의 없는 자동 삭제·초기화는 금지한다.
+1. 파괴 복구는 ref에 Promise를 첫 await 전에 동기 CAS하는 single-flight여야 한다. 동시 호출은 같은 Promise를 공유하고
+   epoch/flag/ref mutation은 owner 1회만 수행한다.
+2. bootstrap timeout 뒤 late failure를 버리지 않는다. exact durable error는 recovery-required로, strict transient adapter error는
+   retry-only 상태로 전환하며 detached chain catch와 모든 await 뒤 cancellation 검사를 둔다.
+3. `secure_storage_recovery_required`만 destructive CTA를 허용한다. `key_unavailable/read_failed/decrypt_failed` 등 transient에는
+   별도 `authStorageUnavailable` 경계를 두고 identity mask, no signOut, no destructive CTA, loading=false를 보장한다.
+   Retry는 authClientEpoch를 올려 session+proof+pending 세 저장소를 다시 bootstrap한다.
+4. 모든 관련 await 뒤 current epoch+storage lock+captured proof generation/identity를 재검증한다. 구 epoch가 새 proof/pending을
+   지우거나 recoveryReady를 풀면 안 된다.
+5. 문자열 검색 테스트에 머물지 말고 dependency-injected runtime controller로 exact/no-signout, transient/retry-only,
+   two-call single-flight, deferred await마다 epoch flip, stale/failed retention, current success clear를 증명한다.
+6. P2: UNKNOWN publisher에서 `noteResolvedOwner(null)`을 재사용하지 않는다. `unknown session + proof`는 product 노출이 아니라
+   redirect/form-lock이 유지되는 의미·UX 불일치이므로 보안 P1처럼 과장하지 않는다.
+7. P1 hardening이 green이 된 뒤에만 component/layout/test 최대 3파일 UI batch를 만든다. recovery-required와 retry-only gate를
+   `_layout.tsx`의 `!recoveryReady` loader보다 먼저 렌더한다. 2단계 명시 동의 전 자동 삭제·초기화는 금지한다.
 
 ## 8. recorder/capture 수명주기 계약
 
@@ -343,18 +346,17 @@ git -C 'E:\2ndB\.worktrees\security-recorder-temp-disposal-260906' status --shor
 
 ### B. 이어서 구현
 
-1. DB batch C를 exact 5 files로 0182~0186 provisional 작성하고 static 검증.
-2. 0187 knowledge HTTPS를 별도 작은 batch로 작성.
-3. Native AuthContext RED test → 상태머신 → GREEN.
-4. 5 locale consent UI batch와 component/layout batch.
-5. recorder chain, import picker/history, GitHub handle/caller, notification, Paddle, LLM, workflow,
+1. Native AuthContext P1 single-flight/late error/transient retry-only/epoch race를 RED → GREEN으로 수정.
+2. runtime concurrency tests를 통과시키고 적대적 재리뷰.
+3. recovery-required와 retry-only UI component/layout/test batch.
+4. recorder chain, import picker/history, GitHub handle/caller, notification, Paddle, LLM, workflow,
    CSP/supply-chain을 #1642 기반 clean integration 축으로 순서대로 이식.
-6. audit outbox와 account local purge를 clean하게 새 구현.
-7. package/lock 수동 3-way 통합.
-8. 정상 dependency 설치본에서 full npm run verify, SQL dry-run, Android/iOS 실기기 QA.
-9. 사용자에게 diff, 테스트, 남은 리스크를 제시하고 **push/PR 여부를 다시 묻는다.**
-10. 승인받은 경우만 push/PR. 운영 적용은 콘솔 소유자에게 exact SQL, preflight, postflight를 인계한다.
-11. proxy 배포와 smoke, native/web release, key rotation까지 끝나기 전 “보안 완료”라고 말하지 않는다.
+5. audit outbox와 account local purge를 clean하게 새 구현.
+6. package/lock 수동 3-way 통합.
+7. 정상 dependency 설치본에서 full npm run verify, SQL dry-run, Android/iOS 실기기 QA.
+8. 사용자에게 diff, 테스트, 남은 리스크를 제시하고 **push/PR 여부를 다시 묻는다.**
+9. 승인받은 경우만 push/PR. 운영 적용은 콘솔 소유자에게 exact SQL, preflight, postflight를 인계한다.
+10. proxy 배포와 smoke, native/web release, key rotation까지 끝나기 전 “보안 완료”라고 말하지 않는다.
 
 각 cherry-pick 전 source commit의 파일 수와 현재 target diff를 확인한다. 충돌 해결에서 #1642 release semantics,
 public-data changes, package overrides를 보존한다. 여러 source commit을 한 에이전트가 무차별 cherry-pick하지 않는다.
@@ -366,8 +368,10 @@ public-data changes, package overrides를 보존한다. 여러 source commit을 
 - integration docs final: focused 7 suites / 70 tests; lint/typecheck/HTML/diff/secret
 - recorder final: full verify 596 suites / 6,540 tests; cycles 0
 - native import history와 GitHub handle: 각 full verify 통과
-- native encrypted integration: focused test/lint/typecheck, full은 공유 decode mismatch 단 1건
-- DB batches: static/ACL/constraints/migration-readiness/secret/diff 통과; psql/운영 apply 미실행
+- native storage core canonical integration: focused test/lint/typecheck, full은 공유 decode mismatch 단 1건
+- Native AuthContext 후보: focused 60/60, auth+storage 257/257, locale 검사 통과. 적대적 리뷰 P1 4개로 canonical 이식 차단
+- DB canonical: batch D focused 3 suites / 14 tests, lint/typecheck, definer/constraints/readiness,
+  0171~0187 연속·고유, secret/diff 통과; psql/운영 apply 미실행
 - 전체 통합 branch 하나에 대한 정상 dependency full verify, Android/iOS 실기기 QA, 운영 smoke는 **아직 없음**
 
 ## 15. 종료·보고 기준
@@ -384,4 +388,4 @@ public-data changes, package overrides를 보존한다. 여러 source commit을 
 - 결제·개인정보의 남은 전문가 검토 또는 명시적 위험 수용 기록
 
 사용자에게 보고할 때는 “로컬 배치 완료”, “통합 완료”, “CI 완료”, “운영 적용 완료”를 구분한다.
-현재 단계는 **로컬 하드닝 후보 다수 완료, 통합·운영 미완료**다.
+현재 단계는 **canonical 로컬 부분 통합 완료, 전체 통합·원격 CI·운영 적용 미완료**다.
