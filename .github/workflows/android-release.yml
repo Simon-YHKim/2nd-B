@@ -98,12 +98,13 @@ jobs:
       # model key is needed in the build. (audit B1)
       EXPO_PUBLIC_LLM_MODE: "live"
       EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: "true"
-      # "gemini" since 2026-07-21: the Anthropic account has had no credits since
-      # 2026-07-06, so the "claude" pin made EVERY pro-tier call (advisor,
-      # /reasoning deep-run batches, imagine) pay a ~2.3s dead claude-proxy hop
-      # (502 credit error, verified live) before the gemini-proxy fallback.
-      # Flip back to "claude" only after refilling Anthropic credits.
-      EXPO_PUBLIC_REASONING_PROVIDER: "gemini"
+      # Legacy pro-tier seam. It was pinned "gemini" from 2026-07-21 (Anthropic
+      # credits exhausted 2026-07-06, so "claude" made every pro-tier call pay a
+      # dead claude-proxy hop first). T1 stage A (2026-08-31) retired Gemini as a
+      # default everywhere, so this mirrors eas.json's "openai". The seam only
+      # speaks when the vendor axis resolves gemini AND this is set, so in the
+      # deployed posture (EXPO_PUBLIC_LLM_VENDOR=perPurpose) it is inert.
+      EXPO_PUBLIC_REASONING_PROVIDER: "openai"
       # D-27 axis-key pins (parity with eas.json production + web-deploy.yml):
       # without these the bundle falls back to the types.ts gemini-2.5 defaults,
       # so live calls bypass the dedicated GEMINI_API_KEY__G35FLASH__{effort}
@@ -114,11 +115,12 @@ jobs:
       # D-26 purpose-keyed routing phase. "1" = current posture (no behavior
       # change); flip the repo Variable to "2" to activate Phase 2 routing.
       EXPO_PUBLIC_LLM_PHASE: ${{ vars.EXPO_PUBLIC_LLM_PHASE || '1' }}
-      # Vendor for 세컨비 대화 only. Unset/"gemini" keeps today's behaviour.
-      # Deploy openai-proxy BEFORE setting this to "openai" -- see web-deploy.yml.
-      EXPO_PUBLIC_CHAT_VENDOR: ${{ vars.EXPO_PUBLIC_CHAT_VENDOR || 'gemini' }}
+      # Vendor for 세컨비 대화 only. Unset resolves openai since T1 stage A
+      # (2026-08-31); "gemini" is accepted only as an explicit rollback value
+      # while gemini-proxy still exists. See web-deploy.yml.
+      EXPO_PUBLIC_CHAT_VENDOR: ${{ vars.EXPO_PUBLIC_CHAT_VENDOR || 'openai' }}
       # Backbone switch for the nine reasoning seats -- see web-deploy.yml. Unset
-      # falls through to the phase rule, which is today's posture.
+      # falls through to the phase rule, which resolves openai since T1 stage A.
       EXPO_PUBLIC_LLM_VENDOR: ${{ vars.EXPO_PUBLIC_LLM_VENDOR || '' }}
       EXPO_PUBLIC_CROSSCHECK: ${{ vars.EXPO_PUBLIC_CROSSCHECK || '0' }}
       # OCR + voice-memo vendor, and the backbone vendor -- see web-deploy.yml.
