@@ -47,7 +47,16 @@ export const fontWeights = {
 } as const;
 
 export const fontAssets = {
-  Pretendard: require("../../assets/fonts/Pretendard-Regular.otf"),
+  // Web gets the subset (613 KB, served as-is); native keeps the original OTF
+  // because expo-font loads ttf/otf there and cannot use woff2. The OTF gzipped
+  // to 1,046 KB over the wire, the single largest asset on the first-paint path
+  // (measured 2026-09-06), so the browser now downloads 433 KB less before the
+  // app can paint. Same split Galmuri already uses below.
+  // Regenerate both with `python scripts/build-font-subsets.py`.
+  Pretendard:
+    Platform.OS === "web"
+      ? require("../../assets/fonts/Pretendard-subset.woff2")
+      : require("../../assets/fonts/Pretendard-Regular.otf"),
   Galmuri11:
     Platform.OS === "web"
       ? require("../../assets/fonts/Galmuri11-subset.woff2")
