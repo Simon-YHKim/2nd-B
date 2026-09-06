@@ -34,8 +34,6 @@ libraries used under their respective licenses. The full list:
 
 ## Bundled fonts (assets/fonts/)
 
-- `NeoDunggeunmo-Regular.ttf`, `NeoDunggeunmoCode-Regular.ttf` —
-  Neo둥근모 (Neo Dunggeunmo), SIL OFL 1.1
 - `Galmuri11-subset.*`, `Galmuri11Bold-subset.*`, `Galmuri14-subset.*`,
   `Galmuri9-subset.*`, `GalmuriMono11-subset.*` (`.ttf` native + `.woff2` web) —
   Galmuri (c) 2019–2025 Lee Minseo (quiple), Reserved Font Name "Galmuri",

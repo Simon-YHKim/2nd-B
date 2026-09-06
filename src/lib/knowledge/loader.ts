@@ -113,9 +113,3 @@ export async function queryRows(filters: QueryFilters = {}): Promise<KnowledgeRo
   if (error) throw error;
   return (data ?? []) as KnowledgeRow[];
 }
-
-// Test-only cache reset.
-export function __resetKnowledgeCache(): void {
-  cachedSchema = null;
-  cachedBatches.clear();
-}
