@@ -39,6 +39,7 @@ import {
   todayISO,
   yearsDescending,
 } from "./calendar-math";
+import { a11yValue } from "@/lib/a11y/accessibility-value";
 
 // ---------------------------------------------------------------------------
 // Localised month, weekday, and picker navigation labels. These stay in-component
@@ -538,7 +539,7 @@ function TriggerField({
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel ?? label}
         accessibilityHint={accessibilityHint}
-        accessibilityValue={{ text: hasValue ? display : placeholder }}
+        {...a11yValue({ text: hasValue ? display : placeholder })}
         style={[styles.box, { borderColor }]}
       >
         {label ? (

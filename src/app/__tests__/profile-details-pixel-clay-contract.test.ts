@@ -12,7 +12,8 @@ describe("/profile-details PIXEL-CLAY contract", () => {
     expect(source).toContain('variant="frame"');
     expect(source).toContain('accessibilityRole="progressbar"');
     expect(source).toContain("accessibilityLabel={title}");
-    expect(source).toMatch(/accessibilityValue=\{\{\s*text: t\("deepspace:profileDetails\.progress"/);
+    // 위와 같은 이유로 핀을 헬퍼 형태로 옮긴다.
+    expect(source).toMatch(/\{\.\.\.a11yValue\(\{\s*text: t\("deepspace:profileDetails\.progress"/);
     expect(source).toContain("PROFILE_DETAIL_FIELDS.map");
     expect(source).toContain("details[field.key]?.trim()");
 
