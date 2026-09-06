@@ -63,7 +63,7 @@ for source in manifest.get('files', []):
 stamp = datetime.now(timezone(timedelta(hours=9))).strftime('%Y-%m-%d %H:%M:%S KST')
 result = {'checkedAtKst': stamp, 'status': 'FAIL' if errors else 'PASS', 'draftSha256': hashlib.sha256(draft_path.read_bytes()).hexdigest(), 'fields': checks, 'snapshotCount': len(manifest.get('files', [])), 'errors': errors, 'scope': 'Field structure, lengths, screenshot route existence and historical snapshot hashes. Not store approval, runtime QA or semantic review.'}
 if errors:
-    (HERE / 'validation.json').write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    (HERE / 'validation.json').write_bytes((json.dumps(result, ensure_ascii=False, indent=2) + '\n').encode('utf-8'))
     raise SystemExit('\n'.join(errors))
 
 E = html.escape
@@ -113,5 +113,5 @@ js = '''document.addEventListener('click',async e=>{const b=e.target.closest('bu
 document = '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>2nd-Brain 스토어 문구 초안</title><style>' + font_css + css + '</style></head><body>' + content + '<script>' + js + '</script></body></html>'
 (HERE / 'review.html').write_bytes(document.encode('utf-8'))
 result['reportSha256'] = hashlib.sha256(document.encode('utf-8')).hexdigest()
-(HERE / 'validation.json').write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+(HERE / 'validation.json').write_bytes((json.dumps(result, ensure_ascii=False, indent=2) + '\n').encode('utf-8'))
 print(json.dumps({'status': result['status'], 'fields': len(checks), 'captions': 12, 'snapshots': result['snapshotCount'], 'report': str(HERE / 'review.html')}, ensure_ascii=True))

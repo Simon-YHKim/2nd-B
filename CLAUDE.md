@@ -687,16 +687,16 @@ Too much at once is as bad as overlap. Every screen earns attention with ONE thi
 
 ## Worktrees & branches (Simon standing rule)
 
-The canonical checkout is `C:\2ndB` on `main`. ALL git worktrees live INSIDE this
+The canonical checkout is `E:\2ndB` on `main`. ALL git worktrees live INSIDE this
 repo under `.worktrees/<name>` (gitignored). Never create a worktree as a sibling
-folder (e.g. `C:\2ndB-dev`) or under `C:\Coding Infra\_worktrees\`. This applies to
+folder (e.g. `E:\2ndB-dev`) or under `C:\Coding Infra\_worktrees\`. This applies to
 every agent: Claude, Codex, Antigravity, Grok.
 
 - Create from the repo root: `git worktree add .worktrees/<name> -b <branch>`.
   Remove: `git worktree remove .worktrees/<name>`. Move an existing one in:
-  `git worktree move <old-path> C:/2ndB/.worktrees/<name>`.
+  `git worktree move <old-path> E:/2ndB/.worktrees/<name>`.
 - Share the install: symlink the worktree's `node_modules` to the canonical
-  `C:\2ndB\node_modules` rather than a per-worktree `npm ci`.
+  `E:\2ndB\node_modules` rather than a per-worktree `npm ci`.
 - Tooling already excludes `.worktrees/` (gitignore, jest, metro, tsconfig,
   eslint). Keep those excludes: they stop the nested copies from polluting
   `npm run verify` and the Metro bundler.
@@ -731,6 +731,6 @@ every agent: Claude, Codex, Antigravity, Grok.
 - 정확성·보안·비용·대상을 크게 바꾸는 불확실성이나 승인되지 않은 외부 실행만 확인한다.
 
 ### 컨텍스트 보호
-- 80% 도달 시 SESSION_RECOVERY.md 생성 + 새 세션 전환 권고
-- 90% 도달 시 즉시 작업 마무리 + 새 세션 강제
+- 컨텍스트가 부족해지기 전에 진행 상태와 다음 행동을 파일에 기록한다.
+- compact 이후 같은 작업을 이어간다. 비율만으로 강제 종료하지 않는다.
 
