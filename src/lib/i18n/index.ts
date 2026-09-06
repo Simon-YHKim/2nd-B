@@ -98,6 +98,7 @@ import {
   ADDRESS_VARIABLES_CHANGED_EVENT,
   seedAddressDefault,
 } from "@/lib/persona/use-address";
+import { LOCALE_PACK_ATTACHED_EVENT, openGateWhenSettledOrTimedOut } from "./pack-gate";
 
 export const NAMESPACES = ["common", "auth", "safety", "consent", "capture", "community", "inbox", "secondb", "plans", "wiki", "support", "data", "esm", "formats", "insights", "research", "recordDetail", "theme", "import", "notFound", "ops", "profile", "permissions", "settings", "iden", "home", "deepspace", "peer", "attachment", "audit", "big-five", "brightness", "core-brain", "imagine", "interview", "ipip-neo", "manual", "persona", "privacy", "ratifications", "records", "review", "rlss", "trinity", "index"] as const;
 export type Namespace = (typeof NAMESPACES)[number];
@@ -188,8 +189,12 @@ export async function changeUiLanguage(lng: AvailableUiLocale): Promise<void> {
 
 // Readiness of the pack for the language detected at init. For en/ko it is
 // settled before initI18n returns (the first render never waits); for a lazy
-// locale it settles when the chunk is attached, or on failure (EN fallback),
-// so the root gate can never hang.
+// locale it settles when the chunk is attached, on failure (EN fallback), or
+// on a bound if the chunk neither answers nor fails.
+//
+// ⚠ This comment used to end "so the root gate can never hang". It could: only
+// rejection was handled, and a wedged web fetch neither resolves nor rejects.
+// The bound that makes the claim true lives in ./pack-gate.ts.
 let initialPackSettled = false;
 let initialPackReady: Promise<void> = Promise.resolve();
 const readyListeners = new Set<() => void>();
@@ -240,7 +245,13 @@ export function initI18n(): typeof i18next {
     // Address interpolation changes need existing useTranslation consumers to
     // rerender, but must not impersonate languageChanged: that event persists
     // the locale as an explicit preference below.
-    react: { bindI18n: `languageChanged ${ADDRESS_VARIABLES_CHANGED_EVENT}` },
+    // LOCALE_PACK_ATTACHED_EVENT is here for the same reason as the address one:
+    // a lazy pack that lands after the gate opened on a bound has to repaint
+    // mounted consumers, and it must not do that by faking languageChanged
+    // (which would persist a merely DETECTED locale as an explicit choice).
+    react: {
+      bindI18n: `languageChanged ${ADDRESS_VARIABLES_CHANGED_EVENT} ${LOCALE_PACK_ATTACHED_EVENT}`,
+    },
     compatibilityJSON: "v3",
   });
   // Lazy locale detected synchronously (web localStorage / device language):
@@ -250,10 +261,17 @@ export function initI18n(): typeof i18next {
   // throws: a failed chunk settles the gate too and fallbackLng carries the UI
   // in EN. Detection is deliberately NOT persisted here (only an explicit
   // changeLanguage is), same as before.
+  //
+  // The wait is BOUNDED. A chunk that rejects settles the gate; a chunk that
+  // connects and then never answers used to settle nothing and hold the app on
+  // the loader for the session. If the bound fires we paint in EN and repaint
+  // when the chunk lands. See ./pack-gate.ts for why it is not changeLanguage.
   if (isLazyLocale(lng)) {
-    initialPackReady = ensureLocalePack(lng)
-      .catch(() => {})
-      .then(settleInitialPack);
+    initialPackReady = openGateWhenSettledOrTimedOut({
+      load: ensureLocalePack(lng),
+      settle: settleInitialPack,
+      onLateAttach: () => i18next.emit(LOCALE_PACK_ATTACHED_EVENT),
+    });
   } else {
     settleInitialPack();
   }
