@@ -5,7 +5,7 @@
 // external opener seam: the current canon carries editorial reference labels,
 // not URLs, so references are read-only evidence until canon owns destinations.
 
-import { MZ, mzX, type MuseumEvent } from "./museum-timeline-data";
+import { MUSEUM_BY_YEAR, MZ, mzX, type MuseumEvent } from "./museum-timeline-data";
 
 export const MUSEUM_INITIAL_YEAR = 2022;
 export const MUSEUM_VISIBLE_MAX_YEAR = MZ.END - 2;
@@ -60,6 +60,37 @@ export function museumYearFromDial(pointerX: number, trackWidth: number): number
 
 export function museumDialFractionForYear(value: number): number {
   return (clampMuseumYear(value) - MZ.START) / MUSEUM_VISIBLE_YEAR_SPAN;
+}
+
+/** Years that actually carry an event, ascending and de-duplicated. */
+export const MUSEUM_EVENT_YEARS: readonly number[] = [
+  ...new Set(MUSEUM_BY_YEAR.map((event) => clampMuseumYear(event.year))),
+].sort((a, b) => a - b);
+
+/**
+ * The nearest year in `direction` that actually has an event.
+ *
+ * The dial's accessibility actions are labelled "previous/next event", so this
+ * is what they have to do. Stepping by one calendar year instead lands on an
+ * empty year more often than not: the events sit on 30 distinct years inside a
+ * 91-year range, with gaps up to 11 years, so a reader following the label would
+ * press 84 times to cross the timeline and stop on nothing most of the way. That
+ * cost falls entirely on screen-reader users, because these labels are the only
+ * place those two actions are ever named.
+ *
+ * At either end it holds rather than running off into empty years.
+ */
+export function museumStepEventYear(fromYear: number, direction: -1 | 1): number {
+  if (MUSEUM_EVENT_YEARS.length === 0) return clampMuseumYear(fromYear);
+  const current = clampMuseumYear(fromYear);
+  const next =
+    direction === 1
+      ? MUSEUM_EVENT_YEARS.find((year) => year > current)
+      : [...MUSEUM_EVENT_YEARS].reverse().find((year) => year < current);
+  if (next !== undefined) return next;
+  return direction === 1
+    ? MUSEUM_EVENT_YEARS[MUSEUM_EVENT_YEARS.length - 1]
+    : MUSEUM_EVENT_YEARS[0];
 }
 
 export function museumYearFromScroll(offsetX: number, viewportWidth: number): number {
