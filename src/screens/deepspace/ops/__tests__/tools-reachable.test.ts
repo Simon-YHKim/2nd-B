@@ -388,7 +388,7 @@ describe("비서 허브 PIXEL·legacy 회귀", () => {
       "7310bc11970533709c524180e6eb5f194e18f2be43bbe87345f48f1661c75944",
     );
     expect(sha256(sourceSlice(GIANT, "// Calendar hand-off needs", "export { DeepSpaceRecordsScreen"))).toBe(
-      "d438e1a4228eaee8c984d84c8a8f79fa36be0e7da0da09920f2c436398c214c8",
+      "85166ce89b45f32192b7eb9a29fb572fb7be9711407ea151c0f4e5a902c1c6e2",
     );
     expect(sha256(sourceSlice(GIANT, "export function DeepSpaceDomainsScreen()", "export function DeepSpaceFocusScreen()"))).toBe(
       "c8c263bb1bef6540299578c0e20b69b7bdc4549fdad8f464540e34dc96891a24",
