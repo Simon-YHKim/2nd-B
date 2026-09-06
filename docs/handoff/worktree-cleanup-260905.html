@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>워크트리 정리 260905</title>
+<style>
+:root{
+  --bg:#F4F6F8;--surface:#FFFFFF;--ink:#172029;--muted:#5C6B7A;--line:#D6DEE5;
+  --accent:#0F8B77;--accent-soft:#DDF2ED;--warn:#B5731A;--warn-soft:#F7ECD8;--crit:#B23A3A;--crit-soft:#F6E1E1;
+  --code:#EEF2F5;--shadow:0 1px 2px rgba(23,32,41,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E141A;--surface:#16202A;--ink:#E4EAF0;--muted:#93A2B1;--line:#26323E;
+    --accent:#35C2A6;--accent-soft:#12312C;--warn:#E0A44A;--warn-soft:#3A2C14;--crit:#E06B6B;--crit-soft:#3B1E1E;
+    --code:#1D2833;--shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E141A;--surface:#16202A;--ink:#E4EAF0;--muted:#93A2B1;--line:#26323E;
+  --accent:#35C2A6;--accent-soft:#12312C;--warn:#E0A44A;--warn-soft:#3A2C14;--crit:#E06B6B;--crit-soft:#3B1E1E;
+  --code:#1D2833;--shadow:none;
+}
+*{box-sizing:border-box}
+html{color-scheme:light dark}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 "Pretendard","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+code,.mono,td.num,th.num{font-family:"Cascadia Code","JetBrains Mono",Consolas,"D2Coding",monospace;font-variant-numeric:tabular-nums}
+code{background:var(--code);padding:.1em .35em;border-radius:3px;font-size:.92em}
+a{color:var(--accent)}
+.banner{background:var(--warn-soft);color:var(--ink);border-bottom:1px solid var(--line);padding:8px 20px;font-size:13px}
+header{padding:28px 20px 12px;max-width:1040px;margin:0 auto}
+h1{font-size:28px;line-height:1.2;letter-spacing:-.02em;margin:0 0 6px;text-wrap:balance}
+.meta{color:var(--muted);font-size:13px;display:flex;flex-wrap:wrap;gap:6px 18px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;max-width:1040px;margin:14px auto 0;padding:0 20px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px;box-shadow:var(--shadow)}
+.tile .k{font-size:12px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.tile .v{font-size:24px;font-weight:700;letter-spacing:-.01em;font-variant-numeric:tabular-nums;margin-top:2px}
+.tile .v small{font-size:13px;font-weight:500;color:var(--muted)}
+.tile.acc .v{color:var(--accent)}
+nav.tabs{max-width:1040px;margin:22px auto 0;padding:0 20px;display:flex;gap:4px;border-bottom:1px solid var(--line)}
+nav.tabs button{background:none;border:0;border-bottom:2px solid transparent;padding:10px 14px;font:inherit;font-weight:600;color:var(--muted);cursor:pointer;margin-bottom:-1px}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+nav.tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+main{max-width:1040px;margin:0 auto;padding:18px 20px 80px}
+section[role="tabpanel"][hidden]{display:none}
+h2{font-size:19px;letter-spacing:-.01em;margin:26px 0 10px}
+h3{font-size:15px;margin:18px 0 8px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px 16px;box-shadow:var(--shadow)}
+.card h3{margin:0 0 6px;font-size:14px;color:var(--muted);letter-spacing:.03em}
+.card p{margin:0 0 6px}
+.card .big{font-size:17px;font-weight:700;letter-spacing:-.01em}
+.note{font-size:13px;color:var(--muted)}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--surface);box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;color:var(--muted);font-size:12.5px;letter-spacing:.02em;background:var(--code)}
+tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;white-space:nowrap}
+.pill{display:inline-block;font-size:11.5px;font-weight:600;padding:1px 7px;border-radius:3px;border:1px solid var(--line);white-space:nowrap}
+.pill.ok{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.pill.keep{background:var(--code);color:var(--muted);border-color:transparent}
+.pill.warn{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.pill.crit{background:var(--crit-soft);color:var(--crit);border-color:transparent}
+figure{margin:12px 0;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px;box-shadow:var(--shadow)}
+figure svg{max-width:100%;height:auto;display:block;color:var(--ink)}
+figcaption{font-size:13px;color:var(--muted);margin-top:8px}
+details{border:1px solid var(--line);border-radius:6px;background:var(--surface);padding:0 14px;margin:10px 0}
+details summary{cursor:pointer;padding:10px 0;font-weight:600}
+details[open]{padding-bottom:12px}
+.q{border-left:3px solid var(--warn);padding:8px 12px;background:var(--surface);border-radius:0 6px 6px 0;margin:10px 0;border-top:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.q b{display:block}
+.q .block{color:var(--crit);font-size:13px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}
+.chips label{border:1px solid var(--line);border-radius:4px;padding:3px 9px;font-size:13px;cursor:pointer;background:var(--surface)}
+.chips input{margin-right:5px}
+textarea{width:100%;min-height:150px;font:12.5px/1.5 Consolas,monospace;background:var(--code);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:10px}
+button.btn{font:inherit;font-weight:600;font-size:13px;background:var(--accent);color:#fff;border:0;border-radius:4px;padding:7px 12px;cursor:pointer}
+button.btn.ghost{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+button.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:6px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:2px;vertical-align:-2px;margin-right:4px}
+/* memo sidebar */
+#memoToggle{position:fixed;right:14px;bottom:14px;z-index:30;border-radius:20px;padding:8px 14px}
+#memo{position:fixed;top:0;right:0;height:100%;width:min(360px,92vw);background:var(--surface);border-left:1px solid var(--line);box-shadow:-4px 0 16px rgba(0,0,0,.12);transform:translateX(100%);transition:transform .2s;z-index:40;display:flex;flex-direction:column;padding:14px}
+#memo.open{transform:none}
+#memo h2{margin:0 0 8px;font-size:16px}
+#memoList{flex:1;overflow:auto;font-size:13px}
+.m{border:1px solid var(--line);border-radius:4px;padding:6px 8px;margin:6px 0}
+.m q{display:block;color:var(--muted);font-size:12px;margin-bottom:3px}
+#fab{position:absolute;display:none;z-index:35}
+#memoOut{display:none}
+@media (prefers-reduced-motion: reduce){#memo{transition:none}}
+@media print{.banner,#memoToggle,#memo,#fab,nav.tabs{display:none!important} section[role="tabpanel"][hidden]{display:block!important}}
+</style>
+</head>
+<body>
+<div class="banner">인터랙티브(메모·복사)는 파일을 내려받아 브라우저로 열어야 동작한다. 미리보기 샌드박스에서는 저장이 막힐 수 있다.</div>
+<header>
+  <h1>워크트리 94개 정리 · C: 21GB → 70GB · PR 6건 머지</h1>
+  <div class="meta">
+    <span>작성 2026-09-06 10:30 KST · 발행 Claude Code</span><span>등급 S</span><span>세션 2026-09-05 08:45 → 09-06 10:30 (중간에 세션 한도로 하루 정지)</span>
+  </div>
+</header>
+<div class="tiles" data-memo="tiles">
+  <div class="tile acc"><div class="k">C: 여유</div><div class="v">70 GB <small>← 21 GB</small></div></div>
+  <div class="tile"><div class="k">워크트리 삭제</div><div class="v">94 <small>/ 108</small></div></div>
+  <div class="tile"><div class="k">PR 머지</div><div class="v">6 <small>#1610~#1615</small></div></div>
+  <div class="tile"><div class="k">로컬 브랜치 삭제</div><div class="v">254 <small>origin 0</small></div></div>
+  <div class="tile"><div class="k">임시파일</div><div class="v">3.8 GB</div></div>
+  <div class="tile"><div class="k">유일본 보존</div><div class="v">9건 <small>손실 0</small></div></div>
+</div>
+
+<nav class="tabs" role="tablist">
+  <button role="tab" aria-selected="true" aria-controls="p-sum" id="t-sum">요약</button>
+  <button role="tab" aria-selected="false" aria-controls="p-det" id="t-det">상세</button>
+  <button role="tab" aria-selected="false" aria-controls="p-dec" id="t-dec">결정</button>
+</nav>
+
+<main>
+<section role="tabpanel" id="p-sum" aria-labelledby="t-sum">
+  <div class="cards" data-memo="summary-cards">
+    <div class="card"><h3>무엇을</h3><p class="big">쓸모를 다한 작업 폴더 94개를 지우고, 완성된 수정 6건을 본선(main)에 넣었다.</p><p class="note">작업 폴더(워크트리) = 같은 코드 저장소를 여러 곳에 펼쳐 놓은 복사본. 하나에 200MB, 별도 라이브러리 설치본이 있으면 4.5GB.</p></div>
+    <div class="card"><h3>왜</h3><p class="big">C: 드라이브가 98% 찼다. 원인은 Orca 가 C: 에 저장소를 통째로 다시 복제하고 그 안에 77개를 쌓아둔 것.</p><p class="note">그 복제본은 <code>git worktree list</code> 에 안 보여서 지금까지 아무도 세지 못했다.</p></div>
+    <div class="card"><h3>지금 어디까지</h3><p class="big">끝. 남은 건 결정 4건(결정 탭). 지운 것 중 다른 데 없던 9건은 E: 아카이브에 보존했다.</p><p class="note">활성 세션의 폴더(TTL-Work · Design · pr-* 9개 등)는 건드리지 않았다.</p></div>
+  </div>
+
+  <h2>어디에 쌓여 있었나</h2>
+  <figure data-memo="topology">
+    <svg viewBox="0 0 960 330" role="img" aria-label="정리 전후 워크트리 배치. E:/2ndB 저장소 아래 E: 워크트리 21개와 C: Orca 워크스페이스 8개, 그 중 Design 안에 중첩 클론이 있고 그 아래 워크트리 77개가 있었다. 정리 후 E: 12개(활성)와 Design 루트만 남았다.">
+      <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+      <g font-size="12" fill="currentColor">
+        <text x="16" y="22" font-weight="700" font-size="13">정리 전 (09-05 08:45)</text>
+        <text x="500" y="22" font-weight="700" font-size="13">정리 후 (09-06 10:30)</text>
+        <!-- before -->
+        <rect x="16" y="40" width="150" height="40" rx="4" fill="none" stroke="currentColor"/><text x="91" y="58" text-anchor="middle" font-weight="600">E:/2ndB (main)</text><text x="91" y="73" text-anchor="middle" fill="var(--muted)">공용 node_modules 4.5GB</text>
+        <rect x="16" y="120" width="150" height="54" rx="4" fill="none" stroke="currentColor"/><text x="91" y="140" text-anchor="middle">E:/.worktrees</text><text x="91" y="156" text-anchor="middle" font-weight="700">21개</text><text x="91" y="169" text-anchor="middle" fill="var(--muted)">정션 → 공용 설치</text>
+        <rect x="200" y="120" width="180" height="54" rx="4" fill="none" stroke="currentColor"/><text x="290" y="140" text-anchor="middle">C:/orca/workspaces</text><text x="290" y="156" text-anchor="middle" font-weight="700">8개 루트</text><text x="290" y="169" text-anchor="middle" fill="var(--muted)">실설치본 2벌 (9GB)</text>
+        <rect x="200" y="214" width="180" height="76" rx="4" fill="var(--crit-soft)" stroke="var(--crit)"/><text x="290" y="234" text-anchor="middle" font-weight="700">Design/2nd-B 중첩 클론</text><text x="290" y="250" text-anchor="middle" font-weight="700">워크트리 77개</text><text x="290" y="265" text-anchor="middle" fill="var(--muted)">실설치본 3벌 + .git 329MB</text><text x="290" y="280" text-anchor="middle" fill="var(--muted)">worktree list 에 안 보임</text>
+        <line x1="91" y1="80" x2="91" y2="120" stroke="currentColor" marker-end="url(#ar)"/>
+        <line x1="120" y1="80" x2="250" y2="120" stroke="currentColor" marker-end="url(#ar)"/>
+        <line x1="290" y1="174" x2="290" y2="214" stroke="var(--crit)" marker-end="url(#ar)"/>
+        <text x="300" y="198" fill="var(--crit)" font-size="11">Orca Design 카드가 클론</text>
+        <!-- arrow between -->
+        <line x1="410" y1="160" x2="470" y2="160" stroke="currentColor" stroke-width="2" marker-end="url(#ar)"/>
+        <text x="440" y="150" text-anchor="middle" font-size="11" fill="var(--muted)">삭제 94</text>
+        <!-- after -->
+        <rect x="500" y="40" width="150" height="40" rx="4" fill="none" stroke="currentColor"/><text x="575" y="58" text-anchor="middle" font-weight="600">E:/2ndB (main)</text><text x="575" y="73" text-anchor="middle" fill="var(--muted)">공용 설치 779/779 무사</text>
+        <rect x="500" y="120" width="150" height="54" rx="4" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="575" y="140" text-anchor="middle">E:/.worktrees</text><text x="575" y="156" text-anchor="middle" font-weight="700">12개 (전부 활성)</text><text x="575" y="169" text-anchor="middle" fill="var(--muted)">9 삭제</text>
+        <rect x="684" y="120" width="180" height="54" rx="4" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="774" y="140" text-anchor="middle">C:/orca/workspaces</text><text x="774" y="156" text-anchor="middle" font-weight="700">Design 1개 (활성)</text><text x="774" y="169" text-anchor="middle" fill="var(--muted)">7 + kelp 삭제</text>
+        <rect x="684" y="214" width="180" height="76" rx="4" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="774" y="234" text-anchor="middle" font-weight="700">Design/2nd-B 중첩 클론</text><text x="774" y="250" text-anchor="middle" font-weight="700">워크트리 0개</text><text x="774" y="265" text-anchor="middle" fill="var(--muted)">main 만 · origin/main 으로 ff</text><text x="774" y="280" text-anchor="middle" fill="var(--muted)">브랜치 99 → 50</text>
+        <line x1="575" y1="80" x2="575" y2="120" stroke="currentColor" marker-end="url(#ar)"/>
+        <line x1="604" y1="80" x2="734" y2="120" stroke="currentColor" marker-end="url(#ar)"/>
+        <line x1="774" y1="174" x2="774" y2="214" stroke="currentColor" marker-end="url(#ar)"/>
+        <text x="16" y="318" fill="var(--muted)" font-size="11">숫자는 09-05 08:45 · 09-06 10:30 실측. E: 12개 = TTL-Work · pixelclay-260905 · legacy-audit-260905 · claude/pr-*-260905 9개 (다른 세션이 09-05~06 에 새로 만든 것).</text>
+      </g>
+    </svg>
+    <figcaption>C: 를 채운 것은 Orca "Design" 카드가 C: 에 다시 복제한 저장소와 그 안의 워크트리 77개였다. 정리 후 그 클론에는 main 만 남았고 공용 설치본은 그대로다.</figcaption>
+  </figure>
+
+  <h2>어디서 얼마나 회수했나</h2>
+  <div class="tablewrap" data-memo="reclaim">
+    <table>
+      <thead><tr><th>대상</th><th class="num">개수</th><th class="num">추정 용량</th><th>근거</th></tr></thead>
+      <tbody>
+        <tr><td>중첩 클론 워크트리 (C:)</td><td class="num">77</td><td class="num">≈ 14 GB + 13.5 GB</td><td>체크아웃 ≈184MB × 74 + 실설치본 3벌 × 4.5GB</td></tr>
+        <tr><td>Orca 워크스페이스 루트 (C:)</td><td class="num">8</td><td class="num">≈ 1.3 GB + 9 GB</td><td>체크아웃 7 + 실설치본 2벌(cowork-cowork_2 · key-performance_3)</td></tr>
+        <tr><td>E: 워크트리</td><td class="num">9</td><td class="num">≈ 1.7 GB</td><td>정션이라 체크아웃만. E: 는 문제 아님</td></tr>
+        <tr><td>임시파일 (C:)</td><td class="num">326 파일/폴더</td><td class="num">3.8 GB</td><td>expo 웹 렌더 소스맵 2,199MB · codex-* 1,072MB · 2ndb-decode 284MB · Orca 로그 90MB · ~/.codex/.tmp 157MB</td></tr>
+        <tr><td><b>C: 합계 (추정)</b></td><td class="num"></td><td class="num"><b>≈ 41 GB</b></td><td>df 는 21→70GB(+49GB). 차이는 다른 세션의 빌드·에뮬 변동(하루 ±30GB 관측)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">용량은 <b>추정</b>이다. 삭제 전 정밀 측정(du)은 메모리 부족으로 세 번 죽었고, 개별 워크트리 184MB(Cowork-Cowork 실측)와 설치본 4,497MB(E:/2ndB/node_modules 실측)를 곱했다.</p>
+</section>
+
+<section role="tabpanel" id="p-det" aria-labelledby="t-det" hidden>
+  <h2>PR 6건 머지 — 전부 09-04 보안 감사 산출</h2>
+  <div class="tablewrap" data-memo="prs">
+    <table>
+      <thead><tr><th>PR</th><th>무엇</th><th>머지</th><th>후속</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">#1610</td><td>법무 처리자 4곳(OpenAI·Firebase·Sentry·RevenueCat) 명시</td><td class="mono">09:47</td><td>gh-pages 자동 게시됨</td></tr>
+        <tr><td class="mono">#1611</td><td>peer-respond: 미성년 여부를 birthYear 에서 파생</td><td class="mono">12:24</td><td><span class="pill warn">엣지함수 배포 필요</span> 라이브 v103 은 아직 취약. 배포는 별도 확인 후</td></tr>
+        <tr><td class="mono">#1612</td><td>임포트 이력을 사용자별 키로 분리</td><td class="mono">12:30</td><td>앱 빌드에 포함될 때 효력</td></tr>
+        <tr><td class="mono">#1613</td><td>xai-proxy config.toml 에 verify_jwt 선언</td><td class="mono">12:36</td><td>—</td></tr>
+        <tr><td class="mono">#1614</td><td>크로스체크 검증기 입력을 인젝션 펜스로 감쌈</td><td class="mono">12:44</td><td>—</td></tr>
+        <tr><td class="mono">#1615</td><td>/discover 를 첫 주 이후에도 도달 가능하게</td><td class="mono">12:55</td><td>—</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">main 보호 규칙이 strict 라 한 건 머지될 때마다 나머지가 BEHIND 가 됐다. <code>gh api PUT pulls/N/update-branch</code> → CI(≈5분) → squash 를 5회 반복. main 의 CI·EAS Update·Web build 전부 초록.</p>
+
+  <h2>워크트리 처분 108개</h2>
+  <div class="tablewrap" data-memo="disposition">
+    <table>
+      <thead><tr><th>그룹</th><th class="num">개수</th><th>처분</th><th>판정 근거</th></tr></thead>
+      <tbody>
+        <tr><td>중첩 클론 <code>Design/2nd-B/.worktrees</code></td><td class="num">77</td><td><span class="pill ok">삭제 77</span></td><td>브랜치 팁이 origin 에 있거나(초안 PR 25) main 에 머지됨(52). 미커밋 6건은 패치로 아카이브</td></tr>
+        <tr><td>Orca C: 루트</td><td class="num">9</td><td><span class="pill ok">삭제 8</span> <span class="pill keep">유지 Design</span></td><td>PR 머지 6 · 대체됨 1(#1569→#1570) · 커밋 없음 1. Design 은 터미널 4개 활성</td></tr>
+        <tr><td>E: 워크트리 (09-05 08:45 기준)</td><td class="num">12</td><td><span class="pill ok">삭제 9</span> <span class="pill keep">유지 3</span></td><td>삭제: qa-api29 · codex/pixel-clay 6 · fix1301 · hustlek. 유지: TTL-Work · legacy-audit(활성) · cleanup(내 것)</td></tr>
+        <tr><td>E: 워크트리 (다른 세션이 09-05~06 신설)</td><td class="num">10</td><td><span class="pill keep">유지 10</span></td><td>pixelclay-260905 · claude/pr-*-260905 9개. 진행 중 작업(#1618 머지 · #1620~#1622 열림)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>유일본 9건 — 삭제 전 보존 (E:/2ndB/_sync/history/260905_cleanup/)</h3>
+  <div class="tablewrap" data-memo="archive">
+    <table>
+      <thead><tr><th>무엇</th><th>어디 있었나</th><th>보존 형태</th></tr></thead>
+      <tbody>
+        <tr><td>hustlek-imagegen-pilot 64 commits (아바타 RN 엔진 포트 · native128 에셋)</td><td>E: 워크트리, <b>origin 에 없음</b></td><td>번들 19.5MB + 로컬 브랜치 유지</td></tr>
+        <tr><td>같은 워크트리의 gitignored SESSION_RECOVERY.md</td><td>E: 워크트리</td><td>파일 복사</td></tr>
+        <tr><td>pixel-clay 통합 QA 브랜치 2개 (각 122 commits)</td><td>E: 워크트리, origin 에 없음</td><td>번들 2개 + 로컬 브랜치 유지</td></tr>
+        <tr><td>HANDOFF "08-21 01:30 결정 5건 착지" 66줄</td><td>fix1301 의 reflog 에만(dangling)</td><td>브랜치 <code>archive/handoff-260821-0130-b090618d</code> + 번들</td></tr>
+        <tr><td>MBTI 폐기 초안(#1329 close, #1330 이 되돌림)</td><td>key-performance_3 reflog 에만</td><td>브랜치 <code>archive/mbti-draft-rejected-301f95ad</code> + 번들</td></tr>
+        <tr><td>recovery-proof-store.ts + 테스트 + auth.ts 수정 (09-02 미커밋)</td><td>중첩 워크트리 recovery-proof-primitives</td><td>tracked.patch + untracked/ · <b>이게 가장 가치 높음</b></td></tr>
+        <tr><td>미커밋 편집 5건 (account-scene · analytics · legal-shell · people · consent-ledger)</td><td>중첩 워크트리</td><td>tracked.patch (main 이 더 앞서 있어 참고용)</td></tr>
+        <tr><td>아바타 발주 프롬프트 (08-21)</td><td>Profile-avatar 미추적</td><td>docs/handoff/PROFILE-AVATAR-HANDOFF-2026-08-21.md 로 커밋</td></tr>
+        <tr><td>pixel_clay 채점 결과 08-28</td><td>key-performance_3 미추적 score.json</td><td>파일 복사</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>검증 방법</h3>
+  <p>삭제 목록을 그대로 믿지 않고, 읽기 전용 검증 에이전트 6개에게 워크트리마다 <b>"지우면 뭔가 사라진다"를 반증</b>하게 했다(patch-id 로 main 대조 · origin 브랜치 포함 여부 · reflog 고아 커밋 · 미커밋 파일과 아카이브 바이트 대조 · 프로세스 점유 · 정션 대상). 89개 판정 중 "안전하지 않음" 2건이 나왔고(fix1301 dangling 커밋 · hustlek 세션 노트) 둘 다 보존 후 삭제했다. 첫 실행은 세션 한도로 2개 배치가 죽어 다음날 캐시로 재실행했다.</p>
+
+  <h3>사고·편차</h3>
+  <div class="tablewrap" data-memo="incidents">
+    <table>
+      <thead><tr><th>무엇</th><th>결과</th><th>손실</th></tr></thead>
+      <tbody>
+        <tr><td><code>cmd //c rmdir</code> 로 정션 끊기가 MSYS 에서 76개 전부 실패(경로 구문 오류)</td><td><code>[System.IO.Directory]::Delete()</code> 로 교체, 공용 설치 779→779 확인</td><td>없음</td></tr>
+        <tr><td>남기려던 중첩 워크트리 <code>handoff-design-260904-2035</code> 가 v1 스크립트 경로 패턴(끝 슬래시) 때문에 삭제됨</td><td>클린 · 팁이 main 안 · 브랜치 유지</td><td>없음</td></tr>
+        <tr><td>Orca 루트 삭제 스크립트의 전역 변수 충돌로 6개가 "already gone" 으로 건너뜀</td><td><code>local</code> 로 고쳐 재실행, 6개 삭제</td><td>없음</td></tr>
+        <tr><td><code>Key_performance_4</code>(유휴 터미널 2) 제거 순간 Orca 런타임이 연결을 끊음</td><td>즉시 복귀. TTL-Work 7 · Design 4 터미널 무사. Orca 기록도 정리됨</td><td>유휴 Claude 세션 1개 종료(트랜스크립트는 남음)</td></tr>
+        <tr><td>du 측정 3건이 메모리 부족(여유 1.1GB)으로 죽음</td><td>용량은 추정치로 보고</td><td>정밀도</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>기타 실측</h3>
+  <ul>
+    <li>로컬 브랜치: E:/2ndB 448 → 243 (머지 38 · squash 머지 167 삭제) · 중첩 클론 99 → 50. origin 403개는 손대지 않음.</li>
+    <li>열린 PR: 53 → 30. 비초안 5(#1607 게이트 · #1616 · #1620~#1622 다른 세션) · 초안 25.</li>
+    <li>main 동기화: <code>E:/2ndB</code> · <code>Design/2nd-B</code> 둘 다 origin/main 으로 fast-forward.</li>
+    <li>보고만(삭제 대상 아님): <code>.android</code> AVD 30GB · system-images 10.5GB · <code>.gradle</code> 8.9GB · npm-cache 4GB · <code>.claude/plugins</code> 3.5GB.</li>
+  </ul>
+</section>
+
+<section role="tabpanel" id="p-dec" aria-labelledby="t-dec" hidden>
+  <h2>지금 정할 것</h2>
+  <div class="q" data-memo="q1"><b>Q-260906-01 hustlek-imagegen-pilot 64 commits 를 origin 에 올릴 것인가</b>
+    <span>아바타 RN 엔진 포트와 native128 에셋 라이브러리. PR 없음 · origin 없음. <code>PORTABLE-ASSET-LINEAGE-2026-08-30.md</code> 의 "금지된 계보 에셋" 계약 때문에 push 하지 않았다.</span>
+    <span class="block">안 정하면: 백업이 E: 번들 하나뿐이다.</span></div>
+  <div class="q" data-memo="q2"><b>Q-260906-02 초안 PR 25개(codex pixel-clay 19 · consent 6)의 운명</b>
+    <span>pixel-clay 는 HUMAN PASS 게이트, consent 는 RPC 마이그레이션 게이트. 09-05 에 다른 세션이 23개를 이미 닫았다.</span>
+    <span class="block">안 정하면: origin 브랜치가 남아 있을 뿐 막히는 건 없다 → 폐기 제안 가능.</span></div>
+  <div class="q" data-memo="q3"><b>Q-260906-03 #1607 decode-uri 패치</b>
+    <span>CI 초록이지만 patches/ 변경 = 네이티브 fingerprint 변경. HANDOFF F 항목 그대로.</span>
+    <span class="block">안 정하면: 구빌드 OTA 호환 판단 없이 머지되지 않는다(안전 쪽).</span></div>
+  <div class="q" data-memo="q4"><b>Q-260906-04 확인 후 지울 것 ≈ 11 GB</b>
+    <span>Orca codex 세션 롤아웃 중복(<code>AppData/Roaming/orca/codex-runtime-home/home/sessions</code> 7.9GB ≒ <code>~/.codex/sessions</code> 7.7GB, 03~08월 동일 → 한쪽만) · gstack 물리 사본 1.4GB · <code>~/.codex/workspace-deps</code> 1.0GB · 에이전트 스크래치패드 ≈1.4GB · Orca 업데이터 설치본 중복 358MB.</span>
+    <span class="block">안 정하면: C: 가 그만큼 덜 비어 있을 뿐이다.</span></div>
+
+  <h2>답 조립 — 골라서 복사</h2>
+  <div data-memo="prompt-builder">
+    <p class="note">각 축에서 고르면 아래 프롬프트가 만들어진다. 고르지 않은 축은 "네가 판단하고 이유를 밝혀줘"로 들어간다.</p>
+    <b>Q1 hustlek 번들</b>
+    <div class="chips"><label><input type="checkbox" name="q1" value="origin 에 브랜치로 push 하고 초안 PR 열기">push + 초안 PR</label><label><input type="checkbox" name="q1" value="E: 번들만 유지하고 push 하지 않기">E: 만</label><label><input type="checkbox" name="q1" value="계보 계약을 먼저 검토한 뒤 결정">계보 검토 먼저</label><label><input type="checkbox" name="q1" value="모르겠음 — 네가 골라줘">모르겠음 — 네가 골라줘</label></div>
+    <b>Q2 초안 PR 25개</b>
+    <div class="chips"><label><input type="checkbox" name="q2" value="전부 닫고 브랜치는 origin 에 남기기">닫기(브랜치 유지)</label><label><input type="checkbox" name="q2" value="pixel-clay 19개는 HUMAN PASS 절차로 하나씩 심사">pixel-clay 심사</label><label><input type="checkbox" name="q2" value="consent 6개는 마이그레이션 계획과 함께 별도 세션">consent 별도</label><label><input type="checkbox" name="q2" value="모르겠음 — 네가 골라줘">모르겠음 — 네가 골라줘</label></div>
+    <b>Q3 #1607</b>
+    <div class="chips"><label><input type="checkbox" name="q3" value="다음 네이티브 빌드 직전에 머지">빌드 직전 머지</label><label><input type="checkbox" name="q3" value="지금 머지">지금 머지</label><label><input type="checkbox" name="q3" value="모르겠음 — 네가 골라줘">모르겠음 — 네가 골라줘</label></div>
+    <b>Q4 11GB</b>
+    <div class="chips"><label><input type="checkbox" name="q4" value="codex 세션 롤아웃은 Orca 쪽 사본을 지우기">Orca 쪽 삭제</label><label><input type="checkbox" name="q4" value="gstack 사본·workspace-deps·스크래치패드 삭제">나머지 삭제</label><label><input type="checkbox" name="q4" value="전부 유지">전부 유지</label><label><input type="checkbox" name="q4" value="모르겠음 — 네가 골라줘">모르겠음 — 네가 골라줘</label></div>
+    <p><button class="btn" id="build">프롬프트 만들기</button> <button class="btn ghost" id="copyPrompt">복사</button></p>
+    <textarea id="prompt" readonly aria-label="조립된 프롬프트"></textarea>
+  </div>
+</section>
+</main>
+
+<button class="btn" id="memoToggle" aria-controls="memo" aria-expanded="false">메모</button>
+<button class="btn" id="fab">메모</button>
+<aside id="memo" aria-label="메모 사이드바">
+  <h2>메모 <span class="note" id="memoStore"></span></h2>
+  <p class="note">본문을 드래그해 선택하면 [메모] 버튼이 뜬다. 인용이 고정된다.</p>
+  <div id="memoList"></div>
+  <p><button class="btn" id="memoCopy">메모 → 프롬프트 복사</button> <button class="btn ghost" id="memoClose">닫기</button></p>
+  <textarea id="memoOut" readonly aria-label="복사 실패 시 여기서 직접 복사"></textarea>
+</aside>
+
+<script>
+(function(){
+  // tabs
+  var tabs=document.querySelectorAll('nav.tabs [role=tab]');
+  tabs.forEach(function(t){t.addEventListener('click',function(){
+    tabs.forEach(function(x){x.setAttribute('aria-selected','false');document.getElementById(x.getAttribute('aria-controls')).hidden=true;});
+    t.setAttribute('aria-selected','true');document.getElementById(t.getAttribute('aria-controls')).hidden=false;});});
+  // prompt builder
+  function pick(n){return Array.prototype.map.call(document.querySelectorAll('input[name='+n+']:checked'),function(i){return i.value;});}
+  var QT={q1:'Q-260906-01 hustlek 번들',q2:'Q-260906-02 초안 PR 25개',q3:'Q-260906-03 #1607',q4:'Q-260906-04 확인 후 삭제 11GB'};
+  function build(){
+    var lines=['2nd-Brain 워크트리 정리 보고(docs/handoff/worktree-cleanup-260905.html)에 대한 결정이다.'];
+    ['q1','q2','q3','q4'].forEach(function(k){var v=pick(k);lines.push('- '+QT[k]+': '+(v.length?v.join(' / '):'네가 판단하고 이유를 밝혀줘'));});
+    lines.push('상충 항목은 먼저 짚고 우선순위를 제시한 뒤 진행할 것.');
+    document.getElementById('prompt').value=lines.join('\n');
+  }
+  document.getElementById('build').addEventListener('click',build);
+  function copyText(text,fallbackEl){
+    var done=function(){alert('복사됨');};
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(done,function(){legacy();});}else{legacy();}
+    function legacy(){try{var ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();var ok=document.execCommand('copy');document.body.removeChild(ta);if(ok){done();return;}}catch(e){}
+      if(fallbackEl){fallbackEl.style.display='block';fallbackEl.value=text;fallbackEl.focus();fallbackEl.select();}}
+  }
+  document.getElementById('copyPrompt').addEventListener('click',function(){if(!document.getElementById('prompt').value)build();copyText(document.getElementById('prompt').value,document.getElementById('prompt'));});
+  // memo sidebar
+  var KEY='memo:worktree-cleanup-260905',mem=[],store='localStorage';
+  try{mem=JSON.parse(localStorage.getItem(KEY)||'[]');}catch(e){store='메모리(저장 안 됨)';}
+  document.getElementById('memoStore').textContent='· 저장: '+store;
+  function save(){try{localStorage.setItem(KEY,JSON.stringify(mem));}catch(e){store='메모리(저장 안 됨)';document.getElementById('memoStore').textContent='· 저장: '+store;}}
+  function render(){var l=document.getElementById('memoList');l.innerHTML='';mem.forEach(function(m,i){var d=document.createElement('div');d.className='m';var q=document.createElement('q');q.textContent='['+m.at+'] '+m.quote;var p=document.createElement('div');p.textContent=m.note;var b=document.createElement('button');b.className='btn ghost';b.textContent='삭제';b.style.fontSize='11px';b.addEventListener('click',function(){mem.splice(i,1);save();render();});d.appendChild(q);d.appendChild(p);d.appendChild(b);l.appendChild(d);});}
+  var side=document.getElementById('memo'),tog=document.getElementById('memoToggle');
+  function open(o){side.classList.toggle('open',o);tog.setAttribute('aria-expanded',o?'true':'false');}
+  tog.addEventListener('click',function(){open(!side.classList.contains('open'));});
+  document.getElementById('memoClose').addEventListener('click',function(){open(false);});
+  var fab=document.getElementById('fab'),sel='',at='';
+  document.addEventListener('mouseup',function(e){setTimeout(function(){var s=window.getSelection();var t=s?String(s).trim():'';if(t&&t.length>2&&!side.contains(e.target)){sel=t.slice(0,240);var n=s.anchorNode&&s.anchorNode.parentElement?s.anchorNode.parentElement.closest('[data-memo]'):null;at=n?n.getAttribute('data-memo'):'본문';fab.style.display='block';fab.style.left=(e.pageX+8)+'px';fab.style.top=(e.pageY+8)+'px';}else{fab.style.display='none';}},0);});
+  fab.addEventListener('click',function(){var note=prompt('메모:');if(note===null)return;mem.push({at:at,quote:sel,note:note});save();render();fab.style.display='none';open(true);});
+  document.getElementById('memoCopy').addEventListener('click',function(){var lines=['워크트리 정리 보고(worktree-cleanup-260905.html) 메모:'];mem.forEach(function(m){lines.push('- ['+m.at+'] "'+m.quote+'" → '+m.note);});lines.push('상충 항목은 먼저 짚고 우선순위를 제시한 뒤 진행할 것.');copyText(lines.join('\n'),document.getElementById('memoOut'));});
+  render();
+})();
+</script>
+</body>
+</html>
