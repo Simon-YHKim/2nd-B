@@ -118,6 +118,24 @@ FACES = [
 ]
 
 
+# Vendored faces: the source lives in the repo, not in a node package, and only
+# a WEB subset is produced. expo-font loads ttf/otf on native and cannot use
+# woff2 there, so native keeps the original file and only the browser gets the
+# subset -- the same web/native split typography.ts already applies to Galmuri.
+#
+# Pretendard-Regular.otf is 1,574,352 B and gzips to 1,046,432 B over the wire,
+# which made it the single largest asset on the first-paint path (measured
+# 2026-09-06; every other font ships as an already-compressed woff2). The subset
+# is 613,232 B and is served as-is, so the browser downloads 433 KB less before
+# the app can paint. Simon decision Q-260905-06.
+VENDORED_WEB_FACES = [
+    ("Pretendard", "Pretendard-Regular.otf"),
+]
+
+# Pretendard covers the ranges above more completely than the pixel faces do.
+EXPECTED_VENDORED_GLYPHS = 12117
+
+
 def build(src: str, out: str, flavor: str | None = None) -> int:
     args = [
         src,
@@ -171,6 +189,29 @@ def main() -> int:
         # small shortfall but catch a collapse (e.g. Hangul silently dropped).
         if n < EXPECTED_GLYPHS - 600:
             print(f"FAIL  {stem} has {n} codepoints, expected about {EXPECTED_GLYPHS}", file=sys.stderr)
+            bad += 1
+
+    for stem, vendored in VENDORED_WEB_FACES:
+        src = os.path.join(DEST, vendored)
+        if not os.path.isfile(src):
+            print(f"FAIL  {vendored} not in assets/fonts", file=sys.stderr)
+            bad += 1
+            continue
+        out = os.path.join(target, f"{stem}-subset.woff2")
+        size = build(src, out, "woff2")
+        note = ""
+        if args.check:
+            committed = os.path.join(DEST, f"{stem}-subset.woff2")
+            if os.path.isfile(committed):
+                was = os.path.getsize(committed)
+                note = f"  (committed {was/1000:.1f}K, delta {(size-was)/max(was,1)*100:+.1f}%)"
+            else:
+                note = "  (NOT COMMITTED)"
+                bad += 1
+        print(f"  {stem}-subset.woff2 {size/1000:9.1f}K{note}  [web only; native keeps {vendored}]")
+        n = len(TTFont(out, lazy=True).getBestCmap())
+        if n < EXPECTED_VENDORED_GLYPHS - 600:
+            print(f"FAIL  {stem} has {n} codepoints, expected about {EXPECTED_VENDORED_GLYPHS}", file=sys.stderr)
             bad += 1
 
     if args.check:
