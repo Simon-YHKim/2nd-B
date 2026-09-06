@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'none'; connect-src 'self'; worker-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; manifest-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
 <title>2nd-Brain · Material 3</title>
 <link rel="stylesheet" href="m3-theme.css">
 <meta name="ext-resource-dependency" content="assets/secondb-head.png">
@@ -29,43 +31,36 @@
 </svg>
 </template>
 
-<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
-
-<script src="sb-boot.js"></script>
-<script type="text/babel" src="tweaks-panel.jsx"></script>
-<script src="image-slot.js"></script>
-<script type="text/babel" src="sb-data.jsx"></script>
-<script type="text/babel" src="sb-neural.jsx"></script>
-<script type="text/babel" src="sb-wikigraph.jsx"></script>
-<script type="text/babel" src="sb-relgraph.jsx"></script>
-<script type="text/babel" src="sb-persona.jsx"></script>
-<script type="text/babel" src="sb-home.jsx"></script>
-<script type="text/babel" src="sb-screens-core.jsx"></script>
-<script type="text/babel" src="sb-screens-know.jsx"></script>
-<script type="text/babel" src="sb-screens-extra.jsx"></script>
-<style>
-  image-slot[id^="mz-photo-"]::part(frame){ background: transparent; }
-  image-slot[id^="mz-photo-"]::part(empty){ opacity: 0; }
-</style>
-<script type="text/babel" src="sb-enrich.jsx"></script>
-<script type="text/babel" src="sb-museum.jsx"></script>
-<script type="text/babel" src="sb-flows.jsx"></script>
-<script type="text/babel" src="sb-validate.jsx"></script>
-<script type="text/babel" src="sb-more.jsx"></script>
-<script type="text/babel" src="sb-surfaces.jsx"></script>
-<script type="text/babel" src="sb-gaps.jsx"></script>
-<script type="text/babel" src="sb-digest.jsx"></script>
-<script type="text/babel" src="sb-audit.jsx"></script>
-<script type="text/babel" src="sb-hobby.jsx"></script>
-<script type="text/babel" src="sb-health.jsx"></script>
-<script type="text/babel" src="sb-healthinput.jsx"></script>
-<script type="text/babel" src="sb-careerinput.jsx"></script>
-<script type="text/babel" src="sb-drilldown.jsx"></script>
-<script type="text/babel" src="sb-relinput.jsx"></script>
-<script type="text/babel" src="sb-me.jsx"></script>
-<script type="text/babel" src="sb-ops.jsx"></script>
-<script type="text/babel" src="sb-app.jsx"></script>
+<script src="./vendor.js"></script>
+<script src="./sb-boot.js"></script>
+<script src="./tweaks-panel.js"></script>
+<script src="./image-slot.js"></script>
+<script src="./sb-data.js"></script>
+<script src="./sb-neural.js"></script>
+<script src="./sb-wikigraph.js"></script>
+<script src="./sb-relgraph.js"></script>
+<script src="./sb-persona.js"></script>
+<script src="./sb-home.js"></script>
+<script src="./sb-screens-core.js"></script>
+<script src="./sb-screens-know.js"></script>
+<script src="./sb-screens-extra.js"></script>
+<script src="./sb-enrich.js"></script>
+<script src="./sb-museum.js"></script>
+<script src="./sb-flows.js"></script>
+<script src="./sb-validate.js"></script>
+<script src="./sb-more.js"></script>
+<script src="./sb-surfaces.js"></script>
+<script src="./sb-gaps.js"></script>
+<script src="./sb-digest.js"></script>
+<script src="./sb-audit.js"></script>
+<script src="./sb-hobby.js"></script>
+<script src="./sb-health.js"></script>
+<script src="./sb-healthinput.js"></script>
+<script src="./sb-careerinput.js"></script>
+<script src="./sb-drilldown.js"></script>
+<script src="./sb-relinput.js"></script>
+<script src="./sb-me.js"></script>
+<script src="./sb-ops.js"></script>
+<script src="./sb-app.js"></script>
 </body>
 </html>

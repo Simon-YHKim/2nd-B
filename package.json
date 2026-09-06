@@ -34,6 +34,8 @@
     "test:ui-work0": "node --test design/pixel_clay_260825/tools/__tests__/work0-hardening.test.mjs",
     "build:static": "npm run build:static:landing",
     "build:static:landing": "npx --no-install esbuild public/landing/main.js --bundle --format=esm --platform=browser --target=es2020 --outfile=dist/landing/main.bundle.js",
+    "postbuild:static:landing": "npm run build:static:proto",
+    "build:static:proto": "node scripts/build-proto.mjs",
     "capture:screens": "node scripts/capture-screens.mjs",
     "qc:mobile-web": "node scripts/qc-mobile-web.mjs",
     "qc:mobile-web:serve": "node scripts/qc-mobile-web.mjs --serve",
