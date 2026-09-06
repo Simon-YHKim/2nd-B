@@ -276,7 +276,11 @@ describe("legacy preservation and pixel registration", () => {
       join(process.cwd(), "src", "screens", "deepspace", "dds-import-inbox-screens.tsx"),
       "utf8",
     );
-    expect(sha(source)).toBe("e727ec89e8c00607b33619cb43286cc9a5ba9bf7a4a57570e87a43acff8a6201");
+    // 통합 머지에서 재고정. 옛 값은 이 PR 이 분기하던 시점의 파일이고, 같은
+    // 통합의 #1511(연결 프레임 salvage)이 그 뒤 이 파일을 8줄 고쳤다. 병합 후
+    // 이 파일은 #1511 결과와 바이트 동일이라 "inbox 작업이 이 공용 파일을
+    // 건드리지 않는다" 는 뜻은 그대로다 — 기준선만 옮겼다.
+    expect(sha(source)).toBe("3931e923dd80d3b3eb4ed7df7bc4d61be6c4d70ad572719a2ecc542cf40f94d5");
   });
 
   test("keeps InboxLegacy and its styles byte-stable while routing deep-space directly", () => {

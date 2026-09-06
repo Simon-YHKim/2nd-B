@@ -417,7 +417,14 @@ describe("비서 허브 PIXEL·legacy 회귀", () => {
     expect(reactNativeImport).not.toMatch(/\bPressable\b/);
     expect(HUB).not.toMatch(/borderRadius\s*:|opacity\s*:|#[0-9a-f]{3,8}|LinearGradient/i);
     expect(HUB).not.toContain("style={({");
-    expect(PIXEL_RULES).toContain("const RATCHET_BASELINE = 165");
+    // 원래 `const RATCHET_BASELINE = 165` 리터럴을 확인했다. 165 는 이 PR 의 분기
+    // 시점 값이고, 스택을 순서대로 합치면 실제 위반 수가 내려간다(통합 후 158).
+    // 숫자를 여기에 또 박으면 두 자리가 어긋나고, 어긋나는 쪽은 늘 이 사본이다.
+    // "선언값 === 실측값" 은 check:pixel-rules 가 이미 양방향으로 강제하므로
+    // (751행 `!==`), 여기서는 기준선이 선언돼 있다는 사실과 이 화면이 이식
+    // 목록에 들어 있다는 사실만 지킨다.
+    expect(PIXEL_RULES).toMatch(/const RATCHET_BASELINE = \d+;/);
+    expect(PIXEL_RULES).toContain('"src/screens/deepspace/ops/screens.tsx"');
   });
 });
 

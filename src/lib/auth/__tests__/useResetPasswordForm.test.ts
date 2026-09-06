@@ -22,6 +22,7 @@ const resetHookSource = read("src/lib/auth/useResetPasswordForm.ts");
 const authContextSource = read("src/lib/auth/AuthContext.tsx");
 const navTabsSource = read("src/lib/nav/tabs.ts");
 const rootLayoutSource = read("src/app/_layout.tsx");
+const analyticsSource = read("src/lib/analytics/index.ts");
 const completionToastSource = read("src/components/deepspace/CompletionToast.tsx");
 const resetRouteSource = read("src/app/(auth)/reset-password.tsx");
 const resetPixelClaySource = resetScreenSource.slice(resetScreenSource.indexOf("function ResetAction"));
@@ -252,8 +253,19 @@ describe("PIXEL-CLAY reset-password presenter", () => {
     expect(resetHookSource).toContain("setCancelled(true)");
     expect(resetHookSource).toContain("const step = resetStep({ recoveryActive, complete, codeSent })");
     expect(resetHookSource).not.toContain("const step = resetStep({ userId");
-    expect(rootLayoutSource.indexOf("void initAnalytics();")).toBeGreaterThan(
-      rootLayoutSource.indexOf("function AnalyticsConsentSync"),
+    // 이 PR 은 원래 "모듈 스코프 initAnalytics() 가 없어야 한다" 로 이걸 지켰다.
+    // 그건 분기 시점 사정이다 — 그때는 initAnalytics 가 localStorage 캐시에서
+    // 동의를 스스로 읽어서, 복구 콜백 도중 부팅만으로 제품 분석이 켜질 수 있었다.
+    // main 이 그 뿌리를 고쳤다(analytics/index.ts M1 round-4): 캐시 자동 로드를
+    // 없애고, 인자 없는 initAnalytics() 는 동의 false 로 시작해 아무것도 안 켠다.
+    // 그래서 호출 위치가 아니라 **실제 보장**을 고정한다. 순서 단언보다 강하다.
+    expect(rootLayoutSource).toContain("void initAnalytics();");
+    expect(rootLayoutSource).not.toMatch(/initAnalytics\(\s*\{/);
+    expect(analyticsSource).toContain(
+      "analyticsConsent = canLoadProductAnalytics(opts?.analyticsConsent ?? false, opts);",
+    );
+    expect(analyticsSource).toContain(
+      "do NOT trust the localStorage cache to auto-load product",
     );
     expect(rootLayoutSource).toContain(
       "if (loading || recoveryUserId || recoveryPendingGlobal) return;",

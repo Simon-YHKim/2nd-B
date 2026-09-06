@@ -211,13 +211,21 @@ if (existsSync(routesPath)) {
       note('src/lib/dev/screen-index.ts 가 없다 — production route 생존 계획을 대조할 수 없다');
     } else {
       const screenIndex = readFileSync(screenIndexPath, 'utf8');
+      // 레코드 하나 = `file:` 하나. 예전에는 한 줄짜리 정규식으로 읽었는데, 그 뒤
+      // screen-index 의 레코드들이 여러 줄로 자랐다(진입/렌더 축, qaVariants,
+      // 위임 auth 객체). 한 줄 정규식은 그런 레코드를 **조용히 못 보고**, 그러면
+      // 살아 있는 라우트가 production 목록에서 빠져 salvage-plan 이 "범위 밖"
+      // 이라고 잘못 판정한다. `file:` 경계로 잘라 읽으면 줄 수와 무관해진다.
       const productionHrefs = [];
-      for (const line of screenIndex.split(/\r?\n/)) {
-        const entry = line.match(
-          /^\s*\{\s*file:\s*"[^"]+",\s*href:\s*"([^"]+)",\s*label:\s*"[^"]+"(.*)\},?\s*$/,
-        );
-        if (!entry || /(?:^|,\s*)dev:\s*true(?:\s*,|\s*$)/.test(entry[2])) continue;
-        productionHrefs.push(entry[1]);
+      const records = screenIndex.split(/(?=\{\s*(?:\r?\n\s*)?file:\s*")/);
+      for (const record of records) {
+        const head = record.match(/^\{\s*(?:\r?\n\s*)?file:\s*"[^"]+"/);
+        if (!head) continue;
+        const href = record.match(/href:\s*"([^"]+)"/);
+        if (!href) continue;
+        // 레코드 본문만 본다: 다음 레코드가 시작되기 전까지가 이 레코드다.
+        if (/(?:^|[,{\s])dev:\s*true(?:\s*[,}]|\s*$)/m.test(record)) continue;
+        productionHrefs.push(href[1]);
       }
       if (productionHrefs.length === 0) {
         note('salvage-plan: screen-index.ts 에서 production route 를 하나도 읽지 못했다');

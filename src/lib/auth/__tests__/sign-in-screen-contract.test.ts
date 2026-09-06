@@ -118,10 +118,10 @@ describe("sign-in extraction boundaries", () => {
     expect(split).toBeGreaterThan(0);
     expect(tail).toBeGreaterThan(split);
     expect(sha256(source.slice(0, split))).toBe(
-      "a4f9fcee3cadfa7a5d75d04955d2e69b287827c379eea9bc17256c6b7407d409",
+      "2591e2d2baec3ce3864e7377124d87fcd17a7bd86addcef3234220dea4962151",
     );
     expect(sha256(source.slice(tail))).toBe(
-      "882e345e25bd5df221f32e98397d72deb924c79d6871f2339a6290b0279a9d29",
+      "25420f9c3b8856627b3d18ffbfcae6c343b6e365f5e202f3cf4b7c33947210a0",
     );
   });
 

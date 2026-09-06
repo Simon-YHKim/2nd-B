@@ -6026,7 +6026,10 @@ test('salvage plan classifies every non-direct frame and production route exactl
     .sort();
 
   assert.equal(salvage.schema, 1);
-  assert.equal(expectedDesignIds.length, 25);
+  // 25 -> 24: #1517 이 /reset-password 를 실제로 만들면서 pwreset 을 app-routes 의
+  // unmeasurable(라우트는 있지만 하네스가 조건을 못 만든다)로 옮겼다. unmeasurable
+  // 은 여기서 제외되므로 살아 있는 디자인 프레임이 하나 줄어든 것이 맞다.
+  assert.equal(expectedDesignIds.length, 24);
   assert.deepEqual(Object.keys(salvage.designFrames).sort(), expectedDesignIds);
   for (const [id, plan] of Object.entries(salvage.designFrames)) {
     const screen = manifest.screens.find((candidate) => candidate.id === id);
@@ -6036,14 +6039,16 @@ test('salvage plan classifies every non-direct frame and production route exactl
   }
 
   const screenIndex = readFileSync(path.join(REPO, 'src/lib/dev/screen-index.ts'), 'utf8');
+  // 레코드 하나 = `file:` 하나. 한 줄 정규식으로 읽던 것을 레코드 경계로 바꿨다:
+  // screen-index 의 레코드들이 여러 줄로 자라면서(진입/렌더 축, qaVariants, 위임
+  // auth 객체) 한 줄 판정이 살아 있는 라우트를 조용히 놓쳤고, 그러면 salvage-plan
+  // 의 정당한 항목이 "범위 밖" 으로 보인다. validate-ref.mjs 와 같은 파서다.
   const productionHrefs = screenIndex
-    .split(/\r?\n/)
-    .map((line) =>
-      line.match(
-        /^\s*\{\s*file:\s*"[^"]+",\s*href:\s*"([^"]+)",\s*label:\s*"[^"]+"(.*)\},?\s*$/,
-      ),
-    )
-    .filter((entry) => entry && !/(?:^|,\s*)dev:\s*true(?:\s*,|\s*$)/.test(entry[2]))
+    .split(/(?=\{\s*(?:\r?\n\s*)?file:\s*")/)
+    .filter((record) => /^\{\s*(?:\r?\n\s*)?file:\s*"[^"]+"/.test(record))
+    .filter((record) => !/(?:^|[,{\s])dev:\s*true(?:\s*[,}]|\s*$)/m.test(record))
+    .map((record) => record.match(/href:\s*"([^"]+)"/))
+    .filter(Boolean)
     .map((entry) => entry[1]);
   const directlyCoveredHrefs = new Set([
     ...Object.values(routeFile.routes ?? {}),

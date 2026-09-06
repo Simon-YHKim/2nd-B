@@ -77,10 +77,12 @@ armWebRecoveryPendingFromLocation();
 initI18n();
 void initAnalytics();
 
-// ⚠ #1517 도 여기서 `initNativeCrashReporting()`(@sentry/react-native) 를 켰다.
-// 되살리지 않는다 — main 이 `964db854 fix(analytics): hard-disable Sentry runtimes
-// (#1586)` 로 껐고, `d0e88e64` 가 @sentry/browser 의존성까지 지웠다. 되살리면
-// 선언되지 않은 패키지를 require 하게 된다. 크래시 리포팅은 별도 결정 사항이다.
+// ⚠ #1517 은 여기서 네이티브 크래시 리포팅 SDK 초기화를 켰다. 되살리지 않는다 —
+// main 이 `964db854 fix(analytics): hard-disable Sentry runtimes (#1586)` 로 껐고
+// `d0e88e64` 가 그 벤더 의존성까지 지웠으므로, 되살리면 선언되지 않은 패키지를
+// require 하게 된다. 크래시 리포팅 재도입은 별도 결정 사항이다.
+// 이 파일은 analytics.test.ts 의 런타임 소스 스캔 대상이라 그 SDK 이름·초기화
+// 함수 이름을 **주석에도 적으면 안 된다**. 스캐너는 주석을 걸러내지 않는다.
 void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
