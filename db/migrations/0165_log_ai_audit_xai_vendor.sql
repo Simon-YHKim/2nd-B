@@ -1,4 +1,4 @@
--- 0148: log_ai_audit accepts 'xai' as a reasoning vendor.
+-- 0165: log_ai_audit accepts 'xai' as a reasoning vendor.
 --
 -- WHY: 0095's vendor allowlist was written when three proxies existed
 -- (gemini, claude, openai). xai-proxy joined on 2026-08-21 (#1317, Simon:
@@ -79,4 +79,4 @@ GRANT EXECUTE ON FUNCTION public.log_ai_audit(text, text, text, boolean, text, i
 GRANT EXECUTE ON FUNCTION public.log_ai_audit(text, text, text, boolean, text, integer, text, text, text) TO service_role;
 
 COMMENT ON FUNCTION public.log_ai_audit(text, text, text, boolean, text, integer, text, text, text) IS
-  'C3 audit insert (0095 signature). reasoning_vendor allowlist: gemini, claude, openai, xai (0147). Other values become NULL.';
+  'C3 audit insert (0095 signature). reasoning_vendor allowlist: gemini, claude, openai, xai (0165). Other values become NULL.';
