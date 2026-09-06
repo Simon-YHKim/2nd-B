@@ -28,10 +28,11 @@ const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8").split(CR).jo
 const CLAUDE = read("supabase/functions/claude-proxy/index.ts");
 const GEMINI = read("supabase/functions/gemini-proxy/index.ts");
 const OPENAI = read("supabase/functions/openai-proxy/index.ts");
+const XAI = read("supabase/functions/xai-proxy/index.ts");
 const SHARED = read("supabase/functions/_shared/llm-proxy-common.ts");
 const REFRESH = read("scripts/refresh-models.ts");
 
-type ProxyVendor = "gemini" | "openai" | "claude";
+type ProxyVendor = "gemini" | "openai" | "claude" | "xai";
 type PurposePolicy = {
   modelTier: "lite" | "flash" | "pro" | "fixed";
   maxEffort: "none" | "low" | "medium" | "high" | "xhigh" | "max";
@@ -152,6 +153,22 @@ const OPUS_SEATS = [
   "crosscheck_defend",
 ] as const;
 
+const XAI_SEATS = [
+  "advisor",
+  "axis_estimate",
+  "cluster_infer",
+  "digest_weekly",
+  "gap_synthesize",
+  "northstar_propose",
+  "ops_daily_brief",
+  "ops_recommend",
+  "persona_narrative",
+  "persona_synthesis",
+  "secondb_chat",
+  "self_model_propose",
+  "ttfv_first_insight",
+] as const;
+
 describe("the seat map is opus only", () => {
   test("every seated purpose is an opus model", () => {
     const seats = proxyMap(CLAUDE, "PURPOSE_MODEL");
@@ -203,6 +220,16 @@ describe("server-owned LLM purpose policy", () => {
     expect(policy.resolveLlmPurposePolicy("gap_synthesize", "claude")).toBeNull();
     expect(policy.resolveLlmPurposePolicy("crosscheck_challenge", "gemini")).toBeNull();
     expect(policy.resolveLlmPurposePolicy("capture_voice", "openai")).toBeNull();
+    for (const bad of ["capture_classify", "capture_ocr", "crosscheck_challenge", "reasoning_connect"]) {
+      expect(policy.resolveLlmPurposePolicy(bad, "xai")).toBeNull();
+    }
+  });
+
+  test("xAI exposes exactly its thirteen intentional seats", () => {
+    const seated = KNOWN_PURPOSES.filter((purpose) =>
+      policy.resolveLlmPurposePolicy(purpose, "xai") !== null
+    );
+    expect(seated.sort()).toEqual([...XAI_SEATS].sort());
   });
 
   test("a relabeled cheap purpose cannot inherit Advisor-level effort", () => {
@@ -211,6 +238,9 @@ describe("server-owned LLM purpose policy", () => {
     expect(gap!.modelTier).toBe("flash");
     expect(policy.clampLlmPurposeEffort(gap!, "max", "openai", "low")).toBe("low");
     expect(policy.clampLlmPurposeEffort(gap!, undefined, "openai", "low")).toBe("low");
+    const xaiGap = policy.resolveLlmPurposePolicy("gap_synthesize", "xai");
+    expect(xaiGap).not.toBeNull();
+    expect(policy.clampLlmPurposeEffort(xaiGap!, "max", "xai", "high")).toBe("low");
   });
 
   test("high-volume and media labels have hard zero-thinking/modal contracts", () => {
@@ -233,11 +263,12 @@ describe("server-owned LLM purpose policy", () => {
   });
 });
 
-describe("all three proxies enforce the shared policy before spending", () => {
+describe("all four proxies enforce the shared policy before spending", () => {
   const proxies: Array<[ProxyVendor, string]> = [
     ["gemini", GEMINI],
     ["openai", OPENAI],
     ["claude", CLAUDE],
+    ["xai", XAI],
   ];
 
   test.each(proxies)("%s resolves a shared seat and clamps shared effort", (vendor, src) => {
@@ -266,10 +297,26 @@ describe("all three proxies enforce the shared policy before spending", () => {
     expect(OPENAI).toMatch(/resolveModel\(purpose, purposePolicy\.modelTier\)/);
   });
 
+  test("xAI derives model and effort from its server-owned policy", () => {
+    const generation = XAI.slice(XAI.indexOf("const userText"));
+    expect(generation).not.toMatch(/const model[^\n]*body\?\.model/);
+    expect(XAI).toMatch(/resolveModel\(purpose, purposePolicy\.modelTier\)/);
+    expect(XAI).toMatch(/clampLlmPurposeEffort\(\s*purposePolicy,\s*effort,\s*'xai'/s);
+  });
+
   test.each(proxies)("%s fails closed when Advisor entitlement cannot be resolved", (_vendor, src) => {
     expect(src).toMatch(/purposePolicy\.minimumTier === 'brain'/);
     expect(src).toMatch(/tierLookupFailed \|\| tierRank === null/);
     expect(src).toMatch(/error: 'entitlement_check_unavailable'/);
+  });
+
+  test("xAI fails every unresolved tier-dependent cap before spending", () => {
+    const tierFailure = XAI.indexOf("tierLookupFailed || tierRank === null");
+    const unavailable = XAI.indexOf("error: 'entitlement_check_unavailable'", tierFailure);
+    const spend = XAI.indexOf("bump_gemini_spend", tierFailure);
+    expect(tierFailure).toBeGreaterThan(0);
+    expect(unavailable).toBeGreaterThan(tierFailure);
+    expect(spend).toBeGreaterThan(unavailable);
   });
 
   test.each(proxies)("%s rejects purpose/modality mismatches", (_vendor, src) => {
