@@ -31,6 +31,17 @@ describe("EAS Update public environment contract", () => {
     expect(sync).not.toMatch(/(?:echo|printf|console\.log).*\$VALUE/);
   });
 
+  test("the sync plan is newline-terminated, so read does not swallow the last key", () => {
+    // `read` returns non-zero on a final line with no newline, and a `while
+    // read` loop skips its body for that line. With join("\n") the loop
+    // processed N-1 of N keys, INDEX never reached SYNC_COUNT, and the step
+    // failed its own count check -- so it could only pass when there was
+    // nothing to sync. The first real drift (2026-09-07) blocked the OTA.
+    const sync = stepOf("Synchronize build-profile public values");
+    expect(sync).toContain('plan.map((key) => key + "\\n").join("")');
+    expect(sync).not.toContain('plan.join("\\n")');
+  });
+
   test("the current main commit is rechecked immediately around every EAS environment mutation", () => {
     const sync = stepOf("Synchronize build-profile public values");
     expect(sync).toContain("require_current_main");
@@ -67,5 +78,25 @@ describe("EAS Update public environment contract", () => {
     expect(RAW).toContain("public environment names without printing values");
     expect(RAW).toContain("values were withheld");
     expect(RAW).not.toMatch(/console\.(?:log|error)\([^\n]*(?:process\.env\[key\]|value)/);
+  });
+});
+
+describe("update provenance reads the runtime the way builds already do", () => {
+  // The API answers with runtime.version, runtimeVersion or fingerprint.hash
+  // depending on the shape, which is why runtimeOf exists. The build path went
+  // through it; the update path read one key directly, so every record failed
+  // identity and the 2026-09-07 postflight reported android=NO_MATCH
+  // ios=NO_MATCH for two updates whose platform, gitCommitHash and runtime were
+  // all correct. The OTA had published fine; only its verification was broken.
+  test("runtimeOf absorbs the shape instead of one hardcoded key", () => {
+    expect(RAW).toContain(
+      "const runtimeOf = (value) => value?.runtime?.version ?? value?.runtimeVersion ?? value?.fingerprint?.hash;",
+    );
+    expect(RAW).toContain("runtimeOf(update) === runtime");
+    expect(RAW).toContain("runtimeOf(update) !== runtime");
+  });
+
+  test("no update comparison reaches past runtimeOf into a single key", () => {
+    expect(RAW).not.toMatch(/update\?\.runtime\?\.version/);
   });
 });
