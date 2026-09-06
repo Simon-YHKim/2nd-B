@@ -3,7 +3,121 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-09-04 / 실앱 화면 QA 인계 · PIXEL-CLAY 전체 이주 미완료 판정
+## Latest — 2026-09-06 / 레거시·불필요 코드 전수 감사 · 안전 정리 PR 9건 · 결정 11문항
+
+> 발행: Claude Code (TTL-Work 세션, 전용 워크트리 `.worktrees/claude/legacy-audit-260905`).
+> 기준 시각: 2026-09-06 10:32:36 KST. 기준 main: 72180031 → 감사, e302638a 이후 PR.
+> 보고서: https://claude.ai/code/artifact/851c682c-844e-4c34-ac69-1e6776d16b0f (본편) · https://claude.ai/code/artifact/041ece08-bdfe-4acb-b834-a426a3b2eca6 (부록: 발견 163건 근거·3렌즈 검증 원문)
+
+### 왜 시작했나
+
+Simon 지시(2026-09-05): "legacy 및 불필요 코드 전수 검사하여 정리. 속도 개선. 안드로이드, 웹, ios 최적화."
+지우기 전에 재는 것이 먼저라 **측정 → 8차원 탐색 → 발견마다 3렌즈(결정·도달성·CI) 반박 검증 → 안전한 것만 PR** 순서로 갔다.
+
+### 어디까지 왔나
+
+- 발견 163건: 지금 가능 38 · 가드 동반 6 · 빌드 동반 5 · 결정 필요 66 · 유지 31 · 반증 17. 비평 22건.
+- PR (전부 전용 워크트리에서 `npm run verify` 종료코드 0 확인 후 생성):
+
+| PR | 무엇 | 측정 | 상태 |
+|---|---|---|---|
+| #1617 | perf(fonts): Roboto 4벌 스플래시 게이트에서 제거 + 웹 기본 폰트 체인 수정 | 폰트 −566 KB · preload 11→7 | 머지됨 2026-09-06 09:03 KST (CI 통과) |
+| #1618 | chore(deps): expo-file-system 선언, @sentry/browser·globby 제거, galmuri devDeps 강등, playwright-core 정렬 | deps 67→66 · lock −148줄 | 머지됨 2026-09-06 09:22 KST (CI 통과) |
+| #1619 | perf(web): 네이티브 전용 SDK 5종을 .web.ts 로 분리, 뮤지엄 팩을 캐논 인덱스에서 분리 | 엔트리 −1,016 KB (−12.4%) | 머지됨 2026-09-06 09:14 KST (CI 통과) |
+| #1620 | chore(assets): require() 아트 팩 3종을 public/ 밖으로 이전, 죽은 섬 require 7개 제거 | 웹 dist −46 MB · 안드로이드 에셋 −12.4 MB | 열림(대량 리네임 → Simon 검토) |
+| #1621 | chore(build): 미사용 NativeWind/Tailwind 툴체인 제거 (+ 웹 리셋 CSS 40줄로 대체) | JSX 래퍼 제거 · 지문 EQUAL | 열림(파일 삭제 2건 → Simon 검토) |
+| #1622 | chore: 검증된 죽은 코드·미참조 폰트 2벌·대회 잔재 주석 제거 | −304줄 · 파일 7 삭제 · 폰트 −1.3 MB(리포) | 열림(파일 삭제 7건 → Simon 검토) |
+| #1624 | chore(repo): 추적된 pyc·일회용 codemod·미참조 PNG·CLI 캐시 제거 | 파일 −4 · −349 KB | 열림(파일 삭제 → Simon 검토) |
+| #1625 | ci: SHA 당 verify 1회, 추월된 실행 취소, ts-jest transpile-only, 핸드오프 검증기 배치화, dist-* eslint 무시 | jest 328→42 s · 중복 CI 제거 | 머지됨 2026-09-06 10:28 KST (CI 통과) |
+| #1626 | perf(i18n): es/pt/id 로케일 팩 지연 로드 (en/ko 는 즉시) | 엔트리 −531 KB · 청크 3개 분리 | CI 대기 → 자동 머지 |
+
+- 머지 기준: 파일 삭제·대량 리네임이 없는 PR 만 CI 초록 시 자동 머지(§7 정지 조건). 나머지는 열어 두었다.
+
+### 새로 확정된 사실 (다음 세션이 재조사하지 말 것)
+
+- **웹 배포물 93 MB 의 31% 가 같은 아트 팩의 두 번째 사본**이었다(public/ 원본 복사 + Metro 해시 복사). require() 대상을 public/ 밖으로 옮기면 사라진다(#1620).
+- **섬 PNG 7장(14.7 MB)은 두 UI 모드 모두 그릴 수 없다** — `IslandArt` 가 모든 FinalCoreId 를 `FinalCoreArt` 로 보낸다. 네이티브 바이너리에서만 빠졌고 파일은 남겼다(삭제는 결정).
+- **RevenueCat 웹 SDK 858 KB 가 웹 엔트리의 10% 였다**(웹에서는 no-op). `.web.ts` 플랫폼 파일로 갈랐다(#1619, 엔트리 −12.4%).
+- **NativeWind 는 className 소비자 0건인데 모든 JSX 를 css-interop 으로 감싸고 있었다.** 단, Tailwind preflight 가 유일한 웹 리셋이라 40줄 리셋 CSS 로 대체해야 한다(#1621, 지문 EQUAL).
+- **`ts-jest` 가 워커마다 전체 타입체크를 다시 한다.** `isolatedModules` 만 켜면 로컬 jest 492 → 132 s(측정). `rootDir` 가 같이 필요하다(TS5011).
+- **ci.yml 이 PR 푸시마다 verify 를 두 번 돈다**(push `**` + pull_request). 10.6일에 중복 414회.
+- **반증된 것 17건**(부록에 사유): docs/clone-audit 22 MB 중복은 스냅샷 번들이 상대경로로 읽는다(지우면 스냅샷이 깨진다) · check:lexicon 은 루트 dist-* 를 걷지 않는다 · Android QA 지침 위반 수치(D6-09~11)는 셈이 틀렸다 · secondb-head 다운스케일은 유효하나 core_center 주장은 틀렸다.
+- **안전 공백 1건(D3-18)**: `src/lib/safety/ingest-policy.ts`(제3자 클립 안전 정책)가 어떤 수집 경로에도 배선돼 있지 않다. 문서는 배선됐다고 적는다. 정리가 아니라 결함 — Q-260905-11.
+- **워크트리 공용 node_modules + Metro 캐시**: `--clear` 없는 export 가 다른 워크트리의 src/app 을 라우트 루트로 물려받는다(메모리 기록).
+
+### 결정 요청 (보고서 결정 탭, Q-260905-01 ~ 11)
+
+레거시 스킨 폐기 · XPRIZE 잔재 · #1505 시점 · public/proto 배포 · 휴면 네이티브 SDK 5종 · Pretendard 서브셋 · 머리 PNG 다운스케일 · 대형 바이너리 LFS · ci.yml main 트리거 · 결정 표식 있는 미참조 파일 · **제3자 클립 안전 정책 배선**.
+
+### 다음 1개
+
+Simon 이 열린 PR 을 검토·머지하고 결정 탭 11문항에 답한다(보고서 안 프롬프트 조립기로 복사). 그 뒤 3차(레거시 스킨 컷 플랜 6단계)에 착수한다.
+
+### 워크트리
+
+`.worktrees/claude/legacy-audit-260905`(감사 체크아웃, dist-audit* 측정 산출물 포함) 와 `pr-*-260905` 8개는 PR 머지 뒤 지운다. **정션부터 `rmdir node_modules` 한 뒤 `git worktree remove`** (공용 node_modules 삭제 함정).
+
+---
+
+## 2026-09-06 / 워크트리 94개 정리 · C: 21→70GB · PR 6건 머지(#1610~#1615)
+
+> 발행: Claude Code (`E:/2ndB/.worktrees/claude/cleanup-260905`). 기준 시각: 2026-09-06 10:30 KST.
+> 보고서: [worktree-cleanup-260905.html](handoff/worktree-cleanup-260905.html) · 아카이브: `E:/2ndB/_sync/history/260905_cleanup/README.md`
+
+### 왜 시작했나
+
+C: 드라이브가 98%(여유 21GB)였다. 원인은 Orca 가 C: 에 만든 워크스페이스, 그중에서도
+`C:/Users/202502/orca/workspaces/2ndB/Design/2nd-B` — **저장소 전체 클론 하나가 통째로 C: 에 있고
+그 안에 워크트리 77개**(codex/pixel-clay-*, fix/* 시리즈)가 쌓여 있었다. 여기에 별도 설치본
+`node_modules`(각 ≈4.5GB) 5벌이 겹쳤다.
+
+### 무엇을 했나 (전부 실측·검증 후 집행)
+
+| 항목 | 결과 |
+|---|---|
+| 워크트리 삭제 | **94개** — 중첩 클론 77 · E:/2ndB 9 · Orca C: 루트 8(2ndB 7 + Eject Button/kelp). Design 루트는 활성 세션이라 유지 |
+| 삭제 전 검증 | 적대적 검증 에이전트 6개가 워크트리마다 "유일본이 있는가·살아 있는 프로세스가 있는가"를 반증 시도. 유일본 9건은 전부 `_sync/history/260905_cleanup/` 에 번들·패치로 보존한 뒤 삭제 |
+| PR 머지 | #1610 법무 처리자 · #1611 peer 미성년 파생 · #1612 임포트 이력 스코프 · #1613 xai verify_jwt · #1614 크로스체크 인젝션 펜스 · #1615 /discover 도달성. main 보호 규칙(strict)이라 한 건씩 `update-branch` → CI → squash |
+| 로컬 브랜치 | E:/2ndB 448→243(머지된 205 삭제) · 중첩 클론 99→50. **origin 브랜치 403개는 손대지 않음** |
+| 임시파일 | 3,802MB — expo 웹 렌더 소스맵 2,199MB(133개) · codex-* 임시 1,072MB · 2ndb-decode 284MB · Orca 회전 로그 90MB · `~/.codex/.tmp` 157MB |
+| main 동기화 | `E:/2ndB` main · 중첩 클론 main 둘 다 origin/main 으로 ff |
+| 디스크 | C: 여유 **21GB(98%) → 70GB(93%)**. ⚠ 같은 날 다른 세션이 C: 를 ±20~30GB 흔들었으므로 df 차이가 곧 내 회수량은 아니다. 추정 회수: node_modules 5벌 ≈22GB + 체크아웃 ≈84개×184MB ≈15GB + 임시 3.8GB |
+
+### 지운 것과 남긴 것
+
+- **지움**: 머지·폐기 판정된 워크트리와 그 브랜치의 로컬 사본. 초안 PR 브랜치는 origin 에 그대로 있다.
+- **남김(활성 세션)**: `TTL-Work`(7 터미널) · `pixelclay-260905` · `legacy-audit-260905` · `claude/pr-*-260905` 9개(다른 세션이 오늘 만든 것, #1618 머지·#1620~#1622 열림) · Orca `Design` 루트.
+- **아카이브 유일본**: hustlek-imagegen-pilot 64 commits 번들(아바타 RN 엔진 + native128 에셋 · **origin 에 없음** · 로컬 브랜치도 유지) · `recovery-proof-store.ts` 미커밋 작업 · HANDOFF 08-21 01:30 dangling 커밋 · MBTI 폐기 초안 · 아바타 발주 프롬프트(→ `docs/handoff/PROFILE-AVATAR-HANDOFF-2026-08-21.md` 로도 커밋).
+
+### 사고·편차 (숨기지 않음)
+
+1. 중첩 클론의 `handoff-design-260904-2035` 는 남기려 했는데 v1 스크립트의 경로 패턴(끝 슬래시) 때문에 같이 지워졌다. 클린·팁이 main 안 → **잃은 것 0**. 브랜치 `docs/handoff-design-260904-2035` 는 남아 있다.
+2. `Key_performance_4` 를 `orca worktree rm` 하는 순간 Orca 런타임이 연결을 한 번 끊었다(유휴 터미널 2개 강제 종료 중). 폴더는 비워졌고 런타임은 즉시 복귀, TTL-Work 7 · Design 4 터미널 무사 확인.
+3. `cmd //c rmdir` 로 정션을 끊는 종래 방법이 MSYS 에서 경로가 깨져 전부 실패했다 → `[System.IO.Directory]::Delete()` 로 교체(대상 보존 확인 779/779). 메모리에 기록.
+4. 09-05 13:00 경 세션 한도(5:10pm 리셋)로 하루 멈췄다. 삭제는 09-06 에 집행.
+
+### 다음 1개
+
+**Q-260906-01 hustlek-imagegen-pilot 번들을 origin 에 올릴 것인가.** `PORTABLE-ASSET-LINEAGE-2026-08-30.md` 의
+"금지된 계보 에셋" 계약 때문에 push 하지 않았다. 안 정하면: 이 64 commits 는 E: 로컬에만 있다(백업 없음).
+
+### 미결 (결정 탭)
+
+- Q-260906-02 초안 PR 25개(codex pixel-clay 19 · consent 6)의 운명 — 머지하려면 HUMAN PASS(디자인)·마이그레이션 게이트(consent) 통과 필요. 안 정하면: origin 브랜치 25개가 계속 남고 GitHub 목록이 어지럽다.
+- Q-260906-03 #1607 decode-uri 패치 — 네이티브 fingerprint 판단 대기(F 항목 그대로).
+- Q-260906-04 확인 후 지울 것 ≈11GB: Orca codex 세션 롤아웃 중복(`AppData/Roaming/orca/codex-runtime-home/home/sessions` 7.9GB ≒ `~/.codex/sessions` 7.7GB 중 한쪽) · gstack 물리 사본 1.4GB · `~/.codex/workspace-deps` 1.0GB · 에이전트 스크래치패드 ≈1.4GB · Orca 업데이터 설치본 중복 358MB.
+- 보고만: `.android` AVD 30GB · system-images 10.5GB · `.gradle` 8.9GB · npm-cache 4GB — 삭제 대상 아님.
+
+### 다음 세션 시작하는 법
+
+```bash
+git fetch origin main && git switch main && git pull --ff-only origin main && cat docs/HANDOFF.md
+cat E:/2ndB/_sync/history/260905_cleanup/README.md   # 아카이브 복원법
+```
+
+---
+
+## 2026-09-04 / 실앱 화면 QA 인계 · PIXEL-CLAY 전체 이주 미완료 판정
 
 > 발행: Codex (orca Design 워크스페이스) · `simon-handoff` 절차.
 > 기준 시각: 2026-09-04 20:49:53 KST.

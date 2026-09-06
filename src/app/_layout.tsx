@@ -28,7 +28,7 @@ import { StatusBar } from "expo-status-bar";
 import { AppState } from "react-native";
 
 import "../../global.css";
-import { initI18n } from "@/lib/i18n";
+import { initI18n, useI18nReady } from "@/lib/i18n";
 import {
   captureEvent,
   getAnalyticsConsentRevision,
@@ -72,13 +72,18 @@ void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts(fontAssets);
+  // Synchronously true for en/ko (their packs are in the entry), so those
+  // users keep today's first-render timing to the frame. A lazy locale
+  // (es/pt/id) holds the loader until its pack chunk is attached, so the
+  // first paint is in that language instead of EN keys flashing.
+  const i18nReady = useI18nReady();
   const fadeTransition = pixelStackTransition("fade");
 
   useEffect(() => {
-    if (fontsLoaded || fontError) {
+    if ((fontsLoaded || fontError) && i18nReady) {
       void SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, fontError]);
+  }, [fontsLoaded, fontError, i18nReady]);
 
   // The first-star chat nudge is persisted to AsyncStorage but nothing read it
   // back, so on native it re-armed on every cold start and re-nudged users who
@@ -92,7 +97,7 @@ export default function RootLayout() {
   // Brief minimal loader during font resolution. The branded cell-team
   // intro now lives inside IntroGate (gated on auth) — unauthenticated
   // visitors should land on /sign-in immediately, NOT see the loader.
-  if (!fontsLoaded && !fontError) return <InlineLoader />;
+  if ((!fontsLoaded && !fontError) || !i18nReady) return <InlineLoader />;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
