@@ -10,6 +10,11 @@ import { join } from "node:path";
 jest.mock("../../supabase/client", () => {
   const tablesDeleted: string[] = [];
   const invoke = jest.fn().mockResolvedValue({ data: { deleted: true }, error: null });
+  const getUser = jest.fn().mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+  const refreshSession = jest.fn().mockResolvedValue({
+    data: { session: { access_token: "fresh-user-token", user: { id: "u1" } } },
+    error: null,
+  });
   const from = jest.fn((table: string) => {
     const chain: Record<string, unknown> = {
       delete: () => {
@@ -24,14 +29,21 @@ jest.mock("../../supabase/client", () => {
     };
     return chain;
   });
-  const mock = { from, functions: { invoke } };
+  const mock = { from, auth: { getUser, refreshSession }, functions: { invoke } };
   return {
     getSupabaseClient: () => mock,
     __tablesDeleted: tablesDeleted,
     __invoke: invoke,
+    __getUser: getUser,
+    __refreshSession: refreshSession,
     __reset: () => {
       tablesDeleted.length = 0;
-      invoke.mockClear();
+      invoke.mockReset().mockResolvedValue({ data: { deleted: true }, error: null });
+      getUser.mockReset().mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+      refreshSession.mockReset().mockResolvedValue({
+        data: { session: { access_token: "fresh-user-token", user: { id: "u1" } } },
+        error: null,
+      });
     },
   };
 });
@@ -41,6 +53,8 @@ import { deleteAllUserData, requestAccountDeletion } from "../delete-bulk";
 const clientMock = require("../../supabase/client") as {
   __tablesDeleted: string[];
   __invoke: jest.Mock;
+  __getUser: jest.Mock;
+  __refreshSession: jest.Mock;
   __reset: () => void;
 };
 
@@ -69,9 +83,31 @@ describe("deleteAllUserData (content wipe)", () => {
 describe("requestAccountDeletion (terminal erasure)", () => {
   beforeEach(() => clientMock.__reset());
 
-  test("invokes the delete-account Edge Function and resolves on { deleted: true }", async () => {
+  test("refreshes and binds the same user's token before invoking deletion", async () => {
     await expect(requestAccountDeletion()).resolves.toBeUndefined();
-    expect(clientMock.__invoke).toHaveBeenCalledWith("delete-account", { body: {} });
+    expect(clientMock.__getUser).toHaveBeenCalledTimes(1);
+    expect(clientMock.__refreshSession).toHaveBeenCalledTimes(1);
+    expect(clientMock.__invoke).toHaveBeenCalledWith("delete-account", {
+      body: {},
+      headers: { Authorization: "Bearer fresh-user-token" },
+    });
+  });
+
+  test("fails closed when refresh switches to a different user", async () => {
+    clientMock.__refreshSession.mockResolvedValueOnce({
+      data: { session: { access_token: "other-user-token", user: { id: "u2" } } },
+      error: null,
+    });
+
+    await expect(requestAccountDeletion()).rejects.toThrow("account deletion session changed");
+    expect(clientMock.__invoke).not.toHaveBeenCalled();
+  });
+
+  test("fails closed when a fresh session cannot be issued", async () => {
+    clientMock.__refreshSession.mockResolvedValueOnce({ data: { session: null }, error: { message: "offline" } });
+
+    await expect(requestAccountDeletion()).rejects.toThrow("account deletion requires a fresh session");
+    expect(clientMock.__invoke).not.toHaveBeenCalled();
   });
 
   test("throws when the function reports failure", async () => {

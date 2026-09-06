@@ -196,17 +196,29 @@ async function bestEffort(fn: () => Promise<number>, label: string): Promise<num
   }
 }
 
-/** Terminal account erasure (GDPR Art.17 / PIPA). Invokes the delete-account
- *  Edge Function, which (service role) deletes auth.users first so the profile
- *  and every user_id-owned table cascade in the same database transaction. It
- *  then applies an idempotent profile safety net and cleans raw-clippings
- *  Storage. This is the only path that reaches RLS-protected tables (personas,
- *  memorized_patterns, xp_events) and the append-only consent_records ledger.
- *  Requires the function to be deployed; throws unless terminal deletion is
- *  confirmed so the caller can decide how to proceed. */
+/** Terminal account erasure. Refreshes the caller's session and binds that
+ *  exact token to the Edge request, so an account switch cannot retarget a
+ *  confirmation that was already open. */
 export async function requestAccountDeletion(): Promise<void> {
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase.functions.invoke("delete-account", { body: {} });
+  const { data: current, error: currentError } = await supabase.auth.getUser();
+  if (currentError || !current.user) {
+    throw new Error("account deletion requires an authenticated user");
+  }
+
+  const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+  const session = refreshed.session;
+  if (refreshError || !session?.access_token || !session.user) {
+    throw new Error("account deletion requires a fresh session");
+  }
+  if (session.user.id !== current.user.id) {
+    throw new Error("account deletion session changed");
+  }
+
+  const { data, error } = await supabase.functions.invoke("delete-account", {
+    body: {},
+    headers: { Authorization: `Bearer ${session.access_token}` },
+  });
   if (error) throw error;
   if ((data as { deleted?: boolean } | null)?.deleted !== true) {
     throw new Error("account deletion did not complete");
