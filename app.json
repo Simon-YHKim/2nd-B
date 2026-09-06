@@ -141,6 +141,7 @@
           "enableBackgroundPlayback": false
         }
       ],
+      "expo-secure-store",
       "expo-sharing",
       "@react-native-google-signin/google-signin",
       [
