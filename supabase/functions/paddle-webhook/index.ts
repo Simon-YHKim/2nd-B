@@ -28,6 +28,17 @@
 // leaves that user on the "contact support" path by design.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  JsonBodyError,
+  PADDLE_WEBHOOK_BODY_LIMIT_BYTES,
+  readBodyBytes,
+} from '../_shared/request-json.ts';
+import {
+  hasMatchingPaddleWebhookSignature,
+  parsePaddleWebhookSignature,
+  verifyCheckoutBindingWithSecrets,
+  type PaddleCheckoutBindingData,
+} from '../_shared/paddle-checkout-binding.ts';
 
 interface PaddleEvent {
   event_id?: string;
@@ -44,7 +55,7 @@ interface PaddleEvent {
     action?: string;
     status?: string;
     currency_code?: string;
-    custom_data?: { user_id?: string } | null;
+    custom_data?: PaddleCheckoutBindingData | null;
     items?: Array<{ price?: { id?: string }; type?: string }>;
     current_billing_period?: { ends_at?: string } | null;
     // Set while a cancellation is pending on an otherwise active subscription,
@@ -159,15 +170,7 @@ function callerIp(req: Request): string | null {
   return null;
 }
 
-// Constant-time compare of two hex strings (avoids a signature timing oracle).
-function timingSafeEqualHex(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-}
-
-async function hmacSha256Hex(secret: string, message: string): Promise<string> {
+async function hmacMessageHex(secret: string, message: Uint8Array): Promise<string> {
   const key = await crypto.subtle.importKey(
     'raw',
     new TextEncoder().encode(secret),
@@ -175,23 +178,21 @@ async function hmacSha256Hex(secret: string, message: string): Promise<string> {
     false,
     ['sign'],
   );
-  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(message));
-  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  const signature = await crypto.subtle.sign('HMAC', key, message);
+  return [...new Uint8Array(signature)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Paddle-Signature header: "ts=1700000000;h1=<hex hmac>".
-function parsePaddleSignature(header: string): { ts: string | null; h1: string | null } {
-  let ts: string | null = null;
-  let h1: string | null = null;
-  for (const part of header.split(';')) {
-    const eq = part.indexOf('=');
-    if (eq < 0) continue;
-    const k = part.slice(0, eq);
-    const v = part.slice(eq + 1);
-    if (k === 'ts') ts = v;
-    else if (k === 'h1') h1 = v;
-  }
-  return { ts, h1 };
+async function hmacSha256Hex(
+  secret: string,
+  timestamp: string,
+  rawBody: Uint8Array,
+): Promise<string> {
+  const encoder = new TextEncoder();
+  const prefix = encoder.encode(`${timestamp}:`);
+  const message = new Uint8Array(prefix.byteLength + rawBody.byteLength);
+  message.set(prefix);
+  message.set(rawBody, prefix.byteLength);
+  return hmacMessageHex(secret, message);
 }
 
 // Paddle price id -> DB tier ('cortex' | 'brain'), configured via env.
@@ -241,25 +242,39 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const raw = await req.text();
-    const { ts, h1 } = parsePaddleSignature(req.headers.get('Paddle-Signature') ?? '');
-    if (!ts || !h1) return json({ error: 'bad_signature' }, 403);
+    const rawBytes = await readBodyBytes(req, PADDLE_WEBHOOK_BODY_LIMIT_BYTES);
+    const { timestamp, signatures } = parsePaddleWebhookSignature(
+      req.headers.get('Paddle-Signature') ?? '',
+    );
+    if (!timestamp || signatures.length === 0) return json({ error: 'bad_signature' }, 403);
 
     // Replay window: reject signatures more than 5 minutes off.
-    const skewSec = Math.abs(Date.now() / 1000 - Number(ts));
+    const skewSec = Math.abs(Date.now() / 1000 - Number(timestamp));
     if (!Number.isFinite(skewSec) || skewSec > 300) return json({ error: 'stale_signature' }, 403);
 
-    // Paddle signs `${ts}:${rawBody}` with the notification secret (HMAC-SHA256).
-    const expected = await hmacSha256Hex(secret, `${ts}:${raw}`);
-    if (!timingSafeEqualHex(expected, h1)) return json({ error: 'bad_signature' }, 403);
+    // Paddle signs the exact `${ts}:` prefix + raw request bytes. Decode only
+    // after verification so no normalization can change the signed payload.
+    const expected = await hmacSha256Hex(secret, timestamp, rawBytes);
+    if (!hasMatchingPaddleWebhookSignature(expected, signatures)) {
+      return json({ error: 'bad_signature' }, 403);
+    }
 
-    const event = JSON.parse(raw) as PaddleEvent;
+    let event: PaddleEvent;
+    try {
+      const raw = new TextDecoder('utf-8', { fatal: true }).decode(rawBytes);
+      const parsed: unknown = JSON.parse(raw);
+      if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return json({ error: 'bad_payload' }, 400);
+      }
+      event = parsed as PaddleEvent;
+    } catch {
+      return json({ error: 'bad_payload' }, 400);
+    }
     const eventId = event.event_id;
     if (!eventId) return json({ error: 'no_event_id' }, 400);
     const eventType = event.event_type ?? 'unknown';
     const data = event.data ?? {};
     const occurredAt = event.occurred_at ?? null;
-    const userId = data.custom_data?.user_id ?? null;
     const firstPriceId = data.items?.[0]?.price?.id;
 
     // ── adjustment.* ───────────────────────────────────────────────────────
@@ -370,6 +385,17 @@ Deno.serve(async (req: Request) => {
       return json({ ok: true, result, applied });
     }
 
+    // RELEASE GATE: provision the same current secret in subscription-manage
+    // first. Then publish the binding-aware web client with a new Paddle client
+    // token, revoke the legacy token, reconcile open legacy checkouts, and only
+    // then deploy this strict verifier. Unsigned legacy user_id is never trusted.
+    const bindingSecret = Deno.env.get('PADDLE_CHECKOUT_BINDING_SECRET') ?? '';
+    if (bindingSecret.length < 32) return json({ error: 'misconfigured_checkout_binding' }, 503);
+    const previousBindingSecret = Deno.env.get('PADDLE_CHECKOUT_BINDING_SECRET_PREVIOUS') ?? '';
+    const bindingSecrets = [bindingSecret];
+    if (previousBindingSecret.length >= 32) bindingSecrets.push(previousBindingSecret);
+    const userId = await verifyCheckoutBindingWithSecrets(data.custom_data, bindingSecrets);
+
     // Paddle object identity (0115). On subscription.* the event's own object IS
     // the subscription; on transaction.* it is the transaction and the
     // subscription is a sibling field. Everything stays null for event shapes
@@ -377,7 +403,6 @@ Deno.serve(async (req: Request) => {
     const isSubscriptionEvent = eventType.startsWith('subscription.');
     const subscriptionId = (isSubscriptionEvent ? data.id : data.subscription_id) ?? null;
     const transactionId = (isSubscriptionEvent ? null : data.id) ?? null;
-
     // Payment-method summary for the settings card. Only the captured payment is
     // meaningful; last4/brand exist only for card payments. Nothing here is a
     // credential - Paddle exposes the display remnant, never the PAN.
@@ -423,11 +448,46 @@ Deno.serve(async (req: Request) => {
       return json({ ok: true, ignored: eventType });
     }
 
-    // A tier change still needs an owner, but since 0115 the RPC can recover one
-    // from an earlier event on the same subscription - so only drop the event
-    // when there is no route to an owner at all. Renewal transactions in
-    // particular do not reliably carry checkout custom_data.
-    if (tier !== null && !userId && !subscriptionId) return json({ ok: true, ignored: 'no_user' });
+    // Webhook delivery order is not guaranteed. A renewal may legitimately
+    // carry an expired checkout binding, but it is safe only after an earlier
+    // event anchored this provider subscription to a user in our DB. Check the
+    // actual anchor rather than assuming a non-null subscription id is enough.
+    let hasOwnerAnchor = userId !== null;
+    if (!hasOwnerAnchor && subscriptionId) {
+      const { data: ownerAnchor, error: ownerAnchorError } = await admin
+        .from('paddle_webhook_events')
+        .select('user_id')
+        .eq('paddle_subscription_id', subscriptionId)
+        .eq('provider', 'paddle')
+        .not('user_id', 'is', null)
+        .limit(1)
+        .maybeSingle();
+      if (ownerAnchorError) {
+        console.error(
+          '[paddle-webhook][ALERT] owner_anchor_check_failed',
+          JSON.stringify({ event: eventId }),
+        );
+        return json({ error: 'owner_anchor_check_failed' }, 503);
+      }
+      hasOwnerAnchor = typeof ownerAnchor?.user_id === 'string';
+    }
+    if (!hasOwnerAnchor) {
+      if (data.custom_data?.user_id) {
+        console.error(
+          '[paddle-webhook][ALERT] invalid_checkout_binding',
+          JSON.stringify({ event: eventId }),
+        );
+      }
+      // Never acknowledge an ownership-changing or revenue event that cannot
+      // yet be attributed. A non-2xx response lets Paddle retry after an
+      // out-of-order owner event arrives or an operator reconciles the charge.
+      console.error(
+        '[paddle-webhook][ALERT] unattributed_subscription',
+        JSON.stringify({ event: eventId }),
+      );
+      return json({ error: 'unattributed_subscription' }, 409);
+    }
+
     // 0118: a subscription event that changes no tier is still RECORDED, where
     // it used to return no_op and leave no trace at all. Two things were
     // invisible because of that: a past_due / payment-failure period, during
@@ -438,9 +498,6 @@ Deno.serve(async (req: Request) => {
     // Writing the row costs nothing and makes both greppable.
     const isSubscriptionLifecycle = eventType.startsWith('subscription.');
     if (tier === null && amountCents === null && !isSubscriptionLifecycle) {
-      return json({ ok: true, ignored: 'no_op' });
-    }
-    if (tier === null && amountCents === null && !userId && !subscriptionId) {
       return json({ ok: true, ignored: 'no_op' });
     }
 
@@ -470,6 +527,12 @@ Deno.serve(async (req: Request) => {
     }
     return json({ ok: true, result });
   } catch (e) {
+    if (e instanceof JsonBodyError) {
+      if (e.code === 'request_body_too_large') {
+        return json({ error: e.code, max: e.maxBytes }, 413);
+      }
+      return json({ error: 'bad_payload' }, 400);
+    }
     console.error('[paddle-webhook] error:', String(e));
     return json({ error: 'server_error' }, 500);
   }

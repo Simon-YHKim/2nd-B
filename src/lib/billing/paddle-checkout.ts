@@ -36,7 +36,27 @@ export type CheckoutCadence = "monthly" | "yearly";
 
 export type CheckoutResult =
   | { ok: true }
-  | { ok: false; reason: "unsupported_platform" | "not_configured" | "no_user" | "sdk_load_failed" | "open_failed" };
+  | { ok: false; reason: "unsupported_platform" | "not_configured" | "no_user" | "binding_failed" | "sdk_load_failed" | "open_failed" };
+
+interface CheckoutBinding {
+  user_id: string;
+  issued_at: number;
+  nonce: string;
+  signature: string;
+}
+
+function validCheckoutBinding(value: unknown, expectedUserId: string): value is CheckoutBinding {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const binding = value as Record<string, unknown>;
+  return (
+    binding.user_id === expectedUserId &&
+    Number.isSafeInteger(binding.issued_at) &&
+    typeof binding.nonce === "string" &&
+    /^[0-9a-f]{32}$/.test(binding.nonce) &&
+    typeof binding.signature === "string" &&
+    /^[0-9a-f]{64}$/.test(binding.signature)
+  );
+}
 
 const PADDLE_JS = "https://cdn.paddle.com/paddle/v2/paddle.js";
 
@@ -138,13 +158,27 @@ export async function openPaddleCheckout(input: OpenCheckoutInput): Promise<Chec
   const userId = data?.user?.id;
   if (!userId) return { ok: false, reason: "no_user" };
 
+  let binding: CheckoutBinding;
+  try {
+    const { data: rawBinding, error } = await getSupabaseClient().functions.invoke(
+      "subscription-manage",
+      { body: { action: "checkout_binding" } },
+    );
+    if (error || !validCheckoutBinding(rawBinding, userId)) {
+      return { ok: false, reason: "binding_failed" };
+    }
+    binding = rawBinding;
+  } catch {
+    return { ok: false, reason: "binding_failed" };
+  }
+
   const paddle = await loadPaddle(token);
   if (!paddle) return { ok: false, reason: "sdk_load_failed" };
 
   try {
     paddle.Checkout.open({
       items: [{ priceId, quantity: 1 }],
-      customData: { user_id: userId },
+      customData: binding,
       customer: data?.user?.email ? { email: data.user.email } : undefined,
       settings: {
         locale: input.locale ?? "ko",
