@@ -256,16 +256,10 @@ jobs:
           # Tasks import connector (GIS token model — src/lib/google/). Unset →
           # the "Connect Google" action is hidden; nothing else is affected.
           EXPO_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID }}
-          # LLM mode + key: when the repo Variable EXPO_PUBLIC_GOOGLE_API_KEY is
-          # set, builds default to "live"; otherwise mock. Override by setting
-          # the Variable EXPO_PUBLIC_LLM_MODE explicitly.
+          # Live web LLM calls are permitted only through the authenticated
+          # Edge Function. API credentials must never be Expo public variables.
           EXPO_PUBLIC_LLM_MODE: ${{ vars.EXPO_PUBLIC_LLM_MODE || 'mock' }}
-          EXPO_PUBLIC_GOOGLE_API_KEY: ${{ vars.EXPO_PUBLIC_GOOGLE_API_KEY }}
-          # Route Gemini through the gemini-proxy Edge Function so the API key
-          # stays server-side (Supabase secret GEMINI_API_KEY) and is NEVER
-          # inlined into the public web bundle. REQUIRED for live web: set repo
-          # Variable EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION=true alongside LLM_MODE=live.
-          EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: ${{ vars.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION || 'false' }}
+          EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: "true"
           # D-27 axis-key pin: route every Gemini seat to gemini-3.5-flash so live
           # calls resolve the dedicated GEMINI_API_KEY__G35FLASH__{effort} combo
           # keys (a G25* slug would fall back to the base key). Overridable via a
