@@ -65,6 +65,7 @@ import {
   isImageOcrUnsupportedTypeError,
   isImageOcrInvalidDataError,
   isImageOcrMissingDataError,
+  type PickedImage,
 } from "@/lib/wiki/capture-image";
 import {
   pickFile,
@@ -587,7 +588,25 @@ function CaptureLegacySession({
   // Gemini, so the card has to say something other than "no preview available"
   // while that runs and after it lands.
   const [fileNotice, setFileNotice] = useState<string | null>(null);
-  const [pickedImage, setPickedImage] = useState<{ uri: string; base64: string; mimeType: string } | null>(null);
+  const [pickedImage, setPickedImage] = useState<PickedImage | null>(null);
+  const pickedImageRef = useRef<PickedImage | null>(null);
+  const releasePickedImageState = useCallback((image: PickedImage): void => {
+    if (pickedImageRef.current === image) pickedImageRef.current = null;
+    void image.release();
+  }, []);
+  const replacePickedImage = useCallback((next: PickedImage | null): void => {
+    const previous = pickedImageRef.current;
+    pickedImageRef.current = next;
+    setPickedImage(next);
+    if (previous && previous !== next) void previous.release();
+  }, []);
+  const releaseCurrentPickedImage = useCallback((): void => {
+    const current = pickedImageRef.current;
+    if (!current) return;
+    pickedImageRef.current = null;
+    void current.release();
+  }, []);
+  useEffect(() => () => releaseCurrentPickedImage(), [releaseCurrentPickedImage]);
   const [extracting, setExtracting] = useState(false);
   const [ocrReviewApproved, setOcrReviewApproved] = useState(false);
 
@@ -1766,7 +1785,7 @@ function CaptureLegacySession({
     proposalGenerationRef.current += 1;
     replacePickedFile(null);
     setFileNotice(null);
-    setPickedImage(null);
+    replacePickedImage(null);
     setExtracting(false);
     setTagsEditable([]);
     // 저장 성공(reset)·모드 전환이 지나간 뒤에도 typed intent 가 남으면 다음
@@ -2044,17 +2063,24 @@ function CaptureLegacySession({
   async function pickImage(source: "library" | "camera") {
     if (!userId) return;
     const ticket = beginAsyncProducer();
+    let nextImage: PickedImage | null = null;
     try {
-      const img = await pickImageAsset(source);
-      if (!img) return;
-      if (!asyncProducerIsCurrent(ticket, "ocr")) return;
+      nextImage = await pickImageAsset(source);
+      if (!nextImage) return;
+      if (!asyncProducerIsCurrent(ticket, "ocr")) {
+        await nextImage.release();
+        nextImage = null;
+        return;
+      }
       commitComposerMutation();
-      setPickedImage(img);
+      replacePickedImage(nextImage);
+      nextImage = null;
       setOcrReviewApproved(false);
       setBody(""); // clear any prior extraction; the user presses 추출하기 to fill
     } catch (e) {
+      await nextImage?.release();
       if (!asyncProducerIsCurrent(ticket, "ocr")) return;
-      if (typeof console !== "undefined") console.warn("[capture] image pick failed", (e as Error).message);
+      if (typeof console !== "undefined") console.warn("[capture] image pick failed");
       // P2-5: deterministic failures get their own copy — the generic "try
       // again in a moment" framing misdiagnoses them. Camera permission keeps
       // a retry (granting permission makes it succeed); an unsupported or
@@ -2142,7 +2168,7 @@ function CaptureLegacySession({
         showFeedback(t("alerts.ocrInvalidData.title"), t("alerts.ocrInvalidData.message"));
         return;
       }
-      if (typeof console !== "undefined") console.warn("[capture] OCR extract failed", (e as Error).message);
+      if (typeof console !== "undefined") console.warn("[capture] OCR extract failed");
       showFeedback(
         t("alerts.ocrRead.title"),
         t("alerts.ocrRead.message"),
@@ -2765,7 +2791,8 @@ ${transcript}`;
     submitAbortRef.current = submitController;
     const submitSignal = submitController.signal;
     const submittedPickedFile = pickedFile;
-    const submittedPickedImageUri = pickedImage?.uri ?? null;
+    const submittedPickedImage = pickedImage;
+    const submittedPickedImageUri = submittedPickedImage?.uri ?? null;
     const submittedTrack = track;
     const submittedTrackTouched = trackTouchedRef.current;
     let sourceSaved = false;
@@ -2864,10 +2891,19 @@ ${transcript}`;
           return null;
         });
       }
-      if (submittedMode === "ocr" && submittedPickedImageUri !== null) {
+      if (
+        submittedMode === "ocr" &&
+        submittedPickedImage !== null &&
+        submittedPickedImageUri !== null
+      ) {
+        if (
+          storageMutationEpochRef.current[submittedMode] === startModeEpoch &&
+          pickedImageRef.current === submittedPickedImage
+        ) releasePickedImageState(submittedPickedImage);
         setPickedImage((current) => (
           storageMutationEpochRef.current[submittedMode] === startModeEpoch &&
-          current?.uri === submittedPickedImageUri
+          current?.uri === submittedPickedImageUri &&
+          current === submittedPickedImage
             ? null
             : current
         ));
