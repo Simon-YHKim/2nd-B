@@ -57,7 +57,14 @@ import { sendChatMessage } from "@/lib/chat/conversation";
 import { writeClipboardText } from "@/lib/capture/clipboard";
 import { getWikiPage } from "@/lib/wiki/queries";
 import { transcribeAudio } from "@/lib/llm/boundary";
-import { discardRecording, recordingUriToBase64 } from "@/lib/audio/recording-uri";
+import {
+  claimRecordingTemp,
+  discardRecording,
+  recordingUriToBase64,
+  stopAndDiscardRecording,
+  waitForRecordingCleanup,
+  type RecordingTempLease,
+} from "@/lib/audio/recording-uri";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import { DomainDashboard } from "@/components/secondb/DomainDashboard";
 import type { HotlineId } from "@/lib/safety/lexicon";
@@ -280,6 +287,8 @@ const ChatComposer = memo(
     const voiceLocale = i18n.language === "ko" ? ("ko" as const) : ("en" as const);
     const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
     const [voicePhase, setVoicePhase] = useState<"idle" | "recording" | "transcribing">("idle");
+    const voicePhaseRef = useRef<"idle" | "recording" | "transcribing">("idle");
+    const recorderLifecycleRef = useRef(0);
     const [voiceNotice, setVoiceNotice] = useState<string | null>(null);
     const [crisis, setCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
       visible: false,
@@ -290,6 +299,22 @@ const ChatComposer = memo(
       const timeout = setTimeout(() => setVoiceNotice(null), 3200);
       return () => clearTimeout(timeout);
     }, [voiceNotice]);
+    const updateVoicePhase = useCallback((next: "idle" | "recording" | "transcribing"): void => {
+      voicePhaseRef.current = next;
+      setVoicePhase(next);
+    }, []);
+    useEffect(() => {
+      const lifecycle = recorderLifecycleRef.current + 1;
+      recorderLifecycleRef.current = lifecycle;
+      return () => {
+        if (recorderLifecycleRef.current === lifecycle) {
+          recorderLifecycleRef.current = lifecycle + 1;
+        }
+        if (voicePhaseRef.current !== "recording") return;
+        voicePhaseRef.current = "idle";
+        void stopAndDiscardRecording(audioRecorder);
+      };
+    }, [audioRecorder]);
 
     async function handleMicPress(): Promise<void> {
       if (voicePhase === "transcribing") return;
@@ -302,57 +327,70 @@ const ChatComposer = memo(
         setVoiceNotice(t("voice.webFallback"));
         return;
       }
+      const lifecycle = recorderLifecycleRef.current;
       try {
+        await waitForRecordingCleanup(audioRecorder);
+        if (recorderLifecycleRef.current !== lifecycle) return;
         const perm = await requestRecordingPermissionsAsync();
+        if (recorderLifecycleRef.current !== lifecycle) return;
         if (!perm.granted) {
           setVoiceNotice(t("voice.permissionDenied"));
           return;
         }
         await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+        if (recorderLifecycleRef.current !== lifecycle) return;
         await audioRecorder.prepareToRecordAsync();
+        if (recorderLifecycleRef.current !== lifecycle) {
+          void stopAndDiscardRecording(audioRecorder);
+          return;
+        }
         audioRecorder.record();
-        setVoicePhase("recording");
+        updateVoicePhase("recording");
       } catch {
+        if (recorderLifecycleRef.current !== lifecycle) return;
         setVoiceNotice(t("voice.recordFailed"));
       }
     }
 
     async function stopAndTranscribe(): Promise<void> {
-      if (!userId || voicePhase !== "recording") return;
-      setVoicePhase("transcribing");
+      if (!userId || voicePhaseRef.current !== "recording") return;
+      updateVoicePhase("transcribing");
       let recordingUri: string | null = null;
+      let recordingLease: RecordingTempLease | null = null;
       try {
         await audioRecorder.stop();
         recordingUri = audioRecorder.uri;
         if (!recordingUri) {
-          setVoicePhase("idle");
+          updateVoicePhase("idle");
           setVoiceNotice(t("voice.recordFailed"));
           return;
         }
+        recordingLease = await claimRecordingTemp(recordingUri);
+        if (!recordingLease) throw new Error("voice_read_failed");
         const { base64, mimeType } = await recordingUriToBase64(recordingUri);
         const reply = await transcribeAudio({ userId, locale: voiceLocale, base64, mimeType, minor: isMinor === true });
         if (reply.safety?.zone === "red") {
           // C9: the transcript was crisis-swapped server-side; surface the
           // hotline, never the text.
-          setVoicePhase("idle");
+          updateVoicePhase("idle");
           setCrisis({ visible: true, hotline: voiceLocale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
           return;
         }
         const transcript = reply.text.trim();
         if (transcript.length === 0) {
-          setVoicePhase("idle");
+          updateVoicePhase("idle");
           setVoiceNotice(t("voice.transcriptEmpty"));
           return;
         }
         reactExpression("happy");
         setDraft((prev) => (prev.trim().length === 0 ? transcript : `${prev.trimEnd()} ${transcript}`));
-        setVoicePhase("idle");
+        updateVoicePhase("idle");
       } catch {
-        setVoicePhase("idle");
+        updateVoicePhase("idle");
         setVoiceNotice(t("voice.transcribeFailed"));
       } finally {
         // Privacy: the temp audio file never outlives its transcription.
-        await discardRecording(recordingUri);
+        await discardRecording(recordingLease);
       }
     }
 

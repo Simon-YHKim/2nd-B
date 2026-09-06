@@ -159,8 +159,8 @@ export default function CallReflection() {
     let file;
     try {
       file = await pickAudioFile();
-    } catch (e) {
-      if (typeof console !== "undefined") console.warn("[call-reflection] file pick failed", (e as Error).message);
+    } catch {
+      if (typeof console !== "undefined") console.warn("[call-reflection] file pick failed");
       if (mountedRef.current) setNotice(copy.pickFailed);
       return;
     }
@@ -181,7 +181,11 @@ export default function CallReflection() {
     transcribeAbortRef.current = controller;
     setPhase("stt");
     try {
-      const { base64 } = await recordingUriToBase64(file.uri);
+      const { base64 } = await recordingUriToBase64(
+        file.uri,
+        file.mimeType,
+        file.size > 0 ? file.size : undefined,
+      );
       const reply = await transcribeAudio({
         userId,
         locale,
@@ -212,7 +216,7 @@ export default function CallReflection() {
       setPhase("result");
     } catch (e) {
       if (isAbortError(e) || !mountedRef.current || transcribeAbortRef.current !== controller) return;
-      if (typeof console !== "undefined") console.warn("[call-reflection] transcribe failed", (e as Error).message);
+      if (typeof console !== "undefined") console.warn("[call-reflection] transcription failed");
       setPhase("idle");
       setNotice(t("file.transcribeFailed"));
     } finally {

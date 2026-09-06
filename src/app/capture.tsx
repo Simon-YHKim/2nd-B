@@ -104,7 +104,14 @@ import {
   type SubmittedCaptureDraft,
 } from "@/lib/capture/draft";
 import { classifyRecordTextForCrisis, transcribeAudio } from "@/lib/llm/boundary";
-import { discardRecording, recordingUriToBase64 } from "@/lib/audio/recording-uri";
+import {
+  claimRecordingTemp,
+  discardRecording,
+  recordingUriToBase64,
+  stopAndDiscardRecording,
+  waitForRecordingCleanup,
+  type RecordingTempLease,
+} from "@/lib/audio/recording-uri";
 import { classifyClipper, type WikiTrack } from "@/lib/wiki/classify-clipper";
 import { proposeClipperTemplate, type ProposedClipperTemplate } from "@/lib/wiki/propose-template";
 import { saveTemplate } from "@/lib/wiki/template-queries";
@@ -691,18 +698,15 @@ function CaptureLegacySession({
     setVoiceNotice(null);
     if (phase !== "recording") return;
     // A recorder is an owned native resource, not just a stale UI producer.
-    // Stop and discard it when its controls are about to disappear.
-    void (async () => {
-      try {
-        await audioRecorder.stop();
-        await discardRecording(audioRecorder.uri);
-      } catch (e) {
-        if (typeof console !== "undefined") {
-          console.warn("[capture] recording cleanup on mode exit failed", (e as Error).message);
-        }
-      }
-    })();
+    // Stop it and release only its verified app-cache output when the controls
+    // are about to disappear. Provider/original URIs are never owned here.
+    void stopAndDiscardRecording(audioRecorder);
   }, [audioRecorder, updateVoicePhase]);
+  useEffect(() => () => {
+    if (voicePhaseRef.current !== "recording") return;
+    voicePhaseRef.current = "idle";
+    void stopAndDiscardRecording(audioRecorder);
+  }, [audioRecorder]);
   const stopVoiceCaptureForModeExitRef = useRef(stopVoiceCaptureForModeExit);
   useLayoutEffect(() => {
     stopVoiceCaptureForModeExitRef.current = stopVoiceCaptureForModeExit;
@@ -2175,7 +2179,11 @@ function CaptureLegacySession({
     setExtracting(true);
     setFileNotice(t("file.transcribing"));
     try {
-      const { base64, mimeType } = await recordingUriToBase64(file.uri);
+      const { base64, mimeType } = await recordingUriToBase64(
+        file.uri,
+        isAudioMime(file.mimeType) ? file.mimeType : undefined,
+        file.size > 0 ? file.size : undefined,
+      );
       const reply = await transcribeAudio({
         userId,
         locale,
@@ -2639,6 +2647,8 @@ ${transcript}`;
       return;
     }
     try {
+      await waitForRecordingCleanup(audioRecorder);
+      if (!asyncProducerIsCurrent(ticket, "voice")) return;
       const perm = await requestRecordingPermissionsAsync();
       if (!asyncProducerIsCurrent(ticket, "voice")) return;
       if (!perm.granted) {
@@ -2663,6 +2673,7 @@ ${transcript}`;
     const ticket = beginAsyncProducer();
     updateVoicePhase("transcribing");
     let recordingUri: string | null = null;
+    let recordingLease: RecordingTempLease | null = null;
     try {
       await audioRecorder.stop();
       recordingUri = audioRecorder.uri;
@@ -2671,6 +2682,8 @@ ${transcript}`;
         setVoiceNotice(t("voice.recordFailed"));
         return;
       }
+      recordingLease = await claimRecordingTemp(recordingUri);
+      if (!recordingLease) throw new Error("voice_read_failed");
       const { base64, mimeType } = await recordingUriToBase64(recordingUri);
       const reply = await transcribeAudio({
         userId,
@@ -2719,7 +2732,7 @@ ${transcript}`;
     } finally {
       // Privacy parity with call-reflection: drop the temp audio once the text
       // has been extracted (runs on the crisis / empty / error paths too).
-      await discardRecording(recordingUri);
+      await discardRecording(recordingLease);
     }
   }
 
