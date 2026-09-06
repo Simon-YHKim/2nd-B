@@ -1,15 +1,16 @@
 // Text-file picker for the import hub. On web it opens a native file dialog
 // (hidden <input type="file">) and reads the file in bounded chunks. On native
-// (iOS/Android) it picks via expo-document-picker and reads only the local cache
-// copy. Either way: no upload, nothing is stored, the raw file never leaves the
-// device before parse. The parsed text feeds the same on-device detect -> parse
-// -> propose -> ratify pipeline; the raw file is never persisted.
+// (iOS/Android) it asks expo-document-picker for a local cache copy and removes
+// only a copy whose app-cache ownership is verified. Either way: no upload, the
+// raw file never leaves the device before parse. The parsed text feeds the same
+// on-device detect -> parse -> propose -> ratify pipeline.
 
 import {
   BoundedFileReadError,
   fetchBoundedLocalUtf8,
   readBoundedUtf8Blob,
 } from "./bounded-file-read";
+import { leaseOwnedTempFile, type OwnedTempFileLease } from "../storage/owned-temp";
 
 export interface PickedFile {
   name: string;
@@ -65,9 +66,10 @@ export function pickTextFile(): Promise<PickedFile | null> {
 /**
  * Native branch. expo-document-picker is imported lazily so the web/node bundle
  * never loads the native dep (and react-native through it) at module eval. The
- * chosen file is copied into the app cache and read through a bounded local-only
- * fetch; a read failure rejects. The text stays in memory and is never stored or
- * uploaded.
+ * picker is asked for an app-cache copy, which is leased before a bounded local-
+ * only read and disposed afterward. Provider/original URIs are still readable
+ * but never deletion-owned. A read failure rejects; text stays in memory and is
+ * never stored or uploaded.
  */
 async function pickNativeTextFile(): Promise<PickedFile | null> {
   try {
@@ -80,8 +82,25 @@ async function pickNativeTextFile(): Promise<PickedFile | null> {
     if (res.canceled) return null;
     const asset = res.assets?.[0];
     if (!asset) return null;
-    const text = await fetchBoundedLocalUtf8(asset.uri, { declaredBytes: asset.size });
-    return { name: asset.name, text };
+
+    let cacheCopyLease: OwnedTempFileLease | null = null;
+    try {
+      const leaseResult = await leaseOwnedTempFile(asset.uri);
+      if (leaseResult.ok) cacheCopyLease = leaseResult.lease;
+    } catch {
+      // Ownership cleanup is best-effort and must not block a safe bounded read.
+    }
+
+    try {
+      const text = await fetchBoundedLocalUtf8(asset.uri, { declaredBytes: asset.size });
+      return { name: asset.name, text };
+    } finally {
+      try {
+        await cacheCopyLease?.dispose();
+      } catch {
+        // Never replace the import result/error or expose native path details.
+      }
+    }
   } catch (error) {
     if (error instanceof BoundedFileReadError) throw error;
     throw new BoundedFileReadError("read_failed");
