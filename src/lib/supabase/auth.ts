@@ -9,6 +9,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { digitalConsentAge, resolveJurisdiction } from "../auth/consent-age";
 import type { ConsentSelections } from "../auth/consent-selections";
 import { getEnv } from "../env";
+import { clearAccountScopedLocalNotifications } from "../ops/reminders";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getSupabaseClient } from "./client";
 import * as Crypto from "expo-crypto";
@@ -472,6 +473,7 @@ export function passwordUpdateFailure(error: unknown): PasswordUpdateFailure {
 }
 
 export async function signOut(): Promise<void> {
+  await clearAccountScopedLocalNotifications();
   const supabase = getSupabaseClient();
   const { error } = await supabase.auth.signOut();
   if (error) throw error;

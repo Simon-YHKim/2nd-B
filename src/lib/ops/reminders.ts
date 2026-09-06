@@ -23,6 +23,21 @@ const Notifications = loadNotifications();
 export type ReminderResult = "scheduled" | "denied" | "unavailable" | "error";
 
 const CHANNEL_ID = "ops-routines";
+const ROUTINE_NOTIFICATION_CONTENT = {
+  title: "2nd Brain",
+  body: "Open the app to view your routine.",
+} as const;
+const ROUTINE_REMINDER_ID_PATTERN = /^ops-routine-[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+
+export class AccountScopedNotificationCleanupError extends Error {
+  readonly failureCount: number;
+
+  constructor(failureCount: number) {
+    super("Account-scoped local notification cleanup failed.");
+    this.name = "AccountScopedNotificationCleanupError";
+    this.failureCount = failureCount;
+  }
+}
 
 function isReactNativeRuntime(): boolean {
   const nav = globalThis.navigator as { product?: string } | undefined;
@@ -160,12 +175,16 @@ export async function scheduleRoutineReminder(
   if (!remindersSupported() || !Notifications) return "unavailable";
   const start = new Date(input.startsAtIso);
   if (Number.isNaN(start.getTime())) return "error";
+  if (
+    (input.recurrence === "daily" || input.recurrence === "weekly")
+    && (!opts?.identifier || !ROUTINE_REMINDER_ID_PATTERN.test(opts.identifier))
+  ) return "error";
   const withId = opts?.identifier ? { identifier: opts.identifier } : {};
   try {
     const permission = await Notifications.requestPermissionsAsync();
     if (!permission.granted) return "denied";
     await ensureChannel();
-    const content = { title: input.title, body: input.description ?? null };
+    const content = ROUTINE_NOTIFICATION_CONTENT;
     if (input.recurrence === "daily") {
       await Notifications.scheduleNotificationAsync({
         ...withId,
@@ -263,6 +282,29 @@ export async function ensureNotificationPermission(): Promise<boolean> {
 // is reminding unless the user explicitly turned it off here.
 
 const DISABLED_KEY = "ops.reminders.disabled";
+
+/**
+ * Clears every app-owned notification surface at an account boundary. Each
+ * operation is attempted even when another fails; callers receive only a fixed
+ * aggregate error, never native error text that could contain notification
+ * content or identifiers.
+ */
+export async function clearAccountScopedLocalNotifications(): Promise<void> {
+  const operations: Array<() => Promise<unknown>> = [];
+  const nativeModuleUnavailable = isReactNativeRuntime() && !Notifications;
+  if (Notifications) {
+    operations.push(
+      () => Notifications.cancelAllScheduledNotificationsAsync(),
+      () => Notifications.dismissAllNotificationsAsync(),
+    );
+  }
+  operations.push(() => AsyncStorage.removeItem(DISABLED_KEY));
+
+  const results = await Promise.allSettled(operations.map(async (operation) => operation()));
+  const failureCount = results.filter((result) => result.status === "rejected").length
+    + (nativeModuleUnavailable ? 1 : 0);
+  if (failureCount > 0) throw new AccountScopedNotificationCleanupError(failureCount);
+}
 
 async function readDisabledSet(): Promise<Set<string>> {
   try {

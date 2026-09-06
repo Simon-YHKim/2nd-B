@@ -115,7 +115,13 @@ import { gatherAdherenceStats } from "@/lib/ops/signals";
 import { adherenceChip } from "@/lib/ops/grounding";
 import { recommendForDomain, recommendationVendorLabel, recommendationsAllowed, type OpsRecommendation } from "@/lib/ops/recommend";
 import { buildGoogleCalendarUrl } from "@/lib/ops/push";
-import { notifyNow, scheduleRoutineReminder, type ReminderResult } from "@/lib/ops/reminders";
+import {
+  clearAccountScopedLocalNotifications,
+  notifyNow,
+  routineReminderId,
+  scheduleRoutineReminder,
+  type ReminderResult,
+} from "@/lib/ops/reminders";
 import { loadNotifications } from "@/lib/ops/notifications-sdk";
 import {
   applyFocusSessionComplete,
@@ -628,6 +634,11 @@ export function DeepSpacePrivacyDesignScreen() {
     // Successful erasure may itself trigger an auth-driven route removal.
     // Let that navigation, sign-out, and the explicit replacement proceed.
     allowDeletionNavigationRef.current = true;
+    try {
+      await clearAccountScopedLocalNotifications();
+    } catch {
+      if (typeof console !== "undefined") console.warn("[privacy] notification cleanup after deletion failed");
+    }
     try {
       await signOut();
     } catch (e) {
@@ -2736,19 +2747,22 @@ export function DeepSpaceOpsScreen() {
     if (!userId || !domain || savingKey) return;
     setSavingKey(key);
     try {
-      await createRoutineFromRecommendation(userId, domain, rec);
+      const routine = await createRoutineFromRecommendation(userId, domain, rec);
       // The reminder fires from the SAME existing scheduler used by the
       // recommendation cards; a non-recurring rec becomes a one-shot at its
       // start (or next morning if it had none).
       const { reminder_time } = deriveReminder(rec);
       const startsAtIso = rec.startsAtIso ?? opsNextMorningIso();
-      const result = await scheduleRoutineReminder({
-        title: rec.title,
-        description: rec.reason,
-        startsAtIso,
-        durationMinutes: rec.durationMinutes,
-        recurrence: rec.recurrence,
-      });
+      const result = await scheduleRoutineReminder(
+        {
+          title: rec.title,
+          description: rec.reason,
+          startsAtIso,
+          durationMinutes: rec.durationMinutes,
+          recurrence: rec.recurrence,
+        },
+        { identifier: routineReminderId(routine.id) },
+      );
       // reminder_time only informs the persisted row; the toast reflects the
       // scheduler outcome regardless.
       void reminder_time;
