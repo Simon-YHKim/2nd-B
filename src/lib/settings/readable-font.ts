@@ -1,12 +1,12 @@
 // Readable-font preference (P2-10, Simon-approved as an opt-in option).
 //
-// The app-wide pixel face (NeoDunggeunmo / Galmuri11) is part of the Cosmic
-// Pixel Graph Village identity, but low-vision personas (sim register P2-10)
-// struggle with bitmap faces — especially headings/captions at large font
-// scale. This preference swaps the shared <Text/> pixel variants to the
-// readable sans (Pretendard, fontFamilies.readable). Pixel chrome (buttons,
-// tabs, premium card titles) keeps the pixel identity — body legibility is
-// the target, not a re-theme.
+// The app-wide pixel face (Galmuri, PIXEL-CLAY) is the visual identity, but
+// low-vision personas (sim register P2-10) struggle with bitmap faces in long
+// reading text. This preference swaps the shared <Text/> READING variants
+// (body, subtle) and m3TextStyle's body roles to the readable sans (Pretendard,
+// fontFamilies.readable). Chrome (display, heading, caption, pixelEn labels,
+// buttons, tabs, card titles) keeps the pixel face: Simon 2026-08-21 Q2 = "본문만".
+// Body legibility is the target, not a re-theme.
 //
 // Persisted like crew-density (web localStorage / native AsyncStorage /
 // memory fallback). On web it also flips `data-font` on <html> so the base

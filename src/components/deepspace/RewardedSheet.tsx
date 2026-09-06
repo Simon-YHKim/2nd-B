@@ -24,7 +24,6 @@ import {
   View,
 } from "react-native";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
-import { Image } from "expo-image";
 import { useTranslation } from "react-i18next";
 
 import { deepSpace, deepSpaceRadii, flattenAlpha } from "@/lib/theme/tokens";
@@ -33,6 +32,7 @@ import { m3 } from "@/lib/theme/m3";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { REWARD_PER_WATCH } from "@/lib/entitlements/tiers";
 import { Text } from "@/components/ui/Text";
+import { SecondbHead } from "@/components/deepspace/SecondbHead";
 import { showRewardedAd } from "@/lib/ads/rewarded";
 import { useAuth } from "@/lib/auth/AuthContext";
 
@@ -45,8 +45,6 @@ import { useAuth } from "@/lib/auth/AuthContext";
  *   미리 합성할 수 없고, 규칙 4가 그 자리에 요구하는 것은 **디더**다.
  */
 const rwAlpha = (c: string, a: number): string => flattenAlpha(c, a, deepSpace.bgMid);
-
-const HEAD_IMAGE = require("../../../assets/deepspace/secondb-head-front.png");
 
 export interface RewardedSheetProps {
   visible: boolean;
@@ -164,7 +162,7 @@ export function RewardedSheet({ visible, onClose, remaining, onEarned, locale, k
 
           {/* character head, neutral-friendly */}
           <View style={styles.headWrap}>
-            <Image source={HEAD_IMAGE} style={styles.head} contentFit="contain" />
+            <SecondbHead size={64} />
           </View>
 
           <Text style={styles.title}>
@@ -239,15 +237,6 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   headWrap: { alignItems: "center", marginBottom: 14 },
-  head: {
-    width: 64,
-    height: 64,
-    // soft cyan drop-shadow glow
-    shadowColor: deepSpace.accent,
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    shadowOffset: { width: 0, height: 0 },
-  },
   title: {
     textAlign: "center",
     fontSize: 22,

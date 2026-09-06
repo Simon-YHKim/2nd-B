@@ -170,6 +170,15 @@
       "kakao": "Continue with Kakao",
       "facebook": "Continue with Facebook",
       "github": "Continue with GitHub"
+    },
+    "business": {
+      "company": "Company",
+      "ceo": "CEO",
+      "address": "Address",
+      "bizNo": "Business registration no.",
+      "mailOrderNo": "Mail-order sales report no.",
+      "privacyOfficer": "Privacy officer",
+      "phone": "Phone"
     }
   },
   "account": {
