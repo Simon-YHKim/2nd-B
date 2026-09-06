@@ -116,6 +116,7 @@ import { adherenceChip } from "@/lib/ops/grounding";
 import { recommendForDomain, recommendationVendorLabel, recommendationsAllowed, type OpsRecommendation } from "@/lib/ops/recommend";
 import { buildGoogleCalendarUrl } from "@/lib/ops/push";
 import { notifyNow, scheduleRoutineReminder, type ReminderResult } from "@/lib/ops/reminders";
+import { loadNotifications } from "@/lib/ops/notifications-sdk";
 import {
   applyFocusSessionComplete,
   applyLanguageReviewComplete,
@@ -1595,19 +1596,13 @@ export { DeepSpacePlansScreen } from "./dds-plans-screen";
 
 // ── Deep-space permissions: real OS status + request ───────────────────────
 // The rows now reflect the ACTUAL permission state and act on tap. Notifications
-// and image-picker are lazy-required (never evaluated in the web bundle, and
-// Expo Go throws on require of expo-notifications — same guarded pattern as
-// src/lib/ops/daily-review.ts and wiki/capture-image.ts); expo-audio ships a
-// web build so its permission fns import directly. Rows render on native only.
+// come through the lib/ops/notifications-sdk seam (its .web.ts variant answers
+// null, so the SDK never reaches the web bundle; Expo Go throws on require, which
+// the seam also absorbs). image-picker is lazy-required (same guarded pattern as
+// wiki/capture-image.ts); expo-audio ships a web build so its permission fns
+// import directly. Rows render on native only.
 type PermStatus = { granted: boolean; canAskAgain: boolean };
 
-function loadNotifications(): typeof import("expo-notifications") | null {
-  try {
-    return require("expo-notifications") as typeof import("expo-notifications");
-  } catch {
-    return null;
-  }
-}
 function loadImagePicker(): typeof import("expo-image-picker") | null {
   try {
     return require("expo-image-picker") as typeof import("expo-image-picker");
