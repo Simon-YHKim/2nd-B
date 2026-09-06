@@ -13,6 +13,9 @@ CREATE TABLE IF NOT EXISTS public.reward_ssv_tickets (
     CHECK (token_hash ~ '^[0-9a-f]{64}$'),
   user_id                 uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   reward_kind             text NOT NULL CHECK (reward_kind IN ('reasoning', 'chat')),
+  expected_ad_unit_id     text NOT NULL,
+  expected_reward_amount  integer NOT NULL,
+  expected_reward_item    text NOT NULL,
   issued_at               timestamptz NOT NULL DEFAULT now(),
   expires_at              timestamptz NOT NULL,
   consumed_transaction_id text,
@@ -28,6 +31,42 @@ CREATE TABLE IF NOT EXISTS public.reward_ssv_tickets (
   )
 );
 
+-- Development databases may already have the earlier provisional 0153. Those
+-- tickets did not bind an ad contract and cannot be upgraded safely, so remove
+-- them instead of inventing trusted values for attacker-influenced callbacks.
+ALTER TABLE public.reward_ssv_tickets
+  ADD COLUMN IF NOT EXISTS expected_ad_unit_id text,
+  ADD COLUMN IF NOT EXISTS expected_reward_amount integer,
+  ADD COLUMN IF NOT EXISTS expected_reward_item text;
+
+DELETE FROM public.reward_ssv_tickets
+ WHERE expected_ad_unit_id IS NULL
+    OR expected_reward_amount IS NULL
+    OR expected_reward_item IS NULL;
+
+ALTER TABLE public.reward_ssv_tickets
+  ALTER COLUMN expected_ad_unit_id SET NOT NULL,
+  ALTER COLUMN expected_reward_amount SET NOT NULL,
+  ALTER COLUMN expected_reward_item SET NOT NULL;
+
+ALTER TABLE public.reward_ssv_tickets
+  DROP CONSTRAINT IF EXISTS reward_ssv_tickets_expected_ad_unit_id_valid,
+  DROP CONSTRAINT IF EXISTS reward_ssv_tickets_expected_reward_amount_valid,
+  DROP CONSTRAINT IF EXISTS reward_ssv_tickets_expected_reward_item_valid;
+
+ALTER TABLE public.reward_ssv_tickets
+  ADD CONSTRAINT reward_ssv_tickets_expected_ad_unit_id_valid CHECK (
+    char_length(expected_ad_unit_id) BETWEEN 1 AND 256
+    AND expected_ad_unit_id !~ '[[:cntrl:]]'
+  ),
+  ADD CONSTRAINT reward_ssv_tickets_expected_reward_amount_valid CHECK (
+    expected_reward_amount BETWEEN 1 AND 2147483647
+  ),
+  ADD CONSTRAINT reward_ssv_tickets_expected_reward_item_valid CHECK (
+    char_length(expected_reward_item) BETWEEN 1 AND 256
+    AND expected_reward_item !~ '[[:cntrl:]]'
+  );
+
 CREATE INDEX IF NOT EXISTS reward_ssv_tickets_user_active_idx
   ON public.reward_ssv_tickets (user_id, expires_at DESC)
   WHERE consumed_transaction_id IS NULL;
@@ -37,10 +76,18 @@ ALTER TABLE public.reward_ssv_tickets FORCE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.reward_ssv_tickets
   FROM PUBLIC, anon, authenticated, service_role;
 
+-- The provisional three-argument overloads did not bind the signed reward
+-- configuration. They must disappear rather than remain callable by accident.
+DROP FUNCTION IF EXISTS public.issue_reward_ssv_ticket(uuid, text, text);
+DROP FUNCTION IF EXISTS public.consume_reward_ssv_ticket(text, uuid, text);
+
 CREATE OR REPLACE FUNCTION public.issue_reward_ssv_ticket(
   p_user_id uuid,
   p_reward_kind text,
-  p_token_hash text
+  p_token_hash text,
+  p_ad_unit_id text,
+  p_reward_amount integer,
+  p_reward_item text
 )
 RETURNS boolean
 LANGUAGE plpgsql
@@ -60,7 +107,15 @@ BEGIN
      OR p_reward_kind IS NULL
      OR p_reward_kind NOT IN ('reasoning', 'chat')
      OR p_token_hash IS NULL
-     OR p_token_hash !~ '^[0-9a-f]{64}$' THEN
+     OR p_token_hash !~ '^[0-9a-f]{64}$'
+     OR p_ad_unit_id IS NULL
+     OR char_length(p_ad_unit_id) NOT BETWEEN 1 AND 256
+     OR p_ad_unit_id ~ '[[:cntrl:]]'
+     OR p_reward_amount IS NULL
+     OR p_reward_amount NOT BETWEEN 1 AND 2147483647
+     OR p_reward_item IS NULL
+     OR char_length(p_reward_item) NOT BETWEEN 1 AND 256
+     OR p_reward_item ~ '[[:cntrl:]]' THEN
     RETURN false;
   END IF;
 
@@ -119,9 +174,11 @@ BEGIN
   END IF;
 
   INSERT INTO public.reward_ssv_tickets
-    (token_hash, user_id, reward_kind, expires_at)
+    (token_hash, user_id, reward_kind, expected_ad_unit_id,
+     expected_reward_amount, expected_reward_item, expires_at)
   VALUES
-    (p_token_hash, p_user_id, p_reward_kind, now() + make_interval(mins => 10))
+    (p_token_hash, p_user_id, p_reward_kind, p_ad_unit_id,
+     p_reward_amount, p_reward_item, now() + make_interval(mins => 10))
   ON CONFLICT (token_hash) DO NOTHING;
   GET DIAGNOSTICS v_rows = ROW_COUNT;
   RETURN v_rows = 1;
@@ -131,7 +188,10 @@ $$;
 CREATE OR REPLACE FUNCTION public.consume_reward_ssv_ticket(
   p_token_hash text,
   p_callback_user_id uuid,
-  p_txn_id text
+  p_txn_id text,
+  p_ad_unit_id text,
+  p_reward_amount integer,
+  p_reward_item text
 )
 RETURNS TABLE(ticket_user_id uuid, reward_kind text)
 LANGUAGE plpgsql
@@ -146,7 +206,16 @@ BEGIN
      OR p_token_hash IS NULL
      OR p_token_hash !~ '^[0-9a-f]{64}$'
      OR p_txn_id IS NULL
-     OR length(p_txn_id) NOT BETWEEN 1 AND 256 THEN
+     OR length(p_txn_id) NOT BETWEEN 1 AND 256
+     OR p_txn_id ~ '[[:cntrl:]]'
+     OR p_ad_unit_id IS NULL
+     OR char_length(p_ad_unit_id) NOT BETWEEN 1 AND 256
+     OR p_ad_unit_id ~ '[[:cntrl:]]'
+     OR p_reward_amount IS NULL
+     OR p_reward_amount NOT BETWEEN 1 AND 2147483647
+     OR p_reward_item IS NULL
+     OR char_length(p_reward_item) NOT BETWEEN 1 AND 256
+     OR p_reward_item ~ '[[:cntrl:]]' THEN
     RETURN;
   END IF;
 
@@ -158,6 +227,9 @@ BEGIN
          consumed_at = coalesce(tickets.consumed_at, now())
    WHERE tickets.token_hash = p_token_hash
      AND tickets.user_id = p_callback_user_id
+     AND tickets.expected_ad_unit_id = p_ad_unit_id
+     AND tickets.expected_reward_amount = p_reward_amount
+     AND tickets.expected_reward_item = p_reward_item
      AND tickets.expires_at >= now()
      AND (
        tickets.consumed_transaction_id IS NULL
@@ -167,12 +239,12 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.issue_reward_ssv_ticket(uuid, text, text)
+REVOKE ALL ON FUNCTION public.issue_reward_ssv_ticket(uuid, text, text, text, integer, text)
   FROM PUBLIC, anon, authenticated, service_role;
-REVOKE ALL ON FUNCTION public.consume_reward_ssv_ticket(text, uuid, text)
+REVOKE ALL ON FUNCTION public.consume_reward_ssv_ticket(text, uuid, text, text, integer, text)
   FROM PUBLIC, anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.issue_reward_ssv_ticket(uuid, text, text) TO service_role;
-GRANT EXECUTE ON FUNCTION public.consume_reward_ssv_ticket(text, uuid, text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.issue_reward_ssv_ticket(uuid, text, text, text, integer, text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.consume_reward_ssv_ticket(text, uuid, text, text, integer, text) TO service_role;
 
 DO $verify$
 BEGIN
@@ -197,12 +269,38 @@ BEGIN
        'public.reward_ssv_tickets',
        'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
      )
-     OR has_function_privilege('anon', 'public.issue_reward_ssv_ticket(uuid,text,text)', 'EXECUTE')
-     OR has_function_privilege('authenticated', 'public.issue_reward_ssv_ticket(uuid,text,text)', 'EXECUTE')
-     OR NOT has_function_privilege('service_role', 'public.issue_reward_ssv_ticket(uuid,text,text)', 'EXECUTE')
-     OR has_function_privilege('anon', 'public.consume_reward_ssv_ticket(text,uuid,text)', 'EXECUTE')
-     OR has_function_privilege('authenticated', 'public.consume_reward_ssv_ticket(text,uuid,text)', 'EXECUTE')
-     OR NOT has_function_privilege('service_role', 'public.consume_reward_ssv_ticket(text,uuid,text)', 'EXECUTE') THEN
+     OR to_regprocedure('public.issue_reward_ssv_ticket(uuid,text,text)') IS NOT NULL
+     OR to_regprocedure('public.consume_reward_ssv_ticket(text,uuid,text)') IS NOT NULL
+     OR has_function_privilege(
+       'anon',
+       'public.issue_reward_ssv_ticket(uuid,text,text,text,integer,text)',
+       'EXECUTE'
+     )
+     OR has_function_privilege(
+       'authenticated',
+       'public.issue_reward_ssv_ticket(uuid,text,text,text,integer,text)',
+       'EXECUTE'
+     )
+     OR NOT has_function_privilege(
+       'service_role',
+       'public.issue_reward_ssv_ticket(uuid,text,text,text,integer,text)',
+       'EXECUTE'
+     )
+     OR has_function_privilege(
+       'anon',
+       'public.consume_reward_ssv_ticket(text,uuid,text,text,integer,text)',
+       'EXECUTE'
+     )
+     OR has_function_privilege(
+       'authenticated',
+       'public.consume_reward_ssv_ticket(text,uuid,text,text,integer,text)',
+       'EXECUTE'
+     )
+     OR NOT has_function_privilege(
+       'service_role',
+       'public.consume_reward_ssv_ticket(text,uuid,text,text,integer,text)',
+       'EXECUTE'
+     ) THEN
     RAISE EXCEPTION 'reward SSV ticket ACL verification failed'
       USING ERRCODE = '42501';
   END IF;
