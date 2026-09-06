@@ -1,0 +1,533 @@
+{
+  "checkedAtKst": "2026-09-06T22:37:57+09:00",
+  "status": "PASS",
+  "continuity": "Previous reply, handoff files and shared commit were present. A separate app text clipping issue was found and fixed.",
+  "change": "src/app/secondb.tsx: remove the persona description one-line limit; use lineHeight 18; update its comment.",
+  "browser": {
+    "locales": [
+      "ko",
+      "en",
+      "es",
+      "pt",
+      "id"
+    ],
+    "viewportWidths": [
+      320,
+      390,
+      1440
+    ],
+    "descriptionFontScales": [
+      1,
+      1.6
+    ],
+    "cases": 30,
+    "clippedBefore": 16,
+    "clippedAfter": 0,
+    "scope": "Web layout, default SecondB persona, empty conversation. Enlarges only the description; not native OS font scaling.",
+    "details": {
+      "red": [
+        {
+          "locale": "ko",
+          "viewportWidth": 320,
+          "scale": 1,
+          "width": 145,
+          "height": 14,
+          "clipped": true
+        },
+        {
+          "locale": "ko",
+          "viewportWidth": 320,
+          "scale": 1.6,
+          "width": 145,
+          "height": 46.078125,
+          "clipped": true
+        },
+        {
+          "locale": "ko",
+          "viewportWidth": 390,
+          "scale": 1,
+          "width": 215,
+          "height": 14,
+          "clipped": false
+        },
+        {
+          "locale": "ko",
+          "viewportWidth": 390,
+          "scale": 1.6,
+          "width": 215,
+          "height": 46.078125,
+          "clipped": true
+        },
+        {
+          "locale": "ko",
+          "viewportWidth": 1440,
+          "scale": 1,
+          "width": 1265,
+          "height": 14,
+          "clipped": false
+        },
+        {
+          "locale": "ko",
+          "viewportWidth": 1440,
+          "scale": 1.6,
+          "width": 1265,
+          "height": 46.078125,
+          "clipped": false
+        },
+        {
+          "locale": "en",
+          "viewportWidth": 320,
+          "scale": 1,
+          "width": 145,
+          "height": 14,
+          "clipped": true
+        },
+        {
+          "locale": "en",
+          "viewportWidth": 320,
+          "scale": 1.6,
+          "width": 145,
+          "height": 46.078125,
+          "clipped": true
+        },
+        {
+          "locale": "en",
+          "viewportWidth": 390,
+          "scale": 1,
+          "width": 215,
+          "height": 14,
+          "clipped": false
+        },
+        {
+          "locale": "en",
+          "viewportWidth": 390,
+          "scale": 1.6,
+          "width": 215,
+          "height": 46.078125,
+          "clipped": true
+        },
+        {
+          "locale": "en",
+          "viewportWidth": 1440,
+          "scale": 1,
+          "width": 1265,
+          "height": 14,
+          "clipped": false
+        },
+        {
+          "locale": "en",
+          "viewportWidth": 1440,
+          "scale": 1.6,
+          "width": 1265,
+          "height": 46.078125,
+          "clipped": false
+        },
+        {
+          "locale": "es",
+          "viewportWidth": 320,
+          "scale": 1,
+          "width": 145,
+          "height": 14,
+          "clipped": true
+        },
+        {
+          "locale": "es",
+          "viewportWidth": 320,
+          "scale": 1.6,
+          "width": 145,
+          "height": 46.078125,
+          "clipped": true
+        },
+        {
+          "locale": "es",
+          "viewportWidth": 390,
+          "scale": 1,
+          "width": 215,
+          "height": 14,
+          "clipped": false
+        },
+        {
+          "locale": "es",
+          "viewportWidth": 390,
+          "scale": 1.6,
+          "width": 215,
+          "height": 46.078125,
+          "clipped": true
+        },
+        {
+          "locale": "es",
+          "viewportWidth": 1440,
+          "scale": 1,
+          "width": 1265,
+          "height": 14,
+          "clipped": false
+        },
+        {
+          "locale": "es",
+          "viewportWidth": 1440,
+          "scale": 1.6,
+          "width": 1265,
+          "height": 46.078125,
+          "clipped": false
+        },
+        {
+          "locale": "pt",
+          "viewportWidth": 320,
+          "scale": 1,
+          "width": 145,
+          "height": 14,
+          "clipped": true
+        },
+        {
+          "locale": "pt",
+          "viewportWidth": 320,
+          "scale": 1.6,
+          "width": 145,
+          "height": 46.078125,
+          "clipped": true
+        },
+        {
+          "locale": "pt",
+          "viewportWidth": 390,
+          "scale": 1,
+          "width": 215,
+          "height": 14,
+          "clipped": false
+        },
+        {
+          "locale": "pt",
+          "viewportWidth": 390,
+          "scale": 1.6,
+          "width": 215,
+          "height": 46.078125,
+          "clipped": true
+        },
+        {
+          "locale": "pt",
+          "viewportWidth": 1440,
+          "scale": 1,
+          "width": 1265,
+          "height": 14,
+          "clipped": false
+        },
+        {
+          "locale": "pt",
+          "viewportWidth": 1440,
+          "scale": 1.6,
+          "width": 1265,
+          "height": 46.078125,
+          "clipped": false
+        },
+        {
+          "locale": "id",
+          "viewportWidth": 320,
+          "scale": 1,
+          "width": 145,
+          "height": 14,
+          "clipped": true
+        },
+        {
+          "locale": "id",
+          "viewportWidth": 320,
+          "scale": 1.6,
+          "width": 145,
+          "height": 46.078125,
+          "clipped": true
+        },
+        {
+          "locale": "id",
+          "viewportWidth": 390,
+          "scale": 1,
+          "width": 215,
+          "height": 14,
+          "clipped": true
+        },
+        {
+          "locale": "id",
+          "viewportWidth": 390,
+          "scale": 1.6,
+          "width": 215,
+          "height": 46.078125,
+          "clipped": true
+        },
+        {
+          "locale": "id",
+          "viewportWidth": 1440,
+          "scale": 1,
+          "width": 1265,
+          "height": 14,
+          "clipped": false
+        },
+        {
+          "locale": "id",
+          "viewportWidth": 1440,
+          "scale": 1.6,
+          "width": 1265,
+          "height": 46.078125,
+          "clipped": false
+        }
+      ],
+      "green": [
+        {
+          "locale": "ko",
+          "viewportWidth": 320,
+          "scale": 1,
+          "width": 145,
+          "height": 36,
+          "clipped": false
+        },
+        {
+          "locale": "ko",
+          "viewportWidth": 320,
+          "scale": 1.6,
+          "width": 145,
+          "height": 92.15625,
+          "clipped": false
+        },
+        {
+          "locale": "ko",
+          "viewportWidth": 390,
+          "scale": 1,
+          "width": 215,
+          "height": 18,
+          "clipped": false
+        },
+        {
+          "locale": "ko",
+          "viewportWidth": 390,
+          "scale": 1.6,
+          "width": 215,
+          "height": 92.15625,
+          "clipped": false
+        },
+        {
+          "locale": "ko",
+          "viewportWidth": 1440,
+          "scale": 1,
+          "width": 1265,
+          "height": 18,
+          "clipped": false
+        },
+        {
+          "locale": "ko",
+          "viewportWidth": 1440,
+          "scale": 1.6,
+          "width": 1265,
+          "height": 46.078125,
+          "clipped": false
+        },
+        {
+          "locale": "en",
+          "viewportWidth": 320,
+          "scale": 1,
+          "width": 145,
+          "height": 36,
+          "clipped": false
+        },
+        {
+          "locale": "en",
+          "viewportWidth": 320,
+          "scale": 1.6,
+          "width": 145,
+          "height": 138.234375,
+          "clipped": false
+        },
+        {
+          "locale": "en",
+          "viewportWidth": 390,
+          "scale": 1,
+          "width": 215,
+          "height": 18,
+          "clipped": false
+        },
+        {
+          "locale": "en",
+          "viewportWidth": 390,
+          "scale": 1.6,
+          "width": 215,
+          "height": 92.15625,
+          "clipped": false
+        },
+        {
+          "locale": "en",
+          "viewportWidth": 1440,
+          "scale": 1,
+          "width": 1265,
+          "height": 18,
+          "clipped": false
+        },
+        {
+          "locale": "en",
+          "viewportWidth": 1440,
+          "scale": 1.6,
+          "width": 1265,
+          "height": 46.078125,
+          "clipped": false
+        },
+        {
+          "locale": "es",
+          "viewportWidth": 320,
+          "scale": 1,
+          "width": 145,
+          "height": 36,
+          "clipped": false
+        },
+        {
+          "locale": "es",
+          "viewportWidth": 320,
+          "scale": 1.6,
+          "width": 145,
+          "height": 138.234375,
+          "clipped": false
+        },
+        {
+          "locale": "es",
+          "viewportWidth": 390,
+          "scale": 1,
+          "width": 215,
+          "height": 18,
+          "clipped": false
+        },
+        {
+          "locale": "es",
+          "viewportWidth": 390,
+          "scale": 1.6,
+          "width": 215,
+          "height": 92.15625,
+          "clipped": false
+        },
+        {
+          "locale": "es",
+          "viewportWidth": 1440,
+          "scale": 1,
+          "width": 1265,
+          "height": 18,
+          "clipped": false
+        },
+        {
+          "locale": "es",
+          "viewportWidth": 1440,
+          "scale": 1.6,
+          "width": 1265,
+          "height": 46.078125,
+          "clipped": false
+        },
+        {
+          "locale": "pt",
+          "viewportWidth": 320,
+          "scale": 1,
+          "width": 145,
+          "height": 36,
+          "clipped": false
+        },
+        {
+          "locale": "pt",
+          "viewportWidth": 320,
+          "scale": 1.6,
+          "width": 145,
+          "height": 138.234375,
+          "clipped": false
+        },
+        {
+          "locale": "pt",
+          "viewportWidth": 390,
+          "scale": 1,
+          "width": 215,
+          "height": 18,
+          "clipped": false
+        },
+        {
+          "locale": "pt",
+          "viewportWidth": 390,
+          "scale": 1.6,
+          "width": 215,
+          "height": 92.15625,
+          "clipped": false
+        },
+        {
+          "locale": "pt",
+          "viewportWidth": 1440,
+          "scale": 1,
+          "width": 1265,
+          "height": 18,
+          "clipped": false
+        },
+        {
+          "locale": "pt",
+          "viewportWidth": 1440,
+          "scale": 1.6,
+          "width": 1265,
+          "height": 46.078125,
+          "clipped": false
+        },
+        {
+          "locale": "id",
+          "viewportWidth": 320,
+          "scale": 1,
+          "width": 145,
+          "height": 54,
+          "clipped": false
+        },
+        {
+          "locale": "id",
+          "viewportWidth": 320,
+          "scale": 1.6,
+          "width": 145,
+          "height": 184.3125,
+          "clipped": false
+        },
+        {
+          "locale": "id",
+          "viewportWidth": 390,
+          "scale": 1,
+          "width": 215,
+          "height": 36,
+          "clipped": false
+        },
+        {
+          "locale": "id",
+          "viewportWidth": 390,
+          "scale": 1.6,
+          "width": 215,
+          "height": 184.3125,
+          "clipped": false
+        },
+        {
+          "locale": "id",
+          "viewportWidth": 1440,
+          "scale": 1,
+          "width": 1265,
+          "height": 18,
+          "clipped": false
+        },
+        {
+          "locale": "id",
+          "viewportWidth": 1440,
+          "scale": 1.6,
+          "width": 1265,
+          "height": 46.078125,
+          "clipped": false
+        }
+      ]
+    }
+  },
+  "verify": {
+    "command": "npm run verify -- --runInBand --json --outputFile=Output/text-clipping-260906/jest-final.json",
+    "exitCode": 0,
+    "passed": true
+  },
+  "jest": {
+    "numPassedTestSuites": 707,
+    "numTotalTestSuites": 707,
+    "numPassedTests": 8641,
+    "numTotalTests": 8641,
+    "numFailedTests": 0
+  },
+  "previousFailures": "Pixel baseline and self-compassion research contract had been corrected by other work before this check. This turn did not edit those files.",
+  "webExport": "PASS",
+  "nativeBuildOrRuntimeCheck": "not run",
+  "modelCallsMade": 0,
+  "remoteRecordMutations": 0,
+  "externalPublication": false,
+  "sourceChanges": "Uncommitted in TTL-Work. Apply text-clipping.patch after the prior app-copy.patch when integrating."
+}

@@ -1,0 +1,27 @@
+--- a/src/app/secondb.tsx
++++ b/src/app/secondb.tsx
+@@ -980,14 +980,14 @@
+           keyboardVerticalOffset={keyboardVerticalOffset}
+         >
+           {/* persona banner (reference ChatScreen header): status dot + mono tag +
+-              one-line lens description, tinted by the selected lens. Usage counter
++              wrapping lens description, tinted by the selected lens. Usage counter
+               and clear affordance ride the right edge. */}
+           <View style={[ds.banner, { backgroundColor: lensSoftBg }]}>
+             <View style={[ds.bannerDot, { backgroundColor: lensAccent, shadowColor: lensGlow }]} />
+             <Text style={[ds.bannerTag, { color: lensOnSoft }]} numberOfLines={1}>
+               {isCharacterChat ? t("title") : t(`rev2.${rev2Persona}.tag`)}
+             </Text>
+-            <Text style={ds.bannerDesc} numberOfLines={1}>
++            <Text style={ds.bannerDesc}>
+               {isCharacterChat ? persona.role[locale] : t(`rev2.${rev2Persona}.desc`)}
+             </Text>
+             <Text style={[ds.bannerUsage, atLimit ? ds.headerMetaDanger : null]} numberOfLines={1}>
+@@ -2103,6 +2103,7 @@
+     minWidth: 0,
+     color: m3.color.onSurfaceVariant,
+     fontSize: 12,
++    lineHeight: 18,
+     fontFamily: fontFamilies.readable,
+   },
+   bannerUsage: {
