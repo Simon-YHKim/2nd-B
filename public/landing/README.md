@@ -32,8 +32,12 @@ square, no cut-out needed.
 > render, re-measure those (or set them so the synthetic eyes sit over the
 > baked ones).
 
-Placeholder **name / bio / contact** ("Elian Voss") are fictional — swap them in
-`index.html`.
+The info panel used to carry a **fictional person** (name, bio, email, handle) as
+placeholder copy. This page is published at
+<https://simon-yhkim.github.io/2nd-B/landing/>, so a made-up person's name sitting
+in the `<title>` read as a real page about a real someone. It now describes the
+study itself instead. **Do not put an invented person back in** — if you need
+filler, say what the panel is for.
 
 ## Run
 
