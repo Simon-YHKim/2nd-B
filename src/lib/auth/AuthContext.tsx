@@ -10,6 +10,12 @@ import { getSupabaseClient } from "../supabase/client";
 import { ageInYears, signOut as signOutAuth } from "../supabase/auth";
 import { preserveKnownMinorForMissingProfile, type ProfileProbe } from "./profile-probe";
 import { noteResolvedOwner } from "./account-epoch";
+import {
+  boundedSessionLoad,
+  classifyRefreshOutcome,
+  settleAuthBootstrap,
+  type SessionLoadOutcome,
+} from "./bootstrap-outcome";
 import { subscribeRecoveryStorageEvent } from "./recovery-storage-events";
 import { nextRecoveryProof } from "./reset-password-helpers";
 import {
@@ -52,6 +58,13 @@ interface AuthState {
    *  flag set means "unknown" — screens must hold + retry, never eject to
    *  /complete-profile (that stranded real accounts on network blips). */
   profileProbeFailed: boolean;
+  /** True when startup (or a manual retry) ended without ever learning whether
+   *  a session exists — getSession neither answered nor rejected in time, and
+   *  both recovery markers read clean and empty. userId stays null so nothing
+   *  authenticated renders, but this is explicitly NOT "signed out": screens
+   *  show a retryable error instead of a plain sign-in, and a late session
+   *  still reconciles through INITIAL_SESSION. Cleared by any resolution. */
+  sessionUnavailable: boolean;
   loading: boolean;
 }
 
@@ -80,6 +93,7 @@ const AuthContext = createContext<AuthContextValue>({
   isMinor: null,
   age: null,
   profileProbeFailed: false,
+  sessionUnavailable: false,
   loading: true,
   recoveryUserId: null,
   recoverySessionId: null,
@@ -157,6 +171,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isMinor: null,
     age: null,
     profileProbeFailed: false,
+    sessionUnavailable: false,
     loading: true,
   });
 
@@ -208,11 +223,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           await signOutAuth("local");
           publishRecoveryProof(null);
-        } catch (signOutError) {
+        } catch {
           // signOut returns { error } rather than throwing at the client layer;
           // the wrapper converts that to a throw. Keep proof locked on failure.
+          // FAR-02: log a stable phase, never the caught operand - these paths
+          // carry third-party error objects we do not control.
           if (typeof console !== "undefined") {
-            console.warn("[auth] recovery persistence sign-out failed", signOutError);
+            console.warn("[auth] recovery sign-out failed; phase=persist-proof");
           }
         }
       }
@@ -240,6 +257,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = getSupabaseClient();
     let cancelled = false;
 
+    // AUTH-01: the boot ran to completion but never learned whether a session
+    // exists. Publish that as an explicit, retryable state - NOT resolveSession(null),
+    // which would assert a trusted signed-out session we cannot actually prove.
+    // userId stays null, so no authenticated surface renders either way.
+    function publishSessionUnavailable() {
+      if (cancelled) return;
+      probeGenRef.current += 1;
+      lastUserIdRef.current = null;
+      lastProbeRef.current = null;
+      noteResolvedOwner(null);
+      setState({
+        userId: null,
+        hasProfile: null,
+        isMinor: null,
+        age: null,
+        profileProbeFailed: false,
+        sessionUnavailable: true,
+        loading: false,
+      });
+    }
+
     async function resolveSession(userId: string | null) {
       if (cancelled) return;
       const gen = ++probeGenRef.current;
@@ -247,7 +285,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         lastUserIdRef.current = null;
         lastProbeRef.current = null;
         noteResolvedOwner(null);
-        setState({ userId: null, hasProfile: null, isMinor: null, age: null, profileProbeFailed: false, loading: false });
+        setState({ userId: null, hasProfile: null, isMinor: null, age: null, profileProbeFailed: false, sessionUnavailable: false, loading: false });
         return;
       }
       // Same user we already resolved — don't flip back to loading (avoids the
@@ -261,6 +299,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           isMinor: lastProbe.isMinor,
           age: lastProbe.age ?? null,
           profileProbeFailed: lastProbe.probeFailed === true,
+          sessionUnavailable: false,
           loading: false,
         });
         const reprobe = preserveKnownMinorForMissingProfile(
@@ -282,13 +321,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           isMinor: refreshed.isMinor,
           age: refreshed.age ?? null,
           profileProbeFailed: refreshed.probeFailed === true,
+          sessionUnavailable: false,
           loading: false,
         });
         return;
       }
       // First resolve for this user: mark loading until we know the profile.
       noteResolvedOwner(userId);
-      setState({ userId, hasProfile: null, isMinor: null, age: null, profileProbeFailed: false, loading: true });
+      setState({ userId, hasProfile: null, isMinor: null, age: null, profileProbeFailed: false, sessionUnavailable: false, loading: true });
       const probe = await withTimeout(fetchProfile(userId), PROFILE_PROBE_TIMEOUT_MS, {
         hasProfile: false,
         isMinor: null,
@@ -307,6 +347,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isMinor: probe.isMinor,
         age: probe.age ?? null,
         profileProbeFailed: probe.probeFailed === true,
+        sessionUnavailable: false,
         loading: false,
       });
     }
@@ -325,7 +366,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       left?.userId === right?.userId && left?.sessionId === right?.sessionId;
 
     let failClosedRunning = false;
-    const failClosedRecovery = async (proof: RecoveryProof | null, error: unknown): Promise<boolean> => {
+    const failClosedRecovery = async (proof: RecoveryProof | null, _error: unknown): Promise<boolean> => {
       // A stale A failure must never revoke a newer B proof. Restore A only when
       // no newer owner exists, then yield once so already-queued auth/storage
       // publications can win before local sign-out begins.
@@ -349,7 +390,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       failClosedRunning = true;
       if (typeof console !== "undefined") {
-        console.warn("[auth] recovery proof persistence failed; signing out locally", error);
+        console.warn("[auth] recovery proof persistence failed; signing out locally; phase=fail-closed-entry");
       }
       // Restore the last proof before an async sign-out attempt. Account-change
       // handling may already have published null; leaving that gap would let an
@@ -375,9 +416,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         void resolveSession(null);
         failClosedRunning = false;
         return true;
-      } catch (signOutError) {
+      } catch {
         if (typeof console !== "undefined") {
-          console.warn("[auth] recovery fail-closed sign-out failed", signOutError);
+          console.warn("[auth] recovery fail-closed sign-out failed; phase=fail-closed-signout");
         }
         // Never publish loading=false while a session we could not classify or
         // revoke remains. Existing proof stays visible so route guards lock.
@@ -551,7 +592,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const [sessionResult, markerResult, pendingResult] = await Promise.all([
         // getSession may refresh an expired token under the auth lock. Keep the
         // existing boot timeout, but preserve UNKNOWN separately from no session.
-        withTimeout<SessionLoadResult>(
+        boundedSessionLoad<SessionLoadResult>(
           rawSessionLoad,
           PROFILE_PROBE_TIMEOUT_MS,
           { ok: false, error: new Error("Auth session hydration timed out") },
@@ -643,7 +684,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // We cannot prove this persisted session is ordinary. Remove only this
         // device's session; a storage fault must not silently unlock recovery.
         if (markerResult.ok === false && typeof console !== "undefined") {
-          console.warn("[auth] recovery proof hydration failed; signing out locally", markerResult.error);
+          console.warn("[auth] recovery proof hydration failed; signing out locally; phase=bootstrap-marker-read");
         }
         if (loadedMarker) publishRecoveryProof(loadedMarker);
         const closed = await failClosedRecovery(
@@ -681,38 +722,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       publishRecoveryProof(proof);
       if (!latestSessionRef.current) latestSessionRef.current = session;
       bootstrapped = true;
-      const bootstrapReady = sessionKnown || Boolean(proof) || !recoveryPendingOnDisk;
-      setRecoveryReady(bootstrapReady);
       const sessionForResolve = latestSessionRef.current ?? session;
       const proofMatchesSession =
         !proof ||
         Boolean(sessionForResolve && recoveryProofMatchesSession(proof, sessionForResolve));
-      if (sessionKnown && proofMatchesSession) {
-        void resolveSession(sessionForResolve?.user.id ?? null);
-      }
-      if (!sessionResult.ok) {
-        // Timeout does not cancel getSession. Reconcile its eventual answer as
-        // INITIAL_SESSION; normal sessions still cannot create recovery proof.
-        void rawSessionLoad.then(async (late) => {
-          if (!cancelled && late.ok) {
-            if (isRecoveryPendingInMemory() && !recoveryProofRef.current) {
-              if (late.session) {
-                await failClosedRecovery(
-                  null,
-                  new Error("Late recovery session arrived before proof"),
-                );
-              } else {
-                await clearRecoveryPending();
-                setRecoveryReady(true);
-                handleAuthEvent("INITIAL_SESSION", null);
-              }
-              return;
-            }
-            handleAuthEvent("INITIAL_SESSION", late.session);
-            setRecoveryReady(true);
-          }
-        });
-      }
+      // AUTH-01: the terminal step lives in bootstrap-outcome.ts so the real
+      // orchestration (publication + late reconciliation) is executable by a
+      // fake-timer test. Behaviour for every previously-handled case is
+      // unchanged; the new branch is `session-unavailable`, which ends an
+      // ordinary unanswered startup instead of leaving loading:true forever.
+      settleAuthBootstrap<Session>({
+        sessionKnown,
+        hasProof: Boolean(proof),
+        proofMatchesSession,
+        recoveryPendingOnDisk,
+        markersReadable: markerResult.ok && pendingResult.ok,
+        sessionForResolve,
+        sessionAnswered: sessionResult.ok,
+        rawSessionLoad,
+        isCancelled: () => cancelled,
+        setRecoveryReady,
+        resolveSession,
+        publishSessionUnavailable,
+        isRecoveryPendingInMemory,
+        currentRecoveryProof: () => recoveryProofRef.current,
+        failClosedRecovery,
+        clearRecoveryPending,
+        handleAuthEvent,
+      });
       // No await exists between the last queue check and bootstrapped=true, so
       // every subsequent event is handled by handleAuthEvent rather than lost.
     })().catch((error) => {
@@ -741,25 +778,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = getSupabaseClient();
     const gen = ++probeGenRef.current;
     let uid: string | null = null;
-    try {
-      // Same hang guard as boot: a wedged getSession would otherwise stall
-      // submitSignUp/submitCompleteProfile (which await refresh() before
-      // navigating) with the submit spinner stuck on.
-      const { data } = await withTimeout(
-        supabase.auth.getSession(),
-        PROFILE_PROBE_TIMEOUT_MS,
-        { data: { session: null }, error: null } as Awaited<ReturnType<typeof supabase.auth.getSession>>,
-      );
-      uid = data.session?.user.id ?? null;
-    } catch {
-      uid = null;
-    }
+    // AUTH-01: this is also the retry the unavailable state offers, so it must
+    // distinguish "the server answered: no session" from "we still could not
+    // ask". The old fallback collapsed both into session:null, which would have
+    // turned a failed retry into a confident signed-out publication.
+    // Same hang guard as boot: a wedged getSession would otherwise stall
+    // submitSignUp/submitCompleteProfile (which await refresh() before
+    // navigating) with the submit spinner stuck on.
+    const probed = await boundedSessionLoad<SessionLoadOutcome<Session>>(
+      supabase.auth.getSession()
+        .then<SessionLoadOutcome<Session>>(({ data, error }) =>
+          error ? { ok: false, error } : { ok: true, session: data.session },
+        )
+        .catch<SessionLoadOutcome<Session>>((error) => ({ ok: false, error })),
+      PROFILE_PROBE_TIMEOUT_MS,
+      { ok: false, error: new Error("Auth session refresh timed out") },
+    );
+    const retry = classifyRefreshOutcome(probed);
+    uid = retry.userId;
     if (gen !== probeGenRef.current) return; // a newer resolution superseded us
     if (!uid) {
       lastUserIdRef.current = null;
       lastProbeRef.current = null;
       noteResolvedOwner(null);
-      setState({ userId: null, hasProfile: null, isMinor: null, age: null, profileProbeFailed: false, loading: false });
+      setState({ userId: null, hasProfile: null, isMinor: null, age: null, profileProbeFailed: false, sessionUnavailable: retry.sessionUnavailable, loading: false });
       return;
     }
     // Timeout fallback: keep the last known-good probe for the SAME user
@@ -784,6 +826,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isMinor: probe.isMinor,
       age: probe.age ?? null,
       profileProbeFailed: probe.probeFailed === true,
+      sessionUnavailable: false,
       loading: false,
     });
   }, []);

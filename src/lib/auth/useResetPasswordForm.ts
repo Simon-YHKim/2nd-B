@@ -324,7 +324,7 @@ export function useResetPasswordForm(): UseResetPasswordForm {
       },
     );
     void task
-      .catch(async (e) => {
+      .catch(async (_e) => {
         if (
           mountedRef.current &&
           requestId === recoveryConsumeGenerationRef.current
@@ -353,7 +353,7 @@ export function useResetPasswordForm(): UseResetPasswordForm {
           setToast({ tone: "danger", message: t("errors.passwordResetFailed") });
         }
         if (typeof console !== "undefined") {
-          console.warn("[auth] recovery link consume failed", (e as Error).message);
+          console.warn("[auth] recovery link consume failed; phase=consume-recovery-link");
         }
       })
       .finally(() => {
@@ -508,10 +508,10 @@ export function useResetPasswordForm(): UseResetPasswordForm {
       }
       await completeRecovery(expectedRecoveryUserId, expectedRecoverySessionId);
       setCancelled(true);
-    } catch (e) {
+    } catch {
       setToast({ tone: "danger", message: t("errors.signOutFailed") });
       if (typeof console !== "undefined") {
-        console.warn("[auth] recovery cancel sign-out failed", (e as Error).message);
+        console.warn("[auth] recovery cancel sign-out failed; phase=cancel-recovery-signout");
       }
     } finally {
       setCancelling(false);
