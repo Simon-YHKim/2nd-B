@@ -10,6 +10,9 @@ import {
 
 export const RECOVERY_PROOF_KEY = "secondbrain.auth.recovery-proof.v1";
 export const RECOVERY_PENDING_KEY = "secondbrain.auth.recovery-pending.v1";
+const RECOVERY_PENDING_OWNER_PREFIX = `${RECOVERY_PENDING_KEY}.`;
+const RECOVERY_PENDING_WEB_LOCK = "secondbrain.auth.recovery-pending";
+const RECOVERY_PENDING_OWNER_KEY_VERSION = 1;
 
 export interface RecoverySessionIdentity {
   userId: string;
@@ -25,6 +28,10 @@ export interface RecoveryPending {
   issuedAt: string;
   /** Opaque ownership token. Older markers without it remain readable. */
   token?: string;
+}
+
+interface WebRecoveryPending extends Required<RecoveryPending> {
+  readonly ownerKeyVersion: typeof RECOVERY_PENDING_OWNER_KEY_VERSION;
 }
 
 /**
@@ -164,6 +171,59 @@ function requireRuntimeStorage(): { kind: "web"; store: Storage } | { kind: "nat
   return store ? { kind: "web", store } : null;
 }
 
+interface WebLockManagerLike {
+  request<T>(
+    name: string,
+    options: { mode: "exclusive" },
+    callback: () => Promise<T>,
+  ): Promise<T>;
+}
+
+async function withWebPendingLock<T>(operation: () => Promise<T>): Promise<T> {
+  const locks = (globalThis.navigator as { locks?: WebLockManagerLike } | undefined)?.locks;
+  if (!locks) return operation();
+  let entered = false;
+  try {
+    return await locks.request(
+      RECOVERY_PENDING_WEB_LOCK,
+      { mode: "exclusive" },
+      () => {
+        entered = true;
+        return operation();
+      },
+    );
+  } catch (error) {
+    // Lock acquisition is an optimization. The owner-key ledger remains safe
+    // when the API is unavailable or rejects before invoking the callback.
+    if (!entered) return operation();
+    throw error;
+  }
+}
+
+function recoveryPendingOwnerKey(token: string): string {
+  return `${RECOVERY_PENDING_OWNER_PREFIX}${token}`;
+}
+
+function toWebRecoveryPending(pending: Required<RecoveryPending>): WebRecoveryPending {
+  return {
+    ...pending,
+    ownerKeyVersion: RECOVERY_PENDING_OWNER_KEY_VERSION,
+  };
+}
+
+function parseWebRecoveryPending(raw: string | null): WebRecoveryPending | null {
+  const pending = parseRecoveryPending(raw);
+  if (!pending?.token || !raw) return null;
+  try {
+    const value = JSON.parse(raw) as { ownerKeyVersion?: unknown };
+    return value.ownerKeyVersion === RECOVERY_PENDING_OWNER_KEY_VERSION
+      ? toWebRecoveryPending({ issuedAt: pending.issuedAt, token: pending.token })
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Arm a provisional cross-tab lock before auth-js consumes a web callback URL.
  * A PKCE `code` is only provisional here; authoritative recovery provenance
@@ -171,10 +231,10 @@ function requireRuntimeStorage(): { kind: "web"; store: Storage } | { kind: "nat
  */
 export function armWebRecoveryPendingFromLocation(): boolean {
   if (typeof window === "undefined") return false;
-  let claimed: {
-    lease: RecoveryPendingLease;
-    previous: PendingStateSnapshot;
-  } | null = null;
+  let store: Storage | null = null;
+  let lease: RecoveryPendingLease | null = null;
+  let ownerKey: string | null = null;
+  let ownerWritten = false;
   try {
     const url = new URL(window.location.href);
     const resetRoute = url.pathname.replace(/\/+$/, "").endsWith("/reset-password");
@@ -187,17 +247,33 @@ export function armWebRecoveryPendingFromLocation(): boolean {
       params.has("access_token") ||
       params.has("error_code");
     if (!resetRoute || !callbackSignal) return false;
-    const previous = capturePendingState();
+    store = localStorage;
+    observeWebPending(store, false);
     const marker = createRecoveryPendingMarker();
-    const lease = claimPending(marker.token);
-    claimed = { lease, previous };
-    localStorage.setItem(
-      RECOVERY_PENDING_KEY,
-      JSON.stringify(marker),
-    );
+    lease = claimPending(marker.token);
+    const webMarker = toWebRecoveryPending(marker);
+    const rawMarker = JSON.stringify(webMarker);
+    ownerKey = recoveryPendingOwnerKey(marker.token);
+    store.setItem(ownerKey, rawMarker);
+    ownerWritten = true;
+    store.setItem(RECOVERY_PENDING_KEY, rawMarker);
+    commitDurablePendingState(capturePendingState());
     return true;
   } catch {
-    if (claimed) restorePendingStateIfCurrent(claimed.lease, claimed.previous);
+    if (store && ownerWritten && ownerKey) {
+      try {
+        store.removeItem(ownerKey);
+      } catch {
+        // Re-observation below keeps the gate locked if cleanup did not land.
+      }
+    }
+    if (store) {
+      try {
+        observeWebPending(store, true);
+      } catch {
+        if (lease && isRecoveryPendingLeaseCurrent(lease)) setMemoryPending(true);
+      }
+    }
     return false;
   }
 }
@@ -210,6 +286,7 @@ let pendingRevision = 0;
 let pendingToken: string | null = null;
 let pendingIsLegacy = false;
 let pendingTokenSequence = 0;
+let durablePendingKnown = false;
 const pendingListeners = new Set<(pending: boolean) => void>();
 
 interface PendingStateSnapshot {
@@ -218,6 +295,13 @@ interface PendingStateSnapshot {
   token: string | null;
   legacy: boolean;
 }
+
+let durablePendingState: PendingStateSnapshot = {
+  pending: false,
+  revision: 0,
+  token: null,
+  legacy: false,
+};
 
 function createPendingToken(): string {
   pendingTokenSequence += 1;
@@ -243,6 +327,35 @@ function capturePendingState(): PendingStateSnapshot {
     revision: pendingRevision,
     token: pendingToken,
     legacy: pendingIsLegacy,
+  };
+}
+
+function commitDurablePendingState(state: PendingStateSnapshot): void {
+  durablePendingKnown = true;
+  durablePendingState = { ...state };
+}
+
+function durableStateForPending(
+  pending: RecoveryPending,
+  legacy = pending.token === undefined,
+): PendingStateSnapshot {
+  const token = pending.token
+    ?? (durablePendingState.legacy ? durablePendingState.token : null)
+    ?? createPendingToken();
+  return {
+    pending: true,
+    revision: pendingRevision,
+    token,
+    legacy,
+  };
+}
+
+function noPendingState(): PendingStateSnapshot {
+  return {
+    pending: false,
+    revision: pendingRevision,
+    token: null,
+    legacy: false,
   };
 }
 
@@ -275,9 +388,8 @@ function restorePendingStateIfCurrent(
   setMemoryPending(previous.pending);
 }
 
-function applyPendingMarker(pending: RecoveryPending): void {
-  const token = pending.token ?? createPendingToken();
-  claimPending(token, pending.token === undefined);
+function restoreDurablePendingStateIfCurrent(lease: RecoveryPendingLease): void {
+  restorePendingStateIfCurrent(lease, durablePendingState);
 }
 
 function applyNoPendingMarker(): void {
@@ -285,6 +397,18 @@ function applyNoPendingMarker(): void {
   pendingToken = null;
   pendingIsLegacy = false;
   setMemoryPending(false);
+}
+
+function applyPendingState(state: PendingStateSnapshot): void {
+  if (
+    memoryPending === state.pending
+    && pendingToken === state.token
+    && pendingIsLegacy === state.legacy
+  ) return;
+  pendingRevision += 1;
+  pendingToken = state.token;
+  pendingIsLegacy = state.legacy;
+  setMemoryPending(state.pending);
 }
 
 function setMemoryPending(pending: boolean): void {
@@ -302,17 +426,92 @@ export function subscribeRecoveryPending(listener: (pending: boolean) => void): 
   return () => pendingListeners.delete(listener);
 }
 
-export function applyRecoveryPendingStorageValue(raw: string | null): RecoveryPending | null {
-  const pending = parseRecoveryPending(raw);
-  if (pending) {
-    applyPendingMarker(pending);
-  } else if (raw) {
-    // A malformed cross-tab marker is still an unresolved recovery signal.
-    // Keep the in-memory gate locked while the caller reports the fault.
-    claimPending(createPendingToken(), true);
-  } else {
-    applyNoPendingMarker();
+interface WebPendingObservation {
+  readonly pending: RecoveryPending | null;
+  readonly state: PendingStateSnapshot;
+}
+
+function readWebPendingObservation(store: Storage): WebPendingObservation {
+  const baseRaw = store.getItem(RECOVERY_PENDING_KEY);
+  const basePending = parseRecoveryPending(baseRaw);
+  const baseOwner = parseWebRecoveryPending(baseRaw);
+  const owners = new Map<string, Required<RecoveryPending>>();
+  const partialStore = store as Storage & { key?: (index: number) => string | null };
+
+  if (typeof partialStore.key === "function") {
+    for (let index = 0; index < store.length; index += 1) {
+      const key = partialStore.key(index);
+      if (!key?.startsWith(RECOVERY_PENDING_OWNER_PREFIX)) continue;
+      const raw = store.getItem(key);
+      const owner = parseWebRecoveryPending(raw);
+      const keyToken = key.slice(RECOVERY_PENDING_OWNER_PREFIX.length);
+      if (!owner || owner.token !== keyToken) {
+        throw new Error("Persisted recovery pending owner marker is invalid");
+      }
+      owners.set(owner.token, { issuedAt: owner.issuedAt, token: owner.token });
+    }
+  } else if (baseOwner) {
+    // Test shims and older embedded webviews may omit Storage.key(). The base
+    // signal can locate its own owner, but correctness never depends on it in a
+    // real browser where the complete owner-key ledger is enumerable.
+    const raw = store.getItem(recoveryPendingOwnerKey(baseOwner.token));
+    const owner = parseWebRecoveryPending(raw);
+    if (owner?.token === baseOwner.token) {
+      owners.set(owner.token, { issuedAt: owner.issuedAt, token: owner.token });
+    }
   }
+
+  if (owners.size > 0) {
+    const sortedOwners = Array.from(owners.values()).sort((left, right) => (
+      left.issuedAt.localeCompare(right.issuedAt) || left.token.localeCompare(right.token)
+    ));
+    const selected = baseOwner && owners.has(baseOwner.token)
+      ? owners.get(baseOwner.token) as Required<RecoveryPending>
+      : sortedOwners[sortedOwners.length - 1];
+    return { pending: selected, state: durableStateForPending(selected) };
+  }
+
+  if (!baseRaw || baseOwner) {
+    return { pending: null, state: noPendingState() };
+  }
+  if (!basePending) {
+    throw new Error("Persisted recovery pending marker is invalid");
+  }
+  return { pending: basePending, state: durableStateForPending(basePending, true) };
+}
+
+function observeWebPending(store: Storage, updateMemory: boolean): RecoveryPending | null {
+  const observation = readWebPendingObservation(store);
+  commitDurablePendingState(observation.state);
+  if (updateMemory) applyPendingState(observation.state);
+  return observation.pending;
+}
+
+export function applyRecoveryPendingStorageValue(raw: string | null): RecoveryPending | null {
+  let store: Storage | null;
+  try {
+    store = webStorage();
+  } catch {
+    claimPending(createPendingToken(), true);
+    return null;
+  }
+  if (store) {
+    try {
+      // StorageEvent.newValue is only a wake-up signal. It may be delayed behind
+      // a newer tab write, so ownership is always re-read from the current ledger.
+      return observeWebPending(store, true);
+    } catch {
+      // An unreadable ledger is unresolved recovery state, never an unlock.
+      claimPending(createPendingToken(), true);
+      return null;
+    }
+  }
+
+  const pending = parseRecoveryPending(raw);
+  const state = pending ? durableStateForPending(pending) : noPendingState();
+  commitDurablePendingState(state);
+  if (pending || !raw) applyPendingState(state);
+  else claimPending(createPendingToken(), true);
   return pending;
 }
 
@@ -361,70 +560,171 @@ export function clearRecoveryProof(): Promise<void> {
   });
 }
 
+function pendingStateForMarker(
+  marker: Required<RecoveryPending>,
+  revision: number,
+): PendingStateSnapshot {
+  return {
+    pending: true,
+    revision,
+    token: marker.token,
+    legacy: false,
+  };
+}
+
+function observeNativePendingRaw(raw: string | null): WebPendingObservation {
+  const pending = parseRecoveryPending(raw);
+  if (raw && !pending) {
+    throw new Error("Persisted recovery pending marker is invalid");
+  }
+  return {
+    pending,
+    state: pending ? durableStateForPending(pending) : noPendingState(),
+  };
+}
+
 export function loadRecoveryPending(): Promise<RecoveryPending | null> {
   const requestedRevision = pendingRevision;
   return enqueueStorage(async () => {
     const storage = requireRuntimeStorage();
     if (!storage) return null;
-    const raw = storage.kind === "web"
-      ? storage.store.getItem(RECOVERY_PENDING_KEY)
-      : await storage.store.getItem(RECOVERY_PENDING_KEY);
-    const pending = parseRecoveryPending(raw);
-    if (raw && !pending) {
-      if (storage.kind === "web") storage.store.removeItem(RECOVERY_PENDING_KEY);
-      else await storage.store.removeItem(RECOVERY_PENDING_KEY);
-      if (pendingRevision === requestedRevision) applyNoPendingMarker();
-      throw new Error("Persisted recovery pending marker is invalid");
-    }
-    // A persist intent may have claimed a newer owner while an encrypted read
-    // was pending. Its state and queued write must win over this older read.
-    if (pendingRevision !== requestedRevision) return pending;
-    if (!pending) {
-      applyNoPendingMarker();
-      return null;
-    }
-    if (pending.token) {
-      if (!memoryPending || pendingToken !== pending.token || pendingIsLegacy) {
-        applyPendingMarker(pending);
-      }
-      return pending;
+
+    if (storage.kind === "web") {
+      return withWebPendingLock(async () => {
+        const observation = readWebPendingObservation(storage.store);
+        commitDurablePendingState(observation.state);
+        if (pendingRevision !== requestedRevision) return observation.pending;
+        applyPendingState(observation.state);
+        if (!observation.pending || !observation.state.legacy) return observation.pending;
+
+        const marker: Required<RecoveryPending> = {
+          issuedAt: observation.pending.issuedAt,
+          token: createPendingToken(),
+        };
+        const lease = claimPending(marker.token, true);
+        const ownerKey = recoveryPendingOwnerKey(marker.token);
+        const rawMarker = JSON.stringify(toWebRecoveryPending(marker));
+        let ownerWritten = false;
+        try {
+          storage.store.setItem(ownerKey, rawMarker);
+          ownerWritten = true;
+          storage.store.setItem(RECOVERY_PENDING_KEY, rawMarker);
+          const durable = pendingStateForMarker(marker, lease.revision);
+          commitDurablePendingState(durable);
+          if (isRecoveryPendingLeaseCurrent(lease)) applyPendingState(durable);
+          return marker;
+        } catch (error) {
+          if (ownerWritten) {
+            try {
+              storage.store.removeItem(ownerKey);
+            } catch {
+              // The owner ledger will keep recovery locked if cleanup failed.
+            }
+          }
+          try {
+            observeWebPending(storage.store, isRecoveryPendingLeaseCurrent(lease));
+          } catch {
+            restoreDurablePendingStateIfCurrent(lease);
+          }
+          throw error;
+        }
+      });
     }
 
-    // Legacy issuedAt-only markers remain locked, then are upgraded in place.
-    // If the upgrade fails, the conservative legacy lock remains in memory.
+    const raw = await storage.store.getItem(RECOVERY_PENDING_KEY);
+    let observation: WebPendingObservation;
+    try {
+      observation = observeNativePendingRaw(raw);
+    } catch (error) {
+      await storage.store.removeItem(RECOVERY_PENDING_KEY);
+      commitDurablePendingState(noPendingState());
+      if (pendingRevision === requestedRevision) applyNoPendingMarker();
+      throw error;
+    }
+    commitDurablePendingState(observation.state);
+    if (pendingRevision !== requestedRevision) return observation.pending;
+    applyPendingState(observation.state);
+    if (!observation.pending || observation.pending.token) return observation.pending;
+
     const marker: Required<RecoveryPending> = {
-      issuedAt: pending.issuedAt,
+      issuedAt: observation.pending.issuedAt,
       token: createPendingToken(),
     };
     const lease = claimPending(marker.token, true);
-    const rawMarker = JSON.stringify(marker);
-    if (storage.kind === "web") storage.store.setItem(RECOVERY_PENDING_KEY, rawMarker);
-    else await storage.store.setItem(RECOVERY_PENDING_KEY, rawMarker);
-    if (isRecoveryPendingLeaseCurrent(lease)) pendingIsLegacy = false;
-    return marker;
+    try {
+      await storage.store.setItem(RECOVERY_PENDING_KEY, JSON.stringify(marker));
+      const durable = pendingStateForMarker(marker, lease.revision);
+      commitDurablePendingState(durable);
+      if (isRecoveryPendingLeaseCurrent(lease)) applyPendingState(durable);
+      return marker;
+    } catch (error) {
+      restoreDurablePendingStateIfCurrent(lease);
+      throw error;
+    }
   });
 }
 
 export function persistRecoveryPending(): Promise<RecoveryPendingLease> {
   // Claim before entering the serialized queue. Otherwise an older queued clear
   // can run first and briefly unlock or delete this newer pending intent.
-  const previous = capturePendingState();
   const marker = createRecoveryPendingMarker();
   const lease = claimPending(marker.token);
   return enqueueStorage(async () => {
+    let storage: ReturnType<typeof requireRuntimeStorage>;
     try {
-      const storage = requireRuntimeStorage();
-      if (!storage) {
-        restorePendingStateIfCurrent(lease, previous);
-        return lease;
-      }
-      const raw = JSON.stringify(marker);
-      if (storage.kind === "web") storage.store.setItem(RECOVERY_PENDING_KEY, raw);
-      else await storage.store.setItem(RECOVERY_PENDING_KEY, raw);
+      storage = requireRuntimeStorage();
+    } catch (error) {
+      if (!durablePendingKnown) commitDurablePendingState(noPendingState());
+      restoreDurablePendingStateIfCurrent(lease);
+      throw error;
+    }
+    if (!storage) {
+      if (!durablePendingKnown) commitDurablePendingState(noPendingState());
+      restoreDurablePendingStateIfCurrent(lease);
+      return lease;
+    }
+
+    if (storage.kind === "web") {
+      return withWebPendingLock(async () => {
+        let ownerWritten = false;
+        const ownerKey = recoveryPendingOwnerKey(marker.token);
+        try {
+          observeWebPending(storage.store, false);
+          const rawMarker = JSON.stringify(toWebRecoveryPending(marker));
+          storage.store.setItem(ownerKey, rawMarker);
+          ownerWritten = true;
+          storage.store.setItem(RECOVERY_PENDING_KEY, rawMarker);
+          commitDurablePendingState(pendingStateForMarker(marker, lease.revision));
+          return lease;
+        } catch (error) {
+          if (ownerWritten) {
+            try {
+              storage.store.removeItem(ownerKey);
+            } catch {
+              // A surviving owner key is intentionally fail-closed on restart.
+            }
+          }
+          try {
+            observeWebPending(storage.store, false);
+          } catch {
+            // Preserve the last completed durable snapshot on an unreadable ledger.
+          }
+          restoreDurablePendingStateIfCurrent(lease);
+          throw error;
+        }
+      });
+    }
+
+    try {
+      const before = observeNativePendingRaw(
+        await storage.store.getItem(RECOVERY_PENDING_KEY),
+      );
+      commitDurablePendingState(before.state);
+      await storage.store.setItem(RECOVERY_PENDING_KEY, JSON.stringify(marker));
+      commitDurablePendingState(pendingStateForMarker(marker, lease.revision));
       return lease;
     } catch (error) {
-      // A failed A write may restore A's prior state, but never B's newer claim.
-      restorePendingStateIfCurrent(lease, previous);
+      restoreDurablePendingStateIfCurrent(lease);
       throw error;
     }
   });
@@ -435,40 +735,57 @@ export function clearRecoveryPending(
   expectedLease: RecoveryPendingLease,
 ): Promise<RecoveryPendingClearResult>;
 export function clearRecoveryPending(
-  expectedLease: RecoveryPendingLease = captureRecoveryPendingLease(),
+  expectedLease?: RecoveryPendingLease,
 ): Promise<void | RecoveryPendingClearResult> {
+  // A no-argument caller has no ownership proof. Capturing here would let stale
+  // cleanup adopt a newer B lease, so legacy callers intentionally fail closed.
+  if (!expectedLease) return Promise.resolve();
+
   return enqueueStorage(async () => {
-    if (!isRecoveryPendingLeaseCurrent(expectedLease)) return "stale";
     const storage = requireRuntimeStorage();
     if (!storage) {
       if (!isRecoveryPendingLeaseCurrent(expectedLease)) return "stale";
-      pendingIsLegacy = false;
-      setMemoryPending(false);
+      const cleared = noPendingState();
+      commitDurablePendingState(cleared);
+      applyPendingState(cleared);
       return "cleared";
     }
 
-    const raw = storage.kind === "web"
-      ? storage.store.getItem(RECOVERY_PENDING_KEY)
-      : await storage.store.getItem(RECOVERY_PENDING_KEY);
+    if (storage.kind === "web") {
+      return withWebPendingLock(async () => {
+        observeWebPending(storage.store, false);
+        if (!expectedLease.token) return "stale";
+        const ownerKey = recoveryPendingOwnerKey(expectedLease.token);
+        const owner = parseWebRecoveryPending(storage.store.getItem(ownerKey));
+        if (owner?.token !== expectedLease.token) return "stale";
+
+        try {
+          // The shared base key is only an event signal. Removing it can race
+          // safely because this clear can delete only A's token-specific owner.
+          storage.store.removeItem(ownerKey);
+          storage.store.removeItem(RECOVERY_PENDING_KEY);
+        } finally {
+          observeWebPending(storage.store, true);
+        }
+        return "cleared";
+      });
+    }
+
+    if (!isRecoveryPendingLeaseCurrent(expectedLease)) return "stale";
+    const raw = await storage.store.getItem(RECOVERY_PENDING_KEY);
     if (!isRecoveryPendingLeaseCurrent(expectedLease)) return "stale";
     const pending = parseRecoveryPending(raw);
     if (raw && !pending) throw new Error("Persisted recovery pending marker is invalid");
-    // Legacy markers cannot prove ownership. Keep them locked until hydration
-    // upgrades them, rather than letting a cleanup guess and delete one.
     if (
-      pending
-      && (pendingIsLegacy || !pending.token || pending.token !== expectedLease.token)
-    ) {
-      return "stale";
-    }
-    if (!isRecoveryPendingLeaseCurrent(expectedLease)) return "stale";
-    if (raw) {
-      if (storage.kind === "web") storage.store.removeItem(RECOVERY_PENDING_KEY);
-      else await storage.store.removeItem(RECOVERY_PENDING_KEY);
-    }
-    if (!isRecoveryPendingLeaseCurrent(expectedLease)) return "stale";
-    pendingIsLegacy = false;
-    setMemoryPending(false);
+      pendingIsLegacy
+      || !pending?.token
+      || pending.token !== expectedLease.token
+    ) return "stale";
+
+    await storage.store.removeItem(RECOVERY_PENDING_KEY);
+    const cleared = noPendingState();
+    commitDurablePendingState(cleared);
+    if (isRecoveryPendingLeaseCurrent(expectedLease)) applyPendingState(cleared);
     return "cleared";
   });
 }
@@ -479,5 +796,12 @@ export function __resetRecoveryProofStorageQueueForTests(): void {
   pendingToken = null;
   pendingIsLegacy = false;
   pendingTokenSequence = 0;
+  durablePendingKnown = false;
+  durablePendingState = {
+    pending: false,
+    revision: 0,
+    token: null,
+    legacy: false,
+  };
   setMemoryPending(false);
 }

@@ -1,5 +1,6 @@
 import {
   __resetRecoveryProofStorageQueueForTests,
+  applyRecoveryPendingStorageValue,
   armWebRecoveryPendingFromLocation,
   captureRecoveryPendingLease,
   clearRecoveryPending,
@@ -45,6 +46,8 @@ describe("persistent recovery proof", () => {
     Object.defineProperty(globalThis, "localStorage", {
       configurable: true,
       value: {
+        get length() { return values.size; },
+        key: (index: number) => Array.from(values.keys())[index] ?? null,
         getItem: (key: string) => values.get(key) ?? null,
         setItem: (key: string, value: string) => values.set(key, value),
         removeItem: (key: string) => values.delete(key),
@@ -123,7 +126,10 @@ describe("persistent recovery proof", () => {
       issuedAt: "2026-09-07T00:00:00.000Z",
       token: expect.any(String),
     });
-    expect(JSON.parse(values.get(RECOVERY_PENDING_KEY) ?? "{}")).toEqual(pending);
+    expect(JSON.parse(values.get(RECOVERY_PENDING_KEY) ?? "{}")).toEqual({
+      ...pending,
+      ownerKeyVersion: 1,
+    });
     expect(isRecoveryPendingInMemory()).toBe(true);
   });
 
@@ -135,6 +141,78 @@ describe("persistent recovery proof", () => {
     expect(armWebRecoveryPendingFromLocation()).toBe(true);
     expect(isRecoveryPendingInMemory()).toBe(true);
     expect(values.has(RECOVERY_PENDING_KEY)).toBe(true);
+  });
+
+  test.each([
+    ["null", null],
+    ["older A", JSON.stringify({
+      issuedAt: "2026-09-07T00:00:00.000Z",
+      token: "owner-a",
+      ownerKeyVersion: 1,
+    })],
+  ])("re-reads current owner keys when a late %s storage event arrives", (_label, staleRaw) => {
+    const markerB = {
+      issuedAt: "2026-09-07T00:00:01.000Z",
+      token: "owner-b",
+      ownerKeyVersion: 1,
+    };
+    values.set(`${RECOVERY_PENDING_KEY}.${markerB.token}`, JSON.stringify(markerB));
+    if (staleRaw !== null) values.set(RECOVERY_PENDING_KEY, JSON.stringify(markerB));
+
+    expect(applyRecoveryPendingStorageValue(staleRaw)).toEqual({
+      issuedAt: markerB.issuedAt,
+      token: markerB.token,
+    });
+    expect(captureRecoveryPendingLease().token).toBe(markerB.token);
+    expect(isRecoveryPendingInMemory()).toBe(true);
+  });
+
+  test("keeps the legacy lock when its owner-key upgrade write fails", async () => {
+    const legacyRaw = JSON.stringify({ issuedAt: "2026-09-07T00:00:00.000Z" });
+    values.set(RECOVERY_PENDING_KEY, legacyRaw);
+    const setItem = jest.fn((key: string, value: string) => {
+      if (key.startsWith(`${RECOVERY_PENDING_KEY}.`)) {
+        throw new Error("legacy_owner_write_failed");
+      }
+      values.set(key, value);
+    });
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: {
+        get length() { return values.size; },
+        key: (index: number) => Array.from(values.keys())[index] ?? null,
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem,
+        removeItem: (key: string) => values.delete(key),
+      },
+    });
+
+    await expect(loadRecoveryPending()).rejects.toThrow("legacy_owner_write_failed");
+
+    expect(values.get(RECOVERY_PENDING_KEY)).toBe(legacyRaw);
+    expect(Array.from(values.keys())).toEqual([RECOVERY_PENDING_KEY]);
+    expect(isRecoveryPendingInMemory()).toBe(true);
+  });
+
+  test("uses Web Locks when available without relying on them for ownership", async () => {
+    const request = jest.fn(async (
+      _name: string,
+      _options: { mode: string },
+      callback: () => Promise<unknown>,
+    ) => callback());
+    Object.defineProperty(globalThis, "navigator", {
+      configurable: true,
+      value: { locks: { request } },
+    });
+
+    const lease = await persistRecoveryPending();
+    await clearRecoveryPending(lease);
+
+    expect(request).toHaveBeenCalledWith(
+      "secondbrain.auth.recovery-pending",
+      { mode: "exclusive" },
+      expect.any(Function),
+    );
   });
 });
 
@@ -198,7 +276,7 @@ describe("native recovery proof storage", () => {
       token: pendingLease.token,
     });
     await clearRecoveryProof();
-    await clearRecoveryPending();
+    await clearRecoveryPending(pendingLease);
 
     expect(getEncryptedNativeStorageMock).toHaveBeenCalled();
     expect(native.store.setItem).toHaveBeenCalledWith(RECOVERY_PROOF_KEY, JSON.stringify(proof));
@@ -258,6 +336,21 @@ describe("native recovery proof storage", () => {
     expect(isRecoveryPendingInMemory()).toBe(true);
   });
 
+  test("a no-argument cleanup after clearProof cannot capture and delete newer B", async () => {
+    const native = createNativeStorage();
+    getEncryptedNativeStorageMock.mockReturnValue(native.store);
+    await persistRecoveryPending();
+
+    await clearRecoveryProof();
+    const leaseB = await persistRecoveryPending();
+    const markerB = native.values.get(RECOVERY_PENDING_KEY);
+    await clearRecoveryPending();
+
+    expect(captureRecoveryPendingLease()).toEqual(leaseB);
+    expect(native.values.get(RECOVERY_PENDING_KEY)).toBe(markerB);
+    expect(isRecoveryPendingInMemory()).toBe(true);
+  });
+
   test("a disk owner mismatch makes an explicit stale clear a no-op", async () => {
     const native = createNativeStorage();
     getEncryptedNativeStorageMock.mockReturnValue(native.store);
@@ -313,6 +406,64 @@ describe("native recovery proof storage", () => {
 
     expect(native.values.has(RECOVERY_PENDING_KEY)).toBe(true);
     expect(captureRecoveryPendingLease()).toEqual(newerLease);
+    expect(isRecoveryPendingInMemory()).toBe(true);
+  });
+
+  test("two failed persists roll back to the last completed durable state, not failed A", async () => {
+    const native = createNativeStorage();
+    getEncryptedNativeStorageMock.mockReturnValue(native.store);
+    const durableLease = await persistRecoveryPending();
+    const durableRaw = native.values.get(RECOVERY_PENDING_KEY);
+    (native.store.setItem as jest.Mock).mockRejectedValue(
+      new Error("secure_storage_write_failed"),
+    );
+
+    const failedA = persistRecoveryPending();
+    const failedB = persistRecoveryPending();
+    await expect(failedA).rejects.toThrow("secure_storage_write_failed");
+    await expect(failedB).rejects.toThrow("secure_storage_write_failed");
+
+    expect(native.values.get(RECOVERY_PENDING_KEY)).toBe(durableRaw);
+    expect(captureRecoveryPendingLease().token).toBe(durableLease.token);
+    expect(isRecoveryPendingInMemory()).toBe(true);
+  });
+
+  test("without Web Locks, stale A clear cannot erase B and B survives a restart", async () => {
+    const values = new Map<string, string>();
+    Object.defineProperty(globalThis, "navigator", {
+      configurable: true,
+      value: {},
+    });
+    Object.defineProperty(globalThis, "window", { configurable: true, value: {} });
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: {
+        get length() { return values.size; },
+        key: (index: number) => Array.from(values.keys())[index] ?? null,
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => { values.set(key, value); },
+        removeItem: (key: string) => { values.delete(key); },
+      },
+    });
+
+    const leaseA = await persistRecoveryPending();
+    const markerB = {
+      issuedAt: "2026-09-07T00:00:01.000Z",
+      token: "cross-tab-owner-b",
+      ownerKeyVersion: 1,
+    };
+    values.set(`${RECOVERY_PENDING_KEY}.${markerB.token}`, JSON.stringify(markerB));
+    values.set(RECOVERY_PENDING_KEY, JSON.stringify(markerB));
+
+    await expect(clearRecoveryPending(leaseA)).resolves.toBe("cleared");
+    expect(values.has(`${RECOVERY_PENDING_KEY}.${leaseA.token}`)).toBe(false);
+    expect(values.has(`${RECOVERY_PENDING_KEY}.${markerB.token}`)).toBe(true);
+
+    __resetRecoveryProofStorageQueueForTests();
+    await expect(loadRecoveryPending()).resolves.toEqual({
+      issuedAt: markerB.issuedAt,
+      token: markerB.token,
+    });
     expect(isRecoveryPendingInMemory()).toBe(true);
   });
 
