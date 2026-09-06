@@ -10,6 +10,10 @@
 //    null 이어야 한다. 목업 플레이스홀더("(주)하양집"·"김세컨")가 코드로 새어
 //    들어오면 여기서 걸린다.
 //
+// ⚠ 화면 구조를 박을 때는 **이름이 아니라 뜻**을 박는다. 스타일 키 이름은 규율이
+// 아니라 우연이라, 로그인 화면을 재구성하면 의미가 그대로여도 검사가 깨진다
+// (2026-09-06 릴리즈 통합에서 AUTH-01 수정이 이 화면에 닿을 수 있다는 통보를 받고 정리).
+//
 // 렌더 테스트는 이 저장소에서 막혀 있으므로(RN 0.85 upstream) 줄 생성은 순수
 // 함수로, 화면 배선은 소스 스캔으로 검사한다.
 
@@ -155,9 +159,24 @@ describe("사인인 화면이 푸터를 동의 링크 아래에 붙인다", () =
     expect(footer).toBeGreaterThan(consent);
   });
 
-  test("가입 문은 하나다: 로그인 아래 버튼이고, 하단 안내 행은 없다", () => {
-    expect(body).toContain("styles.authSecondary");
-    expect(body).not.toContain("styles.authSignUpRow");
-    expect((body.match(/router\.push\("\/sign-up"\)/g) ?? []).length).toBe(1);
+  // 2026-09-06: 스타일 이름(`styles.authSecondary` 존재 / `styles.authSignUpRow` 부재)을
+  // 박던 것을 **뜻**으로 바꿨다. 그 이름들은 규율이 아니라 우연이고, 화면을 재구성하면
+  // 의미가 그대로여도 깨진다. 지금 지키는 규율은 둘이다:
+  //   ① 가입으로 가는 길이 화면에 **하나뿐**이다(문이 둘이면 사용자가 고민한다).
+  //   ② 그 하나가 **누를 수 있는 것**으로 노출된다(스크린리더에 버튼으로 읽힌다).
+  // 따옴표·공백은 포맷터가 바꿀 수 있으므로 정규식이 흡수한다.
+  const SIGN_UP_NAV = /router\.push\(\s*["'`]\/sign-up["'`]\s*\)/g;
+
+  test("가입 문은 하나다", () => {
+    expect(body.match(SIGN_UP_NAV) ?? []).toHaveLength(1);
+  });
+
+  test("그 하나는 버튼으로 노출된다", () => {
+    const at = body.search(new RegExp(SIGN_UP_NAV.source));
+    expect(at).toBeGreaterThan(-1);
+    const open = body.lastIndexOf("<Pressable", at);
+    expect(open).toBeGreaterThan(-1);
+    // 여는 태그부터 onPress 까지의 구간에 역할 선언이 있어야 한다.
+    expect(body.slice(open, at + 600)).toContain('accessibilityRole="button"');
   });
 });
