@@ -13,6 +13,13 @@
 //     STOPGAP_SEATS expectation here.
 // Which vendor actually served each call is auditable (ai_audit_log.reasoning_vendor,
 // 0095), so the stopgap is observable in prod, not just in code.
+//
+// T1 stage A (2026-08-31): every switch in routing.ts now resolves "openai" when
+// its env var is UNSET (RETIRED_DEFAULT). Until then unset meant "gemini" for the
+// seats (Phase 1), for chat (EXPO_PUBLIC_CHAT_VENDOR) and for image-bearing calls
+// (EXPO_PUBLIC_MULTIMODAL_VENDOR). "gemini" is still an accepted EXPLICIT value on
+// each of those knobs — that is the one-variable rollback — and the tests below
+// keep one explicit-gemini case per knob so the rollback cannot be lost silently.
 
 import { PHASE2_VENDOR, resolveVendorForPurpose } from "../routing";
 import type { PromptPurpose } from "../types";
@@ -37,12 +44,23 @@ const STOPGAP_SEATS: PromptPurpose[] = [
   "crosscheck_challenge",
 ];
 
+// process.env coerces `= undefined` to the string "undefined", which is not the
+// same as unset. Restore by deleting when the saved value was absent.
+function restoreEnv(name: string, saved: string | undefined): void {
+  if (saved === undefined) delete process.env[name];
+  else process.env[name] = saved;
+}
+
 describe("R6: Phase-2 OpenAI stopgap is pinned + reversible", () => {
   const savedVendor = process.env.EXPO_PUBLIC_LLM_VENDOR;
   const savedPhase = process.env.EXPO_PUBLIC_LLM_PHASE;
+  const savedChat = process.env.EXPO_PUBLIC_CHAT_VENDOR;
+  const savedMultimodal = process.env.EXPO_PUBLIC_MULTIMODAL_VENDOR;
   afterEach(() => {
-    process.env.EXPO_PUBLIC_LLM_VENDOR = savedVendor;
-    process.env.EXPO_PUBLIC_LLM_PHASE = savedPhase;
+    restoreEnv("EXPO_PUBLIC_LLM_VENDOR", savedVendor);
+    restoreEnv("EXPO_PUBLIC_LLM_PHASE", savedPhase);
+    restoreEnv("EXPO_PUBLIC_CHAT_VENDOR", savedChat);
+    restoreEnv("EXPO_PUBLIC_MULTIMODAL_VENDOR", savedMultimodal);
   });
 
   test("the seats split exactly two ways, and cover the whole map", () => {
@@ -79,12 +97,47 @@ describe("R6: Phase-2 OpenAI stopgap is pinned + reversible", () => {
     }
   });
 
-  test("the backbone override never routes non-seats (streaming chat) off Gemini", () => {
+  test("unset EXPO_PUBLIC_LLM_VENDOR at Phase 1 lands every seat on openai; =gemini is the explicit rollback", () => {
+    // T1 stage A: unset is openai, not gemini. Phase 1 (the unset phase) used
+    // to be the Gemini posture; now it is RETIRED_DEFAULT.
+    delete process.env.EXPO_PUBLIC_LLM_VENDOR;
+    delete process.env.EXPO_PUBLIC_LLM_PHASE;
+    for (const seat of [...STOPGAP_SEATS, ...CLAUDE_SEATS]) {
+      expect(resolveVendorForPurpose(seat, false)).toBe("openai");
+    }
+    // The header's "=gemini for the $0 backbone" revert still works explicitly.
+    process.env.EXPO_PUBLIC_LLM_VENDOR = "gemini";
+    for (const seat of [...STOPGAP_SEATS, ...CLAUDE_SEATS]) {
+      expect(resolveVendorForPurpose(seat, false)).toBe("gemini");
+    }
+  });
+
+  test("the seat override never reaches chat: secondb_chat follows only EXPO_PUBLIC_CHAT_VENDOR (unset → openai)", () => {
+    // Unset chat knob resolves RETIRED_DEFAULT (openai since T1 stage A), and
+    // the seat switch pointing at a DIFFERENT vendor must not pull chat along.
+    delete process.env.EXPO_PUBLIC_CHAT_VENDOR;
+    process.env.EXPO_PUBLIC_LLM_VENDOR = "claude";
+    expect(resolveVendorForPurpose("secondb_chat", false)).toBe("openai");
+    // Nor does a seat switch set to gemini drag chat back to gemini.
+    process.env.EXPO_PUBLIC_LLM_VENDOR = "gemini";
+    expect(resolveVendorForPurpose("secondb_chat", false)).toBe("openai");
+    // Rollback property: explicit gemini on the chat knob still routes chat to
+    // gemini, regardless of what the seat switch says.
+    process.env.EXPO_PUBLIC_CHAT_VENDOR = "gemini";
     process.env.EXPO_PUBLIC_LLM_VENDOR = "claude";
     expect(resolveVendorForPurpose("secondb_chat", false)).toBe("gemini");
   });
 
-  test("image-bearing calls stay Gemini even under a backbone override", () => {
+  test("image-bearing calls follow only EXPO_PUBLIC_MULTIMODAL_VENDOR (unset → openai), never the seat override", () => {
+    // Unset multimodal knob resolves RETIRED_DEFAULT (openai since T1 stage A).
+    // The seat switch is pointed at a DIFFERENT vendor so the assertion can
+    // tell "multimodal default" apart from "override leaked through".
+    delete process.env.EXPO_PUBLIC_MULTIMODAL_VENDOR;
+    process.env.EXPO_PUBLIC_LLM_VENDOR = "claude";
+    expect(resolveVendorForPurpose("advisor", true)).toBe("openai");
+    // Rollback property: explicit gemini on the multimodal knob still wins over
+    // a seat override of openai (the value the console holds today).
+    process.env.EXPO_PUBLIC_MULTIMODAL_VENDOR = "gemini";
     process.env.EXPO_PUBLIC_LLM_VENDOR = "openai";
     expect(resolveVendorForPurpose("advisor", true)).toBe("gemini");
   });

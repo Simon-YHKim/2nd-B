@@ -7,6 +7,13 @@
 // must swap it for the fixed crisis template and log a crisis_event, never
 // render the raw text. (A5's first cut gated the swap on the lexicon-only
 // classifyInput, which a paraphrase slips past.)
+//
+// The generation here runs on the direct @google/genai branch (mocked
+// generateContent). Since T1 stage A (2026-08-31) an unset vendor switch
+// resolves "openai", which would send these purposes to openai-proxy instead,
+// so the suite pins EXPO_PUBLIC_BACKBONE_VENDOR=gemini — interview_probe and
+// import_ingest are backbone purposes (not Phase-2 seats, not multimodal, and
+// both flash tier so the pro-tier REASONING_PROVIDER seam is never consulted).
 
 const mockGenerateContent = jest.fn();
 const mockClassifySafety = jest.fn();
@@ -73,7 +80,24 @@ const GREEN = {
   routingTemplateVersion: "rcv1-2026-05-25",
 };
 
+// The one vendor switch these purposes follow, with its pre-test value so the
+// pin never leaks into another suite in the same worker.
+const BACKBONE_SWITCH = "EXPO_PUBLIC_BACKBONE_VENDOR";
+let savedBackbone: string | undefined;
+
 describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () => {
+  beforeAll(() => {
+    // explicit: unset is openai since T1 stage A (2026-08-31). This suite is
+    // about the direct Gemini branch's output swap, so name the vendor.
+    savedBackbone = process.env[BACKBONE_SWITCH];
+    process.env[BACKBONE_SWITCH] = "gemini";
+  });
+
+  afterAll(() => {
+    if (savedBackbone === undefined) delete process.env[BACKBONE_SWITCH];
+    else process.env[BACKBONE_SWITCH] = savedBackbone;
+  });
+
   beforeEach(() => {
     mockGenerateContent.mockReset();
     mockClassifySafety.mockReset();

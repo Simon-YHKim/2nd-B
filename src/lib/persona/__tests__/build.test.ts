@@ -220,7 +220,11 @@ describe("loadPersonaRatifiableSignals", () => {
       actions.match(/if \(!userId \|\| isMinor === null \|\| loading\) return;/g),
     ).toHaveLength(2);
     expect(actions).toContain("buildPersona(userId, locale, isMinor === true)");
-    expect(actions.match(/disabled=\{loading \|\| isMinor === null\}/g)).toHaveLength(2);
+    expect(
+      actions.match(
+        /disabled=\{loading \|\| ratifyPending \|\| isMinor === null\}/g,
+      ),
+    ).toHaveLength(2);
   });
 });
 

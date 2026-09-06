@@ -5076,6 +5076,7 @@ test('post-navigation orchestration rechecks reveal, health, route, mutation, an
     networkRevisionDuringFinalEffect = false,
     driftAfterFinalMacrotask = false,
     fadeAfterFinalMacrotask = false,
+    revealNeedsScroll = false,
   } = {}) => {
     const health = createShotHealth();
     let currentUrl = expectedUrl;
@@ -5083,6 +5084,7 @@ test('post-navigation orchestration rechecks reveal, health, route, mutation, an
     let clicks = 0;
     let checks = 0;
     let blockedMutation = false;
+    let revealScrolled = false;
     const page = { url: () => currentUrl };
     const result = await verifyPostNavigationEffect(
       page,
@@ -5117,8 +5119,11 @@ test('post-navigation orchestration rechecks reveal, health, route, mutation, an
           }
           return visible;
         },
+        scrollRevealTarget: async () => {
+          revealScrolled = true;
+        },
         findRenderedRoleTarget: async () =>
-          revealAvailable
+          revealAvailable && (!revealNeedsScroll || revealScrolled)
             ? {
                 async click() {
                   clicks += 1;
@@ -5138,7 +5143,7 @@ test('post-navigation orchestration rechecks reveal, health, route, mutation, an
         },
       },
     );
-    return { result, clicks, checks };
+    return { result, clicks, checks, revealScrolled };
   };
 
   assert.deepEqual((await run({ initiallyVisible: true })).result, {
@@ -5147,6 +5152,11 @@ test('post-navigation orchestration rechecks reveal, health, route, mutation, an
   });
   assert.equal((await run({ initiallyVisible: true })).clicks, 0);
   assert.equal((await run()).clicks, 1);
+  assert.deepEqual((await run({ revealNeedsScroll: true })).result, {
+    passed: true,
+    evidence: 'exact-route+visible-effect',
+  });
+  assert.equal((await run({ revealNeedsScroll: true })).revealScrolled, true);
   assert.equal((await run({ revealAvailable: false })).result.failure, 'reveal-target');
   assert.equal((await run({ driftAfterIdle: true })).result.failure, 'route-mismatch');
   assert.equal((await run({ networkFailure: true })).result.failure, 'source-health');
@@ -5995,6 +6005,75 @@ test('current manifest classifies every port:true screen exactly once', async ()
   );
 });
 
+test('salvage plan classifies every non-direct frame and production route exactly once', () => {
+  const manifest = JSON.parse(
+    readFileSync(path.join(REPO, 'design/pixel_clay_260825/data/screens.json'), 'utf8'),
+  );
+  const routeFile = JSON.parse(
+    readFileSync(path.join(REPO, 'design/pixel_clay_260825/data/app-routes.json'), 'utf8'),
+  );
+  const salvage = JSON.parse(
+    readFileSync(path.join(REPO, 'design/pixel_clay_260825/data/salvage-plan.json'), 'utf8'),
+  );
+  const unmeasurableIds = new Set(
+    Object.keys(routeFile.unmeasurable ?? {}).filter((id) => id !== '_note'),
+  );
+  const expectedDesignIds = manifest.screens
+    .map((screen) => screen.id)
+    .filter(
+      (id) => !Object.hasOwn(routeFile.routes ?? {}, id) && !unmeasurableIds.has(id),
+    )
+    .sort();
+
+  assert.equal(salvage.schema, 1);
+  // 25 -> 24: #1517 이 /reset-password 를 실제로 만들면서 pwreset 을 app-routes 의
+  // unmeasurable(라우트는 있지만 하네스가 조건을 못 만든다)로 옮겼다. unmeasurable
+  // 은 여기서 제외되므로 살아 있는 디자인 프레임이 하나 줄어든 것이 맞다.
+  assert.equal(expectedDesignIds.length, 24);
+  assert.deepEqual(Object.keys(salvage.designFrames).sort(), expectedDesignIds);
+  for (const [id, plan] of Object.entries(salvage.designFrames)) {
+    const screen = manifest.screens.find((candidate) => candidate.id === id);
+    assert.ok(screen, id);
+    if (screen.port === false) assert.notEqual(plan.referenceUse, 'direct', id);
+    if (plan.disposition === 'exclude') assert.equal(plan.referenceUse, 'none', id);
+  }
+
+  const screenIndex = readFileSync(path.join(REPO, 'src/lib/dev/screen-index.ts'), 'utf8');
+  // 레코드 하나 = `file:` 하나. 한 줄 정규식으로 읽던 것을 레코드 경계로 바꿨다:
+  // screen-index 의 레코드들이 여러 줄로 자라면서(진입/렌더 축, qaVariants, 위임
+  // auth 객체) 한 줄 판정이 살아 있는 라우트를 조용히 놓쳤고, 그러면 salvage-plan
+  // 의 정당한 항목이 "범위 밖" 으로 보인다. validate-ref.mjs 와 같은 파서다.
+  const productionHrefs = screenIndex
+    .split(/(?=\{\s*(?:\r?\n\s*)?file:\s*")/)
+    .filter((record) => /^\{\s*(?:\r?\n\s*)?file:\s*"[^"]+"/.test(record))
+    .filter((record) => !/(?:^|[,{\s])dev:\s*true(?:\s*[,}]|\s*$)/m.test(record))
+    .map((record) => record.match(/href:\s*"([^"]+)"/))
+    .filter(Boolean)
+    .map((entry) => entry[1]);
+  const directlyCoveredHrefs = new Set([
+    ...Object.values(routeFile.routes ?? {}),
+    ...Object.entries(routeFile.unmeasurable ?? {})
+      .filter(([id, info]) => id !== '_note' && info && typeof info === 'object')
+      .map(([, info]) => info.route)
+      .filter(Boolean),
+  ]);
+  const expectedActualHrefs = productionHrefs
+    .filter((href) => !directlyCoveredHrefs.has(href))
+    .sort();
+
+  assert.equal(new Set(productionHrefs).size, productionHrefs.length);
+  assert.equal(expectedActualHrefs.length, 23);
+  assert.deepEqual(Object.keys(salvage.actualRoutes).sort(), expectedActualHrefs);
+  for (const [href, plan] of Object.entries(salvage.actualRoutes)) {
+    for (const reference of plan.references) {
+      assert.ok(
+        manifest.screens.some((screen) => screen.id === reference),
+        `${href}: ${reference}`,
+      );
+    }
+  }
+});
+
 test('score report exit contract distinguishes pass, score failure, and invalid input', async () => {
   const { reportExitCode } = await contract();
   assert.equal(reportExitCode({ validInput: true, rows: [{ automaticPass: true }] }), 0);
@@ -6432,4 +6511,61 @@ test('work0 runtime dependencies and tests are declared in package metadata', ()
   assert.equal(pkg.devDependencies?.['playwright-core'], '1.62.1');
   assert.match(pkg.scripts?.['test:ui-work0'] ?? '', /work0-hardening\.test\.mjs/);
   assert.match(pkg.scripts?.verify ?? '', /test:ui-work0/);
+});
+
+test('star scoring keeps the career tag handoff and screen-scoped color evidence explicit', () => {
+  const nav = JSON.parse(
+    readFileSync(path.join(REPO, 'design/pixel_clay_260825/data/nav.json'), 'utf8'),
+  );
+  const achievement = nav.star?.items?.find((item) => item.label === '성과 입력');
+  assert.deepEqual(achievement, {
+    label: '성과 입력',
+    kind: 'route',
+    to: '/capture-full',
+    locator: { strategy: 'role', role: 'button', name: '성과 입력' },
+    postNavigation: {
+      reveal: { role: 'button', name: '더보기' },
+      effect: {
+        type: 'visible',
+        role: 'button',
+        name: 'domain:career 해시태그 제거',
+        text: '#domain:career',
+      },
+    },
+  });
+
+  const tokens = JSON.parse(
+    readFileSync(path.join(REPO, 'design/pixel_clay_260825/data/tokens.json'), 'utf8'),
+  );
+  const recipes = tokens.derivedRamp?.recipes ?? {};
+  assert.deepEqual(recipes['star-briefing-card'], {
+    type: 'composite',
+    screen: 'star',
+    background: 'nebula-base',
+    foreground: 'primary-container',
+    alpha: 0.34,
+  });
+  assert.equal(recipes['browser-muted-text']?.type, 'stacked-alpha');
+  assert.equal(recipes['browser-muted-text']?.screen, 'star');
+  assert.deepEqual(recipes['browser-muted-text']?.layers, [
+    { color: 'muted-text', alpha: { min: 0, max: 1 } },
+  ]);
+
+  const deviations = JSON.parse(
+    readFileSync(path.join(REPO, 'design/pixel_clay_260825/data/deviations.json'), 'utf8'),
+  );
+  const slugDeviation = deviations.deviations?.find(
+    (entry) => entry.screen === 'star' && entry.axis === 'E' && entry.items?.includes('career'),
+  );
+  assert.equal(typeof slugDeviation?.why, 'string');
+  assert.ok(slugDeviation.why.trim().length > 0);
+});
+
+test('post-navigation verification settles before the probe page is closed', () => {
+  const source = readFileSync(SCORE_CLI, 'utf8');
+  assert.match(source, /return await verifyPostNavigationEffect\(probe,/);
+  assert.match(
+    source,
+    /locateExactNavigationTarget\(page, \{\s*label: effect\.text \?\? effect\.name,/,
+  );
 });

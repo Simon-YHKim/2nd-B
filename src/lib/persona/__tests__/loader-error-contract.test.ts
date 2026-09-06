@@ -15,9 +15,9 @@
 // That is the 정직한 밝기 invariant inverted. The sky is supposed to reflect what the user
 // actually put in; here it reported LESS than they put in, because we could not look.
 //
-// And the honest branch was already written everywhere -- attachment.tsx:335 and
-// big-five.tsx both carry `.catch(() => setHasError(true))` that could never fire.
-// Splitting the condition is what makes those live.
+// The attachment screen already carried an honest error branch that could never fire.
+// Big Five now routes the rejecting loader through an explicit error/timeout state
+// authority and renders those states in its isolated PIXEL-CLAY screen.
 
 import {
   loadLatestAttachment,
@@ -28,6 +28,7 @@ import {
   loadLatestValues,
   loadMemorizedHistogram,
 } from "../build";
+import { loadBfiLensWithTimeout } from "../big-five-screen";
 
 type QueryResult = { data: unknown; error: unknown };
 
@@ -83,6 +84,12 @@ describe("the instrument screens tell a failed read apart from an empty one", ()
       /\r\n/g,
       "\n",
     );
+  const executableSource = (source: string): string =>
+    source
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .split("\n")
+      .filter((line) => !line.trimStart().startsWith("//"))
+      .join("\n");
 
   test.each(["app/values.tsx", "app/strengths.tsx"])("%s no longer calls a read failure 'no result yet'", (rel) => {
     const src = read(rel);
@@ -93,9 +100,30 @@ describe("the instrument screens tell a failed read apart from an empty one", ()
     expect(src).toMatch(/ds\.axisCheck\.retry/);
   });
 
-  test.each(["app/attachment.tsx", "app/big-five.tsx"])("%s already had the honest branch; it can now fire", (rel) => {
-    const src = read(rel);
+  test("app/attachment.tsx already had the honest branch; it can now fire", () => {
+    const src = read("app/attachment.tsx");
     expect(src).toMatch(/setHasError\(true\)/);
+  });
+
+  test("Big Five maps a rejected read and a hanging read to distinct sanitized states", async () => {
+    const c = client(READ_FAILED) as never;
+    await expect(
+      loadBfiLensWithTimeout(() => loadLatestBfi(c, "u1"), 50),
+    ).resolves.toEqual({ status: "error" });
+    await expect(
+      loadBfiLensWithTimeout(() => new Promise<never>(() => undefined), 1),
+    ).resolves.toEqual({ status: "timeout" });
+  });
+
+  test("the live Big Five renderer consumes both failure states and exposes retry", () => {
+    const src = executableSource(read("screens/deepspace/dds-big-five-screen.tsx"));
+    expect(src).toMatch(
+      /void loadBfiLensWithTimeout\(\s*\(\) => loadLatestBfi\(getSupabaseClient\(\), ownerId\),\s*BFI_READ_TIMEOUT_MS,\s*\)\.then/,
+    );
+    expect(src).toMatch(/setSnapshot\(\{ status: result\.status, ownerId \}\);/);
+    expect(src).toMatch(
+      /if \(snapshot\.status === "error" \|\| snapshot\.status === "timeout"\) \{[\s\S]*label=\{t\("home:ds\.lens\.errorCta"\)\}[\s\S]*onPress=\{onRetry\}/,
+    );
   });
 
   test("build.ts no longer folds a query error into null", () => {

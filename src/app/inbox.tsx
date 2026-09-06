@@ -22,7 +22,7 @@ import { generateSourcePage } from "@/lib/wiki/phase2";
 import { downloadRawClipping } from "@/lib/wiki/storage";
 import type { SourceKind, SourceRow } from "@/lib/wiki/types";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
-import { DeepSpaceInboxScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
+import { DeepSpaceInboxScreen } from "@/screens/deepspace/dds-inbox-screen";
 
 const KIND_LABEL: Record<SourceKind, { en: string; ko: string }> = {
   inbox: { en: "Inbox", ko: "받은편지함" },

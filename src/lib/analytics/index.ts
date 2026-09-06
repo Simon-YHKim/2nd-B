@@ -714,7 +714,8 @@ function flushPendingProductEvents(): void {
 
 /**
  * Lazy-initialize analytics. Safe to call multiple times - subsequent calls are
- * no-ops. Called once from src/app/_layout.tsx as `void initAnalytics()`.
+ * no-ops. Called from AnalyticsConsentSync only after AuthProvider has resolved,
+ * so web recovery events cannot race a pre-provider Supabase client.
  *
  * Product analytics load only when analytics consent has been granted AND the
  * relevant id/key is configured. Third-party crash reporting is hard-disabled:

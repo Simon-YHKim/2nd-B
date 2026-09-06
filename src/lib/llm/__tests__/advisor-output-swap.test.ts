@@ -1,8 +1,15 @@
 // Regression test for CSO 2nd audit finding #1 (CRITICAL 9/10):
-// callAdvisor must re-classify Gemini Pro's text output. If the LLM emits
-// crisis content (via prompt injection through knowledge_sources rows,
+// callAdvisor must re-classify the reasoning model's text output. If the LLM
+// emits crisis content (via prompt injection through knowledge_sources rows,
 // conversationContext, or otherwise), the response must be swapped to the
 // fixed crisis template and a crisis_event must be recorded.
+//
+// This suite drives the DIRECT @google/genai branch of callAdvisor (edge flag
+// off, vendor gemini) so the swap logic is exercised against a mocked
+// generateContent. Since T1 stage A (2026-08-31) an UNSET switch resolves
+// "openai", which takes the edge-proxy path — so the gemini vendor is pinned
+// explicitly below (axis + legacy seam). That pin doubles as the one-variable
+// rollback proof: explicit "gemini" still reaches the direct branch.
 
 const mockGenerateContent = jest.fn();
 const mockClassifySafety = jest.fn();
@@ -68,6 +75,26 @@ const auditMock = insertAiAuditLog as jest.MockedFunction<typeof insertAiAuditLo
 const crisisMock = insertCrisisEvent as jest.MockedFunction<typeof insertCrisisEvent>;
 
 describe("callAdvisor — output re-classification (CSO #1 fix)", () => {
+  // routing.ts reads process.env at call time; the mocked getEnv above does
+  // not reach it. advisor is a Phase-2 seat, so the axis needs
+  // EXPO_PUBLIC_LLM_VENDOR=gemini AND the reasoning-tier last rung needs
+  // EXPO_PUBLIC_REASONING_PROVIDER=gemini for callAdvisor to take the direct
+  // @google/genai branch. explicit: unset is openai since T1 stage A.
+  const prevVendor = process.env.EXPO_PUBLIC_LLM_VENDOR;
+  const prevReasoning = process.env.EXPO_PUBLIC_REASONING_PROVIDER;
+
+  beforeAll(() => {
+    process.env.EXPO_PUBLIC_LLM_VENDOR = "gemini";
+    process.env.EXPO_PUBLIC_REASONING_PROVIDER = "gemini";
+  });
+
+  afterAll(() => {
+    if (prevVendor === undefined) delete process.env.EXPO_PUBLIC_LLM_VENDOR;
+    else process.env.EXPO_PUBLIC_LLM_VENDOR = prevVendor;
+    if (prevReasoning === undefined) delete process.env.EXPO_PUBLIC_REASONING_PROVIDER;
+    else process.env.EXPO_PUBLIC_REASONING_PROVIDER = prevReasoning;
+  });
+
   beforeEach(() => {
     mockGenerateContent.mockReset();
     mockClassifySafety.mockReset();
@@ -103,6 +130,9 @@ describe("callAdvisor — output re-classification (CSO #1 fix)", () => {
       userMessage: "Trying to figure out my next career move.",
     });
 
+    // Rollback property: the explicit gemini pin reached the direct
+    // @google/genai branch (one generateContent call, no edge proxy).
+    expect(mockGenerateContent).toHaveBeenCalledTimes(1);
     expect(r.zone).toBe("red");
     expect(r.fixedTemplate).toBe(true);
     // Must NOT leak the LLM's improvised crisis text.
