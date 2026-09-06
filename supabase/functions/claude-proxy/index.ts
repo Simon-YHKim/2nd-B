@@ -41,11 +41,11 @@ import {
   BRAIN_RANK,
   MAX_ASSEMBLED_LEN,
   MAX_USER_LEN,
-  PREMIUM_PURPOSES,
   SAFETY_PREAMBLE,
   TIER_RANK,
   UPSTREAM_DETAIL_TRUNCATE,
   auditUpstreamFailure,
+  clampLlmPurposeEffort,
   corsPreflight,
   dailyCapForRank,
   djb2,
@@ -53,17 +53,15 @@ import {
   isUsableHeaderValue,
   jsonResponse,
   normalizeResponseSchema,
+  requestMatchesLlmPurposeModality,
   resolveApiKey,
+  resolveLlmPurposePolicy,
   userIdFromJwt,
   utcDay,
 } from '../_shared/llm-proxy-common.ts';
 
 const ANTHROPIC_ENDPOINT = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_VERSION = '2023-06-01';
-
-// D-26 default seat: sonnet-class value frontier. Global override via the
-// ANTHROPIC_MODEL secret; per-purpose override via ANTHROPIC_PURPOSE_MODELS.
-const DEFAULT_CLAUDE_MODEL = 'claude-sonnet-5';
 
 // D-26 Phase 2 Anthropic seats (server-owned routing). VERY-HIGH-stakes
 // self-understanding narrative surfaces run opus; interactive/short surfaces
@@ -79,16 +77,9 @@ const DEFAULT_CLAUDE_MODEL = 'claude-sonnet-5';
 // ttfv_first_insight) were removed from this map. Those purposes route to
 // OpenAI client-side (PHASE2_VENDOR), which is where they now belong.
 //
-// ⚠ REMOVING THEM DID NOT REMOVE THE OUTAGE REFUGE, and the order assumed it
-// would. This proxy has NO ALLOWLIST by design: EXPO_PUBLIC_LLM_VENDOR=claude
-// is the outage refuge, so an unseated purpose must still be served — it falls
-// to DEFAULT_CLAUDE_MODEL. (The legacy EXPO_PUBLIC_REASONING_PROVIDER seam,
-// folded into routing.ts resolveVendorForPurpose on 2026-08-26, can also send
-// unseated pro-tier purposes here until it is retired.) So
-// EXPO_PUBLIC_LLM_VENDOR=claude during an OpenAI outage still serves all
-// twelve - at sonnet price, which is the RIGHT price for an emergency. Pinning
-// chat's refuge to opus, the alternative the order offered, would have made the
-// outage path the most expensive path in the system.
+// The shared purpose policy is the allowlist. An outage switch may route only
+// explicitly seated purposes here; missing seats fail closed rather than
+// turning this key into a generic Sonnet/Opus completion endpoint.
 const PURPOSE_MODEL: Record<string, string> = {
   // The defender in the adversarial cross-check (REQ-260823-03). Opus at max,
   // because its rewrite is what the user actually reads.
@@ -99,36 +90,26 @@ const PURPOSE_MODEL: Record<string, string> = {
   digest_weekly: 'claude-opus-4-8',
 };
 
-function resolveModel(purpose: string | null): string {
+function resolveModel(purpose: string): string | null {
   // Precedence: per-purpose env JSON > ANTHROPIC_MODEL (TRUE global
   // kill-switch -- e.g. fleet-wide opus->sonnet downgrade during a cost
-  // incident) > built-in seat > default.
-  if (purpose) {
-    const raw = (Deno.env.get('ANTHROPIC_PURPOSE_MODELS') ?? '').trim();
-    if (raw.length > 0) {
-      try {
-        const map = JSON.parse(raw) as Record<string, unknown>;
-        const m = map?.[purpose];
-        if (typeof m === 'string' && m.trim().length > 0) return m.trim();
-      } catch {
-        console.error('[claude-proxy] ANTHROPIC_PURPOSE_MODELS is not valid JSON -- ignoring');
-      }
+  // incident) > built-in seat. The shared policy rejects missing seats first.
+  const raw = (Deno.env.get('ANTHROPIC_PURPOSE_MODELS') ?? '').trim();
+  if (raw.length > 0) {
+    try {
+      const map = JSON.parse(raw) as Record<string, unknown>;
+      const m = map?.[purpose];
+      if (typeof m === 'string' && m.trim().length > 0) return m.trim();
+    } catch {
+      console.error('[claude-proxy] ANTHROPIC_PURPOSE_MODELS is not valid JSON -- ignoring');
     }
   }
   const globalOverride = (Deno.env.get('ANTHROPIC_MODEL') ?? '').trim();
   if (globalOverride.length > 0) return globalOverride;
-  // hasOwnProperty, NOT bracket-truthiness: `purpose` is client-controlled and
-  // this proxy has no allowlist (it must keep serving the legacy reasoning seam,
-  // where an unseated purpose legitimately falls to the default seat). A plain
-  // `PURPOSE_MODEL[purpose]` walks the prototype chain, so purpose='toString'
-  // (or constructor/__proto__/valueOf) returned Object.prototype.toString -- a
-  // FUNCTION -- which then crashed modelSlug(model.toUpperCase) AFTER the spend
-  // was already bumped: an anonymous-to-authenticated quota-drain + 500. Own-key
-  // check makes every non-seat purpose fall cleanly to the default sonnet seat.
-  if (purpose && Object.prototype.hasOwnProperty.call(PURPOSE_MODEL, purpose)) {
+  if (Object.prototype.hasOwnProperty.call(PURPOSE_MODEL, purpose)) {
     return PURPOSE_MODEL[purpose];
   }
-  return DEFAULT_CLAUDE_MODEL;
+  return null;
 }
 
 // D-26 per-purpose EFFORT CEILING (server-owned -- `effort` is client-reported,
@@ -139,10 +120,7 @@ function resolveModel(purpose: string | null): string {
 // comment here used to say no seat was approved for it, and the rank table
 // below did not carry the rung at all - which is why effortToAnthropic folded
 // max into xhigh and ANTHROPIC_API_KEY__MAX, already registered in production,
-// could never be reached. Unknown/unseated purposes still clamp to the
-// conservative default.
-const EFFORT_RANK: Record<string, number> = { low: 0, medium: 1, high: 2, xhigh: 3, max: 4 };
-const DEFAULT_EFFORT_CEILING = 'high';
+// could never be reached. Unknown/unseated purposes are rejected before here.
 const PURPOSE_EFFORT_MAX: Record<string, string> = {
   advisor: 'high',
   secondb_chat: 'low',
@@ -166,22 +144,6 @@ const PURPOSE_EFFORT_MAX: Record<string, string> = {
   digest_weekly: 'max',
   crosscheck_defend: 'max',
 };
-
-// Abstract effort -> Anthropic output_config.effort (native semantics),
-// clamped to the purpose ceiling. Anthropic's API enum is
-// low/medium/high/xhigh/max, so "max" passes through as itself now; the ceiling
-// below is what stops a client asking for it on a seat that has not earned it.
-function effortToAnthropic(effort: string | null, purpose: string | null): string {
-  const requested = effort && effort in EFFORT_RANK ? effort : 'high';
-  // Own-key lookup: a bare PURPOSE_EFFORT_MAX[purpose] on a prototype key
-  // (purpose='toString') returned a FUNCTION as the ceiling, so EFFORT_RANK[fn]
-  // was undefined and the clamp silently returned that function as the effort.
-  const ceiling =
-    purpose && Object.prototype.hasOwnProperty.call(PURPOSE_EFFORT_MAX, purpose)
-      ? PURPOSE_EFFORT_MAX[purpose]
-      : DEFAULT_EFFORT_CEILING;
-  return EFFORT_RANK[requested] <= EFFORT_RANK[ceiling] ? requested : ceiling;
-}
 
 // Hard output ceilings per (clamped) effort. With adaptive thinking ON,
 // thinking tokens count against max_tokens, so these are deliberately roomy --
@@ -255,6 +217,17 @@ Deno.serve(async (req: Request) => {
   const purpose: string | null = typeof body?.purpose === 'string' ? body.purpose : null;
   const effort: string | null = typeof body?.effort === 'string' ? body.effort : null;
   const responseSchema = normalizeResponseSchema(body?.responseSchema);
+  const purposePolicy = resolveLlmPurposePolicy(purpose, 'claude');
+  if (!purpose || !purposePolicy) {
+    return jsonResponse(req, { error: 'purpose_not_seated', purpose: purpose ?? null }, 400);
+  }
+  if (!requestMatchesLlmPurposeModality(purposePolicy, 'text')) {
+    return jsonResponse(req, { error: 'purpose_modality_mismatch' }, 400);
+  }
+  const claudeModel = resolveModel(purpose);
+  if (!claudeModel) {
+    return jsonResponse(req, { error: 'purpose_not_seated', purpose }, 400);
+  }
 
   if (userText.length === 0) return jsonResponse(req, { error: 'user_required' }, 400);
   if (userText.length > MAX_USER_LEN) {
@@ -276,23 +249,31 @@ Deno.serve(async (req: Request) => {
   // 'brain'/'cortex' after expiry until the cancel webhook lands, so reading it
   // let a lapsed subscriber keep the brain-only premium purposes + the brain
   // daily ceiling, and 403'd a comped judge (raw 'free' + judge_mode). The RPC
-  // collapses expired->free and comps judge->brain, matching the cap RPCs. Fail
-  // open on a lookup ERROR (availability first; the daily cap still bounds cost).
+  // collapses expired->free and comps judge->brain, matching the cap RPCs. A
+  // lookup error uses the free cap for ordinary seats and fails closed for a
+  // brain-gated seat.
   let tierRank: number | null = null;
+  let tierLookupFailed = false;
   {
     const { data: effTier, error: tierErr } = await supabaseAdmin.rpc(
       'effective_subscription_tier',
       { p_user_id: userId },
     );
     if (tierErr) {
+      tierLookupFailed = true;
       console.error('[claude-proxy] effective-tier lookup failed:', tierErr.message ?? String(tierErr));
     } else {
       const t = (effTier as string | null) ?? 'free';
       tierRank = TIER_RANK[t] ?? 0;
     }
   }
-  if (purpose && PREMIUM_PURPOSES.has(purpose) && tierRank !== null && tierRank < BRAIN_RANK) {
-    return jsonResponse(req, { error: 'entitlement_required', feature: purpose }, 403);
+  if (purposePolicy.minimumTier === 'brain') {
+    if (tierLookupFailed || tierRank === null) {
+      return jsonResponse(req, { error: 'entitlement_check_unavailable' }, 503);
+    }
+    if (tierRank < BRAIN_RANK) {
+      return jsonResponse(req, { error: 'entitlement_required', feature: purpose }, 403);
+    }
   }
 
   // Spend cap (cost backstop) -- shared per-user/day counter with gemini-proxy.
@@ -352,8 +333,12 @@ Deno.serve(async (req: Request) => {
     if (!consentOk) return jsonResponse(req, { error: 'consent_required' }, 403);
   }
 
-  const claudeModel = resolveModel(purpose);
-  const clampedEffort = effortToAnthropic(effort, purpose);
+  const clampedEffort = clampLlmPurposeEffort(
+    purposePolicy,
+    effort,
+    'claude',
+    PURPOSE_EFFORT_MAX[purpose],
+  );
   // D-27: sign with the (model × effort) combo key when provisioned, else base
   // ANTHROPIC_API_KEY (fallback keeps calls working; that usage attributes to
   // base). Only changes WHICH key signs the already-server-owned request.
