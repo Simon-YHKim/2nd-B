@@ -1,54 +1,91 @@
 #!/usr/bin/env bash
-# simon-stack bootstrap — drop-in SessionStart hook (vendored 2026-05-27).
-# Source: github.com/Simon-YHKim/SimonK-stack templates/bootstrap-session-start.sh
-#
-# What it does:
-#   1. Clones or updates Simon-YHKim/SimonK-stack into ~/.simon-stack-src
-#      (cached between hook invocations in the same session)
-#   2. Delegates to that repo's .claude/hooks/session-start.sh which installs:
-#      - Gstack runtime (~/.claude/skills/gstack/)
-#      - 100+ simon-stack skills (from skills-src/ + .claude/skills/)
-#      - instincts seed files + global CLAUDE.md template
-#      - SHA-aware selective update (sprint pulls propagate automatically)
-#
-# Override upstream (e.g. fork):
-#   SIMON_STACK_REPO=https://github.com/you/fork SIMON_STACK_REF=main ./session-start.sh
+# Manual SimonK Stack bootstrap. This file is intentionally not a SessionStart hook.
+# Run explicitly with: bash .claude/hooks/session-start.sh --run
 
 set -euo pipefail
 
-# --- Optional async mode (disabled by default for determinism) ---
-# echo '{"async": true, "asyncTimeout": 300000}'
-
+readonly DEFAULT_SIMON_STACK_REF="8fc4f42fef463228945b1871c3eca2b195a55b09"
 SIMON_STACK_REPO="${SIMON_STACK_REPO:-https://github.com/Simon-YHKim/SimonK-stack}"
-SIMON_STACK_REF="${SIMON_STACK_REF:-main}"
-SIMON_STACK_DIR="${SIMON_STACK_DIR:-$HOME/.simon-stack-src}"
+SIMON_STACK_REF="${SIMON_STACK_REF:-$DEFAULT_SIMON_STACK_REF}"
+TMP_ROOT="${TMPDIR:-${TMP:-/tmp}}"
+STAGING_DIR=""
 
-log() { echo "[simon-stack-bootstrap] $*"; }
+log() {
+  printf '[simon-stack-bootstrap] %s\n' "$*"
+}
 
-log "host=${CLAUDE_PROJECT_DIR:-$(pwd)} remote=${CLAUDE_CODE_REMOTE:-false}"
+cleanup() {
+  if [[ -z "$STAGING_DIR" ]]; then
+    return
+  fi
 
-# --- 1. Clone or update simon-stack ---
-if [ ! -d "$SIMON_STACK_DIR/.git" ]; then
-  log "Cloning simon-stack from $SIMON_STACK_REPO ($SIMON_STACK_REF)..."
-  rm -rf "$SIMON_STACK_DIR"
-  git clone --depth 1 --branch "$SIMON_STACK_REF" "$SIMON_STACK_REPO" "$SIMON_STACK_DIR" 2>&1 | tail -3
-else
-  log "Updating simon-stack ($SIMON_STACK_REF)..."
-  (
-    cd "$SIMON_STACK_DIR"
-    git fetch --depth 1 origin "$SIMON_STACK_REF" 2>/dev/null || log "WARN: fetch failed, using cached"
-    git reset --hard "origin/$SIMON_STACK_REF" 2>/dev/null || log "WARN: reset failed, using cached"
-  )
+  case "$STAGING_DIR" in
+    "${TMP_ROOT%/}"/simon-stack-bootstrap.*)
+      rm -rf -- "$STAGING_DIR"
+      ;;
+    *)
+      log "ERROR: refusing to clean unexpected staging path"
+      return 1
+      ;;
+  esac
+}
+
+if [[ $# -ne 1 || "$1" != "--run" ]]; then
+  log "Manual action required. Re-run with --run to install the pinned SimonK Stack."
+  exit 2
 fi
 
-# --- 2. Delegate to simon-stack's session-start hook ---
-if [ -x "$SIMON_STACK_DIR/.claude/hooks/session-start.sh" ]; then
-  log "Delegating to simon-stack session-start..."
-  CLAUDE_PROJECT_DIR="$SIMON_STACK_DIR" bash "$SIMON_STACK_DIR/.claude/hooks/session-start.sh"
-else
-  log "ERROR: $SIMON_STACK_DIR/.claude/hooks/session-start.sh not found or not executable"
+if [[ ! "$SIMON_STACK_REF" =~ ^[0-9a-f]{40}$ ]]; then
+  log "ERROR: SIMON_STACK_REF must be a lowercase 40-character commit SHA"
+  exit 2
+fi
+
+if [[ ! -d "$TMP_ROOT" ]]; then
+  log "ERROR: temporary directory does not exist"
   exit 1
 fi
 
-log "✅ Bootstrap delegated. Skills available in ~/.claude/skills/"
-exit 0
+TMP_ROOT="$(cd "$TMP_ROOT" && pwd -P)"
+STAGING_DIR="$(mktemp -d "${TMP_ROOT%/}/simon-stack-bootstrap.XXXXXXXX")"
+trap cleanup EXIT
+STAGING_DIR="$(cd "$STAGING_DIR" && pwd -P)"
+
+case "$STAGING_DIR" in
+  "${TMP_ROOT%/}"/simon-stack-bootstrap.*) ;;
+  *)
+    log "ERROR: mktemp returned an unexpected staging path"
+    exit 1
+    ;;
+esac
+
+readonly CHECKOUT_DIR="$STAGING_DIR/repo"
+mkdir -m 700 "$CHECKOUT_DIR"
+git init --quiet "$CHECKOUT_DIR"
+git -C "$CHECKOUT_DIR" remote add origin "$SIMON_STACK_REPO"
+
+log "Fetching immutable SimonK Stack commit $SIMON_STACK_REF"
+GIT_TERMINAL_PROMPT=0 git -C "$CHECKOUT_DIR" fetch --no-tags --depth 1 origin "$SIMON_STACK_REF"
+FETCHED_SHA="$(git -C "$CHECKOUT_DIR" rev-parse --verify "FETCH_HEAD^{commit}")"
+
+if [[ "$FETCHED_SHA" != "$SIMON_STACK_REF" ]]; then
+  log "ERROR: fetched SHA mismatch"
+  exit 1
+fi
+
+git -c core.hooksPath=/dev/null -C "$CHECKOUT_DIR" checkout --detach --quiet "$FETCHED_SHA"
+
+readonly UPSTREAM_HOOK="$CHECKOUT_DIR/.claude/hooks/session-start.sh"
+if [[ ! -f "$UPSTREAM_HOOK" || -L "$UPSTREAM_HOOK" ]]; then
+  log "ERROR: pinned upstream session hook is missing or is a symlink"
+  exit 1
+fi
+
+readonly UPSTREAM_HOOK_DIR="$(cd -P "$(dirname "$UPSTREAM_HOOK")" && pwd)"
+if [[ "$UPSTREAM_HOOK_DIR" != "$CHECKOUT_DIR/.claude/hooks" ]]; then
+  log "ERROR: upstream session hook resolved outside the staged checkout"
+  exit 1
+fi
+
+log "Delegating to the verified pinned checkout"
+CLAUDE_PROJECT_DIR="$CHECKOUT_DIR" bash "$UPSTREAM_HOOK"
+log "Bootstrap completed"
