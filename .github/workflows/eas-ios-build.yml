@@ -126,13 +126,35 @@ jobs:
           test -s ios/certs/dist.p12
           test -s ios/certs/profile.mobileprovision
 
+          # openssl writes its only diagnosis to stderr, and every call below
+          # redirects stderr to a file. Without this, a failure here is a bare
+          # "exit 1" with nothing to read -- which is exactly how the -legacy
+          # bug below stayed invisible.
+          fail_with() {
+            echo "::error::$1"
+            if [ -s "$2" ]; then
+              sed -e 's/^/  openssl: /' "$2" >&2
+            fi
+            exit 1
+          }
+
           # Validate password, private-key presence/match, expiry, and team.
-          openssl pkcs12 -in ios/certs/dist.p12 \
+          #
+          # -legacy is required: a P12 exported from the macOS keychain is
+          # encrypted with the legacy RC2/40-bit suite, and OpenSSL 3 reads it
+          # only once the legacy provider is loaded. credential-expiry-check.yml
+          # has always passed this flag and reads the same secret fine; this step
+          # did not, so it failed on the first openssl call every time it ran.
+          # It was added by #1465 (2026-08-28), after the last successful iOS
+          # build (2026-07-30), so it had never once passed until this fix.
+          openssl pkcs12 -legacy -in ios/certs/dist.p12 \
             -passin env:IOS_DIST_P12_PASSWORD -clcerts -nokeys \
-            -out "$RUNNER_TEMP/ios-distribution.pem" 2> "$RUNNER_TEMP/p12.err"
-          openssl pkcs12 -in ios/certs/dist.p12 \
+            -out "$RUNNER_TEMP/ios-distribution.pem" 2> "$RUNNER_TEMP/p12.err" \
+            || fail_with "Could not read the distribution certificate from the P12." "$RUNNER_TEMP/p12.err"
+          openssl pkcs12 -legacy -in ios/certs/dist.p12 \
             -passin env:IOS_DIST_P12_PASSWORD -nocerts -nodes 2> "$RUNNER_TEMP/p12-key.err" \
-            | openssl pkey -pubout > "$RUNNER_TEMP/ios-private-public.pem" 2> "$RUNNER_TEMP/pkey.err"
+            | openssl pkey -pubout > "$RUNNER_TEMP/ios-private-public.pem" 2> "$RUNNER_TEMP/pkey.err" \
+            || fail_with "Could not read the private key from the P12." "$RUNNER_TEMP/p12-key.err"
           openssl x509 -in "$RUNNER_TEMP/ios-distribution.pem" -pubkey -noout \
             > "$RUNNER_TEMP/ios-certificate-public.pem"
           if ! cmp --silent "$RUNNER_TEMP/ios-private-public.pem" "$RUNNER_TEMP/ios-certificate-public.pem"; then
