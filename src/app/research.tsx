@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import { PremiumAppShell, PremiumErrorState, PremiumLoadingState, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { resolveKnowledgeSourceLink } from "@/lib/knowledge/source-link";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
@@ -171,6 +172,7 @@ function ResearchLegacy() {
               {visible.map((s) => {
                 const summary = isKorean ? s.summary_ko ?? s.summary_en : s.summary_en ?? s.summary_ko;
                 const fwLabel = s.framework ? t(`frameworks.${s.framework}`, { defaultValue: s.framework }) : null;
+                const sourceLink = resolveKnowledgeSourceLink(s);
                 return (
                   <View key={s.id} style={styles.card}>
                     <View style={styles.cardHead}>
@@ -203,11 +205,10 @@ function ResearchLegacy() {
                         {summary}
                       </Text>
                     ) : null}
-                    {s.doi || s.url ? (
+                    {sourceLink ? (
                       <Pressable
                         onPress={() => {
-                          const target = s.doi ? `https://doi.org/${s.doi}` : (s.url as string);
-                          void Linking.openURL(target);
+                          void Linking.openURL(sourceLink.href).catch(() => undefined);
                         }}
                         style={styles.sourceLink}
                         hitSlop={14}
@@ -216,7 +217,7 @@ function ResearchLegacy() {
                         accessibilityHint={t("link.hint")}
                       >
                         <Text variant="subtle" color="brand" numberOfLines={1} style={{ marginTop: spacing.xs }}>
-                          {s.doi ? `doi.org/${s.doi}` : s.url}
+                          {sourceLink.label}
                         </Text>
                       </Pressable>
                     ) : null}
