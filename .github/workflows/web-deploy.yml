@@ -426,6 +426,7 @@ jobs:
           # paths. No manual sed patching needed (that only fixed asset URLs
           # and left the router unaware of the subpath — the root-URL 404 bug).
           npx expo export --platform web --output-dir dist
+          npm run build:static
 
       - name: Reject unsafe Pages artifact entries
         run: |
