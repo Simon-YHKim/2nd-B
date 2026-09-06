@@ -49,6 +49,7 @@ function makeDeps(overrides: Partial<Parameters<typeof settleAuthBootstrap<TestS
     recoveryReady: [] as boolean[],
     authEvents: [] as { event: string; session: TestSession | null }[],
     failClosed: [] as unknown[],
+    storageFailures: [] as unknown[],
     clearedPending: 0,
   };
   const deps = {
@@ -70,6 +71,11 @@ function makeDeps(overrides: Partial<Parameters<typeof settleAuthBootstrap<TestS
     },
     isRecoveryPendingInMemory: () => false,
     currentRecoveryProof: () => null as unknown,
+    captureRecoverySnapshot: () => null as unknown,
+    isRecoverySnapshotCurrent: () => true,
+    handleStorageFailure: (error: unknown) => {
+      calls.storageFailures.push(error);
+    },
     failClosedRecovery: async (_proof: null, error: unknown) => {
       calls.failClosed.push(error);
       return true;
@@ -361,23 +367,50 @@ describe("provider and screen wiring", () => {
   test("AuthProvider ends its bootstrap through the executor these tests drive", () => {
     // Without this, the suite above could pass against a module the provider
     // no longer calls — which is exactly how AUTH-01 survived its own tests.
-    expect(AUTH).toContain("settleAuthBootstrap<Session>({");
+    expect(AUTH).toContain("settleAuthBootstrap<Session, AuthRecoverySnapshot>({");
     expect(AUTH).toContain("publishSessionUnavailable,");
     expect(AUTH).toContain("markersReadable: markerResult.ok && pendingResult.ok,");
     expect(AUTH).toContain("sessionAnswered: sessionResult.ok,");
+    expect(AUTH).toContain("handleStorageFailure: detectAuthStorageFailure,");
     // The old unbounded branch must not come back.
     expect(AUTH).not.toContain("if (sessionKnown && proofMatchesSession) {");
   });
 
-  test("the unavailable publication is a real state change with an owner note", () => {
+  test("the unavailable publication masks identity without resolving owner-null", () => {
     const publish = AUTH.indexOf("function publishSessionUnavailable()");
     expect(publish).toBeGreaterThan(-1);
-    const note = AUTH.indexOf("noteResolvedOwner(null);", publish);
-    const setState = AUTH.indexOf("setState({", publish);
-    expect(note).toBeGreaterThan(publish);
-    expect(note).toBeLessThan(setState);
-    expect(AUTH.slice(publish, setState + 260)).toContain("sessionUnavailable: true,");
-    expect(AUTH.slice(publish, setState + 260)).toContain("loading: false,");
+    const end = AUTH.indexOf("let supabase:", publish);
+    const block = AUTH.slice(publish, end);
+    expect(block).toContain("publishUnresolvedAuthState({");
+    expect(block).not.toContain("noteResolvedOwner(");
+    expect(block).toContain("sessionUnavailable: true,");
+    expect(block).toContain("loading: false,");
+  });
+
+  test("strict storage unavailability has a distinct retry API and no destructive flag", () => {
+    expect(AUTH).toContain("authStorageUnavailable: boolean;");
+    expect(AUTH).toContain("retryAuthStorage: () => void;");
+    const start = AUTH.indexOf("const detectAuthStorageFailure = useCallback");
+    const end = AUTH.indexOf("const activateRecoverySession", start);
+    const block = AUTH.slice(start, end);
+    expect(start).toBeGreaterThan(-1);
+    expect(block).toContain('kind === "recovery-required"');
+    expect(block).toContain("setStorageRecoveryRequired(false);");
+    expect(block).toContain("setAuthStorageUnavailable(true);");
+    expect(block).not.toContain("signOutAuth(");
+  });
+
+  test("auth-storage retry invalidates the old epoch without clearing proof or pending", () => {
+    const start = AUTH.indexOf("const retryAuthStorage = useCallback");
+    const end = AUTH.indexOf("const recoverEncryptedStorage", start);
+    const block = AUTH.slice(start, end);
+    expect(start).toBeGreaterThan(-1);
+    expect(block).toContain("authClientEpochRef.current = nextEpoch;");
+    expect(block).toContain("setAuthClientEpoch(nextEpoch);");
+    expect(block).not.toContain("publishRecoveryProof(null)");
+    expect(block).not.toContain("clearRecoveryProof(");
+    expect(block).not.toContain("clearRecoveryPending(");
+    expect(block).not.toContain("noteResolvedOwner(");
   });
 
   test("the sign-in screen surfaces the state with an announced, labelled retry", () => {
@@ -408,7 +441,7 @@ describe("provider and screen wiring", () => {
     const failClosedStart = AUTH.indexOf("const failClosedRecovery = async");
     const failClosedEnd = AUTH.indexOf("const handleAuthEvent", failClosedStart);
     const failClosed = AUTH.slice(failClosedStart, failClosedEnd);
-    const classify = failClosed.indexOf("detectEncryptedStorageRecovery(error)");
+    const classify = failClosed.indexOf("detectAuthStorageFailure(error)");
     const signOut = failClosed.indexOf('signOutAuth("local")');
 
     expect(failClosedStart).toBeGreaterThan(-1);
@@ -418,12 +451,12 @@ describe("provider and screen wiring", () => {
 
   test("bootstrap classifies session and marker reads before ordinary recovery settlement", () => {
     const bootStart = AUTH.indexOf("void (async () => {");
-    const settle = AUTH.indexOf("settleAuthBootstrap<Session>({", bootStart);
+    const settle = AUTH.indexOf("settleAuthBootstrap<Session, AuthRecoverySnapshot>({", bootStart);
     const boot = AUTH.slice(bootStart, settle);
 
-    expect(boot).toContain("detectEncryptedStorageRecovery(sessionResult.error)");
-    expect(boot).toContain("detectEncryptedStorageRecovery(markerResult.error)");
-    expect(boot).toContain("detectEncryptedStorageRecovery(pendingResult.error)");
+    expect(boot).toContain("detectAuthStorageFailure(sessionResult.error)");
+    expect(boot).toContain("detectAuthStorageFailure(markerResult.error)");
+    expect(boot).toContain("detectAuthStorageFailure(pendingResult.error)");
     expect(boot).toContain("if (!isCurrentEffect()) return;");
   });
 
@@ -431,7 +464,7 @@ describe("provider and screen wiring", () => {
     const catchStart = AUTH.indexOf("})().catch((error) => {");
     const effectCleanup = AUTH.indexOf("return () => {", catchStart);
     const block = AUTH.slice(catchStart, effectCleanup);
-    const classify = block.indexOf("detectEncryptedStorageRecovery(error)");
+    const classify = block.indexOf("detectAuthStorageFailure(error)");
     const failClosed = block.indexOf("failClosedRecovery(recoveryProofRef.current, error)");
 
     expect(catchStart).toBeGreaterThan(-1);
@@ -450,14 +483,14 @@ describe("provider and screen wiring", () => {
     const effect = AUTH.slice(effectStart, refreshStart);
     const refresh = AUTH.slice(refreshStart, recoverStart);
 
-    expect(activate).toContain("detectEncryptedStorageRecovery(error)");
-    expect(complete).toContain("detectEncryptedStorageRecovery(error)");
-    expect(refresh).toContain("detectEncryptedStorageRecovery(probed.error)");
+    expect(activate).toContain("detectAuthStorageFailure(error)");
+    expect(complete).toContain("detectAuthStorageFailure(error)");
+    expect(refresh).toContain("detectAuthStorageFailure(probed.error)");
     expect(effect).toContain("void supabase.auth.getSession()");
     expect(effect).toContain("return failClosedRecovery(stored, error);");
-    expect(effect).toContain("detectEncryptedStorageRecovery(sessionResult.error)");
-    expect(effect).toContain("detectEncryptedStorageRecovery(markerResult.error)");
-    expect(effect).toContain("detectEncryptedStorageRecovery(pendingResult.error)");
+    expect(effect).toContain("detectAuthStorageFailure(sessionResult.error)");
+    expect(effect).toContain("detectAuthStorageFailure(markerResult.error)");
+    expect(effect).toContain("detectAuthStorageFailure(pendingResult.error)");
   });
 
   test("a stale activate sign-out cannot clear proof after the client epoch changes", () => {
@@ -465,17 +498,17 @@ describe("provider and screen wiring", () => {
     const activateEnd = AUTH.indexOf("const completeRecovery = useCallback", activateStart);
     const activate = AUTH.slice(activateStart, activateEnd);
     const signOut = activate.indexOf('await signOutAuth("local");');
-    const epochGuard = activate.indexOf(
-      "authClientEpochRef.current !== authClientEpoch",
+    const snapshotGuard = activate.indexOf(
+      "if (!isAuthRecoverySnapshotCurrent(activationSnapshot)) throw error;",
       signOut,
     );
-    const lockGuard = activate.indexOf("storageRecoveryRequiredRef.current", epochGuard);
-    const clearProof = activate.indexOf("publishRecoveryProof(null);", lockGuard);
+    const clearProof = activate.indexOf("publishRecoveryProof(null);", snapshotGuard);
 
     expect(signOut).toBeGreaterThan(-1);
-    expect(epochGuard).toBeGreaterThan(signOut);
-    expect(lockGuard).toBeGreaterThan(epochGuard);
-    expect(clearProof).toBeGreaterThan(lockGuard);
+    expect(snapshotGuard).toBeGreaterThan(signOut);
+    expect(clearProof).toBeGreaterThan(snapshotGuard);
+    expect(AUTH).toContain("authClientEpochRef.current === snapshot.epoch");
+    expect(AUTH).toContain("&& !storageRecoveryRequiredRef.current");
   });
 
   test("fresh-client bootstrap is the only path that releases recovery readiness", () => {

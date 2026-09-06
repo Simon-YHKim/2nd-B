@@ -13,15 +13,17 @@ import { preserveKnownMinorForMissingProfile, type ProfileProbe } from "./profil
 import { noteResolvedOwner } from "./account-epoch";
 import {
   boundedSessionLoad,
+  classifyAuthStorageFailure,
   classifyRefreshOutcome,
+  createEncryptedStorageRecoveryRuntime,
   settleAuthBootstrap,
+  type EncryptedStorageRecoveryRuntime,
   type SessionLoadOutcome,
 } from "./bootstrap-outcome";
 import { subscribeRecoveryStorageEvent } from "./recovery-storage-events";
 import { nextRecoveryProof } from "./reset-password-helpers";
 import {
   attemptEncryptedNativeStorageRecovery,
-  isEncryptedStorageRecoveryRequired,
 } from "./storage-recovery";
 import {
   clearRecoveryProof,
@@ -77,6 +79,9 @@ interface AuthContextValue extends AuthState {
   /** The native encrypted auth store is durably unreadable. This is unknown
    * auth state, not evidence that the user signed out. */
   storageRecoveryRequired: boolean;
+  /** The encrypted auth store is temporarily unavailable. Identity remains
+   * masked, but destructive recovery must not be offered for this state. */
+  authStorageUnavailable: boolean;
   /** Persisted, session-bound proof that Supabase entered password recovery.
    * A normal SIGNED_IN/INITIAL_SESSION event never creates it. */
   recoveryUserId: string | null;
@@ -92,6 +97,8 @@ interface AuthContextValue extends AuthState {
   /** Discard unreadable encrypted local data only after the UI provides the
    * exact explicit two-field consent contract. */
   recoverEncryptedStorage: (consent: EncryptedNativeStorageRecoveryConsent) => Promise<boolean>;
+  /** Recreate and re-bootstrap the auth client after transient storage faults. */
+  retryAuthStorage: () => void;
   /** Re-probe the current session's profile. Call after changing data that
    *  feeds hasProfile/isMinor (e.g. a date-of-birth correction) so the cached
    *  values update without waiting for the next auth event or an app restart. */
@@ -106,6 +113,7 @@ const AuthContext = createContext<AuthContextValue>({
   profileProbeFailed: false,
   sessionUnavailable: false,
   storageRecoveryRequired: false,
+  authStorageUnavailable: false,
   loading: true,
   recoveryUserId: null,
   recoverySessionId: null,
@@ -114,6 +122,7 @@ const AuthContext = createContext<AuthContextValue>({
   activateRecoverySession: async () => {},
   completeRecovery: async () => {},
   recoverEncryptedStorage: async () => false,
+  retryAuthStorage: () => {},
   refresh: async () => {},
 });
 
@@ -179,6 +188,19 @@ function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
 
 const PROFILE_PROBE_TIMEOUT_MS = 8000;
 
+interface AuthRecoverySnapshot {
+  epoch: number;
+  proofGeneration: number;
+  proof: RecoveryProof | null;
+}
+
+function sameRecoveryProof(
+  left: RecoveryProof | null,
+  right: RecoveryProof | null,
+): boolean {
+  return left?.userId === right?.userId && left?.sessionId === right?.sessionId;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
     userId: null,
@@ -213,11 +235,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [recoveryReady, setRecoveryReady] = useState(false);
   const [recoveryPendingGlobal, setRecoveryPendingGlobal] = useState(isRecoveryPendingInMemory);
   const [storageRecoveryRequired, setStorageRecoveryRequired] = useState(false);
+  const [authStorageUnavailable, setAuthStorageUnavailable] = useState(false);
   const [authClientEpoch, setAuthClientEpoch] = useState(0);
   const recoveryProofRef = useRef<RecoveryProof | null>(null);
   const recoveryProofGenerationRef = useRef(0);
   const latestSessionRef = useRef<Session | null>(null);
   const storageRecoveryRequiredRef = useRef(false);
+  const authStorageUnavailableRef = useRef(false);
   const authClientEpochRef = useRef(0);
   // Recovery-required is deliberately not a resolved owner publication. Keep
   // its masked frame outside the setState/owner-note census.
@@ -227,14 +251,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     recoveryProofRef.current = proof;
     setRecoveryProof(proof);
   }, []);
-  const detectEncryptedStorageRecovery = useCallback((error: unknown): boolean => {
-    if (!isEncryptedStorageRecoveryRequired(error)) return false;
-    storageRecoveryRequiredRef.current = true;
+  const detectAuthStorageFailure = useCallback((error: unknown): boolean => {
+    const kind = classifyAuthStorageFailure(error);
+    if (!kind) return false;
+    if (kind === "recovery-required") {
+      storageRecoveryRequiredRef.current = true;
+      authStorageUnavailableRef.current = false;
+      setStorageRecoveryRequired(true);
+      setAuthStorageUnavailable(false);
+    } else {
+      // A transient failure can never downgrade an already-proven durable
+      // recovery requirement into the non-destructive retry state.
+      if (storageRecoveryRequiredRef.current) return true;
+      authStorageUnavailableRef.current = true;
+      setStorageRecoveryRequired(false);
+      setAuthStorageUnavailable(true);
+    }
     probeGenRef.current += 1;
     setRecoveryReady(false);
-    setStorageRecoveryRequired(true);
     if (typeof console !== "undefined") {
-      console.warn("[auth] encrypted storage is unreadable; phase=detect");
+      console.warn("[auth] encrypted storage access failed; phase=detect");
     }
     // Mask every identity-derived field while preserving the last resolved
     // account owner. A storage fault is not a signed-out answer.
@@ -249,25 +285,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     return true;
   }, [publishUnresolvedAuthState]);
+  const captureAuthRecoverySnapshot = useCallback((): AuthRecoverySnapshot => ({
+    epoch: authClientEpochRef.current,
+    proofGeneration: recoveryProofGenerationRef.current,
+    proof: recoveryProofRef.current,
+  }), []);
+  const isAuthRecoverySnapshotCurrent = useCallback((snapshot: AuthRecoverySnapshot): boolean => (
+    authClientEpochRef.current === snapshot.epoch
+    && !storageRecoveryRequiredRef.current
+    && !authStorageUnavailableRef.current
+    && recoveryProofGenerationRef.current === snapshot.proofGeneration
+    && sameRecoveryProof(recoveryProofRef.current, snapshot.proof)
+  ), []);
   const activateRecoverySession = useCallback(async (identity: RecoverySessionIdentity) => {
     if (
       authClientEpochRef.current !== authClientEpoch
       || storageRecoveryRequiredRef.current
+      || authStorageUnavailableRef.current
     ) return;
     const proof = createRecoveryProof(identity);
     // Lock the current frame immediately; persistence completes before the
     // verify/callback handler releases its pending state.
     publishRecoveryProof(proof);
+    const activationSnapshot = captureAuthRecoverySnapshot();
     try {
       await persistRecoveryProof(proof);
-      if (
-        authClientEpochRef.current !== authClientEpoch
-        || storageRecoveryRequiredRef.current
-      ) return;
+      if (!isAuthRecoverySnapshotCurrent(activationSnapshot)) return;
       setRecoveryReady(true);
     } catch (error) {
       if (authClientEpochRef.current !== authClientEpoch) return;
-      if (detectEncryptedStorageRecovery(error)) throw error;
+      if (detectAuthStorageFailure(error)) throw error;
+      if (!isAuthRecoverySnapshotCurrent(activationSnapshot)) throw error;
       // A recovery session without a durable marker could escape on restart.
       // Fail closed by removing this device's session and the in-memory proof.
       if (
@@ -276,13 +324,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ) {
         try {
           await signOutAuth("local");
-          if (
-            authClientEpochRef.current !== authClientEpoch
-            || storageRecoveryRequiredRef.current
-          ) return;
+          if (!isAuthRecoverySnapshotCurrent(activationSnapshot)) throw error;
           publishRecoveryProof(null);
         } catch (signOutError) {
-          if (detectEncryptedStorageRecovery(signOutError)) throw signOutError;
+          if (authClientEpochRef.current !== authClientEpoch) return;
+          if (detectAuthStorageFailure(signOutError)) throw signOutError;
+          if (!isAuthRecoverySnapshotCurrent(activationSnapshot)) throw signOutError;
           // signOut returns { error } rather than throwing at the client layer;
           // the wrapper converts that to a throw. Keep proof locked on failure.
           // FAR-02: log a stable phase, never the caught operand - these paths
@@ -294,11 +341,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       throw error;
     }
-  }, [authClientEpoch, detectEncryptedStorageRecovery, publishRecoveryProof]);
+  }, [
+    authClientEpoch,
+    captureAuthRecoverySnapshot,
+    detectAuthStorageFailure,
+    isAuthRecoverySnapshotCurrent,
+    publishRecoveryProof,
+  ]);
   const completeRecovery = useCallback(async (expectedUserId?: string, expectedSessionId?: string) => {
     if (
       authClientEpochRef.current !== authClientEpoch
       || storageRecoveryRequiredRef.current
+      || authStorageUnavailableRef.current
     ) return;
     const owned = recoveryProofRef.current;
     if (owned && (
@@ -307,20 +361,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     )) {
       return;
     }
+    const completionSnapshot = captureAuthRecoverySnapshot();
     // Clear disk first. If it fails, keep the route lock and let the caller
     // surface an error instead of silently restoring stale recovery on restart.
     try {
       await clearRecoveryProof();
-      if (authClientEpochRef.current !== authClientEpoch) return;
+      if (!isAuthRecoverySnapshotCurrent(completionSnapshot)) return;
       await clearRecoveryPending();
-      if (authClientEpochRef.current !== authClientEpoch) return;
-      if (recoveryProofRef.current === owned) publishRecoveryProof(null);
+      if (!isAuthRecoverySnapshotCurrent(completionSnapshot)) return;
+      if (sameRecoveryProof(recoveryProofRef.current, owned)) publishRecoveryProof(null);
     } catch (error) {
       if (authClientEpochRef.current !== authClientEpoch) return;
-      detectEncryptedStorageRecovery(error);
+      detectAuthStorageFailure(error);
       throw error;
     }
-  }, [authClientEpoch, detectEncryptedStorageRecovery, publishRecoveryProof]);
+  }, [
+    authClientEpoch,
+    captureAuthRecoverySnapshot,
+    detectAuthStorageFailure,
+    isAuthRecoverySnapshotCurrent,
+    publishRecoveryProof,
+  ]);
 
   useEffect(() => subscribeRecoveryPending(setRecoveryPendingGlobal), []);
 
@@ -329,7 +390,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const effectEpoch = authClientEpoch;
     const isCurrentEffect = () => !cancelled
       && authClientEpochRef.current === effectEpoch
-      && !storageRecoveryRequiredRef.current;
+      && !storageRecoveryRequiredRef.current
+      && !authStorageUnavailableRef.current;
 
     // AUTH-01: the boot ran to completion but never learned whether a session
     // exists. Publish that as an explicit, retryable state - NOT resolveSession(null),
@@ -340,8 +402,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       probeGenRef.current += 1;
       lastUserIdRef.current = null;
       lastProbeRef.current = null;
-      noteResolvedOwner(null);
-      setState({
+      publishUnresolvedAuthState({
         userId: null,
         hasProfile: null,
         isMinor: null,
@@ -356,7 +417,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       supabase = getSupabaseClient();
     } catch (error) {
-      if (!detectEncryptedStorageRecovery(error)) throw error;
+      if (!detectAuthStorageFailure(error)) throw error;
       return () => {
         cancelled = true;
       };
@@ -440,28 +501,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 아래 부트스트랩으로 옮겨갔다(같은 PROFILE_PROBE_TIMEOUT_MS 를 쓰고,
     // UNKNOWN 과 "세션 없음" 을 따로 보존한다). 계정 scene epoch 격리(#1579)도
     // 그대로다 — 모든 결말이 resolveSession() 을 지나고 거기서
-    // noteResolvedOwner() 가 불린다.
+    // resolved-owner publication이 함께 실행된다.
     type QueuedAuthEvent = { event: AuthChangeEvent; session: Session | null };
     let bootstrapped = false;
     const queuedAuthEvents: QueuedAuthEvent[] = [];
     let storageProofGeneration = 0;
 
-    const sameProof = (left: RecoveryProof | null, right: RecoveryProof | null) =>
-      left?.userId === right?.userId && left?.sessionId === right?.sessionId;
+    const sameProof = sameRecoveryProof;
+
+    const captureEffectRecoverySnapshot = (): AuthRecoverySnapshot => ({
+      epoch: effectEpoch,
+      proofGeneration: recoveryProofGenerationRef.current,
+      proof: recoveryProofRef.current,
+    });
+    const isEffectRecoverySnapshotCurrent = (snapshot: AuthRecoverySnapshot) => (
+      isCurrentEffect()
+      && snapshot.epoch === effectEpoch
+      && recoveryProofGenerationRef.current === snapshot.proofGeneration
+      && sameProof(recoveryProofRef.current, snapshot.proof)
+    );
 
     let failClosedRunning = false;
     const failClosedRecovery = async (proof: RecoveryProof | null, error: unknown): Promise<boolean> => {
       if (!isCurrentEffect()) return false;
       // Only explicit user consent may retire an unreadable encrypted store.
       // In particular, never ask the already-unreadable client to sign out.
-      if (detectEncryptedStorageRecovery(error)) return false;
+      if (detectAuthStorageFailure(error)) return false;
       // A stale A failure must never revoke a newer B proof. Restore A only when
       // no newer owner exists, then yield once so already-queued auth/storage
       // publications can win before local sign-out begins.
       if (proof && !recoveryProofRef.current) publishRecoveryProof(proof);
       const requestedGeneration = recoveryProofGenerationRef.current;
       await Promise.resolve();
-      if (!isCurrentEffect()) return false;
+      if (
+        !isCurrentEffect()
+        || requestedGeneration !== recoveryProofGenerationRef.current
+      ) return false;
       const currentOwner = recoveryProofRef.current;
       if (
         (proof && (!currentOwner || !sameProof(currentOwner, proof))) ||
@@ -487,7 +562,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!proof) setRecoveryReady(false);
       try {
         await signOutAuth("local");
-        if (!isCurrentEffect()) {
+        if (
+          !isCurrentEffect()
+          || requestedGeneration !== recoveryProofGenerationRef.current
+        ) {
           failClosedRunning = false;
           return false;
         }
@@ -503,8 +581,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return false;
         }
         await clearRecoveryProof();
+        if (
+          !isCurrentEffect()
+          || requestedGeneration !== recoveryProofGenerationRef.current
+        ) {
+          failClosedRunning = false;
+          return false;
+        }
         await clearRecoveryPending();
-        if (!isCurrentEffect()) {
+        if (
+          !isCurrentEffect()
+          || requestedGeneration !== recoveryProofGenerationRef.current
+        ) {
           failClosedRunning = false;
           return false;
         }
@@ -518,11 +606,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           failClosedRunning = false;
           return false;
         }
-        if (storageRecoveryRequiredRef.current) {
+        if (
+          storageRecoveryRequiredRef.current
+          || authStorageUnavailableRef.current
+        ) {
           failClosedRunning = false;
           return false;
         }
-        if (detectEncryptedStorageRecovery(signOutError)) {
+        if (detectAuthStorageFailure(signOutError)) {
           failClosedRunning = false;
           return false;
         }
@@ -538,7 +629,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           publishRecoveryProof(proof);
         }
         setRecoveryReady(false);
-        setState((current) => ({ ...current, loading: true }));
+        publishUnresolvedAuthState((current) => ({ ...current, loading: true }));
         failClosedRunning = false;
         return false;
       }
@@ -563,9 +654,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             new Error("Recovery bootstrap restored a session before proof"),
           );
         } else {
-          void clearRecoveryPending()
-            .then(() => resolveSession(null))
-            .catch((error) => failClosedRecovery(null, error));
+          const snapshot = captureEffectRecoverySnapshot();
+          void (async () => {
+            try {
+              await clearRecoveryPending();
+              if (!isEffectRecoverySnapshotCurrent(snapshot)) return;
+              await resolveSession(null);
+            } catch (error) {
+              if (isEffectRecoverySnapshotCurrent(snapshot)) {
+                await failClosedRecovery(null, error);
+              }
+            }
+          })();
         }
         return;
       }
@@ -575,14 +675,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // A recovery event without a session_id cannot be safely bound.
           void failClosedRecovery(null, new Error("Recovery session has no stable session_id"));
         } else {
-          void persistRecoveryProof(next)
-            .then(() => clearRecoveryPending())
-            .catch((error) => failClosedRecovery(next, error));
+          const snapshot = captureEffectRecoverySnapshot();
+          void (async () => {
+            try {
+              await persistRecoveryProof(next);
+              if (!isEffectRecoverySnapshotCurrent(snapshot)) return;
+              await clearRecoveryPending();
+              if (!isEffectRecoverySnapshotCurrent(snapshot)) return;
+            } catch (error) {
+              if (isEffectRecoverySnapshotCurrent(snapshot)) {
+                await failClosedRecovery(next, error);
+              }
+            }
+          })();
         }
       } else if (event === "SIGNED_OUT") {
-        void clearRecoveryProof()
-          .then(() => clearRecoveryPending())
-          .catch((error) => failClosedRecovery(previous, error));
+        const snapshot = captureEffectRecoverySnapshot();
+        void (async () => {
+          try {
+            await clearRecoveryProof();
+            if (!isEffectRecoverySnapshotCurrent(snapshot)) return;
+            await clearRecoveryPending();
+            if (!isEffectRecoverySnapshotCurrent(snapshot)) return;
+          } catch (error) {
+            if (isEffectRecoverySnapshotCurrent(snapshot)) {
+              await failClosedRecovery(previous, error);
+            }
+          }
+        })();
       } else if (previous && !next) {
         if (session) {
           if (isRecoveryPendingInMemory()) {
@@ -598,9 +718,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Revoke it rather than clearing A's marker and treating B as ordinary.
           void failClosedRecovery(previous, new Error("Recovery session identity changed"));
         } else {
-          void clearRecoveryProof()
-            .then(() => clearRecoveryPending())
-            .catch((error) => failClosedRecovery(previous, error));
+          const snapshot = captureEffectRecoverySnapshot();
+          void (async () => {
+            try {
+              await clearRecoveryProof();
+              if (!isEffectRecoverySnapshotCurrent(snapshot)) return;
+              await clearRecoveryPending();
+              if (!isEffectRecoverySnapshotCurrent(snapshot)) return;
+            } catch (error) {
+              if (isEffectRecoverySnapshotCurrent(snapshot)) {
+                await failClosedRecovery(previous, error);
+              }
+            }
+          })();
         }
       }
       void resolveSession(session?.user.id ?? null);
@@ -724,9 +854,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ]);
       if (!isCurrentEffect()) return;
       if (
-        (sessionResult.ok === false && detectEncryptedStorageRecovery(sessionResult.error))
-        || (markerResult.ok === false && detectEncryptedStorageRecovery(markerResult.error))
-        || (pendingResult.ok === false && detectEncryptedStorageRecovery(pendingResult.error))
+        (sessionResult.ok === false && detectAuthStorageFailure(sessionResult.error))
+        || (markerResult.ok === false && detectAuthStorageFailure(markerResult.error))
+        || (pendingResult.ok === false && detectAuthStorageFailure(pendingResult.error))
       ) {
         return;
       }
@@ -751,13 +881,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         if (!sameProof(proof, persisted)) {
           if (proof) {
+            const persistSnapshot = captureEffectRecoverySnapshot();
             await persistRecoveryProof(proof);
+            if (!isEffectRecoverySnapshotCurrent(persistSnapshot)) return;
             if (recoveryPendingOnDisk) {
+              const pendingSnapshot = captureEffectRecoverySnapshot();
               await clearRecoveryPending();
+              if (!isEffectRecoverySnapshotCurrent(pendingSnapshot)) return;
               recoveryPendingOnDisk = false;
             }
           }
-          else if (persisted) await clearRecoveryProof();
+          else if (persisted) {
+            const clearSnapshot = captureEffectRecoverySnapshot();
+            await clearRecoveryProof();
+            if (!isEffectRecoverySnapshotCurrent(clearSnapshot)) return;
+          }
           persisted = proof;
         }
       } while (queuedAuthEvents.length > 0);
@@ -779,14 +917,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           proof = externallyPublished;
         }
         if (!sameProof(proof, persisted)) {
+          const storageSnapshot = captureEffectRecoverySnapshot();
           if (proof) await persistRecoveryProof(proof);
           else if (persisted) await clearRecoveryProof();
+          if (!isEffectRecoverySnapshotCurrent(storageSnapshot)) return;
           persisted = proof;
         }
       }
 
       if (proof && recoveryPendingOnDisk) {
+        const pendingSnapshot = captureEffectRecoverySnapshot();
         await clearRecoveryPending();
+        if (!isEffectRecoverySnapshotCurrent(pendingSnapshot)) return;
         recoveryPendingOnDisk = false;
       }
 
@@ -828,7 +970,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (recoveryPendingOnDisk && sessionKnown && !session && !proof) {
         // Invalid/expired callback never established a session. Releasing the
         // provisional lock is safe and lets the reset screen show its error.
+        const pendingSnapshot = captureEffectRecoverySnapshot();
         await clearRecoveryPending();
+        if (!isEffectRecoverySnapshotCurrent(pendingSnapshot)) return;
         recoveryPendingOnDisk = false;
       }
 
@@ -854,7 +998,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // fake-timer test. Behaviour for every previously-handled case is
       // unchanged; the new branch is `session-unavailable`, which ends an
       // ordinary unanswered startup instead of leaving loading:true forever.
-      settleAuthBootstrap<Session>({
+      settleAuthBootstrap<Session, AuthRecoverySnapshot>({
         sessionKnown,
         hasProof: Boolean(proof),
         proofMatchesSession,
@@ -864,6 +1008,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         sessionAnswered: sessionResult.ok,
         rawSessionLoad,
         isCancelled: () => !isCurrentEffect(),
+        handleStorageFailure: detectAuthStorageFailure,
+        captureRecoverySnapshot: captureEffectRecoverySnapshot,
+        isRecoverySnapshotCurrent: isEffectRecoverySnapshotCurrent,
         setRecoveryReady,
         resolveSession,
         publishSessionUnavailable,
@@ -877,7 +1024,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // every subsequent event is handled by handleAuthEvent rather than lost.
     })().catch((error) => {
       if (!isCurrentEffect()) return;
-      if (detectEncryptedStorageRecovery(error)) return;
+      if (detectAuthStorageFailure(error)) return;
       // Storage/session bootstrap failed before provenance could be reconciled.
       // Keep the app fail-closed by clearing local auth before publishing signed-out.
       void failClosedRecovery(recoveryProofRef.current, error).then((closed) => {
@@ -892,7 +1039,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sub.subscription.unsubscribe();
       unsubscribeRecoveryStorage();
     };
-  }, [authClientEpoch, detectEncryptedStorageRecovery, publishRecoveryProof]);
+  }, [
+    authClientEpoch,
+    detectAuthStorageFailure,
+    publishRecoveryProof,
+    publishUnresolvedAuthState,
+  ]);
 
   // Manual re-probe for the current session: refreshes the published state AND
   // the probe cache on demand (profile completion, DOB correction, sign-out
@@ -902,12 +1054,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (
       authClientEpochRef.current !== authClientEpoch
       || storageRecoveryRequiredRef.current
+      || authStorageUnavailableRef.current
     ) return;
     let supabase: ReturnType<typeof getSupabaseClient>;
     try {
       supabase = getSupabaseClient();
     } catch (error) {
-      if (detectEncryptedStorageRecovery(error)) return;
+      if (detectAuthStorageFailure(error)) return;
       throw error;
     }
     const gen = ++probeGenRef.current;
@@ -931,20 +1084,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (
       authClientEpochRef.current !== authClientEpoch
       || storageRecoveryRequiredRef.current
+      || authStorageUnavailableRef.current
     ) return;
-    if (probed.ok === false && detectEncryptedStorageRecovery(probed.error)) return;
+    if (probed.ok === false && detectAuthStorageFailure(probed.error)) return;
     const retry = classifyRefreshOutcome(probed);
     uid = retry.userId;
     if (
       authClientEpochRef.current !== authClientEpoch
       || storageRecoveryRequiredRef.current
+      || authStorageUnavailableRef.current
       || gen !== probeGenRef.current
     ) return;
     if (!uid) {
       lastUserIdRef.current = null;
       lastProbeRef.current = null;
+      if (retry.sessionUnavailable) {
+        publishUnresolvedAuthState({
+          userId: null,
+          hasProfile: null,
+          isMinor: null,
+          age: null,
+          profileProbeFailed: false,
+          sessionUnavailable: true,
+          loading: false,
+        });
+        return;
+      }
       noteResolvedOwner(null);
-      setState({ userId: null, hasProfile: null, isMinor: null, age: null, profileProbeFailed: false, sessionUnavailable: retry.sessionUnavailable, loading: false });
+      setState({ userId: null, hasProfile: null, isMinor: null, age: null, profileProbeFailed: false, sessionUnavailable: false, loading: false });
       return;
     }
     // Timeout fallback: keep the last known-good probe for the SAME user
@@ -962,6 +1129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (
       authClientEpochRef.current !== authClientEpoch
       || storageRecoveryRequiredRef.current
+      || authStorageUnavailableRef.current
       || gen !== probeGenRef.current
     ) return;
     lastUserIdRef.current = uid;
@@ -976,48 +1144,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sessionUnavailable: false,
       loading: false,
     });
-  }, [authClientEpoch, detectEncryptedStorageRecovery]);
+  }, [authClientEpoch, detectAuthStorageFailure, publishUnresolvedAuthState]);
 
-  const recoverEncryptedStorage = useCallback(async (
-    consent: EncryptedNativeStorageRecoveryConsent,
-  ): Promise<boolean> => {
-    // Typed input is not a security boundary. The recovery helper repeats the
-    // exact two-field runtime check before touching any local data.
+  const encryptedStorageRecoveryRuntimeRef = useRef<EncryptedStorageRecoveryRuntime | null>(null);
+
+  const retryAuthStorage = useCallback(() => {
     if (
-      authClientEpochRef.current !== authClientEpoch
-      || !storageRecoveryRequiredRef.current
-    ) return false;
-    const result = await attemptEncryptedNativeStorageRecovery(consent);
-    if (authClientEpochRef.current !== authClientEpoch) return false;
-    if (result !== "recovered") {
-      storageRecoveryRequiredRef.current = true;
-      setStorageRecoveryRequired(true);
-      setRecoveryReady(false);
-      if (result === "failed" && typeof console !== "undefined") {
-        console.warn("[auth] encrypted storage recovery failed; phase=user-consent");
-      }
-      return false;
-    }
-
-    // The helper has discarded the managed data, dropped the unreadable
-    // singleton, and eagerly recreated a clean one. Invalidate every callback
-    // bound to the retired client before React schedules its effect cleanup.
+      !authStorageUnavailableRef.current
+      || storageRecoveryRequiredRef.current
+    ) return;
     const nextEpoch = authClientEpochRef.current + 1;
     authClientEpochRef.current = nextEpoch;
     probeGenRef.current += 1;
-    storageRecoveryRequiredRef.current = false;
+    authStorageUnavailableRef.current = false;
     latestSessionRef.current = null;
     lastUserIdRef.current = null;
     lastProbeRef.current = null;
-    publishRecoveryProof(null);
-    applyRecoveryPendingStorageValue(null);
-    setStorageRecoveryRequired(false);
+    setAuthStorageUnavailable(false);
     setRecoveryReady(false);
-
-    // Explicit data-loss consent resolved the retired local credential owner.
-    // The new client still has to bootstrap before recoveryReady can release.
-    noteResolvedOwner(null);
-    setState({
+    publishUnresolvedAuthState({
       userId: null,
       hasProfile: null,
       isMinor: null,
@@ -1027,9 +1172,76 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading: true,
     });
     setAuthClientEpoch(nextEpoch);
-    return true;
-  }, [authClientEpoch, publishRecoveryProof]);
+  }, [publishUnresolvedAuthState]);
 
+  const recoverEncryptedStorage = useCallback((
+    consent: EncryptedNativeStorageRecoveryConsent,
+  ): Promise<boolean> => encryptedStorageRecoveryRuntimeRef.current!.recover(consent), []);
+
+  if (!encryptedStorageRecoveryRuntimeRef.current) {
+    encryptedStorageRecoveryRuntimeRef.current = createEncryptedStorageRecoveryRuntime<number>({
+      acquire: () => (
+        storageRecoveryRequiredRef.current && !authStorageUnavailableRef.current
+          ? authClientEpochRef.current
+          : null
+      ),
+      isCurrent: (lease) => (
+        authClientEpochRef.current === lease
+        && storageRecoveryRequiredRef.current
+        && !authStorageUnavailableRef.current
+      ),
+      attempt: attemptEncryptedNativeStorageRecovery,
+      retainLock: (result, lease) => {
+        if (
+          authClientEpochRef.current !== lease
+          || !storageRecoveryRequiredRef.current
+        ) return;
+        storageRecoveryRequiredRef.current = true;
+        setStorageRecoveryRequired(true);
+        setRecoveryReady(false);
+        if (result === "failed" && typeof console !== "undefined") {
+          console.warn("[auth] encrypted storage recovery failed; phase=user-consent");
+        }
+      },
+      commitRecovered: (lease) => {
+        if (
+          authClientEpochRef.current !== lease
+          || !storageRecoveryRequiredRef.current
+          || authStorageUnavailableRef.current
+        ) return false;
+
+        // Invalidate the retired client's callbacks before publishing the
+        // reset frame. The recreated client must bootstrap before readiness.
+        const nextEpoch = lease + 1;
+        authClientEpochRef.current = nextEpoch;
+        probeGenRef.current += 1;
+        storageRecoveryRequiredRef.current = false;
+        authStorageUnavailableRef.current = false;
+        latestSessionRef.current = null;
+        lastUserIdRef.current = null;
+        lastProbeRef.current = null;
+        publishRecoveryProof(null);
+        applyRecoveryPendingStorageValue(null);
+        setStorageRecoveryRequired(false);
+        setAuthStorageUnavailable(false);
+        setRecoveryReady(false);
+
+        // Exact data-loss consent resolves the retired local credential owner.
+        noteResolvedOwner(null);
+        setState({
+          userId: null,
+          hasProfile: null,
+          isMinor: null,
+          age: null,
+          profileProbeFailed: false,
+          sessionUnavailable: false,
+          loading: true,
+        });
+        setAuthClientEpoch(nextEpoch);
+        return true;
+      },
+    });
+  }
   const value = useMemo<AuthContextValue>(
     () => ({
       ...state,
@@ -1038,15 +1250,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       recoveryReady,
       recoveryPendingGlobal,
       storageRecoveryRequired,
+      authStorageUnavailable,
       activateRecoverySession,
       completeRecovery,
       recoverEncryptedStorage,
+      retryAuthStorage,
       refresh,
     }),
     [
       activateRecoverySession,
       completeRecovery,
       recoverEncryptedStorage,
+      retryAuthStorage,
+      authStorageUnavailable,
       recoveryPendingGlobal,
       recoveryProof,
       recoveryReady,

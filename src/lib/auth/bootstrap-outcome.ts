@@ -32,6 +32,123 @@
 //   4. The late answer to a timed-out getSession still reconciles, and a late
 //      session arriving while recovery is pending still fails closed.
 
+import type { EncryptedNativeStorageRecoveryConsent } from "../storage/encrypted-native-storage";
+import {
+  isEncryptedStorageRecoveryRequired,
+  type EncryptedStorageRecoveryAttempt,
+} from "./storage-recovery";
+
+const AUTH_STORAGE_UNAVAILABLE_CODES = new Set([
+  "secure_storage_key_unavailable",
+  "secure_storage_key_invalid",
+  "secure_storage_native_only",
+  "secure_storage_read_failed",
+  "secure_storage_decrypt_failed",
+  "secure_storage_encrypt_failed",
+  "secure_storage_write_failed",
+  "secure_storage_remove_failed",
+  "secure_storage_capacity_check_failed",
+  "secure_storage_capacity_exceeded",
+  "secure_storage_migration_failed",
+  "secure_storage_value_invalid",
+  "secure_storage_value_too_large",
+  "secure_store_unavailable",
+]);
+
+const MAX_STORAGE_ERROR_DEPTH = 6;
+const MAX_STORAGE_ERROR_NODES = 16;
+
+function ownErrorValue(error: Error, key: "cause" | "originalError"): unknown {
+  try {
+    return Object.getOwnPropertyDescriptor(error, key)?.value;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Classify only exact Error signals emitted by the native encrypted adapter.
+ * Message-shaped objects and mutated strings remain ordinary auth failures. */
+export function classifyAuthStorageFailure(
+  error: unknown,
+): "recovery-required" | "unavailable" | null {
+  if (isEncryptedStorageRecoveryRequired(error)) return "recovery-required";
+  if (!(error instanceof Error)) return null;
+
+  const queue: Array<{ error: Error; depth: number }> = [{ error, depth: 0 }];
+  const seen = new Set<Error>();
+  let visited = 0;
+  while (queue.length > 0 && visited < MAX_STORAGE_ERROR_NODES) {
+    const current = queue.shift();
+    if (!current || seen.has(current.error)) continue;
+    seen.add(current.error);
+    visited += 1;
+    if (AUTH_STORAGE_UNAVAILABLE_CODES.has(current.error.message)) return "unavailable";
+    if (current.depth >= MAX_STORAGE_ERROR_DEPTH) continue;
+    for (const key of ["originalError", "cause"] as const) {
+      const nested = ownErrorValue(current.error, key);
+      if (nested instanceof Error && !seen.has(nested)) {
+        queue.push({ error: nested, depth: current.depth + 1 });
+      }
+    }
+  }
+  return null;
+}
+
+export interface EncryptedStorageRecoveryRuntime {
+  recover: (consent: EncryptedNativeStorageRecoveryConsent) => Promise<boolean>;
+}
+
+export interface EncryptedStorageRecoveryRuntimeDependencies<Lease> {
+  acquire: () => Lease | null;
+  isCurrent: (lease: Lease) => boolean;
+  attempt: (
+    consent: EncryptedNativeStorageRecoveryConsent,
+  ) => Promise<EncryptedStorageRecoveryAttempt>;
+  retainLock: (
+    result: Exclude<EncryptedStorageRecoveryAttempt, "recovered">,
+    lease: Lease,
+  ) => void;
+  commitRecovered: (lease: Lease) => boolean;
+}
+
+/** Install the mutation lease and shared promise synchronously. The actual
+ * destructive attempt starts in the next microtask, after the caller has had
+ * a chance to invalidate the lease. */
+export function createEncryptedStorageRecoveryRuntime<Lease>(
+  deps: EncryptedStorageRecoveryRuntimeDependencies<Lease>,
+): EncryptedStorageRecoveryRuntime {
+  let active: Promise<boolean> | null = null;
+  return {
+    recover(consent) {
+      if (active) return active;
+      const lease = deps.acquire();
+      if (lease === null) return Promise.resolve(false);
+
+      const operation = Promise.resolve().then(async () => {
+        if (!deps.isCurrent(lease)) return false;
+        let result: EncryptedStorageRecoveryAttempt;
+        try {
+          result = await deps.attempt(consent);
+        } catch {
+          result = "failed";
+        }
+        if (!deps.isCurrent(lease)) return false;
+        if (result !== "recovered") {
+          deps.retainLock(result, lease);
+          return false;
+        }
+        return deps.commitRecovered(lease);
+      });
+      active = operation;
+      const release = () => {
+        if (active === operation) active = null;
+      };
+      void operation.then(release, release);
+      return operation;
+    },
+  };
+}
+
 /** Discriminated result of a session read that may time out or fail. */
 export type SessionLoadOutcome<S> =
   | { ok: true; session: S | null }
@@ -123,9 +240,71 @@ export function classifyBootstrapOutcome(input: BootstrapOutcomeInput): Bootstra
   return { kind: "session-unavailable" };
 }
 
+export interface LateAuthSessionDependencies<S extends SessionLike, Snapshot> {
+  isCancelled: () => boolean;
+  handleStorageFailure: (error: unknown) => void;
+  isRecoveryPending: () => boolean;
+  currentRecoveryProof: () => unknown;
+  captureRecoverySnapshot: () => Snapshot;
+  isRecoverySnapshotCurrent: (snapshot: Snapshot) => boolean;
+  failClosedRecovery: (error: unknown) => Promise<unknown>;
+  clearRecoveryPending: () => Promise<void>;
+  handleInitialSession: (session: S | null) => void;
+  setRecoveryReady: (ready: boolean) => void;
+}
+
+/** Reconcile the original getSession after the bounded bootstrap has timed
+ * out. This owns its rejection boundary because callers intentionally detach
+ * it; no late storage failure may become an unhandled rejection. */
+export async function reconcileLateAuthSession<S extends SessionLike, Snapshot>(
+  rawSessionLoad: Promise<SessionLoadOutcome<S>>,
+  deps: LateAuthSessionDependencies<S, Snapshot>,
+): Promise<void> {
+  const reportStorageFailure = (error: unknown) => {
+    try {
+      deps.handleStorageFailure(error);
+    } catch {
+      // The detached reconciliation boundary must remain rejection-safe even
+      // if a consumer's state publisher has already been torn down.
+    }
+  };
+
+  try {
+    const late = await rawSessionLoad;
+    if (deps.isCancelled()) return;
+    if (!late.ok) {
+      reportStorageFailure(late.error);
+      return;
+    }
+
+    if (deps.isRecoveryPending() && !deps.currentRecoveryProof()) {
+      const snapshot = deps.captureRecoverySnapshot();
+      if (deps.isCancelled() || !deps.isRecoverySnapshotCurrent(snapshot)) return;
+      if (late.session) {
+        await deps.failClosedRecovery(new Error("Late recovery session arrived before proof"));
+        if (deps.isCancelled() || !deps.isRecoverySnapshotCurrent(snapshot)) return;
+      } else {
+        await deps.clearRecoveryPending();
+        if (deps.isCancelled() || !deps.isRecoverySnapshotCurrent(snapshot)) return;
+        deps.setRecoveryReady(true);
+        deps.handleInitialSession(null);
+      }
+      return;
+    }
+
+    const snapshot = deps.captureRecoverySnapshot();
+    if (deps.isCancelled() || !deps.isRecoverySnapshotCurrent(snapshot)) return;
+    deps.handleInitialSession(late.session);
+    if (deps.isCancelled() || !deps.isRecoverySnapshotCurrent(snapshot)) return;
+    deps.setRecoveryReady(true);
+  } catch (error) {
+    if (!deps.isCancelled()) reportStorageFailure(error);
+  }
+}
+
 /** Collaborators the settlement step needs. AuthProvider passes its real
  *  closures; a test passes fakes and drives the same code. */
-export interface AuthBootstrapSettlement<S extends SessionLike> {
+export interface AuthBootstrapSettlement<S extends SessionLike, Snapshot = unknown> {
   /** Classification inputs, measured by the bootstrap that just ran. */
   sessionKnown: boolean;
   hasProof: boolean;
@@ -140,6 +319,9 @@ export interface AuthBootstrapSettlement<S extends SessionLike> {
    *  eventual answer is still reconciled. */
   rawSessionLoad: Promise<SessionLoadOutcome<S>>;
   isCancelled: () => boolean;
+  handleStorageFailure: (error: unknown) => void;
+  captureRecoverySnapshot: () => Snapshot;
+  isRecoverySnapshotCurrent: (snapshot: Snapshot) => boolean;
   setRecoveryReady: (ready: boolean) => void;
   resolveSession: (userId: string | null) => void | Promise<void>;
   /** Publish the explicit, retryable "could not classify" state. */
@@ -153,8 +335,8 @@ export interface AuthBootstrapSettlement<S extends SessionLike> {
 
 /** End the provider's boot wait. Returns the outcome so callers and tests can
  *  assert which branch ran. */
-export function settleAuthBootstrap<S extends SessionLike>(
-  deps: AuthBootstrapSettlement<S>,
+export function settleAuthBootstrap<S extends SessionLike, Snapshot = unknown>(
+  deps: AuthBootstrapSettlement<S, Snapshot>,
 ): BootstrapOutcome {
   const outcome = classifyBootstrapOutcome({
     sessionKnown: deps.sessionKnown,
@@ -179,23 +361,17 @@ export function settleAuthBootstrap<S extends SessionLike>(
   if (!deps.sessionAnswered) {
     // Timeout does not cancel getSession. Reconcile its eventual answer as
     // INITIAL_SESSION; normal sessions still cannot create recovery proof.
-    void deps.rawSessionLoad.then(async (late) => {
-      if (deps.isCancelled() || !late.ok) return;
-      if (deps.isRecoveryPendingInMemory() && !deps.currentRecoveryProof()) {
-        if (late.session) {
-          await deps.failClosedRecovery(
-            null,
-            new Error("Late recovery session arrived before proof"),
-          );
-        } else {
-          await deps.clearRecoveryPending();
-          deps.setRecoveryReady(true);
-          deps.handleAuthEvent("INITIAL_SESSION", null);
-        }
-        return;
-      }
-      deps.handleAuthEvent("INITIAL_SESSION", late.session);
-      deps.setRecoveryReady(true);
+    void reconcileLateAuthSession(deps.rawSessionLoad, {
+      isCancelled: deps.isCancelled,
+      handleStorageFailure: deps.handleStorageFailure,
+      isRecoveryPending: deps.isRecoveryPendingInMemory,
+      currentRecoveryProof: deps.currentRecoveryProof,
+      captureRecoverySnapshot: deps.captureRecoverySnapshot,
+      isRecoverySnapshotCurrent: deps.isRecoverySnapshotCurrent,
+      failClosedRecovery: (error) => deps.failClosedRecovery(null, error),
+      clearRecoveryPending: deps.clearRecoveryPending,
+      handleInitialSession: (session) => deps.handleAuthEvent("INITIAL_SESSION", session),
+      setRecoveryReady: deps.setRecoveryReady,
     });
   }
 

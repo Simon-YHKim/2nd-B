@@ -15,15 +15,10 @@ describe("root account scene boundary wiring", () => {
   test("every AuthContext state publication has a synchronous owner note", () => {
     const publications = AUTH.match(/\bsetState\s*\(/g) ?? [];
     const notes = AUTH.match(/\bnoteResolvedOwner\s*\(/g) ?? [];
-    // 10 after encrypted-storage recovery, not 9: successful explicit recovery
-    // destroys the local auth material and publishes a fresh-bootstrap frame.
-    // The earlier AUTH-01 publication still ends an
-    // ordinary startup whose session lookup never answered. It is a real state
-    // publication, so it carries its own synchronous noteResolvedOwner(null)
-    // immediately before setState — which is exactly the invariant this test
-    // exists to hold, and why the second assertion (equal counts) is the load-
-    // bearing one. The count was raised only after adding the matching note.
-    expect(publications).toHaveLength(10);
+    // UNKNOWN frames use publishUnresolvedAuthState and are deliberately absent
+    // from this census. Only publications that resolve an account owner use the
+    // direct setter, and every one carries the matching owner note.
+    expect(publications).toHaveLength(8);
     expect(notes).toHaveLength(publications.length);
 
     const earlyProbe = AUTH.indexOf(
@@ -39,8 +34,21 @@ describe("root account scene boundary wiring", () => {
     expect(refreshNote).toBeLessThan(refreshPublish);
   });
 
-  test("storage fault detection stays unresolved, while consented reset notes owner-null", () => {
-    const detectStart = AUTH.indexOf("const detectEncryptedStorageRecovery = useCallback");
+  test("unknown auth and storage publishers never resolve owner-null", () => {
+    const unavailableStart = AUTH.indexOf("function publishSessionUnavailable()");
+    const unavailableEnd = AUTH.indexOf("let supabase:", unavailableStart);
+    const unavailable = AUTH.slice(unavailableStart, unavailableEnd);
+    expect(unavailable).toContain("publishUnresolvedAuthState({");
+    expect(unavailable).not.toContain("noteResolvedOwner(");
+
+    const refreshStart = AUTH.indexOf("const refresh = useCallback");
+    const retryUnknown = AUTH.indexOf("if (retry.sessionUnavailable) {", refreshStart);
+    const confirmedSignOut = AUTH.indexOf("noteResolvedOwner(null);", retryUnknown);
+    expect(retryUnknown).toBeGreaterThan(refreshStart);
+    expect(AUTH.slice(retryUnknown, confirmedSignOut)).toContain("publishUnresolvedAuthState({");
+    expect(confirmedSignOut).toBeGreaterThan(retryUnknown);
+
+    const detectStart = AUTH.indexOf("const detectAuthStorageFailure = useCallback");
     const detectEnd = AUTH.indexOf("const activateRecoverySession", detectStart);
     const detect = AUTH.slice(detectStart, detectEnd);
     expect(detect).toContain("publishUnresolvedAuthState({");

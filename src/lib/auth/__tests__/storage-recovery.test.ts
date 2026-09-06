@@ -7,6 +7,7 @@ import {
   isEncryptedStorageRecoveryRequired,
   readAuthSessionOutcome,
 } from "../storage-recovery";
+import * as authBootstrapRuntime from "../bootstrap-outcome";
 
 const recoverStorage = jest.fn<Promise<unknown>, [unknown]>();
 const getClient = jest.fn<unknown, []>();
@@ -172,6 +173,275 @@ describe("explicit recovery consent", () => {
   });
 });
 
+type RecoveryAttempt = "recovered" | "invalid-consent" | "failed";
+type RecoveryRuntimeDependencies = {
+  acquire: () => number | null;
+  isCurrent: (lease: number) => boolean;
+  attempt: (consent: unknown) => Promise<RecoveryAttempt>;
+  retainLock: (result: Exclude<RecoveryAttempt, "recovered">, lease: number) => void;
+  commitRecovered: (lease: number) => boolean;
+};
+type RecoveryRuntimeFactory = (dependencies: RecoveryRuntimeDependencies) => {
+  recover: (consent: unknown) => Promise<boolean>;
+};
+
+function recoveryRuntimeFactory(): RecoveryRuntimeFactory | undefined {
+  return (authBootstrapRuntime as unknown as {
+    createEncryptedStorageRecoveryRuntime?: RecoveryRuntimeFactory;
+  }).createEncryptedStorageRecoveryRuntime;
+}
+
+type LateSession = { user: { id: string } };
+type LateSessionOutcome =
+  | { ok: true; session: LateSession | null }
+  | { ok: false; error: unknown };
+type LateSessionDependencies = {
+  isCancelled: () => boolean;
+  handleStorageFailure: (error: unknown) => void;
+  isRecoveryPending: () => boolean;
+  currentRecoveryProof: () => unknown;
+  captureRecoverySnapshot: () => number;
+  isRecoverySnapshotCurrent: (snapshot: number) => boolean;
+  failClosedRecovery: (error: unknown) => Promise<unknown>;
+  clearRecoveryPending: () => Promise<void>;
+  handleInitialSession: (session: LateSession | null) => void;
+  setRecoveryReady: (ready: boolean) => void;
+};
+type LateSessionReconciler = (
+  rawSessionLoad: Promise<LateSessionOutcome>,
+  dependencies: LateSessionDependencies,
+) => Promise<void>;
+
+function lateSessionReconciler(): LateSessionReconciler | undefined {
+  return (authBootstrapRuntime as unknown as {
+    reconcileLateAuthSession?: LateSessionReconciler;
+  }).reconcileLateAuthSession;
+}
+
+describe("AuthContext recovery runtime", () => {
+  const consent = {
+    acknowledgedDataLoss: true,
+    action: "discard-unreadable-encrypted-local-data",
+  } as const;
+
+  test("concurrent callers share one promise and only one mutation owner", async () => {
+    const createRuntime = recoveryRuntimeFactory();
+    expect(typeof createRuntime).toBe("function");
+    if (!createRuntime) return;
+
+    let finish: (result: RecoveryAttempt) => void = () => {};
+    const attempt = jest.fn(() => new Promise<RecoveryAttempt>((resolve) => {
+      finish = resolve;
+    }));
+    const retainLock = jest.fn();
+    const commitRecovered = jest.fn(() => true);
+    const runtime = createRuntime({
+      acquire: () => 7,
+      isCurrent: (lease) => lease === 7,
+      attempt,
+      retainLock,
+      commitRecovered,
+    });
+
+    const first = runtime.recover(consent);
+    const second = runtime.recover(consent);
+    expect(second).toBe(first);
+    expect(attempt).not.toHaveBeenCalled();
+
+    await Promise.resolve();
+    expect(attempt).toHaveBeenCalledTimes(1);
+    finish("recovered");
+
+    await expect(first).resolves.toBe(true);
+    expect(commitRecovered).toHaveBeenCalledTimes(1);
+    expect(retainLock).not.toHaveBeenCalled();
+  });
+
+  test("a lease lost before the first microtask cannot start destructive recovery", async () => {
+    const createRuntime = recoveryRuntimeFactory();
+    expect(typeof createRuntime).toBe("function");
+    if (!createRuntime) return;
+
+    let epoch = 3;
+    const attempt = jest.fn<Promise<RecoveryAttempt>, [unknown]>().mockResolvedValue("recovered");
+    const commitRecovered = jest.fn(() => true);
+    const runtime = createRuntime({
+      acquire: () => epoch,
+      isCurrent: (lease) => lease === epoch,
+      attempt,
+      retainLock: jest.fn(),
+      commitRecovered,
+    });
+
+    const result = runtime.recover(consent);
+    epoch += 1;
+
+    await expect(result).resolves.toBe(false);
+    expect(attempt).not.toHaveBeenCalled();
+    expect(commitRecovered).not.toHaveBeenCalled();
+  });
+
+  test("one failed concurrent attempt retains the lock exactly once", async () => {
+    const createRuntime = recoveryRuntimeFactory();
+    expect(typeof createRuntime).toBe("function");
+    if (!createRuntime) return;
+
+    const retainLock = jest.fn();
+    const runtime = createRuntime({
+      acquire: () => 11,
+      isCurrent: () => true,
+      attempt: jest.fn().mockResolvedValue("failed"),
+      retainLock,
+      commitRecovered: jest.fn(() => true),
+    });
+
+    const first = runtime.recover(consent);
+    const second = runtime.recover(consent);
+    await expect(Promise.all([first, second])).resolves.toEqual([false, false]);
+    expect(retainLock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("strict auth-storage failure classification", () => {
+  type Classifier = (error: unknown) => "recovery-required" | "unavailable" | null;
+  const classifier = () => (authBootstrapRuntime as unknown as {
+    classifyAuthStorageFailure?: Classifier;
+  }).classifyAuthStorageFailure;
+
+  test("only the exact durable signal opens recovery while strict adapter failures retry", () => {
+    const classify = classifier();
+    expect(typeof classify).toBe("function");
+    if (!classify) return;
+
+    expect(classify(new Error(ENCRYPTED_STORAGE_RECOVERY_REQUIRED))).toBe("recovery-required");
+    for (const code of [
+      "secure_storage_key_unavailable",
+      "secure_storage_key_invalid",
+      "secure_storage_native_only",
+      "secure_storage_read_failed",
+      "secure_storage_decrypt_failed",
+      "secure_storage_encrypt_failed",
+      "secure_storage_write_failed",
+      "secure_storage_remove_failed",
+      "secure_storage_capacity_check_failed",
+      "secure_storage_capacity_exceeded",
+      "secure_storage_migration_failed",
+      "secure_storage_value_invalid",
+      "secure_storage_value_too_large",
+      "secure_store_unavailable",
+    ]) {
+      expect(classify(errorWithCause("auth wrapper", new Error(code)))).toBe("unavailable");
+    }
+  });
+
+  test.each([
+    new Error("Network request failed"),
+    new Error("secure_storage_key_unavailable "),
+    new Error("prefix:secure_storage_read_failed"),
+    { message: "secure_storage_decrypt_failed" },
+    "secure_storage_key_unavailable",
+  ])("does not promote generic or message-shaped failures: %p", (error) => {
+    const classify = classifier();
+    expect(typeof classify).toBe("function");
+    if (!classify) return;
+    expect(classify(error)).toBeNull();
+  });
+});
+
+describe("late bootstrap session reconciliation", () => {
+  function makeLateDependencies(overrides: Partial<LateSessionDependencies> = {}) {
+    const calls = {
+      storageFailures: [] as unknown[],
+      sessions: [] as Array<LateSession | null>,
+      recoveryReady: [] as boolean[],
+    };
+    const dependencies: LateSessionDependencies = {
+      isCancelled: () => false,
+      handleStorageFailure: (error) => calls.storageFailures.push(error),
+      isRecoveryPending: () => false,
+      currentRecoveryProof: () => null,
+      captureRecoverySnapshot: () => 1,
+      isRecoverySnapshotCurrent: () => true,
+      failClosedRecovery: async () => true,
+      clearRecoveryPending: async () => {},
+      handleInitialSession: (session) => calls.sessions.push(session),
+      setRecoveryReady: (ready) => calls.recoveryReady.push(ready),
+      ...overrides,
+    };
+    return { calls, dependencies };
+  }
+
+  test.each([
+    new Error(ENCRYPTED_STORAGE_RECOVERY_REQUIRED),
+    new Error("secure_storage_key_unavailable"),
+  ])("routes a late strict failure through the storage boundary: %p", async (error) => {
+    const reconcile = lateSessionReconciler();
+    expect(typeof reconcile).toBe("function");
+    if (!reconcile) return;
+    const { calls, dependencies } = makeLateDependencies();
+
+    await reconcile(Promise.resolve({ ok: false, error }), dependencies);
+
+    expect(calls.storageFailures).toEqual([error]);
+    expect(calls.sessions).toEqual([]);
+    expect(calls.recoveryReady).toEqual([]);
+  });
+
+  test("absorbs a detached pending-clear rejection and routes it without publishing", async () => {
+    const reconcile = lateSessionReconciler();
+    expect(typeof reconcile).toBe("function");
+    if (!reconcile) return;
+    const failure = new Error("secure_storage_read_failed");
+    const { calls, dependencies } = makeLateDependencies({
+      isRecoveryPending: () => true,
+      clearRecoveryPending: async () => Promise.reject(failure),
+    });
+
+    await expect(reconcile(
+      Promise.resolve({ ok: true, session: null }),
+      dependencies,
+    )).resolves.toBeUndefined();
+    expect(calls.storageFailures).toEqual([failure]);
+    expect(calls.sessions).toEqual([]);
+  });
+
+  test("re-checks cancellation and the proof snapshot after an awaited clear", async () => {
+    const reconcile = lateSessionReconciler();
+    expect(typeof reconcile).toBe("function");
+    if (!reconcile) return;
+    let cancelled = false;
+    const { calls, dependencies } = makeLateDependencies({
+      isCancelled: () => cancelled,
+      isRecoveryPending: () => true,
+      clearRecoveryPending: async () => {
+        cancelled = true;
+      },
+    });
+
+    await reconcile(Promise.resolve({ ok: true, session: null }), dependencies);
+    expect(calls.sessions).toEqual([]);
+    expect(calls.recoveryReady).toEqual([]);
+  });
+
+  test("a changed recovery snapshot cannot publish after an awaited clear", async () => {
+    const reconcile = lateSessionReconciler();
+    expect(typeof reconcile).toBe("function");
+    if (!reconcile) return;
+    let current = true;
+    const { calls, dependencies } = makeLateDependencies({
+      isRecoveryPending: () => true,
+      clearRecoveryPending: async () => {
+        current = false;
+      },
+      isRecoverySnapshotCurrent: () => current,
+    });
+
+    await reconcile(Promise.resolve({ ok: true, session: null }), dependencies);
+    expect(calls.sessions).toEqual([]);
+    expect(calls.recoveryReady).toEqual([]);
+  });
+});
+
 describe("AuthContext encrypted-storage recovery boundary", () => {
   test("exposes a distinct lock and an exact-consent recovery action", () => {
     expect(AUTH).toContain("storageRecoveryRequired: boolean;");
@@ -182,13 +452,14 @@ describe("AuthContext encrypted-storage recovery boundary", () => {
     expect(AUTH).toContain("recoverEncryptedStorage: async () => false,");
   });
 
-  test("the exact classifier masks every identity field without resolving owner-null", () => {
-    const start = AUTH.indexOf("const detectEncryptedStorageRecovery = useCallback");
+  test("the strict classifier masks every identity field without resolving owner-null", () => {
+    const start = AUTH.indexOf("const detectAuthStorageFailure = useCallback");
     const end = AUTH.indexOf("const activateRecoverySession", start);
     const block = AUTH.slice(start, end);
 
     expect(start).toBeGreaterThan(-1);
-    expect(block).toContain("isEncryptedStorageRecoveryRequired(error)");
+    expect(block).toContain("classifyAuthStorageFailure(error)");
+    expect(block).toContain('kind === "recovery-required"');
     expect(block).toContain("storageRecoveryRequiredRef.current = true;");
     expect(block).toContain("setStorageRecoveryRequired(true);");
     expect(block).toContain("setRecoveryReady(false);");
@@ -204,18 +475,20 @@ describe("AuthContext encrypted-storage recovery boundary", () => {
     const start = AUTH.indexOf("const recoverEncryptedStorage = useCallback");
     const end = AUTH.indexOf("const value = useMemo", start);
     const block = AUTH.slice(start, end);
-    const attempt = block.indexOf("attemptEncryptedNativeStorageRecovery(consent)");
+    const runtime = block.indexOf("createEncryptedStorageRecoveryRuntime<number>({");
+    const attempt = block.indexOf("attempt: attemptEncryptedNativeStorageRecovery,");
     const invalidate = block.indexOf("authClientEpochRef.current = nextEpoch;");
     const ownerNote = block.indexOf("noteResolvedOwner(null);");
     const publish = block.indexOf("setState({", ownerNote);
     const rerender = block.indexOf("setAuthClientEpoch(nextEpoch);");
 
     expect(start).toBeGreaterThan(-1);
-    expect(block).toContain("authClientEpochRef.current !== authClientEpoch");
+    expect(block).toContain("authClientEpochRef.current !== lease");
     expect(block).toContain("|| !storageRecoveryRequiredRef.current");
-    expect(block).toContain('if (result !== "recovered")');
+    expect(block).toContain("commitRecovered: (lease) => {");
     expect(block).toContain("setRecoveryReady(false);");
     expect(block).toContain("loading: true,");
+    expect(runtime).toBeGreaterThan(-1);
     expect(attempt).toBeGreaterThan(-1);
     expect(invalidate).toBeGreaterThan(attempt);
     expect(ownerNote).toBeGreaterThan(invalidate);
