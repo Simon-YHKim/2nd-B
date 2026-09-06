@@ -16,7 +16,6 @@ import {
 // main 의 f42f4db2 가 C6 대회 제약과 함께 src/lib/judge/domains.ts 를 통째로
 // 지웠고(CLAUDE.md C6), 이 파일에서 쓰이지도 않는다.
 import { getEnv } from "../env";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getSupabaseClient } from "./client";
 import * as Crypto from "expo-crypto";
 
@@ -90,21 +89,59 @@ export class ExistingAccountLikelyError extends Error {
 // real result-count from the network.
 // Native devices use expo-crypto to offload the SHA-1 hash to a native module,
 // avoiding JS-thread blocking which can cause frame drops or ANRs during sign-up.
+const HIBP_TIMEOUT_MS = 5_000;
+const HIBP_MAX_RESPONSE_BYTES = 256 * 1024;
+
+async function readBoundedHibpResponse(res: Response): Promise<string | null> {
+  const declaredLength = res.headers.get("content-length");
+  if (/^\d+$/.test(declaredLength ?? "") && Number(declaredLength) > HIBP_MAX_RESPONSE_BYTES) {
+    await res.body?.cancel().catch(() => undefined);
+    return null;
+  }
+
+  const reader = typeof res.body?.getReader === "function" ? res.body.getReader() : null;
+  if (!reader) {
+    const text = await res.text();
+    return text.length <= HIBP_MAX_RESPONSE_BYTES ? text : null;
+  }
+
+  const decoder = new TextDecoder("utf-8", { fatal: true });
+  let size = 0;
+  let text = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > HIBP_MAX_RESPONSE_BYTES) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+  return text + decoder.decode();
+}
+
 export async function isPasswordBreached(password: string): Promise<boolean> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), HIBP_TIMEOUT_MS);
   try {
     const hex = (await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA1, password)).toUpperCase();
     const prefix = hex.slice(0, 5);
     const suffix = hex.slice(5);
     const res = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
       headers: { "Add-Padding": "true" },
+      signal: controller.signal,
     });
     if (!res.ok) return false;
-    const body = await res.text();
+    const body = await readBoundedHibpResponse(res);
+    if (body === null) return false;
     return body
       .split("\n")
       .some((line) => line.split(":")[0]?.trim().toUpperCase() === suffix && !line.trim().endsWith(":0"));
   } catch {
     return false;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -315,6 +352,18 @@ function nativeRedirectTo(pathname: string): string | undefined {
   }
 }
 
+const NATIVE_AUTH_CALLBACK_PREFIX = "secondbrain:///";
+const NATIVE_AUTH_CALLBACK_MAX_URL_LENGTH = 4_096;
+const NATIVE_AUTH_CODE_MAX_LENGTH = 2_048;
+const NATIVE_AUTH_EMAIL_PATHS = new Set(["/reset-password", "/sign-up"]);
+const NATIVE_AUTH_ALL_PATHS = new Set(["/", ...NATIVE_AUTH_EMAIL_PATHS]);
+const SAFE_AUTH_CODE = /^[\x21-\x7e]+$/;
+const CALLBACK_ERROR_MESSAGE = "Authentication callback could not be completed.";
+
+function callbackError(): Error {
+  return new Error(CALLBACK_ERROR_MESSAGE);
+}
+
 function authParamsFromUrl(url: string): Record<string, string> {
   const params = new URLSearchParams();
   const [withoutHash, hash = ""] = url.split("#");
@@ -363,47 +412,71 @@ export function isPasswordRecoveryCallbackUrl(url: string): boolean {
   }
 }
 
+function parseNativeCallback(url: string, allowedPaths: ReadonlySet<string>): { code: string; path: string } {
+  if (
+    typeof url !== "string" ||
+    url.length > NATIVE_AUTH_CALLBACK_MAX_URL_LENGTH ||
+    !url.startsWith(NATIVE_AUTH_CALLBACK_PREFIX) ||
+    url.includes("#")
+  ) {
+    throw callbackError();
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw callbackError();
+  }
+  if (
+    parsed.protocol !== "secondbrain:" ||
+    parsed.host !== "" ||
+    parsed.username !== "" ||
+    parsed.password !== "" ||
+    !allowedPaths.has(parsed.pathname)
+  ) {
+    throw callbackError();
+  }
+
+  const keys = Array.from(parsed.searchParams.keys());
+  const codes = parsed.searchParams.getAll("code");
+  if (keys.length !== 1 || keys[0] !== "code" || codes.length !== 1) throw callbackError();
+  const code = codes[0];
+  if (!code || code.length > NATIVE_AUTH_CODE_MAX_LENGTH || !SAFE_AUTH_CODE.test(code)) {
+    throw callbackError();
+  }
+  return { code, path: parsed.pathname };
+}
+
+function nativeCallbackPath(redirectTo: string | undefined): string {
+  if (!redirectTo || redirectTo.includes("?") || redirectTo.includes("#")) throw callbackError();
+  return parseNativeCallback(`${redirectTo}?code=placeholder`, NATIVE_AUTH_ALL_PATHS).path;
+}
+
 async function createNativeSessionFromUrl(
   supabase: SupabaseClient,
   url: string,
+  allowedPaths: ReadonlySet<string>,
 ): Promise<AuthCallbackSession> {
-  const params = authParamsFromUrl(url);
-  const type = params.type ?? null;
-  const errorCode = params.error_code ?? params.errorCode;
-  if (errorCode) throw new Error(params.error_description ?? errorCode);
-
-  if (params.code) {
-    const { data, error } = await supabase.auth.exchangeCodeForSession(params.code);
+  const { code } = parseNativeCallback(url, allowedPaths);
+  try {
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) throw error;
     // auth-js 2.106.1 returns redirectType at runtime even though the public
     // AuthTokenResponse type omits it. It is the authoritative PKCE provenance.
-    const redirectType = (data as typeof data & { redirectType?: string | null })
-      .redirectType;
-    const identity = recoverySessionIdentity(data.session);
+    const callbackData = data as
+      | (typeof data & { redirectType?: string | null })
+      | null
+      | undefined;
+    const identity = recoverySessionIdentity(callbackData?.session ?? null);
     return {
       userId: identity?.userId ?? null,
       sessionId: identity?.sessionId ?? null,
-      // PKCE provenance comes only from auth-js. A caller-controlled URL
-      // `type=recovery` must not promote an ordinary exchanged code.
-      type: redirectType ?? null,
+      type: callbackData?.redirectType ?? null,
     };
+  } catch {
+    throw callbackError();
   }
-
-  if (params.access_token && params.refresh_token) {
-    const { data, error } = await supabase.auth.setSession({
-      access_token: params.access_token,
-      refresh_token: params.refresh_token,
-    });
-    if (error) throw error;
-    const identity = recoverySessionIdentity(data.session);
-    return {
-      userId: identity?.userId ?? null,
-      sessionId: identity?.sessionId ?? null,
-      type,
-    };
-  }
-
-  return { userId: null, sessionId: null, type };
 }
 
 async function openNativeOAuthSession(
@@ -412,9 +485,10 @@ async function openNativeOAuthSession(
   redirectTo: string | undefined,
 ): Promise<OAuthRedirect | null> {
   const WebBrowser = require("expo-web-browser") as ExpoWebBrowserModule;
+  const expectedPath = nativeCallbackPath(redirectTo);
   const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectTo);
   if (result.type !== "success") return null;
-  await createNativeSessionFromUrl(supabase, result.url);
+  await createNativeSessionFromUrl(supabase, result.url, new Set([expectedPath]));
   return { url: result.url };
 }
 
@@ -433,7 +507,7 @@ export async function signInWithEmail(email: string, password: string): Promise<
 // deep link here to establish the recovery session.
 export async function consumeAuthCallbackUrl(url: string): Promise<AuthCallbackSession> {
   const supabase = getSupabaseClient();
-  return createNativeSessionFromUrl(supabase, url);
+  return createNativeSessionFromUrl(supabase, url, NATIVE_AUTH_EMAIL_PATHS);
 }
 
 export async function sendPasswordResetEmail(email: string): Promise<void> {
@@ -671,36 +745,34 @@ export function isProviderEnabled(provider: OAuthProvider): boolean {
 //      with the magic-link token_hash it returns (verifyOtp). New users then
 //      route through /complete-profile (DOB + consent), like every provider.
 // Gated behind EXPO_PUBLIC_ENABLE_NAVER on web plus a configured client id (and
-// the server's ENABLE_NAVER_OAUTH). Native uses the registered HTTPS callback
-// as a bridge back to the app. See docs/AUTH_PROVIDERS.md.
+// the server's ENABLE_NAVER_OAUTH). Naver does not support the PKCE guarantee
+// required for native custom-scheme callbacks, so native is fail-closed.
 
 const NAVER_AUTHORIZE_URL = "https://nid.naver.com/oauth2.0/authorize";
 const NAVER_STATE_KEY = "secondB_naver_oauth_state";
-const NAVER_PRODUCTION_REDIRECT_URI = "https://simon-yhkim.github.io/2nd-B/oauth-callback";
-const NAVER_NATIVE_STATE_PREFIX = "native.";
-const NAVER_NATIVE_CALLBACK_URI = "secondbrain:///oauth-callback";
+const NAVER_STATE_PATTERN = /^[a-f0-9]{32}$/;
+const NAVER_CODE_MAX_LENGTH = 2_048;
+const SAFE_NAVER_CODE = /^[\x21-\x7e]+$/;
+const NAVER_WEB_ONLY_ERROR = "Naver login is available on web only.";
+const NAVER_CALLBACK_ERROR = "Naver sign-in could not be completed.";
 
 export function isNaverEnabled(): boolean {
   const env = getEnv();
-  // Native profiles already carry the public client id. The old enable flag was
-  // web-only, which accidentally hid Naver on the phone even after its server
-  // and console setup were complete.
-  return !!env.EXPO_PUBLIC_NAVER_CLIENT_ID && (env.EXPO_PUBLIC_ENABLE_NAVER || !isWebRuntime());
+  return isWebRuntime() && !!env.EXPO_PUBLIC_NAVER_CLIENT_ID && env.EXPO_PUBLIC_ENABLE_NAVER;
 }
 
-export function isNativeNaverCallbackState(state: string): boolean {
-  return state.startsWith(NAVER_NATIVE_STATE_PREFIX);
+export function isNativeNaverCallbackState(_state: string): boolean {
+  return false;
 }
 
-export function buildNativeNaverCallbackUrl(search: string): string {
-  const query = search.startsWith("?") ? search : `?${search}`;
-  return `${NAVER_NATIVE_CALLBACK_URI}${query}`;
+export function buildNativeNaverCallbackUrl(_search: string): string {
+  throw new Error(NAVER_WEB_ONLY_ERROR);
 }
 
 // Callback URL Naver redirects back to. Must be registered in the Naver console
 // AND match the value the edge function forwards to Naver's token exchange.
 function naverRedirectUri(): string {
-  if (!isWebRuntime()) return NAVER_PRODUCTION_REDIRECT_URI;
+  if (!isWebRuntime()) throw new Error(NAVER_WEB_ONLY_ERROR);
   const path = window.location.pathname;
   const base = path.startsWith("/2nd-B/") ? "/2nd-B/" : "/";
   return `${window.location.origin}${base}oauth-callback`;
@@ -713,54 +785,31 @@ function randomState(): string {
     g.crypto.getRandomValues(bytes);
     return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
   }
-  // Fallback only if no CSPRNG (shouldn't happen on web); state is still echoed.
-  return `${Date.now().toString(16)}${Math.floor(Math.random() * 1e16).toString(16)}`;
+  throw new Error(NAVER_CALLBACK_ERROR);
 }
 
-// Web redirects directly. Native uses the registered HTTPS callback as a
-// bridge: the callback page forwards code+state to secondbrain:///oauth-callback,
-// allowing expo-web-browser to return control without adding a native SDK.
+// Web redirects directly. Native is deliberately unavailable because Naver's
+// flow cannot bind a custom-scheme authorization code with PKCE.
 export async function signInWithNaver(): Promise<void> {
   const env = getEnv();
   const clientId = env.EXPO_PUBLIC_NAVER_CLIENT_ID;
   const web = isWebRuntime();
-  if (!clientId || (!env.EXPO_PUBLIC_ENABLE_NAVER && web)) throw new Error("Naver login is not enabled.");
-  const state = `${web ? "" : NAVER_NATIVE_STATE_PREFIX}${randomState()}`;
+  if (!web) throw new Error(NAVER_WEB_ONLY_ERROR);
+  if (!clientId || !env.EXPO_PUBLIC_ENABLE_NAVER) throw new Error("Naver login is not enabled.");
+  const state = randomState();
   const url = new URL(NAVER_AUTHORIZE_URL);
   url.searchParams.set("response_type", "code");
   url.searchParams.set("client_id", clientId);
   url.searchParams.set("redirect_uri", naverRedirectUri());
   url.searchParams.set("state", state);
 
-  if (web) {
-    try {
-      window.sessionStorage?.setItem(NAVER_STATE_KEY, state);
-    } catch {
-      // sessionStorage unavailable (private mode) — the state echo can't be
-      // verified on return, so completeNaverOAuth() will reject. User can retry.
-    }
-    window.location.href = url.toString();
-    return;
-  }
-
-  // Cold-start survival: Android may kill the app while the Custom Tab is up.
-  // The deep link then starts a FRESH JS context where this closure (and its
-  // state nonce) no longer exists — the native /oauth-callback route finishes
-  // the flow instead, verifying against this persisted nonce.
   try {
-    await AsyncStorage.setItem(NAVER_STATE_KEY, state);
+    if (!window.sessionStorage) throw new Error(NAVER_CALLBACK_ERROR);
+    window.sessionStorage.setItem(NAVER_STATE_KEY, state);
   } catch {
-    /* storage unavailable: the warm path still verifies via the closure */
+    throw new Error(NAVER_CALLBACK_ERROR);
   }
-  const WebBrowser = require("expo-web-browser") as ExpoWebBrowserModule;
-  const result = await WebBrowser.openAuthSessionAsync(url.toString(), NAVER_NATIVE_CALLBACK_URI);
-  if (result.type !== "success") return;
-  const returned = authParamsFromUrl(result.url);
-  if (returned.error) throw new Error(returned.error_description ?? returned.error);
-  const code = returned.code ?? "";
-  const returnedState = returned.state ?? "";
-  if (!code) throw new Error("Naver sign-in returned no authorization code.");
-  await completeNaverOAuth({ code, state: returnedState }, state);
+  window.location.href = url.toString();
 }
 
 export interface NaverCallbackParams {
@@ -773,51 +822,45 @@ export interface NaverCallbackParams {
 // token it returns. Returns the user id.
 export async function completeNaverOAuth(
   params: NaverCallbackParams,
-  expectedState?: string,
 ): Promise<{ userId: string }> {
-  let stored: string | null = expectedState ?? null;
-  if (!stored && isWebRuntime()) {
-    try {
-      stored = window.sessionStorage?.getItem(NAVER_STATE_KEY) ?? null;
-    } catch {
-      stored = null;
-    }
+  if (!isWebRuntime()) throw new Error(NAVER_WEB_ONLY_ERROR);
+  if (
+    params.code.length > NAVER_CODE_MAX_LENGTH ||
+    !SAFE_NAVER_CODE.test(params.code) ||
+    !NAVER_STATE_PATTERN.test(params.state)
+  ) {
+    throw new Error(NAVER_CALLBACK_ERROR);
   }
-  if (!stored && !isWebRuntime()) {
-    // Cold-start path: the persisted native nonce (single-use — cleared here).
-    try {
-      stored = await AsyncStorage.getItem(NAVER_STATE_KEY);
-      await AsyncStorage.removeItem(NAVER_STATE_KEY);
-    } catch {
-      stored = null;
-    }
+
+  let stored: string | null = null;
+  try {
+    stored = window.sessionStorage?.getItem(NAVER_STATE_KEY) ?? null;
+  } catch {
+    stored = null;
   }
   // CSRF: the state Naver echoes back must equal the one we issued.
   if (!params.state || !stored || stored !== params.state) {
-    throw new Error("Naver sign-in state mismatch (possible CSRF). Please try again.");
+    throw new Error(NAVER_CALLBACK_ERROR);
   }
-  if (isWebRuntime()) {
-    try {
-      window.sessionStorage?.removeItem(NAVER_STATE_KEY);
-    } catch {
-      /* ignore */
-    }
+  try {
+    window.sessionStorage?.removeItem(NAVER_STATE_KEY);
+  } catch {
+    throw new Error(NAVER_CALLBACK_ERROR);
   }
 
   const supabase = getSupabaseClient();
   const { data, error } = await supabase.functions.invoke("oauth-naver", {
     body: { code: params.code, state: params.state, redirect_uri: naverRedirectUri() },
   });
-  if (error) throw error;
+  if (error) throw new Error(NAVER_CALLBACK_ERROR);
   const tokenHash = (data as { token_hash?: string } | null)?.token_hash;
-  if (!tokenHash) throw new Error("Naver sign-in could not be completed.");
+  if (!tokenHash) throw new Error(NAVER_CALLBACK_ERROR);
 
   const { data: otp, error: otpErr } = await supabase.auth.verifyOtp({
     token_hash: tokenHash,
     type: "magiclink",
   });
-  if (otpErr) throw otpErr;
-  if (!otp.user) throw new Error("Naver sign-in returned no user.");
+  if (otpErr || !otp.user) throw new Error(NAVER_CALLBACK_ERROR);
   return { userId: otp.user.id };
 }
 

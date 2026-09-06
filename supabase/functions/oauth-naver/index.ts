@@ -27,43 +27,133 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const NAVER_TOKEN_URL = 'https://nid.naver.com/oauth2.0/token';
 const NAVER_USER_URL = 'https://openapi.naver.com/v1/nid/me';
+const NAVER_REQUEST_MAX_BYTES = 4 * 1024;
+const NAVER_REQUEST_TIMEOUT_MS = 3_000;
+const NAVER_STATE_PATTERN = /^[a-f0-9]{32}$/;
+const NAVER_CODE_PATTERN = /^[\x21-\x7e]{1,2048}$/;
 
 const ALLOWED_ORIGINS = new Set<string>([
   'https://simon-yhkim.github.io',
   'http://localhost:8081',
   'http://localhost:19006',
 ]);
-function resolveOrigin(req: Request): string {
+const NAVER_REDIRECT_URIS = new Map<string, string>([
+  ['https://simon-yhkim.github.io', 'https://simon-yhkim.github.io/2nd-B/oauth-callback'],
+  ['http://localhost:8081', 'http://localhost:8081/oauth-callback'],
+  ['http://localhost:19006', 'http://localhost:19006/oauth-callback'],
+]);
+
+function allowedOrigin(req: Request): string | null {
   const origin = req.headers.get('origin') ?? '';
-  return ALLOWED_ORIGINS.has(origin) ? origin : 'null';
+  return ALLOWED_ORIGINS.has(origin) ? origin : null;
+}
+
+function responseHeaders(req: Request): Record<string, string> {
+  const headers: Record<string, string> = {
+    'content-type': 'application/json; charset=utf-8',
+    'vary': 'origin',
+    'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type',
+  };
+  const origin = allowedOrigin(req);
+  if (origin) headers['access-control-allow-origin'] = origin;
+  return headers;
 }
 
 function jsonResponse(req: Request, body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: {
-      'content-type': 'application/json; charset=utf-8',
-      'access-control-allow-origin': resolveOrigin(req),
-      'vary': 'origin',
-      'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type',
-    },
+    headers: responseHeaders(req),
   });
 }
 
 function corsPreflight(req: Request): Response {
-  return new Response(null, {
-    status: 204,
-    headers: {
-      'access-control-allow-origin': resolveOrigin(req),
-      'vary': 'origin',
-      'access-control-allow-methods': 'POST, OPTIONS',
-      'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type',
-      'access-control-max-age': '86400',
-    },
+  const headers = responseHeaders(req);
+  headers['access-control-allow-methods'] = 'POST, OPTIONS';
+  headers['access-control-max-age'] = '86400';
+  return new Response(null, { status: 204, headers });
+}
+
+class RequestBodyError extends Error {
+  constructor(readonly code: string, readonly status: number) {
+    super(code);
+  }
+}
+
+type NaverRequest = { code: string; state: string; redirect_uri: string };
+
+async function readStrictRequestBody(req: Request): Promise<NaverRequest> {
+  const mediaType = (req.headers.get('content-type') ?? '').split(';', 1)[0].trim().toLowerCase();
+  if (mediaType !== 'application/json') throw new RequestBodyError('unsupported_media_type', 415);
+
+  const declaredLength = req.headers.get('content-length');
+  if (declaredLength && (!/^\d+$/.test(declaredLength) || Number(declaredLength) > NAVER_REQUEST_MAX_BYTES)) {
+    throw new RequestBodyError('request_too_large', 413);
+  }
+  if (!req.body) throw new RequestBodyError('invalid_json', 400);
+
+  const reader = req.body.getReader();
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_resolve, reject) => {
+    timeout = setTimeout(
+      () => reject(new RequestBodyError('request_timeout', 408)),
+      NAVER_REQUEST_TIMEOUT_MS,
+    );
   });
+  const read = async (): Promise<Uint8Array> => {
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > NAVER_REQUEST_MAX_BYTES) throw new RequestBodyError('request_too_large', 413);
+      chunks.push(value);
+    }
+    const joined = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) {
+      joined.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return joined;
+  };
+
+  let bytes: Uint8Array;
+  try {
+    bytes = await Promise.race([read(), deadline]);
+  } catch (error) {
+    await reader.cancel().catch(() => undefined);
+    if (error instanceof RequestBodyError) throw error;
+    throw new RequestBodyError('invalid_json', 400);
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout);
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+  } catch {
+    throw new RequestBodyError('invalid_json', 400);
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new RequestBodyError('invalid_request', 400);
+  }
+  const record = parsed as Record<string, unknown>;
+  const keys = Object.keys(record).sort();
+  if (keys.join(',') !== 'code,redirect_uri,state') throw new RequestBodyError('invalid_request', 400);
+  if (
+    typeof record.code !== 'string' ||
+    typeof record.state !== 'string' ||
+    typeof record.redirect_uri !== 'string'
+  ) {
+    throw new RequestBodyError('invalid_request', 400);
+  }
+  return { code: record.code, state: record.state, redirect_uri: record.redirect_uri };
 }
 
 Deno.serve(async (req: Request) => {
+  const origin = allowedOrigin(req);
+  if (!origin) return jsonResponse(req, { error: 'origin_not_allowed' }, 403);
   if (req.method === 'OPTIONS') return corsPreflight(req);
   if (req.method !== 'POST') return jsonResponse(req, { error: 'method_not_allowed' }, 405);
 
@@ -84,21 +174,30 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: 'server_misconfigured_supabase_env' }, 500);
   }
 
-  let body: { code?: unknown; state?: unknown; redirect_uri?: unknown };
+  let body: NaverRequest;
   try {
-    body = await req.json();
-  } catch {
-    return jsonResponse(req, { error: 'invalid_json' }, 400);
+    body = await readStrictRequestBody(req);
+  } catch (error) {
+    if (error instanceof RequestBodyError) {
+      return jsonResponse(req, { error: error.code }, error.status);
+    }
+    return jsonResponse(req, { error: 'invalid_request' }, 400);
   }
-  const code = typeof body?.code === 'string' ? body.code : '';
-  const state = typeof body?.state === 'string' ? body.state : '';
+  const code = body.code;
+  const state = body.state;
   // redirect_uri is required as a sanity check that the caller is our own
   // client flow, but Naver's token endpoint (unlike Google) does NOT take a
   // redirect_uri in the exchange -- it validates code + state -- so it is not
   // forwarded below.
-  const redirectUri = typeof body?.redirect_uri === 'string' ? body.redirect_uri : '';
-  if (!code || !state || !redirectUri) {
-    return jsonResponse(req, { error: 'code_state_redirect_uri_required' }, 400);
+  const redirectUri = body.redirect_uri;
+  const expectedRedirectUri = NAVER_REDIRECT_URIS.get(origin);
+  if (
+    !expectedRedirectUri ||
+    redirectUri !== expectedRedirectUri ||
+    !NAVER_CODE_PATTERN.test(code) ||
+    !NAVER_STATE_PATTERN.test(state)
+  ) {
+    return jsonResponse(req, { error: 'invalid_oauth_request' }, 400);
   }
 
   // 1. Exchange code for access token. Naver uses GET with query params.
@@ -112,7 +211,7 @@ Deno.serve(async (req: Request) => {
   const tokenRes = await fetch(tokenUrl.toString(), { method: 'GET' });
   const tokenJson = (await tokenRes.json()) as { access_token?: string; error?: string };
   if (!tokenRes.ok || !tokenJson.access_token) {
-    return jsonResponse(req, { error: 'naver_token_exchange_failed', detail: tokenJson }, 502);
+    return jsonResponse(req, { error: 'naver_token_exchange_failed' }, 502);
   }
 
   // 2. Fetch user profile.
@@ -185,7 +284,7 @@ Deno.serve(async (req: Request) => {
       },
     });
     if (createErr || !created?.user) {
-      return jsonResponse(req, { error: 'supabase_create_user_failed', detail: createErr?.message }, 500);
+      return jsonResponse(req, { error: 'supabase_create_user_failed' }, 500);
     }
     userId = created.user.id;
     accountEmail = userEmail;
@@ -196,7 +295,7 @@ Deno.serve(async (req: Request) => {
     email: accountEmail,
   });
   if (linkErr || !linkData) {
-    return jsonResponse(req, { error: 'supabase_session_mint_failed', detail: linkErr?.message }, 500);
+    return jsonResponse(req, { error: 'supabase_session_mint_failed' }, 500);
   }
   const actionLink = linkData.properties?.action_link ?? '';
   const url = new URL(actionLink);

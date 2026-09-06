@@ -1,8 +1,12 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { __setSupabaseClientForTests } from "../client";
 import {
   authCallbackType,
   buildNativeNaverCallbackUrl,
   consumeAuthCallbackUrl,
+  isPasswordBreached,
   isPasswordRecoveryCallbackUrl,
   isNativeNaverCallbackState,
   passwordUpdateFailure,
@@ -19,6 +23,9 @@ type MockSupabaseAuth = {
   getSession?: jest.Mock;
   verifyOtp?: jest.Mock;
 };
+
+const originalFetch = global.fetch;
+const GENERIC_CALLBACK_ERROR = "Authentication callback could not be completed.";
 
 function setWebLocation(pathname: string): void {
   Object.defineProperty(globalThis, "window", {
@@ -50,6 +57,17 @@ describe("password reset helpers", () => {
   afterEach(() => {
     __setSupabaseClientForTests(null);
     clearWebLocation();
+    global.fetch = originalFetch;
+    jest.useRealTimers();
+    jest.restoreAllMocks();
+  });
+
+  test("the shared Supabase client explicitly uses PKCE", () => {
+    const source = readFileSync(join(__dirname, "..", "client.ts"), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, " ")
+      .replace(/\/\/[^\n]*/g, " ");
+
+    expect(source).toMatch(/auth:\s*\{[\s\S]*?flowType:\s*"pkce"/);
   });
 
   test("sendPasswordResetEmail points recovery links at the reset-password route", async () => {
@@ -79,33 +97,23 @@ describe("password reset helpers", () => {
     expect(auth.updateUser).toHaveBeenCalledWith({ password: "new-password-123" });
   });
 
-  test("consumeAuthCallbackUrl turns recovery-link tokens into a session (A-1)", async () => {
+  test("consumeAuthCallbackUrl rejects implicit token fragments without creating a session", async () => {
     const auth: MockSupabaseAuth = {
       resetPasswordForEmail: jest.fn(),
       updateUser: jest.fn(),
-      setSession: jest.fn().mockResolvedValue({
-        data: {
-          session: {
-            access_token: accessToken("recovery-u1", "recovery-session-1"),
-            user: { id: "recovery-u1" },
-          },
-          user: { id: "recovery-u1" },
-        },
-        error: null,
-      }),
+      setSession: jest.fn().mockResolvedValue({ error: null }),
+      exchangeCodeForSession: jest.fn(),
     };
     installClient(auth);
 
-    const callback = await consumeAuthCallbackUrl(
-      "secondb:///reset-password#access_token=at-1&refresh_token=rt-1&type=recovery",
-    );
+    await expect(
+      consumeAuthCallbackUrl(
+        "secondbrain:///reset-password#access_token=at-1&refresh_token=rt-1&type=recovery",
+      ),
+    ).rejects.toThrow(GENERIC_CALLBACK_ERROR);
 
-    expect(auth.setSession).toHaveBeenCalledWith({ access_token: "at-1", refresh_token: "rt-1" });
-    expect(callback).toEqual({
-      userId: "recovery-u1",
-      sessionId: "recovery-session-1",
-      type: "recovery",
-    });
+    expect(auth.setSession).not.toHaveBeenCalled();
+    expect(auth.exchangeCodeForSession).not.toHaveBeenCalled();
   });
 
   test("consumeAuthCallbackUrl exchanges a PKCE code when present", async () => {
@@ -126,7 +134,9 @@ describe("password reset helpers", () => {
     };
     installClient(auth);
 
-    const callback = await consumeAuthCallbackUrl("secondb:///reset-password?code=pkce-code-1");
+    const callback = await consumeAuthCallbackUrl(
+      "secondbrain:///reset-password?code=pkce-code-1",
+    );
 
     expect(auth.exchangeCodeForSession).toHaveBeenCalledWith("pkce-code-1");
     expect(callback).toEqual({
@@ -136,7 +146,7 @@ describe("password reset helpers", () => {
     });
   });
 
-  test("does not trust a caller-supplied recovery type for PKCE provenance", async () => {
+  test("does not promote an ordinary PKCE exchange to recovery", async () => {
     const auth: MockSupabaseAuth = {
       resetPasswordForEmail: jest.fn(),
       updateUser: jest.fn(),
@@ -155,7 +165,7 @@ describe("password reset helpers", () => {
     installClient(auth);
 
     await expect(
-      consumeAuthCallbackUrl("secondb:///reset-password?code=ordinary-code&type=recovery"),
+      consumeAuthCallbackUrl("secondbrain:///reset-password?code=ordinary-code"),
     ).resolves.toEqual({
       userId: "ordinary-u1",
       sessionId: "ordinary-session-1",
@@ -302,6 +312,41 @@ describe("password reset helpers", () => {
     });
   });
 
+  test("consumeAuthCallbackUrl accepts the exact native sign-up callback route", async () => {
+    const auth: MockSupabaseAuth = {
+      resetPasswordForEmail: jest.fn(),
+      updateUser: jest.fn(),
+      exchangeCodeForSession: jest.fn().mockResolvedValue({ error: null }),
+    };
+    installClient(auth);
+
+    await consumeAuthCallbackUrl("secondbrain:///sign-up?code=signup-code-1");
+
+    expect(auth.exchangeCodeForSession).toHaveBeenCalledWith("signup-code-1");
+  });
+
+  test.each([
+    "secondb:///reset-password?code=pkce-code-1",
+    "https://example.com/reset-password?code=pkce-code-1",
+    "secondbrain://reset-password?code=pkce-code-1",
+    "secondbrain:///oauth-callback?code=pkce-code-1",
+    "secondbrain:///reset-password?code=one&code=two",
+    "secondbrain:///reset-password?code=pkce-code-1&access_token=stolen",
+    `secondbrain:///reset-password?code=${"a".repeat(2049)}`,
+  ])("consumeAuthCallbackUrl rejects a non-canonical callback: %s", async (url) => {
+    const auth: MockSupabaseAuth = {
+      resetPasswordForEmail: jest.fn(),
+      updateUser: jest.fn(),
+      setSession: jest.fn(),
+      exchangeCodeForSession: jest.fn(),
+    };
+    installClient(auth);
+
+    await expect(consumeAuthCallbackUrl(url)).rejects.toThrow(GENERIC_CALLBACK_ERROR);
+    expect(auth.setSession).not.toHaveBeenCalled();
+    expect(auth.exchangeCodeForSession).not.toHaveBeenCalled();
+  });
+
   test("consumeAuthCallbackUrl surfaces provider error codes", async () => {
     const auth: MockSupabaseAuth = {
       resetPasswordForEmail: jest.fn(),
@@ -310,24 +355,73 @@ describe("password reset helpers", () => {
     };
     installClient(auth);
 
-    await expect(
-      consumeAuthCallbackUrl(
-        "secondb:///reset-password#error_code=otp_expired&error_description=Link+expired",
-      ),
-    ).rejects.toThrow();
+    const error = await consumeAuthCallbackUrl(
+      "secondbrain:///reset-password?error_code=otp_expired&error_description=secret-provider-detail",
+    ).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe(GENERIC_CALLBACK_ERROR);
+    expect((error as Error).message).not.toContain("secret-provider-detail");
     expect(auth.setSession).not.toHaveBeenCalled();
+  });
+
+  test("consumeAuthCallbackUrl does not surface a raw exchange error", async () => {
+    const auth: MockSupabaseAuth = {
+      resetPasswordForEmail: jest.fn(),
+      updateUser: jest.fn(),
+      exchangeCodeForSession: jest.fn().mockResolvedValue({
+        error: new Error("verifier and provider detail that must stay internal"),
+      }),
+    };
+    installClient(auth);
+
+    const error = await consumeAuthCallbackUrl(
+      "secondbrain:///reset-password?code=pkce-code-1",
+    ).catch((caught: unknown) => caught);
+
+    expect((error as Error).message).toBe(GENERIC_CALLBACK_ERROR);
+    expect((error as Error).message).not.toContain("verifier");
+  });
+
+  test("the HIBP request aborts instead of waiting indefinitely", async () => {
+    jest.useFakeTimers();
+    global.fetch = jest.fn((_url: string | URL | Request, init?: RequestInit) => {
+      return new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+      });
+    }) as jest.MockedFunction<typeof fetch>;
+
+    const result = isPasswordBreached("not-a-real-password");
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    await jest.advanceTimersByTimeAsync(5_001);
+
+    await expect(result).resolves.toBe(false);
+  });
+
+  test("the HIBP check refuses an oversized response before reading its body", async () => {
+    const text = jest.fn().mockResolvedValue("ignored");
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      headers: { get: () => "1048576" },
+      text,
+    }) as unknown as jest.MockedFunction<typeof fetch>;
+
+    await expect(isPasswordBreached("not-a-real-password")).resolves.toBe(false);
+    expect(text).not.toHaveBeenCalled();
   });
 });
 
 describe("Naver native OAuth bridge", () => {
-  test("recognizes only native-issued state values", () => {
-    expect(isNativeNaverCallbackState("native.abc123")).toBe(true);
+  test("the retired native bridge never recognizes a state", () => {
+    expect(isNativeNaverCallbackState("native.abc123")).toBe(false);
     expect(isNativeNaverCallbackState("abc123")).toBe(false);
   });
 
-  test("forwards the provider callback query to the fixed app route", () => {
-    expect(buildNativeNaverCallbackUrl("?code=code-1&state=native.abc123")).toBe(
-      "secondbrain:///oauth-callback?code=code-1&state=native.abc123",
+  test("the retired native bridge cannot build a callback URL", () => {
+    expect(() => buildNativeNaverCallbackUrl("?code=code-1&state=native.abc123")).toThrow(
+      "Naver login is available on web only.",
     );
   });
 });
