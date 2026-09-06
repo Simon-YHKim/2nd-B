@@ -3,7 +3,73 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-09-07 / Claude 최종 인계: Auth P1 GREEN·recorder 5단계·package 후보 확정
+## Latest — 2026-09-07 / Claude 최종 인계: canonical PKCE 통합·Auth pending lease BLOCK
+
+> 발행: Codex 보안 세션. 기준 시각 2026-09-07 00:59:51 KST.
+> 새 Claude 세션용 정본 프롬프트: [CLAUDE-SECURITY-HANDOFF-260907-005951.md](handoff/CLAUDE-SECURITY-HANDOFF-260907-005951.md)
+> 로컬 보고서: Output/security-handoff-260906/security-handoff-report-260907-005951.html
+> 세션 snapshot: .simonk/session-20260907-005951.md
+
+### 결론
+
+**보안 작업 전체는 미완료이며, 외부 push·PR·배포·운영 DB/config·키 회전·실제 삭제는 0건이다.**
+canonical local은 recorder 7단계, package/lock, native leaf 5단계와 PKCE/Naver 1단계까지 clean 통합됐다.
+Native Auth pending lease 후보는 독립 리뷰에서 P1 race 3건 때문에 **BLOCK**이다.
+
+| 영역 | 권위 상태 | 판정 |
+|---|---|---|
+| canonical local | `fix/security-integration-260906` @ `e6b88454` | clean. PKCE/Naver 1단계까지 통합 |
+| Native Auth | `fix/security-native-storage-integration-260906` @ `6f94087f` | clean, **BLOCK**. canonical 이식 금지 |
+| package/lock | canonical `0f958f72`; source `943d8164` | 통합 완료. shared stale install의 decode runtime 1건은 환경 한계 |
+| recorder | canonical `ac2e83e3`; source `30c20f1f` | 7단계 통합 완료 |
+
+### 최신 외부 상태
+
+- `origin/main`: `9f852ff73bd8b0ba8cc9b17819f78d144662df8f`
+- PR #1642: OPEN / DRAFT / MERGEABLE, head `656edb8d2ce855fb0d39ccfbbddc1b650fd09604`, 표시된 checks 성공.
+- #1642는 0147+0165를 포함하고 security-*는 제외한다. 운영 적용 승인·상태는 새 세션에서 read-only 재검증한다.
+- local main은 `177a5962`, 사용자 미추적 avatar PNG 8개. pull/reset/clean 금지.
+- 공유 `TTL-Work`는 약 773 collapsed / 1,377 expanded changes. 수정·stage·정리 금지.
+
+### 최신 검증과 차단점
+
+- PKCE/Naver `e6b88454`: exact 5 files, 154/154, ESLint error 0, typecheck, cycles 0, diff/secret 검사 통과.
+- recorder final: related 194/194와 lint/typecheck/cycles 0. package graph 14/14. native leaf 각 focused gate 통과.
+- Auth `6f94087f`: 기존 focused 14/14, typecheck, diff는 통과했지만 보안 리뷰는 BLOCK.
+  - no-arg stale A clear가 최신 B lease를 지울 수 있다.
+  - A+B write 연속 실패 시 미확정 A owner가 ABA 복원될 수 있다.
+  - 늦은 web storage event가 local 최신 B memory lock을 덮는다.
+  - Web Storage는 별도 원자화 없이 진짜 cross-tab CAS/restart durability를 보장하지 못한다.
+- canonical 최신 HEAD에서 전체 `npm run verify`와 Android/iOS 실기기 QA는 미실행이다.
+
+### 다음 세션의 정확한 첫 순서
+
+1. 이 Latest와 정본 프롬프트를 읽고 origin/main, #1642, migration 번호, 각 권위 worktree HEAD/clean을 read-only 재검증한다.
+2. `6f94087f`의 정확히 2파일만 RED→GREEN으로 보수한다: explicit lease, last-known-durable rollback,
+   storage-event current-value reread, legacy upgrade 실패 테스트. 독립 재리뷰 전 canonical 이식 금지.
+3. 겹치지 않는 `1ddbff4c`에서 old 0160 SQL을 제외한 4파일만 canonical에 선택 이식한다.
+4. Auth consumer/finalizer → reset form completion contract → recovery/retry UI를 별도 ≤5-file batches로 구현한다.
+5. 정본 프롬프트의 remaining matrix, dirty-only 두 기능 clean re-port, full verify와 실기기 QA를 진행한다.
+6. 모든 gate 뒤에만 push/PR 승인을 다시 묻는다. 운영 적용은 console owner가 server-first로 수행한다.
+
+### 절대 경계
+
+- 운영 DB migration, Edge Function, secrets/variables, 백업·복원, 서버 활성화는 console owner 전용이다.
+- credential 값을 출력하지 않는다. 실제 계정·데이터·DB·파일 삭제 테스트를 하지 않는다.
+- 사용자 승인 전 push/PR/merge/deploy/운영 write/delete/key rotation은 0건이다.
+- AI 감사는 전문 보안 감사·침투테스트를 대체하지 않는다.
+
+### 재개
+
+~~~powershell
+Set-Location 'E:\2ndB\.worktrees\security-handoff-260906'
+Get-Content -LiteralPath 'docs\handoff\CLAUDE-SECURITY-HANDOFF-260907-005951.md' -Raw
+# 출력 전체를 새 Claude Code 세션의 첫 메시지로 전달
+~~~
+
+---
+
+## 2026-09-07 / 이전 Claude 인계: Auth P1 GREEN·recorder 5단계·package 후보 확정
 
 > 발행: Codex 보안 세션. 기준 시각 2026-09-07 00:24:49 KST.
 > 새 Claude 세션용 정본 프롬프트: [CLAUDE-SECURITY-HANDOFF-260907.md](handoff/CLAUDE-SECURITY-HANDOFF-260907.md)
