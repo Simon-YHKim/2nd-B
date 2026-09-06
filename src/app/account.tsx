@@ -26,6 +26,7 @@ import { signOut } from "@/lib/supabase/auth";
 import { fetchBirthDate, updateBirthDate } from "@/lib/supabase/account";
 import { canSubmitDobCorrection } from "@/lib/account/dob";
 import { requestAccountDeletion } from "@/lib/records/delete-bulk";
+import { clearAccountScopedLocalNotifications } from "@/lib/ops/reminders";
 import { requestAccountExport, buildExportFilename } from "@/lib/account/export";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
@@ -156,6 +157,11 @@ function AccountLegacy() {
         return;
       }
       allowDeletionNavigationRef.current = true;
+      try {
+        await clearAccountScopedLocalNotifications();
+      } catch {
+        if (typeof console !== "undefined") console.warn("[account] notification cleanup after deletion failed");
+      }
       try {
         await signOut();
       } catch (e) {

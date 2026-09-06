@@ -16,6 +16,7 @@ import {
 // main 의 f42f4db2 가 C6 대회 제약과 함께 src/lib/judge/domains.ts 를 통째로
 // 지웠고(CLAUDE.md C6), 이 파일에서 쓰이지도 않는다.
 import { getEnv } from "../env";
+import { clearAccountScopedLocalNotifications } from "../ops/reminders";
 import { getSupabaseClient } from "./client";
 import * as Crypto from "expo-crypto";
 
@@ -655,6 +656,7 @@ export function passwordUpdateFailure(error: unknown): PasswordUpdateFailure {
 }
 
 export async function signOut(scope: "global" | "local" = "global"): Promise<void> {
+  await clearAccountScopedLocalNotifications();
   const supabase = getSupabaseClient();
   const { error } = scope === "global"
     ? await supabase.auth.signOut()
