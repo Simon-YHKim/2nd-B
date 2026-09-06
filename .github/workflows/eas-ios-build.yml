@@ -260,8 +260,16 @@ jobs:
             for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
               const absolute = path.join(directory, entry.name);
               const relative = path.relative(root, absolute).split(path.sep).join("/");
-              if (forbidden.some((pattern) => pattern.test(relative))) {
-                throw new Error("EAS project archive contains forbidden local signing material");
+              // Only a FILE can carry key material. .easignore does drop the
+              // p12 and the mobileprovision, but the archive copy still leaves
+              // the now-empty ios/certs directory behind, and matching on the
+              // path alone failed the build over an empty folder. Directories
+              // are still walked, so a forbidden file inside one is caught on
+              // its own entry (ios/certs/dist.p12 matches the same pattern).
+              if (!entry.isDirectory() && forbidden.some((pattern) => pattern.test(relative))) {
+                throw new Error(
+                  `EAS project archive contains forbidden local signing material: ${relative}`,
+                );
               }
               if (/(^|\/)GoogleService-Info\.plist$/.test(relative)) hasFirebaseConfig = true;
               if (entry.isDirectory()) pending.push(absolute);
