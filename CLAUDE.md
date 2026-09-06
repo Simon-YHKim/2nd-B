@@ -240,8 +240,12 @@ Project-specific guidance for Claude Code sessions in this repo.
 > Gemini 서술은 **역사 기록**이다. 충돌하면 이 절이 이긴다.
 
 - **Stack**: React Native + Expo SDK 56, TypeScript strict, Supabase (Postgres + Auth), Gemini via `@google/genai`, EAS Build, GitHub Actions.
-- **Web deploy target — GitHub Pages, NOT Vercel.** `.github/workflows/web-deploy.yml` pushes the
-  Expo static export to the `gh-pages` branch; live at <https://simon-yhkim.github.io/2nd-B/>, and
+- **Web deploy target — GitHub Pages, NOT Vercel.** `.github/workflows/web-deploy.yml` uploads the
+  Expo static export as a Pages artifact and deploys it with `actions/deploy-pages` (OIDC); it does
+  **not** write to the `gh-pages` branch. That branch and the legacy `pages/builds` API both stopped
+  at 2026-09-02 and are **not** how you tell what is live — read the last successful
+  `workflow_dispatch mode=publish` run's `source_sha`, or fetch the serving bundle. Live at
+  <https://simon-yhkim.github.io/2nd-B/>, and
   `app.json` pins `baseUrl: "/2nd-B"` to that subpath. A Vercel project is still connected and
   builds PRs, but nothing ships from it and the `baseUrl` makes a Vercel root deploy wrong. Root
   `vercel.json` is an unused Sprint-0 leftover. Do not treat Vercel as the web target.
