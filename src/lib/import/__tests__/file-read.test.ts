@@ -1,4 +1,5 @@
 import { fileImportSupported, pickTextFile } from "../file-read";
+import { MAX_BOUNDED_FILE_BYTES } from "../bounded-file-read";
 
 // The native branch lazily `import("expo-document-picker")`; mock it so the node
 // test never loads the real native module (and react-native through it).
@@ -44,19 +45,78 @@ describe("file-read native picker (expo-document-picker)", () => {
   });
 
   test("returns { name, text } for the chosen file (read via fetch)", async () => {
+    const bytes = new TextEncoder().encode("# hello");
     mockGetDocumentAsync.mockResolvedValue({
       canceled: false,
-      assets: [{ uri: "file:///cache/notes.md", name: "notes.md", mimeType: "text/markdown" }],
+      assets: [
+        {
+          uri: "file:///cache/notes.md",
+          name: "notes.md",
+          mimeType: "text/markdown",
+          size: bytes.byteLength,
+        },
+      ],
     });
-    globalThis.fetch = jest
-      .fn()
-      .mockResolvedValue({ text: () => Promise.resolve("# hello") }) as unknown as typeof fetch;
+    globalThis.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      body: new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(bytes);
+          controller.close();
+        },
+      }),
+      headers: { get: jest.fn(() => String(bytes.byteLength)) },
+    }) as unknown as typeof fetch;
 
     await expect(pickTextFile()).resolves.toEqual({ name: "notes.md", text: "# hello" });
     expect(mockGetDocumentAsync).toHaveBeenCalledWith(
       expect.objectContaining({ copyToCacheDirectory: true, multiple: false }),
     );
-    expect(globalThis.fetch).toHaveBeenCalledWith("file:///cache/notes.md");
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "file:///cache/notes.md",
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+  });
+
+  test("rejects picker-declared oversized files before fetch", async () => {
+    mockGetDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        {
+          uri: "file:///cache/too-large.txt",
+          name: "too-large.txt",
+          mimeType: "text/plain",
+          size: MAX_BOUNDED_FILE_BYTES + 1,
+        },
+      ],
+    });
+    const fetchSpy = jest.fn();
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    await expect(pickTextFile()).rejects.toMatchObject({ code: "too_large" });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  test("rejects remote picker URIs before fetch", async () => {
+    mockGetDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        {
+          uri: "https://example.com/notes.txt",
+          name: "notes.txt",
+          mimeType: "text/plain",
+          size: 5,
+        },
+      ],
+    });
+    const fetchSpy = jest.fn();
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    const read = pickTextFile();
+
+    await expect(read).rejects.toMatchObject({ code: "unsafe_source" });
+    await expect(read).rejects.not.toThrow("https://example.com/notes.txt");
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   test("resolves null when the user cancels", async () => {
@@ -72,12 +132,23 @@ describe("file-read native picker (expo-document-picker)", () => {
   test("rejects on a read error so the hub can show the error state", async () => {
     mockGetDocumentAsync.mockResolvedValue({
       canceled: false,
-      assets: [{ uri: "file:///cache/bad.txt", name: "bad.txt", mimeType: "text/plain" }],
+      assets: [{ uri: "file:///cache/bad.txt", name: "bad.txt", mimeType: "text/plain", size: 8 }],
     });
     globalThis.fetch = jest
       .fn()
       .mockRejectedValue(new Error("read failed")) as unknown as typeof fetch;
 
-    await expect(pickTextFile()).rejects.toThrow("read failed");
+    const read = pickTextFile();
+    await expect(read).rejects.toMatchObject({ code: "read_failed" });
+    await expect(read).rejects.not.toThrow("bad.txt");
+  });
+
+  test("sanitizes document-provider errors that contain a local path", async () => {
+    mockGetDocumentAsync.mockRejectedValue(new Error("provider failed at file:///private/person.txt"));
+
+    const read = pickTextFile();
+
+    await expect(read).rejects.toMatchObject({ code: "read_failed" });
+    await expect(read).rejects.not.toThrow("private/person.txt");
   });
 });

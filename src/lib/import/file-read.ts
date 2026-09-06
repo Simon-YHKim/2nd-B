@@ -1,10 +1,15 @@
 // Text-file picker for the import hub. On web it opens a native file dialog
-// (hidden <input type="file">) and reads the file as text in the browser. On
-// native (iOS/Android) it picks via expo-document-picker and reads the file://
-// cache copy with fetch().text() — the same read path as src/lib/wiki/
-// capture-file.ts. Either way: no upload, nothing is stored, the raw file never
-// leaves the device before parse. The parsed text feeds the same on-device
-// detect -> parse -> propose -> ratify pipeline; the raw file is never persisted.
+// (hidden <input type="file">) and reads the file in bounded chunks. On native
+// (iOS/Android) it picks via expo-document-picker and reads only the local cache
+// copy. Either way: no upload, nothing is stored, the raw file never leaves the
+// device before parse. The parsed text feeds the same on-device detect -> parse
+// -> propose -> ratify pipeline; the raw file is never persisted.
+
+import {
+  BoundedFileReadError,
+  fetchBoundedLocalUtf8,
+  readBoundedUtf8Blob,
+} from "./bounded-file-read";
 
 export interface PickedFile {
   name: string;
@@ -25,9 +30,9 @@ const NATIVE_ACCEPT_MIME = [
   "text/csv",
 ];
 
-/** Web: hidden <input type="file"> + FileReader are available. */
+/** Web: hidden <input type="file"> + Blob reads are available. */
 function webPickerSupported(): boolean {
-  return typeof document !== "undefined" && typeof FileReader !== "undefined";
+  return typeof document !== "undefined" && typeof Blob !== "undefined";
 }
 
 /**
@@ -60,28 +65,33 @@ export function pickTextFile(): Promise<PickedFile | null> {
 /**
  * Native branch. expo-document-picker is imported lazily so the web/node bundle
  * never loads the native dep (and react-native through it) at module eval. The
- * chosen file is copied into the app cache and read as text via fetch(); a read
- * failure rejects. The text stays in memory and is never stored or uploaded.
+ * chosen file is copied into the app cache and read through a bounded local-only
+ * fetch; a read failure rejects. The text stays in memory and is never stored or
+ * uploaded.
  */
 async function pickNativeTextFile(): Promise<PickedFile | null> {
-  const DocumentPicker = await import("expo-document-picker");
-  const res = await DocumentPicker.getDocumentAsync({
-    type: NATIVE_ACCEPT_MIME,
-    copyToCacheDirectory: true,
-    multiple: false,
-  });
-  if (res.canceled) return null;
-  const asset = res.assets?.[0];
-  if (!asset) return null;
-  const response = await fetch(asset.uri);
-  const text = await response.text();
-  return { name: asset.name, text };
+  try {
+    const DocumentPicker = await import("expo-document-picker");
+    const res = await DocumentPicker.getDocumentAsync({
+      type: NATIVE_ACCEPT_MIME,
+      copyToCacheDirectory: true,
+      multiple: false,
+    });
+    if (res.canceled) return null;
+    const asset = res.assets?.[0];
+    if (!asset) return null;
+    const text = await fetchBoundedLocalUtf8(asset.uri, { declaredBytes: asset.size });
+    return { name: asset.name, text };
+  } catch (error) {
+    if (error instanceof BoundedFileReadError) throw error;
+    throw new BoundedFileReadError("read_failed");
+  }
 }
 
 /**
  * Web branch. Opens the browser file dialog and reads the chosen file as text.
- * Resolves null when the user cancels. Best-effort: rejects only on an actual
- * read error.
+ * Resolves null when the user cancels. Rejects when the selected bytes cannot be
+ * read within the bounded UTF-8 contract.
  */
 function pickWebTextFile(): Promise<PickedFile | null> {
   return new Promise((resolve, reject) => {
@@ -104,18 +114,18 @@ function pickWebTextFile(): Promise<PickedFile | null> {
         resolve(null);
         return;
       }
-      const reader = new FileReader();
-      reader.onload = () => {
-        settled = true;
-        cleanup();
-        resolve({ name: file.name, text: typeof reader.result === "string" ? reader.result : "" });
-      };
-      reader.onerror = () => {
-        settled = true;
-        cleanup();
-        reject(reader.error ?? new Error("file read failed"));
-      };
-      reader.readAsText(file);
+      void readBoundedUtf8Blob(file).then(
+        (text) => {
+          settled = true;
+          cleanup();
+          resolve({ name: file.name, text });
+        },
+        (error: unknown) => {
+          settled = true;
+          cleanup();
+          reject(error);
+        },
+      );
     };
     // Cancel leaves onchange unfired; resolve null on the next tick after focus.
     const onFocus = () => {
