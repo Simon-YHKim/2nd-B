@@ -810,7 +810,16 @@ results.push(
     const birthDateField = read("src/components/auth/BirthDateField.tsx");
     const completeProfile = read("src/app/(auth)/complete-profile.tsx");
     const notFound = read("src/app/+not-found.tsx");
+    // ⚠ Two homes. `home` is src/app/index.tsx, which is the LEGACY skin: its
+    // body only renders when EXPO_PUBLIC_UI=legacy, and no deployment sets
+    // that. `liveHome` is what users actually see -- index.tsx dispatches to
+    // DeepSpaceShell, whose constellation is this file.
+    //
+    // Until 2026-09-07 this check measured only the legacy one, so the screen
+    // every user opens had NO accessibility coverage here while a screen
+    // nobody renders had four pinned strings. That is the wrong way round.
     const home = read("src/app/index.tsx");
+    const liveHome = read("src/components/deep-space/ConstellationHome.tsx");
     const jarvis = read("src/app/secondb.tsx");
     const navGraph = read("src/components/graph/NavGraph.tsx");
     const esm = read("src/app/esm.tsx");
@@ -849,6 +858,8 @@ results.push(
     const inboxRoles = (inbox.match(/accessibilityRole=/g) ?? []).length;
     const signInRoles = (signIn.match(/accessibilityRole="button"/g) ?? []).length;
     const homeRoles = (home.match(/accessibilityRole="button"/g) ?? []).length;
+    const liveHomeRoles = (liveHome.match(/accessibilityRole="button"/g) ?? []).length;
+    const liveHomeLabels = (liveHome.match(/accessibility(?:Label|Hint)=/g) ?? []).length;
     const jarvisButtons = (jarvis.match(/accessibilityRole="button"/g) ?? []).length;
     const navGraphButtons = (navGraph.match(/accessibilityRole="button"/g) ?? []).length;
     const esmTabs = (esm.match(/accessibilityRole="tab"/g) ?? []).length;
@@ -997,11 +1008,25 @@ results.push(
       notFound.includes('accessibilityLabel={t("actions.home")}') &&
       notFound.includes('accessibilityHint={t("actions.homeHint")}') &&
       notFound.includes("minHeight: m3.minTouch") &&
+      // The live home: the constellation every user opens. Stars and the
+      // Polaris tap are its primary actions, so they must be reachable and
+      // named. This is NEW coverage -- it did not exist before 2026-09-07.
+      liveHomeRoles >= 4 &&
+      liveHomeLabels >= 4 &&
+      // ── legacy skin (EXPO_PUBLIC_UI=legacy) ───────────────────────────
+      // Everything to the end of this block pins src/app/index.tsx's
+      // GraphScreen body. No deployment renders it, and Simon approved
+      // retiring that skin (Q-260905-02) with "migrate the guards first".
+      // These four strings exist ONLY there -- zero occurrences in the
+      // deep-space tree, measured -- so they cannot be re-pointed, only
+      // dropped together with the branch they describe. Delete this marked
+      // block in the same change that deletes GraphScreen.
       homeRoles >= 4 &&
       home.includes('t("firstPieceHint")') &&
       home.includes('t("lookFirstLabel")') &&
       home.includes('t("openCenter")') &&
       home.includes('t("openCenterHint")') &&
+      // ── end legacy skin block ─────────────────────────────────────────
       jarvisButtons >= 8 &&
       jarvis.includes('accessibilityHint={t("clearChatHint")}') &&
       jarvis.includes('t("analysisMode")') &&
