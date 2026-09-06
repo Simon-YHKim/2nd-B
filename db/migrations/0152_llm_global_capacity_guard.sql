@@ -62,6 +62,7 @@ CREATE INDEX IF NOT EXISTS llm_capacity_active_provider_idx
   (status, lease_expires_at, provider);
 
 ALTER TABLE public.llm_proxy_capacity_reservations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.llm_proxy_capacity_reservations FORCE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.llm_proxy_capacity_reservations FROM PUBLIC, anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.reserve_llm_proxy_capacity(
@@ -297,9 +298,26 @@ GRANT EXECUTE ON FUNCTION public.release_llm_proxy_capacity(uuid) TO service_rol
 
 DO $verify$
 BEGIN
-  IF has_table_privilege('anon', 'public.llm_proxy_capacity_reservations', 'SELECT')
-     OR has_table_privilege('authenticated', 'public.llm_proxy_capacity_reservations', 'SELECT')
-     OR has_table_privilege('service_role', 'public.llm_proxy_capacity_reservations', 'SELECT')
+  IF has_table_privilege(
+       'anon',
+       'public.llm_proxy_capacity_reservations',
+       'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+     )
+     OR has_table_privilege(
+       'authenticated',
+       'public.llm_proxy_capacity_reservations',
+       'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+     )
+     OR has_table_privilege(
+       'service_role',
+       'public.llm_proxy_capacity_reservations',
+       'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+     )
+     OR NOT COALESCE((
+       SELECT c.relrowsecurity AND c.relforcerowsecurity
+         FROM pg_catalog.pg_class c
+        WHERE c.oid = 'public.llm_proxy_capacity_reservations'::regclass
+     ), false)
      OR has_function_privilege('anon', 'public.reserve_llm_proxy_capacity(uuid,text,text,integer,integer,integer,integer,integer)', 'EXECUTE')
      OR has_function_privilege('authenticated', 'public.reserve_llm_proxy_capacity(uuid,text,text,integer,integer,integer,integer,integer)', 'EXECUTE')
      OR NOT has_function_privilege('service_role', 'public.reserve_llm_proxy_capacity(uuid,text,text,integer,integer,integer,integer,integer)', 'EXECUTE')

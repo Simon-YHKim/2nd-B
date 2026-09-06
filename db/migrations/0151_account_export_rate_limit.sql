@@ -6,7 +6,7 @@ BEGIN;
 
 SET LOCAL lock_timeout = '10s';
 
-CREATE TABLE public.account_export_rate_limits (
+CREATE TABLE IF NOT EXISTS public.account_export_rate_limits (
   user_id         uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   last_claimed_at timestamptz NOT NULL,
   PRIMARY KEY (user_id)
@@ -76,7 +76,27 @@ GRANT EXECUTE ON FUNCTION public.claim_account_export(uuid) TO service_role;
 
 DO $verify$
 BEGIN
-  IF has_function_privilege('anon', 'public.claim_account_export(uuid)', 'EXECUTE')
+  IF has_table_privilege(
+       'anon',
+       'public.account_export_rate_limits',
+       'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+     )
+     OR has_table_privilege(
+       'authenticated',
+       'public.account_export_rate_limits',
+       'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+     )
+     OR has_table_privilege(
+       'service_role',
+       'public.account_export_rate_limits',
+       'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+     )
+     OR NOT COALESCE((
+       SELECT c.relrowsecurity AND c.relforcerowsecurity
+         FROM pg_catalog.pg_class c
+        WHERE c.oid = 'public.account_export_rate_limits'::regclass
+     ), false)
+     OR has_function_privilege('anon', 'public.claim_account_export(uuid)', 'EXECUTE')
      OR has_function_privilege('authenticated', 'public.claim_account_export(uuid)', 'EXECUTE')
      OR NOT has_function_privilege('service_role', 'public.claim_account_export(uuid)', 'EXECUTE') THEN
     RAISE EXCEPTION 'account export claim ACL verification failed'

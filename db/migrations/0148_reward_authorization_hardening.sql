@@ -71,8 +71,15 @@ DECLARE
   v_bonus int;
   v_eligible boolean;
 BEGIN
-  IF p_txn_id IS NULL OR length(p_txn_id) = 0 THEN
-    RAISE EXCEPTION 'transaction_id required' USING ERRCODE = '22004';
+  -- Keep the server boundary fail-closed even if a later ACL migration drifts.
+  IF public.billing_request_role() IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'service_role only' USING ERRCODE = '42501';
+  END IF;
+  IF p_user_id IS NULL THEN
+    RAISE EXCEPTION 'user id required' USING ERRCODE = '22004';
+  END IF;
+  IF p_txn_id IS NULL OR length(p_txn_id) NOT BETWEEN 1 AND 256 THEN
+    RAISE EXCEPTION 'invalid transaction_id' USING ERRCODE = '22023';
   END IF;
 
   v_kst := now() AT TIME ZONE 'Asia/Seoul';
@@ -161,8 +168,15 @@ DECLARE
   c_monthly_cap constant int := 20;
   c_per_call constant int := 2;
 BEGIN
-  IF p_txn_id IS NULL OR length(p_txn_id) = 0 THEN
-    RAISE EXCEPTION 'transaction_id required' USING ERRCODE = '22004';
+  -- Keep the server boundary fail-closed even if a later ACL migration drifts.
+  IF public.billing_request_role() IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'service_role only' USING ERRCODE = '42501';
+  END IF;
+  IF p_user_id IS NULL THEN
+    RAISE EXCEPTION 'user id required' USING ERRCODE = '22004';
+  END IF;
+  IF p_txn_id IS NULL OR length(p_txn_id) NOT BETWEEN 1 AND 256 THEN
+    RAISE EXCEPTION 'invalid transaction_id' USING ERRCODE = '22023';
   END IF;
   v_grant := LEAST(GREATEST(COALESCE(p_grant, 0), 0), c_per_call);
 
