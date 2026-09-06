@@ -10,6 +10,7 @@ import type { PropsWithChildren } from "react";
 import { ScrollViewStyleReset } from "expo-router/html";
 
 import { semantic } from "@/lib/theme/tokens";
+import { GITHUB_PAGES_CSP, WEB_REFERRER_POLICY } from "@/lib/web-security-policy";
 
 // Reset inline so the rule lands in the first paint. The dark background
 // matches cosmic.space950 (Deep Space Ink) so the white flash that would
@@ -69,6 +70,10 @@ export default function Root({ children }: PropsWithChildren) {
   return (
     <html lang="ko">
       <head>
+        {/* GitHub Pages cannot set project response headers. Keep this first so
+            the browser sees the policy before any resource-loading element. */}
+        <meta httpEquiv="Content-Security-Policy" content={GITHUB_PAGES_CSP} />
+        <meta name="referrer" content={WEB_REFERRER_POLICY} />
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta
