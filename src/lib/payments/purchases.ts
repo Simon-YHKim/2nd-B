@@ -26,6 +26,10 @@ import Purchases, {
   type PurchasesPackage,
 } from "react-native-purchases";
 
+// Re-exported so ./purchases.web.ts (the web-resolved stub, audit D5-01) can
+// mirror this file's signatures without referencing the SDK package itself.
+export type { PurchasesPackage } from "react-native-purchases";
+
 // The entitlement identifier configured in the RevenueCat dashboard. A customer
 // who owns any "pro" product has customerInfo.entitlements.active["pro"] set.
 export const PRO_ENTITLEMENT = "pro";

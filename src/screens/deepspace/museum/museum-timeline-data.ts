@@ -7,7 +7,7 @@
 // Content is product copy (KR canonical, PRD §15 lexicon-safe) — edits go
 // through the normal PR review, not through code refactors.
 
-import { canonMuseum, type CanonMuseumDetail, type CanonMuseumEvent } from "@/lib/canon";
+import { canonMuseum, type CanonMuseumDetail, type CanonMuseumEvent } from "@/lib/canon/museum";
 
 export type MuseumLaneId = "world" | "ai";
 
