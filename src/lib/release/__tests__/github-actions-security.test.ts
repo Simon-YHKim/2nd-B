@@ -5,14 +5,17 @@ import { parse } from "yaml";
 const ROOT = join(__dirname, "..", "..", "..", "..");
 const WORKFLOW_PATHS = [
   ".github/workflows/android-release.yml",
+  ".github/workflows/ci.yml",
   ".github/workflows/db-backup.yml",
   ".github/workflows/issue-sla.yml",
   ".github/workflows/model-refresh.yml",
+  ".github/workflows/pr-title.yml",
+  ".github/workflows/supabase-dry-run.yml",
 ] as const;
 
 const APPROVED_ACTIONS = {
-  "actions/checkout": { sha: "11d5960a326750d5838078e36cf38b85af677262", tag: "v4", count: 2 },
-  "actions/setup-node": { sha: "49933ea5288caeca8642d1e84afbd3f7d6820020", tag: "v4", count: 2 },
+  "actions/checkout": { sha: "11d5960a326750d5838078e36cf38b85af677262", tag: "v4", count: 6 },
+  "actions/setup-node": { sha: "49933ea5288caeca8642d1e84afbd3f7d6820020", tag: "v4", count: 4 },
   "actions/setup-java": { sha: "cf277c60eb25467037889841efdb72551f06f6c3", tag: "v4", count: 1 },
   "android-actions/setup-android": {
     sha: "9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407",
@@ -29,7 +32,15 @@ const APPROVED_ACTIONS = {
     tag: "v7",
     count: 1,
   },
+  "astral-sh/setup-uv": {
+    sha: "d0cc045d04ccac9d8b7881df0226f9e82c39688e",
+    tag: "v6",
+    count: 1,
+  },
 } as const;
+
+const PGVECTOR_PG16_IMAGE =
+  "pgvector/pgvector@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b";
 
 type Step = {
   name?: string;
@@ -39,14 +50,24 @@ type Step = {
 };
 
 type Workflow = {
-  jobs?: Record<string, { steps?: Step[] }>;
+  jobs?: Record<
+    string,
+    {
+      services?: Record<string, { image?: string }>;
+      steps?: Step[];
+    }
+  >;
 };
 
-function readWorkflow(path: (typeof WORKFLOW_PATHS)[number]): { raw: string; steps: Step[] } {
+function readWorkflow(path: (typeof WORKFLOW_PATHS)[number]): {
+  raw: string;
+  steps: Step[];
+  workflow: Workflow;
+} {
   const raw = readFileSync(join(ROOT, path), "utf8").replace(/\r\n/g, "\n");
   const workflow = parse(raw) as Workflow;
   const steps = Object.values(workflow.jobs ?? {}).flatMap((job) => job.steps ?? []);
-  return { raw, steps };
+  return { raw, steps, workflow };
 }
 
 function namedStep(path: (typeof WORKFLOW_PATHS)[number], name: string): Step {
@@ -58,11 +79,15 @@ function namedStep(path: (typeof WORKFLOW_PATHS)[number], name: string): Step {
 describe("security-sensitive GitHub Actions workflows", () => {
   test("every external action is pinned to the reviewed immutable SHA", () => {
     const observed = new Map<string, number>();
+    let actionCount = 0;
+
+    expect(WORKFLOW_PATHS).toHaveLength(7);
 
     for (const path of WORKFLOW_PATHS) {
       const { raw } = readWorkflow(path);
       const usesLines = raw.split("\n").filter((line) => /^\s*(?:-\s*)?uses:/.test(line));
       expect(usesLines.length).toBeGreaterThan(0);
+      actionCount += usesLines.length;
 
       for (const line of usesLines) {
         const match = line.match(
@@ -89,6 +114,9 @@ describe("security-sensitive GitHub Actions workflows", () => {
     for (const [action, { count }] of Object.entries(APPROVED_ACTIONS)) {
       expect({ action, count: observed.get(action) }).toEqual({ action, count });
     }
+    expect(actionCount).toBe(
+      Object.values(APPROVED_ACTIONS).reduce((total, action) => total + action.count, 0),
+    );
   });
 
   test("run scripts never interpolate GitHub context, secrets, or variables directly", () => {
@@ -117,6 +145,22 @@ describe("security-sensitive GitHub Actions workflows", () => {
     );
     expect(refresh.env?.MODEL_REFRESH_APPLY).toBe("${{ vars.MODEL_REFRESH_APPLY }}");
     expect(refresh.run).toContain('$MODEL_REFRESH_APPLY');
+  });
+
+  test("untrusted PR titles cross through env and are validated without being logged", () => {
+    const validate = namedStep(".github/workflows/pr-title.yml", "Validate title");
+    expect(validate.env?.TITLE).toBe("${{ github.event.pull_request.title }}");
+    expect(validate.run).toContain(`printf '%s\\n' "$TITLE" | grep -Eq --`);
+    expect(validate.run?.match(/\$TITLE/g)).toHaveLength(1);
+    expect(validate.run).not.toMatch(/\becho\b/);
+    expect(validate.run).not.toContain("Title:");
+  });
+
+  test("Supabase dry-run pins pgvector pg16 by immutable registry digest", () => {
+    const { raw, workflow } = readWorkflow(".github/workflows/supabase-dry-run.yml");
+    expect(workflow.jobs?.sql.services?.postgres.image).toBe(PGVECTOR_PG16_IMAGE);
+    expect(raw).toContain(`image: ${PGVECTOR_PG16_IMAGE} # pg16`);
+    expect(raw).not.toMatch(/image:\s*pgvector\/pgvector:pg16(?:\s|$)/);
   });
 
   test("Android signing secrets use private files and never step outputs", () => {
