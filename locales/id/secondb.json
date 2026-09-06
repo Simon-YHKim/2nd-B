@@ -172,6 +172,7 @@
   "longPressCopyThis": "Tekan lama untuk menyalin pesan ini",
   "copied": "Disalin",
   "copyFailed": "Gagal menyalin. Pilih teksnya untuk menyalin.",
+  "keepFailed": "Tidak dapat memastikan penyimpanan. Periksa wikimu, lalu ketuk Simpan ke wiki lagi.",
   "aboutNode": "Tentang '{{node}}': ",
   "drewOnPieces": "Jawaban ini memakai {{n}} serpihanmu. Ketuk untuk detail.",
   "nSources": "{{n}} sumber",
