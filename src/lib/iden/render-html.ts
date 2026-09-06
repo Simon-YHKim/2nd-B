@@ -1,7 +1,7 @@
 // IDEN viewer — renders an IdenDoc to a self-contained A4 two-column CV sheet.
 //
 // Pure: same doc in, same HTML string out. No I/O, no app state. The output is
-// a standalone HTML document (inline CSS + inline SVG, one webfont link) meant
+// a standalone HTML document (inline CSS + inline SVG, no network resources) meant
 // for print (Ctrl/Cmd+P -> clean A4 one-pager), PDF export, or a WebView.
 //
 // Design is locked to docs/iden-mocks/iden-E-twocol.html and docs/IDEN-SPEC.md:
@@ -41,6 +41,11 @@ const P = {
 
 const CORE_PALETTE = [cosmic.signalBlue, cosmic.signalMint, cosmic.pixelLamp, cosmic.dreamPink, cosmic.mistGray];
 
+const DOCUMENT_CSP =
+  "default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; connect-src 'none'; font-src 'none'; img-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'";
+const MAX_RENDER_NUMBER = Number.MAX_SAFE_INTEGER;
+type SafeCountEntry = readonly [string, number];
+
 const T = {
   en: {
     summaryLabel: "AI-generated interpretation",
@@ -70,6 +75,22 @@ function esc(s: string): string {
 }
 function clamp01(n: number): number {
   return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0;
+}
+function safeStat(n: unknown): number {
+  if (typeof n !== "number" || !Number.isFinite(n)) return 0;
+  const bounded = Math.min(MAX_RENDER_NUMBER, Math.max(0, n));
+  return Object.is(bounded, -0) ? 0 : bounded;
+}
+function safeCount(n: unknown): number {
+  return Math.max(0, Math.floor(safeStat(n)));
+}
+function safeCountEntries(counts: CountMap): SafeCountEntry[] {
+  return Object.entries(counts).map(([label, value]) => [label, safeCount(value)] as const);
+}
+function safeCountTotal(entries: SafeCountEntry[]): number {
+  let total = 0;
+  for (const [, value] of entries) total += Math.min(value, MAX_RENDER_NUMBER - total);
+  return total;
 }
 function pct(n: number): number {
   return Math.round(clamp01(n) * 100);
@@ -156,20 +177,19 @@ function barsHtml(scores: ScoreMap): string {
     .join("");
 }
 
-function donutSvg(counts: CountMap): string {
-  const entries = Object.entries(counts);
-  const total = entries.reduce((a, [, v]) => a + v, 0);
-  // Divisor guard only. The displayed center number must stay the REAL total (0 for
-  // an empty vault) — reusing `|| 1` for both showed "1" in the center while the
-  // heading said "0 items".
-  const divisor = total || 1;
+function donutSvg(entries: SafeCountEntry[], total: number): string {
+  // Keep the zero-value ratio guard separate from the displayed total so an empty
+  // vault remains 0 in both the heading and the donut center.
+  let scale = 0;
+  for (const [, value] of entries) scale = Math.max(scale, value);
+  const ratioTotal = scale === 0 ? 1 : entries.reduce((sum, [, value]) => sum + value / scale, 0);
   const r = 27;
   const C = 2 * Math.PI * r;
   const palette = [P.accent, P.donutGrey[0], P.donutGrey[1], cosmic.signalBlue, cosmic.signalMint];
   let off = 0;
   const segs = entries
     .map(([, v], i) => {
-      const len = (v / divisor) * C;
+      const len = scale === 0 ? 0 : Math.min(C, Math.max(0, (v / scale / ratioTotal) * C));
       const s = `<circle class="seg" cx="40" cy="40" r="${r}" stroke="${palette[i % palette.length]}" stroke-dasharray="${len.toFixed(1)} ${(C - len).toFixed(1)}" stroke-dashoffset="${(-off).toFixed(1)}"/>`;
       off += len;
       return s;
@@ -178,8 +198,7 @@ function donutSvg(counts: CountMap): string {
   return `<svg viewBox="0 0 80 80" width="92" role="img" aria-label="Contents composition"><g transform="rotate(-90 40 40)">${segs}</g><text x="40" y="44" text-anchor="middle" class="dtotal">${total}</text></svg>`;
 }
 
-function donutLegend(counts: CountMap): string {
-  const entries = Object.entries(counts);
+function donutLegend(entries: SafeCountEntry[]): string {
   const palette = [P.accent, P.donutGrey[0], P.donutGrey[1], cosmic.signalBlue, cosmic.signalMint];
   const rows = entries
     .map(([k, v], i) => `<div><span class="sw" style="background:${palette[i % palette.length]}"></span>${esc(k)} <span class="nn">${v}</span></div>`)
@@ -293,9 +312,11 @@ function renderMain(doc: IdenDoc, t: (typeof T)[Locale]): string {
   // donut / stat -> own section
   for (const f of main) {
     if (f.viz === "donut") {
-      out.push(section(f.label, t.items(Object.values(f.data).reduce((a, v) => a + v, 0)), `<div class="donutwrap">${donutSvg(f.data)}${donutLegend(f.data)}</div>`));
+      const entries = safeCountEntries(f.data);
+      const total = safeCountTotal(entries);
+      out.push(section(f.label, t.items(total), `<div class="donutwrap">${donutSvg(entries, total)}${donutLegend(entries)}</div>`));
     } else if (f.viz === "stat") {
-      out.push(section(f.label, sourceText(f.source, t), `<div class="bigstat">${f.data}${f.unit ? `<span class="unit">${esc(f.unit)}</span>` : ""}</div>`));
+      out.push(section(f.label, sourceText(f.source, t), `<div class="bigstat">${safeStat(f.data)}${f.unit ? `<span class="unit">${esc(f.unit)}</span>` : ""}</div>`));
     }
   }
 
@@ -366,9 +387,10 @@ export function renderIdenHtml(doc: IdenDoc, opts: RenderIdenOpts = {}): string 
 <html lang="${locale}">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="${DOCUMENT_CSP}">
+<meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>IDEN - ${esc(doc.name)}</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <style>${css()}</style>
 </head>
 <body>
