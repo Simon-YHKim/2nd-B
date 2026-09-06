@@ -1,0 +1,47 @@
+{
+  "capturedAtKst": "2026-09-06T23:19:18+09:00",
+  "sourceWorktree": "E:\\2ndB\\.worktrees\\2ndB\\TTL-Work",
+  "sourceBranch": "claude/pixelclay-auth-mascot-font-260905",
+  "sourceHead": "bcd051ae14c037d876a5e9695b9cf7357dd21aae",
+  "dirtyEntriesObserved": 772,
+  "sharedWorktree": "E:\\2ndB\\.worktrees\\session-start-260906",
+  "sharedRef": "refs/heads/docs/session-start-260906",
+  "verifiedSharedCheckpoint": "681aae2b93bb2b60ea5905698c64ea9918967820",
+  "canonicalHeadAtCapture": "177a5962c14cecd6240803c5b5df989ee4ef5e4b",
+  "appChangesCommitted": false,
+  "remotePublicationByThisSession": false,
+  "sourceRecentCommits": [
+    "bcd051ae feat(mascot): SecondbHead draws the PIXEL-CLAY 16-grid hull instead of the 3D PNG",
+    "95b4ef5d feat(text): pixel-first <Text> on the M3 grid, readable = reading text only",
+    "b9984822 feat(auth): pixel-clay sign-in - sign-up button, business footer scaffold, Galmuri web base",
+    "058b2bf8 fix(insights): make /discover reachable when the recent week is quiet",
+    "72180031 docs: handoff runtime QA and migration status (#1609)",
+    "3c567d8c Merge pull request #1608 from Simon-YHKim/fix/dev-screen-qa-variants-followup-260904",
+    "7e205727 test(dev): prove the three delegated auth gates with exact fixtures",
+    "061cbac1 fix(dev): mark the three delegated auth gates in the screen registry",
+    "d9d91e64 Merge pull request #1605 from Simon-YHKim/feat/dev-screen-qa-variants-260904",
+    "78fd3114 Merge remote-tracking branch 'origin/main' into feat/dev-screen-qa-variants-260904"
+  ],
+  "sharedRecentCommits": [
+    "681aae2b docs: record verified persona text wrapping fix",
+    "275c8575 docs: extend plain-language copy review to es pt and id",
+    "cacc6bba test: verify shared handoff discovery in fresh agent sessions",
+    "954e1e31 docs: resolve stale session limits and preserve report line endings",
+    "5c664538 docs: connect Codex and Claude to shared project handoff",
+    "177a5962 Merge pull request #1641 from Simon-YHKim/Simon-YHKim/vibe-release-260906",
+    "0941f784 fix(account): integrate safe birth date diagnostics",
+    "2eab01cd Merge pull request #1640 from Simon-YHKim/claude/ci-main-off-astra-brief-260906",
+    "cea4b7c7 Merge branch 'main' into claude/ci-main-off-astra-brief-260906",
+    "71ab6fdd ci: drop the main push trigger, and brief an external session"
+  ],
+  "latestVerification": {
+    "numPassedTestSuites": 707,
+    "numTotalTestSuites": 707,
+    "numPassedTests": 8641,
+    "numTotalTests": 8641,
+    "numFailedTests": 0
+  },
+  "verificationAtKst": "2026-09-06T22:37:57+09:00",
+  "verificationRerunDuringHandoff": false,
+  "phase1SourceManifest": "Output/plain-language-260906/change-manifest.json"
+}

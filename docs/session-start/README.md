@@ -4,6 +4,10 @@
 이 안내와 [작업 목록](tasks.json)은 인수 자료다. 제품 규칙의 정본은 현재 체크아웃의
 `CLAUDE.md`다. 과거 체크아웃의 지침이나 이 자료로 현재 코드를 덮어쓰지 않는다.
 
+2026-09-06 Codex → Claude 명시 인수 자료는 [인수 문서](claude-handoff-260906/README.md)와
+[시작 프롬프트](claude-handoff-260906/PROMPT.md)다. 이 작업을 이어받을 때 먼저 읽는다.
+다른 구체적인 사용자 요청이 있다면 그 요청을 우선한다.
+
 ## 처음 읽을 것
 
 1. 현재 폴더, `git rev-parse --show-toplevel`, 브랜치, `git status --short`,

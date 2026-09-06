@@ -1,0 +1,415 @@
+{
+  "files": [
+    {
+      "file": "STYLE.md",
+      "beforeSha256": "936e7410cf3d0ec567d33ae6faa4bcd3a1c51ca3fc8fe5ac0ac0c4e7ba0a9577",
+      "afterSha256": "aadbfe0e0b0ce2d621e37ad83680a75d37709ed211e923e60dff15343529c1bc",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "docs/HANDOFF.md",
+      "beforeSha256": null,
+      "afterSha256": "24206eda4c7a65688596c30429f02879e632fb3c70ea7704c1ccedfe35f673c6",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": false
+    },
+    {
+      "file": "docs/legal/lexicon-draft-v0.1.md",
+      "beforeSha256": null,
+      "afterSha256": "d66ac399a021a1e24834f3707d081e3263e27b3b78a8fd524439c4f1fe90b9fb",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": false
+    },
+    {
+      "file": "docs/legal/lexicon-jurisdiction-matrix.md",
+      "beforeSha256": null,
+      "afterSha256": "fe3861d07184bc950db6310b24d14fff49484439ce825178e97e954a0a39edfd",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": false
+    },
+    {
+      "file": "docs/legal/lexicon-policy-review-260906.md",
+      "beforeSha256": null,
+      "afterSha256": "bad580f81a437723258e7dc66576eb22afa9cfef67d4317ccc0735ddbcf18dd5",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": false
+    },
+    {
+      "file": "locales/en/brightness.json",
+      "beforeSha256": "56821a41c17abe20da23d0f37ba331565187e81ac447b4c655de32842250d7bc",
+      "afterSha256": "0fde06ac85e67b834e627f6f2a113686e8ce5761743c22c8478004e81b02fa54",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "locales/en/deepspace.json",
+      "beforeSha256": "e093f269a8dbbca53bb192d0c9c5d99decd855c6a6466d30acce756e41a1adf3",
+      "afterSha256": "d9dfe28e05767dc5e9b34b9a38ce2054a0f4068d76a3da0aec8a80c57896ec87",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "locales/en/manual.json",
+      "beforeSha256": "e7362c694f6d1f7565093d6ca1d3944369872235f8ba7a1e5a4317740a338f29",
+      "afterSha256": "6a0b18a77dee77dc2c12e5d8813d0e9df717f3cc3d3b7d716bb831aa9db46fc8",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "locales/en/secondb.json",
+      "beforeSha256": "169d0d5ec7aa2bfa2b87fda8b73afaf83f1e5307ae1bb2a57e0541a2b5701eb5",
+      "afterSha256": "6d284cd3fa6cbc7843463d5bc6470ca18995dfe1b2e5e9eec935dd593ea8e9ab",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "locales/es/brightness.json",
+      "beforeSha256": "ff6a64342f5614ffd72e63977f839056ce7d8a0379e4e2b8eafde565f4c176ad",
+      "afterSha256": "0e30d903056ee49a71bfbaafc9debfd85ad5b9e1bf27085c50fc301c4ae5d90e",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "locales/es/deepspace.json",
+      "beforeSha256": "bcd6cc0f72b117b6dd459a1a738a23e84863509d57440aa242c424a6135f09f1",
+      "afterSha256": "bcdb106528aa16cfd2aed39c6c1a9a25083657f26074a3af58e0c03fe63f460b",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "locales/es/manual.json",
+      "beforeSha256": "8fb59d22ab90b1083bdc91b23a55159bdbe1173a2356d4a54ceae9b16f530915",
+      "afterSha256": "3f481fb4380123c3c4184d517752ecc02e5c87f8619a21a2d4412006ddf7c2c1",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "locales/es/secondb.json",
+      "beforeSha256": "a59dbdc45678d557cdbf524689cbf8305589beed908233a63daa95bd774b5830",
+      "afterSha256": "d1c8d332750c552d2f0eae110cc494a056b28ac77a080f514e552a8c87674032",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "locales/id/brightness.json",
+      "beforeSha256": "97191753c33097cbeb533e1119560436fe8982676cd1e18674baf7fbc967c96d",
+      "afterSha256": "5dfa86c7c14fcc16846cd62b141c00655b1e07ab4922f1f786d0238169b777bd",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "locales/id/deepspace.json",
+      "beforeSha256": "955ef94b2b3ba3d1a187529038bd264c359873dcb593a40c6bf71dca53cae560",
+      "afterSha256": "e5b82636c5aadb2cb0c1c4df6634e12358e4e6493250e5a477d4cc2552c0579a",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "locales/id/manual.json",
+      "beforeSha256": "7ac6dad82e6dad350f802f02c2e7e439126db40ec6409ed90b7c96e80b4a6d98",
+      "afterSha256": "f4225cd3088b373de5f10d9f7d8e6fd8ecbe03f1adecbda8cb9807078c11f012",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "locales/id/secondb.json",
+      "beforeSha256": "5c395904ec6d2b94650029d0e2b543f79046b8af946d823e9ff23acd438504e9",
+      "afterSha256": "9642efffdcee514db9b0fb3f8ee0db8746f93d0c7e73e9acefb8856241a2bba3",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "locales/ko/brightness.json",
+      "beforeSha256": "463e6172535db81a8ee4df1a68d726d75e8468dab4f24869f77816dfbab60922",
+      "afterSha256": "7de0b676916846bea8d08b0b1caf877a5287e4d447730b0d8b99427dd5cd649b",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "locales/ko/deepspace.json",
+      "beforeSha256": "8721125be0c478b274c850aab3f5d5aaab4eab17331b7f815e7b964c677e3ee9",
+      "afterSha256": "1d806bde82618b49ebb7e1a42f30f47fcd65c0477b6acdb75ae18e26ca53a715",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "locales/ko/manual.json",
+      "beforeSha256": "e6751261283964bbf16f76ada14c4a22d752bc0a6291e018cc53e483869d32e3",
+      "afterSha256": "b26ef6b9c91cee89c1216eb7ad8cf8488c487626b5f1fa20952534fbe63d0fcd",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "locales/ko/secondb.json",
+      "beforeSha256": "4f983197dca85abb5a7ab004f03ed7a668621cb3569b98c79a8cad0dfc16fb65",
+      "afterSha256": "563a2a5b4a78ff08f6c9a72c6aa3ca4b61b3f85066551b804d0cb12a9713bbd1",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "locales/pt/brightness.json",
+      "beforeSha256": "3f5fc73f471ecb62b266de70de3ed94f35eea5dc9aeb33bdb1dec08a820c16f8",
+      "afterSha256": "3bd09cda2215db61ab93e5cf72fa22e5f16344ee5a1ab25b363ac04e825b3c55",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "locales/pt/deepspace.json",
+      "beforeSha256": "bd25466ac7ed6621e481ebceaf2bfb2e69633cddf45d8da8dfbbef6e7d5a9405",
+      "afterSha256": "97525197df51307576ca6b0fe465e6872d3ed7c4a466d3fd4182940e6a26399b",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "locales/pt/manual.json",
+      "beforeSha256": "2ac7aea49ebfa19f4d50be5b092fb7f3315a9c04c7ed09db5a44ac17b6310f44",
+      "afterSha256": "fbc543de14d82fb98ed1c4a2ac8e8f6c9e88b28fa78c074a7e22d40912f23b69",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "locales/pt/secondb.json",
+      "beforeSha256": "39619577708a31b39ca971dbd9a171e70400f00c43e40fbaf07efb85ea6a57d1",
+      "afterSha256": "f7010bd2ce8be69c6953cc81ba60ce1e22746194f653003c561747df1b2d4692",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "scripts/__tests__/lexicon-copy.test.ts",
+      "beforeSha256": null,
+      "afterSha256": "a23a39b9d0f6312ca2d40d1c48042741a76b87cdb704c48975c7764c1e6de867",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": false
+    },
+    {
+      "file": "scripts/check-forbidden-lexicon.ts",
+      "beforeSha256": "fd5323799cb8d8a98de5131d1c59021f6f596b1bfce0744d2fca890b1c4762bc",
+      "afterSha256": "a28e47a24238a7805c2a4154550e9eabcdfdcf73fc508a741ed8116af8574b5e",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "scripts/check-legal-review.ts",
+      "beforeSha256": "5d3116d467bd32fe6d4c34454f14ff49038e6384837abd76237328eec70b251e",
+      "afterSha256": "9d1238c46969856a2be51e5d1f3394c6bdbfe9d54446b5ddcf356408773bb1f7",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "scripts/check-mascot-voice.ts",
+      "beforeSha256": "4b7f5eb896467c791ec2d4f2f542c4ab41b9a9b59bcbb4ec6b4f3f2f2bc1c860",
+      "afterSha256": "692cecfb434185db4e3724310c544b18a2be27f938f264df886dac273ac6bf5d",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "scripts/lib/lexicon-copy.ts",
+      "beforeSha256": null,
+      "afterSha256": "26eb4f072d627e442d407ba94e9b5868ae6929150e563c9349ac376f7b461f7c",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": false
+    },
+    {
+      "file": "src/lib/__tests__/worldview-naming.test.ts",
+      "beforeSha256": "545b99181cb40b5c436f6a6668278266d01926b00b4e026dc98b2758410fbb5d",
+      "afterSha256": "842b420bc15f92590d2d6d1a8bd8d63d8b2e4ba8ced9780e375d24966eeeceb1",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "src/lib/chat/conversation.ts",
+      "beforeSha256": "08e2f3703416979630a36244d811af95ee5887fbbc10de96540a635a82c4260c",
+      "afterSha256": "cc3ba8187ba09a96e7b6c9269a73de36165bde1e054efa52fa46a9974fa1f66b",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "src/lib/i18n/__tests__/korean-in-code.test.ts",
+      "beforeSha256": "f008dfed43a51c82496b05f8f403dcdbeb5e2c7d4afe307a4c11b62453c0d8e6",
+      "afterSha256": "daef872e9447cb8ea518beb56840d9acf2234924aa17016ef350f5a2084c737c",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "src/lib/interview/__tests__/next-move.test.ts",
+      "beforeSha256": "3d9ddab2b98798200e98f6100c9e6d6dc0ec23b65a52a05327eed0e0f7c6c28d",
+      "afterSha256": "6d10e0fff555355cff89c193e093f5dfc869cc0b1cb4a15c497fa466bab8b6f5",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "src/lib/interview/__tests__/session01-copy.test.ts",
+      "beforeSha256": "537f22115015b0f8e2363508c5fc7557c3cf59937d99e1ee08e65e144ce5e2d2",
+      "afterSha256": "4c90bea8e3c4ef2376a2733f1a22a7ca0bff42ecb07a8380e06361617d967591",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "src/lib/interview/probe.ts",
+      "beforeSha256": "a136a8b6e3fde534d277af8b5d4837f14b2d225833e154b780f9be556252ecda",
+      "afterSha256": "ebcdde708243bebb30158306427de9cb8a3601f56510dadedf3f459dbccba919",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "src/lib/interview/stuck.ts",
+      "beforeSha256": "a2ed5503ac2d5d02e23904072e98b7430724a810f789ae7fe53b402826794ee4",
+      "afterSha256": "1bddf3f4d633e231a379d2d007d92b6182d1514e00df8030ba3be0d3a9cdddd8",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "src/lib/knowledge/generated/batches.json",
+      "beforeSha256": "78aa622d45fc70c37ea83a1855fab56cf900fcf4c5797210a4f054f1ef38b151",
+      "afterSha256": "c3a30a3695cee289182792d46e9bbbb69daffc5331925c4a2d84220b518d395e",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "src/lib/llm/__tests__/advisor-output-swap.test.ts",
+      "beforeSha256": "909f8b21cb8d8ca69a584375e2cf39099b14fce09bbb089de1dc9d2e83734a3d",
+      "afterSha256": "1f2be94086aa2644a3a4c9f8e816d00af0999acbac47d4429b7449e4c5c63ca5",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "src/lib/llm/__tests__/safety.test.ts",
+      "beforeSha256": "1cf9b0f31e4a928014f01c089f4b7bced28b3dfa23260484938dbf66cfa86de4",
+      "afterSha256": "ecfa26a83bc357ddb5dc6551d047b48238bccb5a4b25777c6502ec7f7276aaa0",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "src/lib/llm/crosscheck.ts",
+      "beforeSha256": "e4e83a25b32ec2feb3397ca048590b9114f6513b19fd4f6bb5b4b411022875b9",
+      "afterSha256": "1ef1f006c6bdd216d1cf5e7d54f6d7e30a8bf907df2cca157f6c9b340030a57f",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "src/lib/llm/safety.ts",
+      "beforeSha256": "8b5a49e7a755e33646622bd1ad87a1d20ce0cfe3e260fc952bd7ba1ef36e88f2",
+      "afterSha256": "65fa7e719f6d40a26c06a4bcc5071229af7e5f66ff1baffae01e4b898bef6366",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "src/lib/ops/daily-brief.ts",
+      "beforeSha256": "98535bad40e1bec53dfa76edbdd2950d1bb50badebfd6016e6772c2636c92809",
+      "afterSha256": "9ae1064803b468ec04515574921e85b8716aa2220e66b180ccc8d8cc009b4633",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "src/lib/ops/recommend.ts",
+      "beforeSha256": "16f940739b338ae7f9078fc47e7fd81114359cb8c6801488a743930a19de6186",
+      "afterSha256": "1452b71e40b1e6492892a7c1be774a1ed2d7fec3031c2c32cd86432074f11585",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "src/lib/persona/mbti.ts",
+      "beforeSha256": "880d50279287e00258c326eca6b0b6bb540bc680eb6cb0afa53d0554abbe5cf4",
+      "afterSha256": "f02d4fffac11b1957870f8c042613339ad49c2c37260a92adad8631d139e213a",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "src/lib/safety/__tests__/anthro.test.ts",
+      "beforeSha256": "28dd4215b18ec1e31c4c79aec28965e8a9faab6e39e82868a356a764e4e39e14",
+      "afterSha256": "42ecf91fe6e15d8938fb58a72680464cd53e793852b1505f0dcc74c07a9f3519",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "src/lib/safety/__tests__/mascot-voice.test.ts",
+      "beforeSha256": null,
+      "afterSha256": "132e5d9c74a569339c4e9b7fa587b18f7124fc803a4cb3d359cf059b92da5428",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": false
+    },
+    {
+      "file": "src/lib/safety/anthro.ts",
+      "beforeSha256": "43d35dabb5d66a35ce29ba4c2f13e44c1978f8d3bf0e443294a4d53dabcc3003",
+      "afterSha256": "7f1f04467d50a3c8f7e56e8261285d8d684cad0dbf6a15ef5baa8649ca48d1d4",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "src/lib/safety/classifier.ts",
+      "beforeSha256": "327c3b5d3c2d3f257355f66043611900b350c38e6112e7037670c30266e85e09",
+      "afterSha256": "3fdf2f87fad2974fb90591bd4e944a657abb100fafcfc57e7f514d9fa16b7f1c",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "src/lib/safety/lexicon.ts",
+      "beforeSha256": "b4dca2e7eee61ec7492fd74f9d61d5d36cf3e2348251dadb738eca8d89492625",
+      "afterSha256": "13c9dfafe88f144044d02967ebe920fa6e0f5b28afcffcc831690244e910fd52",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "src/lib/safety/mascot-voice.ts",
+      "beforeSha256": null,
+      "afterSha256": "7028ee4d5e8600572ea8888b4d1b6a8bb0ec6ad97897334adb9230e8a9406351",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": false
+    },
+    {
+      "file": "src/lib/storage/__tests__/encrypted-native-storage.test.ts",
+      "beforeSha256": "8140e2a22383cfb912bb1a4198ba1200b995616f381989d7cfb467bef393c5b8",
+      "afterSha256": "694f04e3282f4fa2a26f61e18683cf0fad9b7f056000960bf493601aff5b4923",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "src/lib/storage/encrypted-native-storage.ts",
+      "beforeSha256": "03a834e3187f7503fff1a993830266da1be4ed9fc628ba2d88faa7b493c3ac76",
+      "afterSha256": "d38e69849d4fbeaf972813fef29423b7d8d981c63487a60d9ad7df1adf56b2da",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "src/lib/wiki/context-pack.ts",
+      "beforeSha256": "236c42a197df7ddc21d38fb6933ab9e5a94bc8acd44eda2bbfee0e04161a4ae4",
+      "afterSha256": "f6a90fc4fd72890007c0820e0c081a6f07dcefe62f314e6e62c76e1a54f76608",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "src/lib/wiki/import-external.ts",
+      "beforeSha256": "98318077904b13564c0c1b2a2444d313aa8579759eea477d951788a9b339e782",
+      "afterSha256": "a79fee107d41990303d63d9bf5c4e637a0b7c83ecddfa73408a4603e25e3e77e",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "src/lib/wiki/phase1.ts",
+      "beforeSha256": "467aa3b97eb68820578b95b149740a484a05b11d009e282ff731048b59e17b02",
+      "afterSha256": "f7e5a7b9f05139a2ae13b833c4105d8ec594a4e39a68312c141edf3aee3066ff",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "src/lib/wiki/propose-template.ts",
+      "beforeSha256": "9f1860f680db04cc192b099f88085b362f2d79acb3e28bd9bc475dea2ab66e4a",
+      "afterSha256": "5526bf9135dac55a2bb2ce0c7ebbb8ce515748f99e28d8e191173991213e132d",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    },
+    {
+      "file": "supabase/functions/_shared/__tests__/request-json.test.ts",
+      "beforeSha256": "772a62e260117b5bf00878cc64f6d4c313a8831db1a10d3e61321a515356f085",
+      "afterSha256": "df6cb95a3c86f4b6e4e46e47062c2d086963c471f6ca411be1575694d8fdc499",
+      "changedFromSnapshot": true,
+      "snapshotAvailable": true
+    }
+  ],
+  "missingFiles": [],
+  "secretPatternFindings": [],
+  "secretScanScope": "Known high-confidence key/private-key patterns in added or changed lines of owned files; not a proof of absence. No values printed.",
+  "diffCheckExit": 0,
+  "diffCheckOutput": "warning: in the working copy of 'locales/en/deepspace.json', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'locales/ko/deepspace.json', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/check-forbidden-lexicon.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/check-legal-review.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/lib/__tests__/worldview-naming.test.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/lib/chat/conversation.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/lib/i18n/__tests__/korean-in-code.test.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/lib/interview/__tests__/next-move.test.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/lib/interview/__tests__/session01-copy.test.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/lib/interview/probe.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/lib/interview/stuck.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/lib/llm/__tests__/advisor-output-swap.test.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/lib/llm/__tests__/safety.test.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/lib/llm/crosscheck.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/lib/llm/safety.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/lib/ops/daily-brief.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/lib/ops/recommend.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/lib/safety/__tests__/anthro.test.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/lib/safety/anthro.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/lib/safety/classifier.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/lib/safety/lexicon.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/lib/wiki/context-pack.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/lib/wiki/import-external.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/lib/wiki/phase1.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/lib/wiki/propose-template.ts', LF will be replaced by CRLF the next time Git touches it\n"
+}

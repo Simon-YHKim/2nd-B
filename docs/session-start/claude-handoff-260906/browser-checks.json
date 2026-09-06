@@ -1,0 +1,33 @@
+{
+  "cases": [
+    {
+      "width": 390,
+      "colorScheme": "light",
+      "overflow": false,
+      "toggled": true,
+      "exactPrompt": true
+    },
+    {
+      "width": 390,
+      "colorScheme": "dark",
+      "overflow": false,
+      "toggled": true,
+      "exactPrompt": true
+    },
+    {
+      "width": 1440,
+      "colorScheme": "light",
+      "overflow": false,
+      "toggled": true,
+      "exactPrompt": true
+    },
+    {
+      "width": 1440,
+      "colorScheme": "dark",
+      "overflow": false,
+      "toggled": true,
+      "exactPrompt": true
+    }
+  ],
+  "errors": []
+}

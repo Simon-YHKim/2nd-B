@@ -8,7 +8,7 @@
       "priority": 1,
       "status": "ready-for-review",
       "title": "앱 문구와 어휘 검사 변경의 반영 범위 확인",
-      "entry": "copy-handoff.md",
+      "entry": "claude-handoff-260906/README.md",
       "firstAction": "앞선 문구 개선과 ES/PT/ID 후속 인수 기록·패치를 현재 main과 대조한다. 이미 반영된 키와 다른 세션 변경을 구분하고 미반영 변경만 자신의 워크트리에서 정리한다.",
       "doneWhen": ["현재 반영 여부와 남은 diff가 파일별로 확인됨", "관련 수정과 검증 완료, 외부 반영 여부 별도 기록"],
       "externalApproval": "push, PR 병합, 배포는 현재 세션에서 위임된 범위를 확인"

@@ -3,6 +3,13 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## Codex → Claude 인수 준비 — 2026-09-06
+
+- 사용자 요청: 사용량 소진 전에 Claude로 인수. 전체 인수 문서는 공통 ref `refs/heads/docs/session-start-260906`의 `docs/session-start/claude-handoff-260906/README.md`, 붙여넣을 지시는 같은 폴더의 `PROMPT.md`다.
+- Claude는 현재 구현·소유권을 확인한 뒤 COPY-INTEGRATE-260906부터 미반영 변경만 정리한다. 앱 변경은 TTL-Work의 미커밋 상태이며 공통 문서 브랜치와 구분한다.
+- 최신 앱 검증은 22:37:57 KST의 verify 전체 통과(707개 묶음·8,641개 테스트). 이번 문서 인수 중 앱 검증을 재실행한 것은 아니다.
+- 스냅샷: `.simonk/session-260906-claude-handoff.md`. 문서와 프롬프트 준비까지 했으며 Claude를 실행하거나 외부에 전송한 것은 아니다.
+
 ## 세컨비 소개 잘림 후속 점검 — 2026-09-06
 
 - 앞선 답변과 인수 자료는 저장 완료 상태였다. 앱 소개의 한 줄 제한으로 실제 문구가 잘리는 곳을 확인해 줄바꿈과 줄 높이를 수정했다.
