@@ -26,6 +26,17 @@ describe("renderIdenHtml", () => {
     expect(html).toContain("@page{size:A4");
   });
 
+  it("has no network dependency and locks down the standalone document", () => {
+    const policy = html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)">/)?.[1];
+
+    expect(policy).toBe(
+      "default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; connect-src 'none'; font-src 'none'; img-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'",
+    );
+    expect(html).toContain('<meta name="referrer" content="no-referrer">');
+    expect(html).not.toMatch(/<link\b/i);
+    expect(html).not.toMatch(/https?:\/\//i);
+  });
+
   it("renders the traits radar in the rail AND bars in the main column", () => {
     expect(html).toContain('aria-label="Traits radar.'); // rail radar (data-rich name)
     expect(html).toContain('class="data"'); // radar data polygon
@@ -102,5 +113,71 @@ describe("renderIdenHtml", () => {
     const out = renderIdenHtml(evil);
     expect(out).toContain("A&lt;script&gt;B");
     expect(out).not.toContain("A<script>B");
+  });
+
+  it("normalizes runtime-bypassed stat and donut numbers before interpolation", () => {
+    const adversarial = {
+      iden: "0.1",
+      name: "Numeric guard",
+      generated: "2026-09-06",
+      oneLiner: "Adversarial fixture",
+      fields: [
+        {
+          key: "counts",
+          label: "Counts",
+          viz: "donut",
+          placement: "main",
+          source: { kind: "count" },
+          data: {
+            Whole: 3,
+            Fraction: 2.9,
+            Negative: -4,
+            BrokenA: Number.NaN,
+            BrokenB: Number.POSITIVE_INFINITY,
+            Huge: Number.MAX_VALUE,
+            Payload: '</span><img src=x onerror="COUNT_ATTACK">',
+          },
+        },
+        {
+          key: "stat",
+          label: "Stat",
+          viz: "stat",
+          placement: "main",
+          source: { kind: "count" },
+          data: "</div><script>STAT_ATTACK</script>",
+          unit: "days",
+        },
+        {
+          key: "negative-stat",
+          label: "Negative stat",
+          viz: "stat",
+          placement: "main",
+          source: { kind: "count" },
+          data: -12.5,
+          unit: "negative-days",
+        },
+      ],
+    } as unknown as IdenDoc;
+
+    const out = renderIdenHtml(adversarial);
+    const totalText = out.match(/class="dtotal">([^<]+)<\/text>/)?.[1];
+    const dasharrays = [...out.matchAll(/stroke-dasharray="([^"]+)"/g)];
+
+    expect(totalText).toBe(String(Number.MAX_SAFE_INTEGER));
+    expect(out).toContain(`${Number.MAX_SAFE_INTEGER} items`);
+    expect(out).toContain('<div class="bigstat">0<span class="unit">days</span></div>');
+    expect(out).toContain('<div class="bigstat">0<span class="unit">negative-days</span></div>');
+    expect(out).not.toContain("COUNT_ATTACK");
+    expect(out).not.toContain("STAT_ATTACK");
+    expect(out).not.toContain("NaN");
+    expect(out).not.toContain("Infinity");
+    expect(out).not.toContain("<img");
+    expect(out).not.toContain("<script>");
+    expect(dasharrays).toHaveLength(7);
+    for (const match of dasharrays) {
+      const values = match[1].split(" ").map(Number);
+      expect(values).toHaveLength(2);
+      expect(values.every((value) => Number.isFinite(value) && value >= 0)).toBe(true);
+    }
   });
 });
