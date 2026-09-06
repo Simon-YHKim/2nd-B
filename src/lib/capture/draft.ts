@@ -1,6 +1,6 @@
 // Capture draft persistence (persona sim P1-5): drafts must survive app
 // switches, capture-tab remounts, and accidental mode taps. Web uses
-// localStorage, native uses AsyncStorage (same split as onboarding/state.ts).
+// localStorage; native uses the JIT encrypted storage adapter.
 // Drafts are scoped by userId so an account switch never leaks another user's
 // text.
 //
@@ -17,13 +17,11 @@ import {
   isDomainTag,
   type DomainId,
 } from "../persona/domain-stars";
+import {
+  getEncryptedNativeStorage,
+  type StringStorage,
+} from "../storage/encrypted-native-storage";
 import { EMPTY_FOURW, type FourWFields } from "./fourw";
-
-interface AsyncStorageLike {
-  getItem(key: string): Promise<string | null>;
-  setItem(key: string, value: string): Promise<void>;
-  removeItem(key: string): Promise<void>;
-}
 
 export type CaptureDraftMode = "journal" | "memo" | "linkclip" | "ocr" | "file";
 
@@ -136,7 +134,7 @@ const MODES: CaptureDraftMode[] = ["journal", "memo", "linkclip", "ocr", "file"]
 const LEGACY_KEY_PREFIX = "capture.journalDraft.v1.";
 const STATE_KEY_PREFIX = "capture.drafts.v2.";
 
-// AsyncStorage has no compare-and-swap. Reads and writes of one user's single
+// The encrypted adapter has no compare-and-swap. Reads and writes of one user's single
 // draft blob share this queue so a slow clear cannot land after a newer save.
 const nativeOperationTails = new Map<string, Promise<void>>();
 
@@ -161,10 +159,12 @@ function isCaptureMode(value: unknown): value is CaptureMode {
 }
 
 function ls(): Storage | null {
+  // React Native must never select a plaintext localStorage polyfill.
+  if (isReactNativeRuntime()) return null;
   try {
     if (typeof localStorage !== "undefined") return localStorage;
   } catch {
-    // private mode / native: fall through
+    // private mode: fall through
   }
   return null;
 }
@@ -174,13 +174,11 @@ function isReactNativeRuntime(): boolean {
   return nav?.product === "ReactNative";
 }
 
-function nativeStorage(): AsyncStorageLike | null {
+function nativeStorage(): StringStorage | null {
   if (!isReactNativeRuntime()) return null;
-  try {
-    return require("@react-native-async-storage/async-storage").default as AsyncStorageLike;
-  } catch {
-    return null;
-  }
+  // Initialization failures are security signals, not permission to fall back
+  // to plaintext or an ephemeral in-memory store.
+  return getEncryptedNativeStorage();
 }
 
 function emptyState(): CaptureDraftState {
@@ -496,7 +494,7 @@ export interface CaptureParamPlan {
 
 function runNativeExclusive<T>(
   userId: string,
-  storage: AsyncStorageLike,
+  storage: StringStorage,
   operation: (key: string) => Promise<T>,
 ): Promise<T> {
   const key = stateKey(userId);
@@ -514,7 +512,7 @@ function runNativeExclusive<T>(
   return result;
 }
 
-async function readNativeState(storage: AsyncStorageLike, userId: string): Promise<CaptureDraftState> {
+async function readNativeState(storage: StringStorage, userId: string): Promise<CaptureDraftState> {
   const state = parseState(await storage.getItem(stateKey(userId)));
   if (state) return state;
   const legacy = parseLegacyDraft(await storage.getItem(legacyDraftKey(userId)));

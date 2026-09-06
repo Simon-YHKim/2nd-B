@@ -1,9 +1,9 @@
-// Pre-account pending capture (D-17 / D-25 Phase 2): a device-local, plaintext
+// Pre-account pending capture (D-17 / D-25 Phase 2): a device-local
 // holding queue so a first-time visitor can brain-dump a line BEFORE creating an
 // account, then import it after sign-up. This is the storage layer ONLY.
 //
 // Hard invariants (D-17 minimal-safe design, Simon legal GO 2026-06-21):
-//   - Pre-account = device-local plaintext only. NO LLM, NO Supabase/server, NO
+//   - Pre-account = device-local only. NO LLM, NO Supabase/server, NO
 //     clipper/OCR, NO source/record claims. This file imports none of those by
 //     construction (storage primitives only), keeping the C1/C5 boundary intact.
 //   - Honest capacity: the queue is HARD-CAPPED and reports near-full / full so
@@ -13,14 +13,13 @@
 //     imported via the normal post-account path; "ratify" stays reserved for the
 //     edge/self-model contract, so the import verb here is confirm/import.
 //
-// Storage plumbing mirrors capture/draft.ts (web localStorage, native
-// AsyncStorage). Unlike drafts there is no userId scope: pre-account has no user.
+// Storage plumbing mirrors capture/draft.ts (web localStorage, native encrypted
+// storage). Unlike drafts there is no userId scope: pre-account has no user.
 
-interface AsyncStorageLike {
-  getItem(key: string): Promise<string | null>;
-  setItem(key: string, value: string): Promise<void>;
-  removeItem(key: string): Promise<void>;
-}
+import {
+  getEncryptedNativeStorage,
+  type StringStorage,
+} from "../storage/encrypted-native-storage";
 
 export interface PendingCapture {
   /** Stable local id (dedup + delete); never leaves the device. */
@@ -31,7 +30,7 @@ export interface PendingCapture {
   capturedAt: string;
 }
 
-/** Hard ceiling. 50 short items sit far under the AsyncStorage ~2MB ceiling. */
+/** Hard ceiling. 50 short items sit far under the encrypted value ceiling. */
 export const PREAUTH_PENDING_CAP = 50;
 /** At/above this count the UI should nudge toward account creation (honest, not punitive). */
 export const PREAUTH_PENDING_NEAR = 45;
@@ -123,10 +122,12 @@ function parseList(raw: string | null): PendingCapture[] {
 }
 
 function ls(): Storage | null {
+  // React Native must never select a plaintext localStorage polyfill.
+  if (isReactNativeRuntime()) return null;
   try {
     if (typeof localStorage !== "undefined") return localStorage;
   } catch {
-    // private mode / native: fall through
+    // private mode: fall through
   }
   return null;
 }
@@ -136,13 +137,11 @@ function isReactNativeRuntime(): boolean {
   return nav?.product === "ReactNative";
 }
 
-function nativeStorage(): AsyncStorageLike | null {
+function nativeStorage(): StringStorage | null {
   if (!isReactNativeRuntime()) return null;
-  try {
-    return require("@react-native-async-storage/async-storage").default as AsyncStorageLike;
-  } catch {
-    return null;
-  }
+  // A missing/unavailable device key is a security signal. Never substitute
+  // plaintext or ephemeral storage in a genuine native runtime.
+  return getEncryptedNativeStorage();
 }
 
 function newLocalId(now: string): string {
@@ -161,11 +160,7 @@ export async function loadPendingCaptures(): Promise<PendingCapture[]> {
   }
   const native = nativeStorage();
   if (!native) return [];
-  try {
-    return parseList(await native.getItem(STATE_KEY));
-  } catch {
-    return [];
-  }
+  return parseList(await native.getItem(STATE_KEY));
 }
 
 async function writeList(list: PendingCapture[]): Promise<void> {
@@ -181,11 +176,7 @@ async function writeList(list: PendingCapture[]): Promise<void> {
   }
   const native = nativeStorage();
   if (!native) return;
-  try {
-    await native.setItem(STATE_KEY, raw);
-  } catch {
-    /* best-effort */
-  }
+  await native.setItem(STATE_KEY, raw);
 }
 
 /** Append a plaintext capture to the device-local pending queue (no account needed). */
@@ -217,11 +208,7 @@ export async function clearPendingCaptures(): Promise<void> {
   }
   const native = nativeStorage();
   if (!native) return;
-  try {
-    await native.removeItem(STATE_KEY);
-  } catch {
-    /* best-effort */
-  }
+  await native.removeItem(STATE_KEY);
 }
 
 /**
