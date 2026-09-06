@@ -824,9 +824,13 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   }, [usedToday, allowance, limit, progression.tier, pendingUpgrade]);
 
   useEffect(() => {
-    // Scroll to bottom after each new turn.
+    // Scroll to bottom after each new turn, and after a keep failure notice
+    // appears. The notice is rendered at the end of the transcript, so without
+    // this it lands below the scroll clip and the user never sees it - measured
+    // at 320/390/1440, where 4 to 5 of 5 sample points fell outside the
+    // scroller. Announcing it was not enough; sighted users read nothing.
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
-  }, [turns]);
+  }, [turns, keepNotice]);
 
   useEffect(() => {
     if (chatMode === "divergent" && sending && !prefersReducedMotion()) {
