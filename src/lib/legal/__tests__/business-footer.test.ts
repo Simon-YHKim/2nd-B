@@ -77,8 +77,10 @@ describe("businessFooterLines: 전부 아니면 전무", () => {
     }
   });
 
-  test("선택 둘이 다 없어도 필수 다섯은 뜬다 (통신판매업 신고 전 사업자)", () => {
-    const lines = businessFooterLines({ ...FULL, mailOrderNo: "", privacyOfficer: "" }, LABELS);
+  test("선택 칸이 다 없어도 필수는 전부 뜬다 (신고 전 · 번호 생략 사업자)", () => {
+    const bare = { ...FULL } as Record<string, string>;
+    for (const f of BUSINESS_OPTIONAL_FIELDS) bare[f] = "";
+    const lines = businessFooterLines(bare as unknown as BusinessInfo, LABELS);
     expect(lines.map((l) => l.field)).toEqual([...BUSINESS_REQUIRED_FIELDS]);
   });
 
@@ -93,9 +95,32 @@ describe("businessFooterLines: 전부 아니면 전무", () => {
 });
 
 describe("값은 지어내지 않는다", () => {
-  test("저장소의 BUSINESS_INFO 는 등록 전이라 null 이다", () => {
-    // Simon 이 실제 등록 값을 넣는 PR 에서는 이 단언을 실제 값 검증으로 바꾼다.
-    expect(BUSINESS_INFO).toBeNull();
+  test("저장소의 BUSINESS_INFO 는 Simon 이 준 등록 값이다 (2026-09-06)", () => {
+    expect(BUSINESS_INFO).not.toBeNull();
+    expect(BUSINESS_INFO).toEqual({
+      company: "하양 프로덕션",
+      ceo: "배소하",
+      address: "(14081) 경기도 안양시 동안구 귀인로 98번길 12",
+      bizNo: "205-10-98603",
+      mailOrderNo: "",
+      privacyOfficer: "",
+      phone: "",
+    });
+  });
+
+  test("사업자등록번호는 국세청 체크섬을 통과한다", () => {
+    // 오타 한 자리는 눈으로 안 잡힌다. 가중치 [1,3,7,1,3,7,1,3,5] + floor(d9*5/10).
+    const digits = (BUSINESS_INFO?.bizNo ?? "").replace(/\D/g, "");
+    expect(digits).toHaveLength(10);
+    const w = [1, 3, 7, 1, 3, 7, 1, 3, 5];
+    const sum = w.reduce((a, wi, i) => a + Number(digits[i]) * wi, 0) + Math.floor((Number(digits[8]) * 5) / 10);
+    expect((10 - (sum % 10)) % 10).toBe(Number(digits[9]));
+  });
+
+  test("지금 화면에 실제로 뜨는 줄: 상호·대표·주소·사업자등록번호 넷", () => {
+    const lines = businessFooterLines(BUSINESS_INFO, LABELS);
+    expect(lines.map((l) => l.field)).toEqual(["company", "ceo", "address", "bizNo"]);
+    // 대표번호는 Simon 지시로 생략, 신고번호·개인정보 담당은 미전달이라 줄이 없다.
   });
 
   test("목업 플레이스홀더가 소스에 없다", () => {
