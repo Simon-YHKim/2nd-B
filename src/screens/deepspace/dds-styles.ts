@@ -138,6 +138,10 @@ export const ddsStyles = StyleSheet.create({ root:{flex:1,backgroundColor:colors
   authLegal:{color:colors.textLo,fontSize:11,textAlign:'center',marginTop:spacing.xl,paddingHorizontal:spacing.md},
   authPrimary:{backgroundColor:colors.cyan,marginTop:2},
   authPrimaryText:{color:colors.bgDeep,fontSize:15,fontWeight:'700'},
+  // PIXEL-CLAY auth (captures/auth.png): sign-up is an outlined button right under
+  // sign-in, not a prompt line at the bottom. Same footprint as providerPillDark.
+  authSecondary:{backgroundColor:colors.cardBg,borderWidth:1,borderColor:colors.borderHi},
+  authSecondaryText:{color:colors.cyanSoft,fontSize:15,fontWeight:'700'},
   consentGroupLabel:{color:colors.cyanBright,fontSize:12,letterSpacing:0.7,textTransform:'uppercase',marginTop:spacing.xs},
   consentIntro:{color:colors.textMid,fontSize:11.5,},
   consentRow:{flexDirection:'row',alignItems:'flex-start',gap:spacing.sm,minHeight:40,paddingVertical:spacing.xs},

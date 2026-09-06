@@ -170,6 +170,15 @@
       "kakao": "Continuar com o Kakao",
       "facebook": "Continuar com o Facebook",
       "github": "Continuar com o GitHub"
+    },
+    "business": {
+      "company": "Empresa",
+      "ceo": "Diretor",
+      "address": "Endereço",
+      "bizNo": "N.º de registro empresarial",
+      "mailOrderNo": "N.º de registro de venda à distância",
+      "privacyOfficer": "Responsável pela privacidade",
+      "phone": "Telefone"
     }
   },
   "account": {

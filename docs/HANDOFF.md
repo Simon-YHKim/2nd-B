@@ -3,7 +3,73 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-09-06 / 레거시·불필요 코드 전수 감사 · 안전 정리 PR 9건 · 결정 11문항
+## Latest — 2026-09-06 / PIXEL-CLAY 실행 1차: 마스코트·본문 폰트·로그인 (PR #1616)
+
+> 발행: Claude Code (TTL-Work 세션, PR 워크트리 `.worktrees/2ndB/pixelclay-260905`).
+> 기준 시각: 2026-09-06 13:30 KST. 기준 main: 2f05ab97(머지 커밋 ca06bf70 으로 따라잡음).
+
+### 왜 시작했나
+
+Simon 지시(2026-09-05): "로컬 호스트 로그인 화면 보면 이게 스타일이 구버전인데?" → 이주 실측 후
+레버 4개를 Simon 이 전부 승인(마스코트 앱 전역 · 본문 폰트 Galmuri 전면 · 사업자 푸터 · auth 마감).
+
+### 어디까지 왔나 — PR #1616 (열림, CI 통과, 머지는 Simon)
+
+| 무엇 | 어떻게 |
+|---|---|
+| 마스코트 | `SecondbHead` 가 3D PNG 대신 번들 `SbHead` 의 16격자 rect 11개를 그린다(`deepspace/secondb-hull.ts`). 얼굴 좌표는 격자 분수, 표시 크기는 16 배수 스냅, 추적은 평행이동만 |
+| 마스코트 잔여 2곳 | `CompletionToast`(32)·`RewardedSheet`(64)도 `<SecondbHead>` 로 교체. **남은 PNG require 2곳**은 가드가 목록으로 고정: `src/app/index.tsx`(레거시 랜딩) · `ShareCard.tsx`(view-shot 캡처) |
+| 본문 폰트 | `<Text variant>` 가 Pretendard 를 강제하던 것을 `galmuriFor(role.size, weight)` 로 통일. 격자 스냅 39→30 · 25→24 · 16→15 · 14→12 · 12→10, 픽셀 모드는 fontWeight 를 보내지 않는다(굵기는 얼굴 이름) |
+| 읽기 쉬운 글꼴 | 본문(body·subtle)만 Pretendard, 크롬은 Galmuri 유지(Simon 2026-08-21 Q2) |
+| 로그인 | 가입하기 outlined 버튼(문 1개), 하단 안내 줄 제거, 사업자 푸터 자리 |
+| 사업자 푸터 | `src/lib/legal/business-info.ts` — `BUSINESS_INFO = null`, 전부-아니면-전무 렌더. 라벨만 5개 로케일에 있다 |
+
+새 가드 6개(text-pixel-first · secondb-hull · secondb-head-pixel · mascot-pixel-coverage ·
+business-footer · html-base-font-registered), 변이 검증 통과. `npm run verify` 종료코드 0.
+
+### 새로 확정된 사실 (재조사하지 말 것)
+
+- **로그인 화면은 이미 radius 0 이었다.** "둥글다"는 스크린샷 오독이고 `m3Shape` 는 전부 0.
+  실제 차이는 마스코트(3D)와 폰트(Pretendard) 둘뿐이었다.
+- **`<Text>` 와 `m3TextStyle()` 이 서로 다른 폰트 체계였다.** 후자는 이미 Galmuri 우선.
+- **Galmuri 는 정수배에서만 선명하다**(G9 10 / G11 12 / G14 15). 격자를 벗어난 "Galmuri 전면"은
+  이주가 아니라 흐림 회귀다.
+- **`secondb-head-blank.png`(886 KB)는 이 PR 이후 참조 0건이 된다** — `SecondbHead` 가 유일한
+  소비자였다. 삭제는 §7 정지 조건(파일 삭제)이라 하지 않았다. 레거시 감사 Q-260905-07(머리 PNG
+  다운스케일)과 같은 파일이니 **함께 처분할 것.**
+- **`+html.tsx` 루트 폰트 죽은 참조는 #1617 이 먼저 고쳤다.** 이 PR 은 main 것을 그대로 받고
+  가드(`html-base-font-registered`)만 얹었다 — 등록되지 않은 얼굴이 다시 들어오면 깨진다.
+- `.worktrees/2ndB/TTL-Work` 는 codex/Orca 세션과 **공유 중**이라 옛 브랜치
+  `claude/pixelclay-auth-mascot-font-260905` 는 오염됐다. PR 은 전용 워크트리에서만 낸다.
+
+### 결정 요청
+
+1. **사업자 정보 실데이터 7종**(상호·대표·주소·사업자등록번호·통신판매업 신고번호·개인정보
+   담당·대표번호). 없으면 푸터는 계속 렌더 0. 목업의 "(주)하양집" 류는 Claude Design
+   플레이스홀더라 **넣지 않았다.**
+2. **#1616 머지 승인** 여부.
+3. **`secondb-head-blank.png` 삭제** 여부(Q-260905-07 과 한 건으로).
+4. TTL-Work 워크트리를 codex/Orca 세션과 분리할지.
+
+### 남은 폰트 구멍 2곳 (이 PR 에 넣지 않았다)
+
+`<Text>` 를 우회해 직접 family 를 박는 자리가 둘 남았다. 크기가 격자 밖이라(14·16)
+얼굴만 바꾸면 흐려지므로 스냅과 함께 별도로 처리한다.
+
+- `src/app/capture.tsx:138` — `CAPTURE_LABEL_FONT = isDeepSpaceUI() ? fontFamilies.readable : ...`
+  가 딥스페이스에서 크롬 라벨 4개(track chip · mode label · mode more · toss 버튼)를 **Pretendard**
+  로 강제한다. `Text.tsx #667` 과 같은 낡은 상수다 → `chromeFaceFor()` + 크기 14→12 · 16→15.
+- `src/app/esm.tsx:276,304` — `typography.fontFamily`(= "System") 가 프롬프트 탭·척도 라벨에
+  걸려 있다. Galmuri 가 아예 아니다.
+
+### 다음 1개
+
+Simon 이 #1616 을 머지하면 웹 배포본에서 폰트·마스코트를 라이브로 한 번 확인한다.
+그 다음은 나머지 화면의 PIXEL-CLAY 이주(#1536~#1541 계열 열린 PR 들과 순서 합의).
+
+---
+
+## 2026-09-06 / 레거시·불필요 코드 전수 감사 · 안전 정리 PR 9건 · 결정 11문항
 
 > 발행: Claude Code (TTL-Work 세션, 전용 워크트리 `.worktrees/claude/legacy-audit-260905`).
 > 기준 시각: 2026-09-06 10:32:36 KST. 기준 main: 72180031 → 감사, e302638a 이후 PR.
