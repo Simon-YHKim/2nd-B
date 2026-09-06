@@ -7,6 +7,7 @@ import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import { FORBIDDEN_TERMS, CRISIS_TERMS } from "../src/lib/safety/lexicon";
+import { describeOwners, findMainVerifyOwners } from "./main-verify-owner";
 
 const ROOT = process.cwd();
 
@@ -2938,6 +2939,27 @@ results.push(
       note: ok
         ? "worldview docs/code keep Lumina and canonical Soul/Pattern/Narrative responsibilities aligned"
         : "worldview docs/code should not regress to Iris or drift from Simon's canonical character responsibilities",
+    };
+  }),
+  // Q-260906-25 (Simon, 2026-09-06). D7-02 left main with a single verifier and
+  // nothing enforcing that it stays one. The invariant is not "web-deploy.yml
+  // keeps this step" -- it is that SOME workflow verifies main on push, with no
+  // `if:` and no continue-on-error. Rationale and the wildcard/branch-filter
+  // handling live in scripts/main-verify-owner.ts.
+  check("MainVerifyOwner", () => {
+    const owners = findMainVerifyOwners(join(ROOT, ".github/workflows"));
+    if (owners.length === 0)
+      return {
+        id: "MainVerifyOwner",
+        status: "FAIL",
+        note:
+          "no workflow runs `npm run verify` unconditionally on push to main; " +
+          "main would land unverified (see scripts/main-verify-owner.ts)",
+      };
+    return {
+      id: "MainVerifyOwner",
+      status: "PASS",
+      note: `main verify owned by ${describeOwners(owners)}`,
     };
   }),
 );
