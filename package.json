@@ -106,6 +106,12 @@
     "yaml": "^2.9.0",
     "zod": "^3.23.0"
   },
+  "overrides": {
+    "@react-native/community-cli-plugin": {
+      "metro": "0.84.5",
+      "metro-config": "0.84.5"
+    }
+  },
   "devDependencies": {
     "@types/jest": "^29.5.0",
     "@types/madge": "^5.0.3",
