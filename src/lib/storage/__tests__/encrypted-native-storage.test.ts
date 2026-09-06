@@ -22,6 +22,8 @@ const MASTER_KEY = "secondB.secureStorage.master.v1";
 const SENTINEL = "secondB.secureStorage.keySentinel.v1";
 const MIGRATION_MARKER = "secondB.secureStorage.plaintextMigration.v1";
 const CAPACITY_LEDGER = "secondB.secureStorage.capacity.v1";
+const RECOVERY_PROOF_KEY = "secondbrain.auth.recovery-proof.v1";
+const RECOVERY_PENDING_KEY = "secondbrain.auth.recovery-pending.v1";
 const encoder = new TextEncoder();
 const decoder = new TextDecoder("utf-8", { fatal: true });
 
@@ -440,6 +442,55 @@ describe("encrypted native storage core", () => {
     expect(h.values.get("import.history:user-a")).toBe(
       "must not escape before durable write",
     );
+  });
+
+  test("lazily encrypts both recovery marker namespaces before returning plaintext", async () => {
+    const h = createHarness();
+    primeDeviceKey(h);
+    const proof = JSON.stringify({ userId: "u1", sessionId: "s1", issuedAt: "2026-09-06T00:00:00.000Z" });
+    const pending = JSON.stringify({ issuedAt: "2026-09-06T00:00:00.000Z" });
+    h.values.set(RECOVERY_PROOF_KEY, proof);
+    h.values.set(RECOVERY_PENDING_KEY, pending);
+
+    await expect(h.storage.getItem(RECOVERY_PROOF_KEY)).resolves.toBe(proof);
+    await expect(h.storage.getItem(RECOVERY_PENDING_KEY)).resolves.toBe(pending);
+
+    expect(h.values.get(RECOVERY_PROOF_KEY)).toMatch(/^SBENC1:/);
+    expect(h.values.get(RECOVERY_PENDING_KEY)).toMatch(/^SBENC1:/);
+    await expect(h.storage.getItem(RECOVERY_PROOF_KEY)).resolves.toBe(proof);
+    await expect(h.storage.getItem(RECOVERY_PENDING_KEY)).resolves.toBe(pending);
+  });
+
+  test("manages only the exact recovery marker keys", async () => {
+    const h = createHarness();
+
+    await expect(h.storage.setItem(`${RECOVERY_PROOF_KEY}.backup`, "x")).rejects.toThrow(
+      "secure_storage_key_invalid",
+    );
+    await expect(h.storage.setItem("secondbrain.auth.recovery-proof.v2", "x")).rejects.toThrow(
+      "secure_storage_key_invalid",
+    );
+    await expect(h.storage.setItem("secondbrain.auth.recovery-pending", "x")).rejects.toThrow(
+      "secure_storage_key_invalid",
+    );
+    expect(h.generatedKeys()).toBe(0);
+  });
+
+  test("does not expose a plaintext recovery proof when lazy encryption is not durable", async () => {
+    const h = createHarness();
+    primeDeviceKey(h);
+    const proof = JSON.stringify({ userId: "u1", sessionId: "s1", issuedAt: "2026-09-06T00:00:00.000Z" });
+    h.values.set(RECOVERY_PROOF_KEY, proof);
+    (h.dependencies.backing.setItem as jest.Mock).mockImplementation(
+      async (key: string, value: string) => {
+        if (key !== RECOVERY_PROOF_KEY) h.values.set(key, value);
+      },
+    );
+
+    await expect(h.storage.getItem(RECOVERY_PROOF_KEY)).rejects.toThrow(
+      "secure_storage_write_failed",
+    );
+    expect(h.values.get(RECOVERY_PROOF_KEY)).toBe(proof);
   });
 
   test("keeps unowned import history delete-only", async () => {

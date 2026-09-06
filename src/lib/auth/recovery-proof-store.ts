@@ -3,6 +3,11 @@
 // the same lifetime or a restart would turn that mandatory reset session into
 // an ordinary signed-in session. The marker contains no token or credential.
 
+import {
+  getEncryptedNativeStorage,
+  type StringStorage,
+} from "../storage/encrypted-native-storage";
+
 export const RECOVERY_PROOF_KEY = "secondbrain.auth.recovery-proof.v1";
 export const RECOVERY_PENDING_KEY = "secondbrain.auth.recovery-pending.v1";
 
@@ -23,12 +28,6 @@ export interface RecoveryPending {
 export interface RecoverySessionLike {
   access_token?: string | null;
   user?: { id?: string | null } | null;
-}
-
-interface AsyncStorageLike {
-  getItem(key: string): Promise<string | null>;
-  setItem(key: string, value: string): Promise<void>;
-  removeItem(key: string): Promise<void>;
 }
 
 const BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -129,26 +128,15 @@ function isReactNativeRuntime(): boolean {
   return nav?.product === "ReactNative";
 }
 
-function nativeStorage(): AsyncStorageLike | null {
-  if (!isReactNativeRuntime()) return null;
-  try {
-    return require("@react-native-async-storage/async-storage").default as AsyncStorageLike;
-  } catch {
-    return null;
-  }
-}
-
 function webStorage(): Storage | null {
   if (typeof window === "undefined") return null;
   // Reading the global itself may throw in hardened/private browser contexts.
   return localStorage;
 }
 
-function requireRuntimeStorage(): { kind: "web"; store: Storage } | { kind: "native"; store: AsyncStorageLike } | null {
+function requireRuntimeStorage(): { kind: "web"; store: Storage } | { kind: "native"; store: StringStorage } | null {
   if (isReactNativeRuntime()) {
-    const store = nativeStorage();
-    if (!store) throw new Error("Recovery proof storage is unavailable on native");
-    return { kind: "native", store };
+    return { kind: "native", store: getEncryptedNativeStorage() };
   }
   const store = webStorage();
   return store ? { kind: "web", store } : null;
