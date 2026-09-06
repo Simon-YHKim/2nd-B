@@ -1,7 +1,11 @@
 // 사업자 정보 푸터의 두 가지 규율을 지킨다.
 //
-// 1. 전부 아니면 전무: 등록 전(null) 또는 일곱 칸 중 하나라도 비면 한 줄도 그리지
-//    않는다. 반쯤 채워진 법정 표시(전자상거래법 제10조)는 없는 것보다 나쁘다.
+// 1. 필수는 전부 아니면 전무 / 선택은 있으면 더한다:
+//    등록 전(null) 또는 **필수 다섯**(상호·대표·주소·등록번호·대표번호) 중 하나라도
+//    비면 한 줄도 그리지 않는다 - 반쯤 채워진 신원 표시(전자상거래법 제10조)는
+//    없는 것보다 나쁘다. **선택 둘**(통신판매업 신고번호·개인정보 보호책임자)은
+//    없을 수 있고, 없으면 그 줄만 빠진다. 2026-09-06 이전에는 일곱 칸 전부를
+//    요구했는데, 그러면 신고를 안 한 사업자는 나머지 넷까지 영원히 못 띄운다.
 // 2. 값은 지어내지 않는다: 저장소의 BUSINESS_INFO 는 Simon 이 등록 값을 넣기 전까지
 //    null 이어야 한다. 목업 플레이스홀더("(주)하양집"·"김세컨")가 코드로 새어
 //    들어오면 여기서 걸린다.
@@ -15,6 +19,8 @@ import { resolve } from "node:path";
 import {
   BUSINESS_FIELD_ORDER,
   BUSINESS_INFO,
+  BUSINESS_OPTIONAL_FIELDS,
+  BUSINESS_REQUIRED_FIELDS,
   businessFooterLines,
   type BusinessInfo,
   type BusinessLabels,
@@ -54,11 +60,30 @@ describe("businessFooterLines: 전부 아니면 전무", () => {
     expect(lines[3]).toEqual({ field: "bizNo", label: "사업자등록번호", value: "000-00-00000" });
   });
 
-  test("한 칸이라도 비면(공백 포함) 전체를 숨긴다", () => {
-    for (const field of BUSINESS_FIELD_ORDER) {
+  test("필수 칸이 비면(공백 포함) 전체를 숨긴다", () => {
+    for (const field of BUSINESS_REQUIRED_FIELDS) {
       const partial = { ...FULL, [field]: "   " };
       expect({ field, lines: businessFooterLines(partial, LABELS) }).toEqual({ field, lines: [] });
     }
+  });
+
+  test("선택 칸이 비면 그 줄만 빠지고 나머지는 뜬다", () => {
+    for (const field of BUSINESS_OPTIONAL_FIELDS) {
+      const partial = { ...FULL, [field]: "   " };
+      const fields = businessFooterLines(partial, LABELS).map((l) => l.field);
+      expect({ field, has: fields.includes(field), n: fields.length }).toEqual({ field, has: false, n: 6 });
+      // 남은 줄의 순서는 목업 순서 그대로다
+      expect(fields).toEqual(BUSINESS_FIELD_ORDER.filter((f) => f !== field));
+    }
+  });
+
+  test("선택 둘이 다 없어도 필수 다섯은 뜬다 (통신판매업 신고 전 사업자)", () => {
+    const lines = businessFooterLines({ ...FULL, mailOrderNo: "", privacyOfficer: "" }, LABELS);
+    expect(lines.map((l) => l.field)).toEqual([...BUSINESS_REQUIRED_FIELDS]);
+  });
+
+  test("필수와 선택은 일곱 칸을 정확히 나눈다", () => {
+    expect([...BUSINESS_REQUIRED_FIELDS, ...BUSINESS_OPTIONAL_FIELDS].sort()).toEqual([...BUSINESS_FIELD_ORDER].sort());
   });
 
   test("값의 앞뒤 공백은 잘라서 그린다", () => {
