@@ -47,6 +47,15 @@ libraries used under their respective licenses. The full list:
   vendored in #282 (2026-06-08); the other four were added for PIXEL-CLAY
   stage 2 (2026-08-20), when Galmuri became the body face rather than a title
   face. Galmuri11 is the only face upstream ships a Bold for.
+- `Pretendard-Regular.otf` (native) + `Pretendard-subset.woff2` (web) —
+  Pretendard (c) Kil Hyung-jin, **SIL OFL 1.1**. The reading face behind the
+  옵션 readable-font preference and the screens not yet on Galmuri. The web
+  subset was added 2026-09-06 (Simon decision Q-260905-06): the OTF gzips to
+  1,046 KB over the wire and was the largest single asset on the first-paint
+  path, while the subset is 613 KB and ships already compressed. Native keeps
+  the OTF because expo-font loads ttf/otf there and cannot use woff2. Rebuild
+  both with `python scripts/build-font-subsets.py`, which uses the same
+  character-set recipe as Galmuri.
 - Press Start 2P — SIL OFL, loaded via
   `@expo-google-fonts/press-start-2p` (^0.4.1)
 - Roboto (400 / 500 / 700) and Roboto Mono — **removed 2026-09-05.** They were
