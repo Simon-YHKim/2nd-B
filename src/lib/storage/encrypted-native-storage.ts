@@ -82,6 +82,8 @@ const MANAGED_EXACT_KEYS = new Set([
   "capture.preauthPending.v1",
   "llm.auditWriteOutbox.v1",
   "llm.auditWriteOutbox.recovery.v1",
+  "secondbrain.auth.recovery-pending.v1",
+  "secondbrain.auth.recovery-proof.v1",
   "secondB_naver_oauth_state",
 ]);
 const DELETE_ONLY_KEYS = new Set(["import.history"]);
