@@ -61,13 +61,20 @@ export const BUSINESS_REQUIRED_FIELDS: readonly BusinessField[] = [
   "ceo",
   "address",
   "bizNo",
-  "phone",
 ];
 
-/** 없을 수 있는 칸. 비면 그 줄만 빠지고 나머지는 그대로 뜬다. */
+/**
+ * 없을 수 있는 칸. 비면 그 줄만 빠지고 나머지는 그대로 뜬다.
+ *
+ * `phone` 이 여기 있는 것은 **Simon 지시**다 (2026-09-06: 대표번호 "생략").
+ * ⚠ 전화번호는 전자상거래법 제10조 제1항이 열거하는 표시 항목이다. 지금 화면에는
+ * 그 줄이 없다 - 값이 생기면 여기 넣기만 하면 그 줄이 살아난다. 이건 코드가 정할
+ * 일이 아니라 사업자가 정할 일이라 지시대로 두고 사실만 적어 둔다.
+ */
 export const BUSINESS_OPTIONAL_FIELDS: readonly BusinessField[] = [
   "mailOrderNo",
   "privacyOfficer",
+  "phone",
 ];
 
 export type BusinessLabels = Record<BusinessField, string>;
@@ -75,8 +82,22 @@ export type BusinessLabels = Record<BusinessField, string>;
 /**
  * 등록된 사업자 정보. **null = 아직 등록 전** -> 푸터를 그리지 않는다.
  * 실제 값은 Simon 만 넣는다. 추정·목업 값 금지.
+ *
+ * 2026-09-06 Simon 이 등록 값을 전달했다. 넣지 않은 셋은 **없어서** 비운 것이다:
+ *   · phone        - 지시로 생략(위 BUSINESS_OPTIONAL_FIELDS 주석 참조)
+ *   · mailOrderNo  - 통신판매업 신고번호 미전달
+ *   · privacyOfficer - 미전달(개인정보 처리방침에는 별도로 공개된다)
+ * 우편번호(14081)는 별도 칸이 없어 주소 앞에 한국 표준 표기로 붙였다.
  */
-export const BUSINESS_INFO: BusinessInfo | null = null;
+export const BUSINESS_INFO: BusinessInfo | null = {
+  company: "하양 프로덕션",
+  ceo: "배소하",
+  address: "(14081) 경기도 안양시 동안구 귀인로 98번길 12",
+  bizNo: "205-10-98603",
+  mailOrderNo: "",
+  privacyOfficer: "",
+  phone: "",
+};
 
 export interface BusinessFooterLine {
   field: BusinessField;
