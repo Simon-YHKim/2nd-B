@@ -170,8 +170,10 @@ jobs:
       # Push-triggered diagnostic builds on main are unaffected.
       - name: Refuse workflow_dispatch off pinned refs (tag or release/* only)
         if: github.event_name == 'workflow_dispatch' && github.ref_type != 'tag' && !startsWith(github.ref_name, 'release/')
+        env:
+          DISPATCH_REF_NAME: ${{ github.ref_name }}
         run: |
-          echo "::error::Dispatch this workflow on a pinned tag or release/* branch only (got '${{ github.ref_name }}'). Moving branches (main, feature/*) drift between the SHA you gated and the SHA this build checks out."
+          printf '%s\n' "::error::Dispatch this workflow on a pinned tag or release/* branch only (got '$DISPATCH_REF_NAME'). Moving branches (main, feature/*) drift between the SHA you gated and the SHA this build checks out."
           exit 1
 
       - name: Validate optional analytics variables
@@ -180,10 +182,10 @@ jobs:
           set -euo pipefail
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Setup Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
           cache: "npm"
@@ -222,13 +224,13 @@ jobs:
           echo "Real google-services.json provisioned and validated."
 
       - name: Setup Java 17 (Temurin)
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: "temurin"
           java-version: "17"
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
 
       - name: Expo prebuild (generate android/)
         run: npx expo prebuild -p android --no-install
@@ -244,17 +246,30 @@ jobs:
       # the build still produces an installable APK for INTERNAL / sideload
       # TESTING ONLY. Store-submittable AAB files are built by EAS production.
       - name: Resolve signing keystore
-        id: signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
+          umask 077
           KEYSTORE_PATH="$RUNNER_TEMP/release.keystore"
-          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+          STORE_PASSWORD_FILE="$RUNNER_TEMP/release-store-password"
+          KEY_ALIAS_FILE="$RUNNER_TEMP/release-key-alias"
+          KEY_PASSWORD_FILE="$RUNNER_TEMP/release-key-password"
+          if [ -n "${ANDROID_KEYSTORE_BASE64:-}" ]; then
+            for secret_name in ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+              if [ -z "${!secret_name:-}" ]; then
+                printf '%s\n' "::error::$secret_name is required when ANDROID_KEYSTORE_BASE64 is set."
+                exit 1
+              fi
+            done
             echo "Using real keystore from secrets (store-grade signing)."
-            echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$KEYSTORE_PATH"
-            echo "store_password=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" >> "$GITHUB_OUTPUT"
-            echo "key_alias=${{ secrets.ANDROID_KEY_ALIAS }}" >> "$GITHUB_OUTPUT"
-            echo "key_password=${{ secrets.ANDROID_KEY_PASSWORD }}" >> "$GITHUB_OUTPUT"
-            echo "is_real=true" >> "$GITHUB_OUTPUT"
+            printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_PATH"
+            printf '%s' "$ANDROID_KEYSTORE_PASSWORD" > "$STORE_PASSWORD_FILE"
+            printf '%s' "$ANDROID_KEY_ALIAS" > "$KEY_ALIAS_FILE"
+            printf '%s' "$ANDROID_KEY_PASSWORD" > "$KEY_PASSWORD_FILE"
           else
             echo "::warning::No ANDROID_KEYSTORE_BASE64 secret found. Generating a THROWAWAY test keystore for this diagnostic APK."
             keytool -genkeypair -v \
@@ -263,22 +278,43 @@ jobs:
               -keyalg RSA -keysize 2048 -validity 10000 \
               -storepass android -keypass android \
               -dname "CN=2nd-Brain Test, OU=CI, O=2nd-Brain, L=Seoul, S=Seoul, C=KR"
-            echo "store_password=android" >> "$GITHUB_OUTPUT"
-            echo "key_alias=testkey" >> "$GITHUB_OUTPUT"
-            echo "key_password=android" >> "$GITHUB_OUTPUT"
-            echo "is_real=false" >> "$GITHUB_OUTPUT"
+            printf '%s' 'android' > "$STORE_PASSWORD_FILE"
+            printf '%s' 'testkey' > "$KEY_ALIAS_FILE"
+            printf '%s' 'android' > "$KEY_PASSWORD_FILE"
           fi
-          echo "keystore_path=$KEYSTORE_PATH" >> "$GITHUB_OUTPUT"
+          chmod 600 "$KEYSTORE_PATH" "$STORE_PASSWORD_FILE" "$KEY_ALIAS_FILE" "$KEY_PASSWORD_FILE"
 
       - name: Build diagnostic APK (release)
         working-directory: android
         run: |
           set -euo pipefail
+          KEYSTORE_PATH="$RUNNER_TEMP/release.keystore"
+          STORE_PASSWORD_FILE="$RUNNER_TEMP/release-store-password"
+          KEY_ALIAS_FILE="$RUNNER_TEMP/release-key-alias"
+          KEY_PASSWORD_FILE="$RUNNER_TEMP/release-key-password"
+          cleanup_signing_files() {
+            rm -f "$KEYSTORE_PATH" "$STORE_PASSWORD_FILE" "$KEY_ALIAS_FILE" "$KEY_PASSWORD_FILE"
+          }
+          trap cleanup_signing_files EXIT
+          for signing_file in "$KEYSTORE_PATH" "$STORE_PASSWORD_FILE" "$KEY_ALIAS_FILE" "$KEY_PASSWORD_FILE"; do
+            if [ ! -s "$signing_file" ]; then
+              printf '%s\n' "::error::Required signing material was not provisioned."
+              exit 1
+            fi
+          done
+          STORE_PASSWORD_WITH_SENTINEL="$(cat "$STORE_PASSWORD_FILE"; printf x)"
+          KEY_ALIAS_WITH_SENTINEL="$(cat "$KEY_ALIAS_FILE"; printf x)"
+          KEY_PASSWORD_WITH_SENTINEL="$(cat "$KEY_PASSWORD_FILE"; printf x)"
+          STORE_PASSWORD="${STORE_PASSWORD_WITH_SENTINEL%x}"
+          KEY_ALIAS="${KEY_ALIAS_WITH_SENTINEL%x}"
+          KEY_PASSWORD="${KEY_PASSWORD_WITH_SENTINEL%x}"
           ./gradlew assembleRelease \
-            -Pandroid.injected.signing.store.file="${{ steps.signing.outputs.keystore_path }}" \
-            -Pandroid.injected.signing.store.password="${{ steps.signing.outputs.store_password }}" \
-            -Pandroid.injected.signing.key.alias="${{ steps.signing.outputs.key_alias }}" \
-            -Pandroid.injected.signing.key.password="${{ steps.signing.outputs.key_password }}"
+            -Pandroid.injected.signing.store.file="$KEYSTORE_PATH" \
+            -Pandroid.injected.signing.store.password="$STORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+          unset STORE_PASSWORD KEY_ALIAS KEY_PASSWORD \
+            STORE_PASSWORD_WITH_SENTINEL KEY_ALIAS_WITH_SENTINEL KEY_PASSWORD_WITH_SENTINEL
 
       - name: Collect and rename artifacts
         id: collect
@@ -314,7 +350,7 @@ jobs:
           echo "APK ABI verified: $SELECTED_ABI"
 
       - name: Upload workflow artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: 2ndb-android-${{ github.sha }}
           path: ${{ steps.collect.outputs.dir }}/*
