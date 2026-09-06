@@ -6,6 +6,7 @@ const ENCODED_CONTROL_OR_BACKSLASH = /%(?:0[0-9a-f]|1[0-9a-f]|5c|7f|8[0-9a-f]|9[
 const DNS_AUTHORITY = /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*$/u;
 const DOI_TOKEN = /^10\.[0-9]{4,9}\/[-._;()/:A-Za-z0-9]+$/u;
 const DOI_AMBIGUOUS_PATH = /(?:^|\/)\.{1,2}(?:\/|$)/u;
+const DOI_RESOLVER_REFERENCE = /^[Hh][Tt][Tt][Pp](?:[Ss])?:\/\/[Dd][Oo][Ii]\.[Oo][Rr][Gg]\/(.+)$/u;
 
 export interface KnowledgeSourceTarget {
   doi?: unknown;
@@ -80,6 +81,21 @@ function safeDoiToken(value: unknown): string | null {
 export function safeDoiHref(value: unknown): string | null {
   const doi = safeDoiToken(value);
   return doi ? `https://doi.org/${doi}` : null;
+}
+
+/**
+ * Accept an evidence DOI as either its raw identifier or the exact doi.org URL.
+ * Legacy http://doi.org values are upgraded to the same fixed HTTPS resolver;
+ * no other origin, credentials, port, query, fragment, or encoded identifier
+ * is accepted.
+ */
+export function safeDoiReferenceHref(value: unknown): string | null {
+  const rawDoiHref = safeDoiHref(value);
+  if (rawDoiHref) return rawDoiHref;
+  if (typeof value !== "string") return null;
+
+  const resolverMatch = DOI_RESOLVER_REFERENCE.exec(value);
+  return resolverMatch ? safeDoiHref(resolverMatch[1]) : null;
 }
 
 /**

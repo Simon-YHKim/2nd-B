@@ -4,6 +4,7 @@ import { join } from "node:path";
 import {
   resolveKnowledgeSourceLink,
   safeDoiHref,
+  safeDoiReferenceHref,
   safeHttpsHref,
 } from "../source-link";
 
@@ -95,6 +96,51 @@ describe("safeDoiHref", () => {
     "",
   ])("rejects a non-canonical DOI token: %s", (value) => {
     expect(safeDoiHref(value)).toBeNull();
+  });
+});
+
+describe("safeDoiReferenceHref", () => {
+  test("accepts a raw DOI or the exact doi.org HTTPS form", () => {
+    expect(safeDoiReferenceHref("10.1037/0022-3514.52.1.81")).toBe(
+      "https://doi.org/10.1037/0022-3514.52.1.81",
+    );
+    expect(safeDoiReferenceHref("https://doi.org/10.1037/0022-3514.52.1.81")).toBe(
+      "https://doi.org/10.1037/0022-3514.52.1.81",
+    );
+    expect(safeDoiReferenceHref("HTTPS://DOI.ORG/10.1016/S0147-1767(97)00034-5")).toBe(
+      "https://doi.org/10.1016/S0147-1767(97)00034-5",
+    );
+  });
+
+  test("upgrades only the exact legacy http doi.org resolver", () => {
+    expect(safeDoiReferenceHref("http://doi.org/10.1037/example")).toBe(
+      "https://doi.org/10.1037/example",
+    );
+    expect(safeDoiReferenceHref("HTTP://DOI.ORG/10.1037/example")).toBe(
+      "https://doi.org/10.1037/example",
+    );
+  });
+
+  test.each([
+    "javascript:alert(1)",
+    "data:text/html,evil",
+    "file:///tmp/paper",
+    "http://evil.example/10.1037/example",
+    "https://evil.example/10.1037/example",
+    "https://doi.org.evil.example/10.1037/example",
+    "https://doi.org@evil.example/10.1037/example",
+    "https://user@doi.org/10.1037/example",
+    "https://doi.org:443/10.1037/example",
+    "https:doi.org/10.1037/example",
+    "//doi.org/10.1037/example",
+    "https://dοi.org/10.1037/example",
+    "https://doi.org/10.1037/example?next=https://evil.example",
+    "https://doi.org/10.1037/example#evil",
+    "https://doi.org/10.1037%2Fexample",
+    "https://doi.org/10.1037/../evil",
+    "https://doi.org/10.1037/example\n",
+  ])("rejects a non-exact or unsafe DOI reference: %s", (value) => {
+    expect(safeDoiReferenceHref(value)).toBeNull();
   });
 });
 
