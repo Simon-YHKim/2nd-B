@@ -7,15 +7,19 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { corsPreflight, jsonResponse, userIdFromJwt } from "../_shared/llm-proxy-common.ts";
 import type { PublicDataProvider } from "../_shared/public-data-proxy.ts";
 import {
+  PublicDataRequestBodyError,
   PublicDataProxyError,
   buildUpstreamUrl,
   parseProviderBody,
   parsePublicDataRequest,
   providerSecretEnv,
+  readJsonRequestBounded,
   readTextBodyBounded,
 } from "../_shared/public-data-proxy.ts";
 
 const FETCH_TIMEOUT_MS = 7000;
+const MAX_REQUEST_BYTES = 4096;
+const MAX_JSON_DEPTH = 3;
 const MAX_UPSTREAM_BYTES = 262_144;
 const DAILY_USER_CAP: Record<PublicDataProvider, number> = {
   exim_fx: 20,
@@ -40,8 +44,11 @@ Deno.serve(async (req: Request) => {
 
   let body: unknown;
   try {
-    body = await req.json();
-  } catch {
+    body = await readJsonRequestBounded(req, MAX_REQUEST_BYTES, MAX_JSON_DEPTH);
+  } catch (error) {
+    if (error instanceof PublicDataRequestBodyError) {
+      return jsonResponse(req, { error: error.code }, error.status);
+    }
     return jsonResponse(req, { error: "invalid_json" }, 400);
   }
   const parsedRequest = parsePublicDataRequest(body);
