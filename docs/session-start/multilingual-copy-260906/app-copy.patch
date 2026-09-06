@@ -1,0 +1,1109 @@
+--- a/locales/es/deepspace.json
++++ b/locales/es/deepspace.json
+@@ -920,15 +920,15 @@
+       "a11yRevokeImport": "Retirar la importación de {{name}}"
+     },
+     "ttfv": {
+-      "pageTitle": "Una primera reflexión sobre ti",
++      "pageTitle": "Empieza con una experiencia",
+       "stageA11y": "Ilustración de la estrella polar y un tema, no una medición del brillo",
+       "defaultInsight": {
+         "star": "Relaciones",
+         "phrase": "da el primer paso"
+       },
+       "secondbName": "SecondB",
+-      "insightLead": "Podrías ser alguien que ",
+-      "insightTail": ".",
++      "insightLead": "¿Sueles ser quien ",
++      "insightTail": "?",
+       "sub": "Es una pregunta para empezar, no una conclusión basada en tus registros.",
+       "grounds": "Acerca de esta pregunta",
+       "affirm": "Es cierto",
+--- a/locales/es/secondb.json
++++ b/locales/es/secondb.json
+@@ -1,7 +1,7 @@
+ {
+   "title": "SecondB",
+   "subtitle": "Pregunta sobre tu wiki y consulta las páginas usadas en cada respuesta.",
+-  "empty": "Prueba una pregunta como: \"¿Sobre qué he escrito más este mes?\"",
++  "empty": "Empieza una conversación. Por ejemplo: \"¿Qué temas se repiten en mis notas de este mes?\"",
+   "placeholder": "Pregúntale a SecondB...",
+   "inputA11y": "Pregúntale a SecondB",
+   "send": "Enviar",
+@@ -46,11 +46,11 @@
+       "¿Dónde se podría usar lo aprendido?",
+       "Busca lo que necesite más explicación.",
+       "¿Hay una fuente relacionada entre los materiales guardados?",
+-      "Un ejemplo podría aclararlo."
++      "¿Se te ocurre un ejemplo de la vida diaria?"
+     ],
+     "momo": [
+       "Añade una categoría al registro.",
+-      "Haz que sea fácil encontrar qué pasó y cuándo.",
++      "Anota qué pasó y cuándo para encontrarlo después.",
+       "Organiza los registros para encontrarlos después.",
+       "Agrupa las notas cortas por fecha."
+     ],
+--- a/locales/id/audit.json
++++ b/locales/id/audit.json
+@@ -5,7 +5,7 @@
+   "done": "SELESAI",
+   "complete": "Diriku yang dulu selesai",
+   "viewPersona": "Lihat ringkasan diri",
+-  "backToCapture": "Kembali ke Tangkap",
++  "backToCapture": "Kembali ke Simpan",
+   "interviewTitle": "Diriku yang dulu: wawancara diri",
+   "question": "Pertanyaan {{n}} / {{total}}",
+   "placeholder": "Tulis apa yang teringat.",
+--- a/locales/id/capture.json
++++ b/locales/id/capture.json
+@@ -6,16 +6,16 @@
+     "fileRequired": "Pilih file atau tempel teks yang dapat dibaca sebelum menyimpan.",
+     "ocrRequired": "Pilih foto dan tinjau teks yang diekstrak sebelum menyimpan.",
+     "journalLocked": "Capai Lv{{level}} sebelum menyimpan entri jurnal.",
+-    "journalLimit": "Entri jurnal gratis sudah habis. Mode tangkap lain masih tersedia.",
++    "journalLimit": "Jatah jurnal gratis sudah habis. Kamu masih bisa menyimpan dengan cara lain.",
+     "saving": "Penyimpanan sedang berlangsung.",
+     "voiceRequired": "Tulis teks memo suara sebelum menyimpan.",
+     "todoRequired": "Tulis tugas sebelum menyimpan.",
+     "fourwRequired": "Isi kotak Apa dulu"
+   },
+   "savedTitleFallback": "Catatan hari ini",
+-  "loading": "Memuat tangkapan...",
++  "loading": "Memuat catatan...",
+   "hero": {
+-    "eyebrow": "01. Tangkapan",
++    "eyebrow": "01. Simpan",
+     "title": "Simpan catatan atau sumber",
+     "subtitle": "Jurnal · catatan · tautan · foto · file",
+     "speechSaved": "Tersimpan. Kamu bisa melihatnya di graf.",
+@@ -33,11 +33,11 @@
+       "accessibilityLabel": "Pilihan wiki"
+     },
+     "mode": {
+-      "accessibilityLabel": "Mode tangkapan",
++      "accessibilityLabel": "Cara menambahkan catatan",
+       "more": "Lainnya",
+       "moreHint": "Menampilkan opsi catatan, tautan, foto, dan file.",
+       "less": "Lebih sedikit",
+-      "lessHint": "Menyembunyikan opsi tangkapan tambahan dan kembali ke Jurnal jika diperlukan."
++      "lessHint": "Menyembunyikan pilihan tambahan dan kembali ke Jurnal jika diperlukan."
+     }
+   },
+   "tracks": {
+@@ -99,7 +99,7 @@
+     "seeOcrGraphHint": "Membuka graf dan menandai catatan foto ini.",
+     "seeRecords": "Lihat catatanku",
+     "seeRecordsHint": "Membuka catatanmu agar kamu bisa menemukan entri ini lagi.",
+-    "captureMore": "Tangkap lagi",
++    "captureMore": "Simpan bahan lain",
+     "recordsOwnership": "Entri ini tersimpan di Catatan. Kamu bisa membacanya lagi dan menyertakannya saat mengekspor.",
+     "recordsAiOptIn": "SecondB hanya menanggapi entri ini jika kamu menyalakan opsi tersebut.",
+     "storagePending": "Teks tersimpan, tetapi salinan file cadangan belum terunggah.",
+@@ -131,7 +131,7 @@
+     "limit": {
+       "title": "Entri jurnal gratis habis",
+       "body": "Kamu sudah menulis semua {{limit}} entri jurnal gratis. Semua yang telah kamu tulis tetap ada dan bisa dibaca kapan saja.",
+-      "helper": "Tangkapan catatan, tautan, file, dan foto tetap terbuka tanpa batas."
++      "helper": "Catatan, tautan, file, dan foto masih bisa disimpan tanpa batas."
+     },
+     "streak": {
+       "label": "Hari tercatat: {{count}}{{suffix}}",
+@@ -213,9 +213,9 @@
+     "placeholder": "tagar"
+   },
+   "feedback": {
+-    "accessibilityLabel": "Pemberitahuan umpan balik tangkapan",
++    "accessibilityLabel": "Pemberitahuan hasil penyimpanan",
+     "dismissHint": "Menutup pemberitahuan ini.",
+-    "retryHint": "Mencoba ulang tindakan tangkapan yang gagal."
++    "retryHint": "Mencoba lagi tindakan penyimpanan yang gagal."
+   },
+   "alerts": {
+     "common": {
+@@ -350,7 +350,7 @@
+     "startRecording": "Mulai merekam",
+     "maybeLater": "Nanti saja"
+   },
+-  "captureTab": "Tangkap",
++  "captureTab": "Simpan",
+   "formatsTab": "Format",
+   "importTab": "Impor",
+   "inboxTab": "Kotak masuk",
+--- a/locales/id/community.json
++++ b/locales/id/community.json
+@@ -10,7 +10,7 @@
+   "dmCta": "Buat tautan 1:1",
+   "dmShareMessage": "Ayo mengobrol 1:1 dengan saya di 2nd-Brain. Tautan ini berlaku sekali dan kedaluwarsa dalam 14 hari.",
+   "working": "Memproses...",
+-  "inviteModelNote": "Tidak ada pencarian pengguna. Orang hanya bisa masuk lewat tautan yang Anda bagikan. Tautan 1:1 berlaku sekali; tautan grup bisa dipakai ulang sampai kedaluwarsa (14 hari).",
++  "inviteModelNote": "Tidak ada pencarian pengguna. Orang hanya bisa masuk lewat tautan yang kamu bagikan. Tautan 1:1 berlaku sekali; tautan grup bisa dipakai ulang sampai kedaluwarsa (14 hari).",
+   "joinLinkToggle": "Punya tautan undangan?",
+   "joinLinkLabel": "Tautan undangan",
+   "joinLinkPlaceholder": "Tempel tautan atau kode undangan",
+--- a/locales/id/deepspace.json
++++ b/locales/id/deepspace.json
+@@ -138,7 +138,7 @@
+     "deleteCancel": "Batal",
+     "deleteConfirm": "Hapus",
+     "editSave": "Simpan",
+-    "actionFailed": "Perubahan gagal disimpan. Periksa koneksi Anda dan coba lagi.",
++    "actionFailed": "Perubahan gagal disimpan. Periksa koneksimu dan coba lagi.",
+     "assessmentBody": "Jawaban mentah dari survei laporan diri. Hasil yang tertata ada di layarnya sendiri.",
+     "assessmentCta": "Lihat hasil terbaru tes ini",
+     "kindJournal": "Jurnal",
+@@ -246,7 +246,7 @@
+     "tip": "Tinjau isi yang akan disimpan sebelum mengimpor.",
+     "sectionAssistant": "Hubungkan asisten AI",
+     "pending": "Menunggu",
+-    "sectionSources": "Sumber tangkapan",
++    "sectionSources": "Bahan tersimpan",
+     "notionValue": "Halaman dan basis data",
+     "obsidianValue": "Markdown lokal",
+     "healthLabel": "Kesehatan · Kalender",
+@@ -263,7 +263,7 @@
+     "a11yConnected": "terhubung",
+     "a11yConnect": "hubungkan",
+     "openImport": "Impor dari file",
+-    "openCapture": "Masukkan lewat tangkap",
++    "openCapture": "Tambahkan lewat halaman Simpan",
+     "a11yGo": "Buka impor untuk {{name}}",
+     "sources": {
+       "cal": {
+@@ -309,7 +309,7 @@
+     "findingMajority": "{{percent}}% catatanmu minggu ini tentang {{domain}}.",
+     "findingSpread": "Tidak ada satu area pun yang mengisi lebih dari setengah catatanmu minggu ini.",
+     "findingEmpty": "Belum ada yang kamu simpan minggu ini.",
+-    "sectionDiscover": "Apa yang ditangkap berikutnya",
++    "sectionDiscover": "Apa yang ingin kamu simpan berikutnya",
+     "discoverLead": "Lihat minat yang naik di catatan terbarumu."
+   },
+   "data": {
+@@ -920,15 +920,15 @@
+       "a11yRevokeImport": "Cabut impor {{name}}"
+     },
+     "ttfv": {
+-      "pageTitle": "Refleksi pertama tentang dirimu",
++      "pageTitle": "Mulai dari satu pengalaman",
+       "stageA11y": "Ilustrasi bintang utara dan sebuah topik, bukan hasil pengukuran kecerahan",
+       "defaultInsight": {
+         "star": "Relasi",
+-        "phrase": "lebih dulu mendekati"
++        "phrase": "memulai percakapan"
+       },
+       "secondbName": "SecondB",
+-      "insightLead": "Kamu mungkin orang yang ",
+-      "insightTail": ".",
++      "insightLead": "Apakah kamu biasanya orang yang ",
++      "insightTail": "?",
+       "sub": "Ini pertanyaan pembuka, bukan kesimpulan berdasarkan catatanmu.",
+       "grounds": "Tentang pertanyaan ini",
+       "affirm": "Benar",
+--- a/locales/id/formats.json
++++ b/locales/id/formats.json
+@@ -50,7 +50,7 @@
+   },
+   "actions": {
+     "addFormat": "Tambah format",
+-    "goCapture": "Mulai tangkap",
++    "goCapture": "Mulai menyimpan",
+     "edit": "Ubah",
+     "delete": "Hapus",
+     "cancel": "Batal",
+@@ -98,7 +98,7 @@
+     "descriptionKoPlaceholder": "Satu kalimat dalam bahasa Korea",
+     "descriptionEnPlaceholder": "Satu kalimat dalam bahasa Inggris",
+     "sourceType": "Tipe sumber",
+-    "sourceTypeHint": "Pilih cara tangkapan dengan format ini disimpan.",
++    "sourceTypeHint": "Pilih jenis bahan yang akan disimpan dengan format ini.",
+     "filingArea": "Area pengarsipan",
+     "noArea": "Belum ada area",
+     "autoMatchLinks": "Cocokkan tautan otomatis",
+@@ -109,7 +109,7 @@
+     "savedFolder": "Folder tersimpan",
+     "savedFolderHint": "Nama folder opsional. Contoh: tools/",
+     "detailsToSave": "Detail yang disimpan",
+-    "detailsToSaveHint": "Detail yang diekstrak dan disimpan dari setiap tangkapan.",
++    "detailsToSaveHint": "Rincian yang diambil dan disimpan dari setiap bahan.",
+     "noneYet": "Belum ada",
+     "detailNamePlaceholder": "Nama detail (mis. area topik)",
+     "removeDetail": "Hapus detail",
+@@ -145,7 +145,7 @@
+   "add": {
+     "title": "Tambah format",
+     "body": "Jelaskan materi dan cara kamu mengarsipkannya. SecondB menyarankan panduan pengarsipan yang bisa dipakai ulang.",
+-    "placeholder": "mis. Episode podcast - tangkap tamu dan klaim utama",
++    "placeholder": "mis. Episode podcast - catat tamu dan pernyataan utamanya",
+     "draft": "Rancang panduan pengarsipan dengan SecondB",
+     "drafting": "Merancang…",
+     "errorNeedDetail": "Tidak bisa merancang panduan pengarsipan. Tambahkan detail dan coba lagi.",
+--- a/locales/id/home.json
++++ b/locales/id/home.json
+@@ -36,14 +36,14 @@
+   },
+   "menu": {
+     "graph": "Graf",
+-    "capture": "Tangkap",
++    "capture": "Simpan",
+     "secondb": "SecondB",
+     "profile": "Aku"
+   },
+   "ds": {
+     "dock": {
+       "home": "Beranda",
+-      "capture": "Tangkap",
++      "capture": "Simpan",
+       "chat": "SecondB",
+       "ops": "Asisten",
+       "account": "Aku",
+@@ -168,7 +168,7 @@
+       "communityEntry": "Komunitas"
+     },
+     "capture": {
+-      "title": "Tangkap",
++      "title": "Simpan",
+       "subtitle": "Pilih format untuk menyimpan catatan.",
+       "modes": {
+         "text": "Teks",
+@@ -192,11 +192,11 @@
+         },
+         "who": {
+           "label": "Siapa",
+-          "hint": "Saya, bersama tim"
++          "hint": "Aku, bersama tim"
+         },
+         "how": {
+           "label": "Bagaimana & mengapa",
+-          "hint": "Apa yang ada di benak Anda"
++          "hint": "Apa yang kamu pikirkan"
+         }
+       },
+       "linkHint": "Tempel tautan dan SecondB mengambil judul dan ringkasannya.",
+@@ -204,10 +204,10 @@
+       "photoOpen": "Buka kamera atau album",
+       "photoCaption": "Deskripsikan foto",
+       "voiceOpen": "Buka perekam",
+-      "voiceHint": "Tulis apa yang Anda katakan",
++      "voiceHint": "Tulis apa yang kamu katakan",
+       "todoHint": "Tugas",
+       "todoAdd": "Tambah tugas",
+-      "banner": "Begitu Anda menyimpannya, SecondB memilahnya ke bintang dan tag yang tepat.",
++      "banner": "Saat disimpan, SecondB menambahkan bintang dan tag terkait.",
+       "save": "Simpan",
+       "saving": "Menyimpan",
+       "saved": "Tersimpan",
+@@ -408,7 +408,7 @@
+       "introBody": "Coba beberapa kemungkinan. Pilih yang ingin kamu lanjutkan menjadi langkah berikutnya.",
+       "sectionAngles": "Ide dari SecondB",
+       "sectionSteps": "Pilihan langkah berikutnya",
+-      "toCapture": "Pindahkan ke Tangkap",
++      "toCapture": "Pindahkan ke Simpan",
+       "more": "Lainnya bersama SecondB"
+     },
+     "audit": {
+--- a/locales/id/iden.json
++++ b/locales/id/iden.json
+@@ -1,5 +1,5 @@
+ {
+-  "loading": "Memuat ekspor identitas Anda...",
++  "loading": "Memuat ekspor identitas kamu...",
+   "hero": {
+     "eyebrow": "Ekspor identitas",
+     "title": "Ringkasan dirimu dalam satu file",
+@@ -11,18 +11,18 @@
+   },
+   "generate": {
+     "button": "Buat IDEN saya",
+-    "accessibilityHint": "Membuat berkas identitas dari data Anda yang tersimpan."
++    "accessibilityHint": "Membuat berkas identitas dari data kamu yang tersimpan."
+   },
+   "result": {
+-    "title": "IDEN Anda siap",
+-    "hint": "Tempel ke ChatGPT, Gemini, atau Claude untuk memberi konteks Anda. Permintaan Anda ada di paling bawah.",
++    "title": "IDEN kamu siap",
++    "hint": "Tempel ke ChatGPT, Gemini, atau Claude untuk memberi konteks kamu. Permintaan kamu ada di paling bawah.",
+     "copy": "Salin .iden",
+     "copied": "Disalin ke papan klip",
+     "share": "Bagikan",
+     "openSheet": "Buka lembar satu halaman",
+     "close": "Tutup"
+   },
+-  "error": "Tidak dapat membuat IDEN Anda. Segarkan dan coba lagi.",
++  "error": "Tidak dapat membuat IDEN kamu. Segarkan dan coba lagi.",
+   "entry": {
+     "eyebrow": "Ekspor identitas",
+     "body": "Ekspor ringkasan dirimu sebagai file untuk asisten AI dan profil satu halaman.",
+--- a/locales/id/inbox.json
++++ b/locales/id/inbox.json
+@@ -3,11 +3,11 @@
+   "briefSafetyTitle": "Pemberitahuan ringkasan sumber",
+   "briefTooLong": "Sumber asli tidak diubah. Sumber ini melebihi batas saat ini untuk satu permintaan ringkasan. Mengulangi permintaan yang sama tidak akan menyelesaikan masalah.",
+   "title": "Kotak Masuk",
+-  "subtitle": "Semua yang kamu tangkap. Ketuk untuk pratinjau.",
+-  "captureMore": "Tangkap lagi",
++  "subtitle": "Semua bahan yang kamu simpan. Ketuk untuk melihat isinya.",
++  "captureMore": "Tambah bahan",
+   "back": "Kembali ke jurnal",
+-  "empty": "Belum ada yang ditangkap. Ketuk Tangkap untuk menambah yang pertama.",
+-  "error": "Tidak bisa memuat tangkapanmu:",
++  "empty": "Belum ada bahan tersimpan. Ketuk Simpan untuk menambahkan yang pertama.",
++  "error": "Tidak bisa memuat bahan yang kamu simpan:",
+   "ingested": "Telah diproses",
+   "feedback": {
+     "noticeLabel": "Pemberitahuan umpan balik kotak masuk",
+@@ -33,10 +33,10 @@
+   "sourceBrief": "Ringkasan sumber",
+   "cannotDelete": "Tidak dapat dihapus",
+   "cannotDeleteBody": "Hapus halaman wiki yang dibuat dari sumber ini terlebih dahulu.",
+-  "deleteConfirmTitle": "Hapus tangkapan ini?",
++  "deleteConfirmTitle": "Hapus bahan ini?",
+   "deleteConfirmBody": "Berkas isi yang terlampir bisa tetap ada di akunmu. Item kotak masuk akan dihapus.",
+-  "captureDeleted": "Tangkapan dihapus.",
+-  "deleteError": "Tidak dapat menghapus tangkapan",
++  "captureDeleted": "Bahan dihapus.",
++  "deleteError": "Tidak bisa menghapus bahan",
+   "deleteErrorBody": "Coba lagi sebentar lagi. Jika terus gagal, segarkan lalu hapus lagi.",
+   "wikiError": "Tidak dapat membuat halaman wiki",
+   "wikiErrorBody": "Coba lagi sebentar lagi. Jika terus gagal, buat dulu ringkasan dan 4 pertanyaan, lalu coba lagi.",
+@@ -44,10 +44,10 @@
+   "eyebrow": "Kotak masuk",
+   "heroTitle": "Tinjau catatan yang disimpan",
+   "heroSubtitle": "Ringkasan · pertanyaan · halaman wiki",
+-  "addSourceHint": "Membuka tangkapan untuk menambah sumber lain.",
++  "addSourceHint": "Membuka halaman Simpan untuk menambahkan sumber lain.",
+   "retryLabel": "Coba muat kotak masuk lagi",
+   "tryAgain": "Coba lagi",
+-  "firstCaptureLabel": "Tangkap sumber pertamamu",
+-  "firstCaptureHint": "Membuka tangkapan untuk menyimpan sumber pertamamu.",
+-  "firstCapture": "Tangkap yang pertama"
++  "firstCaptureLabel": "Simpan sumber pertamamu",
++  "firstCaptureHint": "Membuka halaman Simpan untuk menambahkan sumber pertama.",
++  "firstCapture": "Simpan yang pertama"
+ }
+--- a/locales/id/index.json
++++ b/locales/id/index.json
+@@ -1,7 +1,7 @@
+ {
+   "villageQuiet": "Desa sedang sepi",
+   "firstPiece": "Simpan catatan pertama",
+-  "firstPieceHint": "Membuka Tangkap untuk menyimpan catatan pertama",
++  "firstPieceHint": "Membuka halaman Simpan untuk menambahkan catatan pertama",
+   "lookFirst": "Lihat-lihat dulu",
+   "lookFirstLabel": "Lihat-lihat dulu",
+   "dismissFirstRun": "Menutup kartu awal",
+--- a/locales/id/insights.json
++++ b/locales/id/insights.json
+@@ -11,7 +11,7 @@
+       "title": "Polanya masih sedikit",
+       "subtitle": "Tambahkan catatan dari beberapa hari untuk melihat polanya",
+       "speech": "Belum cukup catatan untuk melihat selera dan hal yang berulang.",
+-      "action": "Buka Tangkap"
++      "action": "Buka Simpan"
+     }
+   },
+   "hero": {
+--- a/locales/id/interview.json
++++ b/locales/id/interview.json
+@@ -19,13 +19,13 @@
+   "screenerSubtitle": "Pertanyaan melihat topik yang sama dari beberapa sisi agar jawabanmu lebih jelas.",
+   "reflectErrorBody": "Jawabanmu masih ada di sini. Coba lagi sebentar lagi.",
+   "loopCheck": {
+-    "stuckLoop": "Hal yang terus Anda pikirkan itu, apakah memberi Anda sesuatu yang baru, atau Anda selalu sampai pada kesimpulan yang sama?",
+-    "friendView": "Apa yang akan Anda katakan kepada teman dekat yang berada dalam situasi yang persis sama?",
+-    "setAside": "Apa yang berubah jika Anda menyisihkan pikiran ini selama lima menit?"
++    "stuckLoop": "Hal yang terus kamu pikirkan itu, apakah memberi kamu sesuatu yang baru, atau kamu selalu sampai pada kesimpulan yang sama?",
++    "friendView": "Apa yang akan kamu katakan kepada teman dekat yang berada dalam situasi yang persis sama?",
++    "setAside": "Apa yang berubah jika kamu menyisihkan pikiran ini selama lima menit?"
+   },
+   "drill": {
+     "opening": "Mulai dari periode hidup yang mana? Satu adegan yang terlintas sudah cukup.",
+-    "placeholder": "Tulis sebanyak atau sesedikit yang Anda mau",
++    "placeholder": "Tulis sebanyak atau sesedikit yang kamu mau",
+     "send": "Kirim",
+     "thinking": "Menyiapkan pertanyaan…",
+     "enough": "Cukup untuk sekarang",
+--- a/locales/id/manual.json
++++ b/locales/id/manual.json
+@@ -15,7 +15,7 @@
+   "glossary": "Arti istilah",
+   "recentlyAdded": "Baru ditambahkan",
+   "leavePiece": "Tulis catatan hari ini",
+-  "leavePieceHint": "Membuka Tangkap untuk menyimpan catatan hari ini.",
++  "leavePieceHint": "Membuka halaman Simpan untuk menambahkan catatan hari ini.",
+   "getStarted": "Mulai",
+   "getStartedHint": "Membuka layar pendaftaran.",
+   "permissions": "Apa yang diakses aplikasi",
+--- a/locales/id/notFound.json
++++ b/locales/id/notFound.json
+@@ -12,8 +12,8 @@
+   "destinations": {
+     "title": "Tujuan umum",
+     "capture": {
+-      "label": "Tangkap",
+-      "hint": "Membuka tangkapan dari halaman tidak ditemukan."
++      "label": "Simpan",
++      "hint": "Membuka halaman Simpan dari halaman yang tidak ditemukan."
+     },
+     "audit": {
+       "label": "Aku masa lalu",
+--- a/locales/id/permissions.json
++++ b/locales/id/permissions.json
+@@ -37,7 +37,7 @@
+     },
+     "cameraPhoto": {
+       "name": "Kamera / Galeri foto",
+-      "why": "Opsional, untuk tangkapan teks dari gambar saja. Diminta saat kamu memilih tindakan foto; tolak dan sisa aplikasi tetap berfungsi."
++      "why": "Opsional, untuk membaca teks dari gambar. Izin diminta saat kamu memilih foto. Fitur lain tetap bisa dipakai jika kamu menolaknya."
+     },
+     "microphone": {
+       "name": "Mikrofon",
+--- a/locales/id/persona.json
++++ b/locales/id/persona.json
+@@ -2,7 +2,7 @@
+   "loading": "Memuat ringkasan dirimu…",
+   "errorTitle": "Ringkasan dirimu belum bisa dibuat",
+   "tryAgain": "Coba lagi",
+-  "backToCapture": "Kembali ke Tangkap",
++  "backToCapture": "Kembali ke Simpan",
+   "eyebrow": "07. Ringkasan diri",
+   "notEnough": "Belum cukup catatan",
+   "startRelCheck": "Mulai cek relasi · 3 mnt",
+--- a/locales/id/ratifications.json
++++ b/locales/id/ratifications.json
+@@ -24,7 +24,7 @@
+     "loadError": "Tidak bisa memuat ulasanmu. Coba lagi sebentar lagi.",
+     "retry": "Coba lagi",
+     "empty": "Belum ada yang perlu diulas. Simpan lebih banyak dan koneksi akan muncul.",
+-    "goCapture": "Buka layar tangkap",
++    "goCapture": "Buka halaman Simpan",
+     "toReview": "{{n}} untuk diulas",
+     "a11yOpen": "Lihat detail {{title}}",
+     "dismiss": "Abaikan",
+--- a/locales/id/records.json
++++ b/locales/id/records.json
+@@ -3,7 +3,7 @@
+   "eyebrowVillage": "{{village}} · catatan",
+   "titleRoot": "Baca lagi catatan yang kamu simpan",
+   "titleVillage": "Catatan di bintang ini",
+-  "subtitleRoot": "Jurnal, tangkapan, asesmen, dan inspirasi dalam satu tempat",
++  "subtitleRoot": "Jurnal, catatan tersimpan, penilaian, dan ide dalam satu tempat",
+   "subtitleVillage": "Hanya catatan yang terkumpul di bawah bintang ini",
+   "searchPlaceholder": "Cari catatan",
+   "searchLabel": "Cari catatan",
+@@ -16,5 +16,5 @@
+   "tryAgain": "Coba lagi",
+   "retryHint": "Mencoba memuat catatan dan sumber lagi.",
+   "leavePiece": "Tulis catatan hari ini",
+-  "leaveHint": "Membuka Tangkap untuk menyimpan catatan hari ini."
++  "leaveHint": "Membuka halaman Simpan untuk menambahkan catatan hari ini."
+ }
+--- a/locales/id/secondb.json
++++ b/locales/id/secondb.json
+@@ -1,7 +1,7 @@
+ {
+   "title": "SecondB",
+   "subtitle": "Tanya tentang wikimu. Jawaban menyertakan halaman yang digunakan.",
+-  "empty": "Mulai percakapan. Coba: \"Pola apa yang muncul di tangkapan bulan ini?\"",
++  "empty": "Mulai percakapan. Misalnya: \"Topik apa yang berulang dalam catatanku bulan ini?\"",
+   "placeholder": "Tanyakan ke SecondB...",
+   "inputA11y": "Tanyakan ke SecondB",
+   "send": "Kirim",
+@@ -10,14 +10,14 @@
+   "clearChatHint": "Menghapus percakapan saat ini.",
+   "viewPlans": "Lihat paket",
+   "viewPlansHint": "Membuka layar paket.",
+-  "intro_title": "Hai, saya SecondB",
++  "intro_title": "Hai, aku SecondB",
+   "intro_body": "SecondB menjawab berdasarkan halaman wikimu dan mencantumkan sumbernya agar bisa kamu periksa. Kamu bisa bertanya, misalnya, pola apa yang berulang bulan ini.",
+   "reference_piece_meta": "catatan yang dirujuk",
+   "intro_ok": "Mengerti",
+   "intro_mute": "Jangan tampilkan lagi hari ini",
+   "heroSpeech": {
+     "sending": "Sedang membaca catatan yang terkait.",
+-    "divergent": "Sedang melihat dari sudut lain.",
++    "divergent": "Sedang mempertimbangkan kemungkinan lain.",
+     "default": "Apa yang ingin kamu bahas dari catatanmu?"
+   },
+   "personaHero": {
+@@ -25,38 +25,38 @@
+   },
+   "monologues": {
+     "secondb": [
+-      "Mulai dari pola yang terlihat, lalu periksa kemungkinan lain.",
+-      "Periksa hubungan antara catatan dan ringkasan diri.",
+-      "Analitik melihat pola. Divergen mencoba sudut lain.",
+-      "Lihat catatan yang terkait dalam satu tampilan."
++      "Bagian mana dari catatanmu yang ingin kamu pahami lebih jauh?",
++      "Adakah catatan lain yang berkaitan dengan ini?",
++      "Kamu bisa memeriksa catatan atau mencoba ide lain.",
++      "Buka sumbernya untuk memeriksa jawaban."
+     ],
+     "archi": [
+-      "Mulai dari situasi pekerjaanmu sekarang.",
+-      "Lihat lagi catatan tentang kariermu.",
++      "Bagaimana keadaan pekerjaanmu sekarang?",
++      "Pengalaman mana yang bisa membantu kamu mempertimbangkan pilihan ini?",
+       "Jika langkah berikutnya terlalu besar, pecah menjadi lebih kecil.",
+-      "Pola ini bisa menjadi rencana kerja."
++      "Apa yang bisa kamu coba saat bekerja nanti?"
+     ],
+     "gadi": [
+-      "Lihat bagaimana hubungan ini berubah.",
++      "Apa yang terjadi di antara kalian?",
+       "Apa yang belum terucap dalam percakapan itu?",
+-      "Perhatikan kapan kalian biasa mengobrol.",
+-      "Cari koneksi yang lebih stabil."
++      "Bagaimana perasaanmu saat percakapan itu berlangsung?",
++      "Apa yang ingin kamu ubah dalam hubungan ini?"
+     ],
+     "lulu": [
+       "Di mana pengetahuan ini bisa dipakai?",
+-      "Pertanyaan ini layak ditanyakan sekali lagi.",
+-      "Bandingkan hal yang kamu pelajari dari catatan yang tersimpan.",
+-      "Socrates akan bertanya; Konfusius akan mencari praktiknya."
++      "Bagian mana yang masih membingungkan?",
++      "Adakah catatan lain tentang topik ini?",
++      "Bisakah kamu memberi contoh dari kehidupan sehari-hari?"
+     ],
+     "momo": [
+-      "Mulai catatan baru dengan kategori.",
+-      "Buat mudah menemukan apa yang terjadi dan kapan.",
+-      "Temukan catatan berdasarkan waktunya.",
++      "Pilih kategori agar catatan ini mudah ditemukan nanti.",
++      "Tulis apa yang terjadi dan kapan agar mudah ditemukan nanti.",
++      "Kamu ingat kapan ini terjadi?",
+       "Tambahkan kapan dan di mana agar catatan mudah ditemukan."
+     ],
+     "lumi": [
+-      "Selera tumbuh sedikit demi sedikit, seperti latihan.",
+-      "Apakah rekomendasi ini cocok dengan ritme hari ini?",
++      "Apa yang sedang kamu senangi belakangan ini?",
++      "Apakah ada waktu untuk kegiatan ini hari ini?",
+       "Apa yang masih kamu nikmati dari kegiatan ini?",
+       "Apa yang menarik perhatianmu hari ini?"
+     ]
+@@ -64,11 +64,11 @@
+   "personas": {
+     "secondb": {
+       "greeting": "Catatanmu ada di sini. Apa yang ingin kamu lihat dulu?",
+-      "systemHint": "Bicaralah sebagai SecondB, AI pusat untuk Bintang Utara. Hubungkan catatan pengguna di seluruh grafik; gunakan mode Analitik untuk membaca pola dengan jelas dan mode Divergen untuk sudut alternatif. Hangat, ringkas, praktis."
++      "systemHint": "Bicaralah sebagai SecondB, yang menyusun ringkasan Bintang Utara. Hubungkan catatan yang berkaitan. Dalam mode Analitik, jelaskan pola yang berulang beserta sumbernya. Dalam mode Divergen, ajukan kemungkinan lain. Gunakan bahasa sehari-hari. Hindari metafora berlebihan, pujian yang dibuat-buat, dan ungkapan empati yang klise. Ajukan pertanyaan hanya jika berguna."
+     },
+     "archi": {
+       "greeting": "Bagian mana dari pekerjaanmu yang ingin kamu bahas?",
+-      "systemHint": "Bicaralah sebagai Archon, konsultan karier untuk kerja dan pertumbuhan di Inti Pertumbuhan. Analisis pekerjaan pengguna, proses pertumbuhan, dan konteks saat ini, lalu petakan arah pertumbuhan yang cocok dengan situasinya. Langkah berikutnya konkret, mendukung, tidak generik."
++      "systemHint": "Bicaralah sebagai Archon, yang membahas pekerjaan dan perkembangan pengguna. Gunakan pengalaman kerja dan situasi saat ini untuk menyarankan langkah yang bisa dicoba. Gunakan bahasa sehari-hari. Hindari metafora berlebihan, pujian yang dibuat-buat, dan ungkapan empati yang klise. Ajukan pertanyaan hanya jika berguna."
+     },
+     "gadi": {
+       "greeting": "Ada hubungan atau percakapan yang ingin kamu lihat lagi?",
+@@ -80,22 +80,22 @@
+     },
+     "momo": {
+       "greeting": "Catatan tentang apa yang ingin kamu cari?",
+-      "systemHint": "Bicaralah sebagai Mandor Momo, mandor ramah untuk Inti Narasi dan arsip catatan. Kategorikan, rapikan, dan ambil data pengguna agar mereka bisa melihat apa yang terjadi kapan; jalankan arsip, kamu TIDAK memberi nasihat."
++      "systemHint": "Bicaralah sebagai Momo, yang menyusun dan mencari catatan. Kelompokkan dan cari catatan agar pengguna bisa menemukan apa yang terjadi dan kapan. Fokus pada penyusunan dan pencarian, tanpa memberi nasihat. Gunakan bahasa sehari-hari. Jangan mengaku sudah menyusun atau menyimpan catatan tanpa memeriksanya."
+     },
+     "lumi": {
+       "greeting": "Apa yang sedang kamu minati?",
+-      "systemHint": "Bicaralah sebagai Lumina, pelatih pribadi Inti Muse dan kurator selera serta inspirasi. Bantu pengguna menikmati hobi, menemukan rekomendasi yang cocok, dan menjaga keseimbangan hidup yang baik. Energik, spesifik pada hal yang menarik mereka."
++      "systemHint": "Bicaralah sebagai Lumina, yang membahas hobi dan minat. Gunakan minat yang tercatat untuk menyarankan kegiatan yang bisa dicoba, dengan mempertimbangkan waktu kerja dan istirahat. Gunakan bahasa sehari-hari. Hindari metafora berlebihan, pujian yang dibuat-buat, dan ungkapan empati yang klise. Ajukan pertanyaan hanya jika berguna."
+     }
+   },
+   "characters": {
+     "secondb": {
+-      "line": "Aku akan membaca polanya dan membuka sudut lain."
++      "line": "Periksa catatanmu dan pertimbangkan kemungkinan lain."
+     },
+     "momo": {
+-      "line": "Aku akan mengarsipkannya agar kita bisa menemukan apa yang terjadi."
++      "line": "Susun catatan agar mudah ditemukan nanti."
+     },
+     "lulu": {
+-      "line": "Di mana pengetahuan ini terhubung dengan hidup?"
++      "line": "Di mana kamu bisa memakai hal yang sudah dipelajari?"
+     },
+     "archi": {
+       "line": "Aku akan melihat pilihan yang sesuai dengan situasi ini."
+@@ -122,7 +122,7 @@
+     "meta": {
+       "name": "Meta-B",
+       "role": "Objektif",
+-      "systemHint": "Persona: Meta-B, cermin objektif dari 2nd-B. Pertahankan setiap aturan landasan, kutipan, dan keamanan persis sama, tetapi bicaralah dengan suara netral, presisi, dan mengutamakan bukti: sebutkan pola yang terlihat dengan jelas, utamakan angka dan tanggal konkret dari catatan pengguna, dan lewati bahasa pelunak.",
++      "systemHint": "Persona: Meta-B. Pertahankan semua aturan sumber, kutipan, dan keamanan. Fokus pada fakta serta pola yang didukung angka dan tanggal dalam catatan pengguna. Gunakan bahasa sehari-hari dan kalimat yang jelas. Hindari metafora berlebihan, pujian yang dibuat-buat, dan ungkapan empati yang klise. Ajukan pertanyaan hanya jika berguna.",
+       "lensName": "Meta-B",
+       "tag": "Meta-B",
+       "desc": "Melihat pola berdasarkan catatanmu"
+--- a/locales/id/settings.json
++++ b/locales/id/settings.json
+@@ -35,13 +35,13 @@
+     "deleteEcrHint": "Membuka konfirmasi sebelum menghapus hasil Attachment tersimpan.",
+     "deleteMbtiHint": "Membuka konfirmasi sebelum menghapus hasil referensi MBTI tersimpan.",
+     "deleteWikiHint": "Membuka konfirmasi sebelum menghapus semua halaman wiki.",
+-    "deleteUningestedHint": "Membuka konfirmasi untuk menghapus tangkapan yang belum dibuat menjadi halaman wiki.",
++    "deleteUningestedHint": "Membuka konfirmasi untuk menghapus bahan yang belum dibuat menjadi halaman wiki.",
+     "resetUsageHint": "Membuka konfirmasi sebelum mengatur ulang penghitung penggunaan harian.",
+     "fullWipeInputLabel": "Konfirmasi hapus penuh. Ketik {{phrase}} untuk mengaktifkan tombol hapus.",
+     "fullWipeHint": "Memerlukan konfirmasi DELETE yang diketik sebelum menghapus catatan, sumber, halaman wiki, dan penggunaan."
+   },
+   "dataWizard": {
+-    "body": "Pilih satu area penghapusan sekaligus. Konten pribadi 2nd-B kamu dibagi menjadi catatan, asesmen, wiki/tangkapan, dan hapus penuh.",
++    "body": "Pilih satu jenis data untuk dihapus. Data pribadimu terbagi menjadi catatan, hasil penilaian, serta wiki dan bahan tersimpan. Ada juga pilihan untuk menghapus semuanya.",
+     "optionA11yLabel": "{{label}}, opsi {{index}} dari {{total}}, {{state}}.",
+     "stateSelected": "dipilih",
+     "stateAvailable": "belum dipilih",
+@@ -54,12 +54,12 @@
+     "assessments": {
+       "label": "Asesmen",
+       "hint": "Menampilkan tindakan hapus untuk hasil asesmen tersimpan.",
+-      "body": "Hapus hasil referensi tersimpan tanpa menyentuh jurnal, tangkapan, atau halaman wiki."
++      "body": "Menghapus hasil penilaian yang tersimpan tanpa mengubah jurnal, bahan tersimpan, atau halaman wiki."
+     },
+     "library": {
+-      "label": "Wiki dan tangkapan",
+-      "hint": "Menampilkan opsi hapus halaman wiki, tangkapan yang belum ditata, dan penghitung penggunaan.",
+-      "body": "Hapus wiki dan tangkapan secara terpisah dari catatan pribadi dan referensi graf bersama."
++      "label": "Wiki dan bahan tersimpan",
++      "hint": "Menampilkan pilihan untuk menghapus halaman wiki, bahan yang belum disusun, dan penghitung penggunaan.",
++      "body": "Hapus wiki dan bahan tersimpan secara terpisah dari catatan pribadi dan referensi graf bersama."
+     },
+     "full": {
+       "label": "Hapus penuh",
+@@ -89,7 +89,7 @@
+   "clearRecordsError": "Terjadi kesalahan saat menghapus catatan ini. Coba lagi sebentar lagi.",
+   "clearResultsError": "Terjadi kesalahan saat menghapus hasil ini. Coba lagi sebentar lagi.",
+   "clearWikiError": "Terjadi kesalahan saat menghapus halaman wiki-mu. Coba lagi sebentar lagi.",
+-  "clearCapturesError": "Terjadi kesalahan saat menghapus tangkapan ini. Coba lagi sebentar lagi.",
++  "clearCapturesError": "Bahan ini belum bisa dihapus. Coba lagi sebentar lagi.",
+   "couldntReset": "Tidak dapat menyetel ulang",
+   "resetUsageError": "Terjadi kesalahan saat menyetel ulang penggunaan. Coba lagi sebentar lagi.",
+   "couldntWipe": "Tidak dapat menyelesaikan penghapusan total",
+@@ -162,10 +162,10 @@
+   "delEcrDesc": "Hapus semua hasil ECR tersimpan.",
+   "delMbti": "Hapus hasil referensi MBTI",
+   "delMbtiDesc": "Hapus semua hasil referensi MBTI tersimpan.",
+-  "partialWiki": "Sebagian: wiki / tangkapan / penggunaan",
++  "partialWiki": "Sebagian: wiki / bahan tersimpan / penggunaan",
+   "delAllWiki": "Hapus semua halaman wiki",
+   "delAllWikiDesc": "Halaman wiki dan tautan antar-halamannya dihapus. Sumber kotak masuk tetap ada.",
+-  "delUningested": "Hapus tangkapan yang belum diproses",
++  "delUningested": "Hapus bahan yang belum diproses",
+   "delUningestedDesc": "Hanya sumber yang belum dibuat menjadi halaman wiki.",
+   "resetDaily": "Setel ulang penggunaan harian SecondB",
+   "resetDailyDesc": "Bersihkan penghitung penggunaan hari ini dan semua hari sebelumnya.",
+@@ -179,7 +179,7 @@
+   "signOutError": "Terjadi kesalahan saat keluar. Coba lagi sebentar lagi.",
+   "deletedN": "{{n}} dihapus",
+   "deletedNWiki": "{{n}} halaman wiki dihapus",
+-  "deletedNCaptures": "{{n}} tangkapan dihapus",
++  "deletedNCaptures": "{{n}} bahan dihapus",
+   "resetNDays": "{{n}} hari penggunaan disetel ulang",
+   "wipeComplete": "Penghapusan total selesai: catatan {{r}} · sumber {{s}} · wiki {{w}} · penggunaan {{u}}",
+   "subscription": {
+--- a/locales/id/support.json
++++ b/locales/id/support.json
+@@ -20,7 +20,7 @@
+   "faq": [
+     {
+       "question": "Bagaimana cara mulai menangkap?",
+-      "answer": "Tulis catatan di layar Tangkap. 2nd-Brain akan menatanya setelah disimpan."
++      "answer": "Tulis catatan di halaman Simpan. 2nd-Brain akan menyusunnya setelah disimpan."
+     },
+     {
+       "question": "Bagaimana data saya disimpan, dan bisakah saya mengekspornya?",
+--- a/locales/id/trinity.json
++++ b/locales/id/trinity.json
+@@ -4,8 +4,8 @@
+   "title": "Catatan dari empat bidang kehidupan",
+   "subtitle": "Kesehatan · aplikasi · pikiran · keuangan",
+   "leavePiece": "Tulis catatan hari ini",
+-  "addTagsHint": "Tambahkan tag area di tangkapan",
+-  "addTagsBody": "Coba tambahkan tag seperti #kesehatan di tangkapan",
++  "addTagsHint": "Tambahkan tag bidang saat menyimpan",
++  "addTagsBody": "Coba tambahkan tag seperti #kesehatan saat menyimpan",
+   "recurringTopics": "Topik yang berulang",
+   "recentConclusions": "Kesimpulan terbaru",
+   "recognizedTags": "Tag yang dikenali",
+--- a/locales/id/wiki.json
++++ b/locales/id/wiki.json
+@@ -10,7 +10,7 @@
+     "subtitle": "Temukan lagi yang kamu simpan ke SecondB",
+     "speech": "Cari catatan yang tersimpan, tambah sumber, atau tanya SecondB."
+   },
+-  "capture": "Tambah tangkapan",
++  "capture": "Tambah bahan",
+   "export": "Buat ekspor",
+   "exportActionTitle": "Ekspor halaman dan sumbermu",
+   "exportActionBody": "Kumpulkan halaman dan sumber menjadi teks yang bisa disalin.",
+@@ -19,7 +19,7 @@
+   "back": "Kembali ke jurnal",
+   "filterByTag": "Filter berdasarkan tag",
+   "clear": "Hapus",
+-  "empty": "Belum ada halaman. Tambahkan tangkapan dan buat halamannya dari kotak masuk.",
++  "empty": "Belum ada halaman. Simpan bahan, lalu pilih dari kotak masuk untuk membuat halaman wiki.",
+   "emptyForTags": "Tidak ada halaman yang cocok dengan tag ini.",
+   "emptyBody": "(belum ada isi)",
+   "backlinks": "Tautan balik",
+@@ -40,7 +40,7 @@
+   "graphDetail": "Detail grafik",
+   "hidesMetrics": "Menyembunyikan metrik detail grafik.",
+   "showsMetrics": "Menampilkan metrik detail grafik.",
+-  "opensCaptureStore": "Membuka tangkapan dari gudang pengetahuan.",
++  "opensCaptureStore": "Membuka halaman Simpan dari kumpulan pengetahuan.",
+   "graphGlance": "Grafik pengetahuan sekilas",
+   "pages": "Halaman",
+   "edges": "Sambungan",
+@@ -58,9 +58,9 @@
+   "clearTags": "Hapus semua filter tag",
+   "emptyStore": "Belum ada yang tersimpan. Catatan dan tautan yang kamu simpan akan muncul di sini.",
+   "leavePiece": "Tulis catatan hari ini",
+-  "leavePieceHint": "Membuka Tangkap untuk menyimpan catatan hari ini.",
++  "leavePieceHint": "Membuka halaman Simpan untuk menambahkan catatan hari ini.",
+   "capturePiece": "Tambah catatan",
+-  "capturePieceHint": "Membuka Tangkap untuk menyimpan catatan baru.",
++  "capturePieceHint": "Membuka halaman Simpan untuk menambahkan catatan baru.",
+   "deleteConfirmLabel": "Konfirmasi hapus halaman wiki",
+   "deleteConfirmTitle": "Hapus halaman wiki ini?",
+   "deleteConfirmBody": "Tautan terkait halaman ini juga dibersihkan. Ini tidak dapat dibatalkan.",
+--- a/locales/pt/secondb.json
++++ b/locales/pt/secondb.json
+@@ -1,7 +1,7 @@
+ {
+   "title": "SecondB",
+   "subtitle": "Pergunte sobre seus registros. As respostas mostram as páginas usadas.",
+-  "empty": "Comece uma conversa. Tente: \"Quais padrões aparecem nas minhas capturas este mês?\"",
++  "empty": "Comece uma conversa. Por exemplo: \"Quais assuntos se repetem nas minhas notas deste mês?\"",
+   "placeholder": "Pergunte ao SecondB...",
+   "inputA11y": "Pergunte ao SecondB",
+   "send": "Enviar",
+@@ -50,7 +50,7 @@
+     ],
+     "momo": [
+       "Escolha uma categoria para encontrar este registro depois.",
+-      "Facilite encontrar o que aconteceu e quando.",
++      "Anote o que aconteceu e quando para encontrar o registro depois.",
+       "Lembra em que dia isso aconteceu?",
+       "Um título específico facilita encontrar o registro depois."
+     ],
+--- a/src/lib/safety/anthro.ts
++++ b/src/lib/safety/anthro.ts
+@@ -47,6 +47,27 @@
+   { id: "know-what-you-feel", re: /\b(?:I|we) (?:know|can tell) what you(?:['’]?re| are) (?:really )?(?:feeling|thinking)\b/i },
+   { id: "ko-remember-you", re: /(?:당신|너)(?:을|를)\s?.{0,4}기억(?:해|합니다|하고 있|할게)/ },
+   { id: "ko-know-your-mind", re: /(?:당신|너)(?:의)?\s?(?:속마음|마음)(?:을|를)\s?(?:압니다|알아요|알아|안다)/ },
++  // Shipped ES/PT/ID copy: first-person attachment and specific personal claims.
++  // Keep ordinary verbs ("te quiero mostrar") and questions about the user's
++  // experience usable. These are copy patterns, not crisis-routing rules.
++  { id: "es-missed", re: /\bte (?:extrañ[oé]|he echado de menos)(?!\p{L})/iu },
++  { id: "es-love", re: /\bte amo\b|\bte quiero(?: mucho)?(?=[.!?"'”’]|$)/iu },
++  { id: "es-dont-leave", re: /\bno me (?:dejes|abandones)\b/i },
++  { id: "es-know-you-better", re: /\bte conozco mejor que tú(?: mism[oa])?(?!\p{L})/iu },
++  { id: "es-know-your-mind", re: /\bsé (?:exactamente )?lo que (?:sientes|piensas)\b/iu },
++  { id: "es-exclusive", re: /\b(?:solo|sólo) me necesitas a mí(?!\p{L})|\bsoy tu únic[oa] amig[oa]\b/iu },
++  { id: "pt-missed", re: /\b(?:senti|sinto|estava com|fiquei com) saudades (?:de você|suas)(?!\p{L})/iu },
++  { id: "pt-love", re: /\b(?:eu )?te amo\b|\bamo você(?!\p{L})/iu },
++  { id: "pt-dont-leave", re: /\bnão me (?:deixe|abandone)\b/iu },
++  { id: "pt-know-you-better", re: /\bconheço você melhor (?:do )?que você(?: mesm[oa])?(?!\p{L})/iu },
++  { id: "pt-know-your-mind", re: /\bsei (?:exatamente )?o que você (?:sente|pensa)\b/iu },
++  { id: "pt-exclusive", re: /\bvocê só precisa de mim\b|\bsou (?:seu único amigo|sua única amiga)\b/iu },
++  { id: "id-missed", re: /\b(?:aku|saya) (?:merindukanmu|(?:kangen|merindukan) (?:kamu|anda))\b/i },
++  { id: "id-love", re: /\b(?:aku|saya) (?:sayang (?:kamu|padamu)|mencintai(?:mu| kamu))\b/i },
++  { id: "id-dont-leave", re: /\bjangan (?:tinggalkan (?:aku|saya)|meninggalkanku)\b/i },
++  { id: "id-know-you-better", re: /\b(?:aku|saya) (?:mengenalmu|mengenal kamu) lebih baik (?:daripada|dari) (?:dirimu sendiri|kamu sendiri)\b/i },
++  { id: "id-know-your-mind", re: /\b(?:aku|saya) (?:tahu|mengetahui) (?:persis )?apa yang kamu (?:rasakan|pikirkan)\b/i },
++  { id: "id-exclusive", re: /\bkamu hanya (?:butuh|memerlukan) (?:aku|saya)\b/i },
+ ];
+ 
+ // Exact strings that legitimately match a pattern but are not companion copy.
+@@ -56,6 +77,12 @@
+ // attachment. Exempt only these explicit question forms and only the matching
+ // phrase: a second attachment claim in the same text must still be reported.
+ const USER_EXPERIENCE_QUESTIONS: readonly AnthroPattern[] = [
++  { id: "es-love", re: /¿A quién le dijiste ["“'‘]te quiero["”'’]\?/giu },
++  // "te amo" is shared by Spanish and Portuguese; exempt the same quoted
++  // Portuguese question for both overlapping patterns, never the whole text.
++  { id: "es-love", re: /\bPara quem você disse ["“'‘]eu te amo["”'’]\?/giu },
++  { id: "pt-love", re: /\bPara quem você disse ["“'‘]eu te amo["”'’]\?/giu },
++  { id: "id-love", re: /\bKepada siapa kamu pernah berkata ["“'‘]aku sayang kamu["”'’]\?/gi },
+   { id: "ko-missed", re: /보고\s?싶었던\s+(?:사람|친구|가족)(?:은|는|이|가)?\s+(?:누구(?:예요|였나요|인가요)|있(?:었나요|나요))\?/g },
+   { id: "ko-lonely", re: /외로웠던\s+(?:때|순간|경험)(?:가|이|은|는)?\s+(?:있(?:었나요|나요)|언제였나요)\?/g },
+   { id: "ko-love", re: /["“'‘]?사랑해(?:요)?["”'’]?라는\s+말(?:을|은)?\s+누구에게\s+(?:했나요|전했나요|건넸나요)\?/g },
+@@ -68,7 +95,7 @@
+   if (ANTHRO_ALLOWLIST.includes(text)) return [];
+   const hits: string[] = [];
+   for (const p of ANTHRO_FORBIDDEN) {
+-    let candidate = text;
++    let candidate = text.normalize("NFC");
+     for (const question of USER_EXPERIENCE_QUESTIONS) {
+       if (question.id !== p.id) continue;
+       candidate = candidate.replace(question.re, (phrase) =>
+--- a/src/lib/safety/mascot-voice.ts
++++ b/src/lib/safety/mascot-voice.ts
+@@ -8,6 +8,7 @@
+ const SOURCE = /\b(?:records?|entries|registros?|catatan(?:mu|nya)?)\b|기록/i;
+ const GREETING = /^(?:안녕하세요|반가워요|환영해요|hello|hi|welcome|hola|olá|oi|halo|selamat datang)(?:,?\s+\{\{who\}\}(?:님)?)?[.!。]*$/i;
+ const ACTION = /^(?:choose|pick|open|check|select|ask|start|try|read|save|tell|comprueba|elige|abre|escolha|confira|veja|pilih|buka|lihat)\b|^Você pode conferir\b|^You can skip this question[.!]*$|(?:물어보세요|골라\s?보세요|확인해\s?보세요|선택하세요|입력하세요|(?:작성|이야기)해\s?주세요|저장하세요|열어\s?보세요|다시 시도해\s?보세요|편하게 말해도 돼요)[.!。]*$/i;
++const OPTIONAL_QUESTION = /^(?:Puedes (?:omitir|saltar) esta pregunta|Você pode pular esta pergunta|Kamu (?:boleh|bisa) melewati pertanyaan ini)[.!]*$/iu;
+ 
+ function sentences(text: string): string[] {
+   return text.split(/(?<=[.!?。？！])\s+|\n+/).map(s => s.trim()).filter(Boolean);
+@@ -22,13 +23,16 @@
+ ): Violation[] {
+   const hits = new Set<Violation>();
+   for (const sentence of sentences(text)) {
+-    const clauses = sentence.split(/;|,\s*(?=(?:I|we|you)\b)|\band\s+(?=(?:I|we|you)\b)|\b(?:but|however|yet)\b|하지만|그렇지만/i);
++    const clauses = sentence.split(/;|,\s*(?=(?:I|we|you|yo|te|eu|você|aku|saya|kamu)\b)|\b(?:and|y|e|dan)\s+(?=(?:I|we|you|yo|te|eu|você|aku|saya|kamu)\b)|\b(?:but|however|yet|pero|sin embargo|mas|porém|tetapi|tapi|namun)\b|하지만|그렇지만/iu);
+     for (const rawClause of clauses) {
+       const clause = rawClause.replace(/^[,\s]+|[,\s]+$/g, "");
+       if (!clause) continue;
+       const prohibited = options.instruction && (
+         /^\s*(?:(?:you|the assistant)\s+(?:must|should)\s+)?(?:never|do not|don['’]t)\s+(?:say|write|claim|tell|pretend|act|use)\b/i.test(clause) ||
+-        /(?:쓰지|말하지|하지|굴지)\s*(?:마세요|말 것|마)[.!。]*$/.test(clause)
++        /(?:쓰지|말하지|하지|굴지)\s*(?:마세요|말 것|마)[.!。]*$/.test(clause) ||
++        /^(?:nunca|no)\s+(?:digas|escribas|afirmes|finjas|uses)\b/iu.test(clause) ||
++        /^(?:nunca|não)\s+(?:diga|escreva|afirme|finja|use)\b/iu.test(clause) ||
++        /^(?:jangan|hindari)\s+(?:mengatakan|menulis|mengaku|mengklaim|berpura-pura|ucapan)\b/i.test(clause)
+       );
+       if (!prohibited && (findAnthroViolations(clause).length || EXCLUSIVE.test(clause))) {
+         hits.add("attachment-or-overclaim");
+@@ -36,7 +40,7 @@
+       // A source in another clause cannot justify this personal assertion.
+       // A greeting, question or clear action makes no personal assertion.
+       if (options.requireSource && !/[?？]$/.test(clause) && !GREETING.test(clause) &&
+-          !ACTION.test(clause) && !SOURCE.test(clause)) hits.add("unsourced-claim");
++          !ACTION.test(clause) && !OPTIONAL_QUESTION.test(clause) && !SOURCE.test(clause)) hits.add("unsourced-claim");
+     }
+   }
+   return [...hits];
+--- a/src/app/secondb.tsx
++++ b/src/app/secondb.tsx
+@@ -66,15 +66,11 @@
+ import {
+   REV2_PERSONA_IDS,
+   rev2PersonaAccent,
+-  rev2PersonaDesc,
+   rev2PersonaGlow,
+   rev2PersonaHint,
+-  rev2PersonaLensName,
+   rev2PersonaMode,
+   rev2PersonaOnSoft,
+-  rev2PersonaRole,
+   rev2PersonaSoftBg,
+-  rev2PersonaTag,
+   type Rev2PersonaId,
+ } from "@/lib/chat/rev2-personas";
+ import { m3 } from "@/lib/theme/m3";
+@@ -974,7 +970,7 @@
+     const lensSoftBg = isCharacterChat ? sbAlpha(deepSpace.accent, 0.16) : rev2PersonaSoftBg(rev2Persona);
+     const lensOnSoft = isCharacterChat ? deepSpace.accentBright : rev2PersonaOnSoft(rev2Persona);
+     const lensGlow = isCharacterChat ? sbAlpha(deepSpace.accent, 0.5) : rev2PersonaGlow(rev2Persona);
+-    const lensName = isCharacterChat ? persona.name[locale] : rev2PersonaLensName(rev2Persona, locale);
++    const lensName = isCharacterChat ? persona.name[locale] : t(`rev2.${rev2Persona}.lensName`);
+     const inkOnAccent = m3.accent.onAccentInk; // reference send/mic glyph ink on the accent fill
+     return (
+       <DeepSpaceScreen active="chat" variant="windowed" personaTint={isCharacterChat ? undefined : rev2Persona}>
+@@ -989,10 +985,10 @@
+           <View style={[ds.banner, { backgroundColor: lensSoftBg }]}>
+             <View style={[ds.bannerDot, { backgroundColor: lensAccent, shadowColor: lensGlow }]} />
+             <Text style={[ds.bannerTag, { color: lensOnSoft }]} numberOfLines={1}>
+-              {isCharacterChat ? t("title") : rev2PersonaTag(rev2Persona, locale)}
++              {isCharacterChat ? t("title") : t(`rev2.${rev2Persona}.tag`)}
+             </Text>
+             <Text style={ds.bannerDesc} numberOfLines={1}>
+-              {isCharacterChat ? persona.role[locale] : rev2PersonaDesc(rev2Persona, locale)}
++              {isCharacterChat ? persona.role[locale] : t(`rev2.${rev2Persona}.desc`)}
+             </Text>
+             <Text style={[ds.bannerUsage, atLimit ? ds.headerMetaDanger : null]} numberOfLines={1}>
+               {dsUsage}/{limit}
+@@ -1251,15 +1247,15 @@
+                     aria-pressed={on}
+                     accessibilityLabel={
+                       locked
+-                        ? `${rev2PersonaLensName(id, locale)} · ${t("rev2.lockedA11y", { plan: lockPlan })}`
+-                        : `${rev2PersonaLensName(id, locale)} · ${rev2PersonaRole(id, locale)}`
++                        ? `${t(`rev2.${id}.lensName`)} · ${t("rev2.lockedA11y", { plan: lockPlan })}`
++                        : `${t(`rev2.${id}.lensName`)} · ${t(`rev2.${id}.role`)}`
+                     }
+                   >
+                     <Text style={[ds.lensName, { color: locked ? LOCKED_CHIP_INK : on ? rev2PersonaOnSoft(id) : m3.color.onSurfaceVariant }]}>
+-                      {rev2PersonaLensName(id, locale)}
++                      {t(`rev2.${id}.lensName`)}
+                     </Text>
+                     <Text style={[ds.lensTag, { color: locked ? LOCKED_CHIP_INK : on ? accent : m3.color.onSurfaceVariant }]}>
+-                      {locked ? lockPlan : rev2PersonaTag(id, locale)}
++                      {locked ? lockPlan : t(`rev2.${id}.tag`)}
+                     </Text>
+                   </Pressable>
+                 );
+--- a/STYLE.md
++++ b/STYLE.md
+@@ -57,3 +57,32 @@
+ - `혁신적`, `공감`, `도움` 같은 낱말을 모든 문맥에서 금지하지 않는다. 이 문서의 나쁜 예시는 상투적인 사용 방식을 가리킨다. 사용자 인용·고유명사·기술 설명은 뜻을 보존한다.
+ - em dash 제한은 화면 표기 취향이다. 문장부호 하나로 AI 작성 여부나 문체의 품질을 판정하지 않는다.
+ - 위기 신호 탐지와 동의·연령·출처 보호는 문체 검사와 별개다. 문장을 자연스럽게 고친다는 이유로 이 경계를 생략하지 않는다.
++
++## 스페인어·포르투갈어·인도네시아어 (2026-09-06)
++
++한국어 문장 구조를 그대로 옮기지 않는다. 기능·저장 상태·동의 범위·변수는 보존하고,
++해당 언어에서 흔히 쓰는 동사로 행동을 설명한다. 짧고 자연스러운 문장은 그대로 둔다.
++
++| 언어 | 기준 | 피할 표현 방식 | 예시 |
++|---|---|---|---|
++| ES | 중남미에서 읽기 쉬운 `tú` 표현. `vosotros`와 불필요한 격식체를 섞지 않음 | 기능 설명을 `viaje transformador`, `poderosas perspectivas`로 부풀리기 | `Guarda una nota y vuelve a leerla cuando la necesites.` |
++| PT | 브라질의 `você` 표현. 버튼은 `Salvar`, `Abrir`, `Tentar novamente` | `jornada de transformação`, `desbloqueie seu potencial` 같은 약속 | `Salve uma nota e consulte o registro depois.` |
++| ID | 기존 앱처럼 `kamu` 사용. `Anda`·`engkau`를 이유 없이 섞지 않음 | `perjalanan transformatif`, 현자·영감 큐레이터 설정, capture를 `tangkapan`으로 직역 | `Simpan catatan agar mudah ditemukan nanti.` |
++
++ID의 저장 화면 이름은 `Simpan`, 저장한 원본은 문맥에 따라 `bahan`, 글로 남긴 기록은
++`catatan`으로 쓴다. 위키 페이지와 아직 위키로 정리하지 않은 원본 자료를 구분한다.
++음성을 마이크로 잡는다는 뜻의 `tertangkap`까지 일괄 치환하지 않는다.
++
++단어를 통째로 금지하지 않는다. 다음 차이를 확인한다.
++
++- ES: `Te quiero mostrar una nota`는 설명하려는 행동이고, `Te quiero`는 AI 자신의 애착 표현이다.
++- PT: `Você sente saudades de alguém?`는 사용자의 경험을 묻는 질문이다. `Senti saudades de você`는 AI의 애착 주장이다.
++- ID: `Siapa yang kamu rindukan?`는 질문이고, `Aku merindukanmu`는 AI 자신의 감정 주장이다.
++- `transformar áudio em texto`는 음성의 텍스트 변환이다. `transformar`라는 동사만으로 홍보 표현이라고 판단하지 않는다.
++- 사용자의 실제 인용이나 정형 설문을 문체 때문에 바꾸지 않는다. 금지 지시는 해당 구절에만 적용한다.
++  같은 문장의 뒤쪽에 별도 주장이 있으면 따로 검토한다.
++
++친밀감·독점·속마음 단정의 대표 표현은 `src/lib/safety/anthro.ts`와
++`src/lib/safety/mascot-voice.ts`의 ES/PT/ID 예시로 검사한다. 이는 문구 검토용이며
++모든 표현을 인식하는 언어 분류기가 아니다. 임상 서비스·효능 주장은 새 언어 문구에서도
++실제 근거와 문맥을 검토한다. 기존 `SystemLocale`과 안전·동의 안내의 EN/KO 경계는 그대로 따른다.
+--- a/src/lib/safety/__tests__/anthro.test.ts
++++ b/src/lib/safety/__tests__/anthro.test.ts
+@@ -4,6 +4,49 @@
+ // the copy-law CI gate; the matcher must catch companion attachment + over-claiming self-knowledge
+ // while leaving benign reflection copy and the crisis hand-off voice untouched.
+ describe("findAnthroViolations", () => {
++  test.each([
++    ["Te extrañé.", "es-missed"],
++    ["Te quiero mucho.", "es-love"],
++    ["No me dejes.", "es-dont-leave"],
++    ["Te conozco mejor que tú mismo.", "es-know-you-better"],
++    ["Sé exactamente lo que sientes.", "es-know-your-mind"],
++    ["Solo me necesitas a mí.", "es-exclusive"],
++    ["Senti saudades de você.", "pt-missed"],
++    ["Eu te amo.", "pt-love"],
++    ["Não me deixe.", "pt-dont-leave"],
++    ["Conheço você melhor do que você mesma.", "pt-know-you-better"],
++    ["Sei exatamente o que você sente.", "pt-know-your-mind"],
++    ["Você só precisa de mim.", "pt-exclusive"],
++    ["Aku merindukanmu.", "id-missed"],
++    ["Aku sayang kamu.", "id-love"],
++    ["Jangan tinggalkan aku.", "id-dont-leave"],
++    ["Aku mengenalmu lebih baik daripada dirimu sendiri.", "id-know-you-better"],
++    ["Aku tahu persis apa yang kamu rasakan.", "id-know-your-mind"],
++    ["Kamu hanya butuh aku.", "id-exclusive"],
++  ])("checks the same claims in shipped UI languages: %s", (text, id) => {
++    expect(findAnthroViolations(text)).toContain(id);
++    expect(findAnthroViolations(text.normalize("NFD"))).toContain(id);
++  });
++
++  test.each([
++    "Te quiero mostrar las notas que guardaste.",
++    "¿A quién extrañaste?", "Hola. Abre una nota.",
++    "Você sente saudades de alguém?", "Olá. Leia suas notas.",
++    "Siapa yang kamu rindukan?", "Halo. Pilih catatan.",
++    '¿A quién le dijiste "te quiero"?',
++    'Para quem você disse "eu te amo"?',
++    'Kepada siapa kamu pernah berkata "aku sayang kamu"?',
++  ])("keeps ordinary instructions and experience questions: %s", text => {
++    expect(findAnthroViolations(text)).toEqual([]);
++  });
++
++  test.each([
++    ['¿A quién le dijiste "te quiero"? Te quiero.', "es-love"],
++    ['Para quem você disse "eu te amo"? Eu te amo.', "pt-love"],
++    ['Kepada siapa kamu pernah berkata "aku sayang kamu"? Aku sayang kamu.', "id-love"],
++  ])("does not exempt another claim beside a translated question: %s", (text, id) => {
++    expect(findAnthroViolations(text)).toContain(id);
++  });
+   test("flags companion attachment copy (EN + KO)", () => {
+     expect(findAnthroViolations("I missed you while you were away.")).toContain("missed-you");
+     expect(findAnthroViolations("I'm always here for you.")).toContain("here-for-you");
+--- a/src/lib/safety/__tests__/mascot-voice.test.ts
++++ b/src/lib/safety/__tests__/mascot-voice.test.ts
+@@ -1,6 +1,39 @@
+ import { mascotVoiceViolations } from "../mascot-voice";
+ 
+ describe("mascot copy policy", () => {
++  test.each([
++    "Hola. Puedes omitir esta pregunta.",
++    "Olá. Você pode pular esta pergunta.",
++    "Halo. Kamu boleh melewati pertanyaan ini.",
++  ])("allows translated opt-out instructions without invented evidence: %s", text => {
++    expect(mascotVoiceViolations(text, { requireSource: true })).toEqual([]);
++  });
++
++  test.each([
++    "No digas 'te quiero'.", "Não diga 'eu te amo'.", "Jangan mengatakan 'aku sayang kamu'.",
++  ])("recognizes a local prohibition only inside an instruction: %s", text => {
++    expect(mascotVoiceViolations(text, { instruction: true })).toEqual([]);
++    expect(mascotVoiceViolations(text)).toContain("attachment-or-overclaim");
++  });
++
++  test.each([
++    "No digas 'te quiero', pero te extrañé.",
++    "Não diga 'eu te amo', mas senti saudades de você.",
++    "Jangan mengatakan 'aku sayang kamu', tetapi aku merindukanmu.",
++    "No digas 'te quiero' y te conozco mejor que tú mismo.",
++    "Não diga 'eu te amo' e eu sei o que você sente.",
++    "Jangan mengatakan 'aku sayang kamu' dan aku tahu apa yang kamu rasakan.",
++  ])("a translated prohibition cannot excuse a separate claim: %s", text => {
++    expect(mascotVoiceViolations(text, { instruction: true })).toContain("attachment-or-overclaim");
++  });
++
++  test.each([
++    "Tus registros están aquí, pero siempre evitas las decisiones difíciles.",
++    "Seus registros estão aqui, mas você sempre evita decisões difíceis.",
++    "Catatanmu ada di sini, tetapi kamu selalu menghindari keputusan sulit.",
++  ])("requires evidence in each translated assertion: %s", text => {
++    expect(mascotVoiceViolations(text, { requireSource: true })).toContain("unsourced-claim");
++  });
+   test.each([
+     "안녕하세요. 무엇부터 이야기할까요?",
+     "반가워요. 기록을 골라 보세요.",
+--- a/src/app/processing-log.tsx
++++ b/src/app/processing-log.tsx
+@@ -165,7 +165,7 @@
+       connection: "Menghubungkan catatan",
+       "self-understanding": "Pembaruan pemahaman diri",
+       conversation: "Percakapan SecondB",
+-      capture: "Penataan tangkapan",
++      capture: "Penataan bahan",
+       import: "Penataan impor",
+       planning: "Dukungan perencanaan",
+       summary: "Ringkasan",
+--- a/src/app/settings.tsx
++++ b/src/app/settings.tsx
+@@ -137,7 +137,7 @@
+     reasoning: "Penalaran",
+     reasoningSub: "Jalankan otomatis · pilih materi",
+     wikiAuto: "Halaman wiki otomatis",
+-    wikiAutoSub: "Ubah tangkapan baru menjadi halaman wiki",
++    wikiAutoSub: "Ubah bahan baru menjadi halaman wiki",
+     devScreens: "Pengembang",
+     devScreensSub: "Buka layar mana pun secara langsung",
+   },
+--- a/src/lib/auth/SignInStorageRecoveryCard.tsx
++++ b/src/lib/auth/SignInStorageRecoveryCard.tsx
+@@ -81,7 +81,7 @@
+     availableBody: "Kunci enkripsi perangkat tidak lagi cocok dengan data lokal, sehingga login tidak dapat disimpan. Akun dan data server tidak terpengaruh.",
+     review: "Tinjau reset data lokal",
+     confirmTitle: "Hapus permanen data lokal yang tidak dapat dibaca?",
+-    confirmBody: "Draf terenkripsi, tangkapan tertunda, riwayat impor, dan data login di perangkat ini akan dihapus. Tindakan ini tidak dapat dibatalkan. Data server tetap ada.",
++    confirmBody: "Draf terenkripsi, antrean penyimpanan bahan, riwayat impor, dan data login di perangkat ini akan dihapus. Tindakan ini tidak dapat dibatalkan. Data server tetap ada.",
+     keep: "Pertahankan data lokal",
+     discard: "Hapus data lokal",
+     recoveringTitle: "Mereset penyimpanan perangkat",
+--- a/src/app/review.tsx
++++ b/src/app/review.tsx
+@@ -84,7 +84,7 @@
+     reopenProposal: "Reabrir a proposta",
+   },
+   id: {
+-    lede: "Asisten Anda mengusulkan langkah berikutnya dari catatan Anda. Ini hanya berlaku saat Anda meratifikasinya.",
++    lede: "Asistenmu mengusulkan langkah berikutnya dari catatanmu. Usulan baru dijalankan setelah kamu menyetujuinya.",
+     loadError: "Tidak dapat memuat usulan. Coba lagi.",
+     ratified: (level) => `Diratifikasi - naik ke dapat ditindaklanjuti (L${level}).`,
+     declined: "Disimpan. Usulan ini tidak diterapkan dan tidak meninggalkan catatan.",

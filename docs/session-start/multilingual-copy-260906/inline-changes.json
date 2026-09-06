@@ -1,0 +1,22 @@
+[
+  {
+    "file": "src/app/processing-log.tsx",
+    "before": "Penataan tangkapan",
+    "after": "Penataan bahan"
+  },
+  {
+    "file": "src/app/settings.tsx",
+    "before": "Ubah tangkapan baru menjadi halaman wiki",
+    "after": "Ubah bahan baru menjadi halaman wiki"
+  },
+  {
+    "file": "src/lib/auth/SignInStorageRecoveryCard.tsx",
+    "before": "Draf terenkripsi, tangkapan tertunda, riwayat impor, dan data login di perangkat ini akan dihapus. Tindakan ini tidak dapat dibatalkan. Data server tetap ada.",
+    "after": "Draf terenkripsi, antrean penyimpanan bahan, riwayat impor, dan data login di perangkat ini akan dihapus. Tindakan ini tidak dapat dibatalkan. Data server tetap ada."
+  },
+  {
+    "file": "src/app/review.tsx",
+    "before": "Asisten Anda mengusulkan langkah berikutnya dari catatan Anda. Ini hanya berlaku saat Anda meratifikasinya.",
+    "after": "Asistenmu mengusulkan langkah berikutnya dari catatanmu. Usulan baru dijalankan setelah kamu menyetujuinya."
+  }
+]

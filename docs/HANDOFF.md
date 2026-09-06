@@ -3,6 +3,16 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## ES·PT·ID 문구 후속 개선 — 2026-09-06
+
+- 로케일 117개 문구와 소스 안 ID 문구 4개를 다듬었다. 세컨비 소개·선택 버튼도 현재 UI 언어를 읽도록 고쳤다.
+- Google Play·App Store 초안은 KO/EN/ES/PT/ID 5개 언어, 메타데이터 35개·촬영 캡션 30개다.
+- 언어별 문체 기준은 `STYLE.md`, 변경 전후·패치·검증 결과는 공통 문서 브랜치의 `docs/session-start/multilingual-copy-260906/README.md`를 읽는다.
+- 공통 ref: `refs/heads/docs/session-start-260906`. 현재 체크아웃에 파일이 없으면 `git show`로 같은 ref의 상대 경로를 읽는다.
+- 앱 코드는 TTL-Work의 미커밋 변경이다. 공유 문서 브랜치에는 초안·인수 자료·이번 차수 패치를 보존한다. 전체 dirty diff를 옮기지 않는다.
+- 관련 검사·웹 화면 확인 결과와 전체 검증의 별도 실패를 구분한다. 최신 실행 수치는 공유 기록의 `checks.json`을 따른다.
+- 안전·동의 안내와 LLM 프롬프트의 EN/KO 경계는 유지했다. 스토어 콘솔 대조·제출·공개, 원어민 감수, Android/iOS 출시 빌드 확인은 미실행이다.
+
 ## 세션 간 인수 자료 — 2026-09-06
 
 Codex·Claude 공통 시작 경로는 [세션 시작 안내](session-start/README.md)다.

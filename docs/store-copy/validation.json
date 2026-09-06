@@ -1,7 +1,7 @@
 {
-  "checkedAtKst": "2026-09-06 18:38:49 KST",
+  "checkedAtKst": "2026-09-06 19:44:19 KST",
   "status": "PASS",
-  "draftSha256": "945b7c3415125583c6da078aa170a89f7b71d95df85caa4d726dc079c2fc8ba3",
+  "draftSha256": "d5d941a4cdf18f14bea2cdf5214936dcf409b40e61e60e329c9cd499bea0b9ee",
   "fields": [
     {
       "locale": "ko",
@@ -114,10 +114,178 @@
       "limit": 500,
       "unit": "characters",
       "passed": true
+    },
+    {
+      "locale": "es",
+      "field": "appName",
+      "count": 9,
+      "limit": 30,
+      "unit": "characters",
+      "passed": true
+    },
+    {
+      "locale": "es",
+      "field": "playShort",
+      "count": 68,
+      "limit": 80,
+      "unit": "characters",
+      "passed": true
+    },
+    {
+      "locale": "es",
+      "field": "appStoreSubtitle",
+      "count": 30,
+      "limit": 30,
+      "unit": "characters",
+      "passed": true
+    },
+    {
+      "locale": "es",
+      "field": "promotionalText",
+      "count": 137,
+      "limit": 170,
+      "unit": "characters",
+      "passed": true
+    },
+    {
+      "locale": "es",
+      "field": "description",
+      "count": 871,
+      "limit": 4000,
+      "unit": "characters",
+      "passed": true
+    },
+    {
+      "locale": "es",
+      "field": "keywords",
+      "count": 66,
+      "limit": 100,
+      "unit": "utf8-bytes",
+      "passed": true
+    },
+    {
+      "locale": "es",
+      "field": "releaseNotes",
+      "count": 103,
+      "limit": 500,
+      "unit": "characters",
+      "passed": true
+    },
+    {
+      "locale": "pt",
+      "field": "appName",
+      "count": 9,
+      "limit": 30,
+      "unit": "characters",
+      "passed": true
+    },
+    {
+      "locale": "pt",
+      "field": "playShort",
+      "count": 70,
+      "limit": 80,
+      "unit": "characters",
+      "passed": true
+    },
+    {
+      "locale": "pt",
+      "field": "appStoreSubtitle",
+      "count": 27,
+      "limit": 30,
+      "unit": "characters",
+      "passed": true
+    },
+    {
+      "locale": "pt",
+      "field": "promotionalText",
+      "count": 134,
+      "limit": 170,
+      "unit": "characters",
+      "passed": true
+    },
+    {
+      "locale": "pt",
+      "field": "description",
+      "count": 843,
+      "limit": 4000,
+      "unit": "characters",
+      "passed": true
+    },
+    {
+      "locale": "pt",
+      "field": "keywords",
+      "count": 65,
+      "limit": 100,
+      "unit": "utf8-bytes",
+      "passed": true
+    },
+    {
+      "locale": "pt",
+      "field": "releaseNotes",
+      "count": 100,
+      "limit": 500,
+      "unit": "characters",
+      "passed": true
+    },
+    {
+      "locale": "id",
+      "field": "appName",
+      "count": 9,
+      "limit": 30,
+      "unit": "characters",
+      "passed": true
+    },
+    {
+      "locale": "id",
+      "field": "playShort",
+      "count": 72,
+      "limit": 80,
+      "unit": "characters",
+      "passed": true
+    },
+    {
+      "locale": "id",
+      "field": "appStoreSubtitle",
+      "count": 25,
+      "limit": 30,
+      "unit": "characters",
+      "passed": true
+    },
+    {
+      "locale": "id",
+      "field": "promotionalText",
+      "count": 153,
+      "limit": 170,
+      "unit": "characters",
+      "passed": true
+    },
+    {
+      "locale": "id",
+      "field": "description",
+      "count": 849,
+      "limit": 4000,
+      "unit": "characters",
+      "passed": true
+    },
+    {
+      "locale": "id",
+      "field": "keywords",
+      "count": 46,
+      "limit": 100,
+      "unit": "utf8-bytes",
+      "passed": true
+    },
+    {
+      "locale": "id",
+      "field": "releaseNotes",
+      "count": 90,
+      "limit": 500,
+      "unit": "characters",
+      "passed": true
     }
   ],
   "snapshotCount": 4,
   "errors": [],
   "scope": "Field structure, lengths, screenshot route existence and historical snapshot hashes. Not store approval, runtime QA or semantic review.",
-  "reportSha256": "e49b70efe797da63fe0eac6286fe1472674411c578b7210fe84af82f4c44e71b"
+  "reportSha256": "4eb6a41fc9ca618fe427081604716cd3b469d76084be38319a94966072003146"
 }

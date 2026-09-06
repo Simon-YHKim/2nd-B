@@ -1,0 +1,4 @@
+* text eol=lf
+*.json -text
+*.html -text
+*.patch -text -whitespace

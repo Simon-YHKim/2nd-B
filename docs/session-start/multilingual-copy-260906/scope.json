@@ -1,0 +1,239 @@
+{
+  "sourceWorktree": "E:\\2ndB\\.worktrees\\2ndB\\TTL-Work",
+  "sourceBranch": "claude/pixelclay-auth-mascot-font-260905",
+  "baselinePath": "C:\\Users\\202502\\AppData\\Local\\Temp\\2ndb-multilingual-80b7f4abfc4148aeab93a20c54ff8efa",
+  "delta": {
+    "status": "PASS",
+    "strings": 117,
+    "files": 25,
+    "byLocale": {
+      "es": 6,
+      "pt": 2,
+      "id": 109
+    },
+    "keysPreserved": true,
+    "placeholdersPreserved": true,
+    "protected": [
+      {
+        "file": "locales/es/consent.json",
+        "unchanged": true
+      },
+      {
+        "file": "locales/es/safety.json",
+        "unchanged": true
+      },
+      {
+        "file": "locales/pt/consent.json",
+        "unchanged": true
+      },
+      {
+        "file": "locales/pt/safety.json",
+        "unchanged": true
+      },
+      {
+        "file": "locales/id/consent.json",
+        "unchanged": true
+      },
+      {
+        "file": "locales/id/safety.json",
+        "unchanged": true
+      }
+    ],
+    "scope": "Compared with this turn snapshot, not Git HEAD."
+  },
+  "files": [
+    {
+      "file": "locales/es/deepspace.json",
+      "beforeSha256LF": "7202d5da1fb3149128419862da12dcbbec726ee2c12968e93ba51946c6a921d7",
+      "afterSha256LF": "883b94ccb81c58c477904ce93d883a69ff2cd787b69461f8129af931ddd30e51"
+    },
+    {
+      "file": "locales/es/secondb.json",
+      "beforeSha256LF": "a219ad2550cc46a55ac30054eb6698d34e6ad443094d913377aa1db9b2a915d9",
+      "afterSha256LF": "f67bea9851805cdd2256189010eb39baeee5b3bebe534cccf76e42b4d7b6c41d"
+    },
+    {
+      "file": "locales/id/audit.json",
+      "beforeSha256LF": "295b2571d4d320c657cb5f205a3baecf84a6560b03734c8ba148df2ec714fee2",
+      "afterSha256LF": "dcfae25569d5bbed51ac2940c2067b280c6f2ff48193a6fae934ff6adc4bf739"
+    },
+    {
+      "file": "locales/id/capture.json",
+      "beforeSha256LF": "3b90cc1fb119c39ac2357f991f3fb8395d1933f5fe0bc93a111ec66626d71c94",
+      "afterSha256LF": "ee4785b384ff1a65c480b31eec4a98e544920af83574773edf5abd7db55717ee"
+    },
+    {
+      "file": "locales/id/community.json",
+      "beforeSha256LF": "ae64c1b5c99f025b2d8bed4ae86a180434ae6c32fd96265de0b7dd26eb68ff29",
+      "afterSha256LF": "4ef8deea0c758b31e14e57e0d0cd3f8c2096b66d73c0dae19ebc7a2ab98197fb"
+    },
+    {
+      "file": "locales/id/deepspace.json",
+      "beforeSha256LF": "44bfc4037258f70b77ccc2af7db32372269bc129d74c3466575d2a5a4cbfe482",
+      "afterSha256LF": "a015c3e6c29c8218992e7b901e2c13d77ec794cf47ab9e6a0621a2ed38c839c7"
+    },
+    {
+      "file": "locales/id/formats.json",
+      "beforeSha256LF": "a1e5030adb07210895b5e4b015bfe4d7ddc662ee4e1635589d6a71d6c1d1fac4",
+      "afterSha256LF": "141505d581b5a7762345e1f135bf783675eeecd8372b629cced93b1bca56256e"
+    },
+    {
+      "file": "locales/id/home.json",
+      "beforeSha256LF": "0014d6d135b2b84e3ea4619916deecb3691be80663c19039ea77149f17393fab",
+      "afterSha256LF": "a0d13c03816138ab6ccf35c1c1fba430784deba5eace9ae0d6cf0b5c56f78e28"
+    },
+    {
+      "file": "locales/id/iden.json",
+      "beforeSha256LF": "88f3bb4a1cd0ab97e5a2332c1d683d09b33bb0121413f3604ec46a843804b42c",
+      "afterSha256LF": "a2846184cd59f4c8025b4df0d9b6c23eecef907a254bb52f21cd72bd1349b6cb"
+    },
+    {
+      "file": "locales/id/inbox.json",
+      "beforeSha256LF": "5635e27b3ca3d62a471b696b1ee6733c925dbcf91e821f99d7f8345d904fa8c2",
+      "afterSha256LF": "fdea2073c8da5616774083032255c9783a1de79bfc1e799f4df50ccf1f29e381"
+    },
+    {
+      "file": "locales/id/index.json",
+      "beforeSha256LF": "6e58a2218e1d8b2e826c99807d334c1fa9c3c6476e5dd6ccea2aaa21bd39bdfc",
+      "afterSha256LF": "311d521062ea1c7e3522ee49997a1b530f4a541032f9876245d89001847b884a"
+    },
+    {
+      "file": "locales/id/insights.json",
+      "beforeSha256LF": "f8c72e2ea84d52ed2a567dc882e079d8fcae81229587428b21c28df79f36a238",
+      "afterSha256LF": "81029ad443271828bcc9770fd91173e2b93ee3df540c2053eae7124f2f016cdf"
+    },
+    {
+      "file": "locales/id/interview.json",
+      "beforeSha256LF": "a9e05a0de8b16bc80ea08bd2dd0f670bd649b70dc383f876a75c61b23231e48e",
+      "afterSha256LF": "232e1e94e91c068c83439ed99e3f7fa80b97cd7010caf28cc06c43b63a7ac394"
+    },
+    {
+      "file": "locales/id/manual.json",
+      "beforeSha256LF": "83f4c0ed5e3cc562dfb8e5b0a87e678803ca4015c751dc2dbe78eb7665bc05d2",
+      "afterSha256LF": "47c54427814d292fc966eebccaef1ea2d0c0194760da4704cc282d4dc24975e6"
+    },
+    {
+      "file": "locales/id/notFound.json",
+      "beforeSha256LF": "1efbb727769336a847abd709c631ec1c946b5736502847b5b381163be8de7ed6",
+      "afterSha256LF": "05066c338042b5aabb23a33a18b53cf2f3061d68c8ad2e17e3a2fb98de363a1d"
+    },
+    {
+      "file": "locales/id/permissions.json",
+      "beforeSha256LF": "a2f847932160f8059a9fa27f4a90af12379a555d4f0e7ca86dfce3decea95173",
+      "afterSha256LF": "c32b85e6611adb734e1defc9799aab02d84d92b2df673d63c209c59ee4b2abed"
+    },
+    {
+      "file": "locales/id/persona.json",
+      "beforeSha256LF": "84508670e504aa609ded6f987a1c6250a9a2011fd763ce6cad7e56797cdb6555",
+      "afterSha256LF": "38a2efd37a4ffd874f46875c5e3f693ebc24b119393bad7f5ab92e57b36add7c"
+    },
+    {
+      "file": "locales/id/ratifications.json",
+      "beforeSha256LF": "48a3bb064a2f5ac955eb880b3a1b0f919e5cc4c32e2baeadb05ccb62443d5278",
+      "afterSha256LF": "0a2b7a8d93706d58365f896a4179937e7f2a0f53f352222c461284cb3bb58b32"
+    },
+    {
+      "file": "locales/id/records.json",
+      "beforeSha256LF": "14c2260d0ddb1052c44cebdd3a4d98e80a34fdca4f0a2eb0ac462c13fc204e53",
+      "afterSha256LF": "0c1f82ce34197a071aa3e4020fa41fc670a9a117ee5c92f187aa07b1423c1087"
+    },
+    {
+      "file": "locales/id/secondb.json",
+      "beforeSha256LF": "8292d689261712f1f8e71fede0f07efbeb74336a2b7a31fac63b960a123ae8cb",
+      "afterSha256LF": "2f163fa949ac8a684217b983ef1cb8c3a4d389c9a3b7e07522a23ae49b8fdeb2"
+    },
+    {
+      "file": "locales/id/settings.json",
+      "beforeSha256LF": "3300f902c62ccaee99045c5d68787af001f8b59e43cdbe85396ed3788f8025a1",
+      "afterSha256LF": "97201e9c306b063ab37afe9f24a3d91586dac19300f6a706d72bd375007948d9"
+    },
+    {
+      "file": "locales/id/support.json",
+      "beforeSha256LF": "19136a5cb719b3dd220b9fee12f90b741bbb4115bbaa3e1cb3f0dd46725ef9fe",
+      "afterSha256LF": "e5de2a86a8bbd9703ec1d82921c6b273ea1b0c982842ef3445a8a82bf1023a4a"
+    },
+    {
+      "file": "locales/id/trinity.json",
+      "beforeSha256LF": "a8c233ba2fce773897848d39b2800a0079ea7cefcad74347e86522ee49e89a15",
+      "afterSha256LF": "38c04e786e038ccc82d21b4c361417b34952e4744b38a76f5c62c9955490b903"
+    },
+    {
+      "file": "locales/id/wiki.json",
+      "beforeSha256LF": "8010463b77ddd853c8c846e0c778f39e22c23280f211e378f7133755327401f7",
+      "afterSha256LF": "dd307fbba37af09da78daa7763e0033c65fca60bba89b4054b66e7b53681948f"
+    },
+    {
+      "file": "locales/pt/secondb.json",
+      "beforeSha256LF": "db60ba4523528e04da9713c250f2abbac8f0fb4efae37dfe2bcd19aa9df12093",
+      "afterSha256LF": "9ae3277cc888da7aad82ee71c3ad46885166377e7326800bc987214b0400d6ea"
+    },
+    {
+      "file": "src/lib/safety/anthro.ts",
+      "beforeSha256LF": "e80558fae1d7426caeb851143698e43978b3dbc9e3f8d3a46ea89052fcf84ea1",
+      "afterSha256LF": "6d5b33a11546c201656be4ecd71e6f7bb3809e548b5b352cfe0f773401706232"
+    },
+    {
+      "file": "src/lib/safety/mascot-voice.ts",
+      "beforeSha256LF": "7028ee4d5e8600572ea8888b4d1b6a8bb0ec6ad97897334adb9230e8a9406351",
+      "afterSha256LF": "40fd1784b339aad24b2d56c58ed856851a9d8a07a99acae0def71da363ce627a"
+    },
+    {
+      "file": "src/app/secondb.tsx",
+      "beforeSha256LF": "d9c8545c8bf8bd07fca618050f9804862504e6ae02452392198554d2d7b204c9",
+      "afterSha256LF": "570368b90fb70413053304fa796680f4ca625205e1f020733bd56c2c1a796be1"
+    },
+    {
+      "file": "STYLE.md",
+      "beforeSha256LF": "e803299d7bbcafafae4e30ab2863d31b924757350303c1cdf2ec1bcd6af31b94",
+      "afterSha256LF": "bfc88a4fb7a56dfd5d27235e746b4480eba7cdb4378c37e1d9afea4bdadefd9d"
+    },
+    {
+      "file": "src/lib/safety/__tests__/anthro.test.ts",
+      "baseline": "Reconstructed by removing this round's leading test blocks; existing tests retained."
+    },
+    {
+      "file": "src/lib/safety/__tests__/mascot-voice.test.ts",
+      "baseline": "Reconstructed by removing this round's leading test blocks; existing tests retained."
+    },
+    {
+      "file": "src/app/processing-log.tsx",
+      "scope": "One literal replacement; full pre-edit snapshot saved."
+    },
+    {
+      "file": "src/app/settings.tsx",
+      "scope": "One literal replacement; full pre-edit snapshot saved."
+    },
+    {
+      "file": "src/lib/auth/SignInStorageRecoveryCard.tsx",
+      "scope": "One literal replacement; full pre-edit snapshot saved."
+    },
+    {
+      "file": "src/app/review.tsx",
+      "scope": "One literal replacement; full pre-edit snapshot saved."
+    }
+  ],
+  "claimReview": {
+    "scannedStrings": {
+      "es": 3767,
+      "pt": 3767,
+      "id": 3767
+    },
+    "candidates": [
+      {
+        "file": "locales\\es\\deepspace.json",
+        "key": "privacy.footer",
+        "text": "El tratamiento y almacenamiento de los datos depende de cada función. Consulta su aviso de uso de datos.",
+        "disposition": "kept",
+        "reason": "Describes processing and storage of data; not a claim about a service or outcome for the user."
+      },
+      {
+        "file": "locales\\pt\\deepspace.json",
+        "key": "privacy.footer",
+        "text": "O tratamento e armazenamento dos dados depende de cada função. Consulte o aviso de uso de dados.",
+        "disposition": "kept",
+        "reason": "Describes processing and storage of data; not a claim about a service or outcome for the user."
+      }
+    ]
+  },
+  "inlineStrings": 4
+}

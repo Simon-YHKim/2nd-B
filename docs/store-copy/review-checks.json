@@ -1,59 +1,204 @@
 {
-  "checkedAtKst": "2026-09-06T18:39:39.257064+09:00",
-  "draftSha256": "945b7c3415125583c6da078aa170a89f7b71d95df85caa4d726dc079c2fc8ba3",
-  "reportSha256": "e49b70efe797da63fe0eac6286fe1472674411c578b7210fe84af82f4c44e71b",
-  "metadataFieldsPassed": 14,
-  "lexiconCheck": "PASS; npx tsx scripts/check-forbidden-lexicon.ts",
+  "checkedAtKst": "2026-09-06T19:44:34.575000+09:00",
+  "draftSha256": "d5d941a4cdf18f14bea2cdf5214936dcf409b40e61e60e329c9cd499bea0b9ee",
+  "reportSha256": "4eb6a41fc9ca618fe427081604716cd3b469d76084be38319a94966072003146",
+  "metadataFieldsPassed": 35,
   "browser": {
     "passed": true,
     "cases": [
       {
+        "locale": "ko",
         "width": 390,
         "colorScheme": "light",
-        "keyboardToggled": true,
+        "toggled": true,
         "overflow": false,
-        "exactCopies": [
-          true,
-          true
-        ]
+        "copiedFields": 7,
+        "exactCopies": true
       },
       {
+        "locale": "en",
+        "width": 390,
+        "colorScheme": "light",
+        "toggled": true,
+        "overflow": false,
+        "copiedFields": 7,
+        "exactCopies": true
+      },
+      {
+        "locale": "es",
+        "width": 390,
+        "colorScheme": "light",
+        "toggled": true,
+        "overflow": false,
+        "copiedFields": 7,
+        "exactCopies": true
+      },
+      {
+        "locale": "pt",
+        "width": 390,
+        "colorScheme": "light",
+        "toggled": true,
+        "overflow": false,
+        "copiedFields": 7,
+        "exactCopies": true
+      },
+      {
+        "locale": "id",
+        "width": 390,
+        "colorScheme": "light",
+        "toggled": true,
+        "overflow": false,
+        "copiedFields": 7,
+        "exactCopies": true
+      },
+      {
+        "locale": "ko",
         "width": 390,
         "colorScheme": "dark",
-        "keyboardToggled": true,
+        "toggled": true,
         "overflow": false,
-        "exactCopies": [
-          true,
-          true
-        ]
+        "copiedFields": 7,
+        "exactCopies": true
       },
       {
+        "locale": "en",
+        "width": 390,
+        "colorScheme": "dark",
+        "toggled": true,
+        "overflow": false,
+        "copiedFields": 7,
+        "exactCopies": true
+      },
+      {
+        "locale": "es",
+        "width": 390,
+        "colorScheme": "dark",
+        "toggled": true,
+        "overflow": false,
+        "copiedFields": 7,
+        "exactCopies": true
+      },
+      {
+        "locale": "pt",
+        "width": 390,
+        "colorScheme": "dark",
+        "toggled": true,
+        "overflow": false,
+        "copiedFields": 7,
+        "exactCopies": true
+      },
+      {
+        "locale": "id",
+        "width": 390,
+        "colorScheme": "dark",
+        "toggled": true,
+        "overflow": false,
+        "copiedFields": 7,
+        "exactCopies": true
+      },
+      {
+        "locale": "ko",
         "width": 1440,
         "colorScheme": "light",
-        "keyboardToggled": true,
+        "toggled": true,
         "overflow": false,
-        "exactCopies": [
-          true,
-          true
-        ]
+        "copiedFields": 7,
+        "exactCopies": true
       },
       {
+        "locale": "en",
+        "width": 1440,
+        "colorScheme": "light",
+        "toggled": true,
+        "overflow": false,
+        "copiedFields": 7,
+        "exactCopies": true
+      },
+      {
+        "locale": "es",
+        "width": 1440,
+        "colorScheme": "light",
+        "toggled": true,
+        "overflow": false,
+        "copiedFields": 7,
+        "exactCopies": true
+      },
+      {
+        "locale": "pt",
+        "width": 1440,
+        "colorScheme": "light",
+        "toggled": true,
+        "overflow": false,
+        "copiedFields": 7,
+        "exactCopies": true
+      },
+      {
+        "locale": "id",
+        "width": 1440,
+        "colorScheme": "light",
+        "toggled": true,
+        "overflow": false,
+        "copiedFields": 7,
+        "exactCopies": true
+      },
+      {
+        "locale": "ko",
         "width": 1440,
         "colorScheme": "dark",
-        "keyboardToggled": true,
+        "toggled": true,
         "overflow": false,
-        "exactCopies": [
-          true,
-          true
-        ]
+        "copiedFields": 7,
+        "exactCopies": true
+      },
+      {
+        "locale": "en",
+        "width": 1440,
+        "colorScheme": "dark",
+        "toggled": true,
+        "overflow": false,
+        "copiedFields": 7,
+        "exactCopies": true
+      },
+      {
+        "locale": "es",
+        "width": 1440,
+        "colorScheme": "dark",
+        "toggled": true,
+        "overflow": false,
+        "copiedFields": 7,
+        "exactCopies": true
+      },
+      {
+        "locale": "pt",
+        "width": 1440,
+        "colorScheme": "dark",
+        "toggled": true,
+        "overflow": false,
+        "copiedFields": 7,
+        "exactCopies": true
+      },
+      {
+        "locale": "id",
+        "width": 1440,
+        "colorScheme": "dark",
+        "toggled": true,
+        "overflow": false,
+        "copiedFields": 7,
+        "exactCopies": true
       }
     ],
     "errors": [],
-    "remoteRequests": [],
-    "clipboard": "Stubbed in-page to preserve the user clipboard; exact KO/EN text verified."
+    "clipboard": "stubbed to preserve system clipboard"
   },
-  "originalsAndSnapshotsUnchanged": true,
-  "status": "draft-ready-for-release-review",
-  "storeConsoleChecked": false,
-  "storeSubmissionPerformed": false
+  "localeScope": [
+    "ko",
+    "en",
+    "es",
+    "pt",
+    "id"
+  ],
+  "consoleValuesVerified": false,
+  "submitted": false,
+  "nativeReleaseBuildsVerified": false,
+  "professionalTranslatorReview": false
 }

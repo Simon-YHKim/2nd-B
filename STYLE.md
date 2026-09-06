@@ -57,3 +57,32 @@
 - `혁신적`, `공감`, `도움` 같은 낱말을 모든 문맥에서 금지하지 않는다. 이 문서의 나쁜 예시는 상투적인 사용 방식을 가리킨다. 사용자 인용·고유명사·기술 설명은 뜻을 보존한다.
 - em dash 제한은 화면 표기 취향이다. 문장부호 하나로 AI 작성 여부나 문체의 품질을 판정하지 않는다.
 - 위기 신호 탐지와 동의·연령·출처 보호는 문체 검사와 별개다. 문장을 자연스럽게 고친다는 이유로 이 경계를 생략하지 않는다.
+
+## 스페인어·포르투갈어·인도네시아어 (2026-09-06)
+
+한국어 문장 구조를 그대로 옮기지 않는다. 기능·저장 상태·동의 범위·변수는 보존하고,
+해당 언어에서 흔히 쓰는 동사로 행동을 설명한다. 짧고 자연스러운 문장은 그대로 둔다.
+
+| 언어 | 기준 | 피할 표현 방식 | 예시 |
+|---|---|---|---|
+| ES | 중남미에서 읽기 쉬운 `tú` 표현. `vosotros`와 불필요한 격식체를 섞지 않음 | 기능 설명을 `viaje transformador`, `poderosas perspectivas`로 부풀리기 | `Guarda una nota y vuelve a leerla cuando la necesites.` |
+| PT | 브라질의 `você` 표현. 버튼은 `Salvar`, `Abrir`, `Tentar novamente` | `jornada de transformação`, `desbloqueie seu potencial` 같은 약속 | `Salve uma nota e consulte o registro depois.` |
+| ID | 기존 앱처럼 `kamu` 사용. `Anda`·`engkau`를 이유 없이 섞지 않음 | `perjalanan transformatif`, 현자·영감 큐레이터 설정, capture를 `tangkapan`으로 직역 | `Simpan catatan agar mudah ditemukan nanti.` |
+
+ID의 저장 화면 이름은 `Simpan`, 저장한 원본은 문맥에 따라 `bahan`, 글로 남긴 기록은
+`catatan`으로 쓴다. 위키 페이지와 아직 위키로 정리하지 않은 원본 자료를 구분한다.
+음성을 마이크로 잡는다는 뜻의 `tertangkap`까지 일괄 치환하지 않는다.
+
+단어를 통째로 금지하지 않는다. 다음 차이를 확인한다.
+
+- ES: `Te quiero mostrar una nota`는 설명하려는 행동이고, `Te quiero`는 AI 자신의 애착 표현이다.
+- PT: `Você sente saudades de alguém?`는 사용자의 경험을 묻는 질문이다. `Senti saudades de você`는 AI의 애착 주장이다.
+- ID: `Siapa yang kamu rindukan?`는 질문이고, `Aku merindukanmu`는 AI 자신의 감정 주장이다.
+- `transformar áudio em texto`는 음성의 텍스트 변환이다. `transformar`라는 동사만으로 홍보 표현이라고 판단하지 않는다.
+- 사용자의 실제 인용이나 정형 설문을 문체 때문에 바꾸지 않는다. 금지 지시는 해당 구절에만 적용한다.
+  같은 문장의 뒤쪽에 별도 주장이 있으면 따로 검토한다.
+
+친밀감·독점·속마음 단정의 대표 표현은 `src/lib/safety/anthro.ts`와
+`src/lib/safety/mascot-voice.ts`의 ES/PT/ID 예시로 검사한다. 이는 문구 검토용이며
+모든 표현을 인식하는 언어 분류기가 아니다. 임상 서비스·효능 주장은 새 언어 문구에서도
+실제 근거와 문맥을 검토한다. 기존 `SystemLocale`과 안전·동의 안내의 EN/KO 경계는 그대로 따른다.

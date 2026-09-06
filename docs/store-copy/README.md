@@ -1,12 +1,12 @@
 # 스토어 문구: 다음 등록에 쓸 초안
 
-작성: 2026-09-06 KST. **초안 작성 완료 / 스토어 콘솔 대조·반영 미실행.**
+작성: 2026-09-06 KST. **5개 언어 초안 작성 / 스토어 콘솔 대조·반영 미실행.**
 TTL-Work에서 준비한 자료를 로컬 공유 브랜치 `docs/session-start-260906`에도 보존했다.
 main 병합이나 스토어 게시 완료를 뜻하지 않는다. [세션 시작 안내](../session-start/README.md)에서 후속 작업을 찾을 수 있다.
 
 ## 바로 볼 파일
 
-- [문구 미리보기와 복사](review.html): 한국어·영어 설명, 각 필드 길이, 촬영용 문구.
+- [문구 미리보기와 복사](review.html): 한국어·영어·스페인어·포르투갈어·인도네시아어 설명, 필드 길이, 촬영용 문구.
 - [drafts.json](drafts.json): 수정할 정본. 두 스토어가 같은 상세 설명을 사용한다.
 - [source-manifest.json](source-manifest.json): 원본 위치·수정 시각·SHA256.
 - [review-checks.json](review-checks.json): 이번 초안의 길이·문구·화면 확인 기록. 수정 후에는 해당 파일의 해시와 새 초안을 구분한다.
@@ -16,6 +16,7 @@ main 병합이나 스토어 게시 완료를 뜻하지 않는다. [세션 시작
 
 ```powershell
 python docs/store-copy/build-review.py
+python -m unittest discover -s docs/store-copy -p test_build_review.py
 npx tsx scripts/check-forbidden-lexicon.ts
 git diff --check -- docs/store-copy docs/HANDOFF.md
 ```
@@ -28,8 +29,23 @@ git diff --check -- docs/store-copy docs/HANDOFF.md
 
 ## 스토어 필드에 옮기는 법
 
-`ko`는 Play의 `ko-KR`·Apple의 `ko`, `en`은 두 스토어의 `en-US` 초안이다.
-현재 콘솔의 기본 언어·등록 언어는 적용할 때 확인한다. ES/PT/ID 초안은 아직 없다.
+| 초안 | 기준 표현 | Google Play 후보 | App Store 후보 |
+|---|---|---|---|
+| `ko` | 한국어 | `ko-KR` | `ko` |
+| `en` | 영어 | `en-US` | `en-US` |
+| `es` | 중남미에서 읽기 쉬운 스페인어 | `es-419` | `es-MX` |
+| `pt` | 브라질 포르투갈어 | `pt-BR` | `pt-BR` |
+| `id` | 인도네시아어 | `id` | `id` |
+
+지역은 이번 초안의 기준이다. 국가별 판매·배포 범위나 현재 콘솔의 등록 언어를 확정한 것이 아니다.
+적용 전에 기본 언어와 실제 등록 언어를 확인하고, 스페인·포르투갈용이면 해당 지역 표현을 다시 검토한다.
+언어 목록은 [Google 현지화 안내](https://support.google.com/googleplay/android-developer/answer/9844778?hl=en)와
+[Apple 스토어 현지화 안내](https://developer.apple.com/help/app-store-connect/reference/app-information/app-store-localizations)를 확인했다.
+
+ES/PT/ID는 앱의 현재 UI 지원 언어다. `src/lib/i18n/locales.ts`에서는 아직 beta로 표시하며,
+안전·동의 안내와 일부 AI 화면은 영어 경로를 사용한다. 그래서 세 언어 초안에 일부 기능·안내가
+영어로 표시된다는 문장을 넣었다. 새 언어 팩이나 해당 언어의 AI·위기 분류 지원을 추가한 것은 아니다.
+전문 번역가·현지 사용자 검수와 플랫폼별 출시 빌드 확인은 미실행이다.
 
 | JSON 필드 | Google Play | App Store | 길이 기준 |
 |---|---|---|---|
@@ -63,9 +79,13 @@ Apple의 새 기능 설명은 최대 4,000자이며 최초 버전에는 해당 �
 | 저장 자료와 위키 페이지를 같은 것으로 설명 | 자료 저장과 위키 정리를 구분. 저장만 하면 자동으로 위키에 나타난다고 쓰지 않음 |
 | 대화의 임의 부분을 골라 위키에 저장하는 듯한 설명 | 선택한 답변과 앞선 질문을 함께 저장한다고 설명 |
 
+다국어 앱 문구·검사 코드 변경은 [인수 기록](../session-start/multilingual-copy-260906/README.md)에서 확인한다.
+
 문체와 어휘 판단은 [STYLE.md](../../STYLE.md)와
 [금지어 정책 검토](../legal/lexicon-policy-review-260906.md)를 따른다.
 기술 설명·친근한 말투를 일괄 금지하지 않으며, 근거 없는 성격 단정·효능·감정적 의존 주장은 쓰지 않는다.
+언어별 문체와 오탐 예시는 STYLE.md의 ES/PT/ID 절을 참고한다. 문자열 검사 통과만으로 자연스러움이나
+모든 언어의 안전성을 확인했다고 보고하지 않는다.
 
 ## 설명을 뒷받침하는 구현
 
@@ -106,7 +126,8 @@ Apple의 새 기능 설명은 최대 4,000자이며 최초 버전에는 해당 �
 ```text
 CLAUDE.md와 docs/store-copy/README.md를 읽고 스토어 문구 후속 작업을 진행해줘.
 drafts.json이 문안 정본이고 reference-260906은 오래된 원본이야.
-Google Play·App Store의 현재 문구와 제출할 빌드에 맞춰 한국어·영어 초안을 확인해줘.
+Google Play·App Store의 현재 문구와 제출할 빌드에 맞춰 KO/EN/ES/PT/ID 초안을 확인해줘.
+ES는 중남미, PT는 브라질 표현이 기준이야. 실제 콘솔의 지역·언어와 영어로 남은 안내도 확인해줘.
 과장과 AI스러운 말투를 쓰지 말고, 기능·가격·개인정보 설명을 확인 없이 보장하지 마.
 스크린샷 문구와 소개 페이지도 함께 대조해줘. 변경안과 확인 결과부터 준비하고,
 콘솔 적용·제출·공개는 승인된 범위에서만 진행해줘.

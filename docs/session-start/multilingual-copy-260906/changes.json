@@ -1,0 +1,704 @@
+[
+  {
+    "file": "locales/es/secondb.json",
+    "key": "empty",
+    "before": "Prueba una pregunta como: \"¿Sobre qué he escrito más este mes?\"",
+    "after": "Empieza una conversación. Por ejemplo: \"¿Qué temas se repiten en mis notas de este mes?\""
+  },
+  {
+    "file": "locales/es/secondb.json",
+    "key": "monologues.momo.1",
+    "before": "Haz que sea fácil encontrar qué pasó y cuándo.",
+    "after": "Anota qué pasó y cuándo para encontrarlo después."
+  },
+  {
+    "file": "locales/es/secondb.json",
+    "key": "monologues.lulu.3",
+    "before": "Un ejemplo podría aclararlo.",
+    "after": "¿Se te ocurre un ejemplo de la vida diaria?"
+  },
+  {
+    "file": "locales/pt/secondb.json",
+    "key": "empty",
+    "before": "Comece uma conversa. Tente: \"Quais padrões aparecem nas minhas capturas este mês?\"",
+    "after": "Comece uma conversa. Por exemplo: \"Quais assuntos se repetem nas minhas notas deste mês?\""
+  },
+  {
+    "file": "locales/pt/secondb.json",
+    "key": "monologues.momo.1",
+    "before": "Facilite encontrar o que aconteceu e quando.",
+    "after": "Anote o que aconteceu e quando para encontrar o registro depois."
+  },
+  {
+    "file": "locales/id/secondb.json",
+    "key": "empty",
+    "before": "Mulai percakapan. Coba: \"Pola apa yang muncul di tangkapan bulan ini?\"",
+    "after": "Mulai percakapan. Misalnya: \"Topik apa yang berulang dalam catatanku bulan ini?\""
+  },
+  {
+    "file": "locales/id/secondb.json",
+    "key": "heroSpeech.divergent",
+    "before": "Sedang melihat dari sudut lain.",
+    "after": "Sedang mempertimbangkan kemungkinan lain."
+  },
+  {
+    "file": "locales/id/secondb.json",
+    "key": "monologues.secondb.0",
+    "before": "Mulai dari pola yang terlihat, lalu periksa kemungkinan lain.",
+    "after": "Bagian mana dari catatanmu yang ingin kamu pahami lebih jauh?"
+  },
+  {
+    "file": "locales/id/secondb.json",
+    "key": "monologues.secondb.1",
+    "before": "Periksa hubungan antara catatan dan ringkasan diri.",
+    "after": "Adakah catatan lain yang berkaitan dengan ini?"
+  },
+  {
+    "file": "locales/id/secondb.json",
+    "key": "monologues.secondb.2",
+    "before": "Analitik melihat pola. Divergen mencoba sudut lain.",
+    "after": "Kamu bisa memeriksa catatan atau mencoba ide lain."
+  },
+  {
+    "file": "locales/id/secondb.json",
+    "key": "monologues.secondb.3",
+    "before": "Lihat catatan yang terkait dalam satu tampilan.",
+    "after": "Buka sumbernya untuk memeriksa jawaban."
+  },
+  {
+    "file": "locales/id/secondb.json",
+    "key": "monologues.archi.0",
+    "before": "Mulai dari situasi pekerjaanmu sekarang.",
+    "after": "Bagaimana keadaan pekerjaanmu sekarang?"
+  },
+  {
+    "file": "locales/id/secondb.json",
+    "key": "monologues.archi.1",
+    "before": "Lihat lagi catatan tentang kariermu.",
+    "after": "Pengalaman mana yang bisa membantu kamu mempertimbangkan pilihan ini?"
+  },
+  {
+    "file": "locales/id/secondb.json",
+    "key": "monologues.archi.3",
+    "before": "Pola ini bisa menjadi rencana kerja.",
+    "after": "Apa yang bisa kamu coba saat bekerja nanti?"
+  },
+  {
+    "file": "locales/id/secondb.json",
+    "key": "monologues.gadi.0",
+    "before": "Lihat bagaimana hubungan ini berubah.",
+    "after": "Apa yang terjadi di antara kalian?"
+  },
+  {
+    "file": "locales/id/secondb.json",
+    "key": "monologues.gadi.2",
+    "before": "Perhatikan kapan kalian biasa mengobrol.",
+    "after": "Bagaimana perasaanmu saat percakapan itu berlangsung?"
+  },
+  {
+    "file": "locales/id/secondb.json",
+    "key": "monologues.gadi.3",
+    "before": "Cari koneksi yang lebih stabil.",
+    "after": "Apa yang ingin kamu ubah dalam hubungan ini?"
+  },
+  {
+    "file": "locales/id/secondb.json",
+    "key": "monologues.lulu.1",
+    "before": "Pertanyaan ini layak ditanyakan sekali lagi.",
+    "after": "Bagian mana yang masih membingungkan?"
+  },
+  {
+    "file": "locales/id/secondb.json",
+    "key": "monologues.lulu.2",
+    "before": "Bandingkan hal yang kamu pelajari dari catatan yang tersimpan.",
+    "after": "Adakah catatan lain tentang topik ini?"
+  },
+  {
+    "file": "locales/id/secondb.json",
+    "key": "monologues.lulu.3",
+    "before": "Socrates akan bertanya; Konfusius akan mencari praktiknya.",
+    "after": "Bisakah kamu memberi contoh dari kehidupan sehari-hari?"
+  },
+  {
+    "file": "locales/id/secondb.json",
+    "key": "monologues.momo.0",
+    "before": "Mulai catatan baru dengan kategori.",
+    "after": "Pilih kategori agar catatan ini mudah ditemukan nanti."
+  },
+  {
+    "file": "locales/id/secondb.json",
+    "key": "monologues.momo.1",
+    "before": "Buat mudah menemukan apa yang terjadi dan kapan.",
+    "after": "Tulis apa yang terjadi dan kapan agar mudah ditemukan nanti."
+  },
+  {
+    "file": "locales/id/secondb.json",
+    "key": "monologues.momo.2",
+    "before": "Temukan catatan berdasarkan waktunya.",
+    "after": "Kamu ingat kapan ini terjadi?"
+  },
+  {
+    "file": "locales/id/secondb.json",
+    "key": "monologues.lumi.0",
+    "before": "Selera tumbuh sedikit demi sedikit, seperti latihan.",
+    "after": "Apa yang sedang kamu senangi belakangan ini?"
+  },
+  {
+    "file": "locales/id/secondb.json",
+    "key": "monologues.lumi.1",
+    "before": "Apakah rekomendasi ini cocok dengan ritme hari ini?",
+    "after": "Apakah ada waktu untuk kegiatan ini hari ini?"
+  },
+  {
+    "file": "locales/id/secondb.json",
+    "key": "personas.secondb.systemHint",
+    "before": "Bicaralah sebagai SecondB, AI pusat untuk Bintang Utara. Hubungkan catatan pengguna di seluruh grafik; gunakan mode Analitik untuk membaca pola dengan jelas dan mode Divergen untuk sudut alternatif. Hangat, ringkas, praktis.",
+    "after": "Bicaralah sebagai SecondB, yang menyusun ringkasan Bintang Utara. Hubungkan catatan yang berkaitan. Dalam mode Analitik, jelaskan pola yang berulang beserta sumbernya. Dalam mode Divergen, ajukan kemungkinan lain. Gunakan bahasa sehari-hari. Hindari metafora berlebihan, pujian yang dibuat-buat, dan ungkapan empati yang klise. Ajukan pertanyaan hanya jika berguna."
+  },
+  {
+    "file": "locales/id/secondb.json",
+    "key": "personas.archi.systemHint",
+    "before": "Bicaralah sebagai Archon, konsultan karier untuk kerja dan pertumbuhan di Inti Pertumbuhan. Analisis pekerjaan pengguna, proses pertumbuhan, dan konteks saat ini, lalu petakan arah pertumbuhan yang cocok dengan situasinya. Langkah berikutnya konkret, mendukung, tidak generik.",
+    "after": "Bicaralah sebagai Archon, yang membahas pekerjaan dan perkembangan pengguna. Gunakan pengalaman kerja dan situasi saat ini untuk menyarankan langkah yang bisa dicoba. Gunakan bahasa sehari-hari. Hindari metafora berlebihan, pujian yang dibuat-buat, dan ungkapan empati yang klise. Ajukan pertanyaan hanya jika berguna."
+  },
+  {
+    "file": "locales/id/secondb.json",
+    "key": "personas.momo.systemHint",
+    "before": "Bicaralah sebagai Mandor Momo, mandor ramah untuk Inti Narasi dan arsip catatan. Kategorikan, rapikan, dan ambil data pengguna agar mereka bisa melihat apa yang terjadi kapan; jalankan arsip, kamu TIDAK memberi nasihat.",
+    "after": "Bicaralah sebagai Momo, yang menyusun dan mencari catatan. Kelompokkan dan cari catatan agar pengguna bisa menemukan apa yang terjadi dan kapan. Fokus pada penyusunan dan pencarian, tanpa memberi nasihat. Gunakan bahasa sehari-hari. Jangan mengaku sudah menyusun atau menyimpan catatan tanpa memeriksanya."
+  },
+  {
+    "file": "locales/id/secondb.json",
+    "key": "personas.lumi.systemHint",
+    "before": "Bicaralah sebagai Lumina, pelatih pribadi Inti Muse dan kurator selera serta inspirasi. Bantu pengguna menikmati hobi, menemukan rekomendasi yang cocok, dan menjaga keseimbangan hidup yang baik. Energik, spesifik pada hal yang menarik mereka.",
+    "after": "Bicaralah sebagai Lumina, yang membahas hobi dan minat. Gunakan minat yang tercatat untuk menyarankan kegiatan yang bisa dicoba, dengan mempertimbangkan waktu kerja dan istirahat. Gunakan bahasa sehari-hari. Hindari metafora berlebihan, pujian yang dibuat-buat, dan ungkapan empati yang klise. Ajukan pertanyaan hanya jika berguna."
+  },
+  {
+    "file": "locales/id/secondb.json",
+    "key": "characters.secondb.line",
+    "before": "Aku akan membaca polanya dan membuka sudut lain.",
+    "after": "Periksa catatanmu dan pertimbangkan kemungkinan lain."
+  },
+  {
+    "file": "locales/id/secondb.json",
+    "key": "characters.momo.line",
+    "before": "Aku akan mengarsipkannya agar kita bisa menemukan apa yang terjadi.",
+    "after": "Susun catatan agar mudah ditemukan nanti."
+  },
+  {
+    "file": "locales/id/secondb.json",
+    "key": "characters.lulu.line",
+    "before": "Di mana pengetahuan ini terhubung dengan hidup?",
+    "after": "Di mana kamu bisa memakai hal yang sudah dipelajari?"
+  },
+  {
+    "file": "locales/id/secondb.json",
+    "key": "rev2.meta.systemHint",
+    "before": "Persona: Meta-B, cermin objektif dari 2nd-B. Pertahankan setiap aturan landasan, kutipan, dan keamanan persis sama, tetapi bicaralah dengan suara netral, presisi, dan mengutamakan bukti: sebutkan pola yang terlihat dengan jelas, utamakan angka dan tanggal konkret dari catatan pengguna, dan lewati bahasa pelunak.",
+    "after": "Persona: Meta-B. Pertahankan semua aturan sumber, kutipan, dan keamanan. Fokus pada fakta serta pola yang didukung angka dan tanggal dalam catatan pengguna. Gunakan bahasa sehari-hari dan kalimat yang jelas. Hindari metafora berlebihan, pujian yang dibuat-buat, dan ungkapan empati yang klise. Ajukan pertanyaan hanya jika berguna."
+  },
+  {
+    "file": "locales/id/capture.json",
+    "key": "submitHints.journalLimit",
+    "before": "Entri jurnal gratis sudah habis. Mode tangkap lain masih tersedia.",
+    "after": "Jatah jurnal gratis sudah habis. Kamu masih bisa menyimpan dengan cara lain."
+  },
+  {
+    "file": "locales/id/capture.json",
+    "key": "loading",
+    "before": "Memuat tangkapan...",
+    "after": "Memuat catatan..."
+  },
+  {
+    "file": "locales/id/capture.json",
+    "key": "hero.eyebrow",
+    "before": "01. Tangkapan",
+    "after": "01. Simpan"
+  },
+  {
+    "file": "locales/id/capture.json",
+    "key": "sections.mode.accessibilityLabel",
+    "before": "Mode tangkapan",
+    "after": "Cara menambahkan catatan"
+  },
+  {
+    "file": "locales/id/capture.json",
+    "key": "sections.mode.lessHint",
+    "before": "Menyembunyikan opsi tangkapan tambahan dan kembali ke Jurnal jika diperlukan.",
+    "after": "Menyembunyikan pilihan tambahan dan kembali ke Jurnal jika diperlukan."
+  },
+  {
+    "file": "locales/id/capture.json",
+    "key": "captureTab",
+    "before": "Tangkap",
+    "after": "Simpan"
+  },
+  {
+    "file": "locales/id/capture.json",
+    "key": "saved.captureMore",
+    "before": "Tangkap lagi",
+    "after": "Simpan bahan lain"
+  },
+  {
+    "file": "locales/id/capture.json",
+    "key": "journal.limit.helper",
+    "before": "Tangkapan catatan, tautan, file, dan foto tetap terbuka tanpa batas.",
+    "after": "Catatan, tautan, file, dan foto masih bisa disimpan tanpa batas."
+  },
+  {
+    "file": "locales/id/capture.json",
+    "key": "feedback.accessibilityLabel",
+    "before": "Pemberitahuan umpan balik tangkapan",
+    "after": "Pemberitahuan hasil penyimpanan"
+  },
+  {
+    "file": "locales/id/capture.json",
+    "key": "feedback.retryHint",
+    "before": "Mencoba ulang tindakan tangkapan yang gagal.",
+    "after": "Mencoba lagi tindakan penyimpanan yang gagal."
+  },
+  {
+    "file": "locales/id/inbox.json",
+    "key": "subtitle",
+    "before": "Semua yang kamu tangkap. Ketuk untuk pratinjau.",
+    "after": "Semua bahan yang kamu simpan. Ketuk untuk melihat isinya."
+  },
+  {
+    "file": "locales/id/inbox.json",
+    "key": "captureMore",
+    "before": "Tangkap lagi",
+    "after": "Tambah bahan"
+  },
+  {
+    "file": "locales/id/inbox.json",
+    "key": "empty",
+    "before": "Belum ada yang ditangkap. Ketuk Tangkap untuk menambah yang pertama.",
+    "after": "Belum ada bahan tersimpan. Ketuk Simpan untuk menambahkan yang pertama."
+  },
+  {
+    "file": "locales/id/inbox.json",
+    "key": "error",
+    "before": "Tidak bisa memuat tangkapanmu:",
+    "after": "Tidak bisa memuat bahan yang kamu simpan:"
+  },
+  {
+    "file": "locales/id/inbox.json",
+    "key": "deleteConfirmTitle",
+    "before": "Hapus tangkapan ini?",
+    "after": "Hapus bahan ini?"
+  },
+  {
+    "file": "locales/id/inbox.json",
+    "key": "captureDeleted",
+    "before": "Tangkapan dihapus.",
+    "after": "Bahan dihapus."
+  },
+  {
+    "file": "locales/id/inbox.json",
+    "key": "deleteError",
+    "before": "Tidak dapat menghapus tangkapan",
+    "after": "Tidak bisa menghapus bahan"
+  },
+  {
+    "file": "locales/id/inbox.json",
+    "key": "addSourceHint",
+    "before": "Membuka tangkapan untuk menambah sumber lain.",
+    "after": "Membuka halaman Simpan untuk menambahkan sumber lain."
+  },
+  {
+    "file": "locales/id/inbox.json",
+    "key": "firstCaptureLabel",
+    "before": "Tangkap sumber pertamamu",
+    "after": "Simpan sumber pertamamu"
+  },
+  {
+    "file": "locales/id/inbox.json",
+    "key": "firstCaptureHint",
+    "before": "Membuka tangkapan untuk menyimpan sumber pertamamu.",
+    "after": "Membuka halaman Simpan untuk menambahkan sumber pertama."
+  },
+  {
+    "file": "locales/id/inbox.json",
+    "key": "firstCapture",
+    "before": "Tangkap yang pertama",
+    "after": "Simpan yang pertama"
+  },
+  {
+    "file": "locales/id/audit.json",
+    "key": "backToCapture",
+    "before": "Kembali ke Tangkap",
+    "after": "Kembali ke Simpan"
+  },
+  {
+    "file": "locales/id/index.json",
+    "key": "firstPieceHint",
+    "before": "Membuka Tangkap untuk menyimpan catatan pertama",
+    "after": "Membuka halaman Simpan untuk menambahkan catatan pertama"
+  },
+  {
+    "file": "locales/id/insights.json",
+    "key": "empty.hero.action",
+    "before": "Buka Tangkap",
+    "after": "Buka Simpan"
+  },
+  {
+    "file": "locales/id/manual.json",
+    "key": "leavePieceHint",
+    "before": "Membuka Tangkap untuk menyimpan catatan hari ini.",
+    "after": "Membuka halaman Simpan untuk menambahkan catatan hari ini."
+  },
+  {
+    "file": "locales/id/persona.json",
+    "key": "backToCapture",
+    "before": "Kembali ke Tangkap",
+    "after": "Kembali ke Simpan"
+  },
+  {
+    "file": "locales/id/records.json",
+    "key": "subtitleRoot",
+    "before": "Jurnal, tangkapan, asesmen, dan inspirasi dalam satu tempat",
+    "after": "Jurnal, catatan tersimpan, penilaian, dan ide dalam satu tempat"
+  },
+  {
+    "file": "locales/id/records.json",
+    "key": "leaveHint",
+    "before": "Membuka Tangkap untuk menyimpan catatan hari ini.",
+    "after": "Membuka halaman Simpan untuk menambahkan catatan hari ini."
+  },
+  {
+    "file": "locales/id/wiki.json",
+    "key": "capture",
+    "before": "Tambah tangkapan",
+    "after": "Tambah bahan"
+  },
+  {
+    "file": "locales/id/wiki.json",
+    "key": "empty",
+    "before": "Belum ada halaman. Tambahkan tangkapan dan buat halamannya dari kotak masuk.",
+    "after": "Belum ada halaman. Simpan bahan, lalu pilih dari kotak masuk untuk membuat halaman wiki."
+  },
+  {
+    "file": "locales/id/wiki.json",
+    "key": "opensCaptureStore",
+    "before": "Membuka tangkapan dari gudang pengetahuan.",
+    "after": "Membuka halaman Simpan dari kumpulan pengetahuan."
+  },
+  {
+    "file": "locales/id/wiki.json",
+    "key": "leavePieceHint",
+    "before": "Membuka Tangkap untuk menyimpan catatan hari ini.",
+    "after": "Membuka halaman Simpan untuk menambahkan catatan hari ini."
+  },
+  {
+    "file": "locales/id/wiki.json",
+    "key": "capturePieceHint",
+    "before": "Membuka Tangkap untuk menyimpan catatan baru.",
+    "after": "Membuka halaman Simpan untuk menambahkan catatan baru."
+  },
+  {
+    "file": "locales/id/deepspace.json",
+    "key": "integrations.sectionSources",
+    "before": "Sumber tangkapan",
+    "after": "Bahan tersimpan"
+  },
+  {
+    "file": "locales/id/deepspace.json",
+    "key": "connect.openCapture",
+    "before": "Masukkan lewat tangkap",
+    "after": "Tambahkan lewat halaman Simpan"
+  },
+  {
+    "file": "locales/id/deepspace.json",
+    "key": "insights.sectionDiscover",
+    "before": "Apa yang ditangkap berikutnya",
+    "after": "Apa yang ingin kamu simpan berikutnya"
+  },
+  {
+    "file": "locales/id/deepspace.json",
+    "key": "ds.ttfv.pageTitle",
+    "before": "Refleksi pertama tentang dirimu",
+    "after": "Mulai dari satu pengalaman"
+  },
+  {
+    "file": "locales/id/deepspace.json",
+    "key": "ds.ttfv.defaultInsight.phrase",
+    "before": "lebih dulu mendekati",
+    "after": "memulai percakapan"
+  },
+  {
+    "file": "locales/id/deepspace.json",
+    "key": "ds.ttfv.insightLead",
+    "before": "Kamu mungkin orang yang ",
+    "after": "Apakah kamu biasanya orang yang "
+  },
+  {
+    "file": "locales/id/deepspace.json",
+    "key": "ds.ttfv.insightTail",
+    "before": ".",
+    "after": "?"
+  },
+  {
+    "file": "locales/es/deepspace.json",
+    "key": "ds.ttfv.pageTitle",
+    "before": "Una primera reflexión sobre ti",
+    "after": "Empieza con una experiencia"
+  },
+  {
+    "file": "locales/es/deepspace.json",
+    "key": "ds.ttfv.insightLead",
+    "before": "Podrías ser alguien que ",
+    "after": "¿Sueles ser quien "
+  },
+  {
+    "file": "locales/es/deepspace.json",
+    "key": "ds.ttfv.insightTail",
+    "before": ".",
+    "after": "?"
+  },
+  {
+    "file": "locales/id/formats.json",
+    "key": "actions.goCapture",
+    "before": "Mulai tangkap",
+    "after": "Mulai menyimpan"
+  },
+  {
+    "file": "locales/id/formats.json",
+    "key": "editor.sourceTypeHint",
+    "before": "Pilih cara tangkapan dengan format ini disimpan.",
+    "after": "Pilih jenis bahan yang akan disimpan dengan format ini."
+  },
+  {
+    "file": "locales/id/formats.json",
+    "key": "editor.detailsToSaveHint",
+    "before": "Detail yang diekstrak dan disimpan dari setiap tangkapan.",
+    "after": "Rincian yang diambil dan disimpan dari setiap bahan."
+  },
+  {
+    "file": "locales/id/formats.json",
+    "key": "add.placeholder",
+    "before": "mis. Episode podcast - tangkap tamu dan klaim utama",
+    "after": "mis. Episode podcast - catat tamu dan pernyataan utamanya"
+  },
+  {
+    "file": "locales/id/home.json",
+    "key": "menu.capture",
+    "before": "Tangkap",
+    "after": "Simpan"
+  },
+  {
+    "file": "locales/id/home.json",
+    "key": "ds.dock.capture",
+    "before": "Tangkap",
+    "after": "Simpan"
+  },
+  {
+    "file": "locales/id/home.json",
+    "key": "ds.capture.title",
+    "before": "Tangkap",
+    "after": "Simpan"
+  },
+  {
+    "file": "locales/id/home.json",
+    "key": "ds.imagine.toCapture",
+    "before": "Pindahkan ke Tangkap",
+    "after": "Pindahkan ke Simpan"
+  },
+  {
+    "file": "locales/id/notFound.json",
+    "key": "destinations.capture.label",
+    "before": "Tangkap",
+    "after": "Simpan"
+  },
+  {
+    "file": "locales/id/notFound.json",
+    "key": "destinations.capture.hint",
+    "before": "Membuka tangkapan dari halaman tidak ditemukan.",
+    "after": "Membuka halaman Simpan dari halaman yang tidak ditemukan."
+  },
+  {
+    "file": "locales/id/permissions.json",
+    "key": "entries.cameraPhoto.why",
+    "before": "Opsional, untuk tangkapan teks dari gambar saja. Diminta saat kamu memilih tindakan foto; tolak dan sisa aplikasi tetap berfungsi.",
+    "after": "Opsional, untuk membaca teks dari gambar. Izin diminta saat kamu memilih foto. Fitur lain tetap bisa dipakai jika kamu menolaknya."
+  },
+  {
+    "file": "locales/id/ratifications.json",
+    "key": "digest.goCapture",
+    "before": "Buka layar tangkap",
+    "after": "Buka halaman Simpan"
+  },
+  {
+    "file": "locales/id/settings.json",
+    "key": "actions.deleteUningestedHint",
+    "before": "Membuka konfirmasi untuk menghapus tangkapan yang belum dibuat menjadi halaman wiki.",
+    "after": "Membuka konfirmasi untuk menghapus bahan yang belum dibuat menjadi halaman wiki."
+  },
+  {
+    "file": "locales/id/settings.json",
+    "key": "dataWizard.body",
+    "before": "Pilih satu area penghapusan sekaligus. Konten pribadi 2nd-B kamu dibagi menjadi catatan, asesmen, wiki/tangkapan, dan hapus penuh.",
+    "after": "Pilih satu jenis data untuk dihapus. Data pribadimu terbagi menjadi catatan, hasil penilaian, serta wiki dan bahan tersimpan. Ada juga pilihan untuk menghapus semuanya."
+  },
+  {
+    "file": "locales/id/settings.json",
+    "key": "dataWizard.assessments.body",
+    "before": "Hapus hasil referensi tersimpan tanpa menyentuh jurnal, tangkapan, atau halaman wiki.",
+    "after": "Menghapus hasil penilaian yang tersimpan tanpa mengubah jurnal, bahan tersimpan, atau halaman wiki."
+  },
+  {
+    "file": "locales/id/settings.json",
+    "key": "dataWizard.library.label",
+    "before": "Wiki dan tangkapan",
+    "after": "Wiki dan bahan tersimpan"
+  },
+  {
+    "file": "locales/id/settings.json",
+    "key": "dataWizard.library.hint",
+    "before": "Menampilkan opsi hapus halaman wiki, tangkapan yang belum ditata, dan penghitung penggunaan.",
+    "after": "Menampilkan pilihan untuk menghapus halaman wiki, bahan yang belum disusun, dan penghitung penggunaan."
+  },
+  {
+    "file": "locales/id/settings.json",
+    "key": "dataWizard.library.body",
+    "before": "Hapus wiki dan tangkapan secara terpisah dari catatan pribadi dan referensi graf bersama.",
+    "after": "Hapus wiki dan bahan tersimpan secara terpisah dari catatan pribadi dan referensi graf bersama."
+  },
+  {
+    "file": "locales/id/settings.json",
+    "key": "clearCapturesError",
+    "before": "Terjadi kesalahan saat menghapus tangkapan ini. Coba lagi sebentar lagi.",
+    "after": "Bahan ini belum bisa dihapus. Coba lagi sebentar lagi."
+  },
+  {
+    "file": "locales/id/settings.json",
+    "key": "partialWiki",
+    "before": "Sebagian: wiki / tangkapan / penggunaan",
+    "after": "Sebagian: wiki / bahan tersimpan / penggunaan"
+  },
+  {
+    "file": "locales/id/settings.json",
+    "key": "delUningested",
+    "before": "Hapus tangkapan yang belum diproses",
+    "after": "Hapus bahan yang belum diproses"
+  },
+  {
+    "file": "locales/id/settings.json",
+    "key": "deletedNCaptures",
+    "before": "{{n}} tangkapan dihapus",
+    "after": "{{n}} bahan dihapus"
+  },
+  {
+    "file": "locales/id/support.json",
+    "key": "faq.0.answer",
+    "before": "Tulis catatan di layar Tangkap. 2nd-Brain akan menatanya setelah disimpan.",
+    "after": "Tulis catatan di halaman Simpan. 2nd-Brain akan menyusunnya setelah disimpan."
+  },
+  {
+    "file": "locales/id/trinity.json",
+    "key": "addTagsHint",
+    "before": "Tambahkan tag area di tangkapan",
+    "after": "Tambahkan tag bidang saat menyimpan"
+  },
+  {
+    "file": "locales/id/trinity.json",
+    "key": "addTagsBody",
+    "before": "Coba tambahkan tag seperti #kesehatan di tangkapan",
+    "after": "Coba tambahkan tag seperti #kesehatan saat menyimpan"
+  },
+  {
+    "file": "locales/id/home.json",
+    "key": "ds.capture.fields.who.hint",
+    "before": "Saya, bersama tim",
+    "after": "Aku, bersama tim"
+  },
+  {
+    "file": "locales/id/home.json",
+    "key": "ds.capture.fields.how.hint",
+    "before": "Apa yang ada di benak Anda",
+    "after": "Apa yang kamu pikirkan"
+  },
+  {
+    "file": "locales/id/home.json",
+    "key": "ds.capture.voiceHint",
+    "before": "Tulis apa yang Anda katakan",
+    "after": "Tulis apa yang kamu katakan"
+  },
+  {
+    "file": "locales/id/home.json",
+    "key": "ds.capture.banner",
+    "before": "Begitu Anda menyimpannya, SecondB memilahnya ke bintang dan tag yang tepat.",
+    "after": "Saat disimpan, SecondB menambahkan bintang dan tag terkait."
+  },
+  {
+    "file": "locales/id/secondb.json",
+    "key": "intro_title",
+    "before": "Hai, saya SecondB",
+    "after": "Hai, aku SecondB"
+  },
+  {
+    "file": "locales/id/iden.json",
+    "key": "loading",
+    "before": "Memuat ekspor identitas Anda...",
+    "after": "Memuat ekspor identitas kamu..."
+  },
+  {
+    "file": "locales/id/iden.json",
+    "key": "generate.accessibilityHint",
+    "before": "Membuat berkas identitas dari data Anda yang tersimpan.",
+    "after": "Membuat berkas identitas dari data kamu yang tersimpan."
+  },
+  {
+    "file": "locales/id/iden.json",
+    "key": "result.title",
+    "before": "IDEN Anda siap",
+    "after": "IDEN kamu siap"
+  },
+  {
+    "file": "locales/id/iden.json",
+    "key": "result.hint",
+    "before": "Tempel ke ChatGPT, Gemini, atau Claude untuk memberi konteks Anda. Permintaan Anda ada di paling bawah.",
+    "after": "Tempel ke ChatGPT, Gemini, atau Claude untuk memberi konteks kamu. Permintaan kamu ada di paling bawah."
+  },
+  {
+    "file": "locales/id/iden.json",
+    "key": "error",
+    "before": "Tidak dapat membuat IDEN Anda. Segarkan dan coba lagi.",
+    "after": "Tidak dapat membuat IDEN kamu. Segarkan dan coba lagi."
+  },
+  {
+    "file": "locales/id/community.json",
+    "key": "inviteModelNote",
+    "before": "Tidak ada pencarian pengguna. Orang hanya bisa masuk lewat tautan yang Anda bagikan. Tautan 1:1 berlaku sekali; tautan grup bisa dipakai ulang sampai kedaluwarsa (14 hari).",
+    "after": "Tidak ada pencarian pengguna. Orang hanya bisa masuk lewat tautan yang kamu bagikan. Tautan 1:1 berlaku sekali; tautan grup bisa dipakai ulang sampai kedaluwarsa (14 hari)."
+  },
+  {
+    "file": "locales/id/interview.json",
+    "key": "loopCheck.stuckLoop",
+    "before": "Hal yang terus Anda pikirkan itu, apakah memberi Anda sesuatu yang baru, atau Anda selalu sampai pada kesimpulan yang sama?",
+    "after": "Hal yang terus kamu pikirkan itu, apakah memberi kamu sesuatu yang baru, atau kamu selalu sampai pada kesimpulan yang sama?"
+  },
+  {
+    "file": "locales/id/interview.json",
+    "key": "loopCheck.friendView",
+    "before": "Apa yang akan Anda katakan kepada teman dekat yang berada dalam situasi yang persis sama?",
+    "after": "Apa yang akan kamu katakan kepada teman dekat yang berada dalam situasi yang persis sama?"
+  },
+  {
+    "file": "locales/id/interview.json",
+    "key": "loopCheck.setAside",
+    "before": "Apa yang berubah jika Anda menyisihkan pikiran ini selama lima menit?",
+    "after": "Apa yang berubah jika kamu menyisihkan pikiran ini selama lima menit?"
+  },
+  {
+    "file": "locales/id/interview.json",
+    "key": "drill.placeholder",
+    "before": "Tulis sebanyak atau sesedikit yang Anda mau",
+    "after": "Tulis sebanyak atau sesedikit yang kamu mau"
+  },
+  {
+    "file": "locales/id/deepspace.json",
+    "key": "recordDetail.actionFailed",
+    "before": "Perubahan gagal disimpan. Periksa koneksi Anda dan coba lagi.",
+    "after": "Perubahan gagal disimpan. Periksa koneksimu dan coba lagi."
+  }
+]

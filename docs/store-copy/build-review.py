@@ -23,10 +23,11 @@ fields = {
     'releaseNotes': ('출시 노트 · 해당 변경이 포함된 업데이트용', 500, 'characters'),
 }
 errors, checks = [], []
+locale_labels = {'ko': '한국어', 'en': 'English', 'es': 'Español (Latinoamérica)', 'pt': 'Português (Brasil)', 'id': 'Bahasa Indonesia'}
 if data.get('status') != 'draft-not-submitted':
     errors.append('Expected explicit draft-not-submitted status.')
-if set(data.get('locales', {})) != {'ko', 'en'}:
-    errors.append('Expected ko and en drafts; review the schema before adding locales.')
+if set(data.get('locales', {})) != set(locale_labels):
+    errors.append('Expected drafts for ko, en, es, pt and id.')
 for locale, values in data.get('locales', {}).items():
     if set(values) != set(fields) | {'screenshotCaptions'}:
         errors.append(f'{locale}: field set differs from the documented mapping.')
@@ -68,7 +69,7 @@ if errors:
 
 E = html.escape
 parts = []
-for locale, label in [('ko', '한국어'), ('en', 'English')]:
+for locale, label in locale_labels.items():
     values = data['locales'][locale]
     cards = []
     for key, (title, limit, unit) in fields.items():
@@ -76,14 +77,15 @@ for locale, label in [('ko', '한국어'), ('en', 'English')]:
         count = len(text.encode('utf-8')) if unit == 'utf8-bytes' else len(text)
         field_id = f'{locale}-{key}'
         rows = 10 if key == 'description' else 3 if key in {'promotionalText', 'releaseNotes'} else 2
-        cards.append(f'<article><h3>{E(title)}</h3><p class="meta">{count} / {limit} {"바이트" if unit == "utf8-bytes" else "자"}</p><label class="sr-only" for="{field_id}">{E(label + " " + title)}</label><textarea id="{field_id}" rows="{rows}" readonly>{E(text)}</textarea><button type="button" data-copy="{field_id}">문구 복사</button></article>')
+        cards.append(f'<article><h3>{E(title)}</h3><p class="meta">{count} / {limit} {"바이트" if unit == "utf8-bytes" else "자"}</p><label class="sr-only" for="{field_id}">{E(label + " " + title)}</label><textarea id="{field_id}" lang="{locale}" rows="{rows}" readonly>{E(text)}</textarea><button type="button" data-copy="{field_id}">문구 복사</button></article>')
     caption_text = '\n'.join(f'{i + 1}. {c["text"]} ({c["route"]})' for i, c in enumerate(values['screenshotCaptions']))
-    cards.append(f'<article><h3>새 스크린샷 촬영용 문구</h3><p>이미지는 아직 교체하지 않았습니다. 같은 화면 경로라도 질문 상태와 저장 상태를 나눠 촬영합니다.</p><textarea id="{locale}-captions" aria-label="{E(label)} 스크린샷 문구" rows="8" readonly>{E(caption_text)}</textarea><button type="button" data-copy="{locale}-captions">촬영용 문구 복사</button></article>')
-    parts.append(f'<details {"open" if locale == "ko" else ""}><summary>{E(label)} · 등록용 초안</summary>{"".join(cards)}</details>')
+    cards.append(f'<article><h3>새 스크린샷 촬영용 문구</h3><p>이미지는 아직 교체하지 않았습니다. 같은 화면 경로라도 질문 상태와 저장 상태를 나눠 촬영합니다.</p><textarea id="{locale}-captions" lang="{locale}" aria-label="{E(label)} 스크린샷 문구" rows="8" readonly>{E(caption_text)}</textarea><button type="button" data-copy="{locale}-captions">촬영용 문구 복사</button></article>')
+    parts.append(f'<details data-locale="{locale}" {"open" if locale == "ko" else ""}><summary><span lang="{locale}">{E(label)}</span> · 등록용 초안</summary>{"".join(cards)}</details>')
 readme = (HERE / 'README.md').read_text(encoding='utf-8')
 resume = re.search(r'```text\n([\s\S]*?)\n```', readme).group(1)
-content = f'''<main id="main"><p class="eyebrow">2nd-Brain · 다음 스토어 등록에 쓸 문구</p><h1>설명문 초안을 준비했습니다.</h1><p class="lead">한국어·영어 소개문, 홍보 문구, 키워드와 촬영용 문구를 모았습니다. 앱의 현재 기능을 기준으로 썼으며 스토어 콘솔에는 아직 반영하지 않았습니다.</p><p class="meta">{stamp}</p>
-<div class="cards"><section><strong>2개 언어</strong><p>Google Play · App Store</p></section><section><strong>14개 필드 통과</strong><p>길이·형식 검사 / 캡션 12개</p></section><section><strong>스토어 반영 전</strong><p>출시 빌드·콘솔 대조 필요</p></section></div>
+caption_count = sum(len(values['screenshotCaptions']) for values in data['locales'].values())
+content = f'''<main id="main"><p class="eyebrow">2nd-Brain · 다음 스토어 등록에 쓸 문구</p><h1>다섯 언어의 설명문 초안입니다.</h1><p class="lead">한국어·영어·스페인어·포르투갈어·인도네시아어 소개문, 홍보 문구, 키워드와 촬영용 문구를 모았습니다. 스토어 콘솔에는 아직 반영하지 않았습니다. 일부 기능과 안내가 영어로 표시되는 점도 새 초안에 적었습니다.</p><p class="meta">{stamp}</p>
+<div class="cards"><section><strong>{len(locale_labels)}개 언어</strong><p>Google Play · App Store</p></section><section><strong>{len(checks)}개 필드 통과</strong><p>길이·형식 검사 / 캡션 {caption_count}개</p></section><section><strong>스토어 반영 전</strong><p>출시 빌드·콘솔 대조 필요</p></section></div>
 <svg viewBox="0 0 800 92" role="img" aria-labelledby="flow-title"><title id="flow-title">문구 준비 완료. 빌드 대조, 콘솔 반영, 제출과 공개는 다음 단계입니다.</title><g fill="none" stroke="currentColor"><rect x="2" y="10" width="174" height="60" rx="7"/><path d="M177 40h29m-7-5 7 5-7 5"/><rect x="209" y="10" width="174" height="60" rx="7"/><path d="M384 40h29m-7-5 7 5-7 5"/><rect x="416" y="10" width="174" height="60" rx="7"/><path d="M591 40h29m-7-5 7 5-7 5"/><rect x="623" y="10" width="174" height="60" rx="7"/></g><g fill="currentColor" text-anchor="middle" font-size="19"><text x="89" y="48">문구 준비 완료</text><text x="296" y="48">출시 빌드 대조</text><text x="503" y="48">콘솔 반영</text><text x="710" y="48">제출 · 공개</text></g></svg>
 <section><h2>사용하기 전에</h2><ul><li>문구를 고칠 때는 <a href="drafts.json">drafts.json</a>을 수정하고 README의 재생성 명령을 실행합니다.</li><li>요금제·개인정보 설명·지원 URL·제출 버전을 실제 콘솔과 빌드에서 확인합니다.</li><li>출시 노트는 이 문구 변경이 포함된 업데이트에만 사용합니다. Apple 최초 버전에는 업데이트 설명 필드가 없습니다.</li><li>예전 원본은 비교 자료입니다. <a href="source-manifest.json">원본 기록</a>과 <a href="README.md">후속 작업 안내</a>를 함께 봐 주세요.</li></ul></section>
 {''.join(parts)}
@@ -114,4 +116,4 @@ document = '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta nam
 (HERE / 'review.html').write_bytes(document.encode('utf-8'))
 result['reportSha256'] = hashlib.sha256(document.encode('utf-8')).hexdigest()
 (HERE / 'validation.json').write_bytes((json.dumps(result, ensure_ascii=False, indent=2) + '\n').encode('utf-8'))
-print(json.dumps({'status': result['status'], 'fields': len(checks), 'captions': 12, 'snapshots': result['snapshotCount'], 'report': str(HERE / 'review.html')}, ensure_ascii=True))
+print(json.dumps({'status': result['status'], 'fields': len(checks), 'captions': caption_count, 'snapshots': result['snapshotCount'], 'report': str(HERE / 'review.html')}, ensure_ascii=True))

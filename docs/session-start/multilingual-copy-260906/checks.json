@@ -1,0 +1,161 @@
+{
+  "checkedAtKst": "2026-09-06T20:10:40+09:00",
+  "status": "Local multilingual changes completed; full repository verification has unrelated failures.",
+  "delta": {
+    "status": "PASS",
+    "strings": 117,
+    "files": 25,
+    "byLocale": {
+      "es": 6,
+      "pt": 2,
+      "id": 109
+    },
+    "keysPreserved": true,
+    "placeholdersPreserved": true,
+    "protected": [
+      {
+        "file": "locales/es/consent.json",
+        "unchanged": true
+      },
+      {
+        "file": "locales/es/safety.json",
+        "unchanged": true
+      },
+      {
+        "file": "locales/pt/consent.json",
+        "unchanged": true
+      },
+      {
+        "file": "locales/pt/safety.json",
+        "unchanged": true
+      },
+      {
+        "file": "locales/id/consent.json",
+        "unchanged": true
+      },
+      {
+        "file": "locales/id/safety.json",
+        "unchanged": true
+      }
+    ],
+    "scope": "Compared with this turn snapshot, not Git HEAD."
+  },
+  "inlineStrings": 4,
+  "appBrowser": {
+    "passed": true,
+    "cases": 36,
+    "routes": [
+      "/",
+      "/capture",
+      "/inbox",
+      "/wiki",
+      "/secondb",
+      "/settings"
+    ],
+    "locales": [
+      "es",
+      "pt",
+      "id"
+    ],
+    "widths": [
+      390,
+      1440
+    ],
+    "pageErrors": 0,
+    "documentOverflow": 0,
+    "personaBannerMatchesLocale": true,
+    "fixtures": "Empty source/record/wiki lists; real QA login, read-only queries.",
+    "modelCallsMade": 0,
+    "remoteRecordMutations": 0
+  },
+  "store": {
+    "metadataFields": 35,
+    "captions": 30,
+    "browserCases": 20,
+    "exactCopyChecks": 140,
+    "generatorTestsPassed": 4,
+    "draftSha256": "d5d941a4cdf18f14bea2cdf5214936dcf409b40e61e60e329c9cd499bea0b9ee",
+    "reportSha256": "4eb6a41fc9ca618fe427081604716cd3b469d76084be38319a94966072003146"
+  },
+  "focusedTests": {
+    "suitesPassed": 3,
+    "testsPassed": 113
+  },
+  "fullJest": {
+    "numPassedTestSuites": 702,
+    "numFailedTestSuites": 1,
+    "numTotalTestSuites": 703,
+    "numPassedTests": 8553,
+    "numFailedTests": 10,
+    "numTotalTests": 8563
+  },
+  "failedSuites": [
+    "src\\lib\\knowledge\\__tests__\\self-compassion-research-contract.test.ts"
+  ],
+  "verify": {
+    "passed": false,
+    "exitCode": 1,
+    "stoppedAt": "check:pixel-rules",
+    "baseline": 164,
+    "observed": 162,
+    "note": "Existing concurrent UI changes; baseline preserved. Remaining commands were executed separately.",
+    "remainingCommands": [
+      {
+        "command": "npm run check:anti-anthro",
+        "exit": 0
+      },
+      {
+        "command": "npm run check:mascot-voice",
+        "exit": 0
+      },
+      {
+        "command": "npm run check:dependency-security",
+        "exit": 0
+      },
+      {
+        "command": "npm run check:asset-exts",
+        "exit": 0
+      },
+      {
+        "command": "npm run check:cycles",
+        "exit": 0
+      },
+      {
+        "command": "npm run check:canon-data",
+        "exit": 0
+      },
+      {
+        "command": "npm run check:design-ref",
+        "exit": 0
+      },
+      {
+        "command": "npm run check:ota-runtime",
+        "exit": 0
+      },
+      {
+        "command": "npm run test:ui-work0",
+        "exit": 0
+      },
+      {
+        "command": "npm test -- --ci",
+        "exit": 1
+      }
+    ]
+  },
+  "webExport": "PASS, final local static export",
+  "nativeReleaseBuilds": "not run",
+  "professionalTranslatorReview": "not run",
+  "consoleReviewOrSubmission": "not run",
+  "externalPublication": "not performed",
+  "appCodeCommit": "uncommitted in TTL-Work; this branch preserves this round patch and evidence",
+  "patchReverseCheck": "PASS in TTL-Work",
+  "finalLiteralChecks": {
+    "focusedLint": "PASS",
+    "lexicon": "PASS",
+    "constraints": "PASS"
+  },
+  "completionReportBrowser": {
+    "cases": 4,
+    "errors": 0
+  }
+}
