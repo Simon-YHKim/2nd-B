@@ -34,7 +34,8 @@ function createStorage() {
 function installModuleMocks(options?: { encryptedStorageError?: Error }) {
   const startAutoRefresh = jest.fn();
   const stopAutoRefresh = jest.fn();
-  const client = { auth: { startAutoRefresh, stopAutoRefresh } };
+  const removeAllChannels = jest.fn(async () => undefined);
+  const client = { auth: { startAutoRefresh, stopAutoRefresh }, removeAllChannels };
   const createClient = jest.fn((_url: string, _key: string, _options: unknown) => client);
   const encryptedStorage = {
     ...createStorage(),
@@ -66,6 +67,7 @@ function installModuleMocks(options?: { encryptedStorageError?: Error }) {
     getEncryptedNativeStorage,
     rawAsyncStorageFactory,
     reactNativeFactory,
+    removeAllChannels,
     startAutoRefresh,
     stopAutoRefresh,
   };
@@ -160,5 +162,43 @@ describe("Supabase auth storage runtime boundary", () => {
     expect(mocks.getEncryptedNativeStorage).not.toHaveBeenCalled();
     expect(mocks.rawAsyncStorageFactory).not.toHaveBeenCalled();
     expect(mocks.reactNativeFactory).not.toHaveBeenCalled();
+  });
+
+  test("reset retires the old client and the next read creates a fresh singleton", async () => {
+    setRuntime("native");
+    const mocks = installModuleMocks();
+    const module = loadClientModule();
+    const oldClient = module.getSupabaseClient();
+    const nextClient = {
+      auth: { startAutoRefresh: jest.fn(), stopAutoRefresh: jest.fn() },
+      removeAllChannels: jest.fn(async () => undefined),
+    };
+    mocks.createClient.mockReturnValueOnce(nextClient);
+
+    await module.resetSupabaseClient();
+
+    expect(mocks.stopAutoRefresh).toHaveBeenCalledTimes(1);
+    expect(mocks.removeAllChannels).toHaveBeenCalledTimes(1);
+    expect(module.getSupabaseClient()).toBe(nextClient);
+    expect(module.getSupabaseClient()).not.toBe(oldClient);
+    expect(mocks.createClient).toHaveBeenCalledTimes(2);
+  });
+
+  test("reset drops the singleton even when every old-client cleanup throws", async () => {
+    setRuntime("native");
+    const mocks = installModuleMocks();
+    const module = loadClientModule();
+    const oldClient = module.getSupabaseClient();
+    mocks.stopAutoRefresh.mockImplementationOnce(() => { throw new Error("stop failed"); });
+    mocks.removeAllChannels.mockRejectedValueOnce(new Error("channel cleanup failed"));
+    const nextClient = {
+      auth: { startAutoRefresh: jest.fn(), stopAutoRefresh: jest.fn() },
+      removeAllChannels: jest.fn(async () => undefined),
+    };
+    mocks.createClient.mockReturnValueOnce(nextClient);
+
+    await expect(module.resetSupabaseClient()).resolves.toBeUndefined();
+    expect(module.getSupabaseClient()).toBe(nextClient);
+    expect(module.getSupabaseClient()).not.toBe(oldClient);
   });
 });

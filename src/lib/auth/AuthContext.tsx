@@ -7,8 +7,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { getSupabaseClient } from "../supabase/client";
 import { ageInYears } from "../supabase/auth";
+import type { EncryptedNativeStorageRecoveryConsent } from "../storage/encrypted-native-storage";
 import { preserveKnownMinorForMissingProfile, type ProfileProbe } from "./profile-probe";
 import { noteResolvedOwner } from "./account-epoch";
+import {
+  attemptEncryptedNativeStorageRecovery,
+  isEncryptedStorageRecoveryRequired,
+  readAuthSessionOutcome,
+} from "./storage-recovery";
 
 // A signed-in user counts as a minor for safety routing when under 18 (in
 // practice 14-17, since <14 cannot register — C10). Crisis routing uses this
@@ -36,10 +42,18 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
+  /** The native encrypted auth session is durably unreadable. This is an
+   *  unknown auth state, not a signed-out answer. Only an explicit two-step
+   *  recovery consent may clear the local encrypted data. */
+  storageRecoveryRequired: boolean;
   /** Re-probe the current session's profile. Call after changing data that
    *  feeds hasProfile/isMinor (e.g. a date-of-birth correction) so the cached
    *  values update without waiting for the next auth event or an app restart. */
   refresh: () => Promise<void>;
+  /** Discard unreadable encrypted local data only after the recovery UI has
+   *  produced the exact explicit consent contract. Returns true only after a
+   *  fresh Supabase singleton has been created and a re-subscription queued. */
+  recoverEncryptedStorage: (consent: EncryptedNativeStorageRecoveryConsent) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -48,12 +62,16 @@ const AuthContext = createContext<AuthContextValue>({
   isMinor: null,
   age: null,
   profileProbeFailed: false,
+  storageRecoveryRequired: false,
   loading: true,
   refresh: async () => {},
+  recoverEncryptedStorage: async () => false,
 });
 
-async function fetchProfile(userId: string): Promise<ProfileProbe> {
-  const supabase = getSupabaseClient();
+async function fetchProfile(
+  userId: string,
+  supabase = getSupabaseClient(),
+): Promise<ProfileProbe> {
   const { data, error } = await supabase
     .from("users")
     .select("id, birth_date")
@@ -63,7 +81,7 @@ async function fetchProfile(userId: string): Promise<ProfileProbe> {
     // A query ERROR is not "no profile". supabase-js resolves errors as
     // { error } (it does not throw), and folding that into hasProfile:false
     // ejected real accounts to /complete-profile on any network blip.
-    if (typeof console !== "undefined") console.log("[auth] profile probe failed", error.message);
+    if (typeof console !== "undefined") console.log("[auth] profile probe unavailable");
     return { hasProfile: false, isMinor: null, age: null, probeFailed: true };
   }
   if (!data) return { hasProfile: false, isMinor: null, age: null };
@@ -121,6 +139,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     profileProbeFailed: false,
     loading: true,
   });
+  const [storageRecoveryRequired, setStorageRecoveryRequired] = useState(false);
+  // Recovery-required/loading transitions deliberately do not publish an
+  // owner resolution. They are unknown auth states, so keep them separate
+  // from the setState + noteResolvedOwner invariant for resolved states.
+  const publishUnresolvedAuthState = setState;
 
   // Last resolved user + probe, so repeated auth events (TOKEN_REFRESHED, a
   // fresh SIGNED_IN for the same user on re-entry) don't re-strand the UI in
@@ -138,19 +161,77 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // (e.g. re-publishing hasProfile=false right after /complete-profile created
   // the row, bouncing the user back through the index/IntroGate guards).
   const probeGenRef = useRef(0);
+  // A storage-recovery epoch invalidates old-client callbacks immediately,
+  // before React runs the effect cleanup. The next effect always obtains the
+  // freshly recreated singleton and installs a new auth subscription.
+  const [sessionEpoch, setSessionEpoch] = useState(0);
+  const sessionEpochRef = useRef(0);
+  const storageRecoveryRequiredRef = useRef(false);
+
+  const markStorageRecoveryRequired = useCallback(() => {
+    storageRecoveryRequiredRef.current = true;
+    probeGenRef.current += 1;
+    if (typeof console !== "undefined") {
+      console.warn("[auth] encrypted session storage requires explicit recovery");
+    }
+    // Block authenticated surfaces while preserving the distinct recovery
+    // flag. Do not publish a resolved owner-null event: unreadable storage is
+    // still not evidence that the user explicitly signed out.
+    setStorageRecoveryRequired(true);
+    publishUnresolvedAuthState({
+      userId: null,
+      hasProfile: null,
+      isMinor: null,
+      age: null,
+      profileProbeFailed: false,
+      loading: false,
+    });
+  }, [publishUnresolvedAuthState]);
 
   useEffect(() => {
-    const supabase = getSupabaseClient();
     let cancelled = false;
+    const effectEpoch = sessionEpoch;
+    const isCurrent = () => !cancelled
+      && sessionEpochRef.current === effectEpoch
+      && !storageRecoveryRequiredRef.current;
+    let supabase: ReturnType<typeof getSupabaseClient>;
+    try {
+      supabase = getSupabaseClient();
+    } catch (error) {
+      if (isEncryptedStorageRecoveryRequired(error)) {
+        markStorageRecoveryRequired();
+      } else {
+        if (typeof console !== "undefined") console.log("[auth] session client unavailable");
+        noteResolvedOwner(null);
+        setState({
+          userId: null,
+          hasProfile: null,
+          isMinor: null,
+          age: null,
+          profileProbeFailed: false,
+          loading: false,
+        });
+      }
+      return () => {
+        cancelled = true;
+      };
+    }
 
     async function resolveSession(userId: string | null) {
-      if (cancelled) return;
+      if (!isCurrent()) return;
       const gen = ++probeGenRef.current;
       if (!userId) {
         lastUserIdRef.current = null;
         lastProbeRef.current = null;
         noteResolvedOwner(null);
-        setState({ userId: null, hasProfile: null, isMinor: null, age: null, profileProbeFailed: false, loading: false });
+        setState({
+          userId: null,
+          hasProfile: null,
+          isMinor: null,
+          age: null,
+          profileProbeFailed: false,
+          loading: false,
+        });
         return;
       }
       // Same user we already resolved — don't flip back to loading (avoids the
@@ -167,7 +248,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           loading: false,
         });
         const reprobe = preserveKnownMinorForMissingProfile(
-          await withTimeout(fetchProfile(userId), PROFILE_PROBE_TIMEOUT_MS, lastProbe),
+          await withTimeout(fetchProfile(userId, supabase), PROFILE_PROBE_TIMEOUT_MS, lastProbe),
           lastProbe,
         );
         // The timeout fallback above already keeps lastProbe, but fetchProfile
@@ -176,7 +257,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // user to /complete-profile mid-session. Same rule for both failure
         // shapes: a failed probe never overwrites a known-good answer.
         const refreshed = reprobe.probeFailed === true ? lastProbe : reprobe;
-        if (cancelled || gen !== probeGenRef.current) return;
+        if (!isCurrent() || gen !== probeGenRef.current) return;
         lastProbeRef.current = refreshed;
         noteResolvedOwner(userId);
         setState({
@@ -192,7 +273,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // First resolve for this user: mark loading until we know the profile.
       noteResolvedOwner(userId);
       setState({ userId, hasProfile: null, isMinor: null, age: null, profileProbeFailed: false, loading: true });
-      const probe = await withTimeout(fetchProfile(userId), PROFILE_PROBE_TIMEOUT_MS, {
+      const probe = await withTimeout(fetchProfile(userId, supabase), PROFILE_PROBE_TIMEOUT_MS, {
         hasProfile: false,
         isMinor: null,
         age: null,
@@ -200,7 +281,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // guard screens hold on their loader instead of ejecting the account.
         probeFailed: true,
       });
-      if (cancelled || gen !== probeGenRef.current) return;
+      if (!isCurrent() || gen !== probeGenRef.current) return;
       lastUserIdRef.current = userId;
       lastProbeRef.current = probe;
       noteResolvedOwner(userId);
@@ -214,29 +295,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     }
 
-    // withTimeout the BOOT getSession too, not just fetchProfile: getSession can
-    // make an in-lock network token refresh when the stored token is expired, and
-    // if THAT hangs (blocked CORS / connected-but-no-response) it never resolves
-    // nor rejects, so .catch never fires and loading stays true forever — the exact
-    // stuck-on-the-loader failure this helper exists to prevent.
-    withTimeout(
-      supabase.auth.getSession(),
+    // Preserve both getSession failure shapes. Supabase may reject or resolve
+    // with { error }; neither may be collapsed to session:null before the exact
+    // encrypted-storage recovery signal is classified.
+    void readAuthSessionOutcome(
+      () => supabase.auth.getSession(),
       PROFILE_PROBE_TIMEOUT_MS,
-      { data: { session: null }, error: null } as Awaited<ReturnType<typeof supabase.auth.getSession>>,
-    )
-      .then(({ data }) => {
-        void resolveSession(data.session?.user.id ?? null);
-      })
-      .catch((e) => {
-        // Network failure (demo build with placeholder Supabase, offline,
-        // blocked CORS). Don't strand the UI in loading-forever — render
-        // the unauthenticated state so the landing page becomes visible.
-        if (typeof console !== "undefined") console.log("[auth] getSession failed, treating as signed out", e);
-        if (!cancelled) {
-          noteResolvedOwner(null);
-          setState({ userId: null, hasProfile: null, isMinor: null, age: null, profileProbeFailed: false, loading: false });
-        }
-      });
+    ).then((outcome) => {
+      if (cancelled || sessionEpochRef.current !== effectEpoch) return;
+      if (outcome.status === "storage-recovery-required") {
+        markStorageRecoveryRequired();
+        return;
+      }
+      if (outcome.status === "unavailable") {
+        if (typeof console !== "undefined") console.log("[auth] session read unavailable");
+        void resolveSession(null);
+        return;
+      }
+      void resolveSession(outcome.userId);
+    }).catch(() => {
+      // The outcome helper is fail-closed, but keep this boundary sanitized if
+      // a future implementation introduces a new rejection path.
+      if (typeof console !== "undefined") console.log("[auth] session read unavailable");
+      void resolveSession(null);
+    });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       void resolveSession(session?.user.id ?? null);
     });
@@ -244,35 +326,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       sub.subscription.unsubscribe();
     };
-  }, []);
+  }, [markStorageRecoveryRequired, sessionEpoch]);
 
   // Manual re-probe for the current session: refreshes the published state AND
   // the probe cache on demand (profile completion, DOB correction, sign-out
   // settling). Writing the cache keeps the next auth event's in-place publish
   // consistent with what we just learned, instead of re-surfacing a stale probe.
   const refresh = useCallback(async () => {
-    const supabase = getSupabaseClient();
-    const gen = ++probeGenRef.current;
-    let uid: string | null = null;
+    if (storageRecoveryRequiredRef.current) return;
+    let supabase: ReturnType<typeof getSupabaseClient>;
     try {
-      // Same hang guard as boot: a wedged getSession would otherwise stall
-      // submitSignUp/submitCompleteProfile (which await refresh() before
-      // navigating) with the submit spinner stuck on.
-      const { data } = await withTimeout(
-        supabase.auth.getSession(),
-        PROFILE_PROBE_TIMEOUT_MS,
-        { data: { session: null }, error: null } as Awaited<ReturnType<typeof supabase.auth.getSession>>,
-      );
-      uid = data.session?.user.id ?? null;
-    } catch {
-      uid = null;
+      supabase = getSupabaseClient();
+    } catch (error) {
+      if (isEncryptedStorageRecoveryRequired(error)) markStorageRecoveryRequired();
+      else if (typeof console !== "undefined") console.log("[auth] session client unavailable");
+      return;
+    }
+    const gen = ++probeGenRef.current;
+    const outcome = await readAuthSessionOutcome(
+      () => supabase.auth.getSession(),
+      PROFILE_PROBE_TIMEOUT_MS,
+    );
+    if (outcome.status === "storage-recovery-required") {
+      if (gen === probeGenRef.current) markStorageRecoveryRequired();
+      return;
     }
     if (gen !== probeGenRef.current) return; // a newer resolution superseded us
+    if (outcome.status === "unavailable" && typeof console !== "undefined") {
+      console.log("[auth] session read unavailable");
+    }
+    const uid = outcome.status === "ready" ? outcome.userId : null;
     if (!uid) {
       lastUserIdRef.current = null;
       lastProbeRef.current = null;
       noteResolvedOwner(null);
-      setState({ userId: null, hasProfile: null, isMinor: null, age: null, profileProbeFailed: false, loading: false });
+      setState({
+        userId: null,
+        hasProfile: null,
+        isMinor: null,
+        age: null,
+        profileProbeFailed: false,
+        loading: false,
+      });
       return;
     }
     // Timeout fallback: keep the last known-good probe for the SAME user
@@ -281,7 +376,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const cached = lastUserIdRef.current === uid ? lastProbeRef.current : null;
     const fallback: ProfileProbe = cached ?? { hasProfile: false, isMinor: null, probeFailed: true };
     const reprobe = preserveKnownMinorForMissingProfile(
-      await withTimeout(fetchProfile(uid), PROFILE_PROBE_TIMEOUT_MS, fallback),
+      await withTimeout(fetchProfile(uid, supabase), PROFILE_PROBE_TIMEOUT_MS, fallback),
       cached,
     );
     // Same anti-poison rule as the auth-event path: a FAILED re-probe (error,
@@ -299,9 +394,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profileProbeFailed: probe.probeFailed === true,
       loading: false,
     });
-  }, []);
+  }, [markStorageRecoveryRequired]);
 
-  const value = useMemo<AuthContextValue>(() => ({ ...state, refresh }), [state, refresh]);
+  const recoverEncryptedStorage = useCallback(async (
+    consent: EncryptedNativeStorageRecoveryConsent,
+  ): Promise<boolean> => {
+    // Consent alone is insufficient: recovery is available only after this
+    // provider observed the exact durable-recovery signal.
+    if (!storageRecoveryRequiredRef.current) return false;
+
+    const result = await attemptEncryptedNativeStorageRecovery(consent);
+    if (result !== "recovered") {
+      storageRecoveryRequiredRef.current = true;
+      if (result === "failed" && typeof console !== "undefined") {
+        console.warn("[auth] encrypted session storage recovery failed");
+      }
+      return false;
+    }
+
+    // Invalidate every callback bound to the retired client before publishing
+    // the epoch. The next effect subscribes to the newly-created singleton and
+    // performs a fresh getSession; no signOut call touches the old client.
+    const nextEpoch = sessionEpochRef.current + 1;
+    sessionEpochRef.current = nextEpoch;
+    storageRecoveryRequiredRef.current = false;
+    setStorageRecoveryRequired(false);
+    probeGenRef.current += 1;
+    lastUserIdRef.current = null;
+    lastProbeRef.current = null;
+    publishUnresolvedAuthState({
+      userId: null,
+      hasProfile: null,
+      isMinor: null,
+      age: null,
+      profileProbeFailed: false,
+      loading: true,
+    });
+    setSessionEpoch(nextEpoch);
+    return true;
+  }, [publishUnresolvedAuthState]);
+
+  const value = useMemo<AuthContextValue>(
+    () => ({ ...state, storageRecoveryRequired, refresh, recoverEncryptedStorage }),
+    [state, storageRecoveryRequired, refresh, recoverEncryptedStorage],
+  );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

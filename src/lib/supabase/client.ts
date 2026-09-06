@@ -47,6 +47,28 @@ export function getSupabaseClient(): SupabaseClient {
   return client;
 }
 
+/**
+ * Retire the current singleton after an explicitly-consented encrypted-storage
+ * recovery. The reference is dropped first so even failed best-effort cleanup
+ * cannot let a later caller reuse the client that observed unreadable storage.
+ */
+export async function resetSupabaseClient(): Promise<void> {
+  const previous = client;
+  client = null;
+  if (!previous) return;
+
+  try {
+    await previous.auth.stopAutoRefresh();
+  } catch {
+    // Best effort: dropping the unreadable client is the security boundary.
+  }
+  try {
+    await previous.removeAllChannels();
+  } catch {
+    // Best effort: callers must still be able to construct a clean client.
+  }
+}
+
 function resolveStorageAdapter(): Storage | StringStorage | undefined {
   if (IS_WEB) {
     const g = globalThis as unknown as { localStorage?: Storage };
