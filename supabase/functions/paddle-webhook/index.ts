@@ -173,7 +173,9 @@ async function hmacMessageHex(secret: string, message: Uint8Array): Promise<stri
     false,
     ['sign'],
   );
-  const signature = await crypto.subtle.sign('HMAC', key, message);
+  // Deno's WebCrypto BufferSource requires an ArrayBuffer-backed view. Copying
+  // keeps the exact signed bytes while excluding a SharedArrayBuffer backing.
+  const signature = await crypto.subtle.sign('HMAC', key, Uint8Array.from(message));
   return [...new Uint8Array(signature)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
@@ -216,6 +218,69 @@ function priceToTier(priceId: string | undefined): string | null {
   put('PADDLE_PRICE_CORTEX', 'cortex');
   put('PADDLE_PRICE_BRAIN', 'brain');
   return map[priceId] ?? null;
+}
+
+const OWNER_ANCHOR_QUERY_LIMIT = 101;
+const UTC_DEADLINE_RE = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,3}))?Z$/;
+
+interface OwnerAnchorRow {
+  user_id?: unknown;
+}
+
+interface PaddleWebhookOwnerResolution {
+  userId: string | null;
+  error: 'ambiguous_owner_anchor' | 'owner_binding_mismatch' | null;
+}
+
+function resolvePaddleWebhookOwner(
+  signedUserId: string | null,
+  rows: readonly OwnerAnchorRow[] | null,
+): PaddleWebhookOwnerResolution {
+  // A full result page means there may be another, conflicting owner outside
+  // the bounded query. Treat uncertainty as ambiguity instead of guessing.
+  if (rows && rows.length >= OWNER_ANCHOR_QUERY_LIMIT) {
+    return { userId: null, error: 'ambiguous_owner_anchor' };
+  }
+
+  const owners = new Set<string>();
+  for (const row of rows ?? []) {
+    if (typeof row.user_id !== 'string' || row.user_id.length === 0) {
+      return { userId: null, error: 'ambiguous_owner_anchor' };
+    }
+    owners.add(row.user_id);
+    if (owners.size > 1) return { userId: null, error: 'ambiguous_owner_anchor' };
+  }
+
+  const anchoredUserId = owners.values().next().value as string | undefined;
+  if (signedUserId && anchoredUserId && signedUserId !== anchoredUserId) {
+    return { userId: null, error: 'owner_binding_mismatch' };
+  }
+  return { userId: signedUserId ?? anchoredUserId ?? null, error: null };
+}
+
+function previousBindingSecretForVerification(
+  secret: string,
+  expiresAt: string,
+  nowMs = Date.now(),
+): string | null {
+  if (secret.length < 32 || !Number.isSafeInteger(nowMs)) return null;
+
+  const value = expiresAt.trim();
+  let deadlineMs: number;
+  if (/^\d{10}$/.test(value)) {
+    deadlineMs = Number(value) * 1000;
+  } else {
+    const match = UTC_DEADLINE_RE.exec(value);
+    if (!match) return null;
+    deadlineMs = Date.parse(value);
+    if (!Number.isFinite(deadlineMs)) return null;
+    const normalized = `${match[1]}.${(match[2] ?? '').padEnd(3, '0')}Z`;
+    // Date.parse normalizes impossible dates such as February 30. Requiring the
+    // canonical round-trip makes the configured UTC deadline unambiguous.
+    if (new Date(deadlineMs).toISOString() !== normalized) return null;
+  }
+
+  return Number.isFinite(deadlineMs) && deadlineMs > nowMs ? secret : null;
 }
 
 Deno.serve(async (req: Request) => {
@@ -387,9 +452,18 @@ Deno.serve(async (req: Request) => {
     const bindingSecret = Deno.env.get('PADDLE_CHECKOUT_BINDING_SECRET') ?? '';
     if (bindingSecret.length < 32) return json({ error: 'misconfigured_checkout_binding' }, 503);
     const previousBindingSecret = Deno.env.get('PADDLE_CHECKOUT_BINDING_SECRET_PREVIOUS') ?? '';
+    const previousBindingExpiresAt =
+      Deno.env.get('PADDLE_CHECKOUT_BINDING_SECRET_PREVIOUS_EXPIRES_AT') ?? '';
+    const acceptedPreviousBindingSecret = previousBindingSecretForVerification(
+      previousBindingSecret,
+      previousBindingExpiresAt,
+    );
     const bindingSecrets = [bindingSecret];
-    if (previousBindingSecret.length >= 32) bindingSecrets.push(previousBindingSecret);
-    const userId = await verifyCheckoutBindingWithSecrets(data.custom_data, bindingSecrets);
+    if (acceptedPreviousBindingSecret) bindingSecrets.push(acceptedPreviousBindingSecret);
+    if (previousBindingSecret && !acceptedPreviousBindingSecret) {
+      console.error('[paddle-webhook][ALERT] previous_checkout_binding_secret_ignored');
+    }
+    const signedUserId = await verifyCheckoutBindingWithSecrets(data.custom_data, bindingSecrets);
 
     // Paddle object identity (0115). On subscription.* the event's own object IS
     // the subscription; on transaction.* it is the transaction and the
@@ -443,20 +517,19 @@ Deno.serve(async (req: Request) => {
       return json({ ok: true, ignored: eventType });
     }
 
-    // Webhook delivery order is not guaranteed. A renewal may legitimately
-    // carry an expired checkout binding, but it is safe only after an earlier
-    // event anchored this provider subscription to a user in our DB. Check the
-    // actual anchor rather than assuming a non-null subscription id is enough.
-    let hasOwnerAnchor = userId !== null;
-    if (!hasOwnerAnchor && subscriptionId) {
-      const { data: ownerAnchor, error: ownerAnchorError } = await admin
+    // Webhook delivery order is not guaranteed. Always compare a signed owner
+    // with the stored subscription owner; a valid binding for user A must not
+    // take over a subscription already anchored to user B. Renewals whose
+    // checkout binding has expired use the unique DB anchor as the real owner.
+    let ownerAnchorRows: OwnerAnchorRow[] = [];
+    if (subscriptionId) {
+      const { data: ownerAnchors, error: ownerAnchorError } = await admin
         .from('paddle_webhook_events')
         .select('user_id')
         .eq('paddle_subscription_id', subscriptionId)
         .eq('provider', 'paddle')
         .not('user_id', 'is', null)
-        .limit(1)
-        .maybeSingle();
+        .limit(OWNER_ANCHOR_QUERY_LIMIT);
       if (ownerAnchorError) {
         console.error(
           '[paddle-webhook][ALERT] owner_anchor_check_failed',
@@ -464,9 +537,18 @@ Deno.serve(async (req: Request) => {
         );
         return json({ error: 'owner_anchor_check_failed' }, 503);
       }
-      hasOwnerAnchor = typeof ownerAnchor?.user_id === 'string';
+      ownerAnchorRows = ownerAnchors ?? [];
     }
-    if (!hasOwnerAnchor) {
+    const ownerResolution = resolvePaddleWebhookOwner(signedUserId, ownerAnchorRows);
+    if (ownerResolution.error) {
+      console.error(
+        '[paddle-webhook][ALERT] owner_resolution_failed',
+        JSON.stringify({ event: eventId, reason: ownerResolution.error }),
+      );
+      return json({ error: ownerResolution.error }, 409);
+    }
+    const resolvedUserId = ownerResolution.userId;
+    if (!resolvedUserId) {
       if (data.custom_data?.user_id) {
         console.error(
           '[paddle-webhook][ALERT] invalid_checkout_binding',
@@ -499,7 +581,7 @@ Deno.serve(async (req: Request) => {
     const { data: result, error } = await admin.rpc('apply_billing_event', {
       p_event_id: eventId,
       p_event_type: eventType,
-      p_user_id: userId,
+      p_user_id: resolvedUserId,
       p_tier: tier,
       p_expires_at: expiresAt,
       p_provider: 'paddle',

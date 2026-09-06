@@ -15,6 +15,11 @@ import { join } from "node:path";
 const ROOT = join(__dirname, "..", "..", "..", "..");
 const fn = readFileSync(join(ROOT, "supabase", "functions", "subscription-manage", "index.ts"), "utf8");
 const config = readFileSync(join(ROOT, "supabase", "config.toml"), "utf8");
+const rateLimitSql = readFileSync(
+  join(ROOT, "db", "migrations", "0184_billing_self_service_rate_limit.sql"),
+  "utf8",
+);
+const rateLimitBody = rateLimitSql.replace(/--[^\n]*/g, " ");
 
 // Comments are stripped before keyword assertions so a comment that merely
 // MENTIONS a check cannot satisfy a test that requires the check in code.
@@ -88,7 +93,7 @@ describe("subscription-manage - eligibility is re-derived server-side", () => {
     // The gate must sit BEFORE the claim, or the ledger holds a claim for an
     // action that can never succeed.
     const gateAt = code.indexOf("eligibility.tier === 'free'");
-    const claimAt = code.indexOf('claim_billing_self_service');
+    const claimAt = code.indexOf("rpc('claim_billing_self_service'");
     expect(gateAt).toBeGreaterThan(-1);
     expect(claimAt).toBeGreaterThan(gateAt);
   });
@@ -105,7 +110,7 @@ describe("subscription-manage - eligibility is re-derived server-side", () => {
 
 describe("subscription-manage - idempotency", () => {
   test("the ledger row is claimed BEFORE the provider call", () => {
-    const claimAt = code.indexOf("claim_billing_self_service");
+    const claimAt = code.indexOf("rpc('claim_billing_self_service'");
     const callAt = code.indexOf("callPaddle(");
     expect(claimAt).toBeGreaterThan(-1);
     expect(callAt).toBeGreaterThan(-1);
@@ -190,16 +195,93 @@ describe("subscription-manage - 0118 hardening", () => {
     expect(code).not.toMatch(/callPaddle\([^)]*,\s*claimId\)/);
   });
 
-  test("there is a per-user rate limit, and it fails closed", () => {
-    expect(code).toMatch(/from\('billing_self_service_log'\)/);
-    expect(code).toMatch(/'too_many_requests'/);
-    expect(code).toMatch(/429/);
-    expect(code).toMatch(/'rate_check_unavailable'/);
+  test("the atomic per-user limiter runs before every valid action side effect", () => {
+    expect(code).toMatch(/admin\.rpc\(\s*'claim_billing_self_service_rate_limit'/);
+    expect(code).not.toMatch(
+      /from\('billing_self_service_log'\)[\s\S]*select\('id', \{ count: 'exact'/,
+    );
+    const actionGateAt = code.indexOf("action !== 'cancel'");
+    const limiterAt = code.indexOf("'claim_billing_self_service_rate_limit'");
+    for (const later of [
+      code.indexOf("if (action === 'checkout_binding')"),
+      code.indexOf("rpc('refund_eligibility'"),
+      code.indexOf("rpc('log_billing_self_service'"),
+      code.indexOf("await callPaddle("),
+    ]) {
+      expect(actionGateAt).toBeLessThan(limiterAt);
+      expect(limiterAt).toBeLessThan(later);
+    }
+  });
+
+  test("a missing/error/malformed limiter fails closed and a positive retry returns 429", () => {
+    expect(code).toMatch(/rateLimitError[\s\S]*'rate_check_unavailable'[\s\S]*503/);
+    expect(code).toMatch(
+      /!Number\.isInteger\(retryAfterSeconds\)[\s\S]*retryAfterSeconds < 0[\s\S]*'rate_check_unavailable'[\s\S]*503/,
+    );
+    expect(code).toMatch(
+      /retryAfterSeconds > 0[\s\S]*'too_many_requests'[\s\S]*retry_after_seconds: retryAfterSeconds[\s\S]*429/,
+    );
   });
 
   test("DRYRUN while ENABLED is loud, because it must not survive the go-live flip", () => {
     expect(code).toMatch(/if \(enabled && dryRun\)/);
     expect(code).toMatch(/\[ALERT\] DRYRUN is set while the feature is ENABLED/);
+  });
+});
+
+describe("0184 - billing self-service limiter migration", () => {
+  test("is re-applicable and forces RLS on a bounded mutex row", () => {
+    expect(rateLimitSql).toMatch(
+      /CREATE TABLE IF NOT EXISTS public\.billing_self_service_rate_limits/,
+    );
+    expect(rateLimitSql).toMatch(/cardinality\(claimed_at\) BETWEEN 0 AND 20/);
+    expect(rateLimitSql).toMatch(
+      /ALTER TABLE public\.billing_self_service_rate_limits ENABLE ROW LEVEL SECURITY/,
+    );
+    expect(rateLimitSql).toMatch(
+      /ALTER TABLE public\.billing_self_service_rate_limits FORCE ROW LEVEL SECURITY/,
+    );
+    expect(rateLimitSql).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.claim_billing_self_service_rate_limit\(p_user_id uuid\)/,
+    );
+    expect(rateLimitBody).not.toMatch(/DROP TABLE/);
+  });
+
+  test("serializes concurrent claims before counting and appending", () => {
+    expect(rateLimitSql).toMatch(
+      /INSERT INTO public\.billing_self_service_rate_limits[\s\S]*ON CONFLICT \(user_id\) DO NOTHING/,
+    );
+    const lockAt = rateLimitBody.indexOf("FOR UPDATE");
+    const clockAt = rateLimitBody.indexOf("v_now := clock_timestamp()");
+    const countAt = rateLimitBody.indexOf("cardinality(v_claims) >= 20");
+    const appendAt = rateLimitBody.indexOf("array_append(v_claims, v_now)");
+    expect(lockAt).toBeGreaterThan(-1);
+    expect(lockAt).toBeLessThan(clockAt);
+    expect(clockAt).toBeLessThan(countAt);
+    expect(countAt).toBeLessThan(appendAt);
+    expect(rateLimitSql).toMatch(/RETURN v_retry;/);
+    expect(rateLimitSql).toMatch(/RETURN 0;/);
+  });
+
+  test("keeps the table private and grants the guarded RPC only to service_role", () => {
+    expect(rateLimitSql).toMatch(
+      /REVOKE ALL ON TABLE public\.billing_self_service_rate_limits\s+FROM PUBLIC, anon, authenticated, service_role/,
+    );
+    expect(rateLimitSql).toMatch(
+      /REVOKE ALL ON FUNCTION public\.claim_billing_self_service_rate_limit\(uuid\)\s+FROM PUBLIC, anon, authenticated, service_role/,
+    );
+    expect(rateLimitSql).toMatch(
+      /GRANT EXECUTE ON FUNCTION public\.claim_billing_self_service_rate_limit\(uuid\) TO service_role/,
+    );
+    expect(rateLimitSql).toMatch(
+      /public\.billing_request_role\(\) IS DISTINCT FROM 'service_role'/,
+    );
+    expect(rateLimitSql).not.toMatch(
+      /GRANT\s+(?:ALL|SELECT|INSERT|UPDATE|DELETE)\s+ON(?: TABLE)? public\.billing_self_service_rate_limits/i,
+    );
+    expect(rateLimitSql).not.toMatch(
+      /GRANT\s+EXECUTE ON FUNCTION public\.claim_billing_self_service_rate_limit\(uuid\) TO (?:anon|authenticated|PUBLIC)/i,
+    );
   });
 });
 

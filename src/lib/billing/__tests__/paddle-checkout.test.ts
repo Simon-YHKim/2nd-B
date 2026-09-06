@@ -4,6 +4,7 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import * as ts from "typescript";
 
 import {
   createCheckoutBinding,
@@ -12,6 +13,44 @@ import {
   verifyCheckoutBinding,
   verifyCheckoutBindingWithSecrets,
 } from "../../../../supabase/functions/_shared/paddle-checkout-binding";
+
+type OwnerResolution = {
+  userId: string | null;
+  error: "ambiguous_owner_anchor" | "owner_binding_mismatch" | null;
+};
+
+type WebhookOwnershipHelpers = {
+  resolvePaddleWebhookOwner: (
+    signedUserId: string | null,
+    rows: readonly { user_id?: unknown }[] | null,
+  ) => OwnerResolution;
+  previousBindingSecretForVerification: (
+    secret: string,
+    expiresAt: string,
+    nowMs: number,
+  ) => string | null;
+};
+
+function loadWebhookOwnershipHelpers(source: string): WebhookOwnershipHelpers {
+  const start = source.indexOf("const OWNER_ANCHOR_QUERY_LIMIT");
+  const end = source.indexOf("\nDeno.serve", start);
+  if (start < 0 || end < 0) throw new Error("Paddle webhook ownership helpers not found");
+  const snippet = source.slice(start, end)
+    + "\nexports.resolvePaddleWebhookOwner = resolvePaddleWebhookOwner;"
+    + "\nexports.previousBindingSecretForVerification = previousBindingSecretForVerification;\n";
+  const js = ts.transpileModule(snippet, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const exportsObj: Partial<WebhookOwnershipHelpers> = {};
+  new Function("exports", js)(exportsObj);
+  if (
+    typeof exportsObj.resolvePaddleWebhookOwner !== "function"
+    || typeof exportsObj.previousBindingSecretForVerification !== "function"
+  ) {
+    throw new Error("Paddle webhook ownership helpers did not evaluate");
+  }
+  return exportsObj as WebhookOwnershipHelpers;
+}
 
 const USER_ID = "11111111-1111-4111-8111-111111111111";
 const authUser: { id?: string; email?: string } | null = { id: USER_ID, email: "a@b.com" };
@@ -157,11 +196,11 @@ describe("paddle-webhook ownership boundary", () => {
   test("the webhook verifies the signed binding before using custom_data.user_id", () => {
     expect(webhook).toContain("PADDLE_CHECKOUT_BINDING_SECRET");
     expect(webhookCode).toMatch(/await verifyCheckoutBindingWithSecrets\(data\.custom_data/);
-    expect(webhookCode).toMatch(/const userId = await verifyCheckoutBindingWithSecrets/);
+    expect(webhookCode).toMatch(/const signedUserId = await verifyCheckoutBindingWithSecrets/);
     expect(webhookCode).not.toMatch(/const userId = data\.custom_data\?\.user_id/);
   });
 
-  test("keeps refunds available and requires a real DB owner anchor for legacy events", () => {
+  test("keeps refunds available and always resolves a bounded DB owner anchor", () => {
     expect(webhook.indexOf("if (isAdjustmentEvent)")).toBeLessThan(
       webhook.indexOf("PADDLE_CHECKOUT_BINDING_SECRET')"),
     );
@@ -170,11 +209,89 @@ describe("paddle-webhook ownership boundary", () => {
     expect(webhookCode).toMatch(/eq\('paddle_subscription_id', subscriptionId\)/);
     expect(webhookCode).toMatch(/eq\('provider', 'paddle'\)/);
     expect(webhookCode).toMatch(/not\('user_id', 'is', null\)/);
+    expect(webhookCode).toMatch(/limit\(OWNER_ANCHOR_QUERY_LIMIT\)/);
     expect(webhookCode).toMatch(/ownerAnchorError[\s\S]*owner_anchor_check_failed[\s\S]*503/);
-    expect(webhookCode).toMatch(/!hasOwnerAnchor[\s\S]*unattributed_subscription[\s\S]*409/);
-    expect(webhook.indexOf("let hasOwnerAnchor")).toBeLessThan(
+    expect(webhookCode).toMatch(/ownerResolution\.error[\s\S]*409/);
+    expect(webhookCode).toMatch(/!resolvedUserId[\s\S]*unattributed_subscription[\s\S]*409/);
+    expect(webhook).not.toMatch(/if \(!(?:userId|signedUserId) && subscriptionId\)/);
+    expect(webhook.indexOf("const ownerResolution")).toBeLessThan(
       webhook.indexOf("admin.rpc('apply_billing_event'"),
     );
+    expect(webhookCode).toMatch(/p_user_id: resolvedUserId/);
+  });
+
+  test("accepts the previous binding key only inside an explicit server deadline", () => {
+    expect(webhook).toContain("PADDLE_CHECKOUT_BINDING_SECRET_PREVIOUS_EXPIRES_AT");
+    expect(webhookCode).toMatch(
+      /previousBindingSecretForVerification\([\s\S]*previousBindingSecret[\s\S]*previousBindingExpiresAt/,
+    );
+    expect(webhookCode).toMatch(/if \(acceptedPreviousBindingSecret\)[\s\S]*bindingSecrets\.push/);
+    expect(webhookCode).not.toMatch(/if \(previousBindingSecret\.length >= 32\) bindingSecrets\.push/);
+    expect(webhook).toContain("previous_checkout_binding_secret_ignored");
+  });
+});
+
+describe("Paddle webhook owner resolution", () => {
+  const root = join(__dirname, "..", "..", "..", "..");
+  const source = readFileSync(
+    join(root, "supabase", "functions", "paddle-webhook", "index.ts"),
+    "utf8",
+  );
+
+  test("rejects a valid binding when the stored subscription belongs to another user", () => {
+    const { resolvePaddleWebhookOwner } = loadWebhookOwnershipHelpers(source);
+    expect(resolvePaddleWebhookOwner(USER_ID, [
+      { user_id: "22222222-2222-4222-8222-222222222222" },
+    ])).toEqual({ userId: null, error: "owner_binding_mismatch" });
+  });
+
+  test("uses the unique stored owner for a renewal without a live binding", () => {
+    const { resolvePaddleWebhookOwner } = loadWebhookOwnershipHelpers(source);
+    const owner = "22222222-2222-4222-8222-222222222222";
+    expect(resolvePaddleWebhookOwner(null, [
+      { user_id: owner },
+      { user_id: owner },
+    ])).toEqual({ userId: owner, error: null });
+  });
+
+  test("fails closed for conflicting owners or a truncated owner query", () => {
+    const { resolvePaddleWebhookOwner } = loadWebhookOwnershipHelpers(source);
+    expect(resolvePaddleWebhookOwner(null, [
+      { user_id: USER_ID },
+      { user_id: "22222222-2222-4222-8222-222222222222" },
+    ])).toEqual({ userId: null, error: "ambiguous_owner_anchor" });
+    expect(resolvePaddleWebhookOwner(null, Array.from(
+      { length: 101 },
+      () => ({ user_id: USER_ID }),
+    ))).toEqual({ userId: null, error: "ambiguous_owner_anchor" });
+  });
+});
+
+describe("Paddle previous checkout-binding key deadline", () => {
+  const root = join(__dirname, "..", "..", "..", "..");
+  const source = readFileSync(
+    join(root, "supabase", "functions", "paddle-webhook", "index.ts"),
+    "utf8",
+  );
+  const secret = "previous-local-test-secret-at-least-32-bytes";
+  const nowMs = Date.parse("2026-09-06T12:00:00.000Z");
+
+  test.each([
+    ["", "missing deadline"],
+    ["not-a-deadline", "invalid deadline"],
+    ["2026-09-06T11:59:59.000Z", "expired UTC deadline"],
+    [String(Math.floor(nowMs / 1000)), "expired epoch deadline"],
+  ])("ignores the previous key for %s (%s)", (deadline) => {
+    const { previousBindingSecretForVerification } = loadWebhookOwnershipHelpers(source);
+    expect(previousBindingSecretForVerification(secret, deadline, nowMs)).toBeNull();
+  });
+
+  test.each([
+    "2026-09-06T12:05:00.000Z",
+    String(Math.floor(nowMs / 1000) + 300),
+  ])("accepts the previous key before a valid deadline: %s", (deadline) => {
+    const { previousBindingSecretForVerification } = loadWebhookOwnershipHelpers(source);
+    expect(previousBindingSecretForVerification(secret, deadline, nowMs)).toBe(secret);
   });
 });
 
