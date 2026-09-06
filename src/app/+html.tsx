@@ -45,15 +45,15 @@ select:focus-visible,
   outline: 2px solid ${semantic.brand};
   outline-offset: 3px;
 }
-/* Base pixel face for raw DOM text + form controls (everything that is not an
-   RN <Text>, which sets its own inline font-family).
-   2026-05-29 (user directive) this was NeoDunggeunmo. That family is no longer
-   in fontAssets (src/theme/typography.ts), so useFonts() never injected its
-   @font-face and this rule silently fell through to the browser's monospace.
-   PIXEL-CLAY (Simon 2026-09-05, app-wide Galmuri): the base is Galmuri11, which
-   useFonts() does register on web, so raw text finally gets the pixel face. */
+/* Pre-hydration base font. The @font-face rules are injected by expo-font's
+   useFonts() after hydration from fontAssets (src/theme/typography.ts), so the
+   names here must be faces that file actually registers: Galmuri11 (the
+   PIXEL-CLAY body face) first, then Pretendard, then system fallbacks. The
+   previous chain named "NeoDunggeunmo" / "NeoDunggeunmoCode", which no
+   useFonts() call registers, so raw DOM text and form controls silently fell
+   through to the browser monospace default (audit D5-14, fixed 2026-09-05). */
 html, body, #root, #__next, button, input, textarea, select {
-  font-family: "Galmuri11", "GalmuriMono11", monospace;
+  font-family: "Galmuri11", "Pretendard", "Apple SD Gothic Neo", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 }
 /* P2-10 readable-font preference: useFontStyle() flips data-font on <html>
    so raw DOM text and form controls follow the option. The family chain

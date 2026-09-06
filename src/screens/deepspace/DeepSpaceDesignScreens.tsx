@@ -116,6 +116,7 @@ import { adherenceChip } from "@/lib/ops/grounding";
 import { recommendForDomain, recommendationVendorLabel, recommendationsAllowed, type OpsRecommendation } from "@/lib/ops/recommend";
 import { buildGoogleCalendarUrl } from "@/lib/ops/push";
 import { notifyNow, scheduleRoutineReminder, type ReminderResult } from "@/lib/ops/reminders";
+import { loadNotifications } from "@/lib/ops/notifications-sdk";
 import {
   applyFocusSessionComplete,
   applyLanguageReviewComplete,
@@ -1326,6 +1327,26 @@ export function DeepSpaceInsightsScreen() {
             <Text variant="caption" style={styles.primaryText}>{t("wiki.addPiece")}</Text>
           </Pressable>
         </View>
+        {/* Reachability (audit 260904 A3): the /discover door lived ONLY in the
+            filled state below, gated on a full week-over-week comparison. But a
+            user with weeks of history whose RECENT week is quiet still reads as
+            first-week here — verified live on the QA account (102 records, quiet
+            recent week) which showed this state with no path to /discover. The
+            rising-interests screen is built on all historical data, not this
+            week's, so it has content for exactly those users. Reuse the same
+            door element verbatim (no new visual work); a brand-new user with no
+            history simply sees /discover's own empty state, no worse than the
+            missing door. The capture CTA above stays the primary next action. */}
+        <Pressable
+          onPress={() => router.push("/discover")}
+          android_ripple={{ color: ddsAlpha2(m3.color.tertiary, 0.12) }}
+          accessibilityRole="button"
+        >
+          <Card>
+            <Text variant="heading" style={styles.section}>{t("insights.sectionDiscover")}</Text>
+            <Text variant="body" style={styles.lead}>{t("insights.discoverLead")}</Text>
+          </Card>
+        </Pressable>
       </Shell>
     );
   }
@@ -1595,19 +1616,13 @@ export { DeepSpacePlansScreen } from "./dds-plans-screen";
 
 // ── Deep-space permissions: real OS status + request ───────────────────────
 // The rows now reflect the ACTUAL permission state and act on tap. Notifications
-// and image-picker are lazy-required (never evaluated in the web bundle, and
-// Expo Go throws on require of expo-notifications — same guarded pattern as
-// src/lib/ops/daily-review.ts and wiki/capture-image.ts); expo-audio ships a
-// web build so its permission fns import directly. Rows render on native only.
+// come through the lib/ops/notifications-sdk seam (its .web.ts variant answers
+// null, so the SDK never reaches the web bundle; Expo Go throws on require, which
+// the seam also absorbs). image-picker is lazy-required (same guarded pattern as
+// wiki/capture-image.ts); expo-audio ships a web build so its permission fns
+// import directly. Rows render on native only.
 type PermStatus = { granted: boolean; canAskAgain: boolean };
 
-function loadNotifications(): typeof import("expo-notifications") | null {
-  try {
-    return require("expo-notifications") as typeof import("expo-notifications");
-  } catch {
-    return null;
-  }
-}
 function loadImagePicker(): typeof import("expo-image-picker") | null {
   try {
     return require("expo-image-picker") as typeof import("expo-image-picker");

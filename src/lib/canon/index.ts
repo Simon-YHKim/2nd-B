@@ -1,9 +1,11 @@
 // Canon data layer: typed access to the proto_rev2 JSON canon (public/proto/data).
 // The prototype (live at /proto/) and the app read the SAME files, so screen
 // metadata, nav, and constellation geometry have a single source of truth.
-// Import only the small structural packs here - content packs (museum, wiki,
-// lenses...) stay proto-side until a screen actually needs them, to keep the
-// app bundle lean. Values are a pixel contract (design/proto_rev2/CLAUDE.md):
+// Import only the small structural packs here - content packs (wiki, lenses...)
+// stay proto-side until a screen actually needs them, to keep the app bundle
+// lean. A content pack that ONE route needs gets its own module next to this
+// one (./museum.ts, audit D5-13) so the thirteen importers of this index do not
+// all carry it. Values are a pixel contract (design/proto_rev2/CLAUDE.md):
 // do not edit them from the app side.
 
 import manifest from "../../../public/proto/data/index.json";
@@ -11,7 +13,6 @@ import screensPack from "../../../public/proto/data/app/screens.json";
 import navPack from "../../../public/proto/data/app/nav.json";
 import constellationPack from "../../../public/proto/data/core/constellation.json";
 import captureModesPack from "../../../public/proto/data/core/capture-modes.json";
-import museumPack from "../../../public/proto/data/screens/museum.json";
 import careerInputPack from "../../../public/proto/data/screens/careerinput.json";
 import morePack from "../../../public/proto/data/screens/more.json";
 import knowPack from "../../../public/proto/data/screens/know.json";
@@ -176,39 +177,10 @@ export function canonStats(): {
    screens source their KO content here; EN mirrors stay app-side.
    Values that must track LIVE state (prices via TIER_PRICE_KRW,
    real ratification rows, live reminders) are intentionally NOT
-   exported: the entitlement/data layer stays the source of truth. */
+   exported: the entitlement/data layer stays the source of truth.
 
-export interface CanonMuseumEvent {
-  id: string;
-  icon: string;
-  lane: string;
-  year: number;
-  ylabel: string;
-  title: string;
-  sub: string;
-  body: string;
-  tags?: string[];
-  rel?: string[];
-  refs?: { kind: string; label: string }[];
-  here?: boolean;
-}
-
-export interface CanonMuseumDetail {
-  long?: string;
-  facts?: string[][];
-  cause?: string;
-  effect?: string;
-}
-
-export const canonMuseum = {
-  lanes: museumPack.lanes as Record<string, { label: string; en: string; icon: string; accent: string; tint: string; ink: string }>,
-  events: museumPack.events as CanonMuseumEvent[],
-  extra: museumPack.extra as CanonMuseumEvent[],
-  detail: museumPack.detail as Record<string, CanonMuseumDetail>,
-  refKo: museumPack.refKo as Record<string, string>,
-  refIcon: museumPack.refIcon as Record<string, string>,
-  decades: museumPack.decades as number[],
-};
+   The AI 뮤지엄 pack (canonMuseum + its types) lives in ./museum.ts: only the
+   museum route reads it, and it is the largest content pack (62 KB). */
 
 /** One 고용24 job-KPI suggestion chip on the 성과 입력 form. */
 export interface CanonCareerKpiSuggestion {

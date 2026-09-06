@@ -45,6 +45,7 @@ import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
 // Direct module import (NOT the components/deepspace barrel) — the barrel has a
 // known require cycle that crashed the /settings path once already (PR 711).
 import { SecondbStatusHeader } from "@/components/deep-space/SecondbStatusHeader";
+import { changeUiLanguage } from "@/lib/i18n";
 import { AVAILABLE_UI_LOCALES, UI_LOCALE_META, type AvailableUiLocale } from "@/lib/i18n/locales";
 import { resetCoachmarks } from "@/lib/onboarding/coachmarks-gate";
 import { buildInfoLine } from "@/lib/build-info";
@@ -876,7 +877,9 @@ export default function Settings() {
                   variant={isActive ? "primary" : "secondary"}
                   selected={isActive}
                   onPress={() => {
-                    void i18n.changeLanguage(code);
+                    // Attaches the es/pt/id pack before switching so a beta
+                    // locale never paints raw keys (packs are lazy, see lib/i18n).
+                    void changeUiLanguage(code);
                   }}
                   full={false}
                 />
