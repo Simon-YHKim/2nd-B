@@ -34,12 +34,17 @@ import {
   verifyCheckoutBindingWithSecrets,
   type PaddleCheckoutBindingData,
 } from '../_shared/paddle-checkout-binding.ts';
+import {
+  parseJsonWithLimits,
+  readBoundedUtf8Body,
+  RequestBoundaryError,
+} from '../_shared/request-boundary.ts';
 
 interface PaddleEvent {
-  event_id?: string;
-  event_type?: string;
+  event_id: string;
+  event_type: string;
   occurred_at?: string;
-  data?: {
+  data: {
     // `id` is the event's OWN object: sub_... on subscription.*, txn_... on
     // transaction.*. Captured since 0115 - without it nothing in the database
     // can name the subscription to cancel or the transaction to refund, which
@@ -86,6 +91,133 @@ function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 }
 
+const MAX_PADDLE_WEBHOOK_BYTES = 512 * 1024;
+const MAX_PADDLE_WEBHOOK_JSON_DEPTH = 32;
+const PADDLE_WEBHOOK_READ_TIMEOUT_MS = 3000;
+const JSON_CONTROL_RE = /[\u0000-\u001f\u007f]/;
+
+type JsonRecord = Record<string, unknown>;
+
+function isJsonRecord(value: unknown): value is JsonRecord {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isBoundedString(value: unknown, maxLength: number): value is string {
+  return typeof value === 'string'
+    && value.length > 0
+    && value.length <= maxLength
+    && !JSON_CONTROL_RE.test(value);
+}
+
+function hasValidOptionalString(record: JsonRecord, key: string, maxLength: number): boolean {
+  return record[key] === undefined || isBoundedString(record[key], maxLength);
+}
+
+function hasValidMoneyValue(record: JsonRecord, key: string): boolean {
+  const value = record[key];
+  return value === undefined
+    || (typeof value === 'string' && /^-?\d{1,18}$/.test(value))
+    || (typeof value === 'number' && Number.isSafeInteger(value));
+}
+
+function validatePaddleEvent(value: unknown): PaddleEvent | null {
+  if (!isJsonRecord(value)) return null;
+  if (!isBoundedString(value.event_id, 128) || !/^[A-Za-z0-9_-]+$/.test(value.event_id)) {
+    return null;
+  }
+  if (
+    !isBoundedString(value.event_type, 128)
+    || !/^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/.test(value.event_type)
+  ) return null;
+  if (!isBoundedString(value.occurred_at, 64)) return null;
+  if (!isJsonRecord(value.data)) return null;
+
+  const data = value.data;
+  for (const [key, maxLength] of [
+    ['id', 128],
+    ['subscription_id', 128],
+    ['transaction_id', 128],
+    ['action', 64],
+    ['status', 64],
+  ] as const) {
+    if (!hasValidOptionalString(data, key, maxLength)) return null;
+  }
+  if (
+    data.currency_code !== undefined
+    && (typeof data.currency_code !== 'string' || !/^[A-Z]{3}$/.test(data.currency_code))
+  ) return null;
+
+  if (data.custom_data !== undefined && data.custom_data !== null) {
+    if (!isJsonRecord(data.custom_data)) return null;
+    const binding = data.custom_data;
+    if (!hasValidOptionalString(binding, 'user_id', 128)) return null;
+    if (!hasValidOptionalString(binding, 'nonce', 64)) return null;
+    if (!hasValidOptionalString(binding, 'signature', 128)) return null;
+    if (
+      binding.issued_at !== undefined
+      && (!Number.isSafeInteger(binding.issued_at) || (binding.issued_at as number) <= 0)
+    ) return null;
+  }
+
+  if (data.items !== undefined) {
+    if (!Array.isArray(data.items) || data.items.length > 100) return null;
+    for (const item of data.items) {
+      if (!isJsonRecord(item) || !hasValidOptionalString(item, 'type', 64)) return null;
+      if (item.price !== undefined) {
+        if (!isJsonRecord(item.price) || !hasValidOptionalString(item.price, 'id', 128)) return null;
+      }
+    }
+  }
+
+  if (data.current_billing_period !== undefined && data.current_billing_period !== null) {
+    if (
+      !isJsonRecord(data.current_billing_period)
+      || !hasValidOptionalString(data.current_billing_period, 'ends_at', 64)
+    ) return null;
+  }
+  if (data.scheduled_change !== undefined && data.scheduled_change !== null) {
+    if (
+      !isJsonRecord(data.scheduled_change)
+      || !hasValidOptionalString(data.scheduled_change, 'action', 64)
+      || !hasValidOptionalString(data.scheduled_change, 'effective_at', 64)
+    ) return null;
+  }
+  if (data.totals !== undefined && data.totals !== null) {
+    if (!isJsonRecord(data.totals) || !hasValidMoneyValue(data.totals, 'total')) return null;
+  }
+  if (data.details !== undefined && data.details !== null) {
+    if (!isJsonRecord(data.details)) return null;
+    if (data.details.totals !== undefined && data.details.totals !== null) {
+      if (
+        !isJsonRecord(data.details.totals)
+        || !hasValidMoneyValue(data.details.totals, 'grand_total')
+      ) return null;
+    }
+  }
+  if (data.payments !== undefined && data.payments !== null) {
+    if (!Array.isArray(data.payments) || data.payments.length > 100) return null;
+    for (const payment of data.payments) {
+      if (!isJsonRecord(payment) || !hasValidOptionalString(payment, 'status', 64)) return null;
+      if (payment.method_details !== undefined && payment.method_details !== null) {
+        if (
+          !isJsonRecord(payment.method_details)
+          || !hasValidOptionalString(payment.method_details, 'type', 64)
+        ) return null;
+        const card = payment.method_details.card;
+        if (card !== undefined && card !== null) {
+          if (
+            !isJsonRecord(card)
+            || !hasValidOptionalString(card, 'type', 64)
+            || !hasValidOptionalString(card, 'last4', 16)
+          ) return null;
+        }
+      }
+    }
+  }
+
+  return value as unknown as PaddleEvent;
+}
+
 // ---------------------------------------------------------------------------
 // Source-IP allowlist (defence in depth, added 2026-08-04).
 //
@@ -110,6 +242,9 @@ function json(body: unknown, status = 200): Response {
 // check entirely without a redeploy if it ever blocks real traffic.
 const PADDLE_IPS_URL = 'https://api.paddle.com/ips';
 const IP_TTL_MS = 60 * 60 * 1000;
+const MAX_PADDLE_IP_LIST_BYTES = 64 * 1024;
+const MAX_PADDLE_IPV4_CIDRS = 256;
+const PADDLE_IP_FETCH_TIMEOUT_MS = 5000;
 let ipCache: { cidrs: string[]; at: number } | null = null;
 
 function ipv4ToInt(ip: string): number | null {
@@ -137,22 +272,43 @@ function inCidr(ip: string, cidr: string): boolean {
   return (a & mask) === (b & mask);
 }
 
+function isValidPaddleIpv4Cidr(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length > 18) return false;
+  const match = /^((?:0|[1-9]\d{0,2})(?:\.(?:0|[1-9]\d{0,2})){3})\/(?:[0-9]|[12]\d|3[0-2])$/.exec(value);
+  return match !== null && ipv4ToInt(match[1]) !== null;
+}
+
 async function paddleCidrs(): Promise<string[] | null> {
   const now = Date.now();
   if (ipCache && now - ipCache.at < IP_TTL_MS) return ipCache.cidrs;
   try {
-    const res = await fetch(PADDLE_IPS_URL, { signal: AbortSignal.timeout(5000) });
-    if (res.ok) {
-      const body = await res.json();
-      const cidrs = body?.data?.ipv4_cidrs;
-      if (Array.isArray(cidrs) && cidrs.length > 0) {
-        ipCache = { cidrs: cidrs as string[], at: now };
-        return ipCache.cidrs;
-      }
+    const res = await fetch(PADDLE_IPS_URL, {
+      redirect: 'error',
+      signal: AbortSignal.timeout(PADDLE_IP_FETCH_TIMEOUT_MS),
+    });
+    if (!res.ok) throw new Error('paddle_ip_list_http_error');
+    const { text } = await readBoundedUtf8Body(res, {
+      maxBytes: MAX_PADDLE_IP_LIST_BYTES,
+      timeoutMs: PADDLE_IP_FETCH_TIMEOUT_MS,
+      allowedContentTypes: ['application/json'],
+    });
+    const body = parseJsonWithLimits(text, 5);
+    if (!isJsonRecord(body) || !isJsonRecord(body.data)) {
+      throw new Error('paddle_ip_list_bad_shape');
     }
-    console.warn('[paddle-webhook] paddle ip list fetch returned no cidrs');
-  } catch (e) {
-    console.warn('[paddle-webhook] paddle ip list fetch failed:', String(e));
+    const cidrs = body.data.ipv4_cidrs;
+    if (
+      !Array.isArray(cidrs)
+      || cidrs.length === 0
+      || cidrs.length > MAX_PADDLE_IPV4_CIDRS
+      || !cidrs.every(isValidPaddleIpv4Cidr)
+    ) {
+      throw new Error('paddle_ip_list_bad_shape');
+    }
+    ipCache = { cidrs: [...new Set(cidrs)], at: now };
+    return ipCache.cidrs;
+  } catch {
+    console.warn('[paddle-webhook] paddle ip list refresh failed');
   }
   return ipCache?.cidrs ?? null; // stale is fine; null only before any success
 }
@@ -284,10 +440,27 @@ function previousBindingSecretForVerification(
 }
 
 Deno.serve(async (req: Request) => {
+  if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
+
   // FAIL CLOSED until explicitly enabled + validated.
   if (Deno.env.get('PADDLE_WEBHOOK_ENABLED') !== '1') return json({ error: 'disabled' }, 503);
   const secret = Deno.env.get('PADDLE_WEBHOOK_SECRET');
   if (!secret) return json({ error: 'misconfigured' }, 503);
+
+  // Multiple physical Paddle-Signature headers are coalesced with a comma by
+  // the Fetch Headers implementation. Paddle's grammar uses semicolons, so a
+  // comma is unambiguously a duplicated/ambiguous header and must fail closed.
+  const signatureHeader = req.headers.get('paddle-signature') ?? '';
+  if (signatureHeader.includes(',') || /[\r\n]/.test(signatureHeader)) {
+    return json({ error: 'bad_signature' }, 403);
+  }
+  const { timestamp, signatures } = parsePaddleWebhookSignature(signatureHeader);
+  if (!timestamp || signatures.length === 0) return json({ error: 'bad_signature' }, 403);
+
+  // Replay window: reject signatures more than 5 minutes off before reading a
+  // potentially large request body.
+  const skewSec = Math.abs(Date.now() / 1000 - Number(timestamp));
+  if (!Number.isFinite(skewSec) || skewSec > 300) return json({ error: 'stale_signature' }, 403);
 
   // Source check first: a caller that is not Paddle is rejected before we read a
   // body or compute an HMAC.
@@ -302,16 +475,21 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const raw = await req.text();
-    const rawBytes = new TextEncoder().encode(raw);
-    const { timestamp, signatures } = parsePaddleWebhookSignature(
-      req.headers.get('Paddle-Signature') ?? '',
-    );
-    if (!timestamp || signatures.length === 0) return json({ error: 'bad_signature' }, 403);
-
-    // Replay window: reject signatures more than 5 minutes off.
-    const skewSec = Math.abs(Date.now() / 1000 - Number(timestamp));
-    if (!Number.isFinite(skewSec) || skewSec > 300) return json({ error: 'stale_signature' }, 403);
+    let raw: string;
+    let rawBytes: Uint8Array;
+    try {
+      ({ text: raw, bytes: rawBytes } = await readBoundedUtf8Body(req, {
+        maxBytes: MAX_PADDLE_WEBHOOK_BYTES,
+        timeoutMs: PADDLE_WEBHOOK_READ_TIMEOUT_MS,
+        allowedContentTypes: ['application/json'],
+        requireLengthMatch: true,
+      }));
+    } catch (error) {
+      if (error instanceof RequestBoundaryError) {
+        return json({ error: error.code }, error.status);
+      }
+      return json({ error: 'bad_payload' }, 400);
+    }
 
     // Paddle signs the exact `${ts}:` prefix + raw request bytes. Decode only
     // after verification so no normalization can change the signed payload.
@@ -320,20 +498,17 @@ Deno.serve(async (req: Request) => {
       return json({ error: 'bad_signature' }, 403);
     }
 
-    let event: PaddleEvent;
+    let event: PaddleEvent | null;
     try {
-      const parsed: unknown = JSON.parse(raw);
-      if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-        return json({ error: 'bad_payload' }, 400);
-      }
-      event = parsed as PaddleEvent;
+      const parsed = parseJsonWithLimits(raw, MAX_PADDLE_WEBHOOK_JSON_DEPTH);
+      event = validatePaddleEvent(parsed);
     } catch {
       return json({ error: 'bad_payload' }, 400);
     }
+    if (!event) return json({ error: 'bad_payload' }, 400);
     const eventId = event.event_id;
-    if (!eventId) return json({ error: 'no_event_id' }, 400);
-    const eventType = event.event_type ?? 'unknown';
-    const data = event.data ?? {};
+    const eventType = event.event_type;
+    const data = event.data!;
     const occurredAt = event.occurred_at ?? null;
     const firstPriceId = data.items?.[0]?.price?.id;
 
@@ -603,8 +778,8 @@ Deno.serve(async (req: Request) => {
       return json({ error: 'apply_failed' }, 500);
     }
     return json({ ok: true, result });
-  } catch (e) {
-    console.error('[paddle-webhook] error:', String(e));
+  } catch {
+    console.error('[paddle-webhook] request processing failed');
     return json({ error: 'server_error' }, 500);
   }
 });
