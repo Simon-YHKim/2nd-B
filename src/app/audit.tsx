@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/Input";
 import { semantic, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { DdsAuditScreen } from "@/screens/deepspace/dds-audit-screen";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { questionsForPeriod, type AuditPeriod } from "@/lib/audit/questions";
