@@ -139,7 +139,7 @@ const SETTINGS_SURFACE_COPY: Record<
     reasoning: "Penalaran",
     reasoningSub: "Jalankan otomatis · pilih materi",
     wikiAuto: "Halaman wiki otomatis",
-    wikiAutoSub: "Ubah tangkapan baru menjadi halaman wiki",
+    wikiAutoSub: "Ubah bahan baru menjadi halaman wiki",
     devScreens: "Pengembang",
     devScreensSub: "Buka layar mana pun secara langsung",
   },

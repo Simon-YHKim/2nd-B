@@ -21,6 +21,7 @@
 // i18n 으로 빼야 한다.
 import { readFileSync, readdirSync } from "node:fs";
 import { join, sep } from "node:path";
+import * as ts from "typescript";
 
 const ROOT = process.cwd();
 
@@ -84,6 +85,11 @@ const KOREAN_BY_DESIGN: Record<string, string> = {
   "src/lib/import/ledger-ratify.ts": "가져오기 출처 라벨",
   "src/lib/relation/import-signals.ts": "카카오 별칭 안내 (한국 기능 전용)",
   "src/lib/share/insight-card.ts": "공유 카드 기본 문구",
+  // 정적 웹 셸의 <title>·description·og 태그. 하이드레이션 전에 그려지고
+  // static export 는 모든 라우트에 같은 셸 하나를 쓰므로 t() 를 부를 자리가
+  // 없다. 셸이 이미 lang="ko" 로 한국어 우선을 선언하고 있고, 문구는
+  // docs/store-copy/drafts.json 의 검토된 ko 초안과 같은 말이다.
+  "src/app/+html.tsx": "정적 웹 셸의 공유 메타 (하이드레이션 전, lang=ko)",
 
   // ── dev 전용 셸 (사용자에게 안 보임) ──
   "src/components/deepspace/DeepSpaceHubDock.tsx": "dev 전용 허브 독",
@@ -91,34 +97,18 @@ const KOREAN_BY_DESIGN: Record<string, string> = {
   "src/components/deepspace/SecondbHead.tsx": "dev 전용 셸 라벨",
 };
 
-const BS = String.fromCharCode(92);
-
-/** 주석을 건너뛰고 문자열/템플릿 리터럴만 모은다. 정규식 없이 한 글자씩 읽는다. */
-function stringLiterals(src: string): string[] {
+/** 실제 문자열과 템플릿 조각만 모은다. 정규식의 따옴표와 주석은 문자열이 아니다. */
+function stringLiterals(src: string, file = "copy.tsx"): string[] {
   const out: string[] = [];
-  let i = 0;
-  const n = src.length;
-  while (i < n) {
-    const c = src[i];
-    const d = src[i + 1];
-    if (c === "/" && d === "/") { while (i < n && src[i] !== "\n") i++; continue; }
-    if (c === "/" && d === "*") { i += 2; while (i < n && !(src[i] === "*" && src[i + 1] === "/")) i++; i += 2; continue; }
-    if (c === '"' || c === "'" || c === "`") {
-      const q = c;
-      let buf = "";
-      i++;
-      while (i < n) {
-        const ch = src[i];
-        if (ch === BS) { buf += src[i + 1] ?? ""; i += 2; continue; }
-        if (ch === q) { i++; break; }
-        buf += ch;
-        i++;
-      }
-      out.push(buf);
-      continue;
+  const source = ts.createSourceFile(file, src, ts.ScriptTarget.Latest, true);
+  function visit(node: ts.Node): void {
+    if (ts.isStringLiteralLike(node) || ts.isTemplateHead(node)
+      || ts.isTemplateMiddle(node) || ts.isTemplateTail(node)) {
+      out.push(node.text);
     }
-    i++;
+    ts.forEachChild(node, visit);
   }
+  visit(source);
   return out;
 }
 
@@ -137,6 +127,27 @@ function hasEnglishPath(src: string): boolean {
   return /useTranslation|i18next|AvailableUiLocale|\ben:\s*[{"]|locale\s*===|isKo/.test(src);
 }
 
+describe("한국어 문자열 추출", () => {
+  it("정규식의 따옴표와 주석을 카피로 읽지 않는다", () => {
+    const source = [
+      "const rule = /[\"'](?:기록|메모)/u;",
+      "// '한국어 주석'",
+      "const label = '확인'; /* \"주석\" */",
+    ].join("\n");
+    expect(stringLiterals(source)).toEqual(["확인"]);
+  });
+
+  it("템플릿의 앞뒤와 보간식 안의 실제 문자열을 모두 읽는다", () => {
+    expect(stringLiterals('const label = `안녕 ${name ?? "사용자"}, 다시 와요`;'))
+      .toEqual(["안녕 ", "사용자", ", 다시 와요"]);
+  });
+
+  it("JSX 속성과 유니코드 이스케이프의 실제 문자열을 읽는다", () => {
+    expect(stringLiterals('const view = <Button title="저장" label={"\\uD655인"} />;'))
+      .toEqual(["저장", "확인"]);
+  });
+});
+
 describe("코드에 박힌 한국어", () => {
   const offenders: { file: string; count: number; sample: string }[] = [];
 
@@ -145,7 +156,7 @@ describe("코드에 박힌 한국어", () => {
     if (file in KOREAN_BY_DESIGN) continue;
     const src = readFileSync(join(ROOT, file), "utf8");
     if (hasEnglishPath(src)) continue;
-    const ko = stringLiterals(src).filter((l) => /[가-힣]/.test(l));
+    const ko = stringLiterals(src, file).filter((l) => /[가-힣]/.test(l));
     if (ko.length > 0) offenders.push({ file, count: ko.length, sample: ko[0].slice(0, 40) });
   }
 

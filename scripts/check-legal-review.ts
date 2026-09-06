@@ -1,6 +1,7 @@
-// Counsel-review cadence guard. The Analysis Lexicon
+// Recorded policy-review cadence guard. The Analysis Lexicon
 // (src/lib/safety/lexicon.ts) carries LEXICON_LAST_LEGAL_REVIEW — the
-// ISO-8601 date external counsel last signed off on the vocabulary lists.
+// existing owner-recorded review date. This field alone is not evidence of
+// external-counsel approval; see docs/legal/lexicon-policy-review-260906.md.
 //
 // This check WARNS (it never fails the build) when that date is unset
 // (null), unparseable, or older than the review cadence, so a stale lexicon
@@ -20,7 +21,7 @@ function warn(message: string): void {
 if (LEXICON_LAST_LEGAL_REVIEW === null) {
   warn(
     `LEXICON_LAST_LEGAL_REVIEW is null (lexicon v${LEXICON_VERSION}). ` +
-      `No external counsel sign-off is recorded for the Analysis Lexicon. ` +
+      `No vocabulary-policy review date is recorded for the Analysis Lexicon. ` +
       `Set the ISO-8601 review date in src/lib/safety/lexicon.ts once reviewed. ` +
       `(non-blocking)`,
   );

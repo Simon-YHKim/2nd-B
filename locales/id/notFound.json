@@ -12,8 +12,8 @@
   "destinations": {
     "title": "Tujuan umum",
     "capture": {
-      "label": "Tangkap",
-      "hint": "Membuka tangkapan dari halaman tidak ditemukan."
+      "label": "Simpan",
+      "hint": "Membuka halaman Simpan dari halaman yang tidak ditemukan."
     },
     "audit": {
       "label": "Aku masa lalu",

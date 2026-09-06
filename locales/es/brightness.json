@@ -10,10 +10,10 @@
   "evidence": "De qué está hecha esta luz",
   "ratLog": "Ver el registro de confirmaciones",
   "emptyBody": "Aún no hay suficiente historial para dibujar. Termina un chequeo y aprueba una propuesta, y el rastro se irá acumulando aquí.",
-  "honestyLine": "{{obs}} observaciones · {{cited}} con evidencia · {{stars}} estrellas",
+  "honestyLine": "{{obs}} actualizaciones de brillo · {{cited}} con fuentes · {{stars}} estrellas",
   "citedRatioLabel": "Proporción con evidencia {{cited}} de {{obs}}",
-  "honestyCaption": "El brillo es cuánto hay registrado, no certeza. Las citas lo hacen más fiable.",
+  "honestyCaption": "El brillo refleja cuánto has explorado una etapa o tema de tu vida. No mide la exactitud del resultado. Revisa también las fuentes.",
   "reviewCta": "Ir a revisar una propuesta",
   "subtitle": "8 semanas · siete estrellas",
-  "rule": "El brillo sube solo hasta donde excavaste. Las semanas vacías quedan vacías."
+  "rule": "Cada semana muestra el último brillo registrado. Las semanas anteriores al primer registro quedan vacías."
 }

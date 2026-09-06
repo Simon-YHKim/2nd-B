@@ -45,7 +45,7 @@
     "surprise": "Se encontró un enlace inesperado. '{{from}}' y '{{to}}' son temas distintos y, aun así, conectan.",
     "islandChip": "Grupos de conocimiento {{count}}",
     "proposalsLabel": "Conexiones propuestas",
-    "noProposals": "Aún no hay propuestas. Crea el índice semántico y pide sugerencias de enlaces.",
+    "noProposals": "Aún no hay conexiones sugeridas. Usa el botón de abajo para buscar notas relacionadas.",
     "confidence": "{{percent}}% de coincidencia",
     "reject": "Rechazar",
     "ratify": "Aceptar",
@@ -216,7 +216,7 @@
     "last7": "Últimos 7 días",
     "thirdParty": "Compartir con terceros",
     "none": "0 elementos",
-    "footer": "El valor por defecto es local primero. Las transferencias externas solo proceden tras tu confirmación.",
+    "footer": "El tratamiento y almacenamiento de los datos depende de cada función. Consulta su aviso de uso de datos.",
     "dataReview": "Revisión de mis datos",
     "open": "Abrir"
   },
@@ -259,18 +259,18 @@
     "sources": {
       "cal": {
         "name": "Google Calendar",
-        "sub": "Señales de ritmo y relaciones desde tu agenda"
+        "sub": "Importa citas desde un archivo de calendario"
       },
       "health": {
         "name": "Apple Health",
-        "sub": "El sueño y la actividad alimentan tu estrella de salud"
+        "sub": "Importa un archivo exportado de tu app de salud"
       },
       "notion": {
         "sub": "Importa notas y documentos"
       },
       "photos": {
         "name": "Álbum de fotos",
-        "sub": "Descanso y relaciones a partir de tus escenas"
+        "sub": "Lee el texto de una foto y guárdalo como nota"
       },
       "gpt": {
         "name": "Exportación de ChatGPT",
@@ -345,7 +345,7 @@
     "sectionStart": "Primeros pasos",
     "q1": "¿Cuáles son las 7 estrellas de la Osa Mayor?",
     "q2": "¿Cómo se ilumina la Estrella Polar?",
-    "q3": "¿Cómo se vuelven más precisos los resultados de las pruebas?",
+    "q3": "¿Cómo interpreto los resultados?",
     "sectionData": "Datos · Privacidad",
     "q4": "¿Qué es un archivo IDEN?",
     "q5": "¿Dónde se almacenan mis datos?",
@@ -879,9 +879,9 @@
       "healthCtaReflected": "Reflejado",
       "healthCtaReflectToday": "Reflejar hoy",
       "healthCtaConnect": "Conectar",
-      "leadStart": "Reúne las piezas de ti que están dispersas. Incluso lo importado se refleja ",
-      "leadStrong": "solo según tu propio peso",
-      "leadEnd": " en las estrellas.",
+      "leadStart": "Trae tus notas de otras apps. Las notas importadas de archivos se guardan en ",
+      "leadStrong": "tu bandeja de entrada",
+      "leadEnd": ", donde puedes revisarlo y organizarlo.",
       "toggleFile": "Por archivo",
       "toggleAccount": "Conectar cuenta",
       "sectionChooseFile": "Elige un archivo",
@@ -911,15 +911,15 @@
       "a11yRevokeImport": "Revocar la importación de {{name}}"
     },
     "ttfv": {
-      "pageTitle": "Tu primera estrella acaba de encenderse",
+      "pageTitle": "Empieza con una experiencia",
       "stageA11y": "La estrella polar y tu primera estrella encendida",
       "defaultInsight": {
         "star": "Relaciones",
         "phrase": "da el primer paso"
       },
       "secondbName": "SecondB",
-      "insightLead": "Podrías ser alguien que ",
-      "insightTail": ".",
+      "insightLead": "¿Sueles ser quien ",
+      "insightTail": "?",
       "sub": "¿Encendemos primero tu estrella de Relaciones? Se vuelve más nítida a medida que registras.",
       "grounds": "Dos motivos para esta lectura",
       "affirm": "Es cierto",
@@ -1043,16 +1043,16 @@
   },
   "trends": {
     "title": "Tendencia de brillo",
-    "subtitle": "En las últimas 8 semanas tu constelación se ha ido aclarando de forma constante.",
+    "subtitle": "Estas cifras son ejemplos. No se calculan a partir de tus notas.",
     "overall": "Brillo general",
-    "delta8w": "+34% · 8 sem",
-    "perStar": "Cambio por estrella",
-    "log": "Registro de brillo",
-    "shareCta": "Comparte este cambio como tarjeta"
+    "delta8w": "Ejemplo +34% · 8 semanas",
+    "perStar": "Ejemplos de cambios por tema",
+    "log": "Ejemplo del historial de cambios",
+    "shareCta": "Crear una tarjeta para compartir"
   },
   "profileDetails": {
     "screenTitle": "Sobre tu vida",
-    "intro": "Opcional. Cada respuesta hace que una sugerencia se ajuste a ti y no a todos.",
+    "intro": "Completa solo lo que quieras compartir. Puedes guardar estos datos en tu perfil y cambiarlos después.",
     "progress": "{{filled}} de {{total}} completados",
     "save": "Guardar",
     "saved": "Guardado",
@@ -1066,13 +1066,13 @@
     "householdLabel": "Con quién vives",
     "householdHint": "Solo, con familia, con compañero de piso...",
     "busiestSeasonLabel": "Tu época más ocupada",
-    "busiestSeasonHint": "Para no poner grandes planes ahí.",
+    "busiestSeasonHint": "Por ejemplo: exámenes, fin de año o temporada alta de verano",
     "dailyRhythmLabel": "Tu ritmo diario",
-    "dailyRhythmHint": "Define a qué hora llegan las sugerencias.",
+    "dailyRhythmHint": "Elige la opción que mejor describa tu día habitual.",
     "workHoursLabel": "Cuándo sueles trabajar o estudiar",
-    "workHoursHint": "Para buscar los huecos.",
+    "workHoursHint": "Elige cuándo sueles trabajar o estudiar.",
     "workDaysLabel": "Qué días",
-    "workDaysHint": "Para que las rutinas semanales caigan el día correcto.",
+    "workDaysHint": "Elige Por turnos o Varía si tus días de trabajo cambian.",
     "rhythmMorning": "Madrugador",
     "rhythmEvening": "Nocturno",
     "rhythmFlexible": "Adaptable",
