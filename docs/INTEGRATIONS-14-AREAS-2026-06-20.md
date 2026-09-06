@@ -23,13 +23,13 @@
 | 👟 | 운동 루틴 | `exercise_routine` | Health Connect/HealthKit | 🟢 | ✗ | ✓ | 🔴 EAS+법무(G3/G4) · **Slice 1 출하** | `react-native-health-connect` |
 | 💪 | 운동 아이디어 | `exercise_ideas` | AI 제안(위키 근거) | ⚪ | ✓ | ✓ | 없음 · **출하(적응형)** | `recommendForDomain`(C1) |
 | 🧘 | 건강 관리 루틴 | `health_routine` | Health Connect/HealthKit | 🟢 | ✗ | ✓ | 🔴 EAS+법무(G3/G4) | 위와 동일 허브 |
-| 🥗 | 주간 식단 계획 | `weekly_meals` | 식약처 식품영양 DB(data.go.kr) + AI | 🔵⚪ | △ | ✓ | 🟠 무료 키 · **✅ lib 구현(키-graceful)** | `src/lib/nutrition/foods.ts` |
-| 🥣 | 간단한 식사 | `simple_meals` | 식약처 식품영양 DB + AI | 🔵⚪ | △ | ✓ | 🟠 무료 키 · **✅ lib(식단과 공유)** | `src/lib/nutrition/foods.ts` |
+| 🥗 | 주간 식단 계획 | `weekly_meals` | 식약처 식품영양 DB(data.go.kr) + AI | 🔵⚪ | △ | ✓ | 🟠 서버 롤아웃(G1) · **✅ proxy client** | `src/lib/nutrition/foods.ts` |
+| 🥣 | 간단한 식사 | `simple_meals` | 식약처 식품영양 DB + AI | 🔵⚪ | △ | ✓ | 🟠 서버 롤아웃(G1) · **✅ 식단과 공유** | `src/lib/nutrition/foods.ts` |
 | 📚 | 독서·학습 목록 | `reading_list` | **Google Books API(키 불필요)** | 🔵 | ✗ | ✓ | **없음 · ✅ 구현** | `src/lib/reading/books.ts` |
 | 📒 | 학습 목표 | `learning_goals` | 수동 마일스톤 + 주기 AI 점검 (+Books) | 🟡⚪ | △ | ✓ | 없음 | 결정론 마일스톤 |
 | 🗣️ | 언어 연습 | `language_practice` | 온디바이스 SRS(FSRS) | 🟢🟡 | ✗ | ✓ | 없음 · **출하(#476)** | `ts-fsrs`(MIT) |
 | 🧗 | 커리어 성장 점검 | `career_check` | 수동 + 주기 AI 회고 | 🟡⚪ | △ | ✓ | 없음 | 결정론 + C1 회고 |
-| 💰 | 재정 점검 | `money_check` | 수동 가계부(결정론) + 수출입은행 FX | 🟡🔵 | ✗ | ✓ | 가계부=없음 · FX=🟠키 · **✅ lib+마이그레이션 구현** | `finance/ledger.ts`+`fx.ts` |
+| 💰 | 재정 점검 | `money_check` | 수동 가계부(결정론) + 수출입은행 FX | 🟡🔵 | ✗ | ✓ | 가계부=없음 · FX=🟠 서버 롤아웃(G1) · **✅ proxy client** | `finance/ledger.ts`+`fx.ts` |
 | ✅ | 일일 집중 계획 | `daily_focus` | 온디바이스 포모도로 | 🟢 | ✗ | ✓ | 없음 · **#477 대기** | `pomodoro.ts`+`expo-notifications` |
 | 🧹 | 집 정리 체크리스트 | `home_reset` | 체크리스트(결정론) | 🟡 | ✗ | ✓ | 없음 · **출하** | 결정론 |
 | 📰 | 빠른 뉴스 요약 | `news_digest` | RSS(연합/네이버, 키 불필요) | 🔵 | ✗(보류) | ✓ | 없음 · **#478 엔진 대기, UI 큐** | `fast-xml-parser`(v4) |
@@ -38,10 +38,16 @@
 ### 게이트별 묶음 (합리적 착수 순서)
 - **게이트 0 · $0 · 지금 구현 가능 (logic-first)**: `reading_list`(✅완료) → `money_check`
   수동 가계부 → `side_project` 공개 GitHub 활동 → `news_digest`(엔진 #478 머지).
-- **🟠 무료 API키 등록만 (Simon 콘솔, 가벼움)**: `weekly_meals`/`simple_meals`(식약처),
-  `money_check` FX(수출입은행). data.go.kr 키는 무료지만 등록 필요.
+- **🟠 정부 공개데이터 서버 롤아웃 (Simon 콘솔)**: `weekly_meals`/`simple_meals`(식약처),
+  `money_check` FX(수출입은행). 클라이언트는 인증된 `public-data-proxy`만 호출하며,
+  공급자 키는 Supabase server secret에만 둔다. 0171 → secret-name preflight → proxy 배포
+  → smoke → client release → 명시 승인 후 레거시 변수 회수·키 rotation 순서를 지킨다.
 - **🔴 무거운 게이트 (OAuth/네이티브/법무)**: `exercise_routine`/`health_routine`
   (Health Connect/HealthKit, EAS+PIPA), Google Calendar/Tasks 푸시(P3).
+
+공개 경계는 구분한다. `EXIM_FX_API_KEY`·`MFDS_FOOD_API_KEY`는 서버 전용 자격증명이지만,
+Google OAuth client ID(`EXPO_PUBLIC_GOOGLE_CLIENT_ID`)와 Supabase URL/anon key는 프로토콜상
+의도된 공개 클라이언트 값이다. Supabase `service_role` key는 공개값이 아니다.
 
 ## 2. 이번 PR에 적용 (📚 reading_list = IN-bound 패턴 정착)
 
@@ -81,8 +87,8 @@
 ### DP-M1 — 🥗🥣 식단: 주간 식단 플래너 + 간단식사 아이디어
 ```
 2nd-Brain(딥스페이스) "주간 식단 계획 + 간단한 식사" 플래너를 디자인해줘.
-데이터: 식약처 식품영양 DB(data.go.kr, 무료 API키) + AI 제안(C1 경유). 의료/다이어트
-조언 아님 — 계획·아이디어 프레이밍, 영양 수치는 참고 표기만.
+데이터: 식약처 식품영양 DB(data.go.kr, 서버 키는 인증된 public-data-proxy 경유) + AI 제안
+(C1 경유). 의료/다이어트 조언 아님 — 계획·아이디어 프레이밍, 영양 수치는 참고 표기만.
 화면 의도:
 - 주간 뷰: 7일 그리드 한 그래픽. 한 끼 슬롯 탭 → 아이디어 바텀시트(추천 + 직접입력).
 - "간단한 식사" 모드: 시간/재료 최소 조건 → 빠른 1~3개 카드(한 메시지: "지금 뭐 먹지?").
@@ -94,7 +100,8 @@
 ### DP-F1 — 💰 재정 점검: 수동 가계부 + 환율
 ```
 2nd-Brain(딥스페이스) "재정 점검" 화면을 디자인해줘. 금융/투자 조언 아님 — 기록·점검 프레이밍.
-데이터: 수동 가계부(결정론, 게이트 0) + 한국수출입은행 FX(무료 키, 보조).
+데이터: 수동 가계부(결정론, 게이트 0) + 한국수출입은행 FX(서버 키는 인증된
+public-data-proxy 경유, 보조).
 화면 의도:
 - 한 메시지: 이번 달 한 줄 요약(수입/지출/잔여) + 한 그래픽(월 추세 미니 차트 1개).
 - 빠른 기록: 금액+분류 한 번에(최소 입력, primary 1개). 다통화면 FX로 환산 표기(보조).
@@ -140,12 +147,17 @@
 **✅ 이번 PR에서 lib 구현 완료 (전부 순수 파서 + 테스트, $0, 새 의존성 0):**
 - `reading_list` — `src/lib/reading/books.ts` (Google Books, 키 불필요)
 - `side_project` — `src/lib/projects/github.ts` (GitHub 공개 활동, 키 불필요)
-- `money_check` — `src/lib/finance/ledger.ts` (수동 가계부) + `db/migrations/0052_ops_ledger.sql` + `src/lib/finance/fx.ts` (수출입은행 FX, 키-graceful)
-- `weekly_meals`/`simple_meals` — `src/lib/nutrition/foods.ts` (식약처 영양, 키-graceful)
+- `money_check` — `src/lib/finance/ledger.ts` (수동 가계부) + `db/migrations/0052_ops_ledger.sql` + `src/lib/finance/fx.ts` (수출입은행 FX, 인증 프록시 실패 시 graceful)
+- `weekly_meals`/`simple_meals` — `src/lib/nutrition/foods.ts` (식약처 영양, 인증 프록시 실패 시 graceful)
 
 **남은 일 (게이트별):**
 1. **화면 배선** — 위 lib들은 logic-first(엔진 준비 완료). DP-R1/M1/F1/S1 디자인 정본 도착 후 화면에 배선 + recommend 근거 주입(예: side_project ↔ GitHub 요약, adherence 신호처럼).
-2. **🟠 무료 키 등록 (Simon 콘솔)** — `EXPO_PUBLIC_EXIM_FX_KEY`(수출입은행), `EXPO_PUBLIC_MFDS_FOOD_KEY`(식약처 data.go.kr). 미설정 시 KRW-only/아이디어-only로 graceful 동작.
+2. **🟠 정부 공개데이터 롤아웃 (Simon 콘솔, 순서 고정)** — 명시 승인 뒤
+   `0171_public_data_quota.sql` 적용 → Supabase secret-name preflight 및 서버 전용
+   `EXIM_FX_API_KEY`/`MFDS_FOOD_API_KEY` 비노출 입력 → `public-data-proxy`를
+   `verify_jwt=true`로 배포 → 로그인/무인증/fail-closed smoke → 별도 승인된 client release.
+   새 릴리스 확인 뒤 **사용자의 별도 명시 승인 후에만** 레거시 GitHub/EAS 변수
+   `EXPO_PUBLIC_EXIM_FX_KEY`/`EXPO_PUBLIC_MFDS_FOOD_KEY`를 삭제하고 키를 rotation한다.
 3. **prod 마이그레이션 apply** — `0052_ops_ledger.sql` (CI dry-run 통과 후 Simon이 prod apply).
 4. `news_digest` — #478 머지 후 UI(DP는 기존 큐).
 5. **🔴 무거운 게이트** — Health Connect/HealthKit(운동/건강, EAS+PIPA), Google Calendar/Tasks 푸시(P3).

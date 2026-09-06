@@ -20,20 +20,37 @@
 - 영향 화면: `/ledger` `/reading` `/milestones` `/meals` · `/ops`(루틴)·`/srs`·주간성장리뷰(`/growth`).
 - 검증 쿼리: 5 테이블 RLS=on/policy=1, `source_sample_id` 컬럼 존재, clamp가 COALESCE+health_import 둘 다 보유.
 
-## G1 — 무료 공개 API 키 (게이트: data.go.kr / 수출입은행 가입)
-키 미설정 시 graceful(원화-only / 아이디어-only)로 이미 동작. 키 넣으면 실데이터.
-- [ ] **환율**: 한국수출입은행 OpenAPI 신청(koreaexim.go.kr) → 발급 키를
-      `EXPO_PUBLIC_EXIM_FX_KEY` 로 EAS/Vercel 환경변수 등록. (`src/lib/finance/fx.ts`)
-- [ ] **식품영양**: data.go.kr "식품의약품안전처 식품영양성분DB" 활용신청 →
-      서비스키를 `EXPO_PUBLIC_MFDS_FOOD_KEY` 로 등록. (`src/lib/nutrition/foods.ts`)
-- ⚠️ 클라이언트 번들에 키가 들어가므로 공개-데이터 키만(저민감). 민감하면 엣지 프록시로 이전.
+## G1 — 정부 공개데이터 서버 프록시 (게이트: 승인 · 키 발급 · 콘솔 롤아웃)
+환율·식품 클라이언트는 로그인 세션으로 `public-data-proxy`만 호출한다. 공급자 키는 무료
+공개데이터용이어도 Web/Native 번들, GitHub Variables, EAS 환경에 넣지 않는다. 프록시가
+준비되지 않았거나 실패하면 원화-only / 아이디어-only로 graceful 동작한다. 현재 통합은
+아래 1~4의 운영 증거가 확보되기 전까지 비배포 상태다.
+
+1. [ ] **Quota migration** — 명시적 운영 승인 뒤 콘솔 소유자가
+       `db/migrations/0171_public_data_quota.sql`을 먼저 적용하고 RLS/FORCE RLS,
+       `service_role` 전용 RPC, 사용자·공급자 일일 상한 회귀 테스트를 확인한다.
+2. [ ] **Secret-name preflight + 입력** — Supabase Edge Function Secrets의 정확한 서버 전용
+       이름 `EXIM_FX_API_KEY`, `MFDS_FOOD_API_KEY`를 확인하고, 0171 성공 뒤에만 실제 값을
+       비노출 방식으로 입력한다. 값은 채팅·로그·스크린샷·문서에 남기지 않는다.
+3. [ ] **Proxy deploy** — 콘솔 소유자가 `public-data-proxy`를 `verify_jwt=true`로 배포한다.
+4. [ ] **Smoke** — 로그인 테스트 계정으로 `exim_fx`·`mfds_food` 성공을 확인하고,
+       무인증 `401`, 잘못된 provider `400`, quota/RPC 실패의 `429`/`503` fail-closed도 확인한다.
+5. [ ] **Client release** — 스모크 증거와 별도 릴리스 승인이 있을 때만 프록시 전용
+       클라이언트를 릴리스한다. 새 빌드의 공급자 직접 호출과 공개데이터 키 포함은 0이어야 한다.
+6. [ ] **Legacy 회수** — 릴리스 확인 뒤 **사용자의 별도 명시 승인 후에만** GitHub/EAS의
+       레거시 `EXPO_PUBLIC_EXIM_FX_KEY`, `EXPO_PUBLIC_MFDS_FOOD_KEY`를 삭제하고 두 공급자
+       키를 rotation한다. 새 값은 위 Supabase server secret에만 입력하고 다시 스모크한다.
+
+경계 예외: `EXPO_PUBLIC_GOOGLE_CLIENT_ID`와 Supabase URL/anon key는 프로토콜상 의도된 공개
+클라이언트 식별자다. 공급자 키나 Supabase `service_role` key와 혼동하지 않는다.
 
 ## G2 — Google Calendar 읽기 (웹 커넥터 ✅ 빌드됨 / Simon 콘솔 1스텝 남음)
 임포트 허브 "구글 캘린더" 커넥터 = **웹 빌드 완료** (GIS 토큰 모델, `src/lib/google/`).
 OAuth로 다가오는 일정을 받아 `.ics`로 직렬화 → 기존 `.ics` 임포트 파이프라인 재사용
 (파싱·propose→ratify·이력 전부 재사용, 새 파이프라인 0). secret 없음, $0.
 - [x] OAuth 동의화면 + Calendar/Tasks API 활성 + Web 클라이언트(`2nd-Brain Web`) — cowork.
-- [x] client ID = `EXPO_PUBLIC_GOOGLE_CLIENT_ID` (repo Variable + EAS 등록). env 슬롯 + web-deploy 배선.
+- [x] client ID = `EXPO_PUBLIC_GOOGLE_CLIENT_ID` (의도된 공개 OAuth 식별자, repo Variable +
+      EAS 등록). env 슬롯 + web-deploy 배선.
 - [x] 웹 커넥터 + 단위테스트(파서·날짜·`parseIcs` 라운드트립). "구글 연결" 옵트인 버튼.
 - [ ] **Simon 콘솔 1스텝**: `2nd-Brain Web` → **승인된 JavaScript 원본**에
       `https://simon-yhkim.github.io` + `http://localhost:8081` 추가. (redirect URI 아님 — origin만.)
@@ -66,8 +83,10 @@ OAuth로 다가오는 일정을 받아 `.ics`로 직렬화 → 기존 `.ics` 임
 - [ ] 동의 전 0 byte·온디바이스·원문 비보존 계약 유지(`docs/PERSONAL-DATA-IMPORT-SPEC.md`).
 
 ## 우선순위 권고
-**G0 ✅ 완료 → 이제 G1(무료 키)가 다음** — 가장 싸고 즉시 효과(실데이터 켜짐). G3/G4는
-한 EAS 사이클로 묶고, G2/G5는 콘솔·법무 준비 후. 각 게이트는 독립이라 순서 자유.
+**G0 ✅ 완료 → 이제 G1(서버 프록시 롤아웃)이 다음** — 0171 → secret-name preflight →
+proxy 배포 → smoke → client release → 명시 승인 후 레거시 회수 순서를 지킨다. G3/G4는
+한 EAS 사이클로 묶고, G2/G5는 콘솔·법무 준비 후. 각 게이트 묶음은 독립이지만 G1 내부
+순서는 바꾸지 않는다.
 
 ## 검증
 ```bash

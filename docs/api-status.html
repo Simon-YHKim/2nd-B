@@ -73,14 +73,14 @@
 <div class="wrap">
 <header>
   <h1>2nd-Brain <span class="dot">·</span> API 연결 현황 대시보드</h1>
-  <div class="sub"><b>2026-06-27 역사 스냅샷</b>이다. 외부 API 전체 상태의 최신 정본으로 사용하지 말 것. Sentry 카드는 2026-09-02 코드 계약에 맞춰 정정했다.</div>
+  <div class="sub"><b>2026-06-27 역사 스냅샷</b>이다. 외부 API 전체 상태의 최신 정본으로 사용하지 말 것. Sentry 카드는 2026-09-02, 정부 공개데이터 키 경계는 2026-09-06 코드 계약에 맞춰 정정했다.</div>
   <div class="meta">원본 소스: 2nd-B repo (eas.json · src · supabase/functions). LLM 키·EXPO_TOKEN 등 secret 기반 항목은 당시 CI/Supabase 설정에서 추론한 것으로, 현재 외부 설정을 증명하지 않는다.</div>
 </header>
 
 <div class="legend">
   <span><i class="pip g"></i> 연결됨 · 작동 확인</span>
   <span><i class="pip c"></i> 핵심(코어) — 없으면 앱이 안 굴러감</span>
-  <span><i class="pip a"></i> 코드엔 있으나 키 미설정 — 켜면 기능 활성화</span>
+  <span><i class="pip a"></i> 외부 설정 또는 승인된 서버 롤아웃 필요</span>
 </div>
 
 <!-- ============ 1. CONNECTED ============ -->
@@ -92,7 +92,7 @@
     <div class="card ok">
       <div class="crow"><span class="cname">Supabase</span><span class="badge b-ok">CONNECTED</span></div>
       <div class="crole">Postgres DB · Auth · Edge Functions · Storage</div>
-      <div class="cnote">URL+anon 키가 <b>eas.json</b>의 preview/production 프로필에 박혀 있음(레포에서 직접 확인). 데이터·인증·서버리스 함수의 중추.</div>
+      <div class="cnote">Supabase URL+anon key는 프로토콜상 의도된 공개 클라이언트 값이다. <b>service_role key는 별도 서버 시크릿</b>이며 번들에 넣지 않는다. 데이터·인증·서버리스 함수의 중추.</div>
     </div>
 
     <div class="card ok">
@@ -198,15 +198,15 @@
     </div>
 
     <div class="card warn">
-      <div class="crow"><span class="cname">한국수출입은행 환율</span><span class="badge b-warn">미설정</span></div>
-      <div class="crole"><code>EXPO_PUBLIC_EXIM_FX_KEY</code> — 환율 데이터</div>
-      <div class="cnote">통화/금액 표기 기능용(src/lib/finance/fx.ts). 정부 무료 API.</div>
+      <div class="crow"><span class="cname">한국수출입은행 환율</span><span class="badge b-warn">ROLLOUT GATED</span></div>
+      <div class="crole"><code>EXIM_FX_API_KEY</code> — Supabase server secret</div>
+      <div class="cnote">클라이언트(src/lib/finance/fx.ts)는 로그인 세션으로 <b>public-data-proxy</b>만 호출한다. 공급자 키는 Web/Native 번들·GitHub Variables·EAS에 넣지 않는다.</div>
     </div>
 
     <div class="card warn">
-      <div class="crow"><span class="cname">식약처 식품 API</span><span class="badge b-warn">미설정</span></div>
-      <div class="crole"><code>EXPO_PUBLIC_MFDS_FOOD_KEY</code> — 식품/영양 데이터</div>
-      <div class="cnote">생활기록 보조 데이터(src/lib/nutrition/foods.ts). 정부 무료 API.</div>
+      <div class="crow"><span class="cname">식약처 식품 API</span><span class="badge b-warn">ROLLOUT GATED</span></div>
+      <div class="crole"><code>MFDS_FOOD_API_KEY</code> — Supabase server secret</div>
+      <div class="cnote">클라이언트(src/lib/nutrition/foods.ts)는 로그인 세션으로 <b>public-data-proxy</b>만 호출한다. 공급자 키는 Web/Native 번들·GitHub Variables·EAS에 넣지 않는다.</div>
     </div>
 
     <div class="card warn">
@@ -249,6 +249,18 @@
 
 <!-- ============ PRIORITY ============ -->
 <div class="pri">
+  <h3>정부 공개데이터 서버 롤아웃 순서</h3>
+  <ol class="steps">
+    <li><b>0171 quota migration</b> <span class="why">명시적 운영 승인 뒤 콘솔 소유자가 먼저 적용하고 RLS/FORCE RLS, service_role 전용 RPC, 사용자·공급자 상한을 검증한다.</span></li>
+    <li><b>Secret-name preflight</b> <span class="why">정확한 이름 EXIM_FX_API_KEY·MFDS_FOOD_API_KEY를 확인하고, 0171 성공 뒤 실제 값은 Supabase Edge Function Secrets에만 비노출 입력한다.</span></li>
+    <li><b>Proxy deploy</b> <span class="why">콘솔 소유자가 public-data-proxy를 verify_jwt=true로 배포한다.</span></li>
+    <li><b>Smoke</b> <span class="why">로그인 exim_fx·mfds_food와 무인증 401, 잘못된 provider 400, quota/RPC 실패 429/503을 확인한다.</span></li>
+    <li><b>Client release</b> <span class="why">스모크 증거와 별도 릴리스 승인이 있을 때만 인증 프록시 전용 클라이언트를 릴리스한다.</span></li>
+    <li><b>승인된 레거시 회수</b> <span class="why">새 릴리스 확인 뒤 사용자 명시 승인 후에만 EXPO_PUBLIC_EXIM_FX_KEY·EXPO_PUBLIC_MFDS_FOOD_KEY를 GitHub/EAS에서 삭제하고 두 키를 rotation한 뒤 다시 스모크한다.</span></li>
+  </ol>
+</div>
+
+<div class="pri">
   <h3>Sentry 재활성화 전 우선순위</h3>
   <ol class="steps">
     <li><b>처리 사실과 계약 정합성</b> <span class="why">개인정보 처리방침·국외 이전 고지, DPA, 보유·삭제 절차를 실제 운영과 일치시킨다.</span></li>
@@ -259,8 +271,8 @@
 </div>
 
 <footer>
-  ※ "미설정"은 코드에 키 슬롯(EXPO_PUBLIC_*)은 있으나 값이 비어 기능이 꺼진 상태 — 키만 넣으면 켜짐(일부는 EAS 리빌드 필요).
-  LLM 키(Gemini/Claude)·EXPO_TOKEN은 레포 파일이 아니라 Supabase secret / GitHub Actions secret에 존재하므로, 본 문서의 해당 "연결됨" 판정은 CI·런 로그·프록시 함수 존재에 근거함.
+  ※ 공급자 API 키는 무료 공개데이터용이어도 EXPO_PUBLIC_* 클라이언트 슬롯에 넣지 않는다. Google OAuth client ID와 Supabase URL/anon key는 의도된 공개 식별자지만, Supabase service_role 및 LLM·환율·식품 키는 서버 시크릿이다.
+  LLM·환율·식품 키와 EXPO_TOKEN은 레포 파일이 아니라 Supabase secret / GitHub Actions secret에 존재하므로, 본 문서의 해당 판정은 코드 계약·CI·런 로그·프록시 함수 존재에 근거함.
   · 2nd-Brain · Gemini XPRIZE 출품작
 </footer>
 </div>

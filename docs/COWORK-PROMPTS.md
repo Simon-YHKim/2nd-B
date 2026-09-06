@@ -25,6 +25,8 @@
 - EXPO_PUBLIC_* 변수는 웹 번들에 그대로 노출된다. 진짜 시크릿(Anthropic 키, 결제 secret,
   웹훅 서명)은 절대 EXPO_PUBLIC_* 나 GitHub "Variables"에 넣지 마라. 공개 식별자(AdMob app id,
   RevenueCat public SDK key)만 Variables 에 둔다.
+- 수출입은행·식약처 키도 공개데이터용이라는 이유로 예외 취급하지 않는다. 오직 Supabase Edge
+  Function Secrets의 `EXIM_FX_API_KEY` / `MFDS_FOOD_API_KEY`에 서버 전용으로 보관한다.
 - 돈이 나가는 행동(유료 플랜 결제, 개발자 계정 가입비, 크레딧 충전) 직전에는 멈추고 사용자에게
   확인을 받아라.
 - 결제·은행 정보 입력 화면에서는 사용자가 직접 입력하도록 넘기고, 자동 입력하지 마라.
@@ -74,14 +76,15 @@
    a) "현재환율 OpenAPI" authkey 발급(무료).
    b) 표본 https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON?authkey={KEY}&data=AP01
       → result:1 행 보이면 OK(주말/신규키 빈배열 가능, 구조만 확인).
-   c) 읽기전용 공개데이터 키 → GitHub Variables EXPO_PUBLIC_EXIM_FX_KEY.
+   c) 발급 상태만 확인한다. GitHub Variables/EAS/클라이언트 번들에는 저장하지 않고 7단계의
+      `EXIM_FX_API_KEY` 서버 시크릿 입력까지 보류한다.
 
 4. 식약처 식품영양 (https://www.data.go.kr)
    a) 로그인/가입 → "식품의약품안전처_식품영양성분DB정보"(I2790) 활용신청(무료·자동승인).
-   b) 표본 https://apis.data.go.kr/1471000/FoodNtrCpntDbInfo01/getFoodNtrCpntDbInq01?serviceKey={KEY}&type=json&FOOD_NM_KR=사과
+   b) 표본 https://apis.data.go.kr/1471000/FoodNtrCpntDbInfo02/getFoodNtrCpntDbInq02?serviceKey={KEY}&type=json&FOOD_NM_KR=사과
       → 음식 행 오면 OK(활성화 수십분~수시간 가능).
-   c) GitHub Variables EXPO_PUBLIC_MFDS_FOOD_KEY = {Decoding 서비스키}. (Encoding/Decoding 2개 중
-      보통 Decoding, 안되면 반대.)
+   c) 발급 상태만 확인한다. GitHub Variables/EAS/클라이언트 번들에는 저장하지 않고 7단계의
+      `MFDS_FOOD_API_KEY` 서버 시크릿 입력까지 보류한다.
 
 5. (선택) Expo 빌드 토큰 (https://expo.dev)
    a) 로그인 → Account → Access Tokens → 토큰 "2ndb-ci" 생성.
@@ -92,15 +95,28 @@
    - ⚠️ Naver는 엣지 함수 배포(Claude Code 작업) 전엔 EXPO_PUBLIC_ENABLE_NAVER 켜지 마라
      (과거: 콘솔 미완 + 토글 ON → 사용자 raw JSON 에러). 키만 저장, 토글 OFF 유지.
 
+7. 환율·식품 서버 롤아웃 (순서 고정, 서버 활성화는 콘솔 소유자만)
+   a) 사용자에게 운영 적용 승인을 받은 뒤 `db/migrations/0171_public_data_quota.sql`을 먼저 적용하고
+      RLS/FORCE RLS, service_role 전용 RPC, 사용자·공급자 상한 회귀 테스트를 확인한다.
+   b) Supabase Edge Function Secrets에서 정확한 이름 `EXIM_FX_API_KEY` / `MFDS_FOOD_API_KEY`를
+      preflight하고, 0171 성공 뒤 실제 값을 비노출 입력한다.
+   c) `public-data-proxy`를 `verify_jwt=true`로 배포하고 로그인 계정의 `exim_fx` / `mfds_food`,
+      무인증 401, 잘못된 provider 400, quota/RPC 오류 429/503을 스모크한다.
+   d) 스모크 증거와 별도 릴리스 승인이 있을 때만 인증된 프록시를 쓰는 클라이언트를 릴리스한다.
+   e) 새 릴리스 확인 뒤 **사용자의 별도 명시 승인 후에만** 레거시 GitHub/EAS 변수
+      `EXPO_PUBLIC_EXIM_FX_KEY` / `EXPO_PUBLIC_MFDS_FOOD_KEY`를 삭제하고 두 키를 rotation한다.
+      새 값은 위 Supabase server secret에만 비노출 입력하고 다시 스모크한다.
+
 [통합 보고] (키 값 금지)
 - 저장한 Supabase Secrets 이름: KAKAO_REST_API_KEY / NAVER_OAUTH_CLIENT_SECRET /
-  NAVER_SEARCH_CLIENT_ID / NAVER_SEARCH_CLIENT_SECRET
-- 저장한 GitHub Variables: EXPO_PUBLIC_NAVER_CLIENT_ID / EXPO_PUBLIC_EXIM_FX_KEY /
-  EXPO_PUBLIC_MFDS_FOOD_KEY / EXPO_PUBLIC_ENABLE_KAKAO(=true) · GitHub Secrets: EXPO_TOKEN
+  NAVER_SEARCH_CLIENT_ID / NAVER_SEARCH_CLIENT_SECRET / EXIM_FX_API_KEY / MFDS_FOOD_API_KEY
+- 저장한 GitHub Variables: EXPO_PUBLIC_NAVER_CLIENT_ID / EXPO_PUBLIC_ENABLE_KAKAO(=true)
+  · GitHub Secrets: EXPO_TOKEN. 환율·식품 공급자 키의 GitHub/EAS 신규 등록은 0건.
 - Supabase에서 enable한 provider: Kakao(예/아니오)
 - 표본 호출 결과: Kakao Local / Naver Local / FX / 식약처 (성공/빈배열/오류)
-- 남은 일(코드 = Claude Code): places-search 엣지 함수, oauth-naver 배포+ENABLE_NAVER 토글,
-  FX/식약처 edge proxy 하드닝.
+- 공개데이터 rollout: 0171 / secret-name preflight / proxy 배포 / smoke / client release /
+  명시 승인 후 레거시 회수·rotation 상태
+- 남은 일(코드 = Claude Code): places-search 엣지 함수, oauth-naver 배포+ENABLE_NAVER 토글.
 
 막히면(콘솔 UI 변경, 승인 지연, 비용 화면) 멈추고 그 지점만 사용자에게 보고하라.
 ```
@@ -297,7 +313,8 @@ B) Naver 지역검색 (검색 API · Local)
 한국수출입은행 OpenAPI 무료 인증키를 발급하라. 공통 가드레일을 따른다.
 
 배경: 재정 가계부(ledger)는 수동·KRW로 이미 동작한다. 이 키는 다통화 항목을 KRW로 환산하는
-"선택 보강"이다. 코드(src/lib/finance/fx.ts)는 구현 완료, 키 없으면 KRW-only로 degrade한다.
+"선택 보강"이다. 클라이언트(src/lib/finance/fx.ts)는 로그인 세션으로 `public-data-proxy`만
+호출하며 공급자 키를 직접 읽지 않는다. 프록시를 쓸 수 없으면 KRW-only로 degrade한다.
 
 단계:
 1. https://www.koreaexim.go.kr 의 오픈API 안내에서 "현재환율 OpenAPI" 인증키(authkey)를 발급
@@ -306,13 +323,22 @@ B) Naver 지역검색 (검색 API · Local)
    https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON?authkey={KEY}&data=AP01
    → JSON 배열에 result:1 행(cur_unit / deal_bas_r)이 보이면 OK.
    (신규 키는 활성화에 시간이 걸리거나 영업시간/주말엔 빈 배열이 올 수 있음 — 구조만 확인.)
-3. 저장: 읽기전용 공개데이터 키(저민감)다. 코드가 process.env.EXPO_PUBLIC_EXIM_FX_KEY 로 읽으므로
-   GitHub repo Variables(Settings → Secrets and variables → Actions → Variables)에
-   `EXPO_PUBLIC_EXIM_FX_KEY` = {KEY} 로 저장. (값을 채팅에 출력 말고 콘솔↔GitHub 직접 복사.)
-4. 보고: 발급/표본호출 결과(성공/빈배열/오류), 저장한 변수명. 남은 일 = "Claude Code가 운영용
-   thin edge proxy로 키 번들 노출 제거(하드닝)"(코드 작업).
+3. 운영 적용은 여기서 멈추고 사용자에게 명시 승인을 요청한다. 승인한 콘솔 소유자가
+   `db/migrations/0171_public_data_quota.sql`을 먼저 적용하고 RLS/FORCE RLS,
+   service_role 전용 RPC, 사용자·공급자 상한 회귀 테스트를 확인한다.
+4. 0171 성공 뒤 Supabase Edge Function Secrets의 정확한 이름 `EXIM_FX_API_KEY`를 preflight하고
+   실제 값을 비노출 입력한다. GitHub Variables/EAS/클라이언트 번들에는 넣지 않는다.
+5. 콘솔 소유자가 `public-data-proxy`를 `verify_jwt=true`로 배포한다.
+6. 로그인 테스트 계정의 `exim_fx` 성공과 무인증 401, quota/RPC 오류 429/503을 스모크한다.
+7. 스모크 증거와 별도 릴리스 승인이 있을 때만 프록시 전용 클라이언트를 릴리스한다.
+8. 새 릴리스 확인 뒤 **사용자의 별도 명시 승인 후에만** GitHub/EAS의 레거시
+   `EXPO_PUBLIC_EXIM_FX_KEY`를 삭제하고 공급자 키를 rotation한다. 새 값은
+   `EXIM_FX_API_KEY`에만 비노출 입력하고 다시 스모크한다.
+9. 보고: 발급/표본호출, 0171, secret-name preflight, proxy 배포, smoke, client release,
+   레거시 회수·rotation의 성공/대기 상태만 보고한다. 실제 키 값은 생략한다.
 
-주의: 진짜 시크릿은 아니지만(공개 FX 데이터) 값을 채팅/커밋/스크린샷에 남기지 마라.
+주의: 공개 FX 데이터용 키도 서버 자격증명으로 취급한다. 채팅·커밋·스크린샷·클라이언트
+환경에 남기지 말고, 3~6 실패 시 릴리스·삭제·rotation을 중단한다.
 ```
 
 ---
@@ -324,24 +350,35 @@ B) Naver 지역검색 (검색 API · Local)
 식약처 식품영양성분DB(data.go.kr) 무료 서비스키를 발급하라. 공통 가드레일을 따른다.
 
 성격(중요): 이건 의료성 조언이 아니라 "아이디어에 kcal/매크로 참조를 붙이는" 비임상 참조
-데이터다. 코드(src/lib/nutrition/foods.ts)는 구현 완료, 키 없으면 idea-only로 degrade한다.
+데이터다. 클라이언트(src/lib/nutrition/foods.ts)는 로그인 세션으로 `public-data-proxy`만
+호출하며 공급자 키를 직접 읽지 않는다. 프록시를 쓸 수 없으면 idea-only로 degrade한다.
 
 단계:
 1. https://www.data.go.kr 로그인/가입(무료).
-2. "식품의약품안전처_식품영양성분DB정보"(FoodNtrCpntDbInfo01 / I2790) 검색 → "활용신청"
+2. "식품의약품안전처_식품영양성분DB정보"(FoodNtrCpntDbInfo02) 검색 → "활용신청"
    (무료, 보통 자동승인). data.go.kr 마이페이지에서 인증키(서비스키) 확인.
 3. 표본 호출로 확인:
-   https://apis.data.go.kr/1471000/FoodNtrCpntDbInfo01/getFoodNtrCpntDbInq01?serviceKey={KEY}&type=json&FOOD_NM_KR=사과
+   https://apis.data.go.kr/1471000/FoodNtrCpntDbInfo02/getFoodNtrCpntDbInq02?serviceKey={KEY}&type=json&FOOD_NM_KR=사과
    → 음식 행(FOOD_NM_KR / kcal 등)이 오면 OK. (신규 키 활성화에 수십 분~수시간 — 빈 결과면 잠시
     후 재시도.)
-4. 저장: 코드가 process.env.EXPO_PUBLIC_MFDS_FOOD_KEY 로 읽으므로 GitHub repo Variables에
-   `EXPO_PUBLIC_MFDS_FOOD_KEY` = {Decoding 서비스키} 로 저장.
-   ⚠️ data.go.kr은 Encoding/Decoding 키 2개를 준다 — 쿼리에 직접 넣는 fetch라 보통 Decoding 키.
-   안 되면 반대 키로 재시도.
-5. 보고: 활용신청 승인 여부, 표본호출 결과, 저장한 변수명. 남은 일 = "Claude Code가 운영 하드닝
-   + 식단 surface 비임상 프레이밍 확인"(코드 작업).
+4. 운영 적용은 여기서 멈추고 사용자에게 명시 승인을 요청한다. 승인한 콘솔 소유자가
+   `db/migrations/0171_public_data_quota.sql`을 먼저 적용하고 RLS/FORCE RLS,
+   service_role 전용 RPC, 사용자·공급자 상한 회귀 테스트를 확인한다.
+5. 0171 성공 뒤 Supabase Edge Function Secrets의 정확한 이름 `MFDS_FOOD_API_KEY`를 preflight하고
+   실제 값을 비노출 입력한다. GitHub Variables/EAS/클라이언트 번들에는 넣지 않는다.
+6. 콘솔 소유자가 `public-data-proxy`를 `verify_jwt=true`로 배포한다.
+7. 로그인 테스트 계정의 `mfds_food` 성공과 무인증 401, 잘못된 provider 400,
+   quota/RPC 오류 429/503을 스모크한다.
+8. 스모크 증거와 별도 릴리스 승인이 있을 때만 프록시 전용 클라이언트를 릴리스한다.
+9. 새 릴리스 확인 뒤 **사용자의 별도 명시 승인 후에만** GitHub/EAS의 레거시
+   `EXPO_PUBLIC_MFDS_FOOD_KEY`를 삭제하고 공급자 키를 rotation한다. 새 값은
+   `MFDS_FOOD_API_KEY`에만 비노출 입력하고 다시 스모크한다.
+10. 보고: 활용신청, 0171, secret-name preflight, proxy 배포, smoke, client release,
+    레거시 회수·rotation의 성공/대기 상태만 보고한다. 실제 키 값은 생략한다.
 
-주의: 영양 수치는 참조용일 뿐, 의료성·처방성 표현 금지(어휘 정책). 키 값은 채팅/커밋에 남기지 마라.
+주의: 영양 수치는 참조용일 뿐, 의료성·처방성 표현 금지(어휘 정책). 공개데이터 키도 서버
+자격증명으로 취급하며 채팅·커밋·스크린샷·클라이언트 환경에 남기지 않는다. 4~7 실패 시
+릴리스·삭제·rotation을 중단한다.
 ```
 
 ---
@@ -360,4 +397,5 @@ B) Naver 지역검색 (검색 API · Local)
 | 8 | 식약처 영양 | 없음 | 건강·식단 영양 참조 |
 
 각 셋업 완료 후, 남는 코드 연결(claude-proxy / AdMob SDK / revenuecat-webhook)은 Claude Code 가
-seam 에 맞춰 마무리한다.
+seam 에 맞춰 마무리한다. 환율·식품은 이미 인증된 프록시 seam이 있으므로 위 고정 순서에 따른
+콘솔 롤아웃과 승인된 클라이언트 릴리스만 수행한다.
