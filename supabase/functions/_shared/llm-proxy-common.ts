@@ -1,10 +1,11 @@
 // Shared security/plumbing for the LLM proxy Edge Functions (D-26 backlog #10:
 // the crisis lexicon + auth + caps used to live as 3 hand-mirrored copies —
-// this module is the single source for claude-proxy and openai-proxy).
+// this module is the single source for claude-proxy and openai-proxy, while
+// the purpose policy below is authoritative for all three primary proxies).
 //
-// gemini-proxy still carries its own inlined copy (it is the live-critical
-// $0-backbone function; migrating it to this module is a follow-up with its
-// own deploy verification). Until then: KEEP IN SYNC with
+// gemini-proxy still carries its own inlined copy of the remaining plumbing
+// (it is the live-critical $0-backbone function; migrating that code is a
+// follow-up with its own deploy verification). Until then: KEEP IN SYNC with
 // supabase/functions/gemini-proxy/index.ts AND src/lib/safety/lexicon.ts.
 
 // D-27 axis key attribution — pure naming/resolver helpers (Deno-free, so they
@@ -12,6 +13,114 @@
 import { isUsableHeaderValue, pickApiKey } from './axis-key-name.ts';
 
 export { isUsableHeaderValue };
+
+// --- server-owned purpose policy -------------------------------------------
+//
+// `purpose` comes from an authenticated client, but authentication does not
+// make the label trustworthy. This table is therefore the authority for all
+// three paid generation proxies: whether a vendor has a seat, the highest cost
+// family/effort that label may reach, its wire modality, and its entitlement.
+// A missing row or missing vendor is a rejection, never a generic fallback.
+//
+// Keep the 29 keys exhaustive with PromptPurpose plus the three proxy-only
+// audit labels (embed_index, safety_classify, voice_transcribe). capture_voice
+// is the client routing alias; the paid wire label is voice_transcribe, so it
+// is deliberately known but unseated.
+export type LlmProxyVendor = 'gemini' | 'openai' | 'claude';
+export type LlmPolicyModelTier = 'lite' | 'flash' | 'pro' | 'fixed';
+export type LlmPolicyEffort = 'none' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+export type LlmPolicyModality = 'text' | 'image' | 'audio' | 'embed';
+export interface LlmPurposePolicy {
+  modelTier: LlmPolicyModelTier;
+  maxEffort: LlmPolicyEffort;
+  modality: LlmPolicyModality;
+  minimumTier: 'free' | 'brain';
+  vendors: readonly LlmProxyVendor[];
+}
+
+export const LLM_PURPOSE_POLICY = {
+  advisor: { modelTier: 'pro', maxEffort: 'high', modality: 'text', minimumTier: 'brain', vendors: ['gemini', 'openai'] },
+  audit_qa: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
+  axis_estimate: { modelTier: 'flash', maxEffort: 'high', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'claude'] },
+  capture_classify: { modelTier: 'lite', maxEffort: 'none', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
+  capture_ocr: { modelTier: 'flash', maxEffort: 'none', modality: 'image', minimumTier: 'free', vendors: ['gemini', 'openai'] },
+  capture_voice: { modelTier: 'flash', maxEffort: 'none', modality: 'audio', minimumTier: 'free', vendors: [] },
+  clipper_classify: { modelTier: 'lite', maxEffort: 'none', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
+  clipper_template_propose: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
+  cluster_infer: { modelTier: 'flash', maxEffort: 'medium', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
+  crosscheck_challenge: { modelTier: 'pro', maxEffort: 'high', modality: 'text', minimumTier: 'free', vendors: ['openai'] },
+  crosscheck_defend: { modelTier: 'pro', maxEffort: 'max', modality: 'text', minimumTier: 'free', vendors: ['claude'] },
+  digest_weekly: { modelTier: 'pro', maxEffort: 'max', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'claude'] },
+  embed_index: { modelTier: 'fixed', maxEffort: 'none', modality: 'embed', minimumTier: 'free', vendors: ['gemini', 'openai'] },
+  gap_synthesize: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
+  imagine: { modelTier: 'pro', maxEffort: 'high', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
+  import_ingest: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
+  interview_probe: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
+  northstar_propose: { modelTier: 'flash', maxEffort: 'high', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
+  ops_daily_brief: { modelTier: 'flash', maxEffort: 'medium', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
+  ops_recommend: { modelTier: 'flash', maxEffort: 'medium', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
+  persona_narrative: { modelTier: 'flash', maxEffort: 'high', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'claude'] },
+  persona_synthesis: { modelTier: 'flash', maxEffort: 'max', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'claude'] },
+  reasoning_connect: { modelTier: 'pro', maxEffort: 'high', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
+  safety_classify: { modelTier: 'lite', maxEffort: 'none', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
+  secondb_chat: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
+  self_model_propose: { modelTier: 'flash', maxEffort: 'high', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
+  source_ingest: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
+  ttfv_first_insight: { modelTier: 'flash', maxEffort: 'xhigh', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
+  voice_transcribe: { modelTier: 'flash', maxEffort: 'none', modality: 'audio', minimumTier: 'free', vendors: ['gemini', 'openai'] },
+} as const satisfies Record<string, LlmPurposePolicy>;
+
+export function resolveLlmPurposePolicy(
+  purpose: unknown,
+  vendor: LlmProxyVendor,
+): LlmPurposePolicy | null {
+  if (
+    typeof purpose !== 'string' ||
+    !Object.prototype.hasOwnProperty.call(LLM_PURPOSE_POLICY, purpose)
+  ) return null;
+  const policy = LLM_PURPOSE_POLICY[purpose as keyof typeof LLM_PURPOSE_POLICY];
+  return (policy.vendors as readonly string[]).includes(vendor) ? policy : null;
+}
+
+const POLICY_EFFORT_RANK: Record<LlmPolicyEffort, number> = {
+  none: 0,
+  low: 1,
+  medium: 2,
+  high: 3,
+  xhigh: 4,
+  max: 5,
+};
+
+function lowerEffort(a: LlmPolicyEffort, b: LlmPolicyEffort): LlmPolicyEffort {
+  return POLICY_EFFORT_RANK[a] <= POLICY_EFFORT_RANK[b] ? a : b;
+}
+
+export function clampLlmPurposeEffort(
+  policy: LlmPurposePolicy,
+  requested: unknown,
+  vendor: LlmProxyVendor,
+  vendorCeiling?: string,
+): LlmPolicyEffort {
+  const absoluteCeiling: LlmPolicyEffort =
+    vendor === 'openai' ? 'high' : vendor === 'gemini' ? 'xhigh' : 'max';
+  const localCeiling =
+    vendorCeiling && Object.prototype.hasOwnProperty.call(POLICY_EFFORT_RANK, vendorCeiling)
+      ? vendorCeiling as LlmPolicyEffort
+      : absoluteCeiling;
+  const ceiling = lowerEffort(lowerEffort(policy.maxEffort, absoluteCeiling), localCeiling);
+  const normalized =
+    typeof requested === 'string' && Object.prototype.hasOwnProperty.call(POLICY_EFFORT_RANK, requested)
+      ? requested as LlmPolicyEffort
+      : ceiling;
+  return lowerEffort(normalized, ceiling);
+}
+
+export function requestMatchesLlmPurposeModality(
+  policy: LlmPurposePolicy,
+  actual: LlmPolicyModality,
+): boolean {
+  return policy.modality === actual;
+}
 
 // --- crisis gate (R1-A) ------------------------------------------------------
 
@@ -127,7 +236,10 @@ export function corsPreflight(req: Request): Response {
 
 // --- entitlements / caps (mirror of src/lib/progression/entitlements.ts) -----
 
-export const PREMIUM_PURPOSES = new Set(['advisor', 'planner']);
+// Compatibility export for xai-proxy. The exhaustive policy above is the
+// authority for the three primary proxies; `planner` was never a known wire
+// purpose and must not become an entitlement bypass label.
+export const PREMIUM_PURPOSES = new Set(['advisor']);
 export const TIER_RANK: Record<string, number> = { free: 0, soma: 1, cortex: 2, brain: 3 };
 export const BRAIN_RANK = TIER_RANK.brain;
 
@@ -246,7 +358,7 @@ export function resolveApiKey(prefix: string, model: string, effort: string, bas
 //
 // ⚠ Lives in _shared, so changing it means redeploying every proxy.
 export async function auditUpstreamFailure(
-  admin: { from: (t: string) => { insert: (row: Record<string, unknown>) => Promise<{ error: unknown }> } },
+  admin: { from: (t: string) => { insert: (row: Record<string, unknown>) => PromiseLike<{ error: unknown }> } },
   opts: {
     userId: string;
     purpose: string | null;

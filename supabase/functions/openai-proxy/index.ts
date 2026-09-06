@@ -16,11 +16,10 @@
 //                            client's D-26 outage failover (callLlm /
 //                            callAdvisor retry-once-via-gemini-proxy) then
 //                            serves the call on the Phase 1 route.
-//   OPENAI_MODEL          -- optional GLOBAL kill-switch: when set it beats
-//                            every built-in PURPOSE_MODEL seat. Only the
-//                            per-purpose JSON below outranks it.
+//   OPENAI_MODEL          -- optional GLOBAL downgrade/kill-switch. It may
+//                            lower a seat, never promote it above policy.
 //   OPENAI_PURPOSE_MODELS -- optional JSON object { purpose: model-id }
-//                            overriding individual seats. Highest priority.
+//                            overriding within each purpose's cost ceiling.
 //
 // D-26: MODEL CHOICE IS SERVER-OWNED (client `model` accepted-but-ignored);
 // the purpose label picks the seat. Seats key on purpose, never on
@@ -43,11 +42,11 @@ import {
   BRAIN_RANK,
   MAX_ASSEMBLED_LEN,
   MAX_USER_LEN,
-  PREMIUM_PURPOSES,
   SAFETY_PREAMBLE,
   TIER_RANK,
   UPSTREAM_DETAIL_TRUNCATE,
   auditUpstreamFailure,
+  clampLlmPurposeEffort,
   corsPreflight,
   dailyCapForRank,
   djb2,
@@ -55,7 +54,10 @@ import {
   isUsableHeaderValue,
   jsonResponse,
   normalizeResponseSchema,
+  requestMatchesLlmPurposeModality,
   resolveApiKey,
+  resolveLlmPurposePolicy,
+  type LlmPolicyModelTier,
   userIdFromJwt,
   utcDay,
 } from '../_shared/llm-proxy-common.ts';
@@ -173,8 +175,8 @@ const PURPOSE_MODEL: Record<string, string> = {
   // Phase-2 reasoning seats re-routed from Claude on 2026-07-06 (Anthropic
   // credit balance exhausted; Simon chose the OpenAI backend). The nine live
   // client reasoning purposes, all on the gpt-5.4 frontier; the inert proto-rev2
-  // seats (digest_weekly/ttfv_first_insight) share it. The premium gate below
-  // still holds advisor/planner to the brain tier regardless of vendor.
+  // seats (digest_weekly/ttfv_first_insight) share it. The shared policy holds
+  // Advisor to the brain tier regardless of vendor.
   advisor: 'gpt-5.4',
   persona_narrative: 'gpt-5.4',
   gap_synthesize: 'gpt-5.4',
@@ -212,8 +214,6 @@ const PURPOSE_MODEL: Record<string, string> = {
 // The label is the WIRE one. transcribeAudio sends 'voice_transcribe'; the
 // routing module calls the same feature 'capture_voice'. Matching the routing
 // name here would 400 every voice memo with purpose_not_seated.
-const TRANSCRIBE_PURPOSES = new Set(['voice_transcribe']);
-
 // The adversarial challenger (REQ-260823-03). Seated for the allowlist but kept
 // OUT of PURPOSE_MODEL on purpose, the same way voice_transcribe is: that table
 // doubles as the nightly refresher's frontier seat list, so a row there would
@@ -223,33 +223,46 @@ const TRANSCRIBE_PURPOSES = new Set(['voice_transcribe']);
 const CROSSCHECK_PURPOSES = new Set(['crosscheck_challenge']);
 const DEFAULT_CROSSCHECK_MODEL = 'gpt-5.4';
 
-function resolveModel(purpose: string): string {
+function defaultModelForTier(tier: LlmPolicyModelTier): string {
+  if (tier === 'lite') return 'gpt-5.4-nano';
+  if (tier === 'flash') return 'gpt-5.4-mini';
+  return DEFAULT_OPENAI_MODEL;
+}
+
+function modelAllowedForTier(candidate: string, tier: LlmPolicyModelTier): boolean {
+  if (tier === 'fixed') return true;
+  const candidateRank = /-nano$/.test(candidate) ? 0 : /-mini$/.test(candidate) ? 1 : 2;
+  const ceilingRank = tier === 'lite' ? 0 : tier === 'flash' ? 1 : 2;
+  return candidateRank <= ceilingRank;
+}
+
+function resolveModel(purpose: string, modelTier: LlmPolicyModelTier): string {
+  let candidate = '';
   const raw = (Deno.env.get('OPENAI_PURPOSE_MODELS') ?? '').trim();
   if (raw.length > 0) {
     try {
       const map = JSON.parse(raw) as Record<string, unknown>;
       const m = map?.[purpose];
-      if (typeof m === 'string' && m.trim().length > 0) return m.trim();
+      if (typeof m === 'string' && m.trim().length > 0) candidate = m.trim();
     } catch {
       console.error('[openai-proxy] OPENAI_PURPOSE_MODELS is not valid JSON -- ignoring');
     }
   }
-  const globalOverride = (Deno.env.get('OPENAI_MODEL') ?? '').trim();
-  if (globalOverride.length > 0) return globalOverride;
-  // After the global kill-switch on purpose: during a cost incident an
-  // operator setting OPENAI_MODEL must be able to pull the most expensive
-  // model in the system down too.
-  if (CROSSCHECK_PURPOSES.has(purpose)) {
+  if (candidate.length === 0) candidate = (Deno.env.get('OPENAI_MODEL') ?? '').trim();
+  if (candidate.length === 0 && CROSSCHECK_PURPOSES.has(purpose)) {
     const sol = (Deno.env.get('OPENAI_CROSSCHECK_MODEL') ?? '').trim();
-    return sol.length > 0 ? sol : DEFAULT_CROSSCHECK_MODEL;
+    candidate = sol.length > 0 ? sol : DEFAULT_CROSSCHECK_MODEL;
   }
-  return PURPOSE_MODEL[purpose] ?? DEFAULT_OPENAI_MODEL;
+  if (candidate.length === 0) candidate = PURPOSE_MODEL[purpose] ?? defaultModelForTier(modelTier);
+  // Server overrides may refresh a generation within a cost family, but they
+  // cannot silently promote a purpose across the canonical lite/flash/pro axis.
+  return modelAllowedForTier(candidate, modelTier) ? candidate : defaultModelForTier(modelTier);
 }
 
 // D-26 per-purpose EFFORT CEILING (server-owned; `effort` is client-reported).
-// OpenAI's native ladder is none/low/medium/high/xhigh; `max` folds to xhigh
-// before clamping. safety_classify pins to none (verdict: nano @ none).
-const EFFORT_RANK: Record<string, number> = { none: 0, low: 1, medium: 2, high: 3, xhigh: 4 };
+// OpenAI's native ladder is none/low/medium/high/xhigh. The shared policy
+// applies the canonical purpose ceiling and this vendor's hard cap at high;
+// safety_classify pins to none (verdict: nano @ none).
 const PURPOSE_EFFORT_MAX: Record<string, string> = {
   cluster_infer: 'medium',
   safety_classify: 'none',
@@ -257,13 +270,13 @@ const PURPOSE_EFFORT_MAX: Record<string, string> = {
   // isn't silently downgraded; the shared daily spend cap still bounds cost.
   advisor: 'high',
   persona_narrative: 'high',
-  gap_synthesize: 'high',
+  gap_synthesize: 'low',
   self_model_propose: 'high',
   northstar_propose: 'high',
   axis_estimate: 'high',
   persona_synthesis: 'high',
-  ops_recommend: 'high',
-  ops_daily_brief: 'high',
+  ops_recommend: 'medium',
+  ops_daily_brief: 'medium',
   digest_weekly: 'high',
   ttfv_first_insight: 'high',
   // Chat is conversational, not deliberative, and it is the highest-volume
@@ -297,12 +310,6 @@ const PURPOSE_EFFORT_MAX: Record<string, string> = {
   reasoning_connect: 'high',
   imagine: 'high',
 };
-
-function effortToOpenAi(effort: string | null, purpose: string): string {
-  const requested = effort === 'max' ? 'xhigh' : effort && effort in EFFORT_RANK ? effort : 'high';
-  const ceiling = PURPOSE_EFFORT_MAX[purpose] ?? 'medium';
-  return EFFORT_RANK[requested] <= EFFORT_RANK[ceiling] ? requested : ceiling;
-}
 
 // Hard output ceilings per (clamped) effort -- max_completion_tokens includes
 // reasoning tokens on gpt-5.x, roomy for the same reason as claude-proxy's
@@ -377,6 +384,13 @@ Deno.serve(async (req: Request) => {
   if (body?.op === 'embed') {
     if (Deno.env.get('EMBED_EGRESS_ENABLED') !== 'true') {
       return jsonResponse(req, { error: 'embedding_egress_disabled' }, 503);
+    }
+    const embedPolicy = resolveLlmPurposePolicy(body?.purpose, 'openai');
+    if (!embedPolicy) {
+      return jsonResponse(req, { error: 'purpose_not_seated', purpose: body?.purpose ?? null }, 400);
+    }
+    if (!requestMatchesLlmPurposeModality(embedPolicy, 'embed')) {
+      return jsonResponse(req, { error: 'purpose_modality_mismatch' }, 400);
     }
     const rawTexts = body?.texts;
     if (!Array.isArray(rawTexts) || rawTexts.length === 0) {
@@ -499,6 +513,10 @@ Deno.serve(async (req: Request) => {
   const purpose: string | null = typeof body?.purpose === 'string' ? body.purpose : null;
   const effort: string | null = typeof body?.effort === 'string' ? body.effort : null;
   const responseSchema = normalizeResponseSchema(body?.responseSchema);
+  const purposePolicy = resolveLlmPurposePolicy(purpose, 'openai');
+  if (!purpose || !purposePolicy) {
+    return jsonResponse(req, { error: 'purpose_not_seated', purpose: purpose ?? null }, 400);
+  }
 
   // Optional image / audio attachments. Validated exactly as gemini-proxy does
   // (mime allowlist + base64 length cap) and BEFORE any paid call, so an
@@ -541,23 +559,15 @@ Deno.serve(async (req: Request) => {
   if (systemText && systemText.length > MAX_ASSEMBLED_LEN) {
     return jsonResponse(req, { error: 'system_too_long', max: MAX_ASSEMBLED_LEN, got: systemText.length }, 413);
   }
-
-  // Purpose allowlist -- this proxy serves EXACTLY its D-26 seats. Rejecting
-  // everything else (before the tier lookup and any paid call) keeps a
-  // tampered client from using OPENAI_API_KEY as a generic completion source.
-  // hasOwnProperty, NOT `in`: `in` walks the prototype chain, so purpose values
-  // like 'toString' / 'constructor' / '__proto__' passed this gate, then
-  // resolveModel returned the inherited FUNCTION as the model and modelSlug
-  // crashed (500, no CORS) AFTER the spend bump. Own-key check closes both.
-  if (
-    !purpose ||
-    !(
-      Object.prototype.hasOwnProperty.call(PURPOSE_MODEL, purpose) ||
-      TRANSCRIBE_PURPOSES.has(purpose) ||
-      CROSSCHECK_PURPOSES.has(purpose)
-    )
-  ) {
-    return jsonResponse(req, { error: 'purpose_not_seated', purpose: purpose ?? null }, 400);
+  const requestModality = imagePart && audioPart
+    ? null
+    : audioPart
+      ? 'audio'
+      : imagePart
+        ? 'image'
+        : 'text';
+  if (!requestModality || !requestMatchesLlmPurposeModality(purposePolicy, requestModality)) {
+    return jsonResponse(req, { error: 'purpose_modality_mismatch' }, 400);
   }
 
   // R1-A: server-side crisis classifier -- reject before any paid OpenAI call.
@@ -576,22 +586,30 @@ Deno.serve(async (req: Request) => {
   // 'brain'/'cortex' after expiry until the cancel webhook lands, so reading it
   // let a lapsed subscriber keep the brain-only premium purposes + the brain
   // daily ceiling, and 403'd a comped judge. The RPC collapses expired->free and
-  // comps judge->brain. Fail open on a lookup ERROR (the daily cap still bounds cost).
+  // comps judge->brain. A lookup error uses the free cap for ordinary seats and
+  // fails closed for a brain-gated seat.
   let tierRank: number | null = null;
+  let tierLookupFailed = false;
   {
     const { data: effTier, error: tierErr } = await supabaseAdmin.rpc(
       'effective_subscription_tier',
       { p_user_id: userId },
     );
     if (tierErr) {
+      tierLookupFailed = true;
       console.error('[openai-proxy] effective-tier lookup failed:', tierErr.message ?? String(tierErr));
     } else {
       const t = (effTier as string | null) ?? 'free';
       tierRank = TIER_RANK[t] ?? 0;
     }
   }
-  if (purpose && PREMIUM_PURPOSES.has(purpose) && tierRank !== null && tierRank < BRAIN_RANK) {
-    return jsonResponse(req, { error: 'entitlement_required', feature: purpose }, 403);
+  if (purposePolicy.minimumTier === 'brain') {
+    if (tierLookupFailed || tierRank === null) {
+      return jsonResponse(req, { error: 'entitlement_check_unavailable' }, 503);
+    }
+    if (tierRank < BRAIN_RANK) {
+      return jsonResponse(req, { error: 'entitlement_required', feature: purpose }, 403);
+    }
   }
 
   // Spend cap -- the SAME shared per-user/day counter as gemini/claude proxies.
@@ -649,8 +667,13 @@ Deno.serve(async (req: Request) => {
     if (!consentOk) return jsonResponse(req, { error: 'consent_required' }, 403);
   }
 
-  const openaiModel = resolveModel(purpose);
-  const clampedEffort = effortToOpenAi(effort, purpose);
+  const openaiModel = resolveModel(purpose, purposePolicy.modelTier);
+  const clampedEffort = clampLlmPurposeEffort(
+    purposePolicy,
+    effort,
+    'openai',
+    PURPOSE_EFFORT_MAX[purpose],
+  );
   // D-27: sign with the (model × effort) combo key when provisioned, else base
   // OPENAI_API_KEY (fallback keeps calls working; that usage attributes to
   // base). Only changes WHICH key signs the already-server-owned request.
@@ -759,7 +782,10 @@ Deno.serve(async (req: Request) => {
     if (isTranscription) {
       const ext = AUDIO_EXT[audioPart!.mimeType] ?? 'm4a';
       const form = new FormData();
-      form.append('file', new Blob([base64ToBytes(audioPart!.data)], { type: audioPart!.mimeType }), `memo.${ext}`);
+      const audioBytes = base64ToBytes(audioPart!.data);
+      const audioBuffer = new ArrayBuffer(audioBytes.byteLength);
+      new Uint8Array(audioBuffer).set(audioBytes);
+      form.append('file', new Blob([audioBuffer], { type: audioPart!.mimeType }), `memo.${ext}`);
       form.append('model', transcribeModelId);
       // Verbatim only. No prompt is sent: a prompt biases a transcript, and the
       // caller's `user` field here is an instruction for Gemini's chat-shaped

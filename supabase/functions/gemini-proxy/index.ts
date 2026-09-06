@@ -37,7 +37,7 @@
 //   {
 //     system: string | null,
 //     user: string,
-//     model: 'gemini-2.5-flash' | 'gemini-2.5-pro',
+//     model?: string,                              // accepted but ignored
 //     image?: { mimeType: string, data: string },  // base64 (no data: URL prefix)
 //     audio?: { mimeType: string, data: string },  // base64 voice memo (transcription)
 //     purpose?: string                              // caller's PromptPurpose label
@@ -48,10 +48,17 @@
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-// D-27: (vendor × model × effort) axis key attribution — the ONLY symbol this
-// live-critical $0 backbone imports from _shared (a pure env reader; no crisis/
-// auth/cap logic is migrated here — that stays inlined per the _shared note).
-import { isUsableHeaderValue, resolveApiKey } from '../_shared/llm-proxy-common.ts';
+// D-27 attribution plus the shared server-owned purpose policy. The remaining
+// crisis/auth/cap plumbing stays inlined until its own deploy-verified migration.
+import {
+  clampLlmPurposeEffort,
+  isUsableHeaderValue,
+  requestMatchesLlmPurposeModality,
+  resolveApiKey,
+  resolveLlmPurposePolicy,
+  type LlmPolicyEffort,
+  type LlmPolicyModelTier,
+} from '../_shared/llm-proxy-common.ts';
 
 // P0-3 (D-26, docs/LLM-ROUTING.md): the allowlist previously held only
 // {2.5-flash, 2.5-pro}, so the client's LITE tier (clipper_classify ->
@@ -104,6 +111,14 @@ function serverModelFor(requested: string): string {
   const override = (Deno.env.get(key) ?? '').trim();
   return override.length > 0 && modelAllowed(override) ? override : requested;
 }
+function serverModelForTier(tier: LlmPolicyModelTier): string {
+  const baseline = tier === 'lite'
+    ? 'gemini-2.5-flash-lite'
+    : tier === 'pro'
+      ? 'gemini-2.5-pro'
+      : 'gemini-2.5-flash';
+  return serverModelFor(baseline);
+}
 const GEMINI_ENDPOINT = (model: string) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 // P0-2 (D-26 A19): embeddings — text-embedding-004 shut down 2026-01-14; the
@@ -133,16 +148,14 @@ const UPSTREAM_DETAIL_TRUNCATE = 80;
 // ladder so the edge honors per-call effort. capture_ocr suppresses thinking
 // (verbatim transcription gains nothing from it); image calls keep a 4096
 // output floor so a full receipt/page transcription does not truncate.
-type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
-function normalizeEffort(raw: unknown): Effort {
-  return raw === 'low' || raw === 'medium' || raw === 'xhigh' || raw === 'max' ? raw : 'high';
-}
+type Effort = LlmPolicyEffort;
 function geminiGenLadder(
   effort: Effort,
   hasImage: boolean,
   purpose: string | null,
 ): { maxOutputTokens: number; thinkingConfig: { thinkingBudget: number } } {
   const ladder: Record<Effort, { out: number; think: number }> = {
+    none: { out: 1024, think: 0 },
     low: { out: 1024, think: 512 },
     medium: { out: 1536, think: 1024 },
     high: { out: 2048, think: 2048 },
@@ -161,22 +174,6 @@ function geminiGenLadder(
   const briefFloor = purpose === 'ops_daily_brief' ? 8192 : 0;
   const maxOutputTokens = Math.max(hasImage ? Math.max(rung.out, 4096) : rung.out, briefFloor);
   return { maxOutputTokens, thinkingConfig: { thinkingBudget } };
-}
-
-// D-26 EFFORT CEILING (server-owned). `effort` is client-reported and cost =
-// model x effort x max_tokens; the abuse vector (audit H2) is effort='max',
-// which maps to thinkingBudget -1 (UNBOUNDED). Fold 'max' to 'xhigh' (bounded
-// 8192 thinking, the top legitimate rung) so a tampered client cannot pin an
-// unbounded budget.
-//
-// We deliberately do NOT impose lower per-purpose ceilings here: honest
-// flash-tier purposes (secondb_chat, gap_synthesize, ...) OMIT `effort`, so
-// normalizeEffort defaults them to 'high' server-side; a claude-proxy-style
-// low ceiling would then TRUNCATE legitimate replies (e.g. chat 2048->1024),
-// a regression beyond the security goal. Per-purpose ceilings need
-// gemini-specific usage data and are a follow-up. (decision D2)
-function clampEffort(effort: Effort): Effort {
-  return effort === 'max' ? 'xhigh' : effort;
 }
 
 // Audit HIGH (spend cap): per-user/day ceiling on TOTAL proxy calls (all
@@ -452,6 +449,13 @@ Deno.serve(async (req: Request) => {
     if (Deno.env.get('EMBED_EGRESS_ENABLED') !== 'true') {
       return jsonResponse(req, { error: 'embedding_egress_disabled' }, 503);
     }
+    const embedPolicy = resolveLlmPurposePolicy(body?.purpose, 'gemini');
+    if (!embedPolicy) {
+      return jsonResponse(req, { error: 'purpose_not_seated', purpose: body?.purpose ?? null }, 400);
+    }
+    if (!requestMatchesLlmPurposeModality(embedPolicy, 'embed')) {
+      return jsonResponse(req, { error: 'purpose_modality_mismatch' }, 400);
+    }
     const rawTexts = body?.texts;
     if (!Array.isArray(rawTexts) || rawTexts.length === 0) {
       return jsonResponse(req, { error: 'texts_required' }, 400);
@@ -584,9 +588,12 @@ Deno.serve(async (req: Request) => {
 
   const userText: string = typeof body?.user === 'string' ? body.user : '';
   const systemText: string | null = typeof body?.system === 'string' ? body.system : null;
-  const model: string = typeof body?.model === 'string' ? body.model : 'gemini-2.5-flash';
   const purpose: string | null = typeof body?.purpose === 'string' ? body.purpose : null;
-  const effort = normalizeEffort(body?.effort);
+  const purposePolicy = resolveLlmPurposePolicy(purpose, 'gemini');
+  if (!purpose || !purposePolicy) {
+    return jsonResponse(req, { error: 'purpose_not_seated', purpose: purpose ?? null }, 400);
+  }
+  const model = serverModelForTier(purposePolicy.modelTier);
   // Structured-output schema (parity with the direct-client path). Threaded
   // into generationConfig below so edge-routed callers (e.g. phase1) get JSON.
   const responseSchema =
@@ -640,8 +647,16 @@ Deno.serve(async (req: Request) => {
   if (systemText && systemText.length > MAX_ASSEMBLED_LEN) {
     return jsonResponse(req, { error: 'system_too_long', max: MAX_ASSEMBLED_LEN, got: systemText.length }, 413);
   }
-  if (!modelAllowed(model)) return jsonResponse(req, { error: 'model_not_allowed' }, 400);
-
+  const requestModality = imagePart && audioPart
+    ? null
+    : audioPart
+      ? 'audio'
+      : imagePart
+        ? 'image'
+        : 'text';
+  if (!requestModality || !requestMatchesLlmPurposeModality(purposePolicy, requestModality)) {
+    return jsonResponse(req, { error: 'purpose_modality_mismatch' }, 400);
+  }
 
   // R1-A: server-side crisis classifier. Reject before any Gemini call so a
   // bypassed client cannot route red-zone USER input around C9. We scan ONLY the
@@ -679,9 +694,7 @@ Deno.serve(async (req: Request) => {
   }
   userParts.push({ text: userText });
 
-  // Fold a client-reported "max" to a bounded "xhigh" so a tampered client
-  // cannot pin an unbounded thinking budget. (audit H2, D2)
-  const clampedEffort = clampEffort(effort);
+  const clampedEffort = clampLlmPurposeEffort(purposePolicy, body?.effort, 'gemini');
   const genLadder = geminiGenLadder(clampedEffort, Boolean(imagePart) || Boolean(audioPart), purpose);
   const geminiBody: Record<string, unknown> = {
     contents: [{ role: 'user', parts: userParts }],
@@ -718,23 +731,33 @@ Deno.serve(async (req: Request) => {
   // brain-only premium purposes + the brain daily ceiling; it also 403'd a judge
   // (raw tier 'free' + judge_mode) despite the C6 comp. The RPC collapses
   // expired->free and comps judge->brain, matching the cap RPCs exactly. Fail-open
-  // on a lookup ERROR (availability first; the daily cap still bounds damage), but
-  // an explicit sub-brain effective tier fails CLOSED for premium purposes.
+  // on a lookup error for ordinary seats (with the free cap), but a brain-gated
+  // purpose fails closed when its entitlement cannot be verified.
   let tierRank: number | null = null;
+  let tierLookupFailed = false;
   {
     const { data: effTier, error: tierErr } = await supabaseAdmin.rpc(
       'effective_subscription_tier',
       { p_user_id: userId },
     );
     if (tierErr) {
+      tierLookupFailed = true;
       console.error('[gemini-proxy] effective-tier lookup failed:', tierErr.message ?? String(tierErr));
     } else {
       const t = (effTier as string | null) ?? 'free';
       tierRank = TIER_RANK[t] ?? 0;
     }
   }
-  if (purpose && PREMIUM_PURPOSES.has(purpose) && tierRank !== null && tierRank < BRAIN_RANK) {
-    return jsonResponse(req, { error: 'entitlement_required', feature: purpose }, 403);
+  if (PREMIUM_PURPOSES.has(purpose) !== (purposePolicy.minimumTier === 'brain')) {
+    return jsonResponse(req, { error: 'purpose_policy_mismatch' }, 500);
+  }
+  if (purposePolicy.minimumTier === 'brain') {
+    if (tierLookupFailed || tierRank === null) {
+      return jsonResponse(req, { error: 'entitlement_check_unavailable' }, 503);
+    }
+    if (tierRank < BRAIN_RANK) {
+      return jsonResponse(req, { error: 'entitlement_required', feature: purpose }, 403);
+    }
   }
 
   // Sub-brain calls are pinned to flash: pro-class is the expensive half of
@@ -804,8 +827,9 @@ Deno.serve(async (req: Request) => {
 
   // D-27: (model × effort) combo key for the main generation path; embeds stay
   // on the base key. effectiveModel already reflects the sub-brain pro->flash
-  // downgrade, so attribution matches what actually runs. max folds to xhigh.
-  const effortSlug = effort === 'max' ? 'xhigh' : effort;
+  // downgrade, so attribution matches what actually runs. The effort is already
+  // clamped by the shared purpose policy.
+  const effortSlug = clampedEffort;
   const resolvedKey = resolveApiKey('GEMINI', effectiveModel, effortSlug, apiKey);
   if (!resolvedKey.usedCombo) {
     console.warn(

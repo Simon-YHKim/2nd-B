@@ -16,6 +16,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import * as ts from "typescript";
+
 import { phase2EffortFor, PHASE2_VENDOR } from "../routing";
 import type { PromptPurpose, ReasoningEffort } from "../types";
 
@@ -24,8 +26,104 @@ const ROOT = process.cwd();
 const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8").split(CR).join("");
 
 const CLAUDE = read("supabase/functions/claude-proxy/index.ts");
+const GEMINI = read("supabase/functions/gemini-proxy/index.ts");
 const OPENAI = read("supabase/functions/openai-proxy/index.ts");
+const SHARED = read("supabase/functions/_shared/llm-proxy-common.ts");
 const REFRESH = read("scripts/refresh-models.ts");
+
+type ProxyVendor = "gemini" | "openai" | "claude";
+type PurposePolicy = {
+  modelTier: "lite" | "flash" | "pro" | "fixed";
+  maxEffort: "none" | "low" | "medium" | "high" | "xhigh" | "max";
+  modality: "text" | "image" | "audio" | "embed";
+  minimumTier: "free" | "brain";
+  vendors: readonly ProxyVendor[];
+};
+type PolicyExports = {
+  LLM_PURPOSE_POLICY: Record<string, PurposePolicy>;
+  resolveLlmPurposePolicy: (purpose: unknown, vendor: ProxyVendor) => PurposePolicy | null;
+  clampLlmPurposeEffort: (
+    policy: PurposePolicy,
+    requested: unknown,
+    vendor: ProxyVendor,
+    vendorCeiling?: string,
+  ) => string;
+  requestMatchesLlmPurposeModality: (
+    policy: PurposePolicy,
+    actual: "text" | "image" | "audio" | "embed",
+  ) => boolean;
+};
+
+function loadPurposePolicy(): PolicyExports {
+  const start = SHARED.indexOf("export const LLM_PURPOSE_POLICY");
+  const end = SHARED.indexOf("// --- crisis gate", start);
+  if (start < 0 || end < 0) throw new Error("shared LLM purpose policy block not found");
+  const js = ts.transpileModule(SHARED.slice(start, end), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText;
+  const exportsObj: Partial<PolicyExports> = {};
+  new Function("exports", js)(exportsObj);
+  if (
+    !exportsObj.LLM_PURPOSE_POLICY ||
+    typeof exportsObj.resolveLlmPurposePolicy !== "function" ||
+    typeof exportsObj.clampLlmPurposeEffort !== "function" ||
+    typeof exportsObj.requestMatchesLlmPurposeModality !== "function"
+  ) {
+    throw new Error("shared LLM purpose policy did not evaluate");
+  }
+  return exportsObj as PolicyExports;
+}
+
+function loadOpenAiModelTierGuards(): {
+  defaultModelForTier: (tier: PurposePolicy["modelTier"]) => string;
+  modelAllowedForTier: (candidate: string, tier: PurposePolicy["modelTier"]) => boolean;
+} {
+  const start = OPENAI.indexOf("function defaultModelForTier");
+  const end = OPENAI.indexOf("function resolveModel", start);
+  if (start < 0 || end < 0) throw new Error("OpenAI model tier guards not found");
+  const snippet = `${OPENAI.slice(start, end)}\nexport { defaultModelForTier, modelAllowedForTier };`;
+  const js = ts.transpileModule(snippet, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText;
+  const exportsObj: Record<string, unknown> = {};
+  new Function("exports", js)(exportsObj);
+  return exportsObj as {
+    defaultModelForTier: (tier: PurposePolicy["modelTier"]) => string;
+    modelAllowedForTier: (candidate: string, tier: PurposePolicy["modelTier"]) => boolean;
+  };
+}
+
+const KNOWN_PURPOSES = [
+  "advisor",
+  "audit_qa",
+  "axis_estimate",
+  "capture_classify",
+  "capture_ocr",
+  "capture_voice",
+  "clipper_classify",
+  "clipper_template_propose",
+  "cluster_infer",
+  "crosscheck_challenge",
+  "crosscheck_defend",
+  "digest_weekly",
+  "embed_index",
+  "gap_synthesize",
+  "imagine",
+  "import_ingest",
+  "interview_probe",
+  "northstar_propose",
+  "ops_daily_brief",
+  "ops_recommend",
+  "persona_narrative",
+  "persona_synthesis",
+  "reasoning_connect",
+  "safety_classify",
+  "secondb_chat",
+  "self_model_propose",
+  "source_ingest",
+  "ttfv_first_insight",
+  "voice_transcribe",
+] as const;
 
 function proxyMap(src: string, name: string): Record<string, string> {
   const block = src.match(new RegExp(`const ${name}: Record<string, string> = \\{([\\s\\S]*?)\\n\\};`));
@@ -73,14 +171,11 @@ describe("the seat map is opus only", () => {
     expect(REFRESH).toMatch(/export const ANTHROPIC_SONNET_PURPOSES = \[\] as const;/);
   });
 
-  test("and it is written down that sonnet is still SERVED", () => {
-    // The honest half. An unseated purpose falls to DEFAULT_CLAUDE_MODEL, which
-    // is deliberately still sonnet so the outage lever stays affordable. A
-    // reader who takes "opus only" literally would otherwise mis-price the
-    // EXPO_PUBLIC_LLM_VENDOR=claude path.
-    expect(CLAUDE).toMatch(/DEFAULT_CLAUDE_MODEL = 'claude-sonnet-5'/);
-    expect(CLAUDE).toMatch(/NO ALLOWLIST by design/);
-    expect(CLAUDE).toMatch(/at sonnet price/);
+  test("unseated labels fail closed instead of falling back to Sonnet", () => {
+    expect(CLAUDE).not.toMatch(/DEFAULT_CLAUDE_MODEL/);
+    expect(CLAUDE).not.toMatch(/NO ALLOWLIST by design/);
+    expect(CLAUDE).toMatch(/resolveLlmPurposePolicy\(purpose, 'claude'\)/);
+    expect(CLAUDE).toMatch(/error: 'purpose_not_seated'/);
   });
 
   test("the removed purposes still route somewhere - to OpenAI", () => {
@@ -93,16 +188,105 @@ describe("the seat map is opus only", () => {
   });
 });
 
+describe("server-owned LLM purpose policy", () => {
+  const policy = loadPurposePolicy();
+
+  test("covers the complete 29-label audit vocabulary and no dead planner label", () => {
+    expect(Object.keys(policy.LLM_PURPOSE_POLICY).sort()).toEqual([...KNOWN_PURPOSES].sort());
+    expect(policy.LLM_PURPOSE_POLICY).not.toHaveProperty("planner");
+  });
+
+  test("unknown, prototype, and known-but-unseated labels all fail closed", () => {
+    for (const bad of [null, "", "planner", "toString", "constructor", "__proto__", "totally_new"]) {
+      expect(policy.resolveLlmPurposePolicy(bad, "claude")).toBeNull();
+    }
+    expect(policy.resolveLlmPurposePolicy("gap_synthesize", "claude")).toBeNull();
+    expect(policy.resolveLlmPurposePolicy("crosscheck_challenge", "gemini")).toBeNull();
+    expect(policy.resolveLlmPurposePolicy("capture_voice", "openai")).toBeNull();
+  });
+
+  test("a relabeled cheap purpose cannot inherit Advisor-level effort", () => {
+    const gap = policy.resolveLlmPurposePolicy("gap_synthesize", "openai");
+    expect(gap).not.toBeNull();
+    expect(gap!.modelTier).toBe("flash");
+    expect(policy.clampLlmPurposeEffort(gap!, "max", "openai", "low")).toBe("low");
+    expect(policy.clampLlmPurposeEffort(gap!, undefined, "openai", "low")).toBe("low");
+  });
+
+  test("high-volume and media labels have hard zero-thinking/modal contracts", () => {
+    const classify = policy.resolveLlmPurposePolicy("capture_classify", "gemini");
+    const ocr = policy.resolveLlmPurposePolicy("capture_ocr", "openai");
+    const voice = policy.resolveLlmPurposePolicy("voice_transcribe", "openai");
+    expect(classify?.modelTier).toBe("lite");
+    expect(policy.clampLlmPurposeEffort(classify!, "max", "gemini")).toBe("none");
+    expect(policy.requestMatchesLlmPurposeModality(ocr!, "text")).toBe(false);
+    expect(policy.requestMatchesLlmPurposeModality(ocr!, "image")).toBe(true);
+    expect(policy.requestMatchesLlmPurposeModality(voice!, "audio")).toBe(true);
+    expect(policy.requestMatchesLlmPurposeModality(voice!, "image")).toBe(false);
+  });
+
+  test("only the real Advisor label is brain-gated", () => {
+    const gated = Object.entries(policy.LLM_PURPOSE_POLICY)
+      .filter(([, p]) => p.minimumTier === "brain")
+      .map(([purpose]) => purpose);
+    expect(gated).toEqual(["advisor"]);
+  });
+});
+
+describe("all three proxies enforce the shared policy before spending", () => {
+  const proxies: Array<[ProxyVendor, string]> = [
+    ["gemini", GEMINI],
+    ["openai", OPENAI],
+    ["claude", CLAUDE],
+  ];
+
+  test.each(proxies)("%s resolves a shared seat and clamps shared effort", (vendor, src) => {
+    expect(src).toContain("resolveLlmPurposePolicy");
+    expect(src).toContain("clampLlmPurposeEffort");
+    expect(src).toMatch(new RegExp(`resolveLlmPurposePolicy\\(purpose, '${vendor}'\\)`));
+    const enforcement = src.indexOf(`resolveLlmPurposePolicy(purpose, '${vendor}')`);
+    expect(enforcement).toBeGreaterThan(0);
+    expect(enforcement).toBeLessThan(src.indexOf("bump_gemini_spend", enforcement));
+  });
+
+  test("Gemini ignores the client model and derives its family from the policy tier", () => {
+    const generation = GEMINI.slice(GEMINI.indexOf("const userText"));
+    expect(generation).not.toMatch(/const model[^\n]*body\?\.model/);
+    expect(generation).toMatch(/serverModelForTier\(purposePolicy\.modelTier\)/);
+  });
+
+  test("OpenAI clamps a policy tier even when an override names a dearer family", () => {
+    const guards = loadOpenAiModelTierGuards();
+    expect(guards.modelAllowedForTier("gpt-5.4", "flash")).toBe(false);
+    expect(guards.modelAllowedForTier("gpt-5.4-mini", "flash")).toBe(true);
+    expect(guards.modelAllowedForTier("gpt-5.4-nano", "flash")).toBe(true);
+    expect(guards.defaultModelForTier("flash")).toBe("gpt-5.4-mini");
+    expect(OPENAI).toMatch(/modelAllowedForTier\(candidate, modelTier\)/);
+    expect(OPENAI).toMatch(/defaultModelForTier\(modelTier\)/);
+    expect(OPENAI).toMatch(/resolveModel\(purpose, purposePolicy\.modelTier\)/);
+  });
+
+  test.each(proxies)("%s fails closed when Advisor entitlement cannot be resolved", (_vendor, src) => {
+    expect(src).toMatch(/purposePolicy\.minimumTier === 'brain'/);
+    expect(src).toMatch(/tierLookupFailed \|\| tierRank === null/);
+    expect(src).toMatch(/error: 'entitlement_check_unavailable'/);
+  });
+
+  test.each(proxies)("%s rejects purpose/modality mismatches", (_vendor, src) => {
+    expect(src).toContain("requestMatchesLlmPurposeModality");
+    expect(src).toMatch(/error: 'purpose_modality_mismatch'/);
+  });
+});
+
 describe("max is a real rung now", () => {
   test("the rank table carries it", () => {
-    expect(CLAUDE).toMatch(/EFFORT_RANK: Record<string, number> = \{ low: 0, medium: 1, high: 2, xhigh: 3, max: 4 \}/);
+    expect(SHARED).toMatch(/max: 5/);
   });
 
   test("it is no longer folded into xhigh before the ceiling", () => {
-    // The fold was the bug: it happened on the REQUESTED value, so no ceiling
-    // could ever admit max and ANTHROPIC_API_KEY__MAX was unreachable.
-    expect(CLAUDE).not.toMatch(/effort === 'max' \? 'xhigh'/);
-    expect(CLAUDE).toMatch(/const requested = effort && effort in EFFORT_RANK \? effort : 'high';/);
+    const policy = loadPurposePolicy();
+    const synthesis = policy.resolveLlmPurposePolicy("persona_synthesis", "claude");
+    expect(policy.clampLlmPurposeEffort(synthesis!, "max", "claude", "max")).toBe("max");
   });
 
   test("only whole-corpus reads are approved for it", () => {
@@ -137,11 +321,10 @@ describe("max is a real rung now", () => {
 });
 
 describe("the other two vendors' axes are unchanged", () => {
-  test("openai still folds max into xhigh", () => {
-    // The order is explicit that this is an Anthropic-only extension. openai's
-    // fold is what makes asking for max harmless on the seats that stayed
-    // there - digest_weekly is still an OpenAI seat.
-    expect(OPENAI).toMatch(/effort === 'max' \? 'xhigh'/);
+  test("openai hard-caps max at its provisioned high rung", () => {
+    const policy = loadPurposePolicy();
+    const digest = policy.resolveLlmPurposePolicy("digest_weekly", "openai");
+    expect(policy.clampLlmPurposeEffort(digest!, "max", "openai", "high")).toBe("high");
     expect(PHASE2_VENDOR.digest_weekly).toBe("openai");
   });
 
