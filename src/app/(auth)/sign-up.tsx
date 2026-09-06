@@ -10,7 +10,6 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { BirthDateField } from "@/components/auth/BirthDateField";
-import { JudgeBadge } from "@/components/auth/JudgeBadge";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 import { m3 } from "@/lib/theme/m3";
@@ -42,7 +41,6 @@ function SignUpLegacy() {
     setBirthDate,
     consent,
     setConsent,
-    judge,
     isMinorAge,
     canSubmit,
     oauthSubmitting,
@@ -148,11 +146,6 @@ function SignUpLegacy() {
               accessibilityLabel={t("common.entryArtwork")}
             />
           </View>
-          {judge ? (
-            <View style={styles.badgeWrap}>
-              <JudgeBadge />
-            </View>
-          ) : null}
         </View>
         <View style={styles.form}>
           <View style={styles.fieldGroup}>
@@ -427,7 +420,6 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     justifyContent: "center",
   },
-  badgeWrap: { marginTop: spacing.sm },
   form: {
     gap: spacing.sm,
     backgroundColor: semantic.surface,

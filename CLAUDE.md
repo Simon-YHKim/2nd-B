@@ -30,7 +30,7 @@ Project-specific guidance for Claude Code sessions in this repo.
 > | `manual.tsx` 의 XPRIZE 문구 | **제거됨** (0건) |
 > | `routing.ts` 주석 | **제거됨** (0건) |
 > | `boundary.ts` 주석 | **남아 있음** (4곳). 동작에 영향 없는 주석 |
-> | C12 README 절 | **남아 있음.** `check:constraints` 가 계속 요구한다 |
+> | C12 README 절 | **제약은 폐지**(2026-09-06). 검사는 `AssetLicenseDisclosure` 라는 이름으로 남았다 — SIL OFL 고지 의무 때문 |
 >
 > 남은 둘은 동작 중인 계약이라 임의로 걷어내지 말고, 제거는 별도 작업으로 Simon 과 합의해서
 > 진행한다. 다만 이것들을 *새 결정의 근거*로 인용하지는 말 것.
@@ -239,7 +239,7 @@ Project-specific guidance for Claude Code sessions in this repo.
   `vercel.json` is an unused Sprint-0 leftover. Do not treat Vercel as the web target.
 - **Solo build**: Simon Kim. Evenings + weekends only.
 - **Vision**: `docs/VISION.md` (캐치프레이즈 + 3축 모델). 모든 새 기능은 어느 축에 속하는지 PR 설명에 명시.
-- **Master blueprint**: `docs/ARCHITECTURE.md`. Hard constraints C1~C12: `docs/CONSTRAINTS.md`.
+- **Master blueprint**: `docs/ARCHITECTURE.md`. Hard constraints: `docs/CONSTRAINTS.md`.
 
 ## ⚠ 일곱은 이제 한 벌이다 (Simon 결정 7, 2026-08-24) — 아래 "렌즈층" 절보다 **이 절이 이긴다**
 
@@ -520,17 +520,17 @@ Never weaken these. They're enforced at code/schema/CI level:
 | ID | Rule |
 |---|---|
 | C1 | All LLM calls go through **one boundary module** (`src/lib/llm/boundary.ts`, renamed from `gemini.ts` 2026-08-17); ESLint blocks vendor SDK imports anywhere else. **The rule is the single boundary, NOT the vendor** — see "제미나이는 더 이상 요건이 아니다" below. |
-| C2 | ~~`@google/genai` with `vertexai: true`~~ **대회 잔재. 요건 아님.** Vertex 분기는 코드에 남아 있고 CI가 존재만 확인한다. 새 기능의 근거로 인용 금지. |
+| C2 | ~~`@google/genai` with `vertexai: true`~~ **폐지됨 2026-09-06** (Simon 결정 Q-260905-02). 검사는 `check:constraints` 에서 제거했다. Vertex 분기 코드 자체는 남아 있고 이제 Gemini 폐기(#1505)와 함께 자유롭게 나갈 수 있다. 번호는 재사용하지 않는다. |
 | C3 | `ai_audit_log` INSERT on every Gemini call (including mock + crisis). |
 | C4 | `revenue_events` has `month_bucket` + `is_related_party` + `customer_relation_type`. |
 | C5 | `testimonials.consent_given_at NOT NULL`. |
-| C6 | Judge mode auto-flag for `@xprize.org`, `@devpost.com`, `@hacker.fund`. **(대회 잔재: 코드·CI 에서는 계속 유효하니 깨뜨리지 말 것. 단 새 기능의 근거로 인용 금지 — 위 XPRIZE 블록 참조.)** |
+| C6 | ~~Judge mode auto-flag~~ **폐지됨 2026-09-06** (Simon 결정 Q-260905-02). 기능은 #1302·마이그레이션 0138 이 이미 걷어냈고, 은퇴를 지키던 검사도 이제 지킬 대상이 없다 — `src/lib/judge/domains.ts` 와 클라이언트 경로가 삭제됐다. **`users.judge_mode` 컬럼과 comp 분기는 여전히 의도적으로 남아 있다**(#1302). 제거는 마이그레이션이다. |
 | C7 | i18n EN ↔ KO key parity. EN is canonical. |
 | C8 | `knowledge_sources` requires DOI/URL + verification pair. |
 | C9 | `classifyInput()` runs before any LLM call. Red zone short-circuits. |
 | C10 | Age-tiered sign-up: 14-17 self-consent minors and adult users register direct; under-14 needs verifiable guardian consent (PIPA §22-2/COPPA). Phased rollout; see docs/CONSTRAINTS.md. |
 | C11 | Support SLA = 2 business days (KST). |
-| C12 | README "Pre-existing assets used" section per rulebook §04. **(대회 잔재: 위 C6 과 동일 취급.)** |
+| C12 | ~~README "Pre-existing assets used" 절~~ **폐지됨 2026-09-06** (Simon 결정 Q-260905-02). 대회 규정집에서 온 번호였다. 다만 검사 자체는 `AssetLicenseDisclosure` 라는 **번호 없는 이름**으로 남겼다 — 싣는 폰트가 SIL OFL 이고 저작권·Reserved Font Name 고지를 기록하는 곳이 `docs/ASSETS.md` 뿐이라, 규정집과 무관하게 실재하는 의무다. 번호는 재사용하지 않는다. |
 
 When uncertain whether a change weakens a constraint, run `npm run check:constraints`.
 

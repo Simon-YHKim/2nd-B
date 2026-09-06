@@ -1,4 +1,4 @@
-# Hard Constraints (C1~C12)
+# Hard Constraints
 
 This document defines the project's non-negotiable rules. The blueprint
 calls them "강제 조항." They are enforced at code, schema, and CI layers.
@@ -135,9 +135,15 @@ README declares the SLA. `.github/workflows/issue-sla.yml` labels new
 issues. Auto-responder (Gmail filter + support@ + Devpost mobile push)
 is Sprint 1 OPS work.
 
-## C12 — Pre-existing assets disclosure
+## ~~C12~~ — retired 2026-09-06, now the AssetLicenseDisclosure check
 
-README contains a "Pre-existing assets used" section; `docs/ASSETS.md` carries
+Retired as a numbered constraint (Simon decision Q-260905-02): it came from the
+contest rulebook and the contest ended 2026-08-15. The check itself survives
+under the name `AssetLicenseDisclosure`, because the SIL OFL fonts we ship
+require their copyright and Reserved Font Name notice to travel with them and
+`docs/ASSETS.md` is the only record of it.
+
+README contains a "Bundled assets and licenses" section; `docs/ASSETS.md` carries
 the registry (currently 9 packs / 246 image files).
 
 **Changed 2026-08-21 (REQ-260820-04): the reason, not the rule.** This was
@@ -151,7 +157,7 @@ also not a formality - a grep for the README heading alone reported PASS on
 
 ## Known platform limitations (2026-08-10)
 
-These findings do not relax C1 through C12. They remain tracked for a
+These findings do not relax the remaining hard constraints. They remain tracked for a
 separate, dependency-aware cleanup.
 
 - Legacy Paddle payment rows can have a null `paddle_transaction_id`.
