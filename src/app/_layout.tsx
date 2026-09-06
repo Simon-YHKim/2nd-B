@@ -27,7 +27,6 @@ import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-c
 import { StatusBar } from "expo-status-bar";
 import { AppState } from "react-native";
 
-import "../../global.css";
 import { initI18n } from "@/lib/i18n";
 import {
   captureEvent,

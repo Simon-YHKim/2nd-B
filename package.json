@@ -88,7 +88,6 @@
     "galmuri": "^2.40.3",
     "i18next": "^23.15.0",
     "mammoth": "^1.12.0",
-    "nativewind": "^4.2.4",
     "pdfjs-dist": "^6.2.108",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -106,7 +105,6 @@
     "react-native-view-shot": "5.1.0",
     "react-native-web": "~0.21.0",
     "react-native-worklets": "0.8.3",
-    "tailwindcss": "^3.4.19",
     "ts-fsrs": "^5.4.1",
     "yaml": "^2.9.0",
     "zod": "^3.23.0"
