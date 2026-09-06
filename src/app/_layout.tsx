@@ -27,6 +27,9 @@ import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-c
 import { StatusBar } from "expo-status-bar";
 import { AppState } from "react-native";
 
+// Web-only base reset (no-op on native). See global.css for why it exists.
+import "../../global.css";
+
 import { initI18n } from "@/lib/i18n";
 import {
   captureEvent,
