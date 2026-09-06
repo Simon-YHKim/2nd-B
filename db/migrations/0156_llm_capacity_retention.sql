@@ -118,6 +118,31 @@ $schedule$;
 DO $verify$
 BEGIN
   IF to_regclass('public.llm_capacity_retention_idx') IS NULL
+     OR NOT COALESCE((
+       SELECT c.relrowsecurity AND c.relforcerowsecurity
+         FROM pg_catalog.pg_class AS c
+        WHERE c.oid = 'public.llm_proxy_capacity_reservations'::regclass
+     ), false)
+     OR NOT EXISTS (
+       SELECT 1
+         FROM pg_catalog.pg_proc AS p
+         JOIN pg_catalog.pg_namespace AS n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public'
+          AND p.proname = 'prune_llm_proxy_capacity_reservations'
+          AND p.pronargs = 0
+          AND p.prosecdef
+          AND p.proconfig @> ARRAY['search_path=""']::text[]
+     )
+     OR NOT EXISTS (
+       SELECT 1
+         FROM pg_catalog.pg_proc AS p
+         JOIN pg_catalog.pg_namespace AS n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public'
+          AND p.proname = 'prune_llm_proxy_capacity_on_insert'
+          AND p.pronargs = 0
+          AND p.prosecdef
+          AND p.proconfig @> ARRAY['search_path=""']::text[]
+     )
      OR has_function_privilege(
        'anon',
        'public.prune_llm_proxy_capacity_reservations()',

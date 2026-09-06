@@ -12,6 +12,11 @@ ALTER TABLE public.ai_audit_log
 ALTER TABLE public.crisis_events
   ADD COLUMN IF NOT EXISTS outbox_event_id text;
 
+ALTER TABLE public.ai_audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ai_audit_log FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.crisis_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.crisis_events FORCE ROW LEVEL SECURITY;
+
 DO $constraints$
 BEGIN
   IF NOT EXISTS (
@@ -246,7 +251,33 @@ GRANT EXECUTE ON FUNCTION public.log_crisis_event_once(text, numeric, text[], in
 
 DO $privileges$
 BEGIN
-  IF has_function_privilege(
+  IF NOT COALESCE((
+       SELECT c.relrowsecurity AND c.relforcerowsecurity
+         FROM pg_catalog.pg_class AS c
+        WHERE c.oid = 'public.ai_audit_log'::regclass
+     ), false)
+     OR NOT COALESCE((
+       SELECT c.relrowsecurity AND c.relforcerowsecurity
+         FROM pg_catalog.pg_class AS c
+        WHERE c.oid = 'public.crisis_events'::regclass
+     ), false)
+     OR NOT COALESCE((
+       SELECT i.indisunique AND i.indisvalid AND i.indisready
+         FROM pg_catalog.pg_index AS i
+        WHERE i.indexrelid =
+          'public.ai_audit_log_owner_outbox_event_unique'::regclass
+     ), false)
+     OR NOT COALESCE((
+       SELECT i.indisunique AND i.indisvalid AND i.indisready
+         FROM pg_catalog.pg_index AS i
+        WHERE i.indexrelid =
+          'public.crisis_events_owner_outbox_event_unique'::regclass
+     ), false)
+     OR has_table_privilege('anon', 'public.ai_audit_log', 'INSERT,UPDATE,DELETE,TRUNCATE')
+     OR has_table_privilege('authenticated', 'public.ai_audit_log', 'INSERT,UPDATE,DELETE,TRUNCATE')
+     OR has_table_privilege('anon', 'public.crisis_events', 'INSERT,UPDATE,DELETE,TRUNCATE')
+     OR has_table_privilege('authenticated', 'public.crisis_events', 'INSERT,UPDATE,DELETE,TRUNCATE')
+     OR has_function_privilege(
        'anon',
        'public.log_ai_audit_once(text,text,text,text,boolean,text,integer,text,text,text)',
        'EXECUTE'

@@ -8,7 +8,7 @@ BEGIN;
 
 SET LOCAL lock_timeout = '10s';
 
-CREATE TABLE public.reward_ssv_tickets (
+CREATE TABLE IF NOT EXISTS public.reward_ssv_tickets (
   token_hash              text PRIMARY KEY
     CHECK (token_hash ~ '^[0-9a-f]{64}$'),
   user_id                 uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
@@ -28,7 +28,7 @@ CREATE TABLE public.reward_ssv_tickets (
   )
 );
 
-CREATE INDEX reward_ssv_tickets_user_active_idx
+CREATE INDEX IF NOT EXISTS reward_ssv_tickets_user_active_idx
   ON public.reward_ssv_tickets (user_id, expires_at DESC)
   WHERE consumed_transaction_id IS NULL;
 
@@ -176,7 +176,28 @@ GRANT EXECUTE ON FUNCTION public.consume_reward_ssv_ticket(text, uuid, text) TO 
 
 DO $verify$
 BEGIN
-  IF has_function_privilege('anon', 'public.issue_reward_ssv_ticket(uuid,text,text)', 'EXECUTE')
+  IF NOT COALESCE((
+       SELECT c.relrowsecurity AND c.relforcerowsecurity
+         FROM pg_catalog.pg_class AS c
+        WHERE c.oid = 'public.reward_ssv_tickets'::regclass
+     ), false)
+     OR to_regclass('public.reward_ssv_tickets_user_active_idx') IS NULL
+     OR has_table_privilege(
+       'anon',
+       'public.reward_ssv_tickets',
+       'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+     )
+     OR has_table_privilege(
+       'authenticated',
+       'public.reward_ssv_tickets',
+       'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+     )
+     OR has_table_privilege(
+       'service_role',
+       'public.reward_ssv_tickets',
+       'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+     )
+     OR has_function_privilege('anon', 'public.issue_reward_ssv_ticket(uuid,text,text)', 'EXECUTE')
      OR has_function_privilege('authenticated', 'public.issue_reward_ssv_ticket(uuid,text,text)', 'EXECUTE')
      OR NOT has_function_privilege('service_role', 'public.issue_reward_ssv_ticket(uuid,text,text)', 'EXECUTE')
      OR has_function_privilege('anon', 'public.consume_reward_ssv_ticket(text,uuid,text)', 'EXECUTE')

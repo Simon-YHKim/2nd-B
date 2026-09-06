@@ -18,6 +18,19 @@ ALTER TABLE public.ai_audit_log
 ALTER TABLE public.crisis_events
   ALTER COLUMN event_source SET DEFAULT 'client_unverified';
 
+ALTER TABLE public.ai_audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ai_audit_log FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.crisis_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.crisis_events FORCE ROW LEVEL SECURITY;
+
+-- Authenticated clients write through the four owner-stamping RPCs below.
+-- Preserve read-only audit history access while making provenance impossible
+-- to choose through a direct table mutation, even if default grants drift.
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
+  ON public.ai_audit_log FROM PUBLIC, anon, authenticated;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
+  ON public.crisis_events FROM PUBLIC, anon, authenticated;
+
 DO $constraints$
 BEGIN
   IF NOT EXISTS (
@@ -524,7 +537,85 @@ REVOKE ALL ON public.ai_audit_daily_health FROM authenticated;
 
 DO $postconditions$
 BEGIN
-  IF has_function_privilege(
+  IF NOT COALESCE((
+       SELECT c.relrowsecurity AND c.relforcerowsecurity
+         FROM pg_catalog.pg_class AS c
+        WHERE c.oid = 'public.ai_audit_log'::regclass
+     ), false)
+     OR NOT COALESCE((
+       SELECT c.relrowsecurity AND c.relforcerowsecurity
+         FROM pg_catalog.pg_class AS c
+        WHERE c.oid = 'public.crisis_events'::regclass
+     ), false)
+     OR NOT EXISTS (
+       SELECT 1
+         FROM pg_catalog.pg_attribute AS a
+         JOIN pg_catalog.pg_attrdef AS d
+           ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+        WHERE a.attrelid = 'public.ai_audit_log'::regclass
+          AND a.attname = 'event_source'
+          AND pg_catalog.pg_get_expr(d.adbin, d.adrelid) =
+            '''client_unverified''::text'
+     )
+     OR NOT EXISTS (
+       SELECT 1
+         FROM pg_catalog.pg_attribute AS a
+         JOIN pg_catalog.pg_attrdef AS d
+           ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+        WHERE a.attrelid = 'public.crisis_events'::regclass
+          AND a.attname = 'event_source'
+          AND pg_catalog.pg_get_expr(d.adbin, d.adrelid) =
+            '''client_unverified''::text'
+     )
+     OR NOT EXISTS (
+       SELECT 1
+         FROM pg_catalog.pg_constraint
+        WHERE conrelid = 'public.ai_audit_log'::regclass
+          AND conname = 'ai_audit_log_event_source_check'
+          AND contype = 'c'
+          AND convalidated
+     )
+     OR NOT EXISTS (
+       SELECT 1
+         FROM pg_catalog.pg_constraint
+        WHERE conrelid = 'public.crisis_events'::regclass
+          AND conname = 'crisis_events_event_source_check'
+          AND contype = 'c'
+          AND convalidated
+     )
+     OR NOT EXISTS (
+       SELECT 1
+         FROM pg_catalog.pg_constraint
+        WHERE conrelid = 'public.ai_audit_log'::regclass
+          AND conname = 'ai_audit_log_client_payload_bounds'
+          AND contype = 'c'
+     )
+     OR NOT EXISTS (
+       SELECT 1
+         FROM pg_catalog.pg_constraint
+        WHERE conrelid = 'public.crisis_events'::regclass
+          AND conname = 'crisis_events_client_payload_bounds'
+          AND contype = 'c'
+     )
+     OR has_table_privilege(
+       'anon', 'public.ai_audit_log',
+       'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+     )
+     OR has_table_privilege(
+       'authenticated', 'public.ai_audit_log',
+       'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+     )
+     OR has_table_privilege(
+       'anon', 'public.crisis_events',
+       'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+     )
+     OR has_table_privilege(
+       'authenticated', 'public.crisis_events',
+       'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+     )
+     OR has_table_privilege('anon', 'public.ai_audit_daily_health', 'SELECT')
+     OR has_table_privilege('authenticated', 'public.ai_audit_daily_health', 'SELECT')
+     OR has_function_privilege(
        'anon',
        'public.log_ai_audit(text,text,text,boolean,text,integer,text,text,text)',
        'EXECUTE'
@@ -532,6 +623,61 @@ BEGIN
      OR NOT has_function_privilege(
        'authenticated',
        'public.log_ai_audit(text,text,text,boolean,text,integer,text,text,text)',
+       'EXECUTE'
+     )
+     OR has_function_privilege(
+       'service_role',
+       'public.log_ai_audit(text,text,text,boolean,text,integer,text,text,text)',
+       'EXECUTE'
+     )
+     OR has_function_privilege(
+       'anon',
+       'public.log_ai_audit_once(text,text,text,text,boolean,text,integer,text,text,text)',
+       'EXECUTE'
+     )
+     OR NOT has_function_privilege(
+       'authenticated',
+       'public.log_ai_audit_once(text,text,text,text,boolean,text,integer,text,text,text)',
+       'EXECUTE'
+     )
+     OR has_function_privilege(
+       'service_role',
+       'public.log_ai_audit_once(text,text,text,text,boolean,text,integer,text,text,text)',
+       'EXECUTE'
+     )
+     OR has_function_privilege(
+       'anon',
+       'public.assert_client_ai_audit_payload(text,text,text,boolean,text,integer,text,text,text)',
+       'EXECUTE'
+     )
+     OR has_function_privilege(
+       'authenticated',
+       'public.assert_client_ai_audit_payload(text,text,text,boolean,text,integer,text,text,text)',
+       'EXECUTE'
+     )
+     OR has_function_privilege(
+       'service_role',
+       'public.assert_client_ai_audit_payload(text,text,text,boolean,text,integer,text,text,text)',
+       'EXECUTE'
+     )
+     OR has_function_privilege(
+       'anon',
+       'public.assert_client_crisis_event_payload(numeric,text[],text,text)',
+       'EXECUTE'
+     )
+     OR has_function_privilege(
+       'authenticated',
+       'public.assert_client_crisis_event_payload(numeric,text[],text,text)',
+       'EXECUTE'
+     )
+     OR has_function_privilege(
+       'service_role',
+       'public.assert_client_crisis_event_payload(numeric,text[],text,text)',
+       'EXECUTE'
+     )
+     OR has_function_privilege(
+       'anon',
+       'public.enforce_client_audit_ingest_rate(uuid,text)',
        'EXECUTE'
      )
      OR has_function_privilege(
@@ -540,13 +686,38 @@ BEGIN
        'EXECUTE'
      )
      OR has_function_privilege(
+       'service_role',
+       'public.enforce_client_audit_ingest_rate(uuid,text)',
+       'EXECUTE'
+     )
+     OR has_function_privilege(
        'anon',
+       'public.log_crisis_event_once(text,numeric,text[],integer,text,text)',
+       'EXECUTE'
+     )
+     OR has_function_privilege(
+       'service_role',
        'public.log_crisis_event_once(text,numeric,text[],integer,text,text)',
        'EXECUTE'
      )
      OR NOT has_function_privilege(
        'authenticated',
        'public.log_crisis_event_once(text,numeric,text[],integer,text,text)',
+       'EXECUTE'
+     )
+     OR has_function_privilege(
+       'anon',
+       'public.log_crisis_event(numeric,text[],integer,text,text)',
+       'EXECUTE'
+     )
+     OR NOT has_function_privilege(
+       'authenticated',
+       'public.log_crisis_event(numeric,text[],integer,text,text)',
+       'EXECUTE'
+     )
+     OR has_function_privilege(
+       'service_role',
+       'public.log_crisis_event(numeric,text[],integer,text,text)',
        'EXECUTE'
      ) THEN
     RAISE EXCEPTION '0157 client audit ingest privilege postcondition failed';
