@@ -15,6 +15,7 @@ import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { callLlm } from "@/lib/llm/boundary";
 import { wrapUntrusted } from "@/lib/llm/untrusted";
+import { classifyIngestClipping, isSafeToAutoSurface } from "@/lib/safety/ingest-policy";
 import {
   buildExtractionPrompt,
   INGEST_SCHEMA,
@@ -89,6 +90,22 @@ function ImportExternalLegacy() {
     setPhase("analyzing");
     setDegraded(false);
     try {
+      // A5: the same third-party crisis-marker guard the clipper path uses
+      // (src/lib/wiki/classify-clipper.ts). Pasted material is someone else's
+      // text, so it must not reach callLlm's first-person crisis gate, which
+      // would answer with a hotline and write a crisis_events row. Quarantine
+      // keeps the local pass and skips the model.
+      //
+      // This screen is the EXPO_PUBLIC_UI=legacy body — ImportExternal returns
+      // DeepSpaceImportScreen on the deployed track, and that screen makes no
+      // LLM call. The guard is here for parity so the rollback skin cannot
+      // false-alarm either; it carries no new copy because the legacy track is
+      // scheduled for removal (Simon decision Q-260905-01, 2026-09-06).
+      if (!isSafeToAutoSurface(classifyIngestClipping(raw.trim(), locale))) {
+        setResult(parseIngestResult("", raw.trim()));
+        setPhase("result");
+        return;
+      }
       // Pasted third-party material is the classic injection channel — fence it
       // (was raw until 2026-07-26; INGEST_SYSTEM carries the matching guard line).
       const reply = await callLlm({ userId, locale, purpose: "import_ingest", system: INGEST_SYSTEM, user: wrapUntrusted("import_material", raw.trim()), minor: isMinor === true, responseSchema: INGEST_SCHEMA as unknown as Record<string, unknown> });
