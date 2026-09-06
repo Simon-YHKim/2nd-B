@@ -9,7 +9,7 @@
 // party capture of the call's own audio stream, so there is NO silent auto-
 // record. The sanctioned path is speakerphone mic capture the user starts — the
 // UI says so honestly rather than promising an impossible call-audio API.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Platform, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
@@ -25,7 +25,14 @@ import { useProgression } from "@/lib/progression/useProgression";
 import { createRecord } from "@/lib/records/create";
 import { composeStructured } from "@/lib/capture/structured";
 import { transcribeAudio } from "@/lib/llm/boundary";
-import { discardRecording, recordingUriToBase64 } from "@/lib/audio/recording-uri";
+import {
+  claimRecordingTemp,
+  discardRecording,
+  recordingUriToBase64,
+  stopAndDiscardRecording,
+  waitForRecordingCleanup,
+  type RecordingTempLease,
+} from "@/lib/audio/recording-uri";
 import { m3 } from "@/lib/theme/m3";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 
@@ -92,6 +99,8 @@ export default function CallReflection() {
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
   const [phase, setPhase] = useState<Phase>("idle");
+  const phaseRef = useRef<Phase>("idle");
+  const recorderLifecycleRef = useRef(0);
   const [secs, setSecs] = useState(0);
   const [busy, setBusy] = useState(false);
   const [transcript, setTranscript] = useState("");
@@ -108,6 +117,32 @@ export default function CallReflection() {
     return () => clearInterval(id);
   }, [phase]);
 
+  useEffect(() => {
+    const lifecycle = recorderLifecycleRef.current + 1;
+    recorderLifecycleRef.current = lifecycle;
+    return () => {
+      if (recorderLifecycleRef.current === lifecycle) {
+        recorderLifecycleRef.current = lifecycle + 1;
+      }
+      if (phaseRef.current !== "rec") return;
+      phaseRef.current = "idle";
+      void stopAndDiscardRecording(audioRecorder);
+    };
+  }, [audioRecorder]);
+
+  function updatePhase(next: Phase): void {
+    phaseRef.current = next;
+    setPhase(next);
+  }
+
+  function handleBack(): void {
+    if (phaseRef.current === "rec") {
+      phaseRef.current = "idle";
+      void stopAndDiscardRecording(audioRecorder);
+    }
+    router.back();
+  }
+
   if (loading) return null;
   if (!userId) return <Redirect href="/sign-in" />;
 
@@ -120,7 +155,7 @@ export default function CallReflection() {
   // signal is added. The "notify the other party" disclosure lives in the idle UI.
   if (!ko || isMinor === true) {
     return (
-      <DeepSpaceScreen active="home" variant="windowed" header="none" title={t("callReflection.title")} onBack={() => router.back()}>
+      <DeepSpaceScreen active="home" variant="windowed" header="none" title={t("callReflection.title")} onBack={handleBack}>
         <View style={s.blockedWrap}>
           <RNText style={s.blockedTitle}>{t("callReflection.blockedTitle")}</RNText>
           <RNText style={s.blockedBody}>{t("callReflection.blockedBody")}</RNText>
@@ -134,68 +169,89 @@ export default function CallReflection() {
 
   // ---- start recording (idle → rec) ----
   async function startRecording() {
+    const lifecycle = recorderLifecycleRef.current;
     setNotice(null);
     if (Platform.OS === "web") {
       setNotice(t("callReflection.webUnreliable"));
       return;
     }
     try {
+      await waitForRecordingCleanup(audioRecorder);
+      if (recorderLifecycleRef.current !== lifecycle) return;
       const perm = await requestRecordingPermissionsAsync();
+      if (recorderLifecycleRef.current !== lifecycle) return;
       if (!perm.granted) {
         setNotice(t("callReflection.micPermission"));
         return;
       }
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      if (recorderLifecycleRef.current !== lifecycle) return;
       await audioRecorder.prepareToRecordAsync();
+      if (recorderLifecycleRef.current !== lifecycle) {
+        void stopAndDiscardRecording(audioRecorder);
+        return;
+      }
       audioRecorder.record();
       setSecs(0);
-      setPhase("rec");
-    } catch (e) {
-      if (typeof console !== "undefined") console.warn("[call-reflection] start failed", (e as Error).message);
-      setPhase("idle");
+      updatePhase("rec");
+    } catch {
+      if (recorderLifecycleRef.current !== lifecycle) return;
+      if (typeof console !== "undefined") console.warn("[call-reflection] recording start failed");
+      updatePhase("idle");
       setNotice(t("callReflection.startFailed"));
     }
   }
 
   // ---- stop + transcribe (rec → stt → result) ----
   async function stopAndTranscribe() {
-    if (!userId || phase !== "rec") return;
-    setPhase("stt");
+    if (!userId || phaseRef.current !== "rec") return;
+    updatePhase("stt");
     let recordingUri: string | null = null;
+    let recordingLease: RecordingTempLease | null = null;
     try {
       await audioRecorder.stop();
       recordingUri = audioRecorder.uri;
       if (!recordingUri) {
-        setPhase("idle");
+        updatePhase("idle");
         setNotice(t("callReflection.noRecording"));
         return;
       }
+      recordingLease = await claimRecordingTemp(recordingUri);
+      if (!recordingLease) throw new Error("voice_read_failed");
       const { base64, mimeType } = await recordingUriToBase64(recordingUri);
       const reply = await transcribeAudio({ userId, locale, base64, mimeType, minor: isMinor === true });
       // C9: a red-zone transcript was swapped server-side for the fixed crisis
       // template — route to the hotline instead of keeping it.
       if (reply.safety?.zone === "red") {
-        setPhase("idle");
+        updatePhase("idle");
         setCrisis({ visible: true, hotline: hotlineFor(ko, isMinor === true) });
         return;
       }
       const text = reply.text.trim();
       if (text.length === 0) {
-        setPhase("idle");
+        updatePhase("idle");
         setNotice(t("callReflection.nothingToTranscribe"));
         return;
       }
       setTranscript(text);
-      setPhase("result");
-    } catch (e) {
-      if (typeof console !== "undefined") console.warn("[call-reflection] transcribe failed", (e as Error).message);
-      setPhase("idle");
+      updatePhase("result");
+    } catch {
+      if (typeof console !== "undefined") console.warn("[call-reflection] transcription failed");
+      updatePhase("idle");
       setNotice(t("callReflection.transcribeFailed"));
     } finally {
       // Honor the "원본 녹음은 곧 삭제돼요" promise: drop the temp audio once the
       // text has been extracted (runs on the crisis / empty / error paths too).
-      await discardRecording(recordingUri);
+      await discardRecording(recordingLease);
     }
+  }
+
+  async function cancelRecording(): Promise<void> {
+    if (phaseRef.current !== "rec") return;
+    phaseRef.current = "idle";
+    setSecs(0);
+    await stopAndDiscardRecording(audioRecorder);
+    setPhase("idle");
   }
 
   async function approve() {
@@ -232,7 +288,7 @@ export default function CallReflection() {
   // ---- STT (loading) ----
   if (phase === "stt") {
     return (
-      <DeepSpaceScreen active="home" variant="windowed" header="none" title={t("callReflection.title")} onBack={() => router.back()}>
+      <DeepSpaceScreen active="home" variant="windowed" header="none" title={t("callReflection.title")} onBack={handleBack}>
         <View style={s.loadingWrap}>
           <DeepSpaceLoader variant="dots" caption={t("callReflection.transcribing")} />
           <RNText style={s.loadingSub}>{copy.loadingSub}</RNText>
@@ -245,7 +301,7 @@ export default function CallReflection() {
   // ---- Result ----
   if (phase === "result") {
     return (
-      <DeepSpaceScreen active="home" variant="windowed" header="none" title={t("callReflection.title")} onBack={() => router.back()}>
+      <DeepSpaceScreen active="home" variant="windowed" header="none" title={t("callReflection.title")} onBack={handleBack}>
         <ScrollView contentContainerStyle={s.resultScroll} showsVerticalScrollIndicator={false}>
           <View style={s.resultHead}>
             <PixelGlyph name="task_alt" color={m3.color.primary} size={22} />
@@ -274,7 +330,7 @@ export default function CallReflection() {
   // ---- idle / rec ----
   const recording = phase === "rec";
   return (
-    <DeepSpaceScreen active="home" variant="windowed" header="none" title={t("callReflection.title")} onBack={() => router.back()}>
+    <DeepSpaceScreen active="home" variant="windowed" header="none" title={t("callReflection.title")} onBack={handleBack}>
       <View style={s.frame}>
         <View style={s.hero}>
           <View style={[s.circle, recording ? s.circleRec : s.circleIdle]}>
@@ -314,16 +370,7 @@ export default function CallReflection() {
               <MdButton
                 variant="text"
                 label={t("callReflection.cancelNoSave")}
-                onPress={() => {
-                  // "저장 안 함" must also DELETE the temp audio file — every
-                  // other exit path discards it; this one left it on disk.
-                  void audioRecorder
-                    .stop()
-                    .then(() => discardRecording(audioRecorder.uri))
-                    .catch(() => {});
-                  setSecs(0);
-                  setPhase("idle");
-                }}
+                onPress={() => void cancelRecording()}
               />
             </>
           ) : (
