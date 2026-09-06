@@ -335,6 +335,30 @@ main이 움직인 뒤 content digest만 어긋나면 `Hash and approve immutable
 - 실패하면 새 `source_sha`로 처음부터 다시 한다. 같은 SHA 재시도는 아래 forward-only 규칙에
   걸린다.
 
+**이 요구는 웹 게시만의 것이 아니다.** `github-release.yml`도 같은 성질을 갖는다 —
+`:90`이 `git rev-parse HEAD != git rev-parse origin/main`이면 거부하고(*"The workflow commit
+is not the current origin/main head."*), `:261`이 EAS 빌드 provenance의 `gitCommitHash`가 그
+커밋과 정확히 같기를 요구한다(*"authenticated git commit mismatch"*). **둘이 동시에 성립해야
+하므로, main이 움직이면 이미 만들어둔 빌드가 통째로 못 쓰게 된다.**
+
+2026-09-07 실측 — 이날 이 벽에 세 번 부딪혔다:
+
+| 작업 | 고정 대상 | 실측 소요 | 필요한 정지 창 |
+|---|---|---|---|
+| web publish | 승인 시점의 main tip | 5m58s ~ 11m29s | **약 12분** |
+| github release | 실행 시점의 main tip + 빌드 커밋 | 빌드 포함 왕복 약 25분 | **약 50분** |
+
+같은 날 관측된 머지 간격은 **2~8분**이었다. 그 사이에 위 창이 들어갈 자리가 없어서 웹 게시가
+3연속 실패했고, `1c857b43`에서 만든 EAS 빌드 3종(iOS FINISHED 포함)이 폐기됐다.
+
+**이건 워크플로 결함이 아니라 여러 세션이 동시에 머지하는 환경의 성질이다.** 게이트는 전부
+옳게 동작했다. 고칠 것은 워크플로가 아니라 **절차**다 — 게시·릴리즈 전에 창을 선언하고,
+armed auto-merge가 0인지 **조회로** 확인하고(알림으로는 안 멈춘다), 그 창 안에서 끝낸다.
+
+⚠ **디스패치 전에 다른 세션이 이미 쐈는지 확인한다.** 2026-09-07에 두 세션이 70초 차이로 같은
+SHA에 publish를 쏴서 run이 둘 생겼다. 둘 다 승인하면 두 번째는 same-SHA 재배포 금지에 걸린다.
+`event=workflow_dispatch`로 현재 진행 중인 run을 먼저 조회하고, 중복이면 나중 것을 취소한다.
+
 ## 복구는 forward-only
 
 ancestor artifact를 다시 배포하는 `rollback` mode와 floor input은 없다. `deploy-pages` v5는
