@@ -39,6 +39,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import {
   BRAIN_RANK,
+  LlmBodyError,
   MAX_ASSEMBLED_LEN,
   MAX_USER_LEN,
   SAFETY_PREAMBLE,
@@ -46,22 +47,33 @@ import {
   UPSTREAM_DETAIL_TRUNCATE,
   auditUpstreamFailure,
   clampLlmPurposeEffort,
+  consumeLlmPurposeQuota,
   corsPreflight,
   dailyCapForRank,
   djb2,
   hasCrisisTerm,
+  isLlmJsonObject,
   isUsableHeaderValue,
   jsonResponse,
+  llmCapacityWeight,
   normalizeResponseSchema,
+  readLlmProxyJsonObject,
+  readLlmUpstreamErrorText,
+  readLlmUpstreamJsonObject,
   requestMatchesLlmPurposeModality,
+  reserveLlmProxyCapacity,
   resolveApiKey,
   resolveLlmPurposePolicy,
+  transitionLlmProxyCapacity,
   userIdFromJwt,
   utcDay,
 } from '../_shared/llm-proxy-common.ts';
 
 const ANTHROPIC_ENDPOINT = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_VERSION = '2023-06-01';
+const PROVIDER_TIMEOUT_MS = 30_000;
+const REASONING_RUN_ID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // D-26 Phase 2 Anthropic seats (server-owned routing). VERY-HIGH-stakes
 // self-understanding narrative surfaces run opus; interactive/short surfaces
@@ -198,6 +210,10 @@ Deno.serve(async (req: Request) => {
   const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
+  const capacityRpc = (functionName: string, args: Record<string, unknown>) =>
+    supabaseAdmin.rpc(functionName, args);
+  const auditUpstreamFailureSupplemental = (options: Parameters<typeof auditUpstreamFailure>[1]) =>
+    auditUpstreamFailure(supabaseAdmin, options);
 
   let body: {
     user?: unknown;
@@ -205,10 +221,15 @@ Deno.serve(async (req: Request) => {
     purpose?: unknown;
     effort?: unknown;
     responseSchema?: unknown;
+    reasoningRunId?: unknown;
+    reasoningSlot?: unknown;
   };
   try {
-    body = await req.json();
-  } catch {
+    body = await readLlmProxyJsonObject(req) as typeof body;
+  } catch (error) {
+    if (error instanceof LlmBodyError && error.code === 'request_body_too_large') {
+      return jsonResponse(req, { error: error.code, max: error.maxBytes }, 413);
+    }
     return jsonResponse(req, { error: 'invalid_json' }, 400);
   }
 
@@ -216,6 +237,7 @@ Deno.serve(async (req: Request) => {
   const systemText: string | null = typeof body?.system === 'string' ? body.system : null;
   const purpose: string | null = typeof body?.purpose === 'string' ? body.purpose : null;
   const effort: string | null = typeof body?.effort === 'string' ? body.effort : null;
+  const responseSchemaProvided = body?.responseSchema !== undefined;
   const responseSchema = normalizeResponseSchema(body?.responseSchema);
   const purposePolicy = resolveLlmPurposePolicy(purpose, 'claude');
   if (!purpose || !purposePolicy) {
@@ -224,10 +246,18 @@ Deno.serve(async (req: Request) => {
   if (!requestMatchesLlmPurposeModality(purposePolicy, 'text')) {
     return jsonResponse(req, { error: 'purpose_modality_mismatch' }, 400);
   }
+  if (responseSchemaProvided && (!responseSchema || responseSchema.type !== 'object')) {
+    return jsonResponse(req, { error: 'response_schema_invalid' }, 400);
+  }
   const claudeModel = resolveModel(purpose);
   if (!claudeModel) {
     return jsonResponse(req, { error: 'purpose_not_seated', purpose }, 400);
   }
+  const reasoningRunId = typeof body?.reasoningRunId === 'string' ? body.reasoningRunId : '';
+  const reasoningSlot =
+    body?.reasoningSlot === 'records' || body?.reasoningSlot === 'sources'
+      ? body.reasoningSlot
+      : '';
 
   if (userText.length === 0) return jsonResponse(req, { error: 'user_required' }, 400);
   if (userText.length > MAX_USER_LEN) {
@@ -244,94 +274,106 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: 'safety_red_zone', reason: 'crisis_term_detected' }, 422);
   }
 
+  // Mandatory withdrawal-aware consent before entitlement, spend, or egress.
+  try {
+    const { data: consentOk, error: consentErr } = await supabaseAdmin.rpc(
+      'effective_llm_consent',
+      { p_user_id: userId },
+    );
+    if (consentErr) {
+      console.error('[claude-proxy] effective consent lookup failed');
+      return jsonResponse(req, { error: 'consent_check_unavailable' }, 503);
+    }
+    if (consentOk !== true) return jsonResponse(req, { error: 'consent_required' }, 403);
+  } catch {
+    console.error('[claude-proxy] effective consent lookup threw');
+    return jsonResponse(req, { error: 'consent_check_unavailable' }, 503);
+  }
+
   // EFFECTIVE tier via effective_subscription_tier (0088), NOT the raw
   // subscription_tier column -- mirrors gemini-proxy. The raw column stays
   // 'brain'/'cortex' after expiry until the cancel webhook lands, so reading it
   // let a lapsed subscriber keep the brain-only premium purposes + the brain
   // daily ceiling, and 403'd a comped judge (raw 'free' + judge_mode). The RPC
-  // collapses expired->free and comps judge->brain, matching the cap RPCs. A
-  // lookup error uses the free cap for ordinary seats and fails closed for a
-  // brain-gated seat.
+  // collapses expired->free and comps judge->brain, matching the cap RPCs.
   let tierRank: number | null = null;
-  let tierLookupFailed = false;
   {
-    const { data: effTier, error: tierErr } = await supabaseAdmin.rpc(
-      'effective_subscription_tier',
-      { p_user_id: userId },
-    );
-    if (tierErr) {
-      tierLookupFailed = true;
-      console.error('[claude-proxy] effective-tier lookup failed:', tierErr.message ?? String(tierErr));
-    } else {
-      const t = (effTier as string | null) ?? 'free';
-      tierRank = TIER_RANK[t] ?? 0;
-    }
-  }
-  if (purposePolicy.minimumTier === 'brain') {
-    if (tierLookupFailed || tierRank === null) {
+    try {
+      const { data: effTier, error: tierErr } = await supabaseAdmin.rpc(
+        'effective_subscription_tier',
+        { p_user_id: userId },
+      );
+      if (tierErr) {
+        console.error('[claude-proxy] effective-tier lookup failed');
+        return jsonResponse(req, { error: 'entitlement_check_unavailable' }, 503);
+      }
+      const tier = (effTier as string | null) ?? 'free';
+      if (!Object.prototype.hasOwnProperty.call(TIER_RANK, tier)) {
+        console.error('[claude-proxy] effective-tier lookup returned an unknown tier');
+        return jsonResponse(req, { error: 'entitlement_check_unavailable' }, 503);
+      }
+      tierRank = TIER_RANK[tier];
+    } catch {
+      console.error('[claude-proxy] effective-tier lookup threw');
       return jsonResponse(req, { error: 'entitlement_check_unavailable' }, 503);
     }
-    if (tierRank < BRAIN_RANK) {
+  }
+  const tierLookupFailed = tierRank === null;
+  if (tierLookupFailed || tierRank === null) {
+    return jsonResponse(req, { error: 'entitlement_check_unavailable' }, 503);
+  }
+  if (purposePolicy.minimumTier === 'brain') {
+    if (tierRank === null || tierRank < BRAIN_RANK) {
       return jsonResponse(req, { error: 'entitlement_required', feature: purpose }, 403);
     }
   }
 
+  const purposeQuota = await consumeLlmPurposeQuota(capacityRpc, userId, purpose);
+  if (!purposeQuota.ok) {
+    if (purposeQuota.reason === 'limited') {
+      return jsonResponse(req, { error: 'purpose_limit_exceeded', feature: purpose }, 429);
+    }
+    console.error('[claude-proxy] purpose quota unavailable');
+    return jsonResponse(req, { error: 'purpose_limit_unavailable' }, 503);
+  }
+
   // Spend cap (cost backstop) -- shared per-user/day counter with gemini-proxy.
-  const { error: spendErr } = await supabaseAdmin.rpc('bump_gemini_spend', {
-    p_user_id: userId,
-    p_day: utcDay(),
-    p_cap: dailyCapForRank(tierRank),
-  });
+  let spendErr: { message?: string } | null = null;
+  try {
+    const result = await supabaseAdmin.rpc('bump_gemini_spend', {
+      p_user_id: userId,
+      p_day: utcDay(),
+      p_cap: dailyCapForRank(tierRank),
+    });
+    spendErr = result.error;
+  } catch {
+    console.error('[claude-proxy][ALERT] spend check threw -- failing closed');
+    return jsonResponse(req, { error: 'spend_check_unavailable' }, 503);
+  }
   if (spendErr) {
     const msg = spendErr.message ?? '';
     if (msg.includes('gemini_spend_exceeded')) {
       return jsonResponse(req, { error: 'daily_limit_exceeded' }, 429);
     }
-    // FAIL CLOSED on a cost-critical error. The only tolerated case is "RPC does
-    // not exist yet" (migration not applied) -- allow + alert loudly.
-    const code = (spendErr as { code?: string }).code ?? '';
-    const rpcMissing =
-      code === 'PGRST202' || code === '42883' || msg.includes('Could not find the function');
-    if (rpcMissing && Deno.env.get('GEMINI_SPEND_FAILOPEN') === '1') {
-      console.error('[claude-proxy][ALERT] spend RPC missing -- allowing WITHOUT a cap. Apply 0035/0036:', msg);
-    } else {
-      console.error('[claude-proxy][ALERT] spend check unavailable -- failing closed:', msg);
-      return jsonResponse(req, { error: 'spend_check_unavailable' }, 503);
-    }
+    console.error('[claude-proxy][ALERT] spend check unavailable -- failing closed:', msg);
+    return jsonResponse(req, { error: 'spend_check_unavailable' }, 503);
   }
-  // True only on the clean-bump path (not the rpc-missing fail-open), so a
-  // refund can never decrement a counter that was never incremented.
+  // True only on the clean-bump path, so a refund can never decrement a counter
+  // that was never incremented.
   const spentBumped = !spendErr;
 
-  // D6 (audit M5): consent egress gate. Flag-gated by LLM_REQUIRE_CONSENT
-  // (default off) -- enable once legal finalizes the consent copy/versions. When
-  // on, require a current consent row (llm_processing_ack + overseas_transfer_ack)
-  // before sending user content to the overseas vendor; fail CLOSED if unverifiable.
-  // NOTE (R1 / pre-deploy review P2): consent_records is an append-only GRANT
-  // ledger (0031). Withdrawal lives ELSEWHERE -- users.privacy_prefs (current
-  // state) + the consent_changes ledger (0062, grant/revoke per pref key). This
-  // grant-only read does NOT see a withdrawal, so BEFORE enabling
-  // LLM_REQUIRE_CONSENT the read MUST become withdrawal-aware (effective consent =
-  // granted acks AND the driving external-processing pref still ON, PIPA 37 /
-  // GDPR 7(3)). Which prefs constitute "overseas transfer consent" is a
-  // legal/data-model decision -- resolve first. See docs/RISK-REMEDIATION-260726.md (R1).
-  if ((Deno.env.get('LLM_REQUIRE_CONSENT') ?? 'false') === 'true') {
-    let consentOk = false;
+  // Refund only while it is provable that no provider request was dispatched.
+  const refundBeforeDispatch = async () => {
+    if (!spentBumped) return;
     try {
-      const { data: consentRow, error: consentErr } = await supabaseAdmin
-        .from('consent_records')
-        .select('llm_processing_ack, overseas_transfer_ack')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      consentOk = !consentErr && !!consentRow &&
-        consentRow.llm_processing_ack === true && consentRow.overseas_transfer_ack === true;
-    } catch (_e) {
-      consentOk = false;
+      await supabaseAdmin.rpc('refund_gemini_spend', { p_user_id: userId, p_day: utcDay() });
+    } catch (error) {
+      console.warn('[claude-proxy] spend refund failed:', String(error).slice(0, UPSTREAM_DETAIL_TRUNCATE));
     }
-    if (!consentOk) return jsonResponse(req, { error: 'consent_required' }, 403);
-  }
+  };
+  // This failure alias is pre-dispatch only; billed or billing-ambiguous paths
+  // below deliberately never refund spend.
+  const refundOnFailure = refundBeforeDispatch;
 
   const clampedEffort = clampLlmPurposeEffort(
     purposePolicy,
@@ -359,13 +401,7 @@ Deno.serve(async (req: Request) => {
     // misconfigured secret quietly eats a user's whole allowance, one unit per
     // attempt, while they see only an error. refund_gemini_spend (0110) floors at
     // 0 and no-ops when there is no row, so a stray refund is safe.
-    if (spentBumped) {
-      try {
-        await supabaseAdmin.rpc('refund_gemini_spend', { p_user_id: userId, p_day: utcDay() });
-      } catch (e) {
-        console.warn('[claude-proxy] spend refund failed:', String(e).slice(0, 80));
-      }
-    }
+    await refundOnFailure();
     console.error(
       `[claude-proxy] ANTHROPIC_API_KEY is not usable as a header value (control character in the secret?)`,
     );
@@ -400,25 +436,60 @@ Deno.serve(async (req: Request) => {
     },
   };
 
-  // Give back the daily-cap unit when the call produced nothing billable, so a
-  // vendor outage can't burn a user's whole allowance on answers they never got.
-  // Refund ONLY on no-upstream-billing failures (unreachable / non-2xx reject),
-  // never on refusal/truncation (the model ran and billed). refund_gemini_spend
-  // (0110) floors at 0 and no-ops when no row exists, so a stray refund is safe.
-  const refundOnFailure = async () => {
-    if (!spentBumped) return;
-    try {
-      await supabaseAdmin.rpc('refund_gemini_spend', { p_user_id: userId, p_day: utcDay() });
-    } catch (e) {
-      console.warn('[claude-proxy] spend refund failed:', String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE));
+  const capacity = await reserveLlmProxyCapacity(
+    capacityRpc,
+    'claude',
+    claudeModel,
+    llmCapacityWeight(anthropicBody.max_tokens),
+  );
+  if (!capacity.ok) {
+    await refundBeforeDispatch();
+    return jsonResponse(
+      req,
+      { error: capacity.reason === 'limited' ? 'llm_capacity_exceeded' : 'llm_capacity_unavailable' },
+      capacity.reason === 'limited' ? 429 : 503,
+    );
+  }
+  const releaseCapacity = () =>
+    transitionLlmProxyCapacity(capacityRpc, capacity.reservationId, 'release');
+
+  if (purpose === 'reasoning_connect') {
+    if (!REASONING_RUN_ID_RE.test(reasoningRunId) || !reasoningSlot) {
+      await releaseCapacity();
+      await refundBeforeDispatch();
+      return jsonResponse(req, { error: 'reasoning_reservation_required' }, 403);
     }
-  };
+    try {
+      const { data: claimOk, error: claimErr } = await supabaseAdmin.rpc(
+        'claim_reasoning_proxy_call',
+        { p_user_id: userId, p_run_id: reasoningRunId, p_slot: reasoningSlot },
+      );
+      if (claimErr) {
+        console.error('[claude-proxy] reasoning reservation claim unavailable');
+        await releaseCapacity();
+        await refundBeforeDispatch();
+        return jsonResponse(req, { error: 'reasoning_reservation_unavailable' }, 503);
+      }
+      if (claimOk !== true) {
+        await releaseCapacity();
+        await refundBeforeDispatch();
+        return jsonResponse(req, { error: 'reasoning_reservation_required' }, 403);
+      }
+    } catch {
+      console.error('[claude-proxy] reasoning reservation claim threw');
+      await releaseCapacity();
+      await refundBeforeDispatch();
+      return jsonResponse(req, { error: 'reasoning_reservation_unavailable' }, 503);
+    }
+  }
 
   const t0 = Date.now();
   let upstream: Response;
   try {
     upstream = await fetch(ANTHROPIC_ENDPOINT, {
       method: 'POST',
+      redirect: 'error',
+      signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
       headers: {
         'content-type': 'application/json',
         'x-api-key': resolvedKey.apiKey,
@@ -427,7 +498,7 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify(anthropicBody),
     });
   } catch (e) {
-    await refundOnFailure();
+    await transitionLlmProxyCapacity(capacityRpc, capacity.reservationId, 'settle');
     // REQ-260824-01: a failing seat must leave a trace. Without this the one
     // table that records the AI layer holds only the calls that worked.
     await auditUpstreamFailure(supabaseAdmin, {
@@ -437,11 +508,16 @@ Deno.serve(async (req: Request) => {
     });
     return jsonResponse(req, { error: 'upstream_unreachable', detail: String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE) }, 502);
   }
+  await transitionLlmProxyCapacity(capacityRpc, capacity.reservationId, 'settle');
   const latencyMs = Date.now() - t0;
 
   if (!upstream.ok) {
-    const errBody = await upstream.text();
-    await refundOnFailure();
+    let errBody = '';
+    try {
+      errBody = await readLlmUpstreamErrorText(upstream);
+    } catch {
+      errBody = 'upstream response unavailable';
+    }
     await auditUpstreamFailure(supabaseAdmin, {
       userId, purpose, model: claudeModel, vendor: 'claude',
       outcome: `upstream_${upstream.status}`, latencyMs,
@@ -465,8 +541,34 @@ Deno.serve(async (req: Request) => {
     usage?: { input_tokens?: number; output_tokens?: number };
   };
   try {
-    data = await upstream.json();
-  } catch (_e) {
+    data = await readLlmUpstreamJsonObject(upstream) as typeof data;
+    if (!Array.isArray(data.content)) throw new LlmBodyError('upstream_bad_payload');
+    if (
+      (data.model !== undefined && typeof data.model !== 'string') ||
+      (data.stop_reason !== undefined && data.stop_reason !== null && typeof data.stop_reason !== 'string')
+    ) throw new LlmBodyError('upstream_bad_payload');
+    for (const block of data.content) {
+      if (!isLlmJsonObject(block) || typeof block.type !== 'string') {
+        throw new LlmBodyError('upstream_bad_payload');
+      }
+      if (block.type === 'text' && typeof block.text !== 'string') {
+        throw new LlmBodyError('upstream_bad_payload');
+      }
+    }
+    if (data.usage !== undefined) {
+      if (!isLlmJsonObject(data.usage)) throw new LlmBodyError('upstream_bad_payload');
+      for (const count of [data.usage.input_tokens, data.usage.output_tokens]) {
+        if (count !== undefined && (!Number.isSafeInteger(count) || count < 0)) {
+          throw new LlmBodyError('upstream_bad_payload');
+        }
+      }
+    }
+  } catch {
+    await auditUpstreamFailureSupplemental({
+      userId, purpose, model: claudeModel, vendor: 'claude',
+      outcome: 'upstream_bad_payload', latencyMs,
+      keyCombo, promptHash: djb2(`${systemText ?? ''}${userText}`),
+    });
     return jsonResponse(req, { error: 'upstream_bad_payload' }, 502);
   }
   // Anthropic returns content as an array of blocks; concatenate the text blocks
@@ -500,6 +602,7 @@ Deno.serve(async (req: Request) => {
   try {
     const { error: auditErr } = await supabaseAdmin.from('ai_audit_log').insert({
       user_id: userId,
+      event_source: 'server_verified',
       prompt_hash: djb2(`${systemText ?? ''}${userText}`),
       output_hash: djb2(text),
       model_used: refused ? `${modelUsed}+refusal` : truncated ? `${modelUsed}+truncated` : modelUsed,
