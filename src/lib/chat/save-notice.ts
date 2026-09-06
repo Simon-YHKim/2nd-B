@@ -133,8 +133,3 @@ export function shouldShowChatSaveNotice(input: {
   if (input.dismissed !== false) return false;
   return input.turnCount > 0;
 }
-
-export function __resetChatSaveNoticeForTests(): void {
-  memoryDismissed = false;
-  memoryHydrated = false;
-}

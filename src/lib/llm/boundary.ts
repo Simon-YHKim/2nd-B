@@ -2,11 +2,11 @@
 //
 //   C1: Only this file imports @google/genai (enforced by ESLint + boundary script).
 //   C2: When EXPO_PUBLIC_USE_VERTEX=true, the @google/genai client is constructed
-//       with vertexai:true, satisfying the XPRIZE "Google Cloud product" mandate.
+//       with vertexai:true (retained Vertex branch; not a product requirement).
 //   C3: After every call, ai_audit_log receives a queued write via audit-write outbox.
 //   C9: classifyInput() runs BEFORE the network call. Red zone short-circuits.
 //
-// Tests in __tests__/gemini.test.ts assert the ordering.
+// Tests in __tests__/boundary.test.ts assert the ordering.
 
 import { GoogleGenAI } from "@google/genai";
 
@@ -503,8 +503,8 @@ async function routeCrisis(
     // (callLlm paths); record-save scans have no PromptPurpose — NULL row.
     ...(opts.purpose ? { purpose: opts.purpose } : {}),
   };
-  // C3: crisis routing MUST be audited. The whole point of audit_log is the
-  // judges' ability to prove the safety classifier intercepted dangerous input.
+  // C3: crisis routing MUST be audited. The whole point of audit_log is an
+  // audit trail proving the safety classifier intercepted dangerous input.
   await writeAiAuditLog(userId, audit, "[ai_audit_log] crisis insert failed");
   // Separate restricted ledger (crisis_events), parity with callAdvisor's input-RED
   // path. Without this every callLlm surface (chat/journal/interview/persona/
@@ -819,7 +819,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   // jailbreak, or multi-turn drift. callLlm text is rendered verbatim by every
   // caller (interview probe, phase1 summary, import echo, persona), so we must
   // NOT ship it. Swap in the verbatim crisis template, write an HONEST audit row
-  // (real model + latency + a +swap marker so judges see the model WAS called and
+  // (real model + latency + a +swap marker so the audit trail shows the model WAS called and
   // intercepted), and log a categorical crisis_event.
   // F9: write the swap row UNCONDITIONALLY (was gated on !proxyAudited). Unlike
   // GREEN/YELLOW this is NOT a duplicate of the proxy's row -- the proxy audited the
@@ -1550,7 +1550,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
 
   if (outputSafety.zone === "red") {
     // Don't ship the Pro text. Substitute the verbatim crisis template, audit
-    // both the swapped text and the original (to give judges a trail), and
+    // both the swapped text and the original (to keep a full audit trail), and
     // log a crisis_event with categorical metadata.
     const fixed = fixedCrisisResponse(input.locale, input.minor);
     const audit = {

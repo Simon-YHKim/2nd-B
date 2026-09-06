@@ -18,13 +18,5 @@
   "retryLoadHint": "그래프 데이터를 다시 불러옵니다",
   "openRecordsHint": "기록 보관소 화면으로 이동합니다",
   "openCenterHint": "북극성 화면으로 이동합니다",
-  "todaysCenter": "오늘의 중심",
-  "navGraph": "그래프",
-  "navWiki": "위키",
-  "navRecords": "기록",
-  "navResearch": "리서치",
-  "navAssistant": "비서",
-  "navToday": "오늘의 루틴",
-  "navMyChange": "나의 변화",
-  "navImport": "가져오기"
+  "todaysCenter": "오늘의 중심"
 }
