@@ -9,6 +9,7 @@
 // defaults anchored on the URL-derived kind, so a capture never fails to save.
 
 import { callLlm } from "../llm/boundary";
+import { classifyIngestClipping, isSafeToAutoSurface, INGEST_QUARANTINE_TAG } from "../safety/ingest-policy";
 import { INJECTION_GUARD, wrapUntrusted } from "../llm/untrusted";
 import { detectClipperKind } from "./clipper-kind";
 import {
@@ -283,6 +284,25 @@ export async function classifyClipper(
     // table not applied yet / offline — bundled kinds are enough.
   }
   if (matchedFormat) baselineKind = matchedFormat.baseKind;
+
+  // A5 (eng review, CRITICAL): clipped content is SOMEONE ELSE'S text. callLlm
+  // classifies its input with the first-person crisis classifier and, on red,
+  // short-circuits into routeCrisis — a hotline reply plus a restricted
+  // crisis_events row (src/lib/llm/boundary.ts, the C9 gate). Clipping a
+  // suicide-prevention article therefore told the user we thought THEY were in
+  // crisis and wrote it to the crisis ledger. ingest-policy.ts was written for
+  // exactly this and was never wired to a caller (audit 2026-09-05, D3-18).
+  //
+  // Quarantine keeps the clip (it still saves, tagged for review) but never
+  // reaches the model, so no routing and no crisis row can happen. The clip
+  // degrades to the URL-derived kind, which is the same shape this function
+  // already returns when the model call fails.
+  const ingestPolicy = classifyIngestClipping(trimmed, locale);
+  if (!isSafeToAutoSurface(ingestPolicy)) {
+    const held = parseClipperResult("", baselineKind, matchedFormat?.baseKind, matchedFormat?.aiProperties);
+    held.tags = Array.from(new Set([...held.tags, INGEST_QUARANTINE_TAG]));
+    return held;
+  }
 
   const { system, user } = buildClipperPrompt(baselineKind, trimmed, url, locale, customFormats, matchedFormat?.aiProperties);
   // Same prop-list resolution as buildClipperPrompt (matched format wins).
