@@ -20,6 +20,18 @@
   ],
   "deviations": [
     {
+      "screen": "star",
+      "axis": "E",
+      "items": [
+        "career"
+      ],
+      "what": "레퍼런스 구조가 사용자용 도메인 이름 대신 내부 slug를 노출한다",
+      "why": "현재 앱의 살아 있는 도메인 상세와 한국어 카피는 사용자에게 `커리어`를 표시한다. 레퍼런스 structure의 소문자 영문 `career`는 라우팅과 저장에 쓰는 내부 식별자이므로 화면에 추가하면 현지화된 사용자 카피를 훼손한다. 앱의 `커리어` 표시는 유지하고 내부 slug 한 항목만 E축 분모에서 제외한다.",
+      "checked": "2026-08-30 실제 `/star/career` DOM의 `커리어`, `structure/star.json`의 내부 slug `career`, docs/PRD.md §4.5가 유지하는 `/star/<domain>` 상세 계약을 대조.",
+      "decidedBy": "canonical PRD v4 + live app localization + Work0 visual audit",
+      "date": "2026-08-30"
+    },
+    {
       "screen": "chat",
       "axis": "D",
       "items": [
