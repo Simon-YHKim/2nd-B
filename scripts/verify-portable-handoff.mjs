@@ -113,6 +113,25 @@ function walkFiles(root, directory) {
   };
 }
 
+// Git LFS stores a ~130-byte pointer in the index instead of the file, and that
+// pointer's `oid sha256:` IS the sha256 of the real content -- the same number
+// this file already pins. So a path that moves to LFS keeps its expected hash
+// unchanged, and EXPECTED_CANONICAL_FILES never has to be rewritten for the
+// migration. Without this, migrating any pinned file would hash the pointer
+// text instead and the verifier would both fail and, worse, stop proving
+// anything about the content it exists to protect (Q-260905-08 groundwork,
+// 2026-09-06). Returns null for anything that is not a v1 pointer, so ordinary
+// blobs fall through to hashing their bytes exactly as before.
+const LFS_POINTER_PREFIX = "version https://git-lfs.github.com/spec/v1";
+export function lfsOid(bytes) {
+  // A pointer is small and ASCII; bail early rather than stringify a binary blob.
+  if (bytes.length > 1024) return null;
+  const text = bytes.toString("utf8");
+  if (!text.startsWith(LFS_POINTER_PREFIX)) return null;
+  const match = /^oid sha256:([0-9a-f]{64})$/m.exec(text);
+  return match ? match[1] : null;
+}
+
 // Hashes the INDEX blob of every path (same bytes `git show :<path>` prints)
 // through ONE `git cat-file --batch` process instead of one `git show` spawn
 // per file. D7-05 (CI audit 2026-09-05): ~195 spawns made this script the
@@ -146,7 +165,7 @@ function hashIndexFiles(root, relativePaths) {
     if (!Number.isSafeInteger(size) || size < 0 || offset + size > out.length) break;
     const bytes = out.subarray(offset, offset + size);
     offset += size + 1;
-    if (parts[1] === "blob") hashes.set(path, sha256(bytes));
+    if (parts[1] === "blob") hashes.set(path, lfsOid(bytes) ?? sha256(bytes));
   }
   return hashes;
 }
