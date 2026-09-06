@@ -1,0 +1,123 @@
+{
+  "checkedAtKst": "2026-09-06 18:38:49 KST",
+  "status": "PASS",
+  "draftSha256": "945b7c3415125583c6da078aa170a89f7b71d95df85caa4d726dc079c2fc8ba3",
+  "fields": [
+    {
+      "locale": "ko",
+      "field": "appName",
+      "count": 9,
+      "limit": 30,
+      "unit": "characters",
+      "passed": true
+    },
+    {
+      "locale": "ko",
+      "field": "playShort",
+      "count": 40,
+      "limit": 80,
+      "unit": "characters",
+      "passed": true
+    },
+    {
+      "locale": "ko",
+      "field": "appStoreSubtitle",
+      "count": 11,
+      "limit": 30,
+      "unit": "characters",
+      "passed": true
+    },
+    {
+      "locale": "ko",
+      "field": "promotionalText",
+      "count": 75,
+      "limit": 170,
+      "unit": "characters",
+      "passed": true
+    },
+    {
+      "locale": "ko",
+      "field": "description",
+      "count": 401,
+      "limit": 4000,
+      "unit": "characters",
+      "passed": true
+    },
+    {
+      "locale": "ko",
+      "field": "keywords",
+      "count": 74,
+      "limit": 100,
+      "unit": "utf8-bytes",
+      "passed": true
+    },
+    {
+      "locale": "ko",
+      "field": "releaseNotes",
+      "count": 54,
+      "limit": 500,
+      "unit": "characters",
+      "passed": true
+    },
+    {
+      "locale": "en",
+      "field": "appName",
+      "count": 9,
+      "limit": 30,
+      "unit": "characters",
+      "passed": true
+    },
+    {
+      "locale": "en",
+      "field": "playShort",
+      "count": 67,
+      "limit": 80,
+      "unit": "characters",
+      "passed": true
+    },
+    {
+      "locale": "en",
+      "field": "appStoreSubtitle",
+      "count": 29,
+      "limit": 30,
+      "unit": "characters",
+      "passed": true
+    },
+    {
+      "locale": "en",
+      "field": "promotionalText",
+      "count": 121,
+      "limit": 170,
+      "unit": "characters",
+      "passed": true
+    },
+    {
+      "locale": "en",
+      "field": "description",
+      "count": 709,
+      "limit": 4000,
+      "unit": "characters",
+      "passed": true
+    },
+    {
+      "locale": "en",
+      "field": "keywords",
+      "count": 51,
+      "limit": 100,
+      "unit": "utf8-bytes",
+      "passed": true
+    },
+    {
+      "locale": "en",
+      "field": "releaseNotes",
+      "count": 80,
+      "limit": 500,
+      "unit": "characters",
+      "passed": true
+    }
+  ],
+  "snapshotCount": 4,
+  "errors": [],
+  "scope": "Field structure, lengths, screenshot route existence and historical snapshot hashes. Not store approval, runtime QA or semantic review.",
+  "reportSha256": "e49b70efe797da63fe0eac6286fe1472674411c578b7210fe84af82f4c44e71b"
+}

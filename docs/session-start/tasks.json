@@ -1,0 +1,37 @@
+{
+  "updatedAtKst": "2026-09-06",
+  "scope": "이번 문구 개선에서 이어갈 항목. 프로젝트 전체 할 일은 현재 HANDOFF도 확인한다.",
+  "stateDirectory": "2ndb-session-state",
+  "tasks": [
+    {
+      "id": "COPY-INTEGRATE-260906",
+      "priority": 1,
+      "status": "ready-for-review",
+      "title": "앱 문구와 어휘 검사 변경의 반영 범위 확인",
+      "entry": "copy-handoff.md",
+      "firstAction": "인수 기록의 소유 파일 목록을 현재 main과 대조하고, 미반영 변경만 자신의 워크트리에서 정리한다.",
+      "doneWhen": ["현재 반영 여부와 남은 diff가 파일별로 확인됨", "관련 수정과 검증 완료, 외부 반영 여부 별도 기록"],
+      "externalApproval": "push, PR 병합, 배포는 현재 세션에서 위임된 범위를 확인"
+    },
+    {
+      "id": "STORE-REVIEW-260906",
+      "priority": 2,
+      "status": "ready-for-review",
+      "title": "Google Play·App Store 초안을 출시 상태에 맞춰 검토",
+      "entry": "../store-copy/README.md",
+      "firstAction": "현재 앱 식별자·언어·출시 대상 버전을 확인하고 한국어·영어 초안과 비교한다. 가능한 로컬 확인부터 진행한다.",
+      "doneWhen": ["문안, 기능, 가격·동의 설명의 근거 확인", "플랫폼별 빌드 확인과 새 스크린샷 준비 여부 기록", "문안 검토·콘솔 저장·심사 제출·공개 상태를 각각 기록"],
+      "externalApproval": "콘솔 저장·심사 제출·공개는 위임된 플랫폼·언어·버전 범위에서 수행"
+    },
+    {
+      "id": "PUBLIC-COPY-260906",
+      "priority": 3,
+      "status": "ready-for-review",
+      "title": "소개 웹페이지·공유 카드·지원 페이지 설명 대조",
+      "entry": "../store-copy/README.md",
+      "firstAction": "현재 공개되는 페이지와 메타데이터 경로를 식별한 뒤 앱·스토어 초안과 다른 설명을 고친다. public/landing 전체가 공개 페이지라고 가정하지 않는다.",
+      "doneWhen": ["실제 공개 대상 경로와 근거 기록", "설명·공유 문구·지원 링크 대조와 로컬 검증 완료", "배포 여부 별도 기록"],
+      "externalApproval": "운영 페이지 배포·공개는 현재 세션 위임 범위 확인"
+    }
+  ]
+}

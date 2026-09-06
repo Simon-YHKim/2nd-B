@@ -1,0 +1,59 @@
+{
+  "checkedAtKst": "2026-09-06T18:39:39.257064+09:00",
+  "draftSha256": "945b7c3415125583c6da078aa170a89f7b71d95df85caa4d726dc079c2fc8ba3",
+  "reportSha256": "e49b70efe797da63fe0eac6286fe1472674411c578b7210fe84af82f4c44e71b",
+  "metadataFieldsPassed": 14,
+  "lexiconCheck": "PASS; npx tsx scripts/check-forbidden-lexicon.ts",
+  "browser": {
+    "passed": true,
+    "cases": [
+      {
+        "width": 390,
+        "colorScheme": "light",
+        "keyboardToggled": true,
+        "overflow": false,
+        "exactCopies": [
+          true,
+          true
+        ]
+      },
+      {
+        "width": 390,
+        "colorScheme": "dark",
+        "keyboardToggled": true,
+        "overflow": false,
+        "exactCopies": [
+          true,
+          true
+        ]
+      },
+      {
+        "width": 1440,
+        "colorScheme": "light",
+        "keyboardToggled": true,
+        "overflow": false,
+        "exactCopies": [
+          true,
+          true
+        ]
+      },
+      {
+        "width": 1440,
+        "colorScheme": "dark",
+        "keyboardToggled": true,
+        "overflow": false,
+        "exactCopies": [
+          true,
+          true
+        ]
+      }
+    ],
+    "errors": [],
+    "remoteRequests": [],
+    "clipboard": "Stubbed in-page to preserve the user clipboard; exact KO/EN text verified."
+  },
+  "originalsAndSnapshotsUnchanged": true,
+  "status": "draft-ready-for-release-review",
+  "storeConsoleChecked": false,
+  "storeSubmissionPerformed": false
+}

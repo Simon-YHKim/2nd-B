@@ -1,0 +1,36 @@
+{
+  "capturedAtKst": "2026-09-06T18:22:23.209753+09:00",
+  "status": "historical-reference-not-approved-copy",
+  "consoleValuesVerified": false,
+  "files": [
+    {
+      "originalPath": "E:\\Coding Infra\\reports\\store-assets\\store-listing-en.txt",
+      "snapshot": "reference-260906/store-listing-en.txt",
+      "bytes": 2766,
+      "sha256": "217f2fde54ca8c69afae7bfd122c43320763dfc058f811b943bcb9d0ed7bbb72",
+      "originalModifiedAtKst": "2026-07-26T21:08:46.464650+09:00"
+    },
+    {
+      "originalPath": "E:\\Coding Infra\\reports\\store-assets\\ios-metadata.txt",
+      "snapshot": "reference-260906/ios-metadata.txt",
+      "bytes": 611,
+      "sha256": "6beea581b42dde061e348afdda13cc6d0f7d69bd5ac82bf01b9b6eb0e17a98ac",
+      "originalModifiedAtKst": "2026-07-26T22:48:41.778939+09:00"
+    },
+    {
+      "originalPath": "E:\\Coding Infra\\reports\\store-assets\\release-notes-en.txt",
+      "snapshot": "reference-260906/release-notes-en.txt",
+      "bytes": 478,
+      "sha256": "0ab4afd7313e305f60542723f97ccb4145f768f6e6700c2d3bc121b644f3b5e2",
+      "originalModifiedAtKst": "2026-07-26T21:29:37.501417+09:00"
+    },
+    {
+      "originalPath": "E:\\Coding Infra\\reports\\store-assets\\release-notes-ko.txt",
+      "snapshot": "reference-260906/release-notes-ko.txt",
+      "bytes": 612,
+      "sha256": "42d245c561ed4ded86bff86158e95bc10ad61ac633a1374c8ac78f112ea4f5b7",
+      "originalModifiedAtKst": "2026-07-29T00:00:59.895054+09:00"
+    }
+  ],
+  "images": "Old image files were inventoried but not copied; capture the intended release build again."
+}

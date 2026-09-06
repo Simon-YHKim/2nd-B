@@ -2,6 +2,15 @@
 
 Project-specific guidance for Claude Code sessions in this repo.
 
+## 세션 시작: Codex · Claude 공통
+
+이 파일을 읽은 뒤 [시작 안내](docs/session-start/README.md), `docs/HANDOFF.md`,
+`docs/SESSION-OWNERSHIP.md` 순서로 현재 상태와 담당 범위를 확인한다.
+구체적인 사용자 요청을 우선한다. 프로젝트를 파악한 뒤 후속 작업을 진행하라는 요청이면
+시작 안내의 작업 목록에서 미완료 항목을 확인하고, 준비·수정·검증까지 진행한다.
+말투와 공개 문구를 다룰 때는 `STYLE.md`와 `docs/store-copy/README.md`도 읽는다.
+단순 현황 질문을 실행 요청으로 바꾸거나, 작업 목록을 외부 게시 승인으로 해석하지 않는다.
+
 ## Project context
 
 - **What**: 2nd-Brain — *AI 시대 가장 가치있는 자산 = 나 자신* 을 데이터로 축적하고 개인 비서로 키우는 플랫폼. 세 축: (1) 알아가기 · (2) 개인 비서 기반 · (3) 공상 → 구체화.
@@ -706,20 +715,20 @@ every agent: Claude, Codex, Antigravity, Grok.
 <!-- context-guardian-rules:v1 -->
 ## Context Guardian Rules (auto-inserted)
 
-### 작업 범위 제한
-- 한 세션에서 수정 파일 최대 5 개
-- 한 번에 하나의 기능/파일 단위로만 작업
-- 작업 완료 즉시 git commit 후 세션 종료 권고
+### 작업 범위 관리 (Simon 결정 2026-09-06)
+- 현재 요청을 작은 단위로 나누되, 정해진 범위의 수정과 검증까지 이어간다.
+- 파일 수만으로 중단하거나 새 세션으로 넘기지 않는다. 관련 없는 변경은 섞지 않는다.
+- 완료·미완료 상태를 기록하고 소유 변경만 논리적 단위로 커밋한다.
 
 ### 파일 읽기 제한
-- node_modules/, .next/, dist/, .git/ 절대 읽지 않기
+- node_modules/, .next/, dist/는 필요한 파일만 읽는다.
+- .git 내부는 무차별 탐색하지 않는다. Git 명령과 이 저장소의 공통 세션 상태 기록은 사용한다.
 - 목적 없는 디렉토리 스캔 금지
 - 대용량 파일 (1000 줄 이상) 전체 읽기 금지 — Read offset+limit 사용
 
 ### 작업 요청 방식
-- 광범위 요청은 작은 단위로 분해 후 사용자 확인
-  예: "Auth 전체 마이그레이션" → "어떤 파일부터 시작할까요?"
-- Plan 모드로 먼저 계획 수립 → 승인 후 실행
+- 범위가 넓으면 계획과 완료 기준을 먼저 알린다. 이미 위임된 로컬 작업은 진행한다.
+- 정확성·보안·비용·대상을 크게 바꾸는 불확실성이나 승인되지 않은 외부 실행만 확인한다.
 
 ### 컨텍스트 보호
 - 80% 도달 시 SESSION_RECOVERY.md 생성 + 새 세션 전환 권고

@@ -1,0 +1,40 @@
+### APP NAME (max 30)
+2nd-Brain: Self Knowledge
+
+### SHORT DESCRIPTION (max 80)
+Capture what matters to you, and watch a picture of who you are take shape.
+
+### FULL DESCRIPTION (max 4000)
+In an age of AI, the most valuable asset you own is a clear picture of yourself.
+
+2nd-Brain is a place to collect that picture, one small entry at a time. Save an article, a thought, a decision, or a moment from your day. Over time those pieces stop being a pile of notes and start becoming something you can actually read back: what you keep returning to, what you have changed your mind about, what you are building toward.
+
+WHAT IT DOES
+
+Capture, without the filing work
+Paste a link or write a line. SecondB, the assistant built into the app, reads it and files it for you: what kind of material it is, which part of your life it belongs to, what is worth remembering from it. You can correct any of it, and you can define your own capture formats when the built-in ones do not fit.
+
+A constellation, not a dashboard
+Your life shows up as seven domain stars: career, money, growth, relationships, health, rest, and the things you collect. Each one brightens as it fills with real entries, and only with real entries. Above them sits your North Star, the picture that gets assembled from everything below it. Nothing is brighter than what you have actually put in, so the map stays honest even when it is mostly dark.
+
+Propose, then ratify
+The app never quietly decides who you are. When it notices a pattern, it proposes it and waits for you to accept, edit, or reject it. Your self-description is yours to sign off on.
+
+Look back, on purpose
+Weekly digests, review prompts, and a searchable personal wiki make the archive something you revisit rather than something you abandon.
+
+WHAT IT IS NOT
+
+This is not a wellness or medical product, and it does not assess or advise on any condition. It is a personal record and a thinking tool. If something you write suggests you are in crisis, the app stops what it is doing and shows local support lines instead of a generated reply.
+
+PRIVACY
+
+Your entries are yours. Rows are isolated per account at the database level, you can export everything you have written in a portable format at any time, and account deletion removes your data rather than hiding it. We do not sell or share your entries with anyone.
+
+FREE TO USE
+
+The free tier covers the core loop: daily capture, filing, your constellation, and weekly review, with a weekly allowance on the assistant. Paid tiers raising those limits are in preparation and are not charged for yet.
+
+Built for the Build with Gemini XPRIZE, in the Education and Human Potential track.
+
+Questions or problems: use the contact details shown on this listing, or open Settings in the app.

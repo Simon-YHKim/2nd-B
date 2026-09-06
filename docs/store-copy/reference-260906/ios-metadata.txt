@@ -1,0 +1,17 @@
+### KEYWORDS (max 100, comma separated, no spaces)
+journal,notes,diary,reflection,capture,assistant,wiki,growth,personal,habits,memo,record
+
+### PROMOTIONAL TEXT (max 170)
+Community formats now come with report and block. Plus a weekly look back that counts only what you actually saved, so the picture stays honest.
+
+### SUPPORT URL
+https://simon-yhkim.github.io/2nd-B/
+
+### MARKETING URL
+(leave empty - same as Support URL, no separate marketing site exists)
+
+### COPYRIGHT (max 200)
+2026 YangHwan Kim
+
+### DESCRIPTION
+Reuse the Play long description verbatim: store-assets/store-listing-en.txt (2,576 chars)

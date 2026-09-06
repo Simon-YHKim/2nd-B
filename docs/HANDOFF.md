@@ -3,6 +3,14 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## 세션 간 인수 자료 — 2026-09-06
+
+Codex·Claude 공통 시작 경로는 [세션 시작 안내](session-start/README.md)다.
+문구 개선 반영 확인, Google Play·App Store 초안 검토, 공개 페이지 대조는
+[작업 목록](session-start/tasks.json)에서 찾는다. 원래 요청과 현재 구현을 먼저 확인한다.
+스토어 문안은 준비됐고 콘솔 대조·등록·공개는 미실행이다.
+이 문서 브랜치가 앱 코드 수정까지 포함한다는 뜻은 아니다. 기존 세션 이력은 아래에 보존했다.
+
 ## Latest — 2026-09-06 / 감사 결정 11문항 집행 · PR 14건 · 안전 결함 1건 닫힘
 
 > 발행: Claude Code (TTL-Work 세션). 기준 시각 2026-09-06 15:0x KST.

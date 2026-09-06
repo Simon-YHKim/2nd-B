@@ -1,0 +1,4 @@
+* text eol=lf
+*.json -text
+review.html -text
+reference-260906/*.txt -text
