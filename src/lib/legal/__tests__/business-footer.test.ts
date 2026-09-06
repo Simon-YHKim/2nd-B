@@ -138,13 +138,29 @@ describe("값은 지어내지 않는다", () => {
 });
 
 describe("사인인 화면이 푸터를 동의 링크 아래에 붙인다", () => {
+  // #1533 이 이 화면을 dds-auth-screens.tsx 에서 들어내 자기 파일로 옮겼다.
+  // 푸터는 화면을 따라가야 하므로 검사도 따라간다 — 지키는 대상(동의 링크 아래에
+  // 사업자 정보 푸터가 붙는다)은 그대로다. 추출본에는 푸터가 딸려오지 않았고,
+  // 이 검사가 통합 중에 그걸 잡았다.
   const src = readFileSync(
-    resolve(__dirname, "../../../screens/deepspace/dds-auth-screens.tsx"),
+    resolve(__dirname, "../../../screens/deepspace/dds-sign-in-screen.tsx"),
     "utf8",
   ).replace(/\r\n/g, "\n");
   const start = src.indexOf("export function DeepSpaceSignInDesignScreen");
   const end = src.indexOf("\nexport function", start + 1);
   const body = src.slice(start, end === -1 ? src.length : end);
+
+  test("옛 자리에는 재수출만 남는다", () => {
+    // 두 벌이 남으면 한쪽만 고쳐서 푸터가 다시 빠질 수 있다.
+    const old = readFileSync(
+      resolve(__dirname, "../../../screens/deepspace/dds-auth-screens.tsx"),
+      "utf8",
+    ).replace(/\r\n/g, "\n");
+    expect(old).toContain(
+      'export { DeepSpaceSignInDesignScreen } from "./dds-sign-in-screen";',
+    );
+    expect(old).not.toContain("export function DeepSpaceSignInDesignScreen");
+  });
 
   test("가드가 진짜 함수 본문을 읽는다", () => {
     expect(start).toBeGreaterThan(-1);
@@ -171,12 +187,22 @@ describe("사인인 화면이 푸터를 동의 링크 아래에 붙인다", () =
     expect(body.match(SIGN_UP_NAV) ?? []).toHaveLength(1);
   });
 
-  test("그 하나는 버튼으로 노출된다", () => {
+  test("그 하나는 눌리는 것으로 노출된다", () => {
     const at = body.search(new RegExp(SIGN_UP_NAV.source));
     expect(at).toBeGreaterThan(-1);
-    const open = body.lastIndexOf("<Pressable", at);
+    // 어떤 pressable 래퍼인지는 규율이 아니다 - 지금은 PixelPressable, 전에는 Pressable 이었다.
+    const open = Math.max(
+      body.lastIndexOf("<Pressable", at),
+      body.lastIndexOf("<PixelPressable", at),
+      body.lastIndexOf("<TouchableOpacity", at),
+    );
     expect(open).toBeGreaterThan(-1);
-    // 여는 태그부터 onPress 까지의 구간에 역할 선언이 있어야 한다.
-    expect(body.slice(open, at + 600)).toContain('accessibilityRole="button"');
+    const seg = body.slice(open, at + 800);
+    // 규율은 둘: **조작 가능한 것으로 읽히고**, **이름이 있다.**
+    // button 이냐 link 냐는 이 자리에서 우연이다 - 화면 안 이동이라 둘 다 맞다.
+    // (2026-09-07: 재설계가 button -> link 로 바꾸면서 이 단언이 깨졌다.
+    //  이름 대신 뜻을 박는다면서 나도 결국 우연한 값을 하나 박고 있었다.)
+    expect(seg).toMatch(/accessibilityRole="(button|link)"/);
+    expect(seg).toMatch(/accessibilityLabel=/);
   });
 });

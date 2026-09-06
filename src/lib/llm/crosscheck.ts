@@ -157,6 +157,7 @@ const DEFEND_SYSTEM = [
   "by REWRITING the claim, not by arguing with the critic.",
   "Where an objection is right, cut or soften what the evidence does not carry.",
   "Where it is wrong, keep the statement and let the evidence speak.",
+  "Preserve the draft's language, citations and required output format. Use plain, conversational wording, with natural polite endings for Korean. Do not add stock praise, elaborate metaphors or claims of knowing the person.",
   "Return only the rewritten claim.",
 ].join("\n");
 

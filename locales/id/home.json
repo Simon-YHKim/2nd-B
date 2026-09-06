@@ -36,14 +36,14 @@
   },
   "menu": {
     "graph": "Graf",
-    "capture": "Tangkap",
+    "capture": "Simpan",
     "secondb": "SecondB",
     "profile": "Aku"
   },
   "ds": {
     "dock": {
       "home": "Beranda",
-      "capture": "Tangkap",
+      "capture": "Simpan",
       "chat": "SecondB",
       "ops": "Asisten",
       "account": "Aku",
@@ -168,7 +168,7 @@
       "communityEntry": "Komunitas"
     },
     "capture": {
-      "title": "Tangkap",
+      "title": "Simpan",
       "subtitle": "Tangkap momen dalam format apa pun yang cocok.",
       "modes": {
         "text": "Teks",
@@ -192,11 +192,11 @@
         },
         "who": {
           "label": "Siapa",
-          "hint": "Saya, bersama tim"
+          "hint": "Aku, bersama tim"
         },
         "how": {
           "label": "Bagaimana & mengapa",
-          "hint": "Apa yang ada di benak Anda"
+          "hint": "Apa yang kamu pikirkan"
         }
       },
       "linkHint": "Tempel tautan dan SecondB mengambil judul dan ringkasannya.",
@@ -204,10 +204,10 @@
       "photoOpen": "Buka kamera atau album",
       "photoCaption": "Deskripsikan foto",
       "voiceOpen": "Buka perekam",
-      "voiceHint": "Tulis apa yang Anda katakan",
+      "voiceHint": "Tulis apa yang kamu katakan",
       "todoHint": "Tugas",
       "todoAdd": "Tambah tugas",
-      "banner": "Begitu Anda menyimpannya, SecondB memilahnya ke bintang dan tag yang tepat.",
+      "banner": "Saat disimpan, SecondB menambahkan bintang dan tag terkait.",
       "save": "Tangkap",
       "saving": "Menyimpan",
       "saved": "Tersimpan",
@@ -400,7 +400,7 @@
       "introBody": "Lempar jauh saja, tidak ada jawaban benar. Pilih cabang yang kamu suka, kita persempit jadi langkah berikutnya.",
       "sectionAngles": "Cabang yang dilempar SecondB",
       "sectionSteps": "Kandidat langkah berikutnya",
-      "toCapture": "Pindahkan ke Tangkap",
+      "toCapture": "Pindahkan ke Simpan",
       "more": "Lainnya bersama SecondB"
     },
     "audit": {

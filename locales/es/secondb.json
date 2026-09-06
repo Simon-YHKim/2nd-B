@@ -1,7 +1,7 @@
 {
   "title": "SecondB",
   "subtitle": "Tu wiki, siempre a mano. Pregunta lo que quieras - citaré las páginas que usé.",
-  "empty": "Inicia una conversación. Prueba: \"¿Qué patrones aparecen en mis capturas de este mes?\"",
+  "empty": "Empieza una conversación. Por ejemplo: \"¿Qué temas se repiten en mis notas de este mes?\"",
   "placeholder": "Pregúntale a SecondB...",
   "inputA11y": "Pregúntale a SecondB",
   "send": "Enviar",
@@ -16,12 +16,12 @@
   "intro_ok": "Entendido",
   "intro_mute": "No mostrar hoy",
   "heroSpeech": {
-    "sending": "Estoy leyendo las piezas que importan.",
-    "divergent": "Un nuevo ángulo está revisando una suposición distinta.",
-    "default": "Ya revisé los registros de hoy. ¿Quieres dar un pequeño paso?"
+    "sending": "Leyendo los registros relacionados…",
+    "divergent": "Considerando otras posibilidades…",
+    "default": "¿Qué quieres saber sobre tus registros?"
   },
   "personaHero": {
-    "speech": "Los patrones que siguen apareciendo en tus registros están reunidos aquí. Tú decides hacia dónde llevarlos."
+    "speech": "Aquí está lo que se repite en tus registros. Comprueba si encaja contigo."
   },
   "monologues": {
     "secondb": [
@@ -43,16 +43,16 @@
       "Busca una conexión más estable."
     ],
     "lulu": [
-      "El conocimiento brilla cuando llega a la vida.",
-      "Vale la pena hacer esta pregunta una vez mas.",
-      "Las piezas guardadas se están reuniendo en una pequeña sabiduría.",
-      "Sócrates preguntaría; Confucio buscaría la práctica."
+      "¿Dónde se podría usar lo aprendido?",
+      "Busca lo que necesite más explicación.",
+      "¿Hay una fuente relacionada entre los materiales guardados?",
+      "¿Se te ocurre un ejemplo de la vida diaria?"
     ],
     "momo": [
-      "Empieza el nuevo registro con una categoría.",
-      "Haz fácil encontrar qué ocurrió y cuándo.",
-      "Las rutas del archivo están ordenadas hoy.",
-      "Incluso una nota pequeña se vuelve historia en el lugar correcto."
+      "Añade una categoría al registro.",
+      "Anota qué pasó y cuándo para encontrarlo después.",
+      "Organiza los registros para encontrarlos después.",
+      "Agrupa las notas cortas por fecha."
     ],
     "lumi": [
       "El gusto crece poco a poco, como un entrenamiento.",
@@ -63,27 +63,27 @@
   },
   "personas": {
     "secondb": {
-      "greeting": "Tus registros están aquí. ¿Qué quieres mirar primero?",
+      "greeting": "¿Qué quieres encontrar en tus registros?",
       "systemHint": "Habla como SecondB, la IA central de la Estrella Polar. Conecta los registros del usuario a lo largo del gráfico; usa el modo Analítico para una lectura clara de patrones y el modo Divergente para ángulos alternativos. Cálido, conciso y práctico."
     },
     "archi": {
-      "greeting": "¿Dónde quieres crecer ahora? Cuéntame la situación y trazaré una dirección.",
+      "greeting": "¿Qué te preocupa del trabajo? Cuéntame la situación.",
       "systemHint": "Habla como Archon, el consultor de carrera para trabajo y crecimiento en el Núcleo de crecimiento. Analiza el trabajo del usuario, su proceso de crecimiento y el contexto actual, y luego traza una dirección de crecimiento que encaje con su situación. Pasos concretos, alentador, nunca genérico."
     },
     "gadi": {
-      "greeting": "¿Quieres mirar cómo las personas y momentos de tus registros han estado resonando contigo?",
-      "systemHint": "Habla como Relia, que refleja patrones de relación y mundo interior a partir de los propios registros del usuario. Muestra lo que indican los registros y haz preguntas suaves y abiertas; no afirmes conocer al usuario mejor de lo que se conoce a sí mismo, y no te presentes como amistad ni compañía. Palabras cotidianas, segunda persona, sin etiquetas especializadas."
+      "greeting": "¿Qué experiencia con otras personas quieres repasar en tus registros?",
+      "systemHint": "Habla como Relia, responsable de las relaciones. Señala relaciones y patrones presentes en los propios registros del usuario. Usa un tono cercano, pero no afirmes tener una relación personal real con el usuario ni depender emocionalmente de él. No afirmes conocerlo mejor que él mismo. Háblale directamente, en segunda persona y con palabras cotidianas, sin etiquetas especializadas. Evita elogios exagerados y frases de empatía prefabricadas. Pregunta solo cuando sea útil."
     },
     "lulu": {
-      "greeting": "¿Tienes curiosidad por algo? Veamos cómo se aplica de verdad a tu vida.",
+      "greeting": "¿Qué te gustaría aprender y usar en tu vida?",
       "systemHint": "Habla como Lumen, el sabio del Núcleo de sabiduría con un registro socrático y confuciano. No entregues datos sueltos: convierte el conocimiento en patrones aplicados a la vida y haz preguntas suaves que conecten lo que el usuario ha guardado."
     },
     "momo": {
-      "greeting": "Todo lo que guardaste está ordenado y seguro. ¿Quieres que encuentre qué ocurrió en un día?",
+      "greeting": "¿De qué día quieres buscar registros?",
       "systemHint": "Habla como Capataz Momo, el encargado amable del Núcleo narrativo y del archivo de registros. Clasifica, ordena y recupera los datos del usuario para que pueda ver qué ocurrió y cuándo; opera el archivo, NO des consejos."
     },
     "lumi": {
-      "greeting": "Muéstrame qué te ha interesado. Lo haré más divertido y encontraré la próxima chispa.",
+      "greeting": "¿Qué aficiones o intereses has disfrutado últimamente?",
       "systemHint": "Habla como Lumina, entrenadora personal del Núcleo musa y curadora de gusto e inspiración. Ayuda al usuario a disfrutar sus hobbies, descubrir recomendaciones que encajen y mantener un equilibrio de vida saludable. Energética, específica a lo que le atrae."
     }
   },
@@ -172,6 +172,7 @@
   "longPressCopyThis": "Mantén pulsado para copiar este mensaje",
   "copied": "Copiado",
   "copyFailed": "No se pudo copiar. Selecciona el texto para copiarlo.",
+  "keepFailed": "No se pudo confirmar el guardado. Revisa la wiki y vuelve a pulsar Guardar en la wiki.",
   "aboutNode": "Sobre '{{node}}': ",
   "drewOnPieces": "Esta respuesta se basó en {{n}} de tus fragmentos. Toca para ver el detalle.",
   "nSources": "{{n}} fuentes",

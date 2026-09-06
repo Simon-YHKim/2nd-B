@@ -37,7 +37,7 @@
     },
     "cameraPhoto": {
       "name": "Kamera / Perpustakaan foto",
-      "why": "Opsional, untuk tangkapan teks dari gambar saja. Diminta saat kamu memilih tindakan foto; tolak dan sisa aplikasi tetap berfungsi."
+      "why": "Opsional, untuk membaca teks dari gambar. Izin diminta saat kamu memilih foto. Fitur lain tetap bisa dipakai jika kamu menolaknya."
     },
     "microphone": {
       "name": "Mikrofon",

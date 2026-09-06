@@ -79,6 +79,9 @@ describe("제자리를 돌면 되묻기가 앞선다", () => {
 });
 
 describe("질문 문구가 로케일에 실재한다", () => {
+  // 이 질문은 앱에서 작성한 안내다. 문헌과 앱 질문의 관계는
+  // docs/research/batches/self-knowledge.md의 Application 절에 설명한다.
+  // 배치 문서와 문구가 같다는 사실은 검증된 척도나 효과의 근거가 되지 않는다.
   it("세 키가 5개 로케일에 다 있다", () => {
     const fs = require("node:fs") as typeof import("node:fs");
     const path = require("node:path") as typeof import("node:path");
@@ -99,22 +102,4 @@ describe("질문 문구가 로케일에 실재한다", () => {
     }
   });
 
-  it("한국어 문구가 배치 원문 그대로다", () => {
-    // 발명하지 않았다는 것을 고정한다. 이 문장들은
-    // `docs/research/batches/self-knowledge.md` 의 rumination-interrupting
-    // 목록에서 왔고, 각각 근거가 있다(관점 전환 · 탈융합 등).
-    const fs = require("node:fs") as typeof import("node:fs");
-    const path = require("node:path") as typeof import("node:path");
-    const root = path.join(__dirname, "..", "..", "..", "..");
-    const dict = JSON.parse(
-      fs.readFileSync(path.join(root, "locales", "ko", "interview.json"), "utf8"),
-    );
-    const batch = fs.readFileSync(
-      path.join(root, "docs", "research", "batches", "self-knowledge.md"),
-      "utf8",
-    );
-    for (const key of ["stuckLoop", "friendView", "setAside"]) {
-      expect(batch).toContain(dict.loopCheck[key]);
-    }
-  });
 });

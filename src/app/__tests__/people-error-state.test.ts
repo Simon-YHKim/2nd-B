@@ -33,17 +33,28 @@ describe("people map load failures stay distinct from an empty account", () => {
   });
 
   test("the visible failure state explains the network problem and offers retry", () => {
+    // PIXEL-CLAY (#1518) rebuilt this surface with PixelPressable/PixelGlyph,
+    // so the retry control is labelled through `accessibilityLabel` and calls
+    // the async `refresh` through a void wrapper. The contract is unchanged:
+    // a failed load explains itself and offers a retry that reloads.
     expect(SRC).toContain('t("common:errors.network")');
-    expect(SRC).toContain('label={t("common:actions.retry")}');
-    expect(SRC).toContain("onPress={refresh}");
-    expect(SRC).toMatch(/people === null[\s\S]{0,80}loadFailed \? null/);
+    expect(SRC).toContain('accessibilityLabel={t("common:actions.retry")}');
+    expect(SRC).toContain("onPress={() => void refresh()}");
+    // A failed first load shows the error surface, never the loading spinner.
+    expect(SRC).toMatch(/people === null \? \(\s+loadFailed \? \(\s+loadErrorSurface/);
+    expect(SRC).toMatch(/loadFailed \? \(\s+loadErrorSurface\s+\) : \(\s+<View style=\{styles\.loadingState\}>/);
   });
 
   test("a confirmed save is merged before the background reconciliation", () => {
-    expect(BODY).toContain("const created = await createPerson(userId");
+    expect(BODY).toContain("const createdPerson = await createPerson(userId");
     expect(BODY).toContain("}, attempt.id, attempt.rev);");
-    expect(BODY).toContain("previous.filter((person) => person.id !== created.id)");
-    const merge = BODY.indexOf("setPeople((previous)");
+    // #1518 replaced the inline dedup-append with `mergeConfirmedPeople`, which
+    // does the same job and additionally survives a later failing reconcile:
+    // confirmed ids are filtered out of the fetched list, newest first.
+    expect(BODY).toContain("confirmedPeopleRef.current.set(createdPerson.id, createdPerson)");
+    expect(BODY).toContain("mergeConfirmedPeople(currentPeople ?? [], confirmedPeopleRef.current)");
+    expect(SRC).toContain("...fetchedPeople.filter((person) => !confirmedIds.has(person.id))");
+    const merge = BODY.indexOf("setPeople((currentPeople)");
     const refresh = BODY.indexOf("void refresh();", merge);
     expect(merge).toBeGreaterThan(-1);
     expect(refresh).toBeGreaterThan(merge);

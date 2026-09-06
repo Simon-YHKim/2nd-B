@@ -392,8 +392,9 @@ export async function classifySafety(
 // Fixed-string crisis templates per docs/research/batches/crisis-detection.md.
 // Hotline numbers come from crisisHotlines() (single source of truth) so KO
 // routing stays current (109 since 2024) and minors get the youth line (1388).
-// Versions are referenced in the audit log: red-ko-v2 (adult), red-ko-minor-v1
-// (14-17), red-en-v1 (988, all ages).
+// Versions are referenced in the audit log: red-ko-v3 (adult), red-ko-minor-v2
+// (14-17), red-en-v2 (988, all ages). 2026-09-06 removes the app's metaphorical
+// farewell; the fixed hand-off, resources and emergency-room guidance remain.
 export function fixedCrisisResponse(
   locale: "en" | "ko",
   minor = false,
@@ -409,9 +410,8 @@ export function fixedCrisisResponse(
 
 ${hotlineBlock}
 
-전화가 어려우시면, 가까운 응급실로 가셔도 됩니다.
-당신의 안전이 가장 중요해요. 두번째 뇌는 지금 잠시 한 발 물러나 있을게요.`,
-      version: minor ? "red-ko-minor-v1" : "red-ko-v2",
+전화가 어려우시면, 가까운 응급실로 가셔도 됩니다.`,
+      version: minor ? "red-ko-minor-v2" : "red-ko-v3",
     };
   }
   return {
@@ -422,8 +422,7 @@ People are available right now to talk:
 ${hotlineBlock}
 🌐 findahelpline.com — international directory
 
-If calling is hard, you can go to your nearest emergency room.
-Your safety matters most. 2nd-Brain is going to step back for a moment.`,
-    version: "red-en-v1",
+If calling is hard, you can go to your nearest emergency room.`,
+    version: "red-en-v2",
   };
 }

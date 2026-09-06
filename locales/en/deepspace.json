@@ -45,7 +45,7 @@
     "surprise": "Found an unexpected link. '{{from}}' and '{{to}}' are different topics, yet they connect.",
     "islandChip": "Knowledge clusters {{count}}",
     "proposalsLabel": "Proposed connections",
-    "noProposals": "No proposals yet. Build the semantic index, then ask the assistant to suggest links.",
+    "noProposals": "No connection suggestions yet. Use the button below to look for related records.",
     "confidence": "{{percent}}% match",
     "reject": "Reject",
     "ratify": "Accept",
@@ -216,7 +216,7 @@
     "last7": "Last 7 days",
     "thirdParty": "Third-party sharing",
     "none": "0 items",
-    "footer": "The default is local-first. External transfers proceed only after your confirmation.",
+    "footer": "How data is processed and stored depends on the feature. Check its data-use notice for details.",
     "dataReview": "My data review",
     "open": "Open"
   },
@@ -259,18 +259,18 @@
     "sources": {
       "cal": {
         "name": "Google Calendar",
-        "sub": "Rhythm and relationship signals from your schedule"
+        "sub": "Import appointments from a calendar file"
       },
       "health": {
         "name": "Apple Health",
-        "sub": "Sleep and activity feed the health star"
+        "sub": "Import a file exported from your health app"
       },
       "notion": {
         "sub": "Import notes and documents"
       },
       "photos": {
         "name": "Photo album",
-        "sub": "Rest and relationships from scenes"
+        "sub": "Read text in a photo and save it as a note"
       },
       "gpt": {
         "name": "ChatGPT export",
@@ -345,7 +345,7 @@
     "sectionStart": "Getting started",
     "q1": "What are the 7 stars of the Big Dipper?",
     "q2": "How does the North Star brighten?",
-    "q3": "How do check results get more accurate?",
+    "q3": "How should I read my check results?",
     "sectionData": "Data · Privacy",
     "q4": "What is an IDEN file?",
     "q5": "Where is my data stored?",
@@ -879,9 +879,9 @@
       "healthCtaReflected": "Reflected",
       "healthCtaReflectToday": "Reflect today",
       "healthCtaConnect": "Connect",
-      "leadStart": "Bring in the scattered pieces of you. Even imports are reflected ",
-      "leadStrong": "only at your own weighting",
-      "leadEnd": " into the stars.",
+      "leadStart": "Bring in records from other apps. Notes imported from files go to ",
+      "leadStrong": "your inbox",
+      "leadEnd": ", where you can review and organize it.",
       "toggleFile": "By file",
       "toggleAccount": "Connect account",
       "sectionChooseFile": "Choose a file",
@@ -986,7 +986,7 @@
     "reasoningScreen": {
       "autoTitle": "Automatic reasoning",
       "autoPaused": "Limit reached · automatic runs resume Monday",
-      "autoBody": "SecondB connects each item as you capture it",
+      "autoBody": "SecondB suggests relevant life areas for each item you capture",
       "autoNote": "Automatic runs use one weekly run and always reserve one for manual use."
     }
   },
@@ -1043,16 +1043,16 @@
   },
   "trends": {
     "title": "Brightness trend",
-    "subtitle": "Over the last 8 weeks your constellation has been getting steadily clearer.",
+    "subtitle": "These figures are examples. They are not calculated from your records.",
     "overall": "Overall brightness",
-    "delta8w": "+34% · 8 wks",
-    "perStar": "Per-star change",
-    "log": "Brightness log",
-    "shareCta": "Share this change as a card"
+    "delta8w": "Example +34% · 8 weeks",
+    "perStar": "Example changes by topic",
+    "log": "Example change history",
+    "shareCta": "Create a share card"
   },
   "profileDetails": {
     "screenTitle": "About your life",
-    "intro": "Optional. Each answer makes a suggestion fit you instead of everyone.",
+    "intro": "Fill in only what you want to share. Save these details in your profile and edit them later.",
     "progress": "{{filled}} of {{total}} filled",
     "save": "Save",
     "saved": "Saved",
@@ -1066,13 +1066,13 @@
     "householdLabel": "Who you live with",
     "householdHint": "Alone, with family, with a roommate...",
     "busiestSeasonLabel": "Your busiest time of year",
-    "busiestSeasonHint": "So big plans avoid it.",
+    "busiestSeasonHint": "For example: exams, year-end, or the summer peak season",
     "dailyRhythmLabel": "Your daily rhythm",
-    "dailyRhythmHint": "Decides when suggestions land.",
+    "dailyRhythmHint": "Choose the option that best describes your usual day.",
     "workHoursLabel": "When you usually work or study",
-    "workHoursHint": "So we look for the gaps.",
+    "workHoursHint": "Choose when you usually work or study.",
     "workDaysLabel": "Which days",
-    "workDaysHint": "So weekly routines land on the right day.",
+    "workDaysHint": "Choose Shift work or It varies if your workdays change.",
     "rhythmMorning": "Morning person",
     "rhythmEvening": "Night person",
     "rhythmFlexible": "Flexible",

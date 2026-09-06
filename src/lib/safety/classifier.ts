@@ -147,9 +147,9 @@ export function containsForbiddenLexicon(text: string, locale: Locale): string[]
   return hits;
 }
 
-// Same boundary semantics as containsForbiddenLexicon, over the Analysis
-// Lexicon universal floor (lexicon.ts §Analysis Lexicon v0.1). Used by the
-// CI scanner; available to runtime output filtering when Voice work lands.
+// Raw analysis-policy matches with the same boundaries as containsForbiddenLexicon.
+// Selected runtime output filters and the CI precheck use this. CI applies its
+// separate copy-context rules afterwards; runtime filtering stays unchanged.
 export function containsAnalysisForbidden(text: string, locale: Locale): string[] {
   const hits: string[] = [];
   for (const term of ANALYSIS_UNIVERSAL_FORBIDDEN[locale]) {

@@ -10,20 +10,22 @@ import {
   type ProfileDetails,
 } from "@/lib/persona/profile-details";
 
-/** 저장된 상세를 읽는다. 실패하면 빈 값 - 화면이 죽는 것보다 낫다. */
+/**
+ * 저장된 상세를 읽는다.
+ *
+ * 실패를 빈 값으로 바꾸지 않는다. 저장은 JSONB 전체 교체이므로, 일시적인 읽기
+ * 실패를 `{}`로 가장하면 사용자가 재시도한 저장이 기존 값을 모두 지울 수 있다.
+ */
 export async function fetchProfileDetails(userId: string): Promise<ProfileDetails> {
-  try {
-    const supabase = getSupabaseClient();
-    const { data, error } = await supabase
-      .from("users")
-      .select("profile_details")
-      .eq("id", userId)
-      .maybeSingle();
-    if (error || !data) return {};
-    return resolveProfileDetails((data as Record<string, unknown>).profile_details);
-  } catch {
-    return {};
-  }
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("users")
+    .select("profile_details")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("Profile details row was not found");
+  return resolveProfileDetails((data as Record<string, unknown>).profile_details);
 }
 
 /**

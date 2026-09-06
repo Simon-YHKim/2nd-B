@@ -141,6 +141,33 @@ describe("sendChatMessage", () => {
     expect(llmArgs.system).toContain("SecondB"); // header
   });
 
+  // 0090 rewarded ads widen TODAY's allowance, and checkChatLimit deliberately
+  // reports the tier cap and the allowance as SEPARATE fields: `limit` never
+  // includes the bonus, `remaining` always does. This turn used to recompute
+  // remaining as `limit - used`, which drops exactly the bonus the user just
+  // earned by watching an ad. The server RPC is unaffected -- it gates on
+  // `count < cap + ad_bonus` and receives the raw cap on purpose.
+  test("remaining includes today's rewarded-ad bonus, not just the tier cap", async () => {
+    fixtures.used = 1;
+    fixtures.adBonus = 2;
+    const r = await sendChatMessage({ userId: "u1", message: "hello", locale: "en", tier: "free" });
+    if (r.status !== "ok") throw new Error("type narrowing");
+
+    expect(r.used).toBe(2);
+    // The tier cap is still reported without the bonus -- that field is the cap.
+    expect(r.limit).toBe(5);
+    // Allowance is 5 + 2, so 5 sends are left. Recomputing from `limit` gives 3.
+    expect(r.remaining).toBe(5);
+  });
+
+  test("remaining still equals cap minus used when no ad was watched", async () => {
+    fixtures.used = 1;
+    fixtures.adBonus = 0;
+    const r = await sendChatMessage({ userId: "u1", message: "hello", locale: "en", tier: "free" });
+    if (r.status !== "ok") throw new Error("type narrowing");
+    expect(r.remaining).toBe(3);
+  });
+
   test("red-zone routed reply still counts toward the quota (R2 policy change)", async () => {
     // codex R2: to close the TOCTOU race, the bump now happens BEFORE the
     // LLM call. Crisis-routed turns are no longer free. This is the

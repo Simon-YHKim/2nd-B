@@ -19,13 +19,13 @@
   "screenerSubtitle": "Kami memutari inti yang sama dengan cara sedikit berbeda tiap kali, supaya lebih jernih terlihat.",
   "reflectErrorBody": "Jawabanmu masih ada di sini. Coba lagi sebentar lagi.",
   "loopCheck": {
-    "stuckLoop": "Hal yang terus Anda pikirkan itu, apakah memberi Anda sesuatu yang baru, atau Anda selalu sampai pada kesimpulan yang sama?",
-    "friendView": "Apa yang akan Anda katakan kepada teman dekat yang berada dalam situasi yang persis sama?",
-    "setAside": "Apa yang berubah jika Anda menyisihkan pikiran ini selama lima menit?"
+    "stuckLoop": "Hal yang terus kamu pikirkan itu, apakah memberi kamu sesuatu yang baru, atau kamu selalu sampai pada kesimpulan yang sama?",
+    "friendView": "Apa yang akan kamu katakan kepada teman dekat yang berada dalam situasi yang persis sama?",
+    "setAside": "Apa yang berubah jika kamu menyisihkan pikiran ini selama lima menit?"
   },
   "drill": {
     "opening": "Mulai dari periode hidup yang mana? Satu adegan yang terlintas sudah cukup.",
-    "placeholder": "Tulis sebanyak atau sesedikit yang Anda mau",
+    "placeholder": "Tulis sebanyak atau sesedikit yang kamu mau",
     "send": "Kirim",
     "thinking": "Mendengarkan…",
     "enough": "Cukup untuk sekarang",

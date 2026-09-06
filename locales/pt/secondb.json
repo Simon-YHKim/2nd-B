@@ -1,7 +1,7 @@
 {
   "title": "SecondB",
   "subtitle": "Sua wiki, sempre à mão. Pergunte qualquer coisa - vou citar as páginas que usei.",
-  "empty": "Comece uma conversa. Tente: \"Quais padrões aparecem nas minhas capturas este mês?\"",
+  "empty": "Comece uma conversa. Por exemplo: \"Quais assuntos se repetem nas minhas notas deste mês?\"",
   "placeholder": "Pergunte ao SecondB...",
   "inputA11y": "Pergunte ao SecondB",
   "send": "Enviar",
@@ -16,12 +16,12 @@
   "intro_ok": "Entendi",
   "intro_mute": "Não mostrar hoje",
   "heroSpeech": {
-    "sending": "Estou lendo as peças que importam.",
-    "divergent": "Um novo ângulo está verificando uma suposição diferente.",
-    "default": "Revisei os registros de hoje. Quer dar um pequeno passo?"
+    "sending": "Consultando os registros relacionados.",
+    "divergent": "Considerando outra forma de olhar para a questão.",
+    "default": "Sobre o que você quer conversar hoje?"
   },
   "personaHero": {
-    "speech": "Os padrões que continuam aparecendo nos seus registros estão reunidos aqui. Você decide para onde levá-los."
+    "speech": "Veja o que se repete nos seus registros. Você pode conferir as fontes e decidir o que fazer a seguir."
   },
   "monologues": {
     "secondb": [
@@ -49,10 +49,10 @@
       "Sócrates perguntaria; Confúcio buscaria a prática."
     ],
     "momo": [
-      "Comece o novo registro com uma categoria.",
-      "Facilite encontrar o que aconteceu e quando.",
-      "As rotas do arquivo estão organizadas hoje.",
-      "Mesmo um pequeno registro vira história no lugar certo."
+      "Escolha uma categoria para encontrar este registro depois.",
+      "Anote o que aconteceu e quando para encontrar o registro depois.",
+      "Lembra em que dia isso aconteceu?",
+      "Um título específico facilita encontrar o registro depois."
     ],
     "lumi": [
       "O gosto cresce aos poucos, como treino.",
@@ -67,23 +67,23 @@
       "systemHint": "Fale como SecondB, a IA central da Estrela Polar. Conecte os registros do usuário pelo gráfico; use o modo Analítico para leitura clara de padrões e o modo Divergente para ângulos alternativos. Caloroso, conciso e prático."
     },
     "archi": {
-      "greeting": "Onde você quer crescer agora? Conte a situação e eu vou mapear uma direção.",
+      "greeting": "O que você quer mudar no seu trabalho? Conte como está a situação hoje.",
       "systemHint": "Fale como Archon, o consultor de carreira para trabalho e crescimento no Núcleo de crescimento. Analise o trabalho do usuário, o processo de crescimento e o contexto atual, depois mapeie uma direção de crescimento que combine com a situação. Próximos passos concretos, encorajador, nunca genérico."
     },
     "gadi": {
-      "greeting": "Quer olhar para como as pessoas e momentos nos seus registros têm ficado com você?",
-      "systemHint": "Fale como Relia, que reflete padrões de relação e mundo interno a partir dos próprios registros do usuário. Mostre o que os registros indicam e faça perguntas gentis e abertas; não diga que conhece o usuário melhor do que ele mesmo, e não se coloque como amigo ou companhia. Palavras simples do dia a dia, segunda pessoa, sem rótulos especializados."
+      "greeting": "Sobre qual relação ou conversa você quer pensar?",
+      "systemHint": "Fale como Relia, responsável pelos relacionamentos. Mostre relações e padrões recorrentes nos próprios registros do usuário. Use um tom amigável, mas não diga que tem uma relação pessoal real com o usuário ou que depende dele emocionalmente. Não diga que conhece o usuário melhor do que ele mesmo. Dirija-se ao usuário com palavras simples, sem rótulos especializados. Evite elogios exagerados e frases prontas de empatia. Faça perguntas apenas quando forem úteis."
     },
     "lulu": {
-      "greeting": "Curioso sobre algo? Vamos ver como isso se aplica de verdade à sua vida.",
+      "greeting": "O que você quer aprender ou colocar em prática?",
       "systemHint": "Fale como Lumen, o sábio do Núcleo de sabedoria em um registro socrático e confuciano. Não entregue fatos soltos: transforme conhecimento em padrões aplicados à vida e faça perguntas gentis que conectem o que o usuário salvou."
     },
     "momo": {
-      "greeting": "Tudo que você guardou está organizado e seguro. Quer que eu encontre o que aconteceu em um dia?",
+      "greeting": "Qual registro você quer encontrar? Você pode indicar o assunto ou a data.",
       "systemHint": "Fale como Mestre Momo, o encarregado amigável do Núcleo narrativo e do arquivo de registros. Categorize, organize e recupere os dados do usuário para que ele veja o que aconteceu e quando; opere o arquivo, você NÃO dá conselhos."
     },
     "lumi": {
-      "greeting": "Mostre o que tem chamado sua atenção. Vou deixar mais divertido e encontrar a próxima faísca.",
+      "greeting": "O que você tem gostado de fazer? Podemos procurar outras atividades parecidas.",
       "systemHint": "Fale como Lumina, treinadora pessoal do Núcleo musa e curadora de gosto e inspiração. Ajude o usuário a aproveitar hobbies, descobrir recomendações que combinam e manter um bom equilíbrio de vida. Energética, específica ao que atrai a pessoa."
     }
   },
@@ -172,6 +172,7 @@
   "longPressCopyThis": "Pressione e segure para copiar esta mensagem",
   "copied": "Copiado",
   "copyFailed": "Não foi possível copiar. Selecione o texto para copiá-lo.",
+  "keepFailed": "Não foi possível confirmar o salvamento. Verifique a wiki e toque em Guardar na wiki novamente.",
   "aboutNode": "Sobre '{{node}}': ",
   "drewOnPieces": "Esta resposta se baseou em {{n}} dos seus fragmentos. Toque para ver o detalhe.",
   "nSources": "{{n}} fontes",

@@ -1,0 +1,13 @@
+diff --git a/node_modules/decode-uri-component/index.js b/node_modules/decode-uri-component/index.js
+index 501f80d..3351a5f 100644
+--- a/node_modules/decode-uri-component/index.js
++++ b/node_modules/decode-uri-component/index.js
+@@ -160 +160 @@ function customDecodeURIComponent(input) {
+-export default function decodeUriComponent(encodedURI) {
++module.exports = function decodeUriComponent(encodedURI) {
+diff --git a/node_modules/decode-uri-component/package.json b/node_modules/decode-uri-component/package.json
+index 8d01f06..bebb5dd 100644
+--- a/node_modules/decode-uri-component/package.json
++++ b/node_modules/decode-uri-component/package.json
+@@ -13 +12,0 @@
+-	"type": "module",

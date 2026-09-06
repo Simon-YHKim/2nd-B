@@ -45,7 +45,7 @@
     "surprise": "뜻밖의 연결을 찾았습니다. ‘{{from}}’과 ‘{{to}}’이 서로 다른 주제인데 이어져 있습니다.",
     "islandChip": "지식 군집 {{count}}",
     "proposalsLabel": "제안된 연결",
-    "noProposals": "아직 제안이 없습니다. 의미 색인을 만든 뒤 연결 제안을 받아보세요.",
+    "noProposals": "아직 연결 제안이 없어요. 아래 버튼을 눌러 관련된 기록을 찾아보세요.",
     "confidence": "{{percent}}% 일치",
     "reject": "거절",
     "ratify": "승인",
@@ -216,7 +216,7 @@
     "last7": "최근 7일",
     "thirdParty": "제3자 제공",
     "none": "0건",
-    "footer": "기본값은 로컬 우선입니다. 외부 전송은 확인 후 진행됩니다.",
+    "footer": "자료마다 처리하고 보관하는 방식이 달라요. 각 기능의 안내에서 확인해 주세요.",
     "dataReview": "내 데이터 리뷰",
     "open": "열기"
   },
@@ -259,18 +259,18 @@
     "sources": {
       "cal": {
         "name": "Google 캘린더",
-        "sub": "일정에서 리듬·관계 신호"
+        "sub": "일정 파일에서 약속 정보 가져오기"
       },
       "health": {
         "name": "Apple 건강",
-        "sub": "수면·활동으로 건강 별"
+        "sub": "건강 앱에서 내보낸 파일 가져오기"
       },
       "notion": {
         "sub": "메모·문서 가져오기"
       },
       "photos": {
         "name": "사진 앨범",
-        "sub": "장면에서 휴식·관계"
+        "sub": "사진 속 글자를 읽어 기록으로 담기"
       },
       "gpt": {
         "name": "ChatGPT 내보내기",
@@ -345,7 +345,7 @@
     "sectionStart": "시작하기",
     "q1": "북두칠성 7별은 무엇인가요?",
     "q2": "북극성은 어떻게 밝아지나요?",
-    "q3": "검사 결과는 어떻게 정확해지나요?",
+    "q3": "검사 결과는 어떻게 읽어야 하나요?",
     "sectionData": "데이터 · 프라이버시",
     "q4": "IDEN 파일은 무엇인가요?",
     "q5": "내 데이터는 어디에 저장되나요?",
@@ -879,9 +879,9 @@
       "healthCtaReflected": "반영됨",
       "healthCtaReflectToday": "오늘 반영",
       "healthCtaConnect": "연동 필요",
-      "leadStart": "다른 곳에 흩어진 나를 가져옵니다. 가져온 것도 ",
-      "leadStrong": "{{who}}의 비중",
-      "leadEnd": "으로만 별에 반영됩니다.",
+      "leadStart": "다른 앱의 기록을 가져와요. 파일에서 가져온 자료는 ",
+      "leadStrong": "{{who}}의 정리함",
+      "leadEnd": "에서 확인하고 정리할 수 있어요.",
       "toggleFile": "파일로",
       "toggleAccount": "계정 연동",
       "sectionChooseFile": "파일 선택",
@@ -986,7 +986,7 @@
     "reasoningScreen": {
       "autoTitle": "자동 리즈닝",
       "autoPaused": "다 썼습니다 · 월요일에 자동으로 다시 시작합니다",
-      "autoBody": "자료를 담을 때마다 세컨비가 바로 별을 잇습니다",
+      "autoBody": "자료를 담을 때마다 세컨비가 관련 생활 영역을 제안해요",
       "autoNote": "자동 실행도 주간 한도를 1회씩 사용합니다. 직접 실행할 1회는 항상 남겨 둡니다."
     }
   },
@@ -1043,16 +1043,16 @@
   },
   "trends": {
     "title": "밝기 변화",
-    "subtitle": "지난 8주, {{who}}의 별자리는 꾸준히 또렷해지고 있습니다.",
+    "subtitle": "여기에 나온 수치는 예시예요. {{who}}의 실제 기록에서 계산한 결과는 아니에요.",
     "overall": "전체 밝기",
-    "delta8w": "+34% · 8주",
-    "perStar": "별마다 변화",
-    "log": "밝기 이력",
-    "shareCta": "이 변화를 카드로 공유"
+    "delta8w": "예시 +34% · 8주",
+    "perStar": "주제별 변화 예시",
+    "log": "변화 이력 예시",
+    "shareCta": "공유 카드 만들기"
   },
   "profileDetails": {
     "screenTitle": "내 생활 정보",
-    "intro": "모두 선택 입력입니다. 답할수록 제안이 만인 공통이 아니라 나에게 맞습니다.",
+    "intro": "원하는 항목만 적어 주세요. 생활 정보를 프로필에 저장하고 나중에 고칠 수 있어요.",
     "progress": "{{total}}칸 중 {{filled}}칸",
     "save": "저장",
     "saved": "저장했습니다",
@@ -1066,13 +1066,13 @@
     "householdLabel": "함께 사는 사람",
     "householdHint": "혼자, 가족과, 룸메이트와…",
     "busiestSeasonLabel": "가장 바쁜 시기",
-    "busiestSeasonHint": "큰 계획을 그때 두지 않기 위해서입니다.",
+    "busiestSeasonHint": "예: 시험 기간, 연말, 여름 성수기",
     "dailyRhythmLabel": "하루 리듬",
-    "dailyRhythmHint": "제안이 몇 시에 오는지를 정합니다.",
+    "dailyRhythmHint": "평소 생활 패턴에 가까운 것을 골라 주세요.",
     "workHoursLabel": "주로 일하거나 공부하는 시간대",
-    "workHoursHint": "비어 있는 시간을 찾기 위해서입니다.",
+    "workHoursHint": "주로 일하거나 공부하는 시간대를 골라 주세요.",
     "workDaysLabel": "주로 일하는 요일",
-    "workDaysHint": "주간 루틴을 맞는 요일에 걸기 위해서입니다.",
+    "workDaysHint": "일하는 요일이 바뀐다면 교대나 그때그때를 골라 주세요.",
     "rhythmMorning": "아침형",
     "rhythmEvening": "저녁형",
     "rhythmFlexible": "유동적",
