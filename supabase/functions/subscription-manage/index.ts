@@ -82,6 +82,10 @@ function jsonResponse(req: Request, body: unknown, status = 200): Response {
   });
 }
 
+function unauthorized(req: Request): Response {
+  return jsonResponse(req, { error: 'authentication_required' }, 401);
+}
+
 function corsPreflight(req: Request): Response {
   return new Response(null, {
     status: 204,
@@ -95,22 +99,32 @@ function corsPreflight(req: Request): Response {
   });
 }
 
-// The JWT is already validated by the gateway (verify_jwt=true), but verify_jwt
-// only proves the token is VALID. The public anon/publishable key is itself a
-// valid token (role==='anon'). This endpoint cancels subscriptions and asks for
-// money back, so we require a signed-in USER: a real `sub` AND
-// role==='authenticated'. Mirrors delete-account / export-account. Returns null
-// for any non-user token.
-function userIdFromJwt(authHeader: string): string | null {
+// The gateway is one check, not the source of current session state. Parse one
+// bounded JWT credential, use its claims only as a hint, then ask Supabase Auth
+// to verify that the user still exists and the access token is not revoked.
+const MAX_ACCESS_TOKEN_CHARS = 8 * 1024;
+const MAX_AUTHORIZATION_HEADER_CHARS = MAX_ACCESS_TOKEN_CHARS + 'Bearer '.length;
+const BEARER_JWT_PATTERN = /^Bearer ([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/i;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+function accessTokenFromAuthorization(authHeader: string): string | null {
+  if (authHeader.length > MAX_AUTHORIZATION_HEADER_CHARS) return null;
+  const accessToken = BEARER_JWT_PATTERN.exec(authHeader)?.[1] ?? '';
+  if (accessToken.length === 0 || accessToken.length > MAX_ACCESS_TOKEN_CHARS) return null;
+  return accessToken;
+}
+
+function userIdHintFromAccessToken(accessToken: string): string | null {
   try {
-    const token = authHeader.slice(authHeader.toLowerCase().indexOf('bearer ') + 7).trim();
-    const payload = token.split('.')[1];
+    const payload = accessToken.split('.')[1];
     if (!payload) return null;
     const b64 = payload.replace(/-/g, '+').replace(/_/g, '/');
-    const json = JSON.parse(atob(b64 + '=='.slice(0, (4 - (b64.length % 4)) % 4)));
-    const sub = typeof json?.sub === 'string' ? json.sub : '';
-    const role = typeof json?.role === 'string' ? json.role : '';
-    if (role !== 'authenticated' || sub.length === 0) return null;
+    const decoded: unknown = JSON.parse(atob(b64 + '=='.slice(0, (4 - (b64.length % 4)) % 4)));
+    if (decoded === null || typeof decoded !== 'object' || Array.isArray(decoded)) return null;
+    const claims = decoded as Record<string, unknown>;
+    const sub = typeof claims.sub === 'string' ? claims.sub : '';
+    const role = typeof claims.role === 'string' ? claims.role : '';
+    if (role !== 'authenticated' || !UUID_PATTERN.test(sub)) return null;
     return sub;
   } catch {
     return null;
@@ -228,12 +242,9 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: 'invalid_body' }, 400);
   }
 
-  const authHeader = req.headers.get('authorization') ?? '';
-  if (!authHeader.toLowerCase().startsWith('bearer ')) {
-    return jsonResponse(req, { error: 'missing_authorization' }, 401);
-  }
-  const userId = userIdFromJwt(authHeader);
-  if (!userId) return jsonResponse(req, { error: 'invalid_jwt' }, 401);
+  const accessToken = accessTokenFromAuthorization(req.headers.get('authorization') ?? '');
+  const userIdHint = accessToken ? userIdHintFromAccessToken(accessToken) : null;
+  if (!accessToken || !userIdHint) return unauthorized(req);
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -243,6 +254,20 @@ Deno.serve(async (req: Request) => {
   const admin = createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
+
+  let verifiedUser: { id: string } | null = null;
+  try {
+    const { data, error } = await admin.auth.getUser(accessToken);
+    if (!error) verifiedUser = data.user;
+  } catch {
+    return unauthorized(req);
+  }
+  if (
+    verifiedUser === null
+    || !UUID_PATTERN.test(verifiedUser.id)
+    || !(verifiedUser.id === userIdHint)
+  ) return unauthorized(req);
+  const userId = verifiedUser.id;
 
   const action = body.action;
 
