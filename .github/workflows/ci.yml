@@ -31,6 +31,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # No file is in LFS yet. This is here so the day one is, CI does not
+          # silently read a 130-byte pointer instead of the file (2026-09-06).
+          lfs: true
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -64,6 +68,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # No file is in LFS yet. This is here so the day one is, CI does not
+          # silently read a 130-byte pointer instead of the file (2026-09-06).
+          lfs: true
       - uses: actions/setup-node@v4
         with:
           node-version: "22"

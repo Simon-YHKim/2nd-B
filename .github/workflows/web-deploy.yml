@@ -172,6 +172,9 @@ jobs:
       - name: Checkout the exact source commit
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          # No file is in LFS yet. This is here so the day one is, CI does not
+          # silently read a 130-byte pointer instead of the file (2026-09-06).
+          lfs: true
           fetch-depth: 0
           persist-credentials: false
           ref: ${{ steps.gate.outputs.source_sha }}
@@ -723,6 +726,9 @@ jobs:
       - name: Checkout the workflow commit for the final ref check
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          # No file is in LFS yet. This is here so the day one is, CI does not
+          # silently read a 130-byte pointer instead of the file (2026-09-06).
+          lfs: true
           fetch-depth: 0
           persist-credentials: false
           ref: ${{ github.sha }}
