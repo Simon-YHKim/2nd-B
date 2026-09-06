@@ -102,6 +102,22 @@ describe("세션 브리핑 파일", () => {
     expect(/CLAUDE\.md[^\n]{0,80}(정본|먼저 읽)/.test(agents)).toBe(true);
   });
 
+  it("공통 시작 문서에서 후속 작업의 실제 자료까지 이어진다", () => {
+    const entry = "docs/session-start/README.md";
+    expect(read("CLAUDE.md")).toContain(entry);
+    expect(read(entry)).toContain("tasks.json");
+    const queue = JSON.parse(read("docs/session-start/tasks.json")) as {
+      tasks: { id: string; entry: string; firstAction: string; doneWhen: string[] }[];
+    };
+    expect(queue.tasks.length).toBeGreaterThan(0);
+    expect(new Set(queue.tasks.map((task) => task.id)).size).toBe(queue.tasks.length);
+    for (const task of queue.tasks) {
+      expect(existsSync(join(ROOT, "docs/session-start", task.entry))).toBe(true);
+      expect(task.firstAction.trim().length).toBeGreaterThan(0);
+      expect(task.doneWhen.length).toBeGreaterThan(0);
+    }
+  });
+
   // ── 정정을 인용할 거면 정정 표시를 달고 인용한다 ──────────────────
   it("철회된 주장을 인용할 때는 정정 표시가 같이 있다", () => {
     // 원문 보존은 좋다(역사 기록). 다만 정정 표시 없이 남으면 다음 세션이

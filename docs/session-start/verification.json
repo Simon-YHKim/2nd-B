@@ -1,0 +1,40 @@
+{
+  "checkedAtKst": "2026-09-06 19:13:31",
+  "scope": "Same Windows account; E:/2ndB shared Git directory; local configuration",
+  "sharedReadChecks": 58,
+  "briefingTests": 10,
+  "testFileLint": "PASS",
+  "lexicon": "PASS, 1142 files",
+  "storeGenerator": {
+    "snapshots": 4,
+    "captions": 12,
+    "fields": 14,
+    "lineEndings": "LF"
+  },
+  "freshSessions": {
+    "claude": {
+      "sharedSha": "954e1e31dc8fb8b065e6994988b96fe20c98d369",
+      "readmePath": "docs/session-start/README.md",
+      "firstPendingTaskId": "COPY-INTEGRATE-260906",
+      "storeDraftPath": "docs/store-copy/drafts.json",
+      "specificRequestWins": true,
+      "statusOnlyWouldEdit": false
+    },
+    "codex": {
+      "sharedSha": "954e1e31dc8fb8b065e6994988b96fe20c98d369",
+      "readmePath": "docs/session-start/README.md",
+      "firstPendingTaskId": "COPY-INTEGRATE-260906",
+      "storeDraftPath": "docs/store-copy/drafts.json",
+      "specificRequestWins": true,
+      "statusOnlyWouldEdit": false
+    }
+  },
+  "projectMainFilesUnchanged": true,
+  "codexPriorBytesPreserved": true,
+  "claudeGeneratedFileUnchanged": true,
+  "fullAppVerifyRerun": false,
+  "pushed": false,
+  "merged": false,
+  "published": false,
+  "behaviorScope": "Fresh CLI instruction discovery, read-only document reading and next-task identification. Actual task execution, active-owner recovery, every UI state and external consoles not exercised."
+}
