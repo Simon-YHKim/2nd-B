@@ -80,6 +80,34 @@ export default function Root({ children }: PropsWithChildren) {
             /capture. The href is rooted at the Pages base path
             (expo.experiments.baseUrl = /2nd-B); on the local dev server the
             link 404s, which browsers treat as "no manifest" - harmless. */}
+        {/* Share copy for the public site. The live root shipped an empty
+            <title> and no description, so every share of
+            https://simon-yhkim.github.io/2nd-B/ rendered a blank card
+            (measured 2026-09-07). The wording is the reviewed store draft
+            (docs/store-copy/drafts.json :: ko.appStoreSubtitle / ko.playShort)
+            so the site, the listing and the app say the same thing.
+            og:image is deliberately absent: Open Graph wants an absolute URL
+            and this shell has no origin to build one from. Add it together
+            with a share asset and the origin it is served from. */}
+        <title>2nd-Brain · 기록으로 알아가는 나</title>
+        <meta
+          name="description"
+          content="경험과 메모를 모아 나를 돌아보고, 세컨비와 기록을 바탕으로 이야기해요."
+        />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="2nd-Brain" />
+        <meta property="og:locale" content="ko_KR" />
+        <meta property="og:title" content="2nd-Brain · 기록으로 알아가는 나" />
+        <meta
+          property="og:description"
+          content="경험과 메모를 모아 나를 돌아보고, 세컨비와 기록을 바탕으로 이야기해요."
+        />
+        <meta name="twitter:card" content="summary" />
+        <meta name="twitter:title" content="2nd-Brain · 기록으로 알아가는 나" />
+        <meta
+          name="twitter:description"
+          content="경험과 메모를 모아 나를 돌아보고, 세컨비와 기록을 바탕으로 이야기해요."
+        />
         <link rel="manifest" href="/2nd-B/manifest.webmanifest" />
         <ScrollViewStyleReset />
         <style dangerouslySetInnerHTML={{ __html: PAGE_LOCK_CSS }} />

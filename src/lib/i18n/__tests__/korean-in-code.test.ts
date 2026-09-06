@@ -85,6 +85,11 @@ const KOREAN_BY_DESIGN: Record<string, string> = {
   "src/lib/import/ledger-ratify.ts": "가져오기 출처 라벨",
   "src/lib/relation/import-signals.ts": "카카오 별칭 안내 (한국 기능 전용)",
   "src/lib/share/insight-card.ts": "공유 카드 기본 문구",
+  // 정적 웹 셸의 <title>·description·og 태그. 하이드레이션 전에 그려지고
+  // static export 는 모든 라우트에 같은 셸 하나를 쓰므로 t() 를 부를 자리가
+  // 없다. 셸이 이미 lang="ko" 로 한국어 우선을 선언하고 있고, 문구는
+  // docs/store-copy/drafts.json 의 검토된 ko 초안과 같은 말이다.
+  "src/app/+html.tsx": "정적 웹 셸의 공유 메타 (하이드레이션 전, lang=ko)",
 
   // ── dev 전용 셸 (사용자에게 안 보임) ──
   "src/components/deepspace/DeepSpaceHubDock.tsx": "dev 전용 허브 독",
