@@ -961,7 +961,9 @@
       "afterLabel": "after +{{n}}",
       "cta": "Watch and get +{{n}}",
       "later": "Later",
-      "privacy": "Adults with consent only · never on sensitive screens"
+      "privacy": "Adults with consent only · never on sensitive screens",
+      "capReached": "You have reached this month's earning limit. It resets next month.",
+      "creditFailed": "Could not confirm the credit. Check your remaining count again in a moment."
     },
     "rewardChat": {
       "titleA": "30 seconds for ",
@@ -971,7 +973,9 @@
       "afterLabel": "after +{{n}}",
       "cta": "Watch to get +{{n}} chats",
       "later": "Later",
-      "privacy": "Adults with consent only · never on sensitive screens"
+      "privacy": "Adults with consent only · never on sensitive screens",
+      "capReached": "You have reached this month's earning limit. It resets next month.",
+      "creditFailed": "Could not confirm the credit. Check today's remaining chats again in a moment."
     },
     "reasoningLimit": {
       "title": "You've used this week's base reasoning runs.",
