@@ -1,185 +1,271 @@
-// rewarded-ssv — AdMob rewarded-ad Server-Side Verification (SSV) callback (D2).
-//
-// Replaces the client dev-seam (which "completed" every watch even in prod, so
-// credits could be self-granted with no real impression — audit M4/D2) with a
-// server-to-server grant: AdMob calls THIS endpoint after a verified impression,
-// we verify the ECDSA signature against Google's rotating verifier keys, and only
-// then grant the reward (server-owned cap, mirrors 0075).
-//
-// DEPLOY / CONFIG (Simon): (1) create an SSV-enabled rewarded ad unit in AdMob and
-// point its SSV callback at this function URL, passing the user id in custom_data;
-// (2) deploy with verify_jwt=false (AdMob sends no JWT); (3) set REWARD_SSV_ENABLED=1
-// to turn it on. It FAILS CLOSED until then. VALIDATION REQUIRED before enabling:
-// test against a real AdMob callback (valid) AND a tampered one (must be rejected) —
-// a wrong signature check either drops real rewards or re-opens the forge hole.
-//
-// SSV spec: https://developers.google.com/admob/android/ssv
+// AdMob rewarded-ad Server-Side Verification. This route deliberately runs
+// with verify_jwt=false because Google sends no Supabase JWT. A Google ECDSA
+// signature is the only callback authority; authenticated POST can issue a
+// short-lived ticket but can never grant a reward.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  MAX_SSV_QUERY_BYTES,
+  decodeBase64,
+  decodeBase64Url,
+  derToRawEcdsa,
+  parseRewardCallback,
+  parseSignedSsvQuery,
+  parseVerifierKeyDocument,
+  readRewardContractConfig,
+  type RewardKind,
+  type VerifierKey,
+} from './reward-contract.ts';
+import { VerifierKeyCache, readBoundedJsonResponse } from './verifier-key-cache.ts';
 
 const VERIFIER_KEYS_URL = 'https://www.gstatic.com/admob/reward/verifier-keys.json';
-// The monthly cap + clamp are enforced server-side in migration 0079
-// (grant_reward_credits_ssv); this file only forwards one watch's worth.
-const REWARD_PER_WATCH = 2; // must match src/lib/entitlements/tiers.ts REWARD_PER_WATCH
-
-type VerifierKey = { keyId: number; pem?: string; base64: string };
-let keyCache: { at: number; keys: VerifierKey[] } | null = null;
+const MAX_VERIFIER_KEY_BYTES = 65_536;
+const MAX_ISSUE_BODY_BYTES = 128;
+const REWARD_PER_WATCH = 2;
 
 function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store',
+      'x-content-type-options': 'nosniff',
+    },
+  });
 }
 
-function b64urlToBytes(s: string): Uint8Array {
-  let b64 = s.replace(/-/g, '+').replace(/_/g, '/');
-  const pad = b64.length % 4;
-  if (pad) b64 += '='.repeat(4 - pad);
-  const bin = atob(b64);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
+const verifierKeyCache = new VerifierKeyCache<VerifierKey>(
+  async (signal) => {
+    const response = await fetch(VERIFIER_KEYS_URL, {
+      method: 'GET',
+      headers: { accept: 'application/json' },
+      redirect: 'error',
+      signal,
+    });
+    if (!response.ok) throw new Error('verifier-key request failed');
+    const keys = parseVerifierKeyDocument(
+      await readBoundedJsonResponse(response, MAX_VERIFIER_KEY_BYTES),
+    );
+    if (!keys) throw new Error('verifier-key document invalid');
+    return keys;
+  },
+  {
+    timeoutMs: 5_000,
+    ttlMs: 3_600_000,
+    maxStaleMs: 86_400_000,
+    refreshCooldownMs: 60_000,
+  },
+);
+
+function bearerToken(req: Request): string | null {
+  const header = req.headers.get('authorization') ?? '';
+  if (!header.toLowerCase().startsWith('bearer ')) return null;
+  const token = header.slice(7).trim();
+  return token.length > 0 && token.length <= 8_192 && !/\s/.test(token) ? token : null;
 }
 
-// AdMob signs with ECDSA and encodes the signature as DER; Web Crypto verify wants
-// the raw r||s (64 bytes for P-256). Convert DER (SEQUENCE{INTEGER r, INTEGER s}).
-function derToRawEcdsa(der: Uint8Array): Uint8Array | null {
+async function readIssueKind(req: Request): Promise<RewardKind | null> {
+  const mediaType = (req.headers.get('content-type') ?? '').split(';', 1)[0].trim().toLowerCase();
+  if (mediaType !== 'application/json' || !req.body) return null;
+  const declared = req.headers.get('content-length')?.trim();
+  if (declared && (!/^(?:0|[1-9][0-9]*)$/.test(declared) || Number(declared) > MAX_ISSUE_BODY_BYTES)) {
+    return null;
+  }
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
   try {
-    let i = 0;
-    if (der[i++] !== 0x30) return null; // SEQUENCE
-    if (der[i] & 0x80) i += 1 + (der[i] & 0x7f); else i++; // seq length
-    const readInt = (): Uint8Array | null => {
-      if (der[i++] !== 0x02) return null; // INTEGER
-      let len = der[i++];
-      let v = der.slice(i, i + len);
-      i += len;
-      while (v.length > 32 && v[0] === 0x00) v = v.slice(1); // strip sign pad
-      if (v.length > 32) return null;
-      const p = new Uint8Array(32);
-      p.set(v, 32 - v.length);
-      return p;
-    };
-    const r = readInt();
-    const s = readInt();
-    if (!r || !s) return null;
-    const raw = new Uint8Array(64);
-    raw.set(r, 0);
-    raw.set(s, 32);
-    return raw;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > MAX_ISSUE_BODY_BYTES) {
+        await reader.cancel().catch(() => undefined);
+        return null;
+      }
+      chunks.push(value.slice());
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  try {
+    const body: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+    const keys = Object.keys(body);
+    const kind = (body as { kind?: unknown }).kind;
+    return keys.length === 1 && keys[0] === 'kind' && (kind === 'reasoning' || kind === 'chat')
+      ? kind : null;
   } catch {
     return null;
   }
 }
 
-async function getVerifierKeys(force = false): Promise<VerifierKey[]> {
-  // Cache 1h; the caller force-refetches on a key-id miss (Google rotates keys).
-  if (!force && keyCache && Date.now() - keyCache.at < 3_600_000) return keyCache.keys;
-  const res = await fetch(VERIFIER_KEYS_URL);
-  if (!res.ok) throw new Error(`verifier keys ${res.status}`);
-  const data = (await res.json()) as { keys: VerifierKey[] };
-  keyCache = { at: Date.now(), keys: data.keys ?? [] };
-  return keyCache.keys;
+function randomTicketToken(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-async function signatureValid(rawQuery: string): Promise<{ ok: boolean; params: URLSearchParams }> {
-  // The signed content is everything before "&signature="; signature + key_id
-  // are the last two params (per the SSV spec).
-  const sigIdx = rawQuery.indexOf('&signature=');
-  const params = new URLSearchParams(rawQuery);
-  if (sigIdx < 0) return { ok: false, params };
-  const signedContent = rawQuery.slice(0, sigIdx);
-  const signature = params.get('signature');
-  const keyId = params.get('key_id');
-  if (!signature || !keyId) return { ok: false, params };
+async function sha256Hex(value: string): Promise<string> {
+  const digest = new Uint8Array(
+    await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)),
+  );
+  return [...digest].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
 
-  let keys = await getVerifierKeys();
-  let key = keys.find((k) => String(k.keyId) === keyId);
-  if (!key) {
-    // Key rotation: the new key_id may be absent from the 1h cache. Force one
-    // refetch before rejecting (still fail closed if genuinely absent).
-    keys = await getVerifierKeys(true);
-    key = keys.find((k) => String(k.keyId) === keyId);
+function ownedArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return buffer;
+}
+
+type SignatureResult =
+  | { status: 'valid'; params: URLSearchParams }
+  | { status: 'invalid' }
+  | { status: 'unavailable' };
+
+async function signatureValid(rawQuery: string): Promise<SignatureResult> {
+  const parsed = parseSignedSsvQuery(rawQuery);
+  if (!parsed) return { status: 'invalid' };
+
+  let keys: VerifierKey[];
+  try {
+    keys = await verifierKeyCache.get();
+  } catch {
+    return { status: 'unavailable' };
   }
-  if (!key) return { ok: false, params };
+  let key = keys.find((candidate) => String(candidate.keyId) === parsed.keyId);
+  if (!key) {
+    try {
+      // A failed key-miss refresh is retriable infrastructure failure, not a
+      // forged callback. Known stale keys remain usable for bounded outages.
+      keys = await verifierKeyCache.get(true, false);
+    } catch {
+      return { status: 'unavailable' };
+    }
+    key = keys.find((candidate) => String(candidate.keyId) === parsed.keyId);
+  }
+  if (!key) return { status: 'invalid' };
 
-  const raw = derToRawEcdsa(b64urlToBytes(signature));
-  if (!raw) return { ok: false, params };
+  const der = decodeBase64Url(parsed.signature);
+  const rawSignature = der ? derToRawEcdsa(der) : null;
+  const spki = decodeBase64(key.base64);
+  if (!rawSignature) return { status: 'invalid' };
+  if (!spki || spki.length > 512) return { status: 'unavailable' };
 
-  const spki = b64urlToBytes(key.base64);
-  const pubKey = await crypto.subtle.importKey(
-    'spki',
-    spki,
-    { name: 'ECDSA', namedCurve: 'P-256' },
-    false,
-    ['verify'],
-  );
-  const ok = await crypto.subtle.verify(
-    { name: 'ECDSA', hash: 'SHA-256' },
-    pubKey,
-    raw,
-    new TextEncoder().encode(signedContent),
-  );
-  return { ok, params };
+  let publicKey: CryptoKey;
+  try {
+    publicKey = await crypto.subtle.importKey(
+      'spki', ownedArrayBuffer(spki), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify'],
+    );
+  } catch {
+    return { status: 'unavailable' };
+  }
+  try {
+    const valid = await crypto.subtle.verify(
+      { name: 'ECDSA', hash: 'SHA-256' },
+      publicKey,
+      ownedArrayBuffer(rawSignature),
+      new TextEncoder().encode(parsed.signedContent),
+    );
+    return valid ? { status: 'valid', params: parsed.params } : { status: 'invalid' };
+  } catch {
+    return { status: 'invalid' };
+  }
 }
 
 Deno.serve(async (req: Request) => {
-  // FAIL CLOSED until explicitly enabled + validated.
   if (Deno.env.get('REWARD_SSV_ENABLED') !== '1') return json({ error: 'disabled' }, 503);
   try {
-    const url = new URL(req.url);
-    const { ok, params } = await signatureValid(url.search.replace(/^\?/, ''));
-    if (!ok) return json({ error: 'bad_signature' }, 403);
-
-    // The user id is carried in custom_data (set when the client requests the
-    // ad). Phase 4 (0091): custom_data may also carry the reward KIND as
-    // "<userId>|chat" -- one watch tops up TODAY's chat allowance instead of
-    // the monthly reasoning credits. Bare custom_data stays reasoning, so
-    // already-fielded clients keep their exact behavior.
-    const rawCustom = params.get('custom_data') ?? params.get('user_id');
-    if (!rawCustom) return json({ error: 'no_user' }, 400);
-    const [userId, kindRaw] = rawCustom.split('|');
-    if (!userId) return json({ error: 'no_user' }, 400);
-    const kind = kindRaw === 'chat' ? 'chat' : 'reasoning';
-    // AdMob's unique impression id = the idempotency key (replay + retry defense).
-    const txnId = params.get('transaction_id');
-    if (!txnId) return json({ error: 'no_transaction_id' }, 400);
-
-    // Grant via the atomic, idempotent, service-role-only RPC (0079): it dedups on
-    // transaction_id and clamps to the server-owned monthly cap in one statement-set,
-    // so a replayed or AdMob-retried callback grants at most once.
-    const admin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      { auth: { persistSession: false } },
-    );
-    if (kind === 'chat') {
-      // 0091: +2 chat sends TODAY, monthly-capped; buckets derived inside the
-      // RPC. Same dedup ledger, so one impression funds exactly one grant.
-      const { data: bonus, error: cErr } = await admin.rpc('grant_chat_ad_bonus_ssv', {
-        p_user_id: userId,
-        p_txn_id: txnId,
-      });
-      if (cErr) {
-        console.error('[rewarded-ssv] chat grant failed:', cErr.message);
-        return json({ error: 'grant_failed' }, 500);
-      }
-      return json({ ok: true, chat_ad_bonus: bonus ?? null });
-    }
-
-    const kst = new Date(Date.now() + 9 * 3600_000);
-    const monthBucket = `${kst.getUTCFullYear()}-${String(kst.getUTCMonth() + 1).padStart(2, '0')}`;
-
-    const { data: credits, error: gErr } = await admin.rpc('grant_reward_credits_ssv', {
-      p_user_id: userId,
-      p_month: monthBucket,
-      p_grant: REWARD_PER_WATCH,
-      p_txn_id: txnId,
+    const contract = readRewardContractConfig((name) => Deno.env.get(name));
+    if (!contract) return json({ error: 'misconfigured_reward_contract' }, 503);
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!supabaseUrl || !serviceRoleKey) return json({ error: 'misconfigured_database' }, 503);
+    const admin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
     });
-    if (gErr) {
-      console.error('[rewarded-ssv] grant failed:', gErr.message);
-      return json({ error: 'grant_failed' }, 500);
+
+    if (req.method === 'POST') {
+      const accessToken = bearerToken(req);
+      if (!accessToken) return json({ error: 'missing_authorization' }, 401);
+      const { data: authData, error: authError } = await admin.auth.getUser(accessToken);
+      const user = authData?.user;
+      if (authError || !user) return json({ error: 'invalid_authorization' }, 401);
+      const kind = await readIssueKind(req);
+      if (!kind) return json({ error: 'invalid_reward_kind' }, 400);
+
+      const ticket = randomTicketToken();
+      const tokenHash = await sha256Hex(ticket);
+      const { data: issued, error: issueError } = await admin.rpc('issue_reward_ssv_ticket', {
+        p_user_id: user.id,
+        p_reward_kind: kind,
+        p_token_hash: tokenHash,
+        p_ad_unit_id: contract.adUnitId,
+        p_reward_amount: contract.rewardAmount,
+        p_reward_item: contract.rewardItem,
+      });
+      if (issueError) return json({ error: 'ticket_service_unavailable' }, 503);
+      if (issued !== true) return json({ error: 'ticket_not_available' }, 429);
+      return json({ user_id: user.id, custom_data: ticket, expires_in: 600 });
     }
-    return json({ ok: true, reward_credits: credits ?? null });
-  } catch (e) {
-    console.error('[rewarded-ssv] error:', String(e));
-    return json({ error: 'server_error' }, 500);
+
+    if (req.method !== 'GET') return json({ error: 'method_not_allowed' }, 405);
+    const questionAt = req.url.indexOf('?');
+    const rawQuery = questionAt < 0 ? '' : req.url.slice(questionAt + 1);
+    if (new TextEncoder().encode(rawQuery).byteLength > MAX_SSV_QUERY_BYTES) {
+      return json({ error: 'query_too_large' }, 400);
+    }
+    const signature = await signatureValid(rawQuery);
+    if (signature.status === 'unavailable') return json({ error: 'verifier_keys_unavailable' }, 503);
+    if (signature.status !== 'valid') return json({ error: 'bad_signature' }, 403);
+
+    const callback = parseRewardCallback(signature.params, contract);
+    if (!callback) return json({ error: 'reward_contract_mismatch' }, 403);
+    const tokenHash = await sha256Hex(callback.ticket);
+    const { data: consumed, error: consumeError } = await admin.rpc('consume_reward_ssv_ticket', {
+      p_token_hash: tokenHash,
+      p_callback_user_id: callback.callbackUserId,
+      p_txn_id: callback.transactionId,
+      p_ad_unit_id: callback.adUnitId,
+      p_reward_amount: callback.rewardAmount,
+      p_reward_item: callback.rewardItem,
+    });
+    if (consumeError) return json({ error: 'ticket_service_unavailable' }, 503);
+    const row = Array.isArray(consumed) && consumed.length === 1 ? consumed[0] : null;
+    if (
+      !row || row.ticket_user_id !== callback.callbackUserId ||
+      (row.reward_kind !== 'reasoning' && row.reward_kind !== 'chat')
+    ) return json({ error: 'invalid_or_expired_ticket' }, 403);
+
+    if (row.reward_kind === 'chat') {
+      const { error } = await admin.rpc('grant_chat_ad_bonus_ssv', {
+        p_user_id: callback.callbackUserId,
+        p_txn_id: callback.transactionId,
+      });
+      if (error) return json({ error: 'grant_service_unavailable' }, 503);
+      return json({ ok: true });
+    }
+
+    const kst = new Date(Date.now() + 9 * 3_600_000);
+    const month = `${kst.getUTCFullYear()}-${String(kst.getUTCMonth() + 1).padStart(2, '0')}`;
+    const { error } = await admin.rpc('grant_reward_credits_ssv', {
+      p_user_id: callback.callbackUserId,
+      p_month: month,
+      p_grant: REWARD_PER_WATCH,
+      p_txn_id: callback.transactionId,
+    });
+    if (error) return json({ error: 'grant_service_unavailable' }, 503);
+    return json({ ok: true });
+  } catch {
+    console.error('[rewarded-ssv] unexpected failure');
+    return json({ error: 'server_error' }, 503);
   }
 });
