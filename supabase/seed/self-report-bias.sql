@@ -60,7 +60,7 @@ values
     now(),
     '33개 연구 메타분석. 지원자가 현직자보다 빅파이브에서 0.11~0.45 SD 높게 점수, 가장 큰 가식(faking)은 정서적 안정성(d=0.44)과 성실성(d=0.45) — 가장 *직무 관련성 높은* trait. 핵심 시사: faking 의 *방향* 은 맥락적으로 바람직한 trait 쪽. 2nd-Brain 프레이밍이 "좋은 사용자는 X" 라고 암시하면 사용자가 X 쪽으로 드리프트.',
     'Meta-analyzed applicant vs. incumbent scores across 33 studies. Effect sizes: applicants score 0.11–0.45 SD higher than incumbents on Big Five traits, with the largest faking on Emotional Stability (d=0.44) and Conscientiousness (d=0.45) — the most job-relevant traits. Critical for 2nd-Brain: the direction of faking is toward the contextually-desirable trait.',
-    'C6 judge-mode flag 의 경험적 정당화. Judge 계정(@xprize.org 등) 은 고-stakes 맥락에서 0.11~0.45 SD inflation 이 예상되므로 downstream evaluation 변경이 옳은 운영 대응.'
+    '고-stakes 맥락(평가받는다고 느끼는 계정)에서는 0.11~0.45 SD inflation 이 예상되므로, 자기보고 점수를 그대로 믿지 않고 downstream evaluation 에서 보정하는 것이 옳은 운영 대응.'
   ),
   (
     'Reconsidering the use of personality tests in personnel selection contexts',

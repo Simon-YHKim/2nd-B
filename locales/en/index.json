@@ -18,13 +18,5 @@
   "retryLoadHint": "Retries loading your graph data",
   "openRecordsHint": "Opens the records archive",
   "openCenterHint": "Opens North Star",
-  "todaysCenter": "Today's center",
-  "navGraph": "Graph",
-  "navWiki": "Wiki",
-  "navRecords": "Records",
-  "navResearch": "Research",
-  "navAssistant": "Assistant",
-  "navToday": "Today",
-  "navMyChange": "My change",
-  "navImport": "Import"
+  "todaysCenter": "Today's center"
 }

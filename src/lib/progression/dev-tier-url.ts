@@ -58,8 +58,3 @@ export function getUrlTierOverride(): SubscriptionTier | "off" {
   }
   return cached;
 }
-
-/** Test-only: clear the per-load cache. */
-export function __resetUrlTierCache(): void {
-  cached = undefined;
-}

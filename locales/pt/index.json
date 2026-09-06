@@ -18,13 +18,5 @@
   "retryLoadHint": "Tenta carregar os dados do gráfico de novo",
   "openRecordsHint": "Abre o arquivo de registros",
   "openCenterHint": "Abre o Núcleo da alma",
-  "todaysCenter": "O centro de hoje",
-  "navGraph": "Gráfico",
-  "navWiki": "Wiki",
-  "navRecords": "Registros",
-  "navResearch": "Pesquisa",
-  "navAssistant": "Assistente",
-  "navToday": "Hoje",
-  "navMyChange": "Minha mudança",
-  "navImport": "Importar"
+  "todaysCenter": "O centro de hoje"
 }
