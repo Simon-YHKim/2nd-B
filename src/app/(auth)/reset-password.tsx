@@ -22,7 +22,7 @@ import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tok
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceResetPasswordDesignScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
-const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_hq.png");
+const authHero = require("../../../assets/legacy-art/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_hq.png");
 
 const PALETTE = cosmicSky;
 

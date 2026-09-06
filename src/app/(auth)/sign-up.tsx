@@ -24,7 +24,7 @@ import { DeepSpaceSignUpDesignScreen } from "@/screens/deepspace/DeepSpaceDesign
 const SIGNUP_STICKY_CTA_HEIGHT = 84;
 const SIGNUP_SCROLL_BOTTOM_PADDING = spacing.lg;
 
-const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_hq.png");
+const authHero = require("../../../assets/legacy-art/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_hq.png");
 
 function SignUpLegacy() {
   const { t, i18n } = useTranslation(["auth", "common"]);

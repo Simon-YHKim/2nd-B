@@ -649,7 +649,9 @@ results.push(
 //
 // Pack granularity, not per-file: listing 226 filenames in a disclosure document
 // helps nobody and would make this fire on every crop. A pack is
-// `public/assets/<pack>` (the art packs sit one level deeper) or `<top>/<dir>`.
+// `public/assets/<pack>` or `assets/legacy-art/<pack>` (the art packs sit one level
+// deeper; the three require()-only packs moved out of public/ on 2026-09-05 so the
+// web export stops shipping them twice) or `<top>/<dir>`.
 //
 // Loose files directly under assets/ or public/ are skipped. Those are almost
 // always untracked scratch files on a developer machine, and failing a local run
@@ -669,7 +671,8 @@ function c12CollectImages(rel: string, out: string[] = []): string[] {
 function c12PackOf(path: string): string | null {
   const seg = path.split("/");
   if (seg.length < 3) return null; // loose file directly under assets/ or public/
-  return seg[0] === "public" && seg[1] === "assets" ? seg.slice(0, 3).join("/") : seg.slice(0, 2).join("/");
+  const nested = (seg[0] === "public" && seg[1] === "assets") || (seg[0] === "assets" && seg[1] === "legacy-art");
+  return nested ? seg.slice(0, 3).join("/") : seg.slice(0, 2).join("/");
 }
 
 results.push(
