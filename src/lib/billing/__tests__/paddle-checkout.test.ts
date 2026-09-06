@@ -2,7 +2,7 @@
 // account ownership: the authenticated subscription-manage function must bind it
 // with an HMAC that paddle-webhook verifies before granting an entitlement.
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import * as ts from "typescript";
 
@@ -30,6 +30,64 @@ type WebhookOwnershipHelpers = {
     nowMs: number,
   ) => string | null;
 };
+
+type WebhookBoundaryHelpers = {
+  validatePaddleEvent: (value: unknown) => unknown | null;
+};
+
+type RequestBoundaryModule = {
+  readBoundedUtf8Body: (
+    message: Request | Response,
+    options: {
+      maxBytes: number;
+      timeoutMs: number;
+      allowedContentTypes?: readonly string[];
+      requireLengthMatch?: boolean;
+    },
+  ) => Promise<{ bytes: Uint8Array; text: string }>;
+  parseJsonWithLimits: (text: string, maxDepth: number) => unknown;
+};
+
+const PROJECT_ROOT = join(__dirname, "..", "..", "..", "..");
+const requestBoundaryPath = join(
+  PROJECT_ROOT,
+  "supabase",
+  "functions",
+  "_shared",
+  "request-boundary.ts",
+);
+
+function loadRequestBoundary(): RequestBoundaryModule | null {
+  if (!existsSync(requestBoundaryPath)) return null;
+  const source = readFileSync(requestBoundaryPath, "utf8");
+  const js = ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const exportsObj: Partial<RequestBoundaryModule> = {};
+  new Function("exports", js)(exportsObj);
+  if (
+    typeof exportsObj.readBoundedUtf8Body !== "function"
+    || typeof exportsObj.parseJsonWithLimits !== "function"
+  ) return null;
+  return exportsObj as RequestBoundaryModule;
+}
+
+function loadWebhookBoundaryHelpers(source: string): WebhookBoundaryHelpers {
+  const start = source.indexOf("const MAX_PADDLE_WEBHOOK_BYTES");
+  const end = source.indexOf("// ---------------------------------------------------------------------------", start);
+  if (start < 0 || end < 0) throw new Error("Paddle webhook boundary helpers not found");
+  const snippet = source.slice(start, end)
+    + "\nexports.validatePaddleEvent = validatePaddleEvent;\n";
+  const js = ts.transpileModule(snippet, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const exportsObj: Partial<WebhookBoundaryHelpers> = {};
+  new Function("exports", js)(exportsObj);
+  if (typeof exportsObj.validatePaddleEvent !== "function") {
+    throw new Error("Paddle webhook boundary helpers did not evaluate");
+  }
+  return exportsObj as WebhookBoundaryHelpers;
+}
 
 function loadWebhookOwnershipHelpers(source: string): WebhookOwnershipHelpers {
   const start = source.indexOf("const OWNER_ANCHOR_QUERY_LIMIT");
@@ -169,6 +227,192 @@ describe("openPaddleCheckout", () => {
     } finally {
       authUser!.id = saved;
     }
+  });
+});
+
+describe("Paddle request boundary primitives", () => {
+  test("preserves the exact signed UTF-8 bytes while enforcing the declared length", async () => {
+    const boundary = loadRequestBoundary();
+    expect(boundary).not.toBeNull();
+    if (!boundary) return;
+
+    const text = '{"note":"한글"}';
+    const expected = new TextEncoder().encode(text);
+    const message = new Request("https://example.test/webhook", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        "content-length": String(expected.byteLength),
+      },
+      body: expected,
+    });
+    const result = await boundary.readBoundedUtf8Body(message, {
+      maxBytes: 1024,
+      timeoutMs: 1000,
+      allowedContentTypes: ["application/json"],
+      requireLengthMatch: true,
+    });
+
+    expect(Array.from(result.bytes)).toEqual(Array.from(expected));
+    expect(result.text).toBe(text);
+  });
+
+  test("rejects actual-byte overflow even without a content-length header", async () => {
+    const boundary = loadRequestBoundary();
+    expect(boundary).not.toBeNull();
+    if (!boundary) return;
+
+    const message = new Response(new Uint8Array(9), {
+      headers: { "content-type": "application/json" },
+    });
+    await expect(boundary.readBoundedUtf8Body(message, {
+      maxBytes: 8,
+      timeoutMs: 1000,
+      allowedContentTypes: ["application/json"],
+    })).rejects.toMatchObject({ code: "body_too_large", status: 413 });
+  });
+
+  test("rejects ambiguous media types, duplicate keys, and excessive nesting", async () => {
+    const boundary = loadRequestBoundary();
+    expect(boundary).not.toBeNull();
+    if (!boundary) return;
+
+    const ambiguous = new Response("{}", {
+      headers: { "content-type": "application/json, application/json" },
+    });
+    await expect(boundary.readBoundedUtf8Body(ambiguous, {
+      maxBytes: 8,
+      timeoutMs: 1000,
+      allowedContentTypes: ["application/json"],
+    })).rejects.toMatchObject({ code: "unsupported_content_type", status: 415 });
+    expect(() => boundary.parseJsonWithLimits(
+      '{"action":"cancel","action":"refund_request"}',
+      4,
+    )).toThrow("duplicate_json_key");
+    expect(() => boundary.parseJsonWithLimits('{"outer":{"key":1,"key":2}}', 4))
+      .toThrow("duplicate_json_key");
+    expect(() => boundary.parseJsonWithLimits('{"a":{"b":{"c":1}}}', 2))
+      .toThrow("json_too_deep");
+  });
+
+  test("rejects duplicate or mismatched lengths and malformed UTF-8", async () => {
+    const boundary = loadRequestBoundary();
+    expect(boundary).not.toBeNull();
+    if (!boundary) return;
+
+    const duplicateLengthHeaders = new Headers({
+      "content-type": "application/json",
+      "content-length": "2",
+    });
+    duplicateLengthHeaders.append("content-length", "2");
+    await expect(boundary.readBoundedUtf8Body(new Response("{}", {
+      headers: duplicateLengthHeaders,
+    }), {
+      maxBytes: 8,
+      timeoutMs: 1000,
+      allowedContentTypes: ["application/json"],
+      requireLengthMatch: true,
+    })).rejects.toMatchObject({ code: "invalid_content_length", status: 400 });
+
+    await expect(boundary.readBoundedUtf8Body(new Response("{}", {
+      headers: {
+        "content-type": "application/json",
+        "content-length": "1",
+      },
+    }), {
+      maxBytes: 8,
+      timeoutMs: 1000,
+      allowedContentTypes: ["application/json"],
+      requireLengthMatch: true,
+    })).rejects.toMatchObject({ code: "content_length_mismatch", status: 400 });
+
+    await expect(boundary.readBoundedUtf8Body(new Response(
+      Uint8Array.from([0xc3, 0x28]),
+      { headers: { "content-type": "application/json" } },
+    ), {
+      maxBytes: 8,
+      timeoutMs: 1000,
+      allowedContentTypes: ["application/json"],
+    })).rejects.toMatchObject({ code: "invalid_utf8", status: 400 });
+  });
+
+  test("cancels a stalled body at one overall read deadline", async () => {
+    const boundary = loadRequestBoundary();
+    expect(boundary).not.toBeNull();
+    if (!boundary) return;
+
+    const cancel = jest.fn();
+    const stalled = new ReadableStream<Uint8Array>({
+      pull: () => new Promise<void>(() => undefined),
+      cancel,
+    });
+    await expect(boundary.readBoundedUtf8Body(new Response(stalled, {
+      headers: { "content-type": "application/json" },
+    }), {
+      maxBytes: 8,
+      timeoutMs: 25,
+      allowedContentTypes: ["application/json"],
+    })).rejects.toMatchObject({ code: "body_read_timeout", status: 408 });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(cancel).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Paddle webhook request and upstream boundaries", () => {
+  const webhook = readFileSync(
+    join(PROJECT_ROOT, "supabase", "functions", "paddle-webhook", "index.ts"),
+    "utf8",
+  );
+  const code = webhook.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
+
+  test("bounds and validates the exact raw body before signature verification", () => {
+    expect(code).toMatch(/req\.method !== 'POST'/);
+    expect(code).toMatch(/MAX_PADDLE_WEBHOOK_BYTES = 512 \* 1024/);
+    expect(code).toMatch(/readBoundedUtf8Body\(req,[\s\S]*allowedContentTypes: \['application\/json'\]/);
+    expect(code).toMatch(/parseJsonWithLimits\(raw, MAX_PADDLE_WEBHOOK_JSON_DEPTH\)/);
+    expect(code).toMatch(/validatePaddleEvent\(parsed\)/);
+    expect(code).not.toMatch(/await req\.text\(\)/);
+    expect(code).not.toMatch(/new TextEncoder\(\)\.encode\(raw\)/);
+    expect(code.indexOf("readBoundedUtf8Body(req")).toBeLessThan(
+      code.indexOf("hmacSha256Hex(secret, timestamp, rawBytes)"),
+    );
+  });
+
+  test("rejects an ambiguous signature header before reading the request body", () => {
+    expect(code).toMatch(/const signatureHeader = req\.headers\.get\('paddle-signature'\) \?\? ''/i);
+    expect(code).toMatch(/signatureHeader\.includes\(','\)[\s\S]*bad_signature/);
+    expect(code.indexOf("signatureHeader.includes(',')")).toBeLessThan(
+      code.indexOf("readBoundedUtf8Body(req"),
+    );
+  });
+
+  test("fetches only the fixed IP endpoint with redirect, byte, and shape caps", () => {
+    expect(code).toMatch(/fetch\(PADDLE_IPS_URL,[\s\S]*redirect: 'error'/);
+    expect(code).toMatch(/readBoundedUtf8Body\(res,[\s\S]*maxBytes: MAX_PADDLE_IP_LIST_BYTES/);
+    expect(code).toMatch(/MAX_PADDLE_IPV4_CIDRS = 256/);
+    expect(code).toMatch(/isValidPaddleIpv4Cidr/);
+    expect(code).not.toMatch(/await res\.json\(\)/);
+  });
+
+  test("rejects malformed known event fields before any billing write", () => {
+    const { validatePaddleEvent } = loadWebhookBoundaryHelpers(webhook);
+    const valid = {
+      event_id: "evt_01abc",
+      event_type: "transaction.completed",
+      occurred_at: "2026-09-06T12:00:00.000Z",
+      data: { id: "txn_01abc", currency_code: "USD" },
+    };
+
+    expect(validatePaddleEvent(valid)).not.toBeNull();
+    expect(validatePaddleEvent({ ...valid, event_id: "evt_01abc\nforged" })).toBeNull();
+    expect(validatePaddleEvent({ ...valid, event_type: 7 })).toBeNull();
+    expect(validatePaddleEvent({ ...valid, data: null })).toBeNull();
+    expect(validatePaddleEvent({ ...valid, data: { items: Array.from({ length: 101 }, () => ({})) } }))
+      .toBeNull();
+    expect(validatePaddleEvent({
+      ...valid,
+      data: { custom_data: { issued_at: "1788600000" } },
+    })).toBeNull();
   });
 });
 

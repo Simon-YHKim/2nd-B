@@ -53,6 +53,11 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { createCheckoutBinding } from '../_shared/paddle-checkout-binding.ts';
+import {
+  parseJsonWithLimits,
+  readBoundedUtf8Body,
+  RequestBoundaryError,
+} from '../_shared/request-boundary.ts';
 
 const ALLOWED_ORIGINS = new Set<string>([
   'https://simon-yhkim.github.io',
@@ -115,6 +120,34 @@ function userIdFromJwt(authHeader: string): string | null {
 type Action = 'cancel' | 'refund_request' | 'checkout_binding';
 type EffectiveFrom = 'next_billing_period' | 'immediately';
 
+interface ManageBody {
+  action: Action;
+  effective_from?: EffectiveFrom;
+}
+
+const MAX_MANAGE_BODY_BYTES = 4 * 1024;
+const MAX_MANAGE_JSON_DEPTH = 4;
+const MANAGE_BODY_READ_TIMEOUT_MS = 3000;
+const MANAGE_BODY_KEYS = new Set(['action', 'effective_from']);
+
+function parseManageBody(value: unknown): ManageBody | null {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
+  if (Object.keys(value).some((key) => !MANAGE_BODY_KEYS.has(key))) return null;
+  const body = value as Record<string, unknown>;
+  const action = body.action;
+  if (action !== 'cancel' && action !== 'refund_request' && action !== 'checkout_binding') {
+    return null;
+  }
+  if (action !== 'cancel' && 'effective_from' in value) return null;
+  const effective_from = body.effective_from;
+  if (
+    effective_from !== undefined
+    && effective_from !== 'next_billing_period'
+    && effective_from !== 'immediately'
+  ) return null;
+  return effective_from === undefined ? { action } : { action, effective_from };
+}
+
 interface Eligibility {
   status: string;
   [key: string]: unknown;
@@ -176,6 +209,25 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return corsPreflight(req);
   if (req.method !== 'POST') return jsonResponse(req, { error: 'method_not_allowed' }, 405);
 
+  let body: ManageBody;
+  try {
+    const { text: rawBody } = await readBoundedUtf8Body(req, {
+      maxBytes: MAX_MANAGE_BODY_BYTES,
+      timeoutMs: MANAGE_BODY_READ_TIMEOUT_MS,
+      allowedContentTypes: ['application/json'],
+      requireLengthMatch: true,
+    });
+    const parsedBody = parseJsonWithLimits(rawBody, MAX_MANAGE_JSON_DEPTH);
+    const validatedBody = parseManageBody(parsedBody);
+    if (!validatedBody) return jsonResponse(req, { error: 'invalid_body' }, 400);
+    body = validatedBody;
+  } catch (error) {
+    if (error instanceof RequestBoundaryError) {
+      return jsonResponse(req, { error: error.code }, error.status);
+    }
+    return jsonResponse(req, { error: 'invalid_body' }, 400);
+  }
+
   const authHeader = req.headers.get('authorization') ?? '';
   if (!authHeader.toLowerCase().startsWith('bearer ')) {
     return jsonResponse(req, { error: 'missing_authorization' }, 401);
@@ -192,17 +244,7 @@ Deno.serve(async (req: Request) => {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  let body: Record<string, unknown>;
-  try {
-    body = (await req.json()) as Record<string, unknown>;
-  } catch {
-    body = {};
-  }
-
-  const action = body.action as Action | undefined;
-  if (action !== 'cancel' && action !== 'refund_request' && action !== 'checkout_binding') {
-    return jsonResponse(req, { error: 'invalid_action' }, 400);
-  }
+  const action = body.action;
 
   // Consume the rolling allowance before ANY valid action can read eligibility,
   // write the billing ledger, mint a checkout HMAC, or call Paddle. The RPC owns

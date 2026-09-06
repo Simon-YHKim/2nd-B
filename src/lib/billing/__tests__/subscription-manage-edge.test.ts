@@ -50,6 +50,32 @@ describe("subscription-manage - auth boundary", () => {
   });
 });
 
+describe("subscription-manage - bounded request schema", () => {
+  test("parses at most 4 KiB before authentication, rate limiting, or Paddle", () => {
+    expect(code).toMatch(/MAX_MANAGE_BODY_BYTES = 4 \* 1024/);
+    expect(code).toMatch(/readBoundedUtf8Body\(req,[\s\S]*maxBytes: MAX_MANAGE_BODY_BYTES/);
+    expect(code).toMatch(/parseJsonWithLimits\(rawBody, MAX_MANAGE_JSON_DEPTH\)/);
+    expect(code).toMatch(/parseManageBody\(parsedBody\)/);
+    expect(code).not.toMatch(/await req\.json\(\)/);
+
+    const bodyAt = code.indexOf("readBoundedUtf8Body(req");
+    const authAt = code.indexOf("const authHeader");
+    const adminAt = code.indexOf("const admin = createClient");
+    const rateAt = code.indexOf("rpc(\n    'claim_billing_self_service_rate_limit'");
+    expect(bodyAt).toBeGreaterThan(-1);
+    expect(bodyAt).toBeLessThan(authAt);
+    expect(authAt).toBeLessThan(adminAt);
+    expect(adminAt).toBeLessThan(rateAt);
+  });
+
+  test("allows only the action-specific flat keys and exact cancel timing", () => {
+    expect(code).toMatch(/MANAGE_BODY_KEYS = new Set\(\['action', 'effective_from'\]\)/);
+    expect(code).toMatch(/Object\.keys\(value\)\.some\(\(key\) => !MANAGE_BODY_KEYS\.has\(key\)\)/);
+    expect(code).toMatch(/action !== 'cancel' && 'effective_from' in value/);
+    expect(code).toMatch(/effective_from !== 'next_billing_period'[\s\S]*effective_from !== 'immediately'/);
+  });
+});
+
 describe("subscription-manage - fail closed", () => {
   test("does nothing without the API key or the enable flag", () => {
     expect(code).toMatch(/PADDLE_SELF_SERVICE_ENABLED'\) === '1'/);
