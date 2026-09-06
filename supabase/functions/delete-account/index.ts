@@ -7,7 +7,7 @@
 // clipper_templates, consent_records, gemini_spend_daily, wiki_pages/links,
 // sources, guardian rows). ai_audit_log is the deliberate exception: its
 // user_id FK is ON DELETE SET NULL (0011), so its rows are RETAINED (user_id
-// nulled) as XPRIZE audit evidence rather than cascade-erased.
+// nulled) as safety audit evidence rather than cascade-erased.
 // Several of those (memorized_patterns, xp_events,
 // personas, the append-only consent_records ledger) have NO client DELETE
 // policy, so a client-side wipe can never reach them. Since migration 0107,

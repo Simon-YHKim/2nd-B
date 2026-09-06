@@ -98,8 +98,3 @@ export function useCoreHintDismissed(): {
 
   return { dismissed, dismiss };
 }
-
-export function __resetCoreHintForTests(): void {
-  memoryDismissed = false;
-  memoryHydrated = false;
-}
