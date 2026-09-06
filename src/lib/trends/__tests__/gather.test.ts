@@ -105,3 +105,47 @@ describe("/discover renders real data, not fixtures", () => {
     expect(body).toMatch(/discover\.empty/);
   });
 });
+
+describe("/discover is reachable from BOTH insights states (audit 260904 A3)", () => {
+  const src = (
+    require("fs").readFileSync(
+      require("path").resolve(__dirname, "../../../screens/deepspace/DeepSpaceDesignScreens.tsx"),
+      "utf8",
+    ) as string
+  ).replace(/\r\n/g, "\n");
+
+  // The regression this pins: the only door to /discover used to sit in the
+  // filled week-over-week branch, so a user with weeks of history but a quiet
+  // recent week (which reads as first-week) had no path to a screen that was
+  // fully built on their historical data. Verified live: the QA account (102
+  // records, quiet recent week) landed on the first-week state with no door.
+  const insights = src.slice(
+    src.indexOf("function DeepSpaceInsightsScreen"),
+    src.indexOf("function DeepSpaceInsightsScreen") >= 0
+      ? src.indexOf("\n}\n", src.indexOf("summary.isFirstWeek")) // through the first-week branch and beyond
+      : undefined,
+  );
+
+  test("the guard is reading a real slice", () => {
+    expect(src).toContain("summary.isFirstWeek");
+    expect(src).toContain('router.push("/discover")');
+  });
+
+  test("the first-week branch carries a /discover door", () => {
+    // Locate the first-week return block and assert the discover push appears
+    // inside it — not only in the filled branch further down.
+    const fw = src.indexOf("summary.isFirstWeek");
+    expect(fw).toBeGreaterThan(-1);
+    // The first-week branch ends at its own "  }" closing the `if`. Take a
+    // generous window and require the discover door within it.
+    const window = src.slice(fw, fw + 1600);
+    expect(window).toContain('router.push("/discover")');
+    // And the capture CTA stays the primary action in that same branch.
+    expect(window).toContain('router.push("/capture")');
+  });
+
+  test("the door appears at least twice overall (first-week + filled)", () => {
+    const count = (src.match(/router\.push\("\/discover"\)/g) ?? []).length;
+    expect(count).toBeGreaterThanOrEqual(2);
+  });
+});

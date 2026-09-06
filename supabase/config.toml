@@ -150,3 +150,15 @@ verify_jwt = false
 # an exact-match URL from the feeds allowlist (SSRF guard). Must be deployed for
 # the web build's news digest to work; native fetches feeds directly.
 verify_jwt = true
+
+[functions.xai-proxy]
+# The Grok backend, a sibling of gemini/claude/openai-proxy. It was the ONLY
+# authenticated proxy without an explicit verify_jwt declaration here (audit
+# 260904 M-01); the live deploy already runs verify_jwt=true, so this closes a
+# config-drift gap, not a live hole. The declaration matters because the gateway
+# is the ONLY thing that verifies the JWT SIGNATURE: the function's own code
+# (via the shared userIdFromJwt helper) checks role==='authenticated' and reads
+# sub WITHOUT re-verifying the signature. If a deploy ever left verify_jwt off,
+# an UNSIGNED forged token claiming role==='authenticated' would sail past the
+# code gate. Pinned true so the two layers can never drift apart silently.
+verify_jwt = true
