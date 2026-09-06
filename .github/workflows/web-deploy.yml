@@ -286,7 +286,7 @@ jobs:
           # change); flip the repo Variable to "2" to activate Phase 2 routing.
           EXPO_PUBLIC_LLM_PHASE: ${{ vars.EXPO_PUBLIC_LLM_PHASE || '1' }}
           # Vendor for 세컨비 대화 only. Unset resolves openai since T1 stage A
-          # (2026-08-31); "gemini" is accepted only as an explicit rollback value
+          # (2026-08-31); "gemini" is accepted only as an explicit operator revert value
           # while gemini-proxy still exists. (openai-proxy has carried the
           # secondb_chat seat since REQ-260821-01 — the deploy-before-flip trap
           # this comment used to warn about is history.)
