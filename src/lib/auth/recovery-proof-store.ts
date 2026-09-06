@@ -23,7 +23,20 @@ export interface RecoveryProof extends RecoverySessionIdentity {
 
 export interface RecoveryPending {
   issuedAt: string;
+  /** Opaque ownership token. Older markers without it remain readable. */
+  token?: string;
 }
+
+/**
+ * In-process version plus the disk ownership token for one pending intent.
+ * The revision prevents ABA when a failed write restores an older owner.
+ */
+export interface RecoveryPendingLease {
+  readonly revision: number;
+  readonly token: string | null;
+}
+
+export type RecoveryPendingClearResult = "cleared" | "stale";
 
 export interface RecoverySessionLike {
   access_token?: string | null;
@@ -117,7 +130,16 @@ export function parseRecoveryPending(raw: string | null): RecoveryPending | null
   try {
     const value = JSON.parse(raw) as Partial<RecoveryPending>;
     const issuedAt = typeof value.issuedAt === "string" ? Date.parse(value.issuedAt) : NaN;
-    return Number.isFinite(issuedAt) ? { issuedAt: value.issuedAt as string } : null;
+    const token = value.token;
+    if (
+      !Number.isFinite(issuedAt)
+      || (token !== undefined && (typeof token !== "string" || token.length === 0))
+    ) {
+      return null;
+    }
+    return token
+      ? { issuedAt: value.issuedAt as string, token }
+      : { issuedAt: value.issuedAt as string };
   } catch {
     return null;
   }
@@ -149,6 +171,10 @@ function requireRuntimeStorage(): { kind: "web"; store: Storage } | { kind: "nat
  */
 export function armWebRecoveryPendingFromLocation(): boolean {
   if (typeof window === "undefined") return false;
+  let claimed: {
+    lease: RecoveryPendingLease;
+    previous: PendingStateSnapshot;
+  } | null = null;
   try {
     const url = new URL(window.location.href);
     const resetRoute = url.pathname.replace(/\/+$/, "").endsWith("/reset-password");
@@ -161,13 +187,17 @@ export function armWebRecoveryPendingFromLocation(): boolean {
       params.has("access_token") ||
       params.has("error_code");
     if (!resetRoute || !callbackSignal) return false;
+    const previous = capturePendingState();
+    const marker = createRecoveryPendingMarker();
+    const lease = claimPending(marker.token);
+    claimed = { lease, previous };
     localStorage.setItem(
       RECOVERY_PENDING_KEY,
-      JSON.stringify({ issuedAt: new Date().toISOString() } satisfies RecoveryPending),
+      JSON.stringify(marker),
     );
-    setMemoryPending(true);
     return true;
   } catch {
+    if (claimed) restorePendingStateIfCurrent(claimed.lease, claimed.previous);
     return false;
   }
 }
@@ -176,7 +206,86 @@ export function armWebRecoveryPendingFromLocation(): boolean {
 // never land after a later SIGNED_OUT clear and resurrect a stale proof.
 let storageQueue: Promise<void> = Promise.resolve();
 let memoryPending = false;
+let pendingRevision = 0;
+let pendingToken: string | null = null;
+let pendingIsLegacy = false;
+let pendingTokenSequence = 0;
 const pendingListeners = new Set<(pending: boolean) => void>();
+
+interface PendingStateSnapshot {
+  pending: boolean;
+  revision: number;
+  token: string | null;
+  legacy: boolean;
+}
+
+function createPendingToken(): string {
+  pendingTokenSequence += 1;
+  // This is an ownership nonce, not a credential. Randomness prevents two tabs
+  // created in the same millisecond from producing the same disk owner.
+  return [
+    Date.now().toString(36),
+    pendingTokenSequence.toString(36),
+    Math.random().toString(36).slice(2),
+  ].join("-");
+}
+
+function createRecoveryPendingMarker(): Required<RecoveryPending> {
+  return {
+    issuedAt: new Date().toISOString(),
+    token: createPendingToken(),
+  };
+}
+
+function capturePendingState(): PendingStateSnapshot {
+  return {
+    pending: memoryPending,
+    revision: pendingRevision,
+    token: pendingToken,
+    legacy: pendingIsLegacy,
+  };
+}
+
+export function captureRecoveryPendingLease(): RecoveryPendingLease {
+  return { revision: pendingRevision, token: pendingToken };
+}
+
+export function isRecoveryPendingLeaseCurrent(lease: RecoveryPendingLease): boolean {
+  return lease.revision === pendingRevision && lease.token === pendingToken;
+}
+
+function claimPending(token: string, legacy = false): RecoveryPendingLease {
+  pendingRevision += 1;
+  pendingToken = token;
+  pendingIsLegacy = legacy;
+  setMemoryPending(true);
+  return captureRecoveryPendingLease();
+}
+
+function restorePendingStateIfCurrent(
+  lease: RecoveryPendingLease,
+  previous: PendingStateSnapshot,
+): void {
+  if (!isRecoveryPendingLeaseCurrent(lease)) return;
+  // Do not restore the old revision: that would make a pre-claim snapshot look
+  // current again. Restore only the semantic state under a fresh revision.
+  pendingRevision += 1;
+  pendingToken = previous.token;
+  pendingIsLegacy = previous.legacy;
+  setMemoryPending(previous.pending);
+}
+
+function applyPendingMarker(pending: RecoveryPending): void {
+  const token = pending.token ?? createPendingToken();
+  claimPending(token, pending.token === undefined);
+}
+
+function applyNoPendingMarker(): void {
+  pendingRevision += 1;
+  pendingToken = null;
+  pendingIsLegacy = false;
+  setMemoryPending(false);
+}
 
 function setMemoryPending(pending: boolean): void {
   if (memoryPending === pending) return;
@@ -195,7 +304,15 @@ export function subscribeRecoveryPending(listener: (pending: boolean) => void): 
 
 export function applyRecoveryPendingStorageValue(raw: string | null): RecoveryPending | null {
   const pending = parseRecoveryPending(raw);
-  setMemoryPending(pending !== null);
+  if (pending) {
+    applyPendingMarker(pending);
+  } else if (raw) {
+    // A malformed cross-tab marker is still an unresolved recovery signal.
+    // Keep the in-memory gate locked while the caller reports the fault.
+    claimPending(createPendingToken(), true);
+  } else {
+    applyNoPendingMarker();
+  }
   return pending;
 }
 
@@ -245,6 +362,7 @@ export function clearRecoveryProof(): Promise<void> {
 }
 
 export function loadRecoveryPending(): Promise<RecoveryPending | null> {
+  const requestedRevision = pendingRevision;
   return enqueueStorage(async () => {
     const storage = requireRuntimeStorage();
     if (!storage) return null;
@@ -255,36 +373,111 @@ export function loadRecoveryPending(): Promise<RecoveryPending | null> {
     if (raw && !pending) {
       if (storage.kind === "web") storage.store.removeItem(RECOVERY_PENDING_KEY);
       else await storage.store.removeItem(RECOVERY_PENDING_KEY);
-      setMemoryPending(false);
+      if (pendingRevision === requestedRevision) applyNoPendingMarker();
       throw new Error("Persisted recovery pending marker is invalid");
     }
-    setMemoryPending(pending !== null);
-    return pending;
+    // A persist intent may have claimed a newer owner while an encrypted read
+    // was pending. Its state and queued write must win over this older read.
+    if (pendingRevision !== requestedRevision) return pending;
+    if (!pending) {
+      applyNoPendingMarker();
+      return null;
+    }
+    if (pending.token) {
+      if (!memoryPending || pendingToken !== pending.token || pendingIsLegacy) {
+        applyPendingMarker(pending);
+      }
+      return pending;
+    }
+
+    // Legacy issuedAt-only markers remain locked, then are upgraded in place.
+    // If the upgrade fails, the conservative legacy lock remains in memory.
+    const marker: Required<RecoveryPending> = {
+      issuedAt: pending.issuedAt,
+      token: createPendingToken(),
+    };
+    const lease = claimPending(marker.token, true);
+    const rawMarker = JSON.stringify(marker);
+    if (storage.kind === "web") storage.store.setItem(RECOVERY_PENDING_KEY, rawMarker);
+    else await storage.store.setItem(RECOVERY_PENDING_KEY, rawMarker);
+    if (isRecoveryPendingLeaseCurrent(lease)) pendingIsLegacy = false;
+    return marker;
   });
 }
 
-export function persistRecoveryPending(): Promise<void> {
+export function persistRecoveryPending(): Promise<RecoveryPendingLease> {
+  // Claim before entering the serialized queue. Otherwise an older queued clear
+  // can run first and briefly unlock or delete this newer pending intent.
+  const previous = capturePendingState();
+  const marker = createRecoveryPendingMarker();
+  const lease = claimPending(marker.token);
   return enqueueStorage(async () => {
-    const storage = requireRuntimeStorage();
-    if (!storage) return;
-    const raw = JSON.stringify({ issuedAt: new Date().toISOString() } satisfies RecoveryPending);
-    if (storage.kind === "web") storage.store.setItem(RECOVERY_PENDING_KEY, raw);
-    else await storage.store.setItem(RECOVERY_PENDING_KEY, raw);
-    setMemoryPending(true);
+    try {
+      const storage = requireRuntimeStorage();
+      if (!storage) {
+        restorePendingStateIfCurrent(lease, previous);
+        return lease;
+      }
+      const raw = JSON.stringify(marker);
+      if (storage.kind === "web") storage.store.setItem(RECOVERY_PENDING_KEY, raw);
+      else await storage.store.setItem(RECOVERY_PENDING_KEY, raw);
+      return lease;
+    } catch (error) {
+      // A failed A write may restore A's prior state, but never B's newer claim.
+      restorePendingStateIfCurrent(lease, previous);
+      throw error;
+    }
   });
 }
 
-export function clearRecoveryPending(): Promise<void> {
+export function clearRecoveryPending(): Promise<void>;
+export function clearRecoveryPending(
+  expectedLease: RecoveryPendingLease,
+): Promise<RecoveryPendingClearResult>;
+export function clearRecoveryPending(
+  expectedLease: RecoveryPendingLease = captureRecoveryPendingLease(),
+): Promise<void | RecoveryPendingClearResult> {
   return enqueueStorage(async () => {
+    if (!isRecoveryPendingLeaseCurrent(expectedLease)) return "stale";
     const storage = requireRuntimeStorage();
-    if (!storage) return;
-    if (storage.kind === "web") storage.store.removeItem(RECOVERY_PENDING_KEY);
-    else await storage.store.removeItem(RECOVERY_PENDING_KEY);
+    if (!storage) {
+      if (!isRecoveryPendingLeaseCurrent(expectedLease)) return "stale";
+      pendingIsLegacy = false;
+      setMemoryPending(false);
+      return "cleared";
+    }
+
+    const raw = storage.kind === "web"
+      ? storage.store.getItem(RECOVERY_PENDING_KEY)
+      : await storage.store.getItem(RECOVERY_PENDING_KEY);
+    if (!isRecoveryPendingLeaseCurrent(expectedLease)) return "stale";
+    const pending = parseRecoveryPending(raw);
+    if (raw && !pending) throw new Error("Persisted recovery pending marker is invalid");
+    // Legacy markers cannot prove ownership. Keep them locked until hydration
+    // upgrades them, rather than letting a cleanup guess and delete one.
+    if (
+      pending
+      && (pendingIsLegacy || !pending.token || pending.token !== expectedLease.token)
+    ) {
+      return "stale";
+    }
+    if (!isRecoveryPendingLeaseCurrent(expectedLease)) return "stale";
+    if (raw) {
+      if (storage.kind === "web") storage.store.removeItem(RECOVERY_PENDING_KEY);
+      else await storage.store.removeItem(RECOVERY_PENDING_KEY);
+    }
+    if (!isRecoveryPendingLeaseCurrent(expectedLease)) return "stale";
+    pendingIsLegacy = false;
     setMemoryPending(false);
+    return "cleared";
   });
 }
 
 export function __resetRecoveryProofStorageQueueForTests(): void {
   storageQueue = Promise.resolve();
+  pendingRevision = 0;
+  pendingToken = null;
+  pendingIsLegacy = false;
+  pendingTokenSequence = 0;
   setMemoryPending(false);
 }

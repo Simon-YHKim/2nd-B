@@ -1,6 +1,7 @@
 import {
   __resetRecoveryProofStorageQueueForTests,
   armWebRecoveryPendingFromLocation,
+  captureRecoveryPendingLease,
   clearRecoveryPending,
   clearRecoveryProof,
   createRecoveryProof,
@@ -98,13 +99,32 @@ describe("persistent recovery proof", () => {
 
   test("persists and broadcasts a provisional recovery lock", async () => {
     expect(isRecoveryPendingInMemory()).toBe(false);
-    await persistRecoveryPending();
+    const lease = await persistRecoveryPending();
     expect(isRecoveryPendingInMemory()).toBe(true);
     expect(values.has(RECOVERY_PENDING_KEY)).toBe(true);
-    await expect(loadRecoveryPending()).resolves.toEqual({ issuedAt: expect.any(String) });
-    await clearRecoveryPending();
+    await expect(loadRecoveryPending()).resolves.toEqual({
+      issuedAt: expect.any(String),
+      token: lease.token,
+    });
+    expect(captureRecoveryPendingLease()).toEqual(lease);
+    await expect(clearRecoveryPending(lease)).resolves.toBe("cleared");
     expect(isRecoveryPendingInMemory()).toBe(false);
     expect(values.has(RECOVERY_PENDING_KEY)).toBe(false);
+  });
+
+  test("upgrades an issuedAt-only marker without dropping its lock", async () => {
+    values.set(RECOVERY_PENDING_KEY, JSON.stringify({
+      issuedAt: "2026-09-07T00:00:00.000Z",
+    }));
+
+    const pending = await loadRecoveryPending();
+
+    expect(pending).toEqual({
+      issuedAt: "2026-09-07T00:00:00.000Z",
+      token: expect.any(String),
+    });
+    expect(JSON.parse(values.get(RECOVERY_PENDING_KEY) ?? "{}")).toEqual(pending);
+    expect(isRecoveryPendingInMemory()).toBe(true);
   });
 
   test("arms web callback routes before Supabase consumes their session", () => {
@@ -172,8 +192,11 @@ describe("native recovery proof storage", () => {
 
     await persistRecoveryProof(proof);
     await expect(loadRecoveryProof()).resolves.toEqual(proof);
-    await persistRecoveryPending();
-    await expect(loadRecoveryPending()).resolves.toEqual({ issuedAt: expect.any(String) });
+    const pendingLease = await persistRecoveryPending();
+    await expect(loadRecoveryPending()).resolves.toEqual({
+      issuedAt: expect.any(String),
+      token: pendingLease.token,
+    });
     await clearRecoveryProof();
     await clearRecoveryPending();
 
@@ -188,6 +211,111 @@ describe("native recovery proof storage", () => {
     expect(localRemoveItem).not.toHaveBeenCalled();
   });
 
+  test("a queued A clear cannot delete a B pending intent claimed before the queue advances", async () => {
+    const native = createNativeStorage();
+    getEncryptedNativeStorageMock.mockReturnValue(native.store);
+    const leaseA = await persistRecoveryPending();
+
+    let releaseProofWrite = () => {};
+    let markProofWriteStarted = () => {};
+    const proofWriteStarted = new Promise<void>((resolve) => {
+      markProofWriteStarted = resolve;
+    });
+    const proofWriteGate = new Promise<void>((resolve) => {
+      releaseProofWrite = resolve;
+    });
+    (native.store.setItem as jest.Mock).mockImplementation(async (key: string, value: string) => {
+      if (key === RECOVERY_PROOF_KEY) {
+        markProofWriteStarted();
+        await proofWriteGate;
+      }
+      native.values.set(key, value);
+    });
+
+    const queueBlocker = persistRecoveryProof(createRecoveryProof({
+      userId: "u1",
+      sessionId: "session-a",
+    }));
+    await proofWriteStarted;
+    const staleClear = clearRecoveryPending(leaseA);
+    const newerPending = persistRecoveryPending();
+    const leaseB = captureRecoveryPendingLease();
+
+    expect(leaseB.revision).toBeGreaterThan(leaseA.revision);
+    expect(leaseB.token).not.toBe(leaseA.token);
+
+    releaseProofWrite();
+    const [, clearResult, persistedLeaseB] = await Promise.all([
+      queueBlocker,
+      staleClear,
+      newerPending,
+    ]);
+
+    expect(clearResult).toBe("stale");
+    expect(persistedLeaseB).toEqual(leaseB);
+    expect(native.store.removeItem).not.toHaveBeenCalledWith(RECOVERY_PENDING_KEY);
+    expect(native.values.has(RECOVERY_PENDING_KEY)).toBe(true);
+    expect(isRecoveryPendingInMemory()).toBe(true);
+  });
+
+  test("a disk owner mismatch makes an explicit stale clear a no-op", async () => {
+    const native = createNativeStorage();
+    getEncryptedNativeStorageMock.mockReturnValue(native.store);
+    const leaseA = await persistRecoveryPending();
+    const markerA = native.values.get(RECOVERY_PENDING_KEY);
+    const markerB = JSON.stringify({
+      issuedAt: "2026-09-07T00:00:00.000Z",
+      token: "other-runtime-owner",
+    });
+    native.values.set(RECOVERY_PENDING_KEY, markerB);
+
+    await expect(clearRecoveryPending(leaseA)).resolves.toBe("stale");
+
+    expect(native.values.get(RECOVERY_PENDING_KEY)).toBe(markerB);
+    expect(native.values.get(RECOVERY_PENDING_KEY)).not.toBe(markerA);
+    expect(native.store.removeItem).not.toHaveBeenCalledWith(RECOVERY_PENDING_KEY);
+    expect(isRecoveryPendingInMemory()).toBe(true);
+  });
+
+  test("a failed persist cannot roll back a newer pending intent", async () => {
+    const native = createNativeStorage();
+    getEncryptedNativeStorageMock.mockReturnValue(native.store);
+
+    let releaseFirstWrite = () => {};
+    let markFirstWriteStarted = () => {};
+    const firstWriteStarted = new Promise<void>((resolve) => {
+      markFirstWriteStarted = resolve;
+    });
+    const firstWriteGate = new Promise<void>((resolve) => {
+      releaseFirstWrite = resolve;
+    });
+    let firstWrite = true;
+    (native.store.setItem as jest.Mock).mockImplementation(async (key: string, value: string) => {
+      if (key === RECOVERY_PENDING_KEY && firstWrite) {
+        firstWrite = false;
+        markFirstWriteStarted();
+        await firstWriteGate;
+        throw new Error("secure_storage_write_failed");
+      }
+      native.values.set(key, value);
+    });
+
+    const failedOwner = persistRecoveryPending();
+    await firstWriteStarted;
+    const newerOwner = persistRecoveryPending();
+    const newerLease = captureRecoveryPendingLease();
+
+    // B owns the lock as soon as its intent exists, not when its queued write runs.
+    expect(isRecoveryPendingInMemory()).toBe(true);
+    releaseFirstWrite();
+    await expect(failedOwner).rejects.toThrow("secure_storage_write_failed");
+    await expect(newerOwner).resolves.toEqual(newerLease);
+
+    expect(native.values.has(RECOVERY_PENDING_KEY)).toBe(true);
+    expect(captureRecoveryPendingLease()).toEqual(newerLease);
+    expect(isRecoveryPendingInMemory()).toBe(true);
+  });
+
   test("fails closed when encrypted storage initialization or recovery fails", async () => {
     const rawStorage = createNativeStorage().store;
     const rawAsyncStorageFactory = jest.fn(() => ({ default: rawStorage }));
@@ -196,8 +324,12 @@ describe("native recovery proof storage", () => {
       throw new Error("secure_storage_key_unavailable");
     });
 
+    const beforeFailedClaim = captureRecoveryPendingLease();
     await expect(persistRecoveryPending()).rejects.toThrow("secure_storage_key_unavailable");
+    const afterFailedClaim = captureRecoveryPendingLease();
     expect(isRecoveryPendingInMemory()).toBe(false);
+    expect(afterFailedClaim.token).toBe(beforeFailedClaim.token);
+    expect(afterFailedClaim.revision).toBeGreaterThan(beforeFailedClaim.revision);
     expect(rawStorage.setItem).not.toHaveBeenCalled();
 
     const native = createNativeStorage();
