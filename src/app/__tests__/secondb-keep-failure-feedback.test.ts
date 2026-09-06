@@ -225,6 +225,28 @@ describe("자동 담기는 실패를 삼키지 않는다", () => {
   });
 });
 
+describe("실패 안내가 보이는 자리에 온다", () => {
+  // 브라우저 실측에서 잡힌 것: 안내는 대화 스크롤의 끝에 그려지는데 자동
+  // 스크롤이 [turns] 에만 걸려 있어서, 담기가 실패해도 스크롤이 내려가지 않고
+  // 안내가 스크롤 클립 아래로 잘렸다. 320/390/1440 에서 표본 5점 중 4~5점이
+  // 스크롤 밖이었다. 안내를 읽어 주기는 했지만 눈으로 보는 사용자는 아무것도
+  // 못 읽었다. "뷰포트 안에 있다"와 "스크롤 컨테이너 안에 보인다"는 다르다.
+  function scrollEffectDeps(): string {
+    const effect = findEffect("scrollToEnd");
+    const deps = effect.match(/\}\s*,\s*(\[[^\]]*\])\s*\)\s*;?\s*$/);
+    if (!deps) throw new Error("자동 스크롤 useEffect 의 의존성 배열을 찾지 못했다");
+    return deps[1];
+  }
+
+  test("새 턴이 오면 바닥으로 스크롤한다", () => {
+    expect(scrollEffectDeps()).toContain("turns");
+  });
+
+  test("담기 실패 안내가 뜨면 그것도 바닥으로 스크롤한다", () => {
+    expect(scrollEffectDeps()).toContain("keepNotice");
+  });
+});
+
 describe("실패 안내가 화면에 붙어 있고 문구가 정직하다", () => {
   test("담기 칩 옆에 live region 으로 실패 캡션을 그린다", () => {
     // 복사 캡션과 같은 자세여야 한다: 같은 턴 옆에서, 자동으로 읽히게.
