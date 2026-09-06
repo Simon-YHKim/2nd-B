@@ -27,7 +27,7 @@ jobs:
         # pgvector-enabled Postgres 16 (official pgvector image) so migration
         # 0047's `CREATE EXTENSION vector` resolves — matches Supabase prod,
         # which ships pgvector. Otherwise identical to stock postgres:16.
-        image: pgvector/pgvector:pg16
+        image: pgvector/pgvector@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b # pg16
         env:
           POSTGRES_PASSWORD: postgres
         ports: ["5432:5432"]
@@ -37,7 +37,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Seed Supabase compatibility layer (auth schema + roles + auth.users stub)
         env:
           PGPASSWORD: postgres
