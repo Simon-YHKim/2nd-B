@@ -1,13 +1,14 @@
-// Metro config. NativeWind v4 (withNativeWind wires the global.css entry) +
-// react-native-svg-transformer (import *.svg as React components, web + native).
+// Metro config. react-native-svg-transformer (import *.svg as React components,
+// web + native) on top of Expo's default config.
 //
-// The svg babelTransformerPath is set BEFORE withNativeWind. NativeWind v4's
-// metro integration does not override babelTransformerPath, and
+// NativeWind was removed 2026-09-05 (audit D4-05): zero className consumers, but
+// its withNativeWind wrapper + jsxImportSource wrapped every jsx() call at runtime.
+//
 // react-native-svg-transformer/expo extends babel-preset-expo's transformer, so
-// the two chain cleanly. svg is moved from assetExts → sourceExts so an
-// `import './x.svg'` resolves to a component instead of an image asset.
+// it chains cleanly on the default config. svg is moved from assetExts →
+// sourceExts so an `import './x.svg'` resolves to a component instead of an
+// image asset.
 const { getDefaultConfig } = require("expo/metro-config");
-const { withNativeWind } = require("nativewind/metro");
 
 const config = getDefaultConfig(__dirname);
 
@@ -48,4 +49,4 @@ config.resolver.blockList = [
   /\.(test|spec)\.[jt]sx?$/,
 ];
 
-module.exports = withNativeWind(config, { input: "./global.css" });
+module.exports = config;

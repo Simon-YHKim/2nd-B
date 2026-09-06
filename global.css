@@ -1,3 +1,51 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Web-only base reset (Expo Metro bundles this file on web; it is a no-op on
+   native). Before 2026-09-06 the same rules arrived through Tailwind's
+   preflight via NativeWind, which was the only reason that toolchain was still
+   wired in. NativeWind is gone (zero className consumers), so the handful of
+   rules the app actually relied on live here explicitly. Font families are
+   NOT set here: src/app/+html.tsx owns the pre-hydration font chain. */
+*,
+::before,
+::after {
+  box-sizing: border-box;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  line-height: 1.5;
+}
+body {
+  margin: 0;
+  line-height: inherit;
+}
+img,
+svg,
+video,
+canvas,
+audio,
+iframe,
+embed,
+object {
+  display: block;
+  vertical-align: middle;
+}
+img,
+video {
+  max-width: 100%;
+  height: auto;
+}
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit;
+  font-size: 100%;
+  line-height: inherit;
+  color: inherit;
+  margin: 0;
+  padding: 0;
+}
+[hidden] {
+  display: none;
+}
