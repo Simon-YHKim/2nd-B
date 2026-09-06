@@ -709,6 +709,13 @@
       "route": "persona"
     },
     {
+      "id": "processing-log",
+      "component": null,
+      "appOnly": true,
+      "title": "데이터 처리 기록",
+      "route": "processing-log"
+    },
+    {
       "id": "profile-details",
       "component": null,
       "appOnly": true,

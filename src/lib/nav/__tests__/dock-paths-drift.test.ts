@@ -40,6 +40,15 @@ const NON_DOCK_ROUTES = new Set<string>([
   // is their only way back.
   "/deepspace-flowmap",
   "/deepspace-hub",
+  // (2026-09-04) /formats defaults to the clipper format MANAGER, which is a
+  // PremiumAppShell with no dock and no back control of its own — so the
+  // floating chip is its only way back and the route must NOT be registered.
+  // The delegation heuristic still flags this file because the dock-bearing
+  // export surface survives behind `?view=export`; that variant has zero
+  // in-app entries (both capture.tsx entries pass ?view=manager), so its
+  // duplicate chip is a dev-path-only residual. Moving the export screen out
+  // of this route removes the residual — that relocation is an open decision.
+  "/formats",
 ]);
 
 function dockRenderingRoutes(): string[] {

@@ -40,7 +40,7 @@ const PERSONA_COPY: Record<AvailableUiLocale, {
   backToCapture: string;
   dimHigh: string;
   dimLow: string;
-  tools: { label: string; sub: string; route: "/audit" | "/big-five" | "/attachment" | "/ipip-neo" | "/rlss"; fast?: boolean }[];
+  tools: { label: string; sub: string; route: "/audit?screener=1" | "/big-five" | "/attachment" | "/ipip-neo" | "/rlss"; fast?: boolean }[];
 }> = {
   en: {
     errorBody: "Something interrupted gathering your pieces. Please try again in a moment.",
@@ -59,7 +59,7 @@ const PERSONA_COPY: Record<AvailableUiLocale, {
     dimLow: "below",
     tools: [
       { label: "Attachment style / ECR-S", sub: "12 items · ~3 min · lights one star now", route: "/attachment", fast: true },
-      { label: "Life audit", sub: "25 items · ~8 min", route: "/audit" },
+      { label: "Life audit", sub: "5–15 items · ~3–8 min", route: "/audit?screener=1" },
       { label: "Big Five (BFI-44)", sub: "44 items · ~8 min", route: "/big-five" },
       { label: "Personality, in depth (IPIP-NEO-120)", sub: "120 items · ~15 min · 30 facets", route: "/ipip-neo" },
       { label: "Life Satisfaction / RLSS", sub: "6 items · ~2 min", route: "/rlss" },
@@ -82,7 +82,7 @@ const PERSONA_COPY: Record<AvailableUiLocale, {
     dimLow: "평균 아래",
     tools: [
       { label: "애착 스타일 / Attachment", sub: "12문항 · 약 3분 · 별 하나 바로 켜져요", route: "/attachment", fast: true },
-      { label: "라이프 오딧", sub: "25문항 · 약 8분", route: "/audit" },
+      { label: "라이프 오딧", sub: "5–15문항 · 약 3–8분", route: "/audit?screener=1" },
       { label: "Big Five (BFI-44)", sub: "44문항 · 약 8분", route: "/big-five" },
       { label: "성격 정밀검사 (IPIP-NEO-120)", sub: "120문항 · 약 15분 · facet 30개", route: "/ipip-neo" },
       { label: "삶의 만족도 / RLSS", sub: "6문항 · 약 2분", route: "/rlss" },
@@ -105,7 +105,7 @@ const PERSONA_COPY: Record<AvailableUiLocale, {
     dimLow: "debajo",
     tools: [
       { label: "Estilo de apego / ECR-S", sub: "12 ítems · ~3 min · enciende una estrella", route: "/attachment", fast: true },
-      { label: "Auditoría de vida", sub: "25 ítems · ~8 min", route: "/audit" },
+      { label: "Auditoría de vida", sub: "5–15 ítems · ~3–8 min", route: "/audit?screener=1" },
       { label: "Big Five (BFI-44)", sub: "44 ítems · ~8 min", route: "/big-five" },
       { label: "Personalidad en profundidad (IPIP-NEO-120)", sub: "120 ítems · ~15 min · 30 facetas", route: "/ipip-neo" },
       { label: "Satisfacción vital / RLSS", sub: "6 ítems · ~2 min", route: "/rlss" },
@@ -128,7 +128,7 @@ const PERSONA_COPY: Record<AvailableUiLocale, {
     dimLow: "abaixo",
     tools: [
       { label: "Estilo de apego / ECR-S", sub: "12 itens · ~3 min · acende uma estrela", route: "/attachment", fast: true },
-      { label: "Auditoria de vida", sub: "25 itens · ~8 min", route: "/audit" },
+      { label: "Auditoria de vida", sub: "5–15 itens · ~3–8 min", route: "/audit?screener=1" },
       { label: "Big Five (BFI-44)", sub: "44 itens · ~8 min", route: "/big-five" },
       { label: "Personalidade em profundidade (IPIP-NEO-120)", sub: "120 itens · ~15 min · 30 facetas", route: "/ipip-neo" },
       { label: "Satisfação com a vida / RLSS", sub: "6 itens · ~2 min", route: "/rlss" },
@@ -151,7 +151,7 @@ const PERSONA_COPY: Record<AvailableUiLocale, {
     dimLow: "di bawah",
     tools: [
       { label: "Gaya kelekatan / ECR-S", sub: "12 item · ~3 mnt · menyalakan satu bintang", route: "/attachment", fast: true },
-      { label: "Audit hidup", sub: "25 item · ~8 mnt", route: "/audit" },
+      { label: "Audit hidup", sub: "5–15 item · ~3–8 mnt", route: "/audit?screener=1" },
       { label: "Big Five (BFI-44)", sub: "44 item · ~8 mnt", route: "/big-five" },
       { label: "Kepribadian mendalam (IPIP-NEO-120)", sub: "120 item · ~15 mnt · 30 faset", route: "/ipip-neo" },
       { label: "Kepuasan hidup / RLSS", sub: "6 item · ~2 mnt", route: "/rlss" },

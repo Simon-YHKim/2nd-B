@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, BackHandler } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect, router, useLocalSearchParams, useNavigation } from "expo-router";
 
 import { PremiumAppShell, PremiumLoadingState, PremiumToast, PremiumModal } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
@@ -14,6 +14,7 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { PastMeErasView } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { questionsForPeriod, type AuditPeriod } from "@/lib/audit/questions";
+import { isUnlived, type SevenStarId } from "@/lib/persona/seven-stars";
 import { createRecord } from "@/lib/records/create";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 
@@ -22,6 +23,11 @@ const PERIOD_OPTIONS: { id: AuditPeriod; label: { en: string; ko: string } }[] =
   { id: "20s", label: { en: "Your 20s", ko: "20대" } },
   { id: "teens", label: { en: "Your teens", ko: "10대" } },
 ];
+const AUDIT_PERIOD_STAR: Record<AuditPeriod, SevenStarId> = {
+  current: "now",
+  teens: "school",
+  "20s": "twenties",
+};
 type AuditDisplayLocale = "en" | "ko" | "es" | "pt" | "id";
 type AuditDataLocale = "en" | "ko";
 type AuditToast = { message: string; tone: "info" | "success" | "danger" };
@@ -120,9 +126,28 @@ function dataLocaleFor(language: string | undefined): AuditDataLocale {
   return language?.toLowerCase().startsWith("ko") ? "ko" : "en";
 }
 
+function AuditScreenerShell({ children, onBack }: { children: ReactNode; onBack: () => void }) {
+  const { t } = useTranslation("core-brain");
+  if (isDeepSpaceUI()) {
+    return (
+      <DeepSpaceScreen
+        active="lens"
+        header="none"
+        variant="windowed"
+        title={t("auditCheck")}
+        onBack={onBack}
+      >
+        {children}
+      </DeepSpaceScreen>
+    );
+  }
+  return <PremiumAppShell>{children}</PremiumAppShell>;
+}
+
 function AuditLegacy() {
   const { t, i18n } = useTranslation("audit");
-  const { userId, loading, isMinor, hasProfile } = useAuth();
+  const { userId, loading, isMinor, hasProfile, age } = useAuth();
+  const navigation = useNavigation();
   const displayLocale = displayLocaleFor(i18n.language);
   const locale = dataLocaleFor(i18n.language);
   const copy = DISPLAY_COPY[displayLocale];
@@ -136,7 +161,25 @@ function AuditLegacy() {
   const [done, setDone] = useState(false);
   const [toast, setToast] = useState<AuditToast | null>(null);
   const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
+  const pendingNavigationRef = useRef<(() => void) | null>(null);
+  const allowNavigationRef = useRef(false);
   const companion = useCompanionMoment();
+  const hasUnsavedProgress = period !== null && !done && (index > 0 || answer.trim().length > 0);
+
+  const requestBack = useCallback(() => {
+    if (period !== null && !done) {
+      if (hasUnsavedProgress) {
+        pendingNavigationRef.current = null;
+        setExitConfirmOpen(true);
+      } else {
+        setPeriod(null);
+      }
+      return true;
+    }
+
+    router.back();
+    return true;
+  }, [done, hasUnsavedProgress, period]);
 
   useEffect(() => {
     if (!toast) return;
@@ -149,27 +192,38 @@ function AuditLegacy() {
   useEffect(() => {
     if (period === null || done) return;
 
-    const onBackPress = () => {
-      if (index > 0 || answer.trim().length > 0) {
-        setExitConfirmOpen(true);
-        return true; // Consume the event, preventing immediate navigation back
-      }
-      // If they haven't written anything yet on the first question, just let them return to selector
-      setPeriod(null);
-      return true;
-    };
-
-    const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+    const subscription = BackHandler.addEventListener("hardwareBackPress", requestBack);
     return () => subscription.remove();
-  }, [period, index, answer, done]);
+  }, [done, period, requestBack]);
+
+  // The persistent deep-space dock navigates inside DeepSpaceScreen, outside
+  // AuditScreenerShell's onBack prop. Gate every route removal while a response
+  // is in progress, then replay the exact attempted action only after consent.
+  useEffect(() => {
+    if (!hasUnsavedProgress) return;
+
+    return navigation.addListener("beforeRemove", (event) => {
+      if (allowNavigationRef.current) return;
+      event.preventDefault();
+      pendingNavigationRef.current = () => {
+        allowNavigationRef.current = true;
+        try {
+          navigation.dispatch(event.data.action);
+        } finally {
+          allowNavigationRef.current = false;
+        }
+      };
+      setExitConfirmOpen(true);
+    });
+  }, [hasUnsavedProgress, navigation]);
 
   if (loading) {
     return (
-      <PremiumAppShell>
+      <AuditScreenerShell onBack={requestBack}>
         <View style={styles.center}>
           <PremiumLoadingState message={t("loading")} />
         </View>
-      </PremiumAppShell>
+      </AuditScreenerShell>
     );
   }
   if (!userId) return <Redirect href="/sign-in" />;
@@ -216,7 +270,7 @@ function AuditLegacy() {
 
   if (period === null) {
     return (
-      <PremiumAppShell>
+      <AuditScreenerShell onBack={requestBack}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
 <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.introCard}>
@@ -228,19 +282,24 @@ function AuditLegacy() {
             </Text>
           </View>
           <View style={{ gap: spacing.sm }}>
-            {PERIOD_OPTIONS.map((p) => (
-              <Button
-                key={p.id}
-                label={p.label[locale]}
-                variant="secondary"
-                onPress={() => {
-                  setPeriod(p.id);
-                  setIndex(0);
-                  setAnswer("");
-                  setDone(false);
-                }}
-              />
-            ))}
+            {PERIOD_OPTIONS.map((p) => {
+              const locked = isUnlived(AUDIT_PERIOD_STAR[p.id], age);
+              return (
+                <Button
+                  key={p.id}
+                  label={p.label[locale]}
+                  variant="secondary"
+                  disabled={locked}
+                  onPress={() => {
+                    if (locked) return;
+                    setPeriod(p.id);
+                    setIndex(0);
+                    setAnswer("");
+                    setDone(false);
+                  }}
+                />
+              );
+            })}
             <Button
               label={t("back")}
               variant="secondary"
@@ -249,13 +308,13 @@ function AuditLegacy() {
           </View>
         </ScrollView>
 </KeyboardAvoidingView>
-      </PremiumAppShell>
+      </AuditScreenerShell>
     );
   }
 
   if (done) {
     return (
-      <PremiumAppShell>
+      <AuditScreenerShell onBack={requestBack}>
         <View style={styles.center}>
           <View style={styles.completeBadge}>
             <Text variant="subtle" style={styles.completeBadgeText}>
@@ -285,12 +344,12 @@ function AuditLegacy() {
         {companion.moment ? (
           <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
         ) : null}
-      </PremiumAppShell>
+      </AuditScreenerShell>
     );
   }
 
   return (
-    <PremiumAppShell>
+    <AuditScreenerShell onBack={requestBack}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
 <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {index === 0 ? (
@@ -371,7 +430,10 @@ function AuditLegacy() {
 
       <PremiumModal
         visible={exitConfirmOpen}
-        onClose={() => setExitConfirmOpen(false)}
+        onClose={() => {
+          pendingNavigationRef.current = null;
+          setExitConfirmOpen(false);
+        }}
         accessibilityLabel={t("exit.notice")}
       >
         <Text variant="heading">
@@ -384,7 +446,10 @@ function AuditLegacy() {
           <Button
             label={t("exit.cancel")}
             variant="secondary"
-            onPress={() => setExitConfirmOpen(false)}
+            onPress={() => {
+              pendingNavigationRef.current = null;
+              setExitConfirmOpen(false);
+            }}
             style={{ flex: 1 }}
             accessibilityHint={t("exit.cancelHint")}
           />
@@ -392,17 +457,20 @@ function AuditLegacy() {
             label={t("exit.confirm")}
             variant="primary"
             onPress={() => {
+              const continueNavigation = pendingNavigationRef.current;
+              pendingNavigationRef.current = null;
               setExitConfirmOpen(false);
               setPeriod(null);
               setIndex(0);
               setAnswer("");
+              if (continueNavigation) continueNavigation();
             }}
             style={{ flex: 1 }}
             accessibilityHint={t("exit.confirmHint")}
           />
         </View>
       </PremiumModal>
-    </PremiumAppShell>
+    </AuditScreenerShell>
   );
 }
 
@@ -469,9 +537,17 @@ const styles = StyleSheet.create({
 // "또렷함 L{n}" dots were fixed constants (fabricated brightness, 정직한 밝기 위반)
 // and were removed by the 2026-07-21 logic audit; see PastMeErasView.
 function AuditDeepSpace() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("audit");
   const isKo = i18n.language === "ko";
-  return (
+  // 2026-09-04: 이 분기에는 인증 게이트가 없었다. 같은 파일의 AuditLegacy(:229-232)와
+  // 같은 컴포넌트를 그리는 /interview(:158-170) 는 둘 다 게이트를 갖는데 여기만 빠져
+  // 있어서, 로그아웃 방문자가 공개 웹 URL 로 들어오면 로그인한 것처럼 보이는 시기
+  // 목록을 받고 아무거나 누르면 /sign-in 으로 튕겼다. 게다가 PastMeErasView 는
+  // useAuth().age 로 "아직 안 온 시기"를 잠그는데(isUnlived), 로그아웃이면 age 가
+  // null 이라 그 잠금이 전부 풀린 채 그려진다 — 살지 않은 시기까지 열려 보인다.
+  // 개인 데이터가 새지는 않는다(목록은 SEVEN_STARS 정적, 문구는 i18n).
+  const { userId, loading, hasProfile } = useAuth();
+  const frame = (children: ReactNode) => (
     <DeepSpaceScreen
       active="lens"
       header="none"
@@ -479,12 +555,28 @@ function AuditDeepSpace() {
       title={isKo ? "성장 · 과거의 나" : "Growth · Past me"}
       onBack={() => router.back()}
     >
-      <PastMeErasView isKo={isKo} />
+      {children}
     </DeepSpaceScreen>
   );
+  if (loading) {
+    return frame(
+      <View style={styles.center}>
+        <PremiumLoadingState message={t("loading")} />
+      </View>,
+    );
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+  // DOB 가 없으면 age 도 없어서 시기 잠금이 의미를 잃는다. AuditLegacy 와 같은 목적지.
+  if (hasProfile === false) return <Redirect href="/complete-profile" />;
+  return frame(<PastMeErasView isKo={isKo} />);
 }
 
 export default function Audit() {
+  const { screener } = useLocalSearchParams<{ screener?: string }>();
+  // `/audit` is currently the deep-space PastMe compatibility entry. The
+  // assessment registry uses this explicit query so the period-specific
+  // 5–15-question Life Audit remains reachable regardless of the active visual skin.
+  if (screener === "1") return <AuditLegacy />;
   if (isDeepSpaceUI()) return <AuditDeepSpace />;
   return <AuditLegacy />;
 }

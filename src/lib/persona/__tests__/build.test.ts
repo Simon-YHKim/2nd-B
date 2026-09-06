@@ -69,6 +69,7 @@ import {
   isMeasuredSource,
   loadPersonaRatifiableSignals,
   loadPersonaSnapshot,
+  loadSelfPortraitSignals,
   personaSummarySig,
   traitConfidenceFor,
   type AuditResponseRow,
@@ -220,6 +221,38 @@ describe("loadPersonaRatifiableSignals", () => {
     ).toHaveLength(2);
     expect(actions).toContain("buildPersona(userId, locale, isMinor === true)");
     expect(actions.match(/disabled=\{loading \|\| isMinor === null\}/g)).toHaveLength(2);
+  });
+});
+
+describe("loadSelfPortraitSignals", () => {
+  beforeEach(reset);
+
+  test("reads direct portrait backing signals without requiring a persisted persona", async () => {
+    tableFixtures["records:select"] = {
+      data: [
+        {
+          prompt: AUDIT_QUESTIONS[0].prompt.en,
+          body: JSON.stringify({
+            type: "INTJ",
+            scores: { E: 0, I: 4, S: 0, N: 4, T: 4, F: 0, J: 4, P: 0 },
+            style: "secure",
+            anxiety: 2.5,
+            avoidance: 1.8,
+          }),
+          created_at: "2026-09-01T00:00:00Z",
+        },
+      ],
+      error: null,
+    };
+
+    const signals = await loadSelfPortraitSignals("u1");
+
+    expect(signals.mbti?.type).toBe("INTJ");
+    expect(signals.attachment).toEqual({ style: "secure", anxiety: 2.5, avoidance: 1.8 });
+    expect(signals.values).toContain(AUDIT_QUESTIONS[0].framework);
+    expect(selectCalls.filter((call) => call.table === "records")).toHaveLength(3);
+    expect(callLlm).not.toHaveBeenCalled();
+    expect(upsertCalls).toEqual([]);
   });
 });
 

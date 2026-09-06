@@ -4,9 +4,9 @@
 // a signed-out user mid-sign-up can read what they are agreeing to. Shows a
 // draft badge while the body still carries [기입] placeholders -- the screen
 // must not present an unfinished document as final (legal honesty).
-import { useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text as RNText, View } from "react-native";
-import { router } from "expo-router";
+import { useCallback, useMemo, useState } from "react";
+import { BackHandler, Pressable, StyleSheet, Text as RNText, View } from "react-native";
+import { router, useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { colors, spacing } from "@/theme/tokens";
@@ -23,6 +23,7 @@ import {
 } from "@/lib/legal/parse-legal-markdown";
 import { isDraft, type LegalDoc } from "@/lib/legal/legal-documents";
 import { systemLocaleFor } from "@/lib/i18n/locales";
+import { registerOwnBack } from "@/lib/nav/own-back";
 
 export function DeepSpaceLegalDocScreen({
   doc,
@@ -44,13 +45,38 @@ export function DeepSpaceLegalDocScreen({
   const visibleBlocks = languageSections
     ? [...languageSections.preamble, ...languageSections.sections[documentLanguage]]
     : blocks;
+  const requestBack = useCallback(() => {
+    if (router.canGoBack()) router.back();
+    // replace, not push: a cold deep-link/web entry has no history, and push
+    // would leave THIS screen mounted underneath — its own-back registration
+    // would keep suppressing the global chip on the home it just opened.
+    else router.replace("/");
+    return true;
+  }, []);
+
+  // Focus-scoped, not mount-scoped: the native stack keeps buried screens
+  // MOUNTED, so a mount-scoped registration would keep suppressing the global
+  // BackArrow (own-back.ts is one global counter) and keep a hardware-back
+  // handler alive underneath whatever is pushed on top. One effect owns both
+  // registrations so blur releases them together.
+  useFocusEffect(
+    useCallback(() => {
+      const unregister = registerOwnBack();
+      const sub = BackHandler.addEventListener("hardwareBackPress", requestBack);
+      return () => {
+        sub.remove();
+        unregister();
+      };
+    }, [requestBack]),
+  );
 
   return (
     <AuthShell>
       <View style={styles.titleRow}>
         <Pressable
-          onPress={() => router.back()}
+          onPress={requestBack}
           hitSlop={12}
+          style={local.backTarget}
           accessibilityRole="button"
           accessibilityLabel={t("common:navGraph.drilldown.back")}
         >
@@ -127,6 +153,14 @@ export function DeepSpaceLegalDocScreen({
 }
 
 const local = StyleSheet.create({
+  // The floating chip this screen replaces was a 44x44 target; the in-content
+  // chevron must not shrink below it (hitSlop stays as extra margin on top).
+  backTarget: {
+    minWidth: m3.minTouch,
+    minHeight: m3.minTouch,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   draftBadge: {
     alignSelf: "flex-start",
     borderWidth: 1,

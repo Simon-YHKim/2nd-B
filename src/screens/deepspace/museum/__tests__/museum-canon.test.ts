@@ -4,7 +4,7 @@
 // canon edit or a data-module refactor breaks these invariants, the timeline
 // would drop events or the detail sheet would open empty.
 
-import { canonMuseum } from "@/lib/canon";
+import { canonMuseum } from "@/lib/canon/museum";
 import {
   MUSEUM,
   MUSEUM_BY_YEAR,

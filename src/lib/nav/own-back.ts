@@ -17,7 +17,7 @@ function emit(): void {
   for (const l of listeners) l();
 }
 
-/** Called by a mounted own-back affordance; returns its unregister. */
+/** Called by a focused own-back affordance; returns its blur/unmount cleanup. */
 export function registerOwnBack(): () => void {
   count += 1;
   emit();

@@ -144,7 +144,3 @@ export function useCrewCount(
   const count = liteMode ? 0 : crewCountForDensity(density, nodeCount, opts);
   return { count, animated, density };
 }
-
-export function __resetCrewDensityForTests(): void {
-  memoryDensity = null;
-}

@@ -2,11 +2,11 @@
 // already separate, and the analytics stack never grants an ad signal.
 //
 // That was worth confirming rather than assuming, and it turned out to be true in
-// a specific and fragile way: every gtag/Clarity/Firebase consent call in
+// a specific and fragile way: every GA4/Firebase consent call in
 // analytics/index.ts hardcodes ad_storage / ad_user_data / ad_personalization to
-// denied, in ALL states — flag off, flag on, revoke, and grant. There is no
-// variable, no pref, and no branch that could set one of them to "granted"; the
-// denial is a literal at each of the four call sites.
+// denied, in ALL states — flag off, flag on, revoke, and grant. Web Clarity is
+// structurally absent because its SPA history restart cannot uphold the private-
+// route boundary. There is no variable, pref, or branch that grants ad storage.
 //
 // A literal repeated four times is exactly the thing a later edit unifies into a
 // variable "for cleanliness" and then makes conditional. This pins it.
@@ -40,12 +40,11 @@ describe("the analytics stack never grants an ad signal", () => {
     for (const v of values) expect(v).toMatch(/^("denied"|false)$/);
   });
 
-  test("the Clarity ad_Storage assignment denies too", () => {
-    // Clarity's key is capitalized differently, which is precisely the kind of
-    // near-miss a regex over the other names would skip.
-    const values = [...ANALYTICS.matchAll(/ad_Storage:\s*([^,\n]+)/g)].map((m) => m[1].trim());
-    expect(values.length).toBeGreaterThanOrEqual(3);
-    for (const v of values) expect(v).toMatch(/^("denied"|false)$/);
+  test("web Clarity is structurally absent", () => {
+    expect(ANALYTICS).toMatch(/WEB_CLARITY_HARD_DISABLED\s*=\s*true/);
+    expect(ANALYTICS).not.toMatch(/clarity\.ms\/tag/);
+    expect(ANALYTICS).not.toMatch(/\.clarity\?\./);
+    expect(ANALYTICS).not.toMatch(/ad_Storage\s*:/);
   });
 
   test("no ad signal is ever computed from a variable", () => {

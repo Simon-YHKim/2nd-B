@@ -15,7 +15,7 @@
 import { forwardRef, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { AccessibilityInfo, type DimensionValue, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
 import { canonCaptureModes } from "@/lib/canon";
@@ -1543,6 +1543,8 @@ function starRangeLabel(
 export function PastMeErasView({ isKo }: { isKo?: boolean } = {}) {
   const { t } = useTranslation("home");
   const { age } = useAuth();
+  const { origin: originParam } = useLocalSearchParams<{ origin?: string | string[] }>();
+  const growthOrigin = (Array.isArray(originParam) ? originParam[0] : originParam) === "domain-growth";
   void isKo; // copy is t()-driven; prop kept for caller-convention parity
   // 별 일곱 그대로. 인터뷰가 없는 프로필은 여기 목록에 안 낸다 -- 이 화면은
   // "어느 시기를 파러 갈까" 를 고르는 자리다.
@@ -1568,7 +1570,12 @@ export function PastMeErasView({ isKo }: { isKo?: boolean } = {}) {
                   onPress={
                     locked
                       ? undefined
-                      : () => router.push({ pathname: "/interview", params: { period: star.period ?? "now" } })
+                      : () => router.push({
+                          pathname: "/interview",
+                          params: growthOrigin
+                            ? { period: star.period ?? "now", origin: "domain-growth" }
+                            : { period: star.period ?? "now" },
+                        })
                   }
                 >
                   <View style={[styles.auditCardRow, locked ? { opacity: 0.45 } : null]}>

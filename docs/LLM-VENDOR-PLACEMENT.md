@@ -334,7 +334,7 @@ Supabase Edge 시크릿에만 있고 함수 디렉터리 삭제 ≠ 배포 해�
 `gemini-proxy` 를 부른다 — 알파 트랙 새 빌드 게시가 1단계.
 
 부수 발견(티켓감): `db/migrations/0095` 의 `p_reasoning_vendor IN ('gemini','claude','openai')` 에
-**`xai` 가 없다** — xai 가 서빙한 행은 벤더 NULL 로 기록된다. → **`0147_log_ai_audit_xai_vendor.sql`
+**`xai` 가 없다** — xai 가 서빙한 행은 벤더 NULL 로 기록된다. → **`0148_log_ai_audit_xai_vendor.sql`
 로 파일 생성(2026-08-31). 적용은 콘솔(dry-run + tail 대조 규율).**
 
 ### T1 1단계 집행 (2026-08-31) — 기본값이 더는 Gemini 로 떨어지지 않는다

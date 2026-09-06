@@ -58,6 +58,7 @@ const MIGRATED: readonly string[] = [
   "src/app/career.tsx",
   "src/app/community/[room].tsx",
   "src/app/core-brain.tsx",
+  "src/app/dev-screens.tsx",
   "src/app/interview.tsx",
   "src/app/northstar.tsx",
   "src/app/notices.tsx",

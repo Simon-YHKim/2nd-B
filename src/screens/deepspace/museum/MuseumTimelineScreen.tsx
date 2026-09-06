@@ -27,7 +27,7 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton } from "@/components/m3";
 import { deepSpace, flattenAlpha, spacing, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
-import { canonMuseum } from "@/lib/canon";
+import { canonMuseum } from "@/lib/canon/museum";
 import {
   MUSEUM,
   MUSEUM_BY_YEAR,

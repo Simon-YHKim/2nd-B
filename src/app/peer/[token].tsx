@@ -2,7 +2,7 @@
 // link the subject shared out-of-band. Everything here talks ONLY to the
 // peer-respond edge function; there is no session and no informant PII.
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { Linking, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useLocalSearchParams } from "expo-router";
 
@@ -156,6 +156,13 @@ export default function PeerInformant() {
         <MdCard variant="outlined" style={styles.card}>
           <Text variant="body">{t("doneNote")}</Text>
           <Text variant="caption" color="textSubtle">{t("doneKeepLink")}</Text>
+          {/* done 단계 한정(2026-09-01 감사 Q2-4 승인). 동의·제출(form) 단계에는 절대
+              넣지 않는다 — 동의 품질을 흐리지 않기 위한 전제다. 정적 링크라 PII·추적 없음. */}
+          <MdButton
+            variant="outlined"
+            label={t("aboutApp")}
+            onPress={() => void Linking.openURL("https://simon-yhkim.github.io/2nd-B/")}
+          />
         </MdCard>
       ) : null}
 

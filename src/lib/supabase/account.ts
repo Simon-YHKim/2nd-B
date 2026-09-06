@@ -7,9 +7,10 @@
 //   minor_tier / account_status), so a tampered value can't bypass the floor.
 //   Throws on error so the screen can surface it.
 //
-// Full account erasure reuses deleteAllUserData (src/lib/records/delete-bulk.ts)
-// plus signOut from the screen; removing the auth.users record itself needs a
-// service_role path (a follow-up edge function), so that is handled out of band.
+// Full account erasure is intentionally NOT implemented here. Screens call
+// requestAccountDeletion (src/lib/records/delete-bulk.ts), whose service-role
+// Edge Function deletes auth.users first and owns the cascade + Storage cleanup.
+// deleteAllUserData remains a separate "keep my account, clear content" action.
 
 import { getSupabaseClient } from "./client";
 

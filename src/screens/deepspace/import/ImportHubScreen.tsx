@@ -134,8 +134,10 @@ export function ImportHubScreen() {
 
   useEffect(() => {
     setHistErr(null);
-    void getImportHistory().then(setHistory);
-  }, [step]);
+    void getImportHistory(userId).then(setHistory);
+    // userId in deps (F-08): re-read when auth resolves so the scoped key is
+    // read for the right user, and a user switch never shows the prior user's log.
+  }, [step, userId]);
 
   const openSource = (s: ImportSource) => {
     if (s.minorLocked && isMinor === true) return; // C10 — comms/location locked for minors
@@ -269,7 +271,7 @@ export function ImportHubScreen() {
         const failedTxns = booked ? booked.failed : attempted;
         if (failedTxns > 0) setLedgerWarn({ inserted: bookedTxns, failed: failedTxns });
       }
-      await addImportHistory({
+      await addImportHistory(userId, {
         id: `${Date.now()}`,
         sourceKey: active.key,
         name: name(active),
@@ -358,10 +360,10 @@ export function ImportHubScreen() {
         return;
       }
     }
-    await removeImportHistory(id);
+    await removeImportHistory(userId, id);
     // Imported data left the record — a sad beat on the head.
     reactExpression("sad");
-    setHistory(await getImportHistory());
+    setHistory(await getImportHistory(userId));
   };
 
   // --- render -----------------------------------------------------------

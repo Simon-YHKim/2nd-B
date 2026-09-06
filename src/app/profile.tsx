@@ -10,7 +10,7 @@ import { PremiumAppShell, PremiumLoadingState } from "@/components/premium";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { Text } from "@/components/ui/Text";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
-import { cosmic, semantic, spacing } from "@/lib/theme/tokens";
+import { cosmic, mascot, semantic, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
@@ -39,6 +39,7 @@ const PRIMARY_HUB_ITEMS: HubRoute[] = [
   { sectionKey: "center", key: "esm", route: "/esm", accent: semantic.brand },
   { sectionKey: "know", key: "persona", route: "/persona", accent: cosmic.soulViolet },
   { sectionKey: "analyze", key: "insights", route: "/insights", accent: cosmic.signalBlue },
+  { sectionKey: "analyze", key: "trinity", route: "/trinity", accent: mascot.trinity },
   // Live QA 2026-06-11: /inbox (클립 수신함) had NO forward entry anywhere in
   // the app - the locale label existed but no surface rendered it. This row
   // is its single entry point (home -> 나 -> 받은편지함, 2 taps).
@@ -93,6 +94,7 @@ const HUB_GLYPH: Record<string, string> = {
   esm: "check",
   persona: "person",
   insights: "trending_up",
+  trinity: "hub",
 };
 
 function HubGlyph({ itemKey, color }: { itemKey: string; color: string }) {

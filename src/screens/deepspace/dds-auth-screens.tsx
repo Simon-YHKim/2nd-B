@@ -84,11 +84,23 @@ export function AuthShell({ children, scrollRef }: { children: ReactNode; scroll
   // Reserve the Android bottom inset: under edge-to-edge (Expo SDK 56 default)
   // the shared scroll's fixed paddingBottom:40 lets the last CTA on a tall
   // sign-up/reset form draw under the 3-button nav bar. insets.bottom clears it.
+  //
+  // The TOP inset lives on the KeyboardAvoidingView (a plain View on Android;
+  // on iOS behavior="padding" only manages its own bottom padding), NOT on the
+  // ScrollView or its content container: content-container padding scrolls away
+  // — /consent-notice auto-scrolls to its ?item= target on mount, which would
+  // put the arrival card right back under the status bar — and ScrollView
+  // frame padding is the documented RN clipping footgun. Padding the non-scroll
+  // frame starts the viewport below the status bar at EVERY scroll position,
+  // while AuthBackdrop (outside the KAV) keeps painting full-bleed behind it.
   const insets = useSafeAreaInsets();
   return (
     <View style={styles.root}>
       <AuthBackdrop />
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={{ flex: 1, paddingTop: insets.top }}
+      >
         <ScrollView
           ref={scrollRef}
           contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(40, insets.bottom + 24) }]}

@@ -8,6 +8,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { getSupabaseClient } from "../supabase/client";
 import { ageInYears } from "../supabase/auth";
 import { preserveKnownMinorForMissingProfile, type ProfileProbe } from "./profile-probe";
+import { noteResolvedOwner } from "./account-epoch";
 
 // A signed-in user counts as a minor for safety routing when under 18 (in
 // practice 14-17, since <14 cannot register — C10). Crisis routing uses this
@@ -148,6 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!userId) {
         lastUserIdRef.current = null;
         lastProbeRef.current = null;
+        noteResolvedOwner(null);
         setState({ userId: null, hasProfile: null, isMinor: null, age: null, profileProbeFailed: false, loading: false });
         return;
       }
@@ -155,6 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // re-entry infinite-loader). Re-probe quietly and update in place.
       const lastProbe = lastProbeRef.current;
       if (userId === lastUserIdRef.current && lastProbe !== null) {
+        noteResolvedOwner(userId);
         setState({
           userId,
           hasProfile: lastProbe.hasProfile,
@@ -175,6 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const refreshed = reprobe.probeFailed === true ? lastProbe : reprobe;
         if (cancelled || gen !== probeGenRef.current) return;
         lastProbeRef.current = refreshed;
+        noteResolvedOwner(userId);
         setState({
           userId,
           hasProfile: refreshed.hasProfile,
@@ -186,6 +190,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       // First resolve for this user: mark loading until we know the profile.
+      noteResolvedOwner(userId);
       setState({ userId, hasProfile: null, isMinor: null, age: null, profileProbeFailed: false, loading: true });
       const probe = await withTimeout(fetchProfile(userId), PROFILE_PROBE_TIMEOUT_MS, {
         hasProfile: false,
@@ -198,6 +203,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (cancelled || gen !== probeGenRef.current) return;
       lastUserIdRef.current = userId;
       lastProbeRef.current = probe;
+      noteResolvedOwner(userId);
       setState({
         userId,
         hasProfile: probe.hasProfile,
@@ -226,7 +232,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // blocked CORS). Don't strand the UI in loading-forever — render
         // the unauthenticated state so the landing page becomes visible.
         if (typeof console !== "undefined") console.log("[auth] getSession failed, treating as signed out", e);
-        if (!cancelled) setState({ userId: null, hasProfile: null, isMinor: null, age: null, profileProbeFailed: false, loading: false });
+        if (!cancelled) {
+          noteResolvedOwner(null);
+          setState({ userId: null, hasProfile: null, isMinor: null, age: null, profileProbeFailed: false, loading: false });
+        }
       });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       void resolveSession(session?.user.id ?? null);
@@ -262,6 +271,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!uid) {
       lastUserIdRef.current = null;
       lastProbeRef.current = null;
+      noteResolvedOwner(null);
       setState({ userId: null, hasProfile: null, isMinor: null, age: null, profileProbeFailed: false, loading: false });
       return;
     }
@@ -280,6 +290,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (gen !== probeGenRef.current) return;
     lastUserIdRef.current = uid;
     lastProbeRef.current = probe;
+    noteResolvedOwner(uid);
     setState({
       userId: uid,
       hasProfile: probe.hasProfile,

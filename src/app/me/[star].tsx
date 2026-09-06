@@ -143,7 +143,7 @@ export default function StarSummaryRoute() {
             <MdButton
               label={t("ds.star.openProfile")}
               variant="filled"
-              onPress={() => router.push("/profile")}
+              onPress={() => router.push("/profile-details")}
               style={styles.cta}
             />
           </>

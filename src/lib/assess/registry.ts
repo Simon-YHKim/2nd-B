@@ -63,7 +63,7 @@ export interface Assessment {
   labelKey: string;
   /** 앱 라우트. `dormant` 면 리다이렉트한다. */
   route: string;
-  /** 문항 수. LLM/피어 방식이면 null. */
+  /** 문항 수. 선택에 따라 달라지거나 LLM/피어 방식이면 null. */
   items: number | null;
   /** 예상 소요(분). 추천 순서를 정할 때 **비용**으로 쓴다. */
   minutes: number;
@@ -154,8 +154,8 @@ export const ASSESSMENTS: readonly Assessment[] = [
   {
     id: "audit",
     labelKey: "auditCheck",
-    route: "/audit",
-    items: 25,
+    route: "/audit?screener=1",
+    items: null,
     minutes: 8,
     provenance: "screener", // 5개 프레임워크 18축을 얕게 훑는다.
     completionTags: ["life_audit"],

@@ -75,7 +75,9 @@ const DOMAIN_ACTION: Record<
   growth: {
     primary: { en: "Add a moment", ko: "장면 담기", es: "Añadir momento", pt: "Adicionar momento", id: "Tambah momen" },
     secondary: { en: "Reflect", ko: "회상하기", es: "Reflexionar", pt: "Refletir", id: "Refleksi" },
-    route: "/audit",
+    // Keep the source star through period selection and the interview so the
+    // saved recall returns here and carries an explicit growth-domain intent.
+    route: "/audit?origin=domain-growth",
   },
   relation: {
     primary: { en: "Add a person", ko: "사람 담기", es: "Añadir persona", pt: "Adicionar pessoa", id: "Tambah orang" },
@@ -107,7 +109,7 @@ const DOMAIN_ACTION: Record<
 async function listDomainRecords(userId: string, domain: DomainId): Promise<DomainLensRecord[]> {
   const { data, error } = await getSupabaseClient()
     .from("records")
-    .select("id, topic, body, created_at")
+    .select("id, topic, body, created_at, audit_period")
     .eq("user_id", userId)
     .contains("tags", [domainTagFor(domain)])
     .order("created_at", { ascending: false })

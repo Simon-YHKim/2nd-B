@@ -197,11 +197,13 @@ async function bestEffort(fn: () => Promise<number>, label: string): Promise<num
 }
 
 /** Terminal account erasure (GDPR Art.17 / PIPA). Invokes the delete-account
- *  Edge Function, which (service role) deletes public.users -> cascade across
- *  every user_id-owned table, then removes the auth.users row. This is the only
- *  path that reaches RLS-protected tables (personas, memorized_patterns,
- *  xp_events) and the append-only consent_records ledger. Requires the function
- *  to be deployed; throws otherwise so the caller can decide how to proceed. */
+ *  Edge Function, which (service role) deletes auth.users first so the profile
+ *  and every user_id-owned table cascade in the same database transaction. It
+ *  then applies an idempotent profile safety net and cleans raw-clippings
+ *  Storage. This is the only path that reaches RLS-protected tables (personas,
+ *  memorized_patterns, xp_events) and the append-only consent_records ledger.
+ *  Requires the function to be deployed; throws unless terminal deletion is
+ *  confirmed so the caller can decide how to proceed. */
 export async function requestAccountDeletion(): Promise<void> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase.functions.invoke("delete-account", { body: {} });

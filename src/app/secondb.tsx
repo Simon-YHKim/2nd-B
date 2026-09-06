@@ -819,7 +819,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
             locale,
             tier: progression.tier,
             // 이름으로 부르게 한다. 화면은 이미 "허슬케이님" 이라 부른다.
-            displayName: currentDisplayName(),
+            displayName: currentDisplayName(userId),
             personaHint: isCharacterChat ? persona.systemHint[locale] : rev2PersonaHint(rev2Persona, locale),
             // D-26 A1: last turns for thread continuity (engine clips to 6 + drops
             // red-zone turns). Synthetic lines (greeting/limit/error) are not model

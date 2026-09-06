@@ -288,6 +288,9 @@ jest.mock("@/lib/theme/m3", () => ({
 }));
 jest.mock("@/lib/auth/AuthContext", () => ({ useAuth: () => mockAuth.current }));
 jest.mock("@/lib/supabase/client", () => ({ getSupabaseClient: () => mockSupabase }));
+// /digest 조건부 문(2026-09-01 Q2-2)의 보조 조회 — mount 스냅샷 로드와 분리된
+// 별도 이펙트다. 여기서는 빈 목록으로 고정해 문이 닫힌 상태를 렌더한다.
+jest.mock("@/lib/wiki/queries", () => ({ listInferredLinkDetails: async () => [] }));
 jest.mock("@/lib/persona/build", () => {
   const actual = jest.requireActual<typeof import("../persona/build")>("@/lib/persona/build");
   mockRealLoadPersonaSnapshot = actual.loadPersonaSnapshot;

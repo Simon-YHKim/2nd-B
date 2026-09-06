@@ -1409,6 +1409,45 @@ test('final URL validation is exact for origin, canonical path, query, and hash'
   }
 });
 
+test('state-dependent final URL matching accepts one exact candidate and nothing broader', async () => {
+  const { exactFinalRouteMatch } = await contract();
+  const baseUrl = 'http://localhost:8977';
+  const routes = ['/audit?screener=1', '/records?tags=life_audit'];
+
+  assert.equal(
+    exactFinalRouteMatch(baseUrl, routes, 'http://localhost:8977/2nd-B/audit?screener=1'),
+    routes[0],
+  );
+  assert.equal(
+    exactFinalRouteMatch(
+      baseUrl,
+      routes,
+      'http://localhost:8977/2nd-B/records?tags=life_audit',
+    ),
+    routes[1],
+  );
+  const whoRoutes = ['/attachment', '/records?tags=mbti', '/records?tags=attachment'];
+  assert.equal(
+    exactFinalRouteMatch(
+      baseUrl,
+      whoRoutes,
+      'http://localhost:8977/2nd-B/records?tags=attachment',
+    ),
+    whoRoutes[2],
+  );
+  for (const actual of [
+    'http://localhost:8977/2nd-B/audit',
+    'http://localhost:8977/2nd-B/audit?screener=2',
+    'http://localhost:8977/2nd-B/records?tags=life-audit',
+    'http://localhost:8977/2nd-B/records?tags=life_audit#top',
+    'http://localhost:8977/2nd-B/settings?screener=1',
+    'https://example.test/2nd-B/audit?screener=1',
+  ]) {
+    assert.equal(exactFinalRouteMatch(baseUrl, routes, actual), null, actual);
+  }
+  assert.equal(exactFinalRouteMatch(baseUrl, null, routes[0]), null);
+});
+
 test('D axis scores only visible actionable labels and removes only exempted items', async () => {
   const { formatNavigationWhy, scoreNavigationLabels } = await contract();
   const declared = ['설정', '계정 설정…', '새 대화'];
@@ -1720,6 +1759,98 @@ test('D v2 schema is fail-closed for fuzzy, duplicate, unsafe, and incomplete de
     duplicates.items.map((item) => item.occurrence),
     [1, 2],
   );
+});
+
+test('D v2 toAnyOf is a bounded, unique, safe route set and cannot weaken other contracts', async () => {
+  const { normalizeNavigationContract, runExactNavigationChecks, scoreExactNavigationResults } =
+    await contract();
+  const baseUrl = 'http://localhost:8977';
+  const normalized = normalizeNavigationContract(
+    {
+      version: 2,
+      items: [
+        {
+          label: '나의 원동력',
+          kind: 'route',
+          toAnyOf: ['/audit?screener=1', '/records?tags=life_audit'],
+        },
+        {
+          label: '나는 누구인가',
+          kind: 'route',
+          toAnyOf: ['/attachment', '/records?tags=mbti', '/records?tags=attachment'],
+        },
+      ],
+      unresolved: [],
+    },
+    baseUrl,
+  );
+  assert.deepEqual(normalized.items.map((item) => item.toAnyOf), [
+    ['/audit?screener=1', '/records?tags=life_audit'],
+    ['/attachment', '/records?tags=mbti', '/records?tags=attachment'],
+  ]);
+
+  let probes = 0;
+  const results = await runExactNavigationChecks(normalized, async () => {
+    probes += 1;
+    return { passed: true, evidence: 'exact-route' };
+  });
+  assert.equal(probes, 2);
+  assert.deepEqual(results, [
+    { index: 0, passed: true, evidence: 'exact-route' },
+    { index: 1, passed: true, evidence: 'exact-route' },
+  ]);
+  const scored = scoreExactNavigationResults(normalized, results);
+  assert.equal(scored.evidence.exactRoutes, 2);
+  assert.equal(scored.matched, 2);
+  assert.equal(scored.declared, 2);
+
+  const rejects = [
+    { label: '원동력', kind: 'route', toAnyOf: null },
+    { label: '원동력', kind: 'route', toAnyOf: '/audit?screener=1' },
+    { label: '원동력', kind: 'route', toAnyOf: [] },
+    { label: '원동력', kind: 'route', toAnyOf: ['/audit?screener=1'] },
+    {
+      label: '원동력',
+      kind: 'route',
+      toAnyOf: ['/one', '/two', '/three', '/four'],
+    },
+    { label: '원동력', kind: 'route', toAnyOf: ['/audit', '/audit'] },
+    { label: '원동력', kind: 'route', toAnyOf: ['/audit', '/audit?'] },
+    { label: '원동력', kind: 'route', toAnyOf: ['/audit', 'https://example.test/audit'] },
+    { label: '원동력', kind: 'route', toAnyOf: ['/audit', '/records#top'] },
+    { label: '원동력', kind: 'route', toAnyOf: ['/audit', '/../records'] },
+    {
+      label: '원동력',
+      kind: 'route',
+      to: '/audit?screener=1',
+      toAnyOf: ['/audit?screener=1', '/records?tags=life_audit'],
+    },
+    {
+      label: '원동력',
+      kind: 'action',
+      toAnyOf: ['/audit?screener=1', '/records?tags=life_audit'],
+      effect: { type: 'selected' },
+    },
+    {
+      label: '원동력',
+      kind: 'route',
+      toAnyOf: ['/audit?screener=1', '/records?tags=life_audit'],
+      postNavigation: { effect: { type: 'selected' } },
+    },
+    {
+      label: '원동력',
+      kind: 'route',
+      toAnyOf: ['/audit?screener=1', '/records?tags=life_audit'],
+      safe: false,
+      why: 'route exclusion must not replace an exact candidate set',
+    },
+  ];
+  for (const item of rejects) {
+    assert.throws(
+      () => normalizeNavigationContract({ version: 2, items: [item], unresolved: [] }, baseUrl),
+      /navigation contract/i,
+    );
+  }
 });
 
 test('D v2 runner probes each safe item once and never invokes an unsafe action', async () => {
@@ -5392,15 +5523,31 @@ test('me Stage 1 contract covers every stable route across all three deck pages'
     readFileSync(path.join(REPO, 'design', 'pixel_clay_260825', 'data', 'nav.json'), 'utf8'),
   );
   assert.deepEqual(
-    nav.me.items.map(({ label, kind, to, reveal }) => ({ label, kind, to, reveal })),
+    nav.me.items.map(({ label, kind, to, toAnyOf, reveal }) => ({
+      label,
+      kind,
+      ...(to === undefined ? {} : { to }),
+      ...(toAnyOf === undefined ? {} : { toAnyOf }),
+      reveal,
+    })),
     [
       { label: '북극성 문장 편집', kind: 'route', to: '/northstar', reveal: undefined },
       { label: '내보내기', kind: 'route', to: '/share-card', reveal: undefined },
-      { label: '나는 누구인가', kind: 'route', to: '/core-brain', reveal: { role: 'tab', name: '나의 모습' } },
+      {
+        label: '나는 누구인가',
+        kind: 'route',
+        toAnyOf: ['/attachment', '/records?tags=mbti', '/records?tags=attachment'],
+        reveal: { role: 'tab', name: '나의 모습' },
+      },
       { label: '누구를 위해', kind: 'route', to: '/interview', reveal: { role: 'tab', name: '나의 모습' } },
       { label: '나의 목표', kind: 'route', to: '/secondb?mode=divergent', reveal: { role: 'tab', name: '나의 모습' } },
       { label: '무엇을 하는가', kind: 'route', to: '/capture', reveal: { role: 'tab', name: '나의 모습' } },
-      { label: '나의 원동력', kind: 'route', to: '/audit', reveal: { role: 'tab', name: '나의 모습' } },
+      {
+        label: '나의 원동력',
+        kind: 'route',
+        toAnyOf: ['/audit?screener=1', '/records?tags=life_audit'],
+        reveal: { role: 'tab', name: '나의 모습' },
+      },
       { label: '밝기 변화', kind: 'route', to: '/brightness', reveal: { role: 'tab', name: '나의 모습' } },
       { label: '확인 이력', kind: 'route', to: '/ratifications', reveal: { role: 'tab', name: '나의 모습' } },
       { label: '관계 패턴 체크', kind: 'route', to: '/attachment', reveal: { role: 'tab', name: '근거와 검증' } },
@@ -5410,7 +5557,7 @@ test('me Stage 1 contract covers every stable route across all three deck pages'
       { label: '가치관 체크', kind: 'route', to: '/values', reveal: { role: 'tab', name: '근거와 검증' } },
       { label: '강점 체크', kind: 'route', to: '/strengths', reveal: { role: 'tab', name: '근거와 검증' } },
       { label: '동기 체크', kind: 'route', to: '/motivation', reveal: { role: 'tab', name: '근거와 검증' } },
-      { label: '인생 점검', kind: 'route', to: '/audit', reveal: { role: 'tab', name: '근거와 검증' } },
+      { label: '인생 점검', kind: 'route', to: '/audit?screener=1', reveal: { role: 'tab', name: '근거와 검증' } },
       { label: '대화로 풀어보기', kind: 'route', to: '/interview', reveal: { role: 'tab', name: '근거와 검증' } },
       { label: '세컨비에게 이 중심으로 묻기', kind: 'route', to: '/secondb?fromNode=북극성', reveal: { role: 'tab', name: '근거와 검증' } },
       { label: '별자리', kind: 'route', to: '/', reveal: undefined },

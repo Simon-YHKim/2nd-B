@@ -375,6 +375,9 @@ Deno.serve(async (req: Request) => {
   // own audit row. Divergence here would show up as a quota or a safety gap
   // rather than as an obvious bug.
   if (body?.op === 'embed') {
+    if (Deno.env.get('EMBED_EGRESS_ENABLED') !== 'true') {
+      return jsonResponse(req, { error: 'embedding_egress_disabled' }, 503);
+    }
     const rawTexts = body?.texts;
     if (!Array.isArray(rawTexts) || rawTexts.length === 0) {
       return jsonResponse(req, { error: 'texts_required' }, 400);

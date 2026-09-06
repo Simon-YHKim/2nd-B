@@ -10,13 +10,15 @@
 //
 // DATA CONTRACT (handoff policy #4 — 날조 금지): a field is only `filled`
 // when there's a concrete *measured* value behind it. With no backing
-// evidence it stays `collecting` and points the user at the one place that
-// would fill it. We never invent a value to make the card look complete.
+// evidence it stays `collecting`. `who` and `fuel` have a real automatic fill
+// contract; the other three link to a related place without promising that the
+// field will immediately fill. We never invent a value to make the card look
+// complete.
 //
 // Pure + tested so the field/evidence/route mapping is a single source of
 // truth; the screen is a thin renderer over `buildSelfPortrait`.
 
-import type { PersonaCard } from "./build";
+import type { SelfPortraitSignals } from "./build";
 import { labelFramework } from "../audit/frameworkLabels";
 import { TYPE_NICKNAME } from "./mbti";
 import { STYLE_LABEL } from "./attachment";
@@ -31,14 +33,16 @@ export interface SelfPortraitField {
   /** Localized value when `filled`; null while `collecting`. */
   value: string | null;
   status: FieldStatus;
-  /** Localized nudge — what would fill this field. */
+  /** Localized explanation shown while this field is collecting. */
   hint: string;
-  /** Where the user goes to add the missing signal. */
+  /** Localized screen-reader description of the row's current destination. */
+  actionHint: string;
+  /** Collecting: honest next step. Filled: records filtered to its evidence. */
   route: string;
 }
 
 export interface SelfPortraitInput {
-  persona: PersonaCard | null;
+  persona: SelfPortraitSignals | null;
 }
 
 const FIELD_ORDER: SelfPortraitFieldId[] = ["who", "forWhom", "goal", "do", "fuel"];
@@ -48,37 +52,56 @@ const LABELS: Record<"en" | "ko", Record<SelfPortraitFieldId, string>> = {
   en: { who: "Who I am", forWhom: "Who it's for", goal: "What I'm reaching for", do: "What I do", fuel: "What fuels me" },
 };
 
-// Collecting nudges — phrased in the calm Core Brain plural voice, naming the
-// one signal that would move the field to `filled`.
+// Collecting nudges. Only who/fuel promise a backing signal; the other three
+// say plainly that their automatic portrait summary is not connected yet.
 const HINTS: Record<"en" | "ko", Record<SelfPortraitFieldId, string>> = {
   ko: {
-    who: "평가를 하나 마치면 또렷해져요.",
-    forWhom: "스무고개에서 사람 이야기를 남기면 보이기 시작해요.",
-    goal: "세컨비의 새 관점 모드에서 다음 한 걸음을 펼쳐보면 모여요.",
-    do: "오늘의 별가루를 며칠 남기면 흐름이 보여요.",
-    fuel: "라이프 오딧으로 가치를 짚어보면 켜져요.",
+    who: "관계 패턴 체크에서 나를 설명하는 단서를 하나 더할 수 있어요.",
+    forWhom: "스무고개에 사람 이야기를 남길 수 있어요 · 이 칸의 자동 요약은 준비 중이에요.",
+    goal: "세컨비 새 관점 모드에서 다음 한 걸음을 펼칠 수 있어요 · 자동 요약은 준비 중이에요.",
+    do: "오늘의 별가루에 실제로 한 일을 남길 수 있어요 · 자동 요약은 준비 중이에요.",
+    fuel: "라이프 오딧에서 자주 돌아오는 가치를 살펴볼 수 있어요.",
   },
   en: {
-    who: "Finishing one assessment sharpens this.",
-    forWhom: "Talk about the people in your life in an interview and this starts to show.",
-    goal: "Unfold a next step in SecondB's new angle mode and this gathers.",
-    do: "Leave today's piece for a few days and the pattern shows.",
-    fuel: "Name a value in a life audit and this lights up.",
+    who: "A relationship-pattern check can add one more clue about you.",
+    forWhom: "You can leave a story about someone in an interview · automatic summary for this field is still in progress.",
+    goal: "You can unfold a next step in SecondB's new-angle mode · automatic summary is still in progress.",
+    do: "You can record what you did in today's piece · automatic summary is still in progress.",
+    fuel: "A life audit can surface the values you return to most.",
   },
 };
 
-// Emit real destinations, not retired redirect routes (goal -> /secondb Divergent
-// mode, do -> /capture), so each field opens where its copy promises.
-const ROUTES: Record<SelfPortraitFieldId, string> = {
-  who: "/persona",
+const EVIDENCE_HINT: Record<"en" | "ko", string> = {
+  ko: "이 값을 만든 기록을 엽니다.",
+  en: "Opens the records behind this value.",
+};
+
+// Active collection/related destinations. `/persona` and bare `/audit` are not
+// valid here in the default UI: the former redirects back to this same screen,
+// while the latter now means Past Me rather than Life Audit.
+const COLLECT_ROUTES: Record<SelfPortraitFieldId, string> = {
+  who: "/attachment",
   forWhom: "/interview",
   goal: "/secondb?mode=divergent",
   do: "/capture",
-  fuel: "/audit",
+  fuel: "/audit?screener=1",
 };
 
+/** Filled fields open the concrete records behind the shown value. */
+function fieldRoute(
+  id: SelfPortraitFieldId,
+  persona: SelfPortraitSignals | null,
+  value: string | null,
+): string {
+  if (value && id === "who") {
+    return persona?.mbti ? "/records?tags=mbti" : "/records?tags=attachment";
+  }
+  if (value && id === "fuel") return "/records?tags=life_audit";
+  return COLLECT_ROUTES[id];
+}
+
 /** The single measured value behind a field, or null when nothing backs it. */
-function fieldValue(id: SelfPortraitFieldId, persona: PersonaCard | null, locale: "en" | "ko"): string | null {
+function fieldValue(id: SelfPortraitFieldId, persona: SelfPortraitSignals | null, locale: "en" | "ko"): string | null {
   if (!persona) return null;
   switch (id) {
     case "who": {
@@ -109,7 +132,8 @@ export function buildSelfPortrait({ persona }: SelfPortraitInput, locale: "en" |
       value,
       status: value ? "filled" : "collecting",
       hint: HINTS[locale][id],
-      route: ROUTES[id],
+      actionHint: value ? EVIDENCE_HINT[locale] : HINTS[locale][id],
+      route: fieldRoute(id, persona, value),
     } satisfies SelfPortraitField;
   });
 }

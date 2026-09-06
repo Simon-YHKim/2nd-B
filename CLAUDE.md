@@ -18,10 +18,25 @@ Project-specific guidance for Claude Code sessions in this repo.
 > - "대회 규정상 필요하다" / "학술 인용 가능해야 한다" — 규정은 적용되지 않는다.
 >   기능은 사용자에게 쓸모가 있어서 존재해야지, 인용 가능해서 존재하면 안 된다.
 >
-> 코드에 남은 대회 잔재(`src/lib/judge/domains.ts`, C6 judge mode 트리거, C12 README 절,
-> `db/seed.sql` 의 demo@xprize.org, `manual.tsx` 의 XPRIZE 문구, `boundary.ts`/`routing.ts`
-> 주석)는 **아직 제거되지 않았다.** 동작 중인 코드이므로 임의로 걷어내지 말고, 제거는 별도
-> 작업으로 Simon 과 합의해서 진행한다. 다만 이것들을 *새 결정의 근거*로 인용하지는 말 것.
+> **잔재 현황 (2026-09-06 실측 갱신).** 아래 목록은 오래 낡아 있었다. #1302(2026-08-21)와
+> 마이그레이션 0138 이 절반을 이미 걷어냈는데도 "아직 제거되지 않았다"고 적혀 있었고,
+> 그 문장을 읽은 세션들이 없는 기능을 살아 있다고 오진했다. 실측 결과는 이렇다:
+>
+> | 항목 | 상태 |
+> |---|---|
+> | `src/lib/judge/domains.ts` | **빈 seam.** `JUDGE_DOMAINS = []` 이고 `isJudgeEmail()` 은 항상 false |
+> | C6 judge mode 트리거 | **은퇴 완료.** 0138 이 `auto_judge_mode()` 를 DROP 했다. `check:constraints` 의 C6 는 이제 기능이 아니라 **은퇴 상태**를 지킨다 |
+> | `db/seed.sql` 의 demo@xprize.org | **제거됨.** 지금은 `demo@example.com`, `judge_mode false` |
+> | `manual.tsx` 의 XPRIZE 문구 | **제거됨** (0건) |
+> | `routing.ts` 주석 | **제거됨** (0건) |
+> | `boundary.ts` 주석 | **남아 있음** (4곳). 동작에 영향 없는 주석 |
+> | C12 README 절 | **남아 있음.** `check:constraints` 가 계속 요구한다 |
+>
+> 남은 둘은 동작 중인 계약이라 임의로 걷어내지 말고, 제거는 별도 작업으로 Simon 과 합의해서
+> 진행한다. 다만 이것들을 *새 결정의 근거*로 인용하지는 말 것.
+>
+> `users.judge_mode` 컬럼과 comp 분기는 **의도적으로 남긴 것**이다(#1302 커밋 본문). 이것도
+> "잔재라서 지워야 한다"의 근거가 아니다.
 > ### 제품 의도 (Simon 직접 진술, 2026-08-17) — 새 세션은 이걸 먼저 읽을 것
 >
 > **"사용자와 소통해서 깊게 파악하고, 그를 기반으로 심리상담(친구 같은)·개인 비서 역할을 하게 하는 것."**

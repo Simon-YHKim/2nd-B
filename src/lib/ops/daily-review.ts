@@ -8,15 +8,15 @@
 // its own is the companion pattern D-19 fights. A reminder the user sets for
 // themselves, like an alarm, is a tool, not a hook.)
 //
-// Native-only (needs a dev/EAS build); web and Expo Go no-op cleanly.
+// Native-only (needs a dev/EAS build); web and Expo Go no-op cleanly. The SDK
+// is reached ONLY through ./notifications-sdk (its .web.ts variant answers
+// null), so the web bundle never carries expo-notifications (audit D5-11).
 
-let Notifications: typeof import("expo-notifications") | null = null;
-try {
-  Notifications = require("expo-notifications") as typeof import("expo-notifications");
-} catch {
-  // Expo Go (SDK 53+) throws when requiring expo-notifications.
-  Notifications = null;
-}
+import { loadNotifications } from "./notifications-sdk";
+
+// null on web / Expo Go (SDK 53+ throws on require) -- every entry point below
+// reports "unavailable" in that case.
+const Notifications = loadNotifications();
 
 export type DailyReviewResult = "scheduled" | "cancelled" | "denied" | "unavailable" | "error";
 

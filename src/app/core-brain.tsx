@@ -39,14 +39,17 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import {
   loadLatestStrengths,
   loadPersonaSnapshot,
+  loadSelfPortraitSignals,
   type LoadedStrengths,
   type PersonaCard,
+  type SelfPortraitSignals,
 } from "@/lib/persona/build";
 import { STRENGTH_LABEL_EN, STRENGTH_LABEL_KO } from "@/lib/persona/strengths-survey";
 import type { DomainId } from "@/lib/persona/domain-stars";
 import { loadDomainLevels, type DomainBrightness } from "@/lib/persona/load-domain-levels";
 import { HOME_STAR_IDS } from "@/lib/persona/home-stars";
 import { OFFERABLE } from "@/lib/assess/registry";
+import { listInferredLinkDetails } from "@/lib/wiki/queries";
 import { loadProfileStarLevel } from "@/lib/persona/load-profile-star";
 import { loadSevenLevels, type SevenLevels } from "@/lib/persona/load-seven-levels";
 import { SEVEN_STARS, type SevenStarId } from "@/lib/persona/seven-stars";
@@ -201,6 +204,8 @@ function CoreBrainScreen() {
   const [reloadKey, setReloadKey] = useState(0);
   const [evidenceReloadKey, setEvidenceReloadKey] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [pendingLinkCount, setPendingLinkCount] = useState(0);
+  const [portraitSignals, setPortraitSignals] = useState<SelfPortraitSignals | null>(null);
   const { moment: companionMoment, fire: fireCompanion } = useCompanionMoment();
 
   useEffect(() => {
@@ -211,6 +216,7 @@ function CoreBrainScreen() {
     setBuilding(true);
     setLoadError(false);
     setLoadErrorUserId(null);
+    setPortraitSignals(null);
     (async () => {
       try {
         const [ev, nextDomainBrightness, nextStars, nextProfileLevel, nextStrengths] = await Promise.all([
@@ -244,6 +250,7 @@ function CoreBrainScreen() {
           setSevenLevels(null);
           setProfileLevel(null);
           setStrengths(null);
+          setPortraitSignals(null);
           setResolvedUserId(null);
           setLoadError(true);
           setLoadErrorUserId(userId);
@@ -256,6 +263,24 @@ function CoreBrainScreen() {
       cancelled = true;
     };
   }, [loading, userId, hasProfile, isMinor, locale, fireCompanion, reloadKey]);
+
+  // /digest 조건부 문("다음 한 걸음")의 게이트 — 스냅샷 mount 로드는 SELECT-only
+  // 단일 로드라는 계약(위 이펙트 주석·core-brain-minor-gate.test)이 있어 거기에
+  // 합류시키지 않는다. 이 보조 조회는 실패·지연해도 화면 빌드를 막지 않는다.
+  useEffect(() => {
+    if (loading || !userId || hasProfile !== true || isMinor === null) return;
+    let cancelled = false;
+    listInferredLinkDetails(userId)
+      .then((links) => {
+        if (!cancelled) setPendingLinkCount(links.length);
+      })
+      .catch(() => {
+        if (!cancelled) setPendingLinkCount(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [loading, userId, hasProfile, isMinor, reloadKey]);
   // Re-focus refreshes only cheap DB evidence. The initial/retry path above is
   // also read-only; persona synthesis and persistence require an explicit action.
   useFocusRefetch(() => setEvidenceReloadKey((k) => k + 1), Boolean(userId && hasProfile === true));
@@ -291,6 +316,26 @@ function CoreBrainScreen() {
       cancelled = true;
     };
   }, [userId, hasProfile, locale, evidenceReloadKey, resolvedUserId]);
+
+  // Direct portrait measurements are optional, SELECT-only companions to the
+  // synthesized persona. Load them independently so an assessment read failure
+  // cannot turn the whole Core Brain into an error screen; focus/retry refreshes
+  // them without calling the LLM or writing a persona row.
+  useEffect(() => {
+    if (loading || !userId || hasProfile !== true || isMinor === null) return;
+    let cancelled = false;
+    loadSelfPortraitSignals(userId)
+      .then((signals) => {
+        if (!cancelled) setPortraitSignals(signals);
+      })
+      .catch(() => {
+        // Optional field data stays at its prior/collecting state; the main
+        // evidence loader owns the screen-level error surface.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [loading, userId, hasProfile, isMinor, reloadKey, evidenceReloadKey]);
 
   if (loading) {
     return (
@@ -402,9 +447,12 @@ function CoreBrainScreen() {
   const pieces = cards.find((c) => c.id === "pieces");
 
   // 나의 모습 — the 5-field self-portrait (who / forWhom / goal / do / fuel).
-  // Data contract: only measured fields are filled; the rest stay collecting
-  // and point the user at the one place that would fill them. Never fabricated.
-  const portrait = buildSelfPortrait({ persona: hasUnrecordedProvenance ? null : persona }, locale);
+  // Data contract: only measured fields are filled. Collecting rows point to an
+  // honest next step; filled rows point to records filtered to their evidence.
+  // The remaining three fields disclose that automatic summary is not wired yet.
+  // Trait provenance gates generated role/direction copy, not these independent
+  // measurement reads. They refresh on focus and can predate persona synthesis.
+  const portrait = buildSelfPortrait({ persona: portraitSignals }, locale);
 
   const filledFields = portrait.filter((f) => f.status === "filled").length;
   const domainLevels: Record<DomainId, LadderLevel> | undefined = domainBrightness?.domainLevels;
@@ -559,7 +607,8 @@ function CoreBrainScreen() {
                   activeOpacity={0.7}
                   onPress={() => router.push(field.route as never)}
                   accessibilityRole="button"
-                  accessibilityLabel={field.label}
+                  accessibilityLabel={field.value ? `${field.label}: ${field.value}` : field.label}
+                  accessibilityHint={field.actionHint}
                 >
                   <View
                     style={[styles.fieldDot, { backgroundColor: field.status === "filled" ? cosmic.signalMint : semantic.border }]}
@@ -572,9 +621,14 @@ function CoreBrainScreen() {
                       <Text variant="subtle" color="textSubtle">{field.hint}</Text>
                     )}
                   </View>
-                  {field.status === "collecting" ? (
-                    <Text variant="caption" color="brand">{t("fill")}</Text>
-                  ) : null}
+                  <Text
+                    variant="caption"
+                    color="brand"
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                  >
+                    →
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -718,7 +772,8 @@ function CoreBrainScreen() {
                 activeOpacity={0.7}
                 onPress={() => router.push(field.route as never)}
                 accessibilityRole="button"
-                accessibilityLabel={field.label}
+                accessibilityLabel={field.value ? `${field.label}: ${field.value}` : field.label}
+                accessibilityHint={field.actionHint}
               >
                 <View
                   style={[styles.fieldDot, { backgroundColor: field.status === "filled" ? cosmic.signalMint : semantic.border }]}
@@ -731,9 +786,14 @@ function CoreBrainScreen() {
                     <Text variant="subtle" color="textSubtle">{field.hint}</Text>
                   )}
                 </View>
-                {field.status === "collecting" ? (
-                  <Text variant="caption" color="brand">{t("fill")}</Text>
-                ) : null}
+                <Text
+                  variant="caption"
+                  color="brand"
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                >
+                  →
+                </Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -814,6 +874,17 @@ function CoreBrainScreen() {
             variant="primary"
             onPress={() => router.push("/review")}
           />
+          {/* 위 /review 버튼은 self-model 비준 진입(#807)이라 목적지를 바꾸지 않는다.
+              아래는 별개의 문: 추론된 위키 링크 비준(/digest)은 진입이 알림함 조건부
+              카드 하나뿐이었다(2026-09-01 감사 THIN·Q2-2 승인). 알림함 카드와 같은
+              게이트(대기 링크 1건 이상)만 열린다 — 빈 화면으로 유인하지 않는다. */}
+          {pendingLinkCount > 0 ? (
+            <Button
+              label={t("openDigest", { n: pendingLinkCount })}
+              variant="secondary"
+              onPress={() => router.push("/digest")}
+            />
+          ) : null}
         </Section>
 
         {/* 8) 세컨비에게 이 중심으로 묻기 */}

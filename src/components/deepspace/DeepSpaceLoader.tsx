@@ -13,7 +13,7 @@
 //   <DeepSpaceLoader variant="ring" />
 //   <DeepSpaceLoader variant="analysis" etaSec={30} onSendToBackground={sendToBackground} />
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ComponentProps } from "react";
 import { Animated, Platform, Pressable, StyleSheet, View } from "react-native";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import Svg, { Rect } from "react-native-svg";
@@ -45,7 +45,11 @@ export interface DeepSpaceLoaderProps {
 
 // ⚠ 원이 아니라 **사각**이다(PIXEL-CLAY 규칙 1). 예전에는 `Circle` 이었는데,
 //   별칭으로 감싸는 바람에 `<Circle` 을 찾는 가드가 못 봤다.
-const AnimatedRect = Animated.createAnimatedComponent(Rect);
+function SvgRect({ collapsable: _collapsable, ...props }: ComponentProps<typeof Rect> & { collapsable?: boolean }) {
+  return <Rect {...props} />;
+}
+
+const AnimatedRect = Animated.createAnimatedComponent(SvgRect);
 
 type LoaderLocale = "en" | "ko" | "es" | "pt" | "id";
 

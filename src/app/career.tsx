@@ -168,6 +168,13 @@ export default function CareerTimelineScreen() {
             <Text variant="body" color="textMuted">
               {t("deepspace:career.empty")}
             </Text>
+            {/* 빈 타임라인에서의 유일한 행동이 헤더 구석 버튼뿐이었다(2026-09-01 감사 THIN).
+                같은 화면 안 중복이라 "입력 경로는 하나"(파일 헤더) 결정과 충돌하지 않는다. */}
+            <MdButton
+              variant="filled"
+              label={t("deepspace:career.addAchievement")}
+              onPress={() => router.push("/career-input")}
+            />
           </MdCard>
         ) : (
           groups.map((group) => (

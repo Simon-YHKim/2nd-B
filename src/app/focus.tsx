@@ -11,8 +11,16 @@
 // machine + deep-space tokens, so it renders in both UI modes through the same
 // DeepSpaceFocusScreen (the legacy skin has no focus-timer placeholder yet).
 
+import { Redirect } from "expo-router";
+
 import { DeepSpaceFocusScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
+import { useAuth } from "@/lib/auth/AuthContext";
 
 export default function Focus() {
+  const { userId, loading } = useAuth();
+
+  if (loading) return null;
+  if (!userId) return <Redirect href="/sign-in" />;
+
   return <DeepSpaceFocusScreen />;
 }
