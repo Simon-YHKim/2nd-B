@@ -8,7 +8,7 @@ const edge = read("supabase/functions/peer-respond/index.ts");
 const client = read("src/lib/peer/peer-respond.ts");
 const invite = read("src/lib/peer/invite.ts");
 const config = read("supabase/config.toml");
-const migration = read("db/migrations/0158_peer_response_atomicity.sql");
+const migration = read("db/migrations/0182_peer_response_atomicity.sql");
 const quotaMigrationPath = join(root, "db/migrations/0170_peer_respond_rate_limit.sql");
 const quotaMigration = existsSync(quotaMigrationPath)
   ? read("db/migrations/0170_peer_respond_rate_limit.sql")

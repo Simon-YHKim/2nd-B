@@ -30,7 +30,7 @@ const SOURCE = readFileSync(
   "utf8",
 );
 const MIGRATION = readFileSync(
-  join(__dirname, "..", "..", "..", "..", "db", "migrations", "0158_peer_response_atomicity.sql"),
+  join(__dirname, "..", "..", "..", "..", "db", "migrations", "0182_peer_response_atomicity.sql"),
   "utf8",
 );
 
@@ -70,7 +70,7 @@ describe("peer-respond: informant minority is server-derived", () => {
   });
 
   test("the guardian check and atomic RPC arguments hang off that one value", () => {
-    // The Edge never writes consent fields directly; 0158 derives timestamps and
+    // The Edge never writes consent fields directly; 0182 derives timestamps and
     // subject identity from the locked invitation in the same transaction.
     expect(SOURCE).toMatch(/if \(isMinor && body\.guardianConsent !== true\)/);
     expect(SOURCE).toMatch(/p_informant_is_minor: isMinor/);
