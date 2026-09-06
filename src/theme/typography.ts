@@ -78,10 +78,11 @@ export const fontAssets = {
     Platform.OS === "web"
       ? require("../../assets/fonts/GalmuriMono11-subset.woff2")
       : require("../../assets/fonts/GalmuriMono11-subset.ttf"),
-  // Roboto 는 남겨둔다. `m3.font` 는 더 이상 가리키지 않지만 레거시 스킨과
-  // 아직 안 옮긴 화면이 문자열로 참조할 수 있고, 지우는 것은 P5 정리 몫이다.
-  Roboto: require("@expo-google-fonts/roboto/400Regular/Roboto_400Regular.ttf"),
-  RobotoMedium: require("@expo-google-fonts/roboto/500Medium/Roboto_500Medium.ttf"),
-  RobotoBold: require("@expo-google-fonts/roboto/700Bold/Roboto_700Bold.ttf"),
-  RobotoMono: require("@expo-google-fonts/roboto-mono/400Regular/RobotoMono_400Regular.ttf"),
+  // Roboto 4종(Roboto / RobotoMedium / RobotoBold / RobotoMono)은 여기 없다
+  // (2026-09-05 제거). M3 rev2 크롬·숫자 얼굴이었고 `m3.font.*` 가 2단계에서
+  // Galmuri 로 옮겨간 뒤 `fontFamily` 소비자가 두 UI 모드 모두 0건이었다
+  // (`grep -rnE "[\"'\`]Roboto(Medium|Bold|Mono)?[\"'\`]" src` 는 주석만 잡힌다).
+  // 그런데도 여기 등록돼 있어서 스플래시 게이트(useFonts)가 매 기동마다 565,844B(약 566KB)를
+  // 더 받고 있었다(2026-09-05 웹 export 실측). 다시 필요해지면 `@expo-google-fonts/roboto` 를 되살리고
+  // `typography-m3-fonts.test.ts` 의 짝 검사에 키를 함께 넣을 것.
 };
