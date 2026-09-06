@@ -99,4 +99,15 @@ describe("Advisor follow-up UI contract", () => {
     expect(detail).not.toContain("AdvisorFollowupNote");
     expect(detail).not.toContain("record-advisor-followup");
   });
+
+  test("the evidence surface links only a shared-guarded DOI target", () => {
+    const component = read("src/components/records/AdvisorFollowupNote.tsx").replace(/\r\n/g, "\n");
+
+    expect(component).toContain('import { safeDoiReferenceHref } from "@/lib/knowledge/source-link"');
+    expect(component).toContain("const doiHref = safeDoiReferenceHref(item.doi)");
+    expect(component).toContain("Linking.openURL(doiHref)");
+    expect(component).toMatch(/\{doiHref \? \(\s*<Pressable/);
+    expect(component).not.toContain("function doiUrl");
+    expect(component).not.toMatch(/Linking\.openURL\([^)]*item\.doi/);
+  });
 });
