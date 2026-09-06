@@ -507,6 +507,10 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // **보관**이지 앱이 사용자를 대신해 내리는 결정이 아니다.
   const [keptIdx, setKeptIdx] = useState<Set<number>>(new Set());
   const [keeping, setKeeping] = useState<number | null>(null);
+  // 담기 실패는 복사 실패와 같은 자세로 화면에 남긴다. 복사와 달리 타이머로
+  // 지우지 않는다 - "확인해 보라"는 안내라서 사용자가 다시 누를 때까지 보여야
+  // 한다.
+  const [keepNotice, setKeepNotice] = useState<{ i: number; ok: boolean } | null>(null);
   // 저장 경로에도 위기 안내가 필요하다. 이 화면의 C9 는 지금까지 전송 경로
   // (sendChatMessage -> callLlm)에만 있었는데, createRecord 도 저장할 때마다
   // 로컬 렉시콘 분류를 돌리고 레드존을 followup 으로 알려준다. 다른 저장 화면
@@ -517,11 +521,17 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     hotline: "GLOBAL_988",
   });
 
-  async function keepExchange(index: number): Promise<void> {
-    if (!userId || keeping !== null || keptIdx.has(index)) return;
+  // 담겼는지를 호출자에게 돌려준다. 자동 담기가 실패를 알아야 표시를 되돌릴 수
+  // 있고, 그래야 한 번의 일시적 실패로 그 턴이 영구히 빠지지 않는다.
+  async function keepExchange(index: number): Promise<boolean> {
+    if (!userId || keeping !== null || keptIdx.has(index)) return false;
     const reply = turns[index];
-    if (!reply || !isKeepable(reply)) return;
+    if (!reply || !isKeepable(reply)) return false;
     setKeeping(index);
+    // 이 턴의 지난 실패만 지운다. 무조건 null 로 밀면 자동 담기가 다른 턴을
+    // 성공시키는 순간 아직 읽지도 않은 실패 안내가 사라진다 - 이번 회차가
+    // 없애려는 바로 그 조용함이다.
+    setKeepNotice((prev) => (prev?.i === index ? null : prev));
     try {
       const prompt = findPrompt(turns, index);
       const speaker = isCharacterChat ? persona.name[locale] : t("title");
@@ -549,8 +559,15 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
           hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988",
         });
       }
+      return true;
     } catch (e) {
+      // 조용히 넘기지 않는다. 쓰기가 어디까지 갔는지 우리는 모르므로 "담기지
+      // 않았다"고 단정하지 않고, 확인할 자리를 알려 준다 (Round21 가져오기와
+      // 같은 규율).
+      setKeepNotice({ i: index, ok: false });
+      AccessibilityInfo.announceForAccessibility(t("keepFailed"));
       if (typeof console !== "undefined") console.warn("[secondb] keep failed", (e as Error).message);
+      return false;
     } finally {
       setKeeping(null);
     }
@@ -682,7 +699,12 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     if (!last || !isKeepable(last)) return;
     if (autoKeptRef.current.has(idx) || keptIdx.has(idx)) return;
     autoKeptRef.current.add(idx);
-    void keepExchange(idx);
+    // 실패하면 표시를 되돌린다. 되돌리지 않으면 일시적인 실패 한 번에 그 턴이
+    // 영구히 빠지고, 동의를 명시적으로 켠 사용자가 정확히 손해를 본다. 되돌림이
+    // 자동 재시도를 보장하지는 않는다 - 수동 담기 칩이 다시 열릴 뿐이다.
+    void keepExchange(idx).then((kept) => {
+      if (!kept) autoKeptRef.current.delete(idx);
+    });
     // keepExchange 는 setState 로 keptIdx 를 갱신하므로 의존성에 넣으면 루프가
     // 된다. autoKeptRef 가 중복 실행을 막는 실제 가드다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1100,6 +1122,11 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                           {keptIdx.has(i) ? t("keptToWiki") : keeping === i ? t("keeping") : t("keepToWiki")}
                         </Text>
                       </Pressable>
+                    ) : null}
+                    {keepNotice?.i === i && !keepNotice.ok ? (
+                      <Text variant="caption" color="textSubtle" accessibilityLiveRegion="polite">
+                        {t("keepFailed")}
+                      </Text>
                     ) : null}
                     {/* 트위비 3-branch (P5f): next-step candidates. Tap = prefill
                         the composer; 담기 = hand the branch to /capture (?text=,

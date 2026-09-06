@@ -70,7 +70,14 @@ describe("requestAccountDeletion (terminal erasure)", () => {
   beforeEach(() => clientMock.__reset());
 
   test("invokes the delete-account Edge Function and resolves on { deleted: true }", async () => {
-    await expect(requestAccountDeletion()).resolves.toBeUndefined();
+    // Returns the receipt rather than void. This mock answers with { deleted:
+    // true } alone, so both post-cascade sweeps come back unconfirmed — which
+    // is not the same as failed. Sweep-level behaviour lives in
+    // delete-bulk-receipt.test.ts.
+    const receipt = await requestAccountDeletion();
+    expect(receipt.deleted).toBe(true);
+    expect(receipt.incomplete).toEqual([]);
+    expect(receipt.unconfirmed).toEqual(["profile", "rawClippings"]);
     expect(clientMock.__invoke).toHaveBeenCalledWith("delete-account", { body: {} });
   });
 

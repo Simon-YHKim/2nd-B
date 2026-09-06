@@ -156,9 +156,22 @@ Deno.serve(async (req: Request) => {
       }
       if (!objs || objs.length === 0) break;
       const paths = objs.map((o) => `${userId}/${o.name}`);
-      const { error: rmErr } = await admin.storage.from('raw-clippings').remove(paths);
+      const { data: removed, error: rmErr } = await admin.storage.from('raw-clippings').remove(paths);
       if (rmErr) {
         console.warn('[delete-account] raw-clippings remove failed:', rmErr.message);
+        rawClippingsErased = false;
+        break;
+      }
+      // remove() can succeed partially: it returns the objects it ACTUALLY
+      // removed, and a short list with no error means some survived. Reading
+      // only `error` reported an erasure we never observed -- and the client now
+      // shows this flag to the user as a deletion receipt, so a false confirmation
+      // here becomes a false statement there. Report the shortfall instead.
+      const removedCount = Array.isArray(removed) ? removed.length : 0;
+      if (removedCount < paths.length) {
+        console.warn(
+          `[delete-account] raw-clippings partial remove: ${removedCount}/${paths.length}`,
+        );
         rawClippingsErased = false;
         break;
       }
