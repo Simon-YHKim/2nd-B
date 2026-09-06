@@ -8,6 +8,7 @@ import { BusinessFooter } from "@/components/deepspace/BusinessFooter";
 import { PixelGateShell, PixelPressable, PixelSurface } from "@/components/pixel";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { type OAuthProvider } from "@/lib/supabase/auth";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { useSignInForm } from "@/lib/auth/useSignInForm";
 import {
   resetPasswordHref,
@@ -55,6 +56,11 @@ export function DeepSpaceSignInDesignScreen() {
     handleOAuth,
     handleNaver,
   } = useSignInForm();
+  // AUTH-01: startup can end without ever classifying the session. That is not
+  // "signed out" - it is unknown - so the form is shown with an explicit,
+  // announced error and a bounded retry instead of pretending it is a clean
+  // signed-out entry. refresh() re-reads the session under the same 8s guard.
+  const { sessionUnavailable, refresh } = useAuth();
   const passwordRef = useRef<TextInput>(null);
   const actionLock = useRef(false);
   const [focusedField, setFocusedField] = useState<FocusedField>(null);
@@ -111,6 +117,30 @@ export function DeepSpaceSignInDesignScreen() {
             줄이 빠져 있었다 — 5로케일에 다 있는 키라 빠지면 고아가 된다. */}
         <Text style={styles.lead}>{t("deepspace:auth.signInEncrypt")}</Text>
       </View>
+
+      {sessionUnavailable ? (
+        <View accessibilityRole="alert" accessibilityLiveRegion="assertive">
+          <PixelSurface
+            variant="frame"
+            background={m3.color.errorContainer}
+            contentStyle={styles.sessionAlert}
+          >
+            <Text style={[styles.toastText, styles.toastDanger]}>
+              {t("auth:common.sessionUnavailable")}
+            </Text>
+            <PixelPressable
+              variant="bevel"
+              onPress={() => void refresh()}
+              accessibilityLabel={t("common:actions.retry")}
+              background={m3.color.primary}
+              fullWidth
+              contentStyle={styles.sessionRetry}
+            >
+              <Text style={styles.sessionRetryLabel}>{t("common:actions.retry")}</Text>
+            </PixelPressable>
+          </PixelSurface>
+        </View>
+      ) : null}
 
       <PixelSurface variant="frame" style={styles.formSurface} contentStyle={styles.form}>
         <Text style={styles.label}>{t("auth:signIn.email")}</Text>
@@ -569,6 +599,14 @@ const styles = StyleSheet.create({
     fontSize: m3.type.bodyMedium.size,
     lineHeight: m3.type.bodyMedium.line,
     textAlign: "center",
+  },
+  sessionAlert: { minHeight: m3.minTouch, justifyContent: "center", gap: 8, paddingVertical: 8 },
+  sessionRetry: { minHeight: m3.minTouch, alignItems: "center", justifyContent: "center" },
+  sessionRetryLabel: {
+    fontFamily: m3.font.brand,
+    fontSize: m3.type.bodyMedium.size,
+    lineHeight: m3.type.bodyMedium.line,
+    color: m3.color.onPrimary,
   },
   toastDanger: { color: m3.color.onErrorContainer },
   toastSuccess: { color: m3.color.onTertiaryContainer },
