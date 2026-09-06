@@ -268,6 +268,13 @@ gh api --method GET --paginate 'repos/Simon-YHKim/2nd-B/actions/runs?per_page=10
    사이의 성공 dispatch run은 전부 `deploy` job을 가진 publish run이다. push run이 같은 빌드를
    이미 돌려두므로 잃는 것도 없다.
 
+   **두 digest가 함께 움직였는지 따로 움직였는지를 본다.** `public_config_sha256`은 resolved
+   public build contract(정렬된 `EXPO_PUBLIC_*` 등)의 digest이고 `artifact_content_sha256`은
+   export된 `dist` 내용의 digest다. 커밋만 바뀌면 **content만** 움직인다. 실측(2026-09-07):
+   `f9fbd39c` → `6f6d76b0`에서 config는 `9e479567…`로 **같고** content만
+   `bb21e584…` → `de4ec8f3…`로 바뀌었다. **config까지 같이 움직였다면 코드가 아니라 repo
+   Variable이 바뀐 것**이므로, 게시를 이어가기 전에 무엇이 바뀌었는지부터 확인한다.
+
 2. probe의 Summary에서 두 64자리 lowercase digest를 읽고 source SHA, run ID, run attempt,
    `github-pages-<run_id>-<run_attempt>` artifact 이름을 대조한다. Upload 직후 helper는 official GET으로
    `artifact_id`, exact name의 current-run count=1, server `sha256:` digest, byte size,
