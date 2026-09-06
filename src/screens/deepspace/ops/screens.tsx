@@ -881,17 +881,20 @@ export function LedgerScreen() {
 // --- (5) Side project · github -----------------------------------------
 
 export function SideProjectScreen({ userId }: { userId: string }) {
+  type GithubError = "rate" | "storage-read" | "storage-write" | null;
+
   const c = useOpsCopy();
   const [username, setUsername] = useState("");
   const [pushes, setPushes] = useState<PushActivity[] | null>(null);
-  const [errored, setErrored] = useState(false);
+  const [githubError, setGithubError] = useState<GithubError>(null);
+  const [storageLoadAttempt, setStorageLoadAttempt] = useState(0);
 
   const connect = async (handle: string) => {
-    setErrored(false);
+    setGithubError(null);
     try {
       setPushes(await fetchPushActivity(handle));
     } catch {
-      setErrored(true);
+      setGithubError("rate");
       setPushes(null);
     }
   };
@@ -904,14 +907,36 @@ export function SideProjectScreen({ userId }: { userId: string }) {
         setUsername(saved);
         void connect(saved);
       }
+    }).catch(() => {
+      if (alive) {
+        setGithubError("storage-read");
+        setPushes(null);
+      }
     });
     return () => {
       alive = false;
     };
-  }, [userId]);
+  }, [userId, storageLoadAttempt]);
+
+  const retryStorageRead = () => {
+    setGithubError(null);
+    setStorageLoadAttempt((attempt) => attempt + 1);
+  };
 
   const onConnect = async () => {
-    await setGithubUsername(userId, username);
+    if (githubError === "storage-read") {
+      retryStorageRead();
+      return;
+    }
+
+    setGithubError(null);
+    try {
+      await setGithubUsername(userId, username);
+    } catch {
+      setGithubError("storage-write");
+      setPushes(null);
+      return;
+    }
     await connect(username);
   };
   const summary = summarizeGithubActivity(pushes ?? []);
@@ -934,8 +959,14 @@ export function SideProjectScreen({ userId }: { userId: string }) {
         />
       </View>
 
-      {errored ? (
-        <OpsState variant="rate" title={c.rateTitle} body={c.rateBody} ctaLabel={c.retry} onCta={onConnect} />
+      {githubError ? (
+        <OpsState
+          variant={githubError === "rate" ? "rate" : "error"}
+          title={githubError === "storage-read" ? c.errorTitle : c.rateTitle}
+          body={githubError === "rate" ? c.rateBody : githubError === "storage-write" ? c.saveFailed : c.errorBody}
+          ctaLabel={c.retry}
+          onCta={githubError === "storage-read" ? retryStorageRead : onConnect}
+        />
       ) : pushes === null ? (
         <OpsState variant="unlinked" title={c.unlinkedTitle} body={c.unlinkedBody} ctaLabel={c.unlinkedCta} onCta={onConnect} />
       ) : (

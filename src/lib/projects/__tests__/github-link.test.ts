@@ -228,7 +228,45 @@ describe("/side-project ownership wiring", () => {
     expect(screen).toContain("SideProjectScreen({ userId }: { userId: string })");
     expect(screen).toContain("getGithubUsername(userId)");
     expect(screen).toContain("setGithubUsername(userId, username)");
-    expect(screen).toContain("}, [userId]);");
+    expect(screen).toContain("}, [userId, storageLoadAttempt]);");
+  });
+
+  it("catches storage hydration failures and retries the same owner without raw logs", () => {
+    const source = readFileSync(join(SRC, "screens", "deepspace", "ops", "screens.tsx"), "utf8");
+    const start = source.indexOf("export function SideProjectScreen");
+    const end = source.indexOf("export function MealsScreen", start);
+    const screen = source.slice(start, end);
+
+    expect(screen).toContain(
+      'type GithubError = "rate" | "storage-read" | "storage-write" | null;',
+    );
+    expect(screen).toMatch(
+      /getGithubUsername\(userId\)[\s\S]*?\.catch\(\(\) => \{[\s\S]*?setGithubError\("storage-read"\)/,
+    );
+    expect(screen).toContain("setStorageLoadAttempt((attempt) => attempt + 1)");
+    expect(screen).toContain(
+      'githubError === "storage-read" ? retryStorageRead : onConnect',
+    );
+    expect(screen).not.toMatch(/console\.(?:log|warn|error)/);
+  });
+
+  it("stops before GitHub fetch when encrypted persistence rejects", () => {
+    const source = readFileSync(join(SRC, "screens", "deepspace", "ops", "screens.tsx"), "utf8");
+    const start = source.indexOf("export function SideProjectScreen");
+    const end = source.indexOf("export function MealsScreen", start);
+    const screen = source.slice(start, end);
+    const connectStart = screen.indexOf("const onConnect = async () => {");
+    const connectEnd = screen.indexOf("const summary", connectStart);
+    const onConnect = screen.slice(connectStart, connectEnd);
+
+    expect(onConnect).toMatch(
+      /if \(githubError === "storage-read"\) \{\s*retryStorageRead\(\);\s*return;\s*\}/,
+    );
+    expect(onConnect).toMatch(
+      /try \{\s*await setGithubUsername\(userId, username\);\s*\} catch \{[\s\S]*?setGithubError\("storage-write"\);[\s\S]*?return;\s*\}\s*await connect\(username\);/,
+    );
+    expect(screen).toContain('githubError === "storage-write" ? c.saveFailed');
+    expect(screen).toContain("ctaLabel={c.retry}");
   });
 
   it("declares the route as authenticated in the screen registry", () => {
