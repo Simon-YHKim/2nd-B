@@ -34,7 +34,10 @@ describe("lazy locale packs", () => {
   });
 
   it("every AvailableUiLocale is eager or lazy, never both, never neither", () => {
-    expect(NAMESPACES).toHaveLength(44);
+    // 45 since 2026-09-06: `index` was a bundle that shipped in all five locales
+    // and was called by src/app/index.tsx but never registered, so its keys
+    // rendered as raw names. See namespace-registry.test.ts.
+    expect(NAMESPACES).toHaveLength(45);
     const lazy = Object.keys(LAZY_PACKS).sort();
     const eager = Object.keys(resources).sort();
     expect([...eager, ...lazy].sort()).toEqual([...AVAILABLE_UI_LOCALES].sort());
