@@ -2,18 +2,18 @@
   "loading": "Memuat tema...",
   "hero": {
     "eyebrow": "08-4. Tema",
-    "title": "Pilih nada tampilan-mu",
-    "subtitle": "Gelap bawaan · nada terang sekunder",
-    "speech": "Graf utama selalu menjaga langit gelap agar bintang dan tautan tetap tajam."
+    "title": "Pilih tampilan aplikasi",
+    "subtitle": "Gelap sebagai bawaan · terang sebagai pilihan",
+    "speech": "Graf utama tetap gelap agar bintang dan tautannya terlihat jelas."
   },
   "options": {
     "dark": {
       "label": "Gelap",
-      "sub": "Nada malam bawaan"
+      "sub": "Tampilan bawaan"
     },
     "light": {
       "label": "Terang",
-      "sub": "Nada kertas yang cerah"
+      "sub": "Latar seperti kertas terang"
     }
   },
   "font": {
@@ -25,7 +25,7 @@
       },
       "readable": {
         "label": "Font mudah dibaca",
-        "sub": "Font halus yang lebih nyaman di mata"
+        "sub": "Huruf biasa untuk teks yang lebih mudah dibaca"
       }
     },
     "useFontLabel": "Gunakan {{label}}",
@@ -40,7 +40,7 @@
       },
       "lite": {
         "label": "Mode ringan",
-        "sub": "Efek lebih sedikit untuk pengalaman lancar di ponsel lama"
+        "sub": "Kurangi efek untuk ponsel lama"
       }
     },
     "usePerformanceLabel": "Gunakan {{label}}",

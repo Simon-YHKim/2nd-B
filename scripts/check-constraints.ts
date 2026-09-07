@@ -1247,7 +1247,7 @@ results.push(
       koConsent.privacy.trustTitle === "기본값은 비공개와 꺼짐" &&
       enConsent.notice.ackOverseas.includes("encrypted service data") &&
       koConsent.notice.ackOverseas.includes("암호화된 서비스 데이터") &&
-      enConsent.privacy.keys.external_analytics.desc.includes("not entry text") &&
+      enConsent.privacy.keys.external_analytics.desc.includes("Record contents are not sent") &&
       koConsent.privacy.keys.external_analytics.desc.includes("기록 본문은 보내지 않아요") &&
       notice.includes('t("notice.trustTitle")') &&
       notice.includes('t("notice.trustBody")') &&
@@ -1318,7 +1318,7 @@ results.push(
     const ok =
       read("locales/ko/settings.json").includes("페이지 간 연결") &&
       read("locales/ko/settings.json").includes("받은편지함 자료") &&
-      read("locales/en/settings.json").includes("page-to-page links") &&
+      read("locales/en/settings.json").includes("links between them") &&
       read("locales/en/settings.json").includes("Inbox sources stay") &&
       forbiddenUserLanguage.every((term) => !settings.includes(term));
     return {
@@ -1485,7 +1485,7 @@ results.push(
     const ok =
       requiredCode.every((snippet) => settings.includes(snippet)) &&
       en.includes('"dataWizard"') &&
-      en.includes('"Choose one deletion area at a time. Your private 2nd-B content stays split into records, assessments, wiki/captures, and full wipe."') &&
+      en.includes('"Choose which data to delete. You can delete by type or delete all content."') &&
       en.includes('"{{label}}, option {{index}} of {{total}}, {{state}}."') &&
       en.includes('"Shows the typed confirmation for deleting all records, sources, wiki pages, and usage."') &&
       en.includes('"This clears private 2nd-B content in this account. Account details, consent history, and service accountability records stay."') &&
@@ -1582,7 +1582,7 @@ results.push(
       't("feedback.confirmHint")',
     ];
     const forbiddenInlineCopy = [
-      "Inbox feedback notice",
+      "Inbox notice",
       "Inbox action confirmation",
       '"Cancel"',
       '"Dismiss"',
@@ -1597,7 +1597,7 @@ results.push(
     ];
     const ok =
       requiredCode.every((snippet) => inbox.includes(snippet)) &&
-      en.includes('"noticeLabel": "Inbox feedback notice"') &&
+      en.includes('"noticeLabel": "Inbox notice"') &&
       en.includes('"confirmLabel": "Inbox action confirmation"') &&
       en.includes('"confirmHint": "Runs the selected inbox action."') &&
       ko.includes('"noticeLabel": "받은편지함 안내"') &&
@@ -1754,7 +1754,7 @@ results.push(
       i18n.includes('"theme"') &&
       i18n.includes("theme: enTheme") &&
       i18n.includes("theme: koTheme") &&
-      en.includes("Choose your display tone") &&
+      en.includes("Choose a light or dark theme") &&
       ko.includes("화면 밝기를 고르세요") &&
       forbiddenScreenCopy.every((term) => !theme.includes(term)) &&
       forbiddenBundleCopy.every((term) => !en.includes(term) && !ko.includes(term));
@@ -1803,7 +1803,7 @@ results.push(
         i18n.includes('"import"') &&
         i18n.includes("import: enImport") &&
         i18n.includes("import: koImport") &&
-        en.includes("Bring outside self-knowledge into 2nd-Brain") &&
+        en.includes("Bring in records from other tools") &&
         ko.includes("다른 곳에 남긴 기록 가져오기") &&
         forbiddenScreenCopy.every((term) => !screen.includes(term)) &&
         forbiddenBundleCopy.every((term) => !en.includes(term) && !ko.includes(term));
@@ -1875,7 +1875,7 @@ results.push(
         "village mark",
         "마을 주민",
         "마을 표식",
-        "Check in now",
+        "Record my mood",
         "Opens a lightweight check-in",
       ];
       const forbiddenBundleCopy = [
@@ -1894,7 +1894,7 @@ results.push(
         i18n.includes('"profile"') &&
         i18n.includes("profile: enProfile") &&
         i18n.includes("profile: koProfile") &&
-        en.includes("profile hub") &&
+        en.includes("{{displayName}}'s profile") &&
         ko.includes("님의 프로필") &&
         forbiddenScreenCopy.every((term) => !profile.includes(term)) &&
         forbiddenBundleCopy.every((term) => !en.includes(term) && !ko.includes(term));
@@ -1999,8 +1999,8 @@ results.push(
         'locale === "ko"',
         "Loading insights",
         "Couldn't load insights",
-        "Patterns are still small",
-        "See the flow in recent records",
+        "Not enough records to analyze yet",
+        "Explore your recent records",
         "Total entries",
         "Avg length",
         "Weekly activity",
@@ -2019,7 +2019,7 @@ results.push(
         i18n.includes('"insights"') &&
         i18n.includes("insights: enInsights") &&
         i18n.includes("insights: koInsights") &&
-        en.includes("See the flow in recent records") &&
+        en.includes("Explore your recent records") &&
         ko.includes("최근 기록의 흐름 보기") &&
         forbiddenScreenCopy.every((term) => !screen.includes(term));
       return {
@@ -2042,7 +2042,7 @@ results.push(
         'locale === "ko"',
         "Loading research",
         "Couldn't load research",
-        "Keep the evidence visible",
+        "Browse sources and references",
         "Filter by framework",
         "Framework filters",
         "No sources yet",
@@ -2062,7 +2062,7 @@ results.push(
         i18n.includes('"research"') &&
         i18n.includes("research: enResearch") &&
         i18n.includes("research: koResearch") &&
-        en.includes("Keep the evidence visible") &&
+        en.includes("Browse sources and references") &&
         ko.includes("자료와 출처") &&
         forbiddenScreenCopy.every((term) => !screen.includes(term));
       return {
@@ -2211,12 +2211,12 @@ results.push(
         '"language"',
         '"checking": "Checking',
         '"entryArtwork": "SecondB entry artwork"',
-        '"switchToEnglishLabel": "Switch auth language to English"',
-        '"switchToKoreanLabel": "Switch auth language to Korean"',
-        '"resetBody": "Enter the email for your account above',
-        '"resetSentBody": "If an account exists for {{email}}',
+        '"switchToEnglishLabel": "Use English on the sign-in screen"',
+        '"switchToKoreanLabel": "Use Korean on the sign-in screen"',
+        '"resetBody": "Enter your account email above',
+        '"resetSentBody": "If you have an account with {{email}}',
         '"resetPassword"',
-        '"expiredBody": "This screen needs the secure session',
+        '"expiredBody": "Open the link in your password reset email',
         // 2026-08-26 Simon 결정 — 문 이름을 "사용 안내서"(EN User Guide)로 통일.
         // EN "Manual" 이 명사/형용사를 겸해서 KO/ES/PT/ID 가 전부 "수동 입력"으로
         // 오역했고, 그 항목의 목적지는 /manual 즉 안내서였다. 이 검사가 지키는 것은
@@ -2425,11 +2425,11 @@ results.push(
       '"schemaView"',
       '"sourceType": "Source type"',
       '"filingArea": "Filing area"',
-      '"autoMatchLinks": "Auto-match links"',
+      '"autoMatchLinks": "Link matching rules"',
       '"savedFolder": "Saved folder"',
       '"detailsToSave": "Details to save"',
       '"detailNamePlaceholder": "Detail name (e.g. topic area)"',
-      '"commonOnly": "Only common fields such as summary, tags, and relevance are saved."',
+      '"commonOnly": "Only details used for every format are saved, such as the summary, tags and relevance."',
     ];
     const koLocaleRequired = [
       '"editor"',
@@ -2480,7 +2480,7 @@ results.push(
       wiki.includes('t("hero.title")') &&
       wiki.includes('t("hero.subtitle")') &&
       wiki.includes('t("hero.speech")') &&
-      en.includes("Find the pieces you saved to SecondB") &&
+      en.includes("Your saved records and material in one place") &&
       ko.includes("2nd-Brain에 담은 기록과 자료를 모았어요") &&
       forbidden.every((term) => !wiki.includes(term) && !en.includes(term) && !ko.includes(term));
     return {
@@ -2511,7 +2511,7 @@ results.push(
       manual.includes("ask SecondB for a reflection") &&
       manual.includes("sources SecondB cites") &&
       manual.includes("세컨비의 되묻기") &&
-      read("locales/en/settings.json").includes("Tune your settings") &&
+      read("locales/en/settings.json").includes("Adjust your app settings") &&
       read("locales/ko/settings.json").includes("앱 설정을 바꿀 수 있어요") &&
       forbiddenReadme.every((term) => !readme.includes(term)) &&
       forbiddenManual.every((term) => !manual.includes(term)) &&
@@ -2571,8 +2571,8 @@ results.push(
     const ok =
       screen.includes('t("signIn.title")') &&
       screen.includes('t("signIn.subtitle")') &&
-      en.includes('"title": "Welcome"') &&
-      en.includes('"subtitle": "Write one line a day. Later, it becomes self-knowledge."') &&
+      en.includes('"title": "Sign in to 2nd-Brain"') &&
+      en.includes('"subtitle": "Write a line each day and keep a record of your life."') &&
       ko.includes('"title"') &&
       ko.includes('"subtitle": "하루 한 줄씩, 나에 관한 기록을 모아 보세요."') &&
       forbidden.every((term) => !screen.includes(term) && !en.includes(term) && !ko.includes(term));
@@ -2680,15 +2680,15 @@ results.push(
       '"emptyBody"',
     ];
     const forbiddenScreenCopy = [
-      "Could not change sharing.",
+      "Couldn't change sharing.",
       "Format deleted.",
-      "Could not delete.",
+      "Couldn't delete.",
       "Format saved.",
       "Could not save.",
       "Format added.",
       "Loading formats",
       "Built-in formats",
-      "view filing guide",
+      "View sorting rules",
       "Tap to view filing guide",
       "Couldn't load your formats",
       "No formats yet",
@@ -2716,7 +2716,7 @@ results.push(
     const ok =
       codeRequiredSnippets.every((snippet) => formats.includes(snippet)) &&
       requiredLocaleKeys.every((key) => enFormats.includes(key) && koFormats.includes(key)) &&
-      enFormats.includes("SecondB-proposed format") &&
+      enFormats.includes("Formats you save from SecondB's suggestions") &&
       koFormats.includes("세컨비가 제안한 형식") &&
       forbiddenScreenCopy.every((term) => !formats.includes(term));
     return {
@@ -2778,7 +2778,7 @@ results.push(
       flow.includes('t("add.cancel")') &&
       enFormats.includes('"add"') &&
       koFormats.includes('"add"') &&
-      enFormats.includes("SecondB suggests a reusable filing guide") &&
+      enFormats.includes("SecondB will suggest sorting rules") &&
       koFormats.includes("세컨비가 다음에도 쓸 수 있는") &&
       requiredKeys.every((key) => enFormats.includes(key) && koFormats.includes(key)) &&
       forbiddenFlowCopy.every((term) => !flow.includes(term));
@@ -2972,17 +2972,17 @@ results.push(
       characters.includes('en: "Life-applied wisdom sage"') &&
       characters.includes('en: "Narrative Core crew foreman"') &&
       characters.includes('en: "Trainer and curator"') &&
-      personaText.includes("central AI for the North Star synthesis") &&
-      personaText.includes("career consultant for work and growth") &&
+      personaText.includes("responsible for the North Star summary") &&
+      personaText.includes("responsible for work and growth") &&
       // 2026-09-06 plain-language round: Relia's systemHint dropped the
       // "inner-world patterns" phrasing for "relationships and recurring
       // patterns in the user's own records". Same responsibility, plainer
       // words — the pin follows the copy so the guard keeps checking Relia's
       // registration rather than one retired sentence.
       personaText.includes("relationships and recurring patterns in the user's own records") &&
-      personaText.includes("Not raw facts") &&
-      personaText.includes("you do NOT give advice") &&
-      personaText.includes("healthy life balance");
+      personaText.includes("examples of how they could use it") &&
+      personaText.includes("do not give advice") &&
+      personaText.includes("balance of work and rest");
     return {
       id: "WorldviewConceptCoherence",
       status: ok ? "PASS" : "FAIL",

@@ -1,9 +1,9 @@
 {
   "hero": {
     "eyebrow": "Permissions",
-    "title": "Use only what is needed",
-    "subtitle": "Network · clipboard · optional photo access",
-    "speech": "Permissions are requested only when useful, and optional ones can be declined."
+    "title": "Permissions, only when needed",
+    "subtitle": "Internet · clipboard · photos",
+    "speech": "We ask for permissions when a feature needs them. You can decline optional permissions."
   },
   "status": {
     "inUse": "In use",
@@ -12,16 +12,16 @@
     "notUsed": "Not used"
   },
   "platform": {
-    "label": "Platform:",
-    "both": "Web + Native",
+    "label": "Available on:",
+    "both": "Web + installed app",
     "web": "Web",
-    "native": "Native",
+    "native": "Installed app",
     "none": "N/A"
   },
   "entries": {
     "network": {
-      "name": "Network access",
-      "why": "Required for sign-in, saving your records, and SecondB replies. Standard HTTPS."
+      "name": "Internet connection",
+      "why": "Needed to sign in, save records, and get SecondB replies. Uses a standard HTTPS connection."
     },
     "clipboard": {
       "name": "Clipboard",
@@ -29,19 +29,19 @@
     },
     "calendar": {
       "name": "Calendar",
-      "why": "Optional, used only by Routines: when you hand an approved item to your calendar, the OS asks once and the event form opens for you to confirm. Deny it and everything else still works."
+      "why": "Optional and only used for Routines. When you send an approved item to your calendar, your device asks for permission once. You can check the event before saving it. Other features still work if you decline."
     },
     "notifications": {
       "name": "Notifications",
-      "why": "Optional, used only by Routines reminders: scheduling one asks the OS once, and every reminder stays on this device. Deny it and everything else still works."
+      "why": "Optional and only used for routine reminders. Your device asks for permission once when you schedule a reminder. Reminders stay on this device. Other features still work if you decline."
     },
     "cameraPhoto": {
       "name": "Camera / Photo library",
-      "why": "Optional, for text capture from images only. Asked when you choose a photo action; decline and the rest of the app still works."
+      "why": "Optional and only used to read text from photos. Permission is requested when you use a photo feature. Other features still work if you decline."
     },
     "microphone": {
       "name": "Microphone",
-      "why": "Not requested. Voice and audio capture are not in the current product scope."
+      "why": "Voice input asks for microphone access. Recorded audio is sent to an AI server to turn it into text."
     },
     "location": {
       "name": "Location",
@@ -49,17 +49,17 @@
     },
     "contactsSms": {
       "name": "Contacts / SMS",
-      "why": "Not requested. The app has no contact import, SMS, or messaging features."
+      "why": "The app does not request access to your device contacts or text messages."
     }
   },
   "principles": {
     "title": "Principles",
     "items": [
-      "Minimum surface: every new feature is reviewed for permission impact.",
-      "Decline-friendly: optional permissions can be refused without breaking the rest of the app.",
-      "Only on tap: clipboard and photo access happen from visible user actions.",
-      "Explain the why: every permission prompt should have a short reason.",
-      "Your data, yours: each account can access only its own records, and export stays available."
+      "We check which permissions are needed before adding a feature.",
+      "Declining optional permissions does not prevent you from using other features.",
+      "The app accesses your clipboard or photos only when you choose an action that needs them.",
+      "Each permission request includes a short explanation.",
+      "Each account can access only its own records. Export remains available."
     ]
   },
   "manual": {

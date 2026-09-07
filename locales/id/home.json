@@ -54,20 +54,20 @@
     },
     "head": {
       "home": {
-        "text": "Kamu datang lagi. Saat ini kamu bersinar sebagai tujuh bintang.",
-        "tip": "Mulailah dari bintang yang paling redup."
+        "text": "Lihat tujuh bintang yang berisi cerita tentang dirimu.",
+        "tip": "Pilih bintang yang ingin kamu isi."
       },
       "ops": {
-        "text": "Ini rutinitasmu hari ini. Ayo jaga ritmenya.",
-        "tip": "Centang satu saja. Sisanya ikut terbawa."
+        "text": "Lihat rutinitas yang kamu jadwalkan hari ini.",
+        "tip": "Centang kegiatan yang sudah selesai."
       },
       "account": {
-        "text": "Ini ruangmu. Semua tentang kamu ada di sini.",
+        "text": "Lihat profil dan kelola akunmu di sini.",
         "tip": "Profil, pengaturan, dan datamu sekali ketuk."
       },
       "capture": {
-        "text": "Jangan biarkan pikiran itu lewat begitu saja.",
-        "tip": "Satu baris cukup. Aku yang merapikan."
+        "text": "Apa yang ingin kamu simpan?",
+        "tip": "Tulis satu baris, lalu simpan."
       },
       "chat": {
         "text": "Tanya apa saja. Aku menjawab dari catatanmu.",
@@ -78,12 +78,12 @@
         "tip": "Ketuk sumbu yang berubah untuk melihat buktinya."
       },
       "iden": {
-        "text": "Aku mengemas dirimu dalam satu berkas. Bawa ke mana saja.",
+        "text": "Ekspor ringkasan dirimu dalam satu file.",
         "tip": "Kamu bisa menutupi hal sensitif sebelum mengekspor."
       },
       "wiki": {
-        "text": "Pengetahuanmu terhubung seperti rasi bintang.",
-        "tip": "Ketuk simpul untuk menjelajah di antara catatanmu."
+        "text": "Lihat hubungan di antara catatanmu.",
+        "tip": "Ketuk catatan untuk melihat isi dan tautannya."
       }
     },
     "home": {
@@ -110,14 +110,14 @@
       "inbox": "Notifikasi",
       "headA11y": "Tanya SecondB",
       "kind": {
-        "domain": "Area",
-        "profile": "Cara orang membacamu"
+        "domain": "Bidang",
+        "profile": "Informasi tentang dirimu"
       },
       "bubble": {
         "introTag": "Perkenalan",
-        "intro": "Halo, aku SecondB. Ketuk kepalaku, aku akan membantu.",
+        "intro": "Halo, aku SecondB. Ketuk kepalaku untuk membuka pilihan.",
         "menuTag": "SecondB",
-        "menu": "Bagaimana aku bisa membantu?",
+        "menu": "Apa yang ingin kamu lakukan?",
         "travel": "Jelajahi",
         "later": "Nanti",
         "chatbot": "Chatbot",
@@ -128,7 +128,7 @@
           "line": "Apa yang sudah kamu bangun dan kumpulkan?"
         },
         "finance": {
-          "line": "Apa yang uang katakan tentang diriku?"
+          "line": "Apa yang bisa kulihat dari cara memakai uang?"
         },
         "relation": {
           "line": "Bagaimana aku dengan orang-orang terdekatku?"
@@ -143,7 +143,7 @@
           "line": "Apa yang membuatku bisa beristirahat?"
         },
         "profile": {
-          "line": "Nama, tujuan, dan cara orang lain membacamu. Makin banyak yang bisa diperkenalkan, makin terang."
+          "line": "Nama, tujuan, dan informasi tentang dirimu. Bintang makin terang saat profilmu makin lengkap."
         },
         "infancy": {
           "line": "Ingatan paling awal. Satu sensasi saja sudah cukup untuk memulai."
@@ -169,7 +169,7 @@
     },
     "capture": {
       "title": "Simpan",
-      "subtitle": "Tangkap momen dalam format apa pun yang cocok.",
+      "subtitle": "Pilih format untuk menyimpan catatan.",
       "modes": {
         "text": "Teks",
         "link": "Tautan",
@@ -208,12 +208,12 @@
       "todoHint": "Tugas",
       "todoAdd": "Tambah tugas",
       "banner": "Saat disimpan, SecondB menambahkan bintang dan tag terkait.",
-      "save": "Tangkap",
+      "save": "Simpan",
       "saving": "Menyimpan",
       "saved": "Tersimpan",
       "openRecords": "Buka catatan",
       "saveError": "Tidak dapat menyimpan. Coba lagi sebentar.",
-      "saveHint": "Isi apa yang terjadi untuk mengaktifkan Tangkap."
+      "saveHint": "Isi kolom Apa untuk menyimpan catatan."
     },
     "chat": {
       "user": "Akhir-akhir ini aku capek banget. Kenapa ya?",
@@ -240,14 +240,14 @@
       "traitAgreeableness": "Keramahan",
       "traitNeuroticism": "Neurotisisme",
       "headline": "Verifikasi · Big Five",
-      "subtitle": "Serat tersembunyi (lapisan B) · usulan hasil triangulasi dari perilaku domainmu",
+      "subtitle": "Perkiraan sifat dari pola kegiatanmu di berbagai bidang",
       "extraFrameworks": "Kerangka lain · lihat gaya kelekatan",
       "retake": "Ukur ulang",
       "addData": "Tambah data"
     },
     "attachment": {
       "headline": "Gaya kelekatan",
-      "subtitle": "Tekstur tersembunyi (lapisan B) · domain relasimu dilihat dengan skala ECR",
+      "subtitle": "Pola hubunganmu menurut skala ECR",
       "quadrant_secure": "Aman",
       "quadrant_preoccupied": "Cemas",
       "quadrant_avoidant": "Menghindar",
@@ -278,7 +278,7 @@
       "tag": "NARASI",
       "eyebrow": "Masa mana yang membentuk aku yang sekarang",
       "hint": "Ketuk satu periode untuk memulai pertanyaan mendalam",
-      "footer": "Pertanyaan yang berulang menaikkan keutuhan kenanganmu.",
+      "footer": "Pertanyaan lanjutan membantu mencatat kenanganmu lebih lengkap.",
       "p1Name": "Balita",
       "p1Age": "0–6",
       "p2Name": "Masa kecil",
@@ -296,7 +296,7 @@
       "p8Name": "Sekarang",
       "p8Age": "28–",
       "emptyTitle": "Belum ada masa yang diingat",
-      "emptyBody": "Ingat kembali masa-masa lalumu satu per satu, dan di sini terkumpul tahun-tahun yang membentukmu."
+      "emptyBody": "Pilih satu masa untuk mulai mencatat kenanganmu. Catatannya akan muncul di sini."
     },
     "seen": {
       "title": "Aku di mata orang",
@@ -325,7 +325,7 @@
       "emptyBodyFinishBigFive": "Selesaikan pemeriksaan Big Five milikmu dan kamu akan melihat aku yang kamu lihat bersanding dengan aku yang mereka lihat.",
       "emptyBodySendSurvey": "Kirim survei singkat ke orang terdekat, dan kamu bisa melihat aku yang kamu lihat bersanding dengan aku yang orang lain lihat.",
       "peerOnlyTitle": "Hanya dijawab oleh orang-orang di sekitarmu",
-      "peerOnlyNote": "Keterbukaan dan kepekaan emosi sulit dibaca dari luar, jadi ini adalah laporan orang-orangmu, bukan pernyataan tentang dirimu."
+      "peerOnlyNote": "Keterbukaan dan kepekaan emosi sulit dilihat dari luar. Hasil ini menunjukkan pendapat orang yang menjawab, bukan kesimpulan tentang dirimu."
     },
     "rhythm": {
       "title": "Ritme",
@@ -342,23 +342,23 @@
       "caption": "Paling menjadi dirimu: Sabtu pagi. Kamu merasa paling baik saat tenggelam membuat sesuatu.",
       "logNow": "+ Catat suasana hati sekarang",
       "emptyTitle": "Belum ada ritme untuk digambarkan",
-      "emptyBody": "Catat suasana hatimu selama beberapa hari, dan di sini muncul sebagai ritme kapan kamu paling menjadi dirimu."
+      "emptyBody": "Catat suasana hati selama beberapa hari untuk melihat perubahannya di sini."
     },
     "possible": {
       "title": "Aku di masa depan",
       "tag": "ASPIRASI",
-      "eyebrow": "Ke mana aku menuju: aku yang belum menjadi data",
+      "eyebrow": "Sosok yang ingin kamu tuju",
       "a1Name": "Seorang pembuat",
-      "a1Body": "Menjadikan mewujudkan ide sebagai pekerjaanku",
+      "a1Body": "Bekerja dengan mewujudkan ide",
       "a2Name": "Sedikit ikatan yang dalam",
-      "a2Body": "Menjadi orang yang menjaga ikatan lama, bukan luas",
-      "a3Name": "Pusat yang tak goyah",
-      "a3Body": "Orang yang menyimpan ukurannya di dalam diri",
+      "a2Body": "Menjaga beberapa hubungan dekat dalam jangka panjang",
+      "a3Name": "Punya pegangan sendiri",
+      "a3Body": "Memutuskan berdasarkan nilai yang kupegang",
       "footer": "Garis putus = aku sebelum datanya terisi",
       "rewrite": "Tulis ulang",
       "add": "+ Tambah",
       "emptyTitle": "Belum ada gambaran diri masa depan",
-      "emptyBody": "Mengobrol dengan SecondB dalam mode divergen, dan dirimu sebelum menjadi data hadir di sini."
+      "emptyBody": "Bicarakan sosok yang ingin kamu tuju bersama SecondB dalam mode Sudut baru. Hasilnya akan muncul di sini."
     },
     "relational": {
       "title": "Relasi",
@@ -376,7 +376,7 @@
       "conclusion": "Dalam relasimu, kedalaman lebih menonjol daripada keluasan. Sedikit, sering, dan lama.",
       "addData": "+ Tambah data",
       "emptyTitle": "Belum ada orang atau pengetahuan yang terhubung",
-      "emptyBody": "Seiring orang dan minat menumpuk dalam catatanmu, di sini terlihat dirimu di dalam hubungan dan pengetahuan."
+      "emptyBody": "Orang dan minat yang muncul dalam catatanmu akan terkumpul di sini."
     },
     "values": {
       "title": "Kerja·pertumbuhan",
@@ -390,16 +390,16 @@
       "domain3Count": "37 kepingan",
       "conclusion": "Yang paling banyak kamu bangun ada di Karier. Keuangan masih kosong: mau isi lagi?",
       "addData": "+ Tambah data",
-      "loading": "Menghitung kepinganmu",
+      "loading": "Menghitung catatanmu",
       "emptyTitle": "Belum ada yang terkumpul di sini",
       "emptyBody": "Tambahkan catatan dan kamu akan melihat area mana yang paling kamu kembangkan.",
       "pieceCount": "{{count}} keping"
     },
     "imagine": {
       "title": "Berandai",
-      "introBody": "Lempar jauh saja, tidak ada jawaban benar. Pilih cabang yang kamu suka, kita persempit jadi langkah berikutnya.",
-      "sectionAngles": "Cabang yang dilempar SecondB",
-      "sectionSteps": "Kandidat langkah berikutnya",
+      "introBody": "Coba beberapa kemungkinan. Pilih yang ingin kamu lanjutkan menjadi langkah berikutnya.",
+      "sectionAngles": "Ide dari SecondB",
+      "sectionSteps": "Pilihan langkah berikutnya",
       "toCapture": "Pindahkan ke Simpan",
       "more": "Lainnya bersama SecondB"
     },
@@ -434,14 +434,14 @@
     },
     "me": {
       "title": "Bintang Utara",
-      "eyebrow": "Bintang Utara · sintesis 7",
+      "eyebrow": "Bintang Utara · ringkasan 7 bintang",
       "headline": "Memahami diri lebih dalam agar hidup lebih menjadi diri sendiri.",
-      "synthMeta": "Sintesis 7 bintang · keyakinan",
+      "synthMeta": "Ringkasan 7 bintang · tingkat keyakinan",
       "refine": "Perhalus kalimat",
       "domainsTitle": "7 bintang hidup · domain",
       "toConstellation": "Ke rasi bintang",
-      "hiddenTitle": "Serat tersembunyi · validasi",
-      "hiddenBody": "Data domainmu menyilangkan kerangka seperti Big Five dan kelekatan. Cahaya bintang adalah seberapa banyak yang kamu masukkan, keyakinan adalah seberapa tervalidasi. Keduanya berbeda.",
+      "hiddenTitle": "Hasil pemeriksaan diri",
+      "hiddenBody": "Pola dari catatanmu dibandingkan dengan kerangka seperti Big Five dan kelekatan. Kecerahan menunjukkan banyaknya informasi yang kamu isi. Tingkat keyakinan menunjukkan seberapa kuat hasilnya didukung pemeriksaan.",
       "viewValidation": "Lihat validasi"
     },
     "axisCheck": {
@@ -449,7 +449,7 @@
       "emptyText": "Setelah wawancara selesai, ini akan terisi dari catatanmu sendiri.",
       "values": {
         "headline": "Nilai",
-        "subtitle": "Serat tersembunyi (lapis B) · apa yang paling kamu junjung",
+        "subtitle": "Hal yang paling penting bagimu",
         "coreLabel": "NILAI INTI",
         "spectrum": "Spektrum nilai",
         "actionPrimary": "Wawancara nilai",
@@ -465,11 +465,11 @@
           },
           "authenticity": {
             "name": "Autentisitas",
-            "note": "Kamu ingin luar dan dalam selaras"
+            "note": "Kamu ingin tindakanmu sesuai dengan keyakinanmu"
           },
           "benevolence": {
             "name": "Kepedulian",
-            "note": "Hati untuk menjaga orang terdekat"
+            "note": "Kamu ingin menjaga orang-orang terdekat"
           },
           "achievement": {
             "name": "Pencapaian",
@@ -483,11 +483,11 @@
       },
       "motivation": {
         "headline": "Motivasi",
-        "subtitle": "Serat tersembunyi (lapis B) · apa yang menggerakkanmu",
+        "subtitle": "Hal yang mendorongmu bertindak",
         "balanceTitle": "Intrinsik ↔ ekstrinsik",
         "balanceIntrinsic": "Intrinsik 68%",
         "balanceExtrinsic": "Ekstrinsik 32%",
-        "balanceNote": "Umumnya kamu bergerak karena ingin. Makna dan rasa ingin tahu jadi bahan bakar lebih besar daripada imbalan.",
+        "balanceNote": "Kamu lebih sering bertindak karena kemauan sendiri. Makna dan rasa ingin tahu lebih mendorongmu daripada imbalan.",
         "spectrum": "Tiga kebutuhan · determinasi diri",
         "actionPrimary": "Lihat kekuatan",
         "actionSecondary": "Validasi lain",
@@ -498,7 +498,7 @@
           },
           "competence": {
             "name": "Kompetensi",
-            "note": "Rasa bahwa kamu bisa menopangmu"
+            "note": "Merasa mampu membuatmu terus mencoba"
           },
           "relatedness": {
             "name": "Keterhubungan",
@@ -535,7 +535,7 @@
       },
       "strengths": {
         "headline": "Kekuatan",
-        "subtitle": "Serat tersembunyi (lapis B) · yang membuatmu jadi kamu",
+        "subtitle": "Sifat yang paling menonjol darimu",
         "coreLabel": "KEKUATAN UTAMA",
         "spectrum": "Spektrum kekuatan",
         "actionPrimary": "Manfaatkan kekuatan",
@@ -547,15 +547,15 @@
           },
           "grit": {
             "name": "Keuletan",
-            "note": "Sekali menggenggam, kamu tak melepas"
+            "note": "Kamu tekun menyelesaikan yang sudah dimulai"
           },
           "honesty": {
             "name": "Kejujuran",
-            "note": "Kamu berusaha menyelaraskan luar dan dalam"
+            "note": "Kamu berusaha bertindak sesuai dengan yang kamu yakini"
           },
           "empathy": {
             "name": "Empati",
-            "note": "Kamu membaca serat orang lain dengan baik"
+            "note": "Kamu peka pada perasaan orang lain"
           },
           "aesthetics": {
             "name": "Mata estetika",
@@ -576,7 +576,7 @@
       "work": "Kerja",
       "now": "Sekarang",
       "lockedBody": "Kamu belum sampai di masa ini. Nanti terbuka sendiri.",
-      "profileBody": "Ini bukan percakapan - ini data dasar yang kamu isi saat mendaftar. Makin lengkap, makin terang.",
+      "profileBody": "Informasi dasar yang kamu isi saat mendaftar. Semakin lengkap profilnya, semakin terang bintangnya.",
       "openProfile": "Buka profil",
       "loading": "Memuat…",
       "emptyBody": "Belum ada apa-apa di sini. Mulailah dengan percakapan.",
@@ -585,7 +585,7 @@
       "start": "Mulai",
       "continue": "Lanjutkan",
       "pageLabel": "Ringkasan bintang",
-      "meter": "Menyala sejauh kamu menggali · {{n}}/{{total}} lapis",
+      "meter": "Berdasarkan cerita yang sudah kamu isi · {{n}}/{{total}} lapis",
       "recordsLabel": "Yang sudah kamu simpan"
     },
     "dashboard": {

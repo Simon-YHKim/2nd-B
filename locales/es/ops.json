@@ -2,7 +2,7 @@
   "loading": "Abriendo tus rutinas…",
   "hero": {
     "title": "Rutinas",
-    "subtitle": "Elige un área. Recibe unos pasos concretos."
+    "subtitle": "Elige un área para recibir sugerencias concretas."
   },
   "groups": {
     "body": "Cuerpo",
@@ -40,7 +40,7 @@
     "ctaHint": "Lee tus piezas guardadas y redacta algunas sugerencias.",
     "working": "Preparando sugerencias…",
     "empty": "No salió nada útil. Intenta de nuevo o elige otra área.",
-    "error": "La sugerencia no terminó. Tus piezas están a salvo. Intenta de nuevo.",
+    "error": "No se pudieron preparar las sugerencias. Tus registros no han cambiado. Inténtalo de nuevo.",
     "limit": "Las sugerencias gratis de hoy se agotaron. Vuelven mañana.",
     "disclaimerBody": "Ideas y planes, no asesoría profesional."
   },
@@ -53,7 +53,7 @@
     "addCalendar": "Añadir al calendario",
     "addCalendarA11y": "Añadir al calendario",
     "saveRoutine": "Guardar como rutina",
-    "saveRoutineA11y": "Guardar este paso como una rutina gestionada",
+    "saveRoutineA11y": "Guardar este paso como rutina",
     "saving": "Guardando…",
     "saved": "Guardado",
     "addDevice": "Mi calendario",
@@ -63,7 +63,7 @@
     "downloadIcs": "Archivo de calendario",
     "downloadIcsHint": "Descarga un archivo .ics que se abre en tu app de calendario.",
     "shareList": "Enviar lista",
-    "shareListHint": "Abre la hoja de compartir con esta lista como texto.",
+    "shareListHint": "Abre las opciones para compartir esta lista como texto.",
     "remind": "Recordarme",
     "remindHint": "Programa un recordatorio en el dispositivo a la hora de este elemento."
   },
@@ -81,9 +81,9 @@
     "completeA11y": "Marcar {{title}} como hecho hoy",
     "doneA11y": "{{title}} hecho hoy",
     "streak": "Racha de {{count}} días",
-    "title": "Hoy, dos cosas",
-    "hint": "Elegido entre lo que realmente tienes guardado.",
-    "nothingHint": "Se deja vacío a propósito. Nada aquí se rellena con datos de ejemplo.",
+    "title": "Dos cosas para hoy",
+    "hint": "Elegidas a partir de lo que tienes guardado.",
+    "nothingHint": "Aún no hay información guardada para mostrar aquí.",
     "pick": {
       "routine": "Rutinas de hoy",
       "milestone": "Metas en curso",
@@ -106,7 +106,7 @@
     "streakLabel": "días seguidos",
     "patternsTitle": "Patrones de esta semana",
     "patternsSub": "El análisis corre en segundo plano. Sigue usando la app.",
-    "patternsRun": "Ejecutar",
+    "patternsRun": "Analizar registros",
     "takeEyebrow": "RESUMEN DE HOY",
     "toolsLabel": "Herramientas del asistente"
   },
@@ -121,7 +121,7 @@
     },
     "imagine": {
       "label": "Imaginar",
-      "sub": "Lanzar lejos"
+      "sub": "Explorar ideas"
     },
     "shareCard": {
       "label": "Tarjeta para compartir",
@@ -133,7 +133,7 @@
     },
     "callReflection": {
       "label": "Reflexión de llamada",
-      "sub": "Déjalo dicho"
+      "sub": "Pasar una llamada a texto"
     },
     "reading": {
       "label": "Lectura",
@@ -145,7 +145,7 @@
     },
     "ledger": {
       "label": "Revisión de gastos",
-      "sub": "Una mirada breve"
+      "sub": "Revisar tus gastos"
     },
     "sideProject": {
       "label": "Proyecto propio",
@@ -173,7 +173,7 @@
   },
   "focus": {
     "title": "Enfoque diario",
-    "status": "Haz una sesión de enfoque.",
+    "status": "Empieza una sesión de concentración.",
     "tip": "Terminar un bloque de enfoque marca tu rutina de enfoque del día.",
     "phaseIdle": "Listo",
     "phaseFocus": "Enfoque",
@@ -183,8 +183,8 @@
     "reset": "Reiniciar",
     "doneToday": "Sesiones de enfoque hechas hoy: {{count}}",
     "alarmFocusTitle": "Bloque de enfoque terminado",
-    "alarmFocusBody": "Buen trabajo. Hora de un descanso corto.",
-    "alarmFocusBodyStar": "Buen trabajo. Una sesión de foco guardada para {{star}}.",
+    "alarmFocusBody": "Sesión terminada. Es hora de descansar.",
+    "alarmFocusBodyStar": "Sesión de concentración guardada para {{star}}.",
     "alarmBreakTitle": "Descanso terminado",
     "alarmBreakBody": "De vuelta a tu próximo bloque de enfoque.",
     "subIdle": "Listo cuando quieras",
@@ -193,7 +193,7 @@
     "eyebrowFocus": "ENFOQUE",
     "eyebrowBreak": "PAUSA",
     "completeTitle": "Enfoque completo",
-    "completeBody": "Reuniste {{minutes}} min completos",
+    "completeBody": "Has completado {{minutes}} min",
     "btnBreak": "Descansar",
     "btnAgain": "Una más",
     "skip": "Saltar",
@@ -202,7 +202,7 @@
     "sessionLength": "DURACIÓN DE SESIÓN",
     "labelFocus": "Enfoque",
     "labelBreak": "Descanso",
-    "focusHint": "Tiempo reunido de una vez",
+    "focusHint": "Duración de cada sesión",
     "breakHint": "Descanso entre sesiones",
     "unitMin": "min",
     "decrease": "Disminuir",
@@ -211,7 +211,7 @@
     "ringReady": "Listo",
     "ringFocusing": "Concentrándote",
     "ringPaused": "En pausa",
-    "leadPre": "Es hora de concentrarte en una sola cosa. Al terminar, un paso hacia tu ",
+    "leadPre": "Concéntrate en una tarea. La sesión se guardará en tu ",
     "leadStar": "estrella {{star}}",
     "leadPost": ".",
     "preset": "{{min}} min",
@@ -231,8 +231,8 @@
   },
   "srs": {
     "title": "Repaso de idioma",
-    "status": "Despeja las tarjetas de hoy.",
-    "tip": "Despejar las tarjetas pendientes de hoy marca tu rutina de idioma.",
+    "status": "Repasa las tarjetas de hoy.",
+    "tip": "Completar las tarjetas pendientes marca tu rutina de idioma como terminada.",
     "frontLabel": "Frente",
     "backLabel": "Reverso",
     "frontPlaceholder": "Palabra o consigna",
@@ -244,7 +244,7 @@
     "good": "Bien",
     "easy": "Fácil",
     "remaining": "Tarjetas restantes hoy: {{count}}",
-    "cleared": "Todo al día. Buen trabajo.",
+    "cleared": "Has terminado las tarjetas de hoy.",
     "loading": "Cargando tus tarjetas…",
     "addCard": "Agregar tarjeta",
     "addTitle": "Agregar tarjeta",
