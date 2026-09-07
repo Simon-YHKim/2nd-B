@@ -10,7 +10,12 @@ import type { PropsWithChildren } from "react";
 import { ScrollViewStyleReset } from "expo-router/html";
 
 import { semantic } from "@/lib/theme/tokens";
-import { SITE_DESCRIPTION, SITE_TITLE } from "@/lib/site-meta";
+import {
+  SITE_DESCRIPTION,
+  SITE_ORIGIN,
+  SITE_SHARE_IMAGE,
+  SITE_TITLE,
+} from "@/lib/site-meta";
 
 // Reset inline so the rule lands in the first paint. The dark background
 // matches cosmic.space950 (Deep Space Ink) so the white flash that would
@@ -83,9 +88,9 @@ export default function Root({ children }: PropsWithChildren) {
             link 404s, which browsers treat as "no manifest" - harmless. */}
         {/* Share copy for the public site. Wording lives in lib/site-meta so
             this head and the runtime document.title cannot drift.
-            og:image is deliberately absent: Open Graph wants an absolute URL
-            and this shell has no origin to build one from. Add it together
-            with a share asset and the origin it is served from.
+            og:image is an absolute URL built from SITE_ORIGIN, because Open
+            Graph ignores relative paths. The asset is public/og-image.png and
+            its source is design/og-card/ - regenerate it, never hand-edit.
 
             NOTE on the <title> below: it is NOT the document title. Expo
             Router's vendored react-helmet-async injects its own
@@ -105,7 +110,15 @@ export default function Root({ children }: PropsWithChildren) {
         <meta property="og:locale" content="ko_KR" />
         <meta property="og:title" content={SITE_TITLE} />
         <meta property="og:description" content={SITE_DESCRIPTION} />
-        <meta name="twitter:card" content="summary" />
+        <meta property="og:url" content={`${SITE_ORIGIN}/`} />
+        <meta property="og:image" content={SITE_SHARE_IMAGE} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content={SITE_TITLE} />
+        {/* summary_large_image, not summary: the card is 1200x630 and the small
+            variant would crop it to a square thumbnail. */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content={SITE_SHARE_IMAGE} />
         <meta name="twitter:title" content={SITE_TITLE} />
         <meta name="twitter:description" content={SITE_DESCRIPTION} />
         <link rel="manifest" href="/2nd-B/manifest.webmanifest" />

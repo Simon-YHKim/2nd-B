@@ -49,15 +49,15 @@ const SURFACE: Readonly<Record<string, { kind: Kind; why: string }>> = {
     kind: "public-by-design",
     why: "브라우저 키. 경계는 값 비공개가 아니라 리퍼러/API 제한이다.",
   },
-  EXPO_PUBLIC_MFDS_FOOD_KEY: {
-    kind: "pending-proxy",
-    why: "공공데이터포털 서비스키 - 계정 할당량이 붙은 서버용 값인데 클라이언트에 있다. 라이브 번들에서 확인됨(2026-09-07). 회전 + 프록시 전환 + 변수 제거가 필요하다.",
-  },
-  EXPO_PUBLIC_EXIM_FX_KEY: {
-    kind: "pending-proxy",
-    why: "수출입은행 API 키. 현재 웹 엔트리에는 코드가 닿지 않아 번들에는 없지만(2026-09-07 실측), 워크플로가 주입하므로 소비처가 생기면 즉시 실린다.",
-  },
+  // EXPO_PUBLIC_MFDS_FOOD_KEY / EXPO_PUBLIC_EXIM_FX_KEY 는 2026-09-08 에 여기서
+  // 빠졌다. 프록시로 옮겼고(public-data-proxy) 클라이언트도 워크플로도 더 이상
+  // 이름을 읽지 않는다. 값을 지운 것이 아니라 표면에서 내린 것이다 - 저장소
+  // Variable 은 그대로 두고 경위를 문서에 남겼다(RETIREMENT_DOC).
 };
+
+/** 은퇴한 자격 변수의 기록. 지우는 대신 남긴다(Simon 규칙 2026-09-08). */
+const RETIREMENT_DOC = resolve(__dirname, "../../../docs/PUBLIC-DATA-KEY-RETIREMENT.md");
+const RETIRED = ["EXPO_PUBLIC_MFDS_FOOD_KEY", "EXPO_PUBLIC_EXIM_FX_KEY"] as const;
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -71,17 +71,28 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-function namesIn(text: string): string[] {
-  return [...text.matchAll(/EXPO_PUBLIC_[A-Z0-9_]+/g)]
+/**
+ * 주석은 걷어낸다. Metro 가 값으로 치환하는 것은 **코드의 참조**뿐이고, 주석은
+ * 번들에 남지도 않는다. 그런데 은퇴한 이름일수록 "왜 옮겼는지"를 설명하느라
+ * 주석에 자주 등장한다 - 그걸 세면 가드가 자기 설명문에 걸린다(이 저장소에서
+ * 주석發 거짓양성이 이미 네 번 났다).
+ */
+function stripComments(text: string, kind: "ts" | "yaml"): string {
+  if (kind === "yaml") return text.replace(/(^|\s)#.*$/gm, "$1");
+  return text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+}
+
+function namesIn(text: string, kind: "ts" | "yaml"): string[] {
+  return [...stripComments(text, kind).matchAll(/EXPO_PUBLIC_[A-Z0-9_]+/g)]
     .map((m) => m[0])
     .filter((n) => CREDENTIAL_SHAPED.test(n));
 }
 
 const fromSource = new Set<string>();
 for (const f of walk(SRC)) {
-  for (const n of namesIn(readFileSync(f, "utf8"))) fromSource.add(n);
+  for (const n of namesIn(readFileSync(f, "utf8"), "ts")) fromSource.add(n);
 }
-const fromWorkflow = new Set(namesIn(readFileSync(WORKFLOW, "utf8")));
+const fromWorkflow = new Set(namesIn(readFileSync(WORKFLOW, "utf8"), "yaml"));
 
 describe("공개 번들에 실리는 자격 형태 변수의 표면", () => {
   test("가드가 진짜 소스와 워크플로를 읽는다", () => {
@@ -108,14 +119,18 @@ describe("공개 번들에 실리는 자격 형태 변수의 표면", () => {
     }
   });
 
-  test("프록시 대기 항목은 둘이고, 둘 다 근거가 적혀 있다", () => {
+  test("프록시 대기 항목이 남아 있지 않다 (둘 다 옮겨졌다)", () => {
     const pending = Object.entries(SURFACE)
       .filter(([, v]) => v.kind === "pending-proxy")
       .map(([k]) => k)
       .sort();
-    expect(pending).toEqual(["EXPO_PUBLIC_EXIM_FX_KEY", "EXPO_PUBLIC_MFDS_FOOD_KEY"]);
-    for (const name of pending) {
-      expect(SURFACE[name].why.length).toBeGreaterThan(30);
+    expect(pending).toEqual([]);
+  });
+
+  test("은퇴한 둘은 클라이언트에도 웹 배포에도 없다", () => {
+    for (const name of RETIRED) {
+      expect({ name, inSource: fromSource.has(name) }).toEqual({ name, inSource: false });
+      expect({ name, inWorkflow: fromWorkflow.has(name) }).toEqual({ name, inWorkflow: false });
     }
   });
 
@@ -125,5 +140,30 @@ describe("공개 번들에 실리는 자격 형태 변수의 표면", () => {
       expect({ name, known: KINDS.has(v.kind) }).toEqual({ name, known: true });
       expect({ name, hasWhy: v.why.length > 20 }).toEqual({ name, hasWhy: true });
     }
+  });
+});
+
+// 지우지 않고 은퇴시키기로 했다(Simon 2026-09-08): 저장소 Variable 은 그대로 두고,
+// 무엇이었는지 · 어디서 쓰였는지 · 언제 왜 내렸는지를 문서에 남긴다. 문서가 조용히
+// 사라지거나 값이 적히는 것을 여기서 막는다.
+describe("은퇴 기록", () => {
+  const doc = readFileSync(RETIREMENT_DOC, "utf8");
+
+  test("문서가 두 변수를 이름으로 지목한다", () => {
+    expect(doc.length).toBeGreaterThan(800);
+    for (const name of RETIRED) expect(doc).toContain(name);
+  });
+
+  test("어디서 쓰였는지와 무엇이 대신하는지가 적혀 있다", () => {
+    expect(doc).toContain("src/lib/nutrition/foods.ts");
+    expect(doc).toContain("src/lib/finance/fx.ts");
+    expect(doc).toContain(".github/workflows/web-deploy.yml");
+    expect(doc).toContain("public-data-proxy");
+  });
+
+  test("값 자체는 문서에 없다 (이름·경로·상태만)", () => {
+    // data.go.kr 서비스키는 64자 hex, 수출입은행 authkey 는 24자 영숫자다.
+    expect(doc).not.toMatch(/\b[0-9a-fA-F]{32,}\b/);
+    expect(doc).not.toMatch(/(serviceKey|authkey)\s*[=:]\s*[A-Za-z0-9%+/]{16,}/i);
   });
 });

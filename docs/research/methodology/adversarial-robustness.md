@@ -20,7 +20,7 @@
 
 **Files this document cross-links.**
 
-- `docs/research/methodology/crisis-detection.md` — the canonical reference for the red-zone hard-coded response; this file does not duplicate its taxonomy.
+- `docs/research/batches/crisis-detection.md` — the canonical reference for the red-zone hard-coded response; this file does not duplicate its taxonomy. (Corrected 2026-09-08: this line said `docs/research/methodology/crisis-detection.md`, a path that has never existed. Crisis detection is a research *batch*, not a methodology doc, so a reader following the cross-link found nothing and had no way to tell whether the reference was wrong or the file was lost.)
 - `docs/research/methodology/llm-agnostic-design.md` — schema-constrained generation as a sanitization layer.
 - `docs/research/methodology/uncertainty-calibration.md` — abstention thresholds interact with adversarial inputs.
 - `docs/research/methodology/active-learning-hil.md` — red-team labels feed back through human-in-the-loop.
