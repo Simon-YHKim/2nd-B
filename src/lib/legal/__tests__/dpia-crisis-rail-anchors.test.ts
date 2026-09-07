@@ -29,6 +29,37 @@ interface Anchor {
   symbol: string;
   /** 왜 이 자리가 중요한가 - 틀렸을 때 읽는 사람이 무엇을 잘못 믿게 되는가. */
   why: string;
+  /** **코드가 하는 일**과 **코드가 자기에 대해 적어 둔 말**은 다른 종류의 근거다.
+   *
+   *  기본값은 `"code"` 이고, 그 경우 심볼은 주석을 걷어낸 뒤에도 남아야 한다.
+   *  주석만 남는 자리를 근거로 받으면 "동작이 그렇다"와 "주석이 그렇다고 한다"가
+   *  같은 신호가 된다 - 이 세션이 계속 만나는 결함 모양이다.
+   *
+   *  ⚠ 실제로 그 구멍으로 하나가 들어와 있었다. 문서가 미성년 1388 라우팅을
+   *  `classifier.ts:58-67` 에 인용했는데, 그 범위는 **다른 함수(`matchesTerm`)의
+   *  꼬리 + 주석 블록**이고 실행되는 코드가 한 줄도 없다. 주석에 `1388` 이
+   *  적혀 있어서 어떤 대조도 울지 않았다.
+   *
+   *  `"comment"` 는 **주장 자체가 "코드가 이렇게 적어 두었다"일 때만** 쓴다.
+   *  지금 둘뿐이고, 둘 다 문서가 그 문장을 근거로 인용하고 있다. */
+  evidence?: "code" | "comment";
+}
+
+/** 주석을 걷어낸 텍스트.
+ *
+ *  ⚠ `://` 앞을 지키지 않으면 `https://...` 뒤가 통째로 잘려서, 주석이 아닌 값이
+ *  사라진 채 "심볼 없음" 이 뜬다 - 검사기가 틀리고 대상이 멀쩡한 경우다. */
+function stripComments(text: string): string {
+  return text
+    .split("\n")
+    .map(line => line.replace(/(^|[^:\w])\/\/.*$/, "$1"))
+    .join("\n");
+}
+
+/** 앵커가 대조해야 하는 텍스트. 기본은 코드, 명시했을 때만 주석 포함. */
+function evidenceText(anchor: Anchor, cite = anchor.cite): string {
+  const raw = slice(cite).text;
+  return anchor.evidence === "comment" ? raw : stripComments(raw);
 }
 
 const S = "src/lib/llm/safety.ts";
@@ -44,6 +75,7 @@ const AD = "src/lib/ads/policy.ts";
 const CV = "src/lib/chat/conversation.ts";
 const OP = "src/app/ops.tsx";
 const AT = "src/lib/analytics/__tests__/analytics.test.ts";
+const LR = "scripts/check-legal-review.ts";
 
 const ANCHORS: Anchor[] = [
   { cite: `${S}:408-438`, symbol: "fixedCrisisResponse",
@@ -64,6 +96,10 @@ const ANCHORS: Anchor[] = [
     why: "(locale, minor) → 핫라인 표시 순서." },
   { cite: `${C}:73-75`, symbol: "KR_1388",
     why: "미성년에게 1388 이 먼저 온다는 주장. 순서가 주장의 내용이다." },
+  { cite: `${C}:70-90`, symbol: "1388",
+    why: "⚠ 이 앵커는 **산문 낱말을 일부러 심볼로 쓴다.** 다른 앵커에서는 금기지만 여기서는 그게 목적이다 - 문서가 미성년 라우팅을 여덟 자리에서 주장하며 전부 '1388' 이라고 산문으로 적고, 그중 한 자리가 `:58-67`(주석 블록)을 가리키고 있었다. 심볼이 `KR_1388` 이면 산문 '1388' 과 안 겹쳐서 그 자리는 **한 번도 대조되지 않는다.** 산문 낱말로 잡아야 여덟 자리 전부가 검사에 들어온다. 주석을 걷은 뒤에도 남아야 하므로(evidence 기본값) 주석에 적힌 `1388` 로는 통과할 수 없다." },
+  { cite: `${LR}:14`, symbol: "365",
+    why: "검토 주기 365일이 **실제로 사는 자리**. 문서는 이 숫자를 `lexicon.ts:455-456` 에 인용하고 있었는데 그 범위는 주석 두 줄이고 `365` 라는 글자가 아예 없다(숫자는 :459 주석, 실제 상수는 여기). 주기가 바뀌면 문서가 조용히 틀려진다." },
   { cite: `${C}:91-116`, symbol: "classifyInput",
     why: "3층 방어 중 첫째 층(동기 렉시콘 백스톱)." },
   { cite: `${C}:142-159`, symbol: "containsAnalysisForbidden",
@@ -92,8 +128,8 @@ const ANCHORS: Anchor[] = [
     why: "페이지 단위 버킷 정리 루프 - Art.17 삭제 주장의 실제 근거. ⚠ 심볼로 `raw-clippings` 를 썼다가 걸렸다: 그건 버킷 **이름**이라 산문에도 나오고, 옆 인용(:113-121)이 인접 창 안에 들어와 멀쩡한 문장이 위반이 됐다. **앵커 심볼은 산문에 나올 수 없을 만큼 구체적이어야 한다.**" },
   { cite: `${X}:97-115`, symbol: "consent_records",
     why: "Art.20 이식성이 실제로 무엇을 담아 오는가. 6.1.3 이 '빠져 있다'고 나열하던 여덟 범주가 바로 이 목록이다." },
-  { cite: `${X}:20-24`, symbol: "gemini_spend_daily",
-    why: "일부러 뺀 저장소 셋. 빼는 것 자체가 아니라 **응답에 적어 돌려준다는 것**이 통제다." },
+  { cite: `${X}:20-24`, symbol: "gemini_spend_daily", evidence: "comment",
+    why: "일부러 뺀 저장소 셋. 빼는 것 자체가 아니라 **응답에 적어 돌려준다는 것**이 통제이고, 그 목록을 코드가 주석으로 적어 둔 자리라서 주석이 근거다." },
   { cite: `${W}:240`, symbol: "includeRecords",
     why: "저널이 기본으로 안 실린다는 주장의 **실제 근거** - 그 삼항 연산이 없으면 기본값이 무의미하다." },
   { cite: `${AT}:96-131`, symbol: "remain inert",
@@ -102,8 +138,8 @@ const ANCHORS: Anchor[] = [
     why: "미성년 여부가 실제로 정해지는 비교. 이 문서 전체가 이 한 줄 위에 서 있다." },
   { cite: `${AD}:58`, symbol: "input.isMinor !== false",
     why: "미성년에게 광고가 안 나간다는 주장의 fail-closed 지점 - null 도 막는다는 것이 주장의 내용이다." },
-  { cite: `${AD}:11-13`, symbol: "NEVER see ads",
-    why: "그 규칙을 코드가 스스로 적어 둔 자리." },
+  { cite: `${AD}:11-13`, symbol: "NEVER see ads", evidence: "comment",
+    why: "그 규칙을 코드가 스스로 적어 둔 자리 - 주장 자체가 '코드가 이렇게 적어 두었다'라서 주석이 근거다." },
   { cite: `${CV}:338`, symbol: "SYSTEM_PROMPT_HEADER",
     why: "대화 프롬프트가 실제로 조립되는 자리 - 무엇이 모델에 들어가는지의 근거." },
   { cite: `${OP}:111`, symbol: "recommendationsAllowed",
@@ -145,7 +181,7 @@ test("표 자체가 코드에 대해 참이다", () => {
   //   이 검사  - 표가 코드에 대해 참인가 (문서와 무관)
   //   아래 검사 - 문서가 그 표와 어긋나지 않는가
   // 하나로 합칠 수 없다.
-  const broken = ANCHORS.filter(a => !slice(a.cite).text.includes(a.symbol)).map(
+  const broken = ANCHORS.filter(a => !evidenceText(a).includes(a.symbol)).map(
     a => `${a.cite} 안에 ${a.symbol} 없음 - ${a.why}`,
   );
   expect(broken).toEqual([]);
@@ -175,7 +211,7 @@ test("그 심볼을 말하는 모든 줄에서, 그 파일 인용이 심볼을 �
         const near = line.slice(start, (match.index ?? 0) + match[0].length + WINDOW);
         if (!near.includes(anchor.symbol)) continue;
         const cite = `${file}:${match[1].trim()}`;
-        if (!slice(cite).text.includes(anchor.symbol)) {
+        if (!evidenceText(anchor, cite).includes(anchor.symbol)) {
           broken.push(`문서 ${index + 1}행: ${cite} 안에 ${anchor.symbol} 없음 - ${anchor.why}`);
         }
       }
@@ -268,6 +304,21 @@ test("문서가 이름 부르는 개인정보 설정이 실제로 설정이다",
 });
 
 describe("검사기 자신의 대조군", () => {
+  test("주석을 걷어낸다 - 줄 끝 주석과 통째 주석 둘 다", () => {
+    expect(stripComments('const a = 1; // 1388 이라고 적어만 둔다')).not.toContain("1388");
+    expect(stripComments("// KO minor -> [1388, 109]")).not.toContain("1388");
+    expect(stripComments('const ids = ["KR_1388"];')).toContain("1388");
+  });
+
+  test("주석이 아닌 `://` 는 지킨다", () => {
+    // 보호절이 없으면 여기서 값이 통째로 잘린다 - 그러면 검사기가 틀리고
+    // 대상이 멀쩡한데 "심볼 없음" 이 뜬다. 앵커 범위에 URL 이 오늘 없더라도
+    // 이 대조가 그 절을 붙들어 둔다.
+    expect(stripComments('const dsn = "https://configured.invalid/1";')).toContain("configured.invalid");
+    expect(stripComments('const u = "https://a.example/x"; // 주석은 걷는다')).toContain("a.example/x");
+    expect(stripComments('const u = "https://a.example/x"; // 주석은 걷는다')).not.toContain("주석은 걷는다");
+  });
+
   test("양성 대조 - 범위 밖 심볼을 잡는다", () => {
     // 1행에는 fixedCrisisResponse 가 없다(파일 헤더 주석이다).
     expect(slice(`${S}:1-3`).text.includes("fixedCrisisResponse")).toBe(false);
