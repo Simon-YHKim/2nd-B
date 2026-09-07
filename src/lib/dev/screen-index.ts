@@ -459,7 +459,18 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       { file: "account", href: "/account", label: "계정", auth: true },
       { file: "profile", href: "/profile", label: "프로필", auth: true },
       { file: "profile-details", href: "/profile-details", label: "내 생활 정보", auth: true },
-      { file: "change-password", href: "/change-password", label: "비밀번호 변경", auth: true },
+      {
+        file: "change-password",
+        href: "/change-password",
+        label: "비밀번호 변경",
+        // 게이트는 라우트가 아니라 화면에 있다. 라우트가 레거시 렌더러를 들고
+        // 있던 동안에는 리다이렉트가 그 안에도 있었지만, 렌더러를 걷어내면서
+        // 게이트가 화면 한 곳으로 모였다.
+        auth: {
+          gateFile: "src/screens/deepspace/dds-change-password-screen.tsx",
+          component: "DeepSpaceChangePasswordScreen",
+        },
+      },
       { file: "theme", href: "/theme", label: "테마", auth: true },
       { file: "data", href: "/data", label: "데이터 관리", auth: true },
       { file: "permissions", href: "/permissions", label: "권한 관리" },

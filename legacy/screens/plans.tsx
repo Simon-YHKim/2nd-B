@@ -1,0 +1,198 @@
+// RETIRED — moved out of the build on 2026-09-08.
+//
+//   was:  src/app/plans.tsx   (the EXPO_PUBLIC_UI=legacy renderer + its styles)
+//   why:  every delivery path pins deep-space (eas.json, android-release.yml,
+//         web-deploy.yml, ci.yml) and no variable can override it, so this
+//         branch had been unreachable for months.
+//   read: kept verbatim below so the old screen can still be inspected.
+//   run:  not buildable from here — legacy/ is excluded from tsconfig, jest,
+//         eslint and metro. To actually run it, restore the file to its
+//         original path from git history:
+//           git show <sha-before-retirement>:src/app/plans.tsx
+//
+// Nothing in src/ imports this file. See legacy/screens/INDEX.md.
+
+// Monetization v2 Plans screen (Simon-approved 2026-06-10). Free is the
+// unlimited record core; 항해자 / 북극성 add AI room at the confirmed
+// list prices (src/lib/progression/pricing.ts is the SoT; pricing.test.ts
+// guards this screen's copy against drift). Honest by design: there is NO
+// in-app checkout yet — real billing goes through native IAP (+ Small
+// Business Program) behind Simon's store setup. Until then this screen shows
+// the final prices and a truthful coming-soon status so the AI limit is never
+// a dead end (persona PF-D). The contextual entry point is the SecondB chat
+// usage panel, which links here when the daily AI limit is reached.
+
+import { useEffect } from "react";
+import { ScrollView, StyleSheet, View, Pressable } from "react-native";
+import { useTranslation } from "react-i18next";
+import { router, useLocalSearchParams } from "expo-router";
+
+import { PremiumAppShell, SceneHero } from "@/components/premium";
+import { Text } from "@/components/ui/Text";
+import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { useProgression } from "@/lib/progression/useProgression";
+import type { SubscriptionTier } from "@/lib/progression/entitlements";
+import { VILLAGE_UI } from "@/lib/village-ui";
+import { captureEvent, plansViewed, plansTierFocused } from "@/lib/analytics";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpacePlansScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
+
+// The sellable ladder, and only that. `soma` used to sit here as the
+// highlighted entry card because it carried the lifetime plan; Simon retired
+// the lifetime plan on 2026-07-29 and soma has had no purchase path since, so
+// showing it would advertise something nobody can buy. soma remains a DB tier
+// (see src/lib/progression/pricing.ts SellableTier for why it cannot be
+// removed) — it is simply not merchandised.
+const CARD_TIERS: { key: SubscriptionTier; highlight: boolean }[] = [
+  { key: "free", highlight: false },
+  { key: "cortex", highlight: true },
+  { key: "brain", highlight: false },
+];
+
+function PlansLegacy() {
+  const { t, i18n } = useTranslation("plans");
+  const locale = i18n.language === "ko" ? "ko" : "en";
+  const eyebrowTracking = { letterSpacing: locale === "ko" ? 0 : 0.5 };
+  const progression = useProgression();
+  const params = useLocalSearchParams<{ from?: string }>();
+
+  // Funnel: record that the plans screen was seen, attributing the entry point,
+  // and the default-highlighted tier. PII-free scalars only - tier ids +
+  // entry source + locale. Fires once the current tier is known.
+  useEffect(() => {
+    if (progression.loading) return;
+    captureEvent(
+      plansViewed({
+        current_tier: progression.tier,
+        source:
+          params.from === "ai_limit"
+            ? "ai_limit"
+            : params.from === "advisor_lock"
+              ? "advisor_lock"
+              : "direct",
+        locale,
+      }),
+    );
+    captureEvent(plansTierFocused({ tier: "cortex" }));
+  }, [progression.loading]);
+
+  return (
+    <PremiumAppShell>
+      <ScrollView contentContainerStyle={styles.scroll}>
+        <SceneHero
+          eyebrow={t("hero.eyebrow")}
+          title={t("hero.title")}
+          subtitle={t("hero.subtitle")}
+          island={VILLAGE_UI.work.island}
+          worker={VILLAGE_UI.work.worker}
+          accent={VILLAGE_UI.work.accent}
+          speech={t("hero.speech")}
+        />
+
+        {CARD_TIERS.map(({ key, highlight }) => {
+          const isCurrent = !progression.loading && progression.tier === key;
+          return (
+            <View
+              key={key}
+              style={[styles.card, highlight ? styles.cardHighlight : null]}
+              accessibilityRole="text"
+              accessibilityLabel={`${t(`tiers.${key}.name`)} ${t(`tiers.${key}.price`)}${isCurrent ? ", " + t("current") : ""}`}
+            >
+              <View style={styles.cardHead}>
+                <Text variant="caption" color="brand" style={[styles.eyebrow, eyebrowTracking]}>
+                  {t(`tiers.${key}.name`)}
+                </Text>
+                {isCurrent ? (
+                  <Text variant="caption" color="textMuted" style={styles.currentTag}>
+                    {t("current")}
+                  </Text>
+                ) : null}
+              </View>
+              <Text variant="heading">{t(`tiers.${key}.price`)}</Text>
+              {key !== "free" ? (
+                <Text variant="caption" color="textMuted">{t(`tiers.${key}.priceNote`)}</Text>
+              ) : null}
+              <Text variant="subtle" color="textMuted" style={styles.tagline}>
+                {t(`tiers.${key}.tagline`)}
+              </Text>
+              <View style={styles.features}>
+                {(["f1", "f2", "f3"] as const).map((f) => (
+                  <Text key={f} variant="subtle" color="text" style={styles.feature}>
+                    {t(`tiers.${key}.${f}`)}
+                  </Text>
+                ))}
+              </View>
+            </View>
+          );
+        })}
+
+        {/* Honest state. No fake checkout AND no notify-signup we cannot
+            honor (there is no email capture / backend yet) — just a truthful
+            status. Real billing is gated on Simon's store/IAP setup. */}
+        {/* TODO(IAP): captureEvent(checkoutStarted(...)) / purchase(...) here once native IAP lands */}
+        <View style={styles.notifyPanel}>
+          <Text variant="subtle" color="textMuted">{t("comingSoon")}</Text>
+          <Text variant="caption" color="textMuted" style={styles.notifyHint}>{t("comingSoonBody")}</Text>
+        </View>
+
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={14}
+          style={styles.back}
+          accessibilityRole="button"
+          accessibilityLabel={t("back")}
+        >
+          <Text variant="caption" color="brand">{t("back")}</Text>
+        </Pressable>
+      </ScrollView>
+    </PremiumAppShell>
+  );
+}
+
+const styles = StyleSheet.create({
+  scroll: { paddingBottom: spacing.xl, gap: spacing.lg },
+  eyebrow: { fontWeight: "700" },
+  card: {
+    backgroundColor: semantic.surface,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  cardHighlight: {
+    borderColor: semantic.brand,
+    borderStartWidth: 4,
+    borderStartColor: semantic.brand,
+  },
+  cardHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  currentTag: {
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderRadius: radii.sm,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+  },
+  tagline: { marginTop: 2 },
+  features: { marginTop: spacing.sm, gap: spacing.xs },
+  feature: {},
+  notifyPanel: {
+    backgroundColor: semantic.surface,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  notifyHint: { marginTop: spacing.xs },
+  back: { alignSelf: "center", marginTop: spacing.sm, padding: spacing.sm, minHeight: 44, justifyContent: "center" },
+});
+
+export default function Plans() {
+  if (isDeepSpaceUI()) return <DeepSpacePlansScreen />;
+  return <PlansLegacy />;
+}
