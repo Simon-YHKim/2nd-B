@@ -87,15 +87,20 @@ describe("PIXEL-CLAY /account contract", () => {
   // guards. The merged slice is byte-identical to main's, so this still proves
   // the extraction touched nothing in the legacy path -- only the baseline moved.
   //
-  // Re-pinned again for the legacy export session fix. This pin exists to prove
-  // the PIXEL-CLAY extraction left the rollback skin alone, and that is still
-  // what it proves - the change it now covers is not a migration edit. The
-  // legacy export delivered user A's whole account bundle after the session had
-  // changed, had no owner check, and had no time bound, while the deletion path
-  // forty lines above already did all three. A rollback skin exists to be turned
-  // on; handing someone else's export to whoever is signed in is worse than a
-  // stale skin. Breaking the pin was the point of the change, so the pin moves
-  // with it and the reason lives here.
+  // Re-pinned for the legacy export session fix, and THE PROPOSITION CHANGED
+  // WITH IT. This pin no longer says "the PIXEL-CLAY extraction left the
+  // rollback skin alone". It says: the extraction left it alone, AND exactly
+  // one recorded change has gone in since - the one below. Read it as the
+  // former and you will conclude the migration touched the shell, which it did
+  // not. Anyone re-pinning after this adds their line here, or the pin stops
+  // asserting anything a reader can check.
+  //
+  // The one change: the legacy export delivered user A's whole account bundle
+  // after the session had changed, had no owner check, and had no time bound,
+  // while the deletion path forty lines above already did all three. A rollback
+  // skin exists to be turned on; handing someone else's export to whoever is
+  // signed in is worse than a stale skin. onExportData sits inside the slice
+  // this pin covers, so fixing it and moving the pin are the same act.
   test("leaves AccountLegacy and its styles byte-for-byte unchanged", () => {
     const route = read(ROUTE);
     const start = route.indexOf("function AccountLegacy()");
