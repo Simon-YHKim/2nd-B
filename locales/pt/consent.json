@@ -116,10 +116,11 @@
   "account": {
     "export": {
       "label": "Your data",
-      "body": "Download everything saved on your account as a structured JSON file.",
+      "body": "Download the account data the server exports, as a structured JSON file. The file names what it leaves out and why.",
       "button": "Export my data",
-      "buttonHint": "Builds a complete JSON export of your account data.",
+      "buttonHint": "Builds a JSON export of your account data.",
       "done": "Export ready.",
+      "donePartial": "Export ready, but not complete. Items the server could not read: {{count}}. The file lists each one under \"errors\".",
       "failed": "Couldn't build the export. Try again."
     },
     "loading": "Loading account…",
