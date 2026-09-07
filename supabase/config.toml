@@ -144,6 +144,17 @@ verify_jwt = true
 # native Supabase provider now, so it has no edge function.)
 verify_jwt = false
 
+[functions.public-data-proxy]
+# 공공데이터 프록시. 두 키(MFDS 서비스키 · 수출입은행 authkey)는 클라이언트용이
+# 아니라 계정 할당량이 붙은 서버용 값인데, EXPO_PUBLIC_* 로 두는 바람에 공개 번들에
+# 인라인돼 있었다(2026-09-07 라이브 실측). 키를 이 함수로 옮기고 클라이언트는
+# 파라미터만 보낸다 - 호출자가 URL 을 정할 수 없어 SSRF 표면 자체가 없다.
+# verify_jwt=true 로 게이트웨이가 토큰을 검증하고, 함수는 추가로 role='authenticated'
+# 를 요구한다(anon 키도 유효한 토큰이라 그것만으로는 인가가 아니다).
+# 비밀: supabase secrets set MFDS_FOOD_KEY=... EXIM_FX_KEY=...
+# 배포가 먼저, 클라이언트 전환이 나중이다.
+verify_jwt = true
+
 [functions.rss-proxy]
 # Web CORS proxy for the curated RSS feeds (Codex P2 #4). verify_jwt=true so only
 # signed-in app users can call it (not an open relay); the function fetches ONLY
