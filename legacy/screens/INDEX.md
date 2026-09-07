@@ -82,6 +82,25 @@ Simon 의 요구는 *"나중에 내가 지정해서 확인하라고 하면 할 �
 화면을 덮는다. 변이 검증으로 확인했다: `Toggle` 의 `role="switch"` 를 지우면 A11y 가
 빨개진다.
 
+## 화면을 잃은 로케일 번들 — 지우지는 않았다
+
+은퇴하면서 라이브 소비자가 0 이 된 번들이 둘이다(실측 2026-09-08 · `src/` 에서
+`useTranslation("<ns>")` 와 `"<ns>:"` 둘 다 0건, 테스트 제외):
+
+| 번들 | 라이브 소비자 | 처분 |
+|---|---|---|
+| `locales/{en,ko}/research.json` | 0건 | 보류 — 검사에서만 뗐다 |
+| `locales/{en,ko}/insights.json` | 0건 | 보류 — 검사에서만 뗐다 |
+| `locales/{en,ko}/import.json` | 1건 — `integrations/sources.ts:35` 의 `import:health.connect` | **유지** |
+
+`ImportI18nCopy`·`ResearchI18nCopy` 는 이제 이 번들이 아니라 **라이브 카피가 실제로 있는**
+`locales/{en,ko}/deepspace.json` (`ds.import.*` 47키 · `research.*` 24키)을 정본으로 본다.
+import 번들은 화면을 잃었어도 통합 카탈로그가 아직 읽으므로 검사가 그 한 갈래를 계속 못박는다.
+
+앞의 둘을 지우는 것은 **별개 결정**이다 — C7(EN↔KO 키 짝)이 다섯 로케일을 함께 보고,
+`src/lib/i18n/index.ts` 의 등록도 같이 걷어야 하며, 레거시 화면을 읽으러 온 사람에게는
+그 카피가 문맥이다. **"소비자 0건"은 죽었다는 뜻이 아니다.**
+
 ## 아직 못 옮긴 것 — /data
 
 `/data` 는 나머지와 같은 모양인데 **법률 문서가 그 레거시 렌더러를 인용**하고 있어서 뺐다:
