@@ -304,3 +304,49 @@ describe("LLM-ROUTING.md 의 OCR 주장", () => {
     expect(routing).toContain("export function multimodalVendor()");
   });
 });
+
+// ── C10 이 서술하는 연령 게이트가 코드와 같은 말을 하는가 ─────────────
+//
+// 2026-09-08 실측에서 `docs/CONSTRAINTS.md` C10 의 "Jurisdiction (current
+// limitation)" 문단이 **두 가지를 반대로** 적고 있었다:
+//
+//   문서: "국가 신호가 아직 없다. 전원 KR 규칙으로 `digitalConsentAge("KR")` 고정"
+//   실제: 신호는 2026-08-16 에 도착했고, 클라이언트는
+//         `digitalConsentAge(resolveJurisdiction())` 로 **관할별로 분기한다**
+//
+// 진짜 격차는 반대 방향이다 — **클라이언트는 분기하는데 서버는 안 한다.**
+// 서버 게이트는 `< 14` 를 5곳에 박아두고 관할을 읽는 마이그레이션이 0개다.
+// 그래서 EU/미상 관할의 14~15세는 우리 매트릭스가 거부하는데 권위 있는 서버
+// 게이트가 통과시킨다. 문서가 그걸 반대로 적으면 아무도 그 구멍을 못 본다.
+//
+// ⚠ 이 가드는 **게이트를 바꾸라고 요구하지 않는다.** EU 최소 가입연령은 Simon
+//    미결 사항이다(루트 CLAUDE.md). 요구하는 것은 문서가 실제를 적는 것뿐이다.
+describe("C10 연령 게이트 서술", () => {
+  it("클라이언트 게이트가 관할을 읽는다 — 문서의 근거", () => {
+    const auth = read("src/lib/supabase/auth.ts");
+    expect(auth).toContain("digitalConsentAge(resolveJurisdiction())");
+  });
+
+  it("국가 신호가 실재한다 — '아직 없다'가 거짓인 근거", () => {
+    expect(existsSync(join(ROOT, "src/lib/auth/device-region.ts"))).toBe(true);
+    const ca = read("src/lib/auth/consent-age.ts");
+    expect(ca).toContain("deviceRegionCode");
+    expect(ca).toContain("export function resolveJurisdiction()");
+  });
+
+  it("C10 이 '국가 신호가 없다'고 주장하지 않는다", () => {
+    // 인용은 허용한다(취소선으로 원문을 보존하는 것이 이 저장소의 정정 방식).
+    // 금지되는 것은 **사실로 주장하는 것**이다.
+    const claims = assertionsOnly("docs/CONSTRAINTS.md")
+      .split("\n")
+      .filter((l) => /does not yet collect a reliable|not wired to a live signal/i.test(l));
+    expect({ claims }).toEqual({ claims: [] });
+  });
+
+  it("C10 이 서버가 관할을 안 읽는다는 사실을 담고 있다", () => {
+    // 반대 방향. 그냥 틀린 문장을 지우면 격차 자체가 기록에서 사라진다.
+    const c10 = read("docs/CONSTRAINTS.md");
+    expect(/server[^\n]{0,80}(does not|no)\b/i.test(c10)).toBe(true);
+    expect(c10).toContain("No migration reads a jurisdiction");
+  });
+});

@@ -116,15 +116,47 @@ Enforcement (phased rollout):
   through the record/chat/interview/LLM chain. KO minors route to 1388 + 109,
   adults to the unified 109 line (1393 retired 2024-01), EN to 988.
 
-**Jurisdiction (current limitation):** the app does not yet collect a reliable
-country/jurisdiction signal (locale `en`/`ko` is not a country). Until country
-detection lands, **all users are gated on the KR rule (self-consent floor 14,
-PIPA Article 22-2)** via `digitalConsentAge("KR")` in
-`src/lib/auth/consent-age.ts`. This is valid for the KR-first launch and remains
-in effect until a country-detection landing. Accurate non-KR age gates (US COPPA
-under-13, EU GDPR Art.8 13-16) require the jurisdiction signal plus legal
-sign-off and ship in a follow-up PR; the per-jurisdiction values already exist in
-`consent-age.ts` but are not wired to a live signal yet.
+**Jurisdiction — the client branches, the server does not (measured 2026-09-08):**
+
+~~the app does not yet collect a reliable country/jurisdiction signal (locale
+`en`/`ko` is not a country). Until country detection lands, **all users are gated
+on the KR rule (self-consent floor 14, PIPA Article 22-2)** via
+`digitalConsentAge("KR")` … the per-jurisdiction values already exist in
+`consent-age.ts` but are not wired to a live signal yet.~~
+
+**Both halves of that were false.** The signal landed 2026-08-16 —
+`resolveJurisdiction()` reads the device region (`src/lib/auth/device-region.ts`)
+and maps it to a bucket — and the client gate is not pinned to KR: `auth.ts:33`
+computes `MIN_SELF_CONSENT_AGE = digitalConsentAge(resolveJurisdiction())`, so
+`signUp` / `signUpWithEmail` throw `AgeGateError` at the *resolved* floor
+(KR 14 · US 13 · EU 16 · unknown 16).
+
+What is actually true is the opposite asymmetry, and it is the thing worth
+knowing:
+
+| layer | branches by jurisdiction? | floor it enforces |
+|---|---|---|
+| client (`auth.ts:176`, `:860`) | **yes** | resolved: KR 14 · US 13 · EU 16 · DEFAULT 16 |
+| server (`0086`, `0148`, `0149` — 5 call sites) | **no** | `< 14`, hard-coded |
+
+**No migration reads a jurisdiction or country at all** — `jurisdiction` 0 files,
+`country` 0 files (measured 2026-09-08; `birth_date` matches 18 files, so the
+grep works). The one `region` hit is `0132`'s profile-suggestion comment
+("occupation, region at province"), a user profile field, not a gate.
+So the server floor is 14 everywhere, and this section itself calls
+the server trigger "the real gate" — correctly, because the client check is
+skippable by calling the RPC directly.
+
+**Consequence:** an EU or unknown-jurisdiction 14-15 year old is refused by our
+own client matrix but accepted by the authoritative server gate. The EU floor is
+therefore advisory, not enforced.
+
+⚠ **Do not "fix" this by raising the server floor.** Root `CLAUDE.md` lists
+**EU 최소 가입연령 상향** among the decisions Simon has explicitly left open
+("확정 전까지 해당 게이트를 임의로 풀지 말 것"), and moving a registration floor
+is a policy change with legal sign-off attached (`TODO(legal)` in
+`consent-age.ts`), not a docs cleanup. This paragraph records the gap so nobody
+has to rediscover it; closing it is Simon's call.
 
 CI: `check:constraints` asserts the guardian-consent schema + client age logic;
 `supabase-dry-run` asserts `users_birth_date_sane` + `guardian_consents`.
