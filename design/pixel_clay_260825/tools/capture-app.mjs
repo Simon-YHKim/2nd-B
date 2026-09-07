@@ -204,6 +204,20 @@ function exportWebFromReceipt(env) {
   renameSync(staging, output);
 }
 
+/**
+ * Shape of the record written when the capture loop throws. Split out of the
+ * catch so the fields can be asserted without having to provoke a real browser
+ * failure, and so a non-Error throw still yields a readable message.
+ */
+export function captureFailureRecord(error) {
+  return {
+    schemaVersion: 1,
+    name: typeof error?.name === 'string' ? error.name : null,
+    message: typeof error?.message === 'string' ? error.message : String(error),
+    stack: typeof error?.stack === 'string' ? error.stack : null,
+  };
+}
+
 export async function main(args = process.argv.slice(2), env = process.env) {
   const command = args.length === 1 ? args[0] : null;
   const printFormat = command === '--print-env=json' ? 'json' : 'posix';
@@ -424,8 +438,21 @@ export async function main(args = process.argv.slice(2), env = process.env) {
       }
     }
     process.stdout.write('\n');
-  } catch {
-    console.error('capture failed');
+  } catch (error) {
+    // The reason goes to a file, not to stderr. Every other failure in this
+    // tool prints a bare code and no payload, and an error string can carry a
+    // URL or an env value; app-report.json is the sink that already holds those.
+    // Recording nothing is what costs: each stage validates on its own, so only
+    // the sum fails and the bisect starts from scratch.
+    try {
+      writeFileSync(
+        path.join(output, 'capture-failure.json'),
+        `${JSON.stringify(captureFailureRecord(error), null, 2)}\n`,
+      );
+    } catch {
+      // The output directory may be the thing that broke. The exit code still reports.
+    }
+    console.error('capture failed; reason in capture-failure.json under the output directory');
     return 1;
   } finally {
     if (browser) await browser.close().catch(() => {});
