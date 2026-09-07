@@ -495,6 +495,7 @@ jobs:
 
           function cliUpdateIds(history) {
             const byId = new Map();
+            const cliById = new Map();
             let malformed = false;
             const branches = new Set(
               Array.isArray(history?.branches) ? history.branches.map((branch) => String(branch)) : [],
@@ -509,31 +510,70 @@ jobs:
               ) {
                 const id = String(value.id || "");
                 const branch = String(value.branch || "");
-                if (UUID.test(id) && branches.has(branch)) byId.set(lower(id), id);
+                if (UUID.test(id) && branches.has(branch)) {
+                  byId.set(lower(id), id);
+                  // Keep the CLI record, not just its id. `eas update:view`
+                  // reports runtimeVersion for every update; the GraphQL query
+                  // below asks for runtime { version } and does not select
+                  // runtimeVersion at all, so when that object is absent there
+                  // is nothing left to compare. Carrying the authenticated CLI
+                  // value gives the comparison a second source instead of a
+                  // silent undefined.
+                  cliById.set(lower(id), value);
+                }
                 else malformed = true;
               }
               for (const child of Object.values(value)) visit(child);
             };
             visit(history.updates);
-            return { ids: [...byId.values()], malformed };
+            return { ids: [...byId.values()], cliById, malformed };
+          }
+
+          // The runtime, taken from whichever authenticated source carries it.
+          //
+          // The GraphQL query selects runtime { version } and nothing else that
+          // names a runtime, so when that object is absent runtimeOf() returns
+          // undefined and every record fails identity. That is what produced
+          // "android=NO_MATCH ios=NO_MATCH" on 2026-09-07 for two updates whose
+          // platform, gitCommitHash and runtimeVersion were all correct when
+          // read back with `eas update:view`.
+          //
+          // This does not loosen the comparison: when both sources answer they
+          // must agree, and the value still has to equal the expected runtime.
+          // It only stops a missing field from reading as a mismatch.
+          function resolveRuntime(update, cli) {
+            const fromGraph = runtimeOf(update);
+            const fromCli = cli?.runtimeVersion;
+            if (
+              typeof fromGraph === "string" &&
+              typeof fromCli === "string" &&
+              fromGraph !== fromCli
+            ) {
+              return { value: undefined, conflict: true };
+            }
+            const value = typeof fromGraph === "string" ? fromGraph : fromCli;
+            return { value: typeof value === "string" ? value : undefined, conflict: false };
           }
 
           function classifyPlatform(records, platform, runtime, commit) {
             const clean = [];
             let rejected = false;
-            for (const { id, update } of records) {
+            // Counted so a NO_MATCH can say which term failed. The previous
+            // version threw a bare "history does not contain the exact clean
+            // update", which is a diagnosis nobody can act on -- the same shape
+            // of defect this function is verifying against.
+            const misses = { platform: 0, commit: 0, runtime: 0, runtimeConflict: 0 };
+            for (const { id, update, cli } of records) {
               if (lower(update?.id) !== lower(id)) fail("update-id-mismatch");
-              // runtimeOf, not update.runtime.version: the runtime arrives under
-              // a different key depending on which shape the API answers with,
-              // which is exactly why that helper exists. Reading one key made
-              // every record fail identity, so the 2026-09-07 postflight
-              // reported android=NO_MATCH ios=NO_MATCH for two updates whose
-              // platform, gitCommitHash and runtime were all correct. The build
-              // path already goes through runtimeOf; the update path did not.
-              const sameIdentity =
-                lower(update?.platform) === platform &&
-                lower(update?.gitCommitHash) === commit &&
-                runtimeOf(update) === runtime;
+              const seenRuntime = resolveRuntime(update, cli);
+              const platformOk = lower(update?.platform) === platform;
+              const commitOk = lower(update?.gitCommitHash) === commit;
+              const runtimeOk = !seenRuntime.conflict && seenRuntime.value === runtime;
+              if (!platformOk) misses.platform += 1;
+              else if (!commitOk) misses.commit += 1;
+              else if (seenRuntime.conflict) misses.runtimeConflict += 1;
+              else if (!runtimeOk) misses.runtime += 1;
+              const sameIdentity = platformOk && commitOk && runtimeOk;
               if (!sameIdentity) continue;
               const group = String(update?.group || "");
               const valid =
@@ -549,7 +589,17 @@ jobs:
             if (rejected || clean.length > 1) {
               return { state: "DIRTY_OR_AMBIGUOUS", runtimeVersion: runtime };
             }
-            if (clean.length === 0) return { state: "NO_MATCH", runtimeVersion: runtime };
+            if (clean.length === 0) {
+              // Counts only -- no ids, hashes or runtimes are printed. Enough to
+              // say which term rejected every candidate, which is the one thing
+              // the old message could not say.
+              return {
+                state: "NO_MATCH",
+                runtimeVersion: runtime,
+                candidates: records.length,
+                misses,
+              };
+            }
             return { state: "CLEAN_MATCH", ...clean[0] };
           }
 
@@ -559,12 +609,12 @@ jobs:
             if (channel?.name !== process.env.CHANNEL || channel?.isPaused) fail("channel-contract");
             const commit = lower(process.env.GITHUB_SHA);
             if (!SHA.test(commit)) fail("workflow-commit");
-            const { ids, malformed } = cliUpdateIds(history);
+            const { ids, cliById, malformed } = cliUpdateIds(history);
             if (malformed || ids.length > MAX_HISTORY_UPDATE_IDS) fail("history-update-ids");
             const records = await mapWithConcurrency(
               ids,
               GRAPHQL_CONCURRENCY,
-              async (id) => ({ id, update: await updateById(id) }),
+              async (id) => ({ id, update: await updateById(id), cli: cliById.get(lower(id)) }),
             );
             const result = {
               android: classifyPlatform(
@@ -581,7 +631,16 @@ jobs:
               ),
             };
             fs.writeFileSync(output, JSON.stringify(result));
-            process.stdout.write("android=" + result.android.state + " ios=" + result.ios.state + "\n");
+            const why = (r) =>
+              r.state === "NO_MATCH"
+                ? " (candidates=" + r.candidates + " rejected by platform=" + r.misses.platform +
+                  " commit=" + r.misses.commit + " runtime=" + r.misses.runtime +
+                  " runtimeConflict=" + r.misses.runtimeConflict + ")"
+                : "";
+            process.stdout.write(
+              "android=" + result.android.state + why(result.android) +
+              " ios=" + result.ios.state + why(result.ios) + "\n",
+            );
           }
 
           async function verifyUpdate(id, platform, runtime, channel, expectedGroup, output) {
@@ -589,18 +648,24 @@ jobs:
             const update = await updateById(id);
             const group = String(update?.group || "");
             const commit = lower(update?.gitCommitHash);
-            if (
-              lower(update?.id) !== lower(id) ||
-              !UUID.test(group) ||
-              lower(update?.platform) !== platform ||
-              !SHA.test(commit) ||
-              commit !== lower(process.env.GITHUB_SHA) ||
-              update?.isGitWorkingTreeDirty !== false ||
-              lower(update?.environment) !== lower(channel) ||
-              runtimeOf(update) !== runtime ||
-              (expectedGroup && lower(group) !== lower(expectedGroup))
-            ) {
-              fail("update-provenance");
+            // Named per term. "update-provenance" told us a check failed and
+            // nothing else, which cost three wrong diagnoses of the postflight
+            // on 2026-09-07. The names carry no values -- only which invariant
+            // rejected the update.
+            const failures = [];
+            if (lower(update?.id) !== lower(id)) failures.push("id");
+            if (!UUID.test(group)) failures.push("group-shape");
+            if (lower(update?.platform) !== platform) failures.push("platform");
+            if (!SHA.test(commit)) failures.push("commit-shape");
+            else if (commit !== lower(process.env.GITHUB_SHA)) failures.push("commit");
+            if (update?.isGitWorkingTreeDirty !== false) failures.push("dirty-tree");
+            if (lower(update?.environment) !== lower(channel)) failures.push("environment");
+            if (runtimeOf(update) !== runtime) {
+              failures.push(runtimeOf(update) === undefined ? "runtime-absent" : "runtime");
+            }
+            if (expectedGroup && lower(group) !== lower(expectedGroup)) failures.push("group");
+            if (failures.length) {
+              fail("update-provenance:" + failures.join(","));
             }
             fs.writeFileSync(output, JSON.stringify({ id: update.id, group, runtimeVersion: runtime }));
           }

@@ -631,22 +631,34 @@ jobs:
           PEELED_LINE="$(git ls-remote --tags origin "refs/tags/$TAG^{}" | awk 'NR==1 {print $1}')"
           TAG_SHA="${PEELED_LINE:-$TAG_LINE}"
           RELEASE_JSON="$RUNNER_TEMP/existing-release.json"
+          # Listed, not looked up by tag. GET /releases/tags/{tag} only matches
+          # PUBLISHED releases, so a leftover draft answered 404 and read as
+          # "no release exists" -- and the job then created a second draft. The
+          # list endpoint returns drafts to a token with push access, so a draft
+          # is seen and the tag/release disagreement below catches it.
           set +e
-          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" > "$RELEASE_JSON" 2> "$RUNNER_TEMP/release-api.err"
+          gh api --method GET "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            --jq "map(select(.tag_name == \"$TAG\")) | .[0] // empty" \
+            > "$RELEASE_JSON" 2> "$RUNNER_TEMP/release-api.err"
           API_CODE=$?
           set -e
-          if [ "$API_CODE" -eq 0 ]; then
-            RELEASE_EXISTS=true
-          elif grep -q 'HTTP 404' "$RUNNER_TEMP/release-api.err"; then
-            RELEASE_EXISTS=false
-          else
+          if [ "$API_CODE" -ne 0 ]; then
             echo "::error::Could not determine whether the GitHub release exists."
             exit 1
+          fi
+          if [ -s "$RELEASE_JSON" ]; then
+            RELEASE_EXISTS=true
+          else
+            RELEASE_EXISTS=false
           fi
           if [ -n "$TAG_SHA" ]; then TAG_EXISTS=true; else TAG_EXISTS=false; fi
 
           if [ "$TAG_EXISTS" != "$RELEASE_EXISTS" ]; then
-            echo "::error::Only one of tag/release exists for $TAG. Refusing to mutate partial external state."
+            if [ "$RELEASE_EXISTS" = true ]; then
+              echo "::error::A release for $TAG exists without a tag, i.e. an unpublished draft from an earlier run. Publish it or delete it, then re-run; this job will not create a second one."
+            else
+              echo "::error::Tag $TAG exists with no release. Refusing to mutate partial external state."
+            fi
             exit 1
           fi
 
@@ -726,7 +738,17 @@ jobs:
               echo "::error::Tag $TAG already exists and does not resolve to the requested commit."
               exit 1
             fi
-            gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" > "$RUNNER_TEMP/created-release.json"
+            # Same reason as the existence probe above: the release we just made
+            # is a draft, so it has no tag and GET /releases/tags/{tag} answers
+            # 404. That 404 killed the v0.7.1 release after the draft and all
+            # four assets were already correct (2026-09-07).
+            gh api --method GET "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+              --jq "map(select(.tag_name == \"$TAG\")) | .[0] // empty" \
+              > "$RUNNER_TEMP/created-release.json"
+            if [ ! -s "$RUNNER_TEMP/created-release.json" ]; then
+              echo "::error::The draft release for $TAG was created but could not be read back."
+              exit 1
+            fi
             export CREATED_RELEASE_JSON="$RUNNER_TEMP/created-release.json" PREVIEW_FILE PRODUCTION_FILE IOS_FILE
             node <<'NODE'
           const release = require(process.env.CREATED_RELEASE_JSON);
