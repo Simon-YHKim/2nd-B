@@ -842,7 +842,14 @@ export function DeepSpacePrivacyDesignScreen() {
         await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false });
         return;
       }
-      await recordRecommendationsConsent({
+      // recordConsentBestEffort retries, then REPORTS failure instead of
+      // throwing, and says so in its own comment: "a lost consent record is a
+      // compliance gap ... the caller acts on the returned `false`". Discarding
+      // it left personalization running with no row in the append-only ledger
+      // saying this person agreed to it - the exact gap that writer exists to
+      // flag. A thrown failure already lands in the catch below; a reported one
+      // did not land anywhere.
+      const consentRecorded = await recordRecommendationsConsent({
         userId: targetUserId,
         ageBand: "adult",
         minorTier: "adult",
@@ -854,6 +861,14 @@ export function DeepSpacePrivacyDesignScreen() {
         minorRef.current
       ) {
         await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false });
+        return;
+      }
+      if (!consentRecorded) {
+        // Same rollback the session guards above perform, for the same reason:
+        // this is a state we must not leave behind. Retrying is the user's to
+        // choose, and the existing error line already says to try again.
+        await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false });
+        setRecError(true);
         return;
       }
       prefsRef.current = prefs;
