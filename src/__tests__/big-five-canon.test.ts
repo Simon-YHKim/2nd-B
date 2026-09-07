@@ -425,7 +425,11 @@ describe("big-five PIXEL-CLAY route discipline", () => {
     expect(normalizedHash(legacy!)).toBe("857985b204144f7c4fc7fc7f52af128bed4ab6da0becc018f8f1cf1357e115e9");
     expect(normalizedHash(read("components/quant/QuantIntroModal.tsx"))).toBe("7e11ed07fa6c463d2359005f3c6b5a0ef700874a6bee12148e72253c07792ba3");
     expect(normalizedHash(read("components/quant/LikertChoiceGroup.tsx"))).toBe("ba5250e529357bf9f23e90491ebb1666b27e7dfa781dbc5d085b156ec6d51a66");
-    expect(normalizedHash(read("components/quant/QuantPager.tsx"))).toBe("b91bfbdf0861753aca1cd43dead1f0e4280c7c5b2778cc05d46377ac5da8c3a1");
+    // 이 래칫은 "바뀌면 누군가 알아채라"는 것이지 "절대 손대지 말라"가 아니다.
+    // 이번에 QuantPager 의 accessibilityValue 를 a11yValue() 로 옮겼다 - 객체
+    // 형태는 React Native Web 이 읽지 않아 진행바가 웹에서 값 없이 announce
+    // 됐다. 그래서 해시를 의도적으로 갱신한다.
+    expect(normalizedHash(read("components/quant/QuantPager.tsx"))).toBe("23a3c65719daae5c9faf5f296ec13a97724a02e208cedaf3b091f608760c8b59");
     expect(normalizedHash(read("components/quant/QuantSaveCelebration.tsx"))).toBe("a4cde70d67b7e77e343909ebd81355b4a1d6cf3c5289a7a96785fc4559a8a634");
   });
 

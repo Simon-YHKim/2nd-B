@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { Text } from "@/components/ui/Text";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import type { LevelProgress } from "@/lib/progression/levels";
+import { a11yValue } from "@/lib/a11y/accessibility-value";
 
 export function XpBar({ progress, locale }: { progress: LevelProgress; locale?: string }) {
   const { t } = useTranslation("common");
@@ -26,7 +27,7 @@ export function XpBar({ progress, locale }: { progress: LevelProgress; locale?: 
       accessible
       accessibilityRole="progressbar"
       accessibilityLabel={accessibilityLabel}
-      accessibilityValue={{ min: 0, max: 100, now: pct, text: trailing }}
+      {...a11yValue({ min: 0, max: 100, now: pct, text: trailing })}
       accessibilityHint={accessibilityHint}
     >
       <View style={styles.row}>
