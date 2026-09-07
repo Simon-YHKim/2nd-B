@@ -163,17 +163,48 @@ Project-specific guidance for Claude Code sessions in this repo.
 > 전부 `gemini` 를 돌려준다. *(2026-08-31 정정: 그 미설정 폴백은 이제 `openai` 다 — 아래 T1 1단계
 > 블록. 이 문단의 나머지는 08-18 시점 기록.)*
 >
-> **원장으로 확인했다**(`ai_audit_log`, 2026-08-18): 전체 행에서 `reasoning_vendor` 가
+> ~~**원장으로 확인했다**(`ai_audit_log`, 2026-08-18): 전체 행에서 `reasoning_vendor` 가
 > **`gemini` 아닌 행이 0건**이다. `ops_recommend` 25 · `ops_daily_brief` 12 ·
 > `self_model_propose`/`northstar_propose`/`axis_estimate` 각 6 — 전부 gemini.
-> 즉 **OpenAI·Claude 로 나간 실호출은 아직 한 건도 없다.**
+> 즉 **OpenAI·Claude 로 나간 실호출은 아직 한 건도 없다.**~~
+>
+> ⚠ **2026-09-08 원장 재실측 — 위 문장의 절반은 더 이상 사실이 아니다.**
+> 같은 표를 다시 세었다(운영 `ai_audit_log` 전 행 집계, 323행 · 2026-05-25~09-07):
+>
+> | 벤더 | 호출 | 첫 날 | 마지막 날 | p50 | p95 | 토큰 합 |
+> |---|---:|---|---|---:|---:|---:|
+> | `gemini` | 109 | 2026-07-10 | **2026-08-23** | 2,678ms | 9,407ms | 116,306 |
+> | `openai` | **34** | **2026-08-19** | **2026-09-07** | 2,513ms | 4,408ms | 12,403 |
+> | `claude` | **0** | — | — | — | — | — |
+> | (null = lexicon-only) | 180 | 2026-05-25 | 2026-09-07 | 0ms | 5,181ms | — |
+>
+> **OpenAI 는 08-18 바로 다음 날부터 실호출을 시작했다.** 08-18 실측은 그 시점에 맞았고,
+> 하루 뒤에 낡았다. **Claude 는 여전히 0건**이라 그 절반은 유효하다.
+>
+> **gemini 는 2026-08-23 이 마지막이다.** 그 뒤 운영 호출은 전부 openai 다 — 이행은
+> 계획이 아니라 **이미 일어난 일**이다. openai 가 실제로 서빙한 좌석 6개:
+> `secondb_chat` 13 · `embed_index` 11 · `interview_probe` 4 · `safety_classify` 4 ·
+> `cluster_infer` 1 · `ops_recommend` 1.
+>
+> 그래서 아래 "**PHASE=2 를 켜는 순간 한 번도 운영에서 돌아본 적 없는 9좌석**" 의 전제도
+> 부분적으로 낡았다 — `ops_recommend`·`cluster_infer`·`safety_classify`·`interview_probe`
+> 는 openai 로 돌아본 적이 있다.
+>
+> **꼬리 지연이 좋아졌다**: p95 가 gemini 9,407ms → openai 4,408ms 로 절반 이하다.
+> (p50 은 2,678 → 2,513ms 로 거의 같다. 개선은 중앙값이 아니라 **꼬리**에 있다.)
 >
 > 그래서 "Phase 2 를 켜면 대화만 옮겨진다"가 아니다 — **PHASE=2 를 켜는 순간 한 번도
 > 운영에서 돌아본 적 없는 9좌석이 동시에 OpenAI 로 넘어간다.** 그게 이 정정의 실질적
 > 의미다. 어느 벤더가 처리했는지는 `ai_audit_log.reasoning_vendor`(0095)에 남는다.
 >
-> **아직 Gemini 인데 옮겨야 할 자리:** `secondb_chat`(세컨비 대화). claude-proxy 에는
-> **이미 `secondb_chat: 'claude-sonnet-5'` 좌석이 설정돼 있는데 라우팅이 안 붙어 있다.**
+> ~~**아직 Gemini 인데 옮겨야 할 자리:** `secondb_chat`(세컨비 대화).~~
+> ⚠ **2026-09-08 정정 — 그 자리는 이미 옮겨졌다.** 원장에서 `secondb_chat` 은
+> **openai 13건**(2026-08-19~09-06)이고 gemini 쪽 같은 좌석은 08-23 이 마지막이다.
+> `EXPO_PUBLIC_CHAT_VENDOR` 플립이 실제로 걸렸다는 뜻이다. "옮겨야 할 자리" 목록의
+> 근거로 이 문장을 인용하지 말 것.
+>
+> claude-proxy 에는 **여전히 `secondb_chat: 'claude-sonnet-5'` 좌석이 설정돼 있는데
+> 라우팅이 안 붙어 있다** — 그 절반은 그대로 유효하다(Claude 실호출 0건).
 >
 > ⚠ **여기 적혀 있던 "claude-proxy 스트리밍 미구현이 막고 있다"는 틀린 진단이었다
 > (2026-08-18 실측).** 이 저장소에는 **스트리밍이 아예 없다** — `callLlm` 은
@@ -718,8 +749,40 @@ every agent: Claude, Codex, Antigravity, Grok.
 - Create from the repo root: `git worktree add .worktrees/<name> -b <branch>`.
   Remove: `git worktree remove .worktrees/<name>`. Move an existing one in:
   `git worktree move <old-path> C:/2ndB/.worktrees/<name>`.
-- Share the install: symlink the worktree's `node_modules` to the canonical
-  `C:\2ndB\node_modules` rather than a per-worktree `npm ci`.
+- Share the install: junction the worktree's `node_modules` to the canonical
+  `E:\2ndB\node_modules` rather than a per-worktree `npm ci`. **Use this, and
+  check it worked** (measured 2026-09-08):
+
+  ```powershell
+  # in a .ps1 file run with -File; inline -Command mangles backslash paths
+  New-Item -ItemType Junction -Path 'E:\2ndB\.worktrees\<name>\node_modules' `
+                              -Target 'E:\2ndB\node_modules'
+  $i = Get-Item -Force -LiteralPath 'E:/2ndB/.worktrees/<name>/node_modules'
+  ($i.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0   # must be True
+  ```
+
+  > ⚠ **Two ways to create it that look like they worked and did not:**
+  > `ln -sfn` **silently copies** — it exits 0, so a `|| mklink /J` fallback never
+  > runs, and you get a full **1,030 MB / 69,900-file** duplicate per worktree
+  > (four of them on 2026-09-08). `cmd //c mklink /J` **fails outright** from Git
+  > Bash on MSYS path mangling. `ls | wc -l` cannot tell a copy from a junction —
+  > both report 745. Only the reparse-point attribute can, and a backslash path
+  > passed to `powershell -Command` through a heredoc makes `Get-Item` return
+  > `$null` silently, so use a script file with `-LiteralPath`.
+  >
+  > ⚠ **It really is required, and "most tests pass" will fool you.** Node's own
+  > module resolution walks *upward*, so a worktree with no `node_modules` still
+  > loads `expo` and passes most suites. But two tests read the tree by **explicit
+  > path** — `scripts/__tests__/ios-permission-source.test.ts` (`@expo/config-plugins`)
+  > and `museum-content-language.test.ts` (`react-native-web`) — and `readFileSync`
+  > does not walk upward. Verified 2026-09-08: no junction → `npm run verify` exits
+  > 1 with those two suites failing on ENOENT; junction → 14/14 and green.
+  >
+  > ⚠ **Removal is the dangerous direction.** `git worktree remove --force` follows
+  > the junction and wipes the fleet-shared install, breaking every session at once
+  > (2026-06-21, again 2026-09-06 despite unlinking first). Unlink with
+  > `[IO.Directory]::Delete(path, $false)` first, one worktree at a time, and count
+  > `ls E:/2ndB/node_modules` after each removal.
 - Tooling already excludes `.worktrees/` (gitignore, jest, metro, tsconfig,
   eslint). Keep those excludes: they stop the nested copies from polluting
   `npm run verify` and the Metro bundler.
