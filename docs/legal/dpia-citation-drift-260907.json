@@ -1,0 +1,1485 @@
+{
+  "finding": "R32-LEGAL-01",
+  "phase": "CITATION_DRIFT_MEASURED",
+  "decision": "Simon 2026-09-07: ③ 문서 전체를 지금 코드 기준으로 다시 쓴다",
+  "scope": {
+    "whatIsRewritten": "문서가 스스로 \"asserts SYSTEM BEHAVIOUR (cited to file:line), NOT law\" 라고 적은 부분 - 즉 코드 사실 서술과 그 인용.",
+    "whatIsNotTouched": "[COUNSEL TO CONFIRM] 이 붙은 법적 성격 규정 78곳. 문서 자신이 counsel 에게 유보한 것이고 이 세션의 자리가 아니다."
+  },
+  "baseline": {
+    "commit": "cf31843e53c8e3daf8c76173240e6d5c7e4170ee",
+    "date": "2026-06-14",
+    "statedInDoc": "Code baseline: E:/2ndB @ 2026-06-14"
+  },
+  "head": {
+    "ref": "origin/main",
+    "commit": "1287a415807d20ed305409e3a4bf8724d27b3e58"
+  },
+  "commitsSinceBaseline": 1792,
+  "totals": {
+    "citations": 149,
+    "uniqueFiles": 50,
+    "counselToConfirmMarkers": 78,
+    "docLines": 842
+  },
+  "verdicts": {
+    "GONE": 9,
+    "UNCHANGED": 25,
+    "OUT_OF_RANGE": 0,
+    "CHANGED": 108,
+    "NEVER_EXISTED": 7
+  },
+  "method": [
+    "UNCHANGED 는 baseline 커밋과 origin/main 사이에 blob 이 바이트 동일한 파일이다. 그 파일로 들어가는 인용은 줄 번호까지 그대로 유효하다.",
+    "OUT_OF_RANGE 는 인용된 최대 줄 번호가 현재 파일 길이를 넘은 것이다. 확실히 깨진 것만 잡는다.",
+    "CHANGED 는 \"틀렸다\"가 아니라 \"사람이 읽어야 한다\" 이다. 파일이 움직였을 뿐 인용이 여전히 맞을 수 있다.",
+    "⚠ 이 도구는 산문을 판정하지 않는다. 어느 인용을 읽어야 하는지만 고른다."
+  ],
+  "rows": [
+    {
+      "docLine": 33,
+      "file": "src/lib/auth/AuthContext.tsx",
+      "lineSpec": "15,55",
+      "verdict": "CHANGED",
+      "linesNow": 861
+    },
+    {
+      "docLine": 33,
+      "file": "src/lib/safety/classifier.ts",
+      "lineSpec": "58-67",
+      "verdict": "CHANGED",
+      "linesNow": 160
+    },
+    {
+      "docLine": 33,
+      "file": "src/lib/llm/safety.ts",
+      "lineSpec": "266-298",
+      "verdict": "CHANGED",
+      "linesNow": 439
+    },
+    {
+      "docLine": 34,
+      "file": "src/lib/llm/safety.ts",
+      "lineSpec": "266-298",
+      "verdict": "CHANGED",
+      "linesNow": 439
+    },
+    {
+      "docLine": 34,
+      "file": "src/lib/llm/gemini.ts",
+      "lineSpec": "344-357",
+      "verdict": "GONE",
+      "linesNow": null
+    },
+    {
+      "docLine": 35,
+      "file": "src/lib/privacy/prefs.ts",
+      "lineSpec": "59",
+      "verdict": "CHANGED",
+      "linesNow": 141
+    },
+    {
+      "docLine": 55,
+      "file": "src/lib/llm/gemini.ts",
+      "lineSpec": "344-357",
+      "verdict": "GONE",
+      "linesNow": null
+    },
+    {
+      "docLine": 55,
+      "file": "src/lib/llm/safety.ts",
+      "lineSpec": "266-298",
+      "verdict": "CHANGED",
+      "linesNow": 439
+    },
+    {
+      "docLine": 61,
+      "file": "src/lib/auth/consent-age.ts",
+      "lineSpec": "21-26",
+      "verdict": "CHANGED",
+      "linesNow": 113
+    },
+    {
+      "docLine": 65,
+      "file": "db/migrations/0021_self_contexts.sql",
+      "lineSpec": null,
+      "verdict": "UNCHANGED",
+      "linesNow": 25
+    },
+    {
+      "docLine": 66,
+      "file": "db/migrations/0030_server_age_gate.sql",
+      "lineSpec": null,
+      "verdict": "UNCHANGED",
+      "linesNow": 68
+    },
+    {
+      "docLine": 67,
+      "file": "src/lib/safety/classifier.ts",
+      "lineSpec": "63",
+      "verdict": "CHANGED",
+      "linesNow": 160
+    },
+    {
+      "docLine": 67,
+      "file": "src/lib/llm/safety.ts",
+      "lineSpec": "266-298",
+      "verdict": "CHANGED",
+      "linesNow": 439
+    },
+    {
+      "docLine": 77,
+      "file": "src/lib/ops/recommend.ts",
+      "lineSpec": "129-135",
+      "verdict": "CHANGED",
+      "linesNow": 274
+    },
+    {
+      "docLine": 78,
+      "file": "src/lib/analytics/index.ts",
+      "lineSpec": "74",
+      "verdict": "CHANGED",
+      "linesNow": 1044
+    },
+    {
+      "docLine": 79,
+      "file": "db/migrations/0023_chat_usage.sql",
+      "lineSpec": null,
+      "verdict": "UNCHANGED",
+      "linesNow": 48
+    },
+    {
+      "docLine": 80,
+      "file": "db/migrations/0004_ai_audit_log.sql",
+      "lineSpec": null,
+      "verdict": "UNCHANGED",
+      "linesNow": 21
+    },
+    {
+      "docLine": 82,
+      "file": "src/lib/privacy/prefs.ts",
+      "lineSpec": "9-31",
+      "verdict": "CHANGED",
+      "linesNow": 141
+    },
+    {
+      "docLine": 85,
+      "file": "src/lib/auth/AuthContext.tsx",
+      "lineSpec": "55",
+      "verdict": "CHANGED",
+      "linesNow": 861
+    },
+    {
+      "docLine": 85,
+      "file": "db/migrations/0030_server_age_gate.sql",
+      "lineSpec": null,
+      "verdict": "UNCHANGED",
+      "linesNow": 68
+    },
+    {
+      "docLine": 88,
+      "file": "db/migrations/0002_users.sql",
+      "lineSpec": null,
+      "verdict": "UNCHANGED",
+      "linesNow": 30
+    },
+    {
+      "docLine": 93,
+      "file": "db/migrations/0003_records.sql",
+      "lineSpec": "7-19",
+      "verdict": "UNCHANGED",
+      "linesNow": 21
+    },
+    {
+      "docLine": 94,
+      "file": "db/migrations/0002_users.sql",
+      "lineSpec": null,
+      "verdict": "UNCHANGED",
+      "linesNow": 30
+    },
+    {
+      "docLine": 95,
+      "file": "db/migrations/0008_personas.sql",
+      "lineSpec": "5",
+      "verdict": "UNCHANGED",
+      "linesNow": 18
+    },
+    {
+      "docLine": 96,
+      "file": "db/migrations/0042_esm_responses.sql",
+      "lineSpec": null,
+      "verdict": "UNCHANGED",
+      "linesNow": 25
+    },
+    {
+      "docLine": 97,
+      "file": "src/lib/wiki/export.ts",
+      "lineSpec": "88-91",
+      "verdict": "CHANGED",
+      "linesNow": 244
+    },
+    {
+      "docLine": 98,
+      "file": "db/migrations/0012_crisis_events.sql",
+      "lineSpec": null,
+      "verdict": "UNCHANGED",
+      "linesNow": 33
+    },
+    {
+      "docLine": 99,
+      "file": "db/migrations/0004_ai_audit_log.sql",
+      "lineSpec": null,
+      "verdict": "UNCHANGED",
+      "linesNow": 21
+    },
+    {
+      "docLine": 100,
+      "file": "db/migrations/0023_chat_usage.sql",
+      "lineSpec": null,
+      "verdict": "UNCHANGED",
+      "linesNow": 48
+    },
+    {
+      "docLine": 101,
+      "file": "db/migrations/0031_consent_records.sql",
+      "lineSpec": null,
+      "verdict": "UNCHANGED",
+      "linesNow": 56
+    },
+    {
+      "docLine": 101,
+      "file": "src/lib/auth/consent-selections.ts",
+      "lineSpec": "16-24",
+      "verdict": "CHANGED",
+      "linesNow": 95
+    },
+    {
+      "docLine": 102,
+      "file": "src/lib/analytics/index.ts",
+      "lineSpec": "56,74",
+      "verdict": "CHANGED",
+      "linesNow": 1044
+    },
+    {
+      "docLine": 123,
+      "file": "src/lib/llm/gemini.ts",
+      "lineSpec": null,
+      "verdict": "GONE",
+      "linesNow": null
+    },
+    {
+      "docLine": 130,
+      "file": "src/lib/llm/safety.ts",
+      "lineSpec": null,
+      "verdict": "CHANGED",
+      "linesNow": 439
+    },
+    {
+      "docLine": 131,
+      "file": "src/lib/llm/types.ts",
+      "lineSpec": null,
+      "verdict": "CHANGED",
+      "linesNow": 247
+    },
+    {
+      "docLine": 132,
+      "file": "src/lib/supabase/crisis-events.ts",
+      "lineSpec": null,
+      "verdict": "CHANGED",
+      "linesNow": 53
+    },
+    {
+      "docLine": 146,
+      "file": "src/lib/llm/gemini.ts",
+      "lineSpec": "273-282",
+      "verdict": "GONE",
+      "linesNow": null
+    },
+    {
+      "docLine": 151,
+      "file": "supabase/functions/gemini-proxy/index.ts",
+      "lineSpec": "53",
+      "verdict": "CHANGED",
+      "linesNow": 954
+    },
+    {
+      "docLine": 151,
+      "file": "src/lib/llm/gemini.ts",
+      "lineSpec": "398-479",
+      "verdict": "GONE",
+      "linesNow": null
+    },
+    {
+      "docLine": 153,
+      "file": "src/lib/analytics/index.ts",
+      "lineSpec": "74",
+      "verdict": "CHANGED",
+      "linesNow": 1044
+    },
+    {
+      "docLine": 157,
+      "file": "src/lib/auth/consent-selections.ts",
+      "lineSpec": "16-24,65-83",
+      "verdict": "CHANGED",
+      "linesNow": 95
+    },
+    {
+      "docLine": 211,
+      "file": "src/lib/chat/conversation.ts",
+      "lineSpec": "146-203",
+      "verdict": "CHANGED",
+      "linesNow": 365
+    },
+    {
+      "docLine": 211,
+      "file": "src/lib/wiki/export.ts",
+      "lineSpec": "213-215",
+      "verdict": "CHANGED",
+      "linesNow": 244
+    },
+    {
+      "docLine": 211,
+      "file": "src/lib/ops/recommend.ts",
+      "lineSpec": "5-9,138",
+      "verdict": "CHANGED",
+      "linesNow": 274
+    },
+    {
+      "docLine": 213,
+      "file": "src/lib/llm/gemini.ts",
+      "lineSpec": "344-357",
+      "verdict": "GONE",
+      "linesNow": null
+    },
+    {
+      "docLine": 214,
+      "file": "supabase/functions/gemini-proxy/index.ts",
+      "lineSpec": null,
+      "verdict": "CHANGED",
+      "linesNow": 954
+    },
+    {
+      "docLine": 220,
+      "file": "src/lib/safety/classifier.ts",
+      "lineSpec": "63",
+      "verdict": "CHANGED",
+      "linesNow": 160
+    },
+    {
+      "docLine": 220,
+      "file": "src/lib/llm/safety.ts",
+      "lineSpec": "266-298",
+      "verdict": "CHANGED",
+      "linesNow": 439
+    },
+    {
+      "docLine": 221,
+      "file": "src/lib/privacy/prefs.ts",
+      "lineSpec": "59",
+      "verdict": "CHANGED",
+      "linesNow": 141
+    },
+    {
+      "docLine": 223,
+      "file": "src/lib/analytics/index.ts",
+      "lineSpec": "74",
+      "verdict": "CHANGED",
+      "linesNow": 1044
+    },
+    {
+      "docLine": 223,
+      "file": "src/lib/ads/policy.ts",
+      "lineSpec": "58",
+      "verdict": "CHANGED",
+      "linesNow": 100
+    },
+    {
+      "docLine": 226,
+      "file": "supabase/functions/delete-account/index.ts",
+      "lineSpec": null,
+      "verdict": "CHANGED",
+      "linesNow": 187
+    },
+    {
+      "docLine": 232,
+      "file": "src/lib/wiki/export.ts",
+      "lineSpec": "1-12",
+      "verdict": "CHANGED",
+      "linesNow": 244
+    },
+    {
+      "docLine": 235,
+      "file": "src/lib/auth/consent-age.ts",
+      "lineSpec": "9-15",
+      "verdict": "CHANGED",
+      "linesNow": 113
+    },
+    {
+      "docLine": 236,
+      "file": "src/lib/ops/recommend.ts",
+      "lineSpec": "129-135",
+      "verdict": "CHANGED",
+      "linesNow": 274
+    },
+    {
+      "docLine": 250,
+      "file": "db/migrations/0030_server_age_gate.sql",
+      "lineSpec": null,
+      "verdict": "UNCHANGED",
+      "linesNow": 68
+    },
+    {
+      "docLine": 250,
+      "file": "src/lib/auth/consent-age.ts",
+      "lineSpec": null,
+      "verdict": "CHANGED",
+      "linesNow": 113
+    },
+    {
+      "docLine": 251,
+      "file": "src/lib/chat/conversation.ts",
+      "lineSpec": "129",
+      "verdict": "CHANGED",
+      "linesNow": 365
+    },
+    {
+      "docLine": 251,
+      "file": "src/lib/wiki/export.ts",
+      "lineSpec": null,
+      "verdict": "CHANGED",
+      "linesNow": 244
+    },
+    {
+      "docLine": 252,
+      "file": "src/lib/llm/gemini.ts",
+      "lineSpec": null,
+      "verdict": "GONE",
+      "linesNow": null
+    },
+    {
+      "docLine": 252,
+      "file": "supabase/functions/gemini-proxy/index.ts",
+      "lineSpec": null,
+      "verdict": "CHANGED",
+      "linesNow": 954
+    },
+    {
+      "docLine": 252,
+      "file": "db/migrations/0004_ai_audit_log.sql",
+      "lineSpec": null,
+      "verdict": "UNCHANGED",
+      "linesNow": 21
+    },
+    {
+      "docLine": 253,
+      "file": "src/lib/llm/safety.ts",
+      "lineSpec": "261-298",
+      "verdict": "CHANGED",
+      "linesNow": 439
+    },
+    {
+      "docLine": 253,
+      "file": "db/migrations/0012_crisis_events.sql",
+      "lineSpec": null,
+      "verdict": "UNCHANGED",
+      "linesNow": 33
+    },
+    {
+      "docLine": 254,
+      "file": "db/migrations/0031_consent_records.sql",
+      "lineSpec": null,
+      "verdict": "UNCHANGED",
+      "linesNow": 56
+    },
+    {
+      "docLine": 255,
+      "file": "db/migrations/0004_ai_audit_log.sql",
+      "lineSpec": null,
+      "verdict": "UNCHANGED",
+      "linesNow": 21
+    },
+    {
+      "docLine": 256,
+      "file": "src/lib/ops/recommend.ts",
+      "lineSpec": null,
+      "verdict": "CHANGED",
+      "linesNow": 274
+    },
+    {
+      "docLine": 257,
+      "file": "src/lib/privacy/analytics-consent-queue.ts",
+      "lineSpec": null,
+      "verdict": "UNCHANGED",
+      "linesNow": 67
+    },
+    {
+      "docLine": 258,
+      "file": "src/lib/ads/policy.ts",
+      "lineSpec": null,
+      "verdict": "CHANGED",
+      "linesNow": 100
+    },
+    {
+      "docLine": 261,
+      "file": "src/lib/llm/types.ts",
+      "lineSpec": "27-30, 57-60",
+      "verdict": "CHANGED",
+      "linesNow": 247
+    },
+    {
+      "docLine": 276,
+      "file": "ads/policy.ts",
+      "lineSpec": "11-13",
+      "verdict": "NEVER_EXISTED",
+      "linesNow": null
+    },
+    {
+      "docLine": 283,
+      "file": "src/lib/wiki/export.ts",
+      "lineSpec": "18-22",
+      "verdict": "CHANGED",
+      "linesNow": 244
+    },
+    {
+      "docLine": 283,
+      "file": "supabase/seed/ai-mental-health-safety.sql",
+      "lineSpec": null,
+      "verdict": "CHANGED",
+      "linesNow": 76
+    },
+    {
+      "docLine": 314,
+      "file": "ads/policy.ts",
+      "lineSpec": null,
+      "verdict": "NEVER_EXISTED",
+      "linesNow": null
+    },
+    {
+      "docLine": 315,
+      "file": "ads/policy.ts",
+      "lineSpec": "58",
+      "verdict": "NEVER_EXISTED",
+      "linesNow": null
+    },
+    {
+      "docLine": 337,
+      "file": "ads/policy.ts",
+      "lineSpec": null,
+      "verdict": "NEVER_EXISTED",
+      "linesNow": null
+    },
+    {
+      "docLine": 340,
+      "file": "supabase/functions/delete-account/index.ts",
+      "lineSpec": null,
+      "verdict": "CHANGED",
+      "linesNow": 187
+    },
+    {
+      "docLine": 392,
+      "file": "src/lib/llm/persona/build.ts",
+      "lineSpec": "252-254",
+      "verdict": "NEVER_EXISTED",
+      "linesNow": null
+    },
+    {
+      "docLine": 392,
+      "file": "src/app/capture.tsx",
+      "lineSpec": "657,783,912",
+      "verdict": "CHANGED",
+      "linesNow": 4637
+    },
+    {
+      "docLine": 392,
+      "file": "src/lib/safety/classifier.ts",
+      "lineSpec": "24-27,58-63",
+      "verdict": "CHANGED",
+      "linesNow": 160
+    },
+    {
+      "docLine": 392,
+      "file": "src/lib/llm/safety.ts",
+      "lineSpec": "266-283",
+      "verdict": "CHANGED",
+      "linesNow": 439
+    },
+    {
+      "docLine": 411,
+      "file": "db/migrations/0009_rls_policies.sql",
+      "lineSpec": "16-57",
+      "verdict": "UNCHANGED",
+      "linesNow": 58
+    },
+    {
+      "docLine": 411,
+      "file": "src/lib/wiki/export.ts",
+      "lineSpec": null,
+      "verdict": "CHANGED",
+      "linesNow": 244
+    },
+    {
+      "docLine": 411,
+      "file": "src/lib/ops/recommend.ts",
+      "lineSpec": null,
+      "verdict": "CHANGED",
+      "linesNow": 274
+    },
+    {
+      "docLine": 411,
+      "file": "src/app/core-brain.tsx",
+      "lineSpec": "98",
+      "verdict": "CHANGED",
+      "linesNow": 1015
+    },
+    {
+      "docLine": 413,
+      "file": "src/lib/ops/recommend.ts",
+      "lineSpec": "6-10",
+      "verdict": "CHANGED",
+      "linesNow": 274
+    },
+    {
+      "docLine": 420,
+      "file": "src/lib/llm/gemini.ts",
+      "lineSpec": null,
+      "verdict": "GONE",
+      "linesNow": null
+    },
+    {
+      "docLine": 420,
+      "file": "db/migrations/0031_consent_records.sql",
+      "lineSpec": null,
+      "verdict": "UNCHANGED",
+      "linesNow": 56
+    },
+    {
+      "docLine": 420,
+      "file": "src/lib/privacy/prefs.ts",
+      "lineSpec": "27-31",
+      "verdict": "CHANGED",
+      "linesNow": 141
+    },
+    {
+      "docLine": 429,
+      "file": "src/lib/ops/recommend.ts",
+      "lineSpec": null,
+      "verdict": "CHANGED",
+      "linesNow": 274
+    },
+    {
+      "docLine": 435,
+      "file": "src/lib/companion/fab-state.ts",
+      "lineSpec": "15,25,51",
+      "verdict": "UNCHANGED",
+      "linesNow": 59
+    },
+    {
+      "docLine": 435,
+      "file": "src/lib/assets/soulcore-v3.ts",
+      "lineSpec": "21-25",
+      "verdict": "CHANGED",
+      "linesNow": 154
+    },
+    {
+      "docLine": 436,
+      "file": "src/lib/chat/personas.ts",
+      "lineSpec": "35-39",
+      "verdict": "CHANGED",
+      "linesNow": 130
+    },
+    {
+      "docLine": 436,
+      "file": "src/lib/persona/center.ts",
+      "lineSpec": "4,23",
+      "verdict": "CHANGED",
+      "linesNow": 128
+    },
+    {
+      "docLine": 437,
+      "file": "src/lib/privacy/prefs.ts",
+      "lineSpec": "60",
+      "verdict": "CHANGED",
+      "linesNow": 141
+    },
+    {
+      "docLine": 446,
+      "file": "src/lib/safety/lexicon.ts",
+      "lineSpec": null,
+      "verdict": "CHANGED",
+      "linesNow": 461
+    },
+    {
+      "docLine": 446,
+      "file": "src/lib/chat/personas.ts",
+      "lineSpec": "13",
+      "verdict": "CHANGED",
+      "linesNow": 130
+    },
+    {
+      "docLine": 452,
+      "file": "db/migrations/0030_server_age_gate.sql",
+      "lineSpec": null,
+      "verdict": "UNCHANGED",
+      "linesNow": 68
+    },
+    {
+      "docLine": 454,
+      "file": "src/lib/auth/consent-age.ts",
+      "lineSpec": "22",
+      "verdict": "CHANGED",
+      "linesNow": 113
+    },
+    {
+      "docLine": 460,
+      "file": "src/lib/llm/safety.ts",
+      "lineSpec": "261-300",
+      "verdict": "CHANGED",
+      "linesNow": 439
+    },
+    {
+      "docLine": 460,
+      "file": "src/lib/llm/gemini.ts",
+      "lineSpec": "230-329",
+      "verdict": "GONE",
+      "linesNow": null
+    },
+    {
+      "docLine": 460,
+      "file": "src/app/persona.tsx",
+      "lineSpec": "50-53",
+      "verdict": "CHANGED",
+      "linesNow": 716
+    },
+    {
+      "docLine": 467,
+      "file": "src/lib/ops/recommend.ts",
+      "lineSpec": null,
+      "verdict": "CHANGED",
+      "linesNow": 274
+    },
+    {
+      "docLine": 467,
+      "file": "src/app/ops.tsx",
+      "lineSpec": "104-129",
+      "verdict": "CHANGED",
+      "linesNow": 504
+    },
+    {
+      "docLine": 490,
+      "file": "db/migrations/0030_server_age_gate.sql",
+      "lineSpec": "18-67",
+      "verdict": "UNCHANGED",
+      "linesNow": 68
+    },
+    {
+      "docLine": 490,
+      "file": "src/lib/supabase/auth.ts",
+      "lineSpec": "22",
+      "verdict": "CHANGED",
+      "linesNow": 890
+    },
+    {
+      "docLine": 492,
+      "file": "src/lib/privacy/prefs.ts",
+      "lineSpec": "27-31",
+      "verdict": "CHANGED",
+      "linesNow": 141
+    },
+    {
+      "docLine": 496,
+      "file": "scripts/check-forbidden-lexicon.ts",
+      "lineSpec": null,
+      "verdict": "CHANGED",
+      "linesNow": 103
+    },
+    {
+      "docLine": 498,
+      "file": "src/lib/records/delete-bulk.ts",
+      "lineSpec": "178-185",
+      "verdict": "CHANGED",
+      "linesNow": 290
+    },
+    {
+      "docLine": 498,
+      "file": "src/app/account.tsx",
+      "lineSpec": "96-169",
+      "verdict": "CHANGED",
+      "linesNow": 485
+    },
+    {
+      "docLine": 499,
+      "file": "src/lib/ops/recommend.ts",
+      "lineSpec": "129-135",
+      "verdict": "CHANGED",
+      "linesNow": 274
+    },
+    {
+      "docLine": 499,
+      "file": "src/app/ops.tsx",
+      "lineSpec": "104-112",
+      "verdict": "CHANGED",
+      "linesNow": 504
+    },
+    {
+      "docLine": 558,
+      "file": "src/app/manual.tsx",
+      "lineSpec": "97",
+      "verdict": "CHANGED",
+      "linesNow": 359
+    },
+    {
+      "docLine": 568,
+      "file": "scripts/check-legal-review.ts",
+      "lineSpec": null,
+      "verdict": "CHANGED",
+      "linesNow": 54
+    },
+    {
+      "docLine": 603,
+      "file": "supabase/functions/delete-account/index.ts",
+      "lineSpec": null,
+      "verdict": "CHANGED",
+      "linesNow": 187
+    },
+    {
+      "docLine": 604,
+      "file": "delete-account/index.ts",
+      "lineSpec": "19-21",
+      "verdict": "NEVER_EXISTED",
+      "linesNow": null
+    },
+    {
+      "docLine": 612,
+      "file": "src/lib/wiki/export.ts",
+      "lineSpec": null,
+      "verdict": "CHANGED",
+      "linesNow": 244
+    },
+    {
+      "docLine": 623,
+      "file": "src/lib/privacy/prefs.ts",
+      "lineSpec": null,
+      "verdict": "CHANGED",
+      "linesNow": 141
+    },
+    {
+      "docLine": 623,
+      "file": "src/lib/ops/recommend.ts",
+      "lineSpec": "129-135",
+      "verdict": "CHANGED",
+      "linesNow": 274
+    },
+    {
+      "docLine": 623,
+      "file": "src/app/ops.tsx",
+      "lineSpec": "109",
+      "verdict": "CHANGED",
+      "linesNow": 504
+    },
+    {
+      "docLine": 639,
+      "file": "delete-account/index.ts",
+      "lineSpec": "118-121",
+      "verdict": "NEVER_EXISTED",
+      "linesNow": null
+    },
+    {
+      "docLine": 652,
+      "file": "src/lib/safety/lexicon.ts",
+      "lineSpec": "331",
+      "verdict": "CHANGED",
+      "linesNow": 461
+    },
+    {
+      "docLine": 652,
+      "file": "docs/HANDOFF.md",
+      "lineSpec": "331,486",
+      "verdict": "CHANGED",
+      "linesNow": 9083
+    },
+    {
+      "docLine": 676,
+      "file": "src/lib/auth/consent-age.ts",
+      "lineSpec": "8-14",
+      "verdict": "CHANGED",
+      "linesNow": 113
+    },
+    {
+      "docLine": 684,
+      "file": "src/lib/ops/recommend.ts",
+      "lineSpec": "129-135",
+      "verdict": "CHANGED",
+      "linesNow": 274
+    },
+    {
+      "docLine": 684,
+      "file": "src/app/ops.tsx",
+      "lineSpec": "109",
+      "verdict": "CHANGED",
+      "linesNow": 504
+    },
+    {
+      "docLine": 689,
+      "file": "src/lib/auth/AuthContext.tsx",
+      "lineSpec": "15,55",
+      "verdict": "CHANGED",
+      "linesNow": 861
+    },
+    {
+      "docLine": 689,
+      "file": "src/lib/safety/classifier.ts",
+      "lineSpec": "55-67",
+      "verdict": "CHANGED",
+      "linesNow": 160
+    },
+    {
+      "docLine": 689,
+      "file": "src/lib/llm/safety.ts",
+      "lineSpec": "266",
+      "verdict": "CHANGED",
+      "linesNow": 439
+    },
+    {
+      "docLine": 689,
+      "file": "src/app/capture.tsx",
+      "lineSpec": "657,783,912",
+      "verdict": "CHANGED",
+      "linesNow": 4637
+    },
+    {
+      "docLine": 690,
+      "file": "src/lib/llm/safety.ts",
+      "lineSpec": "266",
+      "verdict": "CHANGED",
+      "linesNow": 439
+    },
+    {
+      "docLine": 691,
+      "file": "src/lib/privacy/prefs.ts",
+      "lineSpec": "75-78",
+      "verdict": "CHANGED",
+      "linesNow": 141
+    },
+    {
+      "docLine": 691,
+      "file": "src/lib/privacy/prefs.ts",
+      "lineSpec": "59",
+      "verdict": "CHANGED",
+      "linesNow": 141
+    },
+    {
+      "docLine": 724,
+      "file": "src/lib/privacy/prefs.ts",
+      "lineSpec": "17",
+      "verdict": "CHANGED",
+      "linesNow": 141
+    },
+    {
+      "docLine": 728,
+      "file": "src/lib/privacy/prefs.ts",
+      "lineSpec": "17,59",
+      "verdict": "CHANGED",
+      "linesNow": 141
+    },
+    {
+      "docLine": 728,
+      "file": "src/lib/persona/build.ts",
+      "lineSpec": null,
+      "verdict": "CHANGED",
+      "linesNow": 998
+    },
+    {
+      "docLine": 734,
+      "file": "src/lib/llm/safety.ts",
+      "lineSpec": "266",
+      "verdict": "CHANGED",
+      "linesNow": 439
+    },
+    {
+      "docLine": 739,
+      "file": "src/lib/ops/recommend.ts",
+      "lineSpec": "129-135",
+      "verdict": "CHANGED",
+      "linesNow": 274
+    },
+    {
+      "docLine": 739,
+      "file": "src/lib/privacy/prefs.ts",
+      "lineSpec": "59",
+      "verdict": "CHANGED",
+      "linesNow": 141
+    },
+    {
+      "docLine": 748,
+      "file": "src/lib/auth/AuthContext.tsx",
+      "lineSpec": "55",
+      "verdict": "CHANGED",
+      "linesNow": 861
+    },
+    {
+      "docLine": 765,
+      "file": "src/lib/auth/consent-age.ts",
+      "lineSpec": "22",
+      "verdict": "CHANGED",
+      "linesNow": 113
+    },
+    {
+      "docLine": 766,
+      "file": "src/lib/auth/consent-age.ts",
+      "lineSpec": "8-14,21-26",
+      "verdict": "CHANGED",
+      "linesNow": 113
+    },
+    {
+      "docLine": 771,
+      "file": "src/lib/ops/recommend.ts",
+      "lineSpec": "137-157",
+      "verdict": "CHANGED",
+      "linesNow": 274
+    },
+    {
+      "docLine": 777,
+      "file": "src/lib/wiki/export.ts",
+      "lineSpec": null,
+      "verdict": "CHANGED",
+      "linesNow": 244
+    },
+    {
+      "docLine": 781,
+      "file": "src/app/data.tsx",
+      "lineSpec": "62-71",
+      "verdict": "CHANGED",
+      "linesNow": 162
+    },
+    {
+      "docLine": 781,
+      "file": "src/lib/wiki/export.ts",
+      "lineSpec": null,
+      "verdict": "CHANGED",
+      "linesNow": 244
+    },
+    {
+      "docLine": 782,
+      "file": "src/lib/records/delete-bulk.ts",
+      "lineSpec": "172-180",
+      "verdict": "CHANGED",
+      "linesNow": 290
+    },
+    {
+      "docLine": 788,
+      "file": "src/lib/auth/consent-age.ts",
+      "lineSpec": "8-14",
+      "verdict": "CHANGED",
+      "linesNow": 113
+    },
+    {
+      "docLine": 802,
+      "file": "src/lib/ops/recommend.ts",
+      "lineSpec": "129-135",
+      "verdict": "CHANGED",
+      "linesNow": 274
+    }
+  ],
+  "byFile": [
+    {
+      "file": "src/lib/ops/recommend.ts",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 274,
+      "citations": 14
+    },
+    {
+      "file": "src/lib/llm/safety.ts",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 439,
+      "citations": 12
+    },
+    {
+      "file": "src/lib/privacy/prefs.ts",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 141,
+      "citations": 12
+    },
+    {
+      "file": "src/lib/llm/gemini.ts",
+      "existsNow": false,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": null,
+      "citations": 9
+    },
+    {
+      "file": "src/lib/wiki/export.ts",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 244,
+      "citations": 9
+    },
+    {
+      "file": "src/lib/auth/consent-age.ts",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 113,
+      "citations": 8
+    },
+    {
+      "file": "src/lib/safety/classifier.ts",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 160,
+      "citations": 5
+    },
+    {
+      "file": "db/migrations/0030_server_age_gate.sql",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": true,
+      "linesNow": 68,
+      "citations": 5
+    },
+    {
+      "file": "src/lib/auth/AuthContext.tsx",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 861,
+      "citations": 4
+    },
+    {
+      "file": "src/lib/analytics/index.ts",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 1044,
+      "citations": 4
+    },
+    {
+      "file": "db/migrations/0004_ai_audit_log.sql",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": true,
+      "linesNow": 21,
+      "citations": 4
+    },
+    {
+      "file": "ads/policy.ts",
+      "existsNow": false,
+      "existedAtBaseline": false,
+      "unchanged": false,
+      "linesNow": null,
+      "citations": 4
+    },
+    {
+      "file": "src/app/ops.tsx",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 504,
+      "citations": 4
+    },
+    {
+      "file": "db/migrations/0031_consent_records.sql",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": true,
+      "linesNow": 56,
+      "citations": 3
+    },
+    {
+      "file": "supabase/functions/gemini-proxy/index.ts",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 954,
+      "citations": 3
+    },
+    {
+      "file": "supabase/functions/delete-account/index.ts",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 187,
+      "citations": 3
+    },
+    {
+      "file": "db/migrations/0023_chat_usage.sql",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": true,
+      "linesNow": 48,
+      "citations": 2
+    },
+    {
+      "file": "db/migrations/0002_users.sql",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": true,
+      "linesNow": 30,
+      "citations": 2
+    },
+    {
+      "file": "db/migrations/0012_crisis_events.sql",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": true,
+      "linesNow": 33,
+      "citations": 2
+    },
+    {
+      "file": "src/lib/auth/consent-selections.ts",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 95,
+      "citations": 2
+    },
+    {
+      "file": "src/lib/llm/types.ts",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 247,
+      "citations": 2
+    },
+    {
+      "file": "src/lib/chat/conversation.ts",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 365,
+      "citations": 2
+    },
+    {
+      "file": "src/lib/ads/policy.ts",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 100,
+      "citations": 2
+    },
+    {
+      "file": "src/app/capture.tsx",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 4637,
+      "citations": 2
+    },
+    {
+      "file": "src/lib/chat/personas.ts",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 130,
+      "citations": 2
+    },
+    {
+      "file": "src/lib/safety/lexicon.ts",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 461,
+      "citations": 2
+    },
+    {
+      "file": "src/lib/records/delete-bulk.ts",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 290,
+      "citations": 2
+    },
+    {
+      "file": "delete-account/index.ts",
+      "existsNow": false,
+      "existedAtBaseline": false,
+      "unchanged": false,
+      "linesNow": null,
+      "citations": 2
+    },
+    {
+      "file": "db/migrations/0021_self_contexts.sql",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": true,
+      "linesNow": 25,
+      "citations": 1
+    },
+    {
+      "file": "db/migrations/0003_records.sql",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": true,
+      "linesNow": 21,
+      "citations": 1
+    },
+    {
+      "file": "db/migrations/0008_personas.sql",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": true,
+      "linesNow": 18,
+      "citations": 1
+    },
+    {
+      "file": "db/migrations/0042_esm_responses.sql",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": true,
+      "linesNow": 25,
+      "citations": 1
+    },
+    {
+      "file": "src/lib/supabase/crisis-events.ts",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 53,
+      "citations": 1
+    },
+    {
+      "file": "src/lib/privacy/analytics-consent-queue.ts",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": true,
+      "linesNow": 67,
+      "citations": 1
+    },
+    {
+      "file": "supabase/seed/ai-mental-health-safety.sql",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 76,
+      "citations": 1
+    },
+    {
+      "file": "src/lib/llm/persona/build.ts",
+      "existsNow": false,
+      "existedAtBaseline": false,
+      "unchanged": false,
+      "linesNow": null,
+      "citations": 1
+    },
+    {
+      "file": "db/migrations/0009_rls_policies.sql",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": true,
+      "linesNow": 58,
+      "citations": 1
+    },
+    {
+      "file": "src/app/core-brain.tsx",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 1015,
+      "citations": 1
+    },
+    {
+      "file": "src/lib/companion/fab-state.ts",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": true,
+      "linesNow": 59,
+      "citations": 1
+    },
+    {
+      "file": "src/lib/assets/soulcore-v3.ts",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 154,
+      "citations": 1
+    },
+    {
+      "file": "src/lib/persona/center.ts",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 128,
+      "citations": 1
+    },
+    {
+      "file": "src/app/persona.tsx",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 716,
+      "citations": 1
+    },
+    {
+      "file": "src/lib/supabase/auth.ts",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 890,
+      "citations": 1
+    },
+    {
+      "file": "scripts/check-forbidden-lexicon.ts",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 103,
+      "citations": 1
+    },
+    {
+      "file": "src/app/account.tsx",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 485,
+      "citations": 1
+    },
+    {
+      "file": "src/app/manual.tsx",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 359,
+      "citations": 1
+    },
+    {
+      "file": "scripts/check-legal-review.ts",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 54,
+      "citations": 1
+    },
+    {
+      "file": "docs/HANDOFF.md",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 9083,
+      "citations": 1
+    },
+    {
+      "file": "src/lib/persona/build.ts",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 998,
+      "citations": 1
+    },
+    {
+      "file": "src/app/data.tsx",
+      "existsNow": true,
+      "existedAtBaseline": true,
+      "unchanged": false,
+      "linesNow": 162,
+      "citations": 1
+    }
+  ]
+}
