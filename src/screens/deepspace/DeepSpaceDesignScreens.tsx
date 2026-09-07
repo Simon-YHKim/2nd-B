@@ -171,6 +171,7 @@ import { listSourcePieces } from "@/lib/records/source-pieces";
 import { summarizeWeeklyInsights, weeklyDomainFocus } from "@/lib/insights/weekly";
 import type { SourceRow, WikiPageRow } from "@/lib/wiki/types";
 import { resetCoachmarks } from "@/lib/onboarding/coachmarks-gate";
+import { checkboxSpaceKeyProps } from "@/lib/ui/checkbox-space-key";
 import {
   buildDeepResearchView,
   buildDomainsView,
@@ -2927,6 +2928,7 @@ export function DeepSpaceOpsScreen() {
                 style={cx.routineRow}
                 onPress={() => void completeRoutine(routine)}
                 disabled={done}
+                {...checkboxSpaceKeyProps(() => void completeRoutine(routine), !done)}
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: done }}
                 accessibilityLabel={done ? t("today.doneA11y", { title: routine.title }) : t("today.completeA11y", { title: routine.title })}

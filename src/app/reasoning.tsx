@@ -57,6 +57,7 @@ import { getSource, updateSourceTags } from "@/lib/wiki/queries";
 import { downloadRawClipping } from "@/lib/wiki/storage";
 import { dismissTask, sendToBackground, startTask, useTaskStatus } from "@/lib/tasks/store";
 import { m3 } from "@/lib/theme/m3";
+import { checkboxSpaceKeyProps } from "@/lib/ui/checkbox-space-key";
 import { flattenAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 
@@ -887,6 +888,22 @@ export default function ReasoningScreen() {
     [phase],
   );
 
+  // Hoisted out of the switch's JSX so the web Space-key handler runs the
+  // exact same callback the press path does.
+  const toggleAuto = () => {
+    // Spec A "처음 ON": first enable routes through the
+    // consumption-rules sheet; OFF is always immediate.
+    if (auto.enabled) {
+      auto.setEnabled(false);
+      return;
+    }
+    if (!userId) return;
+    void getAutoIntroSeen(userId).then((seen) => {
+      if (seen) auto.setEnabled(true);
+      else setAutoIntroVisible(true);
+    });
+  };
+
   const cancelRun = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
@@ -1228,19 +1245,8 @@ export default function ReasoningScreen() {
                     accessibilityRole="switch"
                     accessibilityState={{ checked: auto.enabled, disabled: !auto.hydrated }}
                     disabled={!auto.hydrated}
-                    onPress={() => {
-                      // Spec A "처음 ON": first enable routes through the
-                      // consumption-rules sheet; OFF is always immediate.
-                      if (auto.enabled) {
-                        auto.setEnabled(false);
-                        return;
-                      }
-                      if (!userId) return;
-                      void getAutoIntroSeen(userId).then((seen) => {
-                        if (seen) auto.setEnabled(true);
-                        else setAutoIntroVisible(true);
-                      });
-                    }}
+                    onPress={toggleAuto}
+                    {...checkboxSpaceKeyProps(toggleAuto, auto.hydrated)}
                     style={[
                       styles.switchTrack,
                       {
@@ -1394,6 +1400,7 @@ export default function ReasoningScreen() {
               <Pressable
                 onPress={() => toggleItem(item.key)}
                 disabled={phase === "running"}
+                {...checkboxSpaceKeyProps(() => toggleItem(item.key), phase !== "running")}
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: chosen, disabled: phase === "running" }}
                 accessibilityLabel={`${item.title}, ${item.meta}`}
