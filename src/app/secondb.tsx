@@ -82,7 +82,7 @@ import { PremiumAppShell, ContextPill, ReferenceShardCard, SceneHero } from "@/c
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { ChatRewardCapReachedError, grantChatAdBonus, readChatUsageDetail } from "@/lib/chat/usage";
 import { CHAT_DAILY_LIMIT, chatAllowance, kstDateToday } from "@/lib/chat/limits";
-import { RewardedSheet } from "@/components/deepspace/RewardedSheet";
+import { RewardedSheet, type RewardedEarnOutcome } from "@/components/deepspace/RewardedSheet";
 import { personaAllowed } from "@/lib/entitlements/tiers";
 import { PUBLIC_TIER_BY_DB } from "@/lib/entitlements/tier-map";
 import { CORE_VILLAGE_UI, VILLAGE_UI } from "@/lib/village-ui";
@@ -1506,13 +1506,18 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
           onClose={() => setChatRewardVisible(false)}
           remaining={Math.max(0, allowance - (usedToday ?? 0))}
           onEarned={async () => {
+            // 광고를 끝까지 본 사용자에게 결과를 알려 주기 위해 실패를 분류해서
+            // 시트에 돌려준다. 여기서 "적립되지 않았다"고 단정하지는 않는다 -
+            // SSV 모드에서는 서버가 적립의 유일한 주체라 클라이언트 실패가 곧
+            // 미적립은 아니다. Round22 담기 실패 문구와 같은 규율이다.
+            let outcome: RewardedEarnOutcome = "granted";
             if (userId) {
               try {
                 await grantChatAdBonus(userId);
               } catch (e) {
+                outcome = e instanceof ChatRewardCapReachedError ? "capped" : "unconfirmed";
                 if (typeof console !== "undefined") {
-                  const capped = e instanceof ChatRewardCapReachedError;
-                  console.warn("[secondb] grantChatAdBonus", capped ? "monthly cap reached" : (e as Error).message);
+                  console.warn("[secondb] grantChatAdBonus", outcome === "capped" ? "monthly cap reached" : (e as Error).message);
                 }
               }
               // Re-read even when the grant threw: a monthly-cap rejection
@@ -1520,7 +1525,8 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
               // allowance is exactly what this change exists to remove.
               await refreshChatUsage();
             }
-            setChatRewardVisible(false);
+            // 닫는 일은 이제 시트가 한다 - 적립됐을 때만 닫히도록.
+            return outcome;
           }}
           locale={locale}
         />
@@ -1915,19 +1921,22 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
         onClose={() => setChatRewardVisible(false)}
         remaining={Math.max(0, allowance - (usedToday ?? 0))}
         onEarned={async () => {
+          // deep-space 셸과 같은 배선. 실패를 분류해 시트에 돌려주고, 닫는
+          // 일은 시트에 맡긴다.
+          let outcome: RewardedEarnOutcome = "granted";
           if (userId) {
             try {
               await grantChatAdBonus(userId);
             } catch (e) {
+              outcome = e instanceof ChatRewardCapReachedError ? "capped" : "unconfirmed";
               if (typeof console !== "undefined") {
-                const capped = e instanceof ChatRewardCapReachedError;
-                console.warn("[secondb] grantChatAdBonus", capped ? "monthly cap reached" : (e as Error).message);
+                console.warn("[secondb] grantChatAdBonus", outcome === "capped" ? "monthly cap reached" : (e as Error).message);
               }
             }
             // Same as above: the server number wins, even on a rejected grant.
             await refreshChatUsage();
           }
-          setChatRewardVisible(false);
+          return outcome;
         }}
         locale={locale}
       />
