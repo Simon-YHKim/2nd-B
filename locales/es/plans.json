@@ -2,9 +2,9 @@
   "loading": "Cargando planes...",
   "hero": {
     "eyebrow": "Planes",
-    "title": "Mantén tu 2nd-Brain sin límites",
-    "subtitle": "Los registros son gratuitos y sin restricciones. Los planes de pago añaden más espacio para pensar con IA.",
-    "speech": "Lo esencial es gratis. Los planes de pago solo añaden más espacio para pensar juntos."
+    "title": "Elige tu plan",
+    "subtitle": "Los registros son gratis y no tienen límite. Los planes de pago incluyen más conversaciones con IA.",
+    "speech": "Puedes guardar registros gratis. Los planes de pago aumentan el uso de la IA."
   },
   "current": "Plan actual",
   "comingSoon": "Los planes de pago llegan pronto",
@@ -22,16 +22,16 @@
       "name": "Voyager",
       "price": "$9.99 / mo",
       "priceNote": "$99.90 / yr (2 meses gratis)",
-      "tagline": "Espacio para reflexiones profundas cada día",
+      "tagline": "Más conversaciones con IA cada día",
       "f1": "80 chats con IA por día",
       "f2": "Todo lo de Soma",
-      "f3": "Margen para sesiones largas"
+      "f3": "Más uso para conversaciones largas"
     },
     "brain": {
       "name": "North Star",
       "price": "$19.99 / mo",
       "priceNote": "$199.90 / yr (2 meses gratis)",
-      "tagline": "El segundo cerebro completo",
+      "tagline": "El plan con más conversaciones con IA",
       "f1": "250 chats con IA por día",
       "f2": "Reflexiones sobre tus entradas",
       "f3": "Todo lo de Cortex"

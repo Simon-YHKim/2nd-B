@@ -2,7 +2,7 @@
   "loading": "Memuat impor…",
   "hero": {
     "eyebrow": "08-5. Impor",
-    "title": "Bawa pengetahuan diri dari luar ke 2nd-Brain",
+    "title": "Impor catatan tentang dirimu ke 2nd-Brain",
     "subtitle": "Asisten lain · hasil tes · catatan",
     "speech": "Materi yang ditempel diurutkan dulu, lalu disimpan hanya setelah kamu konfirmasi."
   },
@@ -17,21 +17,21 @@
   "pasteCard": {
     "eyebrow": "Tempel",
     "title": "Balasan atau hasil tes",
-    "description": "Tempel balasan, hasil tes disposisi atau kepribadian yang lalu, atau catatan tentang dirimu. 2nd-Brain akan mengurut dan menandainya ke strukturmu.",
+    "description": "Tempel balasan asisten lain, hasil tes kepribadian terdahulu, atau catatan tentang dirimu. 2nd-Brain akan menata dan memberi tag pada isinya.",
     "placeholder": "Tempel di sini…",
     "accessibilityLabel": "Materi yang akan diimpor",
-    "sort": "Urutkan dan atur",
+    "sort": "Tata isi",
     "sortHint": "Mengurutkan materi yang ditempel sebelum disimpan."
   },
   "toast": {
     "promptPlaced": "Pertanyaan sudah ditempatkan di bawah. Tekan lama untuk menyalinnya.",
-    "saveFailed": "Gagal menyimpan. Hasil urutan masih ada di sini; coba lagi.",
-    "storagePending": "Tersimpan. Salinan file cadangan tidak terunggah kali ini; teksmu tetap aman."
+    "saveFailed": "Belum bisa disimpan. Hasilnya masih ada di sini. Coba lagi.",
+    "storagePending": "Teks tersimpan, tetapi salinan file cadangan belum terunggah."
   },
   "result": {
-    "eyebrow": "Hasil urutan",
+    "eyebrow": "Hasil penataan",
     "title": "Catatan yang diimpor",
-    "degraded": "Pengurutan mendalam tidak tersedia, jadi ini adalah hasil lokal dasar. Coba lagi untuk urutan yang lebih kaya.",
+    "degraded": "Analisis lebih lengkap belum tersedia. Ini hasil penataan dasar di perangkat. Coba lagi untuk menganalisis lebih lanjut.",
     "meta": "{{count}} item · {{track}}",
     "track": {
       "pro": "pekerjaan dan spesialis",
@@ -42,7 +42,7 @@
   },
   "saved": {
     "title": "Tersimpan",
-    "body": "Pusat dan SecondB kini bisa menggunakan catatan-catatan ini.",
+    "body": "Catatan ini kini bisa digunakan oleh Bintang Utara dan SecondB.",
     "graph": "Lihat graf",
     "graphHint": "Membuka graf utama.",
     "more": "Impor lagi",

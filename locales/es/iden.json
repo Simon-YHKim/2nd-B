@@ -2,12 +2,12 @@
   "loading": "Cargando tu exportación de identidad...",
   "hero": {
     "eyebrow": "Exportar identidad",
-    "title": "Tu identidad como un archivo portátil",
-    "subtitle": "Un archivo que cualquier IA lee, y un perfil de una página que lees tú",
-    "speech": "Este eres tú, listo para que cualquier asistente lo entienda."
+    "title": "Tu información en un archivo",
+    "subtitle": "Un archivo para compartir con una IA y un perfil de una página para leer",
+    "speech": "Puedes compartir información sobre ti con otro asistente."
   },
   "intro": {
-    "body": "IDEN reúne lo que has aprendido sobre ti en un solo archivo portátil. Pégalo en cualquier IA para darle tu contexto, o abre la hoja de una página."
+    "body": "IDEN reúne lo que has aprendido sobre ti en un archivo. Puedes compartirlo con una IA o leerlo en un perfil de una página."
   },
   "generate": {
     "button": "Crear mi IDEN",
@@ -25,7 +25,7 @@
   "error": "No se pudo crear tu IDEN. Actualiza e intenta de nuevo.",
   "entry": {
     "eyebrow": "Exportar identidad",
-    "body": "Convierte lo que has aprendido sobre ti en un archivo portátil que cualquier IA puede leer, y un perfil de una página.",
+    "body": "Reúne lo que has aprendido sobre ti en un archivo para compartir con una IA y un perfil de una página.",
     "button": "Abrir exportación de identidad",
     "accessibilityHint": "Abre la pantalla de exportación de identidad IDEN."
   },
@@ -34,8 +34,8 @@
     "loading": "Cargando…",
     "loadError": "No se pudo cargar tu IDEN.",
     "retry": "Reintentar",
-    "empty": "Aún no has reunido nada. ¿Reunimos un poco de ti primero?",
-    "startGathering": "Empezar a reunir",
+    "empty": "Aún no hay información para incluir. Añade algunos registros primero.",
+    "startGathering": "Añadir registros",
     "signed": "Firmado",
     "whatGoesIn": "Qué se incluye",
     "format": "Formato",

@@ -3,9 +3,9 @@
   "fallbackName": "Tamu",
   "hero": {
     "eyebrow": "Aku",
-    "title": "Pusat profil {{displayName}}",
+    "title": "Profil {{displayName}}",
     "subtitle": "Kenali, gunakan, dan kelola profilmu",
-    "speech": "Semua tentang kamu ada di sini. Santai saja."
+    "speech": "Lihat ringkasan diri dan kelola akunmu di sini."
   },
   "account": {
     "eyebrow": "Akun",
@@ -29,8 +29,8 @@
       "label": "Kenali aku lebih dalam",
       "items": {
         "persona": {
-          "label": "Persona",
-          "hint": "Membuka layar persona."
+          "label": "Ringkasan diri",
+          "hint": "Membuka ringkasan dirimu."
         },
         "bigFive": {
           "label": "Big Five",
@@ -46,7 +46,7 @@
         },
         "attachment": {
           "label": "Ikatan",
-          "hint": "Membuka asesmen gaya attachment."
+          "hint": "Membuka asesmen gaya kelekatan."
         },
         "growth": {
           "label": "Perkembangan saya",
@@ -103,7 +103,7 @@
           "hint": "Membuka manajemen data."
         },
         "formats": {
-          "label": "Format-ku",
+          "label": "Formatku",
           "hint": "Membuka format pengarsipanmu."
         },
         "manual": {

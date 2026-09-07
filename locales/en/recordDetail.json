@@ -4,23 +4,23 @@
     "record": "Loading this record..."
   },
   "state": {
-    "missingTitle": "Piece not found",
-    "errorTitle": "Couldn't load this piece"
+    "missingTitle": "Record not found",
+    "errorTitle": "Couldn't load this record"
   },
   "body": {
-    "sourceEmpty": "A captured source. Open its screen below to see the full content.",
-    "noText": "This piece has no body text."
+    "sourceEmpty": "This is saved material. Use 'Open original' below to read it in full.",
+    "noText": "This record has no text."
   },
   "advisor": {
     "heading": "SecondB note",
     "sources": "Sources",
     "whyThis": "Why this",
-    "evidenceFallback": "Source listed without a short note."
+    "evidenceFallback": "No description is available for this source."
   },
   "actions": {
     "backToRecords": "Back to records",
     "seeGraph": "See in graph",
     "askSecondB": "Ask SecondB",
-    "openSource": "Open its screen"
+    "openSource": "Open original"
   }
 }

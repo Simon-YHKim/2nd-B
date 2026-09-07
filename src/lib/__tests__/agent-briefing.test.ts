@@ -178,3 +178,73 @@ describe("정정이 의존하는 배선", () => {
     expect(keep).toContain("CHAT_KEEP_TAG");
   });
 });
+
+// ── 살아 있는 문서가 없는 소스 경로를 지목하지 않는가 ──────────────────
+//
+// 파일 개명은 조용하다. 코드는 안 깨지고 CI 도 안 잡는다. 그저 문서를 따라간
+// 사람이 없는 파일을 찾다가 그 문서 전체를 못 믿게 된다.
+//
+// 2026-09-07 실측: `src/lib/llm/gemini.ts` 를 지목하는 문서가 **13개** 남아
+// 있었다. 그 파일은 #1229(2026-08-17)가 `boundary.ts` 로 개명한 것이다.
+//
+// 여기 올리는 것은 **살아 있는 안내 문서**만이다. 감사 스냅샷과 핸드오프 로그는
+// 그 시점에 맞는 경로를 적은 것이라 대상이 아니다 — 고치면 오히려 기록이 틀려진다.
+// 나머지 10개는 그래서 여기 없다. 살아 있는 안내로 승격되면 그때 더한다.
+const LIVE_DOCS_NAMING_SOURCE = [
+  "docs/LLM-ROUTING.md",
+  "docs/system-report.html",
+  "docs/pricing-simulation.html",
+] as const;
+
+/** 지워졌거나 개명된 소스 경로 → 지금 이름(정정에 써야 하는 말). */
+const REMOVED_SOURCE_PATHS = [
+  ["src/lib/llm/gemini.ts", "boundary.ts"],
+  ["src/lib/judge/domains.ts", "삭제"],
+] as const;
+
+describe("문서가 지목하는 소스 경로", () => {
+  it("여기 적은 경로는 실제로 저장소에 없다", () => {
+    // 되살아나면 아래 검사가 의미를 잃는다. 가드가 무엇을 지키는지부터 확인한다.
+    for (const [gone] of REMOVED_SOURCE_PATHS) {
+      expect({ path: gone, exists: existsSync(join(ROOT, gone)) })
+        .toEqual({ path: gone, exists: false });
+    }
+  });
+
+  it.each(LIVE_DOCS_NAMING_SOURCE)("%s 가 지운 경로를 그대로 지목하지 않는다", (doc) => {
+    // ⚠ 여기서는 인라인 코드를 걷어내지 않는다. `assertionsOnly` 는 인용을 빼는데,
+    //   경로 참조는 원래 코드 스팬으로 쓰므로 걷어내면 검사가 텅 빈다.
+    //   대신 **같은 줄에 지금 이름이 함께 있으면** 정정으로 보고 통과시킨다.
+    const offenders = read(doc)
+      .split("\n")
+      .flatMap((line, i) =>
+        REMOVED_SOURCE_PATHS
+          .filter(([gone, now]) => line.includes(gone) && !line.includes(now))
+          .map(([gone]) => `L${i + 1} ${gone}`),
+      );
+    expect({ doc, offenders }).toEqual({ doc, offenders: [] });
+  });
+});
+
+// ── 문서의 벤더 주장이 코드와 같은 말을 하는가 ─────────────────────────
+describe("LLM-ROUTING.md 의 OCR 주장", () => {
+  it("'무조건 Gemini' 를 정정 없이 주장하지 않는다", () => {
+    // 2026-07-04 에 쓴 핀이다. 그 뒤 Simon 이 2026-08-23 에 뒤집었고
+    // (`OCR = openai 유지, gemini 예외 없음`) 코드도 따라갔다. 그런데 이 문서는
+    // 상단 배너가 "§0 원칙은 지금도 유효" 라고 축복하고 있어서, 읽는 사람이
+    // 뒤집힌 핀을 현행으로 받는다. 문구가 남아 있어도 좋지만 정정 표시는 있어야 한다.
+    const doc = read("docs/LLM-ROUTING.md");
+    if (!doc.includes("무조건 Gemini")) return;
+    expect({ hasCorrection: doc.includes("2026-08-23 정정") })
+      .toEqual({ hasCorrection: true });
+  });
+
+  it("코드는 멀티모달 벤더를 스위치로 정한다 — 문서의 정정이 참인 근거", () => {
+    // 정정이 코드와 어긋나면 그것도 거짓말이다. 둘을 묶는다.
+    const routing = read("src/lib/llm/routing.ts");
+    expect(routing).toContain("MULTIMODAL_PURPOSES");
+    expect(routing).toContain("EXPO_PUBLIC_MULTIMODAL_VENDOR");
+    // 핀이 살아 있었다면 벤더가 상수여야 한다. 함수로 정해지면 핀은 없다.
+    expect(routing).toContain("export function multimodalVendor()");
+  });
+});
