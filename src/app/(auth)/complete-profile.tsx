@@ -30,6 +30,7 @@ import {
 import { submitCompleteProfile, signOutAndSettle } from "@/lib/auth/complete-profile-flow";
 import { recordConsentBestEffort } from "@/lib/supabase/consent";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
+import { a11yValue } from "@/lib/a11y/accessibility-value";
 
 const ADULT_AGE = 18;
 type CompleteProfileToast = { message: string; tone: "info" | "success" | "danger" };
@@ -310,7 +311,7 @@ function CompleteProfileBody() {
               accessible
               accessibilityRole="progressbar"
               accessibilityLabel={t("completeProfile.submitHint")}
-              accessibilityValue={{ min: 0, max: 2, now: requiredProgress }}
+              {...a11yValue({ min: 0, max: 2, now: requiredProgress })}
               style={styles.progressTrack}
             >
               <View style={[styles.progressCell, ageReady && styles.progressCellDone]} />

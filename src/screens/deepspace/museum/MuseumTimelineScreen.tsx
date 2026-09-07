@@ -83,6 +83,7 @@ import {
   MUSEUM_TODAY as TODAY,
   museumTimelineStyles as styles,
 } from "./museum-timeline-styles";
+import { a11yValue } from "@/lib/a11y/accessibility-value";
 
 const DECADES = canonMuseum.decades;
 const MUSEUM_IDS = new Set(MUSEUM.map((event) => event.id));
@@ -505,12 +506,12 @@ export function MuseumTimelineScreen() {
             accessible
             accessibilityRole="adjustable"
             accessibilityLabel={t("deepspace:museum.seekYear")}
-            accessibilityValue={{
+            {...a11yValue({
               min: MZ.START,
               max: MUSEUM_VISIBLE_MAX_YEAR,
               now: year,
               text: String(year),
-            }}
+            })}
             accessibilityActions={[
               { name: "decrement", label: t("deepspace:museum.prevEvent") },
               { name: "increment", label: t("deepspace:museum.nextEvent") },
