@@ -516,6 +516,8 @@
   "reviewRatifiedMoved": "Confirmado. Pasó a accionable (L{{level}}).",
   "reviewOpenRecord": "Abrir el registro {{title}}",
   "connectionConfirmed": "Conexión confirmada.",
+  "connectionsFound": "Abajo tienes nuevas sugerencias de conexión.",
+  "connectionsNoneFound": "Esta vez no se encontraron conexiones nuevas.",
   "suggestionDismissed": "Sugerencia descartada.",
   "career": {
     "screenTitle": "Carrera",
