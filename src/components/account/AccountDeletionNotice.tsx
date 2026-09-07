@@ -22,16 +22,21 @@ export function useAccountDeletionNotice(): AccountDeletionNotice | null {
   );
 }
 
-// ⚠ 여기 문구 하나가 서버보다 부드럽다. main 의 영수증에서 세 값의 뜻은
-// (delete-bulk.ts): true = 확인됨 · false = 서버가 "끝내지 못했다"고 보고함 ·
-// null = 아무 말 없음. 그런데 false 가 "Absence could not be confirmed"(확인하지
-// 못했다)로 읽힌다 - 확인에 실패한 것과 서버가 안 됐다고 말한 것은 사용자에게
-// 다른 사실이다.
+// 세 값은 세 가지 다른 사실이다 (delete-bulk.ts:200-221):
+//   true  = 확인됨
+//   false = 서버가 그 정리를 끝내지 못했다고 **보고**함
+//   null  = 서버가 아무 말도 안 함 (옛 배포는 필드 자체가 없다)
+// 받는 사람이 **다음에 할 행동이 다르다** - 서버가 못 끝냈다고 말했으면
+// 문의할 일이고, 아무 말도 안 했으면 확인할 일이다. 그래서 세 키를 가른다.
 //
-// 이 회차에서 고치지 않는다. 고치려면 5개 언어에 안전 문구를 새로 쓰는 일이고,
-// 그건 이 배선과 함께 서두를 일이 아니다. R31-ACCOUNT-01 로 남긴다.
+// R31-ACCOUNT-01 닫힘: false 가 "Absence could not be confirmed" 로 읽힐 때는
+// 서버가 실제로 말한 것보다 부드러워서, 무응답(null)과 같은 문장으로 읽혔다.
+// 옆 하네스(account-deletion-notice.test.ts)는 키 집합과 일부 문구
+// (title·notReported·scope·support)를 못박고 es/pt/id === en 도 고정하지만,
+// **이 세 값이 고르는 문구 자체**는 못박지 않았다 - 그래서 한국어만 바꾸는
+// 변이가 그 하네스를 통째로 통과한다. 그 층은 deletion-receipt-copy.test.ts 가 덮는다.
 const observationKey = (value: boolean | null) =>
-  value === true ? "observedAbsent" : value === false ? "notConfirmed" : "notReported";
+  value === true ? "observedAbsent" : value === false ? "reportedUnfinished" : "notReported";
 
 /** Display-only completion receipt. No deletion, remote retry, or persistent data. */
 export function AccountDeletionNoticePanel({ notice }: { notice: AccountDeletionNotice }) {

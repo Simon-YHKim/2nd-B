@@ -176,7 +176,7 @@
       "profile": "Account profile row",
       "rawClippings": "Raw clipping files",
       "observedAbsent": "Observed absent when checked.",
-      "notConfirmed": "Absence could not be confirmed.",
+      "reportedUnfinished": "The server reported this was not finished. This does not undo the confirmed account deletion.",
       "notReported": "No usable result was returned for this check.",
       "localTitle": "Local app data",
       "localPurge": {

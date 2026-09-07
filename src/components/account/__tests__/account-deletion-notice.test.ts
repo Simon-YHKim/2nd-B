@@ -155,7 +155,7 @@ test("details start collapsed and expose each remote observation without claimin
   expect(screen.render().find(node => node.props?.testID === "account-deletion-details")?.props?.["aria-expanded"]).toBe(true);
   expect(textKeys(screen.render())).toEqual(expect.arrayContaining([
     "account.deletionReceipt.profile", "account.deletionReceipt.rawClippings", "account.deletionReceipt.observedAbsent",
-    "account.deletionReceipt.notConfirmed", "account.deletionReceipt.scope", "account.deletionReceipt.subscription", "account.deletionReceipt.support",
+    "account.deletionReceipt.reportedUnfinished", "account.deletionReceipt.scope", "account.deletionReceipt.subscription", "account.deletionReceipt.support",
   ]));
   screen.press("account-deletion-details");
   expect(textKeys(screen.render())).not.toContain("account.deletionReceipt.profile");
@@ -169,7 +169,7 @@ test("the fixed dark card keeps its text in the existing ForceDark subtree", () 
   screen.unmount();
 });
 
-test.each([[true, "observedAbsent"], [false, "notConfirmed"], [null, "notReported"]] as const)("preserves three-valued remote results: %s", (value, key) => {
+test.each([[true, "observedAbsent"], [false, "reportedUnfinished"], [null, "notReported"]] as const)("preserves three-valued remote results: %s", (value, key) => {
   const screen = mountPanel(notice({ receipt: { deleted: true, profileErased: value, rawClippingsErased: value } }));
   screen.press("account-deletion-details");
   expect(textKeys(screen.render()).filter(text => text === `account.deletionReceipt.${key}`)).toHaveLength(2);
