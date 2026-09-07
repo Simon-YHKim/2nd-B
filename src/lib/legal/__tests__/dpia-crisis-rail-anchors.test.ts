@@ -34,6 +34,8 @@ interface Anchor {
 const S = "src/lib/llm/safety.ts";
 const C = "src/lib/safety/classifier.ts";
 const P = "src/lib/privacy/prefs.ts";
+const R = "src/lib/ops/recommend.ts";
+const A = "src/lib/auth/consent-age.ts";
 
 const ANCHORS: Anchor[] = [
   { cite: `${S}:408-438`, symbol: "fixedCrisisResponse",
@@ -66,6 +68,18 @@ const ANCHORS: Anchor[] = [
     why: "실제로 토글로 그려지는 셋. D-12 정직성 제약." },
   { cite: `${P}:137-140`, symbol: "isPrivacyPrefEditable",
     why: "미성년 UI 잠금. 서버 클램프와 짝을 이루는 클라이언트 쪽." },
+  { cite: `${R}:127-134`, symbol: "recommendationsAllowed",
+    why: "추천이 명시적 동의 없이는 안 도는 게이트. D-20 이 열어 둔 구멍을 닫은 자리." },
+  { cite: `${R}:235`, symbol: "exportUserWiki",
+    why: "저널이 프롬프트에 안 들어간다는 주장의 **실제 근거**. includeRecords 를 안 넘기는 그 호출." },
+  { cite: `${R}:248-250`, symbol: "UNTRUSTED",
+    why: "스냅샷을 신뢰하지 않는 데이터로 감싸는 자리. 클립된 페이지가 프롬프트를 조종하지 못한다는 주장." },
+  { cite: `${R}:199-273`, symbol: "recommendForDomain",
+    why: "추천이 무엇을 프로파일링하는지 - 그 함수 자체." },
+  { cite: `${A}:28-33`, symbol: "DIGITAL_CONSENT_AGE",
+    why: "어느 나라 동의 연령이 적용되는가 - 미성년 DPIA 에서 이보다 무거운 표는 없다." },
+  { cite: `${A}:108-121`, symbol: "deviceRegionCode",
+    why: "그 표에 실제로 닿는 해석기. 2026-08-16 에 기기 지역 신호가 붙었는데 문서는 다섯 자리에서 '신호 없음'이라 적고 있었다." },
 ];
 
 function slice(cite: string): { file: string; text: string; lines: number } {
@@ -86,6 +100,23 @@ test("문서가 이 인용들을 실제로 담고 있다", () => {
   // 표만 맞고 문서가 다른 숫자를 적고 있으면 이 검사는 아무것도 안 지킨다.
   const missing = ANCHORS.filter(a => !doc.includes("`" + a.cite + "`")).map(a => a.cite);
   expect(missing).toEqual([]);
+});
+
+test("표 자체가 코드에 대해 참이다", () => {
+  // ⚠ 이 검사를 한 번 **없앴다가** 변이 검증이 잡아서 되살렸다. 아래 인접
+  // 검사로 갈아끼웠는데, 그건 **문서가 심볼 이름을 인용 옆에 적었을 때만**
+  // 발동한다. 문서가 "fenced as untrusted" 라고 소문자 산문으로 쓰면 앵커
+  // `UNTRUSTED` 는 한 번도 대조되지 않는다 - 표가 코드에 대해 거짓이어도
+  // 아무도 모른다.
+  //
+  // 둘은 다른 명제다:
+  //   이 검사  - 표가 코드에 대해 참인가 (문서와 무관)
+  //   아래 검사 - 문서가 그 표와 어긋나지 않는가
+  // 하나로 합칠 수 없다.
+  const broken = ANCHORS.filter(a => !slice(a.cite).text.includes(a.symbol)).map(
+    a => `${a.cite} 안에 ${a.symbol} 없음 - ${a.why}`,
+  );
+  expect(broken).toEqual([]);
 });
 
 test("그 심볼을 말하는 모든 줄에서, 그 파일 인용이 심볼을 담는다", () => {
