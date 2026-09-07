@@ -141,7 +141,7 @@ describe("callAdvisor — output re-classification (CSO #1 fix)", () => {
     expect(r.triggers).toContain("output_swap");
     expect(auditMock).toHaveBeenCalledTimes(1);
     expect(auditMock.mock.calls[0]![0]!.safetyZone).toBe("red");
-    expect(auditMock.mock.calls[0]![0]!.modelUsed).toMatch(/\+swap:red-en-v2/);
+    expect(auditMock.mock.calls[0]![0]!.modelUsed).toMatch(/\+swap:red-en-v3/);
     expect(crisisMock).toHaveBeenCalledTimes(1);
     expect(crisisMock.mock.calls[0]![0]!.triggerCategories).toContain("output_swap");
   });
