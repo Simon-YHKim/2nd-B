@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/Button";
 import { BirthDateField } from "@/components/auth/BirthDateField";
 import { GoalField, NameField } from "@/components/auth/ProfileIntakeFields";
 import { saveNorthstar } from "@/lib/persona/northstar";
+import { CrisisRouter } from "@/components/safety/CrisisRouter";
+import type { HotlineId } from "@/lib/safety/lexicon";
 import { deepSpace, deepSpaceSpacing, flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
@@ -58,6 +60,12 @@ function CompleteProfileBody() {
   // below unmount the toast at zero frames — this flag holds the guard open
   // until the delayed router.replace runs.
   const [judgeWelcome, setJudgeWelcome] = useState(false);
+  // Holds the redirect open the same way judgeWelcome does, so a red-zone
+  // North Star sentence gets its hotline before the app swallows the screen.
+  const [crisis, setCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
+    visible: false,
+    hotline: "KR_109",
+  });
   const [consent, setConsent] = useState(emptyConsentSelections());
   const [toast, setToast] = useState<CompleteProfileToast | null>(null);
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
@@ -131,7 +139,7 @@ function CompleteProfileBody() {
   // judge welcome: the submit flow refreshes the context (hasProfile flips
   // true) BEFORE the handler navigates, and this guard must not unmount the
   // screen (killing toasts and the handler's own navigation) in that window.
-  if (userId && hasProfile && !submitting && !judgeWelcome) {
+  if (userId && hasProfile && !submitting && !judgeWelcome && !crisis.visible) {
     return <Redirect href="/" />;
   }
 
@@ -177,12 +185,29 @@ function CompleteProfileBody() {
         // Best-effort by design, and the ordering matters: this runs AFTER the
         // profile exists and never gates entry. A failed sentence write must not
         // strand someone outside the app over an optional field they typed once.
+        // saveNorthstar's own contract: createRecord runs the C9 classifier on
+        // every save and reports a red zone via followup, and "the screen must
+        // surface the hotline modal instead of navigating away"
+        // (src/lib/persona/northstar.ts:66-68). This screen discarded it and
+        // replaced straight to "/" - the sentence is typed during sign-up, so a
+        // 14-17 user in a red zone was pushed into the app with nothing shown.
+        let northstarRedZone = false;
         if (goal.trim() && userId) {
           try {
-            await saveNorthstar({ userId, locale, sentence: goal, minor: isMinorAge });
+            const seeded = await saveNorthstar({ userId, locale, sentence: goal, minor: isMinorAge });
+            northstarRedZone = seeded.followup?.zone === "red";
           } catch (e) {
             console.error("[complete-profile] northstar seed failed", e);
           }
+        }
+        if (northstarRedZone) {
+          // The profile exists and the guard above is held open; closing the
+          // modal lets the normal redirect through. Entry is never blocked.
+          setCrisis({
+            visible: true,
+            hotline: locale === "ko" ? (isMinorAge ? "KR_1388" : "KR_109") : "GLOBAL_988",
+          });
+          return;
         }
         // The context already knows hasProfile=true (flow refreshed), so the
         // "/" guard lets the user through instead of bouncing back here — the
@@ -355,6 +380,11 @@ function CompleteProfileBody() {
           <PremiumToast message={toast.message} tone={toast.tone} />
         </View>
       ) : null}
+      <CrisisRouter
+        visible={crisis.visible}
+        hotline={crisis.hotline}
+        onClose={() => setCrisis((c) => ({ ...c, visible: false }))}
+      />
     </SafeAreaView>
   );
 }

@@ -25,6 +25,8 @@ import { PremiumLoadingState } from "@/components/premium";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { canonCareerInput } from "@/lib/canon";
 import { createRecord } from "@/lib/records/create";
+import { CrisisRouter } from "@/components/safety/CrisisRouter";
+import type { HotlineId } from "@/lib/safety/lexicon";
 import { domainTagFor } from "@/lib/persona/domain-stars";
 import {
   EMPTY_ACHIEVEMENT_FORM,
@@ -51,6 +53,10 @@ export default function CareerInputScreen() {
   const [tagDrafts, setTagDrafts] = useState({ tools: "", skills: "", theories: "" });
   const [saving, setSaving] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
+  const [crisis, setCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
+    visible: false,
+    hotline: "KR_109",
+  });
   const [kpiSeq, setKpiSeq] = useState(0);
 
   const set = useCallback(
@@ -104,7 +110,11 @@ export default function CareerInputScreen() {
     setSaveFailed(false);
     try {
       const year = achievementYear(form);
-      await createRecord({
+      // C9: a note save runs the local crisis classifier and returns a red zone
+      // as a fixed-template followup rather than throwing. This handler used to
+      // drop it and replace straight to /career - saved to the safety ledger,
+      // shown to the user nowhere (capture.tsx:2497, northstar.tsx:141).
+      const res = await createRecord({
         userId,
         locale,
         minor: isMinor === true,
@@ -113,6 +123,13 @@ export default function CareerInputScreen() {
         topic: form.summary.trim().slice(0, 80),
         tags: ["career_achievement", CAREER_TAG, ...(year ? [`year:${year}`] : [])],
       });
+      if (res.followup?.zone === "red") {
+        setCrisis({
+          visible: true,
+          hotline: locale === "ko" ? (isMinor === true ? "KR_1388" : "KR_109") : "GLOBAL_988",
+        });
+        return;
+      }
       // Back to the timeline rather than a success screen: the entry the user
       // just wrote is the confirmation, and it is one screen away.
       router.replace("/career");
@@ -336,6 +353,11 @@ export default function CareerInputScreen() {
           {t("deepspace:careerInput.requiredNote")}
         </Text>
       </ScrollView>
+      <CrisisRouter
+        visible={crisis.visible}
+        hotline={crisis.hotline}
+        onClose={() => setCrisis((c) => ({ ...c, visible: false }))}
+      />
     </DeepSpaceScreen>
   );
 }
