@@ -1,49 +1,49 @@
 {
-  "loading": "정체성 내보내기를 불러오는 중입니다...",
+  "loading": "내보내기 화면을 불러오는 중…",
   "hero": {
-    "eyebrow": "정체성 내보내기",
-    "title": "나를 하나의 포터블 파일로",
-    "subtitle": "어떤 AI든 읽는 파일, 그리고 내가 읽는 한 장의 프로필",
-    "speech": "어떤 비서든 집어 들고 이해할 수 있는 '나'입니다."
+    "eyebrow": "나의 정보 내보내기",
+    "title": "나에 대한 정보를 파일 하나에",
+    "subtitle": "다른 AI에 전할 파일과 한 장짜리 프로필",
+    "speech": "나에 대한 정보를 다른 AI에도 전달할 수 있어요."
   },
   "intro": {
-    "body": "IDEN은 내가 나에 대해 알게 된 것을 하나의 포터블 파일로 모읍니다. 어떤 AI에든 붙여넣어 내 맥락을 주거나, 한 장짜리 시트를 열어 보세요."
+    "body": "IDEN은 나에 대해 알게 된 내용을 파일 하나로 모아요. 다른 AI에 붙여 넣어 나를 설명하거나, 한 장짜리 프로필로 볼 수 있어요."
   },
   "generate": {
     "button": "내 IDEN 만들기",
-    "accessibilityHint": "저장된 데이터로 정체성 파일을 생성합니다."
+    "accessibilityHint": "저장된 데이터로 나에 대한 정보 파일을 만들어요."
   },
   "result": {
-    "title": "IDEN이 준비됐습니다",
-    "hint": "ChatGPT, Gemini, Claude에 붙여넣어 내 맥락을 전하세요. 요청은 맨 아래에 적으면 됩니다.",
+    "title": "IDEN이 준비됐어요",
+    "hint": "ChatGPT, Gemini, Claude에 붙여 넣으면 나에 대한 정보를 전할 수 있어요. 요청할 내용은 맨 아래에 적어 주세요.",
     "copy": ".iden 복사",
-    "copied": "클립보드에 복사했습니다",
+    "copied": "클립보드에 복사했어요",
     "share": "공유",
-    "openSheet": "한 장 시트 열기",
+    "openSheet": "한 장짜리 프로필 열기",
     "close": "닫기"
   },
-  "error": "IDEN을 만들지 못했습니다. 새로고침한 뒤 다시 시도해 주세요.",
+  "error": "IDEN을 만들지 못했어요. 새로고침한 뒤 다시 시도해 주세요.",
   "entry": {
-    "eyebrow": "정체성 내보내기",
-    "body": "나에 대해 알게 된 것을 어떤 AI든 읽는 하나의 포터블 파일과 한 장 프로필로 만듭니다.",
-    "button": "정체성 내보내기 열기",
-    "accessibilityHint": "IDEN 정체성 내보내기 화면을 엽니다."
+    "eyebrow": "나의 정보 내보내기",
+    "body": "나에 대해 알게 된 내용을 다른 AI에 전달할 파일과 한 장짜리 프로필로 만들어요.",
+    "button": "나의 정보 내보내기",
+    "accessibilityHint": "IDEN 내보내기 화면을 열어요."
   },
   "ds": {
-    "screenTitle": "IDEN · 포터블 정체성",
-    "loading": "불러오는 중입니다…",
-    "loadError": "IDEN을 불러오지 못했습니다.",
+    "screenTitle": "IDEN · 나의 정보 내보내기",
+    "loading": "불러오는 중이에요…",
+    "loadError": "IDEN을 불러오지 못했어요.",
     "retry": "다시 시도",
-    "empty": "아직 담긴 내가 없습니다. 먼저 나를 조금 담아볼까요?",
-    "startGathering": "담으러 가기",
+    "empty": "아직 내보낼 정보가 없어요. 나에 대한 기록부터 남겨보세요.",
+    "startGathering": "기록 담기",
     "signed": "서명됨",
     "whatGoesIn": "무엇을 담을까요",
     "format": "형식",
     "sendToAi": "AI에 전달",
     "export": "내보내기",
     "preview": "미리보기",
-    "jsonCopied": "JSON을 복사했습니다",
-    "copyFailed": "복사하지 못했습니다",
-    "previewWebOnly": "미리보기 시트는 웹에서 열립니다"
+    "jsonCopied": "JSON을 복사했어요",
+    "copyFailed": "복사하지 못했어요",
+    "previewWebOnly": "한 장짜리 프로필은 웹에서 미리 볼 수 있어요"
   }
 }
