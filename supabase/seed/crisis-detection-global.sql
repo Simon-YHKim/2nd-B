@@ -65,7 +65,7 @@ values
   ),
   (
     'Validation and application of the Chinese version of the Columbia-Suicide Severity Rating Scale: Suicidality and cognitive deficits in patients with major depressive disorder',
-    ARRAY['Yangyang Ji'],
+    ARRAY['Yujia Ji','Xingchang Liu','Shuqiong Zheng','Quan Zhong','Rongxin Zheng','Jin Huang','Honglei Yin'],
     '10.1016/j.jad.2023.09.014',
     'https://doi.org/10.1016/j.jad.2023.09.014',
     'crisis_detection_global',
