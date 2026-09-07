@@ -7,7 +7,7 @@
 import dayjs from "dayjs";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { digitalConsentAge, resolveJurisdiction } from "../auth/consent-age";
-import type { ConsentSelections } from "../auth/consent-selections";
+import { allRequiredAcksChecked, type ConsentSelections } from "../auth/consent-selections";
 import {
   recoverySessionIdentity,
   type RecoverySessionIdentity,
@@ -15,6 +15,8 @@ import {
 // ⚠ #1517 은 여기서 `isJudgeEmail` 도 들여왔다. 되살리지 않는다 —
 // main 의 f42f4db2 가 C6 대회 제약과 함께 src/lib/judge/domains.ts 를 통째로
 // 지웠고(CLAUDE.md C6), 이 파일에서 쓰이지도 않는다.
+// #1587 은 allRequiredAcksChecked 를 더 들여온다 — 가입 동의를 화면만이 아니라
+// 서버도 확인하기 위해서고, 아래 함수가 실제로 호출한다.
 import { getEnv } from "../env";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getSupabaseClient } from "./client";
@@ -138,6 +140,13 @@ export function ageInYears(birthDate: string, now: Date = new Date()): number {
   return dayjs(now).diff(b, "year");
 }
 
+// This revision identifies the exact consent shape and published-document
+// tuple bundled with this client. The verified-email trigger accepts only the
+// matching revision, so an older installed app cannot be stamped as if it had
+// shown newer documents. Any future document change needs a new revision and a
+// forward migration that maps it to server-owned versions.
+export const VERIFIED_EMAIL_SIGNUP_REVISION = "email-v3" as const;
+
 export interface SignUpArgs {
   email: string;
   password: string;
@@ -165,6 +174,9 @@ export type SignUpResult =
 
 export async function signUpWithEmail(args: SignUpArgs): Promise<SignUpResult> {
   if (ageInYears(args.birthDate) < MIN_SELF_CONSENT_AGE) throw new AgeGateError();
+  if (!allRequiredAcksChecked(args.consent)) {
+    throw new Error("Required consent acknowledgements are missing.");
+  }
   if (await isPasswordBreached(args.password)) throw new BreachedPasswordError();
 
   const supabase = getSupabaseClient();
@@ -174,7 +186,7 @@ export async function signUpWithEmail(args: SignUpArgs): Promise<SignUpResult> {
     options: {
       emailRedirectTo: authRedirectTo("/sign-up"),
       data: {
-        signup_flow: "email-v1",
+        signup_flow: VERIFIED_EMAIL_SIGNUP_REVISION,
         signup_birth_date: args.birthDate,
         signup_locale: args.locale ?? "en",
         signup_consent_service: args.consent.service,
