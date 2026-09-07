@@ -16,7 +16,7 @@ import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tok
 import { useAuth } from "@/lib/auth/AuthContext";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
-import { DeepSpaceDataDesignScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
+import { DeepSpaceDataScreen } from "@/screens/deepspace/dds-data-screen";
 
 function DataManagementLegacy() {
   const { t } = useTranslation("data");
@@ -133,6 +133,29 @@ const styles = StyleSheet.create({
 });
 
 export default function DataManagement() {
-  if (isDeepSpaceUI()) return <DeepSpaceDataDesignScreen />;
+  const { t } = useTranslation("data");
+  const { userId, loading, hasProfile, profileProbeFailed } = useAuth();
+
+  if (loading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={t("loading")} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+  if (profileProbeFailed || hasProfile === null) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={t("loading")} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
+  if (hasProfile === false) return <Redirect href="/complete-profile" />;
+  if (isDeepSpaceUI()) return <DeepSpaceDataScreen />;
   return <DataManagementLegacy />;
 }

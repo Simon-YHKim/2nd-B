@@ -10,7 +10,7 @@ deadline.
 
 [Master Blueprint](./docs/ARCHITECTURE.md) ·
 [Constraints](./docs/CONSTRAINTS.md) ·
-[Pre-existing assets used](./docs/ASSETS.md)
+[Bundled assets and licenses](./docs/ASSETS.md)
 
 ---
 
@@ -48,8 +48,8 @@ remote Supabase, real Gemini API calls) are deferred to Sprint 1.
 | Forbidden lexicon CI scan | done |
 | Aggregated constraints self-check | done |
 | Auth flow with birth-date age gate + email password reset (C10) | done |
-| Judge mode auto-detect (C6) | done |
-| Pre-existing assets section (C12) | done |
+| Judge mode auto-detect (C6) | retired 2026-08-21 (#1302 + migration 0138); the CI check now guards the retirement |
+| Bundled asset + license disclosure | done (was C12; the constraint retired 2026-09-06, the check stays under its own name) |
 | Support SLA section (C11) | done (auto-responder Sprint 1) |
 
 > **Age-gate jurisdiction (current):** there is no country/jurisdiction detection
@@ -93,11 +93,11 @@ npm run type-check         # tsc --noEmit
 npm run check:i18n         # C7 EN/KO key parity
 npm run check:lexicon      # forbidden vocabulary scan
 npm run check:llm-boundary # @google/genai stays in gemini.ts
-npm run check:constraints  # C1~C12 aggregate
+npm run check:constraints  # hard-constraint aggregate
 npm test                   # jest (C9 ordering, C3 audit insertion)
 ```
 
-## Pre-existing assets used
+## Bundled assets and licenses
 
 Asset provenance: see [`docs/ASSETS.md`](./docs/ASSETS.md) for
 the full registry. Summary: the codebase was initialized from a clean
@@ -114,13 +114,14 @@ days (KST)**. Channels:
   `sla:2-business-days` on creation.
 - `support@` email (auto-responder enabled from Sprint 1).
 
-Reviewer accounts: emails from `@xprize.org`, `@devpost.com`, or
-`@hacker.fund` are still auto-recognized on sign-up and receive
-unlimited free access (C6). That rule is left over from a contest entry
-that ended on 2026-08-15. It stays for now because the same check is
-wired into the app, a DB trigger, and the test suite at once, so it has
-to come out in one deliberate change rather than piecemeal. See
-`CLAUDE.md`.
+Reviewer accounts: **retired.** Sign-up no longer recognises any email
+domain specially. `JUDGE_DOMAINS` is empty and `isJudgeEmail()` returns
+false for every address (`src/lib/judge/domains.ts`), and migration 0138
+dropped the `auto_judge_mode()` database trigger. The contest this rule
+came from ended on 2026-08-15. The C6 constraint is still checked in CI,
+but it now guards the retirement rather than the feature. The
+`users.judge_mode` column and its comp branch stay on purpose so an
+account can still be comped by hand. See `CLAUDE.md`.
 
 ## License
 

@@ -1,15 +1,46 @@
 name: CI
 
+# D7-01 (CI audit 2026-09-05): `push: branches: ["**"]` + `pull_request` ran the
+# same verify twice for every push to a PR branch (414 duplicate pull_request
+# runs in 10.6 days, ~9,100 job-minutes/month). Branch protection only requires
+# the `verify` context and `pull_request` produces it, so PR branches run once.
+#
+# D7-02 (Simon decision Q-260905-09, 2026-09-06): `push: branches: [main]` is
+# gone too. web-deploy.yml already runs the identical `npm run verify` on every
+# push to main and then does a real static export, which is a superset of this
+# workflow's web-export-smoke. Running both meant ~447 duplicate runs a month.
+#
+# What that trades away, stated once so nobody rediscovers it as a surprise:
+# main's verification now has a single owner. If web-deploy.yml is edited in a
+# way that skips or breaks its verify step, nothing else re-checks main. Treat
+# the verify step in web-deploy.yml as load-bearing.
 on:
-  push:
-    branches: ["**"]
   pull_request:
+
+# D7-03: pure verification workflow (no deploy side effects), so a newer push
+# to the same ref cancels the run it supersedes. `refs/heads/*` (push) and
+# `refs/pull/N/merge` (pull_request) are distinct groups and never cancel each
+# other. web-deploy.yml keeps cancel-in-progress: false because it publishes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege: this workflow only reads the repo (checkout + local tooling).
+# It never uses GITHUB_TOKEN to write, so it does not inherit the repository's
+# default token scope. Audited 2026-09-06 (C-22): ci.yml, pr-title.yml and
+# supabase-dry-run.yml were the three workflows with no permissions block.
+permissions:
+  contents: read
 
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # No file is in LFS yet. This is here so the day one is, CI does not
+          # silently read a 130-byte pointer instead of the file (2026-09-06).
+          lfs: true
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -43,6 +74,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # No file is in LFS yet. This is here so the day one is, CI does not
+          # silently read a 130-byte pointer instead of the file (2026-09-06).
+          lfs: true
       - uses: actions/setup-node@v4
         with:
           node-version: "22"

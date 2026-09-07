@@ -10,10 +10,10 @@
   "evidence": "Terbuat dari apa cahaya ini",
   "ratLog": "Lihat catatan konfirmasi",
   "emptyBody": "Belum cukup riwayat untuk digambar. Selesaikan pemeriksaan dan setujui usulan, lalu jejaknya akan terkumpul di sini.",
-  "honestyLine": "{{obs}} observasi · {{cited}} berdasar bukti · {{stars}} bintang",
+  "honestyLine": "{{obs}} pembaruan kecerahan · {{cited}} dengan sumber · {{stars}} bintang",
   "citedRatioLabel": "Rasio berdasar bukti {{cited}} dari {{obs}}",
-  "honestyCaption": "Kecerahan adalah seberapa banyak yang tercatat, bukan kepastian. Kutipan membuatnya lebih tepercaya.",
+  "honestyCaption": "Kecerahan menunjukkan seberapa jauh kamu membahas suatu masa atau topik dalam hidupmu. Ini bukan ukuran keakuratan hasil. Periksa juga sumbernya.",
   "reviewCta": "Tinjau usulan",
   "subtitle": "8 minggu · tujuh bintang",
-  "rule": "Terang naik sejauh kamu menggali. Minggu kosong dibiarkan kosong."
+  "rule": "Setiap minggu menampilkan kecerahan terakhir yang tercatat. Minggu sebelum catatan pertama tetap kosong."
 }

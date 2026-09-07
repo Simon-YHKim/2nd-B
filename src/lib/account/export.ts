@@ -1,11 +1,6 @@
-// Account data export (GDPR Art.20 / PIPA right to data portability).
-//
-// Invokes the export-account Edge Function (service role), which gathers every
-// user-owned table + the raw-clippings bucket into a structured JSON bundle. This
-// is the only path that reaches RLS-narrowed tables (personas, memorized_patterns,
-// the append-only consent_records ledger), the same reason delete-account runs
-// service-role. Closes the DPIA Art.20 PRIMARY GAP (the prior export was an
-// LLM-context markdown bundle, not a structured all-tables export).
+// Structured export of the server's declared account-data scope. A v1 response
+// can contain partial read failures and intentional exclusions. It is neither
+// a complete backup nor proof that a statutory access/portability duty is met.
 
 import { getSupabaseClient } from "../supabase/client";
 
@@ -20,15 +15,55 @@ export interface AccountExport {
   errors: Record<string, string>;
 }
 
-/** Request the full structured export bundle for the signed-in user. Requires the
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function isStringRecord(value: unknown): value is Record<string, string> {
+  return isRecord(value) && Object.values(value).every((item) => typeof item === "string" && item.length > 0);
+}
+
+/** Validate the versioned envelope, not the completeness of its table inventory.
+ * v1 has no fixed inventory manifest; an unreported omission cannot be proved
+ * absent by this client. Unknown versions require an explicit compatibility review. */
+function isAccountExport(value: unknown): value is AccountExport {
+  if (!isRecord(value) || value.kind !== "2nd-b-account-export" || value.schema_version !== 1 ||
+      typeof value.exported_at !== "string" || !Number.isFinite(Date.parse(value.exported_at)) ||
+      typeof value.user_id !== "string" || !value.user_id.trim() || !isRecord(value.tables) ||
+      !isStringRecord(value.excluded) || !isStringRecord(value.errors) || !Array.isArray(value.storage)) return false;
+  return value.storage.every((entry: unknown) => isRecord(entry) &&
+    typeof entry.path === "string" && entry.path.length > 0 &&
+    ((typeof entry.markdown === "string" && entry.error === undefined) ||
+     (typeof entry.error === "string" && entry.error.length > 0 && entry.markdown === undefined)));
+}
+
+export interface AccountExportSummary {
+  tableCount: number;
+  fileCount: number;
+  failedItems: number;
+  excludedCategories: number;
+}
+
+/** Zero reported failures means only that: exclusions and unreported scope gaps
+ * are not automatically classified as success, nor as download errors. */
+export function summarizeAccountExport(bundle: AccountExport): AccountExportSummary {
+  return {
+    tableCount: Object.keys(bundle.tables).length,
+    fileCount: bundle.storage.filter((entry) => entry.error === undefined).length,
+    failedItems: Object.keys(bundle.errors).length + bundle.storage.filter((entry) => entry.error !== undefined).length,
+    excludedCategories: Object.keys(bundle.excluded).length,
+  };
+}
+
+/** Request the structured export bundle for the signed-in user. Requires the
  *  export-account function to be deployed; throws otherwise so the caller can decide
  *  how to surface it. */
-export async function requestAccountExport(): Promise<AccountExport> {
+export async function requestAccountExport(expectedOwner?: string): Promise<AccountExport> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase.functions.invoke("export-account", { body: {} });
   if (error) throw error;
-  const out = data as AccountExport | null;
-  if (!out || out.kind !== "2nd-b-account-export") {
+  const out: unknown = data;
+  if (!isAccountExport(out) || (expectedOwner !== undefined && out.user_id !== expectedOwner)) {
     throw new Error("account export did not complete");
   }
   return out;

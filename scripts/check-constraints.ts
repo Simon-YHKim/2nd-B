@@ -1,11 +1,13 @@
-// Aggregated C1~C12 self-check. CI runs this after all other checks pass.
+// Aggregated hard-constraint self-check. CI runs this after all other checks
+// pass. C2, C6 and C12 were retired on 2026-09-06 (Simon decision
+// Q-260905-02); their numbers are not reused.
 // Each check does static inspection only (no DB connection, no SDK calls).
 
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-import { JUDGE_DOMAINS } from "../src/lib/judge/domains";
 import { FORBIDDEN_TERMS, CRISIS_TERMS } from "../src/lib/safety/lexicon";
+import { describeOwners, findMainVerifyOwners } from "./main-verify-owner";
 
 const ROOT = process.cwd();
 
@@ -50,23 +52,14 @@ results.push(
   }),
 );
 
-results.push(
-  check("C2", () => {
-    const wrapper = read("src/lib/llm/boundary.ts");
-    const envFile = read("src/lib/env.ts");
-    const ok =
-      wrapper.includes("vertexai: true") &&
-      envFile.includes("EXPO_PUBLIC_USE_VERTEX") &&
-      envFile.includes("GOOGLE_CLOUD_PROJECT");
-    return {
-      id: "C2",
-      status: ok ? "PASS" : "FAIL",
-      note: ok
-        ? "wrapper branches on EXPO_PUBLIC_USE_VERTEX; env requires GOOGLE_CLOUD_PROJECT when vertex"
-        : "Vertex AI branching incomplete",
-    };
-  }),
-);
+// C2 is gone (Simon decision Q-260905-02, 2026-09-06). It required
+// `vertexai: true` in the LLM boundary plus GOOGLE_CLOUD_PROJECT in env,
+// because the contest asked entries to use a Google Cloud product. The contest
+// ended 2026-08-15, so the requirement has no author left. The Vertex code it
+// pinned is still there and still works; it is now free to leave with the rest
+// of the Gemini retirement (#1505) instead of being held in place by a rule
+// nobody is enforcing. Numbers are not reused: C2 stays retired so that older
+// audits, CLAUDE.md and AGENTS.md keep pointing at the same thing.
 
 results.push(
   check("C3", () => {
@@ -120,82 +113,15 @@ results.push(
   }),
 );
 
-results.push(
-  // C6 was "auto-flag judge emails". The contest ended 2026-08-15 and Simon
-  // ordered the remnant removed on 2026-08-21 (REQ-260820-04), so the check now
-  // guards the RETIREMENT instead of the feature. Kept as C6 rather than
-  // renumbered: the id is referenced from CLAUDE.md, AGENTS.md and past audits,
-  // and a silently reused number is worse than a retired one.
-  //
-  // What it must prevent coming back, and why each half matters:
-  //   - a comp domain in JUDGE_DOMAINS. Comp by email domain granted the TOP
-  //     PAID TIER from a string the user picks at sign-up.
-  //   - the email-domain DERIVATION. enforce_judge_mode() was doing double duty as the
-  //     privilege guard, because the "column-level revoke" 0011's comment
-  //     promised did not actually exist (measured on prod 2026-08-21: anon and
-  //     authenticated both held UPDATE on users.judge_mode).
-  //
-  //     [!] The first draft of 0138 answered that by revoking the column and
-  //     dropping both triggers. A production dry run showed the revoke is a
-  //     NO-OP: anon/authenticated hold TABLE-level privileges on public.users,
-  //     and a column REVOKE cannot cut a table GRANT. Dropping the guard on the
-  //     strength of it would have opened self-escalation to the top paid tier.
-  //     So 0138 now REPLACES enforce_judge_mode() with a pure guard instead of
-  //     dropping it, and this check follows: the derivation must be gone, the
-  //     guard must still be sitting in the trigger seat.
-  check("C6", () => {
-    const libEmpty = JUDGE_DOMAINS.length === 0;
-    const retire = read("db/migrations/0138_retire_judge_auto_flag.sql");
-    const revoked =
-      /REVOKE UPDATE \(judge_mode\) ON public\.users FROM anon, authenticated/.test(retire) &&
-      /REVOKE INSERT \(judge_mode\) ON public\.users FROM anon, authenticated/.test(retire);
-    // The INSERT-side derivation goes away outright: an INSERT has no OLD row
-    // to compare against, so there is nothing there for a guard to do.
-    const dropped = retire.includes("DROP FUNCTION IF EXISTS public.auto_judge_mode()");
-    // The UPDATE-side seat keeps a trigger, but it must no longer read the
-    // email. Checking for the ABSENCE of the derivation is the point: a check
-    // that merely asserted "a function exists" would have passed the original.
-    // Comments are stripped first, so the header may narrate the retired
-    // domains without failing the check and, more importantly, executable SQL
-    // cannot hide behind prose.
-    const retireSql = retire.replace(/^\s*--.*$/gm, "");
-    const guarded =
-      retire.includes("CREATE OR REPLACE FUNCTION public.enforce_judge_mode()") &&
-      retire.includes("CREATE TRIGGER trg_users_enforce_judge") &&
-      !/split_part\s*\(\s*NEW\.email/.test(retireSql) &&
-      !/xprize\.org|devpost\.com|hacker\.fund/.test(retireSql);
-    // No LATER migration may re-create them. 0010/0011 still contain the
-    // originals and are history, so only files above 0138 are scanned.
-    const revived = readdirSync(join(ROOT, "db", "migrations"))
-      .filter((f) => f.endsWith(".sql"))
-      // Numeric comparison rather than a filename pattern: the previous regex
-      // skipped 0139 entirely, which is the very next file anyone would write.
-      .filter((f) => Number.parseInt(f.slice(0, 4), 10) > 138)
-      // What must not come back is the DERIVATION, not a function name. The
-      // name check this used to be flagged 0139's enforce_judge_mode_insert(),
-      // which is a GUARD closing the INSERT path 0138 leaves open - the
-      // opposite of a revival. Matching on the behaviour is both stricter
-      // (a differently named function reading NEW.email is caught) and
-      // correct (a guard is not a revival). Comments stripped, so a migration
-      // may narrate the history without failing, and cannot hide SQL in prose.
-      .filter((f) => {
-        const sql = read(`db/migrations/${f}`).replace(/^\s*--.*$/gm, "");
-        return (
-          /CREATE (OR REPLACE )?FUNCTION [^\n]*auto_judge_mode/.test(sql) ||
-          /split_part\s*\(\s*NEW\.email/.test(sql) ||
-          /xprize\.org|devpost\.com|hacker\.fund/.test(sql)
-        );
-      });
-    const ok = libEmpty && revoked && dropped && guarded && revived.length === 0;
-    return {
-      id: "C6",
-      status: ok ? "PASS" : "FAIL",
-      note: ok
-        ? "judge comp retired: JUDGE_DOMAINS empty, 0138 drops the email derivation and keeps a pure write guard, no revival"
-        : `judge retirement incomplete: domains=${JUDGE_DOMAINS.length} revoked=${revoked} dropped=${dropped} guarded=${guarded} revived=[${revived.join(", ")}]`,
-    };
-  }),
-);
+// C6 is gone (Simon decision Q-260905-02, 2026-09-06). It guarded the
+// RETIREMENT of the judge-email comp flag after #1302 and migration 0138 took
+// the feature out. With src/lib/judge/domains.ts deleted in this change there
+// is no JUDGE_DOMAINS array left to re-fill and no client that reads one, so
+// the guard has nothing to hold. What it protected against on the DB side --
+// a trigger deriving privilege from an email domain -- stays gone in 0138,
+// which is applied to production. The users.judge_mode column and its comp
+// branch are still there ON PURPOSE (#1302) and removing them is a migration,
+// not a code change.
 
 results.push(
   check("C7", () => {
@@ -640,7 +566,15 @@ results.push(
   }),
 );
 
-// C12 — pre-existing / bundled asset disclosure (rulebook §04).
+// Bundled asset + licence disclosure. This began as C12, a contest rulebook
+// requirement, and the contest ended 2026-08-15. Simon retired the constraint on
+// 2026-09-06 (Q-260905-02) and it is no longer numbered -- but the duty it was
+// accidentally enforcing is real and outlives the rulebook: the fonts we ship
+// are SIL OFL, which requires the copyright and Reserved Font Name notice to
+// travel with them, and docs/ASSETS.md is the only place that records it. So the
+// mechanism survives its constraint under its own name, like the Cost check
+// below. Delete it if you want the disclosure to be voluntary; it is about
+// twenty lines.
 //
 // The README heading is necessary but NOT sufficient. Until 2026-08-06 this check
 // was a single grep for that heading, so it reported PASS while 226 committed
@@ -649,19 +583,21 @@ results.push(
 //
 // Pack granularity, not per-file: listing 226 filenames in a disclosure document
 // helps nobody and would make this fire on every crop. A pack is
-// `public/assets/<pack>` (the art packs sit one level deeper) or `<top>/<dir>`.
+// `public/assets/<pack>` or `assets/legacy-art/<pack>` (the art packs sit one level
+// deeper; the three require()-only packs moved out of public/ on 2026-09-05 so the
+// web export stops shipping them twice) or `<top>/<dir>`.
 //
 // Loose files directly under assets/ or public/ are skipped. Those are almost
 // always untracked scratch files on a developer machine, and failing a local run
 // on them trains people to disable the check. Anything inside a directory counts.
-const C12_IMAGE_RE = /\.(png|jpe?g|svg|webp|gif|avif)$/i;
+const ASSET_IMAGE_RE = /\.(png|jpe?g|svg|webp|gif|avif)$/i;
 
 function c12CollectImages(rel: string, out: string[] = []): string[] {
   if (!exists(rel)) return out;
   for (const entry of readdirSync(join(ROOT, rel))) {
     const child = `${rel}/${entry}`;
     if (statSync(join(ROOT, child)).isDirectory()) c12CollectImages(child, out);
-    else if (C12_IMAGE_RE.test(entry)) out.push(child);
+    else if (ASSET_IMAGE_RE.test(entry)) out.push(child);
   }
   return out;
 }
@@ -669,16 +605,17 @@ function c12CollectImages(rel: string, out: string[] = []): string[] {
 function c12PackOf(path: string): string | null {
   const seg = path.split("/");
   if (seg.length < 3) return null; // loose file directly under assets/ or public/
-  return seg[0] === "public" && seg[1] === "assets" ? seg.slice(0, 3).join("/") : seg.slice(0, 2).join("/");
+  const nested = (seg[0] === "public" && seg[1] === "assets") || (seg[0] === "assets" && seg[1] === "legacy-art");
+  return nested ? seg.slice(0, 3).join("/") : seg.slice(0, 2).join("/");
 }
 
 results.push(
-  check("C12", () => {
+  check("AssetLicenseDisclosure", () => {
     const readme = read("README.md");
-    if (!/pre-existing assets used/i.test(readme))
-      return { id: "C12", status: "FAIL", note: "README missing required section per rulebook §04" };
+    if (!/bundled assets and licenses/i.test(readme))
+      return { id: "AssetLicenseDisclosure", status: "FAIL", note: "README missing the bundled-asset disclosure section" };
 
-    if (!exists("docs/ASSETS.md")) return { id: "C12", status: "FAIL", note: "docs/ASSETS.md registry missing" };
+    if (!exists("docs/ASSETS.md")) return { id: "AssetLicenseDisclosure", status: "FAIL", note: "docs/ASSETS.md registry missing" };
     const registry = read("docs/ASSETS.md");
 
     const images = [...c12CollectImages("assets"), ...c12CollectImages("public")];
@@ -687,13 +624,13 @@ results.push(
 
     if (missing.length > 0)
       return {
-        id: "C12",
+        id: "AssetLicenseDisclosure",
         status: "FAIL",
         note: `docs/ASSETS.md does not disclose ${missing.length} bundled asset pack(s): ${missing.join(", ")}`,
       };
 
     return {
-      id: "C12",
+      id: "AssetLicenseDisclosure",
       status: "PASS",
       note: `README section + docs/ASSETS.md discloses all ${packs.length} bundled asset packs (${images.length} image files)`,
     };
@@ -873,7 +810,16 @@ results.push(
     const birthDateField = read("src/components/auth/BirthDateField.tsx");
     const completeProfile = read("src/app/(auth)/complete-profile.tsx");
     const notFound = read("src/app/+not-found.tsx");
+    // ⚠ Two homes. `home` is src/app/index.tsx, which is the LEGACY skin: its
+    // body only renders when EXPO_PUBLIC_UI=legacy, and no deployment sets
+    // that. `liveHome` is what users actually see -- index.tsx dispatches to
+    // DeepSpaceShell, whose constellation is this file.
+    //
+    // Until 2026-09-07 this check measured only the legacy one, so the screen
+    // every user opens had NO accessibility coverage here while a screen
+    // nobody renders had four pinned strings. That is the wrong way round.
     const home = read("src/app/index.tsx");
+    const liveHome = read("src/components/deep-space/ConstellationHome.tsx");
     const jarvis = read("src/app/secondb.tsx");
     const navGraph = read("src/components/graph/NavGraph.tsx");
     const esm = read("src/app/esm.tsx");
@@ -912,6 +858,8 @@ results.push(
     const inboxRoles = (inbox.match(/accessibilityRole=/g) ?? []).length;
     const signInRoles = (signIn.match(/accessibilityRole="button"/g) ?? []).length;
     const homeRoles = (home.match(/accessibilityRole="button"/g) ?? []).length;
+    const liveHomeRoles = (liveHome.match(/accessibilityRole="button"/g) ?? []).length;
+    const liveHomeLabels = (liveHome.match(/accessibility(?:Label|Hint)=/g) ?? []).length;
     const jarvisButtons = (jarvis.match(/accessibilityRole="button"/g) ?? []).length;
     const navGraphButtons = (navGraph.match(/accessibilityRole="button"/g) ?? []).length;
     const esmTabs = (esm.match(/accessibilityRole="tab"/g) ?? []).length;
@@ -1053,16 +1001,32 @@ results.push(
       completeProfile.includes('accessibilityLabel={t("common.entryArtwork")}') &&
       completeProfile.includes('accessibilityHint={t("completeProfile.submitHint")}') &&
       completeProfile.includes('accessibilityHint={t("completeProfile.cancelHint")}') &&
-        notFound.includes('accessibilityHint={t("actions.homeHint")}') &&
-        notFound.includes('accessibilityHint={t("destinations.capture.hint")}') &&
-        notFound.includes('accessibilityHint={t("destinations.audit.hint")}') &&
-        notFound.includes('accessibilityHint={t("destinations.persona.hint")}') &&
-        notFound.includes('accessibilityHint={t("destinations.manual.hint")}') &&
+      // The real Expo Router fallback has one recovery action. The reference
+      // bundle's four destination rows were an internal demo state, not product
+      // navigation; pin the translated 44px home action instead.
+      notFound.includes('accessibilityRole="header"') &&
+      notFound.includes('accessibilityLabel={t("actions.home")}') &&
+      notFound.includes('accessibilityHint={t("actions.homeHint")}') &&
+      notFound.includes("minHeight: m3.minTouch") &&
+      // The live home: the constellation every user opens. Stars and the
+      // Polaris tap are its primary actions, so they must be reachable and
+      // named. This is NEW coverage -- it did not exist before 2026-09-07.
+      liveHomeRoles >= 4 &&
+      liveHomeLabels >= 4 &&
+      // ── legacy skin (EXPO_PUBLIC_UI=legacy) ───────────────────────────
+      // Everything to the end of this block pins src/app/index.tsx's
+      // GraphScreen body. No deployment renders it, and Simon approved
+      // retiring that skin (Q-260905-02) with "migrate the guards first".
+      // These four strings exist ONLY there -- zero occurrences in the
+      // deep-space tree, measured -- so they cannot be re-pointed, only
+      // dropped together with the branch they describe. Delete this marked
+      // block in the same change that deletes GraphScreen.
       homeRoles >= 4 &&
       home.includes('t("firstPieceHint")') &&
       home.includes('t("lookFirstLabel")') &&
       home.includes('t("openCenter")') &&
       home.includes('t("openCenterHint")') &&
+      // ── end legacy skin block ─────────────────────────────────────────
       jarvisButtons >= 8 &&
       jarvis.includes('accessibilityHint={t("clearChatHint")}') &&
       jarvis.includes('t("analysisMode")') &&
@@ -1179,14 +1143,18 @@ results.push(
       drillProgress.includes("Cell numbers show answer counts by life period and question layer.") &&
       xpBar.includes('accessibilityRole="progressbar"') &&
       xpBar.includes("accessibilityLabel={accessibilityLabel}") &&
-      xpBar.includes("accessibilityValue={{ min: 0, max: 100, now: pct, text: trailing }}") &&
+      // The pinned literal was the OBJECT form, which React Native Web drops
+      // on the floor - the bar announced as a progressbar with no value at all
+      // on web. The guard's intent is "this bar announces its value", so it now
+      // pins the form that actually reaches both platforms.
+      xpBar.includes("{...a11yValue({ min: 0, max: 100, now: pct, text: trailing })}") &&
       xpBar.includes("accessibilityHint={accessibilityHint}") &&
       xpBar.includes('t("progression.maxLevelHint"') &&
       interview.includes("const kbHeight = useKeyboard()") &&
       interview.includes("paddingBottom: kbHeight + spacing.sm") &&
       interview.includes("minHeight: 48") &&
       quantPager.includes('accessibilityRole="progressbar"') &&
-      quantPager.includes("accessibilityValue={{ min: 0, max: 100, now: progressPercent, text: progressLabel }}") &&
+      quantPager.includes("{...a11yValue({ min: 0, max: 100, now: progressPercent, text: progressLabel })}") &&
       quantPager.includes("accessibilityHint={prevHint}") &&
       quantPager.includes("accessibilityHint={nextHint}") &&
       quantPager.includes("accessibilityHint={submitHint}");
@@ -1870,9 +1838,12 @@ results.push(
       ];
       const ok =
         screen.includes('useTranslation("notFound")') &&
+        screen.includes('t("hero.eyebrow")') &&
         screen.includes('t("hero.title")') &&
+        screen.includes('t("hero.subtitle")') &&
+        screen.includes('t("actions.home")') &&
         screen.includes('t("actions.homeHint")') &&
-        screen.includes('t("destinations.capture.hint")') &&
+        !screen.includes('t("destinations.') &&
         i18n.includes("enNotFound") &&
         i18n.includes("koNotFound") &&
         i18n.includes('"notFound"') &&
@@ -1886,8 +1857,8 @@ results.push(
         id: "NotFoundI18nCopy",
         status: ok ? "PASS" : "FAIL",
         note: ok
-          ? "not-found screen copy lives in locale bundles and avoids old village-center copy"
-          : "not-found screen should source copy from locale bundles and avoid old village-center copy",
+          ? "not-found recovery copy lives in locale bundles and avoids demo destinations and old village-center copy"
+          : "not-found recovery should source copy from locale bundles and avoid demo destinations and old village-center copy",
       };
     }),
   );
@@ -2935,10 +2906,21 @@ results.push(
     const home = read("src/app/index.tsx");
     const jarvis = read("src/app/secondb.tsx");
     const graphBits = read("src/components/premium/graph-bits.tsx");
+    // The live home labels its mascot the other way round, and better: the art
+    // stays unlabelled and the Pressable that wraps it carries the role and the
+    // name. One announcement instead of two, and the name says what tapping it
+    // does. Pin that shape, not the legacy `mascotLabel` local.
+    const liveHome = read("src/components/deep-space/ConstellationHome.tsx");
     const ok =
       secondbSprite.includes('accessibilityRole: "image"') &&
+      liveHome.includes("<SecondbHead") &&
+      liveHome.includes('accessibilityLabel={t("ds.home.headA11y")}') &&
+      // ── legacy skin (EXPO_PUBLIC_UI=legacy) ───────────────────────────
+      // Drop these two with GraphScreen; the deep-space tree has no
+      // `mascotLabel` (measured 0) because it does not need one.
       home.includes("const mascotLabel") &&
       home.includes("label={mascotLabel}") &&
+      // ── end legacy skin block ─────────────────────────────────────────
       jarvis.includes('label={t("readyToChat")}') &&
       graphBits.includes('accessible accessibilityRole="image" accessibilityLabel={meta.name[locale]}') &&
       islandArt.includes("accessibilityElementsHidden") &&
@@ -2992,7 +2974,12 @@ results.push(
       characters.includes('en: "Trainer and curator"') &&
       personaText.includes("central AI for the North Star synthesis") &&
       personaText.includes("career consultant for work and growth") &&
-      personaText.includes("inner-world patterns") &&
+      // 2026-09-06 plain-language round: Relia's systemHint dropped the
+      // "inner-world patterns" phrasing for "relationships and recurring
+      // patterns in the user's own records". Same responsibility, plainer
+      // words — the pin follows the copy so the guard keeps checking Relia's
+      // registration rather than one retired sentence.
+      personaText.includes("relationships and recurring patterns in the user's own records") &&
       personaText.includes("Not raw facts") &&
       personaText.includes("you do NOT give advice") &&
       personaText.includes("healthy life balance");
@@ -3002,6 +2989,27 @@ results.push(
       note: ok
         ? "worldview docs/code keep Lumina and canonical Soul/Pattern/Narrative responsibilities aligned"
         : "worldview docs/code should not regress to Iris or drift from Simon's canonical character responsibilities",
+    };
+  }),
+  // Q-260906-25 (Simon, 2026-09-06). D7-02 left main with a single verifier and
+  // nothing enforcing that it stays one. The invariant is not "web-deploy.yml
+  // keeps this step" -- it is that SOME workflow verifies main on push, with no
+  // `if:` and no continue-on-error. Rationale and the wildcard/branch-filter
+  // handling live in scripts/main-verify-owner.ts.
+  check("MainVerifyOwner", () => {
+    const owners = findMainVerifyOwners(join(ROOT, ".github/workflows"));
+    if (owners.length === 0)
+      return {
+        id: "MainVerifyOwner",
+        status: "FAIL",
+        note:
+          "no workflow runs `npm run verify` unconditionally on push to main; " +
+          "main would land unverified (see scripts/main-verify-owner.ts)",
+      };
+    return {
+      id: "MainVerifyOwner",
+      status: "PASS",
+      note: `main verify owned by ${describeOwners(owners)}`,
     };
   }),
 );

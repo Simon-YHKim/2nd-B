@@ -31,7 +31,7 @@ import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceSignInDesignScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
-const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_hq.png");
+const authHero = require("../../../assets/legacy-art/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_hq.png");
 
 // Cosmic entry palette — deep-space bg + mint brand + violet accent, so
 // the first (unauthenticated) screen already reads as the Cosmic Pixel

@@ -10,7 +10,7 @@
 
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
-import { Redirect, router } from "expo-router";
+import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { canonGlyph, type AnyGlyphName } from "@/components/pixel/pixel-glyphs";
@@ -35,7 +35,7 @@ import {
   removeImportHistory,
   type ImportHistoryEntry,
 } from "@/lib/import/history";
-import { deleteSourcesByIds } from "@/lib/records/delete-bulk";
+import { deleteSourcesByIds, findSurvivingSourceIds } from "@/lib/records/delete-bulk";
 
 // 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
 //
@@ -204,14 +204,17 @@ type ImportMode = "file" | "account";
 // ── 29-import / reference ImportScreen (sb-more.jsx) ─────────────────────────
 // A windowed 외부 가져오기 hub: file/account mode toggle, a file drop zone, the
 // 3-block 가져오기 전 약속 consent, and the 가져오기 이력 list. The 파일 선택
-// button runs the real pick → captureFromMarkdown import; the Apple 건강 account
-// row runs the real health opt-in/ingest (minors stay hard-locked).
+// button runs the real pick → captureFromMarkdown import; the device-health account
+// row runs the real device-health opt-in/ingest (minors stay hard-locked).
 export function DeepSpaceImportScreen() {
   const { t, i18n } = useTranslation("deepspace");
   const { userId, loading: authLoading, isMinor } = useAuth();
+  const { mode: requestedMode } = useLocalSearchParams<{ mode?: string }>();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
 
-  const [mode, setMode] = useState<ImportMode>("file");
+  // `/integrations` can point straight at the account/health owner. Unknown or
+  // absent values stay fail-closed on the existing file-import default.
+  const [mode, setMode] = useState<ImportMode>(requestedMode === "account" ? "account" : "file");
   const [picking, setPicking] = useState(false);
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
@@ -219,7 +222,13 @@ export function DeepSpaceImportScreen() {
   // (healthImportAllowed never passes).
   const [healthPref, setHealthPref] = useState(false);
   const [healthBusy, setHealthBusy] = useState(false);
-  const [healthDone, setHealthDone] = useState(false);
+  // What the ingest actually did, or null before/instead of one. The screen used
+  // to hold a bare boolean and say "Reflected" for every outcome, including the
+  // one where the idempotent upsert wrote nothing new. Composition happens at
+  // render so a locale change redraws it; only the numbers live in state.
+  const [healthDone, setHealthDone] = useState<
+    { kind: "reflected"; inserted: number; autoCompleted: number } | { kind: "nothingNew" } | null
+  >(null);
   const [healthErr, setHealthErr] = useState<string | null>(null);
   // Import history = the persistent device-local log (import-hub 철회 store), so
   // file imports here show up in the same withdrawal list. No seeded fake rows.
@@ -232,7 +241,7 @@ export function DeepSpaceImportScreen() {
   }, [userId]);
 
   useEffect(() => {
-    void getImportHistory().then(setHistory);
+    void getImportHistory(userId).then(setHistory);
   }, [userId]);
 
   const canHealth = healthImportAllowed(isMinor, healthPref);
@@ -272,7 +281,7 @@ export function DeepSpaceImportScreen() {
       // created source rows that the "철회 가능" consent card promised were
       // revocable, but nothing pointed at them — leaving them unrevokable.
       if (createdIds.length > 0) {
-        await addImportHistory({
+        await addImportHistory(userId, {
           id: `${Date.now()}`,
           sourceKey: "file",
           name: t("ds.import.fileSource"),
@@ -280,7 +289,7 @@ export function DeepSpaceImportScreen() {
           summary: t("ds.import.summaryPieces", { count: tally.imported }),
           sourceIds: createdIds,
         });
-        setHistory(await getImportHistory());
+        setHistory(await getImportHistory(userId));
       }
     } catch {
       // Picker cancel / permission errors are non-fatal.
@@ -298,14 +307,26 @@ export function DeepSpaceImportScreen() {
     setRevokeErr(null);
     if (entry.sourceIds.length > 0) {
       try {
-        await deleteSourcesByIds(userId, entry.sourceIds);
+        const removed = await deleteSourcesByIds(userId, entry.sourceIds);
+        // A short delete is not a failure on its own: the ids may already be
+        // gone. It is a failure only if any are still there, and that is exactly
+        // what the count cannot tell us. The comment above promises to keep the
+        // pointer for rows that still exist, so ask - but only when the count
+        // came up short, so the ordinary withdrawal costs no extra query.
+        if (
+          removed < entry.sourceIds.length &&
+          (await findSurvivingSourceIds(userId, entry.sourceIds)).length > 0
+        ) {
+          setRevokeErr(t("ds.import.revokeFailed"));
+          return;
+        }
       } catch {
         setRevokeErr(t("ds.import.revokeFailed"));
         return;
       }
     }
-    await removeImportHistory(entry.id);
-    setHistory(await getImportHistory());
+    await removeImportHistory(userId, entry.id);
+    setHistory(await getImportHistory(userId));
   }
 
   // Opt in: persist the pref AND write an explicit sensitive-data consent record
@@ -343,7 +364,7 @@ export function DeepSpaceImportScreen() {
   async function handleHealthIngest() {
     if (!userId || healthBusy || !canHealth) return;
     setHealthBusy(true);
-    setHealthDone(false);
+    setHealthDone(null);
     setHealthErr(null);
     try {
       // The window has to have WIDTH. A zero-width range (start === end) is what
@@ -375,8 +396,18 @@ export function DeepSpaceImportScreen() {
         setHealthErr(t("ds.import.healthErrEmpty"));
         return;
       }
-      await ingestHealthSamples(userId, samples, { isMinor, pref: healthPref });
-      setHealthDone(true);
+      // The HONESTY INVARIANT above guards the READ step: never claim a reflection
+      // for samples we did not get. The same rule applies to the WRITE step, and
+      // did not used to. upsertHealthSamples is idempotent, so re-importing the
+      // same day inserts nothing - and that used to look identical to a first
+      // import. `autoCompleted` is worth more: this ingest can mark the user's
+      // routines complete, and nothing in the app read that field.
+      const outcome = await ingestHealthSamples(userId, samples, { isMinor, pref: healthPref });
+      setHealthDone(
+        outcome.inserted.length === 0
+          ? { kind: "nothingNew" }
+          : { kind: "reflected", inserted: outcome.inserted.length, autoCompleted: outcome.autoCompleted.length },
+      );
     } catch {
       // Gate rejection or write error: leave the affordance for retry.
       setHealthErr(t("ds.import.healthErrFailed"));
@@ -395,14 +426,14 @@ export function DeepSpaceImportScreen() {
     { k: "ChatGPT", icon: "bubble" },
     { k: "Notion", icon: "description" },
     { k: t("ds.import.providerGoogleCalendar"), icon: "event" },
-    { k: t("ds.import.providerAppleHealth"), icon: "favorite", health: true },
+    { k: t("import.healthName"), icon: "favorite", health: true },
   ];
 
   const healthCta = isMinor === true
     ? t("ds.import.healthCtaMinorLocked")
     : healthBusy
       ? t("ds.import.healthCtaSyncing")
-      : healthDone
+      : healthDone?.kind === "reflected"
         ? t("ds.import.healthCtaReflected")
         : canHealth
           ? t("ds.import.healthCtaReflectToday")
@@ -487,6 +518,20 @@ export function DeepSpaceImportScreen() {
                         accessibilityLiveRegion="polite"
                       >
                         {healthErr}
+                      </RNText>
+                    ) : null}
+                    {healthDone !== null ? (
+                      <RNText
+                        style={[m3TextStyle("bodySmall"), s.healthNote]}
+                        accessibilityRole="alert"
+                        accessibilityLiveRegion="polite"
+                      >
+                        {healthDone.kind === "nothingNew"
+                          ? t("ds.import.healthReflectedNone")
+                          : t("ds.import.healthReflected", { count: healthDone.inserted })
+                            + (healthDone.autoCompleted > 0
+                              ? " " + t("ds.import.healthRoutinesCompleted", { count: healthDone.autoCompleted })
+                              : "")}
                       </RNText>
                     ) : null}
                   </MdCard>
@@ -611,5 +656,7 @@ const s = StyleSheet.create({
   historySub: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 2 },
   revokeErr: { color: m3.color.error, fontFamily: m3.font.brand, marginTop: 4, marginBottom: 8 },
   healthErr: { color: m3.color.error, fontFamily: m3.font.brand, marginTop: 8 },
+  // Not an error: the import landed. Same slot, ordinary surface colour.
+  healthNote: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 8 },
   revokeBtn: { minHeight: 40, paddingHorizontal: 12 },
 });

@@ -36,6 +36,10 @@
  */
 
 import { getSupabaseClient } from '../supabase/client';
+// The ceiling the RPC clamps to. Imported rather than restated: 0075's own
+// comment says these constants MUST match this module, and a second copy here
+// would be the thing that silently drifts.
+import { REWARD_MONTHLY_CAP } from './tiers';
 
 const TABLE = 'usage_counters';
 
@@ -171,31 +175,64 @@ export async function incrementReasoningUsage(userId: string): Promise<void> {
 }
 
 /**
+ * What happened to a rewarded grant, for the surface that has to tell the user.
+ *
+ * The user gave up ad time for this, so "nothing visible happened" is not an
+ * acceptable answer to a failure. `unconfirmed` deliberately does not say the
+ * credit did not land: under SSV the server is the payer, and even here a failed
+ * RPC round-trip is not proof the write did not happen.
+ */
+export type RewardGrantOutcome = "granted" | "capped" | "unconfirmed";
+
+/**
  * Add rewarded watch-to-earn credits to the current-month counter, via the
  * atomic SECURITY DEFINER RPC (0075). The monthly cap + per-call max are enforced
  * SERVER-SIDE inside the RPC (not passed by the client), so the grant cannot be
  * raced or self-granted past the ceiling even by a tampered client (audit M4).
- * Fails gracefully (warn, no throw). Signature unchanged for callers.
+ *
+ * Fails gracefully (warn, NO THROW) - that contract is unchanged, and both
+ * callers depend on it. What changed is that it now REPORTS what happened
+ * instead of swallowing it: callers that ignore the return keep working exactly
+ * as before, and the two reward surfaces use it to say something when the credit
+ * does not land. Before this, a failed grant was invisible everywhere.
+ *
+ * The RPC returns the new balance, and the cap is not an error - it clamps. So
+ * "capped" is read off the returned balance sitting at the ceiling. A watch that
+ * lands exactly ON the cap therefore reports `capped` even though it did credit;
+ * that is the honest thing to tell the user at that moment ("you have reached
+ * this month's limit"), and it stops them watching again for nothing.
  */
-export async function addRewardCredits(userId: string, credits: number): Promise<void> {
+export async function addRewardCredits(userId: string, credits: number): Promise<RewardGrantOutcome> {
   // D2: when AdMob SSV is the grant authority (EXPO_PUBLIC_REWARD_SSV=true), the
   // server grants reward credits from the verified SSV callback (rewarded-ssv +
   // grant_reward_credits_ssv). The client must NOT also grant here, or a single
   // watch double-counts. The UI refetches the counter after the watch, which
   // reflects the server grant once the callback lands. Off by default (direct
   // process.env read so babel inlines it) -> unchanged dev-seam behavior.
-  if (process.env.EXPO_PUBLIC_REWARD_SSV === "true") return;
+  //
+  // Nothing for the surface to report in that mode: the server is the payer and
+  // the refetch shows its work.
+  if (process.env.EXPO_PUBLIC_REWARD_SSV === "true") return "granted";
   const bucket = monthBucket();
   try {
-    const { error } = await getSupabaseClient().rpc('bump_reward_credits_if_under_cap', {
+    const { data, error } = await getSupabaseClient().rpc('bump_reward_credits_if_under_cap', {
       p_user_id: userId,
       p_month: bucket,
       p_credits: credits,
     });
     if (error) {
       console.warn('[usage] addRewardCredits RPC failed:', error.message);
+      return "unconfirmed";
     }
+    // The RPC's whole contract is "returns the new balance". A non-number means
+    // we did not get the answer we asked for, whatever the transport thought.
+    if (typeof data !== "number") {
+      console.warn('[usage] addRewardCredits returned a non-number balance');
+      return "unconfirmed";
+    }
+    return data >= REWARD_MONTHLY_CAP ? "capped" : "granted";
   } catch (e) {
     console.warn('[usage] addRewardCredits threw:', e);
+    return "unconfirmed";
   }
 }

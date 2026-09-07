@@ -7,11 +7,11 @@ import { PremiumAppShell, PremiumLoadingState, PremiumToast, PremiumModal } from
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { semantic, spacing, radii } from "@/lib/theme/tokens";
+import { semantic, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { PastMeErasView } from "@/components/deep-space/DeepSpaceViews";
+import { DdsAuditScreen } from "@/screens/deepspace/dds-audit-screen";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { questionsForPeriod, type AuditPeriod } from "@/lib/audit/questions";
 import { isUnlived, type SevenStarId } from "@/lib/persona/seven-stars";
@@ -530,26 +530,16 @@ const styles = StyleSheet.create({
   },
 });
 
-// Deep-space 성장 · 과거의 나: the reference AuditScreen era timeline (clone-audit
-// 17-audit) — a "과거의 나" headline + subtitle over a left-rail timeline of five
-// life eras (유아기/아동기/청소년기/청년기/현재). Tapping an era opens the open-ended
-// interview (reference go('interview')). Navigation-only: the reference's per-era
-// "또렷함 L{n}" dots were fixed constants (fabricated brightness, 정직한 밝기 위반)
-// and were removed by the 2026-07-21 logic audit; see PastMeErasView.
+// Deep-space /audit is the new-seven provenance hub. The legacy questionnaire
+// above remains isolated and unchanged behind the rollback UI branch.
 function AuditDeepSpace() {
-  const { i18n } = useTranslation();
-  const isKo = i18n.language === "ko";
-  return (
-    <DeepSpaceScreen
-      active="lens"
-      header="none"
-      variant="windowed"
-      title={isKo ? "성장 · 과거의 나" : "Growth · Past me"}
-      onBack={() => router.back()}
-    >
-      <PastMeErasView isKo={isKo} />
-    </DeepSpaceScreen>
-  );
+  // 2026-09-04(#1602) 이 자리에 인증 게이트를 붙였다. #1531 이 딥스페이스 본문을
+  // `dds-audit-screen.tsx` 로 옮기면서 그 게이트도 같이 옮겼고, 거기서 더 촘촘해졌다
+  // — loading · !userId · hasProfile===null · profileProbeFailed · hasProfile===false
+  // 다섯 단계를 다 갖고, `isUnlived(star.id, age)` 잠금도 그 안에서 건다.
+  // 여기에 게이트 없는 본문을 다시 인라인하지 말 것 — 그게 #1602 가 고친 버그다.
+  // 검사는 `src/app/__tests__/audit-auth-gate.test.ts` 가 두 파일에 걸쳐 지킨다.
+  return <DdsAuditScreen />;
 }
 
 export default function Audit() {

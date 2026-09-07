@@ -1,6 +1,6 @@
 # 개인정보처리방침 · Privacy Policy
 
-_시행일: 2026-08-30 · 최종 개정: 2026-08-30_
+_시행일: 2026-09-04 · 최종 개정: 2026-09-04_
 
 ---
 
@@ -32,14 +32,20 @@ _시행일: 2026-08-30 · 최종 개정: 2026-08-30_
 | 수탁사 | 위탁 업무 | 비고 |
 |---|---|---|
 | Supabase (Supabase, Inc.) | 인증·데이터베이스 호스팅 | 이용자 계정·콘텐츠 저장 |
-| Google (Gemini API, `@google/genai`) | AI 처리(입력 데이터 분석·생성) | AI 기능 제공 목적 |
+| OpenAI (OpenAI, L.L.C.) | AI 처리: 대화, 이미지 속 문자 인식(OCR), 음성·오디오의 텍스트 전사, 임베딩 생성 | AI 기능 제공 목적 |
+| Google (Gemini API, `@google/genai`) | AI 처리: 안전성 분류, 그 밖의 AI 처리 | AI 기능 제공 목적 |
 | Paddle (Paddle.com Market Ltd.) | 결제 처리(판매자/Merchant of Record) | 결제·환불·세금 처리 |
+| RevenueCat (RevenueCat, Inc.) | 구독 상태 관리 | 결제수단 정보 미보유. 앱 내 구매 활성화 시 |
 | 소셜 로그인 제공자 (Google/Apple/Kakao/Naver 등) | 인증 | 이용자가 선택한 로그인 수단 |
 | Google (Google Analytics 4) | 서비스 이용 통계 | 이용자가 사용 통계에 동의한 경우에만. 기본값은 꺼짐 |
+| Google (Firebase Analytics · 앱) | 앱 사용 통계 | 이용자가 사용 통계에 동의한 경우에만. 기본값은 꺼짐. 앱에만 해당 |
 | Microsoft (Microsoft Clarity) | 화면 이동·조작 기록 | 이용자가 사용 통계에 동의한 경우에만. 기본값은 꺼짐. 기록·대화 등 개인 화면에서는 수집을 멈춥니다 |
+| Sentry (Functional Software, Inc.) | 오류·크래시 진단 정보 수집 | 서비스 안정성 목적. 앱에만 해당 |
 
 ### 5. 개인정보의 국외 이전
-서비스는 위 수탁사(예: Supabase, Google)의 국외 서버를 이용할 수 있어 개인정보가 국외(예: 미국 등)로 이전·처리될 수 있습니다. 이전 항목은 제1조의 계정 정보·이용자 콘텐츠·프로필·음성 및 오디오·건강 및 활동 데이터, 목적은 데이터 보관(인증·데이터베이스 호스팅)과 AI 처리(음성·오디오는 텍스트 전사를 위해 Google에 전송됩니다. 단 건강·활동 데이터는 AI 처리에 사용하지 않습니다), 시점·방법은 서비스 이용 시 암호화(TLS)된 네트워크 전송, 보유기간은 제3조의 보유·이용 기간과 같습니다. 이용자는 회원가입 시 본 방침의 고지·동의 절차를 통해 이에 동의합니다.
+서비스는 위 수탁사(예: Supabase, OpenAI, Google)의 국외 서버를 이용할 수 있어 개인정보가 국외(예: 미국 등)로 이전·처리될 수 있습니다. 이전받는 자는 Supabase, Inc.(미국), OpenAI, L.L.C.(미국), Google LLC(미국)입니다. 이전 항목은 제1조의 계정 정보·이용자 콘텐츠·프로필·음성 및 오디오·건강 및 활동 데이터, 목적은 데이터 보관(인증·데이터베이스 호스팅)과 AI 처리(**대화 내용·이미지·음성 및 오디오·임베딩은 OpenAI에 전송되며, 안전성 분류 등 그 밖의 AI 처리는 Google에 전송됩니다.** 단 건강·활동 데이터는 AI 처리에 사용하지 않습니다), 시점·방법은 서비스 이용 시 암호화(TLS)된 네트워크 전송, 보유기간은 제3조의 보유·이용 기간과 같습니다. 이용자는 회원가입 시 본 방침의 고지·동의 절차를 통해 이에 동의합니다.
+
+오류·크래시 진단 정보는 서비스 안정성 확보를 위해 **Sentry(Functional Software, Inc., 미국)**의 국외 서버로 이전될 수 있습니다. 이전 항목은 오류 발생 시점의 기기·앱 상태와 오류 메시지이며 기록 본문·대화 내용은 포함하지 않습니다. 목적은 오류 진단·수정, 시점·방법은 오류 발생 시 암호화(TLS)된 네트워크 전송, 보유기간은 Sentry 의 설정에 따릅니다. 이는 서비스 제공에 필요한 운영 목적의 처리입니다.
 
 사용 통계(Google Analytics 4·Microsoft Clarity)는 **이용자가 설정에서 켠 경우에만** 국외로 이전됩니다. 이전받는 자는 Google LLC(미국)와 Microsoft Corporation(미국), 이전 항목은 화면 이동·조작 기록과 기기·브라우저 정보이며 기록 본문·대화 내용은 포함하지 않습니다. 이전 목적은 서비스 이용 통계 확인, 시점·방법은 해당 화면을 볼 때 암호화(TLS)된 네트워크 전송, 보유기간은 각 사업자의 설정에 따릅니다(Google Analytics 4 는 계정에 설정된 기간, 최대 14개월. Microsoft Clarity 는 녹화 30일, 히트맵 등 집계 9개월). 이 이전은 「개인정보 보호법」 제28조의8 제1항 제1호에 따라 **이용자의 별도 동의**를 근거로 하며, 설정에서 끄면 이후 전송이 중단됩니다. 사용 통계에 동의하지 않아도 서비스를 이용하는 데 제한이 없습니다.
 
@@ -69,6 +75,7 @@ _시행일: 2026-08-30 · 최종 개정: 2026-08-30_
 ### 12. 개정 이력
 | 시행일 | 변경 내용 |
 |---|---|
+| 2026-09-04 | **사실 정정.** 제4조 수탁사에 **OpenAI, L.L.C.**(대화·이미지 문자 인식·음성 텍스트 전사·임베딩) · **Google (Firebase Analytics · 앱)** · **Sentry (Functional Software, Inc.)**(오류·크래시 진단) · **RevenueCat (RevenueCat, Inc.)**(구독 상태 관리) 추가. 제5조의 "음성·오디오는 텍스트 전사를 위해 Google에 전송됩니다"를 **OpenAI 로 정정**하고 이전받는 자를 회사명으로 명시, Sentry 국외이전 고지 신설. 종전 문구는 실제 처리 경로와 달랐습니다. RevenueCat 은 앱 내 구매 활성화 전 선고지입니다. |
 | 2026-08-30 | 제4조 수탁사에 Google Analytics 4·Microsoft Clarity 추가(이용자가 사용 통계에 동의한 경우에만 처리). 제5조에 두 수탁사의 국외 이전 고지 신설(별도 동의 근거·이전 항목·보유기간 명시). |
 | 2026-08-16 | 최초 시행. |
 
@@ -102,14 +109,20 @@ The Company entrusts processing as below; processors act only within the stated 
 | Processor | Function | Notes |
 |---|---|---|
 | Supabase (Supabase, Inc.) | Auth & database hosting | Stores accounts/User Content |
-| Google (Gemini API, `@google/genai`) | AI processing (analyze/generate on input) | To provide AI features |
+| OpenAI (OpenAI, L.L.C.) | AI processing: chat, reading text in images (OCR), transcribing voice/audio, generating embeddings | To provide AI features |
+| Google (Gemini API, `@google/genai`) | AI processing: safety classification and other AI processing | To provide AI features |
 | Paddle (Paddle.com Market Ltd.) | Payment processing (Merchant of Record) | Payments/refunds/tax |
+| RevenueCat (RevenueCat, Inc.) | Subscription-state management | Holds no payment-instrument data. When in-app purchases are active |
 | Social-login providers (Google/Apple/Kakao/Naver, etc.) | Authentication | Login method you choose |
 | Google (Google Analytics 4) | Service usage statistics | Only if you turn usage statistics on. Off by default |
+| Google (Firebase Analytics, app) | App usage statistics | Only if you turn usage statistics on. Off by default. App only |
 | Microsoft (Microsoft Clarity) | Screen navigation and interaction records | Only if you turn usage statistics on. Off by default. Collection pauses on personal screens such as records and chat |
+| Sentry (Functional Software, Inc.) | Error/crash diagnostic collection | For service stability. App only |
 
 ### 5. Overseas transfer
-The Service may use processors' overseas servers (e.g., Supabase, Google), so personal data may be transferred to and processed abroad (e.g., the United States). The transferred items are the account data, User Content, profile, voice/audio, and health and activity data in Section 1; the purpose is data hosting (auth/database) and AI processing (voice/audio is sent to Google to be transcribed into text; health and activity data is excluded from AI processing); transfers occur over TLS-encrypted connections as you use the Service; retention follows Section 3. Users consent through the notice-and-consent step at sign-up.
+The Service may use processors' overseas servers (e.g., Supabase, OpenAI, Google), so personal data may be transferred to and processed abroad (e.g., the United States). The recipients are Supabase, Inc. (United States), OpenAI, L.L.C. (United States), and Google LLC (United States). The transferred items are the account data, User Content, profile, voice/audio, and health and activity data in Section 1; the purpose is data hosting (auth/database) and AI processing (**chat content, images, voice/audio, and embeddings are sent to OpenAI; safety classification and other AI processing are sent to Google.** Health and activity data is excluded from AI processing); transfers occur over TLS-encrypted connections as you use the Service; retention follows Section 3. Users consent through the notice-and-consent step at sign-up.
+
+Error and crash diagnostics may be transferred to the overseas servers of **Sentry (Functional Software, Inc., United States)** for service stability. The transferred items are the device/app state at the time of the error and the error message, and they do not include the body of your records or your conversations. The purpose is error diagnosis and repair; transfers occur over TLS-encrypted connections when an error occurs; retention follows Sentry's settings. This is operational processing necessary to provide the Service.
 
 Usage statistics (Google Analytics 4 and Microsoft Clarity) are transferred abroad **only if you turn them on in settings**. The recipients are Google LLC (United States) and Microsoft Corporation (United States); the transferred items are screen navigation and interaction records plus device/browser information, and they do not include the body of your records or your conversations. The purpose is to see how the Service is used; transfers occur over TLS-encrypted connections while you view those screens; retention follows each provider (Google Analytics 4: the period set on the account, up to 14 months. Microsoft Clarity: recordings 30 days, aggregates such as heatmaps 9 months). This transfer rests on **your separate consent** under Article 28-8(1)1 of Korea's PIPA, and turning it off in settings stops further transfers. Declining usage statistics does not limit your use of the Service.
 
@@ -139,5 +152,6 @@ This policy may be revised per law/service changes; revisions (effective date an
 ### 12. Revision history
 | Effective | What changed |
 |---|---|
+| 2026-09-04 | **Factual correction.** Added **OpenAI, L.L.C.** (chat, OCR, voice transcription, embeddings), **Google (Firebase Analytics, app)**, **Sentry (Functional Software, Inc.)** (error/crash diagnostics), and **RevenueCat (RevenueCat, Inc.)** (subscription-state management) to the processors in Section 4. Corrected Section 5's "voice/audio is sent to Google to be transcribed" to **OpenAI**, named each recipient entity, and added an overseas-transfer notice for Sentry. The previous wording did not match the actual processing path. RevenueCat is disclosed ahead of in-app-purchase activation. |
 | 2026-08-30 | Added Google Analytics 4 and Microsoft Clarity to the processors in Section 4 (processed only if you turn usage statistics on). Added an overseas-transfer notice for both in Section 5 (legal basis, transferred items, retention). |
 | 2026-08-16 | Initial version. |

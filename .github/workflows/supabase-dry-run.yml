@@ -6,6 +6,19 @@ on:
       - "db/migrations/**"
       - ".github/workflows/supabase-dry-run.yml"
 
+# Least privilege: this workflow only reads the repo (checkout + local tooling).
+# It never uses GITHUB_TOKEN to write, so it does not inherit the repository's
+# default token scope. Audited 2026-09-06 (C-22): ci.yml, pr-title.yml and
+# supabase-dry-run.yml were the three workflows with no permissions block.
+permissions:
+  contents: read
+
+# Same rationale as ci.yml: a pure check with no deploy side effects, so a newer
+# push to the same PR cancels the run it supersedes.
+concurrency:
+  group: sql-dry-run-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   sql:
     runs-on: ubuntu-latest

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { useTranslation } from "react-i18next";
+import { a11yValue } from "@/lib/a11y/accessibility-value";
 
 export interface QuantPagerProps {
   totalItems: number;
@@ -85,7 +86,7 @@ export function QuantPager({
           style={styles.progressBarOuter}
           accessibilityRole="progressbar"
           accessibilityLabel={progressLabel}
-          accessibilityValue={{ min: 0, max: 100, now: progressPercent, text: progressLabel }}
+          {...a11yValue({ min: 0, max: 100, now: progressPercent, text: progressLabel })}
         >
           <View style={[styles.progressBarInner, { width: `${progressPct * 100}%` }]} />
         </View>

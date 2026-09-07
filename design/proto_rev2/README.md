@@ -74,4 +74,4 @@ UI 메타포는 **딥스페이스 별자리**: 북두칠성 7별 = 삶의 7개 �
 - `tools/` — `validate-data.mjs`(데이터 무결성) · `capture-proto.mjs`+`compare-shots.mjs`(37화면 결정적 픽셀 회귀)
 - 화면: `sb-home`(별자리홈) · `sb-screens-core`(담기·챗) · `sb-screens-know`(위키·상세·인터뷰·빅파이브·오딧) · `sb-screens-extra`(별상세·IDEN·연동·요금제·설정·상태화면) · `sb-me`(북극성) · `sb-flows`(온보딩·코치마크·통화녹음·애착·북극성문장·알림) · `sb-ops`(비서·시트·독·토스트·TTFV) · `sb-more`(집중·리마인더·가져오기·데이터리뷰·공유·공상) · `sb-surfaces`(추이·동기·강점·위젯·로그인) · `sb-validate`(가치관·승인) · `sb-gaps`(피어·정리함·연결찾기·계정/권한/약관/지원/매뉴얼) · `sb-digest`(저널·리워드·다이제스트) · `sb-audit`(라이프오딧·영역대시·영역입력) · `sb-hobby`/`sb-health`/`sb-healthinput`/`sb-careerinput`/`sb-drilldown`/`sb-relinput`(도메인 입력) · `sb-museum`+`sb-enrich`(뮤지엄) · `sb-wikigraph`/`sb-relgraph`(물리 그래프) · `sb-neural`(배경 필드) · `sb-persona`(페르소나 카드)
 - 인프라: `tweaks-panel.jsx`(프로토타입 도구), `image-slot.js`(이미지 드롭 슬롯)
-- 문서: `docs/PRD (standalone).html`, `docs/Screen-Spec/`, `docs/CONTEXT.md`(제작 히스토리·용어), `CLAUDE.md`(작업 지시서)
+- 문서: [PRD (standalone).html](https://github.com/Simon-YHKim/2nd-B/releases/download/design-archive-260906/PRD-standalone-rev2.html) (릴리스 자산 · 22.9 MB · 리포에는 없다), `docs/Screen-Spec/`, `docs/CONTEXT.md`(제작 히스토리·용어), `CLAUDE.md`(작업 지시서)

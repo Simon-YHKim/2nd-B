@@ -392,14 +392,25 @@ export async function classifySafety(
 // Fixed-string crisis templates per docs/research/batches/crisis-detection.md.
 // Hotline numbers come from crisisHotlines() (single source of truth) so KO
 // routing stays current (109 since 2024) and minors get the youth line (1388).
-// Versions are referenced in the audit log: red-ko-v2 (adult), red-ko-minor-v1
-// (14-17), red-en-v1 (988, all ages).
+// Versions are referenced in the audit log: red-ko-v3 (adult), red-ko-minor-v2
+// (14-17), red-en-v2 (988, all ages). 2026-09-06 removes the app's metaphorical
+// farewell; the fixed hand-off, resources and emergency-room guidance remain.
+//
+// PROVENANCE NOTE. On 2026-09-07 (commit a8910a10) the em dash in the hotline lines
+// became a hyphen, in all three templates, because they share one interpolated
+// hotline block. DESIGN.md forbids em dashes in user-facing strings and these are
+// drawn in a pixel face where the glyph is a risk. The versions were deliberately
+// NOT bumped: the version identifies the GUIDANCE, and the numbers, labels,
+// structure and routing are unchanged, so a bump would make the audit log read as
+// if users had been told something different. So note it here instead: the bytes
+// of v3 / minor-v2 / en-v2 differ by exactly that one glyph before and after that
+// commit, and reconstructing "what did red-ko-v3 say" needs this line to be exact.
 export function fixedCrisisResponse(
   locale: "en" | "ko",
   minor = false,
 ): { text: string; version: string } {
   const hotlineBlock = crisisHotlines(locale, minor)
-    .map((h) => (locale === "ko" ? `📞 ${h.number} — ${h.label} (24시간, 무료)` : `📞 ${h.number} — ${h.label}`))
+    .map((h) => (locale === "ko" ? `📞 ${h.number} - ${h.label} (24시간, 무료)` : `📞 ${h.number} - ${h.label}`))
     .join("\n");
   if (locale === "ko") {
     return {
@@ -409,9 +420,8 @@ export function fixedCrisisResponse(
 
 ${hotlineBlock}
 
-전화가 어려우시면, 가까운 응급실로 가셔도 됩니다.
-당신의 안전이 가장 중요해요. 두번째 뇌는 지금 잠시 한 발 물러나 있을게요.`,
-      version: minor ? "red-ko-minor-v1" : "red-ko-v2",
+전화가 어려우시면, 가까운 응급실로 가셔도 됩니다.`,
+      version: minor ? "red-ko-minor-v2" : "red-ko-v3",
     };
   }
   return {
@@ -420,10 +430,9 @@ ${hotlineBlock}
 People are available right now to talk:
 
 ${hotlineBlock}
-🌐 findahelpline.com — international directory
+🌐 findahelpline.com - international directory
 
-If calling is hard, you can go to your nearest emergency room.
-Your safety matters most. 2nd-Brain is going to step back for a moment.`,
-    version: "red-en-v1",
+If calling is hard, you can go to your nearest emergency room.`,
+    version: "red-en-v2",
   };
 }

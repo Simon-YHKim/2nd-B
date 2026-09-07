@@ -10,7 +10,7 @@
 //
 //   body content…
 //
-// Uses the `yaml` package (already in the dep tree via Expo/Tailwind) for
+// Uses the `yaml` package (a direct dependency in package.json) for
 // robust scalar/list/multiline handling — the clipper templates emit a
 // non-trivial subset (block lists, quoted strings, ISO timestamps, etc.).
 

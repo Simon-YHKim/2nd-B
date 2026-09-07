@@ -36,12 +36,17 @@ export function isProfileChildPath(pathname: string): boolean {
 // (EXPO_PUBLIC_UI=legacy) uses PremiumAppShell with no dock, so the chip stays —
 // callers MUST gate this list behind isDeepSpaceUI().
 export const DEEP_SPACE_DOCK_PATHS = [
-  // 2026-08-30: 이 열한 라우트는 DeepSpaceDesignScreens 의 로컬 `Shell` 을 쓰는데,
+  // 2026-08-30: 아래 라우트들은 DeepSpaceDesignScreens 의 로컬 `Shell` 을 쓰는데,
   // 그 Shell 이 dock 없는 순수 View 였다가 DockShell(=DeepSpaceScreen) 로 위임되면서
   // **독을 갖게 됐다.** 레지스트리를 같이 안 옮기면 여기 목록은 화면과 반대를 말하고,
   // 그 거짓이 뜬 back 칩 중복(이 목록이 막으려던 바로 그 버그)으로 돌아온다.
+  //
+  // (2026-09-04) `/formats` 는 그 반대 방향으로 거짓이 돼서 여기서 빠졌다. 파라미터
+  // 없는 기본이 FormatsLegacy(PremiumAppShell, dock 없음)로 바뀌었는데 이 목록에
+  // 남아 있으면 back 칩까지 숨어서 **dock 도 back 도 없는 화면**이 된다 — formats.tsx
+  // 에는 자체 back 이 없다. dock 을 가진 내보내기 변형은 `?view=export` 뒤에 있고
+  // 앱 내 진입점이 0건이라, 그쪽에서 칩이 겹치는 것은 개발 경로 한정 잔여다.
   "/discover",
-  "/formats",
   "/insights",
   "/manual",
   "/permissions",
@@ -74,6 +79,9 @@ export const DEEP_SPACE_DOCK_PATHS = [
   // Call recording v1 (post-call reflection, docs/CALL-RECORDING-SPEC.md §5).
   "/call-reflection",
   "/account",
+  // 로그인 세션의 비밀번호 변경은 계정 허브 아래 설정 소유 화면이다. PIXEL-CLAY
+  // renderer가 DeepSpaceScreen 독과 자체 상단 뒤로를 함께 쓰므로 떠 있는 뒤로 칩은 숨긴다.
+  "/change-password",
   // 구독 관리 (0115 self-serve cancel + refund): a windowed dock screen whose M3
   // top app bar carries the back arrow, so the floating chip must hide - back
   // lives in exactly one place.
@@ -179,6 +187,10 @@ export const BACK_ARROW_HIDDEN_PATHS = [
   "/sign-in",
   "/sign-up",
   "/complete-profile",
+  // This route owns a stricter recovery exit policy. The global chip uses
+  // router.push("/"), which does not remove the current route and can bypass
+  // usePreventRemove, so only the screen's safe back/cancel controls may show.
+  "/reset-password",
   "/oauth-callback",
   "/",
   "/onboarding",

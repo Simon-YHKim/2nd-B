@@ -1,52 +1,32 @@
-// First-run onboarding — a 4-slide deep-space carousel that renders PRE-AUTH
-// (no sign-in required) and ends at the real age-tiered auth path. Rebuilt 1:1
-// from the finalized reference (docs/clone-audit/reference-handoff/reference-app/
-// sb-flows.jsx · OnboardingScreen) + the 02-onboard.png capture (pixel target).
-//
-// Render-broken fix: the old screen gated on `!userId` and redirected to
-// /sign-in, so the carousel never showed for a signed-out user — the whole point
-// of onboarding is that it comes BEFORE auth. We now gate on the onboarding-
-// complete flag (onboarding/state.ts, the AsyncStorage/localStorage `sb_onboarded`
-// equivalent), never on userId. The final slide hands off to the REAL sign-in
-// screen (C10 age-tiered sign-up stays intact) — we never reimplement auth here.
+// First-run onboarding stays a PRE-AUTH four-slide carousel. Its final frame is
+// only a handoff: date-of-birth input, consent, storage, and age-tier decisions
+// remain owned by the real /sign-up and /complete-profile boundaries (C10).
 
 import { useEffect, useState } from "react";
-import { BackHandler, Pressable, StyleSheet, View } from "react-native";
+import { BackHandler, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
 
-import { Text } from "@/components/ui/Text";
-import { InlineLoader } from "@/components/ui/InlineLoader";
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
-import { DeepSpaceBackdrop } from "@/components/deepspace/DeepSpaceBackdrop";
-import { SbIcon, type SbIconName } from "@/components/deepspace/shell/SbIcon";
-import { deepSpace, flattenAlpha, withAlpha } from "@/lib/theme/tokens";
-import { m3 } from "@/lib/theme/m3";
-import { canonFlows } from "@/lib/canon";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import type { AnyGlyphName } from "@/components/pixel/pixel-glyphs";
+import { PixelGateShell, PixelPressable, PixelSurface } from "@/components/pixel";
+import { InlineLoader } from "@/components/ui/InlineLoader";
+import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { canonFlows } from "@/lib/canon";
 import { markOnboardingComplete, useOnboardingComplete } from "@/lib/onboarding/state";
-
-// ⚠ **바탕 선언** (PIXEL-CLAY 규칙 4 — 정적 반투명 금지).
-//   이 화면의 바닥은 `deepSpace.bgEdge` 다 — 아래 `root` 가 그렇게 깔고 있다.
-//   바탕이 틀리면 알파를 그대로 두는 것보다 나쁘니 옮기는 사람은 여기부터 다시 재야 한다.
-const OB_GROUND = deepSpace.bgEdge;
-const obAlpha = (c: string, a: number): string => flattenAlpha(c, a, OB_GROUND);
-
+import { m3 } from "@/lib/theme/m3";
 
 interface Slide {
-  icon: SbIconName;
+  icon: AnyGlyphName;
   tag: { ko: string; en: string };
   title: { ko: string; en: string };
   body: { ko: string; en: string };
 }
 
-// KO slide copy comes VERBATIM from the canon flows pack (public/proto/data/
-// screens/flows.json via canonFlows.onboardingSlides) — the same 4 slides the
-// reference sb-flows.jsx OnboardingScreen and the 02-onboard.png capture carry
-// (slide 1 = "나를 알아가는 AI"). Canon values are a pixel contract: do not
-// paraphrase or edit them app-side. EN mirrors stay app-side below, index-
-// aligned with the canon slides.
+// KO is verbatim canon copy. The existing approved EN mirror remains index-
+// aligned; the final handoff uses the five-locale onboarding/auth resources.
 const SLIDE_EN: { tag: string; title: string; body: string }[] = [
   {
     tag: "2ND-BRAIN",
@@ -56,7 +36,7 @@ const SLIDE_EN: { tag: string; title: string; body: string }[] = [
   {
     tag: "Getting to know you",
     title: "Scattered days\nbecome a constellation",
-    body: "Career, money, relationships, health, growth, rest: seven life stars show who you are at a glance.",
+    body: "Profile, early childhood, school years, your 20s, 30s and beyond, work, and now: seven stars for getting to know yourself at a glance.",
   },
   {
     tag: "Helping alongside you",
@@ -70,248 +50,347 @@ const SLIDE_EN: { tag: string; title: string; body: string }[] = [
   },
 ];
 
-const SLIDES: Slide[] = canonFlows.onboardingSlides.map((s, i) => ({
-  icon: s.icon as SbIconName,
-  tag: { ko: s.tag, en: SLIDE_EN[i]?.tag ?? s.tag },
-  title: { ko: s.title, en: SLIDE_EN[i]?.title ?? s.title },
-  body: { ko: s.body, en: SLIDE_EN[i]?.body ?? s.body },
+const SLIDES: Slide[] = canonFlows.onboardingSlides.map((slide, index) => ({
+  icon: slide.icon as AnyGlyphName,
+  tag: { ko: slide.tag, en: SLIDE_EN[index]?.tag ?? slide.tag },
+  title: { ko: slide.title, en: SLIDE_EN[index]?.title ?? slide.title },
+  body: { ko: slide.body, en: SLIDE_EN[index]?.body ?? slide.body },
 }));
 
 const AUTH_STEP = SLIDES.length;
+type HandoffDestination = "/" | "/sign-up" | "/sign-in";
 
 export default function Onboarding() {
-  const { t, i18n } = useTranslation("deepspace");
-  const locale = i18n.language === "ko" ? "ko" : "en";
-  // Skip label stays an inline ko/en ternary: the J4/rev2 onboarding contract
-  // (check-constraints.ts) pins the literal "건너뛰기" in this file.
-  const ko = locale === "ko";
+  const { t, i18n } = useTranslation(["deepspace", "auth", "common"]);
+  const locale = i18n.resolvedLanguage?.split("-")[0] === "ko" ? "ko" : "en";
+  // check:constraints pins the literal Korean skip label in this file.
+  const skipLabel = locale === "ko" ? "건너뛰기" : "Skip";
   const { userId, loading } = useAuth();
   const onboardingComplete = useOnboardingComplete();
   const [step, setStep] = useState(0);
 
-  // Android hardware back walks the carousel back a slide instead of tearing the
-  // route down mid-flow (ANDROID_QA_GUIDELINES — hardware BackHandler wiring).
+  // Android hardware Back reverses one slide, including the final handoff frame.
   useEffect(() => {
-    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
       if (step > 0) {
-        setStep((s) => s - 1);
+        setStep((current) => current - 1);
         return true;
       }
       return false;
     });
-    return () => sub.remove();
+    return () => subscription.remove();
   }, [step]);
 
-  if (loading) return <InlineLoader />;
-  // Gate on the onboarding flag, NOT on userId: a signed-out user must see the
-  // carousel. Only bounce home once onboarding is actually finished.
+  if (loading || onboardingComplete === null) return <InlineLoader />;
   if (onboardingComplete === true) return <Redirect href="/" />;
 
+  // Completion is deliberately written only when a real destination is chosen.
+  // Merely mounting the route, paging, or skipping to the handoff does not write.
+  function finishOnboarding(destination: HandoffDestination) {
+    markOnboardingComplete();
+    if (destination === "/") {
+      router.replace("/");
+      return;
+    }
+    if (destination === "/sign-up") {
+      router.replace("/sign-up");
+      return;
+    }
+    router.replace("/sign-in");
+  }
+
+  const isAuth = step >= AUTH_STEP;
+  const slide = SLIDES[Math.min(step, AUTH_STEP - 1)];
   const nextHint = t("onboarding.nextHint");
   const skipHint = t("onboarding.skipHint");
   const authHint = t("onboarding.authHint");
 
-  // Onboarding now runs AFTER login (DeepSpaceShell gates auth first), so the
-  // user is already signed in at the final slide: finish onboarding and go home.
-  // The signed-out branch stays as a defensive fallback (e.g. a direct deep-link
-  // to /onboarding while logged out).
-  function goToAuth() {
-    markOnboardingComplete();
-    if (userId) router.replace("/");
-    else router.replace("/sign-in");
-  }
-
-  const isAuth = step >= AUTH_STEP;
-  const authLabel = t("onboarding.authLabel");
-
   return (
-    <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
-      <DeepSpaceBackdrop />
-
-      <View style={styles.top}>
+    <PixelGateShell contentContainerStyle={styles.shellContent}>
+      <View style={styles.topBar}>
         {!isAuth ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={ko ? "건너뛰기" : "Skip"}
+          <PixelPressable
+            variant="frame"
+            background={m3.color.surfaceContainer}
+            accessibilityLabel={skipLabel}
             accessibilityHint={skipHint}
-            hitSlop={10}
             onPress={() => setStep(AUTH_STEP)}
+            contentStyle={styles.skipContent}
           >
-            <Text variant="caption" style={styles.skip}>{ko ? "건너뛰기" : "Skip"}</Text>
-          </Pressable>
+            <Text variant="caption" style={styles.skipText}>{skipLabel}</Text>
+          </PixelPressable>
         ) : null}
       </View>
 
       {isAuth ? (
-        <View style={styles.hero}>
-          <SecondbHead size={168} mood="neutral" track={false} accessibilityLabel={t("onboarding.secondbName")} />
-          <Text variant="heading" style={styles.title}>{t("onboarding.authTitle")}</Text>
-          <Text variant="body" style={styles.body}>
-            {t("onboarding.authBody")}
-          </Text>
+        <View style={styles.finalHero}>
+          <SecondbHead
+            size={120}
+            mood="neutral"
+            track={false}
+            accessibilityLabel={t("onboarding.secondbName")}
+          />
+          <View style={styles.copyBlock}>
+            <Text variant="heading" style={styles.title}>{t("onboarding.authTitle")}</Text>
+            <Text variant="body" style={styles.body}>{t("onboarding.authBody")}</Text>
+          </View>
+          <PixelSurface
+            variant="inset"
+            background={m3.color.surfaceVariant}
+            style={styles.ageSurface}
+            contentStyle={styles.ageContent}
+          >
+            <PixelGlyph name="today" size={24} color={m3.color.primary} />
+            <View style={styles.ageCopy}>
+              <Text variant="body" style={styles.ageTitle}>{t("auth:signUp.ageNotice")}</Text>
+              <Text variant="caption" style={styles.ageHelper}>{t("auth:signUp.birthDateHelper")}</Text>
+            </View>
+          </PixelSurface>
         </View>
       ) : (
-        <View style={styles.hero}>
-          <View style={styles.iconCard}>
-            <SbIcon name={SLIDES[step].icon} size={44} color={m3.accent.shareEyebrow} />
-          </View>
-          <Text variant="caption" style={styles.tag}>{SLIDES[step].tag[locale]}</Text>
-          <Text variant="heading" style={styles.title}>{SLIDES[step].title[locale]}</Text>
-          <Text variant="body" style={styles.body}>{SLIDES[step].body[locale]}</Text>
+        <View style={styles.slideHero}>
+          <PixelSurface
+            variant="bevel"
+            background={m3.color.surfaceContainerHigh}
+            style={styles.iconSurface}
+            contentStyle={styles.iconContent}
+          >
+            <PixelGlyph name={slide.icon} size={48} color={m3.accent.entryTag} />
+          </PixelSurface>
+          <Text variant="caption" style={styles.tag}>{slide.tag[locale]}</Text>
+          <Text variant="heading" style={styles.title}>{slide.title[locale]}</Text>
+          <Text variant="body" style={styles.body}>{slide.body[locale]}</Text>
         </View>
       )}
 
       {isAuth ? (
-        // #680-safe primary CTA: a bare Pressable inside a styled wrapper View,
-        // NOT MdButton. MdButton renders a Pressable with FUNCTION-AS-CHILDREN
-        // ({({pressed}) => ...}); on Android Fabric (newArchEnabled=true) that is
-        // an unguarded sibling of the #680 function-STYLE class -- the source
-        // reads fine but the touch target silently vanishes, so Get started took
-        // taps yet never fired (rc2 emulator QA blocker, docs/qa/rc2-260721).
-        // Mirrors the Next CTA below exactly: visuals on the wrapper, the
-        // Pressable is a plain touch surface. The launch/repo-wide MdButton
-        // hardening is the separate follow-up (2단계).
-        <View style={styles.authBar}>
-          <View style={styles.authBtnWrap}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={authLabel}
+        <View style={styles.authActions}>
+          {userId ? (
+            <PixelPressable
+              fullWidth
+              background={m3.color.primary}
+              accessibilityLabel={t("common:actions.continue")}
               accessibilityHint={authHint}
-              onPress={goToAuth}
-              style={styles.authPress}
-              // ⚠ 리플은 **남긴다** — 정적 반투명이 아니라 터치 순간의 물결이다.
-              android_ripple={{ color: withAlpha(deepSpace.onAccent, 0.12) }}
+              onPress={() => finishOnboarding("/")}
+              contentStyle={styles.primaryButtonContent}
             >
-              <Text variant="body" style={styles.authText}>{authLabel}</Text>
-            </Pressable>
-          </View>
+              <Text variant="body" style={styles.primaryButtonText}>{t("common:actions.continue")}</Text>
+              <PixelGlyph name="arrow_forward" size={24} color={m3.color.onPrimary} />
+            </PixelPressable>
+          ) : (
+            <>
+              <PixelPressable
+                fullWidth
+                background={m3.color.primary}
+                accessibilityLabel={t("auth:signUp.submit")}
+                accessibilityHint={t("auth:signIn.signUpHint")}
+                onPress={() => finishOnboarding("/sign-up")}
+                contentStyle={styles.primaryButtonContent}
+              >
+                <Text variant="body" style={styles.primaryButtonText}>{t("auth:signUp.submit")}</Text>
+                <PixelGlyph name="arrow_forward" size={24} color={m3.color.onPrimary} />
+              </PixelPressable>
+              <PixelPressable
+                fullWidth
+                background={m3.color.surfaceContainerHigh}
+                accessibilityLabel={t("auth:signIn.submit")}
+                accessibilityHint={t("auth:signUp.signInHint")}
+                onPress={() => finishOnboarding("/sign-in")}
+                contentStyle={styles.secondaryButtonContent}
+              >
+                <Text variant="body" style={styles.secondaryButtonText}>{t("auth:signIn.submit")}</Text>
+              </PixelPressable>
+            </>
+          )}
         </View>
       ) : (
         <View style={styles.bottomBar}>
-          <View style={styles.dots}>
-            {SLIDES.map((_, i) => (
+          <View style={styles.dots} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            {SLIDES.map((_, index) => (
               <View
-                key={i}
-                style={[
-                  styles.dot,
-                  i === step
-                    ? { width: 22, backgroundColor: deepSpace.accent }
-                    : { width: 7, backgroundColor: obAlpha(m3.accent.skyStarWhite, 0.45) },
-                ]}
+                key={index}
+                style={[styles.dot, index === step ? styles.dotActive : styles.dotRest]}
               />
             ))}
           </View>
-          {/* visuals on the wrapper View — Fabric Android drops function-form
-              Pressable styles (#680), which erased this primary CTA */}
-          <View style={styles.nextBtn}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("onboarding.next")}
-              accessibilityHint={nextHint}
-              onPress={() => setStep((s) => s + 1)}
-              style={styles.nextPress}
-              // ⚠ 리플은 **남긴다** — 정적 반투명이 아니라 터치 순간의 물결이다.
-              android_ripple={{ color: withAlpha(deepSpace.onAccent, 0.12) }}
-            >
-              <Text variant="caption" style={styles.nextText}>{t("onboarding.next")}</Text>
-              <SbIcon name="arrow_forward" size={18} color={deepSpace.onAccent} />
-            </Pressable>
-          </View>
+          <PixelPressable
+            background={m3.color.primary}
+            accessibilityLabel={t("onboarding.next")}
+            accessibilityHint={nextHint}
+            onPress={() => setStep((current) => Math.min(current + 1, AUTH_STEP))}
+            contentStyle={styles.nextContent}
+          >
+            <Text variant="body" style={styles.primaryButtonText}>{t("onboarding.next")}</Text>
+            <PixelGlyph name="arrow_forward" size={24} color={m3.color.onPrimary} />
+          </PixelPressable>
         </View>
       )}
-    </SafeAreaView>
+    </PixelGateShell>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: deepSpace.bgEdge,
-    paddingHorizontal: 24,
+  shellContent: {
+    flexGrow: 1,
+    gap: m3.spacing.s4,
   },
-  top: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    paddingTop: 20,
-    minHeight: 44,
+  topBar: {
+    minHeight: m3.minTouch,
+    alignItems: "flex-end",
   },
-  skip: { color: obAlpha(deepSpace.accentSoft, 0.7), fontSize: 14 },
-
-  hero: {
-    flex: 1,
+  skipContent: {
+    minHeight: m3.minTouch,
+    paddingVertical: m3.spacing.s2,
+    paddingHorizontal: m3.spacing.s6,
+  },
+  skipText: {
+    color: m3.color.onSurfaceVariant,
+    fontSize: 12,
+    lineHeight: 16,
+    paddingBottom: m3.spacing.s1,
+  },
+  slideHero: {
+    flexGrow: 1,
+    minHeight: 380,
     alignItems: "center",
     justifyContent: "center",
-    gap: 18,
+    gap: m3.spacing.s8,
   },
-  iconCard: {
-    width: 96,
-    height: 96,
-    borderRadius: m3.shape.none,
+  finalHero: {
+    flexGrow: 1,
+    minHeight: 420,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: obAlpha(deepSpace.accent, 0.14),
-    borderWidth: 1,
-    borderColor: obAlpha(deepSpace.accent, 0.3),
+    gap: m3.spacing.s8,
+  },
+  iconSurface: {
+    width: 100,
+  },
+  iconContent: {
+    minHeight: 92,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: m3.spacing.s4,
+    paddingHorizontal: m3.spacing.s4,
+  },
+  copyBlock: {
+    width: "100%",
+    alignItems: "center",
+    gap: m3.spacing.s4,
   },
   tag: {
     color: m3.accent.entryTag,
-    fontSize: 11,
-    letterSpacing: 2.2,
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 2,
     textAlign: "center",
+    paddingBottom: m3.spacing.s1,
   },
   title: {
-    color: deepSpace.textHi,
-    fontSize: 26,
+    width: "100%",
+    color: m3.color.onBackground,
+    fontSize: 24,
     lineHeight: 32,
     textAlign: "center",
+    paddingBottom: m3.spacing.s1,
   },
   body: {
-    maxWidth: 270,
-    color: obAlpha(m3.accent.entryBody, 0.72),
-    fontSize: 16,
-    lineHeight: 23,
+    width: "100%",
+    maxWidth: 320,
+    color: m3.color.onSurfaceVariant,
+    fontSize: 15,
+    lineHeight: 22,
     textAlign: "center",
+    paddingBottom: m3.spacing.s2,
   },
-
+  ageSurface: {
+    width: "100%",
+  },
+  ageContent: {
+    minHeight: 92,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: m3.spacing.s6,
+    paddingVertical: m3.spacing.s6,
+    paddingHorizontal: m3.spacing.s8,
+  },
+  ageCopy: {
+    flex: 1,
+    gap: m3.spacing.s2,
+  },
+  ageTitle: {
+    color: m3.color.onSurface,
+    fontSize: 15,
+    lineHeight: 22,
+    paddingBottom: m3.spacing.s1,
+  },
+  ageHelper: {
+    color: m3.color.onSurfaceVariant,
+    fontSize: 12,
+    lineHeight: 18,
+    paddingBottom: m3.spacing.s1,
+  },
   bottomBar: {
+    minHeight: 56,
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
-    paddingBottom: 28,
+    gap: m3.spacing.s8,
   },
-  dots: { flex: 1, flexDirection: "row", alignItems: "center", gap: 7 },
-  dot: { height: 7, borderRadius: m3.shape.none },
-  nextBtn: {
-    borderRadius: m3.shape.none,
-    backgroundColor: deepSpace.accent,
-    overflow: "hidden",
-  },
-  // bare touch surface inside the styled wrapper (#680 Fabric-safe)
-  nextPress: {
+  dots: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    minHeight: 48,
-    paddingHorizontal: 22,
+    gap: m3.spacing.s3,
   },
-  nextText: { color: deepSpace.onAccent, fontSize: 15 },
-
-  authBar: { paddingBottom: 28 },
-  // #680-safe filled CTA: colour + shape on the wrapper (like nextBtn), the
-  // Pressable is a plain touch surface. Visually matches the old filled
-  // MdButton (accent fill, onAccent label, stadium radius, min 48, stretch).
-  authBtnWrap: {
-    alignSelf: "stretch",
-    borderRadius: m3.shape.none,
-    backgroundColor: deepSpace.accent,
-    overflow: "hidden",
+  dot: {
+    height: m3.spacing.s2,
   },
-  authPress: {
-    minHeight: 52,
+  dotActive: {
+    width: 24,
+    backgroundColor: m3.color.primary,
+  },
+  dotRest: {
+    width: m3.spacing.s4,
+    backgroundColor: m3.color.surfaceBright,
+  },
+  nextContent: {
+    minHeight: m3.minTouch,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: m3.spacing.s4,
+    paddingVertical: m3.spacing.s2,
+    paddingHorizontal: m3.spacing.s8,
+  },
+  authActions: {
+    width: "100%",
+    gap: m3.spacing.s4,
+  },
+  primaryButtonContent: {
+    minHeight: m3.minTouch,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 22,
+    gap: m3.spacing.s4,
+    paddingVertical: m3.spacing.s2,
+    paddingHorizontal: m3.spacing.s8,
   },
-  authText: { color: deepSpace.onAccent, fontSize: 15, fontWeight: "600" },
+  secondaryButtonContent: {
+    minHeight: m3.minTouch,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: m3.spacing.s2,
+    paddingHorizontal: m3.spacing.s8,
+  },
+  primaryButtonText: {
+    color: m3.color.onPrimary,
+    fontSize: 15,
+    lineHeight: 22,
+    paddingBottom: m3.spacing.s1,
+  },
+  secondaryButtonText: {
+    color: m3.color.onSurface,
+    fontSize: 15,
+    lineHeight: 22,
+    paddingBottom: m3.spacing.s1,
+  },
 });

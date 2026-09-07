@@ -32,7 +32,7 @@ cd reference-app && python3 -m http.server 8000
 - `reference-app/sb-data.jsx` — 공유 데이터(`window.SB`: STARS 좌표, NAV, CHAT_MODES, COMPANION 대사, RECORDS…) + M3 프리미티브(Icon, MdButton, MdCard, MdChip, SbHead, 캘린더/시간 픽커, ConfirmDialog).
 - `reference-app/sb-app.jsx` — 폰 프레임, 상태바, 컴패니언 헤더, TopAppBar, NavBar, 라우터(루트 5탭 + 스택), 화면 레지스트리(ScreenBody), 잡/토스트/시트, 온보딩 게이트.
 - 나머지 `sb-*.jsx` — 화면별 구현. 파일→화면 매핑은 `README.md` §Files 참조.
-- `docs/PRD (standalone).html` — 제품 요구사항(왜 이렇게 생겼는지). 브라우저로 열어 읽기.
+- [PRD (standalone).html](https://github.com/Simon-YHKim/2nd-B/releases/download/design-archive-260906/PRD-standalone-rev2.html) (릴리스 자산 · 22.9 MB · 리포에는 없다) — 제품 요구사항(왜 이렇게 생겼는지). 브라우저로 열어 읽기.
 - `docs/Screen-Spec/2nd-Brain-Screen-Spec.html` — 37개 대표 화면 명세 + `captures/`(390px 캡처, **픽셀 비교 기준 이미지**).
 
 ## 3. 구현 순서 (권장)

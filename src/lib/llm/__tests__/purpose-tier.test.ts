@@ -4,6 +4,10 @@
 //     (mock:<modelId>),
 //   - an explicit `model` arg still wins over the purpose default,
 //   - the reasoning (pro) tier records the default effort "high" in the audit,
+//   - the pro tier's audited reasoningProvider follows the vendor switches:
+//     unset resolves "openai" (RETIRED_DEFAULT, T1 stage A 2026-08-31 — unset
+//     no longer means gemini anywhere in routing.ts), and an explicit "gemini"
+//     still lands as "gemini" (the one-variable rollback property),
 //   - env-overridable model ids (PURPOSE_TIER + MODELS) resolve as expected.
 //
 // Asserts against the `audit` object callLlm/callAdvisor RETURN to the caller
@@ -136,7 +140,12 @@ describe("purpose -> tier router + effort default (mock mode)", () => {
     expect(r.audit.modelUsed).toBe(`mock:${MODELS.flash}`);
   });
 
-  test("pro tier records the default effort 'high' + gemini provider in the audit", async () => {
+  test("pro tier records the default effort 'high' + the retired-default vendor (openai) in the audit", async () => {
+    // reasoning_connect is not a PHASE2_VENDOR seat, so it takes the backbone
+    // switch; with EXPO_PUBLIC_BACKBONE_VENDOR unset that is RETIRED_DEFAULT
+    // ("openai" since T1 stage A). The legacy EXPO_PUBLIC_REASONING_PROVIDER
+    // seam is only consulted when the backbone resolves gemini, so it does not
+    // enter here. Pre-T1 this row read "gemini"; that default is retired.
     const r = await callLlm({
       userId: "u1",
       locale: "en",
@@ -146,7 +155,35 @@ describe("purpose -> tier router + effort default (mock mode)", () => {
     const audit = r.audit as AuditMeta;
     expect(audit.modelUsed).toBe(`mock:${MODELS.pro}`);
     expect(audit.effort).toBe("high");
-    expect(audit.reasoningProvider).toBe("gemini");
+    expect(audit.reasoningProvider).toBe("openai");
+  });
+
+  test("rollback: explicit gemini on the backbone + legacy seam still audits 'gemini' on the pro tier", async () => {
+    // explicit: unset is openai since T1 stage A. For a non-seat pro-tier
+    // purpose BOTH switches must say gemini — the backbone picks the axis, and
+    // once it says gemini the legacy reasoning seam gets the last word (and
+    // that seam's own unset default is openai too).
+    const savedBackbone = process.env.EXPO_PUBLIC_BACKBONE_VENDOR;
+    const savedReasoning = process.env.EXPO_PUBLIC_REASONING_PROVIDER;
+    process.env.EXPO_PUBLIC_BACKBONE_VENDOR = "gemini";
+    process.env.EXPO_PUBLIC_REASONING_PROVIDER = "gemini";
+    try {
+      const r = await callLlm({
+        userId: "u1",
+        locale: "en",
+        purpose: "reasoning_connect",
+        user: "go on",
+      });
+      const audit = r.audit as AuditMeta;
+      expect(audit.modelUsed).toBe(`mock:${MODELS.pro}`);
+      expect(audit.effort).toBe("high");
+      expect(audit.reasoningProvider).toBe("gemini");
+    } finally {
+      if (savedBackbone === undefined) delete process.env.EXPO_PUBLIC_BACKBONE_VENDOR;
+      else process.env.EXPO_PUBLIC_BACKBONE_VENDOR = savedBackbone;
+      if (savedReasoning === undefined) delete process.env.EXPO_PUBLIC_REASONING_PROVIDER;
+      else process.env.EXPO_PUBLIC_REASONING_PROVIDER = savedReasoning;
+    }
   });
 
   test("an explicit effort overrides the default on the pro tier", async () => {

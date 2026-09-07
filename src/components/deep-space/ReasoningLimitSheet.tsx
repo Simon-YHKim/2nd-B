@@ -37,6 +37,7 @@ import { useProgression } from "@/lib/progression/useProgression";
 import { m3 } from "@/lib/theme/m3";
 import { deepSpace, flattenAlpha, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
+import { a11yValue } from "@/lib/a11y/accessibility-value";
 
 /**
  * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
@@ -118,6 +119,10 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
   const rewardCredits = usage?.rewardCredits ?? 0;
   const rewardEarned = usage?.rewardEarned ?? 0;
   const earnCapReached = rewardEarned >= REWARD_MONTHLY_CAP;
+  // Only set when a completed watch did not visibly pay. The cap already has its
+  // own line (rewardCapReached), so this is the case that had nothing at all:
+  // the user watched, the number did not move, and the sheet said nothing.
+  const [grantFailed, setGrantFailed] = useState(false);
   const month = monthLabelFor(i18n.language ?? "en", usage?.monthBucket ?? "");
 
   // Fail-closed ad region: the FULL #1076 rewarded gate (build flag + free
@@ -140,6 +145,7 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
   const onWatch = useCallback(async () => {
     if (!userId || watching) return;
     setWatching(true);
+    setGrantFailed(false);
     try {
       // SSV customData (0091 contract): bare userId = the reasoning reward
       // path. When AdMob SSV becomes the grant authority
@@ -149,14 +155,19 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
       // so one watch never double-grants.
       const { completed } = await showRewardedAd({ ssvCustomData: userId });
       if (completed) {
-        await addRewardCredits(userId, REWARD_PER_WATCH);
+        const grant = await addRewardCredits(userId, REWARD_PER_WATCH);
         await refreshUsage();
         onChanged?.();
+        // "capped" already has a line of its own above, and the refetch makes it
+        // appear. "unconfirmed" is the one the user could not otherwise tell from
+        // a watch that simply did nothing.
+        if (mountedRef.current) setGrantFailed(grant === "unconfirmed");
       }
     } catch (e) {
       if (typeof console !== "undefined") {
         console.warn("[reasoning-limit] rewarded watch failed", (e as Error).message);
       }
+      if (mountedRef.current) setGrantFailed(true);
     } finally {
       if (mountedRef.current) setWatching(false);
     }
@@ -188,7 +199,7 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
             <View
               style={styles.meterRow}
               accessibilityRole="progressbar"
-              accessibilityValue={{ min: 0, max: cap, now: baseLeft ?? 0 }}
+              {...a11yValue({ min: 0, max: cap, now: baseLeft ?? 0 })}
             >
               {Array.from({ length: cap }, (_, index) => {
                 const lit = index < (baseLeft ?? 0);
@@ -205,6 +216,12 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
               ? t("ds.reasoningLimit.rewardCapReached", { cap: REWARD_MONTHLY_CAP })
               : t("ds.reasoningLimit.rewardLeft", { n: rewardCredits, month })}
           </RNText>
+
+          {grantFailed ? (
+            <RNText style={[styles.rewardLine, styles.grantFailedTint]} accessibilityLiveRegion="polite">
+              {t("ds.reward.creditFailed")}
+            </RNText>
+          ) : null}
 
           <View style={styles.actions}>
             {adEligible ? (
@@ -296,6 +313,10 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: m3.spacing.s3,
   },
+  // Tint only. A style of its own would have added a fifth fontFamilies.readable
+  // to this file, and readable-font-bypass.test.ts holds it at four on the way
+  // down. Reusing rewardLine keeps the ratchet moving the right direction.
+  grantFailedTint: { color: deepSpace.warning },
   rewardLine: {
     color: m3.color.onSurfaceVariant,
     fontFamily: fontFamilies.readable,

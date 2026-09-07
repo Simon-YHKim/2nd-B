@@ -59,25 +59,25 @@ export interface WikiExport {
 export const STRINGS = {
   en: {
     header: (n: number, m: number, date: string, name: string | null) =>
-      `# 2nd-Brain knowledge export — ${date}\n\nYou are consulting${name ? ` ${name}'s` : ""} 2nd-Brain — a personal knowledge graph of ${n} wiki page(s) and ${m} source(s). Pages use Obsidian-style [[wikilinks]] that resolve to other slugs in this bundle. When you cite a page in a reply, use its slug in [[double brackets]].`,
+      `# 2nd-Brain knowledge export - ${date}\n\nYou are consulting${name ? ` ${name}'s` : ""} 2nd-Brain - a personal knowledge graph of ${n} wiki page(s) and ${m} source(s). Pages use Obsidian-style [[wikilinks]] that resolve to other slugs in this bundle. When you cite a page in a reply, use its slug in [[double brackets]].`,
     pagesH: "## Wiki pages",
     sourcesH: "## Sources",
     recordsH: "## Records (journal & notes)",
     noPages: "_(no wiki pages yet)_",
     noSources: "_(no sources yet)_",
     noRecords: "_(no records yet)_",
-    truncated: (n: number) => `\n\n_(body truncated — original is ${n} chars)_`,
+    truncated: (n: number) => `\n\n_(body truncated - original is ${n} chars)_`,
   },
   ko: {
     header: (n: number, m: number, date: string, name: string | null) =>
-      `# 두번째 뇌 지식 내보내기 — ${date}\n\n${name ? `${name}의 ` : ""}두번째 뇌를 참고하는 중이에요. 위키 페이지 ${n}개, 소스 ${m}개로 구성돼 있어요. 페이지는 Obsidian 스타일 [[wikilink]]로 서로 연결됩니다. 답변에서 페이지를 인용할 때는 [[슬러그]] 형식을 사용해 주세요.`,
+      `# 두번째 뇌 지식 내보내기 - ${date}\n\n${name ? `${name}의 ` : ""}두번째 뇌를 참고하는 중이에요. 위키 페이지 ${n}개, 소스 ${m}개로 구성돼 있어요. 페이지는 Obsidian 스타일 [[wikilink]]로 서로 연결됩니다. 답변에서 페이지를 인용할 때는 [[슬러그]] 형식을 사용해 주세요.`,
     pagesH: "## 위키 페이지",
     sourcesH: "## 소스",
     recordsH: "## 기록 (일기·노트)",
     noPages: "_(아직 위키 페이지가 없어요)_",
     noSources: "_(아직 소스가 없어요)_",
     noRecords: "_(아직 기록이 없어요)_",
-    truncated: (n: number) => `\n\n_(본문 잘림 — 원본은 ${n}자)_`,
+    truncated: (n: number) => `\n\n_(본문 잘림 - 원본은 ${n}자)_`,
   },
 } as const;
 
@@ -145,7 +145,7 @@ export function formatRecord(r: ExportRecordRow, bodyCharLimit: number | undefin
   if (bodyCharLimit !== undefined && body.length > bodyCharLimit) {
     body = body.slice(0, bodyCharLimit) + STRINGS[locale].truncated(r.body.length);
   }
-  const title = r.topic && r.topic.trim().length > 0 ? ` — ${r.topic.trim()}` : "";
+  const title = r.topic && r.topic.trim().length > 0 ? ` - ${r.topic.trim()}` : "";
   return `### ${date} · ${label}${title}${tags}\n\n${body}`;
 }
 

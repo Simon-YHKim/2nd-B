@@ -26,6 +26,10 @@ import Purchases, {
   type PurchasesPackage,
 } from "react-native-purchases";
 
+// Re-exported so ./purchases.web.ts (the web-resolved stub, audit D5-01) can
+// mirror this file's signatures without referencing the SDK package itself.
+export type { PurchasesPackage } from "react-native-purchases";
+
 // The entitlement identifier configured in the RevenueCat dashboard. A customer
 // who owns any "pro" product has customerInfo.entitlements.active["pro"] set.
 export const PRO_ENTITLEMENT = "pro";
@@ -40,6 +44,22 @@ export type RestoreOutcome =
   | { status: "restored"; isPro: boolean }
   | { status: "unavailable" }
   | { status: "error"; message: string };
+
+/**
+ * Opt-in strict read for surfaces that must distinguish a store outage from an
+ * unconfigured build. `getOfferings()` intentionally remains fail-soft for its
+ * existing callers; the plans screen uses this result seam so an SDK error is
+ * never presented as an empty Offering or a coming-soon product.
+ */
+export type OfferingsOutcome =
+  | { status: "ready"; packages: PurchasesPackage[] }
+  | { status: "unavailable" }
+  | { status: "error" };
+
+// The tier selector is pure and is ALSO needed by purchases.web.ts, which may
+// not name react-native-purchases. It lives in ./purchases-select so both
+// platform variants share one implementation instead of drifting copies.
+export { findMonthlyTierPackage, type PlansPackageTier } from "./purchases-select";
 
 // True only on a native platform with a configured public key. Drives every
 // guard below; flipped during configurePurchases().
@@ -84,10 +104,10 @@ export function configurePurchases(): void {
   try {
     Purchases.configure({ apiKey });
     purchasesAvailable = true;
-  } catch (e) {
+  } catch {
     purchasesAvailable = false;
     if (typeof console !== "undefined") {
-      console.warn("[purchases] configure failed; purchases disabled.", e);
+      console.warn("[purchases] configure failed; purchases disabled.");
     }
   }
 }
@@ -97,13 +117,25 @@ export function configurePurchases(): void {
  * product). Returns [] on web / no-key / no-offering / error — never throws.
  */
 export async function getOfferings(): Promise<PurchasesPackage[]> {
-  if (!ensureConfigured()) return [];
+  const outcome = await getOfferingsResult();
+  return outcome.status === "ready" ? outcome.packages : [];
+}
+
+/**
+ * Load the current Offering without collapsing SDK failures into `[]`.
+ *
+ * No raw SDK error is returned: purchase identifiers, receipts, and customer
+ * details must not leak into UI copy, accessibility labels, or snapshots.
+ */
+export async function getOfferingsResult(): Promise<OfferingsOutcome> {
+  if (!ensureConfigured()) return { status: "unavailable" };
   try {
     const offerings: PurchasesOfferings = await Purchases.getOfferings();
-    return offerings.current?.availablePackages ?? [];
-  } catch (e) {
-    if (typeof console !== "undefined") console.warn("[purchases] getOfferings failed.", e);
-    return [];
+    const packages = offerings.current?.availablePackages ?? [];
+    return packages.length > 0 ? { status: "ready", packages } : { status: "unavailable" };
+  } catch {
+    if (typeof console !== "undefined") console.warn("[purchases] getOfferings failed.");
+    return { status: "error" };
   }
 }
 
@@ -119,7 +151,7 @@ export async function purchasePackage(pkg: PurchasesPackage): Promise<PurchaseOu
     return { status: "purchased", isPro: hasProEntitlement(result.customerInfo) };
   } catch (e) {
     if (isUserCancelled(e)) return { status: "cancelled" };
-    if (typeof console !== "undefined") console.warn("[purchases] purchasePackage failed.", e);
+    if (typeof console !== "undefined") console.warn("[purchases] purchasePackage failed.");
     return { status: "error", message: errorMessage(e) };
   }
 }
@@ -134,7 +166,7 @@ export async function restorePurchases(): Promise<RestoreOutcome> {
     const info = await Purchases.restorePurchases();
     return { status: "restored", isPro: hasProEntitlement(info) };
   } catch (e) {
-    if (typeof console !== "undefined") console.warn("[purchases] restorePurchases failed.", e);
+    if (typeof console !== "undefined") console.warn("[purchases] restorePurchases failed.");
     return { status: "error", message: errorMessage(e) };
   }
 }
@@ -148,8 +180,8 @@ export async function getProStatus(): Promise<boolean> {
   try {
     const info = await Purchases.getCustomerInfo();
     return hasProEntitlement(info);
-  } catch (e) {
-    if (typeof console !== "undefined") console.warn("[purchases] getCustomerInfo failed.", e);
+  } catch {
+    if (typeof console !== "undefined") console.warn("[purchases] getCustomerInfo failed.");
     return false;
   }
 }
@@ -168,7 +200,9 @@ function hasProEntitlement(info: CustomerInfo): boolean {
 }
 
 function isUserCancelled(e: unknown): boolean {
-  return typeof e === "object" && e !== null && (e as { userCancelled?: boolean }).userCancelled === true;
+  return (
+    typeof e === "object" && e !== null && (e as { userCancelled?: boolean }).userCancelled === true
+  );
 }
 
 function errorMessage(e: unknown): string {
@@ -177,4 +211,10 @@ function errorMessage(e: unknown): string {
     if (typeof m === "string") return m;
   }
   return "purchase_error";
+}
+
+/** Test-only: restore the module-level configuration latch. */
+export function __resetPurchasesForTests(): void {
+  purchasesAvailable = false;
+  configured = false;
 }

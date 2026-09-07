@@ -7,7 +7,7 @@
 // clipper_templates, consent_records, gemini_spend_daily, wiki_pages/links,
 // sources, guardian rows). ai_audit_log is the deliberate exception: its
 // user_id FK is ON DELETE SET NULL (0011), so its rows are RETAINED (user_id
-// nulled) as XPRIZE audit evidence rather than cascade-erased.
+// nulled) as safety audit evidence rather than cascade-erased.
 // Several of those (memorized_patterns, xp_events,
 // personas, the append-only consent_records ledger) have NO client DELETE
 // policy, so a client-side wipe can never reach them. Since migration 0107,
@@ -156,9 +156,22 @@ Deno.serve(async (req: Request) => {
       }
       if (!objs || objs.length === 0) break;
       const paths = objs.map((o) => `${userId}/${o.name}`);
-      const { error: rmErr } = await admin.storage.from('raw-clippings').remove(paths);
+      const { data: removed, error: rmErr } = await admin.storage.from('raw-clippings').remove(paths);
       if (rmErr) {
         console.warn('[delete-account] raw-clippings remove failed:', rmErr.message);
+        rawClippingsErased = false;
+        break;
+      }
+      // remove() can succeed partially: it returns the objects it ACTUALLY
+      // removed, and a short list with no error means some survived. Reading
+      // only `error` reported an erasure we never observed -- and the client now
+      // shows this flag to the user as a deletion receipt, so a false confirmation
+      // here becomes a false statement there. Report the shortfall instead.
+      const removedCount = Array.isArray(removed) ? removed.length : 0;
+      if (removedCount < paths.length) {
+        console.warn(
+          `[delete-account] raw-clippings partial remove: ${removedCount}/${paths.length}`,
+        );
         rawClippingsErased = false;
         break;
       }

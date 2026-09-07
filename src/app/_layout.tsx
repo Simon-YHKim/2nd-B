@@ -14,6 +14,7 @@ import {
   Redirect,
   router,
   useRootNavigationState,
+  usePathname,
   useSegments,
   // ⚠ 라우터의 **네비게이션 테마**다. 화면 팔레트(`@/lib/theme/ThemeContext`)와
   //   다른 물건이라 이름을 갈라 부른다. 아래 ThemedStack 주석 참조.
@@ -27,8 +28,10 @@ import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-c
 import { StatusBar } from "expo-status-bar";
 import { AppState } from "react-native";
 
+// Web-only base reset (no-op on native). See global.css for why it exists.
 import "../../global.css";
-import { initI18n } from "@/lib/i18n";
+
+import { initI18n, useI18nReady } from "@/lib/i18n";
 import {
   captureEvent,
   getAnalyticsConsentRevision,
@@ -37,6 +40,7 @@ import {
   setAnalyticsConsent,
 } from "@/lib/analytics";
 import { AuthProvider, useAuth } from "@/lib/auth/AuthContext";
+import { armWebRecoveryPendingFromLocation } from "@/lib/auth/recovery-proof-store";
 import { requiresGuardianConsent, resolveJurisdiction } from "@/lib/auth/consent-age";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { flushAuditWriteOutbox } from "@/lib/llm/audit-write-outbox";
@@ -50,6 +54,7 @@ import { pixelStackTransition } from "@/lib/motion/pixel-physical";
 import { fontAssets } from "@/theme/typography";
 import { ThemeProvider, useThemePalette } from "@/lib/theme/ThemeContext";
 import { hydrateFirstStarChatNudge } from "@/lib/onboarding/state";
+import { SITE_TITLE } from "@/lib/site-meta";
 import {
   accountEpochFromSnapshot,
   accountTransitionPendingFromSnapshot,
@@ -66,19 +71,35 @@ import {
 // RootErrorBoundary.tsx (handoff queue B, post-2026-06-26 crash hardening).
 export { ErrorBoundary } from "@/components/ui/RootErrorBoundary";
 
+// This runs before AuthProvider creates the lazy Supabase client. On web it
+// broadcasts a provisional cross-tab lock before auth-js mutates shared session
+// storage for a reset callback; non-callback routes are a no-op.
+armWebRecoveryPendingFromLocation();
 initI18n();
 void initAnalytics();
+
+// ⚠ #1517 은 여기서 네이티브 크래시 리포팅 SDK 초기화를 켰다. 되살리지 않는다 —
+// main 이 `964db854 fix(analytics): hard-disable Sentry runtimes (#1586)` 로 껐고
+// `d0e88e64` 가 그 벤더 의존성까지 지웠으므로, 되살리면 선언되지 않은 패키지를
+// require 하게 된다. 크래시 리포팅 재도입은 별도 결정 사항이다.
+// 이 파일은 analytics.test.ts 의 런타임 소스 스캔 대상이라 그 SDK 이름·초기화
+// 함수 이름을 **주석에도 적으면 안 된다**. 스캐너는 주석을 걸러내지 않는다.
 void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts(fontAssets);
+  // Synchronously true for en/ko (their packs are in the entry), so those
+  // users keep today's first-render timing to the frame. A lazy locale
+  // (es/pt/id) holds the loader until its pack chunk is attached, so the
+  // first paint is in that language instead of EN keys flashing.
+  const i18nReady = useI18nReady();
   const fadeTransition = pixelStackTransition("fade");
 
   useEffect(() => {
-    if (fontsLoaded || fontError) {
+    if ((fontsLoaded || fontError) && i18nReady) {
       void SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, fontError]);
+  }, [fontsLoaded, fontError, i18nReady]);
 
   // The first-star chat nudge is persisted to AsyncStorage but nothing read it
   // back, so on native it re-armed on every cold start and re-nudged users who
@@ -89,10 +110,29 @@ export default function RootLayout() {
     void hydrateFirstStarChatNudge();
   }, []);
 
+  // The browser tab is blank on web and always has been. The served page has
+  // two <title> tags and the first one wins: Expo Router's vendored
+  // react-helmet-async puts an empty `<title data-rh="true">` at the top of
+  // <head>, ahead of the one +html.tsx writes. Head cannot fill it - it only
+  // renders inside a focused screen, and the static shell is this component's
+  // InlineLoader branch, so no screen renders during export at all.
+  //
+  // Fixing that would mean changing when the root gate returns the loader,
+  // which is the boot path #1626/#1646 just stabilised - not a trade worth
+  // making for a tab label. Share cards are unaffected either way: og:title
+  // and twitter:title carry the name and scrapers prefer them.
+  //
+  // So set it on the client, where the people who actually read the tab are.
+  // Native has no document; the guard also covers the server render.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.title = SITE_TITLE;
+  }, []);
+
   // Brief minimal loader during font resolution. The branded cell-team
   // intro now lives inside IntroGate (gated on auth) — unauthenticated
   // visitors should land on /sign-in immediately, NOT see the loader.
-  if (!fontsLoaded && !fontError) return <InlineLoader />;
+  if ((!fontsLoaded && !fontError) || !i18nReady) return <InlineLoader />;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -395,8 +435,17 @@ function markIntroPlayed(): void {
 }
 
 function IntroGate({ children }: { children: React.ReactNode }) {
-  const { userId, loading, hasProfile, profileProbeFailed } = useAuth();
+  const {
+    userId,
+    loading,
+    hasProfile,
+    profileProbeFailed,
+    recoveryUserId,
+    recoveryReady,
+    recoveryPendingGlobal,
+  } = useAuth();
   const segments = useSegments();
+  const pathname = usePathname();
   // Play the cell-team intro only once per tab session. On re-entry (tab
   // switch back, navigating home, a fresh auth event) we go straight to the
   // app instead of re-showing the loader that waits for a tap — that was the
@@ -417,6 +466,19 @@ function IntroGate({ children }: { children: React.ReactNode }) {
     // Hydrate exactly once on mount — introDone is read but deliberately not
     // a dependency (it only flips one way and the effect self-noops then).
   }, []);
+
+  // Cold start must not render an ordinary app route until the persisted
+  // Supabase session and recovery marker have been reconciled. `introDone`
+  // intentionally bypasses later profile re-probes, so this separate one-shot
+  // readiness signal closes the restart window without re-showing the intro.
+  if (!recoveryReady) return <InlineLoader />;
+
+  // Recovery provenance survives restart and owns navigation globally. Exact
+  // pathname matching also catches pushes to another route inside `(auth)`;
+  // a group-level exemption would let /sign-in escape the mandatory reset.
+  if ((recoveryUserId || recoveryPendingGlobal) && pathname !== "/reset-password") {
+    return <Redirect href="/reset-password" />;
+  }
 
   // Global C10 + PIPA-consent gate (re-audit 2026-06-03: per-screen gating was
   // leaky — inbox/wiki kept slipping through). An authenticated session with NO
@@ -490,7 +552,7 @@ function IntroGate({ children }: { children: React.ReactNode }) {
 // Expo Router FILE segments ("/record/[id]"), never live ids or entry text.
 // Renders nothing; analytics never hard-fails the app.
 function AnalyticsConsentSync(): null {
-  const { userId, isMinor, loading } = useAuth();
+  const { userId, isMinor, loading, recoveryUserId, recoveryPendingGlobal } = useAuth();
   const segments = useSegments();
   const routePath = segments.length > 0 ? `/${segments.join("/")}` : "/";
   const [consentSyncVersion, setConsentSyncVersion] = useState(0);
@@ -502,7 +564,13 @@ function AnalyticsConsentSync(): null {
     // account, or an unresolved/minor age state.
     setAnalyticsConsent(false, { isMinor: true, confirmedAdult: false });
     lastTrackedPageRef.current = null;
-    if (loading) return;
+    if (loading || recoveryUserId || recoveryPendingGlobal) return;
+    // AuthProvider must create the web Supabase client and subscribe before
+    // any module starts a query. Otherwise auth-js can emit PASSWORD_RECOVERY
+    // from a cold URL before the listener exists, reducing recovery to an
+    // indistinguishable persisted session. Initialization stays fail-closed;
+    // the server-derived consent decision below may enable product analytics.
+    void initAnalytics();
     if (!userId) {
       setConsentSyncVersion((version) => version + 1);
       return;
@@ -554,7 +622,7 @@ function AnalyticsConsentSync(): null {
     return () => {
       cancelled = true;
     };
-  }, [userId, isMinor, loading]);
+  }, [userId, isMinor, loading, recoveryPendingGlobal, recoveryUserId]);
 
   useEffect(() => {
     const pageKey = `${userId ?? "signed-out"}:${routePath}`;
@@ -571,16 +639,16 @@ function AnalyticsConsentSync(): null {
 // 영역"), 그 값을 화면마다 넘기지 않고 i18next defaultVariables 로 한 번에
 // 채운다. 이름이 없으면 폴백(당신)이라 문장이 깨지지 않는다.
 function AddressTermSync(): null {
-  const { userId } = useAuth();
+  const { userId, recoveryUserId, recoveryPendingGlobal } = useAuth();
   const { i18n } = useTranslation();
-  useAddressTerm(userId, i18n.language);
+  useAddressTerm(recoveryUserId || recoveryPendingGlobal ? null : userId, i18n.language);
   return null;
 }
 
 function AuditWriteOutboxSync(): null {
-  const { userId, loading } = useAuth();
+  const { userId, loading, recoveryUserId, recoveryPendingGlobal } = useAuth();
   useEffect(() => {
-    if (loading || !userId) return;
+    if (loading || !userId || recoveryUserId || recoveryPendingGlobal) return;
 
     const flush = () => {
       void flushAuditWriteOutbox(userId);
@@ -600,6 +668,6 @@ function AuditWriteOutboxSync(): null {
     return () => {
       appStateSub.remove();
     };
-  }, [loading, userId]);
+  }, [loading, recoveryPendingGlobal, recoveryUserId, userId]);
   return null;
 }

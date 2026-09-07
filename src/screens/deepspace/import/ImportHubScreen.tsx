@@ -10,6 +10,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text as RNText, TextInput, View } from "react-native";
+import { checkboxSpaceKeyProps } from "@/lib/ui/checkbox-space-key";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
@@ -27,7 +28,7 @@ import { useProgression } from "@/lib/progression/useProgression";
 import { upsertKakaoRelationPeople } from "@/lib/relation/import-signals";
 import { recordImportConsent } from "@/lib/supabase/consent";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
-import { deleteSourcesByIds } from "@/lib/records/delete-bulk";
+import { deleteSourcesByIds, findSurvivingSourceIds } from "@/lib/records/delete-bulk";
 import { captureEvent, proposalDecided } from "@/lib/analytics";
 import { detectImportKind, type ImportKind } from "@/lib/import/detect";
 import { fileImportSupported, pickTextFile } from "@/lib/import/file-read";
@@ -134,8 +135,10 @@ export function ImportHubScreen() {
 
   useEffect(() => {
     setHistErr(null);
-    void getImportHistory().then(setHistory);
-  }, [step]);
+    void getImportHistory(userId).then(setHistory);
+    // userId in deps (F-08): re-read when auth resolves so the scoped key is
+    // read for the right user, and a user switch never shows the prior user's log.
+  }, [step, userId]);
 
   const openSource = (s: ImportSource) => {
     if (s.minorLocked && isMinor === true) return; // C10 — comms/location locked for minors
@@ -269,7 +272,7 @@ export function ImportHubScreen() {
         const failedTxns = booked ? booked.failed : attempted;
         if (failedTxns > 0) setLedgerWarn({ inserted: bookedTxns, failed: failedTxns });
       }
-      await addImportHistory({
+      await addImportHistory(userId, {
         id: `${Date.now()}`,
         sourceKey: active.key,
         name: name(active),
@@ -352,16 +355,25 @@ export function ImportHubScreen() {
     }
     if (entry && userId && entry.sourceIds.length > 0) {
       try {
-        await deleteSourcesByIds(userId, entry.sourceIds);
+        const removed = await deleteSourcesByIds(userId, entry.sourceIds);
+        // Same as the deep-space shell: a short delete is only a false assurance
+        // if rows are still there, and the count cannot say. Ask when it is short.
+        if (
+          removed < entry.sourceIds.length &&
+          (await findSurvivingSourceIds(userId, entry.sourceIds)).length > 0
+        ) {
+          setHistErr(t("revokeFailed"));
+          return;
+        }
       } catch {
         setHistErr(t("revokeFailed"));
         return;
       }
     }
-    await removeImportHistory(id);
+    await removeImportHistory(userId, id);
     // Imported data left the record — a sad beat on the head.
     reactExpression("sad");
-    setHistory(await getImportHistory());
+    setHistory(await getImportHistory(userId));
   };
 
   // --- render -----------------------------------------------------------
@@ -583,7 +595,26 @@ export function ImportHubScreen() {
         {out.proposals.map((p) => {
           const on = selected.has(p.id);
           return (
-            <Pressable key={p.id} onPress={() => toggleSel(p.id)} hitSlop={4} style={[styles.proposalRow, on ? styles.proposalOn : null]}>
+            <Pressable
+              key={p.id}
+              onPress={() => toggleSel(p.id)}
+              hitSlop={4}
+              // 이 줄은 실행이 아니라 켜고 끄는 것이다. 역할이 없으면 스크린리더가
+              // "체크박스" 라고도, 켜졌다고도 말하지 않고 - 웹에서는 한 단계 더
+              // 나쁘다: React Native Web 의 PressResponder 는 button 계열이
+              // 아니면 스페이스를 아예 처리하지 않고 역할 없는 View 는 포커스도
+              // 받지 못한다. 그래서 역할이 키 배선보다 먼저다.
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: on, disabled: busy }}
+              // 눈에 보이는 것과 같은 이름으로 읽히게 한다. 고정 문자열이면 열
+              // 줄이 전부 같은 이름이 된다.
+              accessibilityLabel={`${p.label} · ${p.sub}${p.sensitive ? ` · ${t("sensitiveExcluded")}` : ""}`}
+              // 적용이 도는 동안 선택이 바뀌면 사용자가 고른 것과 실제로 적용되는
+              // 것이 갈라진다. 적용 버튼은 이미 잠기는데 이 줄만 열려 있었다.
+              disabled={busy}
+              {...checkboxSpaceKeyProps(() => toggleSel(p.id), !busy)}
+              style={[styles.proposalRow, on ? styles.proposalOn : null]}
+            >
               <View style={[styles.check, on ? styles.checkOn : null]}>{on ? <RNText style={styles.checkMark}>✓</RNText> : null}</View>
               <View style={{ flex: 1 }}>
                 <Text variant="body" style={styles.proposalLabel} numberOfLines={1}>{p.label}</Text>

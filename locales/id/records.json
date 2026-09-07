@@ -3,7 +3,7 @@
   "eyebrowVillage": "{{village}} · catatan",
   "titleRoot": "Kunjungi lagi setiap serpihan yang kamu tinggalkan",
   "titleVillage": "Serpihan di bintang ini",
-  "subtitleRoot": "Jurnal, tangkapan, asesmen, dan inspirasi dalam satu tempat",
+  "subtitleRoot": "Jurnal, catatan tersimpan, penilaian, dan ide dalam satu tempat",
   "subtitleVillage": "Hanya catatan yang terkumpul di bawah bintang ini",
   "searchPlaceholder": "Cari serpihan",
   "searchLabel": "Cari catatan",
@@ -16,5 +16,5 @@
   "tryAgain": "Coba lagi",
   "retryHint": "Mencoba memuat catatan dan sumber lagi.",
   "leavePiece": "Tinggalkan serpihan hari ini",
-  "leaveHint": "Membuka tangkapan untuk menyimpan serpihan hari ini."
+  "leaveHint": "Membuka halaman Simpan untuk menambahkan catatan hari ini."
 }

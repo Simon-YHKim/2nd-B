@@ -39,6 +39,7 @@
       "desc": "Suena solo en este dispositivo. Puedes desactivarlo cuando quieras.",
       "notifBody": "¿Repasamos las conexiones reunidas de tus registros?",
       "denied": "Las notificaciones están desactivadas para esta app. Actívalas en Ajustes.",
+      "changeFailed": "No se pudo actualizar el recordatorio. Puede que siga llegando con la configuración anterior. Inténtalo de nuevo.",
       "timeTitle": "Hora del recordatorio",
       "timeHint": "Solo en este dispositivo."
     }

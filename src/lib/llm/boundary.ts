@@ -2,11 +2,11 @@
 //
 //   C1: Only this file imports @google/genai (enforced by ESLint + boundary script).
 //   C2: When EXPO_PUBLIC_USE_VERTEX=true, the @google/genai client is constructed
-//       with vertexai:true, satisfying the XPRIZE "Google Cloud product" mandate.
+//       with vertexai:true (retained Vertex branch; not a product requirement).
 //   C3: After every call, ai_audit_log receives a queued write via audit-write outbox.
 //   C9: classifyInput() runs BEFORE the network call. Red zone short-circuits.
 //
-// Tests in __tests__/gemini.test.ts assert the ordering.
+// Tests in __tests__/boundary.test.ts assert the ordering.
 
 import { GoogleGenAI } from "@google/genai";
 
@@ -491,7 +491,7 @@ async function routeCrisis(
   const text =
     locale === "ko"
       ? `지금 많이 힘드신 것 같아요. 혼자 견디지 마시고 ${joined}로 연락해 주세요. 전문가가 24시간 함께합니다.`
-      : `It sounds like you're going through a lot right now. Please reach out to ${joined} — trained responders are available 24/7.`;
+      : `It sounds like you're going through a lot right now. Please reach out to ${joined} - trained responders are available 24/7.`;
   const audit = {
     promptHash,
     outputHash: djb2(text),
@@ -503,8 +503,8 @@ async function routeCrisis(
     // (callLlm paths); record-save scans have no PromptPurpose — NULL row.
     ...(opts.purpose ? { purpose: opts.purpose } : {}),
   };
-  // C3: crisis routing MUST be audited. The whole point of audit_log is the
-  // judges' ability to prove the safety classifier intercepted dangerous input.
+  // C3: crisis routing MUST be audited. The whole point of audit_log is an
+  // audit trail proving the safety classifier intercepted dangerous input.
   await writeAiAuditLog(userId, audit, "[ai_audit_log] crisis insert failed");
   // Separate restricted ledger (crisis_events), parity with callAdvisor's input-RED
   // path. Without this every callLlm surface (chat/journal/interview/persona/
@@ -683,7 +683,15 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       // vendor's native ladder server-side and clamps per purpose.
       ...(effort ? { effort } : {}),
     };
-    const primaryFn = proxyFnForVendor(reasoningProvider);
+    // The proxy is picked from the RESOLVED SEAT, not from reasoningProvider.
+    // reasoningProvider collapses a non-pro gemini seat to undefined (audit
+    // parity: lite/flash rows never carried a vendor), and until T1 stage A
+    // proxyFnForVendor(undefined) happened to mean gemini-proxy, so the two
+    // agreed by accident. Now undefined means the retired default, and picking
+    // from reasoningProvider sent an explicit EXPO_PUBLIC_*_VENDOR=gemini on a
+    // flash seat to openai-proxy — the one-variable rollback silently broken
+    // on the highest-volume surfaces. Caught by vendor-routing-live.test.ts.
+    const primaryFn = proxyFnForVendor(vendorSeat);
     const t0 = Date.now();
     let { data, error } = await supabase.functions.invoke(primaryFn, {
       body: proxyBody,
@@ -715,7 +723,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
         )) as unknown as LlmResult<T>;
       }
       if (typeof console !== "undefined") {
-        console.warn(`[llm] ${primaryFn} failed for ${input.purpose} — falling back to ${failoverFn}`);
+        console.warn(`[llm] ${primaryFn} failed for ${input.purpose} - falling back to ${failoverFn}`);
       }
       // ⚠ This must follow the target, not say "gemini". servedByProvider is
       // what the audit row records, so a hardcoded value here would make the
@@ -819,7 +827,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   // jailbreak, or multi-turn drift. callLlm text is rendered verbatim by every
   // caller (interview probe, phase1 summary, import echo, persona), so we must
   // NOT ship it. Swap in the verbatim crisis template, write an HONEST audit row
-  // (real model + latency + a +swap marker so judges see the model WAS called and
+  // (real model + latency + a +swap marker so the audit trail shows the model WAS called and
   // intercepted), and log a categorical crisis_event.
   // F9: write the swap row UNCONDITIONALLY (was gated on !proxyAudited). Unlike
   // GREEN/YELLOW this is NOT a duplicate of the proxy's row -- the proxy audited the
@@ -1495,7 +1503,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
         );
       }
       if (typeof console !== "undefined") {
-        console.warn(`[advisor] ${primaryFn} failed — falling back to ${failoverFn}`);
+        console.warn(`[advisor] ${primaryFn} failed - falling back to ${failoverFn}`);
       }
       // See the note at the other failover site: this value is what the audit
       // records, so it has to follow the target.
@@ -1550,7 +1558,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
 
   if (outputSafety.zone === "red") {
     // Don't ship the Pro text. Substitute the verbatim crisis template, audit
-    // both the swapped text and the original (to give judges a trail), and
+    // both the swapped text and the original (to keep a full audit trail), and
     // log a crisis_event with categorical metadata.
     const fixed = fixedCrisisResponse(input.locale, input.minor);
     const audit = {

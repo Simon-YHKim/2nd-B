@@ -1,10 +1,15 @@
 // On-device recording helpers shared by the two voice->text flows (capture 음성
 // mode and the call-reflection recorder).
 //
-// recordingUriToBase64 reads a local recording URI into base64 + mime WITHOUT
-// expo-file-system: it fetches the file:// (or blob:) URI as a Blob, then
-// FileReader.readAsDataURL yields a "data:<mime>;base64,<data>" string we split.
-// Works on native and web, and feeds transcribeAudio the exact same shape.
+// recordingUriToBase64 reads a local recording URI into base64 + mime without
+// touching the filesystem API: it fetches the file:// (or blob:) URI as a Blob,
+// then FileReader.readAsDataURL yields a "data:<mime>;base64,<data>" string we
+// split. Works on native and web, and feeds transcribeAudio the exact same shape.
+//
+// discardRecording does need expo-file-system (legacy API) to unlink the file
+// afterwards, so that package is a declared dependency (D4-01, 2026-09-05): it
+// used to resolve only transitively through `expo`, which a hoisting change
+// could silently break.
 import { deleteAsync } from "expo-file-system/legacy";
 
 export async function recordingUriToBase64(
