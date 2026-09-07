@@ -41,6 +41,10 @@ config.resolver.unstable_enablePackageExports = false;
 const escapeForRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 config.resolver.blockList = [
   new RegExp(`^${escapeForRegExp(require("path").join(__dirname, ".worktrees"))}[\\\\/].*`),
+  // legacy/ holds retired renderers kept only so they can be read
+  // (legacy/screens/INDEX.md). They are excluded from tsconfig, jest and eslint
+  // for the same reason, and must never reach a bundle.
+  new RegExp(`^${escapeForRegExp(require("path").join(__dirname, "legacy"))}[\\\\/].*`),
   // Never bundle tests into the app. expo-router globs src/app via require.context,
   // so a *.test.* / __tests__ file there pulls in node:* builtins that Hermes can't
   // resolve and breaks the native / OTA export (see .github/workflows/eas-update.yml).
