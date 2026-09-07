@@ -13,14 +13,11 @@ import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell, PremiumLoadingState, PremiumModal, PremiumToast, SceneHero } from "@/components/premium";
+import { PremiumLoadingState } from "@/components/premium";
 import { canonIden } from "@/lib/canon";
-import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { type IdenViewData } from "@/components/deep-space/DeepSpaceViews";
 import { Text } from "@/components/ui/Text";
-import { Button } from "@/components/ui/Button";
-import { cosmic, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { buildIdenExport } from "@/lib/iden/iden-export";
 import {
@@ -34,9 +31,6 @@ import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { m3 } from "@/lib/theme/m3";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { MdButton, MdChip } from "@/components/m3";
-import { VILLAGE_UI } from "@/lib/village-ui";
-
-type Toast = { tone: "info" | "success" | "danger"; message: string };
 
 // rev2 IdenScreen (sb-screens-extra) — the "AI에 전달" target cards. Brand marks
 // are letter avatars tinted with each product's brand color; every card routes
@@ -159,8 +153,7 @@ function usePersistedIdenSession(args: {
 }
 
 export default function IdenExportScreen() {
-  if (isDeepSpaceUI()) return <IdenExportScreenDeepSpace />;
-  return <IdenExportScreenLegacy />;
+  return <IdenExportScreenDeepSpace />;
 }
 
 // Deep-space IDEN: the canonical default surface. Lifecycle events only read
@@ -494,172 +487,4 @@ const dsIden = StyleSheet.create({
   actions: { flexDirection: "row", gap: 8, marginTop: 22 },
   actionMain: { flex: 1 },
   notice: { textAlign: "center", marginTop: 8 },
-});
-
-function IdenExportScreenLegacy() {
-  const { t, i18n } = useTranslation("iden");
-  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
-  const { userId, loading, hasProfile, profileProbeFailed, isMinor } = useAuth();
-  const { session, retry } = usePersistedIdenSession({
-    userId,
-    authLoading: loading,
-    hasProfile,
-    profileProbeFailed,
-    isMinor,
-    locale,
-  });
-  const doc = session?.status === "ready" ? session.doc : null;
-  const [resultOpen, setResultOpen] = useState(false);
-  const [toast, setToast] = useState<Toast | null>(null);
-
-  const notify = useCallback((next: Toast) => {
-    setToast(next);
-    setTimeout(() => setToast(null), 2400);
-  }, []);
-
-  const currentResult = useCallback(() => {
-    if (!doc) return null;
-    return buildIdenExport(visibleIdenDocForExport(doc, []), { locale });
-  }, [doc, locale]);
-
-  const handleBuild = useCallback(() => {
-    if (!doc) return;
-    setResultOpen(true);
-  }, [doc]);
-
-  const handleCopy = useCallback(async () => {
-    const result = currentResult();
-    if (!result) return;
-    try {
-      await Clipboard.setStringAsync(result.iden);
-      notify({ tone: "success", message: t("result.copied") });
-    } catch {
-      notify({ tone: "danger", message: t("error") });
-    }
-  }, [currentResult, notify, t]);
-
-  const handleShare = useCallback(async () => {
-    const result = currentResult();
-    if (!result) return;
-    try {
-      await Share.share({ message: result.iden });
-    } catch {
-      /* user dismissed the share sheet */
-    }
-  }, [currentResult]);
-
-  if (!loading && !userId) return <Redirect href="/sign-in" />;
-  if (!loading && hasProfile === false && !profileProbeFailed) return <Redirect href="/complete-profile" />;
-  if (loading || !userId || profileProbeFailed || hasProfile !== true || isMinor === null) {
-    return (
-      <PremiumAppShell>
-        <View style={styles.center}>
-          <PremiumLoadingState message={t("loading")} />
-        </View>
-      </PremiumAppShell>
-    );
-  }
-  if (session?.status === "error") {
-    return (
-      <PremiumAppShell>
-        <View style={styles.center}>
-          <Text variant="body" color="textMuted">{t("ds.loadError")}</Text>
-          <Button label={t("ds.retry")} onPress={retry} />
-        </View>
-      </PremiumAppShell>
-    );
-  }
-
-  if (session?.status === "empty") {
-    return (
-      <PremiumAppShell>
-        <View style={styles.center}>
-          <Text variant="body" color="textMuted">{t("ds.empty")}</Text>
-          <Button label={t("ds.startGathering")} onPress={() => router.push("/interview")} />
-        </View>
-      </PremiumAppShell>
-    );
-  }
-
-  if (!doc) {
-    return (
-      <PremiumAppShell>
-        <View style={styles.center}>
-          <PremiumLoadingState message={t("loading")} />
-        </View>
-      </PremiumAppShell>
-    );
-  }
-
-  const isWeb = Platform.OS === "web";
-  const renderedResult = resultOpen ? currentResult() : null;
-
-  return (
-    <PremiumAppShell>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <SceneHero
-          eyebrow={t("hero.eyebrow")}
-          title={t("hero.title")}
-          subtitle={t("hero.subtitle")}
-          island={VILLAGE_UI.records.island}
-          worker={VILLAGE_UI.records.worker}
-          accent={VILLAGE_UI.records.accent}
-          speech={t("hero.speech")}
-        />
-
-        <View style={[styles.section, { borderStartColor: cosmic.soulViolet }]}>
-          <Text variant="body" color="textMuted">{t("intro.body")}</Text>
-          <Button
-            label={t("ds.export")}
-            onPress={handleBuild}
-            accessibilityHint={t("generate.accessibilityHint")}
-          />
-        </View>
-      </ScrollView>
-
-      <PremiumModal visible={resultOpen && renderedResult !== null} onClose={() => setResultOpen(false)}>
-        <Text variant="heading" color="text">{t("result.title")}</Text>
-        <Text variant="caption" color="textMuted" style={styles.hint}>{t("result.hint")}</Text>
-        <ScrollView style={styles.codeBox}>
-          <Text variant="caption" color="textMuted" style={styles.code} selectable>{renderedResult?.iden}</Text>
-        </ScrollView>
-        <View style={styles.actions}>
-          <Button label={t("result.copy")} onPress={handleCopy} />
-          {isWeb ? (
-            <Button label={t("result.openSheet")} variant="secondary" onPress={() => {
-              const result = currentResult();
-              if (result) openSheetInNewTab(result.html);
-            }} />
-          ) : (
-            <Button label={t("result.share")} variant="secondary" onPress={handleShare} />
-          )}
-          <Button label={t("result.close")} variant="ghost" onPress={() => setResultOpen(false)} />
-        </View>
-      </PremiumModal>
-
-      {toast && <PremiumToast message={toast.message} tone={toast.tone} />}
-    </PremiumAppShell>
-  );
-}
-
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.lg },
-  scroll: { padding: spacing.lg, gap: spacing.lg },
-  section: {
-    gap: spacing.md,
-    padding: spacing.lg,
-    borderStartWidth: 3,
-    borderRadius: 0,
-    backgroundColor: semantic.surface,
-  },
-  hint: { marginTop: spacing.xs },
-  codeBox: {
-    maxHeight: 280,
-    marginTop: spacing.md,
-    padding: spacing.md,
-    borderRadius: 0,
-    backgroundColor: semantic.background,
-  },
-  code: { fontFamily: Platform.select({ ios: "Menlo", android: "monospace", default: "monospace" }) },
-  actions: { gap: spacing.sm, marginTop: spacing.lg },
 });
