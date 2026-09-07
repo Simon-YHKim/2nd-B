@@ -1,20 +1,20 @@
 {
-  "loading": "Cargando investigación...",
+  "loading": "Cargando fuentes…",
   "error": {
-    "title": "No se pudo cargar la investigación",
-    "body": "La conexión se pausó un momento. Inténtalo de nuevo para recargar la biblioteca.",
+    "title": "No se pudieron cargar las fuentes",
+    "body": "Inténtalo de nuevo para cargar la lista de fuentes.",
     "retry": "Intentar de nuevo"
   },
   "hero": {
-    "eyebrow": "Investigación",
-    "title": "Mantén la evidencia visible",
+    "eyebrow": "Fuentes",
+    "title": "Consulta las fuentes",
     "subtitle": "Big Five · apego · CBT · VIA",
     "speech": "Aquí solo aparecen las fuentes verificadas que SecondB puede citar."
   },
-  "empty": "Aún no hay fuentes. El flujo de curación está en progreso.",
+  "empty": "Aún no hay fuentes. Se están seleccionando.",
   "filter": {
-    "label": "Filtrar por marco",
-    "accessibilityLabel": "Filtros de marco",
+    "label": "Filtrar por teoría",
+    "accessibilityLabel": "Filtros por teoría",
     "all": "Todos"
   },
   "sourceCount": "{{visible}} fuente{{plural}} (de {{total}})",

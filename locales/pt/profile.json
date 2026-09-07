@@ -3,9 +3,9 @@
   "fallbackName": "Visitante",
   "hero": {
     "eyebrow": "Eu",
-    "title": "Hub de perfil de {{displayName}}",
-    "subtitle": "Conheça, use e gerencie seu perfil",
-    "speech": "Tudo sobre você está reunido aqui. Vá no seu ritmo."
+    "title": "Perfil de {{displayName}}",
+    "subtitle": "Seu perfil, seus registros e sua conta",
+    "speech": "Veja seu resumo, faça um teste ou ajuste sua conta."
   },
   "account": {
     "eyebrow": "Conta",
@@ -29,8 +29,8 @@
       "label": "Me conhecer melhor",
       "items": {
         "persona": {
-          "label": "Persona",
-          "hint": "Abre a tela da sua persona."
+          "label": "Meu resumo",
+          "hint": "Abre seu resumo pessoal."
         },
         "bigFive": {
           "label": "Big Five",

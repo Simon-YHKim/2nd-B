@@ -3,9 +3,9 @@
   "fallbackName": "Invitado",
   "hero": {
     "eyebrow": "Yo",
-    "title": "Centro de perfil de {{displayName}}",
-    "subtitle": "Conoce, usa y gestiona tu perfil",
-    "speech": "Todo sobre ti está reunido aquí. Tómate tu tiempo."
+    "title": "Perfil de {{displayName}}",
+    "subtitle": "Tu resumen, registros y cuenta en un solo lugar",
+    "speech": "Consulta tu resumen o cambia tu perfil y ajustes."
   },
   "account": {
     "eyebrow": "Cuenta",
@@ -13,7 +13,7 @@
   },
   "sections": {
     "center": {
-      "label": "Centro personal",
+      "label": "Mi resumen",
       "items": {
         "coreBrain": {
           "label": "Abrir Estrella Polar",
@@ -29,8 +29,8 @@
       "label": "Conócete mejor",
       "items": {
         "persona": {
-          "label": "Persona",
-          "hint": "Abre tu pantalla de persona."
+          "label": "Mi resumen",
+          "hint": "Abre tu resumen."
         },
         "bigFive": {
           "label": "Big Five",
@@ -74,8 +74,8 @@
           "hint": "Abre la vista de equilibrio de cuatro áreas."
         },
         "research": {
-          "label": "Investigación",
-          "hint": "Abre orientación respaldada por investigación."
+          "label": "Fuentes",
+          "hint": "Abre las fuentes de los tests y las explicaciones."
         }
       }
     },
@@ -107,19 +107,19 @@
           "hint": "Abre tus formatos de archivo."
         },
         "manual": {
-          "label": "Manual",
-          "hint": "Abre el manual de la app."
+          "label": "Guía de uso",
+          "hint": "Abre la guía de uso."
         },
         "import": {
           "label": "Importar",
-          "hint": "Abre la importación externa."
+          "hint": "Abre las opciones para traer archivos y otros materiales."
         },
         "inbox": {
           "label": "Bandeja de entrada",
-          "hint": "Abre la revisión de fuentes importadas."
+          "hint": "Abre los materiales que importaste."
         },
         "support": {
-          "label": "Soporte",
+          "label": "Contactar con soporte",
           "hint": "Abre el soporte."
         },
         "permissions": {

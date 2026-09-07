@@ -10,8 +10,8 @@
   "declined": "Ditolak",
   "cited": "{{n}} dikutip",
   "undo": "Urungkan",
-  "hideUnchanged": "Sembunyikan penghitungan ulang yang tetap",
-  "showUnchanged": "Lihat {{n}} penghitungan ulang yang tetap",
+  "hideUnchanged": "Sembunyikan hasil hitung ulang tanpa perubahan",
+  "showUnchanged": "Lihat {{n}} hasil hitung ulang tanpa perubahan",
   "originRatify": "Kamu setujui",
   "originRebuild": "Dihitung ulang",
   "originRecorded": "Tercatat",
@@ -20,7 +20,7 @@
   "subtitle": "SecondB mengusulkan; kamu yang selalu memutuskan. Tidak ada analisis yang masuk ke bintang tanpa persetujuanmu.",
   "digest": {
     "title": "Ulasan hari ini",
-    "intro": "Koneksi yang terkumpul dari catatanmu. Kamu yang memastikan mana yang benar.",
+    "intro": "Tinjau keterkaitan yang ditemukan di antara catatanmu dan pilih yang sesuai.",
     "loadError": "Tidak bisa memuat ulasanmu. Coba lagi sebentar lagi.",
     "retry": "Coba lagi",
     "empty": "Belum ada yang perlu diulas. Simpan lebih banyak dan koneksi akan muncul.",
@@ -31,13 +31,13 @@
     "confirm": "Konfirmasi",
     "band": {
       "strong": "koneksi kuat",
-      "likely": "koneksi mungkin",
+      "likely": "kemungkinan terkait",
       "weak": "koneksi lemah"
     },
     "reminder": {
       "label": "Ingatkan setiap hari pukul {{time}}",
       "desc": "Berbunyi hanya di perangkat ini. Bisa kamu matikan kapan saja.",
-      "notifBody": "Yuk ulas koneksi yang terkumpul dari catatanmu?",
+      "notifBody": "Ada keterkaitan di antara catatanmu untuk ditinjau.",
       "denied": "Notifikasi untuk aplikasi ini nonaktif. Aktifkan di Pengaturan.",
       "changeFailed": "Tidak bisa memperbarui pengingat. Pengingat mungkin masih datang sesuai pengaturan lama. Coba lagi.",
       "timeTitle": "Waktu pengingat",

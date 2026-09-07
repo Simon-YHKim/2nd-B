@@ -37,10 +37,10 @@
   "recommend": {
     "off": "As sugestões de rotina estão desativadas nesta conta, então suas anotações ficam privadas.",
     "cta": "Sugerir próximos passos",
-    "ctaHint": "Lê suas peças salvas e cria algumas sugestões.",
+    "ctaHint": "Usa seus registros salvos para criar sugestões.",
     "working": "Preparando sugestões…",
-    "empty": "Nada aproveitável retornou. Tente novamente ou escolha outra área.",
-    "error": "A sugestão não foi concluída. Suas peças estão seguras. Tente novamente.",
+    "empty": "Não foi possível criar uma sugestão. Tente novamente ou escolha outra área.",
+    "error": "Não foi possível concluir a sugestão. Tente novamente.",
     "limit": "As sugestões gratuitas de hoje foram usadas. Elas renovam amanhã.",
     "disclaimerBody": "Ideias e planos, não orientação profissional."
   },
@@ -83,7 +83,7 @@
     "streak": "Sequência de {{count}} dias",
     "title": "Hoje, duas coisas",
     "hint": "Escolhido entre o que você realmente tem guardado.",
-    "nothingHint": "Fica vazio de propósito. Nada aqui é preenchido com dados de exemplo.",
+    "nothingHint": "Adicione registros ou rotinas para ver itens aqui.",
     "pick": {
       "routine": "Rotinas de hoje",
       "milestone": "Metas em andamento",
@@ -96,7 +96,7 @@
       "routine": "Aceite uma sugestão para iniciar uma rotina.",
       "milestone": "Defina uma meta para ver o progresso aqui.",
       "reading": "Adicione um livro para vê-lo aqui.",
-      "meals": "Planeie uma semana de refeições para ver aqui.",
+      "meals": "Planeje uma semana de refeições para ver aqui.",
       "records": "Guarde algo e aparecerá aqui.",
       "esm": "Responda a um check-in para ver o padrão."
     }
@@ -106,7 +106,7 @@
     "streakLabel": "dias seguidos",
     "patternsTitle": "Padrões desta semana",
     "patternsSub": "A análise roda em segundo plano. Continue usando o app.",
-    "patternsRun": "Rodar",
+    "patternsRun": "Analisar registros",
     "takeEyebrow": "RESUMO DE HOJE",
     "toolsLabel": "Ferramentas do assistente"
   },
@@ -121,7 +121,7 @@
     },
     "imagine": {
       "label": "Imaginar",
-      "sub": "Lançar longe"
+      "sub": "Explorar ideias"
     },
     "shareCard": {
       "label": "Cartão para compartilhar",
@@ -132,8 +132,8 @@
       "sub": "Revisão espaçada"
     },
     "callReflection": {
-      "label": "Reflexão de chamada",
-      "sub": "Deixe falado"
+      "label": "Nota de chamada",
+      "sub": "Transformar áudio em texto"
     },
     "reading": {
       "label": "Leitura",
@@ -193,7 +193,7 @@
     "eyebrowFocus": "FOCO",
     "eyebrowBreak": "PAUSA",
     "completeTitle": "Foco concluído",
-    "completeBody": "Você reuniu {{minutes}} min completos",
+    "completeBody": "Você concluiu {{minutes}} min de foco",
     "btnBreak": "Descansar",
     "btnAgain": "Mais uma",
     "skip": "Pular",
@@ -202,7 +202,7 @@
     "sessionLength": "DURAÇÃO DA SESSÃO",
     "labelFocus": "Foco",
     "labelBreak": "Pausa",
-    "focusHint": "Tempo reunido de uma vez",
+    "focusHint": "Duração de cada sessão",
     "breakHint": "Descanso entre sessões",
     "unitMin": "min",
     "decrease": "Diminuir",
@@ -211,7 +211,7 @@
     "ringReady": "Pronto",
     "ringFocusing": "Concentrando",
     "ringPaused": "Pausado",
-    "leadPre": "Hora de focar em uma só coisa. Ao terminar, um passo rumo à sua ",
+    "leadPre": "Concentre-se em uma tarefa. Ao terminar, a sessão será registrada na ",
     "leadStar": "estrela {{star}}",
     "leadPost": ".",
     "preset": "{{min}} min",
@@ -232,7 +232,7 @@
   "srs": {
     "title": "Revisão de idioma",
     "status": "Limpe os cartões de hoje.",
-    "tip": "Limpar os cartões pendentes de hoje marca sua rotina de idioma.",
+    "tip": "Revisar todos os cartões pendentes de hoje marca sua rotina de idioma como concluída.",
     "frontLabel": "Frente",
     "backLabel": "Verso",
     "frontPlaceholder": "Palavra ou comando",

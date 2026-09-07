@@ -41,7 +41,7 @@
     },
     "microphone": {
       "name": "Micrófono",
-      "why": "No se solicita. La captura de voz y audio no está en el alcance actual del producto."
+      "why": "Al usar la entrada de voz, se pide acceso al micrófono. La grabación se envía a un servidor de IA para convertirla en texto."
     },
     "location": {
       "name": "Ubicación",
@@ -49,17 +49,17 @@
     },
     "contactsSms": {
       "name": "Contactos / SMS",
-      "why": "No se solicita. La app no tiene funciones de importación de contactos, SMS ni mensajería."
+      "why": "La app no solicita acceso a los contactos ni a los mensajes de texto del dispositivo."
     }
   },
   "principles": {
     "title": "Principios",
     "items": [
-      "Superficie mínima: cada nueva función se revisa por su impacto en permisos.",
-      "Sin presión al rechazar: los permisos opcionales se pueden denegar sin romper el resto de la app.",
-      "Solo al tocar: el portapapeles y las fotos se activan desde acciones visibles del usuario.",
-      "Explicar el porqué: cada solicitud de permiso debe tener una razón breve.",
-      "Tus datos, tuyos: cada cuenta puede acceder solo a sus propios registros, y la exportación siempre está disponible."
+      "Se revisan los permisos necesarios antes de añadir una función.",
+      "Puedes rechazar los permisos opcionales y seguir usando el resto de la app.",
+      "El portapapeles y las fotos se usan cuando tú eliges una acción que los necesita.",
+      "Cada solicitud de permiso explica brevemente para qué se necesita.",
+      "Cada cuenta solo puede acceder a sus propios registros. Puedes exportarlos en cualquier momento."
     ]
   },
   "manual": {

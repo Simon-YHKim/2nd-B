@@ -20,10 +20,10 @@
   "subtitle": "O SecondB propõe; você sempre decide. Nenhuma análise chega a uma estrela sem o seu consentimento.",
   "digest": {
     "title": "Revisão de hoje",
-    "intro": "Conexões reunidas a partir dos seus registros. Você confirma o que é verdade.",
+    "intro": "Confira as conexões sugeridas a partir dos seus registros e confirme as que fazem sentido.",
     "loadError": "Não foi possível carregar sua revisão. Tente de novo em um instante.",
     "retry": "Tentar de novo",
-    "empty": "Nada para revisar ainda. Guarde mais e as conexões vão aparecer.",
+    "empty": "Não há conexões para revisar. Adicione registros para receber sugestões.",
     "goCapture": "Ir para captura",
     "toReview": "{{n}} para revisar",
     "a11yOpen": "Ver detalhes de {{title}}",

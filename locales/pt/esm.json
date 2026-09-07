@@ -5,16 +5,16 @@
   },
   "hero": {
     "eyebrow": "Check-in rápido",
-    "title": "Um sinal do momento",
+    "title": "Como você está agora?",
     "subtitle": "Sem notificações. Só quando você abrir.",
-    "speech": "Sem julgamentos. Apenas um pequeno sinal momentâneo."
+    "speech": "Registre como está sua energia ou o que está fazendo."
   },
   "card": {
     "eyebrow": "15 segundos",
-    "title": "Que tipo de sinal combina com este momento?"
+    "title": "O que você quer registrar agora?"
   },
   "prompts": {
-    "changeHint": "Muda o tipo de prompt do check-in.",
+    "changeHint": "Muda a pergunta do registro rápido.",
     "context": {
       "label": "Contexto",
       "saveHint": "Salva o check-in de contexto."
@@ -26,11 +26,11 @@
   },
   "energy": {
     "label": "Nível de energia",
-    "question": "Quanta energia está disponível agora?",
+    "question": "Quanta energia você tem agora?",
     "optionLabel": "Energia {{value}} de 5"
   },
   "context": {
-    "question": "O que cerca este momento?",
+    "question": "O que você está fazendo agora?",
     "tags": {
       "alone": "Sozinho",
       "with_people": "Com pessoas",
@@ -40,12 +40,12 @@
       "outside": "Do lado de fora"
     }
   },
-  "note": "Isso não é um julgamento ou rótulo. É um pequeno sinal que afina seus padrões mais tarde.",
+  "note": "Esses registros ajudam a comparar seus hábitos ao longo do tempo.",
   "actions": {
     "save": "Salvar check-in",
     "saving": "Salvando",
     "backHome": "Voltar ao início",
     "backHomeHint": "Volta para a tela inicial."
   },
-  "saved": "Salvo. Um pequeno sinal foi adicionado."
+  "saved": "Registro salvo."
 }

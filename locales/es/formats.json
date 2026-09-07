@@ -3,7 +3,7 @@
     "eyebrow": "Formatos",
     "title": "Mis formatos de captura",
     "subtitle": "Formatos que creaste y los que la comunidad compartió",
-    "speech": "Ajusta un formato y las próximas piezas se archivan solas mejor."
+    "speech": "Elige cómo se organizarán los próximos fragmentos que guardes."
   },
   "mine": {
     "shared": "Compartido con la comunidad",
@@ -42,9 +42,9 @@
   },
   "labels": {
     "untitled": "(sin título)",
-    "viewGuide": "ver guía de archivo",
-    "tapViewGuide": "Toca para ver la guía de archivo ›",
-    "guide": "Guía",
+    "viewGuide": "ver cómo se guarda",
+    "tapViewGuide": "Toca para ver cómo se guarda ›",
+    "guide": "Cómo se guarda",
     "share": "compartir",
     "delete": "eliminar"
   },
@@ -85,8 +85,8 @@
     "body": "Esta acción no se puede deshacer."
   },
   "guideModal": {
-    "label": "Ver guía de archivo",
-    "eyebrow": "Guía de archivo"
+    "label": "Ver cómo se guarda",
+    "eyebrow": "Cómo se guarda"
   },
   "editor": {
     "eyebrow": "Editar formato",
@@ -99,9 +99,9 @@
     "descriptionEnPlaceholder": "Línea en inglés",
     "sourceType": "Tipo de fuente",
     "sourceTypeHint": "Elige cómo se guardan las capturas que usan este formato.",
-    "filingArea": "Área de archivo",
+    "filingArea": "Área donde se guarda",
     "noArea": "Sin área aún",
-    "autoMatchLinks": "Coincidencia automática de enlaces",
+    "autoMatchLinks": "Enlaces que usan este formato",
     "autoMatchLinksHint": "Los enlaces coincidentes se archivan con este formato automáticamente.",
     "addLinkRule": "Agregar regla de enlace",
     "defaultTags": "Etiquetas predeterminadas",
@@ -131,11 +131,11 @@
     "name": "Nombre",
     "what": "Qué es",
     "sourceType": "Tipo de fuente",
-    "filingArea": "Área de archivo",
+    "filingArea": "Área donde se guarda",
     "defaultTags": "Etiquetas predeterminadas",
-    "autoMatchLinks": "Coincidencia automática de enlaces",
+    "autoMatchLinks": "Enlaces que usan este formato",
     "detailsSaved": "Detalles guardados de cada pieza",
-    "commonOnly": "Solo se guardan campos comunes como resumen, etiquetas y relevancia.",
+    "commonOnly": "Se guardan los datos habituales: resumen, etiquetas y relevancia.",
     "propTypes": {
       "text": "Texto",
       "multitext": "Lista",
@@ -144,9 +144,9 @@
   },
   "add": {
     "title": "Agregar un formato",
-    "body": "Describe el material y cómo lo archivarías. SecondB sugiere una guía de archivo reutilizable.",
+    "body": "Describe el material y cómo quieres organizarlo. SecondB propondrá un formato que podrás volver a usar.",
     "placeholder": "p.ej. Episodios de podcast - captura al invitado y las ideas clave",
-    "draft": "Crear borrador de guía de archivo con SecondB",
+    "draft": "Pedir un formato a SecondB",
     "drafting": "Creando borrador…",
     "errorNeedDetail": "No se pudo crear el borrador. Agrega más detalle e inténtalo de nuevo.",
     "errorDraft": "No pudimos crear el borrador de la guía. Inténtalo de nuevo en un momento.",

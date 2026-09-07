@@ -1,12 +1,24 @@
-import { buildFoodSearchUrl, parseFoodItems } from "../foods";
+import { foodSearchBody, parseFoodItems, QUERY_MAX, RESULT_MAX } from "../foods";
 
-describe("buildFoodSearchUrl (keyed, json, clamped)", () => {
-  test("includes the key, query, and clamps numOfRows", () => {
-    const url = buildFoodSearchUrl("바나나", "SVCKEY", 50);
-    expect(url).toContain("serviceKey=SVCKEY");
-    expect(url).toContain("type=json");
-    expect(url).toContain("numOfRows=10"); // clamped from 50
-    expect(url).toContain("FOOD_NM_KR=");
+// 2026-09-08: this used to be buildFoodSearchUrl(query, serviceKey) - the client
+// composed the keyed data.go.kr URL itself, which is exactly why the key was in
+// the bundle. URL composition moved into public-data-proxy; what leaves the
+// client now is a parameter body with no key in it.
+describe("foodSearchBody (parameters only, clamped, no key)", () => {
+  test("names the source, trims the query, and clamps max", () => {
+    const body = foodSearchBody("바나나", 50);
+    expect(body).toEqual({ source: "mfds", query: "바나나", max: RESULT_MAX }); // clamped from 50
+  });
+
+  test("carries nothing that looks like a credential", () => {
+    const json = JSON.stringify(foodSearchBody("바나나"));
+    expect(json).not.toMatch(/serviceKey|authkey|apis\.data\.go\.kr/i);
+  });
+
+  test("clamps a long query and a below-range max", () => {
+    const body = foodSearchBody(`  ${"가".repeat(200)}  `, 0);
+    expect(body.query).toHaveLength(QUERY_MAX);
+    expect(body.max).toBe(1);
   });
 });
 

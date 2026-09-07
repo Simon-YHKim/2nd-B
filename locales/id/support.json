@@ -2,9 +2,9 @@
   "loading": "Memuat dukungan...",
   "hero": {
     "eyebrow": "08-3. Dukungan",
-    "title": "Urai kepingan yang macet bersama",
+    "title": "Ada kendala saat memakai aplikasi?",
     "subtitle": "Waktu respons - kontak - bantuan",
-    "speech": "Kirimkan apa yang macet. Kami akan mulai dari konteksnya."
+    "speech": "Ceritakan kendalanya dan apa yang kamu lakukan saat itu."
   },
   "response": {
     "eyebrow": "Waktu respons",
@@ -33,7 +33,7 @@
   ],
   "help": {
     "title": "Tempat kamu bisa mendapat bantuan",
-    "lead": "Apa pun itu, kamu tidak harus menanggungnya sendiri. Nomor-nomor ini ada kapan pun kamu perlu.",
+    "lead": "Kamu bisa menghubungi layanan berikut untuk mendapat bantuan.",
     "when1388": "Untuk apa pun yang mengganggumu, jika kamu remaja",
     "when109": "Saat kamu merasa ingin melepaskan hidup",
     "when117": "Saat ada hal berat di sekolah",
@@ -41,6 +41,6 @@
     "when119": "Saat tubuhmu dalam bahaya sekarang",
     "when112": "Saat seseorang sedang mengancammu sekarang",
     "callHint": "Ketuk untuk menelepon",
-    "foot": "Daftar ini selalu ada di sini. Aplikasi tidak membaca tulisanmu lalu memutuskan menampilkannya; ini ada agar kamu bisa datang mencarinya. Aplikasi tidak melapor atas namamu dan tidak memberi tahu wali."
+    "foot": "Daftar ini selalu tersedia. Aplikasi tidak memilih kapan menampilkannya berdasarkan tulisanmu. Aplikasi juga tidak membuat laporan atas namamu atau memberi tahu wali."
   }
 }

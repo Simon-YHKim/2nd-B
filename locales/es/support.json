@@ -2,9 +2,9 @@
   "loading": "Cargando soporte...",
   "hero": {
     "eyebrow": "08-3. Soporte",
-    "title": "Resolvemos juntos lo que se haya atascado",
+    "title": "Cuéntanos qué problema tienes",
     "subtitle": "Tiempo de respuesta · contacto · ayuda",
-    "speech": "Cuéntanos qué se atascó. Empezaremos desde el contexto."
+    "speech": "Explica qué estabas haciendo y qué salió mal."
   },
   "response": {
     "eyebrow": "Tiempo de respuesta",

@@ -3,14 +3,19 @@
 // its core; FX is the optional enrichment that converts a multi-currency entry
 // to KRW for the monthly summary.
 //
-// Source: 한국수출입은행 (Korea Eximbank) OpenAPI — free, but requires a free
-// auth key the user registers once (mild Simon-console gate). The client is
-// fully implemented and KEY-PARAMETERIZED: with no key it degrades to [] so the
-// ledger still works in KRW-only mode. No LLM (no C1/C3/C9), no new dependency.
+// Source: 한국수출입은행 (Korea Eximbank) OpenAPI — free, but the auth key is
+// issued per account with quota attached, so it is not a client value. It lives
+// in the public-data-proxy Edge Function as a Supabase secret; this module sends
+// no key and holds none. No LLM (no C1/C3/C9), no new dependency.
 //
-// Activation: set EXPO_PUBLIC_EXIM_FX_KEY (or pass authKey). For production a
-// thin edge proxy is preferable so the key isn't bundled, but KRW-only works
-// with no key at all.
+// With the secret unset server-side (or a signed-out caller) this degrades to []
+// so the ledger still works in KRW-only mode, exactly as it did when the free
+// key was simply not registered.
+//
+// 2026-09-08: this module used to read `process.env.EXPO_PUBLIC_EXIM_FX_KEY`.
+// The retired variable and its history are in docs/PUBLIC-DATA-KEY-RETIREMENT.md.
+
+import { invokePublicData } from "../public-data/invoke";
 
 export interface FxRate {
   /** ISO-ish currency unit as returned, e.g. "USD", "JPY(100)". */
@@ -23,7 +28,10 @@ export interface FxRate {
 
 // oapi.* host: the old www.koreaexim.go.kr OpenAPI domain was retired (Eximbank
 // migration, old host discontinued 2026-04-30). Path + params are unchanged.
-const EXIM_ENDPOINT = "https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON";
+// Composed server-side now (public-data-proxy/index.ts:upstreamUrlFor); kept here
+// as the contract the proxy is string-compared against
+// (public-data-proxy-contract.test.ts).
+export const EXIM_ENDPOINT = "https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON";
 
 /** Parse "1,303.5" / "1,234" style numbers (Eximbank returns comma strings). */
 export function parseRateNumber(value: unknown): number | undefined {
@@ -81,29 +89,24 @@ export function convertToKrw(
 
 export type FxFetchError = "no_key" | "fetch_failed" | "bad_response";
 
+/** Pure: the request body the proxy expects for the daily FX table. */
+export function fxRatesBody(): { source: "exim" } {
+  return { source: "exim" };
+}
+
 /**
- * Fetch today's FX table from Eximbank. With no auth key (env unset and none
- * passed) it returns [] — KRW-only mode — instead of throwing, so the ledger is
- * never blocked by the missing free key.
+ * Fetch today's FX table from Eximbank through the public-data-proxy Edge
+ * Function. Returns [] — KRW-only mode — when the proxy has no EXIM secret
+ * configured (503) or the caller is signed out (401), so the ledger is never
+ * blocked. A real outage throws, as before.
  */
 export async function fetchFxRates(
-  opts: { authKey?: string; signal?: AbortSignal } = {},
+  opts: { signal?: AbortSignal } = {},
 ): Promise<FxRate[]> {
-  const authKey = opts.authKey ?? process.env.EXPO_PUBLIC_EXIM_FX_KEY ?? "";
-  if (!authKey) return [];
-  const url = `${EXIM_ENDPOINT}?authkey=${encodeURIComponent(authKey)}&data=AP01`;
-  let res: Response;
-  try {
-    res = await fetch(url, { signal: opts.signal, headers: { Accept: "application/json" } });
-  } catch {
-    throw "fetch_failed" as FxFetchError;
+  const outcome = await invokePublicData(fxRatesBody(), opts.signal);
+  if (!outcome.ok) {
+    if (outcome.reason === "unconfigured") return [];
+    throw outcome.reason as FxFetchError;
   }
-  if (!res.ok) throw "fetch_failed" as FxFetchError;
-  let json: unknown;
-  try {
-    json = await res.json();
-  } catch {
-    throw "bad_response" as FxFetchError;
-  }
-  return parseEximFx(json);
+  return parseEximFx(outcome.data);
 }

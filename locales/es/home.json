@@ -24,9 +24,9 @@
       "cta": "Enciende una estrella con el chequeo de relaciones"
     },
     "esm": {
-      "label": "Check-in de hoy",
+      "label": "Registrar cómo estoy",
       "min": "1 min",
-      "cta": "Enciende una estrella con un check-in rápido"
+      "cta": "Registra cómo estás para encender una estrella"
     },
     "values": {
       "label": "Valores",
@@ -54,36 +54,36 @@
     },
     "head": {
       "home": {
-        "text": "Volviste. Ahora mismo brillas como siete estrellas.",
-        "tip": "Empieza por la estrella más tenue."
+        "text": "Guarda tus historias en siete estrellas.",
+        "tip": "Toca una estrella para escribir sobre esa etapa de tu vida."
       },
       "ops": {
-        "text": "Esta es tu rutina de hoy. Sigamos el ritmo.",
-        "tip": "Marca una sola. El impulso hace el resto."
+        "text": "Consulta las rutinas de hoy.",
+        "tip": "Marca las rutinas que termines."
       },
       "account": {
-        "text": "Este es tu espacio. Todo lo tuyo vive aquí.",
+        "text": "Consulta aquí tu perfil y tus registros.",
         "tip": "Perfil, ajustes y tus datos a un toque."
       },
       "capture": {
-        "text": "No dejes escapar ese pensamiento.",
-        "tip": "Una línea basta. Yo lo ordeno."
+        "text": "Anota lo que se te acaba de ocurrir.",
+        "tip": "Una nota corta está bien. Podrás volver a leerla después de guardarla."
       },
       "chat": {
-        "text": "Pregunta lo que sea. Respondo desde tus registros.",
-        "tip": "Puedes preguntar cosas como \"¿Cómo estoy últimamente?\""
+        "text": "Pregunta lo que quieras saber de tus registros.",
+        "tip": "Prueba: \"¿Sobre qué he escrito más últimamente?\""
       },
       "lens": {
-        "text": "Tu estrella de extraversión brilló un paso más esta semana.",
-        "tip": "Toca un eje que cambió para ver la evidencia."
+        "text": "Conoce tu personalidad a partir de tus registros y tests.",
+        "tip": "Toca un apartado para ver los registros consultados."
       },
       "iden": {
-        "text": "Te empaqué en un solo archivo. Llévalo a donde quieras.",
+        "text": "Exporta información sobre ti en un archivo.",
         "tip": "Puedes ocultar lo sensible antes de exportar."
       },
       "wiki": {
-        "text": "Tu conocimiento, enlazado como una constelación.",
-        "tip": "Toca un nodo para pasear entre tus notas."
+        "text": "Aquí están las notas y los materiales que guardaste.",
+        "tip": "Toca una nota para ver otras relacionadas."
       }
     },
     "home": {
@@ -99,25 +99,25 @@
         "collect": "Recopilar"
       },
       "starName": {
-        "now": "Estado de rasgos",
+        "now": "Yo ahora",
         "recall": "Recuerdo",
         "seen": "Cómo me ven",
         "rhythm": "Ritmo",
-        "relational": "Yo relacional",
+        "relational": "Yo en mis relaciones",
         "possible": "Yo futuro",
         "values": "Valores y aspiraciones"
       },
       "inbox": "Notificaciones",
       "headA11y": "Preguntar a SecondB",
       "kind": {
-        "domain": "Dominio",
-        "profile": "Cómo te leen"
+        "domain": "Área",
+        "profile": "Cómo te ven"
       },
       "bubble": {
         "introTag": "Presentación",
-        "intro": "Hola, soy SecondB. Toca mi cabeza y te ayudo.",
+        "intro": "Soy SecondB. Toca mi cabeza para abrir el chat y el asistente.",
         "menuTag": "SecondB",
-        "menu": "¿Cómo puedo ayudarte?",
+        "menu": "¿Qué quieres hacer?",
         "travel": "Viajar",
         "later": "Luego",
         "chatbot": "Chatbot",
@@ -128,7 +128,7 @@
           "line": "¿Qué has construido y acumulado?"
         },
         "finance": {
-          "line": "¿Qué dice el dinero sobre mí?"
+          "line": "¿Cómo gastas y ahorras dinero?"
         },
         "relation": {
           "line": "¿Cómo estoy con las personas cercanas a mí?"
@@ -137,28 +137,28 @@
           "line": "¿Qué época me hizo quien soy ahora?"
         },
         "health": {
-          "line": "¿Cómo van mi condición y mi ritmo últimamente?"
+          "line": "¿Cómo te has sentido estos días?"
         },
         "recreation": {
           "line": "¿Qué me permite descansar?"
         },
         "profile": {
-          "line": "Tu nombre, tu meta y cómo te leen los demás. Brilla más cuando hay más que presentar."
+          "line": "Añade tu nombre, tu meta y cómo te ven los demás. La estrella brilla más cuando completas información."
         },
         "infancy": {
-          "line": "Los primeros recuerdos. Basta una sensación para empezar."
+          "line": "Empieza por la primera escena que recuerdes."
         },
         "school": {
           "line": "De los 7 a los 19 años. Aulas, amigos, quien eras entonces."
         },
         "twenties": {
-          "line": "Las decisiones de tus veinte. ¿Qué conservaste y qué soltaste?"
+          "line": "¿Qué decisiones tomaste a los veinte?"
         },
         "later": {
-          "line": "Los treinta en adelante. Lo que se asentó y lo que aún se mueve."
+          "line": "¿Qué cambió a partir de los treinta?"
         },
         "work": {
-          "line": "Tú en el trabajo. Sin importar la edad, quien aparece en el empleo."
+          "line": "¿Cómo eres en el trabajo?"
         },
         "now": {
           "line": "Tú, ahora. ¿Dónde ha estado tu cabeza últimamente?"
@@ -169,7 +169,7 @@
     },
     "capture": {
       "title": "Capturar",
-      "subtitle": "Captura un momento en el formato que prefieras.",
+      "subtitle": "Guarda una idea o tarea con texto, una foto o una nota de voz.",
       "modes": {
         "text": "Texto",
         "link": "Enlace",
@@ -180,7 +180,7 @@
       "fields": {
         "what": {
           "label": "Qué",
-          "hint": "Anota lo esencial del pensamiento o momento"
+          "hint": "¿Qué pasó o qué se te ocurrió?"
         },
         "when": {
           "label": "Cuándo",
@@ -207,13 +207,13 @@
       "voiceHint": "Escribe lo que dijiste",
       "todoHint": "Tarea",
       "todoAdd": "Añadir una tarea",
-      "banner": "En cuanto lo guardas, SecondB lo clasifica en la estrella y las etiquetas adecuadas.",
+      "banner": "Al guardar, SecondB añade estrellas y etiquetas relacionadas.",
       "save": "Capturar",
       "saving": "Guardando",
       "saved": "Guardado",
       "openRecords": "Abrir registros",
       "saveError": "No se pudo guardar. Inténtalo de nuevo en un momento.",
-      "saveHint": "Añade qué pasó para activar Capturar."
+      "saveHint": "Escribe en el campo Qué para guardar."
     },
     "chat": {
       "user": "Últimamente estoy agotado. ¿Por qué será?",
@@ -228,26 +228,26 @@
       "toggleEmpty": "Vacío",
       "toggleError": "Error",
       "emptyTitle": "Esta estrella sigue apagada",
-      "emptyBody": "Termina el chequeo de rasgos una vez y tu estrella de Rasgos se enciende.",
+      "emptyBody": "Completa el test de personalidad para encender la estrella Yo ahora.",
       "emptyCta": "Empezar el chequeo",
       "errorTitle": "No se pudo cargar",
       "errorBody": "Inténtalo de nuevo en un momento.",
       "errorCta": "Reintentar",
-      "filledTitle": "Estado de rasgos",
+      "filledTitle": "Yo ahora",
       "traitOpenness": "Apertura",
       "traitConscientiousness": "Responsabilidad",
       "traitExtraversion": "Extraversión",
       "traitAgreeableness": "Amabilidad",
       "traitNeuroticism": "Neuroticismo",
       "headline": "Verificar · Big Five",
-      "subtitle": "Vetas ocultas (capa B) · una propuesta triangulada desde tu comportamiento por dominios",
-      "extraFrameworks": "Otros marcos · ver estilo de apego",
+      "subtitle": "Una estimación de tu personalidad a partir de tus registros. Comprueba si encaja contigo.",
+      "extraFrameworks": "Otros tests · estilo de apego",
       "retake": "Repetir",
-      "addData": "Añadir datos"
+      "addData": "Añadir un registro"
     },
     "attachment": {
       "headline": "Estilo de apego",
-      "subtitle": "Textura oculta (capa B) · tu dominio de relaciones visto con la escala ECR",
+      "subtitle": "Tus relaciones según tus respuestas al test ECR.",
       "quadrant_secure": "Seguro",
       "quadrant_preoccupied": "Preocupado",
       "quadrant_avoidant": "Evitativo",
@@ -258,7 +258,7 @@
       "interview": "Entrevista de relaciones",
       "bigfive": "Ver Big Five",
       "emptyTitle": "Esta estrella sigue apagada",
-      "emptyBody": "Completa el test de apego una vez y tu estrella del Yo Relacional se encenderá.",
+      "emptyBody": "Completa el test de apego para encender la estrella Yo en mis relaciones.",
       "emptyCta": "Empezar el test",
       "errorTitle": "No se pudo cargar",
       "errorBody": "Inténtalo de nuevo en un momento.",
@@ -268,17 +268,17 @@
       "signed": "Firmado",
       "northStar": "\"Entenderme a fondo, vivir más como yo.\"",
       "send": "Enviar a la IA",
-      "loading": "Reuniendo tu IDEN",
-      "emptyTitle": "Aún no hay IDEN que reunir",
-      "emptyBody": "Completa una herramienta y tu IDEN empieza a tomar forma.",
+      "loading": "Preparando tu IDEN…",
+      "emptyTitle": "Aún no hay información para IDEN",
+      "emptyBody": "Completa una autoevaluación para añadir información a tu IDEN.",
       "emptyCta": "Empezar a reunir"
     },
     "recall": {
       "title": "Recuerdo",
-      "tag": "NARRATIVA",
+      "tag": "MI HISTORIA",
       "eyebrow": "Qué época hizo a la persona que soy ahora",
-      "hint": "Toca un periodo para iniciar una pregunta a fondo",
-      "footer": "Las preguntas repetidas elevan la coherencia de tu recuerdo.",
+      "hint": "Elige un periodo para responder preguntas sobre él.",
+      "footer": "Algunas preguntas se repiten para ayudarte a recordar los detalles.",
       "p1Name": "Primera infancia",
       "p1Age": "0–6",
       "p2Name": "Infancia",
@@ -295,15 +295,15 @@
       "p7Age": "24–27",
       "p8Name": "Ahora",
       "p8Age": "28–",
-      "emptyTitle": "Aún no has recordado ninguna época",
-      "emptyBody": "Recuerda tus épocas pasadas una a una, y aquí se reúne qué años te formaron."
+      "emptyTitle": "Aún no hay recuerdos guardados",
+      "emptyBody": "Elige una etapa y escribe lo que recuerdes. Podrás volver a leer esas historias aquí."
     },
     "seen": {
       "title": "Cómo me ven",
       "tag": "YO·OTROS",
       "eyebrow": "Qué tanto se parece el yo que ven otros al yo que veo",
-      "legendSelf": "El yo que veo",
-      "legendOther": "El yo que ven otros",
+      "legendSelf": "Cómo me veo",
+      "legendOther": "Cómo me ven",
       "traitExtraversion": "Extraversión",
       "traitConscientiousness": "Responsabilidad",
       "traitAgreeableness": "Amabilidad",
@@ -313,19 +313,19 @@
       "conclusion": "Otros te ven como alguien más vivaz. Quizá eres más extravertido de lo que crees.",
       "survey": "Ver encuesta",
       "share": "Compartir",
-      "obsTitleGap": "El yo que veo, el yo que ven",
-      "obsTitleSolo": "Lo más visible desde fuera",
-      "obsNote": "No es lo que otros realmente piensan; son los rasgos de tu propio Big Five que más se notan desde fuera.",
+      "obsTitleGap": "Mi opinión y la de los demás",
+      "obsTitleSolo": "Rasgos que otros pueden notar",
+      "obsNote": "Son rasgos que otros podrían notar, según tus propias respuestas al Big Five. No son respuestas de otras personas.",
       "combinedNote": "Una imagen combinada de {{count}} personas; ninguna respuesta individual es identificable.",
-      "gapReadA11y": "Lectura del desfase en una línea",
+      "gapReadA11y": "Explicar la diferencia en una frase",
       "gapReading": "Leyendo…",
-      "gapReadCta": "SecondB lee el desfase",
+      "gapReadCta": "Explicar la diferencia",
       "emptyTitleResponses": "Ya llegaron respuestas de {{count}} personas",
       "emptyTitleNoPeers": "Aún no hay respuestas de otros para comparar",
-      "emptyBodyFinishBigFive": "Completa tu propio chequeo Big Five y verás el yo que ves junto al yo que ven.",
-      "emptyBodySendSurvey": "Envía una encuesta breve a alguien cercano y podrás ver el yo que ves junto al yo que ven los demás.",
-      "peerOnlyTitle": "Solo respondido por tus allegados",
-      "peerOnlyNote": "La apertura y la sensibilidad emocional son difíciles de leer desde fuera; esto es lo que reportaron tus allegados, no una afirmación sobre ti."
+      "emptyBodyFinishBigFive": "Completa tu Big Five para comparar tus respuestas con las de otras personas.",
+      "emptyBodySendSurvey": "Envía una encuesta breve a alguien que conozcas para comparar sus respuestas con las tuyas.",
+      "peerOnlyTitle": "Preguntas que solo respondieron otras personas",
+      "peerOnlyNote": "La apertura y la sensibilidad emocional pueden ser difíciles de valorar desde fuera. Estos resultados muestran cómo te vieron esas personas, sin definir tu personalidad."
     },
     "rhythm": {
       "title": "Ritmo",
@@ -341,24 +341,24 @@
       "sun": "Dom",
       "caption": "Más tú: sábado por la mañana. Te sientes mejor cuando estás absorto creando algo.",
       "logNow": "+ Registrar ánimo ahora",
-      "emptyTitle": "Aún no hay ritmo que trazar",
-      "emptyBody": "Registra tu ánimo unos días y aquí aparece como ritmo cuándo eres más tú."
+      "emptyTitle": "Aún faltan registros de ánimo",
+      "emptyBody": "Registra tu ánimo durante unos días para ver cuándo te sentiste mejor o peor."
     },
     "possible": {
       "title": "Yo futuro",
-      "tag": "ASPIRACION",
-      "eyebrow": "Hacia dónde voy: el yo que aún no es datos",
+      "tag": "METAS",
+      "eyebrow": "¿Cómo te gustaría ser?",
       "a1Name": "Alguien que crea",
-      "a1Body": "Hacer de dar forma a las ideas mi oficio",
-      "a2Name": "Pocos lazos profundos",
-      "a2Body": "Ser de los que sostienen lazos largos antes que anchos",
-      "a3Name": "Un centro firme",
-      "a3Body": "Alguien que guarda el criterio dentro de sí",
-      "footer": "Punteado = el yo antes de que los datos se llenen",
+      "a1Body": "Quiero ganarme la vida creando cosas.",
+      "a2Name": "Relaciones duraderas",
+      "a2Body": "Quiero mantener la amistad con unas pocas personas durante mucho tiempo.",
+      "a3Name": "Decidir con mi propio criterio",
+      "a3Body": "Quiero elegir según lo que me importa.",
+      "footer": "Las líneas discontinuas indican ideas aún sin respaldo en tus registros.",
       "rewrite": "Reescribir",
       "add": "+ Añadir",
-      "emptyTitle": "Aún no has esbozado tu yo futuro",
-      "emptyBody": "Habla con SecondB en modo divergente, y el tú anterior a los datos aterriza aquí."
+      "emptyTitle": "Aún no has escrito metas para el futuro",
+      "emptyBody": "Habla con Twi-B sobre cómo te gustaría ser y guarda tus ideas aquí."
     },
     "relational": {
       "title": "Relaciones",
@@ -373,10 +373,10 @@
       "topic1": "Diseño·herramientas",
       "topic2": "Psicología·autoconocimiento",
       "topic3": "IA·productividad",
-      "conclusion": "En tus relaciones destaca más la profundidad que la amplitud. Pocas, seguido, por mucho tiempo.",
-      "addData": "+ Añadir datos",
-      "emptyTitle": "Aún no hay personas ni conocimiento enlazados",
-      "emptyBody": "A medida que personas e intereses se acumulan en tus registros, aquí se muestra el tú dentro de las relaciones y el conocimiento."
+      "conclusion": "Tus registros muestran contacto frecuente y duradero con pocas personas.",
+      "addData": "+ Añadir un registro",
+      "emptyTitle": "Aún no hay registros sobre personas e intereses",
+      "emptyBody": "Escribe sobre personas e intereses para verlos aquí."
     },
     "values": {
       "title": "Trabajo·crecimiento",
@@ -388,20 +388,20 @@
       "domain2Count": "98 piezas",
       "domain3": "Finanzas",
       "domain3Count": "37 piezas",
-      "conclusion": "Donde más has construido es en Carrera. Finanzas sigue vacío: ¿ponemos más?",
-      "addData": "+ Añadir datos",
+      "conclusion": "Carrera tiene más registros. Finanzas aún no tiene ninguno.",
+      "addData": "+ Añadir un registro",
       "loading": "Contando tus piezas",
-      "emptyTitle": "Aún no has construido nada aquí",
-      "emptyBody": "Añade registros y verás qué áreas has hecho crecer más.",
+      "emptyTitle": "Aún no hay registros en esta área",
+      "emptyBody": "Añade registros para ver sobre qué áreas escribes más.",
       "pieceCount": "{{count}} piezas"
     },
     "imagine": {
       "title": "Imaginar",
-      "introBody": "Lanza lejos, sin respuestas correctas. Elige la rama que te guste y la acotaremos a un siguiente paso.",
-      "sectionAngles": "Ramas que lanzó SecondB",
-      "sectionSteps": "Candidatos a siguiente paso",
+      "introBody": "Escribe algo que te gustaría probar. Elige una idea para decidir qué podrías hacer primero.",
+      "sectionAngles": "Ideas para explorar",
+      "sectionSteps": "Qué probar primero",
       "toCapture": "Llevar a Capturar",
-      "more": "Más con SecondB"
+      "more": "Seguir hablando con SecondB"
     },
     "audit": {
       "title": "El yo del pasado",
@@ -434,88 +434,88 @@
     },
     "me": {
       "title": "Estrella Polar",
-      "eyebrow": "Estrella Polar · síntesis de 7",
+      "eyebrow": "Estrella Polar · resumen de 7 estrellas",
       "headline": "Entenderme a fondo para vivir más como yo mismo.",
-      "synthMeta": "Síntesis de 7 estrellas · confianza",
+      "synthMeta": "Resumen de 7 estrellas · confianza",
       "refine": "Pulir la frase",
-      "domainsTitle": "7 estrellas de vida · dominios",
+      "domainsTitle": "Historias en 7 estrellas",
       "toConstellation": "A la constelación",
-      "hiddenTitle": "Fibra oculta · validación",
-      "hiddenBody": "Tus datos por dominio triangulan marcos como Big Five y el apego. La luz de estrella es cuánto aportas, la confianza es cuánto se ha validado. No son lo mismo.",
-      "viewValidation": "Ver validación"
+      "hiddenTitle": "Resultados de tests",
+      "hiddenBody": "Tus registros se comparan con tests como Big Five y apego. El brillo indica cuánto has registrado. La confianza indica cuánto respaldo tienen los resultados.",
+      "viewValidation": "Ver resultados"
     },
     "axisCheck": {
       "emptyTitle": "Aún sin medir",
       "emptyText": "Cuando termines la entrevista, esto se completará con tus propios registros.",
       "values": {
         "headline": "Valores",
-        "subtitle": "Grano oculto (capa B) · lo que más valoras",
+        "subtitle": "Lo que te importa",
         "coreLabel": "VALORES CENTRALES",
-        "spectrum": "Espectro de valores",
+        "spectrum": "Puntuaciones de valores",
         "actionPrimary": "Entrevista de valores",
-        "actionSecondary": "Otras validaciones",
+        "actionSecondary": "Otros tests",
         "rows": {
           "selfDirection": {
             "name": "Autodirección",
-            "note": "Eres más tú cuando decides y actúas por tu cuenta"
+            "note": "Tomar decisiones propias y actuar según ellas"
           },
           "stimulation": {
             "name": "Crecimiento",
-            "note": "La novedad y el aprendizaje te impulsan"
+            "note": "Vivir experiencias nuevas y aprender"
           },
           "authenticity": {
             "name": "Autenticidad",
-            "note": "Quieres que tu interior y exterior coincidan"
+            "note": "Actuar según lo que piensas y crees"
           },
           "benevolence": {
             "name": "Cuidado",
-            "note": "El deseo de cuidar a los cercanos"
+            "note": "Cuidar a las personas cercanas"
           },
           "achievement": {
             "name": "Logro",
-            "note": "Te gusta la sensación de haberlo conseguido"
+            "note": "Alcanzar una meta y sentir satisfacción"
           },
           "security": {
             "name": "Estabilidad",
-            "note": "La previsibilidad es una prioridad menor para ti"
+            "note": "Una vida estable y predecible"
           }
         }
       },
       "motivation": {
         "headline": "Motivación",
-        "subtitle": "Grano oculto (capa B) · qué te mueve",
+        "subtitle": "Lo que te motiva",
         "balanceTitle": "Intrínseca ↔ extrínseca",
         "balanceIntrinsic": "Intrínseca 68%",
         "balanceExtrinsic": "Extrínseca 32%",
         "balanceNote": "En general te mueves porque quieres. El sentido y la curiosidad te impulsan más que la recompensa.",
         "spectrum": "Tres necesidades · autodeterminación",
         "actionPrimary": "Ver fortalezas",
-        "actionSecondary": "Otras validaciones",
+        "actionSecondary": "Otros tests",
         "rows": {
           "autonomy": {
             "name": "Autonomía",
-            "note": "La motivación sube cuando decides por ti"
+            "note": "Querer tomar tus propias decisiones"
           },
           "competence": {
             "name": "Competencia",
-            "note": "La sensación de que puedes hacerlo te sostiene"
+            "note": "Querer hacer las cosas bien"
           },
           "relatedness": {
             "name": "Relación",
-            "note": "Te mueves un poco más cuando estás con otros"
+            "note": "Querer sentir cercanía con otras personas"
           }
         },
         "survey": {
-          "title": "Autoinforme de motivación",
+          "title": "Conoce tu motivación",
           "loading": "Cargando…",
-          "description": "Un autoinforme breve sobre lo que te mueve. Indica qué tan bien encaja cada frase contigo, de 1 (nada parecido a mí) a 6 (muy parecido a mí). No hay respuestas correctas; es una estimación.",
-          "citation": "Basado en la teoría de la autodeterminación (SDT) · estimación por autoinforme",
+          "description": "Una encuesta breve sobre lo que te motiva. Indica cuánto encaja cada frase contigo, de 1 (nada parecido a mí) a 6 (muy parecido a mí). No hay respuestas correctas. El resultado es una estimación basada en tus respuestas.",
+          "citation": "Teoría de la autodeterminación (SDT) · estimado a partir de tus respuestas",
           "instruction": "¿Qué tan bien encaja cada frase contigo?",
           "intrinsic": "Intrínseca",
           "extrinsic": "Extrínseca",
-          "conclusion": "Estimación por autoinforme.",
+          "conclusion": "Estimado a partir de tus respuestas.",
           "saveError": "No se pudo guardar. Tus respuestas siguen aquí; inténtalo de nuevo.",
-          "saved": "Tu autoinforme de motivación se guardó.",
+          "saved": "Respuestas guardadas.",
           "scale": {
             "1": "Nada parecido a mí",
             "2": "Poco parecido a mí",
@@ -527,7 +527,7 @@
           "exit": {
             "notice": "Confirmación de salida",
             "title": "¿Salir del cuestionario?",
-            "body": "¿Seguro que quieres salir? Tu progreso no se guardará.",
+            "body": "Si sales ahora, tus respuestas no se guardarán.",
             "cancel": "Seguir",
             "confirm": "Salir"
           }
@@ -535,31 +535,31 @@
       },
       "strengths": {
         "headline": "Fortalezas",
-        "subtitle": "Grano oculto (capa B) · lo que te hace tú",
+        "subtitle": "Conoce tus fortalezas",
         "coreLabel": "FORTALEZAS DISTINTIVAS",
-        "spectrum": "Espectro de fortalezas",
+        "spectrum": "Puntuaciones de fortalezas",
         "actionPrimary": "Aprovechar fortalezas",
         "actionSecondary": "Ver motivación",
         "rows": {
           "curiosity": {
             "name": "Curiosidad",
-            "note": "El impulso de indagar en lo nuevo"
+            "note": "Querer aprender cosas nuevas"
           },
           "grit": {
             "name": "Perseverancia",
-            "note": "Cuando te aferras, no sueltas"
+            "note": "Seguir aunque resulte difícil"
           },
           "honesty": {
             "name": "Honestidad",
-            "note": "Intentas alinear tu interior y exterior"
+            "note": "Hablar y actuar con sinceridad"
           },
           "empathy": {
             "name": "Empatía",
-            "note": "Lees bien el grano de los demás"
+            "note": "Comprender cómo se siente otra persona"
           },
           "aesthetics": {
             "name": "Sentido estético",
-            "note": "Reconoces lo que es bueno"
+            "note": "Notar y disfrutar la belleza"
           }
         }
       },
@@ -576,20 +576,20 @@
       "work": "Trabajo",
       "now": "Ahora",
       "lockedBody": "Aún no has llegado a esta etapa. Se abrirá cuando llegues.",
-      "profileBody": "Esto no es una conversación: son los datos básicos que pusiste al registrarte. Cuanto más completes, más brilla.",
+      "profileBody": "Revisa los datos básicos que escribiste al registrarte. La estrella brilla más cuando añades información.",
       "openProfile": "Abrir perfil",
       "loading": "Cargando…",
-      "emptyBody": "Aquí todavía no hay nada. Una conversación es la entrada.",
-      "dug": "{{n}} de {{total}} capas abiertas",
+      "emptyBody": "Aún no hay historias aquí. Inicia una conversación para añadir una.",
+      "dug": "{{n}} de {{total}} temas tratados",
       "records": "{{n}} registros",
       "start": "Empezar",
       "continue": "Seguir",
       "pageLabel": "Resumen de la estrella",
-      "meter": "Brilla hasta donde excavas · {{n}}/{{total}} capas",
+      "meter": "Más brillo al contar más · {{n}}/{{total}} temas",
       "recordsLabel": "Lo que has guardado hasta ahora"
     },
     "dashboard": {
-      "title": "Lo que sé de ti",
+      "title": "Tu vida en tus registros",
       "sub": "Seis áreas de tu vida. Toca una para ver el detalle.",
       "dismiss": "Ocultar"
     }

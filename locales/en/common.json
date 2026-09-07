@@ -71,26 +71,26 @@
   "navGraph": {
     "drilldown": {
       "back": "Back to constellation",
-      "backHint": "Returns from the domain star detail to the full constellation.",
+      "backHint": "Returns to the full constellation.",
       "coreEyebrow": "Pattern Core",
-      "dataEyebrow": "Pattern Data",
+      "dataEyebrow": "Connected pieces",
       "touch": "Touch!",
       "coreIntro": {
-        "work": "This is the Growth Core. Your career and growth pieces gather here.",
-        "relation": "This is the Bond Core. Memories, promises, and conversations gather here.",
-        "knowledge": "This is the Wisdom Core. Learned and understood pieces gather here.",
-        "records": "This is the Narrative Core. Kept pieces gather here so you can find them again.",
-        "taste": "This is the Muse Core. Taste and inspiration pieces gather here."
+        "work": "The Growth Core holds your pieces about work and growth.",
+        "relation": "The Bond Core holds your memories, promises, and conversations.",
+        "knowledge": "The Wisdom Core holds what you have learned.",
+        "records": "The Narrative Core holds the pieces you saved.",
+        "taste": "The Muse Core holds things you like and ideas you have saved."
       },
       "dataFallback": "One piece you connected to {{core}}.",
-      "noDataTitle": "No Pattern Data yet",
-      "noDataBody": "Only pieces you write or save yourself appear here. Leave one piece and this core will grow a light snowflake node.",
-      "dataDetailHint": "Opens the selected Pattern Data detail."
+      "noDataTitle": "No connected pieces yet",
+      "noDataBody": "Pieces you write or save appear here. Save a piece to add a small snowflake to this core.",
+      "dataDetailHint": "Opens the selected piece."
     }
   },
   "navPiece": "piece",
   "navPieceSummary": "Opens this piece summary and tags",
-  "navVillageNode": "Opens this star node",
+  "navVillageNode": "Opens this star",
   "navCenterVillage": "Opens the North Star",
   "navResetView": "Reset view",
   "navResetHint": "Resets graph pan and zoom",
@@ -105,12 +105,12 @@
   "navNextHint": "Selects next star",
   "navNext": "Next",
   "navClose": "Close",
-  "navCloseVillage": "Closes the star detail panel",
+  "navCloseVillage": "Closes the star details",
   "navPiecesConnected": "pieces I connected",
   "navLookAround": "Look around",
   "navOpenAngleVillage": "Opens this star in SecondB from a new angle",
-  "navOpenNewAngle": "Open new angle",
-  "navClosePiece": "Closes the piece detail panel",
+  "navOpenNewAngle": "Try another view",
+  "navClosePiece": "Closes the piece details",
   "navNoSummary": "No summary yet.",
   "navDetails": "Details",
   "navConnectedCount": "{{n}} pieces I connected",
@@ -130,13 +130,13 @@
   "quantNext": "Next",
   "likertSelectHint": "Double tap to select this answer.",
   "likertSelectedHint": "Selected answer.",
-  "facet30": "Your 30 facets",
+  "facet30": "30 personality traits in detail",
   "facetRetakeLabel": "Retake the assessment",
   "facetRetake": "Retake",
   "reflectDismiss": "Dismiss",
-  "drillLayerPeriod": "layer / period",
+  "drillLayerPeriod": "topic / period",
   "charSelfTalk": "Opens this resident's short self-talk bubble.",
   "backToGraph": "Return to graph",
   "backToGraphHint": "Opens the graph home screen.",
-  "clearContext": "Clear context"
+  "clearContext": "Clear reference text"
 }

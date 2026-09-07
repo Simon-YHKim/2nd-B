@@ -1,17 +1,17 @@
 {
-  "loading": "Carregando sua exportação de identidade...",
+  "loading": "Carregando a exportação do seu perfil…",
   "hero": {
-    "eyebrow": "Exportar identidade",
-    "title": "Sua identidade como um arquivo portátil",
-    "subtitle": "Um arquivo que qualquer IA lê, e um perfil de uma página que você lê",
-    "speech": "Este é você, pronto para qualquer assistente entender."
+    "eyebrow": "Exportar seu perfil",
+    "title": "Sobre você, em um arquivo",
+    "subtitle": "Seu perfil em um arquivo para IA e em uma página para leitura",
+    "speech": "Escolha as informações que quer incluir no arquivo."
   },
   "intro": {
-    "body": "O IDEN reúne o que você aprendeu sobre si mesmo em um único arquivo portátil. Cole em qualquer IA para dar o seu contexto, ou abra a folha de uma página."
+    "body": "O IDEN reúne seu perfil em um arquivo. Use-o para dar contexto a outro assistente de IA ou abra o resumo de uma página."
   },
   "generate": {
     "button": "Criar meu IDEN",
-    "accessibilityHint": "Gera seu arquivo de identidade a partir dos seus dados salvos."
+    "accessibilityHint": "Cria um arquivo de perfil a partir dos seus dados salvos."
   },
   "result": {
     "title": "Seu IDEN está pronto",
@@ -24,18 +24,18 @@
   },
   "error": "Não foi possível criar seu IDEN. Atualize e tente novamente.",
   "entry": {
-    "eyebrow": "Exportar identidade",
-    "body": "Transforme o que você aprendeu sobre si mesmo em um arquivo portátil que qualquer IA pode ler, e um perfil de uma página.",
-    "button": "Abrir exportação de identidade",
-    "accessibilityHint": "Abre a tela de exportação de identidade IDEN."
+    "eyebrow": "Exportar seu perfil",
+    "body": "Crie um arquivo com seu perfil para usar em outro assistente de IA ou um resumo de uma página para ler.",
+    "button": "Exportar meu perfil",
+    "accessibilityHint": "Abre a exportação de perfil IDEN."
   },
   "ds": {
-    "screenTitle": "IDEN · Identidade portátil",
+    "screenTitle": "IDEN · Exportar perfil",
     "loading": "Carregando…",
     "loadError": "Não foi possível carregar seu IDEN.",
     "retry": "Tentar de novo",
-    "empty": "Nada reunido ainda. Que tal reunir um pouco de você primeiro?",
-    "startGathering": "Começar a reunir",
+    "empty": "Ainda não há informações para exportar. Adicione alguns registros primeiro.",
+    "startGathering": "Adicionar registros",
     "signed": "Assinado",
     "whatGoesIn": "O que entra",
     "format": "Formato",

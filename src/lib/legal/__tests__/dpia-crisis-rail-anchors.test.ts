@@ -43,6 +43,7 @@ const AC = "src/lib/auth/AuthContext.tsx";
 const AD = "src/lib/ads/policy.ts";
 const CV = "src/lib/chat/conversation.ts";
 const OP = "src/app/ops.tsx";
+const AT = "src/lib/analytics/__tests__/analytics.test.ts";
 
 const ANCHORS: Anchor[] = [
   { cite: `${S}:408-438`, symbol: "fixedCrisisResponse",
@@ -95,6 +96,8 @@ const ANCHORS: Anchor[] = [
     why: "일부러 뺀 저장소 셋. 빼는 것 자체가 아니라 **응답에 적어 돌려준다는 것**이 통제다." },
   { cite: `${W}:240`, symbol: "includeRecords",
     why: "저널이 기본으로 안 실린다는 주장의 **실제 근거** - 그 삼항 연산이 없으면 기본값이 무의미하다." },
+  { cite: `${AT}:96-131`, symbol: "remain inert",
+    why: "Sentry 가 **일부러** 닫혀 있다는 주장의 근거. 문서가 '설정됐으나 안 쓴다'가 아니라 '울타리가 있고 조건이 적혀 있다'고 말하려면 그 울타리를 지키는 검사가 실재해야 한다." },
   { cite: `${AC}:132`, symbol: "MINOR_AGE_CEILING",
     why: "미성년 여부가 실제로 정해지는 비교. 이 문서 전체가 이 한 줄 위에 서 있다." },
   { cite: `${AD}:58`, symbol: "input.isMinor !== false",
