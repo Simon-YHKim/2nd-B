@@ -24,7 +24,7 @@ Project-specific guidance for Claude Code sessions in this repo.
 >
 > | 항목 | 상태 |
 > |---|---|
-> | `src/lib/judge/domains.ts` | **빈 seam.** `JUDGE_DOMAINS = []` 이고 `isJudgeEmail()` 은 항상 false |
+> | `src/lib/judge/domains.ts` | **파일이 없다.** `f42f4db2`(2026-09-06)가 C6 폐지와 함께 지웠고 `src/lib/judge/` 는 빈 디렉터리조차 아니다. 남은 `isJudgeEmail`·`JUDGE_DOMAINS` 언급 2건(`scripts/check-constraints.ts` · `src/lib/supabase/auth.ts`)은 전부 **삭제를 설명하는 주석**이라 되살릴 대상이 아니다 (2026-09-07 실측) |
 > | C6 judge mode 트리거 | **은퇴 완료.** 0138 이 `auto_judge_mode()` 를 DROP 했다. `check:constraints` 의 C6 는 이제 기능이 아니라 **은퇴 상태**를 지킨다 |
 > | `db/seed.sql` 의 demo@xprize.org | **제거됨.** 지금은 `demo@example.com`, `judge_mode false` |
 > | `manual.tsx` 의 XPRIZE 문구 | **제거됨** (0건) |
