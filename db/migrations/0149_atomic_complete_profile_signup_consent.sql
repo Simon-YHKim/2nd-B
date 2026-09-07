@@ -33,7 +33,10 @@
 -- trigger into a rollback file would silently drift whenever the active draft
 -- changes.
 
-BEGIN;
+-- ⚠ 최상위 BEGIN/COMMIT 을 두지 않는다. Supabase CLI 가 이 파일을 자기
+-- 트랜잭션으로 감싸므로 여기서 또 열면 중첩된다(supabase-dry-run.yml 이
+-- 0147 이상에 대해 이걸 막는다). 아래 SET LOCAL 은 그 CLI 트랜잭션 안에서
+-- 그대로 유효하다.
 
 SET LOCAL lock_timeout = '10s';
 
@@ -568,4 +571,3 @@ GRANT EXECUTE ON FUNCTION public.complete_profile_signup_consent(
 
 NOTIFY pgrst, 'reload schema';
 
-COMMIT;
