@@ -35,6 +35,21 @@ export interface CanonMuseumDetail {
   effect?: string;
 }
 
+/**
+ * The language the pack's editorial content is written in, as a BCP 47 tag.
+ *
+ * `lanes` carry `label` (ko) and `en`; the 43 events and their details carry only
+ * Korean - title, sub, body, facts, cause, effect. That is the canon's own
+ * decision ("KO canonical ... data, not chrome"), and changing it is a product
+ * call. Telling assistive technology which language it is looking at is not:
+ * without it an English screen reader voices Korean glyphs in an English voice,
+ * which is noise rather than "untranslated".
+ *
+ * Declared here, beside the pack, so the screen never writes "ko" itself and the
+ * two cannot drift apart.
+ */
+export const CANON_MUSEUM_LANGUAGE = "ko";
+
 export const canonMuseum = {
   lanes: museumPack.lanes as Record<string, { label: string; en: string; icon: string; accent: string; tint: string; ink: string }>,
   events: museumPack.events as CanonMuseumEvent[],
