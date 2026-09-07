@@ -86,6 +86,16 @@ describe("PIXEL-CLAY /account contract", () => {
   // race-safe deletion), #1583 (sign-out history) and the deep-space route
   // guards. The merged slice is byte-identical to main's, so this still proves
   // the extraction touched nothing in the legacy path -- only the baseline moved.
+  //
+  // Re-pinned again for the legacy export session fix. This pin exists to prove
+  // the PIXEL-CLAY extraction left the rollback skin alone, and that is still
+  // what it proves - the change it now covers is not a migration edit. The
+  // legacy export delivered user A's whole account bundle after the session had
+  // changed, had no owner check, and had no time bound, while the deletion path
+  // forty lines above already did all three. A rollback skin exists to be turned
+  // on; handing someone else's export to whoever is signed in is worse than a
+  // stale skin. Breaking the pin was the point of the change, so the pin moves
+  // with it and the reason lives here.
   test("leaves AccountLegacy and its styles byte-for-byte unchanged", () => {
     const route = read(ROUTE);
     const start = route.indexOf("function AccountLegacy()");
@@ -93,7 +103,7 @@ describe("PIXEL-CLAY /account contract", () => {
     expect(start).toBeGreaterThan(-1);
     expect(end).toBeGreaterThan(start);
     expect(createHash("sha256").update(route.slice(start, end)).digest("hex")).toBe(
-      "738f6b57b849efcfc7533ca5997dd23515c81a1cd8753f1bfdefa41a79cac961",
+      "4bf7c841c65aa9ae3fc3a12333f7e1d7580905a6efb3d0fad0301f564f6ed038",
     );
   });
 
