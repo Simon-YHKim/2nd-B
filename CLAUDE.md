@@ -520,10 +520,29 @@ ladder + propose->ratify.
 
 **LEGACY (rollback skin only, never the reference for new work):** the gameboy track, the
 *Cosmic Pixel Graph Village* system, *phytoncide* tokens, *Brain Trinity* naming, **the "Soul
-Core" name, the 5 Pattern Core layer + Pattern Tesseract, the village graph `/graph` +
-`/trinity`, the v3 tesseract art, the character voices (아치/가디/루루/모모/루미),
-and the old 4-tier Visual Tier node-names** (Soul Core 128px / Pattern Core x5 / snowflake /
-crystal). Preserved behind `EXPO_PUBLIC_UI=legacy`; superseded concept docs remain in git history.
+Core" name, the 5 Pattern Core layer + Pattern Tesseract, the v3 tesseract art, the character
+voices (아치/가디/루루/모모/루미), and the old 4-tier Visual Tier node-names** (Soul Core 128px /
+Pattern Core x5 / snowflake / crystal). Preserved behind `EXPO_PUBLIC_UI=legacy`; superseded
+concept docs remain in git history.
+
+> ### ⚠ `/graph` 와 `/trinity` 는 이 목록에서 뺐다 (2026-09-07 실측)
+>
+> 여기 "the village graph `/graph` + `/trinity`" 가 legacy 항목으로 적혀 있었고 문단 끝이
+> "Preserved behind `EXPO_PUBLIC_UI=legacy`" 로 닫혀 있었다. **두 라우트 모두 그 플래그와
+> 무관하다** — 두 파일에 `EXPO_PUBLIC_UI` 참조가 **0건**이다.
+>
+> | 라우트 | 실제 게이트 | 실제로 그리는 것 |
+> |---|---|---|
+> | `/graph` | **`DevOnlyRoute`** (dev 전용) | `DeepSpaceGraphDesignScreen` — **deep-space** 화면이지 마을 그래프가 아니다. 파일 헤더가 스스로 밝힌다: 중심별·군집별 좌표가 **고정 목업**이고 노드/링크 개수만 실제라, 실데이터로 레이아웃을 그리기 전까지 dev 참조로 둔다. 프로덕션 내비게이션은 여기로 링크하지 않는다(그래프 탭은 `/`) |
+> | `/trinity` | **없음 — 일반 라우트다** | 기록 태그(건강/앱/뇌/재정) 위의 파생 대시보드. 새 스키마 없음. `__DEV__` 는 M3 리메이크 변형을 끼워 넣을 뿐이고 라우트 자체를 막지 않는다 |
+>
+> **legacy 인 것은 *이름*이지 화면이 아니다** — 바로 위 `/core-brain` 항목과 같은 구분이다.
+> "Brain Trinity" 라는 **명명**은 legacy 로 남기되, `/trinity` **화면은 살아 있다.**
+> `src/lib/dev/screen-index.ts` 도 그렇게 잡고 있다(`/trinity` 는 `dev` 플래그 없음,
+> `/graph` 만 `dev: true`). `src/app/index.tsx:235` 주석이 이미 "`/graph` … is a DEV-ONLY
+> mock design" 이라고 **코드에서 정정**하고 있었는데 이 파일이 안 따라왔다.
+>
+> **인용 금지**: "`/graph` 는 legacy 스킨이니 손대지 않는다" · "`/trinity` 는 롤백 전용이다".
 
 ## The 12 hard constraints
 
@@ -603,7 +622,8 @@ not eyeballing a mockup.
 trio (`DESIGN_INDEX.md` / `SCREEN_TREE_SPEC.md` / `CLONE_PROTOCOL.md`). Those are a pre-M3 snapshot
 (2026-06-24) from the deep-space cosmic-pixel era, superseded by the reference app above. They are
 kept for history. `SCREEN_TREE_SPEC.md`'s route table in particular is badly out of date (it lists
-40 routes; the app has 85).
+40 routes; **the app has 100** — `src/app` 아래 `.tsx` 104개에서 `_layout` 2개와 `+` 특수
+파일 2개를 뺀 수, 2026-09-07 실측. 여기 적혀 있던 85 는 낡은 값이다).
 
 - Do not introduce hex literals in components. Always go through `semantic.*` from `src/lib/theme/tokens.ts`.
 - Do not add glassmorphism, pill chips, or em dashes in UI strings. Gradients are allowed only within the deep-space cyan/soul identity via `deepSpaceGradients` (`src/lib/theme/tokens.ts`); off-palette or decorative gradients stay forbidden. See DESIGN.md "Color rules".
