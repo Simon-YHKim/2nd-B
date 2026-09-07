@@ -49,7 +49,7 @@ values
   ),
   (
     'Randomized trial of a generative AI chatbot for mental health treatment',
-    ARRAY['Michael V. Heinz','Daniel M. Mackin','Brianna M. Trudeau','Sukanya Bhattacharya','Yinzhou Wang','Haley A. Banta','Nicholas C. Jacobson'],
+    ARRAY['Michael V. Heinz','Daniel M. Mackin','Brianna M. Trudeau','Sukanya Bhattacharya','Yinzhou Wang','Haley A. Banta','Abi D. Jewett','Abigail J. Salzhauer','Tess Z. Griffin','Nicholas C. Jacobson'],
     '10.1056/AIoa2400802',
     'https://doi.org/10.1056/AIoa2400802',
     'ai_mental_health',

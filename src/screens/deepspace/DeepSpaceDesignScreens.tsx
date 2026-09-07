@@ -53,6 +53,7 @@ import {
   type OAuthProvider,
 } from "@/lib/supabase/auth";
 import { requestAccountDeletion } from "@/lib/records/delete-bulk";
+import { purgeCaptureDraftsForDeletedAccount } from "@/lib/capture/draft";
 import { buildPersona, loadPersonaRatifiableSignals } from "@/lib/persona/build";
 import { proposalContextForStar } from "@/lib/persona/proposal-context";
 import { proposeSelfModelChange } from "@/lib/persona/propose-self-model";
@@ -648,6 +649,16 @@ export function DeepSpacePrivacyDesignScreen() {
         setDeleting(false);
       }
       return;
+    }
+
+    // The server side is gone. Drop this user's local drafts too: nothing else
+    // cleared them, so unsent journal text would outlive the account. Scoped to
+    // the id we just erased, best-effort, and never allowed to turn a completed
+    // deletion into a failure.
+    try {
+      await purgeCaptureDraftsForDeletedAccount(targetUserId);
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[privacy] local draft purge after deletion failed", (e as Error).message);
     }
 
     // Terminal erasure already succeeded. Do not let a local sign-out failure
