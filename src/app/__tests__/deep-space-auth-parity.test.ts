@@ -5,14 +5,13 @@ import * as ts from "typescript";
 type RouteContract = {
   file: string;
   deepComponent: string;
-  legacyComponent: string;
 };
 
 const ROUTES: RouteContract[] = [
-  { file: "account", deepComponent: "DeepSpaceAccountScreen", legacyComponent: "AccountLegacy" },
-  { file: "data", deepComponent: "DeepSpaceDataScreen", legacyComponent: "DataManagementLegacy" },
-  { file: "theme", deepComponent: "DeepSpaceThemeScreen", legacyComponent: "ThemeScreenLegacy" },
-  { file: "support", deepComponent: "DeepSpaceSupportDesignScreen", legacyComponent: "SupportLegacy" },
+  { file: "account", deepComponent: "DeepSpaceAccountScreen" },
+  { file: "data", deepComponent: "DeepSpaceDataScreen" },
+  { file: "theme", deepComponent: "DeepSpaceThemeScreen" },
+  { file: "support", deepComponent: "DeepSpaceSupportDesignScreen" },
 ];
 
 function hasDescendant(node: ts.Node, predicate: (candidate: ts.Node) => boolean): boolean {
@@ -77,7 +76,7 @@ function defaultRoute(file: string): { sourceFile: ts.SourceFile; statements: re
 }
 
 describe("deep-space route auth parity", () => {
-  it.each(ROUTES)("gates /$file before delegating either renderer", (route) => {
+  it.each(ROUTES)("gates /$file before rendering the screen", (route) => {
     const { sourceFile, statements } = defaultRoute(route.file);
     const authIndex = statements.findIndex(
       (statement) => ts.isVariableStatement(statement) && containsCall(statement, "useAuth"),
@@ -95,11 +94,12 @@ describe("deep-space route auth parity", () => {
     const completeProfileIndex = statements.findIndex((statement) =>
       redirectHrefs(statement, sourceFile).includes("/complete-profile"),
     );
-    const deepSpaceIndex = statements.findIndex(
-      (statement) => ts.isIfStatement(statement) && containsCall(statement.expression, "isDeepSpaceUI"),
-    );
-    const legacyIndex = statements.findIndex(
-      (statement) => ts.isReturnStatement(statement) && containsJsxTag(statement, sourceFile, route.legacyComponent),
+    // 스킨 분기가 은퇴한 라우트는 게이트 뒤에서 화면을 곧바로 렌더하고, 아직 남은
+    // 라우트는 if (isDeepSpaceUI()) 안에서 렌더한다. 지켜야 할 것은 분기의 모양이
+    // 아니라 "게이트를 다 지나기 전에는 화면이 안 나온다" 이므로, 분기를 찾지 말고
+    // 화면을 렌더하는 첫 문장을 찾는다.
+    const renderIndex = statements.findIndex((statement) =>
+      containsJsxTag(statement, sourceFile, route.deepComponent),
     );
 
     expect(authIndex).toBeGreaterThanOrEqual(0);
@@ -110,12 +110,8 @@ describe("deep-space route auth parity", () => {
     expect(signInIndex).toBeGreaterThan(loadingIndex);
     expect(pendingProfileIndex).toBeGreaterThan(signInIndex);
     expect(completeProfileIndex).toBeGreaterThan(pendingProfileIndex);
-    expect(deepSpaceIndex).toBeGreaterThan(completeProfileIndex);
-    expect(legacyIndex).toBeGreaterThan(deepSpaceIndex);
-
-    const deepSpaceBranch = statements[deepSpaceIndex];
-    expect(containsJsxTag(deepSpaceBranch, sourceFile, route.deepComponent)).toBe(true);
-    for (const statement of statements.slice(0, deepSpaceIndex)) {
+    expect(renderIndex).toBeGreaterThan(completeProfileIndex);
+    for (const statement of statements.slice(0, renderIndex)) {
       expect(containsJsxTag(statement, sourceFile, route.deepComponent)).toBe(false);
     }
   });

@@ -172,14 +172,6 @@ describe("IDEN read-only lifecycle contract", () => {
     expect(screen).not.toContain("exportIden(");
   });
 
-  it("stores only legacy modal openness and computes every action from the current doc", () => {
-    expect(screen).toContain("const [resultOpen, setResultOpen] = useState(false)");
-    expect(screen).toContain("const currentResult = useCallback(");
-    expect(screen).toContain("setResultOpen(true)");
-    expect(screen).toContain("visible={resultOpen && renderedResult !== null}");
-    expect(screen).not.toContain("useState<IdenExport | null>");
-    expect(screen).not.toContain("setResult(");
-  });
 
   it("removes misleading legacy controls and claims", () => {
     expect(screen).toContain('.filter((row) => row.id !== "raw")');

@@ -9,6 +9,12 @@ function readProjectFile(path: string): string {
 
 describe("Android elevation coverage", () => {
   it("keeps auth form containers on the shared auth elevation", () => {
+    // data / theme / permissions / support left these lists on 2026-09-08 for the
+    // same reason complete-profile did: their legacy variant retired
+    // (legacy/screens/INDEX.md), so the route now renders only the deep-space
+    // screen, which carries depth as border + fill + bevel rather than android
+    // elevation. The rule this file already states - the guard stays while a
+    // legacy variant does - is what took them off.
     // complete-profile was converted in-place to the deep-space shell (like the
     // onboarding gate, which is also not listed here): it uses deep-space depth
     // (border + bgMid fill + glow) instead of the legacy premium android
@@ -27,10 +33,9 @@ describe("Android elevation coverage", () => {
 
   it("keeps the main card/list cluster on the shared card elevation", () => {
     const cardScreens = [
-      { file: "src/app/inbox.tsx", minCount: 1 },
       { file: "src/app/data.tsx", minCount: 1 },
+      { file: "src/app/inbox.tsx", minCount: 1 },
       { file: "src/app/research.tsx", minCount: 2 },
-      { file: "src/app/theme.tsx", minCount: 1 },
     ];
 
     for (const { file, minCount } of cardScreens) {
@@ -46,8 +51,6 @@ describe("Android elevation coverage", () => {
       "src/app/big-five.tsx",
       "src/app/attachment.tsx",
       "src/app/manual.tsx",
-      "src/app/permissions.tsx",
-      "src/app/support.tsx",
     ];
 
     for (const file of secondaryScreens) {
