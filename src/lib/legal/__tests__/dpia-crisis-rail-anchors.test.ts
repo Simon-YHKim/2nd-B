@@ -35,6 +35,7 @@ const S = "src/lib/llm/safety.ts";
 const C = "src/lib/safety/classifier.ts";
 const P = "src/lib/privacy/prefs.ts";
 const R = "src/lib/ops/recommend.ts";
+const A = "src/lib/auth/consent-age.ts";
 
 const ANCHORS: Anchor[] = [
   { cite: `${S}:408-438`, symbol: "fixedCrisisResponse",
@@ -75,6 +76,10 @@ const ANCHORS: Anchor[] = [
     why: "스냅샷을 신뢰하지 않는 데이터로 감싸는 자리. 클립된 페이지가 프롬프트를 조종하지 못한다는 주장." },
   { cite: `${R}:199-273`, symbol: "recommendForDomain",
     why: "추천이 무엇을 프로파일링하는지 - 그 함수 자체." },
+  { cite: `${A}:28-33`, symbol: "DIGITAL_CONSENT_AGE",
+    why: "어느 나라 동의 연령이 적용되는가 - 미성년 DPIA 에서 이보다 무거운 표는 없다." },
+  { cite: `${A}:108-121`, symbol: "deviceRegionCode",
+    why: "그 표에 실제로 닿는 해석기. 2026-08-16 에 기기 지역 신호가 붙었는데 문서는 다섯 자리에서 '신호 없음'이라 적고 있었다." },
 ];
 
 function slice(cite: string): { file: string; text: string; lines: number } {
