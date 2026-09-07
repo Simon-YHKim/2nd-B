@@ -85,6 +85,26 @@ export async function deleteSourcesByIds(userId: string, ids: string[]): Promise
   return count ?? 0;
 }
 
+/** Which of these source ids still exist for this owner.
+ *
+ *  The withdrawal flows promise never to drop the only pointer to rows that
+ *  still exist, and they used to keep that promise only for a THROWN delete.
+ *  `deleteSourcesByIds` does not throw when it removes fewer rows than asked -
+ *  it returns the count - and a short count does not separate "already gone"
+ *  from "still there". This separates them. Callers ask only when the count
+ *  came up short, so the ordinary withdrawal costs no extra query. */
+export async function findSurvivingSourceIds(userId: string, ids: string[]): Promise<string[]> {
+  if (ids.length === 0) return [];
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("sources")
+    .select("id")
+    .eq("user_id", userId)
+    .in("id", ids);
+  if (error) throw error;
+  return ((data ?? []) as { id: string }[]).map((row) => row.id);
+}
+
 export async function deleteAllWikiPages(userId: string): Promise<number> {
   const supabase = getSupabaseClient();
   const { count, error } = await supabase

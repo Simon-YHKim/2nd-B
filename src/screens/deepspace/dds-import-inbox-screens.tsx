@@ -35,7 +35,7 @@ import {
   removeImportHistory,
   type ImportHistoryEntry,
 } from "@/lib/import/history";
-import { deleteSourcesByIds } from "@/lib/records/delete-bulk";
+import { deleteSourcesByIds, findSurvivingSourceIds } from "@/lib/records/delete-bulk";
 
 // 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
 //
@@ -307,7 +307,19 @@ export function DeepSpaceImportScreen() {
     setRevokeErr(null);
     if (entry.sourceIds.length > 0) {
       try {
-        await deleteSourcesByIds(userId, entry.sourceIds);
+        const removed = await deleteSourcesByIds(userId, entry.sourceIds);
+        // A short delete is not a failure on its own: the ids may already be
+        // gone. It is a failure only if any are still there, and that is exactly
+        // what the count cannot tell us. The comment above promises to keep the
+        // pointer for rows that still exist, so ask - but only when the count
+        // came up short, so the ordinary withdrawal costs no extra query.
+        if (
+          removed < entry.sourceIds.length &&
+          (await findSurvivingSourceIds(userId, entry.sourceIds)).length > 0
+        ) {
+          setRevokeErr(t("ds.import.revokeFailed"));
+          return;
+        }
       } catch {
         setRevokeErr(t("ds.import.revokeFailed"));
         return;
