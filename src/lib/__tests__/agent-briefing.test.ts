@@ -305,6 +305,67 @@ describe("LLM-ROUTING.md 의 OCR 주장", () => {
   });
 });
 
+// ── 통째로 붙여넣으라고 스스로 지시하는 문서 ─────────────────────────
+//
+// `docs/research/v0.3-system-improvement-prompt.md` 는 맨 위에서 이렇게 말한다:
+// *"이 파일 전체를 새 Claude / Gemini / GPT 세션의 **첫 메시지로 그대로 붙여넣으세요**."*
+//
+// 그래서 이 문서의 낡은 문장은 **문서 안에 조용히 남아 있는 것이 아니라, 붙여넣을
+// 때마다 새 세션에 주입된다.** 받는 세션은 그걸 사용자가 준 전제로 읽는다.
+// 브리핑 파일(CLAUDE.md·AGENTS.md)과 같은 등급으로 지켜야 하는 이유다.
+//
+// 2026-09-08 실측: 프로젝트 소개 한 줄이 **두 가지**를 동시에 틀리고 있었다 —
+// "Build with Gemini XPRIZE 2026-08-17 마감" 과 "글로벌 **웰니스 앱**". 후자는
+// 같은 문단 바로 아래에서 이 문서 자신이 금지하는 프레이밍이다(CLAUDE.md
+// Vocabulary policy: "not a mental-health, therapy, or wellness app").
+const PASTED_AS_PROMPT = ["docs/research/v0.3-system-improvement-prompt.md"] as const;
+
+describe("붙여넣기용 프롬프트 문서", () => {
+  it.each(PASTED_AS_PROMPT)("%s 가 머리말에서 스스로 붙여넣기용임을 밝힌다", (doc) => {
+    // 이 전제가 깨지면 위 등급 자체가 근거를 잃는다. 먼저 확인한다.
+    //
+    // ⚠ 문서 전체에서 "붙여넣" 을 찾으면 안 된다. 본문의 **정정 블록**에도 그 말이
+    //   나오기 때문에("붙여넣을 때마다 주입된다"), 실제 사용 지시를 지워도 가드가
+    //   통과한다. 변이 검증에서 정확히 그렇게 새어나갔다 — 지시를 없앴는데 18/18.
+    //   지시는 **머리말에** 있다. 거기만 본다.
+    const head = read(doc).split("\n").slice(0, 8).join("\n");
+    expect({ doc, saysPaste: /붙여넣|paste/i.test(head) })
+      .toEqual({ doc, saysPaste: true });
+  });
+
+  it.each(PASTED_AS_PROMPT)("%s 가 죽은 마감·대회를 전제로 주지 않는다", (doc) => {
+    const claims = assertionsOnly(doc)
+      .split("\n")
+      .filter((l) => /XPRIZE|Devpost|심사위원|심사자|마감\s*20\d\d-\d\d-\d\d/.test(l))
+      .filter((l) => !/정정|취소|없습니다|없다|종료/.test(l));
+    expect({ doc, claims }).toEqual({ doc, claims: [] });
+  });
+
+  it.each(PASTED_AS_PROMPT)("%s 의 소개 문단이 앱을 웰니스로 규정하지 않는다", (doc) => {
+    // 어휘 정책은 UI 문자열만의 문제가 아니다. 세션에 주입되는 **소개 문장**이
+    // "웰니스 앱" 이면 그 세션이 만드는 모든 카피가 그 프레이밍에서 출발한다.
+    //
+    // ⚠ 문서 전체를 훑으면 안 된다. 이 문서는 임상 어휘를 **금지 목록으로 나열**하고
+    //   (`therapy, diagnosis, treatment …`), 그건 정확히 있어야 할 자리다. 초판이
+    //   그걸 주장으로 세어서 거짓양성이 났다. **앱을 무엇이라 규정하는 구간**만 본다.
+    const src = assertionsOnly(doc);
+    const start = src.indexOf("## 프로젝트 컨텍스트");
+    expect(start).toBeGreaterThan(-1); // 구간이 사라지면 이 검사가 조용히 무의미해진다
+    const intro = src.slice(start, src.indexOf("\n## ", start + 4));
+    const claims = intro
+      .split("\n")
+      // ⚠ `>` 인용 블록은 뺀다. 이 저장소는 **정정을 인용 블록으로 쓴다** — 틀린
+      //   문장을 지우는 대신 인용해서 왜 틀렸는지 남기는 관례다. 그것까지 주장으로
+      //   세면 정정을 쓰는 순간 가드가 깨져서, 결국 정정을 못 쓰게 만든다.
+      //   초판이 정확히 그랬다: 내가 쓴 정정 블록 자신이 걸렸다.
+      //   소개가 앱을 규정하는 문장은 인용이 아닌 **산문**이다.
+      .filter((l) => !/^\s*>/.test(l))
+      .filter((l) => /(?:글로벌\s*)?(?:웰니스|wellness)\s*앱|wellness app/i.test(l))
+      .filter((l) => !/정정|아닙니다|아님|아니다|not a/i.test(l));
+    expect({ doc, claims }).toEqual({ doc, claims: [] });
+  });
+});
+
 // ── C10 이 서술하는 연령 게이트가 코드와 같은 말을 하는가 ─────────────
 //
 // 2026-09-08 실측에서 `docs/CONSTRAINTS.md` C10 의 "Jurisdiction (current

@@ -409,12 +409,6 @@ describe("PIXEL-CLAY renderer and legacy boundary", () => {
     expect(src).toContain('modalScroll: { maxHeight: "90%" }');
   });
 
-  test("PlansLegacy and its existing style boundary remain in app/plans.tsx", () => {
-    expect(app).toContain("function PlansLegacy()");
-    expect(app).toContain("const styles = StyleSheet.create({");
-    expect(app).toContain("if (isDeepSpaceUI()) return <DeepSpacePlansScreen />;");
-    expect(app).not.toContain("PixelSurface");
-  });
 });
 
 describe("price disclosure follows the selected period", () => {

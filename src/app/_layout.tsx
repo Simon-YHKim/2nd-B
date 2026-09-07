@@ -54,7 +54,18 @@ import { pixelStackTransition } from "@/lib/motion/pixel-physical";
 import { fontAssets } from "@/theme/typography";
 import { ThemeProvider, useThemePalette } from "@/lib/theme/ThemeContext";
 import { hydrateFirstStarChatNudge } from "@/lib/onboarding/state";
+import { Helmet } from "expo-router/vendor/react-helmet-async/lib";
+
 import { SITE_TITLE } from "@/lib/site-meta";
+
+// Rendered in both root-gate branches so the served page's first <title> is
+// never empty. Hoisted to module scope because it is constant: re-creating the
+// element per render would make helmet re-emit on every root re-render.
+const SITE_HEAD = (
+  <Helmet>
+    <title>{SITE_TITLE}</title>
+  </Helmet>
+);
 import {
   accountEpochFromSnapshot,
   accountTransitionPendingFromSnapshot,
@@ -110,20 +121,32 @@ export default function RootLayout() {
     void hydrateFirstStarChatNudge();
   }, []);
 
-  // The browser tab is blank on web and always has been. The served page has
-  // two <title> tags and the first one wins: Expo Router's vendored
-  // react-helmet-async puts an empty `<title data-rh="true">` at the top of
-  // <head>, ahead of the one +html.tsx writes. Head cannot fill it - it only
-  // renders inside a focused screen, and the static shell is this component's
-  // InlineLoader branch, so no screen renders during export at all.
+  // The served page has two <title> tags and the FIRST one wins: Expo Router's
+  // vendored react-helmet-async puts `<title data-rh="true">` at the top of
+  // <head>, ahead of the one +html.tsx writes. It used to be empty, so the
+  // served title was empty for anything that does not run our JS.
   //
-  // Fixing that would mean changing when the root gate returns the loader,
-  // which is the boot path #1626/#1646 just stabilised - not a trade worth
-  // making for a tab label. Share cards are unaffected either way: og:title
-  // and twitter:title carry the name and scrapers prefer them.
+  // `expo-router/head`'s <Head> cannot fill it: it calls useIsFocused() and
+  // returns null when no screen is focused, and the static shell IS this
+  // component's InlineLoader branch - during export no screen renders at all.
   //
-  // So set it on the client, where the people who actually read the tab are.
-  // Native has no document; the guard also covers the server render.
+  // The earlier note here concluded the only fix was to change when the root
+  // gate returns the loader, and declined it because that is the boot path
+  // #1626/#1646 stabilised. That trade is avoidable: the gate condition below
+  // is untouched: SITE_HEAD renders in BOTH branches, so helmet has a title to
+  // emit whichever branch the exporter lands on. Helmet renders no DOM of its
+  // own, so the loader's first paint is unchanged.
+  //
+  // It reaches the vendored copy directly because that is the instance whose
+  // tag is already in the output; a second helmet package would emit a second
+  // title rather than fill this one. expo-router ships `vendor/` and declares
+  // no exports map, so the deep path resolves.
+  //
+  // Share cards were never affected - og:title and twitter:title carry the
+  // name and scrapers prefer them. What this fixes is the tab before hydration
+  // and every reader that never runs the bundle (search engines, plain
+  // scrapers). The runtime assignment below stays: it also covers client-side
+  // navigation, and it is the only path on a runtime that has no helmet.
   useEffect(() => {
     if (typeof document === "undefined") return;
     document.title = SITE_TITLE;
@@ -132,10 +155,18 @@ export default function RootLayout() {
   // Brief minimal loader during font resolution. The branded cell-team
   // intro now lives inside IntroGate (gated on auth) — unauthenticated
   // visitors should land on /sign-in immediately, NOT see the loader.
-  if ((!fontsLoaded && !fontError) || !i18nReady) return <InlineLoader />;
+  if ((!fontsLoaded && !fontError) || !i18nReady) {
+    return (
+      <>
+        {SITE_HEAD}
+        <InlineLoader />
+      </>
+    );
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      {SITE_HEAD}
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
         <ThemeProvider>
           <AuthProvider>

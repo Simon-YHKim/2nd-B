@@ -151,6 +151,14 @@ skippable by calling the RPC directly.
 own client matrix but accepted by the authoritative server gate. The EU floor is
 therefore advisory, not enforced.
 
+**It is getting more entrenched, not less.** Of the five hard-coded `< 14` sites,
+**four are from the September consent stack** — `0148` (1) and `0149` (3: the
+trigger at L163, and the profile RPC at L395 and L441) — and those were applied
+to production on 2026-09-08. `0086` holds the fifth and oldest. So the newest
+code on this path repeated the same jurisdiction-blind literal three more times
+rather than reading the matrix the client already resolves. Anyone adding a sixth
+should know they are widening this gap, not just following local style.
+
 ⚠ **Do not "fix" this by raising the server floor.** Root `CLAUDE.md` lists
 **EU 최소 가입연령 상향** among the decisions Simon has explicitly left open
 ("확정 전까지 해당 게이트를 임의로 풀지 말 것"), and moving a registration floor
