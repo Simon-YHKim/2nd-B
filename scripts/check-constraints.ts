@@ -1248,7 +1248,7 @@ results.push(
       enConsent.notice.ackOverseas.includes("encrypted service data") &&
       koConsent.notice.ackOverseas.includes("암호화된 서비스 데이터") &&
       enConsent.privacy.keys.external_analytics.desc.includes("not entry text") &&
-      koConsent.privacy.keys.external_analytics.desc.includes("기록 본문이 아니라") &&
+      koConsent.privacy.keys.external_analytics.desc.includes("기록 본문은 보내지 않아요") &&
       notice.includes('t("notice.trustTitle")') &&
       notice.includes('t("notice.trustBody")') &&
       privacy.includes('t("privacy.trustTitle")') &&
@@ -1361,11 +1361,11 @@ results.push(
       "Signs out and returns to the sign-in screen.",
       "설정을 불러오는 중이에요…",
       "설정 삭제 확인",
-      "설정 피드백 안내",
-      "프로필 설정 화면으로 이동합니다.",
-      "개인정보 보호 설정 화면으로 이동합니다.",
-      "데이터 관리 화면으로 이동합니다.",
-      "로그아웃한 뒤 로그인 화면으로 돌아갑니다.",
+      "설정 변경 결과",
+      "프로필 설정을 열어요.",
+      "개인정보 보호 설정을 열어요.",
+      "데이터 관리를 열어요.",
+      "로그아웃하고 로그인 화면으로 돌아가요.",
     ];
     const ok =
       codeRequired.every((snippet) => settings.includes(snippet)) &&
@@ -1379,7 +1379,7 @@ results.push(
       en.includes('"Signs out and returns to the sign-in screen."') &&
       ko.includes('"nav"') &&
       ko.includes('"설정 삭제 확인"') &&
-      ko.includes('"로그아웃한 뒤 로그인 화면으로 돌아갑니다."') &&
+      ko.includes('"로그아웃하고 로그인 화면으로 돌아가요."') &&
       forbiddenInlineCopy.every((term) => !settings.includes(term));
     return {
       id: "SettingsNavModalI18nCopy",
@@ -1427,24 +1427,24 @@ results.push(
       "이 기기에 다크 테마를 적용합니다.",
       "이 기기에 라이트 테마를 적용합니다.",
       "장식 그래프 크루 밀도를",
-      "모든 일기를 삭제하기 전에 확인 대화상자를 엽니다.",
-      "모든 노트를 삭제하기 전에 확인 대화상자를 엽니다.",
-      "모든 과거의 나 응답을 삭제하기 전에 확인 대화상자를 엽니다.",
-      "저장된 Big Five 결과를 삭제하기 전에 확인 대화상자를 엽니다.",
-      "저장된 애착 결과를 삭제하기 전에 확인 대화상자를 엽니다.",
-      "저장된 MBTI 참고 결과를 삭제하기 전에 확인 대화상자를 엽니다.",
-      "모든 위키 페이지를 삭제하기 전에 확인 대화상자를 엽니다.",
-      "아직 위키로 발전시키지 않은 캡처를 삭제하기 전에 확인 대화상자를 엽니다.",
-      "일일 사용량 카운터를 리셋하기 전에 확인 대화상자를 엽니다.",
+      "모든 일기를 삭제할지 한 번 더 물어요.",
+      "모든 노트를 삭제할지 한 번 더 물어요.",
+      "과거의 나 답변을 모두 삭제할지 한 번 더 물어요.",
+      "저장한 Big Five 결과를 삭제할지 한 번 더 물어요.",
+      "저장한 애착 결과를 삭제할지 한 번 더 물어요.",
+      "저장한 MBTI 참고 결과를 삭제할지 한 번 더 물어요.",
+      "모든 위키 페이지를 삭제할지 한 번 더 물어요.",
+      "아직 위키로 정리하지 않은 캡처를 삭제할지 한 번 더 물어요.",
+      "일일 사용량을 초기화할지 한 번 더 물어요.",
       "전체 삭제 확인.",
-      "기록, 캡처, 위키 페이지, 사용량을 모두 삭제하기 전에 DELETE 입력과 확인이 필요합니다.",
+      "기록, 캡처, 위키 페이지, 사용량을 모두 삭제하려면 DELETE를 입력하고 한 번 더 확인해야 해요.",
     ];
     const ok =
       requiredCode.every((snippet) => settings.includes(snippet)) &&
       en.includes('"deleteJournalsHint": "Opens a confirmation before deleting every journal entry."') &&
       en.includes('"fullWipeHint": "Requires typed DELETE confirmation before wiping records, sources, wiki pages, and usage."') &&
-      ko.includes('"deleteJournalsHint": "모든 일기를 삭제하기 전에 확인 대화상자를 엽니다."') &&
-      ko.includes('"fullWipeHint": "기록, 캡처, 위키 페이지, 사용량을 모두 삭제하기 전에 DELETE 입력과 확인이 필요합니다."') &&
+      ko.includes('"deleteJournalsHint": "모든 일기를 삭제할지 한 번 더 물어요."') &&
+      ko.includes('"fullWipeHint": "기록, 캡처, 위키 페이지, 사용량을 모두 삭제하려면 DELETE를 입력하고 한 번 더 확인해야 해요."') &&
       forbiddenInlineCopy.every((term) => !settings.includes(term));
     return {
       id: "SettingsActionHintsI18nCopy",
@@ -1490,10 +1490,10 @@ results.push(
       en.includes('"Shows the typed confirmation for deleting all records, sources, wiki pages, and usage."') &&
       en.includes('"This clears private 2nd-B content in this account. Account details, consent history, and service accountability records stay."') &&
       ko.includes('"dataWizard"') &&
-      ko.includes('"한 번에 하나의 삭제 영역만 고르세요. 기록, 평가 결과, 위키/캡처, 전체 삭제를 분리해서 보여줍니다."') &&
+      ko.includes('"삭제할 데이터 종류를 골라주세요. 종류별로 지우거나 전체를 삭제할 수 있어요."') &&
       ko.includes('"{{label}}, {{total}}개 중 {{index}}번째, {{state}}."') &&
-      ko.includes('"기록, 캡처, 위키 페이지, 사용량 전체 삭제를 위한 입력 확인을 보여줍니다."') &&
-      ko.includes('"이 작업은 이 계정의 2nd-B 개인 콘텐츠를 비웁니다. 계정 정보, 동의 이력, 서비스 책임 기록은 유지됩니다."');
+      ko.includes('"전체 삭제를 확인하는 입력란을 보여줘요. 기록, 캡처, 위키 페이지, 사용량이 모두 삭제돼요."') &&
+      ko.includes('"이 계정의 2nd-B 개인 콘텐츠를 모두 지워요. 계정 정보, 동의 이력, 서비스 책임 기록은 남아요."');
     return {
       id: "SettingsDataDeleteWizard",
       status: ok ? "PASS" : "FAIL",
@@ -1537,11 +1537,11 @@ results.push(
       "Type DELETE to enable the account deletion button.",
       "Opens a final confirmation before deleting your account and data.",
       "Starts account and data deletion.",
-      "계정을 불러오는 중입니다…",
+      "계정을 불러오고 있어요…",
       "계정 삭제를 끝내지 못했어요.",
       "생일을 저장하지 못했습니다.",
       "계정 삭제 최종 확인",
-      "계정 피드백 안내",
+      "계정 안내",
       "계정 삭제 확인 문구",
       "계정 삭제 버튼을 활성화하려면 DELETE를 입력합니다.",
       "계정과 데이터를 삭제하기 전 최종 확인을 엽니다.",
@@ -1553,8 +1553,8 @@ results.push(
       en.includes('"label": "Account feedback notice"') &&
       en.includes('"inputLabel": "Account deletion confirmation phrase"') &&
       en.includes('"confirmCtaHint": "Starts account and data deletion."') &&
-      ko.includes('"loading": "계정을 불러오는 중입니다…"') &&
-      ko.includes('"label": "계정 피드백 안내"') &&
+      ko.includes('"loading": "계정을 불러오고 있어요…"') &&
+      ko.includes('"label": "계정 안내"') &&
       ko.includes('"inputLabel": "계정 삭제 확인 문구"') &&
       ko.includes('"confirmCtaHint": "계정과 데이터 삭제를 시작합니다."') &&
       forbiddenInlineCopy.every((term) => !account.includes(term));
@@ -1588,21 +1588,21 @@ results.push(
       '"Dismiss"',
       "Dismisses this notice.",
       "Runs the selected inbox action.",
-      "받은편지함 피드백 안내",
+      "받은편지함 안내",
       "받은편지함 작업 확인",
       '"취소"',
       '"닫기"',
       "안내를 닫습니다.",
-      "선택한 받은편지함 작업을 실행합니다.",
+      "선택한 받은편지함 작업을 실행해요.",
     ];
     const ok =
       requiredCode.every((snippet) => inbox.includes(snippet)) &&
       en.includes('"noticeLabel": "Inbox feedback notice"') &&
       en.includes('"confirmLabel": "Inbox action confirmation"') &&
       en.includes('"confirmHint": "Runs the selected inbox action."') &&
-      ko.includes('"noticeLabel": "받은편지함 피드백 안내"') &&
+      ko.includes('"noticeLabel": "받은편지함 안내"') &&
       ko.includes('"confirmLabel": "받은편지함 작업 확인"') &&
-      ko.includes('"confirmHint": "선택한 받은편지함 작업을 실행합니다."') &&
+      ko.includes('"confirmHint": "선택한 받은편지함 작업을 실행해요."') &&
       forbiddenInlineCopy.every((term) => !inbox.includes(term));
     return {
       id: "InboxFeedbackI18nCopy",
@@ -1629,10 +1629,10 @@ results.push(
     ];
     const ok =
       inbox.includes('t("deleteConfirmBody")') &&
-      read("locales/ko/inbox.json").includes("첨부된 본문 파일이") &&
+      read("locales/ko/inbox.json").includes("첨부된 본문 파일은 계정에 남을 수 있어요") &&
       capture.includes('t("file.attachedNoPreview")') &&
       enCapture.file?.attachedNoPreview === "File attached. Text preview is not available." &&
-      koCapture.file?.attachedNoPreview === "파일이 첨부됐습니다. 본문 미리보기는 지원하지 않습니다." &&
+      koCapture.file?.attachedNoPreview === "파일을 첨부했어요. 본문은 여기서 미리 볼 수 없어요." &&
       forbiddenUserLanguage.every((term) => !inbox.includes(term) && !capture.includes(term));
     return {
       id: "CaptureStorageLanguage",
@@ -1670,7 +1670,7 @@ results.push(
       en.includes('"faq"') &&
       ko.includes('"faq"') &&
       en.includes("2nd-Brain helps organize it later.") &&
-      ko.includes("정리는 나중에 2nd-Brain이 도와드립니다.") &&
+      ko.includes("2nd-Brain이 나중에 정리할 수 있어요.") &&
       forbiddenInlineCopy.every((term) => !support.includes(term) && !en.includes(term) && !ko.includes(term));
     return {
       id: "SupportI18nCopy",
@@ -1714,7 +1714,7 @@ results.push(
       i18n.includes("data: enData") &&
       i18n.includes("data: koData") &&
       en.includes("Move and manage your records") &&
-      ko.includes("기록을 옮기고 정리합니다") &&
+      ko.includes("기록 옮기기·정리하기") &&
       forbiddenScreenCopy.every((term) => !data.includes(term)) &&
       forbiddenBundleCopy.every((term) => !en.includes(term) && !ko.includes(term));
     return {
@@ -1755,7 +1755,7 @@ results.push(
       i18n.includes("theme: enTheme") &&
       i18n.includes("theme: koTheme") &&
       en.includes("Choose your display tone") &&
-      ko.includes("화면 톤을 고르세요") &&
+      ko.includes("화면 밝기를 고르세요") &&
       forbiddenScreenCopy.every((term) => !theme.includes(term)) &&
       forbiddenBundleCopy.every((term) => !en.includes(term) && !ko.includes(term));
     return {
@@ -1804,7 +1804,7 @@ results.push(
         i18n.includes("import: enImport") &&
         i18n.includes("import: koImport") &&
         en.includes("Bring outside self-knowledge into 2nd-Brain") &&
-        ko.includes("밖에 있던 자기 이해를 2nd-Brain으로 가져옵니다") &&
+        ko.includes("다른 곳에 남긴 기록 가져오기") &&
         forbiddenScreenCopy.every((term) => !screen.includes(term)) &&
         forbiddenBundleCopy.every((term) => !en.includes(term) && !ko.includes(term));
       return {
@@ -1850,7 +1850,7 @@ results.push(
         i18n.includes("notFound: enNotFound") &&
         i18n.includes("notFound: koNotFound") &&
         en.includes("This page does not exist") &&
-        ko.includes("없는 화면입니다") &&
+        ko.includes("화면을 찾을 수 없어요") &&
         forbiddenScreenCopy.every((term) => !screen.includes(term)) &&
         forbiddenBundleCopy.every((term) => !en.includes(term) && !ko.includes(term));
       return {
@@ -1895,7 +1895,7 @@ results.push(
         i18n.includes("profile: enProfile") &&
         i18n.includes("profile: koProfile") &&
         en.includes("profile hub") &&
-        ko.includes("나 허브") &&
+        ko.includes("님의 프로필") &&
         forbiddenScreenCopy.every((term) => !profile.includes(term)) &&
         forbiddenBundleCopy.every((term) => !en.includes(term) && !ko.includes(term));
       return {
@@ -2063,7 +2063,7 @@ results.push(
         i18n.includes("research: enResearch") &&
         i18n.includes("research: koResearch") &&
         en.includes("Keep the evidence visible") &&
-        ko.includes("검증된 근거") &&
+        ko.includes("자료와 출처") &&
         forbiddenScreenCopy.every((term) => !screen.includes(term));
       return {
         id: "ResearchI18nCopy",
@@ -2096,7 +2096,7 @@ results.push(
         en.includes('"oauthCallback"') &&
         ko.includes('"oauthCallback"') &&
         en.includes("Couldn't complete sign-in") &&
-        ko.includes("로그인을 완료하지 못했습니다") &&
+        ko.includes("로그인을 완료하지 못했어요") &&
         forbiddenScreenCopy.every((term) => !screen.includes(term));
       return {
         id: "OAuthCallbackI18nCopy",
@@ -2229,12 +2229,12 @@ results.push(
         '"language"',
         '"checking": "확인하는 중',
         '"entryArtwork": "세컨비 입장 이미지"',
-        '"switchToEnglishLabel": "인증 화면 언어를 영어로 변경"',
-        '"switchToKoreanLabel": "인증 화면 언어를 한국어로 변경"',
-        '"resetBody": "위에 계정 이메일을 입력한 뒤',
-        '"resetSentBody": "{{email}} 계정이 있다면',
+        '"switchToEnglishLabel": "로그인 화면을 영어로 변경"',
+        '"switchToKoreanLabel": "로그인 화면을 한국어로 변경"',
+        '"resetBody": "가입할 때 쓴 이메일을 입력하고',
+        '"resetSentBody": "{{email}} 주소로 가입한 계정이 있다면',
         '"resetPassword"',
-        '"expiredBody": "이 화면은 재설정 이메일의 보안 세션',
+        '"expiredBody": "비밀번호 재설정 메일에 있는 링크로 열어 주세요',
         '"manualLink": "이 앱이 처음이라면 사용 안내서 보기"',
         '"existingAccountBody": "이 이메일로 가입된 계정이 있다면',
       ];
@@ -2251,7 +2251,7 @@ results.push(
         "New here? Read the 1-min user guide",
         "확인하는 중…",
         "세컨비 입장 이미지",
-        "비밀번호 입력값을 화면에 표시합니다.",
+        "입력한 비밀번호를 보여줘요.",
         "비밀번호를 잊으셨나요?",
         "가입 이메일 주소로 support@2nd-brain.app",
         "이 앱이 처음이라면 사용 안내서 보기",
@@ -2300,7 +2300,7 @@ results.push(
         i18n.includes("recordDetail: enRecordDetail") &&
         i18n.includes("recordDetail: koRecordDetail") &&
         en.includes("Back to records") &&
-        ko.includes("기록으로") &&
+        ko.includes("기록 목록으로") &&
         forbiddenScreenCopy.every((term) => !screen.includes(term));
       return {
         id: "RecordDetailI18nCopy",
@@ -2439,8 +2439,8 @@ results.push(
       '"autoMatchLinks": "자동 연결 조건"',
       '"savedFolder": "저장 폴더"',
       '"detailsToSave": "저장할 세부 정보"',
-      '"detailNamePlaceholder": "세부 정보 이름 (예: 주제 영역)"',
-      '"commonOnly": "요약, 해시태그, 관련도 같은 공통 항목만 저장합니다."',
+      '"detailNamePlaceholder": "항목 이름 (예: 주제)"',
+      '"commonOnly": "요약, 해시태그, 관련도처럼 모든 자료에 쓰는 항목만 저장해요."',
     ];
     const forbidden = [
       '"Base kind"',
@@ -2481,7 +2481,7 @@ results.push(
       wiki.includes('t("hero.subtitle")') &&
       wiki.includes('t("hero.speech")') &&
       en.includes("Find the pieces you saved to SecondB") &&
-      ko.includes("2nd-Brain에 저장한 별가루를 다시 찾아보는 곳") &&
+      ko.includes("2nd-Brain에 담은 기록과 자료를 모았어요") &&
       forbidden.every((term) => !wiki.includes(term) && !en.includes(term) && !ko.includes(term));
     return {
       id: "WikiHeroI18nCopy",
@@ -2512,7 +2512,7 @@ results.push(
       manual.includes("sources SecondB cites") &&
       manual.includes("세컨비의 되묻기") &&
       read("locales/en/settings.json").includes("Tune your settings") &&
-      read("locales/ko/settings.json").includes("설정을 정리합니다") &&
+      read("locales/ko/settings.json").includes("앱 설정을 바꿀 수 있어요") &&
       forbiddenReadme.every((term) => !readme.includes(term)) &&
       forbiddenManual.every((term) => !manual.includes(term)) &&
       forbiddenSettings.every((term) => !settings.includes(term));
@@ -2574,7 +2574,7 @@ results.push(
       en.includes('"title": "Welcome"') &&
       en.includes('"subtitle": "Write one line a day. Later, it becomes self-knowledge."') &&
       ko.includes('"title"') &&
-      ko.includes('"subtitle": "매일 한 줄을 남기면, 나중에 자기 이해의 단서가 쌓입니다."') &&
+      ko.includes('"subtitle": "하루 한 줄씩, 나에 관한 기록을 모아 보세요."') &&
       forbidden.every((term) => !screen.includes(term) && !en.includes(term) && !ko.includes(term));
     return {
       id: "SignInHeroI18nCopy",
@@ -2747,7 +2747,7 @@ results.push(
       "AI가 다시 쓸 수 있는",
       "AI로 정리 기준 만들기",
       "정리 기준을 만들지 못했습니다",
-      "형식을 저장하지 못했습니다",
+      "형식을 저장하지 못했어요",
       "제안된 형식",
       "이 형식 추가",
     ];
@@ -2779,7 +2779,7 @@ results.push(
       enFormats.includes('"add"') &&
       koFormats.includes('"add"') &&
       enFormats.includes("SecondB suggests a reusable filing guide") &&
-      koFormats.includes("세컨비가 다시 쓸 수 있는 정리 기준") &&
+      koFormats.includes("세컨비가 다음에도 쓸 수 있는") &&
       requiredKeys.every((key) => enFormats.includes(key) && koFormats.includes(key)) &&
       forbiddenFlowCopy.every((term) => !flow.includes(term));
     return {
@@ -2847,7 +2847,7 @@ results.push(
       enCommon.includes('"loading": "Loading') &&
       koCommon.includes('"close": "닫기"') &&
       koCommon.includes('"retry": "다시 시도"') &&
-      koCommon.includes('"loading": "불러오는 중입니다') &&
+      koCommon.includes('"loading": "불러오는 중') &&
       feedback.includes('useTranslation("common")') &&
       feedback.includes('accessibilityLabel={t("actions.close")}') &&
       // PremiumLoadingState now renders the shared 세컨비 head loader

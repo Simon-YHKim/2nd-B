@@ -2272,10 +2272,22 @@ export function DeepSpaceResearchScreen() {
       await backfillEmbeddings(userId, { locale: i18n.language === "ko" ? "ko" : "en" }).catch(() => {
         /* best-effort: propose still runs over whatever vectors exist */
       });
-      await proposeAllRelatedLinks(userId);
+      const { proposed } = await proposeAllRelatedLinks(userId);
       await loadProposals(userId);
-      // 연결을 찾아냈다 — the 잘난척 beat (proposals arriving is SecondB's moment).
-      reactExpression("smug");
+      if (proposed > 0) {
+        // 연결을 찾아냈다 — the 잘난척 beat (proposals arriving is SecondB's moment).
+        // "smug" is the expression this repo binds to connectionFound
+        // (CompanionSprite EXPRESSION_BY_EVENT), so it has to follow an actual
+        // find. Playing it on zero would have SecondB act out an accomplishment
+        // that did not happen.
+        reactExpression("smug");
+        setAnnounce(t("connectionsFound"));
+      } else {
+        // Nothing new. Say so rather than leaving the button looking inert -
+        // a screen-reader user gets no other signal that the search finished.
+        reactExpression("neutral");
+        setAnnounce(t("connectionsNoneFound"));
+      }
     } catch {
       // best-effort; nothing new appears
     } finally {

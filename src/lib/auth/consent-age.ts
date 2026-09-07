@@ -12,8 +12,11 @@
 // KR-first base rather than raising the floor on a failed signal.
 //
 // TODO(legal): per-EU-member values + the jurisdiction signal itself need legal
-// sign-off before relying on this for non-KR markets (LEXICON_LAST_LEGAL_REVIEW
-// is still null). Until then, callers should pass "KR" (or accept DEFAULT=16).
+// sign-off before relying on this for non-KR markets. Until then, callers may
+// pass "KR" explicitly (or accept DEFAULT=16) when they need a fixed floor.
+// ⚠ 2026-09-08: this used to add "(LEXICON_LAST_LEGAL_REVIEW is still null)".
+// It is "2026-06-10" (src/lib/safety/lexicon.ts:460). The DPIA quoted that
+// sentence in five places, so the stale half was doing real work downstream.
 // (문서화됨: docs/CONSTRAINTS.md C10)
 
 import { deviceRegionCode } from "./device-region";
@@ -83,13 +86,19 @@ export function requiresGuardianConsent(age: number, jurisdiction?: Jurisdiction
 }
 
 /**
- * THE single seam for "which jurisdiction's rules apply to this user". There is
- * no reliable country signal yet (locale != country), so this returns the
- * documented current assumption — KR (the app ships KR-first) — but every gate
- * routes through here instead of a scattered literal "KR". When a real signal
- * (SIM region / IP geo / an explicit profile field) lands, thread it in HERE and
- * every age gate upgrades at once. An operator may pin a market for testing via
- * EXPO_PUBLIC_JURISDICTION (KR|US|EU); direct process.env read so babel inlines it.
+ * THE single seam for "which jurisdiction's rules apply to this user". Every
+ * gate routes through here instead of a scattered literal "KR".
+ *
+ * Resolution order: an operator pin (EXPO_PUBLIC_JURISDICTION = KR|US|EU; read
+ * straight off process.env so babel inlines it), then the device region via
+ * deviceRegionCode(), then KR.
+ *
+ * ⚠ 2026-09-08: this paragraph used to say "There is no reliable country signal
+ * yet (locale != country) ... when a real signal lands, thread it in HERE". The
+ * signal landed on 2026-08-16 (J1) and the body below reads it — the docstring
+ * had been describing the function's PREVIOUS behaviour. It was not harmless:
+ * the minors DPIA copied that sentence into five separate claims that the
+ * product has no jurisdiction signal at all.
  *
  * WARNING: this is NOT production multi-market support. Serving non-KR markets on
  * their own floors needs legal sign-off first (per-EU-member values, the signal

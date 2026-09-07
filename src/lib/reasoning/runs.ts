@@ -178,8 +178,19 @@ export async function cancelRun(userId: string, runId: string): Promise<void> {
   }
 }
 
-/** Refund runs stranded reserved/running (crash, kill). Returns count, 0 on error. */
-export async function recoverStaleRuns(userId: string): Promise<number> {
+/**
+ * Refund runs stranded reserved/running (crash, kill).
+ *
+ * Returns the number refunded, or **null when the sweep did not run** - the RPC
+ * errored, threw, or answered with something that is not a count.
+ *
+ * ⚠ This used to return `0` for all of those. Zero is inside the normal range,
+ * so "there was nothing stranded" and "we could not tell" arrived as the same
+ * value and no caller could act differently on them. The refund is the user's
+ * quota coming back; a caller that cannot see the difference either refreshes
+ * the screen when nothing changed, or leaves a stale number on it forever.
+ */
+export async function recoverStaleRuns(userId: string): Promise<number | null> {
   try {
     const { data, error } = await getSupabaseClient().rpc("recover_stale_reasoning_runs", {
       p_user_id: userId,
@@ -189,12 +200,12 @@ export async function recoverStaleRuns(userId: string): Promise<number> {
       if (typeof console !== "undefined") {
         console.warn("[reasoning-runs] recoverStaleRuns failed:", error.message);
       }
-      return 0;
+      return null;
     }
-    return typeof data === "number" ? data : 0;
+    return typeof data === "number" ? data : null;
   } catch (e) {
     if (typeof console !== "undefined") console.warn("[reasoning-runs] recoverStaleRuns threw:", e);
-    return 0;
+    return null;
   }
 }
 

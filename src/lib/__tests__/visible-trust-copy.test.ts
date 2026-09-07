@@ -36,7 +36,7 @@ describe("visible trust copy", () => {
     expect(screen).not.toMatch(/accessibilityLabel="(?:Ask SecondB|View plans|Clear chat)"/);
     expect(screen).not.toMatch(/>\s*(?:Clear|View plans)\s*</);
     expect(en).toMatch(/"viewPlans": "View plans"/);
-    expect(ko).toMatch(/"viewPlans": "플랜 보기"/);
+    expect(ko).toMatch(/"viewPlans": "요금제 보기"/);
   });
 
   test("sign-up keeps the primary account CTA in the first viewport", () => {
@@ -173,12 +173,12 @@ describe("visible trust copy", () => {
     expect(en.saved.recordsOwnership).toContain("One sentence is enough");
     expect(en.saved.recordsAiOptIn).toContain("only");
     expect(en.saved.recordsAiOptIn).toContain("turn that switch on");
-    expect(ko.firstRun.hint).toContain("첫 기록");
+    expect(ko.firstRun.hint).toContain("저장한 내용");
     expect(ko.firstRun.hint).toContain("기록 보관소");
     expect(ko.saved.recordsOwnership).toContain("기록 보관소");
     expect(ko.saved.recordsOwnership).toContain("내보내기");
     expect(ko.saved.recordsOwnership).toContain("작심이틀도 괜찮습니다");
-    expect(ko.saved.recordsAiOptIn).toContain("켰을 때만");
+    expect(ko.saved.recordsAiOptIn).toContain("이 스위치를 켜야");
     expect(es.firstRun.hint).toContain("primer registro guardado");
     expect(es.saved.recordsOwnership).toContain("Una oración basta");
     expect(pt.firstRun.hint).toContain("primeiro registro salvo");
@@ -219,7 +219,7 @@ describe("visible trust copy", () => {
     expect(en.journal.streak.label).toBe("Days recorded: {{count}}{{suffix}}");
     expect(ko.journal.streak.label).toBe("기록한 날: {{count}}일{{suffix}}");
     expect(en.journal.streak.missingToday).toContain("optional");
-    expect(ko.journal.streak.missingToday).toContain("선택");
+    expect(ko.journal.streak.missingToday).toContain("건너뛰어도");
     expect(manual).toContain("gentle record-day counter");
     expect(manual).toContain("부담 없는 기록일 카운터");
     expect(visible).not.toMatch(/streak|don't break|none today yet|missing today|racha|sequ[eê]ncia/i);

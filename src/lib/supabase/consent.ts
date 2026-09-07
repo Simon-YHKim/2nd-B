@@ -4,7 +4,12 @@
 // re-consent on a version bump, age-out re-consent). Records WHAT the user
 // agreed to and under which document versions, for PIPA accountability
 // (general consent §15/§17/§22 + §23 sensitive-data ack + overseas-transfer
-// notice for Gemini/Supabase processing).
+// notice for the AI processors — OpenAI/Anthropic today, Gemini for older
+// builds — plus Supabase hosting, stored in the Seoul region).
+//
+// CONTRACT: bump the version constants below whenever the consent notice,
+// the purposes, or the published documents change — the ledger must stamp
+// the version the user actually saw.
 //
 // WIRED at sign-up: recordConsentBestEffort() is called after the consent UI
 // collects the acknowledgements — src/app/(auth)/sign-up.tsx:103 and
@@ -25,19 +30,31 @@
 
 import { getSupabaseClient } from "./client";
 
-export const CONSENT_VERSION = "2026-08-16" as const;
-// 2026-08-30 개정(제4조 수탁사에 GA4·Clarity 추가, 제5조 국외이전 고지 신설)에
-// 맞춰 올린다. 이걸 안 올리면 그날 이후 가입자의 원장에 '08-16 판에 동의했다'고
-// 남는데, 정작 화면에는 08-30 판이 떠 있다 — 원장이 거짓이 된다.
-// ⚠ 위 주석대로 이 값을 올려도 **기존 계정에는 닿지 않는다.** 재동의 흐름은 별도 작업이다.
+// 판본 상수 셋은 한 벌로 움직인다. 하나만 올리면 원장이 가리키는 판과 화면에
+// 뜨는 판이 어긋나고, 그 어긋남은 예외도 안 나고 검사도 안 걸리며 그냥 거짓 기록이
+// 된다. 아래 세 값과 0150 의 email-v3 튜플, 그리고
+// verified-email-consent-ledger.test.ts 의 FROZEN_SIGNUP_REVISION_TUPLES 가
+// 같은 날짜를 말해야 한다 — 그 검사가 이 규율의 집행자다.
 //
-// 2026-09-04: 같은 이유로 다시 올린다. 이번 개정은 §4 수탁사에 OpenAI(대화·OCR·
-// 음성 전사·임베딩)와 Google(Firebase Analytics)을 추가하고, §5 의 "음성·오디오는
-// 텍스트 전사를 위해 Google에 전송됩니다" 를 OpenAI 로 정정한 것이다. 앞의 개정과
-// 성격이 다르다 — 그때는 빠진 것을 채웠고, 이번엔 **적혀 있던 회사 이름이 틀렸다.**
-// 문서의 시행일만 09-04 로 옮기고 이 상수를 08-30 에 두면 원장이 가리키는 판과
-// 화면에 뜨는 판이 어긋난다. 그게 위 문단이 말하는 바로 그 거짓이다.
-export const PRIVACY_POLICY_VERSION = "2026-09-04" as const;
+// 2026-09-07: 09-02 개정안과 09-04 사실 정정을 하나로 합친 판이다. 두 판본은
+// 사슬이 아니라 같은 08-30 판에서 갈라진 평행 개정이었고, 어느 쪽도 다른 쪽을
+// 포함하지 않았다. 09-02 쪽은 실제 처리 경로를 새로 감사해 Anthropic·Supabase
+// 서울 리전·Paddle MoR·Sentry 잔존 전송·GA4 항목을 담았고, 09-04 쪽은 RevenueCat
+// 과 앱 사용 통계 수탁사, 그리고 음성 전사를 Google -> OpenAI 로 고친 정정을
+// 담았다. 둘을 합쳐 새 시행일을 매겼으므로 이력에도 09-07 과 09-04 가 함께 남는다.
+// 09-02 는 브랜치 밖으로 나간 적이 없어 이력에 적지 않는다 — 시행된 적 없는 판을
+// 적으면 그 이력 자체가 거짓이다.
+//
+// CONSENT_VERSION 도 함께 올린다. #1589 가 가입 동의 notice 본문
+// (ackOverseas · overseasTransfer.body)을 실질 변경했으므로, 이 값을 08-16 에
+// 두면 새 화면에 동의한 사람의 원장이 구 notice 버전으로 찍힌다.
+// ⚠ 그 상태는 잠깐 실재했다 — #1589 가 이 상수 없이 main 에 먼저 들어갔다.
+// 이 회차가 닫는다.
+//
+// ⚠ 이 값들을 올려도 **기존 계정에는 닿지 않는다.** 재동의 흐름은 별도 작업이고,
+// 알려진 공백이다: 기존 계정은 새 판을 다시 안내받지 않는다.
+export const CONSENT_VERSION = "2026-09-07" as const;
+export const PRIVACY_POLICY_VERSION = "2026-09-07" as const;
 export const TERMS_VERSION = "2026-08-16" as const;
 
 export type ConsentAgeBand = "minor_self" | "adult";

@@ -88,7 +88,10 @@ describe("④ 거절 철회 + 거울 카피", () => {
       expect(d.reviewLeftAsIs.length).toBeGreaterThan(10);
     }
     const ko = JSON.parse(read("locales/ko/deepspace.json")) as Record<string, string>;
-    expect(ko.reviewLeftAsIs).toContain("기록에 남지 않습니다");
+    // The 2026-09-07 register round rephrased the locale line; the promise it has to
+    // carry — nothing applied, nothing recorded — is unchanged. review.tsx below is
+    // the legacy screen and still carries the older wording.
+    expect(ko.reviewLeftAsIs).toContain("기록에 남기지 않았어요");
     expect(read("src/app/review.tsx")).toContain("기록에 남지 않습니다");
   });
 });

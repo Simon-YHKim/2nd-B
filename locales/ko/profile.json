@@ -1,27 +1,27 @@
 {
-  "loading": "프로필을 불러오는 중입니다…",
+  "loading": "프로필을 불러오는 중…",
   "fallbackName": "게스트",
   "hero": {
     "eyebrow": "나",
-    "title": "{{displayName}}님의 나 허브",
-    "subtitle": "나를 알아가고, 쓰고, 관리하는 곳",
-    "speech": "나에 관한 화면을 한곳에 모았습니다. 천천히 둘러보세요."
+    "title": "{{displayName}}님의 프로필",
+    "subtitle": "나의 요약과 기록, 계정을 한곳에서",
+    "speech": "나의 요약을 보거나 프로필과 설정을 바꿀 수 있어요."
   },
   "account": {
     "eyebrow": "계정",
-    "emailUnavailable": "이메일 정보를 불러올 수 없습니다."
+    "emailUnavailable": "이메일 정보를 불러올 수 없어요."
   },
   "sections": {
     "center": {
-      "label": "나의 중심",
+      "label": "나의 요약",
       "items": {
         "coreBrain": {
           "label": "북극성 열기",
-          "hint": "북극성 화면을 엽니다."
+          "hint": "북극성 화면을 열어요."
         },
         "esm": {
-          "label": "지금 체크인",
-          "hint": "가벼운 체크인 화면을 엽니다."
+          "label": "지금 기분 기록",
+          "hint": "지금 기분을 기록하는 화면을 열어요."
         }
       }
     },
@@ -29,36 +29,36 @@
       "label": "나를 알아가기",
       "items": {
         "persona": {
-          "label": "페르소나",
-          "hint": "페르소나 화면을 엽니다."
+          "label": "나의 요약",
+          "hint": "나의 요약 화면을 열어요."
         },
         "bigFive": {
           "label": "Big Five",
-          "hint": "Big Five 검사를 엽니다."
+          "hint": "Big Five 검사를 열어요."
         },
         "rlss": {
           "label": "삶의 만족도",
-          "hint": "삶의 만족도(RLSS) 검사를 엽니다."
+          "hint": "삶의 만족도(RLSS) 검사를 열어요."
         },
         "ipip": {
           "label": "정밀검사 (IPIP-NEO)",
-          "hint": "성격 정밀검사(IPIP-NEO-120)를 엽니다."
+          "hint": "성격 정밀검사(IPIP-NEO-120)를 열어요."
         },
         "attachment": {
           "label": "애착 유형",
-          "hint": "애착 유형 검사를 엽니다."
+          "hint": "애착 유형 검사를 열어요."
         },
         "growth": {
           "label": "나의 변화",
-          "hint": "주간 변화 리뷰를 엽니다."
+          "hint": "주간 변화 리뷰를 열어요."
         },
         "audit": {
           "label": "과거의 나",
-          "hint": "과거 기록을 돌아보는 화면을 엽니다."
+          "hint": "과거 기록을 돌아보는 화면을 열어요."
         },
         "interview": {
           "label": "인터뷰",
-          "hint": "질문 인터뷰를 엽니다."
+          "hint": "질문에 답하며 이야기를 남기는 화면을 열어요."
         }
       }
     },
@@ -66,16 +66,16 @@
       "label": "분석",
       "items": {
         "insights": {
-          "label": "인사이트",
-          "hint": "인사이트 요약을 엽니다."
+          "label": "발견한 점",
+          "hint": "기록에서 발견한 점을 열어요."
         },
         "trinity": {
           "label": "Trinity",
-          "hint": "네 영역 균형 화면을 엽니다."
+          "hint": "네 영역 균형 화면을 열어요."
         },
         "research": {
-          "label": "리서치",
-          "hint": "근거 기반 안내를 엽니다."
+          "label": "참고 자료",
+          "hint": "검사와 안내에 참고한 자료를 열어요."
         }
       }
     },
@@ -84,47 +84,47 @@
       "items": {
         "settings": {
           "label": "설정",
-          "hint": "앱 설정을 엽니다."
+          "hint": "앱 설정을 열어요."
         },
         "privacy": {
           "label": "개인정보",
-          "hint": "개인정보 설정을 엽니다."
+          "hint": "개인정보 설정을 열어요."
         },
         "account": {
           "label": "계정",
-          "hint": "계정 관리 화면을 엽니다."
+          "hint": "계정 관리 화면을 열어요."
         },
         "theme": {
           "label": "테마",
-          "hint": "테마 설정을 엽니다."
+          "hint": "테마 설정을 열어요."
         },
         "data": {
           "label": "데이터",
-          "hint": "데이터 관리 화면을 엽니다."
+          "hint": "데이터 관리 화면을 열어요."
         },
         "formats": {
           "label": "내 형식",
-          "hint": "내 정리 형식을 엽니다."
+          "hint": "내 정리 형식을 열어요."
         },
         "manual": {
           "label": "안내서",
-          "hint": "앱 사용 안내서를 엽니다."
+          "hint": "앱 사용 안내서를 열어요."
         },
         "import": {
           "label": "가져오기",
-          "hint": "외부 자료 가져오기를 엽니다."
+          "hint": "외부 자료 가져오기를 열어요."
         },
         "inbox": {
           "label": "받은편지함",
-          "hint": "가져온 자료 확인 화면을 엽니다."
+          "hint": "가져온 자료 확인 화면을 열어요."
         },
         "support": {
-          "label": "지원",
-          "hint": "지원 화면을 엽니다."
+          "label": "문의하기",
+          "hint": "문의 화면을 열어요."
         },
         "permissions": {
           "label": "권한",
-          "hint": "권한 안내 화면을 엽니다."
+          "hint": "권한 안내 화면을 열어요."
         }
       }
     }
