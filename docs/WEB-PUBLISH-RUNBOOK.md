@@ -335,6 +335,61 @@ main이 움직인 뒤 content digest만 어긋나면 `Hash and approve immutable
 - 실패하면 새 `source_sha`로 처음부터 다시 한다. 같은 SHA 재시도는 아래 forward-only 규칙에
   걸린다.
 
+**이 요구는 웹 게시만의 것이 아니다.** `github-release.yml`도 같은 성질을 갖는다 —
+`:90`이 `git rev-parse HEAD != git rev-parse origin/main`이면 거부하고(*"The workflow commit
+is not the current origin/main head."*), `:261`이 EAS 빌드 provenance의 `gitCommitHash`가 그
+커밋과 정확히 같기를 요구한다(*"authenticated git commit mismatch"*). **둘이 동시에 성립해야
+하므로, main이 움직이면 이미 만들어둔 빌드가 통째로 못 쓰게 된다.**
+
+2026-09-07 실측 — 이날 이 벽에 세 번 부딪혔다:
+
+| 작업 | 고정 대상 | 실측 소요 | 필요한 정지 창 |
+|---|---|---|---|
+| web publish | 승인 시점의 main tip | 5m58s ~ 11m29s | **약 12분** |
+| github release | 실행 시점의 main tip + 빌드 커밋 | 빌드 포함 왕복 약 25분 | **약 50분** |
+
+같은 날 관측된 머지 간격은 **2~8분**이었다. 그 사이에 위 창이 들어갈 자리가 없어서 웹 게시가
+3연속 실패했고, `1c857b43`에서 만든 EAS 빌드 3종(iOS FINISHED 포함)이 폐기됐다.
+
+**이건 워크플로 결함이 아니라 여러 세션이 동시에 머지하는 환경의 성질이다.** 게이트는 전부
+옳게 동작했다. 고칠 것은 워크플로가 아니라 **절차**다 — 게시·릴리즈 전에 창을 선언하고,
+armed auto-merge가 0인지 **조회로** 확인하고(알림으로는 안 멈춘다), 그 창 안에서 끝낸다.
+
+⚠ **디스패치 전에 다른 세션이 이미 쐈는지 확인한다.** 2026-09-07에 두 세션이 70초 차이로 같은
+SHA에 publish를 쏴서 run이 둘 생겼다. 둘 다 승인하면 두 번째는 same-SHA 재배포 금지에 걸린다.
+`event=workflow_dispatch`로 현재 진행 중인 run을 먼저 조회하고, 중복이면 나중 것을 취소한다.
+
+### 정지 창을 실제로 만드는 법
+
+2026-09-07에 게시가 세 번 죽고 EAS 빌드 3종이 폐기된 뒤 정리한 절차다. 게이트는 전부 옳게
+동작했으므로 고칠 것은 워크플로가 아니라 아래 네 가지다.
+
+**① 창의 길이를 고정 분수로 잡지 않는다.** 게시는 `그 run이 끝날 때까지`(실측 5m58s ~ 11m29s),
+릴리즈는 빌드를 포함해 25~50분이다. &ldquo;6분 지났으니 됐다&rdquo;로 머지하면 깨진다.
+
+**② 정지는 통보로 성립하지 않는다.** armed된 auto-merge는 아무도 보고 있지 않아도 CI가 초록이
+되는 순간 main을 움직인다. 각 세션이 **자기 것을 해제**해야 하고, 조율자는 **조회로 0을 확인**한다.
+
+```bash
+gh pr list --repo Simon-YHKim/2nd-B --state open --json number,autoMergeRequest   --jq '[.[]|select(.autoMergeRequest!=null)|.number]'
+# 빈 배열이어야 시작한다
+```
+
+⚠ **열려 있는 PR은 내가 안 눌러도 남이 머지할 수 있다.** 2026-09-07에 정지 중 머지된 것 하나가
+&ldquo;게시가 끝날 때까지 잡아두겠다&rdquo;고 선언해 둔 PR이었다. **정지 중에는 push만 하고 PR은
+창이 닫힌 뒤에 연다.**
+
+**③ 정지 시작 전 &ldquo;큐 비우기&rdquo;를 조율자가 지정한다.** 곧 들어올 PR을 먼저 넣고 창을 열지,
+전부 대기시킬지를 한 사람이 정해야 한다. 그 자리가 비어 있으면 각자 &ldquo;이건 문서라 괜찮겠지&rdquo;로
+판단해서 통보 없는 머지가 난다 — 실제로 그렇게 났다.
+
+**④ &ldquo;작업을 껐다&rdquo;는 &ldquo;프로세스가 죽었다&rdquo;가 아니다.** 세션의 백그라운드 작업
+정지는 감싼 셸까지만 끝내고 **자식 프로세스는 남을 수 있다.** 2026-09-07에 정지시킨 스크립트가
+계속 돌아 **발주 6건이 그 뒤에 나갔고**, 그 run들은 소유자를 알 수 없어 조율을 방해했다
+(계정이 공용이라 `actor`로는 가려지지 않는다). **되돌리기 어려운 동작을 도는 스크립트는 끈 뒤
+프로세스 목록으로 실제 종료를 확인한다.**
+
+
 ## 복구는 forward-only
 
 ancestor artifact를 다시 배포하는 `rollback` mode와 floor input은 없다. `deploy-pages` v5는
