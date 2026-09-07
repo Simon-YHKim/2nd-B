@@ -39,6 +39,17 @@ const read = (p: string): string => readFileSync(join(ROOT, p), "utf8").replace(
 const BRIEFING_FILES = ["CLAUDE.md", "AGENTS.md"] as const;
 
 /**
+ * 세션이 **읽으라고 지시받는** 정본 문서. 자동으로 로드되지는 않지만 루트 CLAUDE.md
+ * 가 이름을 대고 가리키므로 같은 은퇴 주장 규율이 걸린다.
+ *
+ * `docs/VISION.md` 가 여기 없어서 2026-09-07 까지 "마감: 2026-08-17 06:00 KST" 를
+ * 그대로 달고 있었다. CLAUDE.md 는 "마감은 없다" 를 못박고 VISION.md 는 마감을
+ * 적는, 정본 둘이 서로 모순인 상태였다. 배너로 정정하고 여기 넣는다.
+ */
+const CANONICAL_DOCS = ["docs/VISION.md"] as const;
+const RETIRED_CLAIM_FILES = [...BRIEFING_FILES, ...CANONICAL_DOCS] as const;
+
+/**
  * 파일에서 **주장하는 부분만** 남긴다.
  *
  * 틀린 문장을 지우기만 하면 다음 세션이 왜 틀렸는지 모르고 되돌린다. 그래서 이
@@ -64,7 +75,7 @@ describe("세션 브리핑 파일", () => {
   it("마감 날짜를 적지 않는다", () => {
     // Simon 2026-08-15: 마감은 없다. 외부 마감에 맞춘 스코프 압축 금지.
     // 지난 날짜가 박혀 있으면 세션이 "이미 늦었다" 로 읽고 조용히 범위를 줄인다.
-    for (const f of BRIEFING_FILES) {
+    for (const f of RETIRED_CLAIM_FILES) {
       const hit = assertionsOnly(f)
         .split("\n")
         .filter((l) => /Deadline\**\s*:\s*\*{0,2}\d{4}-\d{2}-\d{2}/i.test(l));
@@ -75,7 +86,7 @@ describe("세션 브리핑 파일", () => {
   it("XPRIZE 를 살아 있는 출품 트랙으로 적지 않는다", () => {
     // 단어 자체는 금지가 아니다 — 과거 감사·핸드오프가 그 시점의 사실로 남기고,
     // 두 파일 모두 "종료됐다" 는 사실을 적어야 한다. 금지되는 것은 **현재형 주장**이다.
-    for (const f of BRIEFING_FILES) {
+    for (const f of RETIRED_CLAIM_FILES) {
       const src = assertionsOnly(f);
       const claimsEntry = /XPRIZE[^\n]{0,60}출품작(?![이가]\s*아니)/.test(src);
       expect({ file: f, claimsLiveEntry: claimsEntry }).toEqual({ file: f, claimsLiveEntry: false });

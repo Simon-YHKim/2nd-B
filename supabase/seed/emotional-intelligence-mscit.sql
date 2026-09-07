@@ -153,7 +153,7 @@ values
   ),
   (
     'The reliability and validity of Korean version of the Wong and Law Emotional Intelligence Scale (K-WLEIS)',
-    ARRAY['Sookyung Jeong','Mona Choi','Sookyung Park'],
+    ARRAY['Harim Jeong','Heejung Choi','Myungsook Park'],
     '10.4040/jkan.20109',
     'https://doi.org/10.4040/jkan.20109',
     'emotional_intelligence',
