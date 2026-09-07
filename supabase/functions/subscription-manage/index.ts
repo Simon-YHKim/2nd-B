@@ -52,6 +52,11 @@
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import {
+  JsonBodyError,
+  SUBSCRIPTION_MANAGE_JSON_BODY_LIMIT_BYTES,
+  readJsonObject,
+} from '../_shared/request-json.ts';
 
 const ALLOWED_ORIGINS = new Set<string>([
   'https://simon-yhkim.github.io',
@@ -193,8 +198,14 @@ Deno.serve(async (req: Request) => {
 
   let body: Record<string, unknown>;
   try {
-    body = (await req.json()) as Record<string, unknown>;
-  } catch {
+    body = await readJsonObject(req, SUBSCRIPTION_MANAGE_JSON_BODY_LIMIT_BYTES);
+  } catch (error) {
+    if (error instanceof JsonBodyError && error.code === 'request_body_too_large') {
+      return jsonResponse(req, {
+        error: error.code,
+        max: error.maxBytes,
+      }, 413);
+    }
     body = {};
   }
 
