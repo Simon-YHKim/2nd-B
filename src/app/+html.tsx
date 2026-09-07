@@ -10,7 +10,12 @@ import type { PropsWithChildren } from "react";
 import { ScrollViewStyleReset } from "expo-router/html";
 
 import { semantic } from "@/lib/theme/tokens";
-import { SITE_DESCRIPTION, SITE_TITLE } from "@/lib/site-meta";
+import {
+  SITE_DESCRIPTION,
+  SITE_ORIGIN,
+  SITE_SHARE_IMAGE,
+  SITE_TITLE,
+} from "@/lib/site-meta";
 
 // Reset inline so the rule lands in the first paint. The dark background
 // matches cosmic.space950 (Deep Space Ink) so the white flash that would
@@ -83,21 +88,27 @@ export default function Root({ children }: PropsWithChildren) {
             link 404s, which browsers treat as "no manifest" - harmless. */}
         {/* Share copy for the public site. Wording lives in lib/site-meta so
             this head and the runtime document.title cannot drift.
-            og:image is deliberately absent: Open Graph wants an absolute URL
-            and this shell has no origin to build one from. Add it together
-            with a share asset and the origin it is served from.
+            og:image is an absolute URL built from SITE_ORIGIN, because Open
+            Graph ignores relative paths. The asset is public/og-image.png and
+            its source is design/og-card/ - regenerate it, never hand-edit.
 
-            NOTE on the <title> below: it is NOT the document title. Expo
-            Router's vendored react-helmet-async injects its own
-            <title data-rh="true"></title> at the very top of <head> (byte 38
-            of the served page; this one lands at 234), and the FIRST title
-            wins. It is empty because Head only renders inside a focused
-            screen, and the static shell is the root layout's InlineLoader
-            branch - no screen renders at all during export. So this tag is a
-            fallback for anything reading the last title, while og:title and
-            twitter:title below are what actually feed share cards. The
-            browser tab is fixed at runtime instead (see _layout).
-            Measured 2026-09-07 on the served bundle. */}
+            NOTE on the <title> below: it is the SECOND title in the served
+            page and the FIRST one wins, so this is not what a reader gets.
+            Expo Router's vendored react-helmet-async emits its own
+            <title data-rh="true"> at the very top of <head> (byte 38; this
+            one lands at 257).
+
+            That helmet tag used to be EMPTY: <Head> only renders inside a
+            focused screen and the static shell is the root layout's
+            InlineLoader branch, so no screen rendered during export at all.
+            The root layout now feeds that same helmet instance directly
+            (SITE_HEAD in _layout.tsx), so byte 38 carries the real name.
+            Controlled export 2026-09-08: identical tree, only _layout.tsx
+            differing - byte 38 empty before, filled after.
+
+            Keep this tag anyway - it is the fallback for any runtime where
+            helmet does not render. og:title and twitter:title below are what
+            feed share cards, and those were always correct. */}
         <title>{SITE_TITLE}</title>
         <meta name="description" content={SITE_DESCRIPTION} />
         <meta property="og:type" content="website" />
@@ -105,7 +116,15 @@ export default function Root({ children }: PropsWithChildren) {
         <meta property="og:locale" content="ko_KR" />
         <meta property="og:title" content={SITE_TITLE} />
         <meta property="og:description" content={SITE_DESCRIPTION} />
-        <meta name="twitter:card" content="summary" />
+        <meta property="og:url" content={`${SITE_ORIGIN}/`} />
+        <meta property="og:image" content={SITE_SHARE_IMAGE} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content={SITE_TITLE} />
+        {/* summary_large_image, not summary: the card is 1200x630 and the small
+            variant would crop it to a square thumbnail. */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content={SITE_SHARE_IMAGE} />
         <meta name="twitter:title" content={SITE_TITLE} />
         <meta name="twitter:description" content={SITE_DESCRIPTION} />
         <link rel="manifest" href="/2nd-B/manifest.webmanifest" />

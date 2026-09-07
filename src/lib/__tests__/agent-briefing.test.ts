@@ -178,3 +178,190 @@ describe("정정이 의존하는 배선", () => {
     expect(keep).toContain("CHAT_KEEP_TAG");
   });
 });
+
+// ── 살아남은 의무가 죽은 근거로 자기를 설명하지 않는가 ──────────────────
+//
+// C12 는 2026-09-06 에 폐지됐지만 **폐지된 것은 번호지 의무가 아니다.**
+// `docs/CONSTRAINTS.md` 가 문단 하나를 따로 써서 지켰고(싣는 폰트가 SIL OFL 이라
+// 저작권·Reserved Font Name 고지가 따라다녀야 한다), 검사는 `AssetLicenseDisclosure`
+// 라는 번호 없는 이름으로, README 는 "Bundled assets and licenses" 로 옮겨왔다.
+//
+// 2026-09-08 실측: **`docs/ASSETS.md` 만 안 따라왔다.** 제목이 "Pre-existing Assets
+// Registry" 이고 머리말이 "XPRIZE rulebook §04 requires disclosure" 로 존재 이유를
+// 대고 있었다. 그 파일만 읽은 사람은 대회 서류로 보고 **지워도 된다고 결론 낸다** —
+// CONSTRAINTS.md 가 막으려던 바로 그 결론이고, 지우면 OFL 고지가 사라진다.
+describe("AssetLicenseDisclosure 가 사는 문서", () => {
+  it("죽은 규정집으로 자기 존재를 설명하지 않는다", () => {
+    // 인용은 허용한다 — 정정하려면 원문을 인용해야 한다. 금지하는 것은
+    // **정정 표시 없이 근거로 세우는 것**이다.
+    // ⚠ 초판은 `competition window` 만 봤다. 변이 검증에서 제목을
+    //   "What is in scope for the competition"(= 원래 제목) 으로 되돌렸는데
+    //   **통과했다** — 그 문자열에는 `window` 가 없다. 즉 이 가드는 고치려던
+    //   원문 자체를 못 잡고 있었다. `competition` 단독까지 본다.
+    const src = assertionsOnly("docs/ASSETS.md");
+    const claims = src
+      .split("\n")
+      .filter((l) => /rulebook|competition|submission deadline|pre-existing assets registry/i.test(l))
+      .filter((l) => !/정정|취소|no longer|retired/.test(l));
+    expect({ file: "docs/ASSETS.md", claims }).toEqual({ file: "docs/ASSETS.md", claims: [] });
+  });
+
+  it("살아 있는 근거(SIL OFL)를 스스로 밝힌다", () => {
+    // 위 검사만 있으면 "규정집 문장을 지우기"로도 통과한다. 그러면 왜 남겨야
+    // 하는지가 사라져서 다음 사람이 파일째 지운다. 이유가 있어야 통과시킨다.
+    const src = read("docs/ASSETS.md");
+    expect(src).toContain("SIL OFL");
+    expect(/Reserved Font Name/.test(src)).toBe(true);
+  });
+
+  it("검사가 이 파일을 실제로 읽는다 — 지우면 CI 가 막는다", () => {
+    // 문서가 "검사가 지킨다"고 적었으면 그게 참이어야 한다.
+    const check = read("scripts/check-constraints.ts");
+    expect(check).toContain("AssetLicenseDisclosure");
+    expect(check).toContain("docs/ASSETS.md");
+  });
+
+  it("CONSTRAINTS.md 가 팩 개수를 산문에 박아두지 않는다", () => {
+    // 박으면 반드시 낡는다. 실제로 "currently 9 packs" 였고 검사는 10 을 냈다.
+    // 세는 것은 검사의 일이고 문서는 그 사실을 가리키기만 한다.
+    const src = read("docs/CONSTRAINTS.md");
+    const pinned = src.match(/\b\d+\s+packs?\b/g)?.filter((m) => !/^\s*0\s/.test(m)) ?? [];
+    // 정정문에서 옛 수치를 인용하는 것은 허용 — 그 줄에는 "said" 가 붙는다.
+    const live = pinned.filter((m) => {
+      const line = src.split("\n").find((l) => l.includes(m)) ?? "";
+      return !/said|정정|~~/.test(line);
+    });
+    expect({ pinned: live }).toEqual({ pinned: [] });
+  });
+});
+
+// ── 살아 있는 문서가 없는 소스 경로를 지목하지 않는가 ──────────────────
+//
+// 파일 개명은 조용하다. 코드는 안 깨지고 CI 도 안 잡는다. 그저 문서를 따라간
+// 사람이 없는 파일을 찾다가 그 문서 전체를 못 믿게 된다.
+//
+// 2026-09-07 실측: `src/lib/llm/gemini.ts` 를 지목하는 문서가 **13개** 남아
+// 있었다. 그 파일은 #1229(2026-08-17)가 `boundary.ts` 로 개명한 것이다.
+//
+// 여기 올리는 것은 **살아 있는 안내 문서**만이다. 감사 스냅샷과 핸드오프 로그는
+// 그 시점에 맞는 경로를 적은 것이라 대상이 아니다 — 고치면 오히려 기록이 틀려진다.
+// 나머지 10개는 그래서 여기 없다. 살아 있는 안내로 승격되면 그때 더한다.
+const LIVE_DOCS_NAMING_SOURCE = [
+  "docs/LLM-ROUTING.md",
+  "docs/system-report.html",
+  "docs/pricing-simulation.html",
+] as const;
+
+/** 지워졌거나 개명된 소스 경로 → 지금 이름(정정에 써야 하는 말). */
+const REMOVED_SOURCE_PATHS = [
+  ["src/lib/llm/gemini.ts", "boundary.ts"],
+  ["src/lib/judge/domains.ts", "삭제"],
+] as const;
+
+describe("문서가 지목하는 소스 경로", () => {
+  it("여기 적은 경로는 실제로 저장소에 없다", () => {
+    // 되살아나면 아래 검사가 의미를 잃는다. 가드가 무엇을 지키는지부터 확인한다.
+    for (const [gone] of REMOVED_SOURCE_PATHS) {
+      expect({ path: gone, exists: existsSync(join(ROOT, gone)) })
+        .toEqual({ path: gone, exists: false });
+    }
+  });
+
+  it.each(LIVE_DOCS_NAMING_SOURCE)("%s 가 지운 경로를 그대로 지목하지 않는다", (doc) => {
+    // ⚠ 여기서는 인라인 코드를 걷어내지 않는다. `assertionsOnly` 는 인용을 빼는데,
+    //   경로 참조는 원래 코드 스팬으로 쓰므로 걷어내면 검사가 텅 빈다.
+    //   대신 **같은 줄에 지금 이름이 함께 있으면** 정정으로 보고 통과시킨다.
+    const offenders = read(doc)
+      .split("\n")
+      .flatMap((line, i) =>
+        REMOVED_SOURCE_PATHS
+          .filter(([gone, now]) => line.includes(gone) && !line.includes(now))
+          .map(([gone]) => `L${i + 1} ${gone}`),
+      );
+    expect({ doc, offenders }).toEqual({ doc, offenders: [] });
+  });
+});
+
+// ── 문서의 벤더 주장이 코드와 같은 말을 하는가 ─────────────────────────
+describe("LLM-ROUTING.md 의 OCR 주장", () => {
+  it("'무조건 Gemini' 를 정정 없이 주장하지 않는다", () => {
+    // 2026-07-04 에 쓴 핀이다. 그 뒤 Simon 이 2026-08-23 에 뒤집었고
+    // (`OCR = openai 유지, gemini 예외 없음`) 코드도 따라갔다. 그런데 이 문서는
+    // 상단 배너가 "§0 원칙은 지금도 유효" 라고 축복하고 있어서, 읽는 사람이
+    // 뒤집힌 핀을 현행으로 받는다. 문구가 남아 있어도 좋지만 정정 표시는 있어야 한다.
+    const doc = read("docs/LLM-ROUTING.md");
+    if (!doc.includes("무조건 Gemini")) return;
+    expect({ hasCorrection: doc.includes("2026-08-23 정정") })
+      .toEqual({ hasCorrection: true });
+  });
+
+  it("코드는 멀티모달 벤더를 스위치로 정한다 — 문서의 정정이 참인 근거", () => {
+    // 정정이 코드와 어긋나면 그것도 거짓말이다. 둘을 묶는다.
+    const routing = read("src/lib/llm/routing.ts");
+    expect(routing).toContain("MULTIMODAL_PURPOSES");
+    expect(routing).toContain("EXPO_PUBLIC_MULTIMODAL_VENDOR");
+    // 핀이 살아 있었다면 벤더가 상수여야 한다. 함수로 정해지면 핀은 없다.
+    expect(routing).toContain("export function multimodalVendor()");
+  });
+});
+
+// ── 통째로 붙여넣으라고 스스로 지시하는 문서 ─────────────────────────
+//
+// `docs/research/v0.3-system-improvement-prompt.md` 는 맨 위에서 이렇게 말한다:
+// *"이 파일 전체를 새 Claude / Gemini / GPT 세션의 **첫 메시지로 그대로 붙여넣으세요**."*
+//
+// 그래서 이 문서의 낡은 문장은 **문서 안에 조용히 남아 있는 것이 아니라, 붙여넣을
+// 때마다 새 세션에 주입된다.** 받는 세션은 그걸 사용자가 준 전제로 읽는다.
+// 브리핑 파일(CLAUDE.md·AGENTS.md)과 같은 등급으로 지켜야 하는 이유다.
+//
+// 2026-09-08 실측: 프로젝트 소개 한 줄이 **두 가지**를 동시에 틀리고 있었다 —
+// "Build with Gemini XPRIZE 2026-08-17 마감" 과 "글로벌 **웰니스 앱**". 후자는
+// 같은 문단 바로 아래에서 이 문서 자신이 금지하는 프레이밍이다(CLAUDE.md
+// Vocabulary policy: "not a mental-health, therapy, or wellness app").
+const PASTED_AS_PROMPT = ["docs/research/v0.3-system-improvement-prompt.md"] as const;
+
+describe("붙여넣기용 프롬프트 문서", () => {
+  it.each(PASTED_AS_PROMPT)("%s 가 머리말에서 스스로 붙여넣기용임을 밝힌다", (doc) => {
+    // 이 전제가 깨지면 위 등급 자체가 근거를 잃는다. 먼저 확인한다.
+    //
+    // ⚠ 문서 전체에서 "붙여넣" 을 찾으면 안 된다. 본문의 **정정 블록**에도 그 말이
+    //   나오기 때문에("붙여넣을 때마다 주입된다"), 실제 사용 지시를 지워도 가드가
+    //   통과한다. 변이 검증에서 정확히 그렇게 새어나갔다 — 지시를 없앴는데 18/18.
+    //   지시는 **머리말에** 있다. 거기만 본다.
+    const head = read(doc).split("\n").slice(0, 8).join("\n");
+    expect({ doc, saysPaste: /붙여넣|paste/i.test(head) })
+      .toEqual({ doc, saysPaste: true });
+  });
+
+  it.each(PASTED_AS_PROMPT)("%s 가 죽은 마감·대회를 전제로 주지 않는다", (doc) => {
+    const claims = assertionsOnly(doc)
+      .split("\n")
+      .filter((l) => /XPRIZE|Devpost|심사위원|심사자|마감\s*20\d\d-\d\d-\d\d/.test(l))
+      .filter((l) => !/정정|취소|없습니다|없다|종료/.test(l));
+    expect({ doc, claims }).toEqual({ doc, claims: [] });
+  });
+
+  it.each(PASTED_AS_PROMPT)("%s 의 소개 문단이 앱을 웰니스로 규정하지 않는다", (doc) => {
+    // 어휘 정책은 UI 문자열만의 문제가 아니다. 세션에 주입되는 **소개 문장**이
+    // "웰니스 앱" 이면 그 세션이 만드는 모든 카피가 그 프레이밍에서 출발한다.
+    //
+    // ⚠ 문서 전체를 훑으면 안 된다. 이 문서는 임상 어휘를 **금지 목록으로 나열**하고
+    //   (`therapy, diagnosis, treatment …`), 그건 정확히 있어야 할 자리다. 초판이
+    //   그걸 주장으로 세어서 거짓양성이 났다. **앱을 무엇이라 규정하는 구간**만 본다.
+    const src = assertionsOnly(doc);
+    const start = src.indexOf("## 프로젝트 컨텍스트");
+    expect(start).toBeGreaterThan(-1); // 구간이 사라지면 이 검사가 조용히 무의미해진다
+    const intro = src.slice(start, src.indexOf("\n## ", start + 4));
+    const claims = intro
+      .split("\n")
+      // ⚠ `>` 인용 블록은 뺀다. 이 저장소는 **정정을 인용 블록으로 쓴다** — 틀린
+      //   문장을 지우는 대신 인용해서 왜 틀렸는지 남기는 관례다. 그것까지 주장으로
+      //   세면 정정을 쓰는 순간 가드가 깨져서, 결국 정정을 못 쓰게 만든다.
+      //   초판이 정확히 그랬다: 내가 쓴 정정 블록 자신이 걸렸다.
+      //   소개가 앱을 규정하는 문장은 인용이 아닌 **산문**이다.
+      .filter((l) => !/^\s*>/.test(l))
+      .filter((l) => /(?:글로벌\s*)?(?:웰니스|wellness)\s*앱|wellness app/i.test(l))
+      .filter((l) => !/정정|아닙니다|아님|아니다|not a/i.test(l));
+    expect({ doc, claims }).toEqual({ doc, claims: [] });
+  });
+});
