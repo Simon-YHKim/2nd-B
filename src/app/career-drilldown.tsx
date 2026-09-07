@@ -14,6 +14,8 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { Field, MdButton, MdCard, MdChip } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
+import { CrisisRouter } from "@/components/safety/CrisisRouter";
+import type { HotlineId } from "@/lib/safety/lexicon";
 import { composeStructured } from "@/lib/capture/structured";
 import { deepSpace, flattenAlpha, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
@@ -536,13 +538,17 @@ export default function CareerDrilldown() {
   const { t, i18n } = useTranslation("deepspace");
   const copy = CAREER_COPY[careerLocale(i18n.resolvedLanguage ?? i18n.language)];
   const isKo = careerLocale(i18n.resolvedLanguage ?? i18n.language) === "ko";
-  const { userId, loading } = useAuth();
+  const { userId, loading, isMinor } = useAuth();
 
   const [summary, setSummary] = useState("");
   const [expType, setExpType] = useState<string | null>(null);
   // The navigation used to run whether or not the save worked. It does not any more, so
   // the failure has to be visible: otherwise the button simply does nothing forever.
   const [saveErr, setSaveErr] = useState(false);
+  const [crisis, setCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
+    visible: false,
+    hotline: "KR_109",
+  });
   const [typeOpen, setTypeOpen] = useState(false);
   const [values, setValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -576,15 +582,28 @@ export default function CareerDrilldown() {
               .map(([k, v]) => `${labelOf[k] ?? k}: ${v.trim()}`),
           )
           .filter(Boolean) as string[];
-        await createRecord({
+        // C9: the classifier runs on every save and reports a red zone as a
+        // fixed-template followup. `minor` was not threaded here, so a 14-17
+        // user's red-zone drilldown resolved to the ADULT hotline; and the
+        // result was dropped, so nothing surfaced at all.
+        const res = await createRecord({
           userId,
           locale: isKo ? "ko" : "en",
+          minor: isMinor === true,
           kind: "note",
           body: bodyLines.join("\n"),
           topic: head,
           tags: ["career_drilldown"],
           structured: composeStructured("career_3c4p", { summary: summary, exp_type: expType ?? "", ...values }) ?? undefined,
         });
+        if (res.followup?.zone === "red") {
+          setCrisis({
+            visible: true,
+            hotline: isKo ? (isMinor === true ? "KR_1388" : "KR_109") : "GLOBAL_988",
+          });
+          setSaving(false);
+          return;
+        }
       } catch (e) {
         if (typeof console !== "undefined") console.warn("[drilldown] save failed", (e as Error).message);
         // The navigation below used to sit OUTSIDE the try, so it ran whether or not the
@@ -699,6 +718,11 @@ export default function CareerDrilldown() {
           />
         </View>
       </View>
+      <CrisisRouter
+        visible={crisis.visible}
+        hotline={crisis.hotline}
+        onClose={() => setCrisis((c) => ({ ...c, visible: false }))}
+      />
     </DeepSpaceScreen>
   );
 }
