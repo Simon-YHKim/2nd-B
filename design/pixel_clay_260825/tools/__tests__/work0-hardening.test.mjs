@@ -6228,6 +6228,24 @@ test('capture CLI rejects unknown arguments as invalid input', () => {
   assert.match(result.stderr, /invalid arguments/i);
 });
 
+test('capture failure records keep the reason for both Error and non-Error throws', async () => {
+  const { captureFailureRecord } = await import('../capture-app.mjs');
+
+  const thrown = new TypeError('page.goto: net::ERR_CONNECTION_REFUSED');
+  const fromError = captureFailureRecord(thrown);
+  assert.equal(fromError.schemaVersion, 1);
+  assert.equal(fromError.name, 'TypeError');
+  assert.equal(fromError.message, 'page.goto: net::ERR_CONNECTION_REFUSED');
+  assert.match(fromError.stack, /TypeError/);
+
+  // A driver can reject with a bare string. Losing the reason there is the case
+  // the bare 'capture failed' line used to produce.
+  const fromString = captureFailureRecord('serve-sub exited');
+  assert.equal(fromString.name, null);
+  assert.equal(fromString.message, 'serve-sub exited');
+  assert.equal(fromString.stack, null);
+});
+
 test('capture CLI fails closed on a bootstrap console error without retaining raw data', async () => {
   const dir = mkdtempSync(path.join(os.tmpdir(), '2ndb-work0-bootstrap-'));
   try {
