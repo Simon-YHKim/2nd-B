@@ -1,6 +1,10 @@
 import { useRef, useState } from "react";
 import { Platform, StyleSheet, Text, TextInput, View } from "react-native";
 import { Redirect, router } from "expo-router";
+import {
+  AccountDeletionNoticePanel,
+  useAccountDeletionNotice,
+} from "@/components/account/AccountDeletionNotice";
 import { useTranslation } from "react-i18next";
 
 import { SecondbHead } from "@/components/deepspace";
@@ -64,6 +68,12 @@ export function DeepSpaceSignInDesignScreen() {
   const passwordRef = useRef<TextInput>(null);
   const actionLock = useRef(false);
   const [focusedField, setFocusedField] = useState<FocusedField>(null);
+
+  // 확인된 삭제 영수증은 두 게스트 가드보다 앞선다. 방금 계정을 지운 사람에게
+  // 서버가 무엇을 지웠고 무엇을 확인하지 못했는지 말해 줄 자리가 여기뿐이다.
+  // 세션 로딩 중에도, 늦게 도착한 userId 로도 이 결과를 밀어내면 안 된다.
+  const deletionNotice = useAccountDeletionNotice();
+  if (deletionNotice) return <AccountDeletionNoticePanel notice={deletionNotice} />;
 
   if (loading) {
     return (

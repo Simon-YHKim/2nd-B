@@ -53,6 +53,8 @@ import {
   type OAuthProvider,
 } from "@/lib/supabase/auth";
 import { requestAccountDeletion } from "@/lib/records/delete-bulk";
+import { createAccountDeletionCompletion } from "@/lib/account/deletion-completion";
+import { currentAccountEpoch } from "@/lib/auth/account-epoch";
 import { purgeCaptureDraftsForDeletedAccount } from "@/lib/capture/draft";
 import { buildPersona, loadPersonaRatifiableSignals } from "@/lib/persona/build";
 import { proposalContextForStar } from "@/lib/persona/proposal-context";
@@ -638,11 +640,15 @@ export function DeepSpacePrivacyDesignScreen() {
     deleteInFlightRef.current = true;
     setDeleting(true);
     setDelError(false);
+    // The receipt says what the server erased and what it could not confirm.
+    // It used to be discarded here, so a user who deleted their account was
+    // signed out and shown a sign-in form, and never learned any of it.
+    let receipt: Awaited<ReturnType<typeof requestAccountDeletion>>;
     try {
       // The Edge Function is the single terminal boundary: auth deletion first,
       // then the database cascade and Storage cleanup. A client pre-wipe here
       // can only make failure non-atomic.
-      await requestAccountDeletion();
+      receipt = await requestAccountDeletion();
     } catch {
       deleteInFlightRef.current = false;
       if (privacyMountedRef.current && activeUserRef.current === targetUserId) {
@@ -674,11 +680,21 @@ export function DeepSpacePrivacyDesignScreen() {
     // Successful erasure may itself trigger an auth-driven route removal.
     // Let that navigation, sign-out, and the explicit replacement proceed.
     allowDeletionNavigationRef.current = true;
+    // Hand the receipt to the store that survives exactly this owner -> null
+    // transition, so the destination screen can show it. `unconfirmed` is the
+    // honest local-cleanup value: this flow clears capture drafts only, not the
+    // checked set the copy describes, and claiming "complete" for a narrower
+    // sweep would be the overclaim this receipt exists to avoid.
+    const completion = createAccountDeletionCompletion(targetUserId, currentAccountEpoch());
+    completion.beginSignOut(receipt, "unconfirmed");
     try {
       await signOut();
+      completion.finishSignOut(true);
     } catch (e) {
+      completion.finishSignOut(false);
       if (typeof console !== "undefined") console.warn("[privacy] local sign-out after deletion failed", (e as Error).message);
     } finally {
+      completion.dispose();
       router.dismissAll();
       router.replace("/sign-in");
     }
