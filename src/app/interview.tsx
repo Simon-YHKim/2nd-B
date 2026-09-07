@@ -497,7 +497,11 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
       const transcript = turns
         .map((turn) => `${turn.role === "interviewer" ? qLabel : aLabel}: ${turn.text}`)
         .join("\n\n");
-      await createRecord({
+      // The pre-save check above is the LOCAL lexicon. createRecord's own C9
+      // pass is the semantic one, and it reports red on the followup rather
+      // than throwing - so a semantically-red transcript that the lexicon did
+      // not match was written to the ledger and shown nowhere.
+      const saved = await createRecord({
         userId,
         locale,
         minor: isMinor === true,
@@ -514,6 +518,10 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         domainIntent: growthOrigin ? "growth" : undefined,
         withFollowup: false,
       });
+      if (saved.followup?.zone === "red") {
+        setCrisis({ visible: true, hotline: hotlineFor() });
+        return;
+      }
       // 판 자리를 남긴다. **내용과 같은 동의 경로**다 -- 사용자가 담기로 했을
       // 때만 쓴다. 칸 수에는 답변 원문이 없지만, 그렇다고 담지 않기로 한 대화가
       // 별을 밝히는 것은 이 저장소의 규율과 어긋난다.
