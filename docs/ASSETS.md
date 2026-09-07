@@ -1,13 +1,31 @@
-# Pre-existing Assets Registry
+# Bundled Assets and Licenses
 
-> XPRIZE rulebook §04 requires disclosure of code, designs, content, and
-> other materials that existed before the competition window began.
->
-> This registry also records the art that **ships inside the build** even
-> though it was generated *during* the window and is therefore not
-> pre-existing. Listing it is a transparency choice, not a §04 obligation:
-> a reader should be able to account for every image in the repository
+> **Why this file exists.** The fonts we ship are SIL OFL 1.1, which requires
+> the copyright notice and the Reserved Font Name to travel with the font.
+> This file is the only place in the repository that records them, so deleting
+> it would put the build out of compliance. Beyond the fonts, it accounts for
+> every image the build ships, so a reader can reconcile the repository's art
 > from this file alone.
+>
+> `scripts/check-constraints.ts` enforces this as **`AssetLicenseDisclosure`**:
+> it walks `assets/` and `public/` and fails if any pack found on disk is not
+> named here. That check is not a formality — until 2026-08-06 it was a single
+> grep for the README heading and reported PASS while 226 committed images
+> across 8 packs went entirely unlisted.
+>
+> ⚠ **2026-09-08 정정 — 이 문서는 대회 서류가 아니다.** 원래 머리말은 이랬다:
+>
+> > ~~XPRIZE rulebook §04 requires disclosure of code, designs, content, and
+> > other materials that existed before the competition window began.
+> > … Listing it is a transparency choice, not a §04 obligation.~~
+>
+> 그 규정집은 적용되지 않는다. XPRIZE 는 2026-08-15 에 종료됐고 C12 는
+> 2026-09-06 에 폐지됐다(Simon 결정 Q-260905-02). **폐지된 것은 번호지 의무가
+> 아니다** — `docs/CONSTRAINTS.md` 가 그 문단을 따로 써서 이 의무를 규정집과
+> 무관하게 지켰고, 검사도 `AssetLicenseDisclosure` 라는 번호 없는 이름으로
+> 살아남았다. README 도 "Bundled assets and licenses" 로 옮겨왔다.
+> **이 문서만 따라오지 않아서, 여기만 읽은 사람은 대회 서류로 보고 지워도 된다는
+> 결론에 이른다** — CONSTRAINTS.md 가 막으려던 바로 그 결론이다.
 
 ## Status
 
@@ -90,7 +108,7 @@ generation inputs are auditable, not just the outputs.
 
 **When.** Dates below are the day each set first appeared in git. The
 repository's initial commit is 2026-05-25, so no set predates the
-competition window. Generation happened on or shortly before the listed
+repository itself. Generation happened on or shortly before the listed
 date.
 
 **Rights.** Simon Kim generated and owns these outputs, and uses them
@@ -110,7 +128,7 @@ only the path moved.
 | `public/landing/` | 7 PNG | 2026-06-15 | Landing background concepts |
 | `public/proto/` | 7 PNG | 2026-07-04 | Deep-space prototype screens |
 | `public/icons/` | 2 PNG | 2026-06-11 | PWA icons (192 / 512), derived from the app icon |
-| `assets/deepspace/` | 13 PNG | 2026-06-19 | SecondB canonical head pair plus 11 Nebori style-comparison working images added during the competition window |
+| `assets/deepspace/` | 13 PNG | 2026-06-19 | SecondB canonical head pair plus 11 Nebori style-comparison working images added while the deep-space look was being settled |
 | `assets/opening/` | 1 PNG | 2026-08-27 | HustleK opening sprite sheet (48 frames, 8x6 grid, 320x180 cells) built by `scripts/build-opening-strip.py` from the approved atlas. No new art: the builder refuses to run unless the atlas RGBA hash matches the approved value. |
 | `assets/images/` | 6 PNG | 2026-05-25 | App icon, adaptive-icon layers, splash, favicon. Seeded from the Expo template at initialisation (MIT) and replaced in-window with generated art |
 
@@ -141,7 +159,7 @@ that adding review evidence does not make this registry stale.
 - `design/hustlek-opening-v1/` — added 2026-08-14. Contains the lossless
   canonical atlas and a review GIF for the 165-frame “HustleK and opening”
   sequence. The character, field, telescope, and Polaris art were generated
-  during the competition window from project-specific direction, normalized
+  for this project from project-specific direction, normalized
   and composed locally with Pillow, and approved through iterative visual QA.
   No third-party game sprite or asset pack is included. The user-provided
   portrait reference is not stored in the repository. Pixy was not used.
@@ -182,10 +200,18 @@ the SVGs counted above belong to the bundled sprite sets, not the museum.
 - Google Play developer account (existing, used for app submission)
 - LinkedIn / X / personal blog (used for distribution; out of scope)
 
-## What is in scope for the competition
+## Provenance of everything in this repository
 
 All app code under `src/app/`, `src/components/`, `src/lib/`, all database
 migrations under `db/`, all CI workflows under `.github/`, all
 documentation under `docs/`, all design working material under `design/`,
-and all bundled art listed above were created between 2026-05-25 and the
-submission deadline of 2026-08-17.
+and all bundled art listed above were **created from scratch starting
+2026-05-25** — the date the repository was initialized from a clean Expo
+template. Nothing here predates that date, which is why the "Status"
+section above can say no pre-existing first-party assets are bundled.
+
+> ⚠ **2026-09-08 정정.** 이 절의 제목은 ~~"What is in scope for the
+> competition"~~ 이었고, 기간을 *"2026-05-25 부터 **the submission deadline of
+> 2026-08-17** 까지"* 로 닫고 있었다. 대회도 마감도 없다(루트 `CLAUDE.md`).
+> 시작일 2026-05-25 는 저장소 초기화일이라 **그대로 유효하다** — 이 절이 실제로
+> 증명하는 것은 제출 범위가 아니라 **출처**이고, 그건 마감과 무관하게 참이다.

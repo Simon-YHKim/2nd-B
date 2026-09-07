@@ -178,3 +178,59 @@ describe("정정이 의존하는 배선", () => {
     expect(keep).toContain("CHAT_KEEP_TAG");
   });
 });
+
+// ── 살아남은 의무가 죽은 근거로 자기를 설명하지 않는가 ──────────────────
+//
+// C12 는 2026-09-06 에 폐지됐지만 **폐지된 것은 번호지 의무가 아니다.**
+// `docs/CONSTRAINTS.md` 가 문단 하나를 따로 써서 지켰고(싣는 폰트가 SIL OFL 이라
+// 저작권·Reserved Font Name 고지가 따라다녀야 한다), 검사는 `AssetLicenseDisclosure`
+// 라는 번호 없는 이름으로, README 는 "Bundled assets and licenses" 로 옮겨왔다.
+//
+// 2026-09-08 실측: **`docs/ASSETS.md` 만 안 따라왔다.** 제목이 "Pre-existing Assets
+// Registry" 이고 머리말이 "XPRIZE rulebook §04 requires disclosure" 로 존재 이유를
+// 대고 있었다. 그 파일만 읽은 사람은 대회 서류로 보고 **지워도 된다고 결론 낸다** —
+// CONSTRAINTS.md 가 막으려던 바로 그 결론이고, 지우면 OFL 고지가 사라진다.
+describe("AssetLicenseDisclosure 가 사는 문서", () => {
+  it("죽은 규정집으로 자기 존재를 설명하지 않는다", () => {
+    // 인용은 허용한다 — 정정하려면 원문을 인용해야 한다. 금지하는 것은
+    // **정정 표시 없이 근거로 세우는 것**이다.
+    // ⚠ 초판은 `competition window` 만 봤다. 변이 검증에서 제목을
+    //   "What is in scope for the competition"(= 원래 제목) 으로 되돌렸는데
+    //   **통과했다** — 그 문자열에는 `window` 가 없다. 즉 이 가드는 고치려던
+    //   원문 자체를 못 잡고 있었다. `competition` 단독까지 본다.
+    const src = assertionsOnly("docs/ASSETS.md");
+    const claims = src
+      .split("\n")
+      .filter((l) => /rulebook|competition|submission deadline|pre-existing assets registry/i.test(l))
+      .filter((l) => !/정정|취소|no longer|retired/.test(l));
+    expect({ file: "docs/ASSETS.md", claims }).toEqual({ file: "docs/ASSETS.md", claims: [] });
+  });
+
+  it("살아 있는 근거(SIL OFL)를 스스로 밝힌다", () => {
+    // 위 검사만 있으면 "규정집 문장을 지우기"로도 통과한다. 그러면 왜 남겨야
+    // 하는지가 사라져서 다음 사람이 파일째 지운다. 이유가 있어야 통과시킨다.
+    const src = read("docs/ASSETS.md");
+    expect(src).toContain("SIL OFL");
+    expect(/Reserved Font Name/.test(src)).toBe(true);
+  });
+
+  it("검사가 이 파일을 실제로 읽는다 — 지우면 CI 가 막는다", () => {
+    // 문서가 "검사가 지킨다"고 적었으면 그게 참이어야 한다.
+    const check = read("scripts/check-constraints.ts");
+    expect(check).toContain("AssetLicenseDisclosure");
+    expect(check).toContain("docs/ASSETS.md");
+  });
+
+  it("CONSTRAINTS.md 가 팩 개수를 산문에 박아두지 않는다", () => {
+    // 박으면 반드시 낡는다. 실제로 "currently 9 packs" 였고 검사는 10 을 냈다.
+    // 세는 것은 검사의 일이고 문서는 그 사실을 가리키기만 한다.
+    const src = read("docs/CONSTRAINTS.md");
+    const pinned = src.match(/\b\d+\s+packs?\b/g)?.filter((m) => !/^\s*0\s/.test(m)) ?? [];
+    // 정정문에서 옛 수치를 인용하는 것은 허용 — 그 줄에는 "said" 가 붙는다.
+    const live = pinned.filter((m) => {
+      const line = src.split("\n").find((l) => l.includes(m)) ?? "";
+      return !/said|정정|~~/.test(line);
+    });
+    expect({ pinned: live }).toEqual({ pinned: [] });
+  });
+});
