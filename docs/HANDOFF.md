@@ -3,6 +3,90 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## 2026-09-08 / Fabric 화면 백지 결함 — 기전은 확정, 컴포넌트는 미확정
+
+**결론부터: 고치지 못했다.** 어느 컴포넌트가 원인인지 못 짚었고, 짚지 못한 채 고치면
+"고쳐졌다"를 증명할 수 없어서 PR 을 올리지 않았다. 아래는 다음 사람이 **같은 곳을 다시 파지
+않도록** 남기는 기록이다.
+
+### 증상
+
+v0.8.0 preview 를 에뮬에서 돌리면 화면 전환 중 **간헐적으로**(3회 중 2회) 화면이 하얗게 비고
+**자력 복구되지 않는다.** 강제 종료 후 재실행해야 산다. 난 자리는 온보딩 `Continue` 직후와
+`Go to constellation` 직후. 3회차에는 안 났다.
+
+### 기전 (확정 — logcat 마운트 덤프 실측)
+
+```
+SurfaceMountingManager: Unhandled SoftException
+java.lang.IllegalStateException: addViewAt: cannot insert view [690] into parent [728]:
+  View already has a parent: [730]
+Caused by: The specified child already has a parent. You must call removeView()...
+  at ReactClippingViewManager.addView
+→ ReactHost.handleHostException → RN 호스트 파괴 → 화면 백지
+```
+
+실패한 배치의 순서:
+
+```
+REMOVE [690..724] -> [730]   자식 11개를 730 에서 뗀다 (@10 … @0)
+CREATE [728] - layoutable:1 - RCTView
+INSERT [728] -> [730] @0     새 래퍼를 730 에 넣고
+INSERT [690] -> [728] @0     뗐던 자식들을 새 래퍼로 옮긴다   ← 여기서 터진다
+```
+
+즉 **자식 11개가 새로 생긴 래퍼 View 로 재부모된다.** detach 가 끝나기 전에 attach 가 돌았다.
+
+덤프에서 트리를 재구성하면 **730 은 이 배치에서 부모가 없다 = surface:1 의 루트**이고,
+728 의 자식이 정확히 11개다. `INSERT` 1,339 · `REMOVE` 94 인 큰 전환 배치다.
+
+### 함정 둘 — 여기서 미끄러졌다
+
+- **`ReactClippingViewManager` 는 `removeClippedSubviews` 의 증거가 아니다.** 그 클래스는
+  평범한 `<View>` 매니저의 **상위 클래스**다. 클래스 이름을 기능으로 읽어서 한 번 헛짚었다.
+- **`<Modal>` grep 이 `HomeCoachmarks.tsx` 를 물었다.** 실제로는 65행 주석의
+  "not a RN `<Modal>`" 이었다. 이 저장소 주석발 거짓양성 다섯 번째다.
+
+### 탈락시킨 후보 (다시 파지 말 것)
+
+| 후보 | 왜 아닌가 |
+|---|---|
+| Reanimated layout 애니메이션 | `entering=`/`exiting=`/`layout=` **0건** (양성 대조 235파일로 확인) |
+| 코치마크의 `<Modal>` | RN Modal 이 아니라 평범한 View. 게다가 **형제**로 붙지 자식을 감싸지 않는다 |
+| `removeClippedSubviews` | 위 함정 참조. 명시 사용 7곳은 전부 전환 경로 밖 |
+| `ConstellationHome` 의 `stage` 게이트 | `stage` 는 `NeuralFieldBackdrop` **하나를 더할** 뿐 자식을 감싸지 않는다 |
+| 조건부 `<G>` 래퍼 | deep-space 에 없음. `<G key=…>` 셋은 전부 `.map()` 안이고 다른 화면 |
+| `DeepSpaceScreen` variant 전환 | `variant`/`header` 는 **정적 prop**(기본값 `fullbleed`/`companion`)이라 마운트 중 안 바뀐다 |
+| `IntroGate` | 분기가 전부 `<>{children}</>` 또는 다른 화면으로 **교체**다. Fragment→View 교체는 자식을 언마운트하므로 태그가 보존되지 않는데, 덤프는 **같은 태그**가 옮겨진다 |
+
+마지막 줄이 이 조사의 미해결 지점이다 — **평범한 래퍼 삽입은 태그를 보존하지 않는데
+덤프는 보존한다.** 그래서 "조건부로 View 하나 끼우는 곳"을 찾는 방식으로는 안 잡힌다.
+
+### 다음 수
+
+1. **dev 빌드로 재현**해서 컴포넌트 이름을 얻는다. 릴리스 빌드는 `RCTView` 이상을 안 준다.
+   uiautomator 는 RN 뷰를 5단계에서 접어버려 못 쓴다(실측).
+2. **실기기 재현 여부**를 먼저 가른다. 에뮬은 arm64 를 번역해 돌려 매우 느리고
+   (프레임 42~61장 스킵, 시스템 UI 가 자체 ANR 경고), 느림이 경합을 드러냈을 수 있다.
+   다만 오류 자체는 속도가 아니라 **마운트 순서** 문제라 실기기에서는 확률만 낮을 수 있다.
+3. 스택: RN `0.85.3` · React `19.2.3` · expo `~56.0.13` · react-native-screens `4.25.2`.
+   상류 이슈 대조는 안 했다.
+
+에뮬에서 돌리는 법은 이 문서 09-08 상단 절에 있다.
+
+### 이 조사에서 쓴 도구와 그 한계 (다시 시도하기 전에 읽을 것)
+
+| 시도한 것 | 결과 |
+|---|---|
+| logcat 마운트 덤프 | **유효.** 실패 배치의 mount item 순서를 그대로 준다 — 기전은 여기서 나왔다 |
+| 덤프로 뷰 트리 재구성 | 부분적. 730 이 이 배치에서 부모가 없어 surface 루트임은 알았으나 그 위로 못 간다 |
+| `uiautomator dump` | **무효.** RN 뷰를 5단계에서 접는다(FrameLayout/LinearLayout 만 나온다) |
+| 캐논 JSON (`data/screens/*.json` 21개) | **무효.** 뷰 트리가 아니라 데이터 스펙이다(`domains`·`inputTemplates`·`moods`…) |
+| 소스에서 "조건부 래퍼" 찾기 | **무효.** 평범한 래퍼 삽입은 태그를 보존하지 않는데 덤프는 보존한다 — 찾는 모양 자체가 틀렸다 |
+
+⚠ `uiautomator` 와 캐논 둘 다 **"해봤더니 안 되더라"** 를 남긴다. 재시도 비용이 각각 1분이라
+안 적어두면 다음 사람이 반드시 다시 한다.
+
 ## 2026-09-08 / 에뮬레이터가 살아났다 — arm64 전용 APK 를 x86_64 에뮬에서 돌리는 법
 
 **"에뮬은 못 쓴다"는 서술은 이제 틀렸다.** 막고 있던 것은 에뮬레이터가 아니라 **설치 경로 세 겹**이었고,
