@@ -350,3 +350,47 @@ describe("C10 연령 게이트 서술", () => {
     expect(c10).toContain("No migration reads a jurisdiction");
   });
 });
+
+// ── 싣는 심리검사 문항의 사용권·판본 격차 ────────────────────────────
+//
+// 2026-09-08 실측: 앱은 BFI-44(44문항)와 ECR-S(12문항)의 **영문 원문 그대로 +
+// 한국어 번역**을 코드에 싣는다. 그런데
+//
+//   `bfi.ts:2`        "Public domain." — 출처·허가 기록이 저장소에 없다
+//   `attachment.ts`   사용권 문장이 아예 없다 (서지 인용만)
+//
+// 그리고 두 배치 문서가 자기 §Cautions 에서 **"직접 번역 말고 한국어 검증본을
+// 쓰라"** 고 적는데, 코드의 `ko:` 문항은 그 금지된 직접 번역이고 검증본
+// (Choi 2025 BFI-2 한국판 · Lee 2023 CR-ECR-SF 한국판)을 참조하지 않는다.
+//
+// ⚠ 이 가드는 **문항을 바꾸라고 요구하지 않는다.** 검사 도구 교체는 타당도와
+//    법무가 걸린 제품 결정이다. 요구하는 것은 **격차가 기록된 채로 남아 있는
+//    것**뿐이다 — 코드가 문항을 계속 싣는 한, 배치 문서가 그 사실을 적고 있어야
+//    한다. 한쪽만 조용히 고쳐서 격차가 안 보이게 되는 것을 막는다.
+const SHIPPED_INSTRUMENTS = [
+  { code: "src/lib/persona/bfi.ts", doc: "docs/research/batches/big-five.md", items: 44 },
+  { code: "src/lib/persona/attachment.ts", doc: "docs/research/batches/attachment.md", items: 12 },
+] as const;
+
+describe("싣는 검사 문항의 사용권 기록", () => {
+  it.each(SHIPPED_INSTRUMENTS)("$code 가 실제로 한국어 문항을 싣는다", ({ code, items }) => {
+    // 격차의 전제. 문항을 내리면 이 검사가 먼저 깨지고, 그때 아래 기록 요구도
+    // 같이 풀어야 한다 — 그 순서가 맞다.
+    const ko = (read(code).match(/\n\s*\{[^\n]*\bko:\s*"/g) ?? []).length;
+    expect({ code, ko }).toEqual({ code, ko: items });
+  });
+
+  it.each(SHIPPED_INSTRUMENTS)("$doc 가 그 격차를 기록하고 있다", ({ doc }) => {
+    const src = read(doc);
+    expect(src).toContain("문항 사용권과 한국어 판본");
+    // 결론이 아니라 측정으로 남아야 한다. "해결됨" 으로 조용히 닫는 것을 막는다.
+    expect(/결론이 아니라 측정/.test(src)).toBe(true);
+  });
+
+  it("MSCEIT 처럼 저작권이 분명한 도구는 싣지 않는다", () => {
+    // 실측 0건. 되살아나면 위 격차와 성격이 다른 문제가 된다 —
+    // MSCEIT 는 MHS 가 상업 배포하는 도구다.
+    const hits = SHIPPED_INSTRUMENTS.filter(({ code }) => /MSCEIT/i.test(read(code)));
+    expect({ shipped: hits.map((h) => h.code) }).toEqual({ shipped: [] });
+  });
+});
