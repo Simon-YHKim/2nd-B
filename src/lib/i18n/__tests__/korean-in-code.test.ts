@@ -89,7 +89,11 @@ const KOREAN_BY_DESIGN: Record<string, string> = {
   // static export 는 모든 라우트에 같은 셸 하나를 쓰므로 t() 를 부를 자리가
   // 없다. 셸이 이미 lang="ko" 로 한국어 우선을 선언하고 있고, 문구는
   // docs/store-copy/drafts.json 의 검토된 ko 초안과 같은 말이다.
-  "src/app/+html.tsx": "정적 웹 셸의 공유 메타 (하이드레이션 전, lang=ko)",
+  // 문구 자체는 +html.tsx 에서 site-meta 로 옮겼다 — 같은 이름을 정적 <head> 와
+  // 런타임 document.title 두 곳이 쓰는데 어긋나면 안 되기 때문이다. 그래서
+  // 면제도 한국어가 실제로 사는 곳으로 따라 옮긴다. +html.tsx 를 면제로 남겨두면
+  // 나중에 거기 새로 들어온 한국어가 공짜로 통과한다.
+  "src/lib/site-meta.ts": "정적 웹 셸의 공유 메타 (하이드레이션 전, lang=ko)",
 
   // ── dev 전용 셸 (사용자에게 안 보임) ──
   "src/components/deepspace/DeepSpaceHubDock.tsx": "dev 전용 허브 독",

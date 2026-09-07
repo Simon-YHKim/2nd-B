@@ -54,6 +54,7 @@ import { pixelStackTransition } from "@/lib/motion/pixel-physical";
 import { fontAssets } from "@/theme/typography";
 import { ThemeProvider, useThemePalette } from "@/lib/theme/ThemeContext";
 import { hydrateFirstStarChatNudge } from "@/lib/onboarding/state";
+import { SITE_TITLE } from "@/lib/site-meta";
 import {
   accountEpochFromSnapshot,
   accountTransitionPendingFromSnapshot,
@@ -107,6 +108,25 @@ export default function RootLayout() {
   // one extra nudge.
   useEffect(() => {
     void hydrateFirstStarChatNudge();
+  }, []);
+
+  // The browser tab is blank on web and always has been. The served page has
+  // two <title> tags and the first one wins: Expo Router's vendored
+  // react-helmet-async puts an empty `<title data-rh="true">` at the top of
+  // <head>, ahead of the one +html.tsx writes. Head cannot fill it - it only
+  // renders inside a focused screen, and the static shell is this component's
+  // InlineLoader branch, so no screen renders during export at all.
+  //
+  // Fixing that would mean changing when the root gate returns the loader,
+  // which is the boot path #1626/#1646 just stabilised - not a trade worth
+  // making for a tab label. Share cards are unaffected either way: og:title
+  // and twitter:title carry the name and scrapers prefer them.
+  //
+  // So set it on the client, where the people who actually read the tab are.
+  // Native has no document; the guard also covers the server render.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.title = SITE_TITLE;
   }, []);
 
   // Brief minimal loader during font resolution. The branded cell-team
