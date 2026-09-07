@@ -1,5 +1,11 @@
 # 2nd-Brain · Psychology Research Handoff Prompt
 
+> **⚠ XPRIZE 는 2026-08-15 에 종료됐다. 마감은 없다** (Simon 결정).
+> 아래 본문이 "Build with Gemini XPRIZE hackathon, with deadline 2026-08-17" 을
+> 전제로 적고 있는데 **그 전제는 무효다.** 이 문서를 쓸 때 그 문장을 근거로 배치
+> 범위나 일정을 줄이지 말 것. 워크플로(배치 단위 요청·검증 후 다음 배치)는
+> 그대로 유효하다.
+
 > **사용 방법**: Gemini Deep Research, Claude (Research mode), 또는 새 Claude/ChatGPT 채팅의 첫 메시지로 그대로 붙여넣으세요. 1회 실행이 아닌 반복 사용을 가정합니다 — 한 번 실행하면 한 배치(framework)를 얻고, 검증 후 다음 배치를 요청하는 방식.
 
 ---

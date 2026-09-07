@@ -36,7 +36,10 @@ describe("/complete-profile PIXEL-CLAY profilesetup contract", () => {
     expect(source).toContain("const consentReady = allRequiredAcksChecked(consent)");
     expect(source).toContain("const requiredProgress = Number(ageReady) + Number(consentReady)");
     expect(source).toMatch(/userId !== null &&\s*ageReady &&\s*consentReady &&\s*!submitting/);
-    expect(source).toContain("accessibilityValue={{ min: 0, max: 2, now: requiredProgress }}");
+    // 핀을 객체 형태에서 헬퍼 형태로 옮긴다. 이 단언의 뜻은 "진행 상태가
+    // 값으로 announce 된다" 이고, 객체 형태는 React Native Web 이 읽지 않아
+    // 웹에서 그 값이 통째로 사라졌다. 뜻은 그대로, 형태만 실제로 닿는 쪽으로.
+    expect(source).toContain("{...a11yValue({ min: 0, max: 2, now: requiredProgress })}");
     expect(source).not.toContain("localStorage");
   });
 

@@ -93,7 +93,7 @@ export function buildCenterCards(persona: PersonaCard, locale: "en" | "ko"): Cen
         : `Lately we keep wandering back to ${labelFramework(topFramework, locale)}.`
       : ko
         ? "아직 한 동네로 모이는 중이에요. 조금만 더 쌓이면 불이 켜질 거예요."
-        : "Still settling into one neighborhood — a little more and it'll light up.",
+        : "Still settling into one neighborhood - a little more and it'll light up.",
     accent: cosmic.signalBlue,
   };
 

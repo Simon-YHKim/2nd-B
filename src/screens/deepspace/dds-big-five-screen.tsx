@@ -34,6 +34,7 @@ import { loadLatestBfi } from "@/lib/persona/build";
 import { createRecord } from "@/lib/records/create";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { m3 } from "@/lib/theme/m3";
+import { a11yValue } from "@/lib/a11y/accessibility-value";
 
 const BFI_READ_TIMEOUT_MS = 8_000;
 const SAVE_CELEBRATION_MS = 800;
@@ -134,7 +135,7 @@ function TraitCells({ label, value }: { label: string; value: number }) {
       style={styles.traitRow}
       accessibilityRole="progressbar"
       accessibilityLabel={`${label} ${value}`}
-      accessibilityValue={{ min: 0, max: 100, now: value }}
+      {...a11yValue({ min: 0, max: 100, now: value })}
     >
       <View style={styles.traitHead}>
         <Text style={[m3TextStyle("bodyMedium"), styles.traitLabel]}>{label}</Text>
@@ -426,7 +427,7 @@ function ProgressCells({ answered }: { answered: number }) {
       style={styles.progressBlock}
       accessibilityRole="progressbar"
       accessibilityLabel={label}
-      accessibilityValue={{ min: 0, max: 100, now: percent, text: label }}
+      {...a11yValue({ min: 0, max: 100, now: percent, text: label })}
     >
       <View style={styles.cells} pointerEvents="none">
         {Array.from({ length: 10 }, (_, index) => (

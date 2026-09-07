@@ -52,6 +52,7 @@ import {
   clampMuseumYear,
   museumDialFractionForYear,
   museumScrollXForYear,
+  museumStepEventYear,
   museumTargetId,
   museumYearFromDial,
   museumYearFromScroll,
@@ -82,6 +83,7 @@ import {
   MUSEUM_TODAY as TODAY,
   museumTimelineStyles as styles,
 } from "./museum-timeline-styles";
+import { a11yValue } from "@/lib/a11y/accessibility-value";
 
 const DECADES = canonMuseum.decades;
 const MUSEUM_IDS = new Set(MUSEUM.map((event) => event.id));
@@ -318,7 +320,7 @@ export function MuseumTimelineScreen() {
     >
       <View style={styles.body}>
         <PixelSurface variant="inset" contentStyle={styles.rangeRow}>
-          <Text style={styles.rangeLabel}>{`${MZ.START} — ${MUSEUM_VISIBLE_MAX_YEAR}`}</Text>
+          <Text style={styles.rangeLabel}>{`${MZ.START} - ${MUSEUM_VISIBLE_MAX_YEAR}`}</Text>
           <Text style={styles.rangeHint}>{t("deepspace:museum.rangeHint")}</Text>
         </PixelSurface>
 
@@ -504,19 +506,24 @@ export function MuseumTimelineScreen() {
             accessible
             accessibilityRole="adjustable"
             accessibilityLabel={t("deepspace:museum.seekYear")}
-            accessibilityValue={{
+            {...a11yValue({
               min: MZ.START,
               max: MUSEUM_VISIBLE_MAX_YEAR,
               now: year,
               text: String(year),
-            }}
+            })}
             accessibilityActions={[
               { name: "decrement", label: t("deepspace:museum.prevEvent") },
               { name: "increment", label: t("deepspace:museum.nextEvent") },
             ]}
             onAccessibilityAction={(event) => {
-              if (event.nativeEvent.actionName === "increment") seekToYear(year + 1, false);
-              if (event.nativeEvent.actionName === "decrement") seekToYear(year - 1, false);
+              // These two actions are named "previous/next event", and they are
+              // named nowhere else - only a screen reader ever speaks them. They
+              // used to move one calendar year, which lands on an empty year more
+              // often than not (30 event years across a 91-year range, gaps up to
+              // 11). Move to the next year that actually has something.
+              if (event.nativeEvent.actionName === "increment") seekToYear(museumStepEventYear(year, 1), false);
+              if (event.nativeEvent.actionName === "decrement") seekToYear(museumStepEventYear(year, -1), false);
             }}
           >
             <PixelSurface

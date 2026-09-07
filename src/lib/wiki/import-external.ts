@@ -251,7 +251,7 @@ export function renderIngestMarkdown(result: IngestResult, locale: "en" | "ko"):
     lines.push("", `## ${sectionLabel[section]}`);
     for (const it of group) {
       const conf = it.confidence === "high" ? "" : ` _(${it.confidence})_`;
-      lines.push(`- **${it.title || sectionLabel[section]}** — ${it.detail}${conf}`);
+      lines.push(`- **${it.title || sectionLabel[section]}** - ${it.detail}${conf}`);
     }
   }
   return lines.join("\n");

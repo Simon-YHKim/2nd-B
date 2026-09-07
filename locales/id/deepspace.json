@@ -961,7 +961,9 @@
       "afterLabel": "setelah +{{n}}",
       "cta": "Tonton iklan & dapat +{{n}}",
       "later": "Nanti",
-      "privacy": "Hanya dewasa dengan persetujuan · tidak pernah di layar sensitif"
+      "privacy": "Hanya dewasa dengan persetujuan · tidak pernah di layar sensitif",
+      "capReached": "Kamu sudah mencapai batas bulan ini. Batasnya terbuka lagi bulan depan.",
+      "creditFailed": "Tidak dapat memastikan penambahannya. Periksa lagi sisa jatahmu sebentar lagi."
     },
     "rewardChat": {
       "titleA": "30 detik untuk ",
@@ -971,7 +973,9 @@
       "afterLabel": "setelah +{{n}}",
       "cta": "Tonton untuk +{{n}} obrolan",
       "later": "Nanti",
-      "privacy": "Hanya dewasa dengan persetujuan · tidak pernah di layar sensitif"
+      "privacy": "Hanya dewasa dengan persetujuan · tidak pernah di layar sensitif",
+      "capReached": "Kamu sudah mencapai batas bulan ini. Batasnya terbuka lagi bulan depan.",
+      "creditFailed": "Tidak dapat memastikan penambahannya. Periksa lagi sisa obrolanmu hari ini sebentar lagi."
     },
     "reasoningLimit": {
       "title": "Jatah reasoning dasar minggu ini sudah habis.",

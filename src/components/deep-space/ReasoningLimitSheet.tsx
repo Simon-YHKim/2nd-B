@@ -37,6 +37,7 @@ import { useProgression } from "@/lib/progression/useProgression";
 import { m3 } from "@/lib/theme/m3";
 import { deepSpace, flattenAlpha, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
+import { a11yValue } from "@/lib/a11y/accessibility-value";
 
 /**
  * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
@@ -188,7 +189,7 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
             <View
               style={styles.meterRow}
               accessibilityRole="progressbar"
-              accessibilityValue={{ min: 0, max: cap, now: baseLeft ?? 0 }}
+              {...a11yValue({ min: 0, max: cap, now: baseLeft ?? 0 })}
             >
               {Array.from({ length: cap }, (_, index) => {
                 const lit = index < (baseLeft ?? 0);

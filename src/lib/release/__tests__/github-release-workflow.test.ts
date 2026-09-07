@@ -83,6 +83,39 @@ describe("the tag cannot disagree with the binary", () => {
     expect(run).toMatch(/gh release view "\$TAG"[\s\S]*?exit 1/);
   });
 
+  test("a draft is not asked for the tag a draft cannot have", () => {
+    // `gh release create --draft` does not create the ref -- GitHub creates it
+    // when the draft is published. So asserting the tag resolves immediately
+    // after creating the draft could never pass. It failed the v0.7.0 release
+    // (2026-09-07) after the draft and all four assets were already correct,
+    // and the release had to be finished by hand.
+    //
+    // What binds a draft to its commit is target_commitish, which is asserted
+    // below it. A tag is only checked when one already exists.
+    const run = runOf("Resolve version");
+    expect(run).toContain(
+      'if [ -n "$CREATED_TAG_SHA" ] && [ "${CREATED_TAG_SHA,,}" != "${GITHUB_SHA,,}" ]',
+    );
+    expect(run).not.toContain("Created tag does not resolve to the requested commit.");
+    expect(run).toContain(
+      "release.target_commitish.toLowerCase() !== process.env.GITHUB_SHA.toLowerCase()",
+    );
+  });
+
+  test("a draft is found by listing, because looking it up by tag returns 404", () => {
+    // GET /releases/tags/{tag} only matches PUBLISHED releases. Both places
+    // that read the release used it, so a draft was invisible: the existence
+    // probe concluded "no release" and would create a second one, and the
+    // read-back after creating the draft died on the 404. That is what stopped
+    // the v0.7.1 release on 2026-09-07, one line after the tag check above.
+    const run = runOf("Resolve version");
+    expect(run).not.toContain("releases/tags/$TAG");
+    expect((run.match(/releases\?per_page=100/g) ?? []).length).toBe(2);
+    expect(run).toContain('map(select(.tag_name == \\"$TAG\\")) | .[0] // empty');
+    // A leftover draft must stop the job, not be silently replaced.
+    expect(run).toContain("an unpublished draft from an earlier run");
+  });
+
   test("gh calls carry GH_REPO", () => {
     // `gh` does not read GITHUB_REPOSITORY on its own; a job that omits this
     // fails at the first gh call, and here that is the release itself.

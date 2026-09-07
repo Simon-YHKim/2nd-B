@@ -961,7 +961,9 @@
       "afterLabel": "após +{{n}}",
       "cta": "Ver anúncio e ganhar +{{n}}",
       "later": "Agora não",
-      "privacy": "Somente adultos com consentimento · nunca em telas sensíveis"
+      "privacy": "Somente adultos com consentimento · nunca em telas sensíveis",
+      "capReached": "Você chegou ao limite deste mês. Ele volta a abrir no mês que vem.",
+      "creditFailed": "Não foi possível confirmar o acréscimo. Confira de novo o seu saldo daqui a pouco."
     },
     "rewardChat": {
       "titleA": "30 segundos para ",
@@ -971,7 +973,9 @@
       "afterLabel": "após +{{n}}",
       "cta": "Assistir e ganhar +{{n}}",
       "later": "Mais tarde",
-      "privacy": "Somente adultos com consentimento · nunca em telas sensíveis"
+      "privacy": "Somente adultos com consentimento · nunca em telas sensíveis",
+      "capReached": "Você chegou ao limite deste mês. Ele volta a abrir no mês que vem.",
+      "creditFailed": "Não foi possível confirmar o acréscimo. Confira de novo as conversas restantes de hoje daqui a pouco."
     },
     "reasoningLimit": {
       "title": "Você usou as execuções base desta semana.",

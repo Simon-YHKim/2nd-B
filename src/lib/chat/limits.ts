@@ -59,11 +59,26 @@ const NEXT_TIER: Record<SubscriptionTier, SubscriptionTier | null> = {
   brain: null,
 };
 
+/**
+ * How many sends TODAY actually allows: the tier cap widened by any rewarded-ad
+ * bonus. Phase 4 (0090); the server RPC applies the same `count < cap + ad_bonus`
+ * gate, so this is the number a UI must gate on.
+ *
+ * Exported because the chat screen needs it too. It used to compute the wall
+ * from CHAT_DAILY_LIMIT alone, which locked the composer at the bare cap while
+ * the engine and the server would both still have accepted the turn -- a user
+ * who watched an ad could not spend what they earned. One function so the two
+ * cannot drift apart again.
+ */
+export function chatAllowance(tier: SubscriptionTier, adBonus = 0): number {
+  return CHAT_DAILY_LIMIT[tier] + Math.max(0, adBonus);
+}
+
 export function checkChatLimit(tier: SubscriptionTier, used: number, adBonus = 0): ChatLimitCheck {
   // Phase 4 (0090): rewarded ads widen TODAY's allowance by ad_bonus — the
   // server RPC applies the same `count < cap + ad_bonus` gate.
   const limit = CHAT_DAILY_LIMIT[tier];
-  const allowance = limit + Math.max(0, adBonus);
+  const allowance = chatAllowance(tier, adBonus);
   const remaining = Math.max(0, allowance - used);
   const allowed = used < allowance;
   return {
