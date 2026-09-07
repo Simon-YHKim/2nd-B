@@ -2,7 +2,7 @@
   "loading": "Carregando importação…",
   "hero": {
     "eyebrow": "08-5. Importar",
-    "title": "Traga autoconhecimento externo para o 2nd-Brain",
+    "title": "Importe notas e resultados de testes",
     "subtitle": "Outros assistentes · resultados de testes · notas",
     "speech": "O material colado é organizado primeiro e salvo só quando você confirmar."
   },
@@ -17,7 +17,7 @@
   "pasteCard": {
     "eyebrow": "Colar",
     "title": "Resposta ou resultado de teste",
-    "description": "Cole a resposta, uma disposição anterior ou resultado de teste de personalidade, ou notas sobre você. O 2nd-Brain vai organizar e marcar tudo na sua estrutura.",
+    "description": "Cole uma resposta de outro assistente, um resultado de teste de personalidade ou notas sobre você. O 2nd-Brain organiza o conteúdo e adiciona etiquetas.",
     "placeholder": "Cole aqui…",
     "accessibilityLabel": "Material a importar",
     "sort": "Organizar e classificar",
@@ -26,12 +26,12 @@
   "toast": {
     "promptPlaced": "As perguntas foram colocadas abaixo. Mantenha pressionado para copiá-las.",
     "saveFailed": "Não foi possível salvar. O resultado organizado ainda está aqui, tente novamente.",
-    "storagePending": "Salvo. A cópia do arquivo de backup não subiu desta vez, seu texto está guardado com segurança."
+    "storagePending": "Salvo. O backup do arquivo não foi enviado desta vez, mas o texto foi salvo."
   },
   "result": {
     "eyebrow": "Resultado organizado",
     "title": "Registro importado",
-    "degraded": "A organização profunda estava indisponível, então este é um processamento local básico. Tente novamente para uma organização mais completa.",
+    "degraded": "O material foi organizado apenas com os recursos deste dispositivo. A análise completa não estava disponível. Tente novamente se quiser usá-la.",
     "meta": "{{count}} itens · {{track}}",
     "track": {
       "pro": "trabalho e especialidade",
@@ -42,9 +42,9 @@
   },
   "saved": {
     "title": "Salvo",
-    "body": "Seu centro e o SecondB agora podem usar esses registros.",
-    "graph": "Ver o grafo",
-    "graphHint": "Abre o grafo principal.",
+    "body": "Esses registros já podem ser usados no seu resumo e nas respostas do SecondB.",
+    "graph": "Ver o mapa",
+    "graphHint": "Abre o mapa principal.",
     "more": "Importar mais",
     "moreHint": "Limpa esta importação e inicia outra."
   },

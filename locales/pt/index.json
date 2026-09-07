@@ -1,7 +1,7 @@
 {
-  "villageQuiet": "A vila está quieta",
-  "firstPiece": "Deixe um primeiro fragmento",
-  "firstPieceHint": "Abre a captura para salvar seu primeiro fragmento",
+  "villageQuiet": "Ainda não há registros",
+  "firstPiece": "Adicionar meu primeiro registro",
+  "firstPieceHint": "Abre a captura para salvar seu primeiro registro",
   "lookFirst": "Vou dar uma olhada primeiro",
   "lookFirstLabel": "Dar uma olhada primeiro",
   "dismissFirstRun": "Fecha o cartão de boas-vindas",
@@ -14,9 +14,9 @@
   "openPatternCore": "Abre este Núcleo de Padrões em detalhe",
   "retryLoad": "Tentar carregar de novo",
   "openRecords": "Abrir meus registros",
-  "openCenter": "Abrir o centro de hoje",
+  "openCenter": "Abrir o resumo de hoje",
   "retryLoadHint": "Tenta carregar os dados do gráfico de novo",
   "openRecordsHint": "Abre o arquivo de registros",
-  "openCenterHint": "Abre o Núcleo da alma",
-  "todaysCenter": "O centro de hoje"
+  "openCenterHint": "Abre a Estrela Polar",
+  "todaysCenter": "Resumo de hoje"
 }

@@ -2,7 +2,7 @@
   "loading": "Cargando la evaluación…",
   "intro": {
     "title": "Estilo de apego (ECR-S)",
-    "description": "Veremos juntos tu patrón en las relaciones cercanas a través de dos ejes: ansiedad y evitación. Luego veremos hacia cuál de los cuatro estilos te inclinas. Piensa en tus relaciones cercanas en general, no en una persona concreta. Se divide en 3 páginas, 5 ítems cada una (la última tiene 2).",
+    "description": "Este test describe tus relaciones cercanas según dos aspectos: ansiedad y evitación. El resultado indica a cuál de los cuatro estilos se acercan tus respuestas. Piensa en tus relaciones en general, no en una persona concreta. Hay 3 páginas de 5 preguntas cada una, salvo la última, que tiene 2.",
     "citation": "Wei, Russell, Mallinckrodt y Vogel (2007) · forma corta validada"
   },
   "survey": {
@@ -16,9 +16,9 @@
   "saved": "Guardado · se encendió una estrella",
   "saveError": "No pudimos guardar tus resultados. Tus respuestas siguen aquí.",
   "exit": {
-    "notice": "Aviso para salir de la evaluación",
+    "notice": "Salir del test",
     "title": "¿Salir de la evaluación?",
-    "body": "¿Seguro que quieres salir? Tu progreso no se guardará.",
+    "body": "Si sales ahora, tus respuestas no se guardarán.",
     "cancel": "Cancelar",
     "cancelHint": "Continúa con la evaluación.",
     "confirm": "Salir",

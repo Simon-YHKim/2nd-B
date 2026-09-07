@@ -1,13 +1,13 @@
 {
   "villageQuiet": "Desa sedang sepi",
-  "firstPiece": "Tinggalkan serpihan pertama",
+  "firstPiece": "Simpan catatan pertama",
   "firstPieceHint": "Membuka halaman Simpan untuk menambahkan catatan pertama",
   "lookFirst": "Lihat-lihat dulu",
   "lookFirstLabel": "Lihat-lihat dulu",
   "dismissFirstRun": "Menutup kartu awal",
   "makeReadable": "Buat mudah dibaca",
   "fontChanges": "Fontnya langsung berubah.",
-  "likeAsIs": "Suka apa adanya",
+  "likeAsIs": "Tetap pakai font ini",
   "closesOffer": "Menutup tawaran ini.",
   "graphHint": "Petunjuk grafik",
   "closesHint": "Menutup petunjuk ini",
@@ -17,6 +17,6 @@
   "openCenter": "Buka pusat hari ini",
   "retryLoadHint": "Mencoba memuat data grafik lagi",
   "openRecordsHint": "Membuka arsip catatan",
-  "openCenterHint": "Membuka Inti Jiwa",
+  "openCenterHint": "Membuka Bintang Utara",
   "todaysCenter": "Pusat hari ini"
 }

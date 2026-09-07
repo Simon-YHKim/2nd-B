@@ -2,16 +2,16 @@
   "loading": "Memuat penelitian...",
   "error": {
     "title": "Gagal memuat penelitian",
-    "body": "Koneksi terputus sejenak. Coba lagi untuk memuat ulang perpustakaan.",
+    "body": "Daftar sumber belum bisa dimuat. Coba lagi.",
     "retry": "Coba lagi"
   },
   "hero": {
     "eyebrow": "Penelitian",
-    "title": "Buat buktinya tetap terlihat",
+    "title": "Lihat sumber yang digunakan",
     "subtitle": "Big Five - kelekatan - CBT - VIA",
     "speech": "Hanya sumber terverifikasi yang bisa dikutip SecondB yang tampil di sini."
   },
-  "empty": "Belum ada sumber. Alur kurasi sedang dalam proses.",
+  "empty": "Belum ada sumber. Daftarnya masih disiapkan.",
   "filter": {
     "label": "Filter berdasarkan kerangka",
     "accessibilityLabel": "Filter kerangka",

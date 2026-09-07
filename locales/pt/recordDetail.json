@@ -4,12 +4,12 @@
     "record": "Carregando este registro..."
   },
   "state": {
-    "missingTitle": "Peça não encontrada",
-    "errorTitle": "Não foi possível carregar esta peça"
+    "missingTitle": "Registro não encontrado",
+    "errorTitle": "Não foi possível carregar este registro"
   },
   "body": {
-    "sourceEmpty": "Uma fonte capturada. Abra a tela abaixo para ver o conteúdo completo.",
-    "noText": "Esta peça não tem texto."
+    "sourceEmpty": "Material salvo. Abra a fonte para ver o conteúdo completo.",
+    "noText": "Este registro não tem texto."
   },
   "advisor": {
     "heading": "Nota do SecondB",
@@ -19,8 +19,8 @@
   },
   "actions": {
     "backToRecords": "Voltar aos registros",
-    "seeGraph": "Ver no grafo",
+    "seeGraph": "Ver no mapa",
     "askSecondB": "Perguntar ao SecondB",
-    "openSource": "Abrir a tela"
+    "openSource": "Abrir material original"
   }
 }

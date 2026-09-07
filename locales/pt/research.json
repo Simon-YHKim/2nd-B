@@ -2,16 +2,16 @@
   "loading": "Carregando pesquisa...",
   "error": {
     "title": "Não foi possível carregar a pesquisa",
-    "body": "A conexão pausou por um momento. Tente novamente para recarregar a biblioteca.",
+    "body": "Não foi possível carregar a biblioteca. Tente novamente.",
     "retry": "Tentar novamente"
   },
   "hero": {
     "eyebrow": "Pesquisa",
-    "title": "Mantenha as evidências visíveis",
+    "title": "Fontes usadas pelo SecondB",
     "subtitle": "Big Five - apego - CBT - VIA",
     "speech": "Apenas fontes verificadas que o SecondB pode citar aparecem aqui."
   },
-  "empty": "Nenhuma fonte ainda. O fluxo de curadoria está em andamento.",
+  "empty": "Ainda não há fontes verificadas nesta lista.",
   "filter": {
     "label": "Filtrar por modelo",
     "accessibilityLabel": "Filtros de modelo",
