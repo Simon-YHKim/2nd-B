@@ -299,7 +299,7 @@ function RegistryHeader({ counts }: { counts: ReturnType<typeof entryRoleCounts>
           로그인 필요 {counts.authRequired}
         </Text>
         <Text variant="caption">
-          QA 변형 {devScreenVariants().length} — 라우트 수에 세지 않습니다. 소유 화면 바로 아래에 붙습니다.
+          QA 변형 {devScreenVariants().length} - 라우트 수에 세지 않습니다. 소유 화면 바로 아래에 붙습니다.
         </Text>
         <Text variant="subtle">
           이 목록은 `src/app` 실제 라우트와 1:1 로 대조됩니다. 역할이나 파일이 어긋나면 CI 가 막습니다.

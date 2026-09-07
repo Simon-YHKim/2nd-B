@@ -68,7 +68,7 @@ describe("composeWikiExport", () => {
     ]);
     expect(r.recordCount).toBe(2);
     expect(r.prompt).toContain("## Records (journal & notes)");
-    expect(r.prompt).toContain("### 2026-06-11 · Journal — 하루 · tags: daily");
+    expect(r.prompt).toContain("### 2026-06-11 · Journal - 하루 · tags: daily");
     expect(r.prompt).toContain("오늘 배달 사이에 쓴 일기.");
     expect(r.prompt).toContain("### 2026-06-10 · Note");
     expect(r.prompt).toContain("short note");
@@ -86,7 +86,7 @@ describe("composeWikiExport", () => {
     const r = composeWikiExport([], [], { asOf: "2026-05-25", bodyCharLimit: 100 }, [
       { kind: "journal", topic: null, body: longBody, created_at: "2026-06-11T00:00:00Z", tags: null },
     ]);
-    expect(r.prompt).toContain("_(body truncated — original is 500 chars)_");
+    expect(r.prompt).toContain("_(body truncated - original is 500 chars)_");
   });
 
   test("page formatted with slug heading, frontmatter, body", () => {
