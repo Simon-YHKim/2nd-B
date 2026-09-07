@@ -134,6 +134,94 @@ test("줄 번호를 단 이름 인용이 저장소 파일 하나로 풀린다", 
   expect(unresolved).toEqual([]);
 });
 
+// 마이그레이션을 번호로만 인용하면 **어떤 가드도 그 파일을 못 찾는다.**
+//
+// `0038:12-19` 는 줄 범위를 달고 있으니 회차 43 의 규칙대로 인용이다 - 아무도
+// 줄 번호를 붙여 가며 지나가는 말을 하지 않는다. 그런데 위의 인용 정규식은
+// **확장자**가 있어야 경로로 알아보므로, 이 형태는 검사 전체 밖에 있었다:
+//
+//   경로 실재        검사 안 함
+//   줄 <= 파일 길이   검사 안 함
+//   앵커 인접        검사 안 함
+//
+// 회차 58 에서 42건이 그 상태였다. 회차 57 의 결함이 한 번 더 나온 것이다 -
+// **가드가 볼 수 없는 표기.**
+//
+// ⚠ 줄 번호 **없는** `0031` 은 그대로 둔다. 같은 규칙대로 그건 산문이다.
+const ABBREVIATED_MIGRATION = /`(\d{4})(?::[0-9][0-9,\-\s]*)`/g;
+
+test("줄 번호를 단 축약 마이그레이션 인용이 없다", () => {
+  const found: string[] = [];
+  for (const doc of docs) {
+    const text = fs.readFileSync(path.join(LEGAL_DIR, doc), "utf8");
+    text.split("\n").forEach((line, index) => {
+      for (const match of line.matchAll(ABBREVIATED_MIGRATION)) {
+        found.push(`${doc}:${index + 1} \`${match[1]}…\` - db/migrations/ 경로로 적을 것`);
+      }
+    });
+  }
+  expect(found).toEqual([]);
+});
+
+// 경로 없이 이름만 적은 인용은 **저장소 루트 파일일 때만** 성립한다.
+//
+// `package.json:16` 은 이름이 곧 저장소 기준 경로라 문제가 없다. 반면
+// `prefs.ts:55-62` 는 경로가 빠진 것이고, 앵커 가드가 **파일 문자열로 대조**
+// 하므로 그런 인용은 `src/lib/privacy/prefs.ts` 앵커에 영원히 안 걸린다.
+// 회차 57 이 그 틈에서 이미 닫힌 결함 부류 넷을 찾았다.
+test("경로 없는 인용은 저장소 루트 파일일 때만", () => {
+  const bad: string[] = [];
+  for (const c of citations) {
+    if (!c.bare) continue;
+    const resolved = resolveBare(c.file);
+    if (resolved.length === 1 && resolved[0] !== c.file) {
+      bad.push(`${c.doc}:${c.docLine} \`${c.file}\` -> \`${resolved[0]}\` 로 적을 것`);
+    }
+  }
+  expect(bad).toEqual([]);
+});
+
+// 한 파일을 **두 표기로** 인용하면, 그 파일을 감사한 회차가 절반만 고친다.
+//
+// 회차 45·49·50·53·56 이 prefs.ts · recommend.ts · consent-age.ts ·
+// conversation.ts · lexicon.ts 를 재독하고 긴 표기(`src/lib/privacy/prefs.ts:NN`)를
+// 고쳤다. 문서는 같은 파일을 짧은 표기(`prefs.ts:NN`)로도 인용하고 있었고, 위의
+// "이름 인용" 검사가 **경로는 풀어 주므로** 표기 자체는 합법이었다.
+//
+// 그래서 **두 겹으로 덮인 것처럼 보였다** - 파일은 감사됐고 가드는 그 표기를
+// 보고 있었다. 줄 번호에 대해서는 둘 다 사실이 아니었고, 짧은 표기 24건이 한
+// 번도 안 읽혔다. 그 안에서 **이미 닫힌 결함 부류 셋이 살아남았다**:
+//
+//   회차 45  문서가 credit 하는데 존재하지 않는 설정 (llm_training)
+//   회차 49  울타리 대신 캐시 주석을 가리키는 인용
+//   회차 50  "관할 신호 없음" - 그 신호가 붙었다고 적힌 줄을 인용해서
+//
+// 마지막이 가장 나빴다. `consent-age.ts:8-14` 는 "2026-08-16: the country
+// signal landed" 로 시작하는데, 세 자리가 **정확히 그 범위를 인용해서** 신호가
+// 없다고 주장하고 있었다. 그중 하나가 P1 시정 표의 행이다.
+//
+// 이 검사는 줄 번호를 검증하지 않는다 - 그건 사람이 읽어야 한다. 검증하는 것은
+// **한 파일이 한 표기만 갖는다**는 것뿐이고, 그래야 한 파일을 감사한 회차가 그
+// 파일의 인용 전부를 감사한 것이 된다.
+test("한 파일을 두 표기로 인용하지 않는다", () => {
+  const split: string[] = [];
+  for (const doc of docs) {
+    const inDoc = citations.filter(c => c.doc === doc);
+    const longForms = new Set(inDoc.filter(c => !c.bare).map(c => c.file));
+    const seen = new Set<string>();
+    for (const c of inDoc) {
+      if (!c.bare || seen.has(c.file)) continue;
+      const resolved = resolveBare(c.file);
+      if (resolved.length === 1 && longForms.has(resolved[0])) {
+        seen.add(c.file);
+        const lines = inDoc.filter(o => o.bare && o.file === c.file).map(o => o.docLine);
+        split.push(`${doc}: \`${c.file}\` 와 \`${resolved[0]}\` 가 같은 파일 - 짧은 표기 ${lines.join(",")}행`);
+      }
+    }
+  }
+  expect(split).toEqual([]);
+});
+
 test("이름 인용의 줄 번호도 파일 길이를 넘지 않는다", () => {
   const overrun = citations
     .filter(c => c.bare && c.maxLine !== null && resolveBare(c.file).length === 1)
