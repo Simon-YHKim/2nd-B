@@ -41,6 +41,13 @@ export interface PixelPressableProps {
   children?: ReactNode;
   accessibilityLabel?: string;
   accessibilityHint?: string;
+  /**
+   * BCP 47 tag for content whose language differs from the UI's. Forwarded
+   * because a shared wrapper that quietly drops a standard accessibility prop
+   * makes the screen using it look correct while doing nothing.
+   * ⚠ iOS/native only: React Native Web forwards neither this nor `lang`.
+   */
+  accessibilityLanguage?: string;
   /** 기본은 button. 링크처럼 다른 네이티브 역할이 필요한 공용 CTA 에서만 바꾼다. */
   accessibilityRole?: AccessibilityRole;
   /** busy/selected/expanded 등 호출부가 소유한 상태. disabled 는 `disabled` prop 이 정본이다. */
@@ -62,6 +69,7 @@ export function PixelPressable({
   children,
   accessibilityLabel,
   accessibilityHint,
+  accessibilityLanguage,
   accessibilityRole = "button",
   accessibilityState,
   disabled = false,
@@ -85,6 +93,7 @@ export function PixelPressable({
       accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
+      accessibilityLanguage={accessibilityLanguage}
       accessibilityState={{ ...accessibilityState, disabled }}
       style={[styles.root, fullWidth && styles.fullWidth, rootStyle]}
     >
