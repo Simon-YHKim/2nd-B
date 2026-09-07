@@ -7,7 +7,23 @@
 // wiring be reviewed against main's current pixel-clay account screen rather
 // than against the worktree's pre-migration copy of it.
 //
-// Do not delete it for having no callers. Its caller is the next change.
+// Do not delete it for having no callers.
+//
+// ⚠ CORRECTION, measured after the header above was written. main's pixel-clay
+// account screen ALREADY exports end to end: dds-account-actions.exportAccountData
+// requests, times out, checks the session is still active, VERIFIES the bundle's
+// user_id against the initiating account, and hands off; dds-account-screen
+// delivers via Share on native and a blob download on web.
+//
+// So this module is not a missing piece - it is an older, alternative take on the
+// same job, written before that migration. Wiring it in as-is would replace
+// working code that has an ownership boundary this one does not.
+//
+// It lands anyway because it existed on no ref and its tests cover cases main's
+// path does not (temporary-file cleanup, share-sheet dismissal, partial-export
+// confirmation). Whether any of that is worth folding INTO main's path is a
+// review, not an assumption - and until that review happens, main's path stays
+// the live one. Do not wire this in without doing it.
 //
 // Hands an already validated bundle to the platform's save/share surface. No
 // upload and no network of its own.
