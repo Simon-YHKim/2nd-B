@@ -356,6 +356,10 @@ jobs:
             echo "::error::EXPO_TOKEN is required for authenticated EAS provenance verification."
             exit 1
           fi
+          # ⚠ 아래 스크립트는 String.raw 템플릿으로 파일에 써진다. 본문(주석 포함)에
+          #   backtick 을 쓰면 템플릿이 거기서 닫히고 나머지가 깨진 JS 가 되어 node 가
+          #   'missing ) after argument list' 로 죽는다. 2026-09-07 에 실제로 그렇게
+          #   막혔다(de0fe630 이 주석 두 줄에 backtick 을 들여왔다). 코드 인용은 작은따옴표로.
           CHECKER="$RUNNER_TEMP/eas-provenance.cjs"
           export CHECKER
           node <<'NODE'
@@ -512,7 +516,7 @@ jobs:
                 const branch = String(value.branch || "");
                 if (UUID.test(id) && branches.has(branch)) {
                   byId.set(lower(id), id);
-                  // Keep the CLI record, not just its id. `eas update:view`
+                  // Keep the CLI record, not just its id. 'eas update:view'
                   // reports runtimeVersion for every update; the GraphQL query
                   // below asks for runtime { version } and does not select
                   // runtimeVersion at all, so when that object is absent there
@@ -536,7 +540,7 @@ jobs:
           // undefined and every record fails identity. That is what produced
           // "android=NO_MATCH ios=NO_MATCH" on 2026-09-07 for two updates whose
           // platform, gitCommitHash and runtimeVersion were all correct when
-          // read back with `eas update:view`.
+          // read back with 'eas update:view'.
           //
           // This does not loosen the comparison: when both sources answer they
           // must agree, and the value still has to equal the expected runtime.
