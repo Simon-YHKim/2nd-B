@@ -75,7 +75,7 @@
         "desc": "Allow ads while on the free plan. Off means no ads at all."
       },
       "ops_push": {
-        "label": "Routine push",
+        "label": "Send routines",
         "desc": "Keep handing approved routine items to your calendar and share sheet without asking each time. Off asks again on the next push."
       },
       "sharing": {
@@ -88,7 +88,7 @@
       },
       "external_analytics": {
         "label": "External analytics",
-        "desc": "Send app usage signals, not entry text, to outside analytics services."
+        "desc": "Send app usage information to an external analytics service. Record contents are not sent."
       },
       "llm_training": {
         "label": "Model training permission",
@@ -96,15 +96,15 @@
       },
       "persona_export": {
         "label": "Profile export",
-        "desc": "Let you export your self-profile to a file."
+        "desc": "Allow your personal summary to be exported as a file."
       },
       "persona_share": {
         "label": "Profile sharing",
-        "desc": "Let you share your self-profile with other people."
+        "desc": "Allow your personal summary to be shared with other people."
       },
       "long_term_memory": {
         "label": "Long-term memory",
-        "desc": "Let your saved entries carry over between sessions so the tool can reference them."
+        "desc": "Let the app refer to saved records when you return."
       },
       "chat_autosave": {
         "label": "Save conversations to your wiki",
@@ -115,19 +115,19 @@
   },
   "account": {
     "export": {
-      "label": "Your data",
+      "label": "Account data export",
       "body": "Download the account data the server exports, as a structured JSON file. The file names what it leaves out and why.",
-      "button": "Export my data",
+      "button": "Prepare account file",
       "buttonHint": "Builds a JSON export of your account data.",
-      "done": "Export ready.",
+      "done": "File prepared. No read failures were reported for the returned scope.",
       "donePartial": "Export ready, but not complete. Items the server could not read: {{count}}. The file lists each one under \"errors\".",
-      "failed": "Couldn't build the export. Try again."
+      "failed": "Could not prepare the file. Wait a little before trying again; requests may be rate-limited."
     },
     "loading": "Loading account…",
     "eyebrow": "Account",
-    "title": "Your account, your call",
+    "title": "My account",
     "subtitle": "Fix your details, manage privacy, or close your account.",
-    "speech": "Anything about your account lives here. No rush.",
+    "speech": "Review or change your account details here.",
     "dob": {
       "label": "Correct your date of birth",
       "hint": "Fix a mistyped birth date. It must be a real date and meet the age floor.",
