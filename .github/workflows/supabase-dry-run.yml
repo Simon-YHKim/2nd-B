@@ -309,8 +309,8 @@ jobs:
             FROM public.consent_records
             WHERE user_id = '01500000-0000-0000-0000-000000000001';
 
-            IF ledger.consent_version IS DISTINCT FROM '2026-09-02'
-               OR ledger.policy_version IS DISTINCT FROM '2026-09-02'
+            IF ledger.consent_version IS DISTINCT FROM '2026-09-07'
+               OR ledger.policy_version IS DISTINCT FROM '2026-09-07'
                OR ledger.terms_version IS DISTINCT FROM '2026-08-16'
                OR ledger.purposes IS DISTINCT FROM '["service", "marketing"]'::jsonb
                OR ledger.optional_consents IS DISTINCT FROM '{"marketing":true}'::jsonb
