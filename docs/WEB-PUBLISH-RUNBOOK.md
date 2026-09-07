@@ -339,8 +339,9 @@ main이 이동하면 그 run은 버려진다. 이것은 **낡은 커밋을 공�
 ::error::The main workflow ref became stale before verification.
 ```
 
-main이 움직인 뒤 content digest만 어긋나면 `Hash and approve immutable Pages content`에서
-대신 터진다(run `34065192766`). 두 경우 모두 `deploy` job은 `skipped`다.
+`Hash and approve immutable Pages content` 에서도 터질 수 있는데 **그건 다른 원인이다**
+(run `34065192766`). 두 경우 모두 `deploy` job은 `skipped`라 **끝나는 모양이 같다** — 무엇이
+터졌는지는 바로 아래 절에서 에러 메시지로 가른다.
 
 ### ⚠ digest 불일치는 대개 main 이동이 **아니다** — 빌드가 재현되지 않는다
 
