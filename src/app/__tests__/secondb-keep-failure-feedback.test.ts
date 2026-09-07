@@ -329,7 +329,7 @@ describe("실패 안내가 화면에 붙어 있고 문구가 정직하다", () =
     // locales/id/secondb.json 실측: Anda 0 · kamu/-mu 43. 격식 인칭을 새로
     // 들여오면 이 화면 안에서만 말투가 갈린다.
     const id = localeJson("id").keepFailed as string;
-    expect(id).not.toMatch(/Anda/);
+    expect(id).not.toMatch(/\bAnda\b/);
   });
 
   test("금지된 표현이 없다", () => {

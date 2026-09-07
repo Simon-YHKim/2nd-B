@@ -95,8 +95,10 @@ CI의 기술 문맥도 파일 전체를 허용하지 않는다. `LEXICON_NON_CLI
 - `check:crisis-parity`, `check:legal-review`, 변경 파일 ESLint, `git diff --check` 통과.
 - 시작 스냅샷과 비교해 FORBIDDEN, CRISIS, HOTLINES, 경로 allowlist, ANALYSIS 3종
   목록이 동일함을 확인했다. 위기 분류·전화번호·동의 경계의 동작 변경은 없다.
-- 안전 테스트 최종 실행 20 suites / 284 tests 통과. 결과는
-  `Output/plain-language-260906/lexicon-safety-tests.json`에 남겼다.
+- 안전 테스트 최종 실행 20 suites / 284 tests 통과. 결과는 세션 산출물
+  lexicon-safety-tests.json (저장소 밖 · Output/plain-language-260906/) 에 남겼다.
+  ⚠ 저장소에 없는 파일이라 코드 인용 형식(백틱)을 걷었다 — 이 문서를 받는 사람이
+  저장소에서 찾을 수 없다. 증거를 함께 남기려면 커밋해서 경로를 되살리면 된다.
 
 ## 6. 추가 검토를 분리한 이유
 

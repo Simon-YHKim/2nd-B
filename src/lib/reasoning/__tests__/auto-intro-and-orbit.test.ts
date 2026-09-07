@@ -55,7 +55,7 @@ describe("spec D — constant-speed orbit ring while running", () => {
     expect(args).toContain("toValue: 1");
     expect(args).toMatch(/easing: (pixelStepsFor\(|Easing\.linear)/);
     // ⚠ 'duration' 안에 'ratio' 가 들어 있다. 낱말 경계를 잡지 않으면 자기 자신에게 걸린다.
-    expect(args).not.toMatch(/(progress|ratio|pct|percent)/i);
+    expect(args).not.toMatch(/\b(progress|ratio|pct|percent)\b/i);
   });
 
   test("the determinate percent bar is gated to the done phase", () => {

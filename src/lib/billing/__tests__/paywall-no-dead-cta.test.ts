@@ -88,7 +88,9 @@ describe("the store notice does not send users somewhere they cannot buy", () =>
     expect(body.trim().length).toBeGreaterThan(0);
     // The honest promise that must survive rewording: nothing is charged yet.
     expect(`${title} ${body}`).toMatch(
-      /청구되지 않습니다|nothing is charged|no se te cobrará|tidak ada yang ditagih|nada é cobrado/i,
+      // Korean allows either register — "청구되지 않습니다" or "청구하지 않아요" — so match
+      // the claim, not one phrasing of it.
+      /청구(되지|하지)\s?않|nothing is charged|no se te cobrará|tidak ada yang ditagih|nada é cobrado/i,
     );
   });
 });

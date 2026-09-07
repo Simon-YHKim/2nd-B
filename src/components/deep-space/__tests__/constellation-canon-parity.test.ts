@@ -85,7 +85,7 @@ describe("constellation home <-> canon parity", () => {
     const profile = canonStars.find((s) => s.id === "profile");
     expect(profile).toBeDefined();
     expect(profile!.level).toBeUndefined();
-    expect(/const\s+\w*PROFILE\w*_LEVEL/.test(SRC)).toBe(false);
+    expect(/const\s+\w*PROFILE\w*_LEVEL\b/.test(SRC)).toBe(false);
     expect(SRC).not.toContain("MUSEUM_LEVEL");
   });
 
