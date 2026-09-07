@@ -40,7 +40,7 @@ import { Text } from "@/components/ui/Text";
 // Deliberately the ./museum subpath, not the @/lib/canon barrel: 458d3a8b kept
 // the AI 뮤지엄 pack out of the canon index so it stays off the web entry, and
 // web-bundle-shims.test.ts fails the build if anything else pulls it in.
-import { canonMuseum } from "@/lib/canon/museum";
+import { CANON_MUSEUM_LANGUAGE, canonMuseum } from "@/lib/canon/museum";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { m3 } from "@/lib/theme/m3";
@@ -460,6 +460,14 @@ export function MuseumTimelineScreen() {
                     )
                   }
                   accessibilityLabel={`${event.ylabel} ${event.title}`}
+                  // The titles are Korean in every locale (the canon is KO-only
+                  // for event content). Saying so is accessibility correctness,
+                  // not a content decision: without it an English screen reader
+                  // voices Korean in an English voice.
+                  // ⚠ Native only. React Native Web forwards neither `lang` nor
+                  // `accessibilityLanguage`, so there is no web path for this
+                  // through RN props - measured, not assumed.
+                  accessibilityLanguage={CANON_MUSEUM_LANGUAGE}
                   accessibilityState={{ selected: active, expanded: active }}
                   rootStyle={[
                     styles.nodeRoot,
@@ -558,6 +566,9 @@ export function MuseumTimelineScreen() {
               },
             ]}
             accessibilityViewIsModal
+            // One attribute on the container covers the whole Korean detail
+            // body: title, sub, long copy, fact rows, cause and effect.
+            accessibilityLanguage={CANON_MUSEUM_LANGUAGE}
             accessibilityLiveRegion="polite"
             accessibilityState={{ expanded: true }}
             {...sheetPan.panHandlers}
