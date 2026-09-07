@@ -175,8 +175,12 @@ Project-specific guidance for Claude Code sessions in this repo.
 > |---|---:|---|---|---:|---:|---:|
 > | `gemini` | 109 | 2026-07-10 | **2026-08-23** | 2,678ms | 9,407ms | 116,306 |
 > | `openai` | **34** | **2026-08-19** | **2026-09-07** | 2,513ms | 4,408ms | 12,403 |
-> | `claude` | **0** | — | — | — | — | — |
+> | `claude` | **0** \* | — | — | — | — | — |
 > | (null = lexicon-only) | 180 | 2026-05-25 | 2026-09-07 | 0ms | 5,181ms | — |
+>
+> \* `claude` 는 **0 을 센 것이 아니라 행이 아예 없다** — `group by` 결과에 나타나지도
+> 않는다. 표에서는 0 으로 읽되, 근거는 "0건을 세었다"가 아니라 **"그 벤더로 기록된 행이
+> 존재한 적 없다"** 다. (두 세션이 각자 조회해 같은 결과를 얻었다.)
 >
 > **OpenAI 는 08-18 바로 다음 날부터 실호출을 시작했다.** 08-18 실측은 그 시점에 맞았고,
 > 하루 뒤에 낡았다. **Claude 는 여전히 0건**이라 그 절반은 유효하다.
@@ -741,14 +745,20 @@ Too much at once is as bad as overlap. Every screen earns attention with ONE thi
 
 ## Worktrees & branches (Simon standing rule)
 
-The canonical checkout is `C:\2ndB` on `main`. ALL git worktrees live INSIDE this
+The canonical checkout is `E:\2ndB` on `main`. ALL git worktrees live INSIDE this
 repo under `.worktrees/<name>` (gitignored). Never create a worktree as a sibling
 folder (e.g. `C:\2ndB-dev`) or under `C:\Coding Infra\_worktrees\`. This applies to
 every agent: Claude, Codex, Antigravity, Grok.
 
 - Create from the repo root: `git worktree add .worktrees/<name> -b <branch>`.
   Remove: `git worktree remove .worktrees/<name>`. Move an existing one in:
-  `git worktree move <old-path> C:/2ndB/.worktrees/<name>`.
+  `git worktree move <old-path> E:/2ndB/.worktrees/<name>`.
+
+  > ⚠ **드라이브는 `E:` 다.** 이 두 지시문은 `C:\2ndB` 를 가리키고 있었다 —
+  > 그 경로는 **존재하지 않는다**(실측 2026-09-08; `git -C E:/2ndB rev-parse
+  > --git-common-dir` = `E:/2ndB/.git`). 바로 아래 "이렇게 하지 마라" 예시의
+  > `C:\2ndB-dev` · `C:\Coding Infra\_worktrees\` 는 **실재할 필요가 없으므로
+  > 그대로 둔다** — 고칠 것은 따라 하라고 적힌 줄뿐이다.
 - Share the install: junction the worktree's `node_modules` to the canonical
   `E:\2ndB\node_modules` rather than a per-worktree `npm ci`. **Use this, and
   check it worked** (measured 2026-09-08):

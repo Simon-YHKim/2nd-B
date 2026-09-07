@@ -536,3 +536,43 @@ describe("워크트리 설치 공유 지시", () => {
     }
   });
 });
+
+// ── 워크트리 절의 드라이브가 실재하는가 ──────────────────────────────
+//
+// 2026-09-08: `#1751` 이 722행을 `E:\2ndB\node_modules` 로 고치는데 같은 절 위쪽
+// 두 **지시문**이 아직 `C:\2ndB` 를 가리켜서, PR 이 **한 절 안에서 드라이브가 갈리는
+// 문서**를 만들 뻔했다. 조율자가 머지 전에 잡았다. 실측: `C:/2ndB` 는 존재하지 않고
+// `git -C E:/2ndB rev-parse --git-common-dir` 는 `E:/2ndB/.git` 이다.
+//
+// ⚠ **"하지 마라" 예시는 대상이 아니다.** 같은 절의 `C:\2ndB-dev` ·
+//    `C:\Coding Infra\_worktrees\` 는 실재하면 안 되는 반례라서 그대로 둔다.
+//    검사하는 것은 **따라 하라고 적힌 줄**뿐이다.
+describe("워크트리 절의 경로", () => {
+  it("지시문이 존재하지 않는 C: 저장소를 가리키지 않는다", () => {
+    const lines = read("CLAUDE.md").split("\n");
+    const start = lines.findIndex((l) => l.startsWith("## Worktrees & branches"));
+    expect(start).toBeGreaterThan(-1);
+    const end = lines.findIndex((l, i) => i > start && l.startsWith("## "));
+    const section = lines.slice(start, end === -1 ? undefined : end);
+
+    const offenders = section
+      .map((l, i) => ({ line: start + i + 1, text: l }))
+      // 반례 예시(하지 마라)와 정정 블록의 인용은 뺀다.
+      .filter(({ text }) => !/2ndB-dev|Coding Infra|가리키고 있었다|그대로 둔다/.test(text))
+      .filter(({ text }) => /C:[\/]2ndB\b/.test(text))
+      .map(({ line, text }) => `L${line} ${text.trim().slice(0, 60)}`);
+    expect({ offenders }).toEqual({ offenders: [] });
+  });
+
+  it("정본 체크아웃 경로를 한 곳에서만 선언한다", () => {
+    // ⚠ 여기서 `../../.git` 존재를 단언하려다 뺐다. 그 경로는 **내 워크트리에서만**
+    //    참이고(`E:/2ndB/.worktrees/<name>` 의 두 단계 위가 정본), CI 체크아웃은
+    //    저장소 루트라 거짓이 된다. 로컬에서 초록인 채로 CI 를 깨뜨릴 검사였다.
+    //    파일시스템을 묻지 말고 **문서가 무엇을 선언하는지**만 본다.
+    const decl = read("CLAUDE.md")
+      .split("\n")
+      .filter((l) => /^The canonical checkout is/.test(l));
+    expect(decl).toHaveLength(1);
+    expect(decl[0]).toContain("`E:" + String.fromCharCode(92) + "2ndB`");
+  });
+});
