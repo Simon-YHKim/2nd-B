@@ -144,7 +144,11 @@ require their copyright and Reserved Font Name notice to travel with them and
 `docs/ASSETS.md` is the only record of it.
 
 README contains a "Bundled assets and licenses" section; `docs/ASSETS.md` carries
-the registry (currently 9 packs / 246 image files).
+the registry. The pack and image counts are deliberately not written here: the
+check computes them from disk on every run and prints them in its PASS note, so
+a number copied into prose is only ever a snapshot that rots silently. It did —
+this line said "currently 9 packs" while the check reported 10 (2026-09-08).
+Run `npm run check:constraints` for the live figure.
 
 **Changed 2026-08-21 (REQ-260820-04): the reason, not the rule.** This was
 written as "per XPRIZE rulebook §04", and the rulebook no longer applies. The
