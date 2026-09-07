@@ -11,12 +11,11 @@ import { View, StyleSheet, KeyboardAvoidingView, Platform, BackHandler } from "r
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell, PremiumLoadingState, PremiumModal, PremiumToast } from "@/components/premium";
+import { PremiumLoadingState, PremiumModal, PremiumToast } from "@/components/premium";
 import { Button } from "@/components/ui/Button";
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
-import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { LensView } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -304,14 +303,6 @@ const styles = StyleSheet.create({
   toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
 });
 
-function IpipNeoLegacy() {
-  return (
-    <PremiumAppShell>
-      <IpipNeoSurvey onComplete={() => router.replace("/persona")} onCancel={() => router.back()} />
-    </PremiumAppShell>
-  );
-}
-
 function IpipNeoDeepSpace() {
   const { i18n } = useTranslation();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
@@ -390,6 +381,5 @@ function IpipNeoDeepSpace() {
 }
 
 export default function IpipNeo() {
-  if (isDeepSpaceUI()) return <IpipNeoDeepSpace />;
-  return <IpipNeoLegacy />;
+  return <IpipNeoDeepSpace />;
 }

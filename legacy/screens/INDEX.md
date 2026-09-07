@@ -48,3 +48,16 @@ Simon 의 요구는 *"나중에 내가 지정해서 확인하라고 하면 할 �
 
 ⚠ `/seen` 의 로그인 리다이렉트(`!userId → /sign-in`)는 레거시가 아니라 지금도 사는
 게이트다. 같이 지우지 말 것.
+
+## 셸만 달랐던 라우트 — 여기도 파일이 없다
+
+둘은 레거시 쪽이 **같은 화면을 다른 셸에 감싼 7줄짜리 래퍼**였다. 설문 컴포넌트
+(`RlssSurvey` · `IpipNeoSurvey`)와 스타일은 양쪽이 공유했고 지금도 라이브가 쓴다.
+즉 옮길 화면이 없고, 다른 것은 바깥 셸 한 겹뿐이었다.
+
+| 라우트 | 레거시일 때 |
+|---|---|
+| `/rlss` | 같은 `RlssSurvey` 를 `DeepSpaceScreen` 대신 `PremiumAppShell` 로 감쌌다 |
+| `/ipip-neo` | 같은 `IpipNeoSurvey` 를 `DeepSpaceScreen` 대신 `PremiumAppShell` 로 감쌌다 |
+
+완료 후 이동(`/persona`)과 취소 동작은 양쪽이 같았으므로 은퇴로 잃은 동작이 없다.
