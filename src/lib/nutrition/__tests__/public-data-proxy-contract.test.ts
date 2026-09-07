@@ -85,3 +85,51 @@ describe("프록시의 보안 자세", () => {
     expect(proxy).toMatch(/source_unconfigured/);
   });
 });
+
+// 2026-09-08 전환. 여기까지 오는 데 두 단계였다: 프록시를 먼저 배포하고(#1705),
+// 그다음 클라이언트를 돌렸다. 순서를 뒤집으면 기능이 통째로 죽는다.
+describe("클라이언트가 실제로 프록시를 탄다", () => {
+  const invoke = readFileSync(resolve(ROOT, "src/lib/public-data/invoke.ts"), "utf8");
+
+  /** 주석을 걷은 코드만 본다. 주석은 왜 옮겼는지를 설명하느라 옛 이름을 부른다. */
+  function codeOf(src: string): string {
+    return src.replace(/^\s*(\/\/|\*|\/\*).*$/gm, "");
+  }
+
+  test("두 모듈이 더 이상 키를 읽지 않는다", () => {
+    expect(codeOf(foods)).not.toContain("EXPO_PUBLIC_");
+    expect(codeOf(fx)).not.toContain("EXPO_PUBLIC_");
+    expect(codeOf(foods)).not.toContain("process.env");
+    expect(codeOf(fx)).not.toContain("process.env");
+  });
+
+  test("두 모듈이 상류를 직접 부르지 않는다 (fetch 0건)", () => {
+    // 예전엔 여기서 data.go.kr / oapi.koreaexim.go.kr 로 직접 나갔다.
+    expect(codeOf(foods)).not.toMatch(/\bfetch\s*\(/);
+    expect(codeOf(fx)).not.toMatch(/\bfetch\s*\(/);
+    expect(codeOf(foods)).not.toContain("serviceKey");
+    expect(codeOf(fx)).not.toContain("authkey");
+  });
+
+  test("둘 다 공용 통로 하나만 쓴다", () => {
+    expect(foods).toContain('from "../public-data/invoke"');
+    expect(fx).toContain('from "../public-data/invoke"');
+    expect(invoke).toContain('export const PUBLIC_DATA_PROXY_FUNCTION = "public-data-proxy"');
+    expect(invoke).toContain("functions.invoke(PUBLIC_DATA_PROXY_FUNCTION");
+  });
+
+  test("소스 이름이 프록시가 아는 둘과 같다", () => {
+    for (const source of ["mfds", "exim"]) {
+      expect(proxy).toContain(`body.source === '${source}'`);
+    }
+    expect(foods).toContain('source: "mfds"');
+    expect(fx).toContain('source: "exim"');
+  });
+
+  test("키 없음과 로그인 없음은 빈 결과로 강등된다", () => {
+    // 예전 동작 유지: 키가 없으면 아이디어 전용 / KRW 전용으로 조용히 내려간다.
+    expect(invoke).toContain("status === 503 || status === 401");
+    expect(foods).toContain('if (outcome.reason === "unconfigured") return [];');
+    expect(fx).toContain('if (outcome.reason === "unconfigured") return [];');
+  });
+});
