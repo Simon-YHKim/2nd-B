@@ -107,6 +107,9 @@ describe("PIXEL-CLAY sign-in renderer wiring", () => {
 // main@177a5962 와 바이트 동일임을 확인했다 — 즉 이 PR 의 추출은 공용 prefix ·
 // consent tail · 레거시 라우트 · dds-styles 를 실제로 안 건드렸고, 이 검사가
 // 지키려는 뜻도 그대로다. 기준선만 옮겼다.
+// 2026-09-07: prefix · tail 두 digest 를 재고정했다. prefix 는 import 한 줄,
+// tail 은 ConsentCheckRow 의 prop 한 줄 — 둘 다 웹 스페이스키 배선이다.
+// 아래 "legacy sign-in renderer/styles" 검사의 digest 는 그대로다.
 describe("sign-in extraction boundaries", () => {
   test("preserves the shared auth prefix and signup/consent/reset tail byte-for-byte", () => {
     const source = read("src/screens/deepspace/dds-auth-screens.tsx");
@@ -118,10 +121,10 @@ describe("sign-in extraction boundaries", () => {
     expect(split).toBeGreaterThan(0);
     expect(tail).toBeGreaterThan(split);
     expect(sha256(source.slice(0, split))).toBe(
-      "2591e2d2baec3ce3864e7377124d87fcd17a7bd86addcef3234220dea4962151",
+      "54ff7293ed2980ddce3530d46ef3cb53abdfdb6253e8accb16e0e51b24681974",
     );
     expect(sha256(source.slice(tail))).toBe(
-      "25420f9c3b8856627b3d18ffbfcae6c343b6e365f5e202f3cf4b7c33947210a0",
+      "a98fc2a55a8d29306805ddf60c1dfae61b9dd9393b7b0648d9d0750d88461e83",
     );
   });
 

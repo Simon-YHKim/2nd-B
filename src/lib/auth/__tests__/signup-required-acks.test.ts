@@ -245,6 +245,9 @@ describe("sign-up authority and preservation boundaries", () => {
   // judge 이메일 경로 은퇴)와 be629d2b 를 얹었다. 병합 결과는 셋 다 main 과
   // 바이트 동일이라 "이 PR 이 레거시·공용 폼을 안 건드렸다"는 뜻은 그대로다.
   // ConsentNotice·BirthDateField 는 분기 이후 안 바뀌어 값이 그대로다.
+  // 2026-09-07: dds-auth-screens digest 하나만 재고정했다. ConsentCheckRow 에
+  // 웹 스페이스키 배선(import 1 + prop 1)이 들어갔기 때문이다. legacy · styles ·
+  // ConsentNotice · BirthDateField 넷은 값이 그대로 = 안 건드렸다.
   test("legacy renderer, styles, giant auth renderer, and shared form components are unchanged", () => {
     const legacy = route.slice(
       route.indexOf("function SignUpLegacy()"),
@@ -257,7 +260,7 @@ describe("sign-up authority and preservation boundaries", () => {
     expect(sha256(legacy)).toBe("630043be84f94b1b90bfa3a932c98cd4f3886f9e92a44a35fb5487298f782904");
     expect(sha256(styles)).toBe("5df5b8ca23806eb75662a694220d7b48f31351aacfb8d8bf476d66b98a83508e");
     expect(sha256(read("src/screens/deepspace/dds-auth-screens.tsx"))).toBe(
-      "a02d83aa004dbde36be77417434bc61314c5364cf0c716d65c1e7019a6f89eb3",
+      "c998af24b438c9b3ffb04b487a9b0727e319e86041840a09cac0b0e7be8f892b",
     );
     expect(sha256(read("src/components/consent/ConsentNotice.tsx"))).toBe(
       "60a019c22ceec84ad550f06568763225b82839bc0e743f382aabea233e4ae170",
