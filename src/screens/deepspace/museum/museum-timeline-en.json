@@ -283,6 +283,204 @@
       "facts": [["Made of", "Your own record"], ["Goal", "A North Star of your own"], ["Now", "SecondB"]],
       "cause": "Agent technology made an AI for one person possible.",
       "effect": "Each of your days grows the second brain."
+    },
+    "w_transistor": {
+      "title": "The transistor",
+      "sub": "Switching on the electronic age",
+      "body": "Bell Labs invented the transistor to replace the vacuum tube. A small, cheap switch became the basic part of every digital device.",
+      "tags": ["#BellLabs", "#Semiconductors", "#1947"],
+      "refs": ["Bell Labs · 1947"],
+      "long": "Smaller and steadier than a vacuum tube, the transistor shrank the computer from the size of a room to the size of a palm. It is the physical starting point of every chip and every calculation.",
+      "facts": [["Invented at", "Bell Labs"], ["Year", "1947"], ["Meaning", "The seed of the integrated circuit"]],
+      "cause": "The heat and failure rate of vacuum tubes demanded a better switch.",
+      "effect": "Twenty-four years later it bore fruit as the Intel 4004 microprocessor."
+    },
+    "w_arpanet": {
+      "title": "ARPANET",
+      "sub": "A network takes its first breath",
+      "body": "ARPA, in the US Department of Defense, brought up ARPANET to link computers together. Packet switching would grow into the internet.",
+      "tags": ["#ARPANET", "#PacketSwitching", "#OriginOfTheInternet"],
+      "refs": ["First ARPANET connection · 1969"],
+      "long": "The first message passed between UCLA and Stanford in 1969. That distributed packet-switching design is the direct ancestor of today's internet.",
+      "facts": [["First link", "UCLA–SRI"], ["Year", "1969"], ["Design", "Packet switching"]],
+      "cause": "The Cold War needed a communications network that would not go down.",
+      "effect": "Twenty-two years later, the World Wide Web opened on top of it."
+    },
+    "w_google": {
+      "title": "Google Search",
+      "sub": "Putting information in order",
+      "body": "Google arrived and ranked the Web with PageRank. A vast body of information became knowledge you could actually find.",
+      "tags": ["#Google", "#PageRank", "#Search"],
+      "refs": ["Google Search"],
+      "long": "PageRank read a link as a vote of trust and changed the quality of search. It sorted the Web's exploding data into something a person could handle.",
+      "facts": [["Founded", "1998"], ["Core idea", "PageRank"], ["Effect", "A revolution in access"]],
+      "cause": "The Web grew so large that ordering it became the new problem.",
+      "effect": "The companies that handled data became the leading players in AI."
+    },
+    "w_bigdata": {
+      "title": "Big data and the cloud",
+      "sub": "Data becomes a resource",
+      "body": "Smartphones, social media, and the cloud made data explode. Called the new oil, that data fed deep learning.",
+      "tags": ["#BigData", "#Cloud", "#AWS"],
+      "refs": ["Big data and cloud adoption"],
+      "long": "Social media, mobile, and cheap cloud storage met, and data grew exponentially. That abundance of training material became the fuel for the deep learning explosion.",
+      "facts": [["Driven by", "Mobile · social"], ["Storage", "The cloud"], ["Nickname", "The new oil"]],
+      "cause": "After the iPhone, everyone was pouring out data.",
+      "effect": "Data and GPUs meshed and made AlexNet's leap possible."
+    },
+    "a_eliza": {
+      "title": "ELIZA",
+      "sub": "The first machine that talked",
+      "body": "Weizenbaum's ELIZA imitated a counsellor and held conversations with people. The rules were simple, and people opened their hearts to the machine anyway.",
+      "tags": ["#ELIZA", "#Chatbot", "#Weizenbaum"],
+      "refs": ["ELIZA · Weizenbaum, 1966"],
+      "long": "It only asked questions back, by rule, and people projected feeling onto it all the same — the ELIZA effect. It was the first experiment to show how readily humans make a machine into a person.",
+      "facts": [["Built by", "Weizenbaum, 1966"], ["Method", "Rule-based"], ["Phenomenon", "The ELIZA effect"]],
+      "cause": "After Dartmouth, attempts to handle language kept coming.",
+      "effect": "Fifty-six years later ChatGPT made that dream of conversation real."
+    },
+    "a_expert": {
+      "title": "Expert systems",
+      "sub": "Holding knowledge in rules",
+      "body": "Expert systems, which moved specialist knowledge into if-then rules, flourished commercially. It was AI's first industrialisation.",
+      "tags": ["#ExpertSystems", "#MYCIN", "#Symbolic"],
+      "refs": ["MYCIN · XCON and others"],
+      "long": "Systems such as MYCIN (infectious disease) and XCON (order configuration) went into real work, and AI earned money for the first time. But as the rules multiplied, maintenance collapsed, and the field headed into a second winter.",
+      "facts": [["Examples", "MYCIN · XCON"], ["Heyday", "The 1980s"], ["Limit", "Rule explosion"]],
+      "cause": "Symbolic AI aimed at practical use by encoding expert knowledge.",
+      "effect": "Its limits raised the value of a neural network that learns from data."
+    },
+    "a_lstm": {
+      "title": "LSTM",
+      "sub": "A neural network that remembers",
+      "body": "Hochreiter and Schmidhuber proposed the LSTM, which holds long context in memory. It opened the way for sequence data such as speech and translation.",
+      "tags": ["#LSTM", "#RecurrentNetworks", "#LongTermMemory"],
+      "refs": ["Long Short-Term Memory (1997)"],
+      "long": "Where earlier recurrent networks forgot the distant past, the LSTM held onto it with gates. It is the structure that carried translation and speech recognition through the 2010s.",
+      "facts": [["Proposed", "1997"], ["Problem", "Long-range dependency"], ["Solution", "Gated memory"]],
+      "cause": "Language and speech needed a structure that could remember order in time.",
+      "effect": "The Transformer's attention would later leap past that limit by a wide margin."
+    },
+    "a_imagenet": {
+      "title": "ImageNet",
+      "sub": "The data that opened its eyes",
+      "body": "Fei-Fei Li built ImageNet, 14 million labelled images. It was a change of mind: not the algorithm, the data.",
+      "tags": ["#ImageNet", "#Datasets", "#FeiFeiLi"],
+      "refs": ["ImageNet · 2009"],
+      "long": "Fourteen million images across some twenty thousand categories laid out the field on which deep learning could grow. Its annual recognition contest became AlexNet's stage.",
+      "facts": [["Scale", "14 million images"], ["Built by", "Fei-Fei Li"], ["Released", "2009"]],
+      "cause": "The bottleneck was not the model but the absence of enough data.",
+      "effect": "Three years later AlexNet used this data to prove deep learning."
+    },
+    "a_gan": {
+      "title": "GANs",
+      "sub": "Creating by competing",
+      "body": "Goodfellow's GAN set a generator against a discriminator to make images that look real. It is the direct ancestor of generative AI.",
+      "tags": ["#GAN", "#GenerativeModels", "#Goodfellow"],
+      "refs": ["Generative Adversarial Nets (2014)"],
+      "long": "Two networks compete like a forger and an authenticator, shaping results that grow steadily more convincing. It opened the age of generation, from deepfakes to art.",
+      "facts": [["Proposed", "Goodfellow, 2014"], ["Structure", "Generator vs discriminator"], ["Lineage", "Generative AI"]],
+      "cause": "There was strong appetite for AI that creates rather than only recognises.",
+      "effect": "Eight years later it led to the public explosion of the generative AI boom."
+    },
+    "a_gpt4": {
+      "title": "GPT-4",
+      "sub": "Seeing, and reasoning",
+      "body": "A multimodal model arrived that understands images as well as text. It passed a range of professional exams and set a new bar for reasoning.",
+      "tags": ["#GPT4", "#Multimodal", "#Reasoning"],
+      "refs": ["GPT-4"],
+      "long": "GPT-4 read images, handled complex reasoning and coding, and passed many human examinations. It raised the level of trust placed in AI as a general assistant.",
+      "facts": [["Released", "2023"], ["Ability", "Multimodal · reasoning"], ["Leap", "Passing professional exams"]],
+      "cause": "ChatGPT's success pulled out a larger and smarter model.",
+      "effect": "It became the stepping stone toward the age of tool-holding agents."
+    },
+    "a_claude": {
+      "title": "Claude",
+      "sub": "Safety as a principle",
+      "body": "Anthropic released Claude, an AI shaped by constitutional principles to be helpful, honest, and harmless. It settled in as an assistant that reads long documents whole and answers with care.",
+      "tags": ["#Anthropic", "#Claude", "#AISafety", "#LongContext"],
+      "refs": ["Claude · Anthropic"],
+      "long": "Claude was trained with constitutional AI — refining itself against a set of principles rather than being corrected item by item. It reads long documents whole and answers carefully, which earned it trust as an assistant for real work.",
+      "facts": [["Built by", "Anthropic"], ["Principle", "Constitutional AI"], ["Strengths", "Long context · safety"]],
+      "cause": "The more capable the model, the more its safe shaping became the central task.",
+      "effect": "Safety and trust are the precondition for a second brain you would hand your own data to."
+    },
+    "a_gemini": {
+      "title": "Gemini",
+      "sub": "Multimodal from the start",
+      "body": "Google DeepMind presented Gemini, which handles text, images, audio, and code as one body. Woven into Search and Android, it became an everyday tool for billions.",
+      "tags": ["#GoogleDeepMind", "#Gemini", "#Multimodal"],
+      "refs": ["Gemini · Google DeepMind"],
+      "long": "Gemini was designed to handle text, images, audio, and code in a single model from the start, rather than bolting them together. Tied into Google Search, Android, and Workspace, it worked its way into the daily life of billions.",
+      "facts": [["Built by", "Google DeepMind"], ["Character", "Natively multimodal"], ["Integration", "Search · Android"]],
+      "cause": "The search empire answered the shock of ChatGPT head on.",
+      "effect": "Competition between giant models made an AI assistant everyone's default tool."
+    },
+    "a_harness": {
+      "title": "Harness engineering",
+      "sub": "Wrapping a model so it can work",
+      "body": "Designing what surrounds the model — tools, context, evaluation, orchestration — rose above the model itself. The same model gets far smarter when it is dressed well.",
+      "tags": ["#HarnessEngineering", "#ContextEngineering", "#Evals", "#RAG"],
+      "refs": ["Context and tool harnesses · evaluation"],
+      "long": "With the same model, performance diverges sharply depending on which tools it is handed, what goes into its context, and how it is evaluated and corrected. Designing that harness around the model became an engineering discipline of its own.",
+      "facts": [["Core", "Tools · context · evaluation"], ["Also called", "Context engineering"], ["Aim", "Performance in practice"]],
+      "cause": "Making the model bigger and nothing else had reached its limit.",
+      "effect": "What you hand an agent, and how, is what separates one from another."
+    },
+    "a_robot": {
+      "title": "AI robots and humanoids",
+      "sub": "Intelligence gets a body",
+      "body": "Action models that see (vision), understand (language), and move (action) rode onto humanoids. Embodied AI that helps people in factories and logistics went on trial.",
+      "tags": ["#Humanoids", "#EmbodiedAI", "#VLA", "#Robotics"],
+      "refs": ["Optimus · Figure · Boston Dynamics"],
+      "long": "Vision-language-action models that see, understand speech, and move were loaded onto humanoids, and AI stepped off the screen into physical work. Walking, gripping, and carrying were solved quickly.",
+      "facts": [["Structure", "VLA action models"], ["Setting", "Factory · logistics"], ["Front-runners", "Optimus · Figure"]],
+      "cause": "The reasoning of language models meshed with robot control.",
+      "effect": "Embodied AI pulled the debate over jobs and safety into the physical present."
+    },
+    "a_local": {
+      "title": "Local and on-device AI",
+      "sub": "AI running in your own hand",
+      "body": "Open-weight models met light inference engines, and AI began running on laptops and phones without the cloud. A privacy-first path opened: your data stays on your device.",
+      "tags": ["#OpenWeights", "#LLaMA", "#OnDevice", "#Privacy"],
+      "refs": ["LLaMA · Ollama · on-device inference"],
+      "long": "Open-weight models such as Meta's LLaMA met light inference engines like llama.cpp and Ollama, and capable AI came to run on a personal device with no cloud at all. The path opened for keeping your data on your own machine.",
+      "facts": [["Started with", "Open-weight models"], ["Tools", "Ollama · llama.cpp"], ["Value", "Privacy · cost"]],
+      "cause": "Cost and privacy concerns about huge cloud models kept growing.",
+      "effect": "It became the foundation for an on-device personal AI — a second brain."
+    },
+    "w_nvidia": {
+      "title": "The AI chip boom",
+      "sub": "The silicon holding AI up",
+      "body": "Demand for GPUs to train and run AI exploded, and NVIDIA rose to the rank of the world's most valuable companies. It became clear that competing in AI means competing for computation.",
+      "tags": ["#NVIDIA", "#GPU", "#Semiconductors", "#MarketCap"],
+      "refs": ["NVIDIA's market value surges"],
+      "long": "Demand for the GPUs used to train and run AI exploded, and NVIDIA's value climbed astronomically. Who holds more computation became the measure of power in AI.",
+      "facts": [["Beneficiary", "NVIDIA"], ["Resource", "GPUs · data centres"], ["Meaning", "Computation is power"]],
+      "cause": "Competition between giant models absorbed enormous computation.",
+      "effect": "Chips, electricity, and data centres became the bottleneck of the AI age."
+    },
+    "w_aimna": {
+      "title": "AI megadeals and the race for capital",
+      "sub": "Great capital moves into AI",
+      "body": "Big tech invested tens of billions in AI companies, and acquisitions of talent and startups followed one after another. AI became a field of capital redrawing the industrial map.",
+      "tags": ["#Acquisitions", "#BigTechInvestment", "#AIRace"],
+      "refs": ["Big tech AI investment · M&A"],
+      "long": "As with Microsoft's investment in OpenAI, big tech poured tens of billions into AI companies and talent, and acquisitions followed one after another. AI became the ground on which capital and industry were redrawn.",
+      "facts": [["Form", "Large investment · M&A"], ["Actors", "Big tech"], ["Concern", "Concentration of resources"]],
+      "cause": "AI emerged as the technology that would decide the next decade.",
+      "effect": "A structure hardened in which power gathers into a few very large companies."
+    },
+    "w_robotnews": {
+      "title": "Robots go commercial",
+      "sub": "Robots make the news",
+      "body": "Humanoids entering factories, self-driving cars, and delivery robots filled the headlines. AI walked out of the screen and into the physical world.",
+      "tags": ["#Humanoids", "#SelfDriving", "#RobotNews"],
+      "refs": ["Commercial robots · autonomous driving"],
+      "long": "Humanoids entering factories, robotaxis, and delivery robots filled the headlines. Cleverness on a screen spread into moving AI on streets and factory floors.",
+      "facts": [["Where", "Factory · road · delivery"], ["Form", "Humanoids · self-driving"], ["Character", "Into the physical world"]],
+      "cause": "AI's intelligence ripened enough to start looking for a body.",
+      "effect": "AI entered the stage of changing the physical surroundings of daily life."
     }
   }
 }

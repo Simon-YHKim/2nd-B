@@ -126,15 +126,19 @@ describe("본문이 실제로 그려진 언어로 표시된다", () => {
   });
 
   test("해석기가 실제로 두 답을 낸다 - 한 답만 내면 표시가 무의미하다", () => {
-    // 모든 입력에 같은 답을 주는 신호는 신호가 아니다. 번역이 있는 id 와
-    // 없는 id 가 영어 로케일에서 다른 답을 내는지 직접 확인한다.
-    const translated = MUSEUM.find((event) => museumContentLanguage(event.id, "en") === "en");
-    const untranslated = MUSEUM.find((event) => museumContentLanguage(event.id, "en") === "ko");
-    expect(translated).toBeDefined();
-    expect(untranslated).toBeDefined();
+    // 모든 입력에 같은 답을 주는 신호는 신호가 아니다.
+    //
+    // ⚠ 처음에는 "번역 없는 사건"을 캐논에서 **찾아서** 대조군으로 썼다.
+    // 43건이 전부 번역되자 그 사건이 사라져 검사가 깨졌다 - 데이터가 잠깐
+    // 어떤 상태냐에 검사가 매달려 있었던 것이다. 지금은 해석기에 직접
+    // 물어본다: 짝이 없는 id 는 로케일이 en 이어도 ko 여야 한다. 나중에
+    // 사건이 하나 추가되고 번역이 늦어도 이 명제는 그대로 산다.
+    const translated = MUSEUM[0].id;
+    expect(museumContentLanguage(translated, "en")).toBe("en");
+    expect(museumContentLanguage("no-such-event-id", "en")).toBe("ko");
     // 한국어 로케일에서는 둘 다 ko 다.
-    expect(museumContentLanguage(translated!.id, "ko")).toBe("ko");
-    expect(museumContentLanguage(untranslated!.id, "ko")).toBe("ko");
+    expect(museumContentLanguage(translated, "ko")).toBe("ko");
+    expect(museumContentLanguage("no-such-event-id", "ko")).toBe("ko");
   });
 
   test("번역되는 크롬에는 달지 않는다", () => {

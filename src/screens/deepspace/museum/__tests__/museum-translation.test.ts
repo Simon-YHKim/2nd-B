@@ -112,10 +112,22 @@ describe("번역 층이 캐논과 짝이 맞는다", () => {
   });
 
   test("번역이 없는 사건은 한국어 원본을 그대로 - 사본이 아니라 같은 객체", () => {
-    const untranslated = MUSEUM.find((event) => !MUSEUM_TRANSLATED_IDS.includes(event.id));
-    if (!untranslated) return; // 전부 번역되면 이 검사는 할 일이 없다.
-    expect(resolveMuseumEvent(untranslated, "en")).toBe(untranslated);
-    expect(museumContentLanguage(untranslated.id, "en")).toBe(CANON_MUSEUM_LANGUAGE);
+    // ⚠ 이 검사는 원래 캐논에서 미번역 사건을 **찾아** 쓰고, 못 찾으면
+    // `return` 했다. 43건이 전부 번역되자 검사가 조용히 아무 일도 안 하게
+    // 됐다 - 통과와 구분이 안 되는 상태다. 지금은 짝이 없는 사건을 만들어
+    // 쓴다. 캐논이 얼마나 번역됐든 이 명제는 유지된다.
+    const orphan = { ...MUSEUM[0], id: "no-such-event-id" };
+    expect(resolveMuseumEvent(orphan, "en")).toBe(orphan);
+    expect(resolveMuseumDetail(orphan.id, museumDetailById(MUSEUM[0].id), "en")).toBe(
+      museumDetailById(MUSEUM[0].id),
+    );
+    expect(museumContentLanguage(orphan.id, "en")).toBe(CANON_MUSEUM_LANGUAGE);
+  });
+
+  test("43건 전부에 짝이 있다 - 이 회차가 채운 것", () => {
+    const coverage = museumTranslationCoverage(CANON_IDS);
+    expect(coverage.missing).toEqual([]);
+    expect(coverage.translated).toBe(43);
   });
 
   test("한국어 로케일은 번역이 있어도 캐논을 읽는다", () => {
