@@ -176,7 +176,7 @@
       "profile": "계정 프로필 행",
       "rawClippings": "원본 클리핑 파일",
       "observedAbsent": "확인 당시 없음을 관찰했어요.",
-      "notConfirmed": "없음을 확인하지 못했어요.",
+      "reportedUnfinished": "서버가 이 항목을 끝내지 못했다고 보고했어요. 확인된 계정 삭제가 취소되거나 실패로 바뀐 것은 아니에요.",
       "notReported": "확인 가능한 결과가 응답에 없어요.",
       "localTitle": "기기의 앱 데이터",
       "localPurge": {
