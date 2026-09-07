@@ -103,11 +103,22 @@ fi
 AFTER="$(git rev-parse --short HEAD)"
 LOG "$BEFORE → $AFTER ($BEHIND 커밋 앞으로 감았습니다)"
 
-# --- 5. Lockfile: warn, never install -----------------------------------------
+# --- 5. Lockfile: measure, report, never install -------------------------------
+# "the lockfile changed" is NOT "the install is stale" - npm may already have the
+# right versions on disk. On 2026-09-08 a peer read the first as the second, ran
+# a targeted install to fix it, and npm removed ten packages nothing had asked it
+# to touch; the real drift was one missing package. So report what was measured,
+# and never install: another session's type-check may be running against this
+# very node_modules.
 LOCK_AFTER="$(git rev-parse HEAD:package-lock.json 2>/dev/null || echo none)"
 if [ "$LOCK_BEFORE" != "$LOCK_AFTER" ]; then
-  LOG "⚠ package-lock.json 이 바뀌었습니다. 공용 node_modules 는 이 폴더의 락파일을 따르므로"
-  LOG "  지금 설치본은 낡았습니다. 조용한 때에 직접:  cd \"$MAIN_TREE\" && npm ci --legacy-peer-deps"
-  LOG "  (자동으로 설치하지 않습니다 — 다른 세션의 실행 중인 빌드를 깨뜨립니다)"
+  if command -v node >/dev/null 2>&1; then
+    node "$(dirname "$0")/lockfile-drift.mjs" "$BEFORE" "$AFTER" 2>/dev/null \
+      | sed 's/^/[shared-checkout] /' \
+      || LOG "락파일 실측 실패 — 판정 보류 (npm ci --legacy-peer-deps 로 맞출 수 있습니다)"
+  else
+    LOG "package-lock.json 이 바뀌었습니다. node 가 없어 실측은 못 했습니다"
+    LOG "  맞추려면:  cd \"$MAIN_TREE\" && npm ci --legacy-peer-deps"
+  fi
 fi
 exit 0
