@@ -395,12 +395,22 @@ export async function classifySafety(
 // Versions are referenced in the audit log: red-ko-v3 (adult), red-ko-minor-v2
 // (14-17), red-en-v2 (988, all ages). 2026-09-06 removes the app's metaphorical
 // farewell; the fixed hand-off, resources and emergency-room guidance remain.
+//
+// PROVENANCE NOTE. On 2026-09-07 (commit a8910a10) the em dash in the hotline lines
+// became a hyphen, in all three templates, because they share one interpolated
+// hotline block. DESIGN.md forbids em dashes in user-facing strings and these are
+// drawn in a pixel face where the glyph is a risk. The versions were deliberately
+// NOT bumped: the version identifies the GUIDANCE, and the numbers, labels,
+// structure and routing are unchanged, so a bump would make the audit log read as
+// if users had been told something different. So note it here instead: the bytes
+// of v3 / minor-v2 / en-v2 differ by exactly that one glyph before and after that
+// commit, and reconstructing "what did red-ko-v3 say" needs this line to be exact.
 export function fixedCrisisResponse(
   locale: "en" | "ko",
   minor = false,
 ): { text: string; version: string } {
   const hotlineBlock = crisisHotlines(locale, minor)
-    .map((h) => (locale === "ko" ? `📞 ${h.number} — ${h.label} (24시간, 무료)` : `📞 ${h.number} — ${h.label}`))
+    .map((h) => (locale === "ko" ? `📞 ${h.number} - ${h.label} (24시간, 무료)` : `📞 ${h.number} - ${h.label}`))
     .join("\n");
   if (locale === "ko") {
     return {
@@ -420,7 +430,7 @@ ${hotlineBlock}
 People are available right now to talk:
 
 ${hotlineBlock}
-🌐 findahelpline.com — international directory
+🌐 findahelpline.com - international directory
 
 If calling is hard, you can go to your nearest emergency room.`,
     version: "red-en-v2",
