@@ -85,6 +85,26 @@ export async function deleteSourcesByIds(userId: string, ids: string[]): Promise
   return count ?? 0;
 }
 
+/** Which of these source ids still exist for this owner.
+ *
+ *  The withdrawal flows promise never to drop the only pointer to rows that
+ *  still exist, and they used to keep that promise only for a THROWN delete.
+ *  `deleteSourcesByIds` does not throw when it removes fewer rows than asked -
+ *  it returns the count - and a short count does not separate "already gone"
+ *  from "still there". This separates them. Callers ask only when the count
+ *  came up short, so the ordinary withdrawal costs no extra query. */
+export async function findSurvivingSourceIds(userId: string, ids: string[]): Promise<string[]> {
+  if (ids.length === 0) return [];
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("sources")
+    .select("id")
+    .eq("user_id", userId)
+    .in("id", ids);
+  if (error) throw error;
+  return ((data ?? []) as { id: string }[]).map((row) => row.id);
+}
+
 export async function deleteAllWikiPages(userId: string): Promise<number> {
   const supabase = getSupabaseClient();
   const { count, error } = await supabase
@@ -196,6 +216,34 @@ async function bestEffort(fn: () => Promise<number>, label: string): Promise<num
   }
 }
 
+/** The two post-cascade sweeps the Edge Function reports on separately. */
+export type DeletionSweep = "profile" | "rawClippings";
+
+/** What the client actually observed when terminal erasure returned.
+ *
+ *  `deleted` is the only field that gates the destructive boundary: it is true
+ *  or this call throws. The two sweep flags are three-valued on purpose —
+ *  `true` confirmed done, `false` the server reported it did NOT finish, `null`
+ *  the server said nothing (an older deployment omits the field). Collapsing
+ *  `null` into `false` would report a residual nobody observed; collapsing it
+ *  into `true` would hide one. Neither is honest, so both stay visible. */
+export type AccountDeletionReceipt = {
+  deleted: true;
+  profileErased: boolean | null;
+  rawClippingsErased: boolean | null;
+  /** Sweeps the server reported as not finished. */
+  incomplete: DeletionSweep[];
+  /** Sweeps the server said nothing about. Unknown is not failure. */
+  unconfirmed: DeletionSweep[];
+  /** True only when every sweep came back explicitly confirmed. */
+  complete: boolean;
+  observedAtIso: string;
+};
+
+function readFlag(value: unknown): boolean | null {
+  return typeof value === "boolean" ? value : null;
+}
+
 /** Terminal account erasure (GDPR Art.17 / PIPA). Invokes the delete-account
  *  Edge Function, which (service role) deletes auth.users first so the profile
  *  and every user_id-owned table cascade in the same database transaction. It
@@ -203,12 +251,39 @@ async function bestEffort(fn: () => Promise<number>, label: string): Promise<num
  *  Storage. This is the only path that reaches RLS-protected tables (personas,
  *  memorized_patterns, xp_events) and the append-only consent_records ledger.
  *  Requires the function to be deployed; throws unless terminal deletion is
- *  confirmed so the caller can decide how to proceed. */
-export async function requestAccountDeletion(): Promise<void> {
+ *  confirmed so the caller can decide how to proceed.
+ *
+ *  Returns the receipt instead of discarding it. The function reports the two
+ *  post-cascade sweeps separately (index.ts:172), and a failed sweep is NOT a
+ *  failed deletion — auth.users is already gone and the cascade already ran.
+ *  Throwing on a partial would tell the user deletion failed when it did not,
+ *  and would offer a destructive retry against a dead account. So the partial
+ *  travels back as data and the screen decides what to say. */
+export async function requestAccountDeletion(): Promise<AccountDeletionReceipt> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase.functions.invoke("delete-account", { body: {} });
   if (error) throw error;
-  if ((data as { deleted?: boolean } | null)?.deleted !== true) {
+  const body = data as
+    | { deleted?: unknown; profile_erased?: unknown; raw_clippings_erased?: unknown }
+    | null;
+  if (body?.deleted !== true) {
     throw new Error("account deletion did not complete");
   }
+  const profileErased = readFlag(body.profile_erased);
+  const rawClippingsErased = readFlag(body.raw_clippings_erased);
+  const sweeps: [DeletionSweep, boolean | null][] = [
+    ["profile", profileErased],
+    ["rawClippings", rawClippingsErased],
+  ];
+  const incomplete = sweeps.filter(([, v]) => v === false).map(([k]) => k);
+  const unconfirmed = sweeps.filter(([, v]) => v === null).map(([k]) => k);
+  return {
+    deleted: true,
+    profileErased,
+    rawClippingsErased,
+    incomplete,
+    unconfirmed,
+    complete: incomplete.length === 0 && unconfirmed.length === 0,
+    observedAtIso: new Date().toISOString(),
+  };
 }

@@ -112,7 +112,9 @@ describe("analytics — no-op when no keys configured", () => {
         init: jest.fn(),
         captureException: jest.fn(),
       }));
-      jest.doMock("@sentry/browser", mockSentryBrowserFactory);
+      // @sentry/browser is no longer installed (dropped 2026-09-05); the mock is
+      // virtual so the test still proves the source never requires it.
+      jest.doMock("@sentry/browser", mockSentryBrowserFactory, { virtual: true });
       jest.doMock("react-native", () => ({
         NativeModules: {},
         Platform: { OS: "web" },

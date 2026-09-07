@@ -10,10 +10,10 @@
   "evidence": "What this light is made of",
   "ratLog": "See the ratification log",
   "emptyBody": "Not enough history to draw yet. Finish a check and ratify a proposal, and the trail builds up here.",
-  "honestyLine": "{{obs}} observations · {{cited}} cited · {{stars}} stars",
+  "honestyLine": "{{obs}} brightness updates · {{cited}} with sources · {{stars}} stars",
   "citedRatioLabel": "Cited ratio {{cited}} of {{obs}}",
-  "honestyCaption": "Brightness is how much is on record, not certainty. Citations make it trustworthy.",
+  "honestyCaption": "Brightness reflects how deeply you have explored a life period or topic. It does not measure accuracy. Check the supporting sources too.",
   "reviewCta": "Go review a proposal",
   "subtitle": "8 weeks · seven stars",
-  "rule": "Brightness rises only as far as you dug. Empty weeks stay empty."
+  "rule": "Each week shows the last recorded brightness. Weeks before the first update stay empty."
 }

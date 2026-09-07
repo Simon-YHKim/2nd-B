@@ -9,8 +9,22 @@
 // 아닐 것, 그리고 ko 밖의 로케일에는 이 placeholder 가 새지 않을 것.
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { createElement, type ReactNode } from "react";
+import i18next from "i18next";
 
 import { addressTerm } from "../address";
+import { initI18n } from "../../i18n";
+import {
+  acceptAddressDisplayName,
+  ADDRESS_VARIABLES_CHANGED_EVENT,
+  currentDisplayName,
+  syncAddressOwner,
+  useAddressTerm,
+} from "../use-address";
+
+const { renderToStaticMarkup } = require("react-dom/server") as {
+  renderToStaticMarkup(node: ReactNode): string;
+};
 
 const ROOT = join(__dirname, "..", "..", "..", "..");
 const LOCALES = join(ROOT, "locales");
@@ -28,6 +42,51 @@ function localeValues(lang: string): string[] {
     values(JSON.parse(readFileSync(join(dir, f), "utf8")), out);
   }
   return out;
+}
+
+function AddressOwnerRender({
+  userId,
+  locale,
+}: {
+  userId: string | null;
+  locale: string;
+}) {
+  useAddressTerm(userId, locale);
+  const who = i18next.options.interpolation?.defaultVariables?.who;
+  return createElement("span", null, typeof who === "string" ? who : "");
+}
+
+function installLocalStorageSpy(): {
+  setItem: jest.Mock<void, [string, string]>;
+  restore: () => void;
+} {
+  const previousStorage = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  const values = new Map<string, string>();
+  const setItem = jest.fn<void, [string, string]>((key, value) => {
+    values.set(key, value);
+  });
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem,
+      removeItem: (key: string) => values.delete(key),
+      clear: () => values.clear(),
+      key: () => null,
+      length: 0,
+    } as Storage,
+  });
+
+  return {
+    setItem,
+    restore: () => {
+      if (previousStorage) {
+        Object.defineProperty(globalThis, "localStorage", previousStorage);
+      } else {
+        delete (globalThis as { localStorage?: Storage }).localStorage;
+      }
+    },
+  };
 }
 
 describe("{{who}} placeholder", () => {
@@ -88,5 +147,146 @@ describe("{{who}} placeholder", () => {
         expect(s.replace(/\{\{who\}\}/g, who)).not.toContain("{{who}}");
       }
     }
+  });
+
+  it("호칭 갱신 전용 이벤트는 locale preference를 저장하지 않는다", () => {
+    const storage = installLocalStorageSpy();
+    const addressRefresh = jest.fn();
+    try {
+      initI18n();
+      const initialLanguage = i18next.language;
+      const reactOptions = (i18next.options as typeof i18next.options & {
+        react?: { bindI18n?: string | false };
+      }).react;
+      expect(String(reactOptions?.bindI18n).split(/\s+/)).toContain(
+        ADDRESS_VARIABLES_CHANGED_EVENT,
+      );
+
+      i18next.on(ADDRESS_VARIABLES_CHANGED_EVENT, addressRefresh);
+      syncAddressOwner("language-owner", initialLanguage);
+      expect(
+        acceptAddressDisplayName("language-owner", initialLanguage, "Name"),
+      ).toBe(true);
+      expect(addressRefresh).toHaveBeenCalledTimes(1);
+      expect(storage.setItem).not.toHaveBeenCalled();
+    } finally {
+      i18next.off(ADDRESS_VARIABLES_CHANGED_EVENT, addressRefresh);
+      syncAddressOwner(null, i18next.language);
+      storage.restore();
+    }
+  });
+
+  it("다른 locale로 실제 변경하면 preference를 저장한다", async () => {
+    const initialLanguage = initI18n().language;
+    const changedLanguage = initialLanguage === "ko" ? "en" : "ko";
+    const storage = installLocalStorageSpy();
+    try {
+      await i18next.changeLanguage(changedLanguage);
+      expect(storage.setItem).toHaveBeenCalledTimes(1);
+      expect(storage.setItem).toHaveBeenLastCalledWith(
+        "2nd-brain:locale",
+        changedLanguage,
+      );
+    } finally {
+      await i18next.changeLanguage(initialLanguage);
+      storage.restore();
+    }
+  });
+
+  it("이미 활성인 locale을 명시 선택해도 preference를 저장한다", async () => {
+    const activeLanguage = initI18n().language;
+    const storage = installLocalStorageSpy();
+    try {
+      await i18next.changeLanguage(activeLanguage);
+      expect(storage.setItem).toHaveBeenCalledTimes(1);
+      expect(storage.setItem).toHaveBeenLastCalledWith(
+        "2nd-brain:locale",
+        activeLanguage,
+      );
+    } finally {
+      storage.restore();
+    }
+  });
+
+  it("실제 hook 렌더의 A→B 첫 프레임에서 이전 이름을 버리고 늦은 A를 거부한다", () => {
+    initI18n();
+    syncAddressOwner("owner-a", "ko");
+    expect(acceptAddressDisplayName("owner-a", "ko", "에이")).toBe(true);
+    expect(currentDisplayName("owner-a")).toBe("에이");
+
+    // Server rendering deliberately does not run effects. Seeing B's fallback
+    // here proves useAddressTerm applies the owner boundary during render, not
+    // in its lookup effect after a frame containing A's name could escape.
+    const firstBFrame = renderToStaticMarkup(
+      createElement(AddressOwnerRender, { userId: "owner-b", locale: "ko" }),
+    );
+    expect(firstBFrame).toContain(addressTerm(null, "ko"));
+    expect(firstBFrame).not.toContain("에이");
+    expect(currentDisplayName("owner-b")).toBeNull();
+    expect(currentDisplayName("owner-a")).toBeNull();
+    expect(i18next.options.interpolation?.defaultVariables?.who).toBe(
+      addressTerm(null, "ko"),
+    );
+
+    // A의 늦은 조회 결과도 B cache/UI를 다시 오염시킬 수 없다.
+    expect(acceptAddressDisplayName("owner-a", "ko", "늦은 에이")).toBe(false);
+    expect(currentDisplayName("owner-b")).toBeNull();
+    expect(i18next.options.interpolation?.defaultVariables?.who).toBe(
+      addressTerm(null, "ko"),
+    );
+
+    syncAddressOwner(null, "ko");
+  });
+
+  it("같은 계정의 locale 첫 프레임도 이전 locale 호칭을 쓰지 않는다", () => {
+    initI18n();
+    syncAddressOwner("locale-owner", "ko");
+    expect(acceptAddressDisplayName("locale-owner", "ko", "로케일")).toBe(true);
+
+    try {
+      const firstEnglishFrame = renderToStaticMarkup(
+        createElement(AddressOwnerRender, {
+          userId: "locale-owner",
+          locale: "en",
+        }),
+      );
+      expect(firstEnglishFrame).toBe("<span></span>");
+      expect(i18next.options.interpolation?.defaultVariables?.who).toBe("");
+      // The old-locale lookup may still resolve, but it cannot repaint EN.
+      expect(
+        acceptAddressDisplayName("locale-owner", "ko", "늦은 로케일"),
+      ).toBe(false);
+      expect(i18next.options.interpolation?.defaultVariables?.who).toBe("");
+    } finally {
+      syncAddressOwner(null, "en");
+    }
+  });
+
+  it("complete-profile의 keyed remount 경계가 모든 계정 draft와 #1583 reset을 소유한다", () => {
+    const screen = readFileSync(
+      join(ROOT, "src", "app", "(auth)", "complete-profile.tsx"),
+      "utf8",
+    );
+    const wrapperAt = screen.indexOf("export default function CompleteProfile() {");
+    const bodyAt = screen.indexOf("function CompleteProfileBody() {");
+    expect(wrapperAt).toBeGreaterThan(-1);
+    expect(bodyAt).toBeGreaterThan(wrapperAt);
+
+    const wrapper = screen.slice(wrapperAt, bodyAt);
+    const keyedBody = screen.slice(bodyAt);
+    expect(wrapper).toContain("const { userId } = useAuth();");
+    expect(wrapper).toContain('<CompleteProfileBody key={userId ?? "anon"} />');
+    expect(wrapper).not.toContain("useState(");
+    for (const draftState of [
+      "[birthDate, setBirthDate]",
+      "[displayName, setDisplayName]",
+      "[goal, setGoal]",
+      "[consent, setConsent]",
+    ]) {
+      expect(keyedBody).toContain(draftState);
+    }
+    // #1583 navigation reset must remain inside the keyed body after the port.
+    expect(keyedBody).toContain("const rootNavigationRef = useNavigationContainerRef();");
+    expect(keyedBody).toContain("function resetSignedOutNavigation(): void {");
   });
 });

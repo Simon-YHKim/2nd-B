@@ -16,8 +16,10 @@ import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useChangePasswordForm } from "@/lib/auth/useChangePasswordForm";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceChangePasswordScreen } from "@/screens/deepspace/dds-change-password-screen";
 
-export default function ChangePassword() {
+function ChangePasswordLegacy() {
   const { t } = useTranslation("auth");
   const { userId, loading } = useAuth();
   const form = useChangePasswordForm();
@@ -118,3 +120,8 @@ const styles = StyleSheet.create({
   label: { marginTop: spacing.sm },
   helper: {},
 });
+
+export default function ChangePassword() {
+  if (isDeepSpaceUI()) return <DeepSpaceChangePasswordScreen />;
+  return <ChangePasswordLegacy />;
+}

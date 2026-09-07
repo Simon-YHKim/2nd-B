@@ -11,6 +11,7 @@ import { colors, spacing } from "@/theme/tokens";
 import { GLYPH_ALIAS, glyphMarkup, type GlyphAliasName } from "@/components/pixel/pixel-glyphs";
 import { ringCells, stepLine } from "@/components/pixel/pixel-line";
 import { PixelNodeSvg, PixelStarSvg } from "@/components/pixel/PixelStarSvg";
+import { PixelSurface } from "@/components/pixel";
 
 /**
  * `/graph`(개발 전용 화면)의 노드 지도 색.
@@ -52,6 +53,9 @@ import {
   type OAuthProvider,
 } from "@/lib/supabase/auth";
 import { requestAccountDeletion } from "@/lib/records/delete-bulk";
+import { createAccountDeletionCompletion } from "@/lib/account/deletion-completion";
+import { currentAccountEpoch } from "@/lib/auth/account-epoch";
+import { purgeCaptureDraftsForDeletedAccount } from "@/lib/capture/draft";
 import { buildPersona, loadPersonaRatifiableSignals } from "@/lib/persona/build";
 import { proposalContextForStar } from "@/lib/persona/proposal-context";
 import { proposeSelfModelChange } from "@/lib/persona/propose-self-model";
@@ -116,6 +120,7 @@ import { adherenceChip } from "@/lib/ops/grounding";
 import { recommendForDomain, recommendationVendorLabel, recommendationsAllowed, type OpsRecommendation } from "@/lib/ops/recommend";
 import { buildGoogleCalendarUrl } from "@/lib/ops/push";
 import { notifyNow, scheduleRoutineReminder, type ReminderResult } from "@/lib/ops/reminders";
+import { loadNotifications } from "@/lib/ops/notifications-sdk";
 import {
   applyFocusSessionComplete,
   applyLanguageReviewComplete,
@@ -168,6 +173,7 @@ import { listSourcePieces } from "@/lib/records/source-pieces";
 import { summarizeWeeklyInsights, weeklyDomainFocus } from "@/lib/insights/weekly";
 import type { SourceRow, WikiPageRow } from "@/lib/wiki/types";
 import { resetCoachmarks } from "@/lib/onboarding/coachmarks-gate";
+import { checkboxSpaceKeyProps } from "@/lib/ui/checkbox-space-key";
 import {
   buildDeepResearchView,
   buildDomainsView,
@@ -178,6 +184,10 @@ import {
 import {
   type TimelineLabels,
 } from "./records-timeline";
+import {
+  INTEGRATION_ENTRYPOINTS,
+  type IntegrationEntrypoint,
+} from "./integrations/sources";
 
 // i18n label builders for the pure date helpers (which stay i18n-free).
 type Tx = (key: string, options?: Record<string, unknown>) => string;
@@ -342,53 +352,82 @@ export function DeepSpaceGraphDesignScreen() {
   return <Shell title={t("graph.title")} subtitle={t("graph.subtitle", { nodes: nodeCount, edges: edgeCount })}><SecondbStatusHeader text={t("graph.status")} tip={t("graph.tip")} /><Card style={styles.graphCard}><View style={styles.graphStage}><Svg width={300} height={310} viewBox="0 0 300 310">{clusters.map((c,i)=>stepLine(150,160,c.x,c.y,3).map((p,j)=><Rect key={'l'+i+'-'+j} x={p.x} y={p.y} width={3} height={3} fill={colors.borderHi}/>))}<PixelStarSvg cx={150} cy={160} r={34} fill={GRAPH_ME_FILL} onPress={() => router.push('/account')}/>{clusters.map((c,i)=><PixelNodeSvg key={'c'+i} cx={c.x} cy={c.y} r={22} fill={GRAPH_NODE_FILL} onPress={() => router.push(c.route)}/>) }<PixelStarSvg cx={150} cy={160} r={9} fill={colors.textHi} onPress={() => router.push('/account')}/>{[42,86,118,244,257,188,72].map((x,i)=><PixelStarSvg key={i} cx={x} cy={70+i*30%190} r={4} fill={GRAPH_DOT_FILL}/>)}</Svg><Text variant="caption" style={styles.centerCaption}>{t("graph.me")}</Text>{clusters.map((c)=><Pressable key={c.t} onPress={() => router.push(c.route)} accessibilityRole="button" accessibilityLabel={c.t} style={{position:'absolute',left:c.x-18,top:c.y+23}}><Text variant="body" style={[styles.clusterLabel,{position:'relative'}]}>{c.t}</Text></Pressable>)}</View></Card><View style={styles.ctaRow}><Pressable style={styles.primary} onPress={() => router.push('/records')}><Text variant="caption" style={styles.primaryText}>{t("graph.viewClusters")}</Text></Pressable><Pressable style={styles.secondary} onPress={() => router.push('/research')}><Text variant="caption" style={styles.secondaryText}>{t("graph.findConnections")}</Text></Pressable></View></Shell>;
 }
 
-// rev2 clone (28-connect / reference ConnectScreen): a windowed 데이터 연동 list.
-// Real per-source OAuth is not built yet, so every row is an HONEST hand-off
-// to the flow that actually works today: file/paste import (/import-hub), or
-// the capture screen for photos. No "연결됨" state exists on this screen at
-// all — the old local toggle flipped a checkmark plus a screen-reader
-// "연결됨" without connecting anything (the audit's fake-success pattern A),
-// which directly contradicted this very comment.
+function IntegrationEntryRow({ source, t }: { source: IntegrationEntrypoint; t: Tx }) {
+  const [held, setHeld] = useState(false);
+  const name = source.nameKey ? t(source.nameKey) : source.name ?? source.id;
+  const detail = t(source.detailKey);
+  const action = t(source.actionKey);
+
+  return (
+    <Pressable
+      onPress={() => router.push(source.route)}
+      onPressIn={() => setHeld(true)}
+      onPressOut={() => setHeld(false)}
+      accessibilityRole="button"
+      accessibilityLabel={t("connect.a11yGo", { name })}
+      accessibilityHint={detail}
+      style={cx.integrationHit}
+    >
+      <View style={held ? cx.integrationPressed : cx.integrationRest}>
+        <PixelSurface
+          variant="bevel"
+          pressed={held}
+          background={m3.color.surfaceContainerHigh}
+          contentStyle={cx.integrationRow}
+        >
+          <PixelSurface
+            variant="inset"
+            background={m3.color.surfaceContainerHighest}
+            style={cx.integrationIconFrame}
+            contentStyle={cx.integrationIcon}
+          >
+            <CloneIcon name={source.icon} color={m3.color.onSurfaceVariant} size={22} />
+          </PixelSurface>
+          <View style={cx.flex1}>
+            <RNText numberOfLines={1} style={[m3TextStyle("titleSmall"), cx.integrationName]}>{name}</RNText>
+            <RNText numberOfLines={2} style={[m3TextStyle("bodySmall"), cx.integrationDetail]}>{detail}</RNText>
+          </View>
+          <PixelSurface
+            variant="bevel"
+            pressed={held}
+            background={m3.color.primary}
+            style={cx.integrationActionFrame}
+            contentStyle={cx.integrationAction}
+          >
+            <RNText numberOfLines={2} style={[m3TextStyle("labelSmall"), cx.integrationActionText]}>{action}</RNText>
+          </PixelSurface>
+        </PixelSurface>
+      </View>
+    </Pressable>
+  );
+}
+
+// PIXEL-CLAY `connect` 프레임을 실제 `/integrations` 진입 허브로 살린다.
+// 이 화면은 연결 상태를 소유하지 않는다. 각 행은 그 상태를 실제로 소유하는
+// production flow 로 이동한다: OAuth/export는 /import-hub, 네이티브 건강 권한과
+// denied/unavailable/empty 상태는 /import, 사진은 /capture. 따라서 여기에는
+// local toggle도, 근거 없는 "연결됨" 상태도 없다.
 export function DeepSpaceIntegrationsScreen() {
-  const { t } = useTranslation("deepspace");
-  const sources: { id: string; icon: CloneIconName; k: string; sub: string; route: "/import-hub" | "/capture" }[] = [
-    { id: "cal", icon: "forum", k: t("connect.sources.cal.name"), sub: t("connect.sources.cal.sub"), route: "/import-hub" },
-    { id: "health", icon: "bedtime", k: t("connect.sources.health.name"), sub: t("connect.sources.health.sub"), route: "/import-hub" },
-    { id: "notion", icon: "book", k: "Notion", sub: t("connect.sources.notion.sub"), route: "/import-hub" },
-    { id: "photos", icon: "camera", k: t("connect.sources.photos.name"), sub: t("connect.sources.photos.sub"), route: "/capture" },
-    { id: "gpt", icon: "bubble", k: t("connect.sources.gpt.name"), sub: t("connect.sources.gpt.sub"), route: "/import-hub" },
-  ];
+  const { t } = useTranslation(["deepspace", "import"]);
   return (
     <DeepSpaceScreen active="lens" header="none" variant="windowed" title={t("connect.title")} onBack={() => router.back()}>
-      <ScrollView contentContainerStyle={cx.body} keyboardShouldPersistTaps="handled">
-        <RNText style={[m3TextStyle("headlineSmall"), { color: m3.color.onSurface, fontFamily: m3.font.brand, marginTop: 8 }]}>{t("connect.title")}</RNText>
-        <RNText style={[m3TextStyle("bodyMedium"), cx.lead]}>{t("connect.lead")}</RNText>
-        <MdCard variant="filled" style={cx.consentCard}>
-          <View style={cx.consentRow}>
+      <ScrollView contentContainerStyle={cx.integrationBody} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <RNText style={[m3TextStyle("headlineSmall"), cx.integrationTitle]}>{t("connect.title")}</RNText>
+        <RNText style={[m3TextStyle("bodyMedium"), cx.integrationLead]}>{t("connect.lead")}</RNText>
+        <PixelSurface
+          variant="inset"
+          background={m3.color.secondaryContainer}
+          style={cx.integrationConsentFrame}
+          contentStyle={cx.integrationConsent}
+        >
+          <View style={cx.integrationConsentRow}>
             <CloneIcon name="lock" color={m3.color.onSecondaryContainer} size={20} />
-            <RNText style={[m3TextStyle("bodySmall"), cx.consentText]}>{t("connect.consent")}</RNText>
+            <RNText style={[m3TextStyle("bodySmall"), cx.integrationConsentText]}>{t("connect.consent")}</RNText>
           </View>
-        </MdCard>
-        <View style={cx.stack8}>
-          {sources.map((s) => (
-            <MdCard key={s.id} variant="outlined" style={cx.sourceCard}>
-              <View style={cx.sourceRow}>
-                <View style={[cx.iconBox, cx.iconBoxOff]}>
-                  <CloneIcon name={s.icon} color={m3.color.onSurfaceVariant} size={22} />
-                </View>
-                <View style={cx.flex1}>
-                  <RNText style={[m3TextStyle("titleSmall"), cx.sourceName]}>{s.k}</RNText>
-                  <RNText style={[m3TextStyle("bodySmall"), cx.sourceSub]}>{s.sub}</RNText>
-                </View>
-                <MdButton
-                  label={s.route === "/capture" ? t("connect.openCapture") : t("connect.openImport")}
-                  variant="filled"
-                  onPress={() => router.push(s.route)}
-                  style={cx.connectBtn}
-                  accessibilityLabel={t("connect.a11yGo", { name: s.k })}
-                />
-              </View>
-            </MdCard>
+        </PixelSurface>
+        <View style={cx.integrationStack}>
+          {INTEGRATION_ENTRYPOINTS.map((source) => (
+            <IntegrationEntryRow key={source.id} source={source} t={t} />
           ))}
         </View>
       </ScrollView>
@@ -601,11 +640,15 @@ export function DeepSpacePrivacyDesignScreen() {
     deleteInFlightRef.current = true;
     setDeleting(true);
     setDelError(false);
+    // The receipt says what the server erased and what it could not confirm.
+    // It used to be discarded here, so a user who deleted their account was
+    // signed out and shown a sign-in form, and never learned any of it.
+    let receipt: Awaited<ReturnType<typeof requestAccountDeletion>>;
     try {
       // The Edge Function is the single terminal boundary: auth deletion first,
       // then the database cascade and Storage cleanup. A client pre-wipe here
       // can only make failure non-atomic.
-      await requestAccountDeletion();
+      receipt = await requestAccountDeletion();
     } catch {
       deleteInFlightRef.current = false;
       if (privacyMountedRef.current && activeUserRef.current === targetUserId) {
@@ -613,6 +656,16 @@ export function DeepSpacePrivacyDesignScreen() {
         setDeleting(false);
       }
       return;
+    }
+
+    // The server side is gone. Drop this user's local drafts too: nothing else
+    // cleared them, so unsent journal text would outlive the account. Scoped to
+    // the id we just erased, best-effort, and never allowed to turn a completed
+    // deletion into a failure.
+    try {
+      await purgeCaptureDraftsForDeletedAccount(targetUserId);
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[privacy] local draft purge after deletion failed", (e as Error).message);
     }
 
     // Terminal erasure already succeeded. Do not let a local sign-out failure
@@ -627,11 +680,21 @@ export function DeepSpacePrivacyDesignScreen() {
     // Successful erasure may itself trigger an auth-driven route removal.
     // Let that navigation, sign-out, and the explicit replacement proceed.
     allowDeletionNavigationRef.current = true;
+    // Hand the receipt to the store that survives exactly this owner -> null
+    // transition, so the destination screen can show it. `unconfirmed` is the
+    // honest local-cleanup value: this flow clears capture drafts only, not the
+    // checked set the copy describes, and claiming "complete" for a narrower
+    // sweep would be the overclaim this receipt exists to avoid.
+    const completion = createAccountDeletionCompletion(targetUserId, currentAccountEpoch());
+    completion.beginSignOut(receipt, "unconfirmed");
     try {
       await signOut();
+      completion.finishSignOut(true);
     } catch (e) {
+      completion.finishSignOut(false);
       if (typeof console !== "undefined") console.warn("[privacy] local sign-out after deletion failed", (e as Error).message);
     } finally {
+      completion.dispose();
       router.dismissAll();
       router.replace("/sign-in");
     }
@@ -779,7 +842,14 @@ export function DeepSpacePrivacyDesignScreen() {
         await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false });
         return;
       }
-      await recordRecommendationsConsent({
+      // recordConsentBestEffort retries, then REPORTS failure instead of
+      // throwing, and says so in its own comment: "a lost consent record is a
+      // compliance gap ... the caller acts on the returned `false`". Discarding
+      // it left personalization running with no row in the append-only ledger
+      // saying this person agreed to it - the exact gap that writer exists to
+      // flag. A thrown failure already lands in the catch below; a reported one
+      // did not land anywhere.
+      const consentRecorded = await recordRecommendationsConsent({
         userId: targetUserId,
         ageBand: "adult",
         minorTier: "adult",
@@ -791,6 +861,14 @@ export function DeepSpacePrivacyDesignScreen() {
         minorRef.current
       ) {
         await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false });
+        return;
+      }
+      if (!consentRecorded) {
+        // Same rollback the session guards above perform, for the same reason:
+        // this is a state we must not leave behind. Retrying is the user's to
+        // choose, and the existing error line already says to try again.
+        await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false });
+        setRecError(true);
         return;
       }
       prefsRef.current = prefs;
@@ -1326,6 +1404,26 @@ export function DeepSpaceInsightsScreen() {
             <Text variant="caption" style={styles.primaryText}>{t("wiki.addPiece")}</Text>
           </Pressable>
         </View>
+        {/* Reachability (audit 260904 A3): the /discover door lived ONLY in the
+            filled state below, gated on a full week-over-week comparison. But a
+            user with weeks of history whose RECENT week is quiet still reads as
+            first-week here — verified live on the QA account (102 records, quiet
+            recent week) which showed this state with no path to /discover. The
+            rising-interests screen is built on all historical data, not this
+            week's, so it has content for exactly those users. Reuse the same
+            door element verbatim (no new visual work); a brand-new user with no
+            history simply sees /discover's own empty state, no worse than the
+            missing door. The capture CTA above stays the primary next action. */}
+        <Pressable
+          onPress={() => router.push("/discover")}
+          android_ripple={{ color: ddsAlpha2(m3.color.tertiary, 0.12) }}
+          accessibilityRole="button"
+        >
+          <Card>
+            <Text variant="heading" style={styles.section}>{t("insights.sectionDiscover")}</Text>
+            <Text variant="body" style={styles.lead}>{t("insights.discoverLead")}</Text>
+          </Card>
+        </Pressable>
       </Shell>
     );
   }
@@ -1595,19 +1693,13 @@ export { DeepSpacePlansScreen } from "./dds-plans-screen";
 
 // ── Deep-space permissions: real OS status + request ───────────────────────
 // The rows now reflect the ACTUAL permission state and act on tap. Notifications
-// and image-picker are lazy-required (never evaluated in the web bundle, and
-// Expo Go throws on require of expo-notifications — same guarded pattern as
-// src/lib/ops/daily-review.ts and wiki/capture-image.ts); expo-audio ships a
-// web build so its permission fns import directly. Rows render on native only.
+// come through the lib/ops/notifications-sdk seam (its .web.ts variant answers
+// null, so the SDK never reaches the web bundle; Expo Go throws on require, which
+// the seam also absorbs). image-picker is lazy-required (same guarded pattern as
+// wiki/capture-image.ts); expo-audio ships a web build so its permission fns
+// import directly. Rows render on native only.
 type PermStatus = { granted: boolean; canAskAgain: boolean };
 
-function loadNotifications(): typeof import("expo-notifications") | null {
-  try {
-    return require("expo-notifications") as typeof import("expo-notifications");
-  } catch {
-    return null;
-  }
-}
 function loadImagePicker(): typeof import("expo-image-picker") | null {
   try {
     return require("expo-image-picker") as typeof import("expo-image-picker");
@@ -1966,62 +2058,81 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
 
   return (
     <Shell title={t("review.title")}>
-      <SecondbStatusHeader text={t("review.status")} tip={t("review.tip")} />
-      <Text variant="body" style={styles.lead}>{t("review.lead")}</Text>
+      {/* The reference keeps this stack screen to one message instead of
+          repeating it inside a companion bubble. The candidate groups below
+          are the supporting graphic and the actual production actions. */}
+      <Text variant="body" style={styles.planFeatDim}>{t("review.status")}</Text>
       {/* 이 화면의 규칙을 맨 위에 한 줄로 둔다. 확인해야만 반영된다는 것과, L5 가
           여기서만 열린다는 것 — 둘 다 이 화면에 온 이유다
           (design/pixel_clay_260825/captures/review.png). */}
-      <Text variant="caption" style={styles.footer}>{t("review.rule")}</Text>
-      {/* 측정된 근거가 있는 축마다 하나씩. 근거 없는 축을 비준 대상으로 내밀면
-          앱이 지어낸 값을 사용자에게 승인시키는 꼴이 되고, 그건 propose->ratify
-          가 막으려던 바로 그 일이다. */}
-      {targets.length > 0 ? (
-        <Text variant="caption" style={styles.section}>{t("review.groupTest")}</Text>
-      ) : null}
+      <Text variant="caption" style={styles.reviewLabel}>{t("review.rule")}</Text>
       {targetLoadFailed ? (
         <Text variant="subtle" style={styles.footer}>{t("reviewLoadError")}</Text>
       ) : null}
       {!targetLoadFailed && targets.length === 0 && sevenTargets.length === 0 ? (
         <Text variant="subtle" style={styles.footer}>{t("reviewNothingToReview")}</Text>
       ) : null}
-      {targets.map((rt) => (
-          <Pressable
-            key={rt.target.kind === "star" ? rt.target.star : rt.target.kind}
-            style={[styles.primary, loading || ratifyPending ? { opacity: 0.5 } : null]}
-            onPress={() => {
-              if (rt.target.kind === "star") void generate(rt.target.star);
-            }}
-            disabled={loading || isMinor === null}
-            accessibilityState={{ disabled: loading || ratifyPending || isMinor === null }}
-            accessibilityRole="button"
-            accessibilityLabel={t(AXIS_LABEL_KEY[rt.sourceAssessmentId])}
-          >
-            <Text variant="caption" style={styles.primaryText}>
-              {loading ? t("reviewLoading") : t(AXIS_LABEL_KEY[rt.sourceAssessmentId])}
-            </Text>
-          </Pressable>
-        ))}
       {/* 시기 별 비준(2026-08-25) -- 인터뷰로 충분히 판 별의 한 줄 요약을 제안받고
           승인하면 그 별이 L5 로 간다. 커버리지로는 절대 못 가는 등급이라, 이
-          버튼들이 새 일곱 별의 유일한 L5 경로다. 이름은 홈과 같은 키에서 읽는다. */}
+          버튼들이 새 일곱 별의 유일한 L5 경로다. 이름은 홈과 같은 키에서 읽는다.
+          레퍼런스처럼 검사 후보보다 먼저, 44px 가로 버튼으로 보여준다. */}
       {sevenTargets.length > 0 ? (
-        <Text variant="caption" style={styles.section}>{t("review.groupSeven")}</Text>
+        <>
+          <Text variant="caption" style={styles.reviewLabel}>{t("review.groupSeven")}</Text>
+          <View style={styles.filterRow}>
+            {sevenTargets.map((st) => (
+              <Pressable
+                key={`seven-${st.star}`}
+                style={[styles.fchip, styles.fchipActive]}
+                onPress={() => void generateSeven(st.star)}
+                disabled={loading || ratifyPending || isMinor === null}
+                accessibilityState={{ disabled: loading || ratifyPending || isMinor === null }}
+                accessibilityRole="button"
+                accessibilityLabel={tHome(`ds.star.${getSevenStar(st.star).key}`)}
+              >
+                <Text variant="caption" style={[styles.fchipText, styles.fchipTextActive]}>
+                  {loading ? t("reviewLoading") : tHome(`ds.star.${getSevenStar(st.star).key}`)}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </>
       ) : null}
-      {sevenTargets.map((st) => (
-        <Pressable
-          key={`seven-${st.star}`}
-          style={[styles.primary, loading || ratifyPending ? { opacity: 0.5 } : null]}
-          onPress={() => void generateSeven(st.star)}
-          disabled={loading || isMinor === null}
-          accessibilityState={{ disabled: loading || ratifyPending || isMinor === null }}
-          accessibilityRole="button"
-          accessibilityLabel={tHome(`ds.star.${getSevenStar(st.star).key}`)}
-        >
-          <Text variant="caption" style={styles.primaryText}>
-            {loading ? t("reviewLoading") : tHome(`ds.star.${getSevenStar(st.star).key}`)}
-          </Text>
-        </Pressable>
-      ))}
+      {/* 측정된 근거가 있는 축마다 하나씩. 근거 없는 축을 비준 대상으로 내밀면
+          앱이 지어낸 값을 사용자에게 승인시키는 꼴이고, 그건 propose->ratify
+          가 막으려던 바로 그 일이다. 레퍼런스의 한 카드·여러 행 구조를 따르되,
+          근거 없는 L3→L4 숫자를 만들지 않고 실제 제안 동작을 그대로 연결한다. */}
+      {targets.length > 0 ? (
+        <>
+          <Text variant="caption" style={styles.reviewLabel}>{t("review.groupTest")}</Text>
+          <Card>
+            {targets.map((rt) => (
+              <Pressable
+                key={rt.target.kind === "star" ? rt.target.star : rt.target.kind}
+                style={styles.action}
+                onPress={() => {
+                  if (rt.target.kind === "star") void generate(rt.target.star);
+                }}
+                disabled={loading || ratifyPending || isMinor === null}
+                accessibilityState={{ disabled: loading || ratifyPending || isMinor === null }}
+                accessibilityRole="button"
+                accessibilityLabel={t(AXIS_LABEL_KEY[rt.sourceAssessmentId])}
+              >
+                <Text variant="body" style={styles.actionLabel}>
+                  {loading ? t("reviewLoading") : t(AXIS_LABEL_KEY[rt.sourceAssessmentId])}
+                </Text>
+                <RNText
+                  style={styles.chev}
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                >
+                  ›
+                </RNText>
+              </Pressable>
+            ))}
+          </Card>
+        </>
+      ) : null}
       {result ? <Text variant="subtle" style={styles.footer}>{result}</Text> : null}
       {/* audit med#26: dismissing the sheet (backdrop/back) used to strand the
           generated proposal invisibly — the AI cost was spent and the only way
@@ -2848,6 +2959,7 @@ export function DeepSpaceOpsScreen() {
                 style={cx.routineRow}
                 onPress={() => void completeRoutine(routine)}
                 disabled={done}
+                {...checkboxSpaceKeyProps(() => void completeRoutine(routine), !done)}
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: done }}
                 accessibilityLabel={done ? t("today.doneA11y", { title: routine.title }) : t("today.completeA11y", { title: routine.title })}
@@ -3652,21 +3764,30 @@ const cx = StyleSheet.create({
   summaryTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand },
   summarySub: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
 
-  // ── connect / datareview shared ──
-  consentCard: { padding: 14, marginBottom: 12, backgroundColor: m3.color.secondaryContainer },
-  consentRow: { flexDirection: "row", gap: 10 },
-  consentText: { flex: 1, color: m3.color.onSecondaryContainer, fontFamily: m3.font.brand },
-  sourceCard: { padding: 14 },
-  sourceRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  iconBox: { width: 42, height: 42, borderRadius: m3.shape.none, alignItems: "center", justifyContent: "center" },
-  iconBoxOn: { backgroundColor: m3.color.primary },
-  iconBoxOff: { backgroundColor: m3.color.surfaceContainerHighest },
-  sourceName: { color: m3.color.onSurface, fontFamily: m3.font.brand },
-  sourceSub: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
-  connectBtn: { paddingHorizontal: 16, minHeight: 40 },
-  smallBtnCompact: { paddingHorizontal: 12, minHeight: 36 },
+  // ── integrations (PIXEL-CLAY connect salvage) ──
+  integrationBody: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 32 },
+  integrationTitle: { color: m3.color.onSurface, marginTop: 8, marginBottom: 4 },
+  integrationLead: { color: m3.color.onSurfaceVariant, marginBottom: 12 },
+  integrationConsentFrame: { marginBottom: 12 },
+  integrationConsent: { paddingHorizontal: 12, paddingVertical: 10 },
+  integrationConsentRow: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  integrationConsentText: { flex: 1, color: m3.color.onSecondaryContainer, paddingBottom: 2 },
+  integrationStack: { gap: 8 },
+  integrationHit: { alignSelf: "stretch", minHeight: 72 },
+  integrationRest: {},
+  integrationPressed: { transform: [{ translateY: m3.spacing.s1 }] },
+  integrationRow: { minHeight: 64, flexDirection: "row", alignItems: "center", gap: 12 },
+  integrationIconFrame: { width: 44, height: 44 },
+  integrationIcon: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 0, paddingVertical: 0 },
+  integrationName: { color: m3.color.onSurface, paddingBottom: 2 },
+  integrationDetail: { color: m3.color.onSurfaceVariant, marginTop: 2, paddingBottom: 2 },
+  integrationActionFrame: { minWidth: 72, maxWidth: 96 },
+  integrationAction: { minHeight: 44, alignItems: "center", justifyContent: "center", paddingHorizontal: 8, paddingVertical: 4 },
+  integrationActionText: { color: m3.color.onPrimary, textAlign: "center", paddingBottom: 2 },
 
   // ── datareview ──
+  sourceCard: { padding: 14 },
+  smallBtnCompact: { paddingHorizontal: 12, minHeight: 36 },
   statGrid: { flexDirection: "row", gap: 8 },
   statCard: { flex: 1, padding: 12, alignItems: "center" },
   statNum: { fontFamily: m3.font.mono, fontSize: 15, fontWeight: "700", color: m3.color.onSurface, marginTop: 6 },

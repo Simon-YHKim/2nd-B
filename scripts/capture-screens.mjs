@@ -25,8 +25,9 @@
  *   VIEWPORT   "WxH" (default 390x844, phone-first)
  *   WAIT_MS    extra settle wait after networkidle (default 4000)
  *
- * No new npm dependency: Playwright + Chromium are resolved from whatever the
- * environment already provides.
+ * No new npm dependency: the pinned playwright-core devDependency (the same one
+ * design/pixel_clay_260825/tools/score.mjs uses) drives whatever Chromium the
+ * environment provides (PW_CHROME, or the Playwright-managed download).
  */
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -58,8 +59,7 @@ const ROUTES = process.env.ROUTES
 function resolvePlaywright() {
   const candidates = [
     process.env.PW_PATH,
-    'playwright', // project node_modules, if installed
-    '/opt/node22/lib/node_modules/playwright/index.js', // global in remote env
+    'playwright-core', // pinned devDependency (score.mjs resolves the same module)
   ].filter(Boolean);
   for (const c of candidates) {
     try {
@@ -71,7 +71,7 @@ function resolvePlaywright() {
     }
   }
   throw new Error(
-    'Playwright not found. Set PW_PATH=/path/to/playwright or `npm i -D playwright`.',
+    'Playwright not found. Set PW_PATH=/path/to/playwright(-core) or run `npm ci --legacy-peer-deps`.',
   );
 }
 

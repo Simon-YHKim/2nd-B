@@ -10,23 +10,159 @@
 //
 // 진입 축(entry)·렌더 축(render)의 선언도 여기서 라우트 **소스를 읽어** 대조한다.
 // 선언이 실제 분기와 어긋나면 목록이 거짓말을 하는 것이므로 CI 가 막는다.
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+//
+// 위임 auth 는 두 겹으로 지킨다: AUTH_DELEGATES 가 위임 체인의 반환 모양과
+// 도달 가능한 가드를 AST 로 못박고, EXPECTED_DELEGATED_AUTH 가 레지스트리에
+// 데이터로 적힌 gateFile·component 를 실제 소스와 대조한다.
+import { existsSync, readFileSync, readdirSync, realpathSync } from "node:fs";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import * as ts from "typescript";
 
+import { DB_TIER_BY_PUBLIC } from "@/lib/entitlements/tier-map";
+import { personaAllowed } from "@/lib/entitlements/tiers";
 import {
   DEV_SCREEN_GROUPS,
   canOpenFromDevRegistry,
   designLabScreens,
+  devScreenVariants,
   devScreens,
   entryRoleCounts,
+  hrefPathname,
+  openableVariants,
   screenEntry,
   screenRender,
+  screenVariants,
   type SpecialRenderBehavior,
   type SpecialScreenEntry,
 } from "../screen-index";
 
 const APP = join(process.cwd(), "src", "app");
+const SRC = join(process.cwd(), "src");
+
+interface DelegatedAuthFixture {
+  gateFile: string;
+  component: string;
+  via?: string;
+}
+
+// focus 는 여기 없다. #1543 은 위임으로 적었지만 main 의 5cc8cdeb 가 focus.tsx 에
+// 직접 가드를 넣어서 지금은 라우트가 스스로 리다이렉트한다. 그 stale 선언은
+// #1543 자신의 위임 검사가 통합 중에 잡아냈다.
+const EXPECTED_DELEGATED_AUTH: Record<string, DelegatedAuthFixture> = {
+  "capture-full": { gateFile: "src/app/capture.tsx", component: "CaptureLegacy", via: "CaptureLegacySession" },
+  srs: { gateFile: "src/screens/deepspace/DeepSpaceDesignScreens.tsx", component: "DeepSpaceSrsScreen" },
+  plans: { gateFile: "src/screens/deepspace/dds-plans-screen.tsx", component: "DeepSpacePlansScreen" },
+  trends: { gateFile: "src/screens/deepspace/trends/TrendsScreen.tsx", component: "TrendsScreen" },
+};
+
+function isDelegatedAuth(value: unknown): value is DelegatedAuthFixture {
+  if (value === null || typeof value !== "object") return false;
+  const candidate = value as Partial<DelegatedAuthFixture>;
+  return typeof candidate.gateFile === "string" && typeof candidate.component === "string";
+}
+
+/** Read only the explicitly declared gate source. Never walk its import graph. */
+function readDelegatedGate(fixture: DelegatedAuthFixture): string {
+  const normalizedGateFile = fixture.gateFile.replaceAll("\\", "/");
+  if (
+    isAbsolute(fixture.gateFile) ||
+    !normalizedGateFile.startsWith("src/") ||
+    normalizedGateFile.split("/").includes("..")
+  ) {
+    throw new Error(`delegated auth gate must be a repo-relative src path: ${fixture.gateFile}`);
+  }
+  if (!/^[A-Za-z_$][\w$]*$/.test(fixture.component)) {
+    throw new Error(`delegated auth component must be an identifier: ${fixture.component}`);
+  }
+
+  const full = resolve(process.cwd(), fixture.gateFile);
+  const insideSrc = relative(SRC, full);
+  if (insideSrc === "" || insideSrc === ".." || insideSrc.startsWith(`..${sep}`) || isAbsolute(insideSrc)) {
+    throw new Error(`delegated auth gate escapes src: ${fixture.gateFile}`);
+  }
+  if (!existsSync(full)) throw new Error(`delegated auth gate does not exist: ${fixture.gateFile}`);
+  const realSrc = realpathSync(SRC);
+  const realFull = realpathSync(full);
+  const realInsideSrc = relative(realSrc, realFull);
+  if (
+    realInsideSrc === "" ||
+    realInsideSrc === ".." ||
+    realInsideSrc.startsWith(`..${sep}`) ||
+    isAbsolute(realInsideSrc)
+  ) {
+    throw new Error(`delegated auth gate resolves outside src: ${fixture.gateFile}`);
+  }
+  return readFileSync(realFull, "utf8");
+}
+
+function exportedFunctionSource(source: string, file: string, component: string): string {
+  const parsed = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const declaration = parsed.statements.find(
+    (statement): statement is ts.FunctionDeclaration =>
+      ts.isFunctionDeclaration(statement) && statement.name?.text === component,
+  );
+  if (!declaration) throw new Error(`${file} does not declare ${component}`);
+
+  const directlyExported = declaration.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) ?? false;
+  const separatelyExported = parsed.statements.some(
+    (statement) =>
+      ts.isExportDeclaration(statement) &&
+      statement.exportClause !== undefined &&
+      ts.isNamedExports(statement.exportClause) &&
+      statement.exportClause.elements.some((element) => element.name.text === component),
+  );
+  if (!directlyExported && !separatelyExported) throw new Error(`${file} does not export ${component}`);
+  return declaration.getText(parsed);
+}
+
+/** 라우트 파일의 default export 함수 선언 본문 소스. export+default 를 둘 다 요구한다. */
+function defaultRouteFunctionSource(source: string, file: string): string {
+  const parsed = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const declaration = parsed.statements.find(
+    (statement): statement is ts.FunctionDeclaration =>
+      ts.isFunctionDeclaration(statement) &&
+      (statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) ?? false) &&
+      (statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword) ?? false),
+  );
+  if (!declaration) throw new Error(`${file} does not declare a default route function`);
+  return declaration.getText(parsed);
+}
+
+function rendersComponent(source: string, file: string, component: string): boolean {
+  const parsed = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  let rendered = false;
+  const visit = (node: ts.Node) => {
+    if (
+      (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
+      node.tagName.getText(parsed) === component
+    ) {
+      rendered = true;
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(parsed);
+  return rendered;
+}
+
+function hasLiteralSignInRedirect(source: string, file: string): boolean {
+  const parsed = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  let found = false;
+  const visit = (node: ts.Node) => {
+    if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(parsed) === "Redirect") {
+      const href = node.attributes.properties.find(
+        (property): property is ts.JsxAttribute => ts.isJsxAttribute(property) && property.name.getText(parsed) === "href",
+      );
+      if (href?.initializer && ts.isStringLiteral(href.initializer) && href.initializer.text === "/sign-in") {
+        found = true;
+        return;
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(parsed);
+  return found;
+}
 
 /** 정상 진입이 아닌 화면 전부. 여기 없는 화면이 특수 entry 를 달면 실패한다. */
 const EXPECTED_SPECIAL_ENTRY: Record<string, SpecialScreenEntry> = {
@@ -75,6 +211,52 @@ const EXPECTED_SPECIAL_RENDER: Record<string, SpecialRenderBehavior> = {
 };
 
 /**
+ * 등록된 QA 변형 전부 — 소유 파일과 href, **순서까지** 고정한다.
+ *
+ * 여기 없는 변형이 생기거나 여기 있는 변형이 사라지면 실패한다. 변형은
+ * "라우트 소스가 그 값을 실제로 읽는가" 하나로만 자격이 생기므로, 목록이
+ * 늘어날 때 그 근거를 반드시 아래 소스 대조 테스트와 함께 넣어야 한다.
+ */
+const EXPECTED_QA_VARIANTS: Record<string, string[]> = {
+  capture: ["/capture?entry=firstRun"],
+  "capture-full": [
+    "/capture-full?mode=journal",
+    "/capture-full?mode=memo",
+    "/capture-full?mode=linkclip",
+    "/capture-full?mode=ocr",
+    "/capture-full?mode=file",
+    "/capture-full?mode=voice",
+    "/capture-full?mode=todo",
+    "/capture-full?mode=fourw",
+  ],
+  formats: ["/formats?view=export"],
+  secondb: [
+    "/secondb?panel=dashboard",
+    "/secondb?mode=divergent",
+    "/secondb?fromNode=%EC%BB%A4%EB%A6%AC%EC%96%B4",
+  ],
+  audit: ["/audit?screener=1"],
+};
+
+/**
+ * 등록하면 안 되는 값들. 공통점은 **에러 없이 무시된다**는 것이다 — 예외도
+ * 빈 화면도 안 나고 기본 화면이 그냥 열린다. 그래서 검수자는 "이 변형이 원래
+ * 이렇게 생겼구나" 하고 넘어간다. 조용한 거짓말이 이 목록의 유일한 실패 모드다.
+ *
+ * link · photo 가 특히 위험한 이유: 화면에 보이는 한국어 이름이 linkclip 은
+ * "링크", ocr 은 "사진" 이라(locales/ko/capture.json) 라벨을 그대로 옮겨 적으면
+ * 정확히 이 두 값이 나온다.
+ */
+const FORBIDDEN_VARIANT_HREFS = [
+  "/capture?mode=link",
+  "/capture?mode=photo",
+  "/capture-full?mode=link",
+  "/capture-full?mode=photo",
+  // 무동작 별칭 — 눌러도 기본과 같은 화면이 열린다 (formats.tsx 의 주석이 그렇게 적고 있다).
+  "/formats?view=manager",
+];
+
+/**
  * `src/lib/canon/__tests__/canon.test.ts` 의 appRoutes() 와 **같은 규칙**이어야
  * 한다. 규칙이 갈리면 두 가드가 서로 다른 앱을 검사하게 된다.
  */
@@ -93,18 +275,6 @@ function routeFiles(dir = APP, base = ""): string[] {
     out.push(base ? `${base}/${name}` : name);
   }
   return out;
-}
-
-/** 라우트 파일의 default export 함수 선언 본문 소스. */
-function defaultRouteFunctionSource(source: string, file: string): string {
-  const parsed = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  const declaration = parsed.statements.find(
-    (statement): statement is ts.FunctionDeclaration =>
-      ts.isFunctionDeclaration(statement) &&
-      (statement.modifiers ?? []).some((m) => m.kind === ts.SyntaxKind.DefaultKeyword),
-  );
-  if (!declaration) throw new Error(`${file} does not export a default function declaration`);
-  return declaration.getText(parsed);
 }
 
 /** 이름 붙은 함수의 첫 if 문 소스 — 외부 계약 정적 분기를 짚는 데 쓴다. */
@@ -183,6 +353,133 @@ function destinationScreen(destination: string): string {
   return match.file;
 }
 
+const SIGN_IN_REDIRECT = /<Redirect href="\/sign-in" \/>/;
+
+function sourceFileOf(source: string, file: string): ts.SourceFile {
+  return ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+}
+
+/**
+ * 인증 경계를 다른 컴포넌트에 **위임한** 라우트 셋. 라우트 파일에 가드 리터럴이
+ * 없는데 로그인이 필요한 것은 이 셋뿐이고, 아래 픽스처가 네 선언의 반환 JSX
+ * 모양·import 줄·가드를 그대로 못박는다.
+ *
+ * ⚠ 일반 판정기는 만들지 않는다. JSX 를 훑으면 실행되지 않는 가지까지 근거로
+ * 집는다 — `/persona` 는 기본이 `/core-brain` 인데 `PersonaLegacy` 안의 가드를
+ * 집어 온다(배지는 맞고 근거는 틀린다). 리터럴 판정의 다른 한계도 범위 밖이다.
+ */
+const AUTH_DELEGATES = ["capture-full", "srs", "trends"] as const;
+const SCREENS = join(process.cwd(), "src", "screens", "deepspace");
+
+/** 위임에 관여하는 네 선언의 반환 모양(과 import 줄). 모양이 바뀌면 실패한다. */
+const DELEGATE_FIXTURES: { label: string; path: string; fn: string | null; shapes: string[]; importLine?: string }[] = [
+  { label: "capture-full", path: join(APP, "capture-full.tsx"), fn: null,
+    shapes: ["DeepSpaceScreen>CaptureLegacy", "CaptureLegacy"],
+    importLine: 'import { CaptureLegacy } from "./capture";' },
+  { label: "srs", path: join(APP, "srs.tsx"), fn: null, shapes: ["DeepSpaceSrsScreen"],
+    importLine: 'import { DeepSpaceSrsScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";' },
+  { label: "trends", path: join(APP, "trends.tsx"), fn: null, shapes: ["DevOnlyRoute>TrendsScreen"],
+    importLine: 'import { TrendsScreen } from "@/screens/deepspace/trends/TrendsScreen";' },
+  { label: "CaptureLegacy", path: join(APP, "capture.tsx"), fn: "CaptureLegacy",
+    shapes: ["CaptureLegacySession", "CaptureLegacySession"] },
+];
+
+/** 실제로 도달 가능한 `if (!userId) return <Redirect href="/sign-in" />` 를 가진 선언 셋. */
+const DELEGATE_GUARDS: { label: string; path: string; fn: string }[] = [
+  { label: "CaptureLegacySession", path: join(APP, "capture.tsx"), fn: "CaptureLegacySession" },
+  { label: "DeepSpaceSrsScreen", path: join(SCREENS, "DeepSpaceDesignScreens.tsx"), fn: "DeepSpaceSrsScreen" },
+  { label: "TrendsScreen", path: join(SCREENS, "trends", "TrendsScreen.tsx"), fn: "TrendsScreen" },
+];
+
+/** FunctionDeclaration 노드. 다른 export 형태는 통과가 아니라 실패다. */
+function functionDeclarationIn(parsed: ts.SourceFile, name: string | null): ts.FunctionDeclaration {
+  for (const s of parsed.statements) {
+    if (!ts.isFunctionDeclaration(s)) continue;
+    const isDefault = (s.modifiers ?? []).some((m) => m.kind === ts.SyntaxKind.DefaultKeyword);
+    if (name === null ? isDefault : s.name?.text === name) return s;
+  }
+  throw new Error(`${parsed.fileName}: no FunctionDeclaration for ${name ?? "(default export)"}`);
+}
+
+const declarationAt = (path: string, name: string | null) =>
+  functionDeclarationIn(sourceFileOf(readFileSync(path, "utf8"), path), name);
+const declarationFrom = (source: string, name: string | null) =>
+  functionDeclarationIn(sourceFileOf(source, "synthetic.tsx"), name);
+
+function jsxTagOf(node: ts.Node): string | null {
+  let e = node;
+  while (ts.isParenthesizedExpression(e)) e = e.expression;
+  if (ts.isJsxElement(e)) return e.openingElement.tagName.getText();
+  if (ts.isJsxSelfClosingElement(e)) return e.tagName.getText();
+  return null;
+}
+
+/**
+ * 각 return 을 `"root"` 또는 `"root>child,child"` 로. 중첩 함수 return 은 뺀다.
+ *
+ * 모양을 통째로 비교하면 별도 판정기 없이 거짓 근거가 걸린다: `false && <X/>`·
+ * 삼항은 `(non-jsx)` 가 되고, prop 안의 JSX 는 child 가 아니라 안 들어오며,
+ * 도달 불가 return 을 덧붙이면 배열 길이가 달라진다.
+ *
+ * 마지막 top-level 문이 direct return 이 아니면 `(fallthrough)` 를 붙인다. 위치를
+ * 버리면 `if (false) return <T/>;` 가 `["T"]` 로 보여 픽스처를 통과한다.
+ */
+function returnShapes(fn: ts.FunctionDeclaration): string[] {
+  const shapes: string[] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node) || ts.isArrowFunction(node)) return;
+    if (!ts.isReturnStatement(node)) return void ts.forEachChild(node, visit);
+    let e: ts.Node | undefined = node.expression;
+    while (e && ts.isParenthesizedExpression(e)) e = e.expression;
+    const root = e ? jsxTagOf(e) : null;
+    if (!e || root === null) return void shapes.push(e ? "(non-jsx)" : "(empty)");
+    const kids = ts.isJsxElement(e) ? e.children.map(jsxTagOf).filter((t): t is string => t !== null) : [];
+    shapes.push(kids.length > 0 ? `${root}>${kids.join(",")}` : root);
+  };
+  const body = fn.body?.statements ?? [];
+  for (const s of body) visit(s);
+  const last = body[body.length - 1];
+  if (!last || !ts.isReturnStatement(last)) shapes.push("(fallthrough)");
+  return shapes;
+}
+
+/**
+ * 본문 **직계**에 `if (!userId) return <Redirect href="/sign-in" />;` 가 있는가.
+ * 순서대로 읽고 무조건 return/throw 를 먼저 만나면 그 뒤는 도달 불가라 멈춘다.
+ * 중첩 if · false 가지 · prop 안의 Redirect 는 인정하지 않는다.
+ */
+function hasSignInGuard(fn: ts.FunctionDeclaration): boolean {
+  for (const s of fn.body?.statements ?? []) {
+    if (ts.isReturnStatement(s) || ts.isThrowStatement(s)) return false;
+    if (!ts.isIfStatement(s)) continue;
+    const c = s.expression;
+    if (!ts.isPrefixUnaryExpression(c) || c.operator !== ts.SyntaxKind.ExclamationToken) continue;
+    if (!ts.isIdentifier(c.operand) || c.operand.text !== "userId") continue;
+    let branch: ts.Statement = s.thenStatement;
+    if (ts.isBlock(branch)) {
+      if (branch.statements.length !== 1) continue;
+      branch = branch.statements[0];
+    }
+    if (!ts.isReturnStatement(branch) || !branch.expression) continue;
+    let r: ts.Node = branch.expression;
+    while (ts.isParenthesizedExpression(r)) r = r.expression;
+    if (!ts.isJsxSelfClosingElement(r) || r.tagName.getText() !== "Redirect") continue;
+    const href = r.attributes.properties.find(
+      (pr): pr is ts.JsxAttribute => ts.isJsxAttribute(pr) && pr.name.getText() === "href",
+    )?.initializer;
+    if (href && ts.isStringLiteral(href) && href.text === "/sign-in") return true;
+  }
+  return false;
+}
+
+/** 로그인 게이트 뒤인가 — 파일 리터럴이거나 위 셋 중 하나이거나. */
+function routeRequiresAuth(routeFile: string): boolean {
+  const source = readFileSync(join(APP, `${routeFile}.tsx`), "utf8");
+  // 위임 목록은 이제 레지스트리가 데이터로 갖는다. 하드코딩된 세 이름을 쓰면
+  // focus·plans 처럼 뒤에 늘어난 위임이 조용히 빠진다.
+  return SIGN_IN_REDIRECT.test(source) || routeFile in EXPECTED_DELEGATED_AUTH;
+}
+
 function moduleSpecifiers(source: string, file: string): string[] {
   const parsed = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   return parsed.statements
@@ -231,6 +528,36 @@ describe("개발자 화면 목록", () => {
     }
   });
 
+  it("클리퍼 형식 관리 항목은 맨 라우트를 열고 내보내기 변형을 안내한다", () => {
+    expect(devScreens().find((screen) => screen.file === "formats")).toEqual(
+      expect.objectContaining({
+        note: expect.stringContaining("?view=export"),
+        href: "/formats",
+        label: "클리퍼 형식 관리",
+      }),
+    );
+  });
+
+  it("formats 라우트의 파라미터 없는 기본이 실제로 관리 화면이다", () => {
+    // 대장의 label 과 라우트의 기본 분기가 어긋나면 개발자 목록이 거짓말을 한다.
+    // #1597 은 그 어긋남을 href 에 쿼리를 박아 우회했고, 2026-09-04 에 기본 분기를
+    // 뒤집어 원인을 없앴다. 되돌아가면 여기서 잡는다 — 선언이 아니라 소스를 읽는다.
+    const body = defaultRouteFunctionSource(readFileSync(join(APP, "formats.tsx"), "utf8"), "formats.tsx");
+    expect(body).toContain('view === "export"');
+    // 마지막 폴백이 관리 화면이어야 한다. 딥스페이스 기본이 내보내기로 돌아가면 실패.
+    expect(body).not.toMatch(/if\s*\(isDeepSpaceUI\(\)\)\s*return\s*<DeepSpaceFormatsScreen/);
+    expect(body).toContain("return <FormatsLegacy />;");
+  });
+
+  it("과거의 나 항목은 같은 파일의 Life Audit 변형을 안내한다", () => {
+    expect(devScreens().find((screen) => screen.file === "audit")).toEqual(
+      expect.objectContaining({
+        href: "/audit",
+        note: expect.stringContaining("/audit?screener=1"),
+      }),
+    );
+  });
+
   it("동적 라우트는 견본 표시를 달고 있다", () => {
     for (const s of devScreens()) {
       if (s.file.includes("[")) expect(s.sample).toBe(true);
@@ -258,14 +585,144 @@ describe("개발자 화면 목록", () => {
     }
   });
 
-  it("auth 표시가 실제 로그인 리다이렉트와 일치한다", () => {
+  it("auth=true 표시만 route 자체의 로그인 리다이렉트와 일치한다", () => {
     for (const s of devScreens()) {
-      const src = readFileSync(join(APP, `${s.file}.tsx`), "utf8");
-      expect({ file: s.file, auth: s.auth === true }).toEqual({
+      const routeSource = readFileSync(join(APP, `${s.file}.tsx`), "utf8");
+      expect({ file: s.file, directAuth: s.auth === true }).toEqual({
         file: s.file,
-        auth: /<Redirect href="\/sign-in" \/>/.test(src),
+        directAuth: hasLiteralSignInRedirect(routeSource, `${s.file}.tsx`),
       });
     }
+  });
+
+  it("로그인 게이트 뒤인 화면은 직접이든 위임이든 auth 를 선언한다", () => {
+    // main 의 routeRequiresAuth 계약 그대로다 — 리터럴이 있거나 증명된 위임이면
+    // 배지가 붙어야 한다. 위임이 데이터로 내려온 뒤에도 뜻은 바뀌지 않는다.
+    for (const s of devScreens()) {
+      expect({ file: s.file, declared: s.auth !== undefined }).toEqual({
+        file: s.file,
+        declared: routeRequiresAuth(s.file),
+      });
+    }
+  });
+
+  it("위임 게이트 3건의 렌더 모양·import·가드를 고정한다", () => {
+    // 판정기를 일반화하지 않고 네 선언의 모양을 그대로 못박는다. 모양이 조금이라도
+    // 달라지면(가지 추가·prop 으로 밀어넣기·도달 불가 return) 배열이 어긋나 실패한다.
+    for (const f of DELEGATE_FIXTURES) {
+      expect({ label: f.label, shapes: returnShapes(declarationAt(f.path, f.fn)) }).toEqual({ label: f.label, shapes: f.shapes });
+      if (f.importLine) expect(readFileSync(f.path, "utf8")).toContain(f.importLine);
+    }
+    // 위임이려면 라우트 파일 자체에는 가드 리터럴이 없어야 한다.
+    for (const routeFile of AUTH_DELEGATES) {
+      const direct = SIGN_IN_REDIRECT.test(readFileSync(join(APP, `${routeFile}.tsx`), "utf8"));
+      const auth = devScreens().find((s) => s.file === routeFile)?.auth;
+      // 위임이므로 라우트 파일에는 리터럴이 없어야 하고, 배지는 이제 `true` 가
+      // 아니라 대상을 적은 객체다.
+      expect({ routeFile, direct, delegated: isDelegatedAuth(auth) })
+        .toEqual({ routeFile, direct: false, delegated: true });
+      // AST 로 모양을 못박는 이 목록이 레지스트리 밖으로 새지 않게 한다.
+      expect(Object.keys(EXPECTED_DELEGATED_AUTH)).toContain(routeFile);
+    }
+    // 가드를 가진 세 선언이 실제로 도달 가능한 !userId 가드를 가진다.
+    for (const g of DELEGATE_GUARDS) {
+      expect({ label: g.label, gated: hasSignInGuard(declarationAt(g.path, g.fn)) }).toEqual({ label: g.label, gated: true });
+    }
+  });
+
+  it("모양·가드 판정이 false&& · prop · 도달 불가를 거른다", () => {
+    const shapes = (src: string) => returnShapes(declarationFrom(src, null));
+    expect(shapes("export default function R(){ return <S><T/></S>; }")).toEqual(["S>T"]);
+    expect(shapes("export default function R(){ return false && <T/>; }")).toEqual(["(non-jsx)"]);
+    expect(shapes("export default function R(){ return <S slot={<T/>}/>; }")).toEqual(["S"]);
+    expect(shapes("export default function R(){ return <O/>; return <T/>; }")).toEqual(["O", "T"]);
+    expect(shapes("export default function R(){ if (false) return <T/>; }")).toEqual(["T", "(fallthrough)"]);
+
+    const guard = (src: string) => hasSignInGuard(declarationFrom(src, "G"));
+    expect(guard('function G(){ if (!userId) return <Redirect href="/sign-in" />; return <X/>; }')).toBe(true);
+    expect(guard('function G(){ return <X/>; if (!userId) return <Redirect href="/sign-in" />; }')).toBe(false);
+  });
+
+  it("wrapper/re-export auth 위임은 확정된 네 화면만 정확히 선언한다", () => {
+    const delegated = Object.fromEntries(
+      devScreens()
+        .filter((s) => isDelegatedAuth(s.auth))
+        .map((s) => [s.file, s.auth]),
+    );
+    expect(delegated).toEqual(EXPECTED_DELEGATED_AUTH);
+  });
+
+  it("위임 gate는 선언한 컴포넌트를 export하고 route가 실제로 렌더한다", () => {
+    for (const [file, expected] of Object.entries(EXPECTED_DELEGATED_AUTH)) {
+      const screen = devScreens().find((candidate) => candidate.file === file);
+      expect(isDelegatedAuth(screen?.auth)).toBe(true);
+      if (!isDelegatedAuth(screen?.auth)) continue;
+
+      const routeSource = readFileSync(join(APP, `${file}.tsx`), "utf8");
+      const gateSource = exportedFunctionSource(
+        readDelegatedGate(screen.auth),
+        screen.auth.gateFile,
+        screen.auth.component,
+      );
+      expect(screen.auth).toEqual(expected);
+      // 가드는 선언한 컴포넌트에 있거나, 그 컴포넌트가 같은 파일 안에서 렌더하는
+      // `via` 컴포넌트에 있다. 두 번째 홉도 **선언된 것만** 따라간다 — 임의의
+      // import 그래프를 걷지 않는다는 이 검사의 원칙은 그대로다.
+      if (screen.auth.via === undefined) {
+        expect(hasLiteralSignInRedirect(gateSource, screen.auth.gateFile)).toBe(true);
+      } else {
+        expect(hasLiteralSignInRedirect(gateSource, screen.auth.gateFile)).toBe(false);
+        expect(rendersComponent(gateSource, screen.auth.gateFile, screen.auth.via)).toBe(true);
+        // `via` 는 같은 파일 안의 내부 컴포넌트라 export 를 요구하지 않는다
+        // (CaptureLegacySession 은 일부러 module-private 다). 대신 리터럴이
+        // 있는지가 아니라 **도달 가능한** 가드인지까지 본다 — 리터럴 스캔보다
+        // 강하고, main 의 DELEGATE_GUARDS 와 같은 판정기를 쓴다.
+        expect(
+          hasSignInGuard(declarationFrom(readDelegatedGate(screen.auth), screen.auth.via)),
+        ).toBe(true);
+      }
+      expect(
+        rendersComponent(
+          defaultRouteFunctionSource(routeSource, `${file}.tsx`),
+          `${file}.tsx`,
+          screen.auth.component,
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("다른 함수의 redirect나 주석 속 JSX를 위임 gate 증거로 세지 않는다", () => {
+    const gateFile = "fixture.tsx";
+    const gateSource = [
+      "export function Target() { return null; }",
+      'export function Other() { return <Redirect href="/sign-in" />; }',
+    ].join("\n");
+    expect(hasLiteralSignInRedirect(exportedFunctionSource(gateSource, gateFile, "Target"), gateFile)).toBe(false);
+    const routeSource = [
+      "function Unused() { return <Target />; }",
+      "// <Target />",
+      "export default function Route() { return null; }",
+    ].join("\n");
+    expect(rendersComponent(defaultRouteFunctionSource(routeSource, gateFile), gateFile, "Target")).toBe(false);
+    expect(() => exportedFunctionSource("export function Other() { return null; }", gateFile, "Missing")).toThrow();
+  });
+
+  it("위임 gate fixture의 경로 탈출·절대 경로·없는 파일·잘못된 컴포넌트를 거부한다", () => {
+    expect(() => readDelegatedGate({ gateFile: "../outside.tsx", component: "Outside" })).toThrow();
+    expect(() => readDelegatedGate({ gateFile: "src/../src/app/capture.tsx", component: "CaptureLegacy" })).toThrow();
+    expect(() => readDelegatedGate({ gateFile: resolve(process.cwd(), "outside.tsx"), component: "Outside" })).toThrow();
+    expect(() => readDelegatedGate({ gateFile: "src/does-not-exist.tsx", component: "Missing" })).toThrow();
+    expect(() => readDelegatedGate({ gateFile: "src/app/capture.tsx", component: "CaptureLegacy />" })).toThrow();
+  });
+
+  it("개발자 목록의 badge와 집계가 auth 객체도 로그인 필요로 센다", () => {
+    const source = readFileSync(join(APP, "dev-screens.tsx"), "utf8");
+    expect(source).toContain("if (s.auth !== undefined)");
+    // 집계는 이제 entryRoleCounts 가 소유한다(#1549 의 2축 헤더). 세는 규칙은 같은
+    // 뜻이어야 한다 — `if (screen.auth)` 는 true 와 위임 객체를 둘 다 센다.
+    expect(source).toContain("로그인 필요 {counts.authRequired}");
+    expect(readFileSync(join(process.cwd(), "src", "lib", "dev", "screen-index.ts"), "utf8"))
+      .toContain("if (screen.auth) counts.authRequired += 1;");
   });
 
   it("그룹 제목이 비어 있지 않고 중복되지 않는다", () => {
@@ -402,6 +859,36 @@ describe("개발자 화면 목록", () => {
     }
   });
 
+  it("flowmap 보관본은 현행 정본을 주장하거나 데모 작업을 시작하지 않는다", () => {
+    const flowmap = designLabScreens().find((screen) => screen.file === "deepspace-flowmap");
+    expect(flowmap).toMatchObject({
+      label: "화면 흐름도",
+      entry: { kind: "dev", collection: "design-lab" },
+    });
+    expect(flowmap?.note).toContain("현재 동선의 정본이 아니며");
+
+    const source = readFileSync(
+      join(process.cwd(), "src", "screens", "deepspace", "DeepSpaceFlowMapScreen.tsx"),
+      "utf8",
+    );
+    expect(source).toContain("DESIGN LAB · ARCHIVE");
+    expect(source).toContain("Design Lab archive");
+    expect(source).toContain("이전 자기이해 축");
+    expect(source).not.toMatch(/\bstartTask\s*\(/);
+    expect(source).not.toMatch(/\bsetTimeout\s*\(/);
+    expect(source).not.toMatch(/7\s*(?:렌즈|lenses|lentes|lensa)/i);
+    expect(source).not.toMatch(/(?:canonical|정본|canonico|kanonis)\s+flowmap/i);
+    for (const inactiveNotice of [
+      "Inactive · starts no task or timer",
+      "비활성 · 작업이나 타이머를 시작하지 않음",
+      "Inactiva · no inicia tareas ni temporizadores",
+      "Inativa · não inicia tarefas nem temporizadores",
+      "Nonaktif · tidak memulai tugas atau timer",
+    ]) {
+      expect(source).toContain(inactiveNotice);
+    }
+  });
+
   // ── 렌더 축 ────────────────────────────────────────────────────────────
 
   it("특수 렌더는 항상 redirect 3 · UI 모드 분기 5 와 정확히 일치하고 전부 메모가 있다", () => {
@@ -489,6 +976,151 @@ describe("개발자 화면 목록", () => {
     expect(byFile["deepspace-home"]?.note).toContain("일곱 한 벌");
   });
 
+  // ── QA 변형 ────────────────────────────────────────────────────────────
+
+  it("QA 변형은 등록된 집합·순서와 정확히 일치한다", () => {
+    const actual = Object.fromEntries(
+      devScreens()
+        .filter((screen) => screenVariants(screen).length > 0)
+        .map((screen) => [screen.file, screenVariants(screen).map((variant) => variant.href)]),
+    );
+    expect(actual).toEqual(EXPECTED_QA_VARIANTS);
+    // 라벨이 비어 있으면 버튼에 이름이 없다.
+    for (const { variant } of devScreenVariants()) {
+      expect(variant.label.trim().length).toBeGreaterThan(0);
+    }
+  });
+
+  it("변형 href 는 유일하고 라우트 href 와 겹치지 않는다", () => {
+    const variantHrefs = devScreenVariants().map(({ variant }) => variant.href);
+    expect(new Set(variantHrefs).size).toBe(variantHrefs.length);
+
+    // 파라미터 없는 기본과 같은 href 를 단 변형은 같은 화면을 두 번 여는 버튼이다.
+    const routeHrefs = new Set(devScreens().map((screen) => screen.href));
+    for (const href of variantHrefs) expect(routeHrefs.has(href)).toBe(false);
+  });
+
+  it("변형은 소유 화면과 같은 pathname 을 연다", () => {
+    for (const { screen, variant } of devScreenVariants()) {
+      // 다른 화면으로 가는 버튼이 소유 화면 밑에 붙으면 목록이 소속을 거짓말한다.
+      expect({ file: screen.file, path: hrefPathname(variant.href) }).toEqual({
+        file: screen.file,
+        path: screen.href,
+      });
+      // 쿼리가 없으면 그냥 소유 화면이다 — 변형일 이유가 없다.
+      expect(variant.href.length).toBeGreaterThan(screen.href.length);
+      expect(variant.href.startsWith(`${screen.href}?`)).toBe(true);
+      expect(variant.href).not.toContain("[");
+      expect(variant.href).not.toContain("(");
+    }
+  });
+
+  it("변형은 라우트 레코드를 늘리지 않는다", () => {
+    // 대장은 라우트 100건이고 변형은 그 안의 여는 방법이다. 변형이 레코드로
+    // 새면 `src/app` 대조가 유령 항목으로 실패한다 — 개수 핀이 아니라 파일
+    // 목록과의 동치로 지킨다(개수만 세면 하나 지우고 하나 더할 때 통과한다).
+    expect(entryRoleCounts().total).toBe(routeFiles().length);
+    expect(devScreens()).toHaveLength(routeFiles().length);
+    expect(devScreenVariants().length).toBeGreaterThan(0);
+    // 세 번째 분류 축이 생기면 두 축 계약이 무너진다.
+    for (const screen of devScreens()) {
+      expect("classification" in screen).toBe(false);
+      expect("orphan" in screen).toBe(false);
+      expect("stub" in screen).toBe(false);
+    }
+  });
+
+  it("capture 계열 변형은 CAPTURE_MODES 의 id 만 쓴다", () => {
+    // 선언이 아니라 정본 소스를 읽어 대조한다 — 모드 id 가 draft.ts 에서 바뀌면
+    // 여기서 잡힌다. 화면 라벨("링크"·"사진")을 옮겨 적은 값은 통과할 수 없다.
+    const draftSource = readFileSync(
+      join(process.cwd(), "src", "lib", "capture", "draft.ts"),
+      "utf8",
+    );
+    const declared = draftSource.match(/export const CAPTURE_MODES[^=]*=\s*\[([\s\S]*?)\]/)?.[1] ?? "";
+    const modes = [...declared.matchAll(/"([a-z]+)"/g)].map((m) => m[1]);
+    expect(modes.length).toBeGreaterThan(0);
+
+    const used = devScreenVariants()
+      .map(({ variant }) => variant.href.match(/^\/capture-full\?mode=(.+)$/)?.[1])
+      .filter((mode): mode is string => typeof mode === "string");
+    expect(used).toEqual(EXPECTED_QA_VARIANTS["capture-full"].map((href) => href.split("=")[1]));
+    for (const mode of used) expect(modes).toContain(mode);
+    // 여덟 모드 전부를 덮는다 — 하나라도 빠지면 그 모드는 앱 안에서 열 수 없다.
+    expect([...used].sort()).toEqual([...modes].sort());
+  });
+
+  it("조용히 무시되는 파라미터는 등록하지 않는다", () => {
+    const hrefs = new Set(devScreenVariants().map(({ variant }) => variant.href));
+    for (const forbidden of FORBIDDEN_VARIANT_HREFS) {
+      expect({ forbidden, registered: hrefs.has(forbidden) }).toEqual({ forbidden, registered: false });
+    }
+  });
+
+  it("변형을 선언한 라우트가 실제로 그 파라미터를 읽는다", () => {
+    // 읽지 않는 파라미터를 단 버튼은 기본 화면을 열면서 변형인 척한다.
+    const read = (file: string) => readFileSync(join(APP, file), "utf8");
+
+    expect(read("audit.tsx")).toContain('if (screener === "1")');
+    expect(read("formats.tsx")).toContain('view === "export"');
+    expect(read("secondb.tsx")).toContain('params.panel === "dashboard"');
+    expect(read("secondb.tsx")).toContain('params.mode === "divergent"');
+    expect(read("secondb.tsx")).toContain("params.fromNode");
+    expect(read("capture.tsx")).toContain('entry === "firstRun"');
+
+    // /capture-full 은 자기 파일에서 파라미터를 읽지 않는다 — CaptureLegacy 를
+    // 재사용하고 그쪽이 현재 라우트의 쿼리를 읽는다. 그 배선이 끊기면 여덟 개
+    // 버튼이 전부 조용히 일기 모드를 연다.
+    expect(read("capture-full.tsx")).toContain('import { CaptureLegacy } from "./capture"');
+    expect(read("capture-full.tsx")).toContain("<CaptureLegacy");
+    expect(read("capture.tsx")).toContain("mode: modeParam");
+    expect(read("capture.tsx")).toContain("planCaptureParamConsumption({");
+    expect(read("capture.tsx")).toContain("switchCaptureMode(plan.targetMode)");
+  });
+
+  it("한글이 든 변형 href 는 URL 인코딩돼 있다", () => {
+    for (const { variant } of devScreenVariants()) {
+      // 날 한글을 href 에 그대로 두면 플랫폼마다 인코딩이 갈린다. URLSearchParams
+      // 는 읽는 순간 디코딩하므로 파싱 결과가 아니라 **원문 문자열**을 봐야 한다.
+      expect(variant.href).toMatch(/^[\x20-\x7E]*$/);
+      const query = variant.href.slice(variant.href.indexOf("?") + 1);
+      for (const [, value] of new URLSearchParams(query)) {
+        expect(value.trim().length).toBeGreaterThan(0);
+      }
+    }
+    // 인코딩된 값이 실제로 뜻 있는 견본으로 풀린다 — 깨진 바이트가 아니다.
+    const node = devScreenVariants().find(({ variant }) => variant.href.includes("fromNode="));
+    expect(node?.variant.href).toContain("%EC%BB%A4");
+    expect(new URLSearchParams(node?.variant.href.split("?")[1] ?? "").get("fromNode")).toBe("커리어");
+  });
+
+  it("등급을 타는 변형만 등급 안내를 달고, 그 근거가 실행으로 확인된다", () => {
+    // ?mode=divergent 는 트위비를 심는데 트위비는 pro(=brain) 전용이라 free·plus 에서는
+    // effect 가 페르소나를 **조용히** 되돌린다. 그래서 이 변형에만 등급 안내가 붙는다.
+    const note = devScreenVariants().find(({ variant }) => variant.href === "/secondb?mode=divergent")?.variant.note ?? "";
+    expect(note).toContain("Brain");
+    expect(note).toContain("EXPO_PUBLIC_FORCE_TIER=brain");
+
+    const secondb = readFileSync(join(APP, "secondb.tsx"), "utf8");
+    expect(secondb).toContain('params.mode === "divergent" ? "twi" : "secondb"');
+    expect(secondb).toContain('selectRev2Persona("secondb")');
+
+    // 등급 정본을 문자열이 아니라 **실행**으로 확인한다.
+    expect([personaAllowed("free", "twi"), personaAllowed("plus", "twi"), personaAllowed("pro", "twi")]).toEqual([false, false, true]);
+    expect(DB_TIER_BY_PUBLIC.pro).toBe("brain");
+  });
+
+  it("딥링크 계약에는 실행 가능한 변형이 붙지 않는다", () => {
+    for (const screen of devScreens()) {
+      if (canOpenFromDevRegistry(screen)) {
+        expect(openableVariants(screen)).toEqual(screenVariants(screen));
+        continue;
+      }
+      // 계약 화면은 mount 자체가 조회·가입·세션 변경을 시작할 수 있다.
+      expect(openableVariants(screen)).toHaveLength(0);
+    }
+  });
+
   // ── /dev-screens 화면 자체 ─────────────────────────────────────────────
 
   it("개발자 목록이 역할 집계·가상화 목록·PIXEL-CLAY 프리미티브를 사용한다", () => {
@@ -512,6 +1144,29 @@ describe("개발자 화면 목록", () => {
     }
     expect(source).not.toContain("<ScrollView");
     expect(source).not.toContain("orphanScreens");
+  });
+
+  it("개발자 목록이 변형을 소유 행 아래에서 실제로 연다", () => {
+    const source = readFileSync(join(APP, "dev-screens.tsx"), "utf8");
+    // 계약 판정은 openableVariants 한 곳이 소유한다 — 화면이 따로 판정하면 갈린다.
+    expect(source).toContain("openableVariants(screen)");
+    expect(source).not.toContain("screenVariants(screen)");
+    // 소유 행 바로 아래에 붙는다.
+    expect(source).toMatch(/<ScreenRow screen=\{item\} section=\{section\} \/>\s*<VariantList screen=\{item\} \/>/);
+    // 탭 표적은 줄이지 않는다. (줄바꿈이 CRLF 일 수 있어 공백은 느슨하게 본다.)
+    expect(source).toMatch(/variantContent:\s*\{\s*minHeight:\s*m3\.minTouch,/);
+  });
+
+  it("변형 버튼의 접근성·이동이 VariantRow 선언 안에서 성립한다", () => {
+    // ⚠ 파일 전체를 grep 하면 옆 PressRow 의 a11y 속성이 통과시켜 준다(이전 판이 그랬다).
+    //    그래서 VariantRow 선언 안만 본다.
+    const row = declarationAt(join(APP, "dev-screens.tsx"), "VariantRow").getText();
+    expect(row).toContain("router.push(variant.href)");
+    expect(row).toContain('accessibilityRole="button"');
+    // 스크린리더로는 앞 행이 안 보인다 — 라벨에 소유 화면 이름이 함께 있어야 한다.
+    expect(row).toMatch(/accessibilityLabel=\{`\$\{screen\.label\}[^`]*\$\{variant\.label\}[^`]*`\}/);
+    expect(row).toMatch(/accessibilityHint=\{`\$\{variant\.href\}[^`]*`\}/);
+    expect(row).toContain("styles.variantContent");
   });
 
   it("외부 계약의 정적 ScreenRow 분기는 press 나 navigation 을 렌더하지 않는다", () => {

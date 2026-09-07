@@ -22,7 +22,7 @@ import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tok
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceResetPasswordDesignScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
-const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_hq.png");
+const authHero = require("../../../assets/legacy-art/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_hq.png");
 
 const PALETTE = cosmicSky;
 
@@ -262,6 +262,12 @@ const styles = StyleSheet.create({
 });
 
 export default function ResetPassword() {
-  if (isDeepSpaceUI()) return <DeepSpaceResetPasswordDesignScreen />;
+  // Auth recovery is a safety-sensitive route: the legacy presenter predates
+  // the request/verify phases and mandatory exit lock. Keep the old component
+  // available for source-level rollback, but never select it at runtime.
+  const recoverySafetyPinsPixelClay = true;
+  if (recoverySafetyPinsPixelClay || isDeepSpaceUI()) {
+    return <DeepSpaceResetPasswordDesignScreen />;
+  }
   return <ResetPasswordLegacy />;
 }

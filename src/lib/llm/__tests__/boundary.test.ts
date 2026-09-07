@@ -2,6 +2,18 @@
 // red-zone input short-circuits without invoking the SDK.
 // C3 assertion: normal flows enqueue and flush insertAiAuditLog.
 // We mock both @google/genai and the audit helper.
+//
+// This suite exercises the DIRECT @google/genai (Vertex) branch of callLlm. That
+// branch is taken only when the resolved vendor is "gemini" and
+// EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION is off. Since T1 stage A (2026-08-31) an
+// UNSET vendor switch resolves to openai (routing.ts RETIRED_DEFAULT), which
+// would send every call here to the edge path instead, so the three switches
+// that govern these purposes are pinned to "gemini" explicitly below:
+//   EXPO_PUBLIC_BACKBONE_VENDOR    - reasoning_connect is not a Phase-2 seat
+//   EXPO_PUBLIC_REASONING_PROVIDER - reasoning_connect is pro tier (last rung)
+//   EXPO_PUBLIC_MULTIMODAL_VENDOR  - capture_ocr carries an image
+// The pin is itself the one-variable rollback property: explicit "gemini" still
+// reaches the Gemini client. What each test asserts about the branch is unchanged.
 
 import type { LlmResult } from "../types";
 
@@ -65,7 +77,34 @@ import { insertCrisisEvent } from "../../supabase/crisis-events";
 const insertMock = insertAiAuditLog as jest.MockedFunction<typeof insertAiAuditLog>;
 const crisisMock = insertCrisisEvent as jest.MockedFunction<typeof insertCrisisEvent>;
 
+// The vendor switches this suite depends on, with their pre-test values so the
+// pin never leaks into another suite in the same worker.
+const PINNED_SWITCHES = [
+  "EXPO_PUBLIC_BACKBONE_VENDOR",
+  "EXPO_PUBLIC_REASONING_PROVIDER",
+  "EXPO_PUBLIC_MULTIMODAL_VENDOR",
+] as const;
+const savedSwitches: Partial<Record<(typeof PINNED_SWITCHES)[number], string | undefined>> = {};
+
 describe("callLlm", () => {
+  beforeAll(() => {
+    // explicit: unset is openai since T1 stage A (2026-08-31). These tests are
+    // about the direct Gemini branch, so name the vendor instead of relying on
+    // a default that no longer points there.
+    for (const key of PINNED_SWITCHES) {
+      savedSwitches[key] = process.env[key];
+      process.env[key] = "gemini";
+    }
+  });
+
+  afterAll(() => {
+    for (const key of PINNED_SWITCHES) {
+      const prev = savedSwitches[key];
+      if (prev === undefined) delete process.env[key];
+      else process.env[key] = prev;
+    }
+  });
+
   beforeEach(async () => {
     await resetAuditWriteOutboxForTests();
     mockGenerateContent.mockClear();

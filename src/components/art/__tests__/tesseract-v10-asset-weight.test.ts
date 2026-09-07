@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 const repoRoot = path.resolve(__dirname, "../../../..");
-const tesseractV10Dir = path.join(repoRoot, "public/assets/tesseract-v10");
+const tesseractV10Dir = path.join(repoRoot, "assets/legacy-art/tesseract-v10");
 const soulcoreFinalArt = path.join(repoRoot, "src/components/art/SoulcoreFinalArt.tsx");
 
 describe("tesseract v10 pattern data asset weight", () => {

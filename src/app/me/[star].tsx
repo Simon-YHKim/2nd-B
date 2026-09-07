@@ -39,6 +39,7 @@ import {
   type LifePeriod,
 } from "@/lib/interview/probe";
 import { coveredDrillLayers, meStarStaticParams } from "@/lib/nav/me-star-route";
+import { a11yValue } from "@/lib/a11y/accessibility-value";
 
 interface Summary {
   /** 이 별에서 판 칸 수 (0~5). 인터뷰가 없는 별은 null. */
@@ -173,7 +174,7 @@ export default function StarSummaryRoute() {
                       n: summary.covered.length,
                       total: DRILL_LAYERS.length,
                     })}
-                    accessibilityValue={{
+                    {...a11yValue({
                       min: 0,
                       max: DRILL_LAYERS.length,
                       now: summary.covered.length,
@@ -181,7 +182,7 @@ export default function StarSummaryRoute() {
                         n: summary.covered.length,
                         total: DRILL_LAYERS.length,
                       }),
-                    }}
+                    })}
                   >
                     {DRILL_LAYERS.map((layer) => {
                       const isCovered = summary.covered.includes(layer);

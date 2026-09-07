@@ -14,8 +14,9 @@
 // Visual: a slide-up sheet (fade veil + rise from the bottom edge), NOT a
 // centered modal box. All color via deepSpace.* tokens / withAlpha — zero hex.
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  AccessibilityInfo,
   Animated,
   Modal,
   Pressable,
@@ -24,7 +25,6 @@ import {
   View,
 } from "react-native";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
-import { Image } from "expo-image";
 import { useTranslation } from "react-i18next";
 
 import { deepSpace, deepSpaceRadii, flattenAlpha } from "@/lib/theme/tokens";
@@ -33,6 +33,7 @@ import { m3 } from "@/lib/theme/m3";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { REWARD_PER_WATCH } from "@/lib/entitlements/tiers";
 import { Text } from "@/components/ui/Text";
+import { SecondbHead } from "@/components/deepspace/SecondbHead";
 import { showRewardedAd } from "@/lib/ads/rewarded";
 import { useAuth } from "@/lib/auth/AuthContext";
 
@@ -46,15 +47,28 @@ import { useAuth } from "@/lib/auth/AuthContext";
  */
 const rwAlpha = (c: string, a: number): string => flattenAlpha(c, a, deepSpace.bgMid);
 
-const HEAD_IMAGE = require("../../../assets/deepspace/secondb-head-front.png");
+/**
+ * What happened to the credit after a completed watch.
+ *
+ * The sheet cannot classify this itself — the error types belong to the caller's
+ * domain (chat usage vs reasoning entitlements) — so the caller says which it was
+ * and the sheet decides what the user sees. Returning nothing still means
+ * "granted", so a caller that has nothing to report needs no change.
+ */
+export type RewardedEarnOutcome = "granted" | "capped" | "unconfirmed";
 
 export interface RewardedSheetProps {
   visible: boolean;
   onClose: () => void;
   /** Runs/sends the user has left this period (before watching). */
   remaining: number;
-  /** Called with the earned credit count once a rewarded watch completes. */
-  onEarned: (credits: number) => void;
+  /**
+   * Called with the earned credit count once a rewarded watch completes.
+   * May be async, and may report why the credit did not land: the sheet awaits
+   * it and stays open on a reported (or thrown) failure instead of closing as if
+   * the watch had paid.
+   */
+  onEarned: (credits: number) => void | RewardedEarnOutcome | Promise<void | RewardedEarnOutcome>;
   /** Optional locale override; otherwise read from i18n.language. */
   locale?: string;
   /**
@@ -78,6 +92,15 @@ export function RewardedSheet({ visible, onClose, remaining, onEarned, locale, k
   // Fade-only bloom behind the "after" number (opacity loop, no layout/scale shift).
   const bloom = useRef(new Animated.Value(0)).current;
   const watchingRef = useRef(false);
+  // null = nothing to report. Set only after a completed watch whose credit did
+  // not land, which is also the only state that keeps the sheet open.
+  const [earnOutcome, setEarnOutcome] = useState<RewardedEarnOutcome | null>(null);
+
+  // A reopened sheet starts clean: the previous attempt's notice must not greet
+  // the next watch.
+  useEffect(() => {
+    if (visible) setEarnOutcome(null);
+  }, [visible]);
 
   useEffect(() => {
     if (visible) {
@@ -110,24 +133,6 @@ export function RewardedSheet({ visible, onClose, remaining, onEarned, locale, k
 
   const after = remaining + REWARD_PER_WATCH;
 
-  const onWatch = async () => {
-    if (watchingRef.current) return;
-    watchingRef.current = true;
-    try {
-      // SSV customData (0091 contract): "<userId>" credits a reasoning
-      // reward, "<userId>|chat" credits the chat +2 -- the rewarded-ssv edge
-      // routes on the suffix, so the kind decides it here. Signed-out edge
-      // case (no userId) sends none: the client-grant path still works and a
-      // server callback would simply have nothing to credit.
-      const ssvCustomData = userId ? (kind === "chat" ? `${userId}|chat` : userId) : undefined;
-      const { completed } = await showRewardedAd(ssvCustomData ? { ssvCustomData } : undefined);
-      if (completed) onEarned(REWARD_PER_WATCH);
-    } finally {
-      watchingRef.current = false;
-      onClose();
-    }
-  };
-
   // Sheet copy is i18n'd (ds.reward.*) across all 5 locales — previously a
   // ko/en ternary that fell back to English for es/pt/id on the free top-up flow.
   // { lng: lang } preserves the optional locale-override prop; {{n}} interpolates
@@ -143,6 +148,44 @@ export function RewardedSheet({ visible, onClose, remaining, onEarned, locale, k
     cta: t(`${ns}.cta`, { lng: lang, n }),
     later: t(`${ns}.later`, { lng: lang }),
     privacy: t(`${ns}.privacy`, { lng: lang }),
+    capReached: t(`${ns}.capReached`, { lng: lang }),
+    creditFailed: t(`${ns}.creditFailed`, { lng: lang }),
+  };
+
+  const onWatch = async () => {
+    if (watchingRef.current) return;
+    watchingRef.current = true;
+    setEarnOutcome(null);
+    // The user gave up ad time for this. If the credit did not land, closing the
+    // sheet exactly as we do on success tells them nothing — they are left to
+    // notice the number never moved. So the outcome decides whether we close.
+    let outcome: RewardedEarnOutcome = "granted";
+    try {
+      // SSV customData (0091 contract): "<userId>" credits a reasoning
+      // reward, "<userId>|chat" credits the chat +2 -- the rewarded-ssv edge
+      // routes on the suffix, so the kind decides it here. Signed-out edge
+      // case (no userId) sends none: the client-grant path still works and a
+      // server callback would simply have nothing to credit.
+      const ssvCustomData = userId ? (kind === "chat" ? `${userId}|chat` : userId) : undefined;
+      const { completed } = await showRewardedAd(ssvCustomData ? { ssvCustomData } : undefined);
+      if (completed) {
+        try {
+          outcome = (await onEarned(REWARD_PER_WATCH)) || "granted";
+        } catch {
+          // A caller that did not classify the failure still must not have its
+          // rejection float away unhandled. Unconfirmed is the honest reading:
+          // we know the client call failed, not that nothing was credited.
+          outcome = "unconfirmed";
+        }
+      }
+    } finally {
+      watchingRef.current = false;
+      if (outcome === "granted") onClose();
+      else {
+        setEarnOutcome(outcome);
+        AccessibilityInfo.announceForAccessibility(outcome === "capped" ? C.capReached : C.creditFailed);
+      }
+    }
   };
 
   return (
@@ -164,7 +207,7 @@ export function RewardedSheet({ visible, onClose, remaining, onEarned, locale, k
 
           {/* character head, neutral-friendly */}
           <View style={styles.headWrap}>
-            <Image source={HEAD_IMAGE} style={styles.head} contentFit="contain" />
+            <SecondbHead size={64} />
           </View>
 
           <Text style={styles.title}>
@@ -191,16 +234,28 @@ export function RewardedSheet({ visible, onClose, remaining, onEarned, locale, k
             </View>
           </View>
 
-          {/* mint primary CTA */}
-          <Pressable
-            style={styles.ctaBtn}
-            onPress={onWatch}
-            accessibilityRole="button"
-            accessibilityLabel={C.cta}
-          >
-            <PixelGlyph name="play_arrow" color={deepSpace.onMint} size={15} />
-            <Text style={styles.ctaText}>{C.cta}</Text>
-          </Pressable>
+          {/* What happened to the credit, when it did not land. Announced too:
+              the number the user came for is the thing that did not change. */}
+          {earnOutcome ? (
+            <Text style={styles.earnNotice} accessibilityLiveRegion="polite">
+              {earnOutcome === "capped" ? C.capReached : C.creditFailed}
+            </Text>
+          ) : null}
+
+          {/* mint primary CTA. Withdrawn once a watch has failed: at the monthly
+              cap another watch cannot pay, and after an unconfirmed grant a
+              second watch risks crediting the same intent twice. */}
+          {earnOutcome ? null : (
+            <Pressable
+              style={styles.ctaBtn}
+              onPress={onWatch}
+              accessibilityRole="button"
+              accessibilityLabel={C.cta}
+            >
+              <PixelGlyph name="play_arrow" color={deepSpace.onMint} size={15} />
+              <Text style={styles.ctaText}>{C.cta}</Text>
+            </Pressable>
+          )}
 
           <Pressable style={styles.laterBtn} onPress={onClose} accessibilityRole="button">
             <Text style={styles.laterText}>{C.later}</Text>
@@ -239,15 +294,6 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   headWrap: { alignItems: "center", marginBottom: 14 },
-  head: {
-    width: 64,
-    height: 64,
-    // soft cyan drop-shadow glow
-    shadowColor: deepSpace.accent,
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    shadowOffset: { width: 0, height: 0 },
-  },
   title: {
     textAlign: "center",
     fontSize: 22,
@@ -313,6 +359,14 @@ const styles = StyleSheet.create({
     gap: 9,
   },
   ctaText: { fontFamily: fontFamilies.pixelKo, fontSize: 15, fontWeight: "700", color: deepSpace.onMint },
+  earnNotice: {
+    textAlign: "center",
+    fontSize: 13,
+    lineHeight: 20,
+    marginTop: 18,
+    paddingHorizontal: 6,
+    color: deepSpace.warning,
+  },
   laterBtn: { minHeight: 44, marginTop: 9, alignItems: "center", justifyContent: "center" },
   laterText: { fontSize: 13, color: rwAlpha(deepSpace.accentSoft, 0.55) },
   privacy: {

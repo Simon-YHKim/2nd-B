@@ -35,13 +35,13 @@
     "deleteEcrHint": "Membuka konfirmasi sebelum menghapus hasil Attachment tersimpan.",
     "deleteMbtiHint": "Membuka konfirmasi sebelum menghapus hasil referensi MBTI tersimpan.",
     "deleteWikiHint": "Membuka konfirmasi sebelum menghapus semua halaman wiki.",
-    "deleteUningestedHint": "Membuka konfirmasi sebelum menghapus tangkapan yang belum dipromosikan ke wiki.",
+    "deleteUningestedHint": "Membuka konfirmasi untuk menghapus bahan yang belum dibuat menjadi halaman wiki.",
     "resetUsageHint": "Membuka konfirmasi sebelum mengatur ulang penghitung penggunaan harian.",
     "fullWipeInputLabel": "Konfirmasi hapus penuh. Ketik {{phrase}} untuk mengaktifkan tombol hapus.",
     "fullWipeHint": "Memerlukan konfirmasi DELETE yang diketik sebelum menghapus catatan, sumber, halaman wiki, dan penggunaan."
   },
   "dataWizard": {
-    "body": "Pilih satu area penghapusan sekaligus. Konten pribadi 2nd-B kamu dibagi menjadi catatan, asesmen, wiki/tangkapan, dan hapus penuh.",
+    "body": "Pilih satu jenis data untuk dihapus. Data pribadimu terbagi menjadi catatan, hasil penilaian, serta wiki dan bahan tersimpan. Ada juga pilihan untuk menghapus semuanya.",
     "optionA11yLabel": "{{label}}, opsi {{index}} dari {{total}}, {{state}}.",
     "stateSelected": "dipilih",
     "stateAvailable": "belum dipilih",
@@ -54,12 +54,12 @@
     "assessments": {
       "label": "Asesmen",
       "hint": "Menampilkan tindakan hapus untuk hasil asesmen tersimpan.",
-      "body": "Hapus hasil referensi tersimpan tanpa menyentuh jurnal, tangkapan, atau halaman wiki."
+      "body": "Menghapus hasil penilaian yang tersimpan tanpa mengubah jurnal, bahan tersimpan, atau halaman wiki."
     },
     "library": {
-      "label": "Wiki dan tangkapan",
-      "hint": "Menampilkan tindakan hapus untuk halaman wiki, tangkapan belum masuk, dan penghitung penggunaan.",
-      "body": "Bersihkan permukaan wiki dan tangkapan secara terpisah dari catatan pribadi dan referensi graf bersama."
+      "label": "Wiki dan bahan tersimpan",
+      "hint": "Menampilkan pilihan untuk menghapus halaman wiki, bahan yang belum disusun, dan penghitung penggunaan.",
+      "body": "Hapus wiki dan bahan tersimpan secara terpisah dari catatan pribadi dan referensi graf bersama."
     },
     "full": {
       "label": "Hapus penuh",
@@ -89,7 +89,7 @@
   "clearRecordsError": "Terjadi kesalahan saat menghapus catatan ini. Coba lagi sebentar lagi.",
   "clearResultsError": "Terjadi kesalahan saat menghapus hasil ini. Coba lagi sebentar lagi.",
   "clearWikiError": "Terjadi kesalahan saat menghapus halaman wiki-mu. Coba lagi sebentar lagi.",
-  "clearCapturesError": "Terjadi kesalahan saat menghapus tangkapan ini. Coba lagi sebentar lagi.",
+  "clearCapturesError": "Bahan ini belum bisa dihapus. Coba lagi sebentar lagi.",
   "couldntReset": "Tidak dapat menyetel ulang",
   "resetUsageError": "Terjadi kesalahan saat menyetel ulang penggunaan. Coba lagi sebentar lagi.",
   "couldntWipe": "Tidak dapat menyelesaikan penghapusan total",
@@ -162,10 +162,10 @@
   "delEcrDesc": "Hapus semua hasil ECR tersimpan.",
   "delMbti": "Hapus hasil referensi MBTI",
   "delMbtiDesc": "Hapus semua hasil referensi MBTI tersimpan.",
-  "partialWiki": "Sebagian: wiki / tangkapan / penggunaan",
+  "partialWiki": "Sebagian: wiki / bahan tersimpan / penggunaan",
   "delAllWiki": "Hapus semua halaman wiki",
   "delAllWikiDesc": "Halaman wiki dan tautan antar-halamannya dihapus. Sumber kotak masuk tetap ada.",
-  "delUningested": "Hapus tangkapan yang belum diproses",
+  "delUningested": "Hapus bahan yang belum diproses",
   "delUningestedDesc": "Hanya sumber yang belum dipromosikan ke halaman wiki.",
   "resetDaily": "Setel ulang penggunaan harian SecondB",
   "resetDailyDesc": "Bersihkan penghitung penggunaan hari ini dan semua hari sebelumnya.",
@@ -179,7 +179,7 @@
   "signOutError": "Terjadi kesalahan saat keluar. Coba lagi sebentar lagi.",
   "deletedN": "{{n}} dihapus",
   "deletedNWiki": "{{n}} halaman wiki dihapus",
-  "deletedNCaptures": "{{n}} tangkapan dihapus",
+  "deletedNCaptures": "{{n}} bahan dihapus",
   "resetNDays": "{{n}} hari penggunaan disetel ulang",
   "wipeComplete": "Penghapusan total selesai: catatan {{r}} · sumber {{s}} · wiki {{w}} · penggunaan {{u}}",
   "subscription": {

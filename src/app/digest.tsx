@@ -127,6 +127,9 @@ export default function Digest() {
   const [reminderOn, setReminderOn] = useState(false);
   const [reminderBusy, setReminderBusy] = useState(false);
   const [reminderDenied, setReminderDenied] = useState(false);
+  // The OS owns the schedule; this screen only mirrors it. When a cancel or a
+  // reschedule does not take, the mirror must not claim the change happened.
+  const [reminderFailed, setReminderFailed] = useState(false);
   // 알림 시각 (Simon 결정 B3). 지금까지 09:00 하드코딩이었다.
   const [reminderHour, setReminderHour] = useState(9);
 
@@ -146,6 +149,7 @@ export default function Digest() {
     async (next: boolean) => {
       setReminderBusy(true);
       setReminderDenied(false);
+      setReminderFailed(false);
       try {
         if (next) {
           const title = t("digest.title");
@@ -158,9 +162,21 @@ export default function Digest() {
             setReminderDenied(true);
           }
         } else {
-          await cancelDailyReview();
-          setReminderOn(false);
-          setDailyReviewEnabledPref(false);
+          // cancelDailyReview reports instead of throwing. "error" means the OS
+          // schedule is STILL THERE, so saying the reminder is off would send a
+          // daily notification the user just turned off, with the screen
+          // insisting it is off. "unavailable" is not a failure: on web and in
+          // Expo Go there was never a schedule to cancel, and treating it as one
+          // would leave the toggle permanently stuck on.
+          //
+          // The branch above already reads this kind of result. This one did not.
+          const res = await cancelDailyReview();
+          if (res === "error") {
+            setReminderFailed(true);
+          } else {
+            setReminderOn(false);
+            setDailyReviewEnabledPref(false);
+          }
         }
       } finally {
         setReminderBusy(false);
@@ -174,12 +190,26 @@ export default function Digest() {
   const pickReminderHour = useCallback(
     async (hour: number) => {
       if (hour === reminderHour) return;
+      const previous = reminderHour;
+      setReminderDenied(false);
+      setReminderFailed(false);
       setReminderHour(hour);
       setDailyReviewHourPref(hour);
       if (!reminderOn) return;
       setReminderBusy(true);
       try {
-        await scheduleDailyReview(hour, 0, t("digest.title"), t("digest.reminder.notifBody"));
+        // The hour is written before the call so the picker feels immediate. If
+        // the reschedule did not take, put it back: the OS still holds the old
+        // time, and a screen showing a time the reminder will not arrive at is
+        // worse than one that admits the change failed. "unavailable" is not a
+        // failure here either - there is no OS schedule to contradict.
+        const res = await scheduleDailyReview(hour, 0, t("digest.title"), t("digest.reminder.notifBody"));
+        if (res !== "scheduled" && res !== "unavailable") {
+          setReminderHour(previous);
+          setDailyReviewHourPref(previous);
+          if (res === "denied") setReminderDenied(true);
+          else setReminderFailed(true);
+        }
       } finally {
         setReminderBusy(false);
       }
@@ -335,6 +365,11 @@ export default function Digest() {
             {reminderDenied ? (
               <Text variant="subtle" color="textMuted" style={styles.center}>
                 {t("digest.reminder.denied")}
+              </Text>
+            ) : null}
+            {reminderFailed ? (
+              <Text variant="subtle" color="textMuted" style={styles.center}>
+                {t("digest.reminder.changeFailed")}
               </Text>
             ) : null}
           </View>

@@ -11,28 +11,28 @@ import { Image } from "expo-image";
 import { type ImageStyle, type StyleProp, type ViewStyle } from "react-native";
 
 import { LivingAsset } from "@/components/motion/LivingAsset";
-import { FinalCoreArt, hasFinalCoreArt } from "@/components/art/SoulcoreFinalArt";
+import { FinalCoreArt, hasFinalCoreArt, type FinalCoreId } from "@/components/art/SoulcoreFinalArt";
 
-const ISLANDS = {
-  core: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/core_center_premium_hq.png"),
-  work_growth: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/domain_work_growth_premium_hq.png"),
-  relationship: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/domain_relationship_premium_hq.png"),
-  knowledge: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/domain_knowledge_premium_hq.png"),
-  records: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/domain_records_premium_hq.png"),
-  imagine: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/domain_imagine_premium_hq.png"),
-  inspiration: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/domain_inspiration_premium_hq.png"),
-  // PLACEHOLDER (O-R3 G1): records-island copy until the Rhythm asset lands.
-  routine: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/domain_routine_premium_hq.png"),
+// Legacy island PNGs. Only ids that FinalCoreArt does NOT cover live here: every
+// FinalCoreId is routed to <FinalCoreArt> below regardless of UI mode, so its
+// *_premium_hq.png was a dead require() that Metro still baked into every
+// APK/IPA (7 files, 14.7 MB; audit D6-06, 2026-09-05). The PNGs stay on disk in
+// assets/legacy-art/ (deleting them is a separate decision); they are just no
+// longer bundled.
+const LEGACY_ISLANDS = {
+  imagine: require("../../../assets/legacy-art/2ndb-production-premium-v1/graph/islands/domain_imagine_premium_hq.png"),
 } as const;
 
-export type IslandId = keyof typeof ISLANDS;
+type LegacyIslandId = keyof typeof LEGACY_ISLANDS;
+
+export type IslandId = FinalCoreId | LegacyIslandId;
 
 const SHARDS = {
-  core_violet: require("../../../public/assets/2ndb-production-premium-v1/shards/shard_core_violet.png"),
-  journal_gold: require("../../../public/assets/2ndb-production-premium-v1/shards/shard_journal_gold.png"),
-  wiki_blue: require("../../../public/assets/2ndb-production-premium-v1/shards/shard_wiki_blue.png"),
-  capture_mint: require("../../../public/assets/2ndb-production-premium-v1/shards/shard_capture_mint.png"),
-  imagine_pink: require("../../../public/assets/2ndb-production-premium-v1/shards/shard_imagine_pink.png"),
+  core_violet: require("../../../assets/legacy-art/2ndb-production-premium-v1/shards/shard_core_violet.png"),
+  journal_gold: require("../../../assets/legacy-art/2ndb-production-premium-v1/shards/shard_journal_gold.png"),
+  wiki_blue: require("../../../assets/legacy-art/2ndb-production-premium-v1/shards/shard_wiki_blue.png"),
+  capture_mint: require("../../../assets/legacy-art/2ndb-production-premium-v1/shards/shard_capture_mint.png"),
+  imagine_pink: require("../../../assets/legacy-art/2ndb-production-premium-v1/shards/shard_imagine_pink.png"),
 } as const;
 
 export type ShardId = keyof typeof SHARDS;
@@ -55,13 +55,12 @@ export function IslandArt({
   // exists; otherwise fall back to the legacy PNG for retired ids like imagine.
   // FinalCoreArt defaults to DEFAULT_ASSET_VARIANT (production = v10 clean
   // cutout); v49 + v45 stay available via its `variant` prop for comparison.
-  const useFinalArt = hasFinalCoreArt(id);
-  const preset = id === "core" ? "soulCore" : "patternCore";
-  if (useFinalArt) return <FinalCoreArt id={id} size={size} style={style} animated={animated} />;
+  // hasFinalCoreArt narrows `id`, so the fallback only ever sees a LegacyIslandId.
+  if (hasFinalCoreArt(id)) return <FinalCoreArt id={id} size={size} style={style} animated={animated} />;
   return (
-    <LivingAsset preset={preset} id={id} size={size} style={style} enabled={animated} pointerEvents="none">
+    <LivingAsset preset="patternCore" id={id} size={size} style={style} enabled={animated} pointerEvents="none">
       <Image
-        source={ISLANDS[id]}
+        source={LEGACY_ISLANDS[id]}
         style={[{ width: size, height: size }, PIXELATED]}
         contentFit="contain"
         accessibilityElementsHidden

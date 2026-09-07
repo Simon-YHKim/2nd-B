@@ -144,7 +144,7 @@ function parsePhase1Reply(
 function mockStub(title: string, locale: "en" | "ko"): Omit<Phase1Result, "generated_at" | "model"> {
   return locale === "ko"
     ? {
-        summary: `지금은 오프라인 미리보기예요. "${title}"의 요약은 온라인으로 연결하면 생성됩니다.`,
+        summary: `지금은 오프라인 미리보기예요. 아래 질문은 예시이며, "${title}"을 분석해서 만든 요약은 아니에요.`,
         entities: [],
         concepts: [],
         questions: [
@@ -158,14 +158,14 @@ function mockStub(title: string, locale: "en" | "ko"): Omit<Phase1Result, "gener
         keep: true,
       }
     : {
-        summary: `This is an offline preview. The summary of "${title}" will be generated once you go online.`,
+        summary: `This is an offline preview. The questions below are examples, not the result of analyzing "${title}".`,
         entities: [],
         concepts: [],
         questions: [
           "What single sentence stayed with you from this piece?",
-          "Where does this piece feel closest to your own life right now?",
-          "Where do you find yourself disagreeing or doubtful?",
-          "What is one small action you could carry forward today?",
+          "Does any part of this piece remind you of your own experience?",
+          "Is there anything you disagree with or want to question?",
+          "Is there anything from this piece you would like to try?",
         ],
         tags: [],
         relevance: 3,

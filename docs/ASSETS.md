@@ -29,28 +29,38 @@ libraries used under their respective licenses. The full list:
 - `i18next`, `react-i18next` — MIT
 - `zod` — MIT
 - `dayjs` — MIT
-- Development tooling: TypeScript, ESLint, Prettier, Jest, tsx, globby —
+- Development tooling: TypeScript, ESLint, Prettier, Jest, tsx —
   MIT / Apache-2.0
 
 ## Bundled fonts (assets/fonts/)
 
-- `NeoDunggeunmo-Regular.ttf`, `NeoDunggeunmoCode-Regular.ttf` —
-  Neo둥근모 (Neo Dunggeunmo), SIL OFL 1.1
 - `Galmuri11-subset.*`, `Galmuri11Bold-subset.*`, `Galmuri14-subset.*`,
   `Galmuri9-subset.*`, `GalmuriMono11-subset.*` (`.ttf` native + `.woff2` web) —
   Galmuri (c) 2019–2025 Lee Minseo (quiple), Reserved Font Name "Galmuri",
-  **SIL OFL 1.1**; subsets derived from the `galmuri` npm package (^2.40.3).
+  **SIL OFL 1.1**; subsets derived from the `galmuri` npm package (^2.40.3,
+  a devDependency since 2026-09-05: only the subset script reads it, the app
+  ships these vendored files).
   Rebuild with `python scripts/build-font-subsets.py` — that script carries the
   character-set recipe and the reason for every range it keeps. Galmuri11 was
   vendored in #282 (2026-06-08); the other four were added for PIXEL-CLAY
   stage 2 (2026-08-20), when Galmuri became the body face rather than a title
   face. Galmuri11 is the only face upstream ships a Bold for.
+- `Pretendard-Regular.otf` (native) + `Pretendard-subset.woff2` (web) —
+  Pretendard (c) Kil Hyung-jin, **SIL OFL 1.1**. The reading face behind the
+  옵션 readable-font preference and the screens not yet on Galmuri. The web
+  subset was added 2026-09-06 (Simon decision Q-260905-06): the OTF gzips to
+  1,046 KB over the wire and was the largest single asset on the first-paint
+  path, while the subset is 613 KB and ships already compressed. Native keeps
+  the OTF because expo-font loads ttf/otf there and cannot use woff2. Rebuild
+  both with `python scripts/build-font-subsets.py`, which uses the same
+  character-set recipe as Galmuri.
 - Press Start 2P — SIL OFL, loaded via
   `@expo-google-fonts/press-start-2p` (^0.4.1)
-- Roboto (400 / 500 / 700) — Apache-2.0, loaded via
-  `@expo-google-fonts/roboto` (^0.4.3); Material 3 chrome/label face (rev2)
-- Roboto Mono — Apache-2.0, loaded via
-  `@expo-google-fonts/roboto-mono` (^0.4.2); M3 numeric face (rev2)
+- Roboto (400 / 500 / 700) and Roboto Mono — **removed 2026-09-05.** They were
+  the Material 3 rev2 chrome/label and numeric faces (`@expo-google-fonts/roboto`,
+  `@expo-google-fonts/roboto-mono`); after PIXEL-CLAY stage 2 moved `m3.font.*`
+  to Galmuri they had no `fontFamily` consumer in either UI mode, so the packages
+  and their `fontAssets` entries were dropped. Not bundled any more.
 
 ## Bundled dither tiles (assets/dither/)
 
@@ -87,19 +97,24 @@ date.
 under the image tool's terms for generated content. The generated art
 carries no third-party license obligation.
 
+The three `assets/legacy-art/` packs lived under `public/assets/` until 2026-09-05.
+They are consumed only through Metro `require()`, so `public/` made every web
+export ship them twice (verbatim copy + hashed copy). Same files, same history;
+only the path moved.
+
 | Path | Files | First in git | Contents |
 |------|-------|--------------|----------|
-| `public/assets/cosmic-pixel-v3-soulcore/` | 142 (79 PNG · 63 SVG) | 2026-06-02 | Legacy "cosmic pixel" skin, still shipped behind `EXPO_PUBLIC_UI=legacy`: soul-core tiers 1–4, pattern cores / data / logs, pattern links, mobile graph, companion sprites (`archon`, `iris`, `lumen`, `relia`, `foreman_momo`), momo-crew, sprite sheets |
-| `public/assets/2ndb-production-premium-v1/` | 52 PNG | 2026-05-30 | Current production skin: graph islands, tier icons, worker redraws, shards, auth gate hero |
-| `public/assets/tesseract-v10/` | 7 PNG | 2026-06-04 | Tesseract worldview set generated from `docs/V3_GPT_IMAGE_PROMPT.md` |
+| `assets/legacy-art/cosmic-pixel-v3-soulcore/` | 142 (79 PNG · 63 SVG) | 2026-06-02 | Legacy "cosmic pixel" skin, still shipped behind `EXPO_PUBLIC_UI=legacy`: soul-core tiers 1–4, pattern cores / data / logs, pattern links, mobile graph, companion sprites (`archon`, `iris`, `lumen`, `relia`, `foreman_momo`), momo-crew, sprite sheets |
+| `assets/legacy-art/2ndb-production-premium-v1/` | 52 PNG | 2026-05-30 | Current production skin: graph islands, tier icons, worker redraws, shards, auth gate hero |
+| `assets/legacy-art/tesseract-v10/` | 7 PNG | 2026-06-04 | Tesseract worldview set generated from `docs/V3_GPT_IMAGE_PROMPT.md` |
 | `public/landing/` | 7 PNG | 2026-06-15 | Landing background concepts |
 | `public/proto/` | 7 PNG | 2026-07-04 | Deep-space prototype screens |
 | `public/icons/` | 2 PNG | 2026-06-11 | PWA icons (192 / 512), derived from the app icon |
 | `assets/deepspace/` | 13 PNG | 2026-06-19 | SecondB canonical head pair plus 11 Nebori style-comparison working images added during the competition window |
 | `assets/opening/` | 1 PNG | 2026-08-27 | HustleK opening sprite sheet (48 frames, 8x6 grid, 320x180 cells) built by `scripts/build-opening-strip.py` from the approved atlas. No new art: the builder refuses to run unless the atlas RGBA hash matches the approved value. |
-| `assets/images/` | 7 PNG | 2026-05-25 | App icon, adaptive-icon layers, splash, favicon, logo glow. Seeded from the Expo template at initialisation (MIT) and replaced in-window with generated art |
+| `assets/images/` | 6 PNG | 2026-05-25 | App icon, adaptive-icon layers, splash, favicon. Seeded from the Expo template at initialisation (MIT) and replaced in-window with generated art |
 
-Total: **247 bundled image files**. `scripts/check-constraints.ts` (C12)
+Total: **246 bundled image files**. `scripts/check-constraints.ts` (C12)
 fails if any of these paths stops being mentioned in this file, so a new
 art pack cannot ship undisclosed.
 
@@ -119,7 +134,7 @@ The runtime renders the JSON as SVG rectangles and decodes no opening bitmap.
 `docs/` (clone-audit captures, flow thumbnails, QA evidence) and `design/`
 (prototype renders, reference boards, app screenshots, and reproducible art
 packs). These paths are not packaged into the app or web export, and `src/`
-contains no image files, so the shipped set remains exactly the 247 files
+contains no image files, so the shipped set remains exactly the 246 files
 listed above. The working-material count is intentionally not hard-coded so
 that adding review evidence does not make this registry stale.
 

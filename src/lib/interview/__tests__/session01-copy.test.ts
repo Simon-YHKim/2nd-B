@@ -3,7 +3,7 @@
 //
 //   ① "모르겠다도 데이터" 선언 -- 답을 꾸미려는 압력을 낮춘다
 //   ② 발판 문구가 같은 취지를 나른다
-//   ③ 이른 시기 씨앗 질문은 감각 앵커형 -- "말이 안 되어도 됨"
+//   ③ 이른 시기 씨앗 질문은 감각을 묻되 기억이 없다고 답할 수 있음
 //   ④ 거절 결과가 명시적 철회로 읽힌다 + 시트가 거울 카피를 갖는다
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -46,13 +46,15 @@ describe("③ 감각 앵커 씨앗", () => {
     // 감각 앵커의 정의: 장면 서사가 아니라 감각 채널을 직접 부른다.
     expect(infancy).toMatch(/빛|냄새|소리|자세/);
     expect(school).toMatch(/냄새|소리|자리/);
-    // "말이 안 되어도 됨" -- 세션 01 의 핵심 허가 문장.
-    expect(infancy).toContain("말이 안 되어도");
+    // 기억이 없어도 답을 만들도록 압박하지 않는다.
+    expect(infancy).toContain("기억나지 않으면");
+    expect(infancy).not.toContain("말이 안 되어도");
   });
 
   it("en 도 감각 앵커형이다", () => {
     expect(seedQuestion("infancy", "en")).toMatch(/light|smell|sound/);
     expect(seedQuestion("school", "en")).toMatch(/smell|sound|seat/);
+    expect(seedQuestion("infancy", "en")).toContain("don't remember");
   });
 });
 

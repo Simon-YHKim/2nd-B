@@ -2,11 +2,14 @@
 //
 // Two traps this file exists to prevent:
 //   1. cluster_infer 재사용: reasoning_connect was deliberately created as its
-//      OWN purpose because cluster_infer holds the Phase-2 OpenAI seat — a
-//      "convenient" reuse would silently re-route the /reasoning deep run to
-//      gpt-5.4 the moment EXPO_PUBLIC_LLM_PHASE=2 flips (docs/LLM-ROUTING.md
-//      §4). The deep run stays on the Gemini backbone until the Phase-2
-//      cutover runbook explicitly assigns its seat.
+//      OWN purpose because cluster_infer holds a Phase-2 seat — a "convenient"
+//      reuse would silently hand the /reasoning deep run to whatever the SEAT
+//      switch (EXPO_PUBLIC_LLM_VENDOR / EXPO_PUBLIC_LLM_PHASE) says
+//      (docs/LLM-ROUTING.md §4). The deep run follows the BACKBONE switch
+//      (EXPO_PUBLIC_BACKBONE_VENDOR) instead, until the Phase-2 cutover runbook
+//      explicitly assigns its seat. Since T1 stage A (2026-08-31) an unset
+//      backbone resolves "openai", not "gemini"; explicit "gemini" is still
+//      accepted (one-variable rollback), and this file proves both.
 //   2. sub-brain pro->flash pin: reasoning_connect is pro-for-EVERY-tier by
 //      design (weekly-ledger-bounded); the gemini-proxy tier pin must exempt
 //      it or the SERVED model becomes tier-keyed (SAME-QUALITY violation,
@@ -37,30 +40,49 @@ function withEnv(key: string, value: string | undefined, fn: () => void): void {
   }
 }
 
-describe("reasoning_connect stays on the Gemini backbone", () => {
+describe("reasoning_connect follows the backbone switch, never the seat switch", () => {
   test("is NOT a Phase-2 vendor seat (deliberate PHASE2_VENDOR absence)", () => {
     expect(Object.prototype.hasOwnProperty.call(PHASE2_VENDOR, "reasoning_connect")).toBe(false);
-    // Not an OCR/voice pin either — its Gemini residence comes from seat
+    // Not an OCR/voice pin either — its backbone residence comes from seat
     // absence, which is exactly what this test pins.
     expect(GEMINI_PINNED_PURPOSES.has("reasoning_connect")).toBe(false);
   });
 
-  test("Phase 2 flip does not move it", () => {
-    withEnv("EXPO_PUBLIC_LLM_VENDOR", undefined, () => {
-      withEnv("EXPO_PUBLIC_LLM_PHASE", "2", () => {
-        expect(resolveVendorForPurpose("reasoning_connect", false)).toBe("gemini");
+  test("Phase 2 flip does not move it off the backbone (unset backbone → openai since T1 stage A)", () => {
+    withEnv("EXPO_PUBLIC_BACKBONE_VENDOR", undefined, () => {
+      withEnv("EXPO_PUBLIC_LLM_VENDOR", undefined, () => {
+        withEnv("EXPO_PUBLIC_LLM_PHASE", "2", () => {
+          expect(resolveVendorForPurpose("reasoning_connect", false)).toBe("openai");
+        });
       });
     });
   });
 
-  test("the global vendor switch does not move it (non-seat purposes stay Gemini)", () => {
-    for (const vendor of ["openai", "claude", "perPurpose"]) {
-      withEnv("EXPO_PUBLIC_LLM_VENDOR", vendor, () => {
+  test("the global vendor switch does not move it (non-seat purposes take the backbone, openai when unset)", () => {
+    // "claude" and "xai" are the distinguishing values: a seat WOULD move to
+    // them, so the deep run staying on the backbone default proves it is not
+    // following the seat switch.
+    for (const vendor of ["openai", "claude", "xai", "perPurpose"]) {
+      withEnv("EXPO_PUBLIC_BACKBONE_VENDOR", undefined, () => {
+        withEnv("EXPO_PUBLIC_LLM_VENDOR", vendor, () => {
+          withEnv("EXPO_PUBLIC_LLM_PHASE", "2", () => {
+            expect(resolveVendorForPurpose("reasoning_connect", false)).toBe("openai");
+          });
+        });
+      });
+    }
+  });
+
+  test("rollback: explicit EXPO_PUBLIC_BACKBONE_VENDOR=gemini still lands on gemini, seat switch notwithstanding", () => {
+    // explicit: unset is openai since T1 stage A. The seat switch is pointed
+    // at a THIRD vendor so a pass cannot be explained by either default.
+    withEnv("EXPO_PUBLIC_BACKBONE_VENDOR", "gemini", () => {
+      withEnv("EXPO_PUBLIC_LLM_VENDOR", "claude", () => {
         withEnv("EXPO_PUBLIC_LLM_PHASE", "2", () => {
           expect(resolveVendorForPurpose("reasoning_connect", false)).toBe("gemini");
         });
       });
-    }
+    });
   });
 
   test("the trap is real: cluster_infer IS a Phase-2 seat that leaves Gemini", () => {

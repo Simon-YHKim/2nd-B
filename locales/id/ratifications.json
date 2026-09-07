@@ -24,7 +24,7 @@
     "loadError": "Tidak bisa memuat ulasanmu. Coba lagi sebentar lagi.",
     "retry": "Coba lagi",
     "empty": "Belum ada yang perlu diulas. Simpan lebih banyak dan koneksi akan muncul.",
-    "goCapture": "Buka layar tangkap",
+    "goCapture": "Buka halaman Simpan",
     "toReview": "{{n}} untuk diulas",
     "a11yOpen": "Lihat detail {{title}}",
     "dismiss": "Abaikan",
@@ -39,6 +39,7 @@
       "desc": "Berbunyi hanya di perangkat ini. Bisa kamu matikan kapan saja.",
       "notifBody": "Yuk ulas koneksi yang terkumpul dari catatanmu?",
       "denied": "Notifikasi untuk aplikasi ini nonaktif. Aktifkan di Pengaturan.",
+      "changeFailed": "Tidak bisa memperbarui pengingat. Pengingat mungkin masih datang sesuai pengaturan lama. Coba lagi.",
       "timeTitle": "Waktu pengingat",
       "timeHint": "Hanya tersimpan di perangkat ini."
     }

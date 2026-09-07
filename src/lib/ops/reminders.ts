@@ -5,19 +5,20 @@
 // button tap plus the OS notification permission prompt are the consent here.
 //
 // Native-only (G4: needs a dev/EAS build). Web keeps calendar-based paths.
+//
+// The SDK itself is reached ONLY through ./notifications-sdk (its .web.ts
+// variant answers null), so the web bundle never carries expo-notifications
+// while this module's scheduling logic stays single-sourced (audit D5-11).
 
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-let Notifications: typeof import("expo-notifications") | null = null;
-try {
-  Notifications = require("expo-notifications") as typeof import("expo-notifications");
-} catch {
-  // Expo Go (SDK 53+) throws when requiring expo-notifications.
-  Notifications = null;
-}
-
+import { loadNotifications } from "./notifications-sdk";
 import type { OpsEventInput } from "./push";
+
+// null on web / Expo Go (SDK 53+ throws on require) -- every entry point below
+// reports "unavailable" in that case.
+const Notifications = loadNotifications();
 
 export type ReminderResult = "scheduled" | "denied" | "unavailable" | "error";
 

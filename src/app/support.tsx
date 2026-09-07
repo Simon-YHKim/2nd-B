@@ -116,6 +116,29 @@ const styles = StyleSheet.create({
 });
 
 export default function Support() {
+  const { t } = useTranslation("support");
+  const { userId, loading, hasProfile, profileProbeFailed } = useAuth();
+
+  if (loading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={t("loading")} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+  if (profileProbeFailed || hasProfile === null) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={t("loading")} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
+  if (hasProfile === false) return <Redirect href="/complete-profile" />;
   if (isDeepSpaceUI()) return <DeepSpaceSupportDesignScreen />;
   return <SupportLegacy />;
 }

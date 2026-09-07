@@ -27,7 +27,17 @@
 // 규칙 2(라운드 0)·3(블러 금지)을 **화면에서** 센다.
 // 소스 가드는 이식 목록(108파일)만 보는 래칫이라, 화면 전체가 어디인지는 이걸로만 안다.
 import { readFileSync, writeFileSync } from 'node:fs';
-import { chromium } from 'playwright';
+import { chromium } from 'playwright-core';
+
+// playwright-core (the pinned devDependency, see score.mjs) ships no browser.
+// PW_CHROME names a Chromium executable, PW_CHANNEL a stable channel
+// (chrome / msedge); with neither, the Playwright-managed Chromium is used
+// (`npx playwright-core install chromium`).
+const LAUNCH = process.env.PW_CHROME
+  ? { executablePath: process.env.PW_CHROME }
+  : process.env.PW_CHANNEL
+    ? { channel: process.env.PW_CHANNEL }
+    : {};
 
 const BASE = process.argv[2];
 const OUT = process.argv[3];
@@ -37,7 +47,7 @@ const env = readFileSync('.env.test', 'utf8');
 const EMAIL = /QA_TEST_EMAIL\s*=\s*(.+)/.exec(env)[1].trim();
 const PASS = /QA_TEST_PASSWORD\s*=\s*(.+)/.exec(env)[1].trim();
 
-const b = await chromium.launch();
+const b = await chromium.launch(LAUNCH);
 const ctx = await b.newContext({ viewport: { width: 390, height: 820 } });
 const p = await ctx.newPage();
 await p.goto(BASE + '/2nd-B/', { waitUntil: 'load' });

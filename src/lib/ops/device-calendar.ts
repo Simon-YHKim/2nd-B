@@ -7,24 +7,13 @@
 // NOTE (G4): the module needs a native build - in Expo Go / current web
 // deploys every entry point degrades to "unavailable" and the /ops screen
 // simply doesn't render the button. No silent failures.
+//
+// The SDK itself is reached ONLY through ./calendar-sdk (its .web.ts variant
+// answers null), so the web bundle never carries expo-calendar while the
+// hand-off logic here stays single-sourced (audit D5-11).
 
+import { loadExpoCalendar, type CalendarRecurrenceRule, type ExpoCalendarModule } from "./calendar-sdk";
 import type { OpsEventInput } from "./push";
-
-type ExpoCalendarModule = typeof import("expo-calendar");
-type CalendarRecurrenceRule = import("expo-calendar").RecurrenceRule;
-
-let expoCalendarModule: ExpoCalendarModule | null | undefined;
-
-function loadExpoCalendarModule(): ExpoCalendarModule | null {
-  if (expoCalendarModule !== undefined) return expoCalendarModule;
-  try {
-    expoCalendarModule = require("expo-calendar") as ExpoCalendarModule;
-  } catch {
-    // Expo Go / web may not have this native module available.
-    expoCalendarModule = null;
-  }
-  return expoCalendarModule;
-}
 
 export type DeviceCalendarResult =
   // "done" is Android's only answer (the OS doesn't say whether the user
@@ -43,7 +32,7 @@ function isReactNativeRuntime(): boolean {
 /** True when the native module is present AND we're on a native runtime. */
 export function deviceCalendarSupported(): boolean {
   if (!isReactNativeRuntime()) return false;
-  const Calendar = loadExpoCalendarModule();
+  const Calendar = loadExpoCalendar();
   if (!Calendar) return false;
   try {
     return (
@@ -72,7 +61,7 @@ const DEFAULT_DURATION_MIN = 30;
  */
 export async function addEventToDeviceCalendar(input: OpsEventInput): Promise<DeviceCalendarResult> {
   if (!deviceCalendarSupported()) return "unavailable";
-  const Calendar = loadExpoCalendarModule();
+  const Calendar = loadExpoCalendar();
   if (!Calendar) return "unavailable";
   const start = new Date(input.startsAtIso);
   if (Number.isNaN(start.getTime())) return "error";

@@ -160,6 +160,33 @@ export async function pickFile(): Promise<PickedFile | null> {
   };
 }
 
+/**
+ * Pick one audio file that already exists on the device.
+ *
+ * This deliberately has a narrower picker contract than pickFile(): callers
+ * such as /call-reflection must never fall back to a document metadata stub or
+ * imply that the app can record the call itself. The returned file belongs to
+ * the user; callers may read it for transcription but must not delete it.
+ */
+export async function pickAudioFile(): Promise<PickedFile | null> {
+  const res = await DocumentPicker.getDocumentAsync({
+    type: "audio/*",
+    copyToCacheDirectory: true,
+    multiple: false,
+  });
+  if (res.canceled) return null;
+  const asset = res.assets?.[0];
+  if (!asset) return null;
+
+  return {
+    uri: asset.uri,
+    name: asset.name,
+    mimeType: normalizeFileMimeType(asset.mimeType, asset.name),
+    size: asset.size ?? 0,
+    textContent: null,
+  };
+}
+
 // Multi-select text/markdown picker for the /import "from files" connector
 // (e.g. an Obsidian vault export, or any loose .md/.txt notes). Reuses
 // extractText per asset; binary/unreadable/empty files are skipped rather than

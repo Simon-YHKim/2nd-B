@@ -18,10 +18,25 @@ Project-specific guidance for Claude Code sessions in this repo.
 > - "대회 규정상 필요하다" / "학술 인용 가능해야 한다" — 규정은 적용되지 않는다.
 >   기능은 사용자에게 쓸모가 있어서 존재해야지, 인용 가능해서 존재하면 안 된다.
 >
-> 코드에 남은 대회 잔재(`src/lib/judge/domains.ts`, C6 judge mode 트리거, C12 README 절,
-> `db/seed.sql` 의 demo@xprize.org, `manual.tsx` 의 XPRIZE 문구, `boundary.ts`/`routing.ts`
-> 주석)는 **아직 제거되지 않았다.** 동작 중인 코드이므로 임의로 걷어내지 말고, 제거는 별도
-> 작업으로 Simon 과 합의해서 진행한다. 다만 이것들을 *새 결정의 근거*로 인용하지는 말 것.
+> **잔재 현황 (2026-09-06 실측 갱신).** 아래 목록은 오래 낡아 있었다. #1302(2026-08-21)와
+> 마이그레이션 0138 이 절반을 이미 걷어냈는데도 "아직 제거되지 않았다"고 적혀 있었고,
+> 그 문장을 읽은 세션들이 없는 기능을 살아 있다고 오진했다. 실측 결과는 이렇다:
+>
+> | 항목 | 상태 |
+> |---|---|
+> | `src/lib/judge/domains.ts` | **파일이 없다.** `f42f4db2`(2026-09-06)가 C6 폐지와 함께 지웠고 `src/lib/judge/` 는 빈 디렉터리조차 아니다. 남은 `isJudgeEmail`·`JUDGE_DOMAINS` 언급 2건(`scripts/check-constraints.ts` · `src/lib/supabase/auth.ts`)은 전부 **삭제를 설명하는 주석**이라 되살릴 대상이 아니다 (2026-09-07 실측) |
+> | C6 judge mode 트리거 | **은퇴 완료.** 0138 이 `auto_judge_mode()` 를 DROP 했다. `check:constraints` 의 C6 는 이제 기능이 아니라 **은퇴 상태**를 지킨다 |
+> | `db/seed.sql` 의 demo@xprize.org | **제거됨.** 지금은 `demo@example.com`, `judge_mode false` |
+> | `manual.tsx` 의 XPRIZE 문구 | **제거됨** (0건) |
+> | `routing.ts` 주석 | **제거됨** (0건) |
+> | `boundary.ts` 주석 | **남아 있음** (4곳). 동작에 영향 없는 주석 |
+> | C12 README 절 | **제약은 폐지**(2026-09-06). 검사는 `AssetLicenseDisclosure` 라는 이름으로 남았다 — SIL OFL 고지 의무 때문 |
+>
+> 남은 둘은 동작 중인 계약이라 임의로 걷어내지 말고, 제거는 별도 작업으로 Simon 과 합의해서
+> 진행한다. 다만 이것들을 *새 결정의 근거*로 인용하지는 말 것.
+>
+> `users.judge_mode` 컬럼과 comp 분기는 **의도적으로 남긴 것**이다(#1302 커밋 본문). 이것도
+> "잔재라서 지워야 한다"의 근거가 아니다.
 > ### 제품 의도 (Simon 직접 진술, 2026-08-17) — 새 세션은 이걸 먼저 읽을 것
 >
 > **"사용자와 소통해서 깊게 파악하고, 그를 기반으로 심리상담(친구 같은)·개인 비서 역할을 하게 하는 것."**
@@ -145,7 +160,8 @@ Project-specific guidance for Claude Code sessions in this repo.
 > 아니다.** `PHASE2_VENDOR` 맵이 9좌석을 `openai` 로 **선언**하고 있을 뿐이고, 그 맵은
 > `EXPO_PUBLIC_LLM_PHASE=2` 에서만 켜지는데 **저장소 Variable 이 `1` 이다**(2026-07-05
 > 설정, `EXPO_PUBLIC_LLM_VENDOR` 는 아예 없음). Phase 1 에서 `resolveVendorForPurpose` 는
-> 전부 `gemini` 를 돌려준다.
+> 전부 `gemini` 를 돌려준다. *(2026-08-31 정정: 그 미설정 폴백은 이제 `openai` 다 — 아래 T1 1단계
+> 블록. 이 문단의 나머지는 08-18 시점 기록.)*
 >
 > **원장으로 확인했다**(`ai_audit_log`, 2026-08-18): 전체 행에서 `reasoning_vendor` 가
 > **`gemini` 아닌 행이 0건**이다. `ops_recommend` 25 · `ops_daily_brief` 12 ·
@@ -198,6 +214,13 @@ Project-specific guidance for Claude Code sessions in this repo.
 > 모두 태우는데 한 벤더 이름을 달고 있었고, 그 이름 때문에 "우리는 Gemini 앱"이라는
 > 오해가 세션마다 재생산됐다.
 >
+> **⚠ 2026-08-31 T1 1단계 — 미설정 기본값이 더는 Gemini 로 떨어지지 않는다.** `routing.ts` 의
+> `RETIRED_DEFAULT = "openai"` 가 미설정 스위치 10곳의 착지점이고, 11번째인 failover 는 미설정이면 `"none"` 이다.
+> `"gemini"` 는 **명시값으로만** 살아 있다(콘솔이 `gemini-proxy` 를 지우기 전까지의 되돌리기 수단).
+> 원장 기준 마지막 실제 Gemini 호출은 2026-08-24 07:31 KST 다. 남은 순서·결합 조건은
+> `docs/LLM-VENDOR-PLACEMENT.md` "9월 폐기 체크리스트" · 전체 잔재는 `docs/GEMINI-RETIREMENT-INVENTORY.md`.
+> 아래 "Phase 1 = 전부 gemini" 서술은 그 이전의 사실이다.
+>
 > **반대로 아직 `gemini` 인 채로 두는 것들은 일부러 그렇다:**
 >
 > - `supabase/functions/gemini-proxy` — **이름이 맞다.** claude-proxy·openai-proxy 와
@@ -217,14 +240,18 @@ Project-specific guidance for Claude Code sessions in this repo.
 > Gemini 서술은 **역사 기록**이다. 충돌하면 이 절이 이긴다.
 
 - **Stack**: React Native + Expo SDK 56, TypeScript strict, Supabase (Postgres + Auth), Gemini via `@google/genai`, EAS Build, GitHub Actions.
-- **Web deploy target — GitHub Pages, NOT Vercel.** `.github/workflows/web-deploy.yml` pushes the
-  Expo static export to the `gh-pages` branch; live at <https://simon-yhkim.github.io/2nd-B/>, and
+- **Web deploy target — GitHub Pages, NOT Vercel.** `.github/workflows/web-deploy.yml` uploads the
+  Expo static export as a Pages artifact and deploys it with `actions/deploy-pages` (OIDC); it does
+  **not** write to the `gh-pages` branch. That branch and the legacy `pages/builds` API both stopped
+  at 2026-09-02 and are **not** how you tell what is live — read the last successful
+  `workflow_dispatch mode=publish` run's `source_sha`, or fetch the serving bundle. Live at
+  <https://simon-yhkim.github.io/2nd-B/>, and
   `app.json` pins `baseUrl: "/2nd-B"` to that subpath. A Vercel project is still connected and
   builds PRs, but nothing ships from it and the `baseUrl` makes a Vercel root deploy wrong. Root
   `vercel.json` is an unused Sprint-0 leftover. Do not treat Vercel as the web target.
 - **Solo build**: Simon Kim. Evenings + weekends only.
 - **Vision**: `docs/VISION.md` (캐치프레이즈 + 3축 모델). 모든 새 기능은 어느 축에 속하는지 PR 설명에 명시.
-- **Master blueprint**: `docs/ARCHITECTURE.md`. Hard constraints C1~C12: `docs/CONSTRAINTS.md`.
+- **Master blueprint**: `docs/ARCHITECTURE.md`. Hard constraints: `docs/CONSTRAINTS.md`.
 
 ## ⚠ 일곱은 이제 한 벌이다 (Simon 결정 7, 2026-08-24) — 아래 "렌즈층" 절보다 **이 절이 이긴다**
 
@@ -493,10 +520,29 @@ ladder + propose->ratify.
 
 **LEGACY (rollback skin only, never the reference for new work):** the gameboy track, the
 *Cosmic Pixel Graph Village* system, *phytoncide* tokens, *Brain Trinity* naming, **the "Soul
-Core" name, the 5 Pattern Core layer + Pattern Tesseract, the village graph `/graph` +
-`/trinity`, the v3 tesseract art, the character voices (아치/가디/루루/모모/루미),
-and the old 4-tier Visual Tier node-names** (Soul Core 128px / Pattern Core x5 / snowflake /
-crystal). Preserved behind `EXPO_PUBLIC_UI=legacy`; superseded concept docs remain in git history.
+Core" name, the 5 Pattern Core layer + Pattern Tesseract, the v3 tesseract art, the character
+voices (아치/가디/루루/모모/루미), and the old 4-tier Visual Tier node-names** (Soul Core 128px /
+Pattern Core x5 / snowflake / crystal). Preserved behind `EXPO_PUBLIC_UI=legacy`; superseded
+concept docs remain in git history.
+
+> ### ⚠ `/graph` 와 `/trinity` 는 이 목록에서 뺐다 (2026-09-07 실측)
+>
+> 여기 "the village graph `/graph` + `/trinity`" 가 legacy 항목으로 적혀 있었고 문단 끝이
+> "Preserved behind `EXPO_PUBLIC_UI=legacy`" 로 닫혀 있었다. **두 라우트 모두 그 플래그와
+> 무관하다** — 두 파일에 `EXPO_PUBLIC_UI` 참조가 **0건**이다.
+>
+> | 라우트 | 실제 게이트 | 실제로 그리는 것 |
+> |---|---|---|
+> | `/graph` | **`DevOnlyRoute`** (dev 전용) | `DeepSpaceGraphDesignScreen` — **deep-space** 화면이지 마을 그래프가 아니다. 파일 헤더가 스스로 밝힌다: 중심별·군집별 좌표가 **고정 목업**이고 노드/링크 개수만 실제라, 실데이터로 레이아웃을 그리기 전까지 dev 참조로 둔다. 프로덕션 내비게이션은 여기로 링크하지 않는다(그래프 탭은 `/`) |
+> | `/trinity` | **없음 — 일반 라우트다** | 기록 태그(건강/앱/뇌/재정) 위의 파생 대시보드. 새 스키마 없음. `__DEV__` 는 M3 리메이크 변형을 끼워 넣을 뿐이고 라우트 자체를 막지 않는다 |
+>
+> **legacy 인 것은 *이름*이지 화면이 아니다** — 바로 위 `/core-brain` 항목과 같은 구분이다.
+> "Brain Trinity" 라는 **명명**은 legacy 로 남기되, `/trinity` **화면은 살아 있다.**
+> `src/lib/dev/screen-index.ts` 도 그렇게 잡고 있다(`/trinity` 는 `dev` 플래그 없음,
+> `/graph` 만 `dev: true`). `src/app/index.tsx:235` 주석이 이미 "`/graph` … is a DEV-ONLY
+> mock design" 이라고 **코드에서 정정**하고 있었는데 이 파일이 안 따라왔다.
+>
+> **인용 금지**: "`/graph` 는 legacy 스킨이니 손대지 않는다" · "`/trinity` 는 롤백 전용이다".
 
 ## The 12 hard constraints
 
@@ -505,17 +551,17 @@ Never weaken these. They're enforced at code/schema/CI level:
 | ID | Rule |
 |---|---|
 | C1 | All LLM calls go through **one boundary module** (`src/lib/llm/boundary.ts`, renamed from `gemini.ts` 2026-08-17); ESLint blocks vendor SDK imports anywhere else. **The rule is the single boundary, NOT the vendor** — see "제미나이는 더 이상 요건이 아니다" below. |
-| C2 | ~~`@google/genai` with `vertexai: true`~~ **대회 잔재. 요건 아님.** Vertex 분기는 코드에 남아 있고 CI가 존재만 확인한다. 새 기능의 근거로 인용 금지. |
+| C2 | ~~`@google/genai` with `vertexai: true`~~ **폐지됨 2026-09-06** (Simon 결정 Q-260905-02). 검사는 `check:constraints` 에서 제거했다. Vertex 분기 코드 자체는 남아 있고 이제 Gemini 폐기(#1505)와 함께 자유롭게 나갈 수 있다. 번호는 재사용하지 않는다. |
 | C3 | `ai_audit_log` INSERT on every Gemini call (including mock + crisis). |
 | C4 | `revenue_events` has `month_bucket` + `is_related_party` + `customer_relation_type`. |
 | C5 | `testimonials.consent_given_at NOT NULL`. |
-| C6 | Judge mode auto-flag for `@xprize.org`, `@devpost.com`, `@hacker.fund`. **(대회 잔재: 코드·CI 에서는 계속 유효하니 깨뜨리지 말 것. 단 새 기능의 근거로 인용 금지 — 위 XPRIZE 블록 참조.)** |
+| C6 | ~~Judge mode auto-flag~~ **폐지됨 2026-09-06** (Simon 결정 Q-260905-02). 기능은 #1302·마이그레이션 0138 이 이미 걷어냈고, 은퇴를 지키던 검사도 이제 지킬 대상이 없다 — `src/lib/judge/domains.ts` 와 클라이언트 경로가 삭제됐다. **`users.judge_mode` 컬럼과 comp 분기는 여전히 의도적으로 남아 있다**(#1302). 제거는 마이그레이션이다. |
 | C7 | i18n EN ↔ KO key parity. EN is canonical. |
 | C8 | `knowledge_sources` requires DOI/URL + verification pair. |
 | C9 | `classifyInput()` runs before any LLM call. Red zone short-circuits. |
 | C10 | Age-tiered sign-up: 14-17 self-consent minors and adult users register direct; under-14 needs verifiable guardian consent (PIPA §22-2/COPPA). Phased rollout; see docs/CONSTRAINTS.md. |
 | C11 | Support SLA = 2 business days (KST). |
-| C12 | README "Pre-existing assets used" section per rulebook §04. **(대회 잔재: 위 C6 과 동일 취급.)** |
+| C12 | ~~README "Pre-existing assets used" 절~~ **폐지됨 2026-09-06** (Simon 결정 Q-260905-02). 대회 규정집에서 온 번호였다. 다만 검사 자체는 `AssetLicenseDisclosure` 라는 **번호 없는 이름**으로 남겼다 — 싣는 폰트가 SIL OFL 이고 저작권·Reserved Font Name 고지를 기록하는 곳이 `docs/ASSETS.md` 뿐이라, 규정집과 무관하게 실재하는 의무다. 번호는 재사용하지 않는다. |
 
 When uncertain whether a change weakens a constraint, run `npm run check:constraints`.
 
@@ -576,7 +622,8 @@ not eyeballing a mockup.
 trio (`DESIGN_INDEX.md` / `SCREEN_TREE_SPEC.md` / `CLONE_PROTOCOL.md`). Those are a pre-M3 snapshot
 (2026-06-24) from the deep-space cosmic-pixel era, superseded by the reference app above. They are
 kept for history. `SCREEN_TREE_SPEC.md`'s route table in particular is badly out of date (it lists
-40 routes; the app has 85).
+40 routes; **the app has 100** — `src/app` 아래 `.tsx` 104개에서 `_layout` 2개와 `+` 특수
+파일 2개를 뺀 수, 2026-09-07 실측. 여기 적혀 있던 85 는 낡은 값이다).
 
 - Do not introduce hex literals in components. Always go through `semantic.*` from `src/lib/theme/tokens.ts`.
 - Do not add glassmorphism, pill chips, or em dashes in UI strings. Gradients are allowed only within the deep-space cyan/soul identity via `deepSpaceGradients` (`src/lib/theme/tokens.ts`); off-palette or decorative gradients stay forbidden. See DESIGN.md "Color rules".

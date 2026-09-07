@@ -48,6 +48,11 @@
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import {
+  JsonBodyError,
+  LLM_PROXY_JSON_BODY_LIMIT_BYTES,
+  readJsonObject,
+} from '../_shared/request-json.ts';
 // D-27: (vendor × model × effort) axis key attribution — the ONLY symbol this
 // live-critical $0 backbone imports from _shared (a pure env reader; no crisis/
 // auth/cap logic is migrated here — that stays inlined per the _shared note).
@@ -403,8 +408,14 @@ Deno.serve(async (req: Request) => {
 
   let body: { user?: unknown; system?: unknown; model?: unknown; image?: unknown; audio?: unknown; responseSchema?: unknown; purpose?: unknown; effort?: unknown; op?: unknown; texts?: unknown };
   try {
-    body = await req.json();
-  } catch {
+    body = await readJsonObject(req, LLM_PROXY_JSON_BODY_LIMIT_BYTES) as typeof body;
+  } catch (error) {
+    if (error instanceof JsonBodyError && error.code === 'request_body_too_large') {
+      return jsonResponse(req, {
+        error: error.code,
+        max: error.maxBytes,
+      }, 413);
+    }
     return jsonResponse(req, { error: 'invalid_json' }, 400);
   }
 

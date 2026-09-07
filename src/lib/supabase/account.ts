@@ -24,9 +24,9 @@ export async function fetchBirthDate(userId: string): Promise<string | null> {
       .maybeSingle();
     if (error) throw error;
     return (data?.birth_date as string | null | undefined) ?? null;
-  } catch (e) {
+  } catch {
     if (typeof console !== "undefined") {
-      console.warn("[account] birth_date load failed", (e as Error).message);
+      console.warn("[account] birth_date load failed");
     }
     return null;
   }

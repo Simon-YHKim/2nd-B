@@ -38,6 +38,11 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import {
+  JsonBodyError,
+  LLM_PROXY_JSON_BODY_LIMIT_BYTES,
+  readJsonObject,
+} from '../_shared/request-json.ts';
+import {
   BRAIN_RANK,
   MAX_ASSEMBLED_LEN,
   MAX_USER_LEN,
@@ -245,8 +250,14 @@ Deno.serve(async (req: Request) => {
     responseSchema?: unknown;
   };
   try {
-    body = await req.json();
-  } catch {
+    body = await readJsonObject(req, LLM_PROXY_JSON_BODY_LIMIT_BYTES) as typeof body;
+  } catch (error) {
+    if (error instanceof JsonBodyError && error.code === 'request_body_too_large') {
+      return jsonResponse(req, {
+        error: error.code,
+        max: error.maxBytes,
+      }, 413);
+    }
     return jsonResponse(req, { error: 'invalid_json' }, 400);
   }
 

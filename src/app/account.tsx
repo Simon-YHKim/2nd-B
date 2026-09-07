@@ -27,9 +27,10 @@ import { fetchBirthDate, updateBirthDate } from "@/lib/supabase/account";
 import { canSubmitDobCorrection } from "@/lib/account/dob";
 import { requestAccountDeletion } from "@/lib/records/delete-bulk";
 import { requestAccountExport, buildExportFilename } from "@/lib/account/export";
+import { exportAccountData } from "@/screens/deepspace/dds-account-actions";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
-import { DeepSpaceAccountDesignScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
+import { DeepSpaceAccountScreen } from "@/screens/deepspace/dds-account-screen";
 
 const CONFIRM_PHRASE = "DELETE";
 type AccountFeedbackModal = "dobRetry" | "deleteConfirm" | "deleteFailed" | null;
@@ -50,7 +51,8 @@ function AccountLegacy() {
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [exportNote, setExportNote] = useState<"done" | "failed" | null>(null);
+  const [exportNote, setExportNote] = useState<"done" | "partial" | "failed" | null>(null);
+  const [exportFailedItems, setExportFailedItems] = useState(0);
   const [feedbackModal, setFeedbackModal] = useState<AccountFeedbackModal>(null);
   const mounted = useRef(true);
   const activeUserRef = useRef(userId);
@@ -180,31 +182,51 @@ function AccountLegacy() {
   // failure otherwise.
   const onExportData = useCallback(() => {
     if (!userId || exporting) return;
+    // The deletion path above already owns this rule and says why. The export
+    // path did not: delivery ran unconditionally, and `mounted.current` only
+    // gated the state update afterwards. So user A's entire account bundle -
+    // every table plus the raw clipping files - reached the device even after A
+    // signed out and B signed in, and on native the share sheet opened with it.
+    //
+    // exportAccountData is the same transaction the pixel-clay shell uses. It
+    // bounds the wait, re-checks the session before delivering, and rejects a
+    // bundle whose owner is not the account that asked. Reuse it rather than
+    // reimplement three guards in a rollback skin.
+    const requestedUser = userId;
     setExportNote(null);
     setExporting(true);
     void (async () => {
-      try {
-        const bundle = await requestAccountExport();
-        const json = JSON.stringify(bundle, null, 2);
-        const filename = buildExportFilename(bundle.exported_at);
-        if (Platform.OS === "web" && typeof document !== "undefined") {
-          const blob = new Blob([json], { type: "application/json;charset=utf-8" });
-          const url = URL.createObjectURL(blob);
-          const anchor = document.createElement("a");
-          anchor.href = url;
-          anchor.download = filename;
-          anchor.click();
-          URL.revokeObjectURL(url);
-        } else {
-          await Share.share({ message: json });
-        }
-        if (mounted.current) setExportNote("done");
-      } catch (e) {
-        if (typeof console !== "undefined") console.warn("[account] export failed", (e as Error).message);
-        if (mounted.current) setExportNote("failed");
-      } finally {
-        if (mounted.current) setExporting(false);
+      const result = await exportAccountData({
+        requestAccountExport,
+        buildExportFilename,
+        // Delivery itself is unchanged: web download, native share sheet.
+        deliver: async (json: string, filename: string) => {
+          if (Platform.OS === "web" && typeof document !== "undefined") {
+            const blob = new Blob([json], { type: "application/json;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = url;
+            anchor.download = filename;
+            anchor.click();
+            URL.revokeObjectURL(url);
+          } else {
+            await Share.share({ message: json });
+          }
+        },
+        expectedUserId: requestedUser,
+        isActive: () => mounted.current && activeUserRef.current === requestedUser,
+      });
+      if (!mounted.current || activeUserRef.current !== requestedUser) return;
+      if (result.status === "failed") {
+        if (typeof console !== "undefined") console.warn("[account] export failed", (result.error as Error | undefined)?.message);
+        setExportNote("failed");
+      } else if (result.status === "done") {
+        // A delivered bundle is not a complete one: the server reports per-table
+        // and per-file read failures instead of throwing.
+        setExportFailedItems(result.summary.failedItems);
+        setExportNote(result.summary.failedItems > 0 ? "partial" : "done");
       }
+      setExporting(false);
     })();
   }, [userId, exporting]);
 
@@ -318,6 +340,11 @@ function AccountLegacy() {
               {t("account.export.done")}
             </Text>
           ) : null}
+          {exportNote === "partial" ? (
+            <Text variant="subtle" color="danger">
+              {t("account.export.donePartial", { count: exportFailedItems })}
+            </Text>
+          ) : null}
           {exportNote === "failed" ? (
             <Text variant="subtle" color="danger">
               {t("account.export.failed")}
@@ -429,6 +456,29 @@ const styles = StyleSheet.create({
 });
 
 export default function Account() {
-  if (isDeepSpaceUI()) return <DeepSpaceAccountDesignScreen />;
+  const { t } = useTranslation("consent");
+  const { userId, loading, hasProfile, profileProbeFailed } = useAuth();
+
+  if (loading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={t("account.loading")} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+  if (profileProbeFailed || hasProfile === null) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={t("account.loading")} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
+  if (hasProfile === false) return <Redirect href="/complete-profile" />;
+  if (isDeepSpaceUI()) return <DeepSpaceAccountScreen />;
   return <AccountLegacy />;
 }

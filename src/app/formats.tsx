@@ -763,12 +763,20 @@ const styles = StyleSheet.create({
 });
 
 export default function Formats() {
-  // med#11: in deep-space this route renders the EXPORT screen, which orphaned
-  // the clipper format-manager (list/share/edit/delete of capture formats,
-  // including AI-proposed ones). Capture's manage-formats entries now open the
-  // manager explicitly via ?view=manager; the export surface stays the default.
+  // med#11 은 이 라우트의 딥스페이스 기본을 EXPORT 화면으로 두고 클리퍼 형식 관리를
+  // `?view=manager` 뒤로 밀어냈다. 2026-09-04 감사에서 그 기본값만 홀로 어긋나 있는
+  // 것이 확인돼 뒤집는다 — 이름표·캐논·개발자 대장·실제 진입점이 전부 "관리"를 가리킨다:
+  //   · 캐논 screens.json 은 이 라우트를 `component: null, appOnly: true,
+  //     title: "클리퍼 형식 관리"` 로 적는다 (내보내기 화면은 캐논 컴포넌트가 없다).
+  //   · 앱 안에서 여기로 오는 진입점은 둘뿐이고 **둘 다** ?view=manager 를 달고 있다
+  //     (capture.tsx 의 담기 2차 탭과 인라인 '형식 관리' 링크). 파라미터 없이 들어오는
+  //     앱 내 경로는 0건이라, 기본을 뒤집어도 앱 안에서 깨지는 동선이 없다.
+  //   · 기본이 dock 없는 PremiumAppShell(FormatsLegacy)이 되면서 이 라우트는
+  //     DEEP_SPACE_DOCK_PATHS 에서 빠졌다 — 그 전에는 dock 도 back 칩도 없었다.
+  // 내보내기 화면은 **지우지 않고** ?view=export 뒤에 살려 둔다. 최종 거처(/account
+  // 의 export-account 옆인지 /data 인지)는 아직 열린 결정이고, 지금 지우면 그 결정을
+  // 대신 내려버린다. ?view=manager 는 무동작 별칭으로 남아 저장된 링크가 계속 통한다.
   const { view } = useLocalSearchParams<{ view?: string }>();
-  if (view === "manager") return <FormatsLegacy />;
-  if (isDeepSpaceUI()) return <DeepSpaceFormatsScreen />;
+  if (view === "export" && isDeepSpaceUI()) return <DeepSpaceFormatsScreen />;
   return <FormatsLegacy />;
 }

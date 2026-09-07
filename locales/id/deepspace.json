@@ -45,7 +45,7 @@
     "surprise": "Menemukan tautan tak terduga. '{{from}}' dan '{{to}}' adalah topik berbeda, namun keduanya terhubung.",
     "islandChip": "Klaster pengetahuan {{count}}",
     "proposalsLabel": "Koneksi yang diusulkan",
-    "noProposals": "Belum ada usulan. Buat indeks semantik, lalu minta saran tautan.",
+    "noProposals": "Belum ada saran keterkaitan. Tekan tombol di bawah untuk mencari catatan yang berkaitan.",
     "confidence": "{{percent}}% cocok",
     "reject": "Tolak",
     "ratify": "Terima",
@@ -129,7 +129,7 @@
     "deleteCancel": "Batal",
     "deleteConfirm": "Hapus",
     "editSave": "Simpan",
-    "actionFailed": "Perubahan gagal disimpan. Periksa koneksi Anda dan coba lagi.",
+    "actionFailed": "Perubahan gagal disimpan. Periksa koneksimu dan coba lagi.",
     "assessmentBody": "Jawaban mentah dari survei laporan diri. Hasil yang tertata ada di layarnya sendiri.",
     "assessmentCta": "Lihat hasil terbaru tes ini",
     "kindJournal": "Jurnal",
@@ -170,6 +170,15 @@
       "kakao": "Lanjut dengan Kakao",
       "facebook": "Lanjut dengan Facebook",
       "github": "Lanjut dengan GitHub"
+    },
+    "business": {
+      "company": "Perusahaan",
+      "ceo": "Direktur",
+      "address": "Alamat",
+      "bizNo": "No. registrasi usaha",
+      "mailOrderNo": "No. laporan penjualan jarak jauh",
+      "privacyOfficer": "Petugas privasi",
+      "phone": "Telepon"
     }
   },
   "account": {
@@ -207,7 +216,7 @@
     "last7": "7 hari terakhir",
     "thirdParty": "Berbagi pihak ketiga",
     "none": "0 item",
-    "footer": "Bawaannya lokal dulu. Transfer eksternal hanya berjalan setelah konfirmasimu.",
+    "footer": "Cara data diproses dan disimpan bergantung pada fiturnya. Baca penjelasan penggunaan data pada fitur tersebut.",
     "dataReview": "Tinjauan data saya",
     "open": "Buka"
   },
@@ -228,7 +237,7 @@
     "tip": "Mengonfirmasi sebelum menyimpan lebih aman daripada menyimpan otomatis.",
     "sectionAssistant": "Hubungkan asisten AI",
     "pending": "Menunggu",
-    "sectionSources": "Sumber tangkapan",
+    "sectionSources": "Bahan tersimpan",
     "notionValue": "Halaman dan basis data",
     "obsidianValue": "Markdown lokal",
     "healthLabel": "Kesehatan · Kalender",
@@ -245,23 +254,23 @@
     "a11yConnected": "terhubung",
     "a11yConnect": "hubungkan",
     "openImport": "Impor dari file",
-    "openCapture": "Masukkan lewat tangkap",
+    "openCapture": "Tambahkan lewat halaman Simpan",
     "a11yGo": "Buka impor untuk {{name}}",
     "sources": {
       "cal": {
         "name": "Google Calendar",
-        "sub": "Sinyal ritme dan hubungan dari jadwalmu"
+        "sub": "Impor jadwal dari file kalender"
       },
       "health": {
         "name": "Apple Health",
-        "sub": "Tidur dan aktivitas mengisi bintang kesehatanmu"
+        "sub": "Impor file yang diekspor dari aplikasi kesehatan"
       },
       "notion": {
         "sub": "Impor catatan dan dokumen"
       },
       "photos": {
         "name": "Album foto",
-        "sub": "Istirahat dan hubungan dari momen-momenmu"
+        "sub": "Baca teks dalam foto dan simpan sebagai catatan"
       },
       "gpt": {
         "name": "Ekspor ChatGPT",
@@ -291,7 +300,7 @@
     "findingMajority": "{{percent}}% catatanmu minggu ini tentang {{domain}}.",
     "findingSpread": "Tidak ada satu area pun yang mengisi lebih dari setengah catatanmu minggu ini.",
     "findingEmpty": "Belum ada yang kamu simpan minggu ini.",
-    "sectionDiscover": "Apa yang ditangkap berikutnya",
+    "sectionDiscover": "Apa yang ingin kamu simpan berikutnya",
     "discoverLead": "Lihat minat yang naik di catatan terbarumu."
   },
   "data": {
@@ -336,7 +345,7 @@
     "sectionStart": "Memulai",
     "q1": "Apa itu 7 bintang Biduk?",
     "q2": "Bagaimana Bintang Utara menyala?",
-    "q3": "Bagaimana hasil tes menjadi lebih akurat?",
+    "q3": "Bagaimana cara membaca hasil penilaian?",
     "sectionData": "Data · Privasi",
     "q4": "Apa itu berkas IDEN?",
     "q5": "Di mana dataku disimpan?",
@@ -870,9 +879,9 @@
       "healthCtaReflected": "Diterapkan",
       "healthCtaReflectToday": "Terapkan hari ini",
       "healthCtaConnect": "Hubungkan",
-      "leadStart": "Kumpulkan bagian dirimu yang tersebar. Bahkan yang diimpor pun tercermin ",
-      "leadStrong": "hanya sesuai bobotmu sendiri",
-      "leadEnd": " ke dalam bintang-bintang.",
+      "leadStart": "Bawa catatan dari aplikasi lain. Catatan yang diimpor dari file masuk ke ",
+      "leadStrong": "kotak masukmu",
+      "leadEnd": " untuk diperiksa dan ditata.",
       "toggleFile": "Lewat file",
       "toggleAccount": "Hubungkan akun",
       "sectionChooseFile": "Pilih file",
@@ -890,6 +899,9 @@
       "healthErrUnavailable": "Perangkat ini tidak dapat terhubung ke aplikasi kesehatan. Tidak ada yang dicatat.",
       "healthErrDenied": "Akses kesehatan ditolak, jadi tidak ada yang dicatat. Kamu bisa mengizinkannya di pengaturan perangkat.",
       "healthErrEmpty": "Tidak ada aktivitas kesehatan untuk dicerminkan hari ini.",
+      "healthReflected": "Tercermin. Item yang ditambahkan: {{count}}.",
+      "healthReflectedNone": "Tidak ada yang baru untuk dicerminkan: catatan hari ini sudah tersimpan.",
+      "healthRoutinesCompleted": "Rutinitas yang diselesaikan dari ini: {{count}}.",
       "healthErrFailed": "Tidak dapat mencerminkan data kesehatanmu. Coba lagi sebentar lagi.",
       "summaryPieces": "{{count}} potongan",
       "summaryPieces_plural": "{{count}} potongan",
@@ -902,15 +914,15 @@
       "a11yRevokeImport": "Cabut impor {{name}}"
     },
     "ttfv": {
-      "pageTitle": "Bintang pertamamu baru saja menyala",
+      "pageTitle": "Mulai dari satu pengalaman",
       "stageA11y": "Bintang utara dan bintang pertamamu yang menyala",
       "defaultInsight": {
         "star": "Hubungan",
-        "phrase": "lebih dulu mendekati"
+        "phrase": "memulai percakapan"
       },
       "secondbName": "SecondB",
-      "insightLead": "Kamu mungkin orang yang ",
-      "insightTail": ".",
+      "insightLead": "Apakah kamu biasanya orang yang ",
+      "insightTail": "?",
       "sub": "Mari nyalakan dulu bintang Hubunganmu? Semakin banyak kamu simpan, semakin jelas.",
       "grounds": "Dua alasan untuk pembacaan ini",
       "affirm": "Benar",
@@ -952,7 +964,9 @@
       "afterLabel": "setelah +{{n}}",
       "cta": "Tonton iklan & dapat +{{n}}",
       "later": "Nanti",
-      "privacy": "Hanya dewasa dengan persetujuan · tidak pernah di layar sensitif"
+      "privacy": "Hanya dewasa dengan persetujuan · tidak pernah di layar sensitif",
+      "capReached": "Kamu sudah mencapai batas bulan ini. Batasnya terbuka lagi bulan depan.",
+      "creditFailed": "Tidak dapat memastikan penambahannya. Periksa lagi sisa jatahmu sebentar lagi."
     },
     "rewardChat": {
       "titleA": "30 detik untuk ",
@@ -962,7 +976,9 @@
       "afterLabel": "setelah +{{n}}",
       "cta": "Tonton untuk +{{n}} obrolan",
       "later": "Nanti",
-      "privacy": "Hanya dewasa dengan persetujuan · tidak pernah di layar sensitif"
+      "privacy": "Hanya dewasa dengan persetujuan · tidak pernah di layar sensitif",
+      "capReached": "Kamu sudah mencapai batas bulan ini. Batasnya terbuka lagi bulan depan.",
+      "creditFailed": "Tidak dapat memastikan penambahannya. Periksa lagi sisa obrolanmu hari ini sebentar lagi."
     },
     "reasoningLimit": {
       "title": "Jatah reasoning dasar minggu ini sudah habis.",
@@ -1034,16 +1050,16 @@
   },
   "trends": {
     "title": "Tren kecerahan",
-    "subtitle": "Selama 8 minggu terakhir rasi bintangmu makin jelas secara stabil.",
+    "subtitle": "Angka ini hanya contoh, bukan hasil perhitungan dari catatanmu.",
     "overall": "Kecerahan keseluruhan",
-    "delta8w": "+34% · 8 mgg",
-    "perStar": "Perubahan tiap bintang",
-    "log": "Riwayat kecerahan",
-    "shareCta": "Bagikan perubahan ini sebagai kartu"
+    "delta8w": "Contoh +34% · 8 minggu",
+    "perStar": "Contoh perubahan per topik",
+    "log": "Contoh riwayat perubahan",
+    "shareCta": "Buat kartu untuk dibagikan"
   },
   "profileDetails": {
     "screenTitle": "Tentang hidupmu",
-    "intro": "Opsional. Tiap jawaban membuat saran cocok untukmu, bukan untuk semua orang.",
+    "intro": "Isi hanya yang ingin kamu bagikan. Simpan informasi ini di profil dan ubah kapan saja.",
     "progress": "{{filled}} dari {{total}} terisi",
     "save": "Simpan",
     "saved": "Tersimpan",
@@ -1057,13 +1073,13 @@
     "householdLabel": "Tinggal dengan siapa",
     "householdHint": "Sendiri, dengan keluarga, dengan teman...",
     "busiestSeasonLabel": "Waktu tersibukmu",
-    "busiestSeasonHint": "Agar rencana besar tidak jatuh di sana.",
+    "busiestSeasonHint": "Misalnya: masa ujian, akhir tahun, atau musim liburan",
     "dailyRhythmLabel": "Ritme harianmu",
-    "dailyRhythmHint": "Menentukan kapan saran muncul.",
+    "dailyRhythmHint": "Pilih yang paling sesuai dengan keseharianmu.",
     "workHoursLabel": "Kapan kamu biasa bekerja atau belajar",
-    "workHoursHint": "Agar kami mencari waktu luangnya.",
+    "workHoursHint": "Pilih waktu kamu biasanya bekerja atau belajar.",
     "workDaysLabel": "Hari apa saja",
-    "workDaysHint": "Agar rutinitas mingguan jatuh di hari yang tepat.",
+    "workDaysHint": "Pilih Sif atau Berubah-ubah jika hari kerjamu berganti.",
     "rhythmMorning": "Tipe pagi",
     "rhythmEvening": "Tipe malam",
     "rhythmFlexible": "Fleksibel",

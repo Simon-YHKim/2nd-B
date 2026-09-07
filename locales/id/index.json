@@ -1,7 +1,7 @@
 {
   "villageQuiet": "Desa sedang sepi",
   "firstPiece": "Tinggalkan serpihan pertama",
-  "firstPieceHint": "Membuka tangkapan untuk menyimpan serpihan pertamamu",
+  "firstPieceHint": "Membuka halaman Simpan untuk menambahkan catatan pertama",
   "lookFirst": "Lihat-lihat dulu",
   "lookFirstLabel": "Lihat-lihat dulu",
   "dismissFirstRun": "Menutup kartu awal",
@@ -18,13 +18,5 @@
   "retryLoadHint": "Mencoba memuat data grafik lagi",
   "openRecordsHint": "Membuka arsip catatan",
   "openCenterHint": "Membuka Inti Jiwa",
-  "todaysCenter": "Pusat hari ini",
-  "navGraph": "Grafik",
-  "navWiki": "Wiki",
-  "navRecords": "Catatan",
-  "navResearch": "Riset",
-  "navAssistant": "Asisten",
-  "navToday": "Hari ini",
-  "navMyChange": "Perubahanku",
-  "navImport": "Impor"
+  "todaysCenter": "Pusat hari ini"
 }
