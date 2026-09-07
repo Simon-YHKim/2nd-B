@@ -2,7 +2,11 @@
 // key commitments, the draft badge must key off the [기입] placeholders, and
 // the markdown-lite parser must handle every construct the drafts use.
 
+import { readFileSync, readdirSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { PRIVACY_DOC, REFUND_DOC, TERMS_DOC, isDraft } from "../legal-documents";
+import { CONSENT_VERSION, PRIVACY_POLICY_VERSION } from "../../supabase/consent";
 import {
   parseLegalMarkdown,
   splitLegalLanguageSections,
@@ -10,6 +14,20 @@ import {
   type LegalBlock,
   type LegalLanguageSections,
 } from "../parse-legal-markdown";
+
+const ROOT = resolve(__dirname, "../../../..");
+
+function revenueCatKeyDeployed(): boolean {
+  const workflowDir = resolve(ROOT, ".github/workflows");
+  const deploymentSources = [
+    readFileSync(resolve(ROOT, "eas.json"), "utf8"),
+    ...readdirSync(workflowDir)
+      .filter((name) => /\.ya?ml$/i.test(name))
+      .map((name) => readFileSync(resolve(workflowDir, name), "utf8")),
+  ].join("\n");
+
+  return /EXPO_PUBLIC_REVENUECAT_(?:IOS|ANDROID)_KEY/.test(deploymentSources);
+}
 
 /** The half of the document the language toggle is currently hiding. */
 function otherLanguageLines(split: LegalLanguageSections, showing: "ko" | "en"): string[] {
@@ -85,6 +103,93 @@ describe("legal document snapshots", () => {
     expect(PRIVACY_DOC.body).toContain("민감정보");
     expect(PRIVACY_DOC.body).toContain("건강·활동 데이터");
     expect(PRIVACY_DOC.body).toContain("Health & activity data");
+  });
+
+  test("privacy policy names the processors and transfer rules used by the current app", () => {
+    expect(PRIVACY_DOC.body.match(/OpenAI OpCo, LLC/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(PRIVACY_DOC.body.match(/Functional Software, Inc\. \(dba Sentry/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(PRIVACY_DOC.body).toContain("Firebase Analytics");
+    expect(PRIVACY_DOC.body).toContain("제28조의8 제1항 제3호");
+    expect(PRIVACY_DOC.body).toContain("Article 28-8(1)3");
+    expect(PRIVACY_DOC.body).toContain("건강·활동 측정값은 어떠한 AI 제공자에게도 전송하지 않고");
+    expect(PRIVACY_DOC.body).toContain("health and activity measurements are not sent to any AI provider");
+    expect(PRIVACY_DOC.body).not.toContain("음성·오디오는 텍스트 전사를 위해 Google에 전송");
+    expect(PRIVACY_DOC.body).not.toContain("voice/audio is sent to Google");
+  });
+
+  // One-way guard: a RevenueCat key named in checked-in deployment config
+  // REQUIRES a disclosure. The reverse is deliberately not asserted: absence of
+  // the key in eas.json/workflows does not prove the vendor is permanently
+  // inactive, so a disclosure without a key must not fail the build.
+  test("a deployable native RevenueCat key requires a disclosure (one-way)", () => {
+    if (revenueCatKeyDeployed()) {
+      expect(PRIVACY_DOC.body).toMatch(/RevenueCat/);
+    }
+  });
+
+  test("2026-09-02 revision: version alignment and technically honest sections 4-5", () => {
+    const md = readFileSync(resolve(ROOT, "docs/legal/privacy-policy.md"), "utf8");
+    // md, app snapshot, and the consent writer all carry the same date.
+    expect(md).toContain("_시행일: 2026-09-02 · 최종 개정: 2026-09-02_");
+    expect(PRIVACY_DOC.body).toContain("시행일: 2026-09-02");
+    expect(PRIVACY_POLICY_VERSION).toBe("2026-09-02");
+    // #1589 revises the sign-up consent notice itself (ackOverseas and
+    // overseasTransfer.body), so the notice version moves with the policy:
+    // final tuple = consent 09-02 / policy 09-02 / terms 08-16.
+    expect(CONSENT_VERSION).toBe("2026-09-02");
+    // Anthropic is a configured-active AI processor (perPurpose seat map) and
+    // must be disclosed in both section 4 and section 5, in both languages.
+    expect(PRIVACY_DOC.body.match(/Anthropic PBC/g)?.length ?? 0).toBeGreaterThanOrEqual(4);
+    // Supabase keeps primary storage in Seoul while unpinned Edge execution and
+    // the currently verified Free-plan log period remain visible in both languages.
+    expect(PRIVACY_DOC.body).toContain("대한민국(서울) 리전");
+    expect(PRIVACY_DOC.body).toContain("Seoul, South Korea region");
+    expect(PRIVACY_DOC.body).toContain("Edge Functions는 현재 실행 리전이 고정되지 않아");
+    expect(PRIVACY_DOC.body).toContain("Edge Functions are not currently region-pinned");
+    expect(PRIVACY_DOC.body).toContain("API·함수 로그의 보유기간은 1일");
+    expect(PRIVACY_DOC.body).toContain("API and function logs for one day");
+    expect(PRIVACY_DOC.body).not.toContain("Supabase, Inc.(미국)는 제1조의");
+    // No account-specific Sentry retention claim (the account setting is unverified).
+    expect(PRIVACY_DOC.body).not.toMatch(/Sentry 계정에 설정된|Company's Sentry account|최대 90일|no longer than 90 days/);
+    // Earlier Sentry builds can keep transmitting until updated/restarted or refreshed.
+    expect(PRIVACY_DOC.body).toContain("계속 TLS 전송할 수 있습니다");
+    expect(PRIVACY_DOC.body).toContain("may continue to transmit");
+    expect(PRIVACY_DOC.body).toContain("compliance@sentry.io");
+    expect(PRIVACY_DOC.body).not.toContain("최신 버전의 앱은 오류 수집 도구(Sentry)를 초기화하지 않습니다");
+    expect(PRIVACY_DOC.body).not.toContain("the latest version of the app does not initialize the error-reporting tool (Sentry)");
+    // Firebase/Clarity are currently disabled, not "collected upon consent".
+    expect(PRIVACY_DOC.body).toContain("현재 앱에서 비활성화되어 있어 수집하지 않습니다");
+    expect(PRIVACY_DOC.body).toContain("Currently disabled in the app; nothing is collected");
+    // Paddle is an independent Merchant of Record and receives the account link key.
+    expect(PRIVACY_DOC.body).toContain("판매자(Merchant of Record)인 Paddle");
+    expect(PRIVACY_DOC.body).toContain("Paddle as the Merchant of Record");
+    expect(PRIVACY_DOC.body).toContain("내부 계정 식별자(user_id)");
+    expect(PRIVACY_DOC.body).toContain("internal account identifier (user_id)");
+    expect(PRIVACY_DOC.body).toContain("무료 기능은 계속 이용할 수 있습니다");
+    expect(PRIVACY_DOC.body).toContain("continue to use the free features");
+    // Required overseas processing blocks sign-up; optional payments/analytics do not.
+    expect(PRIVACY_DOC.body).toContain("가입을 완료할 수 없습니다");
+    expect(PRIVACY_DOC.body).toContain("cannot complete sign-up");
+    // GA4 names its pseudonymous identifiers and keeps the aggregated-report caveat.
+    expect(PRIVACY_DOC.body).toContain("가명 클라이언트·기기 식별자");
+    expect(PRIVACY_DOC.body).toContain("pseudonymous client and device identifiers");
+    expect(PRIVACY_DOC.body).toContain("표준 집계 보고서는 이 보존 설정의 적용을 받지 않습니다");
+    expect(PRIVACY_DOC.body).toContain("standard aggregated reports are not governed by that retention setting");
+    // Drafts and generated copies must not ship editorial fill markers.
+    expect(PRIVACY_DOC.body).not.toMatch(
+      /\[(?:배포일|N|서버 차단일|확인된|deployment date|server-block date|verified)/,
+    );
+    // xAI is not selected by any deployed env value and must not be listed.
+    expect(PRIVACY_DOC.body).not.toMatch(/xAI|X\.AI/);
+    // Official privacy contacts for the two active AI recipients, verified
+    // against each vendor's published privacy policy (openai.com/policies,
+    // anthropic.com/legal/privacy). The document deliberately lists each
+    // vendor's privacy@ address as its inquiry route, in KO and EN alike.
+    // (Both vendors also publish other official addresses such as dpo@; the
+    // choice of privacy@ here is editorial, not a claim that others are
+    // unofficial, so their absence is not asserted.)
+    expect(PRIVACY_DOC.body.match(/privacy@openai\.com/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(PRIVACY_DOC.body.match(/privacy@anthropic\.com/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
   });
 
   test("finalized 2026-07-17: no [기입]/[fill] markers remain, badge off", () => {
