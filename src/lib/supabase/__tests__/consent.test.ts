@@ -41,6 +41,7 @@ describe("recordConsent", () => {
       llmProcessingAck: true,
       overseasTransferAck: true,
       sensitiveDataAck: true,
+      safetyNoticeAck: true,
     });
 
     expect(__mock.from).toHaveBeenCalledWith("consent_records");
@@ -54,6 +55,7 @@ describe("recordConsent", () => {
     expect(row.terms_version).toBe(TERMS_VERSION);
     expect(row.overseas_transfer_ack).toBe(true);
     expect(row.sensitive_data_ack).toBe(true);
+    expect(row.safety_notice_ack).toBe(true);
     // Defaults for unset optional fields.
     expect(row.optional_consents).toEqual({});
     expect(row.ip_hash).toBeNull();
