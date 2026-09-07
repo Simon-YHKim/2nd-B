@@ -97,6 +97,26 @@ test("법무 문서의 모든 경로 인용이 실재하는 파일을 가리킨�
   expect(missing).toEqual([]);
 });
 
+/** `:179-187` - 파일 이름 없이 줄 범위만 적은 이어쓰기 인용. */
+const CONTINUATION = /`:[0-9][0-9,\-\s]*`/g;
+
+test("파일 이름 없는 이어쓰기 인용이 없다", () => {
+  // 앞 인용의 파일을 이어받는 형태다. 사람은 문장으로 풀 수 있지만 **기계는
+  // 못 풀고**, 그래서 이 파일의 어떤 검사도 그것을 보지 못했다 - Round40 은
+  // 경로를, Round43 은 이름을 보는데 이건 둘 다 없다.
+  //
+  // 그 자리에 뭐가 숨어 있었는가: `callAdvisor` 의 `:635-669` 는 개명 전
+  // gemini.ts 의 범위였고, 그 옆 문장은 아직 `callGemini` 라고 적고 있었다.
+  // 열네 건이라 반쯤 지키는 대신 전부 펴고 형태 자체를 막는다.
+  const found = docs.flatMap(name => {
+    const text = fs.readFileSync(path.join(LEGAL_DIR, name), "utf8").replace(/\r\n/g, "\n");
+    return text.split("\n").flatMap((line, i) =>
+      [...line.matchAll(CONTINUATION)].map(m => `${name}:${i + 1} ${m[0]}`),
+    );
+  });
+  expect(found).toEqual([]);
+});
+
 test("줄 번호를 단 이름 인용이 저장소 파일 하나로 풀린다", () => {
   // 이름만으로는 어느 파일인지 모를 수 있다. `index.ts` 는 이 저장소에
   // 스물세 개, `export.ts` 는 둘이다. **못 찾는 것과 여럿에 걸리는 것은
@@ -162,6 +182,14 @@ describe("검사기 자신의 대조군", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].bare).toBe(true);
     expect(rows[0].maxLine).toBe(73);
+  });
+
+  test("이어쓰기 인용 형태를 실제로 알아본다", () => {
+    // 이 대조군이 없으면 위 검사는 "정규식이 아무것도 못 찾아서" 통과하는
+    // 것과 구분되지 않는다.
+    expect("(`src/a.ts:1-2`, `:3-4`)".match(CONTINUATION)).toEqual(["`:3-4`"]);
+    // 파일 이름이 붙은 것은 이어쓰기가 아니다.
+    expect("(`src/a.ts:3-4`)".match(CONTINUATION)).toBeNull();
   });
 
   test("이름 해석은 하나 / 여럿 / 없음을 가른다", () => {
