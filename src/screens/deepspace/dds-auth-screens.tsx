@@ -30,6 +30,7 @@ import { BusinessFooter } from "@/components/deepspace/BusinessFooter";
 import { todayISO } from "@/components/m3/date-picker/calendar-math";
 import { PixelGateShell, PixelPressable, PixelSurface } from "@/components/pixel";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { checkboxSpaceKeyProps } from "@/lib/ui/checkbox-space-key";
 import { m3TextStyle } from "@/components/m3/typeface";
 import { useFontStyle } from "@/lib/settings/readable-font";
 
@@ -263,6 +264,7 @@ function ConsentCheckRow({ checked, label, emphasize, onToggle, onDetail, detail
       <Pressable
         style={styles.consentToggleArea}
         onPress={onToggle}
+        {...checkboxSpaceKeyProps(onToggle)}
         accessibilityRole="checkbox"
         accessibilityState={{ checked }}
         accessibilityLabel={label}

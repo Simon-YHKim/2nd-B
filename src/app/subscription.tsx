@@ -28,6 +28,7 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { PremiumModal } from "@/components/premium";
 import { m3 } from "@/lib/theme/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { checkboxSpaceKeyProps } from "@/lib/ui/checkbox-space-key";
 import { useProgression } from "@/lib/progression/useProgression";
 import { PUBLIC_TIER_BY_DB } from "@/lib/entitlements/tier-map";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
@@ -383,6 +384,7 @@ export default function SubscriptionScreen() {
           <Pressable
             onPress={() => setRefundToo((v) => !v)}
             style={s.offerRow}
+            {...checkboxSpaceKeyProps(() => setRefundToo((v) => !v))}
             hitSlop={12}
             accessibilityRole="checkbox"
             accessibilityState={{ checked: refundToo }}

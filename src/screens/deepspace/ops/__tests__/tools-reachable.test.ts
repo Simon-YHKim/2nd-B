@@ -379,6 +379,9 @@ describe("비서 허브 실제 상태·mutation 계약", () => {
   });
 });
 
+// GIANT 의 "Calendar hand-off" slice digest 를 재고정했다(2026-09-07). 오늘 루틴
+// 완료 Pressable 에 웹 스페이스키 배선 한 줄(`checkboxSpaceKeyProps`)이 들어갔다.
+// 나머지 세 digest 는 그대로다 = 인접 슬라이스는 실제로 안 건드렸다는 뜻이 유지된다.
 describe("비서 허브 PIXEL·legacy 회귀", () => {
   it("legacy OpsLegacy/styles와 인접 giant export slice는 byte-stable이다", () => {
     expect(sha256(sourceSlice(APP_OPS, "function OpsLegacy()", "export default function Ops()"))).toBe(
@@ -388,7 +391,7 @@ describe("비서 허브 PIXEL·legacy 회귀", () => {
       "7310bc11970533709c524180e6eb5f194e18f2be43bbe87345f48f1661c75944",
     );
     expect(sha256(sourceSlice(GIANT, "// Calendar hand-off needs", "export { DeepSpaceRecordsScreen"))).toBe(
-      "d438e1a4228eaee8c984d84c8a8f79fa36be0e7da0da09920f2c436398c214c8",
+      "7a451802f2b3ca545760fffdc9e71998d50a63cba7c74d3cbea1c676c31e0159",
     );
     expect(sha256(sourceSlice(GIANT, "export function DeepSpaceDomainsScreen()", "export function DeepSpaceFocusScreen()"))).toBe(
       "c8c263bb1bef6540299578c0e20b69b7bdc4549fdad8f464540e34dc96891a24",
