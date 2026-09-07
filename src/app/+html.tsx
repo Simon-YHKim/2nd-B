@@ -92,17 +92,23 @@ export default function Root({ children }: PropsWithChildren) {
             Graph ignores relative paths. The asset is public/og-image.png and
             its source is design/og-card/ - regenerate it, never hand-edit.
 
-            NOTE on the <title> below: it is NOT the document title. Expo
-            Router's vendored react-helmet-async injects its own
-            <title data-rh="true"></title> at the very top of <head> (byte 38
-            of the served page; this one lands at 234), and the FIRST title
-            wins. It is empty because Head only renders inside a focused
-            screen, and the static shell is the root layout's InlineLoader
-            branch - no screen renders at all during export. So this tag is a
-            fallback for anything reading the last title, while og:title and
-            twitter:title below are what actually feed share cards. The
-            browser tab is fixed at runtime instead (see _layout).
-            Measured 2026-09-07 on the served bundle. */}
+            NOTE on the <title> below: it is the SECOND title in the served
+            page and the FIRST one wins, so this is not what a reader gets.
+            Expo Router's vendored react-helmet-async emits its own
+            <title data-rh="true"> at the very top of <head> (byte 38; this
+            one lands at 257).
+
+            That helmet tag used to be EMPTY: <Head> only renders inside a
+            focused screen and the static shell is the root layout's
+            InlineLoader branch, so no screen rendered during export at all.
+            The root layout now feeds that same helmet instance directly
+            (SITE_HEAD in _layout.tsx), so byte 38 carries the real name.
+            Controlled export 2026-09-08: identical tree, only _layout.tsx
+            differing - byte 38 empty before, filled after.
+
+            Keep this tag anyway - it is the fallback for any runtime where
+            helmet does not render. og:title and twitter:title below are what
+            feed share cards, and those were always correct. */}
         <title>{SITE_TITLE}</title>
         <meta name="description" content={SITE_DESCRIPTION} />
         <meta property="og:type" content="website" />
