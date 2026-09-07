@@ -73,7 +73,6 @@ const W = "src/lib/wiki/export.ts";
 const AC = "src/lib/auth/AuthContext.tsx";
 const AD = "src/lib/ads/policy.ts";
 const CV = "src/lib/chat/conversation.ts";
-const OP = "src/app/ops.tsx";
 const AT = "src/lib/analytics/__tests__/analytics.test.ts";
 const LR = "scripts/check-legal-review.ts";
 
@@ -142,8 +141,10 @@ const ANCHORS: Anchor[] = [
     why: "그 규칙을 코드가 스스로 적어 둔 자리 - 주장 자체가 '코드가 이렇게 적어 두었다'라서 주석이 근거다." },
   { cite: `${CV}:338`, symbol: "SYSTEM_PROMPT_HEADER",
     why: "대화 프롬프트가 실제로 조립되는 자리 - 무엇이 모델에 들어가는지의 근거." },
-  { cite: `${OP}:111`, symbol: "recommendationsAllowed",
-    why: "미성년 추천 잠금이 화면에서 실제로 불리는 자리." },
+  { cite: "src/lib/ops/recommend.ts:199-207", symbol: "recommendationsAllowed(input.minor",
+    why: "엔진이 호출부와 **독립적으로** 게이트를 다시 본다는 주장의 근거. 493행이 '통제가 어느 한 화면에 기대지 않는다'고 말하는 근거가 이 한 줄이다 - 화면 잠금이 사라져도 스냅샷이 LLM 에 안 간다." },
+  { cite: "src/screens/deepspace/dds-ops-screen.tsx:588-595", symbol: "recommendationsAllowed",
+    why: "미성년 추천 잠금이 **배송되는 화면에서** 실제로 불리는 자리. ⚠ 원래 `src/app/ops.tsx:111` 을 가리켰는데 그 줄은 `OpsLegacy` 안이고, `ops.tsx:501` 이 deep-space 일 때 위임하므로 **어떤 배포도 그리지 않는다.** 잠금은 실재하는데 좌표가 죽어 있었다 - 회차 60(/data)·61(/audit) 과 같은 부류의 세 번째다." },
   { cite: `${D}:66-78`, symbol: "userIdFromJwt",
     why: "지울 계정을 클라이언트가 못 고른다는 IDOR 주장의 근거." },
   { cite: "src/lib/analytics/index.ts:245-252", symbol: "isMinor === false",
@@ -168,8 +169,11 @@ const ANCHORS: Anchor[] = [
     why: "관할 신호가 **언제** 붙었는지의 날짜 기록. 문서가 세 자리에서 '신호 없음'을 주장하며 **바로 이 범위를 인용**하고 있었다 - 인용된 줄이 인용한 주장을 반증하는 상태였다. 주장 자체가 '코드가 이 날짜를 적어 두었다' 라서 주석이 근거다." },
   { cite: `${P}:103-105`, symbol: "were pruned", evidence: "comment",
     why: "문서가 credit 하던 `llm_training`/`persona_export`/`persona_share` 가 **왜 없는지**의 기록. 없는 설정을 통제로 적는 것을 막는다(회차 45 의 부류)." },
-  { cite: "src/app/wiki.tsx:359", symbol: "exportContextPack",
-    why: "사용자용 내보내기가 실제로 부르는 함수. 문서는 `exportUserWiki` 라고 적고 있었는데 그건 저널을 **빼는** 대화 경로다 - 이 경로는 일부러 담는다(`includeRecords: true`). 개인정보 문서에서 무엇이 나가는지를 뒤집는 오류다." },
+  // ⚠ 회차 57 이 여기에 `src/app/wiki.tsx:359` / `exportContextPack` 앵커를 두었다.
+  // 회차 63 에서 지웠다: 그 줄은 `WikiLegacy` 안이고 어떤 배포도 그리지 않는다.
+  // **맞는 함수 이름을 죽은 사본에 고정한 것**이라, 지키는 대상이 없었다.
+  // 배송되는 위키 화면(`dds-wiki-records-screens.tsx`)에는 마크다운 내보내기 자체가
+  // 없다 - 그 사실은 legal-citations-not-in-dead-renderers.test.ts 가 지킨다.
   { cite: `${CV}:293-296`, symbol: "wiki_snapshot",
     why: "스냅샷이 실제로 신뢰하지 않는 데이터로 감싸지는 자리. 문서는 프롬프트 문자열 블록을 가리키고 있었다." },
   { cite: `${R}:54`, symbol: "SNAPSHOT_CHAR_LIMIT",
