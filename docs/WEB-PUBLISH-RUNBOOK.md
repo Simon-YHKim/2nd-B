@@ -339,8 +339,29 @@ main이 이동하면 그 run은 버려진다. 이것은 **낡은 커밋을 공�
 ::error::The main workflow ref became stale before verification.
 ```
 
-main이 움직인 뒤 content digest만 어긋나면 `Hash and approve immutable Pages content`에서
-대신 터진다(run `34065192766`). 두 경우 모두 `deploy` job은 `skipped`다.
+⚠ **`Hash and approve immutable Pages content` 실패는 다른 원인이다. 같이 묶지 말 것.**
+여기 원래 "main이 움직여 content digest가 어긋난다"고 적혀 있었는데 **틀렸다.** 반증(2026-09-08):
+같은 커밋 `b6edb3cc`의 push run `34155176535`를 재실행했더니
+
+```
+attempt 1   ARTIFACT_CONTENT_SHA256 = 4ceeabd4…
+attempt 2   ARTIFACT_CONTENT_SHA256 = 4d593e3c…   ← 같은 커밋, 같은 워크플로
+            PUBLIC_CONFIG_SHA256 은 둘 다 동일
+```
+
+rerun 은 고정 SHA 재빌드라 **main 이동이 개입할 구조가 없다.** 원인은 빌드가 재현되지
+않는 것이고(Metro 모듈 id 가 워커 완료 순서를 탄다 — `metro.config.js`에
+`createModuleIdFactory` 없음), 그러면 **승인 digest 와 재빌드 digest 가 확률적으로 갈린다.**
+
+**두 실패를 메시지로 가른다:**
+
+| 메시지 | 원인 | 대응 |
+|---|---|---|
+| `source_sha to equal fresh origin/main` · `ref became stale` | main 이 움직였다 | 새 tip 으로 처음부터 |
+| `artifact-content digest does not match approval` | 빌드가 재현되지 않았다 | **그냥 다시 쏜다** |
+
+두 경우 모두 `deploy` job은 `skipped`다 — **끝나는 모양이 같아서 원인을 구별해 주지 않는다.**
+정지는 여전히 필요하지만(첫 줄 때문에), **정지한다고 둘째 줄의 확률이 내려가지는 않는다.**
 
 ### 무엇을 창 안에 넣을 것인가
 
