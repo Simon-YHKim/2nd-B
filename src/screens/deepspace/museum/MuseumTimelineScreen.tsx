@@ -73,6 +73,17 @@ import {
   placeMuseumNodes,
   type MuseumLaneId,
 } from "./museum-timeline-data";
+// The translation overlay (Simon 2026-09-07, R24-MUSEUM-04 ②). The canon pack
+// stays Korean; an event with an English entry resolves to English AND reports
+// English to assistive technology. One without keeps both. The screen never
+// decides the language itself - see museum-translation.ts for why that pairing
+// is the whole point.
+import {
+  museumContentLanguage,
+  resolveMuseumDetail,
+  resolveMuseumEvent,
+  resolveMuseumRefKindLabel,
+} from "./museum-translation";
 import {
   MUSEUM_AXIS as AXIS,
   MUSEUM_GRID as GRID,
@@ -129,7 +140,8 @@ function SheetAction({
 }
 
 export function MuseumTimelineScreen() {
-  const { t } = useTranslation("deepspace");
+  const { t, i18n } = useTranslation("deepspace");
+  const locale = i18n.language ?? "en";
   const { width: windowWidth } = useWindowDimensions();
   const compact = windowWidth < 360;
   const reducedMotionPref = useReducedMotionPref();
@@ -145,11 +157,20 @@ export function MuseumTimelineScreen() {
   const [year, setYear] = useState(MUSEUM_INITIAL_YEAR);
 
   const placed = useMemo(() => placeMuseumNodes(MUSEUM), []);
-  const selected = selectedId ? museumEventById(selectedId) : undefined;
+  const canonSelected = selectedId ? museumEventById(selectedId) : undefined;
+  const selected = canonSelected ? resolveMuseumEvent(canonSelected, locale) : undefined;
   const selectedIndex = selected
     ? MUSEUM_BY_YEAR.findIndex((event) => event.id === selected.id)
     : -1;
-  const selectedDetail = selected ? museumDetailById(selected.id) : undefined;
+  const selectedDetail = selected
+    ? resolveMuseumDetail(selected.id, museumDetailById(selected.id), locale)
+    : undefined;
+  // The sheet tags one language for its whole body, so it has to be the
+  // language of THIS event - not a constant, now that some events are English
+  // and some are not.
+  const selectedLanguage = selected
+    ? museumContentLanguage(selected.id, locale)
+    : CANON_MUSEUM_LANGUAGE;
   const previousId = stepMuseumSelection(MUSEUM_BY_YEAR, selectedId, -1);
   const nextId = stepMuseumSelection(MUSEUM_BY_YEAR, selectedId, 1);
 
@@ -446,9 +467,12 @@ export function MuseumTimelineScreen() {
               </PixelSurface>
             ))}
 
-            {MUSEUM.map((event) => {
-              const position = placed.get(event.id);
+            {MUSEUM.map((canonEvent) => {
+              const position = placed.get(canonEvent.id);
               if (!position) return null;
+              // Geometry is placed from the canon (ids and years do not move);
+              // only the copy is resolved.
+              const event = resolveMuseumEvent(canonEvent, locale);
               const active = selectedId === event.id;
               const tone = LANE_TONE[event.lane];
               return (
@@ -460,14 +484,16 @@ export function MuseumTimelineScreen() {
                     )
                   }
                   accessibilityLabel={`${event.ylabel} ${event.title}`}
-                  // The titles are Korean in every locale (the canon is KO-only
-                  // for event content). Saying so is accessibility correctness,
-                  // not a content decision: without it an English screen reader
-                  // voices Korean in an English voice.
+                  // Per node, because the timeline is partly translated: an
+                  // event with an English entry reports "en", one without keeps
+                  // "ko". Reporting the LOCALE here instead would make every
+                  // untranslated card claim to be English, which is worse than
+                  // being untranslated - an English screen reader would voice
+                  // Korean glyphs in an English voice and call it English.
                   // ⚠ Native only. React Native Web forwards neither `lang` nor
                   // `accessibilityLanguage`, so there is no web path for this
                   // through RN props - measured, not assumed.
-                  accessibilityLanguage={CANON_MUSEUM_LANGUAGE}
+                  accessibilityLanguage={museumContentLanguage(event.id, locale)}
                   accessibilityState={{ selected: active, expanded: active }}
                   rootStyle={[
                     styles.nodeRoot,
@@ -566,9 +592,10 @@ export function MuseumTimelineScreen() {
               },
             ]}
             accessibilityViewIsModal
-            // One attribute on the container covers the whole Korean detail
-            // body: title, sub, long copy, fact rows, cause and effect.
-            accessibilityLanguage={CANON_MUSEUM_LANGUAGE}
+            // One attribute on the container covers this event's whole detail
+            // body: title, sub, long copy, fact rows, cause and effect. They
+            // are resolved together, so one tag is still correct.
+            accessibilityLanguage={selectedLanguage}
             accessibilityLiveRegion="polite"
             accessibilityState={{ expanded: true }}
             {...sheetPan.panHandlers}
@@ -753,8 +780,9 @@ export function MuseumTimelineScreen() {
                     </Text>
                     {selected.rel.map((relatedId) => {
                       const safeId = museumTargetId(relatedId, MUSEUM_IDS);
-                      const related = safeId ? museumEventById(safeId) : undefined;
-                      if (!related) return null;
+                      const canonRelated = safeId ? museumEventById(safeId) : undefined;
+                      if (!canonRelated) return null;
+                      const related = resolveMuseumEvent(canonRelated, locale);
                       return (
                         <PixelPressable
                           key={related.id}
@@ -795,7 +823,7 @@ export function MuseumTimelineScreen() {
                         key={`${reference.kind}-${reference.label}-${index}`}
                         accessible
                         accessibilityRole="text"
-                        accessibilityLabel={`${MUSEUM_REF_LABEL[reference.kind]} ${reference.label}`}
+                        accessibilityLabel={`${resolveMuseumRefKindLabel(reference.kind, MUSEUM_REF_LABEL[reference.kind], locale)} ${reference.label}`}
                       >
                         <PixelSurface
                           variant="inset"
@@ -816,7 +844,11 @@ export function MuseumTimelineScreen() {
                           <View style={styles.referenceBody}>
                             <Text style={styles.referenceLabel}>{reference.label}</Text>
                             <Text style={styles.referenceKind}>
-                              {MUSEUM_REF_LABEL[reference.kind]}
+                              {resolveMuseumRefKindLabel(
+                                reference.kind,
+                                MUSEUM_REF_LABEL[reference.kind],
+                                locale,
+                              )}
                             </Text>
                           </View>
                         </PixelSurface>

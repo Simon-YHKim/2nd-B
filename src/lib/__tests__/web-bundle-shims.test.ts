@@ -178,11 +178,35 @@ describe("web bundle platform split (audit D5-01 / D5-11)", () => {
 });
 
 describe("canon index stays structural (audit D5-13)", () => {
+  // The property is an IMPORT EDGE: only lib/canon/museum.ts may pull the 62 KB
+  // museum pack in, so it stays off the canon index's dependency edge.
+  //
+  // ⚠ This matched any MENTION of the path until 2026-09-07, which made a
+  // comment that merely names the pack an offence. The museum translation layer
+  // has to explain in prose that it deliberately does not touch that file, and
+  // the guard reported that explanation as an import. Matching a module
+  // specifier instead is strictly narrower in what it forgives and exactly as
+  // wide in what it catches - the negative control below fixes that in place,
+  // so nobody has to take it on trust.
+  const museumJsonImport = /(?:from|import\(|require\()\s*["'][^"']*screens\/museum\.json["']/;
+
   test("the museum pack is imported only by lib/canon/museum.ts", () => {
-    const museumJson = /screens\/museum\.json/;
-    expect(read("lib/canon/index.ts")).not.toMatch(museumJson);
-    expect(read("lib/canon/museum.ts")).toMatch(museumJson);
-    const offenders = walk(SRC).filter((f) => f !== "lib/canon/museum.ts" && museumJson.test(read(f)));
+    expect(read("lib/canon/index.ts")).not.toMatch(museumJsonImport);
+    expect(read("lib/canon/museum.ts")).toMatch(museumJsonImport);
+    const offenders = walk(SRC).filter(
+      (f) => f !== "lib/canon/museum.ts" && museumJsonImport.test(read(f)),
+    );
     expect(offenders).toEqual([]);
+  });
+
+  test("the matcher still catches an import and still forgives a mention", () => {
+    // Positive: every form that actually creates the edge.
+    expect('import pack from "../../../public/proto/data/screens/museum.json";').toMatch(museumJsonImport);
+    expect('const p = require("./data/screens/museum.json");').toMatch(museumJsonImport);
+    expect('await import("../public/proto/data/screens/museum.json")').toMatch(museumJsonImport);
+    // Negative: prose that names the file without importing it.
+    expect("// the canon pack (public/proto/data/screens/museum.json) is a pixel contract").not.toMatch(
+      museumJsonImport,
+    );
   });
 });
