@@ -33,9 +33,12 @@ export interface SignUpFlowDeps {
    *  Awaited BEFORE navigation so a web router.replace can't cancel the
    *  in-flight PIPA consent write. Only called on a fresh profile (created):
    *  an existing row already has its original sign-up consent, and a second
-   *  ledger row would be a duplicate. Best-effort by contract; the result is
-   *  awaited but never read. */
-  recordConsent: (userId: string) => Promise<unknown>;
+   *  ledger row would be a duplicate. Best-effort by contract: a false result
+   *  never blocks entry, but it is carried out on the result so a caller can
+   *  see that the account exists without a consent row. Typed boolean rather
+   *  than unknown because unknown is not merely unread -- it cannot be read,
+   *  which is why every caller dropped it and no check ever noticed. */
+  recordConsent: (userId: string) => Promise<boolean>;
   /** AuthContext.refresh — re-probes the profile so hasProfile is current
    *  (true: the row was just inserted) before any navigation decision reads
    *  it. Skipping this is exactly the E2E-4 bounce. */
@@ -51,9 +54,14 @@ export type SignUpSubmitResult =
    *  the confirmation link. No consent write or auth refresh runs yet: the DB
    *  confirmation trigger owns that atomic hand-off. */
   | { kind: "confirmationRequired" }
-  /** Account + profile + consent exist and the context knows hasProfile=true
-   *  — navigate into the app. */
-  | { kind: "entered"; judgeMode: boolean }
+  /** Account + profile exist and the context knows hasProfile=true — navigate
+   *  into the app. `consentRecorded` keeps three states apart because the next
+   *  action differs: null = not attempted (existing profile, its original
+   *  sign-up consent already stands), true = a row was written, false = the
+   *  write failed after its retries and the ledger has a hole. Collapsing null
+   *  into true would claim a row we never wrote. Nothing reads it yet -- the
+   *  screen is deliberately unchanged. */
+  | { kind: "entered"; judgeMode: boolean; consentRecorded: boolean | null }
   /** Under the C10 age floor. No session was created. */
   | { kind: "ageGate" }
   /** Password found in the HIBP breach corpus. No session was created. */
@@ -74,8 +82,9 @@ export async function submitSignUp(deps: SignUpFlowDeps): Promise<SignUpSubmitRe
     if (result.kind === "confirmationRequired") {
       return { kind: "confirmationRequired" };
     }
+    let consentRecorded: boolean | null = null;
     if (result.created) {
-      await deps.recordConsent(result.userId);
+      consentRecorded = await deps.recordConsent(result.userId);
     }
     // The fix for E2E-4: the context must learn hasProfile=true before the
     // screen calls router.replace("/"), or the index/IntroGate guards read the
@@ -85,7 +94,7 @@ export async function submitSignUp(deps: SignUpFlowDeps): Promise<SignUpSubmitRe
     // /complete-profile, whose own submit re-refreshes — the dead-end cannot
     // reproduce.)
     await deps.refreshAuth();
-    return { kind: "entered", judgeMode: result.judgeMode };
+    return { kind: "entered", judgeMode: result.judgeMode, consentRecorded };
   } catch (e) {
     if (deps.isAgeGateError(e)) return { kind: "ageGate" };
     if (deps.isBreachedPasswordError(e)) return { kind: "breachedPassword" };

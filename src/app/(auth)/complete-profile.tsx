@@ -161,7 +161,9 @@ function CompleteProfileBody() {
             ? recordConsentBestEffort(
                 buildSignUpConsentArgs({ userId, isMinor: isMinorAge, locale, selections: consent }),
               )
-            : Promise.resolve(),
+            : // userId 가 없으면 이 화면은 위에서 이미 /sign-in 으로 Redirect 된다.
+              // 도달하지 않는 분기지만 타입은 만족시켜야 하므로 "안 썼다"를 준다.
+              Promise.resolve(false),
         refreshAuth: refresh,
         signOutUser: signOut,
         isAgeGateError: (e) => e instanceof AgeGateError,
