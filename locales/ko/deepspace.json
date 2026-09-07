@@ -516,6 +516,8 @@
   "reviewRatifiedMoved": "승인했어요. 별이 실행가능(L{{level}}) 단계로 올라갔어요.",
   "reviewOpenRecord": "{{title}} 기록 열기",
   "connectionConfirmed": "연결을 확인했어요.",
+  "connectionsFound": "새로 찾은 연결 제안이 아래에 있어요.",
+  "connectionsNoneFound": "이번에는 새로 찾은 연결이 없어요.",
   "suggestionDismissed": "제안을 보류했어요.",
   "career": {
     "screenTitle": "커리어",

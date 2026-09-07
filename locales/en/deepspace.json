@@ -516,6 +516,8 @@
   "reviewRatifiedMoved": "Ratified. Moved to actionable (L{{level}}).",
   "reviewOpenRecord": "Open record {{title}}",
   "connectionConfirmed": "Connection confirmed.",
+  "connectionsFound": "New connection suggestions are ready below.",
+  "connectionsNoneFound": "No new connections this time.",
   "suggestionDismissed": "Suggestion dismissed.",
   "career": {
     "screenTitle": "Career",

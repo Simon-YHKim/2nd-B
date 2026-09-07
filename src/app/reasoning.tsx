@@ -784,7 +784,16 @@ export default function ReasoningScreen() {
     // pending review from the server (proposed runs + ratified-but-unapplied
     // leftovers of an interrupted apply loop) — survives device switches.
     void (async () => {
-      await recoverStaleRuns(userId);
+      // The sweep hands back how many runs it refunded. That number is the
+      // user's quota coming back, and the remaining-count is read by a
+      // SEPARATE effect that does not wait for this one - so without a refresh
+      // here the screen can keep showing the pre-refund figure after a crash.
+      // `null` means the sweep did not run at all; refreshing on that would
+      // claim a recovery that never happened.
+      const refunded = await recoverStaleRuns(userId);
+      if (refunded !== null && refunded > 0) {
+        await refreshUsage().catch(() => undefined);
+      }
       const rows = await listPendingProposals(userId);
       const pending = rows
         .map(proposalFromServerRow)
@@ -806,7 +815,10 @@ export default function ReasoningScreen() {
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+    // refreshUsage is useCallback([userId]), so listing it cannot re-run this
+    // sweep more often than userId already does - the RPC still fires once per
+    // user, which is what a recovery sweep should do.
+  }, [refreshUsage, userId]);
 
   useEffect(() => {
     if (loading || !userId) return;
