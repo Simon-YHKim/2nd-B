@@ -12,10 +12,22 @@
 // the version the user actually saw.
 //
 // WIRED at sign-up: recordConsentBestEffort() is called after the consent UI
-// collects the acknowledgements — src/app/(auth)/sign-up.tsx:103 and
-// src/app/(auth)/complete-profile.tsx:90. Invariant stands: only record a
-// consent AFTER the UI has actually collected it — never one the user did
-// not give.
+// collects the acknowledgements. Invariant stands: only record a consent AFTER
+// the UI has actually collected it — never one the user did not give.
+//
+// Both entry flows collect and both write, but the write does not always live
+// in the screen file, so name all four sites:
+//   collect  <ConsentNotice>            src/app/(auth)/sign-up.tsx:219
+//                                       src/app/(auth)/complete-profile.tsx:308
+//   write    recordConsentBestEffort(   src/lib/auth/useSignUpForm.ts:318
+//                                       src/app/(auth)/complete-profile.tsx:161
+//
+// ⚠ 2026-09-08: this comment used to cite `sign-up.tsx:103` and
+// `complete-profile.tsx:90`. Neither line was right (:103 is a back-chevron
+// <View>), and the sign-up half named the SCREEN when the call is in the screen's
+// hook. The DPIA cites THIS comment as its evidence that the acks are collected,
+// so a stale comment here becomes a stale claim in a legal document — the
+// round-50 shape, with the comment as the source rather than the symptom.
 //
 // These version constants track the 시행일 of the published documents
 // (docs/legal/*.md, mirrored into src/lib/legal/legal-documents.ts). They had
