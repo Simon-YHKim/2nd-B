@@ -516,6 +516,8 @@
   "reviewRatifiedMoved": "Dikonfirmasi. Dipindahkan ke dapat ditindaklanjuti (L{{level}}).",
   "reviewOpenRecord": "Buka catatan {{title}}",
   "connectionConfirmed": "Koneksi dikonfirmasi.",
+  "connectionsFound": "Saran koneksi baru ada di bawah.",
+  "connectionsNoneFound": "Kali ini tidak ada koneksi baru.",
   "suggestionDismissed": "Saran diabaikan.",
   "career": {
     "screenTitle": "Karier",
