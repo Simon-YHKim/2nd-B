@@ -400,7 +400,7 @@ export function fixedCrisisResponse(
   minor = false,
 ): { text: string; version: string } {
   const hotlineBlock = crisisHotlines(locale, minor)
-    .map((h) => (locale === "ko" ? `📞 ${h.number} — ${h.label} (24시간, 무료)` : `📞 ${h.number} — ${h.label}`))
+    .map((h) => (locale === "ko" ? `📞 ${h.number} - ${h.label} (24시간, 무료)` : `📞 ${h.number} - ${h.label}`))
     .join("\n");
   if (locale === "ko") {
     return {
@@ -420,7 +420,7 @@ ${hotlineBlock}
 People are available right now to talk:
 
 ${hotlineBlock}
-🌐 findahelpline.com — international directory
+🌐 findahelpline.com - international directory
 
 If calling is hard, you can go to your nearest emergency room.`,
     version: "red-en-v2",

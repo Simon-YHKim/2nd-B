@@ -491,7 +491,7 @@ async function routeCrisis(
   const text =
     locale === "ko"
       ? `지금 많이 힘드신 것 같아요. 혼자 견디지 마시고 ${joined}로 연락해 주세요. 전문가가 24시간 함께합니다.`
-      : `It sounds like you're going through a lot right now. Please reach out to ${joined} — trained responders are available 24/7.`;
+      : `It sounds like you're going through a lot right now. Please reach out to ${joined} - trained responders are available 24/7.`;
   const audit = {
     promptHash,
     outputHash: djb2(text),
@@ -723,7 +723,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
         )) as unknown as LlmResult<T>;
       }
       if (typeof console !== "undefined") {
-        console.warn(`[llm] ${primaryFn} failed for ${input.purpose} — falling back to ${failoverFn}`);
+        console.warn(`[llm] ${primaryFn} failed for ${input.purpose} - falling back to ${failoverFn}`);
       }
       // ⚠ This must follow the target, not say "gemini". servedByProvider is
       // what the audit row records, so a hardcoded value here would make the
@@ -1503,7 +1503,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
         );
       }
       if (typeof console !== "undefined") {
-        console.warn(`[advisor] ${primaryFn} failed — falling back to ${failoverFn}`);
+        console.warn(`[advisor] ${primaryFn} failed - falling back to ${failoverFn}`);
       }
       // See the note at the other failover site: this value is what the audit
       // records, so it has to follow the target.
