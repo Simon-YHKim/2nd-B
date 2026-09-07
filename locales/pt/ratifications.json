@@ -39,6 +39,7 @@
       "desc": "Toca só neste aparelho. Você pode desativar quando quiser.",
       "notifBody": "Vamos revisar as conexões reunidas dos seus registros?",
       "denied": "As notificações estão desativadas para este app. Ative-as nas Configurações.",
+      "changeFailed": "Não foi possível atualizar o lembrete. Ele pode continuar chegando na configuração anterior. Tente novamente.",
       "timeTitle": "Horário do lembrete",
       "timeHint": "Fica apenas neste aparelho."
     }
