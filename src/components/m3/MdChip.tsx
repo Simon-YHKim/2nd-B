@@ -12,6 +12,7 @@ import { Pressable, StyleSheet, type StyleProp, Text, View, type ViewStyle } fro
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 
 import { m3 } from "@/lib/theme/m3";
+import { checkboxSpaceKeyProps } from "@/lib/ui/checkbox-space-key";
 
 import { m3TextStyle } from "./typeface";
 
@@ -66,6 +67,7 @@ export function MdChip({
         android_ripple={disabled ? undefined : { color: m3.color.secondaryContainer }}
         onPress={onPress}
         disabled={disabled}
+        {...checkboxSpaceKeyProps(onPress, isFilter && !disabled)}
         accessibilityRole={isFilter ? "checkbox" : "button"}
         accessibilityState={
           isFilter ? { selected, checked: selected, disabled } : { disabled }
