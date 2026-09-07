@@ -33,6 +33,7 @@ interface Anchor {
 
 const S = "src/lib/llm/safety.ts";
 const C = "src/lib/safety/classifier.ts";
+const P = "src/lib/privacy/prefs.ts";
 
 const ANCHORS: Anchor[] = [
   { cite: `${S}:408-438`, symbol: "fixedCrisisResponse",
@@ -57,6 +58,14 @@ const ANCHORS: Anchor[] = [
     why: "3층 방어 중 첫째 층(동기 렉시콘 백스톱)." },
   { cite: `${C}:142-159`, symbol: "containsAnalysisForbidden",
     why: "비임상 어휘 가드 C-LEX 의 구현." },
+  { cite: `${P}:55-62`, symbol: "defaultPrivacyPrefs",
+    why: "'바깥으로 나가는 설정은 전부 기본 꺼짐' - 이 문서 전체 개인정보 자세의 하중을 받는 주장." },
+  { cite: `${P}:95-99`, symbol: "MINOR_PROMOTABLE_KEYS",
+    why: "미성년이 스스로 켤 수 있는 유일한 둘. 목록 자체가 주장의 내용이다." },
+  { cite: `${P}:125`, symbol: "VISIBLE_PRIVACY_KEYS",
+    why: "실제로 토글로 그려지는 셋. D-12 정직성 제약." },
+  { cite: `${P}:137-140`, symbol: "isPrivacyPrefEditable",
+    why: "미성년 UI 잠금. 서버 클램프와 짝을 이루는 클라이언트 쪽." },
 ];
 
 function slice(cite: string): { file: string; text: string; lines: number } {
@@ -138,6 +147,63 @@ test("위기 템플릿 판번호가 코드와 같다", () => {
   expect(absent).toEqual([]);
 });
 
+/** `PRIVACY_PREF_KEYS = [ ... ]` 안의 키 이름들. */
+function privacyPrefKeys(): string[] {
+  const source = fs.readFileSync(path.join(ROOT, P), "utf8");
+  const block = /export const PRIVACY_PREF_KEYS\s*=\s*\[([\s\S]*?)\]/.exec(source);
+  if (!block) return [];
+  return [...block[1].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+}
+
+test("문서가 이름 부르는 개인정보 설정이 실제로 설정이다", () => {
+  // 판번호 대조와 같은 모양의, 표가 필요 없는 일반 규칙이다.
+  //
+  // 2026-07-01 에 이 모듈이 `llm_training`·`persona_export`·`persona_share` 를
+  // **잘라냈다.** 이유를 스스로 적고 있다 - "어느 것도 강제되거나 보이지
+  // 않았다 ... 각각이 거짓 개인정보 약속이었다: 앱이 저장은 하지만 지키지는
+  // 않는 설정". 그런데 DPIA 는 그 셋을 **사용자 설정이 꺼두고 있는 항목**으로
+  // 계속 적고 있었다. 있지도 않은 스위치를 있다고 말하는 것은 줄 번호가
+  // 낡은 것과 다른 종류의 오류다 - 읽는 사람이 **없는 보호장치를 있다고**
+  // 믿게 된다.
+  //
+  // ⚠ 마이그레이션은 그 컬럼을 아직 seed·clamp 한다. 그래서 이 검사는
+  // **앱의 설정 계약**만 판정하고, 서버 쪽 서술은 건드리지 않는다.
+  const keys = privacyPrefKeys();
+  expect(keys.length).toBeGreaterThanOrEqual(5);
+
+  // 문서가 "pref"/"설정" 문맥에서 백틱으로 부르는 이름만 본다. 후보를 코드의
+  // 옛 이름 목록이 아니라 **현재 키 집합 + 잘린 셋**으로 고정한다.
+  const PRUNED = ["llm_training", "persona_export", "persona_share"];
+  const namedAsPref: string[] = [];
+  doc.split("\n").forEach((line, index) => {
+    // ⚠ 면제를 **줄 단위**로 걸면 안 된다. 처음 판은 재읽기 주석이 달린 줄을
+    // 통째로 건너뛰었는데, 정정문이 그 줄 **끝에** 붙으므로 줄 **앞부분**의
+    // 본문 서술까지 같이 면제됐다. 변이 검증이 바로 그걸 찾았다: 본문을 옛
+    // 문장으로 되돌려도 같은 줄의 주석 때문에 검사가 침묵했다.
+    //
+    // 그래서 정정문이 시작하는 자리에서 줄을 **자르고 앞부분만** 본다.
+    // 주석은 잘린 이름을 말해야 한다(그게 정정문의 내용이다). 본문은 안 된다.
+    const marker = line.indexOf("[RE-READ");
+    const body = marker >= 0 ? line.slice(0, marker) : line;
+    // 서버 쪽 서술은 제외한다: DB 트리거는 그 컬럼을 아직 seed·clamp 한다.
+    //
+    // ⚠ 예전에는 여기 `clamp` 단어 하나만 있어도 면제했는데, "clamped to false"
+    // 는 **앱 설정을 말하는 문장에서도** 쓰인다. 변이 검증이 그걸 찾았다 -
+    // 본문을 옛 문장으로 되돌려도 같은 줄의 "clamped" 때문에 침묵했다.
+    // 마이그레이션을 **실제로 지목하는** 표시만 면제한다.
+    if (/migration|trigger|\b00[0-9]{2}\b|seed/i.test(body)) return;
+    for (const pruned of PRUNED) {
+      if (body.includes("`" + pruned + "`")) {
+        namedAsPref.push(`${index + 1}행 ${pruned}: ${body.trim().slice(0, 70)}`);
+      }
+    }
+  });
+  expect(namedAsPref).toEqual([]);
+  // 그리고 잘린 셋이 정말 키 집합 밖인지도 확인한다 - 되살아나면 위 규칙이
+  // 거꾸로 거짓양성이 된다.
+  expect(PRUNED.filter(k => keys.includes(k))).toEqual([]);
+});
+
 describe("검사기 자신의 대조군", () => {
   test("양성 대조 - 범위 밖 심볼을 잡는다", () => {
     // 1행에는 fixedCrisisResponse 가 없다(파일 헤더 주석이다).
@@ -154,6 +220,17 @@ describe("검사기 자신의 대조군", () => {
     // 여기서 그 성질을 드러내 둔다 - 다음 사람이 정확도를 오해하지 않게.
     const wide = slice(`${S}:412,424`);
     expect(wide.text.split("\n")).toHaveLength(13);
+  });
+
+  test("면제는 줄이 아니라 정정문 뒤에만 걸린다", () => {
+    // 변이 검증이 찾은 구멍의 대조군. 같은 줄에 본문과 정정문이 있을 때,
+    // 본문 쪽 위반은 잡히고 정정문 쪽 언급은 통과해야 한다.
+    const line = "본문이 `llm_training` 을 설정처럼 적는다. ⚠ **[RE-READ]** `llm_training` 은 잘렸다.";
+    const marker = line.indexOf("[RE-READ");
+    expect(line.slice(0, marker)).toContain("`llm_training`");
+    expect(line.slice(marker)).toContain("`llm_training`");
+    // 즉 자르지 않으면 둘을 구분할 수 없다.
+    expect(marker).toBeGreaterThan(0);
   });
 
   test("주석은 값의 증거가 아니다", () => {
