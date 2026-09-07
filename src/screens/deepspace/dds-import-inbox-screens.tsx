@@ -222,7 +222,13 @@ export function DeepSpaceImportScreen() {
   // (healthImportAllowed never passes).
   const [healthPref, setHealthPref] = useState(false);
   const [healthBusy, setHealthBusy] = useState(false);
-  const [healthDone, setHealthDone] = useState(false);
+  // What the ingest actually did, or null before/instead of one. The screen used
+  // to hold a bare boolean and say "Reflected" for every outcome, including the
+  // one where the idempotent upsert wrote nothing new. Composition happens at
+  // render so a locale change redraws it; only the numbers live in state.
+  const [healthDone, setHealthDone] = useState<
+    { kind: "reflected"; inserted: number; autoCompleted: number } | { kind: "nothingNew" } | null
+  >(null);
   const [healthErr, setHealthErr] = useState<string | null>(null);
   // Import history = the persistent device-local log (import-hub 철회 store), so
   // file imports here show up in the same withdrawal list. No seeded fake rows.
@@ -346,7 +352,7 @@ export function DeepSpaceImportScreen() {
   async function handleHealthIngest() {
     if (!userId || healthBusy || !canHealth) return;
     setHealthBusy(true);
-    setHealthDone(false);
+    setHealthDone(null);
     setHealthErr(null);
     try {
       // The window has to have WIDTH. A zero-width range (start === end) is what
@@ -378,8 +384,18 @@ export function DeepSpaceImportScreen() {
         setHealthErr(t("ds.import.healthErrEmpty"));
         return;
       }
-      await ingestHealthSamples(userId, samples, { isMinor, pref: healthPref });
-      setHealthDone(true);
+      // The HONESTY INVARIANT above guards the READ step: never claim a reflection
+      // for samples we did not get. The same rule applies to the WRITE step, and
+      // did not used to. upsertHealthSamples is idempotent, so re-importing the
+      // same day inserts nothing - and that used to look identical to a first
+      // import. `autoCompleted` is worth more: this ingest can mark the user's
+      // routines complete, and nothing in the app read that field.
+      const outcome = await ingestHealthSamples(userId, samples, { isMinor, pref: healthPref });
+      setHealthDone(
+        outcome.inserted.length === 0
+          ? { kind: "nothingNew" }
+          : { kind: "reflected", inserted: outcome.inserted.length, autoCompleted: outcome.autoCompleted.length },
+      );
     } catch {
       // Gate rejection or write error: leave the affordance for retry.
       setHealthErr(t("ds.import.healthErrFailed"));
@@ -405,7 +421,7 @@ export function DeepSpaceImportScreen() {
     ? t("ds.import.healthCtaMinorLocked")
     : healthBusy
       ? t("ds.import.healthCtaSyncing")
-      : healthDone
+      : healthDone?.kind === "reflected"
         ? t("ds.import.healthCtaReflected")
         : canHealth
           ? t("ds.import.healthCtaReflectToday")
@@ -490,6 +506,20 @@ export function DeepSpaceImportScreen() {
                         accessibilityLiveRegion="polite"
                       >
                         {healthErr}
+                      </RNText>
+                    ) : null}
+                    {healthDone !== null ? (
+                      <RNText
+                        style={[m3TextStyle("bodySmall"), s.healthNote]}
+                        accessibilityRole="alert"
+                        accessibilityLiveRegion="polite"
+                      >
+                        {healthDone.kind === "nothingNew"
+                          ? t("ds.import.healthReflectedNone")
+                          : t("ds.import.healthReflected", { count: healthDone.inserted })
+                            + (healthDone.autoCompleted > 0
+                              ? " " + t("ds.import.healthRoutinesCompleted", { count: healthDone.autoCompleted })
+                              : "")}
                       </RNText>
                     ) : null}
                   </MdCard>
@@ -614,5 +644,7 @@ const s = StyleSheet.create({
   historySub: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 2 },
   revokeErr: { color: m3.color.error, fontFamily: m3.font.brand, marginTop: 4, marginBottom: 8 },
   healthErr: { color: m3.color.error, fontFamily: m3.font.brand, marginTop: 8 },
+  // Not an error: the import landed. Same slot, ordinary surface colour.
+  healthNote: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 8 },
   revokeBtn: { minHeight: 40, paddingHorizontal: 12 },
 });
