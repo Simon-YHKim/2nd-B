@@ -65,7 +65,7 @@ describe("로케일 — 다섯 문항이 다섯 로케일에", () => {
 
   it("문항 수 문구가 다섯으로 갱신됐다 (ko·en)", () => {
     expect(read("locales/ko/peer.json")).toContain("질문 다섯 개");
-    expect(read("locales/en/peer.json")).toContain("Five quick questions");
+    expect(read("locales/en/peer.json")).toContain("Five questions");
     expect(read("locales/ko/peer.json")).not.toContain("질문 세 개");
   });
 });

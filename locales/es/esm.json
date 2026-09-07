@@ -5,19 +5,19 @@
   },
   "hero": {
     "eyebrow": "Registro rápido",
-    "title": "Una señal del momento",
+    "title": "¿Cómo estás ahora?",
     "subtitle": "Sin notificaciones. Solo cuando lo abres.",
-    "speech": "Sin juicios. Solo una pequeña señal momentánea."
+    "speech": "Puedes guardar cómo te sientes en este momento."
   },
   "card": {
     "eyebrow": "15 segundos",
-    "title": "¿Qué tipo de señal encaja en este momento?"
+    "title": "¿Qué quieres registrar?"
   },
   "prompts": {
     "changeHint": "Cambia el tipo de registro rápido.",
     "context": {
-      "label": "Contexto",
-      "saveHint": "Guarda el registro rápido de contexto."
+      "label": "Qué estás haciendo",
+      "saveHint": "Guarda lo que estás haciendo ahora."
     },
     "energy": {
       "label": "Energía",
@@ -26,11 +26,11 @@
   },
   "energy": {
     "label": "Nivel de energía",
-    "question": "¿Cuánta energía tienes disponible ahora mismo?",
+    "question": "¿Cuánta energía tienes ahora?",
     "optionLabel": "Energía {{value}} de 5"
   },
   "context": {
-    "question": "¿Qué hay alrededor de este momento?",
+    "question": "¿Qué estás haciendo o con quién estás?",
     "tags": {
       "alone": "Solo",
       "with_people": "Con personas",
@@ -40,12 +40,12 @@
       "outside": "Afuera"
     }
   },
-  "note": "Esto no es un juicio ni una etiqueta. Es una pequeña señal que afina tus patrones más adelante.",
+  "note": "Este registro describe un momento, no tu personalidad. Más adelante podrás compararlo con otros.",
   "actions": {
     "save": "Guardar registro",
     "saving": "Guardando",
     "backHome": "Volver al inicio",
     "backHomeHint": "Regresa a la pantalla de inicio."
   },
-  "saved": "Guardado. Se agregó una pequeña señal."
+  "saved": "Registro guardado."
 }

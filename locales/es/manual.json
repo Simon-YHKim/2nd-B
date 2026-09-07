@@ -1,9 +1,9 @@
 {
   "loading": "Cargando el manual…",
   "eyebrow": "Guía de uso",
-  "title": "Un mapa breve de tu núcleo",
+  "title": "Cómo usar la app",
   "subtitle": "Rutinas · notas · wiki · seguridad",
-  "glossary": "Glosario en una línea",
+  "glossary": "Qué significa cada nombre",
   "recentlyAdded": "Añadido recientemente",
   "leavePiece": "Deja tu fragmento de hoy",
   "leavePieceHint": "Abre la captura para guardar el fragmento de hoy.",
@@ -11,5 +11,5 @@
   "getStartedHint": "Abre la pantalla de registro.",
   "permissions": "A qué accede la app",
   "permissionsHint": "Abre la guía de permisos de la app.",
-  "curated": "Investigación curada"
+  "curated": "Fuentes seleccionadas"
 }

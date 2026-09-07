@@ -184,7 +184,7 @@ const STEPS = [
       "src/lib/safety/classifier.ts",
       "src/lib/safety/lexicon.ts",
       "src/lib/llm/safety.ts",
-      "src/lib/llm/gemini.ts",
+      "src/lib/llm/boundary.ts",
       "src/lib/llm/audit-write-outbox.ts",
       "src/lib/supabase/crisis-events.ts"
     ],
@@ -228,7 +228,7 @@ const STEPS = [
     "inputs": "userMessage/body, domainLevels, userLocale, userAgeRange, conversationContext",
     "outputs": "Pro 응답 text + matchedBatches + 균형 top-8 KnowledgeRow(DOI/URL 인용), latencyMs, vertex",
     "key_files": [
-      "src/lib/llm/gemini.ts",
+      "src/lib/llm/boundary.ts",
       "src/lib/persona/load-domain-levels.ts",
       "src/lib/knowledge/retrieve.ts",
       "src/lib/knowledge/loader.ts",
@@ -254,7 +254,7 @@ const STEPS = [
     "inputs": "Pro/Gemini 응답 text, locale, minor, aiFollowup, args(body, kind, tags, topic)",
     "outputs": "최종 text(원문 또는 위기 템플릿) + finalZone + swap 감사; CreatedRecord{id, followup?} + records 행 + XP",
     "key_files": [
-      "src/lib/llm/gemini.ts",
+      "src/lib/llm/boundary.ts",
       "src/lib/llm/safety.ts",
       "src/lib/records/create.ts",
       "src/lib/records/detect-domain.ts",
@@ -277,7 +277,7 @@ const STEPS = [
     "inputs": "AuditMeta, userId, crisis payload",
     "outputs": "ai_audit_log 행(+ crisis_events 행), best-effort 큐잉",
     "key_files": [
-      "src/lib/llm/gemini.ts",
+      "src/lib/llm/boundary.ts",
       "src/lib/llm/audit-write-outbox.ts",
       "src/lib/supabase/crisis-events.ts"
     ],
@@ -340,7 +340,7 @@ const STEPS = [
       "src/lib/persona/build.ts",
       "src/lib/persona/star-levels.ts",
       "src/lib/persona/persona-synthesis.ts",
-      "src/lib/llm/gemini.ts",
+      "src/lib/llm/boundary.ts",
       "src/lib/safety/classifier.ts"
     ],
     "constraints": [
@@ -427,7 +427,7 @@ const STEPS = [
     "key_files": [
       "src/lib/analytics/index.ts",
       "docs/CONSTRAINTS.md",
-      "src/lib/llm/gemini.ts",
+      "src/lib/llm/boundary.ts",
       "src/lib/safety/lexicon.ts",
       "src/lib/supabase/audit.ts"
     ],

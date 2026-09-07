@@ -265,7 +265,16 @@
       <p class="note">마케팅 프레이밍: "모든 답의 질은 똑같습니다. 더 많이 쓰고 더 깊이 기억하게 만드는 것에만 돈을 내세요." — 반(反)다크패턴 자체가 PR 훅.</p>
     </div></details>
 
-    <details><summary>출시 전 6주 체크리스트 (→ 2026-08-17 XPRIZE)</summary><div class="in">
+    <details><summary>출시 전 6주 체크리스트 (2026-06 작성 · 역사 기록)</summary><div class="in">
+      <p style="border-left:3px solid currentColor;padding-left:.7em;margin:0 0 .8em">
+        <b>⚠ 2026-09-07 정정 — 이 일정은 실행되지 않았고 기준점도 없어졌다.</b>
+        원래 제목은 <s>출시 전 6주 체크리스트 (→ 2026-08-17 XPRIZE)</s> 였다.
+        XPRIZE 는 2026-08-15 에 종료됐고 이 프로젝트에는 <b>마감이 없다</b>(루트 <code>CLAUDE.md</code>).
+        아래 주차 날짜와 XPRIZE·Devpost 항목을 새 계획의 근거로 인용하지 말 것.
+        W1 의 Vercel 랜딩과 PostHog 도 현행이 아니다 — 웹은 GitHub Pages 이고
+        PostHog 는 #1209 로 제거됐다. 남길 가치가 있는 것은 <b>순서</b>(랜딩 → 시딩 →
+        비공개 베타 → 누수 수정 → 오픈베타 → 출시)뿐이다.
+      </p>
       <ul>
         <li><b>W1 (~7/7)</b>: 웨이트리스트 랜딩($0 Vercel, 한 컷 mockup, EN↔KO) + 퍼널 이벤트 계측(PostHog) + 시드 카드 3종.</li>
         <li><b>W2 (~7/14)</b>: Reddit build-in-public + 네이버카페5·오픈채팅3 가치기여 시딩 + 릴스 주2~3.</li>
@@ -293,7 +302,7 @@
   <div id="finalRec"></div>
 
   <div class="foot">
-    <p>방법론: <code>persona-simulation</code> 4축 패널(연령·직업·소득·문화, 12인 KR가중) · 비용 라우팅 <code>src/lib/llm/gemini.ts</code> · 단가(2026-06) <a href="https://www.metacto.com/blogs/anthropic-api-pricing-a-full-breakdown-of-costs-and-integration">Claude</a>·<a href="https://devtk.ai/en/blog/openai-api-pricing-guide-2026/">GPT-5.5</a>·<a href="https://devtk.ai/en/models/gemini-3-5-flash/">Gemini 3.5 Flash</a>. 가정: USD→₩1,400 · 입력 캐시 가변 · effort→출력토큰(low600~max10k) · WTP는 한국 구독앱 통념 기반 추정. 실측 전 의사결정 보조용.</p>
+    <p>방법론: <code>persona-simulation</code> 4축 패널(연령·직업·소득·문화, 12인 KR가중) · 비용 라우팅 <code>src/lib/llm/boundary.ts</code> · 단가(2026-06) <a href="https://www.metacto.com/blogs/anthropic-api-pricing-a-full-breakdown-of-costs-and-integration">Claude</a>·<a href="https://devtk.ai/en/blog/openai-api-pricing-guide-2026/">GPT-5.5</a>·<a href="https://devtk.ai/en/models/gemini-3-5-flash/">Gemini 3.5 Flash</a>. 가정: USD→₩1,400 · 입력 캐시 가변 · effort→출력토큰(low600~max10k) · WTP는 한국 구독앱 통념 기반 추정. 실측 전 의사결정 보조용.</p>
   </div>
 </div>
 

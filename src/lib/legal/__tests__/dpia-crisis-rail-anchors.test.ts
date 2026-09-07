@@ -36,6 +36,14 @@ const C = "src/lib/safety/classifier.ts";
 const P = "src/lib/privacy/prefs.ts";
 const R = "src/lib/ops/recommend.ts";
 const A = "src/lib/auth/consent-age.ts";
+const D = "supabase/functions/delete-account/index.ts";
+const X = "supabase/functions/export-account/index.ts";
+const W = "src/lib/wiki/export.ts";
+const AC = "src/lib/auth/AuthContext.tsx";
+const AD = "src/lib/ads/policy.ts";
+const CV = "src/lib/chat/conversation.ts";
+const OP = "src/app/ops.tsx";
+const AT = "src/lib/analytics/__tests__/analytics.test.ts";
 
 const ANCHORS: Anchor[] = [
   { cite: `${S}:408-438`, symbol: "fixedCrisisResponse",
@@ -78,6 +86,30 @@ const ANCHORS: Anchor[] = [
     why: "추천이 무엇을 프로파일링하는지 - 그 함수 자체." },
   { cite: `${A}:28-33`, symbol: "DIGITAL_CONSENT_AGE",
     why: "어느 나라 동의 연령이 적용되는가 - 미성년 DPIA 에서 이보다 무거운 표는 없다." },
+  { cite: `${D}:165-177`, symbol: "Array.isArray(removed)",
+    why: "지움이 부분적으로 끝날 수 있다는 사실을 코드가 관측하는 자리. 이게 없으면 문서의 '지워졌다'가 관측되지 않은 주장이 된다." },
+  { cite: `${D}:150-164`, symbol: "listErr",
+    why: "페이지 단위 버킷 정리 루프 - Art.17 삭제 주장의 실제 근거. ⚠ 심볼로 `raw-clippings` 를 썼다가 걸렸다: 그건 버킷 **이름**이라 산문에도 나오고, 옆 인용(:113-121)이 인접 창 안에 들어와 멀쩡한 문장이 위반이 됐다. **앵커 심볼은 산문에 나올 수 없을 만큼 구체적이어야 한다.**" },
+  { cite: `${X}:97-115`, symbol: "consent_records",
+    why: "Art.20 이식성이 실제로 무엇을 담아 오는가. 6.1.3 이 '빠져 있다'고 나열하던 여덟 범주가 바로 이 목록이다." },
+  { cite: `${X}:20-24`, symbol: "gemini_spend_daily",
+    why: "일부러 뺀 저장소 셋. 빼는 것 자체가 아니라 **응답에 적어 돌려준다는 것**이 통제다." },
+  { cite: `${W}:240`, symbol: "includeRecords",
+    why: "저널이 기본으로 안 실린다는 주장의 **실제 근거** - 그 삼항 연산이 없으면 기본값이 무의미하다." },
+  { cite: `${AT}:96-131`, symbol: "remain inert",
+    why: "Sentry 가 **일부러** 닫혀 있다는 주장의 근거. 문서가 '설정됐으나 안 쓴다'가 아니라 '울타리가 있고 조건이 적혀 있다'고 말하려면 그 울타리를 지키는 검사가 실재해야 한다." },
+  { cite: `${AC}:132`, symbol: "MINOR_AGE_CEILING",
+    why: "미성년 여부가 실제로 정해지는 비교. 이 문서 전체가 이 한 줄 위에 서 있다." },
+  { cite: `${AD}:58`, symbol: "input.isMinor !== false",
+    why: "미성년에게 광고가 안 나간다는 주장의 fail-closed 지점 - null 도 막는다는 것이 주장의 내용이다." },
+  { cite: `${AD}:11-13`, symbol: "NEVER see ads",
+    why: "그 규칙을 코드가 스스로 적어 둔 자리." },
+  { cite: `${CV}:338`, symbol: "SYSTEM_PROMPT_HEADER",
+    why: "대화 프롬프트가 실제로 조립되는 자리 - 무엇이 모델에 들어가는지의 근거." },
+  { cite: `${OP}:111`, symbol: "recommendationsAllowed",
+    why: "미성년 추천 잠금이 화면에서 실제로 불리는 자리." },
+  { cite: `${D}:66-78`, symbol: "userIdFromJwt",
+    why: "지울 계정을 클라이언트가 못 고른다는 IDOR 주장의 근거." },
   { cite: `${A}:108-121`, symbol: "deviceRegionCode",
     why: "그 표에 실제로 닿는 해석기. 2026-08-16 에 기기 지역 신호가 붙었는데 문서는 다섯 자리에서 '신호 없음'이라 적고 있었다." },
 ];

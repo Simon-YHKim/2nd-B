@@ -24,9 +24,9 @@
       "cta": "Light a star with the relationship check"
     },
     "esm": {
-      "label": "Today's check-in",
+      "label": "Record your mood",
       "min": "1 min",
-      "cta": "Light a star with a quick check-in"
+      "cta": "Record your mood to light a star"
     },
     "values": {
       "label": "Values",
@@ -54,36 +54,36 @@
     },
     "head": {
       "home": {
-        "text": "You're back. Right now you're shining as seven stars.",
-        "tip": "Start with the dimmest star."
+        "text": "Keep your stories in seven stars.",
+        "tip": "Tap a star to write about that time in your life."
       },
       "ops": {
-        "text": "Here's today's routine. Let's keep the rhythm going.",
-        "tip": "Check off one. Momentum does the rest."
+        "text": "Check today's routines.",
+        "tip": "Check off each routine you finish."
       },
       "account": {
-        "text": "This is your space. Everything about you lives here.",
+        "text": "View your profile and records here.",
         "tip": "Profile, settings, and your data are one tap away."
       },
       "capture": {
-        "text": "Don't let that thought slip away.",
-        "tip": "One line is enough. I'll sort it."
+        "text": "Write down the thought you just had.",
+        "tip": "A short note is fine. You can read it again after saving."
       },
       "chat": {
-        "text": "Ask anything. I'll answer from your records.",
-        "tip": "You can ask things like \"How am I lately?\""
+        "text": "Ask a question about your records.",
+        "tip": "Try \"What topics have I written about lately?\""
       },
       "lens": {
-        "text": "Your extraversion star brightened a step this week.",
-        "tip": "Tap a changed axis to see the evidence."
+        "text": "Explore your personality through your records and test results.",
+        "tip": "Tap an item to see the records it refers to."
       },
       "iden": {
-        "text": "I packed you into one file. Take it anywhere.",
+        "text": "Export information about yourself in one file.",
         "tip": "You can mask sensitive items before exporting."
       },
       "wiki": {
-        "text": "Your knowledge, linked like a constellation.",
-        "tip": "Tap a node to wander between your notes."
+        "text": "Find your saved notes and materials here.",
+        "tip": "Tap a note to see other notes linked to it."
       }
     },
     "home": {
@@ -99,25 +99,25 @@
         "collect": "Collect"
       },
       "starName": {
-        "now": "Trait state",
-        "recall": "Narrative origins",
-        "seen": "Other-view",
-        "rhythm": "Momentary state",
-        "relational": "Relational self",
-        "possible": "Possible self",
-        "values": "Values & strivings"
+        "now": "Me now",
+        "recall": "Memories",
+        "seen": "How others see me",
+        "rhythm": "Daily rhythm",
+        "relational": "Me in relationships",
+        "possible": "Who I could become",
+        "values": "My values"
       },
       "inbox": "Notifications",
       "headA11y": "Ask SecondB",
       "kind": {
-        "domain": "Domain",
-        "profile": "How you read"
+        "domain": "Area",
+        "profile": "How others see me"
       },
       "bubble": {
         "introTag": "Intro",
-        "intro": "Hi, I'm SecondB. Tap my head and I'll help.",
+        "intro": "I'm SecondB. Tap my head to open the chat and assistant menus.",
         "menuTag": "SecondB",
-        "menu": "How can I help?",
+        "menu": "What would you like to do?",
         "travel": "Travel",
         "later": "Later",
         "chatbot": "Chatbot",
@@ -128,7 +128,7 @@
           "line": "What have you built and gathered?"
         },
         "finance": {
-          "line": "What does money say about me?"
+          "line": "How do you spend and save money?"
         },
         "relation": {
           "line": "How am I with the people close to me?"
@@ -137,28 +137,28 @@
           "line": "Which period shaped who I am now?"
         },
         "health": {
-          "line": "How are my condition and rhythm these days?"
+          "line": "How have you been feeling day to day?"
         },
         "recreation": {
-          "line": "What lets me rest?"
+          "line": "What helps you rest?"
         },
         "profile": {
-          "line": "Your name, your goal, and how others read you. It brightens as there is more to introduce."
+          "line": "Add your name, goal, and how others see you. This star gets brighter as you fill it in."
         },
         "infancy": {
-          "line": "The earliest memories. One sensation is enough to begin."
+          "line": "Start with the earliest scene you remember."
         },
         "school": {
           "line": "Ages 7 to 19. Classrooms, friends, who you were then."
         },
         "twenties": {
-          "line": "The choices of your twenties. What did you hold on to, what did you let go?"
+          "line": "What choices did you make in your twenties?"
         },
         "later": {
-          "line": "Thirties and after. What settled, and what still moves."
+          "line": "What changed in your thirties and after?"
         },
         "work": {
-          "line": "You at work. Whatever your age, the you that shows up in a job."
+          "line": "What are you like at work?"
         },
         "now": {
           "line": "You, now. Where has your mind been lately?"
@@ -169,7 +169,7 @@
     },
     "capture": {
       "title": "Capture",
-      "subtitle": "Capture a moment in whatever format fits.",
+      "subtitle": "Save a thought or task as text, a photo, or a voice note.",
       "modes": {
         "text": "Text",
         "link": "Link",
@@ -180,7 +180,7 @@
       "fields": {
         "what": {
           "label": "What",
-          "hint": "Jot the heart of the thought or moment"
+          "hint": "What happened, or what came to mind?"
         },
         "when": {
           "label": "When",
@@ -207,13 +207,13 @@
       "voiceHint": "Write what you said",
       "todoHint": "To-do",
       "todoAdd": "Add a to-do",
-      "banner": "The moment you save it, SecondB sorts it into the right star and tags.",
+      "banner": "When you save, SecondB adds related stars and tags.",
       "save": "Capture",
       "saving": "Saving",
       "saved": "Saved",
       "openRecords": "Open records",
       "saveError": "Could not save. Try again in a moment.",
-      "saveHint": "Add what happened to enable Capture."
+      "saveHint": "Write in the What field to save."
     },
     "chat": {
       "user": "I've been so worn out lately. Why is that?",
@@ -228,26 +228,26 @@
       "toggleEmpty": "Empty",
       "toggleError": "Error",
       "emptyTitle": "This star is still dark",
-      "emptyBody": "Finish the trait check once and your Trait State star lights up.",
+      "emptyBody": "Finish the personality check to light your Me now star.",
       "emptyCta": "Start the check",
       "errorTitle": "Couldn't load this",
       "errorBody": "Please try again in a moment.",
       "errorCta": "Retry",
-      "filledTitle": "Trait state",
+      "filledTitle": "Me now",
       "traitOpenness": "Openness",
       "traitConscientiousness": "Conscientiousness",
       "traitExtraversion": "Extraversion",
       "traitAgreeableness": "Agreeableness",
       "traitNeuroticism": "Neuroticism",
       "headline": "Verify · Big Five",
-      "subtitle": "Hidden grain (layer B) · a proposal triangulated from your domain behavior",
-      "extraFrameworks": "Other frames · see attachment style",
+      "subtitle": "An estimate of your personality from your records. Check whether it fits you.",
+      "extraFrameworks": "Other tests · attachment style",
       "retake": "Retake",
-      "addData": "Add data"
+      "addData": "Add a record"
     },
     "attachment": {
       "headline": "Attachment style",
-      "subtitle": "Hidden grain (layer B) · your relationship domain seen through the ECR scale",
+      "subtitle": "Your relationships, as described by your ECR answers.",
       "quadrant_secure": "Secure",
       "quadrant_preoccupied": "Preoccupied",
       "quadrant_avoidant": "Avoidant",
@@ -258,7 +258,7 @@
       "interview": "Relationship interview",
       "bigfive": "See Big Five",
       "emptyTitle": "This star is still dark",
-      "emptyBody": "Finish the attachment check once and your Relational Self star lights up.",
+      "emptyBody": "Finish the attachment check to light your Me in relationships star.",
       "emptyCta": "Start the check",
       "errorTitle": "Couldn't load this",
       "errorBody": "Please try again in a moment.",
@@ -268,17 +268,17 @@
       "signed": "Signed",
       "northStar": "\"Understand myself deeply, live more like myself.\"",
       "send": "Send to AI",
-      "loading": "Gathering your IDEN",
-      "emptyTitle": "No IDEN to gather yet",
-      "emptyBody": "Finish one tool and your IDEN starts to take shape.",
+      "loading": "Preparing your IDEN…",
+      "emptyTitle": "Nothing to include in IDEN yet",
+      "emptyBody": "Finish a self-check to add information to your IDEN.",
       "emptyCta": "Start gathering"
     },
     "recall": {
       "title": "Recall",
-      "tag": "NARRATIVE",
+      "tag": "MY STORY",
       "eyebrow": "Which era made the person I am now",
-      "hint": "Tap a period to start a drill-down question",
-      "footer": "Repeated questions raise the coherence of your recall.",
+      "hint": "Choose a period to answer questions about it.",
+      "footer": "Some questions may repeat to help you recall the details.",
       "p1Name": "Infancy",
       "p1Age": "0–6",
       "p2Name": "Childhood",
@@ -295,15 +295,15 @@
       "p7Age": "24–27",
       "p8Name": "Now",
       "p8Age": "28–",
-      "emptyTitle": "No eras recalled yet",
-      "emptyBody": "Recall your past eras one by one, and which years shaped you gathers here."
+      "emptyTitle": "No memories saved yet",
+      "emptyBody": "Choose a time in your life and write what you remember. You can read those stories here."
     },
     "seen": {
-      "title": "Seen self",
+      "title": "How others see me",
       "tag": "SELF·OTHER",
       "eyebrow": "How close is the me others see to the me I see",
-      "legendSelf": "Me I see",
-      "legendOther": "Me others see",
+      "legendSelf": "My view",
+      "legendOther": "Others' views",
       "traitExtraversion": "Extraversion",
       "traitConscientiousness": "Conscientiousness",
       "traitAgreeableness": "Agreeableness",
@@ -313,19 +313,19 @@
       "conclusion": "Others see you as a more lively person. You may be more extraverted than you think.",
       "survey": "View survey",
       "share": "Share",
-      "obsTitleGap": "The me I see, the me they see",
-      "obsTitleSolo": "Most visible from outside",
-      "obsNote": "Not what others actually think; the traits from your own Big Five that read most from outside.",
+      "obsTitleGap": "My view and others' views",
+      "obsTitleSolo": "Traits others may notice",
+      "obsNote": "These are traits others may notice, based on your own Big Five answers. They are not answers from other people.",
       "combinedNote": "A combined picture from {{count}} people; no single answer is identifiable.",
-      "gapReadA11y": "One-line gap read",
+      "gapReadA11y": "Explain the difference in one sentence",
       "gapReading": "Reading…",
-      "gapReadCta": "SecondB reads the gap",
+      "gapReadCta": "Explain the difference",
       "emptyTitleResponses": "Responses from {{count}} people are in",
-      "emptyTitleNoPeers": "No peer responses to compare yet",
-      "emptyBodyFinishBigFive": "Finish your own Big Five check and you'll see the me you see beside the me they see.",
-      "emptyBodySendSurvey": "Send a short survey to someone close, and you'll see the me you see beside the me others see.",
-      "peerOnlyTitle": "Only the people around you answered these",
-      "peerOnlyNote": "Openness and emotional sensitivity are hard to read from outside, so these are what your people reported, not a claim about you."
+      "emptyTitleNoPeers": "No responses from people you invited yet",
+      "emptyBodyFinishBigFive": "Finish your Big Five test to compare your answers with theirs.",
+      "emptyBodySendSurvey": "Send a short survey to someone you know to compare your answers with theirs.",
+      "peerOnlyTitle": "Questions only others answered",
+      "peerOnlyNote": "Openness and emotional sensitivity can be hard for others to judge. These results show how they saw you, rather than establishing your personality."
     },
     "rhythm": {
       "title": "Rhythm",
@@ -341,24 +341,24 @@
       "sun": "Sun",
       "caption": "Most yourself: Saturday morning. You feel best when absorbed in making something.",
       "logNow": "+ Log mood now",
-      "emptyTitle": "No rhythm to chart yet",
-      "emptyBody": "Log your mood for a few days, and when you feel most yourself shows up as a rhythm here."
+      "emptyTitle": "Not enough mood entries yet",
+      "emptyBody": "Record your mood for a few days to see when you felt better or worse."
     },
     "possible": {
       "title": "Future self",
-      "tag": "ASPIRATION",
-      "eyebrow": "Where I'm heading - the me that isn't data yet",
+      "tag": "GOALS",
+      "eyebrow": "Who would you like to become?",
       "a1Name": "A maker",
-      "a1Body": "Making moving thoughts into form my work",
-      "a2Name": "A few deep ties",
-      "a2Body": "Becoming someone who keeps ties long over wide",
-      "a3Name": "An unshaken center",
-      "a3Body": "Someone who keeps the standard inside",
-      "footer": "Dashed = the me before the data fills in",
+      "a1Body": "I want to make a living creating things.",
+      "a2Name": "Lasting relationships",
+      "a2Body": "I want to stay close to a few people for a long time.",
+      "a3Name": "Choosing by my own standards",
+      "a3Body": "I want to make decisions based on what matters to me.",
+      "footer": "Dashed lines show ideas not yet supported by your records.",
       "rewrite": "Rewrite",
       "add": "+ Add",
-      "emptyTitle": "No future self sketched yet",
-      "emptyBody": "Talk with SecondB in divergent mode, and the you before the data fills in lands here."
+      "emptyTitle": "No future goals written yet",
+      "emptyBody": "Talk with Twi-B about who you want to become, then save your ideas here."
     },
     "relational": {
       "title": "Relations",
@@ -373,10 +373,10 @@
       "topic1": "Design·tools",
       "topic2": "Psychology·self-understanding",
       "topic3": "AI·productivity",
-      "conclusion": "Depth stands out more than breadth in your relationships. A few, often, for a long time.",
-      "addData": "+ Add data",
-      "emptyTitle": "No people or knowledge linked yet",
-      "emptyBody": "As people and interests build up in your records, the you inside relationships and knowledge shows here."
+      "conclusion": "Your records show frequent, lasting contact with a few people.",
+      "addData": "+ Add a record",
+      "emptyTitle": "No records about people or interests yet",
+      "emptyBody": "Write about people and interests to see them here."
     },
     "values": {
       "title": "Work·growth",
@@ -388,20 +388,20 @@
       "domain2Count": "98 pieces",
       "domain3": "Finance",
       "domain3Count": "37 pieces",
-      "conclusion": "You've built the most in Career. Finance is still empty - shall we put more in?",
-      "addData": "+ Add data",
+      "conclusion": "Career has the most records. Finance has none yet.",
+      "addData": "+ Add a record",
       "loading": "Counting your pieces",
-      "emptyTitle": "Nothing built up here yet",
-      "emptyBody": "Add records and you'll see which areas you've grown the most.",
+      "emptyTitle": "No records in this area yet",
+      "emptyBody": "Add records to see which areas you write about most.",
       "pieceCount": "{{count}} pieces"
     },
     "imagine": {
       "title": "Imagine",
-      "introBody": "Throw far, no right answers. Pick a branch you like and we'll narrow it into a next step.",
-      "sectionAngles": "Branches SecondB threw",
-      "sectionSteps": "Next-step candidates",
+      "introBody": "Write about something you would like to try. Choose an idea to plan what you could do first.",
+      "sectionAngles": "Ideas to explore",
+      "sectionSteps": "Things to try first",
       "toCapture": "Move to Capture",
-      "more": "More with SecondB"
+      "more": "Keep talking with SecondB"
     },
     "audit": {
       "title": "Past me",
@@ -434,88 +434,88 @@
     },
     "me": {
       "title": "North Star",
-      "eyebrow": "North Star · synthesis of 7",
+      "eyebrow": "North Star · seven-star summary",
       "headline": "Understand myself deeply, live more like myself.",
-      "synthMeta": "Synthesis of 7 stars · confidence",
+      "synthMeta": "Seven-star summary · confidence",
       "refine": "Refine the line",
-      "domainsTitle": "7 life stars · domains",
+      "domainsTitle": "Stories in seven stars",
       "toConstellation": "To constellation",
-      "hiddenTitle": "Hidden grain · validation",
-      "hiddenBody": "Your domain data triangulates frameworks like Big Five and attachment. Starlight is how much you put in, confidence is how validated it is. They are different.",
-      "viewValidation": "See validation"
+      "hiddenTitle": "Test results",
+      "hiddenBody": "Your life records are considered alongside results from tests such as Big Five and attachment. Brightness shows how much you have recorded. Confidence shows how well the results are supported.",
+      "viewValidation": "See test results"
     },
     "axisCheck": {
       "emptyTitle": "Not measured yet",
       "emptyText": "Finish the interview and this fills in from your own records.",
       "values": {
         "headline": "Values",
-        "subtitle": "Hidden grain (layer B) · what you hold most important",
+        "subtitle": "What matters to you",
         "coreLabel": "CORE VALUES",
-        "spectrum": "Value spectrum",
+        "spectrum": "Values scores",
         "actionPrimary": "Values interview",
         "actionSecondary": "Other checks",
         "rows": {
           "selfDirection": {
             "name": "Self-direction",
-            "note": "You feel most yourself when you decide and move on your own"
+            "note": "Making your own choices and acting on them"
           },
           "stimulation": {
             "name": "Growth",
-            "note": "Novelty and learning pull you forward"
+            "note": "Trying new experiences and learning"
           },
           "authenticity": {
             "name": "Authenticity",
-            "note": "You want your inside and outside to match"
+            "note": "Acting in line with what you think and believe"
           },
           "benevolence": {
             "name": "Care",
-            "note": "A heart for looking after those close to you"
+            "note": "Looking after people close to you"
           },
           "achievement": {
             "name": "Achievement",
-            "note": "You like the feeling of having pulled it off"
+            "note": "Reaching a goal and feeling a sense of accomplishment"
           },
           "security": {
             "name": "Stability",
-            "note": "Predictability is a lower priority for you"
+            "note": "A stable, predictable life"
           }
         }
       },
       "motivation": {
         "headline": "Motivation",
-        "subtitle": "Hidden grain (layer B) · what moves you",
+        "subtitle": "What motivates you",
         "balanceTitle": "Intrinsic ↔ extrinsic",
         "balanceIntrinsic": "Intrinsic 68%",
         "balanceExtrinsic": "Extrinsic 32%",
-        "balanceNote": "You mostly move because you want to. Meaning and curiosity fuel you more than reward.",
+        "balanceNote": "You tend to act out of interest or a sense of meaning, rather than for a reward.",
         "spectrum": "Three needs · self-determination",
         "actionPrimary": "See strengths",
         "actionSecondary": "Other checks",
         "rows": {
           "autonomy": {
             "name": "Autonomy",
-            "note": "Motivation rises when you decide for yourself"
+            "note": "Wanting to make your own choices"
           },
           "competence": {
             "name": "Competence",
-            "note": "A sense that you can do it holds you up"
+            "note": "Wanting to do things well"
           },
           "relatedness": {
             "name": "Relatedness",
-            "note": "You move a little more when you're with others"
+            "note": "Wanting to feel close to other people"
           }
         },
         "survey": {
-          "title": "Motivation self-report",
+          "title": "Explore your motivation",
           "loading": "Loading…",
-          "description": "A short self-report of what moves you. Rate how well each statement fits you from 1 (not like me at all) to 6 (very much like me). No right answers, and it's an estimate, not a medical assessment.",
-          "citation": "Anchored to Self-Determination Theory (SDT) · self-report estimate",
+          "description": "A short survey about what motivates you. Rate how well each statement fits you from 1 (not like me at all) to 6 (very much like me). There are no right answers. Results are estimates based on your answers, not a medical assessment.",
+          "citation": "Based on Self-Determination Theory (SDT) · estimated from your answers",
           "instruction": "How well does each statement fit you?",
           "intrinsic": "Intrinsic",
           "extrinsic": "Extrinsic",
-          "conclusion": "Self-report estimate (not a medical assessment).",
+          "conclusion": "Estimated from your answers. Not a medical assessment.",
           "saveError": "Couldn't save. Your answers are still here; please try again.",
-          "saved": "Your motivation self-report is saved.",
+          "saved": "Your answers are saved.",
           "scale": {
             "1": "Not like me at all",
             "2": "Unlike me",
@@ -527,7 +527,7 @@
           "exit": {
             "notice": "Exit confirmation",
             "title": "Leave the survey?",
-            "body": "Are you sure you want to exit? Your progress will not be saved.",
+            "body": "If you leave now, your answers will not be saved.",
             "cancel": "Keep going",
             "confirm": "Exit"
           }
@@ -535,31 +535,31 @@
       },
       "strengths": {
         "headline": "Strengths",
-        "subtitle": "Hidden grain (layer B) · what makes you you",
+        "subtitle": "Explore your strengths",
         "coreLabel": "SIGNATURE STRENGTHS",
-        "spectrum": "Strength spectrum",
+        "spectrum": "Strength scores",
         "actionPrimary": "Put strengths to work",
         "actionSecondary": "See motivation",
         "rows": {
           "curiosity": {
             "name": "Curiosity",
-            "note": "The drive to dig into new things"
+            "note": "Wanting to learn about new things"
           },
           "grit": {
             "name": "Grit",
-            "note": "Once you grab hold, you hold on"
+            "note": "Keeping at something even when it is difficult"
           },
           "honesty": {
             "name": "Honesty",
-            "note": "You try to keep your inside and outside aligned"
+            "note": "Speaking and acting honestly"
           },
           "empathy": {
             "name": "Empathy",
-            "note": "You read the grain of others well"
+            "note": "Understanding how someone else feels"
           },
           "aesthetics": {
             "name": "Aesthetic eye",
-            "note": "You recognize what's good"
+            "note": "Noticing and enjoying beauty"
           }
         }
       },
@@ -576,20 +576,20 @@
       "work": "Work",
       "now": "Right now",
       "lockedBody": "You haven't reached this stretch of life yet. It'll open when you do.",
-      "profileBody": "This one isn't a conversation - it's the basics you entered when you signed up. Fill more in and it brightens.",
+      "profileBody": "Review and add to the basic information you entered at sign-up. This star gets brighter as you fill it in.",
       "openProfile": "Open profile",
       "loading": "Loading…",
-      "emptyBody": "Nothing here yet. A conversation is the way in.",
-      "dug": "{{n}} of {{total}} layers opened",
+      "emptyBody": "No stories here yet. Start a conversation to add one.",
+      "dug": "{{n}} of {{total}} topics discussed",
       "records": "{{n}} records",
       "start": "Start",
       "continue": "Keep going",
       "pageLabel": "Star summary",
-      "meter": "It brightens as far as you dig · {{n}}/{{total}} layers",
+      "meter": "Brighter as you share more · {{n}}/{{total}} topics",
       "recordsLabel": "What you have kept so far"
     },
     "dashboard": {
-      "title": "What I know about you",
+      "title": "Your life in your records",
       "sub": "Six areas of your life. Tap one to see the detail.",
       "dismiss": "Hide"
     }

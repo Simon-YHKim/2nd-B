@@ -1,17 +1,17 @@
 {
-  "loading": "Loading research...",
+  "loading": "Loading research…",
   "error": {
     "title": "Couldn't load research",
-    "body": "The connection paused for a moment. Try again to reload the library.",
+    "body": "We could not load the library. Try again.",
     "retry": "Try again"
   },
   "hero": {
     "eyebrow": "Research",
-    "title": "Keep the evidence visible",
+    "title": "Browse sources and references",
     "subtitle": "Big Five · attachment · CBT · VIA",
     "speech": "Only verified sources that SecondB can cite show up here."
   },
-  "empty": "No sources yet. The curator workflow is in progress.",
+  "empty": "No sources have been added yet. They are being reviewed.",
   "filter": {
     "label": "Filter by framework",
     "accessibilityLabel": "Framework filters",

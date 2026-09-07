@@ -1,5 +1,5 @@
 {
-  "villageQuiet": "El pueblo está en calma",
+  "villageQuiet": "Aún no hay fragmentos aquí",
   "firstPiece": "Deja un primer fragmento",
   "firstPieceHint": "Abre la captura para guardar tu primer fragmento",
   "lookFirst": "Primero echo un vistazo",
@@ -14,9 +14,9 @@
   "openPatternCore": "Abre este Núcleo de Patrones en detalle",
   "retryLoad": "Reintentar carga",
   "openRecords": "Abrir mis registros",
-  "openCenter": "Abrir el centro de hoy",
+  "openCenter": "Abrir Estrella Polar",
   "retryLoadHint": "Reintenta cargar los datos del gráfico",
   "openRecordsHint": "Abre el archivo de registros",
-  "openCenterHint": "Abre el Núcleo del alma",
-  "todaysCenter": "El centro de hoy"
+  "openCenterHint": "Abre tu Estrella Polar.",
+  "todaysCenter": "Estrella Polar"
 }

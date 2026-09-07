@@ -1,11 +1,25 @@
 # Wiki system upgrade — graphify-informed, make-it-work plan
 
-Status: planning + STEP 1 in progress. Owner: Simon. Axis: (1) 알아가기 + (2) 개인 비서 기반.
+Status: **STEP 1 landed.** Owner: Simon. Axis: (1) 알아가기 + (2) 개인 비서 기반.
+
+> ⚠ **2026-09-08 정정 — 이 줄은 ~~"planning + STEP 1 in progress"~~ 로 80일 동안 멈춰 있었다.**
+> STEP 1 은 `db/migrations/0046_wiki_link_relation_type.sql` 이 끝냈다. 그 마이그레이션이
+> `wiki_links` 에 **`relation_type`(기본 `'wikilink'`) 과 `confidence`(real, 기본 1) 를 둘 다**
+> 넣는다 — 아래 §Adopt 1 이 요구한 바로 그 두 컬럼이다. 코드에도 `confidence` 참조가 29건 있다.
+>
+> 그래서 아래 §Adopt 1 의 ~~"Today `wiki_links` has no type."~~ 도 더는 사실이 아니다.
+> **"진행 중"으로 멈춘 상태 줄은 끝난 일을 다시 시작하게 만든다** — 이 문서를 읽고 STEP 1
+> 부터 하려던 세션은 이미 있는 컬럼을 또 만들려 했을 것이다.
+>
+> STEP 2~4 의 상태는 확인하지 않았다. 그건 이 정정의 범위가 아니다.
 
 This doc turns a review of [safishamsi/graphify](https://github.com/safishamsi/graphify)
 (69k★, YC S26 — a *developer* tool that turns code/docs/media into a queryable
 knowledge graph) into a concrete plan to make **our personal-wiki knowledge graph
-actually work** at $0/mo, solo, before the Aug deadline.
+actually work** at $0/mo, solo.
+<!-- 2026-09-08 정정: 원문은 "… solo, before the Aug deadline." 였다. 그 마감은 없다
+     (XPRIZE 2026-08-15 종료, 루트 CLAUDE.md). 예산 제약($0/mo)과 1인 제약은 그대로다. -->
+
 
 graphify and our `/wiki` share knowledge-graph DNA but serve different users:
 graphify indexes a *codebase for developers*; our wiki indexes a *person's own

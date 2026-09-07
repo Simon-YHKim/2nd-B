@@ -59,12 +59,12 @@ describe("worldview v-final naming", () => {
 
   test("persona roles and hints follow Simon's canonical responsibilities", () => {
     expect(PERSONAS.secondb.role.en).toBe("North Star navigator");
-    expect(PERSONAS.secondb.systemHint.en).toContain("central AI for the North Star synthesis");
+    expect(PERSONAS.secondb.systemHint.en).toContain("responsible for the North Star summary");
     expect(PERSONAS.secondb.systemHint.en).toContain("Analytic mode");
     expect(PERSONAS.secondb.systemHint.en).toContain("Divergent mode");
 
     expect(PERSONAS.archi.role.en).toBe("Career consultant");
-    expect(PERSONAS.archi.systemHint.en).toContain("career consultant for work and growth");
+    expect(PERSONAS.archi.systemHint.en).toContain("responsible for work and growth");
 
     // Relia can speak warmly while grounding observations in the user's records.
     // Current policy allows a friendly tone and prohibits invented personal
@@ -80,14 +80,14 @@ describe("worldview v-final naming", () => {
     );
 
     expect(PERSONAS.lulu.role.en).toBe("Life-applied wisdom sage");
-    expect(PERSONAS.lulu.systemHint.en).toContain("Not raw facts");
-    expect(PERSONAS.lulu.systemHint.en).toContain("life-applied patterns");
+    expect(PERSONAS.lulu.systemHint.en).toContain("examples of how they could use it");
+    expect(PERSONAS.lulu.systemHint.en).toContain("examples of how they could use it");
 
     expect(PERSONAS.momo.role.en).toBe("Narrative Core crew foreman");
-    expect(PERSONAS.momo.systemHint.en).toContain("you do NOT give advice");
+    expect(PERSONAS.momo.systemHint.en).toContain("do not give advice");
 
     expect(PERSONAS.lumi.role.en).toBe("Trainer & curator");
-    expect(PERSONAS.lumi.systemHint.en).toContain("healthy life balance");
+    expect(PERSONAS.lumi.systemHint.en).toContain("balance of work and rest");
   });
 
   test("concept docs and code use Lumina instead of Iris", () => {

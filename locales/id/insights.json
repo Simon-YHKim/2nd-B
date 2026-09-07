@@ -2,15 +2,15 @@
   "loading": "Memuat wawasan...",
   "error": {
     "title": "Gagal memuat wawasan",
-    "body": "Koneksi terputus sejenak. Coba lagi untuk menghitung ulang alur catatanmu.",
+    "body": "Catatanmu belum bisa dimuat untuk melihat polanya. Coba lagi.",
     "retry": "Coba lagi"
   },
   "empty": {
     "hero": {
       "eyebrow": "11. Wawasan",
       "title": "Polanya masih sedikit",
-      "subtitle": "Beberapa hari catatan akan mengungkap alurnya",
-      "speech": "Saya butuh beberapa kepingan lagi untuk melihat selera dan pengulangan. Tambahkan satu hari ini?",
+      "subtitle": "Tambahkan catatan dari beberapa hari untuk melihat polanya",
+      "speech": "Belum cukup catatan untuk melihat selera dan hal yang berulang.",
       "action": "Buka Simpan"
     }
   },
@@ -18,8 +18,8 @@
     "eyebrow": "11. Wawasan",
     "title": "Lihat alur di catatan terbaru",
     "subtitle": "Dihitung langsung dari catatan",
-    "speech": "Saya mengumpulkan topik berulang dan kesimpulan terbaru. Kita lacak polanya?",
-    "action": "Tambahkan kepingan hari ini"
+    "speech": "Lihat topik yang berulang dan kesimpulan dari catatan terbarumu.",
+    "action": "Tambah catatan hari ini"
   },
   "stats": {
     "total": {
@@ -37,7 +37,7 @@
     "lastWeekLabel": "Minggu lalu",
     "deltaUp": "{{count}} lebih banyak dari minggu lalu",
     "deltaDown": "{{count}} lebih sedikit dari minggu lalu",
-    "deltaFlat": "Kecepatan sama seperti minggu lalu",
+    "deltaFlat": "Jumlahnya sama seperti minggu lalu",
     "firstWeek": "Minggu pertama catatanmu"
   },
   "sections": {

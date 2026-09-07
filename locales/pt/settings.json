@@ -35,21 +35,21 @@
     "deleteEcrHint": "Abre uma confirmação antes de apagar os resultados salvos de Apego.",
     "deleteMbtiHint": "Abre uma confirmação antes de apagar os resultados de referência MBTI salvos.",
     "deleteWikiHint": "Abre uma confirmação antes de apagar todas as páginas da wiki.",
-    "deleteUningestedHint": "Abre uma confirmação antes de apagar capturas ainda não promovidas para a wiki.",
+    "deleteUningestedHint": "Abre uma confirmação antes de apagar materiais que ainda não viraram páginas da wiki.",
     "resetUsageHint": "Abre uma confirmação antes de redefinir os contadores de uso diário.",
     "fullWipeInputLabel": "Confirmação de exclusão total. Digite {{phrase}} para ativar o botão de apagar.",
     "fullWipeHint": "Exige a confirmação digitada DELETE antes de apagar registros, fontes, páginas da wiki e uso."
   },
   "dataWizard": {
-    "body": "Escolha uma área de exclusão por vez. Seu conteúdo privado do 2nd-B fica dividido em registros, avaliações, wiki/capturas e exclusão total.",
+    "body": "Escolha o que quer excluir: registros, avaliações, wiki e capturas ou todo o conteúdo privado do 2nd-B.",
     "optionA11yLabel": "{{label}}, opção {{index}} de {{total}}, {{state}}.",
     "stateSelected": "selecionado",
     "stateAvailable": "não selecionado",
-    "selectedHint": "Esta área de exclusão já está selecionada. As ações dela aparecem abaixo.",
+    "selectedHint": "Esta categoria já está selecionada. As opções de exclusão aparecem abaixo.",
     "records": {
       "label": "Registros",
       "hint": "Mostra ações de exclusão para diários, notas e respostas de avaliação.",
-      "body": "Limpe um tipo de registro privado mantendo o restante do seu grafo e wiki intactos."
+      "body": "Limpe um tipo de registro privado mantendo o restante do seu mapa e wiki intactos."
     },
     "assessments": {
       "label": "Avaliações",
@@ -58,13 +58,13 @@
     },
     "library": {
       "label": "Wiki e capturas",
-      "hint": "Mostra ações de exclusão para páginas da wiki, capturas não ingeridas e contadores de uso.",
-      "body": "Limpe a wiki e as capturas separadamente dos registros privados e referências do grafo."
+      "hint": "Mostra opções para excluir páginas da wiki, materiais que ainda não viraram páginas e contadores de uso.",
+      "body": "Limpe a wiki e as capturas separadamente dos registros privados e referências do mapa."
     },
     "full": {
       "label": "Exclusão total",
       "hint": "Mostra a confirmação digitada para apagar todos os registros, fontes, páginas da wiki e uso.",
-      "body": "Este é o caminho irreversível de exclusão de conteúdo. Exporte primeiro, depois digite DELETE só se tiver certeza.",
+      "body": "A exclusão não pode ser desfeita. Exporte o que quiser guardar e digite DELETE para continuar.",
       "retained": "Isso limpa o conteúdo privado do 2nd-B nesta conta. Dados da conta, histórico de consentimento e registros de responsabilidade do serviço permanecem."
     }
   },
@@ -78,7 +78,7 @@
       "deleteHint": "Inicia a ação de exclusão selecionada."
     },
     "feedback": {
-      "label": "Aviso de feedback das configurações",
+      "label": "Aviso das configurações",
       "dismiss": "Fechar",
       "dismissHint": "Fecha este aviso.",
       "retry": "Tentar novamente",
@@ -115,12 +115,12 @@
   "onDeviceFirst": "No dispositivo primeiro",
   "onDeviceFirstDesc": "Analisa o texto original só no dispositivo",
   "callRecording": "Gravação de chamadas → texto → análise",
-  "callRecordingDesc": "Transcreve chamadas no dispositivo; o SecondB as tece em estrelas.",
+  "callRecordingDesc": "Transforma notas de chamadas em texto, e o SecondB as organiza nas estrelas relacionadas.",
   "all": "Todos",
   "allIntegrations": "Todas as integrações",
   "dataConnections": "Conexões de dados",
   "googleCalendar": "Google Agenda",
-  "googleCalendarDesc": "Sinais de ritmo e relações a partir dos eventos",
+  "googleCalendarDesc": "Usa os eventos para identificar padrões da rotina e dos relacionamentos.",
   "connected": "Conectado",
   "connectedSyncing": "Conectado · sincronizando",
   "appleHealth": "Apple Saúde",
@@ -130,7 +130,7 @@
   "manageIntegrationsDesc": "Importação por fonte: calendário, saúde, Notion e mais",
   "importData": "Importar de arquivo",
   "importDataDesc": "Cole ou escolha um arquivo exportado para virar registros",
-  "workingPaused": "Trabalhando nisso. Outras ações e o logout ficam pausados até terminar.",
+  "workingPaused": "Aguarde esta ação terminar para fazer outras alterações ou sair da conta.",
   "myAccount": "Minha conta",
   "app": "App",
   "resetCoachmarks": "Redefinir os guias",
@@ -193,14 +193,14 @@
       "plus": "Voyager",
       "pro": "North Star"
     },
-    "judgeComp": "Os recursos pagos estao liberados sem custo nesta conta de jurado.",
-    "lastPaidOn": "Ultima cobranca: {{date}}",
+    "judgeComp": "Os recursos pagos estão liberados sem custo nesta conta de jurado.",
+    "lastPaidOn": "Última cobrança: {{date}}",
     "paymentMethod": "Forma de pagamento: {{method}}",
-    "freeBody": "Voce esta no plano gratuito, entao nao ha assinatura paga ativa.",
-    "loadFailed": "Nao foi possivel carregar os dados da assinatura.",
+    "freeBody": "Você está no plano gratuito e não tem uma assinatura paga ativa.",
+    "loadFailed": "Não foi possível carregar os dados da assinatura.",
     "retry": "Tentar de novo",
     "keep": "Manter",
-    "supportLine": "Precisa de ajuda? Escreva para {{email}} e respondemos em 2 dias uteis.",
+    "supportLine": "Precisa de ajuda? Escreva para {{email}}. Respondemos em 2 dias úteis.",
     "viewPolicy": "Ler a politica de reembolso",
     "viewPlans": "Ver planos",
     "cancel": {
@@ -235,7 +235,7 @@
         "unknown": "Nao conseguimos verificar se o reembolso e possivel."
       },
       "window": "Janela de reembolso: faltam {{days}} de {{total}} dias",
-      "usage": "Raciocinios usados: {{used}} (o plano gratuito permite {{allowance}} no mesmo periodo)",
+      "usage": "Buscas de conexões usadas: {{used}} (o plano gratuito permite {{allowance}} no mesmo período)",
       "calls": "Chamadas de IA registradas: {{calls}}",
       "currentPolicyNote": "Reembolsavel em ate 7 dias apos o pagamento, desde que o seu uso tenha ficado dentro do que o plano gratuito cobre."
     },
@@ -245,9 +245,9 @@
       "refundRequested": "Seu pedido de reembolso foi enviado a Paddle. A decisao chega por e-mail no endereco do recibo. Cancele a assinatura a parte se tambem quiser parar as cobrancas.",
       "alreadyRequested": "Ja existe um pedido registrado, entao nada foi enviado duas vezes.",
       "refundRejected": "O reembolso automatico nao esta disponivel para este pagamento.",
-      "contactSupport": "Isso nao pode ser resolvido no app agora. Fale com o suporte.",
-      "notSubscribed": "Nao ha assinatura paga ativa para cancelar.",
-      "dryRun": "O modo de ensaio esta ligado, entao nada foi enviado para a Paddle. Fale com o suporte se voce queria enviar de verdade.",
+      "contactSupport": "Não é possível resolver isso no app agora. Fale com o suporte.",
+      "notSubscribed": "Não há assinatura paga ativa para cancelar.",
+      "dryRun": "O modo de teste está ativo, então nada foi enviado à Paddle. Fale com o suporte se queria enviar a solicitação.",
       "cancelledAndRefundRequested": "Cancelado e seu pedido de reembolso foi enviado. O provedor de pagamento analisa antes de qualquer movimentação.",
       "cancelledRefundNotAccepted": "Cancelado, mas o pedido de reembolso não foi aceito. Fale com o suporte se esperava outra resposta."
     },

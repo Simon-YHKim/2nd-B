@@ -14,13 +14,13 @@
   "advisor": {
     "heading": "Nota de SecondB",
     "sources": "Fuentes",
-    "whyThis": "Por qué esto",
-    "evidenceFallback": "Fuente listada sin nota breve."
+    "whyThis": "Por qué se sugiere",
+    "evidenceFallback": "Fuente sin descripción."
   },
   "actions": {
     "backToRecords": "Volver a registros",
     "seeGraph": "Ver en el grafo",
     "askSecondB": "Pregúntale a SecondB",
-    "openSource": "Abrir su pantalla"
+    "openSource": "Abrir fuente"
   }
 }
