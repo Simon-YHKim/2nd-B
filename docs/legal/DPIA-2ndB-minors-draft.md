@@ -101,7 +101,7 @@ Explicitly **excluded** purposes for all users (privacy-by-design defaults OFF):
 | 7 | **AI-decision audit telemetry** | `ai_audit_log`: `prompt_hash`, `output_hash` (hashes, **not** raw text), `model_used`, `vertex_backend`, `safety_zone`, `latency_ms` | Pseudonymised metadata | `db/migrations/0004_ai_audit_log.sql` |
 | 8 | **Usage / cost telemetry** | `chat_usage` (per-user/day count), `gemini_spend_daily` (0035) | Low-sensitivity ops | `db/migrations/0023_chat_usage.sql` |
 | 9 | **Consent ledger** | `consent_records`: `age_band`, `minor_tier`, `consent_version`, `policy/terms_version`, `purposes`, `llm_processing_ack`, `overseas_transfer_ack`, `sensitive_data_ack`, **`ip_hash`/`ua_hash`** (hashed) | Accountability record; IP/UA minimised by hashing | `db/migrations/0031_consent_records.sql`; `src/lib/auth/consent-selections.ts:16-24` |
-| 10 | **Product analytics events** (consented adults only) | `page_view`, `capture`, `secondb_session{mode,turn_count}` → GA4 / Clarity / PostHog / Sentry | Behavioural; **suppressed for minors & sub-consent-age** | `src/lib/analytics/index.ts:56,74` |
+| 10 | **Product analytics events** (consented adults only) | `page_view`, `capture`, `secondb_session{mode,turn_count}` → GA4 / Clarity | Behavioural; **suppressed for minors & sub-consent-age** | `src/lib/analytics/index.ts:56,74` |
 
 > **2026-08-17 · row 6 minimisation.** `crisis_events.cssrs_level` held a C-SSRS
 > grade, i.e. a clinical suicide-severity score per account. Counsel review took
@@ -174,8 +174,7 @@ the "has served" column says which is which.
 **Named in the deployment config but reached by no code path** — recorded because an auditor
 reading the environment would otherwise infer a flow that does not exist. `EXPO_PUBLIC_POSTHOG_KEY`
 / `_HOST` are set as repository variables and **PostHog appears nowhere in the source**;
-`EXPO_PUBLIC_SENTRY_DSN` is set and `@sentry/react-native` is still a dependency, but no runtime
-module imports it or calls `Sentry.init` — a test pins that (`src/lib/analytics/__tests__/analytics.test.ts:96-103`).
+`EXPO_PUBLIC_SENTRY_DSN` is set and `@sentry/react-native` is still a dependency, but no runtime module imports it or calls `Sentry.init`. That is **a deliberate fail-closed state, not an oversight**: PR #1586 hard-disabled both the web and native initialisation paths precisely because "개인정보 고지 · DPA · 기존 사용자 재동의 · Native redaction 계약이 준비되지 않았습니다", and it kept the package and the inert env wiring only so the OTA runtime fingerprint stayed compatible. Three tests hold the fence shut: the runtime source and the native build config contain **no Sentry SDK entry point**, and with analytics consent both true and false the configured credentials **remain inert** (`src/lib/analytics/__tests__/analytics.test.ts:96-131`). **Re-enabling is gated, by that PR's own terms, on five preconditions being met FIRST**: a privacy notice, a DPA with the processor, re-consent from existing users, a native-redaction contract, and a source-map handling standard. A plain revert is explicitly ruled out. The consequence is stated there too and is worth repeating here: **third-party JS crash visibility is deliberately zero.**
 An earlier version of this table listed both as recipients. **Configured is not the same as
 connected**, and a privacy document should not report a credential as a data flow.
 
@@ -228,7 +227,7 @@ connected**, and a privacy document should not report a credential as a data flo
                               reflective prompt / chat / persona / suggestion   GOOGLE (egress)
                                          │                                       generativelanguage
                                          ▼ (6) optional onward egress                .googleapis.com
-                              analytics events ──► GA4/Clarity/PostHog/Sentry        / Vertex
+                              analytics events ──► GA4/Clarity        / Vertex
                                  (ONLY if consented AND not minor)
 ```
 
@@ -809,6 +808,13 @@ Each question carries four fields:
   - *Hinges on:* both are implemented - erasure (`src/lib/records/delete-bulk.ts:172-180`, `delete-account`) and a comprehensive structured export (`export-account`, `supabase/functions/export-account/index.ts:1-9`). The question is now whether the deliberately excluded stores leave it sufficient.
   - *Gates:* **implemented today**; the open item is the exclusion scope, not the path.
   - *Provenance:* report flag ③ ("export 경로 부재, GDPR Art.20 갭" — *nuance as recorded then: a wiki export exists; a complete Art.20 export does not*). ⚠ **[RE-READ 2026-09-08]** The quoted flag is kept as provenance, but its nuance is spent: `export-account` shipped after it was written.
+
+#### H2. Paddle — processor or independent controller?
+
+- **Q-H2 [COUNSEL TO CONFIRM]** — Paddle is the **merchant of record** for paid tiers, not merely a payment gateway: it is the seller of record and holds the customer relationship for the transaction. Does that make it a **processor** acting on our instructions, or an **independent controller** for the payment data it receives?
+  - *Hinges on:* the answer changes the disclosure. A processor belongs in the sub-processor table under our controllership with a DPA; an independent controller has to be disclosed as a separate recipient with its own lawful basis, and the transfer to it described accordingly.
+  - *Implemented today:* live credentials are configured and checkout is wired (`src/lib/billing/paddle-checkout.ts:41-47`; `supabase/functions/paddle-webhook/index.ts`); the sub-processor table (2.7) currently lists it with this question attached rather than asserting either status.
+  - *Gates:* the 2.7 row's wording, and whether a DPA is the right instrument or the wrong one.
 
 #### I. Scope determination (answer first — gates A–H)
 

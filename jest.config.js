@@ -30,7 +30,9 @@ module.exports = {
     "<rootDir>/.worktrees/",
     "<rootDir>/_sync/",
   ],
-  modulePathIgnorePatterns: ["<rootDir>/.worktrees/", "<rootDir>/_sync/"],
+  // legacy/ holds retired renderers kept only to be read (legacy/screens/INDEX.md).
+  // They are not compiled or linted, so they must not be collected here either.
+  modulePathIgnorePatterns: ["<rootDir>/.worktrees/", "<rootDir>/_sync/", "<rootDir>/legacy/"],
   transform: {
     "^.+\\.tsx?$": ["ts-jest", { tsconfig: { jsx: "react" } }],
   },

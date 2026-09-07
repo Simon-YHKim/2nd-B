@@ -94,31 +94,5 @@ describe("PIXEL-CLAY /change-password contract", () => {
     expect(source).not.toMatch(/snapshot/i);
   });
 
-  test("preserves the legacy renderer and styles byte-for-byte", () => {
-    const route = read(ROUTE);
-    const functionStart = route.indexOf("function ChangePasswordLegacy()");
-    const bodyStart = route.indexOf("{", functionStart);
-    const stylesStart = route.indexOf("\nconst styles", bodyStart);
-    const dispatchStart = route.indexOf("\nexport default function ChangePassword()", stylesStart);
 
-    expect(functionStart).toBeGreaterThan(-1);
-    expect(bodyStart).toBeGreaterThan(functionStart);
-    expect(stylesStart).toBeGreaterThan(bodyStart);
-    expect(dispatchStart).toBeGreaterThan(stylesStart);
-    expect(createHash("sha256").update(route.slice(bodyStart, stylesStart)).digest("hex")).toBe(
-      "c46d4a7d0223d790461ce56e7ad5e5ef71721b97ecc6f52f12d18a410a91d608",
-    );
-    expect(createHash("sha256").update(route.slice(stylesStart, dispatchStart).trimEnd()).digest("hex")).toBe(
-      "fd3cc62040571ed55a0e89bbc27746a6506073676fbe2a36faadcfc6494699e5",
-    );
-  });
-
-  test("dispatches by UI mode without conditionally sharing a hook", () => {
-    const route = read(ROUTE);
-
-    expect(route).toContain("isDeepSpaceUI()");
-    expect(route).toContain("<DeepSpaceChangePasswordScreen />");
-    expect(route).toContain("<ChangePasswordLegacy />");
-    expect(route).not.toContain("useChangePasswordForm() ?");
-  });
 });

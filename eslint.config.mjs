@@ -34,6 +34,8 @@ export default [
       // Nested git worktrees (.worktrees/<branch>) are full repo copies — `eslint .`
       // must not lint them (team rule: all 2ndB worktrees live under .worktrees/).
       ".worktrees/**",
+      // Retired renderers, kept to be read rather than built (legacy/screens/INDEX.md).
+      "legacy/**",
       ".expo/**",
       "dist/**",
       // Untracked Expo export dirs (dist-smoke from ci.yml, dist-audit /
