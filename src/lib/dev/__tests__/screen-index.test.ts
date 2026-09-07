@@ -50,6 +50,13 @@ interface DelegatedAuthFixture {
 // #1543 자신의 위임 검사가 통합 중에 잡아냈다.
 const EXPECTED_DELEGATED_AUTH: Record<string, DelegatedAuthFixture> = {
   "capture-full": { gateFile: "src/app/capture.tsx", component: "CaptureLegacy", via: "CaptureLegacySession" },
+  // change-password 의 게이트는 라우트가 아니라 화면에 있다. 라우트가 레거시
+  // 렌더러를 들고 있던 동안에는 리다이렉트가 라우트에도 있었지만, 그 렌더러를
+  // 지우면서 게이트도 화면 한 곳으로 모였다.
+  "change-password": {
+    gateFile: "src/screens/deepspace/dds-change-password-screen.tsx",
+    component: "DeepSpaceChangePasswordScreen",
+  },
   srs: { gateFile: "src/screens/deepspace/DeepSpaceDesignScreens.tsx", component: "DeepSpaceSrsScreen" },
   plans: { gateFile: "src/screens/deepspace/dds-plans-screen.tsx", component: "DeepSpacePlansScreen" },
   trends: { gateFile: "src/screens/deepspace/trends/TrendsScreen.tsx", component: "TrendsScreen" },
