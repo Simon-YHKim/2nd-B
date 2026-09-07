@@ -535,7 +535,29 @@ jobs:
             echo "::error::Canonical artifact-content digest is missing or malformed."
             exit 1
           fi
+          # Record the computed digest BEFORE the comparison can abort this step.
+          # A mismatch used to say only "does not match approval" and print nothing
+          # else: the approved value was in the step env, the computed one went to
+          # $GITHUB_OUTPUT, and the throw happened before the summary was written.
+          # So the one thing that decides the next action -- whether the two are one
+          # character apart or entirely different builds -- was unreadable. That cost
+          # a publish investigation on 2026-09-08. The digest is a SHA-256 of public
+          # web content, so printing it discloses nothing.
+          echo "artifact_content_sha256=$CONTENT_SHA" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Canonical Pages content"
+            echo "- source: \`${{ steps.gate.outputs.source_sha }}\`"
+            echo "- artifact content SHA-256: \`$CONTENT_SHA\`"
+            echo "- approved: \`${APPROVED_ARTIFACT_CONTENT_SHA256:-<none>}\`"
+            echo "- run/attempt: \`${{ github.run_id }}/${{ github.run_attempt }}\`"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
           if [ "$BUILD_MODE" = "publish" ]; then
+            if [ "$CONTENT_SHA" != "$APPROVED_ARTIFACT_CONTENT_SHA256" ]; then
+              echo "::error::artifact-content digest does not match approval."
+              echo "::error::computed=$CONTENT_SHA"
+              echo "::error::approved=$APPROVED_ARTIFACT_CONTENT_SHA256"
+            fi
             APPROVED_SHA256="$APPROVED_ARTIFACT_CONTENT_SHA256" ACTUAL_SHA256="$CONTENT_SHA" node - <<'NODE'
           const { timingSafeEqual } = require("node:crypto");
           const approved = Buffer.from(process.env.APPROVED_SHA256 ?? "", "hex");
@@ -548,14 +570,6 @@ jobs:
             echo "::error::Build-only must not carry an approved artifact-content digest."
             exit 1
           fi
-          echo "artifact_content_sha256=$CONTENT_SHA" >> "$GITHUB_OUTPUT"
-          {
-            echo "### Canonical Pages content"
-            echo "- source: \`${{ steps.gate.outputs.source_sha }}\`"
-            echo "- artifact content SHA-256: \`$CONTENT_SHA\`"
-            echo "- run/attempt: \`${{ github.run_id }}/${{ github.run_attempt }}\`"
-            echo ""
-          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Bind the artifact to its reviewed source
         env:

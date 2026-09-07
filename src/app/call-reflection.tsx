@@ -225,7 +225,10 @@ export default function CallReflection() {
     setBusy(true);
     try {
       const fields = { who_label: "", gist: transcript.slice(0, 80), feeling: "", followup: "" };
-      await createRecord({
+      // The transcript was classified when it arrived; createRecord classifies
+      // it again at save time and reports red on the followup. Keep both - the
+      // save-time verdict is the one written to the ledger.
+      const saved = await createRecord({
         userId,
         locale,
         kind: "note",
@@ -236,6 +239,11 @@ export default function CallReflection() {
         minor: isMinor === true,
         structured: composeStructured("call_reflection", fields) ?? undefined,
       });
+      if (saved.followup?.zone === "red") {
+        setCrisis({ visible: true, hotline: hotlineFor(ko, isMinor === true) });
+        setBusy(false);
+        return;
+      }
       router.push("/records");
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[call-reflection] save failed", (e as Error).message);
