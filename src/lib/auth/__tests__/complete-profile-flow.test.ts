@@ -10,7 +10,8 @@ class FakeEmailInUseError extends Error {}
 function makeDeps(overrides: Partial<CompleteProfileFlowDeps> = {}): CompleteProfileFlowDeps {
   return {
     ensureProfile: jest.fn().mockResolvedValue({ created: true, judgeMode: false }),
-    recordConsent: jest.fn().mockResolvedValue(undefined),
+    // boolean 을 돌려준다 — 이유는 sign-up-flow.test.ts 와 같다.
+    recordConsent: jest.fn().mockResolvedValue(true),
     refreshAuth: jest.fn().mockResolvedValue(undefined),
     signOutUser: jest.fn().mockResolvedValue(undefined),
     isAgeGateError: (e: unknown) => e instanceof FakeAgeGateError,
@@ -38,7 +39,7 @@ describe("submitCompleteProfile (E2E-1: silent Continue loop)", () => {
     const deps = makeDeps();
     const result = await submitCompleteProfile(deps);
 
-    expect(result).toEqual({ kind: "entered", judgeMode: false });
+    expect(result).toEqual({ kind: "entered", judgeMode: false, consentRecorded: true });
     expect(deps.recordConsent).toHaveBeenCalledTimes(1);
     expect(deps.refreshAuth).toHaveBeenCalledTimes(1);
     expect(deps.signOutUser).not.toHaveBeenCalled();
@@ -66,7 +67,7 @@ describe("submitCompleteProfile (E2E-1: silent Continue loop)", () => {
     expect(settled).toBe(false);
 
     gate.release();
-    expect(await pending).toEqual({ kind: "entered", judgeMode: false });
+    expect(await pending).toEqual({ kind: "entered", judgeMode: false, consentRecorded: true });
   });
 
   test("existing profile (created:false — the old silent re-submit loop): skips consent but STILL refreshes auth", async () => {
@@ -75,8 +76,24 @@ describe("submitCompleteProfile (E2E-1: silent Continue loop)", () => {
     });
     const result = await submitCompleteProfile(deps);
 
-    expect(result).toEqual({ kind: "entered", judgeMode: false });
+    expect(result).toEqual({ kind: "entered", judgeMode: false, consentRecorded: null });
     expect(deps.recordConsent).not.toHaveBeenCalled();
+    expect(deps.refreshAuth).toHaveBeenCalledTimes(1);
+  });
+
+  // [결정 09] sign-up-flow 와 같은 세 상태를, 같은 이유로.
+  test("consentRecorded: true when the ledger write succeeded", async () => {
+    const deps = makeDeps({ recordConsent: jest.fn().mockResolvedValue(true) });
+    const result = await submitCompleteProfile(deps);
+
+    expect(result).toEqual({ kind: "entered", judgeMode: false, consentRecorded: true });
+  });
+
+  test("consentRecorded: FALSE reaches the caller — a fresh profile without its consent row, entry still allowed", async () => {
+    const deps = makeDeps({ recordConsent: jest.fn().mockResolvedValue(false) });
+    const result = await submitCompleteProfile(deps);
+
+    expect(result).toEqual({ kind: "entered", judgeMode: false, consentRecorded: false });
     expect(deps.refreshAuth).toHaveBeenCalledTimes(1);
   });
 
@@ -85,7 +102,7 @@ describe("submitCompleteProfile (E2E-1: silent Continue loop)", () => {
       ensureProfile: jest.fn().mockResolvedValue({ created: true, judgeMode: true }),
     });
     const result = await submitCompleteProfile(deps);
-    expect(result).toEqual({ kind: "entered", judgeMode: true });
+    expect(result).toEqual({ kind: "entered", judgeMode: true, consentRecorded: true });
   });
 
   test("age gate: reports ageGate WITHOUT signing out or refreshing — the screen must show the C10 toast first (a refresh would unmount it)", async () => {

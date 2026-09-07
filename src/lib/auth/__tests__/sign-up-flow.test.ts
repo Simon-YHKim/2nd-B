@@ -7,7 +7,9 @@ class FakeExistingAccountLikelyError extends Error {}
 function makeDeps(overrides: Partial<SignUpFlowDeps> = {}): SignUpFlowDeps {
   return {
     signUp: jest.fn().mockResolvedValue({ kind: "active", userId: "user-1", judgeMode: false, created: true }),
-    recordConsent: jest.fn().mockResolvedValue(undefined),
+    // boolean 을 돌려준다. undefined 를 두면 toEqual 이 그 키를 "없는 키"로 보아
+    // 이음매가 열렸는지 닫혔는지를 구분하지 못한다.
+    recordConsent: jest.fn().mockResolvedValue(true),
     refreshAuth: jest.fn().mockResolvedValue(undefined),
     isAgeGateError: (e: unknown) => e instanceof FakeAgeGateError,
     isBreachedPasswordError: (e: unknown) => e instanceof FakeBreachedPasswordError,
@@ -46,10 +48,39 @@ describe("submitSignUp (E2E-3 silent drop / E2E-4 double entry)", () => {
     const deps = makeDeps();
     const result = await submitSignUp(deps);
 
-    expect(result).toEqual({ kind: "entered", judgeMode: false });
+    expect(result).toEqual({ kind: "entered", judgeMode: false, consentRecorded: true });
     expect(deps.recordConsent).toHaveBeenCalledTimes(1);
     expect(deps.recordConsent).toHaveBeenCalledWith("user-1");
     expect(deps.refreshAuth).toHaveBeenCalledTimes(1);
+  });
+
+  // [결정 09] 이음매가 값을 실어 오는지. 화면은 이걸 아직 읽지 않는다 —
+  // 읽을 자리를 만드는 것이 이 회차의 전부다.
+  test("consentRecorded: true when the ledger write succeeded", async () => {
+    const deps = makeDeps({ recordConsent: jest.fn().mockResolvedValue(true) });
+    const result = await submitSignUp(deps);
+
+    expect(result).toEqual({ kind: "entered", judgeMode: false, consentRecorded: true });
+  });
+
+  test("consentRecorded: FALSE reaches the caller — the account exists without a consent row, and entry is still allowed", async () => {
+    const deps = makeDeps({ recordConsent: jest.fn().mockResolvedValue(false) });
+    const result = await submitSignUp(deps);
+
+    // 값이 실제로 실려야 한다. 이음매를 Promise<unknown> 으로 되돌리면 여기서 깨진다.
+    expect(result).toEqual({ kind: "entered", judgeMode: false, consentRecorded: false });
+    // 그리고 실패해도 진입은 막지 않는다 — writer 계약("must NOT block account creation").
+    expect(deps.refreshAuth).toHaveBeenCalledTimes(1);
+  });
+
+  test("consentRecorded: null when it was never attempted (created:false) — not the same as a failed write", async () => {
+    const deps = makeDeps({
+      signUp: jest.fn().mockResolvedValue({ kind: "active", userId: "user-1", judgeMode: false, created: false }),
+    });
+    const result = await submitSignUp(deps);
+
+    expect(result).toEqual({ kind: "entered", judgeMode: false, consentRecorded: null });
+    expect(deps.recordConsent).not.toHaveBeenCalled();
   });
 
   test("refreshAuth runs AFTER signUp and recordConsent — the context must know hasProfile=true before the screen navigates (E2E-4)", async () => {
@@ -74,7 +105,7 @@ describe("submitSignUp (E2E-3 silent drop / E2E-4 double entry)", () => {
     expect(settled).toBe(false);
 
     gate.release();
-    expect(await pending).toEqual({ kind: "entered", judgeMode: false });
+    expect(await pending).toEqual({ kind: "entered", judgeMode: false, consentRecorded: true });
   });
 
   test("judge mode propagates so the screen can hold the guard open for the welcome toast", async () => {
@@ -82,7 +113,7 @@ describe("submitSignUp (E2E-3 silent drop / E2E-4 double entry)", () => {
       signUp: jest.fn().mockResolvedValue({ kind: "active", userId: "judge-1", judgeMode: true, created: true }),
     });
     const result = await submitSignUp(deps);
-    expect(result).toEqual({ kind: "entered", judgeMode: true });
+    expect(result).toEqual({ kind: "entered", judgeMode: true, consentRecorded: true });
   });
 
   test("existing row with the correct password (created:false — effectively a sign-in): enters WITHOUT re-recording consent, still refreshes", async () => {
@@ -91,7 +122,7 @@ describe("submitSignUp (E2E-3 silent drop / E2E-4 double entry)", () => {
     });
     const result = await submitSignUp(deps);
 
-    expect(result).toEqual({ kind: "entered", judgeMode: false });
+    expect(result).toEqual({ kind: "entered", judgeMode: false, consentRecorded: null });
     expect(deps.recordConsent).not.toHaveBeenCalled();
     expect(deps.refreshAuth).toHaveBeenCalledTimes(1);
   });

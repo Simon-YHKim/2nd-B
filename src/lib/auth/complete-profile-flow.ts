@@ -20,9 +20,11 @@ export interface CompleteProfileFlowDeps {
   ensureProfile: () => Promise<{ created: boolean; judgeMode: boolean }>;
   /** Persists the consent the user just gave. Only called on a fresh profile
    *  (created: true) — an existing row already has its sign-up consent and
-   *  ensureProfile won't have persisted this DOB. Best-effort by contract;
-   *  the result is awaited but never read. */
-  recordConsent: () => Promise<unknown>;
+   *  ensureProfile won't have persisted this DOB. Best-effort by contract: a
+   *  false result never blocks entry, but it is carried out on the result the
+   *  same way sign-up-flow does. Typed boolean rather than unknown -- unknown
+   *  is not merely unread, it cannot be read. */
+  recordConsent: () => Promise<boolean>;
   /** AuthContext.refresh — re-probes the profile so hasProfile/userId are
    *  current before any navigation decision reads them. */
   refreshAuth: () => Promise<void>;
@@ -35,8 +37,12 @@ export interface CompleteProfileFlowDeps {
 }
 
 export type CompleteProfileSubmitResult =
-  /** Profile exists and the context knows it — navigate into the app. */
-  | { kind: "entered"; judgeMode: boolean }
+  /** Profile exists and the context knows it — navigate into the app.
+   *  `consentRecorded`: null = not attempted (the profile already existed),
+   *  true = written, false = the write failed and the ledger has a hole.
+   *  Same three states as sign-up-flow, for the same reason. Nothing reads it
+   *  yet -- this screen is deliberately unchanged. */
+  | { kind: "entered"; judgeMode: boolean; consentRecorded: boolean | null }
   /** Under the age floor. Deliberately NO sign-out/refresh here: the screen
    *  must show the C10 age-gate toast first (a refresh would publish
    *  userId:null and the screen's own guard would unmount the toast at zero
@@ -55,8 +61,9 @@ export async function submitCompleteProfile(
 ): Promise<CompleteProfileSubmitResult> {
   try {
     const result = await deps.ensureProfile();
+    let consentRecorded: boolean | null = null;
     if (result.created) {
-      await deps.recordConsent();
+      consentRecorded = await deps.recordConsent();
     }
     // The fix for E2E-1: the context must learn hasProfile=true before the
     // screen calls router.replace("/"), or the "/" guard bounces right back.
@@ -66,7 +73,7 @@ export async function submitCompleteProfile(
     // next tap retries the refresh, so the old infinite silent loop cannot
     // reproduce.)
     await deps.refreshAuth();
-    return { kind: "entered", judgeMode: result.judgeMode };
+    return { kind: "entered", judgeMode: result.judgeMode, consentRecorded };
   } catch (e) {
     if (deps.isAgeGateError(e)) {
       return { kind: "ageGate" };
