@@ -3,7 +3,7 @@
     "eyebrow": "404",
     "title": "Halaman ini tidak ada",
     "subtitle": "Mulai lagi dari layar beranda.",
-    "speech": "Tautan tampaknya rusak. Pilih tempat yang aman untuk melanjutkan."
+    "speech": "Tautan ini tidak bisa dibuka. Pilih halaman lain di bawah."
   },
   "actions": {
     "home": "Ke beranda",
@@ -20,8 +20,8 @@
       "hint": "Membuka linimasa masa lalu."
     },
     "persona": {
-      "label": "Persona",
-      "hint": "Membuka layar persona."
+      "label": "Ringkasan diri",
+      "hint": "Membuka ringkasan dirimu."
     },
     "manual": {
       "label": "Panduan penggunaan",

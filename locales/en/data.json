@@ -8,13 +8,13 @@
   },
   "import": {
     "eyebrow": "Import",
-    "body": "Bring in what another assistant gathered about you, or a past disposition/personality test, sorted into your structure.",
+    "body": "Import a summary from another AI or a previous personality test result. The content is sorted and saved in your records.",
     "button": "Import external material",
     "accessibilityHint": "Opens the import screen."
   },
   "export": {
     "eyebrow": "Export",
-    "body": "From the store you can gather your records into one text to copy. Handy for a backup or moving elsewhere.",
+    "body": "Copy your saved records from the knowledge store as one text file. Use it as a backup or take it to another tool.",
     "button": "Export from the store",
     "accessibilityHint": "Opens the knowledge store."
   },
@@ -26,6 +26,6 @@
   },
   "device": {
     "eyebrow": "On this device",
-    "body": "Lightweight bits like view preferences and first-run hints live only on this device. Unlike your saved records, they reset on their own when you switch devices or clear the app's data."
+    "body": "Display settings and first-use tips are saved only on this device. They reset when you change devices or clear app data. Your saved records are separate."
   }
 }

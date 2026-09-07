@@ -8,7 +8,7 @@
   },
   "import": {
     "eyebrow": "Importar",
-    "body": "Trae lo que otro asistente reunió sobre ti, o una prueba de personalidad o disposición pasada, organizado en tu estructura.",
+    "body": "Trae notas de otro asistente o resultados anteriores de tests sobre ti para organizarlos aquí.",
     "button": "Importar material externo",
     "accessibilityHint": "Abre la pantalla de importación."
   },
@@ -26,6 +26,6 @@
   },
   "device": {
     "eyebrow": "En este dispositivo",
-    "body": "Elementos ligeros como preferencias de vista y pistas de primer uso viven solo en este dispositivo. A diferencia de tus registros guardados, se reinician solos cuando cambias de dispositivo o limpias los datos de la app."
+    "body": "Las preferencias de pantalla y los avisos de primer uso se guardan solo en este dispositivo. Se restablecen si cambias de dispositivo o borras los datos de la app. Tus registros guardados se conservan por separado."
   }
 }

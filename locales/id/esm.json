@@ -5,16 +5,16 @@
   },
   "hero": {
     "eyebrow": "Check-in ringan",
-    "title": "Satu sinyal dari sekarang",
+    "title": "Catat keadaanmu sekarang",
     "subtitle": "Tanpa notifikasi. Hanya saat kamu membukanya.",
-    "speech": "Tanpa penilaian. Hanya sinyal kecil sesaat."
+    "speech": "Catat keadaan sesaat, tanpa menilai dirimu."
   },
   "card": {
     "eyebrow": "15 detik",
-    "title": "Sinyal apa yang cocok untuk momen ini?"
+    "title": "Apa yang ingin kamu catat sekarang?"
   },
   "prompts": {
-    "changeHint": "Mengubah jenis prompt check-in.",
+    "changeHint": "Mengubah pertanyaan check-in.",
     "context": {
       "label": "Konteks",
       "saveHint": "Menyimpan check-in konteks."
@@ -40,12 +40,12 @@
       "outside": "Di luar"
     }
   },
-  "note": "Ini bukan penilaian atau label. Ini adalah sinyal kecil yang mempertajam polamu nanti.",
+  "note": "Check-in mencatat keadaan sesaat, bukan menilai atau memberi label pada dirimu. Catatan ini dipakai untuk melihat pola dari waktu ke waktu.",
   "actions": {
     "save": "Simpan check-in",
     "saving": "Menyimpan",
     "backHome": "Kembali ke beranda",
     "backHomeHint": "Kembali ke layar beranda."
   },
-  "saved": "Tersimpan. Satu sinyal kecil ditambahkan."
+  "saved": "Check-in tersimpan."
 }

@@ -2,12 +2,12 @@
   "loading": "Memuat ekspor identitas kamu...",
   "hero": {
     "eyebrow": "Ekspor identitas",
-    "title": "Identitas Anda sebagai satu berkas portabel",
-    "subtitle": "Berkas yang dibaca AI mana pun, dan profil satu halaman yang Anda baca",
-    "speech": "Inilah Anda, siap dipahami oleh asisten mana pun."
+    "title": "Ringkasan dirimu dalam satu file",
+    "subtitle": "File untuk asisten AI dan profil satu halaman untuk dibaca",
+    "speech": "Gunakan ringkasan ini untuk memberi asisten lain konteks tentang dirimu."
   },
   "intro": {
-    "body": "IDEN mengumpulkan apa yang Anda pelajari tentang diri sendiri ke dalam satu berkas portabel. Tempel ke AI mana pun untuk memberi konteks Anda, atau buka lembar satu halaman."
+    "body": "IDEN mengumpulkan hal yang kamu pelajari tentang dirimu dalam satu file. Tempel ke asisten AI sebagai konteks, atau baca profil satu halamannya."
   },
   "generate": {
     "button": "Buat IDEN saya",
@@ -25,7 +25,7 @@
   "error": "Tidak dapat membuat IDEN kamu. Segarkan dan coba lagi.",
   "entry": {
     "eyebrow": "Ekspor identitas",
-    "body": "Ubah apa yang Anda pelajari tentang diri sendiri menjadi satu berkas portabel yang dapat dibaca AI mana pun, plus profil satu halaman.",
+    "body": "Ekspor ringkasan dirimu sebagai file untuk asisten AI dan profil satu halaman.",
     "button": "Buka ekspor identitas",
     "accessibilityHint": "Membuka layar ekspor identitas IDEN."
   },
@@ -34,7 +34,7 @@
     "loading": "Memuat…",
     "loadError": "Tidak bisa memuat IDEN kamu.",
     "retry": "Coba lagi",
-    "empty": "Belum ada yang terkumpul. Kumpulkan sedikit tentang dirimu dulu, yuk?",
+    "empty": "Belum ada informasi untuk diekspor. Tambahkan catatan tentang dirimu dulu.",
     "startGathering": "Mulai mengumpulkan",
     "signed": "Ditandatangani",
     "whatGoesIn": "Apa yang disertakan",

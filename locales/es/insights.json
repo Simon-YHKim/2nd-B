@@ -2,23 +2,23 @@
   "loading": "Cargando hallazgos...",
   "error": {
     "title": "No se pudieron cargar los hallazgos",
-    "body": "La conexión se pausó un momento. Inténtalo de nuevo para recalcular el flujo de tus registros.",
+    "body": "Inténtalo de nuevo para analizar tus registros.",
     "retry": "Intentar de nuevo"
   },
   "empty": {
     "hero": {
       "eyebrow": "11. Hallazgos",
-      "title": "Los patrones aún son pequeños",
-      "subtitle": "Unos días de registros revelarán el flujo",
-      "speech": "Necesito unas piezas más para ver gustos y repeticiones. ¿Dejas una hoy?",
+      "title": "Aún faltan registros para el análisis",
+      "subtitle": "Tras varios días podrás ver qué temas se repiten",
+      "speech": "Hace falta algo más de información para encontrar gustos y actividades frecuentes.",
       "action": "Ir a capturar"
     }
   },
   "hero": {
     "eyebrow": "11. Hallazgos",
-    "title": "Ve el flujo en los registros recientes",
-    "subtitle": "Calculado directamente desde tus registros",
-    "speech": "Reuní los temas recurrentes y las conclusiones recientes. ¿Rastreamos el patrón?",
+    "title": "Revisa tus registros recientes",
+    "subtitle": "A partir de tus registros",
+    "speech": "Aquí están los temas más frecuentes y tus conclusiones recientes.",
     "action": "Dejar la pieza de hoy"
   },
   "stats": {
@@ -37,7 +37,7 @@
     "lastWeekLabel": "La semana pasada",
     "deltaUp": "{{count}} más que la semana pasada",
     "deltaDown": "{{count}} menos que la semana pasada",
-    "deltaFlat": "El mismo ritmo que la semana pasada",
+    "deltaFlat": "La misma cantidad de registros que la semana pasada",
     "firstWeek": "Tu primera semana de registros"
   },
   "sections": {

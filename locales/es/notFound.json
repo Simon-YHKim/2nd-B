@@ -3,14 +3,14 @@
     "eyebrow": "404",
     "title": "Esta página no existe",
     "subtitle": "Empieza de nuevo desde la pantalla de inicio.",
-    "speech": "El enlace parece estar roto. Elige un lugar seguro para continuar."
+    "speech": "El enlace no funciona. Puedes volver al inicio o elegir otra pantalla."
   },
   "actions": {
     "home": "Ir al inicio",
     "homeHint": "Abre la pantalla de inicio."
   },
   "destinations": {
-    "title": "Destinos comunes",
+    "title": "Otras pantallas",
     "capture": {
       "label": "Captura",
       "hint": "Abre la captura desde la página no encontrada."
@@ -20,8 +20,8 @@
       "hint": "Abre la línea de tiempo del yo pasado."
     },
     "persona": {
-      "label": "Persona",
-      "hint": "Abre la pantalla de persona."
+      "label": "Mi resumen",
+      "hint": "Abre tu resumen."
     },
     "manual": {
       "label": "Guía de uso",

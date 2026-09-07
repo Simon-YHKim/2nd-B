@@ -4,11 +4,11 @@
   "back": "Voltar",
   "done": "CONCLUÍDO",
   "complete": "Meu eu do passado, concluído",
-  "viewPersona": "Ver persona",
+  "viewPersona": "Ver meu resumo",
   "backToCapture": "Voltar ao Capturar",
   "interviewTitle": "Meu eu do passado: autoentrevista",
   "question": "Pergunta {{n}} / {{total}}",
-  "placeholder": "Seja sincero consigo mesmo.",
+  "placeholder": "Escreva o que você lembra.",
   "later": "Continuar depois",
   "exit": {
     "notice": "Aviso para sair da avaliação",

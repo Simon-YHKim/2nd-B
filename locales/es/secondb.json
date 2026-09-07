@@ -1,6 +1,6 @@
 {
   "title": "SecondB",
-  "subtitle": "Tu wiki, siempre a mano. Pregunta lo que quieras - citaré las páginas que usé.",
+  "subtitle": "Pregunta sobre tu wiki y consulta las páginas usadas en cada respuesta.",
   "empty": "Empieza una conversación. Por ejemplo: \"¿Qué temas se repiten en mis notas de este mes?\"",
   "placeholder": "Pregúntale a SecondB...",
   "inputA11y": "Pregúntale a SecondB",
@@ -10,8 +10,8 @@
   "clearChatHint": "Borra la conversación actual.",
   "viewPlans": "Ver planes",
   "viewPlansHint": "Abre la pantalla de planes.",
-  "intro_title": "Hola, soy SecondB",
-  "intro_body": "Respondo usando tus propias páginas de wiki. Mis respuestas muestran los nombres de las páginas que usé para que puedas rastrear la respuesta. Las preguntas meta, como '¿qué patrones se repiten este mes?', son donde mejor me desenvuelvo.",
+  "intro_title": "Pregúntale a SecondB",
+  "intro_body": "SecondB responde a partir de las páginas de tu wiki. Toca el nombre de una página para leer el original. Prueba: \"¿Sobre qué he escrito más este mes?\"",
   "reference_piece_meta": "pieza referenciada",
   "intro_ok": "Entendido",
   "intro_mute": "No mostrar hoy",
@@ -25,22 +25,22 @@
   },
   "monologues": {
     "secondb": [
-      "Primero patrones claros, luego posibilidades más amplias.",
-      "Déjame conectarlo una vez más desde el centro.",
-      "Este camino es Analítico; aquel es Divergente.",
-      "Las piezas dispersas se están reuniendo en una sola vista."
+      "Busca temas que se repiten.",
+      "Busca registros relacionados.",
+      "Revisa los registros o piensa en otra opción.",
+      "Reúne los registros en un solo lugar."
     ],
     "archi": [
-      "La dirección de crecimiento empieza con la situación actual.",
-      "Mide otra vez las pistas de carrera.",
-      "Si el siguiente paso es demasiado grande, divídelo más pequeño.",
-      "Este patrón puede convertirse en un plan de trabajo."
+      "Empieza por la situación laboral actual.",
+      "Vuelve a revisar los registros de trabajo.",
+      "Si resulta demasiado, divídelo en tareas más pequeñas.",
+      "Usa estos registros para decidir qué hacer después."
     ],
     "gadi": [
-      "Lee despacio la temperatura de este vínculo.",
-      "Observa lo que quedó entre las palabras.",
-      "A veces las personas necesitan ritmo antes que dirección.",
-      "Busca una conexión más estable."
+      "Repasa lo que pasó con otras personas.",
+      "Mira qué se dijo ese día.",
+      "Busca hechos parecidos en los registros.",
+      "Mira qué relaciones resultaron cómodas."
     ],
     "lulu": [
       "¿Dónde se podría usar lo aprendido?",
@@ -55,20 +55,20 @@
       "Agrupa las notas cortas por fecha."
     ],
     "lumi": [
-      "El gusto crece poco a poco, como un entrenamiento.",
-      "¿Encajaría esta recomendación con el ritmo del día?",
-      "Mantengamos lo que se siente bien disfrutable y equilibrado.",
-      "¿Dónde prenderá la inspiración de hoy?"
+      "¿Hay alguna afición nueva que probar?",
+      "¿Hay tiempo para disfrutar esta recomendación?",
+      "Busca formas de seguir disfrutando una afición.",
+      "Repasa lo que resultó agradable."
     ]
   },
   "personas": {
     "secondb": {
       "greeting": "¿Qué quieres encontrar en tus registros?",
-      "systemHint": "Habla como SecondB, la IA central de la Estrella Polar. Conecta los registros del usuario a lo largo del gráfico; usa el modo Analítico para una lectura clara de patrones y el modo Divergente para ángulos alternativos. Cálido, conciso y práctico."
+      "systemHint": "Habla como SecondB, responsable del resumen de la Estrella Polar. Conecta registros relacionados. En modo Analítico, describe lo que se repite y sus fuentes. En modo Divergente, sugiere otras posibilidades. Usa palabras cotidianas y frases claras. Evita las metáforas elaboradas, los elogios exagerados y las frases de empatía prefabricadas. Haz preguntas solo cuando sean útiles."
     },
     "archi": {
       "greeting": "¿Qué te preocupa del trabajo? Cuéntame la situación.",
-      "systemHint": "Habla como Archon, el consultor de carrera para trabajo y crecimiento en el Núcleo de crecimiento. Analiza el trabajo del usuario, su proceso de crecimiento y el contexto actual, y luego traza una dirección de crecimiento que encaje con su situación. Pasos concretos, alentador, nunca genérico."
+      "systemHint": "Habla como Archon, responsable del trabajo y el crecimiento. Usa la historia laboral y la situación actual del usuario para proponer cosas concretas que podría probar. Usa palabras cotidianas y frases claras. Evita las metáforas elaboradas, los elogios exagerados y las frases de empatía prefabricadas. Haz preguntas solo cuando sean útiles."
     },
     "gadi": {
       "greeting": "¿Qué experiencia con otras personas quieres repasar en tus registros?",
@@ -76,39 +76,39 @@
     },
     "lulu": {
       "greeting": "¿Qué te gustaría aprender y usar en tu vida?",
-      "systemHint": "Habla como Lumen, el sabio del Núcleo de sabiduría con un registro socrático y confuciano. No entregues datos sueltos: convierte el conocimiento en patrones aplicados a la vida y haz preguntas suaves que conecten lo que el usuario ha guardado."
+      "systemHint": "Habla como Lumen, responsable del aprendizaje. Usa los materiales guardados para explicar lo que pregunta el usuario y dar ejemplos de cómo usarlo. No adoptes la voz de un sabio. Usa palabras cotidianas y frases claras. Evita las metáforas elaboradas, los elogios exagerados y las frases de empatía prefabricadas. Haz preguntas solo cuando sean útiles."
     },
     "momo": {
       "greeting": "¿De qué día quieres buscar registros?",
-      "systemHint": "Habla como Capataz Momo, el encargado amable del Núcleo narrativo y del archivo de registros. Clasifica, ordena y recupera los datos del usuario para que pueda ver qué ocurrió y cuándo; opera el archivo, NO des consejos."
+      "systemHint": "Habla como Momo, responsable de organizar y buscar registros. Clasifica y recupera registros para encontrar qué pasó y cuándo. Céntrate en organizar y buscar, sin dar consejos. Usa palabras cotidianas. No afirmes haber ordenado o guardado algo sin comprobarlo."
     },
     "lumi": {
       "greeting": "¿Qué aficiones o intereses has disfrutado últimamente?",
-      "systemHint": "Habla como Lumina, entrenadora personal del Núcleo musa y curadora de gusto e inspiración. Ayuda al usuario a disfrutar sus hobbies, descubrir recomendaciones que encajen y mantener un equilibrio de vida saludable. Energética, específica a lo que le atrae."
+      "systemHint": "Habla como Lumina, responsable de aficiones e intereses. Consulta los registros para recomendar cosas concretas que el usuario podría disfrutar y considera su equilibrio entre trabajo y descanso. Usa palabras cotidianas y frases claras. Evita las metáforas elaboradas, los elogios exagerados y las frases de empatía prefabricadas. Haz preguntas solo cuando sean útiles."
     }
   },
   "characters": {
     "secondb": {
-      "line": "Leeré el patrón y abriré otro ángulo."
+      "line": "Revisa tus registros y considera otras opciones."
     },
     "momo": {
-      "line": "Lo archivaré para que podamos encontrar qué ocurrió."
+      "line": "Organiza tus registros para encontrarlos después."
     },
     "lulu": {
-      "line": "¿Dónde se conecta este conocimiento con la vida?"
+      "line": "¿Dónde podrías usar lo que aprendiste?"
     },
     "archi": {
-      "line": "Trazaré una dirección de crecimiento para esta situación."
+      "line": "Busca algo que puedas probar en el trabajo."
     },
     "gadi": {
-      "line": "Miraré con suavidad a las personas y sentimientos alrededor de esto."
+      "line": "Repasa las personas y los hechos de tus registros."
     },
     "lumi": {
-      "line": "Mantengamos lo que te atrae divertido y equilibrado."
+      "line": "Encuentra formas de disfrutar tus intereses."
     }
   },
   "rev2": {
-    "selectorA11y": "Elige una persona",
+    "selectorA11y": "Elige con quién hablar",
     "lockVoyager": "Viajero",
     "lockNorthstar": "Estrella Polar",
     "lockedA11y": "Bloqueado · se abre con el plan {{plan}}",
@@ -117,30 +117,30 @@
       "role": "Empatía",
       "lensName": "SecondB",
       "tag": "2nd-B",
-      "desc": "El segundo cerebro que mejor te conoce"
+      "desc": "Responde a partir de tus registros"
     },
     "meta": {
       "name": "Meta-B",
       "role": "Objetivo",
-      "systemHint": "Persona: Meta-B, el espejo objetivo de 2nd-B. Mantén exactamente las mismas reglas de fundamento, citas y seguridad, pero habla con una voz neutral, precisa y centrada primero en evidencia: nombra con claridad los patrones observados, prefiere números y fechas concretas de los registros del usuario, y omite lenguaje amortiguador.",
+      "systemHint": "Persona: Meta-B. Mantén todas las reglas de fundamento, citas y seguridad. Céntrate en los hechos y en patrones respaldados por cifras y fechas de los registros del usuario. Usa palabras cotidianas y frases claras. Evita las metáforas elaboradas, los elogios exagerados y las frases de empatía prefabricadas. Haz preguntas solo cuando sean útiles.",
       "lensName": "Meta-B",
       "tag": "Meta-B",
-      "desc": "El cerebro que te observa con objetividad"
+      "desc": "Examina los hechos de tus registros"
     },
     "twi": {
       "name": "Twi-B",
       "role": "Imaginar",
-      "systemHint": "Persona: Twi-B, la carta imaginativa e impredecible de 2nd-B. Mantén exactamente las mismas reglas de fundamento, citas y seguridad, pero explora ángulos lúdicos e inesperados: bosqueja algunas ramas de 'qué pasaría si' desde los propios registros del usuario y termina con un pequeño próximo paso que pueda capturar.",
+      "systemHint": "Persona: Twi-B. Mantén todas las reglas de fundamento, citas y seguridad. Propón otras posibilidades a partir de los registros y separa claramente los hechos de lo imaginado. Si es útil, explica cómo probar una propuesta. No uses siempre la misma frase de cierre. Usa palabras cotidianas y frases claras. Evita las metáforas elaboradas, los elogios exagerados y las frases de empatía prefabricadas. Haz preguntas solo cuando sean útiles.",
       "lensName": "Twi-B",
       "tag": "Twi-B",
-      "desc": "El cerebro que abre posibilidades inesperadas desde tus datos"
+      "desc": "Busca otras posibilidades en tus registros"
     }
   },
   "replyFailed": "No se pudo obtener respuesta. Inténtalo de nuevo en un momento.",
   "yourMessage": "Tu mensaje",
   "secondbAnswer": "Respuesta de SecondB",
   "longPressCopy": "Mantén pulsado para copiar",
-  "fillsComposer": "Rellena el redactor",
+  "fillsComposer": "Añade texto al campo del mensaje",
   "keep": "Guardar",
   "keepToWiki": "Guardar en la wiki",
   "keptToWiki": "Guardado",
@@ -162,19 +162,19 @@
   "closeIntro": "Cerrar la introducción",
   "closeIntroHint": "Cierra la ventana de introducción",
   "closeReferenced": "Cerrar los fragmentos referenciados",
-  "closeReferencedHint": "Cierra el cajón de fragmentos referenciados",
+  "closeReferencedHint": "Cierra la lista de fragmentos consultados",
   "piecesReferenced": "Fragmentos referenciados",
-  "piecesReferencedBody": "Los fragmentos que dieron forma a esta respuesta. Abre cualquiera si quieres.",
+  "piecesReferencedBody": "Los fragmentos usados en esta respuesta. Abre uno para leerlo.",
   "closeChip": "Cerrar",
   "eyebrow": "06. Chat con SecondB",
-  "newPerspectives": "Nuevas perspectivas y supuestos",
+  "newPerspectives": "Ver de otra forma",
   "readyToChat": "SecondB listo para conversar",
   "longPressCopyThis": "Mantén pulsado para copiar este mensaje",
   "copied": "Copiado",
   "copyFailed": "No se pudo copiar. Selecciona el texto para copiarlo.",
   "keepFailed": "No se pudo confirmar el guardado. Revisa la wiki y vuelve a pulsar Guardar en la wiki.",
   "aboutNode": "Sobre '{{node}}': ",
-  "drewOnPieces": "Esta respuesta se basó en {{n}} de tus fragmentos. Toca para ver el detalle.",
+  "drewOnPieces": "Esta respuesta usó {{n}} fragmentos. Toca para verlos.",
   "nSources": "{{n}} fuentes",
   "captureBranch": "Guardar: {{branch}}",
   "askLens": "Pregúntale a {{lens}}…",

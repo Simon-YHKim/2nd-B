@@ -1,20 +1,20 @@
 {
   "eyebrowRoot": "05. Registros",
   "eyebrowVillage": "{{village}} · registros",
-  "titleRoot": "Reveja cada fragmento que você deixou",
-  "titleVillage": "Fragmentos desta estrela",
+  "titleRoot": "Veja seus registros salvos",
+  "titleVillage": "Registros desta estrela",
   "subtitleRoot": "Diário, capturas, avaliações e inspiração em um só lugar",
   "subtitleVillage": "Apenas os registros reunidos sob esta estrela",
-  "searchPlaceholder": "Buscar fragmentos",
+  "searchPlaceholder": "Buscar registros",
   "searchLabel": "Buscar registros",
   "type": "Tipo",
   "filterAll": "Todos",
   "filterBy": "Filtrar registros por {{label}}",
-  "loadError": "Não conseguimos carregar seus fragmentos.",
-  "emptyNoPieces": "Ainda não há fragmentos. Quer deixar o de hoje?",
-  "emptyNoMatch": "Nenhum fragmento corresponde a esse filtro.",
+  "loadError": "Não conseguimos carregar seus registros.",
+  "emptyNoPieces": "Ainda não há registros. Adicione o primeiro.",
+  "emptyNoMatch": "Nenhum registro corresponde a esse filtro.",
   "tryAgain": "Tentar de novo",
   "retryHint": "Tenta carregar os registros e as fontes de novo.",
-  "leavePiece": "Deixe seu fragmento de hoje",
-  "leaveHint": "Abre a captura para salvar o fragmento de hoje."
+  "leavePiece": "Adicionar um registro de hoje",
+  "leaveHint": "Abre a captura para salvar o registro de hoje."
 }
