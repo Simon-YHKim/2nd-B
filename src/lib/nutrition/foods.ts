@@ -4,15 +4,22 @@
 // a guess.
 //
 // Harness-first / constraints:
-//   - data.go.kr is the $0 Korea-first public-data goldmine. Free, but requires a
-//     free service key the user registers once (mild Simon-console gate). The
-//     client is fully implemented and KEY-PARAMETERIZED: with no key it returns
-//     [] so the planner still works in idea-only mode.
+//   - data.go.kr is the $0 Korea-first public-data goldmine. Free, but the
+//     service key is issued PER ACCOUNT with quota attached, so it is not a
+//     client value. It lives in the public-data-proxy Edge Function; this module
+//     sends parameters only and never sees a key.
 //   - Deterministic source (no LLM → no C1/C3/C9). No new dependency.
 //   - NOT medical/diet advice: nutrition numbers are a reference only; surfaces
 //     keep the plan/idea framing (vocabulary policy).
 //   - Defensive parser tolerates the common data.go.kr response shapes and
 //     several field-name spellings; junk is dropped, never trusted.
+//
+// 2026-09-08: this module used to read `process.env.EXPO_PUBLIC_MFDS_FOOD_KEY`
+// and call data.go.kr directly, which put the key in the public web bundle as a
+// literal. The key moved to a Supabase secret behind the proxy; the retired
+// variable and its history are recorded in docs/PUBLIC-DATA-KEY-RETIREMENT.md.
+
+import { invokePublicData } from "../public-data/invoke";
 
 export interface FoodNutrition {
   name: string;
@@ -23,11 +30,16 @@ export interface FoodNutrition {
   fatG?: number;
 }
 
-const QUERY_MAX = 60;
-const RESULT_MAX = 10;
+// The proxy re-declares these three (a Deno function cannot import an RN
+// module) and public-data-proxy-contract.test.ts string-compares both copies, so
+// they must stay here as named constants even though only the caps are still
+// used at runtime. QUERY_MAX also trims before send: the proxy clamps again.
+export const QUERY_MAX = 60;
+export const RESULT_MAX = 10;
 const NAME_MAX = 120;
 // I2790 = 식품영양성분DB info service (data.go.kr). JSON output.
-const MFDS_ENDPOINT = "https://apis.data.go.kr/1471000/FoodNtrCpntDbInfo01/getFoodNtrCpntDbInq01";
+// Composed server-side now (public-data-proxy/index.ts:upstreamUrlFor).
+export const MFDS_ENDPOINT = "https://apis.data.go.kr/1471000/FoodNtrCpntDbInfo01/getFoodNtrCpntDbInq01";
 
 function num(value: unknown): number | undefined {
   if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
@@ -100,46 +112,35 @@ export function parseFoodItems(json: unknown, max = RESULT_MAX): FoodNutrition[]
   return out;
 }
 
-/** Pure: build the keyed search URL (JSON output). */
-export function buildFoodSearchUrl(query: string, serviceKey: string, max = RESULT_MAX): string {
-  const numOfRows = Math.min(Math.max(1, Math.floor(max)), RESULT_MAX);
-  const params = new URLSearchParams({
-    serviceKey,
-    FOOD_NM_KR: query.trim().slice(0, QUERY_MAX),
-    pageNo: "1",
-    numOfRows: String(numOfRows),
-    type: "json",
-  });
-  return `${MFDS_ENDPOINT}?${params.toString()}`;
+/** Pure: the request body the proxy expects for one nutrition search. */
+export function foodSearchBody(query: string, max = RESULT_MAX): { source: "mfds"; query: string; max: number } {
+  return {
+    source: "mfds",
+    query: query.trim().slice(0, QUERY_MAX),
+    max: Math.min(Math.max(1, Math.floor(max)), RESULT_MAX),
+  };
 }
 
 export type FoodSearchError = "no_key" | "empty_query" | "fetch_failed" | "bad_response";
 
 /**
- * Search the MFDS nutrition DB. With no service key (env unset and none passed)
- * it returns [] — idea-only mode — instead of throwing, so the planner is never
- * blocked by the missing free key. Empty query → [] (no request).
+ * Search the MFDS nutrition DB through the public-data-proxy Edge Function.
+ *
+ * Degrades to [] rather than throwing whenever there is simply nothing to show:
+ * an empty query (no request at all), a proxy with no MFDS secret configured
+ * (503), or a signed-out caller (401). Those are the same "idea-only mode" the
+ * planner had when the free key was unset. A real outage still throws so the
+ * caller can tell a failure from an empty answer.
  */
 export async function searchFoods(
   query: string,
-  opts: { serviceKey?: string; max?: number; signal?: AbortSignal } = {},
+  opts: { max?: number; signal?: AbortSignal } = {},
 ): Promise<FoodNutrition[]> {
   if (query.trim().length === 0) return [];
-  const serviceKey = opts.serviceKey ?? process.env.EXPO_PUBLIC_MFDS_FOOD_KEY ?? "";
-  if (!serviceKey) return [];
-  const url = buildFoodSearchUrl(query, serviceKey, opts.max);
-  let res: Response;
-  try {
-    res = await fetch(url, { signal: opts.signal, headers: { Accept: "application/json" } });
-  } catch {
-    throw "fetch_failed" as FoodSearchError;
+  const outcome = await invokePublicData(foodSearchBody(query, opts.max), opts.signal);
+  if (!outcome.ok) {
+    if (outcome.reason === "unconfigured") return [];
+    throw outcome.reason as FoodSearchError;
   }
-  if (!res.ok) throw "fetch_failed" as FoodSearchError;
-  let json: unknown;
-  try {
-    json = await res.json();
-  } catch {
-    throw "bad_response" as FoodSearchError;
-  }
-  return parseFoodItems(json, opts.max);
+  return parseFoodItems(outcome.data, opts.max);
 }

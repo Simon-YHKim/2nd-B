@@ -244,14 +244,15 @@ jobs:
           EXPO_PUBLIC_ALLOW_DEV_TIER: ${{ inputs.allow_dev_tier && 'true' || 'false' }}
           EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
-          # Korea public-data keys (G1 IN-bound enrichment): Eximbank FX rates for
-          # the ledger (src/lib/finance/fx.ts) + MFDS food-nutrition for the meal
-          # planner (src/lib/nutrition/foods.ts). EXPO_PUBLIC_ = bundled client-side
-          # by design; both are free, low-sensitivity public-data keys. An unset
-          # Variable degrades gracefully (KRW-only / idea-only), so a missing key
-          # never breaks the build.
-          EXPO_PUBLIC_EXIM_FX_KEY: ${{ vars.EXPO_PUBLIC_EXIM_FX_KEY }}
-          EXPO_PUBLIC_MFDS_FOOD_KEY: ${{ vars.EXPO_PUBLIC_MFDS_FOOD_KEY }}
+          # 2026-09-08: the two Korea public-data keys (Eximbank FX + MFDS food
+          # nutrition) are NO LONGER injected here. They were issued per account
+          # with quota attached, so bundling them shipped our quota to anyone who
+          # opened the JS; the live bundle carried the MFDS key as a literal from
+          # 2026-06-20 to 2026-09-07. Both now live as Supabase secrets behind the
+          # public-data-proxy Edge Function and the client sends parameters only.
+          # The repo Variables were deliberately KEPT (not deleted) - see
+          # docs/PUBLIC-DATA-KEY-RETIREMENT.md for what they were, where they were
+          # used, and what is still open. Do not re-add these two lines.
           # Google OAuth Web client id (public, not a secret) for the Calendar/
           # Tasks import connector (GIS token model — src/lib/google/). Unset →
           # the "Connect Google" action is hidden; nothing else is affected.
