@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<style>
+  /* Colours are the deployed semanticDeepSpace tokens, not new ones:
+     bg #0A0E18 · accent #46B6FF · text #5FD4FF · muted #428eb0 */
+  html,body{margin:0;padding:0;background:#0A0E18}
+  .card{width:1200px;height:630px;position:relative;overflow:hidden;background:#0A0E18;
+    font-family:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .glowbg{position:absolute;inset:0;
+    background:radial-gradient(720px 520px at 74% 24%, rgba(70,182,255,.16), rgba(10,14,24,0) 68%)}
+  .dust{position:absolute;inset:0;opacity:.5}
+  .txt{position:absolute;left:84px;top:180px;width:560px}
+  .brand{font-size:76px;font-weight:800;letter-spacing:-.03em;color:#EAF6FF;line-height:1.02;margin:0}
+  .tag{font-size:34px;font-weight:700;color:#5FD4FF;margin:18px 0 0;letter-spacing:-.015em}
+  .desc{font-size:23px;line-height:1.6;color:#428eb0;margin:26px 0 0;max-width:520px}
+  .rule{width:78px;height:4px;background:#46B6FF;margin:34px 0 0;border-radius:0}
+  .host{position:absolute;left:84px;bottom:54px;font-size:19px;color:#2f6c8c;letter-spacing:.04em}
+  svg{position:absolute;right:34px;top:0;height:630px}
+</style></head>
+<body><div class="card">
+  <div class="glowbg"></div>
+
+  <!-- The seven stars and both link paths are the canon values verbatim from
+       design/proto_rev2/reference-app/data/core/constellation.json, including
+       polarisGuide (Merak -> Dubhe -> Polaris). Nothing here is invented. -->
+  <svg viewBox="0 -60 300 300" width="560" height="630" aria-hidden="true">
+    <defs>
+      <radialGradient id="pg" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#CFEEFF" stop-opacity="1"/>
+        <stop offset="38%" stop-color="#5FD4FF" stop-opacity=".55"/>
+        <stop offset="100%" stop-color="#46B6FF" stop-opacity="0"/>
+      </radialGradient>
+      <radialGradient id="sg" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#9FE2FF" stop-opacity=".9"/>
+        <stop offset="100%" stop-color="#46B6FF" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+
+    <!-- dipper bowl + handle -->
+    <path d="M228,90 L230,131 L174,152 L151,126 Z" fill="none" stroke="#46B6FF" stroke-width="1.1" stroke-opacity=".55"/>
+    <path d="M151,126 L108,135 L76,143 L50,187" fill="none" stroke="#46B6FF" stroke-width="1.1" stroke-opacity=".55"/>
+    <!-- the two-star pointer to Polaris, dashed as on home -->
+    <path d="M230,131 L228,90 L140,-16" fill="none" stroke="#46B6FF" stroke-width="1.1"
+          stroke-opacity=".42" stroke-dasharray="4 4"/>
+
+    <!-- Polaris: dominant, per the Visual Tier rule (layer C outshines layer A) -->
+    <circle cx="140" cy="-16" r="34" fill="url(#pg)"/>
+    <circle cx="140" cy="-16" r="6.4" fill="#EAF6FF"/>
+
+    <!-- the seven -->
+    <g>
+      <circle cx="228" cy="90"  r="11" fill="url(#sg)"/><circle cx="228" cy="90"  r="3.1" fill="#BFE8FF"/>
+      <circle cx="230" cy="131" r="10" fill="url(#sg)"/><circle cx="230" cy="131" r="2.8" fill="#BFE8FF"/>
+      <circle cx="174" cy="152" r="11" fill="url(#sg)"/><circle cx="174" cy="152" r="3.1" fill="#BFE8FF"/>
+      <circle cx="151" cy="126" r="10" fill="url(#sg)"/><circle cx="151" cy="126" r="2.8" fill="#BFE8FF"/>
+      <circle cx="108" cy="135" r="9"  fill="url(#sg)"/><circle cx="108" cy="135" r="2.5" fill="#BFE8FF"/>
+      <circle cx="76"  cy="143" r="9"  fill="url(#sg)"/><circle cx="76"  cy="143" r="2.5" fill="#BFE8FF"/>
+      <circle cx="50"  cy="187" r="9"  fill="url(#sg)"/><circle cx="50"  cy="187" r="2.5" fill="#BFE8FF"/>
+    </g>
+  </svg>
+
+  <div class="txt">
+    <p class="brand">2nd-Brain</p>
+    <p class="tag">기록으로 알아가는 나</p>
+    <div class="rule"></div>
+    <p class="desc">경험과 메모를 모아 나를 돌아보고,<br>세컨비와 기록을 바탕으로 이야기해요.</p>
+  </div>
+  <div class="host">simon-yhkim.github.io/2nd-B</div>
+</div>
+
+<script>
+  // Star dust: deterministic, so re-rendering the card produces the same image.
+  var c = document.createElement('canvas');
+  c.width = 1200; c.height = 630;
+  c.className = 'dust';
+  c.style.position = 'absolute'; c.style.inset = '0';
+  document.querySelector('.card').insertBefore(c, document.querySelector('.txt'));
+  var x = 20260908 >>> 0;
+  function rnd() { x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; }
+  var g = c.getContext('2d');
+  for (var i = 0; i < 220; i++) {
+    var px = rnd() * 1200, py = rnd() * 630, r = rnd() * 1.25 + 0.25, a = rnd() * 0.5 + 0.08;
+    g.beginPath();
+    g.arc(px, py, r, 0, Math.PI * 2);
+    g.fillStyle = 'rgba(159,226,255,' + a.toFixed(3) + ')';
+    g.fill();
+  }
+</script>
+</body></html>
