@@ -134,6 +134,53 @@ test("줄 번호를 단 이름 인용이 저장소 파일 하나로 풀린다", 
   expect(unresolved).toEqual([]);
 });
 
+// 마이그레이션을 번호로만 인용하면 **어떤 가드도 그 파일을 못 찾는다.**
+//
+// `0038:12-19` 는 줄 범위를 달고 있으니 회차 43 의 규칙대로 인용이다 - 아무도
+// 줄 번호를 붙여 가며 지나가는 말을 하지 않는다. 그런데 위의 인용 정규식은
+// **확장자**가 있어야 경로로 알아보므로, 이 형태는 검사 전체 밖에 있었다:
+//
+//   경로 실재        검사 안 함
+//   줄 <= 파일 길이   검사 안 함
+//   앵커 인접        검사 안 함
+//
+// 회차 58 에서 42건이 그 상태였다. 회차 57 의 결함이 한 번 더 나온 것이다 -
+// **가드가 볼 수 없는 표기.**
+//
+// ⚠ 줄 번호 **없는** `0031` 은 그대로 둔다. 같은 규칙대로 그건 산문이다.
+const ABBREVIATED_MIGRATION = /`(\d{4})(?::[0-9][0-9,\-\s]*)`/g;
+
+test("줄 번호를 단 축약 마이그레이션 인용이 없다", () => {
+  const found: string[] = [];
+  for (const doc of docs) {
+    const text = fs.readFileSync(path.join(LEGAL_DIR, doc), "utf8");
+    text.split("\n").forEach((line, index) => {
+      for (const match of line.matchAll(ABBREVIATED_MIGRATION)) {
+        found.push(`${doc}:${index + 1} \`${match[1]}…\` - db/migrations/ 경로로 적을 것`);
+      }
+    });
+  }
+  expect(found).toEqual([]);
+});
+
+// 경로 없이 이름만 적은 인용은 **저장소 루트 파일일 때만** 성립한다.
+//
+// `package.json:16` 은 이름이 곧 저장소 기준 경로라 문제가 없다. 반면
+// `prefs.ts:55-62` 는 경로가 빠진 것이고, 앵커 가드가 **파일 문자열로 대조**
+// 하므로 그런 인용은 `src/lib/privacy/prefs.ts` 앵커에 영원히 안 걸린다.
+// 회차 57 이 그 틈에서 이미 닫힌 결함 부류 넷을 찾았다.
+test("경로 없는 인용은 저장소 루트 파일일 때만", () => {
+  const bad: string[] = [];
+  for (const c of citations) {
+    if (!c.bare) continue;
+    const resolved = resolveBare(c.file);
+    if (resolved.length === 1 && resolved[0] !== c.file) {
+      bad.push(`${c.doc}:${c.docLine} \`${c.file}\` -> \`${resolved[0]}\` 로 적을 것`);
+    }
+  }
+  expect(bad).toEqual([]);
+});
+
 // 한 파일을 **두 표기로** 인용하면, 그 파일을 감사한 회차가 절반만 고친다.
 //
 // 회차 45·49·50·53·56 이 prefs.ts · recommend.ts · consent-age.ts ·
