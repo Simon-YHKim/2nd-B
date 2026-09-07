@@ -288,7 +288,13 @@ describe("legacy preservation and pixel registration", () => {
     // 들어갔는지 · 어떤 루틴이 자동 완료됐는지). inbox 와 무관하다.
     // 이후 재고정하는 사람은 여기에 자기 줄을 추가한다 — 안 그러면 이 핀은 읽는
     // 사람이 확인할 수 있는 것을 아무것도 주장하지 않게 된다.
-    expect(sha(source)).toBe("6e9d88d408d8c8a921f27676bea98d8f79b6c330a893df2b6d670f50f5798a8e");
+    //
+    // 2026-09-07 두 번째 — 위 요청대로 줄을 추가한다. 들어간 변경은 철회(revokeImport)가
+    // deleteSourcesByIds 의 개수를 버려서, 다섯 중 셋만 지워져도 기록 항목을 지우던 것이다.
+    // 그 항목이 남은 행을 가리키는 유일한 포인터라 이 파일 주석이 "never drop the only
+    // pointer to rows that still exist" 라고 적어 둔 상태를 만들고 있었다. inbox 와 무관하다.
+    // 즉 이 핀의 명제는 이제 "inbox 작업은 안 건드렸고, 그 뒤 기록된 변경이 **둘**" 이다.
+    expect(sha(source)).toBe("d65b7c97344d3eacdca35e55b78fb980614d2e209ee701f3bf6abe80fa9ef4bf");
   });
 
   test("keeps InboxLegacy and its styles byte-stable while routing deep-space directly", () => {

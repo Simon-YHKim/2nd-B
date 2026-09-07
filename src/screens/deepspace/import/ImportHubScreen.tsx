@@ -28,7 +28,7 @@ import { useProgression } from "@/lib/progression/useProgression";
 import { upsertKakaoRelationPeople } from "@/lib/relation/import-signals";
 import { recordImportConsent } from "@/lib/supabase/consent";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
-import { deleteSourcesByIds } from "@/lib/records/delete-bulk";
+import { deleteSourcesByIds, findSurvivingSourceIds } from "@/lib/records/delete-bulk";
 import { captureEvent, proposalDecided } from "@/lib/analytics";
 import { detectImportKind, type ImportKind } from "@/lib/import/detect";
 import { fileImportSupported, pickTextFile } from "@/lib/import/file-read";
@@ -355,7 +355,16 @@ export function ImportHubScreen() {
     }
     if (entry && userId && entry.sourceIds.length > 0) {
       try {
-        await deleteSourcesByIds(userId, entry.sourceIds);
+        const removed = await deleteSourcesByIds(userId, entry.sourceIds);
+        // Same as the deep-space shell: a short delete is only a false assurance
+        // if rows are still there, and the count cannot say. Ask when it is short.
+        if (
+          removed < entry.sourceIds.length &&
+          (await findSurvivingSourceIds(userId, entry.sourceIds)).length > 0
+        ) {
+          setHistErr(t("revokeFailed"));
+          return;
+        }
       } catch {
         setHistErr(t("revokeFailed"));
         return;
