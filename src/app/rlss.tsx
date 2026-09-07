@@ -11,12 +11,11 @@ import { View, StyleSheet, KeyboardAvoidingView, Platform, BackHandler } from "r
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell, PremiumLoadingState, PremiumModal, PremiumToast } from "@/components/premium";
+import { PremiumLoadingState, PremiumModal, PremiumToast } from "@/components/premium";
 import { Button } from "@/components/ui/Button";
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
-import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
@@ -292,14 +291,6 @@ const styles = StyleSheet.create({
 });
 
 // Legacy rollback skin: the survey directly, in the premium shell.
-function RlssLegacy() {
-  return (
-    <PremiumAppShell>
-      <RlssSurvey onComplete={() => router.replace("/persona")} onCancel={() => router.back()} />
-    </PremiumAppShell>
-  );
-}
-
 // Canon: the same survey inside the deep-space dock. On completion we return to
 // the persona screen where the saved RLSS record surfaces with the other tools.
 function RlssDeepSpace() {
@@ -311,6 +302,5 @@ function RlssDeepSpace() {
 }
 
 export default function Rlss() {
-  if (isDeepSpaceUI()) return <RlssDeepSpace />;
-  return <RlssLegacy />;
+  return <RlssDeepSpace />;
 }

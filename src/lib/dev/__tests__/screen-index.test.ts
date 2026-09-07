@@ -190,25 +190,10 @@ const EXPECTED_SPECIAL_RENDER: Record<string, SpecialRenderBehavior> = {
   journal: { kind: "redirect", to: "/capture", lifecycle: "retired" },
   mbti: { kind: "redirect", to: "/persona", lifecycle: "retired" },
   jarvis: { kind: "redirect", to: "/secondb", lifecycle: "retired" },
-  imagine: {
-    kind: "ui-mode-split",
-    deepspace: { kind: "screen" },
-    legacy: { kind: "redirect", to: "/secondb" },
-  },
-  discover: {
-    kind: "ui-mode-split",
-    deepspace: { kind: "screen" },
-    legacy: { kind: "redirect", to: "/insights" },
-  },
   persona: {
     kind: "ui-mode-split",
     deepspace: { kind: "redirect", to: "/core-brain" },
     legacy: { kind: "screen" },
-  },
-  seen: {
-    kind: "ui-mode-split",
-    deepspace: { kind: "screen" },
-    legacy: { kind: "redirect", to: "/persona" },
   },
   trinity: {
     kind: "ui-mode-split",
@@ -909,9 +894,12 @@ describe("개발자 화면 목록", () => {
       expect(devScreens().find((screen) => screen.file === file)?.note?.trim().length).toBeGreaterThan(0);
     }
     const counts = entryRoleCounts();
+    // 5 → 2: imagine · discover · seen 의 스킨 분기가 은퇴하면서 실화면 하나만
+    // 남았다. 이 수는 목표가 아니라 현재 사실이고, 남은 둘(persona · trinity)이
+    // 정리되면 또 내려간다. legacy/screens/INDEX.md.
     expect({ alwaysRedirect: counts.alwaysRedirect, modeSplit: counts.modeSplit }).toEqual({
       alwaysRedirect: 3,
-      modeSplit: 5,
+      modeSplit: 2,
     });
   });
 

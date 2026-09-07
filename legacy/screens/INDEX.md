@@ -27,9 +27,73 @@ Simon 의 요구는 *"나중에 내가 지정해서 확인하라고 하면 할 �
 |---|---|---|
 | `plans.tsx` | `src/app/plans.tsx` | 요금제 화면의 레거시 렌더러 + 스타일 |
 | `change-password.tsx` | `src/app/change-password.tsx` | 비밀번호 변경 화면의 레거시 렌더러 + 스타일 |
+| `iden.tsx` | `src/app/iden.tsx` | IDEN 내보내기 화면의 레거시 렌더러 + 그것만 쓰던 스타일. ⚠ 이 라우트는 라이브 반쪽(`IdenExportScreenDeepSpace`)이 같은 파일에 있어서 **파일 통째가 아니라 레거시 반쪽만** 옮겼다. 그래서 여기 있는 import 는 원래 파일 기준이라 그대로는 안 붙는다 |
+| `permissions.tsx` | `src/app/permissions.tsx` | 권한 안내 화면의 레거시 렌더러 + 스타일 |
+| `theme.tsx` | `src/app/theme.tsx` | 테마·글꼴 화면의 레거시 렌더러 + 스타일 |
+| `support.tsx` | `src/app/support.tsx` | 지원 화면의 레거시 렌더러 + 스타일. ⚠ 인증 게이트는 라우트에 남겼다 |
 
 ## 옮길 때 같이 한 일
 
 라우트 파일은 deep-space 화면만 렌더하는 얇은 래퍼가 됐고, 그 과정에서 **레거시
 파일을 읽고 있던 검사들**을 실제 화면으로 옮기거나 은퇴시켰다. 검사를 약화시킨 것이
 아니라 대상을 옮긴 것이다 — 자세한 내용은 각 PR 설명에 있다.
+
+## 렌더러가 없던 라우트 — 여기 파일이 없는 이유
+
+셋은 레거시 쪽이 화면이 아니라 **리다이렉트 한 줄**이었다. 옮길 렌더러가 없으므로 파일을
+만들지 않고 동작만 여기 적는다. 이게 그 라우트들의 레거시 동작 전부다.
+
+| 라우트 | 레거시일 때 하던 일 |
+|---|---|
+| `/imagine` | `/secondb?mode=divergent` 로 리다이렉트 (Divergent 대화로 보냄) |
+| `/discover` | `/insights` 로 리다이렉트 |
+| `/seen` | `/persona` 로 리다이렉트 (독립 스킨이 없어 페르소나 합성으로 폴백) |
+
+⚠ `/seen` 의 로그인 리다이렉트(`!userId → /sign-in`)는 레거시가 아니라 지금도 사는
+게이트다. 같이 지우지 말 것.
+
+## 셸만 달랐던 라우트 — 여기도 파일이 없다
+
+둘은 레거시 쪽이 **같은 화면을 다른 셸에 감싼 7줄짜리 래퍼**였다. 설문 컴포넌트
+(`RlssSurvey` · `IpipNeoSurvey`)와 스타일은 양쪽이 공유했고 지금도 라이브가 쓴다.
+즉 옮길 화면이 없고, 다른 것은 바깥 셸 한 겹뿐이었다.
+
+| 라우트 | 레거시일 때 |
+|---|---|
+| `/rlss` | 같은 `RlssSurvey` 를 `DeepSpaceScreen` 대신 `PremiumAppShell` 로 감쌌다 |
+| `/ipip-neo` | 같은 `IpipNeoSurvey` 를 `DeepSpaceScreen` 대신 `PremiumAppShell` 로 감쌌다 |
+
+완료 후 이동(`/persona`)과 취소 동작은 양쪽이 같았으므로 은퇴로 잃은 동작이 없다.
+
+## a11y 검사를 옮긴 이야기
+
+이 넷을 은퇴시키려면 `check:constraints` 의 A11y 검사를 먼저 옮겨야 했다. 그 검사는 네
+레거시 라우트에서 **인라인 힌트 리터럴**을 찾고 있었는데(`accessibilityHint={t("import.accessibilityHint")}`
+같은), 라이브 화면은 a11y 를 다르게 표현한다 — **공용 행 컴포넌트**가 지고 간다:
+
+| 행 | 무엇을 지는가 | 쓰는 화면 |
+|---|---|---|
+| `Toggle` | `role="switch"` + `checked`/`disabled` + label | /permissions |
+| `SelectRow` | `role="radio"` + `checked` + label | /theme |
+| `Action` | `role="button"` + "label, value" 합성 label (#891) | /support 등 |
+
+그래서 리터럴 넷 대신 이 셋과 `/data` 의 데이터 기반 키 배선을 검사하도록 바꿨다.
+**약화가 아니라 확장이다** — 리터럴 넷은 그 네 화면만 덮었지만 공용 행은 그것을 쓰는 모든
+화면을 덮는다. 변이 검증으로 확인했다: `Toggle` 의 `role="switch"` 를 지우면 A11y 가
+빨개진다.
+
+## 아직 못 옮긴 것 — /data
+
+`/data` 는 나머지와 같은 모양인데 **법률 문서가 그 레거시 렌더러를 인용**하고 있어서 뺐다:
+
+```
+docs/legal/DPIA-2ndB-minors-draft.md:808  Q-H1 [COUNSEL TO CONFIRM]
+  "the existing wiki markdown export (src/app/data.tsx:62-71 → /wiki)"
+```
+
+그 62~71 줄은 **레거시 렌더러의 내보내기 버튼**이다. 즉 DPIA 가 변호사에게 GDPR 20조
+충족 여부를 묻고 있는 대상이 **어떤 배포도 렌더하지 않는 화면**이다. 줄 번호만 옮기면
+인용은 맞고 질문은 계속 틀린 것을 가리킨다 — 그건 법률 판단이라 여기서 정하지 않는다.
+
+`docs/legal/dpia-citation-drift-260907.json` 이 이미 인용 드리프트를 추적하고 있으므로
+그쪽 소유자가 정할 일이다.

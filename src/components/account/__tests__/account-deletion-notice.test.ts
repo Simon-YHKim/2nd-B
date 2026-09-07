@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import ts from "typescript";
 
+import { expectShape, expectNoShape } from "@/lib/testing/expect-shape";
+
 // Actual TSX/functions with a small synchronous hook host and fake store only.
 // This is not a React scheduler, RN/browser renderer, or accessibility-tree test.
 // No Auth, account API, storage, or network implementation is loaded.
@@ -81,11 +83,19 @@ test.each([
   const screen = routeRenderer(path, name);
   for (const loading of [true, false]) {
     const nodes = screen.render(notice(), { loading, userId: "still-present-owner" });
-    expect(nodes.some(node => node.type === "AccountDeletionNoticePanel")).toBe(true);
-    expect(nodes.some(node => node.type === "Redirect" || node.type === loader)).toBe(false);
+    // 이 화면의 주장은 "영수증이 두 게스트 가드를 이긴다" 이다. 옛 단언은
+    // 실패할 때 false 한 글자만 남겨서, 패널이 없는 것인지 리다이렉트가
+    // 이긴 것인지 렌더가 통째로 빈 것인지 구분되지 않았다.
+    expectShape(nodes, { type: "AccountDeletionNoticePanel" }, "노드");
+    expectNoShape(nodes, { type: "Redirect" }, "노드");
+    expectNoShape(nodes, { type: loader }, "노드");
   }
-  expect(screen.render(notice(), { loading: false, userId: null }).some(node => node.type === "AccountDeletionNoticePanel")).toBe(true);
-  expect(screen.render(null, { loading: true, userId: null }).some(node => node.type === loader)).toBe(true);
+  expectShape(
+    screen.render(notice(), { loading: false, userId: null }),
+    { type: "AccountDeletionNoticePanel" },
+    "노드",
+  );
+  expectShape(screen.render(null, { loading: true, userId: null }), { type: loader }, "노드");
   expect(screen.render(null, { loading: false, userId: "another-owner" }).some(node => node.type === "Redirect" && node.props?.href === "/")).toBe(true);
   expect(screen.hook).toHaveBeenCalledTimes(5);
 });

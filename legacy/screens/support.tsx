@@ -1,0 +1,158 @@
+// RETIRED — moved out of the build on 2026-09-08.
+//
+//   was:  src/app/support.tsx   (the EXPO_PUBLIC_UI=legacy renderer + its styles)
+//   why:  every delivery path pins deep-space and no variable can override it,
+//         so this branch had been unreachable for months.
+//   read: kept verbatim below. The auth gate that used to sit above the
+//         dispatch stayed in src/app/support.tsx — it decides whether the screen
+//         renders at all, which is not a skin question.
+//   run:  not buildable from here — legacy/ is excluded from tsconfig, jest,
+//         eslint and metro. To actually run it, restore the file whole:
+//           git show <sha-before-retirement>:src/app/support.tsx
+//
+// Nothing in src/ imports this file. See legacy/screens/INDEX.md.
+
+// Support (A-to-Z Phase 12) - user-facing "지원". Support copy + the
+// 2-business-day SLA (KST) from the product constraints (C11) + a contact
+// route. Warm, non-clinical wording only.
+
+import { View, StyleSheet, ScrollView, Linking, KeyboardAvoidingView, Platform } from "react-native";
+import { useTranslation } from "react-i18next";
+import { Redirect } from "expo-router";
+
+import { HelpDirectory } from "@/components/safety/HelpDirectory";
+import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
+import { Text } from "@/components/ui/Text";
+import { Button } from "@/components/ui/Button";
+import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { VILLAGE_UI } from "@/lib/village-ui";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceSupportDesignScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
+
+const SUPPORT_EMAIL = "kim0405@hayangzip.com";
+
+type SupportFaq = { question: string; answer: string };
+
+function SupportLegacy() {
+  const { t } = useTranslation("support");
+  const { userId, loading } = useAuth();
+  const faq = t("faq", { returnObjects: true }) as SupportFaq[];
+
+  if (loading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={t("loading")} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+
+  return (
+    <PremiumAppShell>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <SceneHero
+          eyebrow={t("hero.eyebrow")}
+          title={t("hero.title")}
+          subtitle={t("hero.subtitle")}
+          island={VILLAGE_UI.relation.island}
+          worker={VILLAGE_UI.relation.worker}
+          accent={VILLAGE_UI.relation.accent}
+          speech={t("hero.speech")}
+        />
+
+        <View style={[styles.section, { borderStartColor: semantic.brand }]}>
+          <Text variant="caption" color="textMuted" style={styles.eyebrow}>{t("response.eyebrow")}</Text>
+          <Text variant="body" color="textMuted">
+            {t("response.body")}
+          </Text>
+        </View>
+
+        <View style={[styles.section, { borderStartColor: semantic.info }]}>
+          <Text variant="caption" color="textMuted" style={styles.eyebrow}>{t("contact.eyebrow")}</Text>
+          <Text variant="body" color="textMuted">{SUPPORT_EMAIL}</Text>
+          <Button
+            label={t("contact.button")}
+            variant="secondary"
+            accessibilityLabel={t("contact.accessibilityLabel")}
+            accessibilityHint={t("contact.accessibilityHint")}
+            onPress={() => { void Linking.openURL(`mailto:${SUPPORT_EMAIL}`); }}
+          />
+        </View>
+
+        <HelpDirectory />
+
+        <View style={[styles.section, { borderStartColor: semantic.warning }]}>
+          <Text variant="caption" color="textMuted" style={styles.eyebrow}>{t("faqLabel")}</Text>
+          {faq.map((item, i) => (
+            <View key={item.question} style={i > 0 ? styles.faqItem : undefined}>
+              <Text variant="body" color="text" style={styles.faqQuestion}>{item.question}</Text>
+              <Text variant="subtle" color="textMuted">{item.answer}</Text>
+            </View>
+          ))}
+        </View>
+
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </PremiumAppShell>
+  );
+}
+
+const styles = StyleSheet.create({
+  scroll: { gap: spacing.lg, paddingBottom: spacing.xxl },
+  center: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
+  section: {
+    backgroundColor: semantic.surface,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderStartWidth: 4,
+    borderRadius: radii.md,
+    padding: spacing.lg,
+    gap: spacing.sm,
+    shadowColor: semantic.brand,
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 0 },
+    ...androidElevationStyle(androidElevation.card),
+  },
+  eyebrow: { letterSpacing: 0 },
+  faqItem: {
+    marginTop: spacing.md,
+    borderTopColor: semantic.border,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: spacing.md,
+  },
+  faqQuestion: { marginBottom: spacing.xs },
+});
+
+export default function Support() {
+  const { t } = useTranslation("support");
+  const { userId, loading, hasProfile, profileProbeFailed } = useAuth();
+
+  if (loading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={t("loading")} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+  if (profileProbeFailed || hasProfile === null) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={t("loading")} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
+  if (hasProfile === false) return <Redirect href="/complete-profile" />;
+  if (isDeepSpaceUI()) return <DeepSpaceSupportDesignScreen />;
+  return <SupportLegacy />;
+}

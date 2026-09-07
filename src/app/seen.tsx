@@ -13,7 +13,6 @@ import { useTranslation } from "react-i18next";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { SeenLensView } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { isDeepSpaceUI } from "@/lib/ui-mode";
 
 function SeenDeepSpace() {
   const { t } = useTranslation("home");
@@ -35,6 +34,5 @@ export default function Seen() {
 
   if (loading) return null;
   if (!userId) return <Redirect href="/sign-in" />;
-  if (isDeepSpaceUI()) return <SeenDeepSpace key={userId} />;
-  return <Redirect href="/persona" />;
+  return <SeenDeepSpace key={userId} />;
 }
