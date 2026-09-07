@@ -146,15 +146,38 @@ Explicitly **excluded** purposes for all users (privacy-by-design defaults OFF):
 Note on #1: journal text is **not** sent to the chat/recommendation LLM by default — see 3.2. The crisis classifier, however, *does* read raw record text locally to triage it (`src/lib/llm/boundary.ts:405-422` `classifyRecordTextForCrisis`).
 
 ### 2.7 Recipients / third parties (sub-processors)
-| Recipient | Role | Data exposed | Trigger / gate | Cite |
-|---|---|---|---|---|
-| **Google — Gemini API** (`generativelanguage.googleapis.com`) **or Vertex AI** (GCP) | LLM inference (processor) | System prompt + the user's **turn** + wiki-snapshot RAG context (pages/sources, body truncated 600 chars). **Journal records excluded by default.** Image bytes for OCR when used. | Every AI turn; egress via `gemini-proxy` edge fn (key server-side) or direct Vertex client | `supabase/functions/gemini-proxy/index.ts:391`; `src/lib/llm/boundary.ts:696-733` |
-| **Supabase** (Postgres, Auth, Edge Functions) | Hosting / DB processor | All stored categories (2.6) | Always (system of record) | RLS migrations throughout |
-| **GA4 / Microsoft Clarity / PostHog / Sentry** | Product analytics | Category #10 only | **Only if** `external_analytics` consented **AND** not minor **AND** not sub-consent-age | `src/lib/analytics/index.ts:74` |
-| **Naver** (and other social IdPs) | OAuth sign-in | Auth identity | If user picks social login | `supabase/functions/oauth-naver/` |
-| **GitHub Pages / web host** | Static web delivery | Client bundle (no server secrets) | Web build | (deploy config) |
 
-**Cross-border transfer:** inference routes to Google infrastructure; the exact processing region depends on `EXPO_PUBLIC_USE_VERTEX` / `GOOGLE_CLOUD_LOCATION` and the Supabase project region — **not pinned in app code; operator must confirm.** The consent flow collects an explicit **overseas-transfer acknowledgement** (`overseas_transfer_ack`) and PIPA §23 **sensitive-data acknowledgement** (`sensitive_data_ack`) (`src/lib/auth/consent-selections.ts:16-24,65-83`). **[COUNSEL TO CONFIRM** adequacy/SCC basis, retention by Google, and that an ack ≠ valid Art. 9(2)/PIPA §23 explicit consent.**]**
+⚠ **[RE-BASELINED 2026-09-07]** This table previously listed **one** LLM sub-processor
+(Google) and described it as receiving "every AI turn". The repository routes to **four**
+vendor proxies, all four are deployed, and **the vendor serving today is not the one that
+was named**: the operational audit ledger's last Gemini call is 2026-08-23 and every call
+since has been OpenAI. Three rows below are new; the Google row is retained because an
+operator can still reach it with one variable. **Two states are kept apart on purpose** -
+*a recipient the build routes to* and *a recipient that has actually received data* - and
+the "has served" column says which is which.
+
+| Recipient | Role | Data exposed | Trigger / gate | Has served? (audit ledger) | Cite |
+|---|---|---|---|---|---|
+| **OpenAI** (`api.openai.com`) | LLM inference **and embeddings** (processor) | System prompt + the user's **turn** + wiki-snapshot RAG context (pages/sources, body truncated 600 chars). **Journal records excluded by default.** Image bytes for OCR, audio for transcription, and text submitted for embedding. | The **default for every switch** since 2026-08-31. Under the deployed posture: chat, all non-seat purposes, OCR, voice, embeddings, and 11 of the 14 reasoning seats | **Yes** — 34 calls, most recent 2026-09-07 | `supabase/functions/openai-proxy/index.ts`; `src/lib/llm/routing.ts:472-494` |
+| **Anthropic** (`api.anthropic.com`) | LLM inference (processor) | Same categories as the OpenAI row, for its three seats only | Three reasoning seats — `persona_narrative`, `persona_synthesis`, `crosscheck_defend` — while `EXPO_PUBLIC_LLM_VENDOR=perPurpose`, which is the value deployed on both tracks. The cross-check feature **refuses to run** when both of its sides resolve to one vendor, so it structurally requires a second one | **No** — 0 calls to date | `supabase/functions/claude-proxy/index.ts`; `src/lib/llm/routing.ts:310-354`; `src/lib/llm/crosscheck.ts:82-90` |
+| **Google — Gemini API** (`generativelanguage.googleapis.com`) **or Vertex AI** (GCP) | LLM inference (processor) | Same categories as the OpenAI row | **Retired as the default 2026-08-31.** No unset switch reaches it any more; an operator value of `gemini` still does, and `gemini-proxy` is still deployed | **Yes, historically** — 109 calls, most recent 2026-08-23 | `supabase/functions/gemini-proxy/index.ts:391`; `src/lib/llm/routing.ts:52-66` |
+| **xAI** (`api.x.ai`) | LLM inference (processor) | Reasoning seats and chat only — the proxy answers `purpose_not_seated` for anything else | **Nothing routes here by default.** Only an explicit `xai` (or `grok`) on a switch | **No** — 0 calls to date | `supabase/functions/xai-proxy/index.ts`; `src/lib/llm/routing.ts:22-29` |
+| **Supabase** (Postgres, Auth, Edge Functions) | Hosting / DB processor | All stored categories (2.6) | Always (system of record) | n/a | RLS migrations throughout |
+| **GA4** (`googletagmanager.com`) **/ Microsoft Clarity** | Product analytics | Category #10 only | **Only if** `external_analytics` consented **AND** not minor **AND** not sub-consent-age. Clarity additionally requires a server-confirmed adult and a route on its allow-list | n/a | `src/lib/analytics/index.ts:245-252`; `src/lib/analytics/clarity-native.ts:38-47` |
+| **Paddle** (`cdn.paddle.com`, webhook) | Payments — merchant of record | Checkout identifiers + subscription state. **[COUNSEL TO CONFIRM** whether an MoR is a processor or an independent controller here — the answer changes the disclosure**]** | Only on a paid-tier checkout. Live credentials are configured | n/a | `src/lib/billing/paddle-checkout.ts:41-47`; `supabase/functions/paddle-webhook/index.ts` |
+| **Social IdPs** — Google, Apple, Kakao, Facebook, GitHub (Supabase-native) and **Naver** (custom handler) | OAuth sign-in | Auth identity | If user picks social login | n/a | `src/lib/auth/auth-providers.ts:18-32`; `supabase/functions/oauth-naver/index.ts` |
+| **Google AdMob** | Rewarded video ads + server-side reward verification | Device ad identifiers. **Minors never** — fail-closed at `src/lib/ads/policy.ts:58` | **Not launched**: `HAS_LIVE_AD_UNIT = false`, so no live unit serves. The SDK ships in the native build and the AdMob app ids are in `app.json` | n/a | `src/lib/ads/rewarded.native.ts:51`; `supabase/functions/rewarded-ssv/index.ts` |
+| **GitHub Pages / web host** | Static web delivery | Client bundle (no server secrets) | Web build | n/a | (deploy config) |
+
+**Named in the deployment config but reached by no code path** — recorded because an auditor
+reading the environment would otherwise infer a flow that does not exist. `EXPO_PUBLIC_POSTHOG_KEY`
+/ `_HOST` are set as repository variables and **PostHog appears nowhere in the source**;
+`EXPO_PUBLIC_SENTRY_DSN` is set and `@sentry/react-native` is still a dependency, but no runtime
+module imports it or calls `Sentry.init` — a test pins that (`src/lib/analytics/__tests__/analytics.test.ts:96-103`).
+An earlier version of this table listed both as recipients. **Configured is not the same as
+connected**, and a privacy document should not report a credential as a data flow.
+
+**Cross-border transfer:** inference routes **overseas in every configuration** — to OpenAI (US) today, to Anthropic (US) for the three seats above, and to Google or xAI only on an explicit operator value. Which vendor receives a given call is decided by **seven build-time variables**, not by anything the user does: `EXPO_PUBLIC_LLM_VENDOR` · `_CHAT_VENDOR` · `_BACKBONE_VENDOR` · `_MULTIMODAL_VENDOR` · `_EMBED_VENDOR` · `_SAFETY_VENDOR` · `_FAILOVER_VENDOR` (`src/lib/llm/routing.ts:75-276`). **No processing region is pinned anywhere in app code** for any of the four vendors, and neither is the Supabase project region — **operator must confirm.** ⚠ The previous text named only Google and only `EXPO_PUBLIC_USE_VERTEX` / `GOOGLE_CLOUD_LOCATION`; that is the residue of a single-vendor era and understated the surface. The consent flow collects an explicit **overseas-transfer acknowledgement** (`overseas_transfer_ack`) and PIPA §23 **sensitive-data acknowledgement** (`sensitive_data_ack`) (`src/lib/auth/consent-selections.ts:16-24,65-83`). **[COUNSEL TO CONFIRM** adequacy/SCC basis, retention by Google, and that an ack ≠ valid Art. 9(2)/PIPA §23 explicit consent.**]**
 
 ---
 
@@ -208,6 +231,8 @@ Note on #1: journal text is **not** sent to the chat/recommendation LLM by defau
 ```
 
 ### 3.2 The LLM proxy flow in detail (the core risk surface)
+
+⚠ **[RE-BASELINED 2026-09-07]** The flow below is written vendor-neutrally and holds for all four proxies; where it names a vendor, read 2.7 for which one actually serves that step today. The step that chooses the vendor is `resolveVendorForPurpose` (`src/lib/llm/routing.ts:472-494`), and it runs **before** step 1 below.
 1. **Assembly** (`src/lib/chat/conversation.ts:146-203`): builds a system prompt = header + injection-guard + mode line + persona hint + a **wiki snapshot**. The snapshot comes from `exportUserWiki(userId, {bodyCharLimit:600, pageLimit:50, sourceLimit:100})` — i.e. knowledge-graph pages and source titles, **not** journal records. `includeRecords` is an opt-in the chat path deliberately does not set (`src/lib/wiki/export.ts:213-215`); the recommendations path is identical (`src/lib/ops/recommend.ts:5-9,138`).
 2. **Untrusted-data fencing**: the snapshot is sanitised and wrapped in `<UNTRUSTED type="wiki_snapshot">` so a clipped "ignore previous instructions" cannot steer the model (`conversation.ts:185-190`). Export also applies a **fail-closed frontmatter allowlist** so clip metadata (geo, tracking-token URLs) never egresses (`export.ts:88-91`).
 3. **Pre-call safety (C9)**: `callLlm` runs `classifyInputAnyLocale` on the user turn *before* any network call; red-zone short-circuits to `routeCrisis` and never reaches the model vendor (`src/lib/llm/boundary.ts:560-576`). *(Re-read 2026-09-07: the function was renamed from `callGemini` and the classifier is now dual-locale, so a crisis term written in the other language than the UI locale is also caught. The behaviour asserted here is unchanged in kind and stronger in reach.)*
