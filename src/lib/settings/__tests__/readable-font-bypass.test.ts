@@ -40,7 +40,6 @@ const BASELINE: Readonly<Record<string, number>> = {
   "src/app/trinity.tsx": 1,
   "src/components/deep-space/ConstellationHome.tsx": 4,
   "src/components/deep-space/DeepSpaceViews.tsx": 50,
-  "src/components/deep-space/ReasoningLimitSheet.tsx": 4,
   "src/components/deepspace/ShareCard.tsx": 4,
   "src/components/graph/NavGraph.tsx": 5,
   "src/components/premium/surfaces.tsx": 1,

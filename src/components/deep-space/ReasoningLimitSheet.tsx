@@ -35,8 +35,8 @@ import { addRewardCredits, getReasoningUsage, type ReasoningUsage } from "@/lib/
 import { monthLabelFor } from "@/lib/reasoning/remaining-copy";
 import { useProgression } from "@/lib/progression/useProgression";
 import { m3 } from "@/lib/theme/m3";
+import { m3TextStyle } from "@/components/m3/typeface";
 import { deepSpace, flattenAlpha, withAlpha } from "@/lib/theme/tokens";
-import { fontFamilies } from "@/theme/typography";
 import { a11yValue } from "@/lib/a11y/accessibility-value";
 
 /**
@@ -208,17 +208,17 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
             </View>
           ) : null}
           {cap !== null ? (
-            <RNText style={styles.resetLine}>{t("ds.reasoningLimit.resetLine", { cap })}</RNText>
+            <RNText style={[styles.resetLine, m3TextStyle("bodyMedium")]}>{t("ds.reasoningLimit.resetLine", { cap })}</RNText>
           ) : null}
 
-          <RNText style={styles.rewardLine}>
+          <RNText style={[styles.rewardLine, m3TextStyle("bodyMedium")]}>
             {earnCapReached
               ? t("ds.reasoningLimit.rewardCapReached", { cap: REWARD_MONTHLY_CAP })
               : t("ds.reasoningLimit.rewardLeft", { n: rewardCredits, month })}
           </RNText>
 
           {grantFailed ? (
-            <RNText style={[styles.rewardLine, styles.grantFailedTint]} accessibilityLiveRegion="polite">
+            <RNText style={[styles.rewardLine, m3TextStyle("bodyMedium"), styles.grantFailedTint]} accessibilityLiveRegion="polite">
               {t("ds.reward.creditFailed")}
             </RNText>
           ) : null}
@@ -258,7 +258,7 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
             )}
           </View>
 
-          <RNText style={styles.sameQuality}>{t("ds.reasoningLimit.sameQuality")}</RNText>
+          <RNText style={[styles.sameQuality, m3TextStyle("bodySmall")]}>{t("ds.reasoningLimit.sameQuality")}</RNText>
         </Animated.View>
       </View>
     </Modal>
@@ -289,12 +289,11 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     marginBottom: m3.spacing.s4,
   },
+  // 제목은 읽기 역할이 아니라 얼어붙은 시트 안에서 역할을 펴도 된다(옵션과 무관).
+  // titleLarge = 15px(Galmuri14 x1)/23. 굵기는 보내지 않는다 - 그 얼굴엔 굵은 컷이 없다.
   title: {
+    ...m3TextStyle("titleLarge"),
     color: m3.color.onSurface,
-    fontFamily: fontFamilies.readable,
-    fontSize: 18,
-    lineHeight: 26,
-    fontWeight: "700",
     textAlign: "center",
   },
   meterRow: {
@@ -305,23 +304,20 @@ const styles = StyleSheet.create({
   },
   meterCell: { width: 26, height: 8, borderRadius: m3.shape.small, backgroundColor: m3.color.primary },
   meterCellSpent: { backgroundColor: m3.color.outlineVariant },
+  // 읽는 글이라 얼굴·크기는 콜사이트에서 붙인다 - 얼어붙은 시트 안에서 부르면
+  // 저시력 옵션이 모듈 초기화 시점에 박제된다(check:pixel-rules 규칙 4).
   resetLine: {
     color: m3.color.onSurfaceVariant,
-    fontFamily: fontFamilies.readable,
-    fontSize: 13,
-    lineHeight: 19,
     textAlign: "center",
     marginTop: m3.spacing.s3,
   },
-  // Tint only. A style of its own would have added a fifth fontFamilies.readable
-  // to this file, and readable-font-bypass.test.ts holds it at four on the way
-  // down. Reusing rewardLine keeps the ratchet moving the right direction.
+  // Tint only - 색만 얹고 타이포는 rewardLine + 콜사이트의 역할이 준다.
+  // (이 파일은 2026-09-07 에 readable 우회 4곳을 전부 비웠다. 기준선에서 빠졌다.)
   grantFailedTint: { color: deepSpace.warning },
+  // 읽는 글이라 얼굴·크기는 콜사이트에서 붙인다 - 얼어붙은 시트 안에서 부르면
+  // 저시력 옵션이 모듈 초기화 시점에 박제된다(check:pixel-rules 규칙 4).
   rewardLine: {
     color: m3.color.onSurfaceVariant,
-    fontFamily: fontFamilies.readable,
-    fontSize: 12,
-    lineHeight: 18,
     textAlign: "center",
     marginTop: m3.spacing.s2,
   },
@@ -329,11 +325,10 @@ const styles = StyleSheet.create({
   // 4px 은 수익 표면에서의 오탭이 된다.
   actions: { gap: m3.spacing.s4, marginTop: m3.spacing.s5 },
   actionButton: { width: "100%" },
+  // 읽는 글이라 얼굴·크기는 콜사이트에서 붙인다 - 얼어붙은 시트 안에서 부르면
+  // 저시력 옵션이 모듈 초기화 시점에 박제된다(check:pixel-rules 규칙 4).
   sameQuality: {
     color: rlAlpha(m3.color.onSurfaceVariant, 0.8),
-    fontFamily: fontFamilies.readable,
-    fontSize: 11,
-    lineHeight: 16,
     textAlign: "center",
     marginTop: m3.spacing.s4,
   },
