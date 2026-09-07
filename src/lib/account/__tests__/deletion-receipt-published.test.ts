@@ -57,9 +57,7 @@ function harness(options: { signOutFails?: boolean; deletionFails?: boolean } = 
   const calls = { purge: 0, signOut: 0, dismissAll: 0, replace: [] as string[] };
   const mounted = { current: true };
   const owner = { current: OWNER as string | null };
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const completion = require("../deletion-completion") as typeof import("../deletion-completion");
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const epoch = require("../../auth/account-epoch") as typeof import("../../auth/account-epoch");
   const context: Record<string, unknown> = {
     userId: OWNER, delConfirm: "DELETE",
