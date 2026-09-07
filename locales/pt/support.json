@@ -2,9 +2,9 @@
   "loading": "Carregando suporte...",
   "hero": {
     "eyebrow": "08-3. Suporte",
-    "title": "Resolva peças travadas juntos",
+    "title": "Precisa de ajuda com o app?",
     "subtitle": "Tempo de resposta - contato - ajuda",
-    "speech": "Nos envie o que travou. Começamos pelo contexto."
+    "speech": "Conte o que aconteceu e em qual tela. Isso ajuda a entender o problema."
   },
   "response": {
     "eyebrow": "Tempo de resposta",
@@ -19,7 +19,7 @@
   "faqLabel": "Perguntas frequentes",
   "faq": [
     {
-      "question": "Como começo a capturar?",
+      "question": "Como salvo meu primeiro registro?",
       "answer": "Escreva o que vem à mente na tela de captura. O 2nd-Brain ajuda a organizar depois."
     },
     {

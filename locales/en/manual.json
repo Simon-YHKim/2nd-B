@@ -1,9 +1,9 @@
 {
-  "loading": "Loading manual…",
+  "loading": "Loading the user guide…",
   "eyebrow": "User Guide",
-  "title": "A compact map of your core",
+  "title": "How to use 2nd-Brain",
   "subtitle": "Routines · notes · wiki · safety",
-  "glossary": "One-line glossary",
+  "glossary": "What the terms mean",
   "recentlyAdded": "Recently added",
   "leavePiece": "Leave today's piece",
   "leavePieceHint": "Opens capture to save today's piece.",
@@ -11,5 +11,5 @@
   "getStartedHint": "Opens the sign-up screen.",
   "permissions": "What the app accesses",
   "permissionsHint": "Opens the app permissions guide.",
-  "curated": "Curated research"
+  "curated": "Selected research"
 }

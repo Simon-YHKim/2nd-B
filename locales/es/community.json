@@ -1,7 +1,7 @@
 {
   "title": "Comunidad",
-  "intro": "Habla con otras personas bajo un alias de estrella. Las salas se abren solo con enlaces de invitación.",
-  "aliasLine": "Tu alias de estrella: {{alias}}",
+  "intro": "Habla con otras personas usando un alias. Para entrar en una sala necesitas un enlace de invitación.",
+  "aliasLine": "Tu alias: {{alias}}",
   "adultOnly": "La comunidad está disponible solo para cuentas de adultos.",
   "createTitle": "Crear una sala",
   "groupField": "Nombre de la sala de grupo",
@@ -32,7 +32,7 @@
   "leaveCta": "Salir",
   "threadEmpty": "Aún no hay mensajes. Saluda.",
   "messageA11y": "Mensaje. Pulsa para abrir las acciones de denuncia y bloqueo.",
-  "unknownSender": "Estrella desconocida",
+  "unknownSender": "Remitente desconocido",
   "actionsFor": "Mensaje de {{alias}}",
   "report": {
     "spam": "Denunciar: spam",

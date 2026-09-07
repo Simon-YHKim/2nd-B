@@ -3,29 +3,29 @@
     "eyebrow": "404",
     "title": "This page does not exist",
     "subtitle": "Start again from the home screen.",
-    "speech": "The link looks broken. Choose a safe place to continue."
+    "speech": "The link may be wrong. Choose a page below to continue."
   },
   "actions": {
     "home": "Go home",
     "homeHint": "Opens the home screen."
   },
   "destinations": {
-    "title": "Common destinations",
+    "title": "Pages you might need",
     "capture": {
       "label": "Capture",
-      "hint": "Opens capture from the not-found page."
+      "hint": "Opens Capture."
     },
     "audit": {
       "label": "Past me",
       "hint": "Opens the past-me timeline."
     },
     "persona": {
-      "label": "Persona",
-      "hint": "Opens the persona screen."
+      "label": "My summary",
+      "hint": "Opens your summary."
     },
     "manual": {
       "label": "User Guide",
-      "hint": "Opens the user guide from the 404 screen."
+      "hint": "Opens the user guide."
     }
   }
 }

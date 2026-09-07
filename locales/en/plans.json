@@ -1,10 +1,10 @@
 {
-  "loading": "Loading plans...",
+  "loading": "Loading plans…",
   "hero": {
     "eyebrow": "Plans",
-    "title": "Keep your 2nd-Brain unlimited",
-    "subtitle": "Records stay free without limits. Paid plans add more room to think with AI.",
-    "speech": "The core stays free. Paid plans just add more room to think together."
+    "title": "Free records, with no limits",
+    "subtitle": "Keep recording for free. Choose a paid plan to chat more with AI.",
+    "speech": "Core recording features stay free. Paid plans include more AI chats."
   },
   "current": "Current plan",
   "comingSoon": "Paid plans are coming soon",
@@ -13,27 +13,27 @@
     "free": {
       "name": "Stargazer",
       "price": "Free",
-      "tagline": "Your everyday 2nd-Brain, unlimited records",
+      "tagline": "Unlimited records",
       "f1": "Unlimited records, notes, and wiki",
-      "f2": "Private account storage with export when you need it",
+      "f2": "Save privately in your account and export anytime",
       "f3": "5 AI chats per day"
     },
     "cortex": {
       "name": "Voyager",
       "price": "$9.99 / mo",
       "priceNote": "$99.90 / yr (2 months free)",
-      "tagline": "Room for daily deep dives",
+      "tagline": "More chats each day",
       "f1": "80 AI chats per day",
       "f2": "Everything in Soma",
-      "f3": "Headroom for long sessions"
+      "f3": "Longer conversations"
     },
     "brain": {
       "name": "North Star",
       "price": "$19.99 / mo",
       "priceNote": "$199.90 / yr (2 months free)",
-      "tagline": "The full second brain",
+      "tagline": "More chats and replies to your records",
       "f1": "250 AI chats per day",
-      "f2": "Reflections on your entries",
+      "f2": "SecondB replies to your entries",
       "f3": "Everything in Cortex"
     }
   },

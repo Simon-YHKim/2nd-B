@@ -2,7 +2,7 @@
   "loading": "Carregando a avaliação…",
   "title": "Satisfação com a vida (RLSS)",
   "counter": "Satisfação com a vida · RLSS",
-  "saved": "Salvo · veja na sua Persona",
+  "saved": "Salvo · veja seu resumo",
   "saveError": "Não foi possível salvar. Suas respostas continuam aqui; tente novamente.",
   "introDescription": "Um autorrelato validado de 6 itens sobre sua satisfação com a vida como um todo. Avalie cada frase de 1 (discordo totalmente) a 7 (concordo totalmente). Não há respostas certas, apenas como isso parece agora.",
   "headerPrompt": "Pensando na sua vida como um todo, escolha o quanto cada frase combina com você agora.",
