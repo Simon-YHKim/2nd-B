@@ -152,17 +152,182 @@ describe("한국어 문자열 추출", () => {
   });
 });
 
+/**
+ * 영어 경로를 *가진* 파일에 남아 있는 한국어 문자열의 현재 수.
+ *
+ * `hasEnglishPath` 는 원래 이 파일들을 통째로 건너뛰었다. 성질은 문자열 단위인데
+ * ("이 카피가 번들에서 오는가") 면제가 파일 단위여서, `useTranslation` 을 한 번만
+ * 써도 그 파일의 한국어 전부가 공짜로 통과했다 — 실측 124파일 2,705건이 그렇게
+ * 통과 중이었다. 한 번에 고칠 수 있는 크기가 아니라서 래칫으로 바꾼다.
+ *
+ * 규칙: **늘면 실패, 줄어도 실패**(숫자를 내리라는 뜻). 새로 섞이는 파일도 실패한다.
+ * 여기 있는 숫자는 목표가 아니라 빚이고, 0 이 되면 항목을 지운다.
+ *
+ * ⚠ 이 목록은 `KOREAN_BY_DESIGN` 과 다르다. 저기는 "한국어가 맞다"이고
+ * 여기는 "아직 못 뺐다"이다. 프롬프트·검사문항·별칭처럼 번역하면 안 되는 것은
+ * 여기가 아니라 저기로 올린다.
+ */
+const MIXED_FILE_DEBT: Record<string, number> = {
+  "src/app/(auth)/sign-in.tsx": 1,
+  "src/app/(auth)/sign-up.tsx": 1,
+  "src/app/attachment.tsx": 15,
+  "src/app/audit.tsx": 12,
+  "src/app/call-reflection.tsx": 9,
+  "src/app/capture.tsx": 14,
+  "src/app/career-drilldown.tsx": 47,
+  "src/app/career.tsx": 9,
+  "src/app/core-brain.tsx": 9,
+  "src/app/iden.tsx": 7,
+  "src/app/inbox.tsx": 30,
+  "src/app/index.tsx": 17,
+  "src/app/interview.tsx": 4,
+  "src/app/ipip-neo.tsx": 16,
+  "src/app/manual.tsx": 42,
+  "src/app/motivation.tsx": 6,
+  "src/app/notices.tsx": 38,
+  "src/app/onboarding.tsx": 1,
+  "src/app/peer-invites.tsx": 1,
+  "src/app/persona.tsx": 32,
+  "src/app/processing-log.tsx": 24,
+  "src/app/reasoning.tsx": 56,
+  "src/app/review.tsx": 8,
+  "src/app/rlss.tsx": 10,
+  "src/app/secondb.tsx": 10,
+  "src/app/settings.tsx": 11,
+  "src/app/star/[domain].tsx": 20,
+  "src/app/strengths.tsx": 20,
+  "src/app/values.tsx": 20,
+  "src/app/wiki.tsx": 9,
+  "src/components/deep-space/AutoReasoningIntroSheet.tsx": 6,
+  "src/components/deep-space/AxisCheck.tsx": 13,
+  "src/components/deep-space/ConstellationHome.tsx": 16,
+  "src/components/deep-space/DeepSpaceViews.tsx": 3,
+  "src/components/deep-space/DomainStarLens.tsx": 54,
+  "src/components/deepspace/BackgroundTaskDock.tsx": 4,
+  "src/components/deepspace/CompletionToast.tsx": 4,
+  "src/components/deepspace/DeepSpaceLoader.tsx": 7,
+  "src/components/deepspace/ops/copy.ts": 105,
+  "src/components/graph/CharacterPathLayer.tsx": 1,
+  "src/components/graph/NavGraph.tsx": 31,
+  "src/components/m3/date-picker/DatePicker.tsx": 38,
+  "src/components/persona/FacetBreakdown.tsx": 1,
+  "src/components/persona/TraitRadar.tsx": 3,
+  "src/components/premium/graph-bits.tsx": 2,
+  "src/components/premium/tab-bar.tsx": 4,
+  "src/components/quant/LikertChoiceGroup.tsx": 3,
+  "src/components/quant/QuantIntroModal.tsx": 2,
+  "src/components/ui/BackArrow.tsx": 31,
+  "src/components/ui/DrillProgress.tsx": 10,
+  "src/lib/audit/axis-checks.ts": 24,
+  "src/lib/audit/axis-estimate.ts": 8,
+  "src/lib/audit/frameworkLabels.ts": 18,
+  "src/lib/audit/questions.ts": 25,
+  "src/lib/capture/fourw.ts": 5,
+  "src/lib/capture/life-area-intent.ts": 22,
+  "src/lib/capture/structured.ts": 4,
+  "src/lib/career/achievement-form.ts": 12,
+  "src/lib/characters.ts": 12,
+  "src/lib/chat/conversation.ts": 24,
+  "src/lib/chat/keep-exchange.ts": 3,
+  "src/lib/chat/personas.ts": 12,
+  "src/lib/chat/rag.ts": 1,
+  "src/lib/entitlements/reasoning-cap.ts": 4,
+  "src/lib/graph/relatedness.ts": 72,
+  "src/lib/i18n/locales.ts": 1,
+  "src/lib/iden/build-iden.ts": 21,
+  "src/lib/iden/load-persisted-iden.ts": 12,
+  "src/lib/iden/render-html.ts": 8,
+  "src/lib/import/proposals.ts": 19,
+  "src/lib/interview/probe.ts": 56,
+  "src/lib/interview/stuck.ts": 10,
+  "src/lib/journal/daily-prompts.ts": 15,
+  "src/lib/knowledge/retrieve.ts": 30,
+  "src/lib/llm/boundary.ts": 49,
+  "src/lib/llm/safety.ts": 4,
+  "src/lib/llm/untrusted.ts": 1,
+  "src/lib/notices/adapt.ts": 2,
+  "src/lib/persona/assessment-summary.ts": 13,
+  "src/lib/persona/attachment.ts": 32,
+  "src/lib/persona/bfi.ts": 93,
+  "src/lib/persona/big-five-screen.ts": 11,
+  "src/lib/persona/build.ts": 44,
+  "src/lib/persona/center.ts": 20,
+  "src/lib/persona/evidence.ts": 6,
+  "src/lib/persona/ipip-neo.ts": 150,
+  "src/lib/persona/mbti.ts": 80,
+  "src/lib/persona/motivation-survey.ts": 22,
+  "src/lib/persona/northstar.ts": 6,
+  "src/lib/persona/persona-synthesis.ts": 8,
+  "src/lib/persona/proposal-display.ts": 11,
+  "src/lib/persona/propose-self-model.ts": 9,
+  "src/lib/persona/reflection-scaffold.ts": 4,
+  "src/lib/persona/rlss.ts": 15,
+  "src/lib/persona/self-portrait.ts": 11,
+  "src/lib/persona/seven-proposal-context.ts": 3,
+  "src/lib/persona/strengths-survey.ts": 25,
+  "src/lib/persona/tier-history.ts": 4,
+  "src/lib/persona/trait-radar-geometry.ts": 5,
+  "src/lib/persona/values-survey.ts": 30,
+  "src/lib/records/create.ts": 6,
+  "src/lib/records/records-graph.ts": 2,
+  "src/lib/relation/star-alias.ts": 230,
+  "src/lib/village-ui.ts": 13,
+  "src/lib/wiki/capture-image.ts": 3,
+  "src/lib/wiki/classify-clipper.ts": 13,
+  "src/lib/wiki/clipper-templates.ts": 23,
+  "src/lib/wiki/context-pack.ts": 24,
+  "src/lib/wiki/export.ts": 25,
+  "src/lib/wiki/import-external.ts": 21,
+  "src/lib/wiki/phase1.ts": 7,
+  "src/lib/wiki/propose-template.ts": 15,
+  "src/lib/wiki/template-validate.ts": 2,
+  "src/screens/deepspace/DeepSpaceDesignScreens.tsx": 69,
+  "src/screens/deepspace/dds-manual-content.ts": 25,
+  "src/screens/deepspace/dds-record-detail-screen.tsx": 4,
+  "src/screens/deepspace/dds-wiki-records-screens.tsx": 4,
+  "src/screens/deepspace/growth/WeeklyGrowthScreen.tsx": 14,
+  "src/screens/deepspace/import/ImportHubScreen.tsx": 87,
+  "src/screens/deepspace/museum/AiMuseumScreen.tsx": 86,
+  "src/screens/deepspace/onboarding/TTFVScreen.tsx": 29,
+  "src/screens/deepspace/ops/screens.tsx": 14,
+};
+
 describe("코드에 박힌 한국어", () => {
   const offenders: { file: string; count: number; sample: string }[] = [];
+  const newlyMixed: { file: string; count: number; sample: string }[] = [];
+  const grew: { file: string; was: number; now: number }[] = [];
+  const shrank: { file: string; was: number; now: number }[] = [];
 
   for (const file of sourceFiles(join(ROOT, "src"))) {
     if (NOT_PRODUCT_SURFACE.some((re) => re.test(file))) continue;
     if (file in KOREAN_BY_DESIGN) continue;
     const src = readFileSync(join(ROOT, file), "utf8");
-    if (hasEnglishPath(src)) continue;
     const ko = stringLiterals(src, file).filter((l) => /[가-힣]/.test(l));
-    if (ko.length > 0) offenders.push({ file, count: ko.length, sample: ko[0].slice(0, 40) });
+    if (ko.length === 0) continue;
+    if (hasEnglishPath(src)) {
+      const was = MIXED_FILE_DEBT[file];
+      if (was === undefined) newlyMixed.push({ file, count: ko.length, sample: ko[0].slice(0, 40) });
+      else if (ko.length > was) grew.push({ file, was, now: ko.length });
+      else if (ko.length < was) shrank.push({ file, was, now: ko.length });
+      continue;
+    }
+    offenders.push({ file, count: ko.length, sample: ko[0].slice(0, 40) });
   }
+
+  it("i18n 을 쓰는 파일이 한국어를 새로 들이지 않는다", () => {
+    // 이 파일은 이미 t() 를 쓰고 있는데 카피를 코드에 박았다. 번들로 빼거나,
+    // 번역하면 안 되는 것이면 KOREAN_BY_DESIGN 에 이유와 함께 올린다.
+    expect(newlyMixed).toEqual([]);
+  });
+
+  it("남은 빚이 늘지 않는다", () => {
+    expect(grew).toEqual([]);
+  });
+
+  it("빚을 갚았으면 숫자도 내린다", () => {
+    // 래칫은 양방향이다. 안 내리면 다음 사람이 그만큼 다시 넣어도 안 걸린다.
+    expect(shrank).toEqual([]);
+  });
 
   it("영어 경로 없이 한국어를 들이는 새 파일이 없다", () => {
     // 실패했다면 둘 중 하나다:
