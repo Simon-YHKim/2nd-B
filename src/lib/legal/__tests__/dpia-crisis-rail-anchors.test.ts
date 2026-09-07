@@ -162,7 +162,7 @@ const ANCHORS: Anchor[] = [
     why: "⚠ 회차 57 이 이 키를 '더 이상 존재하지 않는다'고 적었다가 58 에서 정정한 자리. 클라이언트 키 목록에서는 가지쳐졌지만 **서버 트리거는 여전히 쓴다** - 읽을 때 버려질 뿐이다. 둘은 구분되는 상태다." },
   { cite: "src/lib/auth/consent-selections.ts:20-21", symbol: "sensitiveData",
     why: "PIPA §23 별도 동의가 실제로 별개 항목으로 수집된다는 주장. 서비스 동의에 묻어 가지 않는다는 것이 주장의 내용이다." },
-  { cite: "src/lib/supabase/consent.ts:14-18", symbol: "WIRED at sign-up", evidence: "comment",
+  { cite: "src/lib/supabase/consent.ts:14-21", symbol: "WIRED at sign-up", evidence: "comment",
     why: "동의 기록이 UI 수집 **뒤에** 쓰인다는 불변식의 기록. 문서가 이 주석을 'still read null (stale)' 이라고 인용했었다." },
   { cite: `${A}:8-12`, symbol: "the country signal landed", evidence: "comment",
     why: "관할 신호가 **언제** 붙었는지의 날짜 기록. 문서가 세 자리에서 '신호 없음'을 주장하며 **바로 이 범위를 인용**하고 있었다 - 인용된 줄이 인용한 주장을 반증하는 상태였다. 주장 자체가 '코드가 이 날짜를 적어 두었다' 라서 주석이 근거다." },
