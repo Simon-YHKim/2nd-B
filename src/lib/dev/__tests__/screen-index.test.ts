@@ -57,6 +57,20 @@ const EXPECTED_DELEGATED_AUTH: Record<string, DelegatedAuthFixture> = {
     gateFile: "src/screens/deepspace/dds-change-password-screen.tsx",
     component: "DeepSpaceChangePasswordScreen",
   },
+  // research·insights·import 도 같다: 레거시 렌더러가 나가면서 리다이렉트가 화면
+  // 한 곳으로 모였다.
+  insights: {
+    gateFile: "src/screens/deepspace/DeepSpaceDesignScreens.tsx",
+    component: "DeepSpaceInsightsScreen",
+  },
+  import: {
+    gateFile: "src/screens/deepspace/dds-import-inbox-screens.tsx",
+    component: "DeepSpaceImportScreen",
+  },
+  research: {
+    gateFile: "src/screens/deepspace/DeepSpaceDesignScreens.tsx",
+    component: "DeepSpaceResearchScreen",
+  },
   srs: { gateFile: "src/screens/deepspace/DeepSpaceDesignScreens.tsx", component: "DeepSpaceSrsScreen" },
   plans: { gateFile: "src/screens/deepspace/dds-plans-screen.tsx", component: "DeepSpacePlansScreen" },
   trends: { gateFile: "src/screens/deepspace/trends/TrendsScreen.tsx", component: "TrendsScreen" },

@@ -31,6 +31,9 @@ Simon 의 요구는 *"나중에 내가 지정해서 확인하라고 하면 할 �
 | `permissions.tsx` | `src/app/permissions.tsx` | 권한 안내 화면의 레거시 렌더러 + 스타일 |
 | `theme.tsx` | `src/app/theme.tsx` | 테마·글꼴 화면의 레거시 렌더러 + 스타일 |
 | `support.tsx` | `src/app/support.tsx` | 지원 화면의 레거시 렌더러 + 스타일. ⚠ 인증 게이트는 라우트에 남겼다 |
+| `research.tsx` | `src/app/research.tsx` | 연결 찾기 화면의 레거시 렌더러 + 스타일. ⚠ 인증 게이트도 같이 나갔다 — 라이브 화면이 자기 게이트를 갖고 있다(위임) |
+| `insights.tsx` | `src/app/insights.tsx` | 인사이트 화면의 레거시 렌더러 + 스타일. 게이트는 위임 |
+| `import.tsx` | `src/app/import.tsx` | 외부 가져오기 화면의 레거시 렌더러 + 스타일. 게이트는 위임 |
 
 ## 옮길 때 같이 한 일
 
@@ -81,6 +84,26 @@ Simon 의 요구는 *"나중에 내가 지정해서 확인하라고 하면 할 �
 **약화가 아니라 확장이다** — 리터럴 넷은 그 네 화면만 덮었지만 공용 행은 그것을 쓰는 모든
 화면을 덮는다. 변이 검증으로 확인했다: `Toggle` 의 `role="switch"` 를 지우면 A11y 가
 빨개진다.
+
+
+## 옮기려다 멈춘 것 — /ops
+
+`/ops` 는 이번 묶음에 있었고 실제로 옮겼다가 **되돌렸다.** `docs/legal/DPIA-2ndB-minors-draft.md`
+가 `src/app/ops.tsx` 의 줄 번호를 **일곱 곳**에서 인용한다(364·493·525·571·649·684·710).
+전부 D-20 미성년 추천 잠금(`recommendationsAllowed`)의 **호출 자리**를 가리킨다.
+
+⚠ **/data 와 결이 다르다. 같은 문제로 묶지 말 것.**
+
+| | `/data` | `/ops` |
+|---|---|---|
+| 문서가 주장하는 것 | 위키 마크다운 내보내기가 GDPR 20조를 충족한다 | 미성년 추천 잠금이 런타임에 걸려 있다 |
+| 라이브에 있나 | **없다** — 그 버튼은 레거시 렌더러에만 있다 | **있다** — `dds-ops-screen.tsx:592` 와 `DeepSpaceDesignScreens.tsx:2786` 가 부르고, 엔진도 `recommend.ts:207` 에서 다시 본다 |
+| 남은 일 | 법률 판단(무엇을 충족이라 할 것인가) | **인용 갱신** — 주장은 참이고 줄 번호만 낡았다 |
+
+그래서 `/ops` 는 막힌 게 아니라 **소유자가 다르다.** `docs/legal/dpia-citation-drift-260907.json`
+이 인용 드리프트를 추적하고 있고 그쪽이 정할 일이라, 인용이 옮겨간 뒤에 다시 옮긴다.
+인용을 안 옮긴 채 파일을 비우면 검사(`legal-doc-citations`·`dpia-crisis-rail-anchors`)가
+**정확히** 빨개진다 — 그게 이 결정을 만든 신호다.
 
 ## 화면을 잃은 로케일 번들 — 지우지는 않았다
 

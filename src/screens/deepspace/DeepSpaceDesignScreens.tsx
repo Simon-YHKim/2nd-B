@@ -167,6 +167,7 @@ import { splitImportNotes, previewTitle } from "@/lib/wiki/import-notes";
 import { exportIden } from "@/lib/iden/iden-export";
 import { buildIdenDoc } from "@/lib/iden/build-iden";
 import { listRecentRecords } from "@/lib/records/create";
+import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { recordsToResearchGraph } from "@/lib/records/records-research";
 import type { GraphRecord } from "@/lib/records/records-graph";
 import { listSourcePieces } from "@/lib/records/source-pieces";
@@ -1345,6 +1346,11 @@ export function DeepSpaceInsightsScreen() {
       alive = false;
     };
   }, [userId, reloadKey]);
+
+  // 다른 화면에서 기록을 담고 돌아오면 이 주의 수치가 바뀐다. 레거시 렌더러에는
+  // 이 갱신이 있었지만 배송되는 화면에는 없어서, 담고 돌아온 사용자가 예전 수치를
+  // 봤다. focus-refetch 계약이 초록이었던 것은 라우트 파일의 레거시 반쪽 때문이다.
+  useFocusRefetch(() => setReloadKey((k) => k + 1), Boolean(userId));
 
   const summary = useMemo(
     () => (rows ? summarizeWeeklyInsights(rows) : null),
