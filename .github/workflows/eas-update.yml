@@ -566,7 +566,16 @@ jobs:
             // version threw a bare "history does not contain the exact clean
             // update", which is a diagnosis nobody can act on -- the same shape
             // of defect this function is verifying against.
-            const misses = { platform: 0, commit: 0, runtime: 0, runtimeConflict: 0 };
+            // runtime 은 두 가지 이유로 떨어진다 - 값이 다르거나, 아예 못 읽거나.
+            // 한 칸에 합치면 NO_MATCH 요약을 보고도 어느 쪽인지 못 정한다(읽기 문제면
+            // 수집기를 고치고, 진짜 불일치면 지문을 본다 - 다음 행동이 다르다).
+            const misses = {
+              platform: 0,
+              commit: 0,
+              runtime: 0,
+              runtimeUnknown: 0,
+              runtimeConflict: 0,
+            };
             for (const { id, update, cli } of records) {
               if (lower(update?.id) !== lower(id)) fail("update-id-mismatch");
               const seenRuntime = resolveRuntime(update, cli);
@@ -576,6 +585,7 @@ jobs:
               if (!platformOk) misses.platform += 1;
               else if (!commitOk) misses.commit += 1;
               else if (seenRuntime.conflict) misses.runtimeConflict += 1;
+              else if (typeof seenRuntime.value !== "string") misses.runtimeUnknown += 1;
               else if (!runtimeOk) misses.runtime += 1;
               const sameIdentity = platformOk && commitOk && runtimeOk;
               if (!sameIdentity) continue;
@@ -639,6 +649,7 @@ jobs:
               r.state === "NO_MATCH"
                 ? " (candidates=" + r.candidates + " rejected by platform=" + r.misses.platform +
                   " commit=" + r.misses.commit + " runtime=" + r.misses.runtime +
+                  " runtimeUnknown=" + r.misses.runtimeUnknown +
                   " runtimeConflict=" + r.misses.runtimeConflict + ")"
                 : "";
             process.stdout.write(
@@ -1085,12 +1096,22 @@ jobs:
           };
           for (const platform of ["android", "ios"]) {
             const actual = payload?.[platform];
-            if (
-              actual?.state !== "CLEAN_MATCH" ||
-              String(actual?.id).toLowerCase() !== expected[platform].id.toLowerCase() ||
-              String(actual?.group).toLowerCase() !== expected[platform].group.toLowerCase()
-            ) {
-              throw new Error(`postflight ${platform} history does not contain the exact clean update`);
+            const stateOk = actual?.state === "CLEAN_MATCH";
+            const idOk =
+              String(actual?.id).toLowerCase() === expected[platform].id.toLowerCase();
+            const groupOk =
+              String(actual?.group).toLowerCase() === expected[platform].group.toLowerCase();
+            if (!stateOk || !idOk || !groupOk) {
+              // Say which term failed. Ids, groups and runtimes stay unprinted -
+              // the classifier already made that choice and this must not widen it.
+              const why = [
+                stateOk ? null : "state=" + String(actual?.state ?? "absent"),
+                stateOk && !idOk ? "id-differs" : null,
+                stateOk && !groupOk ? "group-differs" : null,
+              ].filter(Boolean).join(" ");
+              throw new Error(
+                `postflight ${platform} history does not contain the exact clean update (${why})`,
+              );
             }
           }
           NODE

@@ -119,8 +119,21 @@ describe("update provenance reads the runtime the way builds already do", () => 
   test("a NO_MATCH says which term rejected the candidates", () => {
     // "history does not contain the exact clean update" is a diagnosis nobody
     // can act on, and it cost three wrong analyses of this step in one day.
-    expect(RAW).toContain("const misses = { platform: 0, commit: 0, runtime: 0, runtimeConflict: 0 }");
+    // 한 줄 리터럴로 박지 않는다: 항이 하나 늘면 뜻은 강해지는데 핀만 깨진다.
+    // 대신 각 항을 개별로 요구한다. 새 항을 더할 때는 이 목록에 추가한다.
+    for (const term of [
+      "platform: 0",
+      "commit: 0",
+      "runtime: 0",
+      "runtimeUnknown: 0",
+      "runtimeConflict: 0",
+    ]) {
+      expect(RAW).toContain(term);
+    }
     expect(RAW).toContain("rejected by platform=");
+    // 읽지 못한 런타임과 다른 런타임은 사람이 할 다음 행동이 다르므로 따로 센다.
+    expect(RAW).toContain('" runtimeUnknown=" + r.misses.runtimeUnknown');
+    expect(RAW).toContain('typeof seenRuntime.value !== "string"');
     expect(RAW).toContain('fail("update-provenance:" + failures.join(","))');
     // Counts only -- no ids, hashes or runtimes in the output.
     expect(RAW).not.toMatch(/rejected by[^\n]*\$\{[^}]*(?:id|hash|runtimeVersion)/);
