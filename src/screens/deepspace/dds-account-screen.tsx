@@ -32,7 +32,10 @@ import {
 } from "./dds-account-actions";
 
 type DobFeedback = "saved" | "failed" | null;
-type ExportFeedback = "done" | "failed" | null;
+type ExportFeedback =
+  | { kind: "done" | "partial"; failedItems: number }
+  | { kind: "failed" }
+  | null;
 
 async function deliverAccountExport(json: string, filename: string): Promise<void> {
   if (Platform.OS !== "web") {
@@ -224,9 +227,12 @@ export function DeepSpaceAccountScreen() {
     }
     if (result.status === "failed") {
       warnAccountAction("export");
-      setExportFeedback("failed");
+      setExportFeedback({ kind: "failed" });
     } else {
-      setExportFeedback("done");
+      // A delivered bundle can still be missing tables or clipping files. Say so
+      // here or the user reads "Export ready." and may then delete the account.
+      const { failedItems } = result.summary;
+      setExportFeedback({ kind: failedItems > 0 ? "partial" : "done", failedItems });
     }
     setExporting(false);
   }, [exporting, userId]);
@@ -431,12 +437,17 @@ export function DeepSpaceAccountScreen() {
                 <RNText style={[m3TextStyle("bodySmall"), styles.bodyCopy]}>
                   {t("consent:account.export.body")}
                 </RNText>
-                {exportFeedback === "done" ? (
+                {exportFeedback?.kind === "done" ? (
                   <RNText accessibilityRole="alert" style={[m3TextStyle("bodySmall"), styles.success]}>
                     {t("consent:account.export.done")}
                   </RNText>
                 ) : null}
-                {exportFeedback === "failed" ? (
+                {exportFeedback?.kind === "partial" ? (
+                  <RNText accessibilityRole="alert" style={[m3TextStyle("bodySmall"), styles.error]}>
+                    {t("consent:account.export.donePartial", { count: exportFeedback.failedItems })}
+                  </RNText>
+                ) : null}
+                {exportFeedback?.kind === "failed" ? (
                   <RNText accessibilityRole="alert" style={[m3TextStyle("bodySmall"), styles.error]}>
                     {t("consent:account.export.failed")}
                   </RNText>

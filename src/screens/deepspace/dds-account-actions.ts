@@ -3,7 +3,9 @@ import { canSubmitDobCorrection } from "@/lib/account/dob";
 import {
   buildExportFilename,
   requestAccountExport,
+  summarizeAccountExport,
   type AccountExport,
+  type AccountExportSummary,
 } from "@/lib/account/export";
 import { withTimeout } from "@/lib/async/with-timeout";
 import { fetchBirthDate, updateBirthDate } from "@/lib/supabase/account";
@@ -109,8 +111,13 @@ export async function saveAccountDob(
   }
 }
 
+/** `done` is not "clean". The Edge Function REPORTS per-table and per-file read
+ *  failures rather than throwing (it deliberately keeps going on a Storage
+ *  hiccup), so a bundle missing three tables also arrives as a delivered
+ *  export. The summary travels with it or the screen cannot tell the two
+ *  apart, and this button sits on the same screen as account deletion. */
 export type AccountExportResult =
-  | { status: "done" }
+  | { status: "done"; summary: AccountExportSummary }
   | { status: "cancelled" }
   | { status: "failed"; error: unknown };
 
@@ -145,7 +152,7 @@ export async function exportAccountData(
     }
     const filename = deps.buildExportFilename(bundle.exported_at);
     await deps.deliver(JSON.stringify(bundle, null, 2), filename);
-    return { status: "done" };
+    return { status: "done", summary: summarizeAccountExport(bundle) };
   } catch (error) {
     if (!deps.isActive()) return { status: "cancelled" };
     return { status: "failed", error };

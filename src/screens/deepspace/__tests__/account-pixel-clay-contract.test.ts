@@ -279,10 +279,15 @@ describe("full account export workflow", () => {
     };
   }
 
-  test("serializes and delivers the complete structured bundle", async () => {
+  test("serializes and delivers the structured bundle with its own summary", async () => {
     const actionDeps = deps();
 
-    await expect(exportAccountData(actionDeps)).resolves.toEqual({ status: "done" });
+    // `done` now carries what the server reported. This fixture reports nothing
+    // failed; account-export-partial.test.ts covers the bundle that does.
+    await expect(exportAccountData(actionDeps)).resolves.toEqual({
+      status: "done",
+      summary: { tableCount: 0, fileCount: 0, failedItems: 0, excludedCategories: 0 },
+    });
     expect(actionDeps.requestAccountExport).toHaveBeenCalledTimes(1);
     expect(actionDeps.buildExportFilename).toHaveBeenCalledWith(bundle.exported_at);
     expect(actionDeps.deliver).toHaveBeenCalledWith(JSON.stringify(bundle, null, 2), "account.json");
