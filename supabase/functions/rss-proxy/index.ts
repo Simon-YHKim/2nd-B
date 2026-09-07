@@ -30,6 +30,11 @@
 // explicit origin allowlist (no wildcard).
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+import {
+  JsonBodyError,
+  RSS_PROXY_JSON_BODY_LIMIT_BYTES,
+  readJsonObject,
+} from '../_shared/request-json.ts';
 
 // Read the JWT claims without re-verifying the signature (the gateway already
 // did, verify_jwt=true). Mirrors gemini-proxy/userIdFromJwt. A signed-in user's
@@ -146,8 +151,14 @@ Deno.serve(async (req: Request) => {
 
   let body: { url?: unknown };
   try {
-    body = await req.json();
-  } catch {
+    body = await readJsonObject(req, RSS_PROXY_JSON_BODY_LIMIT_BYTES) as typeof body;
+  } catch (error) {
+    if (error instanceof JsonBodyError && error.code === 'request_body_too_large') {
+      return jsonResponse(req, {
+        error: error.code,
+        max: error.maxBytes,
+      }, 413);
+    }
     return jsonResponse(req, { error: 'invalid_json' }, 400);
   }
 

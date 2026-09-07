@@ -17,7 +17,7 @@ import { useTranslation } from "react-i18next";
 import type { PurchasesPackage } from "react-native-purchases";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { RewardedSheet } from "@/components/deepspace/RewardedSheet";
+import { RewardedSheet, type RewardedEarnOutcome } from "@/components/deepspace/RewardedSheet";
 import { PixelScrim } from "@/components/pixel/PixelDither";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelPressable } from "@/components/pixel/PixelPressable";
@@ -718,14 +718,20 @@ export function DeepSpacePlansScreen() {
       ? remainingReasoning("free", ownedUsage.used, ownedUsage.rewardCredits)
       : 0;
 
-  async function onRewardEarned(credits: number) {
+  async function onRewardEarned(credits: number): Promise<RewardedEarnOutcome> {
     const owner = dataOwner;
-    if (!owner || activeOwnerRef.current !== owner || !rewardedAllowed) return;
-    await addRewardCredits(owner, credits);
-    if (activeOwnerRef.current !== owner) return;
+    // A watch that cannot be attributed to this owner earns nothing and has
+    // nothing to report; the sheet closes as it always did.
+    if (!owner || activeOwnerRef.current !== owner || !rewardedAllowed) return "granted";
+    // The grant used to swallow its own failure, so this screen had nothing to
+    // say when a watched ad paid nothing. Now it reports, and the sheet says it.
+    const grant = await addRewardCredits(owner, credits);
+    if (activeOwnerRef.current !== owner) return grant;
     const generation = ++usageGeneration.current;
     const settlement = await settleAsyncRead(readReasoningUsageStrict(owner), READ_TIMEOUT_MS);
-    if (generation !== usageGeneration.current || activeOwnerRef.current !== owner) return;
+    // A stale read is a reason to drop the refresh, not a reason to lose what the
+    // grant said: the watch still happened and its outcome is still the truth.
+    if (generation !== usageGeneration.current || activeOwnerRef.current !== owner) return grant;
     if (settlement.status === "ready") setUsageRead(settlement.value);
     else
       setUsageRead({
@@ -735,6 +741,7 @@ export function DeepSpacePlansScreen() {
         rewardCredits: 0,
         rewardEarned: 0,
       });
+    return grant;
   }
 
   if (authLoading) {

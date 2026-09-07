@@ -28,6 +28,11 @@
 // leaves that user on the "contact support" path by design.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  JsonBodyError,
+  PADDLE_WEBHOOK_BODY_LIMIT_BYTES,
+  readBodyBytes,
+} from '../_shared/request-json.ts';
 
 interface PaddleEvent {
   event_id?: string;
@@ -167,7 +172,14 @@ function timingSafeEqualHex(a: string, b: string): boolean {
   return diff === 0;
 }
 
-async function hmacSha256Hex(secret: string, message: string): Promise<string> {
+// Paddle signs the bytes it sent, so the HMAC is computed over the raw
+// request bytes. Decoding first would let a lossy or replaced code point
+// change what we authenticate.
+async function hmacSha256Hex(
+  secret: string,
+  timestamp: string,
+  rawBody: Uint8Array,
+): Promise<string> {
   const key = await crypto.subtle.importKey(
     'raw',
     new TextEncoder().encode(secret),
@@ -175,7 +187,11 @@ async function hmacSha256Hex(secret: string, message: string): Promise<string> {
     false,
     ['sign'],
   );
-  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(message));
+  const prefix = new TextEncoder().encode(`${timestamp}:`);
+  const message = new Uint8Array(prefix.byteLength + rawBody.byteLength);
+  message.set(prefix);
+  message.set(rawBody, prefix.byteLength);
+  const sig = await crypto.subtle.sign('HMAC', key, message);
   return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
@@ -241,7 +257,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const raw = await req.text();
+    const rawBytes = await readBodyBytes(req, PADDLE_WEBHOOK_BODY_LIMIT_BYTES);
     const { ts, h1 } = parsePaddleSignature(req.headers.get('Paddle-Signature') ?? '');
     if (!ts || !h1) return json({ error: 'bad_signature' }, 403);
 
@@ -249,10 +265,13 @@ Deno.serve(async (req: Request) => {
     const skewSec = Math.abs(Date.now() / 1000 - Number(ts));
     if (!Number.isFinite(skewSec) || skewSec > 300) return json({ error: 'stale_signature' }, 403);
 
-    // Paddle signs `${ts}:${rawBody}` with the notification secret (HMAC-SHA256).
-    const expected = await hmacSha256Hex(secret, `${ts}:${raw}`);
+    // Paddle signs `${ts}:` + the raw request bytes with the notification
+    // secret (HMAC-SHA256).
+    const expected = await hmacSha256Hex(secret, ts, rawBytes);
     if (!timingSafeEqualHex(expected, h1)) return json({ error: 'bad_signature' }, 403);
 
+    // Decode only after the bytes are authenticated.
+    const raw = new TextDecoder('utf-8', { fatal: true }).decode(rawBytes);
     const event = JSON.parse(raw) as PaddleEvent;
     const eventId = event.event_id;
     if (!eventId) return json({ error: 'no_event_id' }, 400);
@@ -470,6 +489,12 @@ Deno.serve(async (req: Request) => {
     }
     return json({ ok: true, result });
   } catch (e) {
+    if (e instanceof JsonBodyError) {
+      return json(
+        { error: e.code, max: e.maxBytes },
+        e.code === 'request_body_too_large' ? 413 : 400,
+      );
+    }
     console.error('[paddle-webhook] error:', String(e));
     return json({ error: 'server_error' }, 500);
   }
