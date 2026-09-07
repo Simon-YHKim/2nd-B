@@ -166,6 +166,34 @@
       "inputHint": "Type DELETE to enable the account deletion button.",
       "buttonHint": "Opens a final confirmation before deleting your account and data.",
       "confirmCtaHint": "Starts account and data deletion."
+    },
+    "deletionReceipt": {
+      "title": "Account deletion confirmed",
+      "body": "The account deletion was confirmed. Cleanup details may still be incomplete.",
+      "showDetails": "Show details",
+      "hideDetails": "Hide details",
+      "scope": "These fields concern the account profile row and raw-clipping prefix. Each confirmed absence applies only to that target at the time checked, not every copy or permanent erasure. Missing results do not confirm that a check occurred. Backups, retained records and later writes are outside these checks.",
+      "profile": "Account profile row",
+      "rawClippings": "Raw clipping files",
+      "observedAbsent": "Observed absent when checked.",
+      "notConfirmed": "Absence could not be confirmed.",
+      "notReported": "No usable result was returned for this check.",
+      "localTitle": "Local app data",
+      "localPurge": {
+        "complete": "The app's checked local cleanup steps completed.",
+        "retry-scheduled": "Some local cleanup could not be confirmed. A retry was recorded for the next app start; completion is not confirmed. This does not schedule another account deletion.",
+        "unconfirmed": "Local cleanup could not be confirmed. This does not undo the confirmed account deletion."
+      },
+      "localSignOut": {
+        "pending": "Finishing local sign-out…",
+        "complete": "Local sign-out completed. Previously issued access tokens may remain valid until expiry.",
+        "unconfirmed": "Local sign-out could not be confirmed. This does not undo the confirmed account deletion."
+      },
+      "subscription": "Subscription cancellation is separate. Check your billing provider's subscription controls or payment receipt.",
+      "support": "For cleanup that remains unconfirmed, contact kim0405@hayangzip.com. Do not send passwords, access tokens or private records.",
+      "dismiss": "Close result",
+      "dismissHint": "Closes this result without requesting account deletion again.",
+      "dismissPendingHint": "Available after the local sign-out attempt ends."
     }
   }
 }
