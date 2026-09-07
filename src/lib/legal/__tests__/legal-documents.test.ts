@@ -127,16 +127,16 @@ describe("legal document snapshots", () => {
     }
   });
 
-  test("2026-09-02 revision: version alignment and technically honest sections 4-5", () => {
+  test("2026-09-07 revision: version alignment and technically honest sections 4-5", () => {
     const md = readFileSync(resolve(ROOT, "docs/legal/privacy-policy.md"), "utf8");
     // md, app snapshot, and the consent writer all carry the same date.
-    expect(md).toContain("_시행일: 2026-09-02 · 최종 개정: 2026-09-02_");
-    expect(PRIVACY_DOC.body).toContain("시행일: 2026-09-02");
-    expect(PRIVACY_POLICY_VERSION).toBe("2026-09-02");
+    expect(md).toContain("_시행일: 2026-09-07 · 최종 개정: 2026-09-07_");
+    expect(PRIVACY_DOC.body).toContain("시행일: 2026-09-07");
+    expect(PRIVACY_POLICY_VERSION).toBe("2026-09-07");
     // #1589 revises the sign-up consent notice itself (ackOverseas and
     // overseasTransfer.body), so the notice version moves with the policy:
     // final tuple = consent 09-02 / policy 09-02 / terms 08-16.
-    expect(CONSENT_VERSION).toBe("2026-09-02");
+    expect(CONSENT_VERSION).toBe("2026-09-07");
     // Anthropic is a configured-active AI processor (perPurpose seat map) and
     // must be disclosed in both section 4 and section 5, in both languages.
     expect(PRIVACY_DOC.body.match(/Anthropic PBC/g)?.length ?? 0).toBeGreaterThanOrEqual(4);
