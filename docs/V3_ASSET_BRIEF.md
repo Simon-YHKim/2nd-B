@@ -1,6 +1,10 @@
 # v3 (Tesseract Worldview) — Asset Audit + GPT Image-Generation Brief
 
-> Working doc, 2026-06-03. Untracked (not committed). Source of truth for the worldview is
+> Working doc, 2026-06-03. ~~Untracked (not committed).~~ **It is committed — that line
+> stopped being true the moment this file landed in git, and it stayed wrong until
+> 2026-09-07.** A doc that says "not committed" invites a session to treat it as a
+> throwaway scratch file it may rewrite or delete at will; this one is tracked, and
+> `docs/` links point at it. Source of truth for the worldview is
 > `docs/VISION.md` (v-final 5-layer model) + `DESIGN.md` (palette / locks). Pixel art is the
 > GPT asset workstream's; this brief is the handoff so the regenerated set drops into the
 > existing pipeline mechanically.
