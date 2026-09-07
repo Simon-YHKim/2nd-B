@@ -28,6 +28,8 @@ interface Citation {
   docLine: number;
   file: string;
   maxLine: number | null;
+  /** 슬래시 없이 적힌 이름. 경로가 아니라 이름으로 저장소에서 찾아야 한다. */
+  bare: boolean;
 }
 
 function collect(text: string, doc: string): Citation[] {
@@ -35,14 +37,41 @@ function collect(text: string, doc: string): Citation[] {
   text.split("\n").forEach((line, index) => {
     for (const match of line.matchAll(CITATION)) {
       const [, file, spec] = match;
+      const numbers = (spec ?? "").split(/[,\-\s]+/).filter(Boolean).map(Number).filter(Number.isFinite);
+      const maxLine = numbers.length ? Math.max(...numbers) : null;
+      const bare = !file.includes("/");
       // 슬래시 없는 이름(`consent.ts`)은 산문 속 언급이지 경로 인용이 아니다.
       // 언급을 깨진 인용으로 세면 없는 드리프트를 만들어 낸다.
-      if (!file.includes("/")) continue;
-      const numbers = (spec ?? "").split(/[,\-\s]+/).filter(Boolean).map(Number).filter(Number.isFinite);
-      out.push({ doc, docLine: index + 1, file, maxLine: numbers.length ? Math.max(...numbers) : null });
+      //
+      // ⚠ 단 **줄 번호를 달고 있으면 예외다.** `prefs.ts:73` 은 언급이 아니라
+      // 인용이다 - 아무도 줄 번호를 붙여 가며 지나가는 말을 하지 않는다.
+      // 처음 판(Round40)은 이 예외 없이 걸러서, 이 문서의 **84건**이 검사 밖에
+      // 있었고 그중 열한 건이 아직 개명 전 `gemini.ts` 를 가리키고 있었다.
+      // 필터가 목적에는 맞았고 딱 이 한 경우만큼 넓었다.
+      if (bare && maxLine === null) continue;
+      out.push({ doc, docLine: index + 1, file, maxLine, bare });
     }
   });
   return out;
+}
+
+/** 저장소 파일 목록(node_modules 등 제외). 이름 하나가 몇 개 파일과 맞는지 센다. */
+function repoFiles(root: string, skip: ReadonlySet<string>, out: string[] = []): string[] {
+  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+    if (skip.has(entry.name) || entry.name.startsWith(".")) continue;
+    const full = path.join(root, entry.name);
+    if (entry.isDirectory()) repoFiles(full, skip, out);
+    else out.push(path.relative(process.cwd(), full).split(path.sep).join("/"));
+  }
+  return out;
+}
+
+const SKIP = new Set(["node_modules", "Output", "dist", "web-build", "android", "ios", "coverage"]);
+const REPO_FILES = repoFiles(process.cwd(), SKIP);
+
+/** 이 이름으로 끝나는 저장소 파일들. 루트 파일(`package.json`)도 포함된다. */
+function resolveBare(name: string): string[] {
+  return REPO_FILES.filter(p => p === name || p.endsWith("/" + name));
 }
 
 const docs = fs.readdirSync(LEGAL_DIR).filter(name => name.endsWith(".md")).sort();
@@ -53,20 +82,51 @@ const citations = docs.flatMap(name =>
 test("파서가 실제로 인용을 찾았다 - 0건 통과를 막는다", () => {
   expect(docs.length).toBeGreaterThan(0);
   expect(citations.length).toBeGreaterThanOrEqual(MIN_CITATIONS);
+  // 두 종류가 **둘 다** 잡혀야 한다. 한쪽만 잡히면 아래 검사의 절반이
+  // 조용히 공짜로 통과한다.
+  expect(citations.filter(c => c.bare).length).toBeGreaterThan(0);
+  expect(citations.filter(c => !c.bare).length).toBeGreaterThan(0);
+  // 저장소 색인이 실제로 채워졌는지도 본다 - 비면 이름 해석이 전부 0건이 된다.
+  expect(REPO_FILES.length).toBeGreaterThan(500);
 });
 
 test("법무 문서의 모든 경로 인용이 실재하는 파일을 가리킨다", () => {
   const missing = citations
-    .filter(c => !fs.existsSync(path.join(process.cwd(), c.file)))
+    .filter(c => !c.bare && !fs.existsSync(path.join(process.cwd(), c.file)))
     .map(c => `${c.doc}:${c.docLine} -> ${c.file}`);
   expect(missing).toEqual([]);
+});
+
+test("줄 번호를 단 이름 인용이 저장소 파일 하나로 풀린다", () => {
+  // 이름만으로는 어느 파일인지 모를 수 있다. `index.ts` 는 이 저장소에
+  // 스물세 개, `export.ts` 는 둘이다. **못 찾는 것과 여럿에 걸리는 것은
+  // 둘 다 읽는 사람이 근거에 도달하지 못한다는 같은 결과**이고, 변호사에게는
+  // 확인 못 한 주장으로 남는다. 그래서 정확히 하나일 것을 요구한다.
+  const unresolved = citations
+    .filter(c => c.bare)
+    .map(c => ({ at: `${c.doc}:${c.docLine}`, file: c.file, candidates: resolveBare(c.file).length }))
+    .filter(row => row.candidates !== 1);
+  expect(unresolved).toEqual([]);
+});
+
+test("이름 인용의 줄 번호도 파일 길이를 넘지 않는다", () => {
+  const overrun = citations
+    .filter(c => c.bare && c.maxLine !== null && resolveBare(c.file).length === 1)
+    .map(c => ({
+      at: `${c.doc}:${c.docLine}`,
+      file: resolveBare(c.file)[0],
+      cited: c.maxLine as number,
+      has: fs.readFileSync(path.join(process.cwd(), resolveBare(c.file)[0]), "utf8").split("\n").length,
+    }))
+    .filter(row => row.cited > row.has);
+  expect(overrun).toEqual([]);
 });
 
 test("인용된 줄 번호가 파일 길이를 넘지 않는다", () => {
   // 줄이 여전히 **그 내용**인지는 기계가 못 본다. 파일이 그 줄까지 있지도 않은
   // 경우만 잡는다 - 확실히 깨진 것만.
   const overrun = citations
-    .filter(c => c.maxLine !== null && fs.existsSync(path.join(process.cwd(), c.file)))
+    .filter(c => !c.bare && c.maxLine !== null && fs.existsSync(path.join(process.cwd(), c.file)))
     .map(c => ({
       at: `${c.doc}:${c.docLine}`,
       file: c.file,
@@ -92,8 +152,25 @@ describe("검사기 자신의 대조군", () => {
     expect(fs.existsSync(path.join(process.cwd(), rows[0].file))).toBe(true);
   });
 
-  test("슬래시 없는 언급은 인용으로 세지 않는다", () => {
+  test("슬래시 없는 **언급**은 인용으로 세지 않는다", () => {
     expect(collect("`consent.ts` 를 언급만 한다.", "fixture.md")).toEqual([]);
+  });
+
+  test("슬래시 없어도 줄 번호가 붙으면 인용으로 센다", () => {
+    // 이 한 줄이 Round40 에서 빠져 있었고, 그래서 84건이 검사 밖에 있었다.
+    const rows = collect("(`prefs.ts:73`)", "fixture.md");
+    expect(rows).toHaveLength(1);
+    expect(rows[0].bare).toBe(true);
+    expect(rows[0].maxLine).toBe(73);
+  });
+
+  test("이름 해석은 하나 / 여럿 / 없음을 가른다", () => {
+    expect(resolveBare("package.json").length).toBe(1);
+    expect(resolveBare("index.ts").length).toBeGreaterThan(1);
+    expect(resolveBare("this-file-does-not-exist.ts")).toEqual([]);
+    // 접미사로 매칭하되 **경계에서** 자른다: `refs.ts` 가 `prefs.ts` 를
+    // 잡으면 엉뚱한 파일의 길이로 줄 번호를 재게 된다.
+    expect(resolveBare("refs.ts")).toEqual([]);
   });
 
   test("줄 범위에서 최대값을 뽑는다", () => {
