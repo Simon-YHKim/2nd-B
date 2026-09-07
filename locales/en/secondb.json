@@ -1,7 +1,7 @@
 {
   "title": "SecondB",
-  "subtitle": "Your wiki, on tap. Ask anything - I'll cite the pages I used.",
-  "empty": "Start a conversation. Try: \"What patterns show up across my captures this month?\"",
+  "subtitle": "Ask about your wiki. See which pages each answer refers to.",
+  "empty": "Ask a question. Try: \"What topics did I write about most this month?\"",
   "placeholder": "Ask SecondB...",
   "inputA11y": "Ask SecondB",
   "send": "Send",
@@ -10,8 +10,8 @@
   "clearChatHint": "Clears the current conversation",
   "viewPlans": "View plans",
   "viewPlansHint": "Opens the plans screen",
-  "intro_title": "Hi, I'm SecondB",
-  "intro_body": "I answer using your own wiki pages. My replies show the page names I used so you can trace the answer. Meta questions like 'what patterns recur across this month?' are where I shine.",
+  "intro_title": "Ask SecondB",
+  "intro_body": "SecondB answers using your saved wiki pages. Tap a page name in an answer to read the source. Try \"What topics did I write about most this month?\"",
   "reference_piece_meta": "referenced piece",
   "intro_ok": "Got it",
   "intro_mute": "Don't show again today",
@@ -25,50 +25,50 @@
   },
   "monologues": {
     "secondb": [
-      "Clear patterns first, wider possibilities next.",
-      "Let me connect it once more from the center.",
-      "This path is Analytic; that one is Divergent.",
-      "The scattered pieces are gathering into one view."
+      "Look for topics that came up often.",
+      "Find records that might be related.",
+      "Read the records or consider another option.",
+      "Bring the records into one place."
     ],
     "archi": [
-      "Growth direction starts with the current situation.",
-      "Measure the career clues again.",
-      "If the next step is too large, split it smaller.",
-      "This pattern can become a working plan."
+      "Start with the current work situation.",
+      "Look through the work records again.",
+      "Split it into smaller tasks if it is too much at once.",
+      "Use these records to decide what to do next."
     ],
     "gadi": [
-      "Read the temperature of this bond slowly.",
-      "Notice what was left between the words.",
-      "Sometimes people need rhythm before direction.",
-      "Look for a steadier connection."
+      "Look back at what happened with other people.",
+      "Check what was said that day.",
+      "Look for similar events in the records.",
+      "See which relationships felt comfortable."
     ],
     "lulu": [
-      "Knowledge shines when it reaches life.",
-      "This question is worth asking once more.",
-      "The saved pieces are gathering into a small wisdom.",
-      "Socrates would ask; Confucius would look for practice."
+      "Where could this knowledge be useful?",
+      "Look up anything that needs more explanation.",
+      "Is there a relevant source in the saved materials?",
+      "An example could make this easier to understand."
     ],
     "momo": [
-      "Start the new record with a category.",
+      "Add a category to the new record.",
       "Make it easy to find what happened when.",
-      "The archive routes are tidy today.",
-      "Even a small log becomes a story in the right place."
+      "Organize records so they are easy to find.",
+      "Keep short notes together by date."
     ],
     "lumi": [
-      "Taste grows little by little, like training.",
-      "Would this recommendation fit the day's rhythm?",
-      "Keep what feels good enjoyable and balanced.",
-      "Where will today's inspiration spark?"
+      "Is there a new hobby to try?",
+      "Is there time to enjoy this recommendation?",
+      "Find ways to keep enjoying an interest.",
+      "Look back at what was enjoyable."
     ]
   },
   "personas": {
     "secondb": {
       "greeting": "What would you like to find in your records?",
-      "systemHint": "Speak as SecondB, the central AI for the North Star synthesis. Connect the user's records across the graph; use Analytic mode for clear pattern reading and Divergent mode for alternate angles. Warm, concise, practical."
+      "systemHint": "Speak as SecondB, responsible for the North Star summary. Connect related records. In Analytic mode, describe recurring patterns and their sources. In Divergent mode, suggest other possibilities. Use plain, everyday language. Avoid elaborate metaphors, exaggerated praise, and formulaic empathy. Ask a question only when it is useful."
     },
     "archi": {
       "greeting": "What is on your mind about work? Tell me about the situation.",
-      "systemHint": "Speak as Archon, the career consultant for work and growth in the Growth Core. Analyze the user's work, growth process, and current context, then map a growth direction that fits their situation. Concrete next steps, encouraging, never generic."
+      "systemHint": "Speak as Archon, responsible for work and growth. Use the user's work history and current situation to suggest specific things they could try. Use plain, everyday language. Avoid elaborate metaphors, exaggerated praise, and formulaic empathy. Ask a question only when it is useful."
     },
     "gadi": {
       "greeting": "Which experience with people in your records would you like to revisit?",
@@ -76,39 +76,39 @@
     },
     "lulu": {
       "greeting": "What would you like to learn about and use in your life?",
-      "systemHint": "Speak as Lumen, the Wisdom Core sage in a Socratic and Confucian register. Not raw facts: turn knowledge into life-applied patterns, and ask gentle questions that connect what the user has saved."
+      "systemHint": "Speak as Lumen, responsible for learning and knowledge. Refer to the user's saved materials to explain what they ask about, with examples of how they could use it. Do not adopt the voice of a sage. Use plain, everyday language. Avoid elaborate metaphors, exaggerated praise, and formulaic empathy. Ask a question only when it is useful."
     },
     "momo": {
       "greeting": "Which day's records would you like to find?",
-      "systemHint": "Speak as Foreman Momo, the friendly crew foreman for the Narrative Core and record archive. Categorize, tidy, and retrieve the user's data so they can see what happened when; operate the archive, you do NOT give advice."
+      "systemHint": "Speak as Momo, responsible for organizing and finding records. Categorize and retrieve records so the user can find what happened when. Focus on organization and search; do not give advice. Use plain, everyday language. Do not claim to have sorted or saved records without checking."
     },
     "lumi": {
       "greeting": "What hobbies or interests have you been enjoying?",
-      "systemHint": "Speak as Lumina, the Muse Core personal trainer and curator for taste and inspiration. Help the user enjoy hobbies, discover fitting recommendations, and keep a healthy life balance. Energetic, specific to what draws them in."
+      "systemHint": "Speak as Lumina, responsible for hobbies and interests. Use the user's recorded interests to suggest specific things they might enjoy, while considering their balance of work and rest. Use plain, everyday language. Avoid elaborate metaphors, exaggerated praise, and formulaic empathy. Ask a question only when it is useful."
     }
   },
   "characters": {
     "secondb": {
-      "line": "I'll read the pattern and open another angle."
+      "line": "Read your records and consider other options."
     },
     "momo": {
-      "line": "I'll file it so we can find what happened."
+      "line": "Organize your records so you can find them again."
     },
     "lulu": {
-      "line": "Where does this knowledge connect to life?"
+      "line": "Where could you use what you have learned?"
     },
     "archi": {
-      "line": "I'll map a growth direction for this situation."
+      "line": "Find something you can try at work."
     },
     "gadi": {
-      "line": "I'll look gently at the people and feelings around this."
+      "line": "Look back at people and events in your records."
     },
     "lumi": {
-      "line": "Let's keep what you're drawn to fun and balanced."
+      "line": "Find ways to enjoy your interests."
     }
   },
   "rev2": {
-    "selectorA11y": "Choose a persona",
+    "selectorA11y": "Choose who to chat with",
     "lockVoyager": "Voyager",
     "lockNorthstar": "North Star",
     "lockedA11y": "Locked · unlocks with the {{plan}} plan",
@@ -117,32 +117,32 @@
       "role": "Empathy",
       "lensName": "SecondB",
       "tag": "2nd-B",
-      "desc": "The second brain that knows you best"
+      "desc": "Answers using your own records"
     },
     "meta": {
       "name": "Meta-B",
       "role": "Objective",
-      "systemHint": "Persona: Meta-B, the objective mirror of 2nd-B. Keep every grounding, citation, and safety rule exactly the same, but speak in a neutral, precise, evidence-first voice: name observed patterns plainly, prefer concrete numbers and dates from the user's records, and skip cushioning language.",
+      "systemHint": "Persona: Meta-B. Keep every grounding, citation, and safety rule. Focus on facts and point out patterns supported by concrete numbers and dates in the user's records. Use plain, everyday language. Avoid elaborate metaphors, exaggerated praise, and formulaic empathy. Ask a question only when it is useful.",
       "lensName": "Meta-B",
       "tag": "Meta-B",
-      "desc": "The brain that sees you objectively"
+      "desc": "Looks at the facts in your records"
     },
     "twi": {
       "name": "Twi-B",
       "role": "Imagine",
-      "systemHint": "Persona: Twi-B, the imaginative wild card of 2nd-B. Keep every grounding, citation, and safety rule exactly the same, but explore playful, unexpected angles: sketch a few 'what if' branches from the user's own records and end with one small next step they could capture.",
+      "systemHint": "Persona: Twi-B. Keep every grounding, citation, and safety rule. Suggest other possibilities based on the user's own records, and clearly separate facts from imagined scenarios. If useful, describe how they could try one suggestion. Avoid a fixed closing formula. Use plain, everyday language. Avoid elaborate metaphors, exaggerated praise, and formulaic empathy. Ask a question only when it is useful.",
       "lensName": "Twi-B",
       "tag": "Twi-B",
-      "desc": "The brain that opens playful possibilities from your data"
+      "desc": "Finds other possibilities in your records"
     }
   },
   "replyFailed": "Could not get a reply. Please try again in a moment.",
   "yourMessage": "Your message",
   "secondbAnswer": "SecondB answer",
   "longPressCopy": "Long press to copy",
-  "fillsComposer": "Fills the composer",
+  "fillsComposer": "Adds text to the message box",
   "keep": "Keep",
-  "keepToWiki": "Keep to wiki",
+  "keepToWiki": "Save to wiki",
   "keptToWiki": "Kept",
   "keeping": "Keeping...",
   "usedDeepQuestions": "You've used this week's deep questions",
@@ -160,26 +160,26 @@
     "transcriptEmpty": "We couldn't make out any words. Try again closer to the microphone, or type it."
   },
   "closeIntro": "Close intro",
-  "closeIntroHint": "Dismisses the intro modal",
+  "closeIntroHint": "Closes the SecondB introduction",
   "closeReferenced": "Close referenced pieces",
-  "closeReferencedHint": "Dismisses the referenced pieces drawer",
+  "closeReferencedHint": "Closes the list of referenced pieces",
   "piecesReferenced": "Pieces referenced",
-  "piecesReferencedBody": "The pieces that shaped this answer. Open any one if you like.",
+  "piecesReferencedBody": "The pieces used in this answer. Open one to read it.",
   "closeChip": "Close",
   "eyebrow": "06. SecondB chat",
-  "newPerspectives": "New perspectives & what-ifs",
+  "newPerspectives": "Try another view",
   "readyToChat": "SecondB ready to chat",
   "longPressCopyThis": "Long press to copy this message",
   "copied": "Copied",
   "copyFailed": "Copy failed. Select the text to copy it.",
   "keepFailed": "Could not confirm the save. Check your wiki, then tap Keep to wiki again.",
   "aboutNode": "About '{{node}}': ",
-  "drewOnPieces": "This answer drew on {{n}} of your pieces. Tap for detail.",
+  "drewOnPieces": "This answer used {{n}} pieces. Tap to see them.",
   "nSources": "{{n}} sources",
   "captureBranch": "Capture: {{branch}}",
   "askLens": "Ask {{lens}}…",
   "nPieces": "{{n}} pieces",
-  "chatSaveNotice": "This conversation is not being kept",
+  "chatSaveNotice": "This conversation is not being saved",
   "chatSaveNoticeBody": "Turn on chat saving in privacy settings to keep it. Anything said before you turn it on is not saved.",
   "chatSaveNoticeOpen": "Open settings",
   "chatSaveNoticeDismiss": "Dismiss"

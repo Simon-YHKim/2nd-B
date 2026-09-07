@@ -1,7 +1,7 @@
 {
   "loading": "Cargando tus áreas…",
   "eyebrow": "09. Mis áreas",
-  "title": "Ilumina cuatro áreas de tu vida",
+  "title": "Revisa cuatro áreas de tu vida",
   "subtitle": "Salud · app · mente · finanzas",
   "leavePiece": "Deja tu fragmento de hoy",
   "addTagsHint": "Añade etiquetas de área en la captura",
@@ -21,11 +21,11 @@
     "areasSubtitle": "Salud · app · mente · finanzas",
     "glanceSummary": "Tus cuatro áreas de un vistazo.",
     "emptySummary": "Aún no hay registros en tus áreas.",
-    "emptyTip": "¿Empezamos por el área más tranquila?",
+    "emptyTip": "Elige un área y guarda tu primer registro.",
     "loadError": "No pudimos cargar tus registros. Inténtalo de nuevo en un momento.",
     "retry": "Reintentar",
     "emptyBody": "Cuando marques registros con las etiquetas salud, app, mente o finanzas, aparecerán aquí por área.",
-    "addData": "Añadir datos",
+    "addData": "Añadir registros",
     "unit": "ítems",
     "lastEntry": "Última {{date}}",
     "noEntries": "Sin entradas"

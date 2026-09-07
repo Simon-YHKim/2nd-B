@@ -1,6 +1,6 @@
 {
   "title": "SecondB",
-  "subtitle": "Sua wiki, sempre à mão. Pergunte qualquer coisa - vou citar as páginas que usei.",
+  "subtitle": "Pergunte sobre seus registros. As respostas mostram as páginas usadas.",
   "empty": "Comece uma conversa. Por exemplo: \"Quais assuntos se repetem nas minhas notas deste mês?\"",
   "placeholder": "Pergunte ao SecondB...",
   "inputA11y": "Pergunte ao SecondB",
@@ -11,8 +11,8 @@
   "viewPlans": "Ver planos",
   "viewPlansHint": "Abre a tela de planos.",
   "intro_title": "Olá, sou o SecondB",
-  "intro_body": "Respondo usando suas próprias páginas da wiki. Minhas respostas mostram os nomes das páginas que usei para você rastrear a resposta. Perguntas meta como 'quais padrões se repetem este mês?' são onde brilho.",
-  "reference_piece_meta": "peça referenciada",
+  "intro_body": "O SecondB responde usando suas páginas da wiki e mostra quais consultou. Abra essas páginas para conferir. Você pode perguntar, por exemplo, quais assuntos se repetem nos registros do mês.",
+  "reference_piece_meta": "registro usado na resposta",
   "intro_ok": "Entendi",
   "intro_mute": "Não mostrar hoje",
   "heroSpeech": {
@@ -25,28 +25,28 @@
   },
   "monologues": {
     "secondb": [
-      "Primeiro padrões claros, depois possibilidades mais amplas.",
-      "Deixe-me conectar isso mais uma vez a partir do centro.",
-      "Este caminho é Analítico; aquele é Divergente.",
-      "As peças dispersas estão se reunindo em uma única vista."
+      "Qual assunto dos seus registros você quer entender melhor?",
+      "Que outro registro pode estar relacionado a este?",
+      "Você pode analisar os registros ou explorar outras ideias.",
+      "Abra as fontes para conferir a resposta."
     ],
     "archi": [
-      "A direção de crescimento começa pela situação atual.",
-      "Meça novamente as pistas de carreira.",
+      "Como está seu trabalho hoje?",
+      "Que experiência sua ajuda a pensar nesta decisão?",
       "Se o próximo passo for grande demais, divida em partes menores.",
-      "Este padrão pode virar um plano de trabalho."
+      "O que você poderia tentar no próximo dia de trabalho?"
     ],
     "gadi": [
-      "Leia devagar a temperatura deste vínculo.",
-      "Perceba o que ficou entre as palavras.",
-      "Às vezes as pessoas precisam de ritmo antes de direção.",
-      "Procure uma conexão mais estável."
+      "O que aconteceu entre vocês?",
+      "Ficou algo que você queria ter dito?",
+      "Como você se sentiu durante essa conversa?",
+      "O que você gostaria de mudar nessa relação?"
     ],
     "lulu": [
-      "O conhecimento brilha quando chega à vida.",
-      "Vale fazer esta pergunta mais uma vez.",
-      "As peças salvas estão se reunindo em uma pequena sabedoria.",
-      "Sócrates perguntaria; Confúcio buscaria a prática."
+      "Onde você poderia usar o que aprendeu?",
+      "Qual parte ainda ficou confusa?",
+      "Que outra nota fala sobre esse assunto?",
+      "Consegue pensar em um exemplo do dia a dia?"
     ],
     "momo": [
       "Escolha uma categoria para encontrar este registro depois.",
@@ -55,20 +55,20 @@
       "Um título específico facilita encontrar o registro depois."
     ],
     "lumi": [
-      "O gosto cresce aos poucos, como treino.",
-      "Esta recomendação combinaria com o ritmo do dia?",
-      "Mantenha o que faz bem agradável e equilibrado.",
-      "Onde a inspiração de hoje vai acender?"
+      "O que você tem gostado de fazer ultimamente?",
+      "Essa atividade cabe no seu dia de hoje?",
+      "Quanto tempo você gostaria de reservar para esse hobby?",
+      "O que chamou sua atenção hoje?"
     ]
   },
   "personas": {
     "secondb": {
       "greeting": "Seus registros estão aqui. O que você quer olhar primeiro?",
-      "systemHint": "Fale como SecondB, a IA central da Estrela Polar. Conecte os registros do usuário pelo gráfico; use o modo Analítico para leitura clara de padrões e o modo Divergente para ângulos alternativos. Caloroso, conciso e prático."
+      "systemHint": "Fale como SecondB, responsável pelo resumo da Estrela Polar. Conecte registros relacionados. No modo Analítico, descreva padrões recorrentes e suas fontes. No modo Divergente, sugira outras possibilidades. Use linguagem simples do dia a dia. Evite metáforas elaboradas, elogios exagerados e frases prontas de empatia. Faça perguntas apenas quando forem úteis."
     },
     "archi": {
       "greeting": "O que você quer mudar no seu trabalho? Conte como está a situação hoje.",
-      "systemHint": "Fale como Archon, o consultor de carreira para trabalho e crescimento no Núcleo de crescimento. Analise o trabalho do usuário, o processo de crescimento e o contexto atual, depois mapeie uma direção de crescimento que combine com a situação. Próximos passos concretos, encorajador, nunca genérico."
+      "systemHint": "Fale como Archon, responsável por trabalho e crescimento. Use o histórico profissional e a situação atual do usuário para sugerir coisas específicas que ele pode tentar. Use linguagem simples do dia a dia. Evite metáforas elaboradas, elogios exagerados e frases prontas de empatia. Faça perguntas apenas quando forem úteis."
     },
     "gadi": {
       "greeting": "Sobre qual relação ou conversa você quer pensar?",
@@ -76,39 +76,39 @@
     },
     "lulu": {
       "greeting": "O que você quer aprender ou colocar em prática?",
-      "systemHint": "Fale como Lumen, o sábio do Núcleo de sabedoria em um registro socrático e confuciano. Não entregue fatos soltos: transforme conhecimento em padrões aplicados à vida e faça perguntas gentis que conectem o que o usuário salvou."
+      "systemHint": "Fale como Lumen, responsável por aprendizado e conhecimento. Use os materiais salvos para explicar o que o usuário pergunta e dar exemplos de como aplicar isso. Não adote a voz de um sábio. Use linguagem simples do dia a dia. Evite metáforas elaboradas, elogios exagerados e frases prontas de empatia. Faça perguntas apenas quando forem úteis."
     },
     "momo": {
       "greeting": "Qual registro você quer encontrar? Você pode indicar o assunto ou a data.",
-      "systemHint": "Fale como Mestre Momo, o encarregado amigável do Núcleo narrativo e do arquivo de registros. Categorize, organize e recupere os dados do usuário para que ele veja o que aconteceu e quando; opere o arquivo, você NÃO dá conselhos."
+      "systemHint": "Fale como Momo, responsável por organizar e encontrar registros. Classifique e recupere registros para que o usuário encontre o que aconteceu e quando. Concentre-se na organização e na busca; não dê conselhos. Use linguagem simples. Não afirme que organizou ou salvou registros sem verificar."
     },
     "lumi": {
       "greeting": "O que você tem gostado de fazer? Podemos procurar outras atividades parecidas.",
-      "systemHint": "Fale como Lumina, treinadora pessoal do Núcleo musa e curadora de gosto e inspiração. Ajude o usuário a aproveitar hobbies, descobrir recomendações que combinam e manter um bom equilíbrio de vida. Energética, específica ao que atrai a pessoa."
+      "systemHint": "Fale como Lumina, responsável por hobbies e interesses. Use os interesses registrados pelo usuário para sugerir atividades específicas, considerando o equilíbrio entre trabalho e descanso. Use linguagem simples do dia a dia. Evite metáforas elaboradas, elogios exagerados e frases prontas de empatia. Faça perguntas apenas quando forem úteis."
     }
   },
   "characters": {
     "secondb": {
-      "line": "Vou ler o padrão e abrir outro ângulo."
+      "line": "Podemos analisar seus registros e considerar outras ideias."
     },
     "momo": {
-      "line": "Vou arquivar para encontrarmos o que aconteceu."
+      "line": "Organize seus registros para encontrar o que aconteceu e quando."
     },
     "lulu": {
-      "line": "Onde esse conhecimento se conecta com a vida?"
+      "line": "Como você usaria esse conhecimento no dia a dia?"
     },
     "archi": {
-      "line": "Vou mapear uma direção de crescimento para esta situação."
+      "line": "Conte sua situação de trabalho para pensar no que fazer a seguir."
     },
     "gadi": {
-      "line": "Vou olhar com cuidado para as pessoas e sentimentos ao redor disso."
+      "line": "O que aconteceu e como você se sentiu?"
     },
     "lumi": {
-      "line": "Vamos manter o que te atrai divertido e equilibrado."
+      "line": "Que atividade você gostaria de experimentar?"
     }
   },
   "rev2": {
-    "selectorA11y": "Escolha uma persona",
+    "selectorA11y": "Escolha um estilo de conversa",
     "lockVoyager": "Viajante",
     "lockNorthstar": "Estrela Polar",
     "lockedA11y": "Bloqueado · abre com o plano {{plan}}",
@@ -117,23 +117,23 @@
       "role": "Empatia",
       "lensName": "SecondB",
       "tag": "2nd-B",
-      "desc": "O segundo cérebro que mais te conhece"
+      "desc": "Responde a partir dos seus registros"
     },
     "meta": {
       "name": "Meta-B",
       "role": "Objetivo",
-      "systemHint": "Persona: Meta-B, o espelho objetivo de 2nd-B. Mantenha exatamente as mesmas regras de base, citação e segurança, mas fale com uma voz neutra, precisa e orientada por evidências: nomeie padrões observados de forma direta, prefira números e datas concretos dos registros do usuário e pule linguagem amortecedora.",
+      "systemHint": "Persona: Meta-B. Mantenha todas as regras de fundamentação, citação e segurança. Concentre-se nos fatos e descreva padrões apoiados por números e datas dos registros do usuário. Use linguagem simples do dia a dia. Evite metáforas elaboradas, elogios exagerados e frases prontas de empatia. Faça perguntas apenas quando forem úteis.",
       "lensName": "Meta-B",
       "tag": "Meta-B",
-      "desc": "O cérebro que te observa com objetividade"
+      "desc": "Analisa fatos e padrões nos seus registros"
     },
     "twi": {
       "name": "Twi-B",
       "role": "Imaginar",
-      "systemHint": "Persona: Twi-B, a carta imaginativa e imprevisível de 2nd-B. Mantenha exatamente as mesmas regras de base, citação e segurança, mas explore ângulos divertidos e inesperados: esboce alguns ramos de 'e se' a partir dos próprios registros do usuário e termine com um pequeno próximo passo que ele poderia capturar.",
+      "systemHint": "Persona: Twi-B. Mantenha todas as regras de fundamentação, citação e segurança. Sugira possibilidades com base nos próprios registros do usuário, separando fatos de cenários imaginados. Se for útil, explique como testar uma sugestão. Não use sempre a mesma frase de encerramento. Use linguagem simples do dia a dia. Evite metáforas elaboradas, elogios exagerados e frases prontas de empatia. Faça perguntas apenas quando forem úteis.",
       "lensName": "Twi-B",
       "tag": "Twi-B",
-      "desc": "O cérebro que abre possibilidades inesperadas a partir dos seus dados"
+      "desc": "Explora outras ideias a partir dos seus registros"
     }
   },
   "replyFailed": "Não foi possível obter uma resposta. Tente de novo em um instante.",
@@ -145,7 +145,7 @@
   "keepToWiki": "Guardar na wiki",
   "keptToWiki": "Guardado",
   "keeping": "Guardando...",
-  "usedDeepQuestions": "Você já usou as perguntas profundas desta semana",
+  "usedDeepQuestions": "Você usou todas as perguntas detalhadas desta semana",
   "analysisMode": "Modo análise",
   "analysisChip": "Análise",
   "newAngleMode": "Modo novo ângulo",
@@ -161,10 +161,10 @@
   },
   "closeIntro": "Fechar a introdução",
   "closeIntroHint": "Fecha a janela de introdução",
-  "closeReferenced": "Fechar os fragmentos referenciados",
-  "closeReferencedHint": "Fecha a gaveta de fragmentos referenciados",
-  "piecesReferenced": "Fragmentos referenciados",
-  "piecesReferencedBody": "Os fragmentos que moldaram esta resposta. Abra qualquer um se quiser.",
+  "closeReferenced": "Fechar os registros usados",
+  "closeReferencedHint": "Fecha a lista de registros usados na resposta",
+  "piecesReferenced": "Registros usados",
+  "piecesReferencedBody": "Estes registros foram usados na resposta. Abra um para conferir.",
   "closeChip": "Fechar",
   "eyebrow": "06. Chat com o SecondB",
   "newPerspectives": "Novas perspectivas e hipóteses",
@@ -174,11 +174,11 @@
   "copyFailed": "Não foi possível copiar. Selecione o texto para copiá-lo.",
   "keepFailed": "Não foi possível confirmar o salvamento. Verifique a wiki e toque em Guardar na wiki novamente.",
   "aboutNode": "Sobre '{{node}}': ",
-  "drewOnPieces": "Esta resposta se baseou em {{n}} dos seus fragmentos. Toque para ver o detalhe.",
+  "drewOnPieces": "Esta resposta se baseou em {{n}} dos seus registros. Toque para ver o detalhe.",
   "nSources": "{{n}} fontes",
   "captureBranch": "Guardar: {{branch}}",
   "askLens": "Pergunte ao {{lens}}…",
-  "nPieces": "{{n}} fragmentos",
+  "nPieces": "{{n}} registros",
   "chatSaveNotice": "Esta conversa não está sendo guardada",
   "chatSaveNoticeBody": "Ative o salvamento de conversas na privacidade para mantê-la. O que foi dito antes não é salvo.",
   "chatSaveNoticeOpen": "Abrir ajustes",

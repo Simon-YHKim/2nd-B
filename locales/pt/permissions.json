@@ -1,9 +1,9 @@
 {
   "hero": {
     "eyebrow": "Permissões",
-    "title": "Use apenas o necessário",
+    "title": "Permissões do app",
     "subtitle": "Rede · área de transferência · acesso opcional a fotos",
-    "speech": "As permissões são solicitadas só quando útil, e as opcionais podem ser recusadas."
+    "speech": "O app pede permissão ao usar um recurso que precisa dela. Você pode recusar as opcionais."
   },
   "status": {
     "inUse": "Em uso",
@@ -12,10 +12,10 @@
     "notUsed": "Não usado"
   },
   "platform": {
-    "label": "Plataforma:",
-    "both": "Web + Nativo",
+    "label": "Disponível em:",
+    "both": "Web e app instalado",
     "web": "Web",
-    "native": "Nativo",
+    "native": "App instalado",
     "none": "N/A"
   },
   "entries": {
@@ -41,7 +41,7 @@
     },
     "microphone": {
       "name": "Microfone",
-      "why": "Não solicitado. Captura de voz e áudio não estão no escopo atual do produto."
+      "why": "O app pede acesso ao microfone quando você usa a entrada de voz. O áudio gravado é transformado em texto por um servidor de IA."
     },
     "location": {
       "name": "Localização",
@@ -49,17 +49,17 @@
     },
     "contactsSms": {
       "name": "Contatos / SMS",
-      "why": "Não solicitados. O app não possui importação de contatos, SMS ou recursos de mensagens."
+      "why": "O app não pede permissão para ler os contatos ou as mensagens SMS do dispositivo."
     }
   },
   "principles": {
     "title": "Princípios",
     "items": [
-      "Superfície mínima: cada novo recurso é avaliado quanto ao impacto em permissões.",
-      "Amigável à recusa: permissões opcionais podem ser negadas sem quebrar o restante do app.",
-      "Somente no toque: área de transferência e acesso a fotos ocorrem a partir de ações visíveis do usuário.",
-      "Explique o porquê: cada solicitação de permissão deve ter uma razão breve.",
-      "Seus dados, seus: cada conta acessa apenas seus próprios registros, e a exportação fica disponível."
+      "Cada recurso é avaliado para pedir apenas as permissões de que precisa.",
+      "Você pode recusar permissões opcionais e continuar usando o restante do app.",
+      "O acesso à área de transferência e às fotos acontece quando você escolhe uma ação na tela.",
+      "Cada pedido de permissão deve explicar para que ela serve.",
+      "Cada conta acessa apenas seus próprios registros. Você pode exportá-los."
     ]
   },
   "manual": {

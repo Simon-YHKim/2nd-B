@@ -3,12 +3,12 @@
   "loading": "Loading…",
   "invalid": "This link is not valid.",
   "expired": "This link has expired.",
-  "withdrawnNote": "Your response has been withdrawn. Nothing of yours remains in the aggregate.",
+  "withdrawnNote": "Your response has been withdrawn and removed from the combined results.",
   "alreadyNote": "You already sent your response. You can withdraw it anytime with this link.",
-  "doneNote": "Thank you. Your answers join a combined view only; they are never shown individually.",
+  "doneNote": "Your answers were sent. They will only appear in the combined results, never on their own.",
   "doneKeepLink": "Keep this link if you ever want to withdraw your response.",
   "aboutApp": "About this app",
-  "intro": "Someone you know is building a picture of how others experience them. Five quick questions, about one minute.",
+  "intro": "The person who sent this link wants to know how others see them. Five questions take about a minute.",
   "privacyPoints": "Your answers are your own data: they are only ever shown combined with at least two other people, never one by one. You can withdraw anytime with this link.",
   "scaleHint": "1 = not at all like them, 5 = very much like them",
   "trait": {
@@ -32,7 +32,7 @@
   "withdrawCta": "Withdraw my response",
   "withdrawAnytime": "You can withdraw anytime by opening this link again.",
   "subjectTitle": "Ask people who know me",
-  "subjectIntro": "Send a one-time link to people who know you. Once three or more answer, the combined picture appears in Seen self; you never see individual answers. Try sending it beyond close friends too: someone you met recently, or someone you have worked with. Non-overlapping viewpoints tell you more.",
+  "subjectIntro": "Send a one-time link to people who know you. Once three or more answer, you can see the combined results in Seen self. Individual answers are never shown. Ask friends as well as people you met recently or worked with for a range of views.",
   "labelField": "Nickname for this person (only you see it)",
   "kind": {
     "friend": "Friend",
@@ -44,7 +44,7 @@
   "createCta": "Create link and share",
   "creating": "Creating…",
   "createError": "Could not create the link. Try again.",
-  "pendingCap": "You have reached the limit of open invitations. Revoke one to send another.",
+  "pendingCap": "You have reached the limit of open invitations. Cancel one before sending another.",
   "privacyLine": "The link works once, expires in 14 days, and stores no contact info.",
   "sentTitle": "Invites sent",
   "emptyList": "No invitations yet. Start with one person who knows you well.",
@@ -55,9 +55,9 @@
     "withdrawn": "Withdrawn",
     "expired": "Expired"
   },
-  "revokeCta": "Revoke",
+  "revokeCta": "Cancel invitation",
   "shareMessage": "Would you answer five quick questions about how you see me? About a minute:",
   "aggregateNote": "Answers appear only as a combined picture of three or more people, in Seen self.",
   "withdrawError": "Couldn't withdraw. Your response is still shared. Try again shortly.",
-  "revokeFailed": "Couldn't revoke. The invitation link is still live. Try again."
+  "revokeFailed": "Could not cancel the invitation. The link still works. Try again."
 }

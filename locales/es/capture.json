@@ -2,12 +2,12 @@
   "submit": "Guardar pieza",
   "submitting": "Guardando...",
   "submitHints": {
-    "writeFirst": "Agrega una oración antes de guardar.",
+    "writeFirst": "Escribe una frase antes de guardar.",
     "fileRequired": "Elige un archivo o pega texto legible antes de guardar.",
     "ocrRequired": "Elige una foto y revisa el texto extraído antes de guardar.",
     "journalLocked": "Alcanza Lv{{level}} antes de guardar una entrada de diario.",
     "journalLimit": "Ya usaste las entradas gratuitas del diario. Los otros modos de captura siguen disponibles.",
-    "saving": "El guardado ya está en curso.",
+    "saving": "Se está guardando.",
     "voiceRequired": "Escribe el texto de la nota de voz antes de guardar.",
     "todoRequired": "Escribe la tarea antes de guardar.",
     "fourwRequired": "Completa primero la casilla Qué"
@@ -21,7 +21,7 @@
     "speechSaved": "Guardado. Puedes verlo en el grafo.",
     "speechSavedOcr": "Tu nota de foto está guardada. Es una pieza privada en tu grafo.",
     "speechSavedRecords": "Guardado. Puedes encontrarlo en tus registros.",
-    "speechIdle": "Escribe brevemente o elige una fuente. Lo organizaremos para que puedas encontrarlo después."
+    "speechIdle": "Escribe una nota o elige un material. Se organizará para que puedas encontrarlo después."
   },
   "sections": {
     "manageFormats": {
@@ -51,11 +51,11 @@
   "modes": {
     "journal": {
       "label": "Diario",
-      "help": "Escribe tu reflexión de hoy. Se guarda en tus registros, con reflexión opcional de SecondB."
+      "help": "Escribe sobre tu día. Se guarda en tus registros y, si quieres, puedes pedir a SecondB que lo comente."
     },
     "memo": {
       "label": "Nota",
-      "help": "Escribe una nota corta. Los hashtags y el archivo se añaden automáticamente al guardar."
+      "help": "Escribe una nota corta. Al guardar se clasifica y se le añaden etiquetas."
     },
     "linkclip": {
       "label": "Enlace",
@@ -75,7 +75,7 @@
     },
     "todo": {
       "label": "Tarea",
-      "help": "Escribe una tarea. Se guarda como una pieza pendiente con una marca de completado."
+      "help": "Escribe una tarea. Puedes marcarla como terminada cuando la completes."
     },
     "fourw": {
       "label": "4W1H",
@@ -84,13 +84,13 @@
   },
   "formatSaved": {
     "personal": "Guardado como tu formato personal.",
-    "shared": "Guardaste tu nuevo formato y lo compartiste con tus formatos."
+    "shared": "Formato guardado y compartido."
   },
   "firstRun": {
-    "hint": "Una oración se convierte en tu primer registro guardado. Puedes encontrarlo de nuevo en Registros."
+    "hint": "Escribe tu primera frase. Después de guardarla, podrás verla en Registros."
   },
   "saved": {
-    "title": "Lumen guardó una nueva pieza",
+    "title": "Fragmento guardado",
     "ocrTitle": "Tu nota de foto está guardada",
     "ocrBody": "Una pieza privada en tu grafo.",
     "seeGraph": "Ver el grafo",
@@ -100,14 +100,14 @@
     "seeRecords": "Ver mis registros",
     "seeRecordsHint": "Abre tus registros para que puedas encontrar esta entrada de nuevo.",
     "captureMore": "Capturar más",
-    "recordsOwnership": "Una oración basta por hoy. Esta entrada está en Registros, así que puedes releerla e incluirla en una exportación más tarde.",
-    "recordsAiOptIn": "SecondB solo reflexiona sobre esta entrada cuando activas ese interruptor.",
+    "recordsOwnership": "Esta entrada está en Registros. Puedes volver a leerla o incluirla en una exportación.",
+    "recordsAiOptIn": "SecondB solo comenta esta entrada si activas esa opción.",
     "storagePending": "Guardado, pero la copia de respaldo no se subió esta vez. Tu texto está a salvo.",
     "advisor": {
       "heading": "Nota de SecondB",
       "sources": "Fuentes",
-      "whyThis": "Por qué esto",
-      "evidenceFallback": "Fuente listada sin nota breve."
+      "whyThis": "Por qué se sugiere",
+      "evidenceFallback": "Fuente sin descripción."
     }
   },
   "proposal": {
@@ -117,7 +117,7 @@
     "saveShare": "Guardar y compartir",
     "dismissLabel": "Descartar formato sugerido",
     "notNow": "Ahora no",
-    "prompt": "Ningún formato guardado encaja bien aquí. ¿Quieres que SecondB sugiera uno?",
+    "prompt": "No hay un formato adecuado entre los guardados. ¿Quieres pedir uno a SecondB?",
     "drafting": "Sugiriendo...",
     "action": "Sugerir un formato"
   },
@@ -138,7 +138,7 @@
       "missingToday": " (hoy es opcional)"
     },
     "prompt": {
-      "heading": "Pregunta de reflexión de hoy",
+      "heading": "Pregunta para pensar sobre tu día",
       "useAsTopicLabel": "Usar la pregunta de hoy como tema",
       "useAsTopicAction": "Usar esto como tema"
     },
@@ -150,7 +150,7 @@
       "toggleLabel": "Mostrar u ocultar campo de conclusión",
       "show": "Añadir una conclusión en una línea (opcional)",
       "hide": "Ocultar campo de conclusión",
-      "placeholder": "Conclusión: lo que te llevas de hoy"
+      "placeholder": "Qué te gustaría recordar de hoy"
     },
     "advisor": {
       "label": "Preguntarle a SecondB sobre esta entrada",
@@ -170,8 +170,8 @@
     "pasteOfferEmpty": "No se encontró nada para pegar."
   },
   "inputs": {
-    "extractedLabel": "Mi texto extraído (editable)",
-    "bodyLabel": "Cuerpo",
+    "extractedLabel": "Texto extraído, puedes editarlo",
+    "bodyLabel": "Texto",
     "imagePlaceholder": "Elige una imagen para colocar aquí el texto extraído.",
     "memoPlaceholder": "Escribe o pega libremente..."
   },
@@ -195,11 +195,11 @@
   "file": {
     "pick": "Elegir archivo",
     "selected": "Archivo seleccionado",
-    "textExtracted": "Texto extraído: añadido al cuerpo",
+    "textExtracted": "Texto extraído y añadido al campo de texto",
     "attachedNoPreview": "Archivo adjunto. La vista previa de texto no está disponible.",
     "dataUsageHint": "Subir archivos puede generar cargos de datos. Se recomienda usar Wi-Fi.",
     "transcribing": "Convirtiendo esta grabación en texto...",
-    "transcribed": "Transcrito: lo pusimos en el cuerpo. Revísalo y edítalo antes de guardar.",
+    "transcribed": "El texto de la grabación ya está abajo. Revísalo antes de guardar.",
     "transcribeFailed": "No pudimos convertir esa grabación en texto. Elígela de nuevo o escribe lo que oíste.",
     "transcriptEmpty": "No pudimos distinguir ninguna palabra en esa grabación.",
     "audioTooLarge": "Esa grabación es demasiado larga. Elige una de menos de {{mb}}MB o divídela."
@@ -319,7 +319,7 @@
       "when": "¿Cuándo ocurrió?",
       "where": "¿Dónde estabas?",
       "what": "¿Qué pasó o de qué se trata?",
-      "how": "¿Cómo fue? ¿Algún porqué que valga la pena guardar?"
+      "how": "¿Cómo pasó? ¿Recuerdas por qué?"
     },
     "note": "Solo se guardan las casillas completadas, como una pieza con la etiqueta #fourw."
   },
@@ -357,12 +357,12 @@
   "manualTab": "Guía de uso",
   "jot": {
     "title": "Anota una línea",
-    "deviceNote": "Por ahora se guarda en este dispositivo. Crea una cuenta para llevarlo a tu segundo cerebro.",
+    "deviceNote": "Se guarda en este dispositivo. Crea una cuenta para conservarlo en 2nd-Brain.",
     "placeholder": "Una línea que tengas en mente",
     "inputA11y": "Campo de nota",
     "save": "Guardar",
     "saving": "Guardando…",
-    "nearFull": "El espacio temporal de este dispositivo está casi lleno. Crea una cuenta para moverlos con seguridad.",
+    "nearFull": "El espacio temporal del dispositivo está casi lleno. Crea una cuenta para guardar las notas allí.",
     "savedOnDevice": "Guardado en este dispositivo ({{n}})",
     "createAccount": "Crear cuenta"
   }

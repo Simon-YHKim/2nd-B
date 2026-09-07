@@ -2,9 +2,9 @@
   "loading": "Memuat paket...",
   "hero": {
     "eyebrow": "Paket",
-    "title": "Buat 2nd-Brain-mu tanpa batas",
-    "subtitle": "Catatan tetap gratis tanpa batas. Paket berbayar memberi lebih banyak ruang untuk berpikir bersama AI.",
-    "speech": "Fitur utama tetap gratis. Paket berbayar hanya menambah ruang untuk berpikir bersama."
+    "title": "Pilih paket 2nd-Brain",
+    "subtitle": "Catatan tetap gratis tanpa batas. Paket berbayar menambah batas penggunaan AI.",
+    "speech": "Fitur utama tetap gratis. Pilih paket berbayar jika kamu perlu lebih banyak percakapan dengan AI."
   },
   "current": "Paket saat ini",
   "comingSoon": "Paket berbayar segera hadir",
@@ -22,7 +22,7 @@
       "name": "Voyager",
       "price": "$9.99 / mo",
       "priceNote": "$99.90 / yr (2 bulan gratis)",
-      "tagline": "Ruang untuk eksplorasi mendalam setiap hari",
+      "tagline": "Lebih banyak percakapan setiap hari",
       "f1": "80 obrolan AI per hari",
       "f2": "Semua fitur di Soma",
       "f3": "Kapasitas ekstra untuk sesi panjang"
@@ -31,7 +31,7 @@
       "name": "North Star",
       "price": "$19.99 / mo",
       "priceNote": "$199.90 / yr (2 bulan gratis)",
-      "tagline": "Otak kedua yang lengkap",
+      "tagline": "Batas percakapan lebih besar",
       "f1": "250 obrolan AI per hari",
       "f2": "Refleksi atas catatan-catatanmu",
       "f3": "Semua fitur di Cortex"

@@ -42,7 +42,7 @@
   },
   "errors": {
     "unknown": "Algo deu errado. Por favor, tente novamente.",
-    "network": "Não conseguimos alcançar o servidor. Verifique sua conexão."
+    "network": "Não foi possível conectar ao servidor. Verifique sua conexão."
   },
   "locale": {
     "en": "Inglês",
@@ -71,25 +71,25 @@
   "navGraph": {
     "drilldown": {
       "back": "Voltar à constelação",
-      "backHint": "Volta do detalhe da estrela de domínio para a constelação completa.",
-      "coreEyebrow": "Núcleo de padrões",
-      "dataEyebrow": "Dados de padrões",
+      "backHint": "Volta dos detalhes desta estrela para a constelação.",
+      "coreEyebrow": "Área de registros",
+      "dataEyebrow": "Registros relacionados",
       "touch": "Toque!",
       "coreIntro": {
-        "work": "Este é o Growth Core. Suas peças de carreira e crescimento se reúnem aqui.",
-        "relation": "Este é o Bond Core. Memórias, promessas e conversas se reúnem aqui.",
-        "knowledge": "Este é o Wisdom Core. Peças aprendidas e compreendidas se reúnem aqui.",
-        "records": "Este é o Narrative Core. Peças guardadas se reúnem aqui para você encontrá-las novamente.",
-        "taste": "Este é o Muse Core. Peças de gosto e inspiração se reúnem aqui."
+        "work": "No Growth Core, você encontra seus registros de carreira e aprendizado.",
+        "relation": "No Bond Core, você encontra suas memórias, promessas e conversas.",
+        "knowledge": "No Wisdom Core, você encontra o que aprendeu.",
+        "records": "No Narrative Core, você pode consultar seus registros salvos.",
+        "taste": "No Muse Core, você encontra seus registros de gostos e inspirações."
       },
-      "dataFallback": "Uma peça que você conectou a {{core}}.",
-      "noDataTitle": "Nenhum Pattern Data ainda",
-      "noDataBody": "Só aparecem aqui as peças que você escreve ou salva. Deixe uma peça e este núcleo fará crescer um nó floco de neve leve.",
-      "dataDetailHint": "Abre o detalhe do Pattern Data selecionado."
+      "dataFallback": "Um registro que você conectou a {{core}}.",
+      "noDataTitle": "Ainda não há registros",
+      "noDataBody": "Aqui aparecem os registros que você escreve ou salva. Adicione um para vê-lo no mapa.",
+      "dataDetailHint": "Abre os detalhes do registro selecionado."
     }
   },
-  "navPiece": "fragmento",
-  "navPieceSummary": "Abre o resumo e as etiquetas deste fragmento",
+  "navPiece": "registro",
+  "navPieceSummary": "Abre o resumo e as etiquetas deste registro",
   "navVillageNode": "Abre este nó de estrela",
   "navCenterVillage": "Abre a Estrela Polar",
   "navResetView": "Redefinir vista",
@@ -106,14 +106,14 @@
   "navNext": "Próx.",
   "navClose": "Fechar",
   "navCloseVillage": "Fecha o painel de detalhe da estrela",
-  "navPiecesConnected": "fragmentos que conectei",
+  "navPiecesConnected": "registros conectados",
   "navLookAround": "Dar uma olhada",
   "navOpenAngleVillage": "Abre esta estrela no SecondB por um novo ângulo",
   "navOpenNewAngle": "Abrir novo ângulo",
-  "navClosePiece": "Fecha o painel de detalhe do fragmento",
+  "navClosePiece": "Fecha o painel de detalhe do registro",
   "navNoSummary": "Ainda não há resumo.",
   "navDetails": "Detalhes",
-  "navConnectedCount": "{{n}} fragmentos que conectei",
+  "navConnectedCount": "{{n}} registros conectados",
   "navOpenAngleName": "Abrir {{name}} por um novo ângulo",
   "quantBeforeStart": "Antes de começar",
   "quantItems": "Itens",
@@ -134,8 +134,8 @@
   "facetRetakeLabel": "Refazer a avaliação",
   "facetRetake": "Refazer",
   "reflectDismiss": "Fechar",
-  "drillLayerPeriod": "camada / período",
-  "charSelfTalk": "Abre o balão de monólogo curto deste residente.",
+  "drillLayerPeriod": "etapa / período",
+  "charSelfTalk": "Mostra uma mensagem deste personagem.",
   "backToGraph": "Voltar ao gráfico",
   "backToGraphHint": "Abre a tela inicial do gráfico.",
   "clearContext": "Limpar contexto"

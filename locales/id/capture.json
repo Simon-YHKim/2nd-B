@@ -1,5 +1,5 @@
 {
-  "submit": "Simpan kepingan",
+  "submit": "Simpan catatan",
   "submitting": "Menyimpan...",
   "submitHints": {
     "writeFirst": "Tambahkan satu kalimat sebelum menyimpan.",
@@ -12,14 +12,14 @@
     "todoRequired": "Tulis tugas sebelum menyimpan.",
     "fourwRequired": "Isi kotak Apa dulu"
   },
-  "savedTitleFallback": "Kepingan hari ini",
+  "savedTitleFallback": "Catatan hari ini",
   "loading": "Memuat catatan...",
   "hero": {
     "eyebrow": "01. Simpan",
     "title": "Simpan catatan atau sumber",
     "subtitle": "Jurnal · catatan · tautan · foto · file",
     "speechSaved": "Tersimpan. Kamu bisa melihatnya di graf.",
-    "speechSavedOcr": "Catatan foto kamu tersimpan. Ini kepingan pribadi di grafmu.",
+    "speechSavedOcr": "Catatan fotomu tersimpan di graf pribadi.",
     "speechSavedRecords": "Tersimpan. Kamu bisa menemukannya di catatanmu.",
     "speechIdle": "Tulis singkat atau pilih sumber. Kami akan mengaturnya agar mudah ditemukan nanti."
   },
@@ -51,7 +51,7 @@
   "modes": {
     "journal": {
       "label": "Jurnal",
-      "help": "Tulis refleksi hari ini. Tersimpan ke catatanmu, dengan refleksi SecondB opsional."
+      "help": "Tulis tentang harimu dan simpan ke catatan. Kamu juga bisa meminta tanggapan SecondB."
     },
     "memo": {
       "label": "Catatan",
@@ -75,7 +75,7 @@
     },
     "todo": {
       "label": "Tugas",
-      "help": "Tulis tugas. Ini disimpan sebagai potongan tugas dengan tanda selesai."
+      "help": "Tulis tugas dan tandai saat sudah selesai."
     },
     "fourw": {
       "label": "4W1H",
@@ -87,12 +87,12 @@
     "shared": "Format baru tersimpan dan dibagikan ke formatmu."
   },
   "firstRun": {
-    "hint": "Satu kalimat menjadi catatan tersimpan pertamamu. Kamu bisa menemukannya lagi di Catatan."
+    "hint": "Mulai dengan satu kalimat. Kamu bisa membacanya lagi di Catatan."
   },
   "saved": {
-    "title": "Lumen menyimpan kepingan baru",
+    "title": "Lumen menyimpan catatan baru",
     "ocrTitle": "Catatan foto kamu tersimpan",
-    "ocrBody": "Kepingan pribadi di grafmu.",
+    "ocrBody": "Tersimpan di graf pribadi.",
     "seeGraph": "Lihat graf",
     "seeOcrGraph": "Lihat di graf",
     "seeGraphHint": "Membuka graf dan menandai kepingan ini.",
@@ -100,9 +100,9 @@
     "seeRecords": "Lihat catatanku",
     "seeRecordsHint": "Membuka catatanmu agar kamu bisa menemukan entri ini lagi.",
     "captureMore": "Simpan bahan lain",
-    "recordsOwnership": "Satu kalimat cukup untuk hari ini. Entri ini ada di Catatan, jadi kamu bisa membacanya lagi dan memasukkannya ke ekspor nanti.",
-    "recordsAiOptIn": "SecondB hanya merefleksikan entri ini saat kamu menyalakan tombol itu.",
-    "storagePending": "Tersimpan, tapi salinan file cadangan belum terunggah kali ini. Teksmu aman tersimpan.",
+    "recordsOwnership": "Entri ini tersimpan di Catatan. Kamu bisa membacanya lagi dan menyertakannya saat mengekspor.",
+    "recordsAiOptIn": "SecondB hanya menanggapi entri ini jika kamu menyalakan opsi tersebut.",
+    "storagePending": "Teks tersimpan, tetapi salinan file cadangan belum terunggah.",
     "advisor": {
       "heading": "Catatan SecondB",
       "sources": "Sumber",
@@ -154,7 +154,7 @@
     },
     "advisor": {
       "label": "Tanya SecondB soal entri ini",
-      "helper": "Mati secara default. Nyalakan hanya saat kamu ingin mendapat refleksi balik.",
+      "helper": "Nonaktif secara default. Nyalakan jika kamu ingin tanggapan SecondB.",
       "lockedLabel": "Tanya SecondB soal entri ini (Brain)",
       "lockedHelper": "Refleksi atas entri terbuka dengan paket Brain. Ketuk untuk lihat paket.",
       "lockedHint": "Membuka layar paket."
@@ -170,7 +170,7 @@
     "pasteOfferEmpty": "Tidak ada yang bisa ditempel."
   },
   "inputs": {
-    "extractedLabel": "Teks yang diekstrak (bisa diedit)",
+    "extractedLabel": "Teks dari gambar atau file (bisa diedit)",
     "bodyLabel": "Isi",
     "imagePlaceholder": "Pilih gambar untuk menempatkan teks yang diekstrak di sini.",
     "memoPlaceholder": "Tulis atau tempel bebas..."
@@ -240,7 +240,7 @@
     },
     "ocrTooLarge": {
       "title": "Gambar terlalu besar",
-      "message": "Foto ini terlalu besar untuk dibaca dengan aman. Pilih gambar lebih kecil atau crop, lalu coba lagi."
+      "message": "Foto ini terlalu besar untuk dibaca. Pilih gambar yang lebih kecil atau potong, lalu coba lagi."
     },
     "ocrUnsupportedType": {
       "title": "Jenis gambar tidak didukung",
@@ -248,7 +248,7 @@
     },
     "ocrMissingData": {
       "title": "Data gambar hilang",
-      "message": "Kami tidak bisa membaca file gambar ini dari pemilih. Pilih lagi atau coba gambar lain."
+      "message": "File gambar yang dipilih tidak bisa dibaca. Pilih lagi atau coba gambar lain."
     },
     "ocrInvalidData": {
       "title": "Data gambar rusak",
@@ -260,10 +260,10 @@
     },
     "journalSave": {
       "title": "Tidak bisa menyimpan entri",
-      "message": "Kami tidak bisa menyimpan kepingan hari ini. Yang kamu tulis masih ada. Coba lagi."
+      "message": "Catatan hari ini belum bisa disimpan. Tulisanmu masih ada. Coba lagi."
     },
     "pieceSave": {
-      "title": "Tidak bisa menyimpan kepinganmu",
+      "title": "Catatanmu belum bisa disimpan",
       "message": "Kami belum bisa menyimpannya. Yang kamu masukkan masih ada. Coba lagi."
     },
     "proposeEmpty": {
@@ -302,9 +302,9 @@
     "doneHelper": "Aktifkan jika sudah selesai. Kamu bisa mengubahnya nanti."
   },
   "recent": {
-    "title": "Potongan terbaru",
+    "title": "Catatan terbaru",
     "openHint": "Membuka entri ini secara lengkap.",
-    "empty": "Belum ada potongan tersimpan."
+    "empty": "Belum ada catatan tersimpan."
   },
   "fourw": {
     "fields": {
@@ -321,7 +321,7 @@
       "what": "Apa yang terjadi, atau tentang apa ini?",
       "how": "Bagaimana jalannya? Ada alasan yang layak disimpan?"
     },
-    "note": "Hanya kotak terisi yang disimpan, sebagai satu potongan bertag #fourw."
+    "note": "Kolom yang terisi disimpan sebagai satu catatan dengan tagar #fourw."
   },
   "callReflection": {
     "title": "Rekaman panggilan",
@@ -357,7 +357,7 @@
   "manualTab": "Panduan penggunaan",
   "jot": {
     "title": "Tulis satu baris",
-    "deviceNote": "Untuk sekarang tersimpan di perangkat ini. Buat akun untuk membawanya ke otak keduamu.",
+    "deviceNote": "Catatan ini tersimpan di perangkat ini. Buat akun untuk menyimpannya ke otak keduamu.",
     "placeholder": "Satu baris yang ada di pikiranmu",
     "inputA11y": "Kolom tulisan",
     "save": "Simpan",

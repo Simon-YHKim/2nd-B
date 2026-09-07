@@ -1,6 +1,6 @@
 {
   "title": "SecondB",
-  "subtitle": "Wiki-mu, siap pakai. Tanya apa saja - saya akan kutip halaman yang saya gunakan.",
+  "subtitle": "Tanya tentang wikimu. Jawaban menyertakan halaman yang digunakan.",
   "empty": "Mulai percakapan. Misalnya: \"Topik apa yang berulang dalam catatanku bulan ini?\"",
   "placeholder": "Tanyakan ke SecondB...",
   "inputA11y": "Tanyakan ke SecondB",
@@ -11,8 +11,8 @@
   "viewPlans": "Lihat paket",
   "viewPlansHint": "Membuka layar paket.",
   "intro_title": "Hai, aku SecondB",
-  "intro_body": "Saya menjawab menggunakan halaman wiki-mu sendiri. Balasan saya menampilkan nama halaman yang saya gunakan agar kamu bisa melacak jawabannya. Pertanyaan meta seperti 'pola apa yang berulang bulan ini?' adalah keahlian saya.",
-  "reference_piece_meta": "kepingan yang dirujuk",
+  "intro_body": "SecondB menjawab berdasarkan halaman wikimu dan mencantumkan sumbernya agar bisa kamu periksa. Kamu bisa bertanya, misalnya, pola apa yang berulang bulan ini.",
+  "reference_piece_meta": "catatan yang dirujuk",
   "intro_ok": "Mengerti",
   "intro_mute": "Jangan tampilkan lagi hari ini",
   "heroSpeech": {
@@ -76,7 +76,7 @@
     },
     "lulu": {
       "greeting": "Apa yang ingin kamu pahami dari catatan yang tersimpan?",
-      "systemHint": "Bicaralah sebagai Lumen, sosok bijak Inti Kebijaksanaan dengan gaya Socrates dan Konfusian. Bukan fakta mentah: ubah pengetahuan menjadi pola yang diterapkan dalam hidup, dan ajukan pertanyaan lembut yang menghubungkan apa yang disimpan pengguna."
+      "systemHint": "Bicaralah sebagai Lumen, yang membantu pengguna belajar. Gunakan materi yang disimpan untuk menjelaskan pertanyaan pengguna dan memberi contoh penerapannya. Jangan memakai gaya bicara seorang guru bijak. Gunakan bahasa sehari-hari. Hindari metafora berlebihan, pujian umum, dan ungkapan empati yang dibuat-buat. Ajukan pertanyaan hanya jika berguna."
     },
     "momo": {
       "greeting": "Catatan tentang apa yang ingin kamu cari?",
@@ -98,17 +98,17 @@
       "line": "Di mana kamu bisa memakai hal yang sudah dipelajari?"
     },
     "archi": {
-      "line": "Aku akan memetakan arah pertumbuhan untuk situasi ini."
+      "line": "Aku akan melihat pilihan yang sesuai dengan situasi ini."
     },
     "gadi": {
-      "line": "Aku akan melihat dengan lembut orang dan perasaan di sekitar ini."
+      "line": "Aku akan melihat hubungan dan perasaan yang kamu tulis."
     },
     "lumi": {
-      "line": "Mari jaga hal yang menarik bagimu tetap menyenangkan dan seimbang."
+      "line": "Apa yang ingin kamu coba dari hal yang kamu sukai?"
     }
   },
   "rev2": {
-    "selectorA11y": "Pilih persona",
+    "selectorA11y": "Pilih asisten",
     "lockVoyager": "Penjelajah",
     "lockNorthstar": "Bintang Utara",
     "lockedA11y": "Terkunci · terbuka dengan paket {{plan}}",
@@ -117,7 +117,7 @@
       "role": "Empati",
       "lensName": "SecondB",
       "tag": "2nd-B",
-      "desc": "Otak kedua yang paling mengenalmu"
+      "desc": "Asisten yang menggunakan catatanmu sebagai konteks"
     },
     "meta": {
       "name": "Meta-B",
@@ -125,15 +125,15 @@
       "systemHint": "Persona: Meta-B. Pertahankan semua aturan sumber, kutipan, dan keamanan. Fokus pada fakta serta pola yang didukung angka dan tanggal dalam catatan pengguna. Gunakan bahasa sehari-hari dan kalimat yang jelas. Hindari metafora berlebihan, pujian yang dibuat-buat, dan ungkapan empati yang klise. Ajukan pertanyaan hanya jika berguna.",
       "lensName": "Meta-B",
       "tag": "Meta-B",
-      "desc": "Otak yang melihatmu secara objektif"
+      "desc": "Melihat pola berdasarkan catatanmu"
     },
     "twi": {
       "name": "Twi-B",
       "role": "Imajinasi",
-      "systemHint": "Persona: Twi-B, kartu liar imajinatif dari 2nd-B. Pertahankan setiap aturan landasan, kutipan, dan keamanan persis sama, tetapi jelajahi sudut yang playful dan tak terduga: buat sketsa beberapa cabang 'bagaimana jika' dari catatan pengguna sendiri dan akhiri dengan satu langkah kecil berikutnya yang bisa mereka tangkap.",
+      "systemHint": "Persona: Twi-B dari 2nd-B. Pertahankan semua aturan landasan, kutipan, dan keamanan. Jelajahi beberapa kemungkinan \"bagaimana jika\" berdasarkan catatan pengguna. Gunakan bahasa sehari-hari. Hindari pujian umum, metafora berlebihan, dan pertanyaan atau saran penutup yang dipaksakan.",
       "lensName": "Twi-B",
       "tag": "Twi-B",
-      "desc": "Otak yang membuka kemungkinan tak terduga dari datamu"
+      "desc": "Mencoba sudut lain dari catatanmu"
     }
   },
   "replyFailed": "Tidak bisa mendapatkan balasan. Coba lagi sebentar lagi.",
@@ -161,10 +161,10 @@
   },
   "closeIntro": "Tutup intro",
   "closeIntroHint": "Menutup jendela intro",
-  "closeReferenced": "Tutup serpihan yang dirujuk",
-  "closeReferencedHint": "Menutup laci serpihan yang dirujuk",
-  "piecesReferenced": "Serpihan yang dirujuk",
-  "piecesReferencedBody": "Serpihan yang membentuk jawaban ini. Buka salah satu jika mau.",
+  "closeReferenced": "Tutup catatan sumber",
+  "closeReferencedHint": "Menutup daftar catatan yang dirujuk",
+  "piecesReferenced": "Catatan yang dirujuk",
+  "piecesReferencedBody": "Catatan yang digunakan dalam jawaban ini. Buka untuk memeriksa isinya.",
   "closeChip": "Tutup",
   "eyebrow": "06. Obrolan SecondB",
   "newPerspectives": "Perspektif baru & pengandaian",
@@ -174,7 +174,7 @@
   "copyFailed": "Gagal menyalin. Pilih teksnya untuk menyalin.",
   "keepFailed": "Tidak dapat memastikan penyimpanan. Periksa wikimu, lalu ketuk Simpan ke wiki lagi.",
   "aboutNode": "Tentang '{{node}}': ",
-  "drewOnPieces": "Jawaban ini memakai {{n}} serpihanmu. Ketuk untuk detail.",
+  "drewOnPieces": "Jawaban ini memakai {{n}} catatanmu. Ketuk untuk melihat sumbernya.",
   "nSources": "{{n}} sumber",
   "captureBranch": "Simpan: {{branch}}",
   "askLens": "Tanya {{lens}}…",

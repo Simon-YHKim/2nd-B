@@ -1,10 +1,10 @@
 {
-  "loading": "Loading support...",
+  "loading": "Loading support…",
   "hero": {
-    "eyebrow": "08-3. Support",
-    "title": "Untangle stuck pieces together",
+    "eyebrow": "Support",
+    "title": "Having trouble with the app?",
     "subtitle": "Response time · contact · help",
-    "speech": "Send us what got stuck. We'll start from the context."
+    "speech": "Email us with the screen you were on and what went wrong."
   },
   "response": {
     "eyebrow": "Response time",
@@ -28,12 +28,12 @@
     },
     {
       "question": "Is the AI safe?",
-      "answer": "AI helps organize and connect your notes. Important decisions stay with you."
+      "answer": "AI organizes notes and finds related content. Its answers can be wrong, so check important details and make your own decisions."
     }
   ],
   "help": {
     "title": "Places you can get help",
-    "lead": "Whatever it is, you do not have to carry it alone. These lines are here whenever you need them.",
+    "lead": "You can call the numbers below when you need help.",
     "when1388": "For anything on your mind, if you are a teen",
     "when109": "When you feel like letting go of life",
     "when117": "When something at school is hard",
@@ -41,6 +41,6 @@
     "when119": "When your body is in danger right now",
     "when112": "When someone is threatening you right now",
     "callHint": "Tap to call",
-    "foot": "This list is always here. The app does not read your writing and decide to show it; it is here so you can come find it. The app does not report on your behalf or notify a guardian."
+    "foot": "You can find this list here anytime. It is not shown based on what you write. The app does not report on your behalf or notify a guardian."
   }
 }

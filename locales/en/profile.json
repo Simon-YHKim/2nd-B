@@ -3,9 +3,9 @@
   "fallbackName": "Guest",
   "hero": {
     "eyebrow": "Me",
-    "title": "{{displayName}}'s profile hub",
-    "subtitle": "Know, use, and manage your profile",
-    "speech": "Everything about you is gathered here. Take your time."
+    "title": "{{displayName}}'s profile",
+    "subtitle": "Your summary, records, and account in one place",
+    "speech": "View your summary or change your profile and settings."
   },
   "account": {
     "eyebrow": "Account",
@@ -13,15 +13,15 @@
   },
   "sections": {
     "center": {
-      "label": "Self center",
+      "label": "My summary",
       "items": {
         "coreBrain": {
           "label": "Open North Star",
           "hint": "Opens your North Star screen."
         },
         "esm": {
-          "label": "Check in now",
-          "hint": "Opens a lightweight check-in."
+          "label": "Record my mood",
+          "hint": "Opens the screen to record your mood."
         }
       }
     },
@@ -29,8 +29,8 @@
       "label": "Get to know me",
       "items": {
         "persona": {
-          "label": "Persona",
-          "hint": "Opens your persona screen."
+          "label": "My summary",
+          "hint": "Opens your summary."
         },
         "bigFive": {
           "label": "Big Five",
@@ -74,8 +74,8 @@
           "hint": "Opens the four-area balance view."
         },
         "research": {
-          "label": "Research",
-          "hint": "Opens research-backed guidance."
+          "label": "References",
+          "hint": "Opens the sources used in tests and guidance."
         }
       }
     },
@@ -104,22 +104,22 @@
         },
         "formats": {
           "label": "My formats",
-          "hint": "Opens your filing formats."
+          "hint": "Opens your saved formats."
         },
         "manual": {
-          "label": "Manual",
-          "hint": "Opens the app manual."
+          "label": "User guide",
+          "hint": "Opens the user guide."
         },
         "import": {
           "label": "Import",
-          "hint": "Opens external import."
+          "hint": "Opens tools to bring in files and other materials."
         },
         "inbox": {
           "label": "Inbox",
-          "hint": "Opens imported source review."
+          "hint": "Opens the materials you imported."
         },
         "support": {
-          "label": "Support",
+          "label": "Contact support",
           "hint": "Opens support."
         },
         "permissions": {

@@ -1,7 +1,7 @@
 {
   "hero": {
     "eyebrow": "Izin",
-    "title": "Gunakan hanya yang diperlukan",
+    "title": "Izin yang digunakan aplikasi",
     "subtitle": "Jaringan · papan klip · akses foto opsional",
     "speech": "Izin diminta hanya saat diperlukan, dan yang opsional bisa ditolak."
   },
@@ -15,7 +15,7 @@
     "label": "Platform:",
     "both": "Web + Native",
     "web": "Web",
-    "native": "Native",
+    "native": "Aplikasi perangkat",
     "none": "N/A"
   },
   "entries": {
@@ -36,12 +36,12 @@
       "why": "Opsional, digunakan hanya untuk pengingat Rutinitas: menjadwalkan satu pengingat meminta OS sekali, dan setiap pengingat tetap di perangkat ini. Tolak dan semua fitur lain tetap berfungsi."
     },
     "cameraPhoto": {
-      "name": "Kamera / Perpustakaan foto",
+      "name": "Kamera / Galeri foto",
       "why": "Opsional, untuk membaca teks dari gambar. Izin diminta saat kamu memilih foto. Fitur lain tetap bisa dipakai jika kamu menolaknya."
     },
     "microphone": {
       "name": "Mikrofon",
-      "why": "Tidak diminta. Tangkapan suara dan audio tidak termasuk dalam cakupan produk saat ini."
+      "why": "Akses mikrofon diminta saat kamu memakai masukan suara. Rekaman suara dikirim ke server AI untuk diubah menjadi teks."
     },
     "location": {
       "name": "Lokasi",
@@ -49,17 +49,17 @@
     },
     "contactsSms": {
       "name": "Kontak / SMS",
-      "why": "Tidak diminta. Aplikasi tidak memiliki fitur impor kontak, SMS, atau pesan."
+      "why": "Aplikasi tidak meminta izin untuk membaca kontak atau SMS di perangkatmu."
     }
   },
   "principles": {
     "title": "Prinsip",
     "items": [
-      "Permukaan minimal: setiap fitur baru ditinjau dampak izinnya.",
-      "Ramah penolakan: izin opsional bisa ditolak tanpa merusak fungsi lain.",
-      "Hanya saat diketuk: clipboard dan akses foto terjadi dari tindakan yang terlihat oleh pengguna.",
-      "Jelaskan alasannya: setiap permintaan izin harus disertai alasan singkat.",
-      "Datamu, milikmu: setiap akun hanya bisa mengakses catatannya sendiri, dan ekspor selalu tersedia."
+      "Setiap fitur baru diperiksa agar hanya meminta izin yang diperlukan.",
+      "Kamu bisa menolak izin opsional dan tetap memakai fitur lain.",
+      "Papan klip dan foto hanya diakses saat kamu memilih tindakan tersebut.",
+      "Setiap permintaan izin disertai alasan singkat.",
+      "Setiap akun hanya bisa mengakses catatannya sendiri. Ekspor selalu tersedia."
     ]
   },
   "manual": {
