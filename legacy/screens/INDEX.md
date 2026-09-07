@@ -27,6 +27,7 @@ Simon 의 요구는 *"나중에 내가 지정해서 확인하라고 하면 할 �
 |---|---|---|
 | `plans.tsx` | `src/app/plans.tsx` | 요금제 화면의 레거시 렌더러 + 스타일 |
 | `change-password.tsx` | `src/app/change-password.tsx` | 비밀번호 변경 화면의 레거시 렌더러 + 스타일 |
+| `iden.tsx` | `src/app/iden.tsx` | IDEN 내보내기 화면의 레거시 렌더러 + 그것만 쓰던 스타일. ⚠ 이 라우트는 라이브 반쪽(`IdenExportScreenDeepSpace`)이 같은 파일에 있어서 **파일 통째가 아니라 레거시 반쪽만** 옮겼다. 그래서 여기 있는 import 는 원래 파일 기준이라 그대로는 안 붙는다 |
 
 ## 옮길 때 같이 한 일
 
