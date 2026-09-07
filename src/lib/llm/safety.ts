@@ -392,17 +392,9 @@ export async function classifySafety(
 // Fixed-string crisis templates per docs/research/batches/crisis-detection.md.
 // Hotline numbers come from crisisHotlines() (single source of truth) so KO
 // routing stays current (109 since 2024) and minors get the youth line (1388).
-// Versions are referenced in the audit log: red-ko-v4 (adult), red-ko-minor-v3
-// (14-17), red-en-v3 (988, all ages). 2026-09-06 removed the app's metaphorical
+// Versions are referenced in the audit log: red-ko-v3 (adult), red-ko-minor-v2
+// (14-17), red-en-v2 (988, all ages). 2026-09-06 removes the app's metaphorical
 // farewell; the fixed hand-off, resources and emergency-room guidance remain.
-// 2026-09-07 replaces the em dash in the hotline lines with a hyphen (DESIGN.md
-// forbids em dashes in user-facing strings, and these are drawn in a pixel face
-// where the glyph is a risk). Guidance, numbers, labels and routing are
-// unchanged - but the bytes are not, and in this file the version IS the byte
-// identity: the header has always carried a "keep verbatim" rule and the
-// previous bump (a640ef10) moved all three versions for a prose-only edit. A
-// version that no longer identifies one exact template makes the audit log a
-// worse record than no version at all.
 export function fixedCrisisResponse(
   locale: "en" | "ko",
   minor = false,
@@ -419,7 +411,7 @@ export function fixedCrisisResponse(
 ${hotlineBlock}
 
 전화가 어려우시면, 가까운 응급실로 가셔도 됩니다.`,
-      version: minor ? "red-ko-minor-v3" : "red-ko-v4",
+      version: minor ? "red-ko-minor-v2" : "red-ko-v3",
     };
   }
   return {
@@ -431,6 +423,6 @@ ${hotlineBlock}
 🌐 findahelpline.com - international directory
 
 If calling is hard, you can go to your nearest emergency room.`,
-    version: "red-en-v3",
+    version: "red-en-v2",
   };
 }
