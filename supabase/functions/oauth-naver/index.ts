@@ -24,6 +24,11 @@
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import {
+  JsonBodyError,
+  OAUTH_JSON_BODY_LIMIT_BYTES,
+  readJsonObject,
+} from '../_shared/request-json.ts';
 
 const NAVER_TOKEN_URL = 'https://nid.naver.com/oauth2.0/token';
 const NAVER_USER_URL = 'https://openapi.naver.com/v1/nid/me';
@@ -86,8 +91,14 @@ Deno.serve(async (req: Request) => {
 
   let body: { code?: unknown; state?: unknown; redirect_uri?: unknown };
   try {
-    body = await req.json();
-  } catch {
+    body = await readJsonObject(req, OAUTH_JSON_BODY_LIMIT_BYTES) as typeof body;
+  } catch (error) {
+    if (error instanceof JsonBodyError && error.code === 'request_body_too_large') {
+      return jsonResponse(req, {
+        error: error.code,
+        max: error.maxBytes,
+      }, 413);
+    }
     return jsonResponse(req, { error: 'invalid_json' }, 400);
   }
   const code = typeof body?.code === 'string' ? body.code : '';

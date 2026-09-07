@@ -13,6 +13,11 @@
 // hashes only; no informant name/email exists anywhere in the flow.
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import {
+  JsonBodyError,
+  PEER_RESPONSE_JSON_BODY_LIMIT_BYTES,
+  readJsonObject,
+} from '../_shared/request-json.ts';
 
 const ALLOWED_ORIGINS = new Set<string>([
   'https://simon-yhkim.github.io',
@@ -79,8 +84,14 @@ Deno.serve(async (req) => {
 
   let body: Record<string, unknown>;
   try {
-    body = await req.json();
-  } catch {
+    body = await readJsonObject(req, PEER_RESPONSE_JSON_BODY_LIMIT_BYTES);
+  } catch (error) {
+    if (error instanceof JsonBodyError && error.code === 'request_body_too_large') {
+      return jsonResponse(req, {
+        error: error.code,
+        max: error.maxBytes,
+      }, 413);
+    }
     return jsonResponse(req, { error: 'bad_json' }, 400);
   }
   const action = body.action;
