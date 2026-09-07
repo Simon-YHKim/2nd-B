@@ -1,27 +1,27 @@
 {
-  "loading": "자료실을 불러오는 중입니다…",
+  "loading": "자료실을 불러오는 중…",
   "error": {
-    "title": "자료를 불러오지 못했습니다",
-    "body": "연결이 잠시 흔들렸습니다. 다시 시도하면 자료실을 새로 불러옵니다.",
+    "title": "자료를 불러오지 못했어요",
+    "body": "자료를 불러오는 중 문제가 생겼어요. 다시 시도해 주세요.",
     "retry": "다시 시도"
   },
   "hero": {
     "eyebrow": "자료실",
-    "title": "검증된 근거를 모아둡니다",
+    "title": "자료와 출처를 확인하세요",
     "subtitle": "Big Five · 애착 · CBT · VIA",
-    "speech": "세컨비가 참고할 수 있는 검증된 자료만 모아 보여드립니다."
+    "speech": "세컨비가 참고하는 자료예요. 검증을 마친 자료만 모았어요."
   },
-  "empty": "아직 등록된 자료가 없습니다. 큐레이터 작업이 진행 중입니다.",
+  "empty": "아직 등록된 자료가 없어요. 자료를 검토하고 있어요.",
   "filter": {
-    "label": "프레임으로 필터",
-    "accessibilityLabel": "프레임 필터",
+    "label": "이론별로 보기",
+    "accessibilityLabel": "참고 이론 선택",
     "all": "전체"
   },
   "sourceCount": "{{visible}}개의 자료 (전체 {{total}}개)",
   "verified": "검증됨",
   "link": {
     "label": "{{title}} 출처 링크 열기",
-    "hint": "DOI 또는 원문 URL을 엽니다."
+    "hint": "자료의 DOI나 원문 링크를 열어요."
   },
   "frameworks": {
     "big_five": "Big Five",
