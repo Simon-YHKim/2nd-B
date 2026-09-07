@@ -280,7 +280,15 @@ describe("legacy preservation and pixel registration", () => {
     // 통합의 #1511(연결 프레임 salvage)이 그 뒤 이 파일을 8줄 고쳤다. 병합 후
     // 이 파일은 #1511 결과와 바이트 동일이라 "inbox 작업이 이 공용 파일을
     // 건드리지 않는다" 는 뜻은 그대로다 — 기준선만 옮겼다.
-    expect(sha(source)).toBe("3931e923dd80d3b3eb4ed7df7bc4d61be6c4d70ad572719a2ecc542cf40f94d5");
+    //
+    // ⚠ 2026-09-07 재고정 — 명제가 바뀌었다. 이제 이 핀이 주장하는 것은
+    // "inbox 작업이 이 파일을 안 건드렸다" 가 아니라 **"inbox 작업은 안 건드렸고,
+    // 그 뒤 기록된 변경이 정확히 하나 들어갔다"** 이다. 그 하나는 건강 가져오기가
+    // IngestResult 를 버리고 무조건 "반영됨" 이라고 말하던 것을 고친 것이다(무엇이
+    // 들어갔는지 · 어떤 루틴이 자동 완료됐는지). inbox 와 무관하다.
+    // 이후 재고정하는 사람은 여기에 자기 줄을 추가한다 — 안 그러면 이 핀은 읽는
+    // 사람이 확인할 수 있는 것을 아무것도 주장하지 않게 된다.
+    expect(sha(source)).toBe("6e9d88d408d8c8a921f27676bea98d8f79b6c330a893df2b6d670f50f5798a8e");
   });
 
   test("keeps InboxLegacy and its styles byte-stable while routing deep-space directly", () => {
