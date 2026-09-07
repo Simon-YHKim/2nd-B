@@ -102,6 +102,20 @@ describe("the tag cannot disagree with the binary", () => {
     );
   });
 
+  test("a draft is found by listing, because looking it up by tag returns 404", () => {
+    // GET /releases/tags/{tag} only matches PUBLISHED releases. Both places
+    // that read the release used it, so a draft was invisible: the existence
+    // probe concluded "no release" and would create a second one, and the
+    // read-back after creating the draft died on the 404. That is what stopped
+    // the v0.7.1 release on 2026-09-07, one line after the tag check above.
+    const run = runOf("Resolve version");
+    expect(run).not.toContain("releases/tags/$TAG");
+    expect((run.match(/releases\?per_page=100/g) ?? []).length).toBe(2);
+    expect(run).toContain('map(select(.tag_name == \\"$TAG\\")) | .[0] // empty');
+    // A leftover draft must stop the job, not be silently replaced.
+    expect(run).toContain("an unpublished draft from an earlier run");
+  });
+
   test("gh calls carry GH_REPO", () => {
     // `gh` does not read GITHUB_REPOSITORY on its own; a job that omits this
     // fails at the first gh call, and here that is the release itself.

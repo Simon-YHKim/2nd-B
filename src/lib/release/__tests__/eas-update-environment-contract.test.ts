@@ -92,11 +92,37 @@ describe("update provenance reads the runtime the way builds already do", () => 
     expect(RAW).toContain(
       "const runtimeOf = (value) => value?.runtime?.version ?? value?.runtimeVersion ?? value?.fingerprint?.hash;",
     );
-    expect(RAW).toContain("runtimeOf(update) === runtime");
+    // Both update paths read the runtime through the helper: classify does it
+    // inside resolveRuntime (which adds the CLI record as a second source), and
+    // verifyUpdate calls it directly.
+    expect(RAW).toContain("const fromGraph = runtimeOf(update);");
     expect(RAW).toContain("runtimeOf(update) !== runtime");
   });
 
   test("no update comparison reaches past runtimeOf into a single key", () => {
     expect(RAW).not.toMatch(/update\?\.runtime\?\.version/);
+  });
+
+  test("the runtime has a second authenticated source when GraphQL omits it", () => {
+    // The GraphQL query selects runtime { version } and nothing else naming a
+    // runtime, so runtimeOf() has nothing to fall back on and every record
+    // failed identity -- android=NO_MATCH ios=NO_MATCH on 2026-09-07 for two
+    // updates that `eas update:view` showed were correct. The collector already
+    // holds the CLI record; carrying it gives the comparison a second source.
+    // This does not loosen anything: when both sources answer they must agree.
+    expect(RAW).toContain("cliById.set(lower(id), value)");
+    expect(RAW).toContain("cli: cliById.get(lower(id))");
+    expect(RAW).toContain("function resolveRuntime(update, cli)");
+    expect(RAW).toContain("return { value: undefined, conflict: true }");
+  });
+
+  test("a NO_MATCH says which term rejected the candidates", () => {
+    // "history does not contain the exact clean update" is a diagnosis nobody
+    // can act on, and it cost three wrong analyses of this step in one day.
+    expect(RAW).toContain("const misses = { platform: 0, commit: 0, runtime: 0, runtimeConflict: 0 }");
+    expect(RAW).toContain("rejected by platform=");
+    expect(RAW).toContain('fail("update-provenance:" + failures.join(","))');
+    // Counts only -- no ids, hashes or runtimes in the output.
+    expect(RAW).not.toMatch(/rejected by[^\n]*\$\{[^}]*(?:id|hash|runtimeVersion)/);
   });
 });
