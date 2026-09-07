@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react";
 import { Animated, StyleSheet, type StyleProp, View, type ViewStyle } from "react-native";
 
 import { m3 } from "@/lib/theme/m3";
+import { a11yValue } from "@/lib/a11y/accessibility-value";
 
 export interface ProgressLinearProps {
   /** 0..1 progress. Omit for an indeterminate (looping) indicator. */
@@ -40,7 +41,7 @@ export function ProgressLinear({ value, color, trackColor, accessibilityLabel, s
     <View
       style={[styles.track, { backgroundColor: track }, style]}
       accessibilityRole="progressbar"
-      accessibilityValue={indeterminate ? undefined : { min: 0, max: 1, now: pct }}
+      {...(indeterminate ? {} : a11yValue({ min: 0, max: 1, now: pct }))}
       accessibilityLabel={accessibilityLabel}
     >
       {indeterminate ? (

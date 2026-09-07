@@ -1143,14 +1143,18 @@ results.push(
       drillProgress.includes("Cell numbers show answer counts by life period and question layer.") &&
       xpBar.includes('accessibilityRole="progressbar"') &&
       xpBar.includes("accessibilityLabel={accessibilityLabel}") &&
-      xpBar.includes("accessibilityValue={{ min: 0, max: 100, now: pct, text: trailing }}") &&
+      // The pinned literal was the OBJECT form, which React Native Web drops
+      // on the floor - the bar announced as a progressbar with no value at all
+      // on web. The guard's intent is "this bar announces its value", so it now
+      // pins the form that actually reaches both platforms.
+      xpBar.includes("{...a11yValue({ min: 0, max: 100, now: pct, text: trailing })}") &&
       xpBar.includes("accessibilityHint={accessibilityHint}") &&
       xpBar.includes('t("progression.maxLevelHint"') &&
       interview.includes("const kbHeight = useKeyboard()") &&
       interview.includes("paddingBottom: kbHeight + spacing.sm") &&
       interview.includes("minHeight: 48") &&
       quantPager.includes('accessibilityRole="progressbar"') &&
-      quantPager.includes("accessibilityValue={{ min: 0, max: 100, now: progressPercent, text: progressLabel }}") &&
+      quantPager.includes("{...a11yValue({ min: 0, max: 100, now: progressPercent, text: progressLabel })}") &&
       quantPager.includes("accessibilityHint={prevHint}") &&
       quantPager.includes("accessibilityHint={nextHint}") &&
       quantPager.includes("accessibilityHint={submitHint}");

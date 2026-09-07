@@ -40,6 +40,7 @@ import {
   type ProfileDetails,
 } from "@/lib/persona/profile-details";
 import { fetchProfileDetails, saveProfileDetails } from "@/lib/supabase/profile-details";
+import { a11yValue } from "@/lib/a11y/accessibility-value";
 
 /** 선택지 값 -> 로케일 키. 값 자체를 화면에 보여주면 안 되므로 표로 잇는다. */
 const CHOICE_LABEL: Readonly<Record<string, string>> = {
@@ -320,12 +321,12 @@ export default function ProfileDetailsScreen() {
                     accessible
                     accessibilityRole="progressbar"
                     accessibilityLabel={title}
-                    accessibilityValue={{
+                    {...a11yValue({
                       text: t("deepspace:profileDetails.progress", {
                         filled,
                         total: PROFILE_DETAIL_TOTAL,
                       }),
-                    }}
+                    })}
                 style={styles.progressTrack}
               >
                 {PROFILE_DETAIL_FIELDS.map((field) => (

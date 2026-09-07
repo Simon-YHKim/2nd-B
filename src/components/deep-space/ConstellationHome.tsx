@@ -52,6 +52,7 @@ import { SbStarfield } from "./SbStarfield";
 // 일곱을 보여줘야 해서 컴포넌트 밖으로 뺐다). 좌표는 여기 남는다.
 export type { HomeStarId } from "@/lib/persona/home-stars";
 import { type HomeStarId } from "@/lib/persona/home-stars";
+import { a11yValue } from "@/lib/a11y/accessibility-value";
 
 /**
  * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
@@ -847,7 +848,7 @@ export function ConstellationHome({
                   // Level (the brightness signal) is otherwise conveyed by the
                   // colour band + dither density alone; expose it so a blind
                   // user hears the domain's progress.
-                  accessibilityValue={{ min: 1, max: 5, now: levelOf(s.id) }}
+                  {...a11yValue({ min: 1, max: 5, now: levelOf(s.id) })}
                   style={StyleSheet.absoluteFill}
                 />
               </View>
