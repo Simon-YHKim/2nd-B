@@ -17,6 +17,8 @@ import { questionsForPeriod, type AuditPeriod } from "@/lib/audit/questions";
 import { isUnlived, type SevenStarId } from "@/lib/persona/seven-stars";
 import { createRecord } from "@/lib/records/create";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
+import { CrisisRouter } from "@/components/safety/CrisisRouter";
+import type { HotlineId } from "@/lib/safety/lexicon";
 
 const PERIOD_OPTIONS: { id: AuditPeriod; label: { en: string; ko: string } }[] = [
   { id: "current", label: { en: "Right now", ko: "지금 이 시기" } },
@@ -158,6 +160,10 @@ function AuditLegacy() {
   const [index, setIndex] = useState(0);
   const [answer, setAnswer] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [crisis, setCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
+    visible: false,
+    hotline: "KR_109",
+  });
   const [done, setDone] = useState(false);
   const [toast, setToast] = useState<AuditToast | null>(null);
   const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
@@ -237,7 +243,16 @@ function AuditLegacy() {
     if (!current || !userId || !answer.trim()) return;
     setSubmitting(true);
     try {
-      await createRecord({
+      // C9: createRecord runs the crisis classifier on every save and returns a
+      // red zone as a fixed-template followup rather than throwing. Dropping it
+      // wrote the safety ledger and showed the user NOTHING - the gap capture.tsx
+      // (:2497) and northstar.tsx (:141) already closed.
+      //
+      // ⚠ Round 61 wired this, then reverted it after reading only
+      // `if (isDeepSpaceUI()) return <AuditDeepSpace />;` and concluding the
+      // questionnaire was unreachable. It is reachable: line 550 sends
+      // `/audit?screener=1` here BEFORE the skin check, in every build.
+      const res = await createRecord({
         userId,
         locale,
         minor: isMinor === true,
@@ -248,6 +263,15 @@ function AuditLegacy() {
         topic: current.prompt[locale].slice(0, 80),
         tags: ["life_audit", current.framework],
       });
+      if (res.followup?.zone === "red") {
+        // Hand off before advancing: the answer is saved, but moving straight to
+        // the next prompt is the "cheerful next screen, no hotline" shape.
+        setCrisis({
+          visible: true,
+          hotline: locale === "ko" ? (isMinor === true ? "KR_1388" : "KR_109") : "GLOBAL_988",
+        });
+        return;
+      }
       setAnswer("");
       if (index + 1 >= questions.length) {
         setDone(true);
@@ -470,6 +494,12 @@ function AuditLegacy() {
           />
         </View>
       </PremiumModal>
+
+      <CrisisRouter
+        visible={crisis.visible}
+        hotline={crisis.hotline}
+        onClose={() => setCrisis((c) => ({ ...c, visible: false }))}
+      />
     </AuditScreenerShell>
   );
 }

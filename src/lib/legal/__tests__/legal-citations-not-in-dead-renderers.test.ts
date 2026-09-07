@@ -35,54 +35,60 @@ const ROOT = process.cwd();
 const LEGAL_DIR = path.join(ROOT, "docs", "legal");
 const CITATION = /`([A-Za-z0-9_@./()-]+\.tsx?):([0-9][0-9,\-\s]*)`/g;
 
-/** `if (isDeepSpaceUI()) return <X />;` followed by `return <Legacy />;` */
-const DELEGATION = /if \(isDeepSpaceUI\(\)\) return <\w+ \/>;\s*\r?\n\s*return <(\w+) \/>;/;
+import { deadRendererSpans, delegationCandidates } from "../dead-renderer-spans";
 
-interface DeadSpan {
-  file: string;
-  component: string;
-  from: number;
-  to: number;
-}
+// ⚠ 스팬 계산은 `../dead-renderer-spans.ts` 로 뺐다. ttl-work-b6 가 같은 계산을
+// **검사·가드 핀** 쪽에 필요로 해서다 - 죽은 사본에 심볼을 고정한 핀은 영원히
+// 초록이면서 아무것도 안 지킨다. 두 가드가 같은 부류를 따로 발견했으므로 계산을
+// 공유하고 주장만 각자 갖는다.
+const deadSpans = deadRendererSpans(ROOT);
 
-/** Line span of a top-level `function Name(` up to its column-0 closing brace. */
-function topLevelSpan(lines: readonly string[], name: string): { from: number; to: number } | null {
-  const start = lines.findIndex(l => l.startsWith(`function ${name}(`));
-  if (start === -1) return null;
-  for (let i = start + 1; i < lines.length; i += 1) {
-    if (lines[i] === "}") return { from: start + 1, to: i + 1 };
-  }
-  return null;
-}
+// 파싱하지 못하는 위임 모양. **개수가 아니라 명단으로** 적는다.
+//
+// ⚠ ttl-work-b6 가 재사용하려다 찾았다: `DELEGATION` 정규식은
+// `return <X />;` **바로 다음 줄에** `return <Y />;` 을 요구하는데, 스킨을
+// 분기하는 파일 서른한 개 중 열한 개가 다른 모양이다(변수로 받기 · 삼항 ·
+// 블록 · 조건이 하나 더). 그런데 옛 하한은 `>= 2` 에 ops·audit 를 지목해서,
+// **스무 개를 찾든 두 개를 찾든 통과**했다. 커버리지가 줄어도 초록이었다 -
+// "0건이다" 와 "안 봤다" 를 같은 신호로 보고하던 것이다.
+//
+// 명단으로 적으면 **새 모양은 즉시 실패**하고, 은퇴로 분모가 줄어드는 것은
+// 그냥 항목이 빠지는 일이 된다. 개수 하한이나 비율은 둘 다 못 하는 구분이다.
+const NOT_A_DEAD_SPAN: Readonly<Record<string, string>> = {
+  "src/app/audit.tsx":
+    "위임은 파싱되지만 AuditLegacy 는 `?screener=1` 로도 닿는다 - 죽은 스팬이 아니다(회차 64)",
+  "src/app/index.tsx": "위임 뒤에 bare return 이 없다 - 폴백 컴포넌트를 특정할 수 없다",
+  "src/app/(auth)/reset-password.tsx": "스킨을 분기하지 않고 참조만 한다",
+  "src/app/capture-full.tsx": "블록 분기",
+  "src/app/capture.tsx": "결과를 상수로 받아 쓴다",
+  "src/app/core-brain.tsx": "삼항",
+  "src/app/digest.tsx": "블록 분기",
+  "src/app/esm.tsx": "삼항",
+  "src/app/formats.tsx": "조건이 하나 더 붙는다 (view === export && …)",
+  "src/app/persona.tsx": "블록 분기",
+  "src/app/secondb.tsx": "주석에만 등장",
+  "src/app/settings.tsx": "결과를 상수로 받아 쓴다",
+  "src/app/trinity.tsx": "블록 분기",
+};
 
-function sourceFiles(dir: string, out: string[] = []): string[] {
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      if (entry.name === "__tests__" || entry.name === "__mocks__") continue;
-      sourceFiles(full, out);
-    } else if (/\.tsx$/.test(entry.name)) {
-      out.push(path.relative(ROOT, full).split(path.sep).join("/"));
-    }
-  }
-  return out;
-}
-
-const deadSpans: DeadSpan[] = [];
-for (const rel of sourceFiles(path.join(ROOT, "src", "app"))) {
-  const text = fs.readFileSync(path.join(ROOT, rel), "utf8");
-  const match = DELEGATION.exec(text);
-  if (!match) continue;
-  const span = topLevelSpan(text.split(/\r?\n/), match[1]);
-  if (span) deadSpans.push({ file: rel, component: match[1], ...span });
-}
+test("스킨을 분기하는 파일이 전부 설명돼 있다 - 커버리지가 조용히 줄지 않는다", () => {
+  const candidates = delegationCandidates(ROOT);
+  const parsed = new Set(deadSpans.map(s => s.file));
+  const unexplained = candidates.filter(
+    rel => !parsed.has(rel) && !(rel in NOT_A_DEAD_SPAN),
+  );
+  expect(unexplained).toEqual([]);
+  expect(candidates.length).toBeGreaterThanOrEqual(10);
+  // 명단의 근거도 검사한다: "죽은 스팬이 아니다" 라고 적어 둔 파일이
+  // 실제로 죽은 스팬으로 잡히면 그 설명은 더 이상 사실이 아니다.
+  const contradicted = Object.keys(NOT_A_DEAD_SPAN).filter(rel => parsed.has(rel));
+  expect(contradicted).toEqual([]);
+});
 
 test("배송되지 않는 렌더러를 실제로 찾았다 - 0건 통과를 막는다", () => {
-  // 이 검사가 아무 렌더러도 못 찾으면 아래 검사는 영원히 초록이다.
-  expect(deadSpans.length).toBeGreaterThanOrEqual(2);
-  expect(deadSpans.map(s => s.file)).toEqual(
-    expect.arrayContaining(["src/app/ops.tsx", "src/app/audit.tsx"]),
-  );
+  // 아무것도 못 찾으면 아래 검사는 영원히 초록이다. 개별 파일 이름은 앵커로
+  // 쓰지 않는다 - 은퇴가 진행 중이라 어떤 이름도 유효기간이 짧다.
+  expect(deadSpans.length).toBeGreaterThanOrEqual(5);
 });
 
 test("법무 문서가 어떤 배포도 안 그리는 렌더러를 인용하지 않는다", () => {

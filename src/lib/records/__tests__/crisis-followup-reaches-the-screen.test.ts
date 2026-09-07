@@ -31,6 +31,7 @@ const ROOT = process.cwd();
 
 /** Call sites whose `body` is text a person typed. These must surface red. */
 const USER_PROSE: readonly string[] = [
+  "src/app/audit.tsx",
   "src/app/call-reflection.tsx",
   "src/app/capture.tsx",
   "src/app/career-drilldown.tsx",
@@ -55,7 +56,24 @@ const NOT_USER_PROSE: Readonly<Record<string, string>> = {
     "body 는 이분 선택(soft/affirm)에 대응하는 **카피 상수**로 조립된다 - 사용자가 타이핑한 문장이 아니다",
 };
 
-/** Call sites whose body IS user prose but which no shipped build renders.
+/** ⚠ THIS CATEGORY IS NOW EMPTY, AND THAT IS THE POINT.
+ *
+ *  Round 61 put `audit.tsx` here after reading
+ *  `if (isDeepSpaceUI()) return <AuditDeepSpace />;` and concluding the
+ *  free-text questionnaire was unreachable. Round 64 found line 550:
+ *
+ *      if (screener === "1") return <AuditLegacy />;   // BEFORE the skin check
+ *
+ *  `/audit?screener=1` reaches the questionnaire in every build, so the
+ *  exemption was false and the crisis hand-off really was missing. Re-wired.
+ *
+ *  The exemption test below still runs: it now asserts the category is empty
+ *  rather than that its one entry is justified. Kept rather than deleted, so
+ *  the next person who wants to exempt a screen has to write down why AND has
+ *  a worked example of an exemption that looked obvious and was wrong.
+ *
+ *  (original note follows)
+ *  Call sites whose body IS user prose but which no shipped build renders.
  *
  *  ⚠ Round 61 wired `audit.tsx` before checking this, and had to undo it. The
  *  free-text questionnaire there is the LEGACY renderer: `audit.tsx` returns
@@ -75,8 +93,7 @@ const NOT_USER_PROSE: Readonly<Record<string, string>> = {
  *  the day someone makes the questionnaire reachable this file must move up to
  *  USER_PROSE rather than stay quietly exempt. */
 const LEGACY_UNREACHABLE: Readonly<Record<string, string>> = {
-  "src/app/audit.tsx":
-    "자유서술 설문은 레거시 렌더러다 - 배송되는 /audit 는 DdsAuditScreen(provenance hub)이고 createRecord 가 0건이다",
+
 };
 
 const SAVE_CALL = /(?:^|[^.\w])(createRecord|saveNorthstar)\s*\(/;
@@ -144,15 +161,19 @@ test("미성년 여부가 저장 호출에 실린다 - 1388 과 109 를 가르�
   expect(missing).toEqual([]);
 });
 
-test("도달 불가 면제가 아직 지킬 대상을 갖는다", () => {
+test("도달 불가 면제가 비어 있다 - 근거가 틀린 면제가 하나 있었다", () => {
+  // 회차 61 이 audit.tsx 를 여기 넣었고 회차 64 가 틀렸음을 찾았다.
+  // `/audit?screener=1` 이 스킨 검사 **앞에서** 레거시 설문으로 보낸다.
+  // 면제를 지우는 대신 빈 채로 남긴다 - 다음 사람이 면제를 넣으려 할 때
+  // 근거를 적게 하고, **명백해 보였는데 틀렸던 면제**의 실례를 남기려고.
+  expect(Object.keys(LEGACY_UNREACHABLE)).toEqual([]);
+});
+
+test("옛 면제의 근거가 왜 틀렸는지가 코드에 남아 있다", () => {
   // 면제는 근거가 살아 있을 때만 면제다. audit.tsx 가 딥스페이스로 위임하기를
   // 멈추면 그 설문은 다시 그려지고, 그 순간 이 파일은 USER_PROSE 로 올라와야
   // 한다. 근거를 검사하지 않는 면제는 조용히 썩는다.
+  // 이 줄이 면제를 무효로 만든 근거다. 사라지면 이 검사가 먼저 운다.
   const app = fs.readFileSync(path.join(ROOT, "src/app/audit.tsx"), "utf8");
-  expect(app).toMatch(/if \(isDeepSpaceUI\(\)\) return <AuditDeepSpace \/>;/);
-  const dds = fs.readFileSync(
-    path.join(ROOT, "src/screens/deepspace/dds-audit-screen.tsx"),
-    "utf8",
-  );
-  expect(SAVE_CALL.test(dds)).toBe(false);
+  expect(app).toMatch(/if \(screener === "1"\) return <AuditLegacy \/>;/);
 });
