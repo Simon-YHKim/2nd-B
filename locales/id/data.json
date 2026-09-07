@@ -8,13 +8,13 @@
   },
   "import": {
     "eyebrow": "Impor",
-    "body": "Masukkan apa yang dikumpulkan asisten lain tentang kamu, atau tes watak/kepribadian masa lalu, yang sudah diurutkan ke dalam strukturmu.",
+    "body": "Impor catatan tentang dirimu dari asisten lain atau hasil tes kepribadian terdahulu untuk ditata di sini.",
     "button": "Impor materi eksternal",
     "accessibilityHint": "Membuka layar impor."
   },
   "export": {
     "eyebrow": "Ekspor",
-    "body": "Dari penyimpanan kamu bisa mengumpulkan catatanmu menjadi satu teks untuk disalin. Berguna untuk cadangan atau pindah ke tempat lain.",
+    "body": "Kumpulkan catatan dari penyimpanan menjadi satu teks yang bisa disalin untuk cadangan atau dipindahkan ke tempat lain.",
     "button": "Ekspor dari penyimpanan",
     "accessibilityHint": "Membuka penyimpanan pengetahuan."
   },
@@ -26,6 +26,6 @@
   },
   "device": {
     "eyebrow": "Di perangkat ini",
-    "body": "Bit ringan seperti preferensi tampilan dan petunjuk pertama kali hanya ada di perangkat ini. Tidak seperti catatan tersimpanmu, mereka diatur ulang sendiri saat kamu ganti perangkat atau hapus data aplikasi."
+    "body": "Pengaturan tampilan dan petunjuk awal hanya disimpan di perangkat ini. Pengaturan itu akan kembali ke awal jika kamu berganti perangkat atau menghapus data aplikasi. Catatan yang tersimpan di akun tetap terpisah."
   }
 }

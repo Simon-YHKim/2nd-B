@@ -1,9 +1,9 @@
 {
   "hero": {
     "eyebrow": "Formats",
-    "title": "My clipper formats",
+    "title": "Formats for saved material",
     "subtitle": "Formats you made and ones the community shared",
-    "speech": "Tune a format and the next pieces file themselves better."
+    "speech": "Choose how to sort your material and which details to save."
   },
   "mine": {
     "shared": "Shared with the community",
@@ -11,7 +11,7 @@
     "heading": "My formats",
     "headingWithCount": "My formats ({{count}})",
     "emptyTitle": "No formats yet",
-    "emptyBody": "Save a SecondB-proposed format while capturing and it lands here."
+    "emptyBody": "Formats you save from SecondB's suggestions appear here."
   },
   "community": {
     "heading": "Community formats",
@@ -42,15 +42,15 @@
   },
   "labels": {
     "untitled": "(untitled)",
-    "viewGuide": "view filing guide",
-    "tapViewGuide": "Tap to view filing guide ›",
+    "viewGuide": "View sorting rules",
+    "tapViewGuide": "Tap to view sorting rules ›",
     "guide": "Guide",
     "share": "share",
     "delete": "delete"
   },
   "actions": {
     "addFormat": "Add format",
-    "goCapture": "Go capture",
+    "goCapture": "Save material",
     "edit": "Edit",
     "delete": "Delete",
     "cancel": "Cancel",
@@ -66,18 +66,18 @@
     "retry": "Try again"
   },
   "toast": {
-    "shareFailed": "Could not change sharing.",
+    "shareFailed": "Couldn't change sharing.",
     "deleteSuccess": "Format deleted.",
-    "deleteFailed": "Could not delete.",
+    "deleteFailed": "Couldn't delete.",
     "saveSuccess": "Format saved.",
-    "saveFailed": "Could not save.",
+    "saveFailed": "Couldn't save.",
     "addSuccess": "Format added.",
     "reportSuccess": "Reported. This format is hidden from your list.",
-    "reportFailed": "Could not send the report.",
+    "reportFailed": "Couldn't send the report.",
     "blockSuccess": "Blocked. Their formats are hidden from your list.",
-    "blockFailed": "Could not block.",
+    "blockFailed": "Couldn't block.",
     "unblockSuccess": "Blocks lifted.",
-    "unblockFailed": "Could not lift the blocks."
+    "unblockFailed": "Couldn't lift the blocks."
   },
   "deleteModal": {
     "label": "Delete format confirmation",
@@ -95,35 +95,35 @@
     "nameEnPlaceholder": "English name",
     "description": "Description",
     "descriptionHint": "One line on what this format is",
-    "descriptionKoPlaceholder": "Korean one-liner",
-    "descriptionEnPlaceholder": "English one-liner",
+    "descriptionKoPlaceholder": "Short description in Korean",
+    "descriptionEnPlaceholder": "Short description in English",
     "sourceType": "Source type",
     "sourceTypeHint": "Choose how captures using this format are saved.",
     "filingArea": "Filing area",
     "noArea": "No area yet",
-    "autoMatchLinks": "Auto-match links",
-    "autoMatchLinksHint": "Matching links are filed with this format automatically.",
+    "autoMatchLinks": "Link matching rules",
+    "autoMatchLinksHint": "Links that match these rules are sorted using this format.",
     "addLinkRule": "Add link rule",
     "defaultTags": "Default tags",
     "addTag": "Add tag",
     "savedFolder": "Saved folder",
     "savedFolderHint": "Optional folder name. For example: tools/",
     "detailsToSave": "Details to save",
-    "detailsToSaveHint": "Details to extract and save from each capture.",
+    "detailsToSaveHint": "Details to read from each item and save with it.",
     "noneYet": "None yet",
     "detailNamePlaceholder": "Detail name (e.g. topic area)",
     "removeDetail": "Remove detail",
     "remove": "Remove",
     "addDetail": "Add detail",
-    "fillKoPlaceholder": "What to fill (Korean)",
-    "fillEnPlaceholder": "What to fill (English)",
+    "fillKoPlaceholder": "What to save (Korean)",
+    "fillEnPlaceholder": "What to save (English)",
     "removeValue": "Remove {{value}}",
     "saving": "Saving",
     "save": "Save",
     "cancel": "Cancel",
     "propTypes": {
       "text": "Text",
-      "multitext": "Long",
+      "multitext": "Multiple lines",
       "number": "Number"
     }
   },
@@ -133,9 +133,9 @@
     "sourceType": "Source type",
     "filingArea": "Filing area",
     "defaultTags": "Default tags",
-    "autoMatchLinks": "Auto-match links",
+    "autoMatchLinks": "Link matching rules",
     "detailsSaved": "Details saved from each piece",
-    "commonOnly": "Only common fields such as summary, tags, and relevance are saved.",
+    "commonOnly": "Only details used for every format are saved, such as the summary, tags and relevance.",
     "propTypes": {
       "text": "Text",
       "multitext": "List",
@@ -144,16 +144,16 @@
   },
   "add": {
     "title": "Add a format",
-    "body": "Describe the material and how you'd file it. SecondB suggests a reusable filing guide.",
+    "body": "Describe your material and how you want to organize it. SecondB will suggest sorting rules and details to save.",
     "placeholder": "e.g. Podcast episodes - capture the guest and key claims",
-    "draft": "Draft filing guide with SecondB",
+    "draft": "Ask SecondB for sorting rules",
     "drafting": "Drafting…",
     "errorNeedDetail": "Couldn't draft a filing guide. Add detail and try again.",
     "errorDraft": "We couldn't draft the filing guide. Please try again in a moment.",
     "errorSave": "We couldn't save the format. Please try again.",
     "proposedEyebrow": "Proposed format",
     "addThis": "Add this format",
-    "redo": "Redo",
+    "redo": "Try another draft",
     "cancel": "Cancel"
   }
 }

@@ -2,9 +2,9 @@
   "loading": "Carregando planos...",
   "hero": {
     "eyebrow": "Planos",
-    "title": "Mantenha seu 2nd-Brain sem limites",
-    "subtitle": "Registros ficam gratuitos sem restrições. Planos pagos adicionam mais espaço para pensar com IA.",
-    "speech": "O núcleo é gratuito. Planos pagos só adicionam mais espaço para pensar juntos."
+    "title": "Escolha seu plano",
+    "subtitle": "Salve registros sem limite no plano gratuito. Os planos pagos aumentam o limite de conversas com IA.",
+    "speech": "Compare os limites de uso e escolha o plano que atende você."
   },
   "current": "Plano atual",
   "comingSoon": "Planos pagos chegam em breve",
@@ -13,7 +13,7 @@
     "free": {
       "name": "Stargazer",
       "price": "Grátis",
-      "tagline": "Seu 2nd-Brain do dia a dia, registros ilimitados",
+      "tagline": "Registros ilimitados para o dia a dia",
       "f1": "Registros, notas e wiki ilimitados",
       "f2": "Armazenamento privado na conta com exportação quando precisar",
       "f3": "5 conversas com IA por dia"
@@ -22,19 +22,19 @@
       "name": "Voyager",
       "price": "$9.99 / mo",
       "priceNote": "$99.90 / yr (2 meses grátis)",
-      "tagline": "Espaço para mergulhos diários profundos",
+      "tagline": "Mais conversas com IA por dia",
       "f1": "80 conversas com IA por dia",
-      "f2": "Tudo do Soma",
-      "f3": "Fôlego para sessões longas"
+      "f2": "Tudo do Stargazer",
+      "f3": "Mais limite para conversas longas"
     },
     "brain": {
       "name": "North Star",
       "price": "$19.99 / mo",
       "priceNote": "$199.90 / yr (2 meses grátis)",
-      "tagline": "O segundo cérebro completo",
+      "tagline": "O maior limite de conversas",
       "f1": "250 conversas com IA por dia",
       "f2": "Reflexões sobre suas entradas",
-      "f3": "Tudo do Cortex"
+      "f3": "Tudo do Voyager"
     }
   },
   "back": "Voltar"

@@ -39,6 +39,10 @@ const A = "src/lib/auth/consent-age.ts";
 const D = "supabase/functions/delete-account/index.ts";
 const X = "supabase/functions/export-account/index.ts";
 const W = "src/lib/wiki/export.ts";
+const AC = "src/lib/auth/AuthContext.tsx";
+const AD = "src/lib/ads/policy.ts";
+const CV = "src/lib/chat/conversation.ts";
+const OP = "src/app/ops.tsx";
 
 const ANCHORS: Anchor[] = [
   { cite: `${S}:408-438`, symbol: "fixedCrisisResponse",
@@ -91,6 +95,16 @@ const ANCHORS: Anchor[] = [
     why: "일부러 뺀 저장소 셋. 빼는 것 자체가 아니라 **응답에 적어 돌려준다는 것**이 통제다." },
   { cite: `${W}:240`, symbol: "includeRecords",
     why: "저널이 기본으로 안 실린다는 주장의 **실제 근거** - 그 삼항 연산이 없으면 기본값이 무의미하다." },
+  { cite: `${AC}:132`, symbol: "MINOR_AGE_CEILING",
+    why: "미성년 여부가 실제로 정해지는 비교. 이 문서 전체가 이 한 줄 위에 서 있다." },
+  { cite: `${AD}:58`, symbol: "input.isMinor !== false",
+    why: "미성년에게 광고가 안 나간다는 주장의 fail-closed 지점 - null 도 막는다는 것이 주장의 내용이다." },
+  { cite: `${AD}:11-13`, symbol: "NEVER see ads",
+    why: "그 규칙을 코드가 스스로 적어 둔 자리." },
+  { cite: `${CV}:338`, symbol: "SYSTEM_PROMPT_HEADER",
+    why: "대화 프롬프트가 실제로 조립되는 자리 - 무엇이 모델에 들어가는지의 근거." },
+  { cite: `${OP}:111`, symbol: "recommendationsAllowed",
+    why: "미성년 추천 잠금이 화면에서 실제로 불리는 자리." },
   { cite: `${D}:66-78`, symbol: "userIdFromJwt",
     why: "지울 계정을 클라이언트가 못 고른다는 IDOR 주장의 근거." },
   { cite: `${A}:108-121`, symbol: "deviceRegionCode",

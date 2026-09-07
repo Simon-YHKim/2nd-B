@@ -142,9 +142,28 @@
 
 1. **라우팅 키 = purpose(상황)** — 구독 티어가 아니다. SAME-QUALITY 불변식(`src/lib/entitlements/tiers.ts` 헤더, plans 카피 "더 비싸도 더 나은 나를 주지 않는다")에 따라 티어는 COUNTS/FEATURES/HISTORY만 차등한다. 라우팅 테이블에 tier 필드는 의도적으로 없다.
 2. **품질 최우선, 비용은 구조로** (Simon 지시 2026-07-04): 자기이해 서사 표면(persona/axis/digest/ttfv/advisor/northstar)은 좋은 모델 + 높은 리즈닝. 비용 절감은 모델 다운그레이드가 아니라 캐시·통합·배치·RAG로 달성한다.
-3. **2-Phase**: Phase 1(현재→2026-08-17 XPRIZE 제출) = Gemini 백본 온리(C1/C2, $0 무료 티어). Phase 2(제출 후) = 3사(Gemini/OpenAI/Anthropic) 품질-우선 라우팅.
+3. **2-Phase**: ~~Phase 1(현재→2026-08-17 XPRIZE 제출)~~ Phase 1 = Gemini 백본 온리(C1/C2, $0 무료 티어). Phase 2 = 3사(Gemini/OpenAI/Anthropic) 품질-우선 라우팅.
+   ⚠ **2026-09-07 정정 — 단계를 가르던 그 날짜는 없다.** XPRIZE 는 2026-08-15 에 종료됐고
+   (루트 `CLAUDE.md`) 이 프로젝트에는 마감이 없다. Phase 를 넘기는 것은 날짜가 아니라
+   **운영 스위치**다(바로 아래 세 단계). "제출 전이라 아직 Phase 1" 을 근거로 쓰지 말 것.
    **Phase 2 비용 게이트 = 통과 (Simon 지시, 2026-07-04 "phase2 진행하고")** — 코드는 전부 배선 완료, 활성화는 운영 스위치: ① Supabase 시크릿 `ANTHROPIC_API_KEY`/`OPENAI_API_KEY` 세팅 ② `claude-proxy`/`openai-proxy` 배포 ③ 클라 `EXPO_PUBLIC_LLM_PHASE=2` 플립. 스위치 전까지 기본값은 Phase 1(전량 Gemini, 행동 변화 0).
-   **OCR 핀 (Simon 지시, 2026-07-04 "OCR 작업은 무조건 gemini 사용하자")**: `capture_ocr`은 모든 Phase에서 무조건 Gemini — 벤더 failover 없음, 예외 없음. 기술적으로도 gemini-proxy만 이미지 inline-data를 통과시킨다. 코드 강제: `src/lib/llm/routing.ts` GEMINI_PINNED_PURPOSES + 이미지 입력 전역 Gemini 강제.
+   ~~**OCR 핀 (Simon 지시, 2026-07-04 "OCR 작업은 무조건 gemini 사용하자")**: `capture_ocr`은 모든 Phase에서 무조건 Gemini — 벤더 failover 없음, 예외 없음. 기술적으로도 gemini-proxy만 이미지 inline-data를 통과시킨다. 코드 강제: `src/lib/llm/routing.ts` GEMINI_PINNED_PURPOSES + 이미지 입력 전역 Gemini 강제.~~
+
+   > ⚠ **2026-08-23 정정 — 이 핀은 뒤집혔다. 위 문단을 현행으로 읽지 말 것.**
+   >
+   > Simon 이 닫았다: **"OCR = openai 유지 (gemini 예외 없음, 9월 전체 폐기 원안 그대로)"**
+   > (`docs/HANDOFF.md` 2026-08-23 · `docs/LLM-VENDOR-PLACEMENT.md` 머리말).
+   > 기술적 근거도 함께 사라졌다 — #1300(REQ-260821-01) 이 openai-proxy 에 이미지·오디오
+   > 경로를 줬고, 배포본 v109(2026-08-24)에 `capture_ocr`·`voice_transcribe` 좌석이 실재한다.
+   >
+   > **코드는 이미 그렇게 돈다** (`src/lib/llm/routing.ts`, 2026-09-07 실측):
+   > `GEMINI_PINNED_PURPOSES` 라는 이름은 남았지만 **`MULTIMODAL_PURPOSES` 의 별칭일 뿐**이고,
+   > 그 목적들의 벤더는 `multimodalVendor()` 가 `EXPO_PUBLIC_MULTIMODAL_VENDOR` 로 정한다.
+   > 미설정 기본값은 `RETIRED_DEFAULT`(= openai) 이고, 저장소 Variable(2026-08-22)과
+   > `eas.json`(#1370) 양쪽이 `openai` 다. **이름만 보고 핀이 살아 있다고 읽는 것이 함정이다.**
+   >
+   > OCR 과 음성은 **한 스위치**로 같이 움직인다. 되돌리려면
+   > `EXPO_PUBLIC_MULTIMODAL_VENDOR=gemini` 하나이고, 그 값은 gemini-proxy 가 삭제될 때까지만 받는다.
    **OPENAI_API_KEY 핀 (Simon 결정, 2026-08-03 "Phase 2까지 보류로 확정")**: Phase 1 동안 `OPENAI_API_KEY`를 Supabase 시크릿에 **넣지 않는다**. `REASONING_PROVIDER=gemini`라 없어도 동작 차이가 0이고, 키가 없는 상태가 Phase 1의 **의도된 상태**다. 미완 항목이 아니므로 체크리스트·핸드오프·투두에 "미설정"으로 다시 올리지 말 것 — Phase 2 플립 때 위 ① 단계에서 `ANTHROPIC_API_KEY`와 함께 설정한다.
 4. **C1 유지**: 비-Gemini 벤더는 전부 Supabase 엣지 프록시 경유(claude-proxy 기존, openai-proxy는 claude-proxy 포크 ~1h 템플릿). 클라이언트에 타 벤더 SDK/키 절대 금지.
 5. **C9 유지**: lexicon 전 행 pre-classify + red 단락 + 출력 재분류/swap은 어떤 라우팅에서도 제거 불가. 시맨틱 레이어는 제거가 아니라 **복구**(§3 P0-1).
@@ -255,7 +274,7 @@ PURPOSE_ROUTE[purpose] = {
 ## 5. 운영 게이트·감시 항목
 
 - **배포 게이트**: AI Studio rate-limit 대시보드 실측(무료 RPD 수치는 전부 서드파티 추정), Batch free-tier 가용성 실측, 위기 eval set(A18).
-- **파산점**: 통합·캐시 적용 시 free tier ~150-170 DAU. 초과 사다리: lite↔flash 교차 스필 → 2.5 버킷 → Vertex(과금) → Tier-1 승급. XPRIZE 증빙 촬영일은 Vertex 고정.
+- **파산점**: 통합·캐시 적용 시 free tier ~150-170 DAU. 초과 사다리: lite↔flash 교차 스필 → 2.5 버킷 → Vertex(과금) → Tier-1 승급. ~~XPRIZE 증빙 촬영일은 Vertex 고정.~~ (2026-09-07 정정: 촬영일도 대회도 없다.)
 - **유저 캡 × 프로젝트 풀**: brain 1명(500콜/일)이 공유 무료 풀의 ~13% — per-purpose rpdBudget + 글로벌 일일 예산 + fair-share 스로틀 필요. interview 세션(현행 무게이트 50콜) 예산 필수.
 - **단가 캘린더**: claude-sonnet-5 인트로($2/$10)는 2026-08-31 만료 → Phase 2 COGS는 post-intro($3/$15) 기준으로 산정 완료.
 - **2.5 핀 sunset 감시**: A13/G4가 audio 검증 때문에 2.5-flash 고정 — 3.5-flash audio eval 통과를 트리거로 마이그레이션(오너 지정). 직결 Vertex 레인은 spend counter 밖 → 캡 회계 편입 필요.

@@ -1,19 +1,19 @@
 {
-  "loading": "Loading theme...",
+  "loading": "Loading theme…",
   "hero": {
-    "eyebrow": "08-4. Theme",
-    "title": "Choose your display tone",
-    "subtitle": "Dark default · bright secondary tone",
-    "speech": "The main graph always keeps the dark sky so stars and links stay crisp."
+    "eyebrow": "Theme",
+    "title": "Choose a light or dark theme",
+    "subtitle": "Dark background · light background",
+    "speech": "The main graph always has a dark background so stars and links are easy to see."
   },
   "options": {
     "dark": {
       "label": "Dark",
-      "sub": "The default night tone"
+      "sub": "Dark background"
     },
     "light": {
       "label": "Light",
-      "sub": "A bright paper tone"
+      "sub": "Light background"
     }
   },
   "font": {
@@ -25,7 +25,7 @@
       },
       "readable": {
         "label": "Readable font",
-        "sub": "A smooth font that is easier on the eyes"
+        "sub": "Easier to read at small sizes"
       }
     },
     "useFontLabel": "Use the {{label}}",
@@ -40,7 +40,7 @@
       },
       "lite": {
         "label": "Lite mode",
-        "sub": "Fewer effects for a smooth ride on older phones"
+        "sub": "Fewer effects to reduce the load on your device"
       }
     },
     "usePerformanceLabel": "Use {{label}}",
@@ -52,5 +52,5 @@
     "useThemeLabel": "Use {{label}} theme",
     "useThemeHint": "Applies the selected theme on this device."
   },
-  "note": "The main graph stays dark even in light mode. It is the background where stars and connections read best."
+  "note": "The main graph keeps a dark background in light mode so stars and links stay easy to see."
 }

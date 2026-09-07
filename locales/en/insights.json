@@ -2,23 +2,23 @@
   "loading": "Loading insights...",
   "error": {
     "title": "Couldn't load insights",
-    "body": "The connection paused for a moment. Try again to recompute your record flow.",
+    "body": "Try again to analyze your records.",
     "retry": "Try again"
   },
   "empty": {
     "hero": {
       "eyebrow": "11. Insights",
-      "title": "Patterns are still small",
-      "subtitle": "A few days of records will reveal the flow",
-      "speech": "I need a few more pieces to see taste and repetition. Leave one today?",
+      "title": "Not enough records to analyze yet",
+      "subtitle": "A few days of records can show what comes up often",
+      "speech": "More records are needed to find your interests and recurring activities.",
       "action": "Go to capture"
     }
   },
   "hero": {
     "eyebrow": "11. Insights",
-    "title": "See the flow in recent records",
-    "subtitle": "Computed directly from records",
-    "speech": "I gathered recurring topics and recent conclusions. Shall we trace the pattern?",
+    "title": "Explore your recent records",
+    "subtitle": "Based on your records",
+    "speech": "See topics that came up often and your recent conclusions.",
     "action": "Leave today's piece"
   },
   "stats": {
@@ -37,7 +37,7 @@
     "lastWeekLabel": "Last week",
     "deltaUp": "{{count}} more than last week",
     "deltaDown": "{{count}} fewer than last week",
-    "deltaFlat": "Same pace as last week",
+    "deltaFlat": "The same number of records as last week",
     "firstWeek": "Your first week of records"
   },
   "sections": {

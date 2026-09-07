@@ -8,13 +8,13 @@
   },
   "import": {
     "eyebrow": "Importar",
-    "body": "Traga o que outro assistente reuniu sobre você, ou um teste de personalidade/disposição anterior, organizado na sua estrutura.",
+    "body": "Importe notas de outro assistente ou resultados de testes anteriores para seus registros.",
     "button": "Importar material externo",
     "accessibilityHint": "Abre a tela de importação."
   },
   "export": {
     "eyebrow": "Exportar",
-    "body": "No arquivo você pode reunir seus registros em um texto para copiar. Ótimo para backup ou para migrar para outro lugar.",
+    "body": "Reúna seus registros em um texto para copiar, guardar como backup ou usar em outro lugar.",
     "button": "Exportar do arquivo",
     "accessibilityHint": "Abre o arquivo de conhecimento."
   },

@@ -4,14 +4,14 @@
     "saveFailed": "Couldn't save. Please try again."
   },
   "hero": {
-    "eyebrow": "Light check-in",
-    "title": "One signal from now",
+    "eyebrow": "Quick check-in",
+    "title": "How are things right now?",
     "subtitle": "No notifications. Only when you open it.",
-    "speech": "No judgment. Just a small momentary signal."
+    "speech": "Take a moment to record how you are doing."
   },
   "card": {
     "eyebrow": "15 seconds",
-    "title": "What kind of signal fits this moment?"
+    "title": "What would you like to record?"
   },
   "prompts": {
     "changeHint": "Changes the check-in prompt type.",
@@ -40,12 +40,12 @@
       "outside": "Outside"
     }
   },
-  "note": "This is not a judgment or label. It is a small signal that sharpens your patterns later.",
+  "note": "One check-in does not define you. Save them over time to see what changes.",
   "actions": {
     "save": "Save check-in",
     "saving": "Saving",
     "backHome": "Back home",
     "backHomeHint": "Returns to the home screen."
   },
-  "saved": "Saved. One small signal was added."
+  "saved": "Check-in saved."
 }

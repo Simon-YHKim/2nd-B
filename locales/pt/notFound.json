@@ -3,7 +3,7 @@
     "eyebrow": "404",
     "title": "Esta página não existe",
     "subtitle": "Comece novamente pela tela inicial.",
-    "speech": "O link parece quebrado. Escolha um lugar seguro para continuar."
+    "speech": "Este link não abriu uma página. Volte ao início ou escolha uma das opções abaixo."
   },
   "actions": {
     "home": "Ir para o início",
@@ -20,8 +20,8 @@
       "hint": "Abre a linha do tempo do eu passado."
     },
     "persona": {
-      "label": "Persona",
-      "hint": "Abre a tela da persona."
+      "label": "Meu resumo",
+      "hint": "Abre seu resumo pessoal."
     },
     "manual": {
       "label": "Guia de uso",

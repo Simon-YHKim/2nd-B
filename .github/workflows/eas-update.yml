@@ -306,6 +306,14 @@ jobs:
           const entries = Object.entries(profile.env ?? {}).filter(([key]) => key.startsWith("EXPO_PUBLIC_"));
           if (entries.length === 0) throw new Error("build profile has no EXPO_PUBLIC contract");
           const expectedKeys = new Set(entries.map(([key]) => key));
+          // 2026-09-08: EXIM_FX_KEY / MFDS_FOOD_KEY are RETIRED - no source file
+          // reads them any more (they moved behind the public-data-proxy Edge
+          // Function), so Metro has no reference to inline and no native bundle
+          // carries their values. They stay listed here because this check also
+          // asserts every allowed name is PRESENT in the EAS channel environment.
+          // Order matters if you ever clear them: eas env:delete FIRST, then drop
+          // the names here and in eas-update-environment-contract.test.ts.
+          // Background: docs/PUBLIC-DATA-KEY-RETIREMENT.md
           const allowedServerOnlyByChannel = {
             preview: new Set([
               "EXPO_PUBLIC_CLARITY_PROJECT_ID",

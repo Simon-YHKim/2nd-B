@@ -1,8 +1,8 @@
 {
-  "loading": "Opening your routines…",
+  "loading": "Loading routines…",
   "hero": {
     "title": "Routines",
-    "subtitle": "Pick one area. Get a few concrete next steps."
+    "subtitle": "Pick an area to get ideas you can try."
   },
   "groups": {
     "body": "Body",
@@ -29,18 +29,18 @@
   },
   "picker": {
     "groupHint": "Shows the areas in this group.",
-    "domainHint": "Builds suggestions for this area.",
+    "domainHint": "Suggests things to try in this area.",
     "optionA11yLabel": "{{label}}, option {{index}} of {{total}}, {{state}}.",
     "stateSelected": "selected",
     "stateAvailable": "available"
   },
   "recommend": {
     "off": "Routine suggestions are off for this account, so your saved pieces stay private.",
-    "cta": "Suggest next steps",
-    "ctaHint": "Reads your saved pieces and drafts a few suggestions.",
-    "working": "Lining up suggestions…",
-    "empty": "Nothing usable came back. Try again, or pick another area.",
-    "error": "The suggestion run didn't finish. Your pieces are safe. Try again.",
+    "cta": "Get suggestions",
+    "ctaHint": "Uses your saved pieces to suggest things to try.",
+    "working": "Preparing suggestions…",
+    "empty": "We could not find a useful suggestion. Try again or pick another area.",
+    "error": "We could not prepare suggestions. Your saved pieces are still here. Try again.",
     "limit": "Today's free suggestions are used up. They reset tomorrow.",
     "disclaimerBody": "Ideas and plans, not professional advice."
   },
@@ -49,11 +49,11 @@
     "daily": "Every day",
     "weekly": "Every week",
     "share": "Share",
-    "shareA11y": "Share this step",
+    "shareA11y": "Share this suggestion",
     "addCalendar": "Add to calendar",
     "addCalendarA11y": "Add to calendar",
     "saveRoutine": "Save as routine",
-    "saveRoutineA11y": "Save this step as a managed routine",
+    "saveRoutineA11y": "Save this suggestion as a routine",
     "saving": "Saving…",
     "saved": "Saved",
     "addDevice": "My calendar",
@@ -63,27 +63,27 @@
     "downloadIcs": "Calendar file",
     "downloadIcsHint": "Downloads an .ics file that opens in your calendar app.",
     "shareList": "Send checklist",
-    "shareListHint": "Opens the share sheet with this checklist as text.",
+    "shareListHint": "Opens the sharing menu with this checklist as text.",
     "remind": "Remind me",
     "remindHint": "Schedules an on-device reminder at this item's time."
   },
   "consent": {
-    "title": "Hand items to your apps?",
-    "body": "Approved items go to your calendar or share sheet. Asked once: keep allowing from now on, and turn it off anytime in Privacy.",
-    "agree": "Allow and continue",
-    "agreeHint": "Saves the choice and performs this push.",
+    "title": "Send to another app?",
+    "body": "Approved items go to your calendar or sharing menu. Once you allow this, you will not be asked again. You can turn it off anytime in Privacy.",
+    "agree": "Allow and send",
+    "agreeHint": "Saves your choice and sends the selected item.",
     "later": "Not now",
-    "laterHint": "Closes without pushing. The item stays on this screen."
+    "laterHint": "Closes without sending. The item stays on this screen."
   },
   "today": {
     "heading": "Today's routines",
-    "empty": "No routines due today. Save a step below to start one.",
+    "empty": "No routines due today. Save a suggestion below as a routine to get started.",
     "completeA11y": "Mark {{title}} done for today",
     "doneA11y": "{{title}} done for today",
     "streak": "{{count}} day streak",
-    "title": "Today, two things",
-    "hint": "Chosen from what you actually have on file.",
-    "nothingHint": "Left empty on purpose. Nothing here is filled with sample data.",
+    "title": "Two things for today",
+    "hint": "Picked from your saved records and plans.",
+    "nothingHint": "No records or plans to show yet.",
     "pick": {
       "routine": "Routines due today",
       "milestone": "Goals in progress",
@@ -93,27 +93,27 @@
       "esm": "How you have been feeling"
     },
     "next": {
-      "routine": "Accept one suggestion to start a routine.",
+      "routine": "Save a suggestion as a routine to see it here.",
       "milestone": "Set a goal to track progress here.",
       "reading": "Add a book to see it here.",
       "meals": "Plan a week of meals to see it here.",
       "records": "Save something and it shows up here.",
-      "esm": "Answer a check-in to see the pattern."
+      "esm": "Answer a check-in to see how things change over time."
     }
   },
   "home": {
     "ringCount": "{{done}} / {{total}} done",
     "streakLabel": "day streak",
     "patternsTitle": "This week's patterns",
-    "patternsSub": "Analysis runs in the background. Keep using the app.",
-    "patternsRun": "Run",
-    "takeEyebrow": "TODAY'S TAKE",
+    "patternsSub": "You can keep using the app during analysis.",
+    "patternsRun": "Analyze",
+    "takeEyebrow": "TODAY'S SUMMARY",
     "toolsLabel": "Assistant tools"
   },
   "tools": {
     "focus": {
-      "label": "Daily focus",
-      "sub": "Pomodoro"
+      "label": "Focus timer",
+      "sub": "Alternate focus and breaks"
     },
     "reminders": {
       "label": "Reminders",
@@ -121,19 +121,19 @@
     },
     "imagine": {
       "label": "Imagine",
-      "sub": "Throw far"
+      "sub": "Write down ideas"
     },
     "shareCard": {
       "label": "Share card",
-      "sub": "1080 card"
+      "sub": "1080 image"
     },
     "srs": {
       "label": "Flashcard review",
-      "sub": "Spaced review"
+      "sub": "Review before you forget"
     },
     "callReflection": {
       "label": "Call reflection",
-      "sub": "Speak it down"
+      "sub": "Record a spoken note"
     },
     "reading": {
       "label": "Reading",
@@ -160,21 +160,21 @@
     "emptyDomain": "Pick an area above to get started."
   },
   "push": {
-    "savedNote": "Handed to your calendar.",
+    "savedNote": "Sent to your calendar.",
     "deniedNote": "Calendar permission is off. Allow it in your device settings to use this.",
     "reminderSetNote": "Reminder set on this device.",
     "reminderDeniedNote": "Notification permission is off. Allow it in your device settings to use reminders.",
     "reminderFailedNote": "The reminder could not be set. Check the item's time and try again.",
-    "reminderUnavailableNote": "Saved. Reminders need the installed app, so this one won't ring here."
+    "reminderUnavailableNote": "Saved. Reminders only work in the installed app. You will not get an alert here."
   },
   "health": {
     "autoCompleted": "Auto-checked from your activity",
     "autoCompletedHint": "A logged workout or steps over your goal ticked this off."
   },
   "focus": {
-    "title": "Daily focus",
-    "status": "Run one focus session.",
-    "tip": "Finishing a focus block checks off your daily focus routine.",
+    "title": "Focus timer",
+    "status": "Set a timer and focus on one task.",
+    "tip": "Finish the timer to mark your daily focus routine complete.",
     "phaseIdle": "Ready",
     "phaseFocus": "Focus",
     "phaseBreak": "Break",
@@ -182,18 +182,18 @@
     "pause": "Pause",
     "reset": "Reset",
     "doneToday": "Focus sessions done today: {{count}}",
-    "alarmFocusTitle": "Focus block done",
-    "alarmFocusBody": "Nice work. Time for a short break.",
-    "alarmFocusBodyStar": "Nice work. One focus session saved for {{star}}.",
+    "alarmFocusTitle": "Focus session complete",
+    "alarmFocusBody": "Your focus session is over. Take a short break.",
+    "alarmFocusBodyStar": "One focus session saved for {{star}}.",
     "alarmBreakTitle": "Break over",
-    "alarmBreakBody": "Back to your next focus block.",
+    "alarmBreakBody": "Time for your next focus session.",
     "subIdle": "Ready when you are",
     "subFocus": "Focusing",
     "subBreak": "Taking a breather",
     "eyebrowFocus": "FOCUS",
     "eyebrowBreak": "BREAK",
     "completeTitle": "Focus complete",
-    "completeBody": "You gathered a full {{minutes}} min",
+    "completeBody": "You focused for {{minutes}} min",
     "btnBreak": "Take a break",
     "btnAgain": "One more",
     "skip": "Skip",
@@ -202,7 +202,7 @@
     "sessionLength": "SESSION LENGTH",
     "labelFocus": "Focus",
     "labelBreak": "Break",
-    "focusHint": "Time gathered in one go",
+    "focusHint": "Time for each focus session",
     "breakHint": "Rest between sessions",
     "unitMin": "min",
     "decrease": "Decrease",
@@ -211,13 +211,13 @@
     "ringReady": "Ready",
     "ringFocusing": "Focusing",
     "ringPaused": "Paused",
-    "leadPre": "Time to focus on one thing. When it ends, one step toward your ",
+    "leadPre": "Focus on one thing, then save the session to your ",
     "leadStar": "{{star}} star",
     "leadPost": ".",
     "preset": "{{min}} min",
     "startFocus": "Start focus",
     "resetBtn": "Reset",
-    "forWhichStar": "For which star?",
+    "forWhichStar": "Which star should this count toward?",
     "todayCount": "{{sessions}} focus sessions today",
     "todaySub": "About {{min}} min · goal {{goal}}",
     "todayStarCount": "{{star}} star · {{n}} today",
@@ -244,7 +244,7 @@
     "good": "Good",
     "easy": "Easy",
     "remaining": "Cards left today: {{count}}",
-    "cleared": "All caught up. Nice work.",
+    "cleared": "You finished today's review.",
     "loading": "Loading your cards…",
     "addCard": "Add a card",
     "addTitle": "Add a card",

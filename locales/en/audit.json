@@ -3,19 +3,19 @@
   "periodTitle": "Past me: choose a period",
   "back": "Back",
   "done": "DONE",
-  "complete": "Past me complete",
-  "viewPersona": "View persona",
+  "complete": "You finished the Past me interview",
+  "viewPersona": "View my summary",
   "backToCapture": "Back to capture",
-  "interviewTitle": "Past me: self interview",
+  "interviewTitle": "Past me: questions about your life",
   "question": "Question {{n}} / {{total}}",
-  "placeholder": "Be honest with yourself.",
+  "placeholder": "Write whatever comes to mind.",
   "later": "Continue later",
   "exit": {
-    "notice": "Exit audit notice",
-    "title": "Exit audit?",
-    "cancel": "Cancel",
-    "cancelHint": "Continue the audit.",
+    "notice": "Exit interview",
+    "title": "Finish the interview?",
+    "cancel": "Keep going",
+    "cancelHint": "Continues the interview.",
     "confirm": "Exit",
-    "confirmHint": "Exit the audit and return to selection."
+    "confirmHint": "Ends the interview and returns to question selection."
   }
 }
