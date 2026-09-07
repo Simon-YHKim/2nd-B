@@ -342,7 +342,84 @@ main이 이동하면 그 run은 버려진다. 이것은 **낡은 커밋을 공�
 main이 움직인 뒤 content digest만 어긋나면 `Hash and approve immutable Pages content`에서
 대신 터진다(run `34065192766`). 두 경우 모두 `deploy` job은 `skipped`다.
 
-필요한 창의 길이는 고정값이 아니라 **그 run이 끝날 때까지**다. 성공한 publish run 3건의 실측
+### ⚠ digest 불일치는 대개 main 이동이 **아니다** — 빌드가 재현되지 않는다
+
+**웹 빌드는 같은 커밋에서도 같은 바이트를 내지 않는다.** 2026-09-08 실측:
+
+```
+push run 34155176535  (b6edb3cc 고정, 같은 run 의 재시도 2회)
+  attempt 1   ARTIFACT_CONTENT_SHA256 = 4ceeabd4…   PUBLIC_CONFIG_SHA256 = c67b97a8…
+  attempt 2   ARTIFACT_CONTENT_SHA256 = 4d593e3c…   PUBLIC_CONFIG_SHA256 = c67b97a8…
+```
+
+**같은 run 의 재시도는 고정 SHA 를 다시 빌드하는 것이라 main 이동이 개입할 구조가 없다.**
+config digest 는 같고 content 만 다르다. 원인은 **Metro 모듈 id 가 워커 완료 순서를 타는 것**이다
+— `metro.config.js` 에 `serializer.createModuleIdFactory` 가 없다. 39바이트 `empty-module-*.js` 가
+`__d(function(...){},3496,[])` 와 `…,2375,[]` 로 갈리는 것이 그 증거다. 관측된 값이 둘뿐이라
+**대략 반반**이다.
+
+그러므로 두 실패를 **한 조건으로 묶어 관리하면 안 된다**:
+
+| 실패 | 어떻게 알아보나 | 무엇을 하나 |
+|---|---|---|
+| **digest 불일치** | `artifact-content digest does not match approval` | **누구 탓도 아니다. 다시 쏘면 된다** |
+| **main 이동** | `Manual builds and publishes require source_sha to equal fresh origin/main.`(`:200`) 또는 `Publish source is no longer the fresh origin/main head.`(deploy 잡) | 새 SHA 로 처음부터 |
+
+⚠ **정지는 여전히 필요하다** — deploy 잡이 배포 직전에 `origin/main` 을 다시 보므로 거기서 죽는다.
+다만 **정지를 걸어도 digest 불일치 확률은 안 내려간다.** 정지가 그 실패를 막아 준다고 읽지 말 것.
+
+⚠ **워크플로가 아티팩트에 live main 을 넣지는 않는다.** `origin/main` 을 읽는 곳은 빌드 *전*
+(`:190`~`:200`)과 deploy 잡(`:820`)뿐이고, `Finalize trusted Pages fallback files` 는 파일 타입
+검사와 `cp`·`.nojekyll` 생성뿐이다(실측). **그 단계를 원인 후보로 다시 지목하지 말 것** —
+2026-09-08 에 그렇게 지목했다가 반증됐다.
+
+진짜 해법은 **결정적 모듈 id**(`serializer.createModuleIdFactory` = 경로 해시)다.
+
+⚠ **`metro.config.js` 는 EAS 지문 소스가 아니다.** 이 문서에 한때 "지문 소스일 가능성이 높아
+넣으면 OTA 호환이 깨진다"고 적혀 있었는데 틀렸다. `@expo/fingerprint` 로 android 소스를 열거해
+확인했다 — `metro.config` · `serializer` · `createModuleIdFactory` 는 **전체 직렬화에서 0회**이고,
+양성 대조(`package.json` 14 · `eas.json` 1 · `patches` 1 · `expoAutolinking` 47)는 전부 잡힌다.
+
+그래서 비용 그림은 이렇다:
+
+| | 비용 |
+|---|---|
+| **안 고치면** | 게시 1회당 성공이 대략 반반. 매번 재발주해야 하고, 실패할 때마다 오진 여지가 생긴다 |
+| **고치면** | 한 줄 추가. **지문 불변 → runtimeVersion 그대로 → 재빌드 불필요.** 모듈 id 가 바뀌어 청크 파일명이 전부 달라지므로 **다음 OTA 페이로드가 한 번 커진다** |
+
+OTA 호환을 정하는 것은 **지문/runtimeVersion** 이고 번들 내용은 그 위에 실리는 화물이다.
+화물이 바뀌는 것은 OTA 가 원래 하는 일이다. **Simon 확인 사항**이다.
+
+⚠ **2회 관측으로 '통제 실험'이라 부르지 말 것.** 2026-09-08 에 게시 두 번(1차 FAIL · 2차 PASS)을
+두고 *"승인 digest 가 같고 main 고정 여부만 다르니 원인은 main 이동"* 이라고 결론냈는데,
+**1차도 main 고정이었고**(2·4 단계가 통과했다) 두 결과는 반반 동전던지기의 한 패턴일 뿐이다.
+그 패턴이 우연히 나올 확률이 **1/4** 다.
+
+### 무엇을 창 안에 넣을 것인가
+
+창의 길이보다 **경계**를 먼저 정해야 한다. 가르는 질문은 "사람이나 CI 를 기다리는가"가 아니라:
+
+> **이 대기 중에 main 이 움직이면 앞의 작업이 버려지는가?**
+
+버려지면 창 안이고, 아니면 창 밖이다. 실제 판정(2026-09-08):
+
+| 대기 | 무엇에 묶여 있나 | 창 |
+|---|---|---|
+| PR 의 CI (약 3분) | 아무 SHA 에도 안 묶임 | **밖** |
+| 사람의 승인 판단 | 아무 SHA 에도 안 묶임 | **밖** |
+| `push` run (digest 생성) | 그 SHA 에 묶임 | **안** |
+| dispatch → build → deploy | `source_sha` 에 묶임 | **안** |
+
+⚠ **"사람 대기를 창에 넣지 마라"로 잡으면 틀린다.** 그 규칙은 위 표의 앞 두 줄만 맞히고
+세 번째를 놓친다 — push run 은 사람이 아니라 CI 대기인데도 결과가 SHA 에 묶여 있어 창 안이다.
+반대로 승인 대기는 사람을 기다리지만 그 자체로는 아무것도 무효화하지 않는다(승인이 늦어
+그 사이 main 이 움직이는 것이 문제이지, 기다림 자체가 아니다).
+
+**정지를 선언하기 전에 사람의 응답을 먼저 받아 두면 창이 그만큼 짧아진다.**
+
+### 창의 길이
+
+필요한 길이는 고정값이 아니라 **그 run이 끝날 때까지**다. 성공한 publish run 3건의 실측
 소요는 `5m58s` · `6m00s` · `11m29s`였다(2026-09-06). **6분은 승인이 즉시일 때의 하한**이고
 승인이 늦으면 그만큼 길어진다. 그러므로:
 
