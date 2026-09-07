@@ -108,6 +108,11 @@ test("파일 이름 없는 이어쓰기 인용이 없다", () => {
   // 그 자리에 뭐가 숨어 있었는가: `callAdvisor` 의 `:635-669` 는 개명 전
   // gemini.ts 의 범위였고, 그 옆 문장은 아직 `callGemini` 라고 적고 있었다.
   // 열네 건이라 반쯤 지키는 대신 전부 펴고 형태 자체를 막는다.
+  //
+  // ⚠ 재읽기 주석이 **옛 인용을 인용해야 할 때**가 있다("이 자리는 :60 을
+  // 가리키고 있었다"). 백틱을 씌우면 인용을 *하는* 것과 구분되지 않으므로
+  // 그럴 때는 산문으로 쓴다("line 60 of that file"). 검사에 예외를 뚫는 대신
+  // 문서 쪽을 명확하게 쓰는 쪽을 골랐다 - 사람이 읽기에도 그쪽이 낫다.
   const found = docs.flatMap(name => {
     const text = fs.readFileSync(path.join(LEGAL_DIR, name), "utf8").replace(/\r\n/g, "\n");
     return text.split("\n").flatMap((line, i) =>
