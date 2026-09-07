@@ -166,24 +166,24 @@ describe("visible trust copy", () => {
       id.saved.recordsAiOptIn,
     ].join("\n");
 
-    expect(en.firstRun.hint).toContain("first saved record");
+    expect(en.firstRun.hint).toContain("Start with a short note");
     expect(en.firstRun.hint).toContain("Records");
     expect(en.saved.recordsOwnership).toContain("Records");
     expect(en.saved.recordsOwnership).toContain("export");
     expect(en.saved.recordsOwnership).toContain("One sentence is enough");
     expect(en.saved.recordsAiOptIn).toContain("only");
-    expect(en.saved.recordsAiOptIn).toContain("turn that switch on");
+    expect(en.saved.recordsAiOptIn).toContain("only if you turn on this switch");
     expect(ko.firstRun.hint).toContain("저장한 내용");
     expect(ko.firstRun.hint).toContain("기록 보관소");
     expect(ko.saved.recordsOwnership).toContain("기록 보관소");
     expect(ko.saved.recordsOwnership).toContain("내보내기");
     expect(ko.saved.recordsOwnership).toContain("작심이틀도 괜찮습니다");
     expect(ko.saved.recordsAiOptIn).toContain("이 스위치를 켜야");
-    expect(es.firstRun.hint).toContain("primer registro guardado");
+    expect(es.firstRun.hint).toContain("podrás verla en Registros");
     expect(es.saved.recordsOwnership).toContain("Una oración basta");
     expect(pt.firstRun.hint).toContain("primeiro registro salvo");
     expect(pt.saved.recordsOwnership).toContain("Uma frase já basta");
-    expect(id.firstRun.hint).toContain("catatan tersimpan pertamamu");
+    expect(id.firstRun.hint).toContain("membacanya lagi di Catatan");
     expect(id.saved.recordsOwnership).toContain("Satu kalimat cukup");
     expect(combined).not.toMatch(
       /graph|local|local-first|local-only|device|on your device|not the app|anonymous|no account|without account|account-free|no sign-up|no signup/i,

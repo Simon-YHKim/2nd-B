@@ -1,7 +1,7 @@
 {
   "ads": {
     "label": "Bersponsor",
-    "removeUpsell": "Lebih suka tanpa iklan? Langganan menghilangkannya."
+    "removeUpsell": "Berlangganan untuk menghapus iklan."
   },
   "app": {
     "name": "2nd-Brain",
@@ -71,29 +71,29 @@
   "navGraph": {
     "drilldown": {
       "back": "Kembali ke konstelasi",
-      "backHint": "Kembali dari detail bintang domain ke konstelasi penuh.",
+      "backHint": "Kembali dari detail bidang ke seluruh konstelasi.",
       "coreEyebrow": "Inti Pola",
       "dataEyebrow": "Data Pola",
       "touch": "Sentuh!",
       "coreIntro": {
-        "work": "Ini adalah Growth Core. Kepingan karier dan pertumbuhanmu berkumpul di sini.",
-        "relation": "Ini adalah Bond Core. Kenangan, janji, dan percakapan berkumpul di sini.",
-        "knowledge": "Ini adalah Wisdom Core. Kepingan yang dipelajari dan dipahami berkumpul di sini.",
-        "records": "Ini adalah Narrative Core. Kepingan yang disimpan berkumpul di sini agar mudah ditemukan lagi.",
-        "taste": "Ini adalah Muse Core. Kepingan selera dan inspirasi berkumpul di sini."
+        "work": "Inti Pertumbuhan berisi catatan karier dan perkembanganmu.",
+        "relation": "Inti Ikatan berisi kenangan, janji, dan percakapanmu.",
+        "knowledge": "Inti Kebijaksanaan berisi hal yang kamu pelajari dan pahami.",
+        "records": "Inti Narasi berisi catatan yang kamu simpan agar mudah ditemukan lagi.",
+        "taste": "Inti Muse berisi selera dan hal yang menginspirasimu."
       },
-      "dataFallback": "Kepingan yang kamu hubungkan ke {{core}}.",
-      "noDataTitle": "Belum ada Pattern Data",
-      "noDataBody": "Hanya kepingan yang kamu tulis atau simpan sendiri yang muncul di sini. Tinggalkan satu kepingan dan core ini akan menumbuhkan node kepingan salju ringan.",
-      "dataDetailHint": "Membuka detail Pattern Data yang dipilih."
+      "dataFallback": "Catatan yang kamu hubungkan ke {{core}}.",
+      "noDataTitle": "Belum ada Data Pola",
+      "noDataBody": "Catatan yang kamu tulis atau simpan sendiri akan muncul di sini. Simpan catatan untuk mulai mengisi bagian ini.",
+      "dataDetailHint": "Membuka detail Data Pola yang dipilih."
     }
   },
   "navPiece": "serpihan",
   "navPieceSummary": "Membuka ringkasan dan tag serpihan ini",
-  "navVillageNode": "Membuka node bintang ini",
+  "navVillageNode": "Membuka detail bintang ini",
   "navCenterVillage": "Membuka Bintang Utara",
   "navResetView": "Setel ulang tampilan",
-  "navResetHint": "Menyetel ulang geser dan zoom grafik",
+  "navResetHint": "Mengembalikan posisi dan ukuran grafik",
   "navReset": "Setel ulang",
   "navPrevCategory": "Kategori sebelumnya",
   "navPrevHint": "Memilih bintang sebelumnya",
@@ -135,8 +135,8 @@
   "facetRetake": "Ulangi",
   "reflectDismiss": "Tutup",
   "drillLayerPeriod": "lapisan / periode",
-  "charSelfTalk": "Membuka gelembung monolog singkat penghuni ini.",
+  "charSelfTalk": "Menampilkan pikiran singkat karakter ini.",
   "backToGraph": "Kembali ke grafik",
   "backToGraphHint": "Membuka layar beranda grafik.",
-  "clearContext": "Bersihkan konteks"
+  "clearContext": "Hapus konteks pilihan"
 }

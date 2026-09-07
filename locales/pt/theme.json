@@ -2,18 +2,18 @@
   "loading": "Carregando tema...",
   "hero": {
     "eyebrow": "08-4. Tema",
-    "title": "Escolha o tom de exibição",
+    "title": "Escolha o tema",
     "subtitle": "Escuro padrão · tom claro secundário",
-    "speech": "O grafo principal sempre mantém o céu escuro para que as estrelas e conexões fiquem nítidas."
+    "speech": "O mapa principal sempre mantém o céu escuro para que as estrelas e conexões fiquem nítidas."
   },
   "options": {
     "dark": {
       "label": "Escuro",
-      "sub": "O tom noturno padrão"
+      "sub": "Tema escuro padrão"
     },
     "light": {
       "label": "Claro",
-      "sub": "Um tom claro de papel"
+      "sub": "Fundo claro"
     }
   },
   "font": {
@@ -25,7 +25,7 @@
       },
       "readable": {
         "label": "Fonte legível",
-        "sub": "Uma fonte suave mais fácil de ler"
+        "sub": "Letras mais fáceis de ler"
       }
     },
     "useFontLabel": "Usar {{label}}",
@@ -40,7 +40,7 @@
       },
       "lite": {
         "label": "Modo leve",
-        "sub": "Menos efeitos para uma experiência suave em celulares mais antigos"
+        "sub": "Menos efeitos para celulares mais antigos"
       }
     },
     "usePerformanceLabel": "Usar {{label}}",
@@ -52,5 +52,5 @@
     "useThemeLabel": "Usar tema {{label}}",
     "useThemeHint": "Aplica o tema selecionado neste dispositivo."
   },
-  "note": "O grafo principal permanece escuro mesmo no modo claro. É o fundo onde as estrelas e conexões ficam mais visíveis."
+  "note": "O mapa principal permanece escuro mesmo no modo claro. É o fundo onde as estrelas e conexões ficam mais visíveis."
 }

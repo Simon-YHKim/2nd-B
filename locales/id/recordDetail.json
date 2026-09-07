@@ -4,12 +4,12 @@
     "record": "Memuat catatan ini..."
   },
   "state": {
-    "missingTitle": "Kepingan tidak ditemukan",
-    "errorTitle": "Gagal memuat kepingan ini"
+    "missingTitle": "Catatan tidak ditemukan",
+    "errorTitle": "Catatan ini belum bisa dimuat"
   },
   "body": {
-    "sourceEmpty": "Sebuah sumber yang ditangkap. Buka layarnya di bawah untuk melihat isi lengkapnya.",
-    "noText": "Kepingan ini tidak memiliki teks isi."
+    "sourceEmpty": "Buka sumber di bawah untuk membaca isinya.",
+    "noText": "Catatan ini tidak memiliki teks isi."
   },
   "advisor": {
     "heading": "Catatan SecondB",
@@ -21,6 +21,6 @@
     "backToRecords": "Kembali ke catatan",
     "seeGraph": "Lihat di graf",
     "askSecondB": "Tanya SecondB",
-    "openSource": "Buka layarnya"
+    "openSource": "Buka sumber"
   }
 }

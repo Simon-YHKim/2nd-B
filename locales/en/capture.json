@@ -9,7 +9,7 @@
     "journalLimit": "Free journal entries are used up. Other capture modes are still available.",
     "voiceRequired": "Write the voice memo text before saving.",
     "todoRequired": "Write the task before saving.",
-    "saving": "Saving is already in progress.",
+    "saving": "Already saving.",
     "fourwRequired": "Fill the What box first"
   },
   "savedTitleFallback": "Today's piece",
@@ -21,7 +21,7 @@
     "speechSaved": "Saved. You can see it on the graph.",
     "speechSavedOcr": "Your photo note is saved. It is a private piece in your graph.",
     "speechSavedRecords": "Saved. You can find it in your records.",
-    "speechIdle": "Write briefly or choose a source. We will organize it so you can find it later."
+    "speechIdle": "Write a note or choose something to save."
   },
   "sections": {
     "manageFormats": {
@@ -36,7 +36,7 @@
       "accessibilityLabel": "Capture mode",
       "more": "More",
       "moreHint": "Shows note, link, photo, and file options.",
-      "less": "Less",
+      "less": "Show less",
       "lessHint": "Hides extra capture options and returns to Journal if needed."
     }
   },
@@ -51,7 +51,7 @@
   "modes": {
     "journal": {
       "label": "Journal",
-      "help": "Write today's reflection. It saves to your records, with optional SecondB reflection."
+      "help": "Write about today and save it to your records. You can also ask SecondB for its thoughts on the entry."
     },
     "memo": {
       "label": "Note",
@@ -75,7 +75,7 @@
     },
     "todo": {
       "label": "To do",
-      "help": "Write a task. It saves as a to-do piece with a done flag."
+      "help": "Write a task and mark whether it's done. It will be saved as a to-do piece."
     },
     "fourw": {
       "label": "4W1H",
@@ -111,13 +111,13 @@
   },
   "formatSaved": {
     "personal": "Saved as your personal format.",
-    "shared": "Saved your new format and shared it with your formats."
+    "shared": "Saved and shared your new format."
   },
   "firstRun": {
-    "hint": "One sentence becomes your first saved record. You can find it again in Records."
+    "hint": "Start with a short note. You can find it in Records later."
   },
   "saved": {
-    "title": "Lumen saved a new piece",
+    "title": "Piece saved",
     "ocrTitle": "Your photo note is saved",
     "ocrBody": "A private piece in your graph.",
     "seeGraph": "See the graph",
@@ -128,13 +128,13 @@
     "seeRecordsHint": "Opens your records so you can find this entry again.",
     "captureMore": "Capture more",
     "recordsOwnership": "One sentence is enough for today. This entry is in Records, so you can reread it and include it in an export later.",
-    "recordsAiOptIn": "SecondB only reflects on this entry when you turn that switch on.",
-    "storagePending": "Saved, but the backup file copy didn't upload this time. Your text is kept safely.",
+    "recordsAiOptIn": "SecondB can read and respond to this entry only if you turn on this switch.",
+    "storagePending": "Your text was saved, but the backup file didn't upload.",
     "advisor": {
       "heading": "SecondB note",
       "sources": "Sources",
       "whyThis": "Why this",
-      "evidenceFallback": "Source listed without a short note."
+      "evidenceFallback": "No description is available for this source."
     }
   },
   "proposal": {
@@ -165,7 +165,7 @@
       "missingToday": " (today is optional)"
     },
     "prompt": {
-      "heading": "Today's reflection prompt",
+      "heading": "A question for today",
       "useAsTopicLabel": "Use today's prompt as topic",
       "useAsTopicAction": "Use this as topic"
     },
@@ -174,16 +174,16 @@
       "bodyPlaceholder": "What's on your mind today? One sentence is enough."
     },
     "conclusion": {
-      "toggleLabel": "Toggle conclusion field",
-      "show": "Add a one-line conclusion (optional)",
-      "hide": "Hide conclusion field",
-      "placeholder": "Conclusion: today's takeaway"
+      "toggleLabel": "Show or hide the closing sentence field",
+      "show": "Add a closing sentence (optional)",
+      "hide": "Hide closing sentence field",
+      "placeholder": "One thought to take from today"
     },
     "advisor": {
-      "label": "Ask SecondB on this entry",
-      "helper": "Off by default. Turn on only when you want a reflection back.",
-      "lockedLabel": "Ask SecondB on this entry (Brain)",
-      "lockedHelper": "Reflections on entries unlock with the Brain plan. Tap to view plans.",
+      "label": "Ask SecondB about this entry",
+      "helper": "Off by default. Turn it on if you'd like SecondB's thoughts on this entry.",
+      "lockedLabel": "Ask SecondB about this entry (Brain)",
+      "lockedHelper": "SecondB can respond to your entries on the Brain plan. Tap to view plans.",
       "lockedHint": "Opens the plans screen"
     }
   },
@@ -197,18 +197,18 @@
     "pasteOfferEmpty": "Nothing to paste was found."
   },
   "inputs": {
-    "extractedLabel": "My extracted text (editable)",
+    "extractedLabel": "Text from your photo (editable)",
     "bodyLabel": "Body",
-    "imagePlaceholder": "Pick an image to place extracted text here.",
+    "imagePlaceholder": "Choose a photo to read its text here.",
     "memoPlaceholder": "Write or paste freely..."
   },
   "ocrReview": {
     "heading": "Review before saving",
     "disclosure": "This photo goes to a text-reading service only to read its text. 2nd-B does not keep the image or use it to train anything.",
     "privateAfterApprove": "After you approve it, only the editable text is saved as your private record.",
-    "body": "Edit the extracted text, then approve it before saving.",
-    "approve": "Approve my extracted text",
-    "approved": "My extracted text is approved for saving.",
+    "body": "Check and edit the text from your photo. Approve it when you're ready to save.",
+    "approve": "Allow this text to be saved",
+    "approved": "This text can now be saved.",
     "approveHint": "Enables saving this extracted text.",
     "submitHint": "Review and approve the extracted text before saving."
   },
@@ -217,19 +217,19 @@
     "library": "Library",
     "preview": "Preview",
     "extract": "Extract text",
-    "dataUsageHint": "Extracting text from photos may incur data charges. Wi-Fi is recommended."
+    "dataUsageHint": "Reading text from photos uses data. Connect to Wi-Fi to avoid mobile data charges."
   },
   "file": {
     "pick": "Pick file",
     "selected": "Selected file",
-    "textExtracted": "Text extracted: filled into body",
+    "textExtracted": "The text from your file is in the text box",
     "attachedNoPreview": "File attached. Text preview is not available.",
-    "dataUsageHint": "Uploading files may incur data charges. Wi-Fi is recommended.",
+    "dataUsageHint": "Uploading files uses data. Connect to Wi-Fi to avoid mobile data charges.",
     "transcribing": "Turning this recording into text...",
-    "transcribed": "Transcribed: filled into body. Review and edit before saving.",
+    "transcribed": "Your recording is now in the text box. Check and edit it before saving.",
     "transcribeFailed": "Couldn't turn that recording into text. Pick it again, or type what you heard.",
     "transcriptEmpty": "We couldn't make out any words in that recording.",
-    "audioTooLarge": "That recording is too long. Pick one under {{mb}}MB, or split it up."
+    "audioTooLarge": "This recording file is too large. Choose one under {{mb}}MB or split it into smaller files."
   },
   "tags": {
     "title": "Hashtags",
@@ -240,7 +240,7 @@
     "placeholder": "tag"
   },
   "feedback": {
-    "accessibilityLabel": "Capture feedback notice",
+    "accessibilityLabel": "Capture notice",
     "dismissHint": "Dismisses this notice.",
     "retryHint": "Retries the failed capture action."
   },
@@ -267,7 +267,7 @@
     },
     "ocrTooLarge": {
       "title": "Image is too large",
-      "message": "This photo is too large to read safely. Choose a smaller image or crop it, then try again."
+      "message": "This photo is too large to read. Choose a smaller image or crop it, then try again."
     },
     "ocrUnsupportedType": {
       "title": "Image type is not supported",
@@ -275,7 +275,7 @@
     },
     "ocrMissingData": {
       "title": "Image data is missing",
-      "message": "We couldn't read this image file from the picker. Choose it again or try a different image."
+      "message": "Couldn't read the selected image file. Choose it again or try another image."
     },
     "ocrInvalidData": {
       "title": "Image data is damaged",
@@ -319,7 +319,7 @@
       "when": "When did it happen?",
       "where": "Where were you?",
       "what": "What happened, or what is it?",
-      "how": "How did it go? Any why worth keeping?"
+      "how": "How did it go? What would you like to remember?"
     },
     "note": "Only filled boxes are saved, as one piece with a #fourw tag."
   },
@@ -332,23 +332,23 @@
     "micPermission": "Microphone permission is needed.",
     "startFailed": "Couldn't start recording.",
     "noRecording": "Couldn't find the recording.",
-    "nothingToTranscribe": "Nothing intelligible to transcribe.",
-    "transcribeFailed": "Transcription failed.",
-    "recordTopic": "Call reflection",
+    "nothingToTranscribe": "No words could be read from the recording.",
+    "transcribeFailed": "Couldn't turn the recording into text.",
+    "recordTopic": "Call record",
     "transcribing": "Transcribing the call",
     "transcribed": "Transcribed",
     "transcriptLabel": "Transcript",
     "discard": "Discard",
     "approve": "Approve and save",
     "recordingDesc": "Recording. It transcribes automatically when you stop.",
-    "idleDesc": "Transcribe your own call so 세컨비 can link it to the right stars. The original audio is never saved.",
+    "idleDesc": "Turn your call into text and link it to related stars. The original audio is never saved.",
     "howBadge": "How",
     "howText": "Put the call on speakerphone, then start recording - both voices reach the mic.",
-    "fairBadge": "Fair",
+    "fairBadge": "Before recording",
     "stopAnalyse": "Stop and analyse",
     "cancelNoSave": "Cancel · don't save",
     "startRecording": "Start recording",
-    "maybeLater": "Maybe later"
+    "maybeLater": "Later"
   },
   "captureTab": "Capture",
   "formatsTab": "Formats",
@@ -362,7 +362,7 @@
     "inputA11y": "Jot input",
     "save": "Save",
     "saving": "Saving…",
-    "nearFull": "This device's temporary space is almost full. Make an account to move them safely.",
+    "nearFull": "This device's temporary storage is almost full. Create an account to move your notes.",
     "savedOnDevice": "Saved on this device ({{n}})",
     "createAccount": "Create account"
   }

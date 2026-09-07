@@ -1,41 +1,41 @@
 {
-  "loading": "Loading your identity export...",
+  "loading": "Loading profile export…",
   "hero": {
-    "eyebrow": "Identity export",
-    "title": "Your identity as one portable file",
-    "subtitle": "A file any AI reads, and a one-page profile you read",
-    "speech": "This is the you that any assistant can pick up and understand."
+    "eyebrow": "Export your profile",
+    "title": "About you, in one file",
+    "subtitle": "A file to share with another AI and a one-page profile",
+    "speech": "Share what you've recorded about yourself with another AI."
   },
   "intro": {
-    "body": "IDEN gathers what you've learned about yourself into a single portable file. Copy it into any AI to give it your context, or open the one-page sheet."
+    "body": "IDEN collects what you've learned about yourself in one file. Paste it into another AI to explain your background, or open a one-page profile."
   },
   "generate": {
-    "button": "Build my IDEN",
-    "accessibilityHint": "Generates your identity file from your saved data."
+    "button": "Create my IDEN",
+    "accessibilityHint": "Creates a profile file from your saved data."
   },
   "result": {
     "title": "Your IDEN is ready",
-    "hint": "Copy this into ChatGPT, Gemini, or Claude to give it your context. Your request goes at the very bottom.",
+    "hint": "Paste this into ChatGPT, Gemini or Claude to share your background. Add your request at the bottom.",
     "copy": "Copy .iden",
     "copied": "Copied to clipboard",
     "share": "Share",
-    "openSheet": "Open one-page sheet",
+    "openSheet": "Open one-page profile",
     "close": "Close"
   },
   "error": "Couldn't build your IDEN. Refresh and try again.",
   "entry": {
-    "eyebrow": "Identity export",
-    "body": "Turn what you've learned about yourself into one portable file any AI can read, plus a one-page profile.",
-    "button": "Open identity export",
-    "accessibilityHint": "Opens the IDEN identity export screen."
+    "eyebrow": "Export your profile",
+    "body": "Create a file to share with another AI and a one-page profile from what you've recorded about yourself.",
+    "button": "Export your profile",
+    "accessibilityHint": "Opens the IDEN profile export screen."
   },
   "ds": {
-    "screenTitle": "IDEN · Portable identity",
+    "screenTitle": "IDEN · Export your profile",
     "loading": "Loading…",
-    "loadError": "Could not load your IDEN.",
+    "loadError": "Couldn't load your IDEN.",
     "retry": "Retry",
-    "empty": "Nothing gathered yet. Gather a little of yourself first?",
-    "startGathering": "Start gathering",
+    "empty": "There's nothing to export yet. Add a record about yourself to get started.",
+    "startGathering": "Add a record",
     "signed": "Signed",
     "whatGoesIn": "What goes in",
     "format": "Format",
@@ -43,7 +43,7 @@
     "export": "Export",
     "preview": "Preview",
     "jsonCopied": "JSON copied",
-    "copyFailed": "Could not copy",
-    "previewWebOnly": "The preview sheet opens on web"
+    "copyFailed": "Couldn't copy",
+    "previewWebOnly": "Preview the one-page profile on the web"
   }
 }

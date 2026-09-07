@@ -1,5 +1,5 @@
 {
-  "submit": "Salvar peça",
+  "submit": "Salvar registro",
   "submitting": "Salvando...",
   "submitHints": {
     "writeFirst": "Adicione uma frase antes de salvar.",
@@ -12,16 +12,16 @@
     "todoRequired": "Escreva a tarefa antes de salvar.",
     "fourwRequired": "Preencha primeiro a caixa O quê"
   },
-  "savedTitleFallback": "Peça de hoje",
+  "savedTitleFallback": "Registro de hoje",
   "loading": "Carregando captura...",
   "hero": {
     "eyebrow": "01. Captura",
     "title": "Salve uma nota ou fonte",
     "subtitle": "Diário · nota · ligação · foto · arquivo",
-    "speechSaved": "Salvo. Você pode ver no grafo.",
-    "speechSavedOcr": "Sua nota de foto foi salva. É uma peça privada no seu grafo.",
+    "speechSaved": "Salvo. Você pode ver no mapa.",
+    "speechSavedOcr": "O texto da foto foi salvo como um registro privado no seu mapa.",
     "speechSavedRecords": "Salvo. Você pode encontrar nos seus registros.",
-    "speechIdle": "Escreva brevemente ou escolha uma fonte. Vamos organizar para você encontrar depois."
+    "speechIdle": "Escreva uma nota ou escolha um material para salvar e encontrar depois."
   },
   "sections": {
     "manageFormats": {
@@ -75,7 +75,7 @@
     },
     "todo": {
       "label": "Tarefa",
-      "help": "Escreva uma tarefa. Ela será salva como uma peça de tarefa com marca de concluída."
+      "help": "Escreva uma tarefa e indique se já foi concluída."
     },
     "fourw": {
       "label": "4W1H",
@@ -90,19 +90,19 @@
     "hint": "Uma frase vira seu primeiro registro salvo. Você pode encontrá-la de novo em Registros."
   },
   "saved": {
-    "title": "Lumen salvou uma nova peça",
+    "title": "Registro salvo",
     "ocrTitle": "Sua nota de foto foi salva",
-    "ocrBody": "Uma peça privada no seu grafo.",
-    "seeGraph": "Ver o grafo",
-    "seeOcrGraph": "Ver no grafo",
-    "seeGraphHint": "Abre o grafo e destaca esta peça.",
-    "seeOcrGraphHint": "Abre o grafo e destaca esta nota de foto.",
+    "ocrBody": "Registro privado salvo no seu mapa.",
+    "seeGraph": "Ver o mapa",
+    "seeOcrGraph": "Ver no mapa",
+    "seeGraphHint": "Abre o mapa e destaca este registro.",
+    "seeOcrGraphHint": "Abre o mapa e destaca esta nota de foto.",
     "seeRecords": "Ver meus registros",
     "seeRecordsHint": "Abre seus registros para você encontrar esta entrada novamente.",
     "captureMore": "Capturar mais",
     "recordsOwnership": "Uma frase já basta por hoje. Esta entrada está em Registros, então você pode reler e incluir em uma exportação mais tarde.",
-    "recordsAiOptIn": "O SecondB só reflete sobre esta entrada quando você ativa esse interruptor.",
-    "storagePending": "Salvo, mas o backup do arquivo não foi enviado desta vez. Seu texto está guardado com segurança.",
+    "recordsAiOptIn": "O SecondB só analisa esta entrada se você ativar esta opção.",
+    "storagePending": "Salvo, mas o backup do arquivo não foi enviado desta vez. O texto foi salvo.",
     "advisor": {
       "heading": "Nota do SecondB",
       "sources": "Fontes",
@@ -153,9 +153,9 @@
       "placeholder": "Conclusão: o que você leva de hoje"
     },
     "advisor": {
-      "label": "Pedir ao SecondB sobre esta entrada",
-      "helper": "Desativado por padrão. Ative só quando quiser uma reflexão de volta.",
-      "lockedLabel": "Pedir ao SecondB sobre esta entrada (Brain)",
+      "label": "Pedir uma análise ao SecondB",
+      "helper": "Desativado por padrão. Ative se quiser uma análise do SecondB.",
+      "lockedLabel": "Pedir uma análise ao SecondB (Brain)",
       "lockedHelper": "Reflexões sobre entradas desbloqueiam com o plano Brain. Toque para ver os planos.",
       "lockedHint": "Abre a tela de planos."
     }
@@ -190,16 +190,16 @@
     "library": "Biblioteca",
     "preview": "Visualizar",
     "extract": "Extrair texto",
-    "dataUsageHint": "Extrair texto de fotos pode gerar cobranca de dados. Recomenda-se Wi-Fi."
+    "dataUsageHint": "Extrair texto de fotos pode consumir dados móveis. Use Wi-Fi se preferir."
   },
   "file": {
     "pick": "Escolher arquivo",
     "selected": "Arquivo selecionado",
-    "textExtracted": "Texto extraído: preenchido no corpo",
+    "textExtracted": "Texto extraído e inserido no campo de texto",
     "attachedNoPreview": "Arquivo anexado. A visualização do texto não está disponível.",
-    "dataUsageHint": "O envio de arquivos pode gerar cobranca de dados. Recomenda-se Wi-Fi.",
+    "dataUsageHint": "Enviar arquivos pode consumir dados móveis. Use Wi-Fi se preferir.",
     "transcribing": "Transformando esta gravação em texto...",
-    "transcribed": "Transcrito e colocado no corpo. Revise e edite antes de salvar.",
+    "transcribed": "A gravação foi transformada em texto. Revise e edite antes de salvar.",
     "transcribeFailed": "Não conseguimos transformar essa gravação em texto. Escolha de novo ou digite o que ouviu.",
     "transcriptEmpty": "Não conseguimos distinguir nenhuma palavra nessa gravação.",
     "audioTooLarge": "Essa gravação é longa demais. Escolha uma com menos de {{mb}}MB, ou divida em partes."
@@ -213,7 +213,7 @@
     "placeholder": "hashtag"
   },
   "feedback": {
-    "accessibilityLabel": "Aviso de feedback da captura",
+    "accessibilityLabel": "Aviso da captura",
     "dismissHint": "Descarta este aviso.",
     "retryHint": "Tenta novamente a ação de captura que falhou."
   },
@@ -240,15 +240,15 @@
     },
     "ocrTooLarge": {
       "title": "Imagem muito grande",
-      "message": "Esta foto é grande demais para ser lida com segurança. Escolha uma imagem menor ou recorte-a e tente novamente."
+      "message": "Esta foto é grande demais para processar. Escolha uma imagem menor ou recorte-a e tente novamente."
     },
     "ocrUnsupportedType": {
       "title": "Tipo de imagem não suportado",
       "message": "Escolha uma imagem JPG, PNG, WEBP, HEIC ou HEIF e tente novamente."
     },
     "ocrMissingData": {
-      "title": "Dados da imagem ausentes",
-      "message": "Não conseguimos ler este arquivo de imagem do seletor. Escolha-o novamente ou tente uma imagem diferente."
+      "title": "Não foi possível abrir a imagem",
+      "message": "Não foi possível ler o arquivo selecionado. Escolha a imagem novamente ou tente outra."
     },
     "ocrInvalidData": {
       "title": "Dados da imagem corrompidos",
@@ -260,11 +260,11 @@
     },
     "journalSave": {
       "title": "Não foi possível salvar sua entrada",
-      "message": "Não conseguimos salvar a peça de hoje. O que você escreveu ainda está aqui. Por favor, tente novamente."
+      "message": "Não foi possível salvar o registro de hoje. O texto continua aqui. Tente novamente."
     },
     "pieceSave": {
-      "title": "Não foi possível salvar sua peça",
-      "message": "Não conseguimos salvar ainda. O que você inseriu ainda está aqui. Por favor, tente novamente."
+      "title": "Não foi possível salvar o registro",
+      "message": "Não foi possível salvar. O texto continua aqui. Tente novamente."
     },
     "proposeEmpty": {
       "title": "Nenhum formato para sugerir",
@@ -302,9 +302,9 @@
     "doneHelper": "Ative se já estiver concluída. Você pode mudar depois."
   },
   "recent": {
-    "title": "Peças recentes",
+    "title": "Registros recentes",
     "openHint": "Abre esta entrada completa.",
-    "empty": "Ainda não há peças salvas."
+    "empty": "Ainda não há registros salvos."
   },
   "fourw": {
     "fields": {
@@ -321,7 +321,7 @@
       "what": "O que aconteceu, ou do que se trata?",
       "how": "Como foi? Algum porquê que valha guardar?"
     },
-    "note": "Somente caixas preenchidas são salvas, como uma peça com a tag #fourw."
+    "note": "Somente os campos preenchidos são salvos, em um registro com a etiqueta #fourw."
   },
   "callReflection": {
     "title": "Gravação de chamada",
@@ -334,7 +334,7 @@
     "noRecording": "Não foi possível encontrar a gravação.",
     "nothingToTranscribe": "Não havia nada compreensível para transcrever.",
     "transcribeFailed": "A transcrição falhou.",
-    "recordTopic": "Reflexão de chamada",
+    "recordTopic": "Nota de chamada",
     "transcribing": "Transcrevendo a chamada",
     "transcribed": "Transcrito",
     "transcriptLabel": "Transcrição",
@@ -357,12 +357,12 @@
   "manualTab": "Guia de uso",
   "jot": {
     "title": "Anote uma linha",
-    "deviceNote": "Por enquanto fica salvo neste aparelho. Crie uma conta para levar ao seu segundo cérebro.",
+    "deviceNote": "Por enquanto, a nota fica salva neste aparelho. Crie uma conta para guardá-la no 2nd-Brain.",
     "placeholder": "Uma linha que veio à cabeça",
     "inputA11y": "Campo de anotação",
     "save": "Salvar",
     "saving": "Salvando…",
-    "nearFull": "O espaço temporário deste aparelho está quase cheio. Crie uma conta para movê-los com segurança.",
+    "nearFull": "O espaço temporário deste aparelho está quase cheio. Crie uma conta para transferir as notas.",
     "savedOnDevice": "Salvo neste aparelho ({{n}})",
     "createAccount": "Criar conta"
   }

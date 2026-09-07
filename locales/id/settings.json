@@ -115,7 +115,7 @@
   "onDeviceFirst": "Utamakan di perangkat",
   "onDeviceFirstDesc": "Analisis teks asli hanya di perangkat",
   "callRecording": "Rekaman panggilan → teks → analisis",
-  "callRecordingDesc": "Transkripsikan panggilan di perangkat; SecondB merajutnya menjadi bintang.",
+  "callRecordingDesc": "Ubah catatan panggilan menjadi teks, lalu SecondB menatanya sesuai bintang.",
   "all": "Semua",
   "allIntegrations": "Semua integrasi",
   "dataConnections": "Koneksi data",
@@ -130,7 +130,7 @@
   "manageIntegrationsDesc": "Impor per sumber: kalender, kesehatan, Notion, dll.",
   "importData": "Impor dari file",
   "importDataDesc": "Tempel atau pilih file ekspor untuk dijadikan catatan",
-  "workingPaused": "Sedang mengerjakan. Tindakan lain dan keluar akun dijeda sampai ini selesai.",
+  "workingPaused": "Sedang diproses. Tunggu sampai selesai sebelum memilih tindakan lain atau keluar akun.",
   "myAccount": "Akunku",
   "app": "Aplikasi",
   "resetCoachmarks": "Setel ulang panduan",
@@ -166,7 +166,7 @@
   "delAllWiki": "Hapus semua halaman wiki",
   "delAllWikiDesc": "Halaman wiki dan tautan antar-halamannya dihapus. Sumber kotak masuk tetap ada.",
   "delUningested": "Hapus bahan yang belum diproses",
-  "delUningestedDesc": "Hanya sumber yang belum dipromosikan ke halaman wiki.",
+  "delUningestedDesc": "Hanya sumber yang belum dibuat menjadi halaman wiki.",
   "resetDaily": "Setel ulang penggunaan harian SecondB",
   "resetDailyDesc": "Bersihkan penghitung penggunaan hari ini dan semua hari sebelumnya.",
   "dangerFullWipe": "Bahaya: penghapusan total",
@@ -199,7 +199,7 @@
     "freeBody": "Kamu memakai paket gratis, jadi tidak ada langganan berbayar yang aktif.",
     "loadFailed": "Detail langganan tidak bisa dimuat.",
     "retry": "Coba lagi",
-    "keep": "Biarkan saja",
+    "keep": "Tetap berlangganan",
     "supportLine": "Butuh bantuan? Kirim email ke {{email}} dan kami balas dalam 2 hari kerja.",
     "viewPolicy": "Baca kebijakan pengembalian dana",
     "viewPlans": "Lihat paket",
@@ -235,7 +235,7 @@
         "unknown": "Kami tidak bisa memeriksa kelayakan pengembalian dana."
       },
       "window": "Masa pengembalian dana: sisa {{days}} dari {{total}} hari",
-      "usage": "Penalaran terpakai: {{used}} (paket gratis memberi {{allowance}} pada rentang yang sama)",
+      "usage": "Penggunaan analisis: {{used}} (batas gratis {{allowance}} pada rentang yang sama)",
       "calls": "Panggilan AI tercatat: {{calls}}",
       "currentPolicyNote": "Bisa dikembalikan dalam 7 hari setelah pembayaran, selama pemakaianmu masih dalam batas yang diberikan paket gratis."
     },
@@ -249,7 +249,7 @@
       "notSubscribed": "Tidak ada langganan berbayar aktif yang bisa dibatalkan.",
       "dryRun": "Mode uji coba sedang aktif, jadi tidak ada yang dikirim ke Paddle. Hubungi dukungan kalau kamu memang ingin mengirimkannya.",
       "cancelledAndRefundRequested": "Dibatalkan, dan permintaan pengembalian dana Anda telah diajukan. Penyedia pembayaran meninjaunya sebelum dana dipindahkan.",
-      "cancelledRefundNotAccepted": "Dibatalkan, tetapi permintaan pengembalian dana tidak diterima. Hubungi dukungan jika Anda mengharapkan jawaban lain."
+      "cancelledRefundNotAccepted": "Langganan dibatalkan, tetapi permintaan pengembalian dana tidak diterima. Hubungi dukungan jika kamu ingin menanyakan hasilnya."
     },
     "autoRenewOn": "Diperpanjang otomatis pada {{date}}",
     "cancelScheduledOn": "Perpanjangan otomatis dimatikan. Fitur berbayar tetap aktif sampai {{date}}.",

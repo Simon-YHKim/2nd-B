@@ -2,7 +2,7 @@
   "loading": "Membuka rutinitasmu…",
   "hero": {
     "title": "Rutinitas",
-    "subtitle": "Pilih satu area. Dapatkan beberapa langkah konkret berikutnya."
+    "subtitle": "Pilih bidang untuk mendapat saran langkah berikutnya."
   },
   "groups": {
     "body": "Tubuh",
@@ -35,12 +35,12 @@
     "stateAvailable": "tersedia"
   },
   "recommend": {
-    "off": "Saran rutinitas dinonaktifkan untuk akun ini, jadi catatanmu tetap privat.",
+    "off": "Saran rutinitas dinonaktifkan. Catatanmu tidak digunakan untuk membuat saran ini.",
     "cta": "Sarankan langkah berikutnya",
-    "ctaHint": "Membaca kepingan tersimpanmu dan menyusun beberapa saran.",
+    "ctaHint": "Membaca catatan tersimpan untuk menyusun saran.",
     "working": "Menyiapkan saran…",
-    "empty": "Tidak ada yang berguna dikembalikan. Coba lagi, atau pilih area lain.",
-    "error": "Proses saran tidak selesai. Kepinganmu aman. Coba lagi.",
+    "empty": "Belum ada saran yang sesuai. Coba lagi atau pilih bidang lain.",
+    "error": "Saran belum bisa dibuat. Coba lagi.",
     "limit": "Saran gratis hari ini habis. Akan direset besok.",
     "disclaimerBody": "Ide dan rencana, bukan saran profesional."
   },
@@ -83,7 +83,7 @@
     "streak": "Rentetan {{count}} hari",
     "title": "Hari ini, dua hal",
     "hint": "Dipilih dari yang benar-benar kamu simpan.",
-    "nothingHint": "Sengaja dibiarkan kosong. Tidak ada yang diisi data contoh.",
+    "nothingHint": "Belum ada yang bisa ditampilkan. Bagian ini hanya memakai datamu sendiri.",
     "pick": {
       "routine": "Rutinitas hari ini",
       "milestone": "Sasaran berjalan",
@@ -105,7 +105,7 @@
     "ringCount": "{{done}} / {{total}} selesai",
     "streakLabel": "hari beruntun",
     "patternsTitle": "Pola minggu ini",
-    "patternsSub": "Analisis berjalan di latar belakang. Terus gunakan aplikasinya.",
+    "patternsSub": "Analisis berjalan di latar belakang saat kamu menggunakan aplikasi.",
     "patternsRun": "Jalankan",
     "takeEyebrow": "RANGKUMAN HARI INI",
     "toolsLabel": "Alat asisten"
@@ -121,7 +121,7 @@
     },
     "imagine": {
       "label": "Berimajinasi",
-      "sub": "Lempar jauh"
+      "sub": "Coba ide lain"
     },
     "shareCard": {
       "label": "Kartu berbagi",
@@ -183,8 +183,8 @@
     "reset": "Atur ulang",
     "doneToday": "Sesi fokus selesai hari ini: {{count}}",
     "alarmFocusTitle": "Blok fokus selesai",
-    "alarmFocusBody": "Kerja bagus. Waktunya istirahat singkat.",
-    "alarmFocusBodyStar": "Kerja bagus. Satu sesi fokus tersimpan untuk {{star}}.",
+    "alarmFocusBody": "Sesi fokus selesai. Waktunya istirahat sebentar.",
+    "alarmFocusBodyStar": "Satu sesi fokus tersimpan untuk {{star}}.",
     "alarmBreakTitle": "Istirahat selesai",
     "alarmBreakBody": "Kembali ke blok fokus berikutnya.",
     "subIdle": "Siap saat kamu mau",
@@ -193,7 +193,7 @@
     "eyebrowFocus": "FOKUS",
     "eyebrowBreak": "JEDA",
     "completeTitle": "Fokus selesai",
-    "completeBody": "Kamu mengumpulkan {{minutes}} mnt penuh",
+    "completeBody": "Kamu sudah fokus selama {{minutes}} mnt",
     "btnBreak": "Istirahat",
     "btnAgain": "Sekali lagi",
     "skip": "Lewati",
@@ -202,7 +202,7 @@
     "sessionLength": "DURASI SESI",
     "labelFocus": "Fokus",
     "labelBreak": "Istirahat",
-    "focusHint": "Waktu fokus sekali jalan",
+    "focusHint": "Durasi satu sesi fokus",
     "breakHint": "Jeda antar sesi",
     "unitMin": "mnt",
     "decrease": "Kurangi",
@@ -211,7 +211,7 @@
     "ringReady": "Siap",
     "ringFocusing": "Sedang fokus",
     "ringPaused": "Dijeda",
-    "leadPre": "Waktunya fokus pada satu hal. Saat selesai, satu langkah menuju ",
+    "leadPre": "Fokus pada satu hal. Sesi yang selesai akan tercatat untuk ",
     "leadStar": "bintang {{star}}",
     "leadPost": ".",
     "preset": "{{min}} mnt",
@@ -244,7 +244,7 @@
     "good": "Bagus",
     "easy": "Mudah",
     "remaining": "Kartu tersisa hari ini: {{count}}",
-    "cleared": "Semua beres. Kerja bagus.",
+    "cleared": "Semua kartu hari ini selesai.",
     "loading": "Memuat kartumu…",
     "addCard": "Tambah kartu",
     "addTitle": "Tambah kartu",

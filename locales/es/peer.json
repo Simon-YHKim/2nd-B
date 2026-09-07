@@ -1,5 +1,5 @@
 {
-  "title": "Como me ven",
+  "title": "Cómo me ven",
   "loading": "Cargando…",
   "invalid": "Este enlace no es válido.",
   "expired": "Este enlace ha caducado.",
@@ -8,7 +8,7 @@
   "doneNote": "Gracias. Tus respuestas solo se muestran combinadas; nunca de forma individual.",
   "doneKeepLink": "Guarda este enlace por si algún día quieres retirar tu respuesta.",
   "aboutApp": "Sobre esta app",
-  "intro": "Alguien que conoces está construyendo una imagen de cómo lo perciben. Tres preguntas, un minuto.",
+  "intro": "La persona que te envió el enlace quiere saber cómo la ven los demás. Cinco preguntas, aproximadamente un minuto.",
   "privacyPoints": "Tus respuestas son tus propios datos: solo se muestran combinadas con al menos otras dos personas. Puedes retirarlas cuando quieras con este enlace.",
   "scaleHint": "1 = nada típico de esa persona, 5 = muy típico",
   "trait": {
@@ -32,7 +32,7 @@
   "withdrawCta": "Retirar mi respuesta",
   "withdrawAnytime": "Puedes retirarla cuando quieras abriendo este enlace.",
   "subjectTitle": "Preguntar a quienes me conocen",
-  "subjectIntro": "Envía un enlace de un solo uso. Cuando respondan tres o más, la imagen combinada aparece en Cómo me ven; nunca ves respuestas individuales. Envíalo también más allá de tus amigos cercanos: alguien que conociste hace poco o con quien trabajaste. Las miradas que no se superponen dicen más.",
+  "subjectIntro": "Envía un enlace de un solo uso. Cuando respondan tres o más personas, verás los resultados combinados en Cómo me ven. Nunca verás respuestas individuales. Puedes invitar también a alguien que conociste hace poco o con quien trabajaste para conocer distintas opiniones.",
   "labelField": "Apodo para esta persona (solo tú lo ves)",
   "kind": {
     "friend": "Amistad",
