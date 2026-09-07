@@ -39,6 +39,7 @@
       "desc": "Berbunyi hanya di perangkat ini. Bisa kamu matikan kapan saja.",
       "notifBody": "Yuk ulas koneksi yang terkumpul dari catatanmu?",
       "denied": "Notifikasi untuk aplikasi ini nonaktif. Aktifkan di Pengaturan.",
+      "changeFailed": "Tidak bisa memperbarui pengingat. Pengingat mungkin masih datang sesuai pengaturan lama. Coba lagi.",
       "timeTitle": "Waktu pengingat",
       "timeHint": "Hanya tersimpan di perangkat ini."
     }
