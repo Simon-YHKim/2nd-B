@@ -6,16 +6,11 @@
 // 나 lens) lives on in the core-brain lens track — it just no longer squats on
 // this route. The generation engine (src/lib/llm/imagine.ts) stays dormant.
 
-import { Redirect, router } from "expo-router";
+import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
-import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { ImagineDivergentView } from "@/components/deep-space/DeepSpaceViews";
-
-function ImagineLegacy() {
-  return <Redirect href={{ pathname: "/secondb", params: { mode: "divergent" } }} />;
-}
 
 function ImagineDeepSpace() {
   const { t, i18n } = useTranslation("imagine");
@@ -33,6 +28,5 @@ function ImagineDeepSpace() {
 }
 
 export default function Imagine() {
-  if (isDeepSpaceUI()) return <ImagineDeepSpace />;
-  return <ImagineLegacy />;
+  return <ImagineDeepSpace />;
 }
