@@ -10,6 +10,7 @@ import type { PropsWithChildren } from "react";
 import { ScrollViewStyleReset } from "expo-router/html";
 
 import { semantic } from "@/lib/theme/tokens";
+import { SITE_DESCRIPTION, SITE_TITLE } from "@/lib/site-meta";
 
 // Reset inline so the rule lands in the first paint. The dark background
 // matches cosmic.space950 (Deep Space Ink) so the white flash that would
@@ -80,34 +81,33 @@ export default function Root({ children }: PropsWithChildren) {
             /capture. The href is rooted at the Pages base path
             (expo.experiments.baseUrl = /2nd-B); on the local dev server the
             link 404s, which browsers treat as "no manifest" - harmless. */}
-        {/* Share copy for the public site. The live root shipped an empty
-            <title> and no description, so every share of
-            https://simon-yhkim.github.io/2nd-B/ rendered a blank card
-            (measured 2026-09-07). The wording is the reviewed store draft
-            (docs/store-copy/drafts.json :: ko.appStoreSubtitle / ko.playShort)
-            so the site, the listing and the app say the same thing.
+        {/* Share copy for the public site. Wording lives in lib/site-meta so
+            this head and the runtime document.title cannot drift.
             og:image is deliberately absent: Open Graph wants an absolute URL
             and this shell has no origin to build one from. Add it together
-            with a share asset and the origin it is served from. */}
-        <title>2nd-Brain · 기록으로 알아가는 나</title>
-        <meta
-          name="description"
-          content="경험과 메모를 모아 나를 돌아보고, 세컨비와 기록을 바탕으로 이야기해요."
-        />
+            with a share asset and the origin it is served from.
+
+            NOTE on the <title> below: it is NOT the document title. Expo
+            Router's vendored react-helmet-async injects its own
+            <title data-rh="true"></title> at the very top of <head> (byte 38
+            of the served page; this one lands at 234), and the FIRST title
+            wins. It is empty because Head only renders inside a focused
+            screen, and the static shell is the root layout's InlineLoader
+            branch - no screen renders at all during export. So this tag is a
+            fallback for anything reading the last title, while og:title and
+            twitter:title below are what actually feed share cards. The
+            browser tab is fixed at runtime instead (see _layout).
+            Measured 2026-09-07 on the served bundle. */}
+        <title>{SITE_TITLE}</title>
+        <meta name="description" content={SITE_DESCRIPTION} />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="2nd-Brain" />
         <meta property="og:locale" content="ko_KR" />
-        <meta property="og:title" content="2nd-Brain · 기록으로 알아가는 나" />
-        <meta
-          property="og:description"
-          content="경험과 메모를 모아 나를 돌아보고, 세컨비와 기록을 바탕으로 이야기해요."
-        />
+        <meta property="og:title" content={SITE_TITLE} />
+        <meta property="og:description" content={SITE_DESCRIPTION} />
         <meta name="twitter:card" content="summary" />
-        <meta name="twitter:title" content="2nd-Brain · 기록으로 알아가는 나" />
-        <meta
-          name="twitter:description"
-          content="경험과 메모를 모아 나를 돌아보고, 세컨비와 기록을 바탕으로 이야기해요."
-        />
+        <meta name="twitter:title" content={SITE_TITLE} />
+        <meta name="twitter:description" content={SITE_DESCRIPTION} />
         <link rel="manifest" href="/2nd-B/manifest.webmanifest" />
         <ScrollViewStyleReset />
         <style dangerouslySetInnerHTML={{ __html: PAGE_LOCK_CSS }} />
