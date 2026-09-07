@@ -30,8 +30,8 @@
 
 To avoid repetition, the four load-bearing facts below are stated once here and relied on throughout. Where a later section restates one, it adds section-specific citations rather than re-deriving it.
 
-1. **AI capability is age-invariant.** `isMinor` (derived as `birth_date → age < 18`, `src/lib/auth/AuthContext.tsx:15,55`) touches the LLM pipeline at exactly **one** point — selecting the youth crisis hotline 1388 over the adult line (`src/lib/safety/classifier.ts:58-67`; `src/lib/llm/safety.ts:266-298`). Model, prompt, RAG depth and persona are **byte-identical** for a 14-year-old and a 40-year-old. **All minor protections are data/egress rails, not capability limits.** **[COUNSEL TO CONFIRM]** whether identical AI capability for 14–17s is defensible given the mental-health context.
-2. **Crisis handoff is deterministic and human-authored**, never LLM-generated: red-zone short-circuits before any network call and is re-checked on output, then replaced verbatim by a fixed human-written template (`fixedCrisisResponse`, `src/lib/llm/safety.ts:408-438`; `src/lib/llm/boundary.ts:560-576`, `:478-538`).
+1. **AI capability is age-invariant.** `isMinor` (derived as `birth_date → age < 18`, `src/lib/auth/AuthContext.tsx:15,55`) touches the LLM pipeline at exactly **one** point — selecting the youth crisis hotline 1388 over the adult line (`src/lib/safety/classifier.ts:58-67`; `src/lib/llm/safety.ts:408-438`). Model, prompt, RAG depth and persona are **byte-identical** for a 14-year-old and a 40-year-old. **All minor protections are data/egress rails, not capability limits.** **[COUNSEL TO CONFIRM]** whether identical AI capability for 14–17s is defensible given the mental-health context.
+2. **Crisis handoff is deterministic and human-authored**, never LLM-generated: red-zone short-circuits before any network call and is re-checked on output, then replaced verbatim by a fixed human-written template (`fixedCrisisResponse`, `src/lib/llm/safety.ts:408-438`; `src/lib/llm/boundary.ts:560-576`, `src/lib/llm/boundary.ts:478-538`).
 3. **Minor data rails (server-enforced):** high-privacy seed at sign-up (`db/migrations/0032`), clamp keyed off the row's *real* unforgeable tier (`db/migrations/0033`, `0038:77-95`), `minor_tier` server-only (`db/migrations/0038`), plus a UI lock; only `long_term_memory` + `ops_push` are minor-promotable (`src/lib/privacy/prefs.ts:59`).
 4. **Sensitive data + consent ledger.** Journaling = mental-health data. The immutable consent ledger captures `sensitive_data_ack` / `overseas_transfer_ack` / `llm_processing_ack` (`db/migrations/0031:26-28`), but the **notice/ack collection UI is "NOT YET WIRED at sign-up"** (`db/migrations/0031:11-13`).
 
@@ -58,13 +58,13 @@ Operations performed: collection, structuring/inference, storage, cross-border t
 
 ### 2.2 Scope
 - **Volume of data per subject:** potentially high-frequency, long-horizon free text (journaling is the core loop) plus an accreting inferred self-model. This is *intensive* rather than *extensive* — few subjects, deep profiles.
-- **Geographic scope:** live age/consent logic is **hard-coded to KR (self-consent floor 14)**; non-KR jurisdictions are designed-for but not yet safely supported (`src/lib/auth/consent-age.ts:21-26`, with `TODO(legal)` and `LEXICON_LAST_LEGAL_REVIEW = null` at `:12-14`). EU/UK exposure is therefore a *planned* scope, explicitly fenced behind this DPIA in D-20's minority fallback (`DECISIONS.md` D-20).
+- **Geographic scope:** live age/consent logic is **hard-coded to KR (self-consent floor 14)**; non-KR jurisdictions are designed-for but not yet safely supported (`src/lib/auth/consent-age.ts:21-26`, with `TODO(legal)` and `LEXICON_LAST_LEGAL_REVIEW = null` at `src/lib/auth/consent-age.ts:12-14`). EU/UK exposure is therefore a *planned* scope, explicitly fenced behind this DPIA in D-20's minority fallback (`DECISIONS.md` D-20).
 - **Special-category scope:** mental-health-adjacent free text is in scope for **every** account from first use (no "sensitive mode" toggle gates capture).
 
 ### 2.3 Context
 - **Relationship:** direct-to-consumer; the data subject is the author and primary reader of their own data (RLS scopes all owned tables to `auth.uid()`, e.g. `db/migrations/0021_self_contexts.sql`, `0023_chat_usage.sql`).
 - **Vulnerable subjects:** the app is **designed for minors** (14-17 KR self-consent) learning to use AI well; under-14 self-registration is hard-blocked server-side (`db/migrations/0030_server_age_gate.sql`, `0033_…enforcement.sql`). Children are an ICO Children's Code / GDPR Recital 38 heightened-risk population — material context for the risk section.
-- **State of the art / prior expectations:** capability is **identical for minors and adults** (see §1.2 fact 1); `isMinor` touches the LLM path at exactly one point — selecting the youth crisis hotline (1388) over the adult line (`src/lib/safety/classifier.ts:63`; `src/lib/llm/safety.ts:266-298`). Minor protections are **data-egress rails**, not capability limits (see 2.7, 3.3).
+- **State of the art / prior expectations:** capability is **identical for minors and adults** (see §1.2 fact 1); `isMinor` touches the LLM path at exactly one point — selecting the youth crisis hotline (1388) over the adult line (`src/lib/safety/classifier.ts:73-75`; `src/lib/llm/safety.ts:408-438`). Minor protections are **data-egress rails**, not capability limits (see 2.7, 3.3).
 
 ### 2.4 Purposes of the processing
 | # | Purpose | Lawful-basis candidate (counsel) | Status |
@@ -242,7 +242,7 @@ connected**, and a privacy document should not report a credential as a data flo
 
 ### 3.3 Minor-specific routing & rails (data-flow deltas, not capability deltas)
 - **Capture:** identical to adults.
-- **AI:** identical model, prompt, RAG depth; the **only** minor branch is hotline selection — `crisisHotlines(locale, minor=true) → [KR_1388, KR_109]` and template version `red-ko-minor-v1` (`src/lib/safety/classifier.ts:63`; `src/lib/llm/safety.ts:266-298`).
+- **AI:** identical model, prompt, RAG depth; the **only** minor branch is hotline selection — `crisisHotlines(locale, minor=true) → [KR_1388, KR_109]` and template version `red-ko-minor-v2` (`src/lib/safety/classifier.ts:73-75`; `src/lib/llm/safety.ts:408-438`).
 - **Egress rails (server-enforced):** on sign-up the age-gate trigger seeds `privacy_prefs` all-OFF for `minor_self` and a dedicated clamp trigger **forces** `ads, sharing, recommendations, external_analytics, llm_training, persona_export, persona_share = false` on every write — defeating a tampered client (`db/migrations/0032`, `0033`, `0038`). Only `long_term_memory` and `ops_push` are minor-promotable (`src/lib/privacy/prefs.ts:59`).
 - **`minor_tier` is server-only** — a self-UPDATE to `minor_tier='adult'` is rejected unless `birth_date` also changes (age gate re-derives), closing the high-privacy-escape (`db/migrations/0038` `block_self_tier_change`).
 - **Analytics & ads suppressed** for minors / sub-consent-age regardless of consent state (`src/lib/analytics/index.ts:74`; ads fail-closed when `isMinor !== false` `src/lib/ads/policy.ts:58`).
@@ -275,7 +275,7 @@ connected**, and a privacy document should not report a credential as a data flo
 | P1 | **Account creation & age-tier gating** | birth_date (DOB), email, derived `minor_tier`/`account_status` | No (DOB is identifying, not special) | `db/migrations/0030_server_age_gate.sql`; `src/lib/auth/consent-age.ts` |
 | P2 | **Core service: AI-assisted journaling / "second brain" reflection** | journal & note records, wiki pages, sources | **Yes — mental-health inferences** (GDPR Art.9 / PIPA §23) | `src/lib/chat/conversation.ts:129`; `src/lib/wiki/export.ts` |
 | P3 | **LLM processing of user entries via Gemini gateway (incl. overseas transfer)** | clipped wiki/source snapshot (journal **excluded**), prompt/output hashes | Yes (derived from P2) | `src/lib/llm/boundary.ts`; `supabase/functions/gemini-proxy/index.ts`; `src/lib/llm/audit` → `db/migrations/0004_ai_audit_log.sql` |
-| P4 | **Crisis detection & human-handoff routing** | message text (transient, classified), categorical crisis event | **Yes — health/safety** | `src/lib/llm/safety.ts:261-298`; `db/migrations/0012_crisis_events.sql` |
+| P4 | **Crisis detection & human-handoff routing** | message text (transient, classified), categorical crisis event | **Yes — health/safety** | `src/lib/llm/safety.ts:408-438`; `db/migrations/0012_crisis_events.sql` |
 | P5 | **Consent record-keeping (accountability ledger)** | consent acks, versions, hashed IP/UA | No | `db/migrations/0031_consent_records.sql` |
 | P6 | **AI-decision audit logging (safety/governance)** | prompt_hash, output_hash, model, safety_zone, latency | No (hashes, not content) | `db/migrations/0004_ai_audit_log.sql` |
 | P7 | **Ops recommendations** (account-internal routine suggestions, no egress) | wiki snapshot (journal excluded) | Possibly (derived) | `src/lib/ops/recommend.ts` |
@@ -283,7 +283,7 @@ connected**, and a privacy document should not report a credential as a data flo
 | P9 | **Advertising** | ad-eligibility signals | No | `src/lib/ads/policy.ts` — **minors: never (rule 2)** |
 | P10 | **Model training on user data** | — | — | **No live flow.** `llm_training` pref hard-clamped false for minors; never wired to any egress (`db/migrations/0033`:52; `prefs.ts:62-72`) |
 
-**Key invariant for the whole table:** AI *capability* (model, prompt, RAG depth, persona) is **byte-identical for minors and adults** (see §1.2 fact 1); the sole `isMinor` use in the LLM path is crisis-hotline selection — `src/lib/llm/types.ts:81-84, 114-117`; `safety.ts:266-298`; `src/lib/llm/boundary.ts:560-576`; `AuthContext.tsx:12-15,55`. The minor-specific controls are all on **P5/P7/P8/P9/P10 (data)**, not on **P2/P3 (capability)** — the proportionality argument in 4.6.
+**Key invariant for the whole table:** AI *capability* (model, prompt, RAG depth, persona) is **byte-identical for minors and adults** (see §1.2 fact 1); the sole `isMinor` use in the LLM path is crisis-hotline selection — `src/lib/llm/types.ts:81-84, 114-117`; `src/lib/llm/safety.ts:408-438`; `src/lib/llm/boundary.ts:560-576`; `AuthContext.tsx:12-15,55`. The minor-specific controls are all on **P5/P7/P8/P9/P10 (data)**, not on **P2/P3 (capability)** — the proportionality argument in 4.6.
 
 ### 4.2 Lawful-basis mapping (GDPR Art.6 + Art.9; PIPA) — [COUNSEL TO CONFIRM each row]
 
@@ -298,7 +298,7 @@ connected**, and a privacy document should not report a credential as a data flo
 | P6 | 6(1)(f) legitimate interests (safety governance) | n/a — hashes only | — | LIA needed [COUNSEL TO CONFIRM]; data is hashed (`0004`). |
 | P7 | 6(1)(b)/6(1)(a) | derived | §15 | **Minors: OFF unless explicitly enabled** and currently un-enable-able while locked (4.3). |
 | P8 | **6(1)(a) consent** | n/a | §22 + ISMS/정보통신망법 | **Minors locked OFF** (`0032/0033/0038`); opt-out is immediate (`analytics-consent-queue.ts:4`). |
-| P9 | **6(1)(a) consent** | n/a | 정보통신망법 §50 | **Minors never** (`src/lib/ads/policy.ts:11-13`, rule 2; `:58` null=fail-closed). |
+| P9 | **6(1)(a) consent** | n/a | 정보통신망법 §50 | **Minors never** (`src/lib/ads/policy.ts:11-13`, rule 2; `src/lib/ads/policy.ts:58` null=fail-closed). |
 | P10 | — | — | — | No processing occurs; pre-locked. |
 
 **Art.8 GDPR (child's consent for information-society services):** the digital-consent age is **jurisdiction-dependent** and the code encodes the matrix `KR=14 / US=13 / EU=16 / DEFAULT=16` (`consent-age.ts:21-26`). **Today the live gate hard-assumes KR=14** because no reliable jurisdiction signal is collected (locale en/ko ≠ country) and `LEXICON_LAST_LEGAL_REVIEW` is null (`consent-age.ts:8-14`). **[COUNSEL TO CONFIRM]** that KR-only operation is the actual launch scope; any EU/UK exposure makes the 14-floor non-conforming (Art.8 default 16) and triggers the D-20 UK/EU OFF-fallback (DECISIONS.md D-20 소수의견).
@@ -310,7 +310,7 @@ connected**, and a privacy document should not report a credential as a data flo
 **Controls implemented today that bear on the Art.9/§23 basis:**
 - **Separate sensitive-data consent ack** collected at sign-up, distinct from service consent (`consent-selections.ts:3-4,20-21`); recorded immutably as `sensitive_data_ack` (`0031`).
 - **No pre-consent sensitive egress** (hard rail #2): every outward/profiling/external key defaults OFF for everyone and is **server-clamped** OFF for minors (`0032`, `0033`, `0038`).
-- **Crisis path uses deterministic, human-written fixed templates — the LLM is never called in red-zone** (`safety.ts:261-298`; test asserts `mockGenerateContent` not called, `src/lib/llm/__tests__/advisor-output-swap.test.ts:230`). This keeps the most sensitive moment off the model entirely.
+- **Crisis path uses deterministic, human-written fixed templates — the LLM is never called in red-zone** (`src/lib/llm/safety.ts:408-438`; test asserts `mockGenerateContent` not called, `src/lib/llm/__tests__/advisor-output-swap.test.ts:230`). This keeps the most sensitive moment off the model entirely.
 
 ### 4.4 Child-consent mechanics & age assurance
 
@@ -357,7 +357,7 @@ Evidence this is true in code, not just claimed:
 | Minor high-privacy seed + server clamp (ads/sharing/recs/analytics/training/persona/export off) | **Implemented** | `0032`, `0033`, `0038` |
 | `minor_tier` server-only (anti-downgrade) | **Implemented** | `0038` |
 | Immutable consent ledger w/ §23 + overseas-transfer acks | **Implemented** | `0031`, `consent-selections.ts` |
-| Crisis hard-rail (deterministic, human templates, minor→1388, LLM not called) | **Implemented** | `safety.ts:261-298`, `0012` |
+| Crisis hard-rail (deterministic, human templates, minor→1388, LLM not called) | **Implemented** | `src/lib/llm/safety.ts:408-438`, `0012` |
 | Journal-excluded prompts + 600-char cap + fail-closed allowlist | **Implemented** | `export.ts`, `conversation.ts:148`, `recommend.ts` |
 | Ads never to minors / analytics locked | **Implemented** | `src/lib/ads/policy.ts`, `analytics-consent-queue.ts` |
 | D-20 ops-recommend minor gate (closed the ungated-runtime bug) | **Implemented** | `src/lib/ops/recommend.ts:127-134`, `ops.tsx:106-110` |
@@ -414,7 +414,7 @@ This section combines two complementary registers that were drafted through **di
 
 - **Likelihood**: Rare / Possible / Likely / Almost-certain — probability the risk materialises for a real user given today's controls.
 - **Severity**: Low / Moderate / High / **Severe** — weighted **up one band** for this cohort because (a) data subjects are 14–17, a class ICO Children's Code and GDPR Recital 38 treat as meriting "specific protection"; (b) the processed content is journaling = **special-category mental-health data** (GDPR Art.9 / PIPA §23) **[COUNSEL TO CONFIRM Art.9 classification]**; (c) age assurance is self-reported DOB, so the cohort boundary itself is porous.
-- **Capability-parity caveat** (load-bearing for the whole register): AI capability is **byte-identical for minors and adults** (§1.2 fact 1). `isMinor` touches the LLM pipeline in exactly one place — swapping the crisis hotline to the youth line (1388) (`src/lib/llm/boundary.ts:560-576` forwards `minor` into `routeCrisis` solely for the "crisis output-swap"; hotline selection at `src/app/capture.tsx:778-781,2081`; `src/lib/safety/classifier.ts:70-85`; `src/lib/llm/safety.ts:408-438`). Every minor protection is therefore a **data/egress rail, not a capability limit** — so risks rooted in *what the model says or how the child relates to it* are **age-invariant** and land on the minor cohort at full adult strength.
+- **Capability-parity caveat** (load-bearing for the whole register): AI capability is **byte-identical for minors and adults** (§1.2 fact 1). `isMinor` touches the LLM pipeline in exactly one place — swapping the crisis hotline to the youth line (1388) (`src/lib/llm/boundary.ts:560-576` forwards `minor` into `routeCrisis` solely for the "crisis output-swap"; hotline selection at `src/app/capture.tsx:778-781,2081`; `src/lib/safety/classifier.ts:70-90`; `src/lib/llm/safety.ts:408-438`). Every minor protection is therefore a **data/egress rail, not a capability limit** — so risks rooted in *what the model says or how the child relates to it* are **age-invariant** and land on the minor cohort at full adult strength.
 
 #### 5a.1 Risk register (summary)
 
@@ -513,12 +513,12 @@ Together (named character + first-person address + persistent memory + idle/wake
 | Ctrl | Control (rail) | Implementing code (file:line) | Status |
 |---|---|---|---|
 | **C-AGE** | Server age gate, <14 hard-reject, server-derived `minor_tier` | `db/migrations/0030_server_age_gate.sql:18-67`; search_path-hardened `0033:22-61`; client UX fail `src/app/(auth)/sign-up.tsx:81`, `complete-profile.tsx:52`; `MIN_SELF_CONSENT_AGE = digitalConsentAge("KR")` `src/lib/supabase/auth.ts:22` | Implemented |
-| **C-CRISIS** | Crisis→deterministic human-written hotline handoff (minor→1388) | `crisisHotlines()` `classifier.ts:58-67`; `fixedCrisisResponse()` `safety.ts:266-298`; gates `src/lib/llm/boundary.ts:560-576` (input), `:478-538` (output swap), `callAdvisor` `:1335-1631` (its own input gate `:1349`, output swap `:1559`) | Implemented |
+| **C-CRISIS** | Crisis→deterministic human-written hotline handoff (minor→1388) | `crisisHotlines()` `src/lib/safety/classifier.ts:70-79`; `fixedCrisisResponse()` `src/lib/llm/safety.ts:408-438`; gates `src/lib/llm/boundary.ts:560-576` (input), `src/lib/llm/boundary.ts:478-538` (output swap), `callAdvisor` `src/lib/llm/boundary.ts:1335-1631` (its own input gate `src/lib/llm/boundary.ts:1349`, output swap `src/lib/llm/boundary.ts:1559`) | Implemented |
 | **C-EGRESS** | Privacy-by-design defaults OFF + server clamp for minors | `defaultPrivacyPrefs()` `src/lib/privacy/prefs.ts:27-31`; seed `0032:41-53`; clamp trigger `clamp_minor_privacy_prefs()` `0033:66-88`, real-tier hardened `0038:77-95` | Implemented |
 | **C-TIER** | No unauthorised `isMinor` downgrade | `block_self_tier_change()` `0038:36-74` (minor_tier server-only, change only via age gate) | Implemented |
 | **C-CONSENT** | Immutable, append-only consent ledger | `consent_records` `0031:15-55` (INSERT/SELECT only, no UPDATE/DELETE); guardian ledger `0028:36-71` | Implemented (schema); **sign-up wiring pending** `0031:11-13` |
 | **C-SENS** | Sensitive-data + LLM + overseas-transfer acknowledgement | `consent_records.sensitive_data_ack / llm_processing_ack / overseas_transfer_ack` `0031:26-28` | Implemented (schema); collection UI pending |
-| **C-LEX** | Non-clinical lexicon guard (CI-enforced) | `containsForbiddenLexicon/containsAnalysisForbidden` `classifier.ts:108-125`; CI `scripts/check-forbidden-lexicon.ts` in `npm run verify` (`package.json:16,39`) | Implemented (universal floor); jurisdiction lists **not CI-wired** `lexicon.ts:173` |
+| **C-LEX** | Non-clinical lexicon guard (CI-enforced) | `containsForbiddenLexicon/containsAnalysisForbidden` `src/lib/safety/classifier.ts:142-159`; CI `scripts/check-forbidden-lexicon.ts` in `npm run verify` (`package.json:16,39`) | Implemented (universal floor); jurisdiction lists **not CI-wired** `lexicon.ts:173` |
 | **C-AUDIT** | AI audit log (hashes only) + restricted crisis ledger | `ai_audit_log` `0004` (prompt/output **hashes**, never raw text); forge-proof RPC `log_ai_audit` `0038:103-136`; `crisis_events` `0012` (no RLS policies → service-role only, categorical only) | Implemented |
 | **C-DEL** | Terminal account erasure (Art.17/PIPA) | `requestAccountDeletion()` `src/lib/records/delete-bulk.ts:178-185`; UI `src/app/account.tsx:96-169` | Implemented |
 | **C-REC** | D-20 recommendations gate (minor lock honoured at runtime) | `recommendationsAllowed()` `src/lib/ops/recommend.ts:127-134`; call site `src/app/ops.tsx:104-112`; regression test `recommend-gate.test.ts` | Implemented (**#369 just landed**) |
@@ -528,14 +528,14 @@ Together (named character + first-person address + persistent memory + idle/wake
 
 **5B-R1 — Catastrophic harm: self-harm / suicidal ideation reaches a generative model or goes unrouted**
 *(Crosswalk: addresses 5A-R7.)* **Primary controls: C-CRISIS, C-AUDIT.** This is **Hard Rail #1 (crisis→human handoff)** and the strongest control in the system.
-- **Defence in depth, three layers**: (1) synchronous lexicon backstop `classifyInput()` `classifier.ts:79-104` (KO Suicide CARE 2.0 + EN C-SSRS markers `safety.ts:54-66`); (2) semantic Gemini Flash union classifier `classifySafety()` `safety.ts:166-259` (conservative RED-wins merge `:120-144`, fail-closed on unknown zone `:128-131`); (3) server-authoritative proxy 422 gate caught by `inspectProxyCrisisRejection()` `src/lib/llm/boundary.ts:370-392`.
-- **Input never reaches the LLM on RED**: `callGemini` short-circuits before any network call `src/lib/llm/boundary.ts:560-576`; `callAdvisor` same `:635-669`.
-- **Output re-classification + verbatim template swap**: model output is re-scanned and, on RED, the generated text is discarded and replaced with the fixed human-written template `src/lib/llm/boundary.ts:478-538`, `callAdvisor` `:1559`. Templates are **deterministic, human-authored, never LLM-generated** (`fixedCrisisResponse` `safety.ts:266-298`).
-- **Minor-specific routing**: `red-ko-minor-v1` surfaces **1388 청소년전화** first, then 109 `classifier.ts:63`, `safety.ts:283`.
+- **Defence in depth, three layers**: (1) synchronous lexicon backstop `classifyInput()` `src/lib/safety/classifier.ts:91-116` (KO Suicide CARE 2.0 + EN C-SSRS markers `src/lib/llm/safety.ts:56-68`); (2) semantic Gemini Flash union classifier `classifySafety()` `src/lib/llm/safety.ts:287-390` (conservative RED-wins merge `src/lib/llm/safety.ts:177-199`, fail-closed on unknown zone `src/lib/llm/safety.ts:179-187`); (3) server-authoritative proxy 422 gate caught by `inspectProxyCrisisRejection()` `src/lib/llm/boundary.ts:370-392`.
+- **Input never reaches the LLM on RED**: `callLlm` short-circuits before any network call `src/lib/llm/boundary.ts:560-576`; `callAdvisor` the same at `src/lib/llm/boundary.ts:1349`.
+- **Output re-classification + verbatim template swap**: model output is re-scanned and, on RED, the generated text is discarded and replaced with the fixed human-written template `src/lib/llm/boundary.ts:478-538`, `callAdvisor` `src/lib/llm/boundary.ts:1559`. Templates are **deterministic, human-authored, never LLM-generated** (`fixedCrisisResponse` `src/lib/llm/safety.ts:408-438`).
+- **Minor-specific routing**: `red-ko-minor-v2` surfaces **1388 청소년전화** first, then 109 (`src/lib/safety/classifier.ts:73-75`; `src/lib/llm/safety.ts:412`).
 - **Free-tier / non-LLM saves covered**: `classifyRecordTextForCrisis()` runs the same audited routing for plain journal saves `src/lib/llm/boundary.ts:408-422`.
 - **Auditable**: every interception writes `ai_audit_log` + categorical `crisis_events` `src/lib/llm/boundary.ts:157-177`.
 
-**Residual risk.** (a) On the **keyless public web build and on live non-Vertex builds**, the Flash semantic layer is deliberately disabled to avoid uncapped egress (`getFlashClient` returns null `safety.ts:91`), degrading crisis detection to **lexicon-only** — novel phrasings without a lexicon term are a false-negative exposure. (b) Lexicon coverage is KO/EN only; other languages fall through. (c) Crisis routing is **information/handoff, not active intervention** — no human is actually contacted; the app steps back (`safety.ts:282,295`). **[COUNSEL TO CONFIRM]** whether passive hotline display satisfies duty-of-care / Raine v. OpenAI-class expectations for a minor mental-health product.
+**Residual risk.** (a) On the **keyless public web build and on live non-Vertex builds**, the Flash semantic layer is deliberately disabled to avoid uncapped egress (`getFlashClient` returns null `src/lib/llm/safety.ts:92`), degrading crisis detection to **lexicon-only** — novel phrasings without a lexicon term are a false-negative exposure. (b) Lexicon coverage is KO/EN only; other languages fall through. (c) Crisis routing is **information/handoff, not active intervention** — no human is actually contacted; the app steps back (`src/lib/llm/safety.ts:412,424`). **[COUNSEL TO CONFIRM]** whether passive hotline display satisfies duty-of-care / Raine v. OpenAI-class expectations for a minor mental-health product.
 
 **5B-R2 — Unlawful processing of minors' sensitive data (mental-health journaling, Art.9 / PIPA §23) without valid consent**
 *(Crosswalk: addresses 5A-R2.)* **Primary controls: C-CONSENT, C-SENS, C-EGRESS.** This is **Hard Rail #2 (no pre-consent sensitive egress)**.
@@ -574,7 +574,7 @@ Together (named character + first-person address + persistent memory + idle/wake
 **Residual risk.** The anti-anthropomorphism invariants and dependency-safety instrumentation that D-19 relies on are **not yet present**, so the "non-companion" conclusion is currently aspirational. Lane 6 over-reliance handling is explicitly *coaching, not a usage cap* — youngest/lowest-literacy users get only a soft nudge. **[COUNSEL TO CONFIRM]** whether CA SB243 / FTC 6(b) / CSM operative definitions classify 2nd-B as a "companion," which would require the minority-view interim gate for the youngest cohort (D-19 preserved dissent).
 
 **5B-R7 — Weak age assurance (DOB self-report)**
-*(Crosswalk: addresses 5A-R6.)* **Control: C-AGE (partial).** The server gate is genuinely server-side and forge-resistant for *derivation* (`0030:18-49`, `users_active_has_tier` constraint `:62-67`), but its **input is an unverified self-reported date of birth**.
+*(Crosswalk: addresses 5A-R6.)* **Control: C-AGE (partial).** The server gate is genuinely server-side and forge-resistant for *derivation* (`db/migrations/0030_server_age_gate.sql:18-49`, `users_active_has_tier` constraint `db/migrations/0030_server_age_gate.sql:62-67`), but its **input is an unverified self-reported date of birth**.
 
 **Residual risk (inherent).** DOB self-report is the weakest age-assurance tier (ICO Children's Code Std 3). A child can enter a false adult DOB and receive zero minor rails. No estimation/verification layer exists. **[COUNSEL TO CONFIRM]** whether self-declaration is acceptable for this risk class or whether age-estimation is required for EU/UK.
 
@@ -626,7 +626,7 @@ Together (named character + first-person address + persistent memory + idle/wake
 
 #### 6.1.2 Right to erasure / deletion (GDPR Art.17 / PIPA §36)
 - **Implemented today:** terminal self-service erasure via the `delete-account` Edge Function (`supabase/functions/delete-account/index.ts`).
-  - **IDOR-safe:** the erased account is "ALWAYS the caller's own, derived from the gateway-verified JWT ... The body is ignored" (`supabase/functions/delete-account/index.ts:21-23` for the contract, `:66-78` and `:92` for the enforcement).
+  - **IDOR-safe:** the erased account is "ALWAYS the caller's own, derived from the gateway-verified JWT ... The body is ignored" (`supabase/functions/delete-account/index.ts:21-23` for the contract, `supabase/functions/delete-account/index.ts:66-78` and `supabase/functions/delete-account/index.ts:92` for the enforcement).
   - **Cascade scope:** deletes `public.users`, which `ON DELETE CASCADE` erases records (journal), testimonials, personas, memorized_patterns, xp_events, self_contexts, chat_usage, clipper_templates, consent_records, wiki_pages/links, sources, guardian rows (`supabase/functions/delete-account/index.ts:5-19`; e.g. `records ... ON DELETE CASCADE`, `0003_records.sql:9`). It also deletes the `auth.users` row (`supabase/functions/delete-account/index.ts:113-121`) and paginates the PII-rich `raw-clippings` Storage bucket (`supabase/functions/delete-account/index.ts:150-164`).
 - **Residual data that deliberately survives erasure (flag):**
   - `ai_audit_log` rows are **retained with `user_id` set to NULL** — "its `user_id` FK is `ON DELETE SET NULL` (0011), so its rows are RETAINED (user_id nulled) as ... audit evidence rather than cascade-erased" (`supabase/functions/delete-account/index.ts:8-10`; `0011_security_fixes.sql:20-27`). Content is hashes only (6.2).
@@ -661,7 +661,7 @@ Together (named character + first-person address + persistent memory + idle/wake
 | `ai_audit_log` | **Hashes only** — `prompt_hash`, `output_hash` (`0004_ai_audit_log.sql:10-11`), model, vertex_backend, zone, latency. **No raw text.** | **Indefinite** (audit/XPRIZE evidence) | **No** — `user_id` set NULL, row retained (`0011:20-27`) | Survives erasure de-identified. **[COUNSEL TO CONFIRM]** retention basis + that hash-only = non-personal post-nulling. |
 | `crisis_events` | **Categorical only**, "never raw user text" (`crisis-events.ts:2-3`; `0012:4-8`): confidence, trigger categories, C-SSRS level, template version, locale, `resolved`, staff `notes` ("never user content"). Subject keyed by djb2 `user_id_hash`. | **Indefinite** | **No** — no FK, survives deletion (`0012:12`) | Retained safety record. **[COUNSEL TO CONFIRM]** lawful basis to retain post-erasure; hash strength (6.3-#7). |
 | `consent_records` | What/when/which-versions consented; `ip_hash`/`ua_hash` (hashed, never raw — `0031:30-31`) | **Indefinite**, append-only immutable (no UPDATE/DELETE policy, `0031:8-9, 37-55`) | **Yes** — cascade | Accountability ledger. **[COUNSEL TO CONFIRM]** that erasing the consent proof on account deletion is acceptable (vs retaining as Art.17(3)(b) compliance evidence) — possible tension with the row-immutability design. |
-| `raw-clippings` Storage | Raw clipped markdown — "most PII-rich content" (`supabase/functions/delete-account/index.ts:135-136`) | Indefinite | **Yes** — paginated bucket wipe (`:150-164`) | |
+| `raw-clippings` Storage | Raw clipped markdown — "most PII-rich content" (`supabase/functions/delete-account/index.ts:135-136`) | Indefinite | **Yes** — paginated bucket wipe (`supabase/functions/delete-account/index.ts:150-164`) | |
 
 ### 6.3 Remediation backlog (identified gaps)
 
@@ -682,7 +682,7 @@ Priority: **P0** = blocks EU/UK exposure or a hard-rail; **P1** = blocks non-KR 
 #### Cross-references for counsel
 - **D-20** ledger note flags that, until just before this draft, `recommendations` ran **ungated for everyone including minors** (clamp was "명목적"/nominal); the gate at `src/lib/ops/recommend.ts:127` + `src/app/ops.tsx:111` closed it. Counsel should confirm the closed gate is the relied-upon control and that the prior ungated window needs no breach/notification treatment. **[COUNSEL TO CONFIRM]**
 - **D-20 minority view:** pure UK/EU minor launch should fall back to recommendations **OFF** until this DPIA + counsel approval (DECISIONS.md D-20 소수의견). The current gate allows adults through unconditionally and minors only on an (server-locked) explicit opt-in — i.e. minors are effectively OFF in the EU/UK posture, but this should be **[COUNSEL TO CONFIRM]**ed against the Std-12 "best interests" reading.
-- All rights/retention behaviours above are **age-invariant except** crisis-hotline routing (`safety.ts:263-283`; `classifier.ts:60-63`, minor → 1388 youth line first). The minor-specific protections are **data rails** (egress clamp `0032/0033/0038`, age floor `0030`), not capability limits — consistent with §1.2.
+- All rights/retention behaviours above are **age-invariant except** crisis-hotline routing (`src/lib/llm/safety.ts:408-438`; `src/lib/safety/classifier.ts:73-75`, minor → 1388 youth line first). The minor-specific protections are **data rails** (egress clamp `0032/0033/0038`, age floor `0030`), not capability limits — consistent with §1.2.
 
 ---
 
@@ -711,8 +711,8 @@ Each question carries four fields:
 | **Minority views preserved** | D-18 (8–13 simple-OFF), D-19 (companion-risk as live constraint), D-20 (forced-OFF for pure UK/EU). | DECISIONS.md | Counsel may revive any of these |
 
 **Established system facts counsel should rely on (verified in code — see also §1.2):**
-1. **AI capability is age-invariant.** `isMinor` (`<18`, `MINOR_AGE_CEILING` at `src/lib/auth/AuthContext.tsx:15,55`) touches the LLM pipeline at exactly one place: **crisis-hotline routing** to the youth line 1388 (`src/lib/safety/classifier.ts:55-67`; minor template `red-ko-minor-v1` at `src/lib/llm/safety.ts:266`; UI routing `src/app/capture.tsx:657,783,912`). Model, prompt, RAG, persona depth are byte-identical for a 14-year-old and a 40-year-old. The minor protections are **data rails, not capability limits.**
-2. **Crisis handoff is deterministic + human-authored**, never LLM-generated (`fixedCrisisResponse`, `src/lib/llm/safety.ts:266`).
+1. **AI capability is age-invariant.** `isMinor` (`<18`, `MINOR_AGE_CEILING` at `src/lib/auth/AuthContext.tsx:15,55`) touches the LLM pipeline at exactly one place: **crisis-hotline routing** to the youth line 1388 (`src/lib/safety/classifier.ts:70-79`; minor template `red-ko-minor-v2` at `src/lib/llm/safety.ts:408`; UI routing `src/app/capture.tsx:657,783,912`). Model, prompt, RAG, persona depth are byte-identical for a 14-year-old and a 40-year-old. The minor protections are **data rails, not capability limits.**
+2. **Crisis handoff is deterministic + human-authored**, never LLM-generated (`fixedCrisisResponse`, `src/lib/llm/safety.ts:408`).
 3. **Minor data rails:** high-privacy seed on signup (`db/migrations/0032`), server clamp keyed off the *real* unforgeable tier (`db/migrations/0038:77-95`), UI lock (`src/lib/privacy/prefs.ts:75-78`). Only `long_term_memory` and `ops_push` are minor-promotable (`src/lib/privacy/prefs.ts:59`).
 4. **Sensitive data:** journaling = mental-health data; consent ledger captures `sensitive_data_ack`, `overseas_transfer_ack`, `llm_processing_ack` (`db/migrations/0031:26-28`) but the **notice/ack UI is "NOT YET WIRED"** (`db/migrations/0031:11-13`).
 
@@ -756,7 +756,7 @@ Each question carries four fields:
   - *Provenance:* D-19 verdict + preserved minority view.
 
 - **Q-D2 [COUNSEL TO CONFIRM]** — If SB243 *does* apply, do the design-enforced non-companion invariants (CI-binding anti-anthropomorphism + crisis-handoff threshold lowering on cadence-spike, D-19) satisfy SB243's safeguards for minors, or does SB243 mandate specific controls (e.g., break reminders, suicidal-ideation protocols, disclosure cadence) not yet implemented?
-  - *Hinges on:* crisis handoff is implemented and deterministic (`src/lib/llm/safety.ts:266`); cadence-spike threshold-lowering is **planned**.
+  - *Hinges on:* crisis handoff is implemented and deterministic (`src/lib/llm/safety.ts:408`); cadence-spike threshold-lowering is **planned**.
 
 #### E. ICO Children's Code — Std 7 / 12 (high-privacy default) + Std 3 (age assurance)
 
