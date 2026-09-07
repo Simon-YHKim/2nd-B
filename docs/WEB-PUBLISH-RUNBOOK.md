@@ -342,6 +342,24 @@ main이 이동하면 그 run은 버려진다. 이것은 **낡은 커밋을 공�
 main이 움직인 뒤 content digest만 어긋나면 `Hash and approve immutable Pages content`에서
 대신 터진다(run `34065192766`). 두 경우 모두 `deploy` job은 `skipped`다.
 
+⚠ **이 경우 앞쪽 freshness 단계는 통과한 채로 12단계에서 죽는다.** 2026-09-08 에 이걸
+"freshness 실패가 아니다"로 읽어 원인을 잘못 좁힌 일이 있다. `2 Resolve and validate`·
+`4 Prove source membership` 이 `success` 인 것은 **그 단계가 돌던 시점에** main 이 안 움직였다는
+뜻일 뿐이고, 그 뒤 단계가 live main 을 안 읽는다는 뜻이 아니다.
+
+같은 날 대조로 갈랐다. 두 run 의 **승인 content digest 가 동일**했고(사이 커밋 셋이 전부 문서라
+웹 산출물이 안 바뀌었다) main 고정 여부만 달랐다:
+
+| run | source | 승인 digest | main | 12단계 |
+|---|---|---|---|---|
+| `34161787573` | `46f504fa` | `21a2f61a…` | 발사 2m52s 뒤 이동 | **FAIL** |
+| `34162560585` | `e98c9caf` | `21a2f61a…` (동일) | 고정 | **PASS** |
+
+⚠ **조건이 확인된 것이지 기전이 밝혀진 것은 아니다.** 어느 산출물이 live main 을 물고 들어가는지는
+아직 모른다(9~11 단계 중 하나로 보이고 `11 Finalize trusted Pages fallback files` 가 후보다).
+n=1 대 n=1 이라 상관은 강하지만 기전 확인은 아니므로, **"main 이 움직여도 이 파일만 피하면
+된다"는 식으로 정지를 줄이지 말 것.**
+
 필요한 창의 길이는 고정값이 아니라 **그 run이 끝날 때까지**다. 성공한 publish run 3건의 실측
 소요는 `5m58s` · `6m00s` · `11m29s`였다(2026-09-06). **6분은 승인이 즉시일 때의 하한**이고
 승인이 늦으면 그만큼 길어진다. 그러므로:
