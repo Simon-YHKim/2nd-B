@@ -870,7 +870,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   }
 
   const audit = {
-    promptHash: djb2(`${input.system ?? ""}${input.user}`),
+    promptHash: djb2(`${input.system ?? ""}\u0001${input.user}`),
     outputHash: djb2(text),
     modelUsed: modelUsedForAudit,
     vertexBackend,
