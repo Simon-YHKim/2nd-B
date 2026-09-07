@@ -6,6 +6,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { PRIVACY_DOC, REFUND_DOC, TERMS_DOC, isDraft } from "../legal-documents";
+import { expectShape } from "@/lib/testing/expect-shape";
 import { CONSENT_VERSION, PRIVACY_POLICY_VERSION } from "../../supabase/consent";
 import {
   parseLegalMarkdown,
@@ -269,7 +270,9 @@ describe("parseLegalMarkdown", () => {
   test("parses the real terms body into a non-trivial block list", () => {
     const blocks = parseLegalMarkdown(TERMS_DOC.body);
     expect(blocks.length).toBeGreaterThan(20);
-    expect(blocks.some((b) => b.type === "h3")).toBe(true);
+    // 실패하면 "어떤 블록 종류가 나왔는지" 를 말해야 파서를 볼지 문서를
+    // 볼지 정할 수 있다.
+    expectShape(blocks, { type: "h3" }, "블록");
   });
 
   test("removes the duplicated terms title and divider, but hands back the effective date", () => {

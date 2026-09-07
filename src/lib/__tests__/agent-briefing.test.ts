@@ -455,3 +455,124 @@ describe("싣는 검사 문항의 사용권 기록", () => {
     expect({ shipped: hits.map((h) => h.code) }).toEqual({ shipped: [] });
   });
 });
+
+// ── 벤더 주장이 운영 원장과 같은 말을 하는가 ──────────────────────────
+//
+// `CLAUDE.md` 는 2026-08-18 에 운영 `ai_audit_log` 를 세고 "OpenAI·Claude 로 나간
+// 실호출은 아직 한 건도 없다" 고 적었다. 그 문장은 **다음 날 낡았다** — openai 가
+// 2026-08-19 부터 서빙을 시작했고 2026-09-08 재실측에서 34건이다(gemini 는 08-23 이
+// 마지막). Claude 는 여전히 0건이라 절반만 틀렸다.
+//
+// ⚠ 이 가드는 원장을 조회하지 않는다(테스트는 운영 DB 에 접근하지 않는다). 대신
+//    **문서가 그 낡은 주장을 정정 없이 달고 있지 않은지**만 본다. 수치 재측정은
+//    사람이 하고, 이 검사는 그 결과가 문서에서 조용히 사라지는 것을 막는다.
+describe("CLAUDE.md 의 벤더 실호출 주장", () => {
+  it("'실호출 한 건도 없다' 를 정정 없이 주장하지 않는다", () => {
+    const src = assertionsOnly("CLAUDE.md");
+    const claims = src
+      .split("\n")
+      .filter((l) => /실호출[^\n]{0,20}한 건도 없다/.test(l));
+    expect({ claims }).toEqual({ claims: [] });
+  });
+
+  it("'secondb_chat 은 아직 Gemini' 를 정정 없이 주장하지 않는다", () => {
+    // 그 좌석은 openai 로 13건 돌았다(2026-08-19~09-06).
+    const src = assertionsOnly("CLAUDE.md");
+    const claims = src
+      .split("\n")
+      .filter((l) => /아직 Gemini 인데 옮겨야 할 자리/.test(l));
+    expect({ claims }).toEqual({ claims: [] });
+  });
+
+  it("재실측 결과가 문서에 남아 있다", () => {
+    // 반대 방향. 틀린 문장만 지우면 "언제 뒤집혔는가" 가 사라지고, 다음 사람이
+    // 08-18 수치를 다시 주워온다.
+    const md = read("CLAUDE.md");
+    expect(md).toContain("2026-09-08 원장 재실측");
+    expect(md).toContain("2026-08-23");   // gemini 마지막 날
+  });
+});
+
+// ── 워크트리 node_modules 지시 ───────────────────────────────────────
+//
+// 2026-09-08 에 이 자리에서 **틀린 주장을 했다가 스스로 반증했다.** 기록해 둔다.
+//
+//   주장: ".worktrees/<name> 는 저장소 안이라 Node 가 상위 설치를 찾는다.
+//          node_modules 가 아예 없어도 verify 가 초록이다."
+//   반증: 전체 verify 가 **2 스위트 실패**(exit 1). 두 테스트가 `readFileSync` 로
+//          `node_modules/...` 를 **명시 경로**로 읽는다 —
+//          `ios-permission-source.test.ts`(@expo/config-plugins) ·
+//          `museum-content-language.test.ts`(react-native-web).
+//          **모듈 해석은 위로 걷지만 readFileSync 는 안 걷는다.**
+//
+// 내가 뭘 잘못했나: 한 스위트(31 통과)를 돌리고 전체를 주장했다. 오늘 하루 잡은 것과
+// 같은 모양이다 — **잰 것과 주장한 것이 다르다.**
+//
+// 그래서 지시는 "정션을 건다"가 맞다. 다만 거는 방법이 두 가지로 조용히 실패하므로
+// (`ln -sfn` 은 복사, `cmd //c mklink` 는 MSYS 경로 깨짐) CLAUDE.md 가 **동작하는
+// 명령과 확인 방법**을 함께 적어야 한다. 이 검사는 그 둘이 같이 남아 있는지만 본다.
+describe("워크트리 설치 공유 지시", () => {
+  it("정션을 만들라고 지시한다", () => {
+    const md = read("CLAUDE.md");
+    expect(/New-Item -ItemType Junction/.test(md)).toBe(true);
+  });
+
+  it("확인 방법(reparse 판정)을 같이 적는다", () => {
+    // 명령만 적으면 조용한 실패를 못 잡는다. 그게 이 저장소가 두 번 밟은 자리다.
+    const md = read("CLAUDE.md");
+    expect(md).toContain("ReparsePoint");
+    expect(/LiteralPath/.test(md)).toBe(true);
+  });
+
+  it("왜 필요한지 — 명시 경로로 읽는 테스트가 실재한다", () => {
+    // 문서의 근거를 코드에 묶는다. 이 두 테스트가 사라지면 그때는 정말
+    // 정션이 불필요해지고, 그 사실이 여기서 먼저 드러나야 한다.
+    for (const f of [
+      "scripts/__tests__/ios-permission-source.test.ts",
+      "src/screens/deepspace/museum/__tests__/museum-content-language.test.ts",
+    ]) {
+      expect({ f, readsNodeModulesByPath: /node_modules\//.test(read(f)) })
+        .toEqual({ f, readsNodeModulesByPath: true });
+    }
+  });
+});
+
+// ── 워크트리 절의 드라이브가 실재하는가 ──────────────────────────────
+//
+// 2026-09-08: `#1751` 이 722행을 `E:\2ndB\node_modules` 로 고치는데 같은 절 위쪽
+// 두 **지시문**이 아직 `C:\2ndB` 를 가리켜서, PR 이 **한 절 안에서 드라이브가 갈리는
+// 문서**를 만들 뻔했다. 조율자가 머지 전에 잡았다. 실측: `C:/2ndB` 는 존재하지 않고
+// `git -C E:/2ndB rev-parse --git-common-dir` 는 `E:/2ndB/.git` 이다.
+//
+// ⚠ **"하지 마라" 예시는 대상이 아니다.** 같은 절의 `C:\2ndB-dev` ·
+//    `C:\Coding Infra\_worktrees\` 는 실재하면 안 되는 반례라서 그대로 둔다.
+//    검사하는 것은 **따라 하라고 적힌 줄**뿐이다.
+describe("워크트리 절의 경로", () => {
+  it("지시문이 존재하지 않는 C: 저장소를 가리키지 않는다", () => {
+    const lines = read("CLAUDE.md").split("\n");
+    const start = lines.findIndex((l) => l.startsWith("## Worktrees & branches"));
+    expect(start).toBeGreaterThan(-1);
+    const end = lines.findIndex((l, i) => i > start && l.startsWith("## "));
+    const section = lines.slice(start, end === -1 ? undefined : end);
+
+    const offenders = section
+      .map((l, i) => ({ line: start + i + 1, text: l }))
+      // 반례 예시(하지 마라)와 정정 블록의 인용은 뺀다.
+      .filter(({ text }) => !/2ndB-dev|Coding Infra|가리키고 있었다|그대로 둔다/.test(text))
+      .filter(({ text }) => /C:[\/]2ndB\b/.test(text))
+      .map(({ line, text }) => `L${line} ${text.trim().slice(0, 60)}`);
+    expect({ offenders }).toEqual({ offenders: [] });
+  });
+
+  it("정본 체크아웃 경로를 한 곳에서만 선언한다", () => {
+    // ⚠ 여기서 `../../.git` 존재를 단언하려다 뺐다. 그 경로는 **내 워크트리에서만**
+    //    참이고(`E:/2ndB/.worktrees/<name>` 의 두 단계 위가 정본), CI 체크아웃은
+    //    저장소 루트라 거짓이 된다. 로컬에서 초록인 채로 CI 를 깨뜨릴 검사였다.
+    //    파일시스템을 묻지 말고 **문서가 무엇을 선언하는지**만 본다.
+    const decl = read("CLAUDE.md")
+      .split("\n")
+      .filter((l) => /^The canonical checkout is/.test(l));
+    expect(decl).toHaveLength(1);
+    expect(decl[0]).toContain("`E:" + String.fromCharCode(92) + "2ndB`");
+  });
+});
