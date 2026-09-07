@@ -79,6 +79,38 @@ From journal entries, map language patterns to BFI-2 domains:
 - **Children under 12**: trait structure not fully consolidated; use developmentally appropriate frameworks (Erikson, attachment) instead.
 - **Not for crisis use**: this framework does not detect or treat mental-health crises. Routing belongs to the Safety Classifier.
 
+## 문항 사용권과 한국어 판본 — 미해소 (2026-09-08 실측)
+
+⚠ **이 절은 결론이 아니라 측정이다.** 저작권 상태를 여기서 판정하지 않는다.
+아래는 저장소를 읽어 확인한 사실과, 그로부터 남는 질문이다.
+
+**앱이 무엇을 싣는가**
+
+| | 실측 |
+|---|---|
+| 파일 | `src/lib/persona/bfi.ts` |
+| 문항 | 영문 원문 **44개** + 한국어 **44개** (전 문항) |
+| 코드의 근거 서술 | `bfi.ts:2` 가 **"Public domain."** 이라고 단언한다. 출처 URL·허가 기록·라이선스 문구는 저장소 어디에도 없다 |
+
+**남는 질문 둘**
+
+1. **사용권.** 그 **"Public domain"** 주장에 근거가 붙어 있지 않다. 파일이 인용하는 것은 1991년 기술보고서 서지이지 이용 허락이 아니다.
+   이 앱에는 유료 등급이 있다. 연구용 무상 이용과 상업적 배포는 다른 허가다.
+   `docs/CONSTRAINTS.md` C8 이 요구하는 출처-검증 짝은 `knowledge_sources` 행에
+   걸리는 것이고, **싣는 문항 자체의 사용권은 어떤 검사도 보지 않는다.**
+
+2. **한국어 판본.** 위 §Cautions 가 이 문서 안에서 이렇게 적는다 —
+   > Reference Korean-validated measures, not direct translation. (이 문서 §Cautions)
+
+   그런데 코드의 `ko:` 문항은 **영문 원문의 자체 번역**이고, 위 §Korean-Context
+   Adaptations 가 이름을 댄 한국어 검증본(Choi et al. 2025, BFI-2 한국판)을 **참조하지 않는다**
+   (`src/lib/persona/bfi.ts` 안에서 그 출처 언급 0건). 즉 **이 문서가 금지한 방법을 앱이 쓰고 있다.**
+   영문 점수와 한국어 점수가 화면에서 같은 타당도 프레이밍을 받는다.
+
+**하지 않은 것**: 문항을 바꾸거나 한국어를 내리지 않았다. 검사 도구 교체는 타당도와
+법무가 함께 걸린 제품 결정이지 문서 정리가 아니다. 이 절은 격차를 기록해서 다음 사람이
+다시 발견하지 않게 하는 것이 목적이다. **결정은 Simon 것이다.**
+
 ## Suggested `knowledge_sources` INSERT rows
 
 See `supabase/seed/big-five.sql` for the executable version. Inline SQL preview:
