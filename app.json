@@ -95,6 +95,7 @@
         }
       ],
       "./config-plugins/withAndroidAbiFilter",
+      "expo-secure-store",
       [
         "expo-splash-screen",
         {
