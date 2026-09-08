@@ -73,7 +73,6 @@ const W = "src/lib/wiki/export.ts";
 const AC = "src/lib/auth/AuthContext.tsx";
 const AD = "src/lib/ads/policy.ts";
 const CV = "src/lib/chat/conversation.ts";
-const OP = "src/app/ops.tsx";
 const AT = "src/lib/analytics/__tests__/analytics.test.ts";
 const LR = "scripts/check-legal-review.ts";
 
@@ -142,8 +141,10 @@ const ANCHORS: Anchor[] = [
     why: "그 규칙을 코드가 스스로 적어 둔 자리 - 주장 자체가 '코드가 이렇게 적어 두었다'라서 주석이 근거다." },
   { cite: `${CV}:338`, symbol: "SYSTEM_PROMPT_HEADER",
     why: "대화 프롬프트가 실제로 조립되는 자리 - 무엇이 모델에 들어가는지의 근거." },
-  { cite: `${OP}:111`, symbol: "recommendationsAllowed",
-    why: "미성년 추천 잠금이 화면에서 실제로 불리는 자리." },
+  { cite: "src/lib/ops/recommend.ts:199-207", symbol: "recommendationsAllowed(input.minor",
+    why: "엔진이 호출부와 **독립적으로** 게이트를 다시 본다는 주장의 근거. 493행이 '통제가 어느 한 화면에 기대지 않는다'고 말하는 근거가 이 한 줄이다 - 화면 잠금이 사라져도 스냅샷이 LLM 에 안 간다." },
+  { cite: "src/screens/deepspace/dds-ops-screen.tsx:588-595", symbol: "recommendationsAllowed",
+    why: "미성년 추천 잠금이 **배송되는 화면에서** 실제로 불리는 자리. ⚠ 원래 `src/app/ops.tsx:111` 을 가리켰는데 그 줄은 `OpsLegacy` 안이고, `ops.tsx:501` 이 deep-space 일 때 위임하므로 **어떤 배포도 그리지 않는다.** 잠금은 실재하는데 좌표가 죽어 있었다 - 회차 60(/data)·61(/audit) 과 같은 부류의 세 번째다." },
   { cite: `${D}:66-78`, symbol: "userIdFromJwt",
     why: "지울 계정을 클라이언트가 못 고른다는 IDOR 주장의 근거." },
   { cite: "src/lib/analytics/index.ts:245-252", symbol: "isMinor === false",
@@ -152,6 +153,14 @@ const ANCHORS: Anchor[] = [
     why: "의인화 가드가 **바로 그 키를 이름으로 지켜본다**는 근거. 문서는 '유일한 가드는 어휘 렉시콘'이라고 적어 이 게이트를 부정하고 있었다 - 회차 50 의 부류(있는 통제를 없다고 적기)." },
   { cite: "src/lib/persona/center.ts:92", symbol: "우리가 자주 머문",
     why: "1인칭 복수 화법 주장의 **실제 문자열**. 문서는 그것을 서술하는 주석(:4, :23)을 인용하고 있었다 - 주장은 참인데 근거가 '코드가 그렇다고 적어 둔 말'이었다." },
+  { cite: "db/migrations/0038_minor_tier_guard_and_audit_lockdown.sql:87", symbol: "'external_analytics', false",
+    why: "미성년에게 외부 분석이 서버에서 잠긴다는 주장의 실제 줄. ⚠ 문서가 `:88` 을 인용했는데 그 줄은 `'llm_training', false` 다 - **클라이언트 키 집합에서 가지쳐진 키**(회차 57·58)를 두 다른 설정의 근거로 가리키고 있었다." },
+  { cite: "db/migrations/0038_minor_tier_guard_and_audit_lockdown.sql:86", symbol: "'recommendations', false",
+    why: "미성년 추천 잠금의 서버 쪽 절반. D-20 화면 게이트와 짝을 이룬다 - 화면이 뚫려도 이 클램프가 남는다." },
+  { cite: "db/migrations/0038_minor_tier_guard_and_audit_lockdown.sql:36-74", symbol: "block_self_tier_change",
+    why: "한 문장으로 `minor_tier='adult' + prefs 전부 true` 를 쓰던 탈출구를 막은 트리거. 미성년 잠금 전체가 이 위에 선다." },
+  { cite: "db/migrations/0012_crisis_events.sql:30-32", symbol: "Intentionally NO policies", evidence: "comment",
+    why: "위기 원장이 사용자에게 안 보인다는 주장의 근거 - 정책이 없으면 거부다. 주장 자체가 '정책을 일부러 안 만들었다' 라서 주석이 근거다." },
   { cite: "db/migrations/0030_server_age_gate.sql:18-49", symbol: "age_years < 14",
     why: "14세 미만 자가가입을 서버가 막는다는 주장(C10)의 실제 비교. 미성년 DPIA 의 바닥선이다." },
   { cite: "db/migrations/0030_server_age_gate.sql:62-67", symbol: "users_active_has_tier",
@@ -162,14 +171,19 @@ const ANCHORS: Anchor[] = [
     why: "⚠ 회차 57 이 이 키를 '더 이상 존재하지 않는다'고 적었다가 58 에서 정정한 자리. 클라이언트 키 목록에서는 가지쳐졌지만 **서버 트리거는 여전히 쓴다** - 읽을 때 버려질 뿐이다. 둘은 구분되는 상태다." },
   { cite: "src/lib/auth/consent-selections.ts:20-21", symbol: "sensitiveData",
     why: "PIPA §23 별도 동의가 실제로 별개 항목으로 수집된다는 주장. 서비스 동의에 묻어 가지 않는다는 것이 주장의 내용이다." },
+  { cite: "src/lib/supabase/consent.ts:114-116", symbol: "sensitive_data_ack",
+    why: "동의 ack 셋이 **실제로 원장 행에 실리는** 자리. 일곱 자리가 '수집·기록된다'로 고쳐졌고, 그 주장이 서는 곳이 여기다. 주석이 아니라 쓰기다." },
   { cite: "src/lib/supabase/consent.ts:14-21", symbol: "WIRED at sign-up", evidence: "comment",
     why: "동의 기록이 UI 수집 **뒤에** 쓰인다는 불변식의 기록. 문서가 이 주석을 'still read null (stale)' 이라고 인용했었다." },
   { cite: `${A}:8-12`, symbol: "the country signal landed", evidence: "comment",
     why: "관할 신호가 **언제** 붙었는지의 날짜 기록. 문서가 세 자리에서 '신호 없음'을 주장하며 **바로 이 범위를 인용**하고 있었다 - 인용된 줄이 인용한 주장을 반증하는 상태였다. 주장 자체가 '코드가 이 날짜를 적어 두었다' 라서 주석이 근거다." },
   { cite: `${P}:103-105`, symbol: "were pruned", evidence: "comment",
     why: "문서가 credit 하던 `llm_training`/`persona_export`/`persona_share` 가 **왜 없는지**의 기록. 없는 설정을 통제로 적는 것을 막는다(회차 45 의 부류)." },
-  { cite: "src/app/wiki.tsx:359", symbol: "exportContextPack",
-    why: "사용자용 내보내기가 실제로 부르는 함수. 문서는 `exportUserWiki` 라고 적고 있었는데 그건 저널을 **빼는** 대화 경로다 - 이 경로는 일부러 담는다(`includeRecords: true`). 개인정보 문서에서 무엇이 나가는지를 뒤집는 오류다." },
+  // ⚠ 회차 57 이 여기에 `src/app/wiki.tsx:359` / `exportContextPack` 앵커를 두었다.
+  // 회차 63 에서 지웠다: 그 줄은 `WikiLegacy` 안이고 어떤 배포도 그리지 않는다.
+  // **맞는 함수 이름을 죽은 사본에 고정한 것**이라, 지키는 대상이 없었다.
+  // 배송되는 위키 화면(`dds-wiki-records-screens.tsx`)에는 마크다운 내보내기 자체가
+  // 없다 - 그 사실은 legal-citations-not-in-dead-renderers.test.ts 가 지킨다.
   { cite: `${CV}:293-296`, symbol: "wiki_snapshot",
     why: "스냅샷이 실제로 신뢰하지 않는 데이터로 감싸지는 자리. 문서는 프롬프트 문자열 블록을 가리키고 있었다." },
   { cite: `${R}:54`, symbol: "SNAPSHOT_CHAR_LIMIT",
