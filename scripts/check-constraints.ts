@@ -844,8 +844,10 @@ results.push(
     const liveHome = read("src/components/deep-space/ConstellationHome.tsx");
     const jarvis = read("src/app/secondb.tsx");
     const navGraph = read("src/components/graph/NavGraph.tsx");
+    // /profile 의 a11y 도 배송 화면에 있다. 계약은 같다 — 허브 항목마다 label +
+    // hint + role="link". 접근자 이름만 바뀌었다(itemCopy -> sections.<섹션>.items.<항목>).
     const esm = read("src/app/esm.tsx");
-    const profile = read("src/app/profile.tsx");
+    const profile = read("src/screens/deepspace/dds-profile-screen.tsx");
     const consentNotice = read("src/components/consent/ConsentNotice.tsx");
     const consentDialog = read("src/components/consent/ConsentDialog.tsx");
     const premiumFeedback = read("src/components/premium/feedback.tsx");
@@ -1096,9 +1098,10 @@ results.push(
       esmCheckboxes >= 1 &&
       esm.includes('accessibilityHint={t("prompts.changeHint")}') &&
       esm.includes("accessibilityHint={activePromptSaveHint}") &&
-      profile.includes('key: "esm", route: "/esm"') &&
-      profile.includes('accessibilityLabel={itemCopy.label}') &&
-      profile.includes('accessibilityHint={itemCopy.hint}') &&
+      profile.includes('route: "/esm"') &&
+      profile.includes("accessibilityLabel={sections.account.items.settings.label}") &&
+      profile.includes("accessibilityHint={sections.account.items.settings.hint}") &&
+      profile.includes('accessibilityRole="link"') &&
       preferenceCheckboxes >= 1 &&
       preferenceToggle.includes("accessibilityLabel={label}") &&
       consentNotice.includes("PreferenceCheckRow") &&
@@ -1904,7 +1907,8 @@ results.push(
 
   results.push(
     check("ProfileI18nCopy", () => {
-      const profile = read("src/app/profile.tsx");
+      // 라우트는 13줄 래퍼가 됐다. 허브 카피는 배송 화면이 진다.
+      const profile = read("src/screens/deepspace/dds-profile-screen.tsx");
       const i18n = read("src/lib/i18n/index.ts");
       const en = read("locales/en/profile.json");
       const ko = read("locales/ko/profile.json");
@@ -1927,7 +1931,9 @@ results.push(
         profile.includes('useTranslation("profile")') &&
         profile.includes('t("hero.title", { displayName })') &&
         profile.includes('t("sections", { returnObjects: true })') &&
-        profile.includes("itemCopy.hint") &&
+        // 레거시는 itemCopy 로 항목 하나를 받아 썼고, 라이브는 sections 트리를
+        // 그대로 인덱싱한다. 같은 t("sections") 반환값에서 나온다.
+        profile.includes("sections.account.items.settings.hint") &&
         i18n.includes("enProfile") &&
         i18n.includes("koProfile") &&
         i18n.includes('"profile"') &&

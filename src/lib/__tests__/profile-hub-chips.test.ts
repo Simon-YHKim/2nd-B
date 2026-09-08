@@ -9,7 +9,7 @@ function readRepoFile(file: string): string {
 
 describe("profile hub chips", () => {
   test("legacy profile hub opens Trinity from the analysis section", () => {
-    const source = readRepoFile("src/app/profile.tsx");
+    const source = readRepoFile("legacy/screens/profile.tsx");
 
     expect(source).toContain(
       '{ sectionKey: "analyze", key: "trinity", route: "/trinity", accent: mascot.trinity }',
@@ -32,7 +32,7 @@ describe("profile hub chips", () => {
   });
 
   test("quick hub chips expose glyph, label, and hint hierarchy", () => {
-    const source = readRepoFile("src/app/profile.tsx");
+    const source = readRepoFile("legacy/screens/profile.tsx");
 
     expect(source).toContain("function HubGlyph");
     expect(source).toContain("<HubGlyph itemKey={item.key} color={item.accent} />");
@@ -44,7 +44,7 @@ describe("profile hub chips", () => {
   });
 
   test("quick hub chips keep stable touch dimensions without color-only signaling", () => {
-    const source = readRepoFile("src/app/profile.tsx");
+    const source = readRepoFile("legacy/screens/profile.tsx");
 
     expect(source).toContain("minHeight: 84");
     expect(source).toContain('flexBasis: "48%"');
@@ -53,7 +53,7 @@ describe("profile hub chips", () => {
   });
 
   test("deep-space profile uses progressive disclosure instead of the dense legacy hub", () => {
-    const source = readRepoFile("src/app/profile.tsx");
+    const source = readRepoFile("legacy/screens/profile.tsx");
 
     expect(source).toContain("type DeepSpaceProfileSection");
     expect(source).toContain("const [activeDeepSpaceSection, setActiveDeepSpaceSection]");
