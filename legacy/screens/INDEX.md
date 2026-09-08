@@ -36,6 +36,8 @@ Simon 의 요구는 *"나중에 내가 지정해서 확인하라고 하면 할 �
 | `import.tsx` | `src/app/import.tsx` | 외부 가져오기 화면의 레거시 렌더러 + 스타일. 게이트는 위임 |
 | `ops.tsx` | `src/app/ops.tsx` | 비서 화면의 레거시 렌더러 + 스타일. 게이트는 위임. ⚠ **바이트 핀이 따라왔다** — `tools-reachable.test.ts` 가 `OpsLegacy` 슬라이스의 sha256 을 아카이브에서 검사한다(옮기면서 안 고쳤다는 증거) |
 | `account.tsx` | `src/app/account.tsx` | 계정 화면의 레거시 렌더러 + 스타일. ⚠ **게이트는 위임이 아니다 — 라우트에 남았다**(아래 절). 검사 넷이 아카이브를 따라왔다 |
+| `records.tsx` | `src/app/records.tsx` | 별가루 목록의 레거시 렌더러 + 스타일. 게이트는 위임 |
+| `review.tsx` | `src/app/review.tsx` | 제안 확인 화면의 레거시 렌더러 + 스타일. ⚠ 이 스킨을 **이름으로 검사하던 스위트 셋**이 아카이브를 따라왔다(`seven-ratify-path`·`session01-copy`·`star-name-key`) |
 
 ## 옮길 때 같이 한 일
 
