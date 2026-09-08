@@ -168,7 +168,6 @@ describe("한국어 문자열 추출", () => {
  * 여기가 아니라 저기로 올린다.
  */
 const MIXED_FILE_DEBT: Record<string, number> = {
-  "src/app/(auth)/sign-up.tsx": 1,
   "src/app/attachment.tsx": 15,
   "src/app/audit.tsx": 12,
   "src/app/call-reflection.tsx": 9,
@@ -178,7 +177,6 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/app/core-brain.tsx": 9,
   "src/app/iden.tsx": 7,
   "src/app/inbox.tsx": 30,
-  "src/app/index.tsx": 17,
   "src/app/interview.tsx": 4,
   "src/app/ipip-neo.tsx": 16,
   "src/app/manual.tsx": 42,
@@ -189,7 +187,6 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/app/persona.tsx": 32,
   "src/app/processing-log.tsx": 24,
   "src/app/reasoning.tsx": 56,
-  "src/app/review.tsx": 8,
   "src/app/rlss.tsx": 10,
   "src/app/secondb.tsx": 10,
   "src/app/settings.tsx": 11,
@@ -281,7 +278,6 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/lib/wiki/propose-template.ts": 15,
   "src/lib/wiki/template-validate.ts": 2,
   "src/screens/deepspace/DeepSpaceDesignScreens.tsx": 69,
-  "src/screens/deepspace/dds-manual-content.ts": 25,
   "src/screens/deepspace/dds-record-detail-screen.tsx": 4,
   "src/screens/deepspace/dds-wiki-records-screens.tsx": 4,
   "src/screens/deepspace/growth/WeeklyGrowthScreen.tsx": 14,
@@ -296,13 +292,28 @@ describe("코드에 박힌 한국어", () => {
   const newlyMixed: { file: string; count: number; sample: string }[] = [];
   const grew: { file: string; was: number; now: number }[] = [];
   const shrank: { file: string; was: number; now: number }[] = [];
+  /** 명세에 있는데 한국어가 **0 건**인 파일. 갚은 빚이고, 줄이 남아 있으면 안 된다.
+   *
+   *  ⚠ 처음엔 "세어본 파일"을 모았다. 그건 **본 것**이지 **비교한 것**이 아니라서,
+   *  0 이 된 파일도 세었다고 표시되고 그대로 통과했다 — 변이 검증에서 잡혔다.
+   *  같은 실수의 다른 얼굴이다: 신호를 만드는 지점과 판정하는 지점이 다르면
+   *  중간에 조용히 새어 나간다. */
+  const paidOff: string[] = [];
 
   for (const file of sourceFiles(join(ROOT, "src"))) {
     if (NOT_PRODUCT_SURFACE.some((re) => re.test(file))) continue;
     if (file in KOREAN_BY_DESIGN) continue;
     const src = readFileSync(join(ROOT, file), "utf8");
     const ko = stringLiterals(src, file).filter((l) => /[가-힣]/.test(l));
-    if (ko.length === 0) continue;
+    // ⚠ 여기서 `if (ko.length === 0) continue;` 로 바로 넘어가고 있었다. 그러면
+    // **빚을 다 갚은 파일이 비교 대상에서 통째로 빠진다** — 명세의 줄은 남아 있는데
+    // 아무도 그 줄을 다시 안 센다. 2026-09-08 에 dds-manual-content.ts 가 25 -> 0 이
+    // 되었는데 이 검사는 한 마디도 안 했다. "줄어도 실패" 라고 적어 놓고 **0 만
+    // 예외**였던 셈이다. 0 도 감소이므로 measured 에 넣고 아래에서 함께 본다.
+    if (ko.length === 0) {
+      if (file in MIXED_FILE_DEBT) paidOff.push(file);
+      continue;
+    }
     if (hasEnglishPath(src)) {
       const was = MIXED_FILE_DEBT[file];
       if (was === undefined) newlyMixed.push({ file, count: ko.length, sample: ko[0].slice(0, 40) });
@@ -326,6 +337,12 @@ describe("코드에 박힌 한국어", () => {
   it("빚을 갚았으면 숫자도 내린다", () => {
     // 래칫은 양방향이다. 안 내리면 다음 사람이 그만큼 다시 넣어도 안 걸린다.
     expect(shrank).toEqual([]);
+  });
+
+  it("빚이 0 이 된 줄은 명세에서 지운다", () => {
+    // 0 도 감소다. 남겨두면 **아무것도 설명하지 않는 줄**이 되고, 그 파일에 한국어가
+    // 다시 들어와도 "늘었다"가 아니라 "원래 그만큼이었다"로 통과한다.
+    expect({ 빚이_사라진_줄: paidOff }).toEqual({ 빚이_사라진_줄: [] });
   });
 
   it("영어 경로 없이 한국어를 들이는 새 파일이 없다", () => {

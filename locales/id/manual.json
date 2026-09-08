@@ -11,5 +11,46 @@
   "getStartedHint": "Membuka layar pendaftaran.",
   "permissions": "Apa yang diakses aplikasi",
   "permissionsHint": "Membuka panduan izin aplikasi.",
-  "curated": "Riset terkurasi"
+  "curated": "Riset terkurasi",
+  "guide": {
+    "hero": "Lima pertanyaan menjelaskan bagaimana catatanmu menjadi sesuatu yang berguna.",
+    "tip": "Buka satu jawaban sekaligus, atau saring panduan di bawah.",
+    "searchLabel": "Saring panduan penggunaan",
+    "searchPlaceholder": "Cari pertanyaan dan jawaban",
+    "noResults": "Tidak ada bagian yang cocok. Tanyakan pada SecondB dengan kata-katamu sendiri.",
+    "expanded": "Jawaban terbuka",
+    "collapsed": "Jawaban tertutup",
+    "topics": {
+      "stars": {
+        "question": "Apa itu tujuh bintang?",
+        "answer": "Yaitu profil · masa balita · masa sekolah · usia dua puluhan · usia tiga puluhan ke atas · pekerjaan · sekarang. Karier, keuangan, pertumbuhan, hubungan, kesehatan, dan istirahat adalah enam area kehidupan di dasbor SecondB, bukan bintang."
+      },
+      "brightness": {
+        "question": "Apa arti kecerahan dan Bintang Utara?",
+        "answer": "Kecerahan mencatat berapa lapis wawancara yang benar-benar kamu buka. Cakupan bisa mencapai L4; L5 baru muncul setelah kamu menyetujui sebuah usulan. Bintang Utara adalah rangkuman yang diturunkan dari masukan itu, bukan catatan aslinya."
+      },
+      "source": {
+        "question": "Apa yang dibaca SecondB?",
+        "answer": "Wiki dan catatanmu adalah sumber rincinya. SecondB membaca materi asli itu saat menjawab; Bintang Utara adalah rangkuman turunan, bukan sumber yang seharusnya dikutip."
+      },
+      "ratify": {
+        "question": "Kapan sebuah saran mengubah profilku?",
+        "answer": "Tidak pernah dengan sendirinya. Keluaran AI tetap berupa usulan sampai kamu menyetujuinya. Hanya usulan yang kamu setujui yang bisa diterapkan ke modelmu atau membuka L5."
+      },
+      "data": {
+        "question": "Di mana privasi, keamanan, dan ekspor berada?",
+        "answer": "Pilihan privasi dan ekspor akun adalah kontrol yang kamu buka sendiri. IDEN adalah rangkuman identitas yang bisa dibawa. Jika sebuah pesan membutuhkan bantuan mendesak, aplikasi menampilkan sumber dukungan sebelum jawaban biasa dan tidak menghubungi layanan untukmu."
+      }
+    },
+    "actions": {
+      "dashboard": "Buka dasbor SecondB",
+      "brightness": "Lihat kecerahan",
+      "records": "Buka catatan",
+      "review": "Tinjau usulan",
+      "privacy": "Pengaturan privasi",
+      "iden": "IDEN portabel",
+      "accountExport": "Ekspor akun",
+      "support": "Sumber dukungan"
+    }
+  }
 }

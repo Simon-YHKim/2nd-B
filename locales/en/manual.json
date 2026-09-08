@@ -11,5 +11,46 @@
   "getStartedHint": "Opens the sign-up screen.",
   "permissions": "What the app accesses",
   "permissionsHint": "Opens the app permissions guide.",
-  "curated": "Selected research"
+  "curated": "Selected research",
+  "guide": {
+    "hero": "Five questions explain how your records become something useful.",
+    "tip": "Open one answer at a time, or filter the guide below.",
+    "searchLabel": "Filter the user guide",
+    "searchPlaceholder": "Search questions and answers",
+    "noResults": "No matching section. Ask SecondB in your own words.",
+    "expanded": "Answer open",
+    "collapsed": "Answer closed",
+    "topics": {
+      "stars": {
+        "question": "What are the seven stars?",
+        "answer": "They are profile · infancy · school years · twenties · later life · work · now. Career, finance, growth, relationships, health, and rest are the six life areas in the SecondB dashboard, not stars."
+      },
+      "brightness": {
+        "question": "What do brightness and Polaris mean?",
+        "answer": "Brightness records how many interview layers you actually opened. Coverage can reach L4; L5 appears only after you ratify a proposal. Polaris is a summary derived from those inputs, not the source record."
+      },
+      "source": {
+        "question": "What does SecondB read?",
+        "answer": "Your wiki and records are the detailed source. SecondB reads that original material when it answers; Polaris is a derived summary rather than the source it should quote from."
+      },
+      "ratify": {
+        "question": "When does a suggestion change my profile?",
+        "answer": "Never by itself. AI output remains a proposal until you ratify it. Only a proposal you confirm can be applied to your model or open L5."
+      },
+      "data": {
+        "question": "Where do privacy, safety, and exports live?",
+        "answer": "Privacy choices and account export are explicit controls. IDEN is a portable identity summary. If a message needs urgent support, the app shows support resources before an ordinary reply and does not contact services for you."
+      }
+    },
+    "actions": {
+      "dashboard": "Open the SecondB dashboard",
+      "brightness": "View brightness",
+      "records": "Open records",
+      "review": "Review proposals",
+      "privacy": "Privacy controls",
+      "iden": "Portable IDEN",
+      "accountExport": "Account export",
+      "support": "Support resources"
+    }
+  }
 }
