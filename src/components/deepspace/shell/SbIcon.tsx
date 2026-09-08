@@ -36,15 +36,22 @@ export interface SbIconProps {
 }
 
 export function SbIcon({ name, color, size = 24 }: SbIconProps) {
-  // ⚠ `canonGlyph` 를 지나는 이유: 이 컴포넌트에 **타입이 못 막는 이름이 들어온다.**
+  // `canonGlyph` 를 지나는 이유: 이름이 그려진 글리프로 확실히 떨어지게 한다.
+  // 아이콘이 없는 것과 화면이 죽는 것은 다른 값이다.
   //
-  //   `src/app/onboarding.tsx:66` 이 캐논 JSON 값을 `s.icon as SbIconName` 으로
-  //   **검사 없이 캐스팅**해서 넘긴다. 전에는 여기서 `GLYPH_ALIAS[name]` 이
-  //   `undefined` 가 되고 `glyphMarkup` 이 `PIXEL_GLYPHS[undefined].map(...)` 을
-  //   부르며 **TypeError** 로 죽었다 — 그것도 **새 사용자의 첫 화면**에서.
+  // ⚠ 2026-09-08 정정. 여기 이렇게 적혀 있었다: *"`src/app/onboarding.tsx:66`
+  //   이 캐논 JSON 값을 `s.icon as SbIconName` 으로 검사 없이 캐스팅해 **넘긴다**"*
+  //   — 그래서 이 가드가 온보딩을 지킨다는 뜻이었다. **세 군데가 틀렸다:**
   //
-  //   지금 캐논의 네 이름은 전부 그려져 있어 사고는 안 났지만, 캐논에 아이콘
-  //   이름 한 줄을 더하는 것만으로 온보딩이 죽는 상태였다. 아이콘이 없는 것과
-  //   화면이 죽는 것은 다른 값이다.
+  //     · `as SbIconName` 은 저장소 어디에도 없다(이 주석 안을 빼면 0건).
+  //     · `onboarding.tsx:66` 은 `skipLabel` 이다. 그 파일은 `<SbIcon>` 을
+  //       **한 번도 그리지 않는다.**
+  //     · 실제 캐스팅은 `onboarding.tsx` 가 `as AnyGlyphName` 으로 하고, 값은
+  //       `SbIcon` 이 아니라 `PixelGlyph` 로 **직접** 갔다 — 이 가드를 비껴서.
+  //
+  //   즉 가드는 위험이 지나지 않는 길에 서 있었고, 주석이 엉뚱한 호출자를
+  //   지목한 탓에 아무도 진짜 길을 못 찾았다. 고친 자리는 두 곳이다:
+  //   `onboarding.tsx` 의 캐스팅을 `canonGlyph` 로 바꿨고, `PixelGlyphRects`
+  //   자체가 그려진 이름으로만 색인하도록 만들었다. 이 파일은 그대로 맞다.
   return <PixelGlyph name={canonGlyph(name)} color={color} size={size} />;
 }

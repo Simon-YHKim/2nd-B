@@ -769,8 +769,18 @@ function ownAlias(name: string): PixelGlyphName | null {
   return Object.hasOwn(GLYPH_ALIAS, name) ? GLYPH_ALIAS[name as GlyphAliasName] : null;
 }
 
+/**
+ * 별칭을 풀어 실제 글리프 이름으로. **`canonGlyph` 와 같은 값을 돌려준다.**
+ *
+ * ⚠ 2026-09-08 이전에는 `(ownAlias(name) ?? name) as PixelGlyphName` 이었다 -
+ *   그려지지 않은 이름을 **검사 없이 그대로 돌려줬다.** 타입상으로는 일어날 수
+ *   없는 입력이지만 캐스팅으로 타입을 세탁한 값이 실제로 들어왔고, 그 값이
+ *   `PIXEL_GLYPHS[...]` 색인에 그대로 쓰여 `undefined.map(...)` 으로 화면을
+ *   죽였다. 지금은 호출부가 하나도 없지만 **다음 호출자를 위해 함정을 닫는다** -
+ *   지우지 않는 이유는 이 워크트리를 다른 세션과 함께 쓰기 때문이다.
+ */
 export function resolveGlyph(name: AnyGlyphName): PixelGlyphName {
-  return (ownAlias(name) ?? name) as PixelGlyphName;
+  return canonGlyph(name);
 }
 
 /**
@@ -789,6 +799,22 @@ export function canonGlyph(name: string): PixelGlyphName {
   if (alias) return alias;
   if (Object.hasOwn(PIXEL_GLYPHS, name)) return name as PixelGlyphName;
   return "sparkle";
+}
+
+/**
+ * 이름 하나로 그릴 사각형들. **그리는 컴포넌트가 색인을 직접 하지 않게** 하려고
+ * 뽑아 뒀다.
+ *
+ * `PixelGlyphRects` 가 `PIXEL_GLYPHS[resolveGlyph(name)]` 로 직접 색인하던 때,
+ * 그려지지 않은 이름이 오면 `undefined` 를 받아 곧바로 `.map` 에서 **TypeError**
+ * 로 화면이 죽었다. 그 자리를 컴포넌트 안에 두면 **렌더 테스트로만** 확인할 수
+ * 있는데 이 저장소는 컴포넌트 렌더 테스트가 막혀 있다(RN 0.85 upstream). 함수로
+ * 빼면 같은 성질을 그냥 호출해서 검사할 수 있다.
+ *
+ * 계약: **어떤 문자열을 줘도 비어 있지 않은 배열을 돌려준다.**
+ */
+export function glyphRects(name: string): readonly PixelRect[] {
+  return PIXEL_GLYPHS[canonGlyph(name)];
 }
 
 /**
