@@ -88,7 +88,10 @@ describe("requestAccountDeletion (terminal erasure)", () => {
 });
 
 describe("account deletion UI routing", () => {
-  const account = readFileSync(join(process.cwd(), "src/app/account.tsx"), "utf8");
+  // 삭제 표면이 둘이었다(레거시 /account · deep-space). 레거시는 2026-09-08 에
+  // 아카이브로 나갔고, **배송되는 표면은 deep-space 하나**다. 보관본을 계속 읽어
+  // 같은 규칙을 요구한다 — 되살릴 일이 생기면 그때도 안전해야 한다.
+  const account = readFileSync(join(process.cwd(), "legacy/screens/account.tsx"), "utf8");
   const deepSpace = readFileSync(
     join(process.cwd(), "src/screens/deepspace/DeepSpaceDesignScreens.tsx"),
     "utf8",

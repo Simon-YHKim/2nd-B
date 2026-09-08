@@ -16,6 +16,10 @@ import {
 const ROOT = join(__dirname, "..", "..", "..", "..");
 const SCREEN = join(ROOT, "src", "screens", "deepspace", "dds-account-screen.tsx");
 const ROUTE = join(ROOT, "src", "app", "account.tsx");
+// AccountLegacy 는 2026-09-08 에 아카이브로 나갔다. 바이트 핀은 **지우지 않고
+// 따라간다** — 같은 마커, 같은 해시, 다른 파일이면 그 핀이 "옮기면서 안 고쳤다"를
+// 증명한다. /ops 와 같은 처리다.
+const LEGACY = join(ROOT, "legacy", "screens", "account.tsx");
 
 function read(path: string): string {
   return readFileSync(path, "utf8").replace(/\r\n/g, "\n");
@@ -102,7 +106,9 @@ describe("PIXEL-CLAY /account contract", () => {
   // signed in is worse than a stale skin. onExportData sits inside the slice
   // this pin covers, so fixing it and moving the pin are the same act.
   test("leaves AccountLegacy and its styles byte-for-byte unchanged", () => {
-    const route = read(ROUTE);
+    // 대상만 아카이브로 바꿨다. **digest 는 한 글자도 안 바꿨다** — 그게 증거다:
+    // 같은 마커, 같은 해시, 다른 파일이면 옮기면서 고치지 않았다는 뜻이다.
+    const route = read(LEGACY);
     const start = route.indexOf("function AccountLegacy()");
     const end = route.indexOf("\nexport default function Account()");
     expect(start).toBeGreaterThan(-1);

@@ -17,7 +17,9 @@ const PATHS: SignOutPath[] = [
   },
   {
     label: "legacy account deletion",
-    source: readFileSync(resolve(ROOT, "src/app/account.tsx"), "utf8").replace(/\r\n/g, "\n"),
+    // 레거시 렌더러가 legacy/screens/account.tsx 로 나갔다. 이 단언의 대상은 그
+    // 렌더러이므로 보관본을 읽는다 — 라이브 쪽 같은 규칙은 아래 deep-space 항목이 진다.
+    source: readFileSync(resolve(ROOT, "legacy/screens/account.tsx"), "utf8").replace(/\r\n/g, "\n"),
     navigationOwner: "finally",
   },
   {

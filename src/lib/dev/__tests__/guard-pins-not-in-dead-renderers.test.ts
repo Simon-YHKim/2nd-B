@@ -42,7 +42,9 @@ const ROOT = process.cwd();
 // 처음 재봤을 때는 112 였다. deadRendererSpans 가 audit.tsx 를 빼기 때문에 110 이다
 // - ?screener=1 이 스킨 검사보다 먼저 와서 그 렌더러는 배송되는 앱에서 닿는다.
 // 판정을 공유 모듈 하나로 모은 값어치가 여기서 2건으로 나타난다.
-const RATCHET_BASELINE = 110;
+// 110 -> 103 (2026-09-08, 같은 날): /account 렌더러가 나가면서 그 7건이 함께
+// 나갔다. **고쳐서 준 게 아니라 대상이 나간 것**이다 - 예측 7, 실측 7.
+const RATCHET_BASELINE = 103;
 
 interface DeadFile {
   text: string;
