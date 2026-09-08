@@ -31,6 +31,14 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import {
+  componentSpan,
+  duplicatedComponentNames,
+  exportedComponents,
+  shadowedScreens,
+  sourceFiles,
+} from "../shadow-screens";
+
 const ROOT = process.cwd();
 
 interface Shadowed {
@@ -69,51 +77,15 @@ const SHADOWED: Shadowed[] = [
   },
 ];
 
-const EXPORTED = /^export (?:default )?function ([A-Z][A-Za-z0-9_]*)\s*\(/gm;
-
-function sourceFiles(dir: string, out: string[] = []): string[] {
-  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, e.name);
-    if (e.isDirectory()) {
-      if (e.name === "__tests__" || e.name === "__mocks__") continue;
-      sourceFiles(full, out);
-    } else if (/\.tsx?$/.test(e.name)) {
-      out.push(path.relative(ROOT, full).split(path.sep).join("/"));
-    }
-  }
-  return out;
-}
-
-/** 이름 -> 그 이름을 export 하는 파일들. */
-function exportedComponents(): Map<string, string[]> {
-  const found = new Map<string, string[]>();
-  for (const rel of sourceFiles(path.join(ROOT, "src"))) {
-    const text = fs.readFileSync(path.join(ROOT, rel), "utf8");
-    for (const m of text.matchAll(EXPORTED)) {
-      const list = found.get(m[1]) ?? [];
-      if (!list.includes(rel)) list.push(rel);
-      found.set(m[1], list);
-    }
-  }
-  return found;
-}
-
-const components = exportedComponents();
-const duplicated = [...components.entries()]
-  .filter(([, files]) => files.length > 1)
-  .map(([name]) => name)
-  .sort();
-
-/** `export function Name(` 부터 컬럼 0 의 닫는 중괄호까지. 1-based, 양끝 포함. */
-function span(rel: string, name: string): { from: number; to: number } | null {
-  const lines = fs.readFileSync(path.join(ROOT, rel), "utf8").split(/\r?\n/);
-  const start = lines.findIndex(l => new RegExp(`^export (?:default )?function ${name}\\s*\\(`).test(l));
-  if (start === -1) return null;
-  for (let i = start + 1; i < lines.length; i += 1) {
-    if (lines[i] === "}") return { from: start + 1, to: i + 1 };
-  }
-  return null;
-}
+// 판정은 `../shadow-screens` 한 곳에만 있다. 회차 64 가 이유다 - 죽은-렌더러
+// 판정이 두 벌이었을 때 한쪽은 112, 다른 쪽은 110 을 셌고 **그 차이가 아무에게도
+// 안 보였다.** 그때는 값이 우연히 달라서 드러났을 뿐이고, 같았으면 두 검사가
+// 서로 다른 세계를 세는 것을 아무도 몰랐을 것이다. ttl-work-b6 의 래칫도 같은
+// 모듈을 가져간다.
+const components = exportedComponents(ROOT);
+const duplicated = duplicatedComponentNames(ROOT);
+const derived = shadowedScreens(ROOT);
+const span = (rel: string, name: string) => componentSpan(rel, name, ROOT);
 
 function legalDocs(): { name: string; text: string }[] {
   const dir = path.join(ROOT, "docs", "legal");
@@ -147,7 +119,7 @@ describe("그림자 화면 - 같은 컴포넌트가 두 파일에 있을 때", (
   });
 
   it("명단이 지목한 '배송되는 쪽'을 라우트가 실제로 import 한다", () => {
-    const routes = sourceFiles(path.join(ROOT, "src", "app"))
+    const routes = sourceFiles(path.join(ROOT, "src", "app"), ROOT)
       .map(rel => fs.readFileSync(path.join(ROOT, rel), "utf8"))
       .join("\n");
     const wrong = SHADOWED.filter(s => {
@@ -155,6 +127,15 @@ describe("그림자 화면 - 같은 컴포넌트가 두 파일에 있을 때", (
       return !routes.includes(`${s.component} } from "${mod}"`);
     }).map(s => s.component);
     expect(wrong).toEqual([]);
+  });
+
+  it("손으로 적은 명단이 모듈이 **도출한 것**과 같다", () => {
+    // 명단은 사람이 읽으라고 있고(이유를 적는 자리), 판정은 모듈이 한다.
+    // 둘이 갈라지면 이 검사가 먼저 운다 - ttl-work-b6 의 래칫도 같은 모듈을
+    // 가져가므로, 여기서 갈라지면 저쪽 수도 같이 틀어진다.
+    const shape = (x: { component: string; shipped: string; shadow: string }) =>
+      `${x.component} :: ${x.shipped} <- ${x.shadow}`;
+    expect(derived.map(shape).sort()).toEqual(SHADOWED.map(shape).sort());
   });
 
   it("두 파일 다 그 이름을 실제로 정의한다 - 명단이 낡지 않았다", () => {
