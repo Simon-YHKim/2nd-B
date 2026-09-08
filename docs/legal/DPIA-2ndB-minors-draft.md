@@ -731,7 +731,7 @@ Each question carries four fields:
   - *Gates:* **planned** — default-ON cognitive forcing for minors.
   - *Provenance:* D-18; report flag ② ("Art.5(1)(c)/(b) counsel sign-off = up-front block/unblock").
 
-- **Q-A3 [COUNSEL TO CONFIRM]** — Which-applies: are the on-device, **first-party-only** competence signals (`evidence_open_rate`, `ai_override_rate` — no external egress for minors, `external_analytics` clamped OFF at `db/migrations/0032`, `db/migrations/0038_minor_tier_guard_and_audit_lockdown.sql:88`) **out of scope** of Art.5 because no profiling output is produced or acted on beyond UI thickness? Or does in-account adaptation alone suffice to engage Art.5?
+- **Q-A3 [COUNSEL TO CONFIRM]** — Which-applies: are the on-device, **first-party-only** competence signals (`evidence_open_rate`, `ai_override_rate` — no external egress for minors, `external_analytics` clamped OFF at `db/migrations/0032`, `db/migrations/0038_minor_tier_guard_and_audit_lockdown.sql:87`) **out of scope** of Art.5 because no profiling output is produced or acted on beyond UI thickness? Or does in-account adaptation alone suffice to engage Art.5?
 
 #### B. EU AI Act Annex III(3) — Education high-risk
 
@@ -762,7 +762,7 @@ Each question carries four fields:
 #### E. ICO Children's Code — Std 7 / 12 (high-privacy default) + Std 3 (age assurance)
 
 - **Q-E1 [COUNSEL TO CONFIRM]** — Does **Standard 7 (high-privacy by default)** require that **in-account LLM personalization** (i.e., `long_term_memory`, `recommendations` — features with **zero external egress** but that profile the child) be **OFF by default for minors**, the same as outward-sharing features? I.e., does Std 7 reach *internal* profiling, or only *outward* data flows?
-  - *Hinges on:* today `recommendations` is **OFF by default for everyone** and **non-promotable for minors** (`db/migrations/0032`, `db/migrations/0038_minor_tier_guard_and_audit_lockdown.sql:88`; gate `src/lib/ops/recommend.ts:127-134`); `long_term_memory` is OFF-default but **minor-promotable** (`src/lib/privacy/prefs.ts:95-99`). So a minor *can* turn on in-account memory.
+  - *Hinges on:* today `recommendations` is **OFF by default for everyone** and **non-promotable for minors** (`db/migrations/0032`, `db/migrations/0038_minor_tier_guard_and_audit_lockdown.sql:86`; gate `src/lib/ops/recommend.ts:127-134`); `long_term_memory` is OFF-default but **minor-promotable** (`src/lib/privacy/prefs.ts:95-99`). So a minor *can* turn on in-account memory.
   - *Gates:* **implemented today**; answer determines whether `long_term_memory` must be **removed from `MINOR_PROMOTABLE_KEYS`.**
   - *Provenance:* D-20; report K3/F3 (retention vs personalization split).
 
