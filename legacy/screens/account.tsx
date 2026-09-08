@@ -1,0 +1,502 @@
+// RETIRED — moved out of the build on 2026-09-08.
+//
+//   was:  src/app/account.tsx   (the EXPO_PUBLIC_UI=legacy renderer + its styles)
+//   why:  every delivery path pins deep-space and ui-mode.ts defaults to it,
+//         so this branch had been unreachable for months.
+//   read: kept verbatim below so the old screen can still be inspected.
+//   run:  not buildable from here — legacy/ is excluded from tsconfig, jest,
+//         eslint and metro. Restore the file to its original path to run it:
+//           git show <sha-before-retirement>:src/app/account.tsx
+//
+// ⚠ The route did NOT become a bare wrapper. Its auth/profile gate is SHIPPED:
+//   loading -> loader, !userId -> /sign-in, profileProbeFailed || hasProfile
+//   === null -> hold, hasProfile === false -> /complete-profile. The live
+//   screen (dds-account-screen.tsx) handles only the first two, so the rest
+//   stayed behind with styles.center. Do not read this file as "what the
+//   route used to do" — the gate half of it is still there.
+//
+// Nothing in src/ imports this file. See legacy/screens/INDEX.md.
+// task C: account controls — the minor/adult self-service rights surface.
+//   - DOB correction (re-validated server-side by the 0030 trigger).
+//   - Privacy & consent controls (link to /privacy, where sharing / profiling /
+//     processing are withdrawn per-key; teens stay locked to high-privacy).
+//   - Account deletion (terminal): the delete-account Edge Function removes the
+//     auth account first, then the database cascade + Storage cleanup erase the
+//     owned data. Full deletion never runs the non-atomic client content-wipe
+//     helper first; that helper is reserved for "keep my account" resets.
+//
+// Age-out (17 -> 18) needs no dedicated flow: useAuth().isMinor is computed live
+// from birth_date, so a former minor's locks lift automatically on /privacy.
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ScrollView, StyleSheet, View, KeyboardAvoidingView, Platform, Share } from "react-native";
+import { useTranslation } from "react-i18next";
+import { Redirect, router, useNavigation } from "expo-router";
+
+import { PremiumAppShell, PremiumLoadingState, PremiumModal, SceneHero } from "@/components/premium";
+import { Text } from "@/components/ui/Text";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { BirthDateField } from "@/components/auth/BirthDateField";
+import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { signOut } from "@/lib/supabase/auth";
+import { fetchBirthDate, updateBirthDate } from "@/lib/supabase/account";
+import { canSubmitDobCorrection } from "@/lib/account/dob";
+import { requestAccountDeletion } from "@/lib/records/delete-bulk";
+import { requestAccountExport, buildExportFilename } from "@/lib/account/export";
+import { exportAccountData } from "@/screens/deepspace/dds-account-actions";
+import { VILLAGE_UI } from "@/lib/village-ui";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceAccountScreen } from "@/screens/deepspace/dds-account-screen";
+
+const CONFIRM_PHRASE = "DELETE";
+type AccountFeedbackModal = "dobRetry" | "deleteConfirm" | "deleteFailed" | null;
+
+function AccountLegacy() {
+  const { t, i18n } = useTranslation("consent");
+  const { userId, loading, refresh } = useAuth();
+  const navigation = useNavigation();
+  const locale: "en" | "ko" = i18n.language === "ko" ? "ko" : "en";
+  // KO eyebrows drop tracking to 0 (Hangul reads worse when tracked); EN keeps
+  // the light caption tracking.
+  const eyebrowTracking = { letterSpacing: locale === "ko" ? 0 : 0.5 };
+
+  const [origDob, setOrigDob] = useState<string | null>(null);
+  const [birthDate, setBirthDate] = useState("");
+  const [dobBusy, setDobBusy] = useState(false);
+  const [dobSaved, setDobSaved] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportNote, setExportNote] = useState<"done" | "partial" | "failed" | null>(null);
+  const [exportFailedItems, setExportFailedItems] = useState(0);
+  const [feedbackModal, setFeedbackModal] = useState<AccountFeedbackModal>(null);
+  const mounted = useRef(true);
+  const activeUserRef = useRef(userId);
+  activeUserRef.current = userId;
+  // React state updates on the next render. This synchronous fence prevents a
+  // rapid double-tap on the terminal modal action from invoking erasure twice.
+  const deleteInFlightRef = useRef(false);
+  const allowDeletionNavigationRef = useRef(false);
+  // Bind the final modal to the user who opened it. A stale confirmation from
+  // A must never authorize deletion after the active session becomes B.
+  const deleteConfirmUserRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  // Register for the component lifetime so the synchronous in-flight ref also
+  // catches a same-frame back/dock action after the final confirmation.
+  useEffect(() => {
+    return navigation.addListener("beforeRemove", (event) => {
+      if (!deleteInFlightRef.current || allowDeletionNavigationRef.current) return;
+      event.preventDefault();
+    });
+  }, [navigation]);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    void (async () => {
+      const dob = await fetchBirthDate(userId);
+      if (!cancelled && mounted.current && dob) {
+        setOrigDob(dob);
+        setBirthDate(dob);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  useEffect(() => {
+    deleteConfirmUserRef.current = null;
+    setDeleteConfirm("");
+    setFeedbackModal((current) => current === "deleteConfirm" ? null : current);
+  }, [userId]);
+
+  const onSaveDob = useCallback(async () => {
+    if (!userId || !canSubmitDobCorrection(origDob, birthDate)) return;
+    setDobBusy(true);
+    setDobSaved(false);
+    try {
+      await updateBirthDate(userId, birthDate);
+      // Re-probe auth so isMinor/hasProfile reflect the corrected birth_date
+      // immediately (minor locks + crisis routing depend on it) instead of
+      // staying stale until the next auth event.
+      void refresh();
+      if (mounted.current) {
+        setOrigDob(birthDate);
+        setDobSaved(true);
+      }
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[account] dob save failed", (e as Error).message);
+      setFeedbackModal("dobRetry");
+    } finally {
+      if (mounted.current) setDobBusy(false);
+    }
+  }, [userId, origDob, birthDate, refresh]);
+
+  const runDeleteAccount = useCallback(() => {
+    if (!userId || deleteInFlightRef.current || deleteConfirmUserRef.current !== userId) return;
+    const targetUserId = userId;
+    deleteConfirmUserRef.current = null;
+    deleteInFlightRef.current = true;
+    void (async () => {
+      setDeleting(true);
+      try {
+        // One terminal operation owns the destructive boundary. The Edge
+        // Function deletes auth.users first and lets the FK cascade erase owned
+        // rows atomically; a client-side pre-wipe would reintroduce partial loss.
+        await requestAccountDeletion();
+      } catch (e) {
+        // Do NOT sign out with a false confirmation while terminal erasure is
+        // unconfirmed. The support path handles ambiguous network outcomes.
+        if (typeof console !== "undefined") console.warn("[account] deletion failed", (e as Error).message);
+        deleteInFlightRef.current = false;
+        if (mounted.current && activeUserRef.current === targetUserId) {
+          setFeedbackModal("deleteFailed");
+          setDeleting(false);
+        }
+        return;
+      }
+
+      // The account is already terminally erased. Never turn a local sign-out
+      // failure into a retryable deletion failure, and never sign out a newly
+      // active B session after an A deletion resolves late.
+      if (!mounted.current) return;
+      if (activeUserRef.current !== targetUserId) {
+        deleteInFlightRef.current = false;
+        setDeleting(false);
+        return;
+      }
+      allowDeletionNavigationRef.current = true;
+      try {
+        await signOut();
+      } catch (e) {
+        if (typeof console !== "undefined") console.warn("[account] local sign-out after deletion failed", (e as Error).message);
+      } finally {
+        router.dismissAll();
+        router.replace("/sign-in");
+      }
+    })();
+  }, [userId]);
+
+  const onDeleteAccount = useCallback(() => {
+    if (!userId) return;
+    deleteConfirmUserRef.current = userId;
+    setFeedbackModal("deleteConfirm");
+  }, [userId]);
+
+  // GDPR Art.20 portability: pull the full structured JSON bundle from the
+  // export-account Edge Function and hand it to the user (web download / native
+  // share sheet). Read-only and own-data-only (the function derives the user from
+  // the JWT). Requires the function to be deployed; surfaces a tone-appropriate
+  // failure otherwise.
+  const onExportData = useCallback(() => {
+    if (!userId || exporting) return;
+    // The deletion path above already owns this rule and says why. The export
+    // path did not: delivery ran unconditionally, and `mounted.current` only
+    // gated the state update afterwards. So user A's entire account bundle -
+    // every table plus the raw clipping files - reached the device even after A
+    // signed out and B signed in, and on native the share sheet opened with it.
+    //
+    // exportAccountData is the same transaction the pixel-clay shell uses. It
+    // bounds the wait, re-checks the session before delivering, and rejects a
+    // bundle whose owner is not the account that asked. Reuse it rather than
+    // reimplement three guards in a rollback skin.
+    const requestedUser = userId;
+    setExportNote(null);
+    setExporting(true);
+    void (async () => {
+      const result = await exportAccountData({
+        requestAccountExport,
+        buildExportFilename,
+        // Delivery itself is unchanged: web download, native share sheet.
+        deliver: async (json: string, filename: string) => {
+          if (Platform.OS === "web" && typeof document !== "undefined") {
+            const blob = new Blob([json], { type: "application/json;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = url;
+            anchor.download = filename;
+            anchor.click();
+            URL.revokeObjectURL(url);
+          } else {
+            await Share.share({ message: json });
+          }
+        },
+        expectedUserId: requestedUser,
+        isActive: () => mounted.current && activeUserRef.current === requestedUser,
+      });
+      if (!mounted.current || activeUserRef.current !== requestedUser) return;
+      if (result.status === "failed") {
+        if (typeof console !== "undefined") console.warn("[account] export failed", (result.error as Error | undefined)?.message);
+        setExportNote("failed");
+      } else if (result.status === "done") {
+        // A delivered bundle is not a complete one: the server reports per-table
+        // and per-file read failures instead of throwing.
+        setExportFailedItems(result.summary.failedItems);
+        setExportNote(result.summary.failedItems > 0 ? "partial" : "done");
+      }
+      setExporting(false);
+    })();
+  }, [userId, exporting]);
+
+  if (loading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={t("account.loading")} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+
+  const dobSubmittable = canSubmitDobCorrection(origDob, birthDate);
+  const feedbackModalTitle =
+    feedbackModal === "deleteConfirm"
+      ? t("account.delete.confirmTitle")
+      : feedbackModal === "deleteFailed"
+        ? t("account.delete.failed")
+        : t("account.dob.saveFailed");
+  const feedbackModalBody =
+    feedbackModal === "deleteConfirm"
+      ? t("account.delete.confirmBody")
+      : feedbackModal === "deleteFailed"
+        ? t("account.delete.failedBody")
+        : t("account.dob.saveFailedBody");
+  const modalPrimaryLabel = feedbackModal === "deleteConfirm"
+    ? t("account.delete.confirmCta")
+    : t("account.dob.retry");
+  const modalAccessibilityLabel = feedbackModal === "deleteConfirm"
+    ? t("account.delete.confirmLabel")
+    : t("account.feedback.label");
+
+  function handleFeedbackPrimary() {
+    const current = feedbackModal;
+    setFeedbackModal(null);
+    if (current === "deleteConfirm") {
+      runDeleteAccount();
+      return;
+    }
+    if (current === "dobRetry") {
+      void onSaveDob();
+    }
+  }
+
+  return (
+    <PremiumAppShell>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+<ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <SceneHero
+          eyebrow={t("account.eyebrow")}
+          title={t("account.title")}
+          subtitle={t("account.subtitle")}
+          island={VILLAGE_UI.relation.island}
+          worker={VILLAGE_UI.relation.worker}
+          accent={VILLAGE_UI.relation.accent}
+          speech={t("account.speech")}
+        />
+
+        {/* DOB correction */}
+        <View style={[styles.section, { borderStartColor: semantic.brand }]}>
+          <Text variant="caption" color="brand" style={[styles.eyebrow, eyebrowTracking]}>
+            {t("account.dob.label")}
+          </Text>
+          <Text variant="subtle" color="textMuted">
+            {t("account.dob.hint")}
+          </Text>
+          <BirthDateField value={birthDate} onChange={(v) => { setBirthDate(v); setDobSaved(false); }} />
+          {dobSaved ? (
+            <Text variant="subtle" color="success">
+              {t("account.dob.saved")}
+            </Text>
+          ) : null}
+          <Button
+            label={t("account.dob.save")}
+            variant="primary"
+            disabled={!dobSubmittable || dobBusy}
+            loading={dobBusy}
+            onPress={() => { void onSaveDob(); }}
+            accessibilityHint={t("account.dob.saveHint")}
+          />
+        </View>
+
+        {/* Privacy & consent controls */}
+        <View style={[styles.section, { borderStartColor: cosmic.signalMint }]}>
+          <Text variant="caption" color="brand" style={[styles.eyebrow, eyebrowTracking]}>
+            {t("account.privacy.label")}
+          </Text>
+          <Text variant="subtle" color="textMuted">
+            {t("account.privacy.body")}
+          </Text>
+          <Button
+            label={t("account.privacy.button")}
+            variant="secondary"
+            onPress={() => router.push("/privacy")}
+            accessibilityHint={t("account.privacy.buttonHint")}
+          />
+        </View>
+
+        {/* Your data: export (GDPR Art.20 portability) */}
+        <View style={[styles.section, { borderStartColor: cosmic.signalMint }]}>
+          <Text variant="caption" color="brand" style={[styles.eyebrow, eyebrowTracking]}>
+            {t("account.export.label")}
+          </Text>
+          <Text variant="subtle" color="textMuted">
+            {t("account.export.body")}
+          </Text>
+          {exportNote === "done" ? (
+            <Text variant="subtle" color="success">
+              {t("account.export.done")}
+            </Text>
+          ) : null}
+          {exportNote === "partial" ? (
+            <Text variant="subtle" color="danger">
+              {t("account.export.donePartial", { count: exportFailedItems })}
+            </Text>
+          ) : null}
+          {exportNote === "failed" ? (
+            <Text variant="subtle" color="danger">
+              {t("account.export.failed")}
+            </Text>
+          ) : null}
+          <Button
+            label={t("account.export.button")}
+            variant="secondary"
+            loading={exporting}
+            disabled={exporting}
+            onPress={onExportData}
+            accessibilityHint={t("account.export.buttonHint")}
+          />
+        </View>
+
+        {/* Danger zone: delete account */}
+        <View style={[styles.section, { borderStartColor: semantic.danger }]}>
+          <Text variant="caption" color="danger" style={[styles.eyebrow, eyebrowTracking]}>
+            {t("account.delete.label")}
+          </Text>
+          <Text variant="subtle" color="textMuted">
+            {t("account.delete.body")}
+          </Text>
+          <Text variant="subtle" color="textSubtle">
+            {t("account.delete.supportNote")}
+          </Text>
+          <Text variant="subtle" color="textMuted">
+            {t("account.delete.confirmHint", { phrase: CONFIRM_PHRASE })}
+          </Text>
+          <Input
+            value={deleteConfirm}
+            onChangeText={setDeleteConfirm}
+            placeholder={CONFIRM_PHRASE}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            accessibilityLabel={t("account.delete.inputLabel")}
+            accessibilityHint={t("account.delete.inputHint")}
+          />
+          <Button
+            label={t("account.delete.button")}
+            variant="danger"
+            disabled={deleteConfirm !== CONFIRM_PHRASE || deleting}
+            loading={deleting}
+            onPress={onDeleteAccount}
+            accessibilityHint={t("account.delete.buttonHint")}
+          />
+        </View>
+      </ScrollView>
+</KeyboardAvoidingView>
+      <PremiumModal
+        visible={feedbackModal !== null}
+        onClose={() => setFeedbackModal(null)}
+        accessibilityLabel={modalAccessibilityLabel}
+      >
+        <Text variant="heading">{feedbackModalTitle}</Text>
+        <Text variant="body" color="textMuted" style={styles.modalBody}>
+          {feedbackModalBody}
+        </Text>
+        <View style={styles.modalActions}>
+          <Button
+            label={feedbackModal === "deleteConfirm" ? t("account.delete.cancel") : t("account.feedback.dismiss")}
+            variant="secondary"
+            onPress={() => setFeedbackModal(null)}
+            style={styles.modalButton}
+            accessibilityHint={t("account.feedback.dismissHint")}
+          />
+          {feedbackModal !== "deleteFailed" ? (
+            <Button
+              label={modalPrimaryLabel}
+              variant={feedbackModal === "deleteConfirm" ? "danger" : "primary"}
+              onPress={handleFeedbackPrimary}
+              loading={dobBusy || deleting}
+              style={styles.modalButton}
+              accessibilityHint={
+                feedbackModal === "deleteConfirm"
+                  ? (
+                      t("account.delete.confirmCtaHint")
+                    )
+                  : (
+                      t("account.dob.retryHint")
+                    )
+              }
+            />
+          ) : null}
+        </View>
+      </PremiumModal>
+    </PremiumAppShell>
+  );
+}
+
+const styles = StyleSheet.create({
+  center: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
+  scroll: { paddingBottom: spacing.xl, gap: spacing.lg },
+  section: {
+    backgroundColor: semantic.surface,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderStartWidth: 4,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  // Tracking is applied per-locale (eyebrowTracking) so KO labels are not
+  // over-spaced (caption is 14px); EN keeps the light caption tracking.
+  eyebrow: { fontWeight: "700" },
+  modalBody: { lineHeight: 21 },
+  modalActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
+  modalButton: { flex: 1 },
+});
+
+export default function Account() {
+  const { t } = useTranslation("consent");
+  const { userId, loading, hasProfile, profileProbeFailed } = useAuth();
+
+  if (loading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={t("account.loading")} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+  if (profileProbeFailed || hasProfile === null) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={t("account.loading")} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
+  if (hasProfile === false) return <Redirect href="/complete-profile" />;
+  if (isDeepSpaceUI()) return <DeepSpaceAccountScreen />;
+  return <AccountLegacy />;
+}

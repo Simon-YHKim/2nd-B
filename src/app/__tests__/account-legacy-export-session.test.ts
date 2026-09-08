@@ -24,7 +24,10 @@ import ts from "typescript";
 // 두는 것이 목적인 화면이다. 켰을 때 남의 내보내기를 건네는 것은 낡은 스킨보다 나쁘다.
 //
 // 화면을 렌더하지 않고 실제 콜백 선언만 AST 로 떼어 inert 컨텍스트에서 돌린다.
-const FILE = "src/app/account.tsx";
+// 이 검사의 대상은 처음부터 **롤백 스킨**이었다(제목이 그렇게 말한다). 그 렌더러가
+// 2026-09-08 에 legacy/screens/account.tsx 로 나갔으므로 검사도 따라간다 — 지우면
+// 보관본이 조용히 달라져도 아무도 모른다.
+const FILE = "legacy/screens/account.tsx";
 const OWNER = "user-a";
 const OTHER = "user-b";
 
