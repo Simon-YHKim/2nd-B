@@ -9,7 +9,7 @@ import { Redirect, router } from "expo-router";
 
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
-import type { AnyGlyphName } from "@/components/pixel/pixel-glyphs";
+import { canonGlyph, type AnyGlyphName } from "@/components/pixel/pixel-glyphs";
 import { PixelGateShell, PixelPressable, PixelSurface } from "@/components/pixel";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { Text } from "@/components/ui/Text";
@@ -51,7 +51,11 @@ const SLIDE_EN: { tag: string; title: string; body: string }[] = [
 ];
 
 const SLIDES: Slide[] = canonFlows.onboardingSlides.map((slide, index) => ({
-  icon: slide.icon as AnyGlyphName,
+  // 캐논이 주는 것은 **검사되지 않은 문자열**이다. `as AnyGlyphName` 은 타입만
+  // 만족시키고 값은 하나도 확인하지 않는다 - 캐논에 그림 없는 이름을 한 줄
+  // 넣으면 그대로 렌더까지 흘러갔다. `canonGlyph` 는 그려진 이름으로 좁히고,
+  // 없으면 `sparkle` 로 떨어뜨린다.
+  icon: canonGlyph(slide.icon),
   tag: { ko: slide.tag, en: SLIDE_EN[index]?.tag ?? slide.tag },
   title: { ko: slide.title, en: SLIDE_EN[index]?.title ?? slide.title },
   body: { ko: slide.body, en: SLIDE_EN[index]?.body ?? slide.body },

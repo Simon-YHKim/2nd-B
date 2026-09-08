@@ -22,7 +22,7 @@
 
 import Svg, { Rect } from "react-native-svg";
 
-import { GLYPH_BOX, PIXEL_GLYPHS, resolveGlyph, type AnyGlyphName } from "./pixel-glyphs";
+import { GLYPH_BOX, glyphRects, type AnyGlyphName } from "./pixel-glyphs";
 
 export interface PixelGlyphProps {
   name: AnyGlyphName;
@@ -32,7 +32,22 @@ export interface PixelGlyphProps {
 }
 
 export function PixelGlyphRects({ name, color }: { name: AnyGlyphName; color: string }) {
-  const rects = PIXEL_GLYPHS[resolveGlyph(name)];
+  // ⚠ `resolveGlyph` 가 아니라 `canonGlyph` 로 찾는다. 둘은 **그려진 이름에
+  //   대해서는 완전히 같은 값**을 돌려주지만, 그려지지 않은 이름에서 갈린다:
+  //   `resolveGlyph` 는 받은 이름을 그대로 돌려줘서 `PIXEL_GLYPHS[없는이름]`
+  //   이 `undefined` 가 되고 바로 아래 `.map` 이 **TypeError 로 화면을 죽인다.**
+  //   `canonGlyph` 는 `sparkle` 로 떨어뜨린다.
+  //
+  //   타입만 보면 일어날 수 없는 일이다 — `AnyGlyphName` 이 곧 그려진 이름의
+  //   합집합이니까. 그래서 위험은 **캐스팅으로 타입을 세탁한 자리에서만** 온다.
+  //   실제로 그런 자리가 하나 있었다: `src/app/onboarding.tsx` 가 캐논 JSON 의
+  //   `icon` 문자열을 `as AnyGlyphName` 으로 검사 없이 캐스팅해 여기로 보냈다.
+  //   캐논이 이름으로 부르는데 그림이 없는 이름은 오늘 56개다.
+  //
+  //   그 자리는 같은 회차에서 고쳤지만, 컴포넌트는 **전역 함수여야 한다** —
+  //   다음 캐스팅을 막는 것은 검사의 일이고, 그 검사가 뚫렸을 때 새 사용자의
+  //   첫 화면이 죽지 않는 것은 이쪽의 일이다.
+  const rects = glyphRects(name);
   return (
     <>
       {rects.map((g, i) => (
