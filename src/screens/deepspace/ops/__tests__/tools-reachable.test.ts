@@ -54,6 +54,10 @@ import { readOpsUsage } from "@/lib/ops/usage";
 
 const ROOT = join(__dirname, "..", "..", "..", "..", "..");
 const APP_OPS = readFileSync(join(ROOT, "src", "app", "ops.tsx"), "utf8");
+// 은퇴한 렌더러는 legacy/ 로 나갔지만 **바이트는 그대로다.** 아래 digest 핀이
+// 그것을 증명한다 — 같은 마커, 같은 해시. "읽을 수 있게 보관한다"는 약속이
+// 지켜지는지를 검사로 지킨다.
+const LEGACY_OPS = readFileSync(join(ROOT, "legacy", "screens", "ops.tsx"), "utf8");
 const GIANT = readFileSync(join(ROOT, "src", "screens", "deepspace", "DeepSpaceDesignScreens.tsx"), "utf8");
 const PIXEL_RULES = readFileSync(join(ROOT, "scripts", "check-pixel-rules.ts"), "utf8");
 
@@ -75,8 +79,16 @@ function sourceSlice(source: string, start: string, end: string): string {
  * 문자열로 파일 경로를 박아 두면 이 검사가 다시 거짓 초록불이 된다.
  */
 function hubSourceFile(): string {
-  const m = APP_OPS.match(/if\s*\(isDeepSpaceUI\(\)\)\s*return\s*<(\w+)\s*\/>/);
-  if (!m) throw new Error("ops.tsx 의 딥스페이스 분기를 못 찾았다 - 구조가 바뀌었으면 이 검사를 고쳐야 한다");
+  // 모양이 둘이다. 레거시 렌더러가 살아 있던 동안에는 분기였고
+  //   if (isDeepSpaceUI()) return <DeepSpaceOpsScreen />;
+  // 은퇴 후에는 라우트가 그 화면 하나만 그린다
+  //   return <DeepSpaceOpsScreen />;
+  // 둘 다 받는다. ⚠ 하나만 받으면 은퇴가 이 스위트를 **실패**시키는 게 아니라
+  // **못 뜨게** 만든다 - CI 요약에서 그 둘은 같은 빨간색이라 원인을 가려준다.
+  const m =
+    APP_OPS.match(/if\s*\(isDeepSpaceUI\(\)\)\s*return\s*<(\w+)\s*\/>/) ??
+    APP_OPS.match(/return\s*<(\w+)\s*\/>;/);
+  if (!m) throw new Error("ops.tsx 가 그리는 화면을 못 찾았다 - 구조가 바뀌었으면 이 검사를 고쳐야 한다");
   const component = m[1];
   const imp = APP_OPS.match(new RegExp(`import\\s*\\{[^}]*\\b${component}\\b[^}]*\\}\\s*from\\s*"([^"]+)"`));
   if (!imp) throw new Error(`${component} 의 import 를 못 찾았다`);
@@ -384,7 +396,9 @@ describe("비서 허브 실제 상태·mutation 계약", () => {
 // 나머지 세 digest 는 그대로다 = 인접 슬라이스는 실제로 안 건드렸다는 뜻이 유지된다.
 describe("비서 허브 PIXEL·legacy 회귀", () => {
   it("legacy OpsLegacy/styles와 인접 giant export slice는 byte-stable이다", () => {
-    expect(sha256(sourceSlice(APP_OPS, "function OpsLegacy()", "export default function Ops()"))).toBe(
+    // 2026-09-08: OpsLegacy 가 legacy/screens/ops.tsx 로 나갔다. 슬라이스 대상만
+    // 바꿨고 **digest 는 한 글자도 안 바꿨다** — 옮기면서 고치지 않았다는 증거다.
+    expect(sha256(sourceSlice(LEGACY_OPS, "function OpsLegacy()", "export default function Ops()"))).toBe(
       "409e77b64c30861003f7cc08b886422a0b12b5f5309f66d368788fef10ab7c2f",
     );
     expect(sha256(sourceSlice(GIANT, "export function DeepSpaceFormatsScreen()", "// Calendar hand-off needs"))).toBe(

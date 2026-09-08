@@ -391,7 +391,16 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
   {
     title: "개인 비서",
     screens: [
-      { file: "ops", href: "/ops", label: "오늘의 비서", auth: true },
+      // 게이트가 라우트에서 화면으로 모였다 — research·insights·import 와 같은 모양이다.
+      {
+        file: "ops",
+        href: "/ops",
+        label: "오늘의 비서",
+        auth: {
+          gateFile: "src/screens/deepspace/dds-ops-screen.tsx",
+          component: "DeepSpaceOpsScreen",
+        },
+      },
       // #1543 은 focus 를 위임으로 선언했지만 그건 분기 시점 사실이다. main 의
       // `5cc8cdeb fix(auth): align deep-space route guards` 가 이 파일에 직접 가드를
       // 넣어서 지금은 focus.tsx 가 `<Redirect href="/sign-in" />` 를 스스로 그린다.
