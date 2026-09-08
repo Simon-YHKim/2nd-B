@@ -194,13 +194,21 @@ function SaveErrorBanner({ text }: { text: string }) {
 
 // ⚠ 이 컴포넌트는 **어떤 라우트도 렌더하지 않는다** (2026-08-18 실측).
 //
-// /ops 는 DeepSpaceDesignScreens.tsx 의 DeepSpaceOpsScreen 을 렌더한다. 이 파일의
+// /ops 는 dds-ops-screen.tsx 의 DeepSpaceOpsScreen 을 렌더한다. 이 파일의
 // 나머지 화면들(ReadingScreen·MilestonesScreen·LedgerScreen·SideProjectScreen·
 // MealsScreen·RemindersScreen)은 각자 라우트가 쓰지만, 이 허브만 고아다.
 //
 // 2026-08-18 에 여기에 도구 격자를 붙였다가 그대로 죽은 코드가 됐다(#1237).
 // 소스에서 grep 하면 있는 것처럼 보이지만 화면에는 없다 - 렌더 체인을 따라가지
 // 않으면 반복되는 실수다. **허브를 고치려면 DeepSpaceOpsScreen 을 고쳐야 한다.**
+//
+// ⚠ 2026-09-08 정정 — 위 문장이 가리키는 파일이 틀려 있었다. 원래
+// "DeepSpaceDesignScreens.tsx 의 DeepSpaceOpsScreen" 이라고 적혀 있었는데,
+// `src/app/ops.tsx` 는 `@/screens/deepspace/dds-ops-screen` 에서 가져온다.
+// DeepSpaceDesignScreens.tsx:2691 에도 같은 이름의 476줄짜리 사본이 있지만
+// **아무 라우트도 그걸 렌더하지 않는다.** 즉 이 주석은 죽은 화면을 설명하면서
+// 독자를 **또 다른 죽은 화면으로** 보내고 있었다 - 스스로 경고하는 바로 그
+// 실수를("렌더 체인을 따라가지 않으면") 저지른 셈이다.
 export function OpsHomeScreen() {
   const c = useOpsCopy();
   const { userId, isMinor } = useAuth();
