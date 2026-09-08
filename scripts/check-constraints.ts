@@ -815,7 +815,10 @@ results.push(
     const inbox = read("src/app/inbox.tsx");
     const wiki = read("src/app/wiki.tsx");
     const manual = read("src/app/manual.tsx");
-    const records = read("src/app/records.tsx");
+    // /records 의 a11y 도 배송 화면에 있다. 레거시는 필터·재시도·나가기 힌트를
+    // 인라인 리터럴로 박았고, 라이브는 공용 FilterChip(role=button + selected +
+    // label)과 조합 라벨로 같은 일을 한다.
+    const records = read("src/screens/deepspace/dds-wiki-records-screens.tsx");
     const trinity = read("src/app/trinity.tsx");
     const signIn = read("src/app/(auth)/sign-in.tsx");
     const signUp = read("src/app/(auth)/sign-up.tsx");
@@ -981,9 +984,9 @@ results.push(
       wiki.includes('t("showsMetrics")') &&
       wiki.includes('t("hidesMetrics")') &&
       wiki.includes("accessibilityState={{ expanded: statsVisible }}") &&
-      records.includes('t("filterBy"') &&
-      records.includes('t("retryHint")') &&
-      records.includes('t("leaveHint")') &&
+      records.includes("<FilterChip") &&
+      records.includes('t("records.retry")') &&
+      records.includes('accessibilityLabel={t("records.viewList")}') &&
       trinity.includes('accessibilityRole="link"') &&
       trinity.includes('t("addTagsHint")') &&
       signInRoles >= 7 &&

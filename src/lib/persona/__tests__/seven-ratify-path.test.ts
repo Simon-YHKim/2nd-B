@@ -59,7 +59,10 @@ const ROOT = join(__dirname, "..", "..", "..", "..");
 const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8").replace(/\r\n/g, "\n");
 
 const SCREEN = read("src/screens/deepspace/DeepSpaceDesignScreens.tsx");
-const LEGACY_SCREEN = read("src/app/review.tsx");
+// 이 스위트의 이름이 "legacy /review 비준 결과" 다 — 대상이 처음부터 롤백 스킨이다.
+// 그 렌더러가 2026-09-08 에 legacy/screens/review.tsx 로 나갔으므로 검사도 따라간다.
+// 지우면 보관본이 조용히 달라져도 아무도 모른다.
+const LEGACY_SCREEN = read("legacy/screens/review.tsx");
 const SHEET = read("src/components/persona/RatifySheet.tsx");
 
 describe("프롬프트가 시기 별을 시기 별이라고 부른다", () => {

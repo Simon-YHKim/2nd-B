@@ -222,7 +222,16 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         ],
         note: "로그인이 필요하다 — 이 파일이 아니라 위임받은 CaptureLegacySession 이 게이트를 가진다. 여덟 모드는 등급 제한 없이 전부 열린다",
       },
-      { file: "records", href: "/records", label: "별가루 목록", auth: true },
+      // 게이트가 라우트에서 화면으로 모였다.
+      {
+        file: "records",
+        href: "/records",
+        label: "별가루 목록",
+        auth: {
+          gateFile: "src/screens/deepspace/dds-wiki-records-screens.tsx",
+          component: "DeepSpaceRecordsScreen",
+        },
+      },
       { file: "record/[id]", href: "/record/sample", label: "별가루 상세", auth: true, sample: true, note: "실제 id 가 아니라서 '없음' 상태가 보인다" },
       { file: "wiki", href: "/wiki", label: "위키 둘러보기", auth: true },
       { file: "attachment", href: "/attachment", label: "애착 유형", auth: true },

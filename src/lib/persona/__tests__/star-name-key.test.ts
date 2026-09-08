@@ -59,7 +59,8 @@ describe("두 화면이 해석기를 실제로 쓴다 (직조회 재발 금지)"
   });
 
   it("/review 넛지", () => {
-    const src = read("src/app/review.tsx");
+    // 레거시 렌더러가 legacy/screens/review.tsx 로 나갔다(2026-09-08).
+    const src = read("legacy/screens/review.tsx");
     expect(src).toContain("resolveStarName(id, loc");
     expect(src).not.toContain("SELF_UNDERSTANDING_STARS.find");
   });
