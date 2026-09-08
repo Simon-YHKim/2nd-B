@@ -67,6 +67,12 @@ const EXPECTED_DELEGATED_AUTH: Record<string, DelegatedAuthFixture> = {
     gateFile: "src/screens/deepspace/dds-import-inbox-screens.tsx",
     component: "DeepSpaceImportScreen",
   },
+  // index 도 2026-09-08 에 같은 길을 갔다 — 레거시 홈(GraphScreen)이
+  // legacy/screens/index.tsx 로 나가면서 리다이렉트가 셸 한 곳으로 모였다.
+  index: {
+    gateFile: "src/components/deep-space/DeepSpaceShell.tsx",
+    component: "DeepSpaceShell",
+  },
   ops: {
     gateFile: "src/screens/deepspace/dds-ops-screen.tsx",
     component: "DeepSpaceOpsScreen",

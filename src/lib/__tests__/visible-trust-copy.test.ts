@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 describe("visible trust copy", () => {
@@ -234,15 +234,36 @@ describe("visible trust copy", () => {
     expect(visible).not.toMatch(/스트릭|연속 기록|오늘은 아직|압박/);
   });
 
-  test("first-run graph card does not promise a journal save lights the graph", () => {
+  test("첫 실행 안내는 그래프가 켜진다고 약속하지 않는다", () => {
+    // ⚠ 이 검사는 **레거시 홈의 첫 실행 카드**를 보고 있었다. 그 카드가
+    // "첫 별가루를 남기면 길이 조금씩 켜져요" 라고 말하던 것을 고쳐서
+    // "기록 보관소에 저장돼요" 로 바꾼 것이 원래 계약이었다 — 저널 저장은
+    // 그래프 노드를 만들지 않으므로(J1).
+    //
+    // 2026-09-08: 그 카드가 legacy/screens/index.tsx 로 나갔고, **배송 홈에는
+    // 첫 실행 카드가 없다.** 첫 실행 안내는 HomeCoachmarks 가 4단계로 진다.
+    // 고칠 주장이 없으니 계약은 더 강하게 성립한다 — 그래서 지금 지키는 것은
+    // **그 약속이 어디에도 없다**는 것이다. 카피가 로케일에서 부활해도 운다.
     const root = path.resolve(__dirname, "../../..");
-    const screen = readFileSync(path.join(root, "src/app/index.tsx"), "utf8");
+    const shell = readFileSync(path.join(root, "src/components/deep-space/DeepSpaceShell.tsx"), "utf8");
+    const coach = readFileSync(path.join(root, "src/components/deep-space/HomeCoachmarks.tsx"), "utf8");
+    const localeRoot = path.join(root, "locales");
+    const bundles = readdirSync(localeRoot, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .flatMap((entry) =>
+        ["home.json", "index.json", "deepspace.json"]
+          .map((name) => path.join(localeRoot, entry.name, name))
+          .filter((file) => existsSync(file))
+          .map((file) => readFileSync(file, "utf8")),
+      );
+    const text = [shell, coach, ...bundles].join("\n");
 
-    expect(screen).toContain("Your first piece is saved in Records");
-    expect(screen).toContain("첫 별가루는 기록 보관소에 저장돼요");
-    expect(screen).toContain("Links and captures light the graph as they connect");
-    expect(screen).not.toContain("Leave a first piece and the roads light up");
-    expect(screen).not.toContain("첫 별가루를 남기면 길이 조금씩 켜져요");
+    expect(bundles.length).toBeGreaterThan(3); // 번들을 실제로 읽었다
+    expect(text).not.toContain("Leave a first piece and the roads light up");
+    expect(text).not.toContain("첫 별가루를 남기면 길이 조금씩 켜져요");
+    expect(text).not.toMatch(/light(s)? the graph|길이 (조금씩 )?켜/);
+    // 첫 실행 안내 자체는 있어야 한다 - 없으면 "약속 안 함"이 공허해진다.
+    expect(shell).toContain("useCoachmarksGate()");
   });
 
   test("sign-in exposes account creation as a route and reset as inline help", () => {

@@ -52,16 +52,6 @@ const ROOT = process.cwd();
 // 검사가 직접 말한다(감소가 어느 양동이인지).
 const RATCHET_BASELINE: Readonly<Record<string, number>> = {
   "src/app/wiki.tsx": 29,
-  // ⚠ 이 줄은 **진척도 회귀도 아니다 - 탐지기가 좋아져서 보이게 된 것이다.**
-  // topLevelSpan 이 `export function` 을 못 읽어서 index.tsx 의 죽은 반쪽 559줄이
-  // 통째로 안 보였다(GraphScreen, :244-802). 파서를 고치니 그 안의 핀 9건이 드러났다.
-  // 이 아홉은 새로 생긴 게 아니라 계속 있던 것이다. ttl-work-45 가 두 양동이
-  // ([대상이 나갔다] / [진짜로 줄었다]) 밖의 세 번째 원인이라고 짚어줬다.
-  // ⚠ 이 수는 **아래로 새는 쪽으로 틀린다.** 스팬은 함수 본문만 덮으므로,
-  // 죽은 반쪽만 쓰는 **모듈 최상단 상수**는 살아 있는 것으로 세인다. 실측 예:
-  // index.tsx:210 의 RECORDS_ONLY_INSIGHT 는 :376(죽은 스팬 안)에서만 쓰이는데
-  // 정의가 스팬 밖이라 이 검사에 안 잡힌다. 은퇴할 때 같이 나가야 하는 것들이다.
-  "src/app/index.tsx": 6,
   // 0 = 라우트는 아직 죽은 반쪽을 품고 있지만 검사가 더는 그쪽을 안 읽는다.
   // 은퇴(Q6 결정 후)하면 이 줄을 지운다 - 그건 [대상이 나갔다] 양동이다.
   "src/app/record/[id].tsx": 0,
@@ -91,6 +81,17 @@ const RATCHET_BASELINE: Readonly<Record<string, number>> = {
  */
 
 const BASELINE_TOTAL = Object.values(RATCHET_BASELINE).reduce((a, b) => a + b, 0);
+
+/**
+ * ⚠ 이 수는 **아래로 새는 쪽으로 틀린다.** 스팬은 함수 본문만 덮으므로, 죽은
+ * 반쪽만 쓰는 **모듈 최상단 선언**은 살아 있는 것으로 세인다. 2026-09-08 에
+ * index.tsx 를 은퇴시키며 실측한 예 — GraphScreen 하나만 쓰던 최상단 선언이
+ * 열여섯 개였고(useSkyDrift · pickInsight · FIRST_PIECE_INSIGHT · styles …)
+ * 이 검사는 그중 **하나도** 세지 못했다. 정의가 스팬 밖이기 때문이다.
+ *
+ * 그래서 은퇴할 때 "핀 N건"만 보고 옮기면 최상단 선언이 남는다. 읽어서 찾아야
+ * 하는 몫이 있다는 뜻이고, 이 수는 그 몫을 포함하지 않는다.
+ */
 
 interface DeadFile {
   text: string;

@@ -41,11 +41,12 @@ describe("세컨비 머리 3D PNG 를 아직 require 하는 화면", () => {
     expect(files.length).toBeGreaterThan(300);
   });
 
-  test("남은 곳은 문서화된 두 곳뿐이다", () => {
-    expect(consumers).toEqual([
-      "src/app/index.tsx",
-      "src/components/deepspace/ShareCard.tsx",
-    ]);
+  // 2026-09-08: 둘에서 하나가 됐다. src/app/index.tsx 가 3D PNG 를 `logo` 로
+  // require 하던 것은 **레거시 홈(GraphScreen)만** 쓰던 자리였고, 그 반쪽이
+  // legacy/screens/index.tsx 로 나가면서 함께 갔다. 배송 홈은 픽셀 머리를 그린다.
+  // 줄었다고 이 검사를 지우지 않는다 — 하나 남았고, 그 하나가 다시 늘 수 있다.
+  test("남은 곳은 문서화된 한 곳뿐이다", () => {
+    expect(consumers).toEqual(["src/components/deepspace/ShareCard.tsx"]);
   });
 
   test("살아 있는 딥스페이스 표면은 <SecondbHead> 를 쓴다", () => {

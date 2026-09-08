@@ -842,15 +842,14 @@ results.push(
     const birthDateField = read("src/components/auth/BirthDateField.tsx");
     const completeProfile = read("src/app/(auth)/complete-profile.tsx");
     const notFound = read("src/app/+not-found.tsx");
-    // ⚠ Two homes. `home` is src/app/index.tsx, which is the LEGACY skin: its
-    // body only renders when EXPO_PUBLIC_UI=legacy, and no deployment sets
-    // that. `liveHome` is what users actually see -- index.tsx dispatches to
-    // DeepSpaceShell, whose constellation is this file.
+    // ⚠ 홈이 둘이던 시절의 기록. src/app/index.tsx 가 레거시 스킨을 함께 품고
+    // 있었고, 2026-09-07 이전에는 이 검사가 **그쪽만** 재서 — 모든 사용자가 여는
+    // 화면에는 a11y 커버리지가 없고, 아무도 안 그리는 화면에 핀 넷이 박혀 있었다.
+    // 순서가 거꾸로였다.
     //
-    // Until 2026-09-07 this check measured only the legacy one, so the screen
-    // every user opens had NO accessibility coverage here while a screen
-    // nobody renders had four pinned strings. That is the wrong way round.
-    const home = read("src/app/index.tsx");
+    // 2026-09-08 에 그 레거시 반쪽은 legacy/screens/index.tsx 로 나갔고
+    // (Simon Q-260905-02, 조건이던 가드 이관은 #1781). 라우트는 래퍼가 됐다.
+    // 이제 홈은 하나뿐이다 — liveHome, 사용자가 실제로 여는 별자리.
     const liveHome = read("src/components/deep-space/ConstellationHome.tsx");
     const jarvis = read("src/app/secondb.tsx");
     const navGraph = read("src/components/graph/NavGraph.tsx");
@@ -905,7 +904,6 @@ results.push(
     // PixelPressable 이 기본값으로 지므로 화면에서 그 리터럴을 세면 0 이 나온다 —
     // 있는 것을 없다고 세는 자다. 상호작용 요소의 수를 센다.
     const signInPressables = (signIn.match(/<PixelPressable/g) ?? []).length;
-    const homeRoles = (home.match(/accessibilityRole="button"/g) ?? []).length;
     const liveHomeRoles = (liveHome.match(/accessibilityRole="button"/g) ?? []).length;
     const liveHomeLabels = (liveHome.match(/accessibility(?:Label|Hint)=/g) ?? []).length;
     const jarvisButtons = (jarvis.match(/accessibilityRole="button"/g) ?? []).length;
@@ -1071,20 +1069,12 @@ results.push(
       // named. This is NEW coverage -- it did not exist before 2026-09-07.
       liveHomeRoles >= 4 &&
       liveHomeLabels >= 4 &&
-      // ── legacy skin (EXPO_PUBLIC_UI=legacy) ───────────────────────────
-      // Everything to the end of this block pins src/app/index.tsx's
-      // GraphScreen body. No deployment renders it, and Simon approved
-      // retiring that skin (Q-260905-02) with "migrate the guards first".
-      // These four strings exist ONLY there -- zero occurrences in the
-      // deep-space tree, measured -- so they cannot be re-pointed, only
-      // dropped together with the branch they describe. Delete this marked
-      // block in the same change that deletes GraphScreen.
-      homeRoles >= 4 &&
-      home.includes('t("firstPieceHint")') &&
-      home.includes('t("lookFirstLabel")') &&
-      home.includes('t("openCenter")') &&
-      home.includes('t("openCenterHint")') &&
-      // ── end legacy skin block ─────────────────────────────────────────
+      // 2026-09-08: 여기 있던 표식 블록을 걷었다. 그 주석이 스스로 적어 뒀다 —
+      // "이 네 문자열은 deep-space 트리에 0건이라 재조준할 수 없고, 설명하는 가지와
+      // 함께 지울 수만 있다. GraphScreen 을 지우는 같은 변경에서 이 블록을 지워라."
+      // 그 변경이 이것이다(legacy/screens/index.tsx). firstPieceHint · lookFirstLabel ·
+      // openCenter · openCenterHint 는 옛 홈에만 있던 카피이고, 배송 홈은 그 자리를
+      // 다른 방식으로 쓴다 — 위 liveHomeRoles/liveHomeLabels 가 그쪽을 본다.
       jarvisButtons >= 8 &&
       jarvis.includes('accessibilityHint={t("clearChatHint")}') &&
       jarvis.includes('t("analysisMode")') &&
@@ -2991,7 +2981,6 @@ results.push(
     const secondbSprite = read("src/components/art/SecondBSprite.tsx");
     const islandArt = read("src/components/art/IslandArt.tsx");
     const workerSprite = read("src/components/art/WorkerSprite.tsx");
-    const home = read("src/app/index.tsx");
     const jarvis = read("src/app/secondb.tsx");
     const graphBits = read("src/components/premium/graph-bits.tsx");
     // The live home labels its mascot the other way round, and better: the art
@@ -3003,12 +2992,6 @@ results.push(
       secondbSprite.includes('accessibilityRole: "image"') &&
       liveHome.includes("<SecondbHead") &&
       liveHome.includes('accessibilityLabel={t("ds.home.headA11y")}') &&
-      // ── legacy skin (EXPO_PUBLIC_UI=legacy) ───────────────────────────
-      // Drop these two with GraphScreen; the deep-space tree has no
-      // `mascotLabel` (measured 0) because it does not need one.
-      home.includes("const mascotLabel") &&
-      home.includes("label={mascotLabel}") &&
-      // ── end legacy skin block ─────────────────────────────────────────
       jarvis.includes('label={t("readyToChat")}') &&
       graphBits.includes('accessible accessibilityRole="image" accessibilityLabel={meta.name[locale]}') &&
       islandArt.includes("accessibilityElementsHidden") &&

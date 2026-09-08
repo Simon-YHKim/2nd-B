@@ -40,6 +40,7 @@ Simon 의 요구는 *"나중에 내가 지정해서 확인하라고 하면 할 �
 | `review.tsx` | `src/app/review.tsx` | 제안 확인 화면의 레거시 렌더러 + 스타일. ⚠ 이 스킨을 **이름으로 검사하던 스위트 셋**이 아카이브를 따라왔다(`seven-ratify-path`·`session01-copy`·`star-name-key`) |
 | `sign-up.tsx` | `src/app/(auth)/sign-up.tsx` | 가입 화면의 레거시 렌더러 + ChecklistItem + 스타일. ⚠ **동명 그림자 사본 주의** — 라우트는 `dds-sign-up-screen` 을 쓰고 `dds-auth-screens` 에도 같은 이름이 있다. 바이트 핀 둘이 아카이브를 따라왔다 |
 | `profile.tsx` | `src/app/profile.tsx` | 프로필 허브의 레거시 렌더러 + 스타일 25키. 게이트는 위임. ⚠ 이 렌더러 안에 `isDeepSpaceUI()` 분기가 둘 더 있었다(죽은 렌더러 안의 죽은 가지) — 정리하지 않고 그대로 옮겼다. 바이트 핀과 허브 칩 검사가 아카이브를 따라왔다 |
+| `index.tsx` | `src/app/index.tsx` | **홈**의 레거시 렌더러(마을 그래프 GraphScreen 559줄) + 그것만 쓰던 최상단 선언 16개 + 스타일. Simon 승인 `Q-260905-02`(조건이던 가드 이관은 #1781). ⚠ **가장 오래 숨어 있던 것** — 스팬 파서가 `function Name(` 로 시작하는 줄만 찾는데 선언이 `export function GraphScreen()` 이라, 한 단어 때문에 통째로 안 보였다(#1779 가 고침). 은퇴가 검사 다섯 개를 빨갛게 만들었다: 3D PNG 소비자 명단 · 인증 위임 선언 · 홈 CTA 배선 · sources 열 계약 · 첫 실행 정직성 카피 |
 
 ## 옮길 때 같이 한 일
 
