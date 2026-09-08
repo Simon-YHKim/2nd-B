@@ -33,6 +33,7 @@ import {
   type DomainId,
 } from "@/lib/persona/domain-stars";
 import { evidenceDateLabel } from "@/lib/persona/evidence";
+import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { resolvePrivacyPrefs } from "@/lib/privacy/prefs";
 import {
   deleteRecord,
@@ -361,6 +362,16 @@ export function DeepSpaceRecordDetailScreen() {
   const [related, setRelated] = useState<RelatedState>(EMPTY_RELATED);
   const [primaryRetry, setPrimaryRetry] = useState(0);
   const [relatedRetry, setRelatedRetry] = useState(0);
+
+  // 이 화면은 한 번 뜬 뒤 마운트된 채로 남는다. 다른 데서 그 기록을 고치고
+  // 돌아오면 본문도 관련 목록도 옛것이었다. 계약(focus-refetch-contract)이
+  // 이 화면을 이미 요구하고 있었지만, 훅이 라우트 파일의 **레거시 반쪽**에만
+  // 있어서 검사는 초록이고 배송되는 화면에는 없었다(2026-09-08).
+  // 재시도 카운터가 이미 두 useEffect 의 방아쇠라 그대로 쓴다.
+  useFocusRefetch(() => {
+    setPrimaryRetry((value) => value + 1);
+    setRelatedRetry((value) => value + 1);
+  }, Boolean(userId && recordId));
   const [actionError, setActionError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [bodyDraft, setBodyDraft] = useState("");
