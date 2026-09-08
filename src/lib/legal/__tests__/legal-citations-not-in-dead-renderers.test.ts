@@ -83,6 +83,15 @@ test("스킨을 분기하는 파일이 전부 설명돼 있다 - 커버리지가
   // 실제로 죽은 스팬으로 잡히면 그 설명은 더 이상 사실이 아니다.
   const contradicted = Object.keys(NOT_A_DEAD_SPAN).filter(rel => parsed.has(rel));
   expect(contradicted).toEqual([]);
+
+  // 그리고 **면제가 아직 지킬 대상을 갖는지** 본다. 은퇴가 진행 중이라
+  // (ttl-work-b6: ops 완료 · account · sign-up · wiki 예정) 명단에 적힌 파일이
+  // 사라질 수 있는데, 그러면 그 줄은 아무것도 설명하지 않으면서 남는다.
+  // "설명이 틀렸다" 와 "설명할 것이 없어졌다" 는 다른 상태다.
+  const gone = Object.keys(NOT_A_DEAD_SPAN).filter(
+    rel => !fs.existsSync(path.join(ROOT, rel)),
+  );
+  expect(gone).toEqual([]);
 });
 
 test("배송되지 않는 렌더러를 실제로 찾았다 - 0건 통과를 막는다", () => {
