@@ -2666,7 +2666,13 @@ results.push(
 // and the record-detail graph handoff must only exist for source-origin pieces.
 results.push(
   check("FirstSaveHonestSurfaces", () => {
-    const landing = read("src/app/index.tsx");
+    // 배송되는 홈을 읽는다. J1 이 요구한 것은 "기록만 있는 첫 저장에 그래프 주장을
+    // 내지 말라" 인데, **배송 홈에는 그 주장이 아예 없다**(실측: 지어낸 통찰 0건,
+    // dataNodes 0건 — 그 화면은 노드 그래프가 아니라 별을 그린다). 계약이 약해진 게
+    // 아니라 낼 주장이 없어서 더 강하게 성립한다. 그래서 게이트 문자열 대신 그
+    // 부재를 못박는다. 그래프 주장이 다시 생기면 이 줄이 먼저 운다.
+    const landing = read("src/components/deep-space/DeepSpaceShell.tsx");
+    const liveConstellation = read("src/components/deep-space/ConstellationHome.tsx");
     const captureScreen = read("src/app/capture.tsx");
     // 배송 화면을 읽는다. J1 이 요구한 것은 "그래프 주장을 source 기원에만 낸다"
     // 인데, 배송 화면에는 **그래프 핸드오프가 아예 없다**(실측 0건). 계약이 약해진
@@ -2674,8 +2680,12 @@ results.push(
     // 대신 그 사실을 못박는다. 다시 생기면 이 줄이 먼저 운다.
     const recordDetail = read("src/screens/deepspace/dds-record-detail-screen.tsx");
     const ok =
-      landing.includes("RECORDS_ONLY_INSIGHT") &&
-      landing.includes("!sheetOpen && dataNodes.length > 0") &&
+      !landing.includes("dataNodes") &&
+      !liveConstellation.includes("dataNodes") &&
+      // 홈 코치마크는 **제품 안내**지 사용자 데이터에 대한 주장이 아니다. 첫 방문에
+      // 뜨고 "다시 보지 않기"로 닫힌다 — 그래서 데이터 게이트가 필요 없다. 이 구분을
+      // 안 적으면 다음 사람이 "스포트라이트가 안 잠겼다"고 되돌린다.
+      landing.includes("useCoachmarksGate()") &&
       captureScreen.includes('savedKind === "records"') &&
       captureScreen.includes('router.push("/records")') &&
       !recordDetail.includes("highlightRecordId") &&
@@ -2685,8 +2695,8 @@ results.push(
       id: "FirstSaveHonestSurfaces",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "first-save surfaces stay honest: records-only ribbon, node-gated spotlight, records CTA, and the shipped record detail makes no graph claim at all"
-        : "J1 regression: a records-only first save must not surface graph claims (ribbon, spotlight, capture CTA, record-detail graph handoff)",
+        ? "first-save surfaces stay honest: records CTA, and neither shipped home nor record detail makes a graph claim to gate"
+        : "J1 regression: a records-only first save must not surface graph claims (capture CTA, home insight/node graph, record-detail graph handoff)",
     };
   }),
 );
