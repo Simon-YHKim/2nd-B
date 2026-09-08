@@ -32,10 +32,13 @@ describe("Android elevation coverage", () => {
   });
 
   it("keeps the main card/list cluster on the shared card elevation", () => {
+    // research 는 이 목록에서 나갔다. 위 주석의 규칙 그대로다 — 레거시 렌더러가
+    // legacy/screens/research.tsx 로 나가면서 라우트는 딥스페이스 화면만 렌더하고,
+    // 그 화면은 android elevation 이 아니라 테두리 + 채움 + 베벨로 깊이를 낸다
+    // (실측: 라이브 화면에 androidElevation 0건).
     const cardScreens = [
       { file: "src/app/data.tsx", minCount: 1 },
       { file: "src/app/inbox.tsx", minCount: 1 },
-      { file: "src/app/research.tsx", minCount: 2 },
     ];
 
     for (const { file, minCount } of cardScreens) {

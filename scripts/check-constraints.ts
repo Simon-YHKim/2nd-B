@@ -671,10 +671,7 @@ results.push(
   check("Feedback", () => {
     const bigFive = read("src/app/big-five.tsx");
     const attachment = read("src/app/attachment.tsx");
-    const importScreen = read("src/app/import.tsx");
     const esm = read("src/app/esm.tsx");
-    const insights = read("src/app/insights.tsx");
-    const research = read("src/app/research.tsx");
     const wiki = read("src/app/wiki.tsx");
     const trinity = read("src/app/trinity.tsx");
     const interview = read("src/app/interview.tsx");
@@ -693,14 +690,20 @@ results.push(
     const resetHook = read("src/lib/auth/useResetPasswordForm.ts");
     const audit = read("src/app/audit.tsx");
     const persona = read("src/app/persona.tsx");
+    // /import·/insights·/research 의 피드백 표면은 라우트가 아니라 배송되는 화면에 있다.
+    // 레거시는 PremiumToast/PremiumErrorState 를 썼고 라이브는 접근성 alert 역할과
+    // live region 으로 같은 일을 한다 — 표면 이름이 아니라 그 성질을 검사한다.
+    const dsScreensFeedback = read("src/screens/deepspace/DeepSpaceDesignScreens.tsx");
+    const dsImportInbox = read("src/screens/deepspace/dds-import-inbox-screens.tsx");
+    const enDeepspace = read("locales/en/deepspace.json");
+    const koDeepspace = read("locales/ko/deepspace.json");
     const wikiAlertCount = (wiki.match(/Alert\.alert/g) ?? []).length;
     const ok =
       !bigFive.includes("Alert.alert") &&
       !attachment.includes("Alert.alert") &&
-      !importScreen.includes("Alert.alert") &&
+      !dsImportInbox.includes("Alert.alert") &&
       !esm.includes("Alert.alert") &&
-      !insights.includes("Alert.alert") &&
-      !research.includes("Alert.alert") &&
+      !dsScreensFeedback.includes("Alert.alert") &&
       !trinity.includes("Alert.alert") &&
       !interview.includes("Alert.alert") &&
       !account.includes("Alert.alert") &&
@@ -715,7 +718,8 @@ results.push(
       !persona.includes("Alert.alert") &&
       bigFive.includes("PremiumToast") &&
       attachment.includes("PremiumToast") &&
-      importScreen.includes("PremiumToast") &&
+      dsImportInbox.includes('accessibilityRole="alert"') &&
+      dsImportInbox.includes("accessibilityLiveRegion") &&
       esm.includes("PremiumToast") &&
       signIn.includes("PremiumToast") &&
       signIn.includes("resetHelpCard") &&
@@ -744,8 +748,8 @@ results.push(
       persona.includes("toastWrap") &&
       persona.includes('tp("errorTitle")') &&
       persona.includes("Couldn't finish the export. Try again from the export button.") &&
-      insights.includes("PremiumErrorState") &&
-      research.includes("PremiumErrorState") &&
+      dsScreensFeedback.includes('accessibilityRole="alert"') &&
+      dsScreensFeedback.includes("accessibilityLiveRegion") &&
       wiki.includes("PremiumToast") &&
       wiki.includes("PremiumModal") &&
       wiki.includes("toastWrap") &&
@@ -779,10 +783,12 @@ results.push(
       !wiki.includes("Claude / ChatGPT") &&
       bigFive.includes("toastWrap") &&
       attachment.includes("toastWrap") &&
-      importScreen.includes("toastWrap") &&
       esm.includes("toastWrap") &&
-      !insights.includes("LLM call") &&
-      !insights.includes("AI 호출");
+      // 벤더 이름이 사용자에게 새는지 보는 자리다. /insights 가 은퇴하면서 그
+      // 카피는 deepspace 번들로 옮겨졌으므로 소스가 아니라 번들을 본다 — 소스에는
+      // C1/C9/C3 게이트웨이를 설명하는 주석이 있어 거짓양성이 난다.
+      !enDeepspace.includes("LLM call") &&
+      !koDeepspace.includes("AI 호출");
     return {
       id: "Feedback",
       status: ok ? "PASS" : "FAIL",
@@ -796,7 +802,6 @@ results.push(
 results.push(
   check("A11y", () => {
     const capture = read("src/app/capture.tsx");
-    const research = read("src/app/research.tsx");
     const likert = read("src/components/quant/LikertChoiceGroup.tsx");
     const bigFive = read("src/app/big-five.tsx");
     const attachment = read("src/app/attachment.tsx");
@@ -840,6 +845,12 @@ results.push(
     // (Toggle / SelectRow / Action) 가 role·state·label 을 지고 간다 — 그래서
     // 리터럴 힌트 문자열이 아니라 그 컴포넌트들을 검사한다.
     const dsScreens = read("src/screens/deepspace/DeepSpaceDesignScreens.tsx");
+    // /research 도 같은 이야기다. 레거시 라우트는 프레임워크 칩에 tablist +
+    // selected 를, 출처 목록에 role="link" + t("link.*") 를 인라인으로 박았다.
+    // 라이브 화면에는 그 출처 목록이 아예 없고, 헤드라인·의외의 연결·제안 카드가
+    // 각각 role=button + 조합 라벨을 지며, 선택되는 클러스터 칩은 공용 FilterChip
+    // 이 role·state·label 을 지고 간다.
+    const filterChip = read("src/screens/deepspace/dds-wiki-records-screens.tsx");
     const dataScreen = read("src/screens/deepspace/dds-data-screen.tsx");
     const data = read("src/app/data.tsx");
     const settings = read("src/app/settings.tsx");
@@ -856,7 +867,6 @@ results.push(
     // Whitespace-robust: assert the a11y contract by attribute presence/count,
     // not exact formatting (exact-prefix .includes break on harmless reflow).
     const captureTablists = (capture.match(/accessibilityRole="tablist"/g) ?? []).length;
-    const researchTablists = (research.match(/accessibilityRole="tablist"/g) ?? []).length;
     const captureSelected = (capture.match(/accessibilityState=\{\{ selected: active \}\}/g) ?? []).length;
     const inboxRoles = (inbox.match(/accessibilityRole=/g) ?? []).length;
     const signInRoles = (signIn.match(/accessibilityRole="button"/g) ?? []).length;
@@ -878,12 +888,14 @@ results.push(
     const ok =
       captureTablists >= 2 && // track + mode rows
       captureSelected >= 2 && // track + mode chips
-      researchTablists >= 1 &&
-      research.includes("accessibilityState={{ selected: activeFramework === null }}") &&
-      research.includes("accessibilityState={{ selected: active }}") &&
-      research.includes('accessibilityRole="link"') &&
-      research.includes('accessibilityLabel={t("link.label", { title: s.title })}') &&
-      research.includes('accessibilityHint={t("link.hint")}') &&
+      dsScreens.includes("accessibilityLabel={view.headline.title}") &&
+      dsScreens.includes(
+        'accessibilityLabel={t("research.surprise", { from: view.surprise.fromTitle, to: view.surprise.toTitle })}',
+      ) &&
+      dsScreens.includes('accessibilityLabel={t("research.getProposals")}') &&
+      filterChip.includes('accessibilityRole="button"') &&
+      filterChip.includes("accessibilityState={{ selected: !!active }}") &&
+      filterChip.includes("accessibilityLabel={label}") &&
       likert.includes('accessibilityRole="radiogroup"') &&
       likert.includes('accessibilityRole="radio"') &&
       likert.includes("accessibilityState={{ checked: active }}") &&
@@ -1170,8 +1182,8 @@ results.push(
       id: "A11y",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/navgraph/characterpath/drillprogress/xpbar/quantpager/interview/esm/profile/consent/privacy/formats/preference-toggle/premium-button/premium-input/premium-modal/quant-intro/loading actions expose grouped/action state"
-        : "visual-selected controls, research links, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/navgraph/characterpath/drillprogress/xpbar/quantpager/interview/esm/profile/consent/privacy/formats/preference-toggle/premium-button/premium-input/premium-modal/quant-intro/loading actions need accessibilityRole plus selected/checked state",
+        ? "selected chips, research insight cards, assessment choices, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/navgraph/characterpath/drillprogress/xpbar/quantpager/interview/esm/profile/consent/privacy/formats/preference-toggle/premium-button/premium-input/premium-modal/quant-intro/loading actions expose grouped/action state"
+        : "visual-selected controls, research insight cards, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/navgraph/characterpath/drillprogress/xpbar/quantpager/interview/esm/profile/consent/privacy/formats/preference-toggle/premium-button/premium-input/premium-modal/quant-intro/loading actions need accessibilityRole plus selected/checked state",
     };
   }),
 );
@@ -1761,12 +1773,17 @@ results.push(
 
   results.push(
     check("ImportI18nCopy", () => {
-      const screen = read("src/app/import.tsx");
-      const i18n = read("src/lib/i18n/index.ts");
+      // 라우트 /import 는 12줄 래퍼가 됐다. 사용자가 보는 화면은 이 파일이고,
+      // 카피는 deepspace 번들의 ds.import.* 와 import.* 두 갈래에 있다.
+      // locales/*/import.json 은 화면을 잃었지만 죽지 않았다 — 통합 카탈로그
+      // (integrations/sources.ts)가 아직 import:health.* 를 참조한다.
+      const screen = read("src/screens/deepspace/dds-import-inbox-screens.tsx");
+      const sources = read("src/screens/deepspace/integrations/sources.ts");
+      const enDeep = read("locales/en/deepspace.json");
+      const koDeep = read("locales/ko/deepspace.json");
       const en = read("locales/en/import.json");
       const ko = read("locales/ko/import.json");
       const forbiddenScreenCopy = [
-        "const ko =",
         "Bring outside self-knowledge home",
         "Keep it in the village",
         "Prompt placed below",
@@ -1783,27 +1800,32 @@ results.push(
         "마을에 보관하기",
       ];
       const ok =
-        screen.includes('useTranslation("import")') &&
-        screen.includes('t("hero.title")') &&
-        screen.includes('t("promptCard.copyHint")') &&
-        screen.includes('t("pasteCard.sortHint")') &&
-        screen.includes('t("result.keepHint")') &&
-        screen.includes('t("saved.moreHint")') &&
-        i18n.includes("enImport") &&
-        i18n.includes("koImport") &&
-        i18n.includes('"import"') &&
-        i18n.includes("import: enImport") &&
-        i18n.includes("import: koImport") &&
-        en.includes("Bring in records from other tools") &&
-        ko.includes("다른 곳에 남긴 기록 가져오기") &&
+        screen.includes('useTranslation("deepspace")') &&
+        screen.includes('t("ds.import.title")') &&
+        screen.includes('t("ds.import.dropTitle")') &&
+        screen.includes('t("ds.import.consentTitle")') &&
+        screen.includes('t("ds.import.a11yImportExportFile", { name: a.k })') &&
+        screen.includes('t("ds.import.a11yRevokeImport", { name: h.name })') &&
+        screen.includes('t("import.healthName")') &&
+        // 레거시 화면의 `const ko` 는 카피 두 벌을 소스에 품기 위한 것이었다.
+        // 라이브에도 같은 이름의 플래그가 있지만 쓰는 곳이 하나뿐이고 그건
+        // 저장되는 데이터의 언어다 — 카피 분기가 아니라 이 쓰임새를 못박는다.
+        screen.includes('{ locale: ko ? "ko" : "en" }') &&
+        enDeep.includes("Before importing") &&
+        koDeep.includes("가져오기 전 확인") &&
+        sources.includes('"import:health.connect"') &&
+        en.includes("Turn on activity sync") &&
+        ko.includes("활동 동기화 켜기") &&
         forbiddenScreenCopy.every((term) => !screen.includes(term)) &&
-        forbiddenBundleCopy.every((term) => !en.includes(term) && !ko.includes(term));
+        forbiddenBundleCopy.every(
+          (term) => ![en, ko, enDeep, koDeep].some((bundle) => bundle.includes(term)),
+        );
       return {
         id: "ImportI18nCopy",
         status: ok ? "PASS" : "FAIL",
         note: ok
-          ? "import screen copy lives in locale bundles and avoids old village metaphor copy"
-          : "import screen should source user-facing copy from locale bundles and avoid old village metaphor copy",
+          ? "live import screen copy lives in the deepspace bundle, the import bundle still carries the integration catalog keys, and the old village metaphor is gone from all four"
+          : "live import screen should source copy from the deepspace bundle, keep import:health.* for the integration catalog, and avoid old village metaphor copy",
       };
     }),
   );
@@ -1971,55 +1993,41 @@ results.push(
 
   results.push(
     check("InsightsI18nCopy", () => {
-      const screen = read("src/app/insights.tsx");
-      const i18n = read("src/lib/i18n/index.ts");
-      const en = read("locales/en/insights.json");
-      const ko = read("locales/ko/insights.json");
-      const forbiddenScreenCopy = [
-        'locale === "ko"',
-        "Loading insights",
-        "Couldn't load insights",
-        "Not enough records to analyze yet",
-        "Explore your recent records",
-        "Total entries",
-        "Avg length",
-        "Weekly activity",
-        "Recurring topics",
-        "Recent conclusions",
-      ];
+      // 문구는 배송되는 화면과 deepspace 번들에 있다. locales/*/insights.json 은
+      // 레거시 은퇴와 함께 살아 있는 소비자가 없어졌다.
+      const screen = read("src/screens/deepspace/DeepSpaceDesignScreens.tsx");
+      const en = read("locales/en/deepspace.json");
+      const ko = read("locales/ko/deepspace.json");
+      const forbiddenScreenCopy = ['locale === "ko"', "조각마을", "village"];
       const ok =
-        screen.includes('useTranslation("insights")') &&
-        screen.includes('t("error.title")') &&
-        screen.includes('t("empty.hero.title")') &&
-        screen.includes('t("hero.title")') &&
-        screen.includes('t("stats.total.daySpan", { count: i.daySpan') &&
-        screen.includes("toLocaleDateString(dateLocale") &&
-        i18n.includes("enInsights") &&
-        i18n.includes("koInsights") &&
-        i18n.includes('"insights"') &&
-        i18n.includes("insights: enInsights") &&
-        i18n.includes("insights: koInsights") &&
-        en.includes("Explore your recent records") &&
-        ko.includes("최근 기록의 흐름 보기") &&
+        screen.includes('t("insights.lead")') &&
+        screen.includes('t("insights.errorBody")') &&
+        screen.includes('t("insights.findingEmpty")') &&
+        screen.includes('t("insights.lastWeek")') &&
+        en.includes('"insights"') &&
+        ko.includes('"insights"') &&
         forbiddenScreenCopy.every((term) => !screen.includes(term));
       return {
         id: "InsightsI18nCopy",
         status: ok ? "PASS" : "FAIL",
         note: ok
-          ? "insights screen copy lives in locale bundles while date formatting keeps locale awareness"
-          : "insights screen should source user-facing copy from locale bundles and avoid inline ko/en branches",
+          ? "insights screen copy lives in the deepspace bundle without inline language branches"
+          : "insights screen should source user-facing copy from the deepspace bundle and avoid inline ko/en branches",
       };
     }),
   );
 
   results.push(
     check("ResearchI18nCopy", () => {
-      const screen = read("src/app/research.tsx");
-      const i18n = read("src/lib/i18n/index.ts");
-      const en = read("locales/en/research.json");
-      const ko = read("locales/ko/research.json");
+      // 라우트 /research 는 12줄 래퍼가 됐다. 사용자가 보는 화면은
+      // DeepSpaceResearchScreen 이고 카피는 deepspace 번들의 research.* 다.
+      // ⚠ locales/*/research.json 은 은퇴와 함께 라이브 소비자가 0 이 됐다.
+      // 그래서 이 검사는 더 이상 그 번들을 정본으로 세우지 않는다 — 남은 처분은
+      // legacy/screens/INDEX.md 에 적어뒀다.
+      const screen = read("src/screens/deepspace/DeepSpaceDesignScreens.tsx");
+      const enDeep = read("locales/en/deepspace.json");
+      const koDeep = read("locales/ko/deepspace.json");
       const forbiddenScreenCopy = [
-        'locale === "ko"',
         "Loading research",
         "Couldn't load research",
         "Browse sources and references",
@@ -2030,27 +2038,23 @@ results.push(
         "Opens the DOI or source URL",
       ];
       const ok =
-        screen.includes('useTranslation("research")') &&
-        screen.includes('t("hero.title")') &&
-        screen.includes('t("filter.accessibilityLabel")') &&
-        screen.includes('t("sourceCount", { visible: visible.length') &&
-        screen.includes('t("link.label", { title: s.title })') &&
-        screen.includes('t("link.hint")') &&
-        screen.includes("const isKorean = i18n.language === \"ko\"") &&
-        i18n.includes("enResearch") &&
-        i18n.includes("koResearch") &&
-        i18n.includes('"research"') &&
-        i18n.includes("research: enResearch") &&
-        i18n.includes("research: koResearch") &&
-        en.includes("Browse sources and references") &&
-        ko.includes("자료와 출처") &&
+        screen.includes('t("research.title")') &&
+        screen.includes('t("research.lead")') &&
+        screen.includes('t("research.tip")') &&
+        screen.includes('t("research.headerFound", { count: view.edgeCount })') &&
+        screen.includes('t("research.getProposals")') &&
+        screen.includes('t("research.confidence", { percent: Math.round(p.confidence * 100) })') &&
+        // 그래프·임베딩에 넘기는 언어는 여전히 화면이 명시적으로 고른다.
+        screen.includes('locale: i18n.language === "ko" ? "ko" : "en"') &&
+        enDeep.includes("Connections between your records") &&
+        koDeep.includes("서로 관련된 기록") &&
         forbiddenScreenCopy.every((term) => !screen.includes(term));
       return {
         id: "ResearchI18nCopy",
         status: ok ? "PASS" : "FAIL",
         note: ok
-          ? "research screen copy and link a11y live in locale bundles while source-summary locale selection stays explicit"
-          : "research screen should source user-facing copy and link a11y from locale bundles",
+          ? "live research screen copy lives in the deepspace bundle while graph/embedding locale selection stays explicit"
+          : "live research screen should source user-facing copy from the deepspace bundle and keep locale selection explicit",
       };
     }),
   );

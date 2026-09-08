@@ -308,7 +308,16 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         label: "공상하기",
         note: "진입: /ops 도구 격자 · /growth. legacy 트랙일 때 /secondb 의 Divergent 모드로 넘기던 분기는 은퇴했다 (legacy/screens/INDEX.md)",
       },
-      { file: "research", href: "/research", label: "연결 찾기", auth: true },
+      // 게이트가 라우트에서 화면으로 모였다 — change-password 와 같은 모양이다.
+      {
+        file: "research",
+        href: "/research",
+        label: "연결 찾기",
+        auth: {
+          gateFile: "src/screens/deepspace/DeepSpaceDesignScreens.tsx",
+          component: "DeepSpaceResearchScreen",
+        },
+      },
       { file: "reasoning", href: "/reasoning", label: "리즈닝", auth: true },
       { file: "review", href: "/review", label: "제안 확인 (propose→ratify)" },
       { file: "ratifications", href: "/ratifications", label: "확인 이력", auth: true },
@@ -382,7 +391,16 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
   {
     title: "개인 비서",
     screens: [
-      { file: "ops", href: "/ops", label: "오늘의 비서", auth: true },
+      // 게이트가 라우트에서 화면으로 모였다 — research·insights·import 와 같은 모양이다.
+      {
+        file: "ops",
+        href: "/ops",
+        label: "오늘의 비서",
+        auth: {
+          gateFile: "src/screens/deepspace/dds-ops-screen.tsx",
+          component: "DeepSpaceOpsScreen",
+        },
+      },
       // #1543 은 focus 를 위임으로 선언했지만 그건 분기 시점 사실이다. main 의
       // `5cc8cdeb fix(auth): align deep-space route guards` 가 이 파일에 직접 가드를
       // 넣어서 지금은 focus.tsx 가 `<Redirect href="/sign-in" />` 를 스스로 그린다.
@@ -390,7 +408,15 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       { file: "focus", href: "/focus", label: "일일 집중", auth: true },
       { file: "digest", href: "/digest", label: "오늘의 정리", auth: true, note: "이름이 어긋나 있다 — 캐논 screens.json 은 이 화면을 '주간 다이제스트' 라고 부르지만 화면 자체는 일일 리뷰다 (digest.tsx:1). LLM 좌석 digest_weekly 는 또 다른 것" },
       { file: "ttfv", href: "/ttfv", label: "첫날 한 컷", auth: true },
-      { file: "insights", href: "/insights", label: "인사이트", auth: true },
+      {
+        file: "insights",
+        href: "/insights",
+        label: "인사이트",
+        auth: {
+          gateFile: "src/screens/deepspace/DeepSpaceDesignScreens.tsx",
+          component: "DeepSpaceInsightsScreen",
+        },
+      },
       // ⚠ stub 아님(2026-09-01 감사 정정): legacy 스킨에서만 /insights 로 넘기고,
       // 프로덕션(딥스페이스 기본)은 실화면이다. 진입은 /insights 의 '발견' 카드.
       {
@@ -444,7 +470,15 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
   {
     title: "가져오기 · 연동",
     screens: [
-      { file: "import", href: "/import", label: "외부 가져오기", auth: true },
+      {
+        file: "import",
+        href: "/import",
+        label: "외부 가져오기",
+        auth: {
+          gateFile: "src/screens/deepspace/dds-import-inbox-screens.tsx",
+          component: "DeepSpaceImportScreen",
+        },
+      },
       { file: "import-hub", href: "/import-hub", label: "가져오기 허브", auth: true },
       { file: "integrations", href: "/integrations", label: "데이터 연동" },
     ],

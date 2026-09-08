@@ -31,6 +31,10 @@ Simon 의 요구는 *"나중에 내가 지정해서 확인하라고 하면 할 �
 | `permissions.tsx` | `src/app/permissions.tsx` | 권한 안내 화면의 레거시 렌더러 + 스타일 |
 | `theme.tsx` | `src/app/theme.tsx` | 테마·글꼴 화면의 레거시 렌더러 + 스타일 |
 | `support.tsx` | `src/app/support.tsx` | 지원 화면의 레거시 렌더러 + 스타일. ⚠ 인증 게이트는 라우트에 남겼다 |
+| `research.tsx` | `src/app/research.tsx` | 연결 찾기 화면의 레거시 렌더러 + 스타일. ⚠ 인증 게이트도 같이 나갔다 — 라이브 화면이 자기 게이트를 갖고 있다(위임) |
+| `insights.tsx` | `src/app/insights.tsx` | 인사이트 화면의 레거시 렌더러 + 스타일. 게이트는 위임 |
+| `import.tsx` | `src/app/import.tsx` | 외부 가져오기 화면의 레거시 렌더러 + 스타일. 게이트는 위임 |
+| `ops.tsx` | `src/app/ops.tsx` | 비서 화면의 레거시 렌더러 + 스타일. 게이트는 위임. ⚠ **바이트 핀이 따라왔다** — `tools-reachable.test.ts` 가 `OpsLegacy` 슬라이스의 sha256 을 아카이브에서 검사한다(옮기면서 안 고쳤다는 증거) |
 
 ## 옮길 때 같이 한 일
 
@@ -81,6 +85,58 @@ Simon 의 요구는 *"나중에 내가 지정해서 확인하라고 하면 할 �
 **약화가 아니라 확장이다** — 리터럴 넷은 그 네 화면만 덮었지만 공용 행은 그것을 쓰는 모든
 화면을 덮는다. 변이 검증으로 확인했다: `Toggle` 의 `role="switch"` 를 지우면 A11y 가
 빨개진다.
+
+
+## 멈췄다가 풀린 것 — /ops (해소 2026-09-08)
+
+`/ops` 는 한 번 옮겼다가 **되돌렸고**, 인용이 정리된 뒤 다시 옮겼다. 그 왕복이 이
+작업의 순서 규칙을 만들었으므로 기록으로 남긴다.
+
+막았던 것: `docs/legal/DPIA-2ndB-minors-draft.md` 가 `src/app/ops.tsx` 의 줄 번호를
+**일곱 곳**에서 인용했다(`:364·493·525·571·649·684·710`). 전부 D-20 미성년 추천
+잠금(`recommendationsAllowed`)의 **호출 자리**다.
+
+⚠ **`/data` 와 결이 반대다. 같은 문제로 묶지 말 것.**
+
+| | `/data` | `/ops` |
+|---|---|---|
+| 문서가 주장하는 것 | 위키 마크다운 내보내기가 GDPR 20조를 충족한다 | 미성년 추천 잠금이 런타임에 걸려 있다 |
+| 라이브에 있나 | **없다** — 그 버튼은 레거시 렌더러에만 있다 | **있다** — `dds-ops-screen.tsx:588-595` · `DeepSpaceDesignScreens.tsx:2786` 가 부르고, 엔진도 `recommend.ts:199-207` 에서 다시 본다 |
+| 남은 일 | 법률 판단(무엇을 충족이라 할 것인가) | **인용 갱신** — 주장은 참이고 줄 번호만 낡았다 |
+
+그래서 막힌 게 아니라 **소유자가 달랐다.** 인용은 `#1754` 가 라이브 좌표로 옮겼고,
+그 뒤에 이 은퇴가 올라갔다.
+
+**규칙: 인용이 먼저, 은퇴가 나중.** 뒤집으면 `legal-doc-citations` 와
+`dpia-crisis-rail-anchors` 가 빨간 채로 머지된다 — 실제로 그 둘이 정확히 울어서
+되돌린 것이다.
+
+그리고 `#1754` 는 이 부류 전체를 잡는 가드도 남겼다:
+`src/lib/legal/__tests__/legal-citations-not-in-dead-renderers.test.ts` 가 법무 문서의
+인용이 **어떤 배포도 그리지 않는 렌더러 안**에 들어가면 실패시킨다. 판정 로직은
+`src/lib/legal/dead-renderer-spans.ts` 에 있다. **다음 은퇴는 옮겨보고 빨개지는지
+확인하는 대신 그 가드에 먼저 물어볼 것.**
+
+⚠ `/data` 는 여전히 보류다 — Q-H1 이 counsel 대기이고, 그건 좌표가 아니라 판단이다.
+
+## 화면을 잃은 로케일 번들 — 지우지는 않았다
+
+은퇴하면서 라이브 소비자가 0 이 된 번들이 둘이다(실측 2026-09-08 · `src/` 에서
+`useTranslation("<ns>")` 와 `"<ns>:"` 둘 다 0건, 테스트 제외):
+
+| 번들 | 라이브 소비자 | 처분 |
+|---|---|---|
+| `locales/{en,ko}/research.json` | 0건 | 보류 — 검사에서만 뗐다 |
+| `locales/{en,ko}/insights.json` | 0건 | 보류 — 검사에서만 뗐다 |
+| `locales/{en,ko}/import.json` | 1건 — `integrations/sources.ts:35` 의 `import:health.connect` | **유지** |
+
+`ImportI18nCopy`·`ResearchI18nCopy` 는 이제 이 번들이 아니라 **라이브 카피가 실제로 있는**
+`locales/{en,ko}/deepspace.json` (`ds.import.*` 47키 · `research.*` 24키)을 정본으로 본다.
+import 번들은 화면을 잃었어도 통합 카탈로그가 아직 읽으므로 검사가 그 한 갈래를 계속 못박는다.
+
+앞의 둘을 지우는 것은 **별개 결정**이다 — C7(EN↔KO 키 짝)이 다섯 로케일을 함께 보고,
+`src/lib/i18n/index.ts` 의 등록도 같이 걷어야 하며, 레거시 화면을 읽으러 온 사람에게는
+그 카피가 문맥이다. **"소비자 0건"은 죽었다는 뜻이 아니다.**
 
 ## 아직 못 옮긴 것 — /data
 

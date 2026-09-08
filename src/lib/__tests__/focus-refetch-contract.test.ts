@@ -86,14 +86,26 @@ beforeEach(() => {
 });
 
 describe("core-loop focus refetch contract", () => {
-  const screens = [
-    "src/app/index.tsx",
-    "src/app/records.tsx",
-    "src/app/core-brain.tsx",
-    "src/app/insights.tsx",
-    "src/app/trinity.tsx",
-    "src/app/record/[id].tsx",
+  // /insights 의 렌더러는 라우트가 아니라 deep-space 화면에 있다. 라우트 파일을
+  // 읽으면 은퇴한 레거시 반쪽을 읽게 되므로(그래서 이 계약이 오랫동안 초록이었다)
+  // 화면 함수 본문만 잘라서 본다.
+  const screens: Array<{ file: string; fn?: string }> = [
+    { file: "src/app/index.tsx" },
+    { file: "src/app/records.tsx" },
+    { file: "src/app/core-brain.tsx" },
+    { file: "src/screens/deepspace/DeepSpaceDesignScreens.tsx", fn: "DeepSpaceInsightsScreen" },
+    { file: "src/app/trinity.tsx" },
+    { file: "src/app/record/[id].tsx" },
   ];
+
+  /** `export function <fn>` 부터 다음 `export function` 직전까지. */
+  function functionBody(source: string, fn: string): string {
+    const normalized = source.replace(/\r\n?/g, "\n");
+    const from = normalized.indexOf(`export function ${fn}`);
+    if (from < 0) throw new Error(`${fn} 선언을 못 찾았다`);
+    const next = normalized.indexOf("\nexport function ", from + 1);
+    return normalized.slice(from, next < 0 ? undefined : next);
+  }
 
   it("keeps the shared hook as a focus-only refetch helper", () => {
     const source = read("src/lib/nav/use-focus-refetch.ts");
@@ -129,9 +141,10 @@ describe("core-loop focus refetch contract", () => {
 
   it("refreshes all stale core-loop screens when they regain focus", () => {
     for (const screen of screens) {
-      const source = read(screen);
+      const file = read(screen.file);
+      const source = screen.fn ? functionBody(file, screen.fn) : file;
 
-      expect(source).toContain('from "@/lib/nav/use-focus-refetch"');
+      expect(file).toContain('from "@/lib/nav/use-focus-refetch"');
       expect(source).toContain("useFocusRefetch(");
     }
   });
