@@ -24,7 +24,7 @@
 // being made against a copy of the code no build runs, so passing it is not
 // evidence about the app anyone uses.
 //
-// It is a RATCHET, not a zero-tolerance gate: there are 110 of these today and
+// It is a RATCHET, not a zero-tolerance gate: there are 103 of these today and
 // fixing them means re-pointing each guard at the shipped screen, which is the
 // legacy-retirement work itself (legacy/screens/INDEX.md). The ratchet stops the
 // number growing, and makes it fall visibly as routes retire.
@@ -36,15 +36,32 @@ import { deadRendererSpans, delegationCandidates } from "../../legal/dead-render
 const ROOT = process.cwd();
 
 // 2026-09-08 실측. 은퇴가 진행되면 내려간다 - 내려가면 여기도 내려야 한다.
-// ⚠ 이 수가 줄어드는 것은 **고쳐서가 아니라 대상이 나가서**일 수 있다. 진척으로
-// 읽지 말 것 - check-pixel-rules 의 래칫과 같은 성질이다.
 //
-// 처음 재봤을 때는 112 였다. deadRendererSpans 가 audit.tsx 를 빼기 때문에 110 이다
-// - ?screener=1 이 스킨 검사보다 먼저 와서 그 렌더러는 배송되는 앱에서 닿는다.
-// 판정을 공유 모듈 하나로 모은 값어치가 여기서 2건으로 나타난다.
-// 110 -> 103 (2026-09-08, 같은 날): /account 렌더러가 나가면서 그 7건이 함께
-// 나갔다. **고쳐서 준 게 아니라 대상이 나간 것**이다 - 예측 7, 실측 7.
-const RATCHET_BASELINE = 103;
+// ⚠ **수 하나가 아니라 라우트별 명세다.** 처음에는 `= 103` 한 줄이었는데, 그러면
+// 줄어든 이유를 사람이 주석으로 적어야 했다: 대상 파일이 은퇴해서 함께 나간 것인지,
+// 가드를 배송 화면으로 다시 겨눠서 진짜로 준 것인지. **둘은 전혀 다른 일인데 같은
+// 숫자로 보인다.** 라우트별로 적으면 감소분이 어느 쪽인지 검사가 직접 말한다.
+//
+// 처음 재봤을 때는 112 였다. deadRendererSpans 가 audit.tsx 를 빼서 110 이 됐다
+// (?screener=1 이 스킨 검사보다 먼저 와서 그 렌더러는 배송되는 앱에서 닿는다).
+// ⚠ 그 판정은 모듈이 처음부터 더 엄격해서 생긴 게 아니다 - 회차 61 이 audit 을
+// 죽었다고 오판해 진짜 안전 수정을 되돌린 뒤, 그 대가로 붙인 조건이다.
+// 그 다음 /account 은퇴로 7건이 함께 나가 103 이 됐다.
+const RATCHET_BASELINE: Readonly<Record<string, number>> = {
+  "src/app/wiki.tsx": 29,
+  "src/app/(auth)/sign-in.tsx": 24,
+  "src/app/(auth)/sign-up.tsx": 11,
+  "src/app/inbox.tsx": 8,
+  "src/app/profile.tsx": 7,
+  "src/app/manual.tsx": 7,
+  "src/app/data.tsx": 6,
+  "src/app/record/[id].tsx": 4,
+  "src/app/records.tsx": 3,
+  "src/app/review.tsx": 2,
+  "src/app/privacy.tsx": 2,
+};
+
+const BASELINE_TOTAL = Object.values(RATCHET_BASELINE).reduce((a, b) => a + b, 0);
 
 interface DeadFile {
   text: string;
@@ -184,26 +201,55 @@ describe("검사가 배송되는 반쪽을 보는가", () => {
     expect(parsed / candidates).toBeGreaterThan(0.4);
   });
 
-  test(`죽은 반쪽에만 있는 핀이 ${RATCHET_BASELINE}건을 넘지 않는다`, () => {
-    if (pins.length > RATCHET_BASELINE) {
-      const grew = pins.length - RATCHET_BASELINE;
-      const byRoute = new Map<string, number>();
-      for (const p of pins) byRoute.set(p.route, (byRoute.get(p.route) ?? 0) + 1);
-      const worst = [...byRoute].sort((a, b) => b[1] - a[1]).slice(0, 5);
+  test(`죽은 반쪽에만 있는 핀이 ${BASELINE_TOTAL}건을 넘지 않는다`, () => {
+    const actual = new Map<string, number>();
+    for (const p of pins) actual.set(p.route, (actual.get(p.route) ?? 0) + 1);
+    // 아직 죽은 스팬으로 남아 있는 라우트. 감소가 어느 양동이인지를 이것이 가른다.
+    const stillDead = new Set(deadRendererSpans(ROOT).map(span => span.file));
+
+    const grew: string[] = [];
+    /** 대상 파일이 은퇴해서 핀이 함께 나갔다 - 고친 것이 아니다. */
+    const wentWithTheFile: string[] = [];
+    /** 대상은 그대로인데 핀이 줄었다 - 가드를 배송 화면으로 다시 겨눴다. */
+    const rePointed: string[] = [];
+
+    for (const [route, base] of Object.entries(RATCHET_BASELINE)) {
+      const now = actual.get(route) ?? 0;
+      if (now > base) grew.push(`${route} ${base} -> ${now}`);
+      else if (now < base) {
+        (stillDead.has(route) ? rePointed : wentWithTheFile).push(`${route} ${base} -> ${now}`);
+      }
+    }
+    for (const [route, now] of actual) {
+      if (!(route in RATCHET_BASELINE)) grew.push(`${route} (명세에 없음) 0 -> ${now}`);
+    }
+
+    if (grew.length > 0) {
       throw new Error(
-        `배송 안 되는 반쪽에만 있는 문자열을 핀으로 박은 곳이 ${grew}건 늘었다 ` +
-          `(${RATCHET_BASELINE} -> ${pins.length}).\n` +
-          `새 검사를 쓸 때는 라우트 파일이 아니라 **배송되는 화면**을 읽을 것.\n` +
-          `가장 많은 곳: ${worst.map(([r, n]) => `${r} ${n}건`).join(" · ")}`,
+        `배송 안 되는 반쪽에만 있는 문자열을 핀으로 박은 곳이 늘었다:\n  ` +
+          grew.join("\n  ") +
+          `\n새 검사를 쓸 때는 라우트 파일이 아니라 **배송되는 화면**을 읽을 것.`,
       );
     }
-    if (pins.length < RATCHET_BASELINE) {
-      throw new Error(
-        `핀이 ${RATCHET_BASELINE - pins.length}건 줄었다 (${RATCHET_BASELINE} -> ${pins.length}). ` +
-          `좋은 일이다 - 이 파일의 RATCHET_BASELINE 을 ${pins.length} 로 내리고 다시 올릴 것.\n` +
-          `내리지 않으면 다음 사람이 그만큼 되돌려도 안 걸린다.`,
-      );
+    if (wentWithTheFile.length > 0 || rePointed.length > 0) {
+      const lines: string[] = [`핀이 줄었다. 명세를 갱신하고 다시 올릴 것.`];
+      if (wentWithTheFile.length > 0) {
+        lines.push(
+          `\n[대상이 나갔다 - 고친 것이 아니다] 이 라우트들은 legacy/ 로 은퇴했다:`,
+          `  ` + wentWithTheFile.join("\n  "),
+          `  → 명세에서 그 줄을 지운다. 이 감소를 진척으로 세지 말 것.`,
+        );
+      }
+      if (rePointed.length > 0) {
+        lines.push(
+          `\n[진짜로 줄었다] 대상은 그대로인데 핀이 배송 화면으로 옮겨갔다:`,
+          `  ` + rePointed.join("\n  "),
+          `  → 명세의 수를 내린다. 이건 진척이다.`,
+        );
+      }
+      throw new Error(lines.join("\n"));
     }
-    expect(pins.length).toBe(RATCHET_BASELINE);
+
+    expect(pins.length).toBe(BASELINE_TOTAL);
   });
 });
