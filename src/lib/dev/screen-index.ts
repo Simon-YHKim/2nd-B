@@ -161,7 +161,18 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
   {
     title: "홈 · 별자리",
     screens: [
-      { file: "index", href: "/", label: "별자리 홈", auth: true },
+      {
+        file: "index",
+        href: "/",
+        label: "별자리 홈",
+        // 2026-09-08: 라우트가 래퍼가 되면서 로그인 리다이렉트도 화면으로 내려갔다.
+        // 전에는 index.tsx 안의 GraphScreen 이 직접 `!userId -> /sign-in` 을 했고,
+        // 그 반쪽은 legacy/screens/index.tsx 로 나갔다. 이제 게이트는 셸이 진다.
+        auth: {
+          gateFile: "src/components/deep-space/DeepSpaceShell.tsx",
+          component: "DeepSpaceShell",
+        },
+      },
       { file: "core-brain", href: "/core-brain", label: "북극성", auth: true },
       { file: "northstar", href: "/northstar", label: "북극성 문장", auth: true },
       { file: "star/[domain]", href: "/star/career", label: "도메인 별 (커리어)", auth: true, sample: true, note: "career · finance · growth · relation · health · recreation · collect. 2026-08-24 부터 홈 별자리에서는 안 열린다 — 생활 도메인은 세컨비 대시보드로 갔다" },

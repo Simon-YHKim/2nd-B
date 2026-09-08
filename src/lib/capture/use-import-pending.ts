@@ -11,7 +11,12 @@ import { importPendingCaptures } from "./import-pending";
 // no AI call). Best-effort: a failure leaves the items in the device-local queue
 // for next time, and a session with no pending captures does no work (the import
 // returns early before any createRecord). Mounted from the home route so it runs
-// for both home variants after auth + profile (age known, C10 satisfied).
+// after auth + profile (age known, C10 satisfied).
+//
+// ⚠ 2026-09-08: 여기 "for both home variants" 라고 적혀 있었다. 변형은 이제 하나다 —
+// 레거시 홈이 legacy/screens/index.tsx 로 나갔다. 마운트 자리는 **그대로 라우트다**:
+// 셸 안으로 옮기면 셸의 리다이렉트 뒤로 밀려 들어간다.
+// 그 한 줄을 지키는 검사: src/lib/capture/__tests__/preauth-pending.test.ts
 export function useImportPendingCaptures(): void {
   const { userId, hasProfile, isMinor } = useAuth();
   const { i18n } = useTranslation();
