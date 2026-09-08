@@ -1,4 +1,17 @@
-export type ManualLocale = "en" | "ko";
+// 사용 안내서의 구조. **문구는 여기 없다** — 로케일 번들(manual.json 의 `guide`)에 있다.
+//
+// ⚠ 2026-09-08 이전에는 이 파일이 `Record<"en" | "ko", …>` 로 문구를 직접 들고 있었고,
+// 화면이 `i18n.language.startsWith("ko") ? "ko" : "en"` 으로 골랐다. 그래서 앱이
+// 다섯 언어(en · ko · es · pt · id)를 제공하는데 **안내서는 두 언어뿐**이었고,
+// es · pt · id 사용자는 영어를 봤다. 번역이 없어서가 아니라 **번역이 닿을 수 없는
+// 곳에 문구가 있었기 때문**이다 — 코드 안의 문자열은 번역 파이프라인이 못 본다.
+//
+// 검사가 이걸 못 잡은 이유도 같다: /manual 의 카피 핀들이 **라우트의 죽은 반쪽**을
+// 읽고 있었고 그쪽은 t() 를 제대로 썼다. 배송되는 화면은 아무도 안 보고 있었다.
+//
+// 그래서 이 파일은 이제 **id · 아이콘 · 목적지**만 갖는다. 문구는 키로 가리키고
+// 화면이 t() 로 푼다. 새 문구는 다른 모든 카피와 같은 길을 탄다.
+
 export type ManualTopicId = "stars" | "brightness" | "source" | "ratify" | "data";
 
 export type ManualRoute =
@@ -12,6 +25,9 @@ export type ManualRoute =
   | "/support";
 
 export type ManualGlyph = "home" | "sparkle" | "book" | "taskAlt" | "lock";
+
+/** 번들에서 문구를 꺼내는 함수. 화면의 `t` 를 그대로 넘긴다. */
+export type ManualTranslate = (key: string) => string;
 
 export interface ManualAction {
   label: string;
@@ -36,130 +52,61 @@ export interface ManualScreenCopy {
   collapsed: string;
 }
 
-const SCREEN_COPY: Record<ManualLocale, ManualScreenCopy> = {
-  en: {
-    hero: "Five questions explain how your records become something useful.",
-    tip: "Open one answer at a time, or filter the guide below.",
-    searchLabel: "Filter the user guide",
-    searchPlaceholder: "Search questions and answers",
-    noResults: "No matching section. Ask SecondB in your own words.",
-    expanded: "Answer open",
-    collapsed: "Answer closed",
-  },
-  ko: {
-    hero: "기록이 어떻게 나를 위한 도구가 되는지 다섯 질문으로 알아봅니다.",
-    tip: "한 번에 한 답만 열거나 아래에서 안내서를 검색하세요.",
-    searchLabel: "사용 안내서 검색",
-    searchPlaceholder: "질문과 답변 검색",
-    noResults: "맞는 안내를 찾지 못했습니다. 세컨비에게 직접 물어보세요.",
-    expanded: "답변 열림",
-    collapsed: "답변 닫힘",
-  },
+/** 액션 라벨 키. 목적지마다 하나이고, 여러 주제가 같은 목적지를 쓰면 라벨도 같다. */
+const ACTION_KEY: Record<ManualRoute, string> = {
+  "/secondb?panel=dashboard": "dashboard",
+  "/brightness": "brightness",
+  "/records": "records",
+  "/review": "review",
+  "/privacy": "privacy",
+  "/iden": "iden",
+  "/account?tool=export": "accountExport",
+  "/support": "support",
 };
 
-const TOPICS: Record<ManualLocale, readonly ManualTopic[]> = {
-  en: [
-    {
-      id: "stars",
-      icon: "home",
-      question: "What are the seven stars?",
-      answer:
-        "They are profile · infancy · school years · twenties · later life · work · now. Career, finance, growth, relationships, health, and rest are the six life areas in the SecondB dashboard, not stars.",
-      actions: [{ label: "Open the SecondB dashboard", route: "/secondb?panel=dashboard" }],
-    },
-    {
-      id: "brightness",
-      icon: "sparkle",
-      question: "What do brightness and Polaris mean?",
-      answer:
-        "Brightness records how many interview layers you actually opened. Coverage can reach L4; L5 appears only after you ratify a proposal. Polaris is a summary derived from those inputs, not the source record.",
-      actions: [{ label: "View brightness", route: "/brightness" }],
-    },
-    {
-      id: "source",
-      icon: "book",
-      question: "What does SecondB read?",
-      answer:
-        "Your wiki and records are the detailed source. SecondB reads that original material when it answers; Polaris is a derived summary rather than the source it should quote from.",
-      actions: [{ label: "Open records", route: "/records" }],
-    },
-    {
-      id: "ratify",
-      icon: "taskAlt",
-      question: "When does a suggestion change my profile?",
-      answer:
-        "Never by itself. AI output remains a proposal until you ratify it. Only a proposal you confirm can be applied to your model or open L5.",
-      actions: [{ label: "Review proposals", route: "/review" }],
-    },
-    {
-      id: "data",
-      icon: "lock",
-      question: "Where do privacy, safety, and exports live?",
-      answer:
-        "Privacy choices and account export are explicit controls. IDEN is a portable identity summary. If a message needs urgent support, the app shows support resources before an ordinary reply and does not contact services for you.",
-      actions: [
-        { label: "Privacy controls", route: "/privacy" },
-        { label: "Portable IDEN", route: "/iden" },
-        { label: "Account export", route: "/account?tool=export" },
-        { label: "Support resources", route: "/support" },
-      ],
-    },
-  ],
-  ko: [
-    {
-      id: "stars",
-      icon: "home",
-      question: "일곱 별은 무엇인가요?",
-      answer:
-        "프로필 · 영유아기 · 학창시절 · 20대 · 30대 이후 · 직장 · 지금입니다. 커리어 · 재정 · 성장 · 관계 · 건강 · 휴식은 별이 아니라 세컨비 대시보드의 생활 여섯 영역입니다.",
-      actions: [{ label: "세컨비 대시보드 열기", route: "/secondb?panel=dashboard" }],
-    },
-    {
-      id: "brightness",
-      icon: "sparkle",
-      question: "밝기와 북극성은 무엇을 뜻하나요?",
-      answer:
-        "밝기는 인터뷰에서 실제로 연 층을 나타냅니다. 기록만으로는 L4까지이며, L5는 제안을 직접 확인한 뒤에만 열립니다. 북극성은 그 입력에서 파생된 요약이지 원본 기록이 아닙니다.",
-      actions: [{ label: "밝기 보기", route: "/brightness" }],
-    },
-    {
-      id: "source",
-      icon: "book",
-      question: "세컨비는 무엇을 읽나요?",
-      answer:
-        "위키와 기록이 상세 원본입니다. 세컨비는 북극성 요약이 아니라 그 원문을 읽습니다. 답변이 근거를 제시할 때도 실제 기록을 가리킵니다.",
-      actions: [{ label: "기록 열기", route: "/records" }],
-    },
-    {
-      id: "ratify",
-      icon: "taskAlt",
-      question: "제안은 언제 나에게 반영되나요?",
-      answer:
-        "AI 결과는 스스로 상태를 바꾸지 않는 제안입니다. 사용자가 내용을 확인하기 전에는 반영되지 않으며, 확인한 제안만 나의 요약을 바꾸거나 L5를 열 수 있습니다.",
-      actions: [{ label: "제안 확인하기", route: "/review" }],
-    },
-    {
-      id: "data",
-      icon: "lock",
-      question: "프라이버시 · 안전 · 내보내기는 어디에 있나요?",
-      answer:
-        "프라이버시 선택과 계정 내보내기는 직접 여는 기능입니다. IDEN은 나에 대한 요약을 옮길 수 있는 파일입니다. 긴급한 지원이 필요한 메시지에는 일반 답변보다 지원 연락처를 먼저 보여주며, 앱이 대신 연락하지는 않습니다.",
-      actions: [
-        { label: "프라이버시 설정", route: "/privacy" },
-        { label: "포터블 IDEN", route: "/iden" },
-        { label: "계정 내보내기", route: "/account?tool=export" },
-        { label: "지원 안내", route: "/support" },
-      ],
-    },
-  ],
-};
-
-export function manualScreenCopyFor(locale: ManualLocale): ManualScreenCopy {
-  return SCREEN_COPY[locale];
+interface TopicSpec {
+  id: ManualTopicId;
+  icon: ManualGlyph;
+  routes: readonly ManualRoute[];
 }
 
-export function manualTopicsFor(locale: ManualLocale): readonly ManualTopic[] {
-  return TOPICS[locale];
+/** 주제의 뼈대. 순서가 화면 순서다. */
+const TOPIC_SPECS: readonly TopicSpec[] = [
+  { id: "stars", icon: "home", routes: ["/secondb?panel=dashboard"] },
+  { id: "brightness", icon: "sparkle", routes: ["/brightness"] },
+  { id: "source", icon: "book", routes: ["/records"] },
+  { id: "ratify", icon: "taskAlt", routes: ["/review"] },
+  {
+    id: "data",
+    icon: "lock",
+    routes: ["/privacy", "/iden", "/account?tool=export", "/support"],
+  },
+];
+
+const SCREEN_FIELDS = [
+  "hero",
+  "tip",
+  "searchLabel",
+  "searchPlaceholder",
+  "noResults",
+  "expanded",
+  "collapsed",
+] as const;
+
+export function manualScreenCopyFor(t: ManualTranslate): ManualScreenCopy {
+  const out = {} as Record<(typeof SCREEN_FIELDS)[number], string>;
+  for (const field of SCREEN_FIELDS) out[field] = t(`manual:guide.${field}`);
+  return out;
+}
+
+export function manualTopicsFor(t: ManualTranslate): readonly ManualTopic[] {
+  return TOPIC_SPECS.map(({ id, icon, routes }) => ({
+    id,
+    icon,
+    question: t(`manual:guide.topics.${id}.question`),
+    answer: t(`manual:guide.topics.${id}.answer`),
+    actions: routes.map((route) => ({ label: t(`manual:guide.actions.${ACTION_KEY[route]}`), route })),
+  }));
 }
 
 function searchableText(topic: ManualTopic): string {

@@ -16,15 +16,16 @@ import {
   filterManualTopics,
   manualScreenCopyFor,
   manualTopicsFor,
-  type ManualLocale,
   type ManualTopicId,
 } from "./dds-manual-content";
 
 export function DeepSpaceManualScreen() {
-  const { t, i18n } = useTranslation(["deepspace", "common"]);
-  const locale: ManualLocale = i18n.language?.toLowerCase().startsWith("ko") ? "ko" : "en";
-  const copy = manualScreenCopyFor(locale);
-  const topics = useMemo(() => manualTopicsFor(locale), [locale]);
+  // ⚠ 여기 `i18n.language.startsWith("ko") ? "ko" : "en"` 이 있었다. 앱은 다섯
+  // 언어를 제공하는데 안내서만 둘로 좁히고 있었다 — es · pt · id 사용자는 번역이
+  // 있는데도 영어를 봤다. 문구가 번들로 갔으니 좁힐 이유가 없다.
+  const { t, i18n } = useTranslation(["manual", "deepspace", "common"]);
+  const copy = manualScreenCopyFor(t);
+  const topics = useMemo(() => manualTopicsFor(t), [t, i18n.language]);
   const [query, setQuery] = useState("");
   const [expandedId, setExpandedId] = useState<ManualTopicId | null>("stars");
   const filteredTopics = useMemo(() => filterManualTopics(topics, query), [query, topics]);
