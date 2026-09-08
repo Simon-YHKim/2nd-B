@@ -59,9 +59,6 @@ const RATCHET_BASELINE: Readonly<Record<string, number>> = {
   "src/app/manual.tsx": 7,
   "src/app/data.tsx": 6,
   "src/app/privacy.tsx": 2,
-  // 0 = 라우트는 아직 죽은 반쪽을 품고 있지만 검사가 더는 그쪽을 안 읽는다.
-  // 은퇴하면 이 줄을 지운다 - 그건 [대상이 나갔다] 양동이다.
-  "src/app/(auth)/sign-in.tsx": 0,
 };
 
 /**
@@ -264,12 +261,25 @@ describe("검사가 배송되는 반쪽을 보는가", () => {
 
   test("스캐너가 못 읽는 위임 모양을 숨기지 않는다", () => {
     // deadRendererSpans 는 한 가지 모양만 파싱한다. 나머지는 **적용 밖**이지
-    // **위반 없음**이 아니다 - 그 차이를 수로 남긴다.
+    // **위반 없음**이 아니다.
+    //
+    // ⚠ 2026-09-08: 여기 `parsed / candidates > 0.4` 가 있었다. **그 수는 은퇴할
+    // 때마다 내려간다** — 파싱되던 스팬은 아카이브로 나가서 사라지는데, 스킨 플래그를
+    // 언급만 하는 파일(토큰 전환·조각 분기)은 그대로 남기 때문이다. sign-in 을
+    // 은퇴시키자 정확히 0.4 로 떨어져서 **자기가 돕는 일을 자기가 막았다.**
+    //
+    // 그리고 애초에 중복이었다. 진짜 커버리지 보장은
+    // legal-citations-not-in-dead-renderers 의 NOT_A_DEAD_SPAN 이 진다 — 후보마다
+    // "파싱됐거나, 왜 아닌지 적혀 있다"를 요구하고, 새 모양이 생기면 즉시 실패한다.
+    // 비율은 그것의 흐릿한 사본이었을 뿐이라 걷어낸다. 같은 것을 두 곳에서 주장하면
+    // 약한 쪽이 먼저 거짓말한다.
+    //
+    // 여기 남기는 것은 두 수의 **관계**뿐이다 - 파싱이 후보보다 많으면 둘 중 하나가
+    // 다른 것을 세고 있다는 뜻이다.
     const candidates = delegationCandidates(ROOT).length;
     const parsed = deadRendererSpans(ROOT).length;
     expect(candidates).toBeGreaterThanOrEqual(parsed);
-    // 이 검사가 덮는 범위가 절반 밑으로 떨어지면 결과를 믿을 수 없다.
-    expect(parsed / candidates).toBeGreaterThan(0.4);
+    expect(parsed).toBeGreaterThan(0);
   });
 
   test(`죽은 반쪽에만 있는 핀이 ${BASELINE_TOTAL}건을 넘지 않는다`, () => {

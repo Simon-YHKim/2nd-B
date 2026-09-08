@@ -11,7 +11,8 @@ const REF_SRC = `${REPO}/docs/clone-audit/reference-handoff/reference-app`
 
 // name, route, routeFile
 const SCREENS = [
-  ['01-auth', '/sign-in', 'src/app/(auth)/sign-in.tsx'],
+  // 2026-09-08: 라우트는 래퍼가 됐다. 대조 대상은 그리는 화면이어야 한다.
+  ['01-auth', '/sign-in', 'src/screens/deepspace/dds-sign-in-screen.tsx'],
   ['02-onboard', '/onboarding', 'src/app/onboarding.tsx'],
   ['03-ttfv', '/ttfv', 'src/app/ttfv.tsx'],
   ['05-home', '/deepspace-home', 'src/app/deepspace-home.tsx'],

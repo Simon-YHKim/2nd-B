@@ -168,7 +168,6 @@ describe("한국어 문자열 추출", () => {
  * 여기가 아니라 저기로 올린다.
  */
 const MIXED_FILE_DEBT: Record<string, number> = {
-  "src/app/(auth)/sign-in.tsx": 1,
   "src/app/(auth)/sign-up.tsx": 1,
   "src/app/attachment.tsx": 15,
   "src/app/audit.tsx": 12,
