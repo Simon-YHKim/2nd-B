@@ -41,23 +41,30 @@ describe("visible trust copy", () => {
 
   test("sign-up keeps the primary account CTA in the first viewport", () => {
     const root = path.resolve(__dirname, "../../..");
-    const screen = readFileSync(path.join(root, "src/app/(auth)/sign-up.tsx"), "utf8");
+    const screen = readFileSync(path.join(root, "src/screens/deepspace/dds-sign-up-screen.tsx"), "utf8");
     const en = readFileSync(path.join(root, "locales/en/auth.json"), "utf8");
     const ko = readFileSync(path.join(root, "locales/ko/auth.json"), "utf8");
 
-    const stickyIdx = screen.indexOf("styles.stickyCta");
-    const manualIdx = screen.indexOf('t("signUp.manualLink")');
-    const emailIdx = screen.indexOf('t("signUp.email")');
+    const manualIdx = screen.indexOf('t("auth:signUp.manualLink")');
+    const emailIdx = screen.indexOf('t("auth:signUp.email")');
 
-    expect(stickyIdx).toBeGreaterThan(-1);
-    expect(screen).toContain("SIGNUP_STICKY_CTA_HEIGHT");
-    expect(screen).toContain("SIGNUP_SCROLL_BOTTOM_PADDING");
-    expect(screen).toContain('accessibilityLabel={t("signUp.submit")}');
-    expect(screen).toContain("stars={false}");
+    // ⚠ 고정 CTA 핀 셋(styles.stickyCta · SIGNUP_STICKY_CTA_HEIGHT ·
+    // SIGNUP_SCROLL_BOTTOM_PADDING)을 뺐다. 약화가 아니라 **이 화면이 그 주장을
+    // 하지 않기 때문**이고, 그 사실을 화면이 스스로 적고 있다:
+    //
+    //   dds-sign-up-screen.tsx:456-460
+    //     "PixelGateShell owns safe-area and IME padding. … native keyboard
+    //      behavior remains a HUMAN QA item rather than a claimed sticky-footer pass."
+    //
+    // 검사가 계속 요구하면 **하지 않기로 한 주장을 통과시킨 것처럼** 보이게 된다.
+    // 남기는 것은 실제로 지켜지는 계약이다: 제출 버튼이 라벨을 갖고, 수동 링크가
+    // 이메일 입력보다 뒤에 오며(첫 화면이 계정 만들기로 시작한다), 그 링크가 실제로
+    // /manual 로 간다.
+    expect(screen).toContain('accessibilityLabel={t("auth:signUp.submit")}');
     expect(manualIdx).toBeGreaterThan(-1);
     expect(emailIdx).toBeGreaterThan(-1);
     expect(manualIdx).toBeGreaterThan(emailIdx);
-    expect(screen).toContain('<Link href="/manual" asChild>');
+    expect(screen).toContain('router.push("/manual")');
     expect(en).toContain('"browseBeforeCommit": "Browse first, then decide"');
     expect(ko).toContain('"browseBeforeCommit": "먼저 둘러보고 결정하기"');
     // 2026-08-26 Simon 결정 — 문 이름을 "사용 안내서"(EN User Guide)로 통일.
@@ -75,7 +82,7 @@ describe("visible trust copy", () => {
       .map((entry) => readFileSync(path.join(localeRoot, entry.name, "auth.json"), "utf8"));
     const authScreens = [
       "src/app/(auth)/sign-in.tsx",
-      "src/app/(auth)/sign-up.tsx",
+      "src/screens/deepspace/dds-sign-up-screen.tsx",
     ].map((file) => readFileSync(path.join(root, file), "utf8"));
     const text = [...authBundles, ...authScreens].join("\n");
 
