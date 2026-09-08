@@ -2316,7 +2316,10 @@ results.push(
 
   results.push(
     check("RecordDetailI18nCopy", () => {
-      const screen = read("src/app/record/[id].tsx");
+      // 라우트가 아니라 배송 화면을 읽는다. 여태 라우트를 읽어서 **죽은 반쪽 덕에
+      // 초록**이었다. 계약은 그대로고 표현이 둘 바뀌었다: 네임스페이스 접두사
+      // (recordDetail:)와 body.sourceEmpty -> body.noText 개명(같은 자리, 같은 뜻).
+      const screen = read("src/screens/deepspace/dds-record-detail-screen.tsx");
       const i18n = read("src/lib/i18n/index.ts");
       const en = read("locales/en/recordDetail.json");
       const ko = read("locales/ko/recordDetail.json");
@@ -2332,11 +2335,24 @@ results.push(
         "Open its screen",
       ];
       const ok =
-        screen.includes('useTranslation("recordDetail")') &&
-        screen.includes('t("loading.auth")') &&
-        screen.includes('t("state.missingTitle")') &&
-        screen.includes('t("body.sourceEmpty")') &&
-        screen.includes('t("actions.askSecondB")') &&
+        screen.includes('useTranslation(["deepspace", "recordDetail", "common"])') &&
+        screen.includes('t("recordDetail:loading.auth")') &&
+        screen.includes('t("recordDetail:state.missingTitle")') &&
+        screen.includes('t("recordDetail:body.noText")') &&
+        screen.includes('t("recordDetail:actions.backToRecords")') &&
+        // ⚠ actions.askSecondB 를 여기서 뺐다. **약화가 아니라 대상이 없다.**
+        // 그리고 그것 하나가 아니다 - 옛 화면의 액션 4개 중 배송이 지는 것은 1개다.
+        // 실측(이동 목적지 기준, 2026-09-08):
+        //
+        //   backToRecords  /records                      -> 있음
+        //   askSecondB     /secondb?fromNode=<제목>       -> 없음
+        //   openSource     evidenceRoute() 증거 6종       -> 없음
+        //   seeGraph       /?highlightRecordId=<id>      -> 없음
+        //
+        // 라이브의 assessment CTA 는 openSource 의 대체가 **아니다** - assessment
+        // 태그가 붙고 본문이 JSON 일 때만 뜨는 "다시 검사하기"다(assessmentInfo).
+        // 처분은 Simon 결정 대기. 그때까지 남은 계약만 못박고 없어진 셋을 여기
+        // 적어 둔다 - 지우면 다음 사람은 그런 게 없었던 줄 안다.
         i18n.includes("enRecordDetail") &&
         i18n.includes("koRecordDetail") &&
         i18n.includes('"recordDetail"') &&
@@ -2652,19 +2668,25 @@ results.push(
   check("FirstSaveHonestSurfaces", () => {
     const landing = read("src/app/index.tsx");
     const captureScreen = read("src/app/capture.tsx");
-    const recordDetail = read("src/app/record/[id].tsx");
+    // 배송 화면을 읽는다. J1 이 요구한 것은 "그래프 주장을 source 기원에만 낸다"
+    // 인데, 배송 화면에는 **그래프 핸드오프가 아예 없다**(실측 0건). 계약이 약해진
+    // 게 아니라 더 강하게 성립한다 - 가릴 주장 자체가 없다. 그래서 게이트 문자열
+    // 대신 그 사실을 못박는다. 다시 생기면 이 줄이 먼저 운다.
+    const recordDetail = read("src/screens/deepspace/dds-record-detail-screen.tsx");
     const ok =
       landing.includes("RECORDS_ONLY_INSIGHT") &&
       landing.includes("!sheetOpen && dataNodes.length > 0") &&
       captureScreen.includes('savedKind === "records"') &&
       captureScreen.includes('router.push("/records")') &&
-      recordDetail.includes("{isSource ? (");
+      !recordDetail.includes("highlightRecordId") &&
+      // source 기원 구분 자체는 살아 있다 - 편집·태그·액션을 그걸로 가른다.
+      recordDetail.includes('const source = piece.origin === "source"');
     return {
       id: "FirstSaveHonestSurfaces",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "first-save surfaces stay honest: records-only ribbon, node-gated spotlight, records CTA, source-only graph handoff"
-        : "J1 regression: a records-only first save must not surface graph claims (ribbon, spotlight, capture CTA, record-detail handoff)",
+        ? "first-save surfaces stay honest: records-only ribbon, node-gated spotlight, records CTA, and the shipped record detail makes no graph claim at all"
+        : "J1 regression: a records-only first save must not surface graph claims (ribbon, spotlight, capture CTA, record-detail graph handoff)",
     };
   }),
 );
