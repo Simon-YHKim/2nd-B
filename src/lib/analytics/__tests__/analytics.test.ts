@@ -102,6 +102,22 @@ describe("analytics — no-op when no keys configured", () => {
     );
   });
 
+  test("which vendor packages are declared - the disable comment's premise", () => {
+    // `src/app/_layout.tsx` 의 "되살리지 않는다" 주석이 **왜** 되살리면 안 되는지를
+    // 적는다. 2026-09-08 이전 그 근거는 *"의존성까지 지웠으므로 선언되지 않은
+    // 패키지를 require 하게 된다"* 였는데, **경고가 다루는 네이티브 쪽에 대해
+    // 틀렸다** - `d0e88e64` 가 지운 것은 웹 패키지이고 네이티브 쪽은 선언돼 있다.
+    //
+    // 그 두 사실을 못박는다. 바뀌면 주석을 다시 봐야 한다 - **주석은 스스로
+    // 낡았다고 말하지 못한다.** 되살리기를 실제로 막는 것은 바로 위 검사다.
+    const pkg = JSON.parse(readFileSync(resolve(process.cwd(), "package.json"), "utf8")) as {
+      dependencies?: Record<string, string>;
+    };
+    const deps = Object.keys(pkg.dependencies ?? {});
+    expect(deps).toContain("@sentry/react-native");
+    expect(deps).not.toContain("@sentry/browser");
+  });
+
   test.each([false, true])(
     "configured crash-reporting credentials remain inert when analytics consent is %s",
     async (analyticsConsent) => {
