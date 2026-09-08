@@ -883,7 +883,9 @@ results.push(
     // 이 role·state·label 을 지고 간다.
     const filterChip = read("src/screens/deepspace/dds-wiki-records-screens.tsx");
     const dataScreen = read("src/screens/deepspace/dds-data-screen.tsx");
-    const data = read("src/app/data.tsx");
+    // /data 의 a11y·카피는 배송 화면이 아니라 그 **내용 모듈**에 있다. 화면은
+    // DATA_RIGHTS 를 훑어 그리고, 각 권리가 자기 키를 데이터로 들고 있다.
+    const dataContent = read("src/screens/deepspace/dds-data-content.ts");
     const settings = read("src/app/settings.tsx");
     const premiumSurfaces = read("src/components/premium/surfaces.tsx");
     const tierIcon = read("src/components/art/TierIcon.tsx");
@@ -1155,7 +1157,9 @@ results.push(
       accountDelete.includes("accessibilityLabel={ko ? \"삭제 확인 입력\" : \"Deletion confirmation\"}") &&
       accountDelete.includes("accessibilityLabel={ko ? \"계정 영구 삭제\" : \"Delete account permanently\"}") &&
       // /data: 액션마다 라벨·힌트·역할을 데이터에서 키로 건다(리터럴 셋보다 넓다)
-      data.includes('accessibilityHint={t("import.accessibilityHint")}') &&
+      // 힌트가 JSX 속성에서 데이터 필드로 옮겨갔다. 화면은 그 필드를 t() 에 넣는다.
+      dataContent.includes('actionHintKey: "data:import.accessibilityHint"') &&
+      dataScreen.includes("t(item.actionHintKey)") &&
       dataScreen.includes("accessibilityLabel={t(item.actionLabelKey)}") &&
       dataScreen.includes("accessibilityHint={t(item.actionHintKey)}") &&
       dataScreen.includes('accessibilityRole="link"') &&
@@ -1741,7 +1745,10 @@ results.push(
 
 results.push(
   check("DataI18nCopy", () => {
-    const data = read("src/app/data.tsx");
+    // 라우트가 아니라 배송 화면과 그 내용 모듈을 읽는다. 카피가 JSX 안 t() 에서
+    // **데이터 구조의 키 필드**로 옮겨갔다(profile 과 같은 모양).
+    const data = read("src/screens/deepspace/dds-data-content.ts");
+    const dataScreen = read("src/screens/deepspace/dds-data-screen.tsx");
     const i18n = read("src/lib/i18n/index.ts");
     const en = read("locales/en/data.json");
     const ko = read("locales/ko/data.json");
@@ -1759,12 +1766,22 @@ results.push(
       "내 조각 데이터",
     ];
     const ok =
-      data.includes('useTranslation("data")') &&
-      data.includes('t("hero.title")') &&
-      data.includes('t("import.body")') &&
-      data.includes('t("export.body")') &&
-      data.includes('t("delete.body")') &&
-      data.includes('t("device.body")') &&
+      dataScreen.includes('useTranslation(["data", "common", "deepspace", "consent", "iden"])') &&
+      data.includes('heroTitleKey: "data:hero.title"') &&
+      data.includes('bodyKey: "data:import.body"') &&
+      data.includes('bodyKey: "data:delete.body"') &&
+      // ⚠ 내보내기 카피의 **출처가 바뀌었다** — data: 에서 consent: 로. 계정
+      // 내보내기 권리가 /account 의 도구를 가리키게 되면서 그쪽 번들의 문구를 쓴다.
+      // 같은 말을 두 번 적지 않게 된 것이라 약화가 아니다.
+      data.includes('bodyKey: "consent:account.export.body"') &&
+      // ⚠ t("device.body") 를 여기서 뺐다. **약화가 아니라 대상이 없다.**
+      // 레거시 /data 에는 액션이 아닌 고지 한 칸이 더 있었다 — "화면 설정·첫 사용
+      // 안내는 이 기기에만 저장되고, 저장한 기록과 달리 기기를 바꾸거나 앱 데이터를
+      // 지우면 초기화된다"(data.json 의 device.eyebrow/body). 배송 화면의
+      // DATA_RIGHTS 는 넷(가져오기·내보내기·IDEN·삭제)이고 그 고지는 **없다**
+      // (실측: 배송 코드에 device 언급 0건). 로케일 키는 번들에 남아 있다.
+      // 권리가 아니라 **투명성 문구**라 되살릴지는 제품/법률 판단이다 — Simon 결정 대기.
+      // 그때까지 사라졌다는 사실을 여기 적어 둔다.
       i18n.includes("enData") &&
       i18n.includes("koData") &&
       i18n.includes('"data"') &&
@@ -1772,7 +1789,7 @@ results.push(
       i18n.includes("data: koData") &&
       en.includes("Move and manage your records") &&
       ko.includes("기록 옮기기·정리하기") &&
-      forbiddenScreenCopy.every((term) => !data.includes(term)) &&
+      forbiddenScreenCopy.every((term) => !data.includes(term) && !dataScreen.includes(term)) &&
       forbiddenBundleCopy.every((term) => !en.includes(term) && !ko.includes(term));
     return {
       id: "DataI18nCopy",

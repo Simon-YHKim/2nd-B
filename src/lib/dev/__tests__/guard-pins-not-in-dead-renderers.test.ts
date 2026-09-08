@@ -57,7 +57,9 @@ const RATCHET_BASELINE: Readonly<Record<string, number>> = {
   "src/app/record/[id].tsx": 0,
   "src/app/inbox.tsx": 8,
   "src/app/manual.tsx": 7,
-  "src/app/data.tsx": 6,
+  // 0 = 라우트는 아직 죽은 반쪽을 품고 있지만 검사가 더는 그쪽을 안 읽는다.
+  // 은퇴하면 이 줄을 지운다 - 그건 [대상이 나갔다] 양동이다.
+  "src/app/data.tsx": 0,
   "src/app/privacy.tsx": 2,
 };
 
