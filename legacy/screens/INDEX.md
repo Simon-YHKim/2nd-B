@@ -39,6 +39,7 @@ Simon 의 요구는 *"나중에 내가 지정해서 확인하라고 하면 할 �
 | `records.tsx` | `src/app/records.tsx` | 별가루 목록의 레거시 렌더러 + 스타일. 게이트는 위임 |
 | `review.tsx` | `src/app/review.tsx` | 제안 확인 화면의 레거시 렌더러 + 스타일. ⚠ 이 스킨을 **이름으로 검사하던 스위트 셋**이 아카이브를 따라왔다(`seven-ratify-path`·`session01-copy`·`star-name-key`) |
 | `sign-up.tsx` | `src/app/(auth)/sign-up.tsx` | 가입 화면의 레거시 렌더러 + ChecklistItem + 스타일. ⚠ **동명 그림자 사본 주의** — 라우트는 `dds-sign-up-screen` 을 쓰고 `dds-auth-screens` 에도 같은 이름이 있다. 바이트 핀 둘이 아카이브를 따라왔다 |
+| `profile.tsx` | `src/app/profile.tsx` | 프로필 허브의 레거시 렌더러 + 스타일 25키. 게이트는 위임. ⚠ 이 렌더러 안에 `isDeepSpaceUI()` 분기가 둘 더 있었다(죽은 렌더러 안의 죽은 가지) — 정리하지 않고 그대로 옮겼다. 바이트 핀과 허브 칩 검사가 아카이브를 따라왔다 |
 
 ## 옮길 때 같이 한 일
 

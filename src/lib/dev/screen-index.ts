@@ -497,7 +497,16 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
     screens: [
       { file: "settings", href: "/settings", label: "설정", auth: true },
       { file: "account", href: "/account", label: "계정", auth: true },
-      { file: "profile", href: "/profile", label: "프로필", auth: true },
+      // 게이트가 라우트에서 화면으로 모였다.
+      {
+        file: "profile",
+        href: "/profile",
+        label: "프로필",
+        auth: {
+          gateFile: "src/screens/deepspace/dds-profile-screen.tsx",
+          component: "DeepSpaceProfileScreen",
+        },
+      },
       { file: "profile-details", href: "/profile-details", label: "내 생활 정보", auth: true },
       {
         file: "change-password",

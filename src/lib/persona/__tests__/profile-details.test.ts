@@ -142,7 +142,11 @@ describe("화면 배선", () => {
   const ROOT2 = join(__dirname, "..", "..", "..", "..");
   const screen = readFileSync(join(ROOT2, "src", "app", "profile-details.tsx"), "utf8");
   const loader = readFileSync(join(ROOT2, "src", "lib", "persona", "load-profile-star.ts"), "utf8");
-  const menu = readFileSync(join(ROOT2, "src", "app", "profile.tsx"), "utf8");
+  // 허브 메뉴는 배송 화면이 그린다 — 라우트는 13줄 래퍼가 됐다(2026-09-08).
+  const menu = readFileSync(
+    join(ROOT2, "src", "screens", "deepspace", "dds-profile-screen.tsx"),
+    "utf8",
+  );
 
   it("모든 항목이 화면에 렌더된다", () => {
     // 계약에만 있고 화면에 없는 칸은 사용자가 채울 수 없다.
@@ -167,6 +171,7 @@ describe("화면 배선", () => {
 
   it("화면으로 가는 진입점이 있다", () => {
     // 만들어 놓고 안 이으면 이번 라운드에서 고친 그 문제를 다시 만드는 것이다.
+    // 허브는 배송 화면이 그린다. 라우트 파일은 13줄 래퍼가 됐다(2026-09-08).
     expect(menu).toContain('route: "/profile-details"');
   });
 });

@@ -11,6 +11,9 @@ import {
 
 const ROOT = join(__dirname, "..", "..", "..", "..");
 const ROUTE = join(ROOT, "src", "app", "profile.tsx");
+// ProfileLegacy 는 2026-09-08 에 아카이브로 나갔다. 아래 바이트 핀은 지우지 않고
+// 대상만 옮긴다 — 같은 마커·같은 해시·다른 파일이면 옮기면서 안 고쳤다는 증거다.
+const LEGACY = join(ROOT, "legacy", "screens", "profile.tsx");
 const SCREEN = join(ROOT, "src", "screens", "deepspace", "dds-profile-screen.tsx");
 const IDENTITY = join(ROOT, "src", "screens", "deepspace", "dds-profile-identity.ts");
 const PIXEL_RULES = join(ROOT, "scripts", "check-pixel-rules.ts");
@@ -22,14 +25,19 @@ function read(path: string): string {
 describe("PIXEL-CLAY /profile contract", () => {
   test("delegates only the gated renderer and leaves the legacy renderer body unchanged", () => {
     const route = read(ROUTE);
+    const legacyArchive = read(LEGACY);
     expect(route).toContain("import { DeepSpaceProfileScreen }");
-    expect(route).toContain("if (isDeepSpaceUI()) return <DeepSpaceProfileScreen />");
-    expect(route).toContain("return <ProfileLegacy />");
+    // 폴백이 사라졌다 — 라우트는 배송 화면 하나만 그린다.
+    expect(route).toContain("return <DeepSpaceProfileScreen />;");
+    expect(route).not.toContain("ProfileLegacy");
+    expect(route).not.toContain("isDeepSpaceUI");
 
     const marker = "function ProfileLegacy() {";
-    const legacyStart = route.indexOf(marker);
+    const legacyStart = legacyArchive.indexOf(marker);
     expect(legacyStart).toBeGreaterThan(-1);
-    expect(createHash("sha256").update(route.slice(legacyStart + marker.length)).digest("hex")).toBe(
+    expect(
+      createHash("sha256").update(legacyArchive.slice(legacyStart + marker.length)).digest("hex"),
+    ).toBe(
       "914e93c5f180bed953ae000516427e3faa70a5b5e17971e851c2e214e777af87",
     );
   });
