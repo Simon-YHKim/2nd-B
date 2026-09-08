@@ -32,7 +32,8 @@ const SCREENS = [
   ['21-northstar', '/northstar', 'src/app/northstar.tsx'],
   ['22-ratify', '/ratifications', 'src/app/ratifications.tsx'],
   ['23-iden', '/iden', 'src/app/iden.tsx'],
-  ['24-ops', '/ops', 'src/app/ops.tsx'],
+  // 라우트는 12줄 래퍼가 됐다. 화면은 여기다.
+  ['24-ops', '/ops', 'src/screens/deepspace/dds-ops-screen.tsx'],
   ['25-focus', '/focus', 'src/app/focus.tsx'],
   ['26-reminders', '/reminders', 'src/app/reminders.tsx'],
   ['27-inbox', '/inbox', 'src/app/inbox.tsx'],
