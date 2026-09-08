@@ -145,6 +145,8 @@ const ANCHORS: Anchor[] = [
     why: "엔진이 호출부와 **독립적으로** 게이트를 다시 본다는 주장의 근거. 493행이 '통제가 어느 한 화면에 기대지 않는다'고 말하는 근거가 이 한 줄이다 - 화면 잠금이 사라져도 스냅샷이 LLM 에 안 간다." },
   { cite: "src/screens/deepspace/dds-ops-screen.tsx:588-595", symbol: "recommendationsAllowed",
     why: "미성년 추천 잠금이 **배송되는 화면에서** 실제로 불리는 자리. ⚠ 원래 `src/app/ops.tsx:111` 을 가리켰는데 그 줄은 `OpsLegacy` 안이었고, 그 렌더러는 2026-09-08 에 `legacy/screens/ops.tsx` 로 나갔다 (그 전에는 `ops.tsx:501` 이 deep-space 일 때 위임해서 **어떤 배포도 그리지 않았다**). 잠금은 실재하는데 좌표가 죽어 있었다 - 회차 60(/data)·61(/audit) 과 같은 부류의 세 번째다." },
+  { cite: "src/screens/deepspace/DeepSpaceDesignScreens.tsx:2792", symbol: "recommendationsAllowed(isMinor",
+    why: "같은 잠금의 **두 번째 배송 호출부**. 493행이 호출부를 둘 이름 부르는데 이쪽만 앵커가 없었다. ⚠ 문서는 `:2786` 을 인용했고 그 줄은 **빈 줄**이다 - 여섯 줄 위. 회차 68 이 '인용이 아무것도 아닌 줄에 앉아 있다' 를 전수로 재서 찾았다(365건 중 이 한 건)." },
   { cite: `${D}:66-78`, symbol: "userIdFromJwt",
     why: "지울 계정을 클라이언트가 못 고른다는 IDOR 주장의 근거." },
   { cite: "src/lib/analytics/index.ts:245-252", symbol: "isMinor === false",
