@@ -104,12 +104,33 @@ export function componentSpan(
   return null;
 }
 
-/** `src/app` 의 라우트 파일들이 그 이름을 그 경로에서 직접 import 하는가. */
+/** `src/app` 의 라우트 파일들이 그 이름을 그 경로에서 **코드로** import 하는가.
+ *
+ *  ⚠ 주석을 걷어내고 본다. 안 걷으면 **이름을 적는 것만으로 도달성 증거가 된다** -
+ *  라우트 파일에 `// DeepSpaceOpsScreen } from "@/screens/…"` 같은 설명 한 줄이
+ *  있으면 그 컴포넌트가 배송되는 것으로 세어진다.
+ *
+ *  실측하고 넣었다(2026-09-08): 오늘 그런 주석은 **0건**이다. 즉 이 함수는
+ *  **운으로** 맞고 있었고 구조로 맞고 있던 게 아니다. `exportedComponents` 쪽은
+ *  `^export function` 을 요구해서 `//` 줄이 애초에 못 맞지만, 이쪽은 문자열
+ *  포함이라 아무 줄이나 맞는다. 둘의 안전 근거가 다르다.
+ *
+ *  ttl-work-b6 가 같은 함정을 **두 번** 밟고 알려줬다 - 자기 모듈의 주석이,
+ *  그다음엔 자기 검사의 설명이 각각 사용 증거로 읽혔다. 검사에 문서를 쓸수록
+ *  그 문서가 증거 자격을 얻는다. */
 function routeImports(component: string, rel: string, root: string): boolean {
   const mod = rel.replace(/^src\//, "@/").replace(/\.tsx?$/, "");
   const needle = `${component} } from "${mod}"`;
   return sourceFiles(path.join(root, "src", "app"), root).some(r =>
-    fs.readFileSync(path.join(root, r), "utf8").includes(needle),
+    fs
+      .readFileSync(path.join(root, r), "utf8")
+      .split("\n")
+      .filter(l => {
+        const t = l.trim();
+        return !t.startsWith("//") && !t.startsWith("*") && !t.startsWith("/*");
+      })
+      .join("\n")
+      .includes(needle),
   );
 }
 
