@@ -46,7 +46,9 @@ const ROOT = process.cwd();
 // (?screener=1 이 스킨 검사보다 먼저 와서 그 렌더러는 배송되는 앱에서 닿는다).
 // ⚠ 그 판정은 모듈이 처음부터 더 엄격해서 생긴 게 아니다 - 회차 61 이 audit 을
 // 죽었다고 오판해 진짜 안전 수정을 되돌린 뒤, 그 대가로 붙인 조건이다.
-// 그 다음 /account 은퇴로 7건이 함께 나가 103 이 됐다.
+// 그 다음 /account 은퇴로 7건이 함께 나가 103 이 됐고, records·review 은퇴로 5건이
+// 더 나가 98 이 됐다. **전부 대상이 나간 것이지 고친 것이 아니다** — 이제 그 구분을
+// 검사가 직접 말한다(감소가 어느 양동이인지).
 const RATCHET_BASELINE: Readonly<Record<string, number>> = {
   "src/app/wiki.tsx": 29,
   "src/app/(auth)/sign-in.tsx": 24,
@@ -56,8 +58,6 @@ const RATCHET_BASELINE: Readonly<Record<string, number>> = {
   "src/app/manual.tsx": 7,
   "src/app/data.tsx": 6,
   "src/app/record/[id].tsx": 4,
-  "src/app/records.tsx": 3,
-  "src/app/review.tsx": 2,
   "src/app/privacy.tsx": 2,
 };
 

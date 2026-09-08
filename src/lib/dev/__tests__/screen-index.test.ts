@@ -71,6 +71,10 @@ const EXPECTED_DELEGATED_AUTH: Record<string, DelegatedAuthFixture> = {
     gateFile: "src/screens/deepspace/dds-ops-screen.tsx",
     component: "DeepSpaceOpsScreen",
   },
+  records: {
+    gateFile: "src/screens/deepspace/dds-wiki-records-screens.tsx",
+    component: "DeepSpaceRecordsScreen",
+  },
   research: {
     gateFile: "src/screens/deepspace/DeepSpaceDesignScreens.tsx",
     component: "DeepSpaceResearchScreen",

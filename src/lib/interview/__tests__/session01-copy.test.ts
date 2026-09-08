@@ -92,6 +92,8 @@ describe("④ 거절 철회 + 거울 카피", () => {
     // carry — nothing applied, nothing recorded — is unchanged. review.tsx below is
     // the legacy screen and still carries the older wording.
     expect(ko.reviewLeftAsIs).toContain("기록에 남기지 않았어요");
-    expect(read("src/app/review.tsx")).toContain("기록에 남지 않습니다");
+    // 레거시 렌더러가 아카이브로 나갔다. 라이브 쪽 같은 문구는 아래 딥스페이스
+      // 항목이 지고, 여기서는 보관본이 그 문구를 유지하는지를 본다.
+      expect(read("legacy/screens/review.tsx")).toContain("기록에 남지 않습니다");
   });
 });
