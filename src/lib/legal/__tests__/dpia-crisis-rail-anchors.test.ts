@@ -158,8 +158,12 @@ const ANCHORS: Anchor[] = [
     why: "C-AUDIT 의 '위조 불가 RPC' 주장이 서는 **한 줄**. user_id 를 클라이언트가 못 보내고 서버가 찍는다는 것이 위조 불가의 전부다. 함수 이름이 아니라 이 호출을 잡는 이유다." },
   { cite: "src/lib/records/delete-bulk.ts:262", symbol: "requestAccountDeletion",
     why: "C-DEL 의 종국적 삭제 진입점. ⚠ 문서는 `:178-185` 를 가리켰는데 그것은 이 함수를 **언급하는 주석**이다 - 통제 전체의 무게를 그 인용이 지고 있었다. 회차 68 의 '내용 있는 줄' 검사로는 안 잡힌다(주석도 내용이다). 심볼 앵커만이 본다." },
-  { cite: "src/screens/deepspace/DeepSpaceDesignScreens.tsx:2792", symbol: "recommendationsAllowed(isMinor",
-    why: "같은 잠금의 **두 번째 배송 호출부**. 493행이 호출부를 둘 이름 부르는데 이쪽만 앵커가 없었다. ⚠ 문서는 `:2786` 을 인용했고 그 줄은 **빈 줄**이다 - 여섯 줄 위. 회차 68 이 '인용이 아무것도 아닌 줄에 앉아 있다' 를 전수로 재서 찾았다(365건 중 이 한 건)." },
+  // ⚠ 회차 68 이 여기에 `DeepSpaceDesignScreens.tsx:2792` 앵커를 넣었다 - 빈 줄을
+  //   가리키던 인용을 실제 호출 줄로 옮긴 것이고, 그 자체는 맞았다.
+  //   그런데 **그 파일이 이미 그림자였다** - `DeepSpaceOpsScreen` 의 두 번째 사본이고
+  //   라우트는 `dds-ops-screen.tsx` 쪽을 import 한다. 회차 68 은 "줄이 비었나" 를
+  //   물었고, "이 파일이 배송되나" 는 물지 않았다. 앞 질문은 답을 얻었고 뒤 질문은
+  //   던져진 적이 없다 - `shadow-screens.test.ts` 가 그 질문을 맡는다.
   { cite: `${D}:66-78`, symbol: "userIdFromJwt",
     why: "지울 계정을 클라이언트가 못 고른다는 IDOR 주장의 근거." },
   { cite: "src/lib/analytics/index.ts:245-252", symbol: "isMinor === false",
@@ -186,7 +190,7 @@ const ANCHORS: Anchor[] = [
     why: "⚠ 회차 57 이 이 키를 '더 이상 존재하지 않는다'고 적었다가 58 에서 정정한 자리. 클라이언트 키 목록에서는 가지쳐졌지만 **서버 트리거는 여전히 쓴다** - 읽을 때 버려질 뿐이다. 둘은 구분되는 상태다." },
   { cite: "src/lib/auth/consent-selections.ts:20-21", symbol: "sensitiveData",
     why: "PIPA §23 별도 동의가 실제로 별개 항목으로 수집된다는 주장. 서비스 동의에 묻어 가지 않는다는 것이 주장의 내용이다." },
-  { cite: "src/lib/supabase/consent.ts:124-126", symbol: "sensitive_data_ack",
+  { cite: "src/lib/supabase/consent.ts:132-134", symbol: "sensitive_data_ack",
     why: "동의 ack 셋이 **실제로 원장 행에 실리는** 자리. 일곱 자리가 '수집·기록된다'로 고쳐졌고, 그 주장이 서는 곳이 여기다. 주석이 아니라 쓰기다." },
   { cite: "src/lib/supabase/consent.ts:14-21", symbol: "WIRED at sign-up", evidence: "comment",
     why: "동의 기록이 UI 수집 **뒤에** 쓰인다는 불변식의 기록. 문서가 이 주석을 'still read null (stale)' 이라고 인용했었다." },
