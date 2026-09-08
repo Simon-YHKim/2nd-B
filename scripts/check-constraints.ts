@@ -469,7 +469,17 @@ results.push(
       "classifier",
       "[[",
     ];
-    const manualJargonGone = manualForbiddenUserTerms.every((term) => !manual.includes(term)) && !/\bAI\b/.test(manual);
+    // 금지는 **사용자가 읽는 곳**에서 의미를 갖는다. 라우트가 아니라 배송 안내서
+    // 화면 · 그 내용 모듈 · 그 번들을 합쳐서 본다(2026-09-08 에 문구가 번들로 갔다).
+    const manualSurface = [
+      read("src/screens/deepspace/dds-manual-screen.tsx"),
+      read("src/screens/deepspace/dds-manual-content.ts"),
+      read("locales/en/manual.json"),
+      read("locales/ko/manual.json"),
+    ].join("\n");
+    const manualJargonGone =
+      manualForbiddenUserTerms.every((term) => !manualSurface.includes(term)) &&
+      !/\bAI\b/.test(manualSurface);
     const ok =
       exists("locales/en/common.json") &&
       exists("locales/ko/common.json") &&
@@ -826,7 +836,7 @@ results.push(
     const attachment = read("src/app/attachment.tsx");
     const inbox = read("src/app/inbox.tsx");
     const wiki = read("src/app/wiki.tsx");
-    const manual = read("src/app/manual.tsx");
+    const manualScreen = read("src/screens/deepspace/dds-manual-screen.tsx");
     // /records 의 a11y 도 배송 화면에 있다. 레거시는 필터·재시도·나가기 힌트를
     // 인라인 리터럴로 박았고, 라이브는 공용 FilterChip(role=button + selected +
     // label)과 조합 라벨로 같은 일을 한다.
@@ -986,14 +996,24 @@ results.push(
       capture.includes('t("ocrReview.privateAfterApprove")') &&
       capture.includes('accessibilityRole="image"') &&
       capture.includes('accessibilityLabel={t("feedback.accessibilityLabel")}') &&
-      manual.includes("Manual language: switch to English") &&
-      manual.includes("Manual language: switch to Korean") &&
-      // These a11y hints moved to the `manual` locale namespace (QA #1 t()
-      // conversion) — assert the t() calls, mirroring capture.tsx's migration.
-      manual.includes('t("leavePieceHint")') &&
-      manual.includes('t("getStartedHint")') &&
-      manual.includes('t("permissionsHint")') &&
-      manual.includes("Opens the curated research library.") &&
+      // ⚠ /manual 의 a11y 핀 여섯을 여기서 뺐다. 실측으로 갈라 적는다 —
+      // 하나로 뭉치면 손실이 아닌 것까지 손실로 세게 된다.
+      //
+      // [손실 아님] 안내서 안의 en/ko 2택 언어 토글
+      //   /settings 에 AVAILABLE_UI_LOCALES 다섯을 모두 고르는 완전한 선택기가 있다
+      //   (settings.tsx:984-1005). 좁은 컨트롤이 넓은 것 옆에서 빠진 것이다.
+      //
+      // [사라졌다 - 목적지는 살아 있다] 안내서가 걸던 링크 넷
+      //   담기(leavePieceHint) · 가입(getStartedHint) · 권한 안내(permissionsHint) ·
+      //   연구 자료실(curated research library). 네 라우트 모두 존재하는데 배송
+      //   안내서가 안 가리킨다. 배송 안내서의 목적지는 여덟이고 다른 집합이다
+      //   (대시보드 · 밝기 · 기록 · 검토 · 프라이버시 · IDEN · 계정 내보내기 · 지원).
+      //   되살릴지는 제품 판단이라 Simon 결정 대기. 그때까지 사라졌다는 사실을 적는다.
+      //
+      // 배송 안내서의 a11y 는 자기 계약을 따로 진다 — 검색 입력에 라벨이 있고
+      // 펼침 상태를 알린다. 그쪽을 못박는다.
+      manualScreen.includes("accessibilityLabel={copy.searchLabel}") &&
+      manualScreen.includes("accessibilityState={{ expanded }}") &&
       wiki.includes('t("opensCaptureStore")') &&
       wiki.includes('t("leavePieceHint")') &&
       wiki.includes('t("capturePieceHint")') &&
@@ -2562,7 +2582,12 @@ results.push(
 results.push(
   check("OldGuidanceCopyResidue", () => {
     const readme = read("README.md");
-    const manual = read("src/app/manual.tsx");
+    // 배송 안내서의 문구는 번들에 있다. 라우트가 아니라 그쪽을 읽는다.
+    const manual = [
+      read("locales/en/manual.json"),
+      read("locales/ko/manual.json"),
+      read("src/screens/deepspace/dds-manual-screen.tsx"),
+    ].join("\n");
     const settings = read("src/app/settings.tsx");
     const forbiddenReadme = ["**Advisor**", "Toggle-mode guidance"];
     const forbiddenManual = [
@@ -2574,9 +2599,12 @@ results.push(
     const ok =
       readme.includes("**SecondB chat**") &&
       readme.includes("grounded in saved records and validated frameworks") &&
-      manual.includes("ask SecondB for a reflection") &&
-      manual.includes("sources SecondB cites") &&
-      manual.includes("세컨비의 되묻기") &&
+      // 계약은 "안내서가 세컨비의 근거를 설명한다" 이고 그건 살아 있다 — 표현만
+      // 바뀌었다. 옛 문구("ask SecondB for a reflection" · "sources SecondB cites" ·
+      // "세컨비의 되묻기")를 그대로 찾으면 **말이 바뀐 것을 계약이 깨진 것으로** 읽는다.
+      manual.includes("SecondB reads that original material when it answers") &&
+      manual.includes("세컨비는 북극성 요약이 아니라 그 원문을 읽습니다") &&
+      manual.includes("Ask SecondB in your own words") &&
       read("locales/en/settings.json").includes("Adjust your app settings") &&
       read("locales/ko/settings.json").includes("앱 설정을 바꿀 수 있어요") &&
       forbiddenReadme.every((term) => !readme.includes(term)) &&

@@ -35,7 +35,7 @@
       },
       "ratify": {
         "question": "When does a suggestion change my profile?",
-        "answer": "Never by itself. AI output remains a proposal until you ratify it. Only a proposal you confirm can be applied to your model or open L5."
+        "answer": "Never by itself. What SecondB suggests remains a proposal until you ratify it. Only a proposal you confirm can be applied to your model or open L5."
       },
       "data": {
         "question": "Where do privacy, safety, and exports live?",

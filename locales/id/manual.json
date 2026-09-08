@@ -35,7 +35,7 @@
       },
       "ratify": {
         "question": "Kapan sebuah saran mengubah profilku?",
-        "answer": "Tidak pernah dengan sendirinya. Keluaran AI tetap berupa usulan sampai kamu menyetujuinya. Hanya usulan yang kamu setujui yang bisa diterapkan ke modelmu atau membuka L5."
+        "answer": "Tidak pernah dengan sendirinya. Apa yang diusulkan SecondB tetap berupa usulan sampai kamu menyetujuinya. Hanya usulan yang kamu setujui yang bisa diterapkan ke modelmu atau membuka L5."
       },
       "data": {
         "question": "Di mana privasi, keamanan, dan ekspor berada?",
