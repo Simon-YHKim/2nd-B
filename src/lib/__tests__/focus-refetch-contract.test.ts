@@ -188,10 +188,21 @@ describe("core-loop focus refetch contract", () => {
     expect(evidenceRefreshEffect).not.toMatch(/\.(?:insert|update|upsert|delete)\(/);
   });
 
-  it("keeps Home data-node identity stabilization in the refetch path", () => {
-    const source = read("src/app/index.tsx");
+  it("refreshes the shipped Home when focus returns", () => {
+    // ⚠ 여기 있던 두 핀은 **배송 안 되는 반쪽**을 보고 있었다
+    // (src/app/index.tsx 의 GraphScreen, :244-802). 어느 빌드도 안 그린다.
+    //
+    // 지키려던 성질은 살아 있다 — 인터뷰를 마치고 돌아오면 방금 판 자리가 하늘에
+    // 떠야 한다. 배송 홈이 그걸 useFocusEffect 로 직접 한다(DeepSpaceShell.tsx).
+    // 다만 **재료가 다르다**: 옛 홈은 노드 그래프를 그려서 dataNodes 의 신원을
+    // 안정화해야 했고(retainStableDataNodes), 배송 홈은 별 밝기를 읽는다.
+    // 그래서 dataNodes 는 **약해진 게 아니라 대상이 없다**(실측 0건).
+    const shell = read("src/components/deep-space/DeepSpaceShell.tsx");
 
-    expect(source).toContain("retainStableDataNodes(dataNodesRef.current, nextDataNodes)");
-    expect(source).toContain("useFocusRefetch(() => setGraphReloadKey((k) => k + 1), Boolean(userId))");
+    expect(shell).toContain("useFocusEffect(");
+    expect(shell).toContain("setRefreshTick((n) => n + 1)");
+    // 그 tick 이 실제로 다시 읽는 데 쓰여야 한다 - 올려두고 아무도 안 보면 무의미하다.
+    expect(shell).toContain("[loading, userId, refreshTick]");
+    expect(shell).not.toContain("dataNodes");
   });
 });
