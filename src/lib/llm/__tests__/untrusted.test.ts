@@ -81,9 +81,16 @@ const FENCED_SURFACES = [
   "src/lib/wiki/classify-clipper.ts", // clipper_classify: clipped body
   "src/lib/wiki/propose-template.ts", // clipper_template_propose: clipped body
   "src/lib/interview/probe.ts", // interview_probe: Q/A transcript
-  "src/app/import.tsx", // import_ingest caller: pasted material
   "src/app/reasoning.tsx", // reasoning_connect: record/source texts
 ];
+
+// ⚠ `src/app/import.tsx` 가 여기 있었다. 뺀 이유는 fence 를 약화해서가 아니라
+// **그 호출자가 배송되는 앱에 없기 때문**이다(실측 2026-09-08): 붙여넣기 →
+// AI 분류(`import_ingest`) 경로는 레거시 렌더러에만 있었고, 라이브 /import 는
+// 파일 업로드 + 계정 연결뿐이다. 레거시가 legacy/screens/import.tsx 로 나가면서
+// `@/lib/wiki/import-external` 의 소비자가 0 이 됐다 — 그래서 이 줄은 실제 표면이
+// 아니라 은퇴한 표면을 지키고 있었다. 프롬프트 쪽 fence 는 위의
+// import-external.ts 항목이 계속 지킨다. 호출자가 돌아오면 이 줄도 돌아와야 한다.
 
 describe("fence coverage", () => {
   const repoRoot = path.resolve(__dirname, "../../../..");
