@@ -1,4 +1,11 @@
 {
+  "_note": {
+    "kind": "DATED MEASUREMENT - not a legal document, and not a live index.",
+    "readThisFirst": "이 파일은 `docs/legal/` 에 있지만 **주장을 하는 문서가 아니라 그 문서를 잰 기록**이다. `head.commit` 시점의 스냅샷이고, 그 뒤에 인용이 고쳐지거나 사라졌으면 여기 행은 **그대로 남는다** - 그게 기록의 일이다.",
+    "whyThisNoteExists": "⚠ 2026-09-08: 피어 세션이 `grep -rn \"src/app/manual.tsx\" docs/legal/` 로 폴더 전체를 세어 **\"법무 문서가 manual 을 2번 인용한다\"** 는 결론을 냈다. 실제로 `docs/legal/*.md` 의 인용은 **0건**이고 그 2건은 이 파일의 행이었다. 경로가 같아서 **'문서' 와 '문서를 잰 기록' 이 섞였다.**",
+    "howToCountCitations": "법무 문서가 실제로 주장하는 인용을 세려면 **`docs/legal/*.md` 만** 본다. `src/lib/legal/__tests__/legal-doc-citations.test.ts` 가 그렇게 하고 있고, 이 파일은 확장자가 `.json` 이라 그 검사의 대상이 아니다 - **여기 행이 낡아도 어떤 검사도 울지 않는다.**",
+    "staleByDesign": "예: `rows[112]` 은 DPIA 558행이 `src/app/manual.tsx:97` 을 인용했다고 적는다. 2026-09-08 실측 기준 DPIA 의 `manual.tsx` 인용은 **0건**이다 - 그 사이에 정리됐다. 행이 틀린 것이 아니라 **그때의 사실**이다."
+  },
   "finding": "R32-LEGAL-01",
   "phase": "CITATION_DRIFT_MEASURED",
   "decision": "Simon 2026-09-07: ③ 문서 전체를 지금 코드 기준으로 다시 쓴다",

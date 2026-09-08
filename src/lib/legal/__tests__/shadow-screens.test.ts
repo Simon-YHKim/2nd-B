@@ -67,7 +67,7 @@ const SHADOWED: Shadowed[] = [
     component: "DeepSpaceManualScreen",
     shipped: "src/screens/deepspace/dds-manual-screen.tsx",
     shadow: "src/screens/deepspace/DeepSpaceDesignScreens.tsx",
-    why: "그림자 파일 자체는 살아 있다 - 다른 컴포넌트가 인용되고 있다(C-DEL `:646-651`, D-20 `:2792`). **파일이 아니라 스팬**으로 물어야 하는 이유.",
+    why: "그림자 파일 자체는 살아 있다 - 그 파일의 **다른 부분**이 법무 문서에 정당하게 인용된다. **파일이 아니라 스팬**으로 물어야 하는 이유가 이것이고, 그 성질은 아래 '그림자 파일이 스팬 **밖**에서는 인용된다' 가 검사한다. ⚠ 처음엔 여기에 인용 두 개를 예로 적었는데 **하나가 한 회차 만에 사라졌다**(회차 71 이 그림자를 가리키던 D-20 인용을 지웠다). 근거를 예시로 적으면 예시가 낡는다 - 그래서 **성질로 적고 검사로 못박는다.**",
   },
   {
     component: "DeepSpaceOpsScreen",
@@ -161,6 +161,28 @@ describe("그림자 화면 - 같은 컴포넌트가 두 파일에 있을 때", (
       }
     }
     expect(bad).toEqual([]);
+  });
+
+  it("그림자 파일이 스팬 **밖**에서는 인용된다 - 파일째 막으면 안 되는 이유", () => {
+    // 위 검사가 "파일 전체가 아니라 스팬만" 막는다고 말한다. 그 구분이 **필요한지**를
+    // 여기서 확인한다: 그림자를 품은 파일이 스팬 밖에서 정당하게 인용되고 있어야
+    // 그 구분에 값어치가 있다. 하나도 없으면 파일째 막아도 되고, 그러면 위 검사는
+    // 필요 이상으로 복잡한 것이다.
+    //
+    // 성질로 적는다 - 어느 인용인지 예로 들면 그 예시가 낡는다(실제로 한 회차 만에
+    // 하나가 사라졌다).
+    const outside: string[] = [];
+    for (const s of SHADOWED) {
+      const sp = span(s.shadow, s.component);
+      if (!sp) continue;
+      for (const doc of legalDocs()) {
+        for (const m of doc.text.matchAll(CITE)) {
+          if (m[1] !== s.shadow) continue;
+          if (citedLines(m[2]).every(n => n < sp.from || n > sp.to)) outside.push(s.shadow);
+        }
+      }
+    }
+    expect(outside.length).toBeGreaterThanOrEqual(1);
   });
 
   it("명단의 모든 줄이 근거를 적었다", () => {
