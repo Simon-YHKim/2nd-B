@@ -33,6 +33,17 @@ function check(id: string, fn: () => CheckResult): CheckResult {
   }
 }
 
+/** megafile 안에서 한 화면이 차지하는 조각. 다음 최상단 export 직전까지.
+ *
+ *  큰 파일을 통째로 읽는 핀은 **어느 화면을 지키는지 말할 수 없다** — 옆 화면의
+ *  같은 문자열이 대신 통과시킨다. 2026-09-08 변이 검증에서 실제로 그랬다. */
+function screenSlice(source: string, component: string): string {
+  const at = source.indexOf(`export function ${component}`);
+  if (at < 0) return "";
+  const end = source.indexOf("\nexport function", at + 10);
+  return end < 0 ? source.slice(at) : source.slice(at, end);
+}
+
 const results: CheckResult[] = [];
 
 results.push(
@@ -871,7 +882,18 @@ results.push(
     const consentDialog = read("src/components/consent/ConsentDialog.tsx");
     const premiumFeedback = read("src/components/premium/feedback.tsx");
     const formats = read("src/app/formats.tsx");
-    const privacy = read("src/app/privacy.tsx");
+    // 공용 토글 컴포넌트의 계약은 그대로 본다(다른 화면들이 쓴다). /privacy 는
+    // 배송 화면을 읽는다.
+    //
+    // ⚠ **megafile 전체가 아니라 그 화면의 조각**을 읽는다. 처음엔 파일을 통째로
+    // 읽었는데, DeepSpaceDesignScreens.tsx 에는 화면이 여럿 들어 있어서 **다른
+    // 화면의 <Toggle> 이 대신 통과시켰다** — 프라이버시 화면에서 토글을 다 지워도
+    // 초록이었다(변이 검증에서 잡혔다). 큰 파일을 읽는 핀은 어느 화면을 지키는지
+    // 말할 수 없다.
+    const privacyScreen = screenSlice(
+      read("src/screens/deepspace/DeepSpaceDesignScreens.tsx"),
+      "DeepSpacePrivacyDesignScreen",
+    );
     const preferenceToggle = read("src/components/ui/PreferenceToggle.tsx");
     const loadingScreen = read("src/components/ui/LoadingScreen.tsx");
     const oauthCallback = read("src/app/(auth)/oauth-callback.tsx");
@@ -1146,7 +1168,11 @@ results.push(
       tierIconContract.includes('case "code": return "idea_lamp"') &&
       preferenceToggle.includes('accessibilityRole="switch"') &&
       preferenceToggle.includes("accessibilityState={{ checked: value, disabled }}") &&
-      privacy.includes("PreferenceToggleRow") &&
+      // 배송 프라이버시 화면은 같은 계약을 **다른 컴포넌트**로 진다 — 공용
+      // PreferenceToggleRow 가 아니라 DDS 의 <Toggle>. 이름이 아니라 성질을 본다:
+      // 설정 토글이 있고, 그 화면이 역할을 알린다(실측: accessibilityRole 11건).
+      privacyScreen.includes("<Toggle") &&
+      (privacyScreen.match(/accessibilityRole=/g) ?? []).length >= 6 &&
       formats.includes("PreferenceSwitch") &&
       formats.includes('accessibilityLabel={tf("deleteModal.label")}') &&
       formats.includes('accessibilityLabel={tf("guideModal.label")}') &&
@@ -1312,7 +1338,10 @@ results.push(
     };
     const koConsent = JSON.parse(read("locales/ko/consent.json")) as typeof enConsent;
     const notice = read("src/components/consent/ConsentNotice.tsx");
-    const privacy = read("src/app/privacy.tsx");
+    const privacyScreen = screenSlice(
+      read("src/screens/deepspace/DeepSpaceDesignScreens.tsx"),
+      "DeepSpacePrivacyDesignScreen",
+    );
     const consentBundle = JSON.stringify(enConsent) + JSON.stringify(koConsent);
     const forbiddenTrustCopy = [
       "I agree my data may be processed outside my country by our providers",
@@ -1333,8 +1362,19 @@ results.push(
       koConsent.privacy.keys.external_analytics.desc.includes("기록 본문은 보내지 않아요") &&
       notice.includes('t("notice.trustTitle")') &&
       notice.includes('t("notice.trustBody")') &&
-      privacy.includes('t("privacy.trustTitle")') &&
-      privacy.includes('t("privacy.trustBody")') &&
+      // ⚠ 2026-09-08: 여기 privacy.tsx 가 privacy.trust* 를 띄운다는 단언이 있었다.
+      // **배송에서는 사실이 아니다.** 그 두 줄을 그리는 곳은 src/app/privacy.tsx:152,155
+      // 하나뿐이고 그것은 죽은 반쪽(스팬 34..204) 안이다. 배송 프라이버시 화면
+      // (DeepSpacePrivacyDesignScreen, 720줄)에는 trust 언급이 **0건**이다.
+      //
+      // 즉 승인된 신뢰 문구 둘 중 **동의 안내 쪽만 뜬다.** 안 뜨는 쪽은
+      //   "기본값은 비공개와 꺼짐 / 기록은 암호화되어 저장되고, 광고는 직접 켜기
+      //    전에는 뜨지 않으며 켜도 기록이 광고에 쓰이지 않는다 / 데이터를 팔지 않는다"
+      // 이고, 번들에는 다섯 언어로 남아 있다(아래 두 줄이 그걸 계속 지킨다).
+      //
+      // 프라이버시 주장이라 되살릴지는 제품·법률 판단이다 — ttl-work-69 의 D3.
+      // 그때까지 **번들에 있고 화면에 없다**는 상태를 여기 적어 둔다.
+      !privacyScreen.includes("privacy.trustTitle") &&
       forbiddenTrustCopy.every((term) => !consentBundle.includes(term));
     return {
       id: "ConsentTrust",
