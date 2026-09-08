@@ -21,7 +21,6 @@ describe("Android elevation coverage", () => {
     // elevation card, and must not import gameboy-tokens. The remaining screens
     // still carry their legacy variant, so the elevation guard stays on them.
     const authScreens = [
-      "src/app/(auth)/sign-up.tsx",
       "src/app/(auth)/sign-in.tsx",
       "src/app/(auth)/reset-password.tsx",
     ];

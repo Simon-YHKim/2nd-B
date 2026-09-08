@@ -63,6 +63,9 @@ const sha256 = (value: string): string =>
 const screen = read("src/screens/deepspace/dds-sign-up-screen.tsx");
 const hook = read("src/lib/auth/useSignUpForm.ts");
 const route = read("src/app/(auth)/sign-up.tsx");
+// 레거시 렌더러는 2026-09-08 에 아카이브로 나갔다. 아래 바이트 핀은 지우지 않고
+// 대상만 옮긴다 — 같은 마커·같은 해시·다른 파일이면 옮기면서 안 고쳤다는 증거다.
+const legacyArchive = read("legacy/screens/sign-up.tsx");
 
 describe("sign-up action ownership", () => {
   test("one synchronous lock blocks same-frame and cross-action races", () => {
@@ -112,12 +115,18 @@ describe("sign-up action ownership", () => {
 });
 
 describe("PIXEL-CLAY sign-up renderer", () => {
-  test("the route imports the isolated renderer directly and keeps legacy as fallback", () => {
+  test("the route renders the isolated renderer and nothing else", () => {
+    // ⚠ 여기서 확인하는 import 경로가 요점이다. dds-auth-screens.tsx 에 같은 이름의
+    // 그림자 사본이 있고, 그걸 가리키면 **배송 화면이 조용히 바뀐다**(2026-09-08 에
+    // 실제로 그렇게 쓸 뻔했다). shadow-screens.test.ts 가 그 짝을 따로 못박는다.
     expect(route).toContain(
       'import { DeepSpaceSignUpDesignScreen } from "@/screens/deepspace/dds-sign-up-screen";',
     );
-    expect(route).toMatch(/if \(isDeepSpaceUI\(\)\) return <DeepSpaceSignUpDesignScreen \/>;/);
-    expect(route).toMatch(/return <SignUpLegacy \/>;/);
+    expect(route).toContain("return <DeepSpaceSignUpDesignScreen />;");
+    // 폴백은 사라졌다 — 레거시 렌더러가 legacy/screens/sign-up.tsx 로 나갔다.
+    expect(route).not.toContain("SignUpLegacy");
+    expect(route).not.toContain("isDeepSpaceUI");
+    expect(legacyArchive).toContain("function SignUpLegacy()");
   });
 
   test("uses the gate shell and only square Pixel interaction primitives", () => {
@@ -249,13 +258,15 @@ describe("sign-up authority and preservation boundaries", () => {
   // 웹 스페이스키 배선(import 1 + prop 1)이 들어갔기 때문이다. legacy · styles ·
   // ConsentNotice · BirthDateField 넷은 값이 그대로 = 안 건드렸다.
   test("legacy renderer, styles, giant auth renderer, and shared form components are unchanged", () => {
-    const legacy = route.slice(
-      route.indexOf("function SignUpLegacy()"),
-      route.indexOf("function ChecklistItem"),
+    // 대상만 아카이브로 옮겼다. **digest 는 한 글자도 안 바꿨다** — 같은 마커,
+    // 같은 해시, 다른 파일이면 옮기면서 고치지 않았다는 증거가 된다.
+    const legacy = legacyArchive.slice(
+      legacyArchive.indexOf("function SignUpLegacy()"),
+      legacyArchive.indexOf("function ChecklistItem"),
     );
-    const styles = route.slice(
-      route.indexOf("const styles = StyleSheet.create"),
-      route.indexOf("export default function SignUp()"),
+    const styles = legacyArchive.slice(
+      legacyArchive.indexOf("const styles = StyleSheet.create"),
+      legacyArchive.indexOf("export default function SignUp()"),
     );
     expect(sha256(legacy)).toBe("630043be84f94b1b90bfa3a932c98cd4f3886f9e92a44a35fb5487298f782904");
     expect(sha256(styles)).toBe("5df5b8ca23806eb75662a694220d7b48f31351aacfb8d8bf476d66b98a83508e");

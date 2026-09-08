@@ -684,7 +684,10 @@ results.push(
     const capture = read("src/app/capture.tsx");
     const inbox = read("src/app/inbox.tsx");
     const signIn = read("src/app/(auth)/sign-in.tsx");
-    const signUp = read("src/app/(auth)/sign-up.tsx");
+    // /sign-up 의 피드백 표면도 라우트가 아니라 배송되는 화면에 있다.
+    // ⚠ dds-auth-screens.tsx 에 같은 이름의 그림자 사본이 있다 — 라우트가 실제로
+    // import 하는 것은 이쪽이다(shadow-screens.test.ts 가 그 짝을 못박는다).
+    const signUp = read("src/screens/deepspace/dds-sign-up-screen.tsx");
     const resetPassword = read("src/app/(auth)/reset-password.tsx");
     const completeProfile = read("src/app/(auth)/complete-profile.tsx");
     // The auth submit/OAuth/reset error toasts moved into shared hooks (legacy +
@@ -731,9 +734,12 @@ results.push(
       signInHook.includes("sendPasswordResetEmail") &&
       signInHook.includes('t("errors.signInFailed")') &&
       signInHook.includes('t("errors.oauthSignInStartFailed"') &&
-      signUp.includes("PremiumToast") &&
-      signUp.includes("toastWrap") &&
-      signUp.includes("existingHelpCard") &&
+      // 레거시는 PremiumToast + toastWrap + existingHelpCard 로 피드백을 냈다.
+      // 라이브는 같은 자리를 role="alert" + live region 으로 낸다 — 표면 이름이
+      // 아니라 스크린리더에 알려지는지를 본다. "이미 가입된 계정" 안내도 같다.
+      signUp.includes('accessibilityRole="alert" accessibilityLiveRegion="polite"') &&
+      signUp.includes('t("auth:signUp.existingAccountTitle")') &&
+      signUp.includes('accessibilityLabel={t("auth:signUp.existingAccountSignIn")}') &&
       signUpHook.includes('t("errors.signUpFailed")') &&
       signUpHook.includes('t("errors.oauthSignUpStartFailed"') &&
       resetPassword.includes("PremiumToast") &&
@@ -821,7 +827,8 @@ results.push(
     const records = read("src/screens/deepspace/dds-wiki-records-screens.tsx");
     const trinity = read("src/app/trinity.tsx");
     const signIn = read("src/app/(auth)/sign-in.tsx");
-    const signUp = read("src/app/(auth)/sign-up.tsx");
+    // /sign-up 의 a11y 도 배송 화면에 있다(그림자 사본이 아니라 라우트가 import 하는 쪽).
+    const signUp = read("src/screens/deepspace/dds-sign-up-screen.tsx");
     const birthDateField = read("src/components/auth/BirthDateField.tsx");
     const completeProfile = read("src/app/(auth)/complete-profile.tsx");
     const notFound = read("src/app/+not-found.tsx");
@@ -1012,17 +1019,19 @@ results.push(
       signIn.includes('accessibilityHint={t("signIn.manualHint")}') &&
       signIn.includes('accessibilityRole="image"') &&
       signIn.includes('accessibilityLabel={t("common.entryArtwork")}') &&
-      signUp.includes('t("language.switchToEnglishLabel")') &&
-      signUp.includes('accessibilityLabel={t("signUp.email")}') &&
-      signUp.includes('accessibilityHint={t("signUp.emailHint")}') &&
-      signUp.includes('accessibilityLabel={t("signUp.password")}') &&
-      signUp.includes('accessibilityHint={t("signUp.passwordHint")}') &&
-      signUp.includes('t("language.switchToKoreanLabel")') &&
-      signUp.includes('accessibilityHint={t("signUp.signInHint")}') &&
-      signUp.includes('accessibilityLabel={t("signUp.manualLabel")}') &&
-      signUp.includes('accessibilityHint={t("signUp.manualHint")}') &&
+      // 키는 그대로고 네임스페이스 접두사(auth: / common:)가 붙었을 뿐이다.
+      // 하나만 이름이 바뀌었다 — manualLabel -> manualLink.
+      signUp.includes('t("auth:language.switchToEnglishLabel")') &&
+      signUp.includes('accessibilityLabel={t("auth:signUp.email")}') &&
+      signUp.includes('accessibilityHint={t("auth:signUp.emailHint")}') &&
+      signUp.includes('accessibilityLabel={t("auth:signUp.password")}') &&
+      signUp.includes('accessibilityHint={t("auth:signUp.passwordHint")}') &&
+      signUp.includes('t("auth:language.switchToKoreanLabel")') &&
+      signUp.includes('accessibilityHint={t("auth:signUp.signInHint")}') &&
+      signUp.includes('t("auth:signUp.manualLink")') &&
+      signUp.includes('t("auth:signUp.manualHint")') &&
       signUp.includes('accessibilityRole="image"') &&
-      signUp.includes('accessibilityLabel={t("common.entryArtwork")}') &&
+      signUp.includes('accessibilityLabel={t("auth:common.entryArtwork")}') &&
       birthDateField.includes('accessibilityLabel={t("signUp.birthDate")}') &&
       birthDateField.includes('accessibilityHint={t("signUp.birthDateHelper")}') &&
       completeProfile.includes('accessibilityRole="image"') &&
@@ -2164,7 +2173,9 @@ results.push(
   results.push(
     check("AuthEntrySupplementalI18nCopy", () => {
       const signIn = read("src/app/(auth)/sign-in.tsx");
-      const signUp = read("src/app/(auth)/sign-up.tsx");
+      // /sign-up 은 배송 화면을 읽는다(라우트는 16줄 래퍼가 됐다). 라이브는 키를
+      // 네임스페이스 접두사와 함께 쓰므로 아래 목록도 auth: 를 붙인다.
+      const signUp = read("src/screens/deepspace/dds-sign-up-screen.tsx");
       const resetPassword = read("src/app/(auth)/reset-password.tsx");
       const completeProfile = read("src/app/(auth)/complete-profile.tsx");
       // The stateful auth logic moved into shared hooks (legacy + deep-space
@@ -2196,14 +2207,14 @@ results.push(
         '"resetPassword.passwordMismatch"',
         't("resetPassword.submitHint")',
         't("resetPassword.expiredBody")',
-        't("signUp.emailHint")',
-        't("signUp.passwordHint")',
-        't("signUp.signInHint")',
-        't("signUp.manualLink")',
+        't("auth:signUp.emailHint")',
+        't("auth:signUp.passwordHint")',
+        't("auth:signUp.signInHint")',
+        't("auth:signUp.manualLink")',
         // J3 recovery card (sign-up): mirrors the resetHelpCard pins above.
-        't("signUp.existingAccountTitle")',
-        't("signUp.existingAccountBody")',
-        't("signUp.existingAccountSignIn")',
+        't("auth:signUp.existingAccountTitle")',
+        't("auth:signUp.existingAccountBody")',
+        't("auth:signUp.existingAccountSignIn")',
         't("completeProfile.submitHint")',
         't("completeProfile.cancelHint")',
       ];
