@@ -35,7 +35,7 @@
       },
       "ratify": {
         "question": "¿Cuándo cambia una sugerencia mi perfil?",
-        "answer": "Nunca por sí sola. Lo que produce la IA sigue siendo una propuesta hasta que la confirmas. Solo una propuesta confirmada puede aplicarse a tu modelo o abrir L5."
+        "answer": "Nunca por sí sola. Lo que propone SecondB sigue siendo una propuesta hasta que la confirmas. Solo una propuesta confirmada puede aplicarse a tu modelo o abrir L5."
       },
       "data": {
         "question": "¿Dónde están la privacidad, la seguridad y las exportaciones?",
