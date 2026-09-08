@@ -57,7 +57,6 @@ const deadSpans = deadRendererSpans(ROOT);
 const NOT_A_DEAD_SPAN: Readonly<Record<string, string>> = {
   "src/app/audit.tsx":
     "위임은 파싱되지만 AuditLegacy 는 `?screener=1` 로도 닿는다 - 죽은 스팬이 아니다(회차 64)",
-  "src/app/index.tsx": "위임 뒤에 bare return 이 없다 - 폴백 컴포넌트를 특정할 수 없다",
   "src/app/(auth)/reset-password.tsx": "스킨을 분기하지 않고 참조만 한다",
   "src/app/capture-full.tsx": "블록 분기",
   "src/app/capture.tsx": "결과를 상수로 받아 쓴다",
