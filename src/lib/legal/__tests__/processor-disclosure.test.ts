@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { proxySlugsFromSource, vendorNamesFromSource } from "../llm-vendor-surface";
+
 // 개인정보 영향평가서의 하위처리자 표가 벤더 하나만 적고 있었다.
 //
 // DPIA §2.7 은 "Recipients / third parties (sub-processors)" 표다. 그 표에
@@ -18,6 +20,19 @@ import path from "node:path";
 // 이 검사는 산문을 판정하지 않는다. **코드가 태울 수 있는 벤더를 문서가
 // 알고 있는지**만 본다 - 기계로 결정된다. 다섯 번째 벤더를 코드에 추가하면
 // 이 검사가 개인정보 문서를 같이 고치라고 말한다.
+//
+// ## 이 파일은 문서 **둘**을 본다 (2026-09-08, 회차 70)
+//
+// 원래 이름은 `dpia-subprocessors.test.ts` 였다. 아래쪽 절을 붙이면서 파일이
+// 개인정보처리방침까지 보게 됐으므로 이름을 넓혔다 - 이름이 내용보다 좁으면
+// 다음 사람이 방침 쪽 검사를 찾지 못하고 **또 하나 만든다.** 이번 회차들에서
+// 반복해서 나온 부류가 그것이다.
+//
+//   DPIA §2.7             내부 문서. 기준은 "코드가 태울 수 있나".
+//   개인정보처리방침 §4    **이용자가 읽는 문서.** 기준은 "실제로 받는가".
+//
+// 두 목록이 다른 것은 결함이 아니다 - 태울 수 있는 것과 지금 받는 것은
+// 구분되는 상태다. 아래 절의 요점은 **그 사이를 건너는 순간을 보이게** 하는 것.
 const ROOT = process.cwd();
 const DPIA = path.join(ROOT, "docs", "legal", "DPIA-2ndB-minors-draft.md");
 const ROUTING = path.join(ROOT, "src", "lib", "llm", "routing.ts");
@@ -25,19 +40,6 @@ const ROUTING = path.join(ROOT, "src", "lib", "llm", "routing.ts");
 const doc = fs.readFileSync(DPIA, "utf8");
 const routing = fs.readFileSync(ROUTING, "utf8");
 
-/** `export type LlmProxyFn = "gemini-proxy" | ... ;` 에서 프록시 슬러그를 뽑는다. */
-export function proxySlugsFromSource(source: string): string[] {
-  const decl = /export type LlmProxyFn\s*=\s*([^;]+);/.exec(source);
-  if (!decl) return [];
-  return [...decl[1].matchAll(/"([a-z0-9-]+)"/g)].map(m => m[1]);
-}
-
-/** `export type LlmVendor = "gemini" | ... ;` 에서 벤더 이름을 뽑는다. */
-export function vendorNamesFromSource(source: string): string[] {
-  const decl = /export type LlmVendor\s*=\s*([^;]+);/.exec(source);
-  if (!decl) return [];
-  return [...decl[1].matchAll(/"([a-z0-9-]+)"/g)].map(m => m[1]);
-}
 
 /** §2.7 표를 헤더와 본문 행으로 가른다.
  *
@@ -161,5 +163,100 @@ describe("검사기 자신의 대조군", () => {
   test("CRLF 문서에서도 절 경계를 찾는다", () => {
     const { rows } = recipientTable(fixture("| **A** | r | d | t | `x/y.ts` |", "\r\n"));
     expect(rows).toHaveLength(1);
+  });
+});
+
+// ── 이용자가 읽는 문서 쪽 ────────────────────────────────────────────────────
+//
+// 위의 검사는 **DPIA** 를 본다. DPIA 는 내부 문서고 기준이 "코드가 태울 수 있나"
+// 라서, 아직 아무것도 안 받는 벤더도 이름이 올라간다. 그게 맞다.
+//
+// 개인정보처리방침 §4 수탁사 표는 **다른 질문**에 답한다 - "이 회사가 실제로
+// 받는가". 그래서 두 문서의 목록이 다른 것 자체는 결함이 아니다.
+//
+// 문제는 **바뀌는 순간을 아무도 못 본다**는 것이었다. 방침 쪽 검사는
+// `toContain("Supabase")` 처럼 **문자열을 손으로 박아** 두고 있어서, 코드에
+// 벤더가 늘어도 방침 검사는 그대로 초록이다. 그리고 벤더가 실제로 받기 시작하는
+// 계기는 **이 저장소에 흔적을 남기지 않는다** - `xai-proxy` 에 purpose 좌석을
+// 앉히는 것은 서버 쪽 일이고, 코드 배포가 없다.
+//
+// 그래서 벤더마다 **어느 쪽인지 적게** 한다. 받으면 방침 표에 회사 이름이 있어야
+// 하고, 안 받으면 그 이유가 있어야 한다. 좌석이 앉는 날 이 표를 고쳐야 하고,
+// 고치는 순간 "방침도 같이 봐라" 가 눈에 보인다.
+const PRIVACY = fs.readFileSync(path.join(ROOT, "docs", "legal", "privacy-policy.md"), "utf8");
+
+/** §4 수탁사 표 본문. **표 안에 이름이 있는 것**과 산문에 한 번 스치는 것은 다르다. */
+function processorTable(): string {
+  const text = PRIVACY.replace(/\r\n/g, "\n");
+  const start = text.indexOf("| 수탁사 |");
+  expect(start).toBeGreaterThan(-1);
+  const end = text.indexOf("\n\n", start);
+  return text.slice(start, end === -1 ? undefined : end);
+}
+
+type Disclosure = { receives: string } | { notReceiving: string };
+
+/** 코드의 `LlmVendor` 유니온 값 하나하나가 방침에서 어떤 상태인가. */
+const VENDOR_DISCLOSURE: Readonly<Record<string, Disclosure>> = {
+  openai: { receives: "OpenAI OpCo, LLC" },
+  claude: { receives: "Anthropic PBC" },
+  gemini: { receives: "Google (Gemini API" },
+  xai: {
+    notReceiving:
+      "좌석이 없어 거절된다. 백본 아홉 purpose 는 값으로 받아들여지지만 xai-proxy 가 " +
+      "purpose_not_seated 로 자르고(routing.ts 의 backboneVendor 주석), 멀티모달은 값 자체를 " +
+      "받지 않는다(xai-proxy 에 이미지·오디오 경로가 없어 415 가 된다). 즉 오늘 xAI 로 가는 " +
+      "개인정보가 없다. ⚠ 좌석을 앉히는 것은 서버 쪽 일이라 이 저장소에 흔적이 없다 - " +
+      "앉히는 사람이 이 줄을 receives 로 옮기고 방침 §4 에 수탁사를 추가해야 한다.",
+  },
+};
+
+describe("개인정보처리방침이 코드의 벤더를 전부 처분했다", () => {
+  test("유니온을 실제로 읽었다 - 0건 통과를 막는다", () => {
+    expect(vendors.length).toBeGreaterThanOrEqual(3);
+  });
+
+  test("모든 벤더가 표에 처분돼 있다 - 새 벤더는 즉시 걸린다", () => {
+    const unhandled = vendors.filter(v => !(v in VENDOR_DISCLOSURE));
+    expect(unhandled).toEqual([]);
+  });
+
+  test("표에 죽은 줄이 없다 - 유니온에서 사라진 벤더를 계속 처분하지 않는다", () => {
+    const gone = Object.keys(VENDOR_DISCLOSURE).filter(v => !vendors.includes(v));
+    expect(gone).toEqual([]);
+  });
+
+  test("받는다고 적은 벤더는 수탁사 표에 회사 이름이 있다", () => {
+    const table = processorTable();
+    const missing = Object.entries(VENDOR_DISCLOSURE)
+      .filter(([, d]) => "receives" in d)
+      .filter(([, d]) => !table.includes((d as { receives: string }).receives))
+      .map(([v]) => v);
+    expect(missing).toEqual([]);
+  });
+
+  test("안 받는다고 적은 벤더는 수탁사 표에 없다 - 두 칸이 겹치지 않는다", () => {
+    // 겹치면 어느 쪽이 참인지 문서만 봐서는 알 수 없다. 좌석을 앉히면서 표만
+    // 고치고 이 줄을 안 옮기는 것도, 그 반대도 여기서 걸린다.
+    const table = processorTable();
+    const both = Object.entries(VENDOR_DISCLOSURE)
+      .filter(([, d]) => "notReceiving" in d)
+      .filter(([v]) => new RegExp(v, "i").test(table))
+      .map(([v]) => v);
+    expect(both).toEqual([]);
+  });
+
+  test("안 받는다는 처분은 이유를 댄다", () => {
+    const thin = Object.entries(VENDOR_DISCLOSURE)
+      .filter(([, d]) => "notReceiving" in d)
+      .filter(([, d]) => (d as { notReceiving: string }).notReceiving.trim().length < 40)
+      .map(([v]) => v);
+    expect(thin).toEqual([]);
+  });
+
+  test("수탁사 표를 실제로 잘라냈다 - 빈 조각이면 위 검사가 무의미하다", () => {
+    const table = processorTable();
+    expect(table.split("\n").length).toBeGreaterThanOrEqual(6);
+    expect(table).toContain("Supabase");
   });
 });
