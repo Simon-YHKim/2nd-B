@@ -86,25 +86,28 @@ beforeEach(() => {
 });
 
 describe("core-loop focus refetch contract", () => {
-  // /insights 의 렌더러는 라우트가 아니라 deep-space 화면에 있다. 라우트 파일을
-  // 읽으면 은퇴한 레거시 반쪽을 읽게 되므로(그래서 이 계약이 오랫동안 초록이었다)
-  // 화면 함수 본문만 잘라서 본다.
+  // ⚠ 라우트 파일을 읽으면 은퇴한 레거시 반쪽을 읽게 된다. 이 계약이 오랫동안
+  // 초록이었던 것이 그래서다 — /insights 와 /record/[id] 는 훅이 레거시 반쪽에만
+  // 있었고 배송되는 화면에는 없었다(2026-09-08 실측, 둘 다 이번에 배선했다).
+  // 그래서 화면이 라우트 밖에 있으면 **그 함수 본문만** 잘라서 본다.
   const screens: Array<{ file: string; fn?: string }> = [
-    { file: "src/app/index.tsx" },
-    { file: "src/app/records.tsx" },
-    { file: "src/app/core-brain.tsx" },
+    { file: "src/components/deep-space/DeepSpaceShell.tsx", fn: "DeepSpaceShell" },
+    { file: "src/screens/deepspace/dds-wiki-records-screens.tsx", fn: "DeepSpaceRecordsScreen" },
+    { file: "src/app/core-brain.tsx", fn: "CoreBrainScreen" },
     { file: "src/screens/deepspace/DeepSpaceDesignScreens.tsx", fn: "DeepSpaceInsightsScreen" },
-    { file: "src/app/trinity.tsx" },
-    { file: "src/app/record/[id].tsx" },
+    { file: "src/app/trinity.tsx", fn: "TrinityDeepSpace" },
+    { file: "src/screens/deepspace/dds-record-detail-screen.tsx", fn: "DeepSpaceRecordDetailScreen" },
   ];
 
-  /** `export function <fn>` 부터 다음 `export function` 직전까지. */
+  /** `function <fn>` 선언부터 다음 최상위 function 직전까지. export 여부는 안 본다
+   *  — CoreBrainScreen·TrinityDeepSpace 는 라우트 파일 안의 비-export 선언이다. */
   function functionBody(source: string, fn: string): string {
     const normalized = source.replace(/\r\n?/g, "\n");
-    const from = normalized.indexOf(`export function ${fn}`);
-    if (from < 0) throw new Error(`${fn} 선언을 못 찾았다`);
-    const next = normalized.indexOf("\nexport function ", from + 1);
-    return normalized.slice(from, next < 0 ? undefined : next);
+    const decl = new RegExp(`^(?:export )?function ${fn}\\b`, "m");
+    const hit = decl.exec(normalized);
+    if (hit === null) throw new Error(`${fn} 선언을 못 찾았다`);
+    const next = normalized.slice(hit.index + 1).search(/^(?:export )?function \w+/m);
+    return next < 0 ? normalized.slice(hit.index) : normalized.slice(hit.index, hit.index + 1 + next);
   }
 
   it("keeps the shared hook as a focus-only refetch helper", () => {
@@ -140,12 +143,20 @@ describe("core-loop focus refetch contract", () => {
   });
 
   it("refreshes all stale core-loop screens when they regain focus", () => {
+    // 헬퍼 이름이 아니라 **동작**을 본다. DeepSpaceShell 은 useFocusRefetch 를
+    // 안 쓰고 useFocusEffect 로 직접 refreshTick 을 올린다 — 계약이 요구하는 것을
+    // 하고 있으므로 통과여야 한다. 이름만 보면 그 화면이 거짓 위반으로 잡힌다.
     for (const screen of screens) {
       const file = read(screen.file);
       const source = screen.fn ? functionBody(file, screen.fn) : file;
 
-      expect(file).toContain('from "@/lib/nav/use-focus-refetch"');
-      expect(source).toContain("useFocusRefetch(");
+      const viaHelper = source.includes("useFocusRefetch(");
+      const viaEffect = source.includes("useFocusEffect(");
+      expect({ screen: screen.fn ?? screen.file, refreshesOnFocus: viaHelper || viaEffect }).toEqual({
+        screen: screen.fn ?? screen.file,
+        refreshesOnFocus: true,
+      });
+      if (viaHelper) expect(file).toContain('from "@/lib/nav/use-focus-refetch"');
     }
   });
 
