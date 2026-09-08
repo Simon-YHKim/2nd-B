@@ -106,6 +106,16 @@ const CITES: CommentCite[] = [
     symbol: "REQUIRED_LOCALES",
     why: "'로케일 번들에 넣으면 다섯 로케일 전부에 요구된다' 는 결정 근거. 요구하는 목록 자체를 잡는다.",
   },
+  {
+    from: "src/lib/chat/autosave.ts",
+    cite: "src/app/wiki.tsx:292",
+    symbol: "await deleteWikiPage(",
+    why:
+      "자동 저장의 전제('되돌릴 길이 먼저 있다')가 가리키는 **유일한 호출부**다. " +
+      "그 줄이 WikiLegacy 안에 있다는 것이 정정의 근거이므로, 그 줄이 움직이면 " +
+      "정정문도 다시 재야 한다. 심볼을 호출 형태로 잡아 이름만 남고 호출이 사라지는 " +
+      "경우에도 운다.",
+  },
 ];
 
 /** 주석 줄에서만 찾는다. 코드 안의 문자열은 인용이 아니다. */
