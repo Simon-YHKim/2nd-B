@@ -129,7 +129,14 @@ describe("sign-in extraction boundaries", () => {
   });
 
   test("preserves the legacy sign-in renderer/styles and shared DDS styles", () => {
-    expect(sha256(read("src/app/(auth)/sign-in.tsx"))).toBe(
+    // 2026-09-08: 레거시 렌더러가 legacy/screens/sign-in.tsx 로 나갔다. 핀은
+    // 지우지 않고 대상만 옮긴다 — **digest 가 그대로**라는 것이 "옮기면서 한 바이트도
+    // 안 고쳤다"의 증거다. 아카이브 = 출처 헤더 + 원본 그대로이므로, 원본 첫 줄부터
+    // 잘라내면 은퇴 전 파일과 바이트가 같다.
+    const archive = read("legacy/screens/sign-in.tsx");
+    const bodyAt = archive.indexOf("// Sign-in screen — Cosmic Pixel entry gate");
+    expect(bodyAt).toBeGreaterThan(0);
+    expect(sha256(archive.slice(bodyAt))).toBe(
       "2cca972a8464dd1e7bca7dc6cbae00c89581786ac80e2eea87817f73a0b2e5da",
     );
     expect(sha256(read("src/screens/deepspace/dds-styles.ts"))).toBe(

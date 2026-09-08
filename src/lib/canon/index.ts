@@ -28,7 +28,9 @@ import tokensPack from "../../../public/proto/data/app/tokens.json";
  * all (no window, no app bar, no tab bar), full-screen over the star field.
  *
  * It is NOT an aspirational PIXEL-CLAY-only idea. The app's own auth screens
- * already render this way — `src/app/(auth)/sign-in.tsx`,
+ * already render this way — the shipped sign-in screen
+ * (`src/screens/deepspace/dds-sign-in-screen.tsx`; the route was a two-shell file
+ * until 2026-09-08 and is now a wrapper),
  * `reset-password.tsx` and `complete-profile.tsx` mount no shell and no dock.
  * The canon simply had no word for it, so those screens were filed as
  * `windowed`, which claimed chrome they do not have.

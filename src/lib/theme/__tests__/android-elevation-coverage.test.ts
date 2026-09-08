@@ -20,10 +20,11 @@ describe("Android elevation coverage", () => {
     // (border + bgMid fill + glow) instead of the legacy premium android
     // elevation card, and must not import gameboy-tokens. The remaining screens
     // still carry their legacy variant, so the elevation guard stays on them.
-    const authScreens = [
-      "src/app/(auth)/sign-in.tsx",
-      "src/app/(auth)/reset-password.tsx",
-    ];
+    // sign-in 은 2026-09-08 에 이 목록에서 나갔다. 위 주석의 규칙 그대로다 —
+    // 레거시 렌더러가 legacy/screens/sign-in.tsx 로 나가면서 라우트는 딥스페이스
+    // 화면만 렌더하고, 그 화면은 android elevation 이 아니라 테두리 + 채움 + 베벨로
+    // 깊이를 낸다(실측: 라이브 화면에 androidElevation 0건).
+    const authScreens = ["src/app/(auth)/reset-password.tsx"];
 
     for (const file of authScreens) {
       expect(readProjectFile(file)).toContain("androidElevationStyle(androidElevation.authForm)");

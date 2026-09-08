@@ -41,6 +41,7 @@ const DIGESTS: Readonly<Record<string, string>> = {
   "research.tsx": "6d7aee35e6e1996deab634c3b5934318f70e9ba05aacb72cc14d7de0b0490378",
   "review.tsx": "c866423f9f92cbebe486e0b068bd7a20fbf7e098e77b4c5236ff42730164baf0",
   "sign-up.tsx": "0cd9c772a3ee69e3640da99edace4d41fef78101f69d1d1ce29abaa2c3ed1f85",
+  "sign-in.tsx": "a66d5c2b8a1c87b2ce91602074d7bb7c1d85485730cfc9d29cb6baac65ba4f17",
   "support.tsx": "838b0f207f9c63610e99f4a3e1ffcd07eed115f14b6dfd85d7c2ad6092deb93a",
   "theme.tsx": "939d41774549f22cf2977ace15cb9bf3c001f0c3ca73a0b2e5257836b8e9e139",
 };
