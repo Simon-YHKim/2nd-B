@@ -18,9 +18,9 @@
 // Both entry flows collect and both write, but the write does not always live
 // in the screen file, so name all four sites:
 //   collect  <ConsentNotice>            src/app/(auth)/sign-up.tsx:219
-//                                       src/app/(auth)/complete-profile.tsx:308
+//                                       src/app/(auth)/complete-profile.tsx:333
 //   write    recordConsentBestEffort(   src/lib/auth/useSignUpForm.ts:318
-//                                       src/app/(auth)/complete-profile.tsx:161
+//                                       src/app/(auth)/complete-profile.tsx:169
 //
 // ⚠ 2026-09-08: this comment used to cite `sign-up.tsx:103` and
 // `complete-profile.tsx:90`. Neither line was right (:103 is a back-chevron
@@ -28,6 +28,16 @@
 // hook. The DPIA cites THIS comment as its evidence that the acks are collected,
 // so a stale comment here becomes a stale claim in a legal document — the
 // round-50 shape, with the comment as the source rather than the symptom.
+//
+// ⚠ 그리고 그 정정이 **55분 만에 다시 낡았다.** 06:27 에 고쳐 쓴 두 줄
+// (`complete-profile.tsx` 의 :308 · :161)은 그 시각에는 맞았는데, 07:22 에
+// 크래시 핸드오프 수정이 같은 파일에 32줄을 넣으면서 :333 · :169 로 밀렸다.
+// **같은 날 같은 회차에 같은 사람이** 쓴 것이 그렇게 됐다. 아무도 못 봤다 -
+// 줄 번호를 지키는 검사가 없었기 때문이다.
+//
+// 이제 있다: `src/lib/legal/__tests__/comment-citations.test.ts` 가 `src/`
+// 주석 안의 모든 `파일:줄` 인용을 긁어서, 그 줄에 실제로 무엇이 있는지 대조한다.
+// 줄이 밀리면 여기가 아니라 **검사가** 먼저 운다.
 //
 // These version constants track the 시행일 of the published documents
 // (docs/legal/*.md, mirrored into src/lib/legal/legal-documents.ts). They had

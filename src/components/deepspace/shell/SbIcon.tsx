@@ -39,13 +39,17 @@ export function SbIcon({ name, color, size = 24 }: SbIconProps) {
   // `canonGlyph` 를 지나는 이유: 이름이 그려진 글리프로 확실히 떨어지게 한다.
   // 아이콘이 없는 것과 화면이 죽는 것은 다른 값이다.
   //
-  // ⚠ 2026-09-08 정정. 여기 이렇게 적혀 있었다: *"`src/app/onboarding.tsx:66`
-  //   이 캐논 JSON 값을 `s.icon as SbIconName` 으로 검사 없이 캐스팅해 **넘긴다**"*
+  // ⚠ 2026-09-08 정정. 여기 이렇게 적혀 있었다: *"온보딩 화면(당시 66행)이
+  //   캐논 JSON 값을 `s.icon as SbIconName` 으로 검사 없이 캐스팅해 **넘긴다**"*
   //   — 그래서 이 가드가 온보딩을 지킨다는 뜻이었다. **세 군데가 틀렸다:**
   //
   //     · `as SbIconName` 은 저장소 어디에도 없다(이 주석 안을 빼면 0건).
-  //     · `onboarding.tsx:66` 은 `skipLabel` 이다. 그 파일은 `<SbIcon>` 을
+  //     · 그 66행은 `skipLabel` 이었다. 그리고 `onboarding.tsx` 는 `<SbIcon>` 을
   //       **한 번도 그리지 않는다.**
+  //
+  //   (지목한 줄 번호를 여기서 **되풀이하지 않는다.** 옛 인용을 그대로 다시
+  //   적으면 그것도 인용이 되고, 가리키는 줄은 이미 밀려 있다. 실제로 이
+  //   정정문이 하루 만에 그렇게 낡았다.)
   //     · 실제 캐스팅은 `onboarding.tsx` 가 `as AnyGlyphName` 으로 하고, 값은
   //       `SbIcon` 이 아니라 `PixelGlyph` 로 **직접** 갔다 — 이 가드를 비껴서.
   //

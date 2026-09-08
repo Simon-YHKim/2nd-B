@@ -145,6 +145,21 @@ const ANCHORS: Anchor[] = [
     why: "엔진이 호출부와 **독립적으로** 게이트를 다시 본다는 주장의 근거. 493행이 '통제가 어느 한 화면에 기대지 않는다'고 말하는 근거가 이 한 줄이다 - 화면 잠금이 사라져도 스냅샷이 LLM 에 안 간다." },
   { cite: "src/screens/deepspace/dds-ops-screen.tsx:588-595", symbol: "recommendationsAllowed",
     why: "미성년 추천 잠금이 **배송되는 화면에서** 실제로 불리는 자리. ⚠ 원래 `src/app/ops.tsx:111` 을 가리켰는데 그 줄은 `OpsLegacy` 안이었고, 그 렌더러는 2026-09-08 에 `legacy/screens/ops.tsx` 로 나갔다 (그 전에는 `ops.tsx:501` 이 deep-space 일 때 위임해서 **어떤 배포도 그리지 않았다**). 잠금은 실재하는데 좌표가 죽어 있었다 - 회차 60(/data)·61(/audit) 과 같은 부류의 세 번째다." },
+  // ── 통제 표(C-*)가 인용하는 코드 ──────────────────────────────────────────
+  //
+  // 회차 69 에 재서 넣었다: 문서에서 **변호사가 가장 먼저 읽는 표**인데, 열한
+  // 통제 중 **셋의 인용을 어떤 앵커도 덮지 않고 있었다.** 그 셋이 정확히 이번에
+  // 결함이 나온 자리다 - C-SENS 는 상태 칸이 낡아 있었고(회차 64·67 이 본문에서
+  // 아홉 자리를 고쳤는데 표 칸만 살아남았다), C-DEL 은 함수가 아니라 **함수를
+  // 언급하는 주석**을 가리키고 있었다.
+  { cite: "db/migrations/0031_consent_records.sql:26-28", symbol: "sensitive_data_ack",
+    why: "C-SENS 가 서는 스키마. 세 ack 중 PIPA §23 별도 동의를 잡는다 - 법적 무게가 가장 큰 것." },
+  { cite: "db/migrations/0038_minor_tier_guard_and_audit_lockdown.sql:103-136", symbol: "auth.uid()",
+    why: "C-AUDIT 의 '위조 불가 RPC' 주장이 서는 **한 줄**. user_id 를 클라이언트가 못 보내고 서버가 찍는다는 것이 위조 불가의 전부다. 함수 이름이 아니라 이 호출을 잡는 이유다." },
+  { cite: "src/lib/records/delete-bulk.ts:262", symbol: "requestAccountDeletion",
+    why: "C-DEL 의 종국적 삭제 진입점. ⚠ 문서는 `:178-185` 를 가리켰는데 그것은 이 함수를 **언급하는 주석**이다 - 통제 전체의 무게를 그 인용이 지고 있었다. 회차 68 의 '내용 있는 줄' 검사로는 안 잡힌다(주석도 내용이다). 심볼 앵커만이 본다." },
+  { cite: "src/screens/deepspace/DeepSpaceDesignScreens.tsx:2792", symbol: "recommendationsAllowed(isMinor",
+    why: "같은 잠금의 **두 번째 배송 호출부**. 493행이 호출부를 둘 이름 부르는데 이쪽만 앵커가 없었다. ⚠ 문서는 `:2786` 을 인용했고 그 줄은 **빈 줄**이다 - 여섯 줄 위. 회차 68 이 '인용이 아무것도 아닌 줄에 앉아 있다' 를 전수로 재서 찾았다(365건 중 이 한 건)." },
   { cite: `${D}:66-78`, symbol: "userIdFromJwt",
     why: "지울 계정을 클라이언트가 못 고른다는 IDOR 주장의 근거." },
   { cite: "src/lib/analytics/index.ts:245-252", symbol: "isMinor === false",
@@ -171,7 +186,7 @@ const ANCHORS: Anchor[] = [
     why: "⚠ 회차 57 이 이 키를 '더 이상 존재하지 않는다'고 적었다가 58 에서 정정한 자리. 클라이언트 키 목록에서는 가지쳐졌지만 **서버 트리거는 여전히 쓴다** - 읽을 때 버려질 뿐이다. 둘은 구분되는 상태다." },
   { cite: "src/lib/auth/consent-selections.ts:20-21", symbol: "sensitiveData",
     why: "PIPA §23 별도 동의가 실제로 별개 항목으로 수집된다는 주장. 서비스 동의에 묻어 가지 않는다는 것이 주장의 내용이다." },
-  { cite: "src/lib/supabase/consent.ts:114-116", symbol: "sensitive_data_ack",
+  { cite: "src/lib/supabase/consent.ts:124-126", symbol: "sensitive_data_ack",
     why: "동의 ack 셋이 **실제로 원장 행에 실리는** 자리. 일곱 자리가 '수집·기록된다'로 고쳐졌고, 그 주장이 서는 곳이 여기다. 주석이 아니라 쓰기다." },
   { cite: "src/lib/supabase/consent.ts:14-21", symbol: "WIRED at sign-up", evidence: "comment",
     why: "동의 기록이 UI 수집 **뒤에** 쓰인다는 불변식의 기록. 문서가 이 주석을 'still read null (stale)' 이라고 인용했었다." },
@@ -208,6 +223,65 @@ function slice(cite: string): { file: string; text: string; lines: number } {
 test("표가 실제로 채워져 있다 - 0건 통과를 막는다", () => {
   expect(ANCHORS.length).toBeGreaterThanOrEqual(10);
   expect(new Set(ANCHORS.map(a => a.cite)).size).toBe(ANCHORS.length);
+});
+
+/** `12` · `12-34` · `12,34` 를 줄 번호 집합으로. */
+function spread(spec: string): Set<number> {
+  const out = new Set<number>();
+  for (const part of spec.split(",")) {
+    const [a, b] = part.trim().split("-").map(Number);
+    if (!Number.isFinite(a)) continue;
+    for (let n = a; n <= (Number.isFinite(b) ? b : a); n += 1) out.add(n);
+  }
+  return out;
+}
+
+test("통제 표의 'Implemented' 행은 앵커가 덮는 코드를 인용한다", () => {
+  // **변호사가 문서에서 가장 먼저 읽는 표**가 통제 표다. 열한 행이 각각
+  // "이 통제는 구현돼 있다" 고 말하고 그 근거로 코드를 인용한다.
+  //
+  // 회차 69 에 세어 보니 **셋의 인용을 어떤 앵커도 덮지 않았고**, 그 셋이
+  // 정확히 이번에 결함이 나온 자리였다:
+  //
+  //   C-SENS   상태 칸이 "collection UI pending" - 회차 64·67 이 본문에서
+  //            같은 주장을 아홉 자리 고쳤는데 **표 칸만 살아남았다.**
+  //   C-DEL    `requestAccountDeletion()` 의 인용이 `:178-185` 인데 그것은
+  //            함수가 아니라 **함수를 언급하는 주석**이다(함수는 `:262`).
+  //   C-AUDIT  '위조 불가 RPC' 를 주장하는데 그 근거가 안 지켜지고 있었다.
+  //
+  // 정확히 같은 인용 문자열을 요구하지 않는다 - **범위가 겹치면** 그 코드는
+  // 지켜지고 있는 것이다. C-AGE 가 `0030:18-67` 을 인용하고 앵커는 `:18-49` 와
+  // `:62-67` 을 잡는데, 문자열로 재면 없는 구멍이 만들어진다.
+  const anchoredLines = new Map<string, Set<number>>();
+  for (const a of ANCHORS) {
+    const at = a.cite.lastIndexOf(":");
+    const file = a.cite.slice(0, at);
+    const set = anchoredLines.get(file) ?? new Set<number>();
+    for (const n of spread(a.cite.slice(at + 1))) set.add(n);
+    anchoredLines.set(file, set);
+  }
+
+  const CITE = /`([A-Za-z0-9_@.][A-Za-z0-9_@./()-]*\.(?:tsx?|sql|json|md|ya?ml)):([0-9][0-9,\-]*)`/g;
+  const rows = doc.split("\n").filter(l => l.startsWith("| **C-"));
+  // 표를 못 읽으면 아래 단언이 영원히 초록이다.
+  //
+  // ⚠ 하한이 처음엔 `>= 10` 이었는데 변이 검증이 잡았다. 표가 열한 행이므로
+  //   **한 행이 사라져도 통과**했다 - 정확히 이 검사가 막아야 할 일인데.
+  //   오늘 수를 하한으로 둔다: 통제가 늘어나는 것은 자유고, **조용히 줄어드는
+  //   것은 아니다.** 통제를 실제로 없앨 때는 이 수도 같이 내리면 된다.
+  expect(rows.length).toBeGreaterThanOrEqual(11);
+
+  const uncovered = rows
+    .filter(row => /\|\s*Implemented/.test(row))
+    .filter(row => {
+      for (const m of row.matchAll(CITE)) {
+        const lines = anchoredLines.get(m[1]);
+        if (lines && [...spread(m[2])].some(n => lines.has(n))) return false;
+      }
+      return true;
+    })
+    .map(row => (/\| \*\*(C-[A-Z0-9]+)\*\*/.exec(row) ?? [, row.slice(0, 40)])[1]);
+  expect(uncovered).toEqual([]);
 });
 
 test("문서가 이 인용들을 실제로 담고 있다", () => {

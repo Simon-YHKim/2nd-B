@@ -17,8 +17,18 @@ import path from "node:path";
 // **줄 번호가 파일 길이를 넘지 않는지**만 본다. 둘 다 기계로 결정된다.
 const LEGAL_DIR = path.join(process.cwd(), "docs", "legal");
 
-/** `path/to/file.ts` · `path/to/file.ts:12` · `:12-34` · `:12,34` */
-const CITATION = /`([A-Za-z0-9_@./-]+\.(?:tsx?|sql|json|jsx?|md|ya?ml))(?::([0-9][0-9,\-\s]*))?`/g;
+/** `path/to/file.ts` · `path/to/file.ts:12` · `:12-34` · `:12,34`
+ *
+ *  ⚠ 2026-09-08: 이 문자 클래스에 **괄호가 없었다.** expo-router 의 그룹 폴더
+ *  (`src/app/(auth)/…`)를 통째로 못 봤고, 그래서 법무 문서의 다섯 인용이 이
+ *  파일의 **어떤 검사도 받지 않고** 있었다 - 그것도 전부 가입 동의 표면이다.
+ *  "모든 경로 인용" 이라고 적어 둔 검사가 제 주장보다 좁았던 것.
+ *
+ *  괄호를 넣되 **첫 글자로는 허용하지 않는다.** 허용하면 산문의 `(docs/x.md)`
+ *  같은 것이 `(docs/x.md` 로 잡혀 실재하지 않는 경로가 된다. 경로는 항상
+ *  글자·숫자·`@`·`.` 로 시작한다. */
+const CITATION =
+  /`([A-Za-z0-9_@.][A-Za-z0-9_@./()-]*\.(?:tsx?|sql|json|jsx?|md|ya?ml))(?::([0-9][0-9,\-\s]*))?`/g;
 /** 이 저장소가 실제로 갖고 있는 인용 수의 하한. 정규식이 형태 변화로 아무것도
  *  못 찾으면 "위반 0" 이 나와 조용히 통과하므로 개수 자체를 못박는다. */
 const MIN_CITATIONS = 120;
@@ -28,6 +38,8 @@ interface Citation {
   docLine: number;
   file: string;
   maxLine: number | null;
+  /** 인용이 지목한 줄 전부. `maxLine` 만으로는 "그 줄에 무엇이 있나" 를 못 본다. */
+  lines: number[];
   /** 슬래시 없이 적힌 이름. 경로가 아니라 이름으로 저장소에서 찾아야 한다. */
   bare: boolean;
 }
@@ -39,6 +51,14 @@ function collect(text: string, doc: string): Citation[] {
       const [, file, spec] = match;
       const numbers = (spec ?? "").split(/[,\-\s]+/).filter(Boolean).map(Number).filter(Number.isFinite);
       const maxLine = numbers.length ? Math.max(...numbers) : null;
+      // `12-34` 는 두 끝이 아니라 **그 사이 전부**를 가리킨다. 범위를 펼쳐 둬야
+      // "인용한 줄에 무엇이 있나" 를 물을 수 있다.
+      const lines: number[] = [];
+      for (const part of (spec ?? "").split(",")) {
+        const [a, b] = part.trim().split("-").map(Number);
+        if (!Number.isFinite(a)) continue;
+        for (let n = a; n <= (Number.isFinite(b) ? b : a) && n - a < 500; n += 1) lines.push(n);
+      }
       const bare = !file.includes("/");
       // 슬래시 없는 이름(`consent.ts`)은 산문 속 언급이지 경로 인용이 아니다.
       // 언급을 깨진 인용으로 세면 없는 드리프트를 만들어 낸다.
@@ -49,7 +69,7 @@ function collect(text: string, doc: string): Citation[] {
       // 있었고 그중 열한 건이 아직 개명 전 `gemini.ts` 를 가리키고 있었다.
       // 필터가 목적에는 맞았고 딱 이 한 경우만큼 넓었다.
       if (bare && maxLine === null) continue;
-      out.push({ doc, docLine: index + 1, file, maxLine, bare });
+      out.push({ doc, docLine: index + 1, file, maxLine, lines, bare });
     }
   });
   return out;
@@ -245,9 +265,40 @@ test("이름 인용의 줄 번호도 파일 길이를 넘지 않는다", () => {
   expect(overrun).toEqual([]);
 });
 
+/** 내용이라 할 것이 없는 줄: 빈 줄 · 닫는 괄호/중괄호/세미콜론만 · 닫는 JSX 태그만. */
+function isNothing(line: string): boolean {
+  return /^[\s})\];,>]*$/.test(line) || /^\s*<\/[A-Za-z][A-Za-z0-9.]*>\s*,?\s*$/.test(line);
+}
+
+test("인용한 줄에 내용이 있다 - 빈 줄·닫는 괄호만 가리키지 않는다", () => {
+  // 바로 아래 검사가 "줄이 여전히 그 내용인지는 기계가 못 본다" 고 적어 뒀다.
+  // 그 말은 **의미**에 대해서는 맞다. 그런데 기계가 볼 수 있는 것이 하나 있다 -
+  // 인용이 **아무것도 아닌 줄**에 앉아 있는 경우다. 미끄러진 인용은 바깥에서
+  // 정확히 그렇게 보인다: 빈 줄, `}`, `</View>`.
+  //
+  // 실측하고 넣었다: 법무 문서 전체에서 줄 번호가 달린 인용 **365건 중 364건**이
+  // 내용 있는 줄에 앉아 있었고, **한 건**만 빈 줄이었다 - D-20 미성년 추천 잠금의
+  // 호출 자리를 가리킨다던 `DeepSpaceDesignScreens.tsx:2786` 인데, 실제 호출은
+  // 여섯 줄 아래 `:2792` 다. 거짓양성 0건이라 무관용으로 둔다.
+  //
+  // 앵커 표(`dpia-crisis-rail-anchors.test.ts`)와 짝이다. 앵커는 **적은 수를
+  // 정확하게**(오늘 18건, 심볼까지) 지키고, 이쪽은 **전부를 성기게** 지킨다.
+  const empty = citations
+    .filter(c => !c.bare && c.lines.length > 0 && fs.existsSync(path.join(process.cwd(), c.file)))
+    .map(c => {
+      const src = fs.readFileSync(path.join(process.cwd(), c.file), "utf8").split("\n");
+      const body = c.lines.filter(n => n >= 1 && n <= src.length).map(n => src[n - 1]);
+      return { at: `${c.doc}:${c.docLine}`, cite: `${c.file}:${c.lines.join(",")}`, body };
+    })
+    .filter(row => row.body.length > 0 && row.body.every(isNothing))
+    .map(row => `${row.at} -> ${row.cite}`);
+  expect(empty).toEqual([]);
+});
+
 test("인용된 줄 번호가 파일 길이를 넘지 않는다", () => {
   // 줄이 여전히 **그 내용**인지는 기계가 못 본다. 파일이 그 줄까지 있지도 않은
-  // 경우만 잡는다 - 확실히 깨진 것만.
+  // 경우만 잡는다 - 확실히 깨진 것만. (바로 위 검사가 이 한계를 조금 좁힌다:
+  // 의미는 못 봐도 **아무것도 아닌 줄**은 볼 수 있다.)
   const overrun = citations
     .filter(c => !c.bare && c.maxLine !== null && fs.existsSync(path.join(process.cwd(), c.file)))
     .map(c => ({
@@ -263,6 +314,59 @@ test("인용된 줄 번호가 파일 길이를 넘지 않는다", () => {
 describe("검사기 자신의 대조군", () => {
   // ⚠ 문서 안에 진짜로 깨진 인용을 두면 그게 그대로 변호사에게 간다.
   // 대조군은 테스트 안 문자열이다.
+
+  test("괄호가 든 경로를 읽는다 - expo-router 그룹 폴더", () => {
+    // 이 클래스에 괄호가 없어서 `src/app/(auth)/…` 인용 다섯 건이 이 파일의
+    // 어떤 검사도 안 받고 있었다(2026-09-08). 전부 가입 동의 표면이다.
+    const rows = collect("(`src/app/(auth)/complete-profile.tsx:169`)", "fixture.md");
+    expect(rows).toHaveLength(1);
+    expect(rows[0].file).toBe("src/app/(auth)/complete-profile.tsx");
+    expect(rows[0].lines).toEqual([169]);
+    // 그리고 실제 문서에도 있어야 한다 - 정규식만 고치고 문서가 비면 무의미하다.
+    expect(citations.filter(c => c.file.includes("(auth)")).length).toBeGreaterThanOrEqual(4);
+  });
+
+  test("괄호로 **시작**하는 것은 인용이 아니다 - 산문 속 괄호를 삼키지 않는다", () => {
+    // 괄호를 첫 글자로 허용하면 백틱 **안에서** 괄호로 시작한 것이
+    // `(docs/x.md` 로 잡혀 실재하지 않는 경로가 되고, 검사가 없는 드리프트를
+    // 만들어 낸다.
+    //
+    // ⚠ 이 대조군은 **두 번 틀렸고 변이가 두 번 다 알려 줬다.**
+    //
+    //   1판: 괄호를 백틱 바깥에 뒀다 - `(`docs/x.md`)`. 정규식은 백틱 다음
+    //        글자부터 보므로 그 괄호는 애초에 후보가 아니다.
+    //   2판: 백틱 안으로 옮겼지만 `` `(docs/x.md)` `` 로 썼다. 확장자 뒤에
+    //        닫는 괄호가 있어 **닫는 백틱이 안 붙으므로** 이것도 어느 쪽
+    //        정규식으로도 매치되지 않는다.
+    //
+    //   첫 글자 제한이 실제로 가르는 것은 **그룹 폴더 약칭**이다. 이 모양이
+    //   유일하게 시험되는 입력이라, 대조군은 이것이어야 한다.
+    const shorthand = collect("`(auth)/complete-profile.tsx` 를 말할 때가 있다.", "fixture.md");
+    expect(shorthand.every(c => !c.file.startsWith("("))).toBe(true);
+    // 백틱 바깥의 괄호는 원래부터 무해하다. 함께 붙들어 둔다.
+    const outside = collect("자세한 것은 (`docs/legal/account-deletion.md`) 참조.", "fixture.md");
+    expect(outside).toHaveLength(1);
+    expect(outside[0].file).toBe("docs/legal/account-deletion.md");
+  });
+
+  test("범위 인용을 끝이 아니라 사이 전부로 편다", () => {
+    const rows = collect("(`src/lib/ops/recommend.ts:127-130`)", "fixture.md");
+    expect(rows[0].lines).toEqual([127, 128, 129, 130]);
+    expect(collect("(`src/lib/ops/recommend.ts:5,9`)", "fixture.md")[0].lines).toEqual([5, 9]);
+  });
+
+  test("양성 대조 - 빈 줄만 가리키는 인용을 잡는다", () => {
+    // `isNothing` 이 무엇을 내용 없음으로 보는지 못박는다. 이게 느슨해지면
+    // 미끄러진 인용이 조용히 통과한다.
+    expect(isNothing("")).toBe(true);
+    expect(isNothing("   ")).toBe(true);
+    expect(isNothing("  }")).toBe(true);
+    expect(isNothing("    });")).toBe(true);
+    expect(isNothing("        </View>")).toBe(true);
+    expect(isNothing("  const ageReady = age >= MIN_SELF_CONSENT_AGE;")).toBe(false);
+    expect(isNothing("  // 주석도 내용이다 - 근거가 주석인 인용이 실제로 있다")).toBe(false);
+  });
+
   test("양성 대조 - 없는 경로를 인용으로 잡는다", () => {
     const rows = collect("본문 (`src/lib/does-not-exist/nope.ts:1-2`) 끝.", "fixture.md");
     expect(rows).toHaveLength(1);
