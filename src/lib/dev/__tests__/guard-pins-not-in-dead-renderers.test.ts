@@ -52,13 +52,31 @@ const ROOT = process.cwd();
 // 검사가 직접 말한다(감소가 어느 양동이인지).
 const RATCHET_BASELINE: Readonly<Record<string, number>> = {
   "src/app/wiki.tsx": 29,
-  "src/app/(auth)/sign-in.tsx": 24,
+  "src/app/record/[id].tsx": 9,
   "src/app/inbox.tsx": 8,
   "src/app/manual.tsx": 7,
   "src/app/data.tsx": 6,
-  "src/app/record/[id].tsx": 4,
   "src/app/privacy.tsx": 2,
+  // 0 = 라우트는 아직 죽은 반쪽을 품고 있지만 검사가 더는 그쪽을 안 읽는다.
+  // 은퇴하면 이 줄을 지운다 - 그건 [대상이 나갔다] 양동이다.
+  "src/app/(auth)/sign-in.tsx": 0,
 };
+
+/**
+ * ⚠ 2026-09-08: 여기 record/[id] 가 **4** 로 적혀 있었다. 실제로는 9 다.
+ *
+ * 옛 스캐너는 파일마다 `Map<이름, 라우트>` 하나를 만들어 **마지막 바인딩이 파일
+ * 전체를 먹었다**(위 bindingEvents 주석). check-constraints.ts 에서 `screen` 의
+ * 마지막 바인딩이 sign-in 이었으므로, 2319 줄에서 record/[id] 로 묶은 `screen` 의
+ * 핀 5개가 sign-in 파일에 대고 검사됐고 - 거기 없으니 - **아무 라우트에도 안 세이고
+ * 조용히 사라졌다.** 옮겨간 게 아니라 빠졌다.
+ *
+ * 실측(고친 자, origin/main): wiki 29 · sign-in 24 · record/[id] 9 · inbox 8 ·
+ * manual 7 · data 6 · privacy 2 = **85**. 옛 자로는 80 이었다. 이 PR 이 sign-in 의
+ * 24 를 배송 화면으로 옮겨 61 이 된다.
+ *
+ * 교훈은 수가 아니다: **총계가 맞아 보이면 귀속이 틀려도 아무도 안 죽는다.**
+ */
 
 const BASELINE_TOTAL = Object.values(RATCHET_BASELINE).reduce((a, b) => a + b, 0);
 
@@ -109,27 +127,65 @@ function checkerFiles(dir: string, out: string[] = []): string[] {
 const BIND =
   /const\s+(\w+)\s*=\s*(?:read|readProjectFile|readFileSync)\(\s*(?:join\(([^)]*)\)|["'`]([^"'`]+)["'`])/g;
 
-function bindings(source: string, dead: Map<string, DeadFile>): Map<string, string> {
-  const out = new Map<string, string>();
+interface Binding {
+  name: string;
+  /** 그 시점에 이 이름이 읽는 파일. 죽은 라우트가 아닐 수도 있다 - 그게 요점이다. */
+  file: string;
+  at: number;
+}
+
+/**
+ * ⚠ 2026-09-08: 여기 `Map<이름, 라우트>` 하나를 파일마다 만들고 있었다. 그러면
+ * **같은 이름의 마지막 바인딩이 파일 전체를 먹는다.** check-constraints.ts 는
+ * `screen` 을 40번 넘게 다시 묶으므로, 어느 블록에서 쓴 핀이든 파일 맨 아래
+ * 바인딩의 라우트로 귀속됐다.
+ *
+ * 총계는 맞고 **라우트별 수만 틀렸다** - 그래서 아무도 안 죽고 조용했다.
+ * 실측: /sign-in 24 · record/[id] 4 로 보이던 것이 실제로는 record/[id] 의 핀 5개가
+ * sign-in 으로 넘어가 있던 것이었다. 라우트별 수가 틀리면 "이 라우트를 은퇴시켜도
+ * 되나"에 답할 수 없다.
+ *
+ * 그래서 바인딩을 **위치와 함께** 모으고, 단언 하나하나에 대해 그 앞의 가장 가까운
+ * 바인딩을 찾는다. 살아 있는 파일로 다시 묶은 것도 기록해야 이름이 제대로 풀린다.
+ */
+function bindingEvents(source: string): Binding[] {
+  const out: Binding[] = [];
   BIND.lastIndex = 0;
   let m: RegExpExecArray | null;
   while ((m = BIND.exec(source)) !== null) {
     const [, name, joinArgs, literal] = m;
-    if (literal !== undefined && dead.has(literal)) {
-      out.set(name, literal);
-      continue;
+    let file: string | null = literal ?? null;
+    if (file === null && joinArgs !== undefined) {
+      const parts = [...joinArgs.matchAll(/["'`]([^"'`]+)["'`]/g)].map(part => part[1]);
+      file = parts.join("/") || null;
     }
-    if (joinArgs !== undefined) {
-      const parts = [...joinArgs.matchAll(/["'`]([^"'`]+)["'`]/g)].map(p => p[1]);
-      const guess = parts.join("/");
-      if (guess.length === 0) continue;
-      for (const route of dead.keys()) {
-        if (route.endsWith(guess) || guess.endsWith(route)) out.set(name, route);
-      }
-    }
+    if (file !== null) out.push({ name, file, at: m.index });
   }
   return out;
 }
+
+/** 이 위치에서 그 이름이 읽고 있는 파일. 앞선 바인딩이 없으면 null. */
+function fileAt(events: readonly Binding[], name: string, at: number): string | null {
+  let found: string | null = null;
+  for (const event of events) {
+    if (event.at > at) break; // 바인딩은 소스 순서다
+    if (event.name === name) found = event.file;
+  }
+  return found;
+}
+
+/** 읽고 있는 파일이 죽은 스팬을 가진 라우트인가. join(...) 조각은 접미사로 맞춘다. */
+function toDeadRoute(file: string, dead: Map<string, DeadFile>): string | null {
+  if (dead.has(file)) return file;
+  for (const route of dead.keys()) {
+    if (route.endsWith(file) || file.endsWith(route)) return route;
+  }
+  return null;
+}
+
+/** `name.includes("...")` 와 `expect(name).toContain("...")` 를 한 번에 훑는다. */
+const ASSERTION =
+  /\b(\w+)\s*\.includes\(\s*(["'])((?:\\.|(?!\2).)*)\2|expect\(\s*(\w+)\s*\)\s*\.toContain\(\s*(["'])((?:\\.|(?!\5).)*)\5/g;
 
 interface Pin {
   checker: string;
@@ -149,30 +205,33 @@ function deadPins(): { pins: Pin[]; scanned: number; bound: number } {
 
   for (const checker of checkers) {
     const source = fs.readFileSync(path.join(ROOT, checker), "utf8").replace(/\r\n?/g, "\n");
-    const bound2route = bindings(source, dead);
-    if (bound2route.size === 0) continue;
-    bound += bound2route.size;
+    const events = bindingEvents(source);
+    if (events.length === 0) continue;
+    bound += new Set(
+      events.filter(event => toDeadRoute(event.file, dead) !== null).map(event => event.name),
+    ).size;
 
-    for (const [name, route] of bound2route) {
+    const seen = new Set<string>();
+    ASSERTION.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = ASSERTION.exec(source)) !== null) {
+      const name = m[1] ?? m[4];
+      const literal = (m[3] ?? m[6] ?? "").replace(/\\(["'\\])/g, "$1");
+      if (name === undefined || literal.length < 4) continue;
+      const file = fileAt(events, name, m.index);
+      if (file === null) continue;
+      const route = toDeadRoute(file, dead);
+      if (route === null) continue;
       const info = dead.get(route);
       if (!info) continue;
-      const assertion = new RegExp(
-        `\\b${name}\\s*\\.includes\\(\\s*(["'])((?:\\\\.|(?!\\1).)*)\\1` +
-          `|expect\\(\\s*${name}\\s*\\)\\s*\\.toContain\\(\\s*(["'])((?:\\\\.|(?!\\3).)*)\\3`,
-        "g",
-      );
-      const seen = new Set<string>();
-      let m: RegExpExecArray | null;
-      while ((m = assertion.exec(source)) !== null) {
-        const literal = (m[2] ?? m[4] ?? "").replace(/\\(["'\\])/g, "$1");
-        if (literal.length < 4 || seen.has(literal)) continue;
-        seen.add(literal);
-        const total = info.text.split(literal).length - 1;
-        if (total === 0) continue; // not in that file at all - a different problem
-        const inDead = info.deadText.split(literal).length - 1;
-        if (inDead === total) {
-          pins.push({ checker, route, component: info.component, literal });
-        }
+      const key = `${route}|${literal}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const total = info.text.split(literal).length - 1;
+      if (total === 0) continue; // not in that file at all - a different problem
+      const inDead = info.deadText.split(literal).length - 1;
+      if (inDead === total) {
+        pins.push({ checker, route, component: info.component, literal });
       }
     }
   }

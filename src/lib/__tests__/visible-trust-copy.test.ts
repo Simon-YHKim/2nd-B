@@ -81,7 +81,8 @@ describe("visible trust copy", () => {
       .filter((entry) => entry.isDirectory())
       .map((entry) => readFileSync(path.join(localeRoot, entry.name, "auth.json"), "utf8"));
     const authScreens = [
-      "src/app/(auth)/sign-in.tsx",
+      // 배송되는 두 화면. 신뢰 카피 금지어는 사용자가 보는 쪽에서 없어야 한다.
+      "src/screens/deepspace/dds-sign-in-screen.tsx",
       "src/screens/deepspace/dds-sign-up-screen.tsx",
     ].map((file) => readFileSync(path.join(root, file), "utf8"));
     const text = [...authBundles, ...authScreens].join("\n");
@@ -246,26 +247,32 @@ describe("visible trust copy", () => {
 
   test("sign-in exposes account creation as a route and reset as inline help", () => {
     const root = path.resolve(__dirname, "../../..");
-    const screen = readFileSync(path.join(root, "src/app/(auth)/sign-in.tsx"), "utf8");
-    // The reset-help visibility toggle moved into the shared useSignInForm hook
-    // (legacy + deep-space sign-in share one source); the screen still wires the
-    // route links and the forgot-password handler.
+    const screen = readFileSync(path.join(root, "src/screens/deepspace/dds-sign-in-screen.tsx"), "utf8");
     const hook = readFileSync(path.join(root, "src/lib/auth/useSignInForm.ts"), "utf8");
     const en = readFileSync(path.join(root, "locales/en/auth.json"), "utf8");
     const ko = readFileSync(path.join(root, "locales/ko/auth.json"), "utf8");
 
-    const submitIdx = screen.indexOf('accessibilityLabel={t("signIn.submit")}');
-    const signUpIdx = screen.indexOf('<Link href="/sign-up" asChild>');
-    const resetIdx = screen.indexOf("handleForgotPassword");
-    const providerIdx = screen.indexOf('t("signIn.continueWithGoogle")');
+    const submitIdx = screen.indexOf('accessibilityLabel={t("auth:signIn.submit")}');
+    const signUpIdx = screen.indexOf('router.push("/sign-up")');
+    const resetIdx = screen.indexOf("resetPasswordHref(email)");
+    const providerIdx = screen.indexOf("accessibilityLabel={t(PROVIDER_KEY[provider])}");
 
     expect(submitIdx).toBeGreaterThan(-1);
     expect(signUpIdx).toBeGreaterThan(-1);
     expect(resetIdx).toBeGreaterThan(-1);
     expect(providerIdx).toBeGreaterThan(-1);
-    expect(signUpIdx).toBeGreaterThan(submitIdx);
-    expect(signUpIdx).toBeLessThan(providerIdx);
-    expect(screen).not.toContain('<Link href="/reset-password"');
+    // ⚠ 순서가 바뀌었다. 레거시는 제출 -> 가입 -> OAuth 였고 배송은
+    // 제출 -> 재설정 -> OAuth -> 가입 이다. 계약의 뜻("계정 만들기는 제출과
+    // 헷갈리지 않는 자리에 있다")은 그대로라 순서를 지우지 않고 **지금 순서**를
+    // 못박는다 — 지우면 다음에 뒤바뀌어도 아무도 모른다.
+    expect(submitIdx).toBeLessThan(resetIdx);
+    expect(resetIdx).toBeLessThan(providerIdx);
+    expect(providerIdx).toBeLessThan(signUpIdx);
+    // 재설정은 인라인 안내에서 **라우트로 뒤집혔다.** 여기 있던
+    // `not.toContain('<Link href="/reset-password"')` 는 "재설정은 라우트가 아니라
+    // 인라인 도움말이다" 라는 옛 계약이었다. 지금은 반대가 맞다 — 주소가 완전할
+    // 때만 프리필하는 resetPasswordHref 가 그 뒤집기를 안전하게 만든다.
+    expect(screen).toContain("resetPasswordHref");
     expect(hook).toContain("setResetHelpVisible(true)");
     expect(en).toContain('"signUpLink": "Create one"');
     expect(ko).toContain('"signUpLink": "계정 만들기"');

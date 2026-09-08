@@ -683,7 +683,12 @@ results.push(
     const settings = read("src/app/settings.tsx");
     const capture = read("src/app/capture.tsx");
     const inbox = read("src/app/inbox.tsx");
-    const signIn = read("src/app/(auth)/sign-in.tsx");
+    // /sign-in 의 피드백 표면도 배송 화면에 있다. 레거시는 PremiumToast +
+    // resetHelpCard(인라인 안내)로 냈고, 라이브는 role="alert" + live region 으로
+    // 같은 일을 한다. 재설정은 인라인이 아니라 /reset-password 라우트로 간다 —
+    // resetPasswordHref 가 **완전한 주소일 때만** 프리필하므로 반쯤 친 값이
+    // 라우트 상태로 새지 않는다(sign-in-screen-contract.test.ts 가 단위로 지킨다).
+    const signIn = read("src/screens/deepspace/dds-sign-in-screen.tsx");
     // /sign-up 의 피드백 표면도 라우트가 아니라 배송되는 화면에 있다.
     // ⚠ dds-auth-screens.tsx 에 같은 이름의 그림자 사본이 있다 — 라우트가 실제로
     // import 하는 것은 이쪽이다(shadow-screens.test.ts 가 그 짝을 못박는다).
@@ -728,8 +733,9 @@ results.push(
       dsImportInbox.includes('accessibilityRole="alert"') &&
       dsImportInbox.includes("accessibilityLiveRegion") &&
       esm.includes("PremiumToast") &&
-      signIn.includes("PremiumToast") &&
-      signIn.includes("resetHelpCard") &&
+      signIn.includes('accessibilityRole="alert"') &&
+      signIn.includes("accessibilityLiveRegion") &&
+      signIn.includes("router.push(resetPasswordHref(email))") &&
       signInHook.includes('t("signIn.resetToast")') &&
       signInHook.includes("sendPasswordResetEmail") &&
       signInHook.includes('t("errors.signInFailed")') &&
@@ -826,7 +832,11 @@ results.push(
     // label)과 조합 라벨로 같은 일을 한다.
     const records = read("src/screens/deepspace/dds-wiki-records-screens.tsx");
     const trinity = read("src/app/trinity.tsx");
-    const signIn = read("src/app/(auth)/sign-in.tsx");
+    // /sign-in 의 a11y 도 배송 화면에 있다. 계약은 그대로고 표현이 셋 바뀌었다:
+    // ① 네임스페이스 접두사(auth:) ② role·disabled 를 공용 PixelPressable 이
+    // 진다 ③ OAuth 라벨이 PROVIDER_KEY 맵을 거친다.
+    const signIn = read("src/screens/deepspace/dds-sign-in-screen.tsx");
+    const pixelPressable = read("src/components/pixel/PixelPressable.tsx");
     // /sign-up 의 a11y 도 배송 화면에 있다(그림자 사본이 아니라 라우트가 import 하는 쪽).
     const signUp = read("src/screens/deepspace/dds-sign-up-screen.tsx");
     const birthDateField = read("src/components/auth/BirthDateField.tsx");
@@ -891,7 +901,10 @@ results.push(
     const captureTablists = (capture.match(/accessibilityRole="tablist"/g) ?? []).length;
     const captureSelected = (capture.match(/accessibilityState=\{\{ selected: active \}\}/g) ?? []).length;
     const inboxRoles = (inbox.match(/accessibilityRole=/g) ?? []).length;
-    const signInRoles = (signIn.match(/accessibilityRole="button"/g) ?? []).length;
+    // 레거시는 화면마다 role="button" 을 리터럴로 박았다. 라이브는 공용
+    // PixelPressable 이 기본값으로 지므로 화면에서 그 리터럴을 세면 0 이 나온다 —
+    // 있는 것을 없다고 세는 자다. 상호작용 요소의 수를 센다.
+    const signInPressables = (signIn.match(/<PixelPressable/g) ?? []).length;
     const homeRoles = (home.match(/accessibilityRole="button"/g) ?? []).length;
     const liveHomeRoles = (liveHome.match(/accessibilityRole="button"/g) ?? []).length;
     const liveHomeLabels = (liveHome.match(/accessibility(?:Label|Hint)=/g) ?? []).length;
@@ -998,29 +1011,35 @@ results.push(
       records.includes('accessibilityLabel={t("records.viewList")}') &&
       trinity.includes('accessibilityRole="link"') &&
       trinity.includes('t("addTagsHint")') &&
-      signInRoles >= 7 &&
-      signIn.includes('accessibilityLabel={t("signIn.submit")}') &&
-      signIn.includes("accessibilityState={{ disabled: !canSubmit, busy: submitting }}") &&
-      signIn.includes('accessibilityLabel={t("signIn.continueWithGoogle")}') &&
-      signIn.includes('accessibilityLabel={t("signIn.continueWithApple")}') &&
-      signIn.includes('accessibilityLabel={t("signIn.continueWithKakao")}') &&
-      signIn.includes('accessibilityLabel={t("signIn.continueWithNaver")}') &&
-      signIn.includes("accessibilityState={{ disabled: oauthSubmitting || submitting, busy: oauthSubmitting }}") &&
-      signIn.includes('accessibilityLabel={t("signIn.resetLabel")}') &&
-      signIn.includes('t("language.switchToKoreanLabel")') &&
-      signIn.includes('accessibilityLabel={t("signIn.email")}') &&
-      signIn.includes('accessibilityHint={t("signIn.emailHint")}') &&
-      signIn.includes('accessibilityLabel={t("signIn.password")}') &&
-      signIn.includes('accessibilityHint={t("signIn.passwordHint")}') &&
-      signIn.includes('t("signIn.hidePasswordHint")') &&
-      signIn.includes('t("signIn.showPasswordHint")') &&
+      signInPressables >= 7 &&
+      // disabled 는 화면이 아니라 공용 컴포넌트가 a11y 로 넘긴다. 그 합치는 줄이
+      // 사라지면 화면들이 조용히 "안 눌린다"를 안 알리게 되므로 여기서 못박는다.
+      pixelPressable.includes('accessibilityRole = "button"') &&
+      pixelPressable.includes("accessibilityState={{ ...accessibilityState, disabled }}") &&
+      signIn.includes('accessibilityLabel={t("auth:signIn.submit")}') &&
+      signIn.includes("disabled={submitDisabled}") &&
+      // OAuth 4종의 라벨은 PROVIDER_KEY 맵에 있고 화면은 t(맵[provider]) 로 부른다.
+      // 맵을 안 보면 구글·애플·카카오가 라벨을 잃어도 검사가 초록이다.
+      signIn.includes("accessibilityLabel={t(PROVIDER_KEY[provider])}") &&
+      signIn.includes('google: "auth:signIn.continueWithGoogle"') &&
+      signIn.includes('apple: "auth:signIn.continueWithApple"') &&
+      signIn.includes('kakao: "auth:signIn.continueWithKakao"') &&
+      signIn.includes('accessibilityLabel={t("auth:signIn.continueWithNaver")}') &&
+      signIn.includes("disabled={authBusy}") &&
+      signIn.includes('accessibilityLabel={t("auth:signIn.resetLabel")}') &&
+      signIn.includes('accessibilityLabel={t("auth:signIn.email")}') &&
+      signIn.includes('accessibilityHint={t("auth:signIn.emailHint")}') &&
+      signIn.includes('accessibilityLabel={t("auth:signIn.password")}') &&
+      signIn.includes('accessibilityHint={t("auth:signIn.passwordHint")}') &&
+      signIn.includes('t("auth:signIn.hidePasswordHint")') &&
+      signIn.includes('t("auth:signIn.showPasswordHint")') &&
       signIn.includes("accessibilityState={{ selected: showPassword }}") &&
-      signIn.includes('accessibilityHint={t("signIn.resetHint")}') &&
-      signIn.includes('accessibilityHint={t("signIn.signUpHint")}') &&
-      signIn.includes('accessibilityLabel={t("signIn.manualLabel")}') &&
-      signIn.includes('accessibilityHint={t("signIn.manualHint")}') &&
+      // 재설정 힌트는 키가 바뀌었다 — signIn.resetHint -> resetPassword.requestSubtitle.
+      // 인라인 안내가 아니라 그 라우트를 설명하는 문장이라 그쪽이 맞다.
+      signIn.includes('accessibilityHint={t("auth:resetPassword.requestSubtitle")}') &&
+      signIn.includes('accessibilityHint={t("auth:signIn.signUpHint")}') &&
       signIn.includes('accessibilityRole="image"') &&
-      signIn.includes('accessibilityLabel={t("common.entryArtwork")}') &&
+      signIn.includes('accessibilityLabel={t("auth:common.entryArtwork")}') &&
       // 키는 그대로고 네임스페이스 접두사(auth: / common:)가 붙었을 뿐이다.
       // 하나만 이름이 바뀌었다 — manualLabel -> manualLink.
       signUp.includes('t("auth:language.switchToEnglishLabel")') &&
@@ -2126,7 +2145,8 @@ results.push(
 
 results.push(
   check("AuthFailureToastI18nCopy", () => {
-      const signIn = read("src/app/(auth)/sign-in.tsx");
+      // 라우트가 아니라 배송 화면을 읽는다 — 금지 카피는 사용자가 보는 쪽에서 없어야 한다.
+      const signIn = read("src/screens/deepspace/dds-sign-in-screen.tsx");
       const signUp = read("src/app/(auth)/sign-up.tsx");
       const completeProfile = read("src/app/(auth)/complete-profile.tsx");
       // The sign-in / sign-up failure toasts moved into shared hooks (the legacy
@@ -2178,7 +2198,7 @@ results.push(
 
   results.push(
     check("AuthEntrySupplementalI18nCopy", () => {
-      const signIn = read("src/app/(auth)/sign-in.tsx");
+      const signIn = read("src/screens/deepspace/dds-sign-in-screen.tsx");
       // /sign-up 은 배송 화면을 읽는다(라우트는 16줄 래퍼가 됐다). 라이브는 키를
       // 네임스페이스 접두사와 함께 쓰므로 아래 목록도 auth: 를 붙인다.
       const signUp = read("src/screens/deepspace/dds-sign-up-screen.tsx");
@@ -2195,19 +2215,24 @@ results.push(
       const codeRequired = [
         't("common.checking")',
         't("common.entryArtwork")',
-        't("language.switchToEnglishLabel")',
-        't("language.switchToKoreanLabel")',
-        't("signIn.emailHint")',
-        't("signIn.passwordHint")',
-        't("signIn.showPasswordLabel")',
-        't("signIn.hidePasswordLabel")',
-        't("signIn.submitting")',
+        't("auth:language.switchToEnglishLabel")',
+        't("auth:language.switchToKoreanLabel")',
+        't("auth:signIn.emailHint")',
+        't("auth:signIn.passwordHint")',
+        't("auth:signIn.showPasswordLabel")',
+        't("auth:signIn.hidePasswordLabel")',
+        't("auth:signIn.submitting")',
         't("signIn.resetToast")',
-        't("signIn.resetBody")',
-        't("signIn.resetSentBody", { email: resetEmailSentTo })',
+        // ⚠ 여기 있던 세 줄을 뺐다. **약화가 아니라 대상이 없다.**
+        //   t("signIn.resetBody") · t("signIn.resetSentBody", …)
+        //     레거시는 로그인 화면 안에서 재설정 안내를 폈다. 라이브는 /reset-password
+        //     로 보내고 그 화면은 자기 키 17개를 쓴다(signIn.reset* 사용 0건). 두 키는
+        //     번들에 남아 있지만 **띄우는 화면이 없다** — 처분은 Simon 결정 대기.
+        //   t("signIn.manualLink")
+        //     안내서 링크는 사라진 게 아니라 가입 화면으로 옮겨갔다. 그 자리는
+        //     아래 t("auth:signUp.manualLink") 가 이미 못박고 있다.
         // Email-edit retires the stale "reset sent" pin (now in useSignInForm).
         "prev && value.trim() !== prev",
-        't("signIn.manualLink")',
         't("resetPassword.newPasswordHint")',
         't("resetPassword.confirmPasswordHint")',
         '"resetPassword.passwordMismatch"',
@@ -2574,9 +2599,15 @@ results.push(
 
 results.push(
   check("SignInHeroI18nCopy", () => {
-    const screen = read("src/app/(auth)/sign-in.tsx");
+    // 히어로 카피의 출처가 바뀌었다. 레거시는 auth.json 의 signIn.title/subtitle 을
+    // 썼고, 배송 화면은 deepspace.json 의 auth.signInTitle/signInLead 를 쓴다.
+    // 제목은 글자까지 같고 부제만 다르다. 검사는 **화면에 뜨는 쪽**을 본다 —
+    // auth.json 의 두 키는 아직 번들에 있지만 띄우는 화면이 없다.
+    const screen = read("src/screens/deepspace/dds-sign-in-screen.tsx");
     const en = read("locales/en/auth.json");
     const ko = read("locales/ko/auth.json");
+    const enDeep = read("locales/en/deepspace.json");
+    const koDeep = read("locales/ko/deepspace.json");
     // "Welcome back" joined the forbidden list with E2E-6 (e2e-shots-20260610):
     // the cold-start landing greets FIRST-TIME visitors too, so the hero must
     // not assume a returning user.
@@ -2587,13 +2618,20 @@ results.push(
       '"title": "다시 오셨네요"',
     ];
     const ok =
-      screen.includes('t("signIn.title")') &&
-      screen.includes('t("signIn.subtitle")') &&
-      en.includes('"title": "Sign in to 2nd-Brain"') &&
-      en.includes('"subtitle": "Write a line each day and keep a record of your life."') &&
-      ko.includes('"title"') &&
-      ko.includes('"subtitle": "하루 한 줄씩, 나에 관한 기록을 모아 보세요."') &&
-      forbidden.every((term) => !screen.includes(term) && !en.includes(term) && !ko.includes(term));
+      screen.includes('t("deepspace:auth.signInTitle")') &&
+      screen.includes('t("deepspace:auth.signInLead")') &&
+      enDeep.includes('"signInTitle": "Sign in to 2nd-Brain"') &&
+      enDeep.includes('"signInLead": "Keep records, learn about yourself and talk with SecondB."') &&
+      koDeep.includes('"signInTitle"') &&
+      koDeep.includes('"signInLead": "기록을 모아 나를 알아가고, 세컨비와 이야기해 보세요."') &&
+      forbidden.every(
+        (term) =>
+          !screen.includes(term) &&
+          !en.includes(term) &&
+          !ko.includes(term) &&
+          !enDeep.includes(term) &&
+          !koDeep.includes(term),
+      );
     return {
       id: "SignInHeroI18nCopy",
       status: ok ? "PASS" : "FAIL",
