@@ -376,6 +376,17 @@ describe("provider and screen wiring", () => {
     expect(AUTH).not.toContain("if (sessionKnown && proofMatchesSession) {");
   });
 
+  test("reconciles base, owner-prefix, and storage.clear events from localStorage", () => {
+    const start = AUTH.indexOf("const handleRecoveryStorage = (event: StorageEvent) => {");
+    const end = AUTH.indexOf("const unsubscribeRecoveryStorage", start);
+    const block = AUTH.slice(start, end);
+
+    expect(start).toBeGreaterThan(-1);
+    expect(block).toContain("isRecoveryPendingStorageKey(event.key)");
+    expect(block).toContain("event.storageArea");
+    expect(block).toContain("applyRecoveryPendingStorageValue(event.newValue)");
+  });
+
   test("the unavailable publication masks identity without resolving owner-null", () => {
     const publish = AUTH.indexOf("function publishSessionUnavailable()");
     expect(publish).toBeGreaterThan(-1);

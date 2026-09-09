@@ -30,12 +30,12 @@ import {
   clearRecoveryPending,
   createRecoveryProof,
   applyRecoveryPendingStorageValue,
+  isRecoveryPendingStorageKey,
   isRecoveryPendingInMemory,
   loadRecoveryPending,
   loadRecoveryProof,
   parseRecoveryProof,
   persistRecoveryProof,
-  RECOVERY_PENDING_KEY,
   RECOVERY_PROOF_KEY,
   subscribeRecoveryPending,
   recoveryProofMatchesSession,
@@ -749,7 +749,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     const handleRecoveryStorage = (event: StorageEvent) => {
       if (!isCurrentEffect()) return;
-      if (event.key === RECOVERY_PENDING_KEY) {
+      if (isRecoveryPendingStorageKey(event.key)) {
+        try {
+          if (event.storageArea && event.storageArea !== localStorage) return;
+        } catch {
+          applyRecoveryPendingStorageValue(event.newValue);
+          void failClosedRecovery(
+            recoveryProofRef.current,
+            new Error("Cross-tab recovery storage is unavailable"),
+          );
+          return;
+        }
         const pending = applyRecoveryPendingStorageValue(event.newValue);
         if (event.newValue && !pending) {
           void failClosedRecovery(

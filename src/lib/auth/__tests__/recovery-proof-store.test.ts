@@ -6,6 +6,7 @@ import {
   clearRecoveryPending,
   clearRecoveryProof,
   createRecoveryProof,
+  isRecoveryPendingStorageKey,
   isRecoveryPendingInMemory,
   loadRecoveryPending,
   loadRecoveryProof,
@@ -112,7 +113,11 @@ describe("persistent recovery proof", () => {
     expect(captureRecoveryPendingLease()).toEqual(lease);
     await expect(clearRecoveryPending(lease)).resolves.toBe("cleared");
     expect(isRecoveryPendingInMemory()).toBe(false);
-    expect(values.has(RECOVERY_PENDING_KEY)).toBe(false);
+    expect(values.has(`${RECOVERY_PENDING_KEY}.${lease.token}`)).toBe(false);
+    // The shared key is only a conservative wake-up signal. Keeping its stale
+    // modern value avoids racing a base-only legacy writer; owner truth is gone.
+    expect(values.has(RECOVERY_PENDING_KEY)).toBe(true);
+    await expect(loadRecoveryPending()).resolves.toBeNull();
   });
 
   test("upgrades an issuedAt-only marker without dropping its lock", async () => {
@@ -213,6 +218,189 @@ describe("persistent recovery proof", () => {
       { mode: "exclusive" },
       expect.any(Function),
     );
+  });
+
+  test("keeps newer B locked when queued web clear A runs before B reaches disk", async () => {
+    const leaseA = await persistRecoveryPending();
+
+    const clearA = clearRecoveryPending(leaseA);
+    const persistB = persistRecoveryPending();
+    const leaseBAtClaim = captureRecoveryPendingLease();
+    const [clearResult, leaseBAfterWrite] = await Promise.all([clearA, persistB]);
+
+    expect(clearResult).toBe("cleared");
+    expect(leaseBAfterWrite).toEqual(leaseBAtClaim);
+    expect(captureRecoveryPendingLease()).toEqual(leaseBAtClaim);
+    expect(isRecoveryPendingInMemory()).toBe(true);
+    expect(values.has(`${RECOVERY_PENDING_KEY}.${leaseBAtClaim.token}`)).toBe(true);
+  });
+
+  test("retries a shifting localStorage enumeration instead of missing live owner B", () => {
+    const markerB = {
+      issuedAt: "2026-09-07T00:00:01.000Z",
+      token: "owner-b",
+      ownerKeyVersion: 1,
+    };
+    values.set("unrelated-key", "value");
+    values.set(`${RECOVERY_PENDING_KEY}.${markerB.token}`, JSON.stringify(markerB));
+    values.set(RECOVERY_PENDING_KEY, JSON.stringify(markerB));
+    let shifted = false;
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: {
+        get length() { return values.size; },
+        key: (index: number) => {
+          const key = Array.from(values.keys())[index] ?? null;
+          if (!shifted && index === 0) {
+            shifted = true;
+            values.delete("unrelated-key");
+          }
+          return key;
+        },
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => values.set(key, value),
+        removeItem: (key: string) => values.delete(key),
+      },
+    });
+
+    expect(applyRecoveryPendingStorageValue(null)).toEqual({
+      issuedAt: markerB.issuedAt,
+      token: markerB.token,
+    });
+    expect(captureRecoveryPendingLease().token).toBe(markerB.token);
+    expect(isRecoveryPendingInMemory()).toBe(true);
+  });
+
+  test("treats base as a signal and deterministically selects newest durable owner", () => {
+    const markerA = {
+      issuedAt: "2026-09-07T00:00:00.000Z",
+      token: "owner-a",
+      ownerKeyVersion: 1,
+    };
+    const markerB = {
+      issuedAt: "2026-09-07T00:00:01.000Z",
+      token: "owner-b",
+      ownerKeyVersion: 1,
+    };
+    values.set(RECOVERY_PENDING_KEY, JSON.stringify(markerA));
+    values.set(`${RECOVERY_PENDING_KEY}.${markerA.token}`, JSON.stringify(markerA));
+    values.set(`${RECOVERY_PENDING_KEY}.${markerB.token}`, JSON.stringify(markerB));
+
+    expect(applyRecoveryPendingStorageValue(null)).toEqual({
+      issuedAt: markerB.issuedAt,
+      token: markerB.token,
+    });
+    expect(captureRecoveryPendingLease().token).toBe(markerB.token);
+  });
+
+  test("preserves a base-only legacy owner across newer A persist and clear", async () => {
+    const legacyIssuedAt = "2026-09-07T00:00:00.000Z";
+    values.set(RECOVERY_PENDING_KEY, JSON.stringify({ issuedAt: legacyIssuedAt }));
+
+    const leaseA = await persistRecoveryPending();
+    await expect(clearRecoveryPending(leaseA)).resolves.toBe("cleared");
+    __resetRecoveryProofStorageQueueForTests();
+
+    await expect(loadRecoveryPending()).resolves.toEqual({
+      issuedAt: legacyIssuedAt,
+      token: expect.any(String),
+    });
+    expect(isRecoveryPendingInMemory()).toBe(true);
+  });
+
+  test("ignores inherited owner versions and keeps versionless markers locked", () => {
+    const marker = {
+      issuedAt: "2026-09-07T00:00:00.000Z",
+      token: "owner-old",
+    };
+    values.set(RECOVERY_PENDING_KEY, JSON.stringify(marker));
+    const ownerVersionDescriptor = Object.getOwnPropertyDescriptor(
+      Object.prototype,
+      "ownerKeyVersion",
+    );
+    Object.defineProperty(Object.prototype, "ownerKeyVersion", {
+      configurable: true,
+      value: 1,
+    });
+    try {
+      expect(applyRecoveryPendingStorageValue(null)).toEqual(marker);
+      expect(isRecoveryPendingInMemory()).toBe(true);
+    } finally {
+      if (ownerVersionDescriptor) {
+        Object.defineProperty(Object.prototype, "ownerKeyVersion", ownerVersionDescriptor);
+      } else {
+        Reflect.deleteProperty(Object.prototype, "ownerKeyVersion");
+      }
+    }
+  });
+
+  test("fails closed on oversized or excessive owner ledgers", () => {
+    const oversizedToken = "x".repeat(10_000);
+    const oversizedMarker = {
+      issuedAt: "2026-09-07T00:00:00.000Z",
+      token: oversizedToken,
+      ownerKeyVersion: 1,
+    };
+    values.set(
+      `${RECOVERY_PENDING_KEY}.${oversizedToken}`,
+      JSON.stringify(oversizedMarker),
+    );
+
+    expect(applyRecoveryPendingStorageValue(null)).toBeNull();
+    expect(isRecoveryPendingInMemory()).toBe(true);
+
+    values.clear();
+    __resetRecoveryProofStorageQueueForTests();
+    for (let index = 0; index < 65; index += 1) {
+      const token = `owner-${index}`;
+      values.set(`${RECOVERY_PENDING_KEY}.${token}`, JSON.stringify({
+        issuedAt: new Date(Date.UTC(2026, 8, 7, 0, 0, index)).toISOString(),
+        token,
+        ownerKeyVersion: 1,
+      }));
+    }
+
+    expect(applyRecoveryPendingStorageValue(null)).toBeNull();
+    expect(isRecoveryPendingInMemory()).toBe(true);
+  });
+
+  test("keeps a recognized recovery callback locked when its ledger is over capacity", () => {
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: { location: { href: "https://example.com/2nd-B/reset-password?code=pkce-1" } },
+    });
+    for (let index = 0; index < 65; index += 1) {
+      const token = `owner-${index}`;
+      values.set(`${RECOVERY_PENDING_KEY}.${token}`, JSON.stringify({
+        issuedAt: new Date(Date.UTC(2026, 8, 7, 0, 0, index)).toISOString(),
+        token,
+        ownerKeyVersion: 1,
+      }));
+    }
+
+    expect(armWebRecoveryPendingFromLocation()).toBe(false);
+    expect(isRecoveryPendingInMemory()).toBe(true);
+  });
+
+  test("keeps a failed pending claim locked when the existing ledger is unreadable", async () => {
+    for (let index = 0; index < 65; index += 1) {
+      const token = `owner-${index}`;
+      values.set(`${RECOVERY_PENDING_KEY}.${token}`, JSON.stringify({
+        issuedAt: new Date(Date.UTC(2026, 8, 7, 0, 0, index)).toISOString(),
+        token,
+        ownerKeyVersion: 1,
+      }));
+    }
+
+    await expect(persistRecoveryPending()).rejects.toThrow("owner count");
+    expect(isRecoveryPendingInMemory()).toBe(true);
+  });
+
+  test("recognizes base, owner, and storage.clear events but not unrelated keys", () => {
+    expect(isRecoveryPendingStorageKey(RECOVERY_PENDING_KEY)).toBe(true);
+    expect(isRecoveryPendingStorageKey(`${RECOVERY_PENDING_KEY}.owner-a`)).toBe(true);
+    expect(isRecoveryPendingStorageKey(null)).toBe(true);
+    expect(isRecoveryPendingStorageKey(RECOVERY_PROOF_KEY)).toBe(false);
   });
 });
 
