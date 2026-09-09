@@ -98,7 +98,7 @@ jobs:
           done
       # Pin the executable because its statement splitting and migration-ledger
       # writes are part of this test contract, not an ambient runner detail.
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1 # v1
         with:
           version: 2.116.0
       - name: Apply staged migrations (0147+) through Supabase CLI

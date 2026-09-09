@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse } from "yaml";
 
@@ -35,6 +35,11 @@ const APPROVED_ACTIONS = {
   "astral-sh/setup-uv": {
     sha: "d0cc045d04ccac9d8b7881df0226f9e82c39688e",
     tag: "v6",
+    count: 1,
+  },
+  "supabase/setup-cli": {
+    sha: "ab058987d8d6c725971f6cf9d0b5c98467e30bd1",
+    tag: "v1",
     count: 1,
   },
 } as const;
@@ -77,6 +82,30 @@ function namedStep(path: (typeof WORKFLOW_PATHS)[number], name: string): Step {
 }
 
 describe("security-sensitive GitHub Actions workflows", () => {
+  test("every workflow keeps external actions on immutable revisions", () => {
+    const workflowDir = join(ROOT, ".github", "workflows");
+    const files = readdirSync(workflowDir)
+      .filter((name) => /\.ya?ml$/.test(name))
+      .sort();
+    let externalUses = 0;
+
+    for (const file of files) {
+      const lines = readFileSync(join(workflowDir, file), "utf8").split(/\r?\n/);
+      for (const line of lines) {
+        const value = line.match(/^\s*(?:-\s*)?uses:\s*([^\s#]+)/)?.[1];
+        if (!value || value.startsWith("./")) continue;
+        externalUses += 1;
+        expect({ file, value, immutable: /@[0-9a-f]{40}$/.test(value) }).toEqual({
+          file,
+          value,
+          immutable: true,
+        });
+      }
+    }
+
+    expect(externalUses).toBeGreaterThan(0);
+  });
+
   test("every external action is pinned to the reviewed immutable SHA", () => {
     const observed = new Map<string, number>();
     let actionCount = 0;
@@ -161,6 +190,8 @@ describe("security-sensitive GitHub Actions workflows", () => {
     expect(workflow.jobs?.sql.services?.postgres.image).toBe(PGVECTOR_PG16_IMAGE);
     expect(raw).toContain(`image: ${PGVECTOR_PG16_IMAGE} # pg16`);
     expect(raw).not.toMatch(/image:\s*pgvector\/pgvector:pg16(?:\s|$)/);
+    expect(raw).toContain("version: 2.116.0");
+    expect(raw).not.toMatch(/version:\s*(?:latest|v\d+)\b/);
   });
 
   test("Android signing secrets use private files and never step outputs", () => {
