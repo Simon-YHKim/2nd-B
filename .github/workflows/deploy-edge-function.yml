@@ -16,7 +16,7 @@ on:
         required: true
         type: string
       verify_jwt:
-        description: Keep JWT verification on (leave true unless the function does its own auth)
+        description: Keep JWT verification on (false is limited to reviewed public callbacks)
         required: true
         type: boolean
         default: true
@@ -29,6 +29,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Validate deployment policy
+        id: policy
+        env:
+          EDGE_FUNCTION_NAME: ${{ inputs.function }}
+          EDGE_VERIFY_JWT: ${{ inputs.verify_jwt }}
+        run: node scripts/check-edge-function-deploy-policy.mjs
 
       - name: Refuse to run without the token
         env:
@@ -45,18 +52,6 @@ jobs:
             exit 1
           fi
 
-      - name: Check the function exists in this repo
-        run: |
-          set -euo pipefail
-          DIR="supabase/functions/${{ inputs.function }}"
-          if [ ! -f "$DIR/index.ts" ]; then
-            echo "No such function: $DIR/index.ts" >&2
-            echo "Available:" >&2
-            ls -1 supabase/functions >&2
-            exit 1
-          fi
-          echo "deploying $DIR"
-
       - uses: supabase/setup-cli@v1
         with:
           version: latest
@@ -71,27 +66,31 @@ jobs:
 
       - name: Deploy
         env:
+          FUNCTION_NAME: ${{ steps.policy.outputs.function_name }}
+          JWT_FLAG: ${{ steps.policy.outputs.jwt_flag }}
+          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
-          FLAGS=""
-          if [ "${{ inputs.verify_jwt }}" != "true" ]; then
-            FLAGS="--no-verify-jwt"
+          args=(functions deploy "$FUNCTION_NAME" --project-ref "$PROJECT_REF")
+          if [ -n "$JWT_FLAG" ]; then
+            args+=("$JWT_FLAG")
           fi
-          supabase functions deploy "${{ inputs.function }}" \
-            --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" $FLAGS
+          supabase "${args[@]}"
 
       - name: Report the version after deploying
         env:
+          FUNCTION_NAME: ${{ steps.policy.outputs.function_name }}
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          VERIFY_JWT: ${{ steps.policy.outputs.verify_jwt }}
         run: |
           set -euo pipefail
           supabase functions list --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" \
             | tee after.txt
           {
-            echo "## Deployed \`${{ inputs.function }}\`"
+            echo "## Deployed \`$FUNCTION_NAME\`"
             echo ""
-            echo "verify_jwt: \`${{ inputs.verify_jwt }}\`"
+            echo "verify_jwt: \`$VERIFY_JWT\`"
             echo ""
             echo "### After"
             echo '```'
