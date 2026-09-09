@@ -52,6 +52,10 @@
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import {
+  buildPaddleApiUrl,
+  readPaddleApiResponse,
+} from '../_shared/paddle-api-boundary.ts';
 import { createCheckoutBinding } from '../_shared/paddle-checkout-binding.ts';
 import {
   parseJsonWithLimits,
@@ -169,24 +173,37 @@ interface Eligibility {
 
 const PADDLE_TIMEOUT_MS = 15000;
 
-function paddleBase(): string {
-  return (Deno.env.get('PADDLE_API_BASE') ?? 'https://api.paddle.com').replace(/\/+$/, '');
-}
-
 interface PaddleCall {
   ok: boolean;
   status: number;
   ref: string | null;
   error: string | null;
+  failure: 'configuration_error' | 'provider_error' | null;
 }
 
 // One outbound shape for both actions. `Paddle-Idempotency-Key` is sent so a
 // network retry of the SAME claim cannot produce two adjustments at Paddle even
 // if our own ledger row were somehow replayed.
 async function callPaddle(path: string, body: unknown, idempotencyKey: string): Promise<PaddleCall> {
-  const apiKey = Deno.env.get('PADDLE_API_KEY') ?? '';
+  let endpoint: string;
   try {
-    const res = await fetch(`${paddleBase()}${path}`, {
+    endpoint = buildPaddleApiUrl(Deno.env.get('PADDLE_API_BASE'), path);
+  } catch {
+    // Never include the configured URL in logs or a response. It may contain
+    // attacker-controlled material, and no secret-bearing request was sent.
+    return {
+      ok: false,
+      status: 0,
+      ref: null,
+      error: 'invalid_paddle_api_base',
+      failure: 'configuration_error',
+    };
+  }
+
+  const apiKey = Deno.env.get('PADDLE_API_KEY') ?? '';
+  const deadline = Date.now() + PADDLE_TIMEOUT_MS;
+  try {
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'authorization': `Bearer ${apiKey}`,
@@ -197,25 +214,43 @@ async function callPaddle(path: string, body: unknown, idempotencyKey: string): 
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(PADDLE_TIMEOUT_MS),
     });
-    let parsed: Record<string, unknown> | null = null;
-    try {
-      parsed = await res.json();
-    } catch {
-      parsed = null;
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 0) {
+      return {
+        ok: false,
+        status: 0,
+        ref: null,
+        error: 'provider_timeout',
+        failure: 'provider_error',
+      };
     }
-    const dataObj = (parsed?.data ?? null) as Record<string, unknown> | null;
-    const ref = typeof dataObj?.id === 'string' ? dataObj.id : null;
+    const summary = await readPaddleApiResponse(res, remainingMs);
     if (!res.ok) {
-      const errObj = (parsed?.error ?? null) as Record<string, unknown> | null;
-      const code = typeof errObj?.code === 'string' ? errObj.code : `http_${res.status}`;
-      const detail = typeof errObj?.detail === 'string' ? errObj.detail : '';
-      return { ok: false, status: res.status, ref, error: `${code}${detail ? `: ${detail}` : ''}` };
+      return {
+        ok: false,
+        status: res.status,
+        ref: summary.ref,
+        error: summary.errorCode ?? `http_${res.status}`,
+        failure: 'provider_error',
+      };
     }
-    return { ok: true, status: res.status, ref, error: null };
-  } catch (e) {
+    return {
+      ok: true,
+      status: res.status,
+      ref: summary.ref,
+      error: null,
+      failure: null,
+    };
+  } catch {
     // A timeout or transport failure is genuinely unknown, not a refusal: the
     // claim is settled as provider_error so the user can retry.
-    return { ok: false, status: 0, ref: null, error: String(e).slice(0, 300) };
+    return {
+      ok: false,
+      status: 0,
+      ref: null,
+      error: 'provider_transport_or_response_error',
+      failure: 'provider_error',
+    };
   }
 }
 
@@ -420,7 +455,13 @@ Deno.serve(async (req: Request) => {
   // cannot cancel at all) - support, not a guess.
   const targetId = action === 'cancel' ? claim.subscription_id : claim.transaction_id;
   if (!targetId) {
-    await settleClaim('misconfigured', { ok: false, status: 0, ref: null, error: 'no_paddle_id_on_record' });
+    await settleClaim('misconfigured', {
+      ok: false,
+      status: 0,
+      ref: null,
+      error: 'no_paddle_id_on_record',
+      failure: 'configuration_error',
+    });
     return jsonResponse(req, { ok: false, outcome: 'misconfigured', contact_support: true, eligibility }, 200);
   }
 
@@ -435,7 +476,13 @@ Deno.serve(async (req: Request) => {
     // while nothing reached Paddle and their real attempt was locked out.
     // 'dry_run' is outside both indexes, so a rehearsal is repeatable and
     // consumes nothing.
-    await settleClaim('dry_run', { ok: true, status: 0, ref: `dryrun:${targetId}`, error: null });
+    await settleClaim('dry_run', {
+      ok: true,
+      status: 0,
+      ref: `dryrun:${targetId}`,
+      error: null,
+      failure: null,
+    });
     return jsonResponse(req, { ok: true, outcome: 'dry_run', dry_run: true, eligibility }, 200);
   }
 
@@ -460,9 +507,17 @@ Deno.serve(async (req: Request) => {
       }, idempotencyKey);
 
   if (!call.ok) {
+    const failureOutcome = call.failure === 'configuration_error'
+      ? 'misconfigured'
+      : 'provider_error';
     console.error(`[subscription-manage] paddle ${action} failed:`, call.status, call.error);
-    await settleClaim('provider_error', call);
-    return jsonResponse(req, { ok: false, outcome: 'provider_error', contact_support: true, eligibility }, 200);
+    await settleClaim(failureOutcome, call);
+    return jsonResponse(req, {
+      ok: false,
+      outcome: failureOutcome,
+      contact_support: true,
+      eligibility,
+    }, 200);
   }
 
   await settleClaim('accepted', call);

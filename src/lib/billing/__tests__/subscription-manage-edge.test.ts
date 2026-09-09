@@ -195,7 +195,8 @@ describe("subscription-manage - idempotency", () => {
 
   test("every terminal state is settled back onto the claim", () => {
     expect(code).toMatch(/settleClaim\('accepted'/);
-    expect(code).toMatch(/settleClaim\('provider_error'/);
+    expect(code).toMatch(/await settleClaim\(failureOutcome, call\)/);
+    expect(code).toMatch(/failure === 'configuration_error'[\s\S]*'misconfigured'[\s\S]*'provider_error'/);
   });
 });
 
@@ -212,12 +213,27 @@ describe("subscription-manage - provider contract", () => {
     expect(code).toMatch(/transaction_id: targetId/);
   });
 
-  test("the base URL is overridable so sandbox can be exercised", () => {
-    expect(code).toMatch(/PADDLE_API_BASE/);
+  test("validates the configured base before constructing a secret-bearing request", () => {
+    const boundaryAt = code.indexOf("endpoint = buildPaddleApiUrl(Deno.env.get('PADDLE_API_BASE'), path)");
+    const fetchAt = code.indexOf("const res = await fetch(endpoint");
+    expect(boundaryAt).toBeGreaterThan(-1);
+    expect(fetchAt).toBeGreaterThan(boundaryAt);
+    expect(code).not.toMatch(/fetch\(`\$\{paddleBase\(\)\}/);
   });
 
-  test("outbound calls are bounded by a timeout", () => {
+  test("fetch and strict bounded response reading share one deadline", () => {
     expect(code).toMatch(/AbortSignal\.timeout\(PADDLE_TIMEOUT_MS\)/);
+    expect(code).toMatch(/const deadline = Date\.now\(\) \+ PADDLE_TIMEOUT_MS/);
+    expect(code).toMatch(/const remainingMs = deadline - Date\.now\(\)/);
+    expect(code).toMatch(/readPaddleApiResponse\(res, remainingMs\)/);
+    expect(code).not.toMatch(/await res\.json\(\)/);
+  });
+
+  test("stores only boundary-sanitized provider codes, never raw detail or exceptions", () => {
+    expect(code).toMatch(/error: summary\.errorCode \?\? `http_\$\{res\.status\}`/);
+    expect(code).toMatch(/'provider_transport_or_response_error'/);
+    expect(code).not.toMatch(/errObj\?\.detail/);
+    expect(code).not.toMatch(/String\(e\)/);
   });
 });
 
