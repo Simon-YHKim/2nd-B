@@ -1,8 +1,9 @@
 name: Deploy edge function
 
 # Deploys one repository-owned Edge Function from the current main revision.
-# Production environment approval and a shared mutation lane protect the live
-# project. Function auth behavior comes only from reviewed supabase/config.toml.
+# SECURITY: Production must independently enforce main-only deployment rules,
+# required reviewers, and the SUPABASE_* values as environment secrets. The
+# code guards below are defense in depth, not a replacement for those controls.
 
 on:
   workflow_dispatch:
@@ -56,68 +57,16 @@ jobs:
           fi
           echo "main_sha=$REMOTE_MAIN_SHA" >> "$GITHUB_OUTPUT"
 
-      - name: Validate repository-owned function and auth config
-        id: function_gate
+      - name: Validate deployment policy
+        id: policy
         env:
-          FUNCTION_INPUT: ${{ inputs.function }}
-        run: |
-          set -euo pipefail
-          if [ -z "$FUNCTION_INPUT" ] || [ ${#FUNCTION_INPUT} -gt 63 ] || \
-             ! [[ "$FUNCTION_INPUT" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
-            echo "::error title=Edge deploy gate::invalid-function-slug"
-            exit 1
-          fi
-
-          FUNCTION_ROOT="$(realpath -e -- supabase/functions)"
-          REQUESTED_DIR="$FUNCTION_ROOT/$FUNCTION_INPUT"
-          if [ ! -d "$REQUESTED_DIR" ] || [ -L "$REQUESTED_DIR" ]; then
-            echo "::error title=Edge deploy gate::function-directory-not-regular"
-            exit 1
-          fi
-          if ! FUNCTION_DIR="$(realpath -e -- "$REQUESTED_DIR")"; then
-            echo "::error title=Edge deploy gate::function-path-unresolvable"
-            exit 1
-          fi
-          case "$FUNCTION_DIR" in
-            "$FUNCTION_ROOT"/*) ;;
-            *)
-              echo "::error title=Edge deploy gate::function-path-escaped-root"
-              exit 1
-              ;;
-          esac
-          if [ ! -f "$FUNCTION_DIR/index.ts" ] || [ -L "$FUNCTION_DIR/index.ts" ]; then
-            echo "::error title=Edge deploy gate::function-index-not-regular"
-            exit 1
-          fi
-
-          FUNCTION_SLUG="$FUNCTION_INPUT"
-          CONFIG_SECTION="[functions.$FUNCTION_SLUG]"
-          SECTION_COUNT="$(grep -Fxc -- "$CONFIG_SECTION" supabase/config.toml || true)"
-          if [ "$SECTION_COUNT" != "1" ]; then
-            echo "::error title=Edge deploy gate::function-config-section-required"
-            exit 1
-          fi
-          VERIFY_JWT="$(
-            awk -v section="$CONFIG_SECTION" '
-              $0 == section { inside = 1; next }
-              inside && /^\[/ { inside = 0 }
-              inside && $1 == "verify_jwt" && $2 == "=" { print $3 }
-            ' supabase/config.toml
-          )"
-          case "$VERIFY_JWT" in
-            true|false) ;;
-            *)
-              echo "::error title=Edge deploy gate::function-verify-jwt-boolean-required"
-              exit 1
-              ;;
-          esac
-          echo "function_slug=$FUNCTION_SLUG" >> "$GITHUB_OUTPUT"
-          echo "verify_jwt=$VERIFY_JWT" >> "$GITHUB_OUTPUT"
+          EDGE_FUNCTION_NAME: ${{ inputs.function }}
+        run: node scripts/check-edge-function-deploy-policy.mjs
 
       - name: Validate production credentials
         env:
-          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ secrets.PRODUCTION_SUPABASE_PROJECT_REF }}
         run: |
           set -euo pipefail
           if [ -z "${TOKEN:-}" ]; then
@@ -136,20 +85,28 @@ jobs:
 
       - name: Record version before deploying
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ secrets.PRODUCTION_SUPABASE_PROJECT_REF }}
         run: |
           set -euo pipefail
-          supabase functions list --project-ref "$PROJECT_REF" | tee before.txt
+          supabase functions list --project-ref "$PROJECT_REF" --output json > before.json
 
-      - name: Recheck main and deploy config-owned auth policy
+      - name: Recheck main and deploy fixed auth policy
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
-          FUNCTION_SLUG: ${{ steps.function_gate.outputs.function_slug }}
+          FUNCTION_SLUG: ${{ steps.policy.outputs.function_name }}
+          NO_VERIFY_JWT: ${{ steps.policy.outputs.no_verify_jwt }}
+          PROJECT_REF: ${{ secrets.PRODUCTION_SUPABASE_PROJECT_REF }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}
           MAIN_SHA: ${{ steps.main_gate.outputs.main_sha }}
         run: |
           set -euo pipefail
+          case "$NO_VERIFY_JWT" in
+            true|false) ;;
+            *)
+              echo "::error title=Edge deploy gate::invalid-fixed-auth-policy"
+              exit 1
+              ;;
+          esac
           if ! git fetch --no-tags --depth=1 origin '+refs/heads/main:refs/remotes/origin/main' >/dev/null 2>&1; then
             echo "::error title=Edge deploy gate::remote-main-recheck-failed"
             exit 1
@@ -159,24 +116,52 @@ jobs:
             echo "::error title=Edge deploy gate::main-advanced-before-deploy"
             exit 1
           fi
-          supabase functions deploy "$FUNCTION_SLUG" --project-ref "$PROJECT_REF"
+          supabase functions deploy "$FUNCTION_SLUG" \
+            --project-ref "$PROJECT_REF" \
+            --no-verify-jwt="$NO_VERIFY_JWT"
 
-      - name: Report version after deploying
+      - name: Verify deployed auth policy
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
-          FUNCTION_SLUG: ${{ steps.function_gate.outputs.function_slug }}
-          VERIFY_JWT: ${{ steps.function_gate.outputs.verify_jwt }}
+          FUNCTION_SLUG: ${{ steps.policy.outputs.function_name }}
+          EXPECTED_VERIFY_JWT: ${{ steps.policy.outputs.verify_jwt }}
+          PROJECT_REF: ${{ secrets.PRODUCTION_SUPABASE_PROJECT_REF }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
-          supabase functions list --project-ref "$PROJECT_REF" | tee after.txt
+          case "$EXPECTED_VERIFY_JWT" in
+            true|false) ;;
+            *)
+              echo "::error title=Edge deploy postflight::invalid-expected-auth-policy"
+              exit 1
+              ;;
+          esac
+          supabase functions list --project-ref "$PROJECT_REF" --output json > after.json
+          node <<'NODE'
+          const fs = require("node:fs");
+
+          const fail = (message) => {
+            process.stderr.write(`::error title=Edge deploy postflight::${message}\n`);
+            process.exit(1);
+          };
+
+          let payload;
+          try {
+            payload = JSON.parse(fs.readFileSync("after.json", "utf8"));
+          } catch {
+            fail("function-list-json-required");
+          }
+
+          const functions = Array.isArray(payload) ? payload : payload?.functions;
+          if (!Array.isArray(functions)) fail("function-list-array-required");
+          const matches = functions.filter((item) => item?.slug === process.env.FUNCTION_SLUG);
+          if (matches.length !== 1) fail("exact-function-metadata-required");
+
+          const expected = process.env.EXPECTED_VERIFY_JWT === "true";
+          if (typeof matches[0].verify_jwt !== "boolean") fail("boolean-verify-jwt-required");
+          if (matches[0].verify_jwt !== expected) fail("deployed-verify-jwt-mismatch");
+          NODE
           {
             echo "## Deployed \`$FUNCTION_SLUG\`"
             echo ""
-            echo "JWT verification from config: \`$VERIFY_JWT\`"
-            echo ""
-            echo "### After"
-            echo '```'
-            cat after.txt
-            echo '```'
+            echo "Verified remote JWT policy: \`$EXPECTED_VERIFY_JWT\`"
           } >> "$GITHUB_STEP_SUMMARY"

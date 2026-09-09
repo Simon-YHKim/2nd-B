@@ -1,7 +1,8 @@
 name: Set an edge-function flag
 
 # Only the two non-secret billing switches below can be changed. Production
-# environment approval and a shared mutation lane serialize this with deploys.
+# must own the PRODUCTION_SUPABASE_* secrets; approval and a shared mutation
+# lane serialize this with deploys.
 
 on:
   workflow_dispatch:
@@ -71,8 +72,8 @@ jobs:
 
       - name: Validate production credentials
         env:
-          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ secrets.PRODUCTION_SUPABASE_PROJECT_REF }}
         run: |
           set -euo pipefail
           if [ -z "${TOKEN:-}" ]; then
@@ -124,16 +125,16 @@ jobs:
 
       - name: Record digests before mutation
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ secrets.PRODUCTION_SUPABASE_PROJECT_REF }}
         run: |
           set -euo pipefail
           supabase secrets list --project-ref "$PROJECT_REF" | tee before.txt
 
       - name: Recheck main and set the validated flag
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ secrets.PRODUCTION_SUPABASE_PROJECT_REF }}
           FLAG: ${{ steps.input_gate.outputs.flag }}
           VALUE: ${{ steps.input_gate.outputs.value }}
           MAIN_SHA: ${{ steps.main_gate.outputs.main_sha }}
@@ -152,8 +153,8 @@ jobs:
 
       - name: Record digests after mutation
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ secrets.PRODUCTION_SUPABASE_PROJECT_REF }}
           FLAG: ${{ steps.input_gate.outputs.flag }}
           VALUE: ${{ steps.input_gate.outputs.value }}
         run: |

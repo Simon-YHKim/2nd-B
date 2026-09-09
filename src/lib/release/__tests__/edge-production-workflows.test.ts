@@ -86,6 +86,12 @@ describe.each([
     expect(allRunScripts(job)).not.toMatch(/\$\{\{\s*(?:inputs|secrets)\./);
   });
 
+  test("requires Production-scoped Supabase secret names", () => {
+    expect(raw).toContain("secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN");
+    expect(raw).toContain("secrets.PRODUCTION_SUPABASE_PROJECT_REF");
+    expect(raw).not.toMatch(/secrets\.SUPABASE_(?:ACCESS_TOKEN|PROJECT_REF)/);
+  });
+
   test("gates the checked-out current origin/main before any mutation", () => {
     expect(raw).toContain("refs/heads/main:refs/remotes/origin/main");
     expect(raw).toContain('HEAD_SHA="$(git rev-parse HEAD)"');
@@ -101,26 +107,20 @@ describe("deploy-edge-function input and config contract", () => {
   test("has one function input and no operator-controlled JWT override", () => {
     expect(Object.keys(workflow.on.workflow_dispatch.inputs ?? {})).toEqual(["function"]);
     expect(raw).not.toContain("verify_jwt:");
-    expect(raw).not.toContain("--no-verify-jwt");
     expect(raw.match(/\$\{\{\s*inputs\.function\s*\}\}/g)).toHaveLength(1);
-    expect(job.steps.some((step) => step.env?.FUNCTION_INPUT === "${{ inputs.function }}"))
+    expect(job.steps.some((step) => step.env?.EDGE_FUNCTION_NAME === "${{ inputs.function }}"))
       .toBe(true);
   });
 
-  test("validates a bounded slug, canonical path, index, and config-owned JWT boolean", () => {
-    const scripts = allRunScripts(job);
-    expect(scripts).toContain('^[a-z0-9]+(-[a-z0-9]+)*$');
-    expect(scripts).toContain('${#FUNCTION_INPUT} -gt 63');
-    expect(scripts).toContain('realpath -e -- "$REQUESTED_DIR"');
-    expect(scripts).toContain('"$FUNCTION_ROOT"/*');
-    expect(scripts).toContain('[ -L "$REQUESTED_DIR" ]');
-    expect(scripts).toContain('[ ! -f "$FUNCTION_DIR/index.ts" ]');
-    expect(scripts).toContain('CONFIG_SECTION="[functions.$FUNCTION_SLUG]"');
-    expect(scripts).toContain('grep -Fxc -- "$CONFIG_SECTION" supabase/config.toml');
-    expect(scripts).toMatch(/case "\$VERIFY_JWT" in[\s\S]*true\|false/);
+  test("delegates path and auth validation to the reviewed policy script", () => {
+    const matches = job.steps.filter(
+      (step) => step.run === "node scripts/check-edge-function-deploy-policy.mjs",
+    );
+    expect(matches).toHaveLength(1);
+    expect(matches[0].env).toEqual({ EDGE_FUNCTION_NAME: "${{ inputs.function }}" });
   });
 
-  test("rechecks main immediately before deploying the validated slug", () => {
+  test("rechecks main before deploying the validated slug with an explicit fixed auth flag", () => {
     const step = mutationStep(job, "supabase functions deploy");
     const script = step.run ?? "";
     const fetch = script.indexOf("git fetch --no-tags --depth=1 origin");
@@ -129,9 +129,20 @@ describe("deploy-edge-function input and config contract", () => {
     expect(fetch).toBeGreaterThanOrEqual(0);
     expect(comparison).toBeGreaterThan(fetch);
     expect(deploy).toBeGreaterThan(comparison);
-    expect(step.env?.PROJECT_REF).toBe("${{ secrets.SUPABASE_PROJECT_REF }}");
+    expect(step.env?.PROJECT_REF).toBe("${{ secrets.PRODUCTION_SUPABASE_PROJECT_REF }}");
+    expect(step.env?.NO_VERIFY_JWT).toBe("${{ steps.policy.outputs.no_verify_jwt }}");
     expect(script).toContain('--project-ref "$PROJECT_REF"');
-    expect(script).not.toContain("--no-verify-jwt");
+    expect(script).toContain('case "$NO_VERIFY_JWT" in');
+    expect(script).toContain('--no-verify-jwt="$NO_VERIFY_JWT"');
+  });
+
+  test("fails closed unless postflight metadata confirms the exact JWT policy", () => {
+    const postflight = job.steps.find((candidate) => candidate.name === "Verify deployed auth policy");
+    expect(postflight).toBeDefined();
+    expect(postflight?.env?.EXPECTED_VERIFY_JWT).toBe("${{ steps.policy.outputs.verify_jwt }}");
+    expect(postflight?.run).toContain("--output json > after.json");
+    expect(postflight?.run).toContain("item?.slug === process.env.FUNCTION_SLUG");
+    expect(postflight?.run).toContain("matches[0].verify_jwt !== expected");
   });
 });
 
