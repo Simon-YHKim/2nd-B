@@ -26,7 +26,9 @@ import {
   boundedSessionLoad,
   classifyBootstrapOutcome,
   classifyRefreshOutcome,
+  createRecoveryPendingReleaseRuntime,
   settleAuthBootstrap,
+  type AuthBootstrapSettlement,
   type SessionLoadOutcome,
 } from "../bootstrap-outcome";
 
@@ -35,14 +37,19 @@ const read = (p: string) => readFileSync(resolve(ROOT, p), "utf8").replace(/\r\n
 
 const TIMEOUT_MS = 8000;
 type TestSession = { user: { id: string } };
+type TestLease = { revision: number; token: string | null };
 const SESSION: TestSession = { user: { id: "user-1" } };
+const LEASE_A: TestLease = { revision: 1, token: "attempt-a" };
+const LEASE_B: TestLease = { revision: 2, token: "attempt-b" };
 const TIMED_OUT: SessionLoadOutcome<TestSession> = {
   ok: false,
   error: new Error("Auth session hydration timed out"),
 };
 
 /** Collaborator doubles standing in for the provider's real closures. */
-function makeDeps(overrides: Partial<Parameters<typeof settleAuthBootstrap<TestSession>>[0]> = {}) {
+function makeDeps(
+  overrides: Partial<AuthBootstrapSettlement<TestSession, unknown, TestLease>> = {},
+) {
   const calls = {
     resolveSession: [] as (string | null)[],
     publishSessionUnavailable: 0,
@@ -50,13 +57,14 @@ function makeDeps(overrides: Partial<Parameters<typeof settleAuthBootstrap<TestS
     authEvents: [] as { event: string; session: TestSession | null }[],
     failClosed: [] as unknown[],
     storageFailures: [] as unknown[],
-    clearedPending: 0,
+    clearedPending: [] as (TestLease | null)[],
   };
   const deps = {
     sessionKnown: false,
     hasProof: false,
     proofMatchesSession: true,
     recoveryPendingOnDisk: false,
+    recoveryPendingLease: null as TestLease | null,
     markersReadable: true,
     sessionForResolve: null as TestSession | null,
     sessionAnswered: false,
@@ -80,8 +88,9 @@ function makeDeps(overrides: Partial<Parameters<typeof settleAuthBootstrap<TestS
       calls.failClosed.push(error);
       return true;
     },
-    clearRecoveryPending: async () => {
-      calls.clearedPending += 1;
+    releaseRecoveryPending: async (lease: TestLease | null) => {
+      calls.clearedPending.push(lease);
+      return true;
     },
     handleAuthEvent: (event: "INITIAL_SESSION", session: TestSession | null) => {
       calls.authEvents.push({ event, session });
@@ -227,6 +236,21 @@ describe("recovery cases stay locked", () => {
     expect(calls.recoveryReady).toEqual([false]);
   });
 
+  test("a newer in-memory B claim keeps readiness locked after A's disk snapshot", () => {
+    const { deps, calls } = makeDeps({
+      sessionKnown: true,
+      sessionAnswered: true,
+      sessionForResolve: SESSION,
+      recoveryPendingOnDisk: false,
+      isRecoveryPendingInMemory: () => true,
+      rawSessionLoad: Promise.resolve({ ok: true, session: SESSION }),
+    });
+
+    expect(settleAuthBootstrap(deps)).toEqual({ kind: "resolve" });
+    expect(calls.resolveSession).toEqual(["user-1"]);
+    expect(calls.recoveryReady).toEqual([false]);
+  });
+
   test("an unreadable marker store stays locked and publishes nothing here", () => {
     const { deps, calls } = makeDeps({
       markersReadable: false,
@@ -267,6 +291,7 @@ describe("recovery cases stay locked", () => {
     });
     const { deps, calls } = makeDeps({
       recoveryPendingOnDisk: true,
+      recoveryPendingLease: LEASE_A,
       rawSessionLoad: raw,
       isRecoveryPendingInMemory: () => true,
     });
@@ -277,9 +302,86 @@ describe("recovery cases stay locked", () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(calls.clearedPending).toBe(1);
+    expect(calls.clearedPending).toEqual([LEASE_A]);
     expect(calls.failClosed).toEqual([]);
     expect(calls.authEvents).toEqual([{ event: "INITIAL_SESSION", session: null }]);
+  });
+
+  test("a late A NULL answer cannot release readiness or resolve after B takes ownership", async () => {
+    let answer: (v: SessionLoadOutcome<TestSession>) => void = () => {};
+    const raw = new Promise<SessionLoadOutcome<TestSession>>((resolveAnswer) => {
+      answer = resolveAnswer;
+    });
+    const { deps, calls } = makeDeps({
+      recoveryPendingOnDisk: true,
+      recoveryPendingLease: LEASE_A,
+      rawSessionLoad: raw,
+      isRecoveryPendingInMemory: () => true,
+      releaseRecoveryPending: async (lease) => {
+        calls.clearedPending.push(lease);
+        // A's exact clear is stale once B owns both memory and durable state.
+        return false;
+      },
+    });
+    settleAuthBootstrap(deps);
+
+    answer({ ok: true, session: null });
+    await raw;
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(calls.clearedPending).toEqual([LEASE_A]);
+    expect(calls.recoveryReady).toEqual([false]);
+    expect(calls.authEvents).toEqual([]);
+  });
+});
+
+describe("pending-owner release runtime", () => {
+  test("claims single-flight synchronously and stale A cannot release B", async () => {
+    let finishClear: (result: "cleared" | "stale") => void = () => {};
+    const clearResult = new Promise<"cleared" | "stale">((resolveClear) => {
+      finishClear = resolveClear;
+    });
+    let pending = true;
+    let currentOwner = LEASE_A;
+    const clearCalls: TestLease[] = [];
+    const runtime = createRecoveryPendingReleaseRuntime<TestLease>({
+      sameLease: (left, right) => left.revision === right.revision && left.token === right.token,
+      clear: (lease) => {
+        clearCalls.push(lease);
+        return clearResult;
+      },
+      isPending: () => pending,
+    });
+
+    const first = runtime.release(LEASE_A);
+    const coalesced = runtime.release({ ...LEASE_A });
+    expect(coalesced).toBe(first);
+
+    currentOwner = LEASE_B;
+    pending = true;
+    finishClear(currentOwner === LEASE_A ? "cleared" : "stale");
+
+    await expect(first).resolves.toBe(false);
+    await expect(coalesced).resolves.toBe(false);
+    expect(clearCalls).toEqual([LEASE_A]);
+    expect(currentOwner).toBe(LEASE_B);
+    expect(pending).toBe(true);
+  });
+
+  test("releases only when the exact clear leaves no pending owner", async () => {
+    let pending = true;
+    const runtime = createRecoveryPendingReleaseRuntime<TestLease>({
+      sameLease: (left, right) => left.revision === right.revision && left.token === right.token,
+      clear: async () => {
+        pending = false;
+        return "cleared";
+      },
+      isPending: () => pending,
+    });
+
+    await expect(runtime.release(LEASE_A)).resolves.toBe(true);
+    await expect(runtime.release(null)).resolves.toBe(true);
   });
 });
 
@@ -367,11 +469,17 @@ describe("provider and screen wiring", () => {
   test("AuthProvider ends its bootstrap through the executor these tests drive", () => {
     // Without this, the suite above could pass against a module the provider
     // no longer calls — which is exactly how AUTH-01 survived its own tests.
-    expect(AUTH).toContain("settleAuthBootstrap<Session, AuthRecoverySnapshot>({");
+    expect(AUTH).toContain(
+      "settleAuthBootstrap<Session, AuthRecoverySnapshot, RecoveryPendingLease>({",
+    );
     expect(AUTH).toContain("publishSessionUnavailable,");
     expect(AUTH).toContain("markersReadable: markerResult.ok && pendingResult.ok,");
     expect(AUTH).toContain("sessionAnswered: sessionResult.ok,");
     expect(AUTH).toContain("handleStorageFailure: detectAuthStorageFailure,");
+    expect(AUTH).toContain("createRecoveryPendingReleaseRuntime<RecoveryPendingLease>");
+    expect(AUTH).toContain("recoveryPendingLease,");
+    expect(AUTH).toContain("releaseRecoveryPending,");
+    expect(AUTH).not.toMatch(/clearRecoveryPending\(\)/);
     // The old unbounded branch must not come back.
     expect(AUTH).not.toContain("if (sessionKnown && proofMatchesSession) {");
   });
@@ -462,7 +570,10 @@ describe("provider and screen wiring", () => {
 
   test("bootstrap classifies session and marker reads before ordinary recovery settlement", () => {
     const bootStart = AUTH.indexOf("void (async () => {");
-    const settle = AUTH.indexOf("settleAuthBootstrap<Session, AuthRecoverySnapshot>({", bootStart);
+    const settle = AUTH.indexOf(
+      "settleAuthBootstrap<Session, AuthRecoverySnapshot, RecoveryPendingLease>({",
+      bootStart,
+    );
     const boot = AUTH.slice(bootStart, settle);
 
     expect(boot).toContain("detectAuthStorageFailure(sessionResult.error)");
@@ -476,7 +587,7 @@ describe("provider and screen wiring", () => {
     const effectCleanup = AUTH.indexOf("return () => {", catchStart);
     const block = AUTH.slice(catchStart, effectCleanup);
     const classify = block.indexOf("detectAuthStorageFailure(error)");
-    const failClosed = block.indexOf("failClosedRecovery(recoveryProofRef.current, error)");
+    const failClosed = block.indexOf("void failClosedRecovery(");
 
     expect(catchStart).toBeGreaterThan(-1);
     expect(classify).toBeGreaterThan(-1);
@@ -498,7 +609,7 @@ describe("provider and screen wiring", () => {
     expect(complete).toContain("detectAuthStorageFailure(error)");
     expect(refresh).toContain("detectAuthStorageFailure(probed.error)");
     expect(effect).toContain("void supabase.auth.getSession()");
-    expect(effect).toContain("return failClosedRecovery(stored, error);");
+    expect(effect).toContain("return failClosedRecovery(stored, error, null);");
     expect(effect).toContain("detectAuthStorageFailure(sessionResult.error)");
     expect(effect).toContain("detectAuthStorageFailure(markerResult.error)");
     expect(effect).toContain("detectAuthStorageFailure(pendingResult.error)");

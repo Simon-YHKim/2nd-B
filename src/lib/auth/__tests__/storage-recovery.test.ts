@@ -195,6 +195,7 @@ type LateSession = { user: { id: string } };
 type LateSessionOutcome =
   | { ok: true; session: LateSession | null }
   | { ok: false; error: unknown };
+type LateRecoveryPendingLease = { revision: number; token: string | null };
 type LateSessionDependencies = {
   isCancelled: () => boolean;
   handleStorageFailure: (error: unknown) => void;
@@ -202,8 +203,12 @@ type LateSessionDependencies = {
   currentRecoveryProof: () => unknown;
   captureRecoverySnapshot: () => number;
   isRecoverySnapshotCurrent: (snapshot: number) => boolean;
-  failClosedRecovery: (error: unknown) => Promise<unknown>;
-  clearRecoveryPending: () => Promise<void>;
+  recoveryPendingLease: LateRecoveryPendingLease | null;
+  failClosedRecovery: (
+    error: unknown,
+    lease: LateRecoveryPendingLease | null,
+  ) => Promise<unknown>;
+  releaseRecoveryPending: (lease: LateRecoveryPendingLease | null) => Promise<boolean>;
   handleInitialSession: (session: LateSession | null) => void;
   setRecoveryReady: (ready: boolean) => void;
 };
@@ -362,8 +367,9 @@ describe("late bootstrap session reconciliation", () => {
       currentRecoveryProof: () => null,
       captureRecoverySnapshot: () => 1,
       isRecoverySnapshotCurrent: () => true,
+      recoveryPendingLease: null,
       failClosedRecovery: async () => true,
-      clearRecoveryPending: async () => {},
+      releaseRecoveryPending: async () => true,
       handleInitialSession: (session) => calls.sessions.push(session),
       setRecoveryReady: (ready) => calls.recoveryReady.push(ready),
       ...overrides,
@@ -394,7 +400,8 @@ describe("late bootstrap session reconciliation", () => {
     const failure = new Error("secure_storage_read_failed");
     const { calls, dependencies } = makeLateDependencies({
       isRecoveryPending: () => true,
-      clearRecoveryPending: async () => Promise.reject(failure),
+      recoveryPendingLease: { revision: 1, token: "attempt-a" },
+      releaseRecoveryPending: async () => Promise.reject(failure),
     });
 
     await expect(reconcile(
@@ -413,8 +420,10 @@ describe("late bootstrap session reconciliation", () => {
     const { calls, dependencies } = makeLateDependencies({
       isCancelled: () => cancelled,
       isRecoveryPending: () => true,
-      clearRecoveryPending: async () => {
+      recoveryPendingLease: { revision: 1, token: "attempt-a" },
+      releaseRecoveryPending: async () => {
         cancelled = true;
+        return true;
       },
     });
 
@@ -430,13 +439,37 @@ describe("late bootstrap session reconciliation", () => {
     let current = true;
     const { calls, dependencies } = makeLateDependencies({
       isRecoveryPending: () => true,
-      clearRecoveryPending: async () => {
+      recoveryPendingLease: { revision: 1, token: "attempt-a" },
+      releaseRecoveryPending: async () => {
         current = false;
+        return true;
       },
       isRecoverySnapshotCurrent: () => current,
     });
 
     await reconcile(Promise.resolve({ ok: true, session: null }), dependencies);
+    expect(calls.sessions).toEqual([]);
+    expect(calls.recoveryReady).toEqual([]);
+  });
+
+  test("a stale A release cannot publish after B owns the pending marker", async () => {
+    const reconcile = lateSessionReconciler();
+    expect(typeof reconcile).toBe("function");
+    if (!reconcile) return;
+    const leaseA = { revision: 1, token: "attempt-a" };
+    const releases: Array<LateRecoveryPendingLease | null> = [];
+    const { calls, dependencies } = makeLateDependencies({
+      isRecoveryPending: () => true,
+      recoveryPendingLease: leaseA,
+      releaseRecoveryPending: async (lease) => {
+        releases.push(lease);
+        return false;
+      },
+    });
+
+    await reconcile(Promise.resolve({ ok: true, session: null }), dependencies);
+
+    expect(releases).toEqual([leaseA]);
     expect(calls.sessions).toEqual([]);
     expect(calls.recoveryReady).toEqual([]);
   });

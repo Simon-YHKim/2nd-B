@@ -240,15 +240,59 @@ export function classifyBootstrapOutcome(input: BootstrapOutcomeInput): Bootstra
   return { kind: "session-unavailable" };
 }
 
-export interface LateAuthSessionDependencies<S extends SessionLike, Snapshot> {
+export interface RecoveryPendingReleaseRuntime<Lease> {
+  /** Resolve true only when this exact owner was retired and no newer owner is pending. */
+  release: (lease: Lease | null) => Promise<boolean>;
+}
+
+export interface RecoveryPendingReleaseDependencies<Lease> {
+  sameLease: (left: Lease, right: Lease) => boolean;
+  clear: (lease: Lease) => Promise<"cleared" | "stale">;
+  isPending: () => boolean;
+}
+
+/**
+ * Coalesce terminal cleanup for one pending owner. Ownership is registered
+ * synchronously, before the clear starts, so a SIGNED_OUT callback cannot race
+ * a fail-closed continuation into a second clear. A successful disk deletion
+ * is not an unlock when another owner is still present in memory.
+ */
+export function createRecoveryPendingReleaseRuntime<Lease>(
+  deps: RecoveryPendingReleaseDependencies<Lease>,
+): RecoveryPendingReleaseRuntime<Lease> {
+  const active: { lease: Lease; operation: Promise<boolean> }[] = [];
+  return {
+    release(lease) {
+      if (!lease) return Promise.resolve(!deps.isPending());
+      const existing = active.find((entry) => deps.sameLease(entry.lease, lease));
+      if (existing) return existing.operation;
+
+      const operation = Promise.resolve().then(async () => {
+        const result = await deps.clear(lease);
+        return result === "cleared" && !deps.isPending();
+      });
+      const entry = { lease, operation };
+      active.push(entry);
+      const retire = () => {
+        const index = active.indexOf(entry);
+        if (index >= 0) active.splice(index, 1);
+      };
+      void operation.then(retire, retire);
+      return operation;
+    },
+  };
+}
+
+export interface LateAuthSessionDependencies<S extends SessionLike, Snapshot, Lease> {
   isCancelled: () => boolean;
   handleStorageFailure: (error: unknown) => void;
   isRecoveryPending: () => boolean;
   currentRecoveryProof: () => unknown;
   captureRecoverySnapshot: () => Snapshot;
   isRecoverySnapshotCurrent: (snapshot: Snapshot) => boolean;
-  failClosedRecovery: (error: unknown) => Promise<unknown>;
-  clearRecoveryPending: () => Promise<void>;
+  recoveryPendingLease: Lease | null;
+  failClosedRecovery: (error: unknown, lease: Lease | null) => Promise<unknown>;
+  releaseRecoveryPending: (lease: Lease | null) => Promise<boolean>;
   handleInitialSession: (session: S | null) => void;
   setRecoveryReady: (ready: boolean) => void;
 }
@@ -256,9 +300,9 @@ export interface LateAuthSessionDependencies<S extends SessionLike, Snapshot> {
 /** Reconcile the original getSession after the bounded bootstrap has timed
  * out. This owns its rejection boundary because callers intentionally detach
  * it; no late storage failure may become an unhandled rejection. */
-export async function reconcileLateAuthSession<S extends SessionLike, Snapshot>(
+export async function reconcileLateAuthSession<S extends SessionLike, Snapshot, Lease>(
   rawSessionLoad: Promise<SessionLoadOutcome<S>>,
-  deps: LateAuthSessionDependencies<S, Snapshot>,
+  deps: LateAuthSessionDependencies<S, Snapshot, Lease>,
 ): Promise<void> {
   const reportStorageFailure = (error: unknown) => {
     try {
@@ -281,11 +325,15 @@ export async function reconcileLateAuthSession<S extends SessionLike, Snapshot>(
       const snapshot = deps.captureRecoverySnapshot();
       if (deps.isCancelled() || !deps.isRecoverySnapshotCurrent(snapshot)) return;
       if (late.session) {
-        await deps.failClosedRecovery(new Error("Late recovery session arrived before proof"));
+        await deps.failClosedRecovery(
+          new Error("Late recovery session arrived before proof"),
+          deps.recoveryPendingLease,
+        );
         if (deps.isCancelled() || !deps.isRecoverySnapshotCurrent(snapshot)) return;
       } else {
-        await deps.clearRecoveryPending();
+        const released = await deps.releaseRecoveryPending(deps.recoveryPendingLease);
         if (deps.isCancelled() || !deps.isRecoverySnapshotCurrent(snapshot)) return;
+        if (!released) return;
         deps.setRecoveryReady(true);
         deps.handleInitialSession(null);
       }
@@ -304,12 +352,14 @@ export async function reconcileLateAuthSession<S extends SessionLike, Snapshot>(
 
 /** Collaborators the settlement step needs. AuthProvider passes its real
  *  closures; a test passes fakes and drives the same code. */
-export interface AuthBootstrapSettlement<S extends SessionLike, Snapshot = unknown> {
+export interface AuthBootstrapSettlement<S extends SessionLike, Snapshot = unknown, Lease = unknown> {
   /** Classification inputs, measured by the bootstrap that just ran. */
   sessionKnown: boolean;
   hasProof: boolean;
   proofMatchesSession: boolean;
   recoveryPendingOnDisk: boolean;
+  /** Exact owner observed by this bootstrap, or null when ownership changed. */
+  recoveryPendingLease: Lease | null;
   markersReadable: boolean;
   /** The session to resolve when the outcome is `resolve`. */
   sessionForResolve: S | null;
@@ -328,15 +378,15 @@ export interface AuthBootstrapSettlement<S extends SessionLike, Snapshot = unkno
   publishSessionUnavailable: () => void;
   isRecoveryPendingInMemory: () => boolean;
   currentRecoveryProof: () => unknown;
-  failClosedRecovery: (proof: null, error: unknown) => Promise<boolean>;
-  clearRecoveryPending: () => Promise<void>;
+  failClosedRecovery: (proof: null, error: unknown, lease: Lease | null) => Promise<boolean>;
+  releaseRecoveryPending: (lease: Lease | null) => Promise<boolean>;
   handleAuthEvent: (event: "INITIAL_SESSION", session: S | null) => void;
 }
 
 /** End the provider's boot wait. Returns the outcome so callers and tests can
  *  assert which branch ran. */
-export function settleAuthBootstrap<S extends SessionLike, Snapshot = unknown>(
-  deps: AuthBootstrapSettlement<S, Snapshot>,
+export function settleAuthBootstrap<S extends SessionLike, Snapshot = unknown, Lease = unknown>(
+  deps: AuthBootstrapSettlement<S, Snapshot, Lease>,
 ): BootstrapOutcome {
   const outcome = classifyBootstrapOutcome({
     sessionKnown: deps.sessionKnown,
@@ -348,7 +398,11 @@ export function settleAuthBootstrap<S extends SessionLike, Snapshot = unknown>(
 
   // Unchanged meaning: readiness releases the global recovery lock. An UNKNOWN
   // session with a pending marker and no proof stays locked, as before.
-  deps.setRecoveryReady(deps.sessionKnown || deps.hasProof || !deps.recoveryPendingOnDisk);
+  // A proof can belong to A while a newer B intent is still pending. Readiness
+  // therefore follows the pending owner, never proof/session presence alone.
+  deps.setRecoveryReady(
+    !deps.recoveryPendingOnDisk && !deps.isRecoveryPendingInMemory(),
+  );
 
   if (outcome.kind === "resolve") {
     void deps.resolveSession(deps.sessionForResolve?.user.id ?? null);
@@ -366,10 +420,11 @@ export function settleAuthBootstrap<S extends SessionLike, Snapshot = unknown>(
       handleStorageFailure: deps.handleStorageFailure,
       isRecoveryPending: deps.isRecoveryPendingInMemory,
       currentRecoveryProof: deps.currentRecoveryProof,
+      recoveryPendingLease: deps.recoveryPendingLease,
       captureRecoverySnapshot: deps.captureRecoverySnapshot,
       isRecoverySnapshotCurrent: deps.isRecoverySnapshotCurrent,
-      failClosedRecovery: (error) => deps.failClosedRecovery(null, error),
-      clearRecoveryPending: deps.clearRecoveryPending,
+      failClosedRecovery: (error, lease) => deps.failClosedRecovery(null, error, lease),
+      releaseRecoveryPending: deps.releaseRecoveryPending,
       handleInitialSession: (session) => deps.handleAuthEvent("INITIAL_SESSION", session),
       setRecoveryReady: deps.setRecoveryReady,
     });
