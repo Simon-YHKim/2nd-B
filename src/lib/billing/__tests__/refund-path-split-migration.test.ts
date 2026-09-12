@@ -1,4 +1,4 @@
-// Structural guard for db/migrations/0136_refund_path_split.sql.
+// Structural guard for the refund path split and its 0189 integrity repair.
 //
 // 0136 exists because three functions decided refunds by "the user's newest
 // transaction.completed" and none of them could say what that payment bought:
@@ -31,6 +31,7 @@ const MIGRATIONS = join(__dirname, "..", "..", "..", "..", "db", "migrations");
 const read = (f: string) => readFileSync(join(MIGRATIONS, f), "utf8").replace(/\r\n/g, "\n");
 
 const sql0136 = read("0136_refund_path_split.sql");
+const sql0189 = read("0189_paddle_refund_consequence_integrity.sql");
 const sql0124 = read("0124_refund_eligibility_decision_record.sql");
 const sql0118 = read("0118_billing_refund_reconciliation.sql");
 const sql0115 = read("0115_billing_self_service.sql");
@@ -54,6 +55,8 @@ function bodyOf(text: string, fn: string): string {
     .trim();
 }
 
+const effectiveApplyRefund = bodyOf(sql0189, "apply_billing_refund");
+
 // The one predicate 0136 adds, as it reads after whitespace collapse.
 const PREDICATE =
   "AND NOT EXISTS ( SELECT 1 FROM public.credit_ledger cl WHERE cl.kind = 'purchase' " +
@@ -61,7 +64,7 @@ const PREDICATE =
 
 const withoutPredicate = (body: string) => body.split(PREDICATE).join(" ").replace(/\s+/g, " ").trim();
 
-describe("0136 - it is the live definition of all three refund functions", () => {
+describe("refund migrations - each function's live definition is pinned", () => {
   // Migrations apply in filename order, so the LAST file to define a function is
   // the one prod runs. Pinned per function rather than as a blanket assertion,
   // for the reason 0121's test gives: a blanket pin has to be edited on every
@@ -69,7 +72,6 @@ describe("0136 - it is the live definition of all three refund functions", () =>
   test.each([
     ["refund_eligibility"],
     ["claim_billing_self_service"],
-    ["apply_billing_refund"],
   ])("%s is last defined in 0136_refund_path_split.sql", (fn) => {
     const defs = readdirSync(MIGRATIONS)
       .filter((f) => f.endsWith(".sql"))
@@ -77,6 +79,14 @@ describe("0136 - it is the live definition of all three refund functions", () =>
       .filter((f) => new RegExp(`CREATE OR REPLACE FUNCTION public\\.${fn}\\b`, "i").test(read(f)));
     expect(defs.length).toBeGreaterThan(0);
     expect(defs[defs.length - 1]).toBe("0136_refund_path_split.sql");
+  });
+
+  test("apply_billing_refund is last defined in the 0189 integrity migration", () => {
+    const defs = readdirSync(MIGRATIONS)
+      .filter((f) => f.endsWith(".sql"))
+      .sort()
+      .filter((f) => /CREATE OR REPLACE FUNCTION public\.apply_billing_refund\b/i.test(read(f)));
+    expect(defs[defs.length - 1]).toBe("0189_paddle_refund_consequence_integrity.sql");
   });
 
   test("the rollback lives outside the apply glob", () => {
@@ -126,8 +136,8 @@ describe("0136 - the discriminator is the ledger, and it tolerates both key conv
     // transaction id. Accepting both is what stops a purchase path that followed
     // the original wording from producing an unrefundable pack.
     expect(PREDICATE).toContain("cl.provider_event_id IN (e.paddle_transaction_id, e.event_id)");
-    expect(bodyOf(sql0136, "apply_billing_refund")).toContain("cl.provider_event_id = v_txn_id");
-    expect(bodyOf(sql0136, "apply_billing_refund")).toMatch(
+    expect(effectiveApplyRefund).toContain("cl.provider_event_id = v_txn_id");
+    expect(effectiveApplyRefund).toMatch(
       /cl\.provider_event_id IN \( SELECT e\.event_id FROM public\.paddle_webhook_events e/,
     );
   });
@@ -142,12 +152,12 @@ describe("0136 - the discriminator is the ledger, and it tolerates both key conv
   test("the lookup excludes the adjustment row 0136 itself just inserted", () => {
     // That row carries the same transaction id, so without this the event-id
     // side of the lookup would consider it.
-    expect(bodyOf(sql0136, "apply_billing_refund").match(/e\.event_id <> p_event_id/g) ?? []).toHaveLength(2);
+    expect(effectiveApplyRefund.match(/e\.event_id <> p_event_id/g) ?? []).toHaveLength(2);
   });
 });
 
-describe("0136 - a pack refund never touches the entitlement", () => {
-  const body = bodyOf(sql0136, "apply_billing_refund");
+describe("effective apply_billing_refund - a pack refund never touches the entitlement", () => {
+  const body = effectiveApplyRefund;
 
   test("the pack branch runs BEFORE the revoke and returns instead of falling through", () => {
     const packAt = body.indexOf("IF v_pack_event IS NOT NULL THEN");
@@ -183,7 +193,78 @@ describe("0136 - a pack refund never touches the entitlement", () => {
   });
 });
 
-describe("0136 - no edge-function redeploy is required", () => {
+describe("0189 - provider refund type is authoritative and retries are reconcilable", () => {
+  const body = effectiveApplyRefund;
+
+  test("p_is_full is the only authority; an accepted self-service row cannot promote partial", () => {
+    const oldBody = bodyOf(sql0136, "apply_billing_refund");
+    const obsoletePromotion = "IF FOUND THEN v_full := true; END IF;";
+    expect(oldBody).toContain(obsoletePromotion);
+    expect(oldBody.replace(obsoletePromotion, "").replace(/\s+/g, " ").trim()).toBe(body);
+    expect(body).toContain("v_full boolean := COALESCE(p_is_full, false)");
+    expect(body.match(/v_full\s+boolean\s*:=/g) ?? []).toHaveLength(1);
+    expect(body.replace("v_full boolean := COALESCE(p_is_full, false)", "")).not.toMatch(/\bv_full\s*:=/);
+    expect(body).not.toContain("IF FOUND THEN v_full := true");
+    expect(body).toContain("outcome = 'accepted'");
+  });
+
+  test("the consequence event claim is atomic and precedes every money or entitlement side effect", () => {
+    const claim = body.indexOf("INSERT INTO public.paddle_webhook_events");
+    const duplicate = body.indexOf("RETURN 'duplicate'");
+    const ledger = body.indexOf("UPDATE public.billing_self_service_log");
+    const revenue = body.indexOf("INSERT INTO public.revenue_events");
+    const clawback = body.indexOf("public.clawback_credits");
+    const revoke = body.indexOf("SET subscription_tier = 'free'");
+    expect(claim).toBeGreaterThan(-1);
+    expect(duplicate).toBeGreaterThan(claim);
+    for (const sideEffect of [ledger, revenue, clawback, revoke]) {
+      expect(sideEffect).toBeGreaterThan(duplicate);
+    }
+    expect(body).toContain("ON CONFLICT (event_id) DO NOTHING");
+  });
+
+  test("durable review marking is service-role-only and targets the recorded source event", () => {
+    const review = bodyOf(sql0189, "set_paddle_refund_review");
+    expect(review).toContain("billing_request_role() IS DISTINCT FROM 'service_role'");
+    expect(review).toContain("SET refund_review = p_needs_review");
+    expect(review).toContain("WHERE event_id = v_event_id");
+    expect(review).toMatch(/IF NOT FOUND THEN RAISE EXCEPTION/);
+    expect(sql0189).toMatch(
+      /REVOKE EXECUTE ON FUNCTION public\.set_paddle_refund_review\(text, boolean\) FROM anon, authenticated/,
+    );
+    expect(sql0189).toMatch(
+      /GRANT\s+EXECUTE ON FUNCTION public\.set_paddle_refund_review\(text, boolean\) TO service_role/,
+    );
+    expect(sql0189).toMatch(/COMMENT ON COLUMN public\.paddle_webhook_events\.refund_review IS/);
+    expect(sql0189).toContain("ambiguous signed type evidence");
+    expect(sql0189).toContain("an unconfirmed consequence");
+  });
+
+  test("both effective SECURITY DEFINER functions restate their service-only posture", () => {
+    expect(sql0189.match(/SECURITY DEFINER\s*\nSET search_path = ''/g) ?? []).toHaveLength(2);
+    expect(body).toContain("billing_request_role() IS DISTINCT FROM 'service_role'");
+    expect(sql0189).toMatch(
+      /REVOKE EXECUTE ON FUNCTION public\.apply_billing_refund\(text, text, text, text, text, timestamptz, integer, text, boolean\) FROM anon, authenticated/,
+    );
+    expect(sql0189).toMatch(
+      /GRANT\s+EXECUTE ON FUNCTION public\.apply_billing_refund\(text, text, text, text, text, timestamptz, integer, text, boolean\) TO service_role/,
+    );
+  });
+
+  test("the RPC signature stays deploy-order compatible with the handler", () => {
+    const signature = (text: string) => {
+      const at = text.indexOf("CREATE OR REPLACE FUNCTION public.apply_billing_refund");
+      return text
+        .slice(text.indexOf("(", at) + 1, text.indexOf(")\nRETURNS text", at))
+        .replace(/--[^\n]*/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    };
+    expect(signature(sql0189)).toBe(signature(sql0136));
+  });
+});
+
+describe("0189 - the handler and RPC keep one deploy-order-compatible contract", () => {
   test("apply_billing_refund keeps 0118's exact 9-argument signature", () => {
     const sig = (text: string) => {
       const at = text.indexOf("CREATE OR REPLACE FUNCTION public.apply_billing_refund");
@@ -193,7 +274,7 @@ describe("0136 - no edge-function redeploy is required", () => {
         .replace(/\s+/g, " ")
         .trim();
     };
-    expect(sig(sql0136)).toBe(sig(sql0118));
+    expect(sig(sql0189)).toBe(sig(sql0118));
   });
 
   test("the webhook still passes exactly those parameters", () => {

@@ -1,12 +1,14 @@
 // Structural guard for refund adjustment handling in paddle-webhook.
 //
-// The edge function is outside this repo's TypeScript and ESLint include paths,
-// so source assertions pin the money-sensitive boundary: validate Paddle's
-// adjustment shape, record it through one service-role RPC, surface failures,
-// and return before the entitlement writer.
+// Source assertions pin the broad boundary, while the runtime harness below
+// executes the signed handler with a fake service-role client. The combination
+// catches both source drift and orchestration bugs between lifecycle recording,
+// consequence application, durable review, and Paddle retry responses.
 
+import { createHmac, webcrypto } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import ts from "typescript";
 
 const ROOT = join(__dirname, "..", "..", "..", "..");
 const source = readFileSync(
@@ -79,8 +81,8 @@ describe("paddle-webhook refund adjustments", () => {
   test("an APPROVED refund also applies its consequence, and only then", () => {
     expect(adjustmentBlock).toMatch(/if \(adjustmentStatus === 'approved'\)/);
     expect(adjustmentBlock).toMatch(/rpc\('apply_billing_refund'/);
-    // The ledger record must not be lost because the consequence failed.
-    expect(adjustmentBlock).toMatch(/\[ALERT\] refund consequence failed/);
+    expect(adjustmentBlock).toMatch(/rpc\('set_paddle_refund_review'/);
+    expect(adjustmentBlock).toMatch(/error: 'refund_consequence_failed'[\s\S]*?, 503/);
   });
 });
 
@@ -121,5 +123,233 @@ describe("paddle-webhook - an unknown adjustment status is recorded, not dropped
 
   test("failing to record is a 500, so Paddle keeps retrying", () => {
     expect(adjustmentBlock).toMatch(/error: 'unhandled_adjustment_record_failed'[\s\S]*?500/);
+  });
+});
+
+type RpcReply = { data: unknown; error: { message: string } | null };
+type RpcImplementation = (name: string, args: Record<string, unknown>) => Promise<RpcReply>;
+type EdgeHandler = (request: Request) => Promise<Response>;
+
+const WEBHOOK_SECRET = "test-secret";
+
+class TestJsonBodyError extends Error {
+  constructor(
+    readonly code: string,
+    readonly maxBytes: number,
+  ) {
+    super(code);
+  }
+}
+
+function loadRuntimeHandler(implementation: RpcImplementation) {
+  const compiled = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+      esModuleInterop: true,
+    },
+  }).outputText;
+  const rpc = jest.fn(implementation);
+  let handler: EdgeHandler | null = null;
+  const deno = {
+    env: {
+      get: (name: string) => ({
+        PADDLE_WEBHOOK_ENABLED: "1",
+        PADDLE_WEBHOOK_SECRET: WEBHOOK_SECRET,
+        PADDLE_IP_ALLOWLIST: "off",
+        SUPABASE_URL: "https://example.invalid",
+        SUPABASE_SERVICE_ROLE_KEY: "test-service-role",
+      })[name],
+    },
+    serve: (value: EdgeHandler) => { handler = value; },
+  };
+  const loaded = { exports: {} as Record<string, unknown> };
+  new Function("require", "module", "exports", "Deno", "crypto", compiled)(
+    (id: string) => {
+      if (id === "https://esm.sh/@supabase/supabase-js@2") {
+        return { createClient: () => ({ rpc }) };
+      }
+      if (id === "../_shared/request-json.ts") {
+        return {
+          JsonBodyError: TestJsonBodyError,
+          PADDLE_WEBHOOK_BODY_LIMIT_BYTES: 256_000,
+          readBodyBytes: async (request: Request) => new Uint8Array(await request.arrayBuffer()),
+        };
+      }
+      throw new Error(`Unexpected edge dependency: ${id}`);
+    },
+    loaded,
+    loaded.exports,
+    deno,
+    webcrypto,
+  );
+  if (!handler) throw new Error("paddle-webhook did not register a handler");
+  return { handler: handler as EdgeHandler, rpc };
+}
+
+function signedAdjustment(overrides: Record<string, unknown> = {}): Request {
+  const payload = {
+    event_id: "evt_refund_1",
+    event_type: "adjustment.updated",
+    occurred_at: "2026-09-10T01:02:03.000Z",
+    data: {
+      id: "adj_refund_1",
+      transaction_id: "txn_refund_1",
+      action: "refund",
+      status: "approved",
+      type: "partial",
+      items: [{ type: "partial" }],
+      totals: { total: "500" },
+      currency_code: "USD",
+      ...overrides,
+    },
+  };
+  const raw = JSON.stringify(payload);
+  const timestamp = Math.floor(Date.now() / 1000).toString();
+  const signature = createHmac("sha256", WEBHOOK_SECRET)
+    .update(`${timestamp}:${raw}`)
+    .digest("hex");
+  return new Request("https://example.invalid/functions/v1/paddle-webhook", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "Paddle-Signature": `ts=${timestamp};h1=${signature}`,
+    },
+    body: raw,
+  });
+}
+
+const okRpc: RpcImplementation = async (name) => ({
+  data: name === "record_paddle_refund_adjustment"
+    ? "applied"
+    : name === "apply_billing_refund"
+      ? "recorded"
+      : "updated",
+  error: null,
+});
+
+describe("paddle-webhook refund integrity runtime", () => {
+  test("a provider partial refund passes false to SQL even when a self-service row may be accepted", async () => {
+    const { handler, rpc } = loadRuntimeHandler(okRpc);
+
+    const response = await handler(signedAdjustment());
+
+    expect(response.status).toBe(200);
+    expect(rpc.mock.calls.map(([name]) => name)).toEqual([
+      "record_paddle_refund_adjustment",
+      "apply_billing_refund",
+      "set_paddle_refund_review",
+    ]);
+    expect(rpc.mock.calls[1][1]).toMatchObject({
+      p_event_id: "evt_refund_1:consequence",
+      p_is_full: false,
+    });
+    expect(rpc.mock.calls[2][1]).toEqual({
+      p_event_id: "evt_refund_1",
+      p_needs_review: false,
+    });
+  });
+
+  test("only matching signed top-level and item full types request a full consequence", async () => {
+    const { handler, rpc } = loadRuntimeHandler(okRpc);
+
+    const response = await handler(signedAdjustment({
+      type: "full",
+      items: [{ type: "full" }, { type: "full" }],
+    }));
+
+    expect(response.status).toBe(200);
+    expect(rpc.mock.calls.find(([name]) => name === "apply_billing_refund")?.[1]).toMatchObject({
+      p_is_full: true,
+    });
+  });
+
+  test("a signed partial transaction stays partial when it fully refunds one line item", async () => {
+    const { handler, rpc } = loadRuntimeHandler(okRpc);
+
+    const response = await handler(signedAdjustment({
+      type: "partial",
+      items: [{ type: "full" }, { type: "partial" }],
+    }));
+
+    expect(response.status).toBe(200);
+    expect(rpc.mock.calls.find(([name]) => name === "apply_billing_refund")?.[1]).toMatchObject({
+      p_is_full: false,
+    });
+    expect(rpc.mock.calls.at(-1)).toEqual([
+      "set_paddle_refund_review",
+      { p_event_id: "evt_refund_1", p_needs_review: false },
+    ]);
+  });
+
+  test.each([
+    ["full", [{ type: "partial" }]],
+    ["full", [{ type: "tax" }]],
+    ["partial", [{ type: "unexpected" }]],
+    ["unexpected", [{ type: "unexpected" }]],
+    [null, [{ type: "partial" }]],
+    [undefined, [{ type: "partial" }]],
+    ["partial", []],
+  ])("marks an ambiguous type for review without applying a consequence: %p / %p", async (type, items) => {
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => undefined);
+    const { handler, rpc } = loadRuntimeHandler(okRpc);
+
+    const response = await handler(signedAdjustment({ type, items }));
+
+    expect(response.status).toBe(200);
+    expect(rpc.mock.calls.map(([name]) => name)).toEqual([
+      "record_paddle_refund_adjustment",
+      "set_paddle_refund_review",
+    ]);
+    expect(rpc.mock.calls[1][1]).toEqual({
+      p_event_id: "evt_refund_1",
+      p_needs_review: true,
+    });
+    await expect(response.json()).resolves.toMatchObject({
+      ok: true,
+      review: "ambiguous_refund_type",
+    });
+    expect(errorSpy).toHaveBeenCalledWith("[paddle-webhook][ALERT] ambiguous_refund_type");
+    errorSpy.mockRestore();
+  });
+
+  test("a consequence failure is durably marked, returns generic 503, and replays the same atomic key", async () => {
+    let applyAttempts = 0;
+    const rawFailure = "customer@example.com should never reach logs or the response";
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => undefined);
+    const { handler, rpc } = loadRuntimeHandler(async (name) => {
+      if (name === "record_paddle_refund_adjustment") {
+        return { data: applyAttempts === 0 ? "applied" : "duplicate", error: null };
+      }
+      if (name === "apply_billing_refund") {
+        applyAttempts += 1;
+        return applyAttempts === 1
+          ? { data: null, error: { message: rawFailure } }
+          : { data: "recorded", error: null };
+      }
+      return { data: "updated", error: null };
+    });
+
+    const failed = await handler(signedAdjustment());
+    const failedBody = await failed.text();
+    expect(failed.status).toBe(503);
+    expect(failedBody).toBe('{"error":"refund_consequence_failed"}');
+    expect(failedBody).not.toContain(rawFailure);
+    expect(rpc.mock.calls[2]).toEqual([
+      "set_paddle_refund_review",
+      { p_event_id: "evt_refund_1", p_needs_review: true },
+    ]);
+
+    const retried = await handler(signedAdjustment());
+    expect(retried.status).toBe(200);
+    const applies = rpc.mock.calls.filter(([name]) => name === "apply_billing_refund");
+    expect(applies).toHaveLength(2);
+    expect(applies[0][1]).toEqual(applies[1][1]);
+    expect(rpc.mock.calls.at(-1)).toEqual([
+      "set_paddle_refund_review",
+      { p_event_id: "evt_refund_1", p_needs_review: false },
+    ]);
+    expect(errorSpy.mock.calls.flat().join(" ")).not.toContain(rawFailure);
+    errorSpy.mockRestore();
   });
 });

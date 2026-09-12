@@ -48,6 +48,7 @@ interface PaddleEvent {
     transaction_id?: string;
     action?: string;
     status?: string;
+    type?: string | null;
     currency_code?: string;
     custom_data?: { user_id?: string } | null;
     items?: Array<{ price?: { id?: string }; type?: string }>;
@@ -58,10 +59,11 @@ interface PaddleEvent {
     scheduled_change?: { action?: string; effective_at?: string } | null;
     // adjustment.* totals. `action` (refund | credit | chargeback), `status`
     // (pending_approval | approved | rejected | reversed) and `items` are
-    // declared above and shared with the subscription path; items[].type carries
-    // 'full' for a whole-transaction refund, which is what decides whether the
-    // entitlement is revoked. Read defensively: an unexpected payload records
-    // the money and leaves the tier alone rather than guessing.
+    // declared above and shared with the subscription path. The signed top-level
+    // type is authoritative. An item type has narrower scope: a partial
+    // transaction adjustment may fully refund one line item. Missing or
+    // impossible type evidence is routed to durable review without applying
+    // money or entitlement consequences.
     totals?: { total?: string | number } | null;
     details?: { totals?: { grand_total?: string | number } } | null;
     payments?: Array<{
@@ -80,6 +82,19 @@ const REFUND_ADJUSTMENT_STATUSES = new Set([
   'rejected',
   'reversed',
 ]);
+
+type PaddleRefundType = 'full' | 'partial';
+const PADDLE_ADJUSTMENT_ITEM_TYPES = new Set(['full', 'partial', 'tax', 'proration']);
+
+function refundTypeOf(data: NonNullable<PaddleEvent['data']>): PaddleRefundType | null {
+  const topLevelType = data.type;
+  if (topLevelType !== 'full' && topLevelType !== 'partial') return null;
+  if (!Array.isArray(data.items) || data.items.length === 0) return null;
+  if (topLevelType === 'full' && !data.items.every((item) => item?.type === 'full')) return null;
+  if (topLevelType === 'partial'
+      && !data.items.every((item) => PADDLE_ADJUSTMENT_ITEM_TYPES.has(item?.type ?? ''))) return null;
+  return topLevelType;
+}
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
@@ -356,17 +371,28 @@ Deno.serve(async (req: Request) => {
         p_occurred_at: occurredAt,
       });
       if (error) {
-        console.error('[paddle-webhook] refund adjustment apply failed:', error.message);
+        console.error('[paddle-webhook][ALERT] refund_adjustment_record_failed');
         return json({ error: 'refund_adjustment_apply_failed' }, 500);
       }
 
       let applied: unknown = null;
       if (adjustmentStatus === 'approved') {
+        const refundType = refundTypeOf(data);
+        if (refundType === null) {
+          const { error: reviewError } = await admin.rpc('set_paddle_refund_review', {
+            p_event_id: eventId,
+            p_needs_review: true,
+          });
+          if (reviewError) {
+            console.error('[paddle-webhook][ALERT] refund_review_mark_failed');
+            return json({ error: 'refund_consequence_failed' }, 503);
+          }
+          console.error('[paddle-webhook][ALERT] ambiguous_refund_type');
+          return json({ ok: true, result, applied, review: 'ambiguous_refund_type' });
+        }
+
         const rawTotal = data.totals?.total;
         const cents = rawTotal != null ? parseInt(String(rawTotal), 10) : NaN;
-        // Either signal is sufficient; the RPC also treats a matching accepted
-        // self-serve request as full, since we only ever submit type:'full'.
-        const isFull = (data.items ?? []).some((i) => i?.type === 'full');
         const { data: applyResult, error: applyError } = await admin.rpc('apply_billing_refund', {
           p_event_id: `${eventId}:consequence`,
           p_event_type: eventType,
@@ -376,15 +402,31 @@ Deno.serve(async (req: Request) => {
           p_occurred_at: occurredAt,
           p_amount_cents: Number.isFinite(cents) ? cents : null,
           p_currency: data.currency_code ?? null,
-          p_is_full: isFull,
+          p_is_full: refundType === 'full',
         });
         if (applyError) {
-          // Loud, but not fatal: the ledger above already recorded the approval,
-          // so an operator can see the refund and reconcile the tier by hand.
-          console.error('[paddle-webhook][ALERT] refund consequence failed:', applyError.message);
-        } else {
-          applied = applyResult;
+          const { error: reviewError } = await admin.rpc('set_paddle_refund_review', {
+            p_event_id: eventId,
+            p_needs_review: true,
+          });
+          console.error('[paddle-webhook][ALERT] refund_consequence_failed');
+          if (reviewError) console.error('[paddle-webhook][ALERT] refund_review_mark_failed');
+          // The lifecycle fact was committed above and the source event is now
+          // in the review queue. A non-2xx response makes Paddle redeliver; the
+          // consequence RPC's event-id claim makes both a real retry and an
+          // already-committed/lost-response retry safe.
+          return json({ error: 'refund_consequence_failed' }, 503);
         }
+
+        const { error: clearReviewError } = await admin.rpc('set_paddle_refund_review', {
+          p_event_id: eventId,
+          p_needs_review: false,
+        });
+        if (clearReviewError) {
+          console.error('[paddle-webhook][ALERT] refund_review_clear_failed');
+          return json({ error: 'refund_consequence_failed' }, 503);
+        }
+        applied = applyResult;
       }
       return json({ ok: true, result, applied });
     }
