@@ -47,6 +47,7 @@ import {
 } from "@/lib/ops/push";
 import {
   remindersSupported,
+  routineReminderId,
   scheduleRoutineReminder,
   type ReminderResult,
 } from "@/lib/ops/reminders";
@@ -676,8 +677,9 @@ export function DeepSpaceOpsScreen() {
     const selectedDomain = domain;
     setSavingKey(itemKey);
     setNotice(null);
+    let routine: OpsRoutine;
     try {
-      await createRoutineFromRecommendation(ownerId, selectedDomain, recommendation);
+      routine = await createRoutineFromRecommendation(ownerId, selectedDomain, recommendation);
     } catch {
       if (isCurrentOwner(ownerId)) {
         setSavingKey(null);
@@ -693,13 +695,16 @@ export function DeepSpaceOpsScreen() {
 
     let reminderResult: ReminderResult = "error";
     try {
-      reminderResult = await scheduleRoutineReminder({
-        title: recommendation.title,
-        description: recommendation.reason,
-        startsAtIso: recommendation.startsAtIso ?? nextMorningIso(),
-        durationMinutes: recommendation.durationMinutes,
-        recurrence: recommendation.recurrence,
-      });
+      reminderResult = await scheduleRoutineReminder(
+        {
+          title: recommendation.title,
+          description: recommendation.reason,
+          startsAtIso: recommendation.startsAtIso ?? nextMorningIso(),
+          durationMinutes: recommendation.durationMinutes,
+          recurrence: recommendation.recurrence,
+        },
+        { identifier: routineReminderId(routine.id) },
+      );
     } catch {
       reminderResult = "error";
     }
@@ -717,7 +722,10 @@ export function DeepSpaceOpsScreen() {
         description: recommendation.reason,
         startsAtIso: recommendation.startsAtIso ?? nextMorningIso(),
         durationMinutes: recommendation.durationMinutes,
-        recurrence: recommendation.recurrence,
+        // An unsaved recommendation has no owner-visible stable id to cancel.
+        // Keep this explicit reminder to one delivery; saved routines use the
+        // deterministic id above and may repeat safely.
+        recurrence: undefined,
       });
     } catch {
       result = "error";

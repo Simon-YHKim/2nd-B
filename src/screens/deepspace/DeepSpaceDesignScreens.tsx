@@ -119,7 +119,12 @@ import { gatherAdherenceStats } from "@/lib/ops/signals";
 import { adherenceChip } from "@/lib/ops/grounding";
 import { recommendForDomain, recommendationVendorLabel, recommendationsAllowed, type OpsRecommendation } from "@/lib/ops/recommend";
 import { buildGoogleCalendarUrl } from "@/lib/ops/push";
-import { notifyNow, scheduleRoutineReminder, type ReminderResult } from "@/lib/ops/reminders";
+import {
+  clearAccountScopedLocalNotifications,
+  notifyNow,
+  scheduleRoutineReminder,
+  type ReminderResult,
+} from "@/lib/ops/reminders";
 import { loadNotifications } from "@/lib/ops/notifications-sdk";
 import {
   applyFocusSessionComplete,
@@ -681,6 +686,11 @@ export function DeepSpacePrivacyDesignScreen() {
     // Successful erasure may itself trigger an auth-driven route removal.
     // Let that navigation, sign-out, and the explicit replacement proceed.
     allowDeletionNavigationRef.current = true;
+    try {
+      await clearAccountScopedLocalNotifications();
+    } catch {
+      if (typeof console !== "undefined") console.warn("[privacy] notification cleanup after deletion failed");
+    }
     // Hand the receipt to the store that survives exactly this owner -> null
     // transition, so the destination screen can show it. `unconfirmed` is the
     // honest local-cleanup value: this flow clears capture drafts only, not the
