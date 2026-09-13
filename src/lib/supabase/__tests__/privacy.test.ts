@@ -102,6 +102,26 @@ describe("readPrivacyPrefs (a failed read is not a stored OFF)", () => {
     __maybeSingle.mockResolvedValueOnce({ data: null, error: new Error("network down") });
     expect(await fetchPrivacyPrefs("u1")).toEqual(defaultPrivacyPrefs());
   });
+
+  // r3as2 R3AS2-04: the chat screen runs this read right before every automatic save, so a
+  // failure line lands in the device log on a hot path. The remote message is not ours to
+  // copy there (an SDK or a proxy can put request detail in it); only a fixed category is.
+  test("a failed read logs a fixed category, never the remote error text", async () => {
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      __maybeSingle.mockResolvedValueOnce({ data: null, error: new Error("network down for u1 at /rest/v1/users") });
+      expect(await readPrivacyPrefs("u1")).toEqual({ ok: false });
+      __maybeSingle.mockRejectedValueOnce(new Error("fetch failed: token abc123"));
+      expect(await readPrivacyPrefs("u1")).toEqual({ ok: false });
+
+      const calls = warn.mock.calls.map((call) => call.map((part) => String(part)));
+      expect(calls).toHaveLength(2);
+      expect(calls.flat().join(" ")).not.toMatch(/network down|fetch failed|u1|rest\/v1|abc123/);
+      expect(calls.map((call) => call.at(-1))).toEqual(["query_error", "request_failed"]);
+    } finally {
+      warn.mockRestore();
+    }
+  });
 });
 
 describe("savePrivacyPrefs", () => {

@@ -48,15 +48,24 @@ export async function readPrivacyPrefs(userId: string): Promise<PrivacyPrefsRead
       .select("privacy_prefs")
       .eq("id", userId)
       .maybeSingle();
-    if (error) throw error;
+    if (error) return prefsReadFailed("query_error");
     const stored = (data?.privacy_prefs as Record<string, unknown> | null | undefined) ?? null;
     return { ok: true, prefs: resolvePrivacyPrefs(stored) };
-  } catch (e) {
-    if (typeof console !== "undefined") {
-      console.warn("[privacy] prefs read failed; no value is shown as saved", (e as Error).message);
-    }
-    return { ok: false };
+  } catch {
+    return prefsReadFailed("request_failed");
   }
+}
+
+/**
+ * r3as2 R3AS2-04: the chat screen runs readPrivacyPrefs right before every automatic save, so
+ * this line is written to the device log on a hot path. A remote error message is not ours to
+ * copy there - an SDK or a proxy can put request detail in it - so only a fixed category is.
+ */
+function prefsReadFailed(category: "query_error" | "request_failed"): PrivacyPrefsRead {
+  if (typeof console !== "undefined") {
+    console.warn("[privacy] prefs read failed; no value is shown as saved", category);
+  }
+  return { ok: false };
 }
 
 export interface SavePrivacyPrefsOptions {
