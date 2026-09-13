@@ -26,6 +26,8 @@ const mockDb = {
   failReads: 0,
   /** 지금까지 prefs 를 읽은 횟수. */
   reads: 0,
+  /** 다음 읽기 하나를 이 약속이 풀릴 때까지 붙잡는다. 응답은 요청한 순간의 값이다. */
+  holdNextRead: null as Promise<void> | null,
   failUpdate: false,
   /** 이 약속이 풀릴 때까지 쓰기가 끝나지 않는다. */
   holdUpdate: null as Promise<void> | null,
@@ -44,10 +46,11 @@ jest.mock("../../lib/supabase/client", () => ({
                   mockDb.failReads -= 1;
                   return { data: null, error: new Error("read failed") };
                 }
-                return {
-                  data: mockDb.prefs.has(id) ? { privacy_prefs: structuredClone(mockDb.prefs.get(id)) } : null,
-                  error: null,
-                };
+                const data = mockDb.prefs.has(id) ? { privacy_prefs: structuredClone(mockDb.prefs.get(id)) } : null;
+                const hold = mockDb.holdNextRead;
+                mockDb.holdNextRead = null;
+                if (hold) await hold; // 늦게 도착한 응답은 요청할 때의 값을 싣는다
+                return { data, error: null };
               },
             }),
           }),
@@ -80,6 +83,12 @@ import { isKeepable } from "../../lib/chat/keep-exchange";
 import { subscribePrivacyPrefsSaved } from "../../lib/privacy/pref-changes";
 import { nextPrivacyPrefs, type PrivacyPrefs } from "../../lib/privacy/prefs";
 import { fetchPrivacyPrefs, readPrivacyPrefs, savePrivacyPref } from "../../lib/supabase/privacy";
+import {
+  __resetAccountEpochForTests,
+  beginAccountOwnerTransition,
+  captureAccountOwnerLease,
+  noteResolvedOwner,
+} from "../../lib/auth/account-epoch";
 
 // ── 실제 선언 떼어내기 ─────────────────────────────────────────────────────────────
 
@@ -205,6 +214,8 @@ class KeptChatScreen {
     autosaveBeforeRef: { current: new WeakSet<object>() },
     turnsRef: { current: [] as Turn[] },
     autoKeptRef: { current: new WeakSet<object>() },
+    autosaveGenerationRef: { current: 0 },
+    autosaveListenerRef: { current: null as object | null },
   };
   private readonly effects = new Map<string, { deps: readonly unknown[]; cleanup?: () => void }>();
   private dirty = true;
@@ -239,6 +250,7 @@ class KeptChatScreen {
     this.rendering = true;
     try {
       const s = this.s;
+      const turnsAtRender = s.turns;
       this.refs.turnsRef.current = s.turns; // 본문의 turnsRef.current = turns
       const setAutosaveConsent = (value: boolean | null) => this.set({ autosaveConsent: value });
       const setAdsConsent = (value: boolean | null) => this.set({ adsConsent: value });
@@ -254,7 +266,7 @@ class KeptChatScreen {
           this.effects.set(slot, { deps, cleanup: typeof cleanup === "function" ? cleanup : undefined });
         });
       };
-      const shared = { userId: OWNER, applyAutosaveConsent, setAutosaveConsent, setAdsConsent };
+      const shared = { ...this.refs, userId: OWNER, applyAutosaveConsent, setAutosaveConsent, setAdsConsent };
       run(CHAT.load, { ...shared, useEffect: effectAt("load"), fetchPrivacyPrefs, prefsReadKey: s.prefsReadKey });
       run(CHAT.subscribe, { ...shared, useEffect: effectAt("subscribe"), subscribePrivacyPrefsSaved });
       run(CHAT.autosave, {
@@ -270,7 +282,10 @@ class KeptChatScreen {
         keptTurns: s.keptTurns,
         prefsReadKey: s.prefsReadKey,
         readPrivacyPrefs,
-        keepExchange: (index: number) => this.keep(index),
+        captureAccountOwnerLease,
+        // 실제 keepExchange 처럼 이 렌더의 turns 를 쥔다(effect 가 부르는 것은 그 렌더의 함수다). s 는 계속
+        // 바뀌는 객체라 여기서 값을 떼어 둔다.
+        keepExchange: (index: number) => this.keep(turnsAtRender, index),
       });
     } finally {
       this.rendering = false;
@@ -279,19 +294,26 @@ class KeptChatScreen {
   }
 
   /** keepExchange 자리. 실제 capture 대신 담긴 턴을 센다. */
-  private async keep(index: number): Promise<boolean> {
-    const turn = this.s.turns[index];
+  private async keep(turns: readonly Turn[], index: number): Promise<boolean> {
+    const turn = turns[index];
     if (!turn) return false;
     this.saved.push(turn);
     this.set({ keptTurns: new Set(this.s.keptTurns).add(turn) });
     return true;
   }
 
+  /** 질문을 보낸다(답변은 아직). 돌려주는 것은 질문 턴이다. */
+  async ask(question: string): Promise<Turn> {
+    const turn: Turn = { role: "user", text: question };
+    this.set({ turns: [...this.s.turns, turn] });
+    await settle();
+    return turn;
+  }
+
   /** 질문 하나와 답변 하나가 오간다. 돌려주는 것은 답변 턴이다. */
   async exchange(question: string, answer: string): Promise<Turn> {
     const reply: Turn = { role: "secondb", text: answer };
-    this.set({ turns: [...this.s.turns, { role: "user", text: question }] });
-    await settle();
+    await this.ask(question);
     this.set({ turns: [...this.s.turns, reply] });
     await settle();
     return reply;
@@ -310,13 +332,14 @@ class KeptChatScreen {
       setKeptTurns: (keptTurns: ReadonlySet<Turn>) => this.set({ keptTurns }),
       setKeepNotice: (keepNotice: ChatState["keepNotice"]) => this.set({ keepNotice }),
       autoKeptRef: this.refs.autoKeptRef,
+      turnsRef: this.refs.turnsRef,
     })();
     await settle();
   }
 
   /** 담기 칩을 손으로 누른다(담는 자리는 keep 과 같다). */
   async keepByHand(index: number): Promise<void> {
-    await this.keep(index);
+    await this.keep(this.s.turns, index);
     await settle();
   }
 
@@ -373,6 +396,10 @@ async function mountChat(): Promise<KeptChatScreen> {
 }
 
 beforeEach(() => {
+  // 실제 계정 경계(lib/auth/account-epoch)를 쓴다. AuthContext 가 공개하기 직전에 부르는 것과 같은 호출이다.
+  __resetAccountEpochForTests();
+  noteResolvedOwner(OWNER);
+  mockDb.holdNextRead = null;
   mockDb.prefs = new Map();
   mockDb.ledger = [];
   mockDb.failReads = 0;
@@ -386,6 +413,15 @@ afterEach(() => {
 });
 
 const storedChatAutosave = (): unknown => mockDb.prefs.get(OWNER)?.chat_autosave;
+
+/** 다음 prefs 읽기를 붙잡는다. 돌려준 함수를 부르면 요청한 순간의 값으로 응답한다. */
+function holdNextRead(): () => void {
+  let release: () => void = () => undefined;
+  mockDb.holdNextRead = new Promise<void>((done) => {
+    release = done;
+  });
+  return () => release();
+}
 
 describe("유지된 대화 화면 왕복 (r3as H1)", () => {
   test("켜짐 -> 설정에서 끔 -> 돌아옴: 끈 뒤의 답변은 하나도 담지 않는다", async () => {
@@ -555,6 +591,88 @@ describe("담기 표시는 인덱스가 아니라 턴에 붙는다 (r3as2 R3AS2-
     } finally {
       warn.mockRestore();
     }
+  });
+});
+
+describe("담기 직전 확인이 돌아오기 전에 동의 · 계정 · 대화가 바뀌면 (r3as2 R3AS2-01)", () => {
+  // 게이트가 잡은 순서: 답변이 오고 담기 직전 확인 읽기가 나간다(그때의 켜짐을 읽는다). 응답이 오기 전에 같은
+  // 앱의 설정에서 끈다. 늦게 온 켜짐 응답이 지금의 동의 · 동의 세대 · 계정 · 턴을 다시 보지 않고 담았다.
+  // 여기서는 그 읽기를 실제로 붙잡아 둔 채 실제 savePrivacyPref 로 끄고(저장 소식까지 실제) 나서 푼다.
+  test("확인 중에 같은 앱에서 끄면, 늦게 온 켜짐 응답으로 담지 않는다", async () => {
+    mockDb.prefs.set(OWNER, { chat_autosave: true });
+    const chat = await mountChat();
+    const release = holdNextRead();
+    await chat.exchange("질문", "확인 중에 철회된 답변");
+    expect(chat.saved).toEqual([]); // 확인이 아직 돌아오지 않았다
+
+    await savePrivacyPref(OWNER, "chat_autosave", false);
+    expect(chat.s.autosaveConsent).toBe(false);
+    release();
+    await settle();
+    expect(chat.saved).toEqual([]);
+  });
+
+  test("확인 중에 끄고 다시 켜도, 끄기 전에 나간 확인으로는 담지 않는다", async () => {
+    mockDb.prefs.set(OWNER, { chat_autosave: true });
+    const chat = await mountChat();
+    const release = holdNextRead();
+    await chat.exchange("질문", "끄고 다시 켜는 사이의 답변");
+    await savePrivacyPref(OWNER, "chat_autosave", false);
+    await settle();
+    await savePrivacyPref(OWNER, "chat_autosave", true);
+    await settle();
+    expect(chat.s.autosaveConsent).toBe(true); // 지금 값만 보면 켜져 있다 - 막는 것은 동의 세대다
+    expect(mockDb.ledger.map((row) => row.event_type)).toEqual(["revoke", "grant"]);
+
+    release();
+    await settle();
+    expect(chat.saved).toEqual([]);
+  });
+
+  test("확인 중에 계정 전환이 시작되면(장면이 아직 남아 있어도) 담지 않는다", async () => {
+    mockDb.prefs.set(OWNER, { chat_autosave: true });
+    const chat = await mountChat();
+    const release = holdNextRead();
+    await chat.exchange("질문", "계정 전환 사이의 답변");
+    beginAccountOwnerTransition("user-b");
+    release();
+    await settle();
+    expect(chat.saved).toEqual([]);
+  });
+
+  test("확인 중에 다른 계정으로 바뀌어 장면이 다시 만들어지면, 앞 계정의 확인으로 담지 않는다", async () => {
+    mockDb.prefs.set(OWNER, { chat_autosave: true });
+    const chat = await mountChat();
+    const release = holdNextRead();
+    await chat.exchange("질문", "앞 계정의 답변");
+    beginAccountOwnerTransition("user-b");
+    chat.unmount(); // _layout.tsx 의 AccountScope 가 epoch 를 key 로 장면을 다시 만든다
+    noteResolvedOwner("user-b");
+    release();
+    await settle();
+    expect(chat.saved).toEqual([]);
+  });
+
+  test("확인 중에 새 대화로 비우면, 비워진 대화의 답변은 담지 않는다", async () => {
+    mockDb.prefs.set(OWNER, { chat_autosave: true });
+    const chat = await mountChat();
+    const release = holdNextRead();
+    await chat.exchange("질문", "비워진 대화의 답변");
+    await chat.newConversation();
+    release();
+    await settle();
+    expect(chat.saved).toEqual([]);
+  });
+
+  test("대조군: 확인 중에 아무것도 안 바뀌면 담고, 그 사이 다음 질문을 보내도 담는다", async () => {
+    mockDb.prefs.set(OWNER, { chat_autosave: true });
+    const chat = await mountChat();
+    const release = holdNextRead();
+    const reply = await chat.exchange("질문", "확인을 기다린 답변");
+    await chat.ask("이어서 보낸 질문");
+    release();
+    await settle();
+    expect(chat.saved).toEqual([reply]);
   });
 });
 

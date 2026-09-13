@@ -209,6 +209,13 @@ describe("자동 담기는 실패를 삼키지 않는다", () => {
       applyAutosaveConsent: () => undefined,
       keptTurns: new Set<object>(),
       prefsReadKey: 0,
+      // r3as2 R3AS2-01: 확인을 내보낼 때 쥐는 계정 · 동의 세대 · 소식 구독, 돌아왔을 때 보는 지금 동의와 목록.
+      // 이 묶음은 실패 되돌림만 보므로 전부 그대로인 상태로 둔다 - 바뀌는 경우는 roundtrip 테스트가 돌린다.
+      captureAccountOwnerLease: () => ({ ownerId: "local-owner", epoch: 1, isCurrent: () => true }),
+      autosaveGenerationRef: { current: 0 },
+      autosaveListenerRef: { current: {} },
+      autosaveConsentRef: { current: true },
+      turnsRef: { current: [PROMPT, REPLY] },
       keepExchange: async (index: number) => { calls.push(index); return ok; },
     };
     run(findEffect("autoKeptRef"), "", bindings);

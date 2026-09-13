@@ -38,6 +38,7 @@ import { canShowRewardedAds } from "@/lib/ads/policy";
 import { canCompleteRewardedWatch } from "@/lib/ads/rewarded";
 import { fetchPrivacyPrefs, readPrivacyPrefs } from "@/lib/supabase/privacy";
 import { subscribePrivacyPrefsSaved } from "@/lib/privacy/pref-changes";
+import { captureAccountOwnerLease } from "@/lib/auth/account-epoch";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -756,6 +757,12 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // 담았고, 켜고 돌아와도 담지 않았다. 그래서 동의를 네 길로 새로 고친다: 첫 읽기 · 돌아왔을 때 다시
   // 읽기 · 같은 앱의 설정 저장 소식 · 자동으로 담기 직전의 서버 확인. 넷 다 applyAutosaveConsent 를 지난다.
   const autosaveConsentRef = useRef<boolean | null>(null);
+  // 동의 값이 바뀔 때마다(켜짐 · 꺼짐 · 모름 사이) 하나씩 오르는 세대 (r3as2 R3AS2-01). 담기 직전 확인은 나갈
+  // 때의 세대를 쥐고, 돌아왔을 때 세대가 달라졌으면 그 응답으로 담지 않는다. 끄고 다시 켠 경우도 막는다.
+  const autosaveGenerationRef = useRef(0);
+  // 지금 설정 저장 소식을 듣고 있는 구독의 표식. 내려간 화면이나 계정이 바뀐 화면은 철회를 더는 듣지 못하므로
+  // 그 전에 나간 확인의 응답으로 담지 않는다.
+  const autosaveListenerRef = useRef<object | null>(null);
   // 동의가 켜진 것을 이 화면이 확인한 순간 이미 화면에 있던 턴. 자동으로 담지 않는다 - 켜기 전에 오간
   // 말은 사라질 거라 생각하고 한 말이다. 인덱스가 아니라 턴 객체로 기억한다. "새 대화" 가 목록을 비우면
   // 같은 인덱스에 다른 턴이 온다.
@@ -765,6 +772,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   const [prefsReadKey, setPrefsReadKey] = useState(0);
   useFocusRefetch(() => setPrefsReadKey((k) => k + 1), Boolean(userId));
   function applyAutosaveConsent(allowed: boolean) {
+    if (autosaveConsentRef.current !== allowed) autosaveGenerationRef.current += 1;
     if (allowed && autosaveConsentRef.current !== true) {
       autosaveBeforeRef.current = new WeakSet(turnsRef.current);
     }
@@ -797,11 +805,17 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // 있는 동안에도 이 화면은 답변을 받는다.
   useEffect(() => {
     if (!userId) return;
-    return subscribePrivacyPrefsSaved((savedUserId, prefs) => {
+    const listener = {};
+    autosaveListenerRef.current = listener;
+    const unsubscribe = subscribePrivacyPrefsSaved((savedUserId, prefs) => {
       if (savedUserId !== userId) return;
       setAdsConsent(prefs.ads === true);
       applyAutosaveConsent(prefs.chat_autosave === true);
     });
+    return () => {
+      unsubscribe();
+      if (autosaveListenerRef.current === listener) autosaveListenerRef.current = null;
+    };
   }, [userId]);
 
   // 자동 저장: 동의가 켜져 있으면 새로 도착한 답변을 담는다.
@@ -825,10 +839,23 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     // 동의가 켜진 것을 확인하기 전부터 화면에 있던 턴이다. 소급해서 담지 않는다.
     if (autosaveBeforeRef.current.has(last)) return;
     if (autoKeptRef.current.has(last) || keptTurns.has(last)) return;
+    // 확인을 내보내는 순간의 계정 · 동의 세대 · 소식 구독을 쥔다(r3as2 R3AS2-01). 계정이 공개돼 있지 않거나
+    // 전환 중이면, 또는 설정 저장 소식을 듣고 있지 않으면 확인도 담기도 하지 않는다.
+    const owner = captureAccountOwnerLease(userId);
+    const generation = autosaveGenerationRef.current;
+    const listener = autosaveListenerRef.current;
+    if (!owner || !listener) return;
     autoKeptRef.current.add(last);
     // 담기 직전에 서버의 최신 동의를 다시 읽는다(r3as H1). 들고 있는 값은 다른 기기에서 끈 것까지는
     // 모른다. 꺼진 것이 확인되면 화면 값도 끈다.
     void readPrivacyPrefs(userId).then((read) => {
+      // 응답을 기다리는 사이 이 화면이 알게 된 것이 우선이다. 동의 값이 한 번이라도 바뀌었거나(끄고 다시 켠
+      // 경우 포함), 계정이 바뀌었거나, 화면이 내려가 철회 소식을 더는 듣지 못하면 이 응답은 낡았다. 켜짐이어도
+      // 담지 않고, 꺼짐이어도 화면 값을 덮지 않는다.
+      if (autosaveGenerationRef.current !== generation || !owner.isCurrent() || autosaveListenerRef.current !== listener) {
+        autoKeptRef.current.delete(last);
+        return;
+      }
       if (!read.ok) {
         // 못 읽으면 담지 않는다(fail-closed). 표시는 지운다 - 남겨 두면 확인을 한 번 못 읽은 답변이 다시는
         // 확인되지 않았다(r3as2 R3AS2-02). 여기서 스스로 다시 읽지는 않는다. 화면에 돌아오면(prefsReadKey)
@@ -839,6 +866,12 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
       if (read.prefs.chat_autosave !== true) {
         autoKeptRef.current.delete(last);
         applyAutosaveConsent(false);
+        return;
+      }
+      // 지금 이 화면의 동의가 켜져 있고 그 답변이 아직 같은 대화의 같은 자리에 있을 때만 담는다. "새 대화" 로
+      // 비워진 대화의 답변은 담지 않는다.
+      if (autosaveConsentRef.current !== true || turnsRef.current[idx] !== last) {
+        autoKeptRef.current.delete(last);
         return;
       }
       // 실패하면 표시를 되돌린다. 되돌리지 않으면 일시적인 실패 한 번에 그 턴이
@@ -855,8 +888,10 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   }, [turns, autosaveConsent, userId, prefsReadKey]);
 
   // "새 대화" 두 버튼(deep-space 와 레거시 화면)이 함께 쓰는 한 곳 (r3as2 R3AS2-02). 목록만 비우면 담긴
-  // 표시와 실패 안내가 다음 대화의 같은 자리로 넘어간다.
+  // 표시와 실패 안내가 다음 대화의 같은 자리로 넘어간다. 담기 직전 확인이 아직 안 돌아온 앞 대화의 답변은
+  // 돌아왔을 때 목록에 없어서 담기지 않는다(R3AS2-01) - 그래서 turnsRef 를 다음 렌더를 기다리지 않고 비운다.
   function startNewConversation() {
+    turnsRef.current = [];
     setTurns([]);
     setKeptTurns(new Set());
     setKeepNotice(null);
