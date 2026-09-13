@@ -619,21 +619,83 @@ export function passwordUpdateFailure(error: unknown): PasswordUpdateFailure {
   }
 }
 
+type AuthSignOutSafetyCode =
+  | "auth_owner_changed"
+  | "auth_captured_revoke_unavailable"
+  | "auth_captured_revoke_failed"
+  | "auth_local_clear_unavailable";
+
+export class AuthSignOutSafetyError extends Error {
+  readonly code: AuthSignOutSafetyCode;
+
+  constructor(code: AuthSignOutSafetyCode) {
+    super("Sign-out stopped because the local session could not be changed safely.");
+    this.name = "AuthSignOutSafetyError";
+    this.code = code;
+  }
+}
+
+async function revokeCapturedSession(
+  supabase: SupabaseClient,
+  accessToken: string,
+  scope: "global" | "local",
+): Promise<void> {
+  // auth-js signOut delegates to this same public logout endpoint with the
+  // current user's JWT. It uses the configured anon client headers and does
+  // not require or expose a service-role credential.
+  const admin = (supabase.auth as unknown as {
+    admin?: {
+      signOut?: (
+        jwt: string,
+        signOutScope: "global" | "local",
+      ) => Promise<{ error: unknown }>;
+    };
+  }).admin;
+  if (typeof admin?.signOut !== "function") {
+    throw new AuthSignOutSafetyError("auth_captured_revoke_unavailable");
+  }
+
+  let error: unknown;
+  try {
+    ({ error } = await admin.signOut(accessToken, scope));
+  } catch {
+    throw new AuthSignOutSafetyError("auth_captured_revoke_failed");
+  }
+  if (!error) return;
+  const status = (error as { status?: unknown }).status;
+  // Match auth-js: an already absent/invalid session is terminal for logout.
+  if (status === 401 || status === 403 || status === 404) return;
+  throw new AuthSignOutSafetyError("auth_captured_revoke_failed");
+}
+
 export async function signOut(scope: "global" | "local" = "global"): Promise<void> {
   return runAuthSessionMutation(async (lease) => {
     const supabase = getSupabaseClient();
     const before = await supabase.auth.getSession();
     if (before.error) throw before.error;
     const ownerId = before.data.session?.user.id ?? null;
+    const accessToken = before.data.session?.access_token ?? null;
     if (ownerId) await clearAccountScopedLocalNotifications(ownerId);
-    if (!lease.isCurrent()) return;
+    if (!ownerId) return;
+    if (typeof accessToken !== "string" || accessToken.length === 0) {
+      throw new AuthSignOutSafetyError("auth_captured_revoke_unavailable");
+    }
+    if (!lease.isCurrent()) throw new AuthSignOutSafetyError("auth_owner_changed");
     const after = await supabase.auth.getSession();
     if (after.error) throw after.error;
-    if ((after.data.session?.user.id ?? null) !== ownerId) return;
-    const { error } = scope === "global"
-      ? await supabase.auth.signOut()
-      : await supabase.auth.signOut({ scope });
-    if (error) throw error;
+    if (
+      (after.data.session?.user.id ?? null) !== ownerId
+      || after.data.session?.access_token !== accessToken
+    ) {
+      throw new AuthSignOutSafetyError("auth_owner_changed");
+    }
+
+    await revokeCapturedSession(supabase, accessToken, scope);
+    // auth-js 2.106.1 SupportedStorage exposes get/set/remove but no atomic
+    // compare-and-delete. Calling shared auth.signOut() would take a later lock,
+    // re-read cross-tab B, then revoke and clear B. Preserve stale A locally and
+    // keep the app fail-closed until a real CAS/event path exists.
+    throw new AuthSignOutSafetyError("auth_local_clear_unavailable");
   });
 }
 
@@ -643,11 +705,11 @@ export type DeletedAccountSessionFinalization =
   | "owner-changed";
 
 /**
- * Finish local auth teardown after terminal server deletion. This path owns its
- * notification cleanup and therefore calls Supabase directly instead of the
- * public signOut() wrapper (which would repeat the same device-wide cleanup).
- * The session owner is checked both before and after that await boundary so a
- * late A deletion can never invalidate an already-active B session.
+ * Attempt local auth teardown after terminal server deletion. This path owns
+ * notification cleanup and revokes only the token captured for A. The current
+ * storage adapters expose no atomic compare-and-delete, so an active local A is
+ * deliberately retained and reported as owner-changed rather than risking a
+ * late cross-tab B through the public signOut() wrapper.
  */
 export async function finalizeDeletedAccountSession(
   expectedUserId: string,
@@ -660,6 +722,7 @@ export async function finalizeDeletedAccountSession(
     const before = await supabase.auth.getSession();
     if (before.error) throw before.error;
     const beforeUserId = before.data.session?.user.id ?? null;
+    const beforeAccessToken = before.data.session?.access_token ?? null;
     if (
       !lease.isCurrent()
       || !isCurrentOwner()
@@ -687,18 +750,26 @@ export async function finalizeDeletedAccountSession(
       !lease.isCurrent()
       || !isCurrentOwner()
       || (afterUserId !== null && afterUserId !== expectedUserId)
+      || (afterUserId !== null && after.data.session?.access_token !== beforeAccessToken)
     ) {
       return "owner-changed";
     }
 
-    beforeSignOut();
-    if (afterUserId === null) return "already-signed-out";
-    // Terminal deletion never needs to revoke other devices. Local scope means
-    // even a cross-context session swap in auth-js's separate internal lock can
-    // never globally revoke B; app-owned mutations are serialized above.
-    const { error } = await supabase.auth.signOut({ scope: "local" });
-    if (error) throw error;
-    return "signed-out";
+    if (afterUserId === null) {
+      beforeSignOut();
+      return "already-signed-out";
+    }
+    if (typeof beforeAccessToken !== "string" || beforeAccessToken.length === 0) {
+      return "owner-changed";
+    }
+    try {
+      await revokeCapturedSession(supabase, beforeAccessToken, "local");
+    } catch {
+      return "owner-changed";
+    }
+    // Server deletion/revoke is complete, but the shared local session cannot
+    // be cleared atomically. Do not arm deletion navigation or touch a late B.
+    return "owner-changed";
   });
 }
 

@@ -21,10 +21,14 @@ const getItem = jest.fn<Promise<string | null>, [string]>();
 const setItem = jest.fn<Promise<void>, [string, string]>();
 const removeItem = jest.fn<Promise<void>, [string]>();
 const supabaseGetSession = jest.fn<Promise<{
-  data: { session: { user: { id: string } } | null };
+  data: { session: { access_token: string; user: { id: string } } | null };
   error: Error | null;
 }>, []>();
 const supabaseSignOut = jest.fn<Promise<{ error: Error | null }>, [unknown?]>();
+const supabaseCapturedTokenSignOut = jest.fn<
+  Promise<{ data: null; error: Error | null }>,
+  [string, "global" | "local"]
+>();
 const supabaseSignIn = jest.fn<Promise<{
   data: { user: { id: string } | null };
   error: Error | null;
@@ -44,6 +48,10 @@ jest.mock("../../supabase/client", () => ({
     auth: {
       getSession: () => supabaseGetSession(),
       signOut: (options?: unknown) => supabaseSignOut(options),
+      admin: {
+        signOut: (accessToken: string, scope: "global" | "local") =>
+          supabaseCapturedTokenSignOut(accessToken, scope),
+      },
       signInWithPassword: (credentials: { email: string; password: string }) =>
         supabaseSignIn(credentials),
     },
@@ -108,10 +116,11 @@ beforeEach(() => {
   setItem.mockResolvedValue(undefined);
   removeItem.mockResolvedValue(undefined);
   supabaseGetSession.mockResolvedValue({
-    data: { session: { user: { id: "account-a" } } },
+    data: { session: { access_token: "test-access-token-account-a", user: { id: "account-a" } } },
     error: null,
   });
   supabaseSignOut.mockResolvedValue({ error: null });
+  supabaseCapturedTokenSignOut.mockResolvedValue({ data: null, error: null });
   supabaseSignIn.mockResolvedValue({ data: { user: { id: "account-b" } }, error: null });
 });
 
@@ -406,7 +415,7 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     expect(String(error)).not.toContain("private");
   });
 
-  test("central sign-out finishes strict cleanup before calling Supabase", async () => {
+  test("central sign-out cleans A, revokes captured A, then fails safely without shared local clear", async () => {
     setNavigatorProduct("ReactNative");
     const events: string[] = [];
     getAllScheduledNotificationsAsync.mockResolvedValueOnce([
@@ -422,20 +431,28 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     });
     clearLastNotificationResponse.mockImplementationOnce(() => { events.push("response"); });
     removeItem.mockImplementation(async () => { events.push("state"); });
-    supabaseSignOut.mockImplementationOnce(async () => {
-      events.push("sign-out");
-      return { error: null };
+    supabaseCapturedTokenSignOut.mockImplementationOnce(async () => {
+      events.push("captured-revoke");
+      return { data: null, error: null };
     });
 
-    await expect(signOutWithCleanup()).resolves.toBeUndefined();
+    await expect(signOutWithCleanup()).rejects.toMatchObject({
+      name: "AuthSignOutSafetyError",
+      code: "auth_local_clear_unavailable",
+    });
 
-    expect(events.at(-1)).toBe("sign-out");
+    expect(events.at(-1)).toBe("captured-revoke");
     expect(events.slice(0, -1)).toEqual(expect.arrayContaining([
       "scheduled",
       "delivered",
       "response",
       "state",
     ]));
+    expect(supabaseCapturedTokenSignOut).toHaveBeenCalledWith(
+      "test-access-token-account-a",
+      "global",
+    );
+    expect(supabaseSignOut).not.toHaveBeenCalled();
   });
 
   test("central sign-out does not invalidate the session when strict cleanup fails", async () => {
@@ -446,9 +463,10 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
       name: "AccountScopedNotificationCleanupError",
     });
     expect(supabaseSignOut).not.toHaveBeenCalled();
+    expect(supabaseCapturedTokenSignOut).not.toHaveBeenCalled();
   });
 
-  test("terminal deletion runtime performs one cleanup, then signs out the proven owner", async () => {
+  test("terminal deletion cleans and revokes A but does not arm receipt without atomic local clear", async () => {
     setNavigatorProduct("ReactNative");
     const events: string[] = [];
     getAllScheduledNotificationsAsync.mockImplementationOnce(async () => {
@@ -458,21 +476,25 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     cancelScheduledNotificationAsync.mockImplementationOnce(async () => { events.push("scheduled-clear"); });
     clearLastNotificationResponseAsync.mockImplementationOnce(async () => { events.push("response-clear"); });
     removeItem.mockImplementation(async () => { events.push("state-clear"); });
-    supabaseSignOut.mockImplementationOnce(async () => {
-      events.push("sign-out");
-      return { error: null };
+    supabaseCapturedTokenSignOut.mockImplementationOnce(async () => {
+      events.push("captured-revoke");
+      return { data: null, error: null };
     });
 
     await expect(finalizeDeletedAccountSession(
       "account-a",
       () => true,
       () => { events.push("receipt-armed"); },
-    )).resolves.toBe("signed-out");
+    )).resolves.toBe("owner-changed");
 
-    expect(events.indexOf("receipt-armed")).toBeGreaterThan(events.lastIndexOf("state-clear"));
-    expect(events.at(-1)).toBe("sign-out");
+    expect(events).not.toContain("receipt-armed");
+    expect(events.at(-1)).toBe("captured-revoke");
     expect(removeItem).toHaveBeenCalledTimes(3);
-    expect(supabaseSignOut).toHaveBeenCalledWith({ scope: "local" });
+    expect(supabaseCapturedTokenSignOut).toHaveBeenCalledWith(
+      "test-access-token-account-a",
+      "local",
+    );
+    expect(supabaseSignOut).not.toHaveBeenCalled();
   });
 
   test("a queued B login invalidates terminal A teardown before local sign-out", async () => {
