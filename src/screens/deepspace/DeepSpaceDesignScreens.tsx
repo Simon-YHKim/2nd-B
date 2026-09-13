@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
 import { AppState, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text as RNText, TextInput, View } from "react-native";
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from "expo-audio";
-import { Redirect, router, useNavigation } from "expo-router";
+import { Redirect, router, useLocalSearchParams, useNavigation } from "expo-router";
 import { useTranslation } from "react-i18next";
 import Svg, { Rect, SvgXml } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -267,10 +267,12 @@ function GraphLoading() {
 // screen floats as a radius-24 window over the shared sky (sb-app §4). Routes
 // moving from Shell to DockShell must also join DEEP_SPACE_DOCK_PATHS so the
 // floating BackArrow chip yields to the top bar.
-function DockShell({ children, title, subtitle }: { children: ReactNode; title?: string; subtitle?: string }) {
+// scrollRef 는 화면이 자기 안의 카드 하나로 스크롤해야 할 때만 넘긴다(/privacy 의 대화 저장
+// 카드. 세컨비의 "대화가 남지 않아요" 안내가 그리로 보낸다). 안 넘기는 화면은 전과 같다.
+function DockShell({ children, title, subtitle, scrollRef }: { children: ReactNode; title?: string; subtitle?: string; scrollRef?: Ref<ScrollView> }) {
   return (
     <DeepSpaceScreen active="lens" header="none" variant="windowed" title={title ?? ""} onBack={() => router.back()}>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {subtitle ? <Text variant="subtle" style={styles.subtitle}>{subtitle}</Text> : null}
         {children}
       </ScrollView>
@@ -295,8 +297,8 @@ function DockShell({ children, title, subtitle }: { children: ReactNode; title?:
 // (a) 어떤 탭도 잘못 하이라이트되지 않고 (b) DeepSpaceScreen 의 BackHandler
 // 특례가 걸리지 않아 **하드웨어 뒤로가기 동선이 바뀌지 않는다**(기본 pop 유지).
 // 제목은 상단 앱바가 갖는다 — 화면 안에 또 큰 제목을 두면 같은 말이 두 번 나온다.
-function Shell({ children, title, subtitle }: { children: ReactNode; title?: string; subtitle?: string }) {
-  return <DockShell title={title} subtitle={subtitle}>{children}</DockShell>;
+function Shell({ children, title, subtitle, scrollRef }: { children: ReactNode; title?: string; subtitle?: string; scrollRef?: Ref<ScrollView> }) {
+  return <DockShell title={title} subtitle={subtitle} scrollRef={scrollRef}>{children}</DockShell>;
 }
 
 // Scroll-only body for screens that already sit inside DeepSpaceScreen (which
@@ -587,6 +589,12 @@ export function DeepSpacePrivacyDesignScreen() {
   const navigation = useNavigation();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
   const { userId, isMinor } = useAuth();
+  // 세컨비의 "지금 이 대화는 남지 않아요" 안내가 여기로 보낼 때 대화 저장 카드로 스크롤한다.
+  // 보내는 쪽은 secondb.tsx 의 router.push 이고 값은 "chat_autosave" 하나다.
+  const { focusPref } = useLocalSearchParams<{ focusPref?: string }>();
+  const focusChatSave = focusPref === "chat_autosave";
+  const privacyScrollRef = useRef<ScrollView>(null);
+  const chatSaveScrolledRef = useRef(false);
   // AuthContext derives this from users.birth_date. Unknown age fails closed,
   // so Clarity/GA4 and ads cannot be enabled while the profile is resolving.
   const minor = isMinor !== false;
@@ -1039,7 +1047,7 @@ export function DeepSpacePrivacyDesignScreen() {
   }
 
   return (
-    <Shell title={t("privacy.title")}>
+    <Shell title={t("privacy.title")} scrollRef={privacyScrollRef}>
       <SecondbStatusHeader text={t("privacy.status")} tip={t("privacy.tip")} />
       <Text variant="body" style={styles.lead}>{t("privacy.lead")}</Text>
 
@@ -1064,24 +1072,34 @@ export function DeepSpacePrivacyDesignScreen() {
       {/* 대화 저장 (chat_autosave). 기본값은 꺼짐이고, 켜도 켜기 전 대화는 소급해서
           담지 않는다(secondb.tsx 는 마지막 턴만 본다). 라벨과 설명은 동의 문구 번들이
           원본이다. */}
-      <Card>
-        <Text variant="caption" style={styles.section}>{t("privacy.chatSaveSection")}</Text>
-        <Text variant="body" style={styles.lead}>{consentT("privacy.keys.chat_autosave.desc")}</Text>
-        {chatSaveOn === null ? (
-          <Text variant="subtle" style={styles.footer}>{t("privacy.chatSaveLoading")}</Text>
-        ) : (
-          <Toggle
-            label={consentT("privacy.keys.chat_autosave.label")}
-            value={chatSaveOn ? t("privacy.on") : t("privacy.off")}
-            on={chatSaveOn}
-            disabled={busy}
-            onPress={() => void toggleChatAutosave(!chatSaveOn)}
-          />
-        )}
-        {chatSaveError ? (
-          <Text variant="subtle" style={styles.footer}>{t("privacy.chatSaveError")}</Text>
-        ) : null}
-      </Card>
+      <View
+        onLayout={(event) => {
+          // focusPref 로 왔을 때 한 번만 옮긴다. 사용자가 스크롤을 시작한 뒤 위쪽 높이가
+          // 바뀌어도 다시 끌어올리지 않는다. 애니메이션은 끈다(계단 이징 규칙과 싸우지 않게).
+          if (!focusChatSave || chatSaveScrolledRef.current) return;
+          chatSaveScrolledRef.current = true;
+          privacyScrollRef.current?.scrollTo({ y: Math.max(0, event.nativeEvent.layout.y - spacing.md), animated: false });
+        }}
+      >
+        <Card style={focusChatSave ? { borderColor: colors.cyan } : undefined}>
+          <Text variant="caption" style={styles.section}>{t("privacy.chatSaveSection")}</Text>
+          <Text variant="body" style={styles.lead}>{consentT("privacy.keys.chat_autosave.desc")}</Text>
+          {chatSaveOn === null ? (
+            <Text variant="subtle" style={styles.footer}>{t("privacy.chatSaveLoading")}</Text>
+          ) : (
+            <Toggle
+              label={consentT("privacy.keys.chat_autosave.label")}
+              value={chatSaveOn ? t("privacy.on") : t("privacy.off")}
+              on={chatSaveOn}
+              disabled={busy}
+              onPress={() => void toggleChatAutosave(!chatSaveOn)}
+            />
+          )}
+          {chatSaveError ? (
+            <Text variant="subtle" style={styles.footer}>{t("privacy.chatSaveError")}</Text>
+          ) : null}
+        </Card>
+      </View>
 
       <Card>
         <Text variant="caption" style={styles.section}>

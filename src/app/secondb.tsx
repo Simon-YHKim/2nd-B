@@ -1301,7 +1301,9 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                 <Pressable
                   onPress={() => {
                     dismissSaveNotice();
-                    router.push("/privacy");
+                    // 설정 화면 맨 위가 아니라 대화 저장 카드로 보낸다(Q-260914-01). 받는 쪽은
+                    // 배송 개인정보 화면(DeepSpacePrivacyDesignScreen)의 focusPref 다.
+                    router.push({ pathname: "/privacy", params: { focusPref: "chat_autosave" } });
                   }}
                   hitSlop={8}
                   accessibilityRole="button"
