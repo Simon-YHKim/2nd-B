@@ -10,7 +10,7 @@
 //
 // Security hardening (docs/security/2026-05-26-SUMMARY.md — C3, M1, M2 +
 // 2026-05-26-codex-challenge.md — R1):
-//   - MAX_USER_LEN / MAX_SYSTEM_LEN cap unbounded prompts (C3)
+//   - MAX_USER_LEN / MAX_ASSEMBLED_LEN cap unbounded prompts (C3)
 //   - maxOutputTokens caps the cost of any single call (C3)
 //   - CORS allowlist replaces the previous wildcard (M1)
 //   - upstream_error.detail truncated; never echoes prompt fragments (M2)
@@ -37,7 +37,7 @@
 //   {
 //     system: string | null,
 //     user: string,
-//     model: 'gemini-2.5-flash' | 'gemini-2.5-pro',
+//     model?: string,                              // accepted but ignored
 //     image?: { mimeType: string, data: string },  // base64 (no data: URL prefix)
 //     audio?: { mimeType: string, data: string },  // base64 voice memo (transcription)
 //     purpose?: string                              // caller's PromptPurpose label
@@ -48,15 +48,28 @@
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+// D-27 attribution plus the shared server-owned purpose policy. The remaining
+// crisis/auth/cap plumbing stays inlined until its own deploy-verified migration.
 import {
-  JsonBodyError,
-  LLM_PROXY_JSON_BODY_LIMIT_BYTES,
-  readJsonObject,
-} from '../_shared/request-json.ts';
-// D-27: (vendor × model × effort) axis key attribution — the ONLY symbol this
-// live-critical $0 backbone imports from _shared (a pure env reader; no crisis/
-// auth/cap logic is migrated here — that stays inlined per the _shared note).
-import { isUsableHeaderValue, resolveApiKey } from '../_shared/llm-proxy-common.ts';
+  LlmBodyError,
+  auditUpstreamFailure,
+  clampLlmPurposeEffort,
+  consumeLlmPurposeQuota,
+  isLlmJsonObject,
+  isUsableHeaderValue,
+  llmCapacityWeight,
+  normalizeGeminiResponseSchema,
+  readLlmProxyJsonObject,
+  readLlmUpstreamErrorText,
+  readLlmUpstreamJsonObject,
+  requestMatchesLlmPurposeModality,
+  reserveLlmProxyCapacity,
+  resolveApiKey,
+  resolveLlmPurposePolicy,
+  type LlmPolicyEffort,
+  type LlmPolicyModelTier,
+  transitionLlmProxyCapacity,
+} from '../_shared/llm-proxy-common.ts';
 
 // P0-3 (D-26, docs/LLM-ROUTING.md): the allowlist previously held only
 // {2.5-flash, 2.5-pro}, so the client's LITE tier (clipper_classify ->
@@ -109,6 +122,14 @@ function serverModelFor(requested: string): string {
   const override = (Deno.env.get(key) ?? '').trim();
   return override.length > 0 && modelAllowed(override) ? override : requested;
 }
+function serverModelForTier(tier: LlmPolicyModelTier): string {
+  const baseline = tier === 'lite'
+    ? 'gemini-2.5-flash-lite'
+    : tier === 'pro'
+      ? 'gemini-2.5-pro'
+      : 'gemini-2.5-flash';
+  return serverModelFor(baseline);
+}
 const GEMINI_ENDPOINT = (model: string) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 // P0-2 (D-26 A19): embeddings — text-embedding-004 shut down 2026-01-14; the
@@ -121,13 +142,15 @@ const MAX_EMBED_TEXTS = 50;
 const MAX_EMBED_TEXT_LEN = 2000;
 const EMBED_ENDPOINT = (model: string) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${model}:batchEmbedContents`;
+const PROVIDER_TIMEOUT_MS = 30_000;
+const REASONING_RUN_ID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const MAX_USER_LEN = 8000;
 // A curated/assembled prompt (e.g. the journal Advisor's RAG) can exceed a chat
 // turn; it rides in the `system` channel, which gets this larger cap. The `user`
 // turn (the genuine utterance, which IS crisis-scanned) keeps MAX_USER_LEN.
 const MAX_ASSEMBLED_LEN = 24000;
-const MAX_SYSTEM_LEN = 4000;
 const UPSTREAM_DETAIL_TRUNCATE = 80;
 
 // P1 (2026-07-05): server-side mirror of the client effortToConfig ladder
@@ -138,16 +161,14 @@ const UPSTREAM_DETAIL_TRUNCATE = 80;
 // ladder so the edge honors per-call effort. capture_ocr suppresses thinking
 // (verbatim transcription gains nothing from it); image calls keep a 4096
 // output floor so a full receipt/page transcription does not truncate.
-type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
-function normalizeEffort(raw: unknown): Effort {
-  return raw === 'low' || raw === 'medium' || raw === 'xhigh' || raw === 'max' ? raw : 'high';
-}
+type Effort = LlmPolicyEffort;
 function geminiGenLadder(
   effort: Effort,
   hasImage: boolean,
   purpose: string | null,
 ): { maxOutputTokens: number; thinkingConfig: { thinkingBudget: number } } {
   const ladder: Record<Effort, { out: number; think: number }> = {
+    none: { out: 1024, think: 0 },
     low: { out: 1024, think: 512 },
     medium: { out: 1536, think: 1024 },
     high: { out: 2048, think: 2048 },
@@ -166,22 +187,6 @@ function geminiGenLadder(
   const briefFloor = purpose === 'ops_daily_brief' ? 8192 : 0;
   const maxOutputTokens = Math.max(hasImage ? Math.max(rung.out, 4096) : rung.out, briefFloor);
   return { maxOutputTokens, thinkingConfig: { thinkingBudget } };
-}
-
-// D-26 EFFORT CEILING (server-owned). `effort` is client-reported and cost =
-// model x effort x max_tokens; the abuse vector (audit H2) is effort='max',
-// which maps to thinkingBudget -1 (UNBOUNDED). Fold 'max' to 'xhigh' (bounded
-// 8192 thinking, the top legitimate rung) so a tampered client cannot pin an
-// unbounded budget.
-//
-// We deliberately do NOT impose lower per-purpose ceilings here: honest
-// flash-tier purposes (secondb_chat, gap_synthesize, ...) OMIT `effort`, so
-// normalizeEffort defaults them to 'high' server-side; a claude-proxy-style
-// low ceiling would then TRUNCATE legitimate replies (e.g. chat 2048->1024),
-// a regression beyond the security goal. Per-purpose ceilings need
-// gemini-specific usage data and are a follow-up. (decision D2)
-function clampEffort(effort: Effort): Effort {
-  return effort === 'max' ? 'xhigh' : effort;
 }
 
 // Audit HIGH (spend cap): per-user/day ceiling on TOTAL proxy calls (all
@@ -206,8 +211,8 @@ const DEFAULT_DAILY_CALL_CAP = 500;
 // TIER_RANK free<soma<cortex<brain; PREMIUM_MIN_TIER advisor/planner=brain.
 // Caps are rank-stepped so paying soma/cortex users (chat 30/80 per day plus
 // deliberately-uncapped capture surfaces) don't share the free ceiling. A tier
-// LOOKUP ERROR keeps premium purposes available (fail-open for availability)
-// but takes the FREE cap — an outage must not raise the cost ceiling.
+// lookup error now denies every route: neither entitlement nor the correct cost
+// ceiling can be proven while that authorization dependency is unavailable.
 // Sub-brain calls are also pinned to flash: the pro model is the expensive
 // half of the worst-case call, and no sub-brain surface needs it.
 const PREMIUM_PURPOSES = new Set(['advisor', 'planner']);
@@ -385,6 +390,10 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: 'missing_authorization' }, 401);
   }
 
+  // user_id from the gateway-verified JWT — needed for the spend cap + audit row.
+  const userId = userIdFromJwt(authHeader);
+  if (!userId) return jsonResponse(req, { error: 'invalid_jwt' }, 401);
+
   // .trim(): a secret pasted into the dashboard keeps its trailing newline, and a
   // newline in a header value makes `fetch` THROW rather than warn. See
   // ../_shared/axis-key-name.ts:pickApiKey for the outage this caused.
@@ -392,10 +401,6 @@ Deno.serve(async (req: Request) => {
   if (!apiKey || apiKey.length === 0) {
     return jsonResponse(req, { error: 'server_misconfigured_missing_GEMINI_API_KEY' }, 500);
   }
-
-  // user_id from the gateway-verified JWT — needed for the spend cap + audit row.
-  const userId = userIdFromJwt(authHeader);
-  if (!userId) return jsonResponse(req, { error: 'invalid_jwt' }, 401);
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -405,55 +410,66 @@ Deno.serve(async (req: Request) => {
   const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
+  const capacityRpc = (functionName: string, args: Record<string, unknown>) =>
+    supabaseAdmin.rpc(functionName, args);
 
-  let body: { user?: unknown; system?: unknown; model?: unknown; image?: unknown; audio?: unknown; responseSchema?: unknown; purpose?: unknown; effort?: unknown; op?: unknown; texts?: unknown };
+  let body: { user?: unknown; system?: unknown; model?: unknown; image?: unknown; audio?: unknown; responseSchema?: unknown; purpose?: unknown; effort?: unknown; op?: unknown; texts?: unknown; reasoningRunId?: unknown; reasoningSlot?: unknown };
   try {
-    body = await readJsonObject(req, LLM_PROXY_JSON_BODY_LIMIT_BYTES) as typeof body;
+    body = await readLlmProxyJsonObject(req) as typeof body;
   } catch (error) {
-    if (error instanceof JsonBodyError && error.code === 'request_body_too_large') {
-      return jsonResponse(req, {
-        error: error.code,
-        max: error.maxBytes,
-      }, 413);
+    if (error instanceof LlmBodyError && error.code === 'request_body_too_large') {
+      return jsonResponse(req, { error: error.code, max: error.maxBytes }, 413);
     }
     return jsonResponse(req, { error: 'invalid_json' }, 400);
   }
 
-  // D6 (audit M5): consent egress gate, HOISTED to cover BOTH the embed and the
-  // generateContent overseas egress paths (gemini-proxy has two). Flag-gated by
-  // LLM_REQUIRE_CONSENT (default off) - enable once legal finalizes the consent
-  // copy/versions. When on, require a current consent row (llm_processing_ack +
-  // overseas_transfer_ack) before any overseas vendor call; fail CLOSED if it
-  // cannot be verified.
-  // NOTE (pre-deploy review P2): consent_records is an append-only GRANT ledger
-  // (0031). If overseas_transfer_ack / llm_processing_ack are WITHDRAWABLE
-  // (consent_changes/0062 + users.privacy_prefs treat overseas transfer as
-  // withdrawable per PIPA 37 / GDPR 7(3)), this grant-only read must ALSO honor
-  // withdrawal before the flag is enabled - resolve with legal/data-model first.
-  // Recommended effective-consent formula (adopt in all 3 proxies before enabling):
-  //   effective = latest consent_records grant (llm+overseas acks true)
-  //               AND the driving external-processing pref in users.privacy_prefs
-  //               is still ON (i.e. no later consent_changes 'revoke' for it).
-  // Which pref(s) map to "overseas transfer" is the open legal decision.
-  // See docs/RISK-REMEDIATION-260726.md (R1). claude-proxy + openai-proxy carry
-  // the same NOTE (parity).
-  if ((Deno.env.get('LLM_REQUIRE_CONSENT') ?? 'false') === 'true') {
-    let consentOk = false;
-    try {
-      const { data: consentRow, error: consentErr } = await supabaseAdmin
-        .from('consent_records')
-        .select('llm_processing_ack, overseas_transfer_ack')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      consentOk = !consentErr && !!consentRow &&
-        consentRow.llm_processing_ack === true && consentRow.overseas_transfer_ack === true;
-    } catch (_e) {
-      consentOk = false;
-    }
-    if (!consentOk) return jsonResponse(req, { error: 'consent_required' }, 403);
+  const requestPolicy = resolveLlmPurposePolicy(body?.purpose, 'gemini');
+  if (!requestPolicy) {
+    return jsonResponse(req, { error: 'purpose_not_seated', purpose: body?.purpose ?? null }, 400);
   }
+
+  // Historical rows have no trustworthy writer provenance and there is not
+  // yet a shipped re-consent surface. Enforce only after the v2 provenance
+  // migration, server-owned writer, and active-account coverage preflight are
+  // complete. A premature flag fails closed because a missing v2 RPC is 503.
+  if (Deno.env.get('LLM_REQUIRE_VERIFIED_CONSENT') === 'true') {
+    try {
+      const { data: consentOk, error: consentErr } = await supabaseAdmin.rpc(
+        'effective_llm_consent_v2',
+        { p_user_id: userId },
+      );
+      if (consentErr) {
+        console.error('[gemini-proxy] verified consent lookup failed');
+        return jsonResponse(req, { error: 'consent_check_unavailable' }, 503);
+      }
+      if (consentOk !== true) return jsonResponse(req, { error: 'consent_required' }, 403);
+    } catch {
+      console.error('[gemini-proxy] verified consent lookup threw');
+      return jsonResponse(req, { error: 'consent_check_unavailable' }, 503);
+    }
+  }
+
+  const readEffectiveTierRank = async (): Promise<number | null> => {
+    try {
+      const { data: effTier, error: tierErr } = await supabaseAdmin.rpc(
+        'effective_subscription_tier',
+        { p_user_id: userId },
+      );
+      if (tierErr) {
+        console.error('[gemini-proxy] effective-tier lookup failed');
+        return null;
+      }
+      const tier = (effTier as string | null) ?? 'free';
+      if (!Object.prototype.hasOwnProperty.call(TIER_RANK, tier)) {
+        console.error('[gemini-proxy] effective-tier lookup returned an unknown tier');
+        return null;
+      }
+      return TIER_RANK[tier];
+    } catch {
+      console.error('[gemini-proxy] effective-tier lookup threw');
+      return null;
+    }
+  };
 
   // --- P0-2: embedding op ---------------------------------------------------
   // { op: 'embed', texts: string[] } -> { vectors: number[][], modelUsed,
@@ -462,6 +478,9 @@ Deno.serve(async (req: Request) => {
   if (body?.op === 'embed') {
     if (Deno.env.get('EMBED_EGRESS_ENABLED') !== 'true') {
       return jsonResponse(req, { error: 'embedding_egress_disabled' }, 503);
+    }
+    if (!requestMatchesLlmPurposeModality(requestPolicy, 'embed')) {
+      return jsonResponse(req, { error: 'purpose_modality_mismatch' }, 400);
     }
     const rawTexts = body?.texts;
     if (!Array.isArray(rawTexts) || rawTexts.length === 0) {
@@ -489,19 +508,16 @@ Deno.serve(async (req: Request) => {
 
     // Spend cap — identical rank-stepped ceiling; embeddings are cheap but the
     // counter exists to stop replay loops, and a batch of 50 counts as ONE call.
-    let tierRank: number | null = null;
-    {
-      // F6: effective tier (expiry-collapsed + judge-comped), not the raw column.
-      const { data: effTier, error: tierErr } = await supabaseAdmin.rpc(
-        'effective_subscription_tier',
-        { p_user_id: userId },
-      );
-      if (tierErr) {
-        console.error('[gemini-proxy] effective-tier lookup failed (embed):', tierErr.message ?? String(tierErr));
-      } else {
-        const t = (effTier as string | null) ?? 'free';
-        tierRank = TIER_RANK[t] ?? 0;
+    const tierRank = await readEffectiveTierRank();
+    if (tierRank === null) {
+      return jsonResponse(req, { error: 'entitlement_check_unavailable' }, 503);
+    }
+    const purposeQuota = await consumeLlmPurposeQuota(capacityRpc, userId, 'gemini', 'embed_index');
+    if (!purposeQuota.ok) {
+      if (purposeQuota.reason === 'limited') {
+        return jsonResponse(req, { error: 'purpose_limit_exceeded', feature: 'embed_index' }, 429);
       }
+      return jsonResponse(req, { error: 'purpose_limit_unavailable' }, 503);
     }
     const brainCap = Number(Deno.env.get('GEMINI_DAILY_CALL_CAP')) || DEFAULT_DAILY_CALL_CAP;
     const subCap = Number(Deno.env.get('GEMINI_SUB_DAILY_CALL_CAP')) || DEFAULT_SUB_DAILY_CALL_CAP;
@@ -514,25 +530,58 @@ Deno.serve(async (req: Request) => {
           : tierRank >= TIER_RANK.soma
             ? subCap
             : freeCap;
-    const { error: spendErr } = await supabaseAdmin.rpc('bump_gemini_spend', {
-      p_user_id: userId,
-      p_day: utcDay(),
-      p_cap: dailyCap,
-    });
+    let spendErr: { message?: string } | null = null;
+    try {
+      const result = await supabaseAdmin.rpc('bump_gemini_spend', {
+        p_user_id: userId,
+        p_day: utcDay(),
+        p_cap: dailyCap,
+      });
+      spendErr = result.error;
+    } catch {
+      console.error('[gemini-proxy][ALERT] embed spend check threw -- failing closed');
+      return jsonResponse(req, { error: 'spend_check_unavailable' }, 503);
+    }
     if (spendErr) {
       const msg = spendErr.message ?? '';
       if (msg.includes('gemini_spend_exceeded')) {
         return jsonResponse(req, { error: 'daily_limit_exceeded' }, 429);
       }
-      const code = (spendErr as { code?: string }).code ?? '';
-      const rpcMissing =
-        code === 'PGRST202' || code === '42883' || msg.includes('Could not find the function');
-      if (rpcMissing && Deno.env.get('GEMINI_SPEND_FAILOPEN') === '1') {
-        console.error('[gemini-proxy][ALERT] spend RPC missing — allowing WITHOUT a cap. Apply 0035/0036:', msg);
-      } else {
-        console.error('[gemini-proxy][ALERT] spend check unavailable — failing closed:', msg);
-        return jsonResponse(req, { error: 'spend_check_unavailable' }, 503);
+      console.error('[gemini-proxy][ALERT] spend check unavailable -- failing closed:', msg);
+      return jsonResponse(req, { error: 'spend_check_unavailable' }, 503);
+    }
+
+    const spentBumped = !spendErr;
+    const refundEmbedBeforeDispatch = async () => {
+      if (!spentBumped) return;
+      try {
+        await supabaseAdmin.rpc('refund_gemini_spend', { p_user_id: userId, p_day: utcDay() });
+      } catch (error) {
+        console.warn('[gemini-proxy] embed spend refund failed:', String(error).slice(0, UPSTREAM_DETAIL_TRUNCATE));
       }
+    };
+
+    if (!isUsableHeaderValue(apiKey)) {
+      await refundEmbedBeforeDispatch();
+      return jsonResponse(req, {
+        error: 'server_misconfigured_malformed_api_key',
+        secret: 'GEMINI_API_KEY',
+      }, 500);
+    }
+
+    const capacity = await reserveLlmProxyCapacity(
+      capacityRpc,
+      'gemini',
+      EMBED_MODEL,
+      llmCapacityWeight(0, texts.length),
+    );
+    if (!capacity.ok) {
+      await refundEmbedBeforeDispatch();
+      return jsonResponse(
+        req,
+        { error: capacity.reason === 'limited' ? 'llm_capacity_exceeded' : 'llm_capacity_unavailable' },
+        capacity.reason === 'limited' ? 429 : 503,
+      );
     }
 
     const t0 = Date.now();
@@ -540,6 +589,8 @@ Deno.serve(async (req: Request) => {
     try {
       upstream = await fetch(EMBED_ENDPOINT(EMBED_MODEL), {
         method: 'POST',
+        redirect: 'error',
+        signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
         headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify({
           requests: texts.map((text) => ({
@@ -550,26 +601,65 @@ Deno.serve(async (req: Request) => {
         }),
       });
     } catch (e) {
+      await transitionLlmProxyCapacity(capacityRpc, capacity.reservationId, 'settle');
+      await auditUpstreamFailure(supabaseAdmin, {
+        userId, purpose: 'embed_index', model: EMBED_MODEL, vendor: 'gemini',
+        outcome: 'upstream_unreachable', latencyMs: Date.now() - t0,
+        keyCombo: 'GEMINI_API_KEY', promptHash: djb2(texts.join(' ')),
+      });
       return jsonResponse(req, { error: 'upstream_unreachable', detail: String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE) }, 502);
     }
+    await transitionLlmProxyCapacity(capacityRpc, capacity.reservationId, 'settle');
     const latencyMs = Date.now() - t0;
     if (!upstream.ok) {
-      const errBody = await upstream.text();
+      let errBody = '';
+      try {
+        errBody = await readLlmUpstreamErrorText(upstream);
+      } catch {
+        errBody = 'upstream response unavailable';
+      }
+      await auditUpstreamFailure(supabaseAdmin, {
+        userId, purpose: 'embed_index', model: EMBED_MODEL, vendor: 'gemini',
+        outcome: `upstream_${upstream.status}`, latencyMs,
+        keyCombo: 'GEMINI_API_KEY', promptHash: djb2(texts.join(' ')),
+      });
       return jsonResponse(req, {
         error: 'upstream_error',
         status: upstream.status,
         detail: errBody.slice(0, UPSTREAM_DETAIL_TRUNCATE),
       }, 502);
     }
-    const data = await upstream.json();
+    let data: { embeddings?: unknown };
+    try {
+      data = await readLlmUpstreamJsonObject(upstream) as typeof data;
+    } catch {
+      await auditUpstreamFailure(supabaseAdmin, {
+        userId, purpose: 'embed_index', model: EMBED_MODEL, vendor: 'gemini',
+        outcome: 'upstream_bad_payload', latencyMs,
+        keyCombo: 'GEMINI_API_KEY', promptHash: djb2(texts.join(' ')),
+      });
+      return jsonResponse(req, { error: 'upstream_bad_payload' }, 502);
+    }
     const vectors: number[][] = (Array.isArray(data?.embeddings) ? data.embeddings : []).map(
       (e: { values?: unknown }) => (Array.isArray(e?.values) ? (e.values as number[]) : []),
     );
+    if (
+      vectors.length !== texts.length ||
+      vectors.some((vector) => vector.length !== EMBED_DIM || vector.some((value) => !Number.isFinite(value)))
+    ) {
+      await auditUpstreamFailure(supabaseAdmin, {
+        userId, purpose: 'embed_index', model: EMBED_MODEL, vendor: 'gemini',
+        outcome: 'embed_shape_mismatch', latencyMs,
+        keyCombo: 'GEMINI_API_KEY', promptHash: djb2(texts.join(' ')),
+      });
+      return jsonResponse(req, { error: 'embed_shape_mismatch' }, 502);
+    }
 
     let audited = false;
     try {
       const { error: auditErr } = await supabaseAdmin.from('ai_audit_log').insert({
         user_id: userId,
+        event_source: 'server_verified',
         prompt_hash: djb2(texts.join(' ')),
         output_hash: djb2(String(vectors.length)),
         model_used: EMBED_MODEL,
@@ -595,13 +685,24 @@ Deno.serve(async (req: Request) => {
 
   const userText: string = typeof body?.user === 'string' ? body.user : '';
   const systemText: string | null = typeof body?.system === 'string' ? body.system : null;
-  const model: string = typeof body?.model === 'string' ? body.model : 'gemini-2.5-flash';
   const purpose: string | null = typeof body?.purpose === 'string' ? body.purpose : null;
-  const effort = normalizeEffort(body?.effort);
+  const purposePolicy = resolveLlmPurposePolicy(purpose, 'gemini');
+  if (!purpose || !purposePolicy) {
+    return jsonResponse(req, { error: 'purpose_not_seated', purpose: purpose ?? null }, 400);
+  }
+  const model = serverModelForTier(purposePolicy.modelTier);
   // Structured-output schema (parity with the direct-client path). Threaded
   // into generationConfig below so edge-routed callers (e.g. phase1) get JSON.
-  const responseSchema =
-    body?.responseSchema && typeof body.responseSchema === 'object' ? body.responseSchema : null;
+  const responseSchemaProvided = body?.responseSchema !== undefined;
+  const responseSchema = normalizeGeminiResponseSchema(body?.responseSchema);
+  if (responseSchemaProvided && (!responseSchema || responseSchema.type !== 'OBJECT')) {
+    return jsonResponse(req, { error: 'response_schema_invalid' }, 400);
+  }
+  const reasoningRunId = typeof body?.reasoningRunId === 'string' ? body.reasoningRunId : '';
+  const reasoningSlot =
+    body?.reasoningSlot === 'records' || body?.reasoningSlot === 'sources'
+      ? body.reasoningSlot
+      : '';
 
   // Optional image attachment for multimodal OCR / image-grounded prompts.
   // Validated tightly: mime allowlist + base64 length cap.
@@ -651,8 +752,16 @@ Deno.serve(async (req: Request) => {
   if (systemText && systemText.length > MAX_ASSEMBLED_LEN) {
     return jsonResponse(req, { error: 'system_too_long', max: MAX_ASSEMBLED_LEN, got: systemText.length }, 413);
   }
-  if (!modelAllowed(model)) return jsonResponse(req, { error: 'model_not_allowed' }, 400);
-
+  const requestModality = imagePart && audioPart
+    ? null
+    : audioPart
+      ? 'audio'
+      : imagePart
+        ? 'image'
+        : 'text';
+  if (!requestModality || !requestMatchesLlmPurposeModality(purposePolicy, requestModality)) {
+    return jsonResponse(req, { error: 'purpose_modality_mismatch' }, 400);
+  }
 
   // R1-A: server-side crisis classifier. Reject before any Gemini call so a
   // bypassed client cannot route red-zone USER input around C9. We scan ONLY the
@@ -690,9 +799,7 @@ Deno.serve(async (req: Request) => {
   }
   userParts.push({ text: userText });
 
-  // Fold a client-reported "max" to a bounded "xhigh" so a tampered client
-  // cannot pin an unbounded thinking budget. (audit H2, D2)
-  const clampedEffort = clampEffort(effort);
+  const clampedEffort = clampLlmPurposeEffort(purposePolicy, body?.effort, 'gemini');
   const genLadder = geminiGenLadder(clampedEffort, Boolean(imagePart) || Boolean(audioPart), purpose);
   const geminiBody: Record<string, unknown> = {
     contents: [{ role: 'user', parts: userParts }],
@@ -728,24 +835,28 @@ Deno.serve(async (req: Request) => {
   // until the cancel webhook lands, so reading it let a lapsed subscriber keep the
   // brain-only premium purposes + the brain daily ceiling; it also 403'd a judge
   // (raw tier 'free' + judge_mode) despite the C6 comp. The RPC collapses
-  // expired->free and comps judge->brain, matching the cap RPCs exactly. Fail-open
-  // on a lookup ERROR (availability first; the daily cap still bounds damage), but
-  // an explicit sub-brain effective tier fails CLOSED for premium purposes.
-  let tierRank: number | null = null;
-  {
-    const { data: effTier, error: tierErr } = await supabaseAdmin.rpc(
-      'effective_subscription_tier',
-      { p_user_id: userId },
-    );
-    if (tierErr) {
-      console.error('[gemini-proxy] effective-tier lookup failed:', tierErr.message ?? String(tierErr));
-    } else {
-      const t = (effTier as string | null) ?? 'free';
-      tierRank = TIER_RANK[t] ?? 0;
+  // expired->free and comps judge->brain, matching the cap RPCs exactly.
+  const tierRank = await readEffectiveTierRank();
+  const tierLookupFailed = tierRank === null;
+  if (tierLookupFailed || tierRank === null) {
+    return jsonResponse(req, { error: 'entitlement_check_unavailable' }, 503);
+  }
+  if (PREMIUM_PURPOSES.has(purpose) !== (purposePolicy.minimumTier === 'brain')) {
+    return jsonResponse(req, { error: 'purpose_policy_mismatch' }, 500);
+  }
+  if (purposePolicy.minimumTier === 'brain') {
+    if (tierRank < BRAIN_RANK) {
+      return jsonResponse(req, { error: 'entitlement_required', feature: purpose }, 403);
     }
   }
-  if (purpose && PREMIUM_PURPOSES.has(purpose) && tierRank !== null && tierRank < BRAIN_RANK) {
-    return jsonResponse(req, { error: 'entitlement_required', feature: purpose }, 403);
+
+  const purposeQuota = await consumeLlmPurposeQuota(capacityRpc, userId, 'gemini', purpose);
+  if (!purposeQuota.ok) {
+    if (purposeQuota.reason === 'limited') {
+      return jsonResponse(req, { error: 'purpose_limit_exceeded', feature: purpose }, 429);
+    }
+    console.error('[gemini-proxy] purpose quota unavailable');
+    return jsonResponse(req, { error: 'purpose_limit_unavailable' }, 503);
   }
 
   // Sub-brain calls are pinned to flash: pro-class is the expensive half of
@@ -782,41 +893,47 @@ Deno.serve(async (req: Request) => {
         : tierRank >= TIER_RANK.soma
           ? subCap
           : freeCap;
-  const { error: spendErr } = await supabaseAdmin.rpc('bump_gemini_spend', {
-    p_user_id: userId,
-    p_day: utcDay(),
-    p_cap: dailyCap,
-  });
+  let spendErr: { message?: string } | null = null;
+  try {
+    const result = await supabaseAdmin.rpc('bump_gemini_spend', {
+      p_user_id: userId,
+      p_day: utcDay(),
+      p_cap: dailyCap,
+    });
+    spendErr = result.error;
+  } catch {
+    console.error('[gemini-proxy][ALERT] spend check threw -- failing closed');
+    return jsonResponse(req, { error: 'spend_check_unavailable' }, 503);
+  }
   if (spendErr) {
     const msg = spendErr.message ?? '';
     if (msg.includes('gemini_spend_exceeded')) {
       return jsonResponse(req, { error: 'daily_limit_exceeded' }, 429);
     }
-    // M6 (round-4): FAIL CLOSED on a cost-critical error. Previously ANY non-cap
-    // error (timeout, pool exhaustion) fell through to a paid upstream call with
-    // only a console.warn — an uncapped-spend hole. The ONLY tolerated case is
-    // "the RPC/counter does not exist yet" (migration not applied): PGRST202 (RPC
-    // not found) / 42883 (undefined_function). G4 (2026-07-05): even that case now FAILS CLOSED by default, because
-    // PGRST202 also fires on transient schema-cache staleness after any deploy
-    // (a routine window that must never silently uncap billing). A deliberate
-    // bootstrap escape is GEMINI_SPEND_FAILOPEN=1 (default OFF). Every other error → 503, no upstream spend.
-    const code = (spendErr as { code?: string }).code ?? '';
-    const rpcMissing =
-      code === 'PGRST202' || code === '42883' || msg.includes('Could not find the function');
-    if (rpcMissing && Deno.env.get('GEMINI_SPEND_FAILOPEN') === '1') {
-      console.error('[gemini-proxy][ALERT] spend RPC missing — GEMINI_SPEND_FAILOPEN=1, allowing WITHOUT a cap:', msg);
-    } else {
-      console.error('[gemini-proxy][ALERT] spend check unavailable — failing closed:', msg);
-      return jsonResponse(req, { error: 'spend_check_unavailable' }, 503);
-    }
+    // Cost-critical enforcement never has a bootstrap/fail-open exception:
+    // a missing migration and a transient schema-cache outage are equally
+    // incapable of proving that paid egress stays inside the user's cap.
+    console.error('[gemini-proxy][ALERT] spend check unavailable -- failing closed:', msg);
+    return jsonResponse(req, { error: 'spend_check_unavailable' }, 503);
   }
+
+  const spentBumped = !spendErr;
+  const refundBeforeDispatch = async () => {
+    if (!spentBumped) return;
+    try {
+      await supabaseAdmin.rpc('refund_gemini_spend', { p_user_id: userId, p_day: utcDay() });
+    } catch (error) {
+      console.warn('[gemini-proxy] spend refund failed:', String(error).slice(0, UPSTREAM_DETAIL_TRUNCATE));
+    }
+  };
 
   // (D6 consent gate is hoisted above to cover both embed + generateContent.)
 
   // D-27: (model × effort) combo key for the main generation path; embeds stay
   // on the base key. effectiveModel already reflects the sub-brain pro->flash
-  // downgrade, so attribution matches what actually runs. max folds to xhigh.
-  const effortSlug = effort === 'max' ? 'xhigh' : effort;
+  // downgrade, so attribution matches what actually runs. The effort is already
+  // clamped by the shared purpose policy.
+  const effortSlug = clampedEffort;
   const resolvedKey = resolveApiKey('GEMINI', effectiveModel, effortSlug, apiKey);
   if (!resolvedKey.usedCombo) {
     console.warn(
@@ -834,13 +951,7 @@ Deno.serve(async (req: Request) => {
     // misconfigured secret quietly eats a user's whole allowance, one unit per
     // attempt, while they see only an error. refund_gemini_spend (0110) floors at
     // 0 and no-ops when there is no row, so a stray refund is safe.
-    if (!spendErr) {
-      try {
-        await supabaseAdmin.rpc('refund_gemini_spend', { p_user_id: userId, p_day: utcDay() });
-      } catch (e) {
-        console.warn('[gemini-proxy] spend refund failed:', String(e).slice(0, 80));
-      }
-    }
+    await refundBeforeDispatch();
     console.error(
       `[gemini-proxy] GEMINI_API_KEY is not usable as a header value (control character in the secret?)`,
     );
@@ -850,12 +961,61 @@ Deno.serve(async (req: Request) => {
     }, 500);
   }
 
+  const capacity = await reserveLlmProxyCapacity(
+    capacityRpc,
+    'gemini',
+    effectiveModel,
+    llmCapacityWeight(genLadder.maxOutputTokens),
+  );
+  if (!capacity.ok) {
+    await refundBeforeDispatch();
+    return jsonResponse(
+      req,
+      { error: capacity.reason === 'limited' ? 'llm_capacity_exceeded' : 'llm_capacity_unavailable' },
+      capacity.reason === 'limited' ? 429 : 503,
+    );
+  }
+  const releaseCapacity = () =>
+    transitionLlmProxyCapacity(capacityRpc, capacity.reservationId, 'release');
+
+  if (purpose === 'reasoning_connect') {
+    if (!REASONING_RUN_ID_RE.test(reasoningRunId) || !reasoningSlot) {
+      await releaseCapacity();
+      await refundBeforeDispatch();
+      return jsonResponse(req, { error: 'reasoning_reservation_required' }, 403);
+    }
+    try {
+      const { data: claimOk, error: claimErr } = await supabaseAdmin.rpc(
+        'claim_reasoning_proxy_call',
+        { p_user_id: userId, p_run_id: reasoningRunId, p_slot: reasoningSlot },
+      );
+      if (claimErr) {
+        console.error('[gemini-proxy] reasoning reservation claim unavailable');
+        await releaseCapacity();
+        await refundBeforeDispatch();
+        return jsonResponse(req, { error: 'reasoning_reservation_unavailable' }, 503);
+      }
+      if (claimOk !== true) {
+        await releaseCapacity();
+        await refundBeforeDispatch();
+        return jsonResponse(req, { error: 'reasoning_reservation_required' }, 403);
+      }
+    } catch {
+      console.error('[gemini-proxy] reasoning reservation claim threw');
+      await releaseCapacity();
+      await refundBeforeDispatch();
+      return jsonResponse(req, { error: 'reasoning_reservation_unavailable' }, 503);
+    }
+  }
+
 
   const t0 = Date.now();
   let upstream: Response;
   try {
     upstream = await fetch(GEMINI_ENDPOINT(effectiveModel), {
       method: 'POST',
+      redirect: 'error',
+      signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
       headers: {
         'content-type': 'application/json',
         'x-goog-api-key': resolvedKey.apiKey,
@@ -863,12 +1023,29 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify(geminiBody),
     });
   } catch (e) {
+    await transitionLlmProxyCapacity(capacityRpc, capacity.reservationId, 'settle');
+    await auditUpstreamFailure(supabaseAdmin, {
+      userId, purpose, model: effectiveModel, vendor: 'gemini',
+      outcome: 'upstream_unreachable', latencyMs: Date.now() - t0,
+      keyCombo, promptHash: djb2(`${systemText ?? ''}${userText}`),
+    });
     return jsonResponse(req, { error: 'upstream_unreachable', detail: String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE) }, 502);
   }
+  await transitionLlmProxyCapacity(capacityRpc, capacity.reservationId, 'settle');
   const latencyMs = Date.now() - t0;
 
   if (!upstream.ok) {
-    const errBody = await upstream.text();
+    let errBody = '';
+    try {
+      errBody = await readLlmUpstreamErrorText(upstream);
+    } catch {
+      errBody = 'upstream response unavailable';
+    }
+    await auditUpstreamFailure(supabaseAdmin, {
+      userId, purpose, model: effectiveModel, vendor: 'gemini',
+      outcome: `upstream_${upstream.status}`, latencyMs,
+      keyCombo, promptHash: djb2(`${systemText ?? ''}${userText}`),
+    });
     return jsonResponse(req, {
       error: 'upstream_error',
       status: upstream.status,
@@ -876,18 +1053,81 @@ Deno.serve(async (req: Request) => {
     }, 502);
   }
 
-  const data = await upstream.json();
+  let data: {
+    promptFeedback?: { blockReason?: unknown };
+    candidates?: Array<{
+      finishReason?: string;
+      content?: { parts?: Array<{ text?: string }> };
+    }>;
+    modelVersion?: unknown;
+    usageMetadata?: { totalTokenCount?: number };
+  };
+  let promptBlockReason: string | undefined;
+  try {
+    data = await readLlmUpstreamJsonObject(upstream);
+    if (data.modelVersion !== undefined && typeof data.modelVersion !== 'string') {
+      throw new LlmBodyError('upstream_bad_payload');
+    }
+    if (data.promptFeedback !== undefined) {
+      if (!isLlmJsonObject(data.promptFeedback)) throw new LlmBodyError('upstream_bad_payload');
+      const blockReason = data.promptFeedback.blockReason;
+      if (blockReason !== undefined && typeof blockReason !== 'string') {
+        throw new LlmBodyError('upstream_bad_payload');
+      }
+      promptBlockReason = blockReason;
+    }
+    // Gemini may return only promptFeedback for an input-level safety block.
+    // Missing candidates are valid solely when a non-empty, validated reason
+    // exists; every other shape still fails closed as malformed upstream data.
+    if (!Array.isArray(data.candidates)) {
+      if (!promptBlockReason) throw new LlmBodyError('upstream_bad_payload');
+    }
+    if (data.usageMetadata !== undefined) {
+      if (!isLlmJsonObject(data.usageMetadata)) throw new LlmBodyError('upstream_bad_payload');
+      const totalTokens = data.usageMetadata.totalTokenCount;
+      if (
+        totalTokens !== undefined &&
+        (!Number.isSafeInteger(totalTokens) || totalTokens < 0)
+      ) throw new LlmBodyError('upstream_bad_payload');
+    }
+    for (const candidate of data.candidates ?? []) {
+      if (!isLlmJsonObject(candidate)) throw new LlmBodyError('upstream_bad_payload');
+      if (candidate.finishReason !== undefined && typeof candidate.finishReason !== 'string') {
+        throw new LlmBodyError('upstream_bad_payload');
+      }
+      if (candidate.content !== undefined) {
+        if (!isLlmJsonObject(candidate.content) || !Array.isArray(candidate.content.parts)) {
+          throw new LlmBodyError('upstream_bad_payload');
+        }
+        for (const part of candidate.content.parts) {
+          if (
+            !isLlmJsonObject(part) ||
+            (part.text !== undefined && typeof part.text !== 'string')
+          ) throw new LlmBodyError('upstream_bad_payload');
+        }
+      }
+    }
+  } catch {
+    await auditUpstreamFailure(supabaseAdmin, {
+      userId, purpose, model: effectiveModel, vendor: 'gemini',
+      outcome: 'upstream_bad_payload', latencyMs,
+      keyCombo, promptHash: djb2(`${systemText ?? ''}${userText}`),
+    });
+    return jsonResponse(req, { error: 'upstream_bad_payload' }, 502);
+  }
   // P1: an HTTP 200 can still carry a bad result. Surface input blocks,
   // safety/recitation blocks, truncation, and empty-candidate responses as 502
   // so callers take their existing fail-soft/failover path instead of rendering
   // an empty bubble or parsing truncated JSON as if it were complete (parity
   // with claude/openai proxies). A normal completion is finishReason 'STOP' and
   // passes straight through.
-  const blockReason = data?.promptFeedback?.blockReason;
+  const blockReason = promptBlockReason;
   const candidate = data?.candidates?.[0];
   const finishReason: string | undefined = candidate?.finishReason;
-  const text: string = candidate?.content?.parts?.[0]?.text ?? '';
-  const modelUsed: string = data?.modelVersion ?? effectiveModel;
+  const text: string = candidate?.content?.parts
+    ?.map((part) => typeof part.text === 'string' ? part.text : '')
+    .join('') ?? '';
+  const modelUsed: string = typeof data?.modelVersion === 'string' ? data.modelVersion : effectiveModel;
 
   // C3: write the audit row server-side so a bypassed/replayed POST is still
   // logged. safety_zone is coarse here (crisis re-check on the output) vs the
@@ -917,6 +1157,7 @@ Deno.serve(async (req: Request) => {
   try {
     const { error: auditErr } = await supabaseAdmin.from('ai_audit_log').insert({
       user_id: userId,
+      event_source: 'server_verified',
       prompt_hash: djb2(`${systemText ?? ''}${userText}`),
       output_hash: djb2(text),
       model_used: `${modelUsed}${outcomeMarker}`,

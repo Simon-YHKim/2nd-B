@@ -49,8 +49,17 @@
 > |---|---|---|---|
 > | **OpenAI** | 추론 12 − Claude 2 = 10 · 대화 · 백본 9 · OCR/음성 | `gpt-5.6-terra`(일반 기본) · `-nano`/`-mini`(싼 축) | `sol` 은 교차검증 전용, 일반 라우팅 없음 |
 > | **Claude** | `persona_narrative` · `persona_synthesis` · `crosscheck_defend` | opus 계열만 | sonnet 좌석은 2026-08-23 제거. **단 미좌석 purpose 는 `DEFAULT_CLAUDE_MODEL`(sonnet)로 떨어진다** |
-> | **xAI** | 추론 12 + 대화 (라우팅되면) | `grok-4` 계열 | 기본값으로는 아무것도 안 감 |
+> | **xAI** | 추론 12 + 대화 (라우팅되면) | `grok-4` 계열 | 기본값으로는 아무것도 안 감. 서버 `ENABLE_XAI_PROXY=true` 전에는 503으로 닫힘 |
 > | **Gemini** | 미설정 시 전부 | — | **9월 폐기 예정** |
+>
+> ### 검증된 동의 gate 활성화 순서 (2026-09-13)
+>
+> `LLM_REQUIRE_VERIFIED_CONSENT` 는 기본 OFF 다. 과거 `consent_records` 는 authenticated
+> self-insert를 허용했으므로 값만으로 서버 writer provenance를 증명할 수 없고, 기존 계정용
+> 재동의 화면도 아직 없다. 따라서 `effective_llm_consent_v2` provenance 마이그레이션 →
+> 서버 소유 재동의 writer와 UI → 활성 계정 미커버 0건 read-only 확인 → 네 프록시 canary
+> 순서가 끝나기 전에는 이 변수를 설정하지 않는다. 과거 행은 안전하게 구분할 수 없어
+> backfill하지 않는다. 변수를 너무 일찍 켜면 v2 RPC 누락/거부가 503/403으로 fail-closed 된다.
 >
 > ### ⚠ 9월 Gemini 폐기에서 스위치로는 안 되는 두 곳 (실측 2026-08-23)
 >

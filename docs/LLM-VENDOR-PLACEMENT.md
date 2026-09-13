@@ -123,7 +123,8 @@ lite → nano, flash → mini, pro → 프론티어.
 ### 우려는 논쟁이 아니라 **반경**으로 처리했다
 
 1. **기본값으로는 아무것도 xai 로 안 간다.** 네 스위치 전부 다른 곳을 가리키는 게 기본이고,
-   `PHASE2_VENDOR` 도 여전히 `openai` 다. 도달하려면 변수를 의도적으로 바꿔야 한다.
+   `PHASE2_VENDOR` 도 여전히 `openai` 다. 클라이언트 스위치를 의도적으로 바꿔도 서버의
+   `ENABLE_XAI_PROXY` 가 정확히 `true` 가 아니면 인증 직후 `503 vendor_disabled` 로 닫힌다.
 2. **좌석은 추론 12 + 대화 1 뿐이다.** 백본 9개는 **일부러 안 앉혔다** — 최다 호출 표면인데
    싼 Grok 티어가 계정에서 확인되지 않았다. `EXPO_PUBLIC_BACKBONE_VENDOR=xai` 를 켜면
    `400 purpose_not_seated` 로 **시끄럽고 공짜로** 실패한다. 프론티어에 앉혀서 "되게" 만드는 것이
@@ -138,11 +139,14 @@ lite → nano, flash → mini, pro → 프론티어.
 
 | 무엇 | 기본값 | 되돌리는 레버 |
 |---|---|---|
+| 서버 활성화 | **OFF** (`ENABLE_XAI_PROXY` 미설정 또는 `true` 외의 값) | 공개 개인정보 처리 고지·서버 provenance 재동의·`effective_llm_consent_v2` 마이그레이션·실계정 canary가 모두 승인된 뒤 콘솔 소유자가 정확히 `true`로 설정 |
 | 모델 ID | `grok-4` | `XAI_MODEL`(전역) · `XAI_PURPOSE_MODELS`(좌석별). `refresh-models` 가 매일 씀 |
 | `reasoning_effort` | **안 보냄** | `XAI_SEND_REASONING_EFFORT=1`. xAI 는 모델에 따라 이 파라미터를 거부하는데, **미지원 파라미터는 열화가 아니라 호출 전체의 400** 이다. 안 보내도 effort 는 `max_tokens` 를 정하고 원장에도 남는다 |
 | 구조화 출력 | `json_schema` | `XAI_RESPONSE_FORMAT=json_object` 또는 `off` |
 
-**첫 실호출 전에 셋을 계정에서 확인할 것.** 확인 방법은 하나뿐이다 —
+**xAI는 현재 공개 개인정보 처리 고지의 처리자 목록에 없으므로 서버 gate를 켜지 않는다.**
+문서/법무 결정과 서버 provenance 재동의, 현재 계약을 강제하는 DB 마이그레이션, 프록시 재배포가 먼저고,
+그 뒤 콘솔 소유자가 gate를 켠다. 첫 실호출에서 아래 셋을 계정으로 확인한다. 확인 방법은 하나뿐이다 —
 `ai_audit_log.reasoning_vendor = 'xai'` 행이 생기는지 본다.
 
 ## 4. Claude 를 언제 넣나

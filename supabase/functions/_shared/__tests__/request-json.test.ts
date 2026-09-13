@@ -278,15 +278,28 @@ describe('Edge Function request-body caps', () => {
     expect(PADDLE_WEBHOOK_BODY_LIMIT_BYTES).toBe(1024 * 1024);
   });
 
-  // The three big multimodal proxies were missing from this list when the
-  // helper was written, so the guard covered every seat except the largest
-  // ones. Widened 2026-09-07 - a contract check narrower than its own claim
-  // is worse than none.
+  // LLM proxies use their stricter shared reader, which also bounds upstream
+  // responses and cancels stalled streams. Keep this separate from the generic
+  // Edge request-json helper so a future refactor cannot silently fall back.
   it.each([
-    ['claude-proxy/index.ts', 'LLM_PROXY_JSON_BODY_LIMIT_BYTES'],
-    ['gemini-proxy/index.ts', 'LLM_PROXY_JSON_BODY_LIMIT_BYTES'],
-    ['openai-proxy/index.ts', 'LLM_PROXY_JSON_BODY_LIMIT_BYTES'],
-    ['xai-proxy/index.ts', 'LLM_PROXY_JSON_BODY_LIMIT_BYTES'],
+    'claude-proxy/index.ts',
+    'gemini-proxy/index.ts',
+    'openai-proxy/index.ts',
+    'xai-proxy/index.ts',
+  ])('%s uses the bounded LLM reader', (relativePath) => {
+    const source = readFileSync(
+      resolve(__dirname, '..', '..', relativePath),
+      'utf8',
+    );
+
+    expect(source).toContain('readLlmProxyJsonObject(req)');
+    expect(source).toContain("error instanceof LlmBodyError");
+    expect(source).toContain("error.code === 'request_body_too_large'");
+    expect(source).not.toMatch(/\breadJsonObject\s*\(/);
+    expect(source).not.toMatch(/await\s+req\.json\s*\(/);
+  });
+
+  it.each([
     ['oauth-naver/index.ts', 'OAUTH_JSON_BODY_LIMIT_BYTES'],
     ['peer-respond/index.ts', 'PEER_RESPONSE_JSON_BODY_LIMIT_BYTES'],
   ])('%s uses the streamed parser with %s', (relativePath, limitName) => {

@@ -302,11 +302,10 @@ describe("the xai proxy keeps the shared guarantees", () => {
     expect(spend).toBeLessThan(fetchCall);
   });
 
-  test("the purpose allowlist uses hasOwnProperty, not `in`", () => {
-    // `in` walks the prototype chain, so 'toString' / '__proto__' passed the
-    // same gate in openai-proxy and resolveModel returned an inherited
-    // FUNCTION as the model.
-    expect(XAI_PROXY).toContain("Object.prototype.hasOwnProperty.call(PURPOSE_MODEL, purpose)");
+  test("the purpose allowlist is the shared own-key/vendor policy", () => {
+    // The shared resolver performs the own-key check and also rejects a known
+    // purpose when xAI is not an approved vendor for that seat.
+    expect(XAI_PROXY).toContain("resolveLlmPurposePolicy(purpose, 'xai')");
     expect(XAI_PROXY).not.toMatch(/if \(!purpose \|\| !\(purpose in PURPOSE_MODEL\)\)/);
   });
 
@@ -317,10 +316,9 @@ describe("the xai proxy keeps the shared guarantees", () => {
     expect(XAI_PROXY).toContain("reasoning_vendor: 'xai'");
   });
 
-  test("the effort vocabulary is unchanged", () => {
-    // PURPOSE_EFFORT_MAX is a cross-proxy contract. Simon's order names it
-    // explicitly as not-to-be-changed.
-    expect(XAI_PROXY).toContain("{ none: 0, low: 1, medium: 2, high: 3, xhigh: 4 }");
+  test("the effort vocabulary and ceiling come from the shared policy", () => {
+    expect(XAI_PROXY).toContain("clampLlmPurposeEffort");
+    expect(XAI_PROXY).not.toMatch(/const EFFORT_RANK/);
   });
 
   test("chat is capped at low", () => {
