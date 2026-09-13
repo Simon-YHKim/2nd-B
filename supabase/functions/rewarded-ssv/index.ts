@@ -26,6 +26,7 @@ const VERIFIER_KEYS_URL = 'https://www.gstatic.com/admob/reward/verifier-keys.js
 const MAX_VERIFIER_KEY_BYTES = 65_536;
 const MAX_ISSUE_BODY_BYTES = 128;
 const REWARD_PER_WATCH = 2;
+const REWARD_TICKET_TTL_SECONDS = 20 * 60;
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -204,7 +205,11 @@ Deno.serve(async (req: Request) => {
       });
       if (issueError) return json({ error: 'ticket_service_unavailable' }, 503);
       if (issued !== true) return json({ error: 'ticket_not_available' }, 429);
-      return json({ user_id: user.id, custom_data: ticket, expires_in: 600 });
+      return json({
+        user_id: user.id,
+        custom_data: ticket,
+        expires_in: REWARD_TICKET_TTL_SECONDS,
+      });
     }
 
     if (req.method !== 'GET') return json({ error: 'method_not_allowed' }, 405);

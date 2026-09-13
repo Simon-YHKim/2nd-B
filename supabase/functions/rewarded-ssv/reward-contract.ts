@@ -43,7 +43,7 @@ function safeServerText(value: string, maxLength: number): boolean {
 }
 
 function decodeCanonicalQueryValue(raw: string): string | null {
-  if (raw.length > 2_048 || raw.includes('+')) return null;
+  if (raw.length > 2_048) return null;
   for (let i = 0; i < raw.length; i += 1) {
     const code = raw.charCodeAt(i);
     if (code < 0x21 || code > 0x7e) return null;
@@ -106,7 +106,10 @@ export function parseSignedSsvQuery(rawQuery: string): SignedSsvQuery | null {
     previousName = name;
   }
 
-  return { signedContent, params, signature, keyId };
+  // Google signs java.net.URI#getQuery(): percent escapes are decoded across
+  // the complete query, while '+' remains a literal plus (not form-space).
+  // Raw pairs above stay authoritative for canonical encoding and ordering.
+  return { signedContent: decodeURIComponent(signedContent), params, signature, keyId };
 }
 
 export function readRewardContractConfig(getEnv: EnvReader): RewardContractConfig | null {

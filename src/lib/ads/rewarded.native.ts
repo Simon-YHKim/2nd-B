@@ -27,6 +27,11 @@ const TICKET_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const TICKET_TIMEOUT_MS = 5_000;
 const LOAD_TIMEOUT_MS = 20_000;
 const SHOW_TIMEOUT_MS = 10 * 60_000;
+const PROVIDER_RETRY_WINDOW_MS = 5_000;
+const CALLBACK_DELIVERY_MARGIN_MS = 5 * 60_000;
+const REWARD_TICKET_TTL_SECONDS = 20 * 60;
+const MIN_REWARD_TICKET_TTL_MS = TICKET_TIMEOUT_MS + LOAD_TIMEOUT_MS + SHOW_TIMEOUT_MS +
+  PROVIDER_RETRY_WINDOW_MS + CALLBACK_DELIVERY_MARGIN_MS;
 
 function loadSdk(): GoogleMobileAdsModule | null {
   if (Platform.OS === "web") return null;
@@ -78,11 +83,21 @@ function parseTicketResponse(value: unknown, expectedUserId: string): RewardTick
   if (typeof row.custom_data !== "string" || !TICKET_PATTERN.test(row.custom_data)) return null;
   if (
     typeof row.expires_in !== "number" || !Number.isInteger(row.expires_in) ||
-    row.expires_in < 1 || row.expires_in > 600
+    row.expires_in !== REWARD_TICKET_TTL_SECONDS ||
+    row.expires_in * 1_000 < MIN_REWARD_TICKET_TTL_MS
   ) {
     return null;
   }
   return { userId: expectedUserId, customData: row.custom_data };
+}
+
+async function sessionStillOwns(userId: string): Promise<boolean> {
+  try {
+    const { data, error } = await getSupabaseClient().auth.getSession();
+    return !error && data.session?.user?.id === userId;
+  } catch {
+    return false;
+  }
 }
 
 async function acquireRewardTicket(hint: PlacementHint): Promise<RewardTicket | null> {
@@ -148,6 +163,7 @@ export async function showRewardedAd(opts?: ShowRewardedAdOptions): Promise<Rewa
 
     const ticket = await acquireRewardTicket(hint);
     if (!ticket) return { completed: false };
+    if (!(await sessionStillOwns(ticket.userId))) return { completed: false };
 
     // Production launch replaces the test id only when HAS_LIVE_AD_UNIT flips.
     const unitId = sdk.TestIds.REWARDED;
@@ -185,16 +201,28 @@ export async function showRewardedAd(opts?: ShowRewardedAdOptions): Promise<Rewa
           showStarted = true;
           if (timeoutId !== null) clearTimeout(timeoutId);
           timeoutId = setTimeout(() => settle(false), SHOW_TIMEOUT_MS);
-          try {
-            void ad.show().catch(() => settle(false));
-          } catch {
-            settle(false);
-          }
+          void (async () => {
+            if (!(await sessionStillOwns(ticket.userId)) || settled) {
+              settle(false);
+              return;
+            }
+            try {
+              await ad.show();
+            } catch {
+              settle(false);
+            }
+          })();
         }));
         subscriptions.push(ad.addAdEventListener(sdk.RewardedAdEventType.EARNED_REWARD, () => {
           if (!settled) earned = true;
         }));
-        subscriptions.push(ad.addAdEventListener(sdk.AdEventType.CLOSED, () => settle(earned)));
+        subscriptions.push(ad.addAdEventListener(sdk.AdEventType.CLOSED, () => {
+          if (settled) return;
+          void sessionStillOwns(ticket.userId).then(
+            (owned) => settle(earned && owned),
+            () => settle(false),
+          );
+        }));
         subscriptions.push(ad.addAdEventListener(sdk.AdEventType.ERROR, () => settle(false)));
 
         timeoutId = setTimeout(() => settle(false), LOAD_TIMEOUT_MS);

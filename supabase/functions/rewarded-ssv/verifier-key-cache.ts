@@ -12,8 +12,20 @@ type VerifierKeyCacheOptions = {
   ttlMs: number;
   maxStaleMs: number;
   refreshCooldownMs: number;
+  failureRetryMs?: number;
   now?: () => number;
 };
+
+function cancelBestEffort(
+  target: { cancel(reason?: unknown): Promise<unknown> } | null | undefined,
+  reason: unknown,
+): void {
+  try {
+    void target?.cancel(reason).catch(() => undefined);
+  } catch {
+    // Cleanup must never replace or delay the bounded operation's result.
+  }
+}
 
 export async function readBoundedBodyBytes(
   body: ReadableStream<Uint8Array>,
@@ -35,13 +47,16 @@ export async function readBoundedBodyBytes(
   let total = 0;
   let chunks = 0;
   let noProgress = 0;
+  let terminalError: Error | null = null;
   let rejectDeadline: ((error: Error) => void) | undefined;
   const deadline = new Promise<never>((_resolve, reject) => {
     rejectDeadline = reject;
   });
   const failRead = (message: string) => {
-    void reader.cancel(message).catch(() => undefined);
-    rejectDeadline?.(new Error(message));
+    if (terminalError) return;
+    terminalError = new Error(message);
+    rejectDeadline?.(terminalError);
+    cancelBestEffort(reader, message);
   };
   const timer = setTimeout(() => failRead('body read timed out'), timeoutMs);
   const onAbort = () => failRead('body read aborted');
@@ -51,6 +66,7 @@ export async function readBoundedBodyBytes(
     if (options.signal?.aborted) throw new Error('body read aborted');
     for (;;) {
       const { done, value } = await Promise.race([reader.read(), deadline]);
+      if (terminalError) throw terminalError;
       if (done) break;
       chunks += 1;
       if (chunks > maxChunks) throw new Error('body stream too fragmented');
@@ -76,12 +92,17 @@ export async function readBoundedBodyBytes(
     }
     return buffer.slice(0, total);
   } catch (error) {
-    await reader.cancel().catch(() => undefined);
-    throw error;
+    cancelBestEffort(reader, error);
+    throw terminalError ?? error;
   } finally {
     clearTimeout(timer);
     options.signal?.removeEventListener('abort', onAbort);
-    reader.releaseLock();
+    try {
+      reader.releaseLock();
+    } catch {
+      // Cancellation is best-effort. Never replace the bounded read error with
+      // a runtime-specific pending-read release failure.
+    }
   }
 }
 
@@ -100,7 +121,7 @@ export async function readBoundedJsonResponse(
       !/^(?:0|[1-9][0-9]*)$/.test(declared) || Number(declared) > maxBytes
     ))
   ) {
-    await response.body?.cancel().catch(() => undefined);
+    cancelBestEffort(response.body, 'invalid verifier-key response');
     throw new Error('invalid verifier-key response');
   }
   if (!response.body) throw new Error('missing verifier-key response');
@@ -119,7 +140,8 @@ export async function readBoundedJsonResponse(
 export class VerifierKeyCache<T> {
   private cached: { at: number; keys: T[] } | null = null;
   private inFlight: Promise<T[]> | null = null;
-  private lastRefreshAttemptAt = Number.NEGATIVE_INFINITY;
+  private lastSuccessfulRefreshAt = Number.NEGATIVE_INFINITY;
+  private lastFailedRefreshAt = Number.NEGATIVE_INFINITY;
 
   constructor(
     private readonly fetchKeys: KeyFetcher<T>,
@@ -127,7 +149,8 @@ export class VerifierKeyCache<T> {
   ) {
     if (
       options.timeoutMs <= 0 || options.ttlMs <= 0 ||
-      options.maxStaleMs < options.ttlMs || options.refreshCooldownMs < 0
+      options.maxStaleMs < options.ttlMs || options.refreshCooldownMs < 0 ||
+      (options.failureRetryMs ?? 1_000) < 0
     ) throw new Error('invalid verifier-key cache options');
   }
 
@@ -141,7 +164,7 @@ export class VerifierKeyCache<T> {
     // though one bounded refresh is already in progress.
     if (this.inFlight) return this.awaitRefresh(this.inFlight, staleIfError);
 
-    if (now - this.lastRefreshAttemptAt < this.options.refreshCooldownMs) {
+    if (now - this.lastSuccessfulRefreshAt < this.options.refreshCooldownMs) {
       // A just-refreshed set can prove that an unknown key really is absent.
       // After a failed refresh, however, stale keys may verify known key IDs
       // but must not turn a rotated-key infrastructure failure into a 403.
@@ -152,8 +175,18 @@ export class VerifierKeyCache<T> {
       throw new Error('verifier-key refresh throttled');
     }
 
+    // Google retries an unsuccessful callback once per second. Bound repeated
+    // outage traffic, but do not let the longer successful-refresh cooldown
+    // suppress the provider's entire recovery window.
+    if (now - this.lastFailedRefreshAt < (this.options.failureRetryMs ?? 1_000)) {
+      if (
+        this.cached &&
+        (age < this.options.ttlMs || (staleIfError && age <= this.options.maxStaleMs))
+      ) return this.cached.keys;
+      throw new Error('verifier-key refresh throttled');
+    }
+
     if (!this.inFlight) {
-      this.lastRefreshAttemptAt = now;
       this.inFlight = this.refresh();
     }
     return this.awaitRefresh(this.inFlight, staleIfError);
@@ -162,9 +195,15 @@ export class VerifierKeyCache<T> {
   private async awaitRefresh(refresh: Promise<T[]>, staleIfError: boolean): Promise<T[]> {
     try {
       const keys = await refresh;
-      if (this.inFlight === refresh) this.cached = { at: this.now(), keys };
+      if (this.inFlight === refresh) {
+        const refreshedAt = this.now();
+        this.cached = { at: refreshedAt, keys };
+        this.lastSuccessfulRefreshAt = refreshedAt;
+        this.lastFailedRefreshAt = Number.NEGATIVE_INFINITY;
+      }
       return keys;
     } catch (error) {
+      if (this.inFlight === refresh) this.lastFailedRefreshAt = this.now();
       const staleAge = this.cached ? this.now() - this.cached.at : Number.POSITIVE_INFINITY;
       if (staleIfError && this.cached && staleAge <= this.options.maxStaleMs) {
         return this.cached.keys;

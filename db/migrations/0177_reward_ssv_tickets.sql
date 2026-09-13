@@ -183,7 +183,7 @@ BEGIN
      expected_reward_amount, expected_reward_item, expires_at)
   VALUES
     (p_token_hash, p_user_id, p_reward_kind, p_ad_unit_id,
-     p_reward_amount, p_reward_item, now() + make_interval(mins => 10))
+     p_reward_amount, p_reward_item, now() + make_interval(mins => 20))
   ON CONFLICT (token_hash) DO NOTHING;
   GET DIAGNOSTICS v_rows = ROW_COUNT;
   RETURN v_rows = 1;
@@ -224,8 +224,9 @@ BEGIN
     RETURN;
   END IF;
 
-  -- PostgreSQL rechecks this predicate after a concurrent row-lock wait. One
-  -- transaction id wins; only Google's exact retry can observe the same row.
+  -- PostgreSQL rechecks this predicate after a concurrent row-lock wait. A new
+  -- consume must be unexpired; Google's exact retry may finish the separate
+  -- idempotent grant after expiry, while every different transaction is denied.
   RETURN QUERY
   UPDATE public.reward_ssv_tickets AS tickets
      SET consumed_transaction_id = coalesce(tickets.consumed_transaction_id, p_txn_id),
@@ -235,10 +236,11 @@ BEGIN
      AND tickets.expected_ad_unit_id = p_ad_unit_id
      AND tickets.expected_reward_amount = p_reward_amount
      AND tickets.expected_reward_item = p_reward_item
-     AND tickets.expires_at >= now()
      AND (
-       tickets.consumed_transaction_id IS NULL
-       OR tickets.consumed_transaction_id = p_txn_id
+       (tickets.consumed_transaction_id IS NULL
+        AND tickets.expires_at >= now())
+       OR (tickets.consumed_transaction_id = p_txn_id
+           AND tickets.consumed_at >= now() - make_interval(days => 1))
      )
   RETURNING tickets.user_id, tickets.reward_kind;
 END;

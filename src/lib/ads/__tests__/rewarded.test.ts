@@ -64,9 +64,9 @@ function sessionResponse(userId = USER_ID) {
   };
 }
 
-function ticketResponse(userId = USER_ID) {
+function ticketResponse(userId = USER_ID, expiresIn = 20 * 60) {
   return {
-    data: { user_id: userId, custom_data: TICKET, expires_in: 600 },
+    data: { user_id: userId, custom_data: TICKET, expires_in: expiresIn },
     error: null,
   };
 }
@@ -79,6 +79,9 @@ beforeEach(() => {
   for (const key of Object.keys(listeners)) delete listeners[key];
   unsubscribers.length = 0;
   jest.clearAllMocks();
+  mockGetSession.mockReset();
+  mockInvoke.mockReset();
+  mockRpc.mockReset();
   fakeAd.load.mockImplementation(() => undefined);
   fakeAd.show.mockImplementation(() => Promise.resolve());
   createForAdRequest.mockImplementation(() => fakeAd);
@@ -101,7 +104,7 @@ describe("showRewardedAd SSV ticket boundary", () => {
     const result = showRewardedAd(options);
     await flush();
 
-    expect(mockGetSession).toHaveBeenCalledTimes(1);
+    expect(mockGetSession).toHaveBeenCalledTimes(2);
     expect(mockInvoke).toHaveBeenCalledWith("rewarded-ssv", {
       method: "POST",
       headers: { Authorization: `Bearer ${ACCESS_TOKEN}` },
@@ -119,9 +122,11 @@ describe("showRewardedAd SSV ticket boundary", () => {
 
     fire("loaded");
     fire("loaded");
+    await flush();
     expect(fakeAd.show).toHaveBeenCalledTimes(1);
     fire("closed");
     await expect(result).resolves.toEqual({ completed: false });
+    expect(mockGetSession).toHaveBeenCalledTimes(4);
   });
 
   test("an earned watch completes once and performs no local grant", async () => {
@@ -132,6 +137,7 @@ describe("showRewardedAd SSV ticket boundary", () => {
     });
     await flush();
     fire("loaded");
+    await flush();
     fire("earned");
     fire("earned");
     fire("closed");
@@ -170,6 +176,51 @@ describe("showRewardedAd SSV ticket boundary", () => {
     expect(createForAdRequest).not.toHaveBeenCalled();
   });
 
+  test("drops an issued A ticket if the session changes before ad construction", async () => {
+    mockGetSession
+      .mockResolvedValueOnce(sessionResponse(USER_ID))
+      .mockResolvedValueOnce(sessionResponse(OTHER_USER_ID));
+    const result = showRewardedAd(REASONING_OPTIONS);
+    await flush();
+    fire("closed");
+
+    await expect(result).resolves.toEqual({ completed: false });
+    expect(createForAdRequest).not.toHaveBeenCalled();
+  });
+
+  test("does not show an A-owned ad after the session changes to B while loading", async () => {
+    mockGetSession
+      .mockResolvedValueOnce(sessionResponse(USER_ID))
+      .mockResolvedValueOnce(sessionResponse(USER_ID))
+      .mockResolvedValueOnce(sessionResponse(OTHER_USER_ID));
+    const result = showRewardedAd(REASONING_OPTIONS);
+    await flush();
+    expect(createForAdRequest).toHaveBeenCalledTimes(1);
+    fire("loaded");
+    await flush();
+    fire("closed");
+
+    await expect(result).resolves.toEqual({ completed: false });
+    expect(fakeAd.show).not.toHaveBeenCalled();
+  });
+
+  test("does not report A's earned result into B's active session", async () => {
+    mockGetSession
+      .mockResolvedValueOnce(sessionResponse(USER_ID))
+      .mockResolvedValueOnce(sessionResponse(USER_ID))
+      .mockResolvedValueOnce(sessionResponse(USER_ID))
+      .mockResolvedValueOnce(sessionResponse(OTHER_USER_ID));
+    const result = showRewardedAd(REASONING_OPTIONS);
+    await flush();
+    fire("loaded");
+    await flush();
+    fire("earned");
+    fire("closed");
+
+    await expect(result).resolves.toEqual({ completed: false });
+    expect(fakeAd.show).toHaveBeenCalledTimes(1);
+  });
+
   test.each([
     { data: { session: null }, error: null },
     { data: { session: null }, error: new Error("signed out") },
@@ -182,6 +233,16 @@ describe("showRewardedAd SSV ticket boundary", () => {
     await expect(result).resolves.toEqual({ completed: false });
     expect(mockInvoke).not.toHaveBeenCalled();
     expect(createForAdRequest).not.toHaveBeenCalled();
+  });
+
+  test("accepts the bounded 20-minute server ticket contract", async () => {
+    mockInvoke.mockResolvedValueOnce(ticketResponse(USER_ID, 20 * 60));
+    const result = showRewardedAd(REASONING_OPTIONS);
+    await flush();
+    fire("closed");
+
+    expect(createForAdRequest).toHaveBeenCalledTimes(1);
+    await expect(result).resolves.toEqual({ completed: false });
   });
 
   test.each([

@@ -6,6 +6,11 @@ import {
   parseVerifierKeyDocument,
   readRewardContractConfig,
 } from "../reward-contract";
+import { Buffer } from "node:buffer";
+import { webcrypto as nodeCrypto } from "node:crypto";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import {
   VerifierKeyCache,
   readBoundedBodyBytes,
@@ -21,6 +26,57 @@ const CONFIG = {
   rewardAmount: 2,
   rewardItem: "reasoning credit",
 };
+
+function ownedArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
+}
+
+function rawP256SignatureToDer(raw: Uint8Array): Uint8Array {
+  if (raw.byteLength !== 64) throw new Error("expected P-256 signature");
+  const integer = (part: Uint8Array): Uint8Array => {
+    let first = 0;
+    while (first < part.length - 1 && part[first] === 0) first += 1;
+    const value = part.slice(first);
+    const needsZero = (value[0] & 0x80) !== 0;
+    return Uint8Array.from([0x02, value.length + (needsZero ? 1 : 0), ...(needsZero ? [0] : []), ...value]);
+  };
+  const r = integer(raw.slice(0, 32));
+  const s = integer(raw.slice(32));
+  return Uint8Array.from([0x30, r.length + s.length, ...r, ...s]);
+}
+
+const readRepo = (relativePath: string) =>
+  readFileSync(path.resolve(__dirname, "../../../..", relativePath), "utf8");
+
+function bodyWhoseCancelClosesPendingRead(prefix: Uint8Array) {
+  let reads = 0;
+  let resolvePending: ((result: { done: true; value?: undefined }) => void) | undefined;
+  let markPending: (() => void) | undefined;
+  const pendingStarted = new Promise<void>((resolve) => { markPending = resolve; });
+  const cancel = jest.fn(() => {
+    resolvePending?.({ done: true });
+    return Promise.resolve();
+  });
+  const reader = {
+    read: jest.fn(() => {
+      reads += 1;
+      if (reads === 1) return Promise.resolve({ done: false as const, value: prefix });
+      markPending?.();
+      return new Promise<{ done: true; value?: undefined }>((resolve) => {
+        resolvePending = resolve;
+      });
+    }),
+    cancel,
+    releaseLock: jest.fn(),
+  };
+  return {
+    body: { getReader: () => reader } as unknown as ReadableStream<Uint8Array>,
+    cancel,
+    pendingStarted,
+  };
+}
 
 function validSignedQuery(): string {
   const signed = [
@@ -56,15 +112,80 @@ describe("rewarded SSV environment contract", () => {
   });
 });
 
+describe("rewarded SSV ticket timing", () => {
+  test("pins a 20-minute ticket across DB, Edge, and native timing", () => {
+    const migration = readRepo("db/migrations/0177_reward_ssv_tickets.sql");
+    const edge = readRepo("supabase/functions/rewarded-ssv/index.ts");
+    const native = readRepo("src/lib/ads/rewarded.native.ts");
+
+    expect(migration).toMatch(/now\(\) \+ make_interval\(mins => 20\)/);
+    expect(edge).toContain("const REWARD_TICKET_TTL_SECONDS = 20 * 60;");
+    expect(edge).toMatch(/expires_in:\s*REWARD_TICKET_TTL_SECONDS/);
+    expect(native).toContain("const REWARD_TICKET_TTL_SECONDS = 20 * 60;");
+    expect(native).toContain("const CALLBACK_DELIVERY_MARGIN_MS = 5 * 60_000;");
+    expect(migration).toMatch(
+      /\(tickets\.consumed_transaction_id IS NULL\s+AND tickets\.expires_at >= now\(\)\)\s+OR \(tickets\.consumed_transaction_id = p_txn_id\s+AND tickets\.consumed_at >= now\(\) - make_interval\(days => 1\)\)/,
+    );
+  });
+});
+
 describe("signed SSV query boundary", () => {
-  test("preserves the exact signed bytes while decoding values exactly once", () => {
+  test("keeps strict raw pairs while exposing URI-decoded signature bytes", () => {
     const raw = validSignedQuery();
     const parsed = parseSignedSsvQuery(raw);
     expect(parsed).not.toBeNull();
-    expect(parsed?.signedContent).toBe(raw.slice(0, raw.indexOf("&signature=")));
+    expect(parsed?.signedContent).toBe(
+      decodeURIComponent(raw.slice(0, raw.indexOf("&signature="))),
+    );
     expect(parsed?.params.get("reward_item")).toBe(CONFIG.rewardItem);
     expect(parsed?.signature).toBe(SIGNATURE);
     expect(parsed?.keyId).toBe("1234567890");
+  });
+
+  test("preserves plus as a literal URI query character", () => {
+    const raw = validSignedQuery().replace("reasoning%20credit", "reasoning+credit");
+    const parsed = parseSignedSsvQuery(raw);
+    expect(parsed).not.toBeNull();
+    expect(parsed?.signedContent).toContain("reward_item=reasoning+credit");
+    expect(parsed?.params.get("reward_item")).toBe("reasoning+credit");
+  });
+
+  test("verifies Google's encoded-URL semantics with a real P-256 DER callback", async () => {
+    const rawSignedContent = validSignedQuery()
+      .slice(0, validSignedQuery().indexOf("&signature="))
+      .replace("reasoning%20credit", "reasoning%20credit%40gmail.com");
+    const uriQueryBytes = new TextEncoder().encode(decodeURIComponent(rawSignedContent));
+    // Mirrors Google Tink's testShouldVerifyWithEncodedUrl, but creates the
+    // disposable test key in memory instead of committing private-key bytes.
+    const keyPair = await nodeCrypto.subtle.generateKey(
+      { name: "ECDSA", namedCurve: "P-256" },
+      true,
+      ["sign", "verify"],
+    );
+    const rawSignature = new Uint8Array(await nodeCrypto.subtle.sign(
+      { name: "ECDSA", hash: "SHA-256" },
+      keyPair.privateKey,
+      uriQueryBytes,
+    ));
+    const derSignature = rawP256SignatureToDer(rawSignature);
+    const callback = `${rawSignedContent}&signature=${Buffer.from(derSignature).toString("base64url")}&key_id=1234`;
+    const parsed = parseSignedSsvQuery(callback);
+    expect(parsed).not.toBeNull();
+
+    const callbackSignature = derToRawEcdsa(derSignature);
+    expect(callbackSignature).not.toBeNull();
+    await expect(nodeCrypto.subtle.verify(
+      { name: "ECDSA", hash: "SHA-256" },
+      keyPair.publicKey,
+      ownedArrayBuffer(callbackSignature!),
+      new TextEncoder().encode(parsed!.signedContent),
+    )).resolves.toBe(true);
+    await expect(nodeCrypto.subtle.verify(
+      { name: "ECDSA", hash: "SHA-256" },
+      keyPair.publicKey,
+      ownedArrayBuffer(callbackSignature!),
+      new TextEncoder().encode(rawSignedContent),
+    )).resolves.toBe(false);
   });
 
   test.each([
@@ -76,7 +197,6 @@ describe("signed SSV query boundary", () => {
     ["encoded unreserved value", validSignedQuery().replace("ad_unit=2", "ad_unit=%32")],
     ["lower-case percent escape", validSignedQuery().replace("%20", "%2f")],
     ["malformed percent escape", validSignedQuery().replace("%20", "%ZZ")],
-    ["plus-space ambiguity", validSignedQuery().replace("%20", "+")],
     ["non-canonical order", validSignedQuery().replace("ad_network=5450213213286189855&ad_unit=2747237135", "ad_unit=2747237135&ad_network=5450213213286189855")],
     ["fragment", `${validSignedQuery()}#ignored`],
     ["oversize", `${"a".repeat(MAX_SSV_QUERY_BYTES)}&signature=${SIGNATURE}&key_id=1`],
@@ -204,31 +324,71 @@ describe("Google verifier-key response boundary", () => {
       .rejects.toThrow("too fragmented");
   });
 
-  test("cancels a stalled response body at the read deadline", async () => {
-    jest.useFakeTimers();
-    try {
-      let cancelled = false;
-      const body = new ReadableStream<Uint8Array>({
-        pull() {
-          return new Promise<void>(() => undefined);
-        },
-        cancel() {
-          cancelled = true;
-        },
-      });
-      const response = new Response(body, {
-        headers: { "content-type": "application/json" },
-      });
-      const rejection = expect(
-        readBoundedJsonResponse(response, 64, { timeoutMs: 100 }),
-      ).rejects.toThrow("timed out");
-      await jest.advanceTimersByTimeAsync(100);
-      await rejection;
-      expect(cancelled).toBe(true);
-    } finally {
-      jest.useRealTimers();
-    }
+  test("keeps the deadline terminal when cancel closes a pending read", async () => {
+    const harness = bodyWhoseCancelClosesPendingRead(
+      new TextEncoder().encode('{"keys":[]}'),
+    );
+    await expect(readBoundedBodyBytes(harness.body, 64, { timeoutMs: 25 }))
+      .rejects.toThrow("timed out");
+    expect(harness.cancel).toHaveBeenCalled();
   });
+
+  test("keeps AbortSignal terminal when cancel closes a pending read", async () => {
+    const abort = new AbortController();
+    const harness = bodyWhoseCancelClosesPendingRead(
+      new TextEncoder().encode('{"keys":[]}'),
+    );
+    const reading = readBoundedBodyBytes(harness.body, 64, {
+      timeoutMs: 1_000,
+      signal: abort.signal,
+    });
+    await harness.pendingStarted;
+    abort.abort();
+
+    await expect(reading).rejects.toThrow("aborted");
+  });
+
+  test("does not let pending reader cancellation hold an oversize rejection", async () => {
+    let cancelCalls = 0;
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array(65));
+      },
+      cancel() {
+        cancelCalls += 1;
+        return new Promise<void>(() => undefined);
+      },
+    });
+    const outcome = await Promise.race([
+      readBoundedBodyBytes(body, 64, { timeoutMs: 25 })
+        .then(() => "resolved", (error: Error) => error.message),
+      new Promise<string>((resolve) => setTimeout(() => resolve("pending"), 50)),
+    ]);
+
+    expect(outcome).toBe("body response too large");
+    expect(cancelCalls).toBeGreaterThan(0);
+  });
+
+  test("does not let pending body cancellation hold a header rejection", async () => {
+    let cancelCalls = 0;
+    const body = new ReadableStream<Uint8Array>({
+      cancel() {
+        cancelCalls += 1;
+        return new Promise<void>(() => undefined);
+      },
+    });
+    const outcome = await Promise.race([
+      readBoundedJsonResponse({
+        body,
+        headers: new Headers({ "content-type": "text/plain" }),
+      }, 64).then(() => "resolved", (error: Error) => error.message),
+      new Promise<string>((resolve) => setTimeout(() => resolve("pending"), 50)),
+    ]);
+
+    expect(outcome).toBe("invalid verifier-key response");
+    expect(cancelCalls).toBe(1);
+  });
+
 });
 
 describe("verifier-key refresh cache", () => {
@@ -284,6 +444,28 @@ describe("verifier-key refresh cache", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
     now += 501;
     await cache.get(true, false);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  test("retries a failed refresh on Google's next one-second callback", async () => {
+    let now = 1_000;
+    const fetcher = jest.fn()
+      .mockRejectedValueOnce(new Error("transient"))
+      .mockResolvedValueOnce(["key-rotated"]);
+    const cache = new VerifierKeyCache(fetcher, {
+      timeoutMs: 1_000,
+      ttlMs: 10_000,
+      maxStaleMs: 20_000,
+      refreshCooldownMs: 60_000,
+      now: () => now,
+    });
+
+    await expect(cache.get()).rejects.toThrow("transient");
+    now += 999;
+    await expect(cache.get()).rejects.toThrow("verifier-key refresh throttled");
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    now += 1;
+    await expect(cache.get()).resolves.toEqual(["key-rotated"]);
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
