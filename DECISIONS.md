@@ -62,3 +62,19 @@
 `26.09.13 15:19 · 벤더 가용성은 쿼터로 판정하지 않는다(가드 G12 신설) · 실측에서 grok 은 402(잔액 소진), gemini 단독 CLI 는 IneligibleTierError 였는데 쿼터 %로는 둘 다 여유 있어 보였다 — 못 쓰는 이유가 쿼터가 아니었다. 쿼터 게이트(G5)는 '얼마나 썼나'를, G12 는 '지금 답이 나오나'를 본다 · 뒤집는 조건: 없음. 두 게이트는 다른 질문이라 하나로 합치지 않는다`
 
 `26.09.13 15:19 · `STATE.md` 소유권을 이 세션이 이어받는다 · 09-13 10:50 결정이 소유자를 `runbook-260907` 로 지명했는데 그 워크트리는 같은 파일에서 스스로 '닫힌다'고 적고 닫혔다 (지명 2분 전). 지금 소유자가 아무도 아니어서 덮어쓰기 파일이 무주공산이다 · 뒤집는 조건: Simon 이 다른 세션을 지명하면 즉시 이전한다. 그때까지 다른 세션은 `DECISIONS.md` 에만 쓴다`
+
+`26.09.13 18:13 · 디스크 정리 1차 — 구제 검증을 통과한 13곳(워크트리 12 + 등록 안 된 클론 1, 약 7.7GB)을 지운다 (Simon 선택) · 커밋은 전부 origin 에 있고(대상마다 unpushed_any=0 재측정), 지우면 사라질 것(pixelclay-260905 의 .env 키 38개 · capture-diag-260908 Output 43MB · gh-pages 08-30 배포 커밋 1개)은 E:/Coding Infra/_rescue/worktrees-260913-1807 에 떴다(RESCUE_OK 13) · 뒤집는 조건: 없음. 복구는 그 폴더 README. 로컬 브랜치는 지우지 않는다`
+
+`26.09.13 18:13 · 삭제는 폴더와 git 등록만 지운다 — orca worktree rm · git worktree remove --force · git worktree prune 은 쓰지 않는다 · orca rm 은 --force 없이도 로컬 브랜치 삭제를 시도하고(help 원문: removal also attempts to delete the checked-out local branch), --force 는 정션을 따라가 공용 node_modules 를 지운 전례가 있고, prune 은 다른 세션의 항목까지 친다 · 뒤집는 조건: 남은 Orca 카드가 일을 가리면 카드만 지우는 경로를 찾는다`
+
+`26.09.13 18:13 · 조사는 survey_worktrees.py 원본이 아니라 v2 로 했다 · 원본의 git status 는 index.lock 을 잡아 지금 커밋 중인 보안 워크트리와 충돌할 수 있고, E:/2ndB 를 잴 때 .worktrees/* 를 한 번 더 세어 "40개 · 53.9GB" 를 냈다(중복 없이 재면 44개 · 39.9GB). ignored 파일도 안 셌다 — 워크트리를 지우면 같이 사라지는데 · 뒤집는 조건: 원본 도구를 고치면 원본으로 돌아간다`
+
+`26.09.13 18:13 · session-start-260906 · prod-workflow-ref-gates-260913 은 깨끗해도 이번에 지우지 않는다 · 앞의 것은 docs/session-start/setup.md 가 이름으로 지목한 공유 자료 편집 워크트리(check-setup.py 가 검사한다), 뒤의 것은 codex 소유 완료 작업(PROD-WORKFLOW-REF-GATES-260913)인데 origin 에 없는 커밋 2개가 있다 · 뒤집는 조건: 편집 워크트리를 다른 곳으로 옮기거나, codex 소유자가 push 한 뒤`
+
+`26.09.13 18:13 · 다음 정리 라운드 = Orca Design(C: 8.1GB) · 쉬는 세션 워크트리 2곳(vibe-native-prep-260906 · vibe-clay-integration-260906, 1.75GB) · E:/2ndB/android 빌드 산출물(5GB) (Simon 선택) · .npm-security-landing-260906(1.06GB)은 고르지 않았다 → 그대로 둔다 · 뒤집는 조건: 없음. 셋 다 조사 → 구제 → 목록 확인 → 삭제 순서를 그대로 밟는다`
+
+`26.09.13 18:49 · 디스크 정리 2차 — Orca Design(C: 8.1GB) 삭제 · 쉬는 세션 워크트리 2곳(vibe-native-prep-260906 · vibe-clay-integration-260906)의 Orca 터미널 8개를 닫고 삭제 · E:/2ndB/android 빌드 캐시 8폴더(4.9GB, 전부 07-04 이전) 삭제 (Simon 선택, 셋 다) · Design 중첩 클론에서 E:/2ndB 의 어떤 ref 로도 닿지 않던 커밋 9개(codex/pixel-clay-reset-password-260831 2개 + 원격에서 지워진 09-04 브랜치 5갈래 7개)는 번들로 떴고 verify 통과, 쉬는 세션 Output 421MB 도 떴다(E:/Coding Infra/_rescue/worktrees-260913-1825-r2). 에이전트 세션 4개는 ID 로 다시 열 수 있다(claude 4c781d42·5815969b / codex 01a07681·01a07682) · 뒤집는 조건: 없음. android 는 outputs(APK)·src·gradle 설정·debug.keystore 를 남긴다`
+
+`26.09.13 19:25 · 이월 3회에 닿은 Q-260908-01(/privacy 안심 문구)·Q-260908-02(기존 가입자 재고지)는 기본값으로 진행한다고 통보했다 — 01 은 지금처럼 띄우지 않되 공백을 드러내는 가드 단언은 떼지 않는다, 02 는 출시 법역(Q-S1)과 함께 정하고 그때까지 재고지하지 않는다 · 지침 §6 이 3회 이월 시 "기본값 진행 통보" 또는 "폐기" 중 하나를 명시적으로 고르게 하고, 두 질문 모두 지금 상태를 바꾸지 않는 쪽이 기본값이다 · 뒤집는 조건: Simon 이 다른 값을 고르면 즉시 그쪽으로. 근거는 보고서 https://claude.ai/code/artifact/db1d3e47-8280-426f-95d3-1cf67f2baf97 결정 탭`
+
+`26.09.13 19:28 · STATE.md 소유권을 ttl-work-9a → ttl-work-rev2-1c(Claude Code 673dc58f)로 이전 · 디스크 정리 1·2차를 끝낸 쪽이 최신 사실을 갖고 있고, 소유자가 아닌 쪽이 쓰면 모르는 값을 쓰게 된다. Simon 지명이 아니라 두 세션의 합의다(ttl-work-9a 19:2x 메시지) · 뒤집는 조건: Simon 이 다른 세션을 지명하면 즉시`
