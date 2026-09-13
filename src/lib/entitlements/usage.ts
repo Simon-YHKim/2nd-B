@@ -178,11 +178,11 @@ export async function incrementReasoningUsage(userId: string): Promise<void> {
  * What happened to a rewarded grant, for the surface that has to tell the user.
  *
  * The user gave up ad time for this, so "nothing visible happened" is not an
- * acceptable answer to a failure. `unconfirmed` deliberately does not say the
- * credit did not land: under SSV the server is the payer, and even here a failed
- * RPC round-trip is not proof the write did not happen.
+ * acceptable answer to a failure. `processing` means the asynchronous SSV
+ * callback may still grant it; `unconfirmed` means a client-side attempt failed
+ * without proving whether the write landed.
  */
-export type RewardGrantOutcome = "granted" | "capped" | "unconfirmed";
+export type RewardGrantOutcome = "granted" | "capped" | "processing" | "unconfirmed";
 
 /**
  * Add rewarded watch-to-earn credits to the current-month counter, via the
@@ -210,9 +210,10 @@ export async function addRewardCredits(userId: string, credits: number): Promise
   // reflects the server grant once the callback lands. Off by default (direct
   // process.env read so babel inlines it) -> unchanged dev-seam behavior.
   //
-  // Nothing for the surface to report in that mode: the server is the payer and
-  // the refetch shows its work.
-  if (process.env.EXPO_PUBLIC_REWARD_SSV === "true") return "granted";
+  // The provider callback is asynchronous, so a completed local watch is not
+  // proof that the server grant has landed yet. Report the pending settlement
+  // distinctly from a failed client call so the UI never labels it as failure.
+  if (process.env.EXPO_PUBLIC_REWARD_SSV === "true") return "processing";
   const bucket = monthBucket();
   try {
     const { data, error } = await getSupabaseClient().rpc('bump_reward_credits_if_under_cap', {

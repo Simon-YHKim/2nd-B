@@ -971,6 +971,7 @@
       "later": "Ahora no",
       "privacy": "Solo adultos con consentimiento · nunca en pantallas sensibles",
       "capReached": "Has llegado al límite de este mes. Vuelve a estar disponible el mes que viene.",
+      "creditProcessing": "Tu recompensa se está procesando. Revisa de nuevo tus búsquedas restantes en un momento.",
       "creditFailed": "No se pudo confirmar el abono. Revisa de nuevo tu cuenta restante en un momento."
     },
     "rewardChat": {
@@ -983,6 +984,7 @@
       "later": "Más tarde",
       "privacy": "Solo adultos con consentimiento · nunca en pantallas sensibles",
       "capReached": "Has llegado al límite de este mes. Vuelve a estar disponible el mes que viene.",
+      "creditProcessing": "Tu recompensa se está procesando. Revisa de nuevo los chats que te quedan hoy en un momento.",
       "creditFailed": "No se pudo confirmar el abono. Revisa de nuevo tus chats restantes de hoy en un momento."
     },
     "reasoningLimit": {

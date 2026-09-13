@@ -971,6 +971,7 @@
       "later": "Later",
       "privacy": "Adults with consent only · never on sensitive screens",
       "capReached": "You have reached this month's earning limit. It resets next month.",
+      "creditProcessing": "Your reward is being processed. Check your remaining count again in a moment.",
       "creditFailed": "Could not confirm the credit. Check your remaining count again in a moment."
     },
     "rewardChat": {
@@ -983,6 +984,7 @@
       "later": "Later",
       "privacy": "Adults with consent only · never on sensitive screens",
       "capReached": "You have reached this month's earning limit. It resets next month.",
+      "creditProcessing": "Your reward is being processed. Check today's remaining chats again in a moment.",
       "creditFailed": "Could not confirm the credit. Check today's remaining chats again in a moment."
     },
     "reasoningLimit": {

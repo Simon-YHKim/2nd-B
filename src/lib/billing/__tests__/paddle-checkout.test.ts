@@ -1,13 +1,22 @@
-// Web checkout contract. The one thing that must never regress silently:
-// customData.user_id. supabase/functions/paddle-webhook resolves a purchase to
-// a user through data.custom_data.user_id — drop it and a payer is charged and
-// stays 'free', with no error on either side.
+// Web checkout ownership contract. The browser may choose what to buy, but it
+// must obtain the complete server-signed customData binding before Paddle opens.
 
-const authUser: { id?: string; email?: string } | null = { id: "u-123", email: "a@b.com" };
+const USER_ID = "11111111-1111-4111-8111-111111111111";
+const authUser: { id?: string; email?: string } | null = { id: USER_ID, email: "a@b.com" };
+const checkoutBinding = {
+  user_id: USER_ID,
+  issued_at: 1_789_000_000,
+  nonce: "a".repeat(32),
+  signature: "b".repeat(64),
+};
+const mockInvoke = jest.fn(async () => ({ data: checkoutBinding, error: null }));
 
 jest.mock("react-native", () => ({ Platform: { OS: "web" } }));
 jest.mock("@/lib/supabase/client", () => ({
-  getSupabaseClient: () => ({ auth: { getUser: async () => ({ data: { user: authUser } }) } }),
+  getSupabaseClient: () => ({
+    auth: { getUser: async () => ({ data: { user: authUser } }) },
+    functions: { invoke: mockInvoke },
+  }),
 }));
 
 import {
@@ -28,6 +37,8 @@ function installPaddle() {
 
 beforeEach(() => {
   opened.length = 0;
+  mockInvoke.mockClear();
+  mockInvoke.mockResolvedValue({ data: checkoutBinding, error: null });
   __resetPaddleSdkForTests();
   delete (globalThis as any).Paddle;
   process.env.EXPO_PUBLIC_PADDLE_CLIENT_TOKEN = "live_test";
@@ -63,14 +74,33 @@ describe("config", () => {
 });
 
 describe("openPaddleCheckout", () => {
-  test("sends customData.user_id — the webhook's only link to the payer", async () => {
+  test("sends only the server-signed ownership binding as customData", async () => {
     installPaddle();
     const r = await openPaddleCheckout({ tier: "cortex", cadence: "yearly" });
     expect(r).toEqual({ ok: true });
+    expect(mockInvoke).toHaveBeenCalledWith("subscription-manage", {
+      body: { action: "checkout_binding" },
+    });
     expect(opened).toHaveLength(1);
     const arg = opened[0] as any;
-    expect(arg.customData).toEqual({ user_id: "u-123" });
+    expect(arg.customData).toEqual(checkoutBinding);
     expect(arg.items).toEqual([{ priceId: "pri_cortex_y", quantity: 1 }]);
+  });
+
+  test.each([
+    ["edge failure", { data: null, error: { message: "unavailable" } }],
+    ["wrong owner", { data: { ...checkoutBinding, user_id: "22222222-2222-4222-8222-222222222222" }, error: null }],
+    ["unsigned shape", { data: { user_id: USER_ID }, error: null }],
+  ])("fails closed before loading Paddle when the checkout binding has %s", async (_label, reply) => {
+    installPaddle();
+    mockInvoke.mockResolvedValueOnce(reply as never);
+
+    await expect(openPaddleCheckout({ tier: "cortex" })).resolves.toEqual({
+      ok: false,
+      reason: "binding_failed",
+    });
+    expect(opened).toHaveLength(0);
+    expect((globalThis as any).Paddle.Initialize).not.toHaveBeenCalled();
   });
 
   test("refuses to open when there is no signed-in user", async () => {

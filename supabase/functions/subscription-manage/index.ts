@@ -2,11 +2,13 @@
 //
 // The published refund policy (docs/legal/refund-policy.md KO 3항 / EN §3) tells
 // users to cancel from "앱 내 [설정 -> 구독 관리]". This is the server side of that
-// screen. Two actions, both acting ONLY on the caller's own subscription:
+// screen. Money-moving actions act ONLY on the caller's own subscription; the
+// third action mints checkout ownership data for that same caller:
 //
 //   cancel          -> Paddle POST /subscriptions/{id}/cancel
 //                      effective_from = next_billing_period (default) | immediately
 //   refund_request  -> Paddle POST /adjustments  { action: refund, type: full }
+//   checkout_binding -> server-only HMAC over the live Auth user + time + nonce
 //
 // IDOR contract (same as delete-account / export-account): the target user is the
 // JWT `sub`, and the Paddle subscription / transaction ids are resolved SERVER-SIDE
@@ -48,10 +50,12 @@
 //                                (set to https://sandbox-api.paddle.com to test).
 //   PADDLE_SELF_SERVICE_DRYRUN   '1' to exercise the whole path (eligibility,
 //                                ledger, idempotency) WITHOUT calling Paddle.
+//   PADDLE_CHECKOUT_BINDING_SECRET server-only HMAC key shared with the webhook.
 // Deploy with verify_jwt=true. Never deploy with --no-verify-jwt.
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { createCheckoutBinding } from '../_shared/paddle-checkout-binding.ts';
 import {
   JsonBodyError,
   SUBSCRIPTION_MANAGE_JSON_BODY_LIMIT_BYTES,
@@ -69,16 +73,28 @@ function resolveOrigin(req: Request): string {
   return ALLOWED_ORIGINS.has(origin) ? origin : 'null';
 }
 
-function jsonResponse(req: Request, body: unknown, status = 200): Response {
+function jsonResponse(
+  req: Request,
+  body: unknown,
+  status = 200,
+  extraHeaders: Record<string, string> = {},
+): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
       'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store',
+      'x-content-type-options': 'nosniff',
       'access-control-allow-origin': resolveOrigin(req),
       'vary': 'origin',
       'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type',
+      ...extraHeaders,
     },
   });
+}
+
+function unauthorized(req: Request): Response {
+  return jsonResponse(req, { error: 'authentication_required' }, 401);
 }
 
 function corsPreflight(req: Request): Response {
@@ -94,30 +110,65 @@ function corsPreflight(req: Request): Response {
   });
 }
 
-// The JWT is already validated by the gateway (verify_jwt=true), but verify_jwt
-// only proves the token is VALID. The public anon/publishable key is itself a
-// valid token (role==='anon'). This endpoint cancels subscriptions and asks for
-// money back, so we require a signed-in USER: a real `sub` AND
-// role==='authenticated'. Mirrors delete-account / export-account. Returns null
-// for any non-user token.
-function userIdFromJwt(authHeader: string): string | null {
+// The gateway is one check, not the source of current session state. Parse one
+// bounded JWT credential, use its claims only as a hint, then ask Supabase Auth
+// to verify that the user still exists and the access token is not revoked.
+const MAX_ACCESS_TOKEN_CHARS = 8 * 1024;
+const MAX_AUTHORIZATION_HEADER_CHARS = MAX_ACCESS_TOKEN_CHARS + 'Bearer '.length;
+const BEARER_JWT_PATTERN = /^Bearer ([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/i;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function accessTokenFromAuthorization(authHeader: string): string | null {
+  if (authHeader.length > MAX_AUTHORIZATION_HEADER_CHARS) return null;
+  const accessToken = BEARER_JWT_PATTERN.exec(authHeader)?.[1] ?? '';
+  if (accessToken.length === 0 || accessToken.length > MAX_ACCESS_TOKEN_CHARS) return null;
+  return accessToken;
+}
+
+function userIdHintFromAccessToken(accessToken: string): string | null {
   try {
-    const token = authHeader.slice(authHeader.toLowerCase().indexOf('bearer ') + 7).trim();
-    const payload = token.split('.')[1];
+    const payload = accessToken.split('.')[1];
     if (!payload) return null;
     const b64 = payload.replace(/-/g, '+').replace(/_/g, '/');
-    const json = JSON.parse(atob(b64 + '=='.slice(0, (4 - (b64.length % 4)) % 4)));
-    const sub = typeof json?.sub === 'string' ? json.sub : '';
-    const role = typeof json?.role === 'string' ? json.role : '';
-    if (role !== 'authenticated' || sub.length === 0) return null;
+    const decoded: unknown = JSON.parse(atob(b64 + '=='.slice(0, (4 - (b64.length % 4)) % 4)));
+    if (decoded === null || typeof decoded !== 'object' || Array.isArray(decoded)) return null;
+    const claims = decoded as Record<string, unknown>;
+    const sub = typeof claims.sub === 'string' ? claims.sub : '';
+    const role = typeof claims.role === 'string' ? claims.role : '';
+    if (role !== 'authenticated' || !UUID_PATTERN.test(sub)) return null;
     return sub;
   } catch {
     return null;
   }
 }
 
-type Action = 'cancel' | 'refund_request';
+type Action = 'cancel' | 'refund_request' | 'checkout_binding';
 type EffectiveFrom = 'next_billing_period' | 'immediately';
+
+interface ManageBody {
+  action: Action;
+  effective_from?: EffectiveFrom;
+}
+
+const MANAGE_BODY_KEYS = new Set(['action', 'effective_from']);
+
+function parseManageBody(value: unknown): ManageBody | null {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
+  if (Object.keys(value).some((key) => !MANAGE_BODY_KEYS.has(key))) return null;
+  const body = value as Record<string, unknown>;
+  const action = body.action;
+  if (action !== 'cancel' && action !== 'refund_request' && action !== 'checkout_binding') {
+    return null;
+  }
+  if (action !== 'cancel' && 'effective_from' in value) return null;
+  const effectiveFrom = body.effective_from;
+  if (
+    effectiveFrom !== undefined
+    && effectiveFrom !== 'next_billing_period'
+    && effectiveFrom !== 'immediately'
+  ) return null;
+  return effectiveFrom === undefined ? { action } : { action, effective_from: effectiveFrom };
+}
 
 interface Eligibility {
   status: string;
@@ -180,12 +231,9 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return corsPreflight(req);
   if (req.method !== 'POST') return jsonResponse(req, { error: 'method_not_allowed' }, 405);
 
-  const authHeader = req.headers.get('authorization') ?? '';
-  if (!authHeader.toLowerCase().startsWith('bearer ')) {
-    return jsonResponse(req, { error: 'missing_authorization' }, 401);
-  }
-  const userId = userIdFromJwt(authHeader);
-  if (!userId) return jsonResponse(req, { error: 'invalid_jwt' }, 401);
+  const accessToken = accessTokenFromAuthorization(req.headers.get('authorization') ?? '');
+  const userIdHint = accessToken ? userIdHintFromAccessToken(accessToken) : null;
+  if (!accessToken || !userIdHint) return unauthorized(req);
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -196,9 +244,26 @@ Deno.serve(async (req: Request) => {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  let body: Record<string, unknown>;
+  let verifiedUser: { id: string } | null = null;
   try {
-    body = await readJsonObject(req, SUBSCRIPTION_MANAGE_JSON_BODY_LIMIT_BYTES);
+    const { data, error } = await admin.auth.getUser(accessToken);
+    if (!error) verifiedUser = data.user;
+  } catch {
+    return unauthorized(req);
+  }
+  if (
+    verifiedUser === null
+    || !UUID_PATTERN.test(verifiedUser.id)
+    || verifiedUser.id !== userIdHint
+  ) return unauthorized(req);
+  const userId = verifiedUser.id;
+
+  let body: ManageBody;
+  try {
+    const parsedBody = await readJsonObject(req, SUBSCRIPTION_MANAGE_JSON_BODY_LIMIT_BYTES);
+    const validatedBody = parseManageBody(parsedBody);
+    if (!validatedBody) return jsonResponse(req, { error: 'invalid_body' }, 400);
+    body = validatedBody;
   } catch (error) {
     if (error instanceof JsonBodyError && error.code === 'request_body_too_large') {
       return jsonResponse(req, {
@@ -206,13 +271,57 @@ Deno.serve(async (req: Request) => {
         max: error.maxBytes,
       }, 413);
     }
-    body = {};
+    return jsonResponse(req, { error: 'invalid_body' }, 400);
   }
 
-  const action = body.action as Action | undefined;
-  if (action !== 'cancel' && action !== 'refund_request') {
-    return jsonResponse(req, { error: 'invalid_action' }, 400);
+  const action = body.action;
+
+  // Consume the rolling allowance before ANY valid action can read eligibility,
+  // write the billing ledger, mint a checkout HMAC, or call Paddle. The RPC owns
+  // the row lock and count in one transaction.
+  const { data: rateLimitRaw, error: rateLimitError } = await admin.rpc(
+    'claim_billing_self_service_rate_limit',
+    { p_user_id: userId },
+  );
+  if (rateLimitError) {
+    console.error('[subscription-manage] atomic rate check failed');
+    return jsonResponse(req, { error: 'rate_check_unavailable' }, 503);
   }
+  const retryAfterSeconds = typeof rateLimitRaw === 'number' ? rateLimitRaw : Number.NaN;
+  if (
+    !Number.isInteger(retryAfterSeconds)
+    || retryAfterSeconds < 0
+    || retryAfterSeconds > 3600
+  ) {
+    console.error('[subscription-manage][ALERT] atomic rate check returned an invalid result');
+    return jsonResponse(req, { error: 'rate_check_unavailable' }, 503);
+  }
+  if (retryAfterSeconds > 0) {
+    return jsonResponse(
+      req,
+      { error: 'too_many_requests', retry_after_seconds: retryAfterSeconds },
+      429,
+      { 'retry-after': String(retryAfterSeconds) },
+    );
+  }
+
+  // The browser may choose checkout presentation, but it must never choose the
+  // account that receives an entitlement. Bind the live Auth user to a nonce
+  // with a server-only HMAC; paddle-webhook verifies the complete object.
+  if (action === 'checkout_binding') {
+    const bindingSecret = Deno.env.get('PADDLE_CHECKOUT_BINDING_SECRET') ?? '';
+    if (bindingSecret.length < 32) {
+      console.error('[subscription-manage] checkout binding secret unavailable');
+      return jsonResponse(req, { error: 'checkout_binding_unavailable' }, 503);
+    }
+    try {
+      return jsonResponse(req, await createCheckoutBinding(bindingSecret, userId));
+    } catch {
+      console.error('[subscription-manage] checkout binding creation failed');
+      return jsonResponse(req, { error: 'checkout_binding_unavailable' }, 503);
+    }
+  }
+
   const effectiveFrom: EffectiveFrom =
     action === 'cancel' && body.effective_from === 'immediately' ? 'immediately' : 'next_billing_period';
 
@@ -261,28 +370,6 @@ Deno.serve(async (req: Request) => {
   if (action === 'cancel' && eligibility.tier === 'free') {
     await settleTerminal('rejected', 'not_subscribed');
     return jsonResponse(req, { ok: false, outcome: 'rejected', reason: 'not_subscribed', eligibility }, 200);
-  }
-
-  // Abuse guard. This endpoint writes a ledger row and can reach a paid API on
-  // every call, and nothing else throttles it (the LLM proxies have
-  // bump_gemini_spend; there is no generic limiter). A loop with any valid user
-  // token could otherwise grow the ledger without bound and, once enabled, keep
-  // re-opening released claims against Paddle's rate limits. service_role
-  // bypasses RLS, so this counts the caller's OWN rows only.
-  const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-  const { count: recent, error: rateErr } = await admin
-    .from('billing_self_service_log')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .gte('created_at', since);
-  if (rateErr) {
-    // Fail CLOSED: an unreadable ledger is exactly when we cannot tell a retry
-    // from an attack, and this endpoint spends money.
-    console.error('[subscription-manage] rate check failed:', rateErr.message);
-    return jsonResponse(req, { error: 'rate_check_unavailable' }, 503);
-  }
-  if ((recent ?? 0) >= 20) {
-    return jsonResponse(req, { error: 'too_many_requests', retry_after_seconds: 3600 }, 429);
   }
 
   const enabled = Deno.env.get('PADDLE_SELF_SERVICE_ENABLED') === '1';

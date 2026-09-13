@@ -1591,7 +1591,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
             // 시트에 돌려준다. 여기서 "적립되지 않았다"고 단정하지는 않는다 -
             // SSV 모드에서는 서버가 적립의 유일한 주체라 클라이언트 실패가 곧
             // 미적립은 아니다. Round22 담기 실패 문구와 같은 규율이다.
-            let outcome: RewardedEarnOutcome = "granted";
+            let outcome: RewardedEarnOutcome = process.env.EXPO_PUBLIC_REWARD_SSV === "true" ? "processing" : "granted";
             if (userId) {
               try {
                 await grantChatAdBonus(userId);
@@ -2004,7 +2004,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
         onEarned={async () => {
           // deep-space 셸과 같은 배선. 실패를 분류해 시트에 돌려주고, 닫는
           // 일은 시트에 맡긴다.
-          let outcome: RewardedEarnOutcome = "granted";
+          let outcome: RewardedEarnOutcome = process.env.EXPO_PUBLIC_REWARD_SSV === "true" ? "processing" : "granted";
           if (userId) {
             try {
               await grantChatAdBonus(userId);

@@ -70,7 +70,7 @@ function run<T>(source: string, bindings: Record<string, unknown>): T {
   return new Function(...Object.keys(bindings), compiled)(...Object.values(bindings)) as T;
 }
 
-type Outcome = "granted" | "capped" | "unconfirmed";
+type Outcome = "granted" | "capped" | "processing" | "unconfirmed";
 
 interface SheetRun {
   closes: number;
@@ -103,7 +103,7 @@ async function watch(options: {
     AccessibilityInfo: { announceForAccessibility: (message: string) => state.announced.push(message) },
     // 문구는 로케일에서 오지만 이 하네스는 문구 내용이 아니라 어느 문구를
     // 골랐는지만 본다.
-    C: { capReached: "CAP", creditFailed: "FAILED" },
+    C: { capReached: "CAP", creditProcessing: "PROCESSING", creditFailed: "FAILED" },
   };
   const onWatch = run<() => Promise<void>>(
     `const onWatch = ${findConstInit(SHEET, "onWatch")};\nreturn onWatch;`,
@@ -146,6 +146,13 @@ describe("보상형 광고 적립이 실패하면 시트가 성공처럼 닫히�
     expect(state.announced).toEqual(["CAP"]);
   });
 
+  test("SSV 정산 중이면 실패가 아니라 처리 중을 알리고 시트를 닫지 않는다", async () => {
+    const state = await watch({ onEarned: () => "processing" });
+    expect(state.closes).toBe(0);
+    expect(state.outcomes).toContain("processing");
+    expect(state.announced).toEqual(["PROCESSING"]);
+  });
+
   test("호출자가 분류하지 못하고 던져도 조용히 새어 나가지 않는다", async () => {
     const state = await watch({
       onEarned: () => { throw new Error("grant_rpc_failed"); },
@@ -182,7 +189,7 @@ describe("보상형 광고 적립이 실패하면 시트가 성공처럼 닫히�
 describe("대화 화면이 적립 실패를 분류해서 시트에 돌려준다", () => {
   const handlers = () => findRewardedSheetHandlers("onEarned");
 
-  async function earn(options: { throws?: unknown; index: number }): Promise<{ outcome: unknown; refreshes: number; warnings: string[]; grants: number }> {
+  async function earn(options: { throws?: unknown; index: number; ssv?: boolean }): Promise<{ outcome: unknown; refreshes: number; warnings: string[]; grants: number }> {
     const state = { refreshes: 0, warnings: [] as string[], grants: 0 };
     class ChatRewardCapReachedError extends Error {
       readonly code = "chat_reward_cap_reached";
@@ -200,6 +207,7 @@ describe("대화 화면이 적립 실패를 분류해서 시트에 돌려준다"
       refreshChatUsage: async () => { state.refreshes += 1; },
       setChatRewardVisible: () => { throw new Error("시트를 닫는 일은 이제 시트가 한다"); },
       console: { warn: (...args: unknown[]) => state.warnings.push(args.join(" ")) },
+      process: { env: { EXPO_PUBLIC_REWARD_SSV: options.ssv ? "true" : undefined } },
     };
     const handler = run<(credits: number) => Promise<unknown>>(
       `const onEarned = ${handlers()[options.index]};\nreturn onEarned;`,
@@ -220,6 +228,13 @@ describe("대화 화면이 적립 실패를 분류해서 시트에 돌려준다"
       expect(state.outcome === undefined || state.outcome === "granted").toBe(true);
     });
 
+    test(`핸들러 ${index}: SSV 정상 경로는 실패가 아니라 processing 으로 돌려준다`, async () => {
+      const state = await earn({ index, ssv: true });
+      expect(state.outcome).toBe("processing");
+      expect(state.grants).toBe(1);
+      expect(state.refreshes).toBe(1);
+    });
+
     test(`핸들러 ${index}: 월 상한은 capped 로 돌려준다`, async () => {
       const state = await earn({ index, throws: "cap" });
       expect(state.outcome).toBe("capped");
@@ -235,8 +250,8 @@ describe("대화 화면이 적립 실패를 분류해서 시트에 돌려준다"
   }
 });
 
-describe("적립 실패 문구", () => {
-  const keys = ["capReached", "creditFailed"] as const;
+describe("적립 결과 문구", () => {
+  const keys = ["capReached", "creditProcessing", "creditFailed"] as const;
 
   test("다섯 로케일 두 네임스페이스에 모두 있다", () => {
     for (const code of LOCALES) {
@@ -273,6 +288,15 @@ describe("적립 실패 문구", () => {
     }
   });
 
+  test("처리 중 문구는 실패 문구와 구별된다", () => {
+    for (const code of LOCALES) {
+      const ds = localeJson(code).ds;
+      for (const namespace of ["reward", "rewardChat"] as const) {
+        expect(ds[namespace].creditProcessing).not.toBe(ds[namespace].creditFailed);
+      }
+    }
+  });
+
   test("한국어는 이 파일의 말투를 따른다", () => {
     const ds = localeJson("ko").ds;
     for (const namespace of ["reward", "rewardChat"] as const) {
@@ -298,12 +322,19 @@ describe("적립 실패 문구", () => {
 describe("시트가 실패를 실제로 화면에 그린다", () => {
   test("결과 문구가 live region 으로 붙는다", () => {
     expect(SHEET.source).toMatch(/accessibilityLiveRegion="polite"/);
-    expect(SHEET.source).toMatch(/earnOutcome === "capped" \? C\.capReached : C\.creditFailed/);
+    expect(SHEET.source).toMatch(/earnOutcome === "processing" \? C\.creditProcessing/);
   });
 
   test("실패한 뒤에는 시청 버튼을 다시 내밀지 않는다", () => {
-    // 상한이면 다시 봐도 못 받고, 확인 실패면 이중 적립 위험이 있다.
+    // 상한이면 다시 봐도 못 받고, 처리 중/확인 실패면 이중 적립 위험이 있다.
     expect(SHEET.source).toMatch(/earnOutcome \? null :/);
+  });
+
+  test("처리 중 안내는 경고색을 쓰지 않는다", () => {
+    expect(SHEET.source).toMatch(/earnOutcome === "processing"[^\n]*styles\.earnNoticeProcessing/);
+    const style = SHEET.source.match(/earnNoticeProcessing:\s*\{[^}]*\}/);
+    expect(style).not.toBeNull();
+    expect(style?.[0]).not.toContain("deepSpace.warning");
   });
 
   test("문구 색은 캐논 토큰에서 온다", () => {

@@ -31,7 +31,12 @@ import { canCompleteRewardedWatch, showRewardedAd } from "@/lib/ads/rewarded";
 import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
 import { reasoningCapForTier } from "@/lib/entitlements/reasoning-cap";
 import { REWARD_MONTHLY_CAP, REWARD_PER_WATCH } from "@/lib/entitlements/tiers";
-import { addRewardCredits, getReasoningUsage, type ReasoningUsage } from "@/lib/entitlements/usage";
+import {
+  addRewardCredits,
+  getReasoningUsage,
+  type ReasoningUsage,
+  type RewardGrantOutcome,
+} from "@/lib/entitlements/usage";
 import { monthLabelFor } from "@/lib/reasoning/remaining-copy";
 import { useProgression } from "@/lib/progression/useProgression";
 import { m3 } from "@/lib/theme/m3";
@@ -49,10 +54,21 @@ import { a11yValue } from "@/lib/a11y/accessibility-value";
  */
 const rlAlpha = (c: string, a: number): string => flattenAlpha(c, a, deepSpace.bgMid);
 
+type RewardEarnedBaseline = Pick<ReasoningUsage, "monthBucket" | "rewardEarned">;
+
+function hasRewardSettlementAdvanced(next: RewardEarnedBaseline, baseline: RewardEarnedBaseline): boolean {
+  const canonicalMonthBucket = /^\d{4}-(?:0[1-9]|1[0-2])$/;
+  if (!canonicalMonthBucket.test(next.monthBucket) || !canonicalMonthBucket.test(baseline.monthBucket)) {
+    return false;
+  }
+  if (next.monthBucket === baseline.monthBucket) return next.rewardEarned > baseline.rewardEarned;
+  return next.monthBucket > baseline.monthBucket && next.rewardEarned > 0;
+}
+
 export interface ReasoningLimitSheetProps {
   visible: boolean;
   onClose: () => void;
-  /** Fired after a successful earn so the opening surface refetches its usage. */
+  /** Fired after a completed watch so the opening surface refetches its usage. */
   onChanged?: () => void;
 }
 
@@ -69,6 +85,10 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
 
   const [usage, setUsage] = useState<ReasoningUsage | null>(null);
   const [watching, setWatching] = useState(false);
+  // Processing/unconfirmed stays locked across close -> reopen. Only a later
+  // authoritative usage read above this watch's baseline clears it.
+  const [grantOutcome, setGrantOutcome] = useState<RewardGrantOutcome | null>(null);
+  const pendingRewardBaselineRef = useRef<RewardEarnedBaseline | null>(null);
   // users.privacy_prefs.ads — null until resolved; the rewarded gate fails closed.
   const [adsConsent, setAdsConsent] = useState<boolean | null>(null);
   const mountedRef = useRef(true);
@@ -84,7 +104,18 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
   const refreshUsage = useCallback(async () => {
     if (!userId) return;
     const next = await getReasoningUsage(userId);
-    if (mountedRef.current) setUsage(next);
+    if (mountedRef.current) {
+      setUsage(next);
+      if (
+        pendingRewardBaselineRef.current !== null &&
+        hasRewardSettlementAdvanced(next, pendingRewardBaselineRef.current)
+      ) {
+        // Residual P2: the aggregate counter has no per-ticket receipt, so an
+        // increase from another device cannot be attributed to this watch.
+        pendingRewardBaselineRef.current = null;
+        setGrantOutcome(null);
+      }
+    }
   }, [userId]);
 
   useEffect(() => {
@@ -119,10 +150,6 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
   const rewardCredits = usage?.rewardCredits ?? 0;
   const rewardEarned = usage?.rewardEarned ?? 0;
   const earnCapReached = rewardEarned >= REWARD_MONTHLY_CAP;
-  // Only set when a completed watch did not visibly pay. The cap already has its
-  // own line (rewardCapReached), so this is the case that had nothing at all:
-  // the user watched, the number did not move, and the sheet said nothing.
-  const [grantFailed, setGrantFailed] = useState(false);
   const month = monthLabelFor(i18n.language ?? "en", usage?.monthBucket ?? "");
 
   // Fail-closed ad region: the FULL #1076 rewarded gate (build flag + free
@@ -133,6 +160,7 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
   // complete a watch -- policy answers WHO, capability answers whether the
   // build can deliver.
   const adEligible =
+    usage !== null &&
     canCompleteRewardedWatch() &&
     canShowRewardedAds({
       tier: progression.loading ? null : progression.tier,
@@ -140,38 +168,45 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
       adsConsent,
       route: pathname ?? "/",
     }) &&
-    !earnCapReached;
+    !earnCapReached &&
+    !grantOutcome;
 
   const onWatch = useCallback(async () => {
-    if (!userId || watching) return;
+    if (!userId || watching || !usage) return;
     setWatching(true);
-    setGrantFailed(false);
+    pendingRewardBaselineRef.current = {
+      monthBucket: usage.monthBucket,
+      rewardEarned: usage.rewardEarned,
+    };
+    setGrantOutcome(null);
     try {
-      // SSV customData (0091 contract): bare userId = the reasoning reward
-      // path. When AdMob SSV becomes the grant authority
+      // The bare userId is a local ticket-placement hint, not provider data.
+      // When AdMob SSV becomes the grant authority
       // (EXPO_PUBLIC_REWARD_SSV=true + edge REWARD_SSV_ENABLED=1), the
-      // verified callback credits THIS user server-side; addRewardCredits
+      // the opaque ticket resolves to this user server-side; addRewardCredits
       // below already no-ops in that mode (D2 guard in entitlements/usage.ts),
       // so one watch never double-grants.
       const { completed } = await showRewardedAd({ ssvCustomData: userId });
       if (completed) {
         const grant = await addRewardCredits(userId, REWARD_PER_WATCH);
+        const unresolved = grant === "processing" || grant === "unconfirmed";
+        if (mountedRef.current) setGrantOutcome(unresolved ? grant : null);
+        if (!unresolved) pendingRewardBaselineRef.current = null;
         await refreshUsage();
         onChanged?.();
-        // "capped" already has a line of its own above, and the refetch makes it
-        // appear. "unconfirmed" is the one the user could not otherwise tell from
-        // a watch that simply did nothing.
-        if (mountedRef.current) setGrantFailed(grant === "unconfirmed");
-      }
+        // "capped" already has a line of its own above. Processing and an
+        // unconfirmed client failure both keep the CTA locked, but only the
+        // latter is rendered as a failure.
+      } else pendingRewardBaselineRef.current = null;
     } catch (e) {
       if (typeof console !== "undefined") {
         console.warn("[reasoning-limit] rewarded watch failed", (e as Error).message);
       }
-      if (mountedRef.current) setGrantFailed(true);
+      if (mountedRef.current) setGrantOutcome("unconfirmed");
     } finally {
       if (mountedRef.current) setWatching(false);
     }
-  }, [userId, watching, refreshUsage, onChanged]);
+  }, [userId, watching, usage, refreshUsage, onChanged]);
 
   const goPlans = useCallback(() => {
     onClose();
@@ -217,9 +252,16 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
               : t("ds.reasoningLimit.rewardLeft", { n: rewardCredits, month })}
           </RNText>
 
-          {grantFailed ? (
-            <RNText style={[styles.rewardLine, m3TextStyle("bodyMedium"), styles.grantFailedTint]} accessibilityLiveRegion="polite">
-              {t("ds.reward.creditFailed")}
+          {grantOutcome ? (
+            <RNText
+              style={[
+                styles.rewardLine,
+                m3TextStyle("bodyMedium"),
+                grantOutcome === "processing" ? styles.grantProcessingTint : styles.grantFailedTint,
+              ]}
+              accessibilityLiveRegion="polite"
+            >
+              {grantOutcome === "processing" ? t("ds.reward.creditProcessing") : t("ds.reward.creditFailed")}
             </RNText>
           ) : null}
 
@@ -314,6 +356,7 @@ const styles = StyleSheet.create({
   // Tint only - 색만 얹고 타이포는 rewardLine + 콜사이트의 역할이 준다.
   // (이 파일은 2026-09-07 에 readable 우회 4곳을 전부 비웠다. 기준선에서 빠졌다.)
   grantFailedTint: { color: deepSpace.warning },
+  grantProcessingTint: { color: deepSpace.accentSoft },
   // 읽는 글이라 얼굴·크기는 콜사이트에서 붙인다 - 얼어붙은 시트 안에서 부르면
   // 저시력 옵션이 모듈 초기화 시점에 박제된다(check:pixel-rules 규칙 4).
   rewardLine: {

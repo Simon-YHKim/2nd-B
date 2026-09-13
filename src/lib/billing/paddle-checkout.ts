@@ -9,14 +9,13 @@
 // a browser-only SDK, and the repo's free-tier promise means every new
 // dependency is a decision; a runtime <script> on web only is neither.
 //
-// The one contract that matters: the webhook resolves a purchase to a user
-// through `data.custom_data.user_id` (supabase/functions/paddle-webhook).
-// If this module stops sending customData.user_id, a payer stays 'free' with
-// no error anywhere - so paddle-checkout.test.ts pins it.
+// Ownership is bound server-side. The browser asks subscription-manage for a
+// short-lived HMAC object and passes that entire object as customData. The
+// webhook verifies it and never trusts a browser-selected user id.
 //
-// Config (all public - a Paddle client-side token is publishable, like the
-// Supabase anon key; the notification secret is the only real secret and it
-// lives in Supabase edge secrets, never here):
+// Config here is public - a Paddle client-side token is publishable, like the
+// Supabase anon key. Notification and checkout-binding secrets are server-only
+// Supabase Edge secrets and never belong in this module:
 //   EXPO_PUBLIC_PADDLE_CLIENT_TOKEN=live_...
 //   EXPO_PUBLIC_PADDLE_PRICE_CORTEX_MONTHLY=pri_...
 //   EXPO_PUBLIC_PADDLE_PRICE_CORTEX_YEARLY=pri_...
@@ -36,7 +35,7 @@ export type CheckoutCadence = "monthly" | "yearly";
 
 export type CheckoutResult =
   | { ok: true }
-  | { ok: false; reason: "unsupported_platform" | "not_configured" | "no_user" | "sdk_load_failed" | "open_failed" };
+  | { ok: false; reason: "unsupported_platform" | "not_configured" | "no_user" | "binding_failed" | "sdk_load_failed" | "open_failed" };
 
 const PADDLE_JS = "https://cdn.paddle.com/paddle/v2/paddle.js";
 
@@ -67,6 +66,32 @@ type PaddleGlobal = {
   Initialize: (opts: { token: string }) => void;
   Checkout: { open: (opts: unknown) => void };
 };
+
+interface PaddleCheckoutBindingData {
+  user_id: string;
+  issued_at: number;
+  nonce: string;
+  signature: string;
+}
+
+function checkoutBindingFor(value: unknown, expectedUserId: string): PaddleCheckoutBindingData | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const binding = value as Record<string, unknown>;
+  if (
+    binding.user_id !== expectedUserId
+    || !Number.isSafeInteger(binding.issued_at)
+    || typeof binding.nonce !== "string"
+    || !/^[0-9a-f]{32}$/.test(binding.nonce)
+    || typeof binding.signature !== "string"
+    || !/^[0-9a-f]{64}$/.test(binding.signature)
+  ) return null;
+  return {
+    user_id: binding.user_id as string,
+    issued_at: binding.issued_at as number,
+    nonce: binding.nonce,
+    signature: binding.signature,
+  };
+}
 
 let sdk: Promise<PaddleGlobal | null> | null = null;
 
@@ -134,9 +159,21 @@ export async function openPaddleCheckout(input: OpenCheckoutInput): Promise<Chec
 
   // The webhook keys the purchase off this id. No id, no grant - so refuse to
   // open a checkout that could take money we could never attribute.
-  const { data } = await getSupabaseClient().auth.getUser();
+  const client = getSupabaseClient();
+  const { data } = await client.auth.getUser();
   const userId = data?.user?.id;
   if (!userId) return { ok: false, reason: "no_user" };
+
+  let checkoutBinding: PaddleCheckoutBindingData | null = null;
+  try {
+    const { data: bindingData, error } = await client.functions.invoke("subscription-manage", {
+      body: { action: "checkout_binding" },
+    });
+    if (!error) checkoutBinding = checkoutBindingFor(bindingData, userId);
+  } catch {
+    checkoutBinding = null;
+  }
+  if (!checkoutBinding) return { ok: false, reason: "binding_failed" };
 
   const paddle = await loadPaddle(token);
   if (!paddle) return { ok: false, reason: "sdk_load_failed" };
@@ -144,7 +181,7 @@ export async function openPaddleCheckout(input: OpenCheckoutInput): Promise<Chec
   try {
     paddle.Checkout.open({
       items: [{ priceId, quantity: 1 }],
-      customData: { user_id: userId },
+      customData: checkoutBinding,
       customer: data?.user?.email ? { email: data.user.email } : undefined,
       settings: {
         locale: input.locale ?? "ko",

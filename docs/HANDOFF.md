@@ -1240,3 +1240,79 @@ CHANGELOG `[Unreleased]` 가 비어 있어 이번 문구 변경은 **어떤 빌�
 `E:/2ndB` 를 먼저 ff 한 뒤 재설치해야 한다. 설치본 소스에서 **패치 표식을 grep 해 판정하지 말 것**:
 그 패치는 ESM→CJS 전환뿐이고 옛 버전은 이미 CJS 라 안 걸린 설치도 정상처럼 보인다.
 볼 것은 설치본 `package.json` 의 version · 락파일 요구 버전 · **정본 체크아웃의 HEAD** 셋이다.
+
+---
+
+## 2026-09-13 — 보안 W1–W8 로컬 통합 인계
+
+### 결론과 소유 경계
+
+- 격리 브랜치 `fix/security-wave8-monetization-260913`에서 W1–W7은 아래 7개 커밋으로 고정했고,
+  W8은 이 절을 포함하는 후속 커밋 한 개로 고정한다. 기준은 `586abb25`다.
+- 이 라운드에서 운영 DB·Auth/Pages 콘솔·secret/flag·Edge 배포·광고 활성화 쓰기는 **0회**다.
+  서버 활성화와 운영 canary는 계속 console owner 소유다.
+- 사용자 작업본 `E:/2ndB/.worktrees/2ndB/TTL-Work`의 미커밋 변경은 수정·정리하지 않았다.
+- 로컬 소스 완료와 프로덕션 완료는 다르다. 아래 draft의 번호 예약, PR의 격리 DB 회귀,
+  운영 순차 적용과 postflight가 끝날 때까지 **프로덕션 보안 완료라고 주장하지 않는다.**
+
+| Wave | 로컬 커밋 | 범위 |
+|---|---|---|
+| W1 | `2c462a68` | 공급망, Actions SHA pin, 배포·자격증명 gate |
+| W2 | `21a33bc8` | 브라우저·정적 산출물·공개 경계 |
+| W3 | `d553f816` | 로컬 미디어와 임시 파일의 계정 귀속 |
+| W4 | `8f062176` | 인증 세션·복구·PKCE |
+| W5 | `d0872261` | 계정 삭제·내보내기·로컬 purge |
+| W6 | `ff6a2963` | 서버 데이터, OAuth, peer/RSS quota |
+| W7 | `0c05d407` | LLM 복원력, audit outbox, consent/vendor 경계 |
+| W8 | 이 절을 포함한 커밋 | Paddle 결제·환불·chargeback, Rewarded SSV |
+
+### W8에서 닫은 경계
+
+- **Paddle:** checkout 소유 binding, adjustment 상태 순서, adjustment 단위 consequence의 exactly-once,
+  ownerless tombstone, durable review queue, 구 Edge의 `eventId:consequence` 혼합 버전 손실을 막았다.
+  self-service API 응답과 webhook이 경쟁해도 서로 다른 `provider_ref`를 덮어쓰지 못한다.
+- **Rewarded SSV:** 클라이언트 자가지급을 제거하고 opaque ticket의 서버 원자 정산만 허용한다.
+  ticket 발급 제한, bounded retention, reasoning/chat 단일 지급자, live ad-unit 계약을 묶었다.
+  무작위 `key_id`는 verifier-key fetch 전에 exact ticket/계약 DB preflight에서 거절되고,
+  유효 ticket도 Google 원본+재시도 합계인 6회까지만 isolate 공통으로 시도할 수 있다.
+- **사용자 표시:** SSV 콜백 대기 상태를 실패와 구분한 `processing`으로 표시하며,
+  처리 중 또는 확인 불가 상태에는 중복 시청 CTA를 다시 열지 않는다.
+- 집중 회귀는 W8 변경 테스트 15 suites / 459 tests를 통과했다. TypeScript, 5개 언어
+  3,756키 패리티, DEFINER grant, workflow YAML, DB shell 구문 검사도 통과했다.
+  전체 `npm run verify`와 `npm run verify:web`의 최종 수치는 세션 상태 JSON과 Output 보고서를 따른다.
+
+### 번호 없는 DB draft 7개
+
+`db/migration-drafts/`의 아래 파일은 운영에 적용된 migration이 아니다.
+
+1. `UNNUMBERED_account_deletion_completion_fence.sql`
+2. `UNNUMBERED_effective_llm_consent_current_contract.sql`
+3. `UNNUMBERED_oauth_naver_rate_limit_completion.sql`
+4. `UNNUMBERED_paddle_refund_consequence_integrity.sql`
+5. `UNNUMBERED_peer_response_rate_limit.sql`
+6. `UNNUMBERED_reward_ssv_hardening.sql`
+7. `UNNUMBERED_rss_proxy_quota.sql`
+
+번호를 붙이기 직전에 remote migration을 다시 스캔하고, 예약 커밋을 즉시 push해야 한다.
+이 절의 파일명을 보고 번호를 추측하거나 로컬 예약만 남기지 않는다.
+
+### W8의 중단선과 순서
+
+1. PR에서 `supabase-dry-run` scratch PostgreSQL 회귀를 통과하기 전에는 두 draft를 운영 후보로 승인하지 않는다.
+   로컬의 `localhost:5432`는 소유·격리가 확인되지 않아 기능 SQL을 실행하지 않았다.
+2. **Paddle:** webhook OFF → in-flight 0 확인 → 번호 migration → 새 Edge → postflight → 제한 canary → ON.
+   checkout binding은 한 signer/two verifier 회전 절차를 지키며, 실패 시 DB down이 아니라 OFF 상태의
+   roll-forward를 사용한다. 상세 명령과 중단 조건은 `docs/SESSION-OWNERSHIP.md`가 정본이다.
+3. **Reward SSV:** `REWARD_SSV_ENABLED=0`과 client capability OFF → 번호 migration → 새 Edge →
+   contract/live unit 일치 확인 → 제한 canary → server 유지 또는 OFF roll-forward → client activation.
+   DB down migration은 금지한다.
+4. 로컬에 Deno CLI가 없어 `deno check`는 실행하지 않았다. 실제 Android/iOS live-unit QA와
+   운영 smoke/canary도 미실행이다.
+
+### 재고 증거
+
+- 최종 35행 처분 자료: `E:/2ndB/Output/260913_2ndB_security_disposition_manifest.json`
+- 두 원본은 branch key로 join해야 하며 배열 index로 묶으면 안 된다. 총 35 branch / 95 occurrence다.
+- 원본에 commit SHA가 없어 기존 `89 unique SHA` 주장은 재현하지 않는다. 현재 로컬 refs로 재구성한
+  tip-N 집합은 91 unique SHA다. `ratchet-up`의 빠진 non-merge는 reflog와 첫 부모에서 `2326445c`로
+  복구했고 현재 후보와 patch-equivalent임을 확인해, 35행 모두 처분 근거를 갖는다.

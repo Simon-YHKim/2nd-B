@@ -12,9 +12,9 @@ export interface RewardedResult {
 }
 
 export interface ShowRewardedAdOptions {
-  /** SSV customData (0091 contract): `${userId}` credits a reasoning reward,
-   *  `${userId}|chat` credits a chat +2 -- the rewarded-ssv edge function
-   *  routes on that suffix. Omitted = client-grant path only. */
+  /** local placement hint: `${userId}` requests a reasoning ticket and
+   *  `${userId}|chat` requests a chat ticket. The account id is authenticated
+   *  by the ticket issuer and is never forwarded as provider data. */
   ssvCustomData?: string;
   /** Dev builds only: force the EEA debug geography so the published GDPR
    *  consent form can be exercised from anywhere. No-op in production. */

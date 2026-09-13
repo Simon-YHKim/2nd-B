@@ -9,6 +9,8 @@
 
 jest.mock("../../supabase/client", () => ({ getSupabaseClient: jest.fn() }));
 
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { getSupabaseClient } from "../../supabase/client";
 import { ChatRewardCapReachedError, grantChatAdBonus } from "../usage";
 
@@ -33,6 +35,13 @@ afterEach(() => {
 });
 
 describe("grantChatAdBonus single-payer guard (SSV mode)", () => {
+  test("native adapter issues a ticket but never invokes a grant RPC", () => {
+    const native = readFileSync(path.resolve(__dirname, "../../ads/rewarded.native.ts"), "utf8");
+    expect(native).toContain('functions.invoke("rewarded-ssv"');
+    expect(native).not.toMatch(/\.rpc\(/);
+    expect(native).not.toMatch(/apply_ad_reward|grant_chat_ad_bonus|bump_reward_credits_if_under_cap/);
+  });
+
   test("SSV mode: never calls the client grant RPC, reports the current bonus", async () => {
     process.env.EXPO_PUBLIC_REWARD_SSV = "true";
     const { client, rpc, from } = clientWithRead({ count: 3, ad_bonus: 2 });

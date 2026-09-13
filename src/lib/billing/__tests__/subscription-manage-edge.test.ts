@@ -15,6 +15,10 @@ import { join } from "node:path";
 const ROOT = join(__dirname, "..", "..", "..", "..");
 const fn = readFileSync(join(ROOT, "supabase", "functions", "subscription-manage", "index.ts"), "utf8");
 const config = readFileSync(join(ROOT, "supabase", "config.toml"), "utf8");
+const limiterMigration = readFileSync(
+  join(ROOT, "db", "migrations", "0184_billing_self_service_rate_limit.sql"),
+  "utf8",
+);
 
 // Comments are stripped before keyword assertions so a comment that merely
 // MENTIONS a check cannot satisfy a test that requires the check in code.
@@ -25,23 +29,47 @@ describe("subscription-manage - auth boundary", () => {
     expect(config).toMatch(/\[functions\.subscription-manage\][\s\S]*?verify_jwt = true/);
   });
 
-  test("requires a real signed-in user, not merely a valid token", () => {
-    // The public anon key is itself a valid JWT; role must be checked in CODE
-    // (this is also what src/lib/safety/__tests__/edge-jwt-hardening.test.ts scans for).
+  test("treats JWT claims as hints and verifies the live session with Auth", () => {
     expect(code).toMatch(/role !== 'authenticated'/);
-    expect(code).toMatch(/'missing_authorization'/);
-    expect(code).toMatch(/'invalid_jwt'/);
+    expect(code).toMatch(/BEARER_JWT_PATTERN/);
+    expect(code).toMatch(/admin\.auth\.getUser\(accessToken\)/);
+    expect(code).toMatch(/verifiedUser\.id !== userIdHint/);
+    expect(code).toMatch(/authentication_required/);
+    expect(code).not.toMatch(/'missing_authorization'|'invalid_jwt'/);
   });
 
   test("the acting user comes from the JWT, never from the request body", () => {
-    expect(code).toMatch(/const userId = userIdFromJwt\(authHeader\)/);
+    expect(code).toMatch(/const userId = verifiedUser\.id/);
     expect(code).toMatch(/p_user_id: userId/);
     expect(code).not.toMatch(/body\.user_id/);
+  });
+
+  test("live verification precedes rate, eligibility, binding, and provider work", () => {
+    const liveAuthAt = code.indexOf("admin.auth.getUser(accessToken)");
+    const rateAt = code.indexOf("claim_billing_self_service_rate_limit");
+    const eligibilityAt = code.indexOf("rpc('refund_eligibility'");
+    const providerAt = code.lastIndexOf("await callPaddle");
+    expect(liveAuthAt).toBeGreaterThan(-1);
+    expect(rateAt).toBeGreaterThan(liveAuthAt);
+    expect(eligibilityAt).toBeGreaterThan(rateAt);
+    expect(providerAt).toBeGreaterThan(eligibilityAt);
   });
 
   test("non-POST and preflight are handled before any work", () => {
     expect(code).toMatch(/req\.method === 'OPTIONS'/);
     expect(code).toMatch(/'method_not_allowed'/);
+  });
+});
+
+describe("subscription-manage - bounded strict request body", () => {
+  test("uses the shared streaming body cap and rejects extra keys", () => {
+    expect(code).toMatch(/readJsonObject\(req, SUBSCRIPTION_MANAGE_JSON_BODY_LIMIT_BYTES\)/);
+    expect(code).toMatch(/Object\.keys\(value\)\.some\(\(key\) => !MANAGE_BODY_KEYS\.has\(key\)\)/);
+    expect(code).toMatch(/error: 'invalid_body'/);
+  });
+
+  test("effective_from is accepted only for cancel", () => {
+    expect(code).toMatch(/action !== 'cancel' && 'effective_from' in value/);
   });
 });
 
@@ -88,7 +116,7 @@ describe("subscription-manage - eligibility is re-derived server-side", () => {
     // The gate must sit BEFORE the claim, or the ledger holds a claim for an
     // action that can never succeed.
     const gateAt = code.indexOf("eligibility.tier === 'free'");
-    const claimAt = code.indexOf('claim_billing_self_service');
+    const claimAt = code.indexOf("rpc('claim_billing_self_service',");
     expect(gateAt).toBeGreaterThan(-1);
     expect(claimAt).toBeGreaterThan(gateAt);
   });
@@ -105,7 +133,7 @@ describe("subscription-manage - eligibility is re-derived server-side", () => {
 
 describe("subscription-manage - idempotency", () => {
   test("the ledger row is claimed BEFORE the provider call", () => {
-    const claimAt = code.indexOf("claim_billing_self_service");
+    const claimAt = code.indexOf("rpc('claim_billing_self_service',");
     const callAt = code.indexOf("callPaddle(");
     expect(claimAt).toBeGreaterThan(-1);
     expect(callAt).toBeGreaterThan(-1);
@@ -190,16 +218,35 @@ describe("subscription-manage - 0118 hardening", () => {
     expect(code).not.toMatch(/callPaddle\([^)]*,\s*claimId\)/);
   });
 
-  test("there is a per-user rate limit, and it fails closed", () => {
-    expect(code).toMatch(/from\('billing_self_service_log'\)/);
+  test("the per-user rate limit is one fail-closed atomic RPC", () => {
+    expect(code).toMatch(/rpc\(\s*'claim_billing_self_service_rate_limit'/);
+    expect(code).not.toMatch(/from\('billing_self_service_log'\)[\s\S]*?count: 'exact'/);
     expect(code).toMatch(/'too_many_requests'/);
     expect(code).toMatch(/429/);
     expect(code).toMatch(/'rate_check_unavailable'/);
+    expect(limiterMigration).toMatch(/CREATE OR REPLACE FUNCTION public\.claim_billing_self_service_rate_limit/);
+    expect(limiterMigration).toMatch(/FOR UPDATE/);
+    expect(limiterMigration).toMatch(/GRANT EXECUTE ON FUNCTION public\.claim_billing_self_service_rate_limit\(uuid\) TO service_role/);
   });
 
   test("DRYRUN while ENABLED is loud, because it must not survive the go-live flip", () => {
     expect(code).toMatch(/if \(enabled && dryRun\)/);
     expect(code).toMatch(/\[ALERT\] DRYRUN is set while the feature is ENABLED/);
+  });
+});
+
+describe("subscription-manage - checkout ownership binding", () => {
+  test("mints a server-only HMAC binding for the live verified user", () => {
+    expect(code).toMatch(/action === 'checkout_binding'/);
+    expect(code).toMatch(/Deno\.env\.get\('PADDLE_CHECKOUT_BINDING_SECRET'\)/);
+    expect(code).toMatch(/createCheckoutBinding\(bindingSecret, userId\)/);
+  });
+
+  test("the atomic allowance is consumed before a binding can be minted", () => {
+    const rateAt = code.indexOf("claim_billing_self_service_rate_limit");
+    const bindingAt = code.indexOf("if (action === 'checkout_binding')");
+    expect(rateAt).toBeGreaterThan(-1);
+    expect(bindingAt).toBeGreaterThan(rateAt);
   });
 });
 

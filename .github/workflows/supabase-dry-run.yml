@@ -4,7 +4,9 @@ on:
   pull_request:
     paths:
       - "db/migrations/**"
+      - "db/migration-drafts/**"
       - "db/tests/**"
+      - "scripts/check-reward-ssv-db.sh"
       - ".github/workflows/supabase-dry-run.yml"
 
 # Least privilege: this workflow only reads the repo (checkout + local tooling).
@@ -215,6 +217,97 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/peer_response_rate_limit_regression.sql
+      - name: Dry-run Paddle refund consequence draft
+        env:
+          PGPASSWORD: postgres
+        run: |
+          preflight_log="$(mktemp)"
+          if psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 >"$preflight_log" 2>&1 <<'SQL'
+          BEGIN;
+          \i db/tests/paddle_refund_duplicate_preflight_fixture.sql
+          \i db/migration-drafts/UNNUMBERED_paddle_refund_consequence_integrity.sql
+          ROLLBACK;
+          SQL
+          then
+            cat "$preflight_log"
+            echo "duplicate refund preflight unexpectedly succeeded" >&2
+            exit 1
+          fi
+          if ! grep -Fq "duplicate refund consequences already exist" "$preflight_log"; then
+            cat "$preflight_log"
+            echo "duplicate refund preflight failed for the wrong reason" >&2
+            exit 1
+          fi
+          rm -f "$preflight_log"
+
+          unmapped_log="$(mktemp)"
+          if psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 >"$unmapped_log" 2>&1 <<'SQL'
+          BEGIN;
+          \i db/tests/paddle_refund_duplicate_preflight_fixture.sql
+          DELETE FROM public.paddle_webhook_events
+           WHERE event_id = 'evt_ci_preflight_updated:consequence';
+          \i db/migration-drafts/UNNUMBERED_paddle_refund_consequence_integrity.sql
+          ROLLBACK;
+          SQL
+          then
+            cat "$unmapped_log"
+            echo "unmapped refund preflight unexpectedly succeeded" >&2
+            exit 1
+          fi
+          if ! grep -Fq "unmapped legacy refund consequence exists" "$unmapped_log"; then
+            cat "$unmapped_log"
+            echo "unmapped refund preflight failed for the wrong reason" >&2
+            exit 1
+          fi
+          rm -f "$unmapped_log"
+
+          mismatch_log="$(mktemp)"
+          if psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 >"$mismatch_log" 2>&1 <<'SQL'
+          BEGIN;
+          \i db/tests/paddle_refund_duplicate_preflight_fixture.sql
+          UPDATE public.paddle_webhook_events
+             SET paddle_transaction_id = 'txn_ci_preflight_wrong'
+           WHERE event_id = 'evt_ci_preflight_created:consequence';
+          \i db/migration-drafts/UNNUMBERED_paddle_refund_consequence_integrity.sql
+          ROLLBACK;
+          SQL
+          then
+            cat "$mismatch_log"
+            echo "mismatched refund preflight unexpectedly succeeded" >&2
+            exit 1
+          fi
+          if ! grep -Fq "refund consequence identity mismatch" "$mismatch_log"; then
+            cat "$mismatch_log"
+            echo "mismatched refund preflight failed for the wrong reason" >&2
+            exit 1
+          fi
+          rm -f "$mismatch_log"
+
+          psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 <<'SQL'
+          BEGIN;
+          \i db/tests/paddle_refund_duplicate_preflight_fixture.sql
+          DELETE FROM public.paddle_webhook_events
+           WHERE event_id = 'evt_ci_preflight_created:consequence';
+          \i db/migration-drafts/UNNUMBERED_paddle_refund_consequence_integrity.sql
+          DO $preflight_backfill$
+          BEGIN
+            IF (
+              SELECT refund_consequence_adjustment_id
+                FROM public.paddle_webhook_events
+               WHERE event_id = 'evt_ci_preflight_updated:consequence'
+            ) IS DISTINCT FROM 'adj_ci_preflight' THEN
+              RAISE EXCEPTION 'direct legacy consequence was not backfilled';
+            END IF;
+          END;
+          $preflight_backfill$;
+          \i db/tests/paddle_refund_consequence_regression.sql
+          ROLLBACK;
+          SQL
+      - name: Exercise rewarded SSV replay and concurrency
+        env:
+          PGPASSWORD: postgres
+          REWARD_SSV_DB_TEST: github-actions-only
+        run: bash scripts/check-reward-ssv-db.sh
       - name: Exercise verified-email consent ledger
         env:
           PGPASSWORD: postgres

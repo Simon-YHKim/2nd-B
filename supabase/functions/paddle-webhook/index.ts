@@ -16,7 +16,8 @@
 //      COMMA-SEPARATED list of that tier's price ids (monthly AND yearly - a tier
 //      has two). Then PADDLE_WEBHOOK_ENABLED=1 to turn it on. FAILS CLOSED until
 //      then. NEVER hardcode these - env only (repo constraint 4).
-//   4. At checkout, pass the Supabase user id in Paddle `customData.user_id`.
+//   4. At checkout, pass the complete subscription-manage HMAC binding as
+//      Paddle customData; never pass a browser-selected raw user id.
 // VALIDATION REQUIRED before enabling: replay the same event twice (must apply ONCE)
 // and send a tampered body (must be rejected 403). Dunning/grace on past_due is a
 // later unit - this handles the subscription core. Lifetime was retired 2026-07-29.
@@ -28,6 +29,7 @@
 // leaves that user on the "contact support" path by design.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { verifyCheckoutBindingWithSecrets } from '../_shared/paddle-checkout-binding.ts';
 import {
   JsonBodyError,
   PADDLE_WEBHOOK_BODY_LIMIT_BYTES,
@@ -48,21 +50,24 @@ interface PaddleEvent {
     transaction_id?: string;
     action?: string;
     status?: string;
+    type?: string | null;
     currency_code?: string;
-    custom_data?: { user_id?: string } | null;
+    custom_data?: unknown;
     items?: Array<{ price?: { id?: string }; type?: string }>;
     current_billing_period?: { ends_at?: string } | null;
     // Set while a cancellation is pending on an otherwise active subscription,
     // and cleared back to null if it is reversed. This is Paddle's answer to
     // "will this renew?", which [설정 -> 구독 관리] has to be able to state.
     scheduled_change?: { action?: string; effective_at?: string } | null;
-    // adjustment.* totals. `action` (refund | credit | chargeback), `status`
+    // adjustment.* totals. `action` includes refund, credit, chargeback,
+    // chargeback_warning, and their reversal actions; `status`
     // (pending_approval | approved | rejected | reversed) and `items` are
-    // declared above and shared with the subscription path; items[].type carries
-    // 'full' for a whole-transaction refund, which is what decides whether the
-    // entitlement is revoked. Read defensively: an unexpected payload records
-    // the money and leaves the tier alone rather than guessing.
-    totals?: { total?: string | number } | null;
+    // declared above and shared with the subscription path. The signed top-level
+    // type is authoritative. An item type has narrower scope: a partial
+    // transaction adjustment may fully refund one line item. Missing or
+    // impossible type evidence is routed to durable review without applying
+    // money or entitlement consequences.
+    totals?: { total?: string; currency_code?: string } | null;
     details?: { totals?: { grand_total?: string | number } } | null;
     payments?: Array<{
       status?: string;
@@ -81,8 +86,90 @@ const REFUND_ADJUSTMENT_STATUSES = new Set([
   'reversed',
 ]);
 
+// Paddle refunds the disputed amount for both a chargeback and an early
+// chargeback warning. They therefore take the same money/credit/entitlement
+// consequence rail as an approved refund. Reversal adjustments return money to
+// the seller and may require entitlement restoration; restoring automatically
+// from the reversal payload alone could overwrite a later subscription state,
+// so those events are durably queued for reconciliation instead.
+const MONEY_OUT_ADJUSTMENT_ACTIONS = new Set([
+  'refund',
+  'chargeback',
+  'chargeback_warning',
+]);
+const CHARGEBACK_REVERSAL_ACTIONS = new Set([
+  'chargeback_reverse',
+  'chargeback_warning_reverse',
+]);
+const REFUND_LIFECYCLE_RESULTS = new Set([
+  'applied',
+  'duplicate',
+  'stale',
+  'owner_missing_review',
+]);
+const REFUND_CONSEQUENCE_SUCCESS_RESULTS = new Set([
+  'duplicate',
+  'recorded',
+  'revoked',
+  'clawed_back',
+]);
+const REFUND_CONSEQUENCE_REVIEW_RESULTS = new Set([
+  'duplicate_review',
+  'legacy_consequence_review',
+  'pack_partial_review',
+  'pack_clawback_missed',
+  'entitlement_review',
+]);
+
+type PaddleRefundType = 'full' | 'partial';
+const PADDLE_ADJUSTMENT_ITEM_TYPES = new Set(['full', 'partial', 'tax', 'proration']);
+const PADDLE_ADJUSTMENT_CURRENCIES = new Set<string>([
+  'ARS', 'AUD', 'BRL', 'CAD', 'CHF', 'CLP', 'CNY', 'COP', 'CZK', 'DKK', 'EUR',
+  'GBP', 'HKD', 'HUF', 'ILS', 'INR', 'JPY', 'KRW', 'MXN', 'NOK', 'NZD', 'PEN',
+  'PLN', 'RUB', 'SEK', 'SGD', 'THB', 'TRY', 'TWD', 'UAH', 'USD', 'VND', 'ZAR',
+]);
+const POSTGRES_INTEGER_MAX = 2_147_483_647;
+
+function refundTypeOf(data: NonNullable<PaddleEvent['data']>): PaddleRefundType | null {
+  const topLevelType = data.type;
+  if (topLevelType !== 'full' && topLevelType !== 'partial') return null;
+  if (!Array.isArray(data.items) || data.items.length === 0) return null;
+  if (topLevelType === 'full' && !data.items.every((item) => item?.type === 'full')) return null;
+  if (topLevelType === 'partial'
+      && !data.items.every((item) => PADDLE_ADJUSTMENT_ITEM_TYPES.has(item?.type ?? ''))) return null;
+  return topLevelType;
+}
+
+function refundFinancialsOf(
+  data: NonNullable<PaddleEvent['data']>,
+): { amountCents: number; currency: string } | null {
+  const rawTotal = data.totals?.total;
+  const currency = data.currency_code;
+  const totalsCurrency = data.totals?.currency_code;
+  if (typeof rawTotal !== 'string' || !/^[0-9]+$/.test(rawTotal)) return null;
+
+  const amountCents = Number(rawTotal);
+  if (!Number.isSafeInteger(amountCents)
+      || amountCents <= 0
+      || amountCents > POSTGRES_INTEGER_MAX) return null;
+  if (typeof currency !== 'string'
+      || currency !== totalsCurrency
+      || !PADDLE_ADJUSTMENT_CURRENCIES.has(currency)) return null;
+
+  return { amountCents, currency };
+}
+
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+}
+
+function refundAlert(code: string, eventId: string, adjustmentId: string): void {
+  // Paddle opaque ids are safe correlation handles. Never log provider error
+  // messages here: they may echo payload or customer data.
+  console.error(
+    `[paddle-webhook][ALERT] ${code}`,
+    JSON.stringify({ event: eventId, adjustment: adjustmentId }),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -195,19 +282,25 @@ async function hmacSha256Hex(
   return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Paddle-Signature header: "ts=1700000000;h1=<hex hmac>".
-function parsePaddleSignature(header: string): { ts: string | null; h1: string | null } {
+// Paddle-Signature contains at least one h1. During secret rotation Paddle may
+// send more than one, and any signature matching this destination is valid.
+function parsePaddleSignature(header: string): { ts: string | null; h1s: string[] } {
   let ts: string | null = null;
-  let h1: string | null = null;
+  let tsCount = 0;
+  const h1s: string[] = [];
   for (const part of header.split(';')) {
     const eq = part.indexOf('=');
     if (eq < 0) continue;
     const k = part.slice(0, eq);
     const v = part.slice(eq + 1);
-    if (k === 'ts') ts = v;
-    else if (k === 'h1') h1 = v;
+    if (k === 'ts') {
+      ts = v;
+      tsCount += 1;
+    } else if (k === 'h1' && v) {
+      h1s.push(v);
+    }
   }
-  return { ts, h1 };
+  return { ts: tsCount === 1 ? ts : null, h1s };
 }
 
 // Paddle price id -> DB tier ('cortex' | 'brain'), configured via env.
@@ -238,6 +331,72 @@ function priceToTier(priceId: string | undefined): string | null {
   return map[priceId] ?? null;
 }
 
+const PADDLE_OWNER_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UTC_DEADLINE_RE = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,3}))?Z$/;
+
+interface OwnerAnchorResult {
+  userId: string | null;
+  error: 'invalid_owner_anchor' | null;
+}
+
+interface PaddleWebhookOwnerResolution {
+  userId: string | null;
+  error: 'ambiguous_owner_anchor' | 'owner_binding_mismatch' | null;
+}
+
+function resolvePaddleWebhookOwner(
+  signedUserId: string | null,
+  anchoredUserId: string | null,
+  hasDifferentOwner: boolean,
+): PaddleWebhookOwnerResolution {
+  if (hasDifferentOwner) return { userId: null, error: 'ambiguous_owner_anchor' };
+  if (signedUserId && anchoredUserId && signedUserId !== anchoredUserId) {
+    return { userId: null, error: 'owner_binding_mismatch' };
+  }
+  return { userId: signedUserId ?? anchoredUserId ?? null, error: null };
+}
+
+function ownerIdFromAnchorRows(rows: unknown): OwnerAnchorResult {
+  if (!Array.isArray(rows) || rows.length > 1) {
+    return { userId: null, error: 'invalid_owner_anchor' };
+  }
+  if (rows.length === 0) return { userId: null, error: null };
+  const row = rows[0];
+  if (
+    row === null
+    || typeof row !== 'object'
+    || Array.isArray(row)
+    || typeof (row as Record<string, unknown>).user_id !== 'string'
+    || !PADDLE_OWNER_UUID_RE.test((row as Record<string, unknown>).user_id as string)
+  ) return { userId: null, error: 'invalid_owner_anchor' };
+  return { userId: (row as Record<string, string>).user_id, error: null };
+}
+
+function previousBindingSecretForVerification(
+  secret: string,
+  expiresAt: string,
+  nowMs = Date.now(),
+): string | null {
+  if (secret.length < 32 || !Number.isSafeInteger(nowMs)) return null;
+
+  const value = expiresAt.trim();
+  let deadlineMs: number;
+  if (/^\d{10}$/.test(value)) {
+    deadlineMs = Number(value) * 1000;
+  } else {
+    const match = UTC_DEADLINE_RE.exec(value);
+    if (!match) return null;
+    deadlineMs = Date.parse(value);
+    if (!Number.isFinite(deadlineMs)) return null;
+    const normalized = `${match[1]}.${(match[2] ?? '').padEnd(3, '0')}Z`;
+    // Date.parse normalizes impossible dates such as February 30. Requiring the
+    // canonical round-trip makes the configured UTC deadline unambiguous.
+    if (new Date(deadlineMs).toISOString() !== normalized) return null;
+  }
+
+  return Number.isFinite(deadlineMs) && deadlineMs > nowMs ? secret : null;
+}
+
 Deno.serve(async (req: Request) => {
   // FAIL CLOSED until explicitly enabled + validated.
   if (Deno.env.get('PADDLE_WEBHOOK_ENABLED') !== '1') return json({ error: 'disabled' }, 503);
@@ -258,8 +417,8 @@ Deno.serve(async (req: Request) => {
 
   try {
     const rawBytes = await readBodyBytes(req, PADDLE_WEBHOOK_BODY_LIMIT_BYTES);
-    const { ts, h1 } = parsePaddleSignature(req.headers.get('Paddle-Signature') ?? '');
-    if (!ts || !h1) return json({ error: 'bad_signature' }, 403);
+    const { ts, h1s } = parsePaddleSignature(req.headers.get('Paddle-Signature') ?? '');
+    if (!ts || h1s.length === 0) return json({ error: 'bad_signature' }, 403);
 
     // Replay window: reject signatures more than 5 minutes off.
     const skewSec = Math.abs(Date.now() / 1000 - Number(ts));
@@ -268,7 +427,9 @@ Deno.serve(async (req: Request) => {
     // Paddle signs `${ts}:` + the raw request bytes with the notification
     // secret (HMAC-SHA256).
     const expected = await hmacSha256Hex(secret, ts, rawBytes);
-    if (!timingSafeEqualHex(expected, h1)) return json({ error: 'bad_signature' }, 403);
+    if (!h1s.some((h1) => timingSafeEqualHex(expected, h1))) {
+      return json({ error: 'bad_signature' }, 403);
+    }
 
     // Decode only after the bytes are authenticated.
     const raw = new TextDecoder('utf-8', { fatal: true }).decode(rawBytes);
@@ -278,7 +439,6 @@ Deno.serve(async (req: Request) => {
     const eventType = event.event_type ?? 'unknown';
     const data = event.data ?? {};
     const occurredAt = event.occurred_at ?? null;
-    const userId = data.custom_data?.user_id ?? null;
     const firstPriceId = data.items?.[0]?.price?.id;
 
     // ── adjustment.* ───────────────────────────────────────────────────────
@@ -306,11 +466,38 @@ Deno.serve(async (req: Request) => {
 
     const isAdjustmentEvent = eventType === 'adjustment.created' || eventType === 'adjustment.updated';
     if (isAdjustmentEvent) {
-      if (data.action !== 'refund') return json({ ok: true, ignored: 'non_refund_adjustment' });
-
+      const adjustmentAction = typeof data.action === 'string' ? data.action : '';
       const adjustmentId = typeof data.id === 'string' ? data.id.trim() : '';
       const adjustmentTransactionId = typeof data.transaction_id === 'string' ? data.transaction_id.trim() : '';
       const adjustmentStatus = typeof data.status === 'string' ? data.status : '';
+
+      if (CHARGEBACK_REVERSAL_ACTIONS.has(adjustmentAction)) {
+        if (!adjustmentId || !adjustmentTransactionId) {
+          return json({ error: 'invalid_refund_adjustment' }, 400);
+        }
+        refundAlert('chargeback_reversal_review', eventId, adjustmentId);
+        const { error: reversalRecordError } = await admin.rpc('record_paddle_adjustment_review', {
+          p_event_id: eventId,
+          p_event_type: eventType,
+          p_adjustment_id: adjustmentId,
+          p_transaction_id: adjustmentTransactionId,
+          p_subscription_id: data.subscription_id ?? null,
+          p_adjustment_action: adjustmentAction,
+          p_adjustment_status: adjustmentStatus,
+          p_occurred_at: occurredAt,
+          p_review_reason: 'chargeback_reversal',
+          p_payload: event,
+        });
+        if (reversalRecordError) {
+          refundAlert('chargeback_reversal_record_failed', eventId, adjustmentId);
+          return json({ error: 'chargeback_reversal_record_failed' }, 500);
+        }
+        return json({ ok: true, review: 'chargeback_reversal' });
+      }
+
+      if (!MONEY_OUT_ADJUSTMENT_ACTIONS.has(adjustmentAction)) {
+        return json({ ok: true, ignored: 'non_refund_adjustment' });
+      }
 
       // No id means nothing to address. A refund must never be attributed to a
       // guessed payment, so this one stays a 400 and lets Paddle retry.
@@ -356,38 +543,210 @@ Deno.serve(async (req: Request) => {
         p_occurred_at: occurredAt,
       });
       if (error) {
-        console.error('[paddle-webhook] refund adjustment apply failed:', error.message);
+        refundAlert('refund_adjustment_record_failed', eventId, adjustmentId);
         return json({ error: 'refund_adjustment_apply_failed' }, 500);
+      }
+      if (typeof result !== 'string' || !REFUND_LIFECYCLE_RESULTS.has(result)) {
+        const { error: reviewError } = await admin.rpc('set_paddle_refund_review', {
+          p_event_id: eventId,
+          p_needs_review: true,
+        });
+        refundAlert('refund_adjustment_result_invalid', eventId, adjustmentId);
+        if (reviewError) refundAlert('refund_review_mark_failed', eventId, adjustmentId);
+        return json({ error: 'refund_adjustment_result_invalid' }, 500);
+      }
+
+      // The recorder owns lifecycle ordering. A stale source is already durable
+      // and review-marked; running a consequence from its older signed payload
+      // would re-open the exact ordering race the recorder just closed.
+      if (result === 'stale') {
+        refundAlert('stale_adjustment', eventId, adjustmentId);
+        return json({ ok: true, result, applied: null, review: 'stale_adjustment' });
+      }
+
+      // A reversed money-out adjustment means Paddle returned the disputed or
+      // refunded amount to the seller. The original consequence may already
+      // have revoked access, but a later renewal/provider can now own the user
+      // row. Queue an operator decision instead of blindly restoring a tier.
+      if (adjustmentStatus === 'reversed') {
+        const { error: reviewError } = await admin.rpc('record_paddle_adjustment_review', {
+          p_event_id: eventId,
+          p_event_type: eventType,
+          p_adjustment_id: adjustmentId,
+          p_transaction_id: adjustmentTransactionId,
+          p_subscription_id: data.subscription_id ?? null,
+          p_adjustment_action: adjustmentAction,
+          p_adjustment_status: adjustmentStatus,
+          p_occurred_at: occurredAt,
+          p_review_reason: 'reversed_adjustment',
+          p_payload: event,
+        });
+        if (reviewError) {
+          refundAlert('reversed_adjustment_review_mark_failed', eventId, adjustmentId);
+          return json({ error: 'refund_consequence_failed' }, 503);
+        }
+        refundAlert('reversed_adjustment_review', eventId, adjustmentId);
+        return json({ ok: true, result, applied: null, review: 'reversed_adjustment' });
       }
 
       let applied: unknown = null;
       if (adjustmentStatus === 'approved') {
-        const rawTotal = data.totals?.total;
-        const cents = rawTotal != null ? parseInt(String(rawTotal), 10) : NaN;
-        // Either signal is sufficient; the RPC also treats a matching accepted
-        // self-serve request as full, since we only ever submit type:'full'.
-        const isFull = (data.items ?? []).some((i) => i?.type === 'full');
+        // Keep retrying an approved ownerless fact until transaction.completed
+        // supplies the cryptographic billing owner. The source event is already
+        // durable, but no money or entitlement consequence may be guessed.
+        if (result === 'owner_missing_review') {
+          refundAlert('refund_owner_pending', eventId, adjustmentId);
+          return json({ error: 'refund_owner_pending' }, 503);
+        }
+
+        const refundType = refundTypeOf(data);
+        if (refundType === null) {
+          const { error: reviewError } = await admin.rpc('record_paddle_adjustment_review', {
+            p_event_id: eventId,
+            p_event_type: eventType,
+            p_adjustment_id: adjustmentId,
+            p_transaction_id: adjustmentTransactionId,
+            p_subscription_id: data.subscription_id ?? null,
+            p_adjustment_action: adjustmentAction,
+            p_adjustment_status: adjustmentStatus,
+            p_occurred_at: occurredAt,
+            p_review_reason: 'ambiguous_refund_type',
+            p_payload: event,
+          });
+          if (reviewError) {
+            refundAlert('refund_review_mark_failed', eventId, adjustmentId);
+            return json({ error: 'refund_consequence_failed' }, 503);
+          }
+          refundAlert('ambiguous_refund_type', eventId, adjustmentId);
+          return json({ ok: true, result, applied, review: 'ambiguous_refund_type' });
+        }
+
+        const financials = refundFinancialsOf(data);
+        if (financials === null) {
+          const { error: reviewError } = await admin.rpc('record_paddle_adjustment_review', {
+            p_event_id: eventId,
+            p_event_type: eventType,
+            p_adjustment_id: adjustmentId,
+            p_transaction_id: adjustmentTransactionId,
+            p_subscription_id: data.subscription_id ?? null,
+            p_adjustment_action: adjustmentAction,
+            p_adjustment_status: adjustmentStatus,
+            p_occurred_at: occurredAt,
+            p_review_reason: 'invalid_refund_financials',
+            p_payload: event,
+          });
+          if (reviewError) {
+            refundAlert('refund_review_mark_failed', eventId, adjustmentId);
+            return json({ error: 'refund_consequence_failed' }, 503);
+          }
+          refundAlert('invalid_refund_financials', eventId, adjustmentId);
+          return json({ ok: true, result, applied, review: 'invalid_refund_financials' });
+        }
+
         const { data: applyResult, error: applyError } = await admin.rpc('apply_billing_refund', {
-          p_event_id: `${eventId}:consequence`,
+          // SQL compares this exact source identity with the locked current
+          // lifecycle row, then derives the one adjustment-scoped consequence
+          // key internally. This closes the record/apply inter-RPC race.
+          p_event_id: eventId,
           p_event_type: eventType,
           p_adjustment_id: adjustmentId,
           p_transaction_id: adjustmentTransactionId,
           p_subscription_id: data.subscription_id ?? null,
           p_occurred_at: occurredAt,
-          p_amount_cents: Number.isFinite(cents) ? cents : null,
-          p_currency: data.currency_code ?? null,
-          p_is_full: isFull,
+          p_amount_cents: financials.amountCents,
+          p_currency: financials.currency,
+          p_is_full: refundType === 'full',
         });
         if (applyError) {
-          // Loud, but not fatal: the ledger above already recorded the approval,
-          // so an operator can see the refund and reconcile the tier by hand.
-          console.error('[paddle-webhook][ALERT] refund consequence failed:', applyError.message);
-        } else {
-          applied = applyResult;
+          const { error: reviewError } = await admin.rpc('set_paddle_refund_review', {
+            p_event_id: eventId,
+            p_needs_review: true,
+          });
+          refundAlert('refund_consequence_failed', eventId, adjustmentId);
+          if (reviewError) refundAlert('refund_review_mark_failed', eventId, adjustmentId);
+          // The lifecycle fact was committed above and the source event is now
+          // in the review queue. A non-2xx response makes Paddle redeliver; the
+          // consequence RPC's event-id claim makes both a real retry and an
+          // already-committed/lost-response retry safe.
+          return json({ error: 'refund_consequence_failed' }, 503);
         }
+
+        if (applyResult === 'stale_consequence_review') {
+          // A newer lifecycle event won after the recorder RPC committed. The
+          // consequence RPC marks this source in the same transaction and moves
+          // no money or entitlement, so acknowledging stops a permanent retry.
+          refundAlert('stale_consequence', eventId, adjustmentId);
+          return json({
+            ok: true,
+            result,
+            applied: applyResult,
+            review: 'stale_adjustment',
+          });
+        }
+
+        if (applyResult === 'adjustment_not_approved_review') {
+          refundAlert('adjustment_not_approved', eventId, adjustmentId);
+          return json({
+            ok: true,
+            result,
+            applied: applyResult,
+            review: 'adjustment_not_approved',
+          });
+        }
+
+        if (typeof applyResult === 'string' && REFUND_CONSEQUENCE_REVIEW_RESULTS.has(applyResult)) {
+          refundAlert(applyResult, eventId, adjustmentId);
+          return json({
+            ok: true,
+            result,
+            applied: applyResult,
+            review: applyResult,
+          });
+        }
+
+        if (typeof applyResult !== 'string' || !REFUND_CONSEQUENCE_SUCCESS_RESULTS.has(applyResult)) {
+          const { error: reviewError } = await admin.rpc('set_paddle_refund_review', {
+            p_event_id: eventId,
+            p_needs_review: true,
+          });
+          refundAlert('refund_consequence_result_invalid', eventId, adjustmentId);
+          if (reviewError) refundAlert('refund_review_mark_failed', eventId, adjustmentId);
+          return json({ error: 'refund_consequence_result_invalid' }, 503);
+        }
+
+        const { error: clearReviewError } = await admin.rpc('set_paddle_refund_review', {
+          p_event_id: eventId,
+          p_needs_review: false,
+        });
+        if (clearReviewError) {
+          refundAlert('refund_review_clear_failed', eventId, adjustmentId);
+          return json({ error: 'refund_consequence_failed' }, 503);
+        }
+        applied = applyResult;
       }
       return json({ ok: true, result, applied });
     }
+
+    // RELEASE HOLD: provision the same current secret in subscription-manage,
+    // publish the binding-aware web client with a new Paddle client token,
+    // revoke the legacy token, and reconcile open legacy checkouts before this
+    // strict verifier is deployed. Unsigned browser-selected user ids are never
+    // trusted by this code path.
+    const bindingSecret = Deno.env.get('PADDLE_CHECKOUT_BINDING_SECRET') ?? '';
+    if (bindingSecret.length < 32) return json({ error: 'misconfigured_checkout_binding' }, 503);
+    const previousBindingSecret = Deno.env.get('PADDLE_CHECKOUT_BINDING_SECRET_PREVIOUS') ?? '';
+    const previousBindingExpiresAt =
+      Deno.env.get('PADDLE_CHECKOUT_BINDING_SECRET_PREVIOUS_EXPIRES_AT') ?? '';
+    const acceptedPreviousBindingSecret = previousBindingSecretForVerification(
+      previousBindingSecret,
+      previousBindingExpiresAt,
+    );
+    const bindingSecrets = [bindingSecret];
+    if (acceptedPreviousBindingSecret) bindingSecrets.push(acceptedPreviousBindingSecret);
+    if (previousBindingSecret && !acceptedPreviousBindingSecret) {
+      console.error('[paddle-webhook][ALERT] previous_checkout_binding_secret_ignored');
+    }
+    const signedUserId = await verifyCheckoutBindingWithSecrets(data.custom_data, bindingSecrets);
 
     // Paddle object identity (0115). On subscription.* the event's own object IS
     // the subscription; on transaction.* it is the transaction and the
@@ -442,11 +801,96 @@ Deno.serve(async (req: Request) => {
       return json({ ok: true, ignored: eventType });
     }
 
-    // A tier change still needs an owner, but since 0115 the RPC can recover one
-    // from an earlier event on the same subscription - so only drop the event
-    // when there is no route to an owner at all. Renewal transactions in
-    // particular do not reliably carry checkout custom_data.
-    if (tier !== null && !userId && !subscriptionId) return json({ ok: true, ignored: 'no_user' });
+    // Fetch one deterministic owner, then ask whether any DIFFERENT owner exists.
+    // This stays bounded without mistaking a long same-owner history for a
+    // conflict. Renewals whose checkout binding has expired use that DB anchor.
+    let anchoredUserId: string | null = null;
+    let hasDifferentOwner = false;
+    if (subscriptionId) {
+      const { data: ownerAnchors, error: ownerAnchorError } = await admin
+        .from('paddle_webhook_events')
+        .select('user_id')
+        .eq('paddle_subscription_id', subscriptionId)
+        .eq('provider', 'paddle')
+        .not('user_id', 'is', null)
+        .order('occurred_at', { ascending: false, nullsFirst: false })
+        .order('processed_at', { ascending: false, nullsFirst: false })
+        .order('event_id', { ascending: false })
+        .limit(1);
+      if (ownerAnchorError) {
+        console.error(
+          '[paddle-webhook][ALERT] owner_anchor_check_failed',
+          JSON.stringify({ event: eventId }),
+        );
+        return json({ error: 'owner_anchor_check_failed' }, 503);
+      }
+      const anchorResult = ownerIdFromAnchorRows(ownerAnchors);
+      if (anchorResult.error) {
+        console.error(
+          '[paddle-webhook][ALERT] owner_resolution_failed',
+          JSON.stringify({ event: eventId, reason: anchorResult.error }),
+        );
+        return json({ error: 'ambiguous_owner_anchor' }, 409);
+      }
+      anchoredUserId = anchorResult.userId;
+
+      const comparisonOwnerId = anchoredUserId ?? signedUserId;
+      if (comparisonOwnerId) {
+        const { data: ownerConflicts, error: ownerConflictError } = await admin
+          .from('paddle_webhook_events')
+          .select('user_id')
+          .eq('paddle_subscription_id', subscriptionId)
+          .eq('provider', 'paddle')
+          .not('user_id', 'is', null)
+          .neq('user_id', comparisonOwnerId)
+          .limit(1);
+        if (ownerConflictError) {
+          console.error(
+            '[paddle-webhook][ALERT] owner_anchor_check_failed',
+            JSON.stringify({ event: eventId }),
+          );
+          return json({ error: 'owner_anchor_check_failed' }, 503);
+        }
+        const conflictResult = ownerIdFromAnchorRows(ownerConflicts);
+        if (conflictResult.error) {
+          console.error(
+            '[paddle-webhook][ALERT] owner_resolution_failed',
+            JSON.stringify({ event: eventId, reason: conflictResult.error }),
+          );
+          return json({ error: 'ambiguous_owner_anchor' }, 409);
+        }
+        hasDifferentOwner = conflictResult.userId !== null;
+      }
+    }
+    const ownerResolution = resolvePaddleWebhookOwner(
+      signedUserId,
+      anchoredUserId,
+      hasDifferentOwner,
+    );
+    if (ownerResolution.error) {
+      console.error(
+        '[paddle-webhook][ALERT] owner_resolution_failed',
+        JSON.stringify({ event: eventId, reason: ownerResolution.error }),
+      );
+      return json({ error: ownerResolution.error }, 409);
+    }
+    const resolvedUserId = ownerResolution.userId;
+    if (!resolvedUserId) {
+      if (data.custom_data !== undefined && data.custom_data !== null) {
+        console.error(
+          '[paddle-webhook][ALERT] invalid_checkout_binding',
+          JSON.stringify({ event: eventId }),
+        );
+      }
+      // A non-2xx response lets Paddle retry after an out-of-order owner event
+      // arrives or an operator reconciles the charge.
+      console.error(
+        '[paddle-webhook][ALERT] unattributed_subscription',
+        JSON.stringify({ event: eventId }),
+      );
+      return json({ error: 'unattributed_subscription' }, 409);
+    }
+
     // 0118: a subscription event that changes no tier is still RECORDED, where
     // it used to return no_op and leave no trace at all. Two things were
     // invisible because of that: a past_due / payment-failure period, during
@@ -459,14 +903,10 @@ Deno.serve(async (req: Request) => {
     if (tier === null && amountCents === null && !isSubscriptionLifecycle) {
       return json({ ok: true, ignored: 'no_op' });
     }
-    if (tier === null && amountCents === null && !userId && !subscriptionId) {
-      return json({ ok: true, ignored: 'no_op' });
-    }
-
     const { data: result, error } = await admin.rpc('apply_billing_event', {
       p_event_id: eventId,
       p_event_type: eventType,
-      p_user_id: userId,
+      p_user_id: resolvedUserId,
       p_tier: tier,
       p_expires_at: expiresAt,
       p_provider: 'paddle',
