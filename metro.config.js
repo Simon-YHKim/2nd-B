@@ -53,4 +53,13 @@ config.resolver.blockList = [
   /\.(test|spec)\.[jt]sx?$/,
 ];
 
+// Deterministic module ids: two builds of the same commit must produce the same
+// bytes, or the web publish gate cannot compare an approved digest against what
+// it just built. The default factory numbers modules by the order the graph
+// reached them, which shifts between builds. See metro-module-id.js for the
+// measurement that found this and why the id is keyed on the relative path.
+const { createDeterministicModuleIdFactory } = require("./metro-module-id");
+config.serializer = config.serializer ?? {};
+config.serializer.createModuleIdFactory = createDeterministicModuleIdFactory(__dirname);
+
 module.exports = config;
