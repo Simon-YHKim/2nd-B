@@ -20,11 +20,8 @@ import {
 import { subscribeRecoveryStorageEvent } from "./recovery-storage-events";
 import { nextRecoveryProof } from "./reset-password-helpers";
 import {
-  clearRecoveryProof,
-  clearRecoveryPending,
-  captureRecoveryPendingLease,
-  createRecoveryProof,
-  applyRecoveryPendingStorageValue,
+  clearRecoveryProof, clearRecoveryPending, captureRecoveryPendingLease,
+  createRecoveryProof, applyRecoveryPendingStorageValue,
   isRecoveryPendingStorageKey,
   isRecoveryPendingInMemory,
   isRecoveryPendingLeaseCurrent,
@@ -35,8 +32,7 @@ import {
   RECOVERY_PROOF_KEY,
   subscribeRecoveryPending,
   recoveryProofMatchesSession,
-  type RecoveryProof,
-  type RecoveryPendingLease,
+  type RecoveryProof, type RecoveryPendingLease,
   type RecoverySessionIdentity,
 } from "./recovery-proof-store";
 
@@ -82,10 +78,7 @@ interface AuthContextValue extends AuthState {
   /** Provisional lock written before a recovery auth mutation starts. */
   recoveryPendingGlobal: boolean;
   /** Register a recovery session proven by a native callback/OTP response. */
-  activateRecoverySession: (
-    identity: RecoverySessionIdentity,
-    pendingLease: RecoveryPendingLease,
-  ) => Promise<void>;
+  activateRecoverySession: (identity: RecoverySessionIdentity, pendingLease: RecoveryPendingLease) => Promise<void>;
   /** Clear recovery mode only if the caller still owns the same proof. */
   completeRecovery: (expectedUserId?: string, expectedSessionId?: string) => Promise<void>;
   /** Re-probe the current session's profile. Call after changing data that
