@@ -66,9 +66,16 @@ export function profileGate(snapshot: ProfileGateSnapshot): ProfileGate {
  */
 export const PROFILE_GATE_EXEMPT_SEGMENTS: readonly string[] = ["(auth)", "onboarding"];
 
+/** 라우트가 화면 대신 그릴 것. `"none"` 이면 화면을 그대로 그린다. */
+export type ProfileRouteHold = "none" | "loading" | "retry";
+
 /**
- * 이 라우트의 화면 대신 공용 다시 시도를 그려야 하는가. 프로브가 실패한(모름) 동안의
- * 라우트 층 판정이다.
+ * 이 라우트의 화면을 그려도 되는가, 아니면 무엇으로 붙들어야 하는가. 라우트 층의 프로필 판정이다.
+ *
+ * - `"retry"`: 프로브가 실패했다(모름). 공용 다시 시도(ProfileProbeRetryScreen)를 그린다.
+ * - `"loading"`: 로그인된 사용자의 프로필 답을 아직 기다린다(`auth-loading` · `profile-loading`).
+ *   로더를 그린다. 답이 오면 원래 화면이 그려진다.
+ * - `"none"`: 화면을 그대로 그린다.
  *
  * 화면마다 profileGate 를 받게 하는 것만으로는 모자랐다. 실패 화면의 도크가 /records ·
  * /settings · /import-hub 처럼 userId 만 보는 화면으로 이어졌고, 전역 C10 리다이렉트는 서버가
@@ -76,15 +83,33 @@ export const PROFILE_GATE_EXEMPT_SEGMENTS: readonly string[] = ["(auth)", "onboa
  * 않은 세션이 기능 화면에 들어갔다(vibe r260914 게이트 발견). 그래서 판정을 라우트 층으로
  * 올렸다. IntroGate 가 트리 전체를, ThemedStack 의 ProfileProbeScope 가 장면 하나하나를 붙든다.
  *
+ * 처음에는 실패만 붙들었다(#1811). 그런데 첫 프로브 전의 게시(`loading: true` · `hasProfile: null`)도
+ * 답이 없기는 같아서, 인트로를 이미 본 탭에서 로그인 세션을 복원하며 /records 를 열면 IntroGate 가
+ * 자식을 그렸고 Records 가 판정 전에 본인 기록을 읽었다(생성물 재게이트 r3a2). 그래서 기다림도
+ * 붙든다. 다만 실패와 한 갈래로 묶지 않는다(위 profileGate 주석). 기다림은 로더, 실패는 다시 시도다.
+ *
+ * 세션 주인이 없으면(`userId` 없음) 붙들지 않는다. 주인이 없는 세션에는 판정할 프로필이 없다.
+ * 부팅 대기는 IntroGate 의 recoveryReady 로더가 먼저 받고, 로그아웃은 로그인 화면으로 가야 한다.
+ * 이 둘까지 붙들면 부팅 경로(#1626 · #1646)와 로그인 착지가 함께 바뀐다.
+ *
  * `routeSegment` 는 첫 경로 조각이다. IntroGate 는 `useSegments()[0]`("/" 는 undefined)을,
  * 장면은 라우트 이름의 첫 조각("index" · "records" · "(auth)")을 넘긴다.
  */
-export function profileProbeHoldsRoute(
+export function profileRouteHold(
   snapshot: ProfileGateSnapshot,
   routeSegment: string | undefined,
-): boolean {
-  if (routeSegment !== undefined && PROFILE_GATE_EXEMPT_SEGMENTS.includes(routeSegment)) return false;
-  return profileGate(snapshot) === "profile-error";
+): ProfileRouteHold {
+  if (routeSegment !== undefined && PROFILE_GATE_EXEMPT_SEGMENTS.includes(routeSegment)) return "none";
+  if (!snapshot.userId) return "none";
+  switch (profileGate(snapshot)) {
+    case "profile-error":
+      return "retry";
+    case "auth-loading":
+    case "profile-loading":
+      return "loading";
+    default:
+      return "none";
+  }
 }
 
 // ── 시계 차이 자동 재시도 ───────────────────────────────────────────────────

@@ -43,7 +43,7 @@ import { AuthProvider, useAuth } from "@/lib/auth/AuthContext";
 import { beginAccountSessionLease } from "@/lib/auth/account-session-lease";
 import { armWebRecoveryPendingFromLocation } from "@/lib/auth/recovery-proof-store";
 import { requiresGuardianConsent, resolveJurisdiction } from "@/lib/auth/consent-age";
-import { profileProbeHoldsRoute } from "@/lib/auth/profile-probe";
+import { profileRouteHold } from "@/lib/auth/profile-probe";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { flushAuditWriteOutbox } from "@/lib/llm/audit-write-outbox";
 import { ageInYears } from "@/lib/supabase/auth";
@@ -328,13 +328,14 @@ function AccountScope({
 }
 
 /**
- * Per-scene half of the profile-probe hold; IntroGate holds the whole tree.
+ * Per-scene half of the profile hold; IntroGate holds the whole tree.
  * IntroGate reads the route from the router store, and the store only learns of
  * a navigation after the navigator has committed it, so a scene entered from an
  * exempt route ((auth), onboarding) would mount and run its effects for one
  * commit before IntroGate swaps the tree. Scenes buried under an exempt route
  * stay mounted as well. A scene knows its own route name in its first render,
- * so while the probe is unknown no product scene renders its children.
+ * so while a signed-in user's profile is unanswered (loader) or unknown (retry)
+ * no product scene renders its children.
  */
 function ProfileProbeScope({
   children,
@@ -344,9 +345,9 @@ function ProfileProbeScope({
   routeName: string;
 }) {
   const { loading, userId, hasProfile, profileProbeFailed } = useAuth();
-  if (profileProbeHoldsRoute({ loading, userId, hasProfile, profileProbeFailed }, routeName.split("/")[0])) {
-    return <ProfileProbeRetryScreen />;
-  }
+  const hold = profileRouteHold({ loading, userId, hasProfile, profileProbeFailed }, routeName.split("/")[0]);
+  if (hold === "retry") return <ProfileProbeRetryScreen />;
+  if (hold === "loading") return <InlineLoader />;
   return <>{children}</>;
 }
 
@@ -446,7 +447,9 @@ function ThemedStatusBar() {
  *   auth resolving       → InlineLoader (brief, dark)
  *   no auth              → render Stack (lands on /sign-in via /index redirect)
  *   auth + intro pending → LoadingScreen plays cell-team build
- *   auth + intro done    → render Stack (the main app)
+ *   auth + intro done    → render Stack (the main app) once the profile is
+ *                          answered; InlineLoader until then, and the shared
+ *                          retry if the probe failed (profileRouteHold)
  *
  * The cell-team intro now plays at the post-sign-in handoff: 'cells
  * building your second brain' literally welcomes you in. Returning
@@ -567,9 +570,20 @@ function IntroGate({ children }: { children: React.ReactNode }) {
   // C10 ones, (auth) and read-only onboarding; ProfileProbeScope (ThemedStack)
   // holds every scene the same way, so leaving an exemption cannot mount a
   // feature route either.
-  if (profileProbeHoldsRoute({ loading, userId, hasProfile, profileProbeFailed }, segments[0])) {
-    return <ProfileProbeRetryScreen />;
-  }
+  const profileHold = profileRouteHold({ loading, userId, hasProfile, profileProbeFailed }, segments[0]);
+  if (profileHold === "retry") return <ProfileProbeRetryScreen />;
+
+  // A signed-in user whose profile has not been answered yet is not known either.
+  // The first resolve publishes userId with loading=true before the probe, and the
+  // introDone branch below used to render the Stack right then: a restored session
+  // opening /records read the user's records before age and consent were known
+  // (vibe r260914 r3a2 gate finding). Hold with the loader, not the retry: waiting
+  // is not failing (profileGate in profile-probe.ts). While the intro has not played,
+  // the intro is already the loader (LoadingScreen renders no children and waits on
+  // !loading), so only the played-intro path needs this. Same-user re-probes publish
+  // loading=false from the cache (AuthContext resolveSession), so this does not
+  // flash mid-session.
+  if (profileHold === "loading" && introDone) return <InlineLoader />;
 
   // Global C10 + PIPA-consent gate (re-audit 2026-06-03: per-screen gating was
   // leaky — inbox/wiki kept slipping through). An authenticated session with NO
