@@ -79,6 +79,46 @@ export interface PieceSummary extends PieceRef {
   tags: string[];
 }
 
+function isStringOrNull(value: unknown): value is string | null {
+  return value === null || typeof value === "string";
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+/**
+ * A summary row as a screen may use it, or null when the row is not the shape the select
+ * asked for (B1, artifact re-gate on #1812, 2026-09-14).
+ *
+ * The rows used to go through an `as` cast. A `tags` that was not an array reached the screen
+ * and filedDomainOf's for...of threw there; a title that was not a string threw at `.trim()`.
+ * The schema rules both out (`tags text[] NOT NULL`, migrations 0022 and 0024), so this is
+ * defense in depth: a row that breaks the contract is "no piece" -- the "no card" the screen
+ * already shows for every other failure -- instead of a crash. Nothing about the row is logged.
+ *
+ * `tags: null` still reads as no tags, as it did before. With no domain tag it files nowhere.
+ */
+function summaryFromRow(origin: PieceRef["origin"], data: unknown): PieceSummary | null {
+  if (typeof data !== "object" || data === null) return null;
+  const row = data as Record<string, unknown>;
+  const id = row.id;
+  const kind = row.kind;
+  const title = origin === "source" ? row.title : row.topic;
+  const createdAt = origin === "source" ? row.captured_at : row.created_at;
+  const tags = row.tags === null ? [] : row.tags;
+  if (
+    typeof id !== "string" ||
+    typeof kind !== "string" ||
+    typeof createdAt !== "string" ||
+    !isStringOrNull(title) ||
+    !isStringArray(tags)
+  ) {
+    return null;
+  }
+  return { origin, uuid: id, kind, title, created_at: createdAt, tags };
+}
+
 /**
  * Just enough of a piece to point at it (P1). No body and no storage download:
  * getPieceById fetches a source's raw clipping, which a pointer does not need.
@@ -90,7 +130,8 @@ export interface PieceSummary extends PieceRef {
  * Nothing about the piece goes to the log. The caller shows "no card" for every failure,
  * so an id or tag in a log line would buy nothing and leak something.
  *
- * @throws on a read failure. `null` means "read fine, no such piece for this user".
+ * @throws on a read failure. `null` means "read fine, no such piece for this user", or a
+ *         row that is not the shape asked for (summaryFromRow).
  */
 export async function getPieceSummary(userId: string, ref: PieceRef): Promise<PieceSummary | null> {
   const supabase = getSupabaseClient();
@@ -102,22 +143,7 @@ export async function getPieceSummary(userId: string, ref: PieceRef): Promise<Pi
       .eq("id", ref.uuid)
       .maybeSingle();
     if (error) throw error;
-    if (!data) return null;
-    const s = data as {
-      id: string;
-      kind: string;
-      title: string | null;
-      captured_at: string;
-      tags: string[] | null;
-    };
-    return {
-      origin: "source",
-      uuid: s.id,
-      kind: s.kind,
-      title: s.title,
-      created_at: s.captured_at,
-      tags: s.tags ?? [],
-    };
+    return data ? summaryFromRow("source", data) : null;
   }
   const { data, error } = await supabase
     .from("records")
@@ -126,22 +152,7 @@ export async function getPieceSummary(userId: string, ref: PieceRef): Promise<Pi
     .eq("id", ref.uuid)
     .maybeSingle();
   if (error) throw error;
-  if (!data) return null;
-  const r = data as {
-    id: string;
-    kind: string;
-    topic: string | null;
-    created_at: string;
-    tags: string[] | null;
-  };
-  return {
-    origin: "record",
-    uuid: r.id,
-    kind: r.kind,
-    title: r.topic,
-    created_at: r.created_at,
-    tags: r.tags ?? [],
-  };
+  return data ? summaryFromRow("record", data) : null;
 }
 
 /**

@@ -193,14 +193,22 @@ export default function DomainStarScreen() {
   //
   // M1 (PR #1812 인가 게이트, 2026-09-14): 카드를 눌러 상세에서 이 조각의 영역을 옮기고 뒤로
   // 오면, 이 화면은 마운트된 채 주소도 그대로라 읽기가 다시 돌지 않았고 처음 읽은 태그로 옛
-  // 영역의 카드가 남았다. 그래서 포커스가 돌아올 때마다 한 번 더 읽는다. 처음 뜰 때의 읽기는
-  // 아래 effect 가 맡는다(useFocusRefetch 는 첫 포커스를 건너뛴다). 폴링도 자동 재시도도 없다.
+  // 영역의 카드가 남았다. 그래서 포커스가 돌아올 때마다 한 번 더 읽는다. 처음 뜰 때의 읽기와
+  // 주소가 바뀔 때의 읽기는 아래 effect 가 맡는다(useFocusRefetch 는 첫 포커스를 건너뛴다).
+  // 폴링도 자동 재시도도 없다.
+  //
+  // L1 (PR #1812 인가 재게이트, 2026-09-14): 포커스 재조회는 켜고 끄지 않고 늘 같은 콜백으로 둔다.
+  // 전에는 pieceId 가 유효할 때만 켰는데, 같은 화면에서 주소가 유효 -> 무효 -> 유효로 바뀌면 다시
+  // 켜지는 순간 useFocusEffect 의 콜백이 바뀌어 곧바로 읽기 번호를 올렸고, 같은 커밋의 아래 effect
+  // 도 바뀐 주소로 읽어 한 번의 주소 변화에 두 번 읽었다. 읽을 수 있는지는 포커스가 돌아온 그때 본다.
   const [pieceReadNo, setPieceReadNo] = useState(0);
   const [pieceResult, setPieceResult] = useState<{
     readNo: number;
     piece: PieceSummary | null;
   } | null>(null);
-  useFocusRefetch(() => setPieceReadNo((n) => n + 1), Boolean(userId && domainId && pieceUuid));
+  useFocusRefetch(() => {
+    if (userId && domainId && pieceUuid) setPieceReadNo((n) => n + 1);
+  });
 
   useEffect(() => {
     if (!userId || !domainId || !pieceOrigin || !pieceUuid) return;

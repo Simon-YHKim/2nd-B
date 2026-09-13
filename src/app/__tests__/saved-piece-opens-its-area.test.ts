@@ -116,6 +116,35 @@ describe("/capture 저장 후 버튼", () => {
     expect(CAPTURE).not.toMatch(/saved\.see(Ocr)?Graph/);
   });
 
+  test("저장 후 문구가 그래프를 약속하지 않는다 (배송 앱에는 그 그래프가 없다)", () => {
+    // P1 후속 (2026-09-14): 버튼은 영역 화면 · 상세 · 기록 보관소로 간다(위 savedTarget). 조각을 그리던
+    // 그래프 홈은 아카이브됐는데, 머리의 접근성 힌트 둘(hero.speechSaved · hero.speechSavedOcr)과 사진
+    // 저장 패널의 본문(saved.ocrBody)이 다섯 언어 모두 아직 "그래프에서 볼 수 있어요"라고 했다.
+    const GRAPH: Record<string, RegExp> = {
+      en: /\bgraph\b/i,
+      ko: /그래프/,
+      es: /\bgrafo\b/i,
+      pt: /\bmapa\b/i,
+      id: /\bgraf\b/i,
+    };
+    for (const [lang, graph] of Object.entries(GRAPH)) {
+      const capture = JSON.parse(
+        readFileSync(join(__dirname, "..", "..", "..", "locales", lang, "capture.json"), "utf8"),
+      ) as { hero: Record<string, string>; saved: Record<string, string> };
+      const copy: Record<string, string | undefined> = {
+        "hero.speechSaved": capture.hero.speechSaved,
+        "hero.speechSavedOcr": capture.hero.speechSavedOcr,
+        "saved.ocrBody": capture.saved.ocrBody,
+      };
+      // 키가 사라져서 초록이 되지 않게 한다 - 문구가 없으면 약속도 없어 보인다.
+      expect({ lang, missing: Object.keys(copy).filter((key) => !copy[key]?.trim()) }).toEqual({ lang, missing: [] });
+      expect({ lang, promisesGraph: Object.keys(copy).filter((key) => graph.test(copy[key] ?? "")) }).toEqual({
+        lang,
+        promisesGraph: [],
+      });
+    }
+  });
+
   test("기록이 갈 수 있는 일곱 영역(collect 포함)의 이름이 다섯 언어에 다 있다", () => {
     const ids = DOMAIN_STARS.map((star) => star.id).sort();
     for (const lang of ["en", "ko", "es", "id", "pt"]) {
@@ -130,8 +159,12 @@ describe("/capture 저장 후 버튼", () => {
 });
 
 describe("배송 기록 상세의 영역 버튼", () => {
-  test("영역 태그가 있을 때만 보인다", () => {
-    expect(DETAIL).toContain("const area = lifeDomainOf(piece.tags);");
+  // P1 후속 (2026-09-14): /capture 의 기록 저장은 collect 로도 보내는데(Simon 결정 01:45) 상세는 생활 영역만
+  // 봤다. 담아내기에 담긴 기록은 저장 후 버튼으로 /star/collect 카드까지 가고, 그 카드에서 연 상세에는 영역
+  // 버튼이 없었다. 상세의 옮기기 목록은 일곱 영역 전부라 담아내기로 옮기면 버튼이 사라지기도 했다.
+  test("domain: 태그가 가리키는 영역이 있을 때만 보인다 (collect 포함, /capture 기록 저장과 같은 규칙)", () => {
+    expect(DETAIL).toContain("const area = filedDomainOf(piece.tags);");
+    expect(DETAIL).not.toContain("lifeDomainOf");
     expect(DETAIL).toContain("{area ? (");
   });
 

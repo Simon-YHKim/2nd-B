@@ -175,7 +175,10 @@ describe("capture-full life-area screen wiring", () => {
 
   test("uses Pixel primitives, 44dp sizing, and no alpha or curved styling in the new section", () => {
     const start = captureSource.indexOf("{enableLifeAreaIntents && !savedTitle ? (");
-    const end = captureSource.indexOf("{/* Import success", start);
+    // The section ends where the saved panel begins. The boundary used to be the comment above
+    // that panel; rewording the comment (P1 follow-up, 2026-09-14) left the slice with no end, so
+    // it is bound to the panel element instead of its prose.
+    const end = captureSource.indexOf("<PremiumCard style={styles.savedPanel}>", start);
     const section = captureSource.slice(start, end);
 
     expect(start).toBeGreaterThan(0);
