@@ -13,6 +13,11 @@
 //      0.2)은 글자마다 더한다. 이름표는 fontWeight 600 이지만 싣는 파일은 Regular
 //      하나라서 굵기는 합성된다. 그래서 이 모델이 기기보다 좁게 재지 않는지를 T1a
 //      스크린샷에서 잰 잉크 폭으로 먼저 확인한다 (아래 첫 테스트).
+//
+// 기기 글꼴 배율 (PR #1810 생성물 게이트 F1). T1a 는 font_scale 1.0 이었고 이 파일도 처음엔 배율
+// 1 로만 쟀다. 이름표 Text 는 기기 글꼴 설정을 따르므로 이제 폭 × 배율 조합마다 잰다. RN 0.85 는
+// 이름표 글자를 min(기기 배율, maxFontSizeMultiplier) 로 그리고 줄 높이도 같은 배율로 곱한다.
+// 자간은 Android 만 곱한다. 여기서는 자간까지 곱해 iOS 보다 넓게 잰다.
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
@@ -20,6 +25,7 @@ import { HOME_STAR_IDS } from "@/lib/persona/home-stars";
 
 import { pixelStarSpan } from "../../pixel/pixel-star";
 import {
+  LABEL_MAX_FONT_SCALE,
   POLARIS_LABEL,
   STAR_LABEL,
   layoutStarLabels,
@@ -77,8 +83,8 @@ const VB_TOP = constNumber("VB_TOP");
 const DOMAIN_CORE_R = constNumber("DOMAIN_CORE_R");
 const DOMAIN_FOCUS_MULT = constNumber("DOMAIN_FOCUS_MULT");
 
-/** 화면 폭 winW(dp) 에서 ConstellationHome 이 계산하는 것과 같은 자리. */
-function homeLayout(winW: number) {
+/** 화면 폭 winW(dp) · 기기 글꼴 배율 fontScale 에서 ConstellationHome 이 계산하는 것과 같은 자리. */
+function homeLayout(winW: number, fontScale = 1) {
   const boxW = Math.min(380, winW - 24);
   const k = boxW / 380;
   const u = boxW / VBW;
@@ -88,22 +94,37 @@ function homeLayout(winW: number) {
   const coreHalfSpan = pixelStarSpan(DOMAIN_CORE_R * k * DOMAIN_FOCUS_MULT);
   const stars = STARS.map((s) => ({ id: s.id, cx: px(s.x), cy: py(s.y) }));
   const polaris = { cx: px(POLARIS.x), cy: py(POLARIS.y) };
-  const labels = layoutStarLabels({ stars, k, coreHalfSpan, polaris, stage: { w: boxW, h: boxH } });
-  return { boxW, boxH, k, stars, coreHalfSpan, labels, polarisFrame: polarisLabelFrame(polaris.cx, polaris.cy, k) };
+  const labels = layoutStarLabels({ stars, k, coreHalfSpan, polaris, stage: { w: boxW, h: boxH }, fontScale });
+  return {
+    boxW,
+    boxH,
+    k,
+    stars,
+    coreHalfSpan,
+    labels,
+    polarisFrame: polarisLabelFrame(polaris.cx, polaris.cy, k, fontScale),
+    /** RN 이 이름표 글자를 실제로 그리는 배율. 모듈을 빌리지 않고 여기서 따로 계산한다. */
+    r: Math.min(fontScale, LABEL_MAX_FONT_SCALE),
+  };
 }
 
 /** T1a 기기 가로 폭 (1440px / 3.5) 과 흔한 폰 폭들. 404dp 이상은 상자가 380 으로 같다. */
 const T1A_WIDTH = 1440 / 3.5;
 const WIDTHS = [320, 360, 375, 393, T1A_WIDTH, 430];
 
+/** 기기 글꼴 배율: 1 아래 하나, 상한 안 둘, 상한, 상한 밖 둘. RN 은 상한 밖을 상한 크기로 그린다. */
+const SCALES = [0.85, 1, 1.15, LABEL_MAX_FONT_SCALE, 1.3, 2];
+const CASES: [number, number][] = WIDTHS.flatMap((w) => SCALES.map((s): [number, number] => [w, s]));
+
 // 테스트 안에서만 쓰는 독립 판정. 모듈의 판정 함수를 빌리지 않는다.
 type Rect = { left: number; top: number; right: number; bottom: number };
 const intersects = (a: Rect, b: Rect) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
-const lineRect = (f: LabelFrame, line: number): Rect => ({
+/** `line` 번째 줄이 그려지는 상자. RN 은 style 줄 높이에 그리는 배율 r 을 곱한다. */
+const lineRect = (f: LabelFrame, line: number, r: number): Rect => ({
   left: f.left,
   right: f.left + f.width,
-  top: f.top + f.lineHeight * line,
-  bottom: f.top + f.lineHeight * (line + 1),
+  top: f.top + f.lineHeight * r * line,
+  bottom: f.top + f.lineHeight * r * (line + 1),
 });
 
 // ---------------------------------------------------------------------------
@@ -153,26 +174,37 @@ function glyphOf(cp: number): number {
 }
 
 const LETTER_SPACING = 0.2;
+/** 글자별 advance 폭(em). 폭 × 배율 조합이 많아 한 번만 읽는다. */
+const ADVANCE_EM = new Map<number, number>();
 
-/** advance 폭 합 + 글자마다 자간. 글리프가 없으면 기기는 다른 글꼴로 넘어가므로 모델이 틀린다. */
-function textWidth(text: string, fontSize: number): number {
+/**
+ * advance 폭 합 + 글자마다 자간에 그리는 배율 r 을 곱한다.
+ * 글리프가 없으면 기기는 다른 글꼴로 넘어가므로 모델이 틀린다.
+ */
+function textWidth(text: string, fontSize: number, r = 1): number {
   let em = 0;
   const chars = [...text];
   for (const ch of chars) {
-    const glyph = glyphOf(ch.codePointAt(0) ?? 0);
-    if (glyph === 0) throw new Error(`Pretendard-Regular.otf has no glyph for "${ch}" in "${text}"`);
-    em += FONT.readUInt16BE(TABLES.hmtx + 4 * Math.min(glyph, H_METRICS - 1)) / UNITS_PER_EM;
+    const cp = ch.codePointAt(0) ?? 0;
+    let advance = ADVANCE_EM.get(cp);
+    if (advance === undefined) {
+      const glyph = glyphOf(cp);
+      if (glyph === 0) throw new Error(`Pretendard-Regular.otf has no glyph for "${ch}" in "${text}"`);
+      advance = FONT.readUInt16BE(TABLES.hmtx + 4 * Math.min(glyph, H_METRICS - 1)) / UNITS_PER_EM;
+      ADVANCE_EM.set(cp, advance);
+    }
+    em += advance;
   }
-  return em * fontSize + chars.length * LETTER_SPACING;
+  return (em * fontSize + chars.length * LETTER_SPACING) * r;
 }
 
 /** 공백에서만 끊는 줄바꿈. 끊을 자리가 더 적으니 기기보다 줄이 길게 나온다. */
-function wrap(text: string, width: number, fontSize: number): string[] {
+function wrap(text: string, width: number, fontSize: number, r = 1): string[] {
   const lines: string[] = [];
   let current = "";
   for (const word of text.split(" ")) {
     const next = current ? `${current} ${word}` : word;
-    if (!current || textWidth(next, fontSize) <= width) current = next;
+    if (!current || textWidth(next, fontSize, r) <= width) current = next;
     else {
       lines.push(current);
       current = word;
@@ -182,19 +214,39 @@ function wrap(text: string, width: number, fontSize: number): string[] {
   return lines;
 }
 
-/** 로케일마다 일곱 별 이름 (home.json ds.star.<id>). 로케일 폴더를 읽으므로 새 언어도 들어온다. */
+/** 로케일마다 home.json 의 일곱 별 이름(ds.star.<id>)과 북극성 이름. 로케일 폴더를 읽으므로 새 언어도 들어온다. */
 const LOCALES = readdirSync(join(ROOT, "locales"), { withFileTypes: true })
   .filter((d) => d.isDirectory())
   .map((d) => d.name)
   .sort();
-const starNames = (locale: string): Record<string, string> =>
-  (JSON.parse(readFileSync(join(ROOT, "locales", locale, "home.json"), "utf8")) as { ds: { star: Record<string, string> } }).ds
-    .star;
+type HomeCopy = { ds: { star: Record<string, string>; home: { polaris: string } } };
+const HOME_COPY: Record<string, HomeCopy> = Object.fromEntries(
+  LOCALES.map((locale) => [locale, JSON.parse(readFileSync(join(ROOT, "locales", locale, "home.json"), "utf8")) as HomeCopy]),
+);
+const starNames = (locale: string): Record<string, string> => HOME_COPY[locale].ds.star;
 
 function styleBlock(name: string): string {
   const start = SRC.indexOf(`  ${name}: {`);
   if (start < 0) throw new Error(`style ${name} not found`);
   return SRC.slice(start, SRC.indexOf("\n  },", start));
+}
+
+/** 이 폭 · 배율에서 잘리는 이름표. 별 이름은 maxLines 줄 안에, 북극성 이름은 한 줄 안에 들어가야 한다. */
+function cutLabels(winW: number, fontScale: number): string[] {
+  const { stars, labels, polarisFrame, r } = homeLayout(winW, fontScale);
+  const cut: string[] = [];
+  for (const locale of LOCALES) {
+    const names = starNames(locale);
+    for (const s of stars) {
+      const { frame, maxLines } = labels[s.id];
+      const lines = wrap(names[s.id], frame.width, frame.fontSize, r);
+      const tooWide = lines.some((line) => textWidth(line, frame.fontSize, r) > frame.width);
+      if (lines.length > maxLines || tooWide) cut.push(`${locale}/${s.id} "${names[s.id]}" -> ${lines.join(" / ")}`);
+    }
+    const polaris = HOME_COPY[locale].ds.home.polaris;
+    if (textWidth(polaris, polarisFrame.fontSize, r) > polarisFrame.width) cut.push(`${locale}/polaris "${polaris}"`);
+  }
+  return cut;
 }
 
 // ---------------------------------------------------------------------------
@@ -270,21 +322,44 @@ describe("별 이름표 자리", () => {
     });
   });
 
-  it.each(WIDTHS)("가로 %sdp: 둘째 줄을 받은 이름표는 남의 자리를 덮지 않고 상자 안에 있다", (winW) => {
-    const { stars, labels, coreHalfSpan, polarisFrame, boxW, boxH } = homeLayout(winW);
+  it.each(CASES)(
+    "가로 %sdp · 글꼴 %s배: 상자 폭만 그리는 배율로 넓어지고, 점 아래 자리와 style 글자 크기는 배율 1 그대로다",
+    (winW, fontScale) => {
+      const { stars, labels, polarisFrame, boxW, r } = homeLayout(winW, fontScale);
+      const one = homeLayout(winW, 1);
+      for (const s of stars) {
+        const f = labels[s.id].frame;
+        const base = one.labels[s.id].frame;
+        expect(f.width).toBeCloseTo(STAR_LABEL.width * r, 9);
+        expect(f.left + f.width / 2).toBeCloseTo(s.cx, 9);
+        expect(f.top).toBe(base.top);
+        // RN 이 글꼴 배율을 곱하므로 style 값은 배율 1 그대로여야 한다. 여기서 곱하면 두 번 커진다.
+        expect(f.fontSize).toBe(base.fontSize);
+        expect(f.lineHeight).toBe(base.lineHeight);
+      }
+      expect(polarisFrame.width).toBeCloseTo(POLARIS_LABEL.width * r, 9);
+      expect(polarisFrame.left + polarisFrame.width / 2).toBeCloseTo((POLARIS.x * boxW) / VBW, 9);
+      expect(polarisFrame.top).toBe(one.polarisFrame.top);
+      expect(polarisFrame.fontSize).toBe(one.polarisFrame.fontSize);
+      expect(polarisFrame.lineHeight).toBe(one.polarisFrame.lineHeight);
+    },
+  );
+
+  it.each(CASES)("가로 %sdp · 글꼴 %s배: 둘째 줄을 받은 이름표는 남의 자리를 덮지 않고 상자 안에 있다", (winW, fontScale) => {
+    const { stars, labels, coreHalfSpan, polarisFrame, boxW, boxH, r } = homeLayout(winW, fontScale);
     for (const s of stars) {
       const mine = labels[s.id];
       if (mine.maxLines < 2) continue;
-      const second = lineRect(mine.frame, 1);
+      const second = lineRect(mine.frame, 1, r);
       expect(second.left).toBeGreaterThanOrEqual(0);
       expect(second.right).toBeLessThanOrEqual(boxW);
       expect(second.bottom).toBeLessThanOrEqual(boxH);
-      expect(intersects(second, lineRect(polarisFrame, 0))).toBe(false);
+      expect(intersects(second, lineRect(polarisFrame, 0, r))).toBe(false);
       for (const other of stars) {
         if (other.id === s.id) continue;
         const theirs = labels[other.id];
-        expect(intersects(second, lineRect(theirs.frame, 0))).toBe(false);
-        if (theirs.maxLines === 2) expect(intersects(second, lineRect(theirs.frame, 1))).toBe(false);
+        expect(intersects(second, lineRect(theirs.frame, 0, r))).toBe(false);
+        if (theirs.maxLines === 2) expect(intersects(second, lineRect(theirs.frame, 1, r))).toBe(false);
         const x = Math.round(other.cx);
         const y = Math.round(other.cy);
         const core = { left: x - coreHalfSpan, right: x + coreHalfSpan, top: y - coreHalfSpan, bottom: y + coreHalfSpan };
@@ -293,7 +368,21 @@ describe("별 이름표 자리", () => {
     }
   });
 
+  it("기기 배율이 상한을 넘으면 자리도 상한에서 멈춘다 (RN 이 글자를 거기서 멈추므로)", () => {
+    // RN 은 1 미만의 maxFontSizeMultiplier 를 무시한다 (Android maxFontScale >= 1, iOS >= 1.0 일 때만 건다).
+    expect(LABEL_MAX_FONT_SCALE).toBeGreaterThanOrEqual(1);
+    for (const winW of WIDTHS) {
+      const atCap = homeLayout(winW, LABEL_MAX_FONT_SCALE);
+      for (const above of [1.3, 2, 3.5]) {
+        const beyond = homeLayout(winW, above);
+        expect(beyond.labels).toEqual(atCap.labels);
+        expect(beyond.polarisFrame).toEqual(atCap.polarisFrame);
+      }
+    }
+  });
+
   it("북극성 이름표가 별 이름표보다 작거나 흐려지지 않는다 (Visual Tier)", () => {
+    // 두 이름표는 같은 상한을 쓴다 (아래 화면 배선 검사). 그래서 이 비교는 어느 기기 배율에서도 같다.
     expect(STAR_LABEL.fontSize).toBeLessThanOrEqual(POLARIS_LABEL.fontSize);
     expect(STAR_LABEL.lineHeight).toBeLessThanOrEqual(POLARIS_LABEL.lineHeight);
     const alpha = (block: string) => {
@@ -303,46 +392,48 @@ describe("별 이름표 자리", () => {
     };
     expect(alpha(styleBlock("starLabel"))).toBeLessThan(alpha(styleBlock("polarisLabel")));
     // 줄 수는 둘까지다. 셋째 줄부터는 이름표가 아니라 문단이다.
-    for (const winW of WIDTHS) {
-      for (const label of Object.values(homeLayout(winW).labels)) expect(label.maxLines).toBeLessThanOrEqual(2);
+    for (const [winW, fontScale] of CASES) {
+      for (const label of Object.values(homeLayout(winW, fontScale).labels)) expect(label.maxLines).toBeLessThanOrEqual(2);
     }
   });
 });
 
 describe(`다섯 언어 이름표 (${LOCALES.join(" · ")})`, () => {
-  it("로케일 폴더가 다섯 개이고 모두 일곱 별 이름을 갖는다", () => {
+  it("로케일 폴더가 다섯 개이고 모두 일곱 별 이름과 북극성 이름을 갖는다", () => {
     expect(LOCALES).toEqual(["en", "es", "id", "ko", "pt"]);
     for (const locale of LOCALES) {
       for (const s of STARS) expect(starNames(locale)[s.id]).toBeTruthy();
+      expect(HOME_COPY[locale].ds.home.polaris).toBeTruthy();
     }
   });
 
-  it.each(WIDTHS)("가로 %sdp: 어느 언어의 어느 별 이름도 잘리지 않는다", (winW) => {
-    const { stars, labels } = homeLayout(winW);
+  it.each(CASES)("가로 %sdp · 글꼴 %s배: 어느 언어의 어느 이름표도 잘리지 않는다", (winW, fontScale) => {
+    expect(cutLabels(winW, fontScale)).toEqual([]);
+  });
+
+  it("가로 320~440dp 를 0.5dp 간격으로: 배율 1 과 상한에서 어느 이름표도 잘리지 않는다", () => {
+    // 위 WIDTHS 에는 가장 빡빡한 폭이 없다. pt "Primeira infância" 가 두 줄이 필요해지는 399~404dp 에서
+    // 둘째 줄이 프로필 코어에 닿는 배율이 가장 낮다 (399.5dp 에서 1.24). 상한은 그 아래여야 한다.
     const cut: string[] = [];
-    for (const locale of LOCALES) {
-      const names = starNames(locale);
-      for (const s of stars) {
-        const { frame, maxLines } = labels[s.id];
-        const lines = wrap(names[s.id], frame.width, frame.fontSize);
-        const tooWide = lines.some((line) => textWidth(line, frame.fontSize) > frame.width);
-        if (lines.length > maxLines || tooWide) cut.push(`${locale}/${s.id} "${names[s.id]}" -> ${lines.join(" / ")}`);
+    for (let winW = 320; winW <= 440; winW += 0.5) {
+      for (const fontScale of [1, LABEL_MAX_FONT_SCALE]) {
+        cut.push(...cutLabels(winW, fontScale).map((c) => `${winW}dp x${fontScale}: ${c}`));
       }
     }
     expect(cut).toEqual([]);
   });
 
-  it.each(WIDTHS)("가로 %sdp: 줄바꿈된 이름표의 글자가 남의 글자·별 코어를 덮지 않는다", (winW) => {
-    const { stars, labels, coreHalfSpan } = homeLayout(winW);
+  it.each(CASES)("가로 %sdp · 글꼴 %s배: 줄바꿈된 이름표의 글자가 남의 글자·별 코어를 덮지 않는다", (winW, fontScale) => {
+    const { stars, labels, coreHalfSpan, r } = homeLayout(winW, fontScale);
     const hits: string[] = [];
     for (const locale of LOCALES) {
       const names = starNames(locale);
       // 가운데 정렬이므로 줄마다 실제 글자 폭만큼의 상자를 만든다.
       const ink = stars.map((s) => {
         const { frame } = labels[s.id];
-        return wrap(names[s.id], frame.width, frame.fontSize).map((line, n) => {
-          const w = textWidth(line, frame.fontSize);
-          const box = lineRect(frame, n);
+        return wrap(names[s.id], frame.width, frame.fontSize, r).map((line, n) => {
+          const w = textWidth(line, frame.fontSize, r);
+          const box = lineRect(frame, n, r);
           return { n, left: frame.left + (frame.width - w) / 2, right: frame.left + (frame.width + w) / 2, top: box.top, bottom: box.bottom };
         });
       });
@@ -367,13 +458,14 @@ describe(`다섯 언어 이름표 (${LOCALES.join(" · ")})`, () => {
 });
 
 describe("화면 배선", () => {
+  const labelsBlock = SRC.slice(SRC.indexOf("{/* star labels"), SRC.indexOf("{/* tap targets"));
+
   it("ConstellationHome 이 이 함수로 이름표를 놓는다 (한 줄 고정이 돌아오지 않는다)", () => {
-    const block = SRC.slice(SRC.indexOf("{/* star labels"), SRC.indexOf("{/* tap targets"));
-    expect(block.length).toBeGreaterThan(0);
-    expect(block).toContain("numberOfLines={label.maxLines}");
-    expect(block).toContain("label.frame");
-    expect(block).toContain("polarisLabelFrame(px(POLARIS.x), py(POLARIS.y), k)");
-    expect(block).not.toContain("left: px(s.x) - 40");
+    expect(labelsBlock.length).toBeGreaterThan(0);
+    expect(labelsBlock).toContain("numberOfLines={label.maxLines}");
+    expect(labelsBlock).toContain("label.frame");
+    expect(labelsBlock).toContain("polarisLabelFrame(px(POLARIS.x), py(POLARIS.y), k, fontScale)");
+    expect(labelsBlock).not.toContain("left: px(s.x) - 40");
     // 테스트가 장애물로 쓰는 코어 크기와 화면이 넘기는 값이 같아야 한다.
     expect(SRC).toContain("coreHalfSpan: pixelStarSpan(DOMAIN_CORE_R * k * DOMAIN_FOCUS_MULT)");
     expect(SRC).toContain("const boxW = Math.min(380, winW - 24);");
@@ -381,5 +473,16 @@ describe("화면 배선", () => {
     expect(SRC).toContain("const u = boxW / VBW;");
     expect(SRC).toContain("const boxH = (VBH + VB_TOP) * u;");
     expect(SRC).toContain("const py = (y: number) => (y + VB_TOP) * u;");
+  });
+
+  it("두 이름표가 기기 글꼴 배율을 자리 계산에 넣고, 같은 상한을 RN 에 건다 (게이트 F1)", () => {
+    expect(SRC).toContain("const { width: winW, fontScale } = useWindowDimensions();");
+    const at = SRC.indexOf("const starLabels = layoutStarLabels({");
+    expect(at).toBeGreaterThan(-1);
+    expect(SRC.slice(at, SRC.indexOf("});", at))).toMatch(/^\s*fontScale,$/m);
+    // 별 이름표 Text 와 북극성 이름표 Text, 둘 다. 상한이 다르면 북극성 우세가 배율에 따라 뒤집힐 수 있다.
+    expect(labelsBlock.split("maxFontSizeMultiplier={LABEL_MAX_FONT_SCALE}").length - 1).toBe(2);
+    // 글꼴 확대를 끄는 것은 큰 글꼴 사용자에게서 글자를 빼앗는 제품 결정이다. 이 자리는 켜 둔 채 상한만 건다.
+    expect(labelsBlock).not.toContain("allowFontScaling");
   });
 });

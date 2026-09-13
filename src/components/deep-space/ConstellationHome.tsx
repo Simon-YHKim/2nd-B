@@ -20,7 +20,7 @@ import Svg, { Defs, Pattern, Rect } from "react-native-svg";
 
 import { PixelStarSvg } from "../pixel/PixelStarSvg";
 import { pixelStarSpan } from "../pixel/pixel-star";
-import { layoutStarLabels, polarisLabelFrame } from "./star-label-layout";
+import { LABEL_MAX_FONT_SCALE, layoutStarLabels, polarisLabelFrame } from "./star-label-layout";
 
 import { NoticeDialog, useNoticeCenter } from "@/app/notices";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -488,7 +488,7 @@ export function ConstellationHome({
   const coachmarksDue = useCoachmarksGate();
   const progression = useProgression();
   const task = useTaskStatus();
-  const { width: winW } = useWindowDimensions();
+  const { width: winW, fontScale } = useWindowDimensions();
   const [bubble, setBubble] = useState<BubbleState>({ kind: "intro" });
   const [stage, setStage] = useState<{ w: number; h: number } | null>(null);
   const [autoNoticeDismissed, setAutoNoticeDismissed] = useState(false);
@@ -547,12 +547,14 @@ export function ConstellationHome({
   };
   // 별 이름표 자리. 둘째 줄은 그 자리가 비어 있는 별만 받는다 (star-label-layout.ts).
   // 코어 크기는 눌렀을 때 값이다. 어느 별이 눌려도 둘째 줄이 그 코어를 덮지 않게.
+  // 기기 글꼴 배율도 넘긴다. 이름표 글자가 LABEL_MAX_FONT_SCALE 까지 커지므로 자리도 그 배율로 잰다.
   const starLabels = layoutStarLabels({
     stars: REV2_STARS.map((s) => ({ id: s.id, cx: px(s.x), cy: py(s.y) })),
     k,
     coreHalfSpan: pixelStarSpan(DOMAIN_CORE_R * k * DOMAIN_FOCUS_MULT),
     polaris: { cx: px(POLARIS.x), cy: py(POLARIS.y) },
     stage: { w: boxW, h: boxH },
+    fontScale,
   });
 
   const levelOf = (id: HomeStarId): LadderLevel =>
@@ -794,7 +796,9 @@ export function ConstellationHome({
           {/* star labels (10.5px/600 under each dot; polaris label under its orb).
               Geometry lives in star-label-layout.ts: a long name may take a second
               line only where that line lands on empty sky (T1a 2026-09-13: "Thirties
-              and after" was cut to "Thirties and af…" on a 411dp phone). */}
+              and after" was cut to "Thirties and af…" on a 411dp phone). Both labels
+              follow the system font size up to LABEL_MAX_FONT_SCALE, and the geometry
+              is measured at that same scale (PR 1810 artifact gate, F1). */}
           {REV2_STARS.map((s) => {
             const on = focusedId === s.id;
             const label = starLabels[s.id];
@@ -803,6 +807,7 @@ export function ConstellationHome({
                 key={`label-${s.id}`}
                 accessible={false}
                 importantForAccessibility="no-hide-descendants"
+                maxFontSizeMultiplier={LABEL_MAX_FONT_SCALE}
                 numberOfLines={label.maxLines}
                 style={[styles.starLabel, label.frame, on && { color: m3.accent.starFocus }]}
               >
@@ -813,8 +818,9 @@ export function ConstellationHome({
           <Text
             accessible={false}
             importantForAccessibility="no-hide-descendants"
+            maxFontSizeMultiplier={LABEL_MAX_FONT_SCALE}
             numberOfLines={1}
-            style={[styles.polarisLabel, polarisLabelFrame(px(POLARIS.x), py(POLARIS.y), k)]}
+            style={[styles.polarisLabel, polarisLabelFrame(px(POLARIS.x), py(POLARIS.y), k, fontScale)]}
           >
             {t("ds.home.polaris")}
           </Text>
