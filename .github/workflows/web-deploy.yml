@@ -721,6 +721,37 @@ jobs:
           fi
           node scripts/verify-pages-artifact-identity.mjs
 
+      # Last thing the build does: has main moved while we were building?
+      #
+      # The same comparison already runs twice - once at the top of this job and
+      # once in deploy, after the Production reviewer approves. The gap between
+      # them is the whole build (6-11 min measured), and on 2026-09-07 six of
+      # seven publish attempts died in it. The shape of that failure was always
+      # the same: build goes green, a human is asked to approve, the human
+      # approves, and only then does deploy report that main had already moved -
+      # often minutes before the approval request was even sent.
+      #
+      # Checking here does not close the window. It cannot: main can still move
+      # while the run waits for approval, and this job has no permission to
+      # cancel anything. What it does is stop asking a person to approve a run
+      # that is already doomed, and report the staleness at the moment it is
+      # first detectable rather than one human round-trip later.
+      #
+      # Publishes only. A push build has no source_sha to hold still.
+      - name: Fail before requesting approval if main moved during the build
+        if: github.event_name == 'workflow_dispatch' && steps.gate.outputs.mode == 'publish'
+        env:
+          SOURCE_SHA: ${{ steps.gate.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+          MAIN_SHA="$(git rev-parse origin/main)"
+          if [ "$MAIN_SHA" != "$SOURCE_SHA" ]; then
+            echo "::error::main moved during the build ($SOURCE_SHA -> $MAIN_SHA). Stopping before the approval request; re-dispatch against the new head."
+            exit 1
+          fi
+          echo "main is still at $SOURCE_SHA - approval request is worth sending."
+
   deploy:
     needs: build
     if: >-
