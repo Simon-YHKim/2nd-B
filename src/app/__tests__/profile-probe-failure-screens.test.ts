@@ -230,9 +230,41 @@ describe("공용 다시 시도 부품", () => {
   // 테스트 안에서 읽는다 - 파일이 없을 때 이 describe 만 실패하고 위 판정은 계속 돈다.
   const retry = () => readFileSync(join(ROOT, "src/components/deep-space/ProfileProbeRetry.tsx"), "utf8");
 
-  test("/audit 과 같은 오류 문구와 Retry 키를 쓴다", () => {
-    expect(retry()).toContain('t("common:errors.network")');
+  // 문구는 원인을 단정하지 않는다. 처음에는 /audit 과 같은 common:errors.network("인터넷
+  // 상태를 확인해 주세요")를 썼는데, 이 화면에 오는 실패에는 서버 시계 차이(`JWT issued at
+  // future`) · 권한 · 서버 오류도 있어서 사람에게 맞지 않는 조치를 시켰다(r3a 게이트 발견, low).
+  test("원인을 단정하지 않는 프로필 확인 실패 문구와 Retry 키를 쓴다", () => {
+    expect(retry()).toContain('t("common:errors.profileProbe")');
+    expect(retry()).not.toContain("common:errors.network");
     expect(retry()).toContain('t("common:actions.retry")');
+    // 원격 오류 원문은 화면에 올리지 않는다 - 오류 값이나 그 message 를 읽는 코드가 없다.
+    // (텍스트로 찾으면 styles.message 같은 스타일 이름에 걸린다. 코드만 본다.)
+    const sf = ts.createSourceFile("ProfileProbeRetry.tsx", retry(), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    const errorReads: string[] = [];
+    const visit = (node: ts.Node): void => {
+      if (ts.isPropertyAccessExpression(node) && node.name.text === "message" && node.expression.getText(sf) !== "styles") {
+        errorReads.push(node.getText(sf));
+      }
+      if (ts.isIdentifier(node) && /^(e|err|error)$/.test(node.text)) errorReads.push(node.text);
+      ts.forEachChild(node, visit);
+    };
+    visit(sf);
+    expect(errorReads).toEqual([]);
+  });
+
+  test.each([
+    ["en", /connection|internet|network|server/i],
+    ["ko", /인터넷|연결|네트워크|서버/],
+    ["es", /conexi[oó]n|internet|red\b|servidor/i],
+    ["pt", /conex[aã]o|internet|rede\b|servidor/i],
+    ["id", /koneksi|internet|jaringan|server/i],
+  ])("%s 문구는 프로필 확인 실패를 말하고 연결 탓을 하지 않는다", (locale, blamesConnection) => {
+    const common = JSON.parse(readFileSync(join(ROOT, "locales", String(locale), "common.json"), "utf8"));
+    const copy: unknown = common.errors?.profileProbe;
+    expect(typeof copy).toBe("string");
+    expect(copy).not.toBe(common.errors.network);
+    expect(String(copy)).not.toMatch(blamesConnection as RegExp);
+    expect(String(copy)).not.toMatch(/[–—]/);
   });
 
   test("Retry 는 AuthContext 의 refresh() 로 프로브를 다시 돌린다", () => {

@@ -36,7 +36,14 @@ function backOrHome(): void {
   else router.replace("/");
 }
 
-/** 오류 문구 + Retry + 로그아웃. 틀(제목 · 뒤로)은 ProfileProbeRetryScreen 이 가진다. */
+/**
+ * 오류 문구 + Retry + 로그아웃. 틀(제목 · 뒤로)은 ProfileProbeRetryScreen 이 가진다.
+ *
+ * 문구는 원인을 단정하지 않는다. 여기 오는 실패에는 네트워크만이 아니라 서버 시계 차이
+ * (`JWT issued at future`) · 권한 · 서버 오류도 있어서, 처음 쓰던 연결 문구("인터넷 상태를
+ * 확인해 주세요")는 사람에게 맞지 않는 조치를 시켰다(r3a 게이트 발견). 원격 오류 원문은
+ * 화면에 올리지 않는다.
+ */
 export function ProfileProbeRetryPanel() {
   const { t } = useTranslation(["common"]);
   const { refresh } = useAuth();
@@ -92,7 +99,7 @@ export function ProfileProbeRetryPanel() {
     <PixelSurface variant="frame" style={styles.surface} contentStyle={styles.content}>
       <PixelGlyph name="warning" color={m3.color.primary} size={24} />
       <Text variant="body" accessibilityRole="alert" style={styles.message}>
-        {t("common:errors.network")}
+        {t("common:errors.profileProbe")}
       </Text>
       <PixelPressable
         fullWidth
