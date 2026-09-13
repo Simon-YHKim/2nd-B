@@ -203,3 +203,78 @@ describe("getPieceSummaryFromRoute - 주소의 값은 형식을 본 뒤에만 �
     await expect(getPieceSummaryFromRoute("user-1", UUID)).rejects.toThrow("offline");
   });
 });
+
+// 생성물 재게이트 B1 (PR #1812, 2026-09-14): 요약 행을 `as` 로 단언만 해서 모양이 틀린 행이 그대로 화면까지
+// 갔다. tags 가 배열이 아니면 filedDomainOf 의 for...of 가, 제목이 문자열이 아니면 .trim() 이 화면을 멈췄다.
+// 스키마(tags text[] NOT NULL, 0022 · 0024)상 정상으로는 오지 않는 행이라 방어 심층이다. 틀린 행은 없는
+// 조각(null)이어서 화면은 다른 실패와 같이 카드 없음이고, 행의 내용은 로그에 남지 않는다.
+describe("getPieceSummary - 모양이 틀린 행은 조각이 없다 (B1)", () => {
+  const RECORD_ROW = {
+    id: UUID,
+    kind: "journal",
+    topic: "오늘",
+    created_at: "2026-09-13T10:00:00Z",
+    tags: ["domain:career"],
+  };
+  const SOURCE_ROW = {
+    id: UUID,
+    kind: "memo",
+    title: "읽은 글",
+    captured_at: "2026-09-13T10:00:00Z",
+    tags: ["domain:career"],
+  };
+
+  // [무엇이 틀렸나, 기록 행에 덮을 값, 소스 행에 덮을 값]
+  const BROKEN: [string, Record<string, unknown>, Record<string, unknown>][] = [
+    ["tags 가 숫자", { tags: 7 }, { tags: 7 }],
+    ["tags 가 문자열", { tags: "domain:career" }, { tags: "domain:career" }],
+    ["tags 가 객체", { tags: { 0: "domain:career", length: 1 } }, { tags: { 0: "domain:career", length: 1 } }],
+    ["tags 안에 문자열 아닌 값", { tags: [7, "domain:career"] }, { tags: [7, "domain:career"] }],
+    ["tags 가 빠짐", { tags: undefined }, { tags: undefined }],
+    ["제목이 숫자", { topic: 7 }, { title: 7 }],
+    ["제목이 객체", { topic: { text: "오늘" } }, { title: { text: "읽은 글" } }],
+    ["id 가 문자열 아님", { id: 7 }, { id: 7 }],
+    ["kind 가 빠짐", { kind: undefined }, { kind: undefined }],
+    ["날짜가 문자열 아님", { created_at: 20260913 }, { captured_at: 20260913 }],
+  ];
+
+  const CONSOLE = ["log", "info", "warn", "error", "debug"] as const;
+  let consoleSpies: jest.SpyInstance[] = [];
+
+  beforeEach(() => {
+    consoleSpies = CONSOLE.map((method) => jest.spyOn(console, method).mockImplementation(() => undefined));
+  });
+
+  afterEach(() => {
+    for (const spy of consoleSpies) spy.mockRestore();
+  });
+
+  test("모양이 맞는 행은 그대로 읽는다 (대조 - 아래의 null 이 모의 고장 탓이 아니라는 것)", async () => {
+    mockRow({ data: RECORD_ROW, error: null });
+    await expect(getPieceSummary("user-1", { origin: "record", uuid: UUID })).resolves.toMatchObject({
+      uuid: UUID,
+      title: "오늘",
+      tags: ["domain:career"],
+    });
+    mockRow({ data: SOURCE_ROW, error: null });
+    await expect(getPieceSummary("user-1", { origin: "source", uuid: UUID })).resolves.toMatchObject({
+      uuid: UUID,
+      title: "읽은 글",
+      tags: ["domain:career"],
+    });
+  });
+
+  test.each(BROKEN)("%s - 기록 · 소스 모두 null 이고 로그가 없다", async (_label, recordPatch, sourcePatch) => {
+    mockRow({ data: { ...RECORD_ROW, ...recordPatch }, error: null });
+    await expect(getPieceSummary("user-1", { origin: "record", uuid: UUID })).resolves.toBeNull();
+    // 화면이 부르는 경계도 같은 판정을 거친다.
+    await expect(getPieceSummaryFromRoute("user-1", UUID)).resolves.toBeNull();
+
+    mockRow({ data: { ...SOURCE_ROW, ...sourcePatch }, error: null });
+    await expect(getPieceSummary("user-1", { origin: "source", uuid: UUID })).resolves.toBeNull();
+    await expect(getPieceSummaryFromRoute("user-1", `${SOURCE_ID_PREFIX}${UUID}`)).resolves.toBeNull();
+
+    const logged = Object.fromEntries(CONSOLE.map((method, i) => [method, consoleSpies[i].mock.calls.length]));
+    expect(logged).toEqual({ log: 0, info: 0, warn: 0, error: 0, debug: 0 });
+  });
+});
