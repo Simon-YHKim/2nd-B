@@ -138,3 +138,20 @@ export function isPrivacyPrefEditable(key: PrivacyPrefKey, isMinor: boolean): bo
   if (!isMinor) return true;
   return MINOR_PROMOTABLE_KEYS.includes(key);
 }
+
+// One switch -> the whole prefs object to save, or null when that switch must
+// not move (a minor on a non-promotable key) or nothing changed. The shipped
+// /privacy screen routes chat_autosave through here so the minor rule stays in
+// this file: its analytics/ads handler locks every minor, which is right for
+// those keys and wrong for a MINOR_PROMOTABLE_KEYS member. Persist the result
+// with savePrivacyPrefs, which appends a consent_changes grant/revoke per key.
+export function nextPrivacyPrefs(
+  current: PrivacyPrefs,
+  key: PrivacyPrefKey,
+  next: boolean,
+  isMinor: boolean,
+): PrivacyPrefs | null {
+  if (!isPrivacyPrefEditable(key, isMinor)) return null;
+  if (current[key] === next) return null;
+  return { ...current, [key]: next };
+}

@@ -218,7 +218,10 @@
     "none": "0 elementos",
     "footer": "El tratamiento y almacenamiento de los datos depende de cada función. Consulta su aviso de uso de datos.",
     "dataReview": "Revisión de mis datos",
-    "open": "Abrir"
+    "open": "Abrir",
+    "chatSaveSection": "Guardado de chats",
+    "chatSaveLoading": "Cargando ajustes…",
+    "chatSaveError": "No se pudo guardar este ajuste. Inténtalo de nuevo."
   },
   "support": {
     "title": "Soporte",

@@ -218,7 +218,10 @@
     "none": "0 item",
     "footer": "Cara data diproses dan disimpan bergantung pada fiturnya. Baca penjelasan penggunaan data pada fitur tersebut.",
     "dataReview": "Tinjauan data saya",
-    "open": "Buka"
+    "open": "Buka",
+    "chatSaveSection": "Penyimpanan obrolan",
+    "chatSaveLoading": "Memuat pengaturan…",
+    "chatSaveError": "Pengaturan ini gagal disimpan. Coba lagi."
   },
   "support": {
     "title": "Dukungan",

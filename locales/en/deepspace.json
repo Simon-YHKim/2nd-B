@@ -218,7 +218,10 @@
     "none": "0 items",
     "footer": "How data is processed and stored depends on the feature. Check its data-use notice for details.",
     "dataReview": "My saved data",
-    "open": "Open"
+    "open": "Open",
+    "chatSaveSection": "Chat saving",
+    "chatSaveLoading": "Loading settings…",
+    "chatSaveError": "Couldn't save this setting. Please try again."
   },
   "support": {
     "title": "Support",

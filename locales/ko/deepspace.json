@@ -218,7 +218,10 @@
     "none": "0건",
     "footer": "자료마다 처리하고 보관하는 방식이 달라요. 각 기능의 안내에서 확인해 주세요.",
     "dataReview": "내 데이터 확인",
-    "open": "열기"
+    "open": "열기",
+    "chatSaveSection": "대화 저장",
+    "chatSaveLoading": "설정을 불러오는 중…",
+    "chatSaveError": "설정을 저장하지 못했어요. 다시 시도해 주세요."
   },
   "support": {
     "title": "지원 · 문의",

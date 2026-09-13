@@ -108,7 +108,7 @@ import type { PurchasesPackage } from "react-native-purchases";
 import { systemLocaleFor } from "@/lib/i18n/locales";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
 import { captureEvent, proposalDecided, setAnalyticsConsent } from "@/lib/analytics";
-import type { PrivacyPrefKey, PrivacyPrefs } from "@/lib/privacy/prefs";
+import { nextPrivacyPrefs, type PrivacyPrefKey, type PrivacyPrefs } from "@/lib/privacy/prefs";
 import {
   backfillAllRecordEmbeddings,
   clearRecordEmbeddings,
@@ -610,6 +610,11 @@ export function DeepSpacePrivacyDesignScreen() {
   const [embedOn, setEmbedOn] = useState<boolean | null>(null);
   const [embedUnderstanding, setEmbedUnderstanding] = useState(false);
   const [embedErr, setEmbedErr] = useState(false);
+  // 대화 자동 저장(chat_autosave). 켜는 토글이 PrivacyLegacy 에만 있어서 배송 앱에서는
+  // 켤 방법이 없었다(Q-260914-01, 2026-09-14). null 은 아직 못 읽었다는 뜻이고,
+  // 그동안은 토글을 그리지 않는다.
+  const [chatSaveOn, setChatSaveOn] = useState<boolean | null>(null);
+  const [chatSaveError, setChatSaveError] = useState(false);
   // Right-to-erasure in deep-space (was legacy-only). Terminal + irreversible, so
   // it is gated behind a typed "DELETE" confirm and reuses the proven cascade.
   const [delConfirm, setDelConfirm] = useState("");
@@ -743,11 +748,13 @@ export function DeepSpacePrivacyDesignScreen() {
     setAdsOn(null);
     setRecOn(null);
     setEmbedOn(null);
+    setChatSaveOn(null);
     setUnderstanding(false);
     setEmbedUnderstanding(false);
     setExternalError(null);
     setRecError(false);
     setEmbedErr(false);
+    setChatSaveError(false);
     setBusy(false);
     setDelConfirm("");
     setDeleteConfirmOpen(false);
@@ -771,6 +778,8 @@ export function DeepSpacePrivacyDesignScreen() {
         setAdsOn(p.ads === true);
         setRecOn(p.recommendations === true);
         setEmbedOn(p.records_embedding === true);
+        // 저장된 참만 켜짐이다. 미설정·문자열 "true" 는 resolvePrivacyPrefs 가 이미 false 로 떨군다.
+        setChatSaveOn(p.chat_autosave === true);
       }
     });
     return () => {
@@ -828,6 +837,32 @@ export function DeepSpacePrivacyDesignScreen() {
     } catch {
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
       setExternalError({ key, attemptedOn: next });
+    } finally {
+      if (privacyMountedRef.current && activeUserRef.current === targetUserId) setBusy(false);
+    }
+  }
+
+  // 대화 자동 저장 켜기/끄기. 저장은 위 토글과 같은 길(savePrivacyPrefs 가 바뀐 키마다
+  // consent_changes 에 grant/revoke 를 남긴다)이고 busy 로 한 줄로 세운다.
+  // 다른 점은 미성년 규칙 하나다. toggleExternalPreference 는 미성년이면 무조건 막는데,
+  // 그건 광고·통계에 맞고 MINOR_PROMOTABLE_KEYS 인 chat_autosave 에는 틀리다. 그래서
+  // 여기서는 규칙을 다시 쓰지 않고 prefs.ts 의 nextPrivacyPrefs 에 맡긴다.
+  async function toggleChatAutosave(next: boolean) {
+    if (!userId || prefsUserRef.current !== userId || !prefsRef.current || busy) return;
+    const updated = nextPrivacyPrefs(prefsRef.current, "chat_autosave", next, minorRef.current);
+    if (!updated) return;
+    const targetUserId = userId;
+    setChatSaveError(false);
+    setBusy(true);
+    try {
+      await savePrivacyPrefs(targetUserId, updated, { locale: ko ? "ko" : "en" });
+      if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
+      prefsRef.current = updated;
+      prefsUserRef.current = targetUserId;
+      setChatSaveOn(updated.chat_autosave);
+    } catch {
+      if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
+      setChatSaveError(true);
     } finally {
       if (privacyMountedRef.current && activeUserRef.current === targetUserId) setBusy(false);
     }
@@ -1024,6 +1059,28 @@ export function DeepSpacePrivacyDesignScreen() {
             </View>
           );
         })}
+      </Card>
+
+      {/* 대화 저장 (chat_autosave). 기본값은 꺼짐이고, 켜도 켜기 전 대화는 소급해서
+          담지 않는다(secondb.tsx 는 마지막 턴만 본다). 라벨과 설명은 동의 문구 번들이
+          원본이다. */}
+      <Card>
+        <Text variant="caption" style={styles.section}>{t("privacy.chatSaveSection")}</Text>
+        <Text variant="body" style={styles.lead}>{consentT("privacy.keys.chat_autosave.desc")}</Text>
+        {chatSaveOn === null ? (
+          <Text variant="subtle" style={styles.footer}>{t("privacy.chatSaveLoading")}</Text>
+        ) : (
+          <Toggle
+            label={consentT("privacy.keys.chat_autosave.label")}
+            value={chatSaveOn ? t("privacy.on") : t("privacy.off")}
+            on={chatSaveOn}
+            disabled={busy}
+            onPress={() => void toggleChatAutosave(!chatSaveOn)}
+          />
+        )}
+        {chatSaveError ? (
+          <Text variant="subtle" style={styles.footer}>{t("privacy.chatSaveError")}</Text>
+        ) : null}
       </Card>
 
       <Card>
