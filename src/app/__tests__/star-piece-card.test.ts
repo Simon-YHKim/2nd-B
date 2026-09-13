@@ -403,6 +403,32 @@ describe("/star/[domain] 카드 - 상세에 다녀오면 다시 읽는다 (M1)",
   });
 });
 
+// 인가 재게이트 L1 (PR #1812, 2026-09-14): 같은 화면에서 pieceId 가 유효 -> 무효 -> 유효로 바뀌면 마지막
+// 전환에서 요약을 두 번 읽었다. 포커스 재조회를 pieceId 가 유효할 때만 켜 두었더니, 다시 켜지는 순간
+// useFocusEffect 의 콜백이 바뀌어 (이미 포커스된 화면이라) 곧바로 읽기 번호를 올렸고, 같은 커밋의 요약
+// effect 도 바뀐 주소로 읽었다. 게이트 보고서의 발췌 재현(RE_ENABLE_VALID_ROUTE)을 여기로 옮겼다.
+describe("/star/[domain] 카드 - 주소가 한 번 바뀌면 한 번만 읽는다 (L1)", () => {
+  test("유효 -> 무효 -> 유효로 돌아와도 마지막 전환의 요약 읽기는 한 번이다", async () => {
+    fileRecord(["domain:career"]);
+    const screen = await open({ domain: "career", pieceId: RECORD_ID });
+    expect({ card: cardLabel(screen), reads: mockSummaryReads.length }).toEqual({ card: CARD_LABEL, reads: 1 });
+
+    // 라우터의 setParams 처럼 같은 화면에서 주소만 바뀐다. 다시 마운트하지도, 포커스를 잃지도 않는다.
+    mockParams.current = { domain: "career", pieceId: "bad" };
+    await screen.settle();
+    expect({ card: cardLabel(screen), reads: mockSummaryReads.length }).toEqual({ card: null, reads: 1 });
+
+    mockParams.current = { domain: "career", pieceId: RECORD_ID };
+    await screen.settle();
+    expect({ card: cardLabel(screen), reads: mockSummaryReads.length }).toEqual({ card: CARD_LABEL, reads: 2 });
+
+    // 그 뒤로도 포커스가 돌아올 때마다 한 번이다(M1 은 그대로).
+    await leaveAndReturn(screen);
+    await screen.settle();
+    expect({ card: cardLabel(screen), reads: mockSummaryReads.length }).toEqual({ card: CARD_LABEL, reads: 3 });
+  });
+});
+
 // 생성물 게이트 A1 (2026-09-14): 이 화면이 형식이 틀린 pieceId 로 DB 를 부르지 않는다는 것이 소스
 // 문자열로만 지켜지고 있었다. 파싱 앞에 읽기를 끼워 넣어도 그 핀은 초록이었다. 그 순서는 이제
 // getPieceSummaryFromRoute 가 갖고(get-piece-summary.test.ts 가 DB 호출 수로 잰다), 여기서는 화면이
