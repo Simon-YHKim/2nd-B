@@ -208,6 +208,10 @@ describe("unnumbered rewarded SSV hardening draft", () => {
     expect(dbRegression).toContain("chat ticket did not settle its server-owned reward");
     expect(dbRegression).toContain("chat reward was not exactly-once across replay");
     expect(dbRegression).toContain('REWARD_SSV_DB_TEST:-');
+    expect(dbRegression).toContain("psql -X -qAt -h localhost -U postgres -d postgres");
+    expect(dbRegression).toContain("inet_server_addr() <<= inet '172.16.0.0/12'");
+    expect(dbRegression).toContain("inet_client_addr() <<= inet '172.16.0.0/12'");
+    expect(dbRegression).not.toMatch(/DATABASE_URL|SUPABASE_DB_URL|DB_PASSWORD/);
     expect(dbRegression).toContain("PGAPPNAME='reward-ssv-lock-holder'");
     expect(dbRegression).toContain("contention_observed");
   });

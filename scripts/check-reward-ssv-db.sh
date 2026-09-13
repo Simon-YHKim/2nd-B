@@ -14,10 +14,25 @@ if [[ "${REWARD_SSV_DB_TEST:-}" != 'github-actions-only' \
   exit 64
 fi
 
-db_identity="$(psql_local -c \
-  "SELECT current_database() || '|' || current_user || '|' || inet_server_port() || '|' || inet_server_addr()")"
-if [[ ! "$db_identity" =~ ^postgres\|postgres\|5432\|(127\.0\.0\.1|::1)$ ]]; then
-  echo "refusing unexpected reward SSV DB target: $db_identity" >&2
+db_guard="$(psql_local -c "
+  SELECT CASE WHEN current_database() = 'postgres'
+    AND current_user = 'postgres'
+    AND inet_server_port() = 5432
+    AND (
+      inet_server_addr() <<= inet '127.0.0.0/8'
+      OR inet_server_addr() = inet '::1'
+      OR (
+        -- A GitHub service container sees the host-side localhost connection
+        -- as the adjacent address on its ephemeral Docker subnet.
+        inet_server_addr() <<= inet '172.16.0.0/12'
+        AND inet_client_addr() <<= inet '172.16.0.0/12'
+        AND inet_server_addr() <<= pg_catalog.set_masklen(inet_client_addr(), 24)
+      )
+    )
+  THEN 'scratch' ELSE 'reject' END
+")"
+if [[ "$db_guard" != 'scratch' ]]; then
+  echo 'refusing unexpected reward SSV DB target' >&2
   exit 64
 fi
 
