@@ -91,8 +91,6 @@ function Glyph({ name, color, size = 20 }: { name: string; color: string; size?:
 // 않는다는 것이 이 화면의 기존 약속이고, 그건 유지한다. 그래서 여기서는 **비용과
 // 피로**로만 끊는다. 사용자는 언제든 "여기까지"로 먼저 끝낼 수 있다.
 const MAX_TURNS = 12;
-const PROFILE_RETRY_INITIAL_MS = 2_000;
-const PROFILE_RETRY_MAX_MS = 30_000;
 
 function InterviewFrame({ children }: { children: ReactNode }) {
   const { t } = useTranslation("interview");
@@ -117,33 +115,11 @@ export default function InterviewRoute() {
     origin?: string | string[];
   }>();
   const growthOrigin = (Array.isArray(originParam) ? originParam[0] : originParam) === "domain-growth";
-  const { userId, loading, hasProfile, profileProbeFailed, age, refresh } = useAuth();
-
-  useEffect(() => {
-    // 첫 프로필 프로브 실패는 "프로필 없음"이 아니라 "아직 모름"이다. 아래
-    // 게이트가 화면을 안전하게 붙드는 동안, 겹치는 요청 없이 백오프로 재조회한다.
-    if (loading || !userId || hasProfile !== false || !profileProbeFailed) return;
-    let active = true;
-    let retryDelayMs = PROFILE_RETRY_INITIAL_MS;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-
-    const scheduleRetry = () => {
-      if (!active) return;
-      timer = setTimeout(() => {
-        void refresh()
-          .catch(() => undefined)
-          .finally(() => {
-            retryDelayMs = Math.min(retryDelayMs * 2, PROFILE_RETRY_MAX_MS);
-            scheduleRetry();
-          });
-      }, retryDelayMs);
-    };
-    scheduleRetry();
-    return () => {
-      active = false;
-      if (timer !== null) clearTimeout(timer);
-    };
-  }, [hasProfile, loading, profileProbeFailed, refresh, userId]);
+  const { userId, loading, hasProfile, profileProbeFailed, age } = useAuth();
+  // 이 화면은 프로필을 스스로 다시 묻지 않는다. 여기 있던 백오프 루프(2초에서 30초 상한,
+  // 성공할 때까지)는 refresh() 안의 한도 재시도(profile-probe.ts, 시계 차이 최대 2회)를
+  // 매번 새로 시작해 총 시도 수를 끝없이 만들었다(vibe r260914 게이트 발견). 자동 재시도는
+  // 그 한도 하나가 갖고, 그 뒤는 사람이 누르는 다시 시도다.
 
   // 프로필 프로브가 끝나기 전의 age=null을 "나이를 모름"으로 해석하면 잠긴 미래
   // 시기가 잠깐 세션으로 마운트될 수 있다. 인증과 프로필 상태를 먼저 확정한다.
@@ -158,9 +134,9 @@ export default function InterviewRoute() {
   }
   if (!userId) return <Redirect href="/sign-in" />;
   // 실패한 프로브의 hasProfile=false는 "프로필 없음"이 아니라 "아직 모름"이다.
-  // 완료 프로필로 내보내지 않는다. 로더에 가두지도 않는다 - 위 효과가 뒤에서 백오프로
-  // 다시 묻는 동안 오류 문구와 다시 시도를 보인다. 같은 모양(실패와 대기를 한 갈래로
-  // 묶은 것)이 /account · /data 에서 끝나지 않는 로딩이 됐다(T1a 항목 2).
+  // 완료 프로필로 내보내지 않는다. 로더에 가두지도 않는다 - 오류 문구와 다시 시도를
+  // 보인다. 같은 모양(실패와 대기를 한 갈래로 묶은 것)이 /account · /data 에서 끝나지
+  // 않는 로딩이 됐다(T1a 항목 2).
   // InterviewFrame 은 도크를 단다. 모름에서는 기능 라우트로 가는 도크를 두지 않는다.
   if (profileProbeFailed) return <ProfileProbeRetryScreen title={t("title")} />;
   if (hasProfile === null) {
