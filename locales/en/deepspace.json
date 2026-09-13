@@ -864,7 +864,10 @@
       "proposalsCta": "Review proposals",
       "peerTitle": "Peer responses arrived",
       "peerBody": "{{n}} of your invites got a response.",
-      "peerCta": "See responses"
+      "peerCta": "See responses",
+      "sourcesTitle": "Material waiting to be worked through",
+      "sourcesBody": "{{n}} pieces have not become wiki pages yet.",
+      "sourcesCta": "See the material"
     },
     "import": {
       "title": "Import",
@@ -997,6 +1000,34 @@
       "autoPaused": "Limit reached · automatic runs resume Monday",
       "autoBody": "SecondB suggests relevant life areas for each item you capture",
       "autoNote": "Each automatic search uses one of your weekly runs. The last run is kept for you to use manually."
+    },
+    "sources": {
+      "title": "Incoming material",
+      "empty": "Nothing has come in yet. Imported files and clips gather here.",
+      "emptyCta": "Import material",
+      "count": "{{n}} to work through",
+      "untitled": "Untitled material",
+      "loadError": "Could not load your material. Try opening this again in a moment.",
+      "expandFor": "Expand the preview of {{title}}",
+      "collapseFor": "Collapse the preview of {{title}}",
+      "previewLoading": "Loading the opening lines",
+      "previewError": "Could not load the opening lines. Tap again to retry.",
+      "brief": "Summary and four questions",
+      "briefRunning": "Reading it",
+      "briefFor": "Make a summary and four questions for {{title}}",
+      "briefView": "See the summary",
+      "briefViewFor": "See the summary of {{title}}",
+      "briefHide": "Hide the summary",
+      "briefSummary": "Summary",
+      "briefQuestions": "Questions to sit with",
+      "briefError": "Could not make the summary. Try again in a moment.",
+      "page": "Make a wiki page",
+      "pageRunning": "Making it",
+      "pageFor": "Make a wiki page for {{title}}",
+      "pageDone": "Made a wiki page for {{title}}",
+      "pageError": "Could not make the wiki page. Try again in a moment.",
+      "pageOpen": "See it in the wiki",
+      "pageOpenFor": "See {{title}} in the wiki"
     }
   },
   "beyond": {

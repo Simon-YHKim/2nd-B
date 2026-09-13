@@ -864,7 +864,10 @@
       "proposalsCta": "Tinjau usulan",
       "peerTitle": "Balasan kenalan tiba",
       "peerBody": "{{n}} undanganmu mendapat balasan.",
-      "peerCta": "Lihat balasan"
+      "peerCta": "Lihat balasan",
+      "sourcesTitle": "Materi yang menunggu ditelusuri",
+      "sourcesBody": "{{n}} bagian belum menjadi halaman wiki.",
+      "sourcesCta": "Lihat materi"
     },
     "import": {
       "title": "Impor",
@@ -997,6 +1000,34 @@
       "autoPaused": "Batas tercapai · otomatis lanjut Senin",
       "autoBody": "SecondB menghubungkan setiap item saat kamu menyimpannya",
       "autoNote": "Jalankan otomatis memakai satu jatah mingguan dan selalu menyisakan satu untuk manual."
+    },
+    "sources": {
+      "title": "Materi yang masuk",
+      "empty": "Belum ada yang masuk. Berkas yang diimpor dan kliping berkumpul di sini.",
+      "emptyCta": "Impor materi",
+      "count": "{{n}} menunggu ditelusuri",
+      "untitled": "Materi tanpa judul",
+      "loadError": "Materi tidak bisa dimuat. Coba buka lagi sebentar lagi.",
+      "expandFor": "Buka pratinjau {{title}}",
+      "collapseFor": "Tutup pratinjau {{title}}",
+      "previewLoading": "Memuat baris pembuka",
+      "previewError": "Baris pembuka tidak bisa dimuat. Ketuk lagi untuk mencoba.",
+      "brief": "Ringkasan dan empat pertanyaan",
+      "briefRunning": "Sedang membaca",
+      "briefFor": "Buat ringkasan dan empat pertanyaan untuk {{title}}",
+      "briefView": "Lihat ringkasan",
+      "briefViewFor": "Lihat ringkasan {{title}}",
+      "briefHide": "Sembunyikan ringkasan",
+      "briefSummary": "Ringkasan",
+      "briefQuestions": "Pertanyaan untuk direnungkan",
+      "briefError": "Ringkasan tidak bisa dibuat. Coba lagi sebentar lagi.",
+      "page": "Buat halaman wiki",
+      "pageRunning": "Sedang dibuat",
+      "pageFor": "Buat halaman wiki untuk {{title}}",
+      "pageDone": "Halaman wiki untuk {{title}} sudah dibuat",
+      "pageError": "Halaman wiki tidak bisa dibuat. Coba lagi sebentar lagi.",
+      "pageOpen": "Lihat di wiki",
+      "pageOpenFor": "Lihat {{title}} di wiki"
     }
   },
   "beyond": {
