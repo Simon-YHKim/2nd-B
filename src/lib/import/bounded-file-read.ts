@@ -38,12 +38,19 @@ export class BoundedFileReadError extends Error {
 }
 
 export interface BoundedUtf8ReadOptions {
-  /** Trusted picker/blob size, when available. */
+  /** Picker/blob metadata used only for validation, never as allocation authority. */
   declaredBytes?: number | null;
   /** May only tighten the repository-wide 10 MiB ceiling. */
   maxBytes?: number;
   signal?: AbortSignal;
   timeoutMs?: number;
+  /** Absolute wall-clock deadline shared by a multi-stage extraction. */
+  deadlineAtMs?: number;
+}
+
+export interface BoundedLocalReadOptions extends BoundedUtf8ReadOptions {
+  /** Browser pickers use blob: URLs; callers must opt in explicitly. */
+  allowWebBlob?: boolean;
 }
 
 interface ChunkReader {
@@ -82,6 +89,16 @@ function validatedTimeoutMs(value: number | undefined): number {
   return timeoutMs;
 }
 
+function timeoutForOptions(options: BoundedUtf8ReadOptions): number {
+  const timeoutMs = validatedTimeoutMs(options.timeoutMs);
+  if (options.deadlineAtMs == null) return timeoutMs;
+  if (!Number.isSafeInteger(options.deadlineAtMs) || options.deadlineAtMs <= 0)
+    throw fail("read_failed");
+  const remainingMs = options.deadlineAtMs - Date.now();
+  if (remainingMs <= 0) throw fail("timed_out");
+  return Math.max(1, Math.min(timeoutMs, remainingMs));
+}
+
 function validatedOptionalSize(value: number | null | undefined, maxBytes: number): number | null {
   if (value == null) return null;
   if (!Number.isSafeInteger(value) || value < 0) throw fail("invalid_size");
@@ -107,12 +124,13 @@ function runWithDeadline<T>(
   operation: () => Promise<T>,
   timeoutMs: number,
   signal: AbortSignal | undefined,
-  onStop?: (code: "aborted" | "timed_out") => void,
+  onStop?: (code: "aborted" | "timed_out") => Promise<unknown> | unknown,
 ): Promise<T> {
   if (signal?.aborted) return Promise.reject(fail("aborted"));
 
   return new Promise<T>((resolve, reject) => {
     let settled = false;
+    let stopping = false;
     const finish = (result: { value: T } | { error: unknown }) => {
       if (settled) return;
       settled = true;
@@ -122,13 +140,19 @@ function runWithDeadline<T>(
       else resolve(result.value);
     };
     const stop = (code: "aborted" | "timed_out") => {
-      if (settled) return;
+      if (settled || stopping) return;
+      stopping = true;
+      let cleanup: Promise<void>;
       try {
-        onStop?.(code);
+        cleanup = Promise.resolve(onStop?.(code)).then(
+          () => undefined,
+          () => undefined,
+        );
       } catch {
         // Stopping is best-effort; the caller still receives the bounded error.
+        cleanup = Promise.resolve();
       }
-      finish({ error: fail(code) });
+      void waitForCancellation(cleanup).then(() => finish({ error: fail(code) }));
     };
     const onAbort = () => stop("aborted");
     const timer = setTimeout(() => stop("timed_out"), timeoutMs);
@@ -136,7 +160,14 @@ function runWithDeadline<T>(
 
     Promise.resolve()
       .then(operation)
-      .then((value) => finish({ value }), (error: unknown) => finish({ error }));
+      .then(
+        (value) => {
+          if (!stopping) finish({ value });
+        },
+        (error: unknown) => {
+          if (!stopping) finish({ error });
+        },
+      );
   });
 }
 
@@ -167,13 +198,14 @@ async function decodeReader(
   const decoder = new TextDecoder("utf-8", { fatal: true });
   const parts: string[] = [];
   const decodeBuffer = new Uint8Array(Math.min(DECODE_BLOCK_BYTES, maxBytes));
-  const timeoutMs = validatedTimeoutMs(options.timeoutMs);
-  const deadlineAt = Date.now() + timeoutMs;
+  let timeoutMs = 0;
+  let deadlineAt = 0;
   let actualBytes = 0;
   let bufferedBytes = 0;
   let chunkCount = 0;
   let consecutiveEmptyChunks = 0;
   let stopCode: "aborted" | "timed_out" | null = null;
+  let deadlineStopManagedCleanup = false;
   let cancellation: Promise<void> | null = null;
 
   const cancelOnce = (): Promise<void> => {
@@ -191,7 +223,12 @@ async function decodeReader(
 
   const markStopped = (code: "aborted" | "timed_out") => {
     stopCode ??= code;
-    void cancelOnce();
+    return cancelOnce();
+  };
+
+  const stopAtDeadline = (code: "aborted" | "timed_out") => {
+    deadlineStopManagedCleanup = true;
+    return markStopped(code);
   };
 
   const requireActive = () => {
@@ -269,9 +306,124 @@ async function decodeReader(
   };
 
   try {
-    return await runWithDeadline(operation, timeoutMs, options.signal, markStopped);
+    timeoutMs = timeoutForOptions(options);
+    deadlineAt = Date.now() + timeoutMs;
+    return await runWithDeadline(operation, timeoutMs, options.signal, stopAtDeadline);
   } catch (error) {
-    await waitForCancellation(cancelOnce());
+    if (!deadlineStopManagedCleanup) await waitForCancellation(cancelOnce());
+    throw sanitized(error);
+  } finally {
+    try {
+      reader.releaseLock?.();
+    } catch {
+      // A timed-out provider may still have a pending read; cancellation is enough.
+    }
+  }
+}
+
+async function readByteReader(
+  reader: ChunkReader,
+  options: BoundedUtf8ReadOptions,
+  maxBytes: number,
+  expectedBytes: number | null,
+): Promise<Uint8Array> {
+  let timeoutMs = 0;
+  let deadlineAt = 0;
+  const capacityLimit = expectedBytes ?? maxBytes;
+  let bytes = new Uint8Array(0);
+  let actualBytes = 0;
+  let chunkCount = 0;
+  let consecutiveEmptyChunks = 0;
+  let stopCode: "aborted" | "timed_out" | null = null;
+  let deadlineStopManagedCleanup = false;
+  let cancellation: Promise<void> | null = null;
+
+  const cancelOnce = (): Promise<void> => {
+    if (cancellation) return cancellation;
+    try {
+      cancellation = Promise.resolve(reader.cancel?.()).then(
+        () => undefined,
+        () => undefined,
+      );
+    } catch {
+      cancellation = Promise.resolve();
+    }
+    return cancellation;
+  };
+
+  const markStopped = (code: "aborted" | "timed_out") => {
+    stopCode ??= code;
+    return cancelOnce();
+  };
+
+  const stopAtDeadline = (code: "aborted" | "timed_out") => {
+    deadlineStopManagedCleanup = true;
+    return markStopped(code);
+  };
+
+  const requireActive = () => {
+    if (stopCode) throw fail(stopCode);
+    if (options.signal?.aborted) {
+      markStopped("aborted");
+      throw fail("aborted");
+    }
+    if (Date.now() >= deadlineAt) {
+      markStopped("timed_out");
+      throw fail("timed_out");
+    }
+  };
+
+  const ensureCapacity = (requiredBytes: number) => {
+    if (requiredBytes <= bytes.byteLength) return;
+    const nextBytes = Math.min(
+      capacityLimit,
+      Math.max(requiredBytes, Math.min(DECODE_BLOCK_BYTES, capacityLimit), bytes.byteLength * 2),
+    );
+    const grown = new Uint8Array(nextBytes);
+    grown.set(bytes.subarray(0, actualBytes));
+    bytes = grown;
+  };
+
+  const operation = async () => {
+    while (true) {
+      requireActive();
+      const result = await reader.read();
+      requireActive();
+      if (result.done) break;
+      const chunk = result.value;
+      if (!(chunk instanceof Uint8Array)) throw fail("read_failed");
+      chunkCount += 1;
+      if (chunkCount > MAX_STREAM_CHUNKS) throw fail("read_failed");
+      if (chunk.byteLength === 0) {
+        consecutiveEmptyChunks += 1;
+        if (consecutiveEmptyChunks > MAX_CONSECUTIVE_EMPTY_CHUNKS) throw fail("read_failed");
+      } else {
+        consecutiveEmptyChunks = 0;
+      }
+      if (expectedBytes != null && chunk.byteLength > expectedBytes - actualBytes) {
+        throw fail("size_mismatch");
+      }
+      if (chunk.byteLength > maxBytes - actualBytes) throw fail("too_large");
+      ensureCapacity(actualBytes + chunk.byteLength);
+      bytes.set(chunk, actualBytes);
+      actualBytes += chunk.byteLength;
+
+      if (chunkCount % MACROTASK_YIELD_INTERVAL_CHUNKS === 0) {
+        await yieldToMacrotask();
+        requireActive();
+      }
+    }
+    requireMatchingSizes(expectedBytes, actualBytes);
+    return bytes.byteLength === actualBytes ? bytes : bytes.slice(0, actualBytes);
+  };
+
+  try {
+    timeoutMs = timeoutForOptions(options);
+    deadlineAt = Date.now() + timeoutMs;
+    bytes = new Uint8Array(Math.min(DECODE_BLOCK_BYTES, capacityLimit));
+    return await runWithDeadline(operation, timeoutMs, options.signal, stopAtDeadline);
+  } catch (error) {
+    if (!deadlineStopManagedCleanup) await waitForCancellation(cancelOnce());
     throw sanitized(error);
   } finally {
     try {
@@ -296,6 +448,22 @@ export async function readBoundedUtf8Stream(
     throw sanitized(error);
   }
   return decodeReader(reader, options, maxBytes, declaredBytes);
+}
+
+/** Read a byte stream without accepting or retaining bytes beyond the cap. */
+export async function readBoundedByteStream(
+  stream: ReadableStream<Uint8Array>,
+  options: BoundedUtf8ReadOptions = {},
+): Promise<Uint8Array> {
+  const maxBytes = validatedMaxBytes(options.maxBytes);
+  const declaredBytes = validatedOptionalSize(options.declaredBytes, maxBytes);
+  let reader: ChunkReader;
+  try {
+    reader = stream.getReader();
+  } catch (error) {
+    throw sanitized(error);
+  }
+  return readByteReader(reader, options, maxBytes, declaredBytes);
 }
 
 /** Read a browser File/Blob via its stream, or bounded slices on older browsers. */
@@ -350,9 +518,45 @@ export async function readBoundedUtf8Response(
   throw fail("unverifiable_size");
 }
 
-function isLocalFileUri(uri: string): boolean {
+/** Read raw response bytes with strict length verification and bounded fallback. */
+export async function readBoundedByteResponse(
+  response: Response,
+  options: BoundedUtf8ReadOptions = {},
+): Promise<Uint8Array> {
+  const maxBytes = validatedMaxBytes(options.maxBytes);
+  const declaredBytes = validatedOptionalSize(options.declaredBytes, maxBytes);
+  const contentLength = parsedContentLength(response, maxBytes);
+  requireMatchingSizes(declaredBytes, contentLength);
+  if (response.ok === false) throw fail("read_failed");
+  const expectedBytes = declaredBytes ?? contentLength;
+
+  if (response.body && typeof response.body.getReader === "function") {
+    return readBoundedByteStream(response.body, { ...options, declaredBytes: expectedBytes });
+  }
+
+  // Whole-buffer fallbacks cannot enforce the cap while bytes arrive.
+  throw fail("unverifiable_size");
+}
+
+function currentWebOrigin(): string | null {
+  const origin = globalThis.location?.origin;
+  if (!origin || origin === "null") return null;
+  try {
+    const parsed = new URL(origin);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.origin : null;
+  } catch {
+    return null;
+  }
+}
+
+function isLocalFileUri(uri: string, allowWebBlob = false): boolean {
+  if (uri.length === 0 || uri.length > 8_192) return false;
   try {
     const parsed = new URL(uri);
+    if (parsed.protocol === "blob:") {
+      const origin = currentWebOrigin();
+      return allowWebBlob && origin != null && parsed.origin !== "null" && parsed.origin === origin;
+    }
     if (parsed.protocol === "content:") return uri.startsWith("content://");
     if (parsed.protocol !== "file:") return false;
     return parsed.hostname === "" || parsed.hostname === "localhost";
@@ -396,18 +600,28 @@ function isMatchingLocalResponseUri(requestUri: string, responseUri: string): bo
   }
 }
 
-/** Fetch only a picker-provided local URI and decode it within one deadline. */
-export async function fetchBoundedLocalUtf8(
+/** Decode bytes as UTF-8 without replacement characters or provider detail leaks. */
+export function decodeBoundedUtf8Bytes(bytes: Uint8Array): string {
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    throw fail("invalid_encoding");
+  }
+}
+
+/** Fetch only a picker-provided local source and return bounded raw bytes. */
+export async function fetchBoundedLocalBytes(
   uri: string,
-  options: BoundedUtf8ReadOptions = {},
-): Promise<string> {
+  options: BoundedLocalReadOptions = {},
+): Promise<Uint8Array> {
   const maxBytes = validatedMaxBytes(options.maxBytes);
   const declaredBytes = validatedOptionalSize(options.declaredBytes, maxBytes);
-  if (!isLocalFileUri(uri)) throw fail("unsafe_source");
+  if (!isLocalFileUri(uri, options.allowWebBlob === true)) throw fail("unsafe_source");
   if (typeof globalThis.fetch !== "function") throw fail("read_failed");
 
-  const timeoutMs = validatedTimeoutMs(options.timeoutMs);
+  const timeoutMs = timeoutForOptions(options);
   const controller = new AbortController();
+  let bodyRead: Promise<Uint8Array> | null = null;
   return runWithDeadline(
     async () => {
       const response = await globalThis.fetch(uri, {
@@ -417,15 +631,64 @@ export async function fetchBoundedLocalUtf8(
       if (response.redirected === true || !isMatchingLocalResponseUri(uri, response.url)) {
         throw fail("unsafe_source");
       }
-      return readBoundedUtf8Response(response, {
+      bodyRead = readBoundedByteResponse(response, {
         ...options,
         declaredBytes,
         signal: controller.signal,
         timeoutMs,
       });
+      return bodyRead;
     },
     timeoutMs,
     options.signal,
-    () => controller.abort(),
+    () => {
+      controller.abort();
+      return bodyRead?.then(
+        () => undefined,
+        () => undefined,
+      );
+    },
+  );
+}
+
+/** Fetch only a picker-provided local URI and decode it within one deadline. */
+export async function fetchBoundedLocalUtf8(
+  uri: string,
+  options: BoundedLocalReadOptions = {},
+): Promise<string> {
+  const maxBytes = validatedMaxBytes(options.maxBytes);
+  const declaredBytes = validatedOptionalSize(options.declaredBytes, maxBytes);
+  if (!isLocalFileUri(uri, options.allowWebBlob === true)) throw fail("unsafe_source");
+  if (typeof globalThis.fetch !== "function") throw fail("read_failed");
+
+  const timeoutMs = timeoutForOptions(options);
+  const controller = new AbortController();
+  let bodyRead: Promise<string> | null = null;
+  return runWithDeadline(
+    async () => {
+      const response = await globalThis.fetch(uri, {
+        redirect: "error",
+        signal: controller.signal,
+      });
+      if (response.redirected === true || !isMatchingLocalResponseUri(uri, response.url)) {
+        throw fail("unsafe_source");
+      }
+      bodyRead = readBoundedUtf8Response(response, {
+        ...options,
+        declaredBytes,
+        signal: controller.signal,
+        timeoutMs,
+      });
+      return bodyRead;
+    },
+    timeoutMs,
+    options.signal,
+    () => {
+      controller.abort();
+      return bodyRead?.then(
+        () => undefined,
+        () => undefined,
+      );
+    },
   );
 }
