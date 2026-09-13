@@ -232,13 +232,16 @@ export function useResetPasswordForm(): UseResetPasswordForm {
       await enqueueRecoveryOperation(
         recoveryOperationQueueRef,
         async () => {
-          await persistRecoveryPending();
+          const pendingLease = await persistRecoveryPending();
           try {
             const verified = await verifyPasswordResetCode(email, token);
-            await activateRecoverySession(verified);
-            await clearRecoveryPending();
+            await activateRecoverySession(verified, pendingLease);
+            await clearRecoveryPending(pendingLease);
           } catch (error) {
-            await clearRecoveryPending().catch(() => undefined);
+            // verifyOtp may establish a session before provenance validation
+            // fails. Revoke it before releasing this exact pending owner.
+            await signOut("local");
+            await clearRecoveryPending(pendingLease);
             throw error;
           }
         },
@@ -296,7 +299,7 @@ export function useResetPasswordForm(): UseResetPasswordForm {
     const task = enqueueRecoveryOperation(
       recoveryOperationQueueRef,
       async () => {
-        await persistRecoveryPending();
+        const pendingLease = await persistRecoveryPending();
         try {
           const callback = await consumeAuthCallbackUrl(deepLinkUrl);
           if (callback.type !== "recovery" || !callback.userId || !callback.sessionId) {
@@ -308,8 +311,8 @@ export function useResetPasswordForm(): UseResetPasswordForm {
           await activateRecoverySession({
             userId: callback.userId,
             sessionId: callback.sessionId,
-          });
-          await clearRecoveryPending();
+          }, pendingLease);
+          await clearRecoveryPending(pendingLease);
           return requestId === recoveryConsumeGenerationRef.current;
         } catch (error) {
           // consumeAuthCallbackUrl may have completed setSession/PKCE exchange
@@ -318,7 +321,7 @@ export function useResetPasswordForm(): UseResetPasswordForm {
           // unclassified callback can never escape as an ordinary login. If
           // sign-out fails, deliberately keep pending durable and fail closed.
           await signOut("local");
-          await clearRecoveryPending();
+          await clearRecoveryPending(pendingLease);
           throw error;
         }
       },

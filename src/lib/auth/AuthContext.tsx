@@ -13,6 +13,7 @@ import { noteResolvedOwner } from "./account-epoch";
 import {
   boundedSessionLoad,
   classifyRefreshOutcome,
+  createRecoveryPendingReleaseRuntime,
   settleAuthBootstrap,
   type SessionLoadOutcome,
 } from "./bootstrap-outcome";
@@ -21,18 +22,21 @@ import { nextRecoveryProof } from "./reset-password-helpers";
 import {
   clearRecoveryProof,
   clearRecoveryPending,
+  captureRecoveryPendingLease,
   createRecoveryProof,
   applyRecoveryPendingStorageValue,
+  isRecoveryPendingStorageKey,
   isRecoveryPendingInMemory,
+  isRecoveryPendingLeaseCurrent,
   loadRecoveryPending,
   loadRecoveryProof,
   parseRecoveryProof,
   persistRecoveryProof,
-  RECOVERY_PENDING_KEY,
   RECOVERY_PROOF_KEY,
   subscribeRecoveryPending,
   recoveryProofMatchesSession,
   type RecoveryProof,
+  type RecoveryPendingLease,
   type RecoverySessionIdentity,
 } from "./recovery-proof-store";
 
@@ -78,7 +82,10 @@ interface AuthContextValue extends AuthState {
   /** Provisional lock written before a recovery auth mutation starts. */
   recoveryPendingGlobal: boolean;
   /** Register a recovery session proven by a native callback/OTP response. */
-  activateRecoverySession: (identity: RecoverySessionIdentity) => Promise<void>;
+  activateRecoverySession: (
+    identity: RecoverySessionIdentity,
+    pendingLease: RecoveryPendingLease,
+  ) => Promise<void>;
   /** Clear recovery mode only if the caller still owns the same proof. */
   completeRecovery: (expectedUserId?: string, expectedSessionId?: string) => Promise<void>;
   /** Re-probe the current session's profile. Call after changing data that
@@ -205,15 +212,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     recoveryProofRef.current = proof;
     setRecoveryProof(proof);
   }, []);
-  const activateRecoverySession = useCallback(async (identity: RecoverySessionIdentity) => {
+  const activateRecoverySession = useCallback(async (
+    identity: RecoverySessionIdentity,
+    pendingLease: RecoveryPendingLease,
+  ) => {
+    if (!isRecoveryPendingLeaseCurrent(pendingLease)) return;
     const proof = createRecoveryProof(identity);
     // Lock the current frame immediately; persistence completes before the
     // verify/callback handler releases its pending state.
     publishRecoveryProof(proof);
     try {
       await persistRecoveryProof(proof);
+      if (!isRecoveryPendingLeaseCurrent(pendingLease)) return;
       setRecoveryReady(true);
     } catch (error) {
+      if (!isRecoveryPendingLeaseCurrent(pendingLease)) throw error;
       // A recovery session without a durable marker could escape on restart.
       // Fail closed by removing this device's session and the in-memory proof.
       if (
@@ -222,6 +235,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ) {
         try {
           await signOutAuth("local");
+          if (!isRecoveryPendingLeaseCurrent(pendingLease)) throw error;
           publishRecoveryProof(null);
         } catch {
           // signOut returns { error } rather than throwing at the client layer;
@@ -247,7 +261,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Clear disk first. If it fails, keep the route lock and let the caller
     // surface an error instead of silently restoring stale recovery on restart.
     await clearRecoveryProof();
-    await clearRecoveryPending();
+    // Proof completion owns no provisional lease. A later B pending intent must
+    // remain locked and be retired only by the flow that created it.
+    if (isRecoveryPendingInMemory()) return;
     if (recoveryProofRef.current === owned) publishRecoveryProof(null);
   }, [publishRecoveryProof]);
 
@@ -365,16 +381,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const sameProof = (left: RecoveryProof | null, right: RecoveryProof | null) =>
       left?.userId === right?.userId && left?.sessionId === right?.sessionId;
 
+    const pendingReleaseRuntime = createRecoveryPendingReleaseRuntime<RecoveryPendingLease>({
+      sameLease: (left, right) => (
+        left.revision === right.revision && left.token === right.token
+      ),
+      clear: clearRecoveryPending,
+      isPending: isRecoveryPendingInMemory,
+    });
+    const releaseRecoveryPending = pendingReleaseRuntime.release;
+
     let failClosedRunning = false;
-    const failClosedRecovery = async (proof: RecoveryProof | null, _error: unknown): Promise<boolean> => {
+    let deferredSignedOut: { proof: RecoveryProof | null } | null = null;
+    const settleDeferredSignedOut = () => {
+      if (failClosedRunning || !deferredSignedOut || isRecoveryPendingInMemory()) return;
+      if (latestSessionRef.current) {
+        deferredSignedOut = null;
+        return;
+      }
+      const deferred = deferredSignedOut;
+      const current = recoveryProofRef.current;
+      if (current && deferred.proof && !sameProof(current, deferred.proof)) {
+        deferredSignedOut = null;
+        return;
+      }
+      deferredSignedOut = null;
+      if (current) publishRecoveryProof(null);
+      setRecoveryReady(true);
+      void resolveSession(null);
+    };
+    const finishFailClosed = () => {
+      failClosedRunning = false;
+      settleDeferredSignedOut();
+    };
+    const failClosedRecovery = async (
+      proof: RecoveryProof | null,
+      _error: unknown,
+      pendingLease: RecoveryPendingLease | null,
+    ): Promise<boolean> => {
       // A stale A failure must never revoke a newer B proof. Restore A only when
       // no newer owner exists, then yield once so already-queued auth/storage
       // publications can win before local sign-out begins.
       if (proof && !recoveryProofRef.current) publishRecoveryProof(proof);
       const requestedGeneration = recoveryProofGenerationRef.current;
+      const pendingOwnerIsSafe = () => pendingLease
+        ? isRecoveryPendingLeaseCurrent(pendingLease)
+        : !isRecoveryPendingInMemory();
+      if (!pendingOwnerIsSafe()) return false;
       await Promise.resolve();
       const currentOwner = recoveryProofRef.current;
       if (
+        !pendingOwnerIsSafe() ||
         (proof && (!currentOwner || !sameProof(currentOwner, proof))) ||
         (!proof && currentOwner)
       ) {
@@ -398,6 +454,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!proof) setRecoveryReady(false);
       try {
         await signOutAuth("local");
+        if (
+          requestedGeneration !== recoveryProofGenerationRef.current
+          || !pendingOwnerIsSafe()
+        ) {
+          finishFailClosed();
+          return false;
+        }
         const ownerAfterSignOut = recoveryProofRef.current;
         if (
           (proof && ownerAfterSignOut && !sameProof(ownerAfterSignOut, proof)) ||
@@ -406,15 +469,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // signOut may already have removed the live session, but a newer proof
           // must remain durable/locked and must not be deleted by stale cleanup.
           setRecoveryReady(false);
-          failClosedRunning = false;
+          finishFailClosed();
           return false;
         }
         await clearRecoveryProof();
-        await clearRecoveryPending();
+        if (
+          requestedGeneration !== recoveryProofGenerationRef.current
+          || !pendingOwnerIsSafe()
+        ) {
+          finishFailClosed();
+          return false;
+        }
+        const pendingReleased = await releaseRecoveryPending(pendingLease);
+        if (!pendingReleased) {
+          finishFailClosed();
+          return false;
+        }
         if (!proof || sameProof(recoveryProofRef.current, proof)) publishRecoveryProof(null);
         setRecoveryReady(true);
         void resolveSession(null);
-        failClosedRunning = false;
+        deferredSignedOut = null;
+        finishFailClosed();
         return true;
       } catch {
         if (typeof console !== "undefined") {
@@ -430,16 +505,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         setRecoveryReady(false);
         setState((current) => ({ ...current, loading: true }));
-        failClosedRunning = false;
+        finishFailClosed();
         return false;
       }
     };
 
     const handleAuthEvent = (event: AuthChangeEvent, session: Session | null) => {
       latestSessionRef.current = session;
+      if (session) deferredSignedOut = null;
       const previous = recoveryProofRef.current;
       const next = nextRecoveryProof(previous, event, session);
-      if (!sameProof(previous, next)) publishRecoveryProof(next);
+      const terminalProofExit = Boolean(previous && !next);
+      // A terminal event carries no pending lease. Keep the old proof visible
+      // until cleanup proves that no newer pending owner exists.
+      if (!sameProof(previous, next) && !terminalProofExit) publishRecoveryProof(next);
 
       if (
         event === "INITIAL_SESSION" &&
@@ -451,28 +530,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           void failClosedRecovery(
             null,
             new Error("Recovery bootstrap restored a session before proof"),
+            null,
           );
-        } else {
-          void clearRecoveryPending()
-            .then(() => resolveSession(null))
-            .catch((error) => failClosedRecovery(null, error));
         }
+        // INITIAL_SESSION describes auth state, not pending-marker ownership.
+        // The bootstrap or originating reset flow owns any safe release.
         return;
       }
 
       if (event === "PASSWORD_RECOVERY") {
         if (!next) {
           // A recovery event without a session_id cannot be safely bound.
-          void failClosedRecovery(null, new Error("Recovery session has no stable session_id"));
+          void failClosedRecovery(
+            null,
+            new Error("Recovery session has no stable session_id"),
+            null,
+          );
         } else {
           void persistRecoveryProof(next)
-            .then(() => clearRecoveryPending())
-            .catch((error) => failClosedRecovery(next, error));
+            .catch((error) => failClosedRecovery(next, error, null));
         }
-      } else if (event === "SIGNED_OUT") {
+      } else if (event === "SIGNED_OUT" || (previous && !next && !session)) {
         void clearRecoveryProof()
-          .then(() => clearRecoveryPending())
-          .catch((error) => failClosedRecovery(previous, error));
+          .then(() => {
+            deferredSignedOut = { proof: previous };
+            settleDeferredSignedOut();
+          })
+          .catch((error) => failClosedRecovery(previous, error, null));
+        return;
       } else if (previous && !next) {
         if (session) {
           if (isRecoveryPendingInMemory()) {
@@ -486,15 +571,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           // A different live session appeared while recovery owned navigation.
           // Revoke it rather than clearing A's marker and treating B as ordinary.
-          void failClosedRecovery(previous, new Error("Recovery session identity changed"));
-        } else {
-          void clearRecoveryProof()
-            .then(() => clearRecoveryPending())
-            .catch((error) => failClosedRecovery(previous, error));
+          void failClosedRecovery(
+            previous,
+            new Error("Recovery session identity changed"),
+            null,
+          );
+          return;
         }
       }
       void resolveSession(session?.user.id ?? null);
     };
+
+    const unsubscribePendingTerminal = subscribeRecoveryPending((pending) => {
+      if (!pending) settleDeferredSignedOut();
+    });
 
     // Subscribe before getSession/hydration. auth-js may emit PASSWORD_RECOVERY
     // while it consumes a cold web callback URL; queue that event until both the
@@ -507,12 +597,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       handleAuthEvent(event, session);
     });
     const handleRecoveryStorage = (event: StorageEvent) => {
-      if (event.key === RECOVERY_PENDING_KEY) {
+      if (isRecoveryPendingStorageKey(event.key)) {
+        try {
+          if (event.storageArea && event.storageArea !== localStorage) return;
+        } catch {
+          applyRecoveryPendingStorageValue(event.newValue);
+          void failClosedRecovery(
+            recoveryProofRef.current,
+            new Error("Cross-tab recovery storage is unavailable"),
+            null,
+          );
+          return;
+        }
         const pending = applyRecoveryPendingStorageValue(event.newValue);
         if (event.newValue && !pending) {
           void failClosedRecovery(
             recoveryProofRef.current,
             new Error("Cross-tab recovery pending marker is invalid"),
+            null,
           );
         }
         return;
@@ -525,6 +627,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           void failClosedRecovery(
             recoveryProofRef.current,
             new Error("Cross-tab recovery proof marker is invalid"),
+            null,
           );
           return;
         }
@@ -547,6 +650,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return failClosedRecovery(
               stored,
               error ?? new Error("Cross-tab recovery proof session mismatch"),
+              null,
             );
           }
           latestSessionRef.current = data.session;
@@ -560,7 +664,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ) {
             return false;
           }
-          return failClosedRecovery(stored, error);
+          return failClosedRecovery(stored, error, null);
         });
     };
     const unsubscribeRecoveryStorage = subscribeRecoveryStorageEvent(
@@ -568,6 +672,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       handleRecoveryStorage,
     );
 
+    let bootstrapOwnedPendingLease: RecoveryPendingLease | null = null;
     void (async () => {
       type ProofLoadResult =
         | { ok: true; proof: RecoveryProof | null }
@@ -576,10 +681,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .then<ProofLoadResult>((proof) => ({ ok: true, proof }))
         .catch<ProofLoadResult>((error) => ({ ok: false, error }));
       type PendingLoadResult =
-        | { ok: true; pending: boolean }
+        | { ok: true; pending: boolean; lease: RecoveryPendingLease | null }
         | { ok: false; error: unknown };
       const pendingLoad = loadRecoveryPending()
-        .then<PendingLoadResult>((pending) => ({ ok: true, pending: pending !== null }))
+        .then<PendingLoadResult>((pending) => {
+          const observedLease = captureRecoveryPendingLease();
+          const ownsObservation = pending
+            ? Boolean(pending.token && pending.token === observedLease.token)
+            : observedLease.token === null;
+          return {
+            ok: true,
+            pending: pending !== null,
+            lease: ownsObservation ? observedLease : null,
+          };
+        })
         .catch<PendingLoadResult>((error) => ({ ok: false, error }));
       type SessionLoadResult =
         | { ok: true; session: Session | null }
@@ -617,7 +732,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         !sessionKnown || recoveryProofMatchesSession(loadedMarker, session)
       ) ? loadedMarker : null;
       let persisted = loadedMarker;
-      let recoveryPendingOnDisk = pendingResult.ok && pendingResult.pending;
+      let recoveryPendingLease = pendingResult.ok ? pendingResult.lease : null;
+      bootstrapOwnedPendingLease = recoveryPendingLease;
+      let recoveryPendingOnDisk = pendingResult.ok && (
+        pendingResult.pending
+        || pendingResult.lease === null
+        || isRecoveryPendingInMemory()
+      );
+      const releaseBootstrapPending = async (): Promise<boolean> => {
+        if (!recoveryPendingOnDisk) return true;
+        if (!isRecoveryPendingInMemory()) {
+          recoveryPendingOnDisk = false;
+          recoveryPendingLease = null;
+          bootstrapOwnedPendingLease = null;
+          return true;
+        }
+        const released = await releaseRecoveryPending(recoveryPendingLease);
+        if (!released) return false;
+        recoveryPendingOnDisk = false;
+        recoveryPendingLease = null;
+        bootstrapOwnedPendingLease = null;
+        return true;
+      };
 
       // Events can arrive during either storage operation. Reconcile and flush
       // until the queue is empty before exposing loading=false.
@@ -632,8 +768,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (proof) {
             await persistRecoveryProof(proof);
             if (recoveryPendingOnDisk) {
-              await clearRecoveryPending();
-              recoveryPendingOnDisk = false;
+              const released = await releaseBootstrapPending();
+              if (!released) {
+                sessionKnown = false;
+                session = null;
+              }
             }
           }
           else if (persisted) await clearRecoveryProof();
@@ -664,8 +803,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (proof && recoveryPendingOnDisk) {
-        await clearRecoveryPending();
-        recoveryPendingOnDisk = false;
+        const released = await releaseBootstrapPending();
+        if (!released) {
+          sessionKnown = false;
+          session = null;
+        }
       }
 
       const unreadableMarker = !markerResult.ok || !pendingResult.ok;
@@ -694,20 +836,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             : pendingResult.ok === false
               ? pendingResult.error
               : unresolvedPending
-                ? new Error("Recovery session changed before proof was persisted")
-                : new Error("Persisted recovery proof does not match the current session"),
+                  ? new Error("Recovery session changed before proof was persisted")
+                  : new Error("Persisted recovery proof does not match the current session"),
+          recoveryPendingLease,
         );
-        if (!closed) return;
-        session = null;
-        proof = null;
-        queuedAuthEvents.splice(0);
+        if (!closed) {
+          if (!isRecoveryPendingInMemory()) return;
+          sessionKnown = false;
+          session = null;
+        } else {
+          session = null;
+          proof = null;
+          queuedAuthEvents.splice(0);
+        }
       }
 
       if (recoveryPendingOnDisk && sessionKnown && !session && !proof) {
         // Invalid/expired callback never established a session. Releasing the
         // provisional lock is safe and lets the reset screen show its error.
-        await clearRecoveryPending();
-        recoveryPendingOnDisk = false;
+        const released = await releaseBootstrapPending();
+        if (!released) {
+          sessionKnown = false;
+          session = null;
+        }
       }
 
       // A cross-tab proof can arrive while the three bootstrap reads are in
@@ -731,11 +882,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // fake-timer test. Behaviour for every previously-handled case is
       // unchanged; the new branch is `session-unavailable`, which ends an
       // ordinary unanswered startup instead of leaving loading:true forever.
-      settleAuthBootstrap<Session>({
+      settleAuthBootstrap<Session, RecoveryPendingLease>({
         sessionKnown,
         hasProof: Boolean(proof),
         proofMatchesSession,
         recoveryPendingOnDisk,
+        recoveryPendingLease,
         markersReadable: markerResult.ok && pendingResult.ok,
         sessionForResolve,
         sessionAnswered: sessionResult.ok,
@@ -747,7 +899,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isRecoveryPendingInMemory,
         currentRecoveryProof: () => recoveryProofRef.current,
         failClosedRecovery,
-        clearRecoveryPending,
+        releaseRecoveryPending,
         handleAuthEvent,
       });
       // No await exists between the last queue check and bootstrapped=true, so
@@ -756,7 +908,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
       // Storage/session bootstrap failed before provenance could be reconciled.
       // Keep the app fail-closed by clearing local auth before publishing signed-out.
-      void failClosedRecovery(recoveryProofRef.current, error).then((closed) => {
+      void failClosedRecovery(
+        recoveryProofRef.current,
+        error,
+        bootstrapOwnedPendingLease,
+      ).then((closed) => {
         if (closed) {
           bootstrapped = true;
           setRecoveryReady(true);
@@ -766,6 +922,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
       sub.subscription.unsubscribe();
+      unsubscribePendingTerminal();
       unsubscribeRecoveryStorage();
     };
   }, [publishRecoveryProof]);

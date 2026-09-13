@@ -240,7 +240,7 @@ describe("PIXEL-CLAY reset-password presenter", () => {
     expect(resetHookSource).toContain("recoveryOperationQueueRef");
     expect(resetHookSource).toContain("enqueueRecoveryOperation(");
     expect(resetHookSource).toContain("requestId === recoveryConsumeGenerationRef.current");
-    expect(resetHookSource).toContain("await activateRecoverySession(verified)");
+    expect(resetHookSource).toContain("await activateRecoverySession(verified, pendingLease)");
     expect(resetHookSource).toContain(
       "await completeRecovery(expectedRecoveryUserId, expectedRecoverySessionId)",
     );
@@ -248,8 +248,12 @@ describe("PIXEL-CLAY reset-password presenter", () => {
     expect(resetHookSource).toContain("previousRecoveryOwnerRef.current");
     expect(resetHookSource).toContain('await signOut("local")');
     expect(resetHookSource).toMatch(
-      /const callback = await consumeAuthCallbackUrl\(deepLinkUrl\);[\s\S]{0,900}?catch \(error\) \{[\s\S]{0,500}?await signOut\("local"\);[\s\S]{0,200}?await clearRecoveryPending\(\);/,
+      /const pendingLease = await persistRecoveryPending\(\);[\s\S]{0,300}?const callback = await consumeAuthCallbackUrl\(deepLinkUrl\);[\s\S]{0,1000}?catch \(error\) \{[\s\S]{0,500}?await signOut\("local"\);[\s\S]{0,200}?await clearRecoveryPending\(pendingLease\);/,
     );
+    expect(resetHookSource).toMatch(
+      /const pendingLease = await persistRecoveryPending\(\);[\s\S]{0,300}?const verified = await verifyPasswordResetCode\(email, token\);[\s\S]{0,800}?catch \(error\) \{[\s\S]{0,400}?await signOut\("local"\);[\s\S]{0,200}?await clearRecoveryPending\(pendingLease\);/,
+    );
+    expect(resetHookSource).not.toMatch(/clearRecoveryPending\(\)/);
     expect(resetHookSource).toContain("setCancelled(true)");
     expect(resetHookSource).toContain("const step = resetStep({ recoveryActive, complete, codeSent })");
     expect(resetHookSource).not.toContain("const step = resetStep({ userId");
