@@ -129,6 +129,8 @@ import { reactExpression } from "@/lib/companion/expression";
 import { AdvisorFollowupNote } from "@/components/records/AdvisorFollowupNote";
 import { createRecord } from "@/lib/records/create";
 import { domainTagFor, isDomainTag, type DomainId } from "@/lib/persona/domain-stars";
+import { domainScreenRoute, lifeDomainOf, type LifeDomainId } from "@/lib/records/domain-screen";
+import { pieceIdFor } from "@/lib/records/get-piece";
 import type { RecordFollowup } from "@/lib/records/followup";
 import { computeStreak } from "@/lib/journal/streak";
 import { dailyPrompt } from "@/lib/journal/daily-prompts";
@@ -648,6 +650,8 @@ function CaptureLegacySession({
   const [savedKind, setSavedKind] = useState<"records" | "source" | null>(null);
   const [savedMode, setSavedMode] = useState<Mode | null>(null);
   const [savedSourceId, setSavedSourceId] = useState<string | null>(null);
+  // P1: 저장한 소스가 담긴 생활 영역. 소스를 저장할 때 그 행의 태그로 정한다(없으면 null).
+  const [savedDomain, setSavedDomain] = useState<LifeDomainId | null>(null);
   const [savedFollowup, setSavedFollowup] = useState<RecordFollowup | null>(null);
   // True when the last capture saved its body inline because the Storage
   // upload failed (CaptureResult.storagePending) — surfaced as a one-line
@@ -1819,6 +1823,7 @@ function CaptureLegacySession({
     // and left a "see the graph" CTA whose highlight id was gone (audit A-2).
     setSavedMode(null);
     setSavedSourceId(null);
+    setSavedDomain(null);
     setSavedTitle(null);
     setSavedKind(null);
     setSavedFollowup(null);
@@ -2391,12 +2396,20 @@ ${transcript}`;
 
   const hasOcrDraft = mode === "ocr" && body.trim().length > 0;
   const savedIsOcr = savedKind === "source" && savedMode === "ocr";
-  const openSavedGraph = () => {
-    if (savedSourceId) {
-      router.push({ pathname: "/", params: { highlightRecordId: savedSourceId } });
+  // P1 (Simon 결정 2026-09-13 22:26): 저장한 소스를 그것이 담긴 영역 화면에서 보여준다.
+  // 영역 태그가 없으면(collect · 태그 없음) 그 조각의 상세 화면으로 간다. 예전에는
+  // `/?highlightRecordId=<id>` 로 홈에 강조를 부탁했는데, 배송 홈에는 그걸 읽는 곳이 없었다.
+  const savedAreaName = savedDomain ? t(`home:ds.home.domainName.${savedDomain}`) : "";
+  const openSavedDestination = () => {
+    if (!savedSourceId) {
+      router.push("/records");
       return;
     }
-    router.push("/");
+    if (savedDomain) {
+      router.push(domainScreenRoute(savedDomain, pieceIdFor(savedSourceId, "source")));
+      return;
+    }
+    router.push({ pathname: "/record/[id]", params: { id: savedSourceId, origin: "source" } });
   };
   // Post-save destination for records-path captures: open the just-saved
   // /record/[id] when we have its id (voice/todo notes carry it), otherwise the
@@ -3096,6 +3109,7 @@ ${transcript}`;
           setSavedKind("source");
           setSavedMode(submittedMode);
           setSavedSourceId(result.source.id);
+          setSavedDomain(lifeDomainOf(result.source.tags));
           setSavedFollowup(null);
           setSavedPending(result.storagePending);
           // G3: a capture that landed as "inbox" (no specific format fit) is the
@@ -3425,9 +3439,10 @@ ${transcript}`;
                 </View>
               </View>
               <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm }}>
-                {/* J1: send the user where the piece actually IS — a journal
-                    save opens 기록 보관소 (it adds no graph node), a classified
-                    capture opens the graph it just lit up. */}
+                {/* J1: send the user where the piece actually IS. A journal save
+                    opens 기록 보관소; a source capture opens the life area it was
+                    filed under and is shown at the top there (P1), or its own
+                    detail when it has no area. */}
                 {savedKind === "records" ? (
                   <PremiumButton
                     label={t("saved.seeRecords")}
@@ -3438,14 +3453,14 @@ ${transcript}`;
                   />
                 ) : (
                   <PremiumButton
-                    label={savedIsOcr ? t("saved.seeOcrGraph") : t("saved.seeGraph")}
+                    label={savedDomain ? t("saved.seeArea", { area: savedAreaName }) : t("saved.seePiece")}
                     variant="secondary"
-                    onPress={openSavedGraph}
-                    accessibilityHint={savedIsOcr ? t("saved.seeOcrGraphHint") : t("saved.seeGraphHint")}
+                    onPress={openSavedDestination}
+                    accessibilityHint={savedDomain ? t("saved.seeAreaHint", { area: savedAreaName }) : t("saved.seePieceHint")}
                     style={{ flex: 1 }}
                   />
                 )}
-                <PremiumButton label={t("saved.captureMore")} variant="ghost" onPress={() => { setSavedTitle(null); setSavedKind(null); setSavedMode(null); setSavedSourceId(null); setSavedFollowup(null); setSavedPending(false); }} style={{ flex: 1 }} />
+                <PremiumButton label={t("saved.captureMore")} variant="ghost" onPress={() => { setSavedTitle(null); setSavedKind(null); setSavedMode(null); setSavedSourceId(null); setSavedDomain(null); setSavedFollowup(null); setSavedPending(false); }} style={{ flex: 1 }} />
               </View>
             </PremiumCard>
           ) : null}

@@ -41,7 +41,8 @@ import {
   updateRecord,
   updateRecordTags,
 } from "@/lib/records/create";
-import { getPieceById, SOURCE_ID_PREFIX, type PieceDetail } from "@/lib/records/get-piece";
+import { domainScreenRoute, lifeDomainOf } from "@/lib/records/domain-screen";
+import { getPieceById, pieceIdFor, SOURCE_ID_PREFIX, type PieceDetail } from "@/lib/records/get-piece";
 import {
   recordsEmbeddingAllowed,
   relatedRecordsByEmbedding,
@@ -840,6 +841,12 @@ export function DeepSpaceRecordDetailScreen() {
         ? t("deepspace:recordDetail.headerLinked", { count: relatedItems.length })
         : t("deepspace:recordDetail.headerAlone");
   const source = piece.origin === "source";
+  // P1 (Simon 결정 2026-09-13 22:26): 이 조각이 담긴 영역 화면에서 이 조각을 보여준다.
+  // 영역 태그가 없으면(collect · 태그 없음) 갈 곳이 없으니 버튼을 안 띄운다. 해석은
+  // recordDomain 이다 - 도메인 옮기기의 canonicalDomain 과 달리 대소문자를 가리는데,
+  // 영역 화면의 목록도 domain:<id> 를 정확히 맞춰 읽기 때문이다.
+  const area = lifeDomainOf(piece.tags);
+  const areaName = area ? t(`home:ds.home.domainName.${area}`) : "";
   const fallbackBody = t("recordDetail:body.noText");
   const secondaryBody = piece.conclusion?.trim() || null;
   const canEdit = !source && Boolean(piece.body?.trim()) && !assessment.isAssessment && !structured;
@@ -1110,6 +1117,22 @@ export function DeepSpaceRecordDetailScreen() {
               </PixelSurface>
             ) : null}
           </View>
+
+          {area ? (
+            <PixelPressable
+              variant="frame"
+              onPress={() => router.push(domainScreenRoute(area, pieceIdFor(piece.id, piece.origin)))}
+              accessibilityLabel={t("recordDetail:actions.seeArea", { area: areaName })}
+              accessibilityHint={t("recordDetail:actions.seeAreaHint", { area: areaName })}
+              fullWidth
+              contentStyle={styles.actionContent}
+            >
+              <PixelGlyph name="arrowForward" color={m3.color.primary} size={24} />
+              <RNText style={[m3TextStyle("labelLarge"), styles.secondaryLabel]}>
+                {t("recordDetail:actions.seeArea", { area: areaName })}
+              </RNText>
+            </PixelPressable>
+          ) : null}
 
           {source ? (
             <PixelPressable

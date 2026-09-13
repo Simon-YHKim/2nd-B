@@ -1,7 +1,7 @@
 // Record detail (queue B / A-to-Z Phase 6) - one saved piece in full.
 // Reached from the records browser or the core-brain evidence drawer.
 // Shows the piece's type, date, topic and body, plus the standard handoffs
-// (see in graph / ask SecondB / open the source screen).
+// (see it in its life area / ask SecondB / open the source screen).
 //
 // Renders loading / not-found / error / normal states so a direct URL never
 // lands on a blank or crashing screen.
@@ -25,7 +25,9 @@ import {
   type EvidenceType,
 } from "@/lib/persona/evidence";
 import { summarizeAssessmentBody } from "@/lib/persona/assessment-summary";
+import { domainScreenRoute, lifeDomainOf } from "@/lib/records/domain-screen";
 import { normalizeRecordFollowup, type RecordFollowup } from "@/lib/records/followup";
+import { pieceIdFor } from "@/lib/records/get-piece";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -150,6 +152,9 @@ function RecordDetailLegacy() {
   // Assessment records (MBTI/Big Five/ECR) store a JSON body - render it as
   // friendly label/value lines instead of dumping raw JSON at the user.
   const assessment = summarizeAssessmentBody(row.body, locale);
+  // P1 (Simon 결정 2026-09-13 22:26): 배송 기록 상세와 같은 규칙. 영역 태그가 있으면 그 영역
+  // 화면에서 이 조각을 보여주고, 없으면 버튼을 안 띄운다.
+  const area = lifeDomainOf(row.tags);
 
   return (
     <PremiumAppShell>
@@ -213,15 +218,14 @@ function RecordDetailLegacy() {
         ) : null}
 
         <View style={styles.handoffs}>
-          {/* J1: only source-origin pieces exist as graph nodes; for a journal
-              or note record the highlight matched nothing and the button
-              landed on an unchanged graph (the broken-promise class the
-              capture CTA fix routes users straight into). */}
-          {isSource ? (
+          {/* J1 이후 이 버튼은 source 기원일 때만 그래프 강조를 약속했다. 그 그래프는
+              아카이브됐고 배송 홈의 별은 도메인이 아니다. 이제 기준은 기원이 아니라
+              domain: 태그다 (P1). */}
+          {area ? (
             <Button
-              label={t("actions.seeGraph")}
+              label={t("actions.seeArea", { area: t(`home:ds.home.domainName.${area}`) })}
               variant="secondary"
-              onPress={() => router.push({ pathname: "/", params: { highlightRecordId: row.id } })}
+              onPress={() => router.push(domainScreenRoute(area, pieceIdFor(row.id, isSource ? "source" : "record")))}
             />
           ) : null}
           <Button
