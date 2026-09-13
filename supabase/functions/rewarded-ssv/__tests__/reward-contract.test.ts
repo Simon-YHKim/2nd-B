@@ -127,6 +127,26 @@ describe("rewarded SSV ticket timing", () => {
       /\(tickets\.consumed_transaction_id IS NULL\s+AND tickets\.expires_at >= now\(\)\)\s+OR \(tickets\.consumed_transaction_id = p_txn_id\s+AND tickets\.consumed_at >= now\(\) - make_interval\(days => 1\)\)/,
     );
   });
+
+  test("keeps a consumed ticket through the exact-retry window when a later issue cleans up", () => {
+    const migration = readRepo("db/migrations/0177_reward_ssv_tickets.sql");
+    const cleanupStart = migration.indexOf("DELETE FROM public.reward_ssv_tickets AS tickets");
+    const cleanupEnd = migration.indexOf("-- Ticket issuance repeats", cleanupStart);
+    expect(cleanupStart).toBeGreaterThan(0);
+    expect(cleanupEnd).toBeGreaterThan(cleanupStart);
+
+    const cleanup = migration.slice(cleanupStart, cleanupEnd).replace(/\s+/g, " ");
+    // Expired + never consumed (consumed_at NULL) is disposable. Once consumed,
+    // expiry alone must not win: a later issue may overlap Google's exact retry,
+    // so the transaction-bound row stays until its one-day retry window ends.
+    expect(cleanup).toContain(
+      "AND ( (tickets.consumed_at IS NULL AND tickets.expires_at < now()) " +
+      "OR tickets.consumed_at < now() - make_interval(days => 1) )",
+    );
+    expect(cleanup).not.toContain(
+      "AND ( tickets.expires_at < now() OR tickets.consumed_at < now() - make_interval(days => 1) )",
+    );
+  });
 });
 
 describe("signed SSV query boundary", () => {

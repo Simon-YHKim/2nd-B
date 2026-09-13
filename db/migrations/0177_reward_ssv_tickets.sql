@@ -133,7 +133,8 @@ BEGIN
   DELETE FROM public.reward_ssv_tickets AS tickets
    WHERE tickets.user_id = p_user_id
      AND (
-       tickets.expires_at < now()
+       (tickets.consumed_at IS NULL
+        AND tickets.expires_at < now())
        OR tickets.consumed_at < now() - make_interval(days => 1)
      );
 

@@ -188,6 +188,45 @@ describe("showRewardedAd SSV ticket boundary", () => {
     expect(createForAdRequest).not.toHaveBeenCalled();
   });
 
+  test("fails closed when the post-issue session fence rejects", async () => {
+    mockGetSession
+      .mockResolvedValueOnce(sessionResponse(USER_ID))
+      .mockRejectedValueOnce(new Error("session unavailable"));
+
+    await expect(showRewardedAd(REASONING_OPTIONS)).resolves.toEqual({ completed: false });
+    expect(mockInvoke).toHaveBeenCalledTimes(1);
+    expect(createForAdRequest).not.toHaveBeenCalled();
+  });
+
+  test("bounds a stalled post-issue session fence before creating the ad", async () => {
+    jest.useFakeTimers();
+    try {
+      mockGetSession
+        .mockResolvedValueOnce(sessionResponse(USER_ID))
+        .mockImplementationOnce(() => new Promise(() => undefined));
+      const result = showRewardedAd(REASONING_OPTIONS);
+      for (let i = 0; i < 10; i += 1) await Promise.resolve();
+      expect(mockInvoke).toHaveBeenCalledTimes(1);
+      expect(mockGetSession).toHaveBeenCalledTimes(2);
+
+      const outcome = Promise.race([
+        result.then((value) => ({ state: "settled", value })),
+        new Promise<{ state: "pending" }>((resolve) => {
+          setTimeout(() => resolve({ state: "pending" }), 6_000);
+        }),
+      ]);
+      await jest.advanceTimersByTimeAsync(6_000);
+
+      await expect(outcome).resolves.toEqual({
+        state: "settled",
+        value: { completed: false },
+      });
+      expect(createForAdRequest).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test("does not show an A-owned ad after the session changes to B while loading", async () => {
     mockGetSession
       .mockResolvedValueOnce(sessionResponse(USER_ID))

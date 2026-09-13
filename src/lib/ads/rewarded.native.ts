@@ -10,6 +10,7 @@
 
 import { Platform } from "react-native";
 
+import { withTimeout } from "../async/with-timeout";
 import { getSupabaseClient } from "../supabase/client";
 import { ensureAdsInitialized, ensureUmpConsent } from "./consent";
 import type { RewardedResult, ShowRewardedAdOptions } from "./types";
@@ -25,13 +26,14 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 const ACCESS_TOKEN_PATTERN = /^[A-Za-z0-9._~-]{1,8192}$/;
 const TICKET_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const TICKET_TIMEOUT_MS = 5_000;
+const SESSION_FENCE_TIMEOUT_MS = 5_000;
 const LOAD_TIMEOUT_MS = 20_000;
 const SHOW_TIMEOUT_MS = 10 * 60_000;
 const PROVIDER_RETRY_WINDOW_MS = 5_000;
 const CALLBACK_DELIVERY_MARGIN_MS = 5 * 60_000;
 const REWARD_TICKET_TTL_SECONDS = 20 * 60;
-const MIN_REWARD_TICKET_TTL_MS = TICKET_TIMEOUT_MS + LOAD_TIMEOUT_MS + SHOW_TIMEOUT_MS +
-  PROVIDER_RETRY_WINDOW_MS + CALLBACK_DELIVERY_MARGIN_MS;
+const MIN_REWARD_TICKET_TTL_MS = TICKET_TIMEOUT_MS + 2 * SESSION_FENCE_TIMEOUT_MS +
+  LOAD_TIMEOUT_MS + SHOW_TIMEOUT_MS + PROVIDER_RETRY_WINDOW_MS + CALLBACK_DELIVERY_MARGIN_MS;
 
 function loadSdk(): GoogleMobileAdsModule | null {
   if (Platform.OS === "web") return null;
@@ -93,7 +95,11 @@ function parseTicketResponse(value: unknown, expectedUserId: string): RewardTick
 
 async function sessionStillOwns(userId: string): Promise<boolean> {
   try {
-    const { data, error } = await getSupabaseClient().auth.getSession();
+    const { data, error } = await withTimeout(
+      getSupabaseClient().auth.getSession(),
+      SESSION_FENCE_TIMEOUT_MS,
+      "reward session ownership check",
+    );
     return !error && data.session?.user?.id === userId;
   } catch {
     return false;
