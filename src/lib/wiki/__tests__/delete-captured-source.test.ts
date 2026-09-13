@@ -239,11 +239,13 @@ describe("원문을 못 지우면 아무 행도 건드리지 않는다 (r3as F-0
 });
 
 describe("원문을 지운 뒤 행 단계에서 실패하면", () => {
-  test("partly_deleted 를 돌려주고, 다시 시도하면 이미 없는 원문을 지나 끝까지 지운다", async () => {
+  // r3as2 R3AS2-03: 원문을 이미 지웠다는 사실은 따로 돌려준다(raw_removed). 화면이 "자료가 아직 남아 있다" 고
+  // 말하지 않게 하려는 것이다 - 원문은 되돌릴 수 없게 사라졌다.
+  test("raw_removed 를 돌려주고, 다시 시도하면 이미 없는 원문을 지나 끝까지 지운다", async () => {
     mockDb.sources = [{ ...SOURCE, ingested: true }];
     mockDb.wiki_pages = [{ ...PAGE }];
     mockDb.sourceDeleteErrors = 1;
-    await expect(deleteCapturedSource(OWNER, "src-1")).resolves.toBe("partly_deleted");
+    await expect(deleteCapturedSource(OWNER, "src-1")).resolves.toBe("raw_removed");
     expect([...mockDb.objects]).toEqual([]); // 원문은 지웠다
     expect(mockDb.wiki_pages).toEqual([]); // 승격 페이지도 지웠다
     expect(mockDb.sources).toHaveLength(1); // 행이 남았다
@@ -256,7 +258,7 @@ describe("원문을 지운 뒤 행 단계에서 실패하면", () => {
   test("행이 0행으로 안 지워지고 남아 있으면(RLS 거부) 성공이라 하지 않는다", async () => {
     mockDb.sources = [{ ...SOURCE }];
     mockDb.denySourceDelete = true;
-    await expect(deleteCapturedSource(OWNER, "src-1")).resolves.toBe("partly_deleted");
+    await expect(deleteCapturedSource(OWNER, "src-1")).resolves.toBe("raw_removed");
     expect(mockDb.sources).toHaveLength(1);
     expect(invalidateDomainLevels).not.toHaveBeenCalled();
   });
@@ -266,6 +268,16 @@ describe("원문을 지운 뒤 행 단계에서 실패하면", () => {
     mockDb.sourceDeleteErrors = 1;
     await expect(deleteCapturedSource(OWNER, "src-1")).resolves.toBe("not_deleted");
     expect(mockDb.sources).toHaveLength(1);
+  });
+
+  test("원문이 없던 자료에서 승격 페이지만 지우고 행에서 멈추면 partly_deleted 다 - 원문을 지웠다고 하지 않는다", async () => {
+    mockDb.sources = [{ ...SOURCE, storage_path: null, ingested: true }];
+    mockDb.wiki_pages = [{ ...PAGE }];
+    mockDb.sourceDeleteErrors = 1;
+    await expect(deleteCapturedSource(OWNER, "src-1")).resolves.toBe("partly_deleted");
+    expect(mockDb.wiki_pages).toEqual([]);
+    expect(mockDb.sources).toHaveLength(1);
+    expect(mockDb.writes).not.toContain("storage remove");
   });
 });
 
@@ -366,8 +378,18 @@ describe("기록 상세 화면은 다 지웠을 때만 뒤로 간다", () => {
     expect(mockDb.sources).toHaveLength(1);
   });
 
-  test("일부만 지워졌으면 그 사실을 말하고 머문다", async () => {
+  test("원문을 지운 뒤 멈췄으면 원문이 삭제됐다는 문구로 말하고 머문다", async () => {
     mockDb.sources = [{ ...SOURCE }];
+    mockDb.sourceDeleteErrors = 1;
+    const screen = detailScreen();
+    await screen.run();
+    expect(screen.router.back).not.toHaveBeenCalled();
+    expect(screen.said).toEqual(["deepspace:recordDetail.deleteSourceRawRemoved"]);
+  });
+
+  test("원문이 없던 자료가 일부만 지워졌으면 일부만 삭제됐다는 문구로 말하고 머문다", async () => {
+    mockDb.sources = [{ ...SOURCE, storage_path: null }];
+    mockDb.wiki_pages = [{ ...PAGE }];
     mockDb.sourceDeleteErrors = 1;
     const screen = detailScreen();
     await screen.run();
@@ -397,14 +419,14 @@ describe("다른 계정의 페이지가 이 자료를 참조하면 (r3as M1, 기
   // 남의 행을 클라이언트에서 지우는 식으로 풀지 않는다 - 그 페이지는 끝까지 그대로여야 한다.
   const FOREIGN_PAGE: MockRow = { id: "page-b", user_id: "user-b", kind: "source", source_id: "src-1" };
 
-  test("23514 로 막히면 partly_deleted 로 닫고, 행과 남의 페이지를 건드리지 않고, 아무것도 로그하지 않는다", async () => {
+  test("23514 로 막히면 raw_removed 로 닫고, 행과 남의 페이지를 건드리지 않고, 아무것도 로그하지 않는다", async () => {
     mockDb.sources = [{ ...SOURCE }];
     mockDb.wiki_pages = [{ ...FOREIGN_PAGE }];
     const consoles = (["warn", "error", "log", "info"] as const).map((level) =>
       jest.spyOn(console, level).mockImplementation(() => undefined),
     );
     try {
-      await expect(deleteCapturedSource(OWNER, "src-1")).resolves.toBe("partly_deleted");
+      await expect(deleteCapturedSource(OWNER, "src-1")).resolves.toBe("raw_removed");
       for (const spy of consoles) expect(spy).not.toHaveBeenCalled();
     } finally {
       for (const spy of consoles) spy.mockRestore();
@@ -427,28 +449,78 @@ describe("다른 계정의 페이지가 이 자료를 참조하면 (r3as M1, 기
     const offline = detailScreen();
     await offline.run();
 
-    expect(blocked.said).toEqual(["deepspace:recordDetail.deleteSourcePartial"]);
+    expect(blocked.said).toEqual(["deepspace:recordDetail.deleteSourceRawRemoved"]);
     expect(blocked.said).toEqual(offline.said);
     expect(blocked.router.back).not.toHaveBeenCalled();
   });
+
+  test("영구히 막히는 이 경로의 문구는 원문이 삭제됐다고 말하고, 다시 시도하면 끝난다고 약속하지 않는다 (r3as2 R3AS2-03)", async () => {
+    // 옛 문구는 "자료가 아직 남아 있고 다시 시도하면 마저 삭제한다" 였다. 실제로는 원문이 이미 되돌릴 수 없게
+    // 사라졌고, 서버 스키마가 고쳐질 때까지 같은 재시도는 매번 23514 로 막힌다.
+    mockDb.sources = [{ ...SOURCE }];
+    mockDb.wiki_pages = [{ ...FOREIGN_PAGE }];
+    const first = detailScreen();
+    await first.run();
+    const retry = detailScreen();
+    await retry.run();
+    expect(retry.said).toEqual(first.said); // 다시 시도해도 같은 자리다
+    expect(mockDb.sources).toHaveLength(1);
+
+    const key = first.said[0].replace("deepspace:recordDetail.", "");
+    for (const loc of LOCALES) {
+      const text = detail(loc)[key];
+      expect({ loc, rawDeleted: RAW_DELETED[loc].test(text) }).toEqual({ loc, rawDeleted: true });
+      expect({ loc, mayNotFinish: MAY_NOT_FINISH[loc].test(text) }).toEqual({ loc, mayNotFinish: true });
+      expect({ loc, promise: OLD_PROMISE[loc].test(text) }).toEqual({ loc, promise: false });
+    }
+  });
 });
 
+// ── 문구 ─────────────────────────────────────────────────────────────────────────
+
+const LOCALES = ["en", "ko", "es", "pt", "id"] as const;
+type Locale = (typeof LOCALES)[number];
+const detail = (loc: string): Record<string, string> =>
+  (
+    JSON.parse(readFileSync(join(process.cwd(), "locales", loc, "deepspace.json"), "utf8")) as {
+      recordDetail: Record<string, string>;
+    }
+  ).recordDetail;
+/** 원문이 삭제됐다는 사실 (r3as2 R3AS2-03). */
+const RAW_DELETED: Record<Locale, RegExp> = {
+  en: /saved text was deleted/i,
+  ko: /원문은 삭제됐어요/,
+  es: /texto guardado se eliminó/i,
+  pt: /texto salvo foi excluído/i,
+  id: /teks tersimpan sudah dihapus/i,
+};
+/** 다시 시도해도 끝나지 않을 수 있다는 사실. */
+const MAY_NOT_FINISH: Record<Locale, RegExp> = {
+  en: /trying again may not finish/i,
+  ko: /다시 시도해도 끝나지 않을 수 있어요/,
+  es: /puede que no termine aunque lo intentes de nuevo/i,
+  pt: /pode não terminar mesmo se você tentar de novo/i,
+  id: /mencoba lagi pun mungkin tidak menyelesaikannya/i,
+};
+/** 옛 문구가 하던 약속: 자료가 아직 남아 있다 · 다시 시도하면 마저 지운다. */
+const OLD_PROMISE: Record<Locale, RegExp> = {
+  en: /still here|try again to finish/i,
+  ko: /아직 남아 있어요|마저 삭제해요/,
+  es: /sigue aquí|para terminar/i,
+  pt: /ainda está aqui|para concluir/i,
+  id: /masih ada|untuk menyelesaikan/i,
+};
+
 describe("확인 문구", () => {
-  const LOCALES = ["en", "ko", "es", "pt", "id"] as const;
-  // deleteSourceFailed · deleteSourcePartial 은 r3as F-02 의 결과 문구다.
+  // deleteSourceFailed · deleteSourcePartial 은 r3as F-02, deleteSourceRawRemoved 는 r3as2 R3AS2-03 의 결과 문구다.
   const KEYS = [
     "a11yDeleteSource",
     "deleteSourceConfirmTitle",
     "deleteSourceConfirmBody",
     "deleteSourceFailed",
     "deleteSourcePartial",
+    "deleteSourceRawRemoved",
   ] as const;
-  const detail = (loc: string): Record<string, string> =>
-    (
-      JSON.parse(readFileSync(join(process.cwd(), "locales", loc, "deepspace.json"), "utf8")) as {
-        recordDetail: Record<string, string>;
-      }
-    ).recordDetail;
   const IRREVERSIBLE: Record<(typeof LOCALES)[number], RegExp> = {
     en: /cannot be undone/i,
     ko: /되돌릴 수 없/,
@@ -488,9 +560,33 @@ describe("확인 문구", () => {
     for (const loc of ["es", "pt", "id"] as const) {
       for (const key of KEYS) expect({ loc, key, same: detail(loc)[key] === detail("en")[key] }).toEqual({ loc, key, same: false });
     }
-    for (const key of ["deleteSourceConfirmBody", "deleteSourceFailed", "deleteSourcePartial"] as const) {
+    for (const key of ["deleteSourceConfirmBody", "deleteSourceFailed", "deleteSourcePartial", "deleteSourceRawRemoved"] as const) {
       expect(detail("ko")[key]).toMatch(/요\./);
       expect(detail("ko")[key]).not.toMatch(/니다\./);
+    }
+  });
+
+  test("일부만 지워진 두 문구는 다시 시도하면 끝난다고 약속하지 않고, 원인을 말하지 않는다 (r3as2 R3AS2-03)", () => {
+    const CAUSE: Record<Locale, RegExp> = {
+      en: /account|constraint|reference|another/i,
+      ko: /계정|제약|참조|다른 사람/,
+      es: /cuenta|restricción|referencia/i,
+      pt: /conta|restrição|referência/i,
+      id: /akun|batasan|referensi/i,
+    };
+    for (const loc of LOCALES) {
+      for (const key of ["deleteSourcePartial", "deleteSourceRawRemoved"] as const) {
+        const text = detail(loc)[key];
+        expect({ loc, key, mayNotFinish: MAY_NOT_FINISH[loc].test(text) }).toEqual({ loc, key, mayNotFinish: true });
+        expect({ loc, key, promise: OLD_PROMISE[loc].test(text), cause: CAUSE[loc].test(text) }).toEqual({
+          loc,
+          key,
+          promise: false,
+          cause: false,
+        });
+      }
+      // 원문을 지웠다는 말은 원문을 실제로 지운 경우의 문구에만 있다.
+      expect({ loc, partialSaysRaw: RAW_DELETED[loc].test(detail(loc).deleteSourcePartial) }).toEqual({ loc, partialSaysRaw: false });
     }
   });
 });

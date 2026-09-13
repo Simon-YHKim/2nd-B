@@ -23,14 +23,17 @@
 // ⚠ 옛 순서(페이지 -> 행 -> 원문, 원문은 best-effort)는 원문 삭제가 실패해도 성공을 돌려줬다. 그때는
 //   storage_path 를 가진 행이 이미 없어서 다시 시도할 길도 없었다 - 사용자는 원문까지 지웠다고 믿는데
 //   원문이 고아로 남았다. 지금 순서의 대가는 반대편에 있다: 원문을 지운 뒤 페이지나 행에서 실패하면
-//   "일부만 지워짐" 이 남는다. 그것도 성공이라 하지 않고, 다시 시도하면 이어서 지운다. 셋을 한
+//   "일부만 지워짐" 이 남는다. 그것도 성공이라 하지 않는다. 다시 시도하면 이어서 지울 수 있지만 늘 끝나지는
+//   않는다 - 원인이 아래 M1(다른 계정의 페이지 참조)이면 서버 스키마가 고쳐질 때까지 매번 막힌다. 셋을 한
 //   트랜잭션으로 묶는 것은 서버 RPC 몫이다(PR #1814 서버 후속).
 //
-// 결과는 셋이고, 화면은 deleted 일 때만 뒤로 간다.
+// 결과는 넷이고, 화면은 deleted 일 때만 뒤로 간다.
 //   deleted         원문 · 승격 페이지 · 행을 모두 지웠다.
 //   not_deleted     페이지와 행은 하나도 지우지 않았다. 원문 삭제 요청이 응답 전에 끊겼다면 원문은
 //                   이미 없을 수 있다 - 그래서 화면 문구도 "아무것도 지우지 않았다" 고 단정하지 않는다.
-//   partly_deleted  원문이나 승격 페이지를 지웠는데 행이 남았다.
+//   raw_removed     원문은 지웠는데(되돌릴 수 없다) 승격 페이지나 행 정리에서 멈췄다 (r3as2 R3AS2-03). 화면이
+//                   "자료가 아직 남아 있다" 고 말하지 않도록 따로 돌려준다.
+//   partly_deleted  원문 경로가 없던 자료에서 승격 페이지를 지웠는데 행 정리에서 멈췄다.
 //
 // ⚠ 보안 경계는 이 함수가 아니라 RLS 다. 여기서 거는 user_id 와 경로 접두사 확인은 두 번째 울타리다.
 // 로그에는 실패 사실만 남긴다. 경로와 id 는 사용자 데이터를 가리키고, Storage 오류 문구에 경로가
@@ -42,7 +45,7 @@ import { invalidateDomainLevels } from "../persona/load-domain-levels";
 import { deleteWikiPage } from "./queries";
 import { deleteRawClipping } from "./storage";
 
-export type DeleteCapturedSourceOutcome = "deleted" | "not_deleted" | "partly_deleted";
+export type DeleteCapturedSourceOutcome = "deleted" | "not_deleted" | "raw_removed" | "partly_deleted";
 
 function warnWithoutDetails(message: string): void {
   if (typeof console !== "undefined") console.warn(message);
@@ -80,7 +83,8 @@ export async function deleteCapturedSource(userId: string, sourceId: string): Pr
   }
 
   // 여기서부터 실패하면 무엇을 이미 지웠는지로 답이 갈린다.
-  let removedAny = Boolean(path);
+  const rawRemoved = Boolean(path);
+  let pageRemoved = false;
   try {
     const { data: pages, error: pagesError } = await supabase
       .from("wiki_pages")
@@ -90,7 +94,7 @@ export async function deleteCapturedSource(userId: string, sourceId: string): Pr
     if (pagesError) throw pagesError;
     for (const page of (pages ?? []) as { id: string }[]) {
       await deleteWikiPage(userId, page.id);
-      removedAny = true;
+      pageRemoved = true;
     }
 
     const { count, error: deleteError } = await supabase
@@ -116,7 +120,7 @@ export async function deleteCapturedSource(userId: string, sourceId: string): Pr
     // CHECK 23514 로 막는다. 그 원인을 기기 로그에 적거나 구분해 말하면 남의 계정 데이터가 있다는
     // 신호가 된다 - 연결이 끊긴 실패와 같은 답으로 닫는다. 남의 행은 여기서 지우지 않는다.
     // 스키마 보강(소유자를 포함한 복합 FK)은 서버 후속이다(PR #1814).
-    return removedAny ? "partly_deleted" : "not_deleted";
+    return rawRemoved ? "raw_removed" : pageRemoved ? "partly_deleted" : "not_deleted";
   }
   // 도메인 태그가 붙은 자료였다면 별 밝기가 바뀐다. deleteRecord 와 같은 자세다.
   invalidateDomainLevels(userId);

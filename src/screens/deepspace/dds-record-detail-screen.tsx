@@ -757,13 +757,17 @@ export function DeepSpaceRecordDetailScreen() {
       const outcome = await deleteCapturedSource(userId, sourceId);
       if (!isCurrent(identity)) return;
       if (outcome !== "deleted") {
-        // 지워지지 않았거나 일부만 지워졌다(r3as F-02). 성공처럼 뒤로 가지 않고 확인 창에 머물러
-        // 무엇이 남았는지 말한다. 다시 누르면 남은 것부터 이어서 지운다.
+        // 지워지지 않았거나 일부만 지워졌다(r3as F-02). 성공처럼 뒤로 가지 않고 확인 창에 머문다. 원문을 이미
+        // 지웠으면 그 사실을 말한다 - "자료가 아직 남아 있다" 고 하면 되돌릴 수 없게 사라진 원문이 아직 있다고
+        // 믿게 된다(r3as2 R3AS2-03). 다시 시도하면 끝난다고 약속하지 않는다: 원인에 따라 서버가 고쳐질 때까지
+        // 매번 막힌다. 원인(다른 계정 · 제약 · id)은 어느 문구도 말하지 않는다.
         announceActionError(
           t(
-            outcome === "partly_deleted"
-              ? "deepspace:recordDetail.deleteSourcePartial"
-              : "deepspace:recordDetail.deleteSourceFailed",
+            outcome === "raw_removed"
+              ? "deepspace:recordDetail.deleteSourceRawRemoved"
+              : outcome === "partly_deleted"
+                ? "deepspace:recordDetail.deleteSourcePartial"
+                : "deepspace:recordDetail.deleteSourceFailed",
           ),
         );
         return;
