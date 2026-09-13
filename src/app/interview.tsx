@@ -43,6 +43,7 @@ import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { Text } from "@/components/ui/Text";
 import { PremiumLoadingState, PremiumModal, PremiumToast } from "@/components/premium";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
+import { ProfileProbeRetryPanel } from "@/components/deep-space/ProfileProbeRetry";
 import { PastMeErasView } from "@/components/deep-space/DeepSpaceViews";
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
 import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
@@ -157,8 +158,19 @@ export default function InterviewRoute() {
   }
   if (!userId) return <Redirect href="/sign-in" />;
   // 실패한 프로브의 hasProfile=false는 "프로필 없음"이 아니라 "아직 모름"이다.
-  // 기존 DeepSpace 인증 게이트처럼 완료 프로필로 내보내지 않고 다음 프로브를 기다린다.
-  if (profileProbeFailed || hasProfile === null) {
+  // 완료 프로필로 내보내지 않는다. 로더에 가두지도 않는다 - 위 효과가 뒤에서 백오프로
+  // 다시 묻는 동안 오류 문구와 다시 시도를 보인다. 같은 모양(실패와 대기를 한 갈래로
+  // 묶은 것)이 /account · /data 에서 끝나지 않는 로딩이 됐다(T1a 항목 2).
+  if (profileProbeFailed) {
+    return (
+      <InterviewFrame>
+        <View style={[styles.center, styles.routeState]}>
+          <ProfileProbeRetryPanel />
+        </View>
+      </InterviewFrame>
+    );
+  }
+  if (hasProfile === null) {
     return (
       <InterviewFrame>
         <View style={styles.center}>

@@ -16,6 +16,7 @@ import { Redirect, router } from "expo-router";
 import { PremiumLoadingState } from "@/components/premium";
 import { canonIden } from "@/lib/canon";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
+import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRetry";
 import { type IdenViewData } from "@/components/deep-space/DeepSpaceViews";
 import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -266,6 +267,13 @@ function IdenExportScreenDeepSpace() {
 
   if (!loading && !userId) return <Redirect href="/sign-in" />;
   if (!loading && hasProfile === false && !profileProbeFailed) return <Redirect href="/complete-profile" />;
+  // A failed probe never lets the persisted read start (canRead needs
+  // profileProbeFailed === false), so the state body below would sit on its loader
+  // with nothing to lift it. Same shape the T1a emulator run caught on /account and
+  // /data (vibe r260913, item 2): show the retryable error instead.
+  if (!loading && userId && profileProbeFailed) {
+    return <ProfileProbeRetryScreen active="iden" title={t("ds.screenTitle")} />;
+  }
 
   const stateBody = !hasData ? (
     <View style={dsIden.center}>

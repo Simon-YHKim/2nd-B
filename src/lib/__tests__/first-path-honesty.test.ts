@@ -38,8 +38,12 @@ describe("/northstar failure surfaces (flow-map bugs 2+3)", () => {
 describe("/secondb resilience (flow-map bugs 5+6)", () => {
   const src = read("src/app/secondb.tsx");
 
-  it("holds the loader on a FAILED profile probe instead of ejecting the account", () => {
-    expect(src).toContain("hasProfile === false && profileProbeFailed");
+  it("answers a FAILED profile probe with the retry screen, not an eject or an endless loader", () => {
+    // The loader-only hold was the T1a item 2 shape: /secondb re-probes once after
+    // 2s, and nothing lifted the loader after that.
+    expect(src).toContain(
+      'if (hasProfile === false && profileProbeFailed) return <ProfileProbeRetryScreen active="chat" />;',
+    );
   });
 
   it("copies through expo-clipboard (native + web), never navigator-only", () => {

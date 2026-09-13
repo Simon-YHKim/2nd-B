@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Redirect, router, useFocusEffect } from "expo-router";
 
 import { useAuth } from "@/lib/auth/AuthContext";
+import { profileGate } from "@/lib/auth/profile-probe";
 import { type DomainId } from "@/lib/persona/domain-stars";
 import { type LadderLevel } from "@/lib/persona/brightness";
 import { loadSevenLevels } from "@/lib/persona/load-seven-levels";
@@ -21,6 +22,7 @@ import { useCoachmarksGate } from "@/lib/onboarding/coachmarks-gate";
 import { DeepSpaceScreen } from "./DeepSpaceScreen";
 import { ConstellationHome, type HomeStarId } from "./ConstellationHome";
 import { HomeCoachmarks } from "./HomeCoachmarks";
+import { ProfileProbeRetryScreen } from "./ProfileProbeRetry";
 
 export function DeepSpaceShell() {
   const { userId, hasProfile, loading, profileProbeFailed } = useAuth();
@@ -81,17 +83,23 @@ export function DeepSpaceShell() {
     }, []),
   );
 
-  if (loading) return <InlineLoader />;
+  const gate = profileGate({ loading, userId, hasProfile, profileProbeFailed });
+  if (gate === "auth-loading") return <InlineLoader />;
   // Login wall first (Simon 2026-07-15): a signed-out visitor hits /sign-in
   // before anything else; onboarding is now a post-login welcome. This reverses
   // the earlier "sell before signup" order so nothing renders pre-auth.
-  if (!userId) return <Redirect href="/sign-in" />;
+  if (gate === "signed-out") return <Redirect href="/sign-in" />;
   // F4: a TRANSIENT profile-probe failure (network blip) surfaces as
   // hasProfile===false with profileProbeFailed===true. Do NOT eject a real,
   // fully-registered user to /complete-profile (which would demand DOB + consent
-  // re-entry) on a mere blip -- hold with the loader; AuthContext re-probes.
-  if (hasProfile === false && profileProbeFailed) return <InlineLoader />;
-  if (hasProfile === false) return <Redirect href="/complete-profile" />;
+  // re-entry) on a mere blip. Do not park them on a loader either: this screen has
+  // no retry of its own, so the T1a emulator run (vibe r260913) watched home sit on
+  // the loader after a `JWT issued at future` probe failure and onboarding never
+  // came. Show the retryable error with the dock.
+  if (gate === "profile-error") return <ProfileProbeRetryScreen active="home" />;
+  if (gate === "profile-incomplete") return <Redirect href="/complete-profile" />;
+  // "profile-loading" keeps the old fall-through: AuthContext only publishes a
+  // signed-in user with hasProfile === null while `loading` is still true.
   if (onboardingComplete === null) return <InlineLoader />;
   if (!onboardingComplete) return <Redirect href="/onboarding" />;
   // autoTriggerTTFV hydrates from AsyncStorage on native and is null until the
