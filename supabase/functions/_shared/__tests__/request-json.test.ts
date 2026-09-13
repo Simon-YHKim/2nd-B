@@ -143,6 +143,42 @@ describe('readJsonObject', () => {
     expect(cancelled).toBe(true);
   });
 
+  it('does not let a pending cancel promise stall size-limit failures', async () => {
+    const outcomeBeforeNextTask = async (pending: Promise<unknown>) =>
+      Promise.race([
+        pending.then(
+          () => 'resolved',
+          () => 'rejected',
+        ),
+        new Promise<string>((resolve) => setTimeout(() => resolve('pending'), 0)),
+      ]);
+    const neverCancel = () => new Promise<void>(() => undefined);
+    const declared = new ReadableStream<Uint8Array>({ cancel: neverCancel });
+    const streamed = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array(65));
+      },
+      cancel: neverCancel,
+    });
+
+    await expect(
+      outcomeBeforeNextTask(
+        readBodyBytes(
+          { body: declared, headers: new Headers({ 'content-length': '65' }) } as Request,
+          64,
+        ),
+      ),
+    ).resolves.toBe('rejected');
+    await expect(
+      outcomeBeforeNextTask(
+        readBodyBytes(
+          { body: streamed, headers: new Headers({ 'content-length': '1' }) } as Request,
+          64,
+        ),
+      ),
+    ).resolves.toBe('rejected');
+  });
+
   it('rejects and cancels a stream that repeatedly makes zero-byte progress', async () => {
     let pulls = 0;
     let cancelled = false;
@@ -206,6 +242,29 @@ describe('readJsonObject', () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+
+  it('never turns an aborted raw-body read into a successful empty body', async () => {
+    const controller = new AbortController();
+    let cancelled = false;
+    const stream = new ReadableStream<Uint8Array>({
+      pull() {
+        return new Promise<void>(() => undefined);
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    const request = {
+      body: stream,
+      headers: new Headers(),
+      signal: controller.signal,
+    } as Request;
+
+    const pending = readBodyBytes(request, 64);
+    controller.abort();
+    await expect(pending).rejects.toMatchObject({ code: 'invalid_json' });
+    expect(cancelled).toBe(true);
   });
 });
 

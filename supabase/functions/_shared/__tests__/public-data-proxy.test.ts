@@ -92,6 +92,36 @@ describe("public-data upstream body boundary", () => {
     ).rejects.toBeInstanceOf(PublicDataProxyError);
   });
 
+  test("does not let a pending cancel promise stall oversize failures", async () => {
+    const outcomeBeforeNextTask = async (pending: Promise<unknown>) =>
+      Promise.race([
+        pending.then(
+          () => "resolved",
+          () => "rejected",
+        ),
+        new Promise<string>((resolve) => setTimeout(() => resolve("pending"), 0)),
+      ]);
+    const neverCancel = () => new Promise<void>(() => undefined);
+    const declared = new Response(new ReadableStream<Uint8Array>({ cancel: neverCancel }), {
+      headers: { "content-length": "65" },
+    });
+    const streamed = new Response(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new Uint8Array(65));
+        },
+        cancel: neverCancel,
+      }),
+    );
+
+    await expect(
+      outcomeBeforeNextTask(readPublicDataBodyBounded(declared, 64)),
+    ).resolves.toBe("rejected");
+    await expect(
+      outcomeBeforeNextTask(readPublicDataBodyBounded(streamed, 64)),
+    ).resolves.toBe("rejected");
+  });
+
   test("rejects zero-progress and fragmented streams", async () => {
     const zero = new Response(
       new ReadableStream<Uint8Array>({
@@ -145,5 +175,28 @@ describe("public-data upstream body boundary", () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+
+  test("never converts an AbortSignal into a successful empty body", async () => {
+    const controller = new AbortController();
+    let cancelled = false;
+    const response = new Response(
+      new ReadableStream<Uint8Array>({
+        pull() {
+          return new Promise<void>(() => undefined);
+        },
+        cancel() {
+          cancelled = true;
+        },
+      }),
+    );
+    const pending = readPublicDataBodyBounded(response, 64, {
+      timeoutMs: 1_000,
+      signal: controller.signal,
+    });
+
+    controller.abort();
+    await expect(pending).rejects.toThrow("timed out");
+    expect(cancelled).toBe(true);
   });
 });

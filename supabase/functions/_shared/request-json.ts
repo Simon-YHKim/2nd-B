@@ -41,12 +41,12 @@ async function consumeBoundedStream(
   const declaredLength = request.headers.get('content-length')?.trim();
   if (declaredLength) {
     if (!/^(?:0|[1-9]\d*)$/.test(declaredLength)) {
-      await stream.cancel().catch(() => undefined);
+      void stream.cancel().catch(() => undefined);
       throw invalidJson();
     }
     const declaredBytes = Number(declaredLength);
     if (!Number.isSafeInteger(declaredBytes) || declaredBytes > maxBytes) {
-      await stream.cancel().catch(() => undefined);
+      void stream.cancel().catch(() => undefined);
       throw bodyTooLarge(maxBytes);
     }
   }
@@ -55,6 +55,7 @@ async function consumeBoundedStream(
   let timeout: ReturnType<typeof setTimeout> | undefined;
   const signal = (request as { signal?: AbortSignal }).signal;
   let onAbort: (() => void) | undefined;
+  let terminalError: JsonBodyError | null = null;
   let rejectDeadline: ((error: JsonBodyError) => void) | undefined;
   const deadline = new Promise<never>((_resolve, reject) => {
     rejectDeadline = reject;
@@ -62,8 +63,10 @@ async function consumeBoundedStream(
   try {
     reader = stream.getReader();
     const failRead = () => {
+      if (terminalError) return;
+      terminalError = invalidJson();
+      rejectDeadline?.(terminalError);
       void reader?.cancel('request body read stopped').catch(() => undefined);
-      rejectDeadline?.(invalidJson());
     };
     onAbort = failRead;
     timeout = setTimeout(failRead, REQUEST_BODY_TIMEOUT_MS);
@@ -76,6 +79,7 @@ async function consumeBoundedStream(
 
     while (true) {
       const { done, value } = await Promise.race([reader.read(), deadline]);
+      if (terminalError) throw terminalError;
       if (done) break;
       chunksRead += 1;
       if (chunksRead > REQUEST_BODY_MAX_CHUNKS || !(value instanceof Uint8Array)) {
@@ -89,7 +93,7 @@ async function consumeBoundedStream(
       }
       bytesRead += value.byteLength;
       if (bytesRead > maxBytes) {
-        await reader.cancel().catch(() => undefined);
+        void reader.cancel().catch(() => undefined);
         throw bodyTooLarge(maxBytes);
       }
       consumeChunk(value);
@@ -106,7 +110,7 @@ async function consumeBoundedStream(
     }
     return bytesRead;
   } catch (error) {
-    if (reader) await reader.cancel().catch(() => undefined);
+    if (reader) void reader.cancel().catch(() => undefined);
     if (error instanceof JsonBodyError) throw error;
     throw invalidJson();
   } finally {

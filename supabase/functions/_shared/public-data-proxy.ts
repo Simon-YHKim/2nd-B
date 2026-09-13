@@ -225,7 +225,7 @@ export async function readPublicDataBodyBounded(
   const declared = response.headers.get("content-length")?.trim();
   if (declared !== undefined) {
     if (!/^(?:0|[1-9][0-9]*)$/.test(declared) || Number(declared) > maxBytes) {
-      await response.body?.cancel().catch(() => undefined);
+      void response.body?.cancel().catch(() => undefined);
       throw new PublicDataProxyError("upstream_response_too_large", "upstream response too large");
     }
   }
@@ -236,13 +236,16 @@ export async function readPublicDataBodyBounded(
   let total = 0;
   let chunks = 0;
   let noProgress = 0;
+  let terminalError: PublicDataProxyError | null = null;
   let rejectDeadline: ((error: PublicDataProxyError) => void) | undefined;
   const deadline = new Promise<never>((_resolve, reject) => {
     rejectDeadline = reject;
   });
   const failRead = (error: PublicDataProxyError) => {
+    if (terminalError) return;
+    terminalError = error;
+    rejectDeadline?.(terminalError);
     void reader.cancel(error.code).catch(() => undefined);
-    rejectDeadline?.(error);
   };
   const timer = setTimeout(
     () =>
@@ -258,6 +261,7 @@ export async function readPublicDataBodyBounded(
       throw new PublicDataProxyError("upstream_body_timed_out", "upstream body read timed out");
     for (;;) {
       const { done, value } = await Promise.race([reader.read(), deadline]);
+      if (terminalError) throw terminalError;
       if (done) break;
       chunks += 1;
       if (chunks > maxChunks)
@@ -290,7 +294,7 @@ export async function readPublicDataBodyBounded(
     }
     return new TextDecoder("utf-8", { fatal: true }).decode(bytes.subarray(0, total));
   } catch (error) {
-    await reader.cancel().catch(() => undefined);
+    void reader.cancel().catch(() => undefined);
     if (error instanceof PublicDataProxyError) throw error;
     throw new PublicDataProxyError("upstream_body_invalid", "invalid upstream body");
   } finally {
