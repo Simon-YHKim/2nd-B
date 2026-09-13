@@ -16,6 +16,8 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
+import { HOME_STAR_IDS } from "@/lib/persona/home-stars";
+
 import { pixelStarSpan } from "../../pixel/pixel-star";
 import {
   POLARIS_LABEL,
@@ -38,14 +40,29 @@ function constNumber(name: string): number {
   return Number(m[1]);
 }
 
+/**
+ * `REV2_STARS` 배열의 객체를 하나씩 읽는다. 속성 순서와 무관하다.
+ *
+ * 전에는 `{ id, x, y }` 순서를 통째로 맞추는 정규식 하나였다. 속성 순서만 바꿔도 그 객체를 조용히
+ * 건너뛰었고, 아래 검사들은 남은 별만 돌며 초록이었다 (PR #1810 생성물 게이트 F2). 이제 배열 안의
+ * 객체를 모두 읽고, 셋 중 하나라도 리터럴로 못 읽으면 던진다. 일곱을 다 읽었는지는 첫 검사가 본다.
+ */
 function renderedStars(): { id: string; x: number; y: number }[] {
-  const start = SRC.indexOf("[", SRC.indexOf("const REV2_STARS"));
-  const body = SRC.slice(start, SRC.indexOf("];", start) + 1);
-  const out: { id: string; x: number; y: number }[] = [];
-  const re = /\{\s*id:\s*"([^"]+)"\s*,\s*x:\s*(-?[\d.]+)\s*,\s*y:\s*(-?[\d.]+)\s*\}/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(body))) out.push({ id: m[1], x: Number(m[2]), y: Number(m[3]) });
-  return out;
+  const decl = SRC.indexOf("const REV2_STARS");
+  if (decl < 0) throw new Error("const REV2_STARS not found in ConstellationHome.tsx");
+  const open = SRC.indexOf("= [", decl);
+  const end = open < 0 ? -1 : SRC.indexOf("];", open);
+  if (end < 0) throw new Error("REV2_STARS array literal not found in ConstellationHome.tsx");
+  const objects = SRC.slice(open + 2, end).match(/\{[^{}]*\}/g) ?? [];
+  return objects.map((obj) => {
+    const id = /\bid:\s*"([^"]+)"\s*[,}]/.exec(obj)?.[1];
+    const x = /\bx:\s*(-?\d+(?:\.\d+)?)\s*[,}]/.exec(obj)?.[1];
+    const y = /\by:\s*(-?\d+(?:\.\d+)?)\s*[,}]/.exec(obj)?.[1];
+    if (id === undefined || x === undefined || y === undefined) {
+      throw new Error(`REV2_STARS entry is not { id: "<literal>", x: <number>, y: <number> }: ${obj}`);
+    }
+    return { id, x: Number(x), y: Number(y) };
+  });
 }
 
 const STARS = renderedStars();
@@ -217,6 +234,15 @@ describe("글꼴 모델이 기기보다 좁게 재지 않는다", () => {
 });
 
 describe("별 이름표 자리", () => {
+  it("화면 소스에서 일곱 별을 빠짐없이 읽었다 (파서가 줄면 아래 검사가 공허하게 통과한다)", () => {
+    // 아래 검사는 모두 STARS 를 돈다. 파서가 별 몇 개를 조용히 놓치면 검사 범위가 그만큼 줄어든 채
+    // 초록이 된다 (PR #1810 생성물 게이트 F2: 객체 속성 순서만 바꿔도 일곱이 하나로 줄었다).
+    const ids = STARS.map((s) => s.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect([...ids].sort()).toEqual([...HOME_STAR_IDS].sort());
+    expect(ids).toHaveLength(7);
+  });
+
   it("T1a 재현: 가로 411.4dp 에서 30대 이후 이름표는 둘째 줄을 받는다", () => {
     const { labels } = homeLayout(T1A_WIDTH);
     expect(labels.later.maxLines).toBe(2);
