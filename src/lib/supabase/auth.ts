@@ -18,10 +18,21 @@ import {
 // #1587 은 allRequiredAcksChecked 를 더 들여온다 — 가입 동의를 화면만이 아니라
 // 서버도 확인하기 위해서고, 아래 함수가 실제로 호출한다.
 import { getEnv } from "../env";
-import { clearAccountScopedLocalNotifications } from "../ops/reminders";
+import {
+  clearAccountScopedLocalNotifications,
+  migrateLegacyRoutineNotifications,
+} from "../ops/reminders";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getSupabaseClient } from "./client";
 import * as Crypto from "expo-crypto";
+
+// Upgrade cleanup runs once per native install. A failed pass leaves no marker,
+// so the next cold start retries without exposing notification identifiers.
+void migrateLegacyRoutineNotifications().catch(() => {
+  if (typeof console !== "undefined") {
+    console.warn("[auth] local notification privacy migration pending retry");
+  }
+});
 
 // C10 age tiers: adult users and 14-17 minors self-consent and register
 // directly. Under PIPA, legal-representative consent is mandatory only below 14
@@ -600,6 +611,58 @@ export async function signOut(scope: "global" | "local" = "global"): Promise<voi
     ? await supabase.auth.signOut()
     : await supabase.auth.signOut({ scope });
   if (error) throw error;
+}
+
+export type DeletedAccountSessionFinalization =
+  | "signed-out"
+  | "already-signed-out"
+  | "owner-changed";
+
+/**
+ * Finish local auth teardown after terminal server deletion. This path owns its
+ * notification cleanup and therefore calls Supabase directly instead of the
+ * public signOut() wrapper (which would repeat the same device-wide cleanup).
+ * The session owner is checked both before and after that await boundary so a
+ * late A deletion can never invalidate an already-active B session.
+ */
+export async function finalizeDeletedAccountSession(
+  expectedUserId: string,
+  isCurrentOwner: () => boolean,
+  beforeSignOut: () => void,
+): Promise<DeletedAccountSessionFinalization> {
+  if (!isCurrentOwner()) return "owner-changed";
+  const supabase = getSupabaseClient();
+  const before = await supabase.auth.getSession();
+  if (before.error) throw before.error;
+  const beforeUserId = before.data.session?.user.id ?? null;
+  if (!isCurrentOwner() || (beforeUserId !== null && beforeUserId !== expectedUserId)) {
+    return "owner-changed";
+  }
+
+  try {
+    await clearAccountScopedLocalNotifications({ isCurrentOwner });
+  } catch {
+    // Server deletion already succeeded, so a bounded local failure cannot
+    // resurrect the account. Continue only if the same owner still holds the
+    // lease; the next cold start retries the privacy migration.
+    if (typeof console !== "undefined") {
+      console.warn("[auth] local notification cleanup after deletion incomplete");
+    }
+  }
+
+  if (!isCurrentOwner()) return "owner-changed";
+  const after = await supabase.auth.getSession();
+  if (after.error) throw after.error;
+  const afterUserId = after.data.session?.user.id ?? null;
+  if (!isCurrentOwner() || (afterUserId !== null && afterUserId !== expectedUserId)) {
+    return "owner-changed";
+  }
+
+  beforeSignOut();
+  if (afterUserId === null) return "already-signed-out";
+  const { error } = await supabase.auth.signOut();
+  if (error) throw error;
+  return "signed-out";
 }
 
 // Start a Supabase social-login redirect for the given provider. On Web,

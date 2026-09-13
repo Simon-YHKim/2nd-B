@@ -1,25 +1,39 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-
 const requestPermissionsAsync = jest.fn<Promise<{ granted: boolean }>, []>();
 const scheduleNotificationAsync = jest.fn<Promise<string>, [Record<string, unknown>]>();
 const setNotificationChannelAsync = jest.fn<Promise<null>, [string, Record<string, unknown>]>();
-const cancelAllScheduledNotificationsAsync = jest.fn<Promise<void>, []>();
-const dismissAllNotificationsAsync = jest.fn<Promise<void>, []>();
+const getAllScheduledNotificationsAsync = jest.fn<Promise<Array<{
+  identifier: string;
+  trigger: Record<string, unknown>;
+}>>, []>();
+const cancelScheduledNotificationAsync = jest.fn<Promise<void>, [string]>();
+const getPresentedNotificationsAsync = jest.fn<Promise<Array<{ request: { identifier: string } }>>, []>();
+const dismissNotificationAsync = jest.fn<Promise<void>, [string]>();
+const clearLastNotificationResponseAsync = jest.fn<Promise<void>, []>();
+const getItem = jest.fn<Promise<string | null>, [string]>();
+const setItem = jest.fn<Promise<void>, [string, string]>();
 const removeItem = jest.fn<Promise<void>, [string]>();
-const supabaseSignOut = jest.fn<Promise<{ error: Error | null }>, []>();
+const supabaseGetSession = jest.fn<Promise<{
+  data: { session: { user: { id: string } } | null };
+  error: Error | null;
+}>, []>();
+const supabaseSignOut = jest.fn<Promise<{ error: Error | null }>, [unknown?]>();
 
 jest.mock("@react-native-async-storage/async-storage", () => ({
   __esModule: true,
   default: {
-    getItem: jest.fn(),
-    setItem: jest.fn(),
+    getItem: (key: string) => getItem(key),
+    setItem: (key: string, value: string) => setItem(key, value),
     removeItem: (key: string) => removeItem(key),
   },
 }));
 
 jest.mock("../../supabase/client", () => ({
-  getSupabaseClient: () => ({ auth: { signOut: () => supabaseSignOut() } }),
+  getSupabaseClient: () => ({
+    auth: {
+      getSession: () => supabaseGetSession(),
+      signOut: (options?: unknown) => supabaseSignOut(options),
+    },
+  }),
 }));
 
 jest.mock("expo-notifications", () => ({
@@ -27,8 +41,11 @@ jest.mock("expo-notifications", () => ({
   scheduleNotificationAsync: (request: Record<string, unknown>) => scheduleNotificationAsync(request),
   setNotificationChannelAsync: (id: string, channel: Record<string, unknown>) =>
     setNotificationChannelAsync(id, channel),
-  cancelAllScheduledNotificationsAsync: () => cancelAllScheduledNotificationsAsync(),
-  dismissAllNotificationsAsync: () => dismissAllNotificationsAsync(),
+  getAllScheduledNotificationsAsync: () => getAllScheduledNotificationsAsync(),
+  cancelScheduledNotificationAsync: (id: string) => cancelScheduledNotificationAsync(id),
+  getPresentedNotificationsAsync: () => getPresentedNotificationsAsync(),
+  dismissNotificationAsync: (id: string) => dismissNotificationAsync(id),
+  clearLastNotificationResponseAsync: () => clearLastNotificationResponseAsync(),
   SchedulableTriggerInputTypes: { DAILY: "daily", WEEKLY: "weekly", DATE: "date" },
   AndroidImportance: { DEFAULT: 3 },
 }));
@@ -36,20 +53,16 @@ jest.mock("expo-notifications", () => ({
 import {
   clearAccountScopedLocalNotifications,
   foregroundNotificationBehavior,
+  migrateLegacyRoutineNotifications,
   remindersSupported,
   scheduleRoutineReminder,
 } from "../reminders";
-import { signOut as signOutWithCleanup } from "../../supabase/auth";
+import {
+  finalizeDeletedAccountSession,
+  signOut as signOutWithCleanup,
+} from "../../supabase/auth";
 
 const originalNavigator = globalThis.navigator;
-const privacySource = readFileSync(
-  resolve(process.cwd(), "src/screens/deepspace/DeepSpaceDesignScreens.tsx"),
-  "utf8",
-);
-const opsSource = readFileSync(
-  resolve(process.cwd(), "src/screens/deepspace/dds-ops-screen.tsx"),
-  "utf8",
-);
 
 function setNavigatorProduct(product: string | undefined): void {
   Object.defineProperty(globalThis, "navigator", {
@@ -60,9 +73,19 @@ function setNavigatorProduct(product: string | undefined): void {
 }
 
 beforeEach(() => {
-  cancelAllScheduledNotificationsAsync.mockResolvedValue(undefined);
-  dismissAllNotificationsAsync.mockResolvedValue(undefined);
+  jest.resetAllMocks();
+  getAllScheduledNotificationsAsync.mockResolvedValue([]);
+  cancelScheduledNotificationAsync.mockResolvedValue(undefined);
+  getPresentedNotificationsAsync.mockResolvedValue([]);
+  dismissNotificationAsync.mockResolvedValue(undefined);
+  clearLastNotificationResponseAsync.mockResolvedValue(undefined);
+  getItem.mockResolvedValue(null);
+  setItem.mockResolvedValue(undefined);
   removeItem.mockResolvedValue(undefined);
+  supabaseGetSession.mockResolvedValue({
+    data: { session: { user: { id: "account-a" } } },
+    error: null,
+  });
   supabaseSignOut.mockResolvedValue({ error: null });
 });
 
@@ -225,27 +248,84 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     });
   });
 
-  test("account cleanup attempts scheduled, delivered, and local-state cleanup", async () => {
+  test("upgrade migration removes only non-stable recurring notifications and is one-time", async () => {
     setNavigatorProduct("ReactNative");
+    getItem.mockResolvedValueOnce(null).mockResolvedValueOnce("1");
+    getAllScheduledNotificationsAsync.mockResolvedValue([
+      { identifier: "4bdbe7f0-legacy", trigger: { type: "daily" } },
+      { identifier: "legacy-calendar", trigger: { type: "calendar", repeats: true } },
+      { identifier: "ops-routine-current-1", trigger: { type: "weekly" } },
+      { identifier: "legacy-one-shot", trigger: { type: "date" } },
+    ]);
+
+    await migrateLegacyRoutineNotifications();
+    await migrateLegacyRoutineNotifications();
+
+    expect(cancelScheduledNotificationAsync.mock.calls).toEqual([
+      ["4bdbe7f0-legacy"],
+      ["legacy-calendar"],
+    ]);
+    expect(setItem).toHaveBeenCalledWith("ops.notifications.privacyMigration.v1", "1");
+    expect(getAllScheduledNotificationsAsync).toHaveBeenCalledTimes(1);
+  });
+
+  test("upgrade migration leaves no completion marker after a cancellation failure", async () => {
+    setNavigatorProduct("ReactNative");
+    getAllScheduledNotificationsAsync.mockResolvedValueOnce([
+      { identifier: "legacy-private-id", trigger: { type: "weekly" } },
+    ]);
+    cancelScheduledNotificationAsync.mockRejectedValueOnce(new Error("private identifier"));
+
+    await expect(migrateLegacyRoutineNotifications()).rejects.toMatchObject({
+      name: "NotificationPrivacyMigrationError",
+      message: "Local notification privacy migration failed.",
+      failureCount: 1,
+    });
+    expect(setItem).not.toHaveBeenCalled();
+  });
+
+  test("account cleanup removes only the scheduled/delivered snapshot and all account-local keys", async () => {
+    setNavigatorProduct("ReactNative");
+    getAllScheduledNotificationsAsync.mockResolvedValueOnce([
+      { identifier: "ops-routine-a-1", trigger: { type: "daily" } },
+      { identifier: "legacy-one-shot", trigger: { type: "date" } },
+    ]);
+    getPresentedNotificationsAsync.mockResolvedValueOnce([
+      { request: { identifier: "presented-a-1" } },
+    ]);
 
     await expect(clearAccountScopedLocalNotifications()).resolves.toBeUndefined();
 
-    expect(cancelAllScheduledNotificationsAsync).toHaveBeenCalledTimes(1);
-    expect(dismissAllNotificationsAsync).toHaveBeenCalledTimes(1);
-    expect(removeItem).toHaveBeenCalledWith("ops.reminders.disabled");
+    expect(cancelScheduledNotificationAsync.mock.calls).toEqual([
+      ["ops-routine-a-1"],
+      ["legacy-one-shot"],
+    ]);
+    expect(dismissNotificationAsync).toHaveBeenCalledWith("presented-a-1");
+    expect(clearLastNotificationResponseAsync).toHaveBeenCalledTimes(1);
+    expect(removeItem.mock.calls).toEqual(expect.arrayContaining([
+      ["ops.reminders.disabled"],
+      ["ops.dailyReview.enabled.v1"],
+      ["ops.dailyReview.hour.v1"],
+    ]));
   });
 
   test("account cleanup waits for every operation and throws only a sanitized aggregate", async () => {
     setNavigatorProduct("ReactNative");
-    cancelAllScheduledNotificationsAsync.mockRejectedValueOnce(new Error("private scheduled payload"));
-    dismissAllNotificationsAsync.mockRejectedValueOnce(new Error("private delivered payload"));
+    getAllScheduledNotificationsAsync.mockResolvedValueOnce([
+      { identifier: "private-scheduled-id", trigger: { type: "daily" } },
+    ]);
+    getPresentedNotificationsAsync.mockResolvedValueOnce([
+      { request: { identifier: "private-delivered-id" } },
+    ]);
+    cancelScheduledNotificationAsync.mockRejectedValueOnce(new Error("private scheduled payload"));
+    dismissNotificationAsync.mockRejectedValueOnce(new Error("private delivered payload"));
     removeItem.mockRejectedValueOnce(new Error("private routine ids"));
 
     const error = await clearAccountScopedLocalNotifications().catch((caught: unknown) => caught);
 
-    expect(cancelAllScheduledNotificationsAsync).toHaveBeenCalledTimes(1);
-    expect(dismissAllNotificationsAsync).toHaveBeenCalledTimes(1);
-    expect(removeItem).toHaveBeenCalledTimes(1);
+    expect(cancelScheduledNotificationAsync).toHaveBeenCalledTimes(1);
+    expect(dismissNotificationAsync).toHaveBeenCalledTimes(1);
+    expect(removeItem).toHaveBeenCalledTimes(3);
     expect(error).toMatchObject({
       name: "AccountScopedNotificationCleanupError",
       message: "Account-scoped local notification cleanup failed.",
@@ -257,9 +337,16 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
   test("central sign-out finishes strict cleanup before calling Supabase", async () => {
     setNavigatorProduct("ReactNative");
     const events: string[] = [];
-    cancelAllScheduledNotificationsAsync.mockImplementationOnce(async () => { events.push("scheduled"); });
-    dismissAllNotificationsAsync.mockImplementationOnce(async () => { events.push("delivered"); });
-    removeItem.mockImplementationOnce(async () => { events.push("state"); });
+    getAllScheduledNotificationsAsync.mockResolvedValueOnce([
+      { identifier: "scheduled-a", trigger: { type: "daily" } },
+    ]);
+    getPresentedNotificationsAsync.mockResolvedValueOnce([
+      { request: { identifier: "delivered-a" } },
+    ]);
+    cancelScheduledNotificationAsync.mockImplementationOnce(async () => { events.push("scheduled"); });
+    dismissNotificationAsync.mockImplementationOnce(async () => { events.push("delivered"); });
+    clearLastNotificationResponseAsync.mockImplementationOnce(async () => { events.push("response"); });
+    removeItem.mockImplementation(async () => { events.push("state"); });
     supabaseSignOut.mockImplementationOnce(async () => {
       events.push("sign-out");
       return { error: null };
@@ -267,13 +354,18 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
 
     await expect(signOutWithCleanup()).resolves.toBeUndefined();
 
-    expect(new Set(events.slice(0, 3))).toEqual(new Set(["scheduled", "delivered", "state"]));
-    expect(events[3]).toBe("sign-out");
+    expect(events.at(-1)).toBe("sign-out");
+    expect(events.slice(0, -1)).toEqual(expect.arrayContaining([
+      "scheduled",
+      "delivered",
+      "response",
+      "state",
+    ]));
   });
 
   test("central sign-out does not invalidate the session when strict cleanup fails", async () => {
     setNavigatorProduct("ReactNative");
-    cancelAllScheduledNotificationsAsync.mockRejectedValueOnce(new Error("native failure detail"));
+    getAllScheduledNotificationsAsync.mockRejectedValueOnce(new Error("native failure detail"));
 
     await expect(signOutWithCleanup()).rejects.toMatchObject({
       name: "AccountScopedNotificationCleanupError",
@@ -281,37 +373,81 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     expect(supabaseSignOut).not.toHaveBeenCalled();
   });
 
-  test("terminal deletion attempts notification cleanup before sign-out and navigation", () => {
-    const deletion = privacySource.indexOf("await requestAccountDeletion()");
-    const cleanup = privacySource.indexOf("await clearAccountScopedLocalNotifications()", deletion);
-    const signOut = privacySource.indexOf("await signOut()", cleanup);
-    const redirect = privacySource.indexOf('router.replace("/sign-in")', signOut);
+  test("terminal deletion runtime performs one cleanup, then signs out the proven owner", async () => {
+    setNavigatorProduct("ReactNative");
+    const events: string[] = [];
+    getAllScheduledNotificationsAsync.mockImplementationOnce(async () => {
+      events.push("scheduled-snapshot");
+      return [{ identifier: "account-a-reminder", trigger: { type: "daily" } }];
+    });
+    cancelScheduledNotificationAsync.mockImplementationOnce(async () => { events.push("scheduled-clear"); });
+    clearLastNotificationResponseAsync.mockImplementationOnce(async () => { events.push("response-clear"); });
+    removeItem.mockImplementation(async () => { events.push("state-clear"); });
+    supabaseSignOut.mockImplementationOnce(async () => {
+      events.push("sign-out");
+      return { error: null };
+    });
 
-    expect(deletion).toBeGreaterThan(-1);
-    expect(cleanup).toBeGreaterThan(deletion);
-    expect(signOut).toBeGreaterThan(cleanup);
-    expect(redirect).toBeGreaterThan(signOut);
-    expect(privacySource.slice(cleanup, signOut)).toContain("notification cleanup after deletion failed");
+    await expect(finalizeDeletedAccountSession(
+      "account-a",
+      () => true,
+      () => { events.push("receipt-armed"); },
+    )).resolves.toBe("signed-out");
+
+    expect(events.indexOf("receipt-armed")).toBeGreaterThan(events.lastIndexOf("state-clear"));
+    expect(events.at(-1)).toBe("sign-out");
+    expect(removeItem).toHaveBeenCalledTimes(3);
   });
 
-  test("live Ops screen owns repeated notifications and keeps ad-hoc reminders one-shot", () => {
-    const save = opsSource.slice(
-      opsSource.indexOf("async function saveRoutine"),
-      opsSource.indexOf("async function remindRecommendation"),
-    );
-    const remind = opsSource.slice(
-      opsSource.indexOf("async function remindRecommendation"),
-      opsSource.indexOf("function eventFor"),
-    );
+  test("terminal deletion rechecks the owner after cleanup and never signs out account B", async () => {
+    setNavigatorProduct("ReactNative");
+    let currentOwner = true;
+    getAllScheduledNotificationsAsync.mockResolvedValueOnce([
+      { identifier: "account-a-reminder", trigger: { type: "daily" } },
+    ]);
+    removeItem.mockImplementation(async (key) => {
+      if (key === "ops.dailyReview.hour.v1") currentOwner = false;
+    });
+    const armReceipt = jest.fn();
 
-    expect(save).toContain("let routine: OpsRoutine");
-    const persisted = save.indexOf("routine = await createRoutineFromRecommendation");
-    const scheduled = save.indexOf("await scheduleRoutineReminder", persisted);
-    const stableId = save.indexOf("identifier: routineReminderId(routine.id)", scheduled);
-    expect(persisted).toBeGreaterThan(-1);
-    expect(scheduled).toBeGreaterThan(persisted);
-    expect(stableId).toBeGreaterThan(scheduled);
-    expect(remind).toContain("recurrence: undefined");
+    await expect(finalizeDeletedAccountSession(
+      "account-a",
+      () => currentOwner,
+      armReceipt,
+    )).resolves.toBe("owner-changed");
+
+    expect(cancelScheduledNotificationAsync.mock.calls).toEqual([["account-a-reminder"]]);
+    expect(supabaseGetSession).toHaveBeenCalledTimes(1);
+    expect(armReceipt).not.toHaveBeenCalled();
+    expect(supabaseSignOut).not.toHaveBeenCalled();
+  });
+
+  test("terminal deletion publishes the receipt without a second sign-out when A is already gone", async () => {
+    setNavigatorProduct("ReactNative");
+    supabaseGetSession.mockResolvedValue({ data: { session: null }, error: null });
+    const armReceipt = jest.fn();
+
+    await expect(finalizeDeletedAccountSession(
+      "account-a",
+      () => true,
+      armReceipt,
+    )).resolves.toBe("already-signed-out");
+
+    expect(armReceipt).toHaveBeenCalledTimes(1);
+    expect(supabaseSignOut).not.toHaveBeenCalled();
+  });
+
+  test("account cleanup has a bounded failure instead of hanging sign-out forever", async () => {
+    setNavigatorProduct("ReactNative");
+    getAllScheduledNotificationsAsync.mockReturnValueOnce(new Promise(() => undefined));
+
+    const error = await clearAccountScopedLocalNotifications({ timeoutMs: 5 })
+      .catch((caught: unknown) => caught);
+
+    expect(error).toMatchObject({
+      name: "AccountScopedNotificationCleanupError",
+      message: "Account-scoped local notification cleanup failed.",
+    });
   });
 
   test("native cleanup fails closed when the notification module cannot load; web skips it", async () => {
@@ -334,7 +470,11 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
         name: "AccountScopedNotificationCleanupError",
         failureCount: 1,
       });
-      expect(removeItem).toHaveBeenCalledWith("ops.reminders.disabled");
+      expect(removeItem.mock.calls).toEqual(expect.arrayContaining([
+        ["ops.reminders.disabled"],
+        ["ops.dailyReview.enabled.v1"],
+        ["ops.dailyReview.hour.v1"],
+      ]));
 
       setNavigatorProduct("Gecko");
       await expect(unavailableReminders.clearAccountScopedLocalNotifications()).resolves.toBeUndefined();

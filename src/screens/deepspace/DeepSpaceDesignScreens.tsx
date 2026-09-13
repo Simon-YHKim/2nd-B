@@ -48,8 +48,8 @@ import { useSignUpForm } from "@/lib/auth/useSignUpForm";
 import { useResetPasswordForm } from "@/lib/auth/useResetPasswordForm";
 import {
   ageInYears,
+  finalizeDeletedAccountSession,
   MIN_SELF_CONSENT_AGE,
-  signOut,
   type OAuthProvider,
 } from "@/lib/supabase/auth";
 import { requestAccountDeletion } from "@/lib/records/delete-bulk";
@@ -120,7 +120,6 @@ import { adherenceChip } from "@/lib/ops/grounding";
 import { recommendForDomain, recommendationVendorLabel, recommendationsAllowed, type OpsRecommendation } from "@/lib/ops/recommend";
 import { buildGoogleCalendarUrl } from "@/lib/ops/push";
 import {
-  clearAccountScopedLocalNotifications,
   notifyNow,
   scheduleRoutineReminder,
   type ReminderResult,
@@ -678,36 +677,58 @@ export function DeepSpacePrivacyDesignScreen() {
     // expose a destructive Retry, and never sign out a newly active B session
     // after an A request resolves late.
     if (!privacyMountedRef.current) return;
-    if (activeUserRef.current !== targetUserId) {
+    if (activeUserRef.current !== targetUserId && activeUserRef.current !== null) {
       deleteInFlightRef.current = false;
       setDeleting(false);
       return;
     }
-    // Successful erasure may itself trigger an auth-driven route removal.
-    // Let that navigation, sign-out, and the explicit replacement proceed.
-    allowDeletionNavigationRef.current = true;
+    const completionRef: {
+      current: ReturnType<typeof createAccountDeletionCompletion> | null;
+    } = { current: null };
+    let navigateToSignIn = false;
     try {
-      await clearAccountScopedLocalNotifications();
+      // The old `await signOut();` path repeated device cleanup after this flow
+      // had already done it; the owner-fenced finalizer owns both steps once.
+      const result = await finalizeDeletedAccountSession(
+        targetUserId,
+        () => privacyMountedRef.current
+          && (activeUserRef.current === targetUserId || activeUserRef.current === null),
+        () => {
+          // Arm the receipt only after cleanup re-proves A still owns the
+          // session. This callback runs immediately before the guarded sign-out.
+          allowDeletionNavigationRef.current = true;
+          completionRef.current = createAccountDeletionCompletion(targetUserId, currentAccountEpoch());
+          completionRef.current.beginSignOut(receipt, "unconfirmed");
+        },
+      );
+      if (result === "owner-changed") {
+        allowDeletionNavigationRef.current = false;
+        deleteInFlightRef.current = false;
+        if (privacyMountedRef.current) setDeleting(false);
+        return;
+      }
+      completionRef.current?.finishSignOut(true);
+      navigateToSignIn = activeUserRef.current === targetUserId || activeUserRef.current === null;
     } catch {
-      if (typeof console !== "undefined") console.warn("[privacy] notification cleanup after deletion failed");
-    }
-    // Hand the receipt to the store that survives exactly this owner -> null
-    // transition, so the destination screen can show it. `unconfirmed` is the
-    // honest local-cleanup value: this flow clears capture drafts only, not the
-    // checked set the copy describes, and claiming "complete" for a narrower
-    // sweep would be the overclaim this receipt exists to avoid.
-    const completion = createAccountDeletionCompletion(targetUserId, currentAccountEpoch());
-    completion.beginSignOut(receipt, "unconfirmed");
-    try {
-      await signOut();
-      completion.finishSignOut(true);
-    } catch (e) {
-      completion.finishSignOut(false);
-      if (typeof console !== "undefined") console.warn("[privacy] local sign-out after deletion failed", (e as Error).message);
+      // If session inspection itself failed, publish the already-completed
+      // server deletion only while A (or no owner) still holds this screen.
+      const ownerIsSafe = activeUserRef.current === targetUserId || activeUserRef.current === null;
+      if (!completionRef.current && ownerIsSafe) {
+        allowDeletionNavigationRef.current = true;
+        completionRef.current = createAccountDeletionCompletion(targetUserId, currentAccountEpoch());
+        completionRef.current.beginSignOut(receipt, "unconfirmed");
+      }
+      completionRef.current?.finishSignOut(false);
+      navigateToSignIn = ownerIsSafe;
+      if (typeof console !== "undefined") console.warn("[privacy] local sign-out after deletion failed");
     } finally {
-      completion.dispose();
-      router.dismissAll();
-      router.replace("/sign-in");
+      completionRef.current?.dispose();
+      if (navigateToSignIn) {
+        router.dismissAll();
+        router.replace("/sign-in");
+      } else {
+        allowDeletionNavigationRef.current = false;
+      }
     }
   }
 

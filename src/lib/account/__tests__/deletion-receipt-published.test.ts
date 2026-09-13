@@ -71,9 +71,16 @@ function harness(options: { signOutFails?: boolean; deletionFails?: boolean } = 
       return RECEIPT;
     },
     purgeCaptureDraftsForDeletedAccount: async () => { calls.purge += 1; },
-    signOut: async () => {
+    finalizeDeletedAccountSession: async (
+      expectedUserId: string,
+      isCurrentOwner: () => boolean,
+      beforeSignOut: () => void,
+    ) => {
+      if (expectedUserId !== OWNER || !isCurrentOwner()) return "owner-changed";
+      beforeSignOut();
       calls.signOut += 1;
       if (options.signOutFails) throw new Error("local sign-out failed");
+      return "signed-out";
     },
     router: { dismissAll: () => { calls.dismissAll += 1; }, replace: (to: string) => { calls.replace.push(to); } },
     createAccountDeletionCompletion: completion.createAccountDeletionCompletion,
