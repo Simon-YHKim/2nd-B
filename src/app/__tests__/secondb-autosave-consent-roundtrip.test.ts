@@ -84,7 +84,7 @@ import { chatAutosaveAllowed } from "../../lib/chat/autosave";
 import { findPrompt, findPromptIndex, isKeepable } from "../../lib/chat/keep-exchange";
 import { subscribePrivacyPrefsSaved } from "../../lib/privacy/pref-changes";
 import { nextPrivacyPrefs, type PrivacyPrefs } from "../../lib/privacy/prefs";
-import { fetchPrivacyPrefs, readPrivacyPrefs, savePrivacyPref } from "../../lib/supabase/privacy";
+import { readPrivacyPrefs, savePrivacyPref } from "../../lib/supabase/privacy";
 import {
   __resetAccountEpochForTests,
   beginAccountOwnerTransition,
@@ -139,7 +139,7 @@ function run<T>(js: string, bindings: Record<string, unknown>): T {
 }
 
 const CHAT_AST = parse(SECONDB_FILE);
-const LOAD_EFFECT = effectText(CHAT_AST, "fetchPrivacyPrefs(userId)");
+const LOAD_EFFECT = effectText(CHAT_AST, "[userId, prefsReadKey]");
 
 /** 답변 옆 담기 칩의 disabled 식. 화면이 그리는 식 그대로를 계산한다. */
 function keepChipDisabledText(): string {
@@ -230,6 +230,7 @@ class KeptChatScreen {
     autosaveGenerationRef: { current: 0 },
     autosaveListenerRef: { current: null as object | null },
     autosaveAskedRef: { current: new WeakMap<object, number>() },
+    autosaveRevisionRef: { current: 0 },
   };
   private readonly effects = new Map<string, { deps: readonly unknown[]; cleanup?: () => void }>();
   private dirty = true;
@@ -281,7 +282,7 @@ class KeptChatScreen {
         });
       };
       const shared = { ...this.refs, userId: OWNER, applyAutosaveConsent, setAutosaveConsent, setAdsConsent };
-      run(CHAT.load, { ...shared, useEffect: effectAt("load"), fetchPrivacyPrefs, prefsReadKey: s.prefsReadKey });
+      run(CHAT.load, { ...shared, useEffect: effectAt("load"), readPrivacyPrefs, prefsReadKey: s.prefsReadKey });
       run(CHAT.subscribe, { ...shared, useEffect: effectAt("subscribe"), subscribePrivacyPrefsSaved });
       run(CHAT.autosave, {
         ...shared,
@@ -751,6 +752,62 @@ describe("동의를 켜기 전에 보낸 질문의 답변 (r3as2 R2-H1)", () => 
     const reply = await chat.answer("비운 뒤 도착한 답변");
     expect(chat.saved).toEqual([]);
     expect(chat.chipDisabled(chat.s.turns.indexOf(reply))).toBe(false);
+  });
+});
+
+describe("설정 읽기가 실패하거나 늦게 도착하면 (r3as2 R2-M1)", () => {
+  // 게이트가 잡은 두 경로. (A) 돌아왔을 때 읽기가 한 번 실패하면, 실패를 전부 꺼짐으로 바꾸는 읽기가 켜 둔 동의를
+  // 꺼짐으로 덮었다 - 그 뒤 멀쩡한 답변들은 담기 직전 확인까지 가지도 못했다. (B) 꺼짐을 읽던 돌아옴 읽기가 늦게
+  // 도착해, 그 사이 설정에서 켠 저장 소식을 덮었다.
+  test("돌아왔을 때 읽기가 한 번 실패해도 켜 둔 동의는 그대로이고, 다음 답변은 담긴다", async () => {
+    mockDb.prefs.set(OWNER, { chat_autosave: true });
+    const chat = await mountChat();
+    const first = await chat.exchange("질문", "켜져 있을 때의 답변");
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      mockDb.failReads = 1;
+      await chat.focus();
+      expect(chat.s.autosaveConsent).toBe(true); // 못 읽은 것은 꺼짐이 아니다
+      const next = await chat.exchange("다음 질문", "읽기 실패 뒤의 답변");
+      expect(chat.saved).toEqual([first, next]);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  test("설정에서 켠 저장 소식 뒤에 늦게 도착한 옛 꺼짐 읽기는 버린다", async () => {
+    mockDb.prefs.set(OWNER, { chat_autosave: false });
+    const chat = await mountChat();
+    const release = holdNextRead();
+    await chat.focus(); // 꺼짐을 읽은 돌아옴 읽기가 붙잡혀 있다
+    await (await openPrivacy()).toggle(true);
+    await settle();
+    expect(chat.s.autosaveConsent).toBe(true);
+
+    release();
+    await settle();
+    expect(chat.s.autosaveConsent).toBe(true);
+    const reply = await chat.exchange("켠 뒤의 질문", "켠 뒤의 답변");
+    expect(chat.saved).toEqual([reply]);
+  });
+
+  test("첫 읽기가 실패하면 모름으로 남아 담지 않고, 돌아와서 읽히면 그 뒤 답변을 담는다", async () => {
+    mockDb.prefs.set(OWNER, { chat_autosave: true });
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      mockDb.failReads = 1;
+      const chat = await mountChat();
+      expect(chat.s.autosaveConsent).toBeNull();
+      await chat.exchange("질문", "모를 때의 답변");
+      expect(chat.saved).toEqual([]);
+
+      await chat.focus();
+      expect(chat.s.autosaveConsent).toBe(true);
+      const reply = await chat.exchange("다시 한 질문", "읽힌 뒤의 답변");
+      expect(chat.saved).toEqual([reply]);
+    } finally {
+      warn.mockRestore();
+    }
   });
 });
 

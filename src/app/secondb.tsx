@@ -36,7 +36,7 @@ import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelScrim } from "@/components/pixel/PixelDither";
 import { canShowRewardedAds } from "@/lib/ads/policy";
 import { canCompleteRewardedWatch } from "@/lib/ads/rewarded";
-import { fetchPrivacyPrefs, readPrivacyPrefs } from "@/lib/supabase/privacy";
+import { readPrivacyPrefs } from "@/lib/supabase/privacy";
 import { subscribePrivacyPrefsSaved } from "@/lib/privacy/pref-changes";
 import { captureAccountOwnerLease } from "@/lib/auth/account-epoch";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
@@ -764,6 +764,9 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // 지금 설정 저장 소식을 듣고 있는 구독의 표식. 내려간 화면이나 계정이 바뀐 화면은 철회를 더는 듣지 못하므로
   // 그 전에 나간 확인의 응답으로 담지 않는다.
   const autosaveListenerRef = useRef<object | null>(null);
+  // 동의를 반영할 때마다(값이 같아도) 하나씩 오르는 개정 번호 (r3as2 R2-M1). 첫 읽기 · 돌아왔을 때 읽기는 나갈 때의
+  // 번호를 쥐고, 돌아왔을 때 번호가 달라졌으면 그 사이 더 새로운 소식이 온 것이라 그 결과를 버린다.
+  const autosaveRevisionRef = useRef(0);
   // 질문 턴 -> 그 질문을 보낸 순간의 동의 세대. 동의가 켜져 있을 때 보낸 질문만 적힌다 (r3as2 R2-H1). 자동
   // 담기는 답변 하나가 아니라 짝으로 판단한다 - keepExchange 가 답변을 앞선 질문과 함께 저장하기 때문이다. 켜기
   // 전(꺼짐 · 모름)에 보낸 질문은 사라질 거라 생각하고 한 말이라, 그 답이 켠 뒤에 도착해도 담지 않는다. 화면에
@@ -774,6 +777,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   const [prefsReadKey, setPrefsReadKey] = useState(0);
   useFocusRefetch(() => setPrefsReadKey((k) => k + 1), Boolean(userId));
   function applyAutosaveConsent(allowed: boolean) {
+    autosaveRevisionRef.current += 1;
     if (autosaveConsentRef.current !== allowed) autosaveGenerationRef.current += 1;
     autosaveConsentRef.current = allowed;
     setAutosaveConsent(allowed);
@@ -783,17 +787,22 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
-    fetchPrivacyPrefs(userId)
-      .then((prefs) => {
-        if (cancelled) return;
-        setAdsConsent(prefs.ads === true);
-        applyAutosaveConsent(prefs.chat_autosave === true);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setAdsConsent(false); // fetch failure = no rewarded entry
-        applyAutosaveConsent(false); // 읽지 못하면 저장하지 않는다
-      });
+    // 읽는 사이 저장 소식이나 담기 직전 확인이 동의를 새로 알려 줬으면 이 결과는 낡았다 (r3as2 R2-M1). 늦게 도착한 옛
+    // 꺼짐이 방금 설정에서 켠 동의를 덮었다. 화면이 내려가거나 계정이 바뀌어 장면이 다시 만들어지면 정리 함수가
+    // cancelled 로 막는다.
+    const revision = autosaveRevisionRef.current;
+    void readPrivacyPrefs(userId).then((read) => {
+      if (cancelled || autosaveRevisionRef.current !== revision) return;
+      if (!read.ok) {
+        setAdsConsent(false); // read failure = no rewarded entry
+        // 못 읽은 것은 꺼짐이 아니다 (r3as2 R2-M1). 꺼짐으로 덮었더니 켜 둔 사용자가 복귀 한 번에 계속 꺼진 채로
+        // 남았다. 동의는 알던 값 그대로 둔다 - 한 번도 못 읽었으면 모름(null)이라 담지 않고, 켜져 있었으면 답변마다
+        // 담기 직전 확인이 서버에서 다시 본다(그것도 못 읽으면 담지 않는다).
+        return;
+      }
+      setAdsConsent(read.prefs.ads === true);
+      applyAutosaveConsent(read.prefs.chat_autosave === true);
+    });
     return () => {
       cancelled = true;
     };

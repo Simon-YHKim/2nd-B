@@ -71,10 +71,14 @@ describe("대화 화면 배선", () => {
   });
 
   it("프리퍼런스를 못 읽으면 저장하지 않는다", () => {
-    // fetch 실패 경로가 null 로 남으면 게이트가 열린 채 방치된다.
-    // r3as H1 부터 동의 값은 applyAutosaveConsent 한 곳을 지난다(첫 읽기 · 돌아왔을 때 · 저장 소식 ·
-    // 담기 직전 확인). 끄는 쪽이 그 함수로 가는지를 본다.
-    expect(screen).toContain("applyAutosaveConsent(false); // 읽지 못하면 저장하지 않는다");
+    // r3as2 R2-M1 부터 읽기 실패를 꺼짐으로 덮지 않는다 - 덮었더니 켜 둔 사용자가 복귀 한 번에 계속 꺼진 채로
+    // 남았다. 못 읽었을 때 담지 않는 것은 두 겹이 지킨다: 한 번도 읽지 못한 동의는 null(모름)이라 게이트가 닫혀
+    // 있고, 담기 직전 확인을 못 읽으면 keepExchange 앞에서 돌아선다. 동작은
+    // src/app/__tests__/secondb-autosave-consent-roundtrip.test.ts 가 실제 읽기 실패로 돌린다.
+    expect(screen).toContain("const [autosaveConsent, setAutosaveConsent] = useState<boolean | null>(null);");
+    const recheck = screen.indexOf("if (!read.ok) {", screen.indexOf("autoKeptRef.current.add(last);"));
+    expect(recheck).toBeGreaterThan(-1);
+    expect(screen.indexOf("void keepExchange(idx)")).toBeGreaterThan(recheck);
   });
 
   it("자동 경로가 수동 경로와 같은 함수를 쓴다", () => {
