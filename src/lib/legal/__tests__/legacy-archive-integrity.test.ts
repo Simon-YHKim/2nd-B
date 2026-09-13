@@ -38,7 +38,8 @@ const DIGESTS: Readonly<Record<string, string>> = {
   "plans.tsx": "4a70a2f9c237fe5b1f6249995c199cf7418c4b71141f454e2a52a9108c720975",
   "profile.tsx": "0601f8b8bbabee11450e9984e6c297259e575b603491f29f6ecaec7bc209b7d9",
   "records.tsx": "7ea4e3532fb30c472509f5d1757568755fbdaf201e33a15f01eaecc340a94de0",
-  "research.tsx": "6d7aee35e6e1996deab634c3b5934318f70e9ba05aacb72cc14d7de0b0490378",
+  // 22ced472: raw DOI/URL 직접 열기를 fail-closed 공용 경계로 바꾼 의도적 보안 수정.
+  "research.tsx": "00035568edd2d27fbad5de8f70b5b72a0ddb5792e37b7fc4dfdb5ac81105bb61",
   "review.tsx": "c866423f9f92cbebe486e0b068bd7a20fbf7e098e77b4c5236ff42730164baf0",
   "sign-up.tsx": "0cd9c772a3ee69e3640da99edace4d41fef78101f69d1d1ce29abaa2c3ed1f85",
   "sign-in.tsx": "a66d5c2b8a1c87b2ce91602074d7bb7c1d85485730cfc9d29cb6baac65ba4f17",
