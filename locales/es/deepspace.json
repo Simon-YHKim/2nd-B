@@ -864,7 +864,10 @@
       "proposalsCta": "Revisar propuestas",
       "peerTitle": "Respuestas de conocidos",
       "peerBody": "{{n}} de tus invitaciones recibieron respuesta.",
-      "peerCta": "Ver respuestas"
+      "peerCta": "Ver respuestas",
+      "sourcesTitle": "Material a la espera de revisión",
+      "sourcesBody": "{{n}} piezas todavía no son páginas del wiki.",
+      "sourcesCta": "Ver el material"
     },
     "import": {
       "title": "Importar",
@@ -997,6 +1000,34 @@
       "autoPaused": "Límite alcanzado · se reanuda el lunes",
       "autoBody": "SecondB busca conexiones cuando guardas un fragmento.",
       "autoNote": "Cada búsqueda automática usa una de las búsquedas semanales. Siempre se reserva una para que la inicies tú."
+    },
+    "sources": {
+      "title": "Material recibido",
+      "empty": "Todavía no ha llegado nada. Los archivos importados y los recortes se reúnen aquí.",
+      "emptyCta": "Importar material",
+      "count": "{{n}} por revisar",
+      "untitled": "Material sin título",
+      "loadError": "No se pudo cargar tu material. Vuelve a abrir esto en un momento.",
+      "expandFor": "Desplegar la vista previa de {{title}}",
+      "collapseFor": "Plegar la vista previa de {{title}}",
+      "previewLoading": "Cargando las primeras líneas",
+      "previewError": "No se pudieron cargar las primeras líneas. Toca otra vez para reintentar.",
+      "brief": "Resumen y cuatro preguntas",
+      "briefRunning": "Leyéndolo",
+      "briefFor": "Crear un resumen y cuatro preguntas para {{title}}",
+      "briefView": "Ver el resumen",
+      "briefViewFor": "Ver el resumen de {{title}}",
+      "briefHide": "Ocultar el resumen",
+      "briefSummary": "Resumen",
+      "briefQuestions": "Preguntas para pensar",
+      "briefError": "No se pudo crear el resumen. Inténtalo de nuevo en un momento.",
+      "page": "Crear una página del wiki",
+      "pageRunning": "Creándola",
+      "pageFor": "Crear una página del wiki para {{title}}",
+      "pageDone": "Se creó una página del wiki para {{title}}",
+      "pageError": "No se pudo crear la página del wiki. Inténtalo de nuevo en un momento.",
+      "pageOpen": "Verla en el wiki",
+      "pageOpenFor": "Ver {{title}} en el wiki"
     }
   },
   "beyond": {

@@ -6062,7 +6062,11 @@ test('salvage plan classifies every non-direct frame and production route exactl
     .sort();
 
   assert.equal(new Set(productionHrefs).size, productionHrefs.length);
-  assert.equal(expectedActualHrefs.length, 23);
+  // 23 -> 24 (2026-09-13): /sources 신설. **줄어든 게 아니라 늘었다** - 이 수는
+  // "레퍼런스 화면이 직접 덮지 않는 배송 라우트" 개수이고, 배송 앱에만 있는
+  // 화면을 하나 더 만들었으니 하나 는다. 낮추는 방향이었다면 근거를 따로 적어야
+  // 하지만 여기서는 새 화면 하나가 곧 근거다 (salvage-plan 의 /sources 항목).
+  assert.equal(expectedActualHrefs.length, 24);
   assert.deepEqual(Object.keys(salvage.actualRoutes).sort(), expectedActualHrefs);
   for (const [href, plan] of Object.entries(salvage.actualRoutes)) {
     for (const reference of plan.references) {

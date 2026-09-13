@@ -864,7 +864,10 @@
       "proposalsCta": "제안 검토",
       "peerTitle": "지인 응답 도착",
       "peerBody": "보낸 초대 중 {{n}}건에 응답이 왔어요.",
-      "peerCta": "응답 보기"
+      "peerCta": "응답 보기",
+      "sourcesTitle": "정리를 기다리는 자료",
+      "sourcesBody": "아직 위키가 되지 않은 자료가 {{n}}개 있어요.",
+      "sourcesCta": "자료 보기"
     },
     "import": {
       "title": "다른 앱에서 가져오기",
@@ -997,6 +1000,34 @@
       "autoPaused": "다 썼어요 · 월요일에 자동으로 다시 시작해요",
       "autoBody": "자료를 담을 때마다 세컨비가 관련 생활 영역을 제안해요",
       "autoNote": "자동 연결도 주간 한도를 1회씩 사용해요. 직접 연결할 수 있도록 마지막 1회는 남겨 둬요."
+    },
+    "sources": {
+      "title": "들어온 자료",
+      "empty": "아직 들어온 자료가 없어요. 파일을 가져오거나 담으면 여기 모여요.",
+      "emptyCta": "자료 가져오기",
+      "count": "정리할 자료 {{n}}개",
+      "untitled": "제목 없는 자료",
+      "loadError": "자료를 불러오지 못했어요. 잠시 후 다시 열어 주세요.",
+      "expandFor": "{{title}} 미리보기 펼치기",
+      "collapseFor": "{{title}} 미리보기 접기",
+      "previewLoading": "앞부분을 불러오는 중이에요",
+      "previewError": "앞부분을 불러오지 못했어요. 다시 눌러 보세요.",
+      "brief": "요약과 질문 넷",
+      "briefRunning": "읽는 중이에요",
+      "briefFor": "{{title}} 요약과 질문 넷 만들기",
+      "briefView": "요약 보기",
+      "briefViewFor": "{{title}} 요약 보기",
+      "briefHide": "요약 접기",
+      "briefSummary": "요약",
+      "briefQuestions": "되새김 질문",
+      "briefError": "요약을 만들지 못했어요. 잠시 후 다시 시도해 주세요.",
+      "page": "위키 페이지 만들기",
+      "pageRunning": "만드는 중이에요",
+      "pageFor": "{{title}} 위키 페이지 만들기",
+      "pageDone": "{{title}} 위키 페이지를 만들었어요",
+      "pageError": "위키 페이지를 만들지 못했어요. 잠시 후 다시 시도해 주세요.",
+      "pageOpen": "위키에서 보기",
+      "pageOpenFor": "{{title}} 위키에서 보기"
     }
   },
   "beyond": {
