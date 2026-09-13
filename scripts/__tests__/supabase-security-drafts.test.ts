@@ -67,6 +67,9 @@ describe("scratch PostgreSQL coverage for inactive security drafts", () => {
   );
 
   test("seeds the Supabase auth and storage contracts used by the deletion fence", () => {
+    const accountDeletionDraft = read(
+      "db/migration-drafts/UNNUMBERED_account_deletion_completion_fence.sql",
+    );
     expect(workflow).toContain("CREATE TABLE IF NOT EXISTS auth.sessions");
     expect(workflow).toContain("CREATE TABLE IF NOT EXISTS storage.buckets");
     expect(workflow).toContain("CREATE TABLE IF NOT EXISTS storage.objects");
@@ -90,8 +93,10 @@ describe("scratch PostgreSQL coverage for inactive security drafts", () => {
     expect(accountDeletionRegression).toContain("raw-clippings policy contract is incomplete");
     expect(accountDeletionRegression).toContain("storage.foldername contract is incorrect");
     expect(accountDeletionRegression).toContain("owner delete was blocked");
-    expect(
-      read("db/migration-drafts/UNNUMBERED_account_deletion_completion_fence.sql"),
-    ).not.toContain("pg_catalog.coalesce(");
+    expect(accountDeletionDraft).not.toContain("pg_catalog.coalesce(");
+    const storagePolicies = accountDeletionDraft.slice(
+      accountDeletionDraft.indexOf('DROP POLICY IF EXISTS "raw_clippings_owner_select"'),
+    );
+    expect(storagePolicies).not.toContain("FROM public.users");
   });
 });

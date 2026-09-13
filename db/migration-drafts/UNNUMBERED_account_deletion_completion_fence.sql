@@ -259,11 +259,6 @@ BEGIN
       AND pg_catalog.array_length(storage.foldername(name), 1) = 1
       AND name LIKE (SELECT auth.uid())::text || '/%.md'
       AND pg_catalog.length(name) > pg_catalog.length((SELECT auth.uid())::text) + 4
-      AND EXISTS (
-        SELECT 1
-        FROM public.users AS active_user
-        WHERE active_user.id = (SELECT auth.uid())
-      )
     )$policy$;
 
   DROP POLICY IF EXISTS "raw_clippings_owner_update" ON storage.objects;
@@ -275,11 +270,6 @@ BEGIN
       AND pg_catalog.array_length(storage.foldername(name), 1) = 1
       AND name LIKE (SELECT auth.uid())::text || '/%.md'
       AND pg_catalog.length(name) > pg_catalog.length((SELECT auth.uid())::text) + 4
-      AND EXISTS (
-        SELECT 1
-        FROM public.users AS active_user
-        WHERE active_user.id = (SELECT auth.uid())
-      )
     )
     WITH CHECK (
       bucket_id = 'raw-clippings'
@@ -287,11 +277,6 @@ BEGIN
       AND pg_catalog.array_length(storage.foldername(name), 1) = 1
       AND name LIKE (SELECT auth.uid())::text || '/%.md'
       AND pg_catalog.length(name) > pg_catalog.length((SELECT auth.uid())::text) + 4
-      AND EXISTS (
-        SELECT 1
-        FROM public.users AS active_user
-        WHERE active_user.id = (SELECT auth.uid())
-      )
     )$policy$;
 
   DROP POLICY IF EXISTS "raw_clippings_owner_delete" ON storage.objects;
