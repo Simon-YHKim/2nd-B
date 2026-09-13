@@ -5,6 +5,277 @@
 > 블록은 원문 그대로다(요약·재작성 없음, Simon 지침 §0-1).
 > 최신이 위. 활성 창은 [../HANDOFF.md](../HANDOFF.md).
 
+## 2026-09-06 / 기존 PR 통합 후보와 네이티브 릴리즈 인수
+
+통합 PR은 [#1642](https://github.com/Simon-YHKim/2nd-B/pull/1642)다. 기준 main은
+`9f852ff7`(#1643 포함)이며, 원본 PR 헤드를 보존하는 정상 merge로 후보를 만들었다.
+이 절의 상태는 **소스 통합 후보**다. 최종 검증·운영 적용·빌드·게시 결과는 각 실행의
+정확한 SHA와 결과를 확인해서 이어 쓴다.
+
+### 포함 범위와 세션 경계
+
+- 시작 당시 열린 PR은 48개였다. #1640과 #1525는 이미 main에 들어갔다.
+- 디자인·UI·검증 PR 38개를 통합했다: #1500, #1502, #1507~#1524,
+  #1526~#1529, #1530~#1543. 최신 main의 사업자 정보, 가입 동의 경계, 계정별 장면 상태,
+  지연 번역 로딩과 오류 수집 비활성화를 보존했다.
+- #1505의 LLM 기본 경로 정렬과 #1607의 URI 디코더 호환 패치를 함께 포함했다.
+  프리즈 직전에 준비된 #1644의 iOS 권한 문구 중복 제거도 포함했다.
+- 독립 검토가 발견한 AUTH-01도 수정했다. 일반 시작에서 세션 조회가 응답하지 않을 때
+  8초 뒤 명시적인 오류·재시도 상태로 끝내며, 세션 미확인과 로그아웃을 구분한다.
+  복구 표식·계정별 장면 경계는 유지하고 실제 시작 종료 코드를 fake timer로 검증한다.
+  복구 오류 로그 6곳은 고정된 분류만 남기며, 새 변경은 CHANGELOG의 Unreleased에 둔다.
+- 초기 분모 밖의 통합 PR #1641/#1642 및 이후 추가된 #1643/#1644를 초기 48개와
+  섞어 세지 않는다. 원본 헤드의 조상 관계와 GitHub 상태를 각각 확인한다.
+- 공유 `TTL-Work`의 미커밋 변경과 `security-*`의 미인계 변경은 각 소유 세션이 유지한다.
+  보안 세션은 그 변경을 제외한 릴리즈에 동의했으며, 미완료 보안 작업의 완료 승인은 남아 있다.
+
+### 보류한 가입 동의 PR 6개
+
+#1587, #1588, #1589, #1590, #1591, #1593은 분리했다. #1590/#1593을 그대로 합치면
+현재 개인정보처리방침 `2026-09-04`를 `2026-09-02`로 되돌리며 처리자 고지를 잃는다.
+동의 원장의 문서 버전 튜플을 최신 본문과 함께 다시 정리해야 한다. 기존 동의 원장은 보존한다.
+0148~0150 번호도 다른 세션의 SQL과 충돌하므로 현재 번호를 그대로 운영에 적용하지 않는다.
+
+### 서버 적용 상태와 번호
+
+- 읽기 전용 운영 조회에서 `relation_people.client_revision`이 없음을 확인했다.
+  이미 공개된 웹 `177a5962`의 사람 저장 경로가 이 필드를 사용한다. **0147 적용이 필요하다.**
+- #1505의 감사 공급자 보정 SQL은 충돌하던 0148에서 **0165**로 옮겨 원격 PR에 기록했다.
+  `log_ai_audit`가 xAI 공급자명을 보존하도록 하며, 기존 실행 권한과 다른 공급자 값은 유지한다.
+  이 SQL 자체는 OpenAI 기본 경로 전환의 선행 조건은 아니다.
+- 이 기록 작성 시 두 SQL의 운영 적용 승인은 대기 중이고, 운영 DB 변경은 실행하지 않았다.
+  적용 시 정본 SQL 해시, 사전 스키마·권한, 제한된 잠금 대기, 적용 후 스키마·함수 본문·권한·
+  원장 기록을 확인한다. 다문장 SQL의 원자성을 개별 DDL의 성질만으로 단정하지 않는다.
+- 다른 세션이 0148~0168을 사용하거나 잠정 배정했다. 새 번호를 쓰기 전에 원격 ref와
+  활성 로컬 워크트리를 다시 확인한다. 운영 적용과 엣지 배포는 콘솔 소유 경계를 따른다.
+- 운영 `openai-proxy` v117에 클라이언트가 보내는 26개 wire purpose가 준비돼 있다.
+  `crosscheck_defend`는 의도대로 Claude 경로다. 현재 preview/production의 프로젝트·계정
+  EAS 범위에 `EXPO_PUBLIC_SERVER_SAFETY`가 없어 해당 서버 분류 경로는 기본 비활성이다.
+- 웹 게시의 근거는 성공한 수동 workflow run
+  [34023526168](https://github.com/Simon-YHKim/2nd-B/actions/runs/34023526168)이다.
+  이 실행은 `177a5962`를 게시했고 #1586 비활성화를 포함한다. 오래된 Pages builds API
+  결과로 현재 수동 게시 상태를 판단하지 않는다.
+
+### 최종 검증과 배포 순서
+
+1. 합쳐진 최종 후보에서 `npm run verify`, 웹·Android·iOS export와 독립된 두 보안 검토를
+   마친다. 시각 캡처와 자동 검증을 HUMAN PASS로 기록하지 않는다.
+2. 필요한 서버 적용과 검증을 마친 뒤, exact-head CI가 통과한 통합 PR을 main에 병합한다.
+   관련 세션은 main 프리즈에 동의했으며 웹 게시 담당자는 최종 SHA 전달을 기다린다.
+3. 앱 버전은 `0.7.0`이다. 같은 최종 main SHA에서 Preview APK, Production AAB,
+   Production IPA를 빌드한다. 매 실행 전 EAS Free 잔여 한도를 확인하고 유료 전환은 하지 않는다.
+4. paired GitHub Release workflow로 세 서명 산출물·provenance·SHA-256을 검증해 묶는다.
+   설치·배포 확인 결과와 실제 검증 범위를 릴리즈에 기록한다. 스토어 제출은 별도 단계다.
+5. production OTA는 Android와 iOS 각각 호환되는 FINISHED 빌드를 확인하고 발행한 뒤
+   도달성을 재확인한다. Preview APK는 별도 채널이므로 production OTA의 도달 대상에 섞지 않는다.
+6. 최종 SHA와 게시 결과를 웹 담당자·다른 세션에 전달하고 프리즈를 해제한다.
+
+
+## 2026-09-06 / 감사 결정 11문항 집행 · PR 14건 · 안전 결함 1건 닫힘
+
+> 발행: Claude Code (TTL-Work 세션). 기준 시각 2026-09-06 15:0x KST.
+> 보고서: <https://claude.ai/code/artifact/851c682c-844e-4c34-ac69-1e6776d16b0f> ·
+> 부록(근거·3렌즈 원문): <https://claude.ai/code/artifact/041ece08-bdfe-4acb-b834-a426a3b2eca6>
+
+### 무엇을 했나
+
+2026-09-05 전수 감사의 결정 11문항에 Simon 회신이 오고, 그것을 집행했다. **여섯을 닫았고 하나는 착수했다가 되돌렸다.**
+
+| PR | 무엇 | 측정 |
+|---|---|---|
+| #1628 | `index` i18n 네임스페이스 등록 + 낡은 문서 정정 + 워크플로 최소 권한 | 가드 3종 신설 |
+| #1629 | **담은 남의 글이 1인칭 위기로 처리되던 결함 (A5)** | 거짓 핫라인 + `crisis_events` 차단 |
+| #1630 | Pretendard 웹 서브셋 | 첫 페인트 −433 KB |
+| #1631 | C2·C6 대회 제약 폐지 + judge 이메일 경로 + `types.gen.ts` | −3,805줄 |
+| #1632 | 세컨비 머리 PNG 정수배 축소 | −1,269 KB |
+| #1505 | Gemini T1 리베이스 (draft 유지) | CONFLICTING → MERGEABLE |
+
+앞서 같은 날 머지된 것: #1617 #1618 #1619 #1620 #1621 #1622 #1624 #1625 #1626.
+
+### 새로 확정된 사실 (다음 세션이 재조사하지 말 것)
+
+- **`boundary.ts:564` 가 모든 `callLlm` 입력을 1인칭 위기 분류기에 넣는다.** `clipper_classify` ·
+  `import_ingest` 의 입력은 **제3자 원문**이라, 자살예방 기사를 담으면 핫라인 응답과
+  `crisis_events` 행이 생겼다. #1629 가 `ingest-policy.ts` 를 두 호출부 앞단에 배선해 닫았다.
+  **boundary 의 C9 를 고치면 엣지 프록시 4종 재배포가 딸려온다.**
+- **`CaptureLegacy` 는 이름과 달리 딥스페이스에서도 렌더된다** (`capture.tsx:344`, 공유 경로).
+  반면 `/import` 의 LLM 경로는 레거시 전용이고 `DeepSpaceImportScreen` 은 LLM 을 안 부른다.
+- **워크플로 18개 전수 감사 완료.** 최근 실행 전부 초록이고, 머지된 정리 PR 이 워크플로가
+  참조하는 경로를 깨뜨린 곳은 0건이다. `db-backup.yml` 은 이제 초록이다(여기 적혀 있던
+  "시크릿 미등록이라 매일 red" 서술은 낡았다).
+- **Galmuri TTF 13.3 MB 는 압축률 11%** 라 APK 안에서 1.5 MB 다. 단일 최대 폰트는
+  Pretendard OTF 였고(압축률 66%, 전송 1,046 KB), #1630 이 그걸 닫았다.
+- **`index` i18n 네임스페이스는 한 번도 등록된 적이 없었다.** `useTranslation("index")` 로 28개
+  키를 부르는데 `NAMESPACES` 에 없어 레거시 홈이 키 이름을 렌더하고 있었다. #1628 이 등록하고
+  재발 방지 검사 3종을 붙였다.
+
+### ⚠ Q-01 (레거시 스킨 폐기) 은 착수했다가 되돌렸다
+
+1단계(마을 그래프 제거)를 실제로 만들어 봤다. 파일 삭제는 계획대로였고, **가드가 문제였다.**
+
+감사가 잡아둔 핀은 6개였는데, `src/app/index.tsx` 하나만으로 **가드 5개가 그 파일을 디스크에서
+읽고**, 상당수가 **레거시 전용 문자열의 존재를 요구**한다:
+
+| 가드 | index.tsx 관련 단언 |
+|---|---|
+| `scripts/check-constraints.ts` | :915 버튼 수 · :1062-1065 `t("firstPieceHint")` 등 4개 · :2927-2928 `mascotLabel` |
+| `visible-trust-copy.test.ts` | :231-237 첫 실행 카드 문구 3건을 **포함하라**고 요구 (그 문구는 레거시에만 있다) |
+| `visible-core-copy.test.ts` | :41-43 NavGraph 중앙 노드 카피 |
+| `focus-refetch-contract.test.ts` | 단언 16 (미조사) |
+| `home-cta-design-system.test.ts` | 단언 14 (미조사) |
+
+여기에 `check-pixel-rules` 래칫(파일이 사라지면 히트 수가 **줄어서** 실패한다) ·
+`check-mascot-voice` · `worldview-naming` 이 더 붙는다. 편집 중 두 번은 타입체크가 잡아준
+뒤에야 다음 결합이 드러났다.
+
+**반쯤 뜯긴 삭제는 안 한 것보다 나쁘다.** 그래서 푸시하지 않고 되돌렸다. 다음 세션은 위 표를
+출발점으로 쓰면 된다. 가드마다 "이 단언의 주어가 사라졌는가, 아니면 딥스페이스로 옮겨야
+하는가" 를 판단하는 것이 작업의 실체다.
+
+### 미결
+
+- **Q-08 (LFS)** — 최대 대상 둘(`hustlek-opening-preview.gif` 7.7 MB, `app-offline.html`
+  9.8 MB)이 `verify-portable-handoff.mjs` 의 `EXPECTED_CANONICAL_FILES` 에 **인덱스 blob
+  sha256 으로 핀**돼 있다. LFS 는 blob 을 포인터로 바꾸므로 검증기가 FAIL 하고, 이 문서는
+  "FAIL 이면 기대 해시를 고치지 말 것" 이다. ⓐ 두 파일만 LFS 제외 / ⓑ 검증기 계약 개정 /
+  **ⓒ Release 자산으로 옮기고 리포에서 삭제(추천 — 핀의 목적 자체가 폐기 대상이 된다)** 중 택일.
+- **Q-02 후반부** — `@google/genai` 를 번들에서 빼는 것은 #1505 머지와 네이티브 빌드 뒤에.
+- **`users.judge_mode` 컬럼** — comp 분기와 함께 의도적으로 남겼다. 제거는 마이그레이션이다.
+- **C12** — 결정 문구는 "해제" 였지만 **유지했다.** SIL OFL 고지 의무를 지키는 유일한 검사라서다.
+  자율에 맡기려면 20줄 삭제다.
+
+### 다음 1개
+
+Q-01 1단계를 **가드부터 풀어서** 다시 만든다. 삭제 대상(`components/graph` 전체 ·
+`lib/graph` 9개 + 테스트 · `GraphScreen`)과 가드 목록은 위 표에 그대로 있다.
+
+---
+
+
+## 2026-09-06 / PIXEL-CLAY 실행 1차: 마스코트·본문 폰트·로그인 (PR #1616)
+
+> 발행: Claude Code (TTL-Work 세션, PR 워크트리 `.worktrees/2ndB/pixelclay-260905`).
+> 기준 시각: 2026-09-06 13:30 KST. 기준 main: 2f05ab97(머지 커밋 ca06bf70 으로 따라잡음).
+
+### 왜 시작했나
+
+Simon 지시(2026-09-05): "로컬 호스트 로그인 화면 보면 이게 스타일이 구버전인데?" → 이주 실측 후
+레버 4개를 Simon 이 전부 승인(마스코트 앱 전역 · 본문 폰트 Galmuri 전면 · 사업자 푸터 · auth 마감).
+
+### 어디까지 왔나 — PR #1616 (열림, CI 통과, 머지는 Simon)
+
+| 무엇 | 어떻게 |
+|---|---|
+| 마스코트 | `SecondbHead` 가 3D PNG 대신 번들 `SbHead` 의 16격자 rect 11개를 그린다(`deepspace/secondb-hull.ts`). 얼굴 좌표는 격자 분수, 표시 크기는 16 배수 스냅, 추적은 평행이동만 |
+| 마스코트 잔여 2곳 | `CompletionToast`(32)·`RewardedSheet`(64)도 `<SecondbHead>` 로 교체. **남은 PNG require 2곳**은 가드가 목록으로 고정: `src/app/index.tsx`(레거시 랜딩) · `ShareCard.tsx`(view-shot 캡처) |
+| 본문 폰트 | `<Text variant>` 가 Pretendard 를 강제하던 것을 `galmuriFor(role.size, weight)` 로 통일. 격자 스냅 39→30 · 25→24 · 16→15 · 14→12 · 12→10, 픽셀 모드는 fontWeight 를 보내지 않는다(굵기는 얼굴 이름) |
+| 읽기 쉬운 글꼴 | 본문(body·subtle)만 Pretendard, 크롬은 Galmuri 유지(Simon 2026-08-21 Q2) |
+| 로그인 | 가입하기 outlined 버튼(문 1개), 하단 안내 줄 제거, 사업자 푸터 자리 |
+| 사업자 푸터 | `src/lib/legal/business-info.ts` — `BUSINESS_INFO = null`, 전부-아니면-전무 렌더. 라벨만 5개 로케일에 있다 |
+
+새 가드 6개(text-pixel-first · secondb-hull · secondb-head-pixel · mascot-pixel-coverage ·
+business-footer · html-base-font-registered), 변이 검증 통과. `npm run verify` 종료코드 0.
+
+### 새로 확정된 사실 (재조사하지 말 것)
+
+- **로그인 화면은 이미 radius 0 이었다.** "둥글다"는 스크린샷 오독이고 `m3Shape` 는 전부 0.
+  실제 차이는 마스코트(3D)와 폰트(Pretendard) 둘뿐이었다.
+- **`<Text>` 와 `m3TextStyle()` 이 서로 다른 폰트 체계였다.** 후자는 이미 Galmuri 우선.
+- **Galmuri 는 정수배에서만 선명하다**(G9 10 / G11 12 / G14 15). 격자를 벗어난 "Galmuri 전면"은
+  이주가 아니라 흐림 회귀다.
+- **`secondb-head-blank.png`(886 KB)는 이 PR 이후 참조 0건이 된다** — `SecondbHead` 가 유일한
+  소비자였다. 삭제는 §7 정지 조건(파일 삭제)이라 하지 않았다. 레거시 감사 Q-260905-07(머리 PNG
+  다운스케일)과 같은 파일이니 **함께 처분할 것.**
+- **`+html.tsx` 루트 폰트 죽은 참조는 #1617 이 먼저 고쳤다.** 이 PR 은 main 것을 그대로 받고
+  가드(`html-base-font-registered`)만 얹었다 — 등록되지 않은 얼굴이 다시 들어오면 깨진다.
+- `.worktrees/2ndB/TTL-Work` 는 codex/Orca 세션과 **공유 중**이라 옛 브랜치
+  `claude/pixelclay-auth-mascot-font-260905` 는 오염됐다. PR 은 전용 워크트리에서만 낸다.
+
+### 결정 요청
+
+1. **사업자 정보 실데이터 7종**(상호·대표·주소·사업자등록번호·통신판매업 신고번호·개인정보
+   담당·대표번호). 없으면 푸터는 계속 렌더 0. 목업의 "(주)하양집" 류는 Claude Design
+   플레이스홀더라 **넣지 않았다.**
+2. **#1616 머지 승인** 여부.
+3. **`secondb-head-blank.png` 삭제** 여부(Q-260905-07 과 한 건으로).
+4. TTL-Work 워크트리를 codex/Orca 세션과 분리할지.
+
+### 남은 폰트 구멍 2곳 (이 PR 에 넣지 않았다)
+
+`<Text>` 를 우회해 직접 family 를 박는 자리가 둘 남았다. 크기가 격자 밖이라(14·16)
+얼굴만 바꾸면 흐려지므로 스냅과 함께 별도로 처리한다.
+
+- `src/app/capture.tsx:138` — `CAPTURE_LABEL_FONT = isDeepSpaceUI() ? fontFamilies.readable : ...`
+  가 딥스페이스에서 크롬 라벨 4개(track chip · mode label · mode more · toss 버튼)를 **Pretendard**
+  로 강제한다. `Text.tsx #667` 과 같은 낡은 상수다 → `chromeFaceFor()` + 크기 14→12 · 16→15.
+- `src/app/esm.tsx:276,304` — `typography.fontFamily`(= "System") 가 프롬프트 탭·척도 라벨에
+  걸려 있다. Galmuri 가 아예 아니다.
+
+### 다음 1개
+
+Simon 이 #1616 을 머지하면 웹 배포본에서 폰트·마스코트를 라이브로 한 번 확인한다.
+그 다음은 나머지 화면의 PIXEL-CLAY 이주(#1536~#1541 계열 열린 PR 들과 순서 합의).
+
+---
+
+
+## 2026-09-06 / 레거시·불필요 코드 전수 감사 · 안전 정리 PR 9건 · 결정 11문항
+
+> 발행: Claude Code (TTL-Work 세션, 전용 워크트리 `.worktrees/claude/legacy-audit-260905`).
+> 기준 시각: 2026-09-06 10:32:36 KST. 기준 main: 72180031 → 감사, e302638a 이후 PR.
+> 보고서: https://claude.ai/code/artifact/851c682c-844e-4c34-ac69-1e6776d16b0f (본편) · https://claude.ai/code/artifact/041ece08-bdfe-4acb-b834-a426a3b2eca6 (부록: 발견 163건 근거·3렌즈 검증 원문)
+
+### 왜 시작했나
+
+Simon 지시(2026-09-05): "legacy 및 불필요 코드 전수 검사하여 정리. 속도 개선. 안드로이드, 웹, ios 최적화."
+지우기 전에 재는 것이 먼저라 **측정 → 8차원 탐색 → 발견마다 3렌즈(결정·도달성·CI) 반박 검증 → 안전한 것만 PR** 순서로 갔다.
+
+### 어디까지 왔나
+
+- 발견 163건: 지금 가능 38 · 가드 동반 6 · 빌드 동반 5 · 결정 필요 66 · 유지 31 · 반증 17. 비평 22건.
+- PR (전부 전용 워크트리에서 `npm run verify` 종료코드 0 확인 후 생성):
+
+| PR | 무엇 | 측정 | 상태 |
+|---|---|---|---|
+| #1617 | perf(fonts): Roboto 4벌 스플래시 게이트에서 제거 + 웹 기본 폰트 체인 수정 | 폰트 −566 KB · preload 11→7 | 머지됨 2026-09-06 09:03 KST (CI 통과) |
+| #1618 | chore(deps): expo-file-system 선언, @sentry/browser·globby 제거, galmuri devDeps 강등, playwright-core 정렬 | deps 67→66 · lock −148줄 | 머지됨 2026-09-06 09:22 KST (CI 통과) |
+| #1619 | perf(web): 네이티브 전용 SDK 5종을 .web.ts 로 분리, 뮤지엄 팩을 캐논 인덱스에서 분리 | 엔트리 −1,016 KB (−12.4%) | 머지됨 2026-09-06 09:14 KST (CI 통과) |
+| #1620 | chore(assets): require() 아트 팩 3종을 public/ 밖으로 이전, 죽은 섬 require 7개 제거 | 웹 dist −46 MB · 안드로이드 에셋 −12.4 MB | 열림(대량 리네임 → Simon 검토) |
+| #1621 | chore(build): 미사용 NativeWind/Tailwind 툴체인 제거 (+ 웹 리셋 CSS 40줄로 대체) | JSX 래퍼 제거 · 지문 EQUAL | 열림(파일 삭제 2건 → Simon 검토) |
+| #1622 | chore: 검증된 죽은 코드·미참조 폰트 2벌·대회 잔재 주석 제거 | −304줄 · 파일 7 삭제 · 폰트 −1.3 MB(리포) | 열림(파일 삭제 7건 → Simon 검토) |
+| #1624 | chore(repo): 추적된 pyc·일회용 codemod·미참조 PNG·CLI 캐시 제거 | 파일 −4 · −349 KB | 열림(파일 삭제 → Simon 검토) |
+| #1625 | ci: SHA 당 verify 1회, 추월된 실행 취소, ts-jest transpile-only, 핸드오프 검증기 배치화, dist-* eslint 무시 | jest 328→42 s · 중복 CI 제거 | 머지됨 2026-09-06 10:28 KST (CI 통과) |
+| #1626 | perf(i18n): es/pt/id 로케일 팩 지연 로드 (en/ko 는 즉시) | 엔트리 −531 KB · 청크 3개 분리 | CI 대기 → 자동 머지 |
+
+- 머지 기준: 파일 삭제·대량 리네임이 없는 PR 만 CI 초록 시 자동 머지(§7 정지 조건). 나머지는 열어 두었다.
+
+### 새로 확정된 사실 (다음 세션이 재조사하지 말 것)
+
+- **웹 배포물 93 MB 의 31% 가 같은 아트 팩의 두 번째 사본**이었다(public/ 원본 복사 + Metro 해시 복사). require() 대상을 public/ 밖으로 옮기면 사라진다(#1620).
+- **섬 PNG 7장(14.7 MB)은 두 UI 모드 모두 그릴 수 없다** — `IslandArt` 가 모든 FinalCoreId 를 `FinalCoreArt` 로 보낸다. 네이티브 바이너리에서만 빠졌고 파일은 남겼다(삭제는 결정).
+- **RevenueCat 웹 SDK 858 KB 가 웹 엔트리의 10% 였다**(웹에서는 no-op). `.web.ts` 플랫폼 파일로 갈랐다(#1619, 엔트리 −12.4%).
+- **NativeWind 는 className 소비자 0건인데 모든 JSX 를 css-interop 으로 감싸고 있었다.** 단, Tailwind preflight 가 유일한 웹 리셋이라 40줄 리셋 CSS 로 대체해야 한다(#1621, 지문 EQUAL).
+- **`ts-jest` 가 워커마다 전체 타입체크를 다시 한다.** `isolatedModules` 만 켜면 로컬 jest 492 → 132 s(측정). `rootDir` 가 같이 필요하다(TS5011).
+- **ci.yml 이 PR 푸시마다 verify 를 두 번 돈다**(push `**` + pull_request). 10.6일에 중복 414회.
+- **반증된 것 17건**(부록에 사유): docs/clone-audit 22 MB 중복은 스냅샷 번들이 상대경로로 읽는다(지우면 스냅샷이 깨진다) · check:lexicon 은 루트 dist-* 를 걷지 않는다 · Android QA 지침 위반 수치(D6-09~11)는 셈이 틀렸다 · secondb-head 다운스케일은 유효하나 core_center 주장은 틀렸다.
+- **안전 공백 1건(D3-18)**: `src/lib/safety/ingest-policy.ts`(제3자 클립 안전 정책)가 어떤 수집 경로에도 배선돼 있지 않다. 문서는 배선됐다고 적는다. 정리가 아니라 결함 — Q-260905-11.
+- **워크트리 공용 node_modules + Metro 캐시**: `--clear` 없는 export 가 다른 워크트리의 src/app 을 라우트 루트로 물려받는다(메모리 기록).
+
+### 결정 요청 (보고서 결정 탭, Q-260905-01 ~ 11)
+
+레거시 스킨 폐기 · XPRIZE 잔재 · #1505 시점 · public/proto 배포 · 휴면 네이티브 SDK 5종 · Pretendard 서브셋 · 머리 PNG 다운스케일 · 대형 바이너리 LFS · ci.yml main 트리거 · 결정 표식 있는 미참조 파일 · **제3자 클립 안전 정책 배선**.
+
+### 다음 1개
+
+Simon 이 열린 PR 을 검토·머지하고 결정 탭 11문항에 답한다(보고서 안 프롬프트 조립기로 복사). 그 뒤 3차(레거시 스킨 컷 플랜 6단계)에 착수한다.
+
+### 워크트리
+
+`.worktrees/claude/legacy-audit-260905`(감사 체크아웃, dist-audit* 측정 산출물 포함) 와 `pr-*-260905` 8개는 PR 머지 뒤 지운다. **정션부터 `rmdir node_modules` 한 뒤 `git worktree remove`** (공용 node_modules 삭제 함정).
+
+---
+
+
 ## 2026-09-06 / 워크트리 94개 정리 · C: 21→70GB · PR 6건 머지(#1610~#1615)
 
 > 발행: Claude Code (`E:/2ndB/.worktrees/claude/cleanup-260905`). 기준 시각: 2026-09-06 10:30 KST.
@@ -457,4 +728,3 @@ git fetch origin main && git switch main && git pull --ff-only origin main && ca
   읽어 자기 흔적을 지울 것(`stillConsented` 패턴).
 - python heredoc 은 백슬래시를 먹는다 — HTML 속 JS 를 스크립트로 고쳤으면 `<script>` 를 뽑아
   `node --check`.
-

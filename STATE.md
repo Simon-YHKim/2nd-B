@@ -3,9 +3,12 @@
 **덮어쓰기 파일.** 네 절만 — 완료 / 진행중 / 다음 / 막힌 것.
 결정은 여기 쓰지 않는다. `DECISIONS.md` 가 소유한다(append-only).
 
-최종 갱신 **2026-09-13 16:02 KST** · Claude Code (`E:/2ndB/.worktrees/handoff-split-260913`)
+최종 갱신 **2026-09-13 17:2x KST** · Claude Code (`E:/2ndB/.worktrees/handoff-split-260913`)
 소유자: 이 세션 — 직전 소유자 `runbook-260907` 이 **스스로 닫힌다고 적고 닫혔다**(지명 2분 전).
 이전 근거는 `DECISIONS.md` 26.09.13 15:19 줄. 다른 세션은 `DECISIONS.md` 에만 쓸 것.
+
+📊 **결정용 보고서**: <https://claude.ai/code/artifact/ad6208ec-285e-4f81-b0ef-da4f69a14060>
+   (요약·결정 8건·상세·할 일·히스토리 5탭. 다른 세션이 작업 결정을 내리는 근거로 쓸 것)
 
 ---
 
@@ -29,8 +32,35 @@
 
 ## 다음 (하나만)
 
-**P1 — 배송 홈이 `highlightRecordId` 를 읽는다.** (Q6 ④, Simon 이 "받는 쪽부터"로 순서 지정)
+**A — 디스크 정리.** (Simon 지시 2026-09-13 17:0x: *"현재 작업중인 codex 세션을 제외하고서는
+모두 정리해서 하드의 용량을 정리하는 작업부터 시작하게 하자"*)
 
+**C: 24.9GB · E: 23.2GB** 남았고 워크트리가 **121개**다. 순서를 지킨다 —
+`① 조사 → ② 구제 → ③ 삭제`. 절차·명령·건드리면 안 되는 목록은 `docs/HANDOFF.md` 최신 블록.
+
+```
+dirty>0 또는 unpushed>0   40개 · 53.9GB   ⛔ 지우면 사라진다
+security-* 계열           99개            ⛔ 소유자가 보안담당 (33개에 미푸시, 최대 101커밋)
+최근 6h 안에 커밋됨        36개            ⛔ 살아 있다
+실물 node_modules          7개 · ~7GB     정션으로 바꾸면 회수 (정본 E:/2ndB 는 제외)
+진짜 정리 가능             16개 · ~2.5GB
+```
+
+조사 도구: `E:/Coding Infra/_rescue/tools/survey_worktrees.py` (읽기 전용, 121개 전수)
+
+### 그다음 — 에뮬레이터 화면 검증 (같은 지시)
+
+- **안드로이드는 된다** — `emulator-5554` 연결됨, AVD 6개. ⚠ 17:12 에 `adb shell` 이
+  120초 무응답(5일째 가동 중이라 굳은 듯) → 막히면 `adb emu kill` 후 재기동.
+  ⚠ arm64 출시 APK 는 x86_64 에뮬에서 안 돈다 — `preview-emulator` 프로필로 빌드한다.
+- **아이폰 시뮬레이터는 이 기계에서 불가능하다** — Windows 라 `xcrun`·`simctl` 이 없다.
+  대안 셋(실기 Expo dev client / EAS→TestFlight / 웹 뷰포트)은 HANDOFF 최신 블록에 있다.
+  **`eas.json` 의 `ios-simulator` 프로필이 있다고 "여기서 된다"로 읽지 말 것** — EAS 의
+  macOS 머신에서 빌드만 되는 것이다.
+
+### 그 뒤 (되살리기 큐)
+
+**P1 — 배송 홈이 `highlightRecordId` 를 읽는다.** (Q6 ④, Simon 이 "받는 쪽부터"로 순서 지정)
 보내는 곳 둘(`src/app/capture.tsx:2254` · `src/app/record/[id].tsx:224`), 읽는 곳은
 아카이브된 홈(`legacy/screens/index.tsx:303,308`) 하나뿐이다. 받는 쪽을 먼저 고치지 않으면
 보내는 쪽을 손봐야 아무 일도 안 난다. 되살리기 큐(Q11 · P2 · P3 · P4) 전체의 선행이다.
