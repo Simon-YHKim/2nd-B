@@ -789,7 +789,6 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
       cancelled = true;
     };
     // applyAutosaveConsent 는 ref 와 setState 만 만진다 - 어느 렌더의 것을 불러도 같다.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, prefsReadKey]);
 
   // 같은 앱에서 설정 저장이 성공하면 바로 반영한다. 돌아왔을 때 다시 읽기만으로는 늦다 - 설정 화면에
@@ -801,7 +800,6 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
       setAdsConsent(prefs.ads === true);
       applyAutosaveConsent(prefs.chat_autosave === true);
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   // 자동 저장: 동의가 켜져 있으면 새로 도착한 답변을 담는다.
