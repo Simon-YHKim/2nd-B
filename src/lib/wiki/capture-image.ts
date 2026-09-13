@@ -55,9 +55,13 @@ interface DownscaledOcrImage {
   uri: string;
   base64: string;
   mimeType: "image/jpeg";
-  lease: OwnedTempFileLease | null;
+  ownership: ImageAssetOwnership;
   usesPickerLease: boolean;
 }
+
+type ImageAssetOwnership =
+  | { kind: "owned"; lease: OwnedTempFileLease }
+  | { kind: "explicitly_unowned" };
 
 export const MAX_OCR_IMAGE_BASE64_BYTES = 2_700_000;
 export const MAX_OCR_IMAGE_RAW_BASE64_BYTES = MAX_OCR_IMAGE_BASE64_BYTES + 100_000;
@@ -75,6 +79,8 @@ export const IMAGE_OCR_MISSING_DATA_ERROR = "image_ocr_missing_data";
 export const IMAGE_OCR_INVALID_DATA_ERROR = "image_ocr_invalid_data";
 export const IMAGE_OCR_EMPTY_RESULT_ERROR = "image_ocr_empty_result";
 export const IMAGE_OCR_CRISIS_RESULT_ERROR = "image_ocr_crisis_result";
+export const IMAGE_OCR_TEMP_UNAVAILABLE_ERROR = "image_ocr_temp_unavailable";
+export const IMAGE_TEMP_OPERATION_TIMEOUT_MS = 5_000;
 
 export const ALLOWED_OCR_IMAGE_MIME_TYPES = [
   "image/jpeg",
@@ -153,34 +159,105 @@ function warnImageCleanupFailure(reason: unknown): void {
   }
 }
 
-async function acquireImageCacheLease(uri: string): Promise<OwnedTempFileLease | null> {
-  try {
-    const result = await leaseOwnedTempFile(uri);
-    return result.ok ? result.lease : null;
-  } catch {
-    return null;
-  }
+function isExplicitlyUnownedProviderUri(uri: string): boolean {
+  return /^(?:(?:content|ph|assets-library):\/\/|blob:)/i.test(uri);
 }
 
-async function disposeImageCacheLease(lease: OwnedTempFileLease | null): Promise<void> {
-  if (!lease) return;
-  try {
-    const result = await lease.dispose();
-    if (!result.ok) warnImageCleanupFailure(result.error);
-  } catch {
-    warnImageCleanupFailure("unexpected_failure");
+type DeadlineResult<T> =
+  | { status: "resolved"; value: T }
+  | { status: "rejected" }
+  | { status: "timed_out" };
+
+function settleBeforeDeadline<T>(operation: Promise<T>): Promise<DeadlineResult<T>> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      resolve({ status: "timed_out" });
+    }, IMAGE_TEMP_OPERATION_TIMEOUT_MS);
+    void operation.then(
+      (value) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve({ status: "resolved", value });
+      },
+      () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve({ status: "rejected" });
+      },
+    );
+  });
+}
+
+function cleanLateImageLease(operation: Promise<Awaited<ReturnType<typeof leaseOwnedTempFile>>>): void {
+  void operation.then(async (result) => {
+    if (!result.ok) return;
+    await disposeImageAssetOwnership({ kind: "owned", lease: result.lease });
+  }).catch(() => {
+    // The late operation contains a native path in its rejected operand. Keep it
+    // quarantined and never copy that detail into application logs.
+  });
+}
+
+async function acquireImageAssetOwnership(
+  uri: string,
+  provenance: "picker" | "manipulator",
+): Promise<ImageAssetOwnership> {
+  // Native pickers may hand back a provider-owned original. Preserve only URI
+  // schemes that explicitly carry that ownership boundary. A file:// result is
+  // a picker/manipulator cache copy until a verified app-cache lease proves it
+  // can be cleaned; a failed lease must never silently become "unowned".
+  if (provenance === "picker" && isExplicitlyUnownedProviderUri(uri)) {
+    return { kind: "explicitly_unowned" };
   }
+  if (!uri.startsWith("file:///")) {
+    throw new Error(IMAGE_OCR_TEMP_UNAVAILABLE_ERROR);
+  }
+  const operation = leaseOwnedTempFile(uri);
+  const settled = await settleBeforeDeadline(operation);
+  if (settled.status === "timed_out") {
+    // We cannot return a file whose cleanup ownership is still unknown. If the
+    // native inspection later proves ownership, the late proof cleans it once.
+    cleanLateImageLease(operation);
+    throw new Error(IMAGE_OCR_TEMP_UNAVAILABLE_ERROR);
+  }
+  if (settled.status === "rejected" || !settled.value.ok) {
+    throw new Error(IMAGE_OCR_TEMP_UNAVAILABLE_ERROR);
+  }
+  return { kind: "owned", lease: settled.value.lease };
+}
+
+async function disposeImageAssetOwnership(ownership: ImageAssetOwnership | null): Promise<void> {
+  if (!ownership || ownership.kind === "explicitly_unowned") return;
+  const operation = ownership.lease.dispose();
+  const settled = await settleBeforeDeadline(operation);
+  if (settled.status === "timed_out") {
+    warnImageCleanupFailure("unexpected_failure");
+    void operation.then((result) => {
+      if (!result.ok) warnImageCleanupFailure(result.error);
+    }).catch(() => warnImageCleanupFailure("unexpected_failure"));
+    return;
+  }
+  if (settled.status === "rejected") {
+    warnImageCleanupFailure("unexpected_failure");
+    return;
+  }
+  if (!settled.value.ok) warnImageCleanupFailure(settled.value.error);
 }
 
 function pickedImageWithLease(
   image: Omit<PickedImage, "release">,
-  lease: OwnedTempFileLease | null,
+  ownership: ImageAssetOwnership,
 ): PickedImage {
   let releasePromise: Promise<void> | null = null;
   return {
     ...image,
     release: () => {
-      releasePromise ??= disposeImageCacheLease(lease);
+      releasePromise ??= disposeImageAssetOwnership(ownership);
       return releasePromise;
     },
   };
@@ -484,29 +561,46 @@ async function downscaleOcrImageAsset(asset: {
   if (resizeActions.length === 0) resizeActions.push([]);
 
   for (const actions of resizeActions) {
-    let result: ImageManipulatorResult | undefined;
-    try {
-      result = await ImageManipulator.manipulateAsync(asset.uri, actions, {
+    const operation = Promise.resolve().then(() => ImageManipulator.manipulateAsync(asset.uri, actions, {
         compress: OCR_IMAGE_DOWNSCALE_COMPRESS,
         format: ImageManipulator.SaveFormat.JPEG,
         base64: true,
-      });
-    } catch {
+      }));
+    const settled = await settleBeforeDeadline(operation);
+    if (settled.status === "timed_out") {
+      // A timed-out native transform may still materialize a cache copy. It is
+      // not a usable candidate, but a late successful result is claimed and
+      // disposed so no orphan survives the bounded caller wait.
+      void operation.then(async (lateResult) => {
+        if (lateResult.uri === asset.uri) return;
+        try {
+          const lateOwnership = await acquireImageAssetOwnership(lateResult.uri, "manipulator");
+          await disposeImageAssetOwnership(lateOwnership);
+        } catch {
+          // Unprovable ownership stays quarantined; no path or native error log.
+        }
+      }).catch(() => {});
+      throw new Error(IMAGE_OCR_TEMP_UNAVAILABLE_ERROR);
+    }
+    if (settled.status === "rejected") {
       return null;
     }
+    const result: ImageManipulatorResult = settled.value;
     const usesPickerLease = result.uri === asset.uri;
-    const lease = usesPickerLease ? null : await acquireImageCacheLease(result.uri);
+    const ownership = usesPickerLease
+      ? { kind: "explicitly_unowned" as const }
+      : await acquireImageAssetOwnership(result.uri, "manipulator");
     const base64 = result?.base64;
     if (base64 && base64.length <= MAX_OCR_IMAGE_BASE64_BYTES) {
       return {
         uri: result.uri,
         base64,
         mimeType: "image/jpeg",
-        lease,
+        ownership,
         usesPickerLease,
       };
     }
-    await disposeImageCacheLease(lease);
+    await disposeImageAssetOwnership(ownership);
   }
   return null;
 }
@@ -548,7 +642,7 @@ export async function pickImageAsset(
   if (result.canceled) return null;
   const asset = result.assets?.[0];
   if (!asset) return null;
-  let candidateLease = await acquireImageCacheLease(asset.uri);
+  let candidateOwnership: ImageAssetOwnership | null = await acquireImageAssetOwnership(asset.uri, "picker");
   try {
     if (!asset.base64) throw new Error(IMAGE_OCR_MISSING_DATA_ERROR);
 
@@ -565,8 +659,8 @@ export async function pickImageAsset(
       const downscaled = await downscaleOcrImageAsset(asset);
       if (downscaled) {
         if (!downscaled.usesPickerLease) {
-          await disposeImageCacheLease(candidateLease);
-          candidateLease = downscaled.lease;
+          await disposeImageAssetOwnership(candidateOwnership);
+          candidateOwnership = downscaled.ownership;
         }
         candidate = downscaled;
       }
@@ -580,11 +674,11 @@ export async function pickImageAsset(
       uri: candidate.uri,
       base64: payload.base64,
       mimeType: payload.mimeType,
-    }, candidateLease);
-    candidateLease = null;
+    }, candidateOwnership);
+    candidateOwnership = null;
     return picked;
   } finally {
-    await disposeImageCacheLease(candidateLease);
+    await disposeImageAssetOwnership(candidateOwnership);
   }
 }
 
