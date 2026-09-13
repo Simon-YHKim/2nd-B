@@ -13,19 +13,21 @@
 // 그래프 홈은 아카이브됐고, 배송 홈의 별 일곱은 도메인이 아니라 시기·주제 자리라
 // (persona/home-stars.ts) 받을 곳이 없었다.
 //
-//   조각 · 기록 상세     lifeDomainOf    생활 영역 태그              ->  /star/[domain] 에 pieceId 를 실어 보낸다
-//                                        collect · 태그 없음         ->  null (상세로 가거나 버튼을 숨긴다)
+//   /capture 조각 저장   lifeDomainOf    생활 영역 태그              ->  /star/[domain] 에 pieceId 를 실어 보낸다
+//                                        collect · 태그 없음         ->  null (상세로 간다)
 //   /capture 기록 저장   filedDomainOf   domain: 태그 (collect 포함)  ->  /star/[domain] 에 pieceId 를 실어 보낸다
-//                                        태그 없음                   ->  null (상세로 간다)
+//   · 기록 상세                          태그 없음                   ->  null (상세로 가거나 버튼을 숨긴다)
 //
 // 해석은 recordDomain 과 같다: 첫 번째로 유효한 domain: 태그를 쓰고, 알 수 없는 슬러그는
 // 건너뛰고, 대소문자를 가린다. /star/[domain] 의 목록도 domain:<id> 를 정확히 맞춰 읽으니
 // 그 화면에 없는 태그로는 보내지 않는 셈이다.
 //
-// collect 는 생활 영역이 아니라 데이터가 흘러드는 통로라, 조각과 기록 상세는 영역 화면으로
-// 보내지 않는다 - DomainDashboard 의 LIFE_DOMAINS 와 같은 선이다. /capture 의 기록 저장만
+// collect 는 생활 영역이 아니라 데이터가 흘러드는 통로라, /capture 의 조각 저장은 collect 로
+// 보내지 않는다 - DomainDashboard 의 LIFE_DOMAINS 와 같은 선이다. /capture 의 기록 저장은
 // collect 로도 보낸다: createRecord 는 기록마다 domain: 태그를 정확히 하나 붙이고 못 찾으면
-// domain:collect 를 붙이므로, 그 기록은 /star/collect 의 목록에 실제로 있다.
+// domain:collect 를 붙이므로, 그 기록은 /star/collect 의 목록에 실제로 있다. 기록 상세도 같은
+// 규칙이다(P1 후속, 2026-09-14): 생활 영역만 볼 때는 /star/collect 카드에서 연 상세에 영역 버튼이
+// 없었고, 상세의 옮기기 목록이 일곱 영역 전부라 담아내기로 옮기면 버튼이 사라졌다.
 //
 // ⚠ /star/[domain] 은 isDomainId 로 받는다(collect 도 받는다). 여기서 보내는 값은 그 집합의
 //   부분집합이어야 하고, 테스트가 그 화면의 판정 줄을 읽어 확인한다.
@@ -56,7 +58,8 @@ export function filedDomainOf(tags: readonly string[] | null | undefined): Domai
 /**
  * The route that opens that area and tells it which piece to show at the top.
  * `pieceId` follows get-piece.ts (a record's uuid, or `src-<uuid>` for a source);
- * src/app/star/[domain].tsx is the reader. Only a saved record is sent to collect.
+ * src/app/star/[domain].tsx is the reader. Every sender but the /capture piece (source) save
+ * may send collect.
  */
 export function domainScreenRoute(domain: DomainId, pieceId: string) {
   return { pathname: "/star/[domain]", params: { domain, pieceId } } as const;

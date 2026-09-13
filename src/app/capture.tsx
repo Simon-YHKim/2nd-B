@@ -646,7 +646,8 @@ function CaptureLegacySession({
   // J1: where the saved piece actually lives drives the success CTA. A journal
   // entry lands in `records` (기록 보관소) and gains the graph nothing, so
   // pointing its CTA at the graph sent the very first save to an unchanged
-  // screen; classified captures (`sources`) DO become graph nodes.
+  // screen; classified captures (`sources`) became graph nodes then. That graph
+  // home is archived now, and P1 decides where the CTA goes (savedTarget below).
   const [savedKind, setSavedKind] = useState<"records" | "source" | null>(null);
   const [savedMode, setSavedMode] = useState<Mode | null>(null);
   const [savedSourceId, setSavedSourceId] = useState<string | null>(null);
@@ -3405,7 +3406,8 @@ ${transcript}`;
             </View>
           ) : null}
 
-          {/* Import success → graph link (journal-capture pack §3/§7) */}
+          {/* Saved panel (journal-capture pack §3/§7). It used to link to the graph; the
+              button below now follows P1 (the area, the piece's detail, or 기록 보관소). */}
           {savedTitle ? (
             <PremiumCard style={styles.savedPanel}>
               <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>

@@ -144,7 +144,7 @@ describe("domainScreenRoute - 영역 화면으로 가는 경로", () => {
     // 웹 정적 페이지는 slug 로 만든다. 보내는 값도 slug 여야 직접 주소로 들어와도 404 가 아니다.
     expect(screen).toContain("DOMAIN_STARS.map((d) => ({ domain: d.slug }))");
 
-    // 조각 · 기록 상세: 생활 영역 여섯.
+    // /capture 조각 저장: 생활 영역 여섯.
     const sent = DOMAIN_STARS.map((star) => ({ star, area: lifeDomainOf([domainTagFor(star.id)]) }));
     for (const { star, area } of sent) {
       if (star.id === "collect") {
@@ -158,7 +158,7 @@ describe("domainScreenRoute - 영역 화면으로 가는 경로", () => {
     // 여섯 영역이 전부 갈 곳을 갖는다 - 0건 통과를 막는다.
     expect(sent.filter(({ area }) => area !== null)).toHaveLength(6);
 
-    // /capture 기록 저장: collect 를 포함한 일곱.
+    // /capture 기록 저장 · 기록 상세: collect 를 포함한 일곱.
     const filed = DOMAIN_STARS.map((star) => ({ star, domain: filedDomainOf([domainTagFor(star.id)]) }));
     for (const { star, domain } of filed) {
       expect(domain).not.toBeNull();
