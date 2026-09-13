@@ -1002,14 +1002,14 @@ results.push(
       capture.includes("const [savedMode, setSavedMode] = useState<Mode | null>(null)") &&
       capture.includes("const [savedSourceId, setSavedSourceId] = useState<string | null>(null)") &&
       capture.includes('const savedIsOcr = savedKind === "source" && savedMode === "ocr"') &&
-      // P1 (2026-09-13): 저장 후 버튼은 홈에 강조를 부탁하지 않고 조각이 담긴 영역 화면으로 간다.
-      capture.includes('router.push(domainScreenRoute(savedDomain, pieceIdFor(savedSourceId, "source")));') &&
+      // P1 (2026-09-13 · 09-14): 저장 후 버튼은 홈에 강조를 부탁하지 않고, 조각이든 기록이든 담긴 영역 화면으로 간다.
+      capture.includes("router.push(domainScreenRoute(savedDomain, pieceIdFor(savedSourceId, savedOrigin)));") &&
       // (drafts-all-modes refactor: the submitted mode is captured into a
       // local before async work, so the pin follows the safer form.)
       capture.includes("setSavedMode(submittedMode)") &&
       capture.includes("setSavedSourceId(result.source.id)") &&
-      capture.includes('accessibilityHint={savedDomain ? t("saved.seeAreaHint", { area: savedAreaName }) : t("saved.seePieceHint")}') &&
-      capture.includes('accessibilityHint={t("saved.seeRecordsHint")}') &&
+      // 세 갈래 힌트가 한 식에 있다 - 기록 보관소 힌트(seeRecordsHint)도 이 줄이 잡는다.
+      capture.includes('accessibilityHint={savedTarget === "area" ? t("saved.seeAreaHint", { area: savedAreaName }) : savedTarget === "piece" ? t("saved.seePieceHint") : t("saved.seeRecordsHint")}') &&
       capture.includes("const [ocrReviewApproved, setOcrReviewApproved] = useState(false)") &&
       // Pin the gate BODY, not just the state declaration — without this a
       // refactor could revert the OCR canSubmit branch to body-only while
