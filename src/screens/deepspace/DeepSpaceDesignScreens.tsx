@@ -106,7 +106,7 @@ import {
 } from "@/lib/payments/purchases";
 import type { PurchasesPackage } from "react-native-purchases";
 import { systemLocaleFor } from "@/lib/i18n/locales";
-import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
+import { fetchPrivacyPrefs, readPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
 import { captureEvent, proposalDecided, setAnalyticsConsent } from "@/lib/analytics";
 import { nextPrivacyPrefs, type PrivacyPrefKey, type PrivacyPrefs } from "@/lib/privacy/prefs";
 import {
@@ -749,6 +749,12 @@ export function DeepSpacePrivacyDesignScreen() {
     });
   }, [navigation]);
 
+  // 설정을 못 읽었는가 (r3as F-04). 못 읽은 것을 꺼짐으로 그리면 켜 둔 사람이 꺼져 있다고 믿고,
+  // 누르면 끄는 대신 켜기를 저장한다. 그래서 못 읽으면 스위치 값은 null 로 둔 채(그리지 않는다)
+  // 다시 읽기를 준다. prefsReadKey 가 그 다시 읽기의 방아쇠다.
+  const [prefsLoadError, setPrefsLoadError] = useState(false);
+  const [prefsReadKey, setPrefsReadKey] = useState(0);
+
   useEffect(() => {
     prefsRef.current = null;
     prefsUserRef.current = null;
@@ -763,6 +769,7 @@ export function DeepSpacePrivacyDesignScreen() {
     setRecError(false);
     setEmbedErr(false);
     setChatSaveError(false);
+    setPrefsLoadError(false);
     setBusy(false);
     setDelConfirm("");
     setDeleteConfirmOpen(false);
@@ -775,25 +782,35 @@ export function DeepSpacePrivacyDesignScreen() {
       setDelError(false);
       allowDeletionNavigationRef.current = false;
     }
+  }, [userId]);
+
+  // 읽기는 위 초기화와 따로 돈다. 다시 읽기가 초기화까지 돌리면 입력 중인 삭제 확인이 지워진다.
+  // 초기화가 먼저 선언돼 있어서 계정이 바뀔 때는 비운 다음에 읽는다.
+  useEffect(() => {
     if (!userId) return;
     const targetUserId = userId;
     let cancelled = false;
-    void fetchPrivacyPrefs(targetUserId).then((p) => {
-      if (!cancelled && activeUserRef.current === targetUserId) {
-        prefsRef.current = p;
-        prefsUserRef.current = targetUserId;
-        setAnalyticsOn(p.external_analytics === true);
-        setAdsOn(p.ads === true);
-        setRecOn(p.recommendations === true);
-        setEmbedOn(p.records_embedding === true);
-        // 저장된 참만 켜짐이다. 미설정·문자열 "true" 는 resolvePrivacyPrefs 가 이미 false 로 떨군다.
-        setChatSaveOn(p.chat_autosave === true);
+    setPrefsLoadError(false);
+    void readPrivacyPrefs(targetUserId).then((read) => {
+      if (cancelled || activeUserRef.current !== targetUserId) return;
+      if (!read.ok) {
+        setPrefsLoadError(true);
+        return;
       }
+      const p = read.prefs;
+      prefsRef.current = p;
+      prefsUserRef.current = targetUserId;
+      setAnalyticsOn(p.external_analytics === true);
+      setAdsOn(p.ads === true);
+      setRecOn(p.recommendations === true);
+      setEmbedOn(p.records_embedding === true);
+      // 저장된 참만 켜짐이다. 미설정·문자열 "true" 는 resolvePrivacyPrefs 가 이미 false 로 떨군다.
+      setChatSaveOn(p.chat_autosave === true);
     });
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, prefsReadKey]);
 
   async function toggleExternalPreference(
     key: Extract<PrivacyPrefKey, "external_analytics" | "ads">,
@@ -1046,6 +1063,21 @@ export function DeepSpacePrivacyDesignScreen() {
     }
   }
 
+  // 못 읽었을 때 스위치 자리에 그리는 것 (r3as F-04). 스위치가 없으니 누를 것도 없고 다시 읽기만 있다.
+  const prefsLoadFailed = prefsLoadError ? (
+    <>
+      <Text variant="subtle" style={styles.footer}>{t("privacy.prefsLoadError")}</Text>
+      <Pressable
+        style={styles.secondary}
+        onPress={() => setPrefsReadKey((k) => k + 1)}
+        accessibilityRole="button"
+        accessibilityLabel={t("privacy.prefsRetry")}
+      >
+        <Text variant="body" style={styles.secondaryText}>{t("privacy.prefsRetry")}</Text>
+      </Pressable>
+    </>
+  ) : null;
+
   return (
     <Shell title={t("privacy.title")} scrollRef={privacyScrollRef}>
       <SecondbStatusHeader text={t("privacy.status")} tip={t("privacy.tip")} />
@@ -1085,7 +1117,7 @@ export function DeepSpacePrivacyDesignScreen() {
           <Text variant="caption" style={styles.section}>{t("privacy.chatSaveSection")}</Text>
           <Text variant="body" style={styles.lead}>{consentT("privacy.keys.chat_autosave.desc")}</Text>
           {chatSaveOn === null ? (
-            <Text variant="subtle" style={styles.footer}>{t("privacy.chatSaveLoading")}</Text>
+            prefsLoadFailed ?? <Text variant="subtle" style={styles.footer}>{t("privacy.chatSaveLoading")}</Text>
           ) : (
             <Toggle
               label={consentT("privacy.keys.chat_autosave.label")}
@@ -1119,7 +1151,7 @@ export function DeepSpacePrivacyDesignScreen() {
               : "Optional. Your choice is saved and applies to Google Analytics on the web. Firebase Analytics and Microsoft Clarity are currently disabled on Android."}
         </Text>
         {analyticsOn === null || adsOn === null ? (
-          <Text variant="subtle" style={styles.footer}>
+          prefsLoadFailed ?? <Text variant="subtle" style={styles.footer}>
             {isMinor === null
               ? ko
                 ? "생년월일을 확인하는 중…"
@@ -1199,7 +1231,7 @@ export function DeepSpacePrivacyDesignScreen() {
             {ko ? "맞춤 추천은 보호를 위해 꺼져 있고 켤 수 없어요." : "Recommendations are off and locked for your protection."}
           </Text>
         ) : recOn === null ? (
-          <Text variant="subtle" style={styles.footer}>{ko ? "불러오는 중…" : "Loading…"}</Text>
+          prefsLoadFailed ?? <Text variant="subtle" style={styles.footer}>{ko ? "불러오는 중…" : "Loading…"}</Text>
         ) : recOn ? (
           <>
             <Text variant="body" style={styles.lead}>
@@ -1247,7 +1279,7 @@ export function DeepSpacePrivacyDesignScreen() {
             {ko ? "기록 의미 연결은 보호를 위해 꺼져 있고 켤 수 없어요." : "Semantic connections are off and locked for your protection."}
           </Text>
         ) : embedOn === null ? (
-          <Text variant="subtle" style={styles.footer}>{ko ? "불러오는 중…" : "Loading…"}</Text>
+          prefsLoadFailed ?? <Text variant="subtle" style={styles.footer}>{ko ? "불러오는 중…" : "Loading…"}</Text>
         ) : embedOn ? (
           <>
             <Text variant="body" style={styles.lead}>

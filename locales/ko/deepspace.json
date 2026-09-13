@@ -225,7 +225,9 @@
     "open": "열기",
     "chatSaveSection": "대화 저장",
     "chatSaveLoading": "설정을 불러오는 중…",
-    "chatSaveError": "설정을 저장하지 못했어요. 다시 시도해 주세요."
+    "chatSaveError": "설정을 저장하지 못했어요. 다시 시도해 주세요.",
+    "prefsLoadError": "설정을 불러오지 못해서 지금은 바꿀 수 없어요.",
+    "prefsRetry": "다시 불러오기"
   },
   "support": {
     "title": "지원 · 문의",

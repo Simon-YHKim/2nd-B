@@ -30,9 +30,10 @@ jest.mock("../../supabase/client", () => {
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import ts from "typescript";
 
 import { MINOR_PROMOTABLE_KEYS, defaultPrivacyPrefs, nextPrivacyPrefs, type PrivacyPrefs } from "../prefs";
-import { savePrivacyPrefs } from "../../supabase/privacy";
+import { readPrivacyPrefs, savePrivacyPrefs } from "../../supabase/privacy";
 
 const { __maybeSingle, __update, __eqUpdate, __insert } = jest.requireMock("../../supabase/client") as {
   __maybeSingle: jest.Mock;
@@ -128,10 +129,13 @@ describe("배송 /privacy 화면에 대화 저장 토글이 있다", () => {
     expect(screen).toContain("onPress={() => void toggleChatAutosave(!chatSaveOn)}");
   });
 
-  it("기본값은 꺼짐이다 - 못 읽었으면 그리지 않고, 저장된 참만 켜짐이다", () => {
+  it("확인 전에는 스위치 자리에 불러오는 중이나 다시 읽기를 그린다", () => {
+    // 읽기 실패와 저장된 꺼짐을 가르는 동작은 아래 "설정을 못 읽으면" 묶음이 화면의 실제
+    // 본문을 돌려서 본다. 여기서는 그 상태가 스위치 자리에 그려지는지만 본다 - 이 저장소에서
+    // 컴포넌트 렌더 테스트는 막혀 있다(RN 0.85).
     expect(screen).toContain("const [chatSaveOn, setChatSaveOn] = useState<boolean | null>(null);");
-    expect(screen).toContain("setChatSaveOn(p.chat_autosave === true)");
     expect(screen).toContain("chatSaveOn === null ? (");
+    expect(screen).toContain("prefsLoadFailed ??");
   });
 
   it("같은 저장 경로를 쓴다", () => {
@@ -152,9 +156,148 @@ describe("배송 /privacy 화면에 대화 저장 토글이 있다", () => {
   });
 });
 
+// ── 설정을 못 읽으면 꺼짐으로 그리지 않는다 (r3as F-04) ──────────────────────────────
+//
+// fetchPrivacyPrefs 는 읽기 실패를 전부 꺼짐으로 바꾼다. 게이트에는 맞는 자세지만 스위치에는
+// 틀리다: 켜 둔 사람에게 "꺼짐"을 보여 주고, 그 사람이 누르면 끄는 대신 켜기를 저장한다.
+// 여기서는 화면을 렌더하지 않고 **실제 선언**(읽기 useEffect, 토글 핸들러)만 AST 로 떼어
+// inert 바인딩 위에서 돌린다. 읽기 함수는 진짜고 DB 만 목이다.
+
+/** megafile 이라 같은 이름이 다른 화면에도 있다. 배송 /privacy 선언 안으로 먼저 좁힌다. */
+function privacyScreenPart(match: (node: ts.Node, text: () => string) => boolean): string {
+  const file = join(ROOT, "src/screens/deepspace/DeepSpaceDesignScreens.tsx");
+  const ast = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const found: { screen?: ts.Node; text?: string } = {};
+  const findScreen = (node: ts.Node): void => {
+    if (found.screen) return;
+    if (ts.isFunctionDeclaration(node) && node.name?.text === "DeepSpacePrivacyDesignScreen") found.screen = node;
+    else ts.forEachChild(node, findScreen);
+  };
+  findScreen(ast);
+  if (!found.screen) throw new Error("DeepSpacePrivacyDesignScreen 선언을 찾지 못했다");
+  const findPart = (node: ts.Node): void => {
+    if (found.text !== undefined) return;
+    if (match(node, () => node.getText(ast))) found.text = node.getText(ast);
+    else ts.forEachChild(node, findPart);
+  };
+  ts.forEachChild(found.screen, findPart);
+  if (found.text === undefined) throw new Error("배송 /privacy 화면에서 그 조각을 찾지 못했다");
+  return found.text;
+}
+
+const effectWith = (marker: string): string =>
+  privacyScreenPart(
+    (node, text) =>
+      ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "useEffect" && text().includes(marker),
+  );
+const handlerNamed = (name: string): string =>
+  privacyScreenPart((node) => ts.isFunctionDeclaration(node) && node.name?.text === name);
+
+/** 떼어낸 원문을 바인딩 위에서 실행한다. 재구현이 아니라 화면의 본문이다. */
+function execute<T>(source: string, tail: string, bindings: Record<string, unknown>): T {
+  const js = ts.transpileModule(`${source}\n${tail}`, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText;
+  return new Function(...Object.keys(bindings), js)(...Object.values(bindings)) as T;
+}
+
+const settle = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
+
+/** 화면의 설정 읽기 effect 를 한 번 돌리고, 스위치마다 무엇이 그려졌는지 받아 적는다. */
+function loadScreenPrefs() {
+  const drawn = { analytics: [] as unknown[], ads: [] as unknown[], rec: [] as unknown[], embed: [] as unknown[], chat: [] as unknown[] };
+  const loadError: boolean[] = [];
+  const prefsRef: { current: PrivacyPrefs | null } = { current: null };
+  execute(effectWith("readPrivacyPrefs(targetUserId)"), "", {
+    useEffect: (effect: () => unknown) => {
+      effect();
+    },
+    userId: "u1",
+    prefsReadKey: 0,
+    activeUserRef: { current: "u1" },
+    prefsRef,
+    prefsUserRef: { current: null },
+    readPrivacyPrefs,
+    setPrefsLoadError: (value: boolean) => loadError.push(value),
+    setAnalyticsOn: (value: unknown) => drawn.analytics.push(value),
+    setAdsOn: (value: unknown) => drawn.ads.push(value),
+    setRecOn: (value: unknown) => drawn.rec.push(value),
+    setEmbedOn: (value: unknown) => drawn.embed.push(value),
+    setChatSaveOn: (value: unknown) => drawn.chat.push(value),
+  });
+  return { drawn, loadError, prefsRef };
+}
+
+describe("설정을 못 읽으면 꺼짐으로 그리지 않는다 (r3as F-04)", () => {
+  beforeEach(() => {
+    __maybeSingle.mockReset();
+    __update.mockClear();
+    __eqUpdate.mockReset();
+    __insert.mockReset();
+  });
+
+  it("읽기가 실패하면 어느 스위치에도 값을 정하지 않고 실패를 알린다", async () => {
+    __maybeSingle.mockResolvedValueOnce({ data: null, error: new Error("network down") });
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      const screenLoad = loadScreenPrefs();
+      await settle();
+      expect(screenLoad.drawn).toEqual({ analytics: [], ads: [], rec: [], embed: [], chat: [] });
+      expect(screenLoad.prefsRef.current).toBeNull();
+      expect(screenLoad.loadError.at(-1)).toBe(true);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("대조군: 읽기가 되면 저장된 값을 그린다", async () => {
+    __maybeSingle.mockResolvedValueOnce({ data: { privacy_prefs: { chat_autosave: true } }, error: null });
+    const screenLoad = loadScreenPrefs();
+    await settle();
+    expect(screenLoad.drawn.chat).toEqual([true]);
+    expect(screenLoad.drawn.ads).toEqual([false]);
+    expect(screenLoad.loadError).not.toContain(true);
+    expect(screenLoad.prefsRef.current?.chat_autosave).toBe(true);
+  });
+
+  it("확인된 값이 오기 전에는 스위치를 눌러도 읽지도 저장하지도 않는다", async () => {
+    const save = jest.fn();
+    const saved: unknown[] = [];
+    const toggle = execute<(next: boolean) => Promise<void>>(handlerNamed("toggleChatAutosave"), "return toggleChatAutosave;", {
+      userId: "u1",
+      busy: false,
+      ko: true,
+      prefsRef: { current: null },
+      prefsUserRef: { current: null },
+      minorRef: { current: false },
+      privacyMountedRef: { current: true },
+      activeUserRef: { current: "u1" },
+      nextPrivacyPrefs,
+      savePrivacyPrefs: save,
+      savePrivacyPref: save,
+      setChatSaveError: () => undefined,
+      setBusy: () => undefined,
+      setChatSaveOn: (value: unknown) => saved.push(value),
+    });
+    await toggle(true);
+    expect(save).not.toHaveBeenCalled();
+    expect(__maybeSingle).not.toHaveBeenCalled();
+    expect(saved).toEqual([]);
+  });
+
+  it("못 읽었을 때 스위치 자리에 다시 읽기를 둔다", () => {
+    const screen = screenSlice(read("src/screens/deepspace/DeepSpaceDesignScreens.tsx"), "DeepSpacePrivacyDesignScreen");
+    expect(screen).toContain('t("privacy.prefsLoadError")');
+    expect(screen).toContain("setPrefsReadKey((k) => k + 1)");
+    // 다시 읽기는 읽기 effect 를 다시 돌린다 - 올려 두고 아무도 안 보면 버튼이 거짓말을 한다.
+    expect(effectWith("readPrivacyPrefs(targetUserId)")).toMatch(/\[userId, prefsReadKey\]\s*\)$/);
+  });
+});
+
 describe("카드 문구", () => {
   const LOCALES = ["en", "ko", "es", "pt", "id"] as const;
-  const KEYS = ["chatSaveSection", "chatSaveLoading", "chatSaveError"] as const;
+  // prefsLoadError · prefsRetry 는 r3as F-04 의 읽기 실패 자리다.
+  const KEYS = ["chatSaveSection", "chatSaveLoading", "chatSaveError", "prefsLoadError", "prefsRetry"] as const;
   const privacy = (loc: string): Record<string, string> =>
     (JSON.parse(read(`locales/${loc}/deepspace.json`)) as { privacy: Record<string, string> }).privacy;
 
@@ -182,7 +325,9 @@ describe("카드 문구", () => {
   });
 
   it("한국어 오류 문구는 해요체다", () => {
-    expect(privacy("ko").chatSaveError).toMatch(/요\./);
-    expect(privacy("ko").chatSaveError).not.toMatch(/니다\./);
+    for (const key of ["chatSaveError", "prefsLoadError"] as const) {
+      expect(privacy("ko")[key]).toMatch(/요\./);
+      expect(privacy("ko")[key]).not.toMatch(/니다\./);
+    }
   });
 });

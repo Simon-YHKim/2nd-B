@@ -225,7 +225,9 @@
     "open": "Open",
     "chatSaveSection": "Chat saving",
     "chatSaveLoading": "Loading settings…",
-    "chatSaveError": "Couldn't save this setting. Please try again."
+    "chatSaveError": "Couldn't save this setting. Please try again.",
+    "prefsLoadError": "Couldn't load your settings, so they can't be changed right now.",
+    "prefsRetry": "Load again"
   },
   "support": {
     "title": "Support",

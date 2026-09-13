@@ -225,7 +225,9 @@
     "open": "Abrir",
     "chatSaveSection": "Guardado de chats",
     "chatSaveLoading": "Cargando ajustes…",
-    "chatSaveError": "No se pudo guardar este ajuste. Inténtalo de nuevo."
+    "chatSaveError": "No se pudo guardar este ajuste. Inténtalo de nuevo.",
+    "prefsLoadError": "No se pudieron cargar tus ajustes, así que ahora no se pueden cambiar.",
+    "prefsRetry": "Volver a cargar"
   },
   "support": {
     "title": "Soporte",

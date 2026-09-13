@@ -225,7 +225,9 @@
     "open": "Buka",
     "chatSaveSection": "Penyimpanan obrolan",
     "chatSaveLoading": "Memuat pengaturan…",
-    "chatSaveError": "Pengaturan ini gagal disimpan. Coba lagi."
+    "chatSaveError": "Pengaturan ini gagal disimpan. Coba lagi.",
+    "prefsLoadError": "Pengaturanmu gagal dimuat, jadi belum bisa diubah sekarang.",
+    "prefsRetry": "Muat ulang"
   },
   "support": {
     "title": "Dukungan",

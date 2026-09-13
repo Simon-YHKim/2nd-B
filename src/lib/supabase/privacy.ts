@@ -29,6 +29,35 @@ export async function fetchPrivacyPrefs(userId: string): Promise<PrivacyPrefs> {
   }
 }
 
+/** A switch-drawing read: `ok: false` means the prefs could not be read, not that they are off. */
+export type PrivacyPrefsRead = { ok: true; prefs: PrivacyPrefs } | { ok: false };
+
+/**
+ * r3as F-04: the read a settings switch is drawn from. fetchPrivacyPrefs above resolves
+ * every failure to all-off defaults - the right posture for a gate (cannot read -> do not
+ * act) and the wrong one for a switch: the settings screen would show OFF to a user whose
+ * saved value is ON, and a tap would then save ON instead of withdrawing. This keeps
+ * "could not read" apart so the caller can draw no value and offer a retry instead.
+ */
+export async function readPrivacyPrefs(userId: string): Promise<PrivacyPrefsRead> {
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from("users")
+      .select("privacy_prefs")
+      .eq("id", userId)
+      .maybeSingle();
+    if (error) throw error;
+    const stored = (data?.privacy_prefs as Record<string, unknown> | null | undefined) ?? null;
+    return { ok: true, prefs: resolvePrivacyPrefs(stored) };
+  } catch (e) {
+    if (typeof console !== "undefined") {
+      console.warn("[privacy] prefs read failed; no value is shown as saved", (e as Error).message);
+    }
+    return { ok: false };
+  }
+}
+
 export interface SavePrivacyPrefsOptions {
   /** Stamped onto the consent_records row when a sensitive-data pref is granted. */
   locale?: "en" | "ko";
