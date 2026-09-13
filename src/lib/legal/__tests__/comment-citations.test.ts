@@ -45,6 +45,22 @@ interface CommentCite {
 }
 
 const CITES: CommentCite[] = [
+  // /sources 화면 머리말이 "Phase 1 의 배송 호출부가 0건이었다" 를 주장하면서
+  // 그 근거로 **죽은 반쪽 안의 두 호출부**를 가리킨다. 그 두 줄이 움직이거나
+  // 사라지면 주장의 근거가 사라지므로 여기서 잡는다. (둘이 배송되기 시작하면
+  // 그때는 머리말 자체가 틀린 것이 되고, 그것도 이 표가 알려 준다.)
+  {
+    from: "src/screens/deepspace/dds-sources-screen.tsx",
+    cite: "src/app/inbox.tsx:452",
+    symbol: "await runPhase1({ userId, sourceId: row.id",
+    why: "주장이 '요약+질문 넷을 부르는 곳이 배송 안 되는 반쪽 안에만 있다' 라서, 근거는 그 호출 자체다.",
+  },
+  {
+    from: "src/screens/deepspace/dds-sources-screen.tsx",
+    cite: "src/app/wiki.tsx:318",
+    symbol: "await runPhase1({ userId, sourceId: page.source_id",
+    why: "같은 주장의 두 번째 호출부. 하나만 잡으면 나머지 하나가 조용히 움직인다.",
+  },
   {
     from: "src/app/(auth)/complete-profile.tsx",
     cite: "src/lib/persona/northstar.ts:66-68",

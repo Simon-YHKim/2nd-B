@@ -163,6 +163,13 @@
       "route": "inbox"
     },
     {
+      "id": "sources",
+      "component": null,
+      "title": "들어온 자료",
+      "route": "sources",
+      "appOnly": true
+    },
+    {
       "id": "values",
       "component": "ValuesScreen",
       "layout": "windowed",

@@ -22,7 +22,7 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { reactExpression } from "@/lib/companion/expression";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
-import { listInferredLinkDetails } from "@/lib/wiki/queries";
+import { listInferredLinkDetails, listSources } from "@/lib/wiki/queries";
 import { listPeerInvites } from "@/lib/peer/invite";
 import { healthImportAllowed, ingestHealthSamples } from "@/lib/health/ingest";
 import { availableHealthSources } from "@/lib/health/registry";
@@ -102,9 +102,25 @@ function DeepSpaceInboxBody({ userId, title }: { userId: string; title: string }
     void Promise.all([
       listInferredLinkDetails(userId).catch(() => []),
       listPeerInvites(userId).catch(() => []),
-    ]).then(([links, invites]) => {
+      // 아직 위키 페이지가 안 된 소스. 이 줄이 생기기 전까지 가져온 자료는
+      // 저장은 되는데 **그것을 띄우는 화면이 없어서** 사용자에게 보이지
+      // 않았다. 허브는 목록을 열지 않는다 - 한 줄로 알리고 /sources 로 넘긴다
+      // (화면 하나에 메시지 하나 · O-7).
+      listSources(userId, { ingested: false, limit: 100 }).catch(() => []),
+    ]).then(([links, invites, pending]) => {
       if (!alive) return;
       const next: InboxItem[] = [];
+      if (pending.length > 0) {
+        next.push({
+          icon: "inbox",
+          accent: m3.color.primary,
+          title: t("ds.inbox.sourcesTitle"),
+          body: t("ds.inbox.sourcesBody", { n: pending.length }),
+          time: "",
+          route: "/sources",
+          cta: t("ds.inbox.sourcesCta"),
+        });
+      }
       if (links.length > 0) {
         next.push({
           icon: "link",
@@ -246,8 +262,15 @@ export function DeepSpaceImportScreen() {
 
   const canHealth = healthImportAllowed(isMinor, healthPref);
 
-  // Pick files then run the same import pipeline the clipper uses. No LLM here —
-  // imported notes land in the inbox for Phase 1/2 later ($0).
+  // Pick files then run the same import pipeline the clipper uses. No LLM here -
+  // imported notes land in `sources` and are read later, one at a time, from
+  // /sources ($0 at import time; the reading step is the user's own tap).
+  //
+  // ⚠ 2026-09-13 정정 - 이 주석은 원래 "land in the inbox for Phase 1/2 later"
+  // 였는데 **그 나중이 오지 않았다.** 실측: Phase 1 을 부르는 곳이 배송 앱에
+  // 0건이었고(호출부 둘 다 죽은 반쪽 안), 알림 허브는 소스 행을 아예 안 띄웠다.
+  // 즉 이 화면은 지킬 수 없는 약속을 코드로 적어 두고 있었다. /sources 가 그
+  // 받는 자리다 - 자세한 실측은 dds-sources-screen.tsx 머리말에 있다.
   async function handlePickFiles() {
     if (!userId || picking || importing) return;
     setPicking(true);

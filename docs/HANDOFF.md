@@ -3,6 +3,83 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## 2026-09-13 / 빌드가 재현되지 않아 게시가 반반이었다 — 고쳤다 (#1795)
+
+> 발행: Claude Code (워크트리 `font-holes-260906`, 기준 main `af5ede12` → `361d8280`).
+> 이 세션은 결정 시트 260913 의 Simon 회신 8건을 집행하던 중 워크트리 이관 지시로 닫힌다.
+
+### 무엇을 고쳤나
+
+웹 게시 게이트는 **승인한 digest** 와 **방금 빌드한 digest** 를 대조한다. 그 대조는 빌드가
+재현된다는 전제 위에 서 있었는데, 재현되지 않았다. 같은 커밋의 push 빌드를 `gh run rerun`
+으로 다시 돌리면 digest 가 달라졌고, 두 산출물(351파일)을 풀어 보니 모든 JS 청크 해시가
+달랐다. 39바이트짜리 청크가 원인을 그대로 보여줬다:
+
+```
+빌드 A:  __d(function(g,r,i,a,m,e,d){},3496,[]);
+빌드 B:  __d(function(g,r,i,a,m,e,d){},2375,[]);
+```
+
+Metro 기본 id 팩토리는 **순번 카운터**다 — id 가 "어느 모듈인가"가 아니라 **"언제 닿였는가"**
+를 담고, 그래프 순회는 워커 프로세스에 흩어져 돈다.
+
+**배출 순서도 같은 것에 매달려 있었다.** 두 직렬화기가 모듈을 id 로 정렬하는데
+(`metro/.../baseJSBundle.js:38`, `@expo/metro-config/.../serializeChunks.js:getSortedModules`)
+**id 를 순회 순서로 매긴 다음** 정렬하므로 정렬이 무의미했다. 그래서 id 를 경로에 고정하면
+**id 와 순서가 한 번에** 잡힌다 — 정렬이 드디어 순회와 무관한 기준을 갖는다.
+
+`metro-module-id.js` 가 프로젝트 루트 기준 **상대 경로**를 해시한다(31비트, 충돌 시 두 경로를
+이름으로 대며 throw). 상대 경로인 이유는 같은 커밋이 CI 러너·정본·워크트리 십여 개에서,
+Windows 와 Linux 양쪽에서 빌드되기 때문이다.
+
+### ⚠ 지문 소스 여부는 추측하지 말고 이 값으로 볼 것
+
+```
+@expo/fingerprint 0.19.5 · platform android · 소스 190개 (file 119 / dir 66 / contents 5)
+루트 소스: .easignore .gitignore android assets/images/*4
+           config-plugins/withAndroidAbiFilter.js eas.json google-services.json patches
+contents:  expoAutolinkingConfig:android expoConfig package:react-native
+           packageJson:scripts rncoreAutolinkingConfig:android
+metro.config.js  없음        babel.config.js  없음
+```
+
+즉 `metro.config.js` 는 **지문 소스가 아니다.** 런타임 버전이 안 움직이므로 설치된 빌드의
+OTA 호환이 깨지지 않는다. 청크 해시는 한 번 전부 바뀌고, 웹 export 는 내용 주소라 흡수한다.
+
+### 낡아 있던 서술 6건 (기억으로 그리면 안 되는 이유)
+
+5일 만에 목록을 다시 재니 여섯이 이미 끝나 있었다.
+
+| 미결이라고 적혀 있던 것 | 실측 |
+|---|---|
+| 엣지 함수 9개 배포 | **완료** — 09-07 13:07 에 8건 + 이후 2건, 전부 success |
+| 항목 4 og:image 절대 주소 | **해결** — 라이브 HTML 에 존재 |
+| 동의 스택 6건(#1587~#1593) | **종결** — #1589 머지, 5건 클로즈 |
+| 초안 PR 25개(Q-260906-02) | **종결** — 열린 PR 0건 |
+| `0188` 운영 적용 필요 | **이미 적용됨** — `raw_clippings_owner_insert`/`update` 에 존재 검사가 붙어 있다 |
+| 고아 객체 정리 필요 | **고아 0건** — 버킷 1개 · 객체 3개 · 240B, 전부 실재 사용자 |
+
+`export-delivery.ts`·`export-session.ts` 도 main 에 있다(테스트까지). "어느 ref 에도 없는
+유일본" 서술은 낡았다.
+
+### 남긴 것 (다음 워크트리)
+
+`DECISIONS.md` 의 "결정 시트 260913" 절에 Simon 회신 8건과 그중 무엇이 이미 닫혔는지가
+전부 있다. 실행 대기는 넷이다.
+
+1. **게시** — D4 가 고쳐졌으니 이제 정적에 덜 의존한다. 머지 후 push 빌드를 `gh run rerun`
+   해서 digest 가 같은지 **먼저 확인**할 것. 그게 재현성의 진짜 증명이고, 애초에 결함을 잡은 방법이다.
+2. **D3 HANDOFF 기간 분할** — 승인됐다. 단 **여러 세션이 prepend 중이 아닐 때** 할 것.
+3. **D7 정리 묶음 6건** — 기본값 승인됨. 파일 삭제 건은 실행 직전 목록 재확인.
+4. **D6 en 라운드 착지** — 회귀 2건 제외. 태그 `haeyo-5lang-snapshot`.
+5. **D5 MFDS 고객센터 문의** — 로그인 필요. CLI 가 대리하지 않는다(§7). §4 작업 카드 몫.
+
+### ⚠ `STATE.md` 는 덮어쓰기 파일인데 쓰는 세션이 여럿이다
+
+지침 §0-1 이 경고한 그대로다 — 두 번째 쓰기가 첫 번째를 지운다. 지금 소유자는
+`runbook-260907` 세션이고, 이 세션은 **건드리지 않았다.** 병렬 세션은 append-only 인
+`DECISIONS.md` 에만 쓰는 것이 안전하다.
+
 ## 2026-09-13 / 레거시 은퇴가 되살리기로 방향을 바꿨다 — 그리고 Phase 1 이 배송에서 끊겨 있었다
 
 **이 워크트리(`runbook-260907`)는 여기서 닫는다**(Simon 지시). 내 브랜치는 전부 origin 에
