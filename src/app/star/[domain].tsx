@@ -31,7 +31,7 @@ import { evidenceDateLabel } from "@/lib/persona/evidence";
 import { loadDomainLevels } from "@/lib/persona/load-domain-levels";
 import type { LadderLevel } from "@/lib/persona/brightness";
 import { filedDomainOf } from "@/lib/records/domain-screen";
-import { getPieceSummary, parsePieceId, type PieceSummary } from "@/lib/records/get-piece";
+import { getPieceSummaryFromRoute, parsePieceId, type PieceSummary } from "@/lib/records/get-piece";
 import { m3 } from "@/lib/theme/m3";
 import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
 
@@ -177,9 +177,14 @@ export default function DomainStarScreen() {
   // /capture 가 저장한 소스는 이 카드가 아니면 여기서 안 보인다.
   //
   // 주소에는 누구든 아무 id 나 넣을 수 있다. 그래서 형식을 통과한 id 만 읽고
-  // (parsePieceId), 읽기는 본인 행으로 좁히며(getPieceSummary: user_id 필터 + owner RLS),
-  // 그 조각이 이 영역에 담긴 것일 때만 보여준다. 남의 id · 없는 id · 읽기 실패는 전부
-  // "카드 없음"이다. 에러 화면도, id 나 태그가 남는 로그도 없다.
+  // (getPieceSummaryFromRoute 는 형식을 본 뒤에만 읽는다), 읽기는 본인 행으로 좁히며(user_id
+  // 필터 + owner RLS), 그 조각이 이 영역에 담긴 것일 때만 보여준다. 남의 id · 없는 id · 읽기
+  // 실패는 전부 "카드 없음"이다. 에러 화면도, id 나 태그가 남는 로그도 없다.
+  //
+  // 여기서 parsePieceId 를 부르는 것은 읽으려는 게 아니라 주소가 어느 조각을 가리키는지 알려는
+  // 것이다 - 아래 effect 의 열쇠와 카드 대조에 쓴다. 읽기는 주소 값을 그대로 넘겨
+  // getPieceSummaryFromRoute 로만 한다(생성물 게이트 A1, 2026-09-14). 그래서 이 화면의 가드가
+  // 바뀌어도 형식이 틀린 값은 DB 에 닿지 않는다.
   const pieceRef = parsePieceId(pieceId);
   const pieceOrigin = pieceRef?.origin ?? null;
   const pieceUuid = pieceRef?.uuid ?? null;
@@ -200,7 +205,9 @@ export default function DomainStarScreen() {
   useEffect(() => {
     if (!userId || !domainId || !pieceOrigin || !pieceUuid) return;
     let alive = true;
-    getPieceSummary(userId, { origin: pieceOrigin, uuid: pieceUuid })
+    // 열쇠는 주소의 원래 값이 아니라 해석한 조각이다. 원래 값은 배열일 수 있고 그 참조가
+    // 그리기마다 같다는 보장이 없어서, 열쇠로 쓰면 읽기가 불어날 수 있다.
+    getPieceSummaryFromRoute(userId, pieceId)
       .then((found) => {
         if (alive) setPieceResult({ readNo: pieceReadNo, piece: found });
       })

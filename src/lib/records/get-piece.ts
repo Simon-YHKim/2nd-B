@@ -144,6 +144,26 @@ export async function getPieceSummary(userId: string, ref: PieceRef): Promise<Pi
   };
 }
 
+/**
+ * The read a screen makes for the piece its route names (P1). /star/[domain] reads its
+ * `pieceId` only through this.
+ *
+ * Parse first, read second: a value that is not `<uuid>` or `src-<uuid>` returns null without
+ * touching the database. That order is the promise, so it lives in one function a test can run,
+ * not in a screen effect that only a source scan can see -- the artifact gate on #1812 (A1,
+ * 2026-09-14) put a read in front of the parse and the old string pins stayed green.
+ *
+ * @throws on a read failure, like getPieceSummary.
+ */
+export async function getPieceSummaryFromRoute(
+  userId: string,
+  value: string | string[] | null | undefined,
+): Promise<PieceSummary | null> {
+  const ref = parsePieceId(value);
+  if (!ref) return null;
+  return getPieceSummary(userId, ref);
+}
+
 function sourceBodyFallback(frontmatter: Record<string, unknown> | null): string | null {
   const body = frontmatter?._body_fallback;
   return typeof body === "string" && body.trim().length > 0 ? body : null;

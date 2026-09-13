@@ -402,3 +402,28 @@ describe("/star/[domain] 카드 - 상세에 다녀오면 다시 읽는다 (M1)",
     expect(mockSummaryReads.length).toBe(3);
   });
 });
+
+// 생성물 게이트 A1 (2026-09-14): 이 화면이 형식이 틀린 pieceId 로 DB 를 부르지 않는다는 것이 소스
+// 문자열로만 지켜지고 있었다. 파싱 앞에 읽기를 끼워 넣어도 그 핀은 초록이었다. 그 순서는 이제
+// getPieceSummaryFromRoute 가 갖고(get-piece-summary.test.ts 가 DB 호출 수로 잰다), 여기서는 화면이
+// 실제로 그 길로만 읽는지를 요약 읽기 수로 잰다. 돌아와도 0 이다.
+describe("/star/[domain] 카드 - 형식이 틀린 pieceId 는 읽지 않는다 (A1)", () => {
+  const MALFORMED: [string, string | string[] | undefined][] = [
+    ["없음", undefined],
+    ["빈 문자열", ""],
+    ["uuid 아님", "not-a-uuid"],
+    ["src- 뒤가 uuid 아님", "src-not-a-uuid"],
+    ["빈 배열", []],
+    ["첫 값이 틀림", [`${RECORD_ID}?`, RECORD_ID]],
+    ["줄바꿈 붙은 uuid", `${RECORD_ID}\n`],
+  ];
+
+  test.each(MALFORMED)("%s", async (_label, pieceId) => {
+    // 읽으면 카드가 뜰 수 있게 행을 둔다. 그래야 "안 읽었다"와 "읽었는데 안 맞았다"가 갈린다.
+    fileRecord(["domain:career"]);
+    const screen = await open({ domain: "career", pieceId });
+    await leaveAndReturn(screen);
+    await screen.settle();
+    expect({ card: cardLabel(screen), reads: mockSummaryReads }).toEqual({ card: null, reads: [] });
+  });
+});

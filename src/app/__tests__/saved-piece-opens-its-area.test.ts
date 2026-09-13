@@ -63,7 +63,7 @@ describe("/capture 저장 후 버튼", () => {
       expect(block.indexOf("setSavedSourceId(res.id);")).toBeGreaterThan(reset);
       expect(block.indexOf("setSavedDomain(filedDomainOf(res.tags));")).toBeGreaterThan(reset);
       // 다시 읽지 않는다 - 방금 insert 한 값을 돌려받는다.
-      expect(block).not.toMatch(/getRecordById\(|getPieceSummary\(|getPieceById\(/);
+      expect(block).not.toMatch(/getRecordById\(|getPieceSummary(?:FromRoute)?\(|getPieceById\(/);
     }
   });
 
@@ -152,13 +152,10 @@ describe("/star/[domain] 이 가리킨 조각을 보여준다", () => {
     expect(STAR).toContain("useLocalSearchParams<{ domain: string; pieceId?: string | string[] }>()");
   });
 
-  test("형식을 통과한 id 만, 본인 행으로 읽는다", () => {
-    expect(STAR).toContain("const pieceRef = parsePieceId(pieceId);");
-    expect(STAR).toContain("getPieceSummary(userId, { origin: pieceOrigin, uuid: pieceUuid })");
-    const summary = between(GET_PIECE, "export async function getPieceSummary(", "\n}\n");
-    // 두 갈래(sources · records) 모두 명시적으로 본인 행만 고른다. RLS 는 그 뒤의 두 번째 벽이다.
-    expect(summary.match(/\.eq\("user_id", userId\)/g)).toHaveLength(2);
-  });
+  // "형식을 통과한 id 만, 본인 행으로 읽는다"는 여기서 소스 문자열로 재던 것을 실행으로 옮겼다
+  // (생성물 게이트 A1, 2026-09-14 - 파싱 앞에 읽기를 끼워 넣어도 그 문자열 핀은 초록이었다):
+  //   형식이 틀린 값은 DB 를 안 부른다 · 본인 행으로 읽는다    lib/records/__tests__/get-piece-summary.test.ts
+  //   화면이 그 길로만 읽는다(형식이 틀리면 요약 읽기 0회)     src/app/__tests__/star-piece-card.test.ts
 
   test("이 영역에 담긴 것일 때만 보여준다 (기록은 collect 로도 온다)", () => {
     expect(STAR).toContain("filedDomainOf(shownPiece.tags) === domainId");
@@ -168,14 +165,16 @@ describe("/star/[domain] 이 가리킨 조각을 보여준다", () => {
   test("읽기에 실패해도 에러를 띄우거나 id·태그를 로그에 남기지 않는다", () => {
     const load = between(
       STAR,
-      "getPieceSummary(userId,",
+      "getPieceSummaryFromRoute(userId,",
       "}, [userId, domainId, pieceOrigin, pieceUuid, pieceReadNo]);",
     );
     expect(load).not.toContain("console.");
     expect(load).not.toMatch(/set(Failed|Error)\(/);
-    const summary = between(GET_PIECE, "export async function getPieceSummary(", "\n}\n");
-    expect(summary).not.toContain("console.");
-    expect(summary).not.toContain("downloadRawClipping");
+    for (const fn of ["getPieceSummary", "getPieceSummaryFromRoute"]) {
+      const body = between(GET_PIECE, `export async function ${fn}(`, "\n}\n");
+      expect(body).not.toContain("console.");
+      expect(body).not.toContain("downloadRawClipping");
+    }
   });
 
   test("카드를 누르면 그것의 상세로 간다 (조각 · 기록)", () => {
