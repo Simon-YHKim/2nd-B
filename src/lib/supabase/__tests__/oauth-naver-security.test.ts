@@ -838,6 +838,11 @@ function clientSession(userId: string, sessionId: string) {
 
 function installWeb(storage: MemoryStorage) {
   const authStorage = memoryStorage();
+  const lockRequest = async <T>(
+    name: string,
+    _options: { mode: "exclusive" },
+    callback: (lock: { name: string; mode: "exclusive" }) => Promise<T>,
+  ): Promise<T> => callback({ name, mode: "exclusive" });
   const location = {
     origin: "https://simon-yhkim.github.io",
     pathname: "/2nd-B/sign-in",
@@ -848,6 +853,10 @@ function installWeb(storage: MemoryStorage) {
     value: { location, sessionStorage: storage },
   });
   Object.defineProperty(globalThis, "document", { configurable: true, value: {} });
+  Object.defineProperty(globalThis, "navigator", {
+    configurable: true,
+    value: { locks: { request: lockRequest } },
+  });
   Object.defineProperty(globalThis, "localStorage", {
     configurable: true,
     value: authStorage,
@@ -858,6 +867,7 @@ function installWeb(storage: MemoryStorage) {
 function uninstallWeb(): void {
   delete (globalThis as { window?: unknown }).window;
   delete (globalThis as { document?: unknown }).document;
+  delete (globalThis as { navigator?: unknown }).navigator;
   delete (globalThis as { localStorage?: unknown }).localStorage;
 }
 
