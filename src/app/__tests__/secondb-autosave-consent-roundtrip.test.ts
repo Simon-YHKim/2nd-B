@@ -6,8 +6,10 @@
 //
 // 이 파일은 그 왕복을 **실제 코드로** 돌린다.
 //   · 대화 화면: secondb.tsx 의 실제 선언(applyAutosaveConsent, 설정 읽기 effect, 저장 소식 구독
-//     effect, 자동 담기 effect)을 AST 로 떼어, 의존성 배열이 바뀐 effect 만 다시 도는 작은 스케줄러
+//     effect, 자동 담기 effect, startNewConversation, handleSend 가 질문 턴에 자동 담기 자격을 적는 문장,
+//     담기 칩의 disabled 식)을 AST 로 떼어, 의존성 배열이 바뀐 effect 만 다시 도는 작은 스케줄러
 //     위에서 돌린다. 화면은 한 번 마운트된 채 남는다 - Stack 에 유지된 화면이다.
+//   · 계정: 실제 lib/auth/account-epoch 의 소유자 공개 · 전환 (r3as2).
 //   · 설정 화면: DeepSpaceDesignScreens.tsx 의 실제 toggleChatAutosave.
 //   · 저장 · 읽기 · 소식: 실제 lib/supabase/privacy.ts 와 lib/privacy/pref-changes.ts. DB 만 상태를
 //     가진 목이다.
@@ -79,7 +81,7 @@ jest.mock("../../lib/supabase/client", () => ({
 }));
 
 import { chatAutosaveAllowed } from "../../lib/chat/autosave";
-import { isKeepable } from "../../lib/chat/keep-exchange";
+import { findPrompt, findPromptIndex, isKeepable } from "../../lib/chat/keep-exchange";
 import { subscribePrivacyPrefsSaved } from "../../lib/privacy/pref-changes";
 import { nextPrivacyPrefs, type PrivacyPrefs } from "../../lib/privacy/prefs";
 import { fetchPrivacyPrefs, readPrivacyPrefs, savePrivacyPref } from "../../lib/supabase/privacy";
@@ -157,6 +159,15 @@ function keepChipDisabledText(): string {
   return initializer.expression.getText(CHAT_AST);
 }
 
+/** handleSend 가 질문 턴을 목록에 넣기 직전에 자동 담기 자격을 적는 문장. */
+function recordAskedText(): string {
+  return firstNode(
+    CHAT_AST,
+    (node) => ts.isIfStatement(node) && node.getText(CHAT_AST).includes("autosaveAskedRef.current.set("),
+    "질문 턴에 자동 담기 자격을 적는 문장",
+  ).getText(CHAT_AST);
+}
+
 const CHAT = {
   apply: compile(firstNode(CHAT_AST, functionNamed("applyAutosaveConsent"), "applyAutosaveConsent 선언").getText(CHAT_AST), "return applyAutosaveConsent;"),
   load: compile(LOAD_EFFECT),
@@ -167,6 +178,7 @@ const CHAT = {
     "return startNewConversation;",
   ),
   keepChipDisabled: compile(`return (${keepChipDisabledText()});`),
+  recordAsked: compile(recordAskedText()),
 };
 
 const PRIVACY_AST = parse(PRIVACY_FILE);
@@ -209,13 +221,15 @@ class KeptChatScreen {
     keepNotice: null,
   };
   readonly saved: Turn[] = [];
+  /** 담긴 짝의 질문 - keepExchange 가 본문에 함께 넣는 findPrompt 의 결과다. */
+  readonly savedPrompts: (string | null)[] = [];
   private readonly refs = {
     autosaveConsentRef: { current: null as boolean | null },
-    autosaveBeforeRef: { current: new WeakSet<object>() },
     turnsRef: { current: [] as Turn[] },
     autoKeptRef: { current: new WeakSet<object>() },
     autosaveGenerationRef: { current: 0 },
     autosaveListenerRef: { current: null as object | null },
+    autosaveAskedRef: { current: new WeakMap<object, number>() },
   };
   private readonly effects = new Map<string, { deps: readonly unknown[]; cleanup?: () => void }>();
   private dirty = true;
@@ -277,12 +291,12 @@ class KeptChatScreen {
         keeping: null,
         turns: s.turns,
         isKeepable,
-        autosaveBeforeRef: this.refs.autosaveBeforeRef,
         autoKeptRef: this.refs.autoKeptRef,
         keptTurns: s.keptTurns,
         prefsReadKey: s.prefsReadKey,
         readPrivacyPrefs,
         captureAccountOwnerLease,
+        findPromptIndex,
         // 실제 keepExchange 처럼 이 렌더의 turns 를 쥔다(effect 가 부르는 것은 그 렌더의 함수다). s 는 계속
         // 바뀌는 객체라 여기서 값을 떼어 둔다.
         keepExchange: (index: number) => this.keep(turnsAtRender, index),
@@ -298,6 +312,7 @@ class KeptChatScreen {
     const turn = turns[index];
     if (!turn) return false;
     this.saved.push(turn);
+    this.savedPrompts.push(findPrompt(turns, index));
     this.set({ keptTurns: new Set(this.s.keptTurns).add(turn) });
     return true;
   }
@@ -305,18 +320,25 @@ class KeptChatScreen {
   /** 질문을 보낸다(답변은 아직). 돌려주는 것은 질문 턴이다. */
   async ask(question: string): Promise<Turn> {
     const turn: Turn = { role: "user", text: question };
+    // 화면의 handleSend 가 질문 턴을 목록에 넣기 직전에 도는 문장 그대로다.
+    run(CHAT.recordAsked, { ...this.refs, question: turn });
     this.set({ turns: [...this.s.turns, turn] });
     await settle();
     return turn;
   }
 
-  /** 질문 하나와 답변 하나가 오간다. 돌려주는 것은 답변 턴이다. */
-  async exchange(question: string, answer: string): Promise<Turn> {
-    const reply: Turn = { role: "secondb", text: answer };
-    await this.ask(question);
+  /** 기다리던 답변이 도착한다. 돌려주는 것은 답변 턴이다. */
+  async answer(text: string): Promise<Turn> {
+    const reply: Turn = { role: "secondb", text };
     this.set({ turns: [...this.s.turns, reply] });
     await settle();
     return reply;
+  }
+
+  /** 질문 하나와 답변 하나가 오간다. 돌려주는 것은 답변 턴이다. */
+  async exchange(question: string, answer: string): Promise<Turn> {
+    await this.ask(question);
+    return this.answer(answer);
   }
 
   /** 설정 화면에서 뒤로 돌아온다(useFocusRefetch 가 올리는 방아쇠). */
@@ -676,8 +698,75 @@ describe("담기 직전 확인이 돌아오기 전에 동의 · 계정 · 대화
   });
 });
 
+describe("동의를 켜기 전에 보낸 질문의 답변 (r3as2 R2-H1)", () => {
+  // 게이트가 잡은 경로: 꺼져 있을 때 질문을 보내고, 답을 기다리는 동안 설정에서 켠다. 늦게 온 답변은 "켜기 전부터
+  // 화면에 있던 턴" 이 아니라서 자동으로 담겼는데, keepExchange 는 답변을 앞선 질문과 짝으로 저장한다 - 사라질
+  // 거라 생각하고 보낸 질문이 함께 남았다. 그래서 자격을 답변이 아니라 짝으로, 질문을 보낸 순간의 동의로 본다.
+  test("꺼진 채 보낸 질문의 답이 켠 뒤에 도착해도 담지 않고, 켠 뒤에 보낸 질문의 답은 담는다", async () => {
+    mockDb.prefs.set(OWNER, { chat_autosave: false });
+    const chat = await mountChat();
+    await chat.ask("켜기 전에 보낸 질문");
+    await (await openPrivacy()).toggle(true); // 답을 기다리는 동안 설정에서 켠다
+    await settle();
+    expect(chat.s.autosaveConsent).toBe(true);
+    await chat.answer("켠 뒤에 도착한 답변");
+    expect(chat.saved).toEqual([]);
+
+    const after = await chat.exchange("켠 뒤에 보낸 질문", "켠 뒤의 답변");
+    expect(chat.saved).toEqual([after]);
+    expect(chat.savedPrompts).toEqual(["켠 뒤에 보낸 질문"]);
+  });
+
+  test("첫 동의 읽기가 돌아오기 전(모름)에 보낸 질문의 답도 담지 않는다", async () => {
+    mockDb.prefs.set(OWNER, { chat_autosave: true });
+    const release = holdNextRead(); // 화면이 뜨며 나가는 첫 읽기
+    const chat = new KeptChatScreen();
+    mounted.push(chat);
+    await settle();
+    await chat.ask("첫 읽기 전에 보낸 질문");
+    release();
+    await settle();
+    expect(chat.s.autosaveConsent).toBe(true);
+    await chat.answer("그 질문의 답변");
+    expect(chat.saved).toEqual([]);
+  });
+
+  test("켜진 채 보낸 질문이라도 답을 기다리는 사이 끄고 다시 켰으면 담지 않는다", async () => {
+    mockDb.prefs.set(OWNER, { chat_autosave: true });
+    const chat = await mountChat();
+    await chat.ask("켜져 있을 때 보낸 질문");
+    await (await openPrivacy()).toggle(false);
+    await settle();
+    await (await openPrivacy()).toggle(true);
+    await settle();
+    await chat.answer("끄고 다시 켠 뒤 도착한 답변");
+    expect(chat.saved).toEqual([]);
+  });
+
+  test("질문이 새 대화로 비워진 뒤 도착한 답변은 짝이 없어 자동으로 담지 않는다 - 손으로는 담을 수 있다", async () => {
+    mockDb.prefs.set(OWNER, { chat_autosave: true });
+    const chat = await mountChat();
+    await chat.ask("보내고 바로 비운 질문");
+    await chat.newConversation();
+    const reply = await chat.answer("비운 뒤 도착한 답변");
+    expect(chat.saved).toEqual([]);
+    expect(chat.chipDisabled(chat.s.turns.indexOf(reply))).toBe(false);
+  });
+});
+
 describe("배선", () => {
   const source = readFileSync(SECONDB_FILE, "utf8");
+
+  test("질문 턴을 목록에 넣기 직전에 자동 담기 자격을 적는다", () => {
+    const send = firstNode(
+      CHAT_AST,
+      (node) => ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === "handleSend",
+      "handleSend 선언",
+    ).getText(CHAT_AST);
+    const record = send.indexOf("autosaveAskedRef.current.set(question, autosaveGenerationRef.current)");
+    expect(record).toBeGreaterThan(-1);
+    expect(send.indexOf("[...prev, question]")).toBeGreaterThan(record);
+  });
 
   test("새 대화 버튼 둘이 같은 처리기를 쓰고, 목록만 비우는 곳이 따로 없다", () => {
     expect(source.match(/onPress=\{startNewConversation\}/g)).toHaveLength(2);

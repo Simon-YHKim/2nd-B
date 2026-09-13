@@ -57,6 +57,7 @@ import {
   exchangeMarkdown,
   exchangeTopic,
   findPrompt,
+  findPromptIndex,
   isKeepable,
 } from "@/lib/chat/keep-exchange";
 import { useProgression } from "@/lib/progression/useProgression";
@@ -763,19 +764,17 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // 지금 설정 저장 소식을 듣고 있는 구독의 표식. 내려간 화면이나 계정이 바뀐 화면은 철회를 더는 듣지 못하므로
   // 그 전에 나간 확인의 응답으로 담지 않는다.
   const autosaveListenerRef = useRef<object | null>(null);
-  // 동의가 켜진 것을 이 화면이 확인한 순간 이미 화면에 있던 턴. 자동으로 담지 않는다 - 켜기 전에 오간
-  // 말은 사라질 거라 생각하고 한 말이다. 인덱스가 아니라 턴 객체로 기억한다. "새 대화" 가 목록을 비우면
-  // 같은 인덱스에 다른 턴이 온다.
-  const autosaveBeforeRef = useRef<WeakSet<ChatTurn>>(new WeakSet());
+  // 질문 턴 -> 그 질문을 보낸 순간의 동의 세대. 동의가 켜져 있을 때 보낸 질문만 적힌다 (r3as2 R2-H1). 자동
+  // 담기는 답변 하나가 아니라 짝으로 판단한다 - keepExchange 가 답변을 앞선 질문과 함께 저장하기 때문이다. 켜기
+  // 전(꺼짐 · 모름)에 보낸 질문은 사라질 거라 생각하고 한 말이라, 그 답이 켠 뒤에 도착해도 담지 않는다. 화면에
+  // 남아 있던 과거 턴도 같은 규칙으로 빠진다. 턴 객체로 기억하므로 "새 대화" 가 목록을 비워도 섞이지 않는다.
+  const autosaveAskedRef = useRef<WeakMap<ChatTurn, number>>(new WeakMap());
   const turnsRef = useRef(turns);
   turnsRef.current = turns;
   const [prefsReadKey, setPrefsReadKey] = useState(0);
   useFocusRefetch(() => setPrefsReadKey((k) => k + 1), Boolean(userId));
   function applyAutosaveConsent(allowed: boolean) {
     if (autosaveConsentRef.current !== allowed) autosaveGenerationRef.current += 1;
-    if (allowed && autosaveConsentRef.current !== true) {
-      autosaveBeforeRef.current = new WeakSet(turnsRef.current);
-    }
     autosaveConsentRef.current = allowed;
     setAutosaveConsent(allowed);
   }
@@ -836,8 +835,11 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     const idx = turns.length - 1;
     const last = turns[idx];
     if (!last || !isKeepable(last)) return;
-    // 동의가 켜진 것을 확인하기 전부터 화면에 있던 턴이다. 소급해서 담지 않는다.
-    if (autosaveBeforeRef.current.has(last)) return;
+    // 자격은 짝으로 본다(r3as2 R2-H1). keepExchange 가 본문에 함께 넣는 그 질문(findPrompt 와 같은 자리)이 지금과
+    // 같은 동의 세대에서 켜진 채 보내졌어야 한다. 켜기 전에 보낸 질문의 답, 화면에 남아 있던 과거 턴, 그 사이 끄고
+    // 다시 켠 질문의 답, 짝이 없는 답변(질문이 새 대화로 비워진 뒤 도착한 것)은 자동으로 담지 않는다. 담기 칩은 남는다.
+    const promptIdx = findPromptIndex(turns, idx);
+    if (promptIdx < 0 || autosaveAskedRef.current.get(turns[promptIdx]) !== autosaveGenerationRef.current) return;
     if (autoKeptRef.current.has(last) || keptTurns.has(last)) return;
     // 확인을 내보내는 순간의 계정 · 동의 세대 · 소식 구독을 쥔다(r3as2 R3AS2-01). 계정이 공개돼 있지 않거나
     // 전환 중이면, 또는 설정 저장 소식을 듣고 있지 않으면 확인도 담기도 하지 않는다.
@@ -1041,7 +1043,11 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
       if (msg.length === 0) return false;
 
       setSending(true);
-      setTurns((prev) => [...prev, { role: "user", text: msg }]);
+      const question: ChatTurn = { role: "user", text: msg };
+      // 이 질문을 보내는 순간 자동 담기 동의가 켜져 있었는지를 질문 턴에 적는다(r3as2 R2-H1). 켜기 전에 보낸
+      // 질문의 답은 켠 뒤에 도착해도 자동으로 담지 않는다. 참조만 읽으므로 useCallback 의존성은 늘지 않는다.
+      if (autosaveConsentRef.current === true) autosaveAskedRef.current.set(question, autosaveGenerationRef.current);
+      setTurns((prev) => [...prev, question]);
       void (async () => {
         // AI 응답 대기: every mounted head holds the thinking face (eyes drift
         // up-side) until the reply lands — released in finally either way.

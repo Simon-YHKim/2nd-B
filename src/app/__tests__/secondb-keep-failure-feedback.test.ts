@@ -201,10 +201,11 @@ describe("자동 담기는 실패를 삼키지 않는다", () => {
       turns: [PROMPT, REPLY],
       isKeepable: (turn: { role: string }) => turn.role === "secondb",
       autoKeptRef: ref,
-      // r3as H1: 동의를 확인하기 전부터 있던 턴 집합, 담기 직전의 서버 확인, 확인 결과를 화면에
-      // 반영하는 함수. 이 묶음은 실패 되돌림만 보므로 확인은 늘 켜짐으로 돌려준다 - 확인 자체는
-      // secondb-autosave-consent-roundtrip.test.ts 가 실제 저장 경로로 돌린다.
-      autosaveBeforeRef: { current: new WeakSet<object>() },
+      // r3as H1: 담기 직전의 서버 확인과 확인 결과를 화면에 반영하는 함수. 이 묶음은 실패 되돌림만 보므로
+      // 확인은 늘 켜짐으로 돌려준다 - 확인 자체는 secondb-autosave-consent-roundtrip.test.ts 가 실제 저장
+      // 경로로 돌린다. r3as2 R2-H1: 짝의 질문(PROMPT)은 지금과 같은 동의 세대에서 켜진 채 보낸 것으로 둔다.
+      findPromptIndex: () => 0,
+      autosaveAskedRef: { current: new WeakMap<object, number>([[PROMPT, 0]]) },
       readPrivacyPrefs: async () => ({ ok: true, prefs: { chat_autosave: true } }),
       applyAutosaveConsent: () => undefined,
       keptTurns: new Set<object>(),
