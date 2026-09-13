@@ -2,6 +2,7 @@ const requestPermissionsAsync = jest.fn<Promise<{ granted: boolean }>, []>();
 const scheduleNotificationAsync = jest.fn<Promise<string>, [Record<string, unknown>]>();
 const setNotificationChannelAsync = jest.fn<Promise<null>, [string, Record<string, unknown>]>();
 const cancelScheduledNotificationAsync = jest.fn<Promise<void>, [string]>();
+const nativeSetItem = jest.fn<Promise<void>, [string, string]>();
 
 jest.mock("expo-notifications", () => ({
   requestPermissionsAsync: () => requestPermissionsAsync(),
@@ -13,8 +14,26 @@ jest.mock("expo-notifications", () => ({
   AndroidImportance: { DEFAULT: 3 },
 }));
 
-import { cancelDailyReview, dailyReviewSupported, scheduleDailyReview } from "../daily-review";
+jest.mock("@react-native-async-storage/async-storage", () => ({
+  __esModule: true,
+  default: {
+    getItem: jest.fn(async () => null),
+    setItem: (key: string, value: string) => nativeSetItem(key, value),
+  },
+}));
+
+import {
+  cancelDailyReview,
+  dailyReviewSupported,
+  scheduleDailyReview,
+  setDailyReviewEnabledPref,
+} from "../daily-review";
 import { dailyReviewNotificationId } from "../notification-identity";
+import {
+  __resetAccountEpochForTests,
+  beginAccountOwnerTransition,
+  noteResolvedOwner,
+} from "../../auth/account-epoch";
 
 const OWNER = "account-a";
 
@@ -27,6 +46,19 @@ function setNavigatorProduct(product: string | undefined): void {
     writable: true,
   });
 }
+
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => { resolve = done; });
+  return { promise, resolve };
+}
+
+beforeEach(() => {
+  __resetAccountEpochForTests();
+  noteResolvedOwner(OWNER);
+  nativeSetItem.mockReset();
+  nativeSetItem.mockResolvedValue(undefined);
+});
 
 afterEach(() => {
   Object.defineProperty(globalThis, "navigator", {
@@ -87,6 +119,94 @@ describe("daily-review reminder (opt-in, on-device only)", () => {
       "daily-review",
       expect.objectContaining({ name: "Daily review" }),
     );
+  });
+
+  test("owner transition during permission wait prevents daily-review mutation", async () => {
+    setNavigatorProduct("ReactNative");
+    const permission = deferred<{ granted: boolean }>();
+    requestPermissionsAsync.mockReturnValueOnce(permission.promise);
+
+    const pending = scheduleDailyReview(OWNER, 8, 30, "오늘의 정리");
+    await Promise.resolve();
+    beginAccountOwnerTransition("account-b");
+    permission.resolve({ granted: true });
+
+    await expect(pending).resolves.toBe("error");
+    expect(cancelScheduledNotificationAsync).not.toHaveBeenCalled();
+    expect(scheduleNotificationAsync).not.toHaveBeenCalled();
+  });
+
+  test("owner transition during native daily scheduling compensates the stale A identifier", async () => {
+    setNavigatorProduct("ReactNative");
+    requestPermissionsAsync.mockResolvedValueOnce({ granted: true });
+    const scheduled = deferred<string>();
+    scheduleNotificationAsync.mockReturnValueOnce(scheduled.promise);
+    const identifier = dailyReviewNotificationId(OWNER);
+    const pending = scheduleDailyReview(OWNER, 8, 30, "오늘의 정리");
+    for (let turn = 0; turn < 10 && scheduleNotificationAsync.mock.calls.length === 0; turn += 1) {
+      await Promise.resolve();
+    }
+    expect(scheduleNotificationAsync).toHaveBeenCalledTimes(1);
+
+    beginAccountOwnerTransition("account-b");
+    scheduled.resolve(identifier);
+
+    await expect(pending).resolves.toBe("error");
+    expect(cancelScheduledNotificationAsync).toHaveBeenLastCalledWith(identifier);
+  });
+
+  test("a timed-out daily schedule is cancelled after late native completion", async () => {
+    jest.useFakeTimers();
+    const scheduled = deferred<string>();
+    const identifier = dailyReviewNotificationId(OWNER);
+    try {
+      setNavigatorProduct("ReactNative");
+      requestPermissionsAsync.mockResolvedValueOnce({ granted: true });
+      scheduleNotificationAsync.mockReturnValueOnce(scheduled.promise);
+
+      const pending = scheduleDailyReview(OWNER, 8, 30, "오늘의 정리");
+      for (let turn = 0; turn < 10 && scheduleNotificationAsync.mock.calls.length === 0; turn += 1) {
+        await Promise.resolve();
+      }
+      expect(scheduleNotificationAsync).toHaveBeenCalledTimes(1);
+
+      jest.advanceTimersByTime(5_000);
+      await expect(pending).resolves.toBe("error");
+      scheduled.resolve(identifier);
+      for (let turn = 0; turn < 10 && cancelScheduledNotificationAsync.mock.calls.length < 2; turn += 1) {
+        await Promise.resolve();
+      }
+      expect(cancelScheduledNotificationAsync.mock.calls).toEqual([
+        [identifier],
+        [identifier],
+      ]);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("daily preference writes reject a held owner before touching native storage", async () => {
+    setNavigatorProduct("ReactNative");
+    beginAccountOwnerTransition("account-b");
+
+    await expect(Promise.resolve(setDailyReviewEnabledPref(OWNER, true))).resolves.toBe(false);
+    expect(nativeSetItem).not.toHaveBeenCalled();
+  });
+
+  test("daily preference write reports stale when the owner changes during storage", async () => {
+    setNavigatorProduct("ReactNative");
+    const write = deferred<void>();
+    nativeSetItem.mockReturnValueOnce(write.promise);
+
+    const pending = Promise.resolve(setDailyReviewEnabledPref(OWNER, true));
+    for (let turn = 0; turn < 10 && nativeSetItem.mock.calls.length === 0; turn += 1) {
+      await Promise.resolve();
+    }
+    expect(nativeSetItem).toHaveBeenCalledTimes(1);
+    beginAccountOwnerTransition("account-b");
+    write.resolve(undefined);
+
+    await expect(pending).resolves.toBe(false);
   });
 
   test("cancel removes exactly our reminder id", async () => {

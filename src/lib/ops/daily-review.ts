@@ -14,6 +14,11 @@
 
 import { loadNotifications } from "./notifications-sdk";
 import {
+  captureAccountOwnerLease,
+  type AccountOwnerLease,
+} from "../auth/account-epoch";
+import { runLocalNotificationMutation } from "./notification-mutation";
+import {
   accountNotificationStorageKey,
   dailyReviewNotificationId,
   notificationPrivacyData,
@@ -26,6 +31,8 @@ const Notifications = loadNotifications();
 export type DailyReviewResult = "scheduled" | "cancelled" | "denied" | "unavailable" | "error";
 
 const CHANNEL_ID = "daily-review";
+const NOTIFICATION_MUTATION_TIMEOUT_MS = 5_000;
+class DailyReviewMutationTimeoutError extends Error {}
 function isReactNativeRuntime(): boolean {
   const nav = globalThis.navigator as { product?: string } | undefined;
   return nav?.product === "ReactNative";
@@ -55,6 +62,85 @@ async function ensureChannel(): Promise<void> {
   }
 }
 
+async function withinMutationTimeout<T>(operation: () => Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      Promise.resolve().then(operation),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new DailyReviewMutationTimeoutError("Daily-review notification mutation timed out.")),
+          NOTIFICATION_MUTATION_TIMEOUT_MS,
+        );
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
+type DailyCancelResult = "cancelled" | "failed" | "timed-out";
+
+async function cancelDailyIdentifier(identifier: string): Promise<DailyCancelResult> {
+  if (!Notifications) return "failed";
+  try {
+    await withinMutationTimeout(
+      () => Notifications.cancelScheduledNotificationAsync(identifier),
+    );
+    return "cancelled";
+  } catch (error) {
+    return error instanceof DailyReviewMutationTimeoutError ? "timed-out" : "failed";
+  }
+}
+
+function queueLateDailyScheduleCancellation(
+  scheduled: Promise<unknown>,
+  identifier: string,
+): void {
+  void scheduled.then(
+    () => runLocalNotificationMutation(async () => {
+      await cancelDailyIdentifier(identifier);
+    }),
+    () => undefined,
+  );
+}
+
+async function scheduleDailyWithLease(
+  lease: AccountOwnerLease,
+  identifier: string,
+  request: Parameters<NonNullable<typeof Notifications>["scheduleNotificationAsync"]>[0],
+): Promise<DailyReviewResult> {
+  if (!Notifications) return "unavailable";
+  return runLocalNotificationMutation(async () => {
+    if (!lease.isCurrent()) return "error";
+    // Clear any prior instance so a re-enable never schedules a second copy.
+    // Unknown/missing prior ids are harmless; scheduling the same stable id is
+    // still the authoritative replacement. Ownership, not cancel success, is
+    // the security gate here.
+    const priorCancellation = await cancelDailyIdentifier(identifier);
+    if (priorCancellation === "timed-out") return "error";
+    if (!lease.isCurrent()) return "error";
+
+    let scheduled: Promise<unknown>;
+    try {
+      scheduled = Notifications.scheduleNotificationAsync(request);
+    } catch {
+      return "error";
+    }
+    try {
+      await withinMutationTimeout(() => scheduled);
+    } catch {
+      queueLateDailyScheduleCancellation(scheduled, identifier);
+      return "error";
+    }
+    if (!lease.isCurrent()) {
+      await cancelDailyIdentifier(identifier);
+      return "error";
+    }
+    return "scheduled";
+  });
+}
+
 /**
  * Schedule (or re-schedule) the opt-in daily review reminder at a local
  * wall-clock time. Cancels any prior instance first so re-enabling never stacks
@@ -69,6 +155,8 @@ export async function scheduleDailyReview(
 ): Promise<DailyReviewResult> {
   if (!dailyReviewSupported() || !Notifications) return "unavailable";
   if (!ownerId) return "error";
+  const lease = captureAccountOwnerLease(ownerId);
+  if (!lease) return "error";
   if (!Number.isInteger(hour) || hour < 0 || hour > 23 || !Number.isInteger(minute) || minute < 0 || minute > 59) {
     return "error";
   }
@@ -76,14 +164,10 @@ export async function scheduleDailyReview(
     const identifier = dailyReviewNotificationId(ownerId);
     const permission = await Notifications.requestPermissionsAsync();
     if (!permission.granted) return "denied";
+    if (!lease.isCurrent()) return "error";
     await ensureChannel();
-    // Clear any prior instance so a re-enable never schedules a second copy.
-    try {
-      await Notifications.cancelScheduledNotificationAsync(identifier);
-    } catch {
-      // none scheduled yet — fine
-    }
-    await Notifications.scheduleNotificationAsync({
+    if (!lease.isCurrent()) return "error";
+    return await scheduleDailyWithLease(lease, identifier, {
       identifier,
       content: {
         title,
@@ -97,10 +181,9 @@ export async function scheduleDailyReview(
         channelId: CHANNEL_ID,
       },
     });
-    return "scheduled";
-  } catch (e) {
+  } catch {
     if (typeof console !== "undefined") {
-      console.warn("[daily-review] schedule failed", (e as Error).message);
+      console.warn("[daily-review] schedule failed");
     }
     return "error";
   }
@@ -110,12 +193,19 @@ export async function scheduleDailyReview(
 export async function cancelDailyReview(ownerId: string): Promise<DailyReviewResult> {
   if (!dailyReviewSupported() || !Notifications) return "unavailable";
   if (!ownerId) return "error";
+  const lease = captureAccountOwnerLease(ownerId);
+  if (!lease) return "error";
   try {
-    await Notifications.cancelScheduledNotificationAsync(dailyReviewNotificationId(ownerId));
-    return "cancelled";
-  } catch (e) {
+    const identifier = dailyReviewNotificationId(ownerId);
+    return await runLocalNotificationMutation(async () => {
+      if (!lease.isCurrent()) return "error";
+      const cancelled = await cancelDailyIdentifier(identifier);
+      if (cancelled !== "cancelled" || !lease.isCurrent()) return "error";
+      return "cancelled";
+    });
+  } catch {
     if (typeof console !== "undefined") {
-      console.warn("[daily-review] cancel failed", (e as Error).message);
+      console.warn("[daily-review] cancel failed");
     }
     return "error";
   }
@@ -164,12 +254,9 @@ export async function loadDailyReviewHour(ownerId: string): Promise<number> {
   }
 }
 
-export function setDailyReviewHourPref(ownerId: string, hour: number): void {
+export function setDailyReviewHourPref(ownerId: string, hour: number): Promise<boolean> {
   const value = String(DAILY_REVIEW_HOURS.includes(hour) ? hour : DEFAULT_DAILY_REVIEW_HOUR);
-  const key = hourKey(ownerId);
-  ls()?.setItem(key, value);
-  const storage = nativeStorage();
-  if (storage) void storage.setItem(key, value).catch(() => undefined);
+  return persistDailyReviewPref(ownerId, hourKey(ownerId), value);
 }
 
 /** "09:00" - 로케일 분기가 필요 없는 표기. 오전/오후 표현은 언어마다 갈린다. */
@@ -200,6 +287,34 @@ function nativeStorage(): AsyncStorageLike | null {
   }
 }
 
+async function persistDailyReviewPref(
+  ownerId: string,
+  key: string,
+  value: string,
+): Promise<boolean> {
+  const lease = captureAccountOwnerLease(ownerId);
+  if (!lease) return false;
+  return runLocalNotificationMutation(async () => {
+    if (!lease.isCurrent()) return false;
+    try {
+      ls()?.setItem(key, value);
+    } catch {
+      // Best-effort storage remains the existing UX contract.
+    }
+    const storage = nativeStorage();
+    if (storage) {
+      try {
+        await storage.setItem(key, value);
+      } catch {
+        // Best-effort storage remains the existing UX contract.
+      }
+    }
+    // If ownership changed during the native write, account cleanup is queued
+    // behind this mutation and removes the just-written A key before B publishes.
+    return lease.isCurrent();
+  });
+}
+
 /** Read the persisted opt-in flag. Web reads synchronously; native resolves via
  *  AsyncStorage. Defaults to false (OFF) everywhere. */
 export async function loadDailyReviewEnabled(ownerId: string): Promise<boolean> {
@@ -216,10 +331,7 @@ export async function loadDailyReviewEnabled(ownerId: string): Promise<boolean> 
 }
 
 /** Persist the opt-in flag (best-effort on every backend present). */
-export function setDailyReviewEnabledPref(ownerId: string, on: boolean): void {
+export function setDailyReviewEnabledPref(ownerId: string, on: boolean): Promise<boolean> {
   const value = on ? "true" : "false";
-  const key = enabledKey(ownerId);
-  ls()?.setItem(key, value);
-  const storage = nativeStorage();
-  if (storage) void storage.setItem(key, value).catch(() => undefined);
+  return persistDailyReviewPref(ownerId, enabledKey(ownerId), value);
 }

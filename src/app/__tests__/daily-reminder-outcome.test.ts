@@ -73,9 +73,15 @@ function harness(name: "toggleReminder" | "pickReminderHour", options: Options =
     setReminderDenied: (v: boolean) => { if (v) calls.denied.push(v); },
     setReminderFailed: (v: boolean) => { if (v) calls.failed.push(v); },
     setReminderOn: (v: boolean) => { calls.on.push(v); },
-    setDailyReviewEnabledPref: (_ownerId: string, v: boolean) => { calls.enabledPref.push(v); },
+    setDailyReviewEnabledPref: async (_ownerId: string, v: boolean) => {
+      calls.enabledPref.push(v);
+      return true;
+    },
     setReminderHour: (v: number) => { calls.hour.push(v); },
-    setDailyReviewHourPref: (_ownerId: string, v: number) => { calls.hourPref.push(v); },
+    setDailyReviewHourPref: async (_ownerId: string, v: number) => {
+      calls.hourPref.push(v);
+      return true;
+    },
     t: (key: string) => key,
     scheduleDailyReview: async () => options.schedule ?? "scheduled",
     cancelDailyReview: async () => options.cancel ?? "cancelled",

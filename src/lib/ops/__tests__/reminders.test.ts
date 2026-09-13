@@ -1,4 +1,9 @@
 const requestPermissionsAsync = jest.fn<Promise<{ granted: boolean }>, []>();
+const getPermissionsAsync = jest.fn<Promise<{
+  granted: boolean;
+  status: string;
+  canAskAgain: boolean;
+}>, []>();
 const scheduleNotificationAsync = jest.fn<Promise<string>, [Record<string, unknown>]>();
 const setNotificationChannelAsync = jest.fn<Promise<null>, [string, Record<string, unknown>]>();
 const getAllScheduledNotificationsAsync = jest.fn<Promise<Array<{
@@ -51,6 +56,7 @@ jest.mock("../../supabase/client", () => ({
 }));
 
 jest.mock("expo-notifications", () => ({
+  getPermissionsAsync: () => getPermissionsAsync(),
   requestPermissionsAsync: () => requestPermissionsAsync(),
   scheduleNotificationAsync: (request: Record<string, unknown>) => scheduleNotificationAsync(request),
   setNotificationChannelAsync: (id: string, channel: Record<string, unknown>) =>
@@ -68,6 +74,8 @@ jest.mock("expo-notifications", () => ({
 
 import {
   clearAccountScopedLocalNotifications,
+  disableReminder,
+  enableReminder,
   foregroundNotificationBehavior,
   migrateLegacyRoutineNotifications,
   notifyNow,
@@ -85,6 +93,11 @@ import {
   signInWithEmail,
   signOut as signOutWithCleanup,
 } from "../../supabase/auth";
+import {
+  __resetAccountEpochForTests,
+  beginAccountOwnerTransition,
+  noteResolvedOwner,
+} from "../../auth/account-epoch";
 
 const originalNavigator = globalThis.navigator;
 const LEGACY_NOTIFICATION_KEYS = [
@@ -92,6 +105,12 @@ const LEGACY_NOTIFICATION_KEYS = [
   "ops.dailyReview.enabled.v1",
   "ops.dailyReview.hour.v1",
 ] as const;
+
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => { resolve = done; });
+  return { promise, resolve };
+}
 
 function setNavigatorProduct(product: string | undefined): void {
   Object.defineProperty(globalThis, "navigator", {
@@ -103,6 +122,13 @@ function setNavigatorProduct(product: string | undefined): void {
 
 beforeEach(() => {
   jest.resetAllMocks();
+  __resetAccountEpochForTests();
+  noteResolvedOwner("account-a");
+  getPermissionsAsync.mockResolvedValue({
+    granted: true,
+    status: "granted",
+    canAskAgain: false,
+  });
   getAllScheduledNotificationsAsync.mockResolvedValue([]);
   cancelScheduledNotificationAsync.mockResolvedValue(undefined);
   getPresentedNotificationsAsync.mockResolvedValue([]);
@@ -249,6 +275,123 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     expect(JSON.stringify(request)).not.toContain("Private");
   });
 
+  test("frozen legacy calls without an explicit owner fail closed", async () => {
+    setNavigatorProduct("ReactNative");
+
+    await expect(notifyNow("Legacy title", "Legacy body")).resolves.toBe("error");
+    await expect(scheduleRoutineReminder({
+      title: "Legacy routine",
+      startsAtIso: new Date(Date.now() + 60_000).toISOString(),
+    })).resolves.toBe("error");
+
+    expect(requestPermissionsAsync).not.toHaveBeenCalled();
+    expect(scheduleNotificationAsync).not.toHaveBeenCalled();
+  });
+
+  test("owner transition during permission wait prevents an immediate notification", async () => {
+    setNavigatorProduct("ReactNative");
+    const permission = deferred<{ granted: boolean }>();
+    requestPermissionsAsync.mockReturnValueOnce(permission.promise);
+
+    const pending = notifyNow("account-a", "Private focus", "Private selected star");
+    await Promise.resolve();
+    beginAccountOwnerTransition("account-b");
+    permission.resolve({ granted: true });
+
+    await expect(pending).resolves.toBe("error");
+    expect(setNotificationChannelAsync).not.toHaveBeenCalled();
+    expect(scheduleNotificationAsync).not.toHaveBeenCalled();
+  });
+
+  test("owner transition during native routine scheduling compensates the stale A identifier", async () => {
+    setNavigatorProduct("ReactNative");
+    requestPermissionsAsync.mockResolvedValueOnce({ granted: true });
+    const scheduled = deferred<string>();
+    scheduleNotificationAsync.mockReturnValueOnce(scheduled.promise);
+    const identifier = routineReminderId("account-a", "routine-race");
+    const pending = scheduleRoutineReminder({
+      title: "Private routine",
+      startsAtIso: new Date(Date.now() + 60_000).toISOString(),
+      recurrence: "daily",
+    }, { ownerId: "account-a", identifier });
+    for (let turn = 0; turn < 10 && scheduleNotificationAsync.mock.calls.length === 0; turn += 1) {
+      await Promise.resolve();
+    }
+    expect(scheduleNotificationAsync).toHaveBeenCalledTimes(1);
+
+    beginAccountOwnerTransition("account-b");
+    scheduled.resolve(identifier);
+
+    await expect(pending).resolves.toBe("error");
+    expect(cancelScheduledNotificationAsync).toHaveBeenCalledWith(identifier);
+  });
+
+  test("a timed-out native schedule is cancelled when it eventually settles", async () => {
+    jest.useFakeTimers();
+    const scheduled = deferred<string>();
+    const identifier = routineReminderId("account-a", "routine-timeout");
+    try {
+      setNavigatorProduct("ReactNative");
+      requestPermissionsAsync.mockResolvedValueOnce({ granted: true });
+      scheduleNotificationAsync.mockReturnValueOnce(scheduled.promise);
+
+      const pending = scheduleRoutineReminder({
+        title: "Private routine",
+        startsAtIso: new Date(Date.now() + 60_000).toISOString(),
+        recurrence: "daily",
+      }, { ownerId: "account-a", identifier });
+      for (let turn = 0; turn < 10 && scheduleNotificationAsync.mock.calls.length === 0; turn += 1) {
+        await Promise.resolve();
+      }
+      expect(scheduleNotificationAsync).toHaveBeenCalledTimes(1);
+
+      jest.advanceTimersByTime(5_000);
+      await expect(pending).resolves.toBe("error");
+      scheduled.resolve(identifier);
+      for (let turn = 0; turn < 10 && cancelScheduledNotificationAsync.mock.calls.length === 0; turn += 1) {
+        await Promise.resolve();
+      }
+      expect(cancelScheduledNotificationAsync).toHaveBeenCalledWith(identifier);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("owner transition during permission lookup prevents enabling account A state", async () => {
+    setNavigatorProduct("ReactNative");
+    const permission = deferred<{
+      granted: boolean;
+      status: string;
+      canAskAgain: boolean;
+    }>();
+    getPermissionsAsync.mockReturnValueOnce(permission.promise);
+
+    const pending = enableReminder("account-a", "routine-race");
+    await Promise.resolve();
+    beginAccountOwnerTransition("account-b");
+    permission.resolve({ granted: true, status: "granted", canAskAgain: false });
+
+    await expect(pending).resolves.toBe(false);
+    expect(getItem).not.toHaveBeenCalled();
+    expect(setItem).not.toHaveBeenCalled();
+    expect(scheduleNotificationAsync).not.toHaveBeenCalled();
+  });
+
+  test("owner transition during disabled-state read prevents A writes and cancellation", async () => {
+    setNavigatorProduct("ReactNative");
+    const stored = deferred<string | null>();
+    getItem.mockReturnValueOnce(stored.promise);
+
+    const pending = disableReminder("account-a", "routine-race");
+    await Promise.resolve();
+    beginAccountOwnerTransition("account-b");
+    stored.resolve(null);
+
+    await expect(pending).resolves.toBeUndefined();
+    expect(setItem).not.toHaveBeenCalled();
+    expect(cancelScheduledNotificationAsync).not.toHaveBeenCalled();
+  });
+
   test("recurring reminders fail closed before permission without a validated stable id", async () => {
     setNavigatorProduct("ReactNative");
     requestPermissionsAsync.mockResolvedValue({ granted: true });
@@ -386,6 +529,30 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     const removedKeys = removeItem.mock.calls.map(([key]) => key);
     expect(removedKeys).toEqual(expect.arrayContaining(LEGACY_NOTIFICATION_KEYS));
     expect(removedKeys.filter((key) => key.includes("ops.account.v2."))).toHaveLength(3);
+  });
+
+  test("account cleanup removes web mirrors for every account-local key", async () => {
+    const originalDescriptor = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+    const removeWebItem = jest.fn<void, [string]>();
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: { removeItem: removeWebItem },
+    });
+
+    try {
+      await expect(clearAccountScopedLocalNotifications("account-a")).resolves.toBeUndefined();
+
+      expect(removeWebItem).toHaveBeenCalledTimes(6);
+      expect(removeWebItem.mock.calls.map(([key]) => key)).toEqual(
+        removeItem.mock.calls.map(([key]) => key),
+      );
+    } finally {
+      if (originalDescriptor) {
+        Object.defineProperty(globalThis, "localStorage", originalDescriptor);
+      } else {
+        Reflect.deleteProperty(globalThis, "localStorage");
+      }
+    }
   });
 
   test("account cleanup waits for every operation and throws only a sanitized aggregate", async () => {

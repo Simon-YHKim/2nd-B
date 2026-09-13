@@ -95,6 +95,12 @@ export function noteResolvedOwner(owner: AccountOwner): void {
   emitTransition();
 }
 
+export interface AccountOwnerLease {
+  readonly ownerId: string;
+  readonly epoch: number;
+  isCurrent(): boolean;
+}
+
 /**
  * Hide the currently-published product tree as soon as auth-js reports a
  * different session owner. Cleanup and profile probing may still be pending;
@@ -138,6 +144,21 @@ export function currentAccountEpoch(): number {
 
 export function isCurrentAccountEpoch(expectedEpoch: number): boolean {
   return expectedEpoch === epoch;
+}
+
+/** Capture a mutation lease only after the owner is fully published and visible. */
+export function captureAccountOwnerLease(ownerId: string): AccountOwnerLease | null {
+  if (!ownerId || publishedOwner !== ownerId || transitionPending) return null;
+  const capturedEpoch = epoch;
+  return {
+    ownerId,
+    epoch: capturedEpoch,
+    isCurrent: () => (
+      capturedEpoch === epoch &&
+      publishedOwner === ownerId &&
+      !transitionPending
+    ),
+  };
 }
 
 /** Execute a side effect only while its captured account epoch is current. */

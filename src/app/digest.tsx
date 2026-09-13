@@ -163,8 +163,8 @@ export default function Digest() {
           const body = t("digest.reminder.notifBody");
           const res = await scheduleDailyReview(ownerId, reminderHour, 0, title, body);
           if (res === "scheduled") {
-            setDailyReviewEnabledPref(ownerId, true);
-            if (reminderOwnerRef.current === ownerId) setReminderOn(true);
+            const persisted = await setDailyReviewEnabledPref(ownerId, true);
+            if (persisted && reminderOwnerRef.current === ownerId) setReminderOn(true);
           } else if (res === "denied" && reminderOwnerRef.current === ownerId) {
             setReminderDenied(true);
           }
@@ -181,8 +181,8 @@ export default function Digest() {
           if (res === "error") {
             if (reminderOwnerRef.current === ownerId) setReminderFailed(true);
           } else {
-            setDailyReviewEnabledPref(ownerId, false);
-            if (reminderOwnerRef.current === ownerId) setReminderOn(false);
+            const persisted = await setDailyReviewEnabledPref(ownerId, false);
+            if (persisted && reminderOwnerRef.current === ownerId) setReminderOn(false);
           }
         }
       } finally {
@@ -203,7 +203,8 @@ export default function Digest() {
       setReminderDenied(false);
       setReminderFailed(false);
       setReminderHour(hour);
-      setDailyReviewHourPref(ownerId, hour);
+      const persisted = await setDailyReviewHourPref(ownerId, hour);
+      if (!persisted) return;
       if (!reminderOn) return;
       setReminderBusy(true);
       try {
@@ -219,7 +220,7 @@ export default function Digest() {
           && reminderOwnerRef.current === ownerId
         ) {
           setReminderHour(previous);
-          setDailyReviewHourPref(ownerId, previous);
+          await setDailyReviewHourPref(ownerId, previous);
           if (res === "denied") setReminderDenied(true);
           else setReminderFailed(true);
         }

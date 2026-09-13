@@ -4,6 +4,7 @@ import {
   accountTransitionPendingFromSnapshot,
   accountTransitionSnapshot,
   beginAccountOwnerTransition,
+  captureAccountOwnerLease,
   clearAccountTransition,
   currentAccountEpoch,
   isAccountTransitionPending,
@@ -70,6 +71,21 @@ describe("account epoch ownership boundary", () => {
     noteResolvedOwner("owner-c");
     expect(currentResolvedAccountOwner()).toBe("owner-c");
     expect(currentAccountEpoch()).toBe(aEpoch + 3);
+  });
+
+  test("owner mutation leases fail closed throughout a transition and reopen after navigation proof", () => {
+    noteResolvedOwner("owner-a");
+    const leaseA = captureAccountOwnerLease("owner-a");
+    expect(leaseA?.isCurrent()).toBe(true);
+
+    beginAccountOwnerTransition("owner-b");
+    expect(leaseA?.isCurrent()).toBe(false);
+    expect(captureAccountOwnerLease("owner-a")).toBeNull();
+
+    noteResolvedOwner("owner-b");
+    expect(captureAccountOwnerLease("owner-b")).toBeNull();
+    expect(clearAccountTransition(currentAccountEpoch())).toBe(true);
+    expect(captureAccountOwnerLease("owner-b")?.isCurrent()).toBe(true);
   });
 
   test("a second owner switch changes the primitive snapshot while held", () => {
