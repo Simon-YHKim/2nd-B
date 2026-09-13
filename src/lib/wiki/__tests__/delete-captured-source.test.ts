@@ -389,6 +389,50 @@ describe("기록 상세 화면은 다 지웠을 때만 뒤로 간다", () => {
   });
 });
 
+describe("다른 계정의 페이지가 이 자료를 참조하면 (r3as M1, 기존 스키마)", () => {
+  // wiki_pages.source_id FK 에 소유자가 없어서(db/migrations/0022_wiki_rag.sql) 다른 계정의 위키
+  // 페이지가 내 source 를 참조할 수 있다. 그 페이지는 RLS 때문에 내 조회에 안 보이고, source 삭제는
+  // CHECK 23514 로 막힌다. 스키마 보강(복합 FK)은 마이그레이션이라 이 PR 밖이다. 여기서 지키는 것은
+  // 사용자 쪽 닫힘이다: 크래시 없이, 남의 페이지가 있다는 것을 드러내지 않는 같은 문구로, 로그 없이.
+  // 남의 행을 클라이언트에서 지우는 식으로 풀지 않는다 - 그 페이지는 끝까지 그대로여야 한다.
+  const FOREIGN_PAGE: MockRow = { id: "page-b", user_id: "user-b", kind: "source", source_id: "src-1" };
+
+  test("23514 로 막히면 partly_deleted 로 닫고, 행과 남의 페이지를 건드리지 않고, 아무것도 로그하지 않는다", async () => {
+    mockDb.sources = [{ ...SOURCE }];
+    mockDb.wiki_pages = [{ ...FOREIGN_PAGE }];
+    const consoles = (["warn", "error", "log", "info"] as const).map((level) =>
+      jest.spyOn(console, level).mockImplementation(() => undefined),
+    );
+    try {
+      await expect(deleteCapturedSource(OWNER, "src-1")).resolves.toBe("partly_deleted");
+      for (const spy of consoles) expect(spy).not.toHaveBeenCalled();
+    } finally {
+      for (const spy of consoles) spy.mockRestore();
+    }
+    expect(mockDb.writes).toContain("delete sources (blocked)");
+    expect(mockDb.sources).toEqual([{ ...SOURCE }]);
+    expect(mockDb.wiki_pages).toEqual([{ ...FOREIGN_PAGE }]);
+  });
+
+  test("화면 문구는 연결이 끊겨 행을 못 지운 경우와 같다 - 남의 페이지가 있다는 것을 가려 주지 않는다", async () => {
+    mockDb.sources = [{ ...SOURCE }];
+    mockDb.wiki_pages = [{ ...FOREIGN_PAGE }];
+    const blocked = detailScreen();
+    await blocked.run();
+
+    mockDb.sources = [{ ...SOURCE }];
+    mockDb.wiki_pages = [];
+    mockDb.objects = new Set([PATH]);
+    mockDb.sourceDeleteErrors = 1;
+    const offline = detailScreen();
+    await offline.run();
+
+    expect(blocked.said).toEqual(["deepspace:recordDetail.deleteSourcePartial"]);
+    expect(blocked.said).toEqual(offline.said);
+    expect(blocked.router.back).not.toHaveBeenCalled();
+  });
+});
+
 describe("확인 문구", () => {
   const LOCALES = ["en", "ko", "es", "pt", "id"] as const;
   // deleteSourceFailed · deleteSourcePartial 은 r3as F-02 의 결과 문구다.

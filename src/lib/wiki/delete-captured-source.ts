@@ -110,6 +110,12 @@ export async function deleteCapturedSource(userId: string, sourceId: string): Pr
       if (survivor) throw new Error("captured-source-not-deleted");
     }
   } catch {
+    // 행 단계의 실패는 원인을 로그에 남기지 않고 화면에서 따로 말하지도 않는다 (r3as M1).
+    // wiki_pages.source_id FK 에 소유자가 없어서(db/migrations/0022_wiki_rag.sql) 다른 계정의 위키
+    // 페이지가 이 자료를 참조할 수 있다. 그 페이지는 RLS 때문에 위 조회에 안 보인 채 source 삭제를
+    // CHECK 23514 로 막는다. 그 원인을 기기 로그에 적거나 구분해 말하면 남의 계정 데이터가 있다는
+    // 신호가 된다 - 연결이 끊긴 실패와 같은 답으로 닫는다. 남의 행은 여기서 지우지 않는다.
+    // 스키마 보강(소유자를 포함한 복합 FK)은 서버 후속이다(PR #1814).
     return removedAny ? "partly_deleted" : "not_deleted";
   }
   // 도메인 태그가 붙은 자료였다면 별 밝기가 바뀐다. deleteRecord 와 같은 자세다.
