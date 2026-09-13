@@ -42,7 +42,8 @@
   },
   "errors": {
     "unknown": "Algo deu errado. Por favor, tente novamente.",
-    "network": "Não foi possível conectar ao servidor. Verifique sua conexão."
+    "network": "Não foi possível conectar ao servidor. Verifique sua conexão.",
+    "profileProbe": "Não foi possível verificar seu perfil. Tente novamente em instantes."
   },
   "locale": {
     "en": "Inglês",

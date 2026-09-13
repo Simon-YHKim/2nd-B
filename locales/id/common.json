@@ -42,7 +42,8 @@
   },
   "errors": {
     "unknown": "Terjadi kesalahan. Coba lagi.",
-    "network": "Kami tidak bisa menjangkau server. Periksa koneksimu."
+    "network": "Kami tidak bisa menjangkau server. Periksa koneksimu.",
+    "profileProbe": "Kami belum bisa memeriksa profilmu. Coba lagi sebentar lagi."
   },
   "locale": {
     "en": "Bahasa Inggris",

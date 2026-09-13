@@ -306,7 +306,12 @@ describe("legacy preservation and pixel registration", () => {
     //
     // 그래서 이 핀의 명제는 이제 **"이 파일의 변경은 전부 여기 적혀 있다"** 다 -
     // 더 좁은 "inbox 는 안 건드린다" 가 아니라. 다음 사람도 줄을 추가할 것.
-    expect(sha(source)).toBe("f691401920d664dcd2dd0e47385d264e00a33db8872492d83f54f46b9b9802fc");
+    //
+    // 2026-09-14 재고정 - vibe r260914 R3-A 인가 게이트 발견. 기기 건강 잠금 네 자리
+    // (동의 핸들러 · 버튼 문구 · 누르기 · 색)가 `isMinor === true` 만 막아서 연령을 모르는
+    // 계정(isMinor null)이 성인 쪽으로 샜다. 넷을 `isMinor !== false` 로 바꾸고 주석 둘을
+    // 맞췄다. inbox 와 무관하다. 동작은 minor-lock-unknown-age.test.ts 가 지킨다.
+    expect(sha(source)).toBe("dbf582441a4820bedfcc06241061bb5f2b0841ed59e727c55641367cbef2a6cb");
   });
 
   test("keeps InboxLegacy and its styles byte-stable while routing deep-space directly", () => {

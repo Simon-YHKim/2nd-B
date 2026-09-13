@@ -19,7 +19,8 @@
   },
   "actions": {
     "backToRecords": "Back to records",
-    "seeGraph": "See in graph",
+    "seeArea": "See it in {{area}}",
+    "seeAreaHint": "Opens {{area}} with this record at the top.",
     "askSecondB": "Ask SecondB",
     "openSource": "Open original"
   }

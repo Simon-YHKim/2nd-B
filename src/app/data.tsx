@@ -3,17 +3,17 @@
 // place that performs it. The actual destructive controls live in the
 // settings danger zone; export lives on the wiki screen. This screen makes
 // the data-control surface discoverable and explains what each does.
-
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
-
+import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRetry";
 import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { profileGate } from "@/lib/auth/profile-probe";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceDataScreen } from "@/screens/deepspace/dds-data-screen";
@@ -133,29 +133,28 @@ const styles = StyleSheet.create({
 });
 
 export default function DataManagement() {
-  const { t } = useTranslation("data");
+  const { t } = useTranslation(["data", "deepspace"]);
   const { userId, loading, hasProfile, profileProbeFailed } = useAuth();
+  const gate = profileGate({ loading, userId, hasProfile, profileProbeFailed });
 
-  if (loading) {
+  if (gate === "signed-out") return <Redirect href="/sign-in" />;
+  // A failed probe is unknown: the retryable error (no dock), not the loader it
+  // used to share. The T1a emulator run (vibe r260913, item 2) found
+  // `Loading data tools...` here with no way out after a server error, a DNS
+  // failure and a timeout alike.
+  if (gate === "profile-error") {
+    return <ProfileProbeRetryScreen title={t("deepspace:account.navData")} />;
+  }
+  if (gate === "profile-incomplete") return <Redirect href="/complete-profile" />;
+  if (gate !== "ready") {
     return (
       <PremiumAppShell>
         <View style={styles.center}>
-          <PremiumLoadingState message={t("loading")} />
+          <PremiumLoadingState message={t("data:loading")} />
         </View>
       </PremiumAppShell>
     );
   }
-  if (!userId) return <Redirect href="/sign-in" />;
-  if (profileProbeFailed || hasProfile === null) {
-    return (
-      <PremiumAppShell>
-        <View style={styles.center}>
-          <PremiumLoadingState message={t("loading")} />
-        </View>
-      </PremiumAppShell>
-    );
-  }
-  if (hasProfile === false) return <Redirect href="/complete-profile" />;
   if (isDeepSpaceUI()) return <DeepSpaceDataScreen />;
   return <DataManagementLegacy />;
 }

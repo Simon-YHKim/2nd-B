@@ -1059,6 +1059,8 @@
     "empty": "Simpan catatan pertamamu untuk menyalakan bintang ini.",
     "recordFallback": "catatan",
     "untitled": "(tanpa judul)",
+    "pieceHere": "Tersimpan di sini",
+    "pieceOpenHint": "Membuka catatan ini.",
     "briefingOpening": "Membuka bintang ini…",
     "briefingEmpty": "Belum ada catatan di bintang ini. Simpan sesuatu dan SecondB membaca polanya.",
     "briefingCountOne": "{{n}} catatan di bintang ini, yang terbaru dulu.",

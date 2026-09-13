@@ -20,12 +20,18 @@ import {
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
 import { SecondbHead } from "@/components/deepspace/SecondbHead";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PremiumLoadingState } from "@/components/premium";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { DOMAIN_STARS, getDomainStar, isDomainId, domainTagFor, type DomainId } from "@/lib/persona/domain-stars";
+import { evidenceDateLabel } from "@/lib/persona/evidence";
 import { loadDomainLevels } from "@/lib/persona/load-domain-levels";
 import type { LadderLevel } from "@/lib/persona/brightness";
+import { filedDomainOf } from "@/lib/records/domain-screen";
+import { getPieceSummaryFromRoute, parsePieceId, type PieceSummary } from "@/lib/records/get-piece";
 import { m3 } from "@/lib/theme/m3";
 import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
 
@@ -153,7 +159,7 @@ export async function generateStaticParams(): Promise<{ domain: string }[]> {
 }
 
 export default function DomainStarScreen() {
-  const { domain } = useLocalSearchParams<{ domain: string }>();
+  const { domain, pieceId } = useLocalSearchParams<{ domain: string; pieceId?: string | string[] }>();
   const { t, i18n } = useTranslation("deepspace");
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
   const locale = shippedLocale(i18n.resolvedLanguage ?? i18n.language);
@@ -165,6 +171,78 @@ export default function DomainStarScreen() {
 
   const valid = typeof domain === "string" && isDomainId(domain);
   const domainId = valid ? (domain as DomainId) : null;
+
+  // P1 (Simon 결정 2026-09-13 22:26): /capture 저장 후 버튼과 기록 상세의 영역 버튼이
+  // pieceId 로 가리킨 조각 하나를 이 화면 맨 위에 보여준다. 아래 목록은 records 만 읽어서,
+  // /capture 가 저장한 소스는 이 카드가 아니면 여기서 안 보인다.
+  //
+  // 주소에는 누구든 아무 id 나 넣을 수 있다. 그래서 형식을 통과한 id 만 읽고
+  // (getPieceSummaryFromRoute 는 형식을 본 뒤에만 읽는다), 읽기는 본인 행으로 좁히며(user_id
+  // 필터 + owner RLS), 그 조각이 이 영역에 담긴 것일 때만 보여준다. 남의 id · 없는 id · 읽기
+  // 실패는 전부 "카드 없음"이다. 에러 화면도, id 나 태그가 남는 로그도 없다.
+  //
+  // 여기서 parsePieceId 를 부르는 것은 읽으려는 게 아니라 주소가 어느 조각을 가리키는지 알려는
+  // 것이다 - 아래 effect 의 열쇠와 카드 대조에 쓴다. 읽기는 주소 값을 그대로 넘겨
+  // getPieceSummaryFromRoute 로만 한다(생성물 게이트 A1, 2026-09-14). 그래서 이 화면의 가드가
+  // 바뀌어도 형식이 틀린 값은 DB 에 닿지 않는다.
+  const pieceRef = parsePieceId(pieceId);
+  const pieceOrigin = pieceRef?.origin ?? null;
+  const pieceUuid = pieceRef?.uuid ?? null;
+
+  // 몇 번째 읽기인가. 읽은 결과는 자기 읽기 번호를 달고 온다.
+  //
+  // M1 (PR #1812 인가 게이트, 2026-09-14): 카드를 눌러 상세에서 이 조각의 영역을 옮기고 뒤로
+  // 오면, 이 화면은 마운트된 채 주소도 그대로라 읽기가 다시 돌지 않았고 처음 읽은 태그로 옛
+  // 영역의 카드가 남았다. 그래서 포커스가 돌아올 때마다 한 번 더 읽는다. 처음 뜰 때의 읽기와
+  // 주소가 바뀔 때의 읽기는 아래 effect 가 맡는다(useFocusRefetch 는 첫 포커스를 건너뛴다).
+  // 폴링도 자동 재시도도 없다.
+  //
+  // L1 (PR #1812 인가 재게이트, 2026-09-14): 포커스 재조회는 켜고 끄지 않고 늘 같은 콜백으로 둔다.
+  // 전에는 pieceId 가 유효할 때만 켰는데, 같은 화면에서 주소가 유효 -> 무효 -> 유효로 바뀌면 다시
+  // 켜지는 순간 useFocusEffect 의 콜백이 바뀌어 곧바로 읽기 번호를 올렸고, 같은 커밋의 아래 effect
+  // 도 바뀐 주소로 읽어 한 번의 주소 변화에 두 번 읽었다. 읽을 수 있는지는 포커스가 돌아온 그때 본다.
+  const [pieceReadNo, setPieceReadNo] = useState(0);
+  const [pieceResult, setPieceResult] = useState<{
+    readNo: number;
+    piece: PieceSummary | null;
+  } | null>(null);
+  useFocusRefetch(() => {
+    if (userId && domainId && pieceUuid) setPieceReadNo((n) => n + 1);
+  });
+
+  useEffect(() => {
+    if (!userId || !domainId || !pieceOrigin || !pieceUuid) return;
+    let alive = true;
+    // 열쇠는 주소의 원래 값이 아니라 해석한 조각이다. 원래 값은 배열일 수 있고 그 참조가
+    // 그리기마다 같다는 보장이 없어서, 열쇠로 쓰면 읽기가 불어날 수 있다.
+    getPieceSummaryFromRoute(userId, pieceId)
+      .then((found) => {
+        if (alive) setPieceResult({ readNo: pieceReadNo, piece: found });
+      })
+      .catch(() => {
+        if (alive) setPieceResult(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [userId, domainId, pieceOrigin, pieceUuid, pieceReadNo]);
+
+  // 지금 읽기의 결과만 쓴다. 돌아와서 다시 읽는 동안에는 지난 읽기의 카드를 보이지 않는다 -
+  // 옛 태그로 "여기 담겼어요"라고 잠깐이라도 말하느니 다 읽을 때까지 비워 둔다.
+  const shownPiece = pieceResult !== null && pieceResult.readNo === pieceReadNo ? pieceResult.piece : null;
+
+  // 지금 주소가 가리키는 조각이고 이 영역에 담긴 것일 때만 보인다. 주소가 바뀌어 새 읽기가
+  // 끝나기 전에도 지난 조각이 남아 보이지 않는다. 담긴 곳은 domain: 태그로 잰다 - /capture 의
+  // 기록 저장은 collect 로도 보내므로(Simon 결정 2026-09-14 01:45) 생활 영역만 보는 lifeDomainOf 가
+  // 아니라 filedDomainOf 다. 태그가 없는 조각은 어느 영역에도 담긴 것이 아니다.
+  const piece =
+    shownPiece !== null &&
+    shownPiece.origin === pieceOrigin &&
+    shownPiece.uuid === pieceUuid &&
+    domainId !== null &&
+    filedDomainOf(shownPiece.tags) === domainId
+      ? shownPiece
+      : null;
 
   const refresh = useCallback(() => {
     if (!userId || !domainId) return;
@@ -196,6 +274,8 @@ export default function DomainStarScreen() {
   const headerMeta = DOMAIN_HEADER_META[domainId][locale];
   const action = DOMAIN_ACTION[domainId];
   const count = rows?.length ?? 0;
+  const pieceTitle = piece?.title?.trim() || t("star.untitled");
+  const pieceDate = piece ? evidenceDateLabel(piece.created_at, ko ? "ko" : "en") : null;
 
   // Honest briefing: real count or a neutral empty prompt — never a fabricated
   // "N% was work" analysis.
@@ -218,6 +298,37 @@ export default function DomainStarScreen() {
       action={<StarHeaderAction caption={headerMeta} level={level} />}
     >
       <ScrollView contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
+        {/* P1: 보낸 곳이 가리킨 조각. 이 영역에 담긴 것일 때만 뜬다. */}
+        {piece ? (
+          <View style={s.pieceSlot}>
+            <PixelPressable
+              variant="frame"
+              onPress={() =>
+                router.push(
+                  piece.origin === "source"
+                    ? { pathname: "/record/[id]", params: { id: piece.uuid, origin: "source" } }
+                    : { pathname: "/record/[id]", params: { id: piece.uuid } },
+                )
+              }
+              accessibilityLabel={`${t("star.pieceHere")}. ${pieceTitle}`}
+              accessibilityHint={t("star.pieceOpenHint")}
+              fullWidth
+              contentStyle={s.pieceCard}
+            >
+              <View style={s.pieceCopy}>
+                <RNText style={[m3TextStyle("labelMedium"), s.pieceEyebrow]}>{t("star.pieceHere")}</RNText>
+                <RNText numberOfLines={2} style={[m3TextStyle("bodyLarge"), s.pieceTitle]}>
+                  {pieceTitle}
+                </RNText>
+                {pieceDate ? (
+                  <RNText style={[m3TextStyle("bodySmall"), s.pieceDate]}>{pieceDate}</RNText>
+                ) : null}
+              </View>
+              <PixelGlyph name="chevronRight" color={m3.color.onSurfaceVariant} size={24} />
+            </PixelPressable>
+          </View>
+        ) : null}
+
         {/* 세컨비 briefing (honest) */}
         <MdCard variant="outlined" style={s.briefCard}>
           <SecondbHead size={30} track={false} />
@@ -290,4 +401,10 @@ const s = StyleSheet.create({
   actionBtn: { flex: 1 },
   stateCard: { marginTop: 18, padding: 16, gap: 8, alignItems: "center" },
   stateText: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, textAlign: "center" },
+  pieceSlot: { marginBottom: 14 },
+  pieceCard: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14 },
+  pieceCopy: { flex: 1, gap: 2 },
+  pieceEyebrow: { color: m3.color.primary, fontFamily: m3.font.brand },
+  pieceTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand },
+  pieceDate: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
 });

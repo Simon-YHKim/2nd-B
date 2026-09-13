@@ -287,6 +287,24 @@ describe("createRecord — typed domainIntent (별 담기 provenance)", () => {
       expect.objectContaining({ tags: ["domain:career"] }),
     );
   });
+
+  test("returns the tags it inserted, so a caller knows the record's area without a read (P1)", async () => {
+    // /capture 저장 카드가 이 값으로 영역 화면을 연다. 반환값이 insert 와 어긋나면 버튼이
+    // 그 기록이 없는 영역으로 보낸다 - 그래서 세 갈래(별 담기 · 감지 · collect) 모두 payload 와 맞춘다.
+    const cases = [
+      { body: "그냥 떠오른 생각", tags: ["mine"], domainIntent: "growth" as const, filed: ["domain:growth", "mine"] },
+      { body: "회사 면접 준비", tags: ["domain:finance", "voice"], domainIntent: undefined, filed: ["domain:career", "voice"] },
+      { body: "음...", tags: ["todo"], domainIntent: undefined, filed: ["domain:collect", "todo"] },
+    ];
+    for (const { body, tags, domainIntent, filed } of cases) {
+      mockInsert.mockClear();
+      const r = await createRecord({ userId: "u1", locale: "ko", kind: "note", body, tags, domainIntent });
+      expect(mockInsert).toHaveBeenCalledTimes(1);
+      const inserted = (mockInsert.mock.calls[0][0] as { tags: string[] }).tags;
+      expect(inserted).toEqual(filed);
+      expect(r.tags).toEqual(inserted);
+    }
+  });
 });
 
 // capture 화면의 domainIntent 배선. 컴포넌트 렌더 테스트는 이 저장소에서 막혀

@@ -129,6 +129,8 @@ import { reactExpression } from "@/lib/companion/expression";
 import { AdvisorFollowupNote } from "@/components/records/AdvisorFollowupNote";
 import { createRecord } from "@/lib/records/create";
 import { domainTagFor, isDomainTag, type DomainId } from "@/lib/persona/domain-stars";
+import { domainScreenRoute, filedDomainOf, lifeDomainOf } from "@/lib/records/domain-screen";
+import { pieceIdFor } from "@/lib/records/get-piece";
 import type { RecordFollowup } from "@/lib/records/followup";
 import { computeStreak } from "@/lib/journal/streak";
 import { dailyPrompt } from "@/lib/journal/daily-prompts";
@@ -644,10 +646,14 @@ function CaptureLegacySession({
   // J1: where the saved piece actually lives drives the success CTA. A journal
   // entry lands in `records` (기록 보관소) and gains the graph nothing, so
   // pointing its CTA at the graph sent the very first save to an unchanged
-  // screen; classified captures (`sources`) DO become graph nodes.
+  // screen; classified captures (`sources`) became graph nodes then. That graph
+  // home is archived now, and P1 decides where the CTA goes (savedTarget below).
   const [savedKind, setSavedKind] = useState<"records" | "source" | null>(null);
   const [savedMode, setSavedMode] = useState<Mode | null>(null);
   const [savedSourceId, setSavedSourceId] = useState<string | null>(null);
+  // P1: 저장한 것이 담긴 영역(없으면 null). 소스는 그 행의 생활 영역 태그(lifeDomainOf)로,
+  // 기록은 createRecord 가 붙여 돌려준 domain: 태그(filedDomainOf, collect 포함)로 정한다.
+  const [savedDomain, setSavedDomain] = useState<DomainId | null>(null);
   const [savedFollowup, setSavedFollowup] = useState<RecordFollowup | null>(null);
   // True when the last capture saved its body inline because the Storage
   // upload failed (CaptureResult.storagePending) — surfaced as a one-line
@@ -1819,6 +1825,7 @@ function CaptureLegacySession({
     // and left a "see the graph" CTA whose highlight id was gone (audit A-2).
     setSavedMode(null);
     setSavedSourceId(null);
+    setSavedDomain(null);
     setSavedTitle(null);
     setSavedKind(null);
     setSavedFollowup(null);
@@ -2391,22 +2398,33 @@ ${transcript}`;
 
   const hasOcrDraft = mode === "ocr" && body.trim().length > 0;
   const savedIsOcr = savedKind === "source" && savedMode === "ocr";
-  const openSavedGraph = () => {
-    if (savedSourceId) {
-      router.push({ pathname: "/", params: { highlightRecordId: savedSourceId } });
+  // P1: 저장 후 버튼 하나가 조각과 기록을 같은 규칙으로 보낸다.
+  //   - 조각 (Simon 결정 2026-09-13 22:26): 생활 영역 태그가 있으면 그 영역 화면 맨 위 카드로,
+  //     없으면(collect · 태그 없음) 그 조각의 상세로. 조각에는 영역을 자동으로 붙이지 않는다.
+  //   - 기록 (Simon 결정 2026-09-14 01:45): 일기 · 음성 · 할 일 · 4W1H 도 그 영역 화면 맨 위
+  //     카드로. 기록은 저장 때 domain: 태그를 반드시 하나 받고 못 찾으면 collect 라서, 그 기록은
+  //     /star/collect 목록에도 실제로 있다. 그래서 기록은 collect 로도 보낸다.
+  //   - id 를 모를 때만 기록 보관소로 간다.
+  // 예전에는 조각이 `/?highlightRecordId=<id>` 로 홈에 강조를 부탁했고(배송 홈에 받는 곳이 없었다),
+  // 기록은 영역과 무관하게 기록 상세나 기록 보관소 목록(일기는 id 를 안 남겼다)으로 갔다.
+  // 라벨 · 힌트는 savedTarget 을, 이동은 같은 순서(id -> 영역 -> 상세)의 판단을 따른다.
+  const savedOrigin = savedKind === "source" ? "source" : "record";
+  const savedTarget = !savedSourceId ? "records" : savedDomain ? "area" : "piece";
+  const savedAreaName = savedDomain ? t(`home:ds.home.domainName.${savedDomain}`) : "";
+  const openSavedDestination = () => {
+    if (!savedSourceId) {
+      router.push("/records");
       return;
     }
-    router.push("/");
-  };
-  // Post-save destination for records-path captures: open the just-saved
-  // /record/[id] when we have its id (voice/todo notes carry it), otherwise the
-  // records browser. Journal entries leave savedSourceId null → records list.
-  const openSavedRecord = () => {
-    if (savedSourceId) {
-      router.push({ pathname: "/record/[id]", params: { id: savedSourceId } });
+    if (savedDomain) {
+      router.push(domainScreenRoute(savedDomain, pieceIdFor(savedSourceId, savedOrigin)));
       return;
     }
-    router.push("/records");
+    if (savedOrigin === "source") {
+      router.push({ pathname: "/record/[id]", params: { id: savedSourceId, origin: "source" } });
+      return;
+    }
+    router.push({ pathname: "/record/[id]", params: { id: savedSourceId } });
   };
 
   const canSubmit = !!userId && !submitting && !extracting && !proposing && voicePhase === "idle" && (
@@ -2513,7 +2531,10 @@ ${transcript}`;
           setSavedTitle(savedTopic.length > 0 ? savedTopic : t("savedTitleFallback"));
           setSavedKind("records");
           setSavedMode("journal");
-          setSavedSourceId(null);
+          // P1: 저장 후 버튼이 이 일기를 그 영역 화면 맨 위에 보여준다. id 와 태그는 createRecord 가
+          // 방금 insert 한 값을 돌려받는다(다시 읽지 않는다). reset() 뒤에 둬야 reset 의 null 이 덮지 않는다.
+          setSavedSourceId(res.id);
+          setSavedDomain(filedDomainOf(res.tags));
           setSavedFollowup(res.followup ?? null);
           setSavedPending(false);
         }
@@ -2672,9 +2693,11 @@ ${transcript}`;
           setSavedTitle(savedBody.length > 0 ? savedBody : t("savedTitleFallback"));
           setSavedKind("records");
           setSavedMode(noteMode);
-          // Reuse savedSourceId as the just-saved record id so the success CTA can
-          // open /record/[id] for note-like captures too.
+          // Reuse savedSourceId as the just-saved record id, and keep the area
+          // createRecord filed it under (P1), so the success CTA can open this
+          // record at the top of its area screen.
           setSavedSourceId(res.id);
+          setSavedDomain(filedDomainOf(res.tags));
           setSavedFollowup(res.followup ?? null);
           setSavedPending(false);
         }
@@ -3096,6 +3119,7 @@ ${transcript}`;
           setSavedKind("source");
           setSavedMode(submittedMode);
           setSavedSourceId(result.source.id);
+          setSavedDomain(lifeDomainOf(result.source.tags));
           setSavedFollowup(null);
           setSavedPending(result.storagePending);
           // G3: a capture that landed as "inbox" (no specific format fit) is the
@@ -3382,7 +3406,8 @@ ${transcript}`;
             </View>
           ) : null}
 
-          {/* Import success → graph link (journal-capture pack §3/§7) */}
+          {/* Saved panel (journal-capture pack §3/§7). It used to link to the graph; the
+              button below now follows P1 (the area, the piece's detail, or 기록 보관소). */}
           {savedTitle ? (
             <PremiumCard style={styles.savedPanel}>
               <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
@@ -3425,27 +3450,18 @@ ${transcript}`;
                 </View>
               </View>
               <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm }}>
-                {/* J1: send the user where the piece actually IS — a journal
-                    save opens 기록 보관소 (it adds no graph node), a classified
-                    capture opens the graph it just lit up. */}
-                {savedKind === "records" ? (
-                  <PremiumButton
-                    label={t("saved.seeRecords")}
-                    variant="secondary"
-                    onPress={openSavedRecord}
-                    accessibilityHint={t("saved.seeRecordsHint")}
-                    style={{ flex: 1 }}
-                  />
-                ) : (
-                  <PremiumButton
-                    label={savedIsOcr ? t("saved.seeOcrGraph") : t("saved.seeGraph")}
-                    variant="secondary"
-                    onPress={openSavedGraph}
-                    accessibilityHint={savedIsOcr ? t("saved.seeOcrGraphHint") : t("saved.seeGraphHint")}
-                    style={{ flex: 1 }}
-                  />
-                )}
-                <PremiumButton label={t("saved.captureMore")} variant="ghost" onPress={() => { setSavedTitle(null); setSavedKind(null); setSavedMode(null); setSavedSourceId(null); setSavedFollowup(null); setSavedPending(false); }} style={{ flex: 1 }} />
+                {/* J1: send the user where the piece actually IS. A save, record or
+                    source, opens the area it was filed under with the piece at the
+                    top (P1), or its own detail when it has no area; 기록 보관소 is
+                    only the fallback when the id is unknown. */}
+                <PremiumButton
+                  label={savedTarget === "area" ? t("saved.seeArea", { area: savedAreaName }) : savedTarget === "piece" ? t("saved.seePiece") : t("saved.seeRecords")}
+                  variant="secondary"
+                  onPress={openSavedDestination}
+                  accessibilityHint={savedTarget === "area" ? t("saved.seeAreaHint", { area: savedAreaName }) : savedTarget === "piece" ? t("saved.seePieceHint") : t("saved.seeRecordsHint")}
+                  style={{ flex: 1 }}
+                />
+                <PremiumButton label={t("saved.captureMore")} variant="ghost" onPress={() => { setSavedTitle(null); setSavedKind(null); setSavedMode(null); setSavedSourceId(null); setSavedDomain(null); setSavedFollowup(null); setSavedPending(false); }} style={{ flex: 1 }} />
               </View>
             </PremiumCard>
           ) : null}
