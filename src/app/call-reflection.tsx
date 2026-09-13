@@ -21,7 +21,12 @@ import { useProgression } from "@/lib/progression/useProgression";
 import { createRecord } from "@/lib/records/create";
 import type { HotlineId } from "@/lib/safety/lexicon";
 import { m3 } from "@/lib/theme/m3";
-import { isAudioMime, MAX_AUDIO_FILE_BYTES, pickAudioFile } from "@/lib/wiki/capture-file";
+import {
+  isAudioMime,
+  MAX_AUDIO_FILE_BYTES,
+  pickAudioFile,
+  releasePickedFile,
+} from "@/lib/wiki/capture-file";
 
 type Phase = "idle" | "stt" | "result";
 type UiLocale = "en" | "ko" | "es" | "pt" | "id";
@@ -156,7 +161,7 @@ export default function CallReflection() {
     setNotice(null);
     setSelectedName(null);
 
-    let file;
+    let file: Awaited<ReturnType<typeof pickAudioFile>>;
     try {
       file = await pickAudioFile();
     } catch (e) {
@@ -164,59 +169,64 @@ export default function CallReflection() {
       if (mountedRef.current) setNotice(copy.pickFailed);
       return;
     }
-    if (!mountedRef.current || !file) return;
-    setSelectedName(file.name);
-
-    if (!isAudioMime(file.mimeType)) {
-      setNotice(copy.unsupported);
-      return;
-    }
-    if (file.size > MAX_AUDIO_FILE_BYTES) {
-      setNotice(t("file.audioTooLarge", { mb: Math.floor(MAX_AUDIO_FILE_BYTES / 1_000_000) }));
-      return;
-    }
-
-    const controller = new AbortController();
-    transcribeAbortRef.current?.abort();
-    transcribeAbortRef.current = controller;
-    setPhase("stt");
+    if (!file) return;
     try {
-      const { base64 } = await recordingUriToBase64(file.uri);
-      const reply = await transcribeAudio({
-        userId,
-        locale,
-        base64,
-        // DocumentPicker's normalized MIME is more reliable for file:// URIs
-        // than the blob type returned by fetch on Android.
-        mimeType: file.mimeType,
-        minor: isMinor === true,
-        signal: controller.signal,
-      });
-      if (!mountedRef.current || transcribeAbortRef.current !== controller) return;
+      if (!mountedRef.current) return;
+      setSelectedName(file.name);
 
-      // C9: a red-zone transcript is swapped server-side for the fixed crisis
-      // response. Route to the hotline instead of showing or saving that text.
-      if (reply.safety?.zone === "red") {
-        setPhase("idle");
-        setSelectedName(null);
-        setCrisis({ visible: true, hotline: hotlineFor(ko, isMinor === true) });
+      if (!isAudioMime(file.mimeType)) {
+        setNotice(copy.unsupported);
         return;
       }
-      const text = reply.text.trim();
-      if (text.length === 0) {
-        setPhase("idle");
-        setNotice(t("file.transcriptEmpty"));
+      if (file.size > MAX_AUDIO_FILE_BYTES) {
+        setNotice(t("file.audioTooLarge", { mb: Math.floor(MAX_AUDIO_FILE_BYTES / 1_000_000) }));
         return;
       }
-      setTranscript(text);
-      setPhase("result");
-    } catch (e) {
-      if (isAbortError(e) || !mountedRef.current || transcribeAbortRef.current !== controller) return;
-      if (typeof console !== "undefined") console.warn("[call-reflection] transcribe failed", (e as Error).message);
-      setPhase("idle");
-      setNotice(t("file.transcribeFailed"));
+
+      const controller = new AbortController();
+      transcribeAbortRef.current?.abort();
+      transcribeAbortRef.current = controller;
+      setPhase("stt");
+      try {
+        const { base64 } = await recordingUriToBase64(file.uri);
+        const reply = await transcribeAudio({
+          userId,
+          locale,
+          base64,
+          // DocumentPicker's normalized MIME is more reliable for file:// URIs
+          // than the blob type returned by fetch on Android.
+          mimeType: file.mimeType,
+          minor: isMinor === true,
+          signal: controller.signal,
+        });
+        if (!mountedRef.current || transcribeAbortRef.current !== controller) return;
+
+        // C9: a red-zone transcript is swapped server-side for the fixed crisis
+        // response. Route to the hotline instead of showing or saving that text.
+        if (reply.safety?.zone === "red") {
+          setPhase("idle");
+          setSelectedName(null);
+          setCrisis({ visible: true, hotline: hotlineFor(ko, isMinor === true) });
+          return;
+        }
+        const text = reply.text.trim();
+        if (text.length === 0) {
+          setPhase("idle");
+          setNotice(t("file.transcriptEmpty"));
+          return;
+        }
+        setTranscript(text);
+        setPhase("result");
+      } catch (e) {
+        if (isAbortError(e) || !mountedRef.current || transcribeAbortRef.current !== controller) return;
+        if (typeof console !== "undefined") console.warn("[call-reflection] transcribe failed", (e as Error).message);
+        setPhase("idle");
+        setNotice(t("file.transcribeFailed"));
+      } finally {
+        if (transcribeAbortRef.current === controller) transcribeAbortRef.current = null;
+      }
     } finally {
-      if (transcribeAbortRef.current === controller) transcribeAbortRef.current = null;
+      await releasePickedFile(file);
     }
   }
 
