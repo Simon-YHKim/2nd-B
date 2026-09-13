@@ -114,15 +114,16 @@ describe("자동 저장이 전제한 '되돌릴 길'", () => {
     expect(screenStart).toBeGreaterThan(0);
     expect(detail.indexOf("await deleteCapturedSource(userId, sourceId)")).toBeGreaterThan(screenStart);
 
-    // 순서: 승격 페이지 -> source 행 -> 본문. 동작은 delete-captured-source.test.ts 가
-    // 실제로 돌려 본다. 여기서는 그 셋이 한 함수에 다 있는지만 본다.
+    // 순서: 원문 -> 승격 페이지 -> source 행. r3as F-02 로 원문을 맨 앞으로 옮겼다 - 원문을 못 지우면
+    // 행이 남아 다시 시도할 수 있다. 동작은 delete-captured-source.test.ts 가 실제로 돌려 본다.
+    // 여기서는 그 셋이 한 함수에 다 있는지만 본다.
     const lib = read("src/lib/wiki/delete-captured-source.ts");
+    const body = lib.indexOf("await deleteRawClipping(path)");
     const page = lib.indexOf("await deleteWikiPage(userId, page.id)");
     const row = lib.indexOf('.delete({ count: "exact" })');
-    const body = lib.indexOf("await deleteRawClipping(path)");
-    expect(page).toBeGreaterThan(0);
+    expect(body).toBeGreaterThan(0);
+    expect(page).toBeGreaterThan(body);
     expect(row).toBeGreaterThan(page);
-    expect(body).toBeGreaterThan(row);
   });
 
   test("배송 코드는 행만 지우는 deleteSource 를 부르지 않는다 - 본문이 남기 때문이다", () => {

@@ -399,11 +399,14 @@ export function DeepSpaceRecordDetailScreen() {
     [],
   );
 
-  const announceActionError = useCallback(() => {
-    const message = t("deepspace:recordDetail.actionFailed");
-    setActionError(message);
-    AccessibilityInfo.announceForAccessibility(message);
-  }, [t]);
+  // 기본은 저장 실패 문구다. 자료 삭제는 무엇이 남았는지를 따로 말한다(r3as F-02).
+  const announceActionError = useCallback(
+    (message: string = t("deepspace:recordDetail.actionFailed")) => {
+      setActionError(message);
+      AccessibilityInfo.announceForAccessibility(message);
+    },
+    [t],
+  );
 
   useEffect(() => {
     locksRef.current = { edit: null, tags: null, delete: null, promote: null };
@@ -731,7 +734,7 @@ export function DeepSpaceRecordDetailScreen() {
 
   // 담아 둔 자료(source) 한 건 삭제 (Q-260914-01 B, 2026-09-14). 대화 자동 저장이 쓰는 곳이
   // sources 이고 담긴 대화가 보이는 곳이 이 화면이라, 여기 없으면 배송 앱에는 자동 저장을
-  // 한 건씩 되돌릴 길이 없다. 순서(승격 페이지 -> 행 -> 본문)는 delete-captured-source.ts
+  // 한 건씩 되돌릴 길이 없다. 순서(원문 -> 승격 페이지 -> 행)는 delete-captured-source.ts
   // 가 지고, 이 화면은 확인 창을 거쳐서만 부른다. 잠금은 record 삭제와 같은 delete 칸을 쓴다.
   const handleDeleteSource = useCallback(async () => {
     if (
@@ -751,8 +754,20 @@ export function DeepSpaceRecordDetailScreen() {
       const sourceId = recordId.startsWith(SOURCE_ID_PREFIX)
         ? recordId.slice(SOURCE_ID_PREFIX.length)
         : recordId;
-      await deleteCapturedSource(userId, sourceId);
+      const outcome = await deleteCapturedSource(userId, sourceId);
       if (!isCurrent(identity)) return;
+      if (outcome !== "deleted") {
+        // 지워지지 않았거나 일부만 지워졌다(r3as F-02). 성공처럼 뒤로 가지 않고 확인 창에 머물러
+        // 무엇이 남았는지 말한다. 다시 누르면 남은 것부터 이어서 지운다.
+        announceActionError(
+          t(
+            outcome === "partly_deleted"
+              ? "deepspace:recordDetail.deleteSourcePartial"
+              : "deepspace:recordDetail.deleteSourceFailed",
+          ),
+        );
+        return;
+      }
       reactExpression("sad");
       router.canGoBack() ? router.back() : router.replace("/records");
     } catch {
@@ -761,7 +776,7 @@ export function DeepSpaceRecordDetailScreen() {
       if (locksRef.current.delete === identity) locksRef.current.delete = null;
       if (isCurrent(identity)) setDeleting(false);
     }
-  }, [announceActionError, identity, isCurrent, primary, recordId, userId]);
+  }, [announceActionError, identity, isCurrent, primary, recordId, t, userId]);
 
   const readyPiece =
     primary.status === "ready" && primary.identity === identity ? primary.piece : null;

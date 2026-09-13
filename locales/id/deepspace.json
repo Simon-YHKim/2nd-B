@@ -132,6 +132,8 @@
     "a11yDeleteSource": "Hapus konten tersimpan ini",
     "deleteSourceConfirmTitle": "Hapus konten tersimpan ini?",
     "deleteSourceConfirmBody": "Teks tersimpan dan halaman wiki yang dibuat darinya akan dihapus. Ini tidak bisa dibatalkan.",
+    "deleteSourceFailed": "Konten tersimpan ini gagal dihapus. Coba lagi.",
+    "deleteSourcePartial": "Baru sebagian yang terhapus dan konten tersimpan ini masih ada. Coba lagi untuk menyelesaikan.",
     "editSave": "Simpan",
     "actionFailed": "Perubahan gagal disimpan. Periksa koneksimu dan coba lagi.",
     "assessmentBody": "Jawaban mentah dari survei laporan diri. Hasil yang tertata ada di layarnya sendiri.",

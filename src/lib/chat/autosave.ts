@@ -59,11 +59,13 @@
 //    지우는 길도 없었다(`deleteSource` 호출부는 `inbox.tsx` 의 `InboxLegacy` 뿐).
 // 3. 그래서 같은 날 범위를 넓혔다(Q-260914-01 B). **배송에서 대화 한 건을 되돌릴 길이 생겼다.**
 //    배송 기록 상세(`dds-record-detail-screen.tsx`)가 담긴 자료 한 건을 지운다. 순서는
-//    `lib/wiki/delete-captured-source.ts` 가 진다: 승격된 위키 페이지 -> source 행 ->
-//    raw-clippings 본문. 커밋 "feat(records): delete a single captured source from the
+//    `lib/wiki/delete-captured-source.ts` 가 진다: raw-clippings 원문 -> 승격된 위키 페이지 ->
+//    source 행. 커밋 "feat(records): delete a single captured source from the
 //    shipped detail screen". `queries.ts` 의 deleteSource 주석이 적은 "Storage 정리는
 //    자동화 안 됨" 은 **이 길에서만** 바뀌었다. deleteSource 와 /settings 일괄 삭제는
-//    여전히 본문을 남긴다. 본문 삭제는 best-effort 라 실패해도 행 삭제를 되돌리지 않는다.
+//    여전히 본문을 남긴다. 원문을 못 지우면 행을 건드리지 않고 실패를 돌려주고(다시 시도할 수
+//    있게), 원문을 지운 뒤 행에서 실패하면 일부만 지워졌다고 알린다. r3as F-02 로 바꿨다 - 처음에는
+//    본문을 맨 끝에 best-effort 로 지우고 실패해도 성공이라 했다.
 //
 // ## 미성년
 //

@@ -132,6 +132,8 @@
     "a11yDeleteSource": "Excluir este conteúdo salvo",
     "deleteSourceConfirmTitle": "Excluir este conteúdo salvo?",
     "deleteSourceConfirmBody": "O texto salvo e qualquer página wiki criada a partir dele serão excluídos. Isso não pode ser desfeito.",
+    "deleteSourceFailed": "Não foi possível excluir este conteúdo salvo. Tente de novo.",
+    "deleteSourcePartial": "Só uma parte foi excluída e o conteúdo salvo ainda está aqui. Tente de novo para concluir.",
     "editSave": "Salvar",
     "actionFailed": "Não foi possível salvar a alteração. Verifique sua conexão e tente novamente.",
     "assessmentBody": "Respostas que você deu ao questionário. Veja a análise na tela de resultados.",

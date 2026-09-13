@@ -132,6 +132,8 @@
     "a11yDeleteSource": "Eliminar este contenido guardado",
     "deleteSourceConfirmTitle": "¿Eliminar este contenido guardado?",
     "deleteSourceConfirmBody": "Se eliminarán el texto guardado y cualquier página wiki creada a partir de él. Esto no se puede deshacer.",
+    "deleteSourceFailed": "No se pudo eliminar este contenido guardado. Inténtalo de nuevo.",
+    "deleteSourcePartial": "Solo se eliminó una parte y el contenido guardado sigue aquí. Inténtalo de nuevo para terminar.",
     "editSave": "Guardar",
     "actionFailed": "No se pudo guardar el cambio. Revisa tu conexión e inténtalo de nuevo.",
     "assessmentBody": "Estas son tus respuestas al cuestionario. El resultado se muestra en la pantalla del test.",
