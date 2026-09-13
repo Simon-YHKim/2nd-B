@@ -90,6 +90,7 @@ import { SecondBSprite } from "@/components/art/SecondBSprite";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { PremiumAppShell, ContextPill, ReferenceShardCard, SceneHero } from "@/components/premium";
 import { InlineLoader } from "@/components/ui/InlineLoader";
+import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRetry";
 import { ChatRewardCapReachedError, grantChatAdBonus, readChatUsageDetail } from "@/lib/chat/usage";
 import { CHAT_DAILY_LIMIT, chatAllowance, kstDateToday } from "@/lib/chat/limits";
 import { RewardedSheet, type RewardedEarnOutcome } from "@/components/deepspace/RewardedSheet";
@@ -1049,10 +1050,11 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     return <Redirect href="/sign-in" />;
   }
   // A FAILED probe is not a missing profile: ejecting to /complete-profile on
-  // a network blip stranded real accounts (flow-map /secondb). Unknown = hold
-  // the loader (C10: never admit an unknown profile to an LLM surface either);
-  // the retry effect above re-probes until the server actually answers.
-  if (hasProfile === false && profileProbeFailed) return <InlineLoader />;
+  // a network blip stranded real accounts (flow-map /secondb). Unknown still
+  // never reaches this LLM surface (C10), but it is not a loader either: the
+  // effect above re-probes once after 2s, and when that failed too nothing lifted
+  // the loader (the T1a item 2 shape). Show the retryable error, with no dock.
+  if (hasProfile === false && profileProbeFailed) return <ProfileProbeRetryScreen />;
   // OAuth mints a session before the profile/DOB + PIPA consent exist. A
   // no-profile session must not reach an LLM/crisis surface: route it to
   // /complete-profile (C10 age gate + consent; also fixes minor crisis-routing,

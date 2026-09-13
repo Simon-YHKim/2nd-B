@@ -225,14 +225,18 @@ describe("인터뷰 화면이 엄격한 라우트 계약을 지킨다", () => {
     expect(resolver).toBeGreaterThan(missingProfileGate);
   });
 
-  it("실패한 프로필 프로브는 로더에 고정하지 않고 다시 확인한다", () => {
-    expect(INTERVIEW_SCREEN).toContain("hasProfile !== false || !profileProbeFailed");
-    expect(INTERVIEW_SCREEN).toContain("void refresh()");
-    expect(INTERVIEW_SCREEN).toContain("PROFILE_RETRY_INITIAL_MS = 2_000");
-    expect(INTERVIEW_SCREEN).toContain("PROFILE_RETRY_MAX_MS = 30_000");
-    expect(INTERVIEW_SCREEN).toContain("retryDelayMs = Math.min(retryDelayMs * 2");
-    expect(INTERVIEW_SCREEN).toContain("active = false");
-    expect(INTERVIEW_SCREEN).toContain("clearTimeout(timer)");
+  // 여기 원래 "화면이 2초에서 30초 상한까지 늘리며 refresh() 를 되풀이한다" 를 성공 조건으로
+  // 박았다. 그 루프가 refresh() 안의 한도 재시도를 매번 새로 시작해 총 시도 수를 끝없이
+  // 만들었다(vibe r260914 게이트 발견, medium). 이제 화면은 스스로 다시 묻지 않고 공용 다시
+  // 시도를 그린다(사람이 누를 때만 refresh). 총량은 profile-probe-retry-budget.test.ts 가 잰다.
+  it("실패한 프로필 프로브는 로더에 고정하지 않고, 스스로 되풀이하지 않고, 다시 시도를 그린다", () => {
+    expect(INTERVIEW_SCREEN).toContain(
+      'if (profileProbeFailed) return <ProfileProbeRetryScreen title={t("title")} />;',
+    );
+    expect(INTERVIEW_SCREEN).not.toContain("void refresh()");
+    expect(INTERVIEW_SCREEN).not.toContain("PROFILE_RETRY_INITIAL_MS");
+    expect(INTERVIEW_SCREEN).not.toContain("PROFILE_RETRY_MAX_MS");
+    expect(INTERVIEW_SCREEN).not.toContain("retryDelayMs");
   });
 
   it("누락·오류·잠금·정상 시기를 서로 다른 화면 상태로 유지한다", () => {

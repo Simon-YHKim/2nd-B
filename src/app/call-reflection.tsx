@@ -145,7 +145,8 @@ export default function CallReflection() {
 
   // Keep the existing adult + KR availability gate. F3 changes the capture
   // mechanism, not the consent and jurisdiction scope of recorded call files.
-  if (!ko || isMinor === true) {
+  // Adult means confirmed: an age we do not know yet (isMinor null) stays blocked.
+  if (!ko || isMinor !== false) {
     return (
       <DeepSpaceScreen active="home" variant="windowed" header="none" title={copy.title} onBack={() => router.back()}>
         <View style={s.blockedWrap}>
