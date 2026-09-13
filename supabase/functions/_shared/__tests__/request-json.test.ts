@@ -142,6 +142,71 @@ describe('readJsonObject', () => {
     });
     expect(cancelled).toBe(true);
   });
+
+  it('rejects and cancels a stream that repeatedly makes zero-byte progress', async () => {
+    let pulls = 0;
+    let cancelled = false;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulls += 1;
+        if (pulls <= 100) controller.enqueue(new Uint8Array());
+        else controller.close();
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    const request = { body: stream, headers: new Headers() } as Request;
+
+    await expect(readJsonObject(request, 64)).rejects.toMatchObject({ code: 'invalid_json' });
+    expect(pulls).toBeLessThan(100);
+    expect(cancelled).toBe(true);
+  });
+
+  it('rejects fragmentation independently of the byte budget', async () => {
+    let pulls = 0;
+    let cancelled = false;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulls += 1;
+        if (pulls <= 5_000) controller.enqueue(Uint8Array.of(0x20));
+        else if (pulls === 5_001) controller.enqueue(bytes('{}'));
+        else controller.close();
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    const request = { body: stream, headers: new Headers() } as Request;
+
+    await expect(readJsonObject(request, 8_192)).rejects.toMatchObject({ code: 'invalid_json' });
+    expect(pulls).toBeLessThan(5_000);
+    expect(cancelled).toBe(true);
+  });
+
+  it('cancels a stalled request body at the read deadline', async () => {
+    jest.useFakeTimers();
+    try {
+      let cancelled = false;
+      const stream = new ReadableStream<Uint8Array>({
+        pull() {
+          return new Promise<void>(() => undefined);
+        },
+        cancel() {
+          cancelled = true;
+        },
+      });
+      const request = { body: stream, headers: new Headers() } as Request;
+      const rejection = expect(readJsonObject(request, 64)).rejects.toMatchObject({
+        code: 'invalid_json',
+      });
+      await jest.advanceTimersByTimeAsync(15_000);
+      await rejection;
+      expect(cancelled).toBe(true);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });
 
 describe('Edge Function request-body caps', () => {
