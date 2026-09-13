@@ -9,6 +9,7 @@
 import { getSupabaseClient } from "./client";
 import { recordHealthImportConsent } from "./consent";
 import { resolvePrivacyPrefs, PRIVACY_PREF_KEYS, type PrivacyPrefs } from "../privacy/prefs";
+import { publishPrivacyPrefsSaved } from "../privacy/pref-changes";
 
 export async function fetchPrivacyPrefs(userId: string): Promise<PrivacyPrefs> {
   try {
@@ -75,6 +76,9 @@ export async function savePrivacyPrefs(
   const before = await fetchPrivacyPrefs(userId);
   const { error } = await supabase.from("users").update({ privacy_prefs: prefs }).eq("id", userId);
   if (error) throw error;
+  // r3as H1: tell still-mounted screens what was just written (the chat screen stays in
+  // the Stack behind /privacy), before the best-effort ledger append below.
+  publishPrivacyPrefsSaved(userId, prefs);
   // Append only AFTER a successful write (a failed save recorded no consent
   // change). Best-effort and never rethrows, so the change ledger can't break
   // the settings save.
@@ -143,6 +147,7 @@ export async function savePrivacyPref(
   const { error } = await supabase.from("users").update({ privacy_prefs: written }).eq("id", userId);
   if (error) throw error;
   const after = resolvePrivacyPrefs(written);
+  publishPrivacyPrefsSaved(userId, after); // r3as H1, as in savePrivacyPrefs
   // Same ledger rows and sensitive-data record as savePrivacyPrefs, on the same edges.
   await recordConsentChanges(userId, before, after);
   if (key === "health_import" && before.health_import === false && after.health_import === true) {

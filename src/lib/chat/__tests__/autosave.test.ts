@@ -72,7 +72,9 @@ describe("대화 화면 배선", () => {
 
   it("프리퍼런스를 못 읽으면 저장하지 않는다", () => {
     // fetch 실패 경로가 null 로 남으면 게이트가 열린 채 방치된다.
-    expect(screen).toContain("setAutosaveConsent(false)");
+    // r3as H1 부터 동의 값은 applyAutosaveConsent 한 곳을 지난다(첫 읽기 · 돌아왔을 때 · 저장 소식 ·
+    // 담기 직전 확인). 끄는 쪽이 그 함수로 가는지를 본다.
+    expect(screen).toContain("applyAutosaveConsent(false); // 읽지 못하면 저장하지 않는다");
   });
 
   it("자동 경로가 수동 경로와 같은 함수를 쓴다", () => {

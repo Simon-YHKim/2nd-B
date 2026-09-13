@@ -197,6 +197,12 @@ describe("자동 담기는 실패를 삼키지 않는다", () => {
       turns: [PROMPT, REPLY],
       isKeepable: (turn: { role: string }) => turn.role === "secondb",
       autoKeptRef: ref,
+      // r3as H1: 동의를 확인하기 전부터 있던 턴 집합, 담기 직전의 서버 확인, 확인 결과를 화면에
+      // 반영하는 함수. 이 묶음은 실패 되돌림만 보므로 확인은 늘 켜짐으로 돌려준다 - 확인 자체는
+      // secondb-autosave-consent-roundtrip.test.ts 가 실제 저장 경로로 돌린다.
+      autosaveBeforeRef: { current: new WeakSet<object>() },
+      readPrivacyPrefs: async () => ({ ok: true, prefs: { chat_autosave: true } }),
+      applyAutosaveConsent: () => undefined,
       keptIdx: new Set<number>(),
       keepExchange: async (index: number) => { calls.push(index); return ok; },
     };
@@ -204,23 +210,24 @@ describe("자동 담기는 실패를 삼키지 않는다", () => {
     return { ref, calls };
   }
 
+  // 담기 직전 확인이 비동기 한 단계를 더 거친다. 몇 번의 마이크로태스크로 세지 않고 한 바퀴를 기다린다.
+  const settle = (): Promise<void> => new Promise((done) => setImmediate(done));
+
   test("동의가 켜져 있으면 마지막 담을 수 있는 턴을 한 번 담는다", async () => {
     const host = autosaveHost(true);
-    await Promise.resolve();
+    await settle();
     expect(host.calls).toEqual([1]);
   });
 
   test("성공하면 다시 담지 않도록 표시가 남는다", async () => {
     const host = autosaveHost(true);
-    await Promise.resolve();
-    await Promise.resolve();
+    await settle();
     expect(host.ref.current.has(1)).toBe(true);
   });
 
   test("실패하면 표시를 되돌려 다시 담을 수 있게 한다", async () => {
     const host = autosaveHost(false);
-    await Promise.resolve();
-    await Promise.resolve();
+    await settle();
     expect(host.ref.current.has(1)).toBe(false);
   });
 });

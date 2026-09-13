@@ -36,7 +36,9 @@ import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelScrim } from "@/components/pixel/PixelDither";
 import { canShowRewardedAds } from "@/lib/ads/policy";
 import { canCompleteRewardedWatch } from "@/lib/ads/rewarded";
-import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
+import { fetchPrivacyPrefs, readPrivacyPrefs } from "@/lib/supabase/privacy";
+import { subscribePrivacyPrefsSaved } from "@/lib/privacy/pref-changes";
+import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
@@ -747,6 +749,26 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // 만들 이유가 없다. null 은 "아직 모른다" 이고, 그 상태에서는 자동 저장이
   // 돌지 않는다(fail-closed). 광고 동의와 같은 자세다.
   const [autosaveConsent, setAutosaveConsent] = useState<boolean | null>(null);
+  // ⚠ r3as H1 (2026-09-14). 이 화면은 /privacy 에 가 있는 동안에도 Stack 에 남는다. 처음 한 번 읽은
+  // 값만 들고 있었더니, 설정에서 끄고(원장에 revoke 까지 남기고) 돌아와도 새 답변을 철회된 동의로 계속
+  // 담았고, 켜고 돌아와도 담지 않았다. 그래서 동의를 네 길로 새로 고친다: 첫 읽기 · 돌아왔을 때 다시
+  // 읽기 · 같은 앱의 설정 저장 소식 · 자동으로 담기 직전의 서버 확인. 넷 다 applyAutosaveConsent 를 지난다.
+  const autosaveConsentRef = useRef<boolean | null>(null);
+  // 동의가 켜진 것을 이 화면이 확인한 순간 이미 화면에 있던 턴. 자동으로 담지 않는다 - 켜기 전에 오간
+  // 말은 사라질 거라 생각하고 한 말이다. 인덱스가 아니라 턴 객체로 기억한다. "새 대화" 가 목록을 비우면
+  // 같은 인덱스에 다른 턴이 온다.
+  const autosaveBeforeRef = useRef<WeakSet<ChatTurn>>(new WeakSet());
+  const turnsRef = useRef(turns);
+  turnsRef.current = turns;
+  const [prefsReadKey, setPrefsReadKey] = useState(0);
+  useFocusRefetch(() => setPrefsReadKey((k) => k + 1), Boolean(userId));
+  function applyAutosaveConsent(allowed: boolean) {
+    if (allowed && autosaveConsentRef.current !== true) {
+      autosaveBeforeRef.current = new WeakSet(turnsRef.current);
+    }
+    autosaveConsentRef.current = allowed;
+    setAutosaveConsent(allowed);
+  }
   // 대화가 남지 않는다는 사실을 한 번만 알린다 (Simon 결정 B1).
   const { dismissed: saveNoticeDismissed, dismiss: dismissSaveNotice } = useChatSaveNoticeDismissed();
   useEffect(() => {
@@ -756,16 +778,30 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
       .then((prefs) => {
         if (cancelled) return;
         setAdsConsent(prefs.ads === true);
-        setAutosaveConsent(prefs.chat_autosave === true);
+        applyAutosaveConsent(prefs.chat_autosave === true);
       })
       .catch(() => {
         if (cancelled) return;
         setAdsConsent(false); // fetch failure = no rewarded entry
-        setAutosaveConsent(false); // 읽지 못하면 저장하지 않는다
+        applyAutosaveConsent(false); // 읽지 못하면 저장하지 않는다
       });
     return () => {
       cancelled = true;
     };
+    // applyAutosaveConsent 는 ref 와 setState 만 만진다 - 어느 렌더의 것을 불러도 같다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, prefsReadKey]);
+
+  // 같은 앱에서 설정 저장이 성공하면 바로 반영한다. 돌아왔을 때 다시 읽기만으로는 늦다 - 설정 화면에
+  // 있는 동안에도 이 화면은 답변을 받는다.
+  useEffect(() => {
+    if (!userId) return;
+    return subscribePrivacyPrefsSaved((savedUserId, prefs) => {
+      if (savedUserId !== userId) return;
+      setAdsConsent(prefs.ads === true);
+      applyAutosaveConsent(prefs.chat_autosave === true);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   // 자동 저장: 동의가 켜져 있으면 새로 도착한 답변을 담는다.
@@ -784,13 +820,25 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     const idx = turns.length - 1;
     const last = turns[idx];
     if (!last || !isKeepable(last)) return;
+    // 동의가 켜진 것을 확인하기 전부터 화면에 있던 턴이다. 소급해서 담지 않는다.
+    if (autosaveBeforeRef.current.has(last)) return;
     if (autoKeptRef.current.has(idx) || keptIdx.has(idx)) return;
     autoKeptRef.current.add(idx);
-    // 실패하면 표시를 되돌린다. 되돌리지 않으면 일시적인 실패 한 번에 그 턴이
-    // 영구히 빠지고, 동의를 명시적으로 켠 사용자가 정확히 손해를 본다. 되돌림이
-    // 자동 재시도를 보장하지는 않는다 - 수동 담기 칩이 다시 열릴 뿐이다.
-    void keepExchange(idx).then((kept) => {
-      if (!kept) autoKeptRef.current.delete(idx);
+    // 담기 직전에 서버의 최신 동의를 다시 읽는다(r3as H1). 들고 있는 값은 다른 기기에서 끈 것까지는
+    // 모른다. 못 읽으면 담지 않고 이 턴은 다시 시도하지 않는다 - 확인하지 못한 동의로 담느니 수동 담기
+    // 칩을 남긴다(fail-closed). 꺼진 것이 확인되면 화면 값도 끈다.
+    void readPrivacyPrefs(userId).then((read) => {
+      if (!read.ok) return;
+      if (read.prefs.chat_autosave !== true) {
+        applyAutosaveConsent(false);
+        return;
+      }
+      // 실패하면 표시를 되돌린다. 되돌리지 않으면 일시적인 실패 한 번에 그 턴이
+      // 영구히 빠지고, 동의를 명시적으로 켠 사용자가 정확히 손해를 본다. 되돌림이
+      // 자동 재시도를 보장하지는 않는다 - 수동 담기 칩이 다시 열릴 뿐이다.
+      void keepExchange(idx).then((kept) => {
+        if (!kept) autoKeptRef.current.delete(idx);
+      });
     });
     // keepExchange 는 setState 로 keptIdx 를 갱신하므로 의존성에 넣으면 루프가
     // 된다. autoKeptRef 가 중복 실행을 막는 실제 가드다.
