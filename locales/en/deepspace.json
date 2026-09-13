@@ -25,7 +25,8 @@
     "backlinks": "Linked records {{count}}",
     "connections": "Links {{count}}",
     "viewList": "List",
-    "viewGraph": "Graph"
+    "viewGraph": "Graph",
+    "deleteFailed": "Couldn't delete this page. Please try again."
   },
   "research": {
     "title": "Find connections",

@@ -196,6 +196,13 @@ describe("deep-space records source detail routing", () => {
       // the neighbouring renderer alone -- only the baseline moved.
       "af7dca5422fa20f4ddf5bc5be1dd2d082178abf124c97bf6f892e79cc9ed1143",
     );
-    expect(sha256(wiki)).toBe("caa3ad24cbf6497c7958454a0b68b239e0b9faebfa658980687de5cc0d75008a");
+    expect(sha256(wiki)).toBe(
+      // Re-pinned on 2026-09-14 (Q-260914-01): the wiki screen gained its single-page
+      // delete (confirm modal, reload after delete). That change is intentional and has
+      // its own contract in wiki-page-delete.test.ts; this pin still proves the
+      // record-detail extraction never reaches into the wiki renderer. Previous digest:
+      // caa3ad24cbf6497c7958454a0b68b239e0b9faebfa658980687de5cc0d75008a.
+      "a4b4bcce0823255c3842d110d90aa2c30b12f8f40e9ff26f3190258ccbe1d2b1",
+    );
   });
 });

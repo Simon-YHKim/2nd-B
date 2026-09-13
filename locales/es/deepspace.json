@@ -25,7 +25,8 @@
     "backlinks": "Registros enlazados {{count}}",
     "connections": "Enlaces {{count}}",
     "viewList": "Lista",
-    "viewGraph": "Grafo"
+    "viewGraph": "Grafo",
+    "deleteFailed": "No se pudo eliminar esta página. Inténtalo de nuevo."
   },
   "research": {
     "title": "Encontrar conexiones",

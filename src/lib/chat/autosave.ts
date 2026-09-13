@@ -44,6 +44,20 @@
 // 배송 화면에 넣기) 다르게 볼지는 Simon 결정이다.
 // 검사: `src/lib/privacy/__tests__/autosave-undo-path.test.ts`
 //
+// ⚠ **2026-09-14 정정 (Q-260914-01).** 두 가지를 적는다.
+//
+// 1. 바뀐 것. 배송 위키 화면이 한 장을 지운다. `dds-wiki-records-screens.tsx` 의
+//    `DeepSpaceWikiScreen` 이 확인 단계 뒤 `deleteWikiPage` 를 부른다. 같은 날 배송
+//    `/privacy`(`DeepSpaceDesignScreens.tsx` 의 `DeepSpacePrivacyDesignScreen`)에도 이
+//    토글이 생겼다(커밋 "feat(privacy): add the chat autosave switch to the shipped
+//    privacy screen"). 그 전에는 켜는 토글도 레거시 반쪽에만 있었다.
+// 2. 틀렸던 것. 위 전제 문단은 담긴 대화를 위키 **페이지**로 읽는데,
+//    자동 저장은 `sources` 에 쓴다(`secondb.tsx` keepExchange -> `captureFromMarkdown`
+//    -> `createSource`). 페이지는 사용자가 따로 "위키 페이지 만들기"로 승격할 때만
+//    생기고, `deleteWikiPage` 는 원본 source 를 지우지 않고 미수집으로 되돌린다. 그래서
+//    1 만으로는 자동 저장된 대화 한 건이 되돌려지지 **않는다.** 배송에서 source 한 건을
+//    지우는 길은 아직 없다(`deleteSource` 호출부는 `inbox.tsx` 의 `InboxLegacy` 뿐).
+//
 // ## 미성년
 //
 // 미성년도 켤 수 있다(`MINOR_PROMOTABLE_KEYS`). 바깥으로 나가는 것이 없기

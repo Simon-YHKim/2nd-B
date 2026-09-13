@@ -25,7 +25,8 @@
     "backlinks": "Catatan tertaut {{count}}",
     "connections": "Tautan {{count}}",
     "viewList": "Daftar",
-    "viewGraph": "Graf"
+    "viewGraph": "Graf",
+    "deleteFailed": "Halaman ini gagal dihapus. Coba lagi."
   },
   "research": {
     "title": "Cari keterkaitan",

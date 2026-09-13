@@ -25,7 +25,8 @@
     "backlinks": "연결된 기록 {{count}}",
     "connections": "연결 {{count}}",
     "viewList": "목록",
-    "viewGraph": "그래프"
+    "viewGraph": "그래프",
+    "deleteFailed": "페이지를 삭제하지 못했어요. 다시 시도해 주세요."
   },
   "research": {
     "title": "연결 찾기",

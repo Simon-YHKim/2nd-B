@@ -25,7 +25,8 @@
     "backlinks": "Registros vinculados {{count}}",
     "connections": "Conexões {{count}}",
     "viewList": "Lista",
-    "viewGraph": "Mapa"
+    "viewGraph": "Mapa",
+    "deleteFailed": "Não foi possível excluir esta página. Tente de novo."
   },
   "research": {
     "title": "Encontrar conexões",
