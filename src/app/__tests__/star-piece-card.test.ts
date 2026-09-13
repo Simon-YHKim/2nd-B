@@ -15,9 +15,11 @@ interface StoredPiece {
   id: string;
   userId: string;
   kind: string;
-  title: string;
+  /** 보통은 문자열이다. B1 은 모양이 틀린 행을 그대로 돌려주려고 아무 값이나 넣는다. */
+  title: unknown;
   createdAt: string;
-  tags: string[];
+  /** 보통은 문자열 배열이다. B1 은 모양이 틀린 행을 그대로 돌려주려고 아무 값이나 넣는다. */
+  tags: unknown;
 }
 
 interface EffectSlot {
@@ -74,7 +76,8 @@ function mockQuery(table: string) {
       if (!row || row.userId !== filters.get("user_id")) {
         return Promise.resolve({ data: null, error: null });
       }
-      const tags = [...row.tags];
+      // 배열은 복사해서 돌려준다(읽은 뒤에 표의 태그를 바꿔도 읽은 값은 그대로다). 배열이 아니면 그대로.
+      const tags = Array.isArray(row.tags) ? [...(row.tags as unknown[])] : row.tags;
       return Promise.resolve({
         data:
           table === "sources"
@@ -451,5 +454,59 @@ describe("/star/[domain] 카드 - 형식이 틀린 pieceId 는 읽지 않는다 
     await leaveAndReturn(screen);
     await screen.settle();
     expect({ card: cardLabel(screen), reads: mockSummaryReads }).toEqual({ card: null, reads: [] });
+  });
+});
+
+// 생성물 재게이트 B1 (PR #1812, 2026-09-14): 요약 행을 `as` 로 단언만 해서, 모양이 틀린 행이 오면 이 화면이
+// filedDomainOf 의 for...of(tags) 나 제목의 .trim() 에서 멈췄고, tags 가 "domain:collect" 같은 문자열이면
+// /star/collect 에 카드를 띄웠다. 스키마(tags text[] NOT NULL)상 정상으로는 오지 않는 행이지만, 오더라도 다른
+// 실패와 같이 카드 없음이어야 한다. 함수의 판정은 get-piece-summary.test.ts 가 재고, 여기서는 그 행을 받은
+// 화면이 멈추지 않고 카드를 비우는지를 잰다.
+describe("/star/[domain] 카드 - 모양이 틀린 요약 행은 카드 없음이다 (B1)", () => {
+  type Table = "records" | "sources";
+  type Broken = { title?: unknown; tags?: unknown };
+
+  /** 행을 표에 두고, 그 행을 가리키는 pieceId 를 돌려준다(소스는 src- 접두사). */
+  function fileRow(table: Table, domain: string, broken: Broken = {}): string {
+    mockRows.set(`${table}:${RECORD_ID}`, {
+      id: RECORD_ID,
+      userId: OWNER,
+      kind: "journal",
+      title: TITLE,
+      createdAt: "2026-09-13T10:00:00Z",
+      tags: [`domain:${domain}`],
+      ...broken,
+    });
+    return table === "sources" ? `src-${RECORD_ID}` : RECORD_ID;
+  }
+
+  // 대조: 아래에서 카드가 없는 것이 이 자리에 원래 카드가 안 뜨기 때문이 아니라는 것.
+  test.each<[Table, string]>([
+    ["records", "career"],
+    ["records", "collect"],
+    ["sources", "career"],
+  ])("대조 - 모양이 맞는 %s 행은 /star/%s 에서 카드가 뜬다", async (table, domain) => {
+    const pieceId = fileRow(table, domain);
+    const screen = await open({ domain, pieceId });
+    expect({ card: cardLabel(screen), reads: mockSummaryReads }).toEqual({
+      card: CARD_LABEL,
+      reads: [{ table, id: RECORD_ID }],
+    });
+  });
+
+  test.each<[string, Table, string, Broken]>([
+    ["tags 가 숫자", "records", "career", { tags: 7 }],
+    ["tags 가 문자열", "records", "collect", { tags: "domain:collect" }],
+    ["tags 가 객체", "sources", "career", { tags: { 0: "domain:career", length: 1 } }],
+    ["tags 안에 문자열 아닌 값", "records", "career", { tags: [7, "domain:career"] }],
+    ["제목이 숫자", "records", "career", { title: 7 }],
+    ["제목이 객체", "sources", "career", { title: { text: TITLE } }],
+  ])("%s (%s, /star/%s)", async (_label, table, domain, broken) => {
+    const pieceId = fileRow(table, domain, broken);
+    const screen = await open({ domain, pieceId });
+    expect({ card: cardLabel(screen), reads: mockSummaryReads }).toEqual({
+      card: null,
+      reads: [{ table, id: RECORD_ID }],
+    });
   });
 });
