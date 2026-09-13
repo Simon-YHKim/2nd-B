@@ -116,6 +116,35 @@ describe("/capture 저장 후 버튼", () => {
     expect(CAPTURE).not.toMatch(/saved\.see(Ocr)?Graph/);
   });
 
+  test("저장 후 문구가 그래프를 약속하지 않는다 (배송 앱에는 그 그래프가 없다)", () => {
+    // P1 후속 (2026-09-14): 버튼은 영역 화면 · 상세 · 기록 보관소로 간다(위 savedTarget). 조각을 그리던
+    // 그래프 홈은 아카이브됐는데, 머리의 접근성 힌트 둘(hero.speechSaved · hero.speechSavedOcr)과 사진
+    // 저장 패널의 본문(saved.ocrBody)이 다섯 언어 모두 아직 "그래프에서 볼 수 있어요"라고 했다.
+    const GRAPH: Record<string, RegExp> = {
+      en: /\bgraph\b/i,
+      ko: /그래프/,
+      es: /\bgrafo\b/i,
+      pt: /\bmapa\b/i,
+      id: /\bgraf\b/i,
+    };
+    for (const [lang, graph] of Object.entries(GRAPH)) {
+      const capture = JSON.parse(
+        readFileSync(join(__dirname, "..", "..", "..", "locales", lang, "capture.json"), "utf8"),
+      ) as { hero: Record<string, string>; saved: Record<string, string> };
+      const copy: Record<string, string | undefined> = {
+        "hero.speechSaved": capture.hero.speechSaved,
+        "hero.speechSavedOcr": capture.hero.speechSavedOcr,
+        "saved.ocrBody": capture.saved.ocrBody,
+      };
+      // 키가 사라져서 초록이 되지 않게 한다 - 문구가 없으면 약속도 없어 보인다.
+      expect({ lang, missing: Object.keys(copy).filter((key) => !copy[key]?.trim()) }).toEqual({ lang, missing: [] });
+      expect({ lang, promisesGraph: Object.keys(copy).filter((key) => graph.test(copy[key] ?? "")) }).toEqual({
+        lang,
+        promisesGraph: [],
+      });
+    }
+  });
+
   test("기록이 갈 수 있는 일곱 영역(collect 포함)의 이름이 다섯 언어에 다 있다", () => {
     const ids = DOMAIN_STARS.map((star) => star.id).sort();
     for (const lang of ["en", "ko", "es", "id", "pt"]) {

@@ -18,8 +18,8 @@
     "eyebrow": "01. Captura",
     "title": "Salve uma nota ou fonte",
     "subtitle": "Diário · nota · ligação · foto · arquivo",
-    "speechSaved": "Salvo. Você pode ver no mapa.",
-    "speechSavedOcr": "O texto da foto foi salvo como um registro privado no seu mapa.",
+    "speechSaved": "Salvo. Você pode abrir agora mesmo.",
+    "speechSavedOcr": "O texto da foto foi salvo como um registro privado. Você pode abrir agora mesmo.",
     "speechSavedRecords": "Salvo. Você pode encontrar nos seus registros.",
     "speechIdle": "Escreva uma nota ou escolha um material para salvar e encontrar depois."
   },
@@ -92,7 +92,7 @@
   "saved": {
     "title": "Registro salvo",
     "ocrTitle": "Sua nota de foto foi salva",
-    "ocrBody": "Registro privado salvo no seu mapa.",
+    "ocrBody": "Ficou como um registro privado.",
     "seeArea": "Ver em {{area}}",
     "seeAreaHint": "Abre {{area}} com este registro no topo.",
     "seePiece": "Ver este registro",

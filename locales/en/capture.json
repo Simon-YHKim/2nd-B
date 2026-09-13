@@ -18,8 +18,8 @@
     "eyebrow": "01. Capture",
     "title": "Save a note or source",
     "subtitle": "Journal · note · link · photo · file",
-    "speechSaved": "Saved. You can see it on the graph.",
-    "speechSavedOcr": "Your photo note is saved. It is a private piece in your graph.",
+    "speechSaved": "Saved. You can open it right away.",
+    "speechSavedOcr": "Your photo note is saved as a private piece. You can open it right away.",
     "speechSavedRecords": "Saved. You can find it in your records.",
     "speechIdle": "Write a note or choose something to save."
   },
@@ -119,7 +119,7 @@
   "saved": {
     "title": "Piece saved",
     "ocrTitle": "Your photo note is saved",
-    "ocrBody": "A private piece in your graph.",
+    "ocrBody": "Kept as a private piece.",
     "seeArea": "See it in {{area}}",
     "seeAreaHint": "Opens {{area}} with this piece at the top.",
     "seePiece": "View this piece",
