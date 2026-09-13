@@ -20,12 +20,17 @@ import {
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
 import { SecondbHead } from "@/components/deepspace/SecondbHead";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PremiumLoadingState } from "@/components/premium";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { DOMAIN_STARS, getDomainStar, isDomainId, domainTagFor, type DomainId } from "@/lib/persona/domain-stars";
+import { evidenceDateLabel } from "@/lib/persona/evidence";
 import { loadDomainLevels } from "@/lib/persona/load-domain-levels";
 import type { LadderLevel } from "@/lib/persona/brightness";
+import { lifeDomainOf } from "@/lib/records/domain-screen";
+import { getPieceSummary, parsePieceId, type PieceSummary } from "@/lib/records/get-piece";
 import { m3 } from "@/lib/theme/m3";
 import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
 
@@ -153,7 +158,7 @@ export async function generateStaticParams(): Promise<{ domain: string }[]> {
 }
 
 export default function DomainStarScreen() {
-  const { domain } = useLocalSearchParams<{ domain: string }>();
+  const { domain, pieceId } = useLocalSearchParams<{ domain: string; pieceId?: string | string[] }>();
   const { t, i18n } = useTranslation("deepspace");
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
   const locale = shippedLocale(i18n.resolvedLanguage ?? i18n.language);
@@ -165,6 +170,45 @@ export default function DomainStarScreen() {
 
   const valid = typeof domain === "string" && isDomainId(domain);
   const domainId = valid ? (domain as DomainId) : null;
+
+  // P1 (Simon 결정 2026-09-13 22:26): /capture 저장 후 버튼과 기록 상세의 영역 버튼이
+  // pieceId 로 가리킨 조각 하나를 이 화면 맨 위에 보여준다. 아래 목록은 records 만 읽어서,
+  // /capture 가 저장한 소스는 이 카드가 아니면 여기서 안 보인다.
+  //
+  // 주소에는 누구든 아무 id 나 넣을 수 있다. 그래서 형식을 통과한 id 만 읽고
+  // (parsePieceId), 읽기는 본인 행으로 좁히며(getPieceSummary: user_id 필터 + owner RLS),
+  // 그 조각이 이 영역에 담긴 것일 때만 보여준다. 남의 id · 없는 id · 읽기 실패는 전부
+  // "카드 없음"이다. 에러 화면도, id 나 태그가 남는 로그도 없다.
+  const pieceRef = parsePieceId(pieceId);
+  const pieceOrigin = pieceRef?.origin ?? null;
+  const pieceUuid = pieceRef?.uuid ?? null;
+  const [shownPiece, setShownPiece] = useState<PieceSummary | null>(null);
+
+  useEffect(() => {
+    if (!userId || !domainId || !pieceOrigin || !pieceUuid) return;
+    let alive = true;
+    getPieceSummary(userId, { origin: pieceOrigin, uuid: pieceUuid })
+      .then((found) => {
+        if (alive) setShownPiece(found);
+      })
+      .catch(() => {
+        if (alive) setShownPiece(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [userId, domainId, pieceOrigin, pieceUuid]);
+
+  // 지금 주소가 가리키는 조각이고 이 영역에 담긴 것일 때만 보인다. 주소가 바뀌어 새 읽기가
+  // 끝나기 전에도 지난 조각이 남아 보이지 않는다.
+  const piece =
+    shownPiece !== null &&
+    shownPiece.origin === pieceOrigin &&
+    shownPiece.uuid === pieceUuid &&
+    domainId !== null &&
+    lifeDomainOf(shownPiece.tags) === domainId
+      ? shownPiece
+      : null;
 
   const refresh = useCallback(() => {
     if (!userId || !domainId) return;
@@ -196,6 +240,8 @@ export default function DomainStarScreen() {
   const headerMeta = DOMAIN_HEADER_META[domainId][locale];
   const action = DOMAIN_ACTION[domainId];
   const count = rows?.length ?? 0;
+  const pieceTitle = piece?.title?.trim() || t("star.untitled");
+  const pieceDate = piece ? evidenceDateLabel(piece.created_at, ko ? "ko" : "en") : null;
 
   // Honest briefing: real count or a neutral empty prompt — never a fabricated
   // "N% was work" analysis.
@@ -218,6 +264,37 @@ export default function DomainStarScreen() {
       action={<StarHeaderAction caption={headerMeta} level={level} />}
     >
       <ScrollView contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
+        {/* P1: 보낸 곳이 가리킨 조각. 이 영역에 담긴 것일 때만 뜬다. */}
+        {piece ? (
+          <View style={s.pieceSlot}>
+            <PixelPressable
+              variant="frame"
+              onPress={() =>
+                router.push(
+                  piece.origin === "source"
+                    ? { pathname: "/record/[id]", params: { id: piece.uuid, origin: "source" } }
+                    : { pathname: "/record/[id]", params: { id: piece.uuid } },
+                )
+              }
+              accessibilityLabel={`${t("star.pieceHere")}. ${pieceTitle}`}
+              accessibilityHint={t("star.pieceOpenHint")}
+              fullWidth
+              contentStyle={s.pieceCard}
+            >
+              <View style={s.pieceCopy}>
+                <RNText style={[m3TextStyle("labelMedium"), s.pieceEyebrow]}>{t("star.pieceHere")}</RNText>
+                <RNText numberOfLines={2} style={[m3TextStyle("bodyLarge"), s.pieceTitle]}>
+                  {pieceTitle}
+                </RNText>
+                {pieceDate ? (
+                  <RNText style={[m3TextStyle("bodySmall"), s.pieceDate]}>{pieceDate}</RNText>
+                ) : null}
+              </View>
+              <PixelGlyph name="chevronRight" color={m3.color.onSurfaceVariant} size={24} />
+            </PixelPressable>
+          </View>
+        ) : null}
+
         {/* 세컨비 briefing (honest) */}
         <MdCard variant="outlined" style={s.briefCard}>
           <SecondbHead size={30} track={false} />
@@ -290,4 +367,10 @@ const s = StyleSheet.create({
   actionBtn: { flex: 1 },
   stateCard: { marginTop: 18, padding: 16, gap: 8, alignItems: "center" },
   stateText: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, textAlign: "center" },
+  pieceSlot: { marginBottom: 14 },
+  pieceCard: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14 },
+  pieceCopy: { flex: 1, gap: 2 },
+  pieceEyebrow: { color: m3.color.primary, fontFamily: m3.font.brand },
+  pieceTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand },
+  pieceDate: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
 });
