@@ -38,7 +38,7 @@ DECLARE
     pg_catalog.current_setting('request.jwt.claims', true),
     ''
   )::jsonb;
-  v_role text := pg_catalog.coalesce(
+  v_role text := COALESCE(
     nullif(pg_catalog.current_setting('request.jwt.claim.role', true), ''),
     v_claims ->> 'role'
   );
@@ -229,7 +229,7 @@ BEGIN
     RAISE EXCEPTION 'storage.objects is required when storage.buckets exists';
   END IF;
 
-  IF NOT pg_catalog.coalesce(
+  IF NOT COALESCE(
     (
       SELECT relation.relrowsecurity
       FROM pg_catalog.pg_class AS relation

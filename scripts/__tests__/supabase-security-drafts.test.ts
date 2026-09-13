@@ -90,5 +90,8 @@ describe("scratch PostgreSQL coverage for inactive security drafts", () => {
     expect(accountDeletionRegression).toContain("raw-clippings policy contract is incomplete");
     expect(accountDeletionRegression).toContain("storage.foldername contract is incorrect");
     expect(accountDeletionRegression).toContain("owner delete was blocked");
+    expect(
+      read("db/migration-drafts/UNNUMBERED_account_deletion_completion_fence.sql"),
+    ).not.toContain("pg_catalog.coalesce(");
   });
 });
