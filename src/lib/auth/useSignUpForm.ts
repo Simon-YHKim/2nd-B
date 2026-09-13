@@ -199,12 +199,13 @@ export function useSignUpForm(): UseSignUpForm {
   }, []);
 
   // Supabase's detectSessionInUrl handles web confirmation links. Native links
-  // need the same token/code consumption used by password recovery. The email
+  // accept only the PKCE code path; the 6-digit OTP has its explicit verifier
+  // below, and bearer-token URLs are rejected everywhere. The email
   // redirects to /sign-up, so this hook is mounted for cold and warm app links;
   // after refresh, the guest guard routes the now-authenticated user onward.
   useEffect(() => {
     if (Platform.OS === "web" || !deepLinkUrl || userId) return;
-    if (!/[?#&](?:code|access_token|error_code)=/.test(deepLinkUrl)) return;
+    if (!/[?#&](?:code|error_code)=/.test(deepLinkUrl)) return;
     if (consumedUrlRef.current === deepLinkUrl) return;
     consumedUrlRef.current = deepLinkUrl;
     let current = true;

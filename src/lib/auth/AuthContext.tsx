@@ -7,7 +7,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { getSupabaseClient } from "../supabase/client";
-import { ageInYears, signOut as signOutAuth } from "../supabase/auth";
+import {
+  ageInYears,
+  consumeCurrentWebAuthCallback,
+  failClosedRecoverySession,
+  reconcileAuthCallbackBootstrap,
+  signOut as signOutAuth,
+} from "../supabase/auth";
 import { preserveKnownMinorForMissingProfile, type ProfileProbe } from "./profile-probe";
 import { noteResolvedOwner } from "./account-epoch";
 import {
@@ -19,21 +25,22 @@ import {
 import { subscribeRecoveryStorageEvent } from "./recovery-storage-events";
 import { nextRecoveryProof } from "./reset-password-helpers";
 import {
-  clearRecoveryProof,
-  clearRecoveryPending,
-  createRecoveryProof,
+  armWebRecoveryPendingFromLocation, applyAuthCallbackQuarantineStorageValue,
+  clearRecoveryPendingExpected,
+  clearRecoveryStateExpected,
   applyRecoveryPendingStorageValue,
   isRecoveryPendingInMemory,
   loadRecoveryPending,
   loadRecoveryProof,
-  parseRecoveryProof,
-  persistRecoveryProof,
+  parseRecoveryProof, AUTH_CALLBACK_QUARANTINE_KEY,
   RECOVERY_PENDING_KEY,
   RECOVERY_PROOF_KEY,
   subscribeRecoveryPending,
   recoveryProofMatchesSession,
-  type RecoveryProof,
-  type RecoverySessionIdentity,
+  recoveryProofOwnsPending,
+  sameRecoveryProof, settleRecoveryPublicationExpected,
+  type RecoveryOperationExpectation, type RecoveryProof,
+  type RecoveryPending,
 } from "./recovery-proof-store";
 
 // A signed-in user counts as a minor for safety routing when under 18 (in
@@ -69,18 +76,18 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
-  /** Persisted, session-bound proof that Supabase entered password recovery.
-   * A normal SIGNED_IN/INITIAL_SESSION event never creates it. */
+  /** Durable recovery operation identity; consumers pass the full value through
+   * unchanged while scalar fields remain route-owner conveniences. */
   recoveryUserId: string | null;
-  recoverySessionId: string | null;
+  recoverySessionId: string | null; recoveryOperation: RecoveryOperationExpectation | null;
   /** True only after persisted recovery proof and Supabase session agree. */
   recoveryReady: boolean;
   /** Provisional lock written before a recovery auth mutation starts. */
   recoveryPendingGlobal: boolean;
-  /** Register a recovery session proven by a native callback/OTP response. */
-  activateRecoverySession: (identity: RecoverySessionIdentity) => Promise<void>;
-  /** Clear recovery mode only if the caller still owns the same proof. */
-  completeRecovery: (expectedUserId?: string, expectedSessionId?: string) => Promise<void>;
+  /** Publish a recovery proof already committed with its session under M. */
+  activateRecoverySession: (proof: RecoveryProof) => Promise<void>;
+  /** Settle the published mode after the exact durable operation completes. */
+  completeRecovery: (expected: RecoveryOperationExpectation) => Promise<boolean>;
   /** Re-probe the current session's profile. Call after changing data that
    *  feeds hasProfile/isMinor (e.g. a date-of-birth correction) so the cached
    *  values update without waiting for the next auth event or an app restart. */
@@ -96,11 +103,11 @@ const AuthContext = createContext<AuthContextValue>({
   sessionUnavailable: false,
   loading: true,
   recoveryUserId: null,
-  recoverySessionId: null,
+  recoverySessionId: null, recoveryOperation: null,
   recoveryReady: false,
   recoveryPendingGlobal: false,
   activateRecoverySession: async () => {},
-  completeRecovery: async () => {},
+  completeRecovery: async () => false,
   refresh: async () => {},
 });
 
@@ -200,55 +207,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const recoveryProofRef = useRef<RecoveryProof | null>(null);
   const recoveryProofGenerationRef = useRef(0);
   const latestSessionRef = useRef<Session | null>(null);
+  const callbackReconciliationBlockedRef = useRef(false);
   const publishRecoveryProof = useCallback((proof: RecoveryProof | null) => {
     recoveryProofGenerationRef.current += 1;
     recoveryProofRef.current = proof;
     setRecoveryProof(proof);
   }, []);
-  const activateRecoverySession = useCallback(async (identity: RecoverySessionIdentity) => {
-    const proof = createRecoveryProof(identity);
-    // Lock the current frame immediately; persistence completes before the
-    // verify/callback handler releases its pending state.
+  const activateRecoverySession = useCallback((proof: RecoveryProof) => {
+    // verifyPasswordResetCode/consumeAuthCallbackUrl already committed this
+    // exact owner together with its durable proof under M. This publication is
+    // deliberately memory-only; a second out-of-transaction storage write
+    // would recreate the crash window the recovery transaction closes.
     publishRecoveryProof(proof);
-    try {
-      await persistRecoveryProof(proof);
-      setRecoveryReady(true);
-    } catch (error) {
-      // A recovery session without a durable marker could escape on restart.
-      // Fail closed by removing this device's session and the in-memory proof.
-      if (
-        recoveryProofRef.current?.userId === proof.userId &&
-        recoveryProofRef.current.sessionId === proof.sessionId
-      ) {
-        try {
-          await signOutAuth("local");
-          publishRecoveryProof(null);
-        } catch {
-          // signOut returns { error } rather than throwing at the client layer;
-          // the wrapper converts that to a throw. Keep proof locked on failure.
-          // FAR-02: log a stable phase, never the caught operand - these paths
-          // carry third-party error objects we do not control.
-          if (typeof console !== "undefined") {
-            console.warn("[auth] recovery sign-out failed; phase=persist-proof");
-          }
-        }
-      }
-      throw error;
-    }
+    setRecoveryReady(true);
+    return Promise.resolve();
   }, [publishRecoveryProof]);
-  const completeRecovery = useCallback(async (expectedUserId?: string, expectedSessionId?: string) => {
-    const owned = recoveryProofRef.current;
-    if (owned && (
-      (expectedUserId && owned.userId !== expectedUserId) ||
-      (expectedSessionId && owned.sessionId !== expectedSessionId)
-    )) {
-      return;
-    }
-    // Clear disk first. If it fails, keep the route lock and let the caller
-    // surface an error instead of silently restoring stale recovery on restart.
-    await clearRecoveryProof();
-    await clearRecoveryPending();
-    if (recoveryProofRef.current === owned) publishRecoveryProof(null);
+  const completeRecovery = useCallback((
+    expected: RecoveryOperationExpectation,
+  ): Promise<boolean> => {
+    const current = recoveryProofRef.current;
+    const settled = settleRecoveryPublicationExpected(current, expected);
+    if (!settled.completed) return Promise.resolve(false);
+    if (current) publishRecoveryProof(null);
+    return Promise.resolve(true);
   }, [publishRecoveryProof]);
 
   useEffect(() => subscribeRecoveryPending(setRecoveryPendingGlobal), []);
@@ -362,8 +343,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const queuedAuthEvents: QueuedAuthEvent[] = [];
     let storageProofGeneration = 0;
 
-    const sameProof = (left: RecoveryProof | null, right: RecoveryProof | null) =>
-      left?.userId === right?.userId && left?.sessionId === right?.sessionId;
+    const proofsBindSameSession = (
+      left: RecoveryProof | null,
+      right: RecoveryProof | null,
+    ) => Boolean(
+      left &&
+      right &&
+      left.userId === right.userId &&
+      left.sessionId === right.sessionId,
+    );
+
+    const clearPendingSnapshot = async (
+      expected?: RecoveryPending | null,
+    ): Promise<boolean> => {
+      const owned = expected === undefined ? await loadRecoveryPending() : expected;
+      return owned ? clearRecoveryPendingExpected(owned) : true;
+    };
 
     let failClosedRunning = false;
     const failClosedRecovery = async (proof: RecoveryProof | null, _error: unknown): Promise<boolean> => {
@@ -375,10 +370,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await Promise.resolve();
       const currentOwner = recoveryProofRef.current;
       if (
-        (proof && (!currentOwner || !sameProof(currentOwner, proof))) ||
+        (proof && (!currentOwner || !sameRecoveryProof(currentOwner, proof))) ||
         (!proof && currentOwner)
       ) {
         return false;
+      }
+      let pendingOwner: RecoveryPending | null = null;
+      if (!proof) {
+        try {
+          pendingOwner = await loadRecoveryPending();
+        } catch {
+          // An unreadable/invalid marker has no provable owner. Keep it on disk
+          // and continue only with owner-bound session sign-out.
+        }
+        if (recoveryProofRef.current) return false;
       }
       if (failClosedRunning) {
         // The in-flight owner handles this failure. Do not let a second stale
@@ -397,10 +402,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // intro-complete route render while local sign-out is still unresolved.
       if (!proof) setRecoveryReady(false);
       try {
-        await signOutAuth("local");
+        if (proof) await failClosedRecoverySession(proof);
+        else await signOutAuth("local");
         const ownerAfterSignOut = recoveryProofRef.current;
         if (
-          (proof && ownerAfterSignOut && !sameProof(ownerAfterSignOut, proof)) ||
+          (proof && ownerAfterSignOut && !sameRecoveryProof(ownerAfterSignOut, proof)) ||
           (!proof && ownerAfterSignOut)
         ) {
           // signOut may already have removed the live session, but a newer proof
@@ -409,9 +415,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           failClosedRunning = false;
           return false;
         }
-        await clearRecoveryProof();
-        await clearRecoveryPending();
-        if (!proof || sameProof(recoveryProofRef.current, proof)) publishRecoveryProof(null);
+        if (!proof && pendingOwner && !(await clearPendingSnapshot(pendingOwner))) {
+          setRecoveryReady(false);
+          failClosedRunning = false;
+          return false;
+        }
+        if (!proof || sameRecoveryProof(recoveryProofRef.current, proof)) publishRecoveryProof(null);
         setRecoveryReady(true);
         void resolveSession(null);
         failClosedRunning = false;
@@ -424,7 +433,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // revoke remains. Existing proof stays visible so route guards lock.
         if (
           proof &&
-          (!recoveryProofRef.current || sameProof(recoveryProofRef.current, proof))
+          (!recoveryProofRef.current || sameRecoveryProof(recoveryProofRef.current, proof))
         ) {
           publishRecoveryProof(proof);
         }
@@ -436,10 +445,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const handleAuthEvent = (event: AuthChangeEvent, session: Session | null) => {
+      // A durable callback tuple still needs owner-bound reconciliation. SDK
+      // events cannot promote its session while the explicit retry is pending.
+      if (callbackReconciliationBlockedRef.current) return;
       latestSessionRef.current = session;
       const previous = recoveryProofRef.current;
       const next = nextRecoveryProof(previous, event, session);
-      if (!sameProof(previous, next)) publishRecoveryProof(next);
+      if (!sameRecoveryProof(previous, next)) publishRecoveryProof(next);
 
       if (
         event === "INITIAL_SESSION" &&
@@ -453,7 +465,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             new Error("Recovery bootstrap restored a session before proof"),
           );
         } else {
-          void clearRecoveryPending()
+          void clearPendingSnapshot()
             .then(() => resolveSession(null))
             .catch((error) => failClosedRecovery(null, error));
         }
@@ -464,14 +476,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!next) {
           // A recovery event without a session_id cannot be safely bound.
           void failClosedRecovery(null, new Error("Recovery session has no stable session_id"));
-        } else {
-          void persistRecoveryProof(next)
-            .then(() => clearRecoveryPending())
-            .catch((error) => failClosedRecovery(next, error));
         }
       } else if (event === "SIGNED_OUT") {
-        void clearRecoveryProof()
-          .then(() => clearRecoveryPending())
+        const clearSignedOutRecovery = previous
+          ? clearRecoveryStateExpected(previous)
+          : Promise.resolve(true);
+        void clearSignedOutRecovery
           .catch((error) => failClosedRecovery(previous, error));
       } else if (previous && !next) {
         if (session) {
@@ -488,17 +498,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Revoke it rather than clearing A's marker and treating B as ordinary.
           void failClosedRecovery(previous, new Error("Recovery session identity changed"));
         } else {
-          void clearRecoveryProof()
-            .then(() => clearRecoveryPending())
+          void clearRecoveryStateExpected(previous)
             .catch((error) => failClosedRecovery(previous, error));
         }
       }
       void resolveSession(session?.user.id ?? null);
     };
 
-    // Subscribe before getSession/hydration. auth-js may emit PASSWORD_RECOVERY
-    // while it consumes a cold web callback URL; queue that event until both the
-    // persisted marker and current session have been reconciled.
+    // Subscribe before explicit callback consumption and hydration. A PKCE
+    // exchange may emit PASSWORD_RECOVERY; queue it until both the persisted
+    // marker and current session have been reconciled.
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (!bootstrapped) {
         queuedAuthEvents.push({ event, session });
@@ -507,6 +516,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       handleAuthEvent(event, session);
     });
     const handleRecoveryStorage = (event: StorageEvent) => {
+      if (event.key === AUTH_CALLBACK_QUARANTINE_KEY) {
+        const quarantine = applyAuthCallbackQuarantineStorageValue(event.newValue);
+        if (event.newValue) {
+          callbackReconciliationBlockedRef.current = true;
+          if (!quarantine) {
+            void failClosedRecovery(
+              recoveryProofRef.current,
+              new Error("Cross-tab auth callback quarantine is invalid"),
+            );
+          }
+          return;
+        }
+        callbackReconciliationBlockedRef.current = false;
+        // The tab that produced the callback may have emitted the auth event
+        // while this tab was quarantined. Re-read only after the exact marker
+        // disappears, then feed the normal owner-aware event path.
+        void supabase.auth.getSession().then(({ data, error }) => {
+          if (!error && !isRecoveryPendingInMemory()) {
+            handleAuthEvent("INITIAL_SESSION", data.session);
+          }
+        }).catch(() => undefined);
+        return;
+      }
       if (event.key === RECOVERY_PENDING_KEY) {
         const pending = applyRecoveryPendingStorageValue(event.newValue);
         if (event.newValue && !pending) {
@@ -528,7 +560,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           );
           return;
         }
-        if (!isRecoveryPendingInMemory()) publishRecoveryProof(null);
+        const removed = parseRecoveryProof(event.oldValue);
+        if (
+          removed &&
+          !isRecoveryPendingInMemory() &&
+          sameRecoveryProof(recoveryProofRef.current, removed)
+        ) {
+          publishRecoveryProof(null);
+        }
         return;
       }
       // Proof can arrive before Supabase broadcasts its session. Publishing it
@@ -539,7 +578,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .then(({ data, error }) => {
           if (
             generation !== storageProofGeneration ||
-            !sameProof(recoveryProofRef.current, stored)
+            !sameRecoveryProof(recoveryProofRef.current, stored)
           ) {
             return undefined;
           }
@@ -556,7 +595,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .catch((error) => {
           if (
             generation !== storageProofGeneration ||
-            !sameProof(recoveryProofRef.current, stored)
+            !sameRecoveryProof(recoveryProofRef.current, stored)
           ) {
             return false;
           }
@@ -569,6 +608,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     void (async () => {
+      // createClient no longer auto-consumes URLs under its internal S lock.
+      // This explicit path is an identity writer and therefore goes through M.
+      try {
+        const armedPending = await armWebRecoveryPendingFromLocation();
+        const callback = await consumeCurrentWebAuthCallback(armedPending);
+        // Web accepts PKCE only. consumeCurrentWebAuthCallback has already
+        // committed recovery session + proof + own pending clear under M;
+        // activation below only publishes that durable owner to React.
+        if (callback?.type === "recovery") {
+          if (!callback.recoveryProof) {
+            throw new Error("Recovery callback returned no stable session");
+          }
+          await activateRecoverySession(callback.recoveryProof);
+        }
+      } catch {
+        if (typeof console !== "undefined") {
+          console.warn("[auth] callback consume failed; phase=auth-callback");
+        }
+      }
       type ProofLoadResult =
         | { ok: true; proof: RecoveryProof | null }
         | { ok: false; error: unknown };
@@ -576,10 +634,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .then<ProofLoadResult>((proof) => ({ ok: true, proof }))
         .catch<ProofLoadResult>((error) => ({ ok: false, error }));
       type PendingLoadResult =
-        | { ok: true; pending: boolean }
+        | { ok: true; pending: RecoveryPending | null }
         | { ok: false; error: unknown };
       const pendingLoad = loadRecoveryPending()
-        .then<PendingLoadResult>((pending) => ({ ok: true, pending: pending !== null }))
+        .then<PendingLoadResult>((pending) => ({ ok: true, pending }))
         .catch<PendingLoadResult>((error) => ({ ok: false, error }));
       type SessionLoadResult =
         | { ok: true; session: Session | null }
@@ -612,12 +670,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       let session = sessionResult.ok ? sessionResult.session : null;
       let sessionKnown = sessionResult.ok;
-      const loadedMarker = markerResult.ok ? markerResult.proof : null;
+      let loadedMarker = markerResult.ok ? markerResult.proof : null;
+      let pendingOwner = pendingResult.ok ? pendingResult.pending : null;
+
+      if (sessionKnown && markerResult.ok && pendingResult.ok) {
+        const reconciliation = await reconcileAuthCallbackBootstrap(session);
+        if (reconciliation.kind === "retryable") {
+          // The durable markers remain the authority, but the UI must not be a
+          // permanent spinner. Publish no session and expose the existing retry
+          // action; refresh() invokes this exact reconciliation again.
+          callbackReconciliationBlockedRef.current = true;
+          queuedAuthEvents.splice(0);
+          latestSessionRef.current = null;
+          publishRecoveryProof(null);
+          setRecoveryPendingGlobal(false);
+          setRecoveryReady(true);
+          bootstrapped = true;
+          publishSessionUnavailable();
+          return;
+        }
+        if (reconciliation.kind === "cleared") {
+          callbackReconciliationBlockedRef.current = false;
+          queuedAuthEvents.splice(0);
+          latestSessionRef.current = null;
+          publishRecoveryProof(null);
+          setRecoveryPendingGlobal(false);
+          setRecoveryReady(true);
+          bootstrapped = true;
+          await resolveSession(null);
+          return;
+        }
+        if (reconciliation.kind === "recovery") {
+          callbackReconciliationBlockedRef.current = false;
+          loadedMarker = reconciliation.proof;
+          pendingOwner = null;
+          setRecoveryPendingGlobal(false);
+        }
+      }
+
       let proof = loadedMarker && (
         !sessionKnown || recoveryProofMatchesSession(loadedMarker, session)
       ) ? loadedMarker : null;
       let persisted = loadedMarker;
-      let recoveryPendingOnDisk = pendingResult.ok && pendingResult.pending;
+      let recoveryPendingOnDisk = pendingOwner !== null;
 
       // Events can arrive during either storage operation. Reconcile and flush
       // until the queue is empty before exposing loading=false.
@@ -628,16 +723,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           session = queued.session;
           proof = nextRecoveryProof(proof, queued.event, queued.session);
         }
-        if (!sameProof(proof, persisted)) {
+        if (!sameRecoveryProof(proof, persisted)) {
           if (proof) {
-            await persistRecoveryProof(proof);
-            if (recoveryPendingOnDisk) {
-              await clearRecoveryPending();
-              recoveryPendingOnDisk = false;
+            // Recovery writers publish proof before releasing M. An auth event
+            // may race this bootstrap snapshot, so re-read but never create a
+            // post-session proof outside that transaction.
+            const durable = await loadRecoveryProof();
+            if (!durable || !proofsBindSameSession(durable, proof)) {
+              throw new Error("Recovery event has no transaction-bound proof");
             }
+            proof = durable;
+            persisted = durable;
+          } else if (persisted && await clearRecoveryStateExpected(persisted)) {
+            persisted = null;
           }
-          else if (persisted) await clearRecoveryProof();
-          persisted = proof;
         }
       } while (queuedAuthEvents.length > 0);
 
@@ -656,16 +755,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!proof && externallyPublished && recoveryProofMatchesSession(externallyPublished, session)) {
           proof = externallyPublished;
         }
-        if (!sameProof(proof, persisted)) {
-          if (proof) await persistRecoveryProof(proof);
-          else if (persisted) await clearRecoveryProof();
-          persisted = proof;
+        if (!sameRecoveryProof(proof, persisted)) {
+          if (proof) {
+            const durable = await loadRecoveryProof();
+            if (!durable || !proofsBindSameSession(durable, proof)) {
+              throw new Error("Recovery callback has no transaction-bound proof");
+            }
+            proof = durable;
+            persisted = durable;
+          } else if (persisted && await clearRecoveryStateExpected(persisted)) {
+            persisted = null;
+          }
         }
       }
 
-      if (proof && recoveryPendingOnDisk) {
-        await clearRecoveryPending();
-        recoveryPendingOnDisk = false;
+      if (proof && pendingOwner && recoveryProofOwnsPending(proof, pendingOwner)) {
+        if (await clearPendingSnapshot(pendingOwner)) {
+          pendingOwner = null;
+          recoveryPendingOnDisk = false;
+        } else {
+          pendingOwner = await loadRecoveryPending();
+          recoveryPendingOnDisk = pendingOwner !== null;
+        }
       }
 
       const unreadableMarker = !markerResult.ok || !pendingResult.ok;
@@ -706,8 +817,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (recoveryPendingOnDisk && sessionKnown && !session && !proof) {
         // Invalid/expired callback never established a session. Releasing the
         // provisional lock is safe and lets the reset screen show its error.
-        await clearRecoveryPending();
-        recoveryPendingOnDisk = false;
+        if (pendingOwner && await clearPendingSnapshot(pendingOwner)) {
+          pendingOwner = null;
+          recoveryPendingOnDisk = false;
+        }
       }
 
       // A cross-tab proof can arrive while the three bootstrap reads are in
@@ -747,7 +860,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isRecoveryPendingInMemory,
         currentRecoveryProof: () => recoveryProofRef.current,
         failClosedRecovery,
-        clearRecoveryPending,
+        clearRecoveryPending: async () => {
+          await clearPendingSnapshot();
+        },
         handleAuthEvent,
       });
       // No await exists between the last queue check and bootstrapped=true, so
@@ -768,7 +883,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sub.subscription.unsubscribe();
       unsubscribeRecoveryStorage();
     };
-  }, [publishRecoveryProof]);
+  }, [activateRecoverySession, publishRecoveryProof]);
 
   // Manual re-probe for the current session: refreshes the published state AND
   // the probe cache on demand (profile completion, DOB correction, sign-out
@@ -785,7 +900,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Same hang guard as boot: a wedged getSession would otherwise stall
     // submitSignUp/submitCompleteProfile (which await refresh() before
     // navigating) with the submit spinner stuck on.
-    const probed = await boundedSessionLoad<SessionLoadOutcome<Session>>(
+    let probed = await boundedSessionLoad<SessionLoadOutcome<Session>>(
       supabase.auth.getSession()
         .then<SessionLoadOutcome<Session>>(({ data, error }) =>
           error ? { ok: false, error } : { ok: true, session: data.session },
@@ -794,6 +909,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       PROFILE_PROBE_TIMEOUT_MS,
       { ok: false, error: new Error("Auth session refresh timed out") },
     );
+    if (probed.ok) {
+      const reconciliation = await reconcileAuthCallbackBootstrap(probed.session);
+      if (gen !== probeGenRef.current) return;
+      if (
+        reconciliation.kind === "retryable" ||
+        (
+          callbackReconciliationBlockedRef.current &&
+          reconciliation.kind === "unchanged" &&
+          probed.session !== null
+        )
+      ) {
+        callbackReconciliationBlockedRef.current = true;
+        publishRecoveryProof(null);
+        setRecoveryPendingGlobal(false);
+        setRecoveryReady(true);
+        lastUserIdRef.current = null;
+        lastProbeRef.current = null;
+        noteResolvedOwner(null);
+        setState({ userId: null, hasProfile: null, isMinor: null, age: null, profileProbeFailed: false, sessionUnavailable: true, loading: false });
+        return;
+      }
+      callbackReconciliationBlockedRef.current = false;
+      if (reconciliation.kind === "cleared") {
+        publishRecoveryProof(null);
+        setRecoveryPendingGlobal(false);
+        probed = { ok: true, session: null };
+      } else if (reconciliation.kind === "recovery") {
+        publishRecoveryProof(reconciliation.proof);
+        setRecoveryPendingGlobal(false);
+        setRecoveryReady(true);
+      }
+    }
     const retry = classifyRefreshOutcome(probed);
     uid = retry.userId;
     if (gen !== probeGenRef.current) return; // a newer resolution superseded us
@@ -829,13 +976,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sessionUnavailable: false,
       loading: false,
     });
-  }, []);
+  }, [publishRecoveryProof]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       ...state,
       recoveryUserId: recoveryProof?.userId ?? null,
       recoverySessionId: recoveryProof?.sessionId ?? null,
+      recoveryOperation: recoveryProof,
       recoveryReady,
       recoveryPendingGlobal,
       activateRecoverySession,

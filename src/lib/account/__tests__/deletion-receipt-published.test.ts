@@ -53,10 +53,17 @@ function deleteCallback(context: Record<string, unknown>) {
   return new Function(...Object.keys(context), `${js}\nreturn run;`)(...Object.values(context)) as () => Promise<unknown>;
 }
 
-function harness(options: { signOutFails?: boolean; deletionFails?: boolean } = {}) {
+function harness(
+  options: {
+    signOutFails?: boolean;
+    ownerChangedDuringFinalizer?: boolean;
+    deletionFails?: boolean;
+  } = {},
+) {
   const calls = { purge: 0, signOut: 0, dismissAll: 0, replace: [] as string[] };
   const mounted = { current: true };
   const owner = { current: OWNER as string | null };
+  class TestAuthSessionOwnerChangedError extends Error {}
   const completion = require("../deletion-completion") as typeof import("../deletion-completion");
   const epoch = require("../../auth/account-epoch") as typeof import("../../auth/account-epoch");
   const context: Record<string, unknown> = {
@@ -66,15 +73,25 @@ function harness(options: { signOutFails?: boolean; deletionFails?: boolean } = 
     allowDeletionNavigationRef: { current: false },
     privacyMountedRef: mounted, activeUserRef: owner,
     setDeleting: () => undefined, setDelError: () => undefined,
+    captureSignOutExpectation: async () => ({
+      userId: OWNER,
+      sessionId: "session-a",
+      accessToken: "test-token",
+    }),
     requestAccountDeletion: async () => {
       if (options.deletionFails) throw new Error("terminal deletion failed");
       return RECEIPT;
     },
     purgeCaptureDraftsForDeletedAccount: async () => { calls.purge += 1; },
-    signOut: async () => {
+    signOutExpected: async () => {
       calls.signOut += 1;
+      if (options.ownerChangedDuringFinalizer) {
+        throw new TestAuthSessionOwnerChangedError();
+      }
       if (options.signOutFails) throw new Error("local sign-out failed");
     },
+    AuthSessionOwnerChangedError: TestAuthSessionOwnerChangedError,
+    dismissAccountDeletionNotice: completion.dismissAccountDeletionNotice,
     router: { dismissAll: () => { calls.dismissAll += 1; }, replace: (to: string) => { calls.replace.push(to); } },
     createAccountDeletionCompletion: completion.createAccountDeletionCompletion,
     currentAccountEpoch: epoch.currentAccountEpoch,
@@ -131,6 +148,16 @@ describe("삭제한 사람이 서버가 말한 것을 듣는다", () => {
     expect(getAccountDeletionNotice()).toBeNull();
     expect(calls.signOut).toBe(0);
     expect(calls.replace).toEqual([]);
+  });
+
+  test("A 삭제 뒤 B가 로그인했으면 B를 보존하고 A 영수증으로 이동하지 않는다", async () => {
+    const { run, calls } = harness({ ownerChangedDuringFinalizer: true });
+    await run();
+
+    expect(calls.signOut).toBe(1);
+    expect(calls.dismissAll).toBe(0);
+    expect(calls.replace).toEqual([]);
+    expect(getAccountDeletionNotice()).toBeNull();
   });
 
   test("알림이 그 화면에서 실제로 그려진다", () => {

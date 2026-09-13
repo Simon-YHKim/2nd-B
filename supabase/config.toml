@@ -23,11 +23,11 @@ project_id = "zoacryukmdeivmolvyhj"
 enabled = true
 site_url = "https://simon-yhkim.github.io/2nd-B/"
 additional_redirect_urls = [
-  "https://simon-yhkim.github.io/2nd-B/**",
-  "secondbrain://**",
-  "http://localhost:8081/**",
   "https://simon-yhkim.github.io/2nd-B/",
-  "secondbrain://",
+  "https://simon-yhkim.github.io/2nd-B/sign-up",
+  "https://simon-yhkim.github.io/2nd-B/reset-password",
+  "https://simon-yhkim.github.io/2nd-B/auth-bridge.html?to=root",
+  "https://simon-yhkim.github.io/2nd-B/auth-bridge.html?to=reset-password",
 ]
 
 [auth.email]
@@ -36,8 +36,8 @@ enable_signup = true
 # 0018 autoconfirm trigger masks it user-side until 0086 lands).
 enable_confirmations = true
 
-# Recovery email: show the 6-digit code the in-screen OTP reset flow (#1013)
-# verifies, alongside the classic link (both consume the same token).
+# Recovery email is code-only. The in-screen OTP flow (#1013) verifies the
+# 6-digit code; no bearer-token or custom-scheme fallback is delivered by mail.
 [auth.email.template.recovery]
 subject = "[2nd-Brain] 비밀번호 재설정 인증번호 / Password reset code"
 content_path = "./supabase/templates/recovery.html"

@@ -22,14 +22,15 @@ consent ledger apply to social sign-ups too — at the post-redirect step instea
 
 ## Built-in providers (Google / Apple / Kakao)
 
-These three share one code path (`signInWithOAuth({ provider })`, web redirect). To enable each:
+These providers share one code path (`signInWithOAuth({ provider })`). To enable each:
 
 1. **Supabase dashboard → Authentication → Providers →** toggle the provider on and paste its
    client id + secret.
-2. **Authentication → URL Configuration → Redirect URLs:** add every origin the app runs on:
-   - `https://simon-yhkim.github.io/2nd-B/` (prod web)
-   - `http://localhost:8081/` (Expo web dev)
-   - `secondbrain://**` (native iOS/Android deep link — **required for phone login**, see "Native" below).
+2. **Authentication → URL Configuration → Redirect URLs:** keep the exact production HTTPS URLs
+   declared in `supabase/config.toml`. Native destinations are the two exact
+   `auth-bridge.html?to=...` entries; custom schemes, localhost, and production wildcards do not
+   belong in this allowlist. Supabase recommends exact production paths rather than wildcards in
+   its [redirect URL guidance](https://supabase.com/docs/guides/auth/redirect-urls).
 3. Provider-console specifics:
    - **Google:** Google Cloud → OAuth 2.0 Client. Authorized redirect URI =
      `https://<project-ref>.supabase.co/auth/v1/callback`.
@@ -40,10 +41,10 @@ These three share one code path (`signInWithOAuth({ provider })`, web redirect).
    - **Kakao:** Kakao Developers → app → REST API key = client id; create a client secret; set the
      redirect URI to the Supabase callback. Enable "Kakao Login" + the email scope if you want email.
 
-After enabling, the existing buttons work on **both web and native** with no code change — native
-runs the same providers through an in-app browser (see "Native" below), so there are **no
-Android/iOS-specific OAuth client ids**. The only native-specific operator step is allowing the
-`secondbrain://**` redirect in step 2.
+After enabling, the existing buttons work on **both web and native** with no provider-specific code
+change. Native runs the same providers through an in-app browser and the HTTPS bridge described
+below, so there are **no Android/iOS-specific OAuth client ids** and no custom-scheme URL is ever
+given to Supabase.
 
 ## Naver (custom — not a Supabase provider)
 
@@ -77,27 +78,38 @@ function remains server-gated by `ENABLE_NAVER_OAUTH` until you're satisfied.
 
 > The earlier "deferred" note is obsolete: the native path is **already implemented and shipped**.
 > `signInWithProvider` (`src/lib/supabase/auth.ts`) detects the runtime and, on native, opens the
-> Supabase provider URL with `expo-web-browser`'s `openAuthSessionAsync(authUrl, redirectTo)`, then
-> turns the returned callback URL into a session via `createNativeSessionFromUrl`
-> (`exchangeCodeForSession` for PKCE `code`, or `setSession` for an implicit token pair).
+> Supabase provider URL with `expo-web-browser`. Supabase first returns to a fixed production HTTPS
+> bridge; that page forwards only a bounded one-time PKCE code to the app. The app exchanges it with
+> `exchangeCodeForSession`. URL bearer tokens are rejected and never passed to `setSession`.
 
 Because OAuth is **brokered by Supabase** (not the native Google/Kakao SDKs), native reuses the same
 provider config as web. There is **no separate Android/iOS OAuth client id** to register, and
 **nothing provider-secret is ever bundled**. The pieces already in place:
 
 - `app.json` → `scheme: "secondbrain"` + the Android `intentFilter` (VIEW / BROWSABLE / DEFAULT) for
-  the `secondbrain` scheme. (Native config — present in any build cut from current `main`.)
-- `nativeRedirectTo()` → `Linking.createURL("/")` → a `secondbrain://…` deep link used as `redirectTo`.
+  the `secondbrain` scheme. This is the final browser-to-app hop only; it is not a Supabase redirect.
+- `authRedirectTo()` gives Supabase one of the two exact production HTTPS bridge URLs under
+  `https://simon-yhkim.github.io/2nd-B/`.
+- `openAuthSessionAsync(authUrl, Linking.createURL("/"))` separately waits for the app deep link, as
+  required by Expo's
+  [`openAuthSessionAsync` contract](https://docs.expo.dev/versions/latest/sdk/webbrowser/).
+- `public/auth-bridge.html` immediately removes callback parameters from browser history, rejects
+  access/refresh/provider/id tokens, and forwards only a bounded `code` (or safe `error_code`) to
+  the ordinary or password-reset app route. It has no external resources and uses a hash-pinned
+  strict CSP.
+- `src/lib/supabase/client.ts` pins `flowType: "pkce"`; the intercepted code alone cannot create a
+  session without the verifier retained by the requesting app. See Supabase's
+  [PKCE flow](https://supabase.com/docs/guides/auth/sessions/pkce-flow).
 - `expo-web-browser` + `expo-linking` are already native dependencies, so the JS flow ships over
   **OTA** (`eas update`) — no rebuild needed to change or fix the OAuth *code*.
 
 ### Make phone login go live (per provider)
 
 1. Enable the provider in Supabase + (for Kakao) its console — the **same** built-in steps above.
-2. **Add `secondbrain://**` to Supabase Redirect URLs** (URL Configuration). Without this, the
-   provider authenticates but Supabase refuses to redirect back to the app and the flow dead-ends.
-   The wildcard form matters: `Linking.createURL("/")` carries a path, so a bare `secondbrain://`
-   exact entry will not match.
+2. Deploy `public/auth-bridge.html` to the existing GitHub Pages origin, then confirm the exact two
+   bridge URLs in `supabase/config.toml` are the only native entries in Supabase Redirect URLs.
+   Do not add the app scheme or localhost as a fallback: another app can claim the same private-use
+   scheme, whereas an intercepted PKCE code is not useful without the requesting app's verifier.
 3. Make sure the button renders in the native build. Visibility is the build-time flag in
    `src/lib/env.ts`: `EXPO_PUBLIC_ENABLE_GOOGLE` defaults **true** (Google shows by default);
    `EXPO_PUBLIC_ENABLE_KAKAO`/`_APPLE`/`_FACEBOOK`/`_GITHUB` default **false**. To show a default-off
@@ -109,11 +121,18 @@ provider config as web. There is **no separate Android/iOS OAuth client id** to 
    changed; rebuild the APK only if a native flag/config (`app.json`, a new native dep, an `eas.json`
    env baked at build time) changed.
 
-**Current status (2026-06-27):** Google is enabled in Supabase and verified on web (1 google
-identity). Kakao/Apple/Facebook/GitHub are **not** enabled in Supabase (0 identities). So the nearest
-phone win is **Google**: do step 2 (`secondbrain://**`) + OTA, then test "Continue with Google" on the
-device. Kakao additionally needs the Kakao console app + (for the email scope) Simon's
-business/identity verification — see `docs/api-registration-cowork.md` prompt 2.
+For local web development, use an isolated local/non-production Supabase project with its own exact
+development callback, or exercise the deployed production bridge. Never temporarily add localhost,
+custom schemes, or wildcards to the production allowlist and never push a partial `[auth]` config.
+
+### Email confirmation and recovery
+
+- Sign-up and recovery mail templates are code-only. They do not contain classic implicit links.
+- Sign-up verifies the entered OTP with `type: "signup"`; recovery verifies with
+  `type: "recovery"`. A PKCE `code` callback remains supported for social OAuth and any separately
+  reviewed HTTPS link flow.
+- Any callback containing `access_token`, `refresh_token`, or provider bearer tokens fails closed.
+  Do not restore an implicit-token fallback for older clients.
 
 ### iOS Sign in with Apple (still deferred)
 

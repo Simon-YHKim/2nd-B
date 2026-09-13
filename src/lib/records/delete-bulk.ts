@@ -5,6 +5,11 @@
 
 import { getSupabaseClient } from "../supabase/client";
 import { invalidateDomainLevels } from "../persona/load-domain-levels";
+import {
+  assertExpectedSessionInsideMutation,
+  getAuthStorageRuntime,
+  type AuthSessionExpectation,
+} from "../auth/session-mutation";
 
 /** Delete every record belonging to the user. Returns affected count. */
 export async function deleteAllRecords(userId: string): Promise<number> {
@@ -259,31 +264,37 @@ function readFlag(value: unknown): boolean | null {
  *  Throwing on a partial would tell the user deletion failed when it did not,
  *  and would offer a destructive retry against a dead account. So the partial
  *  travels back as data and the screen decides what to say. */
-export async function requestAccountDeletion(): Promise<AccountDeletionReceipt> {
+export async function requestAccountDeletion(
+  expected: AuthSessionExpectation,
+): Promise<AccountDeletionReceipt> {
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase.functions.invoke("delete-account", { body: {} });
-  if (error) throw error;
-  const body = data as
-    | { deleted?: unknown; profile_erased?: unknown; raw_clippings_erased?: unknown }
-    | null;
-  if (body?.deleted !== true) {
-    throw new Error("account deletion did not complete");
-  }
-  const profileErased = readFlag(body.profile_erased);
-  const rawClippingsErased = readFlag(body.raw_clippings_erased);
-  const sweeps: [DeletionSweep, boolean | null][] = [
-    ["profile", profileErased],
-    ["rawClippings", rawClippingsErased],
-  ];
-  const incomplete = sweeps.filter(([, v]) => v === false).map(([k]) => k);
-  const unconfirmed = sweeps.filter(([, v]) => v === null).map(([k]) => k);
-  return {
-    deleted: true,
-    profileErased,
-    rawClippingsErased,
-    incomplete,
-    unconfirmed,
-    complete: incomplete.length === 0 && unconfirmed.length === 0,
-    observedAtIso: new Date().toISOString(),
-  };
+  const runtime = getAuthStorageRuntime();
+  return runtime.runMutation(async () => {
+    await assertExpectedSessionInsideMutation(supabase.auth, expected);
+    const { data, error } = await supabase.functions.invoke("delete-account", { body: {} });
+    if (error) throw error;
+    const body = data as
+      | { deleted?: unknown; profile_erased?: unknown; raw_clippings_erased?: unknown }
+      | null;
+    if (body?.deleted !== true) {
+      throw new Error("account deletion did not complete");
+    }
+    const profileErased = readFlag(body.profile_erased);
+    const rawClippingsErased = readFlag(body.raw_clippings_erased);
+    const sweeps: [DeletionSweep, boolean | null][] = [
+      ["profile", profileErased],
+      ["rawClippings", rawClippingsErased],
+    ];
+    const incomplete = sweeps.filter(([, v]) => v === false).map(([k]) => k);
+    const unconfirmed = sweeps.filter(([, v]) => v === null).map(([k]) => k);
+    return {
+      deleted: true,
+      profileErased,
+      rawClippingsErased,
+      incomplete,
+      unconfirmed,
+      complete: incomplete.length === 0 && unconfirmed.length === 0,
+      observedAtIso: new Date().toISOString(),
+    };
+  }, { requireCrossTab: true });
 }

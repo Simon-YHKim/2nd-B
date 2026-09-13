@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; base-uri 'none'; connect-src 'none'; font-src 'none'; form-action 'none'; frame-src 'none'; img-src 'none'; manifest-src 'none'; media-src 'none'; object-src 'none'; script-src 'sha256-m75poc7+J9HcR9QWdaBVA44PkP2l3ur54xnV6qrlcEk='; script-src-attr 'none'; style-src 'none'; worker-src 'none'"
+    />
+    <title>2nd-Brain 로그인 연결</title>
+    <script>
+(function () {
+  "use strict";
+
+  var current = window.location;
+  var rawUrl = current.href;
+  var scrubbedUrl = current.origin + current.pathname;
+  try {
+    window.history.replaceState(null, "", scrubbedUrl);
+  } catch (_error) {
+    current.replace(scrubbedUrl);
+    return;
+  }
+
+  if (typeof rawUrl !== "string" || rawUrl.length > 4096) return;
+
+  var parsed;
+  try {
+    parsed = new URL(rawUrl);
+  } catch (_error) {
+    return;
+  }
+
+  if (
+    parsed.origin !== "https://simon-yhkim.github.io" ||
+    parsed.pathname !== "/2nd-B/auth-bridge.html"
+  ) {
+    return;
+  }
+
+  var query = parsed.searchParams;
+  var fragment = new URLSearchParams(parsed.hash.slice(1));
+  var forbidden = [
+    "access_token",
+    "id_token",
+    "provider_refresh_token",
+    "provider_token",
+    "refresh_token",
+    "token",
+    "token_hash",
+  ];
+  var carriesToken = false;
+
+  [query, fragment].forEach(function (params) {
+    params.forEach(function (_value, key) {
+      if (forbidden.indexOf(key.toLowerCase()) !== -1) carriesToken = true;
+    });
+  });
+  if (carriesToken) return;
+
+  var targetValues = query.getAll("to");
+  if (targetValues.length !== 1 || fragment.has("to")) return;
+
+  var destination = "";
+  if (targetValues[0] === "root") destination = "secondbrain:///";
+  if (targetValues[0] === "reset-password") {
+    destination = "secondbrain:///reset-password";
+  }
+  if (!destination) return;
+
+  var codeValues = query.getAll("code").concat(fragment.getAll("code"));
+  var queryErrors = query.getAll("error_code");
+  var fragmentErrors = fragment.getAll("error_code");
+  if (queryErrors.length > 1 || fragmentErrors.length > 1) return;
+  var errorValues = queryErrors.concat(fragmentErrors);
+  // GoTrue mirrors errors into query and fragment. Accept only an identical
+  // pair as one logical error; conflicting values stay fail-closed.
+  if (errorValues.length === 2) {
+    if (errorValues[0] !== errorValues[1]) return;
+    errorValues = [errorValues[0]];
+  }
+  if (codeValues.length === 1 && errorValues.length === 0) {
+    var code = codeValues[0];
+    if (!/^[A-Za-z0-9._~-]{1,2048}$/.test(code)) return;
+    current.replace(destination + "?code=" + encodeURIComponent(code));
+    return;
+  }
+  if (errorValues.length === 1 && codeValues.length === 0) {
+    var errorCode = errorValues[0];
+    if (!/^[A-Za-z0-9._-]{1,128}$/.test(errorCode)) return;
+    current.replace(destination + "?error_code=" + encodeURIComponent(errorCode));
+  }
+})();
+    </script>
+  </head>
+  <body>
+    <p>로그인 응답을 앱에 안전하게 전달하지 못했습니다.</p>
+    <p>브라우저를 닫고 앱에서 다시 시도해 주세요.</p>
+    <noscript>JavaScript가 필요합니다. 브라우저를 닫고 앱으로 돌아가 주세요.</noscript>
+  </body>
+</html>

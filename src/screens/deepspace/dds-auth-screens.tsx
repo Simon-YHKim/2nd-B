@@ -22,6 +22,7 @@ import { SecondbHead } from "@/components/deepspace";
 import { useSignInForm } from "@/lib/auth/useSignInForm";
 import { useSignUpForm } from "@/lib/auth/useSignUpForm";
 import { useResetPasswordForm } from "@/lib/auth/useResetPasswordForm";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { ageInYears, MIN_SELF_CONSENT_AGE, type OAuthProvider } from "@/lib/supabase/auth";
 import { allRequiredAcksChecked, setAllRequiredAcks, type ConsentSelections } from "@/lib/auth/consent-selections";
 import { DateField } from "@/components/m3";
@@ -621,6 +622,7 @@ function ResetField({
 export function DeepSpaceResetPasswordDesignScreen() {
   const { t } = useTranslation(["deepspace", "auth", "common"]);
   const navigation = useNavigation();
+  const { sessionUnavailable, refresh } = useAuth();
   // Subscribes the raw TextInputs to the readable-font switch. Text components
   // already subscribe themselves; calling m3TextStyle again on this render gives
   // form controls the same current face instead of freezing the boot-time value.
@@ -751,6 +753,24 @@ export function DeepSpaceResetPasswordDesignScreen() {
           <Text style={[m3TextStyle("bodyLarge"), resetStyles.subtitle]}>{subtitle}</Text>
         </View>
       </View>
+
+      {sessionUnavailable ? (
+        <View accessibilityRole="alert" accessibilityLiveRegion="assertive">
+          <PixelSurface
+            variant="frame"
+            background={m3.color.errorContainer}
+            contentStyle={resetStyles.sessionAlert}
+          >
+            <Text style={[m3TextStyle("bodyMedium"), resetStyles.toastDanger]}>
+              {t("auth:common.sessionUnavailable")}
+            </Text>
+            <ResetAction
+              onPress={() => void refresh()}
+              label={t("common:actions.retry")}
+            />
+          </PixelSurface>
+        </View>
+      ) : null}
 
       <View style={resetStyles.form}>
         {step === "request" || step === "verify" ? (
@@ -956,6 +976,7 @@ const resetStyles = StyleSheet.create({
   helper: { color: m3.color.onSurfaceVariant, paddingBottom: Platform.OS === "android" ? m3.spacing.s1 : 0 },
   helperDanger: { color: m3.color.error },
   actionContent: { minHeight: m3.minTouch, alignItems: "center", justifyContent: "center" },
+  sessionAlert: { gap: m3.spacing.s4, paddingVertical: m3.spacing.s4, paddingHorizontal: m3.spacing.s6 },
   toastContent: { paddingVertical: m3.spacing.s4, paddingHorizontal: m3.spacing.s6 },
   toastText: { color: m3.color.primary },
   toastDanger: { color: m3.color.onErrorContainer },

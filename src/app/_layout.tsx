@@ -86,7 +86,7 @@ export { ErrorBoundary } from "@/components/ui/RootErrorBoundary";
 // This runs before AuthProvider creates the lazy Supabase client. On web it
 // broadcasts a provisional cross-tab lock before auth-js mutates shared session
 // storage for a reset callback; non-callback routes are a no-op.
-armWebRecoveryPendingFromLocation();
+void armWebRecoveryPendingFromLocation().catch(() => undefined);
 initI18n();
 void initAnalytics();
 

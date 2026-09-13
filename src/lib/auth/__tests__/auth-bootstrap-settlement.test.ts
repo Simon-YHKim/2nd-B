@@ -278,6 +278,23 @@ describe("recovery cases stay locked", () => {
 });
 
 describe("a classified session still resolves exactly as before", () => {
+  test("a durable session with pending but no proof remains restart-locked", () => {
+    const { deps, calls } = makeDeps({
+      sessionKnown: true,
+      sessionAnswered: true,
+      sessionForResolve: SESSION,
+      recoveryPendingOnDisk: true,
+      rawSessionLoad: Promise.resolve({ ok: true, session: SESSION }),
+    });
+
+    expect(settleAuthBootstrap(deps)).toEqual({
+      kind: "recovery-locked",
+      reason: "pending",
+    });
+    expect(calls.resolveSession).toEqual([]);
+    expect(calls.recoveryReady).toEqual([false]);
+  });
+
   test("a known session resolves its user", () => {
     const { deps, calls } = makeDeps({
       sessionKnown: true,
@@ -357,6 +374,7 @@ describe("accessible retry", () => {
 describe("provider and screen wiring", () => {
   const AUTH = read("src/lib/auth/AuthContext.tsx");
   const SIGN_IN = read("src/screens/deepspace/dds-sign-in-screen.tsx");
+  const RESET_PASSWORD = read("src/screens/deepspace/dds-auth-screens.tsx");
 
   test("AuthProvider ends its bootstrap through the executor these tests drive", () => {
     // Without this, the suite above could pass against a module the provider
@@ -388,6 +406,17 @@ describe("provider and screen wiring", () => {
     expect(SIGN_IN).toContain('t("auth:common.sessionUnavailable")');
     expect(SIGN_IN).toContain('accessibilityLabel={t("common:actions.retry")}');
     expect(SIGN_IN).toContain("onPress={() => void refresh()}");
+  });
+
+  test("the reset-password screen exposes the same bounded bootstrap retry", () => {
+    expect(RESET_PASSWORD).toContain("const { sessionUnavailable, refresh } = useAuth();");
+    expect(RESET_PASSWORD).toContain("{sessionUnavailable ? (");
+    expect(RESET_PASSWORD).toContain('accessibilityRole="alert"');
+    expect(RESET_PASSWORD).toContain('accessibilityLiveRegion="assertive"');
+    expect(RESET_PASSWORD).toContain('t("auth:common.sessionUnavailable")');
+    expect(RESET_PASSWORD).toContain('label={t("common:actions.retry")}');
+    expect(RESET_PASSWORD).toContain("onPress={() => void refresh()}");
+    expect(RESET_PASSWORD).toContain("usePreventRemove(exitLocked");
   });
 
   test("FAR-02: recovery failure logs carry a stable phase, never the caught operand", () => {

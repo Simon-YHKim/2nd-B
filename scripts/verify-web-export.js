@@ -160,6 +160,18 @@ function verifyDocument(path, html) {
   }
 }
 
+function verifyAuthBridge() {
+  let source;
+  let emitted;
+  try {
+    source = readFileSync(join("public", "auth-bridge.html"), "utf8");
+    emitted = readFileSync(join(OUT, "auth-bridge.html"), "utf8");
+  } catch (error) {
+    fail(`the exported native auth bridge is missing: ${error.message}`);
+  }
+  if (emitted !== source) fail("the exported native auth bridge differs from its reviewed source");
+}
+
 function run() {
   // shell:true is required for the npx.cmd shim in the supported Windows setup.
   // +html.tsx is bundled for the server renderer separately from the client
@@ -177,6 +189,7 @@ function run() {
   });
   if (exportResult.error) fail(`could not start the export: ${exportResult.error.message}`);
   if (exportResult.status !== 0) fail("the web bundle did not build");
+  verifyAuthBridge();
 
   const documents = htmlFiles(OUT)
     .map((path) => ({ path, html: readFileSync(path, "utf8") }))

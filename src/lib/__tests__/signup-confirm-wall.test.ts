@@ -60,7 +60,7 @@ describe("sign-up confirm code (deliverability P1, 260718)", () => {
   test("verifySignUpCode verifies the mailed token as a signup OTP", () => {
     const auth = read("src/lib/supabase/auth.ts");
     const fn = auth.slice(auth.indexOf("export async function verifySignUpCode"));
-    expect(fn).toContain('verifyOtp({ type: "signup"');
+    expect(fn).toMatch(/verifyOtp\(\{\s*type:\s*"signup"/);
   });
 
   test("the hook settles the session before tearing the card down", () => {

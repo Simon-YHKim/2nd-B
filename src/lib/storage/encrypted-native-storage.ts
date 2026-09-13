@@ -83,7 +83,9 @@ const MANAGED_EXACT_KEYS = new Set([
   "llm.auditWriteOutbox.v1",
   "llm.auditWriteOutbox.recovery.v1",
   "secondbrain.auth.recovery-pending.v1",
+  "secondbrain.auth.recovery-pending.v2",
   "secondbrain.auth.recovery-proof.v1",
+  "secondbrain.auth.recovery-proof.v2",
   "secondB_naver_oauth_state",
 ]);
 const DELETE_ONLY_KEYS = new Set(["import.history"]);
@@ -93,7 +95,8 @@ const MANAGED_KEY_PREFIXES = [
   "import.history:",
   "ops.github.username:",
 ];
-const SUPABASE_AUTH_KEY_PATTERN = /^sb-[a-z0-9_-]+-auth-token(?:-code-verifier)?$/i;
+const SUPABASE_AUTH_KEY_PATTERN =
+  /^sb-[a-z0-9_-]+-auth-token(?:-v2)?(?:-code-verifier|-user|-migration-from-v1-complete)?$/i;
 
 function migrationSchemaFingerprint(): string {
   const descriptor = [

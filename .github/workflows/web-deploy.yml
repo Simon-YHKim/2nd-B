@@ -438,6 +438,14 @@ jobs:
             echo "::error::The Pages artifact directory is missing."
             exit 1
           fi
+          if [ ! -f dist/auth-bridge.html ] || [ -L dist/auth-bridge.html ]; then
+            echo "::error::The native auth bridge is missing from the Pages artifact."
+            exit 1
+          fi
+          if ! cmp -s -- public/auth-bridge.html dist/auth-bridge.html; then
+            echo "::error::The exported native auth bridge differs from its reviewed source."
+            exit 1
+          fi
           if [ -n "$(find dist -type l -print -quit)" ]; then
             echo "::error::The Pages artifact must not contain symlinks."
             exit 1

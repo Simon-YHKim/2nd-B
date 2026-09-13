@@ -2,7 +2,7 @@
 // (cosmic) and deep-space presentations render IDENTICAL behavior from one
 // source. Faithful lift of ResetPasswordLegacy (src/app/(auth)/reset-password.tsx):
 // it owns the new/confirm password state, the helper-key derivation, the
-// updatePassword submit + UX states (complete / error toast), and the native
+// password-update submit + UX states (complete / error toast), and the native
 // recovery deep-link consumption (consumeAuthCallbackUrl) that establishes the
 // recovery session so userId flips the form on.
 
@@ -14,16 +14,17 @@ import { useLocalSearchParams } from "expo-router";
 
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
-  clearRecoveryPending,
   persistRecoveryPending,
+  sameRecoveryProof,
+  type RecoveryOperationExpectation,
 } from "@/lib/auth/recovery-proof-store";
 import {
+  cancelRecoverySession,
   consumeAuthCallbackUrl,
   isPasswordRecoveryCallbackUrl,
   passwordUpdateFailure,
   sendPasswordResetEmail,
-  signOut,
-  updatePassword,
+  updatePasswordForRecovery,
   verifyPasswordResetCode,
 } from "@/lib/supabase/auth";
 import {
@@ -93,6 +94,7 @@ export function useResetPasswordForm(): UseResetPasswordForm {
     loading,
     recoveryUserId,
     recoverySessionId,
+    recoveryOperation,
     recoveryPendingGlobal,
     activateRecoverySession,
     completeRecovery,
@@ -124,11 +126,21 @@ export function useResetPasswordForm(): UseResetPasswordForm {
   const recoveryOperationQueueRef = useRef<Promise<void>>(Promise.resolve());
   const recoveryConsumeGenerationRef = useRef(0);
   const mountedRef = useRef(true);
-  const authSnapshotRef = useRef({ userId, recoveryUserId, recoverySessionId });
-  const previousRecoveryOwnerRef = useRef(
-    recoveryUserId && recoverySessionId ? `${recoveryUserId}:${recoverySessionId}` : null,
+  const authSnapshotRef = useRef({
+    userId,
+    recoveryUserId,
+    recoverySessionId,
+    recoveryOperation,
+  });
+  const previousRecoveryOperationRef = useRef<RecoveryOperationExpectation | null>(
+    recoveryOperation,
   );
-  authSnapshotRef.current = { userId, recoveryUserId, recoverySessionId };
+  authSnapshotRef.current = {
+    userId,
+    recoveryUserId,
+    recoverySessionId,
+    recoveryOperation,
+  };
 
   useEffect(() => {
     mountedRef.current = true;
@@ -140,24 +152,22 @@ export function useResetPasswordForm(): UseResetPasswordForm {
   const recoveryActive =
     userId !== null &&
     recoveryUserId === userId &&
-    recoverySessionId !== null;
+    recoverySessionId !== null &&
+    recoveryOperation !== null;
 
   useEffect(() => {
-    const recoveryOwner = recoveryUserId && recoverySessionId
-      ? `${recoveryUserId}:${recoverySessionId}`
-      : null;
-    const previousOwner = previousRecoveryOwnerRef.current;
-    if (previousOwner === recoveryOwner) return;
-    previousRecoveryOwnerRef.current = recoveryOwner;
+    const previousOwner = previousRecoveryOperationRef.current;
+    if (sameRecoveryProof(previousOwner, recoveryOperation)) return;
+    previousRecoveryOperationRef.current = recoveryOperation;
     const completedOwnerCleared =
-      previousOwner !== null && recoveryOwner === null && complete;
+      previousOwner !== null && recoveryOperation === null && complete;
     if (completedOwnerCleared) return;
     // A recovery link for B must never inherit A's typed password or done state.
     setPassword("");
     setConfirmPassword("");
     setComplete(false);
     setCancelled(false);
-  }, [complete, recoverySessionId, recoveryUserId]);
+  }, [complete, recoveryOperation]);
   // useEffect starts native consumption after commit. Derive this first frame
   // synchronously so Back cannot win the race between URL render and the effect.
   const nativeRecoveryLinkWaiting =
@@ -232,15 +242,9 @@ export function useResetPasswordForm(): UseResetPasswordForm {
       await enqueueRecoveryOperation(
         recoveryOperationQueueRef,
         async () => {
-          await persistRecoveryPending();
-          try {
-            const verified = await verifyPasswordResetCode(email, token);
-            await activateRecoverySession(verified);
-            await clearRecoveryPending();
-          } catch (error) {
-            await clearRecoveryPending().catch(() => undefined);
-            throw error;
-          }
+          const pending = await persistRecoveryPending();
+          const verified = await verifyPasswordResetCode(email, token, pending);
+          await activateRecoverySession(verified);
         },
       );
     } catch (e) {
@@ -261,9 +265,8 @@ export function useResetPasswordForm(): UseResetPasswordForm {
     verifying,
   ]);
 
-  // Native: the recovery email's deep link carries the session tokens, but
-  // detectSessionInUrl is web-only — without consuming the URL here the screen
-  // always dead-ends at "expired". useLinkingURL covers both the cold-start initial URL
+  // Native: the recovery email's deep link carries a PKCE code, while legacy
+  // bearer-token links fail closed. useLinkingURL covers both the cold-start initial URL
   // and a warm-app link event; AuthContext picks up the resulting session and
   // userId flips the form on. useLinkingURL is required for a synchronous
   // cold-start value; deprecated useURL would leave the first frame unlocked.
@@ -289,38 +292,27 @@ export function useResetPasswordForm(): UseResetPasswordForm {
     setPassword("");
     setConfirmPassword("");
     setComplete(false);
-    // Serialize A -> B URL changes. setSession/exchangeCode cannot be aborted;
+    // Serialize A -> B URL changes. PKCE exchange cannot be aborted;
     // running them concurrently could leave a stale ordinary session if the
     // newer callback failed after the older callback's activation was ignored.
     setCancelled(false);
     const task = enqueueRecoveryOperation(
       recoveryOperationQueueRef,
       async () => {
-        await persistRecoveryPending();
-        try {
-          const callback = await consumeAuthCallbackUrl(deepLinkUrl);
-          if (callback.type !== "recovery" || !callback.userId || !callback.sessionId) {
-            throw new Error("Recovery callback returned no stable recovery session");
-          }
-          // Persist every session mutation, even when a newer URL already owns
-          // the UI. Otherwise A may establish a recovery session, B may fail
-          // before mutation, and A would survive with no proof to revoke.
-          await activateRecoverySession({
-            userId: callback.userId,
-            sessionId: callback.sessionId,
-          });
-          await clearRecoveryPending();
-          return requestId === recoveryConsumeGenerationRef.current;
-        } catch (error) {
-          // consumeAuthCallbackUrl may have completed setSession/PKCE exchange
-          // before a later provenance or session_id check failed. Revoke the
-          // current device session before releasing the provisional lock so an
-          // unclassified callback can never escape as an ordinary login. If
-          // sign-out fails, deliberately keep pending durable and fail closed.
-          await signOut("local");
-          await clearRecoveryPending();
-          throw error;
+        const pending = await persistRecoveryPending();
+        const callback = await consumeAuthCallbackUrl(deepLinkUrl, pending);
+        if (
+          callback.type !== "recovery" ||
+          !callback.userId ||
+          !callback.sessionId ||
+          !callback.recoveryProof
+        ) {
+          throw new Error("Recovery callback returned no stable recovery session");
         }
+        // The callback transaction owns durable proof and cleanup. If proof
+        // persistence and sign-out both fail, pending intentionally survives.
+        await activateRecoverySession(callback.recoveryProof);
+        return requestId === recoveryConsumeGenerationRef.current;
       },
     );
     void task
@@ -333,19 +325,15 @@ export function useResetPasswordForm(): UseResetPasswordForm {
           // mix B's error with A's account/draft. Latest intent wins: revoke A
           // locally and clear its proof before returning to the request step.
           const stale = authSnapshotRef.current;
-          if (stale.recoveryUserId && stale.recoverySessionId) {
-            const staleUserId = stale.recoveryUserId;
-            const staleSessionId = stale.recoverySessionId;
+          if (stale.recoveryOperation) {
+            const staleOperation = stale.recoveryOperation;
             await enqueueRecoveryOperation(
               recoveryOperationQueueRef,
               async () => {
                 const live = authSnapshotRef.current;
-                if (
-                  live.recoveryUserId === staleUserId &&
-                  live.recoverySessionId === staleSessionId
-                ) {
-                  await signOut("local");
-                  await completeRecovery(staleUserId, staleSessionId);
+                if (sameRecoveryProof(live.recoveryOperation, staleOperation)) {
+                  await cancelRecoverySession(staleOperation);
+                  await completeRecovery(staleOperation);
                 }
               },
             ).catch(() => undefined);
@@ -367,12 +355,12 @@ export function useResetPasswordForm(): UseResetPasswordForm {
   }, [activateRecoverySession, completeRecovery, deepLinkUrl, t]);
 
   const handleSubmit = useCallback(async () => {
-    const expectedRecoveryUserId = recoveryActive ? userId : null;
-    const expectedRecoverySessionId = recoveryActive ? recoverySessionId : null;
+    const expectedRecovery = recoveryActive ? recoveryOperation : null;
+    const expectedUserId = recoveryActive ? userId : null;
     const callbackGenerationAtStart = recoveryConsumeGenerationRef.current;
     if (
-      !expectedRecoveryUserId ||
-      !expectedRecoverySessionId ||
+      !expectedRecovery ||
+      !expectedUserId ||
       recoveryPending ||
       sendSubmitting ||
       password.length < 8 ||
@@ -383,7 +371,7 @@ export function useResetPasswordForm(): UseResetPasswordForm {
     }
     setSubmitting(true);
     try {
-      // The leaked-password probe inside updatePassword is asynchronous. Bind
+      // The leaked-password probe inside updatePasswordForRecovery is asynchronous. Bind
       // the eventual mutation to the recovery owner captured at submit entry,
       // then re-check the live Supabase session immediately before updateUser.
       const updated = await enqueueRecoveryOperation(
@@ -391,18 +379,12 @@ export function useResetPasswordForm(): UseResetPasswordForm {
         async () => {
           const live = authSnapshotRef.current;
           if (
-            live.userId !== expectedRecoveryUserId ||
-            live.recoveryUserId !== expectedRecoveryUserId ||
-            live.recoverySessionId !== expectedRecoverySessionId
+            live.userId !== expectedUserId ||
+            !sameRecoveryProof(live.recoveryOperation, expectedRecovery)
           ) {
             throw new Error("Password recovery owner changed before update");
           }
-          return updatePassword(
-            password,
-            undefined,
-            expectedRecoveryUserId,
-            expectedRecoverySessionId,
-          );
+          return updatePasswordForRecovery(password, expectedRecovery);
         },
       );
       // A newly arrived recovery link is queued behind this update. Do not let
@@ -414,16 +396,17 @@ export function useResetPasswordForm(): UseResetPasswordForm {
       }
       const live = authSnapshotRef.current;
       if (
-        updated.userId !== expectedRecoveryUserId ||
-        live.userId !== expectedRecoveryUserId ||
-        live.recoveryUserId !== expectedRecoveryUserId ||
-        live.recoverySessionId !== expectedRecoverySessionId
+        updated.userId !== expectedUserId ||
+        live.userId !== expectedUserId ||
+        !sameRecoveryProof(live.recoveryOperation, expectedRecovery)
       ) {
         throw new Error("Password recovery owner changed during update");
       }
       setPassword("");
       setConfirmPassword("");
-      await completeRecovery(expectedRecoveryUserId, expectedRecoverySessionId);
+      if (!(await completeRecovery(expectedRecovery))) {
+        throw new Error("Password recovery owner changed before completion");
+      }
       setComplete(true);
       setToast({ tone: "success", message: t("resetPassword.successToast") });
     } catch (e) {
@@ -458,7 +441,7 @@ export function useResetPasswordForm(): UseResetPasswordForm {
     password,
     recoveryActive,
     recoveryPending,
-    recoverySessionId,
+    recoveryOperation,
     sendSubmitting,
     submitting,
     t,
@@ -466,12 +449,12 @@ export function useResetPasswordForm(): UseResetPasswordForm {
   ]);
 
   const handleCancelRecovery = useCallback(async () => {
-    const expectedRecoveryUserId = recoveryActive ? userId : null;
-    const expectedRecoverySessionId = recoveryActive ? recoverySessionId : null;
+    const expectedRecovery = recoveryActive ? recoveryOperation : null;
+    const expectedUserId = recoveryActive ? userId : null;
     const callbackGenerationAtStart = recoveryConsumeGenerationRef.current;
     if (
-      !expectedRecoveryUserId ||
-      !expectedRecoverySessionId ||
+      !expectedRecovery ||
+      !expectedUserId ||
       recoveryPending ||
       sendSubmitting ||
       submitting ||
@@ -488,15 +471,14 @@ export function useResetPasswordForm(): UseResetPasswordForm {
         async () => {
           const live = authSnapshotRef.current;
           if (
-            live.userId !== expectedRecoveryUserId ||
-            live.recoveryUserId !== expectedRecoveryUserId ||
-            live.recoverySessionId !== expectedRecoverySessionId
+            live.userId !== expectedUserId ||
+            !sameRecoveryProof(live.recoveryOperation, expectedRecovery)
           ) {
             return false;
           }
           // Recovery cancellation revokes only this device's session. It must
           // not silently sign the account out on every other trusted device.
-          await signOut("local");
+          await cancelRecoverySession(expectedRecovery);
           return true;
         },
       );
@@ -506,7 +488,7 @@ export function useResetPasswordForm(): UseResetPasswordForm {
       ) {
         return;
       }
-      await completeRecovery(expectedRecoveryUserId, expectedRecoverySessionId);
+      if (!(await completeRecovery(expectedRecovery))) return;
       setCancelled(true);
     } catch {
       setToast({ tone: "danger", message: t("errors.signOutFailed") });
@@ -520,8 +502,8 @@ export function useResetPasswordForm(): UseResetPasswordForm {
     cancelling,
     completeRecovery,
     recoveryActive,
+    recoveryOperation,
     recoveryPending,
-    recoverySessionId,
     sendSubmitting,
     submitting,
     t,

@@ -90,9 +90,17 @@ describe("both deletion paths purge local drafts", () => {
       const caller = read(f);
       expect(caller).toContain("purgeCaptureDraftsForDeletedAccount");
 
-      const erase = caller.indexOf("await requestAccountDeletion()");
+      const erase = caller.indexOf(
+        caller.includes("await requestAccountDeletion(authExpectation)")
+          ? "await requestAccountDeletion(authExpectation)"
+          : "await requestAccountDeletion()",
+      );
       const purge = caller.indexOf("purgeCaptureDraftsForDeletedAccount(targetUserId)");
-      const signout = caller.indexOf("await signOut()");
+      const signout = caller.indexOf(
+        caller.includes("await signOutExpected(authExpectation)")
+          ? "await signOutExpected(authExpectation)"
+          : "await signOut()",
+      );
       expect(erase).toBeGreaterThan(-1);
       expect(purge).toBeGreaterThan(-1);
       expect(signout).toBeGreaterThan(-1);

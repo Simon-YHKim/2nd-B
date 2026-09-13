@@ -87,4 +87,7 @@ jobs:
         env:
           EXPO_PUBLIC_UI: "deep-space"
           EXPO_USE_STATIC: "true"
-        run: npx expo export --platform web --output-dir dist-smoke
+        run: |
+          npx expo export --platform web --output-dir dist-smoke
+          test -f dist-smoke/auth-bridge.html
+          cmp -- public/auth-bridge.html dist-smoke/auth-bridge.html

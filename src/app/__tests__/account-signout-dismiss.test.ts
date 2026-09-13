@@ -6,7 +6,7 @@ const ROOT = resolve(__dirname, "../../..");
 interface SignOutPath {
   label: string;
   source: string;
-  navigationOwner: "success" | "finally";
+  navigationOwner: "success" | "finally" | "afterCatch";
 }
 
 const PATHS: SignOutPath[] = [
@@ -28,7 +28,7 @@ const PATHS: SignOutPath[] = [
       resolve(ROOT, "src/screens/deepspace/DeepSpaceDesignScreens.tsx"),
       "utf8",
     ).replace(/\r\n/g, "\n"),
-    navigationOwner: "finally",
+    navigationOwner: "afterCatch",
   },
 ];
 
@@ -37,11 +37,14 @@ describe("account sign-out navigation dismissal", () => {
     source,
     navigationOwner,
   }) => {
-    const signOutAt = source.indexOf("await signOut();");
+    const signOutCall = source.includes("await signOutExpected(authExpectation);")
+      ? "await signOutExpected(authExpectation);"
+      : "await signOut();";
+    const signOutAt = source.indexOf(signOutCall);
     const dismissAt = source.indexOf("router.dismissAll();", signOutAt);
     const replaceAt = source.indexOf('router.replace("/sign-in");', signOutAt);
 
-    expect(source.match(/await signOut\(\);/g)).toHaveLength(1);
+    expect(source.split(signOutCall)).toHaveLength(2);
     expect(source.match(/router\.dismissAll\(\);/g)).toHaveLength(1);
     expect(source.match(/router\.replace\("\/sign-in"\);/g)).toHaveLength(1);
     expect(signOutAt).toBeGreaterThan(-1);
@@ -52,10 +55,18 @@ describe("account sign-out navigation dismissal", () => {
     const catchAt = source.indexOf("} catch (e) {", signOutAt);
     if (navigationOwner === "success") {
       expect(replaceAt).toBeLessThan(catchAt);
-    } else {
+    } else if (navigationOwner === "finally") {
       const finallyAt = source.indexOf("} finally {", catchAt);
       expect(finallyAt).toBeGreaterThan(catchAt);
       expect(dismissAt).toBeGreaterThan(finallyAt);
+    } else {
+      const ownerChangedReturn = source.indexOf(
+        "if (e instanceof AuthSessionOwnerChangedError)",
+        catchAt,
+      );
+      expect(ownerChangedReturn).toBeGreaterThan(catchAt);
+      expect(source.slice(ownerChangedReturn, dismissAt)).toContain("return;");
+      expect(dismissAt).toBeGreaterThan(catchAt);
     }
   });
 

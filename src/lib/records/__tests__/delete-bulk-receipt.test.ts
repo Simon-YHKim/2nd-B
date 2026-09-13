@@ -18,7 +18,13 @@
 
 jest.mock("../../supabase/client", () => {
   const invoke = jest.fn().mockResolvedValue({ data: { deleted: true }, error: null });
-  const mock = { from: jest.fn(), functions: { invoke } };
+  const auth = {
+    getSession: jest.fn().mockResolvedValue({
+      data: { session: { access_token: "test-token", user: { id: "u1" } } },
+      error: null,
+    }),
+  };
+  const mock = { auth, from: jest.fn(), functions: { invoke } };
   return {
     getSupabaseClient: () => mock,
     __invoke: invoke,
@@ -27,6 +33,13 @@ jest.mock("../../supabase/client", () => {
 });
 
 import { requestAccountDeletion } from "../delete-bulk";
+import type { AuthSessionExpectation } from "../../auth/session-mutation";
+
+const EXPECTED: AuthSessionExpectation = {
+  userId: "u1",
+  sessionId: null,
+  accessToken: "test-token",
+};
 
 const clientMock = require("../../supabase/client") as {
   __invoke: jest.Mock;
@@ -42,7 +55,7 @@ describe("requestAccountDeletion returns a deletion receipt", () => {
 
   test("a fully clean deletion reports both cleanups as done", async () => {
     serverSays({ deleted: true, profile_erased: true, raw_clippings_erased: true });
-    const receipt = await requestAccountDeletion();
+    const receipt = await requestAccountDeletion(EXPECTED);
     expect(receipt.deleted).toBe(true);
     expect(receipt.profileErased).toBe(true);
     expect(receipt.rawClippingsErased).toBe(true);
@@ -54,7 +67,7 @@ describe("requestAccountDeletion returns a deletion receipt", () => {
     // Storage sweep failed. Throwing here would tell the user deletion failed
     // when it did not, and would offer a destructive retry on a dead account.
     serverSays({ deleted: true, profile_erased: true, raw_clippings_erased: false });
-    const receipt = await requestAccountDeletion();
+    const receipt = await requestAccountDeletion(EXPECTED);
     expect(receipt.deleted).toBe(true);
     expect(receipt.rawClippingsErased).toBe(false);
     expect(receipt.complete).toBe(false);
@@ -63,14 +76,14 @@ describe("requestAccountDeletion returns a deletion receipt", () => {
 
   test("a failed profile safety net is reported on its own axis", async () => {
     serverSays({ deleted: true, profile_erased: false, raw_clippings_erased: true });
-    const receipt = await requestAccountDeletion();
+    const receipt = await requestAccountDeletion(EXPECTED);
     expect(receipt.profileErased).toBe(false);
     expect(receipt.incomplete).toEqual(["profile"]);
   });
 
   test("both failing are both reported", async () => {
     serverSays({ deleted: true, profile_erased: false, raw_clippings_erased: false });
-    const receipt = await requestAccountDeletion();
+    const receipt = await requestAccountDeletion(EXPECTED);
     expect(receipt.incomplete).toEqual(["profile", "rawClippings"]);
     expect(receipt.complete).toBe(false);
   });
@@ -79,7 +92,7 @@ describe("requestAccountDeletion returns a deletion receipt", () => {
     // An older deployed function returns { deleted: true } alone. Reading that
     // as false would report a residual that was never observed.
     serverSays({ deleted: true });
-    const receipt = await requestAccountDeletion();
+    const receipt = await requestAccountDeletion(EXPECTED);
     expect(receipt.profileErased).toBeNull();
     expect(receipt.rawClippingsErased).toBeNull();
     expect(receipt.incomplete).toEqual([]);
@@ -90,7 +103,7 @@ describe("requestAccountDeletion returns a deletion receipt", () => {
 
   test("a non-boolean value is treated as unknown, not as failure", async () => {
     serverSays({ deleted: true, profile_erased: "yes", raw_clippings_erased: 0 });
-    const receipt = await requestAccountDeletion();
+    const receipt = await requestAccountDeletion(EXPECTED);
     expect(receipt.profileErased).toBeNull();
     expect(receipt.rawClippingsErased).toBeNull();
     expect(receipt.incomplete).toEqual([]);
@@ -98,18 +111,18 @@ describe("requestAccountDeletion returns a deletion receipt", () => {
 
   test("the receipt carries the moment the client observed the outcome", async () => {
     serverSays({ deleted: true, profile_erased: true, raw_clippings_erased: true });
-    const receipt = await requestAccountDeletion();
+    const receipt = await requestAccountDeletion(EXPECTED);
     expect(typeof receipt.observedAtIso).toBe("string");
     expect(Number.isNaN(Date.parse(receipt.observedAtIso))).toBe(false);
   });
 
   test("still throws when terminal erasure is not confirmed", async () => {
     serverSays({ deleted: false, profile_erased: true, raw_clippings_erased: true });
-    await expect(requestAccountDeletion()).rejects.toBeDefined();
+    await expect(requestAccountDeletion(EXPECTED)).rejects.toBeDefined();
   });
 
   test("still throws on a transport error", async () => {
     clientMock.__invoke.mockResolvedValueOnce({ data: null, error: { message: "boom" } });
-    await expect(requestAccountDeletion()).rejects.toBeDefined();
+    await expect(requestAccountDeletion(EXPECTED)).rejects.toBeDefined();
   });
 });

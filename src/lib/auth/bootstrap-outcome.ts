@@ -109,7 +109,14 @@ export function classifyBootstrapOutcome(input: BootstrapOutcomeInput): Bootstra
     markersReadable,
   } = input;
 
-  // A classified session always wins, exactly as before this fix.
+  // A durable session with an unresolved recovery operation is precisely the
+  // crash window this fence exists to catch. It must never bootstrap as an
+  // ordinary session merely because getSession answered.
+  if (recoveryPendingOnDisk && !hasProof) {
+    return { kind: "recovery-locked", reason: "pending" };
+  }
+
+  // A classified session with no unresolved pending owner can resolve.
   if (sessionKnown && proofMatchesSession) return { kind: "resolve" };
 
   // Everything below has an UNKNOWN or unmatched session. Recovery protection
@@ -166,7 +173,7 @@ export function settleAuthBootstrap<S extends SessionLike>(
 
   // Unchanged meaning: readiness releases the global recovery lock. An UNKNOWN
   // session with a pending marker and no proof stays locked, as before.
-  deps.setRecoveryReady(deps.sessionKnown || deps.hasProof || !deps.recoveryPendingOnDisk);
+  deps.setRecoveryReady(outcome.kind !== "recovery-locked" || deps.hasProof);
 
   if (outcome.kind === "resolve") {
     void deps.resolveSession(deps.sessionForResolve?.user.id ?? null);

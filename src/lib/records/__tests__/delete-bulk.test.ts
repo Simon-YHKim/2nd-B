@@ -24,11 +24,18 @@ jest.mock("../../supabase/client", () => {
     };
     return chain;
   });
-  const mock = { from, functions: { invoke } };
+  const auth = {
+    getSession: jest.fn().mockResolvedValue({
+      data: { session: { access_token: "test-token", user: { id: "u1" } } },
+      error: null,
+    }),
+  };
+  const mock = { auth, from, functions: { invoke } };
   return {
     getSupabaseClient: () => mock,
     __tablesDeleted: tablesDeleted,
     __invoke: invoke,
+    __getSession: auth.getSession,
     __reset: () => {
       tablesDeleted.length = 0;
       invoke.mockClear();
@@ -37,10 +44,18 @@ jest.mock("../../supabase/client", () => {
 });
 
 import { deleteAllUserData, requestAccountDeletion } from "../delete-bulk";
+import type { AuthSessionExpectation } from "../../auth/session-mutation";
+
+const EXPECTED: AuthSessionExpectation = {
+  userId: "u1",
+  sessionId: null,
+  accessToken: "test-token",
+};
 
 const clientMock = require("../../supabase/client") as {
   __tablesDeleted: string[];
   __invoke: jest.Mock;
+  __getSession: jest.Mock;
   __reset: () => void;
 };
 
@@ -74,7 +89,7 @@ describe("requestAccountDeletion (terminal erasure)", () => {
     // true } alone, so both post-cascade sweeps come back unconfirmed — which
     // is not the same as failed. Sweep-level behaviour lives in
     // delete-bulk-receipt.test.ts.
-    const receipt = await requestAccountDeletion();
+    const receipt = await requestAccountDeletion(EXPECTED);
     expect(receipt.deleted).toBe(true);
     expect(receipt.incomplete).toEqual([]);
     expect(receipt.unconfirmed).toEqual(["profile", "rawClippings"]);
@@ -83,7 +98,18 @@ describe("requestAccountDeletion (terminal erasure)", () => {
 
   test("throws when the function reports failure", async () => {
     clientMock.__invoke.mockResolvedValueOnce({ data: null, error: { message: "boom" } });
-    await expect(requestAccountDeletion()).rejects.toBeDefined();
+    await expect(requestAccountDeletion(EXPECTED)).rejects.toBeDefined();
+  });
+
+  test("does not invoke deletion when captured A no longer owns the live session", async () => {
+    clientMock.__getSession.mockResolvedValueOnce({
+      data: { session: { access_token: "token-b", user: { id: "u2" } } },
+      error: null,
+    });
+    await expect(requestAccountDeletion(EXPECTED)).rejects.toMatchObject({
+      name: "AuthSessionOwnerChangedError",
+    });
+    expect(clientMock.__invoke).not.toHaveBeenCalled();
   });
 });
 
@@ -101,7 +127,7 @@ describe("account deletion UI routing", () => {
     expect(account).not.toContain("deleteAllUserData");
     expect(deepSpace).not.toContain("deleteAllUserData");
     expect(account).toContain("await requestAccountDeletion()");
-    expect(deepSpace).toContain("await requestAccountDeletion()");
+    expect(deepSpace).toContain("await requestAccountDeletion(authExpectation)");
   });
 
   test("both deletion surfaces synchronously fence duplicate terminal calls", () => {
@@ -135,7 +161,11 @@ describe("account deletion UI routing", () => {
 
   test("local sign-out failure is not treated as a retryable deletion failure", () => {
     for (const source of [account, deepSpace]) {
-      const terminalCall = source.indexOf("await requestAccountDeletion()");
+      const terminalCall = source.indexOf(
+        source === deepSpace
+          ? "await requestAccountDeletion(authExpectation)"
+          : "await requestAccountDeletion()",
+      );
       const localSignOutWarning = source.indexOf("local sign-out after deletion failed");
       const redirect = source.indexOf('router.replace("/sign-in")', localSignOutWarning);
       expect(terminalCall).toBeGreaterThan(-1);

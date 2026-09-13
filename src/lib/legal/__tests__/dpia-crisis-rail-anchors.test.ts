@@ -133,7 +133,7 @@ const ANCHORS: Anchor[] = [
     why: "저널이 기본으로 안 실린다는 주장의 **실제 근거** - 그 삼항 연산이 없으면 기본값이 무의미하다." },
   { cite: `${AT}:96-131`, symbol: "remain inert",
     why: "Sentry 가 **일부러** 닫혀 있다는 주장의 근거. 문서가 '설정됐으나 안 쓴다'가 아니라 '울타리가 있고 조건이 적혀 있다'고 말하려면 그 울타리를 지키는 검사가 실재해야 한다." },
-  { cite: `${AC}:132`, symbol: "MINOR_AGE_CEILING",
+  { cite: `${AC}:139`, symbol: "MINOR_AGE_CEILING",
     why: "미성년 여부가 실제로 정해지는 비교. 이 문서 전체가 이 한 줄 위에 서 있다." },
   { cite: `${AD}:58`, symbol: "input.isMinor !== false",
     why: "미성년에게 광고가 안 나간다는 주장의 fail-closed 지점 - null 도 막는다는 것이 주장의 내용이다." },
@@ -156,7 +156,7 @@ const ANCHORS: Anchor[] = [
     why: "C-SENS 가 서는 스키마. 세 ack 중 PIPA §23 별도 동의를 잡는다 - 법적 무게가 가장 큰 것." },
   { cite: "db/migrations/0038_minor_tier_guard_and_audit_lockdown.sql:103-136", symbol: "auth.uid()",
     why: "C-AUDIT 의 '위조 불가 RPC' 주장이 서는 **한 줄**. user_id 를 클라이언트가 못 보내고 서버가 찍는다는 것이 위조 불가의 전부다. 함수 이름이 아니라 이 호출을 잡는 이유다." },
-  { cite: "src/lib/records/delete-bulk.ts:262", symbol: "requestAccountDeletion",
+  { cite: "src/lib/records/delete-bulk.ts:267", symbol: "requestAccountDeletion",
     why: "C-DEL 의 종국적 삭제 진입점. ⚠ 문서는 `:178-185` 를 가리켰는데 그것은 이 함수를 **언급하는 주석**이다 - 통제 전체의 무게를 그 인용이 지고 있었다. 회차 68 의 '내용 있는 줄' 검사로는 안 잡힌다(주석도 내용이다). 심볼 앵커만이 본다." },
   // ⚠ 회차 68 이 여기에 `DeepSpaceDesignScreens.tsx:2792` 앵커를 넣었다 - 빈 줄을
   //   가리키던 인용을 실제 호출 줄로 옮긴 것이고, 그 자체는 맞았다.
