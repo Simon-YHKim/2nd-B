@@ -71,7 +71,7 @@ describe("reasoning execution isolation", () => {
     // A failed probe is unknown: never this surface, and never a loader nothing
     // lifts (T1a item 2). The retry screen re-probes when the person asks.
     expect(reasoning).toContain(
-      'if (hasProfile === false && profileProbeFailed) return <ProfileProbeRetryScreen active="settings" title={reasoningTitle} />;',
+      "if (hasProfile === false && profileProbeFailed) return <ProfileProbeRetryScreen title={reasoningTitle} />;",
     );
     expect(reasoning).toContain(
       "if (hasProfile !== true || isMinor == null) return <InlineLoader />;",

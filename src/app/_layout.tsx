@@ -43,11 +43,13 @@ import { AuthProvider, useAuth } from "@/lib/auth/AuthContext";
 import { beginAccountSessionLease } from "@/lib/auth/account-session-lease";
 import { armWebRecoveryPendingFromLocation } from "@/lib/auth/recovery-proof-store";
 import { requiresGuardianConsent, resolveJurisdiction } from "@/lib/auth/consent-age";
+import { profileProbeHoldsRoute } from "@/lib/auth/profile-probe";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { flushAuditWriteOutbox } from "@/lib/llm/audit-write-outbox";
 import { ageInYears } from "@/lib/supabase/auth";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { InlineLoader } from "@/components/ui/InlineLoader";
+import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRetry";
 import { EncryptedStorageRecoveryGate } from "@/screens/deepspace/storage-recovery-gate";
 import { BackArrow } from "@/components/ui/BackArrow";
 import { BackgroundTaskDock, CompletionToast, SecondbHeadTrackProvider } from "@/components/deepspace";
@@ -284,7 +286,9 @@ function ThemedStack({ children }: { children: React.ReactNode }) {
     <NavThemeProvider value={navTheme}>
       <Stack
         screenLayout={({ children: screen, route }) => (
-          <AccountScope routeName={route.name}>{screen}</AccountScope>
+          <ProfileProbeScope routeName={route.name}>
+            <AccountScope routeName={route.name}>{screen}</AccountScope>
+          </ProfileProbeScope>
         )}
         screenOptions={{
           headerShown: false,
@@ -321,6 +325,29 @@ function AccountScope({
   if (routeName === "(auth)") return <>{children}</>;
   if (pending) return null;
   return <Fragment key={epoch}>{children}</Fragment>;
+}
+
+/**
+ * Per-scene half of the profile-probe hold; IntroGate holds the whole tree.
+ * IntroGate reads the route from the router store, and the store only learns of
+ * a navigation after the navigator has committed it, so a scene entered from an
+ * exempt route ((auth), onboarding) would mount and run its effects for one
+ * commit before IntroGate swaps the tree. Scenes buried under an exempt route
+ * stay mounted as well. A scene knows its own route name in its first render,
+ * so while the probe is unknown no product scene renders its children.
+ */
+function ProfileProbeScope({
+  children,
+  routeName,
+}: {
+  children: React.ReactNode;
+  routeName: string;
+}) {
+  const { loading, userId, hasProfile, profileProbeFailed } = useAuth();
+  if (profileProbeHoldsRoute({ loading, userId, hasProfile, profileProbeFailed }, routeName.split("/")[0])) {
+    return <ProfileProbeRetryScreen />;
+  }
+  return <>{children}</>;
 }
 
 const ACCOUNT_RESET_RETRY_RENDER_PASSES = 2;
@@ -529,6 +556,19 @@ function IntroGate({ children }: { children: React.ReactNode }) {
   // a group-level exemption would let /sign-in escape the mandatory reset.
   if ((recoveryUserId || recoveryPendingGlobal) && pathname !== "/reset-password") {
     return <Redirect href="/reset-password" />;
+  }
+
+  // A FAILED profile probe is unknown: not "no profile", not "has profile", and
+  // unknown must not reach any feature route either (C10). The C10 redirect below
+  // acts only on a real server answer, so this state used to fall through to the
+  // Stack, and the probe-failure screen's dock opened /records, /settings and
+  // /import-hub before age and consent were known (vibe r260914 gate finding).
+  // Hold the whole tree behind the shared retry instead. The exemptions are the
+  // C10 ones, (auth) and read-only onboarding; ProfileProbeScope (ThemedStack)
+  // holds every scene the same way, so leaving an exemption cannot mount a
+  // feature route either.
+  if (profileProbeHoldsRoute({ loading, userId, hasProfile, profileProbeFailed }, segments[0])) {
+    return <ProfileProbeRetryScreen />;
   }
 
   // Global C10 + PIPA-consent gate (re-audit 2026-06-03: per-screen gating was

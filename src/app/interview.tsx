@@ -43,7 +43,7 @@ import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { Text } from "@/components/ui/Text";
 import { PremiumLoadingState, PremiumModal, PremiumToast } from "@/components/premium";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { ProfileProbeRetryPanel } from "@/components/deep-space/ProfileProbeRetry";
+import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRetry";
 import { PastMeErasView } from "@/components/deep-space/DeepSpaceViews";
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
 import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
@@ -161,15 +161,8 @@ export default function InterviewRoute() {
   // 완료 프로필로 내보내지 않는다. 로더에 가두지도 않는다 - 위 효과가 뒤에서 백오프로
   // 다시 묻는 동안 오류 문구와 다시 시도를 보인다. 같은 모양(실패와 대기를 한 갈래로
   // 묶은 것)이 /account · /data 에서 끝나지 않는 로딩이 됐다(T1a 항목 2).
-  if (profileProbeFailed) {
-    return (
-      <InterviewFrame>
-        <View style={[styles.center, styles.routeState]}>
-          <ProfileProbeRetryPanel />
-        </View>
-      </InterviewFrame>
-    );
-  }
+  // InterviewFrame 은 도크를 단다. 모름에서는 기능 라우트로 가는 도크를 두지 않는다.
+  if (profileProbeFailed) return <ProfileProbeRetryScreen title={t("title")} />;
   if (hasProfile === null) {
     return (
       <InterviewFrame>

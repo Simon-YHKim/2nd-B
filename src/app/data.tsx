@@ -138,12 +138,12 @@ export default function DataManagement() {
   const gate = profileGate({ loading, userId, hasProfile, profileProbeFailed });
 
   if (gate === "signed-out") return <Redirect href="/sign-in" />;
-  // A failed probe is unknown: the retryable error with the dock, not the loader it
+  // A failed probe is unknown: the retryable error (no dock), not the loader it
   // used to share. The T1a emulator run (vibe r260913, item 2) found
   // `Loading data tools...` here with no way out after a server error, a DNS
   // failure and a timeout alike.
   if (gate === "profile-error") {
-    return <ProfileProbeRetryScreen active="settings" title={t("deepspace:account.navData")} />;
+    return <ProfileProbeRetryScreen title={t("deepspace:account.navData")} />;
   }
   if (gate === "profile-incomplete") return <Redirect href="/complete-profile" />;
   if (gate !== "ready") {

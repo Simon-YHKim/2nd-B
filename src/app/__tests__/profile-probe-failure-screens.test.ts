@@ -240,8 +240,32 @@ describe("공용 다시 시도 부품", () => {
     expect(retry()).toMatch(/void refresh\(\)/);
   });
 
-  test("화면 판본은 도크가 있는 DeepSpaceScreen 안에 그린다", () => {
-    expect(retry()).toContain("<DeepSpaceScreen");
-    expect(retry()).toContain("router.canGoBack()");
+  // 여기서 원래 "도크가 있는 DeepSpaceScreen 안에 그린다" 를 성공 조건으로 박았다. 그 도크가
+  // 프로필을 모르는 채 /records · /settings · /import-hub 로 가는 길이었다(r3a 게이트 발견).
+  // 모름에서는 기능 화면을 열지 않는다(C10) - 다시 묻기, 이 계정에서 나가기, 뒤로 가기만 둔다.
+  test("화면 판본에는 도크도 기능 라우트로 가는 링크도 없다 - 다시 시도 · 로그아웃 · 뒤로만", () => {
+    const sf = ts.createSourceFile("ProfileProbeRetry.tsx", retry(), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    const tags = new Set<string>();
+    const navigations: string[] = [];
+    const visit = (node: ts.Node): void => {
+      if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) tags.add(node.tagName.getText(sf));
+      if (ts.isJsxAttribute(node)) expect(node.name.getText(sf)).not.toBe("href");
+      if (
+        ts.isCallExpression(node) &&
+        ts.isPropertyAccessExpression(node.expression) &&
+        node.expression.expression.getText(sf) === "router"
+      ) {
+        navigations.push(node.getText(sf));
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sf);
+    for (const navigation of ["DeepSpaceScreen", "MdNavBar", "DeepSpaceDock", "TabIcon", "Link", "Redirect"]) {
+      expect(tags.has(navigation)).toBe(false);
+    }
+    // 이동은 뒤로 가기 한 곳뿐이다. 돌아갈 곳이 없을 때의 "/" 는 라우트 게이트가 다시 붙든다
+    // (profile-probe-route-hold.test.ts).
+    expect(navigations).toEqual(["router.canGoBack()", "router.back()", 'router.replace("/")']);
+    expect(retry()).toMatch(/void signOut\(\)/);
   });
 });

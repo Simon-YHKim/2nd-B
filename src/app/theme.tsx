@@ -6,7 +6,7 @@
 // still readable. Accessibility comes from the shared SelectRow (role=radio +
 // checked state + label), not from hints written into this file.
 //
-// profileGate decides. A failed probe gets the retryable error with the dock,
+// profileGate decides. A failed probe gets the retryable error (no dock),
 // not the loader it used to share: the T1a emulator run (vibe r260913, item 2)
 // found that shape stuck on /account and /data, and this route had it too.
 import { View, StyleSheet } from "react-native";
@@ -26,7 +26,7 @@ export default function ThemeScreen() {
 
   if (gate === "signed-out") return <Redirect href="/sign-in" />;
   if (gate === "profile-error") {
-    return <ProfileProbeRetryScreen active="lens" title={t("deepspace:theme.title")} />;
+    return <ProfileProbeRetryScreen title={t("deepspace:theme.title")} />;
   }
   if (gate === "profile-incomplete") return <Redirect href="/complete-profile" />;
   if (gate !== "ready") {

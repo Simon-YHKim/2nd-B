@@ -1053,8 +1053,8 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // a network blip stranded real accounts (flow-map /secondb). Unknown still
   // never reaches this LLM surface (C10), but it is not a loader either: the
   // effect above re-probes once after 2s, and when that failed too nothing lifted
-  // the loader (the T1a item 2 shape). Show the retryable error with the dock.
-  if (hasProfile === false && profileProbeFailed) return <ProfileProbeRetryScreen active="chat" />;
+  // the loader (the T1a item 2 shape). Show the retryable error, with no dock.
+  if (hasProfile === false && profileProbeFailed) return <ProfileProbeRetryScreen />;
   // OAuth mints a session before the profile/DOB + PIPA consent exist. A
   // no-profile session must not reach an LLM/crisis surface: route it to
   // /complete-profile (C10 age gate + consent; also fixes minor crisis-routing,

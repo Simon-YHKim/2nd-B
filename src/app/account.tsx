@@ -14,7 +14,7 @@
 // a fully registered user into DOB + consent re-entry.
 //
 // A failed probe is its own state (profileGate -> "profile-error"): the retryable
-// error with the dock. It used to share the loading branch, and nothing on this
+// error, with no dock. It used to share the loading branch, and nothing on this
 // route re-probes, so the T1a emulator run (vibe r260913, item 2) found
 // `Loading account…` with no Retry, dock or back button after a server error, a
 // DNS failure and a timeout alike, even once the network was back.
@@ -41,7 +41,7 @@ export default function Account() {
 
   if (gate === "signed-out") return <Redirect href="/sign-in" />;
   if (gate === "profile-error") {
-    return <ProfileProbeRetryScreen active="settings" title={t("deepspace:account.title")} />;
+    return <ProfileProbeRetryScreen title={t("deepspace:account.title")} />;
   }
   if (gate === "profile-incomplete") return <Redirect href="/complete-profile" />;
   if (gate !== "ready") {

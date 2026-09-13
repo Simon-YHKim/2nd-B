@@ -131,7 +131,7 @@ function CompleteProfileBody() {
   // loader either: nothing here re-probes, so it waited for the next auth event (the T1a
   // item 2 shape). Retry re-probes; a genuine no-profile answer (profileProbeFailed===false) gets the form.
   if (userId && hasProfile === false && profileProbeFailed) {
-    return <ProfileProbeRetryScreen active="account" title={t("completeProfile.title")} />;
+    return <ProfileProbeRetryScreen title={t("completeProfile.title")} />;
   }
 
   // Already has a profile — bounce to journal. Possible if the user navigates

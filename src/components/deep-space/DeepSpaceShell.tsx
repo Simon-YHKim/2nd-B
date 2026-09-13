@@ -95,8 +95,8 @@ export function DeepSpaceShell() {
   // re-entry) on a mere blip. Do not park them on a loader either: this screen has
   // no retry of its own, so the T1a emulator run (vibe r260913) watched home sit on
   // the loader after a `JWT issued at future` probe failure and onboarding never
-  // came. Show the retryable error with the dock.
-  if (gate === "profile-error") return <ProfileProbeRetryScreen active="home" />;
+  // came. Show the retryable error, with no dock.
+  if (gate === "profile-error") return <ProfileProbeRetryScreen />;
   if (gate === "profile-incomplete") return <Redirect href="/complete-profile" />;
   // "profile-loading" keeps the old fall-through: AuthContext only publishes a
   // signed-in user with hasProfile === null while `loading` is still true.

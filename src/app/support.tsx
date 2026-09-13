@@ -6,7 +6,7 @@
 // but still readable. Its accessibility hints moved with it — the live screen
 // keys label/hint/role per action off its own data (see check:constraints A11y).
 //
-// profileGate decides. A failed probe gets the retryable error with the dock,
+// profileGate decides. A failed probe gets the retryable error (no dock),
 // not the loader it used to share: the T1a emulator run (vibe r260913, item 2)
 // found that shape stuck on /account and /data, and this route had it too.
 import { View, StyleSheet } from "react-native";
@@ -26,7 +26,7 @@ export default function Support() {
 
   if (gate === "signed-out") return <Redirect href="/sign-in" />;
   if (gate === "profile-error") {
-    return <ProfileProbeRetryScreen active="lens" title={t("deepspace:support.title")} />;
+    return <ProfileProbeRetryScreen title={t("deepspace:support.title")} />;
   }
   if (gate === "profile-incomplete") return <Redirect href="/complete-profile" />;
   if (gate !== "ready") {

@@ -42,7 +42,7 @@ describe("/secondb resilience (flow-map bugs 5+6)", () => {
     // The loader-only hold was the T1a item 2 shape: /secondb re-probes once after
     // 2s, and nothing lifted the loader after that.
     expect(src).toContain(
-      'if (hasProfile === false && profileProbeFailed) return <ProfileProbeRetryScreen active="chat" />;',
+      "if (hasProfile === false && profileProbeFailed) return <ProfileProbeRetryScreen />;",
     );
   });
 

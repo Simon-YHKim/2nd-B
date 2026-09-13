@@ -1119,7 +1119,7 @@ export default function ReasoningScreen() {
   // Unknown profile: never this surface (C10), and never a loader nothing lifts. The
   // effect above re-probes once after 2s; if that fails too, Retry is the way back
   // (the loader-only hold was the T1a item 2 shape).
-  if (hasProfile === false && profileProbeFailed) return <ProfileProbeRetryScreen active="settings" title={reasoningTitle} />;
+  if (hasProfile === false && profileProbeFailed) return <ProfileProbeRetryScreen title={reasoningTitle} />;
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
   if (hasProfile !== true || isMinor == null) return <InlineLoader />;
 

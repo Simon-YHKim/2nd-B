@@ -272,7 +272,7 @@ function IdenExportScreenDeepSpace() {
   // with nothing to lift it. Same shape the T1a emulator run caught on /account and
   // /data (vibe r260913, item 2): show the retryable error instead.
   if (!loading && userId && profileProbeFailed) {
-    return <ProfileProbeRetryScreen active="iden" title={t("ds.screenTitle")} />;
+    return <ProfileProbeRetryScreen title={t("ds.screenTitle")} />;
   }
 
   const stateBody = !hasData ? (

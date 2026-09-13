@@ -59,6 +59,34 @@ export function profileGate(snapshot: ProfileGateSnapshot): ProfileGate {
   return "ready";
 }
 
+/**
+ * 프로필 판정 없이 열어 두는 라우트 묶음(첫 경로 조각). 가입을 마치는 자리 `(auth)`(로그인 ·
+ * 가입 · 완료 프로필 · 비밀번호 재설정)와 기능 경로가 없는 읽기 전용 소개 `onboarding` 이다.
+ * 전역 C10 리다이렉트(app/_layout.tsx IntroGate)의 예외와 같다.
+ */
+export const PROFILE_GATE_EXEMPT_SEGMENTS: readonly string[] = ["(auth)", "onboarding"];
+
+/**
+ * 이 라우트의 화면 대신 공용 다시 시도를 그려야 하는가. 프로브가 실패한(모름) 동안의
+ * 라우트 층 판정이다.
+ *
+ * 화면마다 profileGate 를 받게 하는 것만으로는 모자랐다. 실패 화면의 도크가 /records ·
+ * /settings · /import-hub 처럼 userId 만 보는 화면으로 이어졌고, 전역 C10 리다이렉트는 서버가
+ * "프로필 없음" 이라고 답한 경우만 봐서 실패 상태를 통과시켰다. 그 길로 연령 · 동의가 확인되지
+ * 않은 세션이 기능 화면에 들어갔다(vibe r260914 게이트 발견). 그래서 판정을 라우트 층으로
+ * 올렸다. IntroGate 가 트리 전체를, ThemedStack 의 ProfileProbeScope 가 장면 하나하나를 붙든다.
+ *
+ * `routeSegment` 는 첫 경로 조각이다. IntroGate 는 `useSegments()[0]`("/" 는 undefined)을,
+ * 장면은 라우트 이름의 첫 조각("index" · "records" · "(auth)")을 넘긴다.
+ */
+export function profileProbeHoldsRoute(
+  snapshot: ProfileGateSnapshot,
+  routeSegment: string | undefined,
+): boolean {
+  if (routeSegment !== undefined && PROFILE_GATE_EXEMPT_SEGMENTS.includes(routeSegment)) return false;
+  return profileGate(snapshot) === "profile-error";
+}
+
 // ── 시계 차이 자동 재시도 ───────────────────────────────────────────────────
 
 /**
