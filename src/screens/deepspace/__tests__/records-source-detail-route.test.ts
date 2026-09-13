@@ -137,14 +137,24 @@ describe("deep-space records source detail routing", () => {
     expect(DETAIL_SRC).toContain("await deleteRecord(userId, primary.piece.id)");
   });
 
-  test("sources expose only an explicit promotion action and never promote on mount", () => {
+  test("sources expose explicit promotion and delete actions and never run either on mount", () => {
     expect(DETAIL_SRC).toContain('primary.piece.origin !== "source"');
     expect(DETAIL_SRC).toContain("locksRef.current.promote");
     expect(DETAIL_SRC).toContain("onPress={() => void promoteToWiki()}");
     expect(DETAIL_SRC).toContain("await promotePendingUploads(userId)");
     expect(DETAIL_SRC).toContain("await generateSourcePage(userId, sourceId)");
+    // 2026-09-14 (Q-260914-01): a captured source can be deleted from here. Chat
+    // autosave writes to `sources`, and this is where a kept exchange shows up, so
+    // without it the shipped app had no per-item undo. It goes through its own
+    // confirm modal (the record modal stays record-only) and the ordered delete in
+    // lib/wiki/delete-captured-source.ts.
+    expect(DETAIL_SRC).toContain('import { deleteCapturedSource } from "@/lib/wiki/delete-captured-source";');
+    expect(DETAIL_SRC).toContain("await deleteCapturedSource(userId, sourceId)");
+    expect(DETAIL_SRC).toContain("onPress={() => void handleDeleteSource()}");
+    expect(DETAIL_SRC).toContain('t("deepspace:recordDetail.deleteSourceConfirmBody")');
+    expect(DETAIL_SRC).toContain('accessibilityLabel={t("deepspace:recordDetail.a11yDeleteSource")}');
     expect(DETAIL_SRC).not.toMatch(
-      /useEffect\([\s\S]{0,800}(promotePendingUploads|generateSourcePage)/,
+      /useEffect\([\s\S]{0,800}(promotePendingUploads|generateSourcePage|deleteCapturedSource)/,
     );
   });
 

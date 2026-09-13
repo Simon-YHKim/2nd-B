@@ -17,12 +17,15 @@
 // 한 줄**(:292, 스팬 안)만 근거로 삼고 UI 위치는 근거로 쓰지 않는다.
 //
 // ⚠ 2026-09-14 정정 (Q-260914-01). 위 둘째 항목대로 사실이 바뀌어서 단언을 고쳤다.
-//   바뀐 것: 배송 위키 화면이 한 장을 지운다(dds-wiki-records-screens.tsx 의
+//   바뀐 것 1: 배송 위키 화면이 한 장을 지운다(dds-wiki-records-screens.tsx 의
 //   DeepSpaceWikiScreen, 확인 단계 뒤). 그 모양은 wiki-page-delete.test.ts 가 본다.
 //   더 드러난 것: 전제 자체가 반만 맞았다. 자동 저장은 wiki_pages 가 아니라 sources 에
 //   쓰고, deleteWikiPage 는 원본 source 를 지우지 않는다. 그래서 한 장 삭제만으로는
-//   자동 저장된 대화 한 건이 되돌려지지 않는다. 그 사실을 아래에서 따로 못박는다.
-//   둘을 한 단언에 섞으면 "위키가 지운다"가 "되돌릴 길이 있다"로 읽힌다.
+//   자동 저장된 대화 한 건이 되돌려지지 않는다.
+//   바뀐 것 2 (같은 날, 범위 확장 B): 배송 기록 상세가 담긴 자료 한 건을 지운다
+//   (dds-record-detail-screen.tsx -> lib/wiki/delete-captured-source.ts, 승격 페이지 ->
+//   행 -> raw-clippings 본문). 순서와 실패 처리는 delete-captured-source.test.ts 가 본다.
+//   두 삭제를 한 단언에 섞지 않는다. 섞으면 "위키가 지운다"가 "되돌릴 길이 있다"로 읽힌다.
 import fs from "node:fs";
 import path from "node:path";
 
@@ -70,22 +73,26 @@ describe("자동 저장이 전제한 '되돌릴 길'", () => {
     expect(files.length).toBeGreaterThan(200);
   });
 
-  test("페이지 단위 삭제를 부르는 곳: 배송 위키 화면 + 위키의 죽은 반쪽", () => {
+  test("페이지 단위 삭제를 부르는 곳: 배송 위키 화면, 자료 한 건 삭제, 위키의 죽은 반쪽", () => {
     const callers = files
       .filter(rel => rel !== "src/lib/wiki/queries.ts") // 정의부
       .filter(rel => /\bdeleteWikiPage\s*\(/.test(read(rel)))
       .sort();
-    expect(callers).toEqual(["src/app/wiki.tsx", "src/screens/deepspace/dds-wiki-records-screens.tsx"]);
+    expect(callers).toEqual([
+      "src/app/wiki.tsx",
+      "src/lib/wiki/delete-captured-source.ts",
+      "src/screens/deepspace/dds-wiki-records-screens.tsx",
+    ]);
 
     // 레거시 쪽은 그대로 어느 빌드도 그리지 않는 반쪽 안이다.
     expect(lineIsInside("src/app/wiki.tsx", /await deleteWikiPage\(/, "function WikiLegacy(")).toBe(true);
     // 배송 쪽은 배송 화면 컴포넌트 안이다.
     const live = read("src/screens/deepspace/dds-wiki-records-screens.tsx");
-    expect(live.indexOf("await deleteWikiPage(")).toBeGreaterThan(live.indexOf("export function DeepSpaceWikiScreen()"));
     expect(live.indexOf("export function DeepSpaceWikiScreen()")).toBeGreaterThan(0);
+    expect(live.indexOf("await deleteWikiPage(")).toBeGreaterThan(live.indexOf("export function DeepSpaceWikiScreen()"));
   });
 
-  test("그러나 자동 저장은 wiki_pages 가 아니라 sources 에 쓴다", () => {
+  test("자동 저장은 wiki_pages 가 아니라 sources 에 쓴다", () => {
     const keep = bodyOf(read("src/app/secondb.tsx"), "async function keepExchange(", "\n  }\n");
     expect(keep).toContain("await captureFromMarkdown({");
     // 이 경로에는 위키 페이지 자동 승격이 없다. 페이지는 사용자가 따로 만들 때만 생긴다.
@@ -95,30 +102,42 @@ describe("자동 저장이 전제한 '되돌릴 길'", () => {
     expect(capture).not.toContain("wiki_pages");
   });
 
-  test("그리고 위키 한 장 삭제는 원본 source 를 지우지 않는다 - 미수집으로 되돌릴 뿐이다", () => {
+  test("위키 한 장 삭제는 원본 source 를 지우지 않는다 - 미수집으로 되돌릴 뿐이다", () => {
     const del = bodyOf(read("src/lib/wiki/queries.ts"), "export async function deleteWikiPage(", "\n}\n");
     expect(del).toContain("await markSourceNotIngested(userId, sourceId)");
     expect(del).not.toMatch(/from\("sources"\)[\s\S]*?\.delete\(/);
   });
 
-  test("그래서 배송에는 담긴 자료 한 건을 지우는 길이 아직 없다", () => {
+  test("배송 기록 상세가 담긴 자료 한 건을 지운다 - 자동 저장을 한 건씩 되돌리는 길", () => {
+    const detail = read("src/screens/deepspace/dds-record-detail-screen.tsx");
+    const screenStart = detail.indexOf("export function DeepSpaceRecordDetailScreen()");
+    expect(screenStart).toBeGreaterThan(0);
+    expect(detail.indexOf("await deleteCapturedSource(userId, sourceId)")).toBeGreaterThan(screenStart);
+
+    // 순서: 승격 페이지 -> source 행 -> 본문. 동작은 delete-captured-source.test.ts 가
+    // 실제로 돌려 본다. 여기서는 그 셋이 한 함수에 다 있는지만 본다.
+    const lib = read("src/lib/wiki/delete-captured-source.ts");
+    const page = lib.indexOf("await deleteWikiPage(userId, page.id)");
+    const row = lib.indexOf('.delete({ count: "exact" })');
+    const body = lib.indexOf("await deleteRawClipping(path)");
+    expect(page).toBeGreaterThan(0);
+    expect(row).toBeGreaterThan(page);
+    expect(body).toBeGreaterThan(row);
+  });
+
+  test("배송 코드는 행만 지우는 deleteSource 를 부르지 않는다 - 본문이 남기 때문이다", () => {
     const callers = files
       .filter(rel => rel !== "src/lib/wiki/queries.ts")
       .filter(rel => /\bdeleteSource\s*\(/.test(read(rel)));
     expect(callers).toEqual(["src/app/inbox.tsx"]);
     expect(lineIsInside("src/app/inbox.tsx", /await deleteSource\(/, "function InboxLegacy(")).toBe(true);
-    // 담긴 대화가 보이는 배송 상세 화면의 삭제는 record 전용이다.
-    const detail = read("src/screens/deepspace/dds-record-detail-screen.tsx");
-    expect(detail).toContain('primary.piece.origin !== "record"');
-    expect(detail).not.toMatch(/deleteSource|deleteCapturedSource/);
   });
 
-  test("남아 있는 것은 전부 지우기이고 페이지 단위가 아니다", () => {
-    // 이게 사라지면 되돌릴 길이 **아예** 없어진다 - 그건 더 나쁜 상태다.
+  test("남아 있는 일괄 삭제도 그대로다", () => {
+    // 한 건 삭제가 생겼다고 전부 지우기를 걷어내면 안 된다 - 둘은 다른 길이다.
     const settings = read("src/app/settings.tsx");
     expect(settings).toContain("await deleteAllWikiPages(userId)");
     const bulk = read("src/lib/records/delete-bulk.ts");
-    // 사용자 전체를 지운다 - 한 페이지를 고를 수 없다는 것이 요점이다.
     expect(bulk).toContain('.from("wiki_pages")');
     expect(bulk).toContain('.eq("user_id", userId)');
   });
@@ -131,12 +150,14 @@ describe("자동 저장이 전제한 '되돌릴 길'", () => {
     expect(autosave).toContain("autosave-undo-path.test.ts");
     expect(autosave).toContain("2026-09-14 정정");
     expect(autosave).toContain("자동 저장은 `sources` 에 쓴다");
+    expect(autosave).toContain("대화 한 건을 되돌릴 길이 생겼다");
     // ⚠ prefs.ts 는 **줄 수를 바꾸지 않고** 한 줄만 고쳤다. DPIA 앵커 다섯 개가 그
     // 파일의 줄번호를 인용하고 있어서(dpia-crisis-rail-anchors), 주석 여덟 줄을
     // 끼우자 법률 인용이 전부 밀려 빨개졌다. 사실을 적는 일이 인용을 깨뜨리면
     // 적는 방법을 바꾼다 - 인용을 미는 쪽이 아니라.
     expect(prefs).toContain("2026-09-08 실측 거짓");
-    expect(prefs).toContain("2026-09-14 부분 정정");
+    expect(prefs).toContain("배송 기록 상세가 그 한 건을 지운다");
+    expect(prefs).not.toContain("부분 정정");
     expect(prefs).toContain("src/lib/chat/autosave.ts 정정 참조");
     // 원문을 지우지 않았는지 - 정정은 덧붙이는 것이지 덮는 것이 아니다.
     expect(autosave).toContain("되돌릴 길이 먼저 있다는 것도 전제다.");

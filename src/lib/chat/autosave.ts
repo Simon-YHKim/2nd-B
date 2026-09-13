@@ -44,7 +44,7 @@
 // 배송 화면에 넣기) 다르게 볼지는 Simon 결정이다.
 // 검사: `src/lib/privacy/__tests__/autosave-undo-path.test.ts`
 //
-// ⚠ **2026-09-14 정정 (Q-260914-01).** 두 가지를 적는다.
+// ⚠ **2026-09-14 정정 (Q-260914-01).** 세 가지를 적는다.
 //
 // 1. 바뀐 것. 배송 위키 화면이 한 장을 지운다. `dds-wiki-records-screens.tsx` 의
 //    `DeepSpaceWikiScreen` 이 확인 단계 뒤 `deleteWikiPage` 를 부른다. 같은 날 배송
@@ -56,7 +56,14 @@
 //    -> `createSource`). 페이지는 사용자가 따로 "위키 페이지 만들기"로 승격할 때만
 //    생기고, `deleteWikiPage` 는 원본 source 를 지우지 않고 미수집으로 되돌린다. 그래서
 //    1 만으로는 자동 저장된 대화 한 건이 되돌려지지 **않는다.** 배송에서 source 한 건을
-//    지우는 길은 아직 없다(`deleteSource` 호출부는 `inbox.tsx` 의 `InboxLegacy` 뿐).
+//    지우는 길도 없었다(`deleteSource` 호출부는 `inbox.tsx` 의 `InboxLegacy` 뿐).
+// 3. 그래서 같은 날 범위를 넓혔다(Q-260914-01 B). **배송에서 대화 한 건을 되돌릴 길이 생겼다.**
+//    배송 기록 상세(`dds-record-detail-screen.tsx`)가 담긴 자료 한 건을 지운다. 순서는
+//    `lib/wiki/delete-captured-source.ts` 가 진다: 승격된 위키 페이지 -> source 행 ->
+//    raw-clippings 본문. 커밋 "feat(records): delete a single captured source from the
+//    shipped detail screen". `queries.ts` 의 deleteSource 주석이 적은 "Storage 정리는
+//    자동화 안 됨" 은 **이 길에서만** 바뀌었다. deleteSource 와 /settings 일괄 삭제는
+//    여전히 본문을 남긴다. 본문 삭제는 best-effort 라 실패해도 행 삭제를 되돌리지 않는다.
 //
 // ## 미성년
 //
