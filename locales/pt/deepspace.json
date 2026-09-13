@@ -864,7 +864,10 @@
       "proposalsCta": "Revisar propostas",
       "peerTitle": "Respostas de conhecidos",
       "peerBody": "{{n}} dos seus convites receberam resposta.",
-      "peerCta": "Ver respostas"
+      "peerCta": "Ver respostas",
+      "sourcesTitle": "Material esperando revisão",
+      "sourcesBody": "{{n}} peças ainda não viraram páginas do wiki.",
+      "sourcesCta": "Ver o material"
     },
     "import": {
       "title": "Importar",
@@ -997,6 +1000,34 @@
       "autoPaused": "Limite atingido · volta na segunda",
       "autoBody": "O SecondB busca conexões para cada item que você salva.",
       "autoNote": "Cada busca automática usa uma das buscas semanais. Uma fica sempre reservada para você iniciar manualmente."
+    },
+    "sources": {
+      "title": "Material recebido",
+      "empty": "Ainda não chegou nada. Arquivos importados e recortes se reúnem aqui.",
+      "emptyCta": "Importar material",
+      "count": "{{n}} para revisar",
+      "untitled": "Material sem título",
+      "loadError": "Não foi possível carregar seu material. Abra isto de novo em instantes.",
+      "expandFor": "Abrir a prévia de {{title}}",
+      "collapseFor": "Fechar a prévia de {{title}}",
+      "previewLoading": "Carregando as primeiras linhas",
+      "previewError": "Não foi possível carregar as primeiras linhas. Toque de novo para tentar.",
+      "brief": "Resumo e quatro perguntas",
+      "briefRunning": "Lendo",
+      "briefFor": "Criar um resumo e quatro perguntas para {{title}}",
+      "briefView": "Ver o resumo",
+      "briefViewFor": "Ver o resumo de {{title}}",
+      "briefHide": "Ocultar o resumo",
+      "briefSummary": "Resumo",
+      "briefQuestions": "Perguntas para refletir",
+      "briefError": "Não foi possível criar o resumo. Tente de novo em instantes.",
+      "page": "Criar uma página do wiki",
+      "pageRunning": "Criando",
+      "pageFor": "Criar uma página do wiki para {{title}}",
+      "pageDone": "A página do wiki de {{title}} foi criada",
+      "pageError": "Não foi possível criar a página do wiki. Tente de novo em instantes.",
+      "pageOpen": "Ver no wiki",
+      "pageOpenFor": "Ver {{title}} no wiki"
     }
   },
   "beyond": {

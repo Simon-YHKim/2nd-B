@@ -294,7 +294,19 @@ describe("legacy preservation and pixel registration", () => {
     // 그 항목이 남은 행을 가리키는 유일한 포인터라 이 파일 주석이 "never drop the only
     // pointer to rows that still exist" 라고 적어 둔 상태를 만들고 있었다. inbox 와 무관하다.
     // 즉 이 핀의 명제는 이제 "inbox 작업은 안 건드렸고, 그 뒤 기록된 변경이 **둘**" 이다.
-    expect(sha(source)).toBe("d65b7c97344d3eacdca35e55b78fb980614d2e209ee701f3bf6abe80fa9ef4bf");
+    //
+    // ⚠ 2026-09-13 재고정 - **이번에는 inbox 를 건드렸다.** 위 세 줄이 지켜 온
+    // "inbox 작업은 이 파일을 안 건드린다" 는 명제는 여기서 끝난다. 그렇게 적어
+    // 두지 않으면 이 핀은 읽는 사람에게 거짓을 말한다.
+    //
+    // 들어간 변경은 허브에 **신호 카드 한 장**과 그것을 세는 listSources 한 줄이다.
+    // 아직 위키가 안 된 소스가 있으면 한 줄로 알리고 /sources 로 넘긴다. 목록을
+    // 허브 안에 넣지 않은 이유는 화면 하나에 메시지 하나 · O-7 이고, 그 판단은
+    // dds-sources-screen.tsx 머리말에 적혀 있다.
+    //
+    // 그래서 이 핀의 명제는 이제 **"이 파일의 변경은 전부 여기 적혀 있다"** 다 -
+    // 더 좁은 "inbox 는 안 건드린다" 가 아니라. 다음 사람도 줄을 추가할 것.
+    expect(sha(source)).toBe("f691401920d664dcd2dd0e47385d264e00a33db8872492d83f54f46b9b9802fc");
   });
 
   test("keeps InboxLegacy and its styles byte-stable while routing deep-space directly", () => {
