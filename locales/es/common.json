@@ -42,7 +42,8 @@
   },
   "errors": {
     "unknown": "Algo salió mal. Por favor, inténtalo de nuevo.",
-    "network": "No pudimos llegar al servidor. Verifica tu conexión."
+    "network": "No pudimos llegar al servidor. Verifica tu conexión.",
+    "profileProbe": "No pudimos comprobar tu perfil. Inténtalo de nuevo en un momento."
   },
   "locale": {
     "en": "Inglés",

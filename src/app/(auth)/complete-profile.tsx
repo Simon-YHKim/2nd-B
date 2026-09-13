@@ -7,7 +7,6 @@ import { useEffect, useMemo, useState } from "react";
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useNavigationContainerRef } from "expo-router";
-
 import { PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
@@ -22,6 +21,7 @@ import { SecondbHead } from "@/components/deep-space/SecondbHead";
 import { ageInYears, ensureUserProfile, AgeGateError, EmailInUseError, signOut, MIN_SELF_CONSENT_AGE } from "@/lib/supabase/auth";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { InlineLoader } from "@/components/ui/InlineLoader";
+import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRetry";
 import { ConsentNotice } from "@/components/consent/ConsentNotice";
 import { PixelSurface } from "@/components/pixel";
 import {
@@ -126,12 +126,12 @@ function CompleteProfileBody() {
     return <InlineLoader message={t("common.checking")} />;
   }
 
-  // F4: a TRANSIENT profile-probe failure lands here as hasProfile===false. Hold with
-  // the checking state rather than showing the DOB + consent form to a user who may
-  // already be fully registered (the probe merely failed). AuthContext re-probes; a
-  // genuine no-profile answer (profileProbeFailed===false) falls through to the form.
+  // F4: a TRANSIENT profile-probe failure lands here as hasProfile===false. Never show the
+  // DOB + consent form to a user who may already be registered, and never park them on a
+  // loader either: nothing here re-probes, so it waited for the next auth event (the T1a
+  // item 2 shape). Retry re-probes; a genuine no-profile answer (profileProbeFailed===false) gets the form.
   if (userId && hasProfile === false && profileProbeFailed) {
-    return <InlineLoader message={t("common.checking")} />;
+    return <ProfileProbeRetryScreen title={t("completeProfile.title")} />;
   }
 
   // Already has a profile — bounce to journal. Possible if the user navigates

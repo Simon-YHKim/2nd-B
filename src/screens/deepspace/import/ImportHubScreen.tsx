@@ -4,8 +4,9 @@
 // → on-device parse → propose→ratify (user approves only) → history/revoke.
 //
 // Privacy contract (docs/PERSONAL-DATA-IMPORT-SPEC.md): location/comms need
-// explicit consent (0 byte before it), on-device + raw-not-kept, minors are
-// locked out of comms/location (C10), nothing is applied automatically.
+// explicit consent (0 byte before it), on-device + raw-not-kept, minors (and an
+// age not confirmed yet) are locked out of comms/location (C10), nothing is
+// applied automatically.
 // deepSpace.* tokens only, assembled from the shared Ops kit.
 
 import { useEffect, useMemo, useState } from "react";
@@ -122,6 +123,8 @@ export function ImportHubScreen() {
   const [active, setActive] = useState<ImportSource | null>(null);
   const [paste, setPaste] = useState("");
   const [outcome, setOutcome] = useState<ImportOutcome | null>(null);
+  // The parser kind behind `outcome`; ratify re-checks it against the minor lock.
+  const [outcomeKind, setOutcomeKind] = useState<ImportKind | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [errored, setErrored] = useState(false);
@@ -141,10 +144,14 @@ export function ImportHubScreen() {
   }, [step, userId]);
 
   const openSource = (s: ImportSource) => {
-    if (s.minorLocked && isMinor === true) return; // C10 — comms/location locked for minors
+    // C10: comms/location stay locked for minors AND for an age we do not know yet
+    // (isMinor null: loading, no profile, or a failed profile probe). Only a
+    // confirmed adult (false) opens them.
+    if (s.minorLocked && isMinor !== false) return;
     setActive(s);
     setPaste("");
     setOutcome(null);
+    setOutcomeKind(null);
     setErrored(false);
     setGErr(null);
     setStep("consent");
@@ -165,7 +172,8 @@ export function ImportHubScreen() {
     // locked TILES, but a minor can open a non-locked tile and feed a comms/location
     // export whose content sniffs to kakao/sms/takeout-location; without this the
     // kakao/sms branch would run and store message-derived snippets in `sources`.
-    if (isMinor === true && MINOR_LOCKED_KINDS.has(kind)) {
+    // An unconfirmed age (null) is locked the same way as a confirmed minor.
+    if (isMinor !== false && MINOR_LOCKED_KINDS.has(kind)) {
       setErrored(true);
       return;
     }
@@ -175,6 +183,7 @@ export function ImportHubScreen() {
       return;
     }
     setOutcome(out);
+    setOutcomeKind(kind);
     setSelected(new Set(out.proposals.filter((p) => !p.sensitive).map((p) => p.id))); // sensitive default-excluded
     setStep("review");
   };
@@ -231,6 +240,13 @@ export function ImportHubScreen() {
     if (!active || !outcome || !userId || busy) return;
     const chosen = outcome.proposals.filter((p) => selected.has(p.id));
     if (chosen.length === 0) return;
+    // C10 at the write: re-check the lock against the tile AND the content-detected
+    // kind. The age can stop being confirmed between analyze and ratify, and a
+    // comms/location import must not land for an age we do not know.
+    if (isMinor !== false && (active.minorLocked || (outcomeKind !== null && MINOR_LOCKED_KINDS.has(outcomeKind)))) {
+      setImportErr(true);
+      return;
+    }
     setBusy(true);
     setLedgerWarn(null);
     try {
@@ -327,6 +343,7 @@ export function ImportHubScreen() {
     setBusy(false);
     setActive(null);
     setOutcome(null);
+    setOutcomeKind(null);
     setStep("hub");
   };
 
@@ -434,7 +451,7 @@ export function ImportHubScreen() {
           <View key={tier} style={styles.section}>
             <Text variant="caption" pixelEn style={[styles.tierLabel, { color: TIER_COLOR[tier] }]}>{t(`tier_${tier}`)}</Text>
             {SOURCES.filter((s) => s.tier === tier).map((s) => {
-              const locked = s.minorLocked && isMinor === true;
+              const locked = s.minorLocked && isMinor !== false;
               const tone: OpsChipTone = locked ? "muted" : s.tier === "critical" ? "warning" : "muted";
               const chip = locked ? t("locked") : s.mode === "connector" ? t("notLinked") : t("needsConsent");
               return (
