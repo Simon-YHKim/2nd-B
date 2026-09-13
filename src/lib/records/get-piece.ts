@@ -43,6 +43,107 @@ export function isSourcePieceId(id: string): boolean {
   return id.startsWith(SOURCE_ID_PREFIX);
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export interface PieceRef {
+  origin: "record" | "source";
+  /** The row's own id, without the `src-` prefix. */
+  uuid: string;
+}
+
+/**
+ * A route value that names a piece, checked before anything is read (P1, 2026-09-13).
+ *
+ * Takes what `useLocalSearchParams` hands over (a string, or an array when the key repeats;
+ * the first value wins, as elsewhere in this app) and accepts only `<uuid>` or
+ * `src-<uuid>`. Anything else is "no piece": a malformed id never reaches the database,
+ * so it cannot turn into an error screen.
+ */
+export function parsePieceId(value: string | string[] | null | undefined): PieceRef | null {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (typeof raw !== "string") return null;
+  const source = isSourcePieceId(raw);
+  const uuid = source ? raw.slice(SOURCE_ID_PREFIX.length) : raw;
+  return UUID.test(uuid) ? { origin: source ? "source" : "record", uuid } : null;
+}
+
+/** The id a route carries for a piece: `src-` in front of a source's uuid, a record's id as is. */
+export function pieceIdFor(id: string, origin: "record" | "source"): string {
+  return origin === "source" && !isSourcePieceId(id) ? `${SOURCE_ID_PREFIX}${id}` : id;
+}
+
+export interface PieceSummary extends PieceRef {
+  kind: string;
+  title: string | null;
+  created_at: string;
+  tags: string[];
+}
+
+/**
+ * Just enough of a piece to point at it (P1). No body and no storage download:
+ * getPieceById fetches a source's raw clipping, which a pointer does not need.
+ *
+ * Owner-scoped twice: the explicit `user_id` filter below, and the owner-only RLS
+ * policies (records_owner_all 0009, sources_owner_all 0022). Someone else's id reads
+ * exactly like a deleted one.
+ *
+ * Nothing about the piece goes to the log. The caller shows "no card" for every failure,
+ * so an id or tag in a log line would buy nothing and leak something.
+ *
+ * @throws on a read failure. `null` means "read fine, no such piece for this user".
+ */
+export async function getPieceSummary(userId: string, ref: PieceRef): Promise<PieceSummary | null> {
+  const supabase = getSupabaseClient();
+  if (ref.origin === "source") {
+    const { data, error } = await supabase
+      .from("sources")
+      .select("id, kind, title, captured_at, tags")
+      .eq("user_id", userId)
+      .eq("id", ref.uuid)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+    const s = data as {
+      id: string;
+      kind: string;
+      title: string | null;
+      captured_at: string;
+      tags: string[] | null;
+    };
+    return {
+      origin: "source",
+      uuid: s.id,
+      kind: s.kind,
+      title: s.title,
+      created_at: s.captured_at,
+      tags: s.tags ?? [],
+    };
+  }
+  const { data, error } = await supabase
+    .from("records")
+    .select("id, kind, topic, created_at, tags")
+    .eq("user_id", userId)
+    .eq("id", ref.uuid)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const r = data as {
+    id: string;
+    kind: string;
+    topic: string | null;
+    created_at: string;
+    tags: string[] | null;
+  };
+  return {
+    origin: "record",
+    uuid: r.id,
+    kind: r.kind,
+    title: r.topic,
+    created_at: r.created_at,
+    tags: r.tags ?? [],
+  };
+}
+
 function sourceBodyFallback(frontmatter: Record<string, unknown> | null): string | null {
   const body = frontmatter?._body_fallback;
   return typeof body === "string" && body.trim().length > 0 ? body : null;
