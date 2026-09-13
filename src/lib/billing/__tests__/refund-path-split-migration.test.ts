@@ -36,6 +36,10 @@ const sql0124 = read("0124_refund_eligibility_decision_record.sql");
 const sql0118 = read("0118_billing_refund_reconciliation.sql");
 const sql0115 = read("0115_billing_self_service.sql");
 const down0136 = readFileSync(join(MIGRATIONS, "rollback", "0136_down.sql"), "utf8").replace(/\r\n/g, "\n");
+const deploymentContract = readFileSync(
+  join(MIGRATIONS, "..", "..", "docs", "SESSION-OWNERSHIP.md"),
+  "utf8",
+).replace(/\r\n/g, "\n");
 const webhook = readFileSync(
   join(__dirname, "..", "..", "..", "..", "supabase", "functions", "paddle-webhook", "index.ts"),
   "utf8",
@@ -251,7 +255,7 @@ describe("0189 - provider refund type is authoritative and retries are reconcila
     );
   });
 
-  test("the RPC signature stays deploy-order compatible with the handler", () => {
+  test("the 0189 replacement preserves apply_billing_refund's established ABI", () => {
     const signature = (text: string) => {
       const at = text.indexOf("CREATE OR REPLACE FUNCTION public.apply_billing_refund");
       return text
@@ -264,22 +268,30 @@ describe("0189 - provider refund type is authoritative and retries are reconcila
   });
 });
 
-describe("0189 - the handler and RPC keep one deploy-order-compatible contract", () => {
-  test("apply_billing_refund keeps 0118's exact 9-argument signature", () => {
-    const sig = (text: string) => {
-      const at = text.indexOf("CREATE OR REPLACE FUNCTION public.apply_billing_refund");
-      return text
-        .slice(text.indexOf("(", at) + 1, text.indexOf(")\nRETURNS text", at))
-        .replace(/--[^\n]*/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
-    };
-    expect(sig(sql0189)).toBe(sig(sql0118));
+describe("0189 - production rollout is an explicitly disabled cutover", () => {
+  test("pins the only safe migration and Edge deployment order", () => {
+    expect(deploymentContract).toContain("유일한 안전 순서");
+
+    const orderedSteps = [
+      "1. `PADDLE_WEBHOOK_ENABLED`를 `1`이 아닌 값으로 설정",
+      "2. `db/migrations/0189_paddle_refund_consequence_integrity.sql` 적용",
+      "3. `supabase/functions/paddle-webhook` 배포",
+      "4. `PADDLE_WEBHOOK_ENABLED=1`로 재활성화",
+    ];
+    const offsets = orderedSteps.map((step) => deploymentContract.indexOf(step));
+    expect(offsets.every((offset) => offset >= 0)).toBe(true);
+    expect(offsets).toEqual([...offsets].sort((left, right) => left - right));
+    expect(deploymentContract).toContain("DB-first만으로는 안전하지 않다");
+    expect(deploymentContract).toContain("Edge-first도 안전하지 않다");
   });
 
-  test("the webhook still passes exactly those parameters", () => {
-    // If this drifted, the DB change would need a deploy first (the 0127/0130
-    // ordering trap). It does not, and this is what keeps that true.
+  test("pins failure recovery to a disabled roll-forward, never an unsafe rollback", () => {
+    expect(deploymentContract).toContain("웹훅을 비활성 상태로 유지한 채 roll-forward");
+    expect(deploymentContract).toContain("구 Edge 함수를 재배포하지 않는다");
+    expect(deploymentContract).toContain("`db/migrations/rollback/0136_down.sql`을 실행하지 않는다");
+  });
+
+  test("the webhook still passes the established apply_billing_refund parameters", () => {
     for (const p of [
       "p_event_id",
       "p_event_type",
