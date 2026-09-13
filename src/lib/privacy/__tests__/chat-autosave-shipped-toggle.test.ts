@@ -7,7 +7,7 @@
 // 봐서 그걸 못 봤다.
 //
 // 그래서 여기서는 셋을 본다:
-//   · 저장 경로가 동의 원장을 거친다 (순수 함수 + 실제 savePrivacyPrefs, DB 만 목)
+//   · 저장 경로가 동의 원장을 거친다 (순수 함수 + 실제 savePrivacyPref, DB 만 목)
 //   · 미성년 규칙은 prefs.ts 한 곳에서 온다
 //   · 배송 화면 조각이 그 둘을 실제로 쓴다 (레거시 반쪽이 아니라)
 
@@ -33,7 +33,7 @@ import { join } from "node:path";
 import ts from "typescript";
 
 import { MINOR_PROMOTABLE_KEYS, defaultPrivacyPrefs, nextPrivacyPrefs, type PrivacyPrefs } from "../prefs";
-import { readPrivacyPrefs, savePrivacyPrefs } from "../../supabase/privacy";
+import { readPrivacyPrefs, savePrivacyPref } from "../../supabase/privacy";
 
 const { __maybeSingle, __update, __eqUpdate, __insert } = jest.requireMock("../../supabase/client") as {
   __maybeSingle: jest.Mock;
@@ -86,7 +86,9 @@ describe("nextPrivacyPrefs - 스위치 하나가 저장할 전체 객체", () =>
   });
 });
 
-describe("저장 경로가 동의 원장을 거친다 (savePrivacyPrefs -> consent_changes)", () => {
+// 화면은 키 하나만 저장한다(r3as F-01). 다른 세션의 철회를 되살리지 않는 동작은
+// src/lib/supabase/__tests__/privacy-single-key-save.test.ts 가 상태를 가진 목으로 돌려 본다.
+describe("저장 경로가 동의 원장을 거친다 (savePrivacyPref -> consent_changes)", () => {
   beforeEach(() => {
     __maybeSingle.mockReset();
     __update.mockClear();
@@ -98,18 +100,14 @@ describe("저장 경로가 동의 원장을 거친다 (savePrivacyPrefs -> conse
 
   it("켜면 chat_autosave grant 한 줄이 남는다", async () => {
     __maybeSingle.mockResolvedValueOnce({ data: { privacy_prefs: {} }, error: null });
-    const next = nextPrivacyPrefs(defaultPrivacyPrefs(), "chat_autosave", true, true);
-    expect(next).not.toBeNull();
-    await savePrivacyPrefs("u1", next!, { locale: "ko" });
-    expect(__update).toHaveBeenCalledWith({ privacy_prefs: next });
+    await savePrivacyPref("u1", "chat_autosave", true, { locale: "ko" });
+    expect(__update).toHaveBeenCalledWith({ privacy_prefs: { chat_autosave: true } });
     expect(__insert).toHaveBeenCalledWith([{ user_id: "u1", pref_key: "chat_autosave", event_type: "grant" }]);
   });
 
   it("끄면 chat_autosave revoke 한 줄이 남는다 - 철회도 기록이다", async () => {
     __maybeSingle.mockResolvedValueOnce({ data: { privacy_prefs: { chat_autosave: true } }, error: null });
-    const next = nextPrivacyPrefs({ ...defaultPrivacyPrefs(), chat_autosave: true }, "chat_autosave", false, true);
-    expect(next).not.toBeNull();
-    await savePrivacyPrefs("u1", next!);
+    await savePrivacyPref("u1", "chat_autosave", false);
     expect(__insert).toHaveBeenCalledWith([{ user_id: "u1", pref_key: "chat_autosave", event_type: "revoke" }]);
   });
 });
@@ -139,7 +137,7 @@ describe("배송 /privacy 화면에 대화 저장 토글이 있다", () => {
   });
 
   it("같은 저장 경로를 쓴다", () => {
-    expect(handler).toContain("await savePrivacyPrefs(targetUserId, updated");
+    expect(handler).toContain('await savePrivacyPref(targetUserId, "chat_autosave", next');
   });
 
   it("미성년 규칙을 화면이 다시 쓰지 않는다", () => {

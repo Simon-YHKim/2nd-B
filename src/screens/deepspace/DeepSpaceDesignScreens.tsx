@@ -106,7 +106,7 @@ import {
 } from "@/lib/payments/purchases";
 import type { PurchasesPackage } from "react-native-purchases";
 import { systemLocaleFor } from "@/lib/i18n/locales";
-import { fetchPrivacyPrefs, readPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
+import { fetchPrivacyPrefs, readPrivacyPrefs, savePrivacyPref } from "@/lib/supabase/privacy";
 import { captureEvent, proposalDecided, setAnalyticsConsent } from "@/lib/analytics";
 import { nextPrivacyPrefs, type PrivacyPrefKey, type PrivacyPrefs } from "@/lib/privacy/prefs";
 import {
@@ -840,13 +840,16 @@ export function DeepSpacePrivacyDesignScreen() {
     }
 
     try {
-      await savePrivacyPrefs(targetUserId, updated, { locale: ko ? "ko" : "en" });
+      // r3as F-01: only this key, written over the prefs stored right now. The
+      // loaded object can be stale; writing it back revived withdrawals made
+      // from another device or tab.
+      await savePrivacyPref(targetUserId, key, next, { locale: ko ? "ko" : "en" });
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
       const effectiveNext = minorRef.current ? false : next;
       const committed: PrivacyPrefs = { ...updated, [key]: effectiveNext };
       // If age became unresolved/minor while an opt-in was saving, persist the
       // fail-closed value too instead of merely hiding a stale server grant.
-      if (effectiveNext !== next) await savePrivacyPrefs(targetUserId, committed, { locale: ko ? "ko" : "en" });
+      if (effectiveNext !== next) await savePrivacyPref(targetUserId, key, effectiveNext, { locale: ko ? "ko" : "en" });
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
       prefsRef.current = committed;
       prefsUserRef.current = targetUserId;
@@ -867,8 +870,8 @@ export function DeepSpacePrivacyDesignScreen() {
     }
   }
 
-  // 대화 자동 저장 켜기/끄기. 저장은 위 토글과 같은 길(savePrivacyPrefs 가 바뀐 키마다
-  // consent_changes 에 grant/revoke 를 남긴다)이고 busy 로 한 줄로 세운다.
+  // 대화 자동 저장 켜기/끄기. 저장은 위 토글과 같은 길(savePrivacyPref 가 최신 서버 값에 이 키 하나만
+  // 얹고, 바뀌었으면 consent_changes 에 grant/revoke 를 남긴다)이고 busy 로 한 줄로 세운다.
   // 다른 점은 미성년 규칙 하나다. toggleExternalPreference 는 미성년이면 무조건 막는데,
   // 그건 광고·통계에 맞고 MINOR_PROMOTABLE_KEYS 인 chat_autosave 에는 틀리다. 그래서
   // 여기서는 규칙을 다시 쓰지 않고 prefs.ts 의 nextPrivacyPrefs 에 맡긴다.
@@ -880,7 +883,7 @@ export function DeepSpacePrivacyDesignScreen() {
     setChatSaveError(false);
     setBusy(true);
     try {
-      await savePrivacyPrefs(targetUserId, updated, { locale: ko ? "ko" : "en" });
+      await savePrivacyPref(targetUserId, "chat_autosave", next, { locale: ko ? "ko" : "en" });
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
       prefsRef.current = updated;
       prefsUserRef.current = targetUserId;
@@ -903,20 +906,14 @@ export function DeepSpacePrivacyDesignScreen() {
     setBusy(true);
     setRecError(false);
     try {
-      const current = await fetchPrivacyPrefs(targetUserId);
-      if (
-        !privacyMountedRef.current ||
-        activeUserRef.current !== targetUserId ||
-        minorRef.current
-      ) return;
-      const prefs = { ...current, recommendations: true };
-      await savePrivacyPrefs(targetUserId, prefs);
+      // r3as F-01: one key over the latest stored prefs, not a loaded-object write.
+      await savePrivacyPref(targetUserId, "recommendations", true);
       if (
         !privacyMountedRef.current ||
         activeUserRef.current !== targetUserId ||
         minorRef.current
       ) {
-        await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false });
+        await savePrivacyPref(targetUserId, "recommendations", false);
         return;
       }
       // recordConsentBestEffort retries, then REPORTS failure instead of
@@ -937,18 +934,18 @@ export function DeepSpacePrivacyDesignScreen() {
         activeUserRef.current !== targetUserId ||
         minorRef.current
       ) {
-        await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false });
+        await savePrivacyPref(targetUserId, "recommendations", false);
         return;
       }
       if (!consentRecorded) {
         // Same rollback the session guards above perform, for the same reason:
         // this is a state we must not leave behind. Retrying is the user's to
         // choose, and the existing error line already says to try again.
-        await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false });
+        await savePrivacyPref(targetUserId, "recommendations", false);
         setRecError(true);
         return;
       }
-      prefsRef.current = prefs;
+      if (prefsRef.current) prefsRef.current = { ...prefsRef.current, recommendations: true };
       prefsUserRef.current = targetUserId;
       setRecOn(true);
       setUnderstanding(false);
@@ -965,10 +962,9 @@ export function DeepSpacePrivacyDesignScreen() {
     setBusy(true);
     setRecError(false);
     try {
-      const prefs = { ...(await fetchPrivacyPrefs(targetUserId)), recommendations: false };
-      await savePrivacyPrefs(targetUserId, prefs);
+      await savePrivacyPref(targetUserId, "recommendations", false);
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
-      prefsRef.current = prefs;
+      if (prefsRef.current) prefsRef.current = { ...prefsRef.current, recommendations: false };
       prefsUserRef.current = targetUserId;
       setRecOn(false);
       setUnderstanding(false);
@@ -987,23 +983,17 @@ export function DeepSpacePrivacyDesignScreen() {
     setBusy(true);
     setEmbedErr(false);
     try {
-      const current = await fetchPrivacyPrefs(targetUserId);
-      if (
-        !privacyMountedRef.current ||
-        activeUserRef.current !== targetUserId ||
-        minorRef.current
-      ) return;
-      const prefs = { ...current, records_embedding: true };
-      await savePrivacyPrefs(targetUserId, prefs);
+      // r3as F-01: one key over the latest stored prefs, not a loaded-object write.
+      await savePrivacyPref(targetUserId, "records_embedding", true);
       if (
         !privacyMountedRef.current ||
         activeUserRef.current !== targetUserId ||
         minorRef.current
       ) {
-        await savePrivacyPrefs(targetUserId, { ...prefs, records_embedding: false });
+        await savePrivacyPref(targetUserId, "records_embedding", false);
         return;
       }
-      prefsRef.current = prefs;
+      if (prefsRef.current) prefsRef.current = { ...prefsRef.current, records_embedding: true };
       prefsUserRef.current = targetUserId;
       setEmbedOn(true);
       setEmbedUnderstanding(false);
@@ -1047,12 +1037,11 @@ export function DeepSpacePrivacyDesignScreen() {
     setBusy(true);
     setEmbedErr(false);
     try {
-      const prefs = { ...(await fetchPrivacyPrefs(targetUserId)), records_embedding: false };
-      await savePrivacyPrefs(targetUserId, prefs);
+      await savePrivacyPref(targetUserId, "records_embedding", false);
       // Consent revoked → forget the index (honest "off deletes vectors").
       await clearRecordEmbeddings(targetUserId);
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
-      prefsRef.current = prefs;
+      if (prefsRef.current) prefsRef.current = { ...prefsRef.current, records_embedding: false };
       prefsUserRef.current = targetUserId;
       setEmbedOn(false);
       setEmbedUnderstanding(false);

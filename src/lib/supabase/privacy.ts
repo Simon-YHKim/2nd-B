@@ -105,6 +105,60 @@ export async function savePrivacyPrefs(
 }
 
 /**
+ * r3as F-01: save ONE key over the prefs stored right now, not over the caller's copy.
+ *
+ * savePrivacyPrefs writes whatever whole object it is handed. A settings screen hands it
+ * the object it loaded, so a later save wrote that stale object back over a withdrawal
+ * made from another device or tab and brought it back to life - and because `before` is
+ * read fresh, the ledger diff even logged a grant nobody gave. Here the caller names the
+ * key and the value; what is written is the latest stored prefs with only that key
+ * changed, so the ledger diff can only ever contain that key.
+ *
+ * What this does NOT close: a withdrawal that lands between this read and this write is
+ * still overwritten. Closing that needs an owner-bound RPC that changes the key
+ * atomically on the server (PR #1814 server follow-up). This narrows the window from
+ * "since the screen loaded" to one round trip.
+ *
+ * A failed read throws instead of falling back to defaults: merging one key into all-off
+ * defaults would be a save that quietly turns every other key off. Keys this build does
+ * not know are kept as stored.
+ */
+export async function savePrivacyPref(
+  userId: string,
+  key: keyof PrivacyPrefs,
+  value: boolean,
+  options: SavePrivacyPrefsOptions = {},
+): Promise<PrivacyPrefs> {
+  const supabase = getSupabaseClient();
+  const { data, error: readError } = await supabase
+    .from("users")
+    .select("privacy_prefs")
+    .eq("id", userId)
+    .maybeSingle();
+  if (readError) throw readError;
+  const raw: unknown = data?.privacy_prefs;
+  const stored = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+  const before = resolvePrivacyPrefs(stored);
+  const written = { ...stored, [key]: value };
+  const { error } = await supabase.from("users").update({ privacy_prefs: written }).eq("id", userId);
+  if (error) throw error;
+  const after = resolvePrivacyPrefs(written);
+  // Same ledger rows and sensitive-data record as savePrivacyPrefs, on the same edges.
+  await recordConsentChanges(userId, before, after);
+  if (key === "health_import" && before.health_import === false && after.health_import === true) {
+    // As in savePrivacyPrefs: minors cannot reach this edge (server clamp 0050, not in
+    // MINOR_PROMOTABLE_KEYS, 0128 rejects their rows), so the record is an adult one.
+    await recordHealthImportConsent({
+      userId,
+      ageBand: "adult",
+      minorTier: "adult",
+      locale: options.locale ?? "en",
+    });
+  }
+  return after;
+}
+
+/**
  * D-3: append the optional-consent transitions from a privacy-prefs save to the
  * append-only consent_changes ledger (migration 0062) — one row per changed key,
  * event_type 'grant' (false -> true) or 'revoke' (true -> false). This closes
