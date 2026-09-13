@@ -13,6 +13,11 @@
 // null), so the web bundle never carries expo-notifications (audit D5-11).
 
 import { loadNotifications } from "./notifications-sdk";
+import {
+  accountNotificationStorageKey,
+  dailyReviewNotificationId,
+  notificationPrivacyData,
+} from "./notification-identity";
 
 // null on web / Expo Go (SDK 53+ throws on require) -- every entry point below
 // reports "unavailable" in that case.
@@ -21,11 +26,6 @@ const Notifications = loadNotifications();
 export type DailyReviewResult = "scheduled" | "cancelled" | "denied" | "unavailable" | "error";
 
 const CHANNEL_ID = "daily-review";
-// A stable identifier so we cancel EXACTLY this reminder when the user turns it
-// off (or re-schedule without stacking duplicates), never touching the user's
-// /ops routine reminders, which schedule under their own ids.
-const DAILY_REVIEW_ID = "daily-review-reminder";
-
 function isReactNativeRuntime(): boolean {
   const nav = globalThis.navigator as { product?: string } | undefined;
   return nav?.product === "ReactNative";
@@ -61,28 +61,35 @@ async function ensureChannel(): Promise<void> {
  * duplicates. Returns the same vocabulary as ops/reminders.
  */
 export async function scheduleDailyReview(
+  ownerId: string,
   hour: number,
   minute: number,
   title: string,
   body?: string,
 ): Promise<DailyReviewResult> {
   if (!dailyReviewSupported() || !Notifications) return "unavailable";
+  if (!ownerId) return "error";
   if (!Number.isInteger(hour) || hour < 0 || hour > 23 || !Number.isInteger(minute) || minute < 0 || minute > 59) {
     return "error";
   }
   try {
+    const identifier = dailyReviewNotificationId(ownerId);
     const permission = await Notifications.requestPermissionsAsync();
     if (!permission.granted) return "denied";
     await ensureChannel();
     // Clear any prior instance so a re-enable never schedules a second copy.
     try {
-      await Notifications.cancelScheduledNotificationAsync(DAILY_REVIEW_ID);
+      await Notifications.cancelScheduledNotificationAsync(identifier);
     } catch {
       // none scheduled yet — fine
     }
     await Notifications.scheduleNotificationAsync({
-      identifier: DAILY_REVIEW_ID,
-      content: { title, body: body ?? null },
+      identifier,
+      content: {
+        title,
+        body: body ?? null,
+        data: notificationPrivacyData(ownerId),
+      },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DAILY,
         hour,
@@ -100,10 +107,11 @@ export async function scheduleDailyReview(
 }
 
 /** Turn the daily review reminder off (cancel exactly our scheduled instance). */
-export async function cancelDailyReview(): Promise<DailyReviewResult> {
+export async function cancelDailyReview(ownerId: string): Promise<DailyReviewResult> {
   if (!dailyReviewSupported() || !Notifications) return "unavailable";
+  if (!ownerId) return "error";
   try {
-    await Notifications.cancelScheduledNotificationAsync(DAILY_REVIEW_ID);
+    await Notifications.cancelScheduledNotificationAsync(dailyReviewNotificationId(ownerId));
     return "cancelled";
   } catch (e) {
     if (typeof console !== "undefined") {
@@ -116,7 +124,9 @@ export async function cancelDailyReview(): Promise<DailyReviewResult> {
 // ─── Opt-in flag persistence (mirrors src/lib/settings/readable-font.ts) ──────
 // The toggle's on/off state is a local preference; the actual schedule lives in
 // the OS. OFF by default for everyone.
-const ENABLED_KEY = "ops.dailyReview.enabled.v1";
+function enabledKey(ownerId: string): string {
+  return accountNotificationStorageKey(ownerId, "daily-review-enabled");
+}
 
 // 알림 시각 (Simon 결정 B3, 2026-08-20).
 //
@@ -126,7 +136,9 @@ const ENABLED_KEY = "ops.dailyReview.enabled.v1";
 //
 // 시각만 저장한다(분은 정시 고정). 분 단위까지 고르게 하면 고르는 비용이 얻는 것보다
 // 크고, 이 알림은 "오늘 한 번 들여다보라" 는 신호지 일정이 아니다.
-const HOUR_KEY = "ops.dailyReview.hour.v1";
+function hourKey(ownerId: string): string {
+  return accountNotificationStorageKey(ownerId, "daily-review-hour");
+}
 
 /** 화면이 보여줄 선택지. 아침·점심·저녁 리듬에 맞춰 고른 7개. */
 export const DAILY_REVIEW_HOURS: readonly number[] = [7, 8, 9, 12, 18, 21, 22];
@@ -139,23 +151,25 @@ function normalizeHour(raw: string | null): number {
   return DAILY_REVIEW_HOURS.includes(n) ? n : DEFAULT_DAILY_REVIEW_HOUR;
 }
 
-export async function loadDailyReviewHour(): Promise<number> {
+export async function loadDailyReviewHour(ownerId: string): Promise<number> {
+  const key = hourKey(ownerId);
   const local = ls();
-  if (local) return normalizeHour(local.getItem(HOUR_KEY));
+  if (local) return normalizeHour(local.getItem(key));
   const storage = nativeStorage();
   if (!storage) return DEFAULT_DAILY_REVIEW_HOUR;
   try {
-    return normalizeHour(await storage.getItem(HOUR_KEY));
+    return normalizeHour(await storage.getItem(key));
   } catch {
     return DEFAULT_DAILY_REVIEW_HOUR;
   }
 }
 
-export function setDailyReviewHourPref(hour: number): void {
+export function setDailyReviewHourPref(ownerId: string, hour: number): void {
   const value = String(DAILY_REVIEW_HOURS.includes(hour) ? hour : DEFAULT_DAILY_REVIEW_HOUR);
-  ls()?.setItem(HOUR_KEY, value);
+  const key = hourKey(ownerId);
+  ls()?.setItem(key, value);
   const storage = nativeStorage();
-  if (storage) void storage.setItem(HOUR_KEY, value).catch(() => undefined);
+  if (storage) void storage.setItem(key, value).catch(() => undefined);
 }
 
 /** "09:00" - 로케일 분기가 필요 없는 표기. 오전/오후 표현은 언어마다 갈린다. */
@@ -188,22 +202,24 @@ function nativeStorage(): AsyncStorageLike | null {
 
 /** Read the persisted opt-in flag. Web reads synchronously; native resolves via
  *  AsyncStorage. Defaults to false (OFF) everywhere. */
-export async function loadDailyReviewEnabled(): Promise<boolean> {
+export async function loadDailyReviewEnabled(ownerId: string): Promise<boolean> {
+  const key = enabledKey(ownerId);
   const local = ls();
-  if (local) return local.getItem(ENABLED_KEY) === "true";
+  if (local) return local.getItem(key) === "true";
   const storage = nativeStorage();
   if (!storage) return false;
   try {
-    return (await storage.getItem(ENABLED_KEY)) === "true";
+    return (await storage.getItem(key)) === "true";
   } catch {
     return false;
   }
 }
 
 /** Persist the opt-in flag (best-effort on every backend present). */
-export function setDailyReviewEnabledPref(on: boolean): void {
+export function setDailyReviewEnabledPref(ownerId: string, on: boolean): void {
   const value = on ? "true" : "false";
-  ls()?.setItem(ENABLED_KEY, value);
+  const key = enabledKey(ownerId);
+  ls()?.setItem(key, value);
   const storage = nativeStorage();
-  if (storage) void storage.setItem(ENABLED_KEY, value).catch(() => undefined);
+  if (storage) void storage.setItem(key, value).catch(() => undefined);
 }

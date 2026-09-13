@@ -1213,10 +1213,14 @@ export function RemindersScreen() {
   // showed ON by default for rows that had never been scheduled at all (the
   // audit's /reminders mismatch: a switch over notifications that don't exist).
   useEffect(() => {
+    if (!userId) {
+      setStates({});
+      return;
+    }
     let alive = true;
     void Promise.all([
-      getReminderStates(withReminder.map((r) => r.id)),
-      getScheduledRoutineIds(),
+      getReminderStates(userId, withReminder.map((r) => r.id)),
+      getScheduledRoutineIds(userId),
     ]).then(([flags, scheduled]) => {
       if (!alive) return;
       const next: Record<string, boolean> = {};
@@ -1226,7 +1230,7 @@ export function RemindersScreen() {
     return () => {
       alive = false;
     };
-  }, [withReminder]);
+  }, [userId, withReminder]);
 
   // Build the schedulable event for a routine (HH:MM local + recurrence). A
   // weekly routine is anchored to its weekday; a one-shot in the past rolls to
@@ -1250,11 +1254,12 @@ export function RemindersScreen() {
   };
 
   const toggle = async (r: OpsRoutine) => {
+    if (!userId) return;
     const id = r.id;
     const currentlyOn = states[id] === true;
     if (currentlyOn) {
       // Cancels the scheduled OS notification too (not just the flag).
-      await disableReminder(id);
+      await disableReminder(userId, id);
       setStates((prev) => ({ ...prev, [id]: false }));
       setDenied((prev) => {
         const next = { ...prev };
@@ -1268,7 +1273,7 @@ export function RemindersScreen() {
     // Denied → keep it off and show "권한 필요".
     const event = eventForRoutine(r);
     if (!event) return; // unparsable reminder_time: nothing real to schedule
-    const ok = await enableReminder(id, event);
+    const ok = await enableReminder(userId, id, event);
     if (ok) {
       setStates((prev) => ({ ...prev, [id]: true }));
       setDenied((prev) => {

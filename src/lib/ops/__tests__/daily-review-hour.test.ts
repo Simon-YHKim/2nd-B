@@ -59,7 +59,7 @@ describe("화면이 시각을 다시 하드코딩하지 않는다", () => {
   it("저장된 시각을 읽어서 넘긴다", () => {
     expect(digest).toContain("loadDailyReviewHour");
     expect(digest).toContain("setDailyReviewHourPref");
-    expect(digest).toContain("scheduleDailyReview(hour, 0");
+    expect(digest).toContain("scheduleDailyReview(ownerId, hour, 0");
   });
 
   it("시각 라벨이 로케일 문자열에서 오고, 값은 보간된다", () => {

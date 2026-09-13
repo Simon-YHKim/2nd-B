@@ -703,7 +703,7 @@ export function DeepSpaceOpsScreen() {
           durationMinutes: recommendation.durationMinutes,
           recurrence: recommendation.recurrence,
         },
-        { identifier: routineReminderId(routine.id) },
+        { ownerId, identifier: routineReminderId(ownerId, routine.id) },
       );
     } catch {
       reminderResult = "error";
@@ -726,7 +726,7 @@ export function DeepSpaceOpsScreen() {
         // Keep this explicit reminder to one delivery; saved routines use the
         // deterministic id above and may repeat safely.
         recurrence: undefined,
-      });
+      }, { ownerId });
     } catch {
       result = "error";
     }

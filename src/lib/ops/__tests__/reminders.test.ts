@@ -4,11 +4,19 @@ const setNotificationChannelAsync = jest.fn<Promise<null>, [string, Record<strin
 const getAllScheduledNotificationsAsync = jest.fn<Promise<Array<{
   identifier: string;
   trigger: Record<string, unknown>;
+  content?: { data?: Record<string, unknown> };
 }>>, []>();
 const cancelScheduledNotificationAsync = jest.fn<Promise<void>, [string]>();
-const getPresentedNotificationsAsync = jest.fn<Promise<Array<{ request: { identifier: string } }>>, []>();
+const getPresentedNotificationsAsync = jest.fn<Promise<Array<{
+  request: { identifier: string; content?: { data?: Record<string, unknown> } };
+}>>, []>();
 const dismissNotificationAsync = jest.fn<Promise<void>, [string]>();
 const clearLastNotificationResponseAsync = jest.fn<Promise<void>, []>();
+const getLastNotificationResponse = jest.fn<
+  { notification: { request: { identifier: string; content?: { data?: Record<string, unknown> } } } } | null,
+  []
+>();
+const clearLastNotificationResponse = jest.fn<void, []>();
 const getItem = jest.fn<Promise<string | null>, [string]>();
 const setItem = jest.fn<Promise<void>, [string, string]>();
 const removeItem = jest.fn<Promise<void>, [string]>();
@@ -17,6 +25,10 @@ const supabaseGetSession = jest.fn<Promise<{
   error: Error | null;
 }>, []>();
 const supabaseSignOut = jest.fn<Promise<{ error: Error | null }>, [unknown?]>();
+const supabaseSignIn = jest.fn<Promise<{
+  data: { user: { id: string } | null };
+  error: Error | null;
+}>, [{ email: string; password: string }]>();
 
 jest.mock("@react-native-async-storage/async-storage", () => ({
   __esModule: true,
@@ -32,6 +44,8 @@ jest.mock("../../supabase/client", () => ({
     auth: {
       getSession: () => supabaseGetSession(),
       signOut: (options?: unknown) => supabaseSignOut(options),
+      signInWithPassword: (credentials: { email: string; password: string }) =>
+        supabaseSignIn(credentials),
     },
   }),
 }));
@@ -46,6 +60,8 @@ jest.mock("expo-notifications", () => ({
   getPresentedNotificationsAsync: () => getPresentedNotificationsAsync(),
   dismissNotificationAsync: (id: string) => dismissNotificationAsync(id),
   clearLastNotificationResponseAsync: () => clearLastNotificationResponseAsync(),
+  getLastNotificationResponse: () => getLastNotificationResponse(),
+  clearLastNotificationResponse: () => clearLastNotificationResponse(),
   SchedulableTriggerInputTypes: { DAILY: "daily", WEEKLY: "weekly", DATE: "date" },
   AndroidImportance: { DEFAULT: 3 },
 }));
@@ -54,11 +70,19 @@ import {
   clearAccountScopedLocalNotifications,
   foregroundNotificationBehavior,
   migrateLegacyRoutineNotifications,
+  notifyNow,
   remindersSupported,
+  routineReminderId,
   scheduleRoutineReminder,
 } from "../reminders";
 import {
+  dailyReviewNotificationId,
+  notificationPrivacyData,
+  oneShotNotificationId,
+} from "../notification-identity";
+import {
   finalizeDeletedAccountSession,
+  signInWithEmail,
   signOut as signOutWithCleanup,
 } from "../../supabase/auth";
 
@@ -79,6 +103,7 @@ beforeEach(() => {
   getPresentedNotificationsAsync.mockResolvedValue([]);
   dismissNotificationAsync.mockResolvedValue(undefined);
   clearLastNotificationResponseAsync.mockResolvedValue(undefined);
+  getLastNotificationResponse.mockReturnValue(null);
   getItem.mockResolvedValue(null);
   setItem.mockResolvedValue(undefined);
   removeItem.mockResolvedValue(undefined);
@@ -87,6 +112,7 @@ beforeEach(() => {
     error: null,
   });
   supabaseSignOut.mockResolvedValue({ error: null });
+  supabaseSignIn.mockResolvedValue({ data: { user: { id: "account-b" } }, error: null });
 });
 
 afterEach(() => {
@@ -114,7 +140,10 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     setNavigatorProduct("Gecko");
     expect(remindersSupported()).toBe(false);
     expect(
-      await scheduleRoutineReminder({ title: "x", startsAtIso: "2026-06-12T09:00:00.000Z" }),
+      await scheduleRoutineReminder(
+        { title: "x", startsAtIso: "2026-06-12T09:00:00.000Z" },
+        { ownerId: "account-a" },
+      ),
     ).toBe("unavailable");
     expect(requestPermissionsAsync).not.toHaveBeenCalled();
   });
@@ -123,7 +152,10 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     setNavigatorProduct("ReactNative");
     requestPermissionsAsync.mockResolvedValueOnce({ granted: false });
     expect(
-      await scheduleRoutineReminder({ title: "x", startsAtIso: "2026-06-12T09:00:00.000Z" }),
+      await scheduleRoutineReminder(
+        { title: "x", startsAtIso: "2026-06-12T09:00:00.000Z" },
+        { ownerId: "account-a" },
+      ),
     ).toBe("denied");
     expect(scheduleNotificationAsync).not.toHaveBeenCalled();
   });
@@ -141,18 +173,22 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
           startsAtIso: start.toISOString(),
           recurrence: "daily",
         },
-        { identifier: "ops-routine-routine-1" },
+        {
+          ownerId: "account-a",
+          identifier: routineReminderId("account-a", "routine-1"),
+        },
       ),
     ).toBe("scheduled");
     const request = scheduleNotificationAsync.mock.calls[0][0] as {
       identifier: string;
-      content: { title: string; body: string | null };
+      content: { title: string; body: string | null; data: Record<string, unknown> };
       trigger: { type: string; hour: number; minute: number; channelId: string };
     };
-    expect(request.identifier).toBe("ops-routine-routine-1");
-    expect(request.content).toEqual({
+    expect(request.identifier).toBe(routineReminderId("account-a", "routine-1"));
+    expect(request.content).toMatchObject({
       title: "2nd Brain",
       body: "Open the app to view your routine.",
+      data: { _2bPrivacyGeneration: "notification-v2" },
     });
     expect(JSON.stringify(request)).not.toContain("Private routine title");
     expect(JSON.stringify(request)).not.toContain("Private reason");
@@ -177,11 +213,35 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
         startsAtIso: start.toISOString(),
         recurrence: "weekly",
       },
-      { identifier: "ops-routine-routine-2" },
+      {
+        ownerId: "account-a",
+        identifier: routineReminderId("account-a", "routine-2"),
+      },
     );
     const trigger = (scheduleNotificationAsync.mock.calls[0][0] as { trigger: { type: string; weekday: number } }).trigger;
     expect(trigger.type).toBe("weekly");
     expect(trigger.weekday).toBe(start.getDay() + 1);
+  });
+
+  test("focus completion one-shot is owner-marked and keeps personal labels off the lock screen", async () => {
+    setNavigatorProduct("ReactNative");
+    requestPermissionsAsync.mockResolvedValueOnce({ granted: true });
+    scheduleNotificationAsync.mockResolvedValueOnce("focus-id");
+
+    await expect(notifyNow("account-a", "Private focus", "Private selected star"))
+      .resolves.toBe("scheduled");
+
+    const request = scheduleNotificationAsync.mock.calls[0][0] as {
+      identifier: string;
+      content: { title: string; body: string; data: Record<string, unknown> };
+    };
+    expect(request.identifier).toMatch(/^ops-v2-[0-9a-f]{16}-once-/);
+    expect(request.content).toMatchObject({
+      title: "2nd Brain",
+      body: "Open the app to view your completed timer.",
+      data: { _2bPrivacyGeneration: "notification-v2" },
+    });
+    expect(JSON.stringify(request)).not.toContain("Private");
   });
 
   test("recurring reminders fail closed before permission without a validated stable id", async () => {
@@ -190,24 +250,27 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     const start = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 
     await expect(
-      scheduleRoutineReminder({ title: "Daily", startsAtIso: start, recurrence: "daily" }),
-    ).resolves.toBe("error");
-    await expect(
       scheduleRoutineReminder(
-        { title: "Weekly", startsAtIso: start, recurrence: "weekly" },
-        { identifier: "foreign-prefix-routine-1" },
+        { title: "Daily", startsAtIso: start, recurrence: "daily" },
+        { ownerId: "account-a" },
       ),
     ).resolves.toBe("error");
     await expect(
       scheduleRoutineReminder(
         { title: "Weekly", startsAtIso: start, recurrence: "weekly" },
-        { identifier: "ops-routine-bad id" },
+        { ownerId: "account-a", identifier: "foreign-prefix-routine-1" },
       ),
     ).resolves.toBe("error");
     await expect(
       scheduleRoutineReminder(
         { title: "Weekly", startsAtIso: start, recurrence: "weekly" },
-        { identifier: `ops-routine-${"x".repeat(129)}` },
+        { ownerId: "account-a", identifier: "ops-routine-bad id" },
+      ),
+    ).resolves.toBe("error");
+    await expect(
+      scheduleRoutineReminder(
+        { title: "Weekly", startsAtIso: start, recurrence: "weekly" },
+        { ownerId: "account-a", identifier: `ops-routine-${"x".repeat(129)}` },
       ),
     ).resolves.toBe("error");
 
@@ -219,9 +282,15 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     setNavigatorProduct("ReactNative");
     requestPermissionsAsync.mockResolvedValue({ granted: true });
     expect(
-      await scheduleRoutineReminder({ title: "x", startsAtIso: "2001-01-01T00:00:00.000Z" }),
+      await scheduleRoutineReminder(
+        { title: "x", startsAtIso: "2001-01-01T00:00:00.000Z" },
+        { ownerId: "account-a" },
+      ),
     ).toBe("error");
-    expect(await scheduleRoutineReminder({ title: "x", startsAtIso: "garbage" })).toBe("error");
+    expect(await scheduleRoutineReminder(
+      { title: "x", startsAtIso: "garbage" },
+      { ownerId: "account-a" },
+    )).toBe("error");
     expect(scheduleNotificationAsync).not.toHaveBeenCalled();
   });
 
@@ -232,29 +301,33 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     scheduleNotificationAsync.mockResolvedValueOnce("id-3");
     const future = new Date(Date.now() + 60 * 60 * 1000);
     expect(
-      await scheduleRoutineReminder({ title: "Once", startsAtIso: future.toISOString() }),
+      await scheduleRoutineReminder(
+        { title: "Once", startsAtIso: future.toISOString() },
+        { ownerId: "account-a" },
+      ),
     ).toBe("scheduled");
     const request = scheduleNotificationAsync.mock.calls[0][0] as {
       identifier?: string;
-      content: { title: string; body: string | null };
+      content: { title: string; body: string | null; data: Record<string, unknown> };
       trigger: { type: string };
     };
     const trigger = request.trigger;
     expect(trigger.type).toBe("date");
-    expect(request.identifier).toBeUndefined();
-    expect(request.content).toEqual({
+    expect(request.identifier).toMatch(/^ops-v2-[0-9a-f]{16}-once-/);
+    expect(request.content).toMatchObject({
       title: "2nd Brain",
       body: "Open the app to view your routine.",
+      data: { _2bPrivacyGeneration: "notification-v2" },
     });
   });
 
-  test("upgrade migration removes only non-stable recurring notifications and is one-time", async () => {
+  test("upgrade migration removes every pre-v2 notification and is one-time", async () => {
     setNavigatorProduct("ReactNative");
     getItem.mockResolvedValueOnce(null).mockResolvedValueOnce("1");
     getAllScheduledNotificationsAsync.mockResolvedValue([
       { identifier: "4bdbe7f0-legacy", trigger: { type: "daily" } },
       { identifier: "legacy-calendar", trigger: { type: "calendar", repeats: true } },
-      { identifier: "ops-routine-current-1", trigger: { type: "weekly" } },
+      { identifier: "ops-routine-old-stable", trigger: { type: "weekly" } },
       { identifier: "legacy-one-shot", trigger: { type: "date" } },
     ]);
 
@@ -264,8 +337,10 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     expect(cancelScheduledNotificationAsync.mock.calls).toEqual([
       ["4bdbe7f0-legacy"],
       ["legacy-calendar"],
+      ["ops-routine-old-stable"],
+      ["legacy-one-shot"],
     ]);
-    expect(setItem).toHaveBeenCalledWith("ops.notifications.privacyMigration.v1", "1");
+    expect(setItem).toHaveBeenCalledWith("ops.notifications.privacyMigration.v2", "1");
     expect(getAllScheduledNotificationsAsync).toHaveBeenCalledTimes(1);
   });
 
@@ -294,19 +369,16 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
       { request: { identifier: "presented-a-1" } },
     ]);
 
-    await expect(clearAccountScopedLocalNotifications()).resolves.toBeUndefined();
+    await expect(clearAccountScopedLocalNotifications("account-a")).resolves.toBeUndefined();
 
     expect(cancelScheduledNotificationAsync.mock.calls).toEqual([
       ["ops-routine-a-1"],
       ["legacy-one-shot"],
     ]);
     expect(dismissNotificationAsync).toHaveBeenCalledWith("presented-a-1");
-    expect(clearLastNotificationResponseAsync).toHaveBeenCalledTimes(1);
-    expect(removeItem.mock.calls).toEqual(expect.arrayContaining([
-      ["ops.reminders.disabled"],
-      ["ops.dailyReview.enabled.v1"],
-      ["ops.dailyReview.hour.v1"],
-    ]));
+    expect(clearLastNotificationResponse).not.toHaveBeenCalled();
+    expect(removeItem).toHaveBeenCalledTimes(3);
+    expect(removeItem.mock.calls.every(([key]) => key.includes("ops.account.v2."))).toBe(true);
   });
 
   test("account cleanup waits for every operation and throws only a sanitized aggregate", async () => {
@@ -321,7 +393,7 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     dismissNotificationAsync.mockRejectedValueOnce(new Error("private delivered payload"));
     removeItem.mockRejectedValueOnce(new Error("private routine ids"));
 
-    const error = await clearAccountScopedLocalNotifications().catch((caught: unknown) => caught);
+    const error = await clearAccountScopedLocalNotifications("account-a").catch((caught: unknown) => caught);
 
     expect(cancelScheduledNotificationAsync).toHaveBeenCalledTimes(1);
     expect(dismissNotificationAsync).toHaveBeenCalledTimes(1);
@@ -345,7 +417,10 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     ]);
     cancelScheduledNotificationAsync.mockImplementationOnce(async () => { events.push("scheduled"); });
     dismissNotificationAsync.mockImplementationOnce(async () => { events.push("delivered"); });
-    clearLastNotificationResponseAsync.mockImplementationOnce(async () => { events.push("response"); });
+    getLastNotificationResponse.mockReturnValueOnce({
+      notification: { request: { identifier: "legacy-response" } },
+    });
+    clearLastNotificationResponse.mockImplementationOnce(() => { events.push("response"); });
     removeItem.mockImplementation(async () => { events.push("state"); });
     supabaseSignOut.mockImplementationOnce(async () => {
       events.push("sign-out");
@@ -397,6 +472,30 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     expect(events.indexOf("receipt-armed")).toBeGreaterThan(events.lastIndexOf("state-clear"));
     expect(events.at(-1)).toBe("sign-out");
     expect(removeItem).toHaveBeenCalledTimes(3);
+    expect(supabaseSignOut).toHaveBeenCalledWith({ scope: "local" });
+  });
+
+  test("a queued B login invalidates terminal A teardown before local sign-out", async () => {
+    setNavigatorProduct("ReactNative");
+    let releaseCleanup!: () => void;
+    const cleanupPaused = new Promise<void>((resolve) => { releaseCleanup = resolve; });
+    removeItem.mockImplementationOnce(() => cleanupPaused);
+
+    const deletingA = finalizeDeletedAccountSession(
+      "account-a",
+      () => true,
+      jest.fn(),
+    );
+    while (removeItem.mock.calls.length === 0) await Promise.resolve();
+
+    const loggingInB = signInWithEmail("b@example.com", "password");
+    await Promise.resolve();
+    expect(supabaseSignIn).not.toHaveBeenCalled();
+
+    releaseCleanup();
+    await expect(deletingA).resolves.toBe("owner-changed");
+    await expect(loggingInB).resolves.toEqual({ userId: "account-b" });
+    expect(supabaseSignOut).not.toHaveBeenCalled();
   });
 
   test("terminal deletion rechecks the owner after cleanup and never signs out account B", async () => {
@@ -406,7 +505,7 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
       { identifier: "account-a-reminder", trigger: { type: "daily" } },
     ]);
     removeItem.mockImplementation(async (key) => {
-      if (key === "ops.dailyReview.hour.v1") currentOwner = false;
+      if (key.endsWith(".daily-review-hour")) currentOwner = false;
     });
     const armReceipt = jest.fn();
 
@@ -441,7 +540,7 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     setNavigatorProduct("ReactNative");
     getAllScheduledNotificationsAsync.mockReturnValueOnce(new Promise(() => undefined));
 
-    const error = await clearAccountScopedLocalNotifications({ timeoutMs: 5 })
+    const error = await clearAccountScopedLocalNotifications("account-a", { timeoutMs: 5 })
       .catch((caught: unknown) => caught);
 
     expect(error).toMatchObject({
@@ -464,24 +563,104 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
         unavailableReminders.scheduleRoutineReminder({
           title: "x",
           startsAtIso: "2026-06-12T09:00:00.000Z",
-        }),
+        }, { ownerId: "account-a" }),
       ).resolves.toBe("unavailable");
-      await expect(unavailableReminders.clearAccountScopedLocalNotifications()).rejects.toMatchObject({
+      await expect(unavailableReminders.clearAccountScopedLocalNotifications("account-a")).rejects.toMatchObject({
         name: "AccountScopedNotificationCleanupError",
         failureCount: 1,
       });
-      expect(removeItem.mock.calls).toEqual(expect.arrayContaining([
-        ["ops.reminders.disabled"],
-        ["ops.dailyReview.enabled.v1"],
-        ["ops.dailyReview.hour.v1"],
-      ]));
+      expect(removeItem).toHaveBeenCalledTimes(3);
+      expect(removeItem.mock.calls.every(([key]) => key.includes("ops.account.v2."))).toBe(true);
 
       setNavigatorProduct("Gecko");
-      await expect(unavailableReminders.clearAccountScopedLocalNotifications()).resolves.toBeUndefined();
+      await expect(unavailableReminders.clearAccountScopedLocalNotifications("account-a")).resolves.toBeUndefined();
       expect(requestPermissionsAsync).not.toHaveBeenCalled();
     } finally {
       jest.dontMock("expo-notifications");
       jest.resetModules();
     }
+  });
+
+  test("v2 identifiers are generation-marked and account namespaced", () => {
+    const accountA = routineReminderId("account-a", "routine-1");
+    const accountB = routineReminderId("account-b", "routine-1");
+
+    expect(accountA).toMatch(/^ops-v2-[0-9a-f]{16}-routine-routine-1$/);
+    expect(accountB).toMatch(/^ops-v2-[0-9a-f]{16}-routine-routine-1$/);
+    expect(accountA).not.toBe(accountB);
+    expect(accountA).not.toContain("account-a");
+  });
+
+  test("privacy migration removes every pre-v2 scheduled and presented surface", async () => {
+    setNavigatorProduct("ReactNative");
+    const currentA = routineReminderId("account-a", "current");
+    const currentB = routineReminderId("account-b", "current");
+    const currentDaily = dailyReviewNotificationId("account-a");
+    const currentOneShot = oneShotNotificationId("account-b");
+    const prefixOnlyIsNotAContract = routineReminderId("account-c", "unmarked");
+    getAllScheduledNotificationsAsync.mockResolvedValueOnce([
+      { identifier: "legacy-private-once", trigger: { type: "date" } },
+      { identifier: "ops-routine-old-private", trigger: { type: "weekly" } },
+      { identifier: prefixOnlyIsNotAContract, trigger: { type: "weekly" } },
+      { identifier: currentA, trigger: { type: "weekly" }, content: { data: notificationPrivacyData("account-a") } },
+      { identifier: currentDaily, trigger: { type: "daily" }, content: { data: notificationPrivacyData("account-a") } },
+      { identifier: currentOneShot, trigger: { type: "date" }, content: { data: notificationPrivacyData("account-b") } },
+    ]);
+    getPresentedNotificationsAsync.mockResolvedValueOnce([
+      { request: { identifier: "legacy-presented-private" } },
+      { request: { identifier: currentB, content: { data: notificationPrivacyData("account-b") } } },
+    ]);
+    getLastNotificationResponse.mockReturnValueOnce({
+      notification: { request: { identifier: "legacy-response-private" } },
+    });
+
+    await migrateLegacyRoutineNotifications();
+
+    expect(cancelScheduledNotificationAsync.mock.calls).toEqual([
+      ["legacy-private-once"],
+      ["ops-routine-old-private"],
+      [prefixOnlyIsNotAContract],
+    ]);
+    expect(dismissNotificationAsync.mock.calls).toEqual([["legacy-presented-private"]]);
+    expect(clearLastNotificationResponse).toHaveBeenCalledTimes(1);
+    expect(setItem).toHaveBeenCalledWith("ops.notifications.privacyMigration.v2", "1");
+  });
+
+  test("a timed-out A cleanup can finish late only against A namespaced targets", async () => {
+    setNavigatorProduct("ReactNative");
+    const accountAId = routineReminderId("account-a", "shared");
+    const accountBId = routineReminderId("account-b", "shared");
+    getAllScheduledNotificationsAsync.mockResolvedValueOnce([
+      { identifier: accountAId, trigger: { type: "weekly" }, content: { data: notificationPrivacyData("account-a") } },
+      { identifier: accountBId, trigger: { type: "weekly" }, content: { data: notificationPrivacyData("account-b") } },
+    ]);
+    getLastNotificationResponse.mockReturnValueOnce({
+      notification: {
+        request: { identifier: accountBId, content: { data: notificationPrivacyData("account-b") } },
+      },
+    });
+    let releaseLateA: (() => void) | undefined;
+    cancelScheduledNotificationAsync.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      releaseLateA = resolve;
+    }));
+
+    const error = await clearAccountScopedLocalNotifications("account-a", { timeoutMs: 5 })
+      .catch((caught: unknown) => caught);
+
+    expect(error).toMatchObject({ name: "AccountScopedNotificationCleanupError" });
+    expect(cancelScheduledNotificationAsync.mock.calls).toEqual([[accountAId]]);
+    expect(clearLastNotificationResponse).not.toHaveBeenCalled();
+    const removedAKeys = removeItem.mock.calls.map(([key]) => key);
+    expect(removedAKeys).toHaveLength(3);
+    expect(removedAKeys.every((key) => key.includes(".v2."))).toBe(true);
+    expect(removedAKeys.every((key) => !key.includes("account-a"))).toBe(true);
+    await expect(clearAccountScopedLocalNotifications("account-b", { timeoutMs: 20 }))
+      .resolves.toBeUndefined();
+    const removedBKeys = removeItem.mock.calls.slice(3).map(([key]) => key);
+    expect(removedBKeys).toHaveLength(3);
+    expect(removedBKeys.every((key) => !removedAKeys.includes(key))).toBe(true);
+    releaseLateA?.();
+    await Promise.resolve();
+    expect(cancelScheduledNotificationAsync).not.toHaveBeenCalledWith(accountBId);
   });
 });

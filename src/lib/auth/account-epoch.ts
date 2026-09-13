@@ -166,3 +166,8 @@ export function __resetAccountEpochForTests(): void {
   transitionListeners.clear();
   ownerListeners.clear();
 }
+
+/** Snapshot the owner AuthContext has actually published in this JS realm. */
+export function currentResolvedAccountOwner(): AccountOwner {
+  return publishedOwner;
+}

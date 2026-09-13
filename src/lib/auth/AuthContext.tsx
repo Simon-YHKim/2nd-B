@@ -3,13 +3,14 @@
 // OAuth sign-in (Google) lands an authenticated session before the profile
 // row exists; the app routes such users to /complete-profile rather than
 // /journal until they finish the birth-date (C10) prompt.
-
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { getSupabaseClient } from "../supabase/client";
 import { ageInYears, signOut as signOutAuth } from "../supabase/auth";
 import { preserveKnownMinorForMissingProfile, type ProfileProbe } from "./profile-probe";
 import { noteResolvedOwner } from "./account-epoch";
+import { createAccountNotificationPublicationGate } from "./account-notification-publication";
+import { noteExternalAuthSessionMutation } from "./session-mutation";
 import {
   boundedSessionLoad,
   classifyRefreshOutcome,
@@ -35,7 +36,6 @@ import {
   type RecoveryProof,
   type RecoverySessionIdentity,
 } from "./recovery-proof-store";
-
 // A signed-in user counts as a minor for safety routing when under 18 (in
 // practice 14-17, since <14 cannot register — C10). Crisis routing uses this
 // to point minors at a youth-appropriate hotline (KO -> 1388).
@@ -200,6 +200,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const recoveryProofRef = useRef<RecoveryProof | null>(null);
   const recoveryProofGenerationRef = useRef(0);
   const latestSessionRef = useRef<Session | null>(null);
+  const accountNotificationGateRef = useRef<ReturnType<
+    typeof createAccountNotificationPublicationGate
+  > | null>(null);
+  if (!accountNotificationGateRef.current) {
+    accountNotificationGateRef.current = createAccountNotificationPublicationGate();
+  }
   const publishRecoveryProof = useCallback((proof: RecoveryProof | null) => {
     recoveryProofGenerationRef.current += 1;
     recoveryProofRef.current = proof;
@@ -281,6 +287,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async function resolveSession(userId: string | null) {
       if (cancelled) return;
       const gen = ++probeGenRef.current;
+      // Supabase may publish A→B without a null event. Keep A as the publication
+      // owner until its bounded device cleanup terminates, then re-check the
+      // auth generation before any B state becomes observable.
+      const publicationReady = await accountNotificationGateRef.current!.prepare(
+        userId,
+        () => !cancelled && gen === probeGenRef.current,
+      );
+      if (!publicationReady) return;
       if (!userId) {
         lastUserIdRef.current = null;
         lastProbeRef.current = null;
@@ -436,6 +450,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const handleAuthEvent = (event: AuthChangeEvent, session: Session | null) => {
+      if ((session?.user.id ?? null) !== accountNotificationGateRef.current!.publishedOwner()) {
+        noteExternalAuthSessionMutation();
+      }
       latestSessionRef.current = session;
       const previous = recoveryProofRef.current;
       const next = nextRecoveryProof(previous, event, session);
@@ -797,6 +814,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const retry = classifyRefreshOutcome(probed);
     uid = retry.userId;
     if (gen !== probeGenRef.current) return; // a newer resolution superseded us
+    const publicationReady = await accountNotificationGateRef.current!.prepare(
+      uid,
+      () => gen === probeGenRef.current,
+    );
+    if (!publicationReady) return;
     if (!uid) {
       lastUserIdRef.current = null;
       lastProbeRef.current = null;

@@ -12,6 +12,7 @@ import {
   recoverySessionIdentity,
   type RecoverySessionIdentity,
 } from "../auth/recovery-proof-store";
+import { runAuthSessionMutation } from "../auth/session-mutation";
 // ⚠ #1517 은 여기서 `isJudgeEmail` 도 들여왔다. 되살리지 않는다 —
 // main 의 f42f4db2 가 C6 대회 제약과 함께 src/lib/judge/domains.ts 를 통째로
 // 지웠고(CLAUDE.md C6), 이 파일에서 쓰이지도 않는다.
@@ -184,7 +185,7 @@ export type SignUpResult =
       created: boolean;
     };
 
-export async function signUpWithEmail(args: SignUpArgs): Promise<SignUpResult> {
+async function signUpWithEmailUnlocked(args: SignUpArgs): Promise<SignUpResult> {
   if (ageInYears(args.birthDate) < MIN_SELF_CONSENT_AGE) throw new AgeGateError();
   if (!allRequiredAcksChecked(args.consent)) {
     throw new Error("Required consent acknowledgements are missing.");
@@ -277,6 +278,10 @@ export async function signUpWithEmail(args: SignUpArgs): Promise<SignUpResult> {
   }
 
   return { kind: "active", userId: user.id, judgeMode, created: true };
+}
+
+export function signUpWithEmail(args: SignUpArgs): Promise<SignUpResult> {
+  return runAuthSessionMutation(() => signUpWithEmailUnlocked(args));
 }
 
 // --- OAuth (Google / Apple / Kakao) --------------------------------------
@@ -438,16 +443,18 @@ async function openNativeOAuthSession(
   const WebBrowser = require("expo-web-browser") as ExpoWebBrowserModule;
   const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectTo);
   if (result.type !== "success") return null;
-  await createNativeSessionFromUrl(supabase, result.url);
+  await runAuthSessionMutation(() => createNativeSessionFromUrl(supabase, result.url));
   return { url: result.url };
 }
 
 export async function signInWithEmail(email: string, password: string): Promise<{ userId: string }> {
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) throw error;
-  if (!data.user) throw new Error("Sign-in returned no user");
-  return { userId: data.user.id };
+  return runAuthSessionMutation(async () => {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    if (!data.user) throw new Error("Sign-in returned no user");
+    return { userId: data.user.id };
+  });
 }
 
 // Native recovery deep links (password-reset email) carry the session in the
@@ -456,8 +463,10 @@ export async function signInWithEmail(email: string, password: string): Promise<
 // always dead-ended at "expired" with no session. The reset screen feeds the
 // deep link here to establish the recovery session.
 export async function consumeAuthCallbackUrl(url: string): Promise<AuthCallbackSession> {
-  const supabase = getSupabaseClient();
-  return createNativeSessionFromUrl(supabase, url);
+  return runAuthSessionMutation(() => {
+    const supabase = getSupabaseClient();
+    return createNativeSessionFromUrl(supabase, url);
+  });
 }
 
 export async function sendPasswordResetEmail(email: string): Promise<void> {
@@ -476,16 +485,18 @@ export async function verifyPasswordResetCode(
   email: string,
   code: string,
 ): Promise<RecoverySessionIdentity> {
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase.auth.verifyOtp({
-    type: "recovery",
-    email: email.trim(),
-    token: code.trim(),
+  return runAuthSessionMutation(async () => {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase.auth.verifyOtp({
+      type: "recovery",
+      email: email.trim(),
+      token: code.trim(),
+    });
+    if (error) throw error;
+    const identity = recoverySessionIdentity(data.session);
+    if (!identity) throw new Error("Recovery verification returned no stable session");
+    return identity;
   });
-  if (error) throw error;
-  const identity = recoverySessionIdentity(data.session);
-  if (!identity) throw new Error("Recovery verification returned no stable session");
-  return identity;
 }
 
 // Sign-up confirm code (Gmail deliverability P1, 2026-07-18): Gmail buries any
@@ -497,9 +508,11 @@ export async function verifyPasswordResetCode(
 // rows on the confirmation transition. Links in already-sent mail keep working
 // through the existing callback path (both consume the same token).
 export async function verifySignUpCode(email: string, code: string): Promise<void> {
-  const supabase = getSupabaseClient();
-  const { error } = await supabase.auth.verifyOtp({ type: "signup", email: email.trim(), token: code.trim() });
-  if (error) throw error;
+  return runAuthSessionMutation(async () => {
+    const supabase = getSupabaseClient();
+    const { error } = await supabase.auth.verifyOtp({ type: "signup", email: email.trim(), token: code.trim() });
+    if (error) throw error;
+  });
 }
 
 // Supabase Auth "Require current password when updating" was enabled on the
@@ -535,38 +548,40 @@ export async function updatePassword(
   // impossible to change your password, and the length floor plus GoTrue's own
   // checks still apply.
   if (await isPasswordBreached(password)) throw new BreachedPasswordError();
-  const supabase = getSupabaseClient();
-  if (expectedUserId || expectedSessionId) {
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError) throw sessionError;
-    const identity = expectedSessionId ? recoverySessionIdentity(sessionData.session) : null;
-    if (
-      sessionData.session?.user.id !== expectedUserId ||
-      (expectedSessionId && identity?.sessionId !== expectedSessionId)
-    ) {
-      throw new Error("Password recovery session changed before update");
+  return runAuthSessionMutation(async () => {
+    const supabase = getSupabaseClient();
+    if (expectedUserId || expectedSessionId) {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      const identity = expectedSessionId ? recoverySessionIdentity(sessionData.session) : null;
+      if (
+        sessionData.session?.user.id !== expectedUserId ||
+        (expectedSessionId && identity?.sessionId !== expectedSessionId)
+      ) {
+        throw new Error("Password recovery session changed before update");
+      }
     }
-  }
-  const { data, error } = await supabase.auth.updateUser(
-    currentPassword ? { password, current_password: currentPassword } : { password },
-  );
-  if (error) throw error;
-  const updatedUserId = data?.user?.id ?? null;
-  if (expectedUserId && updatedUserId !== expectedUserId) {
-    throw new Error("Password recovery session changed during update");
-  }
-  if (expectedUserId || expectedSessionId) {
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError) throw sessionError;
-    const identity = expectedSessionId ? recoverySessionIdentity(sessionData.session) : null;
-    if (
-      sessionData.session?.user.id !== expectedUserId ||
-      (expectedSessionId && identity?.sessionId !== expectedSessionId)
-    ) {
+    const { data, error } = await supabase.auth.updateUser(
+      currentPassword ? { password, current_password: currentPassword } : { password },
+    );
+    if (error) throw error;
+    const updatedUserId = data?.user?.id ?? null;
+    if (expectedUserId && updatedUserId !== expectedUserId) {
       throw new Error("Password recovery session changed during update");
     }
-  }
-  return { userId: updatedUserId };
+    if (expectedUserId || expectedSessionId) {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      const identity = expectedSessionId ? recoverySessionIdentity(sessionData.session) : null;
+      if (
+        sessionData.session?.user.id !== expectedUserId ||
+        (expectedSessionId && identity?.sessionId !== expectedSessionId)
+      ) {
+        throw new Error("Password recovery session changed during update");
+      }
+    }
+    return { userId: updatedUserId };
+  });
 }
 
 /**
@@ -605,12 +620,21 @@ export function passwordUpdateFailure(error: unknown): PasswordUpdateFailure {
 }
 
 export async function signOut(scope: "global" | "local" = "global"): Promise<void> {
-  await clearAccountScopedLocalNotifications();
-  const supabase = getSupabaseClient();
-  const { error } = scope === "global"
-    ? await supabase.auth.signOut()
-    : await supabase.auth.signOut({ scope });
-  if (error) throw error;
+  return runAuthSessionMutation(async (lease) => {
+    const supabase = getSupabaseClient();
+    const before = await supabase.auth.getSession();
+    if (before.error) throw before.error;
+    const ownerId = before.data.session?.user.id ?? null;
+    if (ownerId) await clearAccountScopedLocalNotifications(ownerId);
+    if (!lease.isCurrent()) return;
+    const after = await supabase.auth.getSession();
+    if (after.error) throw after.error;
+    if ((after.data.session?.user.id ?? null) !== ownerId) return;
+    const { error } = scope === "global"
+      ? await supabase.auth.signOut()
+      : await supabase.auth.signOut({ scope });
+    if (error) throw error;
+  });
 }
 
 export type DeletedAccountSessionFinalization =
@@ -630,39 +654,52 @@ export async function finalizeDeletedAccountSession(
   isCurrentOwner: () => boolean,
   beforeSignOut: () => void,
 ): Promise<DeletedAccountSessionFinalization> {
-  if (!isCurrentOwner()) return "owner-changed";
-  const supabase = getSupabaseClient();
-  const before = await supabase.auth.getSession();
-  if (before.error) throw before.error;
-  const beforeUserId = before.data.session?.user.id ?? null;
-  if (!isCurrentOwner() || (beforeUserId !== null && beforeUserId !== expectedUserId)) {
-    return "owner-changed";
-  }
-
-  try {
-    await clearAccountScopedLocalNotifications({ isCurrentOwner });
-  } catch {
-    // Server deletion already succeeded, so a bounded local failure cannot
-    // resurrect the account. Continue only if the same owner still holds the
-    // lease; the next cold start retries the privacy migration.
-    if (typeof console !== "undefined") {
-      console.warn("[auth] local notification cleanup after deletion incomplete");
+  return runAuthSessionMutation(async (lease) => {
+    if (!lease.isCurrent() || !isCurrentOwner()) return "owner-changed";
+    const supabase = getSupabaseClient();
+    const before = await supabase.auth.getSession();
+    if (before.error) throw before.error;
+    const beforeUserId = before.data.session?.user.id ?? null;
+    if (
+      !lease.isCurrent()
+      || !isCurrentOwner()
+      || (beforeUserId !== null && beforeUserId !== expectedUserId)
+    ) {
+      return "owner-changed";
     }
-  }
 
-  if (!isCurrentOwner()) return "owner-changed";
-  const after = await supabase.auth.getSession();
-  if (after.error) throw after.error;
-  const afterUserId = after.data.session?.user.id ?? null;
-  if (!isCurrentOwner() || (afterUserId !== null && afterUserId !== expectedUserId)) {
-    return "owner-changed";
-  }
+    try {
+      await clearAccountScopedLocalNotifications(expectedUserId, { isCurrentOwner });
+    } catch {
+      // Server deletion already succeeded, so a bounded local failure cannot
+      // resurrect the account. Continue only if the same owner still holds the
+      // lease; the next cold start retries the privacy migration.
+      if (typeof console !== "undefined") {
+        console.warn("[auth] local notification cleanup after deletion incomplete");
+      }
+    }
 
-  beforeSignOut();
-  if (afterUserId === null) return "already-signed-out";
-  const { error } = await supabase.auth.signOut();
-  if (error) throw error;
-  return "signed-out";
+    if (!lease.isCurrent() || !isCurrentOwner()) return "owner-changed";
+    const after = await supabase.auth.getSession();
+    if (after.error) throw after.error;
+    const afterUserId = after.data.session?.user.id ?? null;
+    if (
+      !lease.isCurrent()
+      || !isCurrentOwner()
+      || (afterUserId !== null && afterUserId !== expectedUserId)
+    ) {
+      return "owner-changed";
+    }
+
+    beforeSignOut();
+    if (afterUserId === null) return "already-signed-out";
+    // Terminal deletion never needs to revoke other devices. Local scope means
+    // even a cross-context session swap in auth-js's separate internal lock can
+    // never globally revoke B; app-owned mutations are serialized above.
+    const { error } = await supabase.auth.signOut({ scope: "local" });
+    if (error) throw error;
+    return "signed-out";
+  });
 }
 
 // Start a Supabase social-login redirect for the given provider. On Web,
@@ -717,9 +754,11 @@ export async function signInWithIdTokenProvider(
   provider: "google" | "kakao" | "apple",
   token: string,
 ): Promise<void> {
-  const supabase = getSupabaseClient();
-  const { error } = await supabase.auth.signInWithIdToken({ provider, token });
-  if (error) throw error;
+  return runAuthSessionMutation(async () => {
+    const supabase = getSupabaseClient();
+    const { error } = await supabase.auth.signInWithIdToken({ provider, token });
+    if (error) throw error;
+  });
 }
 
 // Whether to SHOW a built-in social provider button. The provider must ALSO be
@@ -889,10 +928,10 @@ export async function completeNaverOAuth(
   const tokenHash = (data as { token_hash?: string } | null)?.token_hash;
   if (!tokenHash) throw new Error("Naver sign-in could not be completed.");
 
-  const { data: otp, error: otpErr } = await supabase.auth.verifyOtp({
+  const { data: otp, error: otpErr } = await runAuthSessionMutation(() => supabase.auth.verifyOtp({
     token_hash: tokenHash,
     type: "magiclink",
-  });
+  }));
   if (otpErr) throw otpErr;
   if (!otp.user) throw new Error("Naver sign-in returned no user.");
   return { userId: otp.user.id };
