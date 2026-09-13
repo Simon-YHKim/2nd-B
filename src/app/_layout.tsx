@@ -40,6 +40,7 @@ import {
   setAnalyticsConsent,
 } from "@/lib/analytics";
 import { AuthProvider, useAuth } from "@/lib/auth/AuthContext";
+import { beginAccountSessionLease } from "@/lib/auth/account-session-lease";
 import { armWebRecoveryPendingFromLocation } from "@/lib/auth/recovery-proof-store";
 import { requiresGuardianConsent, resolveJurisdiction } from "@/lib/auth/consent-age";
 import { getSupabaseClient } from "@/lib/supabase/client";
@@ -692,9 +693,21 @@ function AuditWriteOutboxSync(): null {
   const { userId, loading, recoveryUserId, recoveryPendingGlobal } = useAuth();
   useEffect(() => {
     if (loading || !userId || recoveryUserId || recoveryPendingGlobal) return;
+    const lifecycle = new AbortController();
 
     const flush = () => {
-      void flushAuditWriteOutbox(userId);
+      const pending = beginAccountSessionLease(userId, lifecycle.signal);
+      void pending.authenticate()
+        .then((session) => flushAuditWriteOutbox(userId, {
+          userId: session.userId,
+          accessToken: session.accessToken,
+          signal: session.signal,
+          assertCurrent: session.assertCurrent,
+        }))
+        .catch(() => {
+          // Account transitions and offline auth reads leave rows queued.
+        })
+        .finally(() => pending.release());
     };
 
     flush();
@@ -704,11 +717,13 @@ function AuditWriteOutboxSync(): null {
     if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
       window.addEventListener("online", flush);
       return () => {
+        lifecycle.abort();
         appStateSub.remove();
         window.removeEventListener("online", flush);
       };
     }
     return () => {
+      lifecycle.abort();
       appStateSub.remove();
     };
   }, [loading, recoveryPendingGlobal, recoveryUserId, userId]);

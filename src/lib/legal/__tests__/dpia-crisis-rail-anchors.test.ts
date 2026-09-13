@@ -9,7 +9,7 @@ import path from "node:path";
 //
 // 이 문서에서 가장 크게 벌어져 있던 것이 하필 가장 안전에 가까운 주장이었다:
 // `fixedCrisisResponse` 가 아홉 자리에서 `:266-298` 로 인용돼 있었는데 실제
-// 위치는 `:408-438` 이다. **"위기 응답은 사람이 쓴 고정 템플릿이고 모델이
+// 위치는 `:436-466` 이다. **"위기 응답은 사람이 쓴 고정 템플릿이고 모델이
 // 만들지 않는다"를 확인하러 간 사람은 그 자리에서 의미 분류기의 시스템
 // 프롬프트를 읽게 된다** - 정확히 반대 결론이 나오는 자리다.
 //
@@ -77,19 +77,19 @@ const AT = "src/lib/analytics/__tests__/analytics.test.ts";
 const LR = "scripts/check-legal-review.ts";
 
 const ANCHORS: Anchor[] = [
-  { cite: `${S}:408-438`, symbol: "fixedCrisisResponse",
+  { cite: `${S}:436-466`, symbol: "fixedCrisisResponse",
     why: "위기 응답이 사람이 쓴 고정 템플릿이라는 주장의 근거. 어긋나면 의미 분류기 프롬프트를 읽게 된다." },
-  { cite: `${S}:287-390`, symbol: "classifySafety",
+  { cite: `${S}:305-418`, symbol: "classifySafety",
     why: "3층 방어 중 둘째 층(의미 분류기)." },
-  { cite: `${S}:177-199`, symbol: "mergeResults",
+  { cite: `${S}:182-204`, symbol: "mergeResults",
     why: "RED-wins 병합. 이게 아니면 '보수적으로 합친다'는 주장에 근거가 없다." },
-  { cite: `${S}:179-187`, symbol: "indexOf",
+  { cite: `${S}:185-197`, symbol: "indexOf",
     why: "모르는 zone 을 RED 로 취급하는 fail-closed 순위. 위기에서 열리지 않는다는 주장." },
   { cite: `${S}:56-68`, symbol: "Suicide CARE",
     why: "KO/EN 마커 목록. 어느 임상 근거를 쓰는지가 여기서 확인된다." },
-  { cite: `${S}:92`, symbol: "EXPO_PUBLIC_USE_VERTEX",
+  { cite: `${S}:94`, symbol: "EXPO_PUBLIC_USE_VERTEX",
     why: "키 없는 웹 빌드에서 의미 층이 꺼진다는 잔여위험 서술의 근거." },
-  { cite: `${S}:412,424`, symbol: "crisisHotlines",
+  { cite: `${S}:440-452`, symbol: "crisisHotlines",
     why: "미성년 라우팅이 실제로 핫라인 목록을 부르는 자리." },
   { cite: `${C}:70-79`, symbol: "crisisHotlines",
     why: "(locale, minor) → 핫라인 표시 순서." },
@@ -449,7 +449,7 @@ describe("검사기 자신의 대조군", () => {
   });
 
   test("음성 대조 - 범위 안 심볼은 통과한다", () => {
-    expect(slice(`${S}:408-438`).text.includes("fixedCrisisResponse")).toBe(true);
+    expect(slice(`${S}:436-466`).text.includes("fixedCrisisResponse")).toBe(true);
   });
 
   test("쉼표와 하이픈을 둘 다 읽는다", () => {

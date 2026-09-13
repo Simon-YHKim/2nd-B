@@ -13,7 +13,7 @@
 //     buttons. The modal is dismissed via localStorage so it doesn't
 //     reappear every session.
 
-import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, Modal, View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Pressable, Animated, TextInput } from "react-native";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { useTranslation } from "react-i18next";
@@ -39,6 +39,10 @@ import { canCompleteRewardedWatch } from "@/lib/ads/rewarded";
 import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
+import {
+  beginAccountSessionLease,
+  type PendingAccountSessionLease,
+} from "@/lib/auth/account-session-lease";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { chatAutosaveAllowed } from "@/lib/chat/autosave";
 import { shouldShowChatSaveNotice, useChatSaveNoticeDismissed } from "@/lib/chat/save-notice";
@@ -57,7 +61,13 @@ import { sendChatMessage } from "@/lib/chat/conversation";
 import { writeClipboardText } from "@/lib/capture/clipboard";
 import { getWikiPage } from "@/lib/wiki/queries";
 import { transcribeAudio } from "@/lib/llm/boundary";
-import { discardRecording, recordingUriToBase64 } from "@/lib/audio/recording-uri";
+import { isAbortError } from "@/lib/async/abort";
+import {
+  createRecorderLifecycle,
+  discardRecording,
+  recordingUriToBase64,
+  type RecordingTempLease,
+} from "@/lib/audio/recording-uri";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import { DomainDashboard } from "@/components/secondb/DomainDashboard";
 import type { HotlineId } from "@/lib/safety/lexicon";
@@ -275,7 +285,14 @@ const ChatComposer = memo(
     const { userId, isMinor } = useAuth();
     const voiceLocale = i18n.language === "ko" ? ("ko" as const) : ("en" as const);
     const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+    const recorderLifecycle = useMemo(
+      () => createRecorderLifecycle(audioRecorder),
+      [audioRecorder],
+    );
     const [voicePhase, setVoicePhase] = useState<"idle" | "recording" | "transcribing">("idle");
+    const voicePhaseRef = useRef<"idle" | "recording" | "transcribing">("idle");
+    const voiceStartInFlightRef = useRef(false);
+    const voiceAccountLeaseRef = useRef<PendingAccountSessionLease | null>(null);
     const [voiceNotice, setVoiceNotice] = useState<string | null>(null);
     const [crisis, setCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
       visible: false,
@@ -286,69 +303,133 @@ const ChatComposer = memo(
       const timeout = setTimeout(() => setVoiceNotice(null), 3200);
       return () => clearTimeout(timeout);
     }, [voiceNotice]);
+    const updateVoicePhase = useCallback((next: "idle" | "recording" | "transcribing"): void => {
+      voicePhaseRef.current = next;
+      setVoicePhase(next);
+    }, []);
+    useLayoutEffect(() => () => {
+      // Beat expo-audio's passive hook release: abort egress and synchronously
+      // begin the recorder-owned stop while its native object is still valid.
+      voiceAccountLeaseRef.current?.abort();
+      voicePhaseRef.current = "idle";
+      recorderLifecycle.dispose();
+    }, [recorderLifecycle]);
 
     async function handleMicPress(): Promise<void> {
-      if (voicePhase === "transcribing") return;
-      if (voicePhase === "recording") {
+      if (voicePhaseRef.current === "transcribing") return;
+      if (voicePhaseRef.current === "recording") {
         await stopAndTranscribe();
         return;
       }
+      if (voiceStartInFlightRef.current) return;
       if (!userId) return;
       if (Platform.OS === "web") {
         setVoiceNotice(t("voice.webFallback"));
         return;
       }
+      voiceStartInFlightRef.current = true;
+      voiceAccountLeaseRef.current?.abort();
+      const ownerGuard = beginAccountSessionLease(userId);
+      voiceAccountLeaseRef.current = ownerGuard;
+      let prepared = false;
       try {
+        ownerGuard.assertCurrent();
+        await recorderLifecycle.waitForIdle();
+        ownerGuard.assertCurrent();
         const perm = await requestRecordingPermissionsAsync();
+        ownerGuard.assertCurrent();
         if (!perm.granted) {
           setVoiceNotice(t("voice.permissionDenied"));
           return;
         }
         await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+        ownerGuard.assertCurrent();
         await audioRecorder.prepareToRecordAsync();
+        prepared = true;
+        ownerGuard.assertCurrent();
         audioRecorder.record();
-        setVoicePhase("recording");
-      } catch {
+        if (!recorderLifecycle.begin(userId)) throw new Error("voice_recorder_owner_stale");
+        updateVoicePhase("recording");
+      } catch (error) {
+        // Native prepare allocates its output path before it may reject.
+        if (prepared || audioRecorder.uri) {
+          recorderLifecycle.begin(userId);
+          await recorderLifecycle.cancel();
+        }
+        if (isAbortError(error) || ownerGuard.signal.aborted) return;
+        try {
+          ownerGuard.assertCurrent();
+        } catch {
+          return;
+        }
         setVoiceNotice(t("voice.recordFailed"));
+      } finally {
+        ownerGuard.release();
+        if (voiceAccountLeaseRef.current === ownerGuard) voiceAccountLeaseRef.current = null;
+        voiceStartInFlightRef.current = false;
       }
     }
 
     async function stopAndTranscribe(): Promise<void> {
-      if (!userId || voicePhase !== "recording") return;
-      setVoicePhase("transcribing");
-      let recordingUri: string | null = null;
+      if (!userId || voicePhaseRef.current !== "recording") return;
+      voiceAccountLeaseRef.current?.abort();
+      const accountLease = beginAccountSessionLease(userId);
+      voiceAccountLeaseRef.current = accountLease;
+      updateVoicePhase("transcribing");
+      let recordingLease: RecordingTempLease | null = null;
       try {
-        await audioRecorder.stop();
-        recordingUri = audioRecorder.uri;
-        if (!recordingUri) {
-          setVoicePhase("idle");
-          setVoiceNotice(t("voice.recordFailed"));
-          return;
-        }
-        const { base64, mimeType } = await recordingUriToBase64(recordingUri);
-        const reply = await transcribeAudio({ userId, locale: voiceLocale, base64, mimeType, minor: isMinor === true });
+        accountLease.assertCurrent();
+        const output = await recorderLifecycle.stopForTranscription(accountLease.signal);
+        accountLease.assertCurrent();
+        recordingLease = output.lease;
+        const authenticated = await accountLease.authenticate();
+        authenticated.assertCurrent();
+        const { base64, mimeType } = await recordingUriToBase64(
+          output.uri,
+          undefined,
+          undefined,
+          authenticated.signal,
+        );
+        authenticated.assertCurrent();
+        const reply = await transcribeAudio({
+          userId,
+          session: authenticated,
+          locale: voiceLocale,
+          base64,
+          mimeType,
+          minor: isMinor === true,
+        });
+        authenticated.assertCurrent();
         if (reply.safety?.zone === "red") {
           // C9: the transcript was crisis-swapped server-side; surface the
           // hotline, never the text.
-          setVoicePhase("idle");
+          updateVoicePhase("idle");
           setCrisis({ visible: true, hotline: voiceLocale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
           return;
         }
         const transcript = reply.text.trim();
         if (transcript.length === 0) {
-          setVoicePhase("idle");
+          updateVoicePhase("idle");
           setVoiceNotice(t("voice.transcriptEmpty"));
           return;
         }
         reactExpression("happy");
         setDraft((prev) => (prev.trim().length === 0 ? transcript : `${prev.trimEnd()} ${transcript}`));
-        setVoicePhase("idle");
-      } catch {
-        setVoicePhase("idle");
+        updateVoicePhase("idle");
+      } catch (error) {
+        if (isAbortError(error) || accountLease.signal.aborted) return;
+        try {
+          accountLease.assertCurrent();
+        } catch {
+          return;
+        }
+        updateVoicePhase("idle");
         setVoiceNotice(t("voice.transcribeFailed"));
       } finally {
         // Privacy: the temp audio file never outlives its transcription.
-        await discardRecording(recordingUri);
+        await discardRecording(recordingLease);
+        accountLease.release();
+        if (voiceAccountLeaseRef.current === accountLease) voiceAccountLeaseRef.current = null;
       }
     }
 

@@ -51,6 +51,10 @@ import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
 import { galmuriFor } from "@/components/m3/typeface";
 import { useAuth } from "@/lib/auth/AuthContext";
+import {
+  beginAccountSessionLease,
+  type PendingAccountSessionLease,
+} from "@/lib/auth/account-session-lease";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { isAbortError } from "@/lib/async/abort";
@@ -65,8 +69,15 @@ import {
   isImageOcrUnsupportedTypeError,
   isImageOcrInvalidDataError,
   isImageOcrMissingDataError,
+  type PickedImage,
 } from "@/lib/wiki/capture-image";
-import { pickFile, isAudioMime, MAX_AUDIO_FILE_BYTES, type PickedFile } from "@/lib/wiki/capture-file";
+import {
+  pickFile,
+  releasePickedFile,
+  isAudioMime,
+  MAX_AUDIO_FILE_BYTES,
+  type PickedFile,
+} from "@/lib/wiki/capture-file";
 import {
   CAPTURE_MODES,
   createCaptureTransientDraft,
@@ -98,7 +109,12 @@ import {
   type SubmittedCaptureDraft,
 } from "@/lib/capture/draft";
 import { classifyRecordTextForCrisis, transcribeAudio } from "@/lib/llm/boundary";
-import { discardRecording, recordingUriToBase64 } from "@/lib/audio/recording-uri";
+import {
+  createRecorderLifecycle,
+  discardRecording,
+  recordingUriToBase64,
+  type RecordingTempLease,
+} from "@/lib/audio/recording-uri";
 import { classifyClipper, type WikiTrack } from "@/lib/wiki/classify-clipper";
 import { proposeClipperTemplate, type ProposedClipperTemplate } from "@/lib/wiki/propose-template";
 import { saveTemplate } from "@/lib/wiki/template-queries";
@@ -492,6 +508,8 @@ function CaptureLegacySession({
   const sharedAckGenerationRef = useRef(0);
   const paramAckGenerationRef = useRef(0);
   const sessionActiveRef = useRef(true);
+  const audioAccountLeaseRef = useRef<PendingAccountSessionLease | null>(null);
+  const ocrAccountLeaseRef = useRef<PendingAccountSessionLease | null>(null);
   const pendingSharedRef = useRef(false);
   // Set when hydration skipped its restore in favor of a pending share: the
   // live fields hold nothing then, and folding them back into the draft set
@@ -534,6 +552,8 @@ function CaptureLegacySession({
     sessionActiveRef.current = true;
     return () => {
       sessionActiveRef.current = false;
+      audioAccountLeaseRef.current?.abort();
+      ocrAccountLeaseRef.current?.release();
       // Invalidate pending router side effects without aborting their durable
       // writes. A keyed account/session remount must not let old ACKs edit the
       // new route's params.
@@ -549,11 +569,50 @@ function CaptureLegacySession({
     pendingSharedRef.current = sharedDelivery !== null && sharedConsumedRef.current !== sharedDelivery;
   }, [shared, modeParam, tagParam, sharedDelivery]);
   const [pickedFile, setPickedFile] = useState<PickedFile | null>(null);
+  const pickedFileRef = useRef<PickedFile | null>(null);
+  const pickedFileInUseRef = useRef<PickedFile | null>(null);
+  const replacePickedFile = useCallback((next: PickedFile | null): void => {
+    const previous = pickedFileRef.current;
+    pickedFileRef.current = next;
+    setPickedFile(next);
+    if (
+      previous &&
+      previous !== next &&
+      pickedFileInUseRef.current !== previous
+    ) {
+      void releasePickedFile(previous);
+    }
+  }, []);
+  const releaseCurrentPickedFile = useCallback((): void => {
+    const current = pickedFileRef.current;
+    if (!current) return;
+    pickedFileRef.current = null;
+    if (pickedFileInUseRef.current !== current) void releasePickedFile(current);
+  }, []);
+  useEffect(() => () => releaseCurrentPickedFile(), [releaseCurrentPickedFile]);
   // Status line under the picked-file card. Audio files take a round trip to
   // Gemini, so the card has to say something other than "no preview available"
   // while that runs and after it lands.
   const [fileNotice, setFileNotice] = useState<string | null>(null);
-  const [pickedImage, setPickedImage] = useState<{ uri: string; base64: string; mimeType: string } | null>(null);
+  const [pickedImage, setPickedImage] = useState<PickedImage | null>(null);
+  const pickedImageRef = useRef<PickedImage | null>(null);
+  const releasePickedImageState = useCallback((image: PickedImage): void => {
+    if (pickedImageRef.current === image) pickedImageRef.current = null;
+    void image.release();
+  }, []);
+  const replacePickedImage = useCallback((next: PickedImage | null): void => {
+    const previous = pickedImageRef.current;
+    pickedImageRef.current = next;
+    setPickedImage(next);
+    if (previous && previous !== next) void previous.release();
+  }, []);
+  const releaseCurrentPickedImage = useCallback((): void => {
+    const current = pickedImageRef.current;
+    if (!current) return;
+    pickedImageRef.current = null;
+    void current.release();
+  }, []);
+  useEffect(() => () => releaseCurrentPickedImage(), [releaseCurrentPickedImage]);
   const [extracting, setExtracting] = useState(false);
   const [ocrReviewApproved, setOcrReviewApproved] = useState(false);
 
@@ -650,6 +709,10 @@ function CaptureLegacySession({
   // record→transcribe round-trip has not been run on hardware. Mock transcription
   // (transcribeAudio) is wired so the flow and tests work offline.
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorderLifecycle = useMemo(
+    () => createRecorderLifecycle(audioRecorder),
+    [audioRecorder],
+  );
   const [voicePhase, setVoicePhase] = useState<VoicePhase>("idle");
   const voicePhaseRef = useRef<VoicePhase>("idle");
   const [voiceNotice, setVoiceNotice] = useState<string | null>(null);
@@ -662,20 +725,21 @@ function CaptureLegacySession({
     const phase = voicePhaseRef.current;
     updateVoicePhase("idle");
     setVoiceNotice(null);
+    audioAccountLeaseRef.current?.abort();
     if (phase !== "recording") return;
     // A recorder is an owned native resource, not just a stale UI producer.
-    // Stop and discard it when its controls are about to disappear.
-    void (async () => {
-      try {
-        await audioRecorder.stop();
-        await discardRecording(audioRecorder.uri);
-      } catch (e) {
-        if (typeof console !== "undefined") {
-          console.warn("[capture] recording cleanup on mode exit failed", (e as Error).message);
-        }
-      }
-    })();
-  }, [audioRecorder, updateVoicePhase]);
+    // Stop it and release only its verified app-cache output when the controls
+    // are about to disappear. Provider/original URIs are never owned here.
+    void recorderLifecycle.cancel();
+  }, [recorderLifecycle, updateVoicePhase]);
+  useLayoutEffect(() => () => {
+    // Layout cleanup runs before expo-audio's passive hook release. The
+    // recorder-owned state machine has already snapshotted the URI and starts
+    // native stop synchronously here.
+    audioAccountLeaseRef.current?.abort();
+    voicePhaseRef.current = "idle";
+    recorderLifecycle.dispose();
+  }, [recorderLifecycle]);
   const stopVoiceCaptureForModeExitRef = useRef(stopVoiceCaptureForModeExit);
   useLayoutEffect(() => {
     stopVoiceCaptureForModeExitRef.current = stopVoiceCaptureForModeExit;
@@ -831,6 +895,10 @@ function CaptureLegacySession({
     // OCR/audio spinner when the replacement action is a picker or paste that
     // does not set extracting=true itself.
     setExtracting(false);
+    // OCR carries image bytes across an authenticated boundary. A newer
+    // producer must abort that captured account capability, not only hide its
+    // eventual UI result.
+    ocrAccountLeaseRef.current?.release();
     advanceCaptureRevision();
     asyncProducerGenerationRef.current += 1;
     return {
@@ -1733,9 +1801,9 @@ function CaptureLegacySession({
 
   function resetTransientCaptureState() {
     proposalGenerationRef.current += 1;
-    setPickedFile(null);
+    replacePickedFile(null);
     setFileNotice(null);
-    setPickedImage(null);
+    replacePickedImage(null);
     setExtracting(false);
     setTagsEditable([]);
     // 저장 성공(reset)·모드 전환이 지나간 뒤에도 typed intent 가 남으면 다음
@@ -2013,17 +2081,24 @@ function CaptureLegacySession({
   async function pickImage(source: "library" | "camera") {
     if (!userId) return;
     const ticket = beginAsyncProducer();
+    let nextImage: PickedImage | null = null;
     try {
-      const img = await pickImageAsset(source);
-      if (!img) return;
-      if (!asyncProducerIsCurrent(ticket, "ocr")) return;
+      nextImage = await pickImageAsset(source);
+      if (!nextImage) return;
+      if (!asyncProducerIsCurrent(ticket, "ocr")) {
+        await nextImage.release();
+        nextImage = null;
+        return;
+      }
       commitComposerMutation();
-      setPickedImage(img);
+      replacePickedImage(nextImage);
+      nextImage = null;
       setOcrReviewApproved(false);
       setBody(""); // clear any prior extraction; the user presses 추출하기 to fill
     } catch (e) {
+      await nextImage?.release();
       if (!asyncProducerIsCurrent(ticket, "ocr")) return;
-      if (typeof console !== "undefined") console.warn("[capture] image pick failed", (e as Error).message);
+      if (typeof console !== "undefined") console.warn("[capture] image pick failed");
       // P2-5: deterministic failures get their own copy — the generic "try
       // again in a moment" framing misdiagnoses them. Camera permission keeps
       // a retry (granting permission makes it succeed); an unsupported or
@@ -2062,9 +2137,19 @@ function CaptureLegacySession({
   async function runExtract() {
     if (!userId || !pickedImage || extracting) return;
     const ticket = beginAsyncProducer();
+    const accountLease = beginAccountSessionLease(userId);
+    ocrAccountLeaseRef.current = accountLease;
     setExtracting(true);
     try {
-      const md = await ocrImageAsset(userId, locale, pickedImage, isMinor === true);
+      const authenticated = await accountLease.authenticate();
+      authenticated.assertCurrent();
+      const md = await ocrImageAsset(
+        authenticated,
+        locale,
+        pickedImage,
+        isMinor === true,
+      );
+      authenticated.assertCurrent();
       if (!asyncProducerIsCurrent(ticket, "ocr")) return;
       commitComposerMutation();
       setBody(md);
@@ -2072,6 +2157,12 @@ function CaptureLegacySession({
       // 사진에서 글자를 읽어냈다 — fresh information, the delight beat.
       reactExpression("delight");
     } catch (e) {
+      if (isAbortError(e) || accountLease.signal.aborted) return;
+      try {
+        accountLease.assertCurrent();
+      } catch {
+        return;
+      }
       // Split-② guards turned the crisis output swap into a typed throw; the
       // generic "clearer photo" alert here would HIDE the hotline from a user
       // who just photographed crisis content and invite paid retries (review
@@ -2111,16 +2202,25 @@ function CaptureLegacySession({
         showFeedback(t("alerts.ocrInvalidData.title"), t("alerts.ocrInvalidData.message"));
         return;
       }
-      if (typeof console !== "undefined") console.warn("[capture] OCR extract failed", (e as Error).message);
+      if (typeof console !== "undefined") console.warn("[capture] OCR extract failed");
       showFeedback(
         t("alerts.ocrRead.title"),
         t("alerts.ocrRead.message"),
         () => void runExtract(),
       );
     } finally {
-      if (sessionActiveRef.current && asyncProducerGenerationRef.current === ticket.generation) {
-        setExtracting(false);
+      if (ocrAccountLeaseRef.current === accountLease) {
+        ocrAccountLeaseRef.current = null;
       }
+      try {
+        accountLease.assertCurrent();
+        if (sessionActiveRef.current && asyncProducerGenerationRef.current === ticket.generation) {
+          setExtracting(false);
+        }
+      } catch {
+        // A stale account continuation must not mutate the replacement UI.
+      }
+      accountLease.release();
     }
   }
 
@@ -2130,23 +2230,39 @@ function CaptureLegacySession({
   // the string "File attachment - audio/mp4, 812345 bytes." and nothing else, so
   // the recording the user cared about was never actually captured.
   //
-  // One deliberate difference from the recorder: the file is NOT deleted
-  // afterwards. discardRecording exists because the recorder writes a temp file
-  // the app owns; this one is the user's own file and deleting it would be a
-  // capture tool destroying the thing it was pointed at.
+  // DocumentPicker copies the selection into app cache. The provider/original
+  // URI is never owned or deleted; only that verified cache copy is released
+  // after transcription no longer needs it.
   async function transcribePickedAudio(file: PickedFile) {
-    if (!userId) return;
-    if (file.size > MAX_AUDIO_FILE_BYTES) {
-      setFileNotice(t("file.audioTooLarge", { mb: Math.floor(MAX_AUDIO_FILE_BYTES / 1_000_000) }));
+    if (!userId) {
+      await releasePickedFile(file);
       return;
     }
+    if (file.size > MAX_AUDIO_FILE_BYTES) {
+      setFileNotice(t("file.audioTooLarge", { mb: Math.floor(MAX_AUDIO_FILE_BYTES / 1_000_000) }));
+      await releasePickedFile(file);
+      return;
+    }
+    pickedFileInUseRef.current = file;
     const ticket = beginAsyncProducer();
+    audioAccountLeaseRef.current?.abort();
+    const accountLease = beginAccountSessionLease(userId);
+    audioAccountLeaseRef.current = accountLease;
     setExtracting(true);
     setFileNotice(t("file.transcribing"));
     try {
-      const { base64, mimeType } = await recordingUriToBase64(file.uri);
+      const authenticated = await accountLease.authenticate();
+      authenticated.assertCurrent();
+      const { base64, mimeType } = await recordingUriToBase64(
+        file.uri,
+        isAudioMime(file.mimeType) ? file.mimeType : undefined,
+        file.size > 0 ? file.size : undefined,
+        authenticated.signal,
+      );
+      authenticated.assertCurrent();
       const reply = await transcribeAudio({
         userId,
+        session: authenticated,
         locale,
         base64,
         // Trust the picker's normalized MIME over the blob's: DocumentPicker
@@ -2155,6 +2271,7 @@ function CaptureLegacySession({
         mimeType: isAudioMime(file.mimeType) ? file.mimeType : mimeType,
         minor: isMinor === true,
       });
+      authenticated.assertCurrent();
       // C9 parity with the recorder: a red-zone transcript was swapped
       // server-side for the crisis template, so route to the hotline instead of
       // pasting that template into the note.
@@ -2182,35 +2299,60 @@ ${transcript}`;
       });
       setFileNotice(t("file.transcribed"));
     } catch (e) {
+      if (isAbortError(e) || accountLease.signal.aborted) return;
+      try {
+        accountLease.assertCurrent();
+      } catch {
+        return;
+      }
       if (!asyncProducerIsCurrent(ticket, "file", false)) return;
-      if (typeof console !== "undefined") console.warn("[capture] file transcription failed", (e as Error).message);
+      if (typeof console !== "undefined") console.warn("[capture] file transcription failed");
       setFileNotice(t("file.transcribeFailed"));
     } finally {
-      if (sessionActiveRef.current && asyncProducerGenerationRef.current === ticket.generation) {
-        setExtracting(false);
+      if (audioAccountLeaseRef.current === accountLease) audioAccountLeaseRef.current = null;
+      if (pickedFileInUseRef.current === file) pickedFileInUseRef.current = null;
+      await releasePickedFile(file);
+      try {
+        accountLease.assertCurrent();
+        if (sessionActiveRef.current && asyncProducerGenerationRef.current === ticket.generation) {
+          setExtracting(false);
+        }
+      } catch {
+        // A stale account/mode continuation must not mutate the replacement UI.
       }
+      accountLease.release();
     }
   }
 
   async function runFilePick() {
+    if (!userId) return;
     const ticket = beginAsyncProducer();
+    const ownerGuard = beginAccountSessionLease(userId);
+    let selectedFile: PickedFile | null = null;
     try {
-      const f = await pickFile();
+      selectedFile = await pickFile();
+      ownerGuard.assertCurrent();
+      const f = selectedFile;
       if (!f) return;
       if (!asyncProducerIsCurrent(ticket, "file")) return;
       commitComposerMutation();
-      setPickedFile(f);
+      replacePickedFile(f);
       setFileNotice(null);
       if (f.textContent) setBody(f.textContent);
       if (isAudioMime(f.mimeType)) await transcribePickedAudio(f);
-    } catch (e) {
+    } catch (error) {
+      if (isAbortError(error) || ownerGuard.signal.aborted) return;
+      ownerGuard.assertCurrent();
       if (!asyncProducerIsCurrent(ticket, "file")) return;
-      if (typeof console !== "undefined") console.warn("[capture] file pick failed", (e as Error).message);
+      if (typeof console !== "undefined") console.warn("[capture] file pick failed");
       showFeedback(
         t("alerts.fileOpen.title"),
         t("alerts.fileOpen.message"),
         () => void runFilePick(),
       );
+    } finally {
+      await releasePickedFile(selectedFile);
+      ownerGuard.release();
     }
   }
 
@@ -2601,8 +2743,17 @@ ${transcript}`;
       setVoiceNotice(t("voice.webFallback"));
       return;
     }
+    audioAccountLeaseRef.current?.abort();
+    const ownerGuard = beginAccountSessionLease(userId);
+    audioAccountLeaseRef.current = ownerGuard;
+    let prepared = false;
     try {
+      ownerGuard.assertCurrent();
+      await recorderLifecycle.waitForIdle();
+      ownerGuard.assertCurrent();
+      if (!asyncProducerIsCurrent(ticket, "voice")) return;
       const perm = await requestRecordingPermissionsAsync();
+      ownerGuard.assertCurrent();
       if (!asyncProducerIsCurrent(ticket, "voice")) return;
       if (!perm.granted) {
         // Permission denied → fall back to the typed transcript box.
@@ -2610,38 +2761,74 @@ ${transcript}`;
         return;
       }
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      ownerGuard.assertCurrent();
       await audioRecorder.prepareToRecordAsync();
-      if (!asyncProducerIsCurrent(ticket, "voice")) return;
+      prepared = true;
+      ownerGuard.assertCurrent();
+      if (!asyncProducerIsCurrent(ticket, "voice")) {
+        recorderLifecycle.begin(userId);
+        await recorderLifecycle.cancel();
+        return;
+      }
       audioRecorder.record();
+      if (!recorderLifecycle.begin(userId)) {
+        throw new Error("voice_recorder_owner_stale");
+      }
       updateVoicePhase("recording");
-    } catch (e) {
-      if (typeof console !== "undefined") console.warn("[capture] start recording failed", (e as Error).message);
+    } catch (error) {
+      // Expo allocates recorder.uri before native prepare can reject. A failed
+      // prepare can therefore leave a cache artifact even though `prepared`
+      // never flipped; run the same writer-proof cleanup whenever a URI exists.
+      if (prepared || audioRecorder.uri) {
+        recorderLifecycle.begin(userId);
+        await recorderLifecycle.cancel();
+      }
+      if (isAbortError(error) || ownerGuard.signal.aborted) return;
+      try {
+        ownerGuard.assertCurrent();
+      } catch {
+        return;
+      }
+      if (typeof console !== "undefined") console.warn("[capture] start recording failed");
       updateVoicePhase("idle");
       setVoiceNotice(t("voice.recordFailed"));
+    } finally {
+      ownerGuard.release();
+      if (audioAccountLeaseRef.current === ownerGuard) audioAccountLeaseRef.current = null;
     }
   }
 
   async function handleStopRecording() {
     if (!userId || voicePhaseRef.current !== "recording") return;
     const ticket = beginAsyncProducer();
+    audioAccountLeaseRef.current?.abort();
+    const accountLease = beginAccountSessionLease(userId);
+    audioAccountLeaseRef.current = accountLease;
     updateVoicePhase("transcribing");
-    let recordingUri: string | null = null;
+    let recordingLease: RecordingTempLease | null = null;
     try {
-      await audioRecorder.stop();
-      recordingUri = audioRecorder.uri;
-      if (!recordingUri) {
-        updateVoicePhase("idle");
-        setVoiceNotice(t("voice.recordFailed"));
-        return;
-      }
-      const { base64, mimeType } = await recordingUriToBase64(recordingUri);
+      accountLease.assertCurrent();
+      const output = await recorderLifecycle.stopForTranscription(accountLease.signal);
+      accountLease.assertCurrent();
+      recordingLease = output.lease;
+      const authenticated = await accountLease.authenticate();
+      authenticated.assertCurrent();
+      const { base64, mimeType } = await recordingUriToBase64(
+        output.uri,
+        undefined,
+        undefined,
+        authenticated.signal,
+      );
+      authenticated.assertCurrent();
       const reply = await transcribeAudio({
         userId,
+        session: authenticated,
         locale,
         base64,
         mimeType,
         minor: isMinor === true,
       });
+      authenticated.assertCurrent();
       // C9: a red-zone transcript was swapped server-side for the fixed crisis
       // template — route to the hotline instead of populating the body with it.
       if (reply.safety?.zone === "red") {
@@ -2671,18 +2858,26 @@ ${transcript}`;
         return current.length === 0 ? transcript : `${prev.trimEnd()}\n\n${transcript}`;
       });
       updateVoicePhase("idle");
-    } catch (e) {
+    } catch (error) {
+      if (isAbortError(error) || accountLease.signal.aborted) return;
+      try {
+        accountLease.assertCurrent();
+      } catch {
+        return;
+      }
       if (!asyncProducerIsCurrent(ticket, "voice", false)) {
         if (sessionActiveRef.current) updateVoicePhase("idle");
         return;
       }
-      if (typeof console !== "undefined") console.warn("[capture] transcription failed", (e as Error).message);
+      if (typeof console !== "undefined") console.warn("[capture] transcription failed");
       updateVoicePhase("idle");
       setVoiceNotice(t("voice.transcribeFailed"));
     } finally {
       // Privacy parity with call-reflection: drop the temp audio once the text
       // has been extracted (runs on the crisis / empty / error paths too).
-      await discardRecording(recordingUri);
+      await discardRecording(recordingLease);
+      accountLease.release();
+      if (audioAccountLeaseRef.current === accountLease) audioAccountLeaseRef.current = null;
     }
   }
 
@@ -2715,7 +2910,8 @@ ${transcript}`;
     submitAbortRef.current = submitController;
     const submitSignal = submitController.signal;
     const submittedPickedFile = pickedFile;
-    const submittedPickedImageUri = pickedImage?.uri ?? null;
+    const submittedPickedImage = pickedImage;
+    const submittedPickedImageUri = submittedPickedImage?.uri ?? null;
     const submittedTrack = track;
     const submittedTrackTouched = trackTouchedRef.current;
     let sourceSaved = false;
@@ -2804,18 +3000,29 @@ ${transcript}`;
           if (storageMutationEpochRef.current[submittedMode] !== startModeEpoch) {
             return current;
           }
-          return current?.uri === submittedPickedFile.uri &&
+          const matchesSubmitted = current?.uri === submittedPickedFile.uri &&
             current.name === submittedPickedFile.name &&
             current.mimeType === submittedPickedFile.mimeType &&
-            current.size === submittedPickedFile.size
-              ? null
-              : current;
+            current.size === submittedPickedFile.size;
+          if (!matchesSubmitted) return current;
+          if (pickedFileRef.current === current) pickedFileRef.current = null;
+          if (pickedFileInUseRef.current !== current) void releasePickedFile(current);
+          return null;
         });
       }
-      if (submittedMode === "ocr" && submittedPickedImageUri !== null) {
+      if (
+        submittedMode === "ocr" &&
+        submittedPickedImage !== null &&
+        submittedPickedImageUri !== null
+      ) {
+        if (
+          storageMutationEpochRef.current[submittedMode] === startModeEpoch &&
+          pickedImageRef.current === submittedPickedImage
+        ) releasePickedImageState(submittedPickedImage);
         setPickedImage((current) => (
           storageMutationEpochRef.current[submittedMode] === startModeEpoch &&
-          current?.uri === submittedPickedImageUri
+          current?.uri === submittedPickedImageUri &&
+          current === submittedPickedImage
             ? null
             : current
         ));
@@ -2926,6 +3133,11 @@ ${transcript}`;
         () => void handleSubmit(),
       );
     } finally {
+      // A stale render can dispatch submit before `extracting` disables the CTA.
+      // Keep the cache copy alive until the transcription that reads it settles.
+      if (pickedFileInUseRef.current !== submittedPickedFile) {
+        await releasePickedFile(submittedPickedFile);
+      }
       if (submissionTicket !== null && !submissionSettled) {
         completeCaptureSubmission(
           submissionTicket,

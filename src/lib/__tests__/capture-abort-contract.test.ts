@@ -32,9 +32,10 @@ describe("capture submit abort contract", () => {
     expect(classify).toContain("signal?: AbortSignal");
     expect(classify).toContain("purpose: \"clipper_classify\", system, user, minor, signal");
     expect(types).toContain("signal?: AbortSignal");
-    expect(gemini).toContain("throwIfAborted(input.signal)");
-    expect(gemini).toContain("signal: input.signal");
-    expect(gemini).toContain("abortSignal: input.signal");
+    expect(gemini).toContain("const signal = input.session?.signal ?? input.signal");
+    expect(gemini).toContain("throwIfAborted(signal)");
+    expect(gemini).toContain("signal,");
+    expect(gemini).toContain("abortSignal: signal");
     expect(ingest).toContain("signal?: AbortSignal");
     expect(ingest).toContain("throwIfAborted(input.signal)");
     expect(ingest).toContain("}, input.signal)");

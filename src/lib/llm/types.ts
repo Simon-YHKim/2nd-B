@@ -1,4 +1,5 @@
 import type { SafetyResult, SafetyZone } from "../safety/classifier";
+import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
 
 export type GeminiModel = "lite" | "flash" | "pro";
 
@@ -100,6 +101,11 @@ export interface AdvisorResult {
 
 export interface PromptInput {
   userId: string;
+  /**
+   * Immutable JWT + owner epoch for account-sensitive calls such as OCR.
+   * When present, the LLM boundary must not reread the mutable global session.
+   */
+  session?: AuthenticatedAccountSessionLease;
   locale: "en" | "ko";
   purpose: PromptPurpose;
   system?: string;

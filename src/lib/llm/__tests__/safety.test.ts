@@ -178,6 +178,8 @@ describe("classifySafety (layered)", () => {
     // only degraded+userId case in this file, so the once-per-session latch fires here.
     expect(mockInsertAudit).toHaveBeenCalledWith(
       expect.objectContaining({ userId: "u1", modelUsed: "lexicon-only", safetyZone: "green" }),
+      undefined,
+      undefined,
     );
   });
 

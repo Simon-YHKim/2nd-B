@@ -7,6 +7,12 @@
 
 import { callLlm } from "../llm/boundary";
 import type { LlmResult } from "../llm/types";
+import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
+import {
+  leaseOwnedTempFile,
+  type OwnedTempFileLease,
+  type OwnedTempLeaseError,
+} from "../storage/owned-temp";
 
 type ImageManipulatorModule = typeof import("expo-image-manipulator");
 type ImageManipulatorAction = import("expo-image-manipulator").Action;
@@ -42,7 +48,22 @@ export interface PickedImage {
   /** Normalized base64 bytes handed to the Edge Function for OCR. */
   base64: string;
   mimeType: string;
+  /** Releases only the verified app-cache copy; safe and idempotent. */
+  release(): Promise<void>;
 }
+
+interface DownscaledOcrImage {
+  uri: string;
+  base64: string;
+  mimeType: "image/jpeg";
+  ownership: ImageAssetOwnership;
+  usesPickerLease: boolean;
+}
+
+type ImageAssetOwnership =
+  | { kind: "owned"; lease: OwnedTempFileLease }
+  | { kind: "owned_object_url"; uri: string; released: boolean }
+  | { kind: "explicitly_unowned" };
 
 export const MAX_OCR_IMAGE_BASE64_BYTES = 2_700_000;
 export const MAX_OCR_IMAGE_RAW_BASE64_BYTES = MAX_OCR_IMAGE_BASE64_BYTES + 100_000;
@@ -60,6 +81,8 @@ export const IMAGE_OCR_MISSING_DATA_ERROR = "image_ocr_missing_data";
 export const IMAGE_OCR_INVALID_DATA_ERROR = "image_ocr_invalid_data";
 export const IMAGE_OCR_EMPTY_RESULT_ERROR = "image_ocr_empty_result";
 export const IMAGE_OCR_CRISIS_RESULT_ERROR = "image_ocr_crisis_result";
+export const IMAGE_OCR_TEMP_UNAVAILABLE_ERROR = "image_ocr_temp_unavailable";
+export const IMAGE_TEMP_OPERATION_TIMEOUT_MS = 5_000;
 
 export const ALLOWED_OCR_IMAGE_MIME_TYPES = [
   "image/jpeg",
@@ -113,6 +136,163 @@ const OCR_PROMPT: Record<"en" | "ko", string> = {
   en: "Transcribe all readable text in this image as clean markdown. Preserve visible line breaks, headings, lists, and markdown tables where possible. Capture numeric values, units, labels, timestamps, checkboxes, and engineering terms such as tact time, cycle time, and UPH exactly as shown. Mark unclear characters with [?] instead of guessing. If the image has no readable text, describe what you see in 1-2 sentences in English.",
   ko: "이미지의 모든 읽을 수 있는 텍스트를 깔끔한 마크다운으로 전사하세요. 보이는 줄바꿈, 제목, 목록을 유지하고, 표는 가능한 한 마크다운 표로 보존하세요. 숫자, 단위, 라벨, 시간, 체크박스, tact time, cycle time, UPH 같은 엔지니어링 용어는 보이는 대로 정확히 적으세요. 불확실한 글자는 추측하지 말고 [?]로 표시하세요. 읽을 수 있는 텍스트가 없으면 이미지 내용을 한국어 1-2문장으로 설명하세요.",
 };
+
+function safeImageCleanupFailureReason(reason: unknown): OwnedTempLeaseError | "unexpected_failure" {
+  switch (reason) {
+    case "unsupported_runtime":
+    case "filesystem_unavailable":
+    case "unsafe_target":
+    case "not_a_file":
+    case "inspect_failed":
+    case "target_changed":
+    case "delete_failed":
+    case "verification_failed":
+      return reason;
+    default:
+      return "unexpected_failure";
+  }
+}
+
+function warnImageCleanupFailure(reason: unknown): void {
+  if (typeof console !== "undefined") {
+    console.warn("[capture-image] cache copy cleanup failed", {
+      reason: safeImageCleanupFailureReason(reason),
+    });
+  }
+}
+
+function isExplicitlyUnownedProviderUri(uri: string): boolean {
+  return /^(?:content|ph|assets-library):\/\//i.test(uri);
+}
+
+type DeadlineResult<T> =
+  | { status: "resolved"; value: T }
+  | { status: "rejected" }
+  | { status: "timed_out" };
+
+function settleBeforeDeadline<T>(operation: Promise<T>): Promise<DeadlineResult<T>> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      resolve({ status: "timed_out" });
+    }, IMAGE_TEMP_OPERATION_TIMEOUT_MS);
+    void operation.then(
+      (value) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve({ status: "resolved", value });
+      },
+      () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve({ status: "rejected" });
+      },
+    );
+  });
+}
+
+function cleanLateImageLease(operation: Promise<Awaited<ReturnType<typeof leaseOwnedTempFile>>>): void {
+  void operation.then(async (result) => {
+    if (!result.ok) return;
+    await disposeImageAssetOwnership({ kind: "owned", lease: result.lease });
+  }).catch(() => {
+    // The late operation contains a native path in its rejected operand. Keep it
+    // quarantined and never copy that detail into application logs.
+  });
+}
+
+async function acquireImageAssetOwnership(
+  uri: string,
+  provenance: "picker" | "manipulator",
+): Promise<ImageAssetOwnership> {
+  // Native pickers may hand back a provider-owned original. Preserve only URI
+  // schemes that explicitly carry that ownership boundary. A file:// result is
+  // a picker/manipulator cache copy until a verified app-cache lease proves it
+  // can be cleaned; a failed lease must never silently become "unowned".
+  // Expo's web picker and manipulator both create fresh object URLs. The File
+  // remains user-owned, but the app owns this access handle and must revoke it.
+  if (uri.startsWith("blob:")) {
+    if (typeof URL === "undefined" || typeof URL.revokeObjectURL !== "function") {
+      throw new Error(IMAGE_OCR_TEMP_UNAVAILABLE_ERROR);
+    }
+    return { kind: "owned_object_url", uri, released: false };
+  }
+  if (provenance === "picker" && isExplicitlyUnownedProviderUri(uri)) {
+    return { kind: "explicitly_unowned" };
+  }
+  if (!uri.startsWith("file:///")) {
+    throw new Error(IMAGE_OCR_TEMP_UNAVAILABLE_ERROR);
+  }
+  let operation: ReturnType<typeof leaseOwnedTempFile>;
+  try {
+    operation = leaseOwnedTempFile(uri);
+  } catch {
+    throw new Error(IMAGE_OCR_TEMP_UNAVAILABLE_ERROR);
+  }
+  const settled = await settleBeforeDeadline(operation);
+  if (settled.status === "timed_out") {
+    // We cannot return a file whose cleanup ownership is still unknown. If the
+    // native inspection later proves ownership, the late proof cleans it once.
+    cleanLateImageLease(operation);
+    throw new Error(IMAGE_OCR_TEMP_UNAVAILABLE_ERROR);
+  }
+  if (settled.status === "rejected" || !settled.value.ok) {
+    throw new Error(IMAGE_OCR_TEMP_UNAVAILABLE_ERROR);
+  }
+  return { kind: "owned", lease: settled.value.lease };
+}
+
+async function disposeImageAssetOwnership(ownership: ImageAssetOwnership | null): Promise<void> {
+  if (!ownership || ownership.kind === "explicitly_unowned") return;
+  if (ownership.kind === "owned_object_url") {
+    if (ownership.released) return;
+    ownership.released = true;
+    try {
+      URL.revokeObjectURL(ownership.uri);
+    } catch {
+      warnImageCleanupFailure("unexpected_failure");
+    }
+    return;
+  }
+  let operation: ReturnType<OwnedTempFileLease["dispose"]>;
+  try {
+    operation = ownership.lease.dispose();
+  } catch {
+    warnImageCleanupFailure("unexpected_failure");
+    return;
+  }
+  const settled = await settleBeforeDeadline(operation);
+  if (settled.status === "timed_out") {
+    warnImageCleanupFailure("unexpected_failure");
+    void operation.then((result) => {
+      if (!result.ok) warnImageCleanupFailure(result.error);
+    }).catch(() => warnImageCleanupFailure("unexpected_failure"));
+    return;
+  }
+  if (settled.status === "rejected") {
+    warnImageCleanupFailure("unexpected_failure");
+    return;
+  }
+  if (!settled.value.ok) warnImageCleanupFailure(settled.value.error);
+}
+
+function pickedImageWithLease(
+  image: Omit<PickedImage, "release">,
+  ownership: ImageAssetOwnership,
+): PickedImage {
+  let releasePromise: Promise<void> | null = null;
+  return {
+    ...image,
+    release: () => {
+      releasePromise ??= disposeImageAssetOwnership(ownership);
+      return releasePromise;
+    },
+  };
+}
 
 function ocrPromptForLocale(locale: "en" | "ko"): string {
   return `${OCR_PROMPT[locale]}\n\n${OCR_DOMAIN_GUARD[locale]}\n\n${OCR_OUTPUT_GUARD[locale]}`;
@@ -397,7 +577,7 @@ async function downscaleOcrImageAsset(asset: {
   uri: string;
   width?: number;
   height?: number;
-}): Promise<PickedImage | null> {
+}): Promise<DownscaledOcrImage | null> {
   const ImageManipulator = loadImageManipulatorModule();
   if (!ImageManipulator || typeof ImageManipulator.manipulateAsync !== "function") return null;
   const width = asset.width ?? 0;
@@ -412,20 +592,46 @@ async function downscaleOcrImageAsset(asset: {
   if (resizeActions.length === 0) resizeActions.push([]);
 
   for (const actions of resizeActions) {
-    let result: ImageManipulatorResult | undefined;
-    try {
-      result = await ImageManipulator.manipulateAsync(asset.uri, actions, {
+    const operation = Promise.resolve().then(() => ImageManipulator.manipulateAsync(asset.uri, actions, {
         compress: OCR_IMAGE_DOWNSCALE_COMPRESS,
         format: ImageManipulator.SaveFormat.JPEG,
         base64: true,
-      });
-    } catch {
+      }));
+    const settled = await settleBeforeDeadline(operation);
+    if (settled.status === "timed_out") {
+      // A timed-out native transform may still materialize a cache copy. It is
+      // not a usable candidate, but a late successful result is claimed and
+      // disposed so no orphan survives the bounded caller wait.
+      void operation.then(async (lateResult) => {
+        if (lateResult.uri === asset.uri) return;
+        try {
+          const lateOwnership = await acquireImageAssetOwnership(lateResult.uri, "manipulator");
+          await disposeImageAssetOwnership(lateOwnership);
+        } catch {
+          // Unprovable ownership stays quarantined; no path or native error log.
+        }
+      }).catch(() => {});
+      throw new Error(IMAGE_OCR_TEMP_UNAVAILABLE_ERROR);
+    }
+    if (settled.status === "rejected") {
       return null;
     }
+    const result: ImageManipulatorResult = settled.value;
+    const usesPickerLease = result.uri === asset.uri;
+    const ownership = usesPickerLease
+      ? { kind: "explicitly_unowned" as const }
+      : await acquireImageAssetOwnership(result.uri, "manipulator");
     const base64 = result?.base64;
     if (base64 && base64.length <= MAX_OCR_IMAGE_BASE64_BYTES) {
-      return { uri: result.uri, base64, mimeType: "image/jpeg" };
+      return {
+        uri: result.uri,
+        base64,
+        mimeType: "image/jpeg",
+        ownership,
+        usesPickerLease,
+      };
     }
+    await disposeImageAssetOwnership(ownership);
   }
   return null;
 }
@@ -467,50 +673,66 @@ export async function pickImageAsset(
   if (result.canceled) return null;
   const asset = result.assets?.[0];
   if (!asset) return null;
-  if (!asset.base64) throw new Error(IMAGE_OCR_MISSING_DATA_ERROR);
+  let candidateOwnership: ImageAssetOwnership | null = await acquireImageAssetOwnership(asset.uri, "picker");
+  try {
+    if (!asset.base64) throw new Error(IMAGE_OCR_MISSING_DATA_ERROR);
 
-  // P2-4: oversized images get a downscale pass instead of an immediate
-  // too-large rejection. The downscaled payload still goes through the same
-  // guard below (signature sniff, MIME allowlist) — only the size pressure
-  // is relieved, never the validation.
-  let candidate: { uri: string; base64: string; mimeType: string | null | undefined } = {
-    uri: asset.uri,
-    base64: asset.base64,
-    mimeType: asset.mimeType,
-  };
-  if (asset.base64.length > MAX_OCR_IMAGE_BASE64_BYTES) {
-    const downscaled = await downscaleOcrImageAsset(asset);
-    if (downscaled) candidate = downscaled;
+    // P2-4: oversized images get a downscale pass instead of an immediate
+    // too-large rejection. The downscaled payload still goes through the same
+    // guard below (signature sniff, MIME allowlist) — only the size pressure
+    // is relieved, never the validation.
+    let candidate: { uri: string; base64: string; mimeType: string | null | undefined } = {
+      uri: asset.uri,
+      base64: asset.base64,
+      mimeType: asset.mimeType,
+    };
+    if (asset.base64.length > MAX_OCR_IMAGE_BASE64_BYTES) {
+      const downscaled = await downscaleOcrImageAsset(asset);
+      if (downscaled) {
+        if (!downscaled.usesPickerLease) {
+          await disposeImageAssetOwnership(candidateOwnership);
+          candidateOwnership = downscaled.ownership;
+        }
+        candidate = downscaled;
+      }
+    }
+
+    const payload = normalizeOcrImagePayload({
+      base64: candidate.base64,
+      mimeType: candidate.mimeType,
+    });
+    const picked = pickedImageWithLease({
+      uri: candidate.uri,
+      base64: payload.base64,
+      mimeType: payload.mimeType,
+    }, candidateOwnership);
+    candidateOwnership = null;
+    return picked;
+  } finally {
+    await disposeImageAssetOwnership(candidateOwnership);
   }
-
-  const payload = normalizeOcrImagePayload({
-    base64: candidate.base64,
-    mimeType: candidate.mimeType,
-  });
-  const picked = {
-    uri: candidate.uri,
-    base64: payload.base64,
-    mimeType: payload.mimeType,
-  };
-  return picked;
 }
 
 // Step 2 — run Gemini multimodal OCR on a picked image. Triggered by the
 // explicit "추출하기 / Extract text" button so the user controls when the call
 // happens. Returns the markdown transcription (C1/C3/C9 enforced in callLlm).
 export async function ocrImageAsset(
-  userId: string,
+  session: AuthenticatedAccountSessionLease,
   locale: "en" | "ko",
   image: { base64: string; mimeType: string },
   // C10: forwarded so a minor's crisis output-swap (if the OCR'd text trips the
   // classifier) routes to the youth hotline. Defaults to adult routing.
   minor = false,
 ): Promise<string> {
+  const userId = session.userId;
+  session.assertCurrent();
   const { base64: data, mimeType } = normalizeOcrImagePayload(image);
+  session.assertCurrent();
   let reply: LlmResult<string>;
   try {
     reply = await callLlm({
       userId,
+      session,
       locale,
       purpose: "capture_ocr",
       user: ocrPromptForLocale(locale),
@@ -518,10 +740,13 @@ export async function ocrImageAsset(
       minor,
     });
   } catch (error) {
+    session.assertCurrent();
     const proxyImageError = await proxyImagePayloadErrorMessage(error);
+    session.assertCurrent();
     if (proxyImageError) throw new Error(proxyImageError);
     throw error;
   }
+  session.assertCurrent();
   if (reply.safety?.zone === "red") {
     throw new Error(IMAGE_OCR_CRISIS_RESULT_ERROR);
   }
@@ -529,5 +754,6 @@ export async function ocrImageAsset(
   if (text.length === 0) {
     throw new Error(IMAGE_OCR_EMPTY_RESULT_ERROR);
   }
+  session.assertCurrent();
   return text;
 }

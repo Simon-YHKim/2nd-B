@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import * as ImagePicker from "expo-image-picker";
 
 jest.mock("expo-image-picker", () => ({
@@ -18,7 +21,13 @@ jest.mock("../../llm/boundary", () => ({
   callLlm: jest.fn(),
 }));
 
+jest.mock("../../storage/owned-temp", () => ({
+  leaseOwnedTempFile: jest.fn(async () => ({ ok: false, error: "unsafe_target" })),
+}));
+
 import { callLlm } from "../../llm/boundary";
+import type { AuthenticatedAccountSessionLease } from "../../auth/account-session-lease";
+import { leaseOwnedTempFile } from "../../storage/owned-temp";
 import {
   IMAGE_CAMERA_PERMISSION_DENIED_ERROR,
   IMAGE_OCR_CRISIS_RESULT_ERROR,
@@ -27,6 +36,8 @@ import {
   IMAGE_OCR_MISSING_DATA_ERROR,
   IMAGE_OCR_UNSUPPORTED_TYPE_ERROR,
   IMAGE_OCR_TOO_LARGE_ERROR,
+  IMAGE_OCR_TEMP_UNAVAILABLE_ERROR,
+  IMAGE_TEMP_OPERATION_TIMEOUT_MS,
   MAX_OCR_IMAGE_BASE64_BYTES,
   MAX_OCR_IMAGE_RAW_BASE64_BYTES,
   MAX_OCR_TEXT_CHARS,
@@ -42,7 +53,7 @@ import {
   normalizeOcrImageBase64Data,
   normalizeOcrImagePayload,
   normalizeOcrTextResult,
-  ocrImageAsset,
+  ocrImageAsset as ocrImageAssetWithSession,
   pickImageAsset,
 } from "../capture-image";
 
@@ -80,6 +91,36 @@ const imagePickerMock = ImagePicker as unknown as {
 const imageManipulatorMock = ImageManipulator as unknown as {
   manipulateAsync: jest.Mock;
 };
+const mockLeaseOwnedTempFile = leaseOwnedTempFile as jest.MockedFunction<typeof leaseOwnedTempFile>;
+const captureScreen = readFileSync(
+  path.resolve(__dirname, "../../../app/capture.tsx"),
+  "utf8",
+).replace(/\r\n/g, "\n");
+
+const OCR_TEST_SESSION: AuthenticatedAccountSessionLease = {
+  userId: "u1",
+  epoch: 1,
+  accessToken: "captured-test-token",
+  signal: new AbortController().signal,
+  assertCurrent: jest.fn(),
+  abort: jest.fn(),
+  release: jest.fn(),
+};
+
+function ocrImageAsset(
+  userId: string,
+  locale: "en" | "ko",
+  image: { base64: string; mimeType: string },
+  minor = false,
+) {
+  if (userId !== OCR_TEST_SESSION.userId) throw new Error("test_session_owner_mismatch");
+  return ocrImageAssetWithSession(OCR_TEST_SESSION, locale, image, minor);
+}
+
+function mockOwnedTempLease() {
+  const dispose = jest.fn(async () => ({ ok: true as const, status: "deleted" as const }));
+  return { dispose, lease: { dispose } };
+}
 
 function proxyHttpError(status: number, error: string): Error {
   return Object.assign(new Error("proxy request failed"), {
@@ -99,9 +140,29 @@ describe("capture image OCR payload guards", () => {
     imagePickerMock.launchImageLibraryAsync.mockReset();
     imagePickerMock.requestCameraPermissionsAsync.mockReset();
     imageManipulatorMock.manipulateAsync.mockReset();
+    mockLeaseOwnedTempFile.mockReset();
+    mockLeaseOwnedTempFile.mockImplementation(async (uri) => {
+      if (uri.startsWith("file:///")) return { ok: true, lease: mockOwnedTempLease().lease };
+      return { ok: false, error: "unsafe_target" };
+    });
     mockCallLlm.mockResolvedValue({
       text: "OCR text",
     } as Awaited<ReturnType<typeof callLlm>>);
+  });
+
+  test("binds OCR to the caller-captured account session", async () => {
+    await ocrImageAsset("u1", "en", {
+      mimeType: "image/png",
+      base64: PNG_IMAGE_BASE64,
+    });
+
+    expect(mockCallLlm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "u1",
+        session: OCR_TEST_SESSION,
+        purpose: "capture_ocr",
+      }),
+    );
   });
 
   test("rejects oversized base64 before calling Gemini", async () => {
@@ -162,6 +223,7 @@ describe("capture image OCR payload guards", () => {
       uri: "file:///big-downscaled.jpg",
       base64: JPEG_IMAGE_BASE64,
       mimeType: "image/jpeg",
+      release: expect.any(Function),
     });
     expect(imageManipulatorMock.manipulateAsync).toHaveBeenCalledTimes(1);
     expect(imageManipulatorMock.manipulateAsync).toHaveBeenCalledWith(
@@ -169,6 +231,414 @@ describe("capture image OCR payload guards", () => {
       [{ resize: { width: 1600 } }],
       { compress: 0.7, format: "jpeg", base64: true },
     );
+  });
+
+  test("releases rejected downscale cache copies and transfers only the accepted lease", async () => {
+    const oversized = "A".repeat(MAX_OCR_IMAGE_BASE64_BYTES + 1);
+    imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{
+        uri: "file:///cache/source.jpg",
+        mimeType: "image/jpeg",
+        width: 4000,
+        height: 3000,
+        base64: oversized,
+      }],
+    });
+    imageManipulatorMock.manipulateAsync
+      .mockResolvedValueOnce({ uri: "file:///cache/try-1600.jpg", base64: oversized })
+      .mockResolvedValueOnce({ uri: "file:///cache/try-1280.jpg", base64: oversized })
+      .mockResolvedValueOnce({ uri: "file:///cache/final.jpg", base64: JPEG_IMAGE_BASE64 });
+
+    const owned = new Map<string, ReturnType<typeof mockOwnedTempLease>>();
+    mockLeaseOwnedTempFile.mockImplementation(async (uri) => {
+      const entry = mockOwnedTempLease();
+      owned.set(uri, entry);
+      return { ok: true, lease: entry.lease };
+    });
+
+    const picked = await pickImageAsset("library");
+
+    expect(mockLeaseOwnedTempFile.mock.calls.map(([uri]) => uri)).toEqual([
+      "file:///cache/source.jpg",
+      "file:///cache/try-1600.jpg",
+      "file:///cache/try-1280.jpg",
+      "file:///cache/final.jpg",
+    ]);
+    expect(owned.get("file:///cache/source.jpg")?.dispose).toHaveBeenCalledTimes(1);
+    expect(owned.get("file:///cache/try-1600.jpg")?.dispose).toHaveBeenCalledTimes(1);
+    expect(owned.get("file:///cache/try-1280.jpg")?.dispose).toHaveBeenCalledTimes(1);
+    expect(owned.get("file:///cache/final.jpg")?.dispose).not.toHaveBeenCalled();
+
+    await Promise.all([
+      (picked as NonNullable<typeof picked> & { release(): Promise<void> }).release(),
+      (picked as NonNullable<typeof picked> & { release(): Promise<void> }).release(),
+    ]);
+    expect(owned.get("file:///cache/final.jpg")?.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  test("releases a claimed picker copy when payload validation rejects it", async () => {
+    const owned = mockOwnedTempLease();
+    mockLeaseOwnedTempFile.mockResolvedValue({ ok: true, lease: owned.lease });
+    imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{
+        uri: "file:///cache/invalid.gif",
+        mimeType: "image/gif",
+        base64: PNG_IMAGE_BASE64,
+      }],
+    });
+
+    await expect(pickImageAsset("library")).rejects.toThrow(IMAGE_OCR_UNSUPPORTED_TYPE_ERROR);
+    expect(owned.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  test("revokes web picker and manipulator object URLs exactly once", async () => {
+    const originalRevoke = URL.revokeObjectURL;
+    const revokeObjectURL = jest.fn();
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: revokeObjectURL,
+      writable: true,
+    });
+    imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{
+        uri: "blob:https://example.test/provider-original",
+        mimeType: "image/jpeg",
+        width: 4000,
+        height: 3000,
+        base64: "A".repeat(MAX_OCR_IMAGE_BASE64_BYTES + 1),
+      }],
+    });
+    imageManipulatorMock.manipulateAsync.mockResolvedValue({
+      uri: "blob:https://example.test/app-manipulated",
+      base64: JPEG_IMAGE_BASE64,
+    });
+
+    try {
+      const picked = await pickImageAsset("library");
+      await Promise.all([
+        (picked as NonNullable<typeof picked>).release(),
+        (picked as NonNullable<typeof picked>).release(),
+      ]);
+
+      expect(revokeObjectURL).toHaveBeenCalledTimes(2);
+      expect(revokeObjectURL).toHaveBeenCalledWith("blob:https://example.test/app-manipulated");
+      expect(revokeObjectURL).toHaveBeenCalledWith("blob:https://example.test/provider-original");
+    } finally {
+      Object.defineProperty(URL, "revokeObjectURL", {
+        configurable: true,
+        value: originalRevoke,
+        writable: true,
+      });
+    }
+  });
+
+  test.each(["inspect_failed", "filesystem_unavailable", "unsafe_target"] as const)(
+    "fails closed when an app-cache picker copy cannot be leased: %s",
+    async (error) => {
+      mockLeaseOwnedTempFile.mockResolvedValue({ ok: false, error });
+      imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
+        canceled: false,
+        assets: [{
+          uri: "file:///app-cache/unverified.jpg",
+          mimeType: "image/jpeg",
+          base64: JPEG_IMAGE_BASE64,
+        }],
+      });
+
+      await expect(pickImageAsset("library")).rejects.toThrow(IMAGE_OCR_TEMP_UNAVAILABLE_ERROR);
+    },
+  );
+
+  test("converts a synchronous lease inspection failure into the terminal temp error", async () => {
+    mockLeaseOwnedTempFile.mockImplementation(() => {
+      throw new Error("file:///app-cache/private-photo.jpg native detail");
+    });
+    imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{
+        uri: "file:///app-cache/private-photo.jpg",
+        mimeType: "image/jpeg",
+        base64: JPEG_IMAGE_BASE64,
+      }],
+    });
+
+    await expect(pickImageAsset("library")).rejects.toThrow(IMAGE_OCR_TEMP_UNAVAILABLE_ERROR);
+  });
+
+  test.each([
+    "content://provider/photo/1",
+    "ph://provider/photo/2",
+    "assets-library://provider/photo/3",
+  ])("preserves only an explicitly-unowned provider original: %s", async (uri) => {
+    imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri, mimeType: "image/jpeg", base64: JPEG_IMAGE_BASE64 }],
+    });
+
+    const picked = await pickImageAsset("library");
+    await (picked as NonNullable<typeof picked>).release();
+
+    expect(mockLeaseOwnedTempFile).not.toHaveBeenCalled();
+  });
+
+  test("rejects a manipulator result whose app-cache lease fails and cleans the source", async () => {
+    const source = mockOwnedTempLease();
+    mockLeaseOwnedTempFile.mockImplementation(async (uri) => (
+      uri.endsWith("source.jpg")
+        ? { ok: true, lease: source.lease }
+        : { ok: false, error: "inspect_failed" }
+    ));
+    imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{
+        uri: "file:///app-cache/source.jpg",
+        mimeType: "image/jpeg",
+        width: 4000,
+        height: 3000,
+        base64: "A".repeat(MAX_OCR_IMAGE_BASE64_BYTES + 1),
+      }],
+    });
+    imageManipulatorMock.manipulateAsync.mockResolvedValue({
+      uri: "file:///app-cache/generated.jpg",
+      base64: JPEG_IMAGE_BASE64,
+    });
+
+    await expect(pickImageAsset("library")).rejects.toThrow(IMAGE_OCR_TEMP_UNAVAILABLE_ERROR);
+    expect(source.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  test("fails closed on a lease deadline and cleans exactly once after late ownership proof", async () => {
+    jest.useFakeTimers();
+    let resolveLease: ((result: ReturnType<typeof mockOwnedTempLease>["lease"] extends infer L
+      ? { ok: true; lease: L }
+      : never) => void) | undefined;
+    const lateOwned = mockOwnedTempLease();
+    mockLeaseOwnedTempFile.mockReturnValue(new Promise((resolve) => {
+      resolveLease = resolve as typeof resolveLease;
+    }));
+    imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{
+        uri: "file:///app-cache/late-proof.jpg",
+        mimeType: "image/jpeg",
+        base64: JPEG_IMAGE_BASE64,
+      }],
+    });
+
+    try {
+      const pending = pickImageAsset("library");
+      const rejected = expect(pending).rejects.toThrow(IMAGE_OCR_TEMP_UNAVAILABLE_ERROR);
+      await jest.advanceTimersByTimeAsync(IMAGE_TEMP_OPERATION_TIMEOUT_MS);
+      await rejected;
+
+      resolveLease?.({ ok: true, lease: lateOwned.lease });
+      await jest.advanceTimersByTimeAsync(0);
+      expect(lateOwned.dispose).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("bounds a manipulator wait and disposes both source and late generated cache copy", async () => {
+    jest.useFakeTimers();
+    let resolveManipulation: ((value: { uri: string; base64: string }) => void) | undefined;
+    const source = mockOwnedTempLease();
+    const lateGenerated = mockOwnedTempLease();
+    mockLeaseOwnedTempFile.mockImplementation(async (uri) => ({
+      ok: true,
+      lease: uri.endsWith("source-timeout.jpg") ? source.lease : lateGenerated.lease,
+    }));
+    imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{
+        uri: "file:///app-cache/source-timeout.jpg",
+        mimeType: "image/jpeg",
+        width: 4000,
+        height: 3000,
+        base64: "A".repeat(MAX_OCR_IMAGE_BASE64_BYTES + 1),
+      }],
+    });
+    imageManipulatorMock.manipulateAsync.mockReturnValue(new Promise((resolve) => {
+      resolveManipulation = resolve;
+    }));
+
+    try {
+      const pending = pickImageAsset("library");
+      const rejected = expect(pending).rejects.toThrow(IMAGE_OCR_TEMP_UNAVAILABLE_ERROR);
+      await jest.advanceTimersByTimeAsync(IMAGE_TEMP_OPERATION_TIMEOUT_MS);
+      await rejected;
+      expect(source.dispose).toHaveBeenCalledTimes(1);
+
+      resolveManipulation?.({
+        uri: "file:///app-cache/late-generated.jpg",
+        base64: JPEG_IMAGE_BASE64,
+      });
+      await jest.advanceTimersByTimeAsync(0);
+      expect(lateGenerated.dispose).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("bounds release without issuing a second delete while the first settles late", async () => {
+    jest.useFakeTimers();
+    let resolveDispose: ((value: { ok: true; status: "deleted" }) => void) | undefined;
+    const dispose = jest.fn(() => new Promise<{ ok: true; status: "deleted" }>((resolve) => {
+      resolveDispose = resolve;
+    }));
+    mockLeaseOwnedTempFile.mockResolvedValue({ ok: true, lease: { dispose } });
+    imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{
+        uri: "file:///app-cache/slow-delete.jpg",
+        mimeType: "image/jpeg",
+        base64: JPEG_IMAGE_BASE64,
+      }],
+    });
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    try {
+      const picked = await pickImageAsset("library");
+      const first = (picked as NonNullable<typeof picked>).release();
+      const second = (picked as NonNullable<typeof picked>).release();
+      await jest.advanceTimersByTimeAsync(IMAGE_TEMP_OPERATION_TIMEOUT_MS);
+      await Promise.all([first, second]);
+      expect(dispose).toHaveBeenCalledTimes(1);
+
+      resolveDispose?.({ ok: true, status: "deleted" });
+      await Promise.resolve();
+      expect(dispose).toHaveBeenCalledTimes(1);
+      expect(JSON.stringify(warn.mock.calls)).not.toContain("slow-delete");
+    } finally {
+      warn.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+
+  test("sanitizes cache cleanup failures without logging a URI or native error", async () => {
+    const dispose = jest.fn(async () => {
+      throw new Error("file:///cache/private-photo.jpg native detail");
+    });
+    mockLeaseOwnedTempFile.mockResolvedValue({ ok: true, lease: { dispose } });
+    imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{
+        uri: "file:///cache/private-photo.jpg",
+        mimeType: "image/jpeg",
+        base64: JPEG_IMAGE_BASE64,
+      }],
+    });
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    try {
+      const picked = await pickImageAsset("library");
+      await (picked as NonNullable<typeof picked>).release();
+
+      expect(warn).toHaveBeenCalledWith(
+        "[capture-image] cache copy cleanup failed",
+        { reason: "unexpected_failure" },
+      );
+      expect(JSON.stringify(warn.mock.calls)).not.toContain("private-photo");
+      expect(dispose).toHaveBeenCalledTimes(1);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  test.each([
+    "content://provider/photo/1",
+  ])("never deletes an unowned provider or original URI: %s", async (uri) => {
+    imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri, mimeType: "image/jpeg", base64: JPEG_IMAGE_BASE64 }],
+    });
+
+    const picked = await pickImageAsset("library");
+    await (picked as NonNullable<typeof picked>).release();
+
+    expect(mockLeaseOwnedTempFile).not.toHaveBeenCalled();
+    expect(captureScreen).not.toContain("deleteAsync(");
+  });
+
+  test("does not relabel an unverified external file URI as provider-owned", async () => {
+    mockLeaseOwnedTempFile.mockResolvedValue({ ok: false, error: "unsafe_target" });
+    imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{
+        uri: "file:///external/library/photo.jpg",
+        mimeType: "image/jpeg",
+        base64: JPEG_IMAGE_BASE64,
+      }],
+    });
+
+    await expect(pickImageAsset("library")).rejects.toThrow(IMAGE_OCR_TEMP_UNAVAILABLE_ERROR);
+  });
+
+  test("keeps OCR on its in-memory payload when the preview lease is released during the call", async () => {
+    let settle: ((value: Awaited<ReturnType<typeof callLlm>>) => void) | undefined;
+    mockCallLlm.mockReturnValueOnce(new Promise((resolve) => {
+      settle = resolve;
+    }));
+    const release = jest.fn(async () => undefined);
+    const inFlightImage = {
+      uri: "file:///cache/pending.jpg",
+      base64: JPEG_IMAGE_BASE64,
+      mimeType: "image/jpeg",
+      release,
+    };
+    const pending = ocrImageAsset("u1", "en", inFlightImage);
+
+    await release();
+    settle?.({ text: "from memory" } as Awaited<ReturnType<typeof callLlm>>);
+
+    await expect(pending).resolves.toBe("from memory");
+    expect(mockCallLlm).toHaveBeenCalledWith(expect.objectContaining({
+      image: { mimeType: "image/jpeg", data: JPEG_IMAGE_BASE64 },
+    }));
+    expect(release).toHaveBeenCalledTimes(1);
+  });
+
+  test("capture releases stale, replaced, reset, submitted, and unmounted picked images", () => {
+    expect(captureScreen).toContain("const pickedImageRef = useRef<PickedImage | null>(null)");
+    expect(captureScreen).toContain("const replacePickedImage = useCallback(");
+    expect(captureScreen).toContain("void previous.release()");
+    expect(captureScreen).toContain("useEffect(() => () => releaseCurrentPickedImage()");
+
+    const pickBlock = captureScreen.split("async function pickImage")[1]
+      ?.split("async function runExtract")[0] ?? "";
+    expect(pickBlock).toContain("await nextImage.release()");
+    expect(pickBlock).toContain("await nextImage?.release()");
+    expect(pickBlock).toContain("replacePickedImage(nextImage)");
+    expect(pickBlock).toContain('console.warn("[capture] image pick failed")');
+    expect(pickBlock).not.toContain("(e as Error).message");
+
+    const resetBlock = captureScreen.split("function resetTransientCaptureState")[1]
+      ?.split("function reset()")[0] ?? "";
+    expect(resetBlock).toContain("replacePickedImage(null)");
+    const switchBlock = captureScreen.split("function switchCaptureMode")[1]
+      ?.split("async function pickImage")[0] ?? "";
+    expect(switchBlock).toContain("resetTransientCaptureState()");
+
+    const submitBlock = captureScreen.split("async function handleSubmit")[1]
+      ?.split("async function runPropose")[0] ?? "";
+    expect(submitBlock).toContain("pickedImageRef.current === submittedPickedImage");
+    expect(submitBlock).toContain("releasePickedImageState(submittedPickedImage)");
+    expect(submitBlock).toContain("current?.uri === submittedPickedImageUri");
+
+    const extractBlock = captureScreen.split("async function runExtract")[1]
+      ?.split("async function transcribePickedAudio")[0] ?? "";
+    expect(extractBlock).toContain('console.warn("[capture] OCR extract failed")');
+    expect(extractBlock).toContain("beginAccountSessionLease(userId)");
+    expect(extractBlock).toContain("await accountLease.authenticate()");
+    expect(extractBlock).toContain("authenticated.assertCurrent()");
+    expect(extractBlock).toContain("accountLease.release()");
+    expect(extractBlock).not.toContain("(e as Error).message");
+    expect(extractBlock).not.toContain("replacePickedImage(null)");
+    expect(extractBlock).not.toContain("pickedImage.release()");
+    expect(extractBlock).not.toContain("releasePickedImageState(");
   });
 
   test("downscales oversized portrait images along the height axis (P2-4)", async () => {
@@ -257,7 +727,7 @@ describe("capture image OCR payload guards", () => {
       canceled: false,
       assets: [
         {
-          uri: "file:///big.jpg",
+          uri: "blob:https://example.test/big-image",
           mimeType: "image/jpeg",
           width: 4000,
           height: 3000,
@@ -302,6 +772,7 @@ describe("capture image OCR payload guards", () => {
       uri: "file:///small.jpg",
       base64: JPEG_IMAGE_BASE64,
       mimeType: "image/jpeg",
+      release: expect.any(Function),
     });
     expect(imageManipulatorMock.manipulateAsync).not.toHaveBeenCalled();
   });
@@ -471,6 +942,7 @@ describe("capture image OCR payload guards", () => {
       uri: "file:///photo.jpg",
       mimeType: "image/jpeg",
       base64: JPEG_IMAGE_BASE64,
+      release: expect.any(Function),
     });
   });
 
@@ -489,6 +961,7 @@ describe("capture image OCR payload guards", () => {
       uri: "file:///photo-without-mime.png",
       mimeType: "image/png",
       base64: PNG_IMAGE_BASE64,
+      release: expect.any(Function),
     });
   });
 
@@ -508,6 +981,7 @@ describe("capture image OCR payload guards", () => {
       uri: "file:///wrapped.png",
       mimeType: "image/png",
       base64: PNG_IMAGE_BASE64,
+      release: expect.any(Function),
     });
 
     await ocrImageAsset("u1", "en", {
@@ -539,6 +1013,7 @@ describe("capture image OCR payload guards", () => {
       uri: "file:///url-safe.jpg",
       mimeType: "image/jpeg",
       base64: JPEG_IMAGE_BASE64,
+      release: expect.any(Function),
     });
 
     await ocrImageAsset("u1", "en", {

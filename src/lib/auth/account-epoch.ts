@@ -85,6 +85,10 @@ export function currentAccountEpoch(): number {
   return epoch;
 }
 
+export function currentAccountOwner(): AccountOwner {
+  return publishedOwner;
+}
+
 export function isCurrentAccountEpoch(expectedEpoch: number): boolean {
   return expectedEpoch === epoch;
 }

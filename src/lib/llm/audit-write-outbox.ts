@@ -15,6 +15,7 @@ interface AuditWriteBase {
   id: string;
   ownerUserId: string;
   warnLabel: string;
+  requiresBoundSession: boolean;
 }
 
 export type AuditWriteSubmission =
@@ -30,6 +31,13 @@ export type AuditWriteSubmission =
       payload: CrisisEventInsert;
       warnLabel: string;
     };
+
+export interface CapturedAuditDelivery {
+  userId: string;
+  accessToken: string;
+  signal?: AbortSignal;
+  assertCurrent(): void;
+}
 
 type AuditWriteEntry =
   | (AuditWriteBase & { kind: "ai_audit_log"; payload: AiAuditInsert })
@@ -105,7 +113,13 @@ function normalizeEntry(value: unknown): AuditWriteEntry | null {
   if (typeof entry.warnLabel !== "string" || entry.warnLabel.length === 0) return null;
   if (!isWriteKind(entry.kind)) return null;
   if (!entry.payload || typeof entry.payload !== "object") return null;
-  return entry as AuditWriteEntry;
+  return {
+    ...entry,
+    // v1 rows written before this field existed may include voice/crisis
+    // evidence. Upgrade them conservatively: production retry already obtains
+    // a fresh same-owner token, so fail closed instead of guessing provenance.
+    requiresBoundSession: entry.requiresBoundSession !== false,
+  } as AuditWriteEntry;
 }
 
 function parseQueue(raw: string | null): AuditWriteEntry[] {
@@ -159,15 +173,30 @@ async function writeQueue(queue: AuditWriteEntry[]): Promise<void> {
   }
 }
 
-async function deliver(entry: AuditWriteEntry): Promise<void> {
+async function deliver(entry: AuditWriteEntry, captured?: CapturedAuditDelivery): Promise<void> {
+  if (
+    (entry.requiresBoundSession && !captured) ||
+    (captured && captured.userId !== entry.ownerUserId)
+  ) {
+    throw new Error("audit_session_owner_mismatch");
+  }
+  captured?.assertCurrent();
   if (entry.kind === "ai_audit_log") {
-    await insertAiAuditLog(entry.payload);
+    if (captured) {
+      await insertAiAuditLog(entry.payload, captured.accessToken, captured.signal);
+    } else {
+      await insertAiAuditLog(entry.payload);
+    }
     return;
   }
-  await insertCrisisEvent(entry.payload);
+  if (captured) {
+    await insertCrisisEvent(entry.payload, captured.accessToken, captured.signal);
+  } else {
+    await insertCrisisEvent(entry.payload);
+  }
 }
 
-async function flushNow(ownerUserId?: string): Promise<void> {
+async function flushNow(ownerUserId?: string, captured?: CapturedAuditDelivery): Promise<void> {
   const queue = await readQueue();
   if (queue.length === 0) return;
 
@@ -180,31 +209,38 @@ async function flushNow(ownerUserId?: string): Promise<void> {
       continue;
     }
     try {
-      await deliver(entry);
-    } catch (e) {
+      await deliver(entry, captured);
+    } catch {
       blocked = true;
       remaining.push(entry);
-      if (typeof console !== "undefined") console.warn(entry.warnLabel, e);
+      if (typeof console !== "undefined") console.warn(entry.warnLabel);
     }
   }
   await writeQueue(remaining);
 }
 
-export function enqueueAuditWrite(submission: AuditWriteSubmission): Promise<void> {
+export function enqueueAuditWrite(
+  submission: AuditWriteSubmission,
+  captured?: CapturedAuditDelivery,
+): Promise<void> {
   queueChain = queueChain.catch(() => {}).then(async () => {
     const entry: AuditWriteEntry = {
       ...submission,
       id: `${Date.now().toString(36)}-${(nextId++).toString(36)}`,
+      requiresBoundSession: captured !== undefined,
     };
     const queue = await readQueue();
     await writeQueue([...queue, entry]);
-    await flushNow(submission.ownerUserId);
+    await flushNow(submission.ownerUserId, captured);
   });
   return queueChain;
 }
 
-export function flushAuditWriteOutbox(ownerUserId?: string): Promise<void> {
-  queueChain = queueChain.catch(() => {}).then(() => flushNow(ownerUserId));
+export function flushAuditWriteOutbox(
+  ownerUserId?: string,
+  captured?: CapturedAuditDelivery,
+): Promise<void> {
+  queueChain = queueChain.catch(() => {}).then(() => flushNow(ownerUserId, captured));
   return queueChain;
 }
 

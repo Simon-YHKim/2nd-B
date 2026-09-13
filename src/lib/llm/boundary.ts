@@ -11,6 +11,7 @@
 import { GoogleGenAI } from "@google/genai";
 
 import { throwIfAborted } from "../async/abort";
+import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
 import { getEnv } from "../env";
 import {
   embedVendor,
@@ -25,6 +26,7 @@ import { retrieveEvidence } from "../knowledge/retrieve";
 import { loadDomainLevels } from "../persona/load-domain-levels";
 import { classifyInput, classifyInputAnyLocale, crisisHotlines, type SafetyResult } from "../safety/classifier";
 import { getSupabaseClient } from "../supabase/client";
+import { invokeFunctionWithCapturedSession } from "../supabase/captured-session-client";
 import type { CrisisEventInsert } from "../supabase/crisis-events";
 import { enqueueAuditWrite } from "./audit-write-outbox";
 import { classifySafety, fixedCrisisResponse } from "./safety";
@@ -154,26 +156,46 @@ function assertDirectEgressAllowed(env: ReturnType<typeof getEnv>): void {
   }
 }
 
-async function writeAiAuditLog(userId: string, audit: AuditMeta, warnLabel: string): Promise<void> {
+async function writeAiAuditLog(
+  userId: string,
+  audit: AuditMeta,
+  warnLabel: string,
+  session?: AuthenticatedAccountSessionLease,
+): Promise<void> {
+  session?.assertCurrent();
   await enqueueAuditWrite({
     kind: "ai_audit_log",
     ownerUserId: userId,
     payload: { userId, ...audit },
     warnLabel,
-  });
+  }, session ? {
+    userId: session.userId,
+    accessToken: session.accessToken,
+    signal: session.signal,
+    assertCurrent: session.assertCurrent,
+  } : undefined);
+  session?.assertCurrent();
 }
 
 async function writeCrisisEvent(
   userId: string,
   payload: CrisisEventInsert,
   warnLabel: string,
+  session?: AuthenticatedAccountSessionLease,
 ): Promise<void> {
+  session?.assertCurrent();
   await enqueueAuditWrite({
     kind: "crisis_event",
     ownerUserId: userId,
     payload,
     warnLabel,
-  });
+  }, session ? {
+    userId: session.userId,
+    accessToken: session.accessToken,
+    signal: session.signal,
+    assertCurrent: session.assertCurrent,
+  } : undefined);
+  session?.assertCurrent();
 }
 
 // Offline-preview responses keyed by purpose + locale. Used when LLM_MODE=mock
@@ -482,8 +504,16 @@ async function routeCrisis(
   promptHash: string,
   minor = false,
   sourceTag = "input_red",
-  opts: { recordCrisisEvent?: boolean; purpose?: string } = {},
+  opts: {
+    recordCrisisEvent?: boolean;
+    purpose?: string;
+    session?: AuthenticatedAccountSessionLease;
+  } = {},
 ): Promise<LlmResult<string>> {
+  if (opts.session?.userId !== undefined && opts.session.userId !== userId) {
+    throw new Error("llm_session_owner_mismatch");
+  }
+  opts.session?.assertCurrent();
   // Same hotline set as the Advisor path (single source of truth):
   // KO adult -> 109, KO minor -> 1388 + 109, EN -> 988.
   const numbers = crisisHotlines(locale, minor).map((hl) => hl.number);
@@ -505,7 +535,12 @@ async function routeCrisis(
   };
   // C3: crisis routing MUST be audited. The whole point of audit_log is an
   // audit trail proving the safety classifier intercepted dangerous input.
-  await writeAiAuditLog(userId, audit, "[ai_audit_log] crisis insert failed");
+  await writeAiAuditLog(
+    userId,
+    audit,
+    "[ai_audit_log] crisis insert failed",
+    opts.session,
+  );
   // Separate restricted ledger (crisis_events), parity with callAdvisor's input-RED
   // path. Without this every callLlm surface (chat/journal/interview/persona/
   // import/clipper/phase1) intercepted a crisis but left NO categorical trace in the
@@ -532,8 +567,10 @@ async function routeCrisis(
         locale,
       },
       "[crisis_events] crisis insert failed",
+      opts.session,
     );
   }
+  opts.session?.assertCurrent();
   return { text, safety: result, audit };
 }
 
@@ -555,7 +592,18 @@ export function assertRootObjectSchema(schema: Record<string, unknown> | undefin
 }
 
 export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult<T>> {
-  throwIfAborted(input.signal);
+  if (input.session && input.session.userId !== input.userId) {
+    throw new Error("llm_session_owner_mismatch");
+  }
+  if (input.session && input.signal && input.signal !== input.session.signal) {
+    throw new Error("llm_session_signal_mismatch");
+  }
+  const signal = input.session?.signal ?? input.signal;
+  const fence = (): void => {
+    throwIfAborted(signal);
+    input.session?.assertCurrent();
+  };
+  fence();
   assertRootObjectSchema(input.responseSchema);
   // C9: pre-call classification of user input. Red zone never reaches the LLM.
   // Dual-locale: catch a crisis term written in the other language than the UI
@@ -571,7 +619,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       promptHash,
       input.minor,
       "input_red",
-      { purpose: input.purpose },
+      { purpose: input.purpose, session: input.session },
     )) as unknown as LlmResult<T>;
   }
 
@@ -641,7 +689,13 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       ...(tier === "pro" && effort ? { effort } : {}),
       ...(tier === "pro" && reasoningProvider ? { reasoningProvider } : {}),
     };
-    await writeAiAuditLog(input.userId, audit, "[ai_audit_log] insert failed (mock)");
+    await writeAiAuditLog(
+      input.userId,
+      audit,
+      "[ai_audit_log] insert failed (mock)",
+      input.session,
+    );
+    fence();
     return { text: text as unknown as T, safety: outputSafety, audit };
   }
 
@@ -663,7 +717,6 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION ||
     (reasoningProvider != null && reasoningProvider !== "gemini")
   ) {
-    const supabase = getSupabaseClient();
     const proxyBody = {
       system: input.system ?? null,
       user: input.user,
@@ -692,11 +745,23 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     // flash seat to openai-proxy — the one-variable rollback silently broken
     // on the highest-volume surfaces. Caught by vendor-routing-live.test.ts.
     const primaryFn = proxyFnForVendor(vendorSeat);
+    const invokeProxy = async (functionName: string) => {
+      fence();
+      const result = input.session
+        ? await invokeFunctionWithCapturedSession(
+            functionName,
+            input.session.accessToken,
+            { body: proxyBody, signal },
+          )
+        : await getSupabaseClient().functions.invoke(functionName, {
+            body: proxyBody,
+            signal,
+          });
+      fence();
+      return result;
+    };
     const t0 = Date.now();
-    let { data, error } = await supabase.functions.invoke(primaryFn, {
-      body: proxyBody,
-      signal: input.signal,
-    });
+    let { data, error } = await invokeProxy(primaryFn);
     // D-26 outage failover: a vendor seat that fails for any NON-CRISIS reason
     // falls back ONCE to its Phase 1 assignment (gemini-proxy) — "each vendor
     // row's outage fallback is that row's Phase 1 assignment". A crisis 422 is
@@ -711,6 +776,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     const failoverFn = failoverTarget === "none" ? null : proxyFnForVendor(failoverTarget);
     if (error && failoverFn && failoverFn !== primaryFn) {
       const vendorCrisis = await inspectProxyCrisisRejection(error);
+      fence();
       if (vendorCrisis.route) {
         return (await routeCrisis(
           proxyCrisisSafetyResult(input.locale, input.minor),
@@ -719,7 +785,11 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
           promptHash,
           input.minor,
           vendorCrisis.confirmedMarker ? "proxy_input_red" : "proxy_input_red_unconfirmed",
-          { recordCrisisEvent: vendorCrisis.confirmedMarker, purpose: input.purpose },
+          {
+            recordCrisisEvent: vendorCrisis.confirmedMarker,
+            purpose: input.purpose,
+            session: input.session,
+          },
         )) as unknown as LlmResult<T>;
       }
       if (typeof console !== "undefined") {
@@ -730,10 +800,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       // ledger claim Gemini served a call OpenAI served - and the ledger is the
       // only place anyone can check which vendor did what.
       servedByProvider = failoverTarget as LlmVendor;
-      ({ data, error } = await supabase.functions.invoke(failoverFn, {
-        body: proxyBody,
-        signal: input.signal,
-      }));
+      ({ data, error } = await invokeProxy(failoverFn));
     }
     latencyMs = Date.now() - t0;
     if (error) {
@@ -744,6 +811,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       // The restricted crisis_events row is added only when the body explicitly
       // carries safety_red_zone; unreadable 422s still show the hotline template.
       const proxyCrisis = await inspectProxyCrisisRejection(error);
+      fence();
       if (proxyCrisis.route) {
         return (await routeCrisis(
           proxyCrisisSafetyResult(input.locale, input.minor),
@@ -752,7 +820,11 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
           promptHash,
           input.minor,
           proxyCrisis.confirmedMarker ? "proxy_input_red" : "proxy_input_red_unconfirmed",
-          { recordCrisisEvent: proxyCrisis.confirmedMarker, purpose: input.purpose },
+          {
+            recordCrisisEvent: proxyCrisis.confirmedMarker,
+            purpose: input.purpose,
+            session: input.session,
+          },
         )) as unknown as LlmResult<T>;
       }
       throw error;
@@ -770,7 +842,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     const t0 = Date.now();
     const config = {
       ...(input.responseSchema ? { responseMimeType: "application/json", responseSchema: input.responseSchema } : {}),
-      ...(input.signal ? { abortSignal: input.signal } : {}),
+      ...(signal ? { abortSignal: signal } : {}),
       // effort -> thinking budget + output cap, pro tier only (effort is set).
       ...(effort ? effortToConfig(effort) : {}),
       // Non-pro purposes where thinking is provably valueless (verbatim OCR):
@@ -798,6 +870,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       ],
       config: Object.keys(config).length > 0 ? config : undefined,
     });
+    fence();
     latencyMs = Date.now() - t0;
     text = res.text ?? "";
     modelUsedForAudit = model;
@@ -813,7 +886,11 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   // LlmResult.safety shape, but the swap DECISION + recorded zone use the
   // semantic (worst-case-merged) result.
   const lexical = classifyInput(text, input.locale, { minor: input.minor });
-  const semantic = await classifySafety(text, input.locale, { userId: input.userId });
+  const semantic = await classifySafety(text, input.locale, {
+    userId: input.userId,
+    capturedSession: input.session,
+  });
+  fence();
   const outputZone: "green" | "yellow" | "red" =
     lexical.zone === "red" || semantic.zone === "red"
       ? "red"
@@ -848,7 +925,12 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       ...(effort ? { effort } : {}),
       ...(servedByProvider ? { reasoningProvider: servedByProvider } : {}),
     };
-    await writeAiAuditLog(input.userId, swapAudit, "[ai_audit_log] output-swap insert failed");
+    await writeAiAuditLog(
+      input.userId,
+      swapAudit,
+      "[ai_audit_log] output-swap insert failed",
+      input.session,
+    );
     await writeCrisisEvent(
       input.userId,
       {
@@ -861,7 +943,9 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
         locale: input.locale,
       },
       "[crisis_events] output-swap insert failed",
+      input.session,
     );
+    fence();
     return {
       text: fixed.text as unknown as T,
       safety: outputSafety,
@@ -886,8 +970,14 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   // duplicate; we still write here on the direct path and whenever the proxy
   // did not confirm an audit (deploy-safe fallback).
   if (!proxyAudited) {
-    await writeAiAuditLog(input.userId, audit, "[ai_audit_log] insert failed");
+    await writeAiAuditLog(
+      input.userId,
+      audit,
+      "[ai_audit_log] insert failed",
+      input.session,
+    );
   }
+  fence();
 
   return {
     text: text as unknown as T,
@@ -1135,6 +1225,8 @@ export async function embedTexts(input: EmbedTextsInput): Promise<EmbedTextsResu
 
 export interface TranscribeAudioInput {
   userId: string;
+  /** Immutable JWT + owner epoch captured before local audio is read. */
+  session: AuthenticatedAccountSessionLease;
   locale: "en" | "ko";
   /** Base64 audio bytes (no `data:` prefix). */
   base64: string;
@@ -1142,7 +1234,6 @@ export interface TranscribeAudioInput {
   mimeType: string;
   // C10: a minor's crisis output-swap routes to the youth hotline. Defaults adult.
   minor?: boolean;
-  signal?: AbortSignal;
 }
 
 export interface TranscribeAudioResult {
@@ -1175,7 +1266,13 @@ export interface TranscribeAudioResult {
 // client pattern as the image path in callLlm but has NOT been run on a real
 // recording yet.
 export async function transcribeAudio(input: TranscribeAudioInput): Promise<TranscribeAudioResult> {
-  throwIfAborted(input.signal);
+  if (input.session.userId !== input.userId) throw new Error("voice_session_owner_mismatch");
+  const signal = input.session.signal;
+  const fence = (): void => {
+    throwIfAborted(signal);
+    input.session.assertCurrent();
+  };
+  fence();
   const env = getEnv();
   const model = MODELS.flash;
   const promptHash = djb2(`transcribe:${input.mimeType}:${input.base64.length}`);
@@ -1200,7 +1297,8 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
       // The proxy's own label for this op (audit continuity with server rows).
       purpose: "voice_transcribe",
     };
-    await writeAiAuditLog(input.userId, audit, "[ai_audit_log] transcribe insert failed (mock)");
+    await writeAiAuditLog(input.userId, audit, "[ai_audit_log] transcribe insert failed (mock)", input.session);
+    fence();
     return { text, safety: outputSafety, audit };
   }
 
@@ -1222,7 +1320,6 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
     // Before this branch existed, live transcription ignored the edge flag and
     // ALWAYS threw on the cost guard below (live + !USE_VERTEX), so voice
     // capture and call reflection were structurally dead in production builds.
-    const supabase = getSupabaseClient();
     // Which proxy carries the audio is a vendor decision, not a constant. It
     // was hardcoded to gemini-proxy because that was the only function that
     // forwarded inline audio; openai-proxy grew a transcription path in
@@ -1233,15 +1330,16 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
     // proxy allowlist keys on the wire name.
     const audioFn = proxyFnForVendor(multimodalVendor());
     const t0 = Date.now();
-    const { data, error } = await supabase.functions.invoke(audioFn, {
+    const { data, error } = await invokeFunctionWithCapturedSession(audioFn, input.session.accessToken, {
       body: {
         user: prompt,
         model,
         purpose: "voice_transcribe",
         audio: { mimeType: input.mimeType, data: input.base64 },
       },
-      signal: input.signal,
+      signal,
     });
+    fence();
     latencyMs = Date.now() - t0;
     if (error) throw error;
     const payload = data as { text?: string; modelUsed?: string; audited?: boolean } | null;
@@ -1266,8 +1364,9 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
           ],
         },
       ],
-      config: input.signal ? { abortSignal: input.signal } : undefined,
-    });
+        config: { abortSignal: signal },
+      });
+    fence();
     latencyMs = Date.now() - t0;
     text = (res.text ?? "").trim();
     vertexBackend = vertex;
@@ -1278,7 +1377,11 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
   // write an HONEST audit row (real model + latency + a +swap marker) and a
   // categorical crisis_event, exactly like callLlm's output swap.
   const lexical = classifyInput(text, input.locale, { minor: input.minor });
-  const semantic = await classifySafety(text, input.locale, { userId: input.userId });
+  const semantic = await classifySafety(text, input.locale, {
+    userId: input.userId,
+    capturedSession: input.session,
+  });
+  fence();
   const outputZone: "green" | "yellow" | "red" =
     lexical.zone === "red" || semantic.zone === "red"
       ? "red"
@@ -1302,7 +1405,13 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
     // pre-swap call as green; this red +swap row is a distinct interception record,
     // not a duplicate, so gating it on proxyAudited hid transcribe interceptions on
     // the edge path.
-    await writeAiAuditLog(input.userId, swapAudit, "[ai_audit_log] transcribe output-swap insert failed");
+    await writeAiAuditLog(
+      input.userId,
+      swapAudit,
+      "[ai_audit_log] transcribe output-swap insert failed",
+      input.session,
+    );
+    fence();
     await writeCrisisEvent(
       input.userId,
       {
@@ -1312,7 +1421,9 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
         locale: input.locale,
       },
       "[crisis_events] transcribe output-swap insert failed",
+      input.session,
     );
+    fence();
     return { text: fixed.text, safety: outputSafety, audit: swapAudit };
   }
 
@@ -1327,7 +1438,8 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
   };
   // C3: skip only when the proxy already wrote the row server-side.
   if (!proxyAudited) {
-    await writeAiAuditLog(input.userId, audit, "[ai_audit_log] transcribe insert failed");
+    await writeAiAuditLog(input.userId, audit, "[ai_audit_log] transcribe insert failed", input.session);
+    fence();
   }
   return { text, safety: outputSafety, audit };
 }

@@ -121,8 +121,12 @@ describe("gemini.ts / safety.ts - every client-written audit row carries a purpo
     // proxy-unaudited fallback) row.
     expect(boundaryTs.match(/purpose: input\.purpose,/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
     // Crisis routing threads the caller's purpose through routeCrisis opts.
-    expect(boundaryTs).toMatch(/opts: \{ recordCrisisEvent\?: boolean; purpose\?: string \}/);
-    expect(boundaryTs.match(/purpose: input\.purpose \}/g)?.length ?? 0).toBeGreaterThanOrEqual(1);
+    expect(boundaryTs).toMatch(
+      /opts: \{\s*recordCrisisEvent\?: boolean;\s*purpose\?: string;\s*session\?: AuthenticatedAccountSessionLease;\s*\}/,
+    );
+    expect(
+      boundaryTs.match(/purpose: input\.purpose,\s*session: input\.session/g)?.length ?? 0,
+    ).toBeGreaterThanOrEqual(3);
   });
 
   test("embed / transcription / advisor rows use the proxy-continuity labels", () => {

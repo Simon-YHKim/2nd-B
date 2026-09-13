@@ -121,4 +121,110 @@ describe("audit write outbox", () => {
     expect(remaining).toHaveLength(1);
     expect(remaining[0]!.ownerUserId).toBe("u1");
   });
+
+  test("uses a captured token only for immediate delivery and never persists it", async () => {
+    const signal = new AbortController().signal;
+    const assertCurrent = jest.fn();
+
+    await enqueueAuditWrite(
+      {
+        kind: "ai_audit_log",
+        ownerUserId: "u1",
+        payload: auditPayload,
+        warnLabel: "[test] audit failed",
+      },
+      { userId: "u1", accessToken: "captured-token-a", signal, assertCurrent },
+    );
+
+    expect(assertCurrent).toHaveBeenCalled();
+    expect(mockInsertAudit).toHaveBeenCalledWith(auditPayload, "captured-token-a", signal);
+    expect(JSON.stringify(await getAuditWriteOutboxForTests())).not.toContain("captured-token-a");
+  });
+
+  test("keeps the entry queued without attempting a mutable-session write when the lease is stale", async () => {
+    const stale = Object.assign(new Error("private stale detail"), { name: "AbortError" });
+
+    await expect(enqueueAuditWrite(
+      {
+        kind: "ai_audit_log",
+        ownerUserId: "u1",
+        payload: auditPayload,
+        warnLabel: "[test] audit failed",
+      },
+      { userId: "u1", accessToken: "captured-token-a", assertCurrent: () => { throw stale; } },
+    )).resolves.toBeUndefined();
+
+    expect(mockInsertAudit).not.toHaveBeenCalled();
+    expect(await getAuditWriteOutboxForTests()).toHaveLength(1);
+  });
+
+  test("never retries a bound A row with no session or B's session", async () => {
+    await enqueueAuditWrite(
+      {
+        kind: "ai_audit_log",
+        ownerUserId: "u1",
+        payload: auditPayload,
+        warnLabel: "[test] audit failed",
+      },
+      {
+        userId: "u1",
+        accessToken: "captured-token-a",
+        assertCurrent: () => { throw Object.assign(new Error("stale"), { name: "AbortError" }); },
+      },
+    );
+    mockInsertAudit.mockClear();
+
+    await flushAuditWriteOutbox("u1");
+    await flushAuditWriteOutbox("u1", {
+      userId: "u2",
+      accessToken: "captured-token-b",
+      assertCurrent: jest.fn(),
+    });
+
+    expect(mockInsertAudit).not.toHaveBeenCalled();
+    expect(await getAuditWriteOutboxForTests()).toHaveLength(1);
+
+    await flushAuditWriteOutbox("u1", {
+      userId: "u1",
+      accessToken: "fresh-token-a",
+      assertCurrent: jest.fn(),
+    });
+    expect(mockInsertAudit).toHaveBeenCalledWith(auditPayload, "fresh-token-a", undefined);
+    expect(await getAuditWriteOutboxForTests()).toHaveLength(0);
+  });
+
+  test("upgrades a legacy row with no binding flag to fail closed", async () => {
+    const original = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+    let raw: string | null = JSON.stringify([{
+      id: "legacy-voice-row",
+      kind: "ai_audit_log",
+      ownerUserId: "u1",
+      payload: auditPayload,
+      warnLabel: "[test] audit failed",
+    }]);
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: jest.fn(() => raw),
+        setItem: jest.fn((_key: string, value: string) => { raw = value; }),
+        removeItem: jest.fn(() => { raw = null; }),
+      },
+    });
+
+    try {
+      await flushAuditWriteOutbox("u1");
+      expect(mockInsertAudit).not.toHaveBeenCalled();
+
+      await flushAuditWriteOutbox("u1", {
+        userId: "u1",
+        accessToken: "fresh-token-a",
+        assertCurrent: jest.fn(),
+      });
+      expect(mockInsertAudit).toHaveBeenCalledWith(auditPayload, "fresh-token-a", undefined);
+      expect(raw).toBeNull();
+    } finally {
+      if (original) Object.defineProperty(globalThis, "localStorage", original);
+      else Reflect.deleteProperty(globalThis, "localStorage");
+    }
+  });
 });
