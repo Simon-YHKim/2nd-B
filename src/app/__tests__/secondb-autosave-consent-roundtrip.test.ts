@@ -24,6 +24,8 @@ const mockDb = {
   ledger: [] as MockLedgerRow[],
   /** 다음 N 번의 읽기를 실패시킨다. */
   failReads: 0,
+  /** 지금까지 prefs 를 읽은 횟수. */
+  reads: 0,
   failUpdate: false,
   /** 이 약속이 풀릴 때까지 쓰기가 끝나지 않는다. */
   holdUpdate: null as Promise<void> | null,
@@ -37,6 +39,7 @@ jest.mock("../../lib/supabase/client", () => ({
           select: () => ({
             eq: (_column: string, id: string) => ({
               maybeSingle: async () => {
+                mockDb.reads += 1;
                 if (mockDb.failReads > 0) {
                   mockDb.failReads -= 1;
                   return { data: null, error: new Error("read failed") };
@@ -126,11 +129,35 @@ function run<T>(js: string, bindings: Record<string, unknown>): T {
 
 const CHAT_AST = parse(SECONDB_FILE);
 const LOAD_EFFECT = effectText(CHAT_AST, "fetchPrivacyPrefs(userId)");
+
+/** 답변 옆 담기 칩의 disabled 식. 화면이 그리는 식 그대로를 계산한다. */
+function keepChipDisabledText(): string {
+  const onPress = firstNode(
+    CHAT_AST,
+    (node) =>
+      ts.isJsxAttribute(node) &&
+      node.name.getText(CHAT_AST) === "onPress" &&
+      (node.initializer?.getText(CHAT_AST) ?? "").includes("keepExchange("),
+    "담기 칩의 onPress",
+  );
+  const disabled = (onPress.parent as ts.JsxAttributes).properties.find(
+    (attribute): attribute is ts.JsxAttribute => ts.isJsxAttribute(attribute) && attribute.name.getText(CHAT_AST) === "disabled",
+  );
+  const initializer = disabled?.initializer;
+  if (!initializer || !ts.isJsxExpression(initializer) || !initializer.expression) throw new Error("담기 칩의 disabled 식을 찾지 못했다");
+  return initializer.expression.getText(CHAT_AST);
+}
+
 const CHAT = {
   apply: compile(firstNode(CHAT_AST, functionNamed("applyAutosaveConsent"), "applyAutosaveConsent 선언").getText(CHAT_AST), "return applyAutosaveConsent;"),
   load: compile(LOAD_EFFECT),
   subscribe: compile(effectText(CHAT_AST, "subscribePrivacyPrefsSaved(")),
-  autosave: compile(effectText(CHAT_AST, "autoKeptRef.current.add(idx)")),
+  autosave: compile(effectText(CHAT_AST, "autoKeptRef.current.add(")),
+  newConversation: compile(
+    firstNode(CHAT_AST, functionNamed("startNewConversation"), "startNewConversation 선언").getText(CHAT_AST),
+    "return startNewConversation;",
+  ),
+  keepChipDisabled: compile(`return (${keepChipDisabledText()});`),
 };
 
 const PRIVACY_AST = parse(PRIVACY_FILE);
@@ -149,7 +176,8 @@ interface ChatState {
   autosaveConsent: boolean | null;
   adsConsent: boolean | null;
   prefsReadKey: number;
-  keptIdx: Set<number>;
+  keptTurns: ReadonlySet<Turn>;
+  keepNotice: { turn: Turn; ok: boolean } | null;
 }
 
 const OWNER = "user-a";
@@ -163,13 +191,20 @@ const settle = async (): Promise<void> => {
  * 바뀐 effect 만 선언 순서대로 다시 돌린다(이전 정리 함수를 먼저 부른다).
  */
 class KeptChatScreen {
-  readonly s: ChatState = { turns: [], autosaveConsent: null, adsConsent: null, prefsReadKey: 0, keptIdx: new Set() };
+  readonly s: ChatState = {
+    turns: [],
+    autosaveConsent: null,
+    adsConsent: null,
+    prefsReadKey: 0,
+    keptTurns: new Set(),
+    keepNotice: null,
+  };
   readonly saved: Turn[] = [];
   private readonly refs = {
     autosaveConsentRef: { current: null as boolean | null },
     autosaveBeforeRef: { current: new WeakSet<object>() },
     turnsRef: { current: [] as Turn[] },
-    autoKeptRef: { current: new Set<number>() },
+    autoKeptRef: { current: new WeakSet<object>() },
   };
   private readonly effects = new Map<string, { deps: readonly unknown[]; cleanup?: () => void }>();
   private dirty = true;
@@ -232,7 +267,8 @@ class KeptChatScreen {
         isKeepable,
         autosaveBeforeRef: this.refs.autosaveBeforeRef,
         autoKeptRef: this.refs.autoKeptRef,
-        keptIdx: s.keptIdx,
+        keptTurns: s.keptTurns,
+        prefsReadKey: s.prefsReadKey,
         readPrivacyPrefs,
         keepExchange: (index: number) => this.keep(index),
       });
@@ -247,7 +283,7 @@ class KeptChatScreen {
     const turn = this.s.turns[index];
     if (!turn) return false;
     this.saved.push(turn);
-    this.set({ keptIdx: new Set(this.s.keptIdx).add(index) });
+    this.set({ keptTurns: new Set(this.s.keptTurns).add(turn) });
     return true;
   }
 
@@ -267,10 +303,32 @@ class KeptChatScreen {
     await settle();
   }
 
-  /** "새 대화" 버튼 - 목록을 비운다. */
+  /** "새 대화" 버튼 - 화면의 startNewConversation 을 그대로 부른다. */
   async newConversation(): Promise<void> {
-    this.set({ turns: [] });
+    run<() => void>(CHAT.newConversation, {
+      setTurns: (turns: Turn[]) => this.set({ turns }),
+      setKeptTurns: (keptTurns: ReadonlySet<Turn>) => this.set({ keptTurns }),
+      setKeepNotice: (keepNotice: ChatState["keepNotice"]) => this.set({ keepNotice }),
+      autoKeptRef: this.refs.autoKeptRef,
+    })();
     await settle();
+  }
+
+  /** 담기 칩을 손으로 누른다(담는 자리는 keep 과 같다). */
+  async keepByHand(index: number): Promise<void> {
+    await this.keep(index);
+    await settle();
+  }
+
+  /** 화면이 그 자리 답변의 담기 칩을 닫아 그리는가. */
+  chipDisabled(i: number): boolean {
+    const s = this.s;
+    return run<boolean>(CHAT.keepChipDisabled, { keeping: null, keptTurns: s.keptTurns, turn: s.turns[i], i });
+  }
+
+  /** 담기가 실패해 그 답변 옆에 안내가 떠 있는 상태로 둔다. */
+  showKeepFailure(turn: Turn): void {
+    this.set({ keepNotice: { turn, ok: false } });
   }
 
   unmount(): void {
@@ -318,6 +376,7 @@ beforeEach(() => {
   mockDb.prefs = new Map();
   mockDb.ledger = [];
   mockDb.failReads = 0;
+  mockDb.reads = 0;
   mockDb.failUpdate = false;
   mockDb.holdUpdate = null;
 });
@@ -440,8 +499,74 @@ describe("유지된 대화 화면 왕복 (r3as H1)", () => {
   });
 });
 
+describe("담기 표시는 인덱스가 아니라 턴에 붙는다 (r3as2 R3AS2-02)", () => {
+  // 게이트가 잡은 것: 자동 담기의 한 번 가드(autoKeptRef)와 담긴 표시(keptIdx)가 인덱스를 기억했다.
+  // "새 대화" 는 목록만 비워서, 다음 대화의 같은 인덱스 답변을 자동 경로는 서버를 읽기도 전에 건너뛰고
+  // 수동 칩은 이미 담긴 것으로 닫았다. 담기 직전 확인을 못 읽은 답변은 표시가 남아 다시 확인되지 않았다.
+  test("이미 담긴 대화 뒤 새 대화의 같은 자리 답변도 담긴다", async () => {
+    mockDb.prefs.set(OWNER, { chat_autosave: true });
+    const chat = await mountChat();
+    const first = await chat.exchange("첫 대화", "첫 대화의 답변"); // 인덱스 1
+    expect(chat.saved).toEqual([first]);
+
+    await chat.newConversation();
+    const second = await chat.exchange("새 대화", "새 대화의 답변"); // 다시 인덱스 1
+    expect(chat.saved).toEqual([first, second]);
+  });
+
+  test("손으로 담은 대화 뒤 새 대화의 같은 자리 답변은 담기 칩이 열려 있다", async () => {
+    mockDb.prefs.set(OWNER, { chat_autosave: false });
+    const chat = await mountChat();
+    await chat.exchange("첫 대화", "첫 대화의 답변");
+    await chat.keepByHand(1);
+    expect(chat.chipDisabled(1)).toBe(true); // 대조군: 담긴 답변의 칩은 닫힌다
+
+    await chat.newConversation();
+    await chat.exchange("새 대화", "새 대화의 답변");
+    expect(chat.chipDisabled(1)).toBe(false);
+  });
+
+  test("새 대화는 담기 실패 안내도 함께 지운다", async () => {
+    mockDb.prefs.set(OWNER, { chat_autosave: false });
+    const chat = await mountChat();
+    const reply = await chat.exchange("질문", "담기에 실패한 답변");
+    chat.showKeepFailure(reply);
+    await settle();
+
+    await chat.newConversation();
+    expect(chat.s.keepNotice).toBeNull();
+    expect(chat.s.turns).toEqual([]);
+  });
+
+  test("담기 직전 확인을 못 읽은 답변은 돌아왔을 때 다시 확인해 담는다 - 그 전에 스스로 다시 읽지 않는다", async () => {
+    mockDb.prefs.set(OWNER, { chat_autosave: true });
+    const chat = await mountChat();
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      mockDb.failReads = 1;
+      const readsBefore = mockDb.reads;
+      const reply = await chat.exchange("질문", "확인하지 못한 답변");
+      for (let i = 0; i < 5; i += 1) await settle();
+      expect(chat.saved).toEqual([]);
+      expect(mockDb.reads - readsBefore).toBe(1); // 실패한 확인 한 번뿐이다
+
+      await chat.focus();
+      expect(chat.saved).toEqual([reply]);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+});
+
 describe("배선", () => {
   const source = readFileSync(SECONDB_FILE, "utf8");
+
+  test("새 대화 버튼 둘이 같은 처리기를 쓰고, 목록만 비우는 곳이 따로 없다", () => {
+    expect(source.match(/onPress=\{startNewConversation\}/g)).toHaveLength(2);
+    const handler = firstNode(CHAT_AST, functionNamed("startNewConversation"), "startNewConversation 선언").getText(CHAT_AST);
+    expect(handler).toContain("setTurns([])");
+    expect(source.split("setTurns([])")).toHaveLength(2); // 처리기 안의 한 곳뿐
+  });
 
   test("설정 화면에서 돌아오면 동의를 다시 읽는다", () => {
     expect(source).toContain("useFocusRefetch(() => setPrefsReadKey((k) => k + 1), Boolean(userId))");

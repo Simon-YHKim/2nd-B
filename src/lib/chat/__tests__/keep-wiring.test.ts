@@ -94,7 +94,8 @@ describe("대화 -> 위키 배선", () => {
   it("같은 답변을 두 번 담지 못한다", () => {
     // 두 번 누르면 같은 대화가 기록에 두 번 들어가고, 그건 나중에 읽을 때
     // 같은 말을 두 번 한 것처럼 보인다.
-    expect(SRC).toContain("keptIdx");
-    expect(SRC).toContain("keptIdx.has(index)");
+    // r3as2 R3AS2-02: 인덱스가 아니라 턴 객체로 막는다. 인덱스로 막았더니 "새 대화" 뒤 같은 인덱스에 온
+    // 다른 답변까지 이미 담긴 것으로 막혔다.
+    expect(keepHandlerBody()).toContain("keptTurns.has(reply)");
   });
 });

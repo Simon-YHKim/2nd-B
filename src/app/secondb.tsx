@@ -589,12 +589,14 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   //
   // 페르소나 파생(제안->비준)은 이 변경과 무관하게 그대로다. 여기서 바뀌는 것은
   // **보관**이지 앱이 사용자를 대신해 내리는 결정이 아니다.
-  const [keptIdx, setKeptIdx] = useState<Set<number>>(new Set());
-  const [keeping, setKeeping] = useState<number | null>(null);
+  // 담긴 턴 · 담는 중인 턴 · 실패 안내는 인덱스가 아니라 턴 객체에 붙인다 (r3as2 R3AS2-02, 2026-09-14).
+  // 인덱스로 기억했더니 "새 대화" 가 목록을 비운 뒤 같은 인덱스에 온 다른 답변이 이미 담긴 것으로 막혔다.
+  const [keptTurns, setKeptTurns] = useState<ReadonlySet<ChatTurn>>(() => new Set());
+  const [keeping, setKeeping] = useState<ChatTurn | null>(null);
   // 담기 실패는 복사 실패와 같은 자세로 화면에 남긴다. 복사와 달리 타이머로
   // 지우지 않는다 - "확인해 보라"는 안내라서 사용자가 다시 누를 때까지 보여야
   // 한다.
-  const [keepNotice, setKeepNotice] = useState<{ i: number; ok: boolean } | null>(null);
+  const [keepNotice, setKeepNotice] = useState<{ turn: ChatTurn; ok: boolean } | null>(null);
   // 저장 경로에도 위기 안내가 필요하다. 이 화면의 C9 는 지금까지 전송 경로
   // (sendChatMessage -> callLlm)에만 있었는데, createRecord 도 저장할 때마다
   // 로컬 렉시콘 분류를 돌리고 레드존을 followup 으로 알려준다. 다른 저장 화면
@@ -608,14 +610,14 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // 담겼는지를 호출자에게 돌려준다. 자동 담기가 실패를 알아야 표시를 되돌릴 수
   // 있고, 그래야 한 번의 일시적 실패로 그 턴이 영구히 빠지지 않는다.
   async function keepExchange(index: number): Promise<boolean> {
-    if (!userId || keeping !== null || keptIdx.has(index)) return false;
     const reply = turns[index];
-    if (!reply || !isKeepable(reply)) return false;
-    setKeeping(index);
+    if (!userId || keeping !== null || !reply || keptTurns.has(reply)) return false;
+    if (!isKeepable(reply)) return false;
+    setKeeping(reply);
     // 이 턴의 지난 실패만 지운다. 무조건 null 로 밀면 자동 담기가 다른 턴을
     // 성공시키는 순간 아직 읽지도 않은 실패 안내가 사라진다 - 이번 회차가
     // 없애려는 바로 그 조용함이다.
-    setKeepNotice((prev) => (prev?.i === index ? null : prev));
+    setKeepNotice((prev) => (prev?.turn === reply ? null : prev));
     try {
       const prompt = findPrompt(turns, index);
       const speaker = isCharacterChat ? persona.name[locale] : t("title");
@@ -633,7 +635,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
         // 아니므로 별 밝기를 건드리면 안 된다 (정직한 밝기 규칙).
         userTags: [CHAT_KEEP_TAG],
       });
-      setKeptIdx((prev) => new Set(prev).add(index));
+      setKeptTurns((prev) => new Set(prev).add(reply));
       // C9: 이 경로는 LLM 을 안 타므로 서버 분류가 걸리지 않는다. 로컬 렉시콘
       // 분류기를 직접 돌린다(비용 0). 다른 저장 화면과 같은 자세를 유지한다 -
       // 안내 없는 저장 경로를 하나 만들지 않기 위해서다.
@@ -648,7 +650,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
       // 조용히 넘기지 않는다. 쓰기가 어디까지 갔는지 우리는 모르므로 "담기지
       // 않았다"고 단정하지 않고, 확인할 자리를 알려 준다 (Round21 가져오기와
       // 같은 규율).
-      setKeepNotice({ i: index, ok: false });
+      setKeepNotice({ turn: reply, ok: false });
       AccessibilityInfo.announceForAccessibility(t("keepFailed"));
       if (typeof console !== "undefined") console.warn("[secondb] keep failed", (e as Error).message);
       return false;
@@ -811,7 +813,9 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // 마지막 담을 수 있는 턴 하나만 본다. 화면에 남아 있는 과거 대화까지 소급해서
   // 담지 않는다 - 동의를 켜기 **전에** 오간 말은 사용자가 사라질 거라 생각하고
   // 한 말이다. 그걸 소급 저장하면 동의의 의미가 없어진다.
-  const autoKeptRef = useRef<Set<number>>(new Set());
+  //
+  // autoKeptRef 는 자동 경로가 이미 맡은 턴(확인 중이거나 담긴 턴)이다. 인덱스가 아니라 턴 객체다 (r3as2 R3AS2-02).
+  const autoKeptRef = useRef<WeakSet<ChatTurn>>(new WeakSet());
   useEffect(() => {
     if (!chatAutosaveAllowed(autosaveConsent)) return;
     if (!userId || keeping !== null) return;
@@ -820,28 +824,44 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     if (!last || !isKeepable(last)) return;
     // 동의가 켜진 것을 확인하기 전부터 화면에 있던 턴이다. 소급해서 담지 않는다.
     if (autosaveBeforeRef.current.has(last)) return;
-    if (autoKeptRef.current.has(idx) || keptIdx.has(idx)) return;
-    autoKeptRef.current.add(idx);
+    if (autoKeptRef.current.has(last) || keptTurns.has(last)) return;
+    autoKeptRef.current.add(last);
     // 담기 직전에 서버의 최신 동의를 다시 읽는다(r3as H1). 들고 있는 값은 다른 기기에서 끈 것까지는
-    // 모른다. 못 읽으면 담지 않고 이 턴은 다시 시도하지 않는다 - 확인하지 못한 동의로 담느니 수동 담기
-    // 칩을 남긴다(fail-closed). 꺼진 것이 확인되면 화면 값도 끈다.
+    // 모른다. 꺼진 것이 확인되면 화면 값도 끈다.
     void readPrivacyPrefs(userId).then((read) => {
-      if (!read.ok) return;
+      if (!read.ok) {
+        // 못 읽으면 담지 않는다(fail-closed). 표시는 지운다 - 남겨 두면 확인을 한 번 못 읽은 답변이 다시는
+        // 확인되지 않았다(r3as2 R3AS2-02). 여기서 스스로 다시 읽지는 않는다. 화면에 돌아오면(prefsReadKey)
+        // 이 effect 가 다시 돌아 같은 턴을 확인한다.
+        autoKeptRef.current.delete(last);
+        return;
+      }
       if (read.prefs.chat_autosave !== true) {
+        autoKeptRef.current.delete(last);
         applyAutosaveConsent(false);
         return;
       }
       // 실패하면 표시를 되돌린다. 되돌리지 않으면 일시적인 실패 한 번에 그 턴이
-      // 영구히 빠지고, 동의를 명시적으로 켠 사용자가 정확히 손해를 본다. 되돌림이
-      // 자동 재시도를 보장하지는 않는다 - 수동 담기 칩이 다시 열릴 뿐이다.
+      // 영구히 빠지고, 동의를 명시적으로 켠 사용자가 정확히 손해를 본다. 다시 담는 것은
+      // 화면에 돌아왔을 때다 - 그 전에는 수동 담기 칩이 열려 있다.
       void keepExchange(idx).then((kept) => {
-        if (!kept) autoKeptRef.current.delete(idx);
+        if (!kept) autoKeptRef.current.delete(last);
       });
     });
-    // keepExchange 는 setState 로 keptIdx 를 갱신하므로 의존성에 넣으면 루프가
-    // 된다. autoKeptRef 가 중복 실행을 막는 실제 가드다.
+    // keepExchange 는 setState 로 keptTurns 를 갱신하므로 의존성에 넣으면 루프가
+    // 된다. autoKeptRef 가 중복 실행을 막는 실제 가드다. prefsReadKey 는 본문이 읽지 않는 방아쇠다 -
+    // 화면에 돌아오면 확인을 못 읽었거나 담기에 실패한 마지막 답변을 한 번 더 본다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [turns, autosaveConsent, userId]);
+  }, [turns, autosaveConsent, userId, prefsReadKey]);
+
+  // "새 대화" 두 버튼(deep-space 와 레거시 화면)이 함께 쓰는 한 곳 (r3as2 R3AS2-02). 목록만 비우면 담긴
+  // 표시와 실패 안내가 다음 대화의 같은 자리로 넘어간다.
+  function startNewConversation() {
+    setTurns([]);
+    setKeptTurns(new Set());
+    setKeepNotice(null);
+    autoKeptRef.current = new WeakSet();
+  }
 
   // Capability first (Simon B-decision): a build that cannot complete a watch
   // renders no CTA at all -- policy answers WHO may watch, capability answers
@@ -1179,7 +1199,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
             </Text>
             {hasTurns ? (
               <Pressable
-                onPress={() => setTurns([])}
+                onPress={startNewConversation}
                 hitSlop={14}
                 style={ds.clearLink}
                 accessibilityRole="button"
@@ -1275,17 +1295,17 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                       <Pressable
                         style={ds.keepChip}
                         onPress={() => void keepExchange(i)}
-                        disabled={keeping !== null || keptIdx.has(i)}
+                        disabled={keeping !== null || keptTurns.has(turn)}
                         hitSlop={8}
                         accessibilityRole="button"
-                        accessibilityLabel={keptIdx.has(i) ? t("keptToWiki") : t("keepToWiki")}
+                        accessibilityLabel={keptTurns.has(turn) ? t("keptToWiki") : t("keepToWiki")}
                       >
                         <Text style={ds.keepChipText}>
-                          {keptIdx.has(i) ? t("keptToWiki") : keeping === i ? t("keeping") : t("keepToWiki")}
+                          {keptTurns.has(turn) ? t("keptToWiki") : keeping === turn ? t("keeping") : t("keepToWiki")}
                         </Text>
                       </Pressable>
                     ) : null}
-                    {keepNotice?.i === i && !keepNotice.ok ? (
+                    {keepNotice?.turn === turn && !keepNotice.ok ? (
                       <Text variant="caption" color="textSubtle" accessibilityLiveRegion="polite">
                         {t("keepFailed")}
                       </Text>
@@ -1699,7 +1719,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
           </Text>
           {hasTurns ? (
             <Pressable
-              onPress={() => setTurns([])}
+              onPress={startNewConversation}
               style={styles.clearChatLink}
               hitSlop={14}
               accessibilityRole="button"
