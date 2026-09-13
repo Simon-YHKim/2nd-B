@@ -214,10 +214,10 @@ results.push(
       "saved.title",
       "saved.ocrTitle",
       "saved.ocrBody",
-      "saved.seeGraph",
-      "saved.seeOcrGraph",
-      "saved.seeGraphHint",
-      "saved.seeOcrGraphHint",
+      "saved.seeArea",
+      "saved.seeAreaHint",
+      "saved.seePiece",
+      "saved.seePieceHint",
       "saved.seeRecords",
       "saved.seeRecordsHint",
       "saved.captureMore",
@@ -332,10 +332,10 @@ results.push(
       't("saved.title")',
       't("saved.ocrTitle")',
       't("saved.ocrBody")',
-      't("saved.seeGraph")',
-      't("saved.seeOcrGraph")',
-      't("saved.seeGraphHint")',
-      't("saved.seeOcrGraphHint")',
+      't("saved.seeArea", { area: savedAreaName })',
+      't("saved.seeAreaHint", { area: savedAreaName })',
+      't("saved.seePiece")',
+      't("saved.seePieceHint")',
       't("saved.seeRecords")',
       't("saved.seeRecordsHint")',
       't("saved.captureMore")',
@@ -1002,12 +1002,13 @@ results.push(
       capture.includes("const [savedMode, setSavedMode] = useState<Mode | null>(null)") &&
       capture.includes("const [savedSourceId, setSavedSourceId] = useState<string | null>(null)") &&
       capture.includes('const savedIsOcr = savedKind === "source" && savedMode === "ocr"') &&
-      capture.includes("router.push({ pathname: \"/\", params: { highlightRecordId: savedSourceId } })") &&
+      // P1 (2026-09-13): 저장 후 버튼은 홈에 강조를 부탁하지 않고 조각이 담긴 영역 화면으로 간다.
+      capture.includes('router.push(domainScreenRoute(savedDomain, pieceIdFor(savedSourceId, "source")));') &&
       // (drafts-all-modes refactor: the submitted mode is captured into a
       // local before async work, so the pin follows the safer form.)
       capture.includes("setSavedMode(submittedMode)") &&
       capture.includes("setSavedSourceId(result.source.id)") &&
-      capture.includes('accessibilityHint={savedIsOcr ? t("saved.seeOcrGraphHint") : t("saved.seeGraphHint")}') &&
+      capture.includes('accessibilityHint={savedDomain ? t("saved.seeAreaHint", { area: savedAreaName }) : t("saved.seePieceHint")}') &&
       capture.includes('accessibilityHint={t("saved.seeRecordsHint")}') &&
       capture.includes("const [ocrReviewApproved, setOcrReviewApproved] = useState(false)") &&
       // Pin the gate BODY, not just the state declaration — without this a
@@ -2407,14 +2408,18 @@ results.push(
         screen.includes('t("recordDetail:state.missingTitle")') &&
         screen.includes('t("recordDetail:body.noText")') &&
         screen.includes('t("recordDetail:actions.backToRecords")') &&
+        // P1 (2026-09-13): 옛 seeGraph 자리에 영역 버튼이 배송 화면에 생겼다. 문구는 번들에서 온다.
+        screen.includes('t("recordDetail:actions.seeArea", { area: areaName })') &&
         // ⚠ actions.askSecondB 를 여기서 뺐다. **약화가 아니라 대상이 없다.**
-        // 그리고 그것 하나가 아니다 - 옛 화면의 액션 4개 중 배송이 지는 것은 1개다.
+        // 그리고 그것 하나가 아니다 - 옛 화면의 액션 4개 중 배송이 지는 것은 1개였다.
         // 실측(이동 목적지 기준, 2026-09-08):
         //
         //   backToRecords  /records                      -> 있음
         //   askSecondB     /secondb?fromNode=<제목>       -> 없음
         //   openSource     evidenceRoute() 증거 6종       -> 없음
         //   seeGraph       /?highlightRecordId=<id>      -> 없음
+        //                  (2026-09-13 P1 에서 seeArea 로 바뀌어 배송 화면에 들어왔다:
+        //                   /star/[domain] + pieceId, 영역 태그가 있을 때만)
         //
         // 라이브의 assessment CTA 는 openSource 의 대체가 **아니다** - assessment
         // 태그가 붙고 본문이 JSON 일 때만 뜨는 "다시 검사하기"다(assessmentInfo).
