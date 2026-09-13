@@ -1,3 +1,4 @@
 # Keep deterministic opening sources byte-identical across Windows and Linux.
 /assets/deepspace/hustlek-opening-v2.json text eol=lf
 /scripts/build-hustlek-opening-v2.py text eol=lf
+/.claude/hooks/*.sh text eol=lf

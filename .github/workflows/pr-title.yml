@@ -21,13 +21,12 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Validate title
         env:
           TITLE: ${{ github.event.pull_request.title }}
         run: |
-          echo "Title: $TITLE"
-          if ! echo "$TITLE" | grep -E '^(feat|fix|chore|refactor|docs|test|perf|build|ci|style|revert)(\([^)]+\))?: .+'; then
-            echo "::error::PR title must follow Conventional Commits, e.g. 'feat: add audit log'"
+          if ! printf '%s\n' "$TITLE" | grep -Eq -- '^(feat|fix|chore|refactor|docs|test|perf|build|ci|style|revert)(\([^)]+\))?: .+'; then
+            printf '%s\n' "::error::PR title must follow Conventional Commits, e.g. 'feat: add audit log'"
             exit 1
           fi

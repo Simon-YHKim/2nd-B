@@ -16,8 +16,8 @@
 #     has no idea what else is mid-flight.
 #   - always exits 0. A session must never fail to start because of this.
 #
-# It is deliberately NOT part of .claude/hooks/session-start.sh: that file is
-# vendored from SimonK-stack and edits there drift from upstream.
+# It is deliberately separate from the manual SimonK bootstrap so refreshing
+# project refs can never install or execute a newly fetched tool-stack revision.
 
 exec 2>&1
 LOG() { echo "[shared-checkout] $*"; }
