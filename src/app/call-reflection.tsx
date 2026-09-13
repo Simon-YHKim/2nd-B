@@ -188,7 +188,11 @@ export default function CallReflection() {
       transcribeAbortRef.current = controller;
       setPhase("stt");
       try {
-        const { base64 } = await recordingUriToBase64(file.uri);
+        const { base64 } = await recordingUriToBase64(
+          file.uri,
+          file.mimeType,
+          file.size > 0 ? file.size : undefined,
+        );
         const reply = await transcribeAudio({
           userId,
           locale,
