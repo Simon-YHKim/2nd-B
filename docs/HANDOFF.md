@@ -27,7 +27,84 @@
 블록부터 그 달의 보관 파일(부분이 있으면 번호가 가장 큰 것) 맨 위로 옮긴다.
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-13 / 디스크 정리 끝(17곳 · 21.9 GB) — 재부팅 뒤 에뮬레이터 화면 검증
+## Latest — 2026-09-14 / 보안 W1–W8 Git 통합 완료 — 운영 활성화는 별도 hold
+
+### 결론
+
+- 코드 PR **[#1807](https://github.com/Simon-YHKim/2nd-B/pull/1807)** 이 merge commit
+  `18ef7f43cf735bc65e46da5c11334a9f688b475e`으로 `main`에 들어갔다.
+- 중복 PKCE PR **[#1800](https://github.com/Simon-YHKim/2nd-B/pull/1800)** 은 `main`의
+  PKCE + OTP-only recovery template/proof 경계를 확인하고 superseded로 닫았다. 브랜치는 보존했다.
+- GitHub CI는 `lint` · `verify` · `web-export-smoke` · `sql` **4/4 성공**이다. `sql`은 아래
+  번호 없는 draft 7개를 scratch PostgreSQL에서 실제 실행하고 rollback했다.
+- 로컬 최종 검증은 `npm run verify` **740 suites / 8,865 tests**, `npm run verify:web`
+  **126 static routes**, `npm audit` **취약점 0**이다. 런타임 require cycle도 0이다.
+- D1 재고는 **35 branches / 95 occurrences**, evidence gap 0, 추가로 옮길 actionable patch 0이다.
+  상세 Wave 기록은 아래 `2026-09-13 — 보안 W1–W8 로컬 통합 인계` 절에 있다.
+- 이 결과는 **Git 소스 통합 완료**다. 운영 DB·Edge·Auth·secret·flag·Pages·live unit·canary·
+  postflight는 실행하지 않았으므로 현재 상태는 **`productionComplete=false`**다.
+
+### Simon 결정 D1–D5 반영
+
+1. **D1** — 보안 재고를 W1–W8 큰 덩어리 순서로 전수 검토하고 #1807로 통합했다.
+2. **D2** — Reward 자가지급 RPC의 운영 revoke는 이전 실행 기록만 있다. 이번 작업에서 재실행하거나
+   운영 catalog로 재검증하지 않았다. 중복 실행하지 말고 catalog postflight로만 확인한다.
+3. **D3** — `src/lib/supabase/client.ts`의 PKCE와 OTP-only recovery template/proof 경계가 함께 통합됐다.
+4. **D4** — 낡은 Edge 함수의 운영 재배포는 미실행이며 광고 런치 전 필수다.
+5. **D5** — Codex 전역 업데이트는 사후 승인됐다. 앞으로도 막혔을 때만 수행하고 사후 보고한다.
+
+### 운영에 아직 적용되지 않은 DB draft 7개
+
+1. `UNNUMBERED_account_deletion_completion_fence.sql`
+2. `UNNUMBERED_effective_llm_consent_current_contract.sql`
+3. `UNNUMBERED_oauth_naver_rate_limit_completion.sql`
+4. `UNNUMBERED_paddle_refund_consequence_integrity.sql`
+5. `UNNUMBERED_peer_response_rate_limit.sql`
+6. `UNNUMBERED_reward_ssv_hardening.sql`
+7. `UNNUMBERED_rss_proxy_quota.sql`
+
+임의 번호를 붙이지 않는다. 모든 remote ref의 migration 번호를 다시 스캔하고 `max+1`을 예약한 뒤
+reservation branch를 즉시 push한다. 각 draft는 behavior fixture와 rollout gate를 통과한 뒤에만
+승격한다. 서버 활성화와 운영 쓰기는 계속 console owner 소유다.
+
+### 다음 작업 큐
+
+| # | 작업 | 판정 |
+|---|---|---|
+| A | remote migration 전수 스캔과 번호 예약 | **다음 단일 안전 작업** |
+| B | Consent/Naver/RSS behavior fixture, Storage 2-connection race, Paddle 단일 `ON_ERROR_STOP` transaction, Deno-native check | 운영 전 필수 |
+| C | console owner preflight → DB/Edge/Auth 순차 적용 | 별도 승인·중단 조건 준수 |
+| D | Android/iOS live-unit QA → 제한 canary → postflight | 끝날 때까지 `productionComplete=false` |
+
+### 증거와 새 세션 시작점
+
+- 완료 보고서: `E:/2ndB/Output/260914_2ndB_security_pr_merge_handoff.html`
+- 복사용 프롬프트: `E:/2ndB/Output/260914_2ndB_security_new_session_prompt.txt`
+- Git 정본: 이 `docs/HANDOFF.md`
+
+```text
+2nd-Brain 보안 W1–W8 인계를 이어받아라.
+
+1. E:/2ndB의 git common dir가 E:/2ndB/.git인지 확인하고 현재 checkout의 CLAUDE.md,
+   session-start 정본, 최신 origin/main의 docs/HANDOFF.md Latest를 먼저 읽어라.
+2. 최신 origin/main에서 E:/2ndB/.worktrees 아래 깨끗한 격리 worktree를 만들어라.
+   정본 main이나 다른 세션 worktree를 편집하지 마라.
+3. #1807의 merged 상태·merge SHA·CI 4개 성공과 main key files를 재조회하라.
+4. #1800은 중복 PKCE PR이다. PKCE와 OTP-only recovery 경계 및 superseded closed 상태를 확인하라.
+5. 7개 UNNUMBERED draft에 번호를 추측하지 마라. 모든 remote migration 번호를 재스캔하고
+   max+1 reservation branch를 즉시 push하라.
+6. 운영 DB·Edge·Auth·secret·flag·Pages·canary·live-unit은 console owner와 별도 승인 영역이다.
+7. Reward RPC revoke는 기존 실행 기록만 있다. 재실행하지 말고 catalog postflight로 확인하라.
+8. behavior fixture, Storage race, Paddle transaction, Deno-native check를 rollout gate로 완료하라.
+9. DB/Edge/Auth/Android/iOS/canary/postflight 전에는 productionComplete=false이며
+   “보안 완료”라고 보고하지 마라.
+10. Git의 docs/HANDOFF.md가 정본이고 Output 보고서와 local state JSON은 보조 증거다.
+11. 첫 응답에 현재 main SHA, merged PR, CI 4개 상태, console hold, 다음 단일 안전 작업을 보고하라.
+```
+
+---
+
+## 2026-09-13 / 디스크 정리 끝(17곳 · 21.9 GB) — 재부팅 뒤 에뮬레이터 화면 검증
 
 **재부팅 직후 새 세션이 이 블록 하나로 이어받게 썼다.** Simon 이 정리 뒤 컴퓨터를 한 번 껐다 켠다 — 떠 있던 claude · codex · 에뮬레이터는 전부 내려간다.
 
