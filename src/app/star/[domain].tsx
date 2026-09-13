@@ -24,6 +24,7 @@ import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PremiumLoadingState } from "@/components/premium";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { DOMAIN_STARS, getDomainStar, isDomainId, domainTagFor, type DomainId } from "@/lib/persona/domain-stars";
 import { evidenceDateLabel } from "@/lib/persona/evidence";
@@ -182,22 +183,38 @@ export default function DomainStarScreen() {
   const pieceRef = parsePieceId(pieceId);
   const pieceOrigin = pieceRef?.origin ?? null;
   const pieceUuid = pieceRef?.uuid ?? null;
-  const [shownPiece, setShownPiece] = useState<PieceSummary | null>(null);
+
+  // 몇 번째 읽기인가. 읽은 결과는 자기 읽기 번호를 달고 온다.
+  //
+  // M1 (PR #1812 인가 게이트, 2026-09-14): 카드를 눌러 상세에서 이 조각의 영역을 옮기고 뒤로
+  // 오면, 이 화면은 마운트된 채 주소도 그대로라 읽기가 다시 돌지 않았고 처음 읽은 태그로 옛
+  // 영역의 카드가 남았다. 그래서 포커스가 돌아올 때마다 한 번 더 읽는다. 처음 뜰 때의 읽기는
+  // 아래 effect 가 맡는다(useFocusRefetch 는 첫 포커스를 건너뛴다). 폴링도 자동 재시도도 없다.
+  const [pieceReadNo, setPieceReadNo] = useState(0);
+  const [pieceResult, setPieceResult] = useState<{
+    readNo: number;
+    piece: PieceSummary | null;
+  } | null>(null);
+  useFocusRefetch(() => setPieceReadNo((n) => n + 1), Boolean(userId && domainId && pieceUuid));
 
   useEffect(() => {
     if (!userId || !domainId || !pieceOrigin || !pieceUuid) return;
     let alive = true;
     getPieceSummary(userId, { origin: pieceOrigin, uuid: pieceUuid })
       .then((found) => {
-        if (alive) setShownPiece(found);
+        if (alive) setPieceResult({ readNo: pieceReadNo, piece: found });
       })
       .catch(() => {
-        if (alive) setShownPiece(null);
+        if (alive) setPieceResult(null);
       });
     return () => {
       alive = false;
     };
-  }, [userId, domainId, pieceOrigin, pieceUuid]);
+  }, [userId, domainId, pieceOrigin, pieceUuid, pieceReadNo]);
+
+  // 지금 읽기의 결과만 쓴다. 돌아와서 다시 읽는 동안에는 지난 읽기의 카드를 보이지 않는다 -
+  // 옛 태그로 "여기 담겼어요"라고 잠깐이라도 말하느니 다 읽을 때까지 비워 둔다.
+  const shownPiece = pieceResult !== null && pieceResult.readNo === pieceReadNo ? pieceResult.piece : null;
 
   // 지금 주소가 가리키는 조각이고 이 영역에 담긴 것일 때만 보인다. 주소가 바뀌어 새 읽기가
   // 끝나기 전에도 지난 조각이 남아 보이지 않는다. 담긴 곳은 domain: 태그로 잰다 - /capture 의

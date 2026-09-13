@@ -166,7 +166,11 @@ describe("/star/[domain] 이 가리킨 조각을 보여준다", () => {
   });
 
   test("읽기에 실패해도 에러를 띄우거나 id·태그를 로그에 남기지 않는다", () => {
-    const load = between(STAR, "getPieceSummary(userId,", "}, [userId, domainId, pieceOrigin, pieceUuid]);");
+    const load = between(
+      STAR,
+      "getPieceSummary(userId,",
+      "}, [userId, domainId, pieceOrigin, pieceUuid, pieceReadNo]);",
+    );
     expect(load).not.toContain("console.");
     expect(load).not.toMatch(/set(Failed|Error)\(/);
     const summary = between(GET_PIECE, "export async function getPieceSummary(", "\n}\n");
