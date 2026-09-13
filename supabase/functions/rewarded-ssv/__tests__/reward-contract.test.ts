@@ -6,7 +6,11 @@ import {
   parseVerifierKeyDocument,
   readRewardContractConfig,
 } from "../reward-contract";
-import { VerifierKeyCache, readBoundedJsonResponse } from "../verifier-key-cache";
+import {
+  VerifierKeyCache,
+  readBoundedBodyBytes,
+  readBoundedJsonResponse,
+} from "../verifier-key-cache";
 
 const USER_ID = "123e4567-e89b-42d3-a456-426614174000";
 const TICKET = "A".repeat(43);
@@ -170,6 +174,60 @@ describe("Google verifier-key response boundary", () => {
     new Response(Uint8Array.from([0xff]), { headers: { "content-type": "application/json" } }),
   ])("rejects the wrong type, declared/actual oversize, or invalid UTF-8", async (response) => {
     await expect(readBoundedJsonResponse(response, 64)).rejects.toThrow();
+  });
+
+  test("rejects a zero-progress stream instead of spinning forever", async () => {
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        controller.enqueue(new Uint8Array());
+      },
+    });
+    const response = new Response(body, {
+      headers: { "content-type": "application/json" },
+    });
+
+    await expect(readBoundedJsonResponse(response, 64, { timeoutMs: 1_000 }))
+      .rejects.toThrow("no progress");
+  });
+
+  test("bounds adversarial one-byte fragmentation independently of byte count", async () => {
+    let chunks = 0;
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        chunks += 1;
+        if (chunks <= 2_000) controller.enqueue(Uint8Array.of(0x20));
+        else controller.close();
+      },
+    });
+
+    await expect(readBoundedBodyBytes(body, 4_096, { timeoutMs: 1_000, maxChunks: 128 }))
+      .rejects.toThrow("too fragmented");
+  });
+
+  test("cancels a stalled response body at the read deadline", async () => {
+    jest.useFakeTimers();
+    try {
+      let cancelled = false;
+      const body = new ReadableStream<Uint8Array>({
+        pull() {
+          return new Promise<void>(() => undefined);
+        },
+        cancel() {
+          cancelled = true;
+        },
+      });
+      const response = new Response(body, {
+        headers: { "content-type": "application/json" },
+      });
+      const rejection = expect(
+        readBoundedJsonResponse(response, 64, { timeoutMs: 100 }),
+      ).rejects.toThrow("timed out");
+      await jest.advanceTimersByTimeAsync(100);
+      await rejection;
+      expect(cancelled).toBe(true);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
 

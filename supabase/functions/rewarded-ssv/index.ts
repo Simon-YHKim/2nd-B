@@ -16,7 +16,11 @@ import {
   type RewardKind,
   type VerifierKey,
 } from './reward-contract.ts';
-import { VerifierKeyCache, readBoundedJsonResponse } from './verifier-key-cache.ts';
+import {
+  VerifierKeyCache,
+  readBoundedBodyBytes,
+  readBoundedJsonResponse,
+} from './verifier-key-cache.ts';
 
 const VERIFIER_KEYS_URL = 'https://www.gstatic.com/admob/reward/verifier-keys.json';
 const MAX_VERIFIER_KEY_BYTES = 65_536;
@@ -44,7 +48,7 @@ const verifierKeyCache = new VerifierKeyCache<VerifierKey>(
     });
     if (!response.ok) throw new Error('verifier-key request failed');
     const keys = parseVerifierKeyDocument(
-      await readBoundedJsonResponse(response, MAX_VERIFIER_KEY_BYTES),
+      await readBoundedJsonResponse(response, MAX_VERIFIER_KEY_BYTES, { signal }),
     );
     if (!keys) throw new Error('verifier-key document invalid');
     return keys;
@@ -71,28 +75,14 @@ async function readIssueKind(req: Request): Promise<RewardKind | null> {
   if (declared && (!/^(?:0|[1-9][0-9]*)$/.test(declared) || Number(declared) > MAX_ISSUE_BODY_BYTES)) {
     return null;
   }
-  const reader = req.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
+  let bytes: Uint8Array;
   try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      total += value.byteLength;
-      if (total > MAX_ISSUE_BODY_BYTES) {
-        await reader.cancel().catch(() => undefined);
-        return null;
-      }
-      chunks.push(value.slice());
-    }
-  } finally {
-    reader.releaseLock();
-  }
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
+    bytes = await readBoundedBodyBytes(req.body, MAX_ISSUE_BODY_BYTES, {
+      timeoutMs: 1_000,
+      maxChunks: 64,
+    });
+  } catch {
+    return null;
   }
   try {
     const body: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));

@@ -1,5 +1,12 @@
 type KeyFetcher<T> = (signal: AbortSignal) => Promise<T[]>;
 
+export type BoundedBodyReadOptions = {
+  timeoutMs?: number;
+  maxChunks?: number;
+  maxNoProgressChunks?: number;
+  signal?: AbortSignal;
+};
+
 type VerifierKeyCacheOptions = {
   timeoutMs: number;
   ttlMs: number;
@@ -8,9 +15,80 @@ type VerifierKeyCacheOptions = {
   now?: () => number;
 };
 
+export async function readBoundedBodyBytes(
+  body: ReadableStream<Uint8Array>,
+  maxBytes: number,
+  options: BoundedBodyReadOptions = {},
+): Promise<Uint8Array> {
+  const timeoutMs = options.timeoutMs ?? 5_000;
+  const maxChunks = options.maxChunks ?? 1_024;
+  const maxNoProgressChunks = options.maxNoProgressChunks ?? 8;
+  if (
+    !Number.isSafeInteger(maxBytes) || maxBytes < 1 ||
+    !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 ||
+    !Number.isSafeInteger(maxChunks) || maxChunks < 1 ||
+    !Number.isSafeInteger(maxNoProgressChunks) || maxNoProgressChunks < 0
+  ) throw new Error('invalid body limit');
+
+  const reader = body.getReader();
+  const buffer = new Uint8Array(maxBytes);
+  let total = 0;
+  let chunks = 0;
+  let noProgress = 0;
+  let rejectDeadline: ((error: Error) => void) | undefined;
+  const deadline = new Promise<never>((_resolve, reject) => {
+    rejectDeadline = reject;
+  });
+  const failRead = (message: string) => {
+    void reader.cancel(message).catch(() => undefined);
+    rejectDeadline?.(new Error(message));
+  };
+  const timer = setTimeout(() => failRead('body read timed out'), timeoutMs);
+  const onAbort = () => failRead('body read aborted');
+  options.signal?.addEventListener('abort', onAbort, { once: true });
+
+  try {
+    if (options.signal?.aborted) throw new Error('body read aborted');
+    for (;;) {
+      const { done, value } = await Promise.race([reader.read(), deadline]);
+      if (done) break;
+      chunks += 1;
+      if (chunks > maxChunks) throw new Error('body stream too fragmented');
+      if (!(value instanceof Uint8Array)) throw new Error('invalid body chunk');
+      if (value.byteLength === 0) {
+        noProgress += 1;
+        if (noProgress > maxNoProgressChunks) throw new Error('body stream made no progress');
+      } else {
+        noProgress = 0;
+        if (value.byteLength > maxBytes - total) throw new Error('body response too large');
+        buffer.set(value, total);
+        total += value.byteLength;
+      }
+
+      // A stream that resolves every read as a microtask can starve timers.
+      // Yield periodically so the wall-clock deadline and AbortSignal run.
+      if (chunks % 64 === 0) {
+        await Promise.race([
+          new Promise<void>((resolve) => setTimeout(resolve, 0)),
+          deadline,
+        ]);
+      }
+    }
+    return buffer.slice(0, total);
+  } catch (error) {
+    await reader.cancel().catch(() => undefined);
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    options.signal?.removeEventListener('abort', onAbort);
+    reader.releaseLock();
+  }
+}
+
 export async function readBoundedJsonResponse(
   response: Pick<Response, 'headers' | 'body'>,
   maxBytes: number,
+  options: BoundedBodyReadOptions = {},
 ): Promise<string> {
   if (!Number.isSafeInteger(maxBytes) || maxBytes < 1) throw new Error('invalid body limit');
   const mediaType = (response.headers.get('content-type') ?? '')
@@ -26,29 +104,14 @@ export async function readBoundedJsonResponse(
     throw new Error('invalid verifier-key response');
   }
   if (!response.body) throw new Error('missing verifier-key response');
-
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
+  let bytes: Uint8Array;
   try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      total += value.byteLength;
-      if (total > maxBytes) {
-        await reader.cancel().catch(() => undefined);
-        throw new Error('verifier-key response too large');
-      }
-      chunks.push(value.slice());
+    bytes = await readBoundedBodyBytes(response.body, maxBytes, options);
+  } catch (error) {
+    if (error instanceof Error && error.message === 'body response too large') {
+      throw new Error('verifier-key response too large');
     }
-  } finally {
-    reader.releaseLock();
-  }
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
+    throw error;
   }
   return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
 }
