@@ -181,6 +181,37 @@ describe("edge function deploy JWT policy", () => {
     expect(result.stderr).toContain("Multiline TOML strings");
   });
 
+  test("rejects an escaped quoted key followed by an array-table decoy", () => {
+    const result = runWithConfig(
+      "openai-proxy",
+      [
+        "[functions.openai-proxy]",
+        '"verify\\u005fjwt" = false',
+        "[[decoy]]",
+        "verify_jwt = true",
+        "",
+      ].join("\n"),
+    );
+    expect(result.status).toBe(1);
+    expect(result.output).toEqual({});
+    expect(result.stderr).toContain("unsupported");
+  });
+
+  test("rejects quoted assignment keys even when the canonical setting is present", () => {
+    const result = runWithConfig(
+      "openai-proxy",
+      [
+        "[functions.openai-proxy]",
+        "verify_jwt = true",
+        '"unrelated" = "value"',
+        "",
+      ].join("\n"),
+    );
+    expect(result.status).toBe(1);
+    expect(result.output).toEqual({});
+    expect(result.stderr).toContain("quoted TOML assignment keys");
+  });
+
   test.each([
     "",
     "Openai-proxy",

@@ -100,7 +100,14 @@ for (const rawLine of config.split(/\r?\n/)) {
   const line = stripTomlComment(rawLine).trim();
   if (!line) continue;
 
+  if (/^(?:"(?:\\.|[^"\\])*"|'[^']*')\s*=/.test(line)) {
+    fail("quoted TOML assignment keys are unsupported by the deploy drift gate.");
+  }
+
   const header = line.match(/^\[([^\[\]]+)\]$/);
+  if (line.startsWith("[") && !header) {
+    fail("unsupported TOML table syntax in the deploy drift gate.");
+  }
   if (header) {
     const section = header[1].trim();
     if (/(?:^|\.)remotes(?:\.|$)/.test(section) || /["']/.test(section)) {

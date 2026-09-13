@@ -147,7 +147,7 @@ describe("deploy-edge-function input and config contract", () => {
 });
 
 describe("edge-flag-set mutation contract", () => {
-  const { job } = load("edge-flag-set.yml");
+  const { raw, job } = load("edge-flag-set.yml");
 
   test("retains shell allowlists and rechecks main immediately before the secret update", () => {
     const scripts = allRunScripts(job);
@@ -162,5 +162,21 @@ describe("edge-flag-set mutation contract", () => {
     expect(fetch).toBeGreaterThanOrEqual(0);
     expect(comparison).toBeGreaterThan(fetch);
     expect(mutation).toBeGreaterThan(comparison);
+  });
+
+  test("keeps the remote secret catalog and digests out of public logs", () => {
+    const listSteps = job.steps.filter((step) => step.run?.includes("supabase secrets list"));
+    expect(listSteps).toHaveLength(1);
+
+    const postflight = listSteps[0].run ?? "";
+    expect(postflight).toContain("--output json");
+    expect(postflight).toContain("> \"$RUNNER_TEMP/edge-flag-after.json\"");
+    expect(postflight).toContain('createHash("sha256")');
+    expect(postflight).toContain("item?.name === process.env.FLAG");
+    expect(postflight).toContain("matches[0].value");
+    expect(postflight).not.toContain("tee");
+    expect(raw).not.toContain("before.txt");
+    expect(raw).not.toContain("after.txt");
+    expect(raw).not.toContain("GITHUB_STEP_SUMMARY");
   });
 });
