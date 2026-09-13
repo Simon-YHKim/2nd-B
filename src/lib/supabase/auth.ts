@@ -49,9 +49,21 @@ export { AuthSessionOwnerChangedError } from "../auth/session-mutation";
 // #1587 은 allRequiredAcksChecked 를 더 들여온다 — 가입 동의를 화면만이 아니라
 // 서버도 확인하기 위해서고, 아래 함수가 실제로 호출한다.
 import { getEnv } from "../env";
+import {
+  clearAccountScopedLocalNotifications,
+  migrateLegacyRoutineNotifications,
+} from "../ops/reminders";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getSupabaseClient } from "./client";
 import * as Crypto from "expo-crypto";
+
+// Upgrade cleanup runs once per native install. A failed pass leaves no marker,
+// so the next cold start retries without exposing notification identifiers.
+void migrateLegacyRoutineNotifications().catch(() => {
+  if (typeof console !== "undefined") {
+    console.warn("[auth] local notification privacy migration pending retry");
+  }
+});
 
 // C10 age tiers: adult users and 14-17 minors self-consent and register
 // directly. Under PIPA, legal-representative consent is mandatory only below 14
@@ -715,7 +727,7 @@ export type AuthCallbackBootstrapReconciliation =
   | { kind: "unchanged" }
   | { kind: "recovery"; proof: RecoveryProof }
   | { kind: "cleared" }
-  | { kind: "retryable" };
+  | { kind: "retryable"; error?: unknown };
 
 /**
  * Reconcile a callback transaction that crashed after its durable pre-fence.
@@ -748,8 +760,8 @@ export async function reconcileAuthCallbackBootstrap(
           quarantine,
         });
         return completed ? { kind: "recovery", proof } : { kind: "retryable" };
-      } catch {
-        return { kind: "retryable" };
+      } catch (error) {
+        return { kind: "retryable", error };
       }
     }
 
@@ -768,10 +780,10 @@ export async function reconcileAuthCallbackBootstrap(
           expected,
           "local",
         );
-      } catch {
+      } catch (error) {
         // Preserve proof, pending, and quarantine exactly. A retry invokes this
         // same owner-bound operation; no authenticated surface is published.
-        return { kind: "retryable" };
+        return { kind: "retryable", error };
       }
     }
 
@@ -779,8 +791,8 @@ export async function reconcileAuthCallbackBootstrap(
       return await clearRecoveryMarkerSnapshotExpectedInsideMutation(snapshot)
         ? { kind: "cleared" }
         : { kind: "retryable" };
-    } catch {
-      return { kind: "retryable" };
+    } catch (error) {
+      return { kind: "retryable", error };
     }
   }, { requireCrossTab: true });
 }
@@ -1105,6 +1117,12 @@ export async function signOutAuthCallbackSession(
 
 export async function signOut(scope: "global" | "local" = "global"): Promise<void> {
   const expected = await captureSignOutExpectation();
+  // Remove only the captured owner's OS notifications and preference keys
+  // before releasing auth. If another account wins while cleanup awaits, the
+  // exact-session compare-and-set below preserves that newer session.
+  if (expected.userId) {
+    await clearAccountScopedLocalNotifications(expected.userId);
+  }
   await signOutExpected(expected, scope);
 }
 

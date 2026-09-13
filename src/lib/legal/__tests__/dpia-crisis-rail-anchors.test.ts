@@ -68,6 +68,7 @@ const P = "src/lib/privacy/prefs.ts";
 const R = "src/lib/ops/recommend.ts";
 const A = "src/lib/auth/consent-age.ts";
 const D = "supabase/functions/delete-account/index.ts";
+const DS = "supabase/functions/delete-account/storage-erasure.ts";
 const X = "supabase/functions/export-account/index.ts";
 const W = "src/lib/wiki/export.ts";
 const AC = "src/lib/auth/AuthContext.tsx";
@@ -121,19 +122,19 @@ const ANCHORS: Anchor[] = [
     why: "추천이 무엇을 프로파일링하는지 - 그 함수 자체." },
   { cite: `${A}:28-33`, symbol: "DIGITAL_CONSENT_AGE",
     why: "어느 나라 동의 연령이 적용되는가 - 미성년 DPIA 에서 이보다 무거운 표는 없다." },
-  { cite: `${D}:165-177`, symbol: "Array.isArray(removed)",
-    why: "지움이 부분적으로 끝날 수 있다는 사실을 코드가 관측하는 자리. 이게 없으면 문서의 '지워졌다'가 관측되지 않은 주장이 된다." },
-  { cite: `${D}:150-164`, symbol: "listErr",
-    why: "페이지 단위 버킷 정리 루프 - Art.17 삭제 주장의 실제 근거. ⚠ 심볼로 `raw-clippings` 를 썼다가 걸렸다: 그건 버킷 **이름**이라 산문에도 나오고, 옆 인용(:113-121)이 인접 창 안에 들어와 멀쩡한 문장이 위반이 됐다. **앵커 심볼은 산문에 나올 수 없을 만큼 구체적이어야 한다.**" },
-  { cite: `${X}:97-115`, symbol: "consent_records",
+  { cite: `${DS}:149-173`, symbol: "confirmed.size !== requested.size",
+    why: "지움 결과의 이름 집합이 요청 집합과 정확히 같은지 관측하는 자리. 개수만 같거나 일부만 지워졌는데도 '지워졌다'고 주장하지 못하게 한다." },
+  { cite: `${DS}:95-116`, symbol: "listingResponse.error",
+    why: "flat listV2 페이지 실패를 닫힌 상태로 처리하는 자리 - Art.17 삭제 주장의 실제 근거." },
+  { cite: `${X}:303-357`, symbol: "consent_records",
     why: "Art.20 이식성이 실제로 무엇을 담아 오는가. 6.1.3 이 '빠져 있다'고 나열하던 여덟 범주가 바로 이 목록이다." },
-  { cite: `${X}:20-24`, symbol: "gemini_spend_daily", evidence: "comment",
-    why: "일부러 뺀 저장소 셋. 빼는 것 자체가 아니라 **응답에 적어 돌려준다는 것**이 통제이고, 그 목록을 코드가 주석으로 적어 둔 자리라서 주석이 근거다." },
+  { cite: `${X}:359-389`, symbol: "gemini_spend_daily",
+    why: "일부러 뺀 저장소 목록. 빼는 것 자체가 아니라 **응답에 적어 돌려준다는 것**이 통제이고, 실제 제외 매니페스트가 근거다." },
   { cite: `${W}:240`, symbol: "includeRecords",
     why: "저널이 기본으로 안 실린다는 주장의 **실제 근거** - 그 삼항 연산이 없으면 기본값이 무의미하다." },
   { cite: `${AT}:96-131`, symbol: "remain inert",
     why: "Sentry 가 **일부러** 닫혀 있다는 주장의 근거. 문서가 '설정됐으나 안 쓴다'가 아니라 '울타리가 있고 조건이 적혀 있다'고 말하려면 그 울타리를 지키는 검사가 실재해야 한다." },
-  { cite: `${AC}:139`, symbol: "MINOR_AGE_CEILING",
+  { cite: `${AC}:153`, symbol: "MINOR_AGE_CEILING",
     why: "미성년 여부가 실제로 정해지는 비교. 이 문서 전체가 이 한 줄 위에 서 있다." },
   { cite: `${AD}:58`, symbol: "input.isMinor !== false",
     why: "미성년에게 광고가 안 나간다는 주장의 fail-closed 지점 - null 도 막는다는 것이 주장의 내용이다." },
@@ -156,7 +157,7 @@ const ANCHORS: Anchor[] = [
     why: "C-SENS 가 서는 스키마. 세 ack 중 PIPA §23 별도 동의를 잡는다 - 법적 무게가 가장 큰 것." },
   { cite: "db/migrations/0038_minor_tier_guard_and_audit_lockdown.sql:103-136", symbol: "auth.uid()",
     why: "C-AUDIT 의 '위조 불가 RPC' 주장이 서는 **한 줄**. user_id 를 클라이언트가 못 보내고 서버가 찍는다는 것이 위조 불가의 전부다. 함수 이름이 아니라 이 호출을 잡는 이유다." },
-  { cite: "src/lib/records/delete-bulk.ts:267", symbol: "requestAccountDeletion",
+  { cite: "src/lib/records/delete-bulk.ts:315", symbol: "requestAccountDeletion",
     why: "C-DEL 의 종국적 삭제 진입점. ⚠ 문서는 `:178-185` 를 가리켰는데 그것은 이 함수를 **언급하는 주석**이다 - 통제 전체의 무게를 그 인용이 지고 있었다. 회차 68 의 '내용 있는 줄' 검사로는 안 잡힌다(주석도 내용이다). 심볼 앵커만이 본다." },
   // ⚠ 회차 68 이 여기에 `DeepSpaceDesignScreens.tsx:2792` 앵커를 넣었다 - 빈 줄을
   //   가리키던 인용을 실제 호출 줄로 옮긴 것이고, 그 자체는 맞았다.
@@ -164,7 +165,7 @@ const ANCHORS: Anchor[] = [
   //   라우트는 `dds-ops-screen.tsx` 쪽을 import 한다. 회차 68 은 "줄이 비었나" 를
   //   물었고, "이 파일이 배송되나" 는 물지 않았다. 앞 질문은 답을 얻었고 뒤 질문은
   //   던져진 적이 없다 - `shadow-screens.test.ts` 가 그 질문을 맡는다.
-  { cite: `${D}:66-78`, symbol: "userIdFromJwt",
+  { cite: `${D}:188-198`, symbol: "claims.sub !== authUser.id",
     why: "지울 계정을 클라이언트가 못 고른다는 IDOR 주장의 근거." },
   { cite: "src/lib/analytics/index.ts:245-252", symbol: "isMinor === false",
     why: "미성년에게 제품 분석이 안 붙는다는 주장의 **실제 게이트**. 문서는 세 자리에서 `:74`(AnalyticsEvent 타입 유니온)를 가리키고 있었다 - 타입 선언은 아무도 막지 않는다. ⚠ 심볼로 함수 이름 `canLoadProductAnalytics` 를 쓰려다 바꿨다: 회차 51·53 의 교훈대로 **이름은 그 이름이 가리키는 것이 바뀌어도 살아남는다.** 주장의 내용은 술어다." },
@@ -250,7 +251,7 @@ test("통제 표의 'Implemented' 행은 앵커가 덮는 코드를 인용한다
   //   C-SENS   상태 칸이 "collection UI pending" - 회차 64·67 이 본문에서
   //            같은 주장을 아홉 자리 고쳤는데 **표 칸만 살아남았다.**
   //   C-DEL    `requestAccountDeletion()` 의 인용이 `:178-185` 인데 그것은
-  //            함수가 아니라 **함수를 언급하는 주석**이다(함수는 `:262`).
+  //            함수가 아니라 **함수를 언급하는 주석**이다(현재 함수는 `:315`).
   //   C-AUDIT  '위조 불가 RPC' 를 주장하는데 그 근거가 안 지켜지고 있었다.
   //
   // 정확히 같은 인용 문자열을 요구하지 않는다 - **범위가 겹치면** 그 코드는

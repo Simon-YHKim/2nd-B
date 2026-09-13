@@ -22,7 +22,7 @@ export function useAccountDeletionNotice(): AccountDeletionNotice | null {
   );
 }
 
-// 세 값은 세 가지 다른 사실이다 (delete-bulk.ts:200-221):
+// 세 값은 세 가지 다른 사실이다 (delete-bulk.ts:227-248):
 //   true  = 확인됨
 //   false = 서버가 그 정리를 끝내지 못했다고 **보고**함
 //   null  = 서버가 아무 말도 안 함 (옛 배포는 필드 자체가 없다)
@@ -37,6 +37,8 @@ export function useAccountDeletionNotice(): AccountDeletionNotice | null {
 // 변이가 그 하네스를 통째로 통과한다. 그 층은 deletion-receipt-copy.test.ts 가 덮는다.
 const observationKey = (value: boolean | null) =>
   value === true ? "observedAbsent" : value === false ? "reportedUnfinished" : "notReported";
+const proofKey = (value: boolean | null) =>
+  value === true ? "proofConfirmed" : value === false ? "proofReportedFalse" : "notReported";
 
 /** Display-only completion receipt. No deletion, remote retry, or persistent data. */
 export function AccountDeletionNoticePanel({ notice }: { notice: AccountDeletionNotice }) {
@@ -71,6 +73,14 @@ export function AccountDeletionNoticePanel({ notice }: { notice: AccountDeletion
         <View style={styles.row}>
           <Text style={m3TextStyle("titleSmall")}>{t("account.deletionReceipt.profile")}</Text>
           <Text style={m3TextStyle("bodyMedium")}>{t(`account.deletionReceipt.${observationKey(notice.receipt.profileErased)}`)}</Text>
+        </View>
+        <View style={styles.row}>
+          <Text style={m3TextStyle("titleSmall")}>{t("account.deletionReceipt.deletionFence")}</Text>
+          <Text style={m3TextStyle("bodyMedium")}>{t(`account.deletionReceipt.${proofKey(notice.receipt.deletionFenced)}`)}</Text>
+        </View>
+        <View style={styles.row}>
+          <Text style={m3TextStyle("titleSmall")}>{t("account.deletionReceipt.rawClippingsEmptyAtCheck")}</Text>
+          <Text style={m3TextStyle("bodyMedium")}>{t(`account.deletionReceipt.${proofKey(notice.receipt.rawClippingsEmptyAtCheck)}`)}</Text>
         </View>
         <View style={styles.row}>
           <Text style={m3TextStyle("titleSmall")}>{t("account.deletionReceipt.rawClippings")}</Text>

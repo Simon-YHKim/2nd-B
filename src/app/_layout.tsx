@@ -48,6 +48,7 @@ import { flushAuditWriteOutbox } from "@/lib/llm/audit-write-outbox";
 import { ageInYears } from "@/lib/supabase/auth";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { InlineLoader } from "@/components/ui/InlineLoader";
+import { EncryptedStorageRecoveryGate } from "@/screens/deepspace/storage-recovery-gate";
 import { BackArrow } from "@/components/ui/BackArrow";
 import { BackgroundTaskDock, CompletionToast, SecondbHeadTrackProvider } from "@/components/deepspace";
 import { PremiumTabBar } from "@/components/premium";
@@ -487,6 +488,7 @@ function IntroGate({ children }: { children: React.ReactNode }) {
     recoveryUserId,
     recoveryReady,
     recoveryPendingGlobal,
+    storageRecoveryRequired,
   } = useAuth();
   const segments = useSegments();
   const pathname = usePathname();
@@ -515,6 +517,11 @@ function IntroGate({ children }: { children: React.ReactNode }) {
   // Supabase session and recovery marker have been reconciled. `introDone`
   // intentionally bypasses later profile re-probes, so this separate one-shot
   // readiness signal closes the restart window without re-showing the intro.
+  // Sentinel-proven key loss is a terminal UNKNOWN auth state, but unlike an
+  // ordinary bootstrap wait it requires a user decision. Render the explicit
+  // Pixel-Clay consent gate before recoveryReady's loader so it is reachable
+  // from every route and no authenticated screen remains mounted underneath.
+  if (storageRecoveryRequired) return <EncryptedStorageRecoveryGate />;
   if (!recoveryReady) return <InlineLoader />;
 
   // Recovery provenance survives restart and owns navigation globally. Exact

@@ -403,7 +403,8 @@ describe("durable auth callback quarantine", () => {
     };
     values.set(RECOVERY_PROOF_KEY, JSON.stringify(proof));
     values.set(RECOVERY_PENDING_KEY, JSON.stringify(pending));
-    const signOut = jest.fn().mockResolvedValue({ error: new Error("local clear failed") });
+    const localClearError = new Error("local clear failed");
+    const signOut = jest.fn().mockResolvedValue({ error: localClearError });
     installClient({
       getSession: jest.fn().mockResolvedValue({ data: { session: established }, error: null }),
       signOut,
@@ -411,6 +412,7 @@ describe("durable auth callback quarantine", () => {
 
     await expect(reconcileAuthCallbackBootstrap(established)).resolves.toEqual({
       kind: "retryable",
+      error: localClearError,
     });
     expect(signOut).toHaveBeenCalledWith({ scope: "local" });
     expect(values.has(RECOVERY_PROOF_KEY)).toBe(true);
@@ -439,10 +441,12 @@ describe("durable auth callback quarantine", () => {
     );
 
     expect(bootstrapRetry).toContain("callbackReconciliationBlockedRef.current = true");
+    expect(bootstrapRetry).toContain("isEncryptedStorageRecoveryRequired(reconciliation.error)");
     expect(bootstrapRetry).toContain("publishRecoveryProof(null)");
     expect(bootstrapRetry).toContain("publishSessionUnavailable()");
     expect(bootstrapRetry).not.toContain("resolveSession(session");
     expect(refresh).toContain("await reconcileAuthCallbackBootstrap(probed.session)");
+    expect(refresh).toContain("isEncryptedStorageRecoveryRequired(reconciliation.error)");
     expect(refresh).toContain("sessionUnavailable: true");
   });
 });

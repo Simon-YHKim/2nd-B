@@ -3,10 +3,13 @@ import {
   accountEpochFromSnapshot,
   accountTransitionPendingFromSnapshot,
   accountTransitionSnapshot,
+  beginAccountOwnerTransition,
+  captureAccountOwnerLease,
   clearAccountTransition,
   currentAccountEpoch,
   isAccountTransitionPending,
   isCurrentAccountEpoch,
+  currentResolvedAccountOwner,
   noteResolvedOwner,
   onAccountOwnerChange,
   shouldReleaseAccountTransition,
@@ -32,6 +35,57 @@ describe("account epoch ownership boundary", () => {
     expect(isCurrentAccountEpoch(aEpoch)).toBe(false);
     expect(isAccountTransitionPending()).toBe(true);
     expect(transitions).toEqual([false, true]);
+  });
+
+  test("an observed B auth session hides A and invalidates its epoch before B publication", () => {
+    noteResolvedOwner("owner-a");
+    const aEpoch = currentAccountEpoch();
+
+    beginAccountOwnerTransition("owner-b");
+
+    expect(currentResolvedAccountOwner()).toBe("owner-a");
+    expect(currentAccountEpoch()).toBe(aEpoch + 1);
+    expect(isCurrentAccountEpoch(aEpoch)).toBe(false);
+    expect(isAccountTransitionPending()).toBe(true);
+    expect(clearAccountTransition(currentAccountEpoch())).toBe(false);
+
+    noteResolvedOwner("owner-b");
+    expect(currentResolvedAccountOwner()).toBe("owner-b");
+    expect(currentAccountEpoch()).toBe(aEpoch + 2);
+    expect(isAccountTransitionPending()).toBe(true);
+    expect(clearAccountTransition(currentAccountEpoch())).toBe(true);
+  });
+
+  test("rapid B then C observations keep A hidden and only advance each distinct target once", () => {
+    noteResolvedOwner("owner-a");
+    const aEpoch = currentAccountEpoch();
+
+    beginAccountOwnerTransition("owner-b");
+    beginAccountOwnerTransition("owner-b");
+    beginAccountOwnerTransition("owner-c");
+
+    expect(currentResolvedAccountOwner()).toBe("owner-a");
+    expect(currentAccountEpoch()).toBe(aEpoch + 2);
+    expect(isAccountTransitionPending()).toBe(true);
+
+    noteResolvedOwner("owner-c");
+    expect(currentResolvedAccountOwner()).toBe("owner-c");
+    expect(currentAccountEpoch()).toBe(aEpoch + 3);
+  });
+
+  test("owner mutation leases fail closed throughout a transition and reopen after navigation proof", () => {
+    noteResolvedOwner("owner-a");
+    const leaseA = captureAccountOwnerLease("owner-a");
+    expect(leaseA?.isCurrent()).toBe(true);
+
+    beginAccountOwnerTransition("owner-b");
+    expect(leaseA?.isCurrent()).toBe(false);
+    expect(captureAccountOwnerLease("owner-a")).toBeNull();
+
+    noteResolvedOwner("owner-b");
+    expect(captureAccountOwnerLease("owner-b")).toBeNull();
+    expect(clearAccountTransition(currentAccountEpoch())).toBe(true);
+    expect(captureAccountOwnerLease("owner-b")?.isCurrent()).toBe(true);
   });
 
   test("a second owner switch changes the primitive snapshot while held", () => {

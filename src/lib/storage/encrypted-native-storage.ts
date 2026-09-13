@@ -82,6 +82,7 @@ const MANAGED_EXACT_KEYS = new Set([
   "capture.preauthPending.v1",
   "llm.auditWriteOutbox.v1",
   "llm.auditWriteOutbox.recovery.v1",
+  "secondbrain.auth.callback-quarantine.v1",
   "secondbrain.auth.recovery-pending.v1",
   "secondbrain.auth.recovery-pending.v2",
   "secondbrain.auth.recovery-proof.v1",

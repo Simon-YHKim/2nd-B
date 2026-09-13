@@ -1,5 +1,7 @@
 const mockInsertAudit = jest.fn().mockResolvedValue(undefined);
 const mockInsertCrisis = jest.fn().mockResolvedValue(undefined);
+const localBacking = new Map<string, string>();
+let originalLocalStorage: PropertyDescriptor | undefined;
 
 jest.mock("../../supabase/audit", () => ({
   insertAiAuditLog: (...args: unknown[]) => mockInsertAudit(...args),
@@ -13,8 +15,13 @@ import {
   enqueueAuditWrite,
   flushAuditWriteOutbox,
   getAuditWriteOutboxForTests,
+  purgeAuditWriteOutboxForOwner,
   resetAuditWriteOutboxForTests,
 } from "../audit-write-outbox";
+import {
+  __resetAccountLocalDeletionFencesForTests,
+  installAccountLocalDeletionFence,
+} from "../../account/local-deletion-fence";
 
 const auditPayload = {
   userId: "u1",
@@ -35,12 +42,34 @@ const crisisPayload = {
 };
 
 describe("audit write outbox", () => {
+  beforeAll(() => {
+    originalLocalStorage = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: (key: string) => localBacking.get(key) ?? null,
+        setItem: (key: string, value: string) => { localBacking.set(key, value); },
+        removeItem: (key: string) => { localBacking.delete(key); },
+      },
+    });
+  });
+
   beforeEach(async () => {
+    localBacking.clear();
+    __resetAccountLocalDeletionFencesForTests();
     await resetAuditWriteOutboxForTests();
     mockInsertAudit.mockReset();
     mockInsertAudit.mockResolvedValue(undefined);
     mockInsertCrisis.mockReset();
     mockInsertCrisis.mockResolvedValue(undefined);
+  });
+
+  afterAll(() => {
+    if (originalLocalStorage) {
+      Object.defineProperty(globalThis, "localStorage", originalLocalStorage);
+    } else {
+      delete (globalThis as { localStorage?: unknown }).localStorage;
+    }
   });
 
   test("failed audit writes stay queued and later flush", async () => {
@@ -205,9 +234,13 @@ describe("audit write outbox", () => {
     Object.defineProperty(globalThis, "localStorage", {
       configurable: true,
       value: {
-        getItem: jest.fn(() => raw),
-        setItem: jest.fn((_key: string, value: string) => { raw = value; }),
-        removeItem: jest.fn(() => { raw = null; }),
+        getItem: jest.fn((key: string) => key === "llm.auditWriteOutbox.v1" ? raw : null),
+        setItem: jest.fn((key: string, value: string) => {
+          if (key === "llm.auditWriteOutbox.v1") raw = value;
+        }),
+        removeItem: jest.fn((key: string) => {
+          if (key === "llm.auditWriteOutbox.v1") raw = null;
+        }),
       },
     });
 
@@ -226,5 +259,89 @@ describe("audit write outbox", () => {
       if (original) Object.defineProperty(globalThis, "localStorage", original);
       else Reflect.deleteProperty(globalThis, "localStorage");
     }
+  });
+
+  test("terminal deletion purges only the deleted owner's queued rows", async () => {
+    mockInsertAudit.mockRejectedValue(new Error("network down"));
+    await enqueueAuditWrite({
+      kind: "ai_audit_log",
+      ownerUserId: "u1",
+      payload: auditPayload,
+      warnLabel: "[test] audit failed",
+    });
+    await enqueueAuditWrite({
+      kind: "ai_audit_log",
+      ownerUserId: "u2",
+      payload: { ...auditPayload, userId: "u2" },
+      warnLabel: "[test] audit failed",
+    });
+
+    await expect(purgeAuditWriteOutboxForOwner("u1")).resolves.toBe(true);
+    const remaining = await getAuditWriteOutboxForTests();
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0]!.ownerUserId).toBe("u2");
+  });
+
+  test("terminal deletion rejects an empty owner instead of widening the purge", async () => {
+    await expect(purgeAuditWriteOutboxForOwner(" ")).resolves.toBe(false);
+  });
+
+  test("a late in-flight submission cannot recreate a deleted owner's outbox row", async () => {
+    await expect(purgeAuditWriteOutboxForOwner("u1")).resolves.toBe(true);
+    mockInsertAudit.mockRejectedValue(new Error("late network failure"));
+
+    await enqueueAuditWrite({
+      kind: "ai_audit_log",
+      ownerUserId: "u1",
+      payload: auditPayload,
+      warnLabel: "[test] late audit failed",
+    });
+
+    expect(mockInsertAudit).not.toHaveBeenCalled();
+    expect(await getAuditWriteOutboxForTests()).toEqual([]);
+  });
+
+  test("reports an unobserved durable purge when browser storage rejects removal", async () => {
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: () => "stale",
+        setItem: () => { throw new Error("disk unavailable"); },
+        removeItem: () => { throw new Error("disk unavailable"); },
+      },
+    });
+    try {
+      await expect(purgeAuditWriteOutboxForOwner("u1")).resolves.toBe(false);
+    } finally {
+      Object.defineProperty(globalThis, "localStorage", {
+        configurable: true,
+        value: {
+          getItem: (key: string) => localBacking.get(key) ?? null,
+          setItem: (key: string, value: string) => { localBacking.set(key, value); },
+          removeItem: (key: string) => { localBacking.delete(key); },
+        },
+      });
+    }
+  });
+
+  test("a shared deletion fence blocks late enqueue and flush but preserves owner B", async () => {
+    await installAccountLocalDeletionFence("u1");
+
+    await enqueueAuditWrite({
+      kind: "ai_audit_log",
+      ownerUserId: "u1",
+      payload: auditPayload,
+      warnLabel: "[test] fenced audit",
+    });
+    await flushAuditWriteOutbox("u1");
+    expect(mockInsertAudit).not.toHaveBeenCalled();
+
+    await enqueueAuditWrite({
+      kind: "ai_audit_log",
+      ownerUserId: "u2",
+      payload: { ...auditPayload, userId: "u2" },
+      warnLabel: "[test] owner B audit",
+    });
+    expect(mockInsertAudit).toHaveBeenCalledTimes(1);
   });
 });

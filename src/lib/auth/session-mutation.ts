@@ -1,4 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   processLock,
   type LockFunc,
@@ -6,6 +5,10 @@ import {
 } from "@supabase/auth-js";
 import type { GoTrueClient } from "@supabase/auth-js";
 import { getEnv } from "../env";
+import {
+  getEncryptedNativeStorage,
+  migrateLegacyNativePlaintextAtStartup,
+} from "../storage/encrypted-native-storage";
 import {
   LEGACY_RECOVERY_PENDING_KEY,
   LEGACY_RECOVERY_PROOF_KEY,
@@ -20,6 +23,7 @@ const AUTH_STORAGE_SUFFIXES = ["", "-code-verifier", "-user"] as const;
 
 type MaybePromise<T> = T | Promise<T>;
 type AuthSessionClient = Pick<GoTrueClient, "getSession" | "signOut">;
+type AuthSessionRefreshClient = Pick<GoTrueClient, "getSession" | "refreshSession">;
 type BrowserLockLike = { readonly name: string; readonly mode: string };
 type BrowserLockRequest = <T>(
   name: string,
@@ -77,6 +81,9 @@ interface CreateAuthStorageRuntimeOptions {
   url: string;
   storage: SupportedStorage | undefined;
   web: boolean;
+  /** Native-only whole-allowlist plaintext scan. It must settle before the
+   * auth v2 M -> S barrier can inspect or move any auth/recovery key. */
+  startupMigration?: () => Promise<unknown>;
   navigatorLocksAvailable?: boolean;
   navigatorLockRequest?: BrowserLockRequest;
 }
@@ -244,7 +251,9 @@ export function createAuthStorageRuntime(
 
   const ready = (): Promise<void> => {
     if (!readyPromise) {
-      const attempt = exclusive(keys.mutationLock, () => migrate());
+      const attempt = Promise.resolve()
+        .then(() => options.startupMigration?.())
+        .then(() => exclusive(keys.mutationLock, () => migrate()));
       readyPromise = attempt.catch((error) => {
         readyPromise = null;
         throw error;
@@ -338,7 +347,7 @@ export function resolveAuthStorage(web: boolean): SupportedStorage | undefined {
   }
   const navigatorLike = globalThis.navigator as { product?: string } | undefined;
   return navigatorLike?.product === "ReactNative"
-    ? (AsyncStorage as unknown as SupportedStorage)
+    ? getEncryptedNativeStorage()
     : undefined;
 }
 
@@ -347,12 +356,22 @@ let productionRuntime: AuthStorageRuntime | null = null;
 export function getAuthStorageRuntime(): AuthStorageRuntime {
   if (productionRuntime) return productionRuntime;
   const web = typeof document !== "undefined";
+  const native = !web
+    && (globalThis.navigator as { product?: string } | undefined)?.product === "ReactNative";
   productionRuntime = createAuthStorageRuntime({
     url: getEnv().EXPO_PUBLIC_SUPABASE_URL,
     storage: resolveAuthStorage(web),
     web,
+    ...(native ? { startupMigration: migrateLegacyNativePlaintextAtStartup } : {}),
   });
   return productionRuntime;
+}
+
+/** Retire the production runtime after an explicitly-consented local recovery.
+ * Existing callers may finish only on their already-invalidated client epoch;
+ * every new caller receives a fresh migration/lock boundary. */
+export function resetAuthStorageRuntime(): void {
+  productionRuntime = null;
 }
 
 export async function runAuthSessionMutation<T>(
@@ -398,6 +417,32 @@ export async function assertExpectedSessionInsideMutation(
   if (!expectationMatches(expected, data.session)) throw new AuthSessionOwnerChangedError();
 }
 
+/** Refresh A while the caller already owns M, then prove that token rotation did
+ * not change the stable Supabase session. Destructive remote calls deliberately
+ * reject legacy JWTs without `session_id`: an access-token equality fallback
+ * cannot survive a legitimate refresh and therefore cannot bind the operation. */
+export async function refreshExpectedSessionInsideMutation(
+  client: AuthSessionRefreshClient,
+  expected: AuthSessionExpectation,
+): Promise<string> {
+  if (expected.userId === null || expected.sessionId === null) {
+    throw new AuthSessionOwnerChangedError();
+  }
+  await assertExpectedSessionInsideMutation(client, expected);
+  const { data, error } = await client.refreshSession();
+  if (error) throw error;
+  const refreshed = data.session;
+  if (
+    !refreshed?.access_token
+    || refreshed.user.id !== expected.userId
+    || sessionIdFromAccessToken(refreshed.access_token) !== expected.sessionId
+  ) {
+    throw new AuthSessionOwnerChangedError();
+  }
+  await assertExpectedSessionInsideMutation(client, expected);
+  return refreshed.access_token;
+}
+
 /** Call only while the caller already owns M. */
 export async function signOutExpectedSessionInsideMutation(
   client: AuthSessionClient,
@@ -429,5 +474,5 @@ export async function signOutExpectedSession(
 }
 
 export function __resetAuthStorageRuntimeForTests(): void {
-  productionRuntime = null;
+  resetAuthStorageRuntime();
 }

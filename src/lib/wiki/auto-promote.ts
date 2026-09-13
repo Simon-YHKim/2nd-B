@@ -25,6 +25,10 @@
  */
 
 import { getSupabaseClient } from "../supabase/client";
+import {
+  isAccountLocalDeletionFencedInMemory,
+  runAccountLocalMutation,
+} from "../account/local-deletion-fence";
 
 const LOCAL_KEY_PREFIX = "wiki.autoPromote.v1";
 // The capture path checks this on every save; one server read per ~30s is
@@ -37,6 +41,7 @@ export const DEFAULT_WIKI_AUTO_PROMOTE = false;
 interface AsyncStorageLike {
   getItem(key: string): Promise<string | null>;
   setItem(key: string, value: string): Promise<void>;
+  removeItem(key: string): Promise<void>;
 }
 
 const memoryMirror = new Map<string, boolean>();
@@ -79,16 +84,23 @@ async function readLocalMirror(userId: string): Promise<boolean | null> {
   return memoryMirror.has(key) ? (memoryMirror.get(key) ?? false) : null;
 }
 
-async function writeLocalMirror(userId: string, enabled: boolean): Promise<void> {
-  const key = localKey(userId);
-  memoryMirror.set(key, enabled);
-  const raw = enabled ? "1" : "0";
-  const web = webStorage();
-  if (web) {
-    web.setItem(key, raw);
-    return;
-  }
-  await nativeStorage()?.setItem(key, raw);
+async function writeLocalMirror(userId: string, enabled: boolean): Promise<boolean> {
+  const guarded = await runAccountLocalMutation(userId, async () => {
+    const key = localKey(userId);
+    memoryMirror.set(key, enabled);
+    const raw = enabled ? "1" : "0";
+    try {
+      const web = webStorage();
+      if (web) {
+        web.setItem(key, raw);
+        return;
+      }
+      await nativeStorage()?.setItem(key, raw);
+    } catch {
+      // The in-memory mirror retains the user's choice for this process.
+    }
+  });
+  return guarded.executed;
 }
 
 function resolveWikiAuto(stored: unknown): boolean | null {
@@ -102,6 +114,7 @@ function resolveWikiAuto(stored: unknown): boolean | null {
  * mirror -> false.
  */
 export async function getWikiAutoPromote(userId: string): Promise<boolean> {
+  if (isAccountLocalDeletionFencedInMemory(userId)) return DEFAULT_WIKI_AUTO_PROMOTE;
   const cached = readCache.get(userId);
   if (cached && Date.now() - cached.at < READ_CACHE_MS) return cached.value;
   try {
@@ -113,8 +126,10 @@ export async function getWikiAutoPromote(userId: string): Promise<boolean> {
     if (error) throw error;
     const server = resolveWikiAuto(data?.reasoning_prefs);
     if (server !== null) {
+      if (!(await writeLocalMirror(userId, server).catch(() => false))) {
+        return DEFAULT_WIKI_AUTO_PROMOTE;
+      }
       readCache.set(userId, { value: server, at: Date.now() });
-      void writeLocalMirror(userId, server).catch(() => undefined);
       return server;
     }
     // Row readable but the key was never set — fall through to the mirror, then
@@ -135,8 +150,8 @@ export async function getWikiAutoPromote(userId: string): Promise<boolean> {
  * server merge-write. Warn-only on server failure — never throws.
  */
 export async function setWikiAutoPromote(userId: string, enabled: boolean): Promise<void> {
+  if (!(await writeLocalMirror(userId, enabled).catch(() => false))) return;
   readCache.set(userId, { value: enabled, at: Date.now() });
-  await writeLocalMirror(userId, enabled).catch(() => undefined);
   try {
     const client = getSupabaseClient();
     // Read-merge-write: `auto` (automatic reasoning) lives in the same jsonb and
@@ -183,6 +198,28 @@ export async function maybeAutoPromoteSource(userId: string, sourceId: string): 
     if (typeof console !== "undefined") {
       console.warn("[wiki] auto-promote skipped", (e as Error).message);
     }
+  }
+}
+
+/** Remove only the terminally deleted owner's local mirror and cached value. */
+export async function purgeWikiAutoPromoteForDeletedAccount(userId: string): Promise<boolean> {
+  const owner = userId.trim();
+  if (!owner) return false;
+  const key = localKey(owner);
+  memoryMirror.delete(key);
+  readCache.delete(owner);
+  try {
+    const web = webStorage();
+    if (web) {
+      web.removeItem(key);
+      return web.getItem(key) === null;
+    }
+    const native = nativeStorage();
+    if (!native) return false;
+    await native.removeItem(key);
+    return (await native.getItem(key)) === null;
+  } catch {
+    return false;
   }
 }
 

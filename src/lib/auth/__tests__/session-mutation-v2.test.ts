@@ -5,6 +5,7 @@ import {
   authStorageKeysForUrl,
   captureAuthSessionExpectation,
   createAuthStorageRuntime,
+  refreshExpectedSessionInsideMutation,
   resolveAuthStorage,
   signOutExpectedSession,
 } from "../session-mutation";
@@ -14,6 +15,19 @@ import {
   RECOVERY_PENDING_KEY,
   RECOVERY_PROOF_KEY,
 } from "../recovery-proof-store";
+
+const mockEncryptedStorage = {
+  getItem: jest.fn<Promise<string | null>, [string]>(),
+  setItem: jest.fn<Promise<void>, [string, string]>(),
+  removeItem: jest.fn<Promise<void>, [string]>(),
+};
+const mockGetEncryptedNativeStorage = jest.fn(() => mockEncryptedStorage);
+const mockMigrateLegacyNativePlaintextAtStartup = jest.fn<Promise<unknown>, []>();
+
+jest.mock("../../storage/encrypted-native-storage", () => ({
+  getEncryptedNativeStorage: () => mockGetEncryptedNativeStorage(),
+  migrateLegacyNativePlaintextAtStartup: () => mockMigrateLegacyNativePlaintextAtStartup(),
+}));
 
 const URL = "https://auth-v2-test.supabase.co";
 
@@ -98,6 +112,49 @@ function makeClient(
 }
 
 describe("auth v2 storage and mutation boundary", () => {
+  test("native resolution selects only the encrypted adapter", () => {
+    const previous = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+    Object.defineProperty(globalThis, "navigator", {
+      configurable: true,
+      value: { product: "ReactNative" },
+    });
+    try {
+      mockGetEncryptedNativeStorage.mockClear();
+      expect(resolveAuthStorage(false)).toBe(mockEncryptedStorage);
+      expect(mockGetEncryptedNativeStorage).toHaveBeenCalledTimes(1);
+    } finally {
+      if (previous) Object.defineProperty(globalThis, "navigator", previous);
+      else delete (globalThis as { navigator?: unknown }).navigator;
+    }
+  });
+
+  test("runs the native plaintext scan before the auth v2 migration barrier", async () => {
+    const calls: string[] = [];
+    const storage = new MemoryStorage();
+    const keys = authStorageKeysForUrl(URL);
+    storage.values.set(keys.v1Primary, "legacy-session");
+    const originalGet = storage.getItem.bind(storage);
+    storage.getItem = (key: string) => {
+      calls.push(`read:${key}`);
+      return originalGet(key);
+    };
+    const startupMigration = jest.fn(async () => {
+      calls.push("plaintext-scan");
+    });
+
+    const runtime = createAuthStorageRuntime({
+      url: URL,
+      storage,
+      web: false,
+      startupMigration,
+    });
+    await runtime.ready();
+
+    expect(startupMigration).toHaveBeenCalledTimes(1);
+    expect(calls[0]).toBe("plaintext-scan");
+    expect(storage.getItem(keys.v2Primary)).toBe("legacy-session");
+  });
+
   test("method-denied localStorage falls back to memory before migration starts", () => {
     const previous = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
     Object.defineProperty(globalThis, "localStorage", {
@@ -579,6 +636,54 @@ describe("auth v2 storage and mutation boundary", () => {
     await expect(signingOut).resolves.toBeUndefined();
     expect(logoutAuthorization).toBe(`Bearer ${a2.access_token}`);
     expect(storage.getItem(runtime.storageKey)).toBeNull();
+  });
+
+  test("destructive refresh accepts token rotation only within the captured session_id", async () => {
+    const a1 = session("user-a", "session-a", 1);
+    const a2 = session("user-a", "session-a", 2);
+    const getSession = jest.fn()
+      .mockResolvedValueOnce({ data: { session: a1 }, error: null })
+      .mockResolvedValueOnce({ data: { session: a2 }, error: null });
+    const refreshSession = jest.fn().mockResolvedValue({ data: { session: a2 }, error: null });
+    const client = { getSession, refreshSession } as unknown as Pick<
+      GoTrueClient,
+      "getSession" | "refreshSession"
+    >;
+
+    await expect(refreshExpectedSessionInsideMutation(client, {
+      userId: "user-a",
+      sessionId: "session-a",
+      accessToken: a1.access_token,
+    })).resolves.toBe(a2.access_token);
+    expect(getSession).toHaveBeenCalledTimes(2);
+    expect(refreshSession).toHaveBeenCalledTimes(1);
+  });
+
+  test("destructive refresh rejects a changed session and legacy JWT expectations", async () => {
+    const a1 = session("user-a", "session-a", 1);
+    const b = session("user-a", "session-b", 2);
+    const changedClient = {
+      getSession: jest.fn().mockResolvedValue({ data: { session: a1 }, error: null }),
+      refreshSession: jest.fn().mockResolvedValue({ data: { session: b }, error: null }),
+    } as unknown as Pick<GoTrueClient, "getSession" | "refreshSession">;
+
+    await expect(refreshExpectedSessionInsideMutation(changedClient, {
+      userId: "user-a",
+      sessionId: "session-a",
+      accessToken: a1.access_token,
+    })).rejects.toBeInstanceOf(AuthSessionOwnerChangedError);
+
+    const legacyClient = {
+      getSession: jest.fn(),
+      refreshSession: jest.fn(),
+    } as unknown as Pick<GoTrueClient, "getSession" | "refreshSession">;
+    await expect(refreshExpectedSessionInsideMutation(legacyClient, {
+      userId: "user-a",
+      sessionId: null,
+      accessToken: "legacy-token",
+    })).rejects.toBeInstanceOf(AuthSessionOwnerChangedError);
+    expect(legacyClient.getSession).not.toHaveBeenCalled();
+    expect(legacyClient.refreshSession).not.toHaveBeenCalled();
   });
 
   test("real GoTrue sign-out accepts a same-session refresh and emits SIGNED_OUT before queued B signs in", async () => {

@@ -20,6 +20,7 @@ import { MdButton } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { keepAllKo } from "@/lib/i18n/keep-all";
 import { composeNoticeCenter } from "@/lib/notices/center";
+import { readNoticeSeenId, writeNoticeSeenId } from "@/lib/notices/last-seen";
 import { renderableBlocks } from "@/lib/notices/markdown";
 import {
   addReadId,
@@ -185,55 +186,6 @@ export const PRODUCT_NOTICES: readonly ProductNotice[] = [
 
 export const LATEST_NOTICE = PRODUCT_NOTICES[0];
 
-interface AsyncStorageLike {
-  getItem(key: string): Promise<string | null>;
-  setItem(key: string, value: string): Promise<void>;
-}
-
-const memorySeen = new Map<string, string>();
-
-function noticeSeenKey(userId: string): string {
-  return `notices.lastSeen.v1.${userId}`;
-}
-
-function webStorage(): Storage | null {
-  try {
-    return typeof localStorage === "undefined" ? null : localStorage;
-  } catch {
-    return null;
-  }
-}
-
-function nativeStorage(): AsyncStorageLike | null {
-  const nav = globalThis.navigator as { product?: string } | undefined;
-  if (nav?.product !== "ReactNative") return null;
-  try {
-    return require("@react-native-async-storage/async-storage").default as AsyncStorageLike;
-  } catch {
-    return null;
-  }
-}
-
-async function readSeenId(userId: string): Promise<string | null> {
-  const key = noticeSeenKey(userId);
-  const web = webStorage();
-  if (web) return web.getItem(key);
-  const native = nativeStorage();
-  if (native) return native.getItem(key);
-  return memorySeen.get(key) ?? null;
-}
-
-async function writeSeenId(userId: string, noticeId: string): Promise<void> {
-  const key = noticeSeenKey(userId);
-  memorySeen.set(key, noticeId);
-  const web = webStorage();
-  if (web) {
-    web.setItem(key, noticeId);
-    return;
-  }
-  await nativeStorage()?.setItem(key, noticeId);
-}
-
 /**
  * The notice centre: bundled release notes plus operator-published rows from
  * the `notices` table, merged into one list, one unread count and one popup.
@@ -276,7 +228,7 @@ export function useNoticeCenter(userId: string | null) {
     setRemote(undefined);
     setReadsHydrated(false);
 
-    void readSeenId(userId)
+    void readNoticeSeenId(userId)
       .then((value) => {
         if (!cancelled) setSeenId(value);
       })
@@ -361,7 +313,7 @@ export function useNoticeCenter(userId: string | null) {
       // a newer announcement.
       if (noticeId !== LATEST_NOTICE.id) return;
       setSeenId(noticeId);
-      await writeSeenId(userId, noticeId).catch(() => undefined);
+      await writeNoticeSeenId(userId, noticeId).catch(() => undefined);
     },
     [userId, state.remoteIds],
   );

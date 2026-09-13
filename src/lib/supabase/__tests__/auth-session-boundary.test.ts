@@ -225,14 +225,20 @@ describe("Supabase auth session mutation boundary", () => {
       path.join(ROOT, "src/screens/deepspace/DeepSpaceDesignScreens.tsx"),
       "utf8",
     );
-    expect(requestSource).toContain("assertExpectedSessionInsideMutation");
+    expect(requestSource).toContain("refreshExpectedSessionInsideMutation");
     expect(requestSource).toContain("{ requireCrossTab: true }");
+    const localFence = requestSource.indexOf("await installAccountLocalDeletionFence(expected.userId)");
+    const remoteInvoke = requestSource.indexOf('supabase.functions.invoke("delete-account"');
+    expect(localFence).toBeGreaterThan(-1);
+    expect(remoteInvoke).toBeGreaterThan(localFence);
     const capture = screenSource.indexOf("await captureSignOutExpectation()");
     const request = screenSource.indexOf("await requestAccountDeletion(authExpectation)");
+    const localPurge = screenSource.indexOf("await purgeDeletedAccountLocalData(targetUserId)");
     const finalizer = screenSource.indexOf("await signOutExpected(authExpectation)");
     expect(capture).toBeGreaterThan(-1);
     expect(request).toBeGreaterThan(capture);
-    expect(finalizer).toBeGreaterThan(request);
+    expect(localPurge).toBeGreaterThan(request);
+    expect(finalizer).toBeGreaterThan(localPurge);
     expect(screenSource).toContain("e instanceof AuthSessionOwnerChangedError");
   });
 

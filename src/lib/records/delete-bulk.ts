@@ -6,10 +6,12 @@
 import { getSupabaseClient } from "../supabase/client";
 import { invalidateDomainLevels } from "../persona/load-domain-levels";
 import {
-  assertExpectedSessionInsideMutation,
+  AuthSessionOwnerChangedError,
   getAuthStorageRuntime,
+  refreshExpectedSessionInsideMutation,
   type AuthSessionExpectation,
 } from "../auth/session-mutation";
+import { installAccountLocalDeletionFence } from "../account/local-deletion-fence";
 
 /** Delete every record belonging to the user. Returns affected count. */
 export async function deleteAllRecords(userId: string): Promise<number> {
@@ -224,6 +226,15 @@ async function bestEffort(fn: () => Promise<number>, label: string): Promise<num
 /** The two post-cascade sweeps the Edge Function reports on separately. */
 export type DeletionSweep = "profile" | "rawClippings";
 
+// 10,001 flat objects need at most eleven bounded invocations. One additional
+// attempt leaves margin for a concurrent late object while still making a
+// hostile progress stream finite.
+export const ACCOUNT_DELETION_MAX_ATTEMPTS = 12;
+/** Both bounds matter: an upstream can answer quickly forever, or one call can
+ * stall. Attempts cap the former; one absolute deadline and AbortSignal cap the
+ * latter without resetting the clock on each retry. */
+export const ACCOUNT_DELETION_DEADLINE_MS = 90_000;
+
 /** What the client actually observed when terminal erasure returned.
  *
  *  `deleted` is the only field that gates the destructive boundary: it is true
@@ -235,7 +246,13 @@ export type DeletionSweep = "profile" | "rawClippings";
 export type AccountDeletionReceipt = {
   deleted: true;
   profileErased: boolean | null;
+  /** Whether the server committed its durable deletion tombstone. */
+  deletionFenced: boolean | null;
   rawClippingsErased: boolean | null;
+  /** Whether the server's final flat listing was empty before Auth deletion. */
+  rawClippingsEmptyAtCheck: boolean | null;
+  /** Objects the server reported removing across every bounded attempt. */
+  rawClippingsRemoved: number | null;
   /** Sweeps the server reported as not finished. */
   incomplete: DeletionSweep[];
   /** Sweeps the server said nothing about. Unknown is not failure. */
@@ -249,18 +266,49 @@ function readFlag(value: unknown): boolean | null {
   return typeof value === "boolean" ? value : null;
 }
 
-/** Terminal account erasure (GDPR Art.17 / PIPA). Invokes the delete-account
- *  Edge Function, which (service role) deletes auth.users first so the profile
- *  and every user_id-owned table cascade in the same database transaction. It
- *  then applies an idempotent profile safety net and cleans raw-clippings
- *  Storage. This is the only path that reaches RLS-protected tables (personas,
- *  memorized_patterns, xp_events) and the append-only consent_records ledger.
- *  Requires the function to be deployed; throws unless terminal deletion is
- *  confirmed so the caller can decide how to proceed.
+function readRemovedCount(value: unknown): number | null {
+  if (typeof value !== "number") return null;
+  return Number.isSafeInteger(value) && value >= 0 ? value : null;
+}
+
+async function readCleanupProgress(error: unknown): Promise<number | null> {
+  const context = (error as {
+    context?: {
+      status?: unknown;
+      clone?: () => { json?: () => Promise<unknown> };
+      json?: () => Promise<unknown>;
+    };
+  } | null)?.context;
+  if (context?.status !== 409) return null;
+  try {
+    const readable = typeof context.clone === "function" ? context.clone() : context;
+    if (typeof readable.json !== "function") return null;
+    const body = await readable.json() as {
+      error?: unknown;
+      deletion_fenced?: unknown;
+      raw_clippings_erased?: unknown;
+      raw_clippings_removed?: unknown;
+    } | null;
+    if (
+      body?.error !== "deletion_cleanup_in_progress"
+      || body.deletion_fenced !== true
+      || body.raw_clippings_erased !== false
+    ) return null;
+    return readRemovedCount(body.raw_clippings_removed);
+  } catch {
+    return null;
+  }
+}
+
+/** Terminal account erasure. Compares both live session reads with the user id
+ *  captured at confirmation, then binds that exact refreshed token to the Edge
+ *  request. An account switch cannot retarget an already-open confirmation;
+ *  throws unless terminal deletion is confirmed so the caller can proceed.
  *
  *  Returns the receipt instead of discarding it. The function reports the two
- *  post-cascade sweeps separately (index.ts:172), and a failed sweep is NOT a
- *  failed deletion — auth.users is already gone and the cascade already ran.
+ *  observed post-deletion checks separately (index.ts:244-283), and a failed
+ *  check is NOT a failed deletion — auth.users is already gone and the cascade
+ *  already ran.
  *  Throwing on a partial would tell the user deletion failed when it did not,
  *  and would offer a destructive retry against a dead account. So the partial
  *  travels back as data and the screen decides what to say. */
@@ -269,32 +317,107 @@ export async function requestAccountDeletion(
 ): Promise<AccountDeletionReceipt> {
   const supabase = getSupabaseClient();
   const runtime = getAuthStorageRuntime();
+  const deadlineAt = Date.now() + ACCOUNT_DELETION_DEADLINE_MS;
   return runtime.runMutation(async () => {
-    await assertExpectedSessionInsideMutation(supabase.auth, expected);
-    const { data, error } = await supabase.functions.invoke("delete-account", { body: {} });
-    if (error) throw error;
-    const body = data as
-      | { deleted?: unknown; profile_erased?: unknown; raw_clippings_erased?: unknown }
-      | null;
-    if (body?.deleted !== true) {
-      throw new Error("account deletion did not complete");
+    if (expected.userId === null || expected.sessionId === null) {
+      throw new AuthSessionOwnerChangedError();
     }
-    const profileErased = readFlag(body.profile_erased);
-    const rawClippingsErased = readFlag(body.raw_clippings_erased);
-    const sweeps: [DeletionSweep, boolean | null][] = [
-      ["profile", profileErased],
-      ["rawClippings", rawClippingsErased],
-    ];
-    const incomplete = sweeps.filter(([, v]) => v === false).map(([k]) => k);
-    const unconfirmed = sweeps.filter(([, v]) => v === null).map(([k]) => k);
-    return {
-      deleted: true,
-      profileErased,
-      rawClippingsErased,
-      incomplete,
-      unconfirmed,
-      complete: incomplete.length === 0 && unconfirmed.length === 0,
-      observedAtIso: new Date().toISOString(),
-    };
+    // Publish and durably read back the local owner tombstone before the first
+    // destructive Edge invocation. False means another tab could not be joined
+    // or persistence failed, so deletion stays on hold and the network sees 0
+    // delete-account calls.
+    const localFenceAcknowledged = await installAccountLocalDeletionFence(expected.userId);
+    if (!localFenceAcknowledged) {
+      throw new Error("account local deletion fence was not acknowledged");
+    }
+    let removedBeforeSuccess = 0;
+
+    for (let attempt = 0; attempt < ACCOUNT_DELETION_MAX_ATTEMPTS; attempt += 1) {
+      if (Date.now() >= deadlineAt) throw new Error("account deletion retry deadline exhausted");
+      // Keep every retry inside the same cross-tab mutation owner. Refresh may
+      // rotate the token, but the captured user/session identity must not move.
+      const accessToken = await refreshExpectedSessionInsideMutation(supabase.auth, expected);
+
+      // Refresh can consume most of the same absolute budget. Recompute here so
+      // the Edge signal expires at the original deadline, never one refresh later.
+      const remainingMs = deadlineAt - Date.now();
+      if (remainingMs <= 0) throw new Error("account deletion retry deadline exhausted");
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), remainingMs);
+      let invocation: Awaited<ReturnType<typeof supabase.functions.invoke>>;
+      try {
+        invocation = await supabase.functions.invoke("delete-account", {
+          body: {},
+          headers: { Authorization: `Bearer ${accessToken}` },
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
+      const { data, error } = invocation;
+      if (error) {
+        const removed = await readCleanupProgress(error);
+        if (removed === null || !Number.isSafeInteger(removedBeforeSuccess + removed)) throw error;
+        removedBeforeSuccess += removed;
+        if (
+          attempt + 1 < ACCOUNT_DELETION_MAX_ATTEMPTS
+          && Date.now() < deadlineAt
+        ) continue;
+        throw error;
+      }
+
+      const body = data as
+        | {
+            deleted?: unknown;
+            profile_erased?: unknown;
+            deletion_fenced?: unknown;
+            raw_clippings_erased?: unknown;
+            raw_clippings_empty_at_check?: unknown;
+            raw_clippings_removed?: unknown;
+          }
+        | null;
+      if (body?.deleted !== true) {
+        throw new Error("account deletion did not complete");
+      }
+      const profileErased = readFlag(body.profile_erased);
+      const deletionFenced = readFlag(body.deletion_fenced);
+      const rawClippingsEmptyAtCheck = readFlag(body.raw_clippings_empty_at_check);
+      const reportedRawClippingsErased = readFlag(body.raw_clippings_erased);
+      // Permanent-erasure=true is a conclusion backed by all three server
+      // observations, not a single legacy flag. A reported false remains false;
+      // any contradictory or missing proof remains honestly unknown.
+      const rawClippingsErased = reportedRawClippingsErased === false
+        ? false
+        : reportedRawClippingsErased === true
+          && deletionFenced === true
+          && rawClippingsEmptyAtCheck === true
+          ? true
+          : null;
+      const finalRemoved = readRemovedCount(body.raw_clippings_removed);
+      const rawClippingsRemoved = finalRemoved !== null
+        && Number.isSafeInteger(removedBeforeSuccess + finalRemoved)
+        ? removedBeforeSuccess + finalRemoved
+        : null;
+      const sweeps: [DeletionSweep, boolean | null][] = [
+        ["profile", profileErased],
+        ["rawClippings", rawClippingsErased],
+      ];
+      const incomplete = sweeps.filter(([, v]) => v === false).map(([k]) => k);
+      const unconfirmed = sweeps.filter(([, v]) => v === null).map(([k]) => k);
+      return {
+        deleted: true,
+        profileErased,
+        deletionFenced,
+        rawClippingsErased,
+        rawClippingsEmptyAtCheck,
+        rawClippingsRemoved,
+        incomplete,
+        unconfirmed,
+        complete: incomplete.length === 0 && unconfirmed.length === 0,
+        observedAtIso: new Date().toISOString(),
+      };
+    }
+
+    throw new Error("account deletion retry bound exhausted");
   }, { requireCrossTab: true });
 }

@@ -26,7 +26,10 @@ const OWNER = "11111111-1111-4111-8111-111111111111";
 const RECEIPT = {
   deleted: true as const,
   profileErased: true,
+  deletionFenced: true,
   rawClippingsErased: null,
+  rawClippingsEmptyAtCheck: true,
+  rawClippingsRemoved: 3,
   incomplete: [],
   unconfirmed: ["rawClippings" as const],
   complete: false,
@@ -58,6 +61,8 @@ function harness(
     signOutFails?: boolean;
     ownerChangedDuringFinalizer?: boolean;
     deletionFails?: boolean;
+    localPurgeFails?: boolean;
+    localPurgeUnconfirmed?: boolean;
   } = {},
 ) {
   const calls = { purge: 0, signOut: 0, dismissAll: 0, replace: [] as string[] };
@@ -82,7 +87,11 @@ function harness(
       if (options.deletionFails) throw new Error("terminal deletion failed");
       return RECEIPT;
     },
-    purgeCaptureDraftsForDeletedAccount: async () => { calls.purge += 1; },
+    purgeDeletedAccountLocalData: async () => {
+      calls.purge += 1;
+      if (options.localPurgeFails) throw new Error("local purge failed");
+      return options.localPurgeUnconfirmed ? "unconfirmed" : "complete";
+    },
     signOutExpected: async () => {
       calls.signOut += 1;
       if (options.ownerChangedDuringFinalizer) {
@@ -114,19 +123,34 @@ describe("삭제한 사람이 서버가 말한 것을 듣는다", () => {
     const notice = getAccountDeletionNotice();
     expect(notice).not.toBeNull();
     expect(notice?.receipt.profileErased).toBe(true);
+    expect(notice?.receipt.deletionFenced).toBe(true);
     expect(notice?.receipt.rawClippingsErased).toBeNull();
+    expect(notice?.receipt.rawClippingsEmptyAtCheck).toBe(true);
     expect(notice?.receipt.unconfirmed).toEqual(["rawClippings"]);
     expect(calls.signOut).toBe(1);
     expect(calls.replace).toEqual(["/sign-in"]);
   });
 
-  test("로컬 정리는 unconfirmed 로 보고한다 - 이 흐름은 검사된 정리 단계를 돌리지 않는다", () => {
-    // 이 화면은 캡처 초안만 지운다. 문구가 말하는 "검사된 로컬 정리 단계" 는
-    // purge-local-data 의 12개 작업이고 그것은 아직 착지하지 않았다.
-    // complete 라고 쓰면 더 좁은 청소를 넓은 것처럼 말하게 된다.
-    const source = fs.readFileSync(path.join(process.cwd(), FILE), "utf8");
-    expect(source).toMatch(/beginSignOut\(receipt,\s*"unconfirmed"\)/);
-    expect(source).not.toMatch(/beginSignOut\(receipt,\s*"complete"\)/);
+  test("검사된 owner-scoped 로컬 정리 결과를 영수증에 그대로 연결한다", async () => {
+    const clean = harness();
+    await clean.run();
+    expect(clean.calls.purge).toBe(1);
+    expect(getAccountDeletionNotice()?.localPurge).toBe("complete");
+
+    dismissAccountDeletionNotice();
+    __resetAccountEpochForTests();
+    noteResolvedOwner(OWNER);
+    const incomplete = harness({ localPurgeUnconfirmed: true });
+    await incomplete.run();
+    expect(getAccountDeletionNotice()?.localPurge).toBe("unconfirmed");
+  });
+
+  test("로컬 정리 예외도 삭제·로그아웃·영수증 발행을 되돌리지 않는다", async () => {
+    const { run, calls } = harness({ localPurgeFails: true });
+    await run();
+    expect(calls.signOut).toBe(1);
+    expect(getAccountDeletionNotice()?.localPurge).toBe("unconfirmed");
+    expect(getAccountDeletionNotice()?.localSignOut).toBe("complete");
   });
 
   test("로그아웃이 성공하면 complete, 실패하면 unconfirmed 로 남는다", async () => {

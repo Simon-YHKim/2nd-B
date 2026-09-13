@@ -1,5 +1,8 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { getAuthStorageRuntime } from "../auth/session-mutation";
+import {
+  getAuthStorageRuntime,
+  resetAuthStorageRuntime,
+} from "../auth/session-mutation";
 import { getEnv } from "../env";
 
 // Auth persistence is versioned separately from the SDK default. The runtime
@@ -49,6 +52,28 @@ export function getSupabaseClient(): SupabaseClient {
 
   return client;
 }
+
+/** Retire the singleton and its auth-storage barrier after explicitly-consented
+ * encrypted local recovery. Dropping references is the boundary; transport
+ * cleanup is best-effort and cannot make the unreadable client reusable. */
+export async function resetSupabaseClient(): Promise<void> {
+  const previous = client;
+  client = null;
+  resetAuthStorageRuntime();
+  if (!previous) return;
+
+  try {
+    await previous.auth.stopAutoRefresh();
+  } catch {
+    // The old client is already retired.
+  }
+  try {
+    await previous.removeAllChannels();
+  } catch {
+    // Channel cleanup cannot reopen the retired client/storage boundary.
+  }
+}
+
 // Test hook. Not used in production code.
 export function __setSupabaseClientForTests(c: SupabaseClient | null): void {
   client = c;

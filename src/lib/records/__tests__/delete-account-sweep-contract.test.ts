@@ -15,13 +15,18 @@ import { resolve } from "path";
  *
  * 이건 이번 회차 내내 나온 것과 같은 모양이다. 없는 확인을 지어내지 않는다.
  *
- * Deno 함수는 Jest 에서 실행할 수 없으므로 `edge-jwt-hardening.test.ts` 와 같은
- * 소스 계약 검사로 지킨다. 주석은 걷어낸다 — 검사를 **언급만** 하는 주석이
+ * Deno endpoint 자체는 소스 계약으로 지키고, 분리한 Storage 알고리즘은
+ * `supabase/functions/delete-account/__tests__/storage-erasure.test.ts` 에서 실제로
+ * 실행한다. 이 파일에서는 주석을 걷는다 — 검사를 **언급만** 하는 주석이
  * 없는 코드를 가리면 안 된다.
  */
 const FUNCTION_FILE = resolve(
   __dirname,
   "../../../../supabase/functions/delete-account/index.ts",
+);
+const STORAGE_FILE = resolve(
+  __dirname,
+  "../../../../supabase/functions/delete-account/storage-erasure.ts",
 );
 
 function stripComments(src: string): string {
@@ -30,15 +35,12 @@ function stripComments(src: string): string {
     .replace(/(^|[^:])\/\/.*$/gm, "$1");
 }
 
-const code = stripComments(readFileSync(FUNCTION_FILE, "utf8"));
+const code = stripComments(`${readFileSync(STORAGE_FILE, "utf8")}\n${readFileSync(FUNCTION_FILE, "utf8")}`);
 
 describe("delete-account raw-clippings sweep reports only what it observed", () => {
   test("reads the removal RESULT, not just the error", () => {
-    // `const { error: rmErr } = await ...remove(paths)` throws the removed list
-    // away. The destructure must bind the data side too.
-    const removeCall = code.match(/const\s*\{([^}]*)\}\s*=\s*await\s+admin\.storage[^;]*\.remove\(/);
-    expect(removeCall).not.toBeNull();
-    expect(removeCall![1]).toMatch(/\bdata\b/);
+    expect(code).toMatch(/removeResponse\s*=\s*await bucket\.remove\(paths\)/);
+    expect(code).toMatch(/Array\.isArray\(removeResponse\.data\)/);
   });
 
   test("the count actually comes from the removal result", () => {
@@ -46,42 +48,48 @@ describe("delete-account raw-clippings sweep reports only what it observed", () 
     // **이름**이 `paths.length` 와 비교되기만 하면 통과했는데, 그러면
     // `const removedCount = paths.length` 로 가드를 완전히 무력화해도 초록이었다.
     // 그래서 결과 배열의 길이를 **실제로 읽는지**를 따로 못박는다.
-    expect(code).toMatch(/Array\.isArray\(\s*removed\s*\)|\bremoved\s*(\?\.|\.)\s*length/);
+    expect(code).toMatch(/for \(const removed of removeResponse\.data\)/);
+    expect(code).toMatch(/confirmed\.add\(removed\.name\)/);
   });
 
-  test("compares something derived from the removal result against the requested count", () => {
-    // A short result with no error is a partial removal. The contract is that
-    // a value derived from `removed` is measured against `paths.length` — not
-    // any particular expression shape, so a later refactor can keep the
-    // guarantee without tripping this guard.
-    expect(code).toMatch(/\bremoved[A-Za-z]*\b[\s\S]{0,200}?<\s*paths\.length/);
+  test("compares the exact returned-name set against the requested set", () => {
+    expect(code).toMatch(/requested\.has\(removed\.name\)/);
+    expect(code).toMatch(/confirmed\.size\s*!==\s*requested\.size/);
   });
 
-  test("a short removal marks the sweep as NOT erased", () => {
-    const idx = code.search(/<\s*paths\.length/);
+  test("a short removal returns an explicit unconfirmed result", () => {
+    const idx = code.search(/confirmed\.size\s*!==\s*requested\.size/);
     expect(idx).toBeGreaterThan(-1);
     const after = code.slice(idx, idx + 400);
-    expect(after).toMatch(/rawClippingsErased\s*=\s*false/);
+    expect(after).toMatch(/storage_remove_incomplete/);
   });
 
-  test("still marks not-erased on a list error and on a remove error", () => {
-    // Regression guard: the pre-existing honesty must survive the change.
-    expect(code).toMatch(/listErr[\s\S]{0,200}?rawClippingsErased\s*=\s*false/);
-    expect(code).toMatch(/rmErr[\s\S]{0,200}?rawClippingsErased\s*=\s*false/);
+  test("still fails closed on a list error and on a remove error", () => {
+    expect(code).toMatch(/listingResponse\.error[\s\S]{0,300}?storage_list_failed/);
+    expect(code).toMatch(/removeResponse\.error[\s\S]{0,300}?storage_remove_failed/);
   });
 
-  test("still reports the two sweeps separately in the response", () => {
+  test("reports durable fence and one completed pre-Auth sweep", () => {
     expect(code).toMatch(/deleted:\s*true/);
     expect(code).toMatch(/profile_erased:\s*profileErased/);
-    expect(code).toMatch(/raw_clippings_erased:\s*rawClippingsErased/);
+    expect(code).toMatch(/deletion_fenced:\s*true/);
+    expect(code).toMatch(/raw_clippings_erased:\s*true/);
+    expect(code).toMatch(/raw_clippings_empty_at_check:\s*true/);
+    expect(code).toMatch(/raw_clippings_removed:\s*preDeletionStorage\.removed/);
   });
 
-  test("the sweep never fails the request — the account is already erased", () => {
-    // The auth delete is the only fatal step. A Storage hiccup must not turn a
-    // completed deletion into a 500 the user reads as failure.
-    expect(code).toMatch(/auth_delete_failed/);
-    const sweepStart = code.indexOf("rawClippingsErased");
-    expect(sweepStart).toBeGreaterThan(-1);
-    expect(code.slice(sweepStart)).not.toMatch(/return\s+jsonResponse\([^)]*,\s*5\d\d\s*\)/);
+  test("pre-delete cleanup progress is returned without claiming account deletion", () => {
+    expect(code).toMatch(/preDeletionStorage\.code\s*===\s*'storage_cleanup_in_progress'\s*\?\s*409\s*:\s*503/);
+    expect(code).toMatch(/raw_clippings_removed:\s*preDeletionStorage\.removed/);
+  });
+
+  test("never deletes Auth until the fenced Storage sweep observed empty", () => {
+    const fenceAt = code.indexOf("'begin_account_deletion'");
+    const sweepAt = code.indexOf("preDeletionStorage = await eraseRawClippings");
+    const deleteAt = code.indexOf("await deleteAuthUserWithReconciliation(");
+    expect(fenceAt).toBeGreaterThan(-1);
+    expect(sweepAt).toBeGreaterThan(fenceAt);
+    expect(deleteAt).toBeGreaterThan(sweepAt);
+    expect(code).not.toContain("postDeletionStorage");
   });
 });

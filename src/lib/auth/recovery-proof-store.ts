@@ -6,6 +6,10 @@
 import * as Crypto from "expo-crypto";
 
 import {
+  getEncryptedNativeStorage,
+  type StringStorage,
+} from "../storage/encrypted-native-storage";
+import {
   AUTH_CALLBACK_QUARANTINE_KEY,
   LEGACY_RECOVERY_PENDING_KEY,
   LEGACY_RECOVERY_PROOF_KEY,
@@ -77,12 +81,6 @@ export interface RecoverySessionLike {
 }
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-interface AsyncStorageLike {
-  getItem(key: string): Promise<string | null>;
-  setItem(key: string, value: string): Promise<void>;
-  removeItem(key: string): Promise<void>;
-}
 
 export function recoverySessionIdentity(
   session: RecoverySessionLike | null | undefined,
@@ -308,13 +306,11 @@ function isReactNativeRuntime(): boolean {
   return nav?.product === "ReactNative";
 }
 
-function nativeStorage(): AsyncStorageLike | null {
+function nativeStorage(): StringStorage | null {
   if (!isReactNativeRuntime()) return null;
-  try {
-    return require("@react-native-async-storage/async-storage").default as AsyncStorageLike;
-  } catch {
-    return null;
-  }
+  // Initialization/key-continuity failures are security signals. Never fall
+  // back to plaintext or an ephemeral marker store on a genuine native runtime.
+  return getEncryptedNativeStorage();
 }
 
 function webStorage(): Storage | null {
@@ -323,7 +319,7 @@ function webStorage(): Storage | null {
   return localStorage;
 }
 
-function requireRuntimeStorage(): { kind: "web"; store: Storage } | { kind: "native"; store: AsyncStorageLike } | null {
+function requireRuntimeStorage(): { kind: "web"; store: Storage } | { kind: "native"; store: StringStorage } | null {
   if (isReactNativeRuntime()) {
     const store = nativeStorage();
     if (!store) throw new Error("Recovery proof storage is unavailable on native");

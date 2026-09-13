@@ -12,9 +12,13 @@ const LAYOUT = readFileSync(resolve(ROOT, "src/app/_layout.tsx"), "utf8").replac
 );
 
 describe("root account scene boundary wiring", () => {
-  test("every AuthContext state publication has a synchronous owner note", () => {
+  test("every resolved AuthContext publication notes its owner; storage loss stays unresolved", () => {
     const publications = AUTH.match(/\bsetState\s*\(/g) ?? [];
     const notes = AUTH.match(/\bnoteResolvedOwner\s*\(/g) ?? [];
+    // 13 after encrypted-storage recovery: detection adds one deliberately
+    // unresolved masked publication; consented reset and a synchronous client-
+    // construction failure add two resolved owner-null publications. The other
+    // 10 predate this recovery gate.
     // 10 since callback quarantine reconciliation (2026-09-13), not 9: an
     // explicit refresh retry can now publish the same unavailable boundary
     // while its durable callback tuple remains locked. AUTH-01's
@@ -24,8 +28,22 @@ describe("root account scene boundary wiring", () => {
     // immediately before setState — which is exactly the invariant this test
     // exists to hold, and why the second assertion (equal counts) is the load-
     // bearing one. The count was raised only after adding the matching note.
-    expect(publications).toHaveLength(10);
-    expect(notes).toHaveLength(publications.length);
+    expect(publications).toHaveLength(13);
+    expect(notes).toHaveLength(publications.length - 1);
+
+    const storageLockStart = AUTH.indexOf("const markStorageRecoveryRequired = useCallback");
+    const storageLockEnd = AUTH.indexOf("useEffect(() => subscribeRecoveryPending", storageLockStart);
+    const storageLock = AUTH.slice(storageLockStart, storageLockEnd);
+    expect(storageLock).toContain("setState({");
+    expect(storageLock).not.toContain("noteResolvedOwner(");
+
+    const consentStart = AUTH.indexOf("const recoverEncryptedStorage = useCallback");
+    const consentEnd = AUTH.indexOf("const value = useMemo", consentStart);
+    const consentReset = AUTH.slice(consentStart, consentEnd);
+    expect(consentReset.indexOf("noteResolvedOwner(null);")).toBeGreaterThan(-1);
+    expect(consentReset.indexOf("noteResolvedOwner(null);")).toBeLessThan(
+      consentReset.indexOf("setState({"),
+    );
 
     const earlyProbe = AUTH.indexOf(
       "setState({ userId, hasProfile: null, isMinor: null, age: null",
@@ -40,6 +58,17 @@ describe("root account scene boundary wiring", () => {
     expect(refreshNote).toBeLessThan(refreshPublish);
   });
 
+  test("a changed auth owner hides the product tree before notification cleanup awaits", () => {
+    const resolveStart = AUTH.indexOf("async function resolveSession");
+    const resolveEnd = AUTH.indexOf("type QueuedAuthEvent", resolveStart);
+    const resolveBody = AUTH.slice(resolveStart, resolveEnd);
+    const begin = resolveBody.indexOf("beginAccountOwnerTransition(userId);");
+    const cleanupAwait = resolveBody.indexOf("await accountNotificationGateRef.current!.prepare(");
+
+    expect(begin).toBeGreaterThan(-1);
+    expect(cleanupAwait).toBeGreaterThan(begin);
+  });
+
   test("screenLayout holds product children but exempts the auth group", () => {
     expect(LAYOUT).toContain("screenLayout={({ children: screen, route }) => (");
     expect(LAYOUT).toContain('<AccountScope routeName={route.name}>{screen}</AccountScope>');
@@ -49,6 +78,15 @@ describe("root account scene boundary wiring", () => {
     expect(LAYOUT).toContain("accountTransitionSnapshot");
     expect(LAYOUT).toContain("accountEpochFromSnapshot(transitionSnapshot)");
     expect(LAYOUT).not.toMatch(/<Stack[^>]*\skey=/);
+  });
+
+  test("sentinel-proven storage loss replaces every route before the bootstrap loader", () => {
+    const storageGate = LAYOUT.indexOf(
+      "if (storageRecoveryRequired) return <EncryptedStorageRecoveryGate />;",
+    );
+    const bootstrapLoader = LAYOUT.indexOf("if (!recoveryReady) return <InlineLoader />;");
+    expect(storageGate).toBeGreaterThan(-1);
+    expect(storageGate).toBeLessThan(bootstrapLoader);
   });
 
   test("navigation dispatch and transition release occur in separate proof branches", () => {
