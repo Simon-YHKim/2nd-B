@@ -14,7 +14,7 @@ import {
   signOut as signOutAuth,
 } from "../supabase/auth";
 import type { EncryptedNativeStorageRecoveryConsent } from "../storage/encrypted-native-storage";
-import { preserveKnownMinorForMissingProfile, type ProfileProbe } from "./profile-probe";
+import { PROFILE_PROBE_TIMEOUT_MS, isClockSkewProbeError, preserveKnownMinorForMissingProfile, probeWithClockSkewRetry, type ProfileProbe, type ProfileProbeAttempt } from "./profile-probe";
 import { beginAccountOwnerTransition, noteResolvedOwner } from "./account-epoch";
 import { createAccountNotificationPublicationGate } from "./account-notification-publication";
 import {
@@ -66,8 +66,8 @@ interface AuthState {
   age: number | null;
   /** True when the published hasProfile/isMinor came from a FAILED probe
    *  (DB error or timeout), not a server answer. hasProfile:false with this
-   *  flag set means "unknown" — screens must hold + retry, never eject to
-   *  /complete-profile (that stranded real accounts on network blips). */
+   *  flag set means "unknown" — screens show a retryable error (profileGate), never
+   *  a bare loader or an eject to /complete-profile (both stranded real accounts). */
   profileProbeFailed: boolean;
   /** True when startup (or a manual retry) ended without ever learning whether
    *  a session exists — getSession neither answered nor rejected in time, and
@@ -125,7 +125,7 @@ const AuthContext = createContext<AuthContextValue>({
   refresh: async () => {},
 });
 
-async function fetchProfile(userId: string): Promise<ProfileProbe> {
+async function fetchProfileAttempt(userId: string): Promise<ProfileProbeAttempt> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("users")
@@ -137,9 +137,9 @@ async function fetchProfile(userId: string): Promise<ProfileProbe> {
     // { error } (it does not throw), and folding that into hasProfile:false
     // ejected real accounts to /complete-profile on any network blip.
     if (typeof console !== "undefined") console.log("[auth] profile probe failed", error.message);
-    return { hasProfile: false, isMinor: null, age: null, probeFailed: true };
+    return { probe: { hasProfile: false, isMinor: null, age: null, probeFailed: true }, clockSkew: isClockSkewProbeError(error.message) };
   }
-  if (!data) return { hasProfile: false, isMinor: null, age: null };
+  if (!data) return { probe: { hasProfile: false, isMinor: null, age: null }, clockSkew: false };
   if (!data.birth_date) {
     // birth_date is NOT NULL in the schema (0002_users + the 0030 server age-gate),
     // so a profile WITHOUT it is a data anomaly. Never silently route an unknown-age
@@ -147,11 +147,11 @@ async function fetchProfile(userId: string): Promise<ProfileProbe> {
     // hotline and grant adult-only data flows (the minor clamp 0033 keys off this).
     // Fail SAFE to the protective path: treat as a minor until the age is known.
     if (typeof console !== "undefined") console.warn("[auth] profile has no birth_date; routing protectively as minor");
-    return { hasProfile: true, isMinor: true, age: null };
+    return { probe: { hasProfile: true, isMinor: true, age: null }, clockSkew: false };
   }
   const age = ageInYears(data.birth_date);
   const isMinor = age < MINOR_AGE_CEILING;
-  return { hasProfile: true, isMinor, age };
+  return { probe: { hasProfile: true, isMinor, age }, clockSkew: false };
 }
 
 /** Resolve a promise to `fallback` if it doesn't settle within `ms`. Guards
@@ -183,7 +183,24 @@ function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
   });
 }
 
-const PROFILE_PROBE_TIMEOUT_MS = 8000;
+/** One probe (PROFILE_PROBE_TIMEOUT_MS cap) plus, only when the server rejected the
+ *  token as `JWT issued at future`, the bounded retries in profile-probe.ts. A timeout
+ *  is not retried here: its fallback is never marked as clock skew. `isCurrent` lets a
+ *  newer resolution stop the wait instead of sending more requests beside it. */
+function probeProfile(
+  userId: string,
+  fallback: ProfileProbe,
+  isCurrent: () => boolean,
+): Promise<ProfileProbe> {
+  return probeWithClockSkewRetry({
+    attempt: () =>
+      withTimeout<ProfileProbeAttempt>(fetchProfileAttempt(userId), PROFILE_PROBE_TIMEOUT_MS, {
+        probe: fallback,
+        clockSkew: false,
+      }),
+    isCurrent,
+  });
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
@@ -360,7 +377,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           loading: false,
         });
         const reprobe = preserveKnownMinorForMissingProfile(
-          await withTimeout(fetchProfile(userId), PROFILE_PROBE_TIMEOUT_MS, lastProbe),
+          await probeProfile(userId, lastProbe, () => isCurrentEffect() && gen === probeGenRef.current),
           lastProbe,
         );
         // The timeout fallback above already keeps lastProbe, but fetchProfile
@@ -386,14 +403,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // First resolve for this user: mark loading until we know the profile.
       noteResolvedOwner(userId);
       setState({ userId, hasProfile: null, isMinor: null, age: null, profileProbeFailed: false, sessionUnavailable: false, loading: true });
-      const probe = await withTimeout(fetchProfile(userId), PROFILE_PROBE_TIMEOUT_MS, {
-        hasProfile: false,
-        isMinor: null,
-        age: null,
-        // A timed-out FIRST probe is "unknown", not "no profile" — flag it so
-        // guard screens hold on their loader instead of ejecting the account.
-        probeFailed: true,
-      });
+      const probe = await probeProfile(
+        userId,
+        {
+          hasProfile: false,
+          isMinor: null,
+          age: null,
+          // A timed-out FIRST probe is "unknown", not "no profile" — flag it so
+          // guard screens show their retry state instead of ejecting the account.
+          probeFailed: true,
+        },
+        () => isCurrentEffect() && gen === probeGenRef.current,
+      );
       if (!isCurrentEffect() || gen !== probeGenRef.current) return;
       lastUserIdRef.current = userId;
       lastProbeRef.current = probe;
@@ -1136,7 +1157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const cached = lastUserIdRef.current === uid ? lastProbeRef.current : null;
     const fallback: ProfileProbe = cached ?? { hasProfile: false, isMinor: null, probeFailed: true };
     const reprobe = preserveKnownMinorForMissingProfile(
-      await withTimeout(fetchProfile(uid), PROFILE_PROBE_TIMEOUT_MS, fallback),
+      await probeProfile(uid, fallback, () => gen === probeGenRef.current && !storageRecoveryRequiredRef.current),
       cached,
     );
     // Same anti-poison rule as the auth-event path: a FAILED re-probe (error,
