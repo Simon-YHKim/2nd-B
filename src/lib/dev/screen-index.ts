@@ -499,6 +499,16 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
           component: "DeepSpaceImportScreen",
         },
       },
+      {
+        file: "sources",
+        href: "/sources",
+        label: "들어온 자료",
+        auth: {
+          gateFile: "src/screens/deepspace/dds-sources-screen.tsx",
+          component: "DeepSpaceSourcesScreen",
+        },
+        note: "가져온 자료가 도착한 뒤를 보는 자리. 요약 + 질문 넷(Phase 1)의 유일한 배송 진입점이다 — 2026-09-13 이전에는 호출부가 죽은 반쪽 안에만 있었다. 진입: /inbox 의 신호 카드",
+      },
       { file: "import-hub", href: "/import-hub", label: "가져오기 허브", auth: true },
       { file: "integrations", href: "/integrations", label: "데이터 연동" },
     ],

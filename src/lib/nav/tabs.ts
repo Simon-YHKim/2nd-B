@@ -48,6 +48,8 @@ export const DEEP_SPACE_DOCK_PATHS = [
   // 앱 내 진입점이 0건이라, 그쪽에서 칩이 겹치는 것은 개발 경로 한정 잔여다.
   "/discover",
   "/insights",
+  // 들어온 자료 목록. windowed dock + 자체 back. /inbox 신호 카드에서 들어온다.
+  "/sources",
   "/manual",
   "/permissions",
   "/privacy",
