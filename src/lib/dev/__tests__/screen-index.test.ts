@@ -63,6 +63,12 @@ const EXPECTED_DELEGATED_AUTH: Record<string, DelegatedAuthFixture> = {
     gateFile: "src/screens/deepspace/DeepSpaceDesignScreens.tsx",
     component: "DeepSpaceInsightsScreen",
   },
+  // sources 는 은퇴가 아니라 **신설**이라 게이트가 처음부터 화면에 있다. 라우트
+  // 파일에 리다이렉트를 따로 두면 같은 판단이 두 곳에 생긴다.
+  sources: {
+    gateFile: "src/screens/deepspace/dds-sources-screen.tsx",
+    component: "DeepSpaceSourcesScreen",
+  },
   import: {
     gateFile: "src/screens/deepspace/dds-import-inbox-screens.tsx",
     component: "DeepSpaceImportScreen",
