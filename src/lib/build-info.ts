@@ -25,11 +25,16 @@ import * as Updates from "expo-updates";
  *
  * Resilient: in dev / web / Expo Go, `Updates.isEnabled` is false and the constants
  * are null — we never throw, just report "dev".
+ *
+ * An unknown value prints "?" (runtime version, channel, OTA id). Never an em dash:
+ * this string is rendered in the settings and account footers, and DESIGN.md bans
+ * U+2014 in UI strings. The channel fallback used to be one, hidden by an exclusion
+ * for this file in scripts/check-no-emdash.ts; both are gone (PR #1810 gate F3).
  */
 export function buildInfoLine(): string {
   const rt = Updates.runtimeVersion ?? "?";
   if (!Updates.isEnabled) return `v${rt} · dev`;
-  const channel = Updates.channel ?? "—";
+  const channel = Updates.channel ?? "?";
   const id = Updates.updateId?.slice(0, 8);
   if (Updates.isEmbeddedLaunch) {
     return id ? `v${rt} · ${channel} · embedded ${id}` : `v${rt} · ${channel} · embedded`;

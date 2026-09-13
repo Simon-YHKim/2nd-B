@@ -66,9 +66,28 @@ describe("빌드 줄: 내장 번들과 OTA 는 isEmbeddedLaunch 로 가른다", 
 
   it("내장 실행인데 id 를 모르면 embedded 만 적는다", () => {
     setUpdates({ runtimeVersion: "1.0.0", channel: null, updateId: null, isEmbeddedLaunch: true });
-    expect(buildInfoLine()).toBe("v1.0.0 · \u2014 · embedded");
+    expect(buildInfoLine()).toBe("v1.0.0 · ? · embedded");
   });
 
+  it("모르는 값은 어느 상태에서도 ? 로 적고 em dash 를 쓰지 않는다 (화면에 나가는 줄이다)", () => {
+    // 설정 · 계정 화면 맨 아래에 그대로 렌더된다. DESIGN.md 는 UI 문자열의 em dash(U+2014)를 금지한다.
+    // 채널 미상 폴백이 em dash 였고 check-no-emdash 의 build-info.ts 예외가 그것을 가렸다
+    // (PR #1810 생성물 게이트 F3). 그 예외도 지웠다.
+    const EM_DASH = String.fromCharCode(0x2014);
+    const states: Partial<UpdatesConstants>[] = [
+      { isEnabled: false },
+      { isEmbeddedLaunch: true },
+      { isEmbeddedLaunch: false },
+      { updateId: T1A.updateId, isEmbeddedLaunch: true },
+      { updateId: T1A.updateId, isEmbeddedLaunch: false },
+    ];
+    for (const state of states) {
+      setUpdates({ isEnabled: true, runtimeVersion: null, channel: null, updateId: null, isEmbeddedLaunch: false, ...state });
+      expect(buildInfoLine()).not.toContain(EM_DASH);
+    }
+    setUpdates({ isEnabled: true, runtimeVersion: "1.0.0", channel: null, updateId: null, isEmbeddedLaunch: false });
+    expect(buildInfoLine()).toBe("v1.0.0 · ? · OTA ?");
+  });
   it("expo-updates 가 꺼져 있으면(dev · web · Expo Go) 던지지 않고 dev 로 적는다", () => {
     setUpdates({ isEnabled: false, runtimeVersion: null });
     expect(buildInfoLine()).toBe("v? · dev");

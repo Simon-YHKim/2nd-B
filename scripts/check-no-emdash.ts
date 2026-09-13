@@ -41,7 +41,6 @@ const EXCLUDED: Readonly<Record<string, string>> = {
   "src/lib/safety/ingest-policy.ts": "internal policy reason strings recorded in decisions, not shown",
   "src/lib/safety/crisis-eval-corpus.ts": "evaluation corpus annotations",
   "src/lib/news/parse.ts": "HTML entity decoding table",
-  "src/lib/build-info.ts": "build channel constant",
   "src/lib/supabase/auth.ts": "Error message for a programming fault, not surfaced as copy",
 };
 
