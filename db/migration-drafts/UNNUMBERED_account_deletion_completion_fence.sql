@@ -229,6 +229,17 @@ BEGIN
     RAISE EXCEPTION 'storage.objects is required when storage.buckets exists';
   END IF;
 
+  IF NOT pg_catalog.coalesce(
+    (
+      SELECT relation.relrowsecurity
+      FROM pg_catalog.pg_class AS relation
+      WHERE relation.oid = pg_catalog.to_regclass('storage.objects')
+    ),
+    false
+  ) THEN
+    RAISE EXCEPTION 'storage.objects RLS must be enabled before account-deletion policies';
+  END IF;
+
   DROP POLICY IF EXISTS "raw_clippings_owner_select" ON storage.objects;
   EXECUTE $policy$CREATE POLICY "raw_clippings_owner_select" ON storage.objects
     FOR SELECT TO authenticated

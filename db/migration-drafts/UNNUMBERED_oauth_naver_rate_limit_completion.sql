@@ -133,10 +133,17 @@ BEGIN
        )
      ORDER BY stale.updated_at, stale.dimension, stale.key_hash
      LIMIT 32
+     FOR UPDATE OF stale SKIP LOCKED
   ) AS stale
   WHERE limits.provider = stale.provider
     AND limits.dimension = stale.dimension
-    AND limits.key_hash = stale.key_hash;
+    AND limits.key_hash = stale.key_hash
+    -- Recheck staleness on the row DELETE will affect. The locked candidate
+    -- cannot race a subject-hour UPSERT and erase a freshly incremented cap.
+    AND (
+      (limits.dimension = 'subject_hour' AND limits.updated_at < v_now - INTERVAL '48 hours')
+      OR (limits.dimension <> 'subject_hour' AND limits.updated_at < v_now - INTERVAL '2 hours')
+    );
 
   INSERT INTO public.oauth_preauth_rate_limits AS limits (
     provider, dimension, key_hash, window_start, request_count, updated_at

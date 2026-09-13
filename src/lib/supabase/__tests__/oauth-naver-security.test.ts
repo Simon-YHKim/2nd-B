@@ -269,6 +269,13 @@ describe("oauth-naver durable server boundary", () => {
     expect(peerLimiter).toContain("VALUES ('naver', 'ip_minute'");
     expect(peerLimiter).toContain("VALUES ('naver', 'ip_hour'");
     expect(peerLimiter).toContain("LIMIT 32");
+    expect(peerLimiter).toContain("FOR UPDATE OF stale SKIP LOCKED");
+    expect(peerLimiter).toContain(
+      "limits.dimension = 'subject_hour' AND limits.updated_at < v_now - INTERVAL '48 hours'",
+    );
+    expect(peerLimiter).toContain(
+      "limits.dimension <> 'subject_hour' AND limits.updated_at < v_now - INTERVAL '2 hours'",
+    );
     expect(sql).toContain("consume_oauth_naver_subject_rate_limit");
     expect(sql.match(/LIMIT 64/g)).toHaveLength(2);
     expect(sql).toContain(

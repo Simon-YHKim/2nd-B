@@ -19,6 +19,12 @@
 -- refund_consequence_pending review state; only the matching Edge clears it
 -- after a confirmed consequence.
 
+-- This draft rebuilds indexes on hot billing tables. Promotion must run inside
+-- one explicit transaction; fail instead of waiting indefinitely behind a
+-- webhook writer or holding a partial migration open.
+SET LOCAL lock_timeout = '10s';
+SET LOCAL statement_timeout = '15min';
+
 -- Older Edge deployments keyed the consequence row by Paddle event id. Preserve
 -- those committed claims when switching to the adjustment id: one adjustment is
 -- one money/entitlement consequence even when Paddle emits created + updated.

@@ -41,12 +41,13 @@ jobs:
           --health-retries 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Seed Supabase compatibility layer (auth schema + roles + auth.users stub)
+      - name: Seed Supabase compatibility layer (auth, roles, and storage stubs)
         env:
           PGPASSWORD: postgres
         run: |
-          # The migrations reference auth.uid(), three Supabase roles
-          # (authenticated / anon / service_role), and the auth.users table
+          # The migrations reference auth.uid(), four Supabase roles
+          # (authenticated / anon / service_role / supabase_auth_admin), and
+          # the auth.users table
           # (0018 attaches a BEFORE INSERT trigger to it). Vanilla Postgres
           # has none of these. We stub them just enough that the DDL parses
           # and role-conditional logic (e.g. 0015) sees the roles exist.
@@ -66,6 +67,42 @@ jobs:
             email_confirmed_at timestamptz,
             raw_user_meta_data jsonb NOT NULL DEFAULT '{}'::jsonb
           );
+          CREATE TABLE IF NOT EXISTS auth.sessions (
+            id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id    uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+            created_at timestamptz NOT NULL DEFAULT pg_catalog.now()
+          );
+
+          -- Supabase Storage is absent from the plain PostgreSQL service. Its
+          -- minimal contract keeps the raw-clippings policies and deletion
+          -- trigger executable in CI instead of silently taking their
+          -- non-Supabase NOTICE branch.
+          CREATE SCHEMA IF NOT EXISTS storage;
+          CREATE TABLE IF NOT EXISTS storage.buckets (
+            id                 text PRIMARY KEY,
+            name               text NOT NULL,
+            public             boolean NOT NULL DEFAULT false,
+            file_size_limit    bigint,
+            allowed_mime_types text[]
+          );
+          CREATE TABLE IF NOT EXISTS storage.objects (
+            id        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+            bucket_id text REFERENCES storage.buckets(id),
+            name      text
+          );
+          ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+          CREATE OR REPLACE FUNCTION storage.foldername(name text)
+          RETURNS text[]
+          LANGUAGE plpgsql
+          IMMUTABLE
+          AS $$
+          DECLARE
+            parts text[];
+          BEGIN
+            parts := pg_catalog.string_to_array(name, '/');
+            RETURN parts[1:pg_catalog.array_length(parts, 1) - 1];
+          END;
+          $$;
           -- supabase_auth_admin is the role the JWT claim hook runs as (0139).
           -- It was added to the migrations on 2026-08-21 but NOT to this stub,
           -- so 0139 line 199 (`CREATE POLICY ... TO supabase_auth_admin`) died
@@ -81,6 +118,11 @@ jobs:
             IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role')        THEN CREATE ROLE service_role;        END IF;
             IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_auth_admin') THEN CREATE ROLE supabase_auth_admin; END IF;
           END $$;
+          GRANT USAGE ON SCHEMA auth TO authenticated;
+          GRANT EXECUTE ON FUNCTION auth.uid() TO authenticated;
+          GRANT USAGE ON SCHEMA storage TO authenticated;
+          GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE storage.objects TO authenticated;
+          GRANT EXECUTE ON FUNCTION storage.foldername(text) TO authenticated;
           SQL
       - name: Apply baseline migrations (0001-0146) in order
         env:
@@ -209,6 +251,56 @@ jobs:
             END IF;
           END $$;
           SQL
+      - name: Reject account-deletion policies when Storage RLS is disabled
+        env:
+          PGPASSWORD: postgres
+        run: |
+          rls_log="$(mktemp)"
+          trap 'rm -f -- "$rls_log"' EXIT
+          if psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 >"$rls_log" 2>&1 <<'SQL'
+          BEGIN;
+          ALTER TABLE storage.objects DISABLE ROW LEVEL SECURITY;
+          \i db/migration-drafts/UNNUMBERED_account_deletion_completion_fence.sql
+          ROLLBACK;
+          SQL
+          then
+            cat "$rls_log"
+            echo "account-deletion draft accepted Storage with RLS disabled" >&2
+            exit 1
+          fi
+          if ! grep -Fq "storage.objects RLS must be enabled before account-deletion policies" "$rls_log"; then
+            cat "$rls_log"
+            echo "account-deletion RLS preflight failed for the wrong reason" >&2
+            exit 1
+          fi
+      - name: Exercise account-deletion completion fence
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/account_deletion_completion_fence_regression.sql
+      - name: Dry-run standalone security migration drafts
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+
+          # Account deletion, Paddle, peer-response, and rewarded SSV drafts
+          # are applied by their behavioral regression lanes. Consent, Naver,
+          # and RSS have no separate SQL fixture, so execute every statement
+          # against the scratch schema and roll it back before the next draft.
+          drafts=(
+            db/migration-drafts/UNNUMBERED_effective_llm_consent_current_contract.sql
+            db/migration-drafts/UNNUMBERED_oauth_naver_rate_limit_completion.sql
+            db/migration-drafts/UNNUMBERED_rss_proxy_quota.sql
+          )
+
+          for draft in "${drafts[@]}"; do
+            echo "Dry-running $draft"
+            psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 <<SQL
+          BEGIN;
+          \i $draft
+          ROLLBACK;
+          SQL
+          done
       - name: Exercise public-data quota contract
         env:
           PGPASSWORD: postgres

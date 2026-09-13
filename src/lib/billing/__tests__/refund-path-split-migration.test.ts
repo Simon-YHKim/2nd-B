@@ -239,6 +239,11 @@ describe("draft apply_billing_refund - a pack refund never touches the entitleme
 describe("unnumbered Paddle refund integrity draft - authoritative and reconcilable", () => {
   const body = draftApplyRefund;
 
+  test("hot-table index work fails closed on bounded lock and statement deadlines", () => {
+    expect(refundIntegrityDraft).toContain("SET LOCAL lock_timeout = '10s'");
+    expect(refundIntegrityDraft).toContain("SET LOCAL statement_timeout = '15min'");
+  });
+
   test("p_is_full is the only authority; an accepted self-service row cannot promote partial", () => {
     const oldBody = bodyOf(sql0136, "apply_billing_refund");
     const obsoletePromotion = "IF FOUND THEN v_full := true; END IF;";
