@@ -6,6 +6,12 @@ import { MAX_BOUNDED_FILE_BYTES } from "../bounded-file-read";
 const mockGetDocumentAsync = jest.fn();
 jest.mock("expo-document-picker", () => ({ getDocumentAsync: mockGetDocumentAsync }));
 
+const mockDisposeOwnedTempFile = jest.fn();
+const mockLeaseOwnedTempFile = jest.fn();
+jest.mock("../../storage/owned-temp", () => ({
+  leaseOwnedTempFile: (...args: unknown[]) => mockLeaseOwnedTempFile(...args),
+}));
+
 // jest runs with testEnvironment "node", so there is no DOM and no RN runtime
 // (navigator.product !== "ReactNative"). The guard must report unsupported and
 // pickTextFile must resolve null (never throw / never touch `document`).
@@ -27,6 +33,14 @@ describe("file-read native picker (expo-document-picker)", () => {
 
   beforeEach(() => {
     mockGetDocumentAsync.mockReset();
+    mockDisposeOwnedTempFile.mockReset();
+    mockDisposeOwnedTempFile.mockResolvedValue({ ok: true, status: "deleted" });
+    mockLeaseOwnedTempFile.mockReset();
+    mockLeaseOwnedTempFile.mockImplementation(async (uri: string) =>
+      uri.startsWith("file:///cache/")
+        ? { ok: true, lease: { dispose: mockDisposeOwnedTempFile } }
+        : { ok: false, error: "unsafe_target" },
+    );
     Object.defineProperty(globalThis, "navigator", {
       value: { product: "ReactNative" },
       configurable: true,
@@ -59,6 +73,8 @@ describe("file-read native picker (expo-document-picker)", () => {
     });
     globalThis.fetch = jest.fn().mockResolvedValue({
       ok: true,
+      redirected: false,
+      url: "file:///cache/notes.md",
       body: new ReadableStream<Uint8Array>({
         start(controller) {
           controller.enqueue(bytes);
@@ -74,8 +90,46 @@ describe("file-read native picker (expo-document-picker)", () => {
     );
     expect(globalThis.fetch).toHaveBeenCalledWith(
       "file:///cache/notes.md",
-      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      expect.objectContaining({ redirect: "error", signal: expect.any(AbortSignal) }),
     );
+    expect(mockLeaseOwnedTempFile).toHaveBeenCalledWith("file:///cache/notes.md");
+    expect(mockDisposeOwnedTempFile).toHaveBeenCalledTimes(1);
+  });
+
+  test("does not replace a successful import when cache cleanup fails", async () => {
+    const bytes = new TextEncoder().encode("safe text");
+    mockGetDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        {
+          uri: "file:///cache/cleanup-fails.txt",
+          name: "cleanup-fails.txt",
+          mimeType: "text/plain",
+          size: bytes.byteLength,
+        },
+      ],
+    });
+    globalThis.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      redirected: false,
+      url: "file:///cache/cleanup-fails.txt",
+      body: new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(bytes);
+          controller.close();
+        },
+      }),
+      headers: { get: jest.fn(() => String(bytes.byteLength)) },
+    }) as unknown as typeof fetch;
+    mockDisposeOwnedTempFile.mockRejectedValue(
+      new Error("cleanup failed for file:///cache/cleanup-fails.txt"),
+    );
+
+    await expect(pickTextFile()).resolves.toEqual({
+      name: "cleanup-fails.txt",
+      text: "safe text",
+    });
+    expect(mockDisposeOwnedTempFile).toHaveBeenCalledTimes(1);
   });
 
   test("rejects picker-declared oversized files before fetch", async () => {
@@ -95,6 +149,8 @@ describe("file-read native picker (expo-document-picker)", () => {
 
     await expect(pickTextFile()).rejects.toMatchObject({ code: "too_large" });
     expect(fetchSpy).not.toHaveBeenCalled();
+    expect(mockLeaseOwnedTempFile).toHaveBeenCalledWith("file:///cache/too-large.txt");
+    expect(mockDisposeOwnedTempFile).toHaveBeenCalledTimes(1);
   });
 
   test("rejects remote picker URIs before fetch", async () => {
@@ -117,6 +173,8 @@ describe("file-read native picker (expo-document-picker)", () => {
     await expect(read).rejects.toMatchObject({ code: "unsafe_source" });
     await expect(read).rejects.not.toThrow("https://example.com/notes.txt");
     expect(fetchSpy).not.toHaveBeenCalled();
+    expect(mockLeaseOwnedTempFile).toHaveBeenCalledWith("https://example.com/notes.txt");
+    expect(mockDisposeOwnedTempFile).not.toHaveBeenCalled();
   });
 
   test("resolves null when the user cancels", async () => {
@@ -141,6 +199,7 @@ describe("file-read native picker (expo-document-picker)", () => {
     const read = pickTextFile();
     await expect(read).rejects.toMatchObject({ code: "read_failed" });
     await expect(read).rejects.not.toThrow("bad.txt");
+    expect(mockDisposeOwnedTempFile).toHaveBeenCalledTimes(1);
   });
 
   test("sanitizes document-provider errors that contain a local path", async () => {

@@ -52,6 +52,12 @@ interface ChunkReader {
   releaseLock?(): void;
 }
 
+const DECODE_BLOCK_BYTES = 64 * 1024;
+const MAX_STREAM_CHUNKS = 65_536;
+const MAX_CONSECUTIVE_EMPTY_CHUNKS = 64;
+const MACROTASK_YIELD_INTERVAL_CHUNKS = 1_024;
+const CANCEL_SETTLE_GRACE_MS = 100;
+
 function fail(code: BoundedFileReadErrorCode): BoundedFileReadError {
   return new BoundedFileReadError(code);
 }
@@ -97,19 +103,11 @@ function requireMatchingSizes(left: number | null, right: number | null): void {
   if (left != null && right != null && left !== right) throw fail("size_mismatch");
 }
 
-function stopQuietly(reader: ChunkReader): void {
-  try {
-    Promise.resolve(reader.cancel?.()).catch(() => undefined);
-  } catch {
-    // The safe error returned to the caller must not expose provider details.
-  }
-}
-
 function runWithDeadline<T>(
   operation: () => Promise<T>,
   timeoutMs: number,
   signal: AbortSignal | undefined,
-  onStop?: () => void,
+  onStop?: (code: "aborted" | "timed_out") => void,
 ): Promise<T> {
   if (signal?.aborted) return Promise.reject(fail("aborted"));
 
@@ -126,7 +124,7 @@ function runWithDeadline<T>(
     const stop = (code: "aborted" | "timed_out") => {
       if (settled) return;
       try {
-        onStop?.();
+        onStop?.(code);
       } catch {
         // Stopping is best-effort; the caller still receives the bounded error.
       }
@@ -142,6 +140,24 @@ function runWithDeadline<T>(
   });
 }
 
+function waitForCancellation(promise: Promise<void>): Promise<void> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve();
+    };
+    const timer = setTimeout(finish, CANCEL_SETTLE_GRACE_MS);
+    promise.then(finish, finish);
+  });
+}
+
+function yieldToMacrotask(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 async function decodeReader(
   reader: ChunkReader,
   options: BoundedUtf8ReadOptions,
@@ -150,24 +166,101 @@ async function decodeReader(
 ): Promise<string> {
   const decoder = new TextDecoder("utf-8", { fatal: true });
   const parts: string[] = [];
+  const decodeBuffer = new Uint8Array(Math.min(DECODE_BLOCK_BYTES, maxBytes));
+  const timeoutMs = validatedTimeoutMs(options.timeoutMs);
+  const deadlineAt = Date.now() + timeoutMs;
   let actualBytes = 0;
+  let bufferedBytes = 0;
+  let chunkCount = 0;
+  let consecutiveEmptyChunks = 0;
+  let stopCode: "aborted" | "timed_out" | null = null;
+  let cancellation: Promise<void> | null = null;
+
+  const cancelOnce = (): Promise<void> => {
+    if (cancellation) return cancellation;
+    try {
+      cancellation = Promise.resolve(reader.cancel?.()).then(
+        () => undefined,
+        () => undefined,
+      );
+    } catch {
+      cancellation = Promise.resolve();
+    }
+    return cancellation;
+  };
+
+  const markStopped = (code: "aborted" | "timed_out") => {
+    stopCode ??= code;
+    void cancelOnce();
+  };
+
+  const requireActive = () => {
+    if (stopCode) throw fail(stopCode);
+    if (options.signal?.aborted) {
+      markStopped("aborted");
+      throw fail("aborted");
+    }
+    if (Date.now() >= deadlineAt) {
+      markStopped("timed_out");
+      throw fail("timed_out");
+    }
+  };
+
+  const decodeBuffered = () => {
+    if (bufferedBytes === 0) return;
+    try {
+      const text = decoder.decode(decodeBuffer.subarray(0, bufferedBytes), { stream: true });
+      if (text.length > 0) parts.push(text);
+      bufferedBytes = 0;
+    } catch {
+      throw fail("invalid_encoding");
+    }
+  };
 
   const operation = async () => {
     while (true) {
+      requireActive();
       const result = await reader.read();
+      requireActive();
       if (result.done) break;
       const chunk = result.value;
       if (!(chunk instanceof Uint8Array)) throw fail("read_failed");
+      chunkCount += 1;
+      if (chunkCount > MAX_STREAM_CHUNKS) throw fail("read_failed");
+      if (chunk.byteLength === 0) {
+        consecutiveEmptyChunks += 1;
+        if (consecutiveEmptyChunks > MAX_CONSECUTIVE_EMPTY_CHUNKS) throw fail("read_failed");
+      } else {
+        consecutiveEmptyChunks = 0;
+      }
+      if (expectedBytes != null && chunk.byteLength > expectedBytes - actualBytes) {
+        throw fail("size_mismatch");
+      }
       if (chunk.byteLength > maxBytes - actualBytes) throw fail("too_large");
       actualBytes += chunk.byteLength;
-      try {
-        parts.push(decoder.decode(chunk, { stream: true }));
-      } catch {
-        throw fail("invalid_encoding");
+
+      let chunkOffset = 0;
+      while (chunkOffset < chunk.byteLength) {
+        const copyBytes = Math.min(
+          decodeBuffer.byteLength - bufferedBytes,
+          chunk.byteLength - chunkOffset,
+        );
+        decodeBuffer.set(chunk.subarray(chunkOffset, chunkOffset + copyBytes), bufferedBytes);
+        bufferedBytes += copyBytes;
+        chunkOffset += copyBytes;
+        if (bufferedBytes === decodeBuffer.byteLength) decodeBuffered();
+      }
+
+      if (chunkCount % MACROTASK_YIELD_INTERVAL_CHUNKS === 0) {
+        await yieldToMacrotask();
+        requireActive();
       }
     }
+
+    decodeBuffered();
     try {
-      parts.push(decoder.decode());
+      const text = decoder.decode();
+      if (text.length > 0) parts.push(text);
     } catch {
       throw fail("invalid_encoding");
     }
@@ -176,11 +269,9 @@ async function decodeReader(
   };
 
   try {
-    return await runWithDeadline(operation, validatedTimeoutMs(options.timeoutMs), options.signal, () =>
-      stopQuietly(reader),
-    );
+    return await runWithDeadline(operation, timeoutMs, options.signal, markStopped);
   } catch (error) {
-    stopQuietly(reader);
+    await waitForCancellation(cancelOnce());
     throw sanitized(error);
   } finally {
     try {
@@ -226,7 +317,9 @@ export async function readBoundedUtf8Blob(
     async read() {
       if (offset >= size) return { done: true, value: undefined };
       const end = Math.min(size, offset + chunkBytes);
-      const buffer = await blob.slice(offset, end).arrayBuffer();
+      const slice = blob.slice(offset, end);
+      if (typeof slice.arrayBuffer !== "function") throw fail("read_failed");
+      const buffer = await slice.arrayBuffer();
       if (buffer.byteLength !== end - offset) throw fail("size_mismatch");
       offset = end;
       return { done: false, value: new Uint8Array(buffer) };
@@ -251,21 +344,10 @@ export async function readBoundedUtf8Response(
     return readBoundedUtf8Stream(response.body, { ...options, declaredBytes: expectedBytes });
   }
 
-  // A whole-buffer fallback cannot enforce the cap while bytes arrive. Only a
-  // picker-declared local file size may authorize it, and actual bytes are
-  // checked immediately after the read.
-  if (declaredBytes == null) throw fail("unverifiable_size");
-  if (typeof response.arrayBuffer !== "function") throw fail("read_failed");
-  let consumed = false;
-  const reader: ChunkReader = {
-    async read() {
-      if (consumed) return { done: true, value: undefined };
-      consumed = true;
-      const buffer = await response.arrayBuffer();
-      return { done: false, value: new Uint8Array(buffer) };
-    },
-  };
-  return decodeReader(reader, options, maxBytes, declaredBytes);
+  // Response.arrayBuffer() cannot enforce a byte ceiling or cooperative abort
+  // while bytes arrive. A declared picker size is metadata, not authorization
+  // to allocate the provider's entire response, so fail closed without a stream.
+  throw fail("unverifiable_size");
 }
 
 function isLocalFileUri(uri: string): boolean {
@@ -274,6 +356,41 @@ function isLocalFileUri(uri: string): boolean {
     if (parsed.protocol === "content:") return uri.startsWith("content://");
     if (parsed.protocol !== "file:") return false;
     return parsed.hostname === "" || parsed.hostname === "localhost";
+  } catch {
+    return false;
+  }
+}
+
+function isMatchingLocalResponseUri(requestUri: string, responseUri: string): boolean {
+  if (!responseUri) return false;
+  try {
+    const request = new URL(requestUri);
+    const response = new URL(responseUri);
+    if (request.protocol === response.protocol) {
+      return (
+        request.username === response.username &&
+        request.password === response.password &&
+        request.hostname === response.hostname &&
+        request.port === response.port &&
+        request.pathname === response.pathname &&
+        request.search === response.search &&
+        request.hash === response.hash
+      );
+    }
+
+    // Expo SDK 56 maps file:///path to this private OkHttp sentinel on Android.
+    // Accept only the exact original path; a different host, port or path fails.
+    return (
+      request.protocol === "file:" &&
+      response.protocol === "http:" &&
+      response.username === "" &&
+      response.password === "" &&
+      response.hostname === "filesystem.local" &&
+      response.port === "" &&
+      request.pathname === response.pathname &&
+      request.search === response.search &&
+      request.hash === response.hash
+    );
   } catch {
     return false;
   }
@@ -293,7 +410,13 @@ export async function fetchBoundedLocalUtf8(
   const controller = new AbortController();
   return runWithDeadline(
     async () => {
-      const response = await globalThis.fetch(uri, { signal: controller.signal });
+      const response = await globalThis.fetch(uri, {
+        redirect: "error",
+        signal: controller.signal,
+      });
+      if (response.redirected === true || !isMatchingLocalResponseUri(uri, response.url)) {
+        throw fail("unsafe_source");
+      }
       return readBoundedUtf8Response(response, {
         ...options,
         declaredBytes,

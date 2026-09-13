@@ -107,6 +107,134 @@ describe("bounded UTF-8 file reads", () => {
     expect(cancel).toHaveBeenCalled();
   });
 
+  test("bounds an immediately-resolving zero-byte stream without starving the deadline", async () => {
+    let reads = 0;
+    const stream = {
+      getReader: () => ({
+        read: () => {
+          reads += 1;
+          return Promise.resolve(
+            reads <= 250_000
+              ? { done: false, value: new Uint8Array(0) }
+              : { done: true, value: undefined },
+          );
+        },
+        cancel: jest.fn(() => Promise.resolve()),
+        releaseLock: jest.fn(),
+      }),
+    } as unknown as ReadableStream<Uint8Array>;
+
+    await expect(readBoundedUtf8Stream(stream, { maxBytes: 1, timeoutMs: 1 })).rejects.toMatchObject({
+      code: expect.stringMatching(/^(read_failed|timed_out)$/),
+    });
+    expect(reads).toBeLessThan(250_000);
+  });
+
+  test("caps total chunk fragmentation independently of the byte ceiling", async () => {
+    let reads = 0;
+    const stream = {
+      getReader: () => ({
+        read: () => {
+          reads += 1;
+          return Promise.resolve(
+            reads <= 250_000
+              ? { done: false, value: new Uint8Array([97]) }
+              : { done: true, value: undefined },
+          );
+        },
+        cancel: jest.fn(() => Promise.resolve()),
+        releaseLock: jest.fn(),
+      }),
+    } as unknown as ReadableStream<Uint8Array>;
+
+    await expect(readBoundedUtf8Stream(stream, { timeoutMs: 60_000 })).rejects.toMatchObject({
+      code: "read_failed",
+    });
+    expect(reads).toBeLessThan(250_000);
+  });
+
+  test("coalesces acceptable one-byte fragments before invoking the decoder", async () => {
+    const bytes = 4_096;
+    let reads = 0;
+    const decode = jest.spyOn(TextDecoder.prototype, "decode");
+    const stream = {
+      getReader: () => ({
+        read: () => {
+          reads += 1;
+          return Promise.resolve(
+            reads <= bytes
+              ? { done: false, value: new Uint8Array([97]) }
+              : { done: true, value: undefined },
+          );
+        },
+        cancel: jest.fn(() => Promise.resolve()),
+        releaseLock: jest.fn(),
+      }),
+    } as unknown as ReadableStream<Uint8Array>;
+
+    try {
+      await expect(
+        readBoundedUtf8Stream(stream, { declaredBytes: bytes, timeoutMs: 60_000 }),
+      ).resolves.toHaveLength(bytes);
+      expect(decode).toHaveBeenCalledTimes(2);
+    } finally {
+      decode.mockRestore();
+    }
+  });
+
+  test("yields to an external abort during immediately-resolving fragmented reads", async () => {
+    let reads = 0;
+    const stream = {
+      getReader: () => ({
+        read: () => {
+          reads += 1;
+          return Promise.resolve(
+            reads <= 250_000
+              ? { done: false, value: new Uint8Array([97]) }
+              : { done: true, value: undefined },
+          );
+        },
+        cancel: jest.fn(() => Promise.resolve()),
+        releaseLock: jest.fn(),
+      }),
+    } as unknown as ReadableStream<Uint8Array>;
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 0);
+
+    await expect(
+      readBoundedUtf8Stream(stream, { signal: controller.signal, timeoutMs: 60_000 }),
+    ).rejects.toMatchObject({ code: "aborted" });
+    expect(reads).toBeLessThan(250_000);
+  });
+
+  test("waits for one reader cancellation before releasing its lock", async () => {
+    const order: string[] = [];
+    const cancel = jest.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          setTimeout(() => {
+            order.push("cancelled");
+            resolve();
+          }, 5);
+        }),
+    );
+    const stream = {
+      getReader: () => ({
+        read: () => new Promise<never>(() => undefined),
+        cancel,
+        releaseLock: () => order.push("released"),
+      }),
+    } as unknown as ReadableStream<Uint8Array>;
+    const controller = new AbortController();
+
+    const read = readBoundedUtf8Stream(stream, { signal: controller.signal });
+    controller.abort();
+
+    await expect(read).rejects.toMatchObject({ code: "aborted" });
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(order).toEqual(["cancelled", "released"]);
+  });
+
   test("rejects content-length mismatches after a streamed read", async () => {
     const response = responseWith(streamFrom([new Uint8Array([111, 107])]), "3");
 
@@ -115,7 +243,7 @@ describe("bounded UTF-8 file reads", () => {
     });
   });
 
-  test("only buffers a non-streaming response with trusted picker size and rechecks actual bytes", async () => {
+  test("never consumes an unbounded whole-buffer response fallback", async () => {
     const arrayBuffer = jest.fn(() => Promise.resolve(new Uint8Array([97, 98, 99]).buffer));
     const response = responseWith(null, "3", arrayBuffer);
 
@@ -124,39 +252,59 @@ describe("bounded UTF-8 file reads", () => {
     });
     expect(arrayBuffer).not.toHaveBeenCalled();
 
-    await expect(readBoundedUtf8Response(response, { declaredBytes: 2 })).rejects.toMatchObject<
+    await expect(readBoundedUtf8Response(response, { declaredBytes: 3 })).rejects.toMatchObject<
       Partial<BoundedFileReadError>
-    >({ code: "size_mismatch" });
+    >({ code: "unverifiable_size" });
     expect(arrayBuffer).not.toHaveBeenCalled();
-
-    await expect(readBoundedUtf8Response(response, { declaredBytes: 3 })).resolves.toBe("abc");
-    expect(arrayBuffer).toHaveBeenCalledTimes(1);
   });
 
-  test("rejects mismatched or over-limit actual bytes immediately after a buffered fallback", async () => {
-    const shortResponse = responseWith(
-      null,
-      "3",
-      jest.fn(() => Promise.resolve(new Uint8Array([97, 98]).buffer)),
-    );
-    await expect(readBoundedUtf8Response(shortResponse, { declaredBytes: 3 })).rejects.toMatchObject<
-      Partial<BoundedFileReadError>
-    >({ code: "size_mismatch" });
+  test("stops on a stale declared size before consuming the remainder", async () => {
+    let reads = 0;
+    const reader = {
+      read: jest.fn(() => {
+        reads += 1;
+        return Promise.resolve(
+          reads <= 4
+            ? { done: false, value: new Uint8Array([97]) }
+            : { done: true, value: undefined },
+        );
+      }),
+      cancel: jest.fn(() => Promise.resolve()),
+      releaseLock: jest.fn(),
+    };
+    const stream = { getReader: () => reader } as unknown as ReadableStream<Uint8Array>;
 
-    const oversizedResponse = responseWith(
-      null,
-      "4",
-      jest.fn(() => Promise.resolve(new Uint8Array([97, 98, 99, 100, 101]).buffer)),
-    );
-    await expect(
-      readBoundedUtf8Response(oversizedResponse, { declaredBytes: 4, maxBytes: 4 }),
-    ).rejects.toMatchObject<Partial<BoundedFileReadError>>({ code: "too_large" });
+    await expect(readBoundedUtf8Stream(stream, { declaredBytes: 1 })).rejects.toMatchObject({
+      code: "size_mismatch",
+    });
+    expect(reads).toBe(2);
   });
 
   test("reads a Blob in bounded chunks and verifies its actual size", async () => {
     const blob = new Blob([new Uint8Array([0x73, 0x61, 0x66, 0x65])]);
 
     await expect(readBoundedUtf8Blob(blob)).resolves.toBe("safe");
+  });
+
+  test("uses bounded Blob slices when stream() is unavailable", async () => {
+    const bytes = new TextEncoder().encode("slice-safe");
+    const blob = {
+      size: bytes.byteLength,
+      slice: (start: number, end: number) => ({
+        arrayBuffer: () => Promise.resolve(bytes.slice(start, end).buffer),
+      }),
+    } as unknown as Blob;
+
+    await expect(readBoundedUtf8Blob(blob)).resolves.toBe("slice-safe");
+  });
+
+  test("fails closed when neither Blob streams nor bounded slice reads exist", async () => {
+    const blob = {
+      size: 4,
+      slice: () => ({}),
+    } as unknown as Blob;
+
+    await expect(readBoundedUtf8Blob(blob)).rejects.toMatchObject({ code: "read_failed" });
   });
 });
 
@@ -180,4 +328,59 @@ describe("local URI fetch boundary", () => {
       expect(fetchSpy).not.toHaveBeenCalled();
     },
   );
+
+  test("rejects a remote final response URL and disables redirects", async () => {
+    const response = {
+      ...responseWith(streamFrom([new Uint8Array([97])]), "1"),
+      redirected: false,
+      url: "https://example.com/redirected.txt",
+    } as Response;
+    const fetchSpy = jest.fn().mockResolvedValue(response);
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    await expect(fetchBoundedLocalUtf8("file:///cache/local.txt", { declaredBytes: 1 })).rejects.toMatchObject({
+      code: "unsafe_source",
+    });
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "file:///cache/local.txt",
+      expect.objectContaining({ redirect: "error", signal: expect.any(AbortSignal) }),
+    );
+  });
+
+  test("rejects a response marked redirected even when its final URL looks local", async () => {
+    const response = {
+      ...responseWith(streamFrom([new Uint8Array([97])]), "1"),
+      redirected: true,
+      url: "file:///cache/local.txt",
+    } as Response;
+    globalThis.fetch = jest.fn().mockResolvedValue(response) as unknown as typeof fetch;
+
+    await expect(
+      fetchBoundedLocalUtf8("file:///cache/local.txt", { declaredBytes: 1 }),
+    ).rejects.toMatchObject({ code: "unsafe_source" });
+  });
+
+  test("accepts Expo Android's exact internal file URL but rejects a changed path", async () => {
+    const local = {
+      ...responseWith(streamFrom([new Uint8Array([97])]), "1"),
+      redirected: false,
+      url: "http://filesystem.local/cache/local.txt",
+    } as Response;
+    globalThis.fetch = jest.fn().mockResolvedValue(local) as unknown as typeof fetch;
+
+    await expect(fetchBoundedLocalUtf8("file:///cache/local.txt", { declaredBytes: 1 })).resolves.toBe(
+      "a",
+    );
+
+    const changedPath = {
+      ...responseWith(streamFrom([new Uint8Array([97])]), "1"),
+      redirected: false,
+      url: "http://filesystem.local/cache/other.txt",
+    } as Response;
+    globalThis.fetch = jest.fn().mockResolvedValue(changedPath) as unknown as typeof fetch;
+
+    await expect(
+      fetchBoundedLocalUtf8("file:///cache/local.txt", { declaredBytes: 1 }),
+    ).rejects.toMatchObject({ code: "unsafe_source" });
+  });
 });
