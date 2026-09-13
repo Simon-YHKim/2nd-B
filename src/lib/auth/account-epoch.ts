@@ -2,8 +2,9 @@
 //
 // Supabase can publish A -> B without an intermediate signed-out frame. Any
 // module queue or mounted screen that was created for A must be able to reject
-// work before AuthContext exposes B. AuthContext therefore calls
-// noteResolvedOwner() immediately before every state publication.
+// work before AuthContext exposes B. AuthContext therefore raises a synchronous
+// pre-publication hold, then calls noteResolvedOwner() immediately before every
+// state publication.
 
 export type AccountOwner = string | null;
 
@@ -24,6 +25,9 @@ let epoch = 0;
 let publishedOwner: AccountOwner = null;
 let lastNonNullOwner: string | null = null;
 let transitionPending = false;
+let publicationHold = false;
+let pendingPublicationOwner: AccountOwner = null;
+let navigationResetPending = false;
 
 const transitionListeners = new Set<Listener>();
 const ownerListeners = new Set<OwnerListener>();
@@ -57,10 +61,19 @@ function emitOwner(change: AccountOwnerChange): void {
  * same continuation immediately before setState; never from a React effect.
  */
 export function noteResolvedOwner(owner: AccountOwner): void {
-  if (owner === publishedOwner) return;
+  if (owner === publishedOwner) {
+    if (!publicationHold || owner !== pendingPublicationOwner) return;
+    publicationHold = false;
+    pendingPublicationOwner = null;
+    transitionPending = navigationResetPending;
+    emitTransition();
+    return;
+  }
 
   const previousOwner = publishedOwner;
   epoch += 1;
+  publicationHold = false;
+  pendingPublicationOwner = null;
   publishedOwner = owner;
 
   // A different non-null owner must never see the retained route tree. Keep
@@ -70,14 +83,52 @@ export function noteResolvedOwner(owner: AccountOwner): void {
     lastNonNullOwner !== null &&
     owner !== lastNonNullOwner
   ) {
-    transitionPending = true;
+    navigationResetPending = true;
   }
   if (owner !== null) lastNonNullOwner = owner;
+  transitionPending = navigationResetPending;
 
   emitOwner({ previousOwner, owner, epoch });
   // The epoch is part of the external-store snapshot. Notify even when a hold
   // stays true (B -> C before navigation settles), otherwise a resolver can
   // retain B's epoch and fail its compare-and-set forever.
+  emitTransition();
+}
+
+/**
+ * Hide the currently-published product tree as soon as auth-js reports a
+ * different session owner. Cleanup and profile probing may still be pending;
+ * this synchronous hold prevents that already-observed B session from running
+ * against A's retained React tree. The actual published owner changes only in
+ * noteResolvedOwner(), after the caller's generation fence succeeds.
+ */
+export function beginAccountOwnerTransition(nextOwner: AccountOwner): void {
+  if (publicationHold && nextOwner === pendingPublicationOwner) return;
+  if (!publicationHold && nextOwner === publishedOwner) return;
+
+  // There is no previous product owner on the first resolved login, so there
+  // is no retained account subtree to quarantine.
+  if (
+    publishedOwner === null &&
+    lastNonNullOwner === null &&
+    !navigationResetPending
+  ) {
+    return;
+  }
+
+  epoch += 1;
+  if (nextOwner === publishedOwner) {
+    // A newer event returned to the still-published owner before the pending
+    // transition committed. Cancel only the pre-publication hold; an older
+    // navigation-reset hold, if any, remains in force.
+    publicationHold = false;
+    pendingPublicationOwner = null;
+    transitionPending = navigationResetPending;
+  } else {
+    publicationHold = true;
+    pendingPublicationOwner = nextOwner;
+    transitionPending = true;
+  }
   emitTransition();
 }
 
@@ -135,7 +186,8 @@ export function subscribeAccountTransition(listener: Listener): () => void {
  * epoch N cannot clear a newer N+1 owner transition.
  */
 export function clearAccountTransition(expectedEpoch: number): boolean {
-  if (expectedEpoch !== epoch || !transitionPending) return false;
+  if (expectedEpoch !== epoch || !transitionPending || publicationHold) return false;
+  navigationResetPending = false;
   transitionPending = false;
   emitTransition();
   return true;
@@ -163,6 +215,9 @@ export function __resetAccountEpochForTests(): void {
   publishedOwner = null;
   lastNonNullOwner = null;
   transitionPending = false;
+  publicationHold = false;
+  pendingPublicationOwner = null;
+  navigationResetPending = false;
   transitionListeners.clear();
   ownerListeners.clear();
 }

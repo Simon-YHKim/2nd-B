@@ -563,6 +563,7 @@ async function runAccountScopedLocalNotificationCleanup(
     accountNotificationStorageKey(ownerId, "reminders-disabled"),
     accountNotificationStorageKey(ownerId, "daily-review-enabled"),
     accountNotificationStorageKey(ownerId, "daily-review-hour"),
+    ...LEGACY_ACCOUNT_LOCAL_NOTIFICATION_KEYS,
   ];
   operations.push(...accountKeys.map(
     (key) => () => guarded(() => AsyncStorage.removeItem(key)),

@@ -87,6 +87,11 @@ import {
 } from "../../supabase/auth";
 
 const originalNavigator = globalThis.navigator;
+const LEGACY_NOTIFICATION_KEYS = [
+  "ops.reminders.disabled",
+  "ops.dailyReview.enabled.v1",
+  "ops.dailyReview.hour.v1",
+] as const;
 
 function setNavigatorProduct(product: string | undefined): void {
   Object.defineProperty(globalThis, "navigator", {
@@ -377,8 +382,10 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     ]);
     expect(dismissNotificationAsync).toHaveBeenCalledWith("presented-a-1");
     expect(clearLastNotificationResponse).not.toHaveBeenCalled();
-    expect(removeItem).toHaveBeenCalledTimes(3);
-    expect(removeItem.mock.calls.every(([key]) => key.includes("ops.account.v2."))).toBe(true);
+    expect(removeItem).toHaveBeenCalledTimes(6);
+    const removedKeys = removeItem.mock.calls.map(([key]) => key);
+    expect(removedKeys).toEqual(expect.arrayContaining(LEGACY_NOTIFICATION_KEYS));
+    expect(removedKeys.filter((key) => key.includes("ops.account.v2."))).toHaveLength(3);
   });
 
   test("account cleanup waits for every operation and throws only a sanitized aggregate", async () => {
@@ -397,7 +404,7 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
 
     expect(cancelScheduledNotificationAsync).toHaveBeenCalledTimes(1);
     expect(dismissNotificationAsync).toHaveBeenCalledTimes(1);
-    expect(removeItem).toHaveBeenCalledTimes(3);
+    expect(removeItem).toHaveBeenCalledTimes(6);
     expect(error).toMatchObject({
       name: "AccountScopedNotificationCleanupError",
       message: "Account-scoped local notification cleanup failed.",
@@ -471,7 +478,7 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
 
     expect(events.indexOf("receipt-armed")).toBeGreaterThan(events.lastIndexOf("state-clear"));
     expect(events.at(-1)).toBe("sign-out");
-    expect(removeItem).toHaveBeenCalledTimes(3);
+    expect(removeItem).toHaveBeenCalledTimes(6);
     expect(supabaseSignOut).toHaveBeenCalledWith({ scope: "local" });
   });
 
@@ -569,8 +576,10 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
         name: "AccountScopedNotificationCleanupError",
         failureCount: 1,
       });
-      expect(removeItem).toHaveBeenCalledTimes(3);
-      expect(removeItem.mock.calls.every(([key]) => key.includes("ops.account.v2."))).toBe(true);
+      expect(removeItem).toHaveBeenCalledTimes(6);
+      const removedKeys = removeItem.mock.calls.map(([key]) => key);
+      expect(removedKeys).toEqual(expect.arrayContaining(LEGACY_NOTIFICATION_KEYS));
+      expect(removedKeys.filter((key) => key.includes("ops.account.v2."))).toHaveLength(3);
 
       setNavigatorProduct("Gecko");
       await expect(unavailableReminders.clearAccountScopedLocalNotifications("account-a")).resolves.toBeUndefined();
@@ -651,14 +660,19 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     expect(cancelScheduledNotificationAsync.mock.calls).toEqual([[accountAId]]);
     expect(clearLastNotificationResponse).not.toHaveBeenCalled();
     const removedAKeys = removeItem.mock.calls.map(([key]) => key);
-    expect(removedAKeys).toHaveLength(3);
-    expect(removedAKeys.every((key) => key.includes(".v2."))).toBe(true);
+    expect(removedAKeys).toHaveLength(6);
+    expect(removedAKeys).toEqual(expect.arrayContaining(LEGACY_NOTIFICATION_KEYS));
+    expect(removedAKeys.filter((key) => key.includes(".v2."))).toHaveLength(3);
     expect(removedAKeys.every((key) => !key.includes("account-a"))).toBe(true);
     await expect(clearAccountScopedLocalNotifications("account-b", { timeoutMs: 20 }))
       .resolves.toBeUndefined();
-    const removedBKeys = removeItem.mock.calls.slice(3).map(([key]) => key);
-    expect(removedBKeys).toHaveLength(3);
-    expect(removedBKeys.every((key) => !removedAKeys.includes(key))).toBe(true);
+    const removedBKeys = removeItem.mock.calls.slice(6).map(([key]) => key);
+    expect(removedBKeys).toHaveLength(6);
+    expect(removedBKeys).toEqual(expect.arrayContaining(LEGACY_NOTIFICATION_KEYS));
+    const removedAV2Keys = removedAKeys.filter((key) => key.includes(".v2."));
+    const removedBV2Keys = removedBKeys.filter((key) => key.includes(".v2."));
+    expect(removedBV2Keys).toHaveLength(3);
+    expect(removedBV2Keys.every((key) => !removedAV2Keys.includes(key))).toBe(true);
     releaseLateA?.();
     await Promise.resolve();
     expect(cancelScheduledNotificationAsync).not.toHaveBeenCalledWith(accountBId);

@@ -37,6 +37,17 @@ describe("root account scene boundary wiring", () => {
     expect(refreshNote).toBeLessThan(refreshPublish);
   });
 
+  test("a changed auth owner hides the product tree before notification cleanup awaits", () => {
+    const resolveStart = AUTH.indexOf("async function resolveSession");
+    const resolveEnd = AUTH.indexOf("type QueuedAuthEvent", resolveStart);
+    const resolveBody = AUTH.slice(resolveStart, resolveEnd);
+    const begin = resolveBody.indexOf("beginAccountOwnerTransition(userId);");
+    const cleanupAwait = resolveBody.indexOf("await accountNotificationGateRef.current!.prepare(");
+
+    expect(begin).toBeGreaterThan(-1);
+    expect(cleanupAwait).toBeGreaterThan(begin);
+  });
+
   test("screenLayout holds product children but exempts the auth group", () => {
     expect(LAYOUT).toContain("screenLayout={({ children: screen, route }) => (");
     expect(LAYOUT).toContain('<AccountScope routeName={route.name}>{screen}</AccountScope>');

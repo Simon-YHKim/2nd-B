@@ -80,6 +80,28 @@ describe("account notification publication gate", () => {
     expect(gate.publishedOwner()).toBe("account-c");
   });
 
+  test("rapid B then C preparation shares one cleanup of the published A owner", async () => {
+    const cleanupDone = deferred();
+    let currentOwner = "account-b";
+    const cleanup = jest.fn(() => cleanupDone.promise);
+    const gate = createAccountNotificationPublicationGate(cleanup);
+    await gate.prepare("account-a", () => true);
+
+    const preparingB = gate.prepare("account-b", () => currentOwner === "account-b");
+    currentOwner = "account-c";
+    const preparingC = gate.prepare("account-c", () => currentOwner === "account-c");
+    await Promise.resolve();
+
+    expect(cleanup).toHaveBeenCalledTimes(1);
+    expect(cleanup).toHaveBeenCalledWith("account-a");
+    expect(gate.publishedOwner()).toBe("account-a");
+
+    cleanupDone.resolve();
+    await expect(preparingB).resolves.toBe(false);
+    await expect(preparingC).resolves.toBe(true);
+    expect(gate.publishedOwner()).toBe("account-c");
+  });
+
   test("bounded cleanup failure is terminal and cannot leave bootstrap loading forever", async () => {
     const cleanup = jest.fn().mockRejectedValue(new Error("native timeout"));
     const gate = createAccountNotificationPublicationGate(cleanup);

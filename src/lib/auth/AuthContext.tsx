@@ -8,7 +8,7 @@ import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { getSupabaseClient } from "../supabase/client";
 import { ageInYears, signOut as signOutAuth } from "../supabase/auth";
 import { preserveKnownMinorForMissingProfile, type ProfileProbe } from "./profile-probe";
-import { noteResolvedOwner } from "./account-epoch";
+import { beginAccountOwnerTransition, noteResolvedOwner } from "./account-epoch";
 import { createAccountNotificationPublicationGate } from "./account-notification-publication";
 import { noteExternalAuthSessionMutation } from "./session-mutation";
 import {
@@ -287,6 +287,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async function resolveSession(userId: string | null) {
       if (cancelled) return;
       const gen = ++probeGenRef.current;
+      beginAccountOwnerTransition(userId);
       // Supabase may publish A→B without a null event. Keep A as the publication
       // owner until its bounded device cleanup terminates, then re-check the
       // auth generation before any B state becomes observable.
@@ -814,6 +815,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const retry = classifyRefreshOutcome(probed);
     uid = retry.userId;
     if (gen !== probeGenRef.current) return; // a newer resolution superseded us
+    beginAccountOwnerTransition(uid);
     const publicationReady = await accountNotificationGateRef.current!.prepare(
       uid,
       () => gen === probeGenRef.current,
