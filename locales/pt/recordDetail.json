@@ -19,7 +19,8 @@
   },
   "actions": {
     "backToRecords": "Voltar aos registros",
-    "seeGraph": "Ver no mapa",
+    "seeArea": "Ver em {{area}}",
+    "seeAreaHint": "Abre {{area}} com este registro no topo.",
     "askSecondB": "Perguntar ao SecondB",
     "openSource": "Abrir material original"
   }

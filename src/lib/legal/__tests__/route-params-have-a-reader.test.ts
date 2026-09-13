@@ -19,6 +19,11 @@
 // and the only code that reads that name sits in src/app/index.tsx's legacy half,
 // which no deployment renders. Two claims, neither kept, no error anywhere.
 //
+// Resolved 2026-09-13 (P1, Simon's decision at 22:26). The shipped home's seven
+// stars are not domains, so there was nothing there to highlight. Both senders
+// now open the piece's life-area screen with `pieceId`, and /star/[domain] reads
+// it and shows the piece at the top. Nothing sends highlightRecordId any more.
+//
 // ⚠ Counted in ONE direction. "no shipped file mentions this name" is sound;
 // "a file mentions it, therefore it is read" is not. So this undercounts, which
 // is the safe way to be wrong — a false alarm here would push someone to delete
@@ -39,10 +44,6 @@ const ROOT = process.cwd();
  * the copy that promises it — and picking one of those alone is not a test's job.
  */
 const SENT_TO_NOBODY: Readonly<Record<string, string>> = {
-  highlightRecordId:
-    "/capture 저장 후 CTA(라벨 '그래프 보기', 힌트 '…방금 저장한 별가루를 강조해요')가 '/' 로 보낸다. " +
-    "읽는 코드는 src/app/index.tsx 의 레거시 반쪽에만 있어 배송되지 않는다. **약속이 두 개 다 안 지켜진다** — " +
-    "배송 홈은 그래프가 아니라 별자리고, 강조도 없다. 되살릴지 문구를 고칠지는 Simon 결정 대기.",
   focusSourceId:
     "/inbox 의 '위키에서 보기'가 보낸다. 배송 위키는 focusPageId(페이지 id)를 읽는다 — 뜻이 다른 값이라 " +
     "이름만 바꿔서는 안 된다. 화면 자신의 주석이 그렇게 적고 있다(dds-wiki-records-screens.tsx). Simon 결정 대기.",

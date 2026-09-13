@@ -182,7 +182,12 @@ describe("deep-space records source detail routing", () => {
     );
     const wiki = sliceBetween(RECORDS_SRC, "export function DeepSpaceWikiScreen()");
 
-    expect(sha256(legacy)).toBe("764d8cc2792bcd5174803505d9e935e87e37784364c78d8c9eaed6044e257e31");
+    // Re-pinned 2026-09-13 (P1, Simon's decision at 22:26): the legacy handoff stopped
+    // promising a highlight on the archived graph and now opens the piece's life area,
+    // the same rule as the shipped detail. That button and the line computing its area
+    // are the only changes in this slice (7,931 -> 8,001 chars); the shipped detail got
+    // the same button with its own pins in saved-piece-opens-its-area.test.ts.
+    expect(sha256(legacy)).toBe("8cf82cb6813ea6b7d43ce1cd8a4dcdb0d497987f6b108f54df9fd782f90916be");
     expect(sha256(records)).toBe(
       // Re-pinned in the integration merge. This PR computed the digest against a
       // records screen that predates #1521 (bounded graph rendering, its own

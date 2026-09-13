@@ -1059,6 +1059,8 @@
     "empty": "첫 기록을 담아 이 별을 밝혀보세요.",
     "recordFallback": "기록",
     "untitled": "(제목 없음)",
+    "pieceHere": "여기 담겼어요",
+    "pieceOpenHint": "이 기록을 열어요.",
     "briefingOpening": "이 별의 기록을 불러오는 중…",
     "briefingEmpty": "이 별에는 아직 기록이 없어요. 기록을 담으면 세컨비가 내용을 정리해요.",
     "briefingCountOne": "이 별에 {{n}}개의 기록이 담겼어요. 최근 기록부터 정리했어요.",

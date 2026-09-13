@@ -1059,6 +1059,8 @@
     "empty": "Capture your first record to light this star.",
     "recordFallback": "record",
     "untitled": "(untitled)",
+    "pieceHere": "Filed here",
+    "pieceOpenHint": "Opens this record.",
     "briefingOpening": "Opening this star…",
     "briefingEmpty": "No records in this star yet. Add a record for SecondB to summarize.",
     "briefingCountOne": "{{n}} record on this star, newest first.",

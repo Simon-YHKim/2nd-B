@@ -101,6 +101,13 @@ const AUDIT_QA_SYSTEM: Record<"en" | "ko", string> = {
 
 export interface CreatedRecord {
   id: string;
+  /**
+   * The tags the row was inserted with: exactly one `domain:` tag first (a valid typed
+   * domainIntent, else the detector, else collect), then the caller's tags. Returned so a
+   * caller knows where the record was filed without reading it back (P1: the /capture
+   * saved card opens that area with this record at the top).
+   */
+  tags: string[];
   followup?: RecordFollowup;
 }
 
@@ -258,6 +265,17 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
     }
   }
 
+  // Constellation layer A: tag the record with its life-domain slug at insert
+  // (deterministic, no LLM) so the home's load-domain-levels can group it. Detect
+  // from the user's own text (body + topic), not the AI prompt; withDomainTag drops
+  // any user-forced domain:* tag first. A runtime-valid typed domainIntent (별 담기)
+  // wins over the detector — same shape: exactly one domain tag first, raw domain:*
+  // stripped. Computed once, so the row and the returned tags cannot disagree.
+  const tags =
+    args.domainIntent !== undefined && isDomainId(args.domainIntent)
+      ? [domainTagFor(args.domainIntent), ...stripDomainTags(args.tags ?? [])]
+      : withDomainTag(args.tags, [args.body, args.topic].filter(Boolean).join("\n"));
+
   // Bounded. Neither fetch nor supabase-js times out on its own, so a STALLED connection
   // (socket open, nothing coming back -- not the same as a failed one) left this await
   // hanging forever. On /ipip-neo that meant a 120-item, ~15-minute assessment sat behind
@@ -277,16 +295,8 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
         topic: args.topic ?? null,
         summary: args.summary ?? null,
         conclusion: args.conclusion ?? null,
-        // Constellation layer A: tag the record with its life-domain slug at
-        // insert (deterministic, no LLM) so the home's load-domain-levels can
-        // group it. Detect from the user's own text (body + topic), not the AI
-        // prompt; withDomainTag drops any user-forced domain:* tag first. A
-        // runtime-valid typed domainIntent (별 담기) wins over the detector —
-        // same shape: exactly one domain tag first, raw domain:* stripped.
-        tags:
-          args.domainIntent !== undefined && isDomainId(args.domainIntent)
-            ? [domainTagFor(args.domainIntent), ...stripDomainTags(args.tags ?? [])]
-            : withDomainTag(args.tags, [args.body, args.topic].filter(Boolean).join("\n")),
+        // Constellation layer A: exactly one domain tag first (see `tags` above).
+        tags,
         // 0066: machine-readable form payload for form-shaped captures.
         structured: args.structured ?? null,
       })
@@ -346,7 +356,7 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
     })();
   }
 
-  return { id: data.id, followup: aiFollowup ?? undefined };
+  return { id: data.id, tags, followup: aiFollowup ?? undefined };
 }
 
 // How far back the streak query looks, in days. A streak longer than this is
