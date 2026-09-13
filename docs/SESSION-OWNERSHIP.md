@@ -31,6 +31,98 @@
 서버 쪽이 콘솔 소유이고 클라이언트 쪽이 코딩 세션 소유이므로, 이 순서는
 **두 세션 사이의 순서**다. 클라이언트를 머지하는 쪽이 서버 배포가 끝났는지 확인한다.
 
+#### Paddle 환불 무결성 draft: 웹훅을 끈 상태에서만 교체
+
+`db/migration-drafts/UNNUMBERED_paddle_refund_consequence_integrity.sql`은 DB 함수와
+`paddle-webhook`을 함께 바꾸므로 위의 일반적인 서버-first 규칙만 적용해서는 안 된다.
+이 교체는 `apply_billing_refund`의 **9개 인자 SQL 시그니처만 유지한다.** 이전 Edge는
+`p_event_id`에 `${eventId}:consequence`를 보냈지만 새 함수는 정확한 source lifecycle event를
+요구하므로 **구 Edge와 새 DB 함수는 의미상 호환되지 않는다.** 새 함수는 구 호출을 거부하지만
+구 Edge는 그 두 번째 RPC 오류를 기록한 뒤에도 200을 반환했다. 그래서 새 recorder는 승인된 source를
+먼저 `refund_consequence_pending` review로 남기며, strict Edge만 확인된 consequence 뒤 이를 닫는다.
+그 방어와 별개로 DB와 Edge 어느 쪽도 웹훅이 켜진 채 단독 교체하지 않는다.
+7단계 직전에 아래 번호 규칙으로 당시의 다음 번호를 예약·push한다. **유일한 안전 순서**는
+다음과 같다.
+
+1. `PADDLE_WEBHOOK_ENABLED`를 `1`이 아닌 값으로 설정해 웹훅을 비활성화한다.
+2. Edge invocation·gateway·Paddle delivery 로그를 함께 보고 기존 `paddle-webhook`의 **in-flight가
+   0건**임을 확인한다. 비활성화 직전 시작된 요청의 최대 실행 시간과 재시도 지연보다 길게 관찰하고,
+   0건을 증명할 수 없으면 DB 함수를 교체하지 않는다. 기능 플래그 OFF만으로 drain을 대신하지 않는다.
+3. 초기 rollout에서는 server-only `PADDLE_CHECKOUT_BINDING_SECRET`을 `subscription-manage`와
+   `paddle-webhook`에 동일한 current 값으로 설정하고 previous 관련 두 변수는 비워 둔다.
+4. `subscription-manage`을 먼저 배포하고 인증된 사용자에게만 짧은 checkout binding이 발급되는지
+   확인한다.
+5. 새 Paddle client token으로 binding-aware 클라이언트를 배포한다.
+6. 기존 client token을 폐기하고 더는 구 클라이언트가 checkout을 열 수 없는지 확인한다.
+7. 이미 열린 legacy checkout을 조정하거나 종료하고, 서명 없는 결제의 소유권을 운영자가
+   reconciliation할 수 있게 목록을 고정한다.
+8. `db/migration-drafts/UNNUMBERED_paddle_refund_consequence_integrity.sql`에 당시 새 번호를
+   배정해 `db/migrations/`로 옮기고 예약 브랜치를 push한 뒤 적용을 완료한다.
+9. strict `paddle-webhook`을 배포한다. `subscription-manage`와 동일한 binding secret인지 확인한다.
+10. 격리된 staging 또는 local에서 `PADDLE_WEBHOOK_ENABLED=1`로 설정하고
+   signed·tampered·expired·unattributed·retry webhook canary와 복수 adjustment 회귀를 실행한다.
+11. 운영에서는 콘솔 소유자가 제한된 점검 창에서만 `PADDLE_WEBHOOK_ENABLED=1`로 전환하고,
+    이미 처리된 무해한 signed event의 idempotent replay와 거부 canary를 즉시 실행한다. 활성화·검증·
+    로그 확인을 같은 창에서 수행하며, 하나라도 실패하면 즉시 `PADDLE_WEBHOOK_ENABLED`를 다시 끈다.
+12. 모든 운영 canary가 통과한 경우에만 `PADDLE_WEBHOOK_ENABLED=1`을 유지한다. 실패 시에는
+    비활성 상태를 유지하고 아래 roll-forward 절차를 따른다.
+
+운영 이후 checkout-binding 키 교체는 한 개 signer와 두 개 verifier의 순서를 따른다.
+먼저 `paddle-webhook`의 current를 new, previous를 old로 먼저 설정하고
+previous expiry는 계획한 signer 전환 시각보다 최소 7일 + 10분 뒤로 보수적으로 둔다. 이를
+`PADDLE_CHECKOUT_BINDING_SECRET_PREVIOUS_EXPIRES_AT`에 기록한 다음 `paddle-webhook`을 먼저 재배포한다.
+그 다음 `subscription-manage`의 current signer를 new로 전환해 배포하면서 실제 마지막 old binding 발급 시각을 기록한다.
+설정된 expiry가 그 실제 시각 + 7일 + 5분보다 이르면 즉시 뒤로 연장하고 절대 줄이지 않는다. 이 실제 보존 시각이
+지나고 old-key 검증 로그가 0임을 확인한 뒤 webhook의 previous secret과 expiry를 제거해 다시 배포한다.
+`subscription-manage`는 previous secret을 읽거나 서명하지 않는다. 초기 OFF rollout 중에는
+두 current 설정을 끝낸 뒤 9~12단계 canary에서 같은 값을 검증한다.
+
+DB-first만으로는 안전하지 않다. 배포 간격에 구 Edge 함수가 서명된 최상위 `partial`을
+line item 하나의 `full`만 보고 전체 환불로 승격할 수 있다. Edge-first도 안전하지 않다.
+새 Edge 함수가 호출하는 `record_paddle_adjustment_review` RPC는 번호가 배정된 이 migration이
+만들기 때문에, 먼저 배포하면 결과 기록 단계가 실패하고 이미 확정됐는지 모르는
+consequence를 남길 수 있다.
+
+어느 단계에서든 실패하면 **웹훅을 비활성 상태로 유지한 채 roll-forward**한다. 번호가 배정된
+migration과 현재 Edge 함수가 모두 정상인 상태를 만든 뒤에만 다시 켠다.
+구 Edge 함수를 재배포하지 않는다.
+`db/migrations/rollback/0136_down.sql`을 실행하지 않는다. 둘 다 제거한 partial→full 경로를
+다시 열기 때문에 이 변경의 운영 롤백 수단이 아니다.
+
+운영 review는 `refund_review=true`인 행을 정규화된 `paddle_adjustment_id` ·
+`paddle_adjustment_action` · `paddle_adjustment_status` · `billing_review_reason`으로 조회한다.
+판단과 외부 조정이 끝난 뒤에만 service role로
+`set_paddle_refund_review('<event_id>', false)`를 호출한다. 이 RPC는 원인을 지우지 않고
+`billing_review_resolved_at`을 남긴다. raw payload의 90일 삭제는 이 queue를 닫지 않는다.
+
+#### Reward SSV: 서버 선행 전환
+
+`db/migration-drafts/UNNUMBERED_reward_ssv_hardening.sql`은 기존 consume RPC를 제거하고
+`rewarded-ssv`의 atomic settle RPC를 도입하므로 DB와 Edge를 온라인 상태에서 한쪽씩
+교체할 수 없다. 공개 앱이 새 서버 계약보다 먼저 광고를 열지 않도록 아래 순서를 지킨다.
+
+1. **server OFF:** 콘솔 세션이 운영 `REWARD_SSV_ENABLED=0`을 확인한다. 공개 client의
+   `EXPO_PUBLIC_REWARD_SSV`도 unset/false로 유지한다.
+2. **DB:** 당시의 다음 번호를 원격 재조회·예약·push한 뒤
+   `UNNUMBERED_reward_ssv_hardening.sql`을 번호가 붙은 migration으로 적용하고 DB 회귀를 확인한다.
+3. **Edge:** `REWARD_SSV_AD_UNIT_ID`를 운영 실유닛으로 설정하고 새 `rewarded-ssv Edge`를
+   배포한다. 아직 `REWARD_SSV_ENABLED=0`이므로 공개 요청은 503으로 닫혀 있어야 한다.
+4. **공개 client capability OFF:** 배포된 앱의 `EXPO_PUBLIC_REWARD_SSV`는 계속 unset/false이고,
+   실유닛이 없는 빌드도 `canCompleteRewardedWatch()`에서 닫히는지 확인한다.
+5. **제한 canary:** 콘솔 세션이 감시 창에서만 `REWARD_SSV_ENABLED=1`로 전환한다. 공개 앱은
+   계속 닫아 둔 채 동일 실유닛을 넣은 비공개 canary 빌드와 지정 테스트 계정만 사용해
+   ticket POST, Google 서명 GET, reasoning/chat 각각의 원장 반영, exact replay, 거부 경로를 확인한다.
+6. **server 유지/rollback:** 모든 canary와 로그가 기대 결과와 일치하면 서버 플래그를 1로 유지한다.
+   하나라도 실패하면 즉시 `REWARD_SSV_ENABLED=0`으로 되돌리고 server를 roll-forward한다.
+   이미 적용한 DB를 되감는 `DB down migration`은 실행하지 않는다.
+7. **client activation:** 서버가 유지 상태임을 재확인한 뒤에만 공개 빌드에
+   `EXPO_PUBLIC_REWARD_SSV=true`와 검증된 `EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID`를 함께 넣는다.
+   이 공개 ad unit은 Edge의 `REWARD_SSV_AD_UNIT_ID`와 정확히 같아야 한다. 불일치·누락·
+   Google test unit이면 capability가 fail-closed인 것을 release 전에 확인한다.
+
+운영 DB 적용, Edge 배포, 서버 플래그 전환은 모두 **콘솔 세션 소유**다. 코딩 세션은 번호
+없는 draft와 검증 자료만 넘기며, 콘솔 완료 증거 없이 공개 client activation을 승인하지 않는다.
+
 **마이그레이션 파일 작성은 원래 코딩 세션 몫이다.** 콘솔 세션이 쓴 적이 있다
 (`0131`, 어드바이저가 잡은 인덱스 누락). 사람이 승인하면 가능하지만 **쓴 사실을
 상대 세션에 알려야 한다.** 0131 은 알리지 않았고, 그래서 이 문서가 생겼다.

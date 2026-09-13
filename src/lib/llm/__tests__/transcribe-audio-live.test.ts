@@ -28,9 +28,14 @@ const mockInvoke = jest.fn();
 const mockGenerateContent = jest.fn();
 const mockClassifySafety = jest.fn();
 const mockInsertAudit = jest.fn().mockResolvedValue(undefined);
+const mockGetSession = jest.fn();
 
 jest.mock("../../supabase/client", () => ({
-  getSupabaseClient: () => ({ functions: { invoke: mockInvoke } }),
+  getSupabaseClient: () => ({ auth: { getSession: mockGetSession } }),
+}));
+
+jest.mock("../../supabase/captured-session-client", () => ({
+  invokeFunctionWithCapturedSession: (...args: unknown[]) => mockInvoke(...args),
 }));
 
 jest.mock("../safety", () => {
@@ -42,7 +47,7 @@ jest.mock("../safety", () => {
 // seam to observe. Mocking insertAiAuditLog instead would watch a function this
 // path never calls directly and pass while auditing nothing.
 jest.mock("../audit-write-outbox", () => ({
-  enqueueAuditWrite: (submission: unknown) => mockInsertAudit(submission),
+  enqueueAuditWrite: (...args: unknown[]) => mockInsertAudit(...args),
 }));
 jest.mock("../../supabase/crisis-events", () => ({
   insertCrisisEvent: jest.fn().mockResolvedValue(undefined),
@@ -107,7 +112,25 @@ function synthWavBase64(seconds = 0.25, sampleRate = 8000, hz = 440): string {
 }
 
 const AUDIO = synthWavBase64();
-const BASE = { userId: "u-1", locale: "ko" as const, base64: AUDIO, mimeType: "audio/wav" };
+let sessionCurrent = true;
+const session = {
+  userId: "u-1",
+  epoch: 1,
+  accessToken: "captured-token-a",
+  signal: new AbortController().signal,
+  assertCurrent: jest.fn(() => {
+    if (!sessionCurrent) throw Object.assign(new Error("stale"), { name: "AbortError" });
+  }),
+  abort: jest.fn(),
+  release: jest.fn(),
+};
+const BASE = {
+  userId: "u-1",
+  session,
+  locale: "ko" as const,
+  base64: AUDIO,
+  mimeType: "audio/wav",
+};
 
 // multimodalVendor() reads process.env directly, not getEnv(), so the mocked
 // env above does not reach it. Start every test from the UNSET posture and put
@@ -117,8 +140,11 @@ const originalMultimodal = process.env[MULTIMODAL_KEY];
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockGetSession.mockReset();
   envMode = "live";
   viaEdge = true;
+  sessionCurrent = true;
+  session.assertCurrent.mockClear();
   delete process.env[MULTIMODAL_KEY];
   mockClassifySafety.mockResolvedValue({ zone: "green", triggers: [], confidence: 0.1, cssrsLevel: 0 });
 });
@@ -144,10 +170,11 @@ describe("transcribeAudio · synthesised audio survives the byte path", () => {
     await transcribeAudio(BASE);
 
     expect(mockInvoke).toHaveBeenCalledTimes(1);
-    const [fn, opts] = mockInvoke.mock.calls[0] as [string, { body: Record<string, unknown> }];
+    const [fn, token, opts] = mockInvoke.mock.calls[0] as [string, string, { body: Record<string, unknown> }];
     // Unset is openai since T1 stage A (2026-08-31); gemini-proxy is no longer
     // the fallback for the binary-carrying seats.
     expect(fn).toBe("openai-proxy");
+    expect(token).toBe("captured-token-a");
     const audio = opts.body.audio as { mimeType: string; data: string };
     // The exact bytes matter: a truncating or re-encoding step here would still
     // "work" for a short clip and fail on a real recording.
@@ -165,8 +192,9 @@ describe("transcribeAudio · synthesised audio survives the byte path", () => {
     await transcribeAudio(BASE);
 
     expect(mockInvoke).toHaveBeenCalledTimes(1);
-    const [fn, opts] = mockInvoke.mock.calls[0] as [string, { body: Record<string, unknown> }];
+    const [fn, token, opts] = mockInvoke.mock.calls[0] as [string, string, { body: Record<string, unknown> }];
     expect(fn).toBe("gemini-proxy");
+    expect(token).toBe("captured-token-a");
     const audio = opts.body.audio as { mimeType: string; data: string };
     expect(audio.data).toBe(AUDIO);
     expect(audio.mimeType).toBe("audio/wav");
@@ -196,6 +224,44 @@ describe("transcribeAudio · edge path", () => {
     mockInvoke.mockResolvedValue({ data: { text: "ok", audited: true }, error: null });
     await transcribeAudio(BASE);
     expect(mockGenerateContent).not.toHaveBeenCalled();
+  });
+
+  it("rejects a response after A changes to B before any audit or UI result can continue", async () => {
+    const { __resetAccountEpochForTests, noteResolvedOwner } = require("../../auth/account-epoch") as typeof import("../../auth/account-epoch");
+    const { beginAccountSessionLease } = require("../../auth/account-session-lease") as typeof import("../../auth/account-session-lease");
+    __resetAccountEpochForTests();
+    noteResolvedOwner("account-a");
+    mockGetSession.mockResolvedValue({
+      data: { session: { user: { id: "account-a" }, access_token: "token-a" } },
+      error: null,
+    });
+    const authenticated = await beginAccountSessionLease("account-a").authenticate();
+    let resolveInvoke: ((value: unknown) => void) | undefined;
+    mockInvoke.mockReturnValue(new Promise((resolve) => {
+      resolveInvoke = resolve;
+    }));
+
+    try {
+      const pending = transcribeAudio({
+        ...BASE,
+        userId: "account-a",
+        session: authenticated,
+      });
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "openai-proxy",
+        "token-a",
+        expect.objectContaining({ signal: authenticated.signal }),
+      );
+
+      noteResolvedOwner("account-b");
+      expect(authenticated.signal.aborted).toBe(true);
+      resolveInvoke?.({ data: { text: "must not escape", audited: false }, error: null });
+
+      await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+      expect(mockInsertAudit).not.toHaveBeenCalled();
+    } finally {
+      __resetAccountEpochForTests();
+    }
   });
 });
 

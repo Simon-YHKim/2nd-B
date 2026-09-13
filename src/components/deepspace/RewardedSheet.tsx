@@ -55,7 +55,7 @@ const rwAlpha = (c: string, a: number): string => flattenAlpha(c, a, deepSpace.b
  * and the sheet decides what the user sees. Returning nothing still means
  * "granted", so a caller that has nothing to report needs no change.
  */
-export type RewardedEarnOutcome = "granted" | "capped" | "unconfirmed";
+export type RewardedEarnOutcome = "granted" | "capped" | "processing" | "unconfirmed";
 
 export interface RewardedSheetProps {
   visible: boolean;
@@ -64,9 +64,8 @@ export interface RewardedSheetProps {
   remaining: number;
   /**
    * Called with the earned credit count once a rewarded watch completes.
-   * May be async, and may report why the credit did not land: the sheet awaits
-   * it and stays open on a reported (or thrown) failure instead of closing as if
-   * the watch had paid.
+   * May be async, and may report a pending, capped, or unconfirmed result. The
+   * sheet awaits it and stays open whenever another watch would be unsafe.
    */
   onEarned: (credits: number) => void | RewardedEarnOutcome | Promise<void | RewardedEarnOutcome>;
   /** Optional locale override; otherwise read from i18n.language. */
@@ -83,7 +82,7 @@ export function RewardedSheet({ visible, onClose, remaining, onEarned, locale, k
   const { t, i18n } = useTranslation("deepspace");
   const lang = locale ?? i18n.language ?? "ko";
   const { height } = useWindowDimensions();
-  // For SSV customData only -- eligibility gating stays the CALLER's job
+  // For the local ticket-placement hint only -- eligibility stays the CALLER's job
   // (header contract above). Sourced here so no parent needs a new prop.
   const { userId } = useAuth();
 
@@ -92,8 +91,8 @@ export function RewardedSheet({ visible, onClose, remaining, onEarned, locale, k
   // Fade-only bloom behind the "after" number (opacity loop, no layout/scale shift).
   const bloom = useRef(new Animated.Value(0)).current;
   const watchingRef = useRef(false);
-  // null = nothing to report. Set only after a completed watch whose credit did
-  // not land, which is also the only state that keeps the sheet open.
+  // null = nothing to report. A non-null post-watch state keeps the sheet open
+  // and removes the CTA while the result is pending, capped, or unconfirmed.
   const [earnOutcome, setEarnOutcome] = useState<RewardedEarnOutcome | null>(null);
 
   // A reopened sheet starts clean: the previous attempt's notice must not greet
@@ -149,6 +148,7 @@ export function RewardedSheet({ visible, onClose, remaining, onEarned, locale, k
     later: t(`${ns}.later`, { lng: lang }),
     privacy: t(`${ns}.privacy`, { lng: lang }),
     capReached: t(`${ns}.capReached`, { lng: lang }),
+    creditProcessing: t(`${ns}.creditProcessing`, { lng: lang }),
     creditFailed: t(`${ns}.creditFailed`, { lng: lang }),
   };
 
@@ -161,11 +161,10 @@ export function RewardedSheet({ visible, onClose, remaining, onEarned, locale, k
     // notice the number never moved. So the outcome decides whether we close.
     let outcome: RewardedEarnOutcome = "granted";
     try {
-      // SSV customData (0091 contract): "<userId>" credits a reasoning
-      // reward, "<userId>|chat" credits the chat +2 -- the rewarded-ssv edge
-      // routes on the suffix, so the kind decides it here. Signed-out edge
-      // case (no userId) sends none: the client-grant path still works and a
-      // server callback would simply have nothing to credit.
+      // The userId and optional chat suffix select which opaque ticket to ask
+      // our Edge function for. Neither value is forwarded to AdMob; the signed
+      // callback resolves ownership from the ticket. A signed-out caller sends
+      // no hint, so the SSV-only native boundary fails closed.
       const ssvCustomData = userId ? (kind === "chat" ? `${userId}|chat` : userId) : undefined;
       const { completed } = await showRewardedAd(ssvCustomData ? { ssvCustomData } : undefined);
       if (completed) {
@@ -183,7 +182,9 @@ export function RewardedSheet({ visible, onClose, remaining, onEarned, locale, k
       if (outcome === "granted") onClose();
       else {
         setEarnOutcome(outcome);
-        AccessibilityInfo.announceForAccessibility(outcome === "capped" ? C.capReached : C.creditFailed);
+        AccessibilityInfo.announceForAccessibility(
+          outcome === "capped" ? C.capReached : outcome === "processing" ? C.creditProcessing : C.creditFailed,
+        );
       }
     }
   };
@@ -234,17 +235,20 @@ export function RewardedSheet({ visible, onClose, remaining, onEarned, locale, k
             </View>
           </View>
 
-          {/* What happened to the credit, when it did not land. Announced too:
-              the number the user came for is the thing that did not change. */}
+          {/* What happened after the watch. SSV processing is deliberately not
+              styled or worded as a failure while the callback can still land. */}
           {earnOutcome ? (
-            <Text style={styles.earnNotice} accessibilityLiveRegion="polite">
-              {earnOutcome === "capped" ? C.capReached : C.creditFailed}
+            <Text
+              style={[styles.earnNotice, earnOutcome === "processing" && styles.earnNoticeProcessing]}
+              accessibilityLiveRegion="polite"
+            >
+              {earnOutcome === "capped" ? C.capReached : earnOutcome === "processing" ? C.creditProcessing : C.creditFailed}
             </Text>
           ) : null}
 
-          {/* mint primary CTA. Withdrawn once a watch has failed: at the monthly
-              cap another watch cannot pay, and after an unconfirmed grant a
-              second watch risks crediting the same intent twice. */}
+          {/* mint primary CTA. Withdrawn after a terminal or unresolved result:
+              another watch cannot pay at the cap, and processing/unconfirmed
+              settlement makes a second watch a duplicate-credit risk. */}
           {earnOutcome ? null : (
             <Pressable
               style={styles.ctaBtn}
@@ -367,6 +371,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     color: deepSpace.warning,
   },
+  earnNoticeProcessing: { color: deepSpace.accentSoft },
   laterBtn: { minHeight: 44, marginTop: 9, alignItems: "center", justifyContent: "center" },
   laterText: { fontSize: 13, color: rwAlpha(deepSpace.accentSoft, 0.55) },
   privacy: {

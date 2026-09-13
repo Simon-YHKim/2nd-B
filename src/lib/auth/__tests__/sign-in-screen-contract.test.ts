@@ -107,8 +107,9 @@ describe("PIXEL-CLAY sign-in renderer wiring", () => {
 // main@177a5962 와 바이트 동일임을 확인했다 — 즉 이 PR 의 추출은 공용 prefix ·
 // consent tail · 레거시 라우트 · dds-styles 를 실제로 안 건드렸고, 이 검사가
 // 지키려는 뜻도 그대로다. 기준선만 옮겼다.
-// 2026-09-07: prefix · tail 두 digest 를 재고정했다. prefix 는 import 한 줄,
-// tail 은 ConsentCheckRow 의 prop 한 줄 — 둘 다 웹 스페이스키 배선이다.
+// 2026-09-13: prefix · tail 두 digest 를 재고정했다. reset-password 가
+// AuthContext 의 bounded retry 를 직접 노출하면서 prefix 에 import 한 줄,
+// tail 에 announced retry surface 가 추가됐다.
 // 아래 "legacy sign-in renderer/styles" 검사의 digest 는 그대로다.
 describe("sign-in extraction boundaries", () => {
   test("preserves the shared auth prefix and signup/consent/reset tail byte-for-byte", () => {
@@ -121,10 +122,10 @@ describe("sign-in extraction boundaries", () => {
     expect(split).toBeGreaterThan(0);
     expect(tail).toBeGreaterThan(split);
     expect(sha256(source.slice(0, split))).toBe(
-      "54ff7293ed2980ddce3530d46ef3cb53abdfdb6253e8accb16e0e51b24681974",
+      "dbc025cbe290360aea396496695e155acbb20978e295c63dc7810688244b53ca",
     );
     expect(sha256(source.slice(tail))).toBe(
-      "a98fc2a55a8d29306805ddf60c1dfae61b9dd9393b7b0648d9d0750d88461e83",
+      "65dd568ae43e274affb179d80f94183878e49c253fa450f1054a64e31d2ac62d",
     );
   });
 

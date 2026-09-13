@@ -14,6 +14,13 @@ import { join } from "node:path";
 
 const CONFIG = join(process.cwd(), "supabase", "config.toml");
 const PROD_SITE_URL = "https://simon-yhkim.github.io/2nd-B/";
+const EXPECTED_REDIRECT_URLS = [
+  PROD_SITE_URL,
+  `${PROD_SITE_URL}sign-up`,
+  `${PROD_SITE_URL}reset-password`,
+  `${PROD_SITE_URL}auth-bridge.html?to=root`,
+  `${PROD_SITE_URL}auth-bridge.html?to=reset-password`,
+] as const;
 
 // Flat TOML-ish reader: map "section.key" -> raw scalar value (same-line only,
 // which is all these invariants need; multi-line arrays are ignored).
@@ -53,11 +60,33 @@ expect("auth.email.enable_confirmations", "true"); // #1009 depends on it; the r
 // storage vector buckets are paid; a CLI-default enable dies with 402 on push.
 expect("storage.vector.enabled", "false");
 
+const redirectBlock = /^\s*additional_redirect_urls\s*=\s*\[([\s\S]*?)^\s*\]/m.exec(toml)?.[1];
+if (!redirectBlock) {
+  errors.push("auth.additional_redirect_urls is missing");
+} else {
+  const uncommented = redirectBlock
+    .split(/\r?\n/)
+    .map((line) => line.replace(/#.*$/, ""))
+    .join("\n");
+  const actual = [...uncommented.matchAll(/"([^"]+)"/g)].map((match) => match[1]);
+  for (const url of EXPECTED_REDIRECT_URLS) {
+    if (!actual.includes(url)) errors.push(`auth.additional_redirect_urls is missing ${url}`);
+  }
+  for (const url of actual) {
+    if (!(EXPECTED_REDIRECT_URLS as readonly string[]).includes(url)) {
+      errors.push(`auth.additional_redirect_urls contains an unapproved URL: ${url}`);
+    }
+  }
+  if (new Set(actual).size !== actual.length) {
+    errors.push("auth.additional_redirect_urls contains duplicate entries");
+  }
+}
+
 if (errors.length > 0) {
   console.error("SUPABASE AUTH-CONFIG FAIL  supabase/config.toml regressed (partial-push hazard):");
   for (const e of errors) console.error("  - " + e);
   process.exit(1);
 }
 console.log(
-  "SUPABASE AUTH-CONFIG PASS  config.toml: auth enabled, prod site_url, Confirm-Email on, vector off",
+  "SUPABASE AUTH-CONFIG PASS  auth invariants + exact HTTPS redirect allowlist + vector off",
 );

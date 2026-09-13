@@ -22,6 +22,10 @@
  */
 
 import { getSupabaseClient } from "../supabase/client";
+import {
+  isAccountLocalDeletionFencedInMemory,
+  runAccountLocalMutation,
+} from "../account/local-deletion-fence";
 
 const LOCAL_KEY_PREFIX = "reasoning.auto.v1";
 const READ_CACHE_MS = 30_000;
@@ -29,6 +33,7 @@ const READ_CACHE_MS = 30_000;
 interface AsyncStorageLike {
   getItem(key: string): Promise<string | null>;
   setItem(key: string, value: string): Promise<void>;
+  removeItem(key: string): Promise<void>;
 }
 
 const memoryMirror = new Map<string, boolean>();
@@ -71,16 +76,23 @@ async function readLocalMirror(userId: string): Promise<boolean | null> {
   return memoryMirror.has(key) ? (memoryMirror.get(key) ?? false) : null;
 }
 
-async function writeLocalMirror(userId: string, enabled: boolean): Promise<void> {
-  const key = localKey(userId);
-  memoryMirror.set(key, enabled);
-  const raw = enabled ? "1" : "0";
-  const web = webStorage();
-  if (web) {
-    web.setItem(key, raw);
-    return;
-  }
-  await nativeStorage()?.setItem(key, raw);
+async function writeLocalMirror(userId: string, enabled: boolean): Promise<boolean> {
+  const guarded = await runAccountLocalMutation(userId, async () => {
+    const key = localKey(userId);
+    memoryMirror.set(key, enabled);
+    const raw = enabled ? "1" : "0";
+    try {
+      const web = webStorage();
+      if (web) {
+        web.setItem(key, raw);
+        return;
+      }
+      await nativeStorage()?.setItem(key, raw);
+    } catch {
+      // The in-memory mirror retains the user's choice for this process.
+    }
+  });
+  return guarded.executed;
 }
 
 function resolveAuto(stored: unknown): boolean | null {
@@ -95,6 +107,7 @@ function resolveAuto(stored: unknown): boolean | null {
  * the offline fallback tracks the last-known server truth.
  */
 export async function getAutoReasoningEnabled(userId: string): Promise<boolean> {
+  if (isAccountLocalDeletionFencedInMemory(userId)) return false;
   const cached = readCache.get(userId);
   if (cached && Date.now() - cached.at < READ_CACHE_MS) return cached.value;
   try {
@@ -106,8 +119,8 @@ export async function getAutoReasoningEnabled(userId: string): Promise<boolean> 
     if (error) throw error;
     const server = resolveAuto(data?.reasoning_prefs);
     if (server !== null) {
+      if (!(await writeLocalMirror(userId, server).catch(() => false))) return false;
       readCache.set(userId, { value: server, at: Date.now() });
-      void writeLocalMirror(userId, server).catch(() => undefined);
       return server;
     }
     // Row readable but the key was never set — an old local-only toggle is the
@@ -129,8 +142,8 @@ export async function getAutoReasoningEnabled(userId: string): Promise<boolean> 
  * the server merge-write. Warn-only on server failure — never throws.
  */
 export async function setAutoReasoningEnabled(userId: string, enabled: boolean): Promise<void> {
+  if (!(await writeLocalMirror(userId, enabled).catch(() => false))) return;
   readCache.set(userId, { value: enabled, at: Date.now() });
-  await writeLocalMirror(userId, enabled).catch(() => undefined);
   try {
     const client = getSupabaseClient();
     // Merge over the stored object so future reasoning_prefs keys survive this
@@ -170,6 +183,7 @@ function introKey(userId: string): string {
 
 /** Has this device already confirmed the auto-reasoning consumption rules? */
 export async function getAutoIntroSeen(userId: string): Promise<boolean> {
+  if (isAccountLocalDeletionFencedInMemory(userId)) return false;
   const key = introKey(userId);
   const web = webStorage();
   if (web) return web.getItem(key) === "1";
@@ -180,14 +194,39 @@ export async function getAutoIntroSeen(userId: string): Promise<boolean> {
 
 /** Mark the first-ON intro as confirmed on this device. */
 export async function setAutoIntroSeen(userId: string): Promise<void> {
-  const key = introKey(userId);
-  memoryMirror.set(key, true);
-  const web = webStorage();
-  if (web) {
-    web.setItem(key, "1");
-    return;
+  await runAccountLocalMutation(userId, async () => {
+    const key = introKey(userId);
+    memoryMirror.set(key, true);
+    const web = webStorage();
+    if (web) {
+      web.setItem(key, "1");
+      return;
+    }
+    await nativeStorage()?.setItem(key, "1");
+  });
+}
+
+/** Drop both owner-scoped mirrors and their in-memory caches after deletion. */
+export async function purgeAutoReasoningForDeletedAccount(userId: string): Promise<boolean> {
+  const owner = userId.trim();
+  if (!owner) return false;
+  const keys = [localKey(owner), introKey(owner)];
+  readCache.delete(owner);
+  for (const key of keys) memoryMirror.delete(key);
+  try {
+    const web = webStorage();
+    if (web) {
+      for (const key of keys) web.removeItem(key);
+      return keys.every((key) => web.getItem(key) === null);
+    }
+    const native = nativeStorage();
+    if (!native) return false;
+    for (const key of keys) await native.removeItem(key);
+    const remaining = await Promise.all(keys.map((key) => native.getItem(key)));
+    return remaining.every((value) => value === null);
+  } catch {
+    return false;
   }
-  await nativeStorage()?.setItem(key, "1");
 }
 
 /** Test seam: drop the in-memory read cache (and optionally the memory mirror). */

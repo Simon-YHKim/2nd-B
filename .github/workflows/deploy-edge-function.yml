@@ -1,12 +1,9 @@
 name: Deploy edge function
 
-# Why: openai-proxy / gemini-proxy / peer-respond deploys had no repeatable path.
-# The console session has no Supabase CLI and no login token, so deploys were
-# being hand-carried file by file, which risks a transcription error on a live
-# function. This deploys straight from the repo source instead.
-#
-# Requires the SUPABASE_ACCESS_TOKEN + SUPABASE_PROJECT_REF repo secrets.
-# Without the token the job stops before touching anything.
+# Deploys one repository-owned Edge Function from the current main revision.
+# SECURITY: Production must independently enforce main-only deployment rules,
+# required reviewers, and the SUPABASE_* values as environment secrets. The
+# code guards below are defense in depth, not a replacement for those controls.
 
 on:
   workflow_dispatch:
@@ -15,86 +12,156 @@ on:
         description: Function slug under supabase/functions (e.g. openai-proxy)
         required: true
         type: string
-      verify_jwt:
-        description: Keep JWT verification on (leave true unless the function does its own auth)
-        required: true
-        type: boolean
-        default: true
 
 permissions:
   contents: read
 
+concurrency:
+  group: supabase-production-mutations
+  cancel-in-progress: false
+
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    if: ${{ github.repository == 'Simon-YHKim/2nd-B' && github.ref == 'refs/heads/main' }}
+    environment: Production
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout trusted revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 1
+          persist-credentials: false
 
-      - name: Refuse to run without the token
+      - name: Gate current origin/main
+        id: main_gate
         env:
-          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          RUN_REPOSITORY: ${{ github.repository }}
+          RUN_REF: ${{ github.ref }}
+          RUN_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ "$RUN_REPOSITORY" != "Simon-YHKim/2nd-B" ] || [ "$RUN_REF" != "refs/heads/main" ]; then
+            echo "::error title=Edge deploy gate::trusted-main-ref-required"
+            exit 1
+          fi
+          if ! git fetch --no-tags --depth=1 origin '+refs/heads/main:refs/remotes/origin/main' >/dev/null 2>&1; then
+            echo "::error title=Edge deploy gate::remote-main-fetch-failed"
+            exit 1
+          fi
+          HEAD_SHA="$(git rev-parse HEAD)"
+          REMOTE_MAIN_SHA="$(git rev-parse refs/remotes/origin/main)"
+          if [ "$HEAD_SHA" != "$RUN_SHA" ] || [ "$REMOTE_MAIN_SHA" != "$RUN_SHA" ]; then
+            echo "::error title=Edge deploy gate::checkout-is-not-current-remote-main"
+            exit 1
+          fi
+          echo "main_sha=$REMOTE_MAIN_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Validate deployment policy
+        id: policy
+        env:
+          EDGE_FUNCTION_NAME: ${{ inputs.function }}
+        run: node scripts/check-edge-function-deploy-policy.mjs
+
+      - name: Validate production credentials
+        env:
+          TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ secrets.PRODUCTION_SUPABASE_PROJECT_REF }}
         run: |
           set -euo pipefail
           if [ -z "${TOKEN:-}" ]; then
-            echo "SUPABASE_ACCESS_TOKEN is not set. Add it in Settings > Secrets and variables > Actions." >&2
+            echo "::error title=Edge deploy gate::access-token-required"
             exit 1
           fi
-          if [ -z "${REF:-}" ]; then
-            echo "SUPABASE_PROJECT_REF is not set." >&2
+          if ! [[ "${PROJECT_REF:-}" =~ ^[a-z0-9]{20}$ ]]; then
+            echo "::error title=Edge deploy gate::invalid-project-ref"
             exit 1
           fi
 
-      - name: Check the function exists in this repo
-        run: |
-          set -euo pipefail
-          DIR="supabase/functions/${{ inputs.function }}"
-          if [ ! -f "$DIR/index.ts" ]; then
-            echo "No such function: $DIR/index.ts" >&2
-            echo "Available:" >&2
-            ls -1 supabase/functions >&2
-            exit 1
-          fi
-          echo "deploying $DIR"
-
-      - uses: supabase/setup-cli@v1
+      - name: Setup pinned Supabase CLI
+        uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1 # v1
         with:
-          version: latest
+          version: "2.116.0"
 
-      - name: Record the version before deploying
+      - name: Record version before deploying
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ secrets.PRODUCTION_SUPABASE_PROJECT_REF }}
         run: |
           set -euo pipefail
-          supabase functions list --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" \
-            | tee before.txt
+          supabase functions list --project-ref "$PROJECT_REF" --output json > before.json
 
-      - name: Deploy
+      - name: Recheck main and deploy fixed auth policy
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          FUNCTION_SLUG: ${{ steps.policy.outputs.function_name }}
+          NO_VERIFY_JWT: ${{ steps.policy.outputs.no_verify_jwt }}
+          PROJECT_REF: ${{ secrets.PRODUCTION_SUPABASE_PROJECT_REF }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}
+          MAIN_SHA: ${{ steps.main_gate.outputs.main_sha }}
         run: |
           set -euo pipefail
-          FLAGS=""
-          if [ "${{ inputs.verify_jwt }}" != "true" ]; then
-            FLAGS="--no-verify-jwt"
+          case "$NO_VERIFY_JWT" in
+            true|false) ;;
+            *)
+              echo "::error title=Edge deploy gate::invalid-fixed-auth-policy"
+              exit 1
+              ;;
+          esac
+          if ! git fetch --no-tags --depth=1 origin '+refs/heads/main:refs/remotes/origin/main' >/dev/null 2>&1; then
+            echo "::error title=Edge deploy gate::remote-main-recheck-failed"
+            exit 1
           fi
-          supabase functions deploy "${{ inputs.function }}" \
-            --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" $FLAGS
+          if [ "$(git rev-parse HEAD)" != "$MAIN_SHA" ] || \
+             [ "$(git rev-parse refs/remotes/origin/main)" != "$MAIN_SHA" ]; then
+            echo "::error title=Edge deploy gate::main-advanced-before-deploy"
+            exit 1
+          fi
+          supabase functions deploy "$FUNCTION_SLUG" \
+            --project-ref "$PROJECT_REF" \
+            --no-verify-jwt="$NO_VERIFY_JWT"
 
-      - name: Report the version after deploying
+      - name: Verify deployed auth policy
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          FUNCTION_SLUG: ${{ steps.policy.outputs.function_name }}
+          EXPECTED_VERIFY_JWT: ${{ steps.policy.outputs.verify_jwt }}
+          PROJECT_REF: ${{ secrets.PRODUCTION_SUPABASE_PROJECT_REF }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
-          supabase functions list --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" \
-            | tee after.txt
+          case "$EXPECTED_VERIFY_JWT" in
+            true|false) ;;
+            *)
+              echo "::error title=Edge deploy postflight::invalid-expected-auth-policy"
+              exit 1
+              ;;
+          esac
+          supabase functions list --project-ref "$PROJECT_REF" --output json > after.json
+          node <<'NODE'
+          const fs = require("node:fs");
+
+          const fail = (message) => {
+            process.stderr.write(`::error title=Edge deploy postflight::${message}\n`);
+            process.exit(1);
+          };
+
+          let payload;
+          try {
+            payload = JSON.parse(fs.readFileSync("after.json", "utf8"));
+          } catch {
+            fail("function-list-json-required");
+          }
+
+          const functions = Array.isArray(payload) ? payload : payload?.functions;
+          if (!Array.isArray(functions)) fail("function-list-array-required");
+          const matches = functions.filter((item) => item?.slug === process.env.FUNCTION_SLUG);
+          if (matches.length !== 1) fail("exact-function-metadata-required");
+
+          const expected = process.env.EXPECTED_VERIFY_JWT === "true";
+          if (typeof matches[0].verify_jwt !== "boolean") fail("boolean-verify-jwt-required");
+          if (matches[0].verify_jwt !== expected) fail("deployed-verify-jwt-mismatch");
+          NODE
           {
-            echo "## Deployed \`${{ inputs.function }}\`"
+            echo "## Deployed \`$FUNCTION_SLUG\`"
             echo ""
-            echo "verify_jwt: \`${{ inputs.verify_jwt }}\`"
-            echo ""
-            echo "### After"
-            echo '```'
-            cat after.txt
-            echo '```'
+            echo "Verified remote JWT policy: \`$EXPECTED_VERIFY_JWT\`"
           } >> "$GITHUB_STEP_SUMMARY"

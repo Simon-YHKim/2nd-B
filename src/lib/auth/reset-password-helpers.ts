@@ -42,7 +42,9 @@ export function nextRecoveryProof(
 ): RecoveryProof | null {
   if (event === "PASSWORD_RECOVERY") {
     const identity = recoverySessionIdentity(session);
-    return identity ? createRecoveryProof(identity) : null;
+    if (!identity) return null;
+    if (current && recoveryProofMatchesSession(current, session)) return current;
+    return createRecoveryProof(identity);
   }
   if (!session) return null;
   if (current && !recoveryProofMatchesSession(current, session)) return null;

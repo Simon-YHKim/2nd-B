@@ -10,13 +10,25 @@ import { expectShape, expectNoShape } from "@/lib/testing/expect-shape";
 type Props = Record<string, unknown>;
 type Node = { type?: unknown; props?: Props };
 type Notice = {
-  receipt: { deleted: true; profileErased: boolean | null; rawClippingsErased: boolean | null };
+  receipt: {
+    deleted: true;
+    profileErased: boolean | null;
+    deletionFenced: boolean | null;
+    rawClippingsErased: boolean | null;
+    rawClippingsEmptyAtCheck: boolean | null;
+  };
   localPurge: "complete" | "retry-scheduled" | "unconfirmed";
   localSignOut: "pending" | "complete" | "unconfirmed";
 };
 const root = resolve(__dirname, "../../../..");
 const notice = (overrides: Partial<Notice> = {}): Notice => ({
-  receipt: { deleted: true, profileErased: true, rawClippingsErased: false },
+  receipt: {
+    deleted: true,
+    profileErased: true,
+    deletionFenced: true,
+    rawClippingsErased: false,
+    rawClippingsEmptyAtCheck: false,
+  },
   localPurge: "retry-scheduled", localSignOut: "complete", ...overrides,
 });
 const walk = (tree: unknown): Node[] => {
@@ -165,6 +177,8 @@ test("details start collapsed and expose each remote observation without claimin
   expect(screen.render().find(node => node.props?.testID === "account-deletion-details")?.props?.["aria-expanded"]).toBe(true);
   expect(textKeys(screen.render())).toEqual(expect.arrayContaining([
     "account.deletionReceipt.profile", "account.deletionReceipt.rawClippings", "account.deletionReceipt.observedAbsent",
+    "account.deletionReceipt.deletionFence", "account.deletionReceipt.rawClippingsEmptyAtCheck",
+    "account.deletionReceipt.proofConfirmed", "account.deletionReceipt.proofReportedFalse",
     "account.deletionReceipt.reportedUnfinished", "account.deletionReceipt.scope", "account.deletionReceipt.subscription", "account.deletionReceipt.support",
   ]));
   screen.press("account-deletion-details");
@@ -180,7 +194,20 @@ test("the fixed dark card keeps its text in the existing ForceDark subtree", () 
 });
 
 test.each([[true, "observedAbsent"], [false, "reportedUnfinished"], [null, "notReported"]] as const)("preserves three-valued remote results: %s", (value, key) => {
-  const screen = mountPanel(notice({ receipt: { deleted: true, profileErased: value, rawClippingsErased: value } }));
+  const screen = mountPanel(notice({ receipt: {
+    deleted: true, profileErased: value, deletionFenced: true,
+    rawClippingsErased: value, rawClippingsEmptyAtCheck: true,
+  } }));
+  screen.press("account-deletion-details");
+  expect(textKeys(screen.render()).filter(text => text === `account.deletionReceipt.${key}`)).toHaveLength(2);
+  screen.unmount();
+});
+
+test.each([[true, "proofConfirmed"], [false, "proofReportedFalse"], [null, "notReported"]] as const)("shows three-valued completion proof: %s", (value, key) => {
+  const screen = mountPanel(notice({ receipt: {
+    deleted: true, profileErased: true, deletionFenced: value,
+    rawClippingsErased: false, rawClippingsEmptyAtCheck: value,
+  } }));
   screen.press("account-deletion-details");
   expect(textKeys(screen.render()).filter(text => text === `account.deletionReceipt.${key}`)).toHaveLength(2);
   screen.unmount();
@@ -237,6 +264,10 @@ test("five locales preserve subtree parity and three explicit English mirrors", 
   expect(en.scope).toContain("Missing results do not confirm that a check occurred");
   expect(en.notReported).toBe("No usable result was returned for this check.");
   expect(ko.notReported).toBe("확인 가능한 결과가 응답에 없어요.");
+  expect(en.proofConfirmed).toBe("Confirmed by the server.");
+  expect(ko.proofConfirmed).toBe("서버가 확인했어요.");
+  expect(en.proofReportedFalse).toBe("The server explicitly reported that this proof was not established.");
+  expect(ko.proofReportedFalse).toBe("서버가 이 증명이 성립하지 않았다고 명시적으로 보고했어요.");
   expect(en.localPurge["retry-scheduled"]).toContain("could not be confirmed");
   expect(en.localPurge["retry-scheduled"]).toContain("next app start");
   expect(ko.localPurge["retry-scheduled"]).toContain("다음 앱 시작");

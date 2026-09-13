@@ -15,13 +15,19 @@ import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import { recordingUriToBase64 } from "@/lib/audio/recording-uri";
 import { isAbortError } from "@/lib/async/abort";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { beginAccountSessionLease } from "@/lib/auth/account-session-lease";
 import { composeStructured } from "@/lib/capture/structured";
 import { transcribeAudio } from "@/lib/llm/boundary";
 import { useProgression } from "@/lib/progression/useProgression";
 import { createRecord } from "@/lib/records/create";
 import type { HotlineId } from "@/lib/safety/lexicon";
 import { m3 } from "@/lib/theme/m3";
-import { isAudioMime, MAX_AUDIO_FILE_BYTES, pickAudioFile } from "@/lib/wiki/capture-file";
+import {
+  isAudioMime,
+  MAX_AUDIO_FILE_BYTES,
+  pickAudioFile,
+  releasePickedFile,
+} from "@/lib/wiki/capture-file";
 
 type Phase = "idle" | "stt" | "result";
 type UiLocale = "en" | "ko" | "es" | "pt" | "id";
@@ -156,42 +162,57 @@ export default function CallReflection() {
     setNotice(null);
     setSelectedName(null);
 
-    let file;
-    try {
-      file = await pickAudioFile();
-    } catch (e) {
-      if (typeof console !== "undefined") console.warn("[call-reflection] file pick failed", (e as Error).message);
-      if (mountedRef.current) setNotice(copy.pickFailed);
-      return;
-    }
-    if (!mountedRef.current || !file) return;
-    setSelectedName(file.name);
-
-    if (!isAudioMime(file.mimeType)) {
-      setNotice(copy.unsupported);
-      return;
-    }
-    if (file.size > MAX_AUDIO_FILE_BYTES) {
-      setNotice(t("file.audioTooLarge", { mb: Math.floor(MAX_AUDIO_FILE_BYTES / 1_000_000) }));
-      return;
-    }
-
     const controller = new AbortController();
     transcribeAbortRef.current?.abort();
     transcribeAbortRef.current = controller;
-    setPhase("stt");
+    const accountLease = beginAccountSessionLease(userId, controller.signal);
+    let file: Awaited<ReturnType<typeof pickAudioFile>> = null;
     try {
-      const { base64 } = await recordingUriToBase64(file.uri);
+      accountLease.assertCurrent();
+      try {
+        file = await pickAudioFile();
+      } catch {
+        accountLease.assertCurrent();
+        if (typeof console !== "undefined") console.warn("[call-reflection] file pick failed");
+        if (mountedRef.current && transcribeAbortRef.current === controller) {
+          setNotice(copy.pickFailed);
+        }
+        return;
+      }
+      accountLease.assertCurrent();
+      if (!file || !mountedRef.current || transcribeAbortRef.current !== controller) return;
+      setSelectedName(file.name);
+
+      if (!isAudioMime(file.mimeType)) {
+        setNotice(copy.unsupported);
+        return;
+      }
+      if (file.size > MAX_AUDIO_FILE_BYTES) {
+        setNotice(t("file.audioTooLarge", { mb: Math.floor(MAX_AUDIO_FILE_BYTES / 1_000_000) }));
+        return;
+      }
+
+      setPhase("stt");
+      const authenticated = await accountLease.authenticate();
+      authenticated.assertCurrent();
+      const { base64 } = await recordingUriToBase64(
+        file.uri,
+        file.mimeType,
+        file.size > 0 ? file.size : undefined,
+        authenticated.signal,
+      );
+      authenticated.assertCurrent();
       const reply = await transcribeAudio({
         userId,
+        session: authenticated,
         locale,
         base64,
         // DocumentPicker's normalized MIME is more reliable for file:// URIs
         // than the blob type returned by fetch on Android.
         mimeType: file.mimeType,
         minor: isMinor === true,
-        signal: controller.signal,
       });
+      authenticated.assertCurrent();
       if (!mountedRef.current || transcribeAbortRef.current !== controller) return;
 
       // C9: a red-zone transcript is swapped server-side for the fixed crisis
@@ -210,13 +231,25 @@ export default function CallReflection() {
       }
       setTranscript(text);
       setPhase("result");
-    } catch (e) {
-      if (isAbortError(e) || !mountedRef.current || transcribeAbortRef.current !== controller) return;
-      if (typeof console !== "undefined") console.warn("[call-reflection] transcribe failed", (e as Error).message);
+    } catch (error) {
+      if (
+        isAbortError(error) ||
+        accountLease.signal.aborted ||
+        !mountedRef.current ||
+        transcribeAbortRef.current !== controller
+      ) return;
+      try {
+        accountLease.assertCurrent();
+      } catch {
+        return;
+      }
+      if (typeof console !== "undefined") console.warn("[call-reflection] transcribe failed");
       setPhase("idle");
       setNotice(t("file.transcribeFailed"));
     } finally {
+      accountLease.release();
       if (transcribeAbortRef.current === controller) transcribeAbortRef.current = null;
+      await releasePickedFile(file);
     }
   }
 
@@ -245,8 +278,8 @@ export default function CallReflection() {
         return;
       }
       router.push("/records");
-    } catch (e) {
-      if (typeof console !== "undefined") console.warn("[call-reflection] save failed", (e as Error).message);
+    } catch {
+      if (typeof console !== "undefined") console.warn("[call-reflection] save failed");
       setBusy(false);
     }
   }

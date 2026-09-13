@@ -142,6 +142,130 @@ describe('readJsonObject', () => {
     });
     expect(cancelled).toBe(true);
   });
+
+  it('does not let a pending cancel promise stall size-limit failures', async () => {
+    const outcomeBeforeNextTask = async (pending: Promise<unknown>) =>
+      Promise.race([
+        pending.then(
+          () => 'resolved',
+          () => 'rejected',
+        ),
+        new Promise<string>((resolve) => setTimeout(() => resolve('pending'), 0)),
+      ]);
+    const neverCancel = () => new Promise<void>(() => undefined);
+    const declared = new ReadableStream<Uint8Array>({ cancel: neverCancel });
+    const streamed = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array(65));
+      },
+      cancel: neverCancel,
+    });
+
+    await expect(
+      outcomeBeforeNextTask(
+        readBodyBytes(
+          { body: declared, headers: new Headers({ 'content-length': '65' }) } as Request,
+          64,
+        ),
+      ),
+    ).resolves.toBe('rejected');
+    await expect(
+      outcomeBeforeNextTask(
+        readBodyBytes(
+          { body: streamed, headers: new Headers({ 'content-length': '1' }) } as Request,
+          64,
+        ),
+      ),
+    ).resolves.toBe('rejected');
+  });
+
+  it('rejects and cancels a stream that repeatedly makes zero-byte progress', async () => {
+    let pulls = 0;
+    let cancelled = false;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulls += 1;
+        if (pulls <= 100) controller.enqueue(new Uint8Array());
+        else controller.close();
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    const request = { body: stream, headers: new Headers() } as Request;
+
+    await expect(readJsonObject(request, 64)).rejects.toMatchObject({ code: 'invalid_json' });
+    expect(pulls).toBeLessThan(100);
+    expect(cancelled).toBe(true);
+  });
+
+  it('rejects fragmentation independently of the byte budget', async () => {
+    let pulls = 0;
+    let cancelled = false;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulls += 1;
+        if (pulls <= 5_000) controller.enqueue(Uint8Array.of(0x20));
+        else if (pulls === 5_001) controller.enqueue(bytes('{}'));
+        else controller.close();
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    const request = { body: stream, headers: new Headers() } as Request;
+
+    await expect(readJsonObject(request, 8_192)).rejects.toMatchObject({ code: 'invalid_json' });
+    expect(pulls).toBeLessThan(5_000);
+    expect(cancelled).toBe(true);
+  });
+
+  it('cancels a stalled request body at the read deadline', async () => {
+    jest.useFakeTimers();
+    try {
+      let cancelled = false;
+      const stream = new ReadableStream<Uint8Array>({
+        pull() {
+          return new Promise<void>(() => undefined);
+        },
+        cancel() {
+          cancelled = true;
+        },
+      });
+      const request = { body: stream, headers: new Headers() } as Request;
+      const rejection = expect(readJsonObject(request, 64)).rejects.toMatchObject({
+        code: 'invalid_json',
+      });
+      await jest.advanceTimersByTimeAsync(15_000);
+      await rejection;
+      expect(cancelled).toBe(true);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('never turns an aborted raw-body read into a successful empty body', async () => {
+    const controller = new AbortController();
+    let cancelled = false;
+    const stream = new ReadableStream<Uint8Array>({
+      pull() {
+        return new Promise<void>(() => undefined);
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    const request = {
+      body: stream,
+      headers: new Headers(),
+      signal: controller.signal,
+    } as Request;
+
+    const pending = readBodyBytes(request, 64);
+    controller.abort();
+    await expect(pending).rejects.toMatchObject({ code: 'invalid_json' });
+    expect(cancelled).toBe(true);
+  });
 });
 
 describe('Edge Function request-body caps', () => {
@@ -154,15 +278,28 @@ describe('Edge Function request-body caps', () => {
     expect(PADDLE_WEBHOOK_BODY_LIMIT_BYTES).toBe(1024 * 1024);
   });
 
-  // The three big multimodal proxies were missing from this list when the
-  // helper was written, so the guard covered every seat except the largest
-  // ones. Widened 2026-09-07 - a contract check narrower than its own claim
-  // is worse than none.
+  // LLM proxies use their stricter shared reader, which also bounds upstream
+  // responses and cancels stalled streams. Keep this separate from the generic
+  // Edge request-json helper so a future refactor cannot silently fall back.
   it.each([
-    ['claude-proxy/index.ts', 'LLM_PROXY_JSON_BODY_LIMIT_BYTES'],
-    ['gemini-proxy/index.ts', 'LLM_PROXY_JSON_BODY_LIMIT_BYTES'],
-    ['openai-proxy/index.ts', 'LLM_PROXY_JSON_BODY_LIMIT_BYTES'],
-    ['xai-proxy/index.ts', 'LLM_PROXY_JSON_BODY_LIMIT_BYTES'],
+    'claude-proxy/index.ts',
+    'gemini-proxy/index.ts',
+    'openai-proxy/index.ts',
+    'xai-proxy/index.ts',
+  ])('%s uses the bounded LLM reader', (relativePath) => {
+    const source = readFileSync(
+      resolve(__dirname, '..', '..', relativePath),
+      'utf8',
+    );
+
+    expect(source).toContain('readLlmProxyJsonObject(req)');
+    expect(source).toContain("error instanceof LlmBodyError");
+    expect(source).toContain("error.code === 'request_body_too_large'");
+    expect(source).not.toMatch(/\breadJsonObject\s*\(/);
+    expect(source).not.toMatch(/await\s+req\.json\s*\(/);
+  });
+
+  it.each([
     ['oauth-naver/index.ts', 'OAUTH_JSON_BODY_LIMIT_BYTES'],
     ['peer-respond/index.ts', 'PEER_RESPONSE_JSON_BODY_LIMIT_BYTES'],
   ])('%s uses the streamed parser with %s', (relativePath, limitName) => {

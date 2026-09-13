@@ -13,8 +13,9 @@
 // Simon overrode that on 2026-08-21: put Grok in. So this file exists, and the
 // concern is answered by keeping the blast radius small rather than by arguing:
 //
-//   * NOTHING routes here by default. Every switch still defaults elsewhere;
-//     reaching this proxy takes a deliberate variable change.
+//   * NOTHING routes here by default. Every switch still defaults elsewhere,
+//     and the server gate ENABLE_XAI_PROXY must be exactly "true" before this
+//     function reads provider secrets, parses a body, or permits egress.
 //   * The seat list is the 12 reasoning seats plus chat. The nine backbone
 //     purposes are deliberately NOT seated -- see the note on PURPOSE_MODEL.
 //   * Every model id and every optional request field has an env override, so
@@ -43,32 +44,42 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import {
-  JsonBodyError,
-  LLM_PROXY_JSON_BODY_LIMIT_BYTES,
-  readJsonObject,
-} from '../_shared/request-json.ts';
-import {
   BRAIN_RANK,
+  LlmBodyError,
   MAX_ASSEMBLED_LEN,
   MAX_USER_LEN,
-  PREMIUM_PURPOSES,
   SAFETY_PREAMBLE,
   TIER_RANK,
   UPSTREAM_DETAIL_TRUNCATE,
   auditUpstreamFailure,
+  clampLlmPurposeEffort,
+  consumeLlmPurposeQuota,
   corsPreflight,
   dailyCapForRank,
   djb2,
   hasCrisisTerm,
+  isLlmJsonObject,
   isUsableHeaderValue,
   jsonResponse,
+  llmCapacityWeight,
   normalizeResponseSchema,
+  readLlmProxyJsonObject,
+  readLlmUpstreamErrorText,
+  readLlmUpstreamJsonObject,
+  requestMatchesLlmPurposeModality,
+  reserveLlmProxyCapacity,
   resolveApiKey,
+  resolveLlmPurposePolicy,
+  type LlmPolicyModelTier,
+  transitionLlmProxyCapacity,
   userIdFromJwt,
   utcDay,
 } from '../_shared/llm-proxy-common.ts';
 
 const XAI_ENDPOINT = 'https://api.x.ai/v1/chat/completions';
+const PROVIDER_TIMEOUT_MS = 30_000;
+const REASONING_RUN_ID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // UNVERIFIED against the account. XAI_MODEL overrides every seat below (true
 // global kill-switch, same role ANTHROPIC_MODEL and OPENAI_MODEL play in the
@@ -101,10 +112,7 @@ const PURPOSE_MODEL: Record<string, string> = {
   secondb_chat: DEFAULT_XAI_MODEL,
 };
 
-// Same ladder and same vocabulary as the siblings. Do not change the words:
-// PURPOSE_EFFORT_MAX is a cross-proxy contract (none < low < medium < high < xhigh).
-const EFFORT_RANK: Record<string, number> = { none: 0, low: 1, medium: 2, high: 3, xhigh: 4 };
-
+// Vendor-local ceilings can only lower the shared purpose ceiling.
 const PURPOSE_EFFORT_MAX: Record<string, string> = {
   advisor: 'high',
   persona_narrative: 'high',
@@ -130,7 +138,17 @@ const PURPOSE_EFFORT_MAX: Record<string, string> = {
  * Identical to the sibling proxies so an operator does not have to remember a
  * different order per vendor.
  */
-function resolveModel(purpose: string): string {
+function serverModelForTier(modelTier: LlmPolicyModelTier): string | null {
+  // Only one xAI model has been provisioned and its cheaper families have not
+  // been verified. The logical tier is still enforced here: fixed/lite labels
+  // cannot silently inherit the frontier model. Flash/pro currently share the
+  // same server-owned model until a cheaper verified model is configured.
+  return modelTier === 'flash' || modelTier === 'pro' ? DEFAULT_XAI_MODEL : null;
+}
+
+function resolveModel(purpose: string, modelTier: LlmPolicyModelTier): string | null {
+  const baseline = serverModelForTier(modelTier);
+  if (!baseline) return null;
   const raw = (Deno.env.get('XAI_PURPOSE_MODELS') ?? '').trim();
   if (raw.length > 0) {
     try {
@@ -143,13 +161,7 @@ function resolveModel(purpose: string): string {
   }
   const global = (Deno.env.get('XAI_MODEL') ?? '').trim();
   if (global.length > 0) return global;
-  return PURPOSE_MODEL[purpose] ?? DEFAULT_XAI_MODEL;
-}
-
-function clampEffort(effort: string | null, purpose: string): string {
-  const requested = effort === 'max' ? 'xhigh' : effort && effort in EFFORT_RANK ? effort : 'high';
-  const ceiling = PURPOSE_EFFORT_MAX[purpose] ?? 'medium';
-  return EFFORT_RANK[requested] <= EFFORT_RANK[ceiling] ? requested : ceiling;
+  return PURPOSE_MODEL[purpose] ?? baseline;
 }
 
 // Output ceiling per clamped effort. Roomy for the same reason as the siblings:
@@ -203,13 +215,20 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: 'missing_authorization' }, 401);
   }
 
+  const userId = userIdFromJwt(authHeader);
+  if (!userId) return jsonResponse(req, { error: 'invalid_jwt' }, 401);
+
+  // The published privacy notice does not yet name xAI as a processor. Keep
+  // the route fail-closed until counsel/product approve the notice and the
+  // required re-consent/activation sequence has been completed.
+  if (Deno.env.get('ENABLE_XAI_PROXY') !== 'true') {
+    return jsonResponse(req, { error: 'vendor_disabled' }, 503);
+  }
+
   const apiKey = (Deno.env.get('XAI_API_KEY') ?? '').trim();
   if (!apiKey || apiKey.length === 0) {
     return jsonResponse(req, { error: 'server_misconfigured_missing_api_key' }, 500);
   }
-
-  const userId = userIdFromJwt(authHeader);
-  if (!userId) return jsonResponse(req, { error: 'invalid_jwt' }, 401);
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -219,6 +238,10 @@ Deno.serve(async (req: Request) => {
   const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
+  const capacityRpc = (functionName: string, args: Record<string, unknown>) =>
+    supabaseAdmin.rpc(functionName, args);
+  const auditUpstreamFailureSupplemental = (options: Parameters<typeof auditUpstreamFailure>[1]) =>
+    auditUpstreamFailure(supabaseAdmin, options);
 
   let body: {
     user?: unknown;
@@ -228,15 +251,14 @@ Deno.serve(async (req: Request) => {
     responseSchema?: unknown;
     image?: unknown;
     audio?: unknown;
+    reasoningRunId?: unknown;
+    reasoningSlot?: unknown;
   };
   try {
-    body = await readJsonObject(req, LLM_PROXY_JSON_BODY_LIMIT_BYTES) as typeof body;
+    body = await readLlmProxyJsonObject(req) as typeof body;
   } catch (error) {
-    if (error instanceof JsonBodyError && error.code === 'request_body_too_large') {
-      return jsonResponse(req, {
-        error: error.code,
-        max: error.maxBytes,
-      }, 413);
+    if (error instanceof LlmBodyError && error.code === 'request_body_too_large') {
+      return jsonResponse(req, { error: error.code, max: error.maxBytes }, 413);
     }
     return jsonResponse(req, { error: 'invalid_json' }, 400);
   }
@@ -245,7 +267,20 @@ Deno.serve(async (req: Request) => {
   const systemText: string | null = typeof body?.system === 'string' ? body.system : null;
   const purpose: string | null = typeof body?.purpose === 'string' ? body.purpose : null;
   const effort: string | null = typeof body?.effort === 'string' ? body.effort : null;
+  const responseSchemaProvided = body?.responseSchema !== undefined;
   const responseSchema = normalizeResponseSchema(body?.responseSchema);
+  const purposePolicy = resolveLlmPurposePolicy(purpose, 'xai');
+  if (!purpose || !purposePolicy) {
+    return jsonResponse(req, { error: 'purpose_not_seated', purpose: purpose ?? null }, 400);
+  }
+  if (responseSchemaProvided && (!responseSchema || responseSchema.type !== 'object')) {
+    return jsonResponse(req, { error: 'response_schema_invalid' }, 400);
+  }
+  const reasoningRunId = typeof body?.reasoningRunId === 'string' ? body.reasoningRunId : '';
+  const reasoningSlot =
+    body?.reasoningSlot === 'records' || body?.reasoningSlot === 'sources'
+      ? body.reasoningSlot
+      : '';
 
   // This proxy has no image or audio path. Refusing the payload is better than
   // silently dropping it: a caller that attached a photo and got a confident
@@ -255,6 +290,9 @@ Deno.serve(async (req: Request) => {
   if ((body?.image && typeof body.image === 'object') || (body?.audio && typeof body.audio === 'object')) {
     return jsonResponse(req, { error: 'attachment_not_supported', vendor: 'xai' }, 415);
   }
+  if (!requestMatchesLlmPurposeModality(purposePolicy, 'text')) {
+    return jsonResponse(req, { error: 'purpose_modality_mismatch' }, 400);
+  }
 
   if (userText.length === 0) return jsonResponse(req, { error: 'user_required' }, 400);
   if (userText.length > MAX_USER_LEN) {
@@ -262,17 +300,6 @@ Deno.serve(async (req: Request) => {
   }
   if (systemText && systemText.length > MAX_ASSEMBLED_LEN) {
     return jsonResponse(req, { error: 'system_too_long', max: MAX_ASSEMBLED_LEN, got: systemText.length }, 413);
-  }
-
-  // Purpose allowlist -- this proxy serves EXACTLY its seats, and rejects
-  // everything else before the tier lookup and any paid call, so a tampered
-  // client cannot use XAI_API_KEY as a generic completion source.
-  //
-  // hasOwnProperty, NOT `in`: `in` walks the prototype chain, so 'toString' /
-  // 'constructor' / '__proto__' passed the same gate in openai-proxy, and
-  // resolveModel then returned the inherited FUNCTION as the model. Own-key.
-  if (!purpose || !Object.prototype.hasOwnProperty.call(PURPOSE_MODEL, purpose)) {
-    return jsonResponse(req, { error: 'purpose_not_seated', purpose: purpose ?? null }, 400);
   }
 
   // R1-A: server-side crisis classifier, before any paid call. Scans ONLY the
@@ -285,78 +312,119 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: 'safety_red_zone', reason: 'crisis_term_detected' }, 422);
   }
 
-  // EFFECTIVE tier (0088), not the raw column: the raw one stays 'brain' after
-  // expiry until the cancel webhook lands. Fail open on a lookup ERROR -- the
-  // daily cap still bounds cost.
-  let tierRank: number | null = null;
-  {
-    const { data: effTier, error: tierErr } = await supabaseAdmin.rpc(
-      'effective_subscription_tier',
-      { p_user_id: userId },
-    );
-    if (tierErr) {
-      console.error('[xai-proxy] effective-tier lookup failed:', tierErr.message ?? String(tierErr));
-    } else {
-      const t = (effTier as string | null) ?? 'free';
-      tierRank = TIER_RANK[t] ?? 0;
+  // Historical rows have no trustworthy writer provenance and there is not
+  // yet a shipped re-consent surface. Enforce only after the v2 provenance
+  // migration, server-owned writer, and active-account coverage preflight are
+  // complete. A premature flag fails closed because a missing v2 RPC is 503.
+  if (Deno.env.get('LLM_REQUIRE_VERIFIED_CONSENT') === 'true') {
+    try {
+      const { data: consentOk, error: consentErr } = await supabaseAdmin.rpc(
+        'effective_llm_consent_v2',
+        { p_user_id: userId },
+      );
+      if (consentErr) {
+        console.error('[xai-proxy] verified consent lookup failed');
+        return jsonResponse(req, { error: 'consent_check_unavailable' }, 503);
+      }
+      if (consentOk !== true) return jsonResponse(req, { error: 'consent_required' }, 403);
+    } catch {
+      console.error('[xai-proxy] verified consent lookup threw');
+      return jsonResponse(req, { error: 'consent_check_unavailable' }, 503);
     }
   }
-  if (purpose && PREMIUM_PURPOSES.has(purpose) && tierRank !== null && tierRank < BRAIN_RANK) {
+
+  // EFFECTIVE tier (0088), not the raw column: the raw one stays 'brain' after
+  // expiry until the cancel webhook lands. The lookup also selects the daily
+  // cap, so an error or unknown tier fails closed for every xAI seat.
+  let tierRank: number | null = null;
+  let tierLookupFailed = false;
+  {
+    try {
+      const { data: effTier, error: tierErr } = await supabaseAdmin.rpc(
+        'effective_subscription_tier',
+        { p_user_id: userId },
+      );
+      if (tierErr) {
+        tierLookupFailed = true;
+        console.error('[xai-proxy] effective-tier lookup failed:', tierErr.message ?? String(tierErr));
+      } else {
+        const t = typeof effTier === 'string' ? effTier : '';
+        if (!Object.prototype.hasOwnProperty.call(TIER_RANK, t)) {
+          tierLookupFailed = true;
+          console.error('[xai-proxy] effective-tier lookup returned an unknown tier');
+        } else {
+          tierRank = TIER_RANK[t];
+        }
+      }
+    } catch {
+      tierLookupFailed = true;
+      console.error('[xai-proxy] effective-tier lookup threw');
+    }
+  }
+  if (tierLookupFailed || tierRank === null) {
+    return jsonResponse(req, { error: 'entitlement_check_unavailable' }, 503);
+  }
+  if (purposePolicy.minimumTier === 'brain' && tierRank < BRAIN_RANK) {
     return jsonResponse(req, { error: 'entitlement_required', feature: purpose }, 403);
+  }
+
+  const xaiModel = resolveModel(purpose, purposePolicy.modelTier);
+  if (!xaiModel) {
+    return jsonResponse(req, { error: 'purpose_model_unavailable', purpose }, 503);
+  }
+  const clampedEffort = clampLlmPurposeEffort(
+    purposePolicy,
+    effort,
+    'xai',
+    PURPOSE_EFFORT_MAX[purpose],
+  );
+
+  const purposeQuota = await consumeLlmPurposeQuota(capacityRpc, userId, 'xai', purpose);
+  if (!purposeQuota.ok) {
+    if (purposeQuota.reason === 'limited') {
+      return jsonResponse(req, { error: 'purpose_limit_exceeded', feature: purpose }, 429);
+    }
+    console.error('[xai-proxy] purpose quota unavailable');
+    return jsonResponse(req, { error: 'purpose_limit_unavailable' }, 503);
   }
 
   // Spend cap -- the SAME shared per-user/day counter as the other three
   // proxies. Adding a vendor must not add an allowance.
-  const { error: spendErr } = await supabaseAdmin.rpc('bump_gemini_spend', {
-    p_user_id: userId,
-    p_day: utcDay(),
-    p_cap: dailyCapForRank(tierRank),
-  });
+  let spendErr: { message?: string } | null = null;
+  try {
+    const result = await supabaseAdmin.rpc('bump_gemini_spend', {
+      p_user_id: userId,
+      p_day: utcDay(),
+      p_cap: dailyCapForRank(tierRank),
+    });
+    spendErr = result.error;
+  } catch {
+    console.error('[xai-proxy][ALERT] spend check threw -- failing closed');
+    return jsonResponse(req, { error: 'spend_check_unavailable' }, 503);
+  }
   if (spendErr) {
     const msg = spendErr.message ?? '';
     if (msg.includes('gemini_spend_exceeded')) {
       return jsonResponse(req, { error: 'daily_limit_exceeded' }, 429);
     }
-    const code = (spendErr as { code?: string }).code ?? '';
-    const rpcMissing =
-      code === 'PGRST202' || code === '42883' || msg.includes('Could not find the function');
-    if (rpcMissing && Deno.env.get('GEMINI_SPEND_FAILOPEN') === '1') {
-      console.error('[xai-proxy][ALERT] spend RPC missing -- allowing WITHOUT a cap. Apply 0035/0036:', msg);
-    } else {
-      console.error('[xai-proxy][ALERT] spend check unavailable -- failing closed:', msg);
-      return jsonResponse(req, { error: 'spend_check_unavailable' }, 503);
-    }
+    console.error('[xai-proxy][ALERT] spend check unavailable -- failing closed:', msg);
+    return jsonResponse(req, { error: 'spend_check_unavailable' }, 503);
   }
   // True only on the clean-bump path, so a refund can never decrement a counter
   // that was never incremented.
   const spentBumped = !spendErr;
 
-  // D6: consent egress gate, flag-gated by LLM_REQUIRE_CONSENT (default off).
-  // Carried verbatim from the siblings INCLUDING its known gap: consent_records
-  // is an append-only grant ledger, so this read does not see a withdrawal.
-  // Before enabling the flag anywhere, the read must become withdrawal-aware
-  // (PIPA 37 / GDPR 7(3)). Copying the gap knowingly is better than a fourth
-  // proxy that silently has no gate at all.
-  if ((Deno.env.get('LLM_REQUIRE_CONSENT') ?? 'false') === 'true') {
-    let consentOk = false;
+  const refundBeforeDispatch = async () => {
+    if (!spentBumped) return;
     try {
-      const { data: consentRow, error: consentErr } = await supabaseAdmin
-        .from('consent_records')
-        .select('llm_processing_ack, overseas_transfer_ack')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      consentOk = !consentErr && !!consentRow &&
-        consentRow.llm_processing_ack === true && consentRow.overseas_transfer_ack === true;
-    } catch (_e) {
-      consentOk = false;
+      await supabaseAdmin.rpc('refund_gemini_spend', { p_user_id: userId, p_day: utcDay() });
+    } catch (error) {
+      console.warn('[xai-proxy] spend refund failed:', String(error).slice(0, UPSTREAM_DETAIL_TRUNCATE));
     }
-    if (!consentOk) return jsonResponse(req, { error: 'consent_required' }, 403);
-  }
-
-  const xaiModel = resolveModel(purpose);
-  const clampedEffort = clampEffort(effort, purpose);
+  };
+  // This failure alias is pre-dispatch only; billed or billing-ambiguous paths
+  // below deliberately never refund spend.
+  const refundOnFailure = refundBeforeDispatch;
 
   // D-27: sign with the (model x effort) combo key when one is provisioned,
   // else the base XAI_API_KEY. Only changes WHICH key signs an
@@ -375,13 +443,7 @@ Deno.serve(async (req: Request) => {
   // xAI being down. Name the SECRET, never its value. (This exact confusion
   // cost about thirty minutes on the OpenAI key on 2026-08-19.)
   if (!isUsableHeaderValue(resolvedKey.apiKey)) {
-    if (spentBumped) {
-      try {
-        await supabaseAdmin.rpc('refund_gemini_spend', { p_user_id: userId, p_day: utcDay() });
-      } catch (e) {
-        console.warn('[xai-proxy] spend refund failed:', String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE));
-      }
-    }
+    await refundOnFailure();
     console.error('[xai-proxy] XAI_API_KEY is not usable as a header value (control character in the secret?)');
     return jsonResponse(req, { error: 'server_misconfigured_malformed_api_key', secret: keyCombo }, 500);
   }
@@ -422,24 +484,61 @@ Deno.serve(async (req: Request) => {
     ...(responseSchema && rfMode === 'json_object' ? { response_format: { type: 'json_object' } } : {}),
   };
 
-  // Give back the daily-cap unit when the call produced nothing billable, so an
-  // outage cannot burn an allowance on answers nobody got. Refund ONLY on
-  // no-upstream-billing failures (unreachable / non-2xx), never on
-  // refusal or truncation -- the model ran and billed for those.
-  const refundOnFailure = async () => {
-    if (!spentBumped) return;
-    try {
-      await supabaseAdmin.rpc('refund_gemini_spend', { p_user_id: userId, p_day: utcDay() });
-    } catch (e) {
-      console.warn('[xai-proxy] spend refund failed:', String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE));
+  const capacity = await reserveLlmProxyCapacity(
+    capacityRpc,
+    'xai',
+    xaiModel,
+    llmCapacityWeight(xaiBody.max_tokens),
+  );
+  if (!capacity.ok) {
+    await refundBeforeDispatch();
+    return jsonResponse(
+      req,
+      { error: capacity.reason === 'limited' ? 'llm_capacity_exceeded' : 'llm_capacity_unavailable' },
+      capacity.reason === 'limited' ? 429 : 503,
+    );
+  }
+  const releaseCapacity = () =>
+    transitionLlmProxyCapacity(capacityRpc, capacity.reservationId, 'release');
+
+  // Present on every proxy so a future seat cannot omit the one-shot run bind.
+  if (purpose === 'reasoning_connect') {
+    if (!REASONING_RUN_ID_RE.test(reasoningRunId) || !reasoningSlot) {
+      await releaseCapacity();
+      await refundBeforeDispatch();
+      return jsonResponse(req, { error: 'reasoning_reservation_required' }, 403);
     }
-  };
+    try {
+      const { data: claimOk, error: claimErr } = await supabaseAdmin.rpc(
+        'claim_reasoning_proxy_call',
+        { p_user_id: userId, p_run_id: reasoningRunId, p_slot: reasoningSlot },
+      );
+      if (claimErr) {
+        console.error('[xai-proxy] reasoning reservation claim unavailable');
+        await releaseCapacity();
+        await refundBeforeDispatch();
+        return jsonResponse(req, { error: 'reasoning_reservation_unavailable' }, 503);
+      }
+      if (claimOk !== true) {
+        await releaseCapacity();
+        await refundBeforeDispatch();
+        return jsonResponse(req, { error: 'reasoning_reservation_required' }, 403);
+      }
+    } catch {
+      console.error('[xai-proxy] reasoning reservation claim threw');
+      await releaseCapacity();
+      await refundBeforeDispatch();
+      return jsonResponse(req, { error: 'reasoning_reservation_unavailable' }, 503);
+    }
+  }
 
   const t0 = Date.now();
   let upstream: Response;
   try {
     upstream = await fetch(XAI_ENDPOINT, {
       method: 'POST',
+      redirect: 'error',
+      signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
       headers: {
         'content-type': 'application/json',
         'authorization': `Bearer ${resolvedKey.apiKey}`,
@@ -447,7 +546,7 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify(xaiBody),
     });
   } catch (e) {
-    await refundOnFailure();
+    await transitionLlmProxyCapacity(capacityRpc, capacity.reservationId, 'settle');
     // REQ-260824-01: a failing seat must leave a trace. Without this the one
     // table that records the AI layer holds only the calls that worked.
     await auditUpstreamFailure(supabaseAdmin, {
@@ -457,11 +556,16 @@ Deno.serve(async (req: Request) => {
     });
     return jsonResponse(req, { error: 'upstream_unreachable', detail: String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE) }, 502);
   }
+  await transitionLlmProxyCapacity(capacityRpc, capacity.reservationId, 'settle');
   const latencyMs = Date.now() - t0;
 
   if (!upstream.ok) {
-    const errBody = await upstream.text();
-    await refundOnFailure();
+    let errBody = '';
+    try {
+      errBody = await readLlmUpstreamErrorText(upstream);
+    } catch {
+      errBody = 'upstream response unavailable';
+    }
     await auditUpstreamFailure(supabaseAdmin, {
       userId, purpose, model: xaiModel, vendor: 'xai',
       outcome: `upstream_${upstream.status}`, latencyMs,
@@ -482,16 +586,48 @@ Deno.serve(async (req: Request) => {
   // ambiguous once there is a 200.
   let data: { choices?: unknown; model?: unknown; usage?: { total_tokens?: number } };
   try {
-    data = await upstream.json();
-  } catch (_e) {
+    data = await readLlmUpstreamJsonObject(upstream) as typeof data;
+    if (!Array.isArray(data.choices) || data.choices.length === 0) {
+      throw new LlmBodyError('upstream_bad_payload');
+    }
+    const firstChoice = data.choices[0];
+    if (!isLlmJsonObject(firstChoice) || !isLlmJsonObject(firstChoice.message)) {
+      throw new LlmBodyError('upstream_bad_payload');
+    }
+    const finishReason = firstChoice.finish_reason;
+    const content = firstChoice.message.content;
+    const refusal = firstChoice.message.refusal;
+    if (
+      (data.model !== undefined && typeof data.model !== 'string') ||
+      (finishReason !== undefined && finishReason !== null && typeof finishReason !== 'string') ||
+      (refusal !== undefined && refusal !== null && typeof refusal !== 'string') ||
+      (typeof content !== 'string' && typeof refusal !== 'string' && finishReason !== 'content_filter')
+    ) throw new LlmBodyError('upstream_bad_payload');
+    if (data.usage !== undefined) {
+      if (!isLlmJsonObject(data.usage)) throw new LlmBodyError('upstream_bad_payload');
+      const totalTokens = data.usage.total_tokens;
+      if (
+        totalTokens !== undefined &&
+        (!Number.isSafeInteger(totalTokens) || totalTokens < 0)
+      ) throw new LlmBodyError('upstream_bad_payload');
+    }
+  } catch {
+    await auditUpstreamFailureSupplemental({
+      userId, purpose, model: xaiModel, vendor: 'xai',
+      outcome: 'upstream_bad_payload', latencyMs,
+      keyCombo, promptHash: djb2(`${systemText ?? ''}${userText}`),
+    });
     return jsonResponse(req, { error: 'upstream_bad_payload' }, 502);
   }
-  const choice = Array.isArray(data?.choices) ? data.choices[0] : null;
-  const rawContent = choice?.message?.content;
+  const choice = Array.isArray(data?.choices) && isLlmJsonObject(data.choices[0])
+    ? data.choices[0]
+    : null;
+  const message = isLlmJsonObject(choice?.message) ? choice.message : null;
+  const rawContent = message?.content;
   const text: string = typeof rawContent === 'string' ? rawContent : '';
   const modelUsed: string = typeof data?.model === 'string' ? data.model : xaiModel;
   const refused =
-    choice?.finish_reason === 'content_filter' || typeof choice?.message?.refusal === 'string';
+    choice?.finish_reason === 'content_filter' || typeof message?.refusal === 'string';
   const truncated = choice?.finish_reason === 'length';
 
   // C3: the audit row is written server-side, same as the siblings. This is the
@@ -502,6 +638,7 @@ Deno.serve(async (req: Request) => {
   try {
     const { error: auditErr } = await supabaseAdmin.from('ai_audit_log').insert({
       user_id: userId,
+      event_source: 'server_verified',
       prompt_hash: djb2(`${systemText ?? ''}${userText}`),
       output_hash: djb2(text),
       model_used: refused ? `${modelUsed}+refusal` : truncated ? `${modelUsed}+truncated` : modelUsed,

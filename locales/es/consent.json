@@ -176,9 +176,13 @@
       "scope": "These fields concern the account profile row and raw-clipping prefix. Each confirmed absence applies only to that target at the time checked, not every copy or permanent erasure. Missing results do not confirm that a check occurred. Backups, retained records and later writes are outside these checks.",
       "profile": "Account profile row",
       "rawClippings": "Raw clipping files",
+      "deletionFence": "New server writes blocked during deletion",
+      "rawClippingsEmptyAtCheck": "Final raw-clipping empty check",
       "observedAbsent": "Observed absent when checked.",
       "reportedUnfinished": "The server reported this was not finished. This does not undo the confirmed account deletion.",
       "notReported": "No usable result was returned for this check.",
+      "proofConfirmed": "Confirmed by the server.",
+      "proofReportedFalse": "The server explicitly reported that this proof was not established.",
       "localTitle": "Local app data",
       "localPurge": {
         "complete": "The app's checked local cleanup steps completed.",

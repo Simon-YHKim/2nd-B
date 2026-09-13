@@ -27,7 +27,7 @@
 // 배송되는 가입 화면은 `<ConsentBlock>` 을 그리고, `signup-required-acks.test.ts`
 // 가 **그 화면을 읽어서** 필수 ack 이 전부 렌더되는지 본다. 두 진입 화면이 서로
 // 다른 컴포넌트를 쓴다 - 같은 이름일 거라고 넘겨짚은 것이 이 오류의 전부다.
-//   write    recordConsentBestEffort(   src/lib/auth/useSignUpForm.ts:318
+//   write    recordConsentBestEffort(   src/lib/auth/useSignUpForm.ts:319
 //                                       src/app/(auth)/complete-profile.tsx:169
 //
 // ⚠ 2026-09-08: this comment used to cite `sign-up.tsx:103` and

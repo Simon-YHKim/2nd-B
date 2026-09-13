@@ -31,7 +31,7 @@ Simon 의 요구는 *"나중에 내가 지정해서 확인하라고 하면 할 �
 | `permissions.tsx` | `src/app/permissions.tsx` | 권한 안내 화면의 레거시 렌더러 + 스타일 |
 | `theme.tsx` | `src/app/theme.tsx` | 테마·글꼴 화면의 레거시 렌더러 + 스타일 |
 | `support.tsx` | `src/app/support.tsx` | 지원 화면의 레거시 렌더러 + 스타일. ⚠ 인증 게이트는 라우트에 남겼다 |
-| `research.tsx` | `src/app/research.tsx` | 연결 찾기 화면의 레거시 렌더러 + 스타일. ⚠ 인증 게이트도 같이 나갔다 — 라이브 화면이 자기 게이트를 갖고 있다(위임) |
+| `research.tsx` | `src/app/research.tsx` | 연결 찾기 화면의 레거시 렌더러 + 스타일. ⚠ 인증 게이트도 같이 나갔다 — 라이브 화면이 자기 게이트를 갖고 있다(위임). 2026-09-13 `22ced472`가 복원 시 raw DOI/URL을 직접 열지 않도록 `resolveKnowledgeSourceLink` 경계를 적용했다. 위험 scheme과 모호한 authority는 닫히며, 이 의도적 archive 변경은 digest 표에도 기록됐다 |
 | `insights.tsx` | `src/app/insights.tsx` | 인사이트 화면의 레거시 렌더러 + 스타일. 게이트는 위임 |
 | `import.tsx` | `src/app/import.tsx` | 외부 가져오기 화면의 레거시 렌더러 + 스타일. 게이트는 위임 |
 | `ops.tsx` | `src/app/ops.tsx` | 비서 화면의 레거시 렌더러 + 스타일. 게이트는 위임. ⚠ **바이트 핀이 따라왔다** — `tools-reachable.test.ts` 가 `OpsLegacy` 슬라이스의 sha256 을 아카이브에서 검사한다(옮기면서 안 고쳤다는 증거) |

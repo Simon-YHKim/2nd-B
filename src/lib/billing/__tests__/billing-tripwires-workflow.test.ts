@@ -48,7 +48,9 @@ describe("every tripwire the schema sets is actually read", () => {
   });
 
   test("the money-shaped ones get their own louder title", () => {
-    expect(wf).toMatch(/money=\$\(\( CONFLICT \+ STUCK \)\)/);
+    expect(wf).toMatch(/money=\$\(\( CONFLICT \+ STUCK \+ REVERSAL \)\)/);
+    expect(wf).toContain('row "reversal_review"');
+    expect(wf).toMatch(/REVERSAL is already a subset of REVIEW/);
     expect(wf).toContain("돈이 걸린 건이 있다");
   });
 });
@@ -122,6 +124,17 @@ describe("the report is readable without a browser", () => {
 
   test("the issue body carries the SQL that finds the actual rows", () => {
     expect(wf).toContain("from public.paddle_webhook_events");
+    for (const normalizedField of [
+      "paddle_adjustment_id",
+      "paddle_adjustment_action",
+      "paddle_adjustment_status",
+      "billing_review_reason",
+    ]) {
+      expect(wf).toContain(normalizedField);
+    }
+    expect(wf).toMatch(
+      /where provider_conflict or refund_review or stale_entitlement or raw_payload is not null/,
+    );
     expect(wf).toContain("--body-file summary.md");
   });
 

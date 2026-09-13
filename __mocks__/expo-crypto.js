@@ -8,4 +8,5 @@ module.exports = {
   CryptoEncoding: { HEX: "hex", BASE64: "base64" },
   digestStringAsync: async (_algorithm, data) =>
     nodeCrypto.createHash("sha1").update(String(data)).digest("hex"),
+  randomUUID: () => nodeCrypto.randomUUID(),
 };

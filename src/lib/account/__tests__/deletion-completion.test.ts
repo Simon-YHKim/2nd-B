@@ -12,7 +12,10 @@ const OWNER = "owner-a";
 const receipt = {
   deleted: true as const,
   profileErased: null,
+  deletionFenced: true,
   rawClippingsErased: false,
+  rawClippingsEmptyAtCheck: false,
+  rawClippingsRemoved: 12,
   incomplete: [],
   unconfirmed: [],
   complete: false,

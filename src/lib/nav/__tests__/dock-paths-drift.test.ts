@@ -31,6 +31,10 @@ const APP_DIR = path.resolve(__dirname, "../../../app");
 // floating BackArrow chip. Keep each entry justified — an unjustified entry
 // here recreates the double-back-control bug this guard exists to prevent.
 const NON_DOCK_ROUTES = new Set<string>([
+  // Root infrastructure imports the full-screen encrypted-storage recovery
+  // gate from the deep-space screen package. It is not a route and the gate
+  // deliberately replaces every dock-bearing child while auth is unreadable.
+  "/_layout",
   // (2026-08-30) Shell-wrapped design sub-screens USED to live here: that
   // `Shell` was a bare window with no dock, so the floating chip was their only
   // back affordance. It now delegates to DockShell, so those eleven routes have

@@ -49,8 +49,17 @@
 > |---|---|---|---|
 > | **OpenAI** | 추론 12 − Claude 2 = 10 · 대화 · 백본 9 · OCR/음성 | `gpt-5.6-terra`(일반 기본) · `-nano`/`-mini`(싼 축) | `sol` 은 교차검증 전용, 일반 라우팅 없음 |
 > | **Claude** | `persona_narrative` · `persona_synthesis` · `crosscheck_defend` | opus 계열만 | sonnet 좌석은 2026-08-23 제거. **단 미좌석 purpose 는 `DEFAULT_CLAUDE_MODEL`(sonnet)로 떨어진다** |
-> | **xAI** | 추론 12 + 대화 (라우팅되면) | `grok-4` 계열 | 기본값으로는 아무것도 안 감 |
+> | **xAI** | 추론 12 + 대화 (라우팅되면) | `grok-4` 계열 | 기본값으로는 아무것도 안 감. 서버 `ENABLE_XAI_PROXY=true` 전에는 503으로 닫힘 |
 > | **Gemini** | 미설정 시 전부 | — | **9월 폐기 예정** |
+>
+> ### 검증된 동의 gate 활성화 순서 (2026-09-13)
+>
+> `LLM_REQUIRE_VERIFIED_CONSENT` 는 기본 OFF 다. 과거 `consent_records` 는 authenticated
+> self-insert를 허용했으므로 값만으로 서버 writer provenance를 증명할 수 없고, 기존 계정용
+> 재동의 화면도 아직 없다. 따라서 `effective_llm_consent_v2` provenance 마이그레이션 →
+> 서버 소유 재동의 writer와 UI → 활성 계정 미커버 0건 read-only 확인 → 네 프록시 canary
+> 순서가 끝나기 전에는 이 변수를 설정하지 않는다. 과거 행은 안전하게 구분할 수 없어
+> backfill하지 않는다. 변수를 너무 일찍 켜면 v2 RPC 누락/거부가 503/403으로 fail-closed 된다.
 >
 > ### ⚠ 9월 Gemini 폐기에서 스위치로는 안 되는 두 곳 (실측 2026-08-23)
 >
@@ -173,7 +182,7 @@
 
 | # | 결함 | 위치 | 상태 |
 |---|---|---|---|
-| P0-1 | **prod 시맨틱 위기분류 강등**: classifySafety가 non-Vertex 라이브에서 lexicon-only로 강등 (직결 API-key 클라이언트가 spend-cap 우회라 의도적으로 null) | `src/lib/llm/safety.ts:92` | 백로그 #1 — 잔여, 단 **부분 완화 실측(2026-07-19 S2 감사)**: ① 무음→관측 (`noteSemanticUnavailable` 세션당 1회 warn, safety.ts:117-134) ② 플래그 게이트 서버 경로 존재 — `EXPO_PUBLIC_SERVER_SAFETY=true`(클라, safety.ts:203-252) + `LLM_SERVER_SAFETY_SEAT=1`(gemini-proxy:591-593)이면 proxy `safety_classify` 좌석으로 시맨틱 분류 복구. 기본 OFF — 본복구(A18)는 위기 eval set + 세이프티 오너 승인 선행 |
+| P0-1 | **prod 시맨틱 위기분류 강등**: classifySafety가 non-Vertex 라이브에서 lexicon-only로 강등 (직결 API-key 클라이언트가 spend-cap 우회라 의도적으로 null) | `src/lib/llm/safety.ts:94` | 백로그 #1 — 잔여, 단 **부분 완화 실측(2026-07-19 S2 감사)**: ① 무음→관측 (`noteSemanticUnavailable` 세션당 1회 warn, safety.ts:120-169) ② 플래그 게이트 서버 경로 존재 — `EXPO_PUBLIC_SERVER_SAFETY=true`(클라, safety.ts:217-303) + `LLM_SERVER_SAFETY_SEAT=1`(gemini-proxy:591-593)이면 proxy `safety_classify` 좌석으로 시맨틱 분류 복구. 기본 OFF — 본복구(A18)는 위기 eval set + 세이프티 오너 승인 선행 |
 | P0-2 | **임베딩 라이브 경로 사망**: `text-embedding-004`는 2026-01-14 셧다운됨 | `src/lib/llm/boundary.ts` EMBED_MODEL | ✅ P0 레인에서 수리 — gemini-embedding-2(768 MRL) + proxy `op:'embed'`(웹 경로) + 배치 백필 + 0068 리셋 + 리서치 버튼 재생성 배선 |
 | P0-3 | **엣지 경유 lite 콜 400**: gemini-proxy MODELS_ALLOWED={2.5-flash, 2.5-pro}뿐 → lite 티어(clipper_classify)가 엣지 빌드에서 model_not_allowed | `supabase/functions/gemini-proxy/index.ts` | ✅ P0 레인에서 수리 — allowlist에 lite+3.x, GEMINI_MODELS_ALLOWED env, pro-클래스 패턴 핀 |
 | P0-4 | **audit_qa 시스템 프롬프트 전무** — 라이브 무유도 출력 | `src/lib/records/create.ts` | ✅ 이 브랜치에서 수정 |

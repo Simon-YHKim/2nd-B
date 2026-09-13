@@ -971,6 +971,7 @@
       "later": "Nanti",
       "privacy": "Hanya dewasa dengan persetujuan · tidak pernah di layar sensitif",
       "capReached": "Kamu sudah mencapai batas bulan ini. Batasnya terbuka lagi bulan depan.",
+      "creditProcessing": "Hadiahmu sedang diproses. Periksa lagi sisa jatahmu sebentar lagi.",
       "creditFailed": "Tidak dapat memastikan penambahannya. Periksa lagi sisa jatahmu sebentar lagi."
     },
     "rewardChat": {
@@ -983,6 +984,7 @@
       "later": "Nanti",
       "privacy": "Hanya dewasa dengan persetujuan · tidak pernah di layar sensitif",
       "capReached": "Kamu sudah mencapai batas bulan ini. Batasnya terbuka lagi bulan depan.",
+      "creditProcessing": "Hadiahmu sedang diproses. Periksa lagi sisa obrolanmu hari ini sebentar lagi.",
       "creditFailed": "Tidak dapat memastikan penambahannya. Periksa lagi sisa obrolanmu hari ini sebentar lagi."
     },
     "reasoningLimit": {

@@ -353,10 +353,14 @@ describe("0118 - an approved refund moves the money AND the entitlement", () => 
     expect(webhook.match(/const isAdjustmentEvent = /g) ?? []).toHaveLength(1);
     expect(webhook).toMatch(/rpc\('record_paddle_refund_adjustment'/);
     expect(webhook).toMatch(/rpc\('apply_billing_refund'/);
-    // Only an APPROVED refund has a consequence: pending_approval / rejected /
-    // reversed are recorded on the ledger and move no money and no entitlement.
+    // Only an APPROVED money-out adjustment has a consequence:
+    // pending_approval / rejected move no money, while reversals are retained for
+    // an explicit restoration review instead of overwriting newer entitlement.
     expect(webhook).toMatch(/if \(adjustmentStatus === 'approved'\)/);
-    expect(webhook).toMatch(/data\.action !== 'refund'/);
+    expect(webhook).toMatch(
+      /MONEY_OUT_ADJUSTMENT_ACTIONS = new Set\(\[[\s\S]*?'refund'[\s\S]*?'chargeback'[\s\S]*?'chargeback_warning'/,
+    );
+    expect(webhook).toMatch(/CHARGEBACK_REVERSAL_ACTIONS\.has\(adjustmentAction\)/);
   });
 
   test("the offsetting revenue row is negative and deduped on the adjustment event", () => {

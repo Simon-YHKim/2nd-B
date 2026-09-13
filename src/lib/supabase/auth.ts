@@ -9,18 +9,60 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { digitalConsentAge, resolveJurisdiction } from "../auth/consent-age";
 import { allRequiredAcksChecked, type ConsentSelections } from "../auth/consent-selections";
 import {
+  assertRecoveryOperationCurrentInsideMutation,
+  clearAuthCallbackQuarantineExpectedInsideMutation,
+  clearRecoveryPendingExpected,
+  clearRecoveryPendingExpectedInsideMutation,
+  clearRecoveryStateExpectedInsideMutation,
+  clearRecoveryMarkerSnapshotExpectedInsideMutation,
+  completeRecoveryHandoffExpectedInsideMutation,
+  createAuthCallbackQuarantine,
+  createRecoveryProof,
+  loadRecoveryMarkerSnapshotInsideMutation,
+  persistAuthCallbackQuarantineInsideMutation,
+  persistRecoveryProofInsideMutation,
+  recoveryPendingMatchesExpectedInsideMutation,
+  recoveryProofOwnsCallbackQuarantine,
+  recoveryProofOwnsPending,
+  recoveryProofMatchesSession,
   recoverySessionIdentity,
+  RecoveryOperationOwnerChangedError,
+  type AuthCallbackQuarantine,
+  type RecoveryMarkerSnapshot,
+  type RecoveryPending,
+  type RecoveryOperationExpectation,
+  type RecoveryProof,
   type RecoverySessionIdentity,
 } from "../auth/recovery-proof-store";
+import {
+  captureAuthSessionExpectation,
+  getAuthStorageRuntime,
+  runAuthSessionMutation,
+  signOutExpectedSession,
+  signOutExpectedSessionInsideMutation,
+  type AuthSessionExpectation,
+} from "../auth/session-mutation";
+export { AuthSessionOwnerChangedError } from "../auth/session-mutation";
 // ⚠ #1517 은 여기서 `isJudgeEmail` 도 들여왔다. 되살리지 않는다 —
 // main 의 f42f4db2 가 C6 대회 제약과 함께 src/lib/judge/domains.ts 를 통째로
 // 지웠고(CLAUDE.md C6), 이 파일에서 쓰이지도 않는다.
 // #1587 은 allRequiredAcksChecked 를 더 들여온다 — 가입 동의를 화면만이 아니라
 // 서버도 확인하기 위해서고, 아래 함수가 실제로 호출한다.
 import { getEnv } from "../env";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  clearAccountScopedLocalNotifications,
+  migrateLegacyRoutineNotifications,
+} from "../ops/reminders";
 import { getSupabaseClient } from "./client";
 import * as Crypto from "expo-crypto";
+
+// Upgrade cleanup runs once per native install. A failed pass leaves no marker,
+// so the next cold start retries without exposing notification identifiers.
+void migrateLegacyRoutineNotifications().catch(() => {
+  if (typeof console !== "undefined") {
+    console.warn("[auth] local notification privacy migration pending retry");
+  }
+});
 
 // C10 age tiers: adult users and 14-17 minors self-consent and register
 // directly. Under PIPA, legal-representative consent is mandatory only below 14
@@ -179,92 +221,106 @@ export async function signUpWithEmail(args: SignUpArgs): Promise<SignUpResult> {
   }
   if (await isPasswordBreached(args.password)) throw new BreachedPasswordError();
 
-  const supabase = getSupabaseClient();
-  const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-    email: args.email,
-    password: args.password,
-    options: {
-      emailRedirectTo: authRedirectTo("/sign-up"),
-      data: {
-        signup_flow: VERIFIED_EMAIL_SIGNUP_REVISION,
-        signup_birth_date: args.birthDate,
-        signup_locale: args.locale ?? "en",
-        signup_consent_service: args.consent.service,
-        signup_consent_llm_processing: args.consent.llmProcessing,
-        signup_consent_overseas_transfer: args.consent.overseasTransfer,
-        signup_consent_sensitive_data: args.consent.sensitiveData,
-        signup_consent_safety_notice: args.consent.safetyNotice,
-        signup_consent_marketing: args.consent.marketing,
-      },
-    },
-  });
-  if (signUpErr) throw signUpErr;
+  return runAuthSessionMutation(async (mutationContext) => {
+    const supabase = getSupabaseClient();
+    const authRuntime = getAuthStorageRuntime();
+    const { data: signUpData, error: signUpErr } =
+      await authRuntime.runSdkUnlockedWriter(() =>
+        supabase.auth.signUp({
+          email: args.email,
+          password: args.password,
+          options: {
+            emailRedirectTo: authRedirectTo("/sign-up"),
+            data: {
+              signup_flow: VERIFIED_EMAIL_SIGNUP_REVISION,
+              signup_birth_date: args.birthDate,
+              signup_locale: args.locale ?? "en",
+              signup_consent_service: args.consent.service,
+              signup_consent_llm_processing: args.consent.llmProcessing,
+              signup_consent_overseas_transfer: args.consent.overseasTransfer,
+              signup_consent_sensitive_data: args.consent.sensitiveData,
+              signup_consent_safety_notice: args.consent.safetyNotice,
+              signup_consent_marketing: args.consent.marketing,
+            },
+          },
+        }),
+      );
+    if (signUpErr) throw signUpErr;
 
-  // Confirm-email enabled projects deliberately return no session here. Never
-  // attempt an immediate password sign-in: doing so was the client half of the
-  // old auto-confirm bypass and accepted typo/fake addresses. Migration 0086
-  // creates the profile + consent ledger only on the auth.users confirmation
-  // transition. The redirect returns to /sign-up, where useSignUpForm consumes
-  // the native callback and lets the normal authenticated guard enter the app.
-  const session = signUpData.session;
-  const user = signUpData.user;
-  if (!session) return { kind: "confirmationRequired" };
-  if (!user || !session) throw new Error("Sign-up returned no session");
+    // Confirm-email enabled projects deliberately return no session here. Never
+    // attempt an immediate password sign-in: doing so was the client half of the
+    // old auto-confirm bypass and accepted typo/fake addresses. Migration 0086
+    // creates the profile + consent ledger only on the auth.users confirmation
+    // transition. The user enters the code from the code-only confirmation mail
+    // on /sign-up; no bearer-token link is delivered as a fallback.
+    const session = signUpData.session;
+    const user = signUpData.user;
+    if (!session) return { kind: "confirmationRequired" };
+    if (!user || !session) throw new Error("Sign-up returned no session");
+    const rollbackExpectation: AuthSessionExpectation = {
+      userId: user.id,
+      sessionId: recoverySessionIdentity(session)?.sessionId ?? null,
+      accessToken: session.access_token,
+    };
 
-  // A brand-new row is never comped. The email-domain derivation that used to
-  // decide this was deleted 2026-09-06 (Simon decision Q-260905-02) along with
-  // src/lib/judge/domains.ts, whose JUDGE_DOMAINS had been empty since #1302,
-  // so this call could only ever return false. Existing rows still report the
-  // stored users.judge_mode below: that column stays on purpose (#1302) so an
-  // account can be comped by hand.
-  const judgeMode = false;
-  const { error: insertErr } = await supabase.from("users").insert({
-    id: user.id,
-    email: args.email,
-    birth_date: args.birthDate,
-    locale: args.locale ?? "en",
-  });
-  // judge_mode is deliberately NOT sent. It used to be, with a comment saying
-  // the auto_judge_mode trigger was authoritative - and it was, until 0138
-  // dropped that trigger as XPRIZE cleanup. Sending a column whose only
-  // remaining guard is a different trigger (0139's BEFORE INSERT) means the
-  // client is asking for a privilege and being silently corrected. Not asking
-  // is clearer, and the value defaults to false either way.
-  if (insertErr) {
-    // J3 (the correct-password variant): a fully-registered user re-signing-up
-    // with their own password authenticates fine above, then the INSERT hits
-    // the users PK collision. They proved who they are — treating that as a
-    // failure (the old rollback signed their VALID session back out and showed
-    // a generic error loop) punished a successful sign-in. Probe for the
-    // existing row; if it's there, hand the session through as a sign-in.
-    const { data: existing } = await supabase
-      .from("users")
-      .select("id, judge_mode")
-      .eq("id", user.id)
-      .maybeSingle();
-    if (existing) {
-      return {
-        kind: "active",
-        userId: user.id,
-        judgeMode: existing.judge_mode === true,
-        created: false,
-      };
+    // A brand-new row is never comped. The email-domain derivation that used to
+    // decide this was deleted 2026-09-06 (Simon decision Q-260905-02) along with
+    // src/lib/judge/domains.ts, whose JUDGE_DOMAINS had been empty since #1302,
+    // so this call could only ever return false. Existing rows still report the
+    // stored users.judge_mode below: that column stays on purpose (#1302) so an
+    // account can be comped by hand.
+    const judgeMode = false;
+    const { error: insertErr } = await supabase.from("users").insert({
+      id: user.id,
+      email: args.email,
+      birth_date: args.birthDate,
+      locale: args.locale ?? "en",
+    });
+    // judge_mode is deliberately NOT sent. It used to be, with a comment saying
+    // the auto_judge_mode trigger was authoritative - and it was, until 0138
+    // dropped that trigger as XPRIZE cleanup. Sending a column whose only
+    // remaining guard is a different trigger (0139's BEFORE INSERT) means the
+    // client is asking for a privilege and being silently corrected. Not asking
+    // is clearer, and the value defaults to false either way.
+    if (insertErr) {
+      // J3 (the correct-password variant): a fully-registered user re-signing-up
+      // with their own password authenticates fine above, then the INSERT hits
+      // the users PK collision. They proved who they are — treating that as a
+      // failure (the old rollback signed their VALID session back out and showed
+      // a generic error loop) punished a successful sign-in. Probe for the
+      // existing row; if it's there, hand the session through as a sign-in.
+      const { data: existing } = await supabase
+        .from("users")
+        .select("id, judge_mode")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (existing) {
+        return {
+          kind: "active",
+          userId: user.id,
+          judgeMode: existing.judge_mode === true,
+          created: false,
+        };
+      }
+      // The auth.users account already exists with an authenticated session, but
+      // the profile row failed (age-gate trigger, citext-unique email collision,
+      // RLS/network). Leaving the session live would strand the user: profile-less
+      // but signed in, and a retry hits "user already registered". Sign the
+      // just-created session back out so the account isn't half-provisioned, then
+      // surface the original error. Best-effort: never mask insertErr.
+      // A browser without Web Locks cannot prove that another tab did not
+      // replace A with B. Preserve the local session instead of risking B.
+      if (!mutationContext.destructiveSafe) throw insertErr;
+      try {
+        await signOutExpectedSessionInsideMutation(supabase.auth, rollbackExpectation, "global");
+      } catch {
+        /* ignore — surfacing insertErr is what matters */
+      }
+      throw insertErr;
     }
-    // The auth.users account already exists with an authenticated session, but
-    // the profile row failed (age-gate trigger, citext-unique email collision,
-    // RLS/network). Leaving the session live would strand the user: profile-less
-    // but signed in, and a retry hits "user already registered". Sign the
-    // just-created session back out so the account isn't half-provisioned, then
-    // surface the original error. Best-effort: never mask insertErr.
-    try {
-      await supabase.auth.signOut();
-    } catch {
-      /* ignore — surfacing insertErr is what matters */
-    }
-    throw insertErr;
-  }
 
-  return { kind: "active", userId: user.id, judgeMode, created: true };
+    return { kind: "active", userId: user.id, judgeMode, created: true };
+  });
 }
 
 // --- OAuth (Google / Apple / Kakao) --------------------------------------
@@ -289,12 +345,21 @@ export interface OAuthRedirect {
 type ExpoLinkingModule = typeof import("expo-linking");
 type ExpoWebBrowserModule = typeof import("expo-web-browser");
 
+const NATIVE_AUTH_BRIDGE_URL = "https://simon-yhkim.github.io/2nd-B/auth-bridge.html";
+const NATIVE_AUTH_BRIDGE_TARGETS = {
+  "/": "root",
+  // Sign-up mail is OTP-only. Keep its otherwise-unused redirect on the
+  // ordinary callback instead of widening the bridge destination set.
+  "/sign-up": "root",
+  "/reset-password": "reset-password",
+} as const;
+
 function isWebRuntime(): boolean {
   return typeof window !== "undefined" && typeof document !== "undefined";
 }
 
 function authRedirectTo(pathname: string): string | undefined {
-  if (!isWebRuntime()) return nativeRedirectTo(pathname);
+  if (!isWebRuntime()) return nativeAuthBridgeRedirectTo(pathname);
   // expo-router base path is '/2nd-B/' on GitHub Pages, '/' in dev.
   // Detect by looking at the current pathname's prefix.
   const path = window.location.pathname;
@@ -303,7 +368,6 @@ function authRedirectTo(pathname: string): string | undefined {
 }
 
 function defaultRedirectTo(): string | undefined {
-  if (!isWebRuntime()) return nativeRedirectTo("/");
   // ALWAYS return to the app root, not window.location.pathname.
   // If the user clicked Google from /sign-in, using pathname would
   // send them back to /sign-in post-OAuth — they'd see the sign-in
@@ -318,7 +382,15 @@ function passwordResetRedirectTo(): string | undefined {
   return authRedirectTo("/reset-password");
 }
 
-function nativeRedirectTo(pathname: string): string | undefined {
+function nativeAuthBridgeRedirectTo(pathname: string): string {
+  const target = NATIVE_AUTH_BRIDGE_TARGETS[
+    pathname as keyof typeof NATIVE_AUTH_BRIDGE_TARGETS
+  ];
+  if (!target) throw new Error("Unsupported native auth callback route");
+  return `${NATIVE_AUTH_BRIDGE_URL}?to=${target}`;
+}
+
+function nativeAppReturnUrl(pathname: string): string | undefined {
   try {
     const Linking = require("expo-linking") as ExpoLinkingModule;
     return Linking.createURL(pathname);
@@ -342,6 +414,30 @@ export interface AuthCallbackSession {
   userId: string | null;
   sessionId: string | null;
   type: string | null;
+  /** Present only after recovery session + durable proof finalize under M. */
+  recoveryProof?: RecoveryProof;
+}
+
+const authCallbackExpectations = new WeakMap<AuthCallbackSession, AuthSessionExpectation>();
+
+function authCallbackSession(
+  session: { access_token: string; user: { id: string } } | null,
+  type: string | null,
+): AuthCallbackSession {
+  const identity = recoverySessionIdentity(session);
+  const callback = {
+    userId: identity?.userId ?? null,
+    sessionId: identity?.sessionId ?? null,
+    type,
+  };
+  if (session) {
+    authCallbackExpectations.set(callback, {
+      userId: session.user.id,
+      sessionId: identity?.sessionId ?? null,
+      accessToken: session.access_token,
+    });
+  }
+  return callback;
 }
 
 export function authCallbackType(url: string): string | null {
@@ -349,10 +445,11 @@ export function authCallbackType(url: string): string | null {
 }
 
 /**
- * Native implicit recovery links carry `type=recovery`. PKCE recovery links
- * carry only a code in the URL; auth-js restores their type from the stored
- * verifier after exchange. Limit that provisional form to this exact route so
- * an OAuth callback code is never consumed by the password-reset screen.
+ * Recovery links carry either a PKCE code or fail-closed error metadata.
+ * Legacy bearer-token links may still include `type=recovery`; recognize the
+ * route so the reset screen can reject them instead of treating them as an
+ * ordinary callback. Auth-js restores PKCE provenance from the stored verifier
+ * after exchange, so a caller-controlled type is never authoritative.
  */
 export function isPasswordRecoveryCallbackUrl(url: string): boolean {
   const params = authParamsFromUrl(url);
@@ -375,105 +472,427 @@ export function isPasswordRecoveryCallbackUrl(url: string): boolean {
   }
 }
 
-async function createNativeSessionFromUrl(
+class AuthCallbackSessionNotEstablishedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AuthCallbackSessionNotEstablishedError";
+  }
+}
+
+async function createSessionFromUrlInsideMutation(
   supabase: SupabaseClient,
   url: string,
-): Promise<AuthCallbackSession> {
+  pending: RecoveryPending | null,
+): Promise<{
+  callback: AuthCallbackSession;
+  quarantine: AuthCallbackQuarantine | null;
+}> {
   const params = authParamsFromUrl(url);
   const type = params.type ?? null;
   const errorCode = params.error_code ?? params.errorCode;
-  if (errorCode) throw new Error(params.error_description ?? errorCode);
+  if (errorCode) {
+    throw new AuthCallbackSessionNotEstablishedError(
+      params.error_description ?? errorCode,
+    );
+  }
+
+  if (params.access_token || params.refresh_token) {
+    // Custom URL schemes are not exclusive on mobile: another app can register
+    // the same scheme and intercept a bearer-token recovery redirect. Never
+    // establish a session from URL credentials, even on the recovery route.
+    // PKCE codes and the explicit OTP verifier are the only link/code inputs.
+    throw new AuthCallbackSessionNotEstablishedError(
+      "Bearer-token auth callbacks are disabled; use a PKCE code or explicit OTP verification.",
+    );
+  }
 
   if (params.code) {
+    const quarantine = createAuthCallbackQuarantine(
+      pending ? "recovery" : "ordinary",
+      pending,
+    );
+    // The durable fence is written under M before the first instruction that
+    // can create/persist a callback session. A failed write means producer=0.
+    await persistAuthCallbackQuarantineInsideMutation(quarantine);
     const { data, error } = await supabase.auth.exchangeCodeForSession(params.code);
-    if (error) throw error;
+    if (error) {
+      await clearAuthCallbackQuarantineExpectedInsideMutation(quarantine);
+      throw new AuthCallbackSessionNotEstablishedError(error.message);
+    }
     // auth-js 2.106.1 returns redirectType at runtime even though the public
     // AuthTokenResponse type omits it. It is the authoritative PKCE provenance.
     const redirectType = (data as typeof data & { redirectType?: string | null })
       .redirectType;
-    const identity = recoverySessionIdentity(data.session);
+    // PKCE provenance comes only from auth-js. A caller-controlled URL
+    // `type=recovery` must not promote an ordinary exchanged code.
     return {
-      userId: identity?.userId ?? null,
-      sessionId: identity?.sessionId ?? null,
-      // PKCE provenance comes only from auth-js. A caller-controlled URL
-      // `type=recovery` must not promote an ordinary exchanged code.
-      type: redirectType ?? null,
+      callback: authCallbackSession(data.session, redirectType ?? null),
+      quarantine,
     };
   }
 
-  if (params.access_token && params.refresh_token) {
-    const { data, error } = await supabase.auth.setSession({
-      access_token: params.access_token,
-      refresh_token: params.refresh_token,
-    });
-    if (error) throw error;
-    const identity = recoverySessionIdentity(data.session);
-    return {
-      userId: identity?.userId ?? null,
-      sessionId: identity?.sessionId ?? null,
-      type,
-    };
-  }
+  return {
+    callback: { userId: null, sessionId: null, type },
+    quarantine: null,
+  };
+}
 
-  return { userId: null, sessionId: null, type };
+function warnRecoveryFinalizeSignOutFailed(): void {
+  if (typeof console !== "undefined") {
+    console.warn("[auth] recovery sign-out failed; phase=transaction-finalize");
+  }
+}
+
+async function failRecoverySessionInsideMutation(
+  supabase: SupabaseClient,
+  callback: AuthCallbackSession,
+  snapshot: RecoveryMarkerSnapshot,
+  error: unknown,
+): Promise<never> {
+  const expected = authCallbackExpectations.get(callback);
+  // Without a stable producer result there is no owner-bound session we can
+  // safely remove. Retain the durable tuple for bootstrap reconciliation.
+  if (!expected) throw error;
+  try {
+    await signOutExpectedSessionInsideMutation(supabase.auth, expected, "local");
+    // Validate the complete marker tuple before removing any member. A stale A
+    // cleanup therefore cannot erase a quarantine/pending/proof written by B.
+    await clearRecoveryMarkerSnapshotExpectedInsideMutation(snapshot);
+  } catch {
+    // Most importantly, leave pending durable when auth-js cannot complete its
+    // remote/local sign-out. Restart will classify the stored session as
+    // recovery-locked instead of silently promoting it to ordinary bootstrap.
+    warnRecoveryFinalizeSignOutFailed();
+  }
+  throw error;
+}
+
+async function finalizeRecoverySessionInsideMutation(
+  supabase: SupabaseClient,
+  callback: AuthCallbackSession,
+  pending: RecoveryPending,
+  quarantine: AuthCallbackQuarantine,
+): Promise<RecoveryProof> {
+  if (!callback.userId || !callback.sessionId) {
+    return failRecoverySessionInsideMutation(
+      supabase,
+      callback,
+      { proof: null, pending, quarantine },
+      new Error("Recovery verification returned no stable session"),
+    );
+  }
+  const identity = { userId: callback.userId, sessionId: callback.sessionId };
+  const proof = createRecoveryProof(
+    identity,
+    pending.ownerNonce ?? undefined,
+    quarantine.ownerNonce,
+  );
+  try {
+    await persistRecoveryProofInsideMutation(proof);
+    if (!(
+      await completeRecoveryHandoffExpectedInsideMutation({ proof, pending, quarantine })
+    )) {
+      throw new Error("Recovery callback ownership changed during session finalization");
+    }
+    return proof;
+  } catch (error) {
+    return failRecoverySessionInsideMutation(
+      supabase,
+      callback,
+      { proof, pending, quarantine },
+      error,
+    );
+  }
+}
+
+async function assertRecoveryPendingOwnerInsideMutation(
+  pending: RecoveryPending,
+): Promise<void> {
+  if (!pending.ownerNonce) {
+    throw new Error("Legacy recovery pending markers cannot authorize a new session mutation");
+  }
+  if (!(await recoveryPendingMatchesExpectedInsideMutation(pending))) {
+    throw new Error("Recovery pending owner changed before session mutation");
+  }
 }
 
 async function openNativeOAuthSession(
-  supabase: SupabaseClient,
   authUrl: string,
-  redirectTo: string | undefined,
+  appReturnUrl: string | undefined,
 ): Promise<OAuthRedirect | null> {
   const WebBrowser = require("expo-web-browser") as ExpoWebBrowserModule;
-  const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectTo);
+  // Supabase redirects to the allowlisted HTTPS bridge. Expo must separately
+  // wait for the bridge's bounded custom-scheme callback so the browser closes.
+  const result = await WebBrowser.openAuthSessionAsync(authUrl, appReturnUrl);
   if (result.type !== "success") return null;
-  await createNativeSessionFromUrl(supabase, result.url);
+  await consumeAuthCallbackUrl(result.url);
   return { url: result.url };
 }
 
-export async function signInWithEmail(email: string, password: string): Promise<{ userId: string }> {
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) throw error;
-  if (!data.user) throw new Error("Sign-in returned no user");
-  return { userId: data.user.id };
+export async function signInWithEmail(
+  email: string,
+  password: string,
+): Promise<{ userId: string }> {
+  return runAuthSessionMutation(async () => {
+    const supabase = getSupabaseClient();
+    const { data, error } = await getAuthStorageRuntime().runSdkUnlockedWriter(() =>
+      supabase.auth.signInWithPassword({ email, password }),
+    );
+    if (error) throw error;
+    if (!data.user) throw new Error("Sign-in returned no user");
+    return { userId: data.user.id };
+  });
 }
 
-// Native recovery deep links (password-reset email) carry the session in the
-// URL, but `detectSessionInUrl` is web-only and the only consumer of callback
-// URLs was the in-app OAuth browser path — so on Android/iOS the reset screen
-// always dead-ended at "expired" with no session. The reset screen feeds the
-// deep link here to establish the recovery session.
-export async function consumeAuthCallbackUrl(url: string): Promise<AuthCallbackSession> {
-  const supabase = getSupabaseClient();
-  return createNativeSessionFromUrl(supabase, url);
+// Native recovery deep links are consumed explicitly because detectSessionInUrl
+// is disabled. Only PKCE codes can establish a link session; legacy URL bearer
+// tokens fail closed before any auth mutation. The reset screen supplies its
+// owned pending marker so exchanged recovery sessions can be proof-bound.
+export async function consumeAuthCallbackUrl(
+  url: string,
+  pending?: RecoveryPending,
+): Promise<AuthCallbackSession> {
+  const explicitRecoveryIntent =
+    isPasswordRecoveryCallbackUrl(url) || authCallbackType(url) === "recovery";
+  if (explicitRecoveryIntent && !pending) {
+    throw new Error("Recovery callback requires an owned pending marker");
+  }
+  return runAuthSessionMutation(async () => {
+    const supabase = getSupabaseClient();
+    if (pending) await assertRecoveryPendingOwnerInsideMutation(pending);
+    let callback: AuthCallbackSession;
+    let quarantine: AuthCallbackQuarantine | null = null;
+    try {
+      const established = await createSessionFromUrlInsideMutation(
+        supabase,
+        url,
+        pending ?? null,
+      );
+      callback = established.callback;
+      quarantine = established.quarantine;
+    } catch (error) {
+      // These failures are known to precede any returned/persisted callback
+      // session. Release only this operation's marker; thrown/uncertain SDK
+      // failures intentionally retain it as a restart fence.
+      if (pending && error instanceof AuthCallbackSessionNotEstablishedError) {
+        await clearRecoveryPendingExpectedInsideMutation(pending);
+      }
+      throw error;
+    }
+    if (callback.type === "recovery") {
+      if (!pending || !quarantine) {
+        // redirectType can reveal recovery provenance only after exchange. The
+        // callback quarantine already predates that exchange, so it is the
+        // restart fence for an unexpected recovery result.
+        return failRecoverySessionInsideMutation(
+          supabase,
+          callback,
+          { proof: null, pending: pending ?? null, quarantine },
+          new Error("Recovery callback requires an owned pending marker"),
+        );
+      }
+      callback.recoveryProof = await finalizeRecoverySessionInsideMutation(
+        supabase,
+        callback,
+        pending,
+        quarantine,
+      );
+    } else if (pending) {
+      await failRecoverySessionInsideMutation(
+        supabase,
+        callback,
+        { proof: null, pending, quarantine },
+        new Error("Password reset callback was not issued for recovery"),
+      );
+    } else if (quarantine) {
+      try {
+        if (!(await clearAuthCallbackQuarantineExpectedInsideMutation(quarantine))) {
+          throw new Error("Auth callback quarantine owner changed before finalization");
+        }
+      } catch (error) {
+        await failRecoverySessionInsideMutation(
+          supabase,
+          callback,
+          { proof: null, pending: null, quarantine },
+          error,
+        );
+      }
+    }
+    return callback;
+  }, { requireCrossTab: true });
+}
+
+export type AuthCallbackBootstrapReconciliation =
+  | { kind: "unchanged" }
+  | { kind: "recovery"; proof: RecoveryProof }
+  | { kind: "cleared" }
+  | { kind: "retryable"; error?: unknown };
+
+/**
+ * Reconcile a callback transaction that crashed after its durable pre-fence.
+ * This is intentionally retryable: no marker is removed until the exact live
+ * session has been locally signed out, and every cleanup is a full tuple CAS.
+ */
+export async function reconcileAuthCallbackBootstrap(
+  session: { access_token?: string | null; user?: { id?: string | null } | null } | null,
+): Promise<AuthCallbackBootstrapReconciliation> {
+  return runAuthSessionMutation(async () => {
+    const snapshot = await loadRecoveryMarkerSnapshotInsideMutation();
+    const { proof, pending, quarantine } = snapshot;
+    const mismatchedPair = Boolean(
+      proof && pending && !recoveryProofOwnsPending(proof, pending),
+    );
+    if (!quarantine && !mismatchedPair) return { kind: "unchanged" };
+
+    if (
+      session &&
+      proof &&
+      quarantine &&
+      recoveryProofMatchesSession(proof, session) &&
+      recoveryProofOwnsCallbackQuarantine(proof, quarantine) &&
+      (!pending || recoveryProofOwnsPending(proof, pending))
+    ) {
+      try {
+        const completed = await completeRecoveryHandoffExpectedInsideMutation({
+          proof,
+          pending,
+          quarantine,
+        });
+        return completed ? { kind: "recovery", proof } : { kind: "retryable" };
+      } catch (error) {
+        return { kind: "retryable", error };
+      }
+    }
+
+    if (session) {
+      const identity = recoverySessionIdentity(session);
+      const userId = session.user?.id;
+      if (!identity || !userId || !session.access_token) return { kind: "retryable" };
+      const expected: AuthSessionExpectation = {
+        userId,
+        sessionId: identity.sessionId,
+        accessToken: session.access_token,
+      };
+      try {
+        await signOutExpectedSessionInsideMutation(
+          getSupabaseClient().auth,
+          expected,
+          "local",
+        );
+      } catch (error) {
+        // Preserve proof, pending, and quarantine exactly. A retry invokes this
+        // same owner-bound operation; no authenticated surface is published.
+        return { kind: "retryable", error };
+      }
+    }
+
+    try {
+      return await clearRecoveryMarkerSnapshotExpectedInsideMutation(snapshot)
+        ? { kind: "cleared" }
+        : { kind: "retryable" };
+    } catch (error) {
+      return { kind: "retryable", error };
+    }
+  }, { requireCrossTab: true });
+}
+
+const AUTH_CALLBACK_KEYS = new Set([
+  "access_token",
+  "code",
+  "error",
+  "error_code",
+  "error_description",
+  "expires_at",
+  "expires_in",
+  "provider_refresh_token",
+  "provider_token",
+  "refresh_token",
+  "token_type",
+  "type",
+]);
+
+function scrubCurrentWebAuthCallback(): void {
+  const current = new URL(window.location.href);
+  for (const key of AUTH_CALLBACK_KEYS) current.searchParams.delete(key);
+  const hash = new URLSearchParams(current.hash.replace(/^#/, ""));
+  for (const key of AUTH_CALLBACK_KEYS) hash.delete(key);
+  current.hash = hash.toString() ? `#${hash.toString()}` : "";
+  window.history.replaceState(window.history.state, "", current.toString());
+}
+
+/**
+ * Constructor URL detection is disabled so it cannot write a B session outside
+ * M. AuthContext calls this once at boot for Supabase PKCE callbacks and to
+ * scrub/reject any legacy implicit callback. The dedicated Naver callback
+ * carries state and is intentionally excluded.
+ */
+export async function consumeCurrentWebAuthCallback(
+  pending?: RecoveryPending | null,
+): Promise<AuthCallbackSession | null> {
+  if (!isWebRuntime()) return null;
+  const params = authParamsFromUrl(window.location.href);
+  const isNaverCallback = /\/oauth-callback\/?$/.test(window.location.pathname);
+  const hasPkceCallback = Boolean(params.code || params.error || params.error_code);
+  const hasImplicitCredentials = Boolean(params.access_token || params.refresh_token);
+  if ((!hasPkceCallback && !hasImplicitCredentials) || isNaverCallback) return null;
+  try {
+    // Web auth is PKCE-only. Accepting a caller-supplied token fragment here
+    // would reintroduce login CSRF: a link could silently replace the victim's
+    // session with an attacker-owned account. Native rejects the same tokens.
+    if (hasImplicitCredentials && !params.code) {
+      if (pending) await clearRecoveryPendingExpected(pending);
+      throw new Error("Implicit web auth callbacks are disabled; PKCE is required.");
+    }
+    return await consumeAuthCallbackUrl(window.location.href, pending ?? undefined);
+  } finally {
+    scrubCurrentWebAuthCallback();
+  }
 }
 
 export async function sendPasswordResetEmail(email: string): Promise<void> {
-  const supabase = getSupabaseClient();
-  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-    redirectTo: passwordResetRedirectTo(),
+  await runAuthSessionMutation(async () => {
+    const supabase = getSupabaseClient();
+    const { error } = await getAuthStorageRuntime().runSdkUnlockedWriter(() =>
+      supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: passwordResetRedirectTo(),
+      }),
+    );
+    if (error) throw error;
   });
-  if (error) throw error;
 }
 
 // Recovery-code path (flow request #5): the same resetPasswordForEmail issues a
 // 6-digit token alongside the link; verifying it (type "recovery") establishes
-// the session updatePassword needs, with no mail link round-trip. The link in
-// the mail keeps working as a fallback — both consume the same token.
+// the session updatePassword needs, with no mail link round-trip. Recovery mail
+// is code-only so it never delivers a classic bearer-token link.
 export async function verifyPasswordResetCode(
   email: string,
   code: string,
-): Promise<RecoverySessionIdentity> {
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase.auth.verifyOtp({
-    type: "recovery",
-    email: email.trim(),
-    token: code.trim(),
-  });
-  if (error) throw error;
-  const identity = recoverySessionIdentity(data.session);
-  if (!identity) throw new Error("Recovery verification returned no stable session");
-  return identity;
+  pending: RecoveryPending,
+): Promise<RecoveryProof> {
+  return runAuthSessionMutation(async () => {
+    const supabase = getSupabaseClient();
+    await assertRecoveryPendingOwnerInsideMutation(pending);
+    const quarantine = createAuthCallbackQuarantine("recovery", pending);
+    await persistAuthCallbackQuarantineInsideMutation(quarantine);
+    const { data, error } = await getAuthStorageRuntime().runSdkUnlockedWriter(() =>
+      supabase.auth.verifyOtp({
+        type: "recovery",
+        email: email.trim(),
+        token: code.trim(),
+      }),
+    );
+    if (error) {
+      await clearRecoveryMarkerSnapshotExpectedInsideMutation({
+        proof: null,
+        pending,
+        quarantine,
+      });
+      throw error;
+    }
+    const callback = authCallbackSession(data.session, "recovery");
+    return finalizeRecoverySessionInsideMutation(supabase, callback, pending, quarantine);
+  }, { requireCrossTab: true });
 }
 
 // Sign-up confirm code (Gmail deliverability P1, 2026-07-18): Gmail buries any
@@ -485,9 +904,31 @@ export async function verifyPasswordResetCode(
 // rows on the confirmation transition. Links in already-sent mail keep working
 // through the existing callback path (both consume the same token).
 export async function verifySignUpCode(email: string, code: string): Promise<void> {
-  const supabase = getSupabaseClient();
-  const { error } = await supabase.auth.verifyOtp({ type: "signup", email: email.trim(), token: code.trim() });
-  if (error) throw error;
+  await runAuthSessionMutation(async () => {
+    const supabase = getSupabaseClient();
+    const quarantine = createAuthCallbackQuarantine("ordinary");
+    await persistAuthCallbackQuarantineInsideMutation(quarantine);
+    const { data, error } = await getAuthStorageRuntime().runSdkUnlockedWriter(() =>
+      supabase.auth.verifyOtp({
+        type: "signup",
+        email: email.trim(),
+        token: code.trim(),
+      }),
+    );
+    if (error) {
+      await clearAuthCallbackQuarantineExpectedInsideMutation(quarantine);
+      throw error;
+    }
+    const callback = authCallbackSession(data.session, "signup");
+    if (!(await clearAuthCallbackQuarantineExpectedInsideMutation(quarantine))) {
+      await failRecoverySessionInsideMutation(
+        supabase,
+        callback,
+        { proof: null, pending: null, quarantine },
+        new Error("Sign-up callback quarantine owner changed before finalization"),
+      );
+    }
+  }, { requireCrossTab: true });
 }
 
 // Supabase Auth "Require current password when updating" was enabled on the
@@ -504,15 +945,10 @@ export async function verifySignUpCode(email: string, code: string): Promise<voi
 export async function updatePassword(
   password: string,
   currentPassword?: string,
-  expectedUserId?: string,
-  expectedSessionId?: string,
 ): Promise<{ userId: string | null }> {
-  // The leaked-password check belongs HERE and not in the two forms, because
-  // this function is the only place both of them pass through: the settings
-  // change AND the forgot-password reset. Sign-up already had the check
-  // (signUpWithEmail); a user could still walk a breached password in through
-  // either update path, which made the sign-up gate mostly decorative for
-  // anyone who had already registered.
+  // Keep the leaked-password check in the mutation facade, not either form.
+  // The recovery-only facade below enforces the same check before taking M.
+  // Sign-up already has its own check in signUpWithEmail.
   //
   // D-3 (Simon, 2026-08-21) chose the client check over moving auth behind an
   // edge function. The threat model is why that holds: a tampered client that
@@ -523,38 +959,86 @@ export async function updatePassword(
   // impossible to change your password, and the length floor plus GoTrue's own
   // checks still apply.
   if (await isPasswordBreached(password)) throw new BreachedPasswordError();
+  return runAuthSessionMutation(async () => {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase.auth.updateUser(
+      currentPassword ? { password, current_password: currentPassword } : { password },
+    );
+    if (error) throw error;
+    return { userId: data?.user?.id ?? null };
+  });
+}
+
+async function recoverySessionExpectationInsideMutation(
+  expected: RecoveryOperationExpectation,
+): Promise<AuthSessionExpectation> {
+  await assertRecoveryOperationCurrentInsideMutation(expected);
   const supabase = getSupabaseClient();
-  if (expectedUserId || expectedSessionId) {
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError) throw sessionError;
-    const identity = expectedSessionId ? recoverySessionIdentity(sessionData.session) : null;
-    if (
-      sessionData.session?.user.id !== expectedUserId ||
-      (expectedSessionId && identity?.sessionId !== expectedSessionId)
-    ) {
-      throw new Error("Password recovery session changed before update");
-    }
-  }
-  const { data, error } = await supabase.auth.updateUser(
-    currentPassword ? { password, current_password: currentPassword } : { password },
-  );
+  const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
-  const updatedUserId = data?.user?.id ?? null;
-  if (expectedUserId && updatedUserId !== expectedUserId) {
-    throw new Error("Password recovery session changed during update");
+  if (!recoveryProofMatchesSession(expected, data.session)) {
+    throw new RecoveryOperationOwnerChangedError();
   }
-  if (expectedUserId || expectedSessionId) {
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError) throw sessionError;
-    const identity = expectedSessionId ? recoverySessionIdentity(sessionData.session) : null;
-    if (
-      sessionData.session?.user.id !== expectedUserId ||
-      (expectedSessionId && identity?.sessionId !== expectedSessionId)
-    ) {
-      throw new Error("Password recovery session changed during update");
+  return {
+    userId: expected.userId,
+    sessionId: expected.sessionId,
+    accessToken: data.session?.access_token ?? null,
+  };
+}
+
+async function clearRecoveryOperationInsideMutation(
+  expected: RecoveryOperationExpectation,
+): Promise<void> {
+  if (!(await clearRecoveryStateExpectedInsideMutation(expected))) {
+    throw new RecoveryOperationOwnerChangedError();
+  }
+}
+
+/** Recovery-only password mutation. The full callback proof, live session,
+ * update, and durable clear share one M critical section. */
+export async function updatePasswordForRecovery(
+  password: string,
+  expected: RecoveryOperationExpectation,
+): Promise<{ userId: string }> {
+  if (await isPasswordBreached(password)) throw new BreachedPasswordError();
+  return runAuthSessionMutation(async () => {
+    await recoverySessionExpectationInsideMutation(expected);
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase.auth.updateUser({ password });
+    if (error) throw error;
+    if (data?.user?.id !== expected.userId) {
+      throw new RecoveryOperationOwnerChangedError();
     }
-  }
-  return { userId: updatedUserId };
+    await clearRecoveryOperationInsideMutation(expected);
+    return { userId: expected.userId };
+  }, { requireCrossTab: true });
+}
+
+async function signOutRecoveryOperation(
+  expected: RecoveryOperationExpectation,
+): Promise<void> {
+  return runAuthSessionMutation(async () => {
+    const sessionExpectation = await recoverySessionExpectationInsideMutation(expected);
+    const supabase = getSupabaseClient();
+    await signOutExpectedSessionInsideMutation(
+      supabase.auth,
+      sessionExpectation,
+      "local",
+    );
+    await clearRecoveryOperationInsideMutation(expected);
+  }, { requireCrossTab: true });
+}
+
+export function cancelRecoverySession(
+  expected: RecoveryOperationExpectation,
+): Promise<void> {
+  return signOutRecoveryOperation(expected);
+}
+
+export function failClosedRecoverySession(
+  expected: RecoveryOperationExpectation,
+): Promise<void> {
+  return signOutRecoveryOperation(expected);
 }
 
 /**
@@ -592,12 +1076,53 @@ export function passwordUpdateFailure(error: unknown): PasswordUpdateFailure {
   }
 }
 
-export async function signOut(scope: "global" | "local" = "global"): Promise<void> {
+export async function captureSignOutExpectation(): Promise<AuthSessionExpectation> {
   const supabase = getSupabaseClient();
-  const { error } = scope === "global"
-    ? await supabase.auth.signOut()
-    : await supabase.auth.signOut({ scope });
-  if (error) throw error;
+  const runtime = getAuthStorageRuntime();
+  return captureAuthSessionExpectation(supabase.auth, runtime);
+}
+
+export async function signOutExpected(
+  expected: AuthSessionExpectation,
+  scope: "global" | "local" = "global",
+): Promise<void> {
+  const supabase = getSupabaseClient();
+  await signOutExpectedSession(supabase.auth, getAuthStorageRuntime(), expected, scope);
+}
+
+export async function signOutRecoverySession(
+  expected: RecoverySessionIdentity,
+  scope: "global" | "local" = "local",
+): Promise<void> {
+  await signOutExpected(
+    {
+      userId: expected.userId,
+      sessionId: expected.sessionId,
+      accessToken: null,
+    },
+    scope,
+  );
+}
+
+export async function signOutAuthCallbackSession(
+  callback: AuthCallbackSession,
+  scope: "global" | "local" = "local",
+): Promise<boolean> {
+  const expected = authCallbackExpectations.get(callback);
+  if (!expected) return false;
+  await signOutExpected(expected, scope);
+  return true;
+}
+
+export async function signOut(scope: "global" | "local" = "global"): Promise<void> {
+  const expected = await captureSignOutExpectation();
+  // Remove only the captured owner's OS notifications and preference keys
+  // before releasing auth. If another account wins while cleanup awaits, the
+  // exact-session compare-and-set below preserves that newer session.
+  if (expected.userId) {
+    await clearAccountScopedLocalNotifications(expected.userId);
+  }
+  await signOutExpected(expected, scope);
 }
 
 // Start a Supabase social-login redirect for the given provider. On Web,
@@ -610,16 +1135,24 @@ export async function signInWithProvider(
 ): Promise<OAuthRedirect | null> {
   const supabase = getSupabaseClient();
   const isWeb = isWebRuntime();
-  const resolvedRedirectTo = redirectTo ?? defaultRedirectTo();
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider,
-    options: {
-      redirectTo: resolvedRedirectTo,
-      skipBrowserRedirect: !isWeb,
-    },
-  });
+  // A native caller cannot override the fixed HTTPS bridge with a custom
+  // scheme. Supabase's production redirect allowlist contains HTTPS URLs only.
+  const resolvedRedirectTo = isWeb ? (redirectTo ?? defaultRedirectTo()) : defaultRedirectTo();
+  const { data, error } = await runAuthSessionMutation(() =>
+    getAuthStorageRuntime().runSdkUnlockedWriter(() =>
+      supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: resolvedRedirectTo,
+          skipBrowserRedirect: !isWeb,
+        },
+      }),
+    ),
+  );
   if (error) throw error;
-  if (!isWeb && data.url) return openNativeOAuthSession(supabase, data.url, resolvedRedirectTo);
+  if (!isWeb && data.url) {
+    return openNativeOAuthSession(data.url, nativeAppReturnUrl("/"));
+  }
   return data.url ? { url: data.url } : null;
 }
 
@@ -652,9 +1185,27 @@ export async function signInWithIdTokenProvider(
   provider: "google" | "kakao" | "apple",
   token: string,
 ): Promise<void> {
-  const supabase = getSupabaseClient();
-  const { error } = await supabase.auth.signInWithIdToken({ provider, token });
-  if (error) throw error;
+  await runAuthSessionMutation(async () => {
+    const supabase = getSupabaseClient();
+    const quarantine = createAuthCallbackQuarantine("ordinary");
+    await persistAuthCallbackQuarantineInsideMutation(quarantine);
+    const { data, error } = await getAuthStorageRuntime().runSdkUnlockedWriter(() =>
+      supabase.auth.signInWithIdToken({ provider, token }),
+    );
+    if (error) {
+      await clearAuthCallbackQuarantineExpectedInsideMutation(quarantine);
+      throw error;
+    }
+    const callback = authCallbackSession(data.session, null);
+    if (!(await clearAuthCallbackQuarantineExpectedInsideMutation(quarantine))) {
+      await failRecoverySessionInsideMutation(
+        supabase,
+        callback,
+        { proof: null, pending: null, quarantine },
+        new Error("Native social callback quarantine owner changed before finalization"),
+      );
+    }
+  }, { requireCrossTab: true });
 }
 
 // Whether to SHOW a built-in social provider button. The provider must ALSO be
@@ -675,104 +1226,146 @@ export function isProviderEnabled(provider: OAuthProvider): boolean {
 // --- Naver social login (custom OAuth via the oauth-naver edge function) ------
 //
 // Naver is NOT a Supabase-native provider, so we drive the OAuth ourselves:
-//   1. signInWithNaver() redirects the browser to Naver's authorize page with a
-//      random `state` stashed in sessionStorage (CSRF defense).
-//   2. Naver returns to /oauth-callback with ?code&state.
-//   3. completeNaverOAuth() verifies the returned state matches (CSRF check),
-//      hands the code to the oauth-naver edge function, and signs the user in
-//      with the magic-link token_hash it returns (verifyOtp). New users then
+//   1. oauth-naver atomically rate-limits the pre-auth request, creates a
+//      server-side 256-bit one-time state, and returns the fixed authorize URL.
+//   2. This client preserves that opaque capability across Naver's redirect.
+//   3. completeNaverOAuth() consumes the local copy once, then the server
+//      atomically consumes its TTL-bound DB fingerprint before token exchange.
+//   4. The returned magic-link token_hash is verified locally. New users then
 //      route through /complete-profile (DOB + consent), like every provider.
 // Gated behind EXPO_PUBLIC_ENABLE_NAVER on web plus a configured client id (and
-// the server's ENABLE_NAVER_OAUTH). Native uses the registered HTTPS callback
-// as a bridge back to the app. See docs/AUTH_PROVIDERS.md.
+// the server's ENABLE_NAVER_OAUTH). The Naver API contract used by this flow
+// exposes no documented PKCE binding for a custom-scheme callback, so native
+// is fail-closed.
 
-const NAVER_AUTHORIZE_URL = "https://nid.naver.com/oauth2.0/authorize";
+const NAVER_AUTHORIZE_ORIGIN = "https://nid.naver.com";
+const NAVER_AUTHORIZE_PATH = "/oauth2.0/authorize";
 const NAVER_STATE_KEY = "secondB_naver_oauth_state";
-const NAVER_PRODUCTION_REDIRECT_URI = "https://simon-yhkim.github.io/2nd-B/oauth-callback";
-const NAVER_NATIVE_STATE_PREFIX = "native.";
-const NAVER_NATIVE_CALLBACK_URI = "secondbrain:///oauth-callback";
+const NAVER_WEB_STATE_RE = /^[0-9a-f]{64}$/;
+const SAFE_NAVER_CODE = /^[\x21-\x7e]{1,512}$/;
+const NAVER_WEB_ONLY_ERROR = "Naver login is available on web only.";
+const NAVER_CALLBACK_ERROR = "Naver sign-in could not be completed.";
+const NAVER_WEB_REDIRECTS = new Set([
+  "https://simon-yhkim.github.io/2nd-B/oauth-callback",
+]);
+
+interface NaverTransaction {
+  state: string;
+  redirectUri: string;
+}
 
 export function isNaverEnabled(): boolean {
   const env = getEnv();
-  // Native profiles already carry the public client id. The old enable flag was
-  // web-only, which accidentally hid Naver on the phone even after its server
-  // and console setup were complete.
-  return !!env.EXPO_PUBLIC_NAVER_CLIENT_ID && (env.EXPO_PUBLIC_ENABLE_NAVER || !isWebRuntime());
+  return isWebRuntime() && !!env.EXPO_PUBLIC_NAVER_CLIENT_ID && env.EXPO_PUBLIC_ENABLE_NAVER;
 }
 
-export function isNativeNaverCallbackState(state: string): boolean {
-  return state.startsWith(NAVER_NATIVE_STATE_PREFIX);
+export function isNativeNaverCallbackState(_state: string): boolean {
+  return false;
 }
 
-export function buildNativeNaverCallbackUrl(search: string): string {
-  const query = search.startsWith("?") ? search : `?${search}`;
-  return `${NAVER_NATIVE_CALLBACK_URI}${query}`;
+export function buildNativeNaverCallbackUrl(_search: string): string {
+  throw new Error(NAVER_WEB_ONLY_ERROR);
 }
 
-// Callback URL Naver redirects back to. Must be registered in the Naver console
-// AND match the value the edge function forwards to Naver's token exchange.
+// Callback URL Naver redirects back to. It must match both the Edge state
+// binding and the exact HTTPS value registered in the Naver console.
 function naverRedirectUri(): string {
-  if (!isWebRuntime()) return NAVER_PRODUCTION_REDIRECT_URI;
+  if (!isWebRuntime()) throw new Error(NAVER_WEB_ONLY_ERROR);
   const path = window.location.pathname;
   const base = path.startsWith("/2nd-B/") ? "/2nd-B/" : "/";
   return `${window.location.origin}${base}oauth-callback`;
 }
 
-function randomState(): string {
-  const g = globalThis as unknown as { crypto?: { getRandomValues?: (a: Uint8Array) => Uint8Array } };
-  if (g.crypto?.getRandomValues) {
-    const bytes = new Uint8Array(16);
-    g.crypto.getRandomValues(bytes);
-    return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+function parseNaverTransaction(raw: string | null): NaverTransaction | null {
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(raw) as unknown;
+    if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+    const candidate = value as Record<string, unknown>;
+    if (Object.keys(candidate).sort().join(",") !== "redirectUri,state") return null;
+    if (typeof candidate.state !== "string" || !NAVER_WEB_STATE_RE.test(candidate.state)) return null;
+    if (typeof candidate.redirectUri !== "string" || !NAVER_WEB_REDIRECTS.has(candidate.redirectUri)) return null;
+    return { state: candidate.state, redirectUri: candidate.redirectUri };
+  } catch {
+    return null;
   }
-  // Fallback only if no CSPRNG (shouldn't happen on web); state is still echoed.
-  return `${Date.now().toString(16)}${Math.floor(Math.random() * 1e16).toString(16)}`;
 }
 
-// Web redirects directly. Native uses the registered HTTPS callback as a
-// bridge: the callback page forwards code+state to secondbrain:///oauth-callback,
-// allowing expo-web-browser to return control without adding a native SDK.
+function saveNaverTransaction(transaction: NaverTransaction): void {
+  const raw = JSON.stringify(transaction);
+  if (!window.sessionStorage) throw new Error(NAVER_CALLBACK_ERROR);
+  window.sessionStorage.setItem(NAVER_STATE_KEY, raw);
+  if (window.sessionStorage.getItem(NAVER_STATE_KEY) !== raw) throw new Error(NAVER_CALLBACK_ERROR);
+}
+
+function takeNaverTransaction(): NaverTransaction | null {
+  try {
+    if (!window.sessionStorage) return null;
+    const raw = window.sessionStorage.getItem(NAVER_STATE_KEY);
+    window.sessionStorage.removeItem(NAVER_STATE_KEY);
+    if (window.sessionStorage.getItem(NAVER_STATE_KEY) !== null) return null;
+    return parseNaverTransaction(raw);
+  } catch {
+    return null;
+  }
+}
+
+function serverAuthorizeUrl(
+  value: unknown,
+  clientId: string,
+  redirectUri: string,
+): { url: string; state: string } | null {
+  if (typeof value !== "string" || value.length > 2048) return null;
+  try {
+    const url = new URL(value);
+    if (
+      url.origin !== NAVER_AUTHORIZE_ORIGIN
+      || url.pathname !== NAVER_AUTHORIZE_PATH
+      || url.username !== ""
+      || url.password !== ""
+      || url.hash !== ""
+    ) return null;
+    const keys = [...url.searchParams.keys()].sort();
+    if (keys.join(",") !== "client_id,redirect_uri,response_type,state") return null;
+    const state = url.searchParams.get("state") ?? "";
+    if (
+      url.searchParams.get("response_type") !== "code"
+      || url.searchParams.get("client_id") !== clientId
+      || url.searchParams.get("redirect_uri") !== redirectUri
+      || !NAVER_WEB_STATE_RE.test(state)
+    ) return null;
+    return { url: url.toString(), state };
+  } catch {
+    return null;
+  }
+}
+
+// Web redirects directly. Native is deliberately unavailable because Naver's
+// flow cannot bind a custom-scheme authorization code with PKCE.
 export async function signInWithNaver(): Promise<void> {
   const env = getEnv();
   const clientId = env.EXPO_PUBLIC_NAVER_CLIENT_ID;
   const web = isWebRuntime();
-  if (!clientId || (!env.EXPO_PUBLIC_ENABLE_NAVER && web)) throw new Error("Naver login is not enabled.");
-  const state = `${web ? "" : NAVER_NATIVE_STATE_PREFIX}${randomState()}`;
-  const url = new URL(NAVER_AUTHORIZE_URL);
-  url.searchParams.set("response_type", "code");
-  url.searchParams.set("client_id", clientId);
-  url.searchParams.set("redirect_uri", naverRedirectUri());
-  url.searchParams.set("state", state);
-
-  if (web) {
-    try {
-      window.sessionStorage?.setItem(NAVER_STATE_KEY, state);
-    } catch {
-      // sessionStorage unavailable (private mode) — the state echo can't be
-      // verified on return, so completeNaverOAuth() will reject. User can retry.
-    }
-    window.location.href = url.toString();
-    return;
-  }
-
-  // Cold-start survival: Android may kill the app while the Custom Tab is up.
-  // The deep link then starts a FRESH JS context where this closure (and its
-  // state nonce) no longer exists — the native /oauth-callback route finishes
-  // the flow instead, verifying against this persisted nonce.
+  if (!web) throw new Error(NAVER_WEB_ONLY_ERROR);
+  if (!clientId || !env.EXPO_PUBLIC_ENABLE_NAVER) throw new Error("Naver login is not enabled.");
+  const redirectUri = naverRedirectUri();
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.functions.invoke("oauth-naver", {
+    body: { action: "start", redirect_uri: redirectUri },
+  });
+  if (error) throw new Error(NAVER_CALLBACK_ERROR);
+  const authorize = serverAuthorizeUrl(
+    (data as { authorize_url?: unknown } | null)?.authorize_url,
+    clientId,
+    redirectUri,
+  );
+  if (!authorize) throw new Error(NAVER_CALLBACK_ERROR);
   try {
-    await AsyncStorage.setItem(NAVER_STATE_KEY, state);
+    saveNaverTransaction({ state: authorize.state, redirectUri });
   } catch {
-    /* storage unavailable: the warm path still verifies via the closure */
+    throw new Error(NAVER_CALLBACK_ERROR);
   }
-  const WebBrowser = require("expo-web-browser") as ExpoWebBrowserModule;
-  const result = await WebBrowser.openAuthSessionAsync(url.toString(), NAVER_NATIVE_CALLBACK_URI);
-  if (result.type !== "success") return;
-  const returned = authParamsFromUrl(result.url);
-  if (returned.error) throw new Error(returned.error_description ?? returned.error);
-  const code = returned.code ?? "";
-  const returnedState = returned.state ?? "";
-  if (!code) throw new Error("Naver sign-in returned no authorization code.");
-  await completeNaverOAuth({ code, state: returnedState }, state);
+  window.location.href = authorize.url;
 }
 
 export interface NaverCallbackParams {
@@ -783,54 +1376,97 @@ export interface NaverCallbackParams {
 // Complete the Naver flow after the redirect: verify the state echo (CSRF),
 // exchange the code via the edge function, and sign in with the magic-link
 // token it returns. Returns the user id.
-export async function completeNaverOAuth(
-  params: NaverCallbackParams,
-  expectedState?: string,
-): Promise<{ userId: string }> {
-  let stored: string | null = expectedState ?? null;
-  if (!stored && isWebRuntime()) {
-    try {
-      stored = window.sessionStorage?.getItem(NAVER_STATE_KEY) ?? null;
-    } catch {
-      stored = null;
-    }
+export async function completeNaverOAuth(params: NaverCallbackParams): Promise<{ userId: string }> {
+  if (!isWebRuntime()) throw new Error(NAVER_WEB_ONLY_ERROR);
+  const env = getEnv();
+  if (!env.EXPO_PUBLIC_ENABLE_NAVER || !env.EXPO_PUBLIC_NAVER_CLIENT_ID) {
+    throw new Error(NAVER_CALLBACK_ERROR);
   }
-  if (!stored && !isWebRuntime()) {
-    // Cold-start path: the persisted native nonce (single-use — cleared here).
-    try {
-      stored = await AsyncStorage.getItem(NAVER_STATE_KEY);
-      await AsyncStorage.removeItem(NAVER_STATE_KEY);
-    } catch {
-      stored = null;
-    }
+  if (
+    typeof params?.code !== "string"
+    || !SAFE_NAVER_CODE.test(params.code)
+    || typeof params.state !== "string"
+    || !NAVER_WEB_STATE_RE.test(params.state)
+  ) {
+    throw new Error(NAVER_CALLBACK_ERROR);
   }
-  // CSRF: the state Naver echoes back must equal the one we issued.
-  if (!params.state || !stored || stored !== params.state) {
-    throw new Error("Naver sign-in state mismatch (possible CSRF). Please try again.");
-  }
-  if (isWebRuntime()) {
-    try {
-      window.sessionStorage?.removeItem(NAVER_STATE_KEY);
-    } catch {
-      /* ignore */
-    }
+
+  const transaction = takeNaverTransaction();
+  if (!transaction || transaction.state !== params.state) {
+    throw new Error(NAVER_CALLBACK_ERROR);
   }
 
   const supabase = getSupabaseClient();
   const { data, error } = await supabase.functions.invoke("oauth-naver", {
-    body: { code: params.code, state: params.state, redirect_uri: naverRedirectUri() },
+    body: {
+      action: "exchange",
+      code: params.code,
+      state: params.state,
+      redirect_uri: transaction.redirectUri,
+    },
   });
-  if (error) throw error;
+  if (error) throw new Error(NAVER_CALLBACK_ERROR);
   const tokenHash = (data as { token_hash?: string } | null)?.token_hash;
-  if (!tokenHash) throw new Error("Naver sign-in could not be completed.");
+  if (
+    typeof tokenHash !== "string"
+    || tokenHash.length < 8
+    || tokenHash.length > 4_096
+    || /[\u0000-\u0020\u007f]/.test(tokenHash)
+  ) throw new Error(NAVER_CALLBACK_ERROR);
 
-  const { data: otp, error: otpErr } = await supabase.auth.verifyOtp({
-    token_hash: tokenHash,
-    type: "magiclink",
-  });
-  if (otpErr) throw otpErr;
-  if (!otp.user) throw new Error("Naver sign-in returned no user.");
-  return { userId: otp.user.id };
+  return runAuthSessionMutation(async () => {
+    const quarantine = createAuthCallbackQuarantine("ordinary");
+    await persistAuthCallbackQuarantineInsideMutation(quarantine);
+    const { data: otp, error: otpErr } = await getAuthStorageRuntime().runSdkUnlockedWriter(() =>
+      supabase.auth.verifyOtp({
+        token_hash: tokenHash,
+        type: "magiclink",
+      }),
+    );
+    const callback = authCallbackSession(otp?.session ?? null, null);
+    if (otpErr) {
+      // auth-js normally returns no session with an error, but a transport or
+      // future SDK regression must not leave an authenticated session behind.
+      // Remove only the stable session returned by this exact writer; the CAS
+      // check prevents this cleanup from signing out a replacement session.
+      if (callback.userId && callback.sessionId) {
+        return failRecoverySessionInsideMutation(
+          supabase,
+          callback,
+          { proof: null, pending: null, quarantine },
+          new Error(NAVER_CALLBACK_ERROR),
+        );
+      }
+      try {
+        await clearAuthCallbackQuarantineExpectedInsideMutation(quarantine);
+      } catch {
+        // A failed cleanup deliberately leaves the durable quarantine in place.
+      }
+      throw new Error(NAVER_CALLBACK_ERROR);
+    }
+    if (
+      !otp.user
+      || !callback.userId
+      || !callback.sessionId
+      || callback.userId !== otp.user.id
+    ) {
+      return failRecoverySessionInsideMutation(
+        supabase,
+        callback,
+        { proof: null, pending: null, quarantine },
+        new Error(NAVER_CALLBACK_ERROR),
+      );
+    }
+    if (!(await clearAuthCallbackQuarantineExpectedInsideMutation(quarantine))) {
+      await failRecoverySessionInsideMutation(
+        supabase,
+        callback,
+        { proof: null, pending: null, quarantine },
+        new Error("Naver callback quarantine owner changed before finalization"),
+      );
+    }
+    return { userId: callback.userId };
+  }, { requireCrossTab: true });
 }
 
 // --- Profile completion (OAuth post-step) --------------------------------
@@ -859,43 +1495,55 @@ export interface CompleteProfileResult {
 export async function ensureUserProfile(args: CompleteProfileArgs): Promise<CompleteProfileResult> {
   if (ageInYears(args.birthDate) < MIN_SELF_CONSENT_AGE) throw new AgeGateError();
 
-  const supabase = getSupabaseClient();
-  const { data: authData, error: authErr } = await supabase.auth.getUser();
-  if (authErr) throw authErr;
-  const user = authData.user;
-  if (!user) throw new Error("No authenticated user — complete-profile requires an active OAuth session.");
+  return runAuthSessionMutation(async () => {
+    const supabase = getSupabaseClient();
+    const { data: authData, error: authErr } = await supabase.auth.getUser();
+    if (authErr) throw authErr;
+    const user = authData.user;
+    if (!user) {
+      throw new Error("No authenticated user — complete-profile requires an active OAuth session.");
+    }
 
-  // Idempotent: if the profile already exists, we're done. This protects
-  // against double-submits and Supabase auth refresh loops.
-  const { data: existing } = await supabase.from("users").select("id, judge_mode").eq("id", user.id).maybeSingle();
-  if (existing) return { created: false, judgeMode: existing.judge_mode === true };
+    // Idempotent: if the profile already exists, we're done. This protects
+    // against double-submits and Supabase auth refresh loops.
+    const { data: existing } = await supabase
+      .from("users")
+      .select("id, judge_mode")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (existing) return { created: false, judgeMode: existing.judge_mode === true };
 
-  const judgeMode = false; // see the note above: no email-domain derivation any more
-  // Trim to null rather than storing "" — an empty string would count as a
-  // filled profile slot and light the star for someone who typed nothing.
-  const displayName = args.displayName?.trim() ? args.displayName.trim().slice(0, 40) : null;
-  const { error: insertErr } = await supabase.from("users").insert({
-    id: user.id,
-    email: user.email ?? "",
-    birth_date: args.birthDate,
-    locale: args.locale,
-    display_name: displayName,
+    const judgeMode = false; // see the note above: no email-domain derivation any more
+    // Trim to null rather than storing "" — an empty string would count as a
+    // filled profile slot and light the star for someone who typed nothing.
+    const displayName = args.displayName?.trim() ? args.displayName.trim().slice(0, 40) : null;
+    const { error: insertErr } = await supabase.from("users").insert({
+      id: user.id,
+      email: user.email ?? "",
+      birth_date: args.birthDate,
+      locale: args.locale,
+      display_name: displayName,
+    });
+    // judge_mode is deliberately NOT sent here either; see the note on the other
+    // sign-up path. auto_judge_mode() no longer exists (0138).
+    if (insertErr) {
+      // A 23505 here has two shapes. (a) users_pkey: our own row won a
+      // double-submit race -- re-probe by id and report idempotent success,
+      // mirroring signUpWithEmail's defence. (b) users_email_key: the email
+      // belongs to ANOTHER auth uid via a different sign-in method. Before
+      // this branch existed that session was STRANDED -- authed but unable to
+      // ever gain a profile, every retry re-colliding into the same generic
+      // "save failed" toast (U6, commerce handoff).
+      const { data: raced } = await supabase
+        .from("users")
+        .select("id, judge_mode")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (raced) return { created: false, judgeMode: raced.judge_mode === true };
+      if (isUniqueViolation(insertErr)) throw new EmailInUseError();
+      throw insertErr;
+    }
+
+    return { created: true, judgeMode };
   });
-  // judge_mode is deliberately NOT sent here either; see the note on the other
-  // sign-up path. auto_judge_mode() no longer exists (0138).
-  if (insertErr) {
-    // A 23505 here has two shapes. (a) users_pkey: our own row won a
-    // double-submit race -- re-probe by id and report idempotent success,
-    // mirroring signUpWithEmail's defence. (b) users_email_key: the email
-    // belongs to ANOTHER auth uid via a different sign-in method. Before
-    // this branch existed that session was STRANDED -- authed but unable to
-    // ever gain a profile, every retry re-colliding into the same generic
-    // "save failed" toast (U6, commerce handoff).
-    const { data: raced } = await supabase.from("users").select("id, judge_mode").eq("id", user.id).maybeSingle();
-    if (raced) return { created: false, judgeMode: raced.judge_mode === true };
-    if (isUniqueViolation(insertErr)) throw new EmailInUseError();
-    throw insertErr;
-  }
-
-  return { created: true, judgeMode };
 }

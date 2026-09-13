@@ -7,7 +7,7 @@
 //
 // **그렇다고 전부 문제인 것은 아니다.** 이 목록의 대부분은 애초에 클라이언트용으로
 // 발급되는 값이다(Supabase anon 은 RLS 뒤에 있고, RevenueCat SDK 키와 Paddle client
-// 토큰은 공개 전제, Google 브라우저 키는 리퍼러 제한으로 지킨다). 진짜 문제는
+// 토큰은 공개 전제다). 진짜 문제는
 // **서버용으로 발급된 키를 클라이언트에 둔 것**이다 - 공공데이터포털 서비스키가 그렇다.
 // 계정 할당량이 붙어 있어 가져다 쓰면 우리 쿼터가 소진된다.
 //
@@ -45,10 +45,9 @@ const SURFACE: Readonly<Record<string, { kind: Kind; why: string }>> = {
     kind: "public-by-design",
     why: "Paddle client-side token. 결제 확정은 서버가 한다.",
   },
-  EXPO_PUBLIC_GOOGLE_API_KEY: {
-    kind: "public-by-design",
-    why: "브라우저 키. 경계는 값 비공개가 아니라 리퍼러/API 제한이다.",
-  },
+  // Google API credentials are server-only. The web build routes LLM calls
+  // through an authenticated Edge Function; public-google-key-boundary.test.ts
+  // prevents the removed public alias from returning.
   // EXPO_PUBLIC_MFDS_FOOD_KEY / EXPO_PUBLIC_EXIM_FX_KEY 는 2026-09-08 에 여기서
   // 빠졌다. 프록시로 옮겼고(public-data-proxy) 클라이언트도 워크플로도 더 이상
   // 이름을 읽지 않는다. 값을 지운 것이 아니라 표면에서 내린 것이다 - 저장소

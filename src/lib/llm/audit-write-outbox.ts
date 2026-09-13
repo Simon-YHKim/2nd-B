@@ -2,6 +2,7 @@ import type { AiAuditInsert } from "../supabase/audit";
 import { insertAiAuditLog } from "../supabase/audit";
 import type { CrisisEventInsert } from "../supabase/crisis-events";
 import { insertCrisisEvent } from "../supabase/crisis-events";
+import { runAccountLocalMutation } from "../account/local-deletion-fence";
 
 interface AsyncStorageLike {
   getItem(key: string): Promise<string | null>;
@@ -15,6 +16,7 @@ interface AuditWriteBase {
   id: string;
   ownerUserId: string;
   warnLabel: string;
+  requiresBoundSession: boolean;
 }
 
 export type AuditWriteSubmission =
@@ -30,6 +32,13 @@ export type AuditWriteSubmission =
       payload: CrisisEventInsert;
       warnLabel: string;
     };
+
+export interface CapturedAuditDelivery {
+  userId: string;
+  accessToken: string;
+  signal?: AbortSignal;
+  assertCurrent(): void;
+}
 
 type AuditWriteEntry =
   | (AuditWriteBase & { kind: "ai_audit_log"; payload: AiAuditInsert })
@@ -69,6 +78,7 @@ export function boundOutbox(queue: AuditWriteEntry[]): AuditWriteEntry[] {
 let memoryOutbox: AuditWriteEntry[] = [];
 let queueChain: Promise<void> = Promise.resolve();
 let nextId = 0;
+const deletedOwnerFences = new Set<string>();
 
 function ls(): Storage | null {
   try {
@@ -105,7 +115,13 @@ function normalizeEntry(value: unknown): AuditWriteEntry | null {
   if (typeof entry.warnLabel !== "string" || entry.warnLabel.length === 0) return null;
   if (!isWriteKind(entry.kind)) return null;
   if (!entry.payload || typeof entry.payload !== "object") return null;
-  return entry as AuditWriteEntry;
+  return {
+    ...entry,
+    // v1 rows written before this field existed may include voice/crisis
+    // evidence. Upgrade them conservatively: production retry already obtains
+    // a fresh same-owner token, so fail closed instead of guessing provenance.
+    requiresBoundSession: entry.requiresBoundSession !== false,
+  } as AuditWriteEntry;
 }
 
 function parseQueue(raw: string | null): AuditWriteEntry[] {
@@ -135,7 +151,7 @@ async function readQueue(): Promise<AuditWriteEntry[]> {
   }
 }
 
-async function writeQueue(queue: AuditWriteEntry[]): Promise<void> {
+async function writeQueue(queue: AuditWriteEntry[]): Promise<boolean> {
   const bounded = boundOutbox(queue);
   const raw = JSON.stringify(bounded);
   memoryOutbox = bounded;
@@ -144,30 +160,48 @@ async function writeQueue(queue: AuditWriteEntry[]): Promise<void> {
     try {
       if (bounded.length === 0) local.removeItem(STORAGE_KEY);
       else local.setItem(STORAGE_KEY, raw);
+      return local.getItem(STORAGE_KEY) === (bounded.length === 0 ? null : raw);
     } catch {
       // memoryOutbox is the fallback for this runtime tick.
+      return false;
     }
-    return;
   }
   const native = nativeStorage();
-  if (!native) return;
+  if (!native) return true;
   try {
     if (bounded.length === 0) await native.removeItem(STORAGE_KEY);
     else await native.setItem(STORAGE_KEY, raw);
+    return await native.getItem(STORAGE_KEY) === (bounded.length === 0 ? null : raw);
   } catch {
     // memoryOutbox is the fallback for this runtime tick.
+    return false;
   }
 }
 
-async function deliver(entry: AuditWriteEntry): Promise<void> {
+async function deliver(entry: AuditWriteEntry, captured?: CapturedAuditDelivery): Promise<void> {
+  if (
+    (entry.requiresBoundSession && !captured) ||
+    (captured && captured.userId !== entry.ownerUserId)
+  ) {
+    throw new Error("audit_session_owner_mismatch");
+  }
+  captured?.assertCurrent();
   if (entry.kind === "ai_audit_log") {
-    await insertAiAuditLog(entry.payload);
+    if (captured) {
+      await insertAiAuditLog(entry.payload, captured.accessToken, captured.signal);
+    } else {
+      await insertAiAuditLog(entry.payload);
+    }
     return;
   }
-  await insertCrisisEvent(entry.payload);
+  if (captured) {
+    await insertCrisisEvent(entry.payload, captured.accessToken, captured.signal);
+  } else {
+    await insertCrisisEvent(entry.payload);
+  }
 }
 
-async function flushNow(ownerUserId?: string): Promise<void> {
+async function flushNow(ownerUserId?: string, captured?: CapturedAuditDelivery): Promise<void> {
   const queue = await readQueue();
   if (queue.length === 0) return;
 
@@ -180,32 +214,64 @@ async function flushNow(ownerUserId?: string): Promise<void> {
       continue;
     }
     try {
-      await deliver(entry);
-    } catch (e) {
+      await deliver(entry, captured);
+    } catch {
       blocked = true;
       remaining.push(entry);
-      if (typeof console !== "undefined") console.warn(entry.warnLabel, e);
+      if (typeof console !== "undefined") console.warn(entry.warnLabel);
     }
   }
   await writeQueue(remaining);
 }
 
-export function enqueueAuditWrite(submission: AuditWriteSubmission): Promise<void> {
-  queueChain = queueChain.catch(() => {}).then(async () => {
-    const entry: AuditWriteEntry = {
-      ...submission,
-      id: `${Date.now().toString(36)}-${(nextId++).toString(36)}`,
-    };
-    const queue = await readQueue();
-    await writeQueue([...queue, entry]);
-    await flushNow(submission.ownerUserId);
-  });
-  return queueChain;
+export function enqueueAuditWrite(
+  submission: AuditWriteSubmission,
+  captured?: CapturedAuditDelivery,
+): Promise<void> {
+  if (deletedOwnerFences.has(submission.ownerUserId)) return Promise.resolve();
+  return runAccountLocalMutation(submission.ownerUserId, async () => {
+    queueChain = queueChain.catch(() => {}).then(async () => {
+      // Purge may have fenced this owner after the submission was queued but
+      // before its turn began. Do not recreate data for a terminally deleted ID.
+      if (deletedOwnerFences.has(submission.ownerUserId)) return;
+      const entry: AuditWriteEntry = {
+        ...submission,
+        id: `${Date.now().toString(36)}-${(nextId++).toString(36)}`,
+        requiresBoundSession: captured !== undefined,
+      };
+      const queue = await readQueue();
+      await writeQueue([...queue, entry]);
+      await flushNow(submission.ownerUserId, captured);
+    });
+    await queueChain;
+  }).then(() => undefined, () => undefined);
 }
 
-export function flushAuditWriteOutbox(ownerUserId?: string): Promise<void> {
-  queueChain = queueChain.catch(() => {}).then(() => flushNow(ownerUserId));
-  return queueChain;
+export function flushAuditWriteOutbox(
+  ownerUserId?: string,
+  captured?: CapturedAuditDelivery,
+): Promise<void> {
+  const owner = ownerUserId?.trim();
+  if (!owner) return Promise.resolve();
+  return runAccountLocalMutation(owner, async () => {
+    queueChain = queueChain.catch(() => {}).then(() => flushNow(owner, captured));
+    await queueChain;
+  }).then(() => undefined, () => undefined);
+}
+
+/** Drop only one deleted owner's undelivered rows, preserving other accounts. */
+export function purgeAuditWriteOutboxForOwner(ownerUserId: string): Promise<boolean> {
+  const owner = ownerUserId.trim();
+  if (!owner) return Promise.resolve(false);
+  // Synchronous fence closes the enqueue-after-purge race while the serialized
+  // storage rewrite is still waiting behind an in-flight delivery.
+  deletedOwnerFences.add(owner);
+  let observed = false;
+  queueChain = queueChain.catch(() => {}).then(async () => {
+    const queue = await readQueue();
+    observed = await writeQueue(queue.filter((entry) => entry.ownerUserId !== owner));
+  });
+  return queueChain.then(() => observed, () => false);
 }
 
 export async function getAuditWriteOutboxForTests(): Promise<AuditWriteSubmission[]> {
@@ -223,4 +289,5 @@ export async function resetAuditWriteOutboxForTests(): Promise<void> {
   await queueChain.catch(() => {});
   await writeQueue([]);
   nextId = 0;
+  deletedOwnerFences.clear();
 }

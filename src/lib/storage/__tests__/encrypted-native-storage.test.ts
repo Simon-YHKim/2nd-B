@@ -22,8 +22,10 @@ const MASTER_KEY = "secondB.secureStorage.master.v1";
 const SENTINEL = "secondB.secureStorage.keySentinel.v1";
 const MIGRATION_MARKER = "secondB.secureStorage.plaintextMigration.v1";
 const CAPACITY_LEDGER = "secondB.secureStorage.capacity.v1";
-const RECOVERY_PROOF_KEY = "secondbrain.auth.recovery-proof.v1";
-const RECOVERY_PENDING_KEY = "secondbrain.auth.recovery-pending.v1";
+const LEGACY_RECOVERY_PROOF_KEY = "secondbrain.auth.recovery-proof.v1";
+const LEGACY_RECOVERY_PENDING_KEY = "secondbrain.auth.recovery-pending.v1";
+const RECOVERY_PROOF_KEY = "secondbrain.auth.recovery-proof.v2";
+const RECOVERY_PENDING_KEY = "secondbrain.auth.recovery-pending.v2";
 const encoder = new TextEncoder();
 const decoder = new TextDecoder("utf-8", { fatal: true });
 
@@ -333,6 +335,7 @@ describe("encrypted native storage core", () => {
     h.values.set("capture.drafts.v2.owner-a", "first private draft");
     h.values.set("import.history:user-a", "private filenames");
     h.values.set("ops.github.username:user-a", "private account link");
+    h.values.set("secondbrain.auth.callback-quarantine.v1", "private callback fence");
     h.values.set("secondB_naver_oauth_state", "legacy native OAuth state");
     h.values.set("import.history", "unowned history must stay delete-only");
     h.values.set("secondB_naver_oauth_transaction", "unused namespace");
@@ -340,11 +343,12 @@ describe("encrypted native storage core", () => {
 
     const result = await h.storage.migrateLegacyPlaintextAtStartup();
 
-    expect(result).toEqual({ status: "completed", migratedPlaintextKeys: 4 });
+    expect(result).toEqual({ status: "completed", migratedPlaintextKeys: 5 });
     expect(h.values.get("capture.drafts.v2.owner-a")).toMatch(/^SBENC1:/);
     expect(h.values.get("import.history:user-a")).toMatch(/^SBENC1:/);
     expect(h.values.get("ops.github.username:user-a")).toMatch(/^SBENC1:/);
     expect(h.values.get("secondB_naver_oauth_state")).toMatch(/^SBENC1:/);
+    expect(h.values.get("secondbrain.auth.callback-quarantine.v1")).toMatch(/^SBENC1:/);
     expect(h.values.get("import.history")).toBe("unowned history must stay delete-only");
     expect(h.values.get("secondB_naver_oauth_transaction")).toBe("unused namespace");
     expect(h.values.get("theme.preference")).toBe("dark");
@@ -444,21 +448,26 @@ describe("encrypted native storage core", () => {
     );
   });
 
-  test("lazily encrypts both recovery marker namespaces before returning plaintext", async () => {
+  test("lazily encrypts both recovery marker generations before returning plaintext", async () => {
     const h = createHarness();
     primeDeviceKey(h);
     const proof = JSON.stringify({ userId: "u1", sessionId: "s1", issuedAt: "2026-09-06T00:00:00.000Z" });
     const pending = JSON.stringify({ issuedAt: "2026-09-06T00:00:00.000Z" });
-    h.values.set(RECOVERY_PROOF_KEY, proof);
-    h.values.set(RECOVERY_PENDING_KEY, pending);
+    for (const [proofKey, pendingKey] of [
+      [LEGACY_RECOVERY_PROOF_KEY, LEGACY_RECOVERY_PENDING_KEY],
+      [RECOVERY_PROOF_KEY, RECOVERY_PENDING_KEY],
+    ]) {
+      h.values.set(proofKey, proof);
+      h.values.set(pendingKey, pending);
 
-    await expect(h.storage.getItem(RECOVERY_PROOF_KEY)).resolves.toBe(proof);
-    await expect(h.storage.getItem(RECOVERY_PENDING_KEY)).resolves.toBe(pending);
+      await expect(h.storage.getItem(proofKey)).resolves.toBe(proof);
+      await expect(h.storage.getItem(pendingKey)).resolves.toBe(pending);
 
-    expect(h.values.get(RECOVERY_PROOF_KEY)).toMatch(/^SBENC1:/);
-    expect(h.values.get(RECOVERY_PENDING_KEY)).toMatch(/^SBENC1:/);
-    await expect(h.storage.getItem(RECOVERY_PROOF_KEY)).resolves.toBe(proof);
-    await expect(h.storage.getItem(RECOVERY_PENDING_KEY)).resolves.toBe(pending);
+      expect(h.values.get(proofKey)).toMatch(/^SBENC1:/);
+      expect(h.values.get(pendingKey)).toMatch(/^SBENC1:/);
+      await expect(h.storage.getItem(proofKey)).resolves.toBe(proof);
+      await expect(h.storage.getItem(pendingKey)).resolves.toBe(pending);
+    }
   });
 
   test("manages only the exact recovery marker keys", async () => {
@@ -467,7 +476,10 @@ describe("encrypted native storage core", () => {
     await expect(h.storage.setItem(`${RECOVERY_PROOF_KEY}.backup`, "x")).rejects.toThrow(
       "secure_storage_key_invalid",
     );
-    await expect(h.storage.setItem("secondbrain.auth.recovery-proof.v2", "x")).rejects.toThrow(
+    await expect(h.storage.setItem(`${LEGACY_RECOVERY_PROOF_KEY}.backup`, "x")).rejects.toThrow(
+      "secure_storage_key_invalid",
+    );
+    await expect(h.storage.setItem("secondbrain.auth.recovery-proof.v3", "x")).rejects.toThrow(
       "secure_storage_key_invalid",
     );
     await expect(h.storage.setItem("secondbrain.auth.recovery-pending", "x")).rejects.toThrow(
@@ -703,6 +715,7 @@ describe("encrypted native storage core", () => {
     await h.storage.setItem("capture.drafts.v2.owner-a", "unreadable later");
     await h.storage.setItem("import.history:user-a", "private filenames");
     h.values.set("secondB_naver_oauth_state", "unmigrated managed plaintext");
+    h.values.set("secondbrain.auth.callback-quarantine.v1", "unreadable callback fence");
     h.values.set("import.history", "unowned history remains delete-only elsewhere");
     h.values.set("unrelated.preference", "keep-me");
     const before = new Map(h.values);
@@ -715,8 +728,9 @@ describe("encrypted native storage core", () => {
     await expect(h.storage.recoverAfterUserConsent({
       acknowledgedDataLoss: true,
       action: "discard-unreadable-encrypted-local-data",
-    })).resolves.toEqual({ discardedManagedKeys: 4 });
+    })).resolves.toEqual({ discardedManagedKeys: 5 });
     expect(h.values.has("secondB_naver_oauth_state")).toBe(false);
+    expect(h.values.has("secondbrain.auth.callback-quarantine.v1")).toBe(false);
     expect(h.values.has("import.history")).toBe(false);
     expect(h.values.get("unrelated.preference")).toBe("keep-me");
     expect(h.values.has(MIGRATION_MARKER)).toBe(false);

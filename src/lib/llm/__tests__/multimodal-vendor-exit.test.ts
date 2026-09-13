@@ -130,7 +130,10 @@ describe("transcribeAudio no longer names a vendor", () => {
 
   test("the edge path picks its function from the vendor", () => {
     expect(boundary).toMatch(/const audioFn = proxyFnForVendor\(multimodalVendor\(\)\);/);
-    expect(boundary).toMatch(/functions\.invoke\(audioFn, \{/);
+    expect(boundary).toMatch(
+      /invokeFunctionWithCapturedSession\(audioFn, input\.session\.accessToken, \{/,
+    );
+    expect(boundary).toMatch(/signal,\s*\}\);/);
   });
 
   test("the transcribe path itself no longer hardcodes a proxy name", () => {

@@ -7,6 +7,7 @@
 // component bypass the wrapper's required pre-pass + fixed-template return.
 
 import { getSupabaseClient } from "./client";
+import { rpcWithCapturedSession } from "./captured-session-client";
 
 export interface CrisisEventInsert {
   classifierConfidence: number;
@@ -22,9 +23,12 @@ export interface CrisisEventInsert {
 // user_id_hash from auth.uid() (never client input). The callAdvisor input-RED and
 // web-lexicon paths short-circuit before the proxy, so this client RPC -- not a
 // proxy-only write -- is what actually fills the ledger.
-export async function insertCrisisEvent(meta: CrisisEventInsert): Promise<void> {
-  const supabase = getSupabaseClient();
-  const { error } = await supabase.rpc("log_crisis_event", {
+export async function insertCrisisEvent(
+  meta: CrisisEventInsert,
+  accessToken?: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  const args = {
     p_classifier_confidence: meta.classifierConfidence,
     p_trigger_categories: meta.triggerCategories,
     // 최소화 (법률 검토 Q4, 2026-08-17). cssrs_level 은 C-SSRS - 자살 위험도를
@@ -47,6 +51,9 @@ export async function insertCrisisEvent(meta: CrisisEventInsert): Promise<void> 
     p_cssrs_level: null,
     p_routing_template_version: meta.routingTemplateVersion,
     p_locale: meta.locale,
-  });
+  };
+  const { error } = accessToken
+    ? await rpcWithCapturedSession("log_crisis_event", args, accessToken, signal)
+    : await getSupabaseClient().rpc("log_crisis_event", args);
   if (error) throw error;
 }

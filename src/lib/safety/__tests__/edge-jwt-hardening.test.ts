@@ -94,9 +94,11 @@ describe("edge function JWT hardening (reject the anon-key JWT)", () => {
         "export-account",
         "gemini-proxy",
         "openai-proxy",
-        "rss-proxy",
       ])
     );
+    // rss-proxy no longer derives identity from an unverified JWT payload. Its
+    // independent security contract pins the authoritative auth.getUser call.
+    expect(jwtFns.map((f) => f.name)).not.toContain("rss-proxy");
   });
 
   test.each(jwtFns.map((f) => f.name))(

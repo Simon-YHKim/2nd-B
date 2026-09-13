@@ -1,6 +1,6 @@
 // Capture draft persistence (persona sim P1-5): drafts must survive app
 // switches, capture-tab remounts, and accidental mode taps. Web uses
-// localStorage, native uses AsyncStorage (same split as onboarding/state.ts).
+// localStorage; native uses the JIT encrypted storage adapter.
 // Drafts are scoped by userId so an account switch never leaks another user's
 // text.
 //
@@ -17,13 +17,12 @@ import {
   isDomainTag,
   type DomainId,
 } from "../persona/domain-stars";
+import { runAccountLocalMutation } from "../account/local-deletion-fence";
+import {
+  getEncryptedNativeStorage,
+  type StringStorage,
+} from "../storage/encrypted-native-storage";
 import { EMPTY_FOURW, type FourWFields } from "./fourw";
-
-interface AsyncStorageLike {
-  getItem(key: string): Promise<string | null>;
-  setItem(key: string, value: string): Promise<void>;
-  removeItem(key: string): Promise<void>;
-}
 
 export type CaptureDraftMode = "journal" | "memo" | "linkclip" | "ocr" | "file";
 
@@ -136,7 +135,7 @@ const MODES: CaptureDraftMode[] = ["journal", "memo", "linkclip", "ocr", "file"]
 const LEGACY_KEY_PREFIX = "capture.journalDraft.v1.";
 const STATE_KEY_PREFIX = "capture.drafts.v2.";
 
-// AsyncStorage has no compare-and-swap. Reads and writes of one user's single
+// The encrypted adapter has no compare-and-swap. Reads and writes of one user's single
 // draft blob share this queue so a slow clear cannot land after a newer save.
 const nativeOperationTails = new Map<string, Promise<void>>();
 
@@ -161,10 +160,12 @@ function isCaptureMode(value: unknown): value is CaptureMode {
 }
 
 function ls(): Storage | null {
+  // React Native must never select a plaintext localStorage polyfill.
+  if (isReactNativeRuntime()) return null;
   try {
     if (typeof localStorage !== "undefined") return localStorage;
   } catch {
-    // private mode / native: fall through
+    // private mode: fall through
   }
   return null;
 }
@@ -174,13 +175,11 @@ function isReactNativeRuntime(): boolean {
   return nav?.product === "ReactNative";
 }
 
-function nativeStorage(): AsyncStorageLike | null {
+function nativeStorage(): StringStorage | null {
   if (!isReactNativeRuntime()) return null;
-  try {
-    return require("@react-native-async-storage/async-storage").default as AsyncStorageLike;
-  } catch {
-    return null;
-  }
+  // Initialization failures are security signals, not permission to fall back
+  // to plaintext or an ephemeral in-memory store.
+  return getEncryptedNativeStorage();
 }
 
 function emptyState(): CaptureDraftState {
@@ -380,25 +379,26 @@ export async function loadCaptureDraftState(userId: string): Promise<CaptureDraf
 }
 
 export function saveCaptureDraftState(userId: string, state: CaptureDraftState): Promise<boolean> {
-  // Evaluate committed submission tombstones at call time. Frozen handoff
-  // closures may have captured A while its network save was still pending.
-  const raw = serializeState(omitSavedCaptureSubmissionDrafts(userId, state));
-  const local = ls();
-  if (local) {
-    try {
-      local.setItem(stateKey(userId), raw);
-      return Promise.resolve(true);
-    } catch {
-      /* quota/private mode: best-effort */
-      return Promise.resolve(false);
+  return runAccountLocalMutation(userId, async () => {
+    // Evaluate committed submission tombstones only when this guarded write
+    // actually runs. Frozen closures may have captured A before a later save.
+    const raw = serializeState(omitSavedCaptureSubmissionDrafts(userId, state));
+    const local = ls();
+    if (local) {
+      try {
+        local.setItem(stateKey(userId), raw);
+        return true;
+      } catch {
+        return false;
+      }
     }
-  }
-  const native = nativeStorage();
-  if (!native) return Promise.resolve(false);
-  return runNativeExclusive(userId, native, async (key) => {
-    await native.setItem(key, raw);
-    return true;
-  }).catch(() => false);
+    const native = nativeStorage();
+    if (!native) return false;
+    return runNativeExclusive(userId, native, async (key) => {
+      await native.setItem(key, raw);
+      return true;
+    }).catch(() => false);
+  }).then((result) => result.executed ? result.value : false, () => false);
 }
 
 export async function loadCaptureDraft(userId: string): Promise<CaptureDraft | null> {
@@ -406,7 +406,7 @@ export async function loadCaptureDraft(userId: string): Promise<CaptureDraft | n
   return state.drafts.journal ?? null;
 }
 
-export function saveCaptureDraft(userId: string, draft: CaptureDraft): void {
+export function saveCaptureDraft(userId: string, draft: CaptureDraft): Promise<void> {
   const apply = (state: CaptureDraftState): CaptureDraftState => {
     const normalized = normalizeDraft("journal", draft);
     if (normalized) state.drafts.journal = normalized;
@@ -414,16 +414,20 @@ export function saveCaptureDraft(userId: string, draft: CaptureDraft): void {
     state.lastMode = "journal";
     return state;
   };
-  if (ls()) {
-    void saveCaptureDraftState(userId, apply(readLocalState(userId)));
-    return;
-  }
-  const native = nativeStorage();
-  if (!native) return;
-  void runNativeExclusive(userId, native, async (key) => {
-    const state = apply(await readNativeState(native, userId));
-    await native.setItem(key, serializeState(state));
+  return runAccountLocalMutation(userId, async () => {
+    const local = ls();
+    if (local) {
+      local.setItem(stateKey(userId), serializeState(apply(readLocalState(userId))));
+      return;
+    }
+    const native = nativeStorage();
+    if (!native) return;
+    await runNativeExclusive(userId, native, async (key) => {
+      const state = apply(await readNativeState(native, userId));
+      await native.setItem(key, serializeState(state));
+    });
   })
+    .then(() => undefined)
     .catch(() => {
       /* best-effort */
     });
@@ -496,7 +500,7 @@ export interface CaptureParamPlan {
 
 function runNativeExclusive<T>(
   userId: string,
-  storage: AsyncStorageLike,
+  storage: StringStorage,
   operation: (key: string) => Promise<T>,
 ): Promise<T> {
   const key = stateKey(userId);
@@ -514,7 +518,7 @@ function runNativeExclusive<T>(
   return result;
 }
 
-async function readNativeState(storage: AsyncStorageLike, userId: string): Promise<CaptureDraftState> {
+async function readNativeState(storage: StringStorage, userId: string): Promise<CaptureDraftState> {
   const state = parseState(await storage.getItem(stateKey(userId)));
   if (state) return state;
   const legacy = parseLegacyDraft(await storage.getItem(legacyDraftKey(userId)));
@@ -1029,28 +1033,30 @@ export function purgeCaptureDraftsForDeletedAccount(userId: string): Promise<boo
 }
 
 export function clearCaptureDraft(userId: string, mode: CaptureDraftMode = "journal"): Promise<boolean> {
-  const local = ls();
-  if (local) {
-    try {
-      const state = readLocalState(userId);
-      delete state.drafts[mode];
-      local.setItem(stateKey(userId), serializeState(state));
-      if (mode === "journal") local.removeItem(legacyDraftKey(userId));
-      return Promise.resolve(true);
-    } catch {
-      return Promise.resolve(false);
+  return runAccountLocalMutation(userId, async () => {
+    const local = ls();
+    if (local) {
+      try {
+        const state = readLocalState(userId);
+        delete state.drafts[mode];
+        local.setItem(stateKey(userId), serializeState(state));
+        if (mode === "journal") local.removeItem(legacyDraftKey(userId));
+        return true;
+      } catch {
+        return false;
+      }
     }
-  }
-  const native = nativeStorage();
-  if (!native) return Promise.resolve(false);
-  return runNativeExclusive(userId, native, async (key) => {
-      const state = await readNativeState(native, userId);
-      delete state.drafts[mode];
-      await native.setItem(key, serializeState(state));
-      if (mode === "journal") await native.removeItem(legacyDraftKey(userId));
-      return true;
-    })
-    .catch(() => false);
+    const native = nativeStorage();
+    if (!native) return false;
+    return runNativeExclusive(userId, native, async (key) => {
+        const state = await readNativeState(native, userId);
+        delete state.drafts[mode];
+        await native.setItem(key, serializeState(state));
+        if (mode === "journal") await native.removeItem(legacyDraftKey(userId));
+        return true;
+      })
+      .catch(() => false);
+  }).then((result) => result.executed ? result.value : false, () => false);
 }
 
 function sameCanonicalDraft(left: unknown, right: unknown): boolean {
@@ -1130,45 +1136,47 @@ export function clearSubmittedCaptureDraft(
   // Freeze caller-owned arrays/objects before any native queue wait.
   const accepted = canonicalSubmittedCaptureDraft(submitted);
   if (accepted === null) return Promise.resolve("mismatch");
-  const local = ls();
-  if (local) {
-    try {
-      const state = readLocalState(userId);
+  return runAccountLocalMutation(userId, async () => {
+    const local = ls();
+    if (local) {
+      try {
+        const state = readLocalState(userId);
+        const outcome = applySubmittedDraftCleanup(state, accepted);
+        if (outcome.changed) local.setItem(stateKey(userId), serializeState(state));
+        if (
+          outcome.result === "cleared" &&
+          accepted.bucket === "storage" &&
+          accepted.mode === "journal" &&
+          legacyJournalMatchesSubmitted(local.getItem(legacyDraftKey(userId)), accepted)
+        ) {
+          local.removeItem(legacyDraftKey(userId));
+        }
+        return outcome.result;
+      } catch {
+        return "failed" as const;
+      }
+    }
+
+    const native = nativeStorage();
+    if (!native) return "failed" as const;
+    return runNativeExclusive(userId, native, async (key) => {
+      const state = await readNativeState(native, userId);
       const outcome = applySubmittedDraftCleanup(state, accepted);
-      if (outcome.changed) local.setItem(stateKey(userId), serializeState(state));
+      if (outcome.changed) await native.setItem(key, serializeState(state));
       if (
         outcome.result === "cleared" &&
         accepted.bucket === "storage" &&
         accepted.mode === "journal" &&
-        legacyJournalMatchesSubmitted(local.getItem(legacyDraftKey(userId)), accepted)
+        legacyJournalMatchesSubmitted(
+          await native.getItem(legacyDraftKey(userId)),
+          accepted,
+        )
       ) {
-        local.removeItem(legacyDraftKey(userId));
+        await native.removeItem(legacyDraftKey(userId));
       }
-      return Promise.resolve(outcome.result);
-    } catch {
-      return Promise.resolve("failed");
-    }
-  }
-
-  const native = nativeStorage();
-  if (!native) return Promise.resolve("failed");
-  return runNativeExclusive(userId, native, async (key) => {
-    const state = await readNativeState(native, userId);
-    const outcome = applySubmittedDraftCleanup(state, accepted);
-    if (outcome.changed) await native.setItem(key, serializeState(state));
-    if (
-      outcome.result === "cleared" &&
-      accepted.bucket === "storage" &&
-      accepted.mode === "journal" &&
-      legacyJournalMatchesSubmitted(
-        await native.getItem(legacyDraftKey(userId)),
-        accepted,
-      )
-    ) {
-      await native.removeItem(legacyDraftKey(userId));
-    }
-    return outcome.result;
-  }).catch(() => "failed");
+      return outcome.result;
+    }).catch(() => "failed" as const);
+  }).then((result) => result.executed ? result.value : "failed", () => "failed");
 }
 
 export type CaptureSubmissionOutcome =

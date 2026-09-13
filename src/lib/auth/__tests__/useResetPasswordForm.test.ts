@@ -20,6 +20,7 @@ const read = (relativePath: string) => readFileSync(join(process.cwd(), relative
 const resetScreenSource = read("src/screens/deepspace/dds-auth-screens.tsx");
 const resetHookSource = read("src/lib/auth/useResetPasswordForm.ts");
 const authContextSource = read("src/lib/auth/AuthContext.tsx");
+const authFacadeSource = read("src/lib/supabase/auth.ts");
 const navTabsSource = read("src/lib/nav/tabs.ts");
 const rootLayoutSource = read("src/app/_layout.tsx");
 const analyticsSource = read("src/lib/analytics/index.ts");
@@ -221,19 +222,33 @@ describe("PIXEL-CLAY reset-password presenter", () => {
     expect(authContextSource).toContain("recoveryUserId");
     expect(authContextSource).toContain("recoverySessionId");
     expect(authContextSource).toContain("loadRecoveryProof()");
-    expect(authContextSource).toContain("persistRecoveryProof(");
+    expect(authFacadeSource).toContain("persistRecoveryProofInsideMutation(proof)");
+    expect(authFacadeSource).toContain("clearRecoveryPendingExpectedInsideMutation(pending)");
+    expect(authContextSource).not.toContain("persistRecoveryProof(");
     expect(authContextSource).toContain("recoveryProofMatchesSession(");
     expect(authContextSource).toContain("subscribeRecoveryStorageEvent(");
     expect(authContextSource).toContain("recoveryPendingGlobal");
+    expect(authContextSource).toContain("recoveryProofOwnsPending(proof, pendingOwner)");
     expect(authContextSource).toContain("activateRecoverySession");
     expect(authContextSource).toContain("completeRecovery");
+    expect(authContextSource).toContain(
+      "recoveryOperation: RecoveryOperationExpectation | null",
+    );
+    expect(authContextSource).toContain(
+      "settleRecoveryPublicationExpected(current, expected)",
+    );
     expect(resetHookSource).toContain("recoveryUserId === userId");
     expect(resetHookSource).toContain("useLinkingURL()");
     expect(resetHookSource).toContain("clearInitialURL()");
     expect(resetHookSource).toContain("isPasswordRecoveryCallbackUrl(deepLinkUrl)");
-    expect(resetHookSource).toContain("expectedRecoveryUserId");
-    expect(resetHookSource).toMatch(
-      /updatePassword\([\s\S]{0,160}?expectedRecoveryUserId,[\s\S]{0,80}?expectedRecoverySessionId/,
+    expect(resetHookSource).toContain(
+      "const expectedRecovery = recoveryActive ? recoveryOperation : null",
+    );
+    expect(resetHookSource).toContain(
+      "updatePasswordForRecovery(password, expectedRecovery)",
+    );
+    expect(authFacadeSource).toContain(
+      "assertRecoveryOperationCurrentInsideMutation(expected)",
     );
     expect(resetHookSource).toContain("const nativeRecoveryLinkWaiting =");
     expect(resetHookSource).toContain("consumedUrlRef.current !== deepLinkUrl");
@@ -242,14 +257,22 @@ describe("PIXEL-CLAY reset-password presenter", () => {
     expect(resetHookSource).toContain("requestId === recoveryConsumeGenerationRef.current");
     expect(resetHookSource).toContain("await activateRecoverySession(verified)");
     expect(resetHookSource).toContain(
-      "await completeRecovery(expectedRecoveryUserId, expectedRecoverySessionId)",
+      "await completeRecovery(expectedRecovery)",
     );
     expect(resetHookSource).toContain("authSnapshotRef.current");
-    expect(resetHookSource).toContain("previousRecoveryOwnerRef.current");
-    expect(resetHookSource).toContain('await signOut("local")');
-    expect(resetHookSource).toMatch(
-      /const callback = await consumeAuthCallbackUrl\(deepLinkUrl\);[\s\S]{0,900}?catch \(error\) \{[\s\S]{0,500}?await signOut\("local"\);[\s\S]{0,200}?await clearRecoveryPending\(\);/,
+    expect(resetHookSource).toContain("previousRecoveryOperationRef.current");
+    expect(resetHookSource).toContain(
+      "sameRecoveryProof(live.recoveryOperation, expectedRecovery)",
     );
+    expect(resetHookSource).not.toMatch(
+      /expectedRecovery\.(?:userId|sessionId|issuedAt|pendingOwnerNonce)/,
+    );
+    expect(resetHookSource).not.toContain('await signOut("local")');
+    expect(resetHookSource).not.toContain("signOutRecoverySession(");
+    expect(resetHookSource).toContain("await cancelRecoverySession(expectedRecovery)");
+    expect(resetHookSource).toContain("consumeAuthCallbackUrl(deepLinkUrl, pending)");
+    expect(resetHookSource).toContain("verifyPasswordResetCode(email, token, pending)");
+    expect(resetHookSource).not.toContain("clearRecoveryPending(");
     expect(resetHookSource).toContain("setCancelled(true)");
     expect(resetHookSource).toContain("const step = resetStep({ recoveryActive, complete, codeSent })");
     expect(resetHookSource).not.toContain("const step = resetStep({ userId");

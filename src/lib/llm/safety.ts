@@ -16,6 +16,7 @@
 import { GoogleGenAI } from "@google/genai";
 
 import { getEnv } from "../env";
+import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
 import { classifyInput as lexiconClassify, crisisHotlines } from "../safety/classifier";
 import { getSupabaseClient } from "../supabase/client";
 import { proxyFnForVendor, safetyVendor } from "./routing";
@@ -25,6 +26,7 @@ import { MODELS } from "./types";
 // safety.ts is a sanctioned LLM-boundary module (already C1-allowlisted for
 // @google/genai); the audit allowlist (check-llm-import-boundary.ts) covers it.
 import { insertAiAuditLog } from "../supabase/audit";
+import { invokeFunctionWithCapturedSession } from "../supabase/captured-session-client";
 
 export type SafetyZone = "green" | "yellow" | "red";
 
@@ -115,7 +117,11 @@ function getFlashClient(): GoogleGenAI | null {
 // safety-owner sign-off.)
 let _semanticDarkWarned = false;
 let _semanticDarkAudited = false;
-function noteSemanticUnavailable(opts?: { userId?: string; lexiconZone?: SafetyZone }): void {
+function noteSemanticUnavailable(opts?: {
+  userId?: string;
+  lexiconZone?: SafetyZone;
+  capturedSession?: AuthenticatedAccountSessionLease;
+}): void {
   // Fast exit only when BOTH signals are already emitted this session.
   if (_semanticDarkWarned && _semanticDarkAudited) return;
   try {
@@ -153,7 +159,7 @@ function noteSemanticUnavailable(opts?: { userId?: string; lexiconZone?: SafetyZ
         safetyZone: opts.lexiconZone ?? "green",
         latencyMs: 0,
         purpose: "safety_classify",
-      }).catch(() => {
+      }, opts.capturedSession?.accessToken, opts.capturedSession?.signal).catch(() => {
         // best-effort health signal; never surface
       });
     }
@@ -218,8 +224,10 @@ function djb2(s: string): string {
 async function classifyViaProxy(
   userMessage: string,
   locale: "en" | "ko",
+  capturedSession?: AuthenticatedAccountSessionLease,
 ): Promise<SafetyResult | null> {
   try {
+    capturedSession?.assertCurrent();
     // Direct process.env read so babel-preset-expo inlines the flag at build time
     // (default undefined -> off). Do not route through getEnv (not in its schema).
     if (process.env.EXPO_PUBLIC_SERVER_SAFETY !== "true") return null;
@@ -228,7 +236,7 @@ async function classifyViaProxy(
     // everything and returns null, so a dead key does not error - it silently
     // becomes lexicon-only while the flag still reads "on".
     const vendor = safetyVendor();
-    const { data, error } = await getSupabaseClient().functions.invoke(proxyFnForVendor(vendor), {
+    const request = {
       body: {
         purpose: "safety_classify",
         // Config-defect fix (cowork 발주2, 2026-07-21; docs/handoff/ai_260721.md
@@ -259,7 +267,16 @@ async function classifyViaProxy(
           },
         },
       },
-    });
+      signal: capturedSession?.signal,
+    };
+    const { data, error } = capturedSession
+      ? await invokeFunctionWithCapturedSession<Record<string, unknown>>(
+          proxyFnForVendor(vendor),
+          capturedSession.accessToken,
+          request,
+        )
+      : await getSupabaseClient().functions.invoke(proxyFnForVendor(vendor), request);
+    capturedSession?.assertCurrent();
     if (error || !data) return null;
     const text = String((data as { text?: unknown }).text ?? "").trim();
     if (!text) return null;
@@ -280,6 +297,7 @@ async function classifyViaProxy(
       routingTemplateVersion: ROUTING_TEMPLATE_VERSION,
     };
   } catch {
+    capturedSession?.assertCurrent();
     return null; // the safety path must never throw
   }
 }
@@ -287,8 +305,9 @@ async function classifyViaProxy(
 export async function classifySafety(
   userMessage: string,
   locale: "en" | "ko",
-  opts?: { userId?: string },
+  opts?: { userId?: string; capturedSession?: AuthenticatedAccountSessionLease },
 ): Promise<SafetyResult> {
+  opts?.capturedSession?.assertCurrent();
   // Layer 1: lexicon. Always runs synchronously. Dual-locale: catch a crisis
   // term written in the other language than the UI locale (mirrors the proxy
   // EN+KO gate + classifyInputAnyLocale) - the largest single-locale blind spot.
@@ -302,9 +321,14 @@ export async function classifySafety(
   const client = getFlashClient();
   if (!client) {
     // D4 (flag-gated): try the server-side classifier before degrading to lexicon.
-    const viaProxy = await classifyViaProxy(userMessage, locale);
+    const viaProxy = await classifyViaProxy(userMessage, locale, opts?.capturedSession);
+    opts?.capturedSession?.assertCurrent();
     if (viaProxy) return mergeResults(lex, viaProxy);
-    noteSemanticUnavailable({ userId: opts?.userId, lexiconZone: lex.zone });
+    noteSemanticUnavailable({
+      userId: opts?.userId,
+      lexiconZone: lex.zone,
+      capturedSession: opts?.capturedSession,
+    });
     return lex;
   }
 
@@ -316,6 +340,7 @@ export async function classifySafety(
         { role: "user", parts: [{ text: `${SYSTEM_PROMPT}\n\nUser message (locale=${locale}):\n"""\n${userMessage}\n"""\n\nClassify now. Output JSON only, no prose.` }] },
       ],
       config: {
+        ...(opts?.capturedSession ? { abortSignal: opts.capturedSession.signal } : {}),
         responseMimeType: "application/json",
         responseSchema: {
           type: "object",
@@ -328,6 +353,7 @@ export async function classifySafety(
         },
       },
     });
+    opts?.capturedSession?.assertCurrent();
     const latencyMs = Date.now() - t0;
     const text = (res.text ?? "").trim();
     let result: SafetyResult = lex;
@@ -355,8 +381,8 @@ export async function classifySafety(
           routingTemplateVersion: ROUTING_TEMPLATE_VERSION,
         };
         result = mergeResults(lex, llm);
-      } catch (e) {
-        if (typeof console !== "undefined") console.warn("[safety] classifier payload unparseable, using lexicon", e);
+      } catch {
+        if (typeof console !== "undefined") console.warn("[safety] classifier payload unparseable, using lexicon");
       }
     }
     // C3: a real Gemini Flash call happened. The classifier runs client-side (not
@@ -377,14 +403,16 @@ export async function classifySafety(
           // 0095: the A18 seat name — same label the proxy path self-reports
           // (classifyViaProxy), so classifier rows aggregate under one purpose.
           purpose: "safety_classify",
-        });
-      } catch (e) {
-        if (typeof console !== "undefined") console.warn("[safety] classifier audit failed", e);
+        }, opts.capturedSession?.accessToken, opts.capturedSession?.signal);
+        opts.capturedSession?.assertCurrent();
+      } catch {
+        if (typeof console !== "undefined") console.warn("[safety] classifier audit failed");
       }
     }
     return result;
-  } catch (e) {
-    if (typeof console !== "undefined") console.warn("[safety] llm classifier failed, using lexicon", e);
+  } catch {
+    opts?.capturedSession?.assertCurrent();
+    if (typeof console !== "undefined") console.warn("[safety] llm classifier failed, using lexicon");
     return lex;
   }
 }

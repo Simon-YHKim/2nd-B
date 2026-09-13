@@ -6,6 +6,10 @@
 
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
 
+import {
+  isAccountLocalDeletionFencedInMemory,
+  runAccountLocalMutation,
+} from "../account/local-deletion-fence";
 import { kstDayKey } from "../journal/streak";
 
 export const OPS_DAILY_LIMIT: Record<SubscriptionTier, number> = {
@@ -29,6 +33,7 @@ interface StoredUsage {
 interface AsyncStorageLike {
   getItem(key: string): Promise<string | null>;
   setItem(key: string, value: string): Promise<void>;
+  removeItem(key: string): Promise<void>;
 }
 
 function storageKey(userId: string): string {
@@ -78,6 +83,7 @@ export async function readOpsUsage(
   now: Date = new Date(),
   options: ReadOpsUsageOptions = {},
 ): Promise<number> {
+  if (isAccountLocalDeletionFencedInMemory(userId)) return 0;
   const today = todayKey(now);
   try {
     const web = ls();
@@ -93,25 +99,48 @@ export async function readOpsUsage(
 
 /** Increments today's counter and returns the new count. Best-effort persist. */
 export async function bumpOpsUsage(userId: string, now: Date = new Date()): Promise<number> {
-  const today = todayKey(now);
-  const next = (await readOpsUsage(userId, now)) + 1;
-  const payload = JSON.stringify({ day: today, count: next } satisfies StoredUsage);
-  const web = ls();
-  if (web) {
-    try {
-      web.setItem(storageKey(userId), payload);
-    } catch {
-      // quota/private mode: allowance degrades to per-session
+  const guarded = await runAccountLocalMutation(userId, async () => {
+    const today = todayKey(now);
+    const next = (await readOpsUsage(userId, now)) + 1;
+    const payload = JSON.stringify({ day: today, count: next } satisfies StoredUsage);
+    const web = ls();
+    if (web) {
+      try {
+        web.setItem(storageKey(userId), payload);
+      } catch {
+        // quota/private mode: allowance degrades to per-session
+      }
+      return next;
+    }
+    const native = nativeStorage();
+    if (native) {
+      try {
+        await native.setItem(storageKey(userId), payload);
+      } catch {
+        // best-effort
+      }
     }
     return next;
-  }
-  const native = nativeStorage();
-  if (native) {
-    try {
-      await native.setItem(storageKey(userId), payload);
-    } catch {
-      // best-effort
+  });
+  return guarded.executed ? guarded.value : 0;
+}
+
+/** Remove only the terminally deleted owner's local recommendation allowance. */
+export async function purgeOpsUsageForDeletedAccount(userId: string): Promise<boolean> {
+  const owner = userId.trim();
+  if (!owner) return false;
+  const key = storageKey(owner);
+  try {
+    const web = ls();
+    if (web) {
+      web.removeItem(key);
+      return web.getItem(key) === null;
     }
+    const native = nativeStorage();
+    if (!native) return false;
+    await native.removeItem(key);
+    return (await native.getItem(key)) === null;
+  } catch {
+    return false;
   }
-  return next;
 }

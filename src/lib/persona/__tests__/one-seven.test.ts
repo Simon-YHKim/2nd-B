@@ -55,8 +55,20 @@ describe("휴면층이 다시 켜지지 않았다", () => {
         }
         if (!/\.tsx?$/.test(e.name)) continue;
         if (rel.startsWith("src/lib/lenses")) continue; // 자기 자신은 제외
-        if (/from ["'][^"']*lenses\/(registry|autonomy|suggest)["']/.test(read(rel))) {
-          callers.push(rel);
+        try {
+          if (/from ["'][^"']*lenses\/(registry|autonomy|suggest)["']/.test(read(rel))) {
+            callers.push(rel);
+          }
+        } catch (error) {
+          // Other Jest suites create short-lived source probes to prove their
+          // tree scanners fail closed. A file can disappear between readdir
+          // and read; it is no longer part of the tree this assertion audits.
+          if (
+            (error as NodeJS.ErrnoException).code !== "ENOENT"
+            || rel !== "src/lib/emdash-guard-probe.generated.ts"
+          ) {
+            throw error;
+          }
         }
       }
     };

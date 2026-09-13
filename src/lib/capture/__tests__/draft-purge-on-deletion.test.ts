@@ -84,15 +84,23 @@ describe("purgeCaptureDraftsForDeletedAccount", () => {
   });
 });
 
-describe("both deletion paths purge local drafts", () => {
+describe("the deletion path includes draft purge in the managed local sweep", () => {
   for (const f of CALLERS) {
     test(`${f} purges after erasure and before sign-out`, () => {
       const caller = read(f);
-      expect(caller).toContain("purgeCaptureDraftsForDeletedAccount");
+      expect(caller).toContain("purgeDeletedAccountLocalData");
 
-      const erase = caller.indexOf("await requestAccountDeletion()");
-      const purge = caller.indexOf("purgeCaptureDraftsForDeletedAccount(targetUserId)");
-      const signout = caller.indexOf("await signOut()");
+      const erase = caller.indexOf(
+        caller.includes("await requestAccountDeletion(authExpectation)")
+          ? "await requestAccountDeletion(authExpectation)"
+          : "await requestAccountDeletion()",
+      );
+      const purge = caller.indexOf("purgeDeletedAccountLocalData(targetUserId)");
+      const signout = caller.indexOf(
+        caller.includes("await signOutExpected(authExpectation)")
+          ? "await signOutExpected(authExpectation)"
+          : "await signOut()",
+      );
       expect(erase).toBeGreaterThan(-1);
       expect(purge).toBeGreaterThan(-1);
       expect(signout).toBeGreaterThan(-1);
@@ -108,12 +116,12 @@ describe("both deletion paths purge local drafts", () => {
       // `targetUserId` is the id captured when the confirmation was accepted.
       // Using a live "current user" ref here would purge the wrong account's
       // drafts when a second session signs in while the request is in flight.
-      expect(read(f)).toContain("purgeCaptureDraftsForDeletedAccount(targetUserId)");
+      expect(read(f)).toContain("purgeDeletedAccountLocalData(targetUserId)");
     });
 
     test(`${f} keeps the purge best-effort`, () => {
       const caller = read(f);
-      const at = caller.indexOf("purgeCaptureDraftsForDeletedAccount(targetUserId)");
+      const at = caller.indexOf("purgeDeletedAccountLocalData(targetUserId)");
       const around = caller.slice(Math.max(0, at - 300), at + 300);
       expect(around).toMatch(/try\s*\{/);
       expect(around).toMatch(/catch/);

@@ -38,37 +38,42 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import {
-  JsonBodyError,
-  LLM_PROXY_JSON_BODY_LIMIT_BYTES,
-  readJsonObject,
-} from '../_shared/request-json.ts';
-import {
   BRAIN_RANK,
+  LlmBodyError,
   MAX_ASSEMBLED_LEN,
   MAX_USER_LEN,
-  PREMIUM_PURPOSES,
   SAFETY_PREAMBLE,
   TIER_RANK,
   UPSTREAM_DETAIL_TRUNCATE,
   auditUpstreamFailure,
+  clampLlmPurposeEffort,
+  consumeLlmPurposeQuota,
   corsPreflight,
   dailyCapForRank,
   djb2,
   hasCrisisTerm,
+  isLlmJsonObject,
   isUsableHeaderValue,
   jsonResponse,
+  llmCapacityWeight,
   normalizeResponseSchema,
+  readLlmProxyJsonObject,
+  readLlmUpstreamErrorText,
+  readLlmUpstreamJsonObject,
+  requestMatchesLlmPurposeModality,
+  reserveLlmProxyCapacity,
   resolveApiKey,
+  resolveLlmPurposePolicy,
+  transitionLlmProxyCapacity,
   userIdFromJwt,
   utcDay,
 } from '../_shared/llm-proxy-common.ts';
 
 const ANTHROPIC_ENDPOINT = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_VERSION = '2023-06-01';
-
-// D-26 default seat: sonnet-class value frontier. Global override via the
-// ANTHROPIC_MODEL secret; per-purpose override via ANTHROPIC_PURPOSE_MODELS.
-const DEFAULT_CLAUDE_MODEL = 'claude-sonnet-5';
+const PROVIDER_TIMEOUT_MS = 30_000;
+const REASONING_RUN_ID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // D-26 Phase 2 Anthropic seats (server-owned routing). VERY-HIGH-stakes
 // self-understanding narrative surfaces run opus; interactive/short surfaces
@@ -84,16 +89,9 @@ const DEFAULT_CLAUDE_MODEL = 'claude-sonnet-5';
 // ttfv_first_insight) were removed from this map. Those purposes route to
 // OpenAI client-side (PHASE2_VENDOR), which is where they now belong.
 //
-// ⚠ REMOVING THEM DID NOT REMOVE THE OUTAGE REFUGE, and the order assumed it
-// would. This proxy has NO ALLOWLIST by design: EXPO_PUBLIC_LLM_VENDOR=claude
-// is the outage refuge, so an unseated purpose must still be served — it falls
-// to DEFAULT_CLAUDE_MODEL. (The legacy EXPO_PUBLIC_REASONING_PROVIDER seam,
-// folded into routing.ts resolveVendorForPurpose on 2026-08-26, can also send
-// unseated pro-tier purposes here until it is retired.) So
-// EXPO_PUBLIC_LLM_VENDOR=claude during an OpenAI outage still serves all
-// twelve - at sonnet price, which is the RIGHT price for an emergency. Pinning
-// chat's refuge to opus, the alternative the order offered, would have made the
-// outage path the most expensive path in the system.
+// The shared purpose policy is the allowlist. An outage switch may route only
+// explicitly seated purposes here; missing seats fail closed rather than
+// turning this key into a generic Sonnet/Opus completion endpoint.
 const PURPOSE_MODEL: Record<string, string> = {
   // The defender in the adversarial cross-check (REQ-260823-03). Opus at max,
   // because its rewrite is what the user actually reads.
@@ -104,36 +102,26 @@ const PURPOSE_MODEL: Record<string, string> = {
   digest_weekly: 'claude-opus-4-8',
 };
 
-function resolveModel(purpose: string | null): string {
+function resolveModel(purpose: string): string | null {
   // Precedence: per-purpose env JSON > ANTHROPIC_MODEL (TRUE global
   // kill-switch -- e.g. fleet-wide opus->sonnet downgrade during a cost
-  // incident) > built-in seat > default.
-  if (purpose) {
-    const raw = (Deno.env.get('ANTHROPIC_PURPOSE_MODELS') ?? '').trim();
-    if (raw.length > 0) {
-      try {
-        const map = JSON.parse(raw) as Record<string, unknown>;
-        const m = map?.[purpose];
-        if (typeof m === 'string' && m.trim().length > 0) return m.trim();
-      } catch {
-        console.error('[claude-proxy] ANTHROPIC_PURPOSE_MODELS is not valid JSON -- ignoring');
-      }
+  // incident) > built-in seat. The shared policy rejects missing seats first.
+  const raw = (Deno.env.get('ANTHROPIC_PURPOSE_MODELS') ?? '').trim();
+  if (raw.length > 0) {
+    try {
+      const map = JSON.parse(raw) as Record<string, unknown>;
+      const m = map?.[purpose];
+      if (typeof m === 'string' && m.trim().length > 0) return m.trim();
+    } catch {
+      console.error('[claude-proxy] ANTHROPIC_PURPOSE_MODELS is not valid JSON -- ignoring');
     }
   }
   const globalOverride = (Deno.env.get('ANTHROPIC_MODEL') ?? '').trim();
   if (globalOverride.length > 0) return globalOverride;
-  // hasOwnProperty, NOT bracket-truthiness: `purpose` is client-controlled and
-  // this proxy has no allowlist (it must keep serving the legacy reasoning seam,
-  // where an unseated purpose legitimately falls to the default seat). A plain
-  // `PURPOSE_MODEL[purpose]` walks the prototype chain, so purpose='toString'
-  // (or constructor/__proto__/valueOf) returned Object.prototype.toString -- a
-  // FUNCTION -- which then crashed modelSlug(model.toUpperCase) AFTER the spend
-  // was already bumped: an anonymous-to-authenticated quota-drain + 500. Own-key
-  // check makes every non-seat purpose fall cleanly to the default sonnet seat.
-  if (purpose && Object.prototype.hasOwnProperty.call(PURPOSE_MODEL, purpose)) {
+  if (Object.prototype.hasOwnProperty.call(PURPOSE_MODEL, purpose)) {
     return PURPOSE_MODEL[purpose];
   }
-  return DEFAULT_CLAUDE_MODEL;
+  return null;
 }
 
 // D-26 per-purpose EFFORT CEILING (server-owned -- `effort` is client-reported,
@@ -144,10 +132,7 @@ function resolveModel(purpose: string | null): string {
 // comment here used to say no seat was approved for it, and the rank table
 // below did not carry the rung at all - which is why effortToAnthropic folded
 // max into xhigh and ANTHROPIC_API_KEY__MAX, already registered in production,
-// could never be reached. Unknown/unseated purposes still clamp to the
-// conservative default.
-const EFFORT_RANK: Record<string, number> = { low: 0, medium: 1, high: 2, xhigh: 3, max: 4 };
-const DEFAULT_EFFORT_CEILING = 'high';
+// could never be reached. Unknown/unseated purposes are rejected before here.
 const PURPOSE_EFFORT_MAX: Record<string, string> = {
   advisor: 'high',
   secondb_chat: 'low',
@@ -171,22 +156,6 @@ const PURPOSE_EFFORT_MAX: Record<string, string> = {
   digest_weekly: 'max',
   crosscheck_defend: 'max',
 };
-
-// Abstract effort -> Anthropic output_config.effort (native semantics),
-// clamped to the purpose ceiling. Anthropic's API enum is
-// low/medium/high/xhigh/max, so "max" passes through as itself now; the ceiling
-// below is what stops a client asking for it on a seat that has not earned it.
-function effortToAnthropic(effort: string | null, purpose: string | null): string {
-  const requested = effort && effort in EFFORT_RANK ? effort : 'high';
-  // Own-key lookup: a bare PURPOSE_EFFORT_MAX[purpose] on a prototype key
-  // (purpose='toString') returned a FUNCTION as the ceiling, so EFFORT_RANK[fn]
-  // was undefined and the clamp silently returned that function as the effort.
-  const ceiling =
-    purpose && Object.prototype.hasOwnProperty.call(PURPOSE_EFFORT_MAX, purpose)
-      ? PURPOSE_EFFORT_MAX[purpose]
-      : DEFAULT_EFFORT_CEILING;
-  return EFFORT_RANK[requested] <= EFFORT_RANK[ceiling] ? requested : ceiling;
-}
 
 // Hard output ceilings per (clamped) effort. With adaptive thinking ON,
 // thinking tokens count against max_tokens, so these are deliberately roomy --
@@ -222,6 +191,9 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: 'missing_authorization' }, 401);
   }
 
+  const userId = userIdFromJwt(authHeader);
+  if (!userId) return jsonResponse(req, { error: 'invalid_jwt' }, 401);
+
   // .trim(): a secret pasted into the dashboard keeps its trailing newline, and a
   // newline in a header value makes `fetch` THROW rather than warn. See
   // ../_shared/axis-key-name.ts:pickApiKey for the outage this caused.
@@ -229,9 +201,6 @@ Deno.serve(async (req: Request) => {
   if (!apiKey || apiKey.length === 0) {
     return jsonResponse(req, { error: 'server_misconfigured_missing_ANTHROPIC_API_KEY' }, 500);
   }
-
-  const userId = userIdFromJwt(authHeader);
-  if (!userId) return jsonResponse(req, { error: 'invalid_jwt' }, 401);
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -241,6 +210,10 @@ Deno.serve(async (req: Request) => {
   const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
+  const capacityRpc = (functionName: string, args: Record<string, unknown>) =>
+    supabaseAdmin.rpc(functionName, args);
+  const auditUpstreamFailureSupplemental = (options: Parameters<typeof auditUpstreamFailure>[1]) =>
+    auditUpstreamFailure(supabaseAdmin, options);
 
   let body: {
     user?: unknown;
@@ -248,15 +221,14 @@ Deno.serve(async (req: Request) => {
     purpose?: unknown;
     effort?: unknown;
     responseSchema?: unknown;
+    reasoningRunId?: unknown;
+    reasoningSlot?: unknown;
   };
   try {
-    body = await readJsonObject(req, LLM_PROXY_JSON_BODY_LIMIT_BYTES) as typeof body;
+    body = await readLlmProxyJsonObject(req) as typeof body;
   } catch (error) {
-    if (error instanceof JsonBodyError && error.code === 'request_body_too_large') {
-      return jsonResponse(req, {
-        error: error.code,
-        max: error.maxBytes,
-      }, 413);
+    if (error instanceof LlmBodyError && error.code === 'request_body_too_large') {
+      return jsonResponse(req, { error: error.code, max: error.maxBytes }, 413);
     }
     return jsonResponse(req, { error: 'invalid_json' }, 400);
   }
@@ -265,7 +237,27 @@ Deno.serve(async (req: Request) => {
   const systemText: string | null = typeof body?.system === 'string' ? body.system : null;
   const purpose: string | null = typeof body?.purpose === 'string' ? body.purpose : null;
   const effort: string | null = typeof body?.effort === 'string' ? body.effort : null;
+  const responseSchemaProvided = body?.responseSchema !== undefined;
   const responseSchema = normalizeResponseSchema(body?.responseSchema);
+  const purposePolicy = resolveLlmPurposePolicy(purpose, 'claude');
+  if (!purpose || !purposePolicy) {
+    return jsonResponse(req, { error: 'purpose_not_seated', purpose: purpose ?? null }, 400);
+  }
+  if (!requestMatchesLlmPurposeModality(purposePolicy, 'text')) {
+    return jsonResponse(req, { error: 'purpose_modality_mismatch' }, 400);
+  }
+  if (responseSchemaProvided && (!responseSchema || responseSchema.type !== 'object')) {
+    return jsonResponse(req, { error: 'response_schema_invalid' }, 400);
+  }
+  const claudeModel = resolveModel(purpose);
+  if (!claudeModel) {
+    return jsonResponse(req, { error: 'purpose_not_seated', purpose }, 400);
+  }
+  const reasoningRunId = typeof body?.reasoningRunId === 'string' ? body.reasoningRunId : '';
+  const reasoningSlot =
+    body?.reasoningSlot === 'records' || body?.reasoningSlot === 'sources'
+      ? body.reasoningSlot
+      : '';
 
   if (userText.length === 0) return jsonResponse(req, { error: 'user_required' }, 400);
   if (userText.length > MAX_USER_LEN) {
@@ -282,89 +274,118 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: 'safety_red_zone', reason: 'crisis_term_detected' }, 422);
   }
 
+  // Historical rows have no trustworthy writer provenance and there is not
+  // yet a shipped re-consent surface. Enforce only after the v2 provenance
+  // migration, server-owned writer, and active-account coverage preflight are
+  // complete. A premature flag fails closed because a missing v2 RPC is 503.
+  if (Deno.env.get('LLM_REQUIRE_VERIFIED_CONSENT') === 'true') {
+    try {
+      const { data: consentOk, error: consentErr } = await supabaseAdmin.rpc(
+        'effective_llm_consent_v2',
+        { p_user_id: userId },
+      );
+      if (consentErr) {
+        console.error('[claude-proxy] verified consent lookup failed');
+        return jsonResponse(req, { error: 'consent_check_unavailable' }, 503);
+      }
+      if (consentOk !== true) return jsonResponse(req, { error: 'consent_required' }, 403);
+    } catch {
+      console.error('[claude-proxy] verified consent lookup threw');
+      return jsonResponse(req, { error: 'consent_check_unavailable' }, 503);
+    }
+  }
+
   // EFFECTIVE tier via effective_subscription_tier (0088), NOT the raw
   // subscription_tier column -- mirrors gemini-proxy. The raw column stays
   // 'brain'/'cortex' after expiry until the cancel webhook lands, so reading it
   // let a lapsed subscriber keep the brain-only premium purposes + the brain
   // daily ceiling, and 403'd a comped judge (raw 'free' + judge_mode). The RPC
-  // collapses expired->free and comps judge->brain, matching the cap RPCs. Fail
-  // open on a lookup ERROR (availability first; the daily cap still bounds cost).
+  // collapses expired->free and comps judge->brain, matching the cap RPCs.
   let tierRank: number | null = null;
   {
-    const { data: effTier, error: tierErr } = await supabaseAdmin.rpc(
-      'effective_subscription_tier',
-      { p_user_id: userId },
-    );
-    if (tierErr) {
-      console.error('[claude-proxy] effective-tier lookup failed:', tierErr.message ?? String(tierErr));
-    } else {
-      const t = (effTier as string | null) ?? 'free';
-      tierRank = TIER_RANK[t] ?? 0;
+    try {
+      const { data: effTier, error: tierErr } = await supabaseAdmin.rpc(
+        'effective_subscription_tier',
+        { p_user_id: userId },
+      );
+      if (tierErr) {
+        console.error('[claude-proxy] effective-tier lookup failed');
+        return jsonResponse(req, { error: 'entitlement_check_unavailable' }, 503);
+      }
+      const tier = (effTier as string | null) ?? 'free';
+      if (!Object.prototype.hasOwnProperty.call(TIER_RANK, tier)) {
+        console.error('[claude-proxy] effective-tier lookup returned an unknown tier');
+        return jsonResponse(req, { error: 'entitlement_check_unavailable' }, 503);
+      }
+      tierRank = TIER_RANK[tier];
+    } catch {
+      console.error('[claude-proxy] effective-tier lookup threw');
+      return jsonResponse(req, { error: 'entitlement_check_unavailable' }, 503);
     }
   }
-  if (purpose && PREMIUM_PURPOSES.has(purpose) && tierRank !== null && tierRank < BRAIN_RANK) {
-    return jsonResponse(req, { error: 'entitlement_required', feature: purpose }, 403);
+  const tierLookupFailed = tierRank === null;
+  if (tierLookupFailed || tierRank === null) {
+    return jsonResponse(req, { error: 'entitlement_check_unavailable' }, 503);
+  }
+  if (purposePolicy.minimumTier === 'brain') {
+    if (tierRank === null || tierRank < BRAIN_RANK) {
+      return jsonResponse(req, { error: 'entitlement_required', feature: purpose }, 403);
+    }
+  }
+
+  const purposeQuota = await consumeLlmPurposeQuota(capacityRpc, userId, 'claude', purpose);
+  if (!purposeQuota.ok) {
+    if (purposeQuota.reason === 'limited') {
+      return jsonResponse(req, { error: 'purpose_limit_exceeded', feature: purpose }, 429);
+    }
+    console.error('[claude-proxy] purpose quota unavailable');
+    return jsonResponse(req, { error: 'purpose_limit_unavailable' }, 503);
   }
 
   // Spend cap (cost backstop) -- shared per-user/day counter with gemini-proxy.
-  const { error: spendErr } = await supabaseAdmin.rpc('bump_gemini_spend', {
-    p_user_id: userId,
-    p_day: utcDay(),
-    p_cap: dailyCapForRank(tierRank),
-  });
+  let spendErr: { message?: string } | null = null;
+  try {
+    const result = await supabaseAdmin.rpc('bump_gemini_spend', {
+      p_user_id: userId,
+      p_day: utcDay(),
+      p_cap: dailyCapForRank(tierRank),
+    });
+    spendErr = result.error;
+  } catch {
+    console.error('[claude-proxy][ALERT] spend check threw -- failing closed');
+    return jsonResponse(req, { error: 'spend_check_unavailable' }, 503);
+  }
   if (spendErr) {
     const msg = spendErr.message ?? '';
     if (msg.includes('gemini_spend_exceeded')) {
       return jsonResponse(req, { error: 'daily_limit_exceeded' }, 429);
     }
-    // FAIL CLOSED on a cost-critical error. The only tolerated case is "RPC does
-    // not exist yet" (migration not applied) -- allow + alert loudly.
-    const code = (spendErr as { code?: string }).code ?? '';
-    const rpcMissing =
-      code === 'PGRST202' || code === '42883' || msg.includes('Could not find the function');
-    if (rpcMissing && Deno.env.get('GEMINI_SPEND_FAILOPEN') === '1') {
-      console.error('[claude-proxy][ALERT] spend RPC missing -- allowing WITHOUT a cap. Apply 0035/0036:', msg);
-    } else {
-      console.error('[claude-proxy][ALERT] spend check unavailable -- failing closed:', msg);
-      return jsonResponse(req, { error: 'spend_check_unavailable' }, 503);
-    }
+    console.error('[claude-proxy][ALERT] spend check unavailable -- failing closed:', msg);
+    return jsonResponse(req, { error: 'spend_check_unavailable' }, 503);
   }
-  // True only on the clean-bump path (not the rpc-missing fail-open), so a
-  // refund can never decrement a counter that was never incremented.
+  // True only on the clean-bump path, so a refund can never decrement a counter
+  // that was never incremented.
   const spentBumped = !spendErr;
 
-  // D6 (audit M5): consent egress gate. Flag-gated by LLM_REQUIRE_CONSENT
-  // (default off) -- enable once legal finalizes the consent copy/versions. When
-  // on, require a current consent row (llm_processing_ack + overseas_transfer_ack)
-  // before sending user content to the overseas vendor; fail CLOSED if unverifiable.
-  // NOTE (R1 / pre-deploy review P2): consent_records is an append-only GRANT
-  // ledger (0031). Withdrawal lives ELSEWHERE -- users.privacy_prefs (current
-  // state) + the consent_changes ledger (0062, grant/revoke per pref key). This
-  // grant-only read does NOT see a withdrawal, so BEFORE enabling
-  // LLM_REQUIRE_CONSENT the read MUST become withdrawal-aware (effective consent =
-  // granted acks AND the driving external-processing pref still ON, PIPA 37 /
-  // GDPR 7(3)). Which prefs constitute "overseas transfer consent" is a
-  // legal/data-model decision -- resolve first. See docs/RISK-REMEDIATION-260726.md (R1).
-  if ((Deno.env.get('LLM_REQUIRE_CONSENT') ?? 'false') === 'true') {
-    let consentOk = false;
+  // Refund only while it is provable that no provider request was dispatched.
+  const refundBeforeDispatch = async () => {
+    if (!spentBumped) return;
     try {
-      const { data: consentRow, error: consentErr } = await supabaseAdmin
-        .from('consent_records')
-        .select('llm_processing_ack, overseas_transfer_ack')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      consentOk = !consentErr && !!consentRow &&
-        consentRow.llm_processing_ack === true && consentRow.overseas_transfer_ack === true;
-    } catch (_e) {
-      consentOk = false;
+      await supabaseAdmin.rpc('refund_gemini_spend', { p_user_id: userId, p_day: utcDay() });
+    } catch (error) {
+      console.warn('[claude-proxy] spend refund failed:', String(error).slice(0, UPSTREAM_DETAIL_TRUNCATE));
     }
-    if (!consentOk) return jsonResponse(req, { error: 'consent_required' }, 403);
-  }
+  };
+  // This failure alias is pre-dispatch only; billed or billing-ambiguous paths
+  // below deliberately never refund spend.
+  const refundOnFailure = refundBeforeDispatch;
 
-  const claudeModel = resolveModel(purpose);
-  const clampedEffort = effortToAnthropic(effort, purpose);
+  const clampedEffort = clampLlmPurposeEffort(
+    purposePolicy,
+    effort,
+    'claude',
+    PURPOSE_EFFORT_MAX[purpose],
+  );
   // D-27: sign with the (model × effort) combo key when provisioned, else base
   // ANTHROPIC_API_KEY (fallback keeps calls working; that usage attributes to
   // base). Only changes WHICH key signs the already-server-owned request.
@@ -385,13 +406,7 @@ Deno.serve(async (req: Request) => {
     // misconfigured secret quietly eats a user's whole allowance, one unit per
     // attempt, while they see only an error. refund_gemini_spend (0110) floors at
     // 0 and no-ops when there is no row, so a stray refund is safe.
-    if (spentBumped) {
-      try {
-        await supabaseAdmin.rpc('refund_gemini_spend', { p_user_id: userId, p_day: utcDay() });
-      } catch (e) {
-        console.warn('[claude-proxy] spend refund failed:', String(e).slice(0, 80));
-      }
-    }
+    await refundOnFailure();
     console.error(
       `[claude-proxy] ANTHROPIC_API_KEY is not usable as a header value (control character in the secret?)`,
     );
@@ -426,25 +441,60 @@ Deno.serve(async (req: Request) => {
     },
   };
 
-  // Give back the daily-cap unit when the call produced nothing billable, so a
-  // vendor outage can't burn a user's whole allowance on answers they never got.
-  // Refund ONLY on no-upstream-billing failures (unreachable / non-2xx reject),
-  // never on refusal/truncation (the model ran and billed). refund_gemini_spend
-  // (0110) floors at 0 and no-ops when no row exists, so a stray refund is safe.
-  const refundOnFailure = async () => {
-    if (!spentBumped) return;
-    try {
-      await supabaseAdmin.rpc('refund_gemini_spend', { p_user_id: userId, p_day: utcDay() });
-    } catch (e) {
-      console.warn('[claude-proxy] spend refund failed:', String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE));
+  const capacity = await reserveLlmProxyCapacity(
+    capacityRpc,
+    'claude',
+    claudeModel,
+    llmCapacityWeight(anthropicBody.max_tokens),
+  );
+  if (!capacity.ok) {
+    await refundBeforeDispatch();
+    return jsonResponse(
+      req,
+      { error: capacity.reason === 'limited' ? 'llm_capacity_exceeded' : 'llm_capacity_unavailable' },
+      capacity.reason === 'limited' ? 429 : 503,
+    );
+  }
+  const releaseCapacity = () =>
+    transitionLlmProxyCapacity(capacityRpc, capacity.reservationId, 'release');
+
+  if (purpose === 'reasoning_connect') {
+    if (!REASONING_RUN_ID_RE.test(reasoningRunId) || !reasoningSlot) {
+      await releaseCapacity();
+      await refundBeforeDispatch();
+      return jsonResponse(req, { error: 'reasoning_reservation_required' }, 403);
     }
-  };
+    try {
+      const { data: claimOk, error: claimErr } = await supabaseAdmin.rpc(
+        'claim_reasoning_proxy_call',
+        { p_user_id: userId, p_run_id: reasoningRunId, p_slot: reasoningSlot },
+      );
+      if (claimErr) {
+        console.error('[claude-proxy] reasoning reservation claim unavailable');
+        await releaseCapacity();
+        await refundBeforeDispatch();
+        return jsonResponse(req, { error: 'reasoning_reservation_unavailable' }, 503);
+      }
+      if (claimOk !== true) {
+        await releaseCapacity();
+        await refundBeforeDispatch();
+        return jsonResponse(req, { error: 'reasoning_reservation_required' }, 403);
+      }
+    } catch {
+      console.error('[claude-proxy] reasoning reservation claim threw');
+      await releaseCapacity();
+      await refundBeforeDispatch();
+      return jsonResponse(req, { error: 'reasoning_reservation_unavailable' }, 503);
+    }
+  }
 
   const t0 = Date.now();
   let upstream: Response;
   try {
     upstream = await fetch(ANTHROPIC_ENDPOINT, {
       method: 'POST',
+      redirect: 'error',
+      signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
       headers: {
         'content-type': 'application/json',
         'x-api-key': resolvedKey.apiKey,
@@ -453,7 +503,7 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify(anthropicBody),
     });
   } catch (e) {
-    await refundOnFailure();
+    await transitionLlmProxyCapacity(capacityRpc, capacity.reservationId, 'settle');
     // REQ-260824-01: a failing seat must leave a trace. Without this the one
     // table that records the AI layer holds only the calls that worked.
     await auditUpstreamFailure(supabaseAdmin, {
@@ -463,11 +513,16 @@ Deno.serve(async (req: Request) => {
     });
     return jsonResponse(req, { error: 'upstream_unreachable', detail: String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE) }, 502);
   }
+  await transitionLlmProxyCapacity(capacityRpc, capacity.reservationId, 'settle');
   const latencyMs = Date.now() - t0;
 
   if (!upstream.ok) {
-    const errBody = await upstream.text();
-    await refundOnFailure();
+    let errBody = '';
+    try {
+      errBody = await readLlmUpstreamErrorText(upstream);
+    } catch {
+      errBody = 'upstream response unavailable';
+    }
     await auditUpstreamFailure(supabaseAdmin, {
       userId, purpose, model: claudeModel, vendor: 'claude',
       outcome: `upstream_${upstream.status}`, latencyMs,
@@ -491,8 +546,34 @@ Deno.serve(async (req: Request) => {
     usage?: { input_tokens?: number; output_tokens?: number };
   };
   try {
-    data = await upstream.json();
-  } catch (_e) {
+    data = await readLlmUpstreamJsonObject(upstream) as typeof data;
+    if (!Array.isArray(data.content)) throw new LlmBodyError('upstream_bad_payload');
+    if (
+      (data.model !== undefined && typeof data.model !== 'string') ||
+      (data.stop_reason !== undefined && data.stop_reason !== null && typeof data.stop_reason !== 'string')
+    ) throw new LlmBodyError('upstream_bad_payload');
+    for (const block of data.content) {
+      if (!isLlmJsonObject(block) || typeof block.type !== 'string') {
+        throw new LlmBodyError('upstream_bad_payload');
+      }
+      if (block.type === 'text' && typeof block.text !== 'string') {
+        throw new LlmBodyError('upstream_bad_payload');
+      }
+    }
+    if (data.usage !== undefined) {
+      if (!isLlmJsonObject(data.usage)) throw new LlmBodyError('upstream_bad_payload');
+      for (const count of [data.usage.input_tokens, data.usage.output_tokens]) {
+        if (count !== undefined && (!Number.isSafeInteger(count) || count < 0)) {
+          throw new LlmBodyError('upstream_bad_payload');
+        }
+      }
+    }
+  } catch {
+    await auditUpstreamFailureSupplemental({
+      userId, purpose, model: claudeModel, vendor: 'claude',
+      outcome: 'upstream_bad_payload', latencyMs,
+      keyCombo, promptHash: djb2(`${systemText ?? ''}${userText}`),
+    });
     return jsonResponse(req, { error: 'upstream_bad_payload' }, 502);
   }
   // Anthropic returns content as an array of blocks; concatenate the text blocks
@@ -526,6 +607,7 @@ Deno.serve(async (req: Request) => {
   try {
     const { error: auditErr } = await supabaseAdmin.from('ai_audit_log').insert({
       user_id: userId,
+      event_source: 'server_verified',
       prompt_hash: djb2(`${systemText ?? ''}${userText}`),
       output_hash: djb2(text),
       model_used: refused ? `${modelUsed}+refusal` : truncated ? `${modelUsed}+truncated` : modelUsed,

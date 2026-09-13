@@ -47,15 +47,21 @@ import { useSignInForm } from "@/lib/auth/useSignInForm";
 import { useSignUpForm } from "@/lib/auth/useSignUpForm";
 import { useResetPasswordForm } from "@/lib/auth/useResetPasswordForm";
 import {
+  AuthSessionOwnerChangedError,
   ageInYears,
+  captureSignOutExpectation,
   MIN_SELF_CONSENT_AGE,
-  signOut,
+  signOutExpected,
   type OAuthProvider,
 } from "@/lib/supabase/auth";
 import { requestAccountDeletion } from "@/lib/records/delete-bulk";
-import { createAccountDeletionCompletion } from "@/lib/account/deletion-completion";
+import {
+  createAccountDeletionCompletion,
+  dismissAccountDeletionNotice,
+  type LocalPurgeOutcome,
+} from "@/lib/account/deletion-completion";
+import { purgeDeletedAccountLocalData } from "@/lib/account/local-purge";
 import { currentAccountEpoch } from "@/lib/auth/account-epoch";
-import { purgeCaptureDraftsForDeletedAccount } from "@/lib/capture/draft";
 import { buildPersona, loadPersonaRatifiableSignals } from "@/lib/persona/build";
 import { proposalContextForStar } from "@/lib/persona/proposal-context";
 import { proposeSelfModelChange } from "@/lib/persona/propose-self-model";
@@ -119,7 +125,11 @@ import { gatherAdherenceStats } from "@/lib/ops/signals";
 import { adherenceChip } from "@/lib/ops/grounding";
 import { recommendForDomain, recommendationVendorLabel, recommendationsAllowed, type OpsRecommendation } from "@/lib/ops/recommend";
 import { buildGoogleCalendarUrl } from "@/lib/ops/push";
-import { notifyNow, scheduleRoutineReminder, type ReminderResult } from "@/lib/ops/reminders";
+import {
+  notifyNow,
+  scheduleRoutineReminder,
+  type ReminderResult,
+} from "@/lib/ops/reminders";
 import { loadNotifications } from "@/lib/ops/notifications-sdk";
 import {
   applyFocusSessionComplete,
@@ -636,11 +646,16 @@ export function DeepSpacePrivacyDesignScreen() {
     // It used to be discarded here, so a user who deleted their account was
     // signed out and shown a sign-in form, and never learned any of it.
     let receipt: Awaited<ReturnType<typeof requestAccountDeletion>>;
+    let authExpectation: Awaited<ReturnType<typeof captureSignOutExpectation>>;
     try {
-      // The Edge Function is the single terminal boundary: auth deletion first,
-      // then the database cascade and Storage cleanup. A client pre-wipe here
-      // can only make failure non-atomic.
-      receipt = await requestAccountDeletion();
+      authExpectation = await captureSignOutExpectation();
+      if (authExpectation.userId !== targetUserId) {
+        throw new AuthSessionOwnerChangedError();
+      }
+      // The helper acknowledges the owner-scoped local fence before its first
+      // Edge invoke. The server then commits its database fence, proves Storage
+      // empty, and only then deletes Auth so the database cascade runs last.
+      receipt = await requestAccountDeletion(authExpectation);
     } catch {
       deleteInFlightRef.current = false;
       if (privacyMountedRef.current && activeUserRef.current === targetUserId) {
@@ -650,14 +665,15 @@ export function DeepSpacePrivacyDesignScreen() {
       return;
     }
 
-    // The server side is gone. Drop this user's local drafts too: nothing else
-    // cleared them, so unsent journal text would outlive the account. Scoped to
-    // the id we just erased, best-effort, and never allowed to turn a completed
-    // deletion into a failure.
+    // The server side is gone. Drop every managed owner-scoped local value,
+    // including unsent drafts, import/GitHub pointers, and this owner's queued
+    // audit writes. Another account's entries are never touched, and local I/O
+    // cannot turn a completed remote deletion back into a failure.
+    let localPurge: LocalPurgeOutcome = "unconfirmed";
     try {
-      await purgeCaptureDraftsForDeletedAccount(targetUserId);
+      localPurge = await purgeDeletedAccountLocalData(targetUserId);
     } catch (e) {
-      if (typeof console !== "undefined") console.warn("[privacy] local draft purge after deletion failed", (e as Error).message);
+      if (typeof console !== "undefined") console.warn("[privacy] local purge after deletion failed", (e as Error).message);
     }
 
     // Terminal erasure already succeeded. Do not let a local sign-out failure
@@ -673,23 +689,32 @@ export function DeepSpacePrivacyDesignScreen() {
     // Let that navigation, sign-out, and the explicit replacement proceed.
     allowDeletionNavigationRef.current = true;
     // Hand the receipt to the store that survives exactly this owner -> null
-    // transition, so the destination screen can show it. `unconfirmed` is the
-    // honest local-cleanup value: this flow clears capture drafts only, not the
-    // checked set the copy describes, and claiming "complete" for a narrower
-    // sweep would be the overclaim this receipt exists to avoid.
+    // transition, so the destination screen can show it with the observed
+    // local-cleanup result.
     const completion = createAccountDeletionCompletion(targetUserId, currentAccountEpoch());
-    completion.beginSignOut(receipt, "unconfirmed");
+    completion.beginSignOut(receipt, localPurge);
     try {
-      await signOut();
+      await signOutExpected(authExpectation);
       completion.finishSignOut(true);
     } catch (e) {
+      if (e instanceof AuthSessionOwnerChangedError) {
+        // A's server deletion succeeded, but B now owns local auth. Preserve B
+        // and suppress A's receipt/navigation rather than treating it as a
+        // local-clear failure against the wrong owner.
+        completion.dispose();
+        dismissAccountDeletionNotice();
+        deleteInFlightRef.current = false;
+        if (privacyMountedRef.current) setDeleting(false);
+        return;
+      }
       completion.finishSignOut(false);
-      if (typeof console !== "undefined") console.warn("[privacy] local sign-out after deletion failed", (e as Error).message);
-    } finally {
-      completion.dispose();
-      router.dismissAll();
-      router.replace("/sign-in");
+      if (typeof console !== "undefined") {
+        console.warn("[privacy] local sign-out after deletion failed; phase=account-deletion");
+      }
     }
+    completion.dispose();
+    router.dismissAll();
+    router.replace("/sign-in");
   }
 
   function requestDeleteAccountConfirm() {

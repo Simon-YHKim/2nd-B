@@ -23,11 +23,17 @@
 // model, and a union means an in-flight fetchReadNoticeIds() can no longer
 // clobber a read the user just made.
 
+import {
+  isAccountLocalDeletionFencedInMemory,
+  runAccountLocalMutation,
+} from "../account/local-deletion-fence";
+
 type Listener = () => void;
 
 interface AsyncStorageLike {
   getItem(key: string): Promise<string | null>;
   setItem(key: string, value: string): Promise<void>;
+  removeItem(key: string): Promise<void>;
 }
 
 /** Cap on the persisted mirror. AsyncStorage entries are size-limited on
@@ -82,7 +88,7 @@ export function getRevision(): number {
 }
 
 export function getReadIds(userId: string | null): ReadonlySet<string> {
-  if (!userId) return new Set<string>();
+  if (!userId || isAccountLocalDeletionFencedInMemory(userId)) return new Set<string>();
   return bucket(userId);
 }
 
@@ -96,6 +102,7 @@ export function subscribe(listener: Listener): () => void {
 /** Union new ids in. Returns true when anything actually changed, so callers
  *  can skip a pointless re-render (and a pointless storage write). */
 export function mergeReadIds(userId: string, ids: Iterable<string>): boolean {
+  if (isAccountLocalDeletionFencedInMemory(userId)) return false;
   const set = bucket(userId);
   let changed = false;
   for (const id of ids) {
@@ -124,6 +131,7 @@ export function resetReadStore(): void {
 }
 
 export async function loadPersistedReadIds(userId: string): Promise<string[]> {
+  if (isAccountLocalDeletionFencedInMemory(userId)) return [];
   const key = localReadKey(userId);
   try {
     const web = webStorage();
@@ -140,20 +148,43 @@ export async function loadPersistedReadIds(userId: string): Promise<string[]> {
 }
 
 export async function persistReadIds(userId: string): Promise<void> {
-  const key = localReadKey(userId);
-  // Newest ids are the ones the popup consults, and Set preserves insertion
-  // order, so keep the TAIL when trimming.
-  const ids = [...bucket(userId)].slice(-LOCAL_READ_LIMIT);
-  const raw = JSON.stringify(ids);
+  await runAccountLocalMutation(userId, async () => {
+    const key = localReadKey(userId);
+    // Newest ids are the ones the popup consults, and Set preserves insertion
+    // order, so keep the TAIL when trimming.
+    const ids = [...bucket(userId)].slice(-LOCAL_READ_LIMIT);
+    const raw = JSON.stringify(ids);
+    try {
+      const web = webStorage();
+      if (web) {
+        web.setItem(key, raw);
+        return;
+      }
+      await nativeStorage()?.setItem(key, raw);
+    } catch {
+      // Storage full or unavailable. The in-memory set still holds for this
+      // session and the server row is the durable copy.
+    }
+  }).catch(() => undefined);
+}
+
+/** Remove one deleted owner's persisted and in-memory notice-read mirror. */
+export async function purgeNoticeReadStateForDeletedAccount(userId: string): Promise<boolean> {
+  const owner = userId.trim();
+  if (!owner) return false;
+  if (readIdsByUser.delete(owner)) notify();
+  const key = localReadKey(owner);
   try {
     const web = webStorage();
     if (web) {
-      web.setItem(key, raw);
-      return;
+      web.removeItem(key);
+      return web.getItem(key) === null;
     }
-    await nativeStorage()?.setItem(key, raw);
+    const native = nativeStorage();
+    if (!native) return false;
+    await native.removeItem(key);
+    return (await native.getItem(key)) === null;
   } catch {
-    // Storage full or unavailable. The in-memory set still holds for this
-    // session and the server row is the durable copy.
+    return false;
   }
 }

@@ -257,16 +257,10 @@ jobs:
           # Tasks import connector (GIS token model — src/lib/google/). Unset →
           # the "Connect Google" action is hidden; nothing else is affected.
           EXPO_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID }}
-          # LLM mode + key: when the repo Variable EXPO_PUBLIC_GOOGLE_API_KEY is
-          # set, builds default to "live"; otherwise mock. Override by setting
-          # the Variable EXPO_PUBLIC_LLM_MODE explicitly.
+          # Live web LLM calls are permitted only through the authenticated
+          # Edge Function. API credentials must never be Expo public variables.
           EXPO_PUBLIC_LLM_MODE: ${{ vars.EXPO_PUBLIC_LLM_MODE || 'mock' }}
-          EXPO_PUBLIC_GOOGLE_API_KEY: ${{ vars.EXPO_PUBLIC_GOOGLE_API_KEY }}
-          # Route Gemini through the gemini-proxy Edge Function so the API key
-          # stays server-side (Supabase secret GEMINI_API_KEY) and is NEVER
-          # inlined into the public web bundle. REQUIRED for live web: set repo
-          # Variable EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION=true alongside LLM_MODE=live.
-          EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: ${{ vars.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION || 'false' }}
+          EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: "true"
           # D-27 axis-key pin: route every Gemini seat to gemini-3.5-flash so live
           # calls resolve the dedicated GEMINI_API_KEY__G35FLASH__{effort} combo
           # keys (a G25* slug would fall back to the base key). Overridable via a
@@ -324,15 +318,10 @@ jobs:
           # Server-side crisis classifier vendor. Dormant unless
           # EXPO_PUBLIC_SERVER_SAFETY is also on.
           EXPO_PUBLIC_SAFETY_VENDOR: ${{ vars.EXPO_PUBLIC_SAFETY_VENDOR || '' }}
-          # Naver social sign-up (custom OAuth via the oauth-naver edge function,
-          # already in-repo). Server side confirmed live 2026-07-15 (Simon):
-          # oauth-naver deployed with its secrets and the app registered at
-          # developers.naver.com (callback <origin>/2nd-B/oauth-callback), so the
-          # default is now "true". The button still needs EXPO_PUBLIC_NAVER_CLIENT_ID
-          # set below, since isNaverEnabled() gates on the id too. The '|| true'
-          # also keeps an unset Variable from feeding zod an empty string. Set the
-          # Variable to "false" to hide it on a deploy where the server is not ready.
-          EXPO_PUBLIC_ENABLE_NAVER: ${{ vars.EXPO_PUBLIC_ENABLE_NAVER || 'true' }}
+          # Naver social sign-up uses the custom oauth-naver Edge function. Keep
+          # the client off until the current migration, secrets, disabled Edge
+          # smoke, and server canary all pass. An unset Variable must fail closed.
+          EXPO_PUBLIC_ENABLE_NAVER: ${{ vars.EXPO_PUBLIC_ENABLE_NAVER || 'false' }}
           # Supabase-native social providers. Buttons show only when the provider
           # is actually enabled in the Supabase console AND the matching Variable
           # is "true". Simon confirmed Google/Kakao/GitHub are enabled server-side
@@ -345,7 +334,7 @@ jobs:
           EXPO_PUBLIC_ENABLE_APPLE: ${{ vars.EXPO_PUBLIC_ENABLE_APPLE || 'true' }}
           EXPO_PUBLIC_ENABLE_KAKAO: ${{ vars.EXPO_PUBLIC_ENABLE_KAKAO || 'true' }}
           EXPO_PUBLIC_ENABLE_GITHUB: ${{ vars.EXPO_PUBLIC_ENABLE_GITHUB || 'true' }}
-          EXPO_PUBLIC_NAVER_CLIENT_ID: ${{ vars.EXPO_PUBLIC_NAVER_CLIENT_ID || 'A1Su7C7EgyR49be6V4rT' }}
+          EXPO_PUBLIC_NAVER_CLIENT_ID: ${{ vars.EXPO_PUBLIC_NAVER_CLIENT_ID }}
           # Analytics (Simon directive 2026-06-11): the client code has been
           # consent-gated and wired since #258, but the build never injected
           # the ids, so live collection was a no-op. All optional: an unset
@@ -429,12 +418,21 @@ jobs:
           # paths. No manual sed patching needed (that only fixed asset URLs
           # and left the router unaware of the subpath — the root-URL 404 bug).
           npx expo export --platform web --output-dir dist
+          npm run build:static
 
       - name: Reject unsafe Pages artifact entries
         run: |
           set -euo pipefail
           if [ ! -d dist ]; then
             echo "::error::The Pages artifact directory is missing."
+            exit 1
+          fi
+          if [ ! -f dist/auth-bridge.html ] || [ -L dist/auth-bridge.html ]; then
+            echo "::error::The native auth bridge is missing from the Pages artifact."
+            exit 1
+          fi
+          if ! cmp -s -- public/auth-bridge.html dist/auth-bridge.html; then
+            echo "::error::The exported native auth bridge differs from its reviewed source."
             exit 1
           fi
           if [ -n "$(find dist -type l -print -quit)" ]; then

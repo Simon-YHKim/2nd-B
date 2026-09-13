@@ -6,6 +6,7 @@
 
 import type { AuditMeta } from "../llm/types";
 import { getSupabaseClient } from "./client";
+import { rpcWithCapturedSession } from "./captured-session-client";
 
 export interface AiAuditInsert extends AuditMeta {
   userId: string;
@@ -18,9 +19,12 @@ export interface AiAuditInsert extends AuditMeta {
 // path; meta.userId is kept on the type for callers but is NOT trusted/sent.
 // Prod web's authoritative row is still written server-side by gemini-proxy
 // (service_role), which bypasses RLS and is unaffected by the policy removal.
-export async function insertAiAuditLog(meta: AiAuditInsert): Promise<void> {
-  const supabase = getSupabaseClient();
-  const { error } = await supabase.rpc("log_ai_audit", {
+export async function insertAiAuditLog(
+  meta: AiAuditInsert,
+  accessToken?: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  const args = {
     p_prompt_hash: meta.promptHash,
     p_output_hash: meta.outputHash,
     p_model_used: meta.modelUsed,
@@ -35,6 +39,9 @@ export async function insertAiAuditLog(meta: AiAuditInsert): Promise<void> {
     p_purpose: meta.purpose ?? null,
     p_reasoning_vendor: meta.reasoningProvider ?? null,
     p_reasoning_effort: meta.effort ?? null,
-  });
+  };
+  const { error } = accessToken
+    ? await rpcWithCapturedSession("log_ai_audit", args, accessToken, signal)
+    : await getSupabaseClient().rpc("log_ai_audit", args);
   if (error) throw error;
 }

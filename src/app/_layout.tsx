@@ -40,6 +40,7 @@ import {
   setAnalyticsConsent,
 } from "@/lib/analytics";
 import { AuthProvider, useAuth } from "@/lib/auth/AuthContext";
+import { beginAccountSessionLease } from "@/lib/auth/account-session-lease";
 import { armWebRecoveryPendingFromLocation } from "@/lib/auth/recovery-proof-store";
 import { requiresGuardianConsent, resolveJurisdiction } from "@/lib/auth/consent-age";
 import { getSupabaseClient } from "@/lib/supabase/client";
@@ -47,6 +48,7 @@ import { flushAuditWriteOutbox } from "@/lib/llm/audit-write-outbox";
 import { ageInYears } from "@/lib/supabase/auth";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { InlineLoader } from "@/components/ui/InlineLoader";
+import { EncryptedStorageRecoveryGate } from "@/screens/deepspace/storage-recovery-gate";
 import { BackArrow } from "@/components/ui/BackArrow";
 import { BackgroundTaskDock, CompletionToast, SecondbHeadTrackProvider } from "@/components/deepspace";
 import { PremiumTabBar } from "@/components/premium";
@@ -85,7 +87,7 @@ export { ErrorBoundary } from "@/components/ui/RootErrorBoundary";
 // This runs before AuthProvider creates the lazy Supabase client. On web it
 // broadcasts a provisional cross-tab lock before auth-js mutates shared session
 // storage for a reset callback; non-callback routes are a no-op.
-armWebRecoveryPendingFromLocation();
+void armWebRecoveryPendingFromLocation().catch(() => undefined);
 initI18n();
 void initAnalytics();
 
@@ -486,6 +488,7 @@ function IntroGate({ children }: { children: React.ReactNode }) {
     recoveryUserId,
     recoveryReady,
     recoveryPendingGlobal,
+    storageRecoveryRequired,
   } = useAuth();
   const segments = useSegments();
   const pathname = usePathname();
@@ -514,6 +517,11 @@ function IntroGate({ children }: { children: React.ReactNode }) {
   // Supabase session and recovery marker have been reconciled. `introDone`
   // intentionally bypasses later profile re-probes, so this separate one-shot
   // readiness signal closes the restart window without re-showing the intro.
+  // Sentinel-proven key loss is a terminal UNKNOWN auth state, but unlike an
+  // ordinary bootstrap wait it requires a user decision. Render the explicit
+  // Pixel-Clay consent gate before recoveryReady's loader so it is reachable
+  // from every route and no authenticated screen remains mounted underneath.
+  if (storageRecoveryRequired) return <EncryptedStorageRecoveryGate />;
   if (!recoveryReady) return <InlineLoader />;
 
   // Recovery provenance survives restart and owns navigation globally. Exact
@@ -692,9 +700,21 @@ function AuditWriteOutboxSync(): null {
   const { userId, loading, recoveryUserId, recoveryPendingGlobal } = useAuth();
   useEffect(() => {
     if (loading || !userId || recoveryUserId || recoveryPendingGlobal) return;
+    const lifecycle = new AbortController();
 
     const flush = () => {
-      void flushAuditWriteOutbox(userId);
+      const pending = beginAccountSessionLease(userId, lifecycle.signal);
+      void pending.authenticate()
+        .then((session) => flushAuditWriteOutbox(userId, {
+          userId: session.userId,
+          accessToken: session.accessToken,
+          signal: session.signal,
+          assertCurrent: session.assertCurrent,
+        }))
+        .catch(() => {
+          // Account transitions and offline auth reads leave rows queued.
+        })
+        .finally(() => pending.release());
     };
 
     flush();
@@ -704,11 +724,13 @@ function AuditWriteOutboxSync(): null {
     if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
       window.addEventListener("online", flush);
       return () => {
+        lifecycle.abort();
         appStateSub.remove();
         window.removeEventListener("online", flush);
       };
     }
     return () => {
+      lifecycle.abort();
       appStateSub.remove();
     };
   }, [loading, recoveryPendingGlobal, recoveryUserId, userId]);

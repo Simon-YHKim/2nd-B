@@ -112,6 +112,15 @@ describe("sign-up action ownership", () => {
     expect(callback).toContain("setConfirmVerifying(false)");
     expect(hook).toContain("consumedUrlRef.current === deepLinkUrl");
   });
+
+  test("native sign-up callbacks never accept bearer tokens from the URL", () => {
+    const callback = hook.slice(
+      hook.indexOf("// Supabase's detectSessionInUrl handles web confirmation links."),
+      hook.indexOf("// Stage 3 (O-31)"),
+    );
+    expect(callback).toContain("(?:code|error_code)");
+    expect(callback).not.toContain("access_token");
+  });
 });
 
 describe("PIXEL-CLAY sign-up renderer", () => {
@@ -257,7 +266,9 @@ describe("sign-up authority and preservation boundaries", () => {
   // 2026-09-07: dds-auth-screens digest 하나만 재고정했다. ConsentCheckRow 에
   // 웹 스페이스키 배선(import 1 + prop 1)이 들어갔기 때문이다. legacy · styles ·
   // ConsentNotice · BirthDateField 넷은 값이 그대로 = 안 건드렸다.
-  test("legacy renderer, styles, giant auth renderer, and shared form components are unchanged", () => {
+  // 2026-09-13: dds-auth-screens 에 reset-password bootstrap 재시도 표면만
+  // 추가해 그 digest 만 재고정했다. 나머지 네 경계는 그대로다.
+  test("preserves legacy renderer and shared form boundaries while pinning the auth renderer", () => {
     // 대상만 아카이브로 옮겼다. **digest 는 한 글자도 안 바꿨다** — 같은 마커,
     // 같은 해시, 다른 파일이면 옮기면서 고치지 않았다는 증거가 된다.
     const legacy = legacyArchive.slice(
@@ -271,7 +282,7 @@ describe("sign-up authority and preservation boundaries", () => {
     expect(sha256(legacy)).toBe("630043be84f94b1b90bfa3a932c98cd4f3886f9e92a44a35fb5487298f782904");
     expect(sha256(styles)).toBe("5df5b8ca23806eb75662a694220d7b48f31351aacfb8d8bf476d66b98a83508e");
     expect(sha256(read("src/screens/deepspace/dds-auth-screens.tsx"))).toBe(
-      "c998af24b438c9b3ffb04b487a9b0727e319e86041840a09cac0b0e7be8f892b",
+      "685731b74aae005916c3446fae3c22924388eee96f2e42e80373889df91bec1b",
     );
     expect(sha256(read("src/components/consent/ConsentNotice.tsx"))).toBe(
       "60a019c22ceec84ad550f06568763225b82839bc0e743f382aabea233e4ae170",

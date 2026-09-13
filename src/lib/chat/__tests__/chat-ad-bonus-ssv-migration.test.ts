@@ -50,11 +50,17 @@ describe("0091_chat_ad_bonus_ssv.sql - structure", () => {
 });
 
 describe("rewarded-ssv edge function - kind routing", () => {
-  test("routes custom_data '<userId>|chat' to the 0091 RPC, bare custom_data to reasoning", () => {
-    expect(edge).toMatch(/rawCustom\.split\('\|'\)/);
-    expect(edge).toMatch(/kindRaw === 'chat' \? 'chat' : 'reasoning'/);
-    expect(edge).toMatch(/grant_chat_ad_bonus_ssv/);
-    expect(edge).toMatch(/grant_reward_credits_ssv/); // reasoning path untouched
+  test("delegates opaque ticket resolution and kind routing to one atomic RPC", () => {
+    const settleAt = edge.indexOf("settle_reward_ssv_ticket_v2");
+
+    expect(settleAt).toBeGreaterThan(0);
+    expect(edge).not.toContain("callbackUserId");
+    expect(edge).not.toContain("p_callback_user_id");
+    expect(edge).not.toMatch(/grant_chat_ad_bonus_ssv/);
+    expect(edge).not.toMatch(/grant_reward_credits_ssv/);
+    expect(edge).not.toMatch(/consume_reward_ssv_ticket_v2/);
+    expect(edge).not.toMatch(/rawCustom\.split\('\|'\)/);
+    expect(edge).not.toMatch(/kindRaw === 'chat'/);
   });
 
   test("stays fail-closed behind REWARD_SSV_ENABLED", () => {

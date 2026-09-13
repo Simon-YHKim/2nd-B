@@ -137,8 +137,8 @@ export function useSignInForm(): UseSignInForm {
     [t],
   );
 
-  // Naver uses a custom redirect (not Supabase-native), so it has its own
-  // handler. Native awaits the browser bridge; web navigates immediately.
+  // Naver uses a custom web redirect (not Supabase-native), so it has its own
+  // handler. isNaverEnabled() keeps it hidden on native.
   const handleNaver = useCallback(async () => {
     setOauthSubmitting(true);
     try {

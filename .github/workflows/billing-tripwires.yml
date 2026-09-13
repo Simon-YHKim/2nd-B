@@ -73,6 +73,14 @@ jobs:
                  (select count(*) from public.paddle_webhook_events where refund_review),
                  (select count(*) from public.paddle_webhook_events where stale_entitlement),
                  (select count(*) from public.paddle_webhook_events where raw_payload is not null),
+                 (select count(*) from public.paddle_webhook_events e
+                    where e.refund_review
+                      and (
+                        coalesce(to_jsonb(e)->>'paddle_adjustment_action', e.raw_payload#>>'{data,action}')
+                          in ('chargeback_reverse', 'chargeback_warning_reverse')
+                        or coalesce(to_jsonb(e)->>'paddle_adjustment_status', e.raw_payload#>>'{data,status}')
+                          = 'reversed'
+                      )),
                  (select count(*) from public.credit_counter_drift),
                  (select count(*) from public.credit_balance_drift),
                  (select count(*) from (
@@ -91,7 +99,7 @@ jobs:
             exit 1
           }
 
-          IFS='|' read -r CONFLICT STUCK REVIEW STALE UNHANDLED CDRIFT BDRIFT VENDORFAIL <<< "$ROW"
+          IFS='|' read -r CONFLICT STUCK REVIEW STALE UNHANDLED REVERSAL CDRIFT BDRIFT VENDORFAIL <<< "$ROW"
 
           : > report.md
           row () { # label, count, meaning
@@ -107,6 +115,7 @@ jobs:
           row "refund_review"     "$REVIEW"   "환불을 기록만 하고 결과 처리를 사람에게 넘긴 건 (팩 부분환불 등)"
           row "stale_entitlement" "$STALE"    "이벤트가 순서를 거슬러 도착해 등급 기록을 건너뛰었다"
           row "unhandled_events"  "$UNHANDLED" "우리가 처리하지 않는 웹훅 이벤트의 페이로드가 보관돼 있다"
+          row "reversal_review"   "$REVERSAL" "환불·차지백 reversal 뒤 권한 복구 또는 수동 조정이 남아 있다"
           row "credit_counter_drift" "$CDRIFT" "usage_counters 미러가 원장과 어긋난다"
           row "credit_balance_drift" "$BDRIFT" "credit_balance 캐시가 원장과 어긋난다"
           # REQ-260824-01. Counts (vendor, purpose) pairs that failed 3+ times in
@@ -119,7 +128,9 @@ jobs:
 
           TOTAL=$(( CONFLICT + STUCK + REVIEW + STALE + UNHANDLED + CDRIFT + BDRIFT + VENDORFAIL ))
           echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
-          echo "money=$(( CONFLICT + STUCK ))" >> "$GITHUB_OUTPUT"
+          # REVERSAL is already a subset of REVIEW, so TOTAL must not add it a
+          # second time. It is money-shaped and does make the issue title loud.
+          echo "money=$(( CONFLICT + STUCK + REVERSAL ))" >> "$GITHUB_OUTPUT"
 
       - name: Write the summary
         run: |
@@ -136,9 +147,13 @@ jobs:
             echo "행을 직접 보려면:"
             echo ""
             echo '```sql'
-            echo "select event_id, event_type, occurred_at, provider, provider_conflict, refund_review, stale_entitlement"
+            echo "select event_id, event_type, user_id, paddle_transaction_id, occurred_at, provider, provider_conflict, refund_review, stale_entitlement, raw_payload is not null as has_raw_payload,"
+            echo "       to_jsonb(paddle_webhook_events)->>'paddle_adjustment_id' as paddle_adjustment_id,"
+            echo "       to_jsonb(paddle_webhook_events)->>'paddle_adjustment_action' as paddle_adjustment_action,"
+            echo "       to_jsonb(paddle_webhook_events)->>'paddle_adjustment_status' as paddle_adjustment_status,"
+            echo "       to_jsonb(paddle_webhook_events)->>'billing_review_reason' as billing_review_reason"
             echo "  from public.paddle_webhook_events"
-            echo " where provider_conflict or refund_review or stale_entitlement"
+            echo " where provider_conflict or refund_review or stale_entitlement or raw_payload is not null"
             echo " order by occurred_at desc limit 50;"
             echo ""
             echo "select id, user_id, action, outcome, created_at from public.billing_self_service_log"

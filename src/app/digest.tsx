@@ -5,7 +5,7 @@
 // records so you confirm what is true. No LLM call here: it only reads the
 // already-stored inferred links and writes the user's verdict.
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { View, StyleSheet, ScrollView, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
@@ -132,21 +132,28 @@ export default function Digest() {
   const [reminderFailed, setReminderFailed] = useState(false);
   // 알림 시각 (Simon 결정 B3). 지금까지 09:00 하드코딩이었다.
   const [reminderHour, setReminderHour] = useState(9);
+  const reminderOwnerRef = useRef(userId);
+  reminderOwnerRef.current = userId;
 
   useEffect(() => {
-    if (!remindersOk) return;
-    void loadDailyReviewHour().then(setReminderHour);
+    if (!remindersOk || !userId) return;
+    const ownerId = userId;
     let cancelled = false;
-    void loadDailyReviewEnabled().then((on) => {
+    void loadDailyReviewHour(ownerId).then((hour) => {
+      if (!cancelled) setReminderHour(hour);
+    });
+    void loadDailyReviewEnabled(ownerId).then((on) => {
       if (!cancelled) setReminderOn(on);
     });
     return () => {
       cancelled = true;
     };
-  }, [remindersOk]);
+  }, [remindersOk, userId]);
 
   const toggleReminder = useCallback(
     async (next: boolean) => {
+      if (!userId) return;
+      const ownerId = userId;
       setReminderBusy(true);
       setReminderDenied(false);
       setReminderFailed(false);
@@ -154,11 +161,11 @@ export default function Digest() {
         if (next) {
           const title = t("digest.title");
           const body = t("digest.reminder.notifBody");
-          const res = await scheduleDailyReview(reminderHour, 0, title, body);
+          const res = await scheduleDailyReview(ownerId, reminderHour, 0, title, body);
           if (res === "scheduled") {
-            setReminderOn(true);
-            setDailyReviewEnabledPref(true);
-          } else if (res === "denied") {
+            const persisted = await setDailyReviewEnabledPref(ownerId, true);
+            if (persisted && reminderOwnerRef.current === ownerId) setReminderOn(true);
+          } else if (res === "denied" && reminderOwnerRef.current === ownerId) {
             setReminderDenied(true);
           }
         } else {
@@ -170,31 +177,34 @@ export default function Digest() {
           // would leave the toggle permanently stuck on.
           //
           // The branch above already reads this kind of result. This one did not.
-          const res = await cancelDailyReview();
+          const res = await cancelDailyReview(ownerId);
           if (res === "error") {
-            setReminderFailed(true);
+            if (reminderOwnerRef.current === ownerId) setReminderFailed(true);
           } else {
-            setReminderOn(false);
-            setDailyReviewEnabledPref(false);
+            const persisted = await setDailyReviewEnabledPref(ownerId, false);
+            if (persisted && reminderOwnerRef.current === ownerId) setReminderOn(false);
           }
         }
       } finally {
-        setReminderBusy(false);
+        if (reminderOwnerRef.current === ownerId) setReminderBusy(false);
       }
     },
-    [t],
+    [reminderHour, t, userId],
   );
 
   // 시각을 바꾸면 이미 걸린 알림을 다시 건다. `scheduleDailyReview` 가 같은
   // identifier 로 취소 후 재예약하므로 알림이 쌓이지 않는다.
   const pickReminderHour = useCallback(
     async (hour: number) => {
+      if (!userId) return;
+      const ownerId = userId;
       if (hour === reminderHour) return;
       const previous = reminderHour;
       setReminderDenied(false);
       setReminderFailed(false);
       setReminderHour(hour);
-      setDailyReviewHourPref(hour);
+      const persisted = await setDailyReviewHourPref(ownerId, hour);
+      if (!persisted) return;
       if (!reminderOn) return;
       setReminderBusy(true);
       try {
@@ -203,18 +213,22 @@ export default function Digest() {
         // time, and a screen showing a time the reminder will not arrive at is
         // worse than one that admits the change failed. "unavailable" is not a
         // failure here either - there is no OS schedule to contradict.
-        const res = await scheduleDailyReview(hour, 0, t("digest.title"), t("digest.reminder.notifBody"));
-        if (res !== "scheduled" && res !== "unavailable") {
+        const res = await scheduleDailyReview(ownerId, hour, 0, t("digest.title"), t("digest.reminder.notifBody"));
+        if (
+          res !== "scheduled"
+          && res !== "unavailable"
+          && reminderOwnerRef.current === ownerId
+        ) {
           setReminderHour(previous);
-          setDailyReviewHourPref(previous);
+          await setDailyReviewHourPref(ownerId, previous);
           if (res === "denied") setReminderDenied(true);
           else setReminderFailed(true);
         }
       } finally {
-        setReminderBusy(false);
+        if (reminderOwnerRef.current === ownerId) setReminderBusy(false);
       }
     },
-    [reminderHour, reminderOn, t],
+    [reminderHour, reminderOn, t, userId],
   );
 
   if (loading) return <InlineLoader />;

@@ -21,9 +21,12 @@
 ### GitHub Secrets
 - `EXPO_TOKEN` — 기존 등록·검증됨(EAS Update OTA용).
 
-### Supabase Edge Function Secrets (서버측, 콘솔에 저장 완료)
+### Supabase Edge Function Secrets (서버측, 활성화 전 콘솔 이름 재확인)
 - `KAKAO_REST_API_KEY` — 카카오 REST 키(Local 키워드 장소검색용)
-- `NAVER_OAUTH_CLIENT_SECRET` — 네이버 로그인용 secret
+- `NAVER_CLIENT_SECRET` — 네이버 로그인용 secret. `oauth-naver` 런타임이 읽는 정확한 이름이다.
+  과거 재고의 `NAVER_OAUTH_CLIENT_SECRET` 이름은 런타임이 읽지 않으므로 값 조회 없이
+  콘솔의 secret 이름 목록에서 확인하고 필요하면 복사/교체해야 한다. 값 자체는 조회하지
+  않으며, 실제 유효성은 DB/Edge 준비 뒤 제한된 server canary에서만 확인한다.
 - `NAVER_SEARCH_CLIENT_ID` = `A1Su7C7EgyR49be6V4rT`
 - `NAVER_SEARCH_CLIENT_SECRET` — 네이버 검색용 secret (단일 앱이라 OAUTH secret과 동일 값)
 
@@ -33,7 +36,8 @@
 
 ### 콘솔 앱
 - Kakao 앱 ID `1496341`, 카카오 로그인 ON, Redirect URI 2개(GitHub Pages + Supabase 콜백) 등록, Local API는 REST 키로 바로 사용 가능.
-- Naver 앱(`A1Su7C7EgyR49be6V4rT`): 네이버 로그인 + 검색 API 사용 설정. (Callback URL 2개 — Simon이 콘솔에서 확인 중)
+- Naver 앱(`A1Su7C7EgyR49be6V4rT`): 네이버 로그인 + 검색 API 사용 설정. 로그인 callback은
+  정확히 `https://simon-yhkim.github.io/2nd-B/oauth-callback`만 허용해야 하며 현재 콘솔 재확인 전이다.
 
 ---
 
@@ -48,10 +52,21 @@
 - 두 소스 결과를 공통 스키마로 정규화해 반환. 시크릿은 Deno.env에서 읽기(클라이언트 노출 금지).
 
 ### 2. `oauth-naver` 엣지 함수 (네이버 로그인 code→token 교환)
-- 앱 → `https://nid.naver.com/oauth2.0/authorize?...redirect_uri=https://simon-yhkim.github.io/2nd-B/oauth-callback&state=...`
-- 콜백 페이지 → `oauth-naver` 호출 → `POST https://nid.naver.com/oauth2.0/token` (client_id=`NAVER_SEARCH_CLIENT_ID`, client_secret=`NAVER_OAUTH_CLIENT_SECRET`, code, state)
-- 프로필 `GET https://openapi.naver.com/v1/nid/me` → Supabase 세션 연결(자체 사용자 매핑).
-- **배포 완료 후에만** `EXPO_PUBLIC_ENABLE_NAVER=true` 설정(내가/Simon). state·CSRF 검증 필수.
+- 먼저 `0183_oauth_naver_rate_limit.sql`을 적용하고, 번호를 예약한
+  `UNNUMBERED_oauth_naver_rate_limit_completion.sql` forward migration을 적용한다. 후자는 임의
+  state별 DB 행 증폭을 제거하고 global/peer/subject quota와 bounded cleanup을 추가한다. 앱은 `oauth-naver`의 `start`
+  action이 발급한 일회용 state와 고정 authorize URL만 사용한다.
+- 콜백 페이지 → `oauth-naver`의 `exchange` action → 고정
+  `POST https://nid.naver.com/oauth2.0/token` (`NAVER_CLIENT_ID`,
+  `NAVER_CLIENT_SECRET`, code, state). provider token은 함수 밖으로 반환하지 않는다.
+- `NAVER_OAUTH_HMAC_PEPPER`는 별도의 안정적인 32-byte 이상 secret으로 설정한다.
+  state/peer/subject는 이 키의 HMAC fingerprint만 DB에 저장한다.
+- 프로필 `GET https://openapi.naver.com/v1/nid/me` → private subject mapping으로 Supabase
+  Auth user를 연결한다. 이메일 검색/자동 연결은 하지 않으며 신규 Auth email은 provider
+  email 대신 HMAC 기반 `@naver.invalid` alias를 사용한다.
+- 이 흐름에 사용할 수 있는 Naver PKCE 계약이 없으므로 현재는 web-only다. localhost와
+  custom scheme은 허용하지 않는다. migration·exact HTTPS callback·정확한 secret 이름·함수
+  배포와 disabled smoke를 모두 확인한 뒤 server gate, web canary, client gate 순서로 켠다.
 
 ### 3. FX edge proxy 하드닝 (수출입은행)
 - `GET https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON?authkey=${KEY}&data=AP01`

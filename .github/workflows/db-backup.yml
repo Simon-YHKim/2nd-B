@@ -6,10 +6,16 @@ name: DB backup (daily encrypted pg_dump)
 # repo is public and workflow artifacts are downloadable by anyone with read
 # access -- plaintext user data must never land in an artifact.
 #
-# Required repository secrets (Settings > Secrets and variables > Actions):
-#   SUPABASE_DB_URL        postgresql://postgres.zoacryukmdeivmolvyhj:...@aws-1-ap-northeast-2.pooler.supabase.com:5432/postgres
+# Required Backup environment secrets:
+#   BACKUP_PGDUMP_DATABASE_URL        dedicated least-privilege pg_dump role URI
 #   Copy the Session pooler URI from Supabase Connect because the Direct host is IPv6-only and GitHub-hosted runners need IPv4.
-#   BACKUP_AGE_PUBLIC_KEY  "age1..." public key (private key stays with Simon, never committed)
+#   BACKUP_PGDUMP_AGE_PUBLIC_KEY      "age1..." public key (private key stays with Simon, never committed)
+#
+# Backup must be configured as an exact-main environment without required
+# reviewers so the daily schedule remains automatic. Until that environment and
+# both secrets are provisioned, this workflow intentionally fails closed. GitHub
+# secret scope and read-only audit commands are documented in
+# docs/GITHUB-ACTIONS-CREDENTIAL-BOUNDARIES.md.
 #
 # Restore drill (locally, with the private key file backup_age.key):
 #   age -d -i backup_age.key db-YYYYMMDDTHHMMSSZ.dump.age > db.dump
@@ -29,9 +35,39 @@ concurrency:
 
 jobs:
   dump:
+    if: ${{ github.repository == 'Simon-YHKim/2nd-B' && github.ref == 'refs/heads/main' }}
+    environment: Backup
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      - name: Checkout trusted revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Gate trusted current origin/main
+        env:
+          RUN_REPOSITORY: ${{ github.repository }}
+          RUN_REF: ${{ github.ref }}
+          RUN_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ "$RUN_REPOSITORY" != "Simon-YHKim/2nd-B" ] || [ "$RUN_REF" != "refs/heads/main" ]; then
+            echo "::error::DB backup requires the owner repository's refs/heads/main."
+            exit 1
+          fi
+          if ! git fetch --no-tags --depth=1 origin '+refs/heads/main:refs/remotes/origin/main' >/dev/null 2>&1; then
+            echo "::error::Could not refresh origin/main before database credential access."
+            exit 1
+          fi
+          HEAD_SHA="$(git rev-parse HEAD)"
+          REMOTE_MAIN_SHA="$(git rev-parse refs/remotes/origin/main)"
+          if [ "$HEAD_SHA" != "$RUN_SHA" ] || [ "$REMOTE_MAIN_SHA" != "$RUN_SHA" ]; then
+            echo "::error::DB backup run is not the current origin/main head."
+            exit 1
+          fi
+
       - name: Install postgresql-client-17 and age
         run: |
           set -euo pipefail
@@ -43,14 +79,35 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y postgresql-client-17
 
-      - name: Dump and encrypt
+      - name: Recheck current main before backup credentials
         env:
-          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-          AGE_PUBLIC_KEY: ${{ secrets.BACKUP_AGE_PUBLIC_KEY }}
+          RUN_REF: ${{ github.ref }}
+          RUN_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          if [ -z "$DB_URL" ] || [ -z "$AGE_PUBLIC_KEY" ]; then
-            echo "Missing SUPABASE_DB_URL or BACKUP_AGE_PUBLIC_KEY secret" >&2
+          if [ "$RUN_REF" != "refs/heads/main" ]; then
+            echo "::error::Backup credentials are restricted to refs/heads/main."
+            exit 1
+          fi
+          if ! git fetch --no-tags --depth=1 origin '+refs/heads/main:refs/remotes/origin/main' >/dev/null 2>&1; then
+            echo "::error::Could not refresh origin/main before backup credentials."
+            exit 1
+          fi
+          HEAD_SHA="$(git rev-parse HEAD)"
+          REMOTE_MAIN_SHA="$(git rev-parse refs/remotes/origin/main)"
+          if [ "$HEAD_SHA" != "$RUN_SHA" ] || [ "$REMOTE_MAIN_SHA" != "$RUN_SHA" ]; then
+            echo "::error::origin/main advanced before backup credentials."
+            exit 1
+          fi
+
+      - name: Dump and encrypt
+        env:
+          DB_URL: ${{ secrets.BACKUP_PGDUMP_DATABASE_URL }}
+          AGE_PUBLIC_KEY: ${{ secrets.BACKUP_PGDUMP_AGE_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DB_URL:-}" ] || [ -z "${AGE_PUBLIC_KEY:-}" ]; then
+            echo "Missing BACKUP_PGDUMP_DATABASE_URL or BACKUP_PGDUMP_AGE_PUBLIC_KEY environment secret" >&2
             exit 1
           fi
           # The secret is pasted by hand, and a copied connection string very
@@ -82,7 +139,7 @@ jobs:
           ls -lh db-*.age
 
       - name: Upload encrypted artifact (14-day retention)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: db-backup-${{ github.run_id }}
           path: "*.age"
