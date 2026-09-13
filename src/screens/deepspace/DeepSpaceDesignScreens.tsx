@@ -146,24 +146,15 @@ import {
 } from "@/lib/ops/pomodoro";
 import { OPS_DAILY_LIMIT, bumpOpsUsage, readOpsUsage } from "@/lib/ops/usage";
 import {
-  deleteSource,
   listAllWikiLinks,
   listInferredLinkDetails,
-  listSources,
   listWikiPages,
   ratifyLink,
   rejectInferredLink,
-  updateSourceTags,
   type InferredLinkDetail,
 } from "@/lib/wiki/queries";
-import { generateSourcePage } from "@/lib/wiki/phase2";
-import { runPhase1 } from "@/lib/wiki/phase1";
-import { suggestedTags } from "@/lib/wiki/suggest-tags";
 import { exportUserWiki } from "@/lib/wiki/export";
 import { backfillEmbeddings, proposeAllRelatedLinks } from "@/lib/wiki/embeddings";
-import { captureFromMarkdown } from "@/lib/wiki/capture";
-import { pickImportFiles } from "@/lib/wiki/capture-file";
-import { splitImportNotes, previewTitle } from "@/lib/wiki/import-notes";
 import { exportIden } from "@/lib/iden/iden-export";
 import { buildIdenDoc } from "@/lib/iden/build-iden";
 import { listRecentRecords } from "@/lib/records/create";
