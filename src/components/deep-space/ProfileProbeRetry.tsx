@@ -43,8 +43,11 @@ function backOrHome(): void {
  * (`JWT issued at future`) · 권한 · 서버 오류도 있어서, 처음 쓰던 연결 문구("인터넷 상태를
  * 확인해 주세요")는 사람에게 맞지 않는 조치를 시켰다(r3a 게이트 발견). 원격 오류 원문은
  * 화면에 올리지 않는다.
+ *
+ * ProfileProbeRetryScreen 안에서만 그린다. 내보내지 않는다 - 화면마다 이 패널을 제 틀에
+ * 따로 감싸면 틀(도크를 달지)을 다시 고르게 되고, 그게 이번 게이트 발견의 출발점이었다.
  */
-export function ProfileProbeRetryPanel() {
+function ProfileProbeRetryPanel() {
   const { t } = useTranslation(["common"]);
   const { refresh } = useAuth();
   const [pending, setPending] = useState<"retry" | "signOut" | null>(null);

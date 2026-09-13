@@ -36,8 +36,8 @@ const LOADER_TAGS = new Set([
   "LoadingSurface",
   "LoadingScreen",
 ]);
-/** 공용 다시 시도 부품(src/components/deep-space/ProfileProbeRetry.tsx). */
-const RETRY_TAGS = new Set(["ProfileProbeRetryScreen", "ProfileProbeRetryPanel"]);
+/** 공용 다시 시도 화면(src/components/deep-space/ProfileProbeRetry.tsx). 패널은 그 화면 안에만 있다. */
+const RETRY_TAGS = new Set(["ProfileProbeRetryScreen"]);
 /** 화면마다 제 부품으로 다시 시도를 주는 경우(/audit 의 StatePanel onRetry 등). */
 const ACTION_ATTRS = new Set(["onRetry", "onAction", "onPress"]);
 
