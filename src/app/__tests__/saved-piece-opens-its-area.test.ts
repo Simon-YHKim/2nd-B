@@ -130,8 +130,12 @@ describe("/capture 저장 후 버튼", () => {
 });
 
 describe("배송 기록 상세의 영역 버튼", () => {
-  test("영역 태그가 있을 때만 보인다", () => {
-    expect(DETAIL).toContain("const area = lifeDomainOf(piece.tags);");
+  // P1 후속 (2026-09-14): /capture 의 기록 저장은 collect 로도 보내는데(Simon 결정 01:45) 상세는 생활 영역만
+  // 봤다. 담아내기에 담긴 기록은 저장 후 버튼으로 /star/collect 카드까지 가고, 그 카드에서 연 상세에는 영역
+  // 버튼이 없었다. 상세의 옮기기 목록은 일곱 영역 전부라 담아내기로 옮기면 버튼이 사라지기도 했다.
+  test("domain: 태그가 가리키는 영역이 있을 때만 보인다 (collect 포함, /capture 기록 저장과 같은 규칙)", () => {
+    expect(DETAIL).toContain("const area = filedDomainOf(piece.tags);");
+    expect(DETAIL).not.toContain("lifeDomainOf");
     expect(DETAIL).toContain("{area ? (");
   });
 

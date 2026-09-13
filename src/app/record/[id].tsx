@@ -25,7 +25,7 @@ import {
   type EvidenceType,
 } from "@/lib/persona/evidence";
 import { summarizeAssessmentBody } from "@/lib/persona/assessment-summary";
-import { domainScreenRoute, lifeDomainOf } from "@/lib/records/domain-screen";
+import { domainScreenRoute, filedDomainOf } from "@/lib/records/domain-screen";
 import { normalizeRecordFollowup, type RecordFollowup } from "@/lib/records/followup";
 import { pieceIdFor } from "@/lib/records/get-piece";
 import { getSupabaseClient } from "@/lib/supabase/client";
@@ -152,9 +152,10 @@ function RecordDetailLegacy() {
   // Assessment records (MBTI/Big Five/ECR) store a JSON body - render it as
   // friendly label/value lines instead of dumping raw JSON at the user.
   const assessment = summarizeAssessmentBody(row.body, locale);
-  // P1 (Simon 결정 2026-09-13 22:26): 배송 기록 상세와 같은 규칙. 영역 태그가 있으면 그 영역
-  // 화면에서 이 조각을 보여주고, 없으면 버튼을 안 띄운다.
-  const area = lifeDomainOf(row.tags);
+  // P1 (Simon 결정 2026-09-13 22:26): 배송 기록 상세와 같은 규칙. domain: 태그가 가리키는 영역
+  // (담아내기 포함, P1 후속 2026-09-14)이 있으면 그 영역 화면에서 이 조각을 보여주고, 없으면
+  // 버튼을 안 띄운다.
+  const area = filedDomainOf(row.tags);
 
   return (
     <PremiumAppShell>

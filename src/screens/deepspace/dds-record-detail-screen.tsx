@@ -41,7 +41,7 @@ import {
   updateRecord,
   updateRecordTags,
 } from "@/lib/records/create";
-import { domainScreenRoute, lifeDomainOf } from "@/lib/records/domain-screen";
+import { domainScreenRoute, filedDomainOf } from "@/lib/records/domain-screen";
 import { getPieceById, pieceIdFor, SOURCE_ID_PREFIX, type PieceDetail } from "@/lib/records/get-piece";
 import {
   recordsEmbeddingAllowed,
@@ -842,10 +842,13 @@ export function DeepSpaceRecordDetailScreen() {
         : t("deepspace:recordDetail.headerAlone");
   const source = piece.origin === "source";
   // P1 (Simon 결정 2026-09-13 22:26): 이 조각이 담긴 영역 화면에서 이 조각을 보여준다.
-  // 영역 태그가 없으면(collect · 태그 없음) 갈 곳이 없으니 버튼을 안 띄운다. 해석은
-  // recordDomain 이다 - 도메인 옮기기의 canonicalDomain 과 달리 대소문자를 가리는데,
-  // 영역 화면의 목록도 domain:<id> 를 정확히 맞춰 읽기 때문이다.
-  const area = lifeDomainOf(piece.tags);
+  // 규칙은 /capture 기록 저장의 버튼과 같다 - domain: 태그가 가리키는 영역이면 담아내기(collect)
+  // 로도 간다. 기록 저장이 collect 로도 보내고(Simon 결정 2026-09-14 01:45) 아래 옮기기 목록도
+  // 일곱 영역 전부라, 생활 영역만 보면 담아내기에 담긴 기록에서만 버튼이 사라졌다(P1 후속, 2026-09-14).
+  // domain: 태그가 없으면 갈 곳이 없으니 버튼을 안 띄운다. 해석은 recordDomain 이다 - 도메인
+  // 옮기기의 canonicalDomain 과 달리 대소문자를 가리는데, 영역 화면의 목록도 domain:<id> 를
+  // 정확히 맞춰 읽기 때문이다.
+  const area = filedDomainOf(piece.tags);
   const areaName = area ? t(`home:ds.home.domainName.${area}`) : "";
   const fallbackBody = t("recordDetail:body.noText");
   const secondaryBody = piece.conclusion?.trim() || null;
