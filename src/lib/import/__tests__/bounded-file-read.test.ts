@@ -1,7 +1,9 @@
 import {
   BoundedFileReadError,
   MAX_BOUNDED_FILE_BYTES,
+  fetchBoundedLocalBytes,
   fetchBoundedLocalUtf8,
+  readBoundedByteResponse,
   readBoundedUtf8Blob,
   readBoundedUtf8Response,
   readBoundedUtf8Stream,
@@ -13,7 +15,9 @@ function streamFrom(chunks: Uint8Array[]): ReadableStream<Uint8Array> {
     getReader: () => ({
       read: jest.fn(() =>
         Promise.resolve(
-          index < chunks.length ? { done: false, value: chunks[index++] } : { done: true, value: undefined },
+          index < chunks.length
+            ? { done: false, value: chunks[index++] }
+            : { done: true, value: undefined },
         ),
       ),
       cancel: jest.fn(() => Promise.resolve()),
@@ -33,6 +37,15 @@ function responseWith(
     headers: { get: jest.fn(() => contentLength) },
     arrayBuffer,
   } as unknown as Response;
+}
+
+function installLocationOrigin(origin: string): () => void {
+  const original = Object.getOwnPropertyDescriptor(globalThis, "location");
+  Object.defineProperty(globalThis, "location", { configurable: true, value: { origin } });
+  return () => {
+    if (original) Object.defineProperty(globalThis, "location", original);
+    else Reflect.deleteProperty(globalThis, "location");
+  };
 }
 
 describe("bounded UTF-8 file reads", () => {
@@ -63,13 +76,18 @@ describe("bounded UTF-8 file reads", () => {
   test("fatally rejects malformed UTF-8", async () => {
     const malformed = streamFrom([new Uint8Array([0xc3, 0x28])]);
 
-    await expect(readBoundedUtf8Stream(malformed)).rejects.toMatchObject<Partial<BoundedFileReadError>>({
+    await expect(readBoundedUtf8Stream(malformed)).rejects.toMatchObject<
+      Partial<BoundedFileReadError>
+    >({
       code: "invalid_encoding",
     });
   });
 
   test("decodes a multibyte character split across stream chunks", async () => {
-    const split = streamFrom([new Uint8Array([0xed, 0x95]), new Uint8Array([0x9c, 0xea, 0xb8, 0x80])]);
+    const split = streamFrom([
+      new Uint8Array([0xed, 0x95]),
+      new Uint8Array([0x9c, 0xea, 0xb8, 0x80]),
+    ]);
 
     await expect(readBoundedUtf8Stream(split, { declaredBytes: 6 })).resolves.toBe("한글");
   });
@@ -124,7 +142,9 @@ describe("bounded UTF-8 file reads", () => {
       }),
     } as unknown as ReadableStream<Uint8Array>;
 
-    await expect(readBoundedUtf8Stream(stream, { maxBytes: 1, timeoutMs: 1 })).rejects.toMatchObject({
+    await expect(
+      readBoundedUtf8Stream(stream, { maxBytes: 1, timeoutMs: 1 }),
+    ).rejects.toMatchObject({
       code: expect.stringMatching(/^(read_failed|timed_out)$/),
     });
     expect(reads).toBeLessThan(250_000);
@@ -238,7 +258,9 @@ describe("bounded UTF-8 file reads", () => {
   test("rejects content-length mismatches after a streamed read", async () => {
     const response = responseWith(streamFrom([new Uint8Array([111, 107])]), "3");
 
-    await expect(readBoundedUtf8Response(response)).rejects.toMatchObject<Partial<BoundedFileReadError>>({
+    await expect(readBoundedUtf8Response(response)).rejects.toMatchObject<
+      Partial<BoundedFileReadError>
+    >({
       code: "size_mismatch",
     });
   });
@@ -247,7 +269,9 @@ describe("bounded UTF-8 file reads", () => {
     const arrayBuffer = jest.fn(() => Promise.resolve(new Uint8Array([97, 98, 99]).buffer));
     const response = responseWith(null, "3", arrayBuffer);
 
-    await expect(readBoundedUtf8Response(response)).rejects.toMatchObject<Partial<BoundedFileReadError>>({
+    await expect(readBoundedUtf8Response(response)).rejects.toMatchObject<
+      Partial<BoundedFileReadError>
+    >({
       code: "unverifiable_size",
     });
     expect(arrayBuffer).not.toHaveBeenCalled();
@@ -308,6 +332,37 @@ describe("bounded UTF-8 file reads", () => {
   });
 });
 
+describe("bounded raw byte reads", () => {
+  test("fails closed on a zero-progress byte stream", async () => {
+    let reads = 0;
+    const stream = {
+      getReader: () => ({
+        read: () => {
+          reads += 1;
+          return Promise.resolve({ done: false, value: new Uint8Array(0) });
+        },
+        cancel: jest.fn(() => Promise.resolve()),
+        releaseLock: jest.fn(),
+      }),
+    } as unknown as ReadableStream<Uint8Array>;
+
+    await expect(
+      readBoundedByteResponse(responseWith(stream), { maxBytes: 1, timeoutMs: 60_000 }),
+    ).rejects.toMatchObject({ code: "read_failed" });
+    expect(reads).toBeLessThan(100);
+  });
+
+  test("never consumes an unbounded whole-buffer response fallback", async () => {
+    const arrayBuffer = jest.fn(() => Promise.resolve(new Uint8Array([1, 2, 3]).buffer));
+    const response = responseWith(null, "3", arrayBuffer);
+
+    await expect(readBoundedByteResponse(response, { declaredBytes: 3 })).rejects.toMatchObject({
+      code: "unverifiable_size",
+    });
+    expect(arrayBuffer).not.toHaveBeenCalled();
+  });
+});
+
 describe("local URI fetch boundary", () => {
   const originalFetch = globalThis.fetch;
 
@@ -315,19 +370,22 @@ describe("local URI fetch boundary", () => {
     globalThis.fetch = originalFetch;
   });
 
-  test.each(["https://example.com/private.txt", "http://127.0.0.1/private.txt", "data:text/plain,x"])(
-    "rejects non-local URI %s before fetch",
-    async (uri) => {
-      const fetchSpy = jest.fn();
-      globalThis.fetch = fetchSpy as unknown as typeof fetch;
+  test.each([
+    "https://example.com/private.txt",
+    "http://127.0.0.1/private.txt",
+    "data:text/plain,x",
+  ])("rejects non-local URI %s before fetch", async (uri) => {
+    const fetchSpy = jest.fn();
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
 
-      const read = fetchBoundedLocalUtf8(uri, { declaredBytes: 1 });
+    const read = fetchBoundedLocalUtf8(uri, { declaredBytes: 1 });
 
-      await expect(read).rejects.toMatchObject<Partial<BoundedFileReadError>>({ code: "unsafe_source" });
-      await expect(read).rejects.not.toThrow(uri);
-      expect(fetchSpy).not.toHaveBeenCalled();
-    },
-  );
+    await expect(read).rejects.toMatchObject<Partial<BoundedFileReadError>>({
+      code: "unsafe_source",
+    });
+    await expect(read).rejects.not.toThrow(uri);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
 
   test("rejects a remote final response URL and disables redirects", async () => {
     const response = {
@@ -338,7 +396,9 @@ describe("local URI fetch boundary", () => {
     const fetchSpy = jest.fn().mockResolvedValue(response);
     globalThis.fetch = fetchSpy as unknown as typeof fetch;
 
-    await expect(fetchBoundedLocalUtf8("file:///cache/local.txt", { declaredBytes: 1 })).rejects.toMatchObject({
+    await expect(
+      fetchBoundedLocalUtf8("file:///cache/local.txt", { declaredBytes: 1 }),
+    ).rejects.toMatchObject({
       code: "unsafe_source",
     });
     expect(fetchSpy).toHaveBeenCalledWith(
@@ -368,9 +428,9 @@ describe("local URI fetch boundary", () => {
     } as Response;
     globalThis.fetch = jest.fn().mockResolvedValue(local) as unknown as typeof fetch;
 
-    await expect(fetchBoundedLocalUtf8("file:///cache/local.txt", { declaredBytes: 1 })).resolves.toBe(
-      "a",
-    );
+    await expect(
+      fetchBoundedLocalUtf8("file:///cache/local.txt", { declaredBytes: 1 }),
+    ).resolves.toBe("a");
 
     const changedPath = {
       ...responseWith(streamFrom([new Uint8Array([97])]), "1"),
@@ -382,5 +442,84 @@ describe("local URI fetch boundary", () => {
     await expect(
       fetchBoundedLocalUtf8("file:///cache/local.txt", { declaredBytes: 1 }),
     ).rejects.toMatchObject({ code: "unsafe_source" });
+  });
+
+  test("allows a browser blob URI only when the caller opts in", async () => {
+    const restoreLocation = installLocationOrigin("https://app.example");
+    const response = {
+      ...responseWith(streamFrom([new Uint8Array([1, 2, 3])]), "3"),
+      redirected: false,
+      url: "blob:https://app.example/id",
+    } as Response;
+    const fetchSpy = jest.fn().mockResolvedValue(response);
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    try {
+      await expect(
+        fetchBoundedLocalBytes("blob:https://app.example/id", { declaredBytes: 3 }),
+      ).rejects.toMatchObject<Partial<BoundedFileReadError>>({ code: "unsafe_source" });
+      await expect(
+        fetchBoundedLocalBytes("blob:https://evil.example/id", {
+          allowWebBlob: true,
+          declaredBytes: 3,
+        }),
+      ).rejects.toMatchObject<Partial<BoundedFileReadError>>({ code: "unsafe_source" });
+      await expect(
+        fetchBoundedLocalBytes("blob:null/id", { allowWebBlob: true, declaredBytes: 3 }),
+      ).rejects.toMatchObject<Partial<BoundedFileReadError>>({ code: "unsafe_source" });
+      expect(fetchSpy).not.toHaveBeenCalled();
+
+      await expect(
+        fetchBoundedLocalBytes("blob:https://app.example/id", {
+          allowWebBlob: true,
+          declaredBytes: 3,
+        }),
+      ).resolves.toEqual(new Uint8Array([1, 2, 3]));
+      expect(fetchSpy).toHaveBeenCalledWith(
+        "blob:https://app.example/id",
+        expect.objectContaining({ redirect: "error", signal: expect.any(AbortSignal) }),
+      );
+    } finally {
+      restoreLocation();
+    }
+  });
+
+  test("bounds an unknown-length byte stream before accumulating the overflowing chunk", async () => {
+    const response = responseWith(
+      streamFrom([new Uint8Array([1, 2, 3]), new Uint8Array([4, 5])]),
+      null,
+    );
+
+    await expect(readBoundedByteResponse(response, { maxBytes: 4 })).rejects.toMatchObject<
+      Partial<BoundedFileReadError>
+    >({ code: "too_large" });
+  });
+
+  test("uses one abortable deadline for local fetch and body consumption", async () => {
+    let fetchSignal: AbortSignal | undefined;
+    globalThis.fetch = jest.fn((_uri: string, init?: RequestInit) => {
+      fetchSignal = init?.signal as AbortSignal;
+      return new Promise<Response>(() => undefined);
+    }) as unknown as typeof fetch;
+
+    const read = fetchBoundedLocalBytes("file:///slow.bin", {
+      declaredBytes: 1,
+      timeoutMs: 5,
+    });
+
+    await expect(read).rejects.toMatchObject<Partial<BoundedFileReadError>>({ code: "timed_out" });
+    expect(fetchSignal?.aborted).toBe(true);
+  });
+
+  test("rejects redirected or remote response URLs even after a local request", async () => {
+    globalThis.fetch = jest.fn().mockResolvedValue({
+      ...responseWith(streamFrom([new Uint8Array([1])]), "1"),
+      redirected: true,
+      url: "https://example.com/secret",
+    }) as unknown as typeof fetch;
+
+    await expect(
+      fetchBoundedLocalBytes("file:///safe.bin", { declaredBytes: 1 }),
+    ).rejects.toMatchObject<Partial<BoundedFileReadError>>({ code: "unsafe_source" });
   });
 });
