@@ -458,8 +458,8 @@ export function useSignUpForm(): UseSignUpForm {
     [confirmSentTo, confirmVerifying, loading, oauthSubmitting, submitting, t, userId],
   );
 
-  // Naver: custom redirect flow (not Supabase-native). Native awaits the
-  // browser bridge; web navigates immediately.
+  // Naver: custom web redirect flow (not Supabase-native). isNaverEnabled()
+  // keeps this handler hidden on native until a PKCE-capable flow exists.
   const handleNaver = useCallback(async () => {
     if (
       loading ||

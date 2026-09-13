@@ -6,6 +6,10 @@ export const PUBLIC_DATA_PROXY_JSON_BODY_LIMIT_BYTES = 4 * 1024;
 export const SUBSCRIPTION_MANAGE_JSON_BODY_LIMIT_BYTES = 4 * 1024;
 export const PADDLE_WEBHOOK_BODY_LIMIT_BYTES = 1024 * 1024;
 
+const REQUEST_BODY_TIMEOUT_MS = 15_000;
+const REQUEST_BODY_MAX_CHUNKS = 1_024;
+const REQUEST_BODY_MAX_NO_PROGRESS_CHUNKS = 8;
+
 export type JsonBodyErrorCode = 'invalid_json' | 'request_body_too_large';
 
 export class JsonBodyError extends Error {
@@ -35,35 +39,83 @@ async function consumeBoundedStream(
   if (!stream) throw invalidJson();
 
   const declaredLength = request.headers.get('content-length')?.trim();
-  if (declaredLength && /^\d+$/.test(declaredLength)) {
+  if (declaredLength) {
+    if (!/^(?:0|[1-9]\d*)$/.test(declaredLength)) {
+      void stream.cancel().catch(() => undefined);
+      throw invalidJson();
+    }
     const declaredBytes = Number(declaredLength);
     if (!Number.isSafeInteger(declaredBytes) || declaredBytes > maxBytes) {
-      await stream.cancel().catch(() => undefined);
+      void stream.cancel().catch(() => undefined);
       throw bodyTooLarge(maxBytes);
     }
   }
 
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const signal = (request as { signal?: AbortSignal }).signal;
+  let onAbort: (() => void) | undefined;
+  let terminalError: JsonBodyError | null = null;
+  let rejectDeadline: ((error: JsonBodyError) => void) | undefined;
+  const deadline = new Promise<never>((_resolve, reject) => {
+    rejectDeadline = reject;
+  });
   try {
     reader = stream.getReader();
+    const failRead = () => {
+      if (terminalError) return;
+      terminalError = invalidJson();
+      rejectDeadline?.(terminalError);
+      void reader?.cancel('request body read stopped').catch(() => undefined);
+    };
+    onAbort = failRead;
+    timeout = setTimeout(failRead, REQUEST_BODY_TIMEOUT_MS);
+    signal?.addEventListener('abort', failRead, { once: true });
+    if (signal?.aborted) throw invalidJson();
+
     let bytesRead = 0;
+    let chunksRead = 0;
+    let noProgressChunks = 0;
 
     while (true) {
-      const { done, value } = await reader.read();
+      const { done, value } = await Promise.race([reader.read(), deadline]);
+      if (terminalError) throw terminalError;
       if (done) break;
+      chunksRead += 1;
+      if (chunksRead > REQUEST_BODY_MAX_CHUNKS || !(value instanceof Uint8Array)) {
+        throw invalidJson();
+      }
+      if (value.byteLength === 0) {
+        noProgressChunks += 1;
+        if (noProgressChunks > REQUEST_BODY_MAX_NO_PROGRESS_CHUNKS) throw invalidJson();
+      } else {
+        noProgressChunks = 0;
+      }
       bytesRead += value.byteLength;
       if (bytesRead > maxBytes) {
-        await reader.cancel().catch(() => undefined);
+        void reader.cancel().catch(() => undefined);
         throw bodyTooLarge(maxBytes);
       }
       consumeChunk(value);
+
+      // Immediately-resolving reads can monopolize the microtask queue and
+      // prevent the timeout/AbortSignal from firing. A bounded periodic yield
+      // keeps wall-clock cancellation meaningful even for hostile streams.
+      if (chunksRead % 64 === 0) {
+        await Promise.race([
+          new Promise<void>((resolve) => setTimeout(resolve, 0)),
+          deadline,
+        ]);
+      }
     }
     return bytesRead;
   } catch (error) {
+    if (reader) void reader.cancel().catch(() => undefined);
     if (error instanceof JsonBodyError) throw error;
-    if (reader) await reader.cancel().catch(() => undefined);
     throw invalidJson();
   } finally {
+    if (timeout !== undefined) clearTimeout(timeout);
+    if (onAbort) signal?.removeEventListener('abort', onAbort);
     reader?.releaseLock();
   }
 }

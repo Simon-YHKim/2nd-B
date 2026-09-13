@@ -53,7 +53,6 @@ import {
   clearAccountScopedLocalNotifications,
   migrateLegacyRoutineNotifications,
 } from "../ops/reminders";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getSupabaseClient } from "./client";
 import * as Crypto from "expo-crypto";
 
@@ -1227,104 +1226,146 @@ export function isProviderEnabled(provider: OAuthProvider): boolean {
 // --- Naver social login (custom OAuth via the oauth-naver edge function) ------
 //
 // Naver is NOT a Supabase-native provider, so we drive the OAuth ourselves:
-//   1. signInWithNaver() redirects the browser to Naver's authorize page with a
-//      random `state` stashed in sessionStorage (CSRF defense).
-//   2. Naver returns to /oauth-callback with ?code&state.
-//   3. completeNaverOAuth() verifies the returned state matches (CSRF check),
-//      hands the code to the oauth-naver edge function, and signs the user in
-//      with the magic-link token_hash it returns (verifyOtp). New users then
+//   1. oauth-naver atomically rate-limits the pre-auth request, creates a
+//      server-side 256-bit one-time state, and returns the fixed authorize URL.
+//   2. This client preserves that opaque capability across Naver's redirect.
+//   3. completeNaverOAuth() consumes the local copy once, then the server
+//      atomically consumes its TTL-bound DB fingerprint before token exchange.
+//   4. The returned magic-link token_hash is verified locally. New users then
 //      route through /complete-profile (DOB + consent), like every provider.
 // Gated behind EXPO_PUBLIC_ENABLE_NAVER on web plus a configured client id (and
-// the server's ENABLE_NAVER_OAUTH). Native uses the registered HTTPS callback
-// as a bridge back to the app. See docs/AUTH_PROVIDERS.md.
+// the server's ENABLE_NAVER_OAUTH). The Naver API contract used by this flow
+// exposes no documented PKCE binding for a custom-scheme callback, so native
+// is fail-closed.
 
-const NAVER_AUTHORIZE_URL = "https://nid.naver.com/oauth2.0/authorize";
+const NAVER_AUTHORIZE_ORIGIN = "https://nid.naver.com";
+const NAVER_AUTHORIZE_PATH = "/oauth2.0/authorize";
 const NAVER_STATE_KEY = "secondB_naver_oauth_state";
-const NAVER_PRODUCTION_REDIRECT_URI = "https://simon-yhkim.github.io/2nd-B/oauth-callback";
-const NAVER_NATIVE_STATE_PREFIX = "native.";
-const NAVER_NATIVE_CALLBACK_URI = "secondbrain:///oauth-callback";
+const NAVER_WEB_STATE_RE = /^[0-9a-f]{64}$/;
+const SAFE_NAVER_CODE = /^[\x21-\x7e]{1,512}$/;
+const NAVER_WEB_ONLY_ERROR = "Naver login is available on web only.";
+const NAVER_CALLBACK_ERROR = "Naver sign-in could not be completed.";
+const NAVER_WEB_REDIRECTS = new Set([
+  "https://simon-yhkim.github.io/2nd-B/oauth-callback",
+]);
+
+interface NaverTransaction {
+  state: string;
+  redirectUri: string;
+}
 
 export function isNaverEnabled(): boolean {
   const env = getEnv();
-  // Native profiles already carry the public client id. The old enable flag was
-  // web-only, which accidentally hid Naver on the phone even after its server
-  // and console setup were complete.
-  return !!env.EXPO_PUBLIC_NAVER_CLIENT_ID && (env.EXPO_PUBLIC_ENABLE_NAVER || !isWebRuntime());
+  return isWebRuntime() && !!env.EXPO_PUBLIC_NAVER_CLIENT_ID && env.EXPO_PUBLIC_ENABLE_NAVER;
 }
 
-export function isNativeNaverCallbackState(state: string): boolean {
-  return state.startsWith(NAVER_NATIVE_STATE_PREFIX);
+export function isNativeNaverCallbackState(_state: string): boolean {
+  return false;
 }
 
-export function buildNativeNaverCallbackUrl(search: string): string {
-  const query = search.startsWith("?") ? search : `?${search}`;
-  return `${NAVER_NATIVE_CALLBACK_URI}${query}`;
+export function buildNativeNaverCallbackUrl(_search: string): string {
+  throw new Error(NAVER_WEB_ONLY_ERROR);
 }
 
-// Callback URL Naver redirects back to. Must be registered in the Naver console
-// AND match the value the edge function forwards to Naver's token exchange.
+// Callback URL Naver redirects back to. It must match both the Edge state
+// binding and the exact HTTPS value registered in the Naver console.
 function naverRedirectUri(): string {
-  if (!isWebRuntime()) return NAVER_PRODUCTION_REDIRECT_URI;
+  if (!isWebRuntime()) throw new Error(NAVER_WEB_ONLY_ERROR);
   const path = window.location.pathname;
   const base = path.startsWith("/2nd-B/") ? "/2nd-B/" : "/";
   return `${window.location.origin}${base}oauth-callback`;
 }
 
-function randomState(): string {
-  const g = globalThis as unknown as { crypto?: { getRandomValues?: (a: Uint8Array) => Uint8Array } };
-  if (g.crypto?.getRandomValues) {
-    const bytes = new Uint8Array(16);
-    g.crypto.getRandomValues(bytes);
-    return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+function parseNaverTransaction(raw: string | null): NaverTransaction | null {
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(raw) as unknown;
+    if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+    const candidate = value as Record<string, unknown>;
+    if (Object.keys(candidate).sort().join(",") !== "redirectUri,state") return null;
+    if (typeof candidate.state !== "string" || !NAVER_WEB_STATE_RE.test(candidate.state)) return null;
+    if (typeof candidate.redirectUri !== "string" || !NAVER_WEB_REDIRECTS.has(candidate.redirectUri)) return null;
+    return { state: candidate.state, redirectUri: candidate.redirectUri };
+  } catch {
+    return null;
   }
-  // Fallback only if no CSPRNG (shouldn't happen on web); state is still echoed.
-  return `${Date.now().toString(16)}${Math.floor(Math.random() * 1e16).toString(16)}`;
 }
 
-// Web redirects directly. Native uses the registered HTTPS callback as a
-// bridge: the callback page forwards code+state to secondbrain:///oauth-callback,
-// allowing expo-web-browser to return control without adding a native SDK.
+function saveNaverTransaction(transaction: NaverTransaction): void {
+  const raw = JSON.stringify(transaction);
+  if (!window.sessionStorage) throw new Error(NAVER_CALLBACK_ERROR);
+  window.sessionStorage.setItem(NAVER_STATE_KEY, raw);
+  if (window.sessionStorage.getItem(NAVER_STATE_KEY) !== raw) throw new Error(NAVER_CALLBACK_ERROR);
+}
+
+function takeNaverTransaction(): NaverTransaction | null {
+  try {
+    if (!window.sessionStorage) return null;
+    const raw = window.sessionStorage.getItem(NAVER_STATE_KEY);
+    window.sessionStorage.removeItem(NAVER_STATE_KEY);
+    if (window.sessionStorage.getItem(NAVER_STATE_KEY) !== null) return null;
+    return parseNaverTransaction(raw);
+  } catch {
+    return null;
+  }
+}
+
+function serverAuthorizeUrl(
+  value: unknown,
+  clientId: string,
+  redirectUri: string,
+): { url: string; state: string } | null {
+  if (typeof value !== "string" || value.length > 2048) return null;
+  try {
+    const url = new URL(value);
+    if (
+      url.origin !== NAVER_AUTHORIZE_ORIGIN
+      || url.pathname !== NAVER_AUTHORIZE_PATH
+      || url.username !== ""
+      || url.password !== ""
+      || url.hash !== ""
+    ) return null;
+    const keys = [...url.searchParams.keys()].sort();
+    if (keys.join(",") !== "client_id,redirect_uri,response_type,state") return null;
+    const state = url.searchParams.get("state") ?? "";
+    if (
+      url.searchParams.get("response_type") !== "code"
+      || url.searchParams.get("client_id") !== clientId
+      || url.searchParams.get("redirect_uri") !== redirectUri
+      || !NAVER_WEB_STATE_RE.test(state)
+    ) return null;
+    return { url: url.toString(), state };
+  } catch {
+    return null;
+  }
+}
+
+// Web redirects directly. Native is deliberately unavailable because Naver's
+// flow cannot bind a custom-scheme authorization code with PKCE.
 export async function signInWithNaver(): Promise<void> {
   const env = getEnv();
   const clientId = env.EXPO_PUBLIC_NAVER_CLIENT_ID;
   const web = isWebRuntime();
-  if (!clientId || (!env.EXPO_PUBLIC_ENABLE_NAVER && web)) throw new Error("Naver login is not enabled.");
-  const state = `${web ? "" : NAVER_NATIVE_STATE_PREFIX}${randomState()}`;
-  const url = new URL(NAVER_AUTHORIZE_URL);
-  url.searchParams.set("response_type", "code");
-  url.searchParams.set("client_id", clientId);
-  url.searchParams.set("redirect_uri", naverRedirectUri());
-  url.searchParams.set("state", state);
-
-  if (web) {
-    try {
-      window.sessionStorage?.setItem(NAVER_STATE_KEY, state);
-    } catch {
-      // sessionStorage unavailable (private mode) — the state echo can't be
-      // verified on return, so completeNaverOAuth() will reject. User can retry.
-    }
-    window.location.href = url.toString();
-    return;
-  }
-
-  // Cold-start survival: Android may kill the app while the Custom Tab is up.
-  // The deep link then starts a FRESH JS context where this closure (and its
-  // state nonce) no longer exists — the native /oauth-callback route finishes
-  // the flow instead, verifying against this persisted nonce.
+  if (!web) throw new Error(NAVER_WEB_ONLY_ERROR);
+  if (!clientId || !env.EXPO_PUBLIC_ENABLE_NAVER) throw new Error("Naver login is not enabled.");
+  const redirectUri = naverRedirectUri();
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.functions.invoke("oauth-naver", {
+    body: { action: "start", redirect_uri: redirectUri },
+  });
+  if (error) throw new Error(NAVER_CALLBACK_ERROR);
+  const authorize = serverAuthorizeUrl(
+    (data as { authorize_url?: unknown } | null)?.authorize_url,
+    clientId,
+    redirectUri,
+  );
+  if (!authorize) throw new Error(NAVER_CALLBACK_ERROR);
   try {
-    await AsyncStorage.setItem(NAVER_STATE_KEY, state);
+    saveNaverTransaction({ state: authorize.state, redirectUri });
   } catch {
-    /* storage unavailable: the warm path still verifies via the closure */
+    throw new Error(NAVER_CALLBACK_ERROR);
   }
-  const WebBrowser = require("expo-web-browser") as ExpoWebBrowserModule;
-  const result = await WebBrowser.openAuthSessionAsync(url.toString(), NAVER_NATIVE_CALLBACK_URI);
-  if (result.type !== "success") return;
-  const returned = authParamsFromUrl(result.url);
-  if (returned.error) throw new Error(returned.error_description ?? returned.error);
-  const code = returned.code ?? "";
-  const returnedState = returned.state ?? "";
-  if (!code) throw new Error("Naver sign-in returned no authorization code.");
-  await completeNaverOAuth({ code, state: returnedState }, state);
+  window.location.href = authorize.url;
 }
 
 export interface NaverCallbackParams {
@@ -1335,46 +1376,43 @@ export interface NaverCallbackParams {
 // Complete the Naver flow after the redirect: verify the state echo (CSRF),
 // exchange the code via the edge function, and sign in with the magic-link
 // token it returns. Returns the user id.
-export async function completeNaverOAuth(
-  params: NaverCallbackParams,
-  expectedState?: string,
-): Promise<{ userId: string }> {
-  let stored: string | null = expectedState ?? null;
-  if (!stored && isWebRuntime()) {
-    try {
-      stored = window.sessionStorage?.getItem(NAVER_STATE_KEY) ?? null;
-    } catch {
-      stored = null;
-    }
+export async function completeNaverOAuth(params: NaverCallbackParams): Promise<{ userId: string }> {
+  if (!isWebRuntime()) throw new Error(NAVER_WEB_ONLY_ERROR);
+  const env = getEnv();
+  if (!env.EXPO_PUBLIC_ENABLE_NAVER || !env.EXPO_PUBLIC_NAVER_CLIENT_ID) {
+    throw new Error(NAVER_CALLBACK_ERROR);
   }
-  if (!stored && !isWebRuntime()) {
-    // Cold-start path: the persisted native nonce (single-use — cleared here).
-    try {
-      stored = await AsyncStorage.getItem(NAVER_STATE_KEY);
-      await AsyncStorage.removeItem(NAVER_STATE_KEY);
-    } catch {
-      stored = null;
-    }
+  if (
+    typeof params?.code !== "string"
+    || !SAFE_NAVER_CODE.test(params.code)
+    || typeof params.state !== "string"
+    || !NAVER_WEB_STATE_RE.test(params.state)
+  ) {
+    throw new Error(NAVER_CALLBACK_ERROR);
   }
-  // CSRF: the state Naver echoes back must equal the one we issued.
-  if (!params.state || !stored || stored !== params.state) {
-    throw new Error("Naver sign-in state mismatch (possible CSRF). Please try again.");
-  }
-  if (isWebRuntime()) {
-    try {
-      window.sessionStorage?.removeItem(NAVER_STATE_KEY);
-    } catch {
-      /* ignore */
-    }
+
+  const transaction = takeNaverTransaction();
+  if (!transaction || transaction.state !== params.state) {
+    throw new Error(NAVER_CALLBACK_ERROR);
   }
 
   const supabase = getSupabaseClient();
   const { data, error } = await supabase.functions.invoke("oauth-naver", {
-    body: { code: params.code, state: params.state, redirect_uri: naverRedirectUri() },
+    body: {
+      action: "exchange",
+      code: params.code,
+      state: params.state,
+      redirect_uri: transaction.redirectUri,
+    },
   });
-  if (error) throw error;
+  if (error) throw new Error(NAVER_CALLBACK_ERROR);
   const tokenHash = (data as { token_hash?: string } | null)?.token_hash;
-  if (!tokenHash) throw new Error("Naver sign-in could not be completed.");
+  if (
+    typeof tokenHash !== "string"
+    || tokenHash.length < 8
+    || tokenHash.length > 4_096
+    || /[\u0000-\u0020\u007f]/.test(tokenHash)
+  ) throw new Error(NAVER_CALLBACK_ERROR);
 
   return runAuthSessionMutation(async () => {
     const quarantine = createAuthCallbackQuarantine("ordinary");
@@ -1385,17 +1423,38 @@ export async function completeNaverOAuth(
         type: "magiclink",
       }),
     );
+    const callback = authCallbackSession(otp?.session ?? null, null);
     if (otpErr) {
-      await clearAuthCallbackQuarantineExpectedInsideMutation(quarantine);
-      throw otpErr;
+      // auth-js normally returns no session with an error, but a transport or
+      // future SDK regression must not leave an authenticated session behind.
+      // Remove only the stable session returned by this exact writer; the CAS
+      // check prevents this cleanup from signing out a replacement session.
+      if (callback.userId && callback.sessionId) {
+        return failRecoverySessionInsideMutation(
+          supabase,
+          callback,
+          { proof: null, pending: null, quarantine },
+          new Error(NAVER_CALLBACK_ERROR),
+        );
+      }
+      try {
+        await clearAuthCallbackQuarantineExpectedInsideMutation(quarantine);
+      } catch {
+        // A failed cleanup deliberately leaves the durable quarantine in place.
+      }
+      throw new Error(NAVER_CALLBACK_ERROR);
     }
-    const callback = authCallbackSession(otp.session, null);
-    if (!otp.user) {
+    if (
+      !otp.user
+      || !callback.userId
+      || !callback.sessionId
+      || callback.userId !== otp.user.id
+    ) {
       return failRecoverySessionInsideMutation(
         supabase,
         callback,
         { proof: null, pending: null, quarantine },
-        new Error("Naver sign-in returned no user."),
+        new Error(NAVER_CALLBACK_ERROR),
       );
     }
     if (!(await clearAuthCallbackQuarantineExpectedInsideMutation(quarantine))) {
@@ -1406,7 +1465,7 @@ export async function completeNaverOAuth(
         new Error("Naver callback quarantine owner changed before finalization"),
       );
     }
-    return { userId: otp.user.id };
+    return { userId: callback.userId };
   }, { requireCrossTab: true });
 }
 

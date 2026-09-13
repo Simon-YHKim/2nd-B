@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import * as envModule from "../../env";
 import { __setSupabaseClientForTests } from "../client";
 import {
   completeNaverOAuth,
@@ -177,7 +178,37 @@ describe("durable auth callback quarantine", () => {
   });
 
   test("a failed quarantine write prevents Naver magic-link verifyOtp", async () => {
+    const currentEnv = envModule.getEnv();
+    jest.spyOn(envModule, "getEnv").mockReturnValue({
+      ...currentEnv,
+      EXPO_PUBLIC_NAVER_CLIENT_ID: "public-client-id",
+      EXPO_PUBLIC_ENABLE_NAVER: true,
+    });
     installLockedWebStorage(new Map(), (key) => key === AUTH_CALLBACK_QUARANTINE_KEY);
+    const state = "a".repeat(64);
+    const naverTransaction = new Map<string, string>([
+      [
+        "secondB_naver_oauth_state",
+        JSON.stringify({
+          state,
+          redirectUri: "https://simon-yhkim.github.io/2nd-B/oauth-callback",
+        }),
+      ],
+    ]);
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: {
+        location: {
+          origin: "https://simon-yhkim.github.io",
+          pathname: "/2nd-B/oauth-callback",
+        },
+        sessionStorage: {
+          getItem: (key: string) => naverTransaction.get(key) ?? null,
+          setItem: (key: string, value: string) => naverTransaction.set(key, value),
+          removeItem: (key: string) => naverTransaction.delete(key),
+        },
+      },
+    });
     const verifyOtp = jest.fn();
     const invoke = jest.fn().mockResolvedValue({
       data: { token_hash: "opaque-token-hash" },
@@ -186,10 +217,7 @@ describe("durable auth callback quarantine", () => {
     installClient({ verifyOtp }, { invoke });
 
     await expect(
-      completeNaverOAuth(
-        { code: "opaque-naver-code", state: "expected-state" },
-        "expected-state",
-      ),
+      completeNaverOAuth({ code: "opaque-naver-code", state }),
     ).rejects.toThrow("quarantine storage unavailable");
 
     expect(invoke).toHaveBeenCalledTimes(1);

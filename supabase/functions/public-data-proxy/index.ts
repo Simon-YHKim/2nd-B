@@ -1,105 +1,75 @@
-// Public-data proxy Edge Function — keeps the 공공데이터 API keys OFF the client.
-//
-// Why this exists: `EXPO_PUBLIC_*` is inlined by Metro at build time, so any
-// variable with that prefix ships inside the public bundle. On 2026-09-07 the
-// live web bundle carried the MFDS service key as a 64-char literal inside
-// searchFoods — it had been there since #498 wired it into web-deploy on
-// 2026-06-20. Those two keys are NOT client keys: 공공데이터포털 and 수출입은행
-// issue them per account with quota attached, so anyone who lifts one spends
-// ours. (Contrast the Supabase anon key or a RevenueCat SDK key, which are
-// issued for clients by design.)
-//
-// So the key moves here. The client sends only PARAMETERS; this function holds
-// the secret and composes the upstream URL itself. That is a stronger posture
-// than the rss-proxy's allowlist: the caller cannot name a URL at all, so there
-// is no SSRF surface to guard — the endpoints are compile-time constants.
-//
-// Request:   POST { source: "mfds", query: string, max?: number }
-//            POST { source: "exim" }
-// Response:  { data: unknown }                  (200, upstream JSON verbatim)
-//            { error: string, status?: number } (4xx/5xx)
-//
-// Secrets (NOT EXPO_PUBLIC_*, never reaches a bundle):
-//   supabase secrets set MFDS_FOOD_KEY=...  EXIM_FX_KEY=...
-// A missing secret answers 503 `source_unconfigured`, which the client treats
-// exactly like today's "no key" case (empty result, never a thrown error).
-//
-// Deploy gate: `supabase functions deploy public-data-proxy`. Clients must NOT
-// be switched to this function before it is deployed and verified — deploy
-// first, flip second, then rotate the old keys and delete the public variables.
-//
-// Auth: verify_jwt=true proves the bearer is a VALID token, but the public anon
-// key is itself valid — so a valid token is not authorization. We additionally
-// require an AUTHENTICATED user (real `sub`, role==='authenticated'), mirroring
-// rss-proxy, so anon callers cannot burn quota. CORS is an explicit origin
-// allowlist (no wildcard).
+// Authenticated, server-keyed gateway for the two public-data enrichments.
+// Migration 0171 owns the atomic per-user and provider-global quota ledger;
+// apply it before deploying this function. Client source names stay compatible
+// (`mfds` / `exim`) while the server maps them to the migration's provider IDs.
 
-import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
+import {
+  PublicDataProxyError,
+  buildPublicDataUpstreamUrl,
+  parsePublicDataRequest,
+  parsePublicDataUpstream,
+  publicDataProviderFor,
+  publicDataSecretFor,
+  readPublicDataBodyBounded,
+  type PublicDataSource,
+} from "../_shared/public-data-proxy.ts";
 import {
   JsonBodyError,
   PUBLIC_DATA_PROXY_JSON_BODY_LIMIT_BYTES,
   readJsonObject,
-} from '../_shared/request-json.ts';
+} from "../_shared/request-json.ts";
 
-// Read JWT claims without re-verifying the signature (the gateway already did).
-// Mirrors rss-proxy/authenticatedUserIdFromJwt.
-function authenticatedUserIdFromJwt(authHeader: string): string | null {
-  try {
-    const token = authHeader.slice(authHeader.toLowerCase().indexOf('bearer ') + 7).trim();
-    const payload = token.split('.')[1];
-    if (!payload) return null;
-    const b64 = payload.replace(/-/g, '+').replace(/_/g, '/');
-    const json = JSON.parse(atob(b64 + '=='.slice(0, (4 - (b64.length % 4)) % 4)));
-    const sub = typeof json?.sub === 'string' ? json.sub : '';
-    const role = typeof json?.role === 'string' ? json.role : '';
-    if (role !== 'authenticated' || sub.length === 0) return null;
-    return sub;
-  } catch {
-    return null;
-  }
-}
-
-// Upstream endpoints are constants here, never caller-supplied. Mirrors
-// src/lib/nutrition/foods.ts:MFDS_ENDPOINT and src/lib/finance/fx.ts:EXIM_ENDPOINT
-// — a Deno function cannot import those RN modules, so a jest guard asserts the
-// strings match (public-data-proxy-contract.test.ts).
-const MFDS_ENDPOINT = 'https://apis.data.go.kr/1471000/FoodNtrCpntDbInfo01/getFoodNtrCpntDbInq01';
-const EXIM_ENDPOINT = 'https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON';
-
-// Same caps the client had (foods.ts QUERY_MAX / RESULT_MAX), re-declared for
-// the same import reason and asserted by the same guard.
-const QUERY_MAX = 60;
-const RESULT_MAX = 10;
-
-const FETCH_TIMEOUT_MS = 8000;
-const MAX_UPSTREAM_BYTES = 1_000_000;
+const FETCH_TIMEOUT_MS = 7_000;
+const MAX_UPSTREAM_BYTES = 262_144;
+const DAILY_USER_CAP: Record<PublicDataSource, number> = {
+  exim: 20,
+  mfds: 50,
+};
 
 const STATIC_ALLOWED_ORIGINS: readonly string[] = [
-  'https://simon-yhkim.github.io',
-  'http://localhost:8081',
-  'http://localhost:19006',
+  "https://simon-yhkim.github.io",
+  "http://localhost:8081",
+  "http://localhost:19006",
 ];
 
 function parseEnvOrigins(): string[] {
-  const raw = Deno.env.get('PUBLIC_DATA_PROXY_ALLOWED_ORIGINS') ?? '';
-  return raw.split(',').map((o) => o.trim()).filter((o) => o.length > 0);
+  const raw = Deno.env.get("PUBLIC_DATA_PROXY_ALLOWED_ORIGINS") ?? "";
+  return raw
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter((origin) => {
+      try {
+        const url = new URL(origin);
+        const localHttp =
+          url.protocol === "http:" &&
+          (url.hostname === "localhost" || url.hostname === "127.0.0.1");
+        return url.origin === origin && (url.protocol === "https:" || localHttp);
+      } catch {
+        return false;
+      }
+    });
 }
 
 const ALLOWED_ORIGINS = new Set<string>([...STATIC_ALLOWED_ORIGINS, ...parseEnvOrigins()]);
 
-function resolveOrigin(req: Request): string {
-  const origin = req.headers.get('origin') ?? '';
-  return ALLOWED_ORIGINS.has(origin) ? origin : 'null';
+function corsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("origin") ?? "";
+  return ALLOWED_ORIGINS.has(origin)
+    ? { "access-control-allow-origin": origin, vary: "origin" }
+    : { vary: "origin" };
 }
 
 function jsonResponse(req: Request, body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
-      'content-type': 'application/json; charset=utf-8',
-      'access-control-allow-origin': resolveOrigin(req),
-      'vary': 'origin',
-      'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type',
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff",
+      ...corsHeaders(req),
+      "access-control-allow-headers": "authorization, x-client-info, apikey, content-type",
     },
   });
 }
@@ -108,103 +78,135 @@ function corsPreflight(req: Request): Response {
   return new Response(null, {
     status: 204,
     headers: {
-      'access-control-allow-origin': resolveOrigin(req),
-      'vary': 'origin',
-      'access-control-allow-methods': 'POST, OPTIONS',
-      'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type',
-      'access-control-max-age': '86400',
+      ...corsHeaders(req),
+      "access-control-allow-methods": "POST, OPTIONS",
+      "access-control-allow-headers": "authorization, x-client-info, apikey, content-type",
+      "access-control-max-age": "86400",
     },
   });
 }
 
-/** Compose the upstream URL server-side. null = secret unset, 'bad_request' = caller error. */
-function upstreamUrlFor(
-  body: { source?: unknown; query?: unknown; max?: unknown },
-): string | null | 'bad_request' {
-  if (body.source === 'mfds') {
-    const key = Deno.env.get('MFDS_FOOD_KEY') ?? '';
-    if (!key) return null;
-    const query = typeof body.query === 'string' ? body.query.trim() : '';
-    if (query.length === 0) return 'bad_request';
-    const max = typeof body.max === 'number' && Number.isFinite(body.max) ? body.max : RESULT_MAX;
-    const numOfRows = Math.min(Math.max(1, Math.floor(max)), RESULT_MAX);
-    const params = new URLSearchParams({
-      serviceKey: key,
-      FOOD_NM_KR: query.slice(0, QUERY_MAX),
-      pageNo: '1',
-      numOfRows: String(numOfRows),
-      type: 'json',
-    });
-    return `${MFDS_ENDPOINT}?${params.toString()}`;
+// The gateway verifies the JWT because config.toml pins verify_jwt=true. This
+// second gate rejects a valid anon token: quota may only be spent for a signed-
+// in user, and the resulting subject is the only user id sent to the DB RPC.
+function authenticatedUserIdFromJwt(authHeader: string): string | null {
+  try {
+    const token = authHeader.slice(authHeader.toLowerCase().indexOf("bearer ") + 7).trim();
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const claims = JSON.parse(atob(base64 + "==".slice(0, (4 - (base64.length % 4)) % 4)));
+    const sub = typeof claims?.sub === "string" ? claims.sub : "";
+    const role = typeof claims?.role === "string" ? claims.role : "";
+    return role === "authenticated" && sub.length > 0 ? sub : null;
+  } catch {
+    return null;
   }
-  if (body.source === 'exim') {
-    const key = Deno.env.get('EXIM_FX_KEY') ?? '';
-    if (!key) return null;
-    return `${EXIM_ENDPOINT}?authkey=${encodeURIComponent(key)}&data=AP01`;
-  }
-  return 'bad_request';
+}
+
+function providerErrorStatus(error: string): number {
+  return error === "provider_quota_exceeded" ? 429 : 502;
 }
 
 Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') return corsPreflight(req);
-  if (req.method !== 'POST') return jsonResponse(req, { error: 'method_not_allowed' }, 405);
+  if (req.method === "OPTIONS") return corsPreflight(req);
+  if (req.method !== "POST") return jsonResponse(req, { error: "method_not_allowed" }, 405);
 
-  // A valid token is not authorization: the public anon key is a valid token.
-  // Require a real signed-in user BEFORE any upstream fetch so anon callers
-  // cannot burn our 공공데이터 quota.
-  const authHeader = req.headers.get('authorization') ?? '';
-  if (!authHeader.toLowerCase().startsWith('bearer ')) {
-    return jsonResponse(req, { error: 'missing_authorization' }, 401);
+  const authHeader = req.headers.get("authorization") ?? "";
+  if (!authHeader.toLowerCase().startsWith("bearer ")) {
+    return jsonResponse(req, { error: "missing_authorization" }, 401);
   }
-  if (!authenticatedUserIdFromJwt(authHeader)) {
-    return jsonResponse(req, { error: 'authentication_required' }, 401);
-  }
+  const userId = authenticatedUserIdFromJwt(authHeader);
+  if (!userId) return jsonResponse(req, { error: "authentication_required" }, 401);
 
-  let body: { source?: unknown; query?: unknown; max?: unknown };
+  let rawBody: unknown;
   try {
-    body = await readJsonObject(req, PUBLIC_DATA_PROXY_JSON_BODY_LIMIT_BYTES) as typeof body;
+    rawBody = await readJsonObject(req, PUBLIC_DATA_PROXY_JSON_BODY_LIMIT_BYTES);
   } catch (error) {
-    if (error instanceof JsonBodyError && error.code === 'request_body_too_large') {
-      return jsonResponse(req, { error: error.code, max: error.maxBytes }, 413);
+    if (error instanceof JsonBodyError && error.code === "request_body_too_large") {
+      return jsonResponse(req, { error: error.code }, 413);
     }
-    return jsonResponse(req, { error: 'invalid_json' }, 400);
+    return jsonResponse(req, { error: "invalid_json" }, 400);
   }
+  const parsedRequest = parsePublicDataRequest(rawBody);
+  if (!parsedRequest.ok) return jsonResponse(req, { error: parsedRequest.error }, 400);
+  const request = parsedRequest.value;
 
-  const url = upstreamUrlFor(body);
-  if (url === 'bad_request') return jsonResponse(req, { error: 'invalid_request' }, 400);
-  // Secret unset: the client already handles "no data" for this case, so an
-  // unconfigured source degrades to an empty result instead of an error screen.
-  if (url === null) return jsonResponse(req, { error: 'source_unconfigured' }, 503);
+  const serverKey = (Deno.env.get(publicDataSecretFor(request.source)) ?? "").trim();
+  if (!serverKey) return jsonResponse(req, { error: "source_unconfigured" }, 503);
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!supabaseUrl || !serviceRoleKey) {
+    return jsonResponse(req, { error: "quota_service_unconfigured" }, 503);
+  }
+  const admin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const provider = publicDataProviderFor(request.source);
+  const { data: quotaAllowed, error: quotaError } = await admin.rpc("consume_public_data_quota", {
+    p_user_id: userId,
+    p_provider: provider,
+    p_day: new Date().toISOString().slice(0, 10),
+    p_cap: DAILY_USER_CAP[request.source],
+  });
+  if (quotaError) return jsonResponse(req, { error: "quota_check_unavailable" }, 503);
+  if (quotaAllowed !== true) return jsonResponse(req, { error: "proxy_quota_exceeded" }, 429);
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  let upstream: Response;
+  let text: string;
   try {
-    // redirect:'manual' for the same reason as rss-proxy, and one more here: the
-    // key rides in the query string, so following a 30x would hand it to
-    // whatever host the redirect names. Never chase it.
-    const upstream = await fetch(url, {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
-      redirect: 'manual',
+    upstream = await fetch(buildPublicDataUpstreamUrl(request, serverKey), {
+      method: "GET",
+      headers: { accept: "application/json" },
+      redirect: "manual",
       signal: controller.signal,
     });
-    if (upstream.type === 'opaqueredirect' || (upstream.status >= 300 && upstream.status < 400)) {
-      return jsonResponse(req, { error: 'upstream_redirect_blocked', status: upstream.status }, 502);
+    if (upstream.type === "opaqueredirect" || (upstream.status >= 300 && upstream.status < 400)) {
+      await upstream.body?.cancel().catch(() => undefined);
+      return jsonResponse(req, { error: "upstream_redirect_blocked" }, 502);
     }
-    if (!upstream.ok) {
-      return jsonResponse(req, { error: 'upstream_error', status: upstream.status }, 502);
+    text = await readPublicDataBodyBounded(upstream, MAX_UPSTREAM_BYTES, {
+      timeoutMs: FETCH_TIMEOUT_MS,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      return jsonResponse(req, { error: "upstream_timeout" }, 504);
     }
-    const text = (await upstream.text()).slice(0, MAX_UPSTREAM_BYTES);
-    let data: unknown;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      return jsonResponse(req, { error: 'upstream_not_json' }, 502);
+    if (error instanceof PublicDataProxyError) {
+      const status = error.code === "upstream_body_timed_out" ? 504 : 502;
+      return jsonResponse(req, { error: error.code }, status);
     }
-    return jsonResponse(req, { data }, 200);
-  } catch {
-    return jsonResponse(req, { error: 'upstream_fetch_failed' }, 502);
+    return jsonResponse(req, { error: "upstream_unreachable" }, 502);
   } finally {
-    clearTimeout(timer);
+    clearTimeout(timeout);
   }
+
+  if (upstream.status === 429) {
+    return jsonResponse(req, { error: "provider_quota_exceeded", provider }, 429);
+  }
+  if (upstream.status === 401 || upstream.status === 403) {
+    return jsonResponse(req, { error: "provider_key_rejected", provider }, 502);
+  }
+
+  const parsedUpstream = parsePublicDataUpstream(request.source, text);
+  if (!parsedUpstream.ok && parsedUpstream.error !== "upstream_bad_payload") {
+    return jsonResponse(
+      req,
+      {
+        error: parsedUpstream.error,
+        provider,
+        ...(parsedUpstream.providerCode ? { providerCode: parsedUpstream.providerCode } : {}),
+      },
+      providerErrorStatus(parsedUpstream.error),
+    );
+  }
+  if (!upstream.ok) return jsonResponse(req, { error: "upstream_http_error", provider }, 502);
+  if (!parsedUpstream.ok) return jsonResponse(req, { error: parsedUpstream.error }, 502);
+
+  // Keep the deployed client contract stable: callers already unwrap `{ data }`.
+  return jsonResponse(req, { data: parsedUpstream.data });
 });

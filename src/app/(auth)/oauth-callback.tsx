@@ -1,32 +1,23 @@
 // OAuth callback route. Currently handles the Naver custom-OAuth return
 // (?code&state): verifies the CSRF state echo, exchanges the code via the
 // oauth-naver edge function, signs in, and routes onward (new users land on
-// /complete-profile via the index redirect, like every provider). On native,
-// this HTTPS route bridges the untouched result into the app deep link. The
-// Supabase-native providers (Google/Apple/Kakao) don't use this route.
+// /complete-profile via the index redirect, like every provider). Naver's
+// current API does not provide the PKCE guarantee needed for a custom-scheme
+// native callback, so this route is deliberately web-only.
 
 import { useEffect, useState } from "react";
 import { Platform, Pressable, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { router, useLocalSearchParams } from "expo-router";
+import { router } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
-import {
-  buildNativeNaverCallbackUrl,
-  completeNaverOAuth,
-  isNativeNaverCallbackState,
-} from "@/lib/supabase/auth";
+import { completeNaverOAuth } from "@/lib/supabase/auth";
 import { cosmic, typography } from "@/lib/theme/tokens";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 
 export default function OAuthCallback() {
   const { t } = useTranslation("auth");
   const [failed, setFailed] = useState(false);
-  // Native cold-start deep link (secondbrain:///oauth-callback?code&state):
-  // expo-router delivers the Naver return as ROUTE PARAMS in a fresh JS
-  // context (Android killed the app behind the Custom Tab, so the
-  // openAuthSessionAsync promise that would normally finish the flow is gone).
-  const linkParams = useLocalSearchParams<{ code?: string; state?: string; error?: string }>();
 
   useEffect(() => {
     let cancelled = false;
@@ -34,41 +25,28 @@ export default function OAuthCallback() {
       // Native RN defines a global `window` (so `typeof window` is never
       // "undefined"), but has no `window.location` — reading `.search` there
       // would throw. This route is web-only (Naver custom-OAuth return); guard
-      // on the platform, not on `window`, so native cleanly bounces home.
+      // on the platform, not on `window`, and fail visibly on native.
       if (Platform.OS !== "web" || typeof window === "undefined" || !window.location) {
-        // 사용자 리포트(2026-07-16): this used to router.replace("/") and DISCARD
-        // the code+state — a cold-started Naver return bounced straight back to
-        // /sign-in with no session and no error (edge exchange 200'd, /verify
-        // never ran). Finish the exchange here instead; the CSRF nonce comes
-        // from the persisted store (completeNaverOAuth falls back to it when
-        // no expectedState is given).
-        const code = typeof linkParams.code === "string" ? linkParams.code : "";
-        const state = typeof linkParams.state === "string" ? linkParams.state : "";
-        const linkError = typeof linkParams.error === "string" ? linkParams.error : null;
-        if (linkError || !code || !state) {
-          router.replace("/");
-          return;
-        }
-        try {
-          await completeNaverOAuth({ code, state });
-          if (!cancelled) router.replace("/");
-        } catch (e) {
-          if (!cancelled) setFailed(true);
-          if (typeof console !== "undefined") console.warn("[auth] naver cold-start callback error", (e as Error).message);
-        }
+        if (!cancelled) setFailed(true);
         return;
       }
       const params = new URLSearchParams(window.location.search);
+      try {
+        // Authorization codes are bearer credentials. Remove code + state from
+        // the visible URL/history before any branch, log, network call, or render.
+        window.history.replaceState(
+          window.history.state,
+          "",
+          window.location.pathname,
+        );
+      } catch {
+        // If the browser cannot acknowledge the scrub, do not exchange.
+        if (!cancelled) setFailed(true);
+        return;
+      }
       const providerError = params.get("error");
       const code = params.get("code") ?? "";
       const state = params.get("state") ?? "";
-      // Native Naver starts with the same registered HTTPS callback as web.
-      // Forward the untouched OAuth result into the app, where the state is
-      // checked against the nonce retained by the initiating native flow.
-      if (isNativeNaverCallbackState(state)) {
-        window.location.replace(buildNativeNaverCallbackUrl(window.location.search));
-        return;
-      }
       if (providerError || !code) {
         if (!cancelled) setFailed(true);
         return;
@@ -76,17 +54,14 @@ export default function OAuthCallback() {
       try {
         await completeNaverOAuth({ code, state });
         if (!cancelled) router.replace("/");
-      } catch (e) {
+      } catch {
         if (!cancelled) setFailed(true);
-        if (typeof console !== "undefined") console.warn("[auth] naver callback error", (e as Error).message);
       }
     }
     void run();
     return () => {
       cancelled = true;
     };
-    // linkParams at mount ARE the deep-link payload; do not re-run on later
-    // param identity churn.
   }, []);
 
   if (failed) {

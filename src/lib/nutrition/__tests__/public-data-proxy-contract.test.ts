@@ -13,6 +13,10 @@ import { resolve } from "node:path";
 
 const ROOT = resolve(__dirname, "../../../..");
 const proxy = readFileSync(resolve(ROOT, "supabase/functions/public-data-proxy/index.ts"), "utf8");
+const proxyCore = readFileSync(
+  resolve(ROOT, "supabase/functions/_shared/public-data-proxy.ts"),
+  "utf8",
+);
 const foods = readFileSync(resolve(ROOT, "src/lib/nutrition/foods.ts"), "utf8");
 const fx = readFileSync(resolve(ROOT, "src/lib/finance/fx.ts"), "utf8");
 
@@ -36,53 +40,74 @@ describe("public-data-proxy 와 클라이언트가 같은 상수를 본다", () 
   });
 
   test("MFDS 엔드포인트가 같다", () => {
-    expect(constOf(proxy, "MFDS_ENDPOINT")).toBe(constOf(foods, "MFDS_ENDPOINT"));
+    expect(proxyCore).toContain(constOf(foods, "MFDS_ENDPOINT"));
   });
 
   test("EXIM 엔드포인트가 같다 (exchangeJSON 까지)", () => {
-    expect(constOf(proxy, "EXIM_ENDPOINT")).toBe(constOf(fx, "EXIM_ENDPOINT"));
+    expect(proxyCore).toContain(constOf(fx, "EXIM_ENDPOINT"));
   });
 
   test("질의 길이·페이지 상한이 같다", () => {
-    expect(numOf(proxy, "QUERY_MAX")).toBe(numOf(foods, "QUERY_MAX"));
-    expect(numOf(proxy, "RESULT_MAX")).toBe(numOf(foods, "RESULT_MAX"));
+    expect(numOf(proxyCore, "QUERY_MAX")).toBe(numOf(foods, "QUERY_MAX"));
+    expect(numOf(proxyCore, "RESULT_MAX")).toBe(numOf(foods, "RESULT_MAX"));
   });
 });
 
 describe("프록시의 보안 자세", () => {
   test("호출자가 URL 을 정하지 못한다 (엔드포인트는 상수)", () => {
     // rss-proxy 는 URL 을 받아 허용목록으로 걸렀다. 여기서는 아예 안 받는다.
-    expect(proxy).not.toMatch(/body\??\.url/);
-    expect(proxy).toMatch(/const MFDS_ENDPOINT = /);
-    expect(proxy).toMatch(/const EXIM_ENDPOINT = /);
+    expect(proxyCore).not.toMatch(/body\??\.url/);
+    expect(proxyCore).toContain("https://apis.data.go.kr/");
+    expect(proxyCore).toContain("https://oapi.koreaexim.go.kr/");
   });
 
   test("키는 서버 환경변수에서만 온다 (EXPO_PUBLIC_ 금지)", () => {
-    expect(proxy).toMatch(/Deno\.env\.get\('MFDS_FOOD_KEY'\)/);
-    expect(proxy).toMatch(/Deno\.env\.get\('EXIM_FX_KEY'\)/);
+    expect(proxyCore).toContain('mfds: "MFDS_FOOD_KEY"');
+    expect(proxyCore).toContain('exim: "EXIM_FX_KEY"');
     // 주석은 EXPO_PUBLIC_ 을 **설명하려고** 언급한다(왜 키를 옮겼는지). 코드만 본다.
-    const code = proxy.replace(/^\s*\/\/.*$/gm, "");
+    const code = `${proxy}\n${proxyCore}`.replace(/^\s*\/\/.*$/gm, "");
     expect(code).not.toContain("EXPO_PUBLIC_");
   });
 
   test("익명 토큰을 거른다 (anon 키도 유효한 토큰이다)", () => {
     expect(proxy).toContain("authenticatedUserIdFromJwt");
-    expect(proxy).toMatch(/role !== 'authenticated'/);
+    expect(proxy).toMatch(/role === "authenticated" && sub\.length > 0/);
     expect(proxy).toMatch(/authentication_required/);
   });
 
   test("리다이렉트를 따라가지 않는다 (키가 쿼리에 실린다)", () => {
-    expect(proxy).toMatch(/redirect: 'manual'/);
+    expect(proxy).toMatch(/redirect:\s*"manual"/);
     expect(proxy).toMatch(/upstream_redirect_blocked/);
   });
 
   test("CORS 는 명시 허용목록이고 와일드카드가 없다", () => {
     expect(proxy).not.toMatch(/access-control-allow-origin['"]\s*:\s*['"]\*/);
+    expect(proxy).not.toMatch(/access-control-allow-origin[^\n]*"null"/);
     expect(proxy).toContain("ALLOWED_ORIGINS");
+    expect(proxy).toContain('url.protocol === "https:"');
   });
 
   test("비밀이 없으면 빈 결과로 강등된다 (에러 화면이 아니라)", () => {
     expect(proxy).toMatch(/source_unconfigured/);
+  });
+
+  test("인증 뒤 DB 원자 quota 를 먼저 소비하고 나서만 상류를 호출한다", () => {
+    const authAt = proxy.indexOf("authenticatedUserIdFromJwt(authHeader)");
+    const quotaAt = proxy.indexOf('"consume_public_data_quota"');
+    const fetchAt = proxy.indexOf("await fetch(");
+    expect(authAt).toBeGreaterThan(0);
+    expect(quotaAt).toBeGreaterThan(authAt);
+    expect(fetchAt).toBeGreaterThan(quotaAt);
+    expect(proxyCore).toContain('exim: "exim_fx"');
+    expect(proxyCore).toContain('mfds: "mfds_food"');
+  });
+
+  test("상류 body 는 전량 text() 할당 없이 byte/chunk/time 상한 안에서 읽는다", () => {
+    expect(proxy).not.toMatch(/upstream\.text\(\)/);
+    expect(proxy).toContain("readPublicDataBodyBounded");
+    expect(proxyCore).toContain("upstream_response_too_large");
+    expect(proxyCore).toContain("upstream_body_too_fragmented");
+    expect(proxyCore).toContain("upstream_body_no_progress");
   });
 });
 
@@ -120,7 +145,7 @@ describe("클라이언트가 실제로 프록시를 탄다", () => {
 
   test("소스 이름이 프록시가 아는 둘과 같다", () => {
     for (const source of ["mfds", "exim"]) {
-      expect(proxy).toContain(`body.source === '${source}'`);
+      expect(proxyCore).toContain(`source: "${source}"`);
     }
     expect(foods).toContain('source: "mfds"');
     expect(fx).toContain('source: "exim"');

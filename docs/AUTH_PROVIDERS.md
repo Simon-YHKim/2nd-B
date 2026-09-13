@@ -14,7 +14,7 @@
 | Google | ✅ wired | yes | enable in Supabase + Google Cloud OAuth client |
 | **Apple** | ✅ wired (native) | yes | enable in Supabase + Apple Service ID/key |
 | **Kakao** | ✅ wired (native) | yes | enable in Supabase + Kakao app keys (legacy `oauth-kakao` edge fn retired) |
-| **Naver** | ✅ wired (edge fn, flag-gated) | **no** | Naver app + flags + deploy `oauth-naver` (see below) |
+| **Naver** | ✅ wired (web-only, edge fn, flag-gated) | **no** | Naver app + migration + secrets + deploy (see below) |
 
 All provider sign-ups route a brand-new user through **`/complete-profile`**, which collects date of
 birth (C10 age gate, ≥14) **and** records consent (`recordConsentBestEffort`). So the age floor +
@@ -49,32 +49,54 @@ given to Supabase.
 ## Naver (custom — not a Supabase provider)
 
 Naver is not a Supabase-native provider, so it uses the **`oauth-naver` edge function** (Deno,
-service_role) which exchanges the code, fetches the profile, find-or-creates the user, and returns a
-magic-link `token_hash`. The client side is now wired (`src/lib/supabase/auth.ts`):
+service_role). The function exchanges the code, fetches the profile, binds the stable Naver subject
+through the private `oauth_naver_identities` mapping, and returns only a Supabase magic-link
+`token_hash`. Naver access/refresh tokens and the raw provider subject never leave the function.
+For a newly claimed subject, Auth uses a deterministic `@naver.invalid` HMAC alias; an unproved
+provider profile email is never promoted to a confirmed Auth identifier or recovery path.
+The client side is wired in `src/lib/supabase/auth.ts`:
 
-- `signInWithNaver()` stashes a random `state` in `sessionStorage` and redirects to Naver's authorize page.
+- `signInWithNaver()` asks the server to rate-limit the request and issue a 256-bit `state`.
+  SQL stores only an HMAC fingerprint with a fixed ten-minute TTL; the client stores the opaque
+  state plus its exact redirect URI in `sessionStorage`.
 - Naver returns to **`/oauth-callback`** (`src/app/(auth)/oauth-callback.tsx`), which calls
-  `completeNaverOAuth()`: it **verifies the returned `state` matches** (client-side CSRF defense),
-  invokes `oauth-naver`, then `verifyOtp({ token_hash, type: 'magiclink' })`. New users land on
-  `/complete-profile` (DOB + consent) like every provider.
+  `completeNaverOAuth()`. The client consumes its transaction once; the server then atomically
+  consumes the matching live state before any Naver request and claims the provider subject before
+  any Auth user creation. The client accepts only the bounded magic-link token and calls
+  `verifyOtp({ token_hash, type: 'magiclink' })` inside the Auth v2 mutation/quarantine boundary.
+  New users land on `/complete-profile` (DOB + consent) like every provider.
 
 **Off by default** behind two layers, so nothing shows or runs until the operator opts in:
 
-1. **Client flags:** set `EXPO_PUBLIC_NAVER_CLIENT_ID` (the public REST client id) and
-   `EXPO_PUBLIC_ENABLE_NAVER=true` — only then does the Naver button render.
-2. **Edge function:** set `NAVER_CLIENT_ID` / `NAVER_CLIENT_SECRET` + `ENABLE_NAVER_OAUTH=true` as
-   `oauth-naver` secrets (the secret never leaves the function), register the redirect URI
-   `<origin><base>oauth-callback` in the Naver console **and** in the function's `ALLOWED_ORIGINS`,
-   then deploy `oauth-naver`.
+1. **Database:** apply migration `0183_oauth_naver_rate_limit.sql`, then reserve a real migration
+   number for `db/migration-drafts/UNNUMBERED_oauth_naver_rate_limit_completion.sql`, review/apply
+   that forward migration, and verify both postconditions. The completion migration removes the
+   attacker-cardinality state ledger, adds global/peer/subject quotas, bounds request-path cleanup,
+   and narrows the durable state redirect to the one production HTTPS callback. The function fails
+   closed while any service-only limiter, state, or identity RPC is absent.
+2. **Edge function, still disabled:** set `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET`, and a stable random
+   `NAVER_OAUTH_HMAC_PEPPER` of at least 32 bytes as `oauth-naver` secrets. Register an exact
+   `https://simon-yhkim.github.io/2nd-B/oauth-callback` redirect in the Naver console; localhost and
+   custom-scheme callbacks are not accepted. Deploy with `verify_jwt=false` (this is a rate-limited
+   pre-auth endpoint) and validate only disabled/error behavior while `ENABLE_NAVER_OAUTH=false`.
+3. **Server gate:** after the DB postflight, exact console callback, secret-name inventory, and Edge
+   disabled smoke all pass, set `ENABLE_NAVER_OAUTH=true` and run a bounded web canary.
+4. **Client flags last:** only after the server canary, set `EXPO_PUBLIC_NAVER_CLIENT_ID` (the public
+   REST client id) and `EXPO_PUBLIC_ENABLE_NAVER=true`; only then does the Naver button render.
 
-CSRF note: the primary defense is the **client-side `state` echo check** in `completeNaverOAuth`.
-A stronger server-issued state-nonce store (the original H2 hardening) can layer on top later; the
-function remains server-gated by `ENABLE_NAVER_OAUTH` until you're satisfied.
+The Naver API contract used here has no documented PKCE parameters. Therefore Naver stays
+**web-only**: native start/completion and the former custom-scheme bridge fail before Edge exchange.
+Do not enable the button in a native release unless Naver supplies a standards-compatible
+code-binding mechanism and that flow receives a separate security review.
+
+Before activation, inventory any historical Naver-created Auth users separately. Existing real-email
+users and pre-0183 metadata identities need an explicit reconciliation/backfill decision; the stable
+HMAC pepper must not rotate without migrating the private subject mapping.
 
 > The legacy **`oauth-kakao` edge function was retired** — Kakao is now a Supabase-native provider
 > (`signInWithOAuth({ provider: 'kakao' })`), so it follows the built-in path above, no edge function.
 
-## Native (Expo iOS/Android) — implemented (Supabase-mediated, no native client ids)
+## Native Supabase providers (Expo iOS/Android) — implemented
 
 > The earlier "deferred" note is obsolete: the native path is **already implemented and shipped**.
 > `signInWithProvider` (`src/lib/supabase/auth.ts`) detects the runtime and, on native, opens the

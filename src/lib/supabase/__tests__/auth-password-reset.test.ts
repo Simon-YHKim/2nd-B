@@ -857,15 +857,15 @@ describe("password reset helpers", () => {
 });
 
 describe("Naver native OAuth bridge", () => {
-  test("recognizes only native-issued state values", () => {
-    expect(isNativeNaverCallbackState("native.abc123")).toBe(true);
+  test("the retired native bridge never recognizes a state", () => {
+    expect(isNativeNaverCallbackState(`native.${"a".repeat(64)}`)).toBe(false);
+    expect(isNativeNaverCallbackState("native.abc123")).toBe(false);
     expect(isNativeNaverCallbackState("abc123")).toBe(false);
   });
 
-  test("forwards the provider callback query to the fixed app route", () => {
-    expect(buildNativeNaverCallbackUrl("?code=code-1&state=native.abc123")).toBe(
-      "secondbrain:///oauth-callback?code=code-1&state=native.abc123",
-    );
+  test("never forwards a provider authorization code through a custom scheme", () => {
+    expect(() => buildNativeNaverCallbackUrl("?code=code-1&state=native.abc123"))
+      .toThrow("Naver login is available on web only.");
   });
 });
 
