@@ -29,7 +29,7 @@ import { DOMAIN_STARS, getDomainStar, isDomainId, domainTagFor, type DomainId } 
 import { evidenceDateLabel } from "@/lib/persona/evidence";
 import { loadDomainLevels } from "@/lib/persona/load-domain-levels";
 import type { LadderLevel } from "@/lib/persona/brightness";
-import { lifeDomainOf } from "@/lib/records/domain-screen";
+import { filedDomainOf } from "@/lib/records/domain-screen";
 import { getPieceSummary, parsePieceId, type PieceSummary } from "@/lib/records/get-piece";
 import { m3 } from "@/lib/theme/m3";
 import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
@@ -200,13 +200,15 @@ export default function DomainStarScreen() {
   }, [userId, domainId, pieceOrigin, pieceUuid]);
 
   // 지금 주소가 가리키는 조각이고 이 영역에 담긴 것일 때만 보인다. 주소가 바뀌어 새 읽기가
-  // 끝나기 전에도 지난 조각이 남아 보이지 않는다.
+  // 끝나기 전에도 지난 조각이 남아 보이지 않는다. 담긴 곳은 domain: 태그로 잰다 - /capture 의
+  // 기록 저장은 collect 로도 보내므로(Simon 결정 2026-09-14 01:45) 생활 영역만 보는 lifeDomainOf 가
+  // 아니라 filedDomainOf 다. 태그가 없는 조각은 어느 영역에도 담긴 것이 아니다.
   const piece =
     shownPiece !== null &&
     shownPiece.origin === pieceOrigin &&
     shownPiece.uuid === pieceUuid &&
     domainId !== null &&
-    lifeDomainOf(shownPiece.tags) === domainId
+    filedDomainOf(shownPiece.tags) === domainId
       ? shownPiece
       : null;
 
