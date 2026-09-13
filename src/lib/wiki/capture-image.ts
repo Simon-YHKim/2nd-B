@@ -7,6 +7,11 @@
 
 import { callLlm } from "../llm/boundary";
 import type { LlmResult } from "../llm/types";
+import {
+  leaseOwnedTempFile,
+  type OwnedTempFileLease,
+  type OwnedTempLeaseError,
+} from "../storage/owned-temp";
 
 type ImageManipulatorModule = typeof import("expo-image-manipulator");
 type ImageManipulatorAction = import("expo-image-manipulator").Action;
@@ -42,6 +47,16 @@ export interface PickedImage {
   /** Normalized base64 bytes handed to the Edge Function for OCR. */
   base64: string;
   mimeType: string;
+  /** Releases only the verified app-cache copy; safe and idempotent. */
+  release(): Promise<void>;
+}
+
+interface DownscaledOcrImage {
+  uri: string;
+  base64: string;
+  mimeType: "image/jpeg";
+  lease: OwnedTempFileLease | null;
+  usesPickerLease: boolean;
 }
 
 export const MAX_OCR_IMAGE_BASE64_BYTES = 2_700_000;
@@ -113,6 +128,63 @@ const OCR_PROMPT: Record<"en" | "ko", string> = {
   en: "Transcribe all readable text in this image as clean markdown. Preserve visible line breaks, headings, lists, and markdown tables where possible. Capture numeric values, units, labels, timestamps, checkboxes, and engineering terms such as tact time, cycle time, and UPH exactly as shown. Mark unclear characters with [?] instead of guessing. If the image has no readable text, describe what you see in 1-2 sentences in English.",
   ko: "이미지의 모든 읽을 수 있는 텍스트를 깔끔한 마크다운으로 전사하세요. 보이는 줄바꿈, 제목, 목록을 유지하고, 표는 가능한 한 마크다운 표로 보존하세요. 숫자, 단위, 라벨, 시간, 체크박스, tact time, cycle time, UPH 같은 엔지니어링 용어는 보이는 대로 정확히 적으세요. 불확실한 글자는 추측하지 말고 [?]로 표시하세요. 읽을 수 있는 텍스트가 없으면 이미지 내용을 한국어 1-2문장으로 설명하세요.",
 };
+
+function safeImageCleanupFailureReason(reason: unknown): OwnedTempLeaseError | "unexpected_failure" {
+  switch (reason) {
+    case "unsupported_runtime":
+    case "filesystem_unavailable":
+    case "unsafe_target":
+    case "not_a_file":
+    case "inspect_failed":
+    case "target_changed":
+    case "delete_failed":
+    case "verification_failed":
+      return reason;
+    default:
+      return "unexpected_failure";
+  }
+}
+
+function warnImageCleanupFailure(reason: unknown): void {
+  if (typeof console !== "undefined") {
+    console.warn("[capture-image] cache copy cleanup failed", {
+      reason: safeImageCleanupFailureReason(reason),
+    });
+  }
+}
+
+async function acquireImageCacheLease(uri: string): Promise<OwnedTempFileLease | null> {
+  try {
+    const result = await leaseOwnedTempFile(uri);
+    return result.ok ? result.lease : null;
+  } catch {
+    return null;
+  }
+}
+
+async function disposeImageCacheLease(lease: OwnedTempFileLease | null): Promise<void> {
+  if (!lease) return;
+  try {
+    const result = await lease.dispose();
+    if (!result.ok) warnImageCleanupFailure(result.error);
+  } catch {
+    warnImageCleanupFailure("unexpected_failure");
+  }
+}
+
+function pickedImageWithLease(
+  image: Omit<PickedImage, "release">,
+  lease: OwnedTempFileLease | null,
+): PickedImage {
+  let releasePromise: Promise<void> | null = null;
+  return {
+    ...image,
+    release: () => {
+      releasePromise ??= disposeImageCacheLease(lease);
+      return releasePromise;
+    },
+  };
+}
 
 function ocrPromptForLocale(locale: "en" | "ko"): string {
   return `${OCR_PROMPT[locale]}\n\n${OCR_DOMAIN_GUARD[locale]}\n\n${OCR_OUTPUT_GUARD[locale]}`;
@@ -397,7 +469,7 @@ async function downscaleOcrImageAsset(asset: {
   uri: string;
   width?: number;
   height?: number;
-}): Promise<PickedImage | null> {
+}): Promise<DownscaledOcrImage | null> {
   const ImageManipulator = loadImageManipulatorModule();
   if (!ImageManipulator || typeof ImageManipulator.manipulateAsync !== "function") return null;
   const width = asset.width ?? 0;
@@ -422,10 +494,19 @@ async function downscaleOcrImageAsset(asset: {
     } catch {
       return null;
     }
+    const usesPickerLease = result.uri === asset.uri;
+    const lease = usesPickerLease ? null : await acquireImageCacheLease(result.uri);
     const base64 = result?.base64;
     if (base64 && base64.length <= MAX_OCR_IMAGE_BASE64_BYTES) {
-      return { uri: result.uri, base64, mimeType: "image/jpeg" };
+      return {
+        uri: result.uri,
+        base64,
+        mimeType: "image/jpeg",
+        lease,
+        usesPickerLease,
+      };
     }
+    await disposeImageCacheLease(lease);
   }
   return null;
 }
@@ -467,32 +548,44 @@ export async function pickImageAsset(
   if (result.canceled) return null;
   const asset = result.assets?.[0];
   if (!asset) return null;
-  if (!asset.base64) throw new Error(IMAGE_OCR_MISSING_DATA_ERROR);
+  let candidateLease = await acquireImageCacheLease(asset.uri);
+  try {
+    if (!asset.base64) throw new Error(IMAGE_OCR_MISSING_DATA_ERROR);
 
-  // P2-4: oversized images get a downscale pass instead of an immediate
-  // too-large rejection. The downscaled payload still goes through the same
-  // guard below (signature sniff, MIME allowlist) — only the size pressure
-  // is relieved, never the validation.
-  let candidate: { uri: string; base64: string; mimeType: string | null | undefined } = {
-    uri: asset.uri,
-    base64: asset.base64,
-    mimeType: asset.mimeType,
-  };
-  if (asset.base64.length > MAX_OCR_IMAGE_BASE64_BYTES) {
-    const downscaled = await downscaleOcrImageAsset(asset);
-    if (downscaled) candidate = downscaled;
+    // P2-4: oversized images get a downscale pass instead of an immediate
+    // too-large rejection. The downscaled payload still goes through the same
+    // guard below (signature sniff, MIME allowlist) — only the size pressure
+    // is relieved, never the validation.
+    let candidate: { uri: string; base64: string; mimeType: string | null | undefined } = {
+      uri: asset.uri,
+      base64: asset.base64,
+      mimeType: asset.mimeType,
+    };
+    if (asset.base64.length > MAX_OCR_IMAGE_BASE64_BYTES) {
+      const downscaled = await downscaleOcrImageAsset(asset);
+      if (downscaled) {
+        if (!downscaled.usesPickerLease) {
+          await disposeImageCacheLease(candidateLease);
+          candidateLease = downscaled.lease;
+        }
+        candidate = downscaled;
+      }
+    }
+
+    const payload = normalizeOcrImagePayload({
+      base64: candidate.base64,
+      mimeType: candidate.mimeType,
+    });
+    const picked = pickedImageWithLease({
+      uri: candidate.uri,
+      base64: payload.base64,
+      mimeType: payload.mimeType,
+    }, candidateLease);
+    candidateLease = null;
+    return picked;
+  } finally {
+    await disposeImageCacheLease(candidateLease);
   }
-
-  const payload = normalizeOcrImagePayload({
-    base64: candidate.base64,
-    mimeType: candidate.mimeType,
-  });
-  const picked = {
-    uri: candidate.uri,
-    base64: payload.base64,
-    mimeType: payload.mimeType,
-  };
-  return picked;
 }
 
 // Step 2 — run Gemini multimodal OCR on a picked image. Triggered by the
