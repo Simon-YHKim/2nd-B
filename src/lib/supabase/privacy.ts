@@ -9,7 +9,7 @@
 import { getSupabaseClient } from "./client";
 import { recordHealthImportConsent } from "./consent";
 import { resolvePrivacyPrefs, PRIVACY_PREF_KEYS, type PrivacyPrefs } from "../privacy/prefs";
-import { publishPrivacyPrefsSaved } from "../privacy/pref-changes";
+import { publishPrivacyPrefsIntent, publishPrivacyPrefsSaved, publishPrivacyPrefsSaveFailed } from "../privacy/pref-changes";
 
 export async function fetchPrivacyPrefs(userId: string): Promise<PrivacyPrefs> {
   try {
@@ -73,21 +73,44 @@ export interface SavePrivacyPrefsOptions {
   locale?: "en" | "ko";
 }
 
+/**
+ * PR #1814 redesign C2: a save's round trips, up to its commit. If they throw, nobody can tell
+ * whether the write landed, so `failed` runs before the rethrow - a listener that took the
+ * intent (the chat autosave consent store takes a withdrawal at once) must not keep it as saved.
+ */
+async function untilCommitted<T>(failed: () => void, roundTrips: () => Promise<T>): Promise<T> {
+  try {
+    return await roundTrips();
+  } catch (e) {
+    failed();
+    throw e;
+  }
+}
+
 export async function savePrivacyPrefs(
   userId: string,
   prefs: PrivacyPrefs,
   options: SavePrivacyPrefsOptions = {},
 ): Promise<void> {
   const supabase = getSupabaseClient();
-  // D-3: snapshot the before-state so we can append a consent-change row per
-  // toggled key after the write. fetchPrivacyPrefs is fail-soft (never throws),
-  // so this can't block the save; a read miss resolves to all-off defaults.
-  const before = await fetchPrivacyPrefs(userId);
-  const { error } = await supabase.from("users").update({ privacy_prefs: prefs }).eq("id", userId);
-  if (error) throw error;
+  // PR #1814 redesign C2: announce before the first round trip, so a withdrawal this whole object
+  // carries (chat_autosave false) is taken before either request leaves (see pref-changes.ts).
+  const intent = publishPrivacyPrefsIntent(userId, prefs);
+  const before = await untilCommitted(
+    () => publishPrivacyPrefsSaveFailed(intent),
+    async () => {
+      // D-3: snapshot the before-state so we can append a consent-change row per
+      // toggled key after the write. fetchPrivacyPrefs is fail-soft (never throws),
+      // so this can't block the save; a read miss resolves to all-off defaults.
+      const snapshot = await fetchPrivacyPrefs(userId);
+      const { error } = await supabase.from("users").update({ privacy_prefs: prefs }).eq("id", userId);
+      if (error) throw error;
+      return snapshot;
+    },
+  );
   // r3as H1: tell still-mounted screens what was just written (the chat screen stays in
   // the Stack behind /privacy), before the best-effort ledger append below.
-  publishPrivacyPrefsSaved(userId, prefs);
+  publishPrivacyPrefsSaved(userId, prefs, intent);
   // Append only AFTER a successful write (a failed save recorded no consent
   // change). Best-effort and never rethrows, so the change ledger can't break
   // the settings save.
@@ -143,20 +166,29 @@ export async function savePrivacyPref(
   options: SavePrivacyPrefsOptions = {},
 ): Promise<PrivacyPrefs> {
   const supabase = getSupabaseClient();
-  const { data, error: readError } = await supabase
-    .from("users")
-    .select("privacy_prefs")
-    .eq("id", userId)
-    .maybeSingle();
-  if (readError) throw readError;
-  const raw: unknown = data?.privacy_prefs;
-  const stored = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
-  const before = resolvePrivacyPrefs(stored);
-  const written = { ...stored, [key]: value };
-  const { error } = await supabase.from("users").update({ privacy_prefs: written }).eq("id", userId);
-  if (error) throw error;
+  const change: Partial<PrivacyPrefs> = {};
+  change[key] = value;
+  // PR #1814 redesign C2: as in savePrivacyPrefs, the intent goes out before the read below.
+  const intent = publishPrivacyPrefsIntent(userId, change);
+  const { before, written } = await untilCommitted(
+    () => publishPrivacyPrefsSaveFailed(intent),
+    async () => {
+      const { data, error: readError } = await supabase
+        .from("users")
+        .select("privacy_prefs")
+        .eq("id", userId)
+        .maybeSingle();
+      if (readError) throw readError;
+      const raw: unknown = data?.privacy_prefs;
+      const stored = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+      const next = { ...stored, [key]: value };
+      const { error } = await supabase.from("users").update({ privacy_prefs: next }).eq("id", userId);
+      if (error) throw error;
+      return { before: resolvePrivacyPrefs(stored), written: next };
+    },
+  );
   const after = resolvePrivacyPrefs(written);
-  publishPrivacyPrefsSaved(userId, after); // r3as H1, as in savePrivacyPrefs
+  publishPrivacyPrefsSaved(userId, after, intent); // r3as H1, as in savePrivacyPrefs
   // Same ledger rows and sensitive-data record as savePrivacyPrefs, on the same edges.
   await recordConsentChanges(userId, before, after);
   if (key === "health_import" && before.health_import === false && after.health_import === true) {
