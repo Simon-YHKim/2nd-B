@@ -218,7 +218,15 @@ describe("deep-space records source detail routing", () => {
       // its own contract in wiki-page-delete.test.ts; this pin still proves the
       // record-detail extraction never reaches into the wiki renderer. Previous digest:
       // caa3ad24cbf6497c7958454a0b68b239e0b9faebfa658980687de5cc0d75008a.
-      "a4b4bcce0823255c3842d110d90aa2c30b12f8f40e9ff26f3190258ccbe1d2b1",
+      //
+      // Re-pinned on 2026-09-16 (PR 1814 redesign C6): the delete confirm now carries the
+      // account that asked (ownerId), is cleared when the account changes, and only says
+      // "deleted" when the delete removed a row. Those lines are the only changes in this
+      // slice (13,058 -> 13,552 chars); the behaviour runs in wiki-page-delete.test.ts.
+      // Verified before re-pinning: the previous digest recomputes from the parent commit
+      // 31fa1cfb. Previous digest:
+      // a4b4bcce0823255c3842d110d90aa2c30b12f8f40e9ff26f3190258ccbe1d2b1.
+      "aae59ed0c0e8290a81ce6cf0eaee61bfe5dae47f96f5ff06b7b807f117ee5742",
     );
   });
 });

@@ -713,12 +713,19 @@ export function DeepSpaceWikiScreen() {
   // user_id 를 읽기와 지우기 양쪽에 명시로 건다(RLS 가 한 번 더 막는다).
   // ⚠ 담긴 자료(sources)에서 승격된 페이지라면 원본 자료는 남는다. deleteWikiPage 는
   //   원본을 미수집으로 되돌릴 뿐이다.
-  const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
+  // 확인 대기에는 누른 계정을 함께 적는다(ownerId). 확인은 그 계정이 지금 계정일 때만 지우고,
+  // 계정이 바뀌면 대기를 비운다. 계정 전환은 루트가 이 화면을 새로 만들어 이미 막는다 - 이것은
+  // 화면 안의 두 번째 울타리다.
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string; ownerId: string } | null>(null);
   const [deletingPageId, setDeletingPageId] = useState<string | null>(null);
   const [deleteNotice, setDeleteNotice] = useState<"deleted" | "failed" | null>(null);
   const deleteInFlightRef = useRef(false);
   const deleteUserRef = useRef(userId);
   deleteUserRef.current = userId;
+
+  useEffect(() => {
+    setPendingDelete((prev) => (prev !== null && prev.ownerId !== userId ? null : prev));
+  }, [userId]);
 
   const closeDeletePage = useCallback(() => {
     if (deleteInFlightRef.current) return;
@@ -728,19 +735,23 @@ export function DeepSpaceWikiScreen() {
 
   const confirmDeletePage = useCallback(async () => {
     const page = pendingDelete;
-    if (!userId || !page || deleteInFlightRef.current) return;
+    if (!userId || !page || page.ownerId !== userId || deleteInFlightRef.current) return;
     const targetUserId = userId;
     deleteInFlightRef.current = true;
     setDeletingPageId(page.id);
     setDeleteNotice(null);
     try {
-      await deleteWikiPage(userId, page.id);
+      const removed = await deleteWikiPage(userId, page.id);
       // 기다리는 사이 계정이 바뀌었으면 새 계정 화면에 옛 결과를 띄우지 않는다.
       if (deleteUserRef.current !== targetUserId) return;
       setPendingDelete(null);
       setExpandedId((prev) => (prev === page.id ? null : prev));
-      setDeleteNotice("deleted");
-      AccessibilityInfo.announceForAccessibility(tw("pageDeleted"));
+      // 0행이면 지운 것이 없다(이미 없거나 이 계정 것이 아니다. RLS 거부도 오류가 아니라 0행으로 온다).
+      // "삭제됨" 을 말하지 않고 목록만 서버에서 다시 읽는다.
+      if (removed > 0) {
+        setDeleteNotice("deleted");
+        AccessibilityInfo.announceForAccessibility(tw("pageDeleted"));
+      }
       reload();
     } catch {
       if (deleteUserRef.current !== targetUserId) return;
@@ -876,7 +887,7 @@ export function DeepSpaceWikiScreen() {
                     style={styles.danger}
                     onPress={() => {
                       setDeleteNotice(null);
-                      setPendingDelete({ id: p.id, title: p.title });
+                      setPendingDelete({ id: p.id, title: p.title, ownerId: userId });
                     }}
                     disabled={deletingPageId !== null}
                     hitSlop={8}
