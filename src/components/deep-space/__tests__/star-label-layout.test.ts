@@ -27,6 +27,8 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 import { HOME_STAR_IDS } from "@/lib/persona/home-stars";
+import { m3 } from "@/lib/theme/m3";
+import { flattenAlpha } from "@/lib/theme/tokens";
 
 import { pixelStarSpan } from "../../pixel/pixel-star";
 import {
@@ -448,16 +450,48 @@ describe("별 이름표 자리", () => {
     expect(widened + narrow).toBe(ABOVE_FREE.length * 8);
   });
 
-  it("북극성 이름표가 별 이름표보다 작거나 흐려지지 않는다 (Visual Tier)", () => {
-    // 두 이름표 모두 상한 없이 같은 기기 배율을 따른다 (아래 화면 배선 검사). 그래서 이 비교는 어느 기기 배율에서도 같다.
+  it("북극성 이름표는 별 이름표보다 작지 않고 쉬는 별 이름표보다 밝다 · 눌린 별 이름표 색까지 합성해 잰다 (Visual Tier)", () => {
+    // 두 이름표 모두 상한 없이 같은 기기 배율을 따른다 (아래 화면 배선 검사). 그래서 크기 비교는 어느 기기 배율에서도 같다.
     expect(STAR_LABEL.fontSize).toBeLessThanOrEqual(POLARIS_LABEL.fontSize);
     expect(STAR_LABEL.lineHeight).toBeLessThanOrEqual(POLARIS_LABEL.lineHeight);
-    const alpha = (block: string) => {
-      const m = /homeAlpha\([^,]+,\s*([\d.]+)\)/.exec(block);
-      if (!m) throw new Error("label colour is not a homeAlpha(...) value");
-      return Number(m[1]);
+
+    // 색은 알파 숫자가 아니라 무대 바닥 위에 합성한 최종 색의 상대 휘도(sRGB)로 견준다. 전에는 homeAlpha 의
+    // 알파 둘(0.78 < 0.92)만 봐서 바탕 색이 무엇이든, 눌린 별의 색 덮어쓰기가 무엇이든 초록이었다
+    // (PR #1810 재게이트 T1: 북극성 이름표 바탕을 무대 바닥 색으로, 눌린 색을 어두운 파랑으로 바꿔도 통과).
+    const tokenHex = (expr: string): string => {
+      const m = /^m3\.accent\.(\w+)$/.exec(expr.trim());
+      if (!m) throw new Error(`label colour is not an m3.accent token: ${expr}`);
+      const hex = (m3.accent as Record<string, string>)[m[1]];
+      if (!/^#[0-9a-fA-F]{6}$/.test(hex ?? "")) throw new Error(`m3.accent.${m[1]} is not an rrggbb colour`);
+      return hex;
     };
-    expect(alpha(styleBlock("starLabel"))).toBeLessThan(alpha(styleBlock("polarisLabel")));
+    const styleColour = (block: string): string => {
+      const m = /color: homeAlpha\(([^,]+),\s*([\d.]+)\)/.exec(block);
+      if (!m) throw new Error("label colour is not a homeAlpha(...) value");
+      return flattenAlpha(tokenHex(m[1]), Number(m[2]), m3.accent.stageFloor);
+    };
+    const luminance = (hex: string): number => {
+      const [r, g, b] = [1, 3, 5].map((i) => {
+        const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+        return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const restLabel = luminance(styleColour(styleBlock("starLabel")));
+    const polarisLabel = luminance(styleColour(styleBlock("polarisLabel")));
+    // 눌린 별 이름표는 style 배열의 마지막 덮어쓰기로 불투명한 색이 된다. 그 색을 화면 소스에서 읽는다.
+    const labels = SRC.slice(SRC.indexOf("{/* star labels"), SRC.indexOf("{/* tap targets"));
+    const override = /on && \{ color: ([^}]+) \}/.exec(labels);
+    if (!override) throw new Error("focused star label colour override not found");
+    const focusedLabel = luminance(tokenHex(override[1]));
+
+    expect(polarisLabel).toBeGreaterThan(restLabel);
+    // 눌린 별은 승격된다. 쉬는 별 이름표보다 어두워지지 않는다.
+    expect(focusedLabel).toBeGreaterThanOrEqual(restLabel);
+    // 북극성 이름표가 눌린 별 이름표보다 밝다고는 보장하지 않는다. 캐논(sb-home.jsx 279행)과 main 이 눌린
+    // 이름표를 m3.accent.starFocus 로 칠해 합성 휘도 0.912 로 북극성 이름표 0.512 보다 밝다. 쉬는 별 이름표는
+    // 0.431 이다. "어느 별도 북극성만큼 밝아 보이면 안 된다" 는 규칙과 부딪칠 수 있어 PR 본문 후속에 올렸다.
+    // 색을 바꿀지는 디자인 결정이라 이 테스트가 정하지 않는다.
     // 줄 수는 둘까지다. 셋째 줄부터는 이름표가 아니라 문단이다.
     for (const [winW, fontScale] of CASES) {
       for (const label of Object.values(homeLayout(winW, fontScale).labels)) expect(label.maxLines).toBeLessThanOrEqual(2);
