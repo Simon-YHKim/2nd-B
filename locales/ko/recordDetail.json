@@ -19,7 +19,8 @@
   },
   "actions": {
     "backToRecords": "기록 목록으로",
-    "seeGraph": "그래프에서 보기",
+    "seeArea": "{{area}} 영역에서 보기",
+    "seeAreaHint": "{{area}} 영역을 열고 이 기록을 맨 위에 보여줘요.",
     "askSecondB": "세컨비에게 묻기",
     "openSource": "원래 화면 열기"
   }

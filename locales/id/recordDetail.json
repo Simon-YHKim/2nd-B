@@ -19,7 +19,8 @@
   },
   "actions": {
     "backToRecords": "Kembali ke catatan",
-    "seeGraph": "Lihat di graf",
+    "seeArea": "Lihat di {{area}}",
+    "seeAreaHint": "Membuka {{area}} dengan catatan ini di paling atas.",
     "askSecondB": "Tanya SecondB",
     "openSource": "Buka sumber"
   }

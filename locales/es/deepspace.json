@@ -1059,6 +1059,8 @@
     "empty": "Guarda tu primer registro para encender esta estrella.",
     "recordFallback": "registro",
     "untitled": "(sin título)",
+    "pieceHere": "Guardado aquí",
+    "pieceOpenHint": "Abre este registro.",
     "briefingOpening": "Abriendo esta estrella…",
     "briefingEmpty": "Aún no hay registros en esta estrella. Guarda uno para que SecondB pueda usarlo.",
     "briefingCountOne": "{{n}} registro en esta estrella, primero el más reciente.",

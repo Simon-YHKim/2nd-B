@@ -221,7 +221,8 @@ type ImportMode = "file" | "account";
 // A windowed 외부 가져오기 hub: file/account mode toggle, a file drop zone, the
 // 3-block 가져오기 전 약속 consent, and the 가져오기 이력 list. The 파일 선택
 // button runs the real pick → captureFromMarkdown import; the device-health account
-// row runs the real device-health opt-in/ingest (minors stay hard-locked).
+// row runs the real device-health opt-in/ingest (minors, and an age not confirmed
+// yet, stay hard-locked).
 export function DeepSpaceImportScreen() {
   const { t, i18n } = useTranslation("deepspace");
   const { userId, loading: authLoading, isMinor } = useAuth();
@@ -353,9 +354,10 @@ export function DeepSpaceImportScreen() {
   }
 
   // Opt in: persist the pref AND write an explicit sensitive-data consent record
-  // before any ingest can run. Minors can never reach this.
+  // before any ingest can run. Minors can never reach this, and neither can an age
+  // that is not confirmed yet (isMinor null).
   async function handleHealthConsent() {
-    if (!userId || healthBusy || isMinor === true) return;
+    if (!userId || healthBusy || isMinor !== false) return;
     setHealthBusy(true);
     try {
       const prefs = { ...(await fetchPrivacyPrefs(userId)), health_import: true };
@@ -452,7 +454,7 @@ export function DeepSpaceImportScreen() {
     { k: t("import.healthName"), icon: "favorite", health: true },
   ];
 
-  const healthCta = isMinor === true
+  const healthCta = isMinor !== false
     ? t("ds.import.healthCtaMinorLocked")
     : healthBusy
       ? t("ds.import.healthCtaSyncing")
@@ -525,14 +527,14 @@ export function DeepSpaceImportScreen() {
                   <MdCard
                     key={a.k}
                     variant="outlined"
-                    onPress={isMinor === true ? undefined : () => void (canHealth ? handleHealthIngest() : handleHealthConsent())}
+                    onPress={isMinor !== false ? undefined : () => void (canHealth ? handleHealthIngest() : handleHealthConsent())}
                     accessibilityLabel={`${a.k} ${healthCta}`}
                     style={s.accountCard}
                   >
                     <View style={s.accountRow}>
                       <Glyph name={a.icon} color={m3.color.onSurfaceVariant} size={20} />
                       <RNText style={[m3TextStyle("bodyLarge"), s.accountName]}>{a.k}</RNText>
-                      <RNText style={[m3TextStyle("labelMedium"), { color: isMinor === true ? m3.color.onSurfaceVariant : m3.color.primary }]}>{healthCta}</RNText>
+                      <RNText style={[m3TextStyle("labelMedium"), { color: isMinor !== false ? m3.color.onSurfaceVariant : m3.color.primary }]}>{healthCta}</RNText>
                     </View>
                     {healthErr !== null ? (
                       <RNText
