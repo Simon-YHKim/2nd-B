@@ -17,6 +17,8 @@ import type { RelationType, SourceKind, SourceRow, WikiPageKind, WikiPageRow } f
 // --- sources -----------------------------------------------------------
 
 export interface CreateSourceInput {
+  /** Omit for a database-generated id. Set when the caller names the row (capture's sourceId). */
+  id?: string;
   user_id: string;
   kind: SourceKind;
   title: string;

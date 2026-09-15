@@ -48,10 +48,53 @@ export interface CaptureInput {
   /** Optional UI-owned cancellation signal for capture submit flows. */
   signal?: AbortSignal;
   /**
+   * Row id for the sources INSERT, chosen by the caller. Omit it and the
+   * database picks one. A caller that may have to undo exactly this write names
+   * the row up front: looking it up again by content_hash could find a row the
+   * user kept by hand, which carries the same hash.
+   */
+  sourceId?: string;
+  /**
+   * Raw body key, chosen by the caller: the object lands at `<userId>/<key>.md`.
+   * Must already be storage-safe ASCII, like any slug handed to rawClippingPath.
+   * Omit it for the default title slug + content-hash key.
+   */
+  storageKey?: string;
+  /**
+   * Filled in as the capture goes (see CaptureJournal). The caller keeps the
+   * object, so it can still read what was sent after the capture throws, an
+   * abort included.
+   */
+  journal?: CaptureJournal;
+  /**
+   * Only `true` changes anything. `signal` is still checked before the INSERT
+   * is sent and again after it returns, but it is not attached to the INSERT
+   * request. Cutting an INSERT that already left leaves the caller unable to
+   * tell whether the row committed; with this set the capture waits for the
+   * answer, records insertDone, and then throws AbortError. Unset or false: the
+   * INSERT request carries `signal`, as it always has.
+   */
+  insertIgnoresSignal?: boolean;
+  /**
    * Ingest-gate deps (dedup). Defaults to the Supabase-backed factory; tests
    * inject a fake. Exposed so callers can disable/stub the gate if needed.
    */
   gateDeps?: GateDeps;
+}
+
+/**
+ * What one capture sent and what the server confirmed. Fields only ever turn
+ * true. A caller undoing a cancelled capture reads it to know what to remove.
+ */
+export interface CaptureJournal {
+  /** The raw body upload was sent. */
+  uploadSent: boolean;
+  /** Storage accepted the raw body. Stays false when the upload failed and the body went inline. */
+  uploadDone: boolean;
+  /** The sources INSERT was sent. */
+  insertSent: boolean;
+  /** The INSERT returned its row, so the row committed. */
+  insertDone: boolean;
 }
 
 export interface CaptureResult {
@@ -109,6 +152,7 @@ export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureR
     });
     throwIfAborted(input.signal);
     const existing = await getSource(input.userId, decision.survivorId);
+    throwIfAborted(input.signal);
     if (existing) {
       return {
         source: existing,
@@ -139,11 +183,15 @@ export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureR
   // storageSafeSlug: Storage rejects non-ASCII keys (400 "Invalid key"), so a
   // Hangul title ("KakaoTalk 가져오기") used to fail EVERY upload straight into
   // the inline fallback — and poisoned storage_path for later readers.
-  const storageSlug = `${storageSafeSlug(built.suggested_slug)}-${hash.slice(0, 12)}`;
+  // A caller that names the key (CaptureInput.storageKey) owns its uniqueness.
+  const storageSlug = input.storageKey ?? `${storageSafeSlug(built.suggested_slug)}-${hash.slice(0, 12)}`;
   const path = rawClippingPath(input.userId, storageSlug);
+  const journal = input.journal ?? { uploadSent: false, uploadDone: false, insertSent: false, insertDone: false };
   let storedToStorage = true;
+  journal.uploadSent = true;
   try {
     await uploadRawClipping(input.userId, storageSlug, built.body);
+    journal.uploadDone = true;
   } catch (e) {
     throwIfAborted(input.signal);
     storedToStorage = false;
@@ -163,7 +211,11 @@ export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureR
     ...(storedToStorage ? {} : { _storage_pending: true, _body_fallback: built.body }),
   };
 
+  // With insertIgnoresSignal the INSERT is not cut once sent. The check right
+  // after it still throws, but only once insertDone says there is a row to undo.
+  journal.insertSent = true;
   const source = await createSource({
+    ...(input.sourceId !== undefined ? { id: input.sourceId } : {}),
     user_id: input.userId,
     kind: built.payload.kind,
     title: built.payload.title,
@@ -176,7 +228,8 @@ export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureR
     dedup_signature: signature,
     dedup_bands: bands,
     dedup_of: dedupOf,
-  }, input.signal);
+  }, input.insertIgnoresSignal === true ? undefined : input.signal);
+  journal.insertDone = true;
   throwIfAborted(input.signal);
 
   return {
