@@ -503,7 +503,7 @@ describe(`다섯 언어 이름표 (${LOCALES.join(" · ")})`, () => {
       const ink = stars.map((s) => renderedInk(labels[s.id].frame, labels[s.id].maxLines, names[s.id], r));
       stars.forEach((s, i) => {
         for (const line of ink[i]) {
-          if (line.n === 0) continue; // 첫 줄끼리는 이 변경 전과 같다.
+          if (line.n === 0) continue; // 첫 줄은 아래 "main 보다 겹치지 않는다" 가 main 과 견준다.
           stars.forEach((other, j) => {
             if (j === i) return;
             for (const theirs of ink[j]) {
@@ -518,6 +518,164 @@ describe(`다섯 언어 이름표 (${LOCALES.join(" · ")})`, () => {
       });
     }
     expect(hits).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// main 과 견준다 (재게이트 F1-R1 · F1-R2, Simon 결정 Q-260914-02 ①)
+// ---------------------------------------------------------------------------
+//
+// 결정의 뒤집는 조건은 "상한을 없앤 뒤 어느 배율에서든 main 보다 겹침이 늘어난다" 는 측정이다. 그래서 이
+// 브랜치의 이름표 겹침이 main 의 겹침 안에 드는지 잰다. 둘째 줄뿐 아니라 첫 줄끼리도 센다.
+//
+// main (origin/main 14ba5137 의 ConstellationHome.tsx): 이름표는 한 줄(numberOfLines 1)이고 폭은 style
+// 의 80 · 120 고정이다. 자리는 left: px(s.x) - 40 · top: py(s.y) + (6 * k + 8) (북극성은 - 60 · 9 * k + 8).
+// maxFontSizeMultiplier 가 없어 글자는 기기 배율을 끝까지 따르고, 넘치면 말줄임이라 그 폭까지만 그려진다.
+//
+// 겹침: 그려지는 줄마다의 글자 상자(renderedInk: 가운데 정렬, 높이는 줄 높이 × 배율)가 다른 이름표의
+// 글자 상자나 다른 별의 코어(눌렸을 때 크기)에 닿는 쌍. 이름표 여덟 개(별 일곱 + 북극성)를 모두 센다.
+// 줄 상자 기준이라 실제 글리프보다 넉넉하게 세지만, 두 쪽을 같은 자로 잰다.
+//
+// 왜 성립하나:
+//   - LABEL_FREE_GROWTH_SCALE 위: **구성으로 성립한다.** 첫 줄 글자는 main 폭 안에 있거나(그 안에서 main
+//     은 글자가 넘치면 폭을 다 채우고, 안 넘치면 같은 글자를 같은 자리에 그린다), 빈 하늘로 확인한 좌우 띠
+//     위에 있다 (위 "넓어진 좌우 띠가 빈 하늘이다"). 둘째 줄은 남의 자리를 피할 때만 준다. 잘림도 같다:
+//     상자는 main 폭보다 좁지 않고 줄은 더 많을 수 있으므로 main 보다 더 잘리지 않는다.
+//   - 그 배율 이하: 상자가 조건 없이 넓어지므로 구성으로는 보장하지 않는다. 지금 캐논 좌표와 다섯 언어
+//     이름으로 **측정해서** 성립한다. 좌표나 이름이 바뀌면 이 검사가 먼저 운다.
+//
+// 2 배에서도 겹침은 남는다. 모두 main 에도 있는 자리이고, 아예 없애는 큰 글자 전용 배치는 결정 ② 로
+// 미뤘다. 가로 320~440dp 전 구간에서 다섯 언어 모두 20대 이름표 × 학창시절 이름표 · 20대 이름표 × 30대
+// 이후 코어 · 학창시절 이름표 × 영유아기 이름표 · 학창시절 이름표 × 영유아기 코어. 폭에 따라 es 30대 이후
+// × 학창시절 이름표, id · pt 20대 이름표 × 학창시절 코어, es · pt 직장 × 30대 이후 이름표, id · pt 20대 ×
+// 영유아기 이름표, 지금 이름표 × 직장 코어. T1a 폭(411.4dp)에서 남는 쌍은 아래 마지막 검사가 적는다.
+
+/** main 이 그리던 이름표 자리 (위 설명). 좌표 · k 는 이 브랜치와 같다. */
+function mainFrames(layout: ReturnType<typeof homeLayout>) {
+  const { stars, polaris, k } = layout;
+  const stars7 = Object.fromEntries(
+    stars.map((s) => [
+      s.id,
+      {
+        frame: { left: s.cx - 40, top: s.cy + (6 * k + 8), width: 80, fontSize: 10.5 * k, lineHeight: Math.round(14 * k) },
+        maxLines: 1,
+      },
+    ]),
+  );
+  const polarisFrame: LabelFrame = {
+    left: polaris.cx - 60,
+    top: polaris.cy + (9 * k + 8),
+    width: 120,
+    fontSize: 10.5 * k,
+    lineHeight: Math.round(14 * k),
+  };
+  return { stars: stars7, polaris: polarisFrame };
+}
+
+type Placed = { id: string; frame: LabelFrame; maxLines: number; text: string };
+
+/** 이름표 여덟 개를 한 언어의 글자로 놓는다. */
+function placeLabels(
+  layout: ReturnType<typeof homeLayout>,
+  starFrames: Record<string, { frame: LabelFrame; maxLines: number }>,
+  polarisFrame: LabelFrame,
+  locale: string,
+): Placed[] {
+  const names = starNames(locale);
+  return [
+    ...layout.stars.map((s) => ({ id: s.id, frame: starFrames[s.id].frame, maxLines: starFrames[s.id].maxLines, text: names[s.id] })),
+    { id: "polaris", frame: polarisFrame, maxLines: 1, text: HOME_COPY[locale].ds.home.polaris },
+  ];
+}
+
+/** 겹치는 쌍의 이름들. 순서는 REV2_STARS 순서, 북극성이 마지막이다. */
+function overlapPairs(layout: ReturnType<typeof homeLayout>, placed: Placed[], r: number): Set<string> {
+  const ink = placed.map((p) => renderedInk(p.frame, p.maxLines, p.text, r));
+  const pairs = new Set<string>();
+  placed.forEach((a, i) => {
+    for (let j = i + 1; j < placed.length; j += 1) {
+      if (ink[i].some((x) => ink[j].some((y) => intersects(x, y)))) pairs.add(`${a.id} 이름표 x ${placed[j].id} 이름표`);
+    }
+    for (const s of layout.stars) {
+      if (s.id === a.id) continue;
+      const x = Math.round(s.cx);
+      const y = Math.round(s.cy);
+      const half = layout.coreHalfSpan;
+      const core = { left: x - half, right: x + half, top: y - half, bottom: y + half };
+      if (ink[i].some((line) => intersects(line, core))) pairs.add(`${a.id} 이름표 x ${s.id} 코어`);
+    }
+  });
+  return pairs;
+}
+
+/** 잘리는 이름표 수: maxLines 줄에 안 들어가거나 한 줄이 상자보다 넓다. */
+function truncatedCount(placed: Placed[], r: number): number {
+  return placed.filter((p) => {
+    const lines = wrap(p.text, p.frame.width, p.frame.fontSize, r);
+    return lines.length > p.maxLines || lines.some((line) => textWidth(line, p.frame.fontSize, r) > p.frame.width);
+  }).length;
+}
+
+describe("main 보다 겹치지 않는다 (재게이트 F1-R1 · F1-R2)", () => {
+  /** 기존 여섯 폭 + 가로 320~440dp 0.5dp 간격. */
+  const SWEEP = [...new Set([...WIDTHS, ...Array.from({ length: 241 }, (_, i) => 320 + i * 0.5)])];
+  const COMPARE_SCALES = [1, LABEL_FREE_GROWTH_SCALE, 1.5, 2];
+
+  it.each(COMPARE_SCALES)(
+    "글꼴 %s배 · 다섯 언어 · 가로 320~440dp: main 에 없는 겹침이 없고 (첫 줄끼리 포함), 잘리는 이름표도 main 보다 많지 않다",
+    (fontScale) => {
+      const extra: string[] = [];
+      const moreCut: string[] = [];
+      let branchPairs = 0;
+      let mainPairs = 0;
+      for (const winW of SWEEP) {
+        const layout = homeLayout(winW, fontScale);
+        const before = mainFrames(layout);
+        for (const locale of LOCALES) {
+          const branch = placeLabels(layout, layout.labels, layout.polarisFrame, locale);
+          const main = placeLabels(layout, before.stars, before.polaris, locale);
+          const b = overlapPairs(layout, branch, fontScale);
+          const m = overlapPairs(layout, main, fontScale);
+          branchPairs += b.size;
+          mainPairs += m.size;
+          for (const pair of b) if (!m.has(pair)) extra.push(`${locale} ${winW}dp: ${pair}`);
+          const bc = truncatedCount(branch, fontScale);
+          const mc = truncatedCount(main, fontScale);
+          if (bc > mc) moreCut.push(`${locale} ${winW}dp: 잘림 ${bc} > main ${mc}`);
+        }
+      }
+      expect(extra).toEqual([]);
+      expect(moreCut).toEqual([]);
+      expect(branchPairs).toBeLessThanOrEqual(mainPairs);
+    },
+  );
+
+  it("이 자가 겹침을 실제로 센다: main 도 2 배에서는 배율 1 보다 겹침이 많다 (위 검사가 공허하지 않다)", () => {
+    const count = (fontScale: number) => {
+      const layout = homeLayout(T1A_WIDTH, fontScale);
+      const before = mainFrames(layout);
+      return LOCALES.reduce(
+        (sum, locale) => sum + overlapPairs(layout, placeLabels(layout, before.stars, before.polaris, locale), fontScale).size,
+        0,
+      );
+    };
+    expect(count(2)).toBeGreaterThan(count(1));
+  });
+
+  it("T1a 폭 411.4dp · 글꼴 2배에 남는 겹침 (모두 main 에도 있다. 큰 글자 전용 배치는 후속)", () => {
+    const layout = homeLayout(T1A_WIDTH, 2);
+    // 다섯 언어가 같은 네 쌍이다. 20대 · 학창시절 · 영유아기 세 별이 가로로 가깝고(점 사이 뷰박스 단위 43 · 32),
+    // 2 배 줄 상자가 이웃 이름표와 그 아래 별 코어에 닿는다.
+    const LEFT_AT_2X = [
+      "twenties 이름표 x school 이름표",
+      "twenties 이름표 x later 코어",
+      "school 이름표 x infancy 이름표",
+      "school 이름표 x infancy 코어",
+    ];
+    const left = Object.fromEntries(
+      LOCALES.map((locale) => [locale, [...overlapPairs(layout, placeLabels(layout, layout.labels, layout.polarisFrame, locale), 2)]]),
+    );
+    expect(left).toEqual(Object.fromEntries(LOCALES.map((locale) => [locale, LEFT_AT_2X])));
   });
 });
 
