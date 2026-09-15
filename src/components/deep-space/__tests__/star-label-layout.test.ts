@@ -16,8 +16,13 @@
 //
 // 기기 글꼴 배율 (PR #1810 생성물 게이트 F1). T1a 는 font_scale 1.0 이었고 이 파일도 처음엔 배율
 // 1 로만 쟀다. 이름표 Text 는 기기 글꼴 설정을 따르므로 이제 폭 × 배율 조합마다 잰다. RN 0.85 는
-// 이름표 글자를 min(기기 배율, maxFontSizeMultiplier) 로 그리고 줄 높이도 같은 배율로 곱한다.
-// 자간은 Android 만 곱한다. 여기서는 자간까지 곱해 iOS 보다 넓게 잰다.
+// 상한이 없으면 이름표 글자를 기기 배율 그대로 그리고 줄 높이도 같은 배율로 곱한다. 자간은 Android 만
+// 곱한다. 여기서는 자간까지 곱해 iOS 보다 넓게 잰다.
+//
+// 상한은 없다 (재게이트 F1-R1, Simon 결정 Q-260914-02 ①). 한때 1.2 배 상한을 걸었다가 main 보다 큰 글자
+// 사용자에게 나빠졌다. 그래서 1.2 배를 넘는 배율에서는 "잘리지 않는다" 가 아니라 "main 보다 나빠지지
+// 않는다" 를 잰다. 상자는 LABEL_FREE_GROWTH_SCALE 까지만 조건 없이 넓어지고, 그 위에서는 빈 하늘일
+// 때만 넓어진다 (star-label-layout.ts).
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
@@ -25,11 +30,10 @@ import { HOME_STAR_IDS } from "@/lib/persona/home-stars";
 
 import { pixelStarSpan } from "../../pixel/pixel-star";
 import {
-  LABEL_MAX_FONT_SCALE,
+  LABEL_FREE_GROWTH_SCALE,
   POLARIS_LABEL,
   STAR_LABEL,
   layoutStarLabels,
-  polarisLabelFrame,
   type LabelFrame,
 } from "../star-label-layout";
 
@@ -94,17 +98,18 @@ function homeLayout(winW: number, fontScale = 1) {
   const coreHalfSpan = pixelStarSpan(DOMAIN_CORE_R * k * DOMAIN_FOCUS_MULT);
   const stars = STARS.map((s) => ({ id: s.id, cx: px(s.x), cy: py(s.y) }));
   const polaris = { cx: px(POLARIS.x), cy: py(POLARIS.y) };
-  const labels = layoutStarLabels({ stars, k, coreHalfSpan, polaris, stage: { w: boxW, h: boxH }, fontScale });
+  const layout = layoutStarLabels({ stars, k, coreHalfSpan, polaris, stage: { w: boxW, h: boxH }, fontScale });
   return {
     boxW,
     boxH,
     k,
     stars,
+    polaris,
     coreHalfSpan,
-    labels,
-    polarisFrame: polarisLabelFrame(polaris.cx, polaris.cy, k, fontScale),
-    /** RN 이 이름표 글자를 실제로 그리는 배율. 모듈을 빌리지 않고 여기서 따로 계산한다. */
-    r: Math.min(fontScale, LABEL_MAX_FONT_SCALE),
+    labels: layout.stars,
+    polarisFrame: layout.polaris,
+    /** RN 이 이름표 글자를 실제로 그리는 배율. 상한이 없으므로 기기 배율 그대로다. */
+    r: fontScale,
   };
 }
 
@@ -112,9 +117,14 @@ function homeLayout(winW: number, fontScale = 1) {
 const T1A_WIDTH = 1440 / 3.5;
 const WIDTHS = [320, 360, 375, 393, T1A_WIDTH, 430];
 
-/** 기기 글꼴 배율: 1 아래 하나, 상한 안 둘, 상한, 상한 밖 둘. RN 은 상한 밖을 상한 크기로 그린다. */
-const SCALES = [0.85, 1, 1.15, LABEL_MAX_FONT_SCALE, 1.3, 2];
-const CASES: [number, number][] = WIDTHS.flatMap((w) => SCALES.map((s): [number, number] => [w, s]));
+/** 상자가 조건 없이 넓어지는 배율들: 1 아래 하나, 1, 그 사이 하나, 끝. 여기서는 어느 이름표도 잘리지 않는다. */
+const FREE_SCALES = [0.85, 1, 1.15, LABEL_FREE_GROWTH_SCALE];
+/** 그 위: 상자는 빈 하늘일 때만 넓어진다. 2 는 큰 글자 설정의 대표값이다. */
+const SCALES = [...FREE_SCALES, 1.3, 1.5, 2];
+const casesOf = (scales: number[]): [number, number][] =>
+  WIDTHS.flatMap((w) => scales.map((s): [number, number] => [w, s]));
+const FREE_CASES = casesOf(FREE_SCALES);
+const CASES = casesOf(SCALES);
 
 // 테스트 안에서만 쓰는 독립 판정. 모듈의 판정 함수를 빌리지 않는다.
 type Rect = { left: number; top: number; right: number; bottom: number };
@@ -249,6 +259,20 @@ function cutLabels(winW: number, fontScale: number): string[] {
   return cut;
 }
 
+/**
+ * 그려지는 줄마다의 글자 상자. 가운데 정렬이라 줄마다 실제 글자 폭만큼이다. `maxLines` 를 넘는 줄은
+ * 그려지지 않고, 넘치면 마지막 줄이 말줄임되어 상자 폭을 다 쓴다. 한 단어가 상자보다 길어도 상자 폭까지다.
+ */
+function renderedInk(frame: LabelFrame, maxLines: number, text: string, r: number): (Rect & { n: number })[] {
+  const lines = wrap(text, frame.width, frame.fontSize, r);
+  return lines.slice(0, maxLines).map((line, n) => {
+    const ellipsized = lines.length > maxLines && n === maxLines - 1;
+    const w = ellipsized ? frame.width : Math.min(textWidth(line, frame.fontSize, r), frame.width);
+    const box = lineRect(frame, n, r);
+    return { n, left: frame.left + (frame.width - w) / 2, right: frame.left + (frame.width + w) / 2, top: box.top, bottom: box.bottom };
+  });
+}
+
 // ---------------------------------------------------------------------------
 
 describe("글꼴 모델이 기기보다 좁게 재지 않는다", () => {
@@ -323,21 +347,23 @@ describe("별 이름표 자리", () => {
   });
 
   it.each(CASES)(
-    "가로 %sdp · 글꼴 %s배: 상자 폭만 그리는 배율로 넓어지고, 점 아래 자리와 style 글자 크기는 배율 1 그대로다",
+    `가로 %sdp · 글꼴 %s배: 상자 폭만 배율을 따르고 (${LABEL_FREE_GROWTH_SCALE}배 위에서는 main 폭일 수도 있다), 점 아래 자리와 style 글자 크기는 배율 1 그대로다`,
     (winW, fontScale) => {
       const { stars, labels, polarisFrame, boxW, r } = homeLayout(winW, fontScale);
       const one = homeLayout(winW, 1);
+      // 그 배율까지는 배율만큼 넓다. 그 위에서는 배율만큼 넓거나 main 과 같은 폭(80 · 120)이다.
+      const widths = (spec: number) => (r > LABEL_FREE_GROWTH_SCALE ? [spec * r, spec] : [spec * r]);
       for (const s of stars) {
         const f = labels[s.id].frame;
         const base = one.labels[s.id].frame;
-        expect(f.width).toBeCloseTo(STAR_LABEL.width * r, 9);
+        expect(widths(STAR_LABEL.width)).toContain(f.width);
         expect(f.left + f.width / 2).toBeCloseTo(s.cx, 9);
         expect(f.top).toBe(base.top);
         // RN 이 글꼴 배율을 곱하므로 style 값은 배율 1 그대로여야 한다. 여기서 곱하면 두 번 커진다.
         expect(f.fontSize).toBe(base.fontSize);
         expect(f.lineHeight).toBe(base.lineHeight);
       }
-      expect(polarisFrame.width).toBeCloseTo(POLARIS_LABEL.width * r, 9);
+      expect(widths(POLARIS_LABEL.width)).toContain(polarisFrame.width);
       expect(polarisFrame.left + polarisFrame.width / 2).toBeCloseTo((POLARIS.x * boxW) / VBW, 9);
       expect(polarisFrame.top).toBe(one.polarisFrame.top);
       expect(polarisFrame.fontSize).toBe(one.polarisFrame.fontSize);
@@ -368,21 +394,62 @@ describe("별 이름표 자리", () => {
     }
   });
 
-  it("기기 배율이 상한을 넘으면 자리도 상한에서 멈춘다 (RN 이 글자를 거기서 멈추므로)", () => {
-    // RN 은 1 미만의 maxFontSizeMultiplier 를 무시한다 (Android maxFontScale >= 1, iOS >= 1.0 일 때만 건다).
-    expect(LABEL_MAX_FONT_SCALE).toBeGreaterThanOrEqual(1);
-    for (const winW of WIDTHS) {
-      const atCap = homeLayout(winW, LABEL_MAX_FONT_SCALE);
-      for (const above of [1.3, 2, 3.5]) {
-        const beyond = homeLayout(winW, above);
-        expect(beyond.labels).toEqual(atCap.labels);
-        expect(beyond.polarisFrame).toEqual(atCap.polarisFrame);
+  /** 이름표 여덟 개(별 일곱 + 북극성)를 한 목록으로. spec 은 main 의 고정 폭이다. */
+  const entriesOf = (layout: ReturnType<typeof homeLayout>) => [
+    ...layout.stars.map((s) => ({ id: s.id, frame: layout.labels[s.id].frame, spec: STAR_LABEL.width })),
+    { id: "polaris", frame: layout.polarisFrame, spec: POLARIS_LABEL.width },
+  ];
+  const ABOVE_FREE = CASES.filter(([, s]) => s > LABEL_FREE_GROWTH_SCALE);
+
+  it.each(ABOVE_FREE)("가로 %sdp · 글꼴 %s배: main 폭보다 넓어진 이름표는 넓어진 좌우 띠가 빈 하늘이다", (winW, fontScale) => {
+    // 이 배율에서 "main 에 없는 겹침이 생기지 않는다" 가 구성으로 성립하는 근거가 이 성질이다 (아래
+    // "main 보다 겹치지 않는다"). 장애물은 다른 이름표가 가장 넓어졌을 때의 첫 줄과 다른 별 코어다.
+    const layout = homeLayout(winW, fontScale);
+    const { stars, coreHalfSpan, boxW, boxH, r } = layout;
+    const entries = entriesOf(layout);
+    for (const e of entries.filter((x) => x.frame.width > x.spec)) {
+      const first = lineRect(e.frame, 0, r);
+      expect(first.left).toBeGreaterThanOrEqual(0);
+      expect(first.top).toBeGreaterThanOrEqual(0);
+      expect(first.right).toBeLessThanOrEqual(boxW);
+      expect(first.bottom).toBeLessThanOrEqual(boxH);
+      const cx = e.frame.left + e.frame.width / 2;
+      const strips: Rect[] = [
+        { ...first, right: cx - e.spec / 2 },
+        { ...first, left: cx + e.spec / 2 },
+      ];
+      for (const other of entries) {
+        if (other.id === e.id) continue;
+        const ocx = other.frame.left + other.frame.width / 2;
+        const widest = { ...lineRect(other.frame, 0, r), left: ocx - (other.spec * r) / 2, right: ocx + (other.spec * r) / 2 };
+        for (const strip of strips) expect(intersects(strip, widest)).toBe(false);
+      }
+      for (const s of stars) {
+        if (s.id === e.id) continue;
+        const x = Math.round(s.cx);
+        const y = Math.round(s.cy);
+        const core = { left: x - coreHalfSpan, right: x + coreHalfSpan, top: y - coreHalfSpan, bottom: y + coreHalfSpan };
+        for (const strip of strips) expect(intersects(strip, core)).toBe(false);
       }
     }
   });
 
+  it(`${LABEL_FREE_GROWTH_SCALE}배 위에서 넓어지는 이름표와 main 폭에 남는 이름표가 둘 다 나온다 (위 검사가 공허하지 않다)`, () => {
+    let widened = 0;
+    let narrow = 0;
+    for (const [winW, fontScale] of ABOVE_FREE) {
+      for (const e of entriesOf(homeLayout(winW, fontScale))) {
+        if (e.frame.width > e.spec) widened += 1;
+        else if (e.frame.width === e.spec) narrow += 1;
+      }
+    }
+    expect(widened).toBeGreaterThan(0);
+    expect(narrow).toBeGreaterThan(0);
+    expect(widened + narrow).toBe(ABOVE_FREE.length * 8);
+  });
+
   it("북극성 이름표가 별 이름표보다 작거나 흐려지지 않는다 (Visual Tier)", () => {
-    // 두 이름표는 같은 상한을 쓴다 (아래 화면 배선 검사). 그래서 이 비교는 어느 기기 배율에서도 같다.
+    // 두 이름표 모두 상한 없이 같은 기기 배율을 따른다 (아래 화면 배선 검사). 그래서 이 비교는 어느 기기 배율에서도 같다.
     expect(STAR_LABEL.fontSize).toBeLessThanOrEqual(POLARIS_LABEL.fontSize);
     expect(STAR_LABEL.lineHeight).toBeLessThanOrEqual(POLARIS_LABEL.lineHeight);
     const alpha = (block: string) => {
@@ -407,16 +474,20 @@ describe(`다섯 언어 이름표 (${LOCALES.join(" · ")})`, () => {
     }
   });
 
-  it.each(CASES)("가로 %sdp · 글꼴 %s배: 어느 언어의 어느 이름표도 잘리지 않는다", (winW, fontScale) => {
-    expect(cutLabels(winW, fontScale)).toEqual([]);
-  });
+  it.each(FREE_CASES)(
+    `가로 %sdp · 글꼴 %s배 (${LABEL_FREE_GROWTH_SCALE}배까지): 어느 언어의 어느 이름표도 잘리지 않는다`,
+    (winW, fontScale) => {
+      expect(cutLabels(winW, fontScale)).toEqual([]);
+    },
+  );
 
-  it("가로 320~440dp 를 0.5dp 간격으로: 배율 1 과 상한에서 어느 이름표도 잘리지 않는다", () => {
+  it(`가로 320~440dp 를 0.5dp 간격으로: 배율 1 과 ${LABEL_FREE_GROWTH_SCALE} 에서 어느 이름표도 잘리지 않는다`, () => {
     // 위 WIDTHS 에는 가장 빡빡한 폭이 없다. pt "Primeira infância" 가 두 줄이 필요해지는 399~404dp 에서
-    // 둘째 줄이 프로필 코어에 닿는 배율이 가장 낮다 (399.5dp 에서 1.24). 상한은 그 아래여야 한다.
+    // 둘째 줄이 프로필 코어에 닿는 배율이 가장 낮다 (399.5dp 에서 1.24). 잘리지 않는다고 말할 수 있는
+    // 배율, 곧 상자가 조건 없이 넓어지는 배율은 그 아래여야 한다. 그 위는 "main 보다 나빠지지 않는다" 를 잰다.
     const cut: string[] = [];
     for (let winW = 320; winW <= 440; winW += 0.5) {
-      for (const fontScale of [1, LABEL_MAX_FONT_SCALE]) {
+      for (const fontScale of [1, LABEL_FREE_GROWTH_SCALE]) {
         cut.push(...cutLabels(winW, fontScale).map((c) => `${winW}dp x${fontScale}: ${c}`));
       }
     }
@@ -428,15 +499,8 @@ describe(`다섯 언어 이름표 (${LOCALES.join(" · ")})`, () => {
     const hits: string[] = [];
     for (const locale of LOCALES) {
       const names = starNames(locale);
-      // 가운데 정렬이므로 줄마다 실제 글자 폭만큼의 상자를 만든다.
-      const ink = stars.map((s) => {
-        const { frame } = labels[s.id];
-        return wrap(names[s.id], frame.width, frame.fontSize, r).map((line, n) => {
-          const w = textWidth(line, frame.fontSize, r);
-          const box = lineRect(frame, n, r);
-          return { n, left: frame.left + (frame.width - w) / 2, right: frame.left + (frame.width + w) / 2, top: box.top, bottom: box.bottom };
-        });
-      });
+      // 가운데 정렬이므로 줄마다 실제 글자 폭만큼의 상자를 만든다. 그려지는 줄만 센다.
+      const ink = stars.map((s) => renderedInk(labels[s.id].frame, labels[s.id].maxLines, names[s.id], r));
       stars.forEach((s, i) => {
         for (const line of ink[i]) {
           if (line.n === 0) continue; // 첫 줄끼리는 이 변경 전과 같다.
@@ -462,9 +526,11 @@ describe("화면 배선", () => {
 
   it("ConstellationHome 이 이 함수로 이름표를 놓는다 (한 줄 고정이 돌아오지 않는다)", () => {
     expect(labelsBlock.length).toBeGreaterThan(0);
+    expect(labelsBlock).toContain("const label = starLabels.stars[s.id];");
     expect(labelsBlock).toContain("numberOfLines={label.maxLines}");
     expect(labelsBlock).toContain("label.frame");
-    expect(labelsBlock).toContain("polarisLabelFrame(px(POLARIS.x), py(POLARIS.y), k, fontScale)");
+    // 북극성 이름표 폭도 별 이름표 자리에 따라 정해지므로 같은 계산에서 나온 값을 쓴다.
+    expect(labelsBlock).toContain("style={[styles.polarisLabel, starLabels.polaris]}");
     expect(labelsBlock).not.toContain("left: px(s.x) - 40");
     // 테스트가 장애물로 쓰는 코어 크기와 화면이 넘기는 값이 같아야 한다.
     expect(SRC).toContain("coreHalfSpan: pixelStarSpan(DOMAIN_CORE_R * k * DOMAIN_FOCUS_MULT)");
@@ -475,14 +541,15 @@ describe("화면 배선", () => {
     expect(SRC).toContain("const py = (y: number) => (y + VB_TOP) * u;");
   });
 
-  it("두 이름표가 기기 글꼴 배율을 자리 계산에 넣고, 같은 상한을 RN 에 건다 (게이트 F1)", () => {
+  it("두 이름표가 기기 글꼴 배율을 자리 계산에 넣고, RN 에 글꼴 상한을 걸지 않는다 (게이트 F1 · 재게이트 F1-R1)", () => {
     expect(SRC).toContain("const { width: winW, fontScale } = useWindowDimensions();");
     const at = SRC.indexOf("const starLabels = layoutStarLabels({");
     expect(at).toBeGreaterThan(-1);
     expect(SRC.slice(at, SRC.indexOf("});", at))).toMatch(/^\s*fontScale,$/m);
-    // 별 이름표 Text 와 북극성 이름표 Text, 둘 다. 상한이 다르면 북극성 우세가 배율에 따라 뒤집힐 수 있다.
-    expect(labelsBlock.split("maxFontSizeMultiplier={LABEL_MAX_FONT_SCALE}").length - 1).toBe(2);
-    // 글꼴 확대를 끄는 것은 큰 글꼴 사용자에게서 글자를 빼앗는 제품 결정이다. 이 자리는 켜 둔 채 상한만 건다.
+    // 상한(maxFontSizeMultiplier)은 큰 글자를 쓰는 사람의 확대 요청을 자른다. main 처럼 기기 배율을 끝까지
+    // 따른다. 두 Text 가 같은 배율로 커지므로 북극성 이름표 글자가 별 이름표 글자보다 작아지는 배율도 없다.
+    expect(labelsBlock).not.toContain("maxFontSizeMultiplier");
+    // 글꼴 확대를 끄는 것도 같은 이유로 안 된다.
     expect(labelsBlock).not.toContain("allowFontScaling");
   });
 });

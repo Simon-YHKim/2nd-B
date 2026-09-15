@@ -25,18 +25,19 @@
 // 헤일로에 걸쳐 있다 (20대 이름표와 30대 이후 헤일로). 새 줄에만 더 엄격한 규칙을 걸 이유가
 // 없고, 걸면 영유아기 둘째 줄이 프로필을 눌렀을 때 커지는 헤일로 끝 0.3px 때문에 막힌다.
 //
-// 기기 글꼴 크기도 입력이다 (2026-09-14, PR #1810 생성물 게이트 F1). 이름표 Text 는 RN 기본값대로
-// 기기 글꼴 설정을 따르는데, 위 계산은 배율 1 로만 쟀다. 글꼴을 키우면 폭 80 을 넘어 다시 말줄임이
-// 되고, 둘째 줄의 실제 높이가 계산한 상자보다 커져 남의 자리를 덮을 수 있었다.
-//   - 글자는 min(기기 배율, LABEL_MAX_FONT_SCALE) 로 그려진다. 두 이름표 Text 에
-//     maxFontSizeMultiplier 로 이 상한을 건다. RN 0.85 설치본 소스 기준으로 Android 는 글자 크기 ·
-//     줄 높이 · 자간을 PixelUtil.toPixelFromSP(값, 상한) 으로 곱하고, iOS 는 글자 크기 · 줄 높이를
-//     RCTEffectiveFontSizeMultiplierFromTextAttributes 로 곱한다 (iOS 자간은 그대로).
-//   - 그 배율로 상자 폭과 줄 높이를 키워서 판정한다. 폭이 글자와 같이 커지므로 줄이 끊기는 자리는
-//     배율 1 과 같다. 점 아래 자리(top)와 코어 크기는 글꼴과 무관해서 그대로다.
+// 기기 글꼴 크기도 입력이다 (2026-09-14 생성물 게이트 F1, 2026-09-15 재게이트 F1-R1 과 Simon 결정
+// Q-260914-02 ①). 이름표 Text 는 RN 기본값대로 기기 글꼴 설정을 따르고, 상한을 걸지 않는다. main 과
+// 같은 확대다. 한때 1.2 배 상한(maxFontSizeMultiplier)을 걸었는데, 큰 글자를 쓰는 사람의 2 배 요청이
+// 1.2 배로 그려져 main 보다 나빠졌다.
+//   - RN 0.85 설치본 소스 기준으로 Android 는 글자 크기 · 줄 높이 · 자간을 기기 배율로 곱하고, iOS 는
+//     글자 크기 · 줄 높이를 곱한다 (iOS 자간은 그대로). 웹(react-native-web)은 fontScale 이 늘 1 이다.
 //   - style 의 fontSize · lineHeight 는 배율 1 값 그대로 둔다. RN 이 곱하므로 여기서 곱하면 두 번
-//     커진다.
-//   - 웹(react-native-web)은 fontScale 이 늘 1 이다.
+//     커진다. 판정할 때만 줄 높이에 배율을 곱한다. 점 아래 자리(top)와 코어 크기는 글꼴과 무관하다.
+//   - 상자 폭은 LABEL_FREE_GROWTH_SCALE 까지 배율만큼 넓힌다. 폭이 글자와 같이 커지므로 줄이 끊기는
+//     자리가 배율 1 과 같다. 그 위에서는 넓어지는 좌우 띠가 빈 하늘일 때만 넓히고, 아니면 main 과 같은
+//     폭(80 · 120)에 두어 main 처럼 말줄임한다. 조건 없이 끝까지 넓히면 긴 이름이 이웃 이름표에 닿아
+//     main 보다 겹침이 늘었다 (5 개 언어 × 폭 242 개에서 1.75 배 826 경우, 2 배 962 경우).
+//   - 2 배 같은 큰 글자에서 아예 겹치지 않는 전용 배치는 이 파일의 일이 아니다 (결정 ②, 후속).
 
 export type Box = { left: number; top: number; right: number; bottom: number };
 
@@ -61,33 +62,27 @@ export const STAR_LABEL = { width: 80, fontSize: 10.5, lineHeight: 14, dropPerK:
 export const POLARIS_LABEL = { width: 120, fontSize: 10.5, lineHeight: 14, dropPerK: 9, drop: 8 } as const;
 
 /**
- * 이름표 글자가 기기 글꼴 설정을 따라 커지는 상한. 별 · 북극성 이름표 Text 의
- * maxFontSizeMultiplier 에 같은 값을 건다.
+ * 이름표 상자가 조건 없이 글꼴 배율만큼 넓어지는 배율. **글자 크기 상한이 아니다.** 글자는 기기 배율을
+ * 끝까지 따른다.
  *
- * 1.2 인 이유 (가로 320~440dp 를 0.5dp 간격, 배율을 0.0025 간격으로 잰 값, 2026-09-14):
- *   - 가장 긴 로케일: pt "Primeira infância" 는 가로 399dp 이상에서 두 줄이 필요하다. 배율을 올리면
- *     그 둘째 줄이 눌린 프로필 별 코어에 닿아 한 줄로 돌아가고 다시 잘린다. 그 배율이 가장 빡빡한
- *     폭(399.5dp)에서 1.24 다. 1.2 에서 둘째 줄 아래 끝과 그 코어 사이는 최소 1.05dp 남는다. Android 는
- *     줄 높이를 물리 px 로 올림하므로(CustomLineHeightSpan, ceil) 둘째 줄 끝이 2px 미만 더 내려올 수
- *     있는데, 그 폭의 기기 밀도에서 1dp 보다 작다.
- *   - 겹침 금지: 둘째 줄은 이 배율로 키운 상자로 판정하므로 상한까지는 남의 자리를 덮지 않는다.
- *     첫 줄끼리는 판정하지 않는다 (배율 1 에서도 그렇다).
- *   - 북극성 우세: 두 이름표가 같은 상한을 쓰므로 어느 기기 배율에서도 북극성 글자가 별 글자보다
- *     작아지지 않는다.
- * 기기 배율이 상한을 넘으면 글자도 자리도 상한에서 멈춘다. 별의 온전한 이름은 스크린 리더
- * 레이블(accessibilityLabel)에 늘 있다.
+ *   - 이 배율까지: 상자를 넓혀도 main(폭 고정 · 한 줄 · 말줄임)에 없는 겹침이 생기지 않는다. 측정으로
+ *     확인한 범위다 (테스트 "main 보다 겹치지 않는다"). 1.2 는 전에 글자 상한으로 쓰던 값이고, 그 아래의
+ *     개선(말줄임 0)은 그대로 둔다.
+ *   - 이 배율 위: 넓어지는 좌우 띠가 다른 이름표가 가장 넓어졌을 때의 첫 줄 · 다른 별 코어와 닿지 않고
+ *     별자리 상자 안일 때만 넓힌다. 아니면 main 과 같은 폭이다. 넓어진 글자는 빈 하늘에만 놓이고 나머지
+ *     글자는 main 이 그리던 자리 안에 있으므로, main 에 없는 겹침은 구성상 생기지 않는다.
  */
-export const LABEL_MAX_FONT_SCALE = 1.2;
+export const LABEL_FREE_GROWTH_SCALE = 1.2;
 
 type LabelSpec = typeof STAR_LABEL | typeof POLARIS_LABEL;
 
-/** 이름표 글자가 실제로 그려지는 배율. RN 은 1 이상인 maxFontSizeMultiplier 를 상한으로 쓴다. */
-export function labelFontScale(fontScale: number): number {
-  return Number.isFinite(fontScale) && fontScale > 0 ? Math.min(fontScale, LABEL_MAX_FONT_SCALE) : 1;
+/** 이름표 글자가 실제로 그려지는 배율. 상한 없이 기기 배율 그대로다. 못 읽으면 1. */
+function labelFontScale(fontScale: number): number {
+  return Number.isFinite(fontScale) && fontScale > 0 ? fontScale : 1;
 }
 
-function labelFrame(spec: LabelSpec, cx: number, cy: number, k: number, scale: number): LabelFrame {
-  const width = spec.width * scale;
+function labelFrame(spec: LabelSpec, cx: number, cy: number, k: number, widthScale: number): LabelFrame {
+  const width = spec.width * widthScale;
   return {
     left: cx - width / 2,
     top: cy + (spec.dropPerK * k + spec.drop),
@@ -97,11 +92,6 @@ function labelFrame(spec: LabelSpec, cx: number, cy: number, k: number, scale: n
     // Android clips the last line of a numberOfLines Text without a padded line box.
     lineHeight: Math.round(spec.lineHeight * k),
   };
-}
-
-/** 북극성 이름표 자리. `fontScale` 은 기기 글꼴 배율 그대로 넘긴다 (상한은 여기서 건다). */
-export function polarisLabelFrame(cx: number, cy: number, k: number, fontScale: number): LabelFrame {
-  return labelFrame(POLARIS_LABEL, cx, cy, k, labelFontScale(fontScale));
 }
 
 /** `line` 번째 줄(0 = 첫 줄)이 그려지는 상자. 줄 높이는 style 값에 그리는 배율 `scale` 을 곱한 것이다. */
@@ -127,30 +117,57 @@ export type StarLabelInput<Id extends string> = {
   polaris: { cx: number; cy: number };
   /** 별자리 상자 크기. */
   stage: { w: number; h: number };
-  /** 기기 글꼴 배율 (useWindowDimensions().fontScale) 그대로. 상한은 이 모듈이 건다. */
+  /** 기기 글꼴 배율 (useWindowDimensions().fontScale) 그대로. */
   fontScale: number;
 };
 
-export function layoutStarLabels<Id extends string>(input: StarLabelInput<Id>): Record<Id, StarLabelFrame> {
+/** 일곱 별 이름표와 북극성 이름표의 자리. 북극성 이름표 폭도 별 이름표 자리에 따라 정해지므로 같이 낸다. */
+export type HomeLabelLayout<Id extends string> = { stars: Record<Id, StarLabelFrame>; polaris: LabelFrame };
+
+export function layoutStarLabels<Id extends string>(input: StarLabelInput<Id>): HomeLabelLayout<Id> {
   const { stars, k, coreHalfSpan, polaris, stage, fontScale } = input;
   const scale = labelFontScale(fontScale);
-  const frames = stars.map((s) => labelFrame(STAR_LABEL, s.cx, s.cy, k, scale));
   const line = (frame: LabelFrame, n: number) => labelLineBox(frame, n, scale);
-  const polarisLine = line(polarisLabelFrame(polaris.cx, polaris.cy, k, fontScale), 0);
   // PixelStarSvg 는 중심을 반올림해서 그린다. 같은 자리로 잰다.
-  const coreBox = (s: { cx: number; cy: number }): Box => {
+  const cores = stars.map((s): Box => {
     const x = Math.round(s.cx);
     const y = Math.round(s.cy);
     return { left: x - coreHalfSpan, top: y - coreHalfSpan, right: x + coreHalfSpan, bottom: y + coreHalfSpan };
-  };
+  });
   const inStage = (b: Box) => b.left >= 0 && b.top >= 0 && b.right <= stage.w && b.bottom <= stage.h;
 
+  // 배율만큼 넓힌 상자. LABEL_FREE_GROWTH_SCALE 까지는 이것이 자리다.
+  const wide = stars.map((s) => labelFrame(STAR_LABEL, s.cx, s.cy, k, scale));
+  const polarisWide = labelFrame(POLARIS_LABEL, polaris.cx, polaris.cy, k, scale);
+  let frames = wide;
+  let polarisFrame = polarisWide;
+  if (scale > LABEL_FREE_GROWTH_SCALE) {
+    // 넓어지는 좌우 띠가 빈 하늘일 때만 넓힌다. 장애물은 다른 이름표가 가장 넓어졌을 때의 첫 줄과
+    // 다른 별 코어다. 가장 넓은 자리를 장애물로 쓰므로 누가 먼저 넓어지는지와 무관하다.
+    const wideLines = wide.map((f) => line(f, 0));
+    const widens = (grown: LabelFrame, narrow: LabelFrame, obstacles: Box[]) => {
+      const g = line(grown, 0);
+      const n = line(narrow, 0);
+      const strips: Box[] = [
+        { left: g.left, top: g.top, right: n.left, bottom: g.bottom },
+        { left: n.right, top: g.top, right: g.right, bottom: g.bottom },
+      ];
+      return inStage(g) && strips.every((strip) => obstacles.every((o) => !boxesOverlap(strip, o)));
+    };
+    frames = stars.map((s, i) => {
+      const narrow = labelFrame(STAR_LABEL, s.cx, s.cy, k, 1);
+      const obstacles = [line(polarisWide, 0), ...wideLines.filter((_, j) => j !== i), ...cores.filter((_, j) => j !== i)];
+      return widens(wide[i], narrow, obstacles) ? wide[i] : narrow;
+    });
+    const polarisNarrow = labelFrame(POLARIS_LABEL, polaris.cx, polaris.cy, k, 1);
+    polarisFrame = widens(polarisWide, polarisNarrow, [...wideLines, ...cores]) ? polarisWide : polarisNarrow;
+  }
+
+  const polarisLine = line(polarisFrame, 0);
   const free = frames.map((frame, i) => {
     const second = line(frame, 1);
     if (!inStage(second) || boxesOverlap(second, polarisLine)) return false;
-    return stars.every(
-      (other, j) => j === i || (!boxesOverlap(second, line(frames[j], 0)) && !boxesOverlap(second, coreBox(other))),
-    );
+    return stars.every((_, j) => j === i || (!boxesOverlap(second, line(frames[j], 0)) && !boxesOverlap(second, cores[j])));
   });
   // 둘째 줄끼리 겹치면 둘 다 한 줄로 둔다. 누구에게 줄지 가를 근거가 좌표에는 없다.
   const twoLines = free.map(
@@ -162,5 +179,5 @@ export function layoutStarLabels<Id extends string>(input: StarLabelInput<Id>): 
   stars.forEach((s, i) => {
     out[s.id] = { frame: frames[i], maxLines: twoLines[i] ? 2 : 1 };
   });
-  return out;
+  return { stars: out, polaris: polarisFrame };
 }

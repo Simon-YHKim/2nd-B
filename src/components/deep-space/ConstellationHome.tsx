@@ -20,7 +20,7 @@ import Svg, { Defs, Pattern, Rect } from "react-native-svg";
 
 import { PixelStarSvg } from "../pixel/PixelStarSvg";
 import { pixelStarSpan } from "../pixel/pixel-star";
-import { LABEL_MAX_FONT_SCALE, layoutStarLabels, polarisLabelFrame } from "./star-label-layout";
+import { layoutStarLabels } from "./star-label-layout";
 
 import { NoticeDialog, useNoticeCenter } from "@/app/notices";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -547,7 +547,8 @@ export function ConstellationHome({
   };
   // 별 이름표 자리. 둘째 줄은 그 자리가 비어 있는 별만 받는다 (star-label-layout.ts).
   // 코어 크기는 눌렀을 때 값이다. 어느 별이 눌려도 둘째 줄이 그 코어를 덮지 않게.
-  // 기기 글꼴 배율도 넘긴다. 이름표 글자가 LABEL_MAX_FONT_SCALE 까지 커지므로 자리도 그 배율로 잰다.
+  // 기기 글꼴 배율도 넘긴다. 이름표 글자는 main 처럼 상한 없이 커지고, 자리도 그 배율로 잰다.
+  // 북극성 이름표 자리도 여기서 같이 나온다 (그 폭도 별 이름표 자리에 따라 정해진다).
   const starLabels = layoutStarLabels({
     stars: REV2_STARS.map((s) => ({ id: s.id, cx: px(s.x), cy: py(s.y) })),
     k,
@@ -797,17 +798,16 @@ export function ConstellationHome({
               Geometry lives in star-label-layout.ts: a long name may take a second
               line only where that line lands on empty sky (T1a 2026-09-13: "Thirties
               and after" was cut to "Thirties and af…" on a 411dp phone). Both labels
-              follow the system font size up to LABEL_MAX_FONT_SCALE, and the geometry
-              is measured at that same scale (PR 1810 artifact gate, F1). */}
+              follow the system font size with no cap, as on main, and the geometry is
+              measured at that scale (PR 1810 artifact gate F1, re-gate F1-R1). */}
           {REV2_STARS.map((s) => {
             const on = focusedId === s.id;
-            const label = starLabels[s.id];
+            const label = starLabels.stars[s.id];
             return (
               <Text
                 key={`label-${s.id}`}
                 accessible={false}
                 importantForAccessibility="no-hide-descendants"
-                maxFontSizeMultiplier={LABEL_MAX_FONT_SCALE}
                 numberOfLines={label.maxLines}
                 style={[styles.starLabel, label.frame, on && { color: m3.accent.starFocus }]}
               >
@@ -818,9 +818,8 @@ export function ConstellationHome({
           <Text
             accessible={false}
             importantForAccessibility="no-hide-descendants"
-            maxFontSizeMultiplier={LABEL_MAX_FONT_SCALE}
             numberOfLines={1}
-            style={[styles.polarisLabel, polarisLabelFrame(px(POLARIS.x), py(POLARIS.y), k, fontScale)]}
+            style={[styles.polarisLabel, starLabels.polaris]}
           >
             {t("ds.home.polaris")}
           </Text>
