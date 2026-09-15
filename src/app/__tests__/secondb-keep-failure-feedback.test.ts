@@ -58,12 +58,14 @@ function run<T>(source: string, tail: string, bindings: Record<string, unknown>)
 
 const REPLY = { role: "secondb" as const, text: "이번 주에 걸었던 길에 대한 답변." };
 const PROMPT = { role: "user" as const, text: "이번 주에 어디를 걸었더라?" };
+const REPLY_2 = { role: "secondb" as const, text: "다음 주에 걸을 길에 대한 답변." };
+const PROMPT_2 = { role: "user" as const, text: "다음 주에는 어디를 걸을까?" };
 
 interface Host {
   keep: (index: number) => Promise<unknown>;
   state: {
-    kept: Set<number>;
-    keeping: (number | null)[];
+    kept: Set<object>;
+    keeping: (object | null)[];
     notice: unknown[];
     announced: string[];
     crisis: unknown[];
@@ -74,16 +76,18 @@ interface Host {
 }
 
 /** 실제 keepExchange 본문을 inert 호스트에 걸고 관측 가능한 상태를 돌려준다. */
-function keepHost(options: { capture?: () => Promise<unknown>; kept?: Set<number>; keeping?: number | null; notice?: unknown } = {}): Host {
+function keepHost(options: { capture?: () => Promise<unknown>; kept?: Set<object>; keeping?: object | null; notice?: unknown } = {}): Host {
   const state: Host["state"] = { kept: new Set(options.kept ?? []), keeping: [], notice: [], announced: [], crisis: [], captures: [], warnings: [], current: options.notice ?? null };
   const bindings = {
     userId: "local-owner",
     keeping: options.keeping ?? null,
-    keptIdx: state.kept,
-    turns: [PROMPT, REPLY, PROMPT, REPLY],
+    keptTurns: state.kept,
+    // r3as2 R3AS2-02: 담긴 표시는 턴 객체에 붙는다. 두 답변이 같은 객체면 한쪽을 담는 순간 다른 쪽도 담긴
+    // 것이 되므로 짝마다 다른 객체를 둔다.
+    turns: [PROMPT, REPLY, PROMPT_2, REPLY_2],
     isKeepable: (turn: { role: string }) => turn.role === "secondb",
-    setKeeping: (value: number | null) => state.keeping.push(value),
-    setKeptIdx: (fn: (prev: Set<number>) => Set<number>) => { state.kept = fn(state.kept); },
+    setKeeping: (value: object | null) => state.keeping.push(value),
+    setKeptTurns: (fn: (prev: Set<object>) => Set<object>) => { state.kept = fn(state.kept); },
     // 실패 안내 자리. 실제 setState 처럼 updater 함수도 받아 적용한다.
     setKeepNotice: (value: unknown) => {
       const next = typeof value === "function" ? (value as (prev: unknown) => unknown)(state.current) : value;
@@ -119,7 +123,7 @@ describe("담기 실패를 화면이 말한다", () => {
     const host = keepHost();
     await host.keep(1);
     expect(host.state.captures).toHaveLength(1);
-    expect(host.state.kept.has(1)).toBe(true);
+    expect(host.state.kept.has(REPLY)).toBe(true);
     expect(host.state.notice.filter(Boolean)).toEqual([]);
     expect(host.state.warnings).toEqual([]);
   });
@@ -127,16 +131,16 @@ describe("담기 실패를 화면이 말한다", () => {
   test("실패하면 담긴 것으로 표시하지 않는다", async () => {
     const host = keepHost({ capture: () => Promise.reject(new Error("Local capture failure")) });
     await host.keep(1);
-    expect(host.state.kept.has(1)).toBe(false);
+    expect(host.state.kept.has(REPLY)).toBe(false);
     expect(host.state.keeping.at(-1)).toBeNull();
   });
 
   test("실패를 화면 상태로 알린다", async () => {
     const host = keepHost({ capture: () => Promise.reject(new Error("Local capture failure")) });
     await host.keep(1);
-    const notices = host.state.notice.filter(Boolean) as { i: number; ok: boolean }[];
+    const notices = host.state.notice.filter(Boolean) as { turn: object; ok: boolean }[];
     expect(notices).toHaveLength(1);
-    expect(notices[0].i).toBe(1);
+    expect(notices[0].turn).toBe(REPLY);
     expect(notices[0].ok).toBe(false);
   });
 
@@ -157,10 +161,10 @@ describe("담기 실패를 화면이 말한다", () => {
   test("다른 턴을 담아도 앞선 실패 안내는 남는다", async () => {
     // 자동 담기가 새 턴을 성공시키는 순간 아직 읽지 않은 실패가 사라지면
     // 이번 회차가 없애려는 그 조용함이 그대로 돌아온다.
-    const host = keepHost({ notice: { i: 1, ok: false } });
+    const host = keepHost({ notice: { turn: REPLY, ok: false } });
     await host.keep(3);
-    expect(host.state.kept.has(3)).toBe(true);
-    expect(host.state.current).toEqual({ i: 1, ok: false });
+    expect(host.state.kept.has(REPLY_2)).toBe(true);
+    expect(host.state.current).toEqual({ turn: REPLY, ok: false });
   });
 
   test("성공 여부를 호출자에게 돌려준다", async () => {
@@ -169,10 +173,10 @@ describe("담기 실패를 화면이 말한다", () => {
   });
 
   test("이미 담겼거나 처리 중이면 아무 일도 하지 않는다", async () => {
-    const already = keepHost({ kept: new Set([1]) });
+    const already = keepHost({ kept: new Set([REPLY]) });
     await already.keep(1);
     expect(already.state.captures).toEqual([]);
-    const busy = keepHost({ keeping: 0 });
+    const busy = keepHost({ keeping: REPLY_2 });
     await busy.keep(1);
     expect(busy.state.captures).toEqual([]);
   });
@@ -186,7 +190,7 @@ describe("담기 실패를 화면이 말한다", () => {
 
 describe("자동 담기는 실패를 삼키지 않는다", () => {
   function autosaveHost(ok: boolean) {
-    const ref = { current: new Set<number>() };
+    const ref = { current: new WeakSet<object>() };
     const calls: number[] = [];
     const bindings = {
       useEffect: (fn: () => void) => { fn(); },
@@ -197,31 +201,47 @@ describe("자동 담기는 실패를 삼키지 않는다", () => {
       turns: [PROMPT, REPLY],
       isKeepable: (turn: { role: string }) => turn.role === "secondb",
       autoKeptRef: ref,
-      keptIdx: new Set<number>(),
+      // r3as H1: 담기 직전의 서버 확인과 확인 결과를 화면에 반영하는 함수. 이 묶음은 실패 되돌림만 보므로
+      // 확인은 늘 켜짐으로 돌려준다 - 확인 자체는 secondb-autosave-consent-roundtrip.test.ts 가 실제 저장
+      // 경로로 돌린다. r3as2 R2-H1: 짝의 질문(PROMPT)은 지금과 같은 동의 세대에서 켜진 채 보낸 것으로 둔다.
+      findPromptIndex: () => 0,
+      autosaveAskedRef: { current: new WeakMap<object, number>([[PROMPT, 0]]) },
+      readPrivacyPrefs: async () => ({ ok: true, prefs: { chat_autosave: true } }),
+      applyAutosaveConsent: () => undefined,
+      keptTurns: new Set<object>(),
+      prefsReadKey: 0,
+      // r3as2 R3AS2-01: 확인을 내보낼 때 쥐는 계정 · 동의 세대 · 소식 구독, 돌아왔을 때 보는 지금 동의와 목록.
+      // 이 묶음은 실패 되돌림만 보므로 전부 그대로인 상태로 둔다 - 바뀌는 경우는 roundtrip 테스트가 돌린다.
+      captureAccountOwnerLease: () => ({ ownerId: "local-owner", epoch: 1, isCurrent: () => true }),
+      autosaveGenerationRef: { current: 0 },
+      autosaveListenerRef: { current: {} },
+      autosaveConsentRef: { current: true },
+      turnsRef: { current: [PROMPT, REPLY] },
       keepExchange: async (index: number) => { calls.push(index); return ok; },
     };
     run(findEffect("autoKeptRef"), "", bindings);
     return { ref, calls };
   }
 
+  // 담기 직전 확인이 비동기 한 단계를 더 거친다. 몇 번의 마이크로태스크로 세지 않고 한 바퀴를 기다린다.
+  const settle = (): Promise<void> => new Promise((done) => setImmediate(done));
+
   test("동의가 켜져 있으면 마지막 담을 수 있는 턴을 한 번 담는다", async () => {
     const host = autosaveHost(true);
-    await Promise.resolve();
+    await settle();
     expect(host.calls).toEqual([1]);
   });
 
   test("성공하면 다시 담지 않도록 표시가 남는다", async () => {
     const host = autosaveHost(true);
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(host.ref.current.has(1)).toBe(true);
+    await settle();
+    expect(host.ref.current.has(REPLY)).toBe(true);
   });
 
   test("실패하면 표시를 되돌려 다시 담을 수 있게 한다", async () => {
     const host = autosaveHost(false);
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(host.ref.current.has(1)).toBe(false);
+    await settle();
+    expect(host.ref.current.has(REPLY)).toBe(false);
   });
 });
 

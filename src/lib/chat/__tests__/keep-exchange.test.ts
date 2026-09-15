@@ -4,6 +4,7 @@ import {
   composeExchangeBody,
   exchangeTopic,
   findPrompt,
+  findPromptIndex,
   isKeepable,
   type KeepableTurn,
 } from "../keep-exchange";
@@ -53,6 +54,28 @@ describe("findPrompt", () => {
 
   it("첫 턴이면 짝이 없다", () => {
     expect(findPrompt([b("먼저 건넨 말")], 0)).toBeNull();
+  });
+});
+
+describe("findPromptIndex", () => {
+  // r3as2 R2-H1: 자동 담기는 답변 하나가 아니라 짝의 자격을 본다. 그 짝의 질문은 findPrompt 가 본문에 넣는
+  // 질문과 같은 턴이어야 한다 - 다른 턴으로 판단하면 판단한 것과 저장되는 것이 갈린다.
+  it("findPrompt 가 고르는 질문의 자리를 돌려준다", () => {
+    const turns = [u("첫 질문"), b("첫 답변"), u("요즘 잠을 잘 못 자"), syn("생각 중입니다"), b("늦게 자는 날이 많았습니다")];
+    expect(findPromptIndex(turns, 4)).toBe(2);
+    expect(turns[findPromptIndex(turns, 4)].text).toBe(findPrompt(turns, 4));
+  });
+
+  it("짝이 없으면 -1 이고, 그때 findPrompt 도 null 이다", () => {
+    const cases: [KeepableTurn[], number][] = [
+      [[u("첫 질문"), b("첫 답변"), b("이어지는 답변")], 2],
+      [[b("먼저 건넨 말")], 0],
+      [[u("   "), b("빈 질문 뒤의 답변")], 1],
+    ];
+    for (const [turns, index] of cases) {
+      expect(findPromptIndex(turns, index)).toBe(-1);
+      expect(findPrompt(turns, index)).toBeNull();
+    }
   });
 });
 

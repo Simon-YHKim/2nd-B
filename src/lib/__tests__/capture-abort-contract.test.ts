@@ -38,7 +38,7 @@ describe("capture submit abort contract", () => {
     expect(gemini).toContain("abortSignal: signal");
     expect(ingest).toContain("signal?: AbortSignal");
     expect(ingest).toContain("throwIfAborted(input.signal)");
-    expect(ingest).toContain("}, input.signal)");
+    expect(ingest).toContain("input.insertIgnoresSignal === true ? undefined : input.signal");
     expect(queries).toContain("createSource(input: CreateSourceInput, signal?: AbortSignal)");
     expect(queries).toContain("query.abortSignal(signal)");
     expect(ingest).not.toContain("callLlm");

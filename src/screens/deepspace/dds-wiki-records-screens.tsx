@@ -1,5 +1,5 @@
-import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { FlatList, Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { AccessibilityInfo, FlatList, Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 
@@ -13,9 +13,11 @@ import { m3 } from "@/lib/theme/m3";
 import { stripDomainTags } from "@/lib/persona/domain-stars";
 import { ddsStyles as styles } from "./dds-styles";
 import { Text } from "@/components/ui/Text";
-// Button / PremiumModal / SecondbHead left with DeepSpaceRecordDetailScreen when
-// #1535 extracted it to ./dds-record-detail-screen. SecondbStatusHeader went when
-// #1521 gave the records list its own ListHeaderComponent. Nothing here uses them.
+// Button / SecondbHead left with DeepSpaceRecordDetailScreen when #1535 extracted it
+// to ./dds-record-detail-screen. SecondbStatusHeader went when #1521 gave the records
+// list its own ListHeaderComponent. PremiumModal left then too, and came back on
+// 2026-09-14 for the wiki page delete confirmation (Q-260914-01).
+import { PremiumModal } from "@/components/premium";
 import { DeepSpaceLoader } from "@/components/deepspace";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { WikiGraph } from "@/components/deep-space/WikiGraph";
@@ -27,7 +29,7 @@ import { listRecentRecords } from "@/lib/records/create";
 import { buildRecordsGraph } from "@/lib/records/records-graph";
 import { selectRecordsForSafeGraph } from "@/lib/records/records-graph-layout";
 import { listSourcePieces } from "@/lib/records/source-pieces";
-import { listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
+import { deleteWikiPage, listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
 import type { WikiPageRow } from "@/lib/wiki/types";
 import { buildDeepWikiView, type WikiEdge } from "./wiki-graph-view";
 import { buildRecordsTimeline, type TimelineLabels, type TimelineRecord } from "./records-timeline";
@@ -58,6 +60,10 @@ function useWikiGraphData() {
   const [pages, setPages] = useState<WikiPageRow[]>([]);
   const [edges, setEdges] = useState<WikiEdge[]>([]);
   const [loading, setLoading] = useState(true);
+  // 한 장을 지운 뒤 서버에서 다시 읽는 방아쇠. 지역 상태에서 그 페이지만 빼면 연결 수가
+  // 옛것으로 남는다(wiki_links 는 서버에서 ON DELETE CASCADE 로 함께 지워진다).
+  const [reloadKey, setReloadKey] = useState(0);
+  const reload = useCallback(() => setReloadKey((key) => key + 1), []);
 
   useEffect(() => {
     if (!userId) return;
@@ -83,9 +89,9 @@ function useWikiGraphData() {
     return () => {
       alive = false;
     };
-  }, [userId]);
+  }, [userId, reloadKey]);
 
-  return { userId, authLoading, pages, edges, loading };
+  return { userId, authLoading, pages, edges, loading, reload };
 }
 
 function GraphLoading() {
@@ -670,8 +676,11 @@ export { DeepSpaceRecordDetailScreen } from "./dds-record-detail-screen";
 
 export function DeepSpaceWikiScreen() {
   const { t, i18n } = useTranslation("deepspace");
+  // 한 장 삭제의 확인 문구는 레거시 위키가 쓰던 wiki 번들을 그대로 쓴다. 되돌릴 수
+  // 없다고 말하는 문구가 이미 다섯 언어로 있다. 실패 문구만 deepspace 에 새로 뒀다.
+  const { t: tw } = useTranslation("wiki");
   const isKo = i18n.language === "ko";
-  const { userId, authLoading, pages, edges, loading } = useWikiGraphData();
+  const { userId, authLoading, pages, edges, loading, reload } = useWikiGraphData();
   // Deep-link to one page, by wiki_pages.id. Three screens hold a wiki page id and used
   // to push it at /record/[id], which looks a record up by that id and always 404s -- a
   // page id is not a record id. They send it here instead, which is where it belongs.
@@ -697,6 +706,62 @@ export function DeepSpaceWikiScreen() {
     if (!pages.some((p) => p.id === focusPageId)) return;
     setExpandedId(focusPageId);
   }, [focusPageId, expandedId, pages]);
+
+  // 한 장 삭제 (Q-260914-01, 2026-09-14). 레거시 반쪽에만 있던 것을 배송 화면에 되살렸다.
+  // 누르면 바로 지우지 않는다. 대기 상태만 세우고, 되돌릴 수 없다고 말하는 확인 창에서
+  // 한 번 더 눌러야 지운다. 지우는 호출은 confirmDeletePage 한 곳뿐이고, 그 함수가
+  // user_id 를 읽기와 지우기 양쪽에 명시로 건다(RLS 가 한 번 더 막는다).
+  // ⚠ 담긴 자료(sources)에서 승격된 페이지라면 원본 자료는 남는다. deleteWikiPage 는
+  //   원본을 미수집으로 되돌릴 뿐이다.
+  // 확인 대기에는 누른 계정을 함께 적는다(ownerId). 확인은 그 계정이 지금 계정일 때만 지우고,
+  // 계정이 바뀌면 대기를 비운다. 계정 전환은 루트가 이 화면을 새로 만들어 이미 막는다 - 이것은
+  // 화면 안의 두 번째 울타리다.
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string; ownerId: string } | null>(null);
+  const [deletingPageId, setDeletingPageId] = useState<string | null>(null);
+  const [deleteNotice, setDeleteNotice] = useState<"deleted" | "failed" | null>(null);
+  const deleteInFlightRef = useRef(false);
+  const deleteUserRef = useRef(userId);
+  deleteUserRef.current = userId;
+
+  useEffect(() => {
+    setPendingDelete((prev) => (prev !== null && prev.ownerId !== userId ? null : prev));
+  }, [userId]);
+
+  const closeDeletePage = useCallback(() => {
+    if (deleteInFlightRef.current) return;
+    setPendingDelete(null);
+    setDeleteNotice((prev) => (prev === "failed" ? null : prev));
+  }, []);
+
+  const confirmDeletePage = useCallback(async () => {
+    const page = pendingDelete;
+    if (!userId || !page || page.ownerId !== userId || deleteInFlightRef.current) return;
+    const targetUserId = userId;
+    deleteInFlightRef.current = true;
+    setDeletingPageId(page.id);
+    setDeleteNotice(null);
+    try {
+      const removed = await deleteWikiPage(userId, page.id);
+      // 기다리는 사이 계정이 바뀌었으면 새 계정 화면에 옛 결과를 띄우지 않는다.
+      if (deleteUserRef.current !== targetUserId) return;
+      setPendingDelete(null);
+      setExpandedId((prev) => (prev === page.id ? null : prev));
+      // 0행이면 지운 것이 없다(이미 없거나 이 계정 것이 아니다. RLS 거부도 오류가 아니라 0행으로 온다).
+      // "삭제됨" 을 말하지 않고 목록만 서버에서 다시 읽는다.
+      if (removed > 0) {
+        setDeleteNotice("deleted");
+        AccessibilityInfo.announceForAccessibility(tw("pageDeleted"));
+      }
+      reload();
+    } catch {
+      if (deleteUserRef.current !== targetUserId) return;
+      setDeleteNotice("failed");
+      AccessibilityInfo.announceForAccessibility(t("wiki.deleteFailed"));
+    } finally {
+      deleteInFlightRef.current = false;
+      setDeletingPageId(null);
+    }
+  }, [pendingDelete, userId, reload, t, tw]);
 
   // The page the user asked to open is pinned into the list: the graph draws every page but
   // the list keeps only the top 12 by connection count, so opening a sparsely-linked node
@@ -759,6 +824,10 @@ export function DeepSpaceWikiScreen() {
           ))}
         </View>
       ) : null}
+      {/* 지운 뒤 목록을 다시 읽는 동안에도 보이게 목록 바깥에 둔다. */}
+      {deleteNotice === "deleted" ? (
+        <Text variant="subtle" style={styles.footer} accessibilityLiveRegion="polite">{tw("pageDeleted")}</Text>
+      ) : null}
       {loading ? (
         <GraphLoading />
       ) : wikiView === "graph" && graphPages.length > 0 ? (
@@ -814,6 +883,20 @@ export function DeepSpaceWikiScreen() {
                     <Text variant="subtle" style={styles.wikiBacklink}>↩ {t("wiki.backlinks", { count: p.connections })}</Text>
                     {p.tags[0] ? <Text variant="caption" pixelEn style={styles.tlTag}>{p.tags[0]}</Text> : null}
                   </View>
+                  <Pressable
+                    style={styles.danger}
+                    onPress={() => {
+                      setDeleteNotice(null);
+                      setPendingDelete({ id: p.id, title: p.title, ownerId: userId });
+                    }}
+                    disabled={deletingPageId !== null}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: deletingPageId !== null }}
+                    accessibilityLabel={tw("deletePageFor", { title: p.title })}
+                  >
+                    <Text variant="body" style={styles.dangerText}>{tw("deletePage")}</Text>
+                  </Pressable>
                 </View>
               );
             }
@@ -840,6 +923,46 @@ export function DeepSpaceWikiScreen() {
       )}
       </DockBody>
       </View>
+      {/* 되돌릴 수 없다고 말하고 한 번 더 묻는다. 지우는 중에는 닫히지 않는다
+          (closeDeletePage 가 진행 중이면 아무것도 안 한다). RN Modal 이라 안드로이드
+          뒤로가기도 onClose 로 온다. */}
+      <PremiumModal
+        visible={pendingDelete !== null}
+        onClose={closeDeletePage}
+        accessibilityLabel={tw("deleteConfirmLabel")}
+      >
+        <Text variant="heading">{tw("deleteConfirmTitle")}</Text>
+        <Text variant="body" style={styles.lead}>{tw("deleteConfirmBody")}</Text>
+        {pendingDelete ? (
+          <Text variant="subtle" style={styles.footer} numberOfLines={2}>{pendingDelete.title}</Text>
+        ) : null}
+        {deleteNotice === "failed" ? (
+          <Text variant="subtle" style={styles.footer} accessibilityRole="alert">{t("wiki.deleteFailed")}</Text>
+        ) : null}
+        <View style={styles.ctaRow}>
+          <Pressable
+            style={styles.secondary}
+            onPress={closeDeletePage}
+            disabled={deletingPageId !== null}
+            accessibilityRole="button"
+            accessibilityLabel={tw("cancel")}
+            accessibilityHint={tw("cancelHint")}
+          >
+            <Text variant="body" style={styles.secondaryText}>{tw("cancel")}</Text>
+          </Pressable>
+          <Pressable
+            style={styles.danger}
+            onPress={() => void confirmDeletePage()}
+            disabled={deletingPageId !== null}
+            accessibilityRole="button"
+            accessibilityState={{ busy: deletingPageId !== null }}
+            accessibilityLabel={tw("delete")}
+            accessibilityHint={tw("deleteHint")}
+          >
+            <Text variant="body" style={styles.dangerText}>{tw("delete")}</Text>
+          </Pressable>
+        </View>
+      </PremiumModal>
     </DeepSpaceScreen>
   );
 }

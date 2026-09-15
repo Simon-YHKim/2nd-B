@@ -17,6 +17,8 @@ import type { RelationType, SourceKind, SourceRow, WikiPageKind, WikiPageRow } f
 // --- sources -----------------------------------------------------------
 
 export interface CreateSourceInput {
+  /** Omit for a database-generated id. Set when the caller names the row (capture's sourceId). */
+  id?: string;
   user_id: string;
   kind: SourceKind;
   title: string;
@@ -306,8 +308,12 @@ export async function markSourceNotIngested(userId: string, sourceId: string): P
  * sources row is otherwise untouched — we reset ingested explicitly.) The
  * source reset is best-effort: the page deletion is the user's intent and has
  * already committed, so a reset failure is logged, not surfaced as a failure.
+ *
+ * Returns how many pages the DELETE removed. 0 is not a failure, but it is not
+ * a deletion either: the page was already gone, or RLS refused it, and a
+ * refusal arrives as zero rows rather than as an error.
  */
-export async function deleteWikiPage(userId: string, pageId: string): Promise<void> {
+export async function deleteWikiPage(userId: string, pageId: string): Promise<number> {
   const supabase = getSupabaseClient();
   // Read the promoted-from source BEFORE deleting, while the FK still exists.
   const { data: page, error: lookupErr } = await supabase
@@ -318,9 +324,9 @@ export async function deleteWikiPage(userId: string, pageId: string): Promise<vo
     .maybeSingle();
   if (lookupErr) throw lookupErr;
 
-  const { error } = await supabase
+  const { error, count } = await supabase
     .from("wiki_pages")
-    .delete()
+    .delete({ count: "exact" })
     .eq("user_id", userId)
     .eq("id", pageId);
   if (error) throw error;
@@ -334,6 +340,7 @@ export async function deleteWikiPage(userId: string, pageId: string): Promise<vo
         console.warn("[wiki] page deleted but source reset failed", (e as Error).message);
     }
   }
+  return count ?? 0;
 }
 
 /** Pages whose body links TO the given page (i.e., wiki_links.to_page = pageId). */
