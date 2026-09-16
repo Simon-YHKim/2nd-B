@@ -6,7 +6,7 @@
 // 직전 서버 확인까지만 닿았고, keepExchange -> captureFromMarkdown 으로 넘어가는 순간 전부 끊겼다. 그래서 확인을
 // 통과한 저장이 같은 앱에서 끈 뒤에도 원문 업로드와 행 INSERT 를 새로 보냈다(게이트 r3as3 R3AS3-H1 · A01).
 // 이 모듈은 "동의 확인 -> 저장 끝" 을 하나의 수명으로 묶는다. 모듈에 살아서 화면이 내려가도 철회와 계정
-// 전환을 계속 듣는다. 화면 배선은 다음 커밋 몫이다 - 지금은 이 모듈을 부르는 배송 코드가 없다.
+// 전환을 계속 듣는다. 대화 화면(secondb.tsx)이 답변을 넘기고 결과 알림을 받고 대기 기록 비우기를 부른다(C5).
 //
 // ## 규칙 (설계 P1~P6)
 //
@@ -429,7 +429,7 @@ export function holdTurnForManualKeep(reply: KeepableTurn): (() => void) | null 
 
 /**
  * 이 계정에 남은 되돌리기를 마저 한다. 그 계정이 공개돼 있을 때만 돈다. 부를 때: 그 계정이 다시 공개됐을 때 ·
- * 앱이 앞으로 왔을 때(배선은 다음 커밋). 한 건이 실패하면 기록을 남기고 다음 건으로 간다.
+ * 앱이 앞으로 왔을 때(대화 화면이 부른다). 한 건이 실패하면 기록을 남기고 다음 건으로 간다.
  */
 export async function drainAutosaveUndoQueue(ownerId: string): Promise<void> {
   if (!captureAccountOwnerLease(ownerId)) return;

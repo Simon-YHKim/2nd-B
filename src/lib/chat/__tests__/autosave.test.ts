@@ -73,17 +73,22 @@ describe("대화 화면 배선", () => {
   it("프리퍼런스를 못 읽으면 저장하지 않는다", () => {
     // r3as2 R2-M1 부터 읽기 실패를 꺼짐으로 덮지 않는다 - 덮었더니 켜 둔 사용자가 복귀 한 번에 계속 꺼진 채로
     // 남았다. 못 읽었을 때 담지 않는 것은 두 겹이 지킨다: 한 번도 읽지 못한 동의는 null(모름)이라 게이트가 닫혀
-    // 있고, 담기 직전 확인을 못 읽으면 keepExchange 앞에서 돌아선다. 동작은
+    // 있고, 담기 직전 확인을 못 읽으면 실행기가 쓰기 전에 끊는다(PR 1814 재설계 C5). 동작은
     // src/app/__tests__/secondb-autosave-consent-roundtrip.test.ts 가 실제 읽기 실패로 돌린다.
-    expect(screen).toContain("const [autosaveConsent, setAutosaveConsent] = useState<boolean | null>(null);");
-    const recheck = screen.indexOf("if (!read.ok) {", screen.indexOf("autoKeptRef.current.add(last);"));
+    expect(screen).toContain("() => (userId ? autosaveConsentFor(userId).value : null),");
+    const runner = readFileSync(join(ROOT, "src", "lib", "chat", "autosave-runner.ts"), "utf8");
+    const recheck = runner.indexOf("await checkConsentOnServer(job);");
     expect(recheck).toBeGreaterThan(-1);
-    expect(screen.indexOf("void keepExchange(idx)")).toBeGreaterThan(recheck);
+    expect(runner.indexOf("await captureFromMarkdown({")).toBeGreaterThan(recheck);
+    expect(runner.slice(runner.indexOf("async function checkConsentOnServer("))).toContain('if (!result.ok) cancel(job, "check_failed");');
   });
 
   it("자동 경로가 수동 경로와 같은 함수를 쓴다", () => {
-    // 두 경로가 갈라지면 위기 안내(C9)나 dedup 이 한쪽에만 붙는다.
-    expect(screen).toContain("void keepExchange(idx)");
+    // 두 경로가 갈라지면 위기 안내(C9)나 dedup 이 한쪽에만 붙는다. 자동 저장은 실행기가 쓰지만 본문(exchangeAt)과
+    // 위기 판정(keepCrisisHotline)은 손 담기와 같은 함수를 지난다(PR 1814 재설계 C5).
+    expect(screen).toContain("const { body, rawMd } = exchangeAt(turns, idx);");
+    expect(screen).toContain("const { body, rawMd } = exchangeAt(turns, index);");
+    expect(screen.split("keepCrisisHotline(body, locale, isMinor)")).toHaveLength(3);
   });
 
   it("동의 이전 대화를 소급해서 담지 않는다", () => {

@@ -15,8 +15,8 @@
 // 따로다. 저장소는 웹 localStorage, 네이티브 AsyncStorage, 둘 다 없으면 이 런타임의 메모리다. 암호화 저장소를
 // 쓰지 않는 이유: 담는 것이 사용자 글이 아니라 id 둘이다(capture/draft.ts 는 본문이라 암호화한다).
 //
-// ⚠ 계정 삭제 때 이 키를 지우는 정리 경로에는 아직 넣지 않았다. 남는 것은 id 둘이고, 삭제된 계정으로는 더
-// 적지 않는다.
+// 계정 삭제 뒤 로컬 정리(account/local-purge.ts)가 이 키를 지운다(purgeAutosaveUndoForDeletedAccount, PR 1814
+// 재설계 C5). 정리는 삭제 표식을 먼저 세우므로 그 뒤로는 이 계정에 다시 적지 않는다.
 
 import {
   isAccountLocalDeletionFencedInMemory,
@@ -170,6 +170,22 @@ export function rememberAutosaveUndo(record: AutosaveUndoRecord): Promise<boolea
 /** 다 지웠거나, 사용자가 그 자료를 손으로 남기기로 했을 때 지운다. */
 export function forgetAutosaveUndo(record: AutosaveUndoRecord): Promise<boolean> {
   return update(record, (records) => records.filter((known) => known.sourceId !== record.sourceId));
+}
+
+/**
+ * 계정 삭제 뒤 이 계정의 대기 기록을 지운다. 지웠거나 원래 없으면 true. 삭제 표식은 부르는 쪽(local-purge.ts)이
+ * 먼저 세운다 - 그래서 이 뒤에 끝나는 기록 쓰기는 없다.
+ */
+export async function purgeAutosaveUndoForDeletedAccount(ownerId: string): Promise<boolean> {
+  const owner = ownerId.trim();
+  if (!owner) return false;
+  const key = autosaveUndoStorageKey(owner);
+  try {
+    await writeRaw(key, null);
+    return (await readRaw(key)) === null;
+  } catch {
+    return false;
+  }
 }
 
 /** 테스트 전용. 메모리 저장소와 줄 세우기만 비운다. localStorage 는 테스트가 비운다. */

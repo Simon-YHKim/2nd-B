@@ -703,6 +703,7 @@ export function DeepSpaceRecordDetailScreen() {
   const promoteToWiki = useCallback(async () => {
     if (
       locksRef.current.promote ||
+      locksRef.current.delete ||
       promoted ||
       primary.status !== "ready" ||
       primary.identity !== identity ||
@@ -1193,9 +1194,11 @@ export function DeepSpaceRecordDetailScreen() {
 
           {source ? (
             <View style={styles.stackActions}>
+              {/* 지우는 동안에는 승격을 누를 수 없다(PR 1814 설계 N4). 승격은 먼저 보류된 원문 업로드를 마저 올리는데,
+                  삭제가 원문을 지운 뒤 행을 지우기 전에 그 업로드가 돌면 지운 원문이 되살아난다. */}
               <PixelPressable
                 onPress={() => void promoteToWiki()}
-                disabled={promoting || promoted}
+                disabled={deleting || promoting || promoted}
                 accessibilityLabel={
                   promoted
                     ? t("deepspace:ds.wikiRecords.wikiPageMade")
@@ -1203,18 +1206,18 @@ export function DeepSpaceRecordDetailScreen() {
                 }
                 accessibilityState={{ busy: promoting }}
                 fullWidth
-                background={promoting || promoted ? m3.disabled.primary : m3.color.primary}
+                background={deleting || promoting || promoted ? m3.disabled.primary : m3.color.primary}
                 contentStyle={styles.actionContent}
               >
                 <PixelGlyph
                   name={promoted ? "check" : "book"}
-                  color={promoting || promoted ? m3.disabled.onPrimary : m3.color.onPrimary}
+                  color={deleting || promoting || promoted ? m3.disabled.onPrimary : m3.color.onPrimary}
                   size={24}
                 />
                 <RNText
                   style={[
                     m3TextStyle("labelLarge"),
-                    { color: promoting || promoted ? m3.disabled.onPrimary : m3.color.onPrimary },
+                    { color: deleting || promoting || promoted ? m3.disabled.onPrimary : m3.color.onPrimary },
                   ]}
                 >
                   {promoted

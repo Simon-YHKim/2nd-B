@@ -84,7 +84,9 @@ describe("대화 -> 위키 배선", () => {
     // 이 경로는 LLM 을 안 타므로 서버 분류가 걸리지 않는다. 로컬 렉시콘
     // 분류기를 직접 돌려야 다른 저장 화면과 같은 자세가 된다. 이게 없으면
     // 안내 없는 저장 경로가 하나 생긴다.
-    const handler = keepHandlerBody();
+    // PR 1814 재설계 C5: 판정은 손 담기와 자동 저장이 함께 쓰는 keepCrisisHotline 에 있다.
+    expect(keepHandlerBody()).toContain("keepCrisisHotline(body, locale, isMinor)");
+    const handler = stripComments(SRC.slice(SRC.indexOf("function keepCrisisHotline("), SRC.indexOf("export default function SecondBChat()")));
     expect(handler).toContain("classifyInput(");
     expect(handler).toContain('=== "red"');
     expect(handler).toContain("KR_1388");
