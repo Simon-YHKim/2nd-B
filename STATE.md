@@ -3,7 +3,7 @@
 **덮어쓰기 파일.** 네 절만 — 완료 / 진행중 / 다음 / 막힌 것.
 결정은 여기 쓰지 않는다. `DECISIONS.md` 가 소유한다(append-only). 지난 판(09-14 01:04 기준, 32KB)의 경과는 git 이력과 DECISIONS 에 있다 — 이번 판은 **지금 상태만** 남겼다.
 
-최종 갱신 **2026-09-17 03:24 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/claude-disk-260913` · 브랜치 `claude/vibe-r260915a`(origin/main `82fdc474` 위, 기록 커밋 미푸시 — 세션 끝 docs PR)
+최종 갱신 **2026-09-17 05:05 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/claude-disk-260913` · 브랜치 `claude/vibe-r260915a`(origin/main `82fdc474` 위, 기록 커밋 미푸시 — 세션 끝 docs PR)
 소유자: 이 세션(09-13 `ttl-work-9a` 와 두 세션 합의, Simon 지명 아님). Simon 이 다르게 정하면 그게 이긴다. 다른 세션은 `DECISIONS.md` 에만 쓸 것.
 
 📊 보고서 (최신 위)
@@ -39,11 +39,11 @@
 
 ## 진행중
 
-활성 워커 **0** (03:24 KST). #1814 코딩 1~4회차 끝 — HEAD `42d24cad` · CI 초록 · draft · 게이트는 codex 리셋(09-19 19:47) 뒤. 기다리는 것: 새벽 정리 시트 응답.
+활성 워커 **0** (05:0x KST). 보안 변경 7종 이식 draft PR 6개 — #1825 U5+U6 · #1826 U2+U3 · #1827 U4 · #1828 U1 · #1829 U7 · #1830 U8(#1829 위에 쌓임) · 전부 CI 초록. #1814 코딩 끝(HEAD `42d24cad`). 게이트는 codex 리셋(09-19 19:47) 뒤.
 
 ## 다음 (하나만)
 
-**새벽 정리 시트 응답 받기** — 시트 7문항(X-1 U5 공개 로그 삭제 · X-2 UNIQUE 이식 · X-3 로컬 브랜치 52 · X-4 미커밋 폴더 · S-1 문안 파일 · S-2 스토어 등록 시점 · S-4 Lecture 정리). 「확정」만 실행. D3 대시보드 PostgREST 버전 숫자는 여전히 Simon 몫.
+**Simon 결정 N1 받기** — 콜백 격리 키(`AUTH_CALLBACK_QUARANTINE_KEY`, main `AuthContext.tsx:632-663`)의 늦은 null 이벤트 틈을 이식 PR 과 같은 방식으로 고칠지. 상세 `E:/Coding Infra/reports/vibe-r260917/r11-sec-port-c/result.md` '범위 밖 발견 N1'. 그 다음은 09-19 19:47 뒤 게이트 라운드(#1819 · #1810 · #1814 · 이식 PR 6개).
 
 ## 막힌 것
 
