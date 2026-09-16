@@ -21,6 +21,11 @@
 //    계정의 어떤 관측도 값을 켜짐으로 돌리지 못한다. 켜기 의도는 반영하지 않는다. 저장이 실패하면 커밋됐는지
 //    모르므로 모름으로 두고 다음 읽기가 채운다. 요청이 끝나지 않고 매달리면 그동안 켜짐은 막힌 채다 - 담지
 //    않는 쪽으로 틀린다.
+// 6. 세대가 바뀌면 곧바로 알린다(subscribeAutosaveConsent, PR #1814 재설계 C4). 자동 저장 실행기
+//    (autosave-runner.ts)는 작업마다 이 알림을 듣고, 시작할 때 쥔 세대와 달라지는 순간 그 작업의 신호를
+//    끊는다. 다음 확인 지점까지 기다리지 않는다. 알림은 "무엇이 바뀌었다" 만 말하고 값은 싣지 않는다 -
+//    듣는 쪽이 autosaveConsentFor 로 다시 읽는다. 계정 전환으로 비우는 것도 알리지만 그건 다음에 이
+//    저장소를 부를 때(4)라서 늦을 수 있다. 전환에 바로 반응해야 하는 쪽은 account-epoch 를 직접 듣는다.
 //
 // 이 파일은 I/O 를 하지 않는다. 서버 읽기는 부르는 쪽이 readPrivacyPrefs 로 하고 결과만 넘긴다.
 // ⚠ 보안 경계가 아니다. chatAutosaveAllowed(autosave.ts)와 같은 층위이고, 서버는 이 값을 강제하지 않는다.
@@ -66,12 +71,26 @@ let state: ConsentState = { owner: null, epoch: 0, value: null, generation: 0, a
  */
 const withdrawals = new Set<PrivacyPrefsSaveIntent>();
 
+/** 세대가 바뀔 때 부를 곳(6). 테스트 재설정으로도 비우지 않는다 - 구독한 쪽이 스스로 푼다. */
+const listeners = new Set<() => void>();
+
+function changed(): void {
+  for (const listener of [...listeners]) {
+    try {
+      listener();
+    } catch {
+      // 한 구독자가 던져도 나머지는 같은 변화를 받아야 한다. 철회를 못 들은 작업이 남으면 안 된다.
+    }
+  }
+}
+
 /** 지금 공개된 계정 · epoch 의 상태. 달라졌으면 모름으로 비우고, 그 전에 나간 읽기를 모두 낡게 만든다. */
 function current(): ConsentState {
   const owner = currentAccountOwner();
   const epoch = currentAccountEpoch();
   if (state.owner !== owner || state.epoch !== epoch) {
     state = { owner, epoch, value: null, generation: state.generation + 1, applied: seq };
+    changed();
   }
   return state;
 }
@@ -87,8 +106,10 @@ function withdrawing(ownerId: string): boolean {
 function take(s: ConsentState, value: boolean | null, at: number): boolean {
   if (value === true && s.owner !== null && withdrawing(s.owner)) return false;
   s.applied = at;
-  if (s.value !== value) s.generation += 1;
+  const moved = s.value !== value;
+  if (moved) s.generation += 1;
   s.value = value;
+  if (moved) changed();
   return true;
 }
 
@@ -98,6 +119,17 @@ function observe(ownerId: string, value: boolean | null): void {
   if (s.owner !== ownerId) return;
   seq += 1;
   take(s, value, seq);
+}
+
+/**
+ * 값이나 세대가 바뀔 때 부른다(6). 같은 값을 다시 본 관측 · 버린 읽기에는 부르지 않는다. 푸는 함수를 돌려준다.
+ * useSyncExternalStore 의 subscribe 모양이다.
+ */
+export function subscribeAutosaveConsent(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
 }
 
 /** 이 계정의 지금 동의. 공개된 계정이 아니면 모름이다. */
@@ -149,7 +181,8 @@ subscribePrivacyPrefsSaveFailed((intent) => {
 
 /**
  * 테스트 전용. account-epoch 를 되돌리는 테스트는 이것도 함께 부른다 - epoch 가 0 부터 다시 세면 앞 테스트의
- * 상태가 같은 계정 · 같은 epoch 로 보인다. 저장 소식 구독은 그대로 둔다.
+ * 상태가 같은 계정 · 같은 epoch 로 보인다. 저장 소식 구독과 subscribeAutosaveConsent 의 구독자는 그대로 둔다 -
+ * 구독자는 구독한 쪽이 푼다(실행기는 __resetAutosaveRunnerForTests 가 푼다).
  */
 export function __resetAutosaveConsentForTests(): void {
   seq = 0;
