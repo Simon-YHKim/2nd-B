@@ -3,16 +3,17 @@
 **덮어쓰기 파일.** 네 절만 — 완료 / 진행중 / 다음 / 막힌 것.
 결정은 여기 쓰지 않는다. `DECISIONS.md` 가 소유한다(append-only). 지난 판(09-14 01:04 기준, 32KB)의 경과는 git 이력과 DECISIONS 에 있다 — 이번 판은 **지금 상태만** 남겼다.
 
-최종 갱신 **2026-09-16 02:06 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/claude-disk-260913` · 브랜치 `claude/vibe-r260915a`(origin/main `82fdc474` 위, 기록 커밋 미푸시 — 세션 끝 docs PR)
+최종 갱신 **2026-09-17 03:21 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/claude-disk-260913` · 브랜치 `claude/vibe-r260915a`(origin/main `82fdc474` 위, 기록 커밋 미푸시 — 세션 끝 docs PR)
 소유자: 이 세션(09-13 `ttl-work-9a` 와 두 세션 합의, Simon 지명 아님). Simon 이 다르게 정하면 그게 이긴다. 다른 세션은 `DECISIONS.md` 에만 쓸 것.
 
 📊 보고서 (최신 위)
+- **새벽 정리 결정 시트 (09-17 03:17, 7문항 응답 대기)**: <https://claude.ai/artifact/WKmnvY5gMQ3MrxFs8uwwCw>
 - **보안 점검 D3 · D1 (v2, 09-16 01:55)**: <https://claude.ai/code/artifact/77fc83d3-a258-4633-8ac5-3155d54fbf70>
 - **#1814 자동 저장 재설계안 (09-16)**: <https://claude.ai/code/artifact/b7f2af2c-bef4-4440-8bf7-95c9e7856480>
 - 남은 결정 세 가지 시트(09-16 00:35, 셋 다 확정됨): <https://claude.ai/code/artifact/95799def-2a11-41b1-8e00-d41efede712e>
 - 옛 결정 시트 0913 밤(17판, 기록용): <https://claude.ai/code/artifact/6d5c0c58-e6cd-46b7-b1e6-84233a1bd04f>
 - 보안 담당 전달 페이지(09-16, **대체됨** — Simon 지시로 /vibe 보안 담당 섹션이 직접 확인): <https://claude.ai/code/artifact/f87dff4a-970f-46c5-ba39-611c66e66549>
-- 워커 산출물: `E:/Coding Infra/reports/vibe-r260916/{r7-1814-design,r8-sec}/` · `vibe-r260914/*`
+- 워커 산출물: `E:/Coding Infra/reports/vibe-r260917/{r10-sessions,r10-security,r10-1814-rd}/` · `vibe-r260916/{r7-1814-design,r8-sec,r9-1814-ra,rb,rc}/` · `vibe-r260914/*`
 
 ---
 
@@ -32,14 +33,17 @@
 - **#1814 재설계안 완료(09-16 01:56)** — `design.md` 72KB(흐름 지도 · 17건 대응표 · 서버 몫 S1~S6 · 커밋 8 · 반증 R1~R9) · 전제 절반 반증 → 서버 몫 S2 추가 · Simon 결정 D-1(Q-260916-01).
 - **원장** — r7-1814-design · r8-sec1 · r8-sec2 행 기록, 이번 run 대기 0. G8 강제종료 셋 모두 남은 것 0.
 - **SimonK-stack PR #33 머지**(`8af57ff5`, pitfalls +6).
+- **Simon 확정 09-16 02:58** — #1814 설계 ① 이대로 코딩 · D-1 ② 새 대화에도 앞 대화는 그대로 저장.
+- **#1814 코딩 1~3회차** — C1·C2·C3·C6·C4·C7 커밋, HEAD `594c6156`, CI 초록(상세 DECISIONS 09-16).
+- **09-17 새벽 정리(Simon 자리 비움 지시)** — 앱 정리(Chrome·ChatGPT·Telegram·WebView) · 대기 세션 15 판정 → 14 닫음(메모는 DECISIONS 03:00 줄) · security 워크트리 115 판정(UNIQUE 18, 전제 거짓) → 폴더 96개 제거 · 브랜치 0 삭제 · 번들 백업 · 결정 시트 발행. 여유 메모리 1.96 → 8.03 GB.
 
 ## 진행중
 
-활성 워커 **0** (02:00 KST). 기다리는 것은 Simon 응답뿐이다.
+활성 워커 **1** (03:21 KST) — r10-1814-rd(`ctx_556c08fefe6c`, #1814 코딩 4회차: C5 대화 화면을 실행기에 · C8 문서/PR 본문). run `run_88e915edddb9`. 수확 = G8 kill → worker-release → terminal close → 원장 → DECISIONS.
 
 ## 다음 (하나만)
 
-**Simon 응답 받기** — ① 대시보드 PostgREST 버전 숫자(D3 분기: 14.18 미만이면 보고서의 지원 요청 글 발송) ② #1814 설계안 응답(설계 방향 · D-1). ②가 "이대로"면 코딩 1 · 2회차를 claude 레인으로 바로 시작한다(게이트는 리셋 뒤).
+**#1814 4회차 수확 + 새벽 정리 시트 응답 받기** — 시트 7문항(X-1 U5 공개 로그 삭제 · X-2 UNIQUE 이식 · X-3 로컬 브랜치 52 · X-4 미커밋 폴더 · S-1 문안 파일 · S-2 스토어 등록 시점 · S-4 Lecture 정리). 「확정」만 실행. D3 대시보드 PostgREST 버전 숫자는 여전히 Simon 몫.
 
 ## 막힌 것
 
@@ -70,4 +74,4 @@
 - 메모리의 "v14.18 지역별 적용"은 상태 페이지 문장이 아니었다(09-16 정정 반영함).
 
 ### 7. 주인이 따로 있어 남긴 것
-security-* 워크트리 · `.npm-security-landing-260906` · C: 후보 Q-260906-04 · 공유 스태시 22 · codex 세션.
+security-* 워크트리 19개(UNIQUE 18 + 미커밋 1 — 시트 X-2·X-4 응답 전까지 유지) · `.npm-security-landing-260906` · C: 후보 Q-260906-04 · 공유 스태시 22 · codex 세션.
