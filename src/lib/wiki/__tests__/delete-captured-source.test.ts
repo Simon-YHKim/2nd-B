@@ -37,13 +37,17 @@ const mockDb = {
 function mockQuery(table: "sources" | "wiki_pages") {
   let op: "select" | "delete" | "update" = "select";
   let patch: MockRow = {};
+  let columns = "*";
   const filters: ((row: MockRow) => boolean)[] = [];
   const run = (): { data: MockRow[] | null; error: { message: string; code?: string } | null; count?: number | null } => {
     const rows = mockDb[table];
     const hit = rows.filter((row) => filters.every((keep) => keep(row)));
     if (op === "select") {
       if (table === "sources" && mockDb.lookupFails) return { data: null, error: { message: "lookup failed" } };
-      return { data: hit.map((row) => ({ ...row })), error: null };
+      // 고른 열만 돌려준다. 조회가 frontmatter 를 고르지 않으면 행 안의 본문 사본을 볼 수 없어야 한다.
+      const pick = (row: MockRow): MockRow =>
+        columns === "*" ? { ...row } : Object.fromEntries(columns.split(",").map((column) => [column.trim(), row[column.trim()]]));
+      return { data: hit.map(pick), error: null };
     }
     if (op === "update") {
       mockDb.writes.push(`update ${table}`);
@@ -78,7 +82,10 @@ function mockQuery(table: "sources" | "wiki_pages") {
     return { data: null, error: null, count: hit.length };
   };
   const builder = {
-    select: () => builder,
+    select: (list = "*") => {
+      columns = list;
+      return builder;
+    },
     delete: () => {
       op = "delete";
       return builder;
@@ -279,6 +286,42 @@ describe("원문을 지운 뒤 행 단계에서 실패하면", () => {
     expect(mockDb.sources).toHaveLength(1);
     expect(mockDb.writes).not.toContain("storage remove");
   });
+
+  // r3as3 R3AS3-M2: 업로드가 실패하면 capture 는 본문을 행 안(frontmatter._body_fallback)에 싣고 storage_path 는 그대로
+  // 적는다. 그 자료를 지우다 행 단계에서 멈추면 원문 사본이 아직 행에 있다 - "원문은 삭제됐어요" 는 거짓이다.
+  const INLINE: MockRow = { ...SOURCE, frontmatter: { _storage_pending: true, _body_fallback: "**I asked**\n\n> where did I walk" } };
+
+  test("업로드가 실패해 본문이 행 안에 남은 자료는 행에서 멈추면 raw_removed 가 아니라 not_deleted 다", async () => {
+    mockDb.sources = [{ ...INLINE }];
+    mockDb.objects = new Set(); // 업로드가 실패해 원문 객체는 없다
+    mockDb.sourceDeleteErrors = 1;
+    await expect(deleteCapturedSource(OWNER, "src-1")).resolves.toBe("not_deleted");
+    expect(mockDb.writes).toEqual(["storage remove", "delete sources (error)"]);
+    expect(mockDb.sources).toEqual([{ ...INLINE }]); // 사본을 든 행이 그대로다
+
+    await expect(deleteCapturedSource(OWNER, "src-1")).resolves.toBe("deleted"); // 다시 시도하면 끝난다
+    expect(mockDb.sources).toEqual([]);
+  });
+
+  test("같은 자료에서 승격 페이지만 지우고 행에서 멈추면 partly_deleted 다", async () => {
+    mockDb.sources = [{ ...INLINE, ingested: true }];
+    mockDb.wiki_pages = [{ ...PAGE }];
+    mockDb.objects = new Set();
+    mockDb.sourceDeleteErrors = 1;
+    await expect(deleteCapturedSource(OWNER, "src-1")).resolves.toBe("partly_deleted");
+    expect(mockDb.wiki_pages).toEqual([]);
+    expect(mockDb.sources).toHaveLength(1);
+  });
+
+  test("대조군: 정상 업로드된 자료는 frontmatter 가 있어도(빈 사본 포함) raw_removed 그대로다", async () => {
+    for (const frontmatter of [{ title: "walk" }, { _body_fallback: "" }]) {
+      mockDb.sources = [{ ...SOURCE, frontmatter }];
+      mockDb.objects = new Set([PATH]);
+      mockDb.sourceDeleteErrors = 1;
+      await expect(deleteCapturedSource(OWNER, "src-1")).resolves.toBe("raw_removed");
+      expect([...mockDb.objects]).toEqual([]);
+    }
+  });
 });
 
 describe("본인 행만", () => {
@@ -385,6 +428,16 @@ describe("기록 상세 화면은 다 지웠을 때만 뒤로 간다", () => {
     await screen.run();
     expect(screen.router.back).not.toHaveBeenCalled();
     expect(screen.said).toEqual(["deepspace:recordDetail.deleteSourceRawRemoved"]);
+  });
+
+  test("본문 사본이 행에 남은 자료가 행에서 멈추면 원문이 삭제됐다고 말하지 않는다 (r3as3 R3AS3-M2)", async () => {
+    mockDb.sources = [{ ...SOURCE, frontmatter: { _storage_pending: true, _body_fallback: "where did I walk" } }];
+    mockDb.objects = new Set();
+    mockDb.sourceDeleteErrors = 1;
+    const screen = detailScreen();
+    await screen.run();
+    expect(screen.router.back).not.toHaveBeenCalled();
+    expect(screen.said).toEqual(["deepspace:recordDetail.deleteSourceFailed"]);
   });
 
   test("원문이 없던 자료가 일부만 지워졌으면 일부만 삭제됐다는 문구로 말하고 머문다", async () => {

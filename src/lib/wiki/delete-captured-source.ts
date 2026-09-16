@@ -32,7 +32,9 @@
 //   not_deleted     페이지와 행은 하나도 지우지 않았다. 원문 삭제 요청이 응답 전에 끊겼다면 원문은
 //                   이미 없을 수 있다 - 그래서 화면 문구도 "아무것도 지우지 않았다" 고 단정하지 않는다.
 //   raw_removed     원문은 지웠는데(되돌릴 수 없다) 승격 페이지나 행 정리에서 멈췄다 (r3as2 R3AS2-03). 화면이
-//                   "자료가 아직 남아 있다" 고 말하지 않도록 따로 돌려준다.
+//                   "자료가 아직 남아 있다" 고 말하지 않도록 따로 돌려준다. 업로드가 실패해 본문이 행 안
+//                   (frontmatter._body_fallback)에 실린 자료는 여기에 들지 않는다 - 행이 남으면 본문 사본도 남는다
+//                   (r3as3 R3AS3-M2). 그 자료는 페이지를 지웠으면 partly_deleted, 아니면 not_deleted 다.
 //   partly_deleted  원문 경로가 없던 자료에서 승격 페이지를 지웠는데 행 정리에서 멈췄다.
 //
 // ⚠ 보안 경계는 이 함수가 아니라 RLS 다. 여기서 거는 user_id 와 경로 접두사 확인은 두 번째 울타리다.
@@ -55,16 +57,24 @@ export async function deleteCapturedSource(userId: string, sourceId: string): Pr
   const supabase = getSupabaseClient();
 
   let path: string | null;
+  let hasInlineCopy: boolean;
   try {
     const { data: source, error: lookupError } = await supabase
       .from("sources")
-      .select("id, storage_path")
+      .select("id, storage_path, frontmatter")
       .eq("user_id", userId)
       .eq("id", sourceId)
       .maybeSingle();
     if (lookupError) throw lookupError;
     if (!source) return "not_deleted";
-    path = (source as { storage_path: string | null }).storage_path;
+    const row = source as { storage_path: string | null; frontmatter: unknown };
+    path = row.storage_path;
+    // 업로드가 실패한 자료는 본문을 행 안에 든다(capture 의 _body_fallback). 원문 객체를 지워도 사본은 행에 남는다.
+    const fallback =
+      row.frontmatter && typeof row.frontmatter === "object"
+        ? (row.frontmatter as Record<string, unknown>)._body_fallback
+        : undefined;
+    hasInlineCopy = typeof fallback === "string" && fallback.length > 0;
   } catch {
     return "not_deleted";
   }
@@ -82,8 +92,8 @@ export async function deleteCapturedSource(userId: string, sourceId: string): Pr
     }
   }
 
-  // 여기서부터 실패하면 무엇을 이미 지웠는지로 답이 갈린다.
-  const rawRemoved = Boolean(path);
+  // 여기서부터 실패하면 무엇을 이미 지웠는지로 답이 갈린다. 본문 사본이 행에 있으면 행이 남는 한 원문도 남은 것이다.
+  const rawRemoved = Boolean(path) && !hasInlineCopy;
   let pageRemoved = false;
   try {
     const { data: pages, error: pagesError } = await supabase
