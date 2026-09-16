@@ -3,7 +3,7 @@
 **덮어쓰기 파일.** 네 절만 — 완료 / 진행중 / 다음 / 막힌 것.
 결정은 여기 쓰지 않는다. `DECISIONS.md` 가 소유한다(append-only). 지난 판(09-14 01:04 기준, 32KB)의 경과는 git 이력과 DECISIONS 에 있다 — 이번 판은 **지금 상태만** 남겼다.
 
-최종 갱신 **2026-09-17 03:21 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/claude-disk-260913` · 브랜치 `claude/vibe-r260915a`(origin/main `82fdc474` 위, 기록 커밋 미푸시 — 세션 끝 docs PR)
+최종 갱신 **2026-09-17 03:26 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/claude-disk-260913` · 브랜치 `claude/vibe-r260915a`(origin/main `82fdc474` 위, 기록 커밋 미푸시 — 세션 끝 docs PR)
 소유자: 이 세션(09-13 `ttl-work-9a` 와 두 세션 합의, Simon 지명 아님). Simon 이 다르게 정하면 그게 이긴다. 다른 세션은 `DECISIONS.md` 에만 쓸 것.
 
 📊 보고서 (최신 위)
@@ -39,11 +39,11 @@
 
 ## 진행중
 
-활성 워커 **1** (03:21 KST) — r10-1814-rd(`ctx_556c08fefe6c`, #1814 코딩 4회차: C5 대화 화면을 실행기에 · C8 문서/PR 본문). run `run_88e915edddb9`. 수확 = G8 kill → worker-release → terminal close → 원장 → DECISIONS.
+활성 워커 **0** (03:26 KST). #1814 코딩 1~4회차 끝 — HEAD `42d24cad` · CI 초록 · draft · 게이트는 codex 리셋(09-19 19:47) 뒤. 기다리는 것: 새벽 정리 시트 응답.
 
 ## 다음 (하나만)
 
-**#1814 4회차 수확 + 새벽 정리 시트 응답 받기** — 시트 7문항(X-1 U5 공개 로그 삭제 · X-2 UNIQUE 이식 · X-3 로컬 브랜치 52 · X-4 미커밋 폴더 · S-1 문안 파일 · S-2 스토어 등록 시점 · S-4 Lecture 정리). 「확정」만 실행. D3 대시보드 PostgREST 버전 숫자는 여전히 Simon 몫.
+**새벽 정리 시트 응답 받기** — 시트 7문항(X-1 U5 공개 로그 삭제 · X-2 UNIQUE 이식 · X-3 로컬 브랜치 52 · X-4 미커밋 폴더 · S-1 문안 파일 · S-2 스토어 등록 시점 · S-4 Lecture 정리). 「확정」만 실행. D3 대시보드 PostgREST 버전 숫자는 여전히 Simon 몫.
 
 ## 막힌 것
 
