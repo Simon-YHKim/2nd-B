@@ -7,9 +7,10 @@ export const SUBSCRIPTION_MANAGE_JSON_BODY_LIMIT_BYTES = 4 * 1024;
 export const PADDLE_WEBHOOK_BODY_LIMIT_BYTES = 1024 * 1024;
 
 // Container nesting a strict reader accepts; the top-level value is depth 1.
-// Paddle's own objects stay far below 32, and a manage request is flat.
+// Paddle's own objects stay far below 32; manage and public-data requests are flat.
 export const PADDLE_WEBHOOK_JSON_MAX_DEPTH = 32;
 export const SUBSCRIPTION_MANAGE_JSON_MAX_DEPTH = 4;
+export const PUBLIC_DATA_PROXY_JSON_MAX_DEPTH = 3;
 
 const REQUEST_BODY_TIMEOUT_MS = 15_000;
 const REQUEST_BODY_MAX_CHUNKS = 1_024;
