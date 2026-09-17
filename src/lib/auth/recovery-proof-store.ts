@@ -400,11 +400,26 @@ export function subscribeRecoveryPending(listener: (pending: boolean) => void): 
   return () => pendingListeners.delete(listener);
 }
 
+/** Whether the live ledger holds a pending marker. Unreadable counts as held. */
+function livePendingMarkerPresent(): boolean {
+  try {
+    const store = webStorage();
+    return store ? store.getItem(RECOVERY_PENDING_KEY) !== null : false;
+  } catch {
+    return true;
+  }
+}
+
 export function applyRecoveryPendingStorageValue(raw: string | null): RecoveryPending | null {
+  // The returned marker is the event's own, so callers still judge a malformed
+  // event value (and only that) as invalid.
   const pending = parseRecoveryPending(raw);
   // Malformed non-null state is still a restart fence. Its owner cannot be
   // proven, so only fail-closed handling (never deletion) may resolve it.
-  setRecoveryPendingPresence(raw !== null);
+  // A null newValue alone cannot open the fence: it can be stale by delivery
+  // time, landing after this tab wrote a newer marker. Only the live ledger can
+  // release it, and a ledger that cannot be read proves nothing is gone.
+  setRecoveryPendingPresence(raw !== null || livePendingMarkerPresent());
   return pending;
 }
 
