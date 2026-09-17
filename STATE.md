@@ -43,7 +43,7 @@
 
 ## 다음 (하나만)
 
-**2026-09-19(토) 19:47 KST codex 리셋 뒤 게이트 라운드 → 머지 → QA APK 비공개 초안 릴리스** (Simon 확정 09-18 02:2x). 순서: 게이트 두 레인 → PR 10개 머지(#1828→#1831 · #1829→#1830) → main push 진단 APK 수령·확인(서명·ABI·에뮬 부팅) → `gh release create --draft` 로 APK + SHA256SUMS 첨부 → 링크 전달. 머지 전 확인 3건: Paddle 웹훅 Content-Type · `secrets list --output json` 형식 · 운영 PADDLE_API_BASE.
+**2026-09-19(토) 19:47 KST codex 리셋 뒤 게이트 라운드 → 머지 → QA APK 비공개 초안 릴리스** (Simon 확정 09-18 03:02). 순서: 게이트 두 레인 → PR 10개 머지(#1828→#1831 · #1829→#1830) → main push 진단 APK 수령·확인(서명·ABI·에뮬 부팅) → `gh release create --draft` 로 APK + SHA256SUMS 첨부 → 링크 전달. 머지 전 확인 3건: Paddle 웹훅 Content-Type · `secrets list --output json` 형식 · 운영 PADDLE_API_BASE.
 
 ## 막힌 것
 
