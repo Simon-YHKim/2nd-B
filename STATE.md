@@ -3,7 +3,7 @@
 **덮어쓰기 파일.** 네 절만 — 완료 / 진행중 / 다음 / 막힌 것.
 결정은 여기 쓰지 않는다. `DECISIONS.md` 가 소유한다(append-only). 지난 판(09-14 01:04 기준, 32KB)의 경과는 git 이력과 DECISIONS 에 있다 — 이번 판은 **지금 상태만** 남겼다.
 
-최종 갱신 **2026-09-17 05:39 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/claude-disk-260913` · 브랜치 `claude/vibe-r260915a`(origin/main `82fdc474` 위, 기록 커밋 미푸시 — 세션 끝 docs PR)
+최종 갱신 **2026-09-18 02:25 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/claude-disk-260913` · 브랜치 `claude/vibe-r260915a`(origin/main `82fdc474` 위, 기록 커밋 미푸시 — 세션 끝 docs PR)
 소유자: 이 세션(09-13 `ttl-work-9a` 와 두 세션 합의, Simon 지명 아님). Simon 이 다르게 정하면 그게 이긴다. 다른 세션은 `DECISIONS.md` 에만 쓸 것.
 
 📊 보고서 (최신 위)
@@ -43,7 +43,7 @@
 
 ## 다음 (하나만)
 
-**2026-09-19(토) 19:47 KST codex 리셋 뒤 게이트 라운드** — 보안 두 레인(daybreak 산출물 · astra 비즈로직)을 #1819 · #1810 · #1814 · 보안 PR 7개에 돌린다. 쌓인 PR 은 아래부터(#1828 → #1831, #1829 → #1830). 머지 전 확인: Paddle 웹훅 실제 Content-Type · `supabase secrets list --output json` 형식 · 운영 PADDLE_API_BASE 값. 그 전까지 Simon 할 일: DB 백업 환경 비밀값 2개(시트 카드).
+**2026-09-19(토) 19:47 KST codex 리셋 뒤 게이트 라운드 → 머지 → QA APK 비공개 초안 릴리스** (Simon 확정 09-18 02:2x). 순서: 게이트 두 레인 → PR 10개 머지(#1828→#1831 · #1829→#1830) → main push 진단 APK 수령·확인(서명·ABI·에뮬 부팅) → `gh release create --draft` 로 APK + SHA256SUMS 첨부 → 링크 전달. 머지 전 확인 3건: Paddle 웹훅 Content-Type · `secrets list --output json` 형식 · 운영 PADDLE_API_BASE.
 
 ## 막힌 것
 
