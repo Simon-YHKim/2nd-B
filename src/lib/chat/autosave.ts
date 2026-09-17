@@ -44,6 +44,60 @@
 // 배송 화면에 넣기) 다르게 볼지는 Simon 결정이다.
 // 검사: `src/lib/privacy/__tests__/autosave-undo-path.test.ts`
 //
+// ⚠ **2026-09-14 정정 (Q-260914-01).** 세 가지를 적는다.
+//
+// 1. 바뀐 것. 배송 위키 화면이 한 장을 지운다. `dds-wiki-records-screens.tsx` 의
+//    `DeepSpaceWikiScreen` 이 확인 단계 뒤 `deleteWikiPage` 를 부른다. 같은 날 배송
+//    `/privacy`(`DeepSpaceDesignScreens.tsx` 의 `DeepSpacePrivacyDesignScreen`)에도 이
+//    토글이 생겼다(커밋 "feat(privacy): add the chat autosave switch to the shipped
+//    privacy screen"). 그 전에는 켜는 토글도 레거시 반쪽에만 있었다.
+// 2. 틀렸던 것. 위 전제 문단은 담긴 대화를 위키 **페이지**로 읽는데,
+//    자동 저장은 `sources` 에 쓴다(`secondb.tsx` keepExchange -> `captureFromMarkdown`
+//    -> `createSource`). 페이지는 사용자가 따로 "위키 페이지 만들기"로 승격할 때만
+//    생기고, `deleteWikiPage` 는 원본 source 를 지우지 않고 미수집으로 되돌린다. 그래서
+//    1 만으로는 자동 저장된 대화 한 건이 되돌려지지 **않는다.** 배송에서 source 한 건을
+//    지우는 길도 없었다(`deleteSource` 호출부는 `inbox.tsx` 의 `InboxLegacy` 뿐).
+// 3. 그래서 같은 날 범위를 넓혔다(Q-260914-01 B). **배송에서 대화 한 건을 되돌릴 길이 생겼다.**
+//    배송 기록 상세(`dds-record-detail-screen.tsx`)가 담긴 자료 한 건을 지운다. 순서는
+//    `lib/wiki/delete-captured-source.ts` 가 진다: raw-clippings 원문 -> 승격된 위키 페이지 ->
+//    source 행. 커밋 "feat(records): delete a single captured source from the
+//    shipped detail screen". `queries.ts` 의 deleteSource 주석이 적은 "Storage 정리는
+//    자동화 안 됨" 은 **이 길에서만** 바뀌었다. deleteSource 와 /settings 일괄 삭제는
+//    여전히 본문을 남긴다. 원문을 못 지우면 행을 건드리지 않고 실패를 돌려주고(다시 시도할 수
+//    있게), 원문을 지운 뒤 행에서 실패하면 일부만 지워졌다고 알린다. r3as F-02 로 바꿨다 - 처음에는
+//    본문을 맨 끝에 best-effort 로 지우고 실패해도 성공이라 했다.
+//
+// ## 한 수명 (PR 1814 재설계, 2026-09-17)
+//
+// 위 정정 2 가 적은 경로(`secondb.tsx` keepExchange -> `captureFromMarkdown`)는 이제 **손 담기**의 길이다.
+// 자동 저장은 "동의 확인 -> 저장 끝" 을 작업 한 건으로 묶어 실행기가 한다. 게이트가 되짚은 틈(r3as H1 ·
+// r3as2 R3AS2-01 · r3as3 R3AS3-H1)은 동의를 화면이 들고 있었거나, 확인과 쓰기가 다른 수명에 있어서 생겼다.
+//
+//   동의       `autosave-consent.ts` - 계정마다 하나. 관측은 나간 순서로 가르고(늦게 온 옛 값은 버린다), 읽기
+//              실패는 관측이 아니다. 같은 앱의 끄기는 누른 순간, 켜기는 저장이 확정된 순간 반영된다.
+//   짝 자격    대화 화면이 질문을 보낼 때 동의 세대를 적고, 그 세대가 지금 세대인 짝의 답변만 넘긴다.
+//   작업       `autosave-runner.ts` - 작업 한 건 = 신호 하나. 철회 · 끄고 다시 켬 · 계정 전환이 그 신호를
+//              그 자리에서 끊는다. 쓰기는 보내기 전에만 막고, 이미 보낸 원문 업로드 · 행 INSERT 는 끝나기를
+//              기다렸다가 작업이 정한 sourceId 로 되돌린다. 계정 전환은 철회가 아니라서 되돌리지 않는다.
+//   되돌리기   `autosave-undo-queue.ts` - 다 지우지 못한 것은 {ownerId, sourceId} 만 기기에 남기고, 그 계정으로
+//              대화 화면이 뜨거나 앱이 앞으로 올 때 마저 지운다. 계정 삭제의 로컬 정리가 이 기록도 지운다.
+//
+// 사용자에게 달라지는 것:
+//   1. 설정에서 끄기를 누른 순간부터 진행 중인 자동 저장이 멈춘다. 이미 보낸 쓰기는 되돌린다.
+//   2. 대화 화면을 벗어나도 진행 중인 자동 저장은 끝까지 간다.
+//   3. 한 답변을 담는 동안 도착한 다음 답변도 자동으로 담긴다.
+//   4. 동의를 거둬 멈춘 자동 저장은 실패 안내를 띄우지 않는다.
+//   5. 자동 저장 원문의 Storage 키는 제목 슬러그가 아니라 `chat-<sourceId>` 다.
+//   6. "새 대화" 는 진행 중인 자동 저장을 멈추지 않는다(Simon 결정 D-1 ②, 2026-09-16). 켠 채 오간 짝은
+//      화면을 비워도 남고, 지우려면 기록 화면에서 한 건씩 지운다.
+//
+// ⚠ 클라이언트로는 닫히지 않는 것 - 서버 몫이다. 마이그레이션이라 PR 1814 밖이고 주인은 보안 담당 트랙이다.
+//   S1 동의 키 하나를 원자적으로 바꾸는 소유자 RPC. 두 기기가 거의 동시에 저장하면 한쪽 철회가 되살아날 수 있다.
+//   S2 동의에 묶인 자동 저장 쓰기. 다른 기기에서 끈 순간 이미 나간 쓰기, 되돌리기 전에 앱이 꺼진 창이 남는다.
+//   S3 삭제 트랜잭션 RPC + Storage 정리 outbox. 조용한 Storage 거부 · 페이지와 행의 부분 삭제가 남는다.
+//   S4 동의 원장 내구 기록 · S5 source FK 소유자 복합키 · S6(선택) 철회 뒤 저장을 세는 감시 쿼리.
+// 서버는 지금 `chat_autosave` 를 쓰기에서 강제하지 않는다. 아래 게이트도 여전히 보안 경계가 아니다.
+//
 // ## 미성년
 //
 // 미성년도 켤 수 있다(`MINOR_PROMOTABLE_KEYS`). 바깥으로 나가는 것이 없기
