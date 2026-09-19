@@ -6,7 +6,7 @@ import {
 } from "../storage/encrypted-native-storage";
 import { getSupabaseClient, resetSupabaseClient } from "../supabase/client";
 import { clearFailClosedColdStarts } from "./fail-closed-persistence";
-import { getAuthStorageRuntime } from "./session-mutation";
+import { getAuthStorageRuntime, retireAuthStorageRuntime } from "./session-mutation";
 
 // AuthContext reaches the storage-recovery gate through this one module. Its
 // import block is also cited by line from docs/legal, so the persistence exit
@@ -34,6 +34,7 @@ interface RecoveryDependencies {
     consent: EncryptedNativeStorageRecoveryConsent,
     options: EncryptedNativeStorageRecoveryOptions,
   ): Promise<unknown>;
+  retireStorage(): void;
   resetClient(): Promise<void>;
   recreateClient(): unknown;
   readyStorage(): Promise<void>;
@@ -42,6 +43,7 @@ interface RecoveryDependencies {
 
 const RECOVERY_DEPENDENCIES: RecoveryDependencies = {
   recover: recoverEncryptedNativeStorageAfterUserConsent,
+  retireStorage: retireAuthStorageRuntime,
   resetClient: resetSupabaseClient,
   recreateClient: getSupabaseClient,
   readyStorage: () => getAuthStorageRuntime().ready(),
@@ -120,7 +122,17 @@ function isExactRecoveryConsent(value: unknown): value is EncryptedNativeStorage
  * one: its wipe is queued after what was written since the first consent (a
  * save by the retiring client, for one), so it removes that too. Joining the
  * stalled wipe would keep that wipe's earlier place and leave such a write for
- * the fresh client to read. */
+ * the fresh client to read.
+ *
+ * The retiring runtime's storage is fenced in the same turn the wipe is queued
+ * (R27, 2026-09-20). A refresh the retiring client began before consent can
+ * still answer: unfenced, its save queued behind the wipe or landed after the
+ * reset, and the fresh client published that recovery session as an ordinary
+ * one. With it, a write the adapter queued before the fence is removed by the
+ * wipe, and one after it is dropped. The fence stays up if the attempt fails,
+ * since this storage is already consented away; a token the retiring client
+ * rotates meanwhile is lost with it. A wipe request that throws at once fences
+ * nothing. */
 async function resetWithinDeadline(
   consent: EncryptedNativeStorageRecoveryConsent,
   dependencies: RecoveryDependencies,
@@ -139,7 +151,11 @@ async function resetWithinDeadline(
   };
   const reset = (async (): Promise<boolean> => {
     try {
-      await step(() => dependencies.recover(consent, { stillAwaited: () => !expired }));
+      await step(() => {
+        const wipe = dependencies.recover(consent, { stillAwaited: () => !expired });
+        dependencies.retireStorage();
+        return wipe;
+      });
       await step(() => dependencies.resetClient());
       await step(() => dependencies.recreateClient());
       await step(() => dependencies.readyStorage());

@@ -15,12 +15,14 @@ import {
 } from "../storage-recovery";
 
 const recoverStorage = jest.fn<Promise<unknown>, [unknown, unknown?]>();
+const retireStorage = jest.fn<void, []>();
 const resetClient = jest.fn<Promise<void>, []>();
 const recreateClient = jest.fn<unknown, []>();
 const readyStorage = jest.fn<Promise<void>, []>();
 const clearPersistence = jest.fn<Promise<void>, []>();
 const dependencies = {
   recover: recoverStorage,
+  retireStorage,
   resetClient,
   recreateClient,
   readyStorage,
@@ -98,6 +100,7 @@ describe("explicit recovery consent", () => {
       attemptEncryptedNativeStorageRecovery(consent as never, dependencies),
     ).resolves.toBe("invalid-consent");
     expect(recoverStorage).not.toHaveBeenCalled();
+    expect(retireStorage).not.toHaveBeenCalled();
     expect(resetClient).not.toHaveBeenCalled();
     expect(recreateClient).not.toHaveBeenCalled();
     expect(readyStorage).not.toHaveBeenCalled();
@@ -114,10 +117,14 @@ describe("explicit recovery consent", () => {
       attemptEncryptedNativeStorageRecovery(consent, dependencies),
     ).resolves.toBe("recovered");
     expect(recoverStorage).toHaveBeenCalledWith(consent, { stillAwaited: expect.any(Function) });
+    expect(retireStorage).toHaveBeenCalledTimes(1);
     expect(resetClient).toHaveBeenCalledTimes(1);
     expect(recreateClient).toHaveBeenCalledTimes(1);
     expect(readyStorage).toHaveBeenCalledTimes(1);
     expect(recoverStorage.mock.invocationCallOrder[0]).toBeLessThan(
+      retireStorage.mock.invocationCallOrder[0],
+    );
+    expect(retireStorage.mock.invocationCallOrder[0]).toBeLessThan(
       resetClient.mock.invocationCallOrder[0],
     );
     expect(resetClient.mock.invocationCallOrder[0]).toBeLessThan(
@@ -132,6 +139,48 @@ describe("explicit recovery consent", () => {
     expect(readyStorage.mock.invocationCallOrder[0]).toBeLessThan(
       clearPersistence.mock.invocationCallOrder[0],
     );
+  });
+
+  test("fences the retiring runtime in the same turn the wipe is queued", async () => {
+    // R27 (2026-09-20). A refresh the retiring client began before consent can
+    // answer at any moment. Fenced in this turn, its save is either queued
+    // ahead of the wipe, which removes it, or dropped. Fenced any later, for
+    // example when the client is reset, it could queue behind the wipe.
+    let fencedByNextTurn: boolean | null = null;
+    recoverStorage.mockImplementationOnce(() => {
+      queueMicrotask(() => {
+        fencedByNextTurn = retireStorage.mock.calls.length === 1;
+      });
+      return Promise.resolve({ discardedManagedKeys: 1 });
+    });
+
+    await expect(
+      attemptEncryptedNativeStorageRecovery(
+        {
+          acknowledgedDataLoss: true,
+          action: "discard-unreadable-encrypted-local-data",
+        },
+        dependencies,
+      ),
+    ).resolves.toBe("recovered");
+    expect(fencedByNextTurn).toBe(true);
+  });
+
+  test("a wipe request that throws at once fences nothing", async () => {
+    recoverStorage.mockImplementationOnce(() => {
+      throw new Error("secure_storage_native_only");
+    });
+    await expect(
+      attemptEncryptedNativeStorageRecovery(
+        {
+          acknowledgedDataLoss: true,
+          action: "discard-unreadable-encrypted-local-data",
+        },
+        dependencies,
+      ),
+    ).resolves.toBe("failed");
+    expect(retireStorage).not.toHaveBeenCalled();
+    expect(resetClient).not.toHaveBeenCalled();
   });
 
   test("a streak that cannot be cleared never turns a finished recovery into a failure", async () => {
@@ -159,6 +208,9 @@ describe("explicit recovery consent", () => {
       ),
     ).resolves.toBe("failed");
     expect(resetClient).not.toHaveBeenCalled();
+    // The storage was consented away when the wipe was asked for, so its fence
+    // stays up behind the gate while the old client stays in place.
+    expect(retireStorage).toHaveBeenCalledTimes(1);
 
     recoverStorage.mockResolvedValueOnce({ discardedManagedKeys: 1 });
     readyStorage.mockRejectedValueOnce(new Error("secure_store_unavailable"));
@@ -243,8 +295,10 @@ describe("a consented reset that stops answering", () => {
 
     finish();
     await jest.advanceTimersByTimeAsync(0);
-    // The client is neither retired nor replaced and the streak is kept, so
-    // the gate that said the reset did not finish stays the only state.
+    // The client is neither reset nor replaced and the streak is kept, so
+    // the gate that said the reset did not finish stays the only state. Only
+    // the storage fence raised with the wipe request stays up.
+    expect(retireStorage).toHaveBeenCalledTimes(1);
     expect(resetClient).not.toHaveBeenCalled();
     expect(recreateClient).not.toHaveBeenCalled();
     expect(readyStorage).not.toHaveBeenCalled();
