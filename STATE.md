@@ -3,7 +3,7 @@
 **덮어쓰기 파일.** 네 절만 — 완료 / 진행중 / 다음 / 막힌 것.
 결정은 여기 쓰지 않는다. `DECISIONS.md` 가 소유한다(append-only · 09-13~09-16 은 기간 보관 파일 `DECISIONS-2026-09-*.md`). 지난 판의 경과는 git 이력과 DECISIONS 에 있다 — 이번 판은 **지금 상태만** 남겼다.
 
-최종 갱신 **2026-09-19 11:06 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/claude-disk-260913` · 브랜치 `claude/vibe-r260915a`
+최종 갱신 **2026-09-19 11:04 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/claude-disk-260913` · 브랜치 `claude/vibe-r260915a`
 소유자: 이 세션(09-13 `ttl-work-9a` 와 두 세션 합의, Simon 지명 아님). Simon 이 다르게 정하면 그게 이긴다. 다른 세션은 `DECISIONS.md` 에만 쓸 것.
 
 📊 보고서 (최신 위)
@@ -29,7 +29,7 @@
 
 ## 진행중
 
-활성 워커 **0** (11:06 KST). r13 끝 — **main 의 Android 빌드는 두 번째 실행부터 Loading 에 갇힌다**(원인: `encrypted-native-storage.ts:905` 가 expo-crypto `fromCombined` 에 base64 문자열을 넘김 · Android 는 바이트 전용 · #1807 이후 전 Android 빌드 · iOS · v0.8.0 무관) → 수정 **draft PR #1833**(`5931f140` · 2파일 · CI 초록 · 게이트 대기). draft PR 은 이제 11개. Simon 결정 대기 2건(보고서): (나) 저장소 · 로그아웃 이중 실패 때의 출구 설계 · gstack 업그레이드 시점.
+활성 워커 **0** (11:04 KST). r13 끝 — **main 의 Android 빌드는 두 번째 실행부터 Loading 에 갇힌다**(원인: `encrypted-native-storage.ts:905` 가 expo-crypto `fromCombined` 에 base64 문자열을 넘김 · Android 는 바이트 전용 · #1807 이후 전 Android 빌드 · iOS · v0.8.0 무관) → 수정 **draft PR #1833**(`5931f140` · 2파일 · CI 초록 · 게이트 대기). draft PR 은 이제 11개. Simon 결정 대기 2건(보고서): (나) 저장소 · 로그아웃 이중 실패 때의 출구 설계 · gstack 업그레이드 시점.
 
 ## 다음 (하나만)
 
