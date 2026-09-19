@@ -28,7 +28,8 @@
 //      is re-entered (later auth events re-run the same failing sign-out).
 //   2. A counter that cannot be read, parsed, or durably written is itself
 //      evidence of a persistent backing fault: escalate at once instead of
-//      waiting for a count that can never advance.
+//      waiting for a count that can never advance. A call that does not answer
+//      within FAIL_CLOSED_COUNTER_IO_TIMEOUT_MS is the same failure.
 //   3. Clearing is best-effort and silent. It runs on the HEALTHY path, where a
 //      storage hiccup must never raise a gate.
 //   4. Web does nothing. Consented recovery is native-only
@@ -36,9 +37,21 @@
 //      same hole on web is tracked as follow-up work, not solved here.
 //   5. This module only ever answers "keep the lock" or "offer the gate". It
 //      never publishes a session and never retries the bootstrap.
+//   6. A storage call is issued only after every earlier one has SETTLED, not
+//      merely timed out (gate finding AA-1835-1). A write that misses its
+//      deadline may still land, but it lands before any clear issued after it,
+//      so it can never revive a streak that clear removed. Nothing continues
+//      from an answer that arrives after its deadline.
 
 /** Consecutive failing cold starts before the consent gate is offered. */
 export const FAIL_CLOSED_ESCALATION_THRESHOLD = 3;
+
+/** Upper bound on ONE counter storage call: the read, the write, the read-back,
+ *  or the clear's remove. One small AsyncStorage key answers in milliseconds on
+ *  a working device, so 2 s leaves wide headroom for a slow cold start, while a
+ *  count that has to wait out every step still answers within about 6 s of
+ *  "Loading" instead of never (gate finding AA-1835-1, 2026-09-19). */
+export const FAIL_CLOSED_COUNTER_IO_TIMEOUT_MS = 2_000;
 
 /** Plaintext AsyncStorage key. Not a secret; see the header. */
 export const FAIL_CLOSED_COLD_START_KEY = "secondbrain.auth.fail-closed-cold-starts.v1";
@@ -58,6 +71,7 @@ const STORED_COUNT = /^(?:0|[1-9][0-9]{0,2})$/;
 
 let countedThisRun: Promise<FailClosedPersistence> | null = null;
 let storageTail: Promise<void> = Promise.resolve();
+let callTail: Promise<void> = Promise.resolve();
 
 /** Same native test the production auth runtime applies (session-mutation.ts). */
 function isNativeRuntime(): boolean {
@@ -71,11 +85,40 @@ function openCounterStorage(): FailClosedCounterStorage {
 }
 
 /** Run storage work strictly in call order, so a clear and a count issued back
- *  to back can never read and write around each other. Never rejects. */
+ *  to back can never read and write around each other. Never rejects, and
+ *  every operation ends within its calls' deadlines, so a stuck native call
+ *  cannot hold this queue. */
 function enqueue<T>(operation: () => Promise<T>, fallback: T): Promise<T> {
   const result = storageTail.then(operation).catch(() => fallback);
   storageTail = result.then(() => undefined);
   return result;
+}
+
+/** One storage call under Invariant 6: issued once every earlier call has
+ *  settled, answered to the caller within FAIL_CLOSED_COUNTER_IO_TIMEOUT_MS
+ *  (time spent waiting behind a stuck call included). A miss rejects exactly
+ *  like a failed call, and the call's own late answer goes nowhere. */
+function bounded<T>(call: () => Promise<T>): Promise<T> {
+  const settled = callTail.then(call);
+  callTail = settled.then(
+    () => undefined,
+    () => undefined,
+  );
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error("fail_closed_count_timeout"));
+    }, FAIL_CLOSED_COUNTER_IO_TIMEOUT_MS);
+    settled.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
 }
 
 function parseStoredCount(raw: string | null): number {
@@ -95,9 +138,9 @@ async function countColdStart(
   let previous: number;
   try {
     storage = injected ?? openCounterStorage();
-    previous = parseStoredCount(await storage.getItem(FAIL_CLOSED_COLD_START_KEY));
+    previous = parseStoredCount(await bounded(() => storage.getItem(FAIL_CLOSED_COLD_START_KEY)));
   } catch {
-    return "escalate"; // Invariant 2: an unreadable counter.
+    return "escalate"; // Invariant 2: an unreadable counter, or one that never answered.
   }
 
   // Clamped so a user who declines the gate and relaunches does not grow the
@@ -105,12 +148,12 @@ async function countColdStart(
   const next = Math.min(previous + 1, FAIL_CLOSED_ESCALATION_THRESHOLD);
   try {
     const encoded = String(next);
-    await storage.setItem(FAIL_CLOSED_COLD_START_KEY, encoded);
-    if ((await storage.getItem(FAIL_CLOSED_COLD_START_KEY)) !== encoded) {
+    await bounded(() => storage.setItem(FAIL_CLOSED_COLD_START_KEY, encoded));
+    if ((await bounded(() => storage.getItem(FAIL_CLOSED_COLD_START_KEY))) !== encoded) {
       throw new Error("fail_closed_count_not_durable");
     }
   } catch {
-    return "escalate"; // Invariant 2: an unwritable counter.
+    return "escalate"; // Invariant 2: an unwritable counter, or one that never answered.
   }
 
   return next >= FAIL_CLOSED_ESCALATION_THRESHOLD ? "escalate" : "locked";
@@ -129,14 +172,17 @@ export function noteFailClosedColdStart(
 
 /** Return the streak to zero: a bootstrap settled, or the consented wipe
  *  finished. Also reopens the current run, so a failure AFTER this point is a
- *  new episode that counts again. Best-effort and silent; never rejects. */
+ *  new episode that counts again. Best-effort and silent; never rejects. A
+ *  remove that misses its deadline stays queued and still runs once the calls
+ *  before it settle (Invariant 6). */
 export function clearFailClosedColdStarts(storage?: FailClosedCounterStorage): Promise<void> {
   // Reopened at call time, not inside the queue: a count requested right after
   // this clear must queue behind it rather than reuse the pre-clear answer.
   countedThisRun = null;
   return enqueue<void>(async () => {
     if (!storage && !isNativeRuntime()) return;
-    await (storage ?? openCounterStorage()).removeItem(FAIL_CLOSED_COLD_START_KEY);
+    const opened = storage ?? openCounterStorage();
+    await bounded(() => opened.removeItem(FAIL_CLOSED_COLD_START_KEY));
   }, undefined);
 }
 
@@ -154,7 +200,8 @@ export type FailClosedEscalationOutcome = "escalated" | "locked" | "unsupported"
 
 /** The step AuthProvider runs AFTER it has published today's lock for a failed
  *  fail-closed sign-out. Until the failure has persisted it changes nothing.
- *  No storage failure can reject it, so the provider fires it without awaiting;
+ *  No storage failure can reject it and no stalled call can hold it past the
+ *  counter's deadlines, so the provider fires it without awaiting;
  *  `escalate` is the provider's own synchronous publication. */
 export async function escalateFailClosedLockIfPersistent(
   deps: FailClosedEscalation,

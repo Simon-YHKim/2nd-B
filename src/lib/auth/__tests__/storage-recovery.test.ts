@@ -283,4 +283,42 @@ describe("current auth v2 and PIXEL-CLAY recovery wiring", () => {
       "working",
     ]);
   });
+
+  // Gate finding AZ-1835-1 (2026-09-19). The consented reset deletes EVERY
+  // managed key on the device and the master key, readable or not
+  // (recoverAfterUserConsent in encrypted-native-storage.ts), and #1835 lets
+  // the gate appear when only part of the store is damaged. Consent copy that
+  // says "only the unreadable data" would ask for less than what is deleted.
+  const SCOPE_COPY: Record<string, { only: RegExp; unreadable: RegExp }> = {
+    en: { only: /\b(?:only|just|solely)\b/i, unreadable: /unreadable|cannot be read/i },
+    es: {
+      only: /(?<![A-Za-zÀ-ÿ])(?:solo|sólo|solamente|únicamente)(?![A-Za-zÀ-ÿ])/i,
+      unreadable: /no se pueden leer/i,
+    },
+    id: {
+      only: /(?<![A-Za-z])(?:hanya|saja|cuma)(?![A-Za-z])/i,
+      unreadable: /tidak dapat dibaca/i,
+    },
+    // The particle 만 ("only"), but not the 지만 ending or words like 만들다.
+    ko: { only: /(?<=[가-힣])(?<!지)만(?![가-힣])|뿐|오직|단지/, unreadable: /읽을 수 없는/ },
+    pt: {
+      only: /(?<![A-Za-zÀ-ÿ])(?:apenas|somente|só|unicamente)(?![A-Za-zÀ-ÿ])/i,
+      unreadable: /não podem ser lidos/i,
+    },
+  };
+
+  test.each(Object.keys(SCOPE_COPY))("%s consent copy does not narrow the reset to unreadable data", (locale) => {
+    const copy = (JSON.parse(read(`locales/${locale}/auth.json`)) as {
+      storageRecovery: Record<string, string>;
+    }).storageRecovery;
+    const { only, unreadable } = SCOPE_COPY[locale];
+    for (const key of ["body", "confirmTitle", "confirmBody", "confirmAction"]) {
+      expect(copy[key]).not.toMatch(only);
+    }
+    // The title may still say what went wrong; what is removed may not be
+    // named as the unreadable part.
+    for (const key of ["confirmTitle", "confirmAction"]) {
+      expect(copy[key]).not.toMatch(unreadable);
+    }
+  });
 });

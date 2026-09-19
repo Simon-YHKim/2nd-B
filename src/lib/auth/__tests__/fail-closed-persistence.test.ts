@@ -17,6 +17,7 @@
 import { createEncryptedNativeStorage } from "../../storage/encrypted-native-storage";
 import {
   FAIL_CLOSED_COLD_START_KEY,
+  FAIL_CLOSED_COUNTER_IO_TIMEOUT_MS,
   FAIL_CLOSED_ESCALATION_THRESHOLD,
 } from "../fail-closed-persistence";
 
@@ -163,6 +164,137 @@ describe("a counter that cannot be written escalates at once", () => {
     disk.storage.setItem.mockResolvedValueOnce(undefined);
     await expect(coldStart().noteFailClosedColdStart(disk.storage)).resolves.toBe("escalate");
     expect(disk.values.has(KEY)).toBe(false);
+  });
+});
+
+describe("a counter that never answers escalates at its deadline", () => {
+  // Gate finding AA-1835-1 (2026-09-19). A native call that neither resolves
+  // nor rejects used to hold the count forever, and with it the only way out
+  // of the lock. Each call now answers within the deadline, and a miss is
+  // the same failure as a rejection (Invariant 2).
+  const DEADLINE = FAIL_CLOSED_COUNTER_IO_TIMEOUT_MS;
+  const never = <T>(): Promise<T> => new Promise<T>(() => undefined);
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  /** Where a promise stands, read without awaiting it. */
+  function watch<T>(promise: Promise<T>): { settled: boolean; value?: T } {
+    const state: { settled: boolean; value?: T } = { settled: false };
+    void promise.then((value) => {
+      state.settled = true;
+      state.value = value;
+    });
+    return state;
+  }
+
+  async function expectEscalationAtDeadline(disk: ReturnType<typeof createDisk>) {
+    const decision = watch(coldStart().noteFailClosedColdStart(disk.storage));
+    await jest.advanceTimersByTimeAsync(DEADLINE - 1);
+    expect(decision.settled).toBe(false);
+    await jest.advanceTimersByTimeAsync(1);
+    expect(decision).toEqual({ settled: true, value: "escalate" });
+  }
+
+  test("is a short, explicit bound", () => {
+    expect(DEADLINE).toBe(2_000);
+  });
+
+  test("when the read never settles", async () => {
+    const disk = createDisk();
+    disk.storage.getItem.mockImplementationOnce(never);
+    await expectEscalationAtDeadline(disk);
+    expect(disk.storage.setItem).not.toHaveBeenCalled();
+  });
+
+  test("when the write never settles", async () => {
+    const disk = createDisk();
+    disk.storage.setItem.mockImplementationOnce(never);
+    await expectEscalationAtDeadline(disk);
+  });
+
+  test("when the read-back after the write never settles", async () => {
+    const disk = createDisk();
+    disk.storage.getItem
+      .mockImplementationOnce(async (key: string) => disk.values.get(key) ?? null)
+      .mockImplementationOnce(never);
+    await expectEscalationAtDeadline(disk);
+    expect(disk.values.get(KEY)).toBe("1");
+  });
+
+  test("a slow store that answers inside every deadline still counts instead of escalating", async () => {
+    // The bound is per call, not per count: a working but slow device must not
+    // be offered the reset on its first failing start.
+    const disk = createDisk();
+    const slow = <T>(answer: () => T): Promise<T> =>
+      new Promise<T>((resolve) => setTimeout(() => resolve(answer()), DEADLINE - 1));
+    disk.storage.getItem.mockImplementation((key: string) => slow(() => disk.values.get(key) ?? null));
+    disk.storage.setItem.mockImplementation((key: string, value: string) =>
+      slow(() => {
+        disk.values.set(key, value);
+      }),
+    );
+    const decision = watch(coldStart().noteFailClosedColdStart(disk.storage));
+
+    await jest.advanceTimersByTimeAsync(3 * (DEADLINE - 1));
+    expect(decision).toEqual({ settled: true, value: "locked" });
+    expect(disk.values.get(KEY)).toBe("1");
+  });
+
+  test("a clear that never settles gives up silently, and a later count still answers", async () => {
+    const disk = createDisk({ [KEY]: "2" });
+    disk.storage.removeItem.mockImplementationOnce(never);
+    const run = coldStart();
+    const cleared = watch(run.clearFailClosedColdStarts(disk.storage));
+    const counted = watch(run.noteFailClosedColdStart(disk.storage));
+
+    await jest.advanceTimersByTimeAsync(DEADLINE);
+    expect(cleared).toEqual({ settled: true, value: undefined });
+    expect(counted.settled).toBe(false);
+
+    await jest.advanceTimersByTimeAsync(DEADLINE);
+    // Its read waited behind the stuck remove and never reached the store:
+    // a counter that does not answer is Invariant 2, not a reason to hang.
+    expect(counted).toEqual({ settled: true, value: "escalate" });
+    expect(disk.storage.getItem).not.toHaveBeenCalled();
+    expect(disk.storage.setItem).not.toHaveBeenCalled();
+  });
+
+  test("a write that lands after its deadline cannot revive a streak a later clear removed", async () => {
+    const disk = createDisk();
+    let land: () => void = () => undefined;
+    disk.storage.setItem.mockImplementationOnce(
+      (key: string, value: string) =>
+        new Promise<void>((resolve) => {
+          land = () => {
+            disk.values.set(key, value);
+            resolve();
+          };
+        }),
+    );
+    const run = coldStart();
+    const counted = watch(run.noteFailClosedColdStart(disk.storage));
+    await jest.advanceTimersByTimeAsync(DEADLINE);
+    expect(counted).toEqual({ settled: true, value: "escalate" });
+
+    // A bootstrap then settles (or the consented wipe finishes) and clears.
+    const cleared = watch(run.clearFailClosedColdStarts(disk.storage));
+    await jest.advanceTimersByTimeAsync(DEADLINE);
+    expect(cleared).toEqual({ settled: true, value: undefined });
+    // The remove waits for the stray write instead of racing it.
+    expect(disk.storage.removeItem).not.toHaveBeenCalled();
+
+    land();
+    await jest.advanceTimersByTimeAsync(0);
+    expect(disk.storage.removeItem).toHaveBeenCalledTimes(1);
+    expect(disk.values.has(KEY)).toBe(false);
+    // Nothing continued from the late answer: no read-back followed it.
+    expect(disk.storage.getItem).toHaveBeenCalledTimes(1);
   });
 });
 
