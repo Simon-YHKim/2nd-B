@@ -3,7 +3,7 @@
 **덮어쓰기 파일.** 네 절만 — 완료 / 진행중 / 다음 / 막힌 것.
 결정은 여기 쓰지 않는다. `DECISIONS.md` 가 소유한다(append-only · 09-13~09-16 은 기간 보관 파일 `DECISIONS-2026-09-*.md`). 지난 판의 경과는 git 이력과 DECISIONS 에 있다 — 이번 판은 **지금 상태만** 남겼다.
 
-최종 갱신 **2026-09-19 11:04 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/claude-disk-260913` · 브랜치 `claude/vibe-r260915a`
+최종 갱신 **2026-09-19 11:31 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/claude-disk-260913` · 브랜치 `claude/vibe-r260919b`
 소유자: 이 세션(09-13 `ttl-work-9a` 와 두 세션 합의, Simon 지명 아님). Simon 이 다르게 정하면 그게 이긴다. 다른 세션은 `DECISIONS.md` 에만 쓸 것.
 
 📊 보고서 (최신 위)
@@ -29,7 +29,11 @@
 
 ## 진행중
 
-활성 워커 **0** (11:04 KST). r13 끝 — **main 의 Android 빌드는 두 번째 실행부터 Loading 에 갇힌다**(원인: `encrypted-native-storage.ts:905` 가 expo-crypto `fromCombined` 에 base64 문자열을 넘김 · Android 는 바이트 전용 · #1807 이후 전 Android 빌드 · iOS · v0.8.0 무관) → 수정 **draft PR #1833**(`5931f140` · 2파일 · CI 초록 · 게이트 대기). draft PR 은 이제 11개. Simon 결정 대기 2건(보고서): (나) 저장소 · 로그아웃 이중 실패 때의 출구 설계 · gstack 업그레이드 시점.
+활성 워커 **1** (11:31 KST) — **r14-boot-exit** `ctx_aedfc1071b45`(`claude-fable-5-1` @max · run `run_e3a3e38558ab` · 워크트리 `fix-auth-boot-exit-260919`): 저장소 읽기 + 로컬 로그아웃 이중 실패 때의 출구, 결정 시트 1번 추천안 ① A″(연속 3회 콜드 스타트 뒤 기존 복구 동의 화면) **draft 까지** — Simon 이 시트에서 고르지 않았으므로 머지는 Simon 확인 뒤. 수확 = G8 kill → worker-release → terminal close → 원장 → DECISIONS.
+
+게이트 대기 draft PR 11개 — #1819 · #1810 · #1814 · #1825~#1831 · **#1833**(Android 두 번째 실행 멈춤 수정, CI 초록).
+
+**로컬 QA 환경(Simon 이 13:00 claude 리셋 뒤 QA 예정)**: 웹 <http://127.0.0.1:8765/2nd-B/>(`qa/integration-260919` = `640db5bd`, 11:26 빌드) · Orca 에뮬레이터 5554(`2ndB_Codex_API36_260727`)는 **v0.8.0 그대로**(QA 빌드는 versionCode 40 < 51 이라 삭제 없이 못 올림) · 최신 QA 빌드는 AVD `Pixel_9_Pro_XL`.
 
 ## 다음 (하나만)
 
@@ -55,14 +59,12 @@ claude 주간 82%(리셋 09-19 13:00) → 코딩은 fable 버킷(0%)으로. ⚠ 
 구제본 `E:/Coding Infra/_rescue/ttl-work-260913-1554/`. 공유 폴더라 손대지 않는다.
 
 ### 5. 스킬 · 도구
-- /vibe C-realtime 레인 복구(grok 잔액 · gemini 워커 경로) · gstack 6커밋 뒤(Simon 결정 대기).
+- /vibe C-realtime 레인 복구(grok 잔액 · gemini 워커 경로) · gstack 업그레이드는 게이트 라운드 뒤(시트 2번 미응답 → 추천대로).
 - 게시 워크플로 · PR CI 가 게시물 CSP 검사(`verify:web`)를 안 돌린다(SEC-2 발견).
 - Orca 1.4.200 은 에뮬레이터에 GPU 옵션을 안 넘긴다 — AVD 설정으로 우회 중(`E:/Coding Infra/tools/avd-guard/`).
 
 ### 6. 기록이 사실과 다른 것
-- `docs/HANDOFF.md` 활성 창이 0148 · 0149 · 0150 을 "적용 대기"로 적는다 → 운영 적용 완료(09-07).
 - TTL-Work `CLAUDE.md` 가 웹 배포를 gh-pages 라 적는다 → `actions/deploy-pages`.
-- 2ndB `CLAUDE.md` "앱 화면 100" → 실측 101.
 
 ### 7. 주인이 따로 있어 남긴 것
 `fix/security*` 로컬 브랜치 47개(이식 출처 18 · 기록된 폐기 28 · peer-rss-fresh 1 — 폴더는 전부 제거) · `.npm-security-landing-260906` · C: 후보 Q-260906-04 · 공유 스태시 22 · 워크트리 `qa-integration-260918`(공개 QA 릴리스 태그의 출처 · 로컬 빌드용 실제 node_modules).
