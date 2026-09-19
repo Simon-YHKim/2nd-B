@@ -311,7 +311,9 @@ describe("legacy preservation and pixel registration", () => {
     // (동의 핸들러 · 버튼 문구 · 누르기 · 색)가 `isMinor === true` 만 막아서 연령을 모르는
     // 계정(isMinor null)이 성인 쪽으로 샜다. 넷을 `isMinor !== false` 로 바꾸고 주석 둘을
     // 맞췄다. inbox 와 무관하다. 동작은 minor-lock-unknown-age.test.ts 가 지킨다.
-    expect(sha(source)).toBe("dbf582441a4820bedfcc06241061bb5f2b0841ed59e727c55641367cbef2a6cb");
+    //
+    // 2026-09-20 재고정 - vibe r260919 r32 · 가져오기 철회가 다른 이력이 가리키는 행을 지우지 않게 좁히는 판정 한 줄 · inbox 와 무관.
+    expect(sha(source)).toBe("16e11c5858735d05bb9307f221efd10a3614cff8909cd02c9e3d7a04a2b2d061");
   });
 
   test("keeps InboxLegacy and its styles byte-stable while routing deep-space directly", () => {
