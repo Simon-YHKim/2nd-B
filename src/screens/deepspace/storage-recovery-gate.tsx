@@ -7,9 +7,9 @@ import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { m3 } from "@/lib/theme/m3";
 
-/** Explicit two-step consent gate for sentinel-proven native key loss. It is
- * intentionally a full-screen replacement: no sign-in/recovery action may run
- * while the durable auth state is unreadable. */
+/** Explicit two-step consent gate for a durably unreadable native store: sentinel-proven key
+ * loss, or a fail-closed boot lock that persisted across cold starts (fail-closed-persistence.ts).
+ * Intentionally a full-screen replacement: no sign-in/recovery action may run while it is unreadable. */
 export function EncryptedStorageRecoveryGate() {
   const { t } = useTranslation(["auth"]);
   const { recoverEncryptedStorage } = useAuth();
