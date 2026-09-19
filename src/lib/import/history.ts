@@ -16,6 +16,7 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { runAccountLocalMutation } from "../account/local-deletion-fence";
+import { TimeoutError } from "../async/with-timeout";
 import {
   getEncryptedNativeStorage,
   type StringStorage,
@@ -36,6 +37,14 @@ const MAX_SOURCE_ID_CHARS = 128;
 const MAX_SERIALIZED_CHARS = 300_000;
 const CONTROL_CHARACTER = /[\u0000-\u001f\u007f]/;
 const operationTails = new Map<string, Promise<void>>();
+// One withdrawal at a time per owner (withdrawImportHistoryEntry). Web Locks carry it
+// across tabs; this queue carries it on native, where the app is one JS runtime.
+const WITHDRAWAL_LOCK_PREFIX = "2ndb.import-history-withdraw.v1:";
+const withdrawalTails = new Map<string, Promise<void>>();
+// How long one withdrawal may wait on the server in all before it gives up and keeps the
+// entry (vibe r260919 L2A-1841-4). Its turn is held meanwhile, so an answer that never
+// comes held every later withdrawal of the account.
+const WITHDRAWAL_DEADLINE_MS = 30_000;
 
 /** Per-user storage key. Reading/writing always goes through here. */
 function keyFor(userId: string): string | null {
@@ -52,9 +61,77 @@ export interface ImportHistoryEntry {
   atIso: string;
   /** short derived summary, e.g. "약속 12 · 장소 5 · 원문 0". */
   summary: string;
-  /** source rows this import created — deleted on 철회 (full removal). */
+  /** source rows this entry points at. 철회 deletes the ones that are its own. */
   sourceIds: string[];
+  /**
+   * true: every row in sourceIds is this entry's own, so 철회 deletes them all. Every
+   * entry logged from 2026-09-20 carries it: its import created those rows (an exact
+   * duplicate is never logged). An older hub entry gets it when the one other entry
+   * holding its only row is withdrawn (history-ownership.ts). Absent: ownership is
+   * judged at withdrawal time.
+   */
+  owned?: true;
 }
+
+/**
+ * Why a withdrawal left a row it points at. shared: another entry of this log points at it
+ * too. handedBack: the server recorded it handed back as an exact duplicate, so it was
+ * brought in more than once. unconfirmed: nothing could confirm it was only this entry's.
+ */
+export type ImportKeepReason = "shared" | "handedBack" | "unconfirmed";
+
+/** An entry's rows split at withdrawal. history-ownership.ts decides. */
+export interface ImportWithdrawalPlan {
+  /** Rows that are the entry's own: the withdrawal deletes them. */
+  delete: string[];
+  /** Rows it points at that are not provably its own: left in place. */
+  keep: { sourceId: string; why: ImportKeepReason }[];
+  /** Entries that own a kept row once this entry is gone. */
+  promote: { entryId: string; sourceId: string }[];
+}
+
+/** The session one withdrawal runs in. history-ownership.ts pins it. */
+export interface WithdrawalSession {
+  /** Rejects once the live session is no longer the pinned one. */
+  check(): Promise<void>;
+  /** A time the server's clock had not reached while it took the pinned token, in ms. null: unknown. */
+  serverTimeCeilingMs: number | null;
+}
+
+/** What a withdrawal asks outside the log. The screens pass history-ownership.ts's. */
+export interface ImportWithdrawalJudge {
+  /** Binds the withdrawal to the live session. Rejects unless that session is the owner's. */
+  pin(): Promise<WithdrawalSession>;
+  plan(
+    entry: ImportHistoryEntry,
+    log: readonly ImportHistoryEntry[],
+    session: WithdrawalSession,
+    signal: AbortSignal,
+  ): Promise<ImportWithdrawalPlan>;
+  /** Which of these rows still exist. */
+  surviving(sourceIds: string[]): Promise<string[]>;
+}
+
+/** The rows a finished withdrawal left in place, by why. */
+export interface ImportWithdrawalKept {
+  /** Rows another import also brought in (shared or handedBack). */
+  shared: number;
+  /** Rows nothing could confirm were only this entry's. */
+  unconfirmed: number;
+  /** The rows could not be looked up again: the counts are the plan's, and some may be gone. */
+  uncertain: boolean;
+}
+
+/**
+ * failed: nothing was removed from the log (rows the entry owns may be gone - a retry
+ * finishes it). unserialized: nothing was done at all - this browser cannot line up
+ * withdrawals across its tabs.
+ */
+export type ImportWithdrawal =
+  | { withdrawn: true; kept: ImportWithdrawalKept }
+  | { withdrawn: false; reason: "failed" | "unserialized" };
+
+const NOTHING_KEPT: ImportWithdrawalKept = { shared: 0, unconfirmed: 0, uncertain: false };
 
 function isReactNativeRuntime(): boolean {
   const nav = globalThis.navigator as { product?: string } | undefined;
@@ -98,6 +175,8 @@ function normalizeEntry(value: unknown): ImportHistoryEntry | null {
     atIso: candidate.atIso,
     summary: candidate.summary,
     sourceIds: [...candidate.sourceIds],
+    // Anything but true reads as absent: an entry proves nothing it does not say.
+    ...(candidate.owned === true ? { owned: true as const } : {}),
   };
 }
 
@@ -132,18 +211,26 @@ function serializeHistory(entries: ImportHistoryEntry[]): string | null {
   return raw.length <= MAX_SERIALIZED_CHARS ? raw : null;
 }
 
-function runExclusive<T>(key: string, operation: () => Promise<T>): Promise<T> {
-  const previous = operationTails.get(key) ?? Promise.resolve();
+function runQueued<T>(
+  tails: Map<string, Promise<void>>,
+  key: string,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const previous = tails.get(key) ?? Promise.resolve();
   const result = previous.catch(() => undefined).then(operation);
   const tail = result.then(
     () => undefined,
     () => undefined,
   );
-  operationTails.set(key, tail);
+  tails.set(key, tail);
   void tail.finally(() => {
-    if (operationTails.get(key) === tail) operationTails.delete(key);
+    if (tails.get(key) === tail) tails.delete(key);
   });
   return result;
+}
+
+function runExclusive<T>(key: string, operation: () => Promise<T>): Promise<T> {
+  return runQueued(operationTails, key, operation);
 }
 
 // Delete-only removal of the pre-F-08 unscoped blob. It has no provable owner,
@@ -169,6 +256,14 @@ async function readHistory(
     if (selection.native) throw error;
     return [];
   }
+}
+
+// The read a withdrawal acts on. Unlike readHistory it never turns a failed or damaged
+// read into an empty log on the web: a withdrawal judges from this log whose rows it
+// deletes and rewrites the log from it, so "could not read" has to stop it rather than
+// read as "no other entry points at these rows" (vibe r260919 LZ-1841-2).
+async function readHistoryStrict(storage: StringStorage, key: string): Promise<ImportHistoryEntry[]> {
+  return parseHistory(await storage.getItem(key), true);
 }
 
 export async function getImportHistory(userId: string | null | undefined): Promise<ImportHistoryEntry[]> {
@@ -202,23 +297,236 @@ export async function addImportHistory(userId: string | null | undefined, entry:
     .catch(() => undefined);
 }
 
-/** Remove one entry (철회 — also the caller deletes the derived rows it created). */
-export async function removeImportHistory(userId: string | null | undefined, id: string): Promise<void> {
-  if (!userId) return;
+/**
+ * Remove one entry (철회 — the caller deletes the rows it owns first). Resolves true
+ * once no entry with that id is left in the log, false when the log could not be read
+ * or written. The read is strict on every platform: rewriting a log that failed to read
+ * would drop every other entry's pointer along with this one.
+ */
+export async function removeImportHistory(userId: string | null | undefined, id: string): Promise<boolean> {
+  if (!userId) return false;
   const key = keyFor(userId);
-  if (!key) return;
-  await runAccountLocalMutation(userId, () => runExclusive(key, async () => {
-      try {
+  if (!key) return false;
+  const outcome = await runAccountLocalMutation(userId, () => runExclusive(key, async () => {
+      const selection = selectedStorage();
+      await purgeLegacyUnscoped(selection.storage);
+      const cur = await readHistoryStrict(selection.storage, key);
+      const next = cur.filter((entry) => entry.id !== id);
+      if (next.length === cur.length) return true;
+      const raw = serializeHistory(next);
+      if (raw === null) return false;
+      await selection.storage.setItem(key, raw);
+      return true;
+    }))
+    .catch(() => ({ executed: false }) as const);
+  return outcome.executed && outcome.value;
+}
+
+interface LockManagerLike {
+  request<T>(name: string, callback: () => Promise<T>): Promise<T>;
+}
+
+function webLocks(): LockManagerLike | null {
+  if (isReactNativeRuntime()) return null;
+  try {
+    const locks = (globalThis.navigator as { locks?: LockManagerLike } | undefined)?.locks;
+    return locks && typeof locks.request === "function" ? locks : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Runs `operation` as the owner's one withdrawal: a Web Lock across tabs, the runtime
+ * queue on native. null on a browser without Web Locks - see withdrawImportHistoryEntry.
+ */
+function runWithdrawalExclusive<T>(key: string, operation: () => Promise<T>): Promise<T> | null {
+  if (isReactNativeRuntime()) return runQueued(withdrawalTails, key, operation);
+  const locks = webLocks();
+  return locks ? locks.request(`${WITHDRAWAL_LOCK_PREFIX}${key}`, operation) : null;
+}
+
+interface WithdrawalDeadline {
+  /** Aborts the reads that take it once time is up. */
+  readonly signal: AbortSignal;
+  /** `work`, or a TimeoutError once time is up. Server steps only - see withdrawImportHistoryEntry. */
+  bound<T>(work: PromiseLike<T>): Promise<T>;
+  end(): void;
+}
+
+function startWithdrawalDeadline(ms: number): WithdrawalDeadline {
+  const controller = new AbortController();
+  let expire: (error: Error) => void = () => undefined;
+  const expired = new Promise<never>((_, reject) => {
+    expire = reject;
+  });
+  // Nothing may be waiting when time runs out (the log write, or nothing at all).
+  expired.catch(() => undefined);
+  const timer = setTimeout(() => {
+    expire(new TimeoutError(ms, "import withdrawal"));
+    controller.abort();
+  }, ms);
+  return {
+    signal: controller.signal,
+    bound: (work) => Promise.race([Promise.resolve(work), expired]),
+    end: () => clearTimeout(timer),
+  };
+}
+
+/**
+ * 철회 as one operation per owner, in one session: read the log strictly, judge which of
+ * the entry's rows are its own, let the screen delete those, then remove the entry and
+ * hand each kept row to the entry that now owns it, in one log write.
+ *
+ * One operation because the judgement reads the other entries (vibe r260919 LA-1841-2 ·
+ * LZ-1841-1): two withdrawals that each read the log before the other removed its entry
+ * each left the shared row to the other, then both removed their entries, and the row
+ * stayed with nothing pointing at it. Withdrawals queue per owner: a Web Lock across
+ * tabs, the runtime queue on native. A browser without Web Locks has nothing that can
+ * line its tabs up, and there the same two withdrawals still did exactly that (L2A-1841-1),
+ * so there it withdraws nothing: no row deleted, no entry removed, and it says why. Imports
+ * and plain reads do not take the turn, so a slow withdrawal delays only the next one.
+ *
+ * One session (L2A-1841-2 · L2Z-1841-1): the judge pins the live session first thing in
+ * the turn and it is checked after every server step. Under another account RLS answers
+ * a delete with 0 rows and a lookup with none, which read as "already deleted": the entry
+ * was removed while its rows stayed. A switched account now stops the withdrawal before
+ * the entry leaves the log.
+ *
+ * One deadline (L2A-1841-4) over every server step: a call that never answers held the
+ * turn, and with it every later withdrawal of the account, until the tab closed. The
+ * reads here take its signal; the screen's delete cannot, so a late delete may still land
+ * after the withdrawal has failed. That is safe: the entry stays, the rows are its own,
+ * and a retry finds them gone and finishes. Local steps are never cut short - a log write
+ * landing after the turn has passed on could undo the next withdrawal's.
+ *
+ * One log write (L2Z-1841-2): the entry leaving and the promotion that depends on it land
+ * together or not at all. They used to be two writes, and when the second failed the
+ * first stood - the promotion was lost for good, and the next withdrawal kept a row that
+ * was its own and dropped the last pointer to it.
+ *
+ * `withdraw` receives the entry narrowed to its own rows and deletes them. It resolves
+ * false, or throws, to keep the entry. A log that cannot be read, a session that is not
+ * the owner's, or time running out throws; the entry stays. An entry no longer in the
+ * log (withdrawn elsewhere) counts as withdrawn and touches nothing: the screen's copy of
+ * it is not a basis for deleting rows.
+ */
+export async function withdrawImportHistoryEntry(
+  userId: string,
+  entryId: string,
+  judge: ImportWithdrawalJudge,
+  withdraw: (own: ImportHistoryEntry) => Promise<boolean>,
+): Promise<ImportWithdrawal> {
+  const key = keyFor(userId);
+  if (!key) return { withdrawn: false, reason: "failed" };
+  const turn = runWithdrawalExclusive(key, async (): Promise<ImportWithdrawal> => {
+    const deadline = startWithdrawalDeadline(WITHDRAWAL_DEADLINE_MS);
+    try {
+      const session = await deadline.bound(judge.pin());
+      const log = await runExclusive(key, async () => {
         const selection = selectedStorage();
         await purgeLegacyUnscoped(selection.storage);
-        const cur = await readHistory(selection, key);
-        const raw = serializeHistory(cur.filter((entry) => entry.id !== id));
-        if (raw !== null) await selection.storage.setItem(key, raw);
-      } catch {
-        /* best-effort; native read failures must not become writes */
+        return readHistoryStrict(selection.storage, key);
+      });
+      const entry = log.find((item) => item.id === entryId);
+      if (!entry) return { withdrawn: true, kept: NOTHING_KEPT };
+      const plan = await deadline.bound(judge.plan(entry, log, session, deadline.signal));
+      await deadline.bound(session.check());
+      if (!(await deadline.bound(withdraw({ ...entry, sourceIds: plan.delete })))) {
+        return { withdrawn: false, reason: "failed" };
       }
+      await deadline.bound(session.check());
+      if (!(await commitWithdrawal(userId, key, entryId, plan.promote))) {
+        return { withdrawn: false, reason: "failed" };
+      }
+      return { withdrawn: true, kept: await keptAfterWithdrawal(plan, judge, session, deadline) };
+    } finally {
+      deadline.end();
+    }
+  });
+  return turn ?? { withdrawn: false, reason: "unserialized" };
+}
+
+/** Which kept rows are still there, or null when that could not be learned in this session. */
+async function stillThere(
+  ids: string[],
+  judge: ImportWithdrawalJudge,
+  session: WithdrawalSession,
+  deadline: WithdrawalDeadline,
+): Promise<Set<string> | null> {
+  try {
+    const surviving = await deadline.bound(judge.surviving(ids));
+    // Under another account the lookup answers none - read as "all gone".
+    await deadline.bound(session.check());
+    return new Set(surviving);
+  } catch {
+    return null;
+  }
+}
+
+// Only what is still there is "kept": a row already deleted elsewhere is not. When that
+// cannot be looked up, the plan's rows are reported and marked unchecked.
+async function keptAfterWithdrawal(
+  plan: ImportWithdrawalPlan,
+  judge: ImportWithdrawalJudge,
+  session: WithdrawalSession,
+  deadline: WithdrawalDeadline,
+): Promise<ImportWithdrawalKept> {
+  if (plan.keep.length === 0) return NOTHING_KEPT;
+  const there = await stillThere(plan.keep.map((row) => row.sourceId), judge, session, deadline);
+  const kept = there ? plan.keep.filter((row) => there.has(row.sourceId)) : plan.keep;
+  const unconfirmed = kept.filter((row) => row.why === "unconfirmed").length;
+  return { shared: kept.length - unconfirmed, unconfirmed, uncertain: there === null };
+}
+
+// A kept row's one other holder owns it once the withdrawn entry is gone: the one record
+// and the two holders account for both times the row came in. The promotion lands in the
+// write that removes the entry, so neither stands without the other.
+function promoteHolder(item: ImportHistoryEntry, promote: ImportWithdrawalPlan["promote"]): ImportHistoryEntry {
+  const match = promote.find((candidate) => candidate.entryId === item.id);
+  if (
+    !match
+    || item.owned === true
+    || item.sourceIds.length === 0
+    || !item.sourceIds.every((id) => id === match.sourceId)
+  ) return item;
+  return { ...item, owned: true as const };
+}
+
+/**
+ * The withdrawal's one log write: the entry leaves and its kept rows' holders are
+ * promoted, from one strict read. Resolves true once the entry is gone (already gone
+ * counts), false when the log could not be read or written - then nothing changed.
+ */
+async function commitWithdrawal(
+  userId: string,
+  key: string,
+  withdrawnId: string,
+  promote: ImportWithdrawalPlan["promote"],
+): Promise<boolean> {
+  const outcome = await runAccountLocalMutation(userId, () => runExclusive(key, async () => {
+      const selection = selectedStorage();
+      await purgeLegacyUnscoped(selection.storage);
+      const cur = await readHistoryStrict(selection.storage, key);
+      let changed = false;
+      const next: ImportHistoryEntry[] = [];
+      for (const item of cur) {
+        if (item.id === withdrawnId) {
+          changed = true;
+          continue;
+        }
+        const promoted = promoteHolder(item, promote);
+        if (promoted !== item) changed = true;
+        next.push(promoted);
+      }
+      if (!changed) return true;
+      const raw = serializeHistory(next);
+      if (raw === null) return false;
+      await selection.storage.setItem(key, raw);
+      return true;
     }))
-    .catch(() => undefined);
+    .catch(() => ({ executed: false }) as const);
+  return outcome.executed && outcome.value;
 }
 
 /** Remove only the terminally deleted owner's local import pointers. */
