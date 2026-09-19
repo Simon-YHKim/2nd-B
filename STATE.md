@@ -1,70 +1,59 @@
 # STATE
 
 **덮어쓰기 파일.** 네 절만 — 완료 / 진행중 / 다음 / 막힌 것.
-결정은 여기 쓰지 않는다. `DECISIONS.md` 가 소유한다(append-only · 09-13~09-16 은 기간 보관 파일 `DECISIONS-2026-09-*.md`). 지난 판의 경과는 git 이력과 DECISIONS 에 있다 — 이번 판은 **지금 상태만** 남겼다.
+결정은 여기 쓰지 않는다. `DECISIONS.md` 가 소유한다(append-only · 09-13~09-18 은 기간 보관 파일 `DECISIONS-2026-09-*.md`). 지난 판의 경과는 git 이력과 DECISIONS 에 있다 — 이번 판은 **지금 상태만** 남겼다.
 
-최종 갱신 **2026-09-19 12:25 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/claude-disk-260913` · 브랜치 `claude/vibe-r260919c`
+최종 갱신 **2026-09-20 04:35 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/claude-disk-260913` · 브랜치 `claude/vibe-r260919c`
 소유자: 이 세션(09-13 `ttl-work-9a` 와 두 세션 합의, Simon 지명 아님). Simon 이 다르게 정하면 그게 이긴다. 다른 세션은 `DECISIONS.md` 에만 쓸 것.
 
 📊 보고서 (최신 위)
-- **Android 재실행 멈춤 보고 (09-19 11:03 · 결정 2건 응답 대기)**: <https://claude.ai/artifact/8qYXcdSTkMYNzUaN5ZXfbh>
-- **공개 QA 빌드 `qa-260919-640db5bd`(수정 포함 · 09-18 빌드 위에 덮어 설치)**: <https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-260919-640db5bd>
-- **새벽 정리 결정 시트 v3 (09-17 05:40 · 확정 8건 실행 결과 · DB 백업 카드)**: <https://claude.ai/artifact/WKmnvY5gMQ3MrxFs8uwwCw>
-- 옛 공개 QA 빌드 `qa-260918-84d6800c`(**두 번째 실행부터 멈춤** — 안내문이 새 릴리스를 가리킴): <https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-260918-84d6800c>
-- 보안 점검 D3 · D1 (v2, 09-16 01:55): <https://claude.ai/code/artifact/77fc83d3-a258-4633-8ac5-3155d54fbf70>
-- #1814 자동 저장 재설계안 (09-16): <https://claude.ai/code/artifact/b7f2af2c-bef4-4440-8bf7-95c9e7856480>
-- 워커 산출물: `E:/Coding Infra/reports/vibe-r260919/r13-boot-hang/` · `vibe-r260917/{r10-*,r11-sec-port-{a,b,c},r12-sec-n1}/` · `vibe-r260916/*` · QA 증거 `reports/qa-260919/`
+- **09-19 밤 라운드 보고 (등급 M · 결정 7건 + 이월 Q-S1)**: <https://claude.ai/artifact/H7KGVqSjXj27NxEVdhQXWs>
+- Android 재실행 멈춤 보고 (09-19 오전 · 결정 2건 — Simon 확정 11:4x): <https://claude.ai/artifact/8qYXcdSTkMYNzUaN5ZXfbh>
+- 새벽 정리 결정 시트 v3 (09-17 · **DB 백업 카드**): <https://claude.ai/artifact/WKmnvY5gMQ3MrxFs8uwwCw>
+- 공개 QA 빌드 `qa-260919-640db5bd`(09-19 · main 보다 뒤 — 폰 QA 용 새 릴리스는 아직): <https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-260919-640db5bd>
+- 워커 산출물: `E:/Coding Infra/reports/vibe-r260919/`(r13~r37 · gate-* · regate-*) · QA 증거 `reports/qa-260919/` · APK `reports/apk/main-c423ba88-x86_64/` · `main-2d688ef0-arm64/`
 
 ---
 
 ## 완료
 
-- **main 착지** — #1811 · #1812 · #1813 · #1815(09-14) · 보안 통합 #1807(09-13) · 스토어 문안 #1824 `a690b742`(09-17).
-- **Simon 확정(원문은 DECISIONS)** — 09-15 D2 ①(#1819 게이트 뒤 머지) · 09-16 D3 ① · D1 ① · #1814 설계 ① · D-1 ② · 09-17 시트 7건 + N1 ① · 09-18 QA APK 를 머지 없이 공개 사전 릴리스로.
-- **코딩 끝 · 게이트 대기(draft PR 10개, 전부 CI 초록)** — #1819 네이티브 부팅 · #1810 홈 별 이름 · #1814 자동 저장 재설계(HEAD `42d24cad`) · 보안 이식 #1825 U5+U6 · #1826 U2+U3 · #1827 U4 · #1828 U1 · #1829 U7 · #1830 U8(#1829 위) · #1831 N1(#1828 위).
-- **09-17 새벽 정리** — 대기 세션 15 판정 → 14 닫음 · security 워크트리 115 판정(UNIQUE 18 · "#1807 이 전부 담았다"는 거짓) → 폴더 전부 제거 · 반영분 로컬 브랜치 68 삭제(번들 백업 2개) · 공개 Actions 로그의 비밀값 digest 실행 4건 삭제 · Lecture 로컬 정리.
-- **QA 환경(09-18~19)** — localhost 웹 QA(`qa_web_build.py` + `qa_static_server.js`, 포트 8765 — 재부팅으로 꺼짐, 다시 띄우면 됨) · 로컬 APK 빌드(`E:/Coding Infra/tools/qa_apk_build.py`) · Orca 에뮬레이터 정상화(AVD 6개 host GPU · 콜드 부팅 · 4 GB + 감시자 `avd-guard -Watch` 시작프로그램 등록).
-- **머지 전 확인 3건(09-19 09:55)** — `secrets list -o json` 모양 · digest = 평문 SHA-256 → #1825 검증 로직과 맞음 · 운영 `PADDLE_API_BASE` 미설정 → #1827 기본값 · Paddle 응답 `application/json`. 웹훅 요청 Content-Type 은 간접 근거까지(직접 확인 = 샌드박스 시뮬레이터, Simon).
-- **DECISIONS.md 기간 분할(09-19 09:54)** — 보관 3개 + 활성, 바이트 재조립 검증.
+- **main 머지 16개(09-19 20:16 ~ 09-20 03:40)** — #1819 · #1810 · **#1833**(Android 두 번째 실행 Loading 멈춤) · #1828 · #1831 · #1826 · #1825 · #1827 · #1829 · #1830 · #1836(CI SDK) · **#1835**(이중 실패 출구 · Simon 확정 ① N=3) · #1837(HIBP 무한 대기) · #1838 · **#1840**(복구 세션 승격 울타리) · **#1842**(진행 중 이관 울타리). 전부 게이트 두 레인 통과(critical · high · medium 0) 뒤. main = `c91ebcbb`.
+- **main 네이티브 확인** — x86_64 `c423ba88` 에뮬레이터(Pixel_9_Pro_XL · 5556) 실행 1 + 강제 종료 재실행 3 = Loading 없음 · 세션 유지 · FATAL 0 · 인증 경고 0(09-20 03:33).
+- **웹 QA 서버** `http://127.0.0.1:8765/2nd-B/` = main `c91ebcbb`(워크트리 `qa-integration-260920`, 분석 · 오류 ID 비움). 재부팅하면 꺼진다 — 다시 띄우는 법은 `scratchpad/qa_static_server.js`.
+- **운영 실측(읽기 전용)** — raw-clippings 객체 3 · 고아 0(→ 결정 5번 폐기 제안) · `ingest_log` RLS SELECT/INSERT 본인 정책 확인.
+- **정리** — 머지 끝난 워크트리 7개 제거(브랜치 유지 · 공용 node_modules 745 매번 확인) · E: 56 → 64 GB · DECISIONS 2차 기간 분할(09-17~18 → `DECISIONS-2026-09-17_18.md` · 바이트 재조립 검증).
 
 ## 진행중
 
-활성 워커 **0** (12:25 KST). r14 끝 — **draft PR #1835**(이중 실패 출구 · Simon 확정 ① · N=3 · CI 초록 · 에뮬레이터로 3회째 게이트 · 동의 폐기 · 0 되돌리기 확인).
+활성 워커(04:35): **r37**(#1841 3차 수정) · **#1814 8차 재게이트 두 레인**(`regate-1814-*-r8`). run `run_e3a3e38558ab`.
 
-게이트 대기 draft PR 12개 — #1819 · #1810 · #1814 · #1825~#1831 · **#1833**(Android 두 번째 실행 멈춤 수정) · **#1835**(이중 실패 출구). 전부 CI 초록.
-
-**로컬 QA 환경(Simon 이 13:00 claude 리셋 뒤 QA 예정)**: 웹 <http://127.0.0.1:8765/2nd-B/>(`qa/integration-260919` = `640db5bd`, 11:26 빌드) · Orca 에뮬레이터 5554(`2ndB_Codex_API36_260727`)는 **v0.8.0 그대로**(QA 빌드는 versionCode 40 < 51 이라 삭제 없이 못 올림) · 최신 QA 빌드는 AVD `Pixel_9_Pro_XL`.
+draft PR 3개:
+- **#1814** 자동 저장 되돌리기 — 8차 수정 `93152b9e` 재게이트 중. 회차마다 medium 1(최근은 전체 PR 잔여 · 자기 회귀). 잔여 G2Z-1814-2(서버 S3) · M2 → **결정 1번**.
+- **#1839** 설정 삭제가 원문까지 — **클라이언트 수정 라운드 멈춤**(1차 5건 닫자 2차 새 6건 — 구조 한계). **결정 1번** 답 대기. #1814 와 `promote-pending.ts` 충돌(나중 머지 쪽이 합침).
+- **#1841** 가져오기 허브 중복 id 철회가 다른 행을 지움 — 3차 수정 중. 통과하면 **#1839 보다 먼저** 머지.
 
 ## 다음 (하나만)
 
-**r13 수확 → 19:47 KST codex 리셋 뒤 게이트 라운드.** 게이트 전 `npm install -g @openai/codex@latest`(check_tooling 이 뒤처짐 경고 — G11, 도는 codex 프로세스 없는지 먼저 확인). 게이트 두 레인(daybreak 산출물 · astra 비즈로직)을 PR 12개(#1833 · #1835 가장 먼저)에 → 통과분 머지(main 은 strict — BEHIND 면 `gh pr merge --auto --squash` 또는 브랜치 갱신 뒤 CI 재대기 · 머지 뒤 `state=MERGED` 확인 · 쌓인 순서 #1828→#1831 · #1829→#1830, 위 PR 은 base 를 main 으로) → main push 진단 APK 확인. 게임 노트: #1814 "새 대화 뒤 저장"은 D-1 ② 의도된 동작.
+**r37 · #1814 8차 판정 수확 → (둘 다 medium 0 이면) 머지 기차.** 그다음: 결정 시트(G14 · `scratchpad/build_g14_items.py` → `make_decision_sheet.py`) · 이 기록 브랜치를 PR 로(DECISIONS · STATE · HANDOFF — 기록 PR 전 `npm run check:lexicon`) · 폰 QA APK 를 main 으로(로컬 빌드는 **정션 없는 실제 설치**에서 — 정션 워크트리에서 npm ci 금지).
 
 ## 막힌 것
 
-### 1. ⛔ codex 99% · grok 100% · gemini 워커 불가 — 보안 게이트 두 레인은 19:47 KST 뒤
-claude 주간 82%(리셋 09-19 13:00) → 코딩은 fable 버킷(0%)으로. ⚠ #1819 머지 전: main 에 `[ota]`/`[release]` 커밋 금지 · main 에서 Android 릴리스 금지.
+### 1. Simon 결정 대기 (보고서 결정 탭)
+① 삭제 · 복구 서버 조정(S3) — 추천 **①**(02:53 에 ②에서 바꿈 · #1814 · #1839 가 여기에 걸림) · ② HIBP 네이티브 선버퍼 상한(추천 그대로 두기) · ③ 규칙 해석 "원래 있던 medium"(추천 ① 새로 싣는 것만 막음 — #1837 을 그렇게 머지함) · ④ 전체 삭제 뒤 남는 personas 등(추천 문구 먼저) · ⑤ 이미 남은 원문 정리(폐기 제안 · 고아 0) · ⑥ PostgREST 14.18(추천 버전 확인 뒤 업그레이드) · ⑦ Paddle 웹훅 헤더(추천 결제 출시 체크리스트) · 이월 **Q-S1 출시 법역**(DPIA · 빌드 8종 · 스토어 등록을 막음).
 
 ### 2. Simon 이 직접 할 것
-- **DB 백업 비밀값 2개**(`Backup` 환경 `BACKUP_PGDUMP_DATABASE_URL` · `BACKUP_PGDUMP_AGE_PUBLIC_KEY`) — 09-13 부터 매일 실패, 마지막 성공 09-12 · 보존 14일 → **09-26 쯤 복원본 0**. 명령은 결정 시트 카드.
-- D3: 대시보드 PostgREST 버전 확인 → (14.18 미만) 지원 요청 발송.
-- Paddle 샌드박스 시뮬레이터로 웹훅 Content-Type 1회 확인(운영 승격 전).
-- D1 관련(급하지 않음): 복구 · 가입 확인 템플릿 `{{ .Token }}` · Site URL · OTP 6자리. ⚠ `supabase config push` 금지.
-- A1 출시 법역 Q-S1(법무 질의) — 여전히 열림 · 스토어 등록은 그 뒤(S-2).
-- Grok 계정 · 구독 확인(HubDashMonitor 세션이 09-18 부터 대기) · MFDS 고객센터 문의(D5).
+- **DB 백업 비밀값 2개**(`Backup` 환경 `BACKUP_PGDUMP_DATABASE_URL` · `BACKUP_PGDUMP_AGE_PUBLIC_KEY`) — 09-13 부터 실패 · **09-26 쯤 복원본 0**. 카드는 새벽 정리 시트.
+- `grok` 로그인 + xAI 잔액(402) — 웹 리서치 1순위 레인.
+- PostgREST 버전 확인(대시보드 Infrastructure).
 
-### 3. 보안 담당 트랙(운영 승격) — 웹 게시 D1 의 선행 조건
-운영 마이그레이션 0151~0187 중 0165 만 적용 · Edge 는 09-07 배포본(#1807 뒤 0건) · 결제 복구 = 0184 + `PADDLE_CHECKOUT_BINDING_SECRET`(운영 미설정 확인 09-19) + main paddle-webhook · subscription-manage · 네이버 복구 = 0183 + completion 초안 + 비밀값 + main oauth-naver · #1814 서버 몫 S1~S6. Edge 는 머지로 배포되지 않는다(`deploy-edge-function.yml` 수동 전용).
+### 3. 보안 담당 트랙(운영 승격)
+운영 마이그레이션 0151~0187 중 0165 만 적용 · Edge 는 09-07 배포본 · 결제 · 네이버 복구는 마이그레이션 + 비밀값 + 엣지 배포가 함께 필요. Edge 는 머지로 배포되지 않는다. 서버 S3(결정 1번)도 이 트랙과 조율.
 
-### 4. ⛔ TTL-Work 미커밋 — 처분 대기
-구제본 `E:/Coding Infra/_rescue/ttl-work-260913-1554/`. 공유 폴더라 손대지 않는다.
+### 4. 후속(코디네이터가 이어 갈 것)
+- 같은 계열 후보: `recovery-proof-store.ts:309-313` 네이티브 직접 쓰기 · `import-pending.ts` runImport 늦은 `replacePendingCaptures` — 읽을 때 저장소 epoch · 쓸 때 대조하는 공통 설계.
+- #1839 의 작은 독립 수정(예약 키 제거 · 살아 있는 생성 선점 거부 · null 비교) — 결정 1번이 "클라이언트로 계속"이면.
 
-### 5. 스킬 · 도구
-- /vibe C-realtime 레인 복구(grok 잔액 · gemini 워커 경로). gstack 은 1.87.4.0 으로 올렸다(Simon 확정 11:4x) — `/cso` 는 이 PC 에서 not assessed(VS 2022 Build Tools 필요).
-- 게시 워크플로 · PR CI 가 게시물 CSP 검사(`verify:web`)를 안 돌린다(SEC-2 발견).
-- Orca 1.4.200 은 에뮬레이터에 GPU 옵션을 안 넘긴다 — AVD 설정으로 우회 중(`E:/Coding Infra/tools/avd-guard/`).
-
-### 6. 기록이 사실과 다른 것
+### 5. 기록이 사실과 다른 것 · 주인이 따로 있어 남긴 것
 - TTL-Work `CLAUDE.md` 가 웹 배포를 gh-pages 라 적는다 → `actions/deploy-pages`.
-
-### 7. 주인이 따로 있어 남긴 것
-`fix/security*` 로컬 브랜치 47개(이식 출처 18 · 기록된 폐기 28 · peer-rss-fresh 1 — 폴더는 전부 제거) · `.npm-security-landing-260906` · C: 후보 Q-260906-04 · 공유 스태시 22 · 워크트리 `qa-integration-260918`(공개 QA 릴리스 태그의 출처 · 로컬 빌드용 실제 node_modules).
+- `fix/security*` 로컬 브랜치 47개 · 공유 스태시 22 · TTL-Work 미커밋 구제본 `E:/Coding Infra/_rescue/ttl-work-260913-1554/` — 손대지 않음.
+- ⚠ 09-20 01:4x 옛 QA 워크트리 `qa-integration-260918`(여기 '남긴 것'이었다)을 대조 없이 지웠다 — 브랜치 · 커밋 · 태그 · 서명 키(`E:/Coding Infra/tools/qa-test.keystore`) 무사, 빌드 환경만 사라짐.
