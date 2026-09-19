@@ -28,6 +28,7 @@ type MutationModule = typeof import("../session-mutation");
 type RecoveryModule = typeof import("../storage-recovery");
 type ProofModule = typeof import("../recovery-proof-store");
 type OutcomeModule = typeof import("../bootstrap-outcome");
+type StorageModule = typeof import("../../storage/encrypted-native-storage");
 type SupabaseClient = ReturnType<ClientModule["getSupabaseClient"]>;
 
 interface DiskEvent {
@@ -923,4 +924,164 @@ describe("controls the fence must not change (R27 C1, C2, D, E)", () => {
     expect(await run("separate-tasks")).toBe(false);
     expect(await run("reset-first")).toBe(false);
   });
+});
+
+// ---- KZ-1840-1 --------------------------------------------------------------------
+
+// Gate finding KZ-1840-1 (2026-09-20). The runtime's v1 -> v2 migration writes
+// the adapter directly, not through the fenced storage. On a device whose v1
+// session was never moved, the first migration can fail on an unreadable master
+// key (the gate goes up), and the retiring client's next S call retries it once
+// the key reads again. A retry that already held the v1 session when consent
+// queued the wipe wrote it to v2 behind the wipe, and the fresh client restored it.
+
+/** An older build left its session under the v1 key; this build has not moved
+ *  it yet (no migration marker). */
+async function seedLegacySession(device: Device): Promise<void> {
+  const seed = coldStart(device);
+  const storage = require("../../storage/encrypted-native-storage") as StorageModule;
+  await storage.migrateLegacyNativePlaintextAtStartup();
+  await storage.getEncryptedNativeStorage().setItem(
+    seed.mutation.authStorageKeysForUrl(PROJECT_URL).v1Primary,
+    JSON.stringify(sessionPayload({ expiresInSeconds: 3600, refreshToken: "rt-legacy", method: "password" })),
+  );
+}
+
+/** The launch that raises the gate over it: the first read of the master key
+ *  answers null, so the migration fails with secure_storage_recovery_required.
+ *  The same key reads again afterwards. */
+async function launchWithFailedMigration(device: Device) {
+  await seedLegacySession(device);
+  const proc = coldStart(device);
+  const storage = require("../../storage/encrypted-native-storage") as StorageModule;
+  const runtime = proc.mutation.getAuthStorageRuntime();
+  const masterKey = device.secureStore.get(MASTER_KEY_NAME);
+  if (masterKey === undefined) throw new Error("the seed minted no master key");
+  device.secureStore.delete(MASTER_KEY_NAME);
+  const firstReadyError = await runtime.ready().then(
+    () => null,
+    (error: unknown) => (error instanceof Error ? error.message : String(error)),
+  );
+  device.secureStore.set(MASTER_KEY_NAME, masterKey);
+  return {
+    proc,
+    runtime,
+    adapter: storage.getEncryptedNativeStorage(),
+    keys: proc.mutation.authStorageKeysForUrl(PROJECT_URL),
+    firstReadyError,
+  };
+}
+
+/** The retiring client's next S call, as its auto-refresh tick makes it: the
+ *  lock awaits ready(), which retries the migration, then reads the session. */
+function retryThroughSdkLock(
+  runtime: ReturnType<MutationModule["getAuthStorageRuntime"]>,
+  key: string,
+): Promise<string | null> {
+  return runtime.sdkLock(`lock:${key}`, -1, async () => (await runtime.storage?.getItem(key)) ?? null);
+}
+
+describe("a v1 -> v2 migration the retiring runtime retries across consent (KZ-1840-1)", () => {
+  test("a retry that read the v1 session before the wipe does not write it back behind the wipe", async () => {
+    const device = createDevice();
+    const { proc, runtime, adapter, keys, firstReadyError } = await launchWithFailedMigration(device);
+    const adapterReads = jest.spyOn(adapter, "getItem");
+
+    // The retry has the v1 session in hand and is still waiting for its v2 read.
+    const releaseRevisedRead = deferred<void>();
+    const revisedRead = device.holdNextRead(keys.v2Primary, releaseRevisedRead.promise);
+    const retried = retryThroughSdkLock(runtime, keys.v2Primary);
+    await settle();
+    const legacyReadIndex = adapterReads.mock.calls.findIndex(([key]) => key === keys.v1Primary);
+    const legacyRead = adapterReads.mock.results[legacyReadIndex]?.value as
+      | Promise<string | null>
+      | undefined;
+    const legacySessionInHand =
+      legacyRead !== undefined && !(await isPending(legacyRead)) ? await legacyRead : null;
+    const retryWaitingOnRevisedRead = revisedRead.started() && (await isPending(retried));
+
+    // Consent queues the wipe and fences the runtime in one turn; only then
+    // does the v2 read answer.
+    device.events.length = 0;
+    const attemptPromise = proc.recovery.attemptEncryptedNativeStorageRecovery(CONSENT);
+    releaseRevisedRead.resolve();
+    const attempt = await attemptPromise;
+    const retiredAnswer = await retried;
+    const sessionWritesAfterConsent = device.events.filter(
+      (event) => event.op === "set" && event.key === keys.v2Primary,
+    ).length;
+    const freshBoot = await bootView(proc, proc.client.getSupabaseClient());
+    const sessionOnDiskAfter = device.asyncStorage.has(keys.v2Primary);
+    await proc.client.resetSupabaseClient();
+    const relaunch = await relaunchView(device);
+
+    // The path under test really ran: the first migration failed on the key,
+    // the retry held the v1 session while its v2 read waited, and the wipe ran.
+    expect(firstReadyError).toBe("secure_storage_recovery_required");
+    expect(JSON.parse(legacySessionInHand ?? "null")).toMatchObject({ refresh_token: "rt-legacy" });
+    expect(retryWaitingOnRevisedRead).toBe(true);
+    expect(attempt).toBe("recovered");
+    expect(device.events).toContainEqual({ op: "secure-delete", key: MASTER_KEY_NAME });
+    expect(retiredAnswer).toBeNull();
+
+    expect({ freshBoot, sessionOnDiskAfter, relaunch, sessionWritesAfterConsent }).toMatchObject({
+      freshBoot: SIGNED_OUT,
+      sessionOnDiskAfter: false,
+      relaunch: SIGNED_OUT,
+      sessionWritesAfterConsent: 0,
+    });
+  });
+
+  test("control: a retry that finished before consent is wiped with the rest", async () => {
+    const device = createDevice();
+    const { proc, runtime, keys, firstReadyError } = await launchWithFailedMigration(device);
+    const migrated = await retryThroughSdkLock(runtime, keys.v2Primary);
+    const attempt = await proc.recovery.attemptEncryptedNativeStorageRecovery(CONSENT);
+    const freshBoot = await bootView(proc, proc.client.getSupabaseClient());
+    const sessionOnDiskAfter = device.asyncStorage.has(keys.v2Primary);
+    await proc.client.resetSupabaseClient();
+
+    expect(firstReadyError).toBe("secure_storage_recovery_required");
+    expect(JSON.parse(migrated ?? "null")).toMatchObject({ refresh_token: "rt-legacy" });
+    expect(attempt).toBe("recovered");
+    expect(freshBoot).toMatchObject(SIGNED_OUT);
+    expect(sessionOnDiskAfter).toBe(false);
+    expect(await relaunchView(device)).toMatchObject(SIGNED_OUT);
+  });
+
+  test.each([
+    ["on an ordinary cold start", false],
+    ["when the retry meets no consent", true],
+  ] as const)(
+    "control: without a wipe the v1 session still moves to v2 and is published %s",
+    async (_case, keyLostOnFirstRead) => {
+      const device = createDevice();
+      let proc: Proc;
+      let firstReadyError: string | null = null;
+      if (keyLostOnFirstRead) {
+        ({ proc, firstReadyError } = await launchWithFailedMigration(device));
+      } else {
+        await seedLegacySession(device);
+        proc = coldStart(device);
+      }
+      // The client's own first S call runs, or retries, the migration.
+      const client = proc.client.getSupabaseClient();
+      await jest.advanceTimersByTimeAsync(1);
+      await settle();
+      const boot = await bootView(proc, client);
+      const keys = proc.mutation.authStorageKeysForUrl(PROJECT_URL);
+      const disk = {
+        legacy: device.asyncStorage.has(keys.v1Primary),
+        revised: device.asyncStorage.has(keys.v2Primary),
+        marker: device.asyncStorage.has(keys.migrationTombstone),
+      };
+      await proc.client.resetSupabaseClient();
+
+      const published = { route: "ordinary routes", userId: USER_ID, refreshToken: "rt-legacy" };
+      expect(firstReadyError).toBe(keyLostOnFirstRead ? "secure_storage_recovery_required" : null);
+      expect(boot).toMatchObject(published);
+      expect(disk).toEqual({ legacy: false, revised: true, marker: true });
+      expect(await relaunchView(device)).toMatchObject(published);
+    },
+  );
 });

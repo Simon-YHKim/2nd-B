@@ -70,8 +70,9 @@ export interface AuthStorageRuntime {
   readonly sdkLock: LockFunc;
   ready(): Promise<void>;
   /** Fence this runtime's storage for good: reads answer null, writes and
-   *  removes are dropped. Its locks keep working, so an SDK call that already
-   *  holds S still finishes and still orders the fresh runtime behind it. */
+   *  removes are dropped, and its v1 -> v2 migration stops before its next
+   *  write. Its locks keep working, so an SDK call that already holds S still
+   *  finishes and still orders the fresh runtime behind it. */
   retire(): void;
   /** Acquire S around a 2.106.1 SDK writer that does not acquire S itself. */
   runSdkUnlockedWriter<T>(fn: () => MaybePromise<T>): Promise<T>;
@@ -223,9 +224,18 @@ export function createAuthStorageRuntime(
     return processExclusive(name, fn);
   };
 
+  // The migration writes the adapter directly, so the fence on gatedStorage
+  // below cannot see it. A retry of a failed migration can read the v1 session,
+  // wait on the adapter while consent retires this runtime and queues the wipe,
+  // and then write that session to v2 behind the wipe (KZ-1840-1, 2026-09-20).
+  // So a retired runtime starts no migration, and one under way ends at its
+  // next write: each check follows the await before it, with no await between
+  // the check and its adapter call. It still runs under M, so the live
+  // runtime's migration waits for it, and copy -> remove -> marker stays
+  // restart-safe for whichever runtime finishes.
   const migrate = async (): Promise<void> => {
     const underlying = options.storage;
-    if (!underlying) return;
+    if (!underlying || retired) return;
     if ((await storageGet(underlying, keys.migrationTombstone)) === MIGRATION_VALUE) return;
 
     // There is no transaction API on Storage/AsyncStorage. M serializes every
@@ -244,13 +254,16 @@ export function createAuthStorageRuntime(
         storageGet(underlying, legacyKey),
         storageGet(underlying, revisedKey),
       ]);
+      if (retired) return;
       if (legacyValue !== null && revisedValue === null) {
         await storageSet(underlying, revisedKey, legacyValue);
       }
     }
     for (const [legacyKey] of migrationPairs) {
+      if (retired) return;
       await storageRemove(underlying, legacyKey);
     }
+    if (retired) return;
     await storageSet(underlying, keys.migrationTombstone, MIGRATION_VALUE);
   };
 
