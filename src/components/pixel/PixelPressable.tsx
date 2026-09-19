@@ -20,6 +20,20 @@
 //
 // hover 상태층은 **가져오지 않는다.** 터치에 대응물이 없다
 // (`design/pixel_clay_v4/REPO-NOTES.md` 함정 5).
+//
+// ## 왜 눌림 래퍼가 늘 네이티브 뷰인가 - 온보딩 Continue 백지
+//
+// Fabric 은 모양을 안 바꾸는 View 를 네이티브 뷰 없이 평탄화한다. 이 래퍼는 쉴 때
+// 스타일이 비어 평탄화되고, 눌려서 `transform` 이 붙는 순간 네이티브 뷰가 된다. 그러면
+// 누를 때와 뗄 때마다 안쪽 자식이 전부 부모를 옮겨 탄다. 그 커밋이 같은 제스처의 화면
+// 제거(`router.replace`)와 한 배치로 합쳐지면 안드로이드가 "View already has a parent"
+// 로 죽고 앱이 백지가 된다. 온보딩 Continue 에서 탭은 누름 쪽, 누른 채 떼기는 뗌 쪽에서
+// 났고, 누름·뗌이 없는 키보드 ENTER 로는 나지 않았다(DECISIONS.md 26.09.14 13:03).
+// 이동을 늦추는 식으로는 못 막는다 - 뗌 쪽이 새로 생긴다.
+//
+// 그래서 래퍼에 `collapsable={false}` 를 둔다. 늘 네이티브 뷰라 누름·뗌은 속성만 바꾸고
+// 자식을 옮기지 않는다. 눌린 모습은 그대로다 - 래퍼에는 색도 테두리도 없고, 눌린 동안은
+// 원래도 네이티브 뷰였다. `__tests__/pixel-pressable-native-view.test.ts` 가 지킨다.
 import { useCallback, useState, type ReactNode } from "react";
 import {
   Pressable,
@@ -97,7 +111,10 @@ export function PixelPressable({
       accessibilityState={{ ...accessibilityState, disabled }}
       style={[styles.root, fullWidth && styles.fullWidth, rootStyle]}
     >
-      <View style={[sunken ? styles.sunk : styles.rest, fullWidth && styles.fullWidth, style]}>
+      <View
+        collapsable={false}
+        style={[sunken ? styles.sunk : styles.rest, fullWidth && styles.fullWidth, style]}
+      >
         <PixelSurface
           variant={variant}
           pressed={sunken}

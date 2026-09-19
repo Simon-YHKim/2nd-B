@@ -33,6 +33,9 @@ import { verifyCheckoutBindingWithSecrets } from '../_shared/paddle-checkout-bin
 import {
   JsonBodyError,
   PADDLE_WEBHOOK_BODY_LIMIT_BYTES,
+  PADDLE_WEBHOOK_JSON_MAX_DEPTH,
+  hasJsonContentType,
+  parseStrictJson,
   readBodyBytes,
 } from '../_shared/request-json.ts';
 
@@ -284,7 +287,19 @@ async function hmacSha256Hex(
 
 // Paddle-Signature contains at least one h1. During secret rotation Paddle may
 // send more than one, and any signature matching this destination is valid.
+//
+// The header is read before anything is authenticated, so it is bounded: an
+// oversized header, or more h1 candidates than a rotation ever needs, is
+// refused instead of compared. A comma means the Fetch Headers class joined two
+// physical Paddle-Signature headers (Paddle's own grammar uses semicolons), and
+// which ts belongs to which h1 is then ambiguous, so that fails closed as well.
+const PADDLE_SIGNATURE_HEADER_MAX_LENGTH = 4096;
+const PADDLE_SIGNATURE_MAX_CANDIDATES = 8;
+
 function parsePaddleSignature(header: string): { ts: string | null; h1s: string[] } {
+  if (header.length > PADDLE_SIGNATURE_HEADER_MAX_LENGTH || /[,\r\n]/.test(header)) {
+    return { ts: null, h1s: [] };
+  }
   let ts: string | null = null;
   let tsCount = 0;
   const h1s: string[] = [];
@@ -297,10 +312,92 @@ function parsePaddleSignature(header: string): { ts: string | null; h1s: string[
       ts = v;
       tsCount += 1;
     } else if (k === 'h1' && v) {
+      if (h1s.length === PADDLE_SIGNATURE_MAX_CANDIDATES) return { ts: null, h1s: [] };
       h1s.push(v);
     }
   }
   return { ts: tsCount === 1 ? ts : null, h1s };
+}
+
+// Post-HMAC shape guard. The signature proves Paddle sent these bytes, not that
+// every field has the JSON type this handler dereferences or hands to SQL. It
+// refuses only that: the event id, type, and time; the object ids; and, on the
+// subscription and transaction path, the objects leading to the period end,
+// the scheduled cancel time, and the payment-method remnant, where `payments`
+// that is not a list would throw inside `.find`. `null` passes wherever the
+// handler already maps it to null, e.g. `subscription_id` on a one-off
+// transaction. Value judgments stay where they are: action, status, refund
+// type, items, totals, and currency are still judged by the adjustment rail
+// below, which records what it cannot trust for review instead of refusing it
+// (0123), and custom_data is judged only by the checkout binding verifier.
+const PADDLE_ID_MAX_LENGTH = 128;
+const PADDLE_TEXT_MAX_LENGTH = 64;
+
+function hasControlCharacter(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code < 0x20 || code === 0x7f) return true;
+  }
+  return false;
+}
+
+function isJsonRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isOptionalRecord(value: unknown): value is Record<string, unknown> | null | undefined {
+  return value === undefined || value === null || isJsonRecord(value);
+}
+
+function isOptionalText(value: unknown, maxLength: number): boolean {
+  return value === undefined
+    || value === null
+    || (typeof value === 'string'
+      && value.length <= maxLength
+      && !hasControlCharacter(value));
+}
+
+function validatePaddleEvent(value: unknown): PaddleEvent | null {
+  if (!isJsonRecord(value)) return null;
+  const data = value.data;
+  if (
+    !isOptionalText(value.event_id, PADDLE_ID_MAX_LENGTH)
+    || !isOptionalText(value.event_type, PADDLE_ID_MAX_LENGTH)
+    || !isOptionalText(value.occurred_at, PADDLE_TEXT_MAX_LENGTH)
+    || !isOptionalRecord(data)
+  ) return null;
+  if (!data) return value as unknown as PaddleEvent;
+
+  if (
+    !isOptionalText(data.id, PADDLE_ID_MAX_LENGTH)
+    || !isOptionalText(data.subscription_id, PADDLE_ID_MAX_LENGTH)
+    || !isOptionalText(data.transaction_id, PADDLE_ID_MAX_LENGTH)
+  ) return null;
+
+  const period = data.current_billing_period;
+  if (!isOptionalRecord(period)) return null;
+  if (period && !isOptionalText(period.ends_at, PADDLE_TEXT_MAX_LENGTH)) return null;
+
+  const change = data.scheduled_change;
+  if (!isOptionalRecord(change)) return null;
+  if (change && !isOptionalText(change.effective_at, PADDLE_TEXT_MAX_LENGTH)) return null;
+
+  const payments = data.payments;
+  if (payments === undefined || payments === null) return value as unknown as PaddleEvent;
+  if (!Array.isArray(payments)) return null;
+  for (const payment of payments) {
+    if (!isJsonRecord(payment)) return null;
+    const method = payment.method_details;
+    if (!isOptionalRecord(method)) return null;
+    if (!method) continue;
+    const card = method.card;
+    if (!isOptionalText(method.type, PADDLE_TEXT_MAX_LENGTH) || !isOptionalRecord(card)) return null;
+    if (card && (
+      !isOptionalText(card.type, PADDLE_TEXT_MAX_LENGTH)
+      || !isOptionalText(card.last4, PADDLE_TEXT_MAX_LENGTH)
+    )) return null;
+  }
+  return value as unknown as PaddleEvent;
 }
 
 // Paddle price id -> DB tier ('cortex' | 'brain'), configured via env.
@@ -416,6 +513,9 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    // Paddle posts JSON; a request without the JSON media type is refused
+    // before a single body byte is read.
+    if (!hasJsonContentType(req.headers)) return json({ error: 'unsupported_media_type' }, 415);
     const rawBytes = await readBodyBytes(req, PADDLE_WEBHOOK_BODY_LIMIT_BYTES);
     const { ts, h1s } = parsePaddleSignature(req.headers.get('Paddle-Signature') ?? '');
     if (!ts || h1s.length === 0) return json({ error: 'bad_signature' }, 403);
@@ -433,7 +533,22 @@ Deno.serve(async (req: Request) => {
 
     // Decode only after the bytes are authenticated.
     const raw = new TextDecoder('utf-8', { fatal: true }).decode(rawBytes);
-    const event = JSON.parse(raw) as PaddleEvent;
+    // Authenticated bytes can still be ambiguous JSON - a repeated key whose
+    // last value JSON.parse would silently keep - or carry a type the code below
+    // would hand to SQL. Paddle retries any non-2xx, so the refusal is loud:
+    // a quiet 400 would only surface once the notification ran out of attempts.
+    let event: PaddleEvent | null = null;
+    let rejection = 'invalid_shape';
+    try {
+      event = validatePaddleEvent(parseStrictJson(raw, PADDLE_WEBHOOK_JSON_MAX_DEPTH));
+    } catch (e) {
+      if (!(e instanceof JsonBodyError)) throw e;
+      rejection = e.code;
+    }
+    if (!event) {
+      console.error('[paddle-webhook][ALERT] bad_payload', JSON.stringify({ reason: rejection }));
+      return json({ error: 'bad_payload' }, 400);
+    }
     const eventId = event.event_id;
     if (!eventId) return json({ error: 'no_event_id' }, 400);
     const eventType = event.event_type ?? 'unknown';

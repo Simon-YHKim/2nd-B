@@ -3,12 +3,14 @@
 **덮어쓰기 파일.** 네 절만 — 완료 / 진행중 / 다음 / 막힌 것.
 결정은 여기 쓰지 않는다. `DECISIONS.md` 가 소유한다(append-only · 09-13~09-16 은 기간 보관 파일 `DECISIONS-2026-09-*.md`). 지난 판의 경과는 git 이력과 DECISIONS 에 있다 — 이번 판은 **지금 상태만** 남겼다.
 
-최종 갱신 **2026-09-19 09:58 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/claude-disk-260913` · 브랜치 `claude/vibe-r260915a`
+최종 갱신 **2026-09-19 11:48 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/claude-disk-260913` · 브랜치 `claude/vibe-r260919b`
 소유자: 이 세션(09-13 `ttl-work-9a` 와 두 세션 합의, Simon 지명 아님). Simon 이 다르게 정하면 그게 이긴다. 다른 세션은 `DECISIONS.md` 에만 쓸 것.
 
 📊 보고서 (최신 위)
+- **Android 재실행 멈춤 보고 (09-19 11:03 · 결정 2건 응답 대기)**: <https://claude.ai/artifact/8qYXcdSTkMYNzUaN5ZXfbh>
+- **공개 QA 빌드 `qa-260919-640db5bd`(수정 포함 · 09-18 빌드 위에 덮어 설치)**: <https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-260919-640db5bd>
 - **새벽 정리 결정 시트 v3 (09-17 05:40 · 확정 8건 실행 결과 · DB 백업 카드)**: <https://claude.ai/artifact/WKmnvY5gMQ3MrxFs8uwwCw>
-- **공개 QA 빌드(사전 릴리스) `qa-260918-84d6800c`** — main + 머지 대기 PR 10개 · 테스트 키 서명: <https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-260918-84d6800c>
+- 옛 공개 QA 빌드 `qa-260918-84d6800c`(**두 번째 실행부터 멈춤** — 안내문이 새 릴리스를 가리킴): <https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-260918-84d6800c>
 - 보안 점검 D3 · D1 (v2, 09-16 01:55): <https://claude.ai/code/artifact/77fc83d3-a258-4633-8ac5-3155d54fbf70>
 - #1814 자동 저장 재설계안 (09-16): <https://claude.ai/code/artifact/b7f2af2c-bef4-4440-8bf7-95c9e7856480>
 - 워커 산출물: `E:/Coding Infra/reports/vibe-r260919/r13-boot-hang/` · `vibe-r260917/{r10-*,r11-sec-port-{a,b,c},r12-sec-n1}/` · `vibe-r260916/*` · QA 증거 `reports/qa-260919/`
@@ -27,11 +29,15 @@
 
 ## 진행중
 
-활성 워커 **1** (09:58 KST) — **r13-boot-hang** `ctx_63b463a1d113`(run `run_e3a3e38558ab` · `claude-fable-5-1` @max · 워크트리 `fix-auth-boot-hang-260919`): **기기 재부팅 뒤 앱이 Loading 에서 영구 정지**(QA 빌드 3회 재현, `[auth] … phase=bootstrap-marker-read → fail-closed-entry → fail-closed-signout`) 원인 규명 + 수정 PR. 1차 분류: main `AuthContext.tsx` 경로 + #1815 로더(PR 10개 탓일 가능성 낮음) — 워커가 반증. 수확 = G8 kill → worker-release → terminal close → 원장 → DECISIONS.
+활성 워커 **1** (11:31 KST) — **r14-boot-exit** `ctx_aedfc1071b45`(`claude-fable-5-1` @max · run `run_e3a3e38558ab` · 워크트리 `fix-auth-boot-exit-260919`): 저장소 읽기 + 로컬 로그아웃 이중 실패 때의 출구, 결정 시트 1번 추천안 ① A″(연속 3회 콜드 스타트 뒤 기존 복구 동의 화면) **Simon 확정(11:4x, 시트 1번 ①)** — N=3 · draft → 보안 두 레인 통과 뒤 머지. 수확 = G8 kill → worker-release → terminal close → 원장 → DECISIONS.
+
+게이트 대기 draft PR 11개 — #1819 · #1810 · #1814 · #1825~#1831 · **#1833**(Android 두 번째 실행 멈춤 수정, CI 초록).
+
+**로컬 QA 환경(Simon 이 13:00 claude 리셋 뒤 QA 예정)**: 웹 <http://127.0.0.1:8765/2nd-B/>(`qa/integration-260919` = `640db5bd`, 11:26 빌드) · Orca 에뮬레이터 5554(`2ndB_Codex_API36_260727`)는 **v0.8.0 그대로**(QA 빌드는 versionCode 40 < 51 이라 삭제 없이 못 올림) · 최신 QA 빌드는 AVD `Pixel_9_Pro_XL`.
 
 ## 다음 (하나만)
 
-**r13 수확 → 19:47 KST codex 리셋 뒤 게이트 라운드.** 게이트 전 `npm install -g @openai/codex@latest`(check_tooling 이 뒤처짐 경고 — G11, 도는 codex 프로세스 없는지 먼저 확인). 게이트 두 레인(daybreak 산출물 · astra 비즈로직)을 PR 10개(+r13 수정 PR)에 → 통과분 머지(쌓인 순서 #1828→#1831 · #1829→#1830, 위 PR 은 base 를 main 으로) → main push 진단 APK 확인. 게임 노트: #1814 "새 대화 뒤 저장"은 D-1 ② 의도된 동작.
+**r13 수확 → 19:47 KST codex 리셋 뒤 게이트 라운드.** 게이트 전 `npm install -g @openai/codex@latest`(check_tooling 이 뒤처짐 경고 — G11, 도는 codex 프로세스 없는지 먼저 확인). 게이트 두 레인(daybreak 산출물 · astra 비즈로직)을 PR 11개(#1833 포함 — 가장 먼저)에 → 통과분 머지(main 은 strict — BEHIND 면 `gh pr merge --auto --squash` 또는 브랜치 갱신 뒤 CI 재대기 · 머지 뒤 `state=MERGED` 확인 · 쌓인 순서 #1828→#1831 · #1829→#1830, 위 PR 은 base 를 main 으로) → main push 진단 APK 확인. 게임 노트: #1814 "새 대화 뒤 저장"은 D-1 ② 의도된 동작.
 
 ## 막힌 것
 
@@ -53,14 +59,12 @@ claude 주간 82%(리셋 09-19 13:00) → 코딩은 fable 버킷(0%)으로. ⚠ 
 구제본 `E:/Coding Infra/_rescue/ttl-work-260913-1554/`. 공유 폴더라 손대지 않는다.
 
 ### 5. 스킬 · 도구
-- /vibe C-realtime 레인 복구(grok 잔액 · gemini 워커 경로) · gstack 6커밋 뒤(Simon 결정 대기).
+- /vibe C-realtime 레인 복구(grok 잔액 · gemini 워커 경로). gstack 은 1.87.4.0 으로 올렸다(Simon 확정 11:4x) — `/cso` 는 이 PC 에서 not assessed(VS 2022 Build Tools 필요).
 - 게시 워크플로 · PR CI 가 게시물 CSP 검사(`verify:web`)를 안 돌린다(SEC-2 발견).
 - Orca 1.4.200 은 에뮬레이터에 GPU 옵션을 안 넘긴다 — AVD 설정으로 우회 중(`E:/Coding Infra/tools/avd-guard/`).
 
 ### 6. 기록이 사실과 다른 것
-- `docs/HANDOFF.md` 활성 창이 0148 · 0149 · 0150 을 "적용 대기"로 적는다 → 운영 적용 완료(09-07).
 - TTL-Work `CLAUDE.md` 가 웹 배포를 gh-pages 라 적는다 → `actions/deploy-pages`.
-- 2ndB `CLAUDE.md` "앱 화면 100" → 실측 101.
 
 ### 7. 주인이 따로 있어 남긴 것
 `fix/security*` 로컬 브랜치 47개(이식 출처 18 · 기록된 폐기 28 · peer-rss-fresh 1 — 폴더는 전부 제거) · `.npm-security-landing-260906` · C: 후보 Q-260906-04 · 공유 스태시 22 · 워크트리 `qa-integration-260918`(공개 QA 릴리스 태그의 출처 · 로컬 빌드용 실제 node_modules).
