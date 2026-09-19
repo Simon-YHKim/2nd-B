@@ -3,14 +3,15 @@
 **덮어쓰기 파일.** 네 절만 — 완료 / 진행중 / 다음 / 막힌 것.
 결정은 여기 쓰지 않는다. `DECISIONS.md` 가 소유한다(append-only · 09-13~09-18 은 기간 보관 파일 `DECISIONS-2026-09-*.md`). 지난 판의 경과는 git 이력과 DECISIONS 에 있다 — 이번 판은 **지금 상태만** 남겼다.
 
-최종 갱신 **2026-09-20 04:35 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/claude-disk-260913` · 브랜치 `claude/vibe-r260919c`
+최종 갱신 **2026-09-20 04:55 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/claude-disk-260913` · 브랜치 `claude/vibe-r260919c`
 소유자: 이 세션(09-13 `ttl-work-9a` 와 두 세션 합의, Simon 지명 아님). Simon 이 다르게 정하면 그게 이긴다. 다른 세션은 `DECISIONS.md` 에만 쓸 것.
 
 📊 보고서 (최신 위)
 - **09-19 밤 라운드 보고 (등급 M · 결정 7건 + 이월 Q-S1)**: <https://claude.ai/artifact/H7KGVqSjXj27NxEVdhQXWs>
 - Android 재실행 멈춤 보고 (09-19 오전 · 결정 2건 — Simon 확정 11:4x): <https://claude.ai/artifact/8qYXcdSTkMYNzUaN5ZXfbh>
 - 새벽 정리 결정 시트 v3 (09-17 · **DB 백업 카드**): <https://claude.ai/artifact/WKmnvY5gMQ3MrxFs8uwwCw>
-- 공개 QA 빌드 `qa-260919-640db5bd`(09-19 · main 보다 뒤 — 폰 QA 용 새 릴리스는 아직): <https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-260919-640db5bd>
+- **공개 QA 빌드 `qa-260920-c91ebcbb`(main · 머지 16개 · 09-19 QA 앱 위에 덮어 설치 · #1814 는 빠짐)**: <https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-260920-c91ebcbb>
+- 옛 QA 빌드 `qa-260919-640db5bd`(통합 브랜치 · #1814 포함): <https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-260919-640db5bd>
 - 워커 산출물: `E:/Coding Infra/reports/vibe-r260919/`(r13~r37 · gate-* · regate-*) · QA 증거 `reports/qa-260919/` · APK `reports/apk/main-c423ba88-x86_64/` · `main-2d688ef0-arm64/`
 
 ---
@@ -34,7 +35,7 @@ draft PR 3개:
 
 ## 다음 (하나만)
 
-**r37 · #1814 8차 판정 수확 → (둘 다 medium 0 이면) 머지 기차.** 그다음: 결정 시트(G14 · `scratchpad/build_g14_items.py` → `make_decision_sheet.py`) · 이 기록 브랜치를 PR 로(DECISIONS · STATE · HANDOFF — 기록 PR 전 `npm run check:lexicon`) · 폰 QA APK 를 main 으로(로컬 빌드는 **정션 없는 실제 설치**에서 — 정션 워크트리에서 npm ci 금지).
+**r37 · #1814 8차 판정 수확 → (둘 다 medium 0 이면) 머지 기차.** 그다음: 결정 시트(G14 · `scratchpad/build_g14_items.py` → `make_decision_sheet.py`) · 기록 PR **#1843**(draft) 마무리 머지(머지 전 `npm run check:lexicon`).
 
 ## 막힌 것
 
@@ -57,3 +58,4 @@ draft PR 3개:
 - TTL-Work `CLAUDE.md` 가 웹 배포를 gh-pages 라 적는다 → `actions/deploy-pages`.
 - `fix/security*` 로컬 브랜치 47개 · 공유 스태시 22 · TTL-Work 미커밋 구제본 `E:/Coding Infra/_rescue/ttl-work-260913-1554/` — 손대지 않음.
 - ⚠ 09-20 01:4x 옛 QA 워크트리 `qa-integration-260918`(여기 '남긴 것'이었다)을 대조 없이 지웠다 — 브랜치 · 커밋 · 태그 · 서명 키(`E:/Coding Infra/tools/qa-test.keystore`) 무사, 빌드 환경만 사라짐.
+- **남긴 것: QA APK 빌드 환경 워크트리 `E:/2ndB/.worktrees/qa-apk-260920`**(브랜치 `qa/apk-260920` · **정션 아닌 실제 node_modules** · 로컬 QA 빌드용) · 웹 QA 워크트리 `qa-integration-260920`(정션 · 8765 서버의 dist).
