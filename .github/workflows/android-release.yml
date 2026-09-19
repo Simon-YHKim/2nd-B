@@ -266,6 +266,12 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+        with:
+          # The action's default is "tools platform-tools". The legacy "tools" package
+          # is gone from the SDK repository the runner's cmdline-tools reads, so the
+          # default makes sdkmanager exit 1 and every main push build failed from
+          # 2026-09-19 11:17 UTC. Gradle needs only platform-tools from this list.
+          packages: platform-tools
 
       - name: Expo prebuild (generate android/)
         run: npx expo prebuild -p android --no-install
