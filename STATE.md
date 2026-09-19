@@ -3,14 +3,15 @@
 **덮어쓰기 파일.** 네 절만 — 완료 / 진행중 / 다음 / 막힌 것.
 결정은 여기 쓰지 않는다. `DECISIONS.md` 가 소유한다(append-only · 09-13~09-18 은 기간 보관 파일 `DECISIONS-2026-09-*.md`). 지난 판의 경과는 git 이력과 DECISIONS 에 있다 — 이번 판은 **지금 상태만** 남겼다.
 
-최종 갱신 **2026-09-20 05:50 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/claude-disk-260913` · 브랜치 `claude/vibe-r260919c`
+최종 갱신 **2026-09-20 06:02 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/claude-disk-260913` · 브랜치 `claude/qa-refresh-260920`
 소유자: 이 세션(09-13 `ttl-work-9a` 와 두 세션 합의, Simon 지명 아님). Simon 이 다르게 정하면 그게 이긴다. 다른 세션은 `DECISIONS.md` 에만 쓸 것.
 
 📊 보고서 (최신 위)
 - **09-19 밤 라운드 보고 (등급 M · 결정 7건 + 이월 Q-S1)**: <https://claude.ai/artifact/H7KGVqSjXj27NxEVdhQXWs>
 - Android 재실행 멈춤 보고 (09-19 오전 · 결정 2건 — Simon 확정 11:4x): <https://claude.ai/artifact/8qYXcdSTkMYNzUaN5ZXfbh>
 - 새벽 정리 결정 시트 v3 (09-17 · **DB 백업 카드**): <https://claude.ai/artifact/WKmnvY5gMQ3MrxFs8uwwCw>
-- **공개 QA 빌드 `qa-260920-c91ebcbb`(main · 머지 16개 · 09-19 QA 앱 위에 덮어 설치 · #1814 는 빠짐)**: <https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-260920-c91ebcbb>
+- **공개 QA 빌드 `qa-260920-585aac5f`(= 지금 main · 머지 17개 · #1841 포함 · 앞 QA 앱 위에 덮어 설치 · #1814 는 빠짐)**: <https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-260920-585aac5f>
+- 앞 QA 빌드 `qa-260920-c91ebcbb`(머지 16개 · 본문 맨 위에 대체 안내): <https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-260920-c91ebcbb>
 - 옛 QA 빌드 `qa-260919-640db5bd`(통합 브랜치 · #1814 포함): <https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-260919-640db5bd>
 - 워커 산출물: `E:/Coding Infra/reports/vibe-r260919/`(r13~r37 · gate-* · regate-*) · QA 증거 `reports/qa-260919/` · APK `reports/apk/main-c423ba88-x86_64/` · `main-2d688ef0-arm64/`
 
@@ -18,16 +19,18 @@
 
 ## 완료
 
-- **main 머지 17개(09-19 20:16 ~ 09-20 05:41)** — #1819 · #1810 · **#1833**(Android 두 번째 실행 Loading 멈춤) · #1828 · #1831 · #1826 · #1825 · #1827 · #1829 · #1830 · #1836(CI SDK) · **#1835**(이중 실패 출구 · Simon 확정 ① N=3) · #1837(HIBP 무한 대기) · #1838 · **#1840**(복구 세션 승격 울타리) · **#1842**(진행 중 이관 울타리) · **#1841**(가져오기 허브 중복 id 철회가 다른 행을 지우던 것). 전부 게이트 두 레인 통과(critical · high · medium 0) 뒤. main = `2dce7ead`.
+- **main 머지 17개(09-19 20:16 ~ 09-20 05:41)** — #1819 · #1810 · **#1833**(Android 두 번째 실행 Loading 멈춤) · #1828 · #1831 · #1826 · #1825 · #1827 · #1829 · #1830 · #1836(CI SDK) · **#1835**(이중 실패 출구 · Simon 확정 ① N=3) · #1837(HIBP 무한 대기) · #1838 · **#1840**(복구 세션 승격 울타리) · **#1842**(진행 중 이관 울타리) · **#1841**(가져오기 허브 중복 id 철회가 다른 행을 지우던 것). 전부 게이트 두 레인 통과(critical · high · medium 0) 뒤. 기능 머지의 끝은 `2dce7ead`, 기록 PR #1843 까지 실은 **main = `585aac5f`**.
 - **main 네이티브 확인** — x86_64 `c423ba88` 에뮬레이터(Pixel_9_Pro_XL · 5556) 실행 1 + 강제 종료 재실행 3 = Loading 없음 · 세션 유지 · FATAL 0 · 인증 경고 0(09-20 03:33).
-- **웹 QA 서버** `http://127.0.0.1:8765/2nd-B/` = main `c91ebcbb`(워크트리 `qa-integration-260920`, 분석 · 오류 ID 비움). 재부팅하면 꺼진다 — 다시 띄우는 법은 `scratchpad/qa_static_server.js`.
+- **QA 산출물 둘 다 지금 main `585aac5f`** (06:0x 재빌드 — #1841 이전 동작을 QA 하게 되는 것을 막으려고):
+  - **웹 QA 서버** `http://127.0.0.1:8765/2nd-B/`(워크트리 `qa-integration-260920` · 분석 · 오류 ID 비움 · `entry-a8d8d24d`). headless Chrome 으로 로그인 화면 렌더 · 콘솔 오류 0 확인. 재부팅하면 꺼진다 — 다시 띄우는 법은 `scratchpad/qa_static_server.js`.
+  - **폰용 APK** 사전 릴리스 `qa-260920-585aac5f`(66.6MB · arm64-v8a · 서명 `6053a4c7…` · versionCode 40 = 앞 QA 앱 위에 데이터 유지 덮어 설치). 이번 커밋 자체의 에뮬레이터 확인은 없음(네이티브 파일 무변경 · `c423ba88` 확인으로 대신).
 - **운영 실측(읽기 전용)** — raw-clippings 객체 3 · 고아 0(→ 결정 5번 폐기 제안) · `ingest_log` RLS SELECT/INSERT 본인 정책 확인.
 - **G14 결정 시트** `E:/Coding Infra/reports/vibe-r260919/decision-sheet-run_e3a3e38558ab.html`(브라우저로 열어 채택/보류 저장 → 다음 /vibe 가 회수).
 - **정리** — 머지 끝난 워크트리 10개 제거(브랜치 유지 · 공용 node_modules 745 매번 확인) · E: 56 → 64 GB · DECISIONS 2차 기간 분할(09-17~18 → `DECISIONS-2026-09-17_18.md` · 바이트 재조립 검증).
 
 ## 진행중
 
-활성 워커 **0**(05:50) · run `run_e3a3e38558ab` 마감 — 결정 시트만 Simon 응답 대기.
+활성 워커 **0**(06:0x · 디스패치 72개 전부 completed/failed) · run `run_e3a3e38558ab` 마감 — 결정 시트만 Simon 응답 대기. 기록 파일 크기: `DECISIONS.md` **96KB** · `docs/HANDOFF.md` **99.4KB** — 둘 다 100KB 코앞이다. **다음 블록을 얹는 세션이 먼저 굴린다**(요약 금지 · HANDOFF 는 오래된 블록부터 `handoff/HANDOFF-2026-09.md` 맨 위로 옮겨 80KB 아래로 · DECISIONS 는 기간 분할 · 블록 수 · 바이트 보존 검증).
 
 draft PR 2개(둘 다 클라이언트 수정 라운드 멈춤 · 결정 1번 대기):
 - **#1814** 자동 저장 되돌리기 — HEAD `93152b9e` · 8차 재게이트 M3 L2(**8차 수정의 회귀** G7A-1814-2: 10초 상한이 SDK 잠금을 못 풀어 로그인 · 로그아웃이 멈출 수 있음 — 다시 이어가면 이것부터 되돌린다) · 잔여 G2Z-1814-2(서버 S3) · M2.
@@ -35,7 +38,7 @@ draft PR 2개(둘 다 클라이언트 수정 라운드 멈춤 · 결정 1번 대
 
 ## 다음 (하나만)
 
-**Simon 의 결정 1번(삭제 · 복구 서버 조정) 답을 받는다** — 보고서 결정 탭. 답에 따라 #1814 · #1839 를 서버 조정 위에서 다시 잡거나(①) 클라이언트로 이어 간다(②③). 기록 PR #1843 은 이 판을 싣고 머지.
+**Simon 의 결정 1번(삭제 · 복구 서버 조정) 답을 받는다** — 보고서 결정 탭. 답에 따라 #1814 · #1839 를 서버 조정 위에서 다시 잡거나(①) 클라이언트로 이어 간다(②③). (기록 PR #1843 머지 완료 — `585aac5f`.)
 
 ## 막힌 것
 
