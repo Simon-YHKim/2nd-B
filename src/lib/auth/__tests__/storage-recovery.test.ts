@@ -3,13 +3,18 @@ import { resolve } from "node:path";
 
 import { AuthUnknownError } from "@supabase/supabase-js";
 
-import { ENCRYPTED_STORAGE_RECOVERY_REQUIRED } from "../../storage/encrypted-native-storage";
+import {
+  createEncryptedNativeStorage,
+  ENCRYPTED_STORAGE_RECOVERY_REQUIRED,
+  type EncryptedNativeStorageDependencies,
+} from "../../storage/encrypted-native-storage";
 import {
   attemptEncryptedNativeStorageRecovery,
+  ENCRYPTED_STORAGE_RECOVERY_TIMEOUT_MS,
   isEncryptedStorageRecoveryRequired,
 } from "../storage-recovery";
 
-const recoverStorage = jest.fn<Promise<unknown>, [unknown]>();
+const recoverStorage = jest.fn<Promise<unknown>, [unknown, unknown?]>();
 const resetClient = jest.fn<Promise<void>, []>();
 const recreateClient = jest.fn<unknown, []>();
 const readyStorage = jest.fn<Promise<void>, []>();
@@ -108,7 +113,7 @@ describe("explicit recovery consent", () => {
     await expect(
       attemptEncryptedNativeStorageRecovery(consent, dependencies),
     ).resolves.toBe("recovered");
-    expect(recoverStorage).toHaveBeenCalledWith(consent);
+    expect(recoverStorage).toHaveBeenCalledWith(consent, { stillAwaited: expect.any(Function) });
     expect(resetClient).toHaveBeenCalledTimes(1);
     expect(recreateClient).toHaveBeenCalledTimes(1);
     expect(readyStorage).toHaveBeenCalledTimes(1);
@@ -168,6 +173,359 @@ describe("explicit recovery consent", () => {
     ).resolves.toBe("failed");
     // A retained lock keeps its streak: the gate must come straight back.
     expect(clearPersistence).not.toHaveBeenCalled();
+  });
+});
+
+describe("a consented reset that stops answering", () => {
+  // #1835 follow-up (2026-09-19). The gate #1835 raises for a stuck store could
+  // then sit on its `working` label forever if the wipe or the fresh runtime
+  // never answered. The attempt now fails within a named bound, which the gate
+  // shows as the existing failure copy, and nothing that answers after the
+  // bound changes state behind that answer.
+  const DEADLINE = ENCRYPTED_STORAGE_RECOVERY_TIMEOUT_MS;
+  const CONSENT = {
+    acknowledgedDataLoss: true as const,
+    action: "discard-unreadable-encrypted-local-data" as const,
+  };
+  const never = <T>(): Promise<T> => new Promise<T>(() => undefined);
+
+  /** Where a promise stands, read without awaiting it. */
+  function watch<T>(promise: Promise<T>): { settled: boolean; value?: T } {
+    const state: { settled: boolean; value?: T } = { settled: false };
+    void promise.then((value) => {
+      state.settled = true;
+      state.value = value;
+    });
+    return state;
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    recoverStorage.mockResolvedValue({ discardedManagedKeys: 2 });
+    resetClient.mockResolvedValue(undefined);
+    recreateClient.mockReturnValue({});
+    readyStorage.mockResolvedValue(undefined);
+    clearPersistence.mockResolvedValue(undefined);
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  test("is a named, explicit bound", () => {
+    expect(DEADLINE).toBe(15_000);
+  });
+
+  test("a wipe that never answers fails at the deadline, not before", async () => {
+    recoverStorage.mockImplementationOnce(never);
+    const attempt = watch(attemptEncryptedNativeStorageRecovery(CONSENT, dependencies));
+
+    await jest.advanceTimersByTimeAsync(DEADLINE - 1);
+    expect(attempt.settled).toBe(false);
+    await jest.advanceTimersByTimeAsync(1);
+    expect(attempt).toEqual({ settled: true, value: "failed" });
+    expect(resetClient).not.toHaveBeenCalled();
+    expect(clearPersistence).not.toHaveBeenCalled();
+  });
+
+  test("a wipe that finishes after the deadline changes nothing behind the failure", async () => {
+    let finish: () => void = () => undefined;
+    recoverStorage.mockImplementationOnce(
+      () =>
+        new Promise<unknown>((resolve) => {
+          finish = () => resolve({ discardedManagedKeys: 2 });
+        }),
+    );
+    const attempt = watch(attemptEncryptedNativeStorageRecovery(CONSENT, dependencies));
+    await jest.advanceTimersByTimeAsync(DEADLINE);
+    expect(attempt).toEqual({ settled: true, value: "failed" });
+
+    finish();
+    await jest.advanceTimersByTimeAsync(0);
+    // The client is neither retired nor replaced and the streak is kept, so
+    // the gate that said the reset did not finish stays the only state.
+    expect(resetClient).not.toHaveBeenCalled();
+    expect(recreateClient).not.toHaveBeenCalled();
+    expect(readyStorage).not.toHaveBeenCalled();
+    expect(clearPersistence).not.toHaveBeenCalled();
+  });
+
+  test("a fresh runtime that never becomes ready is the same failure, and the streak is kept", async () => {
+    readyStorage.mockImplementationOnce(never);
+    const attempt = watch(attemptEncryptedNativeStorageRecovery(CONSENT, dependencies));
+
+    await jest.advanceTimersByTimeAsync(DEADLINE);
+    expect(attempt).toEqual({ settled: true, value: "failed" });
+    expect(clearPersistence).not.toHaveBeenCalled();
+  });
+
+  /** The liveness check the helper handed the adapter with the n-th wipe. */
+  const stillAwaitedOf = (call: number): (() => boolean) =>
+    (recoverStorage.mock.calls[call]?.[1] as { stillAwaited: () => boolean }).stillAwaited;
+
+  test("each attempt asks for its own wipe and stops awaiting it at its own bound", async () => {
+    // Gate findings IA-1838-1 / IZ-1838-1 (2026-09-19). This mock answers the
+    // retry's wipe at once, which the adapter never does while an earlier wipe
+    // is stalled: the tests against the real queue below cover that order.
+    // What this pins is the helper's side: a wipe it asked for is awaited only
+    // until the attempt's own bound, and a retry asks for a wipe of its own.
+    recoverStorage.mockImplementationOnce(never);
+    const first = watch(attemptEncryptedNativeStorageRecovery(CONSENT, dependencies));
+    await jest.advanceTimersByTimeAsync(DEADLINE - 1);
+    expect(stillAwaitedOf(0)()).toBe(true);
+    await jest.advanceTimersByTimeAsync(1);
+    expect(first).toEqual({ settled: true, value: "failed" });
+    expect(stillAwaitedOf(0)()).toBe(false);
+
+    const retry = watch(attemptEncryptedNativeStorageRecovery(CONSENT, dependencies));
+    await jest.advanceTimersByTimeAsync(0);
+    expect(recoverStorage).toHaveBeenCalledTimes(2);
+    expect(stillAwaitedOf(1)()).toBe(true);
+    expect(retry).toEqual({ settled: true, value: "recovered" });
+    expect(resetClient).toHaveBeenCalledTimes(1);
+    expect(clearPersistence).toHaveBeenCalledTimes(1);
+  });
+
+  test("a slow reset that answers inside the deadline still recovers", async () => {
+    // The bound is for a store that stopped answering, not for a slow one.
+    recoverStorage.mockImplementationOnce(
+      () =>
+        new Promise<unknown>((resolve) => {
+          setTimeout(() => resolve({ discardedManagedKeys: 2 }), DEADLINE - 1);
+        }),
+    );
+    const attempt = watch(attemptEncryptedNativeStorageRecovery(CONSENT, dependencies));
+
+    await jest.advanceTimersByTimeAsync(DEADLINE - 1);
+    expect(attempt).toEqual({ settled: true, value: "recovered" });
+    expect(clearPersistence).toHaveBeenCalledTimes(1);
+  });
+
+  // IA-1838-1 / IZ-1838-1. The tests above answer the wipe with a mock, and a
+  // mock that answers the second call at once is how the first version of this
+  // bound missed that the adapter queues every wipe behind the one before it.
+  // These run the production adapter's maintenance queue.
+  describe("against the adapter's real maintenance queue", () => {
+    const MASTER_KEY = "secondB.secureStorage.master.v1";
+    const SENTINEL = "secondB.secureStorage.keySentinel.v1";
+    const DRAFT = "capture.drafts.v2.owner-a";
+    const SESSION = "sb-probe-auth-token-v2";
+    const UNMANAGED = "unrelated.preference";
+
+    /** The production adapter over an in-memory store and keystore. A wipe
+     * never encrypts, but a write that lands after one mints a fresh key. */
+    function realStore() {
+      const values = new Map<string, string>([
+        [DRAFT, "SBENC1:AAAA"],
+        [UNMANAGED, "keep"],
+        [SENTINEL, `SBKEY1:${"0".repeat(64)}`],
+        ["secondB.secureStorage.capacity.v1", "SBCAP1:11"],
+      ]);
+      const secrets = new Map([[MASTER_KEY, Buffer.alloc(32, 1).toString("base64")]]);
+      const backing = {
+        getItem: jest.fn(async (key: string): Promise<string | null> => values.get(key) ?? null),
+        setItem: jest.fn(async (key: string, value: string) => {
+          values.set(key, value);
+        }),
+        removeItem: jest.fn(async (key: string) => {
+          values.delete(key);
+        }),
+        getAllKeys: jest.fn(async (): Promise<readonly string[]> => [...values.keys()]),
+      };
+      const keystore = {
+        getItem: jest.fn(async (key: string): Promise<string | null> => secrets.get(key) ?? null),
+        setItem: jest.fn(async (key: string, value: string) => {
+          secrets.set(key, value);
+        }),
+        removeItem: jest.fn(async (key: string) => {
+          secrets.delete(key);
+        }),
+      };
+      const adapter: EncryptedNativeStorageDependencies = {
+        backing,
+        secrets: keystore,
+        crypto: {
+          generateKey: async () => Buffer.alloc(32, 2).toString("base64"),
+          fingerprintKey: async () => "0".repeat(64),
+          encrypt: async (plaintext) => Buffer.from(plaintext).toString("base64"),
+          decrypt: async () => {
+            throw new Error("nothing here reads ciphertext back");
+          },
+        },
+      };
+      const storage = createEncryptedNativeStorage(adapter);
+      return {
+        backing,
+        secrets,
+        storage,
+        values,
+        dependencies: { ...dependencies, recover: storage.recoverAfterUserConsent },
+        /** Every remove the wipe issues, in the store and in the keystore. */
+        removals: () =>
+          backing.removeItem.mock.calls.length + keystore.removeItem.mock.calls.length,
+        /** Wipes that ran: only a wipe removes the master key. */
+        wipes: () => keystore.removeItem.mock.calls.length,
+      };
+    }
+
+    /** A promise the test resolves by hand. */
+    function gate(): { wait: Promise<void>; open: () => void } {
+      let open: () => void = () => undefined;
+      const wait = new Promise<void>((resolve) => {
+        open = resolve;
+      });
+      return { wait, open };
+    }
+
+    /** The first wipe's key scan does not answer until the test opens it. */
+    function stallFirstScan(store: ReturnType<typeof realStore>): () => void {
+      const scan = gate();
+      store.backing.getAllKeys.mockImplementationOnce(async () => {
+        await scan.wait;
+        return [...store.values.keys()];
+      });
+      return scan.open;
+    }
+
+    /** A read already in the queue stalls, so a wipe queued after it waits. */
+    function stallReadAhead(store: ReturnType<typeof realStore>): () => void {
+      const read = gate();
+      store.backing.getItem.mockImplementationOnce(async () => {
+        await read.wait;
+        return null;
+      });
+      void store.storage.getItem("capture.drafts.v2.owner-b");
+      return read.open;
+    }
+
+    test("a retry's own wipe also removes what was saved after the first consent", async () => {
+      // Why a retry does not join the stalled wipe. The retiring client can
+      // start a save before the first consent and finish it after (a token
+      // refresh, for one); the adapter runs that save after the first wipe.
+      // A joined retry would keep the first wipe's place and leave the save
+      // for the fresh client to read. Its own wipe is queued after the save.
+      const store = realStore();
+      const openScan = stallFirstScan(store);
+
+      const first = watch(attemptEncryptedNativeStorageRecovery(CONSENT, store.dependencies));
+      await jest.advanceTimersByTimeAsync(DEADLINE);
+      expect(first).toEqual({ settled: true, value: "failed" });
+
+      const lateSave = store.storage.setItem(SESSION, "saved after the first consent");
+      const retry = watch(attemptEncryptedNativeStorageRecovery(CONSENT, store.dependencies));
+      await jest.advanceTimersByTimeAsync(DEADLINE / 2);
+      expect(retry.settled).toBe(false);
+
+      openScan();
+      await jest.advanceTimersByTimeAsync(0);
+      await expect(lateSave).resolves.toBeUndefined();
+      expect(retry).toEqual({ settled: true, value: "recovered" });
+      expect(store.values.has(SESSION)).toBe(false);
+      expect(store.values.has(DRAFT)).toBe(false);
+      expect(store.secrets.has(MASTER_KEY)).toBe(false);
+      expect(store.values.get(UNMANAGED)).toBe("keep");
+      // The stalled wipe, then the retry's: each removed the master key it found.
+      expect(store.wipes()).toBe(2);
+      expect(resetClient).toHaveBeenCalledTimes(1);
+      expect(recreateClient).toHaveBeenCalledTimes(1);
+      expect(readyStorage).toHaveBeenCalledTimes(1);
+      expect(clearPersistence).toHaveBeenCalledTimes(1);
+    });
+
+    test("after every attempt has failed, only the wipe that had started runs, and nothing acts on the client", async () => {
+      const store = realStore();
+      const openScan = stallFirstScan(store);
+
+      const first = watch(attemptEncryptedNativeStorageRecovery(CONSENT, store.dependencies));
+      await jest.advanceTimersByTimeAsync(DEADLINE);
+      const retry = watch(attemptEncryptedNativeStorageRecovery(CONSENT, store.dependencies));
+      await jest.advanceTimersByTimeAsync(DEADLINE);
+      expect(first).toEqual({ settled: true, value: "failed" });
+      expect(retry).toEqual({ settled: true, value: "failed" });
+
+      openScan();
+      await jest.advanceTimersByTimeAsync(0);
+      // The wipe that had started runs to its end. The retry's wipe waited
+      // behind it past the retry's own bound, so it does not start.
+      expect(store.backing.getAllKeys).toHaveBeenCalledTimes(1);
+      expect(store.removals()).toBe(4);
+      expect(store.values.has(DRAFT)).toBe(false);
+      // Both attempts had already answered "failed", so nothing acts on the client.
+      expect(resetClient).not.toHaveBeenCalled();
+      expect(recreateClient).not.toHaveBeenCalled();
+      expect(readyStorage).not.toHaveBeenCalled();
+      expect(clearPersistence).not.toHaveBeenCalled();
+
+      // The next consent is a new wipe of the store as it is now, and it recovers.
+      const third = watch(attemptEncryptedNativeStorageRecovery(CONSENT, store.dependencies));
+      await jest.advanceTimersByTimeAsync(0);
+      expect(third).toEqual({ settled: true, value: "recovered" });
+      expect(store.backing.getAllKeys).toHaveBeenCalledTimes(2);
+      expect(resetClient).toHaveBeenCalledTimes(1);
+      expect(clearPersistence).toHaveBeenCalledTimes(1);
+      expect(store.values.get(UNMANAGED)).toBe("keep");
+    });
+
+    test("a wipe still queued when its attempt fails never starts", async () => {
+      const store = realStore();
+      const openRead = stallReadAhead(store);
+
+      const first = watch(attemptEncryptedNativeStorageRecovery(CONSENT, store.dependencies));
+      await jest.advanceTimersByTimeAsync(DEADLINE);
+      expect(first).toEqual({ settled: true, value: "failed" });
+
+      openRead();
+      await jest.advanceTimersByTimeAsync(0);
+      // No attempt waits on it any more, so it does not start: the gate said
+      // the reset did not finish, and nothing is removed behind that answer.
+      expect(store.backing.getAllKeys).not.toHaveBeenCalled();
+      expect(store.removals()).toBe(0);
+      expect(store.values.has(DRAFT)).toBe(true);
+      expect(store.secrets.has(MASTER_KEY)).toBe(true);
+      expect(resetClient).not.toHaveBeenCalled();
+    });
+
+    test("once the queue frees, the failed attempt's wipe is skipped and the retry's runs", async () => {
+      const store = realStore();
+      const openRead = stallReadAhead(store);
+
+      const first = watch(attemptEncryptedNativeStorageRecovery(CONSENT, store.dependencies));
+      await jest.advanceTimersByTimeAsync(DEADLINE);
+      expect(first).toEqual({ settled: true, value: "failed" });
+
+      const retry = watch(attemptEncryptedNativeStorageRecovery(CONSENT, store.dependencies));
+      await jest.advanceTimersByTimeAsync(DEADLINE / 2);
+      openRead();
+      await jest.advanceTimersByTimeAsync(0);
+      expect(retry).toEqual({ settled: true, value: "recovered" });
+      // One scan and one set of removals: the retry's wipe alone.
+      expect(store.backing.getAllKeys).toHaveBeenCalledTimes(1);
+      expect(store.removals()).toBe(4);
+      expect(store.wipes()).toBe(1);
+      expect(resetClient).toHaveBeenCalledTimes(1);
+      expect(clearPersistence).toHaveBeenCalledTimes(1);
+    });
+
+    test("a malformed consent asks for no wipe and revives none", async () => {
+      const store = realStore();
+      const openRead = stallReadAhead(store);
+
+      const first = watch(attemptEncryptedNativeStorageRecovery(CONSENT, store.dependencies));
+      await jest.advanceTimersByTimeAsync(DEADLINE);
+      expect(first).toEqual({ settled: true, value: "failed" });
+
+      await expect(
+        attemptEncryptedNativeStorageRecovery(
+          { acknowledgedDataLoss: true, action: "discard-local-data" },
+          store.dependencies,
+        ),
+      ).resolves.toBe("invalid-consent");
+      openRead();
+      await jest.advanceTimersByTimeAsync(0);
+      expect(store.backing.getAllKeys).not.toHaveBeenCalled();
+      expect(store.removals()).toBe(0);
+    });
   });
 });
 
@@ -320,5 +678,100 @@ describe("current auth v2 and PIXEL-CLAY recovery wiring", () => {
     for (const key of ["confirmTitle", "confirmAction"]) {
       expect(copy[key]).not.toMatch(unreadable);
     }
+  });
+
+  // Gate finding EA-1835-2 (2026-09-19). The check above only rejects words
+  // that narrow the reset, so copy that simply stopped saying what is removed
+  // still passed it. Each key must now SAY its part of the real scope, in every
+  // language: all protected app data on this device goes, including what can
+  // still be read; the account and data on the server stay; drafts not yet
+  // saved are lost and sign-in is needed again. One core phrase per concept
+  // and language, so a reworded string has to be re-checked on purpose.
+  const SCOPE_CONCEPT_KEYS = {
+    allProtected: ["body", "confirmTitle", "confirmBody", "confirmAction"],
+    stillReadable: ["body", "confirmBody"],
+    thisDevice: ["body", "confirmTitle", "confirmBody"],
+    serverKept: ["body", "confirmBody"],
+    irreversible: ["warning"],
+    draftsLost: ["warning"],
+    signInAgain: ["warning"],
+  } as const;
+  type ScopeConcept = keyof typeof SCOPE_CONCEPT_KEYS;
+  const SCOPE_TERMS: Record<string, Record<ScopeConcept, RegExp>> = {
+    en: {
+      allProtected: /\ball protected (?:app )?data\b/i,
+      stillReadable: /\bincluding\b[^.]*\bcan still be read\b/i,
+      thisDevice: /\bthis device\b/i,
+      serverKept: /\baccount and data on the server (?:will not be deleted|remain)\b/i,
+      irreversible: /\bcannot be undone\b/i,
+      draftsLost: /\bdrafts\b[^.]*\bwill be lost\b/i,
+      signInAgain: /\bsign in again\b/i,
+    },
+    es: {
+      allProtected: /todos los datos protegidos/i,
+      stillReadable: /incluidos los que todavía se pueden leer/i,
+      thisDevice: /este dispositivo/i,
+      serverKept: /tu cuenta y tus datos del servidor (?:no se eliminarán|se conservan)/i,
+      irreversible: /no se puede deshacer/i,
+      draftsLost: /se perderán los borradores/i,
+      signInAgain: /volver a iniciar sesión/i,
+    },
+    id: {
+      allProtected: /semua data (?:aplikasi )?terlindungi/i,
+      stillReadable: /termasuk yang masih dapat dibaca/i,
+      thisDevice: /perangkat ini/i,
+      serverKept: /akunmu dan data (?:yang tersimpan )?di server (?:tidak akan dihapus|tetap ada)/i,
+      irreversible: /tidak dapat dibatalkan/i,
+      draftsLost: /\bdraf\b[^.]*\bakan hilang\b/i,
+      signInAgain: /\bmasuk lagi\b/i,
+    },
+    ko: {
+      allProtected: /보호된 (?:앱 )?데이터[^.?]*모두 삭제/,
+      stillReadable: /아직 읽을 수 있는 것까지/,
+      thisDevice: /이 기기/,
+      serverKept: /서버에 있는 계정과 데이터는 (?:삭제되지 않아요|그대로 남아요)/,
+      irreversible: /되돌릴 수 없/,
+      draftsLost: /초안은 사라지/,
+      signInAgain: /다시 로그인해야/,
+    },
+    pt: {
+      allProtected: /todos os dados protegidos/i,
+      stillReadable: /inclusive os que ainda podem ser lidos/i,
+      thisDevice: /[nd]este dispositivo/i,
+      serverKept: /sua conta e seus dados no servidor (?:não serão excluídos|permanecem)/i,
+      irreversible: /não pode ser desfeita/i,
+      draftsLost: /\brascunhos\b[^.]*\bserão perdidos\b/i,
+      signInAgain: /\bentrar novamente\b/i,
+    },
+  };
+
+  test.each(["en", "es", "id", "ko", "pt"])("%s consent copy states the full scope of the reset", (locale) => {
+    const copy = (JSON.parse(read(`locales/${locale}/auth.json`)) as {
+      storageRecovery: Record<string, string>;
+    }).storageRecovery;
+    const terms = SCOPE_TERMS[locale];
+    const missing: string[] = [];
+    for (const [concept, keys] of Object.entries(SCOPE_CONCEPT_KEYS) as Array<
+      [ScopeConcept, readonly string[]]
+    >) {
+      for (const key of keys) {
+        if (!terms[concept].test(copy[key] ?? "")) missing.push(`${key} lacks ${concept}`);
+      }
+    }
+    expect(missing).toEqual([]);
+  });
+
+  test("a reset that does not finish, a stalled one included, keeps the gate and shows its failure copy", () => {
+    const attempt = AUTH.indexOf("const result = await attemptEncryptedNativeStorageRecovery(consent);");
+    const notRecovered = AUTH.indexOf('if (result !== "recovered") {', attempt);
+    const failedExit = AUTH.indexOf("return false;", notRecovered);
+    const release = AUTH.indexOf("storageRecoveryRequiredRef.current = false;", attempt);
+    expect(attempt).toBeGreaterThan(-1);
+    expect(notRecovered).toBeGreaterThan(attempt);
+    expect(failedExit).toBeGreaterThan(notRecovered);
+    expect(release).toBeGreaterThan(failedExit);
+    expect(GATE).toContain("if (!recovered) {");
+    expect(GATE).toContain("setFailed(true);");
+    expect(GATE).toContain('t("auth:storageRecovery.failed")');
   });
 });

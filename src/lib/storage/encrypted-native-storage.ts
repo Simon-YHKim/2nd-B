@@ -36,9 +36,17 @@ export interface EncryptedNativeStorageRecoveryConsent {
   action: "discard-unreadable-encrypted-local-data";
 }
 
+/** Read once, when a consented wipe reaches the front of the maintenance queue
+ * and before anything is removed. Anything but `true` means every attempt that
+ * asked for the wipe has already given up, so it does not start. */
+export interface EncryptedNativeStorageRecoveryOptions {
+  stillAwaited?(): boolean;
+}
+
 export interface EncryptedNativeStorage extends StringStorage {
   recoverAfterUserConsent(
     consent: EncryptedNativeStorageRecoveryConsent,
+    options?: EncryptedNativeStorageRecoveryOptions,
   ): Promise<{ discardedManagedKeys: number }>;
   migrateLegacyPlaintextAtStartup(): Promise<{
     status: "completed" | "already-complete";
@@ -237,6 +245,16 @@ function assertEncodedMasterKey(encodedKey: string): void {
     || !isCanonicalBase64(encodedKey)
   ) {
     throw new Error("secure_storage_key_invalid");
+  }
+}
+
+/** A wipe starts only while its caller still awaits it. A check that cannot
+ * answer counts as no: the wipe is the one step here that deletes. */
+function recoveryStillAwaited(options: EncryptedNativeStorageRecoveryOptions | undefined): boolean {
+  try {
+    return options?.stillAwaited === undefined || options.stillAwaited() === true;
+  } catch {
+    return false;
   }
 }
 
@@ -792,7 +810,7 @@ export function createEncryptedNativeStorage(
       return enqueue(key, () => removeEncryptedWithinCapacity(key));
     },
 
-    async recoverAfterUserConsent(consent) {
+    async recoverAfterUserConsent(consent, options) {
       if (
         consent?.acknowledgedDataLoss !== true
         || consent.action !== "discard-unreadable-encrypted-local-data"
@@ -801,6 +819,13 @@ export function createEncryptedNativeStorage(
       }
 
       return runMaintenance(() => runCapacityMutation(async () => {
+        // Asked here, at the front of both queues, and nowhere later: a wipe
+        // that waited behind a stalled operation past every attempt that asked
+        // for it does not start, and one that has started is never stopped
+        // halfway (gate finding IA-1838-1, 2026-09-19).
+        if (!recoveryStillAwaited(options)) {
+          throw new Error("secure_storage_recovery_expired");
+        }
         try {
           const keys = await boundedBackingKeys("secure_storage_recovery_failed");
           let discardedManagedKeys = 0;
@@ -960,8 +985,9 @@ export function migrateLegacyNativePlaintextAtStartup() {
 
 export function recoverEncryptedNativeStorageAfterUserConsent(
   consent: EncryptedNativeStorageRecoveryConsent,
+  options?: EncryptedNativeStorageRecoveryOptions,
 ) {
-  return getEncryptedNativeStorageRuntime().recoverAfterUserConsent(consent);
+  return getEncryptedNativeStorageRuntime().recoverAfterUserConsent(consent, options);
 }
 
 export function __resetEncryptedNativeStorageForTests(): void {

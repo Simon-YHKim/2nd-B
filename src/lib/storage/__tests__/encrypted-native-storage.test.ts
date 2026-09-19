@@ -796,6 +796,88 @@ describe("encrypted native storage core", () => {
     expect(h.values.has("capture.drafts.v2.owner-a")).toBe(false);
   });
 
+  /** Consented recovery with the liveness check the recovery helper passes. */
+  function recoverWithLiveness(
+    h: ReturnType<typeof createHarness>,
+    stillAwaited: () => boolean,
+  ): Promise<{ discardedManagedKeys: number }> {
+    return h.storage.recoverAfterUserConsent(
+      { acknowledgedDataLoss: true, action: "discard-unreadable-encrypted-local-data" },
+      { stillAwaited },
+    );
+  }
+
+  // Gate finding IA-1838-1 (2026-09-19). A consented wipe can wait in this
+  // queue behind a stalled operation past the point where every attempt that
+  // asked for it gave up. Whether it is still awaited is read once, when it
+  // reaches the front and before anything is removed; a wipe that has started
+  // is never stopped halfway.
+  test("does not start a consented wipe that is no longer awaited when it reaches the front", async () => {
+    const h = createHarness();
+    await h.storage.setItem("capture.drafts.v2.owner-a", "kept");
+    const scans = (h.dependencies.backing.getAllKeys as jest.Mock).mock.calls.length;
+    const normalEncrypt = h.dependencies.crypto.encrypt as jest.Mock;
+    let releaseWrite!: () => void;
+    const held = new Promise<void>((resolve) => { releaseWrite = resolve; });
+    normalEncrypt.mockImplementationOnce(async (plaintext: string, key: string, aad: string) => {
+      await held;
+      return deterministicSeal(plaintext, key, aad);
+    });
+    const write = h.storage.setItem("capture.drafts.v2.owner-b", "in flight");
+
+    let awaited = true;
+    const stillAwaited = jest.fn(() => awaited);
+    const recovery = recoverWithLiveness(h, stillAwaited);
+    await Promise.resolve();
+    expect(stillAwaited).not.toHaveBeenCalled();
+
+    awaited = false;
+    releaseWrite();
+    await write;
+    await expect(recovery).rejects.toThrow("secure_storage_recovery_expired");
+    expect(stillAwaited).toHaveBeenCalledTimes(1);
+    expect(h.dependencies.backing.getAllKeys).toHaveBeenCalledTimes(scans);
+    expect(h.dependencies.secrets.removeItem).not.toHaveBeenCalled();
+    expect(h.secrets.has(MASTER_KEY)).toBe(true);
+    expect(h.values.has(SENTINEL)).toBe(true);
+    // The queue moves on and the store still answers.
+    await expect(h.storage.getItem("capture.drafts.v2.owner-a")).resolves.toBe("kept");
+    await expect(h.storage.getItem("capture.drafts.v2.owner-b")).resolves.toBe("in flight");
+  });
+
+  test("starts a wipe that is still awaited, and treats a failing check as not awaited", async () => {
+    const awaited = createHarness();
+    await awaited.storage.setItem("capture.drafts.v2.owner-a", "discard me");
+    await expect(recoverWithLiveness(awaited, () => true)).resolves.toEqual({
+      discardedManagedKeys: 1,
+    });
+    expect(awaited.values.has("capture.drafts.v2.owner-a")).toBe(false);
+    expect(awaited.secrets.has(MASTER_KEY)).toBe(false);
+
+    const broken = createHarness();
+    await broken.storage.setItem("capture.drafts.v2.owner-a", "kept");
+    let caught: unknown;
+    try {
+      await recoverWithLiveness(broken, () => {
+        throw new Error("liveness check detail");
+      });
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toEqual(expect.objectContaining({ message: "secure_storage_recovery_expired" }));
+    expect(String(caught)).not.toContain("liveness check detail");
+    expect(broken.values.has("capture.drafts.v2.owner-a")).toBe(true);
+    expect(broken.secrets.has(MASTER_KEY)).toBe(true);
+
+    // Only an explicit true starts the wipe.
+    const vague = createHarness();
+    await vague.storage.setItem("capture.drafts.v2.owner-a", "kept");
+    await expect(
+      recoverWithLiveness(vague, () => "yes" as unknown as boolean),
+    ).rejects.toThrow("secure_storage_recovery_expired");
+    expect(vague.values.has("capture.drafts.v2.owner-a")).toBe(true);
+  });
+
   test("sanitizes dependency failures so keys, values, and adapter errors never escape", async () => {
     const h = createHarness();
     h.values.set(MIGRATION_MARKER, ENCRYPTED_STORAGE_MIGRATION_MARKER_VALUE);
