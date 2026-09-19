@@ -3,12 +3,14 @@
 **덮어쓰기 파일.** 네 절만 — 완료 / 진행중 / 다음 / 막힌 것.
 결정은 여기 쓰지 않는다. `DECISIONS.md` 가 소유한다(append-only · 09-13~09-16 은 기간 보관 파일 `DECISIONS-2026-09-*.md`). 지난 판의 경과는 git 이력과 DECISIONS 에 있다 — 이번 판은 **지금 상태만** 남겼다.
 
-최종 갱신 **2026-09-19 09:58 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/claude-disk-260913` · 브랜치 `claude/vibe-r260915a`
+최종 갱신 **2026-09-19 11:06 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/claude-disk-260913` · 브랜치 `claude/vibe-r260915a`
 소유자: 이 세션(09-13 `ttl-work-9a` 와 두 세션 합의, Simon 지명 아님). Simon 이 다르게 정하면 그게 이긴다. 다른 세션은 `DECISIONS.md` 에만 쓸 것.
 
 📊 보고서 (최신 위)
+- **Android 재실행 멈춤 보고 (09-19 11:03 · 결정 2건 응답 대기)**: <https://claude.ai/artifact/8qYXcdSTkMYNzUaN5ZXfbh>
+- **공개 QA 빌드 `qa-260919-640db5bd`(수정 포함 · 09-18 빌드 위에 덮어 설치)**: <https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-260919-640db5bd>
 - **새벽 정리 결정 시트 v3 (09-17 05:40 · 확정 8건 실행 결과 · DB 백업 카드)**: <https://claude.ai/artifact/WKmnvY5gMQ3MrxFs8uwwCw>
-- **공개 QA 빌드(사전 릴리스) `qa-260918-84d6800c`** — main + 머지 대기 PR 10개 · 테스트 키 서명: <https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-260918-84d6800c>
+- 옛 공개 QA 빌드 `qa-260918-84d6800c`(**두 번째 실행부터 멈춤** — 안내문이 새 릴리스를 가리킴): <https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-260918-84d6800c>
 - 보안 점검 D3 · D1 (v2, 09-16 01:55): <https://claude.ai/code/artifact/77fc83d3-a258-4633-8ac5-3155d54fbf70>
 - #1814 자동 저장 재설계안 (09-16): <https://claude.ai/code/artifact/b7f2af2c-bef4-4440-8bf7-95c9e7856480>
 - 워커 산출물: `E:/Coding Infra/reports/vibe-r260919/r13-boot-hang/` · `vibe-r260917/{r10-*,r11-sec-port-{a,b,c},r12-sec-n1}/` · `vibe-r260916/*` · QA 증거 `reports/qa-260919/`
@@ -27,11 +29,11 @@
 
 ## 진행중
 
-활성 워커 **1** (09:58 KST) — **r13-boot-hang** `ctx_63b463a1d113`(run `run_e3a3e38558ab` · `claude-fable-5-1` @max · 워크트리 `fix-auth-boot-hang-260919`): **기기 재부팅 뒤 앱이 Loading 에서 영구 정지**(QA 빌드 3회 재현, `[auth] … phase=bootstrap-marker-read → fail-closed-entry → fail-closed-signout`) 원인 규명 + 수정 PR. 1차 분류: main `AuthContext.tsx` 경로 + #1815 로더(PR 10개 탓일 가능성 낮음) — 워커가 반증. 수확 = G8 kill → worker-release → terminal close → 원장 → DECISIONS.
+활성 워커 **0** (11:06 KST). r13 끝 — **main 의 Android 빌드는 두 번째 실행부터 Loading 에 갇힌다**(원인: `encrypted-native-storage.ts:905` 가 expo-crypto `fromCombined` 에 base64 문자열을 넘김 · Android 는 바이트 전용 · #1807 이후 전 Android 빌드 · iOS · v0.8.0 무관) → 수정 **draft PR #1833**(`5931f140` · 2파일 · CI 초록 · 게이트 대기). draft PR 은 이제 11개. Simon 결정 대기 2건(보고서): (나) 저장소 · 로그아웃 이중 실패 때의 출구 설계 · gstack 업그레이드 시점.
 
 ## 다음 (하나만)
 
-**r13 수확 → 19:47 KST codex 리셋 뒤 게이트 라운드.** 게이트 전 `npm install -g @openai/codex@latest`(check_tooling 이 뒤처짐 경고 — G11, 도는 codex 프로세스 없는지 먼저 확인). 게이트 두 레인(daybreak 산출물 · astra 비즈로직)을 PR 10개(+r13 수정 PR)에 → 통과분 머지(쌓인 순서 #1828→#1831 · #1829→#1830, 위 PR 은 base 를 main 으로) → main push 진단 APK 확인. 게임 노트: #1814 "새 대화 뒤 저장"은 D-1 ② 의도된 동작.
+**r13 수확 → 19:47 KST codex 리셋 뒤 게이트 라운드.** 게이트 전 `npm install -g @openai/codex@latest`(check_tooling 이 뒤처짐 경고 — G11, 도는 codex 프로세스 없는지 먼저 확인). 게이트 두 레인(daybreak 산출물 · astra 비즈로직)을 PR 11개(#1833 포함 — 가장 먼저)에 → 통과분 머지(main 은 strict — BEHIND 면 `gh pr merge --auto --squash` 또는 브랜치 갱신 뒤 CI 재대기 · 머지 뒤 `state=MERGED` 확인 · 쌓인 순서 #1828→#1831 · #1829→#1830, 위 PR 은 base 를 main 으로) → main push 진단 APK 확인. 게임 노트: #1814 "새 대화 뒤 저장"은 D-1 ② 의도된 동작.
 
 ## 막힌 것
 
