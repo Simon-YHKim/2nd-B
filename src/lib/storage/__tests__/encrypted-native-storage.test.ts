@@ -868,6 +868,14 @@ describe("encrypted native storage core", () => {
     expect(String(caught)).not.toContain("liveness check detail");
     expect(broken.values.has("capture.drafts.v2.owner-a")).toBe(true);
     expect(broken.secrets.has(MASTER_KEY)).toBe(true);
+
+    // Only an explicit true starts the wipe.
+    const vague = createHarness();
+    await vague.storage.setItem("capture.drafts.v2.owner-a", "kept");
+    await expect(
+      recoverWithLiveness(vague, () => "yes" as unknown as boolean),
+    ).rejects.toThrow("secure_storage_recovery_expired");
+    expect(vague.values.has("capture.drafts.v2.owner-a")).toBe(true);
   });
 
   test("sanitizes dependency failures so keys, values, and adapter errors never escape", async () => {

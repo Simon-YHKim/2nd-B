@@ -105,77 +105,41 @@ function isExactRecoveryConsent(value: unknown): value is EncryptedNativeStorage
   }
 }
 
-/** One UI attempt, marked once its deadline passes. */
-interface RecoveryAttempt {
-  expired: boolean;
-}
-
-/** A consented wipe that is still out, kept until the adapter settles it and
- * not only until the attempt that started it gives up. */
-interface WipeInFlight {
-  wipe: Promise<unknown>;
-  /** The latest attempt waiting on the wipe. Every attempt gets the same bound
-   * from its own start, so while this one has not expired, one still waits. */
-  latest: RecoveryAttempt;
-}
-
-const wipesInFlight = new WeakMap<RecoveryDependencies, WipeInFlight>();
-
-/** The adapter runs every wipe behind the one before it, so a second wipe sent
- * while one is still out never runs first: it only waited, then ran after its
- * own attempt had already failed (gate findings IA-1838-1 / IZ-1838-1,
- * 2026-09-19). A consent that arrives while a wipe is out waits on that wipe
- * instead, under its own fresh bound. The adapter asks `stillAwaited` once,
- * when the wipe reaches the front of its queue: a wipe that every attempt has
- * given up on by then does not start, and one that has started runs to the end.
- * Once the wipe settles, the next consent starts a new one. */
-function joinOrStartWipe(
-  consent: EncryptedNativeStorageRecoveryConsent,
-  dependencies: RecoveryDependencies,
-  attempt: RecoveryAttempt,
-): Promise<unknown> {
-  const inFlight = wipesInFlight.get(dependencies);
-  if (inFlight) {
-    inFlight.latest = attempt;
-    return inFlight.wipe;
-  }
-
-  const started: WipeInFlight = { wipe: Promise.resolve(), latest: attempt };
-  started.wipe = (async () =>
-    dependencies.recover(consent, { stillAwaited: () => !started.latest.expired }))();
-  wipesInFlight.set(dependencies, started);
-  const release = () => {
-    if (wipesInFlight.get(dependencies) === started) wipesInFlight.delete(dependencies);
-  };
-  void started.wipe.then(release, release);
-  return started.wipe;
-}
-
 /** The wipe, the old client's retirement and replacement, and the fresh
  * runtime's readiness, answered within ENCRYPTED_STORAGE_RECOVERY_TIMEOUT_MS.
  * At the deadline the attempt has failed and no later step starts: a wipe that
  * finishes afterwards cannot retire or replace the client behind a gate that
  * already said the reset did not finish, and the persistence streak is kept.
- * Only an attempt still inside its own bound acts on the client. */
+ *
+ * The adapter runs each wipe after everything already queued, including an
+ * earlier attempt's wipe that stalled. A failed attempt must not leave that
+ * wipe to run later for nobody (gate findings IA-1838-1 / IZ-1838-1,
+ * 2026-09-19), so the adapter asks `stillAwaited` when the wipe reaches the
+ * front of its queue and does not start one whose attempt has already failed.
+ * A retry still asks for a wipe of its own rather than waiting on the stalled
+ * one: its wipe is queued after what was written since the first consent (a
+ * save by the retiring client, for one), so it removes that too. Joining the
+ * stalled wipe would keep that wipe's earlier place and leave such a write for
+ * the fresh client to read. */
 async function resetWithinDeadline(
   consent: EncryptedNativeStorageRecoveryConsent,
   dependencies: RecoveryDependencies,
 ): Promise<boolean> {
-  const attempt: RecoveryAttempt = { expired: false };
+  let expired = false;
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   const deadline = new Promise<boolean>((resolve) => {
     timeoutId = setTimeout(() => {
-      attempt.expired = true;
+      expired = true;
       resolve(false);
     }, ENCRYPTED_STORAGE_RECOVERY_TIMEOUT_MS);
   });
   const step = async (run: () => unknown): Promise<void> => {
-    if (attempt.expired) throw new Error("storage_recovery_timeout");
+    if (expired) throw new Error("storage_recovery_timeout");
     await run();
   };
   const reset = (async (): Promise<boolean> => {
     try {
-      await step(() => joinOrStartWipe(consent, dependencies, attempt));
+      await step(() => dependencies.recover(consent, { stillAwaited: () => !expired }));
       await step(() => dependencies.resetClient());
       await step(() => dependencies.recreateClient());
       await step(() => dependencies.readyStorage());

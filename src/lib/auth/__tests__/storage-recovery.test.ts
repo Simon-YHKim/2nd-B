@@ -19,17 +19,13 @@ const resetClient = jest.fn<Promise<void>, []>();
 const recreateClient = jest.fn<unknown, []>();
 const readyStorage = jest.fn<Promise<void>, []>();
 const clearPersistence = jest.fn<Promise<void>, []>();
-// A fresh object per test: the helper keeps a wipe that is still out with the
-// dependencies it was started on, so one test's stalled wipe must not become
-// the next test's in-flight wipe.
-const makeDependencies = () => ({
+const dependencies = {
   recover: recoverStorage,
   resetClient,
   recreateClient,
   readyStorage,
   clearPersistence,
-});
-let dependencies = makeDependencies();
+};
 
 const ROOT = resolve(__dirname, "../../../..");
 const read = (path: string): string =>
@@ -79,7 +75,6 @@ describe("encrypted auth-storage recovery classification", () => {
 describe("explicit recovery consent", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    dependencies = makeDependencies();
     recoverStorage.mockResolvedValue({ discardedManagedKeys: 2 });
     resetClient.mockResolvedValue(undefined);
     recreateClient.mockReturnValue({});
@@ -206,7 +201,6 @@ describe("a consented reset that stops answering", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    dependencies = makeDependencies();
     recoverStorage.mockResolvedValue({ discardedManagedKeys: 2 });
     resetClient.mockResolvedValue(undefined);
     recreateClient.mockReturnValue({});
@@ -266,50 +260,31 @@ describe("a consented reset that stops answering", () => {
     expect(clearPersistence).not.toHaveBeenCalled();
   });
 
-  test("a retry while the first wipe is still out waits on that wipe instead of starting another", async () => {
-    // Gate findings IA-1838-1 / IZ-1838-1 (2026-09-19). The failure copy says
-    // to try again, and the first wipe may still be out when the user does.
-    // The adapter serializes every wipe behind the one before it, so a second
-    // wipe could never run first: it only queued a duplicate that ran later,
-    // after its own attempt had already failed. The retry now waits, under a
-    // fresh bound, on the wipe that is still out, and only the attempt still
-    // waiting acts on the client once it lands.
-    let finishFirst: () => void = () => undefined;
-    recoverStorage.mockImplementationOnce(
-      () =>
-        new Promise<unknown>((resolve) => {
-          finishFirst = () => resolve({ discardedManagedKeys: 2 });
-        }),
-    );
+  /** The liveness check the helper handed the adapter with the n-th wipe. */
+  const stillAwaitedOf = (call: number): (() => boolean) =>
+    (recoverStorage.mock.calls[call]?.[1] as { stillAwaited: () => boolean }).stillAwaited;
+
+  test("each attempt asks for its own wipe and stops awaiting it at its own bound", async () => {
+    // Gate findings IA-1838-1 / IZ-1838-1 (2026-09-19). This mock answers the
+    // retry's wipe at once, which the adapter never does while an earlier wipe
+    // is stalled: the tests against the real queue below cover that order.
+    // What this pins is the helper's side: a wipe it asked for is awaited only
+    // until the attempt's own bound, and a retry asks for a wipe of its own.
+    recoverStorage.mockImplementationOnce(never);
     const first = watch(attemptEncryptedNativeStorageRecovery(CONSENT, dependencies));
-    await jest.advanceTimersByTimeAsync(DEADLINE);
+    await jest.advanceTimersByTimeAsync(DEADLINE - 1);
+    expect(stillAwaitedOf(0)()).toBe(true);
+    await jest.advanceTimersByTimeAsync(1);
     expect(first).toEqual({ settled: true, value: "failed" });
+    expect(stillAwaitedOf(0)()).toBe(false);
 
     const retry = watch(attemptEncryptedNativeStorageRecovery(CONSENT, dependencies));
     await jest.advanceTimersByTimeAsync(0);
-    expect(retry.settled).toBe(false);
-    expect(recoverStorage).toHaveBeenCalledTimes(1);
-
-    finishFirst();
-    await jest.advanceTimersByTimeAsync(0);
-    expect(retry).toEqual({ settled: true, value: "recovered" });
-    expect(recoverStorage).toHaveBeenCalledTimes(1);
-    expect(resetClient).toHaveBeenCalledTimes(1);
-    expect(recreateClient).toHaveBeenCalledTimes(1);
-    expect(readyStorage).toHaveBeenCalledTimes(1);
-    expect(clearPersistence).toHaveBeenCalledTimes(1);
-  });
-
-  test("a consent after the wipe has settled starts a new wipe", async () => {
-    // Joining lasts only while the wipe is out. Data written after it landed
-    // belongs to no earlier consent, so the next consent wipes again.
-    await expect(
-      attemptEncryptedNativeStorageRecovery(CONSENT, dependencies),
-    ).resolves.toBe("recovered");
-    await expect(
-      attemptEncryptedNativeStorageRecovery(CONSENT, dependencies),
-    ).resolves.toBe("recovered");
     expect(recoverStorage).toHaveBeenCalledTimes(2);
+    expect(stillAwaitedOf(1)()).toBe(true);
+    expect(retry).toEqual({ settled: true, value: "recovered" });
+    expect(resetClient).toHaveBeenCalledTimes(1);
+    expect(clearPersistence).toHaveBeenCalledTimes(1);
   });
 
   test("a slow reset that answers inside the deadline still recovers", async () => {
@@ -335,9 +310,11 @@ describe("a consented reset that stops answering", () => {
     const MASTER_KEY = "secondB.secureStorage.master.v1";
     const SENTINEL = "secondB.secureStorage.keySentinel.v1";
     const DRAFT = "capture.drafts.v2.owner-a";
+    const SESSION = "sb-probe-auth-token-v2";
     const UNMANAGED = "unrelated.preference";
 
-    /** The production adapter over an in-memory store and keystore. */
+    /** The production adapter over an in-memory store and keystore. A wipe
+     * never encrypts, but a write that lands after one mints a fresh key. */
     function realStore() {
       const values = new Map<string, string>([
         [DRAFT, "SBENC1:AAAA"],
@@ -365,13 +342,17 @@ describe("a consented reset that stops answering", () => {
           secrets.delete(key);
         }),
       };
-      const unused = async (): Promise<string> => {
-        throw new Error("a wipe never encrypts");
-      };
       const adapter: EncryptedNativeStorageDependencies = {
         backing,
         secrets: keystore,
-        crypto: { generateKey: unused, fingerprintKey: unused, encrypt: unused, decrypt: unused },
+        crypto: {
+          generateKey: async () => Buffer.alloc(32, 2).toString("base64"),
+          fingerprintKey: async () => "0".repeat(64),
+          encrypt: async (plaintext) => Buffer.from(plaintext).toString("base64"),
+          decrypt: async () => {
+            throw new Error("nothing here reads ciphertext back");
+          },
+        },
       };
       const storage = createEncryptedNativeStorage(adapter);
       return {
@@ -379,10 +360,12 @@ describe("a consented reset that stops answering", () => {
         secrets,
         storage,
         values,
-        dependencies: { ...makeDependencies(), recover: storage.recoverAfterUserConsent },
+        dependencies: { ...dependencies, recover: storage.recoverAfterUserConsent },
         /** Every remove the wipe issues, in the store and in the keystore. */
         removals: () =>
           backing.removeItem.mock.calls.length + keystore.removeItem.mock.calls.length,
+        /** Wipes that ran: only a wipe removes the master key. */
+        wipes: () => keystore.removeItem.mock.calls.length,
       };
     }
 
@@ -416,7 +399,12 @@ describe("a consented reset that stops answering", () => {
       return read.open;
     }
 
-    test("a retry rejoins the stalled wipe: one scan, one wipe, one fresh client", async () => {
+    test("a retry's own wipe also removes what was saved after the first consent", async () => {
+      // Why a retry does not join the stalled wipe. The retiring client can
+      // start a save before the first consent and finish it after (a token
+      // refresh, for one); the adapter runs that save after the first wipe.
+      // A joined retry would keep the first wipe's place and leave the save
+      // for the fresh client to read. Its own wipe is queued after the save.
       const store = realStore();
       const openScan = stallFirstScan(store);
 
@@ -424,26 +412,28 @@ describe("a consented reset that stops answering", () => {
       await jest.advanceTimersByTimeAsync(DEADLINE);
       expect(first).toEqual({ settled: true, value: "failed" });
 
+      const lateSave = store.storage.setItem(SESSION, "saved after the first consent");
       const retry = watch(attemptEncryptedNativeStorageRecovery(CONSENT, store.dependencies));
       await jest.advanceTimersByTimeAsync(DEADLINE / 2);
       expect(retry.settled).toBe(false);
 
       openScan();
       await jest.advanceTimersByTimeAsync(0);
+      await expect(lateSave).resolves.toBeUndefined();
       expect(retry).toEqual({ settled: true, value: "recovered" });
-      expect(store.backing.getAllKeys).toHaveBeenCalledTimes(1);
-      // The draft, the migration marker, the master key, and the sentinel.
-      expect(store.removals()).toBe(4);
+      expect(store.values.has(SESSION)).toBe(false);
       expect(store.values.has(DRAFT)).toBe(false);
       expect(store.secrets.has(MASTER_KEY)).toBe(false);
       expect(store.values.get(UNMANAGED)).toBe("keep");
+      // The stalled wipe, then the retry's: each removed the master key it found.
+      expect(store.wipes()).toBe(2);
       expect(resetClient).toHaveBeenCalledTimes(1);
       expect(recreateClient).toHaveBeenCalledTimes(1);
       expect(readyStorage).toHaveBeenCalledTimes(1);
       expect(clearPersistence).toHaveBeenCalledTimes(1);
     });
 
-    test("a wipe that outlives every attempt runs once and acts on nothing behind the failures", async () => {
+    test("after every attempt has failed, only the wipe that had started runs, and nothing acts on the client", async () => {
       const store = realStore();
       const openScan = stallFirstScan(store);
 
@@ -456,7 +446,8 @@ describe("a consented reset that stops answering", () => {
 
       openScan();
       await jest.advanceTimersByTimeAsync(0);
-      // The wipe that had started finishes once; the retry queued no second one.
+      // The wipe that had started runs to its end. The retry's wipe waited
+      // behind it past the retry's own bound, so it does not start.
       expect(store.backing.getAllKeys).toHaveBeenCalledTimes(1);
       expect(store.removals()).toBe(4);
       expect(store.values.has(DRAFT)).toBe(false);
@@ -495,7 +486,7 @@ describe("a consented reset that stops answering", () => {
       expect(resetClient).not.toHaveBeenCalled();
     });
 
-    test("a retry keeps a queued wipe wanted, so it starts once the queue frees", async () => {
+    test("once the queue frees, the failed attempt's wipe is skipped and the retry's runs", async () => {
       const store = realStore();
       const openRead = stallReadAhead(store);
 
@@ -508,13 +499,15 @@ describe("a consented reset that stops answering", () => {
       openRead();
       await jest.advanceTimersByTimeAsync(0);
       expect(retry).toEqual({ settled: true, value: "recovered" });
+      // One scan and one set of removals: the retry's wipe alone.
       expect(store.backing.getAllKeys).toHaveBeenCalledTimes(1);
       expect(store.removals()).toBe(4);
+      expect(store.wipes()).toBe(1);
       expect(resetClient).toHaveBeenCalledTimes(1);
       expect(clearPersistence).toHaveBeenCalledTimes(1);
     });
 
-    test("a malformed consent does not keep a queued wipe wanted", async () => {
+    test("a malformed consent asks for no wipe and revives none", async () => {
       const store = realStore();
       const openRead = stallReadAhead(store);
 
