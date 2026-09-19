@@ -581,7 +581,9 @@ async function undo(job: Job, plan: Exclude<UndoPlan, "none">): Promise<Autosave
     return await inOwnerLane(job.ownerId, (signal) => undoInLane(job, record, plan, recorded, signal));
   } catch {
     // 줄에서 시간 상한을 넘겼다(재게이트 GA-1814-3). 늦게 끝날 수 있는 지우기는 기다리지 않는다 - 적어 두었으면 다음 비우기가
-    // 확인하고, 못 적었으면 이 런타임이 쥔다.
+    // 확인하고, 못 적었으면 이 런타임이 쥔다. 그 사이 사용자가 이 행을 손으로 남겼으면(표식) 지우지 않는 행이다 - "아직 삭제하지
+    // 못했다" 로 끝내지 않는다(5차 조합 조사 M14). 남은 기록은 다음 비우기가 표식을 보고 뺀다.
+    if (keptRows.has(key)) return "cancelled";
     return recorded ? "undo_pending" : holdUnrecorded(job, record);
   } finally {
     undoInFlight.delete(key);
@@ -820,11 +822,15 @@ export function runManualKeep(
     if (deletingNow.has(key) || capturedSourceRemoved(ownerId, record.sourceId)) throw new Error("autosave-deletion-in-flight");
     // 자동 저장이 쓴 행이 아니면 되돌리기 대기에 오를 수 없다 - 조정할 것이 없다.
     if (!isAutosaveRow(record, kept)) return kept;
-    if (!keptRows.has(key) && (await deletionPending(record)) !== false) {
-      // 지울 차례였던 행이다(기기 기록을 못 읽어 모를 때도 같다). 원문을 되살린 뒤에만 남긴다.
+    if (!keptRows.has(key)) {
+      const pending = await deletionPending(record);
+      // 기록을 읽는 사이 상한이 지났으면 화면은 이미 실패 안내다 - 늦게 표식을 세우거나 기록을 빼지 않는다(5차 조합 조사).
       throwIfAborted(signal);
-      if (!owner.isCurrent() || !(await restoreRawCopy(record, kept, signal))) throw new Error("autosave-body-not-restored");
-      throwIfAborted(signal);
+      if (pending !== false) {
+        // 지울 차례였던 행이다(기기 기록을 못 읽어 모를 때도 같다). 원문을 되살린 뒤에만 남긴다.
+        if (!owner.isCurrent() || !(await restoreRawCopy(record, kept, signal))) throw new Error("autosave-body-not-restored");
+        throwIfAborted(signal);
+      }
     }
     keptRows.add(key);
     const unfinished = unfinishedUndos.get(key);
@@ -895,10 +901,19 @@ async function restoreRawCopy(record: AutosaveUndoRecord, kept: CaptureResult, l
  * 줄을 넘긴 원문 되살리기가 돌아온 뒤 그 행을 줄에서 다시 본다 (3차 재게이트 G2Z-1814-1). 비우기 한 건과 같은 판정이다: 그 사이 손으로
  * 남겼으면(표식) 두고 기록에서만 빼며, 아직 지울 차례면(기기 기록 · 이 런타임이 쥔 미완) 철회를 마저 지운다. 쓰기가 나가 있는
  * 동안 건너뛴 비우기를 기다리지 않고 여기서 잇는다.
+ *
+ * 지울 차례라고 알 때만 잇는다 (5차 조합 조사 M5). 손 담기는 기기 기록을 못 읽어 모를 때도 원문을 되살린다 - 그 되살리기가 줄을
+ * 넘기면 여기로 온다. 비우기 한 건은 목록에 오른 기록을 다루므로 모름을 지울 차례로 읽는데, 이 행은 목록에서 온 것이 아니다. 모름을
+ * 지울 차례로 읽으면 철회한 적 없는 행을 지운다. 이 런타임이 쥔 미완이거나 기기 기록이 있다고 읽혀야 잇고, 모르면 둔다(정말 지울
+ * 차례였다면 기기를 읽을 수 있을 때 비우기가 지운다).
  */
 function settleAfterLateRestore(record: AutosaveUndoRecord): Promise<void> {
   if (!captureAccountOwnerLease(record.ownerId)) return Promise.resolve();
-  return inOwnerLane(record.ownerId, (signal) => drainOne(record.ownerId, record, signal)).catch(() => undefined);
+  return inOwnerLane(record.ownerId, async (signal) => {
+    if (!unfinishedUndos.has(undoKey(record)) && (await isAutosaveUndoRecorded(record)) !== true) return;
+    throwIfAborted(signal);
+    await drainOne(record.ownerId, record, signal);
+  }).catch(() => undefined);
 }
 
 /**
@@ -1006,8 +1021,11 @@ async function drainOne(ownerId: string, record: AutosaveUndoRecord, signal: Abo
   if (undoInFlight.has(key) || deletingNow.has(key) || restoringNow.has(key)) return;
   const unfinished = unfinishedUndos.get(key);
   if (keptRows.has(key)) {
-    // 사용자가 남긴 행이다. 지우지 않고 기록에서만 뺀다.
-    if ((await forgetAutosaveUndo(record)) && unfinished) unfinishedUndos.delete(key);
+    // 사용자가 남긴 행이다. 지우지 않고 기록에서만 뺀다. 아직 삭제하지 못했다고 알린 답변이 있으면 거둔다(5차 조합 조사 M14).
+    if ((await forgetAutosaveUndo(record)) && unfinished) {
+      unfinishedUndos.delete(key);
+      if (unfinished.reply) notify({ ownerId: record.ownerId, reply: unfinished.reply, sourceId: record.sourceId, phase: "cancelled" });
+    }
     return;
   }
   // 목록은 줄 밖에서 읽었다. 그 사이 다른 일(자동 저장의 정확 중복 조정 · 앞선 비우기)이 이미 지우고 기록에서 뺐으면 할 일이 없다.

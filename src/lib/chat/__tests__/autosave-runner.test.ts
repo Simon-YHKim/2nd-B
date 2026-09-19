@@ -325,6 +325,7 @@ import {
 } from "../autosave-runner";
 import * as runnerModule from "../autosave-runner";
 import { __resetAutosaveUndoQueueForTests, autosaveUndoStorageKey, rememberAutosaveUndo } from "../autosave-undo-queue";
+import * as undoQueueModule from "../autosave-undo-queue";
 import { CHAT_KEEP_TAG, composeExchangeBody, exchangeMarkdown, type KeepableTurn } from "../keep-exchange";
 
 /** 계정 줄의 일 하나가 줄을 쥘 수 있는 시간(실행기의 이름 있는 상수). 없으면 undefined - 그 경우 상한 테스트가 먼저 빨갛다. */
@@ -2317,6 +2318,147 @@ describe("재게이트 잔여 (게이트 r260919 재게이트 GA-1814-1~3 · GZ-
         row: false,
         raw: false,
         queue: [],
+      });
+    });
+
+    test("조합 조사 M5: 기기 기록을 못 읽어 지울 차례인지 모른 채 되살린 업로드가 상한을 넘겨 돌아와도, 철회하지 않은 자동 저장 행을 지우지 않는다", async () => {
+      expect(typeof LANE_TIMEOUT_MS).toBe("number");
+      const saved = start(1, await consentOn());
+      expect(await saved.handle.settled).toBe("kept"); // 동의된 채 담긴 대화 - 철회한 적 없다
+      const id = saved.handle.sourceId;
+      const descriptor = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+      Object.defineProperty(globalThis, "localStorage", {
+        configurable: true,
+        get() {
+          throw new Error("SecurityError"); // 저장소가 막힌 웹 런타임 - 기기 기록을 읽으면 모름(null)
+        },
+      });
+      const warn = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+      let kept: string;
+      try {
+        fakeTimers();
+        const upload = hold("upload"); // 같은 대화를 손으로 담는다 - 모름이라 원문을 되살리는 업로드를 보낸다
+        const keeping = late(handKeep(1));
+        await upload.reached;
+        jest.advanceTimersByTime(LANE_TIMEOUT_MS ?? 0);
+        kept = await keeping;
+        upload.release(); // 늦게 돌아온 업로드 - 줄에서 그 행을 다시 본다
+        await spin();
+      } finally {
+        if (descriptor) Object.defineProperty(globalThis, "localStorage", descriptor);
+        warn.mockRestore();
+        jest.useRealTimers();
+      }
+      expect({ kept, row: hasRow(id), raw: hasRaw(id) }).toEqual({ kept: "autosave-lane-timeout", row: true, raw: true });
+    });
+
+    /** 대기 기록 모듈의 호출 하나를 붙잡는다(실행기는 모듈의 export 를 부를 때마다 읽는다). 풀면 진짜 함수로 넘긴다. */
+    function holdQueueCall<K extends "forgetAutosaveUndo" | "isAutosaveUndoRecorded">(
+      name: K,
+      pick: (record: { sourceId: string }) => boolean,
+    ): { reached: Promise<void>; release: () => void; restore: () => void } {
+      const real = undoQueueModule[name] as (record: { ownerId: string; sourceId: string }) => Promise<unknown>;
+      let reached = (): void => undefined;
+      let open = (): void => undefined;
+      const reachedPromise = new Promise<void>((done) => {
+        reached = () => done();
+      });
+      const released = new Promise<void>((done) => {
+        open = () => done();
+      });
+      let armed = true;
+      const spy = jest.spyOn(undoQueueModule, name).mockImplementation((async (record: { ownerId: string; sourceId: string }) => {
+        if (armed && pick(record)) {
+          armed = false;
+          reached();
+          await released;
+        }
+        return real(record);
+      }) as never);
+      return { reached: reachedPromise, release: () => open(), restore: () => spy.mockRestore() };
+    }
+
+    test("조합 조사 M14: 되돌리기가 손으로 남긴 행의 기록을 빼는 사이 상한이 지나도 '아직 삭제하지 못했어요' 로 끝나지 않는다", async () => {
+      expect(typeof LANE_TIMEOUT_MS).toBe("number");
+      const { job, release } = await atWait("J4");
+      await savePrivacyPref(OWNER, "chat_autosave", false); // 철회 - INSERT 가 커밋되면 되돌린다
+      const id = job.handle.sourceId;
+      fakeTimers();
+      const lookup = hold("candidates"); // 다른 대화의 손 담기가 줄을 쥐고 있다
+      const blocker = late(handKeep(2));
+      await lookup.reached;
+      const keeping = late(handKeep(1)); // 같은 대화를 손으로 담는다 - 되돌리기보다 먼저 줄에 선다
+      const store = globalThis.localStorage as unknown as { setItem: (key: string, value: string) => void };
+      const setItem = store.setItem;
+      store.setItem = (key, value) => {
+        if (key === autosaveUndoStorageKey(OWNER)) throw new Error("QuotaExceededError"); // 기기에 적지 못한다
+        setItem(key, value);
+      };
+      let forgets = 0;
+      const forget = holdQueueCall("forgetAutosaveUndo", (record) => record.sourceId === id && ++forgets === 2);
+      let phase: AutosaveTerminalPhase;
+      try {
+        release(); // INSERT 가 커밋된다 - 되돌리기는 기록을 적지 못한 채 줄에 선다
+        await spin();
+        lookup.release(); // 줄이 흐른다: 다른 손 담기 -> 같은 대화의 손 담기(표식을 세운다) -> 되돌리기
+        expect(await blocker).toBe("kept");
+        await keeping;
+        await forget.reached; // 되돌리기가 표식을 보고 기록을 빼는 중이다
+        jest.advanceTimersByTime(LANE_TIMEOUT_MS ?? 0);
+        phase = await job.handle.settled;
+        forget.release();
+        await spin();
+      } finally {
+        store.setItem = setItem;
+        forget.restore();
+        jest.useRealTimers();
+      }
+      await drainAutosaveUndoQueue(OWNER);
+      expect({ phase, last: job.phases[job.phases.length - 1], row: hasRow(id), raw: hasRaw(id), queue: queued() }).toEqual({
+        phase: "cancelled",
+        last: "cancelled",
+        row: true,
+        raw: true,
+        queue: [],
+      });
+    });
+
+    test("조합 조사: 손 담기가 대기 기록을 읽는 사이 상한이 지나면, 늦게 돌아와 표식을 세우거나 기록을 빼지 않는다", async () => {
+      expect(typeof LANE_TIMEOUT_MS).toBe("number");
+      const saved = start(1, await consentOn());
+      expect(await saved.handle.settled).toBe("kept"); // 자동으로 담긴 대화 - 지울 차례가 아니다
+      const id = saved.handle.sourceId;
+      const read = holdQueueCall("isAutosaveUndoRecorded", (record) => record.sourceId === id);
+      let timedOut = false;
+      let lateForgets = 0;
+      const realForget = undoQueueModule.forgetAutosaveUndo;
+      const forgetSpy = jest.spyOn(undoQueueModule, "forgetAutosaveUndo").mockImplementation(async (record) => {
+        if (timedOut && record.sourceId === id) lateForgets += 1;
+        return realForget(record);
+      });
+      let kept: string;
+      try {
+        fakeTimers();
+        const keeping = late(handKeep(1)); // 같은 대화를 손으로 담는다 - 정확 중복이라 대기 기록을 읽는다
+        await read.reached;
+        jest.advanceTimersByTime(LANE_TIMEOUT_MS ?? 0);
+        timedOut = true;
+        kept = await keeping; // 화면은 담기 실패 안내다
+        read.release(); // 늦게 돌아온 읽기: 지울 차례가 아니다
+        await spin();
+      } finally {
+        read.restore();
+        forgetSpy.mockRestore();
+        jest.useRealTimers();
+      }
+      // 표식이 서지 않았으면 같은 대화의 다음 자동 저장은 그 행이 아직 있는지 확인한 뒤에 담김이다.
+      const checks = count("rowCheck");
+      const again = start(1, autosaveConsentFor(OWNER).generation);
+      expect(await again.handle.settled).toBe("kept");
+      expect({ kept, lateForgets, rowChecks: count("rowCheck") - checks }).toEqual({
+        kept: "autosave-lane-timeout",
+        lateForgets: 0,
+        rowChecks: 1,
       });
     });
   });
