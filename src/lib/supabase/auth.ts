@@ -49,6 +49,7 @@ export { AuthSessionOwnerChangedError } from "../auth/session-mutation";
 // #1587 은 allRequiredAcksChecked 를 더 들여온다 — 가입 동의를 화면만이 아니라
 // 서버도 확인하기 위해서고, 아래 함수가 실제로 호출한다.
 import { getEnv } from "../env";
+import { withTimeout } from "../async/with-timeout";
 import {
   clearAccountScopedLocalNotifications,
   migrateLegacyRoutineNotifications,
@@ -134,21 +135,98 @@ export class ExistingAccountLikelyError extends Error {
 // real result-count from the network.
 // Native devices use expo-crypto to offload the SHA-1 hash to a native module,
 // avoiding JS-thread blocking which can cause frame drops or ANRs during sign-up.
+// The call is bounded: it is aborted after HIBP_TIMEOUT_MS and a body over
+// HIBP_MAX_RESPONSE_BYTES is discarded, so a stalled or oversized answer cannot
+// hold sign-up or a password change open. A tripped bound is an HIBP failure
+// like any other, so the best-effort policy above still applies.
+// The body is only ever read as a stream, so the read can stop at the cap. On
+// native that stream comes from expo/fetch, named here because it is the
+// global fetch only until EXPO_PUBLIC_USE_RN_FETCH opts out, and React
+// Native's own fetch has no body stream. Stopping the read does not stop a
+// native transfer (a body cancelled before its first read, and iOS even after
+// one, keep downloading), so every early exit also aborts the request. What
+// arrives between the response headers and the first read is still buffered
+// natively before JS sees it; only the timeout bounds that window (AA-1826-1).
+// The timeout settles the check itself, not only the transfer. Aborting does
+// not promise that a waiting read settles: on iOS a first read whose
+// startStreaming reaches native after the abort never does (HZ-1837-1). So at
+// the deadline the check stops waiting, aborts and fails open, and once the
+// request is aborted no new read starts.
+const HIBP_TIMEOUT_MS = 5_000;
+const HIBP_MAX_RESPONSE_BYTES = 256 * 1024;
+
+type ExpoFetchModule = typeof import("expo/fetch");
+type HibpFetch = (
+  url: string,
+  init: { headers: Record<string, string>; signal: AbortSignal },
+) => Promise<Response>;
+
+function hibpFetch(): HibpFetch {
+  if (isWebRuntime()) return fetch;
+  return (require("expo/fetch") as ExpoFetchModule).fetch;
+}
+
+async function readBoundedHibpResponse(res: Response, signal: AbortSignal): Promise<string | null> {
+  const declared = res.headers?.get?.("content-length");
+  if (declared && /^\d+$/.test(declared) && Number(declared) > HIBP_MAX_RESPONSE_BYTES) {
+    await res.body?.cancel().catch(() => undefined);
+    return null;
+  }
+  const reader = typeof res.body?.getReader === "function" ? res.body.getReader() : null;
+  // Without a stream nothing could stop the download partway, so the body is
+  // not read at all. That is a tripped bound, and fails open like one.
+  if (!reader) return null;
+  const decoder = new TextDecoder("utf-8", { fatal: true });
+  let size = 0;
+  let text = "";
+  while (true) {
+    // A read started after the abort could wait for good (HZ-1837-1).
+    if (signal.aborted) return null;
+    const { done, value } = await reader.read();
+    if (done) return text + decoder.decode();
+    size += value.byteLength;
+    if (size > HIBP_MAX_RESPONSE_BYTES) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+}
+
 export async function isPasswordBreached(password: string): Promise<boolean> {
+  const controller = new AbortController();
+  try {
+    return await withTimeout(checkPasswordRange(password, controller), HIBP_TIMEOUT_MS);
+  } catch {
+    // Only the deadline lands here: checkPasswordRange answers every other
+    // failure itself. Tear the request down and fail open.
+    controller.abort();
+    return false;
+  }
+}
+
+async function checkPasswordRange(password: string, controller: AbortController): Promise<boolean> {
+  let bodyRead = false;
   try {
     const hex = (await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA1, password)).toUpperCase();
     const prefix = hex.slice(0, 5);
     const suffix = hex.slice(5);
-    const res = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
+    const res = await hibpFetch()(`https://api.pwnedpasswords.com/range/${prefix}`, {
       headers: { "Add-Padding": "true" },
+      signal: controller.signal,
     });
     if (!res.ok) return false;
-    const body = await res.text();
+    const body = await readBoundedHibpResponse(res, controller.signal);
+    if (body === null) return false;
+    bodyRead = true;
     return body
       .split("\n")
       .some((line) => line.split(":")[0]?.trim().toUpperCase() === suffix && !line.trim().endsWith(":0"));
   } catch {
     return false;
+  } finally {
+    // Any exit before the whole body was read tears the request down.
+    if (!bodyRead) controller.abort();
   }
 }
 
@@ -440,7 +518,19 @@ function authCallbackSession(
   return callback;
 }
 
+// The longest native callback public/auth-bridge.html forwards: the reset
+// destination with a 2048-character code (NATIVE_AUTH_CALLBACK_URL below). No
+// longer URL can pass that shape check, so on native a longer one is refused on
+// its length alone, before split, URLSearchParams, new URL or the shape regex
+// copy or scan it. The browser bounds its own address, so web is unchanged.
+const NATIVE_AUTH_CALLBACK_MAX_LENGTH = "secondbrain:///reset-password?code=".length + 2048;
+
+function isOverlongNativeAuthCallbackUrl(url: string): boolean {
+  return !isWebRuntime() && url.length > NATIVE_AUTH_CALLBACK_MAX_LENGTH;
+}
+
 export function authCallbackType(url: string): string | null {
+  if (isOverlongNativeAuthCallbackUrl(url)) return null;
   return authParamsFromUrl(url).type ?? null;
 }
 
@@ -452,6 +542,7 @@ export function authCallbackType(url: string): string | null {
  * after exchange, so a caller-controlled type is never authoritative.
  */
 export function isPasswordRecoveryCallbackUrl(url: string): boolean {
+  if (isOverlongNativeAuthCallbackUrl(url)) return false;
   const params = authParamsFromUrl(url);
   try {
     const parsed = new URL(url);
@@ -479,6 +570,27 @@ class AuthCallbackSessionNotEstablishedError extends Error {
   }
 }
 
+// Whoever opens a callback URL chooses its error text, and callers log this
+// message and match it against "not enabled". Never carry it through.
+const AUTH_CALLBACK_FAILED_MESSAGE = "Authentication callback could not be completed.";
+
+// The exact URLs public/auth-bridge.html forwards to the app: the fixed scheme
+// with an empty host, one of its two destinations, and a single bounded `code`
+// or `error_code` in the bridge's own alphabet. Custom schemes are not exclusive
+// on mobile, so a native callback in any other shape did not come from the
+// bridge and is refused before the quarantine write or the code exchange.
+const NATIVE_AUTH_CALLBACK_URL =
+  /^secondbrain:\/\/\/(reset-password)?\?(?:code=[A-Za-z0-9._~-]{1,2048}|error_code=[A-Za-z0-9._-]{1,128})$/;
+
+function assertBridgeNativeCallbackUrl(url: string, pending: RecoveryPending | null): void {
+  const match = NATIVE_AUTH_CALLBACK_URL.exec(url);
+  // A device-owned recovery accepts only the reset destination, and an
+  // ordinary callback only the root one.
+  if (!match || Boolean(match[1]) !== Boolean(pending)) {
+    throw new AuthCallbackSessionNotEstablishedError(AUTH_CALLBACK_FAILED_MESSAGE);
+  }
+}
+
 async function createSessionFromUrlInsideMutation(
   supabase: SupabaseClient,
   url: string,
@@ -491,9 +603,7 @@ async function createSessionFromUrlInsideMutation(
   const type = params.type ?? null;
   const errorCode = params.error_code ?? params.errorCode;
   if (errorCode) {
-    throw new AuthCallbackSessionNotEstablishedError(
-      params.error_description ?? errorCode,
-    );
+    throw new AuthCallbackSessionNotEstablishedError(AUTH_CALLBACK_FAILED_MESSAGE);
   }
 
   if (params.access_token || params.refresh_token) {
@@ -505,6 +615,8 @@ async function createSessionFromUrlInsideMutation(
       "Bearer-token auth callbacks are disabled; use a PKCE code or explicit OTP verification.",
     );
   }
+
+  if (!isWebRuntime()) assertBridgeNativeCallbackUrl(url, pending);
 
   if (params.code) {
     const quarantine = createAuthCallbackQuarantine(
@@ -647,11 +759,20 @@ export async function signInWithEmail(
 // Native recovery deep links are consumed explicitly because detectSessionInUrl
 // is disabled. Only PKCE codes can establish a link session; legacy URL bearer
 // tokens fail closed before any auth mutation. The reset screen supplies its
-// owned pending marker so exchanged recovery sessions can be proof-bound.
+// owned pending marker so exchanged recovery sessions can be proof-bound. On
+// native the URL must also be exactly what the HTTPS bridge forwards, and one
+// longer than any such URL is refused before anything parses it.
 export async function consumeAuthCallbackUrl(
   url: string,
   pending?: RecoveryPending,
 ): Promise<AuthCallbackSession> {
+  if (isOverlongNativeAuthCallbackUrl(url)) {
+    // No parser, auth transaction or exchange runs. An owned recovery marker is
+    // still released, as for every refused callback, or it would lock the next
+    // boot into recovery.
+    if (pending) await clearRecoveryPendingExpected(pending);
+    throw new AuthCallbackSessionNotEstablishedError(AUTH_CALLBACK_FAILED_MESSAGE);
+  }
   const explicitRecoveryIntent =
     isPasswordRecoveryCallbackUrl(url) || authCallbackType(url) === "recovery";
   if (explicitRecoveryIntent && !pending) {

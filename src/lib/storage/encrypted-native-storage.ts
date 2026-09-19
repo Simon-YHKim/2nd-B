@@ -36,9 +36,17 @@ export interface EncryptedNativeStorageRecoveryConsent {
   action: "discard-unreadable-encrypted-local-data";
 }
 
+/** Read once, when a consented wipe reaches the front of the maintenance queue
+ * and before anything is removed. Anything but `true` means every attempt that
+ * asked for the wipe has already given up, so it does not start. */
+export interface EncryptedNativeStorageRecoveryOptions {
+  stillAwaited?(): boolean;
+}
+
 export interface EncryptedNativeStorage extends StringStorage {
   recoverAfterUserConsent(
     consent: EncryptedNativeStorageRecoveryConsent,
+    options?: EncryptedNativeStorageRecoveryOptions,
   ): Promise<{ discardedManagedKeys: number }>;
   migrateLegacyPlaintextAtStartup(): Promise<{
     status: "completed" | "already-complete";
@@ -199,6 +207,37 @@ function isCanonicalBase64(value: string): boolean {
   return true;
 }
 
+// Indexed by char code. Everything outside the alphabet, "=" included, reads 0.
+const BASE64_DIGIT_BY_CODE = (() => {
+  const table = new Uint8Array(128);
+  for (let index = 0; index < BASE64_ALPHABET.length; index += 1) {
+    table[BASE64_ALPHABET.charCodeAt(index)] = index;
+  }
+  return table;
+})();
+
+/** Bytes of a canonical base64 envelope. The native AES call takes bytes (see
+ * `decrypt` below), and a strict local decoder keeps the accepted alphabet
+ * identical to the one `isCanonicalBase64` validated the envelope against. */
+function decodeCanonicalBase64(value: string): Uint8Array {
+  if (!isCanonicalBase64(value)) throw new Error("invalid_base64");
+  const padding = value.endsWith("==") ? 2 : value.endsWith("=") ? 1 : 0;
+  const bytes = new Uint8Array((value.length / 4) * 3 - padding);
+  let offset = 0;
+  for (let index = 0; index < value.length; index += 4) {
+    const chunk =
+      (BASE64_DIGIT_BY_CODE[value.charCodeAt(index)] << 18)
+      | (BASE64_DIGIT_BY_CODE[value.charCodeAt(index + 1)] << 12)
+      | (BASE64_DIGIT_BY_CODE[value.charCodeAt(index + 2)] << 6)
+      | BASE64_DIGIT_BY_CODE[value.charCodeAt(index + 3)];
+    // Padding digits read 0 and fall past the exact output length.
+    if (offset < bytes.length) bytes[offset++] = (chunk >> 16) & 0xff;
+    if (offset < bytes.length) bytes[offset++] = (chunk >> 8) & 0xff;
+    if (offset < bytes.length) bytes[offset++] = chunk & 0xff;
+  }
+  return bytes;
+}
+
 function assertEncodedMasterKey(encodedKey: string): void {
   if (
     typeof encodedKey !== "string"
@@ -206,6 +245,16 @@ function assertEncodedMasterKey(encodedKey: string): void {
     || !isCanonicalBase64(encodedKey)
   ) {
     throw new Error("secure_storage_key_invalid");
+  }
+}
+
+/** A wipe starts only while its caller still awaits it. A check that cannot
+ * answer counts as no: the wipe is the one step here that deletes. */
+function recoveryStillAwaited(options: EncryptedNativeStorageRecoveryOptions | undefined): boolean {
+  try {
+    return options?.stillAwaited === undefined || options.stillAwaited() === true;
+  } catch {
+    return false;
   }
 }
 
@@ -761,7 +810,7 @@ export function createEncryptedNativeStorage(
       return enqueue(key, () => removeEncryptedWithinCapacity(key));
     },
 
-    async recoverAfterUserConsent(consent) {
+    async recoverAfterUserConsent(consent, options) {
       if (
         consent?.acknowledgedDataLoss !== true
         || consent.action !== "discard-unreadable-encrypted-local-data"
@@ -770,6 +819,13 @@ export function createEncryptedNativeStorage(
       }
 
       return runMaintenance(() => runCapacityMutation(async () => {
+        // Asked here, at the front of both queues, and nowhere later: a wipe
+        // that waited behind a stalled operation past every attempt that asked
+        // for it does not start, and one that has started is never stopped
+        // halfway (gate finding IA-1838-1, 2026-09-19).
+        if (!recoveryStillAwaited(options)) {
+          throw new Error("secure_storage_recovery_expired");
+        }
         try {
           const keys = await boundedBackingKeys("secure_storage_recovery_failed");
           let discardedManagedKeys = 0;
@@ -835,7 +891,7 @@ interface ExpoCryptoRuntime {
     generate(bits: number): Promise<{ encoded(format: "base64"): string | Promise<string> }>;
     import(encoded: string, format: "base64"): Promise<unknown>;
   };
-  AESSealedData: { fromCombined(value: string): unknown };
+  AESSealedData: { fromCombined(value: Uint8Array): unknown };
   aesEncryptAsync(
     plaintext: Uint8Array,
     key: unknown,
@@ -902,7 +958,11 @@ function getEncryptedNativeStorageRuntime(): EncryptedNativeStorage {
       },
       async decrypt(sealed, encodedKey, aad) {
         const key = await ExpoCrypto.AESEncryptionKey.import(encodedKey, "base64");
-        const encrypted = ExpoCrypto.AESSealedData.fromCombined(sealed);
+        // Bytes, never the base64 text: expo-crypto 56 Android binds this argument
+        // to a native ByteArray and refuses a string before any decrypt runs. Only
+        // iOS also takes base64, so text here fails every Android relaunch with
+        // secure_storage_decrypt_failed (measured 2026-09-19).
+        const encrypted = ExpoCrypto.AESSealedData.fromCombined(decodeCanonicalBase64(sealed));
         const plaintext = await ExpoCrypto.aesDecryptAsync(encrypted, key, {
           additionalData: encoder.encode(aad),
           output: "bytes",
@@ -925,8 +985,9 @@ export function migrateLegacyNativePlaintextAtStartup() {
 
 export function recoverEncryptedNativeStorageAfterUserConsent(
   consent: EncryptedNativeStorageRecoveryConsent,
+  options?: EncryptedNativeStorageRecoveryOptions,
 ) {
-  return getEncryptedNativeStorageRuntime().recoverAfterUserConsent(consent);
+  return getEncryptedNativeStorageRuntime().recoverAfterUserConsent(consent, options);
 }
 
 export function __resetEncryptedNativeStorageForTests(): void {

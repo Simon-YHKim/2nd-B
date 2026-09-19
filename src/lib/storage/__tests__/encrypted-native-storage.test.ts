@@ -796,6 +796,88 @@ describe("encrypted native storage core", () => {
     expect(h.values.has("capture.drafts.v2.owner-a")).toBe(false);
   });
 
+  /** Consented recovery with the liveness check the recovery helper passes. */
+  function recoverWithLiveness(
+    h: ReturnType<typeof createHarness>,
+    stillAwaited: () => boolean,
+  ): Promise<{ discardedManagedKeys: number }> {
+    return h.storage.recoverAfterUserConsent(
+      { acknowledgedDataLoss: true, action: "discard-unreadable-encrypted-local-data" },
+      { stillAwaited },
+    );
+  }
+
+  // Gate finding IA-1838-1 (2026-09-19). A consented wipe can wait in this
+  // queue behind a stalled operation past the point where every attempt that
+  // asked for it gave up. Whether it is still awaited is read once, when it
+  // reaches the front and before anything is removed; a wipe that has started
+  // is never stopped halfway.
+  test("does not start a consented wipe that is no longer awaited when it reaches the front", async () => {
+    const h = createHarness();
+    await h.storage.setItem("capture.drafts.v2.owner-a", "kept");
+    const scans = (h.dependencies.backing.getAllKeys as jest.Mock).mock.calls.length;
+    const normalEncrypt = h.dependencies.crypto.encrypt as jest.Mock;
+    let releaseWrite!: () => void;
+    const held = new Promise<void>((resolve) => { releaseWrite = resolve; });
+    normalEncrypt.mockImplementationOnce(async (plaintext: string, key: string, aad: string) => {
+      await held;
+      return deterministicSeal(plaintext, key, aad);
+    });
+    const write = h.storage.setItem("capture.drafts.v2.owner-b", "in flight");
+
+    let awaited = true;
+    const stillAwaited = jest.fn(() => awaited);
+    const recovery = recoverWithLiveness(h, stillAwaited);
+    await Promise.resolve();
+    expect(stillAwaited).not.toHaveBeenCalled();
+
+    awaited = false;
+    releaseWrite();
+    await write;
+    await expect(recovery).rejects.toThrow("secure_storage_recovery_expired");
+    expect(stillAwaited).toHaveBeenCalledTimes(1);
+    expect(h.dependencies.backing.getAllKeys).toHaveBeenCalledTimes(scans);
+    expect(h.dependencies.secrets.removeItem).not.toHaveBeenCalled();
+    expect(h.secrets.has(MASTER_KEY)).toBe(true);
+    expect(h.values.has(SENTINEL)).toBe(true);
+    // The queue moves on and the store still answers.
+    await expect(h.storage.getItem("capture.drafts.v2.owner-a")).resolves.toBe("kept");
+    await expect(h.storage.getItem("capture.drafts.v2.owner-b")).resolves.toBe("in flight");
+  });
+
+  test("starts a wipe that is still awaited, and treats a failing check as not awaited", async () => {
+    const awaited = createHarness();
+    await awaited.storage.setItem("capture.drafts.v2.owner-a", "discard me");
+    await expect(recoverWithLiveness(awaited, () => true)).resolves.toEqual({
+      discardedManagedKeys: 1,
+    });
+    expect(awaited.values.has("capture.drafts.v2.owner-a")).toBe(false);
+    expect(awaited.secrets.has(MASTER_KEY)).toBe(false);
+
+    const broken = createHarness();
+    await broken.storage.setItem("capture.drafts.v2.owner-a", "kept");
+    let caught: unknown;
+    try {
+      await recoverWithLiveness(broken, () => {
+        throw new Error("liveness check detail");
+      });
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toEqual(expect.objectContaining({ message: "secure_storage_recovery_expired" }));
+    expect(String(caught)).not.toContain("liveness check detail");
+    expect(broken.values.has("capture.drafts.v2.owner-a")).toBe(true);
+    expect(broken.secrets.has(MASTER_KEY)).toBe(true);
+
+    // Only an explicit true starts the wipe.
+    const vague = createHarness();
+    await vague.storage.setItem("capture.drafts.v2.owner-a", "kept");
+    await expect(
+      recoverWithLiveness(vague, () => "yes" as unknown as boolean),
+    ).rejects.toThrow("secure_storage_recovery_expired");
+    expect(vague.values.has("capture.drafts.v2.owner-a")).toBe(true);
+  });
+
   test("sanitizes dependency failures so keys, values, and adapter errors never escape", async () => {
     const h = createHarness();
     h.values.set(MIGRATION_MARKER, ENCRYPTED_STORAGE_MIGRATION_MARKER_VALUE);
@@ -830,11 +912,17 @@ describe("native production adapter", () => {
     jest.dontMock("expo-crypto");
   });
 
-  test("uses the Expo 56 base64 AES contract and device-only SecureStore", async () => {
+  test("hands Expo 56 the combined envelope as bytes, the only form Android accepts", async () => {
     const h = createHarness();
+    // expo-crypto 56.0.4 Android declares `fromCombined(combined: ByteArray, ...)`:
+    // the JSI argument must be a Uint8Array, and base64 text is refused before any
+    // decrypt runs. iOS takes bytes as well, so bytes are the portable form. The
+    // double used to REQUIRE a string, which hid that every Android relaunch failed
+    // with secure_storage_decrypt_failed and left the app on its boot loader
+    // (measured on an emulator, 2026-09-19).
     const fromCombined = jest.fn((combined: unknown) => {
-      if (typeof combined !== "string") throw new Error("base64_string_required");
-      return combined;
+      if (!(combined instanceof Uint8Array)) throw new Error("uint8array_required");
+      return Buffer.from(combined).toString("base64");
     });
     jest.doMock(
       "@react-native-async-storage/async-storage",
@@ -878,12 +966,30 @@ describe("native production adapter", () => {
     }));
 
     const storage = getEncryptedNativeStorage();
-    await storage.setItem("capture.drafts.v2.owner-a", "오늘 기록: 다시 읽기");
-    await expect(storage.getItem("capture.drafts.v2.owner-a")).resolves.toBe(
+    // The test seal is a 32-byte tag plus the plaintext bytes, so 1, 2 and 3
+    // plaintext bytes put the envelope in each base64 padding class (none, "==",
+    // "="). Then multi-byte UTF-8, the empty value, and a run of lengths so every
+    // chunk boundary of the decoder is compared byte for byte.
+    const samples = [
+      "a",
+      "ab",
+      "abc",
       "오늘 기록: 다시 읽기",
-    );
-    expect(fromCombined).toHaveBeenCalled();
-    expect(fromCombined).toHaveBeenCalledWith(expect.stringMatching(/^[A-Za-z0-9+/]+=*$/));
+      "",
+      ...Array.from({ length: 36 }, (_, length) => `기록 ${length} `.repeat(length % 5) + "x".repeat(length)),
+    ];
+    for (const [index, sample] of samples.entries()) {
+      const key = `capture.drafts.v2.owner-${index}`;
+      await storage.setItem(key, sample);
+      await expect(storage.getItem(key)).resolves.toBe(sample);
+      // Byte-exact: what reaches the native call is the stored envelope itself.
+      const stored = h.values.get(key) as string;
+      const handed = fromCombined.mock.calls[index][0] as Uint8Array;
+      expect(Buffer.from(handed).toString("base64")).toBe(
+        stored.slice(ENCRYPTED_STORAGE_PREFIX.length),
+      );
+    }
+    expect(fromCombined).toHaveBeenCalledTimes(samples.length);
     expect(h.generatedKeys()).toBe(1);
   });
 

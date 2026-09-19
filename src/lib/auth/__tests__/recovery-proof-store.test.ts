@@ -1,6 +1,11 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import {
   AUTH_CALLBACK_QUARANTINE_KEY,
   __resetRecoveryProofStorageQueueForTests,
+  applyAuthCallbackQuarantineStorageValue,
+  applyRecoveryPendingStorageValue,
   armWebRecoveryPendingFromLocation,
   clearRecoveryPendingExpected,
   clearRecoveryStateExpected,
@@ -11,6 +16,7 @@ import {
   loadRecoveryProof,
   parseRecoveryPending,
   parseRecoveryProof,
+  persistAuthCallbackQuarantineInsideMutation,
   persistRecoveryPending,
   persistRecoveryProof,
   recoveryProofMatchesSession,
@@ -20,7 +26,7 @@ import {
   RECOVERY_PROOF_KEY,
   sessionIdFromAccessToken,
 } from "../recovery-proof-store";
-import { __resetAuthStorageRuntimeForTests } from "../session-mutation";
+import { __resetAuthStorageRuntimeForTests, runAuthSessionMutation } from "../session-mutation";
 
 function accessToken(sessionId: string): string {
   const payload = Buffer.from(JSON.stringify({ sub: "u1", session_id: sessionId }))
@@ -208,5 +214,146 @@ describe("persistent recovery proof", () => {
     expect(lockRequest).toHaveBeenCalled();
     expect(isRecoveryPendingInMemory()).toBe(true);
     expect(values.has(RECOVERY_PENDING_KEY)).toBe(true);
+  });
+
+  // U1 (sec-port 2026-09-17, the 09-07 BLOCK P1 #3 fix): a storage event's
+  // newValue can be stale by delivery time. A late null must not release the
+  // in-memory fence while the live ledger still holds a marker.
+  test("a late null storage event cannot release a newer marker still on disk", async () => {
+    await persistRecoveryPending();
+    expect(isRecoveryPendingInMemory()).toBe(true);
+
+    // Another tab cleared its older marker before this tab wrote B, and that
+    // removal's event is only delivered now.
+    expect(applyRecoveryPendingStorageValue(null)).toBeNull();
+    expect(isRecoveryPendingInMemory()).toBe(true);
+  });
+
+  test("a malformed marker on disk stays a fence even when the event says it is gone", () => {
+    values.set(RECOVERY_PENDING_KEY, "{not json");
+
+    expect(applyRecoveryPendingStorageValue(null)).toBeNull();
+    expect(isRecoveryPendingInMemory()).toBe(true);
+  });
+
+  test("an unreadable ledger keeps the fence closed when the event says it is gone", () => {
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      get: () => {
+        throw new Error("storage disabled");
+      },
+    });
+
+    expect(applyRecoveryPendingStorageValue(null)).toBeNull();
+    expect(isRecoveryPendingInMemory()).toBe(true);
+  });
+
+  test("a valid late marker event is still reported as valid after its marker is gone", () => {
+    // Another tab wrote A and already cleared it (a frozen tab gets both events
+    // at once). AuthContext fails closed when a non-null event returns no marker,
+    // and without a proof that is a local sign-out, so judging A by the
+    // now-empty ledger would sign out a bystander tab. A keeps the fence closed
+    // until its own removal event lands.
+    const markerA = {
+      issuedAt: "2026-09-17T00:00:00.000Z",
+      ownerNonce: "11111111-1111-4111-8111-111111111111",
+    };
+
+    expect(applyRecoveryPendingStorageValue(JSON.stringify(markerA))).toEqual(markerA);
+    expect(isRecoveryPendingInMemory()).toBe(true);
+    expect(applyRecoveryPendingStorageValue(null)).toBeNull();
+    expect(isRecoveryPendingInMemory()).toBe(false);
+  });
+
+  test("without web storage the event value is still what gets applied", () => {
+    delete (globalThis as { window?: unknown }).window;
+    const marker = {
+      issuedAt: "2026-09-17T00:00:00.000Z",
+      ownerNonce: "11111111-1111-4111-8111-111111111111",
+    };
+
+    expect(applyRecoveryPendingStorageValue(JSON.stringify(marker))).toEqual(marker);
+    expect(isRecoveryPendingInMemory()).toBe(true);
+    expect(applyRecoveryPendingStorageValue(null)).toBeNull();
+    expect(isRecoveryPendingInMemory()).toBe(false);
+  });
+
+  // N1 (sec-port 2026-09-17): the callback quarantine key had the same gap. A
+  // late null from another tab's finished callback must not release the fence
+  // while this tab's own newer callback is still in flight.
+  test("a late null quarantine event cannot release this tab's own newer quarantine", async () => {
+    const quarantineQ2 = createAuthCallbackQuarantine("ordinary");
+    await runAuthSessionMutation(
+      () => persistAuthCallbackQuarantineInsideMutation(quarantineQ2),
+      { requireCrossTab: true },
+    );
+    expect(isRecoveryPendingInMemory()).toBe(true);
+
+    // Another tab removed its finished Q1 before this tab took M and wrote Q2,
+    // and that removal's event is only delivered now.
+    expect(applyAuthCallbackQuarantineStorageValue(null)).toBeNull();
+    expect(isRecoveryPendingInMemory()).toBe(true);
+  });
+
+  test("an unreadable ledger keeps the quarantine fence closed on a null event", () => {
+    const quarantineQ1 = createAuthCallbackQuarantine("ordinary");
+    applyAuthCallbackQuarantineStorageValue(JSON.stringify(quarantineQ1));
+    expect(isRecoveryPendingInMemory()).toBe(true);
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      get: () => {
+        throw new Error("storage disabled");
+      },
+    });
+
+    expect(applyAuthCallbackQuarantineStorageValue(null)).toBeNull();
+    expect(isRecoveryPendingInMemory()).toBe(true);
+  });
+
+  test("a valid late quarantine event is still reported as valid after its marker is gone", () => {
+    // Another tab wrote Q1 and already removed it (a frozen tab gets both events
+    // at once). AuthContext fails closed when a non-null quarantine event returns
+    // nothing, and without a proof that is a local sign-out, so judging Q1 by the
+    // now-empty ledger would sign out a bystander tab.
+    const quarantineQ1 = createAuthCallbackQuarantine("ordinary");
+    expect(values.has(AUTH_CALLBACK_QUARANTINE_KEY)).toBe(false);
+
+    const raw = JSON.stringify(quarantineQ1);
+    expect(applyAuthCallbackQuarantineStorageValue(raw)).toEqual(quarantineQ1);
+    expect(isRecoveryPendingInMemory()).toBe(true);
+  });
+
+  test("a quarantine removal still opens the fence once the ledger is really empty", () => {
+    const quarantineQ1 = createAuthCallbackQuarantine("ordinary");
+    applyAuthCallbackQuarantineStorageValue(JSON.stringify(quarantineQ1));
+    expect(isRecoveryPendingInMemory()).toBe(true);
+
+    expect(applyAuthCallbackQuarantineStorageValue(null)).toBeNull();
+    expect(isRecoveryPendingInMemory()).toBe(false);
+  });
+});
+
+// The N1 fix keeps the fence closed; AuthContext is what has to honor it. When
+// another tab's quarantine disappears it re-reads the session, and it re-enters
+// INITIAL_SESSION only while isRecoveryPendingInMemory() is false. That check is
+// what stops a late null from promoting a session in the middle of this tab's own
+// callback. AuthContext render tests cannot run on RN 0.85, so pin it in source.
+describe("AuthContext cross-tab quarantine re-entry", () => {
+  test("re-checks the in-memory fence before re-entering INITIAL_SESSION", () => {
+    const source = readFileSync(join(__dirname, "..", "AuthContext.tsx"), "utf8");
+    const start = source.indexOf("if (event.key === AUTH_CALLBACK_QUARANTINE_KEY)");
+    const end = source.indexOf("if (event.key === RECOVERY_PENDING_KEY)", start);
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    const branch = source.slice(start, end);
+
+    const reread = branch.indexOf("supabase.auth.getSession()");
+    const fence = branch.indexOf("!isRecoveryPendingInMemory()", reread);
+    const reentry = branch.indexOf('handleAuthEvent("INITIAL_SESSION"', reread);
+    expect(reread).toBeGreaterThan(-1);
+    expect(fence).toBeGreaterThan(reread);
+    expect(reentry).toBeGreaterThan(fence);
+    // The check guards the re-entry itself, not an earlier, already closed block.
+    expect(branch.slice(fence, reentry)).not.toMatch(/[;}]/);
   });
 });
