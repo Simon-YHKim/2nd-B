@@ -133,6 +133,14 @@
 // 거절됐다(delete-captured-source.ts 머리 주석). 지우는 중은 이 실행기의 표식(deletingNow)과 공통 행 표식(capturedSourceRemoving)을 함께
 // 본다 - 이 모듈을 불러오기 전에 기록 상세에서 시작한 삭제는 줄을 거치지 않아 공통 표식에만 있다(화면 모듈은 처음 그릴 때 평가된다).
 //
+// ## 같은 행의 삭제는 겹치지 않는다 · 없음은 저장 세션으로 (7차 재게이트 G6Z-1814-1 · G6Z-1814-2)
+//
+// 이 모듈을 불러오기 전에 나간 기록 상세 삭제가 원문 요청을 보내 둔 사이 이 줄의 삭제가 같은 자료를 먼저 다 지우고 "지웠다" 고 답하면, 같은 대화를
+// 새로 담은 자료(새 행 · 같은 원문 경로)의 원문을 늦게 풀린 그 요청이 지웠다. 한 건 삭제 · 되돌리기 · 비우기는 공통 행 표식이 지우는 중이어도 이
+// 실행기의 표식처럼 겹쳐 보내지 않는다 - 그 삭제를 줄에서 기다리지도 않는다(줄이 멈춘다). 공통 행 모듈은 같은 행의 삭제를 행마다 한 줄로
+// 세운다(delete-captured-source.ts). 지운 행 표식을 세우는 0행 뒤의 없음 확인은 저장 세션에도 묶였다 - 전환 알림 전에 세션만 바뀐 틈의
+// "안 보인다" 로 한 건 삭제가 대기 기록을 지우지 않는다.
+//
 // ⚠ 확인하지 않은 것: 운영 Supabase 에서 클라이언트가 정한 id 로 INSERT 가 되는지, 끊긴 fetch 뒤 서버가 커밋하는지,
 // 없는 경로 Storage remove 가 빈 목록인지 404 오류인지(둘 다 "없음" 으로 읽는다), RN 실기의 백그라운드 동작.
 // ⚠ 보안 경계가 아니다. 서버는 chat_autosave 를 쓰기에서 강제하지 않는다(서버 몫, 설계 S2).
@@ -643,7 +651,8 @@ async function deleteTracked(
   signal: AbortSignal,
 ): Promise<boolean> {
   const key = undoKey(record);
-  if (deletingNow.has(key) || restoringNow.has(key)) return false;
+  // 이 실행기를 불러오기 전에 나간 기록 상세 삭제는 공통 행 표식에만 있다 - 겹쳐 보내지 않는다(7차 재게이트 G6Z-1814-1).
+  if (deletingNow.has(key) || restoringNow.has(key) || capturedSourceRemoving(record.ownerId, record.sourceId)) return false;
   deletingNow.add(key);
   try {
     return await undoWrites(record, plan, signal);
@@ -963,7 +972,8 @@ function runManualDelete(ownerId: string, sourceId: string): Promise<DeleteCaptu
       if (!recorded && !unfinishedUndos.has(key)) unfinishedUndos.set(key, { record, reply: null, recorded: false });
       return "not_deleted";
     }
-    if (deletingNow.has(key)) return "not_deleted";
+    // 이 실행기를 불러오기 전에 나간 삭제는 공통 행 표식에만 있다(7차 재게이트 G6Z-1814-1). 그 삭제를 줄에서 기다리지 않는다 - 줄이 멈춘다.
+    if (deletingNow.has(key) || capturedSourceRemoving(ownerId, record.sourceId)) return "not_deleted";
     const removal = removeTracked(record);
     sent = removal;
     const outcome = await removal;
@@ -1030,9 +1040,10 @@ async function drainRecords(ownerId: string): Promise<void> {
 async function drainOne(ownerId: string, record: AutosaveUndoRecord, signal: AbortSignal): Promise<void> {
   if (!captureAccountOwnerLease(ownerId)) return;
   const key = undoKey(record);
-  // 작업의 되돌리기가 맡고 있거나(줄을 기다리는 중), 시간 상한을 넘긴 옛 일이 아직 지우는 중이거나, 원문을 되살리는 업로드가 아직
-  // 나가 있다(3차 재게이트 G2Z-1814-1 - 돌아오면 settleAfterLateRestore 가 이 건을 다시 본다). 시도 횟수에 세지 않는다.
-  if (undoInFlight.has(key) || deletingNow.has(key) || restoringNow.has(key)) return;
+  // 작업의 되돌리기가 맡고 있거나(줄을 기다리는 중), 시간 상한을 넘긴 옛 일이나 이 실행기를 불러오기 전에 나간 기록 상세 삭제가 아직 지우는
+  // 중이거나(7차 재게이트 G6Z-1814-1 - 공통 행 표식), 원문을 되살리는 업로드가 아직 나가 있다(3차 재게이트 G2Z-1814-1 - 돌아오면
+  // settleAfterLateRestore 가 이 건을 다시 본다). 시도 횟수에 세지 않는다.
+  if (undoInFlight.has(key) || deletingNow.has(key) || restoringNow.has(key) || capturedSourceRemoving(ownerId, record.sourceId)) return;
   const unfinished = unfinishedUndos.get(key);
   if (keptRows.has(key)) {
     // 사용자가 남긴 행이다. 지우지 않고 기록에서만 뺀다. 아직 삭제하지 못했다고 알린 답변이 있으면 거둔다(5차 조합 조사 M14).

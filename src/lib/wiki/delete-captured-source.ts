@@ -69,11 +69,35 @@
 //     지워진다(RLS 는 숨길 뿐 지어내지 않는다).
 // 그래서 지운 행 표식은 행을 지웠다는 것이 사실일 때만 선다. 전환이 끼면 답은 raw_removed · partly_deleted · not_deleted 중 그때까지 안
 // 것이고(표식 없음) 다시 시도하는 뜻은 그대로다 - 행이 남아 있어 그 계정이 돌아와 다시 지우면 이어서 지운다.
-// ⚠ 임대는 AuthContext 가 전환을 알리는 순간(account-epoch) 끊긴다. auth-js 가 세션을 바꾼 뒤 그 알림 전의 틈은 이 모듈이 닫지 못한다 -
-//   실행기와 같은 한계이고, 요청을 세션 id 에 묶는 것은 계정 삭제의 session-mutation 계약 몫이다.
+// ⚠ 임대는 AuthContext 가 전환을 알리는 순간(account-epoch) 끊긴다. auth-js 가 세션을 바꾼 뒤 그 알림 전의 틈은 임대로 닫지 못한다 - 그래서
+//   지운 행 표식을 세우는 0행 뒤의 없음 확인은 저장 세션에도 묶는다(아래 7차 G6Z-1814-2). 그 앞의 요청(원문 · 페이지 · 행 삭제)은 여전히
+//   임대만 본다: 그 틈에 나간 요청의 답으로 표식을 세우지는 않지만, 멈춘 자리의 답(raw_removed · partly_deleted)은 틀릴 수 있다.
+//
+// 같은 행의 삭제는 이 런타임에서 하나씩 나간다 (7차 재게이트 G6Z-1814-1). 원문 경로는 제목 + 본문 해시다(capture.ts) - 같은 내용을 다시 담으면
+// 새 행(새 uuid)이 지운 행의 경로를 다시 쓴다. 같은 행을 지우는 삭제 둘이 겹치면, 먼저 끝난 쪽이 행까지 지우고 "지웠다" 고 답한 뒤 같은 내용으로
+// 새로 담긴 원문을 늦게 끝난 쪽의 원문 요청이 지웠다(행은 남고 본문이 없다). 삭제 하나로는 생기지 않는다 - 원문 요청이 돌아온 뒤에야 행을
+// 지우고, 행이 남아 있는 동안 같은 내용의 담기는 정확 중복이다. 그래서
+//   · 같은 행의 삭제는 앞선 삭제가 끝난 뒤에 돈다(행마다 한 줄). 기다리는 동안에도 그 행은 지우는 중이다.
+//   · 앞선 삭제가 다 지웠으면 요청 없이 deleted 다. 끝내지 못했으면 기다린 삭제가 제 임대로 이어서 지운다(앞선 답을 빌리지 않는다).
+// 실행기는 지우는 중인 행에 삭제를 겹쳐 보내지 않고 not_deleted 로 답한다 - 실행기의 계정 줄이 이 기다림에 묶이지 않는다. 이 줄은 실행기를
+// 불러오기 전의 삭제끼리(기록 상세 두 곳)도 한 길로 세운다. 다른 탭 · 다른 기기의 삭제는 이 줄을 모른다(서버 S3 몫).
+//
+// 0행 뒤의 없음은 이 계정의 저장 세션으로만 확정한다 (7차 재게이트 G6Z-1814-2). 다른 탭이 로그인하면 auth-js 의 저장 세션이 이 탭의 전환 알림보다
+// 먼저 바뀐다(게이트가 auth-js 2.106.1 로 확인). 그 틈의 행 삭제 0행과 남은 행 없음을 "지웠다" 로 읽어 살아 있는 행에 지운 행 표식을 세웠고,
+// 실행기는 대기 기록까지 지웠다. 그래서 남은 행 확인은 계정 삭제 · 일괄 삭제와 같은 계약으로 돈다(session-mutation.ts 의 *InsideMutation): 인증
+// 변경 잠금(M) 안에서 저장 세션을 읽어 이 계정이 아니면 보내지 않고, 응답 뒤에도 세션(사용자 + 세션 id)과 임대가 그대로일 때만 없음을 믿는다.
+// 잠금은 그 확인 하나 동안만 쥐고 상한(OWNER_SESSION_CHECK_TIMEOUT_MS)을 둔다 - 응답이 멈춰도 로그인 · 로그아웃을 붙잡아 두지 않는다. 지운 행
+// 수(count > 0)는 그대로 사실이다.
 // 검사: `src/lib/wiki/__tests__/delete-captured-source.test.ts` · 조정된 길은 `src/lib/chat/__tests__/autosave-runner.test.ts`
 
+import { withTimeout } from "../async/with-timeout";
 import { captureAccountOwnerLease, type AccountOwnerLease } from "../auth/account-epoch";
+import {
+  assertExpectedSessionInsideMutation,
+  captureAuthSessionExpectation,
+  getAuthStorageRuntime,
+  type AuthStorageRuntime,
+} from "../auth/session-mutation";
 import { getSupabaseClient } from "../supabase/client";
 import { invalidateDomainLevels } from "../persona/load-domain-levels";
 import { deleteWikiPage } from "./queries";
@@ -98,6 +122,15 @@ const removing = new Map<string, number>();
 const removed = new Set<string>();
 /** 승격이 본문을 되살리는 중인 행과 나가 있는 그 일들. */
 const restoring = new Map<string, Set<Promise<void>>>();
+/** 행마다 이 런타임의 삭제가 서는 줄의 꼬리(머리 주석 "같은 행의 삭제는"). 줄의 마지막 삭제가 끝나면 풀린다. */
+const removals = new Map<string, Promise<void>>();
+
+/**
+ * 0행 뒤 "남은 행 없음" 을 확정하는 확인의 상한 (7차 재게이트 G6Z-1814-2). 그 확인은 인증 변경 잠금 안에서 돈다 - 응답이 멈추면 로그인 ·
+ * 로그아웃도 그 잠금을 기다린다. 잠금 안의 일(세션 읽기 둘 · 남은 행 확인 하나, 세션 읽기는 토큰 갱신이 필요할 때만 요청을 보낸다)은 정상
+ * 연결에서 1초 안쪽이라 10초는 정상 확인을 끊지 않는다. 넘기면 없음을 확정하지 않고(지운 행 표식 없음) 잠금을 푼다. 늦게 온 답은 버린다.
+ */
+export const OWNER_SESSION_CHECK_TIMEOUT_MS = 10_000;
 
 function rowKey(userId: string, sourceId: string): string {
   return `${userId}\n${sourceId.toLowerCase()}`;
@@ -154,6 +187,7 @@ export function __resetCapturedSourceRowsForTests(): void {
   removing.clear();
   removed.clear();
   restoring.clear();
+  removals.clear();
 }
 
 function warnWithoutDetails(message: string): void {
@@ -172,7 +206,8 @@ export function deleteCapturedSource(userId: string, sourceId: string): Promise<
 
 /**
  * 지금 지운다. 조정하는 쪽이 자기 줄 안에서 부른다 - 화면은 deleteCapturedSource 를 부른다. 지우는 동안 그 행은 지우는 중이고(승격이
- * 건너뛴다), 승격이 그 행을 되살리는 중이면 그 일이 끝난 뒤에 지운다(머리 주석 "승격의 되살리기와는 행마다"). 시작할 때 쥔 계정 임대로만
+ * 건너뛴다), 승격이 그 행을 되살리는 중이면 그 일이 끝난 뒤에 지운다(머리 주석 "승격의 되살리기와는 행마다"). 같은 행을 지우는 앞선 삭제가
+ * 있으면 그 삭제가 끝난 뒤에 돈다 - 앞선 삭제가 다 지웠으면 요청 없이 deleted 다(머리 주석 "같은 행의 삭제는"). 시작할 때 쥔 계정 임대로만
  * 보내고, 그 계정이 공개돼 있지 않으면 아무것도 보내지 않고 not_deleted 다(머리 주석 "삭제를 시작한 계정의 임대로").
  */
 export async function removeCapturedSource(userId: string, sourceId: string): Promise<DeleteCapturedSourceOutcome> {
@@ -180,15 +215,28 @@ export async function removeCapturedSource(userId: string, sourceId: string): Pr
   if (!owner) return "not_deleted";
   const key = rowKey(userId, sourceId);
   removing.set(key, (removing.get(key) ?? 0) + 1);
+  const earlier = removals.get(key);
+  let finished: () => void = noop;
+  const mine = new Promise<void>((resolve) => {
+    finished = resolve;
+  });
+  removals.set(key, mine);
   try {
+    if (earlier) {
+      // 겹쳐 보내면 먼저 끝난 쪽의 "지웠다" 뒤에 같은 경로로 새로 담긴 원문을 늦게 끝난 쪽의 원문 요청이 지운다(G6Z-1814-1).
+      await earlier;
+      if (removed.has(key)) return "deleted";
+    }
     await restoresSettled(key);
     // 승격을 기다리는 사이 계정이 바뀌었으면 아무것도 보내지 않는다.
     if (!owner.isCurrent()) return "not_deleted";
     const outcome = await removeNow(userId, sourceId, owner);
-    // deleted 는 행을 지웠다는 것이 사실일 때만 온다 - 다른 세션에 안 보였을 뿐인 행을 지운 행으로 적지 않는다(G5Z-1814-1).
+    // deleted 는 행을 지웠다는 것이 사실일 때만 온다 - 다른 세션에 안 보였을 뿐인 행을 지운 행으로 적지 않는다(G5Z-1814-1 · G6Z-1814-2).
     if (outcome === "deleted") removed.add(key);
     return outcome;
   } finally {
+    finished();
+    if (removals.get(key) === mine) removals.delete(key);
     const left = (removing.get(key) ?? 1) - 1;
     if (left > 0) removing.set(key, left);
     else removing.delete(key);
@@ -265,19 +313,11 @@ async function removeNow(userId: string, sourceId: string, owner: AccountOwnerLe
       .eq("user_id", userId)
       .eq("id", sourceId);
     if (deleteError) throw deleteError;
-    // 지운 행 수(count > 0)는 어느 세션의 응답이든 사실이다. 0행은 "이 세션에 안 보인다" 일 수 있다 - 남은 행을 이 계정 세션으로 확인한다.
+    // 지운 행 수(count > 0)는 어느 세션의 응답이든 사실이다. 0행은 "이 세션에 안 보인다" 일 수 있다 - 남은 행을 이 계정의 저장 세션으로
+    // 확인했을 때만 없다고 한다(G6Z-1814-2). 남아 있거나 · 세션이 다르거나 · 확인하지 못하면 그때까지 안 것이다.
     if (!count) {
       if (!owner.isCurrent()) return soFar();
-      const { data: survivor, error: survivorError } = await supabase
-        .from("sources")
-        .select("id")
-        .eq("user_id", userId)
-        .eq("id", sourceId)
-        .maybeSingle();
-      if (survivorError) throw survivorError;
-      if (survivor) throw new Error("captured-source-not-deleted");
-      // 남은 행이 안 보인다는 답도 그 확인이 이 계정 세션으로 나갔을 때만 "없다" 다.
-      if (!owner.isCurrent()) return soFar();
+      if (!(await ownerSessionConfirmsGone(supabase, userId, sourceId, owner))) return soFar();
     }
   } catch {
     // 행 단계의 실패는 원인을 로그에 남기지 않고 화면에서 따로 말하지도 않는다 (r3as M1).
@@ -291,4 +331,43 @@ async function removeNow(userId: string, sourceId: string, owner: AccountOwnerLe
   // 도메인 태그가 붙은 자료였다면 별 밝기가 바뀐다. deleteRecord 와 같은 자세다.
   invalidateDomainLevels(userId);
   return "deleted";
+}
+
+/**
+ * 0행 뒤 그 행이 정말 없는지 이 계정의 저장 세션으로 확인한다 (7차 재게이트 G6Z-1814-2). 없다고 확정하면 true, 남아 있거나 · 저장 세션이 이
+ * 계정이 아니거나 · 도중에 바뀌었거나 · 상한 안에 확인하지 못하면 false 다. 계정 삭제 · 일괄 삭제와 같은 계약이다(session-mutation.ts 의
+ * *InsideMutation): 인증 변경 잠금 안에서 시작 세션을 읽어 이 계정이 아니면 아무것도 보내지 않고, 응답 뒤에 세션(사용자 + 세션 id)이 그대로일
+ * 때만 믿는다. 계정 임대도 앞뒤로 본다(전환 알림이 온 경우).
+ */
+async function ownerSessionConfirmsGone(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  userId: string,
+  sourceId: string,
+  owner: AccountOwnerLease,
+): Promise<boolean> {
+  try {
+    const runtime = getAuthStorageRuntime();
+    // 상한은 잠금 안의 일 전체에 건다 - 세션 읽기도 토큰 갱신 요청으로 멈출 수 있다. 상한이 지나면 잠금이 풀리고 늦게 끝난 일의 답은 버린다.
+    return await runtime.runMutation(() =>
+      withTimeout(confirmGoneInsideMutation(supabase, runtime, userId, sourceId, owner), OWNER_SESSION_CHECK_TIMEOUT_MS),
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** ownerSessionConfirmsGone 의 잠금 안 일. 인증 변경 잠금을 쥔 채로만 부른다(assertExpectedSessionInsideMutation 의 전제). */
+async function confirmGoneInsideMutation(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  runtime: AuthStorageRuntime,
+  userId: string,
+  sourceId: string,
+  owner: AccountOwnerLease,
+): Promise<boolean> {
+  const expected = await captureAuthSessionExpectation(supabase.auth, runtime);
+  if (expected.userId !== userId || !owner.isCurrent()) return false;
+  const { data: survivor, error } = await supabase.from("sources").select("id").eq("user_id", userId).eq("id", sourceId).maybeSingle();
+  if (error || survivor) return false;
+  await assertExpectedSessionInsideMutation(supabase.auth, expected);
+  return owner.isCurrent();
 }
