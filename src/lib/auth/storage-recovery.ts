@@ -4,7 +4,16 @@ import {
   type EncryptedNativeStorageRecoveryConsent,
 } from "../storage/encrypted-native-storage";
 import { getSupabaseClient, resetSupabaseClient } from "../supabase/client";
+import { clearFailClosedColdStarts } from "./fail-closed-persistence";
 import { getAuthStorageRuntime } from "./session-mutation";
+
+// AuthContext reaches the storage-recovery gate through this one module. Its
+// import block is also cited by line from docs/legal, so the persistence exit
+// joins the existing specifier lines instead of adding an import statement.
+export {
+  clearFailClosedColdStarts,
+  escalateFailClosedLockIfPersistent,
+} from "./fail-closed-persistence";
 
 const MAX_ERROR_TRAVERSAL_DEPTH = 6;
 const MAX_ERROR_TRAVERSAL_NODES = 16;
@@ -16,6 +25,7 @@ interface RecoveryDependencies {
   resetClient(): Promise<void>;
   recreateClient(): unknown;
   readyStorage(): Promise<void>;
+  clearPersistence(): Promise<void>;
 }
 
 const RECOVERY_DEPENDENCIES: RecoveryDependencies = {
@@ -23,6 +33,7 @@ const RECOVERY_DEPENDENCIES: RecoveryDependencies = {
   resetClient: resetSupabaseClient,
   recreateClient: getSupabaseClient,
   readyStorage: () => getAuthStorageRuntime().ready(),
+  clearPersistence: () => clearFailClosedColdStarts(),
 };
 
 function ownDataValue(value: object, key: PropertyKey): unknown {
@@ -96,8 +107,17 @@ export async function attemptEncryptedNativeStorageRecovery(
     await dependencies.resetClient();
     dependencies.recreateClient();
     await dependencies.readyStorage();
-    return "recovered";
   } catch {
     return "failed";
   }
+  // The wipe is a fresh start, so the fail-closed persistence streak ends with
+  // it: the plaintext counter sits outside the encrypted store and the wipe does
+  // not reach it. Best-effort by contract - a counter that cannot be cleared
+  // must never turn a finished recovery into a failure.
+  try {
+    await dependencies.clearPersistence();
+  } catch {
+    // The next settled bootstrap clears it again.
+  }
+  return "recovered";
 }

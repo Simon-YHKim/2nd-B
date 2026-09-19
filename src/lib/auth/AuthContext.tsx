@@ -26,8 +26,8 @@ import {
 import { subscribeRecoveryStorageEvent } from "./recovery-storage-events";
 import { nextRecoveryProof } from "./reset-password-helpers";
 import {
-  attemptEncryptedNativeStorageRecovery,
-  isEncryptedStorageRecoveryRequired,
+  attemptEncryptedNativeStorageRecovery, clearFailClosedColdStarts,
+  escalateFailClosedLockIfPersistent, isEncryptedStorageRecoveryRequired,
 } from "./storage-recovery";
 import {
   armWebRecoveryPendingFromLocation, applyAuthCallbackQuarantineStorageValue,
@@ -437,6 +437,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // noteResolvedOwner() 가 불린다.
     type QueuedAuthEvent = { event: AuthChangeEvent; session: Session | null };
     let bootstrapped = false;
+    // The ONE place a bootstrap is declared settled. Reaching it means this run
+    // classified auth storage, so the fail-closed persistence streak ends here
+    // (fail-closed-persistence.ts). Best-effort: it never blocks the boot.
+    const markBootstrapped = () => {
+      bootstrapped = true;
+      void clearFailClosedColdStarts();
+    };
     const queuedAuthEvents: QueuedAuthEvent[] = [];
     let storageProofGeneration = 0;
 
@@ -552,6 +559,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRecoveryReady(false);
         setState((current) => ({ ...current, loading: true }));
         failClosedRunning = false;
+        // The lock above is published first and is unchanged. Only a failure that
+        // PERSISTS across cold starts trades it for the explicit two-step consent
+        // gate, which discards nothing before the user agrees. Never retry through
+        // refresh() here: it does not read the recovery markers.
+        void escalateFailClosedLockIfPersistent({
+          isCurrent: isCurrentEffect,
+          escalate: () => {
+            if (typeof console !== "undefined") {
+              console.warn("[auth] recovery fail-closed lock persisted across cold starts; phase=fail-closed-escalate");
+            }
+            markStorageRecoveryRequired();
+          },
+        });
         return false;
       }
     };
@@ -826,7 +846,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           publishRecoveryProof(null);
           setRecoveryPendingGlobal(false);
           setRecoveryReady(true);
-          bootstrapped = true;
+          markBootstrapped();
           publishSessionUnavailable();
           return;
         }
@@ -837,7 +857,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           publishRecoveryProof(null);
           setRecoveryPendingGlobal(false);
           setRecoveryReady(true);
-          bootstrapped = true;
+          markBootstrapped();
           await resolveSession(null);
           return;
         }
@@ -988,7 +1008,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       publishRecoveryProof(proof);
       if (!latestSessionRef.current) latestSessionRef.current = session;
-      bootstrapped = true;
+      markBootstrapped();
       const sessionForResolve = latestSessionRef.current ?? session;
       const proofMatchesSession =
         !proof ||
@@ -1027,7 +1047,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Keep the app fail-closed by clearing local auth before publishing signed-out.
       void failClosedRecovery(recoveryProofRef.current, error).then((closed) => {
         if (closed) {
-          bootstrapped = true;
+          markBootstrapped();
           setRecoveryReady(true);
         }
       });

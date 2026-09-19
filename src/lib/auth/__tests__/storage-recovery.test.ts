@@ -13,11 +13,13 @@ const recoverStorage = jest.fn<Promise<unknown>, [unknown]>();
 const resetClient = jest.fn<Promise<void>, []>();
 const recreateClient = jest.fn<unknown, []>();
 const readyStorage = jest.fn<Promise<void>, []>();
+const clearPersistence = jest.fn<Promise<void>, []>();
 const dependencies = {
   recover: recoverStorage,
   resetClient,
   recreateClient,
   readyStorage,
+  clearPersistence,
 };
 
 const ROOT = resolve(__dirname, "../../../..");
@@ -72,6 +74,7 @@ describe("explicit recovery consent", () => {
     resetClient.mockResolvedValue(undefined);
     recreateClient.mockReturnValue({});
     readyStorage.mockResolvedValue(undefined);
+    clearPersistence.mockResolvedValue(undefined);
   });
 
   test.each([
@@ -93,6 +96,7 @@ describe("explicit recovery consent", () => {
     expect(resetClient).not.toHaveBeenCalled();
     expect(recreateClient).not.toHaveBeenCalled();
     expect(readyStorage).not.toHaveBeenCalled();
+    expect(clearPersistence).not.toHaveBeenCalled();
   });
 
   test("wipes, retires, recreates, and readies the fresh runtime in order", async () => {
@@ -117,6 +121,25 @@ describe("explicit recovery consent", () => {
     expect(recreateClient.mock.invocationCallOrder[0]).toBeLessThan(
       readyStorage.mock.invocationCallOrder[0],
     );
+    // R14-BOOT-EXIT: the wipe is a fresh start, so the fail-closed persistence
+    // streak ends with it - last, only once the fresh runtime is ready.
+    expect(clearPersistence).toHaveBeenCalledTimes(1);
+    expect(readyStorage.mock.invocationCallOrder[0]).toBeLessThan(
+      clearPersistence.mock.invocationCallOrder[0],
+    );
+  });
+
+  test("a streak that cannot be cleared never turns a finished recovery into a failure", async () => {
+    clearPersistence.mockRejectedValueOnce(new Error("backing store offline"));
+    await expect(
+      attemptEncryptedNativeStorageRecovery(
+        {
+          acknowledgedDataLoss: true,
+          action: "discard-unreadable-encrypted-local-data",
+        },
+        dependencies,
+      ),
+    ).resolves.toBe("recovered");
   });
 
   test("retains the lock when wipe or fresh-runtime readiness fails", async () => {
@@ -143,6 +166,8 @@ describe("explicit recovery consent", () => {
         dependencies,
       ),
     ).resolves.toBe("failed");
+    // A retained lock keeps its streak: the gate must come straight back.
+    expect(clearPersistence).not.toHaveBeenCalled();
   });
 });
 
@@ -164,6 +189,68 @@ describe("current auth v2 and PIXEL-CLAY recovery wiring", () => {
     expect(AUTH).toContain("markStorageRecoveryRequired");
     expect(AUTH).toContain("storageRecoveryRequiredRef.current");
     expect(AUTH).toContain("attemptEncryptedNativeStorageRecovery(consent)");
+  });
+
+  // R14-BOOT-EXIT. No renderer exists in this jest setup, so the provider's side
+  // of the persistence exit is pinned against the real source; the executor it
+  // calls runs for real in fail-closed-persistence.test.ts.
+  test("a persistent fail-closed lock escalates only after today's lock is published", () => {
+    const branch = AUTH.indexOf("phase=fail-closed-signout");
+    const lockReady = AUTH.indexOf("setRecoveryReady(false);", branch);
+    const lockLoading = AUTH.indexOf(
+      "setState((current) => ({ ...current, loading: true }));",
+      branch,
+    );
+    const escalation = AUTH.indexOf("void escalateFailClosedLockIfPersistent({", branch);
+    const end = AUTH.indexOf("return false;", escalation);
+    expect(branch).toBeGreaterThan(-1);
+    expect(lockReady).toBeGreaterThan(branch);
+    expect(lockLoading).toBeGreaterThan(lockReady);
+    expect(escalation).toBeGreaterThan(lockLoading);
+    expect(end).toBeGreaterThan(escalation);
+
+    const block = AUTH.slice(escalation, end);
+    expect(block).toContain("isCurrent: isCurrentEffect,");
+    expect(block).toContain("markStorageRecoveryRequired();");
+    // The only exit is the explicit-consent gate. Nothing here may publish a
+    // session, release the recovery lock, or retry through refresh(), which
+    // does not read the recovery markers.
+    for (const forbidden of [
+      "resolveSession(",
+      "refresh(",
+      "setRecoveryReady(true)",
+      "loading: false",
+      "bootstrapped",
+    ]) {
+      expect(block).not.toContain(forbidden);
+    }
+  });
+
+  test("the sentinel-proven path keeps its own branch and is not counted", () => {
+    const entry = AUTH.indexOf("} catch (signOutError) {");
+    const proven = AUTH.indexOf("isEncryptedStorageRecoveryRequired(signOutError)", entry);
+    const escalation = AUTH.indexOf("void escalateFailClosedLockIfPersistent({", entry);
+    expect(entry).toBeGreaterThan(-1);
+    expect(proven).toBeGreaterThan(entry);
+    expect(proven).toBeLessThan(escalation);
+    expect(AUTH.match(/escalateFailClosedLockIfPersistent\(/g)).toHaveLength(1);
+  });
+
+  test("every settled bootstrap ends the persistence streak through one helper", () => {
+    expect(AUTH.match(/bootstrapped = true;/g)).toHaveLength(1);
+    expect(AUTH.match(/markBootstrapped\(\);/g)).toHaveLength(4);
+    const helper = AUTH.indexOf("const markBootstrapped = () => {");
+    expect(helper).toBeGreaterThan(-1);
+    const body = AUTH.slice(helper, AUTH.indexOf("};", helper));
+    expect(body).toContain("bootstrapped = true;");
+    expect(body).toContain("void clearFailClosedColdStarts();");
+  });
+
+  test("the escalation log is one literal with a stable phase", () => {
+    expect(AUTH.match(/phase=fail-closed-escalate/g)).toHaveLength(1);
+    expect(AUTH).toContain(
+      'console.warn("[auth] recovery fail-closed lock persisted across cold starts; phase=fail-closed-escalate");',
+    );
   });
 
   test("the root route gate replaces every screen with localized two-step consent", () => {
