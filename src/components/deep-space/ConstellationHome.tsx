@@ -19,6 +19,8 @@ import { router } from "expo-router";
 import Svg, { Defs, Pattern, Rect } from "react-native-svg";
 
 import { PixelStarSvg } from "../pixel/PixelStarSvg";
+import { pixelStarSpan } from "../pixel/pixel-star";
+import { layoutStarLabels } from "./star-label-layout";
 
 import { NoticeDialog, useNoticeCenter } from "@/app/notices";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -486,7 +488,7 @@ export function ConstellationHome({
   const coachmarksDue = useCoachmarksGate();
   const progression = useProgression();
   const task = useTaskStatus();
-  const { width: winW } = useWindowDimensions();
+  const { width: winW, fontScale } = useWindowDimensions();
   const [bubble, setBubble] = useState<BubbleState>({ kind: "intro" });
   const [stage, setStage] = useState<{ w: number; h: number } | null>(null);
   const [autoNoticeDismissed, setAutoNoticeDismissed] = useState(false);
@@ -543,6 +545,18 @@ export function ConstellationHome({
     if (extra) pts.push(extra);
     return stepPolyline(close ? [...pts, pts[0]] : pts, LINK_CELL);
   };
+  // 별 이름표 자리. 둘째 줄은 그 자리가 비어 있는 별만 받는다 (star-label-layout.ts).
+  // 코어 크기는 눌렀을 때 값이다. 어느 별이 눌려도 둘째 줄이 그 코어를 덮지 않게.
+  // 기기 글꼴 배율도 넘긴다. 이름표 글자는 main 처럼 상한 없이 커지고, 자리도 그 배율로 잰다.
+  // 북극성 이름표 자리도 여기서 같이 나온다 (그 폭도 별 이름표 자리에 따라 정해진다).
+  const starLabels = layoutStarLabels({
+    stars: REV2_STARS.map((s) => ({ id: s.id, cx: px(s.x), cy: py(s.y) })),
+    k,
+    coreHalfSpan: pixelStarSpan(DOMAIN_CORE_R * k * DOMAIN_FOCUS_MULT),
+    polaris: { cx: px(POLARIS.x), cy: py(POLARIS.y) },
+    stage: { w: boxW, h: boxH },
+    fontScale,
+  });
 
   const levelOf = (id: HomeStarId): LadderLevel =>
     (starLevels[id] ?? 1) as LadderLevel;
@@ -780,23 +794,22 @@ export function ConstellationHome({
             })}
           </Svg>
 
-          {/* star labels (10.5px/600 under each dot; polaris label under its orb) */}
+          {/* star labels (10.5px/600 under each dot; polaris label under its orb).
+              Geometry lives in star-label-layout.ts: a long name may take a second
+              line only where that line lands on empty sky (T1a 2026-09-13: "Thirties
+              and after" was cut to "Thirties and af…" on a 411dp phone). Both labels
+              follow the system font size with no cap, as on main, and the geometry is
+              measured at that scale (PR 1810 artifact gate F1, re-gate F1-R1). */}
           {REV2_STARS.map((s) => {
             const on = focusedId === s.id;
+            const label = starLabels.stars[s.id];
             return (
               <Text
                 key={`label-${s.id}`}
                 accessible={false}
                 importantForAccessibility="no-hide-descendants"
-                numberOfLines={1}
-                style={[
-                  styles.starLabel,
-                  // lineHeight (~1.34x) gives the Korean domain names room for
-                  // their 받침 descenders — Android clips the last line of a
-                  // numberOfLines Text without a padded line box.
-                  { left: px(s.x) - 40, top: py(s.y) + (6 * k + 8), fontSize: 10.5 * k, lineHeight: Math.round(14 * k) },
-                  on && { color: m3.accent.starFocus },
-                ]}
+                numberOfLines={label.maxLines}
+                style={[styles.starLabel, label.frame, on && { color: m3.accent.starFocus }]}
               >
                 {starName(s.id)}
               </Text>
@@ -806,7 +819,7 @@ export function ConstellationHome({
             accessible={false}
             importantForAccessibility="no-hide-descendants"
             numberOfLines={1}
-            style={[styles.polarisLabel, { left: px(POLARIS.x) - 60, top: py(POLARIS.y) + (9 * k + 8), fontSize: 10.5 * k, lineHeight: Math.round(14 * k) }]}
+            style={[styles.polarisLabel, starLabels.polaris]}
           >
             {t("ds.home.polaris")}
           </Text>
@@ -1088,9 +1101,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     zIndex: 3,
   },
+  // left/top/width/fontSize/lineHeight of both labels come from star-label-layout.ts.
   starLabel: {
     position: "absolute",
-    width: 80,
     textAlign: "center",
     color: homeAlpha(m3.accent.starLabel, 0.78),
     fontWeight: "600",
@@ -1099,7 +1112,6 @@ const styles = StyleSheet.create({
   },
   polarisLabel: {
     position: "absolute",
-    width: 120,
     textAlign: "center",
     color: homeAlpha(m3.accent.polarisSoft, 0.92),
     fontWeight: "600",

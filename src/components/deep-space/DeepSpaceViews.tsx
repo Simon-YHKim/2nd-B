@@ -210,7 +210,7 @@ function CaptureTile({
   role: "button" | "radio" | "tab";
   onPress: () => void;
 }) {
-  const [held, setHeld] = useState(false);
+  const [held, setHeld] = useState(false); // the wrapper View it restyles keeps collapsable={false} so press/release never reparents its children, as in PixelPressable (2eb6266b)
   const active = selected && !disabled;
   const color = active ? m3.color.onPrimary : m3.color.onSurfaceVariant;
 
@@ -231,7 +231,7 @@ function CaptureTile({
       aria-selected={role === "button" ? undefined : selected}
       style={styles.capTileHit}
     >
-      <View style={held && !disabled ? styles.capTileSunk : styles.capTileRest}>
+      <View collapsable={false} style={held && !disabled ? styles.capTileSunk : styles.capTileRest}>
         <PixelSurface
           variant={active ? "inset" : "bevel"}
           pressed={held && !disabled}
