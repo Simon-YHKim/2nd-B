@@ -57,6 +57,8 @@ const mockServer = {
   session: null as string | null,
   arrived: [] as { label: Label; session: string | null; signal: boolean }[],
   holds: new Map<Label, MockHold[]>(),
+  /** 서버에서는 바로 실행되고 응답만 붙잡히는 요청(holdAnswer). 그 사이 다른 요청이 서버 상태를 바꿀 수 있다. */
+  answers: new Map<Label, MockHold[]>(),
   abortShape: "reject" as "reject" | "errorResult",
   missingRemove: "empty" as "empty" | "notFound",
   /** 다음 N 번은 서버에 닿지 않고 연결 오류로 끝난다. */
@@ -101,13 +103,21 @@ function mockSend(label: Label, signal: AbortSignal | undefined, execute: (sessi
   const lose = mockTake(mockServer.loseResponse, label);
   const failed = mockTake(mockServer.serverError, label);
   const gate = mockServer.holds.get(label)?.shift();
+  const answer = mockServer.answers.get(label)?.shift();
   gate?.reached();
   // 서버 쪽 실행. 붙잡혀 있으면 풀릴 때 실행된다. 클라이언트가 끊겨도 이 실행은 일어난다.
-  const server = (gate ? gate.released : Promise.resolve()).then((): MockResult => {
+  const executed = (gate ? gate.released : Promise.resolve()).then((): MockResult => {
     if (failed) return { data: null, error: { message: "internal error", code: "XX000", status: 500, statusCode: "500" } };
     const result = execute(session);
     return lose ? mockNetworkError(label) : result;
   });
+  // 응답만 늦는 요청: 서버는 이미 실행했고 클라이언트는 풀릴 때 받는다.
+  const server = answer
+    ? executed.then((result) => {
+        answer.reached();
+        return answer.released.then(() => result);
+      })
+    : executed;
   if (!signal) return server;
   return new Promise<MockResult>((resolve, reject) => {
     const onAbort = (): void => {
@@ -226,6 +236,12 @@ function mockTable(table: string) {
       filters.push((row) => Array.isArray(row[column]) && (row[column] as string[]).some((v) => values.includes(v)));
       return builder;
     },
+    // 승격이 보류 행을 찾는 조회(listStoragePendingSources)가 쓴다.
+    contains: (column: string, value: Row) => {
+      filters.push((row) => Object.entries(value).every(([key, expected]) => (row[column] as Row | undefined)?.[key] === expected));
+      return builder;
+    },
+    order: () => builder,
     limit: () => builder,
     abortSignal: (next: AbortSignal) => {
       signal = next;
@@ -280,8 +296,14 @@ import {
   subscribeAccountTransition,
 } from "../../auth/account-epoch";
 import { readPrivacyPrefs, savePrivacyPref } from "../../supabase/privacy";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import ts from "typescript";
+
 import { captureFromMarkdown, type CaptureJournal } from "../../wiki/capture";
 import { deleteCapturedSource } from "../../wiki/delete-captured-source";
+import * as capturedSourceModule from "../../wiki/delete-captured-source";
+import { promotePendingUploads } from "../../wiki/promote-pending";
 import {
   __resetAutosaveConsentForTests,
   autosaveConsentFor,
@@ -333,6 +355,8 @@ beforeEach(() => {
   __resetAccountEpochForTests();
   __resetAutosaveConsentForTests();
   __resetAutosaveRunnerForTests();
+  // 행 표식(지우는 중 · 지운 행 · 되살리는 중)도 테스트마다 비운다 - 목의 행 id(server-row-N)는 테스트마다 다시 쓰인다.
+  (capturedSourceModule as { __resetCapturedSourceRowsForTests?: () => void }).__resetCapturedSourceRowsForTests?.();
   __resetAutosaveUndoQueueForTests();
   __resetAccountLocalDeletionFencesForTests();
   localValues.clear();
@@ -349,6 +373,7 @@ beforeEach(() => {
   mockServer.session = OWNER;
   mockServer.arrived = [];
   mockServer.holds = new Map();
+  mockServer.answers = new Map();
   mockServer.abortShape = "reject";
   mockServer.missingRemove = "empty";
   mockServer.networkFail = new Map();
@@ -371,6 +396,22 @@ function hold(label: Label): { reached: Promise<void>; release: () => void } {
   const queue = mockServer.holds.get(label) ?? [];
   queue.push({ reached: () => reached(), released });
   mockServer.holds.set(label, queue);
+  return { reached: reachedPromise, release: () => open() };
+}
+
+/** 다음 요청 하나는 서버에서 바로 실행되고 응답만 붙잡힌다. reached 는 서버가 실행을 마치면 풀린다. */
+function holdAnswer(label: Label): { reached: Promise<void>; release: () => void } {
+  let reached = (): void => undefined;
+  let open = (): void => undefined;
+  const reachedPromise = new Promise<void>((done) => {
+    reached = () => done();
+  });
+  const released = new Promise<void>((done) => {
+    open = () => done();
+  });
+  const queue = mockServer.answers.get(label) ?? [];
+  queue.push({ reached: () => reached(), released });
+  mockServer.answers.set(label, queue);
   return { reached: reachedPromise, release: () => open() };
 }
 
@@ -1880,8 +1921,9 @@ describe("재게이트 잔여 (게이트 r260919 재게이트 GA-1814-1~3 · GZ-
       const deleted = await deleting;
       await spin();
       jest.useRealTimers();
+      // 5차 재게이트 G4Z-1814-1: 상한은 줄만 넘긴다 - 화면의 답은 실패가 아니라 보낸 삭제가 끝난 뒤의 그 답이다.
       expect({ deleted, kept, row: hasRow(id), raw: hasRaw(id) }).toEqual({
-        deleted: "autosave-lane-timeout",
+        deleted: "deleted",
         kept: "autosave-deletion-in-flight",
         row: false,
         raw: false,
@@ -1949,6 +1991,329 @@ describe("재게이트 잔여 (게이트 r260919 재게이트 GA-1814-1~3 · GZ-
       expect({ deleted, last: job.phases[job.phases.length - 1], row: hasRow(id), raw: hasRaw(id), queue: queued() }).toEqual({
         deleted: "deleted",
         last: "cancelled",
+        row: false,
+        raw: false,
+        queue: [],
+      });
+    });
+  });
+
+  describe("5차 재게이트 G4Z-1814-1 · G4Z-1814-2: 줄의 시간 상한은 줄만 넘기고, 잠금과 확정은 실제 삭제가 끝난 뒤에 푼다", () => {
+    // 게이트 재현 순서(G4Z-1814-1, 같은 계정 · 같은 런타임 · 같은 상세 화면): 업로드가 실패해 본문이 행 안에 든 자료(_storage_pending) ->
+    // 기록 상세에서 지운다(행 삭제가 돌아오지 않는다) -> 줄의 시간 상한이 지나 화면이 실패 안내를 띄우고 삭제 잠금을 풀었다 -> 확인 창을
+    // 닫고 "위키 페이지 만들기" 를 누르면 승격(promotePendingUploads)이 그 행의 본문을 원문으로 다시 올렸다 -> 늦게 끝난 행 삭제 뒤에 행
+    // 없는 원문만 남았다. 기대: 시간 상한은 줄만 넘기고, 화면의 잠금과 답은 실제 삭제가 끝난 뒤에 풀린다. 그동안 그 행의 승격은 막힌다 -
+    // 어느 화면에서 누른 승격이든(승격은 계정의 보류 행을 모두 다시 올린다), 실행기의 배경 삭제(철회 되돌리기 · 비우기)가 지우는 중이든.
+    // 거꾸로 승격이 그 행을 되살리는 중이면 삭제는 그 되살리기가 끝난 뒤에 지운다.
+    // G4Z-1814-2: 손으로 담은 일반 자료도 지우는 중이면(또는 이 런타임이 방금 지웠으면) 같은 대화의 손 담기가 담김을 띄우지 않는다.
+    const late = (promise: Promise<unknown>): Promise<string> =>
+      promise.then(
+        (value) => (typeof value === "string" ? value : "kept"),
+        (error: Error) => error.message,
+      );
+    const rawOf = (saved: { source: { storage_path: string } }): string => saved.source.storage_path;
+    const rowExists = (id: string): boolean => mockServer.sources.some((row) => row.id === id);
+
+    const DETAIL_FILE = join(process.cwd(), "src/screens/deepspace/dds-record-detail-screen.tsx");
+
+    interface DetailScreen {
+      handleDeleteSource: () => Promise<void>;
+      promoteToWiki: () => Promise<void>;
+      closeDelete: () => void;
+      state: () => { deleting: boolean; promoting: boolean; confirmingDelete: boolean; deleteLock: unknown };
+      said: string[];
+      back: jest.Mock;
+    }
+
+    /**
+     * 기록 상세 화면을 렌더하지 않고(이 저장소에서 컴포넌트 렌더 테스트는 막혀 있다) 삭제 · 승격 · 확인 창 닫기의 useCallback 선언을
+     * AST 로 떼어 한 스코프에서 돌린다. 화면 상태는 그 스코프의 let 이고, 삭제 · 승격 함수는 진짜다(목은 서버뿐).
+     */
+    function detailScreen(sourceId: string): DetailScreen {
+      const ast = ts.createSourceFile(DETAIL_FILE, readFileSync(DETAIL_FILE, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+      const wanted = ["promoteToWiki", "handleDeleteSource", "closeDelete"];
+      const found = new Map<string, string>();
+      const visit = (node: ts.Node): void => {
+        if (ts.isVariableStatement(node)) {
+          for (const declaration of node.declarationList.declarations) {
+            if (ts.isIdentifier(declaration.name) && wanted.includes(declaration.name.text)) {
+              found.set(declaration.name.text, node.getText(ast));
+            }
+          }
+        }
+        ts.forEachChild(node, visit);
+      };
+      visit(ast);
+      expect([...found.keys()].sort()).toEqual([...wanted].sort());
+      const said: string[] = [];
+      const back = jest.fn();
+      const identity = `${OWNER}:src-${sourceId}`;
+      const bindings: Record<string, unknown> = {
+        userId: OWNER,
+        recordId: `src-${sourceId}`,
+        SOURCE_ID_PREFIX: "src-",
+        identity,
+        primary: { status: "ready", identity, piece: { origin: "source" } },
+        isCurrent: (value: unknown) => value === identity,
+        deleteCapturedSource,
+        promotePendingUploads,
+        // 위키 페이지 만들기는 LLM 을 부른다 - 여기서는 자료가 아직 있는지만 본다.
+        generateSourcePage: async (_owner: string, id: string) => {
+          if (!rowExists(id)) throw new Error("source missing");
+        },
+        announceActionError: (message?: string) => said.push(message ?? "deepspace:recordDetail.actionFailed"),
+        reactExpression: () => undefined,
+        router: { canGoBack: () => true, back, replace: jest.fn() },
+        AccessibilityInfo: { announceForAccessibility: () => undefined },
+        t: (key: string) => key,
+      };
+      const body = [
+        "let deleting = false, promoting = false, promoted = false, confirmingDelete = true;",
+        "const locksRef = { current: { edit: null, tags: null, delete: null, promote: null } };",
+        "const setDeleting = (value) => { deleting = value; };",
+        "const setPromoting = (value) => { promoting = value; };",
+        "const setPromoted = (value) => { promoted = value; };",
+        "const setConfirmingDelete = (value) => { confirmingDelete = value; };",
+        "const setActionError = () => undefined;",
+        "const useCallback = (callback) => callback;",
+        ...wanted.map((name) => found.get(name) ?? ""),
+        "return { handleDeleteSource, promoteToWiki, closeDelete,",
+        "  state: () => ({ deleting, promoting, confirmingDelete, deleteLock: locksRef.current.delete }) };",
+      ].join("\n");
+      const js = ts.transpileModule(body, {
+        compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+      }).outputText;
+      const screen = new Function(...Object.keys(bindings), js)(...Object.values(bindings)) as Omit<DetailScreen, "said" | "back">;
+      return { ...screen, said, back };
+    }
+
+    /** 철회로 끊긴 자동 저장의 행. 업로드가 실패해 본문이 행 안에 들었다(_storage_pending) - 승격이 다시 올리는 행이다. */
+    async function withdrawnBodyInRow(): Promise<{ job: Job; release: () => void }> {
+      mockServer.serverError.set("upload", 1);
+      const { job, release } = await atWait("J4");
+      await savePrivacyPref(OWNER, "chat_autosave", false);
+      return { job, release };
+    }
+
+    test("게이트 재현: 기록 상세의 삭제가 줄의 시간 상한을 넘겨도 실제 삭제가 끝나기 전에는 삭제 중 잠금이 남아 승격을 누를 수 없고, 끝난 뒤 그 답으로 뒤로 간다 - 줄은 상한에서 풀려 다른 일은 진행한다", async () => {
+      expect(typeof LANE_TIMEOUT_MS).toBe("number");
+      mockServer.serverError.set("upload", 1); // 업로드가 실패해 본문이 행 안에 든다(capture 의 정상 복구 계약)
+      const saved = await handKeep(1);
+      expect(saved.storagePending).toBe(true);
+      const id = String(saved.source.id);
+      const screen = detailScreen(id);
+      const locked = { deleting: true, promoting: false, confirmingDelete: true, deleteLock: `${OWNER}:src-${id}` };
+      fakeTimers();
+      const rowDelete = hold("rowDelete"); // 원문 삭제는 지나갔고 행 삭제가 돌아오지 않는다
+      const deleting = screen.handleDeleteSource();
+      await rowDelete.reached;
+      jest.advanceTimersByTime(LANE_TIMEOUT_MS ?? 0);
+      await spin();
+      expect(screen.state()).toEqual(locked);
+      screen.closeDelete(); // 지우는 중에는 확인 창이 닫히지 않는다
+      const uploads = count("upload");
+      await screen.promoteToWiki(); // 잠금이 남아 있어 아무것도 하지 않는다
+      // 다른 기록 화면의 승격도 이 행은 건너뛴다(승격은 계정의 보류 행을 모두 다시 올린다).
+      expect(await promotePendingUploads(OWNER)).toEqual({ pending: 1, promoted: 0 });
+      expect({ state: screen.state(), uploads: count("upload") - uploads }).toEqual({ state: locked, uploads: 0 });
+      const other = await handKeep(2); // 줄은 상한에서 풀렸다 - 다른 자료의 일은 기다리지 않는다
+      expect(other.deduped).toBeNull();
+      rowDelete.release();
+      await deleting;
+      await spin();
+      jest.useRealTimers();
+      expect({
+        state: screen.state(),
+        said: screen.said,
+        back: screen.back.mock.calls.length,
+        row: rowExists(id),
+        raw: mockServer.objects.has(rawOf(saved)),
+        queue: queued(),
+      }).toEqual({
+        state: { deleting: false, promoting: false, confirmingDelete: true, deleteLock: null },
+        said: [],
+        back: 1,
+        row: false,
+        raw: false,
+        queue: [],
+      });
+    });
+
+    test("늦게 끝난 삭제도 줄에서 그 답으로 확정한다 - 다 지웠으면 비우기를 기다리지 않고 대기 기록을 뺀다", async () => {
+      expect(typeof LANE_TIMEOUT_MS).toBe("number");
+      const old = await pendingUndo();
+      const id = old.handle.sourceId;
+      fakeTimers();
+      const rowDelete = hold("rowDelete");
+      const deleting = late(deleteCapturedSource(OWNER, id));
+      await rowDelete.reached;
+      jest.advanceTimersByTime(LANE_TIMEOUT_MS ?? 0);
+      await spin();
+      rowDelete.release();
+      expect(await deleting).toBe("deleted");
+      await spin();
+      jest.useRealTimers();
+      expect({ row: hasRow(id), raw: hasRaw(id), queue: queued() }).toEqual({ row: false, raw: false, queue: [] });
+    });
+
+    test("늦게 끝난 삭제가 다 지웠으면 '아직 삭제하지 못했어요' 안내도 비우기를 기다리지 않고 거둔다", async () => {
+      expect(typeof LANE_TIMEOUT_MS).toBe("number");
+      const { job, release } = await atWait("J4");
+      await savePrivacyPref(OWNER, "chat_autosave", false);
+      const store = globalThis.localStorage as unknown as { setItem: (key: string, value: string) => void };
+      const setItem = store.setItem;
+      store.setItem = () => {
+        throw new Error("QuotaExceededError");
+      };
+      mockServer.serverError.set("remove", 1);
+      try {
+        release();
+        expect(await job.handle.settled).toBe("undo_unrecorded");
+      } finally {
+        store.setItem = setItem;
+      }
+      const id = job.handle.sourceId;
+      fakeTimers();
+      const rowDelete = hold("rowDelete");
+      const deleting = late(deleteCapturedSource(OWNER, id));
+      await rowDelete.reached;
+      jest.advanceTimersByTime(LANE_TIMEOUT_MS ?? 0);
+      await spin();
+      rowDelete.release();
+      expect(await deleting).toBe("deleted");
+      await spin();
+      jest.useRealTimers();
+      expect({ last: job.phases[job.phases.length - 1], row: hasRow(id), raw: hasRaw(id), queue: queued() }).toEqual({
+        last: "cancelled",
+        row: false,
+        raw: false,
+        queue: [],
+      });
+    });
+
+    test("G4Z-1814-2 게이트 재현: 손으로 담은 일반 자료를 기록 상세에서 지우는 중이면(줄의 시간 상한을 넘겨도) 같은 대화를 다시 담아도 담김이라 말하지 않는다", async () => {
+      expect(typeof LANE_TIMEOUT_MS).toBe("number");
+      mockServer.loseResponse.set("insert", 1); // 첫 손 담기: INSERT 는 커밋됐는데 응답을 잃어 화면은 실패 안내다
+      expect(await late(handKeep(1))).not.toBe("kept");
+      expect(mockServer.sources).toHaveLength(1);
+      const id = String(mockServer.sources[0].id);
+      const path = String(mockServer.sources[0].storage_path);
+      expect(mockServer.objects.has(path)).toBe(true);
+      fakeTimers();
+      const remove = hold("remove"); // 기록 상세의 삭제: 원문 삭제가 돌아오지 않는다
+      const deleting = late(deleteCapturedSource(OWNER, id));
+      await remove.reached;
+      jest.advanceTimersByTime(LANE_TIMEOUT_MS ?? 0);
+      expect(await late(handKeep(1))).toBe("autosave-deletion-in-flight"); // 같은 실패한 턴을 다시 담는다(정확 중복)
+      remove.release();
+      expect(await deleting).toBe("deleted");
+      await spin();
+      jest.useRealTimers();
+      expect({ rows: mockServer.sources.length, objects: mockServer.objects.size }).toEqual({ rows: 0, objects: 0 });
+      const again = await handKeep(1); // 삭제가 끝난 뒤에는 새로 담긴다
+      expect({ deduped: again.deduped, rows: mockServer.sources.length, objects: mockServer.objects.size }).toEqual({
+        deduped: null,
+        rows: 1,
+        objects: 1,
+      });
+    });
+
+    test("정확 중복을 읽은 뒤 그 행의 삭제가 끝났으면, 이 런타임이 지운 행이라 손 담기가 담김이라 말하지 않는다", async () => {
+      expect(typeof LANE_TIMEOUT_MS).toBe("number");
+      const saved = await handKeep(1);
+      const id = String(saved.source.id);
+      fakeTimers();
+      const rowDelete = hold("rowDelete");
+      const deleting = late(deleteCapturedSource(OWNER, id));
+      await rowDelete.reached;
+      jest.advanceTimersByTime(LANE_TIMEOUT_MS ?? 0);
+      const lookup = holdAnswer("getSource"); // 서버는 행 삭제 전에 그 행을 읽었고, 그 답은 삭제가 끝난 뒤에 온다
+      const keeping = late(handKeep(1));
+      await lookup.reached;
+      rowDelete.release();
+      expect(await deleting).toBe("deleted");
+      lookup.release();
+      expect(await keeping).toBe("autosave-deletion-in-flight");
+      await spin();
+      jest.useRealTimers();
+      expect({ rows: mockServer.sources.length, objects: mockServer.objects.size }).toEqual({ rows: 0, objects: 0 });
+    });
+
+    test("승격 × 철회 되돌리기: 되돌리기가 그 행을 지우는 중이면 다른 기록 화면의 승격이 그 행의 본문을 다시 올리지 않는다 - 행 없는 원문이 남지 않는다", async () => {
+      const { job, release } = await withdrawnBodyInRow();
+      const rowDelete = hold("rowDelete");
+      release(); // INSERT 가 커밋되고 되돌리기가 그 행을 지운다 - 행 삭제가 돌아오지 않는다
+      await rowDelete.reached;
+      const id = job.handle.sourceId;
+      const uploads = count("upload");
+      expect(await promotePendingUploads(OWNER)).toEqual({ pending: 1, promoted: 0 });
+      expect(count("upload") - uploads).toBe(0);
+      rowDelete.release();
+      expect(await job.handle.settled).toBe("cancelled");
+      expect({ row: hasRow(id), raw: hasRaw(id), queue: queued() }).toEqual({ row: false, raw: false, queue: [] });
+    });
+
+    test("승격 × 철회 되돌리기(거꾸로): 승격이 그 행을 되살리는 중에 되돌리기가 줄에 오면, 되살리기가 끝난 뒤에 지운다", async () => {
+      const { job, release } = await withdrawnBodyInRow();
+      const lookup = hold("candidates"); // 다른 대화의 손 담기가 줄을 쥐고 있다 - 되돌리기는 그 뒤에 선다
+      const blocker = late(handKeep(2));
+      await lookup.reached;
+      release(); // INSERT 가 커밋된다 - 되돌리기는 기록을 적고 줄을 기다린다
+      await spin();
+      const upload = hold("upload"); // 승격의 되살리기 업로드가 나가 있다
+      const promoting = promotePendingUploads(OWNER);
+      await upload.reached;
+      const sent = { remove: count("remove"), rowDelete: count("rowDelete") };
+      lookup.release(); // 줄이 되돌리기로 넘어간다
+      expect(await blocker).toBe("kept");
+      await spin();
+      expect({ remove: count("remove"), rowDelete: count("rowDelete") }).toEqual(sent); // 지우기는 되살리기를 기다린다
+      upload.release();
+      expect(await promoting).toEqual({ pending: 1, promoted: 1 });
+      expect(await job.handle.settled).toBe("cancelled");
+      const id = job.handle.sourceId;
+      expect({ row: hasRow(id), raw: hasRaw(id), queue: queued() }).toEqual({ row: false, raw: false, queue: [] });
+    });
+
+    test("승격 × 비우기: 승격이 대기 기록의 행을 되살리는 중이면 비우기의 삭제는 되살리기가 끝난 뒤에 지운다", async () => {
+      const { job, release } = await withdrawnBodyInRow();
+      mockServer.serverError.set("rowDelete", 1); // 되돌리기의 행 삭제가 한 번 실패해 대기 기록에 남는다
+      release();
+      expect(await job.handle.settled).toBe("undo_pending");
+      const id = job.handle.sourceId;
+      expect({ row: hasRow(id), raw: hasRaw(id), queue: queued() }).toEqual({
+        row: true,
+        raw: false,
+        queue: [{ ownerId: OWNER, sourceId: id }],
+      });
+      const upload = hold("upload");
+      const promoting = promotePendingUploads(OWNER);
+      await upload.reached;
+      const sent = { remove: count("remove"), rowDelete: count("rowDelete") };
+      const draining = drainAutosaveUndoQueue(OWNER); // 대화 화면 복귀 · 앱 복귀
+      await spin();
+      expect({ remove: count("remove"), rowDelete: count("rowDelete") }).toEqual(sent);
+      upload.release();
+      expect(await promoting).toEqual({ pending: 1, promoted: 1 });
+      await draining;
+      expect({ row: hasRow(id), raw: hasRaw(id), queue: queued() }).toEqual({ row: false, raw: false, queue: [] });
+    });
+
+    test("승격 × 기록 상세 삭제(거꾸로): 승격이 그 행을 되살리는 중에 지우면 되살리기가 끝난 뒤에 지운다 - 늦게 도착한 업로드가 원문을 되살리지 않는다", async () => {
+      mockServer.serverError.set("upload", 1);
+      const saved = await handKeep(1); // 본문이 행 안에 든 손 담기 자료
+      const id = String(saved.source.id);
+      const upload = hold("upload"); // 승격의 되살리기 업로드가 나가 있다
+      const promoting = promotePendingUploads(OWNER);
+      await upload.reached;
+      const sent = { remove: count("remove"), rowDelete: count("rowDelete") };
+      const deleting = late(deleteCapturedSource(OWNER, id));
+      await spin();
+      expect({ remove: count("remove"), rowDelete: count("rowDelete") }).toEqual(sent); // 지우기는 되살리기를 기다린다
+      upload.release();
+      expect(await promoting).toEqual({ pending: 1, promoted: 1 });
+      expect(await deleting).toBe("deleted");
+      expect({ row: rowExists(id), raw: mockServer.objects.has(rawOf(saved)), queue: queued() }).toEqual({
         row: false,
         raw: false,
         queue: [],

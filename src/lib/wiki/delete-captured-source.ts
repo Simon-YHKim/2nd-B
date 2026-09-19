@@ -48,6 +48,16 @@
 // 자기 계정 줄을 걸고, 그 뒤로 deleteCapturedSource 는 그 줄에서 돈다. 실행기를 불러오지 않은 런타임에는
 // 되살리는 업로드도 없어서 바로 지운다. 이 파일이 실행기를 import 하지 않는 것은 실행기가 이 파일을
 // import 하기 때문이다(require cycle).
+//
+// 승격의 되살리기와는 행마다 엇갈리지 않는다 (5차 재게이트 G4Z-1814-1). 승격(promote-pending.ts)은 업로드가
+// 실패해 본문이 행 안에 든 자료의 본문을 원문으로 다시 올린다 - 보고 있는 자료만이 아니라 그 계정의 보류 행
+// 전부를. 그 업로드가 이 삭제와 엇갈려 원문 -> 페이지 -> 행을 다 지운 뒤에 도착하면 행 없는 원문이 남는다. 그래서
+// 이 런타임의 삭제와 승격은 행마다 표식을 본다. 조정하는 쪽이 있든 없든 여기를 지나는 삭제는 모두 같다.
+//   · 지우는 동안(removing) 그 행은 승격이 건너뛴다. 이 런타임이 다 지운 행(removed)도 건너뛴다 - 승격의 목록은
+//     삭제보다 먼저 읽혔을 수 있다. 행 id 는 다시 쓰이지 않는다(uuid).
+//   · 승격이 그 행을 되살리는 중이면(restoring) 삭제는 표식을 먼저 세우고(새 승격은 건너뛴다) 그 되살리기가
+//     끝난 뒤에 지운다.
+// 다른 탭 · 다른 기기의 승격과 삭제는 이 표식을 모른다(서버 S3 몫).
 // 검사: `src/lib/wiki/__tests__/delete-captured-source.test.ts` · 조정된 길은 `src/lib/chat/__tests__/autosave-runner.test.ts`
 
 import { getSupabaseClient } from "../supabase/client";
@@ -67,21 +77,97 @@ export function coordinateCapturedSourceDeletes(next: CapturedSourceDeleteCoordi
   coordinator = next;
 }
 
+// 행 표식 (머리 주석 "승격의 되살리기와는 행마다"). 키는 계정과 행 id 다.
+/** 지우는 중인 행과 그 삭제 수. */
+const removing = new Map<string, number>();
+/** 이 런타임이 다 지운 행. */
+const removed = new Set<string>();
+/** 승격이 본문을 되살리는 중인 행과 나가 있는 그 일들. */
+const restoring = new Map<string, Set<Promise<void>>>();
+
+function rowKey(userId: string, sourceId: string): string {
+  return `${userId}\n${sourceId.toLowerCase()}`;
+}
+
+/** 이 런타임이 그 행을 다 지웠는가. 정확 중복으로 돌려받은 행이 그 뒤에 지워졌는지 가를 때 쓴다(대화 자동 저장 실행기). */
+export function capturedSourceRemoved(userId: string, sourceId: string): boolean {
+  return removed.has(rowKey(userId, sourceId));
+}
+
+/**
+ * 행 안에 보류된 본문을 원문으로 되살리는 일 하나를 돌린다 - 승격(promote-pending.ts)이 부른다. 그 행을 지우는 중이거나 이 런타임이
+ * 이미 지웠으면 돌리지 않고 false 다(지워지는 행이다). 도는 동안 그 행의 삭제는 이 일이 끝난 뒤에 지운다. work 가 던지면 그대로 던진다.
+ */
+export async function restoreCapturedSourceBody(
+  userId: string,
+  sourceId: string,
+  work: () => Promise<void>,
+): Promise<boolean> {
+  const key = rowKey(userId, sourceId);
+  if (removing.has(key) || removed.has(key)) return false;
+  const running = work();
+  const writes = restoring.get(key) ?? new Set<Promise<void>>();
+  writes.add(running);
+  restoring.set(key, writes);
+  try {
+    await running;
+    return true;
+  } finally {
+    writes.delete(running);
+    if (writes.size === 0 && restoring.get(key) === writes) restoring.delete(key);
+  }
+}
+
+/** 그 행을 되살리는 승격의 일이 모두 끝날 때까지 기다린다(실패도 끝이다). */
+async function restoresSettled(key: string): Promise<void> {
+  for (let writes = restoring.get(key); writes && writes.size > 0; writes = restoring.get(key)) {
+    await Promise.all([...writes].map((write) => write.then(noop, noop)));
+  }
+}
+
+function noop(): void {}
+
+/** 테스트 전용. 이 런타임의 행 표식을 비운다. */
+export function __resetCapturedSourceRowsForTests(): void {
+  removing.clear();
+  removed.clear();
+  restoring.clear();
+}
+
 function warnWithoutDetails(message: string): void {
   if (typeof console !== "undefined") console.warn(message);
 }
 
 /**
  * 사용자가 담아 둔 자료 한 건을 지운다 - 기록 상세가 부른다. 조정하는 쪽이 걸려 있으면 그 줄에서 돈다: 원문을 되살리는
- * 업로드가 나가 있는 자료는 지운 것으로 끝내지 않고(not_deleted, 아무것도 지우지 않았다) 업로드가 돌아온 뒤 마저 지우며,
- * 줄의 시간 상한을 넘기면 던진다(무엇을 지웠는지 모른다 - 화면은 일반 실패 안내다).
+ * 업로드가 나가 있는 자료는 지운 것으로 끝내지 않고(not_deleted, 아무것도 지우지 않았다) 업로드가 돌아온 뒤 마저 지운다.
+ * 줄의 시간 상한은 줄만 넘기고 이 답은 보낸 삭제가 끝난 뒤에 온다 - 그동안 화면의 삭제 잠금이 남아 승격을 누를 수 없다(5차
+ * 재게이트 G4Z-1814-1). 삭제를 보내기 전에 상한이 지나면 던진다(아무것도 지우지 않았다 - 화면은 일반 실패 안내다).
  */
 export function deleteCapturedSource(userId: string, sourceId: string): Promise<DeleteCapturedSourceOutcome> {
   return coordinator ? coordinator(userId, sourceId) : removeCapturedSource(userId, sourceId);
 }
 
-/** 지금 지운다. 조정하는 쪽이 자기 줄 안에서 부른다 - 화면은 deleteCapturedSource 를 부른다. */
+/**
+ * 지금 지운다. 조정하는 쪽이 자기 줄 안에서 부른다 - 화면은 deleteCapturedSource 를 부른다. 지우는 동안 그 행은 지우는 중이고(승격이
+ * 건너뛴다), 승격이 그 행을 되살리는 중이면 그 일이 끝난 뒤에 지운다(머리 주석 "승격의 되살리기와는 행마다").
+ */
 export async function removeCapturedSource(userId: string, sourceId: string): Promise<DeleteCapturedSourceOutcome> {
+  const key = rowKey(userId, sourceId);
+  removing.set(key, (removing.get(key) ?? 0) + 1);
+  try {
+    await restoresSettled(key);
+    const outcome = await removeNow(userId, sourceId);
+    if (outcome === "deleted") removed.add(key);
+    return outcome;
+  } finally {
+    const left = (removing.get(key) ?? 1) - 1;
+    if (left > 0) removing.set(key, left);
+    else removing.delete(key);
+  }
+}
+
+async function removeNow(userId: string, sourceId: string): Promise<DeleteCapturedSourceOutcome> {
   const supabase = getSupabaseClient();
 
   let path: string | null;

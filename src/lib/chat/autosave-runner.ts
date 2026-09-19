@@ -116,6 +116,16 @@
 //     지울 차례로 적어 두고(대기 기록), 업로드가 돌아오면 그 행을 줄에서 다시 봐 마저 지운다. 그 사이 다시 손으로 남기면 그 뜻이 이긴다.
 //   · 지우는 동안 그 행은 지우는 중(deletingNow)이다 - 손 담기 · 자동 저장이 그 행으로 담김을 띄우지 않는다.
 //
+// ## 시간 상한은 줄만 넘긴다 (5차 재게이트 G4Z-1814-1 · G4Z-1814-2)
+//
+// 한 건 삭제가 줄의 시간 상한을 넘기면 줄은 다음 일로 넘어가지만 화면에는 답하지 않는다 - 보낸 삭제가 끝나야 답한다. 그동안 화면의
+// 삭제 잠금이 남아 승격을 누를 수 없다. 상한에서 실패로 답하던 때는 잠금이 풀려, 같은 화면의 승격이 지우는 중인 행의 본문을 다시
+// 올렸고 늦게 끝난 삭제 뒤에 행 없는 원문이 남았다. 끝난 삭제는 줄에서 그 답으로 확정한다(settleAfterLateDelete - 늦은 되살리기의
+// settleAfterLateRestore 와 대칭). 승격 자체도 지우는 중 · 지운 행을 건너뛰고, 승격이 되살리는 중인 행은 그 뒤에 지운다(행 표식 -
+// delete-captured-source.ts). 정확 중복으로 돌려받은 행이 지우는 중이거나 이 런타임이 지운 행이면 자동 저장이 쓴 행이 아니어도 손
+// 담기는 담김이라 하지 않는다. ⚠ 보낸 삭제가 응답 없이 멈추면 화면의 확인 창도 멈춘다(supabase 클라이언트에 fetch 상한이 없다 -
+// 4차 이전과 같은 동작, 후속).
+//
 // ⚠ 확인하지 않은 것: 운영 Supabase 에서 클라이언트가 정한 id 로 INSERT 가 되는지, 끊긴 fetch 뒤 서버가 커밋하는지,
 // 없는 경로 Storage remove 가 빈 목록인지 404 오류인지(둘 다 "없음" 으로 읽는다), RN 실기의 백그라운드 동작.
 // ⚠ 보안 경계가 아니다. 서버는 chat_autosave 를 쓰기에서 강제하지 않는다(서버 몫, 설계 S2).
@@ -123,12 +133,19 @@
 import * as Crypto from "expo-crypto";
 
 import { abortError, throwIfAborted } from "../async/abort";
-import { captureAccountOwnerLease, isCurrentAccountEpoch, subscribeAccountTransition } from "../auth/account-epoch";
+import {
+  captureAccountOwnerLease,
+  isCurrentAccountEpoch,
+  subscribeAccountTransition,
+  type AccountOwnerLease,
+} from "../auth/account-epoch";
 import { beginAccountSessionLease, type PendingAccountSessionLease } from "../auth/account-session-lease";
 import { getSupabaseClient } from "../supabase/client";
 import { readPrivacyPrefs } from "../supabase/privacy";
 import { captureFromMarkdown, type CaptureJournal, type CaptureResult } from "../wiki/capture";
 import {
+  __resetCapturedSourceRowsForTests,
+  capturedSourceRemoved,
   coordinateCapturedSourceDeletes,
   removeCapturedSource,
   type DeleteCapturedSourceOutcome,
@@ -797,10 +814,12 @@ export function runManualKeep(
     throwIfAborted(signal);
     if (kept.deduped !== "exact_duplicate") return kept;
     const record: AutosaveUndoRecord = { ownerId, sourceId: String(kept.source.id).toLowerCase() };
+    const key = undoKey(record);
+    // 지우는 중이거나 이 런타임이 이미 지운 행은 - 자동 저장이 쓴 행이든 손으로 담은 행이든 - 남는다고 말할 수 없다(5차 재게이트
+    // G4Z-1814-2). 정확 중복은 capture 가 행을 읽은 순간의 답이라 그 뒤에 끝난 삭제를 모른다.
+    if (deletingNow.has(key) || capturedSourceRemoved(ownerId, record.sourceId)) throw new Error("autosave-deletion-in-flight");
     // 자동 저장이 쓴 행이 아니면 되돌리기 대기에 오를 수 없다 - 조정할 것이 없다.
     if (!isAutosaveRow(record, kept)) return kept;
-    const key = undoKey(record);
-    if (deletingNow.has(key)) throw new Error("autosave-deletion-in-flight");
     if (!keptRows.has(key) && (await deletionPending(record)) !== false) {
       // 지울 차례였던 행이다(기기 기록을 못 읽어 모를 때도 같다). 원문을 되살린 뒤에만 남긴다.
       throwIfAborted(signal);
@@ -892,14 +911,19 @@ function settleAfterLateRestore(record: AutosaveUndoRecord): Promise<void> {
  * 서고 기록이 빠져 그 뜻이 이긴다. 기기에 못 적으면 이 런타임이 쥔다(unfinishedUndos, 알릴 답변 없음).
  *
  * 지우는 동안 그 행은 지우는 중(deletingNow)이다 - 시간 상한을 넘겨 줄을 넘겨도 삭제 요청이 돌아올 때까지 손 담기 · 자동 저장이 그
- * 행으로 담김을 띄우지 않는다. 다른 일이 이미 그 행을 지우는 중이면 겹쳐 보내지 않는다(not_deleted). 시간 상한을 넘기면 던진다.
+ * 행으로 담김을 띄우지 않는다. 다른 일이 이미 그 행을 지우는 중이면 겹쳐 보내지 않는다(not_deleted).
+ *
+ * 시간 상한은 줄만 넘긴다 (5차 재게이트 G4Z-1814-1). 삭제를 보낸 뒤 상한이 지나면 줄은 다음 일로 넘어가지만 이 답은 보낸 삭제가 끝날
+ * 때까지 기다린다 - 화면의 삭제 잠금과 확정이 실제 삭제의 수명을 따른다. 끝나면 줄에서 그 답으로 확정한다(settleAfterLateDelete).
+ * 보내기 전에 상한이 지나면(되살리기가 나가 있어 대기 기록을 적는 중) 아무것도 지우지 않았으니 던진다.
  */
 function runManualDelete(ownerId: string, sourceId: string): Promise<DeleteCapturedSourceOutcome> {
   const owner = captureAccountOwnerLease(ownerId);
   if (!owner) return Promise.resolve("not_deleted");
   const record: AutosaveUndoRecord = { ownerId, sourceId: sourceId.toLowerCase() };
   const key = undoKey(record);
-  return inOwnerLane(ownerId, async (signal) => {
+  let sent: Promise<DeleteCapturedSourceOutcome> | null = null;
+  const inLane = inOwnerLane(ownerId, async (signal) => {
     if (!owner.isCurrent()) return "not_deleted";
     keptRows.delete(key);
     const restoring = restoringNow.get(key);
@@ -911,17 +935,41 @@ function runManualDelete(ownerId: string, sourceId: string): Promise<DeleteCaptu
       return "not_deleted";
     }
     if (deletingNow.has(key)) return "not_deleted";
-    deletingNow.add(key);
-    let outcome: DeleteCapturedSourceOutcome;
-    try {
-      outcome = await removeCapturedSource(record.ownerId, record.sourceId);
-    } finally {
-      deletingNow.delete(key);
-    }
+    const removal = removeTracked(record);
+    sent = removal;
+    const outcome = await removal;
     throwIfAborted(signal);
     if (outcome === "deleted" && owner.isCurrent()) await forgetRemoved(record);
     return outcome;
   });
+  return inLane.catch((error: unknown) => {
+    const removal = sent;
+    if (!removal) throw error;
+    return removal.then((outcome) => {
+      if (outcome === "deleted") void settleAfterLateDelete(record, owner);
+      return outcome;
+    });
+  });
+}
+
+/** 한 건을 지운다. 지우는 동안 그 행은 지우는 중(deletingNow)이다 - 줄이 시간 상한으로 넘어가도 삭제가 돌아올 때까지. */
+function removeTracked(record: AutosaveUndoRecord): Promise<DeleteCapturedSourceOutcome> {
+  const key = undoKey(record);
+  deletingNow.add(key);
+  return removeCapturedSource(record.ownerId, record.sourceId).finally(() => {
+    deletingNow.delete(key);
+  });
+}
+
+/**
+ * 줄을 넘겨 늦게 끝난 한 건 삭제를 줄에서 확정한다 (5차 재게이트 G4Z-1814-1). 늦게 끝난 되살리기의 settleAfterLateRestore 와 대칭이다:
+ * 나가 있는 동안에는 표식(deletingNow)이 그 행을 지키고, 돌아오면 줄에서 그 답으로 확정한다 - 다 지웠으면 대기 기록과 "아직 삭제하지
+ * 못했다" 안내를 거둔다. 그 사이 계정이 바뀌었으면 손대지 않는다(남은 기록은 그 계정의 비우기가 확인하고 뺀다).
+ */
+function settleAfterLateDelete(record: AutosaveUndoRecord, owner: AccountOwnerLease): Promise<void> {
+  return inOwnerLane(record.ownerId, async () => {
+    if (owner.isCurrent()) await forgetRemoved(record);
+  }).catch(() => undefined);
 }
 
 // 이 모듈이 있는 런타임에서는 사용자의 한 건 삭제가 이 줄을 지난다(머리 주석 "사용자가 직접 지울 때").
@@ -1001,4 +1049,6 @@ export function __resetAutosaveRunnerForTests(): void {
   deletingNow.clear();
   restoringNow.clear();
   unfinishedUndos.clear();
+  // 행 표식(delete-captured-source.ts)도 이 런타임의 것이다 - 실행기를 되돌리는 테스트는 함께 비운다.
+  __resetCapturedSourceRowsForTests();
 }

@@ -32,13 +32,35 @@ const mockDb = {
   denySourceDelete: false,
   /** 다음 N 번의 sources DELETE 를 오류로 돌려준다(연결 끊김 같은 것). */
   sourceDeleteErrors: 0,
+  /** 이름 붙은 요청 하나를 붙잡는다(mockGate). before 는 실행 전에, after 는 실행한 뒤 응답을 붙잡는다. */
+  gates: new Map<string, { when: "before" | "after"; reached: () => void; released: Promise<void> }>(),
 };
+
+/** 이름 붙은 문을 지나 실행한다. before 문은 풀릴 때 실행하고, after 문은 바로 실행한 뒤 응답만 풀릴 때 돌려준다. */
+async function mockThrough<T>(name: string, run: () => T): Promise<T> {
+  const gate = mockDb.gates.get(name);
+  if (gate) mockDb.gates.delete(name);
+  if (gate?.when === "before") {
+    gate.reached();
+    await gate.released;
+    return run();
+  }
+  const result = run();
+  if (gate) {
+    gate.reached();
+    await gate.released;
+  }
+  return result;
+}
 
 function mockQuery(table: "sources" | "wiki_pages") {
   let op: "select" | "delete" | "update" = "select";
   let patch: MockRow = {};
   let columns = "*";
+  /** 승격이 보류 행을 찾는 조회(listStoragePendingSources)인가. */
+  let listing = false;
   const filters: ((row: MockRow) => boolean)[] = [];
+  const gateName = (): string => (op === "select" && listing ? "list pending" : `${op} ${table}`);
   const run = (): { data: MockRow[] | null; error: { message: string; code?: string } | null; count?: number | null } => {
     const rows = mockDb[table];
     const hit = rows.filter((row) => filters.every((keep) => keep(row)));
@@ -103,12 +125,23 @@ function mockQuery(table: "sources" | "wiki_pages") {
       filters.push((row) => values.includes(row[column]));
       return builder;
     },
+    contains: (column: string, value: MockRow) => {
+      listing = true;
+      filters.push((row) =>
+        Object.entries(value).every(([key, expected]) => (row[column] as MockRow | undefined)?.[key] === expected),
+      );
+      return builder;
+    },
+    order: () => builder,
+    limit: () => builder,
     maybeSingle: async () => {
-      const result = run();
+      const result = await mockThrough(gateName(), run);
       return { data: result.data?.[0] ?? null, error: result.error };
     },
     then: (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) =>
-      Promise.resolve().then(run).then(resolve, reject),
+      Promise.resolve()
+        .then(() => mockThrough(gateName(), run))
+        .then(resolve, reject),
   };
   return builder;
 }
@@ -125,6 +158,14 @@ const mockClient = {
         const removed = paths.filter((path) => mockDb.objects.delete(path));
         return { data: removed.map((name) => ({ name })), error: null };
       },
+      // 승격이 행 안의 본문을 원문으로 되살린다. before 문에 붙잡히면 객체는 풀릴 때 생긴다(나가 있는 업로드).
+      upload: (path: string, _content: string, options?: { upsert?: boolean }) =>
+        mockThrough("storage upload", () => {
+          mockDb.writes.push("storage upload");
+          if (mockDb.objects.has(path) && options?.upsert !== true) return { data: null, error: { message: "exists" } };
+          mockDb.objects.add(path);
+          return { data: { path }, error: null };
+        }),
     }),
   },
 };
@@ -133,6 +174,8 @@ jest.mock("../../supabase/client", () => ({ getSupabaseClient: () => mockClient 
 jest.mock("../../persona/load-domain-levels", () => ({ invalidateDomainLevels: jest.fn() }));
 
 import { deleteCapturedSource } from "../delete-captured-source";
+import * as capturedSourceModule from "../delete-captured-source";
+import { promotePendingUploads } from "../promote-pending";
 
 const { invalidateDomainLevels } = jest.requireMock("../../persona/load-domain-levels") as {
   invalidateDomainLevels: jest.Mock;
@@ -152,6 +195,9 @@ beforeEach(() => {
   mockDb.lookupFails = false;
   mockDb.denySourceDelete = false;
   mockDb.sourceDeleteErrors = 0;
+  mockDb.gates = new Map();
+  // 이 런타임의 행 표식(지우는 중 · 지운 행 · 되살리는 중)도 비운다 - 테스트마다 같은 id(src-1)를 다시 쓴다.
+  (capturedSourceModule as { __resetCapturedSourceRowsForTests?: () => void }).__resetCapturedSourceRowsForTests?.();
   invalidateDomainLevels.mockClear();
 });
 
@@ -641,5 +687,132 @@ describe("확인 문구", () => {
       // 원문을 지웠다는 말은 원문을 실제로 지운 경우의 문구에만 있다.
       expect({ loc, partialSaysRaw: RAW_DELETED[loc].test(detail(loc).deleteSourcePartial) }).toEqual({ loc, partialSaysRaw: false });
     }
+  });
+});
+
+// ── 승격 되살리기와 한 행씩 (5차 재게이트 G4Z-1814-1) ─────────────────────────────────────
+//
+// 승격(promotePendingUploads)은 업로드가 실패해 본문이 행 안에 든 자료(_storage_pending)의 본문을 원문으로 다시 올린다. 그 업로드가
+// 한 건 삭제와 엇갈리면 삭제가 원문 -> 페이지 -> 행을 다 지운 뒤에 늦게 도착한 업로드가 행 없는 원문을 만든다 - 앱 어디에도 보이지
+// 않고 지울 곳도 없다. 여기는 대화 자동 저장 실행기를 불러오지 않은 런타임이다(조정하는 쪽 없이 바로 지운다). 그래도 행 단위 표식은
+// 선다: 지우는 중이거나 이 런타임이 지운 행은 승격이 건너뛰고, 승격이 되살리는 중인 행은 그 일이 끝난 뒤에 지운다.
+
+const PENDING_BODY = "# body kept in the row";
+
+function pendingSource(id = "src-1", path = PATH): MockRow {
+  return {
+    id,
+    user_id: OWNER,
+    storage_path: path,
+    ingested: false,
+    frontmatter: { _storage_pending: true, _body_fallback: PENDING_BODY },
+  };
+}
+
+/** 이름 붙은 요청 하나를 붙잡는다. before 는 요청이 서버에 닿기 전에, after 는 서버가 실행한 뒤 응답을 붙잡는다. */
+function mockGate(name: string, when: "before" | "after"): { reached: Promise<void>; release: () => void } {
+  let reached = (): void => undefined;
+  let open = (): void => undefined;
+  const reachedPromise = new Promise<void>((done) => {
+    reached = () => done();
+  });
+  const released = new Promise<void>((done) => {
+    open = () => done();
+  });
+  mockDb.gates.set(name, { when, reached: () => reached(), released });
+  return { reached: reachedPromise, release: () => open() };
+}
+
+async function flush(): Promise<void> {
+  for (let turn = 0; turn < 20; turn += 1) await new Promise<void>((done) => setImmediate(done));
+}
+
+describe("승격 되살리기와 한 건 삭제는 한 행에서 엇갈리지 않는다 (5차 재게이트 G4Z-1814-1, 실행기 없는 런타임)", () => {
+  test("승격이 그 행의 본문을 되살리는 중에 지우면, 되살리기가 끝난 뒤에 지운다 - 행 없는 원문이 남지 않는다", async () => {
+    mockDb.sources = [pendingSource()];
+    mockDb.objects = new Set(); // 담을 때 업로드가 실패했다
+    const upload = mockGate("storage upload", "before"); // 승격의 되살리기 업로드가 나가 있다
+    const promoting = promotePendingUploads(OWNER);
+    await upload.reached;
+    const deleting = deleteCapturedSource(OWNER, "src-1");
+    await flush();
+    expect(mockDb.writes).toEqual([]); // 지우기는 되살리기를 기다린다
+    upload.release();
+    expect(await promoting).toEqual({ pending: 1, promoted: 1 });
+    expect(await deleting).toBe("deleted");
+    expect({ writes: mockDb.writes, rows: mockDb.sources.length, objects: [...mockDb.objects] }).toEqual({
+      writes: ["storage upload", "update sources", "storage remove", "delete sources"],
+      rows: 0,
+      objects: [],
+    });
+  });
+
+  test("그 행을 지우는 중이면 승격이 그 행의 본문을 다시 올리지 않는다", async () => {
+    mockDb.sources = [pendingSource()];
+    mockDb.objects = new Set();
+    const rowDelete = mockGate("delete sources", "before"); // 원문 삭제는 지나갔고 행 삭제가 돌아오지 않는다
+    const deleting = deleteCapturedSource(OWNER, "src-1");
+    await rowDelete.reached;
+    expect(await promotePendingUploads(OWNER)).toEqual({ pending: 1, promoted: 0 });
+    rowDelete.release();
+    expect(await deleting).toBe("deleted");
+    expect({ writes: mockDb.writes, rows: mockDb.sources.length, objects: [...mockDb.objects] }).toEqual({
+      writes: ["storage remove", "delete sources"],
+      rows: 0,
+      objects: [],
+    });
+  });
+
+  test("승격이 목록을 읽은 뒤에 지워진 행은 건너뛴다 - 이 런타임이 지운 행의 본문을 다시 올리지 않는다", async () => {
+    mockDb.sources = [pendingSource()];
+    mockDb.objects = new Set();
+    const listing = mockGate("list pending", "after"); // 승격은 행을 읽었고, 그 답은 삭제가 끝난 뒤에 온다
+    const promoting = promotePendingUploads(OWNER);
+    await listing.reached;
+    expect(await deleteCapturedSource(OWNER, "src-1")).toBe("deleted");
+    listing.release();
+    expect(await promoting).toEqual({ pending: 1, promoted: 0 });
+    expect({ rows: mockDb.sources.length, objects: [...mockDb.objects] }).toEqual({ rows: 0, objects: [] });
+  });
+
+  test("지우는 중인 행만 건너뛴다 - 같은 승격에서 다른 보류 행은 그대로 되살린다", async () => {
+    const otherPath = `${OWNER}/note-def456.md`;
+    mockDb.sources = [pendingSource(), pendingSource("src-2", otherPath)];
+    mockDb.objects = new Set();
+    const rowDelete = mockGate("delete sources", "before");
+    const deleting = deleteCapturedSource(OWNER, "src-1");
+    await rowDelete.reached;
+    expect(await promotePendingUploads(OWNER)).toEqual({ pending: 2, promoted: 1 });
+    rowDelete.release();
+    expect(await deleting).toBe("deleted");
+    expect({ rows: mockDb.sources.map((row) => row.id), objects: [...mockDb.objects] }).toEqual({
+      rows: ["src-2"],
+      objects: [otherPath],
+    });
+  });
+
+  test("승격이 본문을 새 경로로 옮겨 행의 경로를 고쳐 적는 동안에도 삭제는 기다린다 - 옮긴 원문을 지운다", async () => {
+    const oldPath = `${OWNER}/kakaotalk-가져오기-abc123.md`; // Storage 가 받지 않는 옛 키
+    mockDb.sources = [pendingSource("src-1", oldPath)];
+    mockDb.objects = new Set();
+    const repoint = mockGate("update sources", "before"); // 새 경로로 올렸고 행의 경로를 고쳐 적는 중이다
+    const promoting = promotePendingUploads(OWNER);
+    await repoint.reached;
+    const deleting = deleteCapturedSource(OWNER, "src-1");
+    await flush();
+    expect(mockDb.writes).toEqual(["storage upload"]); // 지우기는 고쳐 적기까지 기다린다
+    repoint.release();
+    expect(await promoting).toEqual({ pending: 1, promoted: 1 });
+    expect(await deleting).toBe("deleted");
+    expect({ rows: mockDb.sources.length, objects: [...mockDb.objects] }).toEqual({ rows: 0, objects: [] });
+  });
+
+  test("지우지 못하고 끝난 행은 건너뛰지 않는다 - 행이 남으면 본문 사본도 남아 다음 승격이 되살린다", async () => {
+    mockDb.sources = [pendingSource()];
+    mockDb.objects = new Set();
+    mockDb.sourceDeleteErrors = 1; // 행 삭제가 한 번 실패한다
+    expect(await quietly(() => deleteCapturedSource(OWNER, "src-1"))).toEqual({ result: "not_deleted", logged: "" });
+    expect(await promotePendingUploads(OWNER)).toEqual({ pending: 1, promoted: 1 });
+    expect({ rows: mockDb.sources.length, objects: [...mockDb.objects] }).toEqual({ rows: 1, objects: [PATH] });
   });
 });
