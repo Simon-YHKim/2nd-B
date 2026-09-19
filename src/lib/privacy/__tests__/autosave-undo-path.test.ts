@@ -95,7 +95,7 @@ describe("자동 저장이 전제한 '되돌릴 길'", () => {
   test("자동 저장은 wiki_pages 가 아니라 sources 에 쓴다", () => {
     const keep = bodyOf(read("src/app/secondb.tsx"), "async function keepExchange(", "\n  }\n");
     // 손 담기의 capture 는 실행기의 계정 줄 안에서 돈다(게이트 r260919 DA-1814-1). 쓰는 곳은 그대로 capture 다.
-    expect(keep).toContain("await runManualKeep(ownerId, () =>");
+    expect(keep).toContain("await runManualKeep(ownerId, (fence) =>");
     expect(keep).toContain("captureFromMarkdown({");
     // 이 경로에는 위키 페이지 자동 승격이 없다. 페이지는 사용자가 따로 만들 때만 생긴다.
     expect(keep).not.toMatch(/generateSourcePage|maybeAutoPromoteSource/);

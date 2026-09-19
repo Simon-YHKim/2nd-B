@@ -280,7 +280,7 @@ import {
   subscribeAccountTransition,
 } from "../../auth/account-epoch";
 import { readPrivacyPrefs, savePrivacyPref } from "../../supabase/privacy";
-import { captureFromMarkdown } from "../../wiki/capture";
+import { captureFromMarkdown, type CaptureJournal } from "../../wiki/capture";
 import {
   __resetAutosaveConsentForTests,
   autosaveConsentFor,
@@ -301,7 +301,7 @@ import {
   type AutosaveTerminalPhase,
 } from "../autosave-runner";
 import * as runnerModule from "../autosave-runner";
-import { __resetAutosaveUndoQueueForTests, autosaveUndoStorageKey } from "../autosave-undo-queue";
+import { __resetAutosaveUndoQueueForTests, autosaveUndoStorageKey, rememberAutosaveUndo } from "../autosave-undo-queue";
 import { CHAT_KEEP_TAG, composeExchangeBody, exchangeMarkdown, type KeepableTurn } from "../keep-exchange";
 
 /** 계정 줄의 일 하나가 줄을 쥘 수 있는 시간(실행기의 이름 있는 상수). 없으면 undefined - 그 경우 상한 테스트가 먼저 빨갛다. */
@@ -1609,6 +1609,171 @@ describe("재게이트 잔여 (게이트 r260919 재게이트 GA-1814-1~3 · GZ-
         row: hasRow(job.handle.sourceId),
       }).toEqual({ requests: 0, raw: true, row: false });
     });
+  });
+
+  describe("3차 재게이트 G2Z-1814-1: 시간 상한을 넘긴 원문 되살리기 (늦게 도착한 쓰기가 지운 원문을 다시 만든다)", () => {
+    // 게이트 재현 순서: 철회의 삭제가 한 번 실패해 대기 기록이 남은 행 -> 같은 짝을 손으로 담는다(정확 중복이라 원문을 되살리는
+    // 업로드를 보낸다) -> 그 업로드가 돌아오지 않은 채 줄의 시간 상한이 지난다 -> 비우기가 그 행을 지우고 기록을 뺀다 -> 늦은
+    // 업로드가 도착해 행도 기록도 없는 원문만 되살아났다. 기대: 업로드가 나가 있는 동안 그 행은 지운 것으로 끝나지 않고(기록이
+    // 남는다), 업로드가 돌아오면 그 행을 줄에서 다시 봐서 철회를 마저 지우거나(손으로 남기지 않았으면) 둔다(남겼으면).
+    const late = (promise: Promise<unknown>): Promise<string> =>
+      promise.then(
+        () => "kept",
+        (error: Error) => error.message,
+      );
+
+    /** 대기 기록이 남은 행(짝 1)을 손으로 다시 담아, 원문을 되살리는 업로드가 나가 있는 채 줄의 시간 상한이 지난 자리. */
+    async function restoreOutlivesLane(): Promise<{ old: Job; release: () => void }> {
+      expect(typeof LANE_TIMEOUT_MS).toBe("number");
+      const old = await pendingUndo();
+      fakeTimers();
+      const upload = hold("upload"); // 되살리는 업로드가 돌아오지 않는다
+      const outcome = late(handKeep(1));
+      await upload.reached;
+      jest.advanceTimersByTime(LANE_TIMEOUT_MS ?? 0);
+      expect(await outcome).toBe("autosave-lane-timeout"); // 화면은 담기 실패 안내다
+      return { old, release: upload.release };
+    }
+
+    test("업로드가 나가 있는 동안에는 비우기가 몇 번 와도 그 행을 지운 것으로 끝내지 않고, 업로드가 돌아온 뒤 철회를 마저 지운다", async () => {
+      const { old, release } = await restoreOutlivesLane();
+      const record = { ownerId: OWNER, sourceId: old.handle.sourceId };
+      for (let round = 0; round < 3; round += 1) await drainAutosaveUndoQueue(OWNER); // 화면 복귀 · 앱 복귀가 거듭 부른다
+      expect({ row: hasRow(old.handle.sourceId), queue: queued() }).toEqual({ row: true, queue: [record] });
+      release(); // 늦은 업로드가 도착한다
+      await spin();
+      jest.useRealTimers();
+      expect({ row: hasRow(old.handle.sourceId), raw: hasRaw(old.handle.sourceId), queue: queued() }).toEqual({
+        row: false,
+        raw: false,
+        queue: [],
+      });
+    });
+
+    test("업로드가 나가 있는 행만 기다린다 - 같은 비우기에서 다른 대화의 대기 기록은 그대로 지운다", async () => {
+      const { old, release } = await restoreOutlivesLane();
+      const other = "7b1e2d3c-4a5b-4c6d-8e9f-0a1b2c3d4e5f";
+      mockServer.objects.set(rawPath(other), "left behind"); // 다른 대화: 행 없이 원문만 남은 대기 기록
+      expect(await rememberAutosaveUndo({ ownerId: OWNER, sourceId: other })).toBe(true);
+      await drainAutosaveUndoQueue(OWNER);
+      expect({ oldRow: hasRow(old.handle.sourceId), otherRaw: hasRaw(other), queue: queued() }).toEqual({
+        oldRow: true,
+        otherRaw: false,
+        queue: [{ ownerId: OWNER, sourceId: old.handle.sourceId }],
+      });
+      release();
+      await spin();
+      jest.useRealTimers();
+      expect({ oldRow: hasRow(old.handle.sourceId), oldRaw: hasRaw(old.handle.sourceId), queue: queued() }).toEqual({
+        oldRow: false,
+        oldRaw: false,
+        queue: [],
+      });
+    });
+
+    test("업로드가 나가 있는 동안 같은 짝이 자동 저장되어도 그 행을 지우지 않는다(저장 실패) - 업로드가 돌아온 뒤 철회를 마저 지운다", async () => {
+      const { old, release } = await restoreOutlivesLane();
+      await savePrivacyPref(OWNER, "chat_autosave", true); // 다시 켠다 - 같은 짝이 다시 자동 저장된다
+      const repeat = start(1, autosaveConsentFor(OWNER).generation);
+      const phase = await repeat.handle.settled;
+      expect({ phase, oldRow: hasRow(old.handle.sourceId), newRow: hasRow(repeat.handle.sourceId) }).toEqual({
+        phase: "failed",
+        oldRow: true,
+        newRow: false,
+      });
+      release();
+      await spin();
+      jest.useRealTimers();
+      expect({ oldRow: hasRow(old.handle.sourceId), oldRaw: hasRaw(old.handle.sourceId), queue: queued() }).toEqual({
+        oldRow: false,
+        oldRaw: false,
+        queue: [],
+      });
+    });
+
+    test("업로드가 나가 있는 사이 같은 짝을 다시 손으로 담아 남기면, 늦은 업로드가 돌아온 뒤에도 그 행을 지우지 않는다", async () => {
+      const { old, release } = await restoreOutlivesLane();
+      const again = await handKeep(1); // 두 번째 되살리기는 바로 돌아온다
+      expect({ deduped: again.deduped, id: again.source.id }).toEqual({ deduped: "exact_duplicate", id: old.handle.sourceId });
+      release();
+      await spin();
+      jest.useRealTimers();
+      await drainAutosaveUndoQueue(OWNER);
+      expect({ row: hasRow(old.handle.sourceId), raw: hasRaw(old.handle.sourceId), queue: queued() }).toEqual({
+        row: true,
+        raw: true,
+        queue: [],
+      });
+    });
+  });
+
+  describe("3차 재게이트 G2A-1814-1: 손 담기의 시간 상한이 capture 를 어디까지 멈추는가", () => {
+    // 화면(secondb.tsx keepExchange)은 실행기가 건네는 울타리(signal · journal)를 capture 에 그대로 넘긴다. 여기서도 그렇게 부른다.
+    // 계약: 상한이 쓰기를 보내기 전에 오면 capture 는 멈추고 아무것도 쓰지 않는다. 쓰기를 보낸 뒤에 오면 끝까지 간다 - 원문을 올린
+    // 채 INSERT 앞에서 멈추면 행 없이 원문만 남는다. 끝난 쓰기의 결과는 버리고(화면은 이미 "확인하지 못했다" 는 실패 안내다), 다시
+    // 누르면 정확 중복으로 그 한 행이 담긴다.
+    type Fence = { signal: AbortSignal; journal: CaptureJournal };
+    const screenKeep = (n: number): ReturnType<typeof runManualKeep> =>
+      runManualKeep(OWNER, (fence?: Fence) =>
+        captureFromMarkdown({
+          userId: OWNER,
+          rawMd: exchange(n),
+          kindOverride: "self_knowledge",
+          userTags: [CHAT_KEEP_TAG],
+          signal: fence?.signal,
+          journal: fence?.journal,
+        }),
+      );
+    const late = (promise: Promise<unknown>): Promise<string> =>
+      promise.then(
+        () => "kept",
+        (error: Error) => error.message,
+      );
+
+    test("쓰기를 보내기 전(중복 후보 조회)에 상한이 지나면, 실패 안내 뒤에는 원문도 행도 보내지 않는다", async () => {
+      expect(typeof LANE_TIMEOUT_MS).toBe("number");
+      fakeTimers();
+      const lookup = hold("candidates");
+      const outcome = late(screenKeep(2));
+      await lookup.reached;
+      jest.advanceTimersByTime(LANE_TIMEOUT_MS ?? 0);
+      expect(await outcome).toBe("autosave-lane-timeout");
+      lookup.release();
+      await spin();
+      jest.useRealTimers();
+      expect({
+        upload: count("upload"),
+        insert: count("insert"),
+        rows: mockServer.sources.length,
+        objects: mockServer.objects.size,
+      }).toEqual({ upload: 0, insert: 0, rows: 0, objects: 0 });
+    });
+
+    test.each(["upload", "insert"] as const)(
+      "쓰기(%s)를 보낸 뒤 상한이 지나면 그 쓰기는 끝까지 간다 - 원문만 남지 않고, 다시 누르면 그 한 행이 담긴다",
+      async (sent) => {
+        expect(typeof LANE_TIMEOUT_MS).toBe("number");
+        fakeTimers();
+        const write = hold(sent);
+        const outcome = late(screenKeep(2));
+        await write.reached;
+        jest.advanceTimersByTime(LANE_TIMEOUT_MS ?? 0);
+        expect(await outcome).toBe("autosave-lane-timeout");
+        write.release();
+        await spin();
+        jest.useRealTimers();
+        // 원문과 그 원문을 가리키는 행이 함께 남았다(행 없는 원문 0).
+        expect(mockServer.sources.map((row) => row.storage_path)).toEqual([...mockServer.objects.keys()]);
+        expect(mockServer.sources).toHaveLength(1);
+        const again = await screenKeep(2);
+        expect({ deduped: again.deduped, rows: mockServer.sources.length, objects: mockServer.objects.size, queue: queued() }).toEqual({
+          deduped: "exact_duplicate",
+          rows: 1,
+          objects: 1,
+          queue: [],
+        });
+      },
+    );
   });
 });
 

@@ -10,6 +10,7 @@
 //   · 대화 화면: secondb.tsx 의 실제 선언을 AST 로 떼어, 의존성 배열이 바뀐 effect 만 다시 도는 작은 스케줄러 위에서
 //     돌린다. 화면은 한 번 마운트된 채 남는다 - Stack 에 유지된 화면이다. 떼는 것: 동의를 읽는 useSyncExternalStore ·
 //     설정 읽기 effect · 저장 소식 구독 effect · 작업 결과 구독 effect · 자동 저장 effect · 대기 기록 비우기 effect ·
+//     초점 복귀에 거는 useFocusRefetch 부름 전부 ·
 //     exchangeAt · keepExchange · startNewConversation · handleSend 가 질문 턴에 동의 세대를 적는 문장 · 담기 칩의
 //     disabled 식과 문구 식 · 모듈의 subscribeChatAutosaveConsent · autosaveIsKeeping · keepCrisisHotline. effect 는
 //     파일에 적힌 순서대로 돈다.
@@ -350,6 +351,29 @@ function effectNode(marker: string): ts.Node {
 
 const LOAD_EFFECT = text(effectNode("beginAutosaveConsentRead("));
 
+/**
+ * 화면의 useFocusRefetch 부름 문장들, 파일에 적힌 순서대로. Stack 에 남은 화면에 초점이 돌아올 때(설정 · 위키에서 뒤로) 도는
+ * 것들이다. 예전 하네스는 그 자리를 "prefsReadKey 올리기" 로 바꿔 두어, 화면이 초점 복귀에 무엇을 거는지 볼 수 없었다
+ * (3차 재게이트 G2Z-1814-3 - 초점 복귀에 비우기가 없었다).
+ */
+function focusHookTexts(): string[] {
+  const found: string[] = [];
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isExpressionStatement(node) &&
+      ts.isCallExpression(node.expression) &&
+      ts.isIdentifier(node.expression.expression) &&
+      node.expression.expression.text === "useFocusRefetch"
+    ) {
+      found.push(text(node));
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(CHAT_AST);
+  if (found.length === 0) throw new Error("useFocusRefetch 부름을 찾지 못했다");
+  return found;
+}
+
 function declarationText(name: string): string {
   return text(
     firstNode(
@@ -431,6 +455,7 @@ const CHAT = {
     .map(({ slot, marker }) => ({ slot, node: effectNode(marker) }))
     .sort((a, b) => a.node.getStart(CHAT_AST) - b.node.getStart(CHAT_AST))
     .map(({ slot, node }) => ({ slot, js: compile(text(node)) })),
+  focusHooks: focusHookTexts().map((statement) => compile(statement)),
   keepChipDisabled: compile(`return (${attributeExpression(keepChipAttributes(), "disabled", CHAT_AST)});`),
   keepChipLabel: compile(`return (${keepChipLabelText()});`),
   recordAsked: compile(recordAskedText()),
@@ -532,7 +557,10 @@ class KeptChatScreen {
     autosaveAskedRef: { current: new WeakMap<object, number>() },
     autosaveBodiesRef: { current: new WeakMap<object, string>() },
     prefsRevisionRef: { current: 0 },
+    drainUndoRef: { current: null as (() => void) | null },
   };
+  /** 화면이 useFocusRefetch 에 건 콜백(부름 자리마다 마지막으로 그린 것). 실제 훅처럼 첫 초점은 부르지 않는다 - focus() 가 돌아옴이다. */
+  private readonly focusHooks = new Map<number, { refetch: () => void; enabled: boolean }>();
   private readonly runnerBindings: Record<string, unknown>;
   private readonly effects = new Map<string, { deps: readonly unknown[]; cleanup?: () => void }>();
   private readonly consent = { getSnapshot: (): boolean | null => null, rendered: null as boolean | null, stop: null as (() => void) | null };
@@ -658,6 +686,7 @@ class KeptChatScreen {
         setKeepCrisis: this.setter("keepCrisis"),
         setAdsConsent: this.setter("adsConsent"),
         setAutosaveRender: this.setter("autosaveRender"),
+        setPrefsReadKey: this.setter("prefsReadKey"),
         readPrivacyPrefs,
         subscribePrivacyPrefsSaved,
         autosaveConsentFor,
@@ -685,6 +714,12 @@ class KeptChatScreen {
       };
       this.fns = run<ChatFunctions>(CHAT.functions, bindings);
       for (const { slot, js } of CHAT.effects) run(js, { ...bindings, ...this.fns, useEffect: effectAt(slot) });
+      CHAT.focusHooks.forEach((js, slot) => {
+        const useFocusRefetch = (refetch: () => void, enabled = true): void => {
+          this.focusHooks.set(slot, { refetch, enabled });
+        };
+        run(js, { ...bindings, useFocusRefetch });
+      });
     } finally {
       this.rendering = false;
     }
@@ -723,9 +758,9 @@ class KeptChatScreen {
     return this.answer(reply);
   }
 
-  /** 설정 화면에서 뒤로 돌아온다(useFocusRefetch 가 올리는 방아쇠). */
+  /** 설정 · 위키 화면에서 뒤로 돌아온다. Stack 에 남은 이 화면에 초점만 돌아온다 - 화면이 useFocusRefetch 에 건 콜백을 그대로 부른다. */
   async focus(): Promise<void> {
-    this.update({ prefsReadKey: this.s.prefsReadKey + 1 });
+    for (const { refetch, enabled } of [...this.focusHooks.values()]) if (enabled) refetch();
     await settle();
   }
 
@@ -1538,6 +1573,91 @@ describe("실행기 배선 (PR 1814 재설계 C5)", () => {
     await settle();
     expect({ drains: drains(), objects: mockServer.objects.size }).toEqual({ drains: 2, objects: 0 });
     expect(localValues.get(autosaveUndoStorageKey(OWNER))).toBeUndefined();
+  });
+
+  test("철회한 저장을 지우지도 기기에 적지도 못한 뒤, 앱은 앞에 둔 채 설정 · 위키에 갔다가 대화 화면으로 돌아오면(초점 복귀) 다시 지우고 안내를 거둔다 (3차 재게이트 G2Z-1814-3 · G2A-1814-2)", async () => {
+    // 안내가 "대화 화면으로 돌아올 때마다 다시 삭제해 볼게요" 라고 약속한다. 설정 · 위키는 Stack 위에 열리므로 대화 화면은 다시
+    // 뜨지 않고(마운트 effect 가 다시 돌지 않는다) 앱도 앞에 있어 AppState 도 오지 않는다 - 초점만 돌아온다.
+    mockServer.prefs.set(OWNER, { chat_autosave: true });
+    const chat = await mountChat();
+    const insert = hold("insert");
+    const reply = await chat.exchange("질문", "지우다 만 답변");
+    await insert.reached;
+    await savePrivacyPref(OWNER, "chat_autosave", false);
+    const device = globalThis.localStorage as unknown as { setItem: unknown; removeItem: unknown };
+    const { setItem, removeItem } = device;
+    const refuse = (): never => {
+      throw new Error("QuotaExceededError");
+    };
+    device.setItem = refuse;
+    device.removeItem = refuse;
+    const restoreDevice = (): void => {
+      device.setItem = setItem;
+      device.removeItem = removeItem;
+    };
+    restoreAfterTest.push(restoreDevice);
+    mockServer.serverError.set("remove", 1);
+    insert.release();
+    await settle();
+    expect({ notice: chat.s.keepNotice, saved: chat.saved() }).toEqual({
+      notice: { turn: reply, ok: false, notDeleted: true },
+      saved: [reply],
+    });
+
+    restoreDevice();
+    await chat.focus(); // 위키에서 뒤로 - 앱은 계속 앞에 있다(AppState 알림 없음)
+    expect({ notice: chat.s.keepNotice, saved: chat.saved(), objects: mockServer.objects.size }).toEqual({
+      notice: null,
+      saved: [],
+      objects: 0,
+    });
+  });
+
+  test("초점 복귀도 같은 합치기를 쓴다: 비우는 도중 초점이 다시 돌아오거나 앱이 앞으로 와도 비우기가 겹쳐 돌지 않는다", async () => {
+    mockServer.prefs.set(OWNER, { chat_autosave: true });
+    const chat = await mountChat();
+    const drains = (): number => chat.runnerCalls.filter((name) => name === "drainAutosaveUndoQueue").length;
+    expect(drains()).toBe(1); // 화면이 뜰 때
+
+    const leftId = "3f0c9a52-8a1d-4b1e-9c2f-6d7e8f9a0b1c";
+    mockServer.objects.set(`${OWNER}/chat-${leftId}.md`, "left behind");
+    expect(await rememberAutosaveUndo({ ownerId: OWNER, sourceId: leftId })).toBe(true);
+    const remove = hold("remove");
+    const focusing = chat.focus();
+    expect(drains()).toBe(2); // 초점 복귀가 비우기를 불렀다
+    await remove.reached;
+    await chat.focus(); // 비우는 도중에 다시 돌아온다
+    chat.appState.emit("active"); // 앱도 앞으로 온다
+    remove.release();
+    await focusing;
+    await settle();
+    expect({ drains: drains(), objects: mockServer.objects.size }).toEqual({ drains: 2, objects: 0 });
+    expect(localValues.get(autosaveUndoStorageKey(OWNER))).toBeUndefined();
+  });
+
+  test("손 담기가 쓰기 전에 멈춘 채 시간 상한이 지나면 실패 안내를 띄우고, 그 뒤에는 원문도 행도 나가지 않는다 (3차 재게이트 G2A-1814-1)", async () => {
+    // 화면이 실행기가 건네는 울타리를 capture 에 넘기는지 본다. 넘기지 않으면 상한 뒤에도 capture 가 이어 가 원문과 행을 쓴다 -
+    // 사용자는 이미 "확인하지 못했다" 는 안내를 봤다.
+    mockServer.prefs.set(OWNER, { chat_autosave: false });
+    const chat = await mountChat();
+    const reply = await chat.exchange("질문", "손으로 담는 답변");
+    jest.useFakeTimers({ doNotFake: ["setImmediate", "nextTick", "queueMicrotask"] });
+    restoreAfterTest.push(() => jest.useRealTimers());
+    const lookup = hold("candidates");
+    const keeping = chat.startKeepByHand(1);
+    await lookup.reached;
+    jest.advanceTimersByTime(runner.OWNER_LANE_TASK_TIMEOUT_MS);
+    expect(await keeping).toBe(false);
+    lookup.release();
+    await settle();
+    expect({
+      notice: chat.s.keepNotice,
+      announced: chat.announced,
+      upload: count("upload"),
+      insert: count("insert"),
+      saved: chat.saved(),
+      objects: mockServer.objects.size,
+    }).toEqual({ notice: { turn: reply, ok: false }, announced: ["keepFailed"], upload: 0, insert: 0, saved: [], objects: 0 });
   });
 
   test("자동으로 담긴 대화도 손 담기와 같은 판정으로 위기 안내를 띄운다 (C9)", async () => {

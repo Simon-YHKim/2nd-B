@@ -143,10 +143,11 @@ function keepHost(
     },
     // 실행기의 손 담기 줄(runManualKeep) 자리. 줄의 규칙(되돌리기와 한 줄 · 정확 중복이면 대기 기록에서 빼기)은
     // 실행기 테스트가 실제로 돌린다. 여기서는 화면이 capture 를 줄 안에서 부르는지와 줄의 거절을 어떻게 받는지만 본다.
-    runManualKeep: async (ownerId: string, capture: () => Promise<unknown>) => {
+    // 실제 줄처럼 capture 에 울타리(signal · journal)를 건넨다(3차 재게이트 G2A-1814-1).
+    runManualKeep: async (ownerId: string, capture: (fence: { signal: AbortSignal; journal: object }) => Promise<unknown>) => {
       state.lanes.push(ownerId);
       state.order.push("lane");
-      const kept = await capture();
+      const kept = await capture({ signal: new AbortController().signal, journal: {} });
       if (options.keepRefused) throw new Error("autosave-undo-not-forgotten");
       return kept;
     },
@@ -576,8 +577,8 @@ describe("실패 안내가 화면에 붙어 있고 문구가 정직하다", () =
 
 describe("철회한 저장을 아직 삭제하지 못했다는 안내 (게이트 r260919 DA-1814-2 · 재게이트 GA-1814-2 · GZ-1814-5)", () => {
   // 되돌리기가 원격 삭제에도 기기 기록에도 실패했을 때만 뜬다. 그때 사용자에게 남은 사실은 셋이다: ① 아직 삭제되지
-  // 않았다 ② 앱이 켜져 있는 동안 대화 화면으로 돌아오면(대화 화면을 다시 열면 · 대화 화면이 떠 있는 동안 앱이 앞으로 오면)
-  // 다시 지워 본다 ③ 행이 남아 있으면 위키(/records)에서 그 기록을 열어 직접 지울 수 있다. 담기 실패 안내를 빌려 쓰지 않는다 -
+  // 않았다 ② 앱이 켜져 있는 동안 대화 화면으로 돌아오면(대화 화면을 다시 열면 · 설정 · 위키에서 뒤로 와 초점이 돌아오면 · 대화
+  // 화면이 떠 있는 동안 앱이 앞으로 오면) 다시 지워 본다 ③ 행이 남아 있으면 위키(/records)에서 그 기록을 열어 직접 지울 수 있다. 담기 실패 안내를 빌려 쓰지 않는다 -
   // 그 뒷절 "다시 담아 주세요" 는 지우길 원한 사용자에게 반대로 말한다.
   //
   // 재게이트가 ②를 바로잡았다: 다시 지울 단서는 이 런타임의 메모리에만 있고(기기에 못 적었으니 이 안내가 뜬다) 비우기는 대화
@@ -631,9 +632,10 @@ describe("철회한 저장을 아직 삭제하지 못했다는 안내 (게이트
     expect(text("es")).not.toMatch(/cuando vuelvas a la app/);
     expect(text("pt")).not.toMatch(/quando você voltar ao app/);
     expect(text("id")).not.toMatch(/saat kamu kembali ke aplikasi/);
-    // 그 조건은 코드와 같다: 비우기는 대화 화면이 부르고(뜰 때 · 앱이 앞으로 올 때), 다시 지울 단서는 이 런타임이 쥔다
+    // 그 조건은 코드와 같다: 비우기는 대화 화면이 부르고(뜰 때 · 초점이 돌아올 때 · 앱이 앞으로 올 때), 다시 지울 단서는 이 런타임이 쥔다
     expect(SOURCE).toContain("void drainAutosaveUndoQueue(ownerId)");
     expect(SOURCE).toContain('if (state === "active") drain();');
+    expect(SOURCE).toContain("useFocusRefetch(() => drainUndoRef.current?.(), Boolean(userId));");
   });
 
   test("한국어는 해요체다", () => {

@@ -696,7 +696,9 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
       // DA-1814-1 · DZ-1814-3). 비우기가 먼저면 다 지운 뒤에 새 행으로 담고, 같은 짝이 이미 행으로 있으면(정확 중복)
       // 실행기가 그 행을 되돌리기 대기 기록에서 빼고 이 런타임의 되돌리기가 지우지 않게 한다(설계 2-10). 빼지 못하면
       // 던지고, 아래 catch 가 실패 안내를 띄운다 - 담김은 대기 기록에서 뺀 것을 확인한 뒤에만 띄운다.
-      await runManualKeep(ownerId, () =>
+      // 실행기가 건네는 울타리(signal · journal)를 capture 에 그대로 넘긴다(3차 재게이트 G2A-1814-1). 줄의 시간 상한으로 실패
+      // 안내가 뜬 뒤에는 새 쓰기가 나가지 않는다 - 이미 보낸 쓰기만 끝까지 가서 행과 원문이 함께 남는다.
+      await runManualKeep(ownerId, (fence) =>
         captureFromMarkdown({
           userId: ownerId,
           rawMd,
@@ -705,6 +707,8 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
           // domain: 태그를 붙이지 않는다. 대화를 담았다고 그 영역을 더 아는 것은
           // 아니므로 별 밝기를 건드리면 안 된다 (정직한 밝기 규칙).
           userTags: [CHAT_KEEP_TAG],
+          signal: fence.signal,
+          journal: fence.journal,
         }),
       );
       setKeptTurns((prev) => new Set(prev).add(reply));
@@ -934,11 +938,15 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [turns, autosaveConsent, userId, prefsReadKey]);
 
-  // 되돌리기를 끝내지 못한 자동 저장(대기 기록)을 마저 지운다 - 이 계정으로 이 화면이 뜬 뒤와 앱이 앞으로 올 때.
-  // 실행기가 계정 공개와 진행 중인 건을 다시 보므로 겹쳐 불러도 같은 것을 두 번 지우지 않고, 여기서는 도는 동안
-  // 들어온 부름을 하나로 합친다.
+  // 되돌리기를 끝내지 못한 자동 저장(대기 기록)을 마저 지운다 - 이 계정으로 이 화면이 뜰 때 · 다른 화면에서 대화 화면으로
+  // 돌아올 때 · 앱이 앞으로 올 때. 실행기가 계정 공개와 진행 중인 건을 다시 보므로 겹쳐 불러도 같은 것을 두 번 지우지 않고,
+  // 여기서는 셋 모두 같은 drain 을 불러 도는 동안 들어온 부름을 하나로 합친다.
+  // "돌아올 때" 는 Stack 에 남은 채 초점만 돌아오는 경우다(설정 · 위키에서 뒤로). 그때는 화면이 다시 뜨지 않아 이 effect 가 다시
+  // 돌지 않고, 앱도 앞에 있어 AppState 도 오지 않는다 - 그래서 초점 복귀(useFocusRefetch)에도 건다. 아직 삭제하지 못했다는 안내가
+  // "대화 화면으로 돌아올 때마다 다시 삭제해 볼게요" 라고 약속하고, 그 안내가 사용자를 위키로 보낸다(3차 재게이트 G2Z-1814-3).
   // ⚠ 이 화면이 떠 있을 때만 돈다. 계정이 바뀌면 루트가 경로를 처음으로 되돌리므로, 그 계정의 대기 기록은 대화
   // 화면을 다시 열 때 비워진다.
+  const drainUndoRef = useRef<(() => void) | null>(null);
   useEffect(() => {
     if (!userId) return;
     const ownerId = userId;
@@ -952,12 +960,17 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
           draining = false;
         });
     };
+    drainUndoRef.current = drain;
     drain();
     const appState = AppState.addEventListener("change", (state) => {
       if (state === "active") drain();
     });
-    return () => appState.remove();
+    return () => {
+      appState.remove();
+      if (drainUndoRef.current === drain) drainUndoRef.current = null;
+    };
   }, [userId]);
+  useFocusRefetch(() => drainUndoRef.current?.(), Boolean(userId));
 
   // "새 대화" 두 버튼(deep-space 와 레거시 화면)이 함께 쓰는 한 곳 (r3as2 R3AS2-02). 목록만 비우면 담긴
   // 표시와 실패 안내가 다음 대화의 같은 자리로 넘어간다.

@@ -94,6 +94,17 @@
 // 동안 손 담기 · 자동 저장은 그 행으로 담김을 띄우지 않고(남는다고 말할 수 없다), 비우기도 건너뛴다. 기기 기록은 남아 다음
 // 비우기가 다시 한다. 비우기는 한 건씩 줄에 선다 - 멈춘 한 건이 같은 계정의 손 담기를 상한 한 번보다 오래 붙잡지 않는다.
 //
+// 반대 방향도 같다 (3차 재게이트 G2Z-1814-1). 손 담기가 지울 차례였던 행의 원문을 되살리는 업로드도 거둘 수 없다. 상한이 줄을
+// 넘긴 뒤 그 업로드가 늦게 도착하면, 그 사이 비우기가 행과 원문을 지우고 기록을 뺀 자리에 원문만 되살아났다(행도 기록도 없어
+// 앱에서 보이지도 지워지지도 않는다). 그래서 되살리는 동안 그 행은 "쓰는 중"(restoringNow)이고 어느 지우기도 그 행을 지우지
+// 않는다 - 다른 행은 그대로 간다. 줄을 넘긴 쓰기가 끝나면 그 행을 줄에서 다시 본다: 그 사이 손으로 남겼으면 두고, 아니면 철회를
+// 마저 지운다.
+//
+// 손 담기의 capture 는 줄의 울타리(ManualKeepFence)를 받는다 (3차 재게이트 G2A-1814-1). 상한이 쓰기를 보내기 전에 오면 capture 가
+// 멈춘다 - 실패 안내 뒤에 새 쓰기가 나가지 않는다. 쓰기를 보낸 뒤에 오면 끝까지 둔다: 원문을 올리고 INSERT 앞에서 멈추면 행 없이
+// 원문만 남는다. 끝난 쓰기의 결과는 버린다(표식 · 대기 기록 변화 없음, 화면은 이미 실패 안내다). 그 안내가 "담기 결과를 확인하지
+// 못했다 · 위키를 확인한 뒤 다시 담아 달라" 라서 늦게 남은 행과 어긋나지 않고, 다시 누르면 정확 중복으로 그 한 행이 담긴다.
+//
 // ⚠ 확인하지 않은 것: 운영 Supabase 에서 클라이언트가 정한 id 로 INSERT 가 되는지, 끊긴 fetch 뒤 서버가 커밋하는지,
 // 없는 경로 Storage remove 가 빈 목록인지 404 오류인지(둘 다 "없음" 으로 읽는다), RN 실기의 백그라운드 동작.
 // ⚠ 보안 경계가 아니다. 서버는 chat_autosave 를 쓰기에서 강제하지 않는다(서버 몫, 설계 S2).
@@ -213,6 +224,12 @@ const keptRows = new Set<string>();
  * 그 행을 지우는 중이다(보낸 삭제는 거둘 수 없다). 그 행은 남는다고 말할 수 없고, 비우기도 건너뛴다. 삭제가 돌아오면 빠진다.
  */
 const deletingNow = new Set<string>();
+/**
+ * 손 담기가 원문을 되살리는 업로드를 보내 두고 아직 돌아오지 않은 행(undoKey) (3차 재게이트 G2Z-1814-1). writes 는 나가 있는
+ * 업로드 수, outlivedLane 은 그중 줄이 시간 상한으로 기다리지 않고 넘어간 것이 있었는가다. 이 표식이 있는 행은 어느 지우기도 지우지
+ * 않는다 - 늦게 도착한 업로드가 지운 원문을 다시 만든다. 마지막 업로드가 돌아오면 빠지고, 줄을 넘긴 것이 있었으면 그 행을 다시 본다.
+ */
+const restoringNow = new Map<string, { writes: number; outlivedLane: boolean }>();
 /**
  * 되돌리기를 끝내지 못했고 기기에도 못 남겨 undo_unrecorded 로 끝난 작업(undoKey). 비우기가 기기 기록과 함께 돈다.
  * recorded 는 그 뒤 비우기가 기록을 적는 데 성공했는가다. 다 지우면 reply 에 cancelled 를 알려 화면 안내를 거둔다.
@@ -569,7 +586,9 @@ async function undoInLane(
 
 /**
  * 줄 안에서 한 행을 지운다. 지우는 동안 그 행은 지우는 중(deletingNow)이다 - 시간 상한을 넘겨 줄을 넘겨도 삭제 요청이 돌아올
- * 때까지. 다른 일이 이미 그 행을 지우는 중이면 겹쳐 보내지 않는다(false).
+ * 때까지. 다른 일이 이미 그 행을 지우는 중이면 겹쳐 보내지 않는다(false). 원문을 되살리는 업로드가 나가 있어도 지우지 않는다
+ * (false) - 지금 지워도 늦게 도착한 업로드가 원문을 다시 만들어 다 지웠다고 말할 수 없다(3차 재게이트 G2Z-1814-1). 기록은 남고,
+ * 업로드가 돌아온 뒤 다시 본다.
  */
 async function deleteTracked(
   record: AutosaveUndoRecord,
@@ -577,7 +596,7 @@ async function deleteTracked(
   signal: AbortSignal,
 ): Promise<boolean> {
   const key = undoKey(record);
-  if (deletingNow.has(key)) return false;
+  if (deletingNow.has(key) || restoringNow.has(key)) return false;
   deletingNow.add(key);
   try {
     return await undoWrites(record, plan, signal);
@@ -739,13 +758,19 @@ export function holdTurnForManualKeep(reply: KeepableTurn): (() => void) | null 
  * 지울 차례였던 행을 정확 중복으로 돌려받으면 앞선 지우기가 원문만 지우고 멈췄을 수 있다(원문 -> 페이지 -> 행 순서). 같은 본문으로
  * 원문을 되살린 뒤에만 남긴다 - 행이 있다는 것만으로 담김이라 하지 않는다(재게이트 GZ-1814-2). 시간 상한을 넘긴 옛 일이 그 행을
  * 아직 지우는 중이면 남는다고 말할 수 없어 던진다(재게이트 GA-1814-3).
+ *
+ * capture 는 이 손 담기의 울타리를 받아 captureFromMarkdown 의 signal · journal 로 그대로 넘겨야 한다(3차 재게이트 G2A-1814-1) -
+ * 넘기지 않으면 시간 상한 뒤에도 capture 가 이어 가 실패 안내 뒤에 새 쓰기를 보낸다. 울타리가 끊는 자리는 ManualKeepFence 에 적었다.
  */
-export function runManualKeep(ownerId: string, capture: () => Promise<CaptureResult>): Promise<CaptureResult> {
+export function runManualKeep(
+  ownerId: string,
+  capture: (fence: ManualKeepFence) => Promise<CaptureResult>,
+): Promise<CaptureResult> {
   const owner = captureAccountOwnerLease(ownerId);
   if (!owner) return Promise.reject(new Error("autosave-owner-not-current"));
   return inOwnerLane(ownerId, async (signal) => {
     if (!owner.isCurrent()) throw new Error("autosave-owner-not-current");
-    const kept = await capture();
+    const kept = await capture(manualKeepFence(signal));
     throwIfAborted(signal);
     if (kept.deduped !== "exact_duplicate") return kept;
     const record: AutosaveUndoRecord = { ownerId, sourceId: String(kept.source.id).toLowerCase() };
@@ -756,7 +781,7 @@ export function runManualKeep(ownerId: string, capture: () => Promise<CaptureRes
     if (!keptRows.has(key) && (await deletionPending(record)) !== false) {
       // 지울 차례였던 행이다(기기 기록을 못 읽어 모를 때도 같다). 원문을 되살린 뒤에만 남긴다.
       throwIfAborted(signal);
-      if (!owner.isCurrent() || !(await restoreRawCopy(record, kept))) throw new Error("autosave-body-not-restored");
+      if (!owner.isCurrent() || !(await restoreRawCopy(record, kept, signal))) throw new Error("autosave-body-not-restored");
       throwIfAborted(signal);
     }
     keptRows.add(key);
@@ -771,19 +796,72 @@ export function runManualKeep(ownerId: string, capture: () => Promise<CaptureRes
   });
 }
 
-/** 자동 저장이 쓴 행의 원문을 capture 가 해시한 그 본문으로 되살린다(덮어쓰기). 정확 중복이라 본문이 같다. 되살렸으면 true. */
-async function restoreRawCopy(record: AutosaveUndoRecord, kept: CaptureResult): Promise<boolean> {
+/**
+ * 손 담기 capture 의 울타리 (3차 재게이트 G2A-1814-1). 부르는 쪽이 captureFromMarkdown 의 signal · journal 로 넘긴다.
+ *
+ * signal 은 줄의 시간 상한이 capture 가 쓰기를 보내기 전에 오면 끊긴다 - 실패 안내 뒤에 원문 업로드도 행 INSERT 도 새로 나가지
+ * 않는다. 쓰기를 보낸 뒤(journal 이 원문 업로드를 보냈다고 적은 뒤)에 오면 끊지 않는다. 원문을 올린 채 INSERT 앞에서 멈추면 행 없이
+ * 원문만 남는데, 그 원문은 앱 어디에도 보이지 않고 지울 곳도 없다. 끝까지 간 쓰기는 행과 원문이 함께 남는 사용자의 저장이고, 그
+ * 결과는 버린다(runManualKeep 이 상한 뒤에 돌아온 결과로 표식 · 대기 기록을 건드리지 않는다).
+ */
+export interface ManualKeepFence {
+  /** captureFromMarkdown 의 signal. 쓰기를 보내기 전에만 끊긴다. */
+  readonly signal: AbortSignal;
+  /** captureFromMarkdown 의 journal. 쓰기를 보냈는지로 끊을지를 가른다. */
+  readonly journal: CaptureJournal;
+}
+
+function manualKeepFence(lane: AbortSignal): ManualKeepFence {
+  const journal: CaptureJournal = { uploadSent: false, uploadDone: false, insertSent: false, insertDone: false };
+  const controller = new AbortController();
+  const cut = (): void => {
+    if (!journal.uploadSent && !journal.insertSent) controller.abort();
+  };
+  if (lane.aborted) cut();
+  else lane.addEventListener("abort", cut, { once: true });
+  return { signal: controller.signal, journal };
+}
+
+/**
+ * 자동 저장이 쓴 행의 원문을 capture 가 해시한 그 본문으로 되살린다(덮어쓰기). 정확 중복이라 본문이 같다. 되살렸으면 true.
+ *
+ * 업로드가 나가 있는 동안 그 행은 쓰는 중(restoringNow)이라 어느 지우기도 지우지 않는다(3차 재게이트 G2Z-1814-1). 줄이 시간 상한으로
+ * 이 업로드를 기다리지 않고 넘어갔으면(lane 이 끊겼으면) 손 담기는 이미 실패로 답했고 표식을 남기지 않는다. 그 행의 마지막 업로드가
+ * 돌아오면 그 행을 줄에서 다시 본다(settleAfterLateRestore).
+ */
+async function restoreRawCopy(record: AutosaveUndoRecord, kept: CaptureResult, lane: AbortSignal): Promise<boolean> {
+  const key = undoKey(record);
+  const writing = restoringNow.get(key) ?? { writes: 0, outlivedLane: false };
+  writing.writes += 1;
+  restoringNow.set(key, writing);
   try {
     await uploadRawClipping(record.ownerId, chatStorageKey(record.sourceId), kept.body, { overwrite: true });
     return true;
   } catch {
     return false;
+  } finally {
+    if (lane.aborted) writing.outlivedLane = true;
+    writing.writes -= 1;
+    if (writing.writes === 0) {
+      restoringNow.delete(key);
+      if (writing.outlivedLane) void settleAfterLateRestore(record);
+    }
   }
 }
 
 /**
- * 이 계정에 남은 되돌리기를 마저 한다. 그 계정이 공개돼 있을 때만 돈다. 부를 때: 그 계정이 다시 공개됐을 때 ·
- * 앱이 앞으로 왔을 때(대화 화면이 부른다). 한 건이 실패하면 기록을 남기고 다음 건으로 간다.
+ * 줄을 넘긴 원문 되살리기가 돌아온 뒤 그 행을 줄에서 다시 본다 (3차 재게이트 G2Z-1814-1). 비우기 한 건과 같은 판정이다: 그 사이 손으로
+ * 남겼으면(표식) 두고 기록에서만 빼며, 아직 지울 차례면(기기 기록 · 이 런타임이 쥔 미완) 철회를 마저 지운다. 쓰기가 나가 있는
+ * 동안 건너뛴 비우기를 기다리지 않고 여기서 잇는다.
+ */
+function settleAfterLateRestore(record: AutosaveUndoRecord): Promise<void> {
+  if (!captureAccountOwnerLease(record.ownerId)) return Promise.resolve();
+  return inOwnerLane(record.ownerId, (signal) => drainOne(record.ownerId, record, signal)).catch(() => undefined);
+}
+
+/**
+ * 이 계정에 남은 되돌리기를 마저 한다. 그 계정이 공개돼 있을 때만 돈다. 부를 때(대화 화면이 부른다): 이 계정으로 화면이 뜰 때 ·
+ * 다른 화면에서 대화 화면으로 돌아올 때 · 앱이 앞으로 올 때. 한 건이 실패하면 기록을 남기고 다음 건으로 간다.
  *
  * 한 건씩 줄에 선다(재게이트 GA-1814-3) - 멈춘 한 건이 같은 계정의 손 담기를 상한 한 번보다 오래 붙잡지 않는다. 목록은 한 번
  * 읽고 각 건은 줄 안에서 다시 본다(표식 · 되돌리기 중 · 지우는 중) - 목록을 읽은 뒤 손 담기가 남긴 행을 지우지 않는다.
@@ -807,8 +885,9 @@ async function drainRecords(ownerId: string): Promise<void> {
 async function drainOne(ownerId: string, record: AutosaveUndoRecord, signal: AbortSignal): Promise<void> {
   if (!captureAccountOwnerLease(ownerId)) return;
   const key = undoKey(record);
-  // 작업의 되돌리기가 맡고 있거나(줄을 기다리는 중), 시간 상한을 넘긴 옛 일이 아직 지우는 중이다.
-  if (undoInFlight.has(key) || deletingNow.has(key)) return;
+  // 작업의 되돌리기가 맡고 있거나(줄을 기다리는 중), 시간 상한을 넘긴 옛 일이 아직 지우는 중이거나, 원문을 되살리는 업로드가 아직
+  // 나가 있다(3차 재게이트 G2Z-1814-1 - 돌아오면 settleAfterLateRestore 가 이 건을 다시 본다). 시도 횟수에 세지 않는다.
+  if (undoInFlight.has(key) || deletingNow.has(key) || restoringNow.has(key)) return;
   const unfinished = unfinishedUndos.get(key);
   if (keptRows.has(key)) {
     // 사용자가 남긴 행이다. 지우지 않고 기록에서만 뺀다.
@@ -852,5 +931,6 @@ export function __resetAutosaveRunnerForTests(): void {
   ownerLanes.clear();
   keptRows.clear();
   deletingNow.clear();
+  restoringNow.clear();
   unfinishedUndos.clear();
 }
