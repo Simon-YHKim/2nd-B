@@ -293,6 +293,7 @@ import {
   autosaveTurnPhase,
   drainAutosaveUndoQueue,
   holdTurnForManualKeep,
+  runManualKeep,
   startAutosaveJob,
   subscribeAutosaveJobs,
   type AutosaveJobHandle,
@@ -773,6 +774,160 @@ describe("손 담기와 겹칠 때 - 23505 는 이 작업의 행이 아니다", 
   });
 });
 
+describe("지우기와 손 담기는 계정마다 한 줄에 선다 (게이트 r260919 DA-1814-1 · DZ-1814-3)", () => {
+  // 턴별 잠금은 답변 객체로 잡고 되돌리기는 sourceId 로 움직여서, 둘은 서로를 보지 못했다. 비우기가 행을 확인한 뒤 지우기
+  // 전에 사용자가 같은 짝을 손으로 담으면(정확 중복) 손 담기가 기록에서 그 행을 빼고 담김을 띄운 뒤, 이미 행을 쥔 비우기가
+  // 그 행과 원문을 지웠다. 이 묶음은 순서마다 "손 담기가 담겼다고 돌려준 대화는 남는다" 를 본다.
+  const handKeep = (): ReturnType<typeof runManualKeep> =>
+    runManualKeep(OWNER, () =>
+      captureFromMarkdown({
+        userId: OWNER,
+        rawMd: exchangeMarkdown("question 1", composeExchangeBody({ prompt: "question 1", reply: "answer 1", speaker: "SecondB" }, "en")),
+        kindOverride: "self_knowledge",
+        userTags: [CHAT_KEEP_TAG],
+      }),
+    );
+
+  /** 이벤트 루프를 여러 바퀴 돌린다 - 줄에서 기다리는 쪽이 정말 기다리는지 볼 만큼. */
+  const spin = async (): Promise<void> => {
+    for (let turn = 0; turn < 20; turn += 1) await new Promise<void>((done) => setImmediate(done));
+  };
+
+  /** 철회된 작업의 되돌리기가 원문 삭제에서 한 번 실패해 대기 기록에 남은 자리(undo_pending). 행과 원문은 서버에 있다. */
+  async function pendingUndo(): Promise<Job> {
+    const { job, release } = await atWait("J4");
+    await savePrivacyPref(OWNER, "chat_autosave", false);
+    mockServer.serverError.set("remove", 1);
+    release();
+    expect(await job.handle.settled).toBe("undo_pending");
+    expect({ row: hasRow(job.handle.sourceId), raw: hasRaw(job.handle.sourceId), queue: queued() }).toEqual({
+      row: true,
+      raw: true,
+      queue: [{ ownerId: OWNER, sourceId: job.handle.sourceId }],
+    });
+    return job;
+  }
+
+  test("비우기가 행을 확인한 뒤 손으로 담으면: 손 담기는 줄을 서고, 비우기가 다 지운 뒤 새 행으로 담는다", async () => {
+    const job = await pendingUndo();
+    const probe = hold("rowCheck");
+    const draining = drainAutosaveUndoQueue(OWNER);
+    await probe.reached;
+    const candidatesBefore = count("candidates");
+    const keeping = handKeep();
+    await spin();
+    expect(count("candidates")).toBe(candidatesBefore); // 줄에서 기다린다 - capture 가 아직 나가지 않았다
+    probe.release();
+    await draining;
+    const kept = await keeping;
+    expect({
+      deduped: kept.deduped,
+      oldRow: hasRow(job.handle.sourceId),
+      oldRaw: hasRaw(job.handle.sourceId),
+      rows: mockServer.sources.map((row) => row.id),
+      newRaw: mockServer.objects.has(kept.storage_path),
+      queue: queued(),
+    }).toEqual({ deduped: null, oldRow: false, oldRaw: false, rows: [kept.source.id], newRaw: true, queue: [] });
+  });
+
+  test("손 담기가 먼저 줄에 서 있으면: 비우기는 그 뒤에 와서 손으로 남긴 행을 지우지 않는다", async () => {
+    const job = await pendingUndo();
+    const candidates = hold("candidates");
+    const keeping = handKeep();
+    await candidates.reached;
+    const before = { rowCheck: count("rowCheck"), remove: count("remove"), rowDelete: count("rowDelete") };
+    const draining = drainAutosaveUndoQueue(OWNER);
+    await spin();
+    expect({ rowCheck: count("rowCheck"), remove: count("remove"), rowDelete: count("rowDelete") }).toEqual(before);
+    candidates.release();
+    const kept = await keeping;
+    await draining;
+    expect({
+      deduped: kept.deduped,
+      id: kept.source.id,
+      row: hasRow(job.handle.sourceId),
+      raw: hasRaw(job.handle.sourceId),
+      queue: queued(),
+      deletes: count("remove") - before.remove + count("rowDelete") - before.rowDelete,
+    }).toEqual({ deduped: "exact_duplicate", id: job.handle.sourceId, row: true, raw: true, queue: [], deletes: 0 });
+  });
+
+  test("손 담기가 먼저 돌려받은 행은, 그 뒤 줄에 선 작업의 되돌리기도 지우지 않는다 (손 담기가 이긴다)", async () => {
+    // 같은 짝을 다른 답변 객체로 손 담기한다(새 대화 뒤 같은 질문에 같은 답). 자동 작업은 INSERT 를 보낸 채 철회됐다.
+    const generation = await consentOn();
+    const insert = hold("insert");
+    const job = start(1, generation);
+    await insert.reached;
+    const finishSave = await turnOffInApp("intent");
+    const candidates = hold("candidates");
+    const keeping = handKeep();
+    await candidates.reached; // 손 담기가 줄을 쥐었다
+    insert.release(); // 작업의 행이 커밋되고, 작업은 기록을 적은 뒤 되돌리기 줄에서 기다린다
+    await spin();
+    expect({ done: job.done, queue: queued() }).toEqual({ done: false, queue: [{ ownerId: OWNER, sourceId: job.handle.sourceId }] });
+    candidates.release(); // 손 담기의 후보 조회가 커밋된 작업의 행을 본다 -> 정확 중복
+    const kept = await keeping;
+    const phase = await job.handle.settled;
+    await finishSave();
+    expect({
+      deduped: kept.deduped,
+      id: kept.source.id,
+      phase,
+      row: hasRow(job.handle.sourceId),
+      raw: hasRaw(job.handle.sourceId),
+      queue: queued(),
+    }).toEqual({ deduped: "exact_duplicate", id: job.handle.sourceId, phase: "cancelled", row: true, raw: true, queue: [] });
+  });
+
+  test("줄을 기다리는 사이 계정이 바뀌면 손 담기는 capture 를 보내지 않고 실패로 끝난다 (설계 2-10: 계정 전환으로만 끊긴다)", async () => {
+    // 줄이 만든 새 대기 창이다. 누른 순간과 capture 사이에 계정이 바뀌면, 늦게 도는 capture 가 다른 계정의 세션으로
+    // 나간다(RLS 가 쓰기를 막지만 요청 자체를 보내지 않는다).
+    const job = await pendingUndo();
+    const probe = hold("rowCheck");
+    const draining = drainAutosaveUndoQueue(OWNER);
+    await probe.reached;
+    const before = { candidates: count("candidates"), upload: count("upload"), insert: count("insert") };
+    const keeping = handKeep();
+    const kept = keeping.then(
+      () => "kept",
+      (error: Error) => error.message,
+    );
+    switchAccount(OTHER);
+    probe.release();
+    await draining;
+    expect(await kept).toBe("autosave-owner-not-current");
+    expect({ candidates: count("candidates"), upload: count("upload"), insert: count("insert") }).toEqual(before);
+    expect({ row: hasRow(job.handle.sourceId), queue: queued() }).toEqual({
+      row: true,
+      queue: [{ ownerId: OWNER, sourceId: job.handle.sourceId }],
+    });
+  });
+
+  test("대기 기록에서 빼지 못하면 담겼다고 돌려주지 않는다(던진다) - 그래도 이 런타임의 비우기는 그 행을 지우지 않는다", async () => {
+    const job = await pendingUndo();
+    const store = globalThis.localStorage as unknown as { setItem: (k: string, v: string) => void; removeItem: (k: string) => void };
+    const { setItem, removeItem } = store;
+    const refuse = (): never => {
+      throw new Error("QuotaExceededError");
+    };
+    store.setItem = refuse;
+    store.removeItem = refuse;
+    try {
+      await expect(handKeep()).rejects.toThrow("autosave-undo-not-forgotten");
+    } finally {
+      store.setItem = setItem;
+      store.removeItem = removeItem;
+    }
+    expect(queued()).toEqual([{ ownerId: OWNER, sourceId: job.handle.sourceId }]); // 기록은 그대로 남았다
+    await drainAutosaveUndoQueue(OWNER);
+    expect({ row: hasRow(job.handle.sourceId), raw: hasRaw(job.handle.sourceId), queue: queued() }).toEqual({
+      row: true,
+      raw: true,
+      queue: [],
+    });
+  });
+});
+
 describe("INSERT 결과를 모를 때 - sourceId 로 행을 찾는다", () => {
   test("철회 뒤 INSERT 응답을 잃었는데 서버는 커밋했다 -> 행을 찾아 행째 지운다 (R)", async () => {
     mockServer.loseResponse.set("insert", 1);
@@ -809,6 +964,156 @@ describe("INSERT 결과를 모를 때 - sourceId 로 행을 찾는다", () => {
       raw: true,
       queue: [],
     });
+  });
+});
+
+describe("복구 조회 중 끼어드는 일 (게이트 r260919 DZ-1814-1)", () => {
+  // INSERT 응답을 잃어 sourceId 로 행을 찾는(복구 조회) 동안은 아직 쓰는 중이다. 그 사이 온 철회는 보낸 쓰기를 되돌려야
+  // 한다 - 조회가 돌아온 뒤 취소를 다시 보지 않고 "커밋됐으니 담김" 으로 끝내면 철회를 잃고 대기 기록도 남지 않는다.
+  async function atRecoveryProbe(): Promise<{ job: Job; release: () => void }> {
+    mockServer.loseResponse.set("insert", 1);
+    const generation = await consentOn();
+    const probe = hold("rowCheck");
+    const job = start(1, generation);
+    await probe.reached;
+    expect(hasRow(job.handle.sourceId)).toBe(true); // 서버에는 커밋됐다
+    return { job, release: probe.release };
+  }
+
+  const interruptions: { name: string; run: () => Promise<() => Promise<void>> }[] = [
+    { name: "같은 앱 끄기 (의도: 저장 왕복 중)", run: () => turnOffInApp("intent") },
+    { name: "같은 앱 끄기 (확정: 저장 끝)", run: () => turnOffInApp("commit") },
+    {
+      name: "끄고 다시 켬",
+      run: async () => {
+        await turnOffAndOnInApp();
+        return async () => undefined;
+      },
+    },
+  ];
+  test.each(interruptions)("복구 조회 중 $name -> R: 커밋된 행과 원문을 지운다", async ({ run }) => {
+    const { job, release } = await atRecoveryProbe();
+    const finishSave = await run();
+    release();
+    const phase = await job.handle.settled;
+    await finishSave();
+    await expectOutcome("R", job, phase);
+  });
+
+  test("복구 조회가 실패한 채 철회되면 되돌리기가 다시 찾아 지운다 -> R", async () => {
+    mockServer.serverError.set("rowCheck", 1); // 붙잡힌 복구 조회가 서버 오류로 돌아온다
+    const { job, release } = await atRecoveryProbe();
+    const finishSave = await turnOffInApp("intent");
+    release();
+    const phase = await job.handle.settled;
+    await finishSave();
+    expect(count("rowCheck")).toBe(2);
+    await expectOutcome("R", job, phase);
+  });
+
+  test("복구 조회 중 계정 전환 -> K: 전환은 철회가 아니다 (보낸 계정의 동의된 저장)", async () => {
+    const { job, release } = await atRecoveryProbe();
+    switchAccount(OTHER);
+    release();
+    await expectOutcome("K", job, await job.handle.settled);
+    await returnAndDrain();
+    expect({ row: hasRow(job.handle.sourceId), raw: hasRaw(job.handle.sourceId) }).toEqual({ row: true, raw: true });
+  });
+});
+
+describe("기기 기록을 못 남길 때 (게이트 r260919 DA-1814-2 · DZ-1814-2)", () => {
+  // 되돌리기는 지우기 전에 {ownerId, sourceId} 를 기기에 적는다. 그 쓰기가 실패하면(웹 quota · 네이티브 거부) 조용한
+  // undo_pending 은 거짓이다 - 다시 지울 단서가 기기에 없다. 지우기는 계속하고, 못 지우면 기록을 한 번 더 적어 보고,
+  // 그래도 못 적으면 이 런타임이 쥐고 사용자에게 보이는 상태(undo_unrecorded)로 끝낸다.
+  const storage = (): { setItem: (key: string, value: string) => void; removeItem: (key: string) => void } =>
+    globalThis.localStorage as unknown as { setItem: (key: string, value: string) => void; removeItem: (key: string) => void };
+  const restorers: (() => void)[] = [];
+  afterEach(() => {
+    for (const restore of restorers.splice(0).reverse()) restore();
+  });
+
+  /** 기기 기록 쓰기를 times 번 실패시킨다(웹 quota 모양). 돌려받은 함수로 되살린다(테스트가 끝나면 저절로 되살린다). */
+  function breakDeviceWrites(times = Number.POSITIVE_INFINITY): () => void {
+    const store = storage();
+    const { setItem, removeItem } = store;
+    let left = times;
+    const fail = (): void => {
+      left -= 1;
+      throw new Error("QuotaExceededError");
+    };
+    store.setItem = (key, value) => (left > 0 ? fail() : setItem(key, value));
+    store.removeItem = (key) => (left > 0 ? fail() : removeItem(key));
+    const restore = (): void => {
+      store.setItem = setItem;
+      store.removeItem = removeItem;
+    };
+    restorers.push(restore);
+    return restore;
+  }
+
+  /** J4 에서 철회해 되돌리기가 원문 삭제에서 실패하는 자리까지 간다. */
+  async function withdrawAndFailDelete(writes: number): Promise<{ job: Job; phase: AutosaveTerminalPhase; restore: () => void }> {
+    const { job, release } = await atWait("J4");
+    await savePrivacyPref(OWNER, "chat_autosave", false);
+    const restore = breakDeviceWrites(writes);
+    mockServer.serverError.set("remove", 1);
+    release();
+    return { job, phase: await job.handle.settled, restore };
+  }
+
+  test("기록을 못 남겨도 지우기는 한다: 다 지웠으면 cancelled", async () => {
+    const { job, release } = await atWait("J4");
+    await savePrivacyPref(OWNER, "chat_autosave", false);
+    const restore = breakDeviceWrites();
+    release();
+    const phase = await job.handle.settled;
+    restore();
+    await expectOutcome("R", job, phase);
+  });
+
+  test("지우기가 실패해도 기록을 다시 적었으면 undo_pending: 기기에 남는다", async () => {
+    const { job, phase, restore } = await withdrawAndFailDelete(1);
+    restore();
+    await expectOutcome("Q", job, phase);
+  });
+
+  test("기록도 지우기도 실패하면 undo_unrecorded 로 끝나고, 저장소와 연결이 돌아오면 같은 런타임의 비우기가 마저 지운다", async () => {
+    const { job, phase, restore } = await withdrawAndFailDelete(Number.POSITIVE_INFINITY);
+    const id = job.handle.sourceId;
+    expect({ phase, row: hasRow(id), raw: hasRaw(id), queue: queued() }).toEqual({
+      phase: "undo_unrecorded",
+      row: true,
+      raw: true,
+      queue: [],
+    });
+    restore();
+    await drainAutosaveUndoQueue(OWNER);
+    expect({ row: hasRow(id), raw: hasRaw(id), queue: queued() }).toEqual({ row: false, raw: false, queue: [] });
+    // 다 지운 것을 그 답변에 알린다 - 화면은 "아직 삭제하지 못했다" 는 안내를 거둔다.
+    expect(job.phases[job.phases.length - 1]).toBe("cancelled");
+  });
+
+  test("저장소만 돌아오면 비우기가 기록부터 남긴다: 앱을 다시 시작해도 그 계정의 비우기가 마저 지운다", async () => {
+    const { job, phase, restore } = await withdrawAndFailDelete(Number.POSITIVE_INFINITY);
+    const id = job.handle.sourceId;
+    expect(phase).toBe("undo_unrecorded");
+    restore();
+    mockServer.serverError.set("remove", 1); // 연결은 아직이다
+    await drainAutosaveUndoQueue(OWNER);
+    expect({ row: hasRow(id), queue: queued() }).toEqual({ row: true, queue: [{ ownerId: OWNER, sourceId: id }] });
+    __resetAutosaveRunnerForTests(); // 앱 재시작: 이 런타임이 쥐던 것은 사라지고 기기 기록만 남는다
+    await drainAutosaveUndoQueue(OWNER);
+    expect({ row: hasRow(id), raw: hasRaw(id), queue: queued() }).toEqual({ row: false, raw: false, queue: [] });
+  });
+
+  test("기기에 못 남긴 되돌리기는 돌아올 때마다 다시 지워 본다 - 안내가 약속한 것이라 횟수 상한을 두지 않는다", async () => {
+    const { job, phase } = await withdrawAndFailDelete(Number.POSITIVE_INFINITY);
+    expect(phase).toBe("undo_unrecorded");
+    mockServer.serverError.set("remove", 4);
+    for (let attempt = 0; attempt < 4; attempt += 1) await drainAutosaveUndoQueue(OWNER);
+    expect(hasRow(job.handle.sourceId)).toBe(true);
+    await drainAutosaveUndoQueue(OWNER);
+    expect({ row: hasRow(job.handle.sourceId), raw: hasRaw(job.handle.sourceId) }).toEqual({ row: false, raw: false });
   });
 });
 
@@ -882,7 +1187,9 @@ describe("대기 기록 - {ownerId, sourceId} 만, 계정별 키, 계정 삭제�
     await installAccountLocalDeletionFence(OWNER);
     switchAccount(OTHER);
     release();
-    expect(await job.handle.settled).toBe("undo_pending");
+    // 기록이 없는데 undo_pending 이라고 답하지 않는다(게이트 r260919 DA-1814-2) - 여기서는 적을 수 없는 이유가 계정 삭제다.
+    // 이 런타임이 쥐고 있다가 그 계정이 다시 공개될 때만 비우기가 돈다. 계정 삭제가 끝나면 원문은 그쪽이 지운다.
+    expect(await job.handle.settled).toBe("undo_unrecorded");
     expect(localValues.has(autosaveUndoStorageKey(OWNER))).toBe(false);
   });
 });

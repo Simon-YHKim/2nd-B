@@ -58,10 +58,10 @@ import {
   autosaveTurnPhase,
   drainAutosaveUndoQueue,
   holdTurnForManualKeep,
+  runManualKeep,
   startAutosaveJob,
   subscribeAutosaveJobs,
 } from "@/lib/chat/autosave-runner";
-import { forgetAutosaveUndo } from "@/lib/chat/autosave-undo-queue";
 import { shouldShowChatSaveNotice, useChatSaveNoticeDismissed } from "@/lib/chat/save-notice";
 import { classifyInput } from "@/lib/safety/classifier";
 import { currentDisplayName } from "@/lib/persona/use-address";
@@ -648,7 +648,9 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // 담기 실패는 복사 실패와 같은 자세로 화면에 남긴다. 복사와 달리 타이머로
   // 지우지 않는다 - "확인해 보라"는 안내라서 사용자가 다시 누를 때까지 보여야
   // 한다.
-  const [keepNotice, setKeepNotice] = useState<{ turn: ChatTurn; ok: boolean } | null>(null);
+  // notDeleted: 철회한 자동 저장을 지우지도 기기에 적지도 못했다(undo_unrecorded). 같은 자리에 "아직 삭제하지
+  // 못했다" 를 띄우고, 실행기가 다 지웠다고 알리면 거둔다(게이트 r260919 DA-1814-2).
+  const [keepNotice, setKeepNotice] = useState<{ turn: ChatTurn; ok: boolean; notDeleted?: true } | null>(null);
   // 저장 경로에도 위기 안내가 필요하다. 이 화면의 C9 는 지금까지 전송 경로
   // (sendChatMessage -> callLlm)에만 있었는데, createRecord 도 저장할 때마다
   // 로컬 렉시콘 분류를 돌리고 레드존을 followup 으로 알려준다. 다른 저장 화면
@@ -689,18 +691,22 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
       // 위키 클립으로 저장한다(records 가 아니라). 그래야 exportUserWiki 를 타고
       // 다음 대화와 비서 제안이 이걸 읽는다 - keep-exchange.ts 의 설명 참조.
       // captureFromMarkdown 은 LLM 을 부르지 않고, 중복 담기는 dedup 이 흡수한다.
-      const kept = await captureFromMarkdown({
-        userId,
-        rawMd,
-        // 사용자가 남긴 자기 지식이다. URL 에서 유추한 종류로 떨어지면 안 된다.
-        kindOverride: "self_knowledge",
-        // domain: 태그를 붙이지 않는다. 대화를 담았다고 그 영역을 더 아는 것은
-        // 아니므로 별 밝기를 건드리면 안 된다 (정직한 밝기 규칙).
-        userTags: [CHAT_KEEP_TAG],
-      });
-      // 같은 짝이 이미 행으로 있었다(정확 중복). 자동 저장이 담았다가 되돌리기를 끝내지 못한 행이면 사용자가 이제
-      // 남기기로 한 것이다 - 되돌리기 대기 기록에서 뺀다(설계 2-10). 기록에 없는 id 면 아무 일도 없다.
-      if (kept.deduped === "exact_duplicate") void forgetAutosaveUndo({ ownerId, sourceId: kept.source.id });
+      //
+      // capture 는 실행기의 계정 줄(runManualKeep) 안에서 돈다 - 되돌리기를 비우는 쪽과 한 줄이다(게이트 r260919
+      // DA-1814-1 · DZ-1814-3). 비우기가 먼저면 다 지운 뒤에 새 행으로 담고, 같은 짝이 이미 행으로 있으면(정확 중복)
+      // 실행기가 그 행을 되돌리기 대기 기록에서 빼고 이 런타임의 되돌리기가 지우지 않게 한다(설계 2-10). 빼지 못하면
+      // 던지고, 아래 catch 가 실패 안내를 띄운다 - 담김은 대기 기록에서 뺀 것을 확인한 뒤에만 띄운다.
+      await runManualKeep(ownerId, () =>
+        captureFromMarkdown({
+          userId: ownerId,
+          rawMd,
+          // 사용자가 남긴 자기 지식이다. URL 에서 유추한 종류로 떨어지면 안 된다.
+          kindOverride: "self_knowledge",
+          // domain: 태그를 붙이지 않는다. 대화를 담았다고 그 영역을 더 아는 것은
+          // 아니므로 별 밝기를 건드리면 안 된다 (정직한 밝기 규칙).
+          userTags: [CHAT_KEEP_TAG],
+        }),
+      );
       setKeptTurns((prev) => new Set(prev).add(reply));
       const hotline = keepCrisisHotline(body, locale, isMinor);
       if (hotline) setKeepCrisis({ visible: true, hotline });
@@ -870,6 +876,10 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // 자동 저장의 결과를 받는다 (PR 1814 재설계 C5). 담겼으면 담김 표시와 위기 안내(C9), 실패했으면 손 담기와
   // 같은 실패 안내다. 취소와 되돌리기 대기는 아무것도 띄우지 않는다 - 동의를 거둬 멈춘 저장을 실패로 보이지
   // 않는다. 이 화면 계정의 알림만 받는다. 구독을 풀어도(화면 이탈) 작업은 끝까지 간다 - 취소 사유가 아니다.
+  //
+  // 하나만 예외다(게이트 r260919 DA-1814-2). 거둔 저장을 지우지도 기기에 적지도 못했으면(undo_unrecorded) 조용히 두지
+  // 않는다 - 앱이 꺼지면 다시 지울 단서가 없다. 아직 삭제하지 못했다고 알리고, 실행기가 다 지웠다고(cancelled) 알리면
+  // 그 안내만 거둔다. 담기 실패 안내를 빌려 쓰지 않는다: 그 뒷절 "다시 담아 주세요" 는 지우길 원한 사용자에게 반대다.
   useEffect(() => {
     if (!userId) return;
     return subscribeAutosaveJobs((update) => {
@@ -883,6 +893,11 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
       } else if (update.phase === "failed") {
         setKeepNotice({ turn: reply, ok: false });
         AccessibilityInfo.announceForAccessibility(t("keepFailed"));
+      } else if (update.phase === "undo_unrecorded") {
+        setKeepNotice({ turn: reply, ok: false, notDeleted: true });
+        AccessibilityInfo.announceForAccessibility(t("chatSaveNotDeleted"));
+      } else if (update.phase === "cancelled") {
+        setKeepNotice((prev) => (prev?.turn === reply && prev.notDeleted ? null : prev));
       }
       setAutosaveRender((n) => n + 1);
     });
@@ -1409,7 +1424,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                     ) : null}
                     {keepNotice?.turn === turn && !keepNotice.ok ? (
                       <Text variant="caption" color="textSubtle" accessibilityLiveRegion="polite">
-                        {t("keepFailed")}
+                        {t(keepNotice.notDeleted ? "chatSaveNotDeleted" : "keepFailed")}
                       </Text>
                     ) : null}
                     {/* 트위비 3-branch (P5f): next-step candidates. Tap = prefill

@@ -493,6 +493,7 @@ class FakeAppState {
 }
 
 type ChatFunctions = {
+  exchangeAt: (list: readonly Turn[], index: number) => { body: string; rawMd: string };
   keepExchange: (index: number) => Promise<boolean>;
   startNewConversation: () => void;
 };
@@ -525,7 +526,8 @@ class KeptChatScreen {
   readonly userId = OWNER;
   private readonly t = (key: string): string => key;
   private readonly idToReply = new Map<string, Turn>();
-  private manualReply: Turn | null = null;
+  /** 손으로 누른 답변을 그 짝의 본문으로 찾는다. 손 담기의 capture 는 누른 순간이 아니라 계정의 줄이 빌 때 돈다. */
+  private readonly manualByRawMd = new Map<string, Turn>();
   private readonly refs = {
     autosaveAskedRef: { current: new WeakMap<object, number>() },
     autosaveBodiesRef: { current: new WeakMap<object, string>() },
@@ -691,7 +693,7 @@ class KeptChatScreen {
 
   /** 손 담기의 capture 자리. 실제 capture 를 돌리고, 돌려받은 행을 누른 답변과 짝지어 둔다. */
   private async capture(input: CaptureInput): Promise<CaptureResult> {
-    const reply = this.manualReply;
+    const reply = this.manualByRawMd.get(input.rawMd);
     const result = await captureFromMarkdown(input);
     if (reply) this.idToReply.set(String(result.source.id), reply);
     return result;
@@ -746,9 +748,9 @@ class KeptChatScreen {
   /** 담기 칩을 손으로 누른다(기다리지 않는다). */
   startKeepByHand(index: number): Promise<boolean> {
     if (!this.fns) throw new Error("화면이 그려지지 않았다");
-    this.manualReply = this.s.turns[index] ?? null;
+    const reply = this.s.turns[index];
+    if (reply) this.manualByRawMd.set(this.fns.exchangeAt(this.s.turns, index).rawMd, reply);
     const keeping = this.fns.keepExchange(index);
-    this.manualReply = null;
     started.push(keeping);
     return keeping;
   }
@@ -1431,6 +1433,82 @@ describe("실행기 배선 (PR 1814 재설계 C5)", () => {
 
     expect(mockServer.sources.map((row) => row.id)).toEqual([rowId]); // 새 행 없이 있던 행을 돌려받았다
     expect(localValues.get(autosaveUndoStorageKey(OWNER))).toBeUndefined();
+  });
+
+  test("비우기가 행을 확인하는 동안 같은 답변을 손으로 다시 담으면, 비우기가 다 지운 뒤에 담아 담긴 대화가 남는다 (게이트 r260919 DA-1814-1 · DZ-1814-3)", async () => {
+    // 게이트 재현 순서: 되돌리기가 한 번 실패해 대기 기록이 남은 답변 -> 앱이 앞으로 와 비우기가 행 확인을 보낸다 -> 그 사이
+    // 사용자가 담기를 누른다(정확 중복) -> 비우기가 이어서 지운다. 담겼다고 표시한 뒤 행과 원문이 사라지면 안 된다.
+    mockServer.prefs.set(OWNER, { chat_autosave: true });
+    const chat = await mountChat();
+    const insert = hold("insert");
+    const reply = await chat.exchange("같은 질문", "같은 답변");
+    await insert.reached;
+    mockServer.serverError.set("remove", 1);
+    await savePrivacyPref(OWNER, "chat_autosave", false);
+    insert.release();
+    await settle();
+    const rowId = String(mockServer.sources[0]?.id);
+    expect(JSON.parse(localValues.get(autosaveUndoStorageKey(OWNER)) ?? "[]")).toEqual([{ ownerId: OWNER, sourceId: rowId }]);
+    expect(chat.chipDisabled(1)).toBe(false); // 되돌리기 대기는 칩을 다시 연다
+
+    const probe = hold("rowCheck");
+    chat.appState.emit("active");
+    await probe.reached;
+    const keeping = chat.startKeepByHand(1);
+    await settle();
+    probe.release();
+    expect(await keeping).toBe(true);
+    await settle();
+
+    expect({ saved: chat.saved(), objects: mockServer.objects.size, label: chat.chipLabel(1) }).toEqual({
+      saved: [reply],
+      objects: 1,
+      label: "keptToWiki",
+    });
+    expect(mockServer.sources.map((row) => row.id)).not.toContain(rowId); // 비우기가 먼저 다 지운 옛 행
+    expect(localValues.get(autosaveUndoStorageKey(OWNER))).toBeUndefined();
+  });
+
+  test("철회한 저장을 지우지도 기기에 적지도 못하면 그 답변 옆에 아직 삭제하지 못했다고 알리고, 앱으로 돌아와 다 지우면 거둔다 (게이트 r260919 DA-1814-2)", async () => {
+    mockServer.prefs.set(OWNER, { chat_autosave: true });
+    const chat = await mountChat();
+    const insert = hold("insert");
+    const reply = await chat.exchange("질문", "지우다 만 답변");
+    await insert.reached;
+    await savePrivacyPref(OWNER, "chat_autosave", false);
+    // 기기 저장소가 쓰기를 거부한다(웹 quota 모양). 원문 삭제도 한 번 실패한다.
+    const device = globalThis.localStorage as unknown as { setItem: unknown; removeItem: unknown };
+    const { setItem, removeItem } = device;
+    const refuse = (): never => {
+      throw new Error("QuotaExceededError");
+    };
+    device.setItem = refuse;
+    device.removeItem = refuse;
+    const restoreDevice = (): void => {
+      device.setItem = setItem;
+      device.removeItem = removeItem;
+    };
+    restoreAfterTest.push(restoreDevice);
+    mockServer.serverError.set("remove", 1);
+    insert.release();
+    await settle();
+
+    expect({ notice: chat.s.keepNotice, announced: chat.announced, saved: chat.saved(), chip: chat.chipDisabled(1) }).toEqual({
+      notice: { turn: reply, ok: false, notDeleted: true },
+      announced: ["chatSaveNotDeleted"],
+      saved: [reply],
+      chip: false,
+    });
+    expect(localValues.get(autosaveUndoStorageKey(OWNER))).toBeUndefined(); // 기기에는 아무것도 없다
+
+    restoreDevice();
+    chat.appState.emit("active");
+    await settle();
+    expect({ notice: chat.s.keepNotice, saved: chat.saved(), objects: mockServer.objects.size }).toEqual({
+      notice: null,
+      saved: [],
+      objects: 0,
+    });
   });
 
   test("되돌리기 대기 기록은 화면이 뜰 때와 앱이 앞으로 올 때 비우고, 도는 동안 겹친 부름은 하나로 합친다", async () => {

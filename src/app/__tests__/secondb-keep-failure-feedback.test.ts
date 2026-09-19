@@ -79,8 +79,10 @@ interface Host {
     current: unknown;
     /** 손 담기가 쥐었다가 푼 턴별 잠금. */
     released: object[];
-    /** 되돌리기 대기 기록에서 뺀 것. */
-    forgotten: unknown[];
+    /** 손 담기가 계정 줄(runManualKeep)에 선 계정. */
+    lanes: string[];
+    /** 줄에 선 것과 capture 의 순서. */
+    order: string[];
     /** 위기 분류를 돌린 본문. */
     classified: string[];
   };
@@ -109,6 +111,8 @@ function keepHost(
     /** 자동 저장이 이 턴들을 확인 · 쓰기 · 되돌리는 중이다(턴별 잠금을 못 얻는다). */
     autoBusy?: Set<object>;
     notice?: unknown;
+    /** 계정 줄이 capture 뒤에 담김을 확인해 주지 않는다(정확 중복인데 되돌리기 대기 기록에서 빼지 못했다). */
+    keepRefused?: boolean;
   } = {},
 ): Host {
   const state: Host["state"] = {
@@ -121,7 +125,8 @@ function keepHost(
     warnings: [],
     current: options.notice ?? null,
     released: [],
-    forgotten: [],
+    lanes: [],
+    order: [],
     classified: [],
   };
   const bindings = {
@@ -136,9 +141,14 @@ function keepHost(
     setKeepingTurns: (fn: (prev: Set<object>) => Set<object>) => {
       state.keepingTurns = fn(state.keepingTurns);
     },
-    forgetAutosaveUndo: async (record: unknown) => {
-      state.forgotten.push(record);
-      return true;
+    // 실행기의 손 담기 줄(runManualKeep) 자리. 줄의 규칙(되돌리기와 한 줄 · 정확 중복이면 대기 기록에서 빼기)은
+    // 실행기 테스트가 실제로 돌린다. 여기서는 화면이 capture 를 줄 안에서 부르는지와 줄의 거절을 어떻게 받는지만 본다.
+    runManualKeep: async (ownerId: string, capture: () => Promise<unknown>) => {
+      state.lanes.push(ownerId);
+      state.order.push("lane");
+      const kept = await capture();
+      if (options.keepRefused) throw new Error("autosave-undo-not-forgotten");
+      return kept;
     },
     keepCrisisHotline: crisisHotline(state.classified),
     setKeptTurns: (fn: (prev: Set<object>) => Set<object>) => { state.kept = fn(state.kept); },
@@ -161,6 +171,7 @@ function keepHost(
     isMinor: false,
     captureFromMarkdown: async (payload: unknown) => {
       state.captures.push(payload);
+      state.order.push("capture");
       if (options.capture) return options.capture();
       return { source: { id: "clip-1" }, deduped: null };
     },
@@ -255,16 +266,28 @@ describe("담기 실패를 화면이 말한다", () => {
     expect(kept.state.classified).toEqual(["정상 로컬 fixture 본문"]);
   });
 
-  test("이미 있는 행을 돌려받으면(정확 중복) 그 행을 되돌리기 대기 기록에서 뺀다 - 새로 담은 행이면 건드리지 않는다", async () => {
-    // 자동 저장이 담았다가 되돌리기를 끝내지 못한 행을 사용자가 손으로 다시 담았다. 남기기로 한 것이다(설계 2-10).
-    const duplicate = keepHost({ capture: async () => ({ source: { id: "row-9" }, deduped: "exact_duplicate" }) });
-    await expect(duplicate.keep(1)).resolves.toBe(true);
-    expect(duplicate.state.forgotten).toEqual([{ ownerId: "local-owner", sourceId: "row-9" }]);
-    for (const deduped of [null, "near_duplicate"]) {
-      const fresh = keepHost({ capture: async () => ({ source: { id: "row-10" }, deduped }) });
-      await fresh.keep(1);
-      expect(fresh.state.forgotten).toEqual([]);
-    }
+  // 옛 이름: "이미 있는 행을 돌려받으면(정확 중복) 그 행을 되돌리기 대기 기록에서 뺀다 - 새로 담은 행이면 건드리지 않는다".
+  // 그 규칙(설계 2-10)은 실행기의 runManualKeep 으로 옮겼다 - 화면이 대기 기록 빼기를 기다리지 않고(fire-and-forget)
+  // 담김을 띄웠고, 진행 중인 비우기와 줄을 서지 않아 담김 뒤에 행이 지워졌다(게이트 r260919 DA-1814-1 · DZ-1814-3).
+  test("손 담기는 capture 를 계정 줄(runManualKeep) 안에서 부르고, 줄이 담김을 확인해 주지 않으면 담김으로 치지 않는다", async () => {
+    const host = keepHost({ capture: async () => ({ source: { id: "row-9" }, deduped: "exact_duplicate" }) });
+    await expect(host.keep(1)).resolves.toBe(true);
+    expect({ lanes: host.state.lanes, order: host.state.order, kept: host.state.kept.has(REPLY) }).toEqual({
+      lanes: ["local-owner"],
+      order: ["lane", "capture"],
+      kept: true,
+    });
+
+    // 정확 중복인데 되돌리기 대기 기록에서 빼지 못했다 - 다음 비우기가 그 행을 지울 수 있다. 담겼다고 말하지 않는다.
+    const refused = keepHost({ keepRefused: true, capture: async () => ({ source: { id: "row-9" }, deduped: "exact_duplicate" }) });
+    await expect(refused.keep(1)).resolves.toBe(false);
+    expect({
+      kept: refused.state.kept.has(REPLY),
+      notice: refused.state.notice.filter(Boolean),
+      announced: refused.state.announced,
+      classified: refused.state.classified,
+      released: refused.state.released,
+    }).toEqual({ kept: false, notice: [{ turn: REPLY, ok: false }], announced: ["keepFailed"], classified: [], released: [REPLY] });
   });
 });
 
@@ -274,7 +297,9 @@ describe("자동 담기는 실패를 삼키지 않는다", () => {
   // (lib/chat/__tests__/autosave-runner.test.ts)가, 화면 왕복은 secondb-autosave-consent-roundtrip.test.ts 가 돌린다.
   interface AutosaveScreen {
     kept: Set<object>;
+    /** 실패 안내 자리가 바뀐 기록(바뀌지 않는 setState 는 적지 않는다). */
     notice: unknown[];
+    current: unknown;
     announced: string[];
     crisis: unknown[];
     renders: number;
@@ -288,6 +313,7 @@ describe("자동 담기는 실패를 삼키지 않는다", () => {
     const screen = {
       kept: new Set<object>(),
       notice: [] as unknown[],
+      current: null as unknown,
       announced: [] as string[],
       crisis: [] as unknown[],
       renders: 0,
@@ -309,7 +335,13 @@ describe("자동 담기는 실패를 삼키지 않는다", () => {
       setKeptTurns: (fn: (prev: Set<object>) => Set<object>) => {
         screen.kept = fn(screen.kept);
       },
-      setKeepNotice: (value: unknown) => screen.notice.push(value),
+      // 실제 setState 처럼 updater 함수도 받는다. 값이 그대로면 바뀐 것이 아니다.
+      setKeepNotice: (value: unknown) => {
+        const next = typeof value === "function" ? (value as (prev: unknown) => unknown)(screen.current) : value;
+        if (Object.is(next, screen.current)) return;
+        screen.current = next;
+        screen.notice.push(next);
+      },
       setKeepCrisis: (value: unknown) => screen.crisis.push(value),
       setAutosaveRender: () => {
         screen.renders += 1;
@@ -375,6 +407,31 @@ describe("자동 담기는 실패를 삼키지 않는다", () => {
     expect(screen.announced).toEqual(["keepFailed"]);
   });
 
+  test("철회한 저장을 지우지도 기기에 적지도 못했다는 알림(undo_unrecorded)이 오면 아직 삭제하지 못했다고 알리고, 다 지웠다는 알림이 오면 거둔다 (게이트 r260919 DA-1814-2)", () => {
+    // 담기 실패 안내(keepFailed)를 쓰면 안 된다 - 뒷절이 "다시 담아 주세요" 라서, 지우길 원한 사용자에게 반대로 말한다.
+    const screen = autosaveScreen();
+    screen.handOff();
+    screen.emit({ ownerId: "local-owner", reply: REPLY, sourceId: "job-1", phase: "undo_unrecorded" });
+    expect({ kept: screen.kept.has(REPLY), notice: screen.notice, announced: screen.announced }).toEqual({
+      kept: false,
+      notice: [{ turn: REPLY, ok: false, notDeleted: true }],
+      announced: ["chatSaveNotDeleted"],
+    });
+    // 다른 답변이 지워졌다는 알림은 이 안내를 거두지 않는다.
+    screen.emit({ ownerId: "local-owner", reply: REPLY_2, sourceId: "job-2", phase: "cancelled" });
+    expect(screen.current).toEqual({ turn: REPLY, ok: false, notDeleted: true });
+    screen.emit({ ownerId: "local-owner", reply: REPLY, sourceId: "job-1", phase: "cancelled" });
+    expect(screen.current).toBeNull();
+  });
+
+  test("다 지웠다는 알림은 담기 실패 안내를 거두지 않는다 - 그 안내는 사용자가 다시 누를 때까지 남는다", () => {
+    const screen = autosaveScreen();
+    screen.handOff();
+    screen.emit({ ownerId: "local-owner", reply: REPLY, sourceId: "job-1", phase: "failed" });
+    screen.emit({ ownerId: "local-owner", reply: REPLY, sourceId: "job-1", phase: "cancelled" });
+    expect(screen.current).toEqual({ turn: REPLY, ok: false });
+  });
+
   test("취소 · 되돌리기 대기 · 진행 중 알림과 다른 계정의 알림은 아무것도 띄우지 않는다", () => {
     const screen = autosaveScreen();
     screen.handOff();
@@ -383,6 +440,7 @@ describe("자동 담기는 실패를 삼키지 않는다", () => {
     }
     screen.emit({ ownerId: "other-owner", reply: REPLY, sourceId: "job-2", phase: "kept" });
     screen.emit({ ownerId: "other-owner", reply: REPLY, sourceId: "job-3", phase: "failed" });
+    screen.emit({ ownerId: "other-owner", reply: REPLY, sourceId: "job-4", phase: "undo_unrecorded" });
     expect({ kept: screen.kept.has(REPLY), notice: screen.notice, announced: screen.announced }).toEqual({
       kept: false,
       notice: [],
@@ -512,6 +570,52 @@ describe("실패 안내가 화면에 붙어 있고 문구가 정직하다", () =
       const value = localeJson(code).keepFailed as string;
       expect(value).not.toContain("—");
       expect(value).not.toMatch(/치유|심리치료|therapy|diagnosis/i);
+    }
+  });
+});
+
+describe("철회한 저장을 아직 삭제하지 못했다는 안내 (게이트 r260919 DA-1814-2)", () => {
+  // 되돌리기가 원격 삭제에도 기기 기록에도 실패했을 때만 뜬다. 그때 사용자에게 남은 사실은 셋이다: ① 아직 삭제되지
+  // 않았다 ② 앱으로 돌아오면(대화 화면이 떠 있는 동안 앱이 앞으로 오면 · 대화 화면을 다시 열면) 다시 지워 본다 ③ 행이
+  // 남아 있으면 기록 보관소(/records)에서 그 기록을 열어 직접 지울 수 있다. 담기 실패 안내를 빌려 쓰지 않는다 - 그
+  // 뒷절 "다시 담아 주세요" 는 지우길 원한 사용자에게 반대로 말한다.
+  const text = (code: string): string => localeJson(code).chatSaveNotDeleted as string;
+  const recordsTitle = (code: string): string =>
+    (JSON.parse(readFileSync(resolve(__dirname, "../../../locales", code, "deepspace.json"), "utf8")) as { records: { title: string } })
+      .records.title;
+
+  test("담기 칩 옆 같은 자리에 그린다 - 어느 문구인지는 알림이 정한다", () => {
+    const render = SOURCE.slice(SOURCE.indexOf("isKeepable(turn) ?"));
+    expect(render).toContain('t(keepNotice.notDeleted ? "chatSaveNotDeleted" : "keepFailed")');
+  });
+
+  test("다섯 로케일 모두 가지고, 베타 로케일 값이 영어 그대로가 아니다", () => {
+    for (const code of LOCALES) expect(text(code).length).toBeGreaterThan(20);
+    for (const code of ["es", "pt", "id"] as const) expect(text(code)).not.toBe(text("en"));
+  });
+
+  test("사실만 말한다: 삭제됐다고 하지 않고, 다시 지워 본다고 하고, 직접 지울 곳을 실제 화면 이름으로 부른다", () => {
+    for (const code of LOCALES) expect(text(code)).toContain(recordsTitle(code));
+    expect(text("en")).toMatch(/isn't deleted yet/);
+    expect(text("en")).toMatch(/try again/);
+    expect(text("en")).not.toMatch(/was deleted|has been deleted|keep to wiki|save to wiki/i);
+    expect(text("ko")).toMatch(/아직 삭제하지 못했어요/);
+    expect(text("ko")).toMatch(/다시 삭제해 볼게요/);
+    expect(text("ko")).not.toMatch(/담아|삭제했어요|삭제됐어요/);
+  });
+
+  test("한국어는 해요체다", () => {
+    const sentences = text("ko").split(/(?<=\.)\s+/);
+    expect(sentences.length).toBe(3);
+    for (const sentence of sentences) expect(sentence).toMatch(/요\.$/);
+    expect(text("ko")).not.toMatch(/니다\.|십시오/);
+  });
+
+  test("인도네시아어는 비격식 인칭이고, 금지된 표현이 없다", () => {
+    expect(text("id")).not.toMatch(/\bAnda\b/);
+    for (const code of LOCALES) {
+      expect(text(code)).not.toContain("—");
+      expect(text(code)).not.toMatch(/치유|심리치료|therapy|diagnosis/i);
     }
   });
 });

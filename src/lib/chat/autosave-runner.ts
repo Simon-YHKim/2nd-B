@@ -43,6 +43,14 @@
 // 적고 다 지우면 지운다. 지우는 도중에 계정이 바뀌거나 실패하면 기록이 남고, 그 계정이 돌아왔을 때
 // drainAutosaveUndoQueue 가 이어서 지운다.
 //
+// 기기에 적지 못해도 지우기는 한다 - 철회의 목적은 지우는 것이다(게이트 r260919 DA-1814-2 · DZ-1814-2). 적었는지는
+// 끝내 못 지웠을 때의 답만 가른다: 적혀 있으면(못 지운 뒤 한 번 더 적어 되면) undo_pending 이고 조용하다. 그래도 못
+// 적으면 undo_unrecorded 다 - 앱이 꺼지면 다시 지울 단서가 없으니 조용히 끝내지 않는다. 이 런타임이 쥐고 있다가 비우기가
+// 적기와 지우기를 다시 하고(횟수 상한 없이, 화면 안내가 그렇게 말한다), 다 지우면 그 답변에 cancelled 를 알린다.
+//
+// 쓰는 중에 실패해 행을 찾는 동안(복구 조회)도 아직 쓰는 중이다. 조회 · 원문 삭제가 돌아올 때마다 취소를 다시 보고,
+// 끊겼으면 그때까지 안 사실로 되돌린다(게이트 r260919 DZ-1814-1 - 다시 보지 않아 철회된 작업이 kept 로 끝났다).
+//
 // 계정 전환으로 끊긴 작업은 되돌리지 않는다. 철회가 아니다. 그 계정의 토큰으로 이미 커밋된 행은 그 계정이 동의해
 // 남긴 것이다. 다만 INSERT 를 보내기 전에 끊겨 행 없이 남은 원문은 그 계정이 돌아왔을 때 지운다(다른 계정
 // 세션으로는 그 폴더를 지울 수 없다).
@@ -56,6 +64,16 @@
 // 손 담기가 잠금을 못 얻고(holdTurnForManualKeep), 손 담기가 잠금을 쥔 동안에는 자동 작업이 시작하지 않는다.
 // 잠금은 답변마다라서, 한 답변을 담는 동안 다음 답변의 자동 저장이 막히지 않는다.
 //
+// ## 계정별 줄 - 지우기와 손 담기 (게이트 r260919 DA-1814-1 · DZ-1814-3)
+//
+// 턴별 잠금은 답변 객체로 잡고, 되돌리기는 sourceId 로 움직여서 둘이 만나지 않았다. 대기 기록을 비우는 쪽이 행을 확인한
+// 뒤 지우기 전에 사용자가 같은 대화를 손으로 담으면(정확 중복), 손 담기는 기록에서 그 행을 빼고 담김을 띄웠는데 이미
+// 행을 쥔 비우기가 그 행과 원문을 지웠다. 그래서 지우는 일 셋(작업의 되돌리기 · 대기 기록 비우기 전체)과 손 담기의
+// capture 를 계정마다 한 줄(inOwnerLane)에 세운다. 비우기가 먼저면 다 지운 뒤에 손 담기가 새 행으로 담고, 손 담기가
+// 먼저면 기록에서 뺀 뒤에 온 비우기는 그 행을 보지 못한다. 손 담기가 정확 중복으로 돌려받은 행은 표식(keptByHand)을
+// 남겨, 줄의 순서와 상관없이 이 런타임의 되돌리기가 지우지 않는다 - 손 담기가 이긴다(설계 2-10). 기록에서 빼지 못하면
+// runManualKeep 이 던지고 화면은 담김을 띄우지 않는다.
+//
 // ⚠ 확인하지 않은 것: 운영 Supabase 에서 클라이언트가 정한 id 로 INSERT 가 되는지, 끊긴 fetch 뒤 서버가 커밋하는지,
 // 없는 경로 Storage remove 가 빈 목록인지 404 오류인지(둘 다 "없음" 으로 읽는다), RN 실기의 백그라운드 동작.
 // ⚠ 보안 경계가 아니다. 서버는 chat_autosave 를 쓰기에서 강제하지 않는다(서버 몫, 설계 S2).
@@ -67,7 +85,7 @@ import { captureAccountOwnerLease, isCurrentAccountEpoch, subscribeAccountTransi
 import { beginAccountSessionLease, type PendingAccountSessionLease } from "../auth/account-session-lease";
 import { getSupabaseClient } from "../supabase/client";
 import { readPrivacyPrefs } from "../supabase/privacy";
-import { captureFromMarkdown, type CaptureJournal } from "../wiki/capture";
+import { captureFromMarkdown, type CaptureJournal, type CaptureResult } from "../wiki/capture";
 import { deleteCapturedSource } from "../wiki/delete-captured-source";
 import { deleteRawClipping, rawClippingPath } from "../wiki/storage";
 import {
@@ -84,8 +102,16 @@ import {
 } from "./autosave-undo-queue";
 import { CHAT_KEEP_TAG, isKeepable, type KeepableTurn } from "./keep-exchange";
 
-export type AutosavePhase = "checking" | "writing" | "undoing" | "kept" | "cancelled" | "failed" | "undo_pending";
-export type AutosaveTerminalPhase = Extract<AutosavePhase, "kept" | "cancelled" | "failed" | "undo_pending">;
+export type AutosavePhase =
+  | "checking"
+  | "writing"
+  | "undoing"
+  | "kept"
+  | "cancelled"
+  | "failed"
+  | "undo_pending"
+  | "undo_unrecorded";
+export type AutosaveTerminalPhase = Extract<AutosavePhase, "kept" | "cancelled" | "failed" | "undo_pending" | "undo_unrecorded">;
 
 export interface AutosaveRequest {
   /** 공개된 계정. 작업은 이 계정의 세션으로만 쓰고 지운다. */
@@ -137,6 +163,15 @@ const manualHolds = new Set<KeepableTurn>();
 const updateListeners = new Set<(update: AutosaveJobUpdate) => void>();
 const undoInFlight = new Set<string>();
 const drainAttempts = new Map<string, number>();
+/** 계정마다 지우기와 손 담기가 서는 줄의 꼬리(inOwnerLane). */
+const ownerLanes = new Map<string, Promise<void>>();
+/** 손 담기가 정확 중복으로 돌려받은 행(undoKey). 이 런타임의 되돌리기는 이 행을 지우지 않는다. */
+const keptByHand = new Set<string>();
+/**
+ * 되돌리기를 끝내지 못했고 기기에도 못 남겨 undo_unrecorded 로 끝난 작업(undoKey). 비우기가 기기 기록과 함께 돈다.
+ * recorded 는 그 뒤 비우기가 기록을 적는 데 성공했는가다. 다 지우면 reply 에 cancelled 를 알려 화면 안내를 거둔다.
+ */
+const unfinishedUndos = new Map<string, { record: AutosaveUndoRecord; reply: KeepableTurn; recorded: boolean }>();
 
 /** 원문 키. 업로드와 되돌리기가 같은 함수로 만든다. */
 function chatStorageKey(sourceId: string): string {
@@ -148,7 +183,10 @@ function undoKey(record: AutosaveUndoRecord): string {
 }
 
 function publish(job: Job): void {
-  const update: AutosaveJobUpdate = { ownerId: job.ownerId, reply: job.reply, sourceId: job.sourceId, phase: job.phase };
+  notify({ ownerId: job.ownerId, reply: job.reply, sourceId: job.sourceId, phase: job.phase });
+}
+
+function notify(update: AutosaveJobUpdate): void {
   for (const listener of [...updateListeners]) {
     try {
       listener(update);
@@ -156,6 +194,29 @@ function publish(job: Job): void {
       // 화면 하나가 던져도 작업과 다른 구독자는 계속 간다.
     }
   }
+}
+
+/**
+ * 이 계정의 지우기(작업의 되돌리기 · 대기 기록 비우기)와 손 담기를 이 런타임에서 한 줄로 세운다. 앞의 실패가 뒤를 막지
+ * 않는다. 줄 안의 일은 같은 계정의 줄을 다시 기다리지 않는다 - 기다리면 서로를 기다린다.
+ */
+function inOwnerLane<T>(ownerId: string, work: () => Promise<T>): Promise<T> {
+  const previous = ownerLanes.get(ownerId) ?? Promise.resolve();
+  const result = previous.then(work);
+  const tail = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  ownerLanes.set(ownerId, tail);
+  void tail.then(() => {
+    if (ownerLanes.get(ownerId) === tail) ownerLanes.delete(ownerId);
+  });
+  return result;
+}
+
+/** 작업이 끊겼는가. 오류 이름이 아니라 신호로 가른다(규칙 6). */
+function isCancelled(job: Job): boolean {
+  return job.controller.signal.aborted || job.lease.signal.aborted;
 }
 
 function setPhase(job: Job, phase: AutosavePhase): void {
@@ -267,7 +328,7 @@ async function run(job: Job): Promise<AutosaveTerminalPhase> {
   } catch (error) {
     failure = error;
   }
-  if (job.controller.signal.aborted || job.lease.signal.aborted) return afterCancel(job, failure);
+  if (isCancelled(job)) return afterCancel(job, undoPlan(job.journal, failure));
   if (written) return "kept";
   return afterFailure(job, failure);
 }
@@ -294,8 +355,8 @@ function isUniqueViolation(error: unknown): boolean {
   return !!error && typeof error === "object" && (error as { code?: unknown }).code === "23505";
 }
 
-async function afterCancel(job: Job, failure: unknown): Promise<AutosaveTerminalPhase> {
-  const plan = undoPlan(job.journal, failure);
+/** 끊긴 작업의 끝. plan 은 그때까지 안 사실로 정한 되돌리기다(journal, 또는 복구 조회로 좁힌 것). */
+async function afterCancel(job: Job, plan: UndoPlan): Promise<AutosaveTerminalPhase> {
   if (plan === "none") return "cancelled";
   if (job.cancelReason === "owner_changed" || job.cancelReason === null) {
     // 계정 전환은 철회가 아니다. 커밋된 행은 그 계정의 동의된 저장이다.
@@ -312,13 +373,34 @@ async function undo(job: Job, plan: Exclude<UndoPlan, "none">): Promise<Autosave
   const key = undoKey(record);
   undoInFlight.add(key);
   try {
-    await rememberAutosaveUndo(record);
-    if (!(await undoWrites(record, plan))) return "undo_pending";
-    await forgetAutosaveUndo(record);
-    return "cancelled";
+    // 줄에 서기 전에 적는다 - 기다리는 사이에 앱이 꺼져도 그 계정이 돌아오면 이어서 지운다.
+    const recorded = await rememberAutosaveUndo(record);
+    return await inOwnerLane(job.ownerId, () => undoInLane(job, record, plan, recorded));
   } finally {
     undoInFlight.delete(key);
   }
+}
+
+/** 줄 안에서 지운다. 지웠으면 cancelled, 기기에 적어 두고 못 지웠으면 undo_pending, 적지도 못했으면 undo_unrecorded. */
+async function undoInLane(
+  job: Job,
+  record: AutosaveUndoRecord,
+  plan: Exclude<UndoPlan, "none">,
+  recorded: boolean,
+): Promise<AutosaveTerminalPhase> {
+  const key = undoKey(record);
+  if (keptByHand.has(key)) {
+    // 줄을 기다리는 사이 사용자가 이 행을 손으로 남겼다. 남긴 것을 지우지 않는다.
+    await forgetAutosaveUndo(record);
+    return "cancelled";
+  }
+  if (await undoWrites(record, plan)) {
+    await forgetAutosaveUndo(record);
+    return "cancelled";
+  }
+  if (recorded || (await rememberAutosaveUndo(record))) return "undo_pending";
+  unfinishedUndos.set(key, { record, reply: job.reply, recorded: false });
+  return "undo_unrecorded";
 }
 
 /** 한 작업이 쓴 것을 지운다. 그 계정이 끝까지 공개돼 있었고 남은 것이 없으면 true. */
@@ -339,8 +421,13 @@ async function undoWrites(record: AutosaveUndoRecord, plan: Exclude<UndoPlan, "n
   return owner.isCurrent() && gone;
 }
 
+/**
+ * 취소가 아닌 쓰기 실패. 행이 없다고 확인될 때만 올린 원문을 지운다. 복구 조회와 원문 삭제를 기다리는 동안에도 작업은
+ * 아직 쓰는 중이라 철회 · 계정 전환이 끼어들 수 있다 - 돌아올 때마다 취소를 다시 보고, 끊겼으면 그때까지 안 사실로
+ * 되돌린다(게이트 r260919 DZ-1814-1).
+ */
 async function afterFailure(job: Job, failure: unknown): Promise<AutosaveTerminalPhase> {
-  const plan = undoPlan(job.journal, failure);
+  let plan = undoPlan(job.journal, failure);
   if (plan === "row") return "kept";
   if (plan === "none") return "failed";
   const owner = captureAccountOwnerLease(job.ownerId);
@@ -348,11 +435,16 @@ async function afterFailure(job: Job, failure: unknown): Promise<AutosaveTermina
   const record: AutosaveUndoRecord = { ownerId: job.ownerId, sourceId: job.sourceId };
   if (plan === "probe") {
     const found = await sourceRowExists(record);
+    // 있음은 어느 세션으로 물었든 참이다(RLS 는 숨길 뿐 지어내지 않는다). 없음은 그 계정이 그대로일 때만 믿는다.
+    if (found === true) plan = "row";
+    else if (found === false && owner.isCurrent()) plan = "raw";
+    if (isCancelled(job)) return afterCancel(job, plan);
     // 응답만 잃고 커밋된 행이다. 동의가 켜진 채 저장된 것이다.
-    if (found === true) return "kept";
-    if (found === null || !owner.isCurrent()) return "failed";
+    if (plan === "row") return "kept";
+    if (plan === "probe") return "failed";
   }
-  await removeRawCopy(record);
+  const gone = (await removeRawCopy(record)) && owner.isCurrent();
+  if (isCancelled(job)) return gone ? "cancelled" : afterCancel(job, "raw");
   return "failed";
 }
 
@@ -428,19 +520,68 @@ export function holdTurnForManualKeep(reply: KeepableTurn): (() => void) | null 
 }
 
 /**
- * 이 계정에 남은 되돌리기를 마저 한다. 그 계정이 공개돼 있을 때만 돈다. 부를 때: 그 계정이 다시 공개됐을 때 ·
- * 앱이 앞으로 왔을 때(대화 화면이 부른다). 한 건이 실패하면 기록을 남기고 다음 건으로 간다.
+ * 손 담기 한 번 (게이트 r260919 DA-1814-1 · DZ-1814-3). 부르는 쪽(대화 화면)이 capture 를 넘기고, 실행기는 그것을 이 계정의
+ * 지우기와 한 줄로 돌린다. 지우기가 먼저 줄에 섰으면 다 지운 뒤에 담는다 - 그 행이 이미 없으니 새 행으로 담긴다.
+ *
+ * capture 가 정확 중복으로 있던 행을 돌려주면 사용자가 그 행을 남기기로 한 것이다(설계 2-10). 이 런타임의 되돌리기가
+ * 지우지 않게 표식을 남기고, 되돌리기 대기 기록에서 뺀다. 빼지 못하면 던진다 - 다음 실행의 비우기가 그 행을 지울 수
+ * 있으니 담겼다고 말할 수 없다.
+ *
+ * 줄을 기다리는 사이 계정이 바뀌었으면 capture 를 보내지 않고 던진다. 손 담기는 계정 전환으로만 끊긴다(설계 2-10).
  */
-export async function drainAutosaveUndoQueue(ownerId: string): Promise<void> {
-  if (!captureAccountOwnerLease(ownerId)) return;
-  for (const record of await listAutosaveUndo(ownerId)) {
+export function runManualKeep(ownerId: string, capture: () => Promise<CaptureResult>): Promise<CaptureResult> {
+  return inOwnerLane(ownerId, async () => {
+    if (!captureAccountOwnerLease(ownerId)) throw new Error("autosave-owner-not-current");
+    const kept = await capture();
+    if (kept.deduped !== "exact_duplicate") return kept;
+    const record: AutosaveUndoRecord = { ownerId, sourceId: String(kept.source.id).toLowerCase() };
     const key = undoKey(record);
-    if (undoInFlight.has(key) || (drainAttempts.get(key) ?? 0) >= MAX_DRAIN_ATTEMPTS) continue;
+    keptByHand.add(key);
+    const unfinished = unfinishedUndos.get(key);
+    if (unfinished) {
+      // 아직 삭제하지 못했다고 알린 답변이 있으면 거둔다. 이제 지우지 않는다.
+      unfinishedUndos.delete(key);
+      notify({ ownerId, reply: unfinished.reply, sourceId: record.sourceId, phase: "cancelled" });
+    }
+    if (!(await forgetAutosaveUndo(record))) throw new Error("autosave-undo-not-forgotten");
+    return kept;
+  });
+}
+
+/**
+ * 이 계정에 남은 되돌리기를 마저 한다. 그 계정이 공개돼 있을 때만 돈다. 부를 때: 그 계정이 다시 공개됐을 때 ·
+ * 앱이 앞으로 왔을 때(대화 화면이 부른다). 한 건이 실패하면 기록을 남기고 다음 건으로 간다. 비우기 전체가 손 담기와
+ * 한 줄에 선다 - 목록을 읽은 뒤 손 담기가 뺀 행을 지우지 않는다.
+ */
+export function drainAutosaveUndoQueue(ownerId: string): Promise<void> {
+  if (!captureAccountOwnerLease(ownerId)) return Promise.resolve();
+  return inOwnerLane(ownerId, () => drainInLane(ownerId));
+}
+
+async function drainInLane(ownerId: string): Promise<void> {
+  if (!captureAccountOwnerLease(ownerId)) return;
+  for (const record of await pendingUndos(ownerId)) {
+    const key = undoKey(record);
+    if (undoInFlight.has(key)) continue;
+    const unfinished = unfinishedUndos.get(key);
+    if (keptByHand.has(key)) {
+      // 사용자가 손으로 남긴 행이다. 지우지 않고 기록에서만 뺀다.
+      if ((await forgetAutosaveUndo(record)) && unfinished) unfinishedUndos.delete(key);
+      continue;
+    }
+    // 기기에 못 남긴 것은 먼저 다시 적어 본다. 이번에도 못 지우면 다음 실행이 이어받을 단서가 된다.
+    if (unfinished && !unfinished.recorded && (await rememberAutosaveUndo(record))) unfinished.recorded = true;
+    // 아직 삭제하지 못했다고 알린 것은 돌아올 때마다 다시 지워 본다(안내가 그렇게 말한다). 나머지는 한 런타임에 세 번.
+    if (!unfinished && (drainAttempts.get(key) ?? 0) >= MAX_DRAIN_ATTEMPTS) continue;
     undoInFlight.add(key);
     try {
       if (await undoWrites(record, "probe")) {
         drainAttempts.delete(key);
         await forgetAutosaveUndo(record);
+        if (unfinished) {
+          unfinishedUndos.delete(key);
+          notify({ ownerId, reply: unfinished.reply, sourceId: record.sourceId, phase: "cancelled" });
+        }
       } else if (captureAccountOwnerLease(ownerId)) {
         drainAttempts.set(key, (drainAttempts.get(key) ?? 0) + 1);
       }
@@ -449,6 +590,16 @@ export async function drainAutosaveUndoQueue(ownerId: string): Promise<void> {
     }
     if (!captureAccountOwnerLease(ownerId)) return;
   }
+}
+
+/** 기기 기록에, 기기에 못 남겨 이 런타임만 아는 것을 더한다. */
+async function pendingUndos(ownerId: string): Promise<AutosaveUndoRecord[]> {
+  const records = await listAutosaveUndo(ownerId);
+  const listed = new Set(records.map(undoKey));
+  for (const { record } of unfinishedUndos.values()) {
+    if (record.ownerId === ownerId && !listed.has(undoKey(record))) records.push(record);
+  }
+  return records;
 }
 
 /** 테스트 전용. 살아 있는 작업의 구독을 풀고 신호를 끊는다. 테스트는 그 전에 작업을 끝까지 기다린다. */
@@ -463,4 +614,7 @@ export function __resetAutosaveRunnerForTests(): void {
   updateListeners.clear();
   undoInFlight.clear();
   drainAttempts.clear();
+  ownerLanes.clear();
+  keptByHand.clear();
+  unfinishedUndos.clear();
 }

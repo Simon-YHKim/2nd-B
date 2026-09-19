@@ -182,5 +182,6 @@
   "chatSaveNotice": "지금 이 대화는 남지 않아요",
   "chatSaveNoticeBody": "대화를 기록으로 남기려면 개인정보 설정에서 대화 저장을 켜 주세요. 켜기 전 대화는 저장되지 않아요.",
   "chatSaveNoticeOpen": "설정 열기",
-  "chatSaveNoticeDismiss": "닫기"
+  "chatSaveNoticeDismiss": "닫기",
+  "chatSaveNotDeleted": "저장된 이 대화를 아직 삭제하지 못했어요. 앱으로 돌아오면 다시 삭제해 볼게요. 기록 보관소에 남아 있으면 거기서 직접 삭제할 수 있어요."
 }
