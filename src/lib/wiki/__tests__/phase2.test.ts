@@ -35,6 +35,31 @@ jest.mock("../queries", () => ({
   }),
 }));
 
+// R30 (JA-1839-2): generation claims the row before it reads the original or
+// writes a page, and releases the claim afterwards. The claim protocol itself
+// (conditional writes, who wins, expiry) runs against a stateful fake in
+// src/lib/records/__tests__/delete-bulk-raw-clippings.test.ts; here it is two
+// steps in the call order plus the three ways a claim can be refused.
+jest.mock("../source-erasure", () => {
+  class SourceErasingError extends Error {
+    constructor(readonly sourceId: string) {
+      super(`source ${sourceId} is being erased`);
+      this.name = "SourceErasingError";
+    }
+  }
+  return {
+    SourceErasingError,
+    claimSourceForGeneration: jest.fn((userId: string, source: { id: string }) => {
+      captured.push({ fn: "claimSourceForGeneration", args: [userId, source.id] });
+      return Promise.resolve(fixtures.claim ?? { status: "claimed", token: "claim-1" });
+    }),
+    releaseGenerationClaim: jest.fn((userId: string, sourceId: string, token: string) => {
+      captured.push({ fn: "releaseGenerationClaim", args: [userId, sourceId, token] });
+      return Promise.resolve(true);
+    }),
+  };
+});
+
 jest.mock("../storage", () => ({
   downloadRawClipping: jest.fn((path: string) => {
     captured.push({ fn: "downloadRawClipping", args: [path] });
@@ -63,6 +88,7 @@ jest.mock("../materialize", () => ({
 }));
 
 import { generateSourcePage, SourceNotFoundError, SourceBodyUnavailableError } from "../phase2";
+import { SourceErasingError } from "../source-erasure";
 
 function reset() {
   captured.length = 0;
@@ -105,6 +131,8 @@ describe("generateSourcePage", () => {
 
     expect(callOrder()).toEqual([
       "getSource",
+      // R30: the claim comes before the original is read or a page written.
+      "claimSourceForGeneration",
       "downloadRawClipping",
       // Slug-ownership check: refuses to clobber an entity/concept page or
       // another source that already sits on this slug.
@@ -112,7 +140,10 @@ describe("generateSourcePage", () => {
       "upsertWikiPage",
       "syncWikiLinks",
       "markSourceIngested",
+      // ...and is released once the source is marked ingested.
+      "releaseGenerationClaim",
     ]);
+    expect(captured.find((c) => c.fn === "releaseGenerationClaim")!.args).toEqual(["u1", "s1", "claim-1"]);
 
     const upsert = captured.find((c) => c.fn === "upsertWikiPage")!;
     expect(upsert.args[0]).toMatchObject({
@@ -403,5 +434,55 @@ describe("slug collision never overwrites somebody else's page", () => {
     await generateSourcePage("u1", "bbbbbbbb-0000-0000-0000-000000000000");
     const upsert = captured.find((c) => c.fn === "upsertWikiPage");
     expect((upsert?.args[0] as { slug: string }).slug).toBe("async-loops-bbbbbbbb");
+  });
+});
+
+describe("the claim a delete races against (R30, JA-1839-2)", () => {
+  beforeEach(reset);
+
+  const source = {
+    id: "s1",
+    title: "Claimed",
+    tags: [],
+    storage_path: "u1/claimed.md",
+    frontmatter: {},
+    ingested: false,
+  };
+
+  it("a delete that claimed first wins: nothing is read, no page is written, nothing to release", async () => {
+    fixtures.source = source;
+    fixtures.claim = { status: "erasing" };
+
+    await expect(generateSourcePage("u1", "s1")).rejects.toBeInstanceOf(SourceErasingError);
+    expect(callOrder()).toEqual(["getSource", "claimSourceForGeneration"]);
+  });
+
+  it("a row gone by the time of the claim is SourceNotFoundError", async () => {
+    fixtures.source = source;
+    fixtures.claim = { status: "missing" };
+
+    await expect(generateSourcePage("u1", "s1")).rejects.toBeInstanceOf(SourceNotFoundError);
+    expect(callOrder()).toEqual(["getSource", "claimSourceForGeneration"]);
+  });
+
+  it("a claim that keeps losing to other writers fails without touching the page", async () => {
+    fixtures.source = source;
+    fixtures.claim = { status: "busy" };
+
+    await expect(generateSourcePage("u1", "s1")).rejects.toThrow("busy");
+    expect(callOrder()).toEqual(["getSource", "claimSourceForGeneration"]);
+  });
+
+  it("the claim is released even when the build fails", async () => {
+    fixtures.source = source;
+    fixtures.storageMissing = true;
+
+    await expect(generateSourcePage("u1", "s1")).rejects.toBeInstanceOf(SourceBodyUnavailableError);
+    expect(callOrder()).toEqual([
+      "getSource",
+      "claimSourceForGeneration",
+      "downloadRawClipping",
+      "releaseGenerationClaim",
+    ]);
   });
 });

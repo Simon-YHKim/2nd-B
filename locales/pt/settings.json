@@ -180,6 +180,7 @@
   "deletedN": "{{n}} excluídos",
   "deletedNWiki": "{{n}} páginas wiki excluídas",
   "deletedNCaptures": "{{n}} capturas excluídas",
+  "capturesKeptWithWiki": "{{k}} capturas foram mantidas porque já têm uma página wiki.",
   "resetNDays": "{{n}} dias de uso redefinidos",
   "wipeComplete": "Limpeza total concluída: registros {{r}} · fontes {{s}} · wiki {{w}} · uso {{u}}",
   "subscription": {

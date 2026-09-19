@@ -659,9 +659,12 @@ export default function Settings() {
     if (!userId) return;
     setBusy("sources");
     try {
-      const n = await deleteUningestedSources(userId);
+      const { deleted: n, kept } = await deleteUningestedSources(userId);
       reactExpression("sad");
-      showSuccess(t("deletedNCaptures", { n }));
+      // A capture a wiki page still points at stays, original included (wiki/source-erasure.ts).
+      // Say how many and why instead of a "deleted" toast the leftover rows would contradict.
+      if (kept > 0) setActionError({ title: t("deletedNCaptures", { n }), body: t("capturesKeptWithWiki", { k: kept }) });
+      else showSuccess(t("deletedNCaptures", { n }));
     } catch (e) {
       showActionError(
         "deleteUningestedSources",

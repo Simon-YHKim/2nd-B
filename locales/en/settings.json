@@ -180,6 +180,7 @@
   "deletedN": "Deleted {{n}}",
   "deletedNWiki": "Deleted {{n}} wiki pages",
   "deletedNCaptures": "Deleted {{n}} captures",
+  "capturesKeptWithWiki": "{{k}} captures already have a wiki page, so they were kept.",
   "resetNDays": "Reset {{n}} days of usage",
   "wipeComplete": "Full wipe complete: records {{r}} · sources {{s}} · wiki {{w}} · usage {{u}}",
   "subscription": {

@@ -180,6 +180,7 @@
   "deletedN": "{{n}} dihapus",
   "deletedNWiki": "{{n}} halaman wiki dihapus",
   "deletedNCaptures": "{{n}} bahan dihapus",
+  "capturesKeptWithWiki": "{{k}} bahan tetap disimpan karena sudah punya halaman wiki.",
   "resetNDays": "{{n}} hari penggunaan disetel ulang",
   "wipeComplete": "Penghapusan total selesai: catatan {{r}} · sumber {{s}} · wiki {{w}} · penggunaan {{u}}",
   "subscription": {

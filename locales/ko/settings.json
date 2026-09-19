@@ -180,6 +180,7 @@
   "deletedN": "{{n}}개 삭제됨",
   "deletedNWiki": "{{n}}개 위키 페이지 삭제됨",
   "deletedNCaptures": "{{n}}개 캡처 삭제됨",
+  "capturesKeptWithWiki": "위키 페이지가 이미 있는 캡처 {{k}}개는 남겨 두었어요.",
   "resetNDays": "{{n}}일치 사용량 초기화됨",
   "wipeComplete": "전체 삭제 완료: 기록 {{r}} · 캡처 {{s}} · 위키 {{w}} · 사용량 {{u}}",
   "subscription": {
