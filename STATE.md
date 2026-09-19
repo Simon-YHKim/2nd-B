@@ -3,7 +3,7 @@
 **덮어쓰기 파일.** 네 절만 — 완료 / 진행중 / 다음 / 막힌 것.
 결정은 여기 쓰지 않는다. `DECISIONS.md` 가 소유한다(append-only · 09-13~09-16 은 기간 보관 파일 `DECISIONS-2026-09-*.md`). 지난 판의 경과는 git 이력과 DECISIONS 에 있다 — 이번 판은 **지금 상태만** 남겼다.
 
-최종 갱신 **2026-09-19 11:48 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/claude-disk-260913` · 브랜치 `claude/vibe-r260919b`
+최종 갱신 **2026-09-19 12:25 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/claude-disk-260913` · 브랜치 `claude/vibe-r260919c`
 소유자: 이 세션(09-13 `ttl-work-9a` 와 두 세션 합의, Simon 지명 아님). Simon 이 다르게 정하면 그게 이긴다. 다른 세션은 `DECISIONS.md` 에만 쓸 것.
 
 📊 보고서 (최신 위)
@@ -29,15 +29,15 @@
 
 ## 진행중
 
-활성 워커 **1** (11:31 KST) — **r14-boot-exit** `ctx_aedfc1071b45`(`claude-fable-5-1` @max · run `run_e3a3e38558ab` · 워크트리 `fix-auth-boot-exit-260919`): 저장소 읽기 + 로컬 로그아웃 이중 실패 때의 출구, 결정 시트 1번 추천안 ① A″(연속 3회 콜드 스타트 뒤 기존 복구 동의 화면) **Simon 확정(11:4x, 시트 1번 ①)** — N=3 · draft → 보안 두 레인 통과 뒤 머지. 수확 = G8 kill → worker-release → terminal close → 원장 → DECISIONS.
+활성 워커 **0** (12:25 KST). r14 끝 — **draft PR #1835**(이중 실패 출구 · Simon 확정 ① · N=3 · CI 초록 · 에뮬레이터로 3회째 게이트 · 동의 폐기 · 0 되돌리기 확인).
 
-게이트 대기 draft PR 11개 — #1819 · #1810 · #1814 · #1825~#1831 · **#1833**(Android 두 번째 실행 멈춤 수정, CI 초록).
+게이트 대기 draft PR 12개 — #1819 · #1810 · #1814 · #1825~#1831 · **#1833**(Android 두 번째 실행 멈춤 수정) · **#1835**(이중 실패 출구). 전부 CI 초록.
 
 **로컬 QA 환경(Simon 이 13:00 claude 리셋 뒤 QA 예정)**: 웹 <http://127.0.0.1:8765/2nd-B/>(`qa/integration-260919` = `640db5bd`, 11:26 빌드) · Orca 에뮬레이터 5554(`2ndB_Codex_API36_260727`)는 **v0.8.0 그대로**(QA 빌드는 versionCode 40 < 51 이라 삭제 없이 못 올림) · 최신 QA 빌드는 AVD `Pixel_9_Pro_XL`.
 
 ## 다음 (하나만)
 
-**r13 수확 → 19:47 KST codex 리셋 뒤 게이트 라운드.** 게이트 전 `npm install -g @openai/codex@latest`(check_tooling 이 뒤처짐 경고 — G11, 도는 codex 프로세스 없는지 먼저 확인). 게이트 두 레인(daybreak 산출물 · astra 비즈로직)을 PR 11개(#1833 포함 — 가장 먼저)에 → 통과분 머지(main 은 strict — BEHIND 면 `gh pr merge --auto --squash` 또는 브랜치 갱신 뒤 CI 재대기 · 머지 뒤 `state=MERGED` 확인 · 쌓인 순서 #1828→#1831 · #1829→#1830, 위 PR 은 base 를 main 으로) → main push 진단 APK 확인. 게임 노트: #1814 "새 대화 뒤 저장"은 D-1 ② 의도된 동작.
+**r13 수확 → 19:47 KST codex 리셋 뒤 게이트 라운드.** 게이트 전 `npm install -g @openai/codex@latest`(check_tooling 이 뒤처짐 경고 — G11, 도는 codex 프로세스 없는지 먼저 확인). 게이트 두 레인(daybreak 산출물 · astra 비즈로직)을 PR 12개(#1833 · #1835 가장 먼저)에 → 통과분 머지(main 은 strict — BEHIND 면 `gh pr merge --auto --squash` 또는 브랜치 갱신 뒤 CI 재대기 · 머지 뒤 `state=MERGED` 확인 · 쌓인 순서 #1828→#1831 · #1829→#1830, 위 PR 은 base 를 main 으로) → main push 진단 APK 확인. 게임 노트: #1814 "새 대화 뒤 저장"은 D-1 ② 의도된 동작.
 
 ## 막힌 것
 
