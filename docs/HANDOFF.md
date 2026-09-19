@@ -27,7 +27,63 @@
 블록부터 그 달의 보관 파일(부분이 있으면 번호가 가장 큰 것) 맨 위로 옮긴다.
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-14 오후 / 안드로이드 두 결함의 원인을 좁혔고 수정은 draft PR #1819 — 게이트는 codex 리셋 뒤
+## Latest — 2026-09-19 오전 / main 의 Android 빌드가 두 번째 실행부터 멈추던 결함을 고쳤다(#1833) — 머지는 오늘 밤 게이트 뒤
+
+### 결론
+
+- **#1807(09-13 보안 통합) 이후 main 의 모든 Android 빌드는 두 번째 실행부터 "Loading" 에서 영원히 멈춘다.** 첫 실행만 정상이라 부팅 확인으로는 안 보였다(09-18 공개 QA 빌드도 해당). 원인: `src/lib/storage/encrypted-native-storage.ts:905` 가 expo-crypto `AESSealedData.fromCombined` 에 base64 **문자열**을 넘긴다 — Android 는 바이트 전용(upstream `AesCryptoModule.kt:80`), iOS 는 문자열도 받는다(`AesCryptoModule.swift:78`). 복호화 실패 → fail-closed → 로컬 로그아웃도 같은 저장소라 실패 → `if (!closed) return` 으로 #1815 로더가 안 풀린다. 테스트 mock 이 "문자열이어야 한다"를 강제해 CI 는 초록이었다. iOS · 설치본 v0.8.0 · 웹은 무관.
+- **수정은 draft PR [#1833](https://github.com/Simon-YHKim/2nd-B/pull/1833)** (`5931f140` · 2파일 · verify rc=0 · CI 초록): 봉인 값을 바이트로 풀어 넘긴다. 에뮬레이터 실측: 수정 전 100% 재현(재부팅 불필요 — force-stop 뒤 재실행만으로) → 수정 뒤 재실행 · 재부팅 정상 · **깨진 기기에 덮어 설치하면 데이터 삭제 없이 복구**.
+- **공개 QA 빌드 [`qa-260919-640db5bd`](https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-260919-640db5bd)** = main `a690b742` + 머지 대기 PR 11개(#1833 포함) · 테스트 키 · versionCode 40(v0.8.0 은 51 이라 그 위에 덮어 설치 안 됨). 09-18 QA 릴리스 안내문은 새 릴리스를 가리킨다.
+- **남은 구조 구멍** — 저장소 읽기와 로컬 로그아웃이 **둘 다** 실패하면 여전히 출구가 없다(암호문 손상 · 키스토어 장애). Simon 이 결정 시트에서 고르지 않은 채 "남은 작업 모두 진행해"(09-19 11:2x)라 해서, 코디네이터가 추천안 ① A″(연속 3회 콜드 스타트 이중 실패 뒤에만 기존 복구 동의 화면)로 **draft 구현을 발주**했다(r14 · `claude/fix-auth-boot-exit-260919`). **머지는 Simon 확인 뒤.**
+
+### 머지 대기 draft PR — 전부 보안 게이트 두 레인 대기
+
+#1819 네이티브 부팅 · #1810 홈 별 이름 · #1814 자동 저장 재설계 · #1825 U5+U6 · #1826 U2+U3 · #1827 U4 · #1828 U1 · #1829 U7 · #1830 U8(#1829 위) · #1831 N1(#1828 위) · **#1833 Android 복호화** · r14 출구(Simon 확인 필요).
+머지 전 확인 3건은 끝났다(#1825 · #1827 · #1829 코멘트): `secrets list -o json` 값 = 평문 SHA-256 · 운영 `PADDLE_API_BASE` 미설정 → 기본값 · Paddle 응답 `application/json`. 웹훅 요청의 Content-Type 은 간접 근거만(샌드박스 1회 — Simon).
+⚠ **main 은 strict 보호**(필수 체크 `verify` + 최신 브랜치만 머지). BEHIND 인 PR 에 `gh pr merge --squash` 는 **머지되지 않고** 안내만 낸다 — `--auto` 를 쓰고 `state=MERGED` 를 확인한 뒤 다음으로 간다.
+
+### 막힌 것
+
+| 무엇 | 왜 | 풀리는 조건 |
+|---|---|---|
+| 보안 게이트 두 레인 · 머지 | codex 주간 99% | **09-19 19:47 KST 리셋** — 이 세션에 19:53 자기 예약(세션이 죽었으면 다음 세션이 손으로) |
+| **DB 백업** | `Backup` 환경 비밀값 2개(`BACKUP_PGDUMP_DATABASE_URL` · `BACKUP_PGDUMP_AGE_PUBLIC_KEY`) 빈 값 — 09-13 부터 매일 실패 · 마지막 성공 09-12 · 보존 14일 | **Simon — 09-26 쯤 복원본 0** |
+| r14 출구 머지 | 결정 시트 1번 미응답 | Simon 확인 |
+| JWT 서버 조치(D3) · Paddle 샌드박스 · 출시 법역 Q-S1 · Grok 계정 · gstack 업그레이드 시점 | 사람 몫 | Simon |
+
+### 다음 단일 작업 (19:47 KST 뒤)
+
+1. `orca account list --json` 으로 codex 리셋 확인 → `python ~/.claude/skills/vibe/scripts/check_tooling.py`(codex 0.155.1 이 09-19 11:2x 기준 최신).
+2. 게이트 두 레인(daybreak @xhigh 생성물 · astra @xhigh 인가)을 **#1833 부터** 돌린다. 코딩 레인이 claude 라 G1 충족.
+3. 통과분 머지(쌓인 순서 #1828→#1831 · #1829→#1830). #1819 머지 전에는 main 에 `[ota]`/`[release]` 커밋 · Android 릴리스 금지.
+4. 머지 뒤 main push 진단 APK 로 **설치 → 실행 → force-stop → 재실행**까지 본다(첫 실행만 보면 이번 결함을 못 잡는다).
+
+### 로컬 QA 환경 (09-19 11:26 KST)
+
+- 웹: <http://127.0.0.1:8765/2nd-B/> — 워크트리 `qa-integration-260918` 의 `dist/`(브랜치 `qa/integration-260919` = `640db5bd`) · 서버 `qa_static_server.js`(재부팅하면 꺼진다).
+- 에뮬레이터: Orca 의 `2ndB_Codex_API36_260727`(emulator-5554)에는 **v0.8.0** · `Pixel_9_Pro_XL` 에는 **QA 빌드 `640db5bd`**. Orca 1.4.200 은 에뮬레이터에 GPU 옵션을 안 넘겨 AVD 설정으로 우회 중(`E:/Coding Infra/tools/avd-guard/` · 시작프로그램 감시자).
+- 로컬 APK 빌드: `python "E:/Coding Infra/tools/qa_apk_build.py" --wt <워크트리> --abi x86_64|arm64-v8a --tag <이름> [--skip-prebuild]`.
+
+### 증거
+
+- 보고서: <https://claude.ai/artifact/8qYXcdSTkMYNzUaN5ZXfbh>(Android 멈춤 · 결정 2건) · `E:/Coding Infra/reports/vibe-r260919/r13-boot-hang/result.md` · QA 캡처 `E:/Coding Infra/reports/qa-260919/`.
+- 결정 원장: `DECISIONS.md` 26.09.17 ~ 26.09.19 줄(09-13 ~ 09-16 은 `DECISIONS-2026-09-*.md` 보관) · 현황 `STATE.md`.
+- 메모리: `reference_2ndb_android_relaunch_check` · `reference_2ndb_android_qc` · `feedback_2ndb_automerge`.
+
+```text
+2nd-Brain 09-19 게이트 라운드를 이어받아라.
+
+1. E:/2ndB 의 git common dir 이 E:/2ndB/.git 인지 확인하고 CLAUDE.md · docs/HANDOFF.md Latest · DECISIONS.md 26.09.19 줄 · STATE.md 를 먼저 읽어라.
+2. codex 주간 쿼터(usedPercent + resetsAt)가 풀렸는지 확인하라. 안 풀렸으면 게이트를 띄우지 마라.
+3. /vibe 로 게이트 두 레인을 #1833 부터 draft PR 들에 돌려라. critical/high 0 · CI 초록이면 --auto squash 머지 뒤 state=MERGED 를 확인하라.
+4. r14 출구 PR 은 Simon 확인 없이 머지하지 마라.
+5. 머지 뒤 main 진단 APK 로 설치 → 실행 → force-stop → 재실행을 확인하고 DECISIONS 에 적어라.
+6. DB 백업 비밀값 · JWT 서버 조치 · 운영 쓰기는 Simon/보안 담당 몫이다 — 대신 실행하지 마라.
+```
+
+---
+
+## 2026-09-14 오후 / 안드로이드 두 결함의 원인을 좁혔고 수정은 draft PR #1819 — 게이트는 codex 리셋 뒤
 
 ### 결론
 
