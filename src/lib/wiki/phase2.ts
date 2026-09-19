@@ -18,6 +18,7 @@ import { slugForTitle, toSlug } from "./slug";
 import { downloadRawClipping } from "./storage";
 import { embedAndStorePage } from "./embeddings";
 import { getEnv } from "../env";
+import { claimSourceForGeneration, releaseGenerationClaim, SourceErasingError } from "./source-erasure";
 import type { WikiPageRow } from "./types";
 
 export interface GenerateSourcePageResult {
@@ -65,11 +66,64 @@ function bodyFallback(frontmatter: Record<string, unknown> | null): string | nul
  * Promote a source to a wiki page. Idempotent: re-running on the same source
  * overwrites the page body with the latest Storage content, re-syncs links,
  * and is safe to call multiple times.
+ *
+ * Claims the row first (R30, JA-1839-2). A delete used to check "no page points
+ * at this capture", then remove its original - and a promotion landing between
+ * the two left a page over a capture whose original was gone. Now the delete
+ * and this function each take a claim marker on the row with a conditional
+ * write before doing anything else, so exactly one of them proceeds: a claimed
+ * delete makes this throw SourceErasingError before the original is read or a
+ * page written, and a claim taken here makes the delete keep the row
+ * (wiki/source-erasure.ts). The claim is released once the row is marked
+ * ingested, success or failure; a crashed run's claim lapses on its own.
  */
 export async function generateSourcePage(userId: string, sourceId: string): Promise<GenerateSourcePageResult> {
   const source = await getSource(userId, sourceId);
   if (!source) throw new SourceNotFoundError(sourceId);
+  const claim = await claimSourceForGeneration(userId, source);
+  if (claim.status === "missing") throw new SourceNotFoundError(sourceId);
+  if (claim.status === "erasing") throw new SourceErasingError(sourceId);
+  if (claim.status === "busy") throw new Error(`source ${sourceId} is busy; try again`);
+  let built: Awaited<ReturnType<typeof buildSourcePage>>;
+  try {
+    built = await buildSourcePage(userId, sourceId, source);
+  } finally {
+    await releaseGenerationClaim(userId, sourceId, claim.token).catch(() => false);
+  }
+  const { page, sync, materialized } = built;
 
+  // Auto-embed the new page so the semantic layer (kNN "연결 제안 찾기") populates
+  // on write, instead of staying dormant until a manual backfill tap. Migration
+  // 0068 NULLed every vector, and the only repopulation path was a user tapping
+  // the button on /research, so kNN was empty for everyone on first run. Skipped
+  // in mock mode (mock embeddings are random unit vectors that would poison
+  // cosine similarity). Best-effort: the single embedTexts call is spend-capped
+  // at the proxy, and a failure must never block wiki promotion.
+  if (getEnv().EXPO_PUBLIC_LLM_MODE !== "mock") {
+    try {
+      await embedAndStorePage(userId, page);
+    } catch {
+      // best-effort: embedding failure does not fail the promotion
+    }
+  }
+
+  return {
+    page,
+    slug: page.slug,
+    linksAdded: sync.added,
+    danglingSlugs: sync.dangling,
+    entityPagesAdded: materialized.entityPagesCreated,
+    conceptPagesAdded: materialized.conceptPagesCreated,
+    nodeLinksAdded: materialized.linksAdded,
+  };
+}
+
+/** Everything the claim covers: read the original, write the page, link it, mark the source ingested. */
+async function buildSourcePage(
+  userId: string,
+  sourceId: string,
+  source: NonNullable<Awaited<ReturnType<typeof getSource>>>,
+) {
   // storage_path being set is NOT evidence the object exists: capture.ts writes
   // the canonical path onto the row even when the upload failed, stashing the
   // body in frontmatter._body_fallback. Promotion used to trust the path and
@@ -127,28 +181,5 @@ export async function generateSourcePage(userId: string, sourceId: string): Prom
   // mark it ingested so the inbox view reflects it.
   if (!source.ingested) await markSourceIngested(userId, sourceId);
 
-  // Auto-embed the new page so the semantic layer (kNN "연결 제안 찾기") populates
-  // on write, instead of staying dormant until a manual backfill tap. Migration
-  // 0068 NULLed every vector, and the only repopulation path was a user tapping
-  // the button on /research, so kNN was empty for everyone on first run. Skipped
-  // in mock mode (mock embeddings are random unit vectors that would poison
-  // cosine similarity). Best-effort: the single embedTexts call is spend-capped
-  // at the proxy, and a failure must never block wiki promotion.
-  if (getEnv().EXPO_PUBLIC_LLM_MODE !== "mock") {
-    try {
-      await embedAndStorePage(userId, page);
-    } catch {
-      // best-effort: embedding failure does not fail the promotion
-    }
-  }
-
-  return {
-    page,
-    slug: page.slug,
-    linksAdded: sync.added,
-    danglingSlugs: sync.dangling,
-    entityPagesAdded: materialized.entityPagesCreated,
-    conceptPagesAdded: materialized.conceptPagesCreated,
-    nodeLinksAdded: materialized.linksAdded,
-  };
+  return { page, sync, materialized };
 }

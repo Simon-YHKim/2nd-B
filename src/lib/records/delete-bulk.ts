@@ -12,7 +12,7 @@ import {
   type AuthSessionExpectation,
 } from "../auth/session-mutation";
 import { installAccountLocalDeletionFence } from "../account/local-deletion-fence";
-import { eraseRawClippingFolder, eraseSourcesWithRawClippings, type SourceErasure } from "../wiki/source-erasure";
+import { eraseRawClippingFolder, eraseSourcesWithRawClippings, runBoundToOwnerSession, type SessionGuard, type SourceErasure } from "../wiki/source-erasure";
 
 /** Delete every record belonging to the user. Returns affected count. */
 export async function deleteAllRecords(userId: string): Promise<number> {
@@ -100,14 +100,14 @@ export async function deleteSourcesByIds(userId: string, ids: string[]): Promise
  *  came up short, so the ordinary withdrawal costs no extra query. */
 export async function findSurvivingSourceIds(userId: string, ids: string[]): Promise<string[]> {
   if (ids.length === 0) return [];
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase
-    .from("sources")
-    .select("id")
-    .eq("user_id", userId)
-    .in("id", ids);
-  if (error) throw error;
-  return ((data ?? []) as { id: string }[]).map((row) => row.id);
+  // Bound to the session that asks (R30, JA-1839-3): under another session RLS hides these rows and an
+  // empty answer would read as "withdrawn", dropping the only pointer to rows that still exist.
+  return runBoundToOwnerSession(userId, async (guard) => {
+    const { data, error } = await getSupabaseClient().from("sources").select("id").eq("user_id", userId).in("id", ids);
+    await guard();
+    if (error) throw error;
+    return ((data ?? []) as { id: string }[]).map((row) => row.id);
+  });
 }
 
 export async function deleteAllWikiPages(userId: string): Promise<number> {
@@ -127,7 +127,7 @@ export async function deleteAllWikiPages(userId: string): Promise<number> {
  *  delete: it keeps its original too and is counted in `kept`. It used to fail
  *  the whole bulk delete. The settings screen reports `kept` next to the count,
  *  never as a plain "deleted" toast. Throws when a row it should have deleted
- *  is still there. */
+ *  is still there, when rows are left in place (SourceErasureIncompleteError) or the session changed. */
 export async function deleteUningestedSources(userId: string): Promise<SourceErasure> {
   return eraseSourcesWithRawClippings(userId, { uningested: true });
 }
@@ -136,16 +136,16 @@ export async function deleteUningestedSources(userId: string): Promise<SourceEra
  *  raw-clippings folder, rows first: with every row gone the folder listing is
  *  itself what a retry resumes from (wiki/source-erasure.ts). Throws while any
  *  object remains, so the wipe never reports done over a leftover original.
- *  Safe-order: call deleteAllWikiPages first when you want a full wipe. */
+ *  Safe-order: call deleteAllWikiPages first when you want a full wipe. Bound
+ *  to the session that starts it, like every eraser here (R30, JA-1839-3): an
+ *  account switch mid-call ends it as AuthSessionOwnerChangedError, never as a
+ *  count RLS shrank to zero. */
 export async function deleteAllSources(userId: string): Promise<number> {
-  const supabase = getSupabaseClient();
-  const { count, error } = await supabase
-    .from("sources")
-    .delete({ count: "exact" })
-    .eq("user_id", userId);
-  if (error) throw error;
-  await eraseRawClippingFolder(userId);
-  return count ?? 0;
+  return runBoundToOwnerSession(userId, async (guard) => {
+    const count = await deleteSourceRowsInSession(userId, guard);
+    await eraseRawClippingFolder(userId, guard);
+    return count;
+  });
 }
 
 /** Delete chat_usage rows so the daily quota resets to zero. */
@@ -202,16 +202,16 @@ export async function deleteAllUserData(userId: string): Promise<{
   selfContexts: number;
   clipperTemplates: number;
 }> {
-  const wikiPages = await deleteAllWikiPages(userId);
-  const sources = await deleteAllSources(userId);
-  const records = await deleteAllRecords(userId);
-  const chatUsage = await deleteAllChatUsage(userId);
-  const selfContexts = await bestEffort(() => deleteAllSelfContexts(userId), "self_contexts");
-  const clipperTemplates = await bestEffort(
-    () => deleteAllOwnedClipperTemplates(userId),
-    "clipper_templates",
-  );
-  return { records, sources, wikiPages, chatUsage, selfContexts, clipperTemplates };
+  // Bound to the session that started it (R30, JA-1839-3 · JZ-1839-2): every step
+  // runs inside the auth mutation lock and re-reads the live session after each
+  // request, so an account switch mid-wipe ends it as a failure instead of letting
+  // RLS answer "nothing here" for rows it can no longer see. The raw-clippings
+  // sweep is the one step whose failure does not stop the later ones: an object it
+  // cannot remove must not keep records from ever being wiped (JZ-1839-1). The
+  // call still ends in that error, so the screen never reports done over it.
+  // The steps live in wipeContentInSession at the end of this file, below the
+  // account-deletion lines the DPIA cites by number.
+  return runBoundToOwnerSession(userId, (guard) => wipeContentInSession(userId, guard));
 }
 
 async function bestEffort(fn: () => Promise<number>, label: string): Promise<number> {
@@ -420,4 +420,53 @@ export async function requestAccountDeletion(
 
     throw new Error("account deletion retry bound exhausted");
   }, { requireCrossTab: true });
+}
+
+// --- content wipe steps (R30) -------------------------------------------------
+// Below requestAccountDeletion on purpose: the DPIA cites the lines above by
+// number, so new code goes after them.
+
+/** The sources rows only; the folder sweep follows (deleteAllSources,
+ *  wipeContentInSession). Call inside runBoundToOwnerSession. */
+async function deleteSourceRowsInSession(userId: string, guard: SessionGuard): Promise<number> {
+  const { count, error } = await getSupabaseClient()
+    .from("sources")
+    .delete({ count: "exact" })
+    .eq("user_id", userId);
+  await guard();
+  if (error) throw error;
+  return count ?? 0;
+}
+
+/** deleteAllUserData's steps, in order, each checked against the session that
+ *  started the wipe. A raw-clippings sweep failure is held until the end so an
+ *  object the sweep cannot remove never stops the records from being wiped; a
+ *  session change is not held - it stops the wipe where it is. */
+async function wipeContentInSession(
+  userId: string,
+  guard: SessionGuard,
+): Promise<Awaited<ReturnType<typeof deleteAllUserData>>> {
+  const wikiPages = await deleteAllWikiPages(userId);
+  await guard();
+  const sources = await deleteSourceRowsInSession(userId, guard);
+  let rawClippingsFailure: unknown = null;
+  try {
+    await eraseRawClippingFolder(userId, guard);
+  } catch (e) {
+    if (e instanceof AuthSessionOwnerChangedError) throw e;
+    rawClippingsFailure = e;
+  }
+  const records = await deleteAllRecords(userId);
+  await guard();
+  const chatUsage = await deleteAllChatUsage(userId);
+  await guard();
+  const selfContexts = await bestEffort(() => deleteAllSelfContexts(userId), "self_contexts");
+  await guard();
+  const clipperTemplates = await bestEffort(
+    () => deleteAllOwnedClipperTemplates(userId),
+    "clipper_templates",
+  );
+  await guard();
+  if (rawClippingsFailure !== null) throw rawClippingsFailure;
+  return { records, sources, wikiPages, chatUsage, selfContexts, clipperTemplates };
 }

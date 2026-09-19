@@ -20,7 +20,7 @@ import { getEnv } from "@/lib/env";
 
 import { getSource } from "./queries";
 import { downloadRawClipping } from "./storage";
-import { getSupabaseClient } from "../supabase/client";
+import { writeSourceFrontmatter } from "./source-erasure";
 import { containsForbiddenLexicon } from "../safety/classifier";
 import { VILLAGE_LABEL, type VillageId } from "../graph/relatedness";
 
@@ -217,16 +217,14 @@ export async function runPhase1(input: RunPhase1Input): Promise<Phase1Result> {
   // they cleared and re-mark the source storage-pending forever (audit wave-3
   // concurrency fix). Merging into a fresh read shrinks the race to the tiny
   // read->write gap instead of the whole LLM latency.
-  const supabase = getSupabaseClient();
-  const fresh = await getSource(input.userId, input.sourceId);
-  const baseFrontmatter = fresh?.frontmatter ?? source.frontmatter;
-  const nextFrontmatter = { ...baseFrontmatter, __phase1__: result };
-  const { error } = await supabase
-    .from("sources")
-    .update({ frontmatter: nextFrontmatter })
-    .eq("id", input.sourceId)
-    .eq("user_id", input.userId);
-  if (error) throw error;
+  // That gap still mattered for one kind of key (R30, JA-1839-2): a delete that
+  // claimed this capture in between (_erasing) had its claim silently written
+  // away, which let a wiki page be made from a capture whose original was being
+  // deleted. The write is now conditional on the claim markers being what the
+  // fresh read saw - it re-reads and retries instead of dropping one - and a
+  // capture a delete has claimed is not written to (SourceErasingError). A row
+  // that is already gone is skipped, as the unconditional write skipped it.
+  await writeSourceFrontmatter(input.userId, input.sourceId, (current) => ({ ...current, __phase1__: result }));
 
   return result;
 }
