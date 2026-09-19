@@ -1,6 +1,7 @@
 import {
   AUTH_CALLBACK_QUARANTINE_KEY,
   __resetRecoveryProofStorageQueueForTests,
+  applyRecoveryPendingStorageValue,
   armWebRecoveryPendingFromLocation,
   clearRecoveryPendingExpected,
   clearRecoveryStateExpected,
@@ -208,5 +209,67 @@ describe("persistent recovery proof", () => {
     expect(lockRequest).toHaveBeenCalled();
     expect(isRecoveryPendingInMemory()).toBe(true);
     expect(values.has(RECOVERY_PENDING_KEY)).toBe(true);
+  });
+
+  // U1 (sec-port 2026-09-17, the 09-07 BLOCK P1 #3 fix): a storage event's
+  // newValue can be stale by delivery time. A late null must not release the
+  // in-memory fence while the live ledger still holds a marker.
+  test("a late null storage event cannot release a newer marker still on disk", async () => {
+    await persistRecoveryPending();
+    expect(isRecoveryPendingInMemory()).toBe(true);
+
+    // Another tab cleared its older marker before this tab wrote B, and that
+    // removal's event is only delivered now.
+    expect(applyRecoveryPendingStorageValue(null)).toBeNull();
+    expect(isRecoveryPendingInMemory()).toBe(true);
+  });
+
+  test("a malformed marker on disk stays a fence even when the event says it is gone", () => {
+    values.set(RECOVERY_PENDING_KEY, "{not json");
+
+    expect(applyRecoveryPendingStorageValue(null)).toBeNull();
+    expect(isRecoveryPendingInMemory()).toBe(true);
+  });
+
+  test("an unreadable ledger keeps the fence closed when the event says it is gone", () => {
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      get: () => {
+        throw new Error("storage disabled");
+      },
+    });
+
+    expect(applyRecoveryPendingStorageValue(null)).toBeNull();
+    expect(isRecoveryPendingInMemory()).toBe(true);
+  });
+
+  test("a valid late marker event is still reported as valid after its marker is gone", () => {
+    // Another tab wrote A and already cleared it (a frozen tab gets both events
+    // at once). AuthContext fails closed when a non-null event returns no marker,
+    // and without a proof that is a local sign-out, so judging A by the
+    // now-empty ledger would sign out a bystander tab. A keeps the fence closed
+    // until its own removal event lands.
+    const markerA = {
+      issuedAt: "2026-09-17T00:00:00.000Z",
+      ownerNonce: "11111111-1111-4111-8111-111111111111",
+    };
+
+    expect(applyRecoveryPendingStorageValue(JSON.stringify(markerA))).toEqual(markerA);
+    expect(isRecoveryPendingInMemory()).toBe(true);
+    expect(applyRecoveryPendingStorageValue(null)).toBeNull();
+    expect(isRecoveryPendingInMemory()).toBe(false);
+  });
+
+  test("without web storage the event value is still what gets applied", () => {
+    delete (globalThis as { window?: unknown }).window;
+    const marker = {
+      issuedAt: "2026-09-17T00:00:00.000Z",
+      ownerNonce: "11111111-1111-4111-8111-111111111111",
+    };
+
+    expect(applyRecoveryPendingStorageValue(JSON.stringify(marker))).toEqual(marker);
+    expect(isRecoveryPendingInMemory()).toBe(true);
+    expect(applyRecoveryPendingStorageValue(null)).toBeNull();
+    expect(isRecoveryPendingInMemory()).toBe(false);
   });
 });
