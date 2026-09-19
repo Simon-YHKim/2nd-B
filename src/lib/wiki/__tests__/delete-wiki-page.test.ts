@@ -11,12 +11,16 @@ interface QueryResult {
 const fixtures: Record<string, QueryResult> = {};
 const updateCalls: { table: string; payload: Record<string, unknown> }[] = [];
 const deleteCalls: { table: string }[] = [];
+const eqCalls: { table: string; op: string; col: string; val: unknown }[] = [];
 
-function chainable(result: QueryResult) {
+function chainable(result: QueryResult, table: string, op: string) {
   const promise = Promise.resolve(result);
   const chain: Record<string, unknown> = {
     select: () => chain,
-    eq: () => chain,
+    eq: (col: string, val: unknown) => {
+      eqCalls.push({ table, op, col, val });
+      return chain;
+    },
     in: () => chain,
     order: () => chain,
     limit: () => chain,
@@ -32,14 +36,14 @@ function chainable(result: QueryResult) {
 jest.mock("../../supabase/client", () => ({
   getSupabaseClient: () => ({
     from: (table: string) => ({
-      select: () => chainable(fixtures[`${table}:select`] ?? { data: null, error: null }),
+      select: () => chainable(fixtures[`${table}:select`] ?? { data: null, error: null }, table, "select"),
       delete: () => {
         deleteCalls.push({ table });
-        return chainable({ data: null, error: null });
+        return chainable({ data: null, error: null }, table, "delete");
       },
       update: (payload: Record<string, unknown>) => {
         updateCalls.push({ table, payload });
-        return chainable({ data: null, error: null });
+        return chainable({ data: null, error: null }, table, "update");
       },
     }),
   }),
@@ -51,6 +55,7 @@ function reset() {
   for (const k of Object.keys(fixtures)) delete fixtures[k];
   updateCalls.length = 0;
   deleteCalls.length = 0;
+  eqCalls.length = 0;
 }
 
 describe("deleteWikiPage source lifecycle", () => {
@@ -71,5 +76,24 @@ describe("deleteWikiPage source lifecycle", () => {
     await deleteWikiPage("u1", "p1");
     expect(deleteCalls.find((c) => c.table === "wiki_pages")).toBeDefined();
     expect(updateCalls.find((c) => c.table === "sources")).toBeUndefined();
+  });
+
+  // The shipped /wiki screen calls this directly since 2026-09-14 (Q-260914-01).
+  // RLS already scopes wiki_pages to auth.uid(); the explicit user_id filter is
+  // the second fence, and it has to be on BOTH the lookup and the delete - a
+  // lookup-only filter would still delete by page id alone.
+  test("scopes both the lookup and the delete to the caller's user_id", async () => {
+    fixtures["wiki_pages:select"] = { data: { source_id: null }, error: null };
+    await deleteWikiPage("u1", "p1");
+    for (const op of ["select", "delete"]) {
+      const eqs = eqCalls.filter((c) => c.table === "wiki_pages" && c.op === op);
+      expect({ op, eqs }).toEqual({
+        op,
+        eqs: expect.arrayContaining([
+          expect.objectContaining({ col: "user_id", val: "u1" }),
+          expect.objectContaining({ col: "id", val: "p1" }),
+        ]),
+      });
+    }
   });
 });

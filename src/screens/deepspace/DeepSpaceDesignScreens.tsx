@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
 import { AppState, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text as RNText, TextInput, View } from "react-native";
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from "expo-audio";
-import { Redirect, router, useNavigation } from "expo-router";
+import { Redirect, router, useLocalSearchParams, useNavigation } from "expo-router";
 import { useTranslation } from "react-i18next";
 import Svg, { Rect, SvgXml } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -106,9 +106,9 @@ import {
 } from "@/lib/payments/purchases";
 import type { PurchasesPackage } from "react-native-purchases";
 import { systemLocaleFor } from "@/lib/i18n/locales";
-import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
+import { fetchPrivacyPrefs, readPrivacyPrefs, savePrivacyPref } from "@/lib/supabase/privacy";
 import { captureEvent, proposalDecided, setAnalyticsConsent } from "@/lib/analytics";
-import type { PrivacyPrefKey, PrivacyPrefs } from "@/lib/privacy/prefs";
+import { nextPrivacyPrefs, type PrivacyPrefKey, type PrivacyPrefs } from "@/lib/privacy/prefs";
 import {
   backfillAllRecordEmbeddings,
   clearRecordEmbeddings,
@@ -267,10 +267,12 @@ function GraphLoading() {
 // screen floats as a radius-24 window over the shared sky (sb-app §4). Routes
 // moving from Shell to DockShell must also join DEEP_SPACE_DOCK_PATHS so the
 // floating BackArrow chip yields to the top bar.
-function DockShell({ children, title, subtitle }: { children: ReactNode; title?: string; subtitle?: string }) {
+// scrollRef 는 화면이 자기 안의 카드 하나로 스크롤해야 할 때만 넘긴다(/privacy 의 대화 저장
+// 카드. 세컨비의 "대화가 남지 않아요" 안내가 그리로 보낸다). 안 넘기는 화면은 전과 같다.
+function DockShell({ children, title, subtitle, scrollRef }: { children: ReactNode; title?: string; subtitle?: string; scrollRef?: Ref<ScrollView> }) {
   return (
     <DeepSpaceScreen active="lens" header="none" variant="windowed" title={title ?? ""} onBack={() => router.back()}>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {subtitle ? <Text variant="subtle" style={styles.subtitle}>{subtitle}</Text> : null}
         {children}
       </ScrollView>
@@ -295,8 +297,8 @@ function DockShell({ children, title, subtitle }: { children: ReactNode; title?:
 // (a) 어떤 탭도 잘못 하이라이트되지 않고 (b) DeepSpaceScreen 의 BackHandler
 // 특례가 걸리지 않아 **하드웨어 뒤로가기 동선이 바뀌지 않는다**(기본 pop 유지).
 // 제목은 상단 앱바가 갖는다 — 화면 안에 또 큰 제목을 두면 같은 말이 두 번 나온다.
-function Shell({ children, title, subtitle }: { children: ReactNode; title?: string; subtitle?: string }) {
-  return <DockShell title={title} subtitle={subtitle}>{children}</DockShell>;
+function Shell({ children, title, subtitle, scrollRef }: { children: ReactNode; title?: string; subtitle?: string; scrollRef?: Ref<ScrollView> }) {
+  return <DockShell title={title} subtitle={subtitle} scrollRef={scrollRef}>{children}</DockShell>;
 }
 
 // Scroll-only body for screens that already sit inside DeepSpaceScreen (which
@@ -587,6 +589,12 @@ export function DeepSpacePrivacyDesignScreen() {
   const navigation = useNavigation();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
   const { userId, isMinor } = useAuth();
+  // 세컨비의 "지금 이 대화는 남지 않아요" 안내가 여기로 보낼 때 대화 저장 카드로 스크롤한다.
+  // 보내는 쪽은 secondb.tsx 의 router.push 이고 값은 "chat_autosave" 하나다.
+  const { focusPref } = useLocalSearchParams<{ focusPref?: string }>();
+  const focusChatSave = focusPref === "chat_autosave";
+  const privacyScrollRef = useRef<ScrollView>(null);
+  const chatSaveScrolledRef = useRef(false);
   // AuthContext derives this from users.birth_date. Unknown age fails closed,
   // so Clarity/GA4 and ads cannot be enabled while the profile is resolving.
   const minor = isMinor !== false;
@@ -610,6 +618,11 @@ export function DeepSpacePrivacyDesignScreen() {
   const [embedOn, setEmbedOn] = useState<boolean | null>(null);
   const [embedUnderstanding, setEmbedUnderstanding] = useState(false);
   const [embedErr, setEmbedErr] = useState(false);
+  // 대화 자동 저장(chat_autosave). 켜는 토글이 PrivacyLegacy 에만 있어서 배송 앱에서는
+  // 켤 방법이 없었다(Q-260914-01, 2026-09-14). null 은 아직 못 읽었다는 뜻이고,
+  // 그동안은 토글을 그리지 않는다.
+  const [chatSaveOn, setChatSaveOn] = useState<boolean | null>(null);
+  const [chatSaveError, setChatSaveError] = useState(false);
   // Right-to-erasure in deep-space (was legacy-only). Terminal + irreversible, so
   // it is gated behind a typed "DELETE" confirm and reuses the proven cascade.
   const [delConfirm, setDelConfirm] = useState("");
@@ -736,6 +749,12 @@ export function DeepSpacePrivacyDesignScreen() {
     });
   }, [navigation]);
 
+  // 설정을 못 읽었는가 (r3as F-04). 못 읽은 것을 꺼짐으로 그리면 켜 둔 사람이 꺼져 있다고 믿고,
+  // 누르면 끄는 대신 켜기를 저장한다. 그래서 못 읽으면 스위치 값은 null 로 둔 채(그리지 않는다)
+  // 다시 읽기를 준다. prefsReadKey 가 그 다시 읽기의 방아쇠다.
+  const [prefsLoadError, setPrefsLoadError] = useState(false);
+  const [prefsReadKey, setPrefsReadKey] = useState(0);
+
   useEffect(() => {
     prefsRef.current = null;
     prefsUserRef.current = null;
@@ -743,11 +762,14 @@ export function DeepSpacePrivacyDesignScreen() {
     setAdsOn(null);
     setRecOn(null);
     setEmbedOn(null);
+    setChatSaveOn(null);
     setUnderstanding(false);
     setEmbedUnderstanding(false);
     setExternalError(null);
     setRecError(false);
     setEmbedErr(false);
+    setChatSaveError(false);
+    setPrefsLoadError(false);
     setBusy(false);
     setDelConfirm("");
     setDeleteConfirmOpen(false);
@@ -760,23 +782,35 @@ export function DeepSpacePrivacyDesignScreen() {
       setDelError(false);
       allowDeletionNavigationRef.current = false;
     }
+  }, [userId]);
+
+  // 읽기는 위 초기화와 따로 돈다. 다시 읽기가 초기화까지 돌리면 입력 중인 삭제 확인이 지워진다.
+  // 초기화가 먼저 선언돼 있어서 계정이 바뀔 때는 비운 다음에 읽는다.
+  useEffect(() => {
     if (!userId) return;
     const targetUserId = userId;
     let cancelled = false;
-    void fetchPrivacyPrefs(targetUserId).then((p) => {
-      if (!cancelled && activeUserRef.current === targetUserId) {
-        prefsRef.current = p;
-        prefsUserRef.current = targetUserId;
-        setAnalyticsOn(p.external_analytics === true);
-        setAdsOn(p.ads === true);
-        setRecOn(p.recommendations === true);
-        setEmbedOn(p.records_embedding === true);
+    setPrefsLoadError(false);
+    void readPrivacyPrefs(targetUserId).then((read) => {
+      if (cancelled || activeUserRef.current !== targetUserId) return;
+      if (!read.ok) {
+        setPrefsLoadError(true);
+        return;
       }
+      const p = read.prefs;
+      prefsRef.current = p;
+      prefsUserRef.current = targetUserId;
+      setAnalyticsOn(p.external_analytics === true);
+      setAdsOn(p.ads === true);
+      setRecOn(p.recommendations === true);
+      setEmbedOn(p.records_embedding === true);
+      // 저장된 참만 켜짐이다. 미설정·문자열 "true" 는 resolvePrivacyPrefs 가 이미 false 로 떨군다.
+      setChatSaveOn(p.chat_autosave === true);
     });
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, prefsReadKey]);
 
   async function toggleExternalPreference(
     key: Extract<PrivacyPrefKey, "external_analytics" | "ads">,
@@ -806,13 +840,16 @@ export function DeepSpacePrivacyDesignScreen() {
     }
 
     try {
-      await savePrivacyPrefs(targetUserId, updated, { locale: ko ? "ko" : "en" });
+      // r3as F-01: only this key, written over the prefs stored right now. The
+      // loaded object can be stale; writing it back revived withdrawals made
+      // from another device or tab.
+      await savePrivacyPref(targetUserId, key, next, { locale: ko ? "ko" : "en" });
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
       const effectiveNext = minorRef.current ? false : next;
       const committed: PrivacyPrefs = { ...updated, [key]: effectiveNext };
       // If age became unresolved/minor while an opt-in was saving, persist the
       // fail-closed value too instead of merely hiding a stale server grant.
-      if (effectiveNext !== next) await savePrivacyPrefs(targetUserId, committed, { locale: ko ? "ko" : "en" });
+      if (effectiveNext !== next) await savePrivacyPref(targetUserId, key, effectiveNext, { locale: ko ? "ko" : "en" });
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
       prefsRef.current = committed;
       prefsUserRef.current = targetUserId;
@@ -833,6 +870,32 @@ export function DeepSpacePrivacyDesignScreen() {
     }
   }
 
+  // 대화 자동 저장 켜기/끄기. 저장은 위 토글과 같은 길(savePrivacyPref 가 최신 서버 값에 이 키 하나만
+  // 얹고, 바뀌었으면 consent_changes 에 grant/revoke 를 남긴다)이고 busy 로 한 줄로 세운다.
+  // 다른 점은 미성년 규칙 하나다. toggleExternalPreference 는 미성년이면 무조건 막는데,
+  // 그건 광고·통계에 맞고 MINOR_PROMOTABLE_KEYS 인 chat_autosave 에는 틀리다. 그래서
+  // 여기서는 규칙을 다시 쓰지 않고 prefs.ts 의 nextPrivacyPrefs 에 맡긴다.
+  async function toggleChatAutosave(next: boolean) {
+    if (!userId || prefsUserRef.current !== userId || !prefsRef.current || busy) return;
+    const updated = nextPrivacyPrefs(prefsRef.current, "chat_autosave", next, minorRef.current);
+    if (!updated) return;
+    const targetUserId = userId;
+    setChatSaveError(false);
+    setBusy(true);
+    try {
+      await savePrivacyPref(targetUserId, "chat_autosave", next, { locale: ko ? "ko" : "en" });
+      if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
+      prefsRef.current = updated;
+      prefsUserRef.current = targetUserId;
+      setChatSaveOn(updated.chat_autosave);
+    } catch {
+      if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
+      setChatSaveError(true);
+    } finally {
+      if (privacyMountedRef.current && activeUserRef.current === targetUserId) setBusy(false);
+    }
+  }
+
   // D-25 §11-5 follow-up: adult-only opt-in WITH an understanding step. Minors
   // are locked (the recommendations pref is non-promotable for them); adults must
   // read what recommendations do and explicitly confirm before it turns on, and
@@ -843,20 +906,14 @@ export function DeepSpacePrivacyDesignScreen() {
     setBusy(true);
     setRecError(false);
     try {
-      const current = await fetchPrivacyPrefs(targetUserId);
-      if (
-        !privacyMountedRef.current ||
-        activeUserRef.current !== targetUserId ||
-        minorRef.current
-      ) return;
-      const prefs = { ...current, recommendations: true };
-      await savePrivacyPrefs(targetUserId, prefs);
+      // r3as F-01: one key over the latest stored prefs, not a loaded-object write.
+      await savePrivacyPref(targetUserId, "recommendations", true);
       if (
         !privacyMountedRef.current ||
         activeUserRef.current !== targetUserId ||
         minorRef.current
       ) {
-        await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false });
+        await savePrivacyPref(targetUserId, "recommendations", false);
         return;
       }
       // recordConsentBestEffort retries, then REPORTS failure instead of
@@ -877,18 +934,18 @@ export function DeepSpacePrivacyDesignScreen() {
         activeUserRef.current !== targetUserId ||
         minorRef.current
       ) {
-        await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false });
+        await savePrivacyPref(targetUserId, "recommendations", false);
         return;
       }
       if (!consentRecorded) {
         // Same rollback the session guards above perform, for the same reason:
         // this is a state we must not leave behind. Retrying is the user's to
         // choose, and the existing error line already says to try again.
-        await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false });
+        await savePrivacyPref(targetUserId, "recommendations", false);
         setRecError(true);
         return;
       }
-      prefsRef.current = prefs;
+      if (prefsRef.current) prefsRef.current = { ...prefsRef.current, recommendations: true };
       prefsUserRef.current = targetUserId;
       setRecOn(true);
       setUnderstanding(false);
@@ -905,10 +962,9 @@ export function DeepSpacePrivacyDesignScreen() {
     setBusy(true);
     setRecError(false);
     try {
-      const prefs = { ...(await fetchPrivacyPrefs(targetUserId)), recommendations: false };
-      await savePrivacyPrefs(targetUserId, prefs);
+      await savePrivacyPref(targetUserId, "recommendations", false);
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
-      prefsRef.current = prefs;
+      if (prefsRef.current) prefsRef.current = { ...prefsRef.current, recommendations: false };
       prefsUserRef.current = targetUserId;
       setRecOn(false);
       setUnderstanding(false);
@@ -927,23 +983,17 @@ export function DeepSpacePrivacyDesignScreen() {
     setBusy(true);
     setEmbedErr(false);
     try {
-      const current = await fetchPrivacyPrefs(targetUserId);
-      if (
-        !privacyMountedRef.current ||
-        activeUserRef.current !== targetUserId ||
-        minorRef.current
-      ) return;
-      const prefs = { ...current, records_embedding: true };
-      await savePrivacyPrefs(targetUserId, prefs);
+      // r3as F-01: one key over the latest stored prefs, not a loaded-object write.
+      await savePrivacyPref(targetUserId, "records_embedding", true);
       if (
         !privacyMountedRef.current ||
         activeUserRef.current !== targetUserId ||
         minorRef.current
       ) {
-        await savePrivacyPrefs(targetUserId, { ...prefs, records_embedding: false });
+        await savePrivacyPref(targetUserId, "records_embedding", false);
         return;
       }
-      prefsRef.current = prefs;
+      if (prefsRef.current) prefsRef.current = { ...prefsRef.current, records_embedding: true };
       prefsUserRef.current = targetUserId;
       setEmbedOn(true);
       setEmbedUnderstanding(false);
@@ -987,12 +1037,11 @@ export function DeepSpacePrivacyDesignScreen() {
     setBusy(true);
     setEmbedErr(false);
     try {
-      const prefs = { ...(await fetchPrivacyPrefs(targetUserId)), records_embedding: false };
-      await savePrivacyPrefs(targetUserId, prefs);
+      await savePrivacyPref(targetUserId, "records_embedding", false);
       // Consent revoked → forget the index (honest "off deletes vectors").
       await clearRecordEmbeddings(targetUserId);
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
-      prefsRef.current = prefs;
+      if (prefsRef.current) prefsRef.current = { ...prefsRef.current, records_embedding: false };
       prefsUserRef.current = targetUserId;
       setEmbedOn(false);
       setEmbedUnderstanding(false);
@@ -1003,8 +1052,23 @@ export function DeepSpacePrivacyDesignScreen() {
     }
   }
 
+  // 못 읽었을 때 스위치 자리에 그리는 것 (r3as F-04). 스위치가 없으니 누를 것도 없고 다시 읽기만 있다.
+  const prefsLoadFailed = prefsLoadError ? (
+    <>
+      <Text variant="subtle" style={styles.footer}>{t("privacy.prefsLoadError")}</Text>
+      <Pressable
+        style={styles.secondary}
+        onPress={() => setPrefsReadKey((k) => k + 1)}
+        accessibilityRole="button"
+        accessibilityLabel={t("privacy.prefsRetry")}
+      >
+        <Text variant="body" style={styles.secondaryText}>{t("privacy.prefsRetry")}</Text>
+      </Pressable>
+    </>
+  ) : null;
+
   return (
-    <Shell title={t("privacy.title")}>
+    <Shell title={t("privacy.title")} scrollRef={privacyScrollRef}>
       <SecondbStatusHeader text={t("privacy.status")} tip={t("privacy.tip")} />
       <Text variant="body" style={styles.lead}>{t("privacy.lead")}</Text>
 
@@ -1026,6 +1090,38 @@ export function DeepSpacePrivacyDesignScreen() {
         })}
       </Card>
 
+      {/* 대화 저장 (chat_autosave). 기본값은 꺼짐이고, 켜도 켜기 전 대화는 소급해서
+          담지 않는다(secondb.tsx 는 마지막 턴만 본다). 라벨과 설명은 동의 문구 번들이
+          원본이다. */}
+      <View
+        onLayout={(event) => {
+          // focusPref 로 왔을 때 한 번만 옮긴다. 사용자가 스크롤을 시작한 뒤 위쪽 높이가
+          // 바뀌어도 다시 끌어올리지 않는다. 애니메이션은 끈다(계단 이징 규칙과 싸우지 않게).
+          if (!focusChatSave || chatSaveScrolledRef.current) return;
+          chatSaveScrolledRef.current = true;
+          privacyScrollRef.current?.scrollTo({ y: Math.max(0, event.nativeEvent.layout.y - spacing.md), animated: false });
+        }}
+      >
+        <Card style={focusChatSave ? { borderColor: colors.cyan } : undefined}>
+          <Text variant="caption" style={styles.section}>{t("privacy.chatSaveSection")}</Text>
+          <Text variant="body" style={styles.lead}>{consentT("privacy.keys.chat_autosave.desc")}</Text>
+          {chatSaveOn === null ? (
+            prefsLoadFailed ?? <Text variant="subtle" style={styles.footer}>{t("privacy.chatSaveLoading")}</Text>
+          ) : (
+            <Toggle
+              label={consentT("privacy.keys.chat_autosave.label")}
+              value={chatSaveOn ? t("privacy.on") : t("privacy.off")}
+              on={chatSaveOn}
+              disabled={busy}
+              onPress={() => void toggleChatAutosave(!chatSaveOn)}
+            />
+          )}
+          {chatSaveError ? (
+            <Text variant="subtle" style={styles.footer}>{t("privacy.chatSaveError")}</Text>
+          ) : null}
+        </Card>
+      </View>
+
       <Card>
         <Text variant="caption" style={styles.section}>
           {ko ? "사용 통계와 광고" : "Usage analytics and ads"}
@@ -1044,7 +1140,7 @@ export function DeepSpacePrivacyDesignScreen() {
               : "Optional. Your choice is saved and applies to Google Analytics on the web. Firebase Analytics and Microsoft Clarity are currently disabled on Android."}
         </Text>
         {analyticsOn === null || adsOn === null ? (
-          <Text variant="subtle" style={styles.footer}>
+          prefsLoadFailed ?? <Text variant="subtle" style={styles.footer}>
             {isMinor === null
               ? ko
                 ? "생년월일을 확인하는 중…"
@@ -1124,7 +1220,7 @@ export function DeepSpacePrivacyDesignScreen() {
             {ko ? "맞춤 추천은 보호를 위해 꺼져 있고 켤 수 없어요." : "Recommendations are off and locked for your protection."}
           </Text>
         ) : recOn === null ? (
-          <Text variant="subtle" style={styles.footer}>{ko ? "불러오는 중…" : "Loading…"}</Text>
+          prefsLoadFailed ?? <Text variant="subtle" style={styles.footer}>{ko ? "불러오는 중…" : "Loading…"}</Text>
         ) : recOn ? (
           <>
             <Text variant="body" style={styles.lead}>
@@ -1172,7 +1268,7 @@ export function DeepSpacePrivacyDesignScreen() {
             {ko ? "기록 의미 연결은 보호를 위해 꺼져 있고 켤 수 없어요." : "Semantic connections are off and locked for your protection."}
           </Text>
         ) : embedOn === null ? (
-          <Text variant="subtle" style={styles.footer}>{ko ? "불러오는 중…" : "Loading…"}</Text>
+          prefsLoadFailed ?? <Text variant="subtle" style={styles.footer}>{ko ? "불러오는 중…" : "Loading…"}</Text>
         ) : embedOn ? (
           <>
             <Text variant="body" style={styles.lead}>

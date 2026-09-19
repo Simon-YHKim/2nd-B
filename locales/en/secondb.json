@@ -182,5 +182,6 @@
   "chatSaveNotice": "This conversation is not being saved",
   "chatSaveNoticeBody": "Turn on chat saving in privacy settings to keep it. Anything said before you turn it on is not saved.",
   "chatSaveNoticeOpen": "Open settings",
-  "chatSaveNoticeDismiss": "Dismiss"
+  "chatSaveNoticeDismiss": "Dismiss",
+  "chatSaveNotDeleted": "The saved copy of this conversation isn't deleted yet. While the app is open, we'll try again each time you come back to this chat. If it's still in Wiki, you can delete it there."
 }

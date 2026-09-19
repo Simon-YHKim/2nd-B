@@ -64,7 +64,8 @@ describe("the backfill is wired to the consent flip", () => {
 
   test("the backfill call sits AFTER the consent save, inside the success path", () => {
     const fn = fnSlice("enableEmbedding");
-    const save = fn.indexOf("savePrivacyPrefs(targetUserId, prefs)");
+    // r3as F-01: the consent flip saves the one key over the latest stored prefs.
+    const save = fn.indexOf('savePrivacyPref(targetUserId, "records_embedding", true)');
     const backfill = fn.indexOf("backfillAllRecordEmbeddings");
     expect(save).toBeGreaterThan(-1);
     expect(backfill).toBeGreaterThan(save);

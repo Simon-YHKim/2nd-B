@@ -25,7 +25,8 @@
     "backlinks": "Linked records {{count}}",
     "connections": "Links {{count}}",
     "viewList": "List",
-    "viewGraph": "Graph"
+    "viewGraph": "Graph",
+    "deleteFailed": "Couldn't delete this page. Please try again."
   },
   "research": {
     "title": "Find connections",
@@ -128,6 +129,12 @@
     "deleteConfirmBody": "This cannot be undone.",
     "deleteCancel": "Cancel",
     "deleteConfirm": "Delete",
+    "a11yDeleteSource": "Delete this saved piece",
+    "deleteSourceConfirmTitle": "Delete this saved piece?",
+    "deleteSourceConfirmBody": "The saved text and any wiki page made from it will be deleted. This cannot be undone.",
+    "deleteSourceFailed": "Couldn't delete this saved piece. Please try again.",
+    "deleteSourcePartial": "Only part of it was deleted, and cleaning up the related records may not have finished. Trying again may not finish it either.",
+    "deleteSourceRawRemoved": "The saved text was deleted, but cleaning up the related records may not have finished. Trying again may not finish it either.",
     "editSave": "Save",
     "actionFailed": "Couldn't save your change. Check your connection and try again.",
     "assessmentBody": "These are your survey answers. Use the button below to see the results.",
@@ -218,7 +225,12 @@
     "none": "0 items",
     "footer": "How data is processed and stored depends on the feature. Check its data-use notice for details.",
     "dataReview": "My saved data",
-    "open": "Open"
+    "open": "Open",
+    "chatSaveSection": "Chat saving",
+    "chatSaveLoading": "Loading settings…",
+    "chatSaveError": "Couldn't save this setting. Please try again.",
+    "prefsLoadError": "Couldn't load your settings, so they can't be changed right now.",
+    "prefsRetry": "Load again"
   },
   "support": {
     "title": "Support",

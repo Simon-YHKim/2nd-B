@@ -25,7 +25,7 @@ jest.mock("../client", () => {
   };
 });
 
-import { fetchPrivacyPrefs, savePrivacyPrefs } from "../privacy";
+import { fetchPrivacyPrefs, readPrivacyPrefs, savePrivacyPrefs } from "../privacy";
 import { defaultPrivacyPrefs } from "../../privacy/prefs";
 
 const { __mock, __maybeSingle, __update, __eqUpdate, __insert } = require("../client") as {
@@ -66,6 +66,61 @@ describe("fetchPrivacyPrefs (fail-soft)", () => {
   test("no row resolves to defaults", async () => {
     __maybeSingle.mockResolvedValueOnce({ data: null, error: null });
     expect(await fetchPrivacyPrefs("u1")).toEqual(defaultPrivacyPrefs());
+  });
+});
+
+// r3as F-04: fetchPrivacyPrefs turns every read failure into all-off defaults. That is
+// right for a gate (cannot read -> do not act) and wrong for a switch: the settings
+// screen would draw OFF for a user whose saved value is ON, and a tap would then save ON
+// instead of withdrawing. Switches read through readPrivacyPrefs, which keeps "could not
+// read" apart from a stored OFF.
+describe("readPrivacyPrefs (a failed read is not a stored OFF)", () => {
+  beforeEach(() => {
+    __mock.from.mockClear();
+    __maybeSingle.mockReset();
+  });
+
+  test("a successful read comes back ok with the resolved prefs", async () => {
+    __maybeSingle.mockResolvedValueOnce({ data: { privacy_prefs: { chat_autosave: true } }, error: null });
+    const read = await readPrivacyPrefs("u1");
+    expect(read.ok).toBe(true);
+    expect(read.ok && read.prefs.chat_autosave).toBe(true);
+    expect(read.ok && read.prefs.ads).toBe(false); // unset -> default, as before
+  });
+
+  test("a DB error comes back as not ok - no defaults are invented", async () => {
+    __maybeSingle.mockResolvedValueOnce({ data: null, error: new Error("network down") });
+    expect(await readPrivacyPrefs("u1")).toEqual({ ok: false });
+  });
+
+  test("a rejected request is not ok either", async () => {
+    __maybeSingle.mockRejectedValueOnce(new Error("fetch failed"));
+    expect(await readPrivacyPrefs("u1")).toEqual({ ok: false });
+  });
+
+  test("control: the gate read stays fail-soft for the same failure", async () => {
+    __maybeSingle.mockResolvedValueOnce({ data: null, error: new Error("network down") });
+    expect(await fetchPrivacyPrefs("u1")).toEqual(defaultPrivacyPrefs());
+  });
+
+  // r3as2 R3AS2-04: the chat screen runs this read right before every automatic save, so a
+  // failure line lands in the device log on a hot path. The remote message is not ours to
+  // copy there (an SDK or a proxy can put request detail in it); only a fixed category is.
+  test("a failed read logs a fixed category, never the remote error text", async () => {
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      __maybeSingle.mockResolvedValueOnce({ data: null, error: new Error("network down for u1 at /rest/v1/users") });
+      expect(await readPrivacyPrefs("u1")).toEqual({ ok: false });
+      __maybeSingle.mockRejectedValueOnce(new Error("fetch failed: token abc123"));
+      expect(await readPrivacyPrefs("u1")).toEqual({ ok: false });
+
+      const calls = warn.mock.calls.map((call) => call.map((part) => String(part)));
+      expect(calls).toHaveLength(2);
+      expect(calls.flat().join(" ")).not.toMatch(/network down|fetch failed|u1|rest\/v1|abc123/);
+      expect(calls.map((call) => call.at(-1))).toEqual(["query_error", "request_failed"]);
+    } finally {
+      warn.mockRestore();
+    }
   });
 });
 
