@@ -37,11 +37,18 @@
 //      same hole on web is tracked as follow-up work, not solved here.
 //   5. This module only ever answers "keep the lock" or "offer the gate". It
 //      never publishes a session and never retries the bootstrap.
-//   6. A storage call is issued only after every earlier one has SETTLED, not
-//      merely timed out (gate finding AA-1835-1). A write that misses its
-//      deadline may still land, but it lands before any clear issued after it,
-//      so it can never revive a streak that clear removed. Nothing continues
-//      from an answer that arrives after its deadline.
+//   6. A call that misses its deadline stops holding the queue at that
+//      deadline. Waiting for its answer instead let one lost answer hold every
+//      later call for the rest of the run: the clear was never issued and each
+//      later count escalated without reaching the store (gate finding
+//      EA-1835-1). Such a call may still land afterwards, behind a newer one,
+//      so when its answer does arrive and disagrees with the newest state this
+//      run asked for, that state is written again. A stray write therefore
+//      cannot revive a streak a later clear removed (AA-1835-1), and that
+//      re-write is the only thing a late answer starts. Two cases stay out of
+//      reach: a write that lands late and never answers, and a count that
+//      reads before the re-write. Both need a store that reorders calls, and
+//      then the streak resumes from that stray count instead of from zero.
 
 /** Consecutive failing cold starts before the consent gate is offered. */
 export const FAIL_CLOSED_ESCALATION_THRESHOLD = 3;
@@ -71,7 +78,9 @@ const STORED_COUNT = /^(?:0|[1-9][0-9]{0,2})$/;
 
 let countedThisRun: Promise<FailClosedPersistence> | null = null;
 let storageTail: Promise<void> = Promise.resolve();
-let callTail: Promise<void> = Promise.resolve();
+// The newest state this run asked the store to hold: a count, or null for a
+// clear. Undefined until the run's first write.
+let intended: string | null | undefined;
 
 /** Same native test the production auth runtime applies (session-mutation.ts). */
 function isNativeRuntime(): boolean {
@@ -94,31 +103,54 @@ function enqueue<T>(operation: () => Promise<T>, fallback: T): Promise<T> {
   return result;
 }
 
-/** One storage call under Invariant 6: issued once every earlier call has
- *  settled, answered to the caller within FAIL_CLOSED_COUNTER_IO_TIMEOUT_MS
- *  (time spent waiting behind a stuck call included). A miss rejects exactly
- *  like a failed call, and the call's own late answer goes nowhere. */
-function bounded<T>(call: () => Promise<T>): Promise<T> {
-  const settled = callTail.then(call);
-  callTail = settled.then(
-    () => undefined,
-    () => undefined,
-  );
+/** One storage call, answered to the caller within
+ *  FAIL_CLOSED_COUNTER_IO_TIMEOUT_MS. A miss rejects exactly like a failed
+ *  call and holds nothing after its deadline (Invariant 6). If the call does
+ *  answer after its deadline, that answer goes nowhere except `late`. */
+function bounded<T>(call: () => Promise<T>, late?: () => void): Promise<T> {
+  const settled = Promise.resolve().then(call);
   return new Promise<T>((resolve, reject) => {
+    let missed = false;
     const timer = setTimeout(() => {
+      missed = true;
       reject(new Error("fail_closed_count_timeout"));
     }, FAIL_CLOSED_COUNTER_IO_TIMEOUT_MS);
+    const answered = () => {
+      clearTimeout(timer);
+      if (missed) late?.();
+    };
     settled.then(
       (value) => {
-        clearTimeout(timer);
+        answered();
         resolve(value);
       },
       (error: unknown) => {
-        clearTimeout(timer);
+        answered();
         reject(error);
       },
     );
   });
+}
+
+/** Ask the store to hold `value` (a count, or null to clear) as this run's
+ *  newest state. A write that answers after its deadline may have landed
+ *  behind a newer one; if it disagrees with the newest state, that state is
+ *  written again through the queue (Invariant 6). The value it writes is the
+ *  newest one when it runs, never a blind clear, so it cannot erase a count
+ *  made after the stray write was issued. */
+function write(storage: FailClosedCounterStorage, value: string | null): Promise<void> {
+  intended = value;
+  return bounded(
+    () => (value === null
+      ? storage.removeItem(FAIL_CLOSED_COLD_START_KEY)
+      : storage.setItem(FAIL_CLOSED_COLD_START_KEY, value)),
+    () => {
+      if (value === intended) return;
+      void enqueue<void>(async () => {
+        if (intended !== undefined) await write(storage, intended);
+      }, undefined);
+    },
+  );
 }
 
 function parseStoredCount(raw: string | null): number {
@@ -148,7 +180,7 @@ async function countColdStart(
   const next = Math.min(previous + 1, FAIL_CLOSED_ESCALATION_THRESHOLD);
   try {
     const encoded = String(next);
-    await bounded(() => storage.setItem(FAIL_CLOSED_COLD_START_KEY, encoded));
+    await write(storage, encoded);
     if ((await bounded(() => storage.getItem(FAIL_CLOSED_COLD_START_KEY))) !== encoded) {
       throw new Error("fail_closed_count_not_durable");
     }
@@ -172,17 +204,16 @@ export function noteFailClosedColdStart(
 
 /** Return the streak to zero: a bootstrap settled, or the consented wipe
  *  finished. Also reopens the current run, so a failure AFTER this point is a
- *  new episode that counts again. Best-effort and silent; never rejects. A
- *  remove that misses its deadline stays queued and still runs once the calls
- *  before it settle (Invariant 6). */
+ *  new episode that counts again. Best-effort and silent; never rejects. The
+ *  remove goes out even while an earlier call's answer is still missing, and
+ *  a stray write that answers after it is overwritten (Invariant 6). */
 export function clearFailClosedColdStarts(storage?: FailClosedCounterStorage): Promise<void> {
   // Reopened at call time, not inside the queue: a count requested right after
   // this clear must queue behind it rather than reuse the pre-clear answer.
   countedThisRun = null;
   return enqueue<void>(async () => {
     if (!storage && !isNativeRuntime()) return;
-    const opened = storage ?? openCounterStorage();
-    await bounded(() => opened.removeItem(FAIL_CLOSED_COLD_START_KEY));
+    await write(storage ?? openCounterStorage(), null);
   }, undefined);
 }
 

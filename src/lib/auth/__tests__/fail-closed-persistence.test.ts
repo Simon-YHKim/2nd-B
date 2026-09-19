@@ -246,23 +246,41 @@ describe("a counter that never answers escalates at its deadline", () => {
     expect(disk.values.get(KEY)).toBe("1");
   });
 
-  test("a clear that never settles gives up silently, and a later count still answers", async () => {
+  test("a clear that never answers gives up silently, and a later count still reaches the store", async () => {
     const disk = createDisk({ [KEY]: "2" });
     disk.storage.removeItem.mockImplementationOnce(never);
     const run = coldStart();
     const cleared = watch(run.clearFailClosedColdStarts(disk.storage));
     const counted = watch(run.noteFailClosedColdStart(disk.storage));
 
-    await jest.advanceTimersByTimeAsync(DEADLINE);
-    expect(cleared).toEqual({ settled: true, value: undefined });
+    await jest.advanceTimersByTimeAsync(DEADLINE - 1);
+    expect(cleared.settled).toBe(false);
     expect(counted.settled).toBe(false);
 
-    await jest.advanceTimersByTimeAsync(DEADLINE);
-    // Its read waited behind the stuck remove and never reached the store:
-    // a counter that does not answer is Invariant 2, not a reason to hang.
+    await jest.advanceTimersByTimeAsync(1);
+    expect(cleared).toEqual({ settled: true, value: undefined });
+    // The stuck remove holds nothing past its deadline (EA-1835-1), so the
+    // count reads what the store really holds. That remove never landed: the
+    // streak goes on from 2, and the gate comes from a real read.
     expect(counted).toEqual({ settled: true, value: "escalate" });
-    expect(disk.storage.getItem).not.toHaveBeenCalled();
-    expect(disk.storage.setItem).not.toHaveBeenCalled();
+    expect(disk.storage.getItem).toHaveBeenCalledTimes(2);
+    expect(disk.values.get(KEY)).toBe("3");
+  });
+
+  test("a clear whose remove landed but never answered leaves the next failure a first strike", async () => {
+    const disk = createDisk({ [KEY]: "2" });
+    disk.storage.removeItem.mockImplementationOnce((key: string) => {
+      disk.values.delete(key);
+      return never<void>();
+    });
+    const run = coldStart();
+    const cleared = watch(run.clearFailClosedColdStarts(disk.storage));
+    const counted = watch(run.noteFailClosedColdStart(disk.storage));
+
+    await jest.advanceTimersByTimeAsync(DEADLINE);
+    expect(cleared).toEqual({ settled: true, value: undefined });
+    expect(counted).toEqual({ settled: true, value: "locked" });
+    expect(disk.values.get(KEY)).toBe("1");
   });
 
   test("a write that lands after its deadline cannot revive a streak a later clear removed", async () => {
@@ -283,18 +301,109 @@ describe("a counter that never answers escalates at its deadline", () => {
     expect(counted).toEqual({ settled: true, value: "escalate" });
 
     // A bootstrap then settles (or the consented wipe finishes) and clears.
+    // The stray write no longer holds it back (EA-1835-1): the remove goes out
+    // at once.
     const cleared = watch(run.clearFailClosedColdStarts(disk.storage));
-    await jest.advanceTimersByTimeAsync(DEADLINE);
+    await jest.advanceTimersByTimeAsync(0);
     expect(cleared).toEqual({ settled: true, value: undefined });
-    // The remove waits for the stray write instead of racing it.
-    expect(disk.storage.removeItem).not.toHaveBeenCalled();
+    expect(disk.storage.removeItem).toHaveBeenCalledTimes(1);
 
+    // The stray write lands behind it, and its late answer says so: the clear
+    // is written again, so the streak stays gone.
     land();
     await jest.advanceTimersByTimeAsync(0);
+    expect(disk.storage.removeItem).toHaveBeenCalledTimes(2);
+    expect(disk.values.has(KEY)).toBe(false);
+    // Nothing else followed from the late answer: no read-back, no count.
+    expect(disk.storage.getItem).toHaveBeenCalledTimes(1);
+    expect(disk.storage.setItem).toHaveBeenCalledTimes(1);
+  });
+
+  test("a stray write that lands late is overwritten by the newest count, not by a blind clear", async () => {
+    // The re-write carries the newest state rather than undoing the stray
+    // write, because a compensating remove would also erase a count made
+    // after the clear.
+    const disk = createDisk({ [KEY]: "1" });
+    let land: () => void = () => undefined;
+    disk.storage.setItem.mockImplementationOnce(
+      (key: string, value: string) =>
+        new Promise<void>((resolve) => {
+          land = () => {
+            disk.values.set(key, value);
+            resolve();
+          };
+        }),
+    );
+    const run = coldStart();
+    const first = watch(run.noteFailClosedColdStart(disk.storage));
+    await jest.advanceTimersByTimeAsync(DEADLINE);
+    expect(first).toEqual({ settled: true, value: "escalate" });
+
+    const cleared = watch(run.clearFailClosedColdStarts(disk.storage));
+    const second = watch(run.noteFailClosedColdStart(disk.storage));
+    await jest.advanceTimersByTimeAsync(0);
+    expect(cleared.settled).toBe(true);
+    expect(second).toEqual({ settled: true, value: "locked" });
+    expect(disk.values.get(KEY)).toBe("1");
+
+    land(); // the stray "2" lands over the newer "1"
+    await jest.advanceTimersByTimeAsync(0);
+    expect(disk.values.get(KEY)).toBe("1");
+    expect(disk.storage.removeItem).toHaveBeenCalledTimes(1);
+    expect(disk.storage.setItem).toHaveBeenCalledTimes(3);
+  });
+
+  test("a late answer that agrees with the newest state writes nothing more", async () => {
+    const disk = createDisk();
+    let land: () => void = () => undefined;
+    disk.storage.setItem.mockImplementationOnce(
+      (key: string, value: string) =>
+        new Promise<void>((resolve) => {
+          land = () => {
+            disk.values.set(key, value);
+            resolve();
+          };
+        }),
+    );
+    const counted = watch(coldStart().noteFailClosedColdStart(disk.storage));
+    await jest.advanceTimersByTimeAsync(DEADLINE);
+    expect(counted).toEqual({ settled: true, value: "escalate" });
+
+    land(); // still the newest state this run asked for
+    await jest.advanceTimersByTimeAsync(0);
+    expect(disk.values.get(KEY)).toBe("1");
+    expect(disk.storage.setItem).toHaveBeenCalledTimes(1);
+    expect(disk.storage.removeItem).not.toHaveBeenCalled();
+  });
+
+  test("a write whose answer never comes holds neither the clear nor the next count", async () => {
+    // Gate finding EA-1835-1 (2026-09-19). The write lands but its answer is
+    // lost. Waiting for that answer used to hold every later call for the rest
+    // of the run: the clear was never issued, and the next count escalated at
+    // its deadline without reaching the store.
+    const disk = createDisk();
+    disk.storage.setItem.mockImplementationOnce((key: string, value: string) => {
+      disk.values.set(key, value);
+      return never<void>();
+    });
+    const run = coldStart();
+    const first = watch(run.noteFailClosedColdStart(disk.storage));
+    await jest.advanceTimersByTimeAsync(DEADLINE);
+    expect(first).toEqual({ settled: true, value: "escalate" });
+    expect(disk.values.get(KEY)).toBe("1");
+
+    const cleared = watch(run.clearFailClosedColdStarts(disk.storage));
+    await jest.advanceTimersByTimeAsync(0);
+    expect(cleared).toEqual({ settled: true, value: undefined });
     expect(disk.storage.removeItem).toHaveBeenCalledTimes(1);
     expect(disk.values.has(KEY)).toBe(false);
-    // Nothing continued from the late answer: no read-back followed it.
-    expect(disk.storage.getItem).toHaveBeenCalledTimes(1);
+
+    // A failure after the clear is a new first strike, not the gate again.
+    const second = watch(run.noteFailClosedColdStart(disk.storage));
+    await jest.advanceTimersByTimeAsync(0);
+    expect(second).toEqual({ settled: true, value: "locked" });
+    expect(disk.values.get(KEY)).toBe("1");
+    expect(disk.storage.setItem).toHaveBeenCalledTimes(2);
   });
 });
 
