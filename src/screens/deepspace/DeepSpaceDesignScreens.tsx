@@ -355,7 +355,7 @@ export function DeepSpaceGraphDesignScreen() {
 }
 
 function IntegrationEntryRow({ source, t }: { source: IntegrationEntrypoint; t: Tx }) {
-  const [held, setHeld] = useState(false);
+  const [held, setHeld] = useState(false); // 이 값이 스타일을 바꾸는 래퍼 View 는 collapsable={false} - 누름·뗌이 자식을 옮기지 않게(PixelPressable 과 같은 이유, 커밋 2eb6266b)
   const name = source.nameKey ? t(source.nameKey) : source.name ?? source.id;
   const detail = t(source.detailKey);
   const action = t(source.actionKey);
@@ -370,7 +370,7 @@ function IntegrationEntryRow({ source, t }: { source: IntegrationEntrypoint; t: 
       accessibilityHint={detail}
       style={cx.integrationHit}
     >
-      <View style={held ? cx.integrationPressed : cx.integrationRest}>
+      <View collapsable={false} style={held ? cx.integrationPressed : cx.integrationRest}>
         <PixelSurface
           variant="bevel"
           pressed={held}

@@ -199,6 +199,37 @@ function isCanonicalBase64(value: string): boolean {
   return true;
 }
 
+// Indexed by char code. Everything outside the alphabet, "=" included, reads 0.
+const BASE64_DIGIT_BY_CODE = (() => {
+  const table = new Uint8Array(128);
+  for (let index = 0; index < BASE64_ALPHABET.length; index += 1) {
+    table[BASE64_ALPHABET.charCodeAt(index)] = index;
+  }
+  return table;
+})();
+
+/** Bytes of a canonical base64 envelope. The native AES call takes bytes (see
+ * `decrypt` below), and a strict local decoder keeps the accepted alphabet
+ * identical to the one `isCanonicalBase64` validated the envelope against. */
+function decodeCanonicalBase64(value: string): Uint8Array {
+  if (!isCanonicalBase64(value)) throw new Error("invalid_base64");
+  const padding = value.endsWith("==") ? 2 : value.endsWith("=") ? 1 : 0;
+  const bytes = new Uint8Array((value.length / 4) * 3 - padding);
+  let offset = 0;
+  for (let index = 0; index < value.length; index += 4) {
+    const chunk =
+      (BASE64_DIGIT_BY_CODE[value.charCodeAt(index)] << 18)
+      | (BASE64_DIGIT_BY_CODE[value.charCodeAt(index + 1)] << 12)
+      | (BASE64_DIGIT_BY_CODE[value.charCodeAt(index + 2)] << 6)
+      | BASE64_DIGIT_BY_CODE[value.charCodeAt(index + 3)];
+    // Padding digits read 0 and fall past the exact output length.
+    if (offset < bytes.length) bytes[offset++] = (chunk >> 16) & 0xff;
+    if (offset < bytes.length) bytes[offset++] = (chunk >> 8) & 0xff;
+    if (offset < bytes.length) bytes[offset++] = chunk & 0xff;
+  }
+  return bytes;
+}
+
 function assertEncodedMasterKey(encodedKey: string): void {
   if (
     typeof encodedKey !== "string"
@@ -835,7 +866,7 @@ interface ExpoCryptoRuntime {
     generate(bits: number): Promise<{ encoded(format: "base64"): string | Promise<string> }>;
     import(encoded: string, format: "base64"): Promise<unknown>;
   };
-  AESSealedData: { fromCombined(value: string): unknown };
+  AESSealedData: { fromCombined(value: Uint8Array): unknown };
   aesEncryptAsync(
     plaintext: Uint8Array,
     key: unknown,
@@ -902,7 +933,11 @@ function getEncryptedNativeStorageRuntime(): EncryptedNativeStorage {
       },
       async decrypt(sealed, encodedKey, aad) {
         const key = await ExpoCrypto.AESEncryptionKey.import(encodedKey, "base64");
-        const encrypted = ExpoCrypto.AESSealedData.fromCombined(sealed);
+        // Bytes, never the base64 text: expo-crypto 56 Android binds this argument
+        // to a native ByteArray and refuses a string before any decrypt runs. Only
+        // iOS also takes base64, so text here fails every Android relaunch with
+        // secure_storage_decrypt_failed (measured 2026-09-19).
+        const encrypted = ExpoCrypto.AESSealedData.fromCombined(decodeCanonicalBase64(sealed));
         const plaintext = await ExpoCrypto.aesDecryptAsync(encrypted, key, {
           additionalData: encoder.encode(aad),
           output: "bytes",
