@@ -830,11 +830,17 @@ describe("native production adapter", () => {
     jest.dontMock("expo-crypto");
   });
 
-  test("uses the Expo 56 base64 AES contract and device-only SecureStore", async () => {
+  test("hands Expo 56 the combined envelope as bytes, the only form Android accepts", async () => {
     const h = createHarness();
+    // expo-crypto 56.0.4 Android declares `fromCombined(combined: ByteArray, ...)`:
+    // the JSI argument must be a Uint8Array, and base64 text is refused before any
+    // decrypt runs. iOS takes bytes as well, so bytes are the portable form. The
+    // double used to REQUIRE a string, which hid that every Android relaunch failed
+    // with secure_storage_decrypt_failed and left the app on its boot loader
+    // (measured on an emulator, 2026-09-19).
     const fromCombined = jest.fn((combined: unknown) => {
-      if (typeof combined !== "string") throw new Error("base64_string_required");
-      return combined;
+      if (!(combined instanceof Uint8Array)) throw new Error("uint8array_required");
+      return Buffer.from(combined).toString("base64");
     });
     jest.doMock(
       "@react-native-async-storage/async-storage",
@@ -878,12 +884,30 @@ describe("native production adapter", () => {
     }));
 
     const storage = getEncryptedNativeStorage();
-    await storage.setItem("capture.drafts.v2.owner-a", "오늘 기록: 다시 읽기");
-    await expect(storage.getItem("capture.drafts.v2.owner-a")).resolves.toBe(
+    // The test seal is a 32-byte tag plus the plaintext bytes, so 1, 2 and 3
+    // plaintext bytes put the envelope in each base64 padding class (none, "==",
+    // "="). Then multi-byte UTF-8, the empty value, and a run of lengths so every
+    // chunk boundary of the decoder is compared byte for byte.
+    const samples = [
+      "a",
+      "ab",
+      "abc",
       "오늘 기록: 다시 읽기",
-    );
-    expect(fromCombined).toHaveBeenCalled();
-    expect(fromCombined).toHaveBeenCalledWith(expect.stringMatching(/^[A-Za-z0-9+/]+=*$/));
+      "",
+      ...Array.from({ length: 36 }, (_, length) => `기록 ${length} `.repeat(length % 5) + "x".repeat(length)),
+    ];
+    for (const [index, sample] of samples.entries()) {
+      const key = `capture.drafts.v2.owner-${index}`;
+      await storage.setItem(key, sample);
+      await expect(storage.getItem(key)).resolves.toBe(sample);
+      // Byte-exact: what reaches the native call is the stored envelope itself.
+      const stored = h.values.get(key) as string;
+      const handed = fromCombined.mock.calls[index][0] as Uint8Array;
+      expect(Buffer.from(handed).toString("base64")).toBe(
+        stored.slice(ENCRYPTED_STORAGE_PREFIX.length),
+      );
+    }
+    expect(fromCombined).toHaveBeenCalledTimes(samples.length);
     expect(h.generatedKeys()).toBe(1);
   });
 
