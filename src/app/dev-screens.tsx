@@ -119,7 +119,7 @@ function PressRow({
   variant: "frame" | "bevel";
   glyph?: "grid" | "hub" | "visibility" | "share";
 }) {
-  const [held, setHeld] = useState(false);
+  const [held, setHeld] = useState(false); // 이 값이 스타일을 바꾸는 래퍼 View 는 collapsable={false} - 누름·뗌이 자식을 옮기지 않게(PixelPressable 과 같은 이유, 커밋 2eb6266b)
   return (
     <Pressable
       accessibilityRole="button"
@@ -130,7 +130,7 @@ function PressRow({
       onPressOut={() => setHeld(false)}
       style={styles.rowRoot}
     >
-      <View style={held ? styles.rowSunk : null}>
+      <View collapsable={false} style={held ? styles.rowSunk : null}>
         <PixelSurface variant={variant} pressed={held} contentStyle={styles.rowContent}>
           {glyph ? (
             <View style={styles.rowGlyph}>
@@ -158,7 +158,7 @@ function PressRow({
  * 세는 사람이 개수를 잘못 읽는다 — 변형은 라우트가 아니다.
  */
 function VariantRow({ screen, variant }: { screen: DevScreen; variant: DevScreenVariant }) {
-  const [held, setHeld] = useState(false);
+  const [held, setHeld] = useState(false); // 이 값이 스타일을 바꾸는 래퍼 View 는 collapsable={false} - 누름·뗌이 자식을 옮기지 않게(PixelPressable 과 같은 이유, 커밋 2eb6266b)
   return (
     <Pressable
       accessibilityRole="button"
@@ -171,7 +171,7 @@ function VariantRow({ screen, variant }: { screen: DevScreen; variant: DevScreen
       onPressOut={() => setHeld(false)}
       style={styles.variantRoot}
     >
-      <View style={held ? styles.rowSunk : null}>
+      <View collapsable={false} style={held ? styles.rowSunk : null}>
         <PixelSurface variant="bevel" pressed={held} contentStyle={styles.variantContent}>
           <View style={styles.rowGlyph}>
             <PixelGlyph name="tune" color={m3.color.primary} size={24} />

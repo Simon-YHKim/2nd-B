@@ -657,8 +657,8 @@ not eyeballing a mockup.
 trio (`DESIGN_INDEX.md` / `SCREEN_TREE_SPEC.md` / `CLONE_PROTOCOL.md`). Those are a pre-M3 snapshot
 (2026-06-24) from the deep-space cosmic-pixel era, superseded by the reference app above. They are
 kept for history. `SCREEN_TREE_SPEC.md`'s route table in particular is badly out of date (it lists
-40 routes; **the app has 100** — `src/app` 아래 `.tsx` 104개에서 `_layout` 2개와 `+` 특수
-파일 2개를 뺀 수, 2026-09-07 실측. 여기 적혀 있던 85 는 낡은 값이다).
+40 routes; **the app has 101** — `src/app` 아래 `.tsx` 105개에서 `_layout` 2개와 `+` 특수
+파일 2개를 뺀 수, 2026-09-19 실측(origin/main `d0929429`). 09-07 의 100 · 그 전의 85 는 낡은 값이다).
 
 - Do not introduce hex literals in components. Always go through `semantic.*` from `src/lib/theme/tokens.ts`.
 - Do not add glassmorphism, pill chips, or em dashes in UI strings. Gradients are allowed only within the deep-space cyan/soul identity via `deepSpaceGradients` (`src/lib/theme/tokens.ts`); off-palette or decorative gradients stay forbidden. See DESIGN.md "Color rules".
