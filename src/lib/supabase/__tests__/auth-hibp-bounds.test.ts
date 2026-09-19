@@ -12,6 +12,13 @@
 // cannot tell a stopped download from a completed one. This mitigates, and
 // does not close, the finding: expo/fetch still buffers natively whatever
 // arrives before the first read, and only the timeout bounds that window.
+//
+// HZ-1837-1 follow-up (re-gate of #1837, 2026-09-19): the abort stops the
+// transfer but does not promise that a waiting read settles. On iOS a first
+// read whose startStreaming reaches native after the abort never does, and the
+// check used to wait with it for as long as the app ran. The five-second
+// deadline now settles the check itself. The transport fake below replays
+// expo's native order, because a fetch that rejects on abort cannot show it.
 
 import { createHash } from "node:crypto";
 
@@ -124,6 +131,75 @@ function streamedResponse(
     headers: new Headers(init.headers ?? {}),
     body: stream,
     text: jest.fn(async () => BREACH_LINE),
+  };
+}
+
+type NativeState = "responseReceived" | "bodyStreamingStarted" | "errorReceived";
+
+// expo/fetch as its iOS native side drives a response (expo 56.0.13). The
+// first read asks native to start streaming (FetchResponse.ts pull) and waits
+// for that call. An abort that native handles before streaming has started
+// marks the response failed with no error event (NativeResponse.swift
+// emitRequestCanceled), and the late startStreaming then answers null, which
+// pull also takes as "started": no data, completion or error follows, so the
+// read never settles. After streaming has started the abort does emit the
+// error and the waiting read rejects. The test runs the native queue itself,
+// so the order is fixed rather than timed. With `headers: "on demand"` native
+// already has the headers but their answer reaches JS only when delivered.
+function expoNativeTransport(headers: "at once" | "on demand" = "at once"): {
+  fetch: FetchImpl;
+  native: { state: NativeState; startRequests: number; startsRun: number; errorEvents: number };
+  runNative: () => void;
+  deliverHeaders: () => void;
+} {
+  const native = {
+    state: "responseReceived" as NativeState,
+    startRequests: 0,
+    startsRun: 0,
+    errorEvents: 0,
+  };
+  const nativeQueue: (() => void)[] = [];
+  const headerAnswers: (() => void)[] = [];
+  let body: ReadableStreamDefaultController<Uint8Array> | undefined;
+  const fetchImpl: FetchImpl = (_url, init) => {
+    // fetch.ts subscribes before the request starts and keeps the listener
+    // after resolving: an abort cancels the native request.
+    init?.signal?.addEventListener("abort", () => {
+      if (native.state === "bodyStreamingStarted") {
+        native.errorEvents += 1;
+        body?.error(new Error("canceled"));
+      }
+      native.state = "errorReceived";
+    });
+    const stream = new ReadableStream<Uint8Array>(
+      {
+        start(controller) {
+          body = controller;
+        },
+        pull() {
+          native.startRequests += 1;
+          return new Promise<void>((resolve) => {
+            nativeQueue.push(() => {
+              native.startsRun += 1;
+              // startStreaming is valid only from responseReceived. From any
+              // other state it answers null, which pull reads as started too.
+              if (native.state === "responseReceived") native.state = "bodyStreamingStarted";
+              resolve();
+            });
+          });
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    const response = streamedResponse(stream);
+    if (headers === "at once") return Promise.resolve(response);
+    return new Promise((resolve) => headerAnswers.push(() => resolve(response)));
+  };
+  return {
+    fetch: fetchImpl,
+    native,
+    runNative: () => nativeQueue.splice(0).forEach((run) => run()),
+    deliverHeaders: () => headerAnswers.splice(0).forEach((answer) => answer()),
   };
 }
 
@@ -348,5 +424,95 @@ describe("a stalled range call gives up at five seconds", () => {
     await flushMicrotasks();
     expect(signal?.aborted).toBe(true);
     expect(outcome).toBe(false);
+  });
+
+  // HZ-1837-1: the abort reaches native after the headers and before the first
+  // read has started streaming, so nothing will ever settle that read.
+  test("native: an abort that lands before streaming starts still settles at five seconds", async () => {
+    useNativeRuntime();
+    installBufferedBuiltInFetch();
+    jest.useFakeTimers({ doNotFake: ["nextTick", "queueMicrotask"] });
+    const transport = expoNativeTransport();
+    const expoFetch = installExpoFetch(transport.fetch);
+
+    let outcome: boolean | "pending" = "pending";
+    void isPasswordBreached(PASSWORD).then((value) => {
+      outcome = value;
+    });
+    await flushMicrotasks();
+    // The headers are in and the first read is waiting on startStreaming.
+    expect(transport.native.startRequests).toBe(1);
+    expect(transport.native.startsRun).toBe(0);
+
+    jest.advanceTimersByTime(4_999);
+    await flushMicrotasks();
+    expect(outcome).toBe("pending");
+
+    jest.advanceTimersByTime(1);
+    await flushMicrotasks();
+    const atDeadline = outcome;
+    // The abort was handled first: the request is cancelled, and no error
+    // event went out because nothing had started streaming.
+    expect(signalOf(expoFetch)?.aborted).toBe(true);
+    expect(transport.native.state).toBe("errorReceived");
+    expect(transport.native.errorEvents).toBe(0);
+
+    // Only now does native get to the queued startStreaming, and a minute on
+    // nothing has woken the read.
+    transport.runNative();
+    await flushMicrotasks();
+    jest.advanceTimersByTime(60_000);
+    await flushMicrotasks();
+    expect(transport.native.startsRun).toBe(1);
+    expect({ atDeadline, afterNative: outcome }).toEqual({ atDeadline: false, afterNative: false });
+  });
+
+  test("native: an abort after streaming has started errors the waiting read", async () => {
+    useNativeRuntime();
+    installBufferedBuiltInFetch();
+    jest.useFakeTimers({ doNotFake: ["nextTick", "queueMicrotask"] });
+    const transport = expoNativeTransport();
+    installExpoFetch(transport.fetch);
+
+    let outcome: boolean | "pending" = "pending";
+    void isPasswordBreached(PASSWORD).then((value) => {
+      outcome = value;
+    });
+    await flushMicrotasks();
+    // Native starts streaming before the deadline, but no bytes come.
+    transport.runNative();
+    await flushMicrotasks();
+    expect(transport.native.state).toBe("bodyStreamingStarted");
+    expect(outcome).toBe("pending");
+
+    jest.advanceTimersByTime(5_000);
+    await flushMicrotasks();
+    // In this order the abort errors the stream and the waiting read rejects.
+    expect(transport.native.errorEvents).toBe(1);
+    expect(outcome).toBe(false);
+  });
+
+  test("native: headers that reach JS after the deadline are not read", async () => {
+    useNativeRuntime();
+    installBufferedBuiltInFetch();
+    jest.useFakeTimers({ doNotFake: ["nextTick", "queueMicrotask"] });
+    const transport = expoNativeTransport("on demand");
+    installExpoFetch(transport.fetch);
+
+    let outcome: boolean | "pending" = "pending";
+    void isPasswordBreached(PASSWORD).then((value) => {
+      outcome = value;
+    });
+    await flushMicrotasks();
+    jest.advanceTimersByTime(5_000);
+    await flushMicrotasks();
+    expect(outcome).toBe(false);
+
+    // Native had the headers before the abort; their answer reaches JS after.
+    transport.deliverHeaders();
+    await flushMicrotasks();
+    // No read starts once the request is aborted: it could be stranded too.
+    expect(transport.native.state).toBe("errorReceived");
+    expect(transport.native.startRequests).toBe(0);
   });
 });

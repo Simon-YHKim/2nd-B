@@ -49,6 +49,7 @@ export { AuthSessionOwnerChangedError } from "../auth/session-mutation";
 // #1587 은 allRequiredAcksChecked 를 더 들여온다 — 가입 동의를 화면만이 아니라
 // 서버도 확인하기 위해서고, 아래 함수가 실제로 호출한다.
 import { getEnv } from "../env";
+import { withTimeout } from "../async/with-timeout";
 import {
   clearAccountScopedLocalNotifications,
   migrateLegacyRoutineNotifications,
@@ -146,6 +147,11 @@ export class ExistingAccountLikelyError extends Error {
 // one, keep downloading), so every early exit also aborts the request. What
 // arrives between the response headers and the first read is still buffered
 // natively before JS sees it; only the timeout bounds that window (AA-1826-1).
+// The timeout settles the check itself, not only the transfer. Aborting does
+// not promise that a waiting read settles: on iOS a first read whose
+// startStreaming reaches native after the abort never does (HZ-1837-1). So at
+// the deadline the check stops waiting, aborts and fails open, and once the
+// request is aborted no new read starts.
 const HIBP_TIMEOUT_MS = 5_000;
 const HIBP_MAX_RESPONSE_BYTES = 256 * 1024;
 
@@ -160,7 +166,7 @@ function hibpFetch(): HibpFetch {
   return (require("expo/fetch") as ExpoFetchModule).fetch;
 }
 
-async function readBoundedHibpResponse(res: Response): Promise<string | null> {
+async function readBoundedHibpResponse(res: Response, signal: AbortSignal): Promise<string | null> {
   const declared = res.headers?.get?.("content-length");
   if (declared && /^\d+$/.test(declared) && Number(declared) > HIBP_MAX_RESPONSE_BYTES) {
     await res.body?.cancel().catch(() => undefined);
@@ -174,6 +180,8 @@ async function readBoundedHibpResponse(res: Response): Promise<string | null> {
   let size = 0;
   let text = "";
   while (true) {
+    // A read started after the abort could wait for good (HZ-1837-1).
+    if (signal.aborted) return null;
     const { done, value } = await reader.read();
     if (done) return text + decoder.decode();
     size += value.byteLength;
@@ -187,7 +195,17 @@ async function readBoundedHibpResponse(res: Response): Promise<string | null> {
 
 export async function isPasswordBreached(password: string): Promise<boolean> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), HIBP_TIMEOUT_MS);
+  try {
+    return await withTimeout(checkPasswordRange(password, controller), HIBP_TIMEOUT_MS);
+  } catch {
+    // Only the deadline lands here: checkPasswordRange answers every other
+    // failure itself. Tear the request down and fail open.
+    controller.abort();
+    return false;
+  }
+}
+
+async function checkPasswordRange(password: string, controller: AbortController): Promise<boolean> {
   let bodyRead = false;
   try {
     const hex = (await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA1, password)).toUpperCase();
@@ -198,7 +216,7 @@ export async function isPasswordBreached(password: string): Promise<boolean> {
       signal: controller.signal,
     });
     if (!res.ok) return false;
-    const body = await readBoundedHibpResponse(res);
+    const body = await readBoundedHibpResponse(res, controller.signal);
     if (body === null) return false;
     bodyRead = true;
     return body
@@ -207,7 +225,6 @@ export async function isPasswordBreached(password: string): Promise<boolean> {
   } catch {
     return false;
   } finally {
-    clearTimeout(timeout);
     // Any exit before the whole body was read tears the request down.
     if (!bodyRead) controller.abort();
   }
