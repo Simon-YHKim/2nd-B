@@ -400,11 +400,11 @@ export function subscribeRecoveryPending(listener: (pending: boolean) => void): 
   return () => pendingListeners.delete(listener);
 }
 
-/** Whether the live ledger holds a pending marker. Unreadable counts as held. */
-function livePendingMarkerPresent(): boolean {
+/** Whether the live ledger holds a marker under `key`. Unreadable counts as held. */
+function liveMarkerPresent(key: string): boolean {
   try {
     const store = webStorage();
-    return store ? store.getItem(RECOVERY_PENDING_KEY) !== null : false;
+    return store ? store.getItem(key) !== null : false;
   } catch {
     return true;
   }
@@ -419,15 +419,19 @@ export function applyRecoveryPendingStorageValue(raw: string | null): RecoveryPe
   // A null newValue alone cannot open the fence: it can be stale by delivery
   // time, landing after this tab wrote a newer marker. Only the live ledger can
   // release it, and a ledger that cannot be read proves nothing is gone.
-  setRecoveryPendingPresence(raw !== null || livePendingMarkerPresent());
+  setRecoveryPendingPresence(raw !== null || liveMarkerPresent(RECOVERY_PENDING_KEY));
   return pending;
 }
 
 export function applyAuthCallbackQuarantineStorageValue(
   raw: string | null,
 ): AuthCallbackQuarantine | null {
+  // Same rules as the pending key: the returned quarantine is the event's own,
+  // and a null newValue that is stale by delivery time cannot release a
+  // quarantine the live ledger still holds. AuthContext re-enters
+  // INITIAL_SESSION only after this fence opens.
   const quarantine = parseAuthCallbackQuarantine(raw);
-  setCallbackQuarantinePresence(raw !== null);
+  setCallbackQuarantinePresence(raw !== null || liveMarkerPresent(AUTH_CALLBACK_QUARANTINE_KEY));
   return quarantine;
 }
 
