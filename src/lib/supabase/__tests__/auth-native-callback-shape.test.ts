@@ -9,8 +9,15 @@ import { resolve } from "node:path";
 import { runInNewContext } from "node:vm";
 
 import { __setSupabaseClientForTests } from "../client";
-import { consumeAuthCallbackUrl } from "../auth";
-import { __resetAuthStorageRuntimeForTests } from "../../auth/session-mutation";
+import {
+  authCallbackType,
+  consumeAuthCallbackUrl,
+  isPasswordRecoveryCallbackUrl,
+} from "../auth";
+import {
+  __resetAuthStorageRuntimeForTests,
+  getAuthStorageRuntime,
+} from "../../auth/session-mutation";
 import {
   AUTH_CALLBACK_QUARANTINE_KEY,
   RECOVERY_PENDING_KEY,
@@ -219,6 +226,142 @@ describe("anything else is refused before the quarantine write or the exchange",
 
     expect(exchangeCodeForSession).not.toHaveBeenCalled();
     expect(values.has(RECOVERY_PENDING_KEY)).toBe(false);
+  });
+});
+
+// AA-1826-2 follow-up (gate A, 2026-09-19): the shape check caps the code
+// at 2048 characters, but it ran after split, URLSearchParams and new URL had
+// already copied the whole URL, so the cap did not bound the parsing work.
+describe("an overlong native callback is refused on its length alone", () => {
+  // The longest URL public/auth-bridge.html forwards: the reset destination
+  // with a 2048-character code. Nothing longer can pass the shape check.
+  const LONGEST_BRIDGE_URL = `secondbrain:///reset-password?code=${"a".repeat(2048)}`;
+
+  // Stands in for the URL string and records every property read except
+  // `length`. split, the shape regex, new URL and URLSearchParams all read
+  // something else first, so an empty record means only the length was read.
+  function tripwireUrl(length: number): { url: string; reads: string[] } {
+    const reads: string[] = [];
+    const url = new Proxy(
+      {},
+      {
+        get(_target, property) {
+          if (property === "length") return length;
+          reads.push(String(property));
+          throw new Error("the callback URL was parsed before its length was checked");
+        },
+      },
+    ) as unknown as string;
+    return { url, reads };
+  }
+
+  function spyOnMarkerStore(): jest.SpyInstance[] {
+    const storage = (globalThis as unknown as { localStorage: Storage }).localStorage;
+    return [
+      jest.spyOn(storage, "getItem"),
+      jest.spyOn(storage, "setItem"),
+      jest.spyOn(storage, "removeItem"),
+    ];
+  }
+
+  test("the longest URL the bridge forwards still reaches the exchange", async () => {
+    const values = installNativeMarkerStore();
+    const pending = withPending(values);
+    const exchangeCodeForSession = jest.fn().mockResolvedValue({
+      data: { session: null, user: null },
+      error: null,
+    });
+    installClient({ exchangeCodeForSession });
+
+    expect(isPasswordRecoveryCallbackUrl(LONGEST_BRIDGE_URL)).toBe(true);
+    // The mock issues no recovery session, so this fails after the exchange.
+    await consumeAuthCallbackUrl(LONGEST_BRIDGE_URL, pending).catch(() => undefined);
+
+    expect(exchangeCodeForSession).toHaveBeenCalledWith("a".repeat(2048));
+  });
+
+  test("one character more is refused before any parser, the auth transaction or storage", async () => {
+    const values = installNativeMarkerStore();
+    const storageCalls = spyOnMarkerStore();
+    const runMutation = jest.spyOn(getAuthStorageRuntime(), "runMutation");
+    const exchangeCodeForSession = jest.fn();
+    installClient({ exchangeCodeForSession });
+    const { url, reads } = tripwireUrl(LONGEST_BRIDGE_URL.length + 1);
+
+    await expect(consumeAuthCallbackUrl(url)).rejects.toThrow(new Error(GENERIC));
+
+    expect(reads).toEqual([]);
+    expect(runMutation).not.toHaveBeenCalled();
+    expect(exchangeCodeForSession).not.toHaveBeenCalled();
+    for (const call of storageCalls) expect(call).not.toHaveBeenCalled();
+    expect(values.size).toBe(0);
+  });
+
+  test("a real overlong string takes the same early exit", async () => {
+    const values = installNativeMarkerStore();
+    const storageCalls = spyOnMarkerStore();
+    const runMutation = jest.spyOn(getAuthStorageRuntime(), "runMutation");
+    const exchangeCodeForSession = jest.fn();
+    installClient({ exchangeCodeForSession });
+    // The root destination, so no recovery intent short-circuits it first.
+    const root = "secondbrain:///?code=";
+    const overlong = `${root}${"a".repeat(LONGEST_BRIDGE_URL.length + 1 - root.length)}`;
+    expect(overlong.length).toBe(LONGEST_BRIDGE_URL.length + 1);
+
+    await expect(consumeAuthCallbackUrl(overlong)).rejects.toThrow(new Error(GENERIC));
+
+    expect(runMutation).not.toHaveBeenCalled();
+    expect(exchangeCodeForSession).not.toHaveBeenCalled();
+    for (const call of storageCalls) expect(call).not.toHaveBeenCalled();
+    expect(values.size).toBe(0);
+  });
+
+  test("an owned recovery marker is still released, without parsing or exchanging", async () => {
+    const values = installNativeMarkerStore();
+    const pending = withPending(values);
+    const exchangeCodeForSession = jest.fn();
+    installClient({ exchangeCodeForSession });
+    const { url, reads } = tripwireUrl(LONGEST_BRIDGE_URL.length + 1);
+
+    await expect(consumeAuthCallbackUrl(url, pending)).rejects.toThrow(new Error(GENERIC));
+
+    expect(reads).toEqual([]);
+    expect(exchangeCodeForSession).not.toHaveBeenCalled();
+    expect(values.has(AUTH_CALLBACK_QUARANTINE_KEY)).toBe(false);
+    // A refused link releases only this operation's marker, as above; a marker
+    // left behind would lock the next boot into recovery.
+    expect(values.has(RECOVERY_PENDING_KEY)).toBe(false);
+  });
+
+  test("the reset screen's link checks read only the length", () => {
+    installNativeMarkerStore();
+    const recovery = tripwireUrl(LONGEST_BRIDGE_URL.length + 1);
+    const typed = tripwireUrl(LONGEST_BRIDGE_URL.length + 1);
+
+    expect(isPasswordRecoveryCallbackUrl(recovery.url)).toBe(false);
+    expect(authCallbackType(typed.url)).toBeNull();
+
+    expect(recovery.reads).toEqual([]);
+    expect(typed.reads).toEqual([]);
+  });
+
+  test("so the reset screen never claims an overlong link and never writes a marker for it", () => {
+    installNativeMarkerStore();
+
+    expect(isPasswordRecoveryCallbackUrl(`${LONGEST_BRIDGE_URL}a`)).toBe(false);
+  });
+
+  test("web keeps parsing its own address as before", () => {
+    // The browser bounds its own address, and this cap is the bridge's native
+    // shape. The web callback path is unchanged.
+    Object.defineProperty(globalThis, "window", { configurable: true, value: {} });
+    Object.defineProperty(globalThis, "document", { configurable: true, value: {} });
+
+    expect(
+      authCallbackType(
+        `https://simon-yhkim.github.io/2nd-B/?type=recovery&code=${"a".repeat(4096)}`,
+      ),
+    ).toBe("recovery");
   });
 });
 
