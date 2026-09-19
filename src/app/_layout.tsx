@@ -26,7 +26,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { AppState } from "react-native";
+import { AppState, Platform } from "react-native";
 
 // Web-only base reset (no-op on native). See global.css for why it exists.
 import "../../global.css";
@@ -65,11 +65,25 @@ import { SITE_TITLE } from "@/lib/site-meta";
 // Rendered in both root-gate branches so the served page's first <title> is
 // never empty. Hoisted to module scope because it is constant: re-creating the
 // element per render would make helmet re-emit on every root re-render.
-const SITE_HEAD = (
-  <Helmet>
-    <title>{SITE_TITLE}</title>
-  </Helmet>
-);
+//
+// Web only. <Helmet> needs a HelmetProvider above it and nothing mounts one on
+// Android or iOS (src has none), so rendering it there threw "Cannot read
+// property 'add' of undefined" inside HelmetDispatcher during RootLayout's first
+// render, and the app opened straight onto the error screen (main diagnostic
+// APKs dbe4c1ab 4/4 boots and 18ef7f43 1/1; 7a14f812, before PR 1742, 0/1;
+// DECISIONS.md 26.09.14 09:11). On native this is null, so neither branch
+// renders anything extra. The import above is not the problem: the stack shows
+// RootLayout rendering, so this module had already evaluated.
+//
+// The guard is Platform.OS, not `typeof document`: the static export renders
+// this module in Node, where there is no document, and that render is the one
+// whose title ships. site-head-web-only.test.ts holds both.
+const SITE_HEAD =
+  Platform.OS === "web" ? (
+    <Helmet>
+      <title>{SITE_TITLE}</title>
+    </Helmet>
+  ) : null;
 import {
   accountEpochFromSnapshot,
   accountTransitionPendingFromSnapshot,

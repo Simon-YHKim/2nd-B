@@ -1,0 +1,180 @@
+{
+  "status": "draft-not-submitted",
+  "locales": {
+    "ko": {
+      "appName": "2nd-Brain",
+      "playShort": "경험과 메모를 모아 나를 돌아보고, 세컨비와 기록을 바탕으로 이야기해요.",
+      "appStoreSubtitle": "기록으로 알아가는 나",
+      "promotionalText": "지난 경험과 지금의 생각을 남겨 보세요. 자료를 모아 두고, 필요한 내용은 위키로 정리해요. 기록에 관한 질문은 세컨비에게 물어보세요.",
+      "description": "내가 어떤 선택을 했고, 무엇을 중요하게 여기는지 궁금할 때 기록부터 돌아보세요. 2nd-Brain은 경험과 메모, 저장한 자료를 모아 나를 알아가는 앱이에요.\n\n내 이야기를 정리해요\n지난 경험과 지금의 생각을 시기와 주제별로 남겨 보세요. 링크와 메모를 모아 두고, 필요한 내용은 위키로 정리해요.\n\n기록을 바탕으로 이야기해요\n내 기록에 관해 궁금한 점은 AI 세컨비에게 물어보세요. 답변에서 확인하고 싶은 내용은 원래 기록과 함께 살펴보세요.\n\n질문과 답변을 함께 남겨요\n남기고 싶은 답변을 고르면, 앞서 한 질문과 그 답변을 함께 저장할 수 있어요.\n\nAI 답변에는 틀린 내용이 있을 수 있어요. 중요한 내용은 원본과 비교해 확인해 주세요. AI 기능의 이용 범위는 요금제와 동의 설정에 따라 달라질 수 있어요.",
+      "keywords": "메모정리,기록관리,자료모음,글보관,위키노트,일상기록",
+      "releaseNotes": "앱 안내 문구를 다듬었어요. 버튼에서 할 수 있는 일과 기록을 확인하는 방법을 더 쉽게 설명해요.",
+      "screenshotCaptions": [
+        {
+          "route": "/",
+          "text": "지난 경험과 지금 이야기를 정리해요"
+        },
+        {
+          "route": "/secondb",
+          "text": "내 기록을 바탕으로 세컨비와 이야기해요"
+        },
+        {
+          "route": "/wiki",
+          "text": "위키로 정리한 내용을 다시 살펴봐요"
+        },
+        {
+          "route": "/capture",
+          "text": "경험과 메모, 링크를 남겨요"
+        },
+        {
+          "route": "/inbox",
+          "text": "새로 모은 자료를 확인해요"
+        },
+        {
+          "route": "/secondb",
+          "text": "남길 답변을 고르면 질문과 함께 저장해요"
+        }
+      ]
+    },
+    "en": {
+      "appName": "2nd-Brain",
+      "playShort": "Collect your experiences and notes. Ask SecondB about your records.",
+      "appStoreSubtitle": "Self-understanding from notes",
+      "promotionalText": "Look back at your experiences and decisions. Organize saved material into wiki pages, and ask SecondB about your records.",
+      "description": "Look back at your experiences and decisions. 2nd-Brain brings your notes and saved material together to help you understand yourself through your own records.\n\nKeep your experiences together\nWrite about different periods and parts of your life. Save notes and links, then choose material to organize into wiki pages.\n\nTalk with SecondB\nAsk SecondB, the AI in the app, questions about your records. Read the answer alongside the original material when you want to check a detail.\n\nKeep a question and reply\nChoose a reply to save it together with your question.\n\nAI answers can be wrong. Check important details against the original material. Access to AI features can depend on your plan and consent settings.",
+      "keywords": "notes,journal,wiki,links,writing,archive,reflection",
+      "releaseNotes": "Updated app wording to make actions and record information easier to understand.",
+      "screenshotCaptions": [
+        {
+          "route": "/",
+          "text": "Keep your experiences together"
+        },
+        {
+          "route": "/secondb",
+          "text": "Talk with SecondB about your records"
+        },
+        {
+          "route": "/wiki",
+          "text": "Revisit the pages in your wiki"
+        },
+        {
+          "route": "/capture",
+          "text": "Save an experience, note or link"
+        },
+        {
+          "route": "/inbox",
+          "text": "Review the material you have collected"
+        },
+        {
+          "route": "/secondb",
+          "text": "Save a reply together with your question"
+        }
+      ]
+    },
+    "es": {
+      "appName": "2nd-Brain",
+      "playShort": "Guarda notas y experiencias. Pregunta a SecondB sobre tus registros.",
+      "appStoreSubtitle": "Conócete a través de tus notas",
+      "promotionalText": "Revisa tus experiencias y decisiones. Guarda notas y enlaces, organiza lo que necesites en una wiki y consulta tus registros con SecondB.",
+      "description": "Vuelve a tus experiencias y decisiones para entender qué es importante para ti. 2nd-Brain reúne tus notas y materiales guardados para que puedas conocerte a partir de tus propios registros.\n\nOrganiza tus experiencias\nEscribe sobre distintas etapas y temas de tu vida. Guarda notas y enlaces, y elige qué materiales quieres organizar en páginas de tu wiki.\n\nHabla con SecondB\nHaz preguntas sobre tus registros a SecondB, la IA de la app. Si quieres comprobar un detalle, revisa la respuesta junto con el material original.\n\nGuarda una pregunta y su respuesta\nElige una respuesta para guardarla junto con la pregunta que hiciste.\n\nLas respuestas de la IA pueden contener errores. Comprueba los datos importantes en el material original. El acceso a las funciones de IA puede depender de tu plan y de los permisos que hayas dado. Algunas funciones y avisos siguen en inglés.",
+      "keywords": "notas,diario,reflexión,wiki,enlaces,experiencias,autoconocimiento",
+      "releaseNotes": "Revisamos los textos de la app para explicar mejor qué hace cada acción y cómo consultar tus registros.",
+      "screenshotCaptions": [
+        {
+          "route": "/",
+          "text": "Reúne tus experiencias en un solo lugar"
+        },
+        {
+          "route": "/secondb",
+          "text": "Habla con SecondB sobre tus registros"
+        },
+        {
+          "route": "/wiki",
+          "text": "Vuelve a las páginas de tu wiki"
+        },
+        {
+          "route": "/capture",
+          "text": "Guarda una experiencia, nota o enlace"
+        },
+        {
+          "route": "/inbox",
+          "text": "Revisa los materiales que has guardado"
+        },
+        {
+          "route": "/secondb",
+          "text": "Guarda una respuesta junto con tu pregunta"
+        }
+      ]
+    },
+    "pt": {
+      "appName": "2nd-Brain",
+      "playShort": "Guarde experiências e notas. Pergunte ao SecondB sobre seus registros.",
+      "appStoreSubtitle": "Conheça-se pelas suas notas",
+      "promotionalText": "Releia suas experiências e decisões. Guarde notas e links, escolha o que organizar na wiki e pergunte ao SecondB sobre seus registros.",
+      "description": "Releia suas experiências e decisões para entender o que importa para você. O 2nd-Brain reúne suas notas e os materiais que você salva para ajudar a se conhecer pelos próprios registros.\n\nOrganize suas experiências\nEscreva sobre diferentes épocas e assuntos da sua vida. Salve notas e links e escolha quais materiais quer organizar em páginas da wiki.\n\nConverse com o SecondB\nFaça perguntas sobre seus registros ao SecondB, a IA do app. Para conferir um detalhe, leia a resposta junto com o material original.\n\nGuarde uma pergunta e sua resposta\nEscolha uma resposta para salvá-la junto com a pergunta que você fez.\n\nAs respostas da IA podem conter erros. Confira as informações importantes no material original. O acesso às funções de IA pode depender do seu plano e das permissões que você deu. Algumas funções e avisos ainda estão em inglês.",
+      "keywords": "notas,diário,reflexão,wiki,links,experiências,autoconhecimento",
+      "releaseNotes": "Revisamos os textos do app para explicar melhor o que cada ação faz e como consultar seus registros.",
+      "screenshotCaptions": [
+        {
+          "route": "/",
+          "text": "Reúna suas experiências em um só lugar"
+        },
+        {
+          "route": "/secondb",
+          "text": "Converse com o SecondB sobre seus registros"
+        },
+        {
+          "route": "/wiki",
+          "text": "Releia as páginas da sua wiki"
+        },
+        {
+          "route": "/capture",
+          "text": "Salve uma experiência, nota ou link"
+        },
+        {
+          "route": "/inbox",
+          "text": "Confira os materiais que você salvou"
+        },
+        {
+          "route": "/secondb",
+          "text": "Salve uma resposta junto com sua pergunta"
+        }
+      ]
+    },
+    "id": {
+      "appName": "2nd-Brain",
+      "playShort": "Kumpulkan pengalaman dan catatan. Tanyakan isi catatanmu kepada SecondB.",
+      "appStoreSubtitle": "Kenali diri lewat catatan",
+      "promotionalText": "Lihat kembali pengalaman dan keputusanmu. Simpan catatan dan tautan, pilih bahan untuk disusun menjadi halaman wiki, lalu tanyakan isinya kepada SecondB.",
+      "description": "Lihat kembali pengalaman dan keputusanmu untuk memahami apa yang penting bagimu. 2nd-Brain mengumpulkan catatan dan bahan yang kamu simpan agar kamu bisa mengenali diri lewat catatanmu sendiri.\n\nSusun pengalamanmu\nTulis tentang berbagai masa dan bagian dari hidupmu. Simpan catatan dan tautan, lalu pilih bahan yang ingin kamu susun menjadi halaman wiki.\n\nBicara dengan SecondB\nTanyakan isi catatanmu kepada SecondB, AI di aplikasi ini. Jika ingin memeriksa suatu hal, bandingkan jawabannya dengan bahan asli.\n\nSimpan pertanyaan dan jawabannya\nPilih jawaban untuk menyimpannya bersama pertanyaan yang kamu ajukan.\n\nJawaban AI bisa keliru. Periksa informasi penting dengan membandingkannya dengan bahan asli. Akses ke fitur AI dapat bergantung pada paket dan persetujuan yang kamu berikan. Beberapa fitur dan pemberitahuan masih dalam bahasa Inggris.",
+      "keywords": "catatan,jurnal,wiki,tautan,pengalaman,refleksi",
+      "releaseNotes": "Teks aplikasi diperbarui agar fungsi tombol dan cara melihat catatan lebih mudah dipahami.",
+      "screenshotCaptions": [
+        {
+          "route": "/",
+          "text": "Kumpulkan pengalamanmu di satu tempat"
+        },
+        {
+          "route": "/secondb",
+          "text": "Bicara dengan SecondB tentang catatanmu"
+        },
+        {
+          "route": "/wiki",
+          "text": "Baca kembali halaman wikimu"
+        },
+        {
+          "route": "/capture",
+          "text": "Simpan pengalaman, catatan, atau tautan"
+        },
+        {
+          "route": "/inbox",
+          "text": "Periksa bahan yang sudah kamu simpan"
+        },
+        {
+          "route": "/secondb",
+          "text": "Simpan jawaban bersama pertanyaanmu"
+        }
+      ]
+    }
+  }
+}
