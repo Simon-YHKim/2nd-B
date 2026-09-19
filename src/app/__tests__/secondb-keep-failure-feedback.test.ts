@@ -574,15 +574,22 @@ describe("실패 안내가 화면에 붙어 있고 문구가 정직하다", () =
   });
 });
 
-describe("철회한 저장을 아직 삭제하지 못했다는 안내 (게이트 r260919 DA-1814-2)", () => {
+describe("철회한 저장을 아직 삭제하지 못했다는 안내 (게이트 r260919 DA-1814-2 · 재게이트 GA-1814-2 · GZ-1814-5)", () => {
   // 되돌리기가 원격 삭제에도 기기 기록에도 실패했을 때만 뜬다. 그때 사용자에게 남은 사실은 셋이다: ① 아직 삭제되지
-  // 않았다 ② 앱으로 돌아오면(대화 화면이 떠 있는 동안 앱이 앞으로 오면 · 대화 화면을 다시 열면) 다시 지워 본다 ③ 행이
-  // 남아 있으면 기록 보관소(/records)에서 그 기록을 열어 직접 지울 수 있다. 담기 실패 안내를 빌려 쓰지 않는다 - 그
-  // 뒷절 "다시 담아 주세요" 는 지우길 원한 사용자에게 반대로 말한다.
+  // 않았다 ② 앱이 켜져 있는 동안 대화 화면으로 돌아오면(대화 화면을 다시 열면 · 대화 화면이 떠 있는 동안 앱이 앞으로 오면)
+  // 다시 지워 본다 ③ 행이 남아 있으면 위키(/records)에서 그 기록을 열어 직접 지울 수 있다. 담기 실패 안내를 빌려 쓰지 않는다 -
+  // 그 뒷절 "다시 담아 주세요" 는 지우길 원한 사용자에게 반대로 말한다.
+  //
+  // 재게이트가 ②를 바로잡았다: 다시 지울 단서는 이 런타임의 메모리에만 있고(기기에 못 적었으니 이 안내가 뜬다) 비우기는 대화
+  // 화면이 부른다. 전에는 "앱으로 돌아오면" 이라고만 해서 앱을 다시 시작해도, 다른 화면으로 돌아와도 되는 것처럼 읽혔다.
+  // ③의 화면 이름도 바로잡았다: 배송 화면의 제목과 독 탭은 records.wikiTitle(위키)이고, 예전에 부르던 records.title(기록
+  // 보관소)은 배송 코드 어디에도 그려지지 않는다.
   const text = (code: string): string => localeJson(code).chatSaveNotDeleted as string;
-  const recordsTitle = (code: string): string =>
-    (JSON.parse(readFileSync(resolve(__dirname, "../../../locales", code, "deepspace.json"), "utf8")) as { records: { title: string } })
-      .records.title;
+  const deepspaceJson = (code: string): { records: { title: string; wikiTitle: string } } =>
+    JSON.parse(readFileSync(resolve(__dirname, "../../../locales", code, "deepspace.json"), "utf8")) as {
+      records: { title: string; wikiTitle: string };
+    };
+  const recordsTitle = (code: string): string => deepspaceJson(code).records.wikiTitle;
 
   test("담기 칩 옆 같은 자리에 그린다 - 어느 문구인지는 알림이 정한다", () => {
     const render = SOURCE.slice(SOURCE.indexOf("isKeepable(turn) ?"));
@@ -602,6 +609,31 @@ describe("철회한 저장을 아직 삭제하지 못했다는 안내 (게이트
     expect(text("ko")).toMatch(/아직 삭제하지 못했어요/);
     expect(text("ko")).toMatch(/다시 삭제해 볼게요/);
     expect(text("ko")).not.toMatch(/담아|삭제했어요|삭제됐어요/);
+  });
+
+  test("부르는 화면 이름은 배송 화면이 실제로 그리는 제목이다 - 그려지지 않는 옛 이름(기록 보관소)을 부르지 않는다", () => {
+    const screen = readFileSync(resolve(__dirname, "../../screens/deepspace/dds-wiki-records-screens.tsx"), "utf8");
+    expect(screen).toContain('t("records.wikiTitle")');
+    for (const code of LOCALES) {
+      const { title, wikiTitle } = deepspaceJson(code).records;
+      if (title !== wikiTitle) expect(text(code)).not.toContain(title);
+    }
+  });
+
+  test("다시 지워 보는 조건을 실제대로 말한다: 앱이 켜져 있는 동안, 대화 화면으로 돌아올 때 (재게이트 GA-1814-2 · GZ-1814-5)", () => {
+    expect(text("en")).toMatch(/While the app is open/);
+    expect(text("en")).toMatch(/come back to this chat/);
+    expect(text("en")).not.toMatch(/when you return to the app/);
+    expect(text("ko")).toMatch(/앱이 켜져 있는 동안/);
+    expect(text("ko")).toMatch(/대화 화면으로 돌아올 때마다/);
+    expect(text("ko")).not.toMatch(/앱으로 돌아오면/);
+    // 베타 로케일은 옛 약속(앱으로 돌아오면 = 재시작 뒤에도)을 남기지 않는다
+    expect(text("es")).not.toMatch(/cuando vuelvas a la app/);
+    expect(text("pt")).not.toMatch(/quando você voltar ao app/);
+    expect(text("id")).not.toMatch(/saat kamu kembali ke aplikasi/);
+    // 그 조건은 코드와 같다: 비우기는 대화 화면이 부르고(뜰 때 · 앱이 앞으로 올 때), 다시 지울 단서는 이 런타임이 쥔다
+    expect(SOURCE).toContain("void drainAutosaveUndoQueue(ownerId)");
+    expect(SOURCE).toContain('if (state === "active") drain();');
   });
 
   test("한국어는 해요체다", () => {

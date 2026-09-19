@@ -9,6 +9,8 @@
 // 안다" 를 가른다(DA-1814-2). 웹 setItem 이 던질 때와 네이티브 setItem 이 거부할 때를 둘 다 돌린다.
 
 const mockNative = {
+  /** false 면 네이티브 모듈이 없는 빌드처럼 default 가 비어 온다(GZ-1814-1: 영속 저장소 부재). */
+  present: true,
   backing: new Map<string, string>(),
   failWrites: false,
   getItem: jest.fn(async (key: string): Promise<string | null> => mockNative.backing.get(key) ?? null),
@@ -21,9 +23,15 @@ const mockNative = {
     mockNative.backing.delete(key);
   }),
 };
-jest.mock("@react-native-async-storage/async-storage", () => ({ __esModule: true, default: mockNative }));
+jest.mock("@react-native-async-storage/async-storage", () => ({
+  __esModule: true,
+  get default() {
+    return mockNative.present ? mockNative : undefined;
+  },
+}));
 
 import { __resetAccountLocalDeletionFencesForTests } from "../../account/local-deletion-fence";
+import * as queueModule from "../autosave-undo-queue";
 import {
   __resetAutosaveUndoQueueForTests,
   autosaveUndoStorageKey,
@@ -154,5 +162,80 @@ describe("쓰기 실패 계약 (DA-1814-2)", () => {
   test("모양이 틀린 기록을 빼라고 하면 true 다 - 그런 기록은 적힌 적이 없다(적을 때 같은 검사를 지난다)", async () => {
     expect(await rememberAutosaveUndo({ ownerId: OWNER, sourceId: "row-9" })).toBe(false);
     expect(await forgetAutosaveUndo({ ownerId: OWNER, sourceId: "row-9" })).toBe(true);
+  });
+});
+
+describe("영속 저장소가 없거나 막히면 적었다고 답하지 않는다 (게이트 r260919 재게이트 GZ-1814-1)", () => {
+  // 전에는 localStorage 접근자가 던지면(SecurityError) 저장소가 없는 것으로 보고 이 런타임의 메모리에 쓴 뒤 true 로 답했다.
+  // 실행기는 그 true 를 "기기에 남았다" 로 읽고 조용한 undo_pending 으로 끝냈고, 저장소가 돌아오면 디스크만 읽어서 그 기록을
+  // 다시 보지 못했다. 메모리에 쓴 것은 앱을 다시 시작하면 사라진다 - 적었다는 답이 아니다.
+  type Lookup = (record: AutosaveUndoRecord) => Promise<boolean | null>;
+  const isRecorded: Lookup = (value) => {
+    const lookup = (queueModule as { isAutosaveUndoRecorded?: Lookup }).isAutosaveUndoRecorded;
+    return lookup ? lookup(value) : Promise.reject(new Error("isAutosaveUndoRecorded 가 없다"));
+  };
+
+  function denyWebStorage(): () => void {
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      get() {
+        throw new Error("SecurityError");
+      },
+    });
+    return () => {
+      if (descriptor) Object.defineProperty(globalThis, "localStorage", descriptor);
+    };
+  }
+
+  test("웹 접근자가 거부되면 적기도 빼기도 false 다 - 메모리에 썼어도 기기 기록이 아니고, 적혀 있는지는 모름(null)이다", async () => {
+    expect(await rememberAutosaveUndo(record(1))).toBe(true); // 저장소가 될 때 적은 기록
+    const restore = denyWebStorage();
+    try {
+      expect(await rememberAutosaveUndo(record(2))).toBe(false);
+      expect(await forgetAutosaveUndo(record(1))).toBe(false);
+      expect(await isRecorded(record(1))).toBeNull(); // 읽지 못한 것은 없음이 아니다
+    } finally {
+      restore();
+    }
+    // 저장소가 돌아오면: 막힌 동안의 적기는 디스크에 없고, 막힌 동안의 빼기도 디스크에 닿지 않았다
+    expect(JSON.parse(webValues.get(KEY) ?? "null")).toEqual([record(1)]);
+    expect(await isRecorded(record(1))).toBe(true);
+    expect(await isRecorded(record(2))).toBe(false);
+  });
+
+  test("웹도 네이티브도 아니면(영속 저장소 없음) 적었다고 답하지 않는다", async () => {
+    delete (globalThis as { localStorage?: unknown }).localStorage;
+    expect(await rememberAutosaveUndo(record(1))).toBe(false);
+    expect(await forgetAutosaveUndo(record(1))).toBe(false);
+    expect(await isRecorded(record(1))).toBeNull();
+  });
+
+  test("네이티브 모듈이 없는 빌드면 적었다고 답하지 않는다 - 모듈이 있으면 적는다", async () => {
+    const navigatorDescriptor = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+    delete (globalThis as { localStorage?: unknown }).localStorage;
+    Object.defineProperty(globalThis, "navigator", { configurable: true, value: { product: "ReactNative" } });
+    mockNative.backing.clear();
+    mockNative.present = false;
+    try {
+      expect(await rememberAutosaveUndo(record(1))).toBe(false);
+      expect(await isRecorded(record(1))).toBeNull();
+      mockNative.present = true;
+      expect(await rememberAutosaveUndo(record(1))).toBe(true);
+      expect(await isRecorded(record(1))).toBe(true);
+    } finally {
+      mockNative.present = true;
+      if (navigatorDescriptor) Object.defineProperty(globalThis, "navigator", navigatorDescriptor);
+      else delete (globalThis as { navigator?: unknown }).navigator;
+    }
+  });
+
+  test("적혀 있는지 묻기: 적힌 것은 true, 읽었는데 없으면 false, 깨진 값은 비우기와 같이 빈 목록으로 본다(false)", async () => {
+    expect(await isRecorded(record(1))).toBe(false);
+    expect(await rememberAutosaveUndo(record(1))).toBe(true);
+    expect(await isRecorded(record(1))).toBe(true);
+    expect(await isRecorded(record(2))).toBe(false);
+    webValues.set(KEY, "not json");
+    expect(await isRecorded(record(1))).toBe(false);
   });
 });

@@ -300,8 +300,12 @@ import {
   type AutosavePhase,
   type AutosaveTerminalPhase,
 } from "../autosave-runner";
+import * as runnerModule from "../autosave-runner";
 import { __resetAutosaveUndoQueueForTests, autosaveUndoStorageKey } from "../autosave-undo-queue";
 import { CHAT_KEEP_TAG, composeExchangeBody, exchangeMarkdown, type KeepableTurn } from "../keep-exchange";
+
+/** 계정 줄의 일 하나가 줄을 쥘 수 있는 시간(실행기의 이름 있는 상수). 없으면 undefined - 그 경우 상한 테스트가 먼저 빨갛다. */
+const LANE_TIMEOUT_MS = (runnerModule as { OWNER_LANE_TASK_TIMEOUT_MS?: number }).OWNER_LANE_TASK_TIMEOUT_MS;
 
 const OWNER = "owner-a";
 const OTHER = "owner-b";
@@ -1284,5 +1288,396 @@ describe("동의 저장소 구독 (subscribeAutosaveConsent)", () => {
     expect(calls).toBe(1);
     stopBroken();
     stop();
+  });
+});
+
+describe("재게이트 잔여 (게이트 r260919 재게이트 GA-1814-1~3 · GZ-1814-1~5)", () => {
+  // 재게이트 두 레인이 남긴 재현 순서를 그대로 옮긴다. 기대값은 "담김이라고 말한 것은 남는다 · 철회한 것은 지워진다 ·
+  // 기기에 남았다고 말한 것은 정말 남아 있다 · 멈춘 일 하나가 같은 계정의 다른 일을 영영 붙잡지 않는다" 다.
+  const spin = async (): Promise<void> => {
+    for (let turn = 0; turn < 20; turn += 1) await new Promise<void>((done) => setImmediate(done));
+  };
+  const exchange = (n: number): string =>
+    exchangeMarkdown(`question ${n}`, composeExchangeBody({ prompt: `question ${n}`, reply: `answer ${n}`, speaker: "SecondB" }, "en"));
+  const handKeep = (n: number): ReturnType<typeof runManualKeep> =>
+    runManualKeep(OWNER, () =>
+      captureFromMarkdown({ userId: OWNER, rawMd: exchange(n), kindOverride: "self_knowledge", userTags: [CHAT_KEEP_TAG] }),
+    );
+  const fakeTimers = (): void => {
+    jest.useFakeTimers({ doNotFake: ["setImmediate", "nextTick", "queueMicrotask"] });
+  };
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  /** 철회된 작업(짝 1)의 되돌리기가 원문 삭제에서 한 번 실패해 대기 기록에 남은 자리(undo_pending). 행과 원문은 서버에 있다. */
+  async function pendingUndo(): Promise<Job> {
+    const { job, release } = await atWait("J4");
+    await savePrivacyPref(OWNER, "chat_autosave", false);
+    mockServer.serverError.set("remove", 1);
+    release();
+    expect(await job.handle.settled).toBe("undo_pending");
+    expect({ row: hasRow(job.handle.sourceId), raw: hasRaw(job.handle.sourceId), queue: queued() }).toEqual({
+      row: true,
+      raw: true,
+      queue: [{ ownerId: OWNER, sourceId: job.handle.sourceId }],
+    });
+    return job;
+  }
+
+  describe("GA-1814-1 · GZ-1814-3: 자동 저장이 대기 삭제 중인 행을 정확 중복으로 돌려받을 때", () => {
+    test("비우기가 행을 확인하는 동안 같은 짝이 다시 자동 저장되면, 비우기가 다 지운 뒤 새 행으로 담긴다 - 담김 뒤에 지워지지 않는다", async () => {
+      const old = await pendingUndo();
+      await savePrivacyPref(OWNER, "chat_autosave", true); // 다시 켠다 - 새 세대
+      const probe = hold("rowCheck");
+      const draining = drainAutosaveUndoQueue(OWNER);
+      await probe.reached;
+      const repeat = start(1, autosaveConsentFor(OWNER).generation);
+      await spin();
+      probe.release();
+      await draining;
+      const phase = await repeat.handle.settled;
+      expect({
+        phase,
+        oldRow: hasRow(old.handle.sourceId),
+        oldRaw: hasRaw(old.handle.sourceId),
+        row: hasRow(repeat.handle.sourceId),
+        raw: hasRaw(repeat.handle.sourceId),
+        queue: queued(),
+      }).toEqual({ phase: "kept", oldRow: false, oldRaw: false, row: true, raw: true, queue: [] });
+    });
+
+    test("대기 기록에 남은 행과 같은 짝이 다시 자동 저장되면, 그 행을 먼저 지우고(옛 철회를 무르지 않는다) 새 행으로 담는다", async () => {
+      const old = await pendingUndo();
+      await savePrivacyPref(OWNER, "chat_autosave", true);
+      const repeat = start(1, autosaveConsentFor(OWNER).generation);
+      const phase = await repeat.handle.settled;
+      expect({
+        phase,
+        oldRow: hasRow(old.handle.sourceId),
+        oldRaw: hasRaw(old.handle.sourceId),
+        row: hasRow(repeat.handle.sourceId),
+        raw: hasRaw(repeat.handle.sourceId),
+        queue: queued(),
+      }).toEqual({ phase: "kept", oldRow: false, oldRaw: false, row: true, raw: true, queue: [] });
+    });
+
+    test("철회로 끊겼는데 아직 되돌리기 전인 작업의 행과 같은 짝이 자동 저장되어도, 그 행이 담김 뒤에 지워지지 않는다", async () => {
+      mockServer.loseResponse.set("insert", 1);
+      const generation = await consentOn();
+      const probe = hold("rowCheck");
+      const doomed = start(1, generation);
+      await probe.reached; // INSERT 는 커밋됐고 응답만 잃어 복구 조회 중이다
+      await savePrivacyPref(OWNER, "chat_autosave", false); // 철회 - 작업이 끊긴다. 되돌리기는 조회가 돌아온 뒤다
+      await savePrivacyPref(OWNER, "chat_autosave", true);
+      const repeat = start(1, autosaveConsentFor(OWNER).generation);
+      const phase = await repeat.handle.settled;
+      probe.release();
+      const doomedPhase = await doomed.handle.settled;
+      expect({
+        phase,
+        doomedPhase,
+        doomedRow: hasRow(doomed.handle.sourceId),
+        row: hasRow(repeat.handle.sourceId),
+        raw: hasRaw(repeat.handle.sourceId),
+        queue: queued(),
+      }).toEqual({ phase: "kept", doomedPhase: "cancelled", doomedRow: false, row: true, raw: true, queue: [] });
+    });
+  });
+
+  describe("GZ-1814-2: 부분 삭제 뒤 손 담기", () => {
+    test("비우기가 원문만 지우고 행 삭제에서 멈춘 뒤 같은 짝을 손으로 담으면, 본문을 되살린 뒤에만 담김이다", async () => {
+      const old = await pendingUndo();
+      const body = mockServer.objects.get(rawPath(old.handle.sourceId));
+      expect(typeof body).toBe("string");
+      const probe = hold("rowCheck");
+      const draining = drainAutosaveUndoQueue(OWNER);
+      await probe.reached;
+      const keeping = handKeep(1);
+      mockServer.serverError.set("rowDelete", 1);
+      probe.release();
+      await draining;
+      const kept = await keeping;
+      expect({
+        deduped: kept.deduped,
+        id: kept.source.id,
+        row: hasRow(old.handle.sourceId),
+        body: mockServer.objects.get(rawPath(old.handle.sourceId)),
+        queue: queued(),
+      }).toEqual({ deduped: "exact_duplicate", id: old.handle.sourceId, row: true, body, queue: [] });
+      await drainAutosaveUndoQueue(OWNER); // 다음 비우기도 손으로 남긴 행을 지우지 않는다
+      expect({ row: hasRow(old.handle.sourceId), raw: hasRaw(old.handle.sourceId) }).toEqual({ row: true, raw: true });
+    });
+
+    test("본문을 되살리지 못하면 담김이 아니다(던진다) - 대기 기록은 남고 다음 비우기가 마저 지운다", async () => {
+      const old = await pendingUndo();
+      const probe = hold("rowCheck");
+      const draining = drainAutosaveUndoQueue(OWNER);
+      await probe.reached;
+      const outcome = handKeep(1).then(
+        () => "kept",
+        (error: Error) => error.message,
+      );
+      mockServer.serverError.set("rowDelete", 1);
+      mockServer.serverError.set("upload", 1); // 되살리는 업로드가 실패한다
+      probe.release();
+      await draining;
+      expect(await outcome).toBe("autosave-body-not-restored");
+      expect({ row: hasRow(old.handle.sourceId), raw: hasRaw(old.handle.sourceId), queue: queued() }).toEqual({
+        row: true,
+        raw: false,
+        queue: [{ ownerId: OWNER, sourceId: old.handle.sourceId }],
+      });
+      await drainAutosaveUndoQueue(OWNER);
+      expect({ row: hasRow(old.handle.sourceId), raw: hasRaw(old.handle.sourceId), queue: queued() }).toEqual({
+        row: false,
+        raw: false,
+        queue: [],
+      });
+    });
+  });
+
+  describe("GZ-1814-1: 저장소 접근자가 거부될 때", () => {
+    test("메모리에만 쓴 것을 기기 기록으로 치지 않는다 - undo_unrecorded 로 알리고, 저장소가 돌아오면 비우기가 기록부터 남기고 지운다", async () => {
+      const { job, release } = await atWait("J4");
+      await savePrivacyPref(OWNER, "chat_autosave", false);
+      const descriptor = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+      Object.defineProperty(globalThis, "localStorage", {
+        configurable: true,
+        get() {
+          throw new Error("SecurityError");
+        },
+      });
+      mockServer.serverError.set("remove", 1);
+      let phase: AutosaveTerminalPhase;
+      try {
+        release();
+        phase = await job.handle.settled;
+      } finally {
+        if (descriptor) Object.defineProperty(globalThis, "localStorage", descriptor);
+      }
+      expect({ phase, queue: queued() }).toEqual({ phase: "undo_unrecorded", queue: [] });
+      await drainAutosaveUndoQueue(OWNER);
+      expect({
+        row: hasRow(job.handle.sourceId),
+        raw: hasRaw(job.handle.sourceId),
+        queue: queued(),
+        last: job.phases[job.phases.length - 1],
+      }).toEqual({ row: false, raw: false, queue: [], last: "cancelled" });
+    });
+  });
+
+  describe("GZ-1814-4: 줄에서 기다리는 손 담기와 계정 전환", () => {
+    test("줄에서 기다리는 사이 A -> B -> A 로 돌아와도, 누른 순간의 계정 임대가 아니면 capture 를 보내지 않는다", async () => {
+      await pendingUndo();
+      const probe = hold("rowCheck");
+      const draining = drainAutosaveUndoQueue(OWNER);
+      await probe.reached;
+      let captures = 0;
+      const outcome = runManualKeep(OWNER, () => {
+        captures += 1;
+        return captureFromMarkdown({ userId: OWNER, rawMd: exchange(2) });
+      }).then(
+        () => "kept",
+        (error: Error) => error.message,
+      );
+      switchAccount(OTHER);
+      switchAccount(OWNER);
+      probe.release();
+      await draining;
+      expect({ outcome: await outcome, captures }).toEqual({ outcome: "autosave-owner-not-current", captures: 0 });
+    });
+  });
+
+  describe("GA-1814-3: 계정 줄의 시간 상한", () => {
+    test("줄의 일 하나가 끝나지 않아도 시간 상한이 지나면 같은 계정의 손 담기가 진행한다 - 늦게 돌아온 일은 더 지우지 않는다", async () => {
+      expect(typeof LANE_TIMEOUT_MS).toBe("number");
+      const old = await pendingUndo();
+      fakeTimers();
+      const probe = hold("rowCheck"); // 끝나지 않는 행 확인
+      const draining = drainAutosaveUndoQueue(OWNER);
+      await probe.reached;
+      const before = count("candidates");
+      const keeping = handKeep(2); // 다른 대화
+      await spin();
+      expect(count("candidates")).toBe(before); // 줄에서 기다린다
+      jest.advanceTimersByTime(LANE_TIMEOUT_MS ?? 0);
+      const kept = await keeping;
+      await draining;
+      expect({ deduped: kept.deduped, row: hasRow(String(kept.source.id)), queue: queued() }).toEqual({
+        deduped: null,
+        row: true,
+        queue: [{ ownerId: OWNER, sourceId: old.handle.sourceId }],
+      });
+      const sent = { rowLookup: count("rowLookup"), remove: count("remove"), rowDelete: count("rowDelete") };
+      probe.release(); // 늦게 돌아온 행 확인은 지우기를 이어 가지 않는다
+      await spin();
+      expect({ rowLookup: count("rowLookup"), remove: count("remove"), rowDelete: count("rowDelete") }).toEqual(sent);
+      expect({ row: hasRow(old.handle.sourceId), raw: hasRaw(old.handle.sourceId) }).toEqual({ row: true, raw: true });
+      jest.useRealTimers();
+      await drainAutosaveUndoQueue(OWNER); // 기록이 남아 있어 다음 비우기가 마저 지운다
+      expect({ row: hasRow(old.handle.sourceId), raw: hasRaw(old.handle.sourceId), queue: queued() }).toEqual({
+        row: false,
+        raw: false,
+        queue: [],
+      });
+    });
+
+    test("시간 상한을 넘긴 지우기가 아직 그 행을 지우는 중이면, 같은 짝을 손으로 담아도 담김이라 말하지 않는다", async () => {
+      expect(typeof LANE_TIMEOUT_MS).toBe("number");
+      const old = await pendingUndo();
+      fakeTimers();
+      const probe = hold("rowCheck");
+      const draining = drainAutosaveUndoQueue(OWNER);
+      await probe.reached;
+      const outcome = handKeep(1).then(
+        () => "kept",
+        (error: Error) => error.message,
+      );
+      await spin();
+      jest.advanceTimersByTime(LANE_TIMEOUT_MS ?? 0);
+      expect(await outcome).toBe("autosave-deletion-in-flight");
+      await draining;
+      probe.release();
+      await spin();
+      jest.useRealTimers();
+      expect(queued()).toEqual([{ ownerId: OWNER, sourceId: old.handle.sourceId }]);
+      await drainAutosaveUndoQueue(OWNER);
+      expect({ row: hasRow(old.handle.sourceId), raw: hasRaw(old.handle.sourceId), queue: queued() }).toEqual({
+        row: false,
+        raw: false,
+        queue: [],
+      });
+    });
+  });
+
+  describe("손 담기 표식의 내구성 (GA-1814-1 최소 패치: keep 표식을 내구성 있게 확정)", () => {
+    test("손으로 남긴 행은, 그 뒤에 끊긴 작업의 되돌리기가 기기에 다시 적지 않는다 - 앱이 그 사이 꺼져도 다음 실행이 지우지 않는다", async () => {
+      mockServer.loseResponse.set("insert", 1);
+      const generation = await consentOn();
+      const probe = hold("rowCheck");
+      const job = start(1, generation);
+      await probe.reached; // 행은 커밋됐고, 작업은 응답을 잃어 복구 조회 중이다(아직 끊기지 않았다)
+      const kept = await handKeep(1); // 같은 짝 - 정확 중복으로 그 행을 돌려받는다(손 담기가 이긴다)
+      expect({ deduped: kept.deduped, id: kept.source.id }).toEqual({ deduped: "exact_duplicate", id: job.handle.sourceId });
+      const store = globalThis.localStorage as unknown as { setItem: (key: string, value: string) => void };
+      const setItem = store.setItem;
+      let writes = 0;
+      store.setItem = (key, value) => {
+        if (key === autosaveUndoStorageKey(OWNER)) writes += 1;
+        setItem(key, value);
+      };
+      try {
+        await savePrivacyPref(OWNER, "chat_autosave", false); // 이제 철회 - 작업이 끊긴다
+        probe.release();
+        const phase = await job.handle.settled;
+        expect({ phase, writes, row: hasRow(job.handle.sourceId), raw: hasRaw(job.handle.sourceId), queue: queued() }).toEqual({
+          phase: "cancelled",
+          writes: 0,
+          row: true,
+          raw: true,
+          queue: [],
+        });
+      } finally {
+        store.setItem = setItem;
+      }
+    });
+  });
+
+  describe("GA-1814-2 · GZ-1814-5: 기기에 못 남긴 되돌리기의 범위 (안내 문구가 약속하는 것)", () => {
+    test("같은 앱 실행 안에서는 다시 지워 보지만, 앱을 다시 시작하면 다시 지울 단서가 없다 - 안내가 '앱이 켜져 있는 동안' 이라고 말하는 이유", async () => {
+      const { job, release } = await atWait("J3"); // 원문만 올라간 자리(행 없음)
+      await savePrivacyPref(OWNER, "chat_autosave", false);
+      const store = globalThis.localStorage as unknown as { setItem: (key: string, value: string) => void };
+      const setItem = store.setItem;
+      store.setItem = () => {
+        throw new Error("QuotaExceededError");
+      };
+      mockServer.serverError.set("remove", 1);
+      try {
+        release();
+        expect(await job.handle.settled).toBe("undo_unrecorded");
+      } finally {
+        store.setItem = setItem;
+      }
+      __resetAutosaveRunnerForTests(); // 앱 재시작: 이 런타임이 쥐던 것은 사라진다
+      const before = mockServer.arrived.length;
+      await drainAutosaveUndoQueue(OWNER);
+      expect({
+        requests: mockServer.arrived.length - before,
+        raw: hasRaw(job.handle.sourceId),
+        row: hasRow(job.handle.sourceId),
+      }).toEqual({ requests: 0, raw: true, row: false });
+    });
+  });
+});
+
+describe("재게이트 잔여 - 경계 두 곳 (작업의 되돌리기 시간 상한 · 대기 기록을 읽지 못할 때)", () => {
+  const spin = async (): Promise<void> => {
+    for (let turn = 0; turn < 20; turn += 1) await new Promise<void>((done) => setImmediate(done));
+  };
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  test("GA-1814-3: 작업의 되돌리기가 줄에서 시간 상한을 넘기면 적어 둔 대로 undo_pending 으로 끝나고, 늦게 끝난 지우기는 기록을 빼지 않으며 다음 비우기가 마저 정리한다", async () => {
+    expect(typeof LANE_TIMEOUT_MS).toBe("number");
+    const { job, release } = await atWait("J4");
+    await savePrivacyPref(OWNER, "chat_autosave", false);
+    jest.useFakeTimers({ doNotFake: ["setImmediate", "nextTick", "queueMicrotask"] });
+    const remove = hold("remove"); // 되돌리기의 원문 삭제가 돌아오지 않는다
+    release();
+    await remove.reached;
+    jest.advanceTimersByTime(LANE_TIMEOUT_MS ?? 0);
+    const record = { ownerId: OWNER, sourceId: job.handle.sourceId };
+    expect({ phase: await job.handle.settled, queue: queued() }).toEqual({ phase: "undo_pending", queue: [record] });
+    remove.release();
+    await spin();
+    // 이미 보낸 삭제는 거둘 수 없다 - deleteCapturedSource 는 안에서 끝까지 간다. 늦게 끝난 일은 신호를 보고 멈춰 기록을 빼지
+    // 않는다(작업은 이미 undo_pending 으로 답했다). 기록이 남아 다음 비우기가 확인하고 뺀다.
+    expect({ row: hasRow(job.handle.sourceId), queue: queued() }).toEqual({ row: false, queue: [record] });
+    jest.useRealTimers();
+    await drainAutosaveUndoQueue(OWNER);
+    expect({ row: hasRow(job.handle.sourceId), raw: hasRaw(job.handle.sourceId), queue: queued() }).toEqual({
+      row: false,
+      raw: false,
+      queue: [],
+    });
+  });
+
+  test("GZ-1814-1 · GZ-1814-3: 기기 대기 기록을 읽지 못하면, 정확 중복으로 돌려받은 행이 지울 차례인지 모르므로 담김으로 치지 않는다(저장 실패)", async () => {
+    const { job: old, release } = await atWait("J4");
+    await savePrivacyPref(OWNER, "chat_autosave", false);
+    mockServer.serverError.set("remove", 1);
+    release();
+    expect(await old.handle.settled).toBe("undo_pending"); // 기기에 적혀 있다
+    await savePrivacyPref(OWNER, "chat_autosave", true);
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      get() {
+        throw new Error("SecurityError");
+      },
+    });
+    let phase: AutosaveTerminalPhase;
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      const repeat = start(1, autosaveConsentFor(OWNER).generation);
+      phase = await repeat.handle.settled;
+    } finally {
+      if (descriptor) Object.defineProperty(globalThis, "localStorage", descriptor);
+      warn.mockRestore();
+    }
+    expect({ phase, oldRow: hasRow(old.handle.sourceId), queue: queued() }).toEqual({
+      phase: "failed",
+      oldRow: true,
+      queue: [{ ownerId: OWNER, sourceId: old.handle.sourceId }],
+    });
+    await drainAutosaveUndoQueue(OWNER); // 저장소가 돌아오면 철회가 마저 지워진다
+    expect({ oldRow: hasRow(old.handle.sourceId), oldRaw: hasRaw(old.handle.sourceId), queue: queued() }).toEqual({
+      oldRow: false,
+      oldRaw: false,
+      queue: [],
+    });
   });
 });

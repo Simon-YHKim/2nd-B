@@ -117,6 +117,13 @@ export interface CaptureResult {
    * null on a normal first-time capture.
    */
   deduped: "exact_duplicate" | "near_duplicate" | null;
+  /**
+   * The body this capture hashed and stored (or would have stored). On an
+   * exact duplicate it equals the survivor's body - that equality is what made
+   * it a duplicate - so a caller can put back a raw copy that a partial delete
+   * removed (autosave-runner.ts, re-gate GZ-1814-2). Memory only; never logged.
+   */
+  body: string;
 }
 
 export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureResult> {
@@ -161,6 +168,7 @@ export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureR
         suggested_slug: built.suggested_slug,
         storagePending: false,
         deduped: "exact_duplicate",
+        body: built.body,
       };
     }
     // Survivor vanished (deleted between fetch and now) — fall through and save.
@@ -239,6 +247,7 @@ export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureR
     suggested_slug: built.suggested_slug,
     storagePending: !storedToStorage,
     deduped: dedupOf ? "near_duplicate" : null,
+    body: built.body,
   };
 }
 

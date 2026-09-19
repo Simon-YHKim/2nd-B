@@ -183,5 +183,5 @@
   "chatSaveNoticeBody": "Ative o salvamento de conversas na privacidade para mantê-la. O que foi dito antes não é salvo.",
   "chatSaveNoticeOpen": "Abrir ajustes",
   "chatSaveNoticeDismiss": "Fechar",
-  "chatSaveNotDeleted": "A cópia salva desta conversa ainda não foi excluída. Vamos tentar de novo quando você voltar ao app. Se ela ainda estiver em Arquivo, você pode excluí-la lá."
+  "chatSaveNotDeleted": "A cópia salva desta conversa ainda não foi excluída. Enquanto o app estiver aberto, vamos tentar de novo sempre que você voltar a este chat. Se ela ainda estiver na Wiki, você pode excluí-la lá."
 }

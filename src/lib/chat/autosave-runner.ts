@@ -68,11 +68,31 @@
 //
 // 턴별 잠금은 답변 객체로 잡고, 되돌리기는 sourceId 로 움직여서 둘이 만나지 않았다. 대기 기록을 비우는 쪽이 행을 확인한
 // 뒤 지우기 전에 사용자가 같은 대화를 손으로 담으면(정확 중복), 손 담기는 기록에서 그 행을 빼고 담김을 띄웠는데 이미
-// 행을 쥔 비우기가 그 행과 원문을 지웠다. 그래서 지우는 일 셋(작업의 되돌리기 · 대기 기록 비우기 전체)과 손 담기의
+// 행을 쥔 비우기가 그 행과 원문을 지웠다. 그래서 지우는 일(작업의 되돌리기 · 대기 기록 비우기의 한 건 한 건)과 손 담기의
 // capture 를 계정마다 한 줄(inOwnerLane)에 세운다. 비우기가 먼저면 다 지운 뒤에 손 담기가 새 행으로 담고, 손 담기가
-// 먼저면 기록에서 뺀 뒤에 온 비우기는 그 행을 보지 못한다. 손 담기가 정확 중복으로 돌려받은 행은 표식(keptByHand)을
+// 먼저면 기록에서 뺀 뒤에 온 비우기는 그 행을 보지 못한다. 손 담기가 정확 중복으로 돌려받은 행은 표식(keptRows)을
 // 남겨, 줄의 순서와 상관없이 이 런타임의 되돌리기가 지우지 않는다 - 손 담기가 이긴다(설계 2-10). 기록에서 빼지 못하면
-// runManualKeep 이 던지고 화면은 담김을 띄우지 않는다.
+// runManualKeep 이 던지고 화면은 담김을 띄우지 않는다. 손 담기는 누른 순간의 계정 임대를 쥐고 줄에 선다 - 기다리는 사이
+// A -> B -> A 로 돌아와도 그 임대가 아니면 capture 를 보내지 않는다(재게이트 GZ-1814-4).
+//
+// ## 정확 중복 (게이트 r260919 재게이트 GA-1814-1 · GZ-1814-3 · GZ-1814-2)
+//
+// capture 가 정확 중복으로 있던 행을 돌려주면 그 행은 이 작업 것이 아니다. 철회로 지울 차례인 행(기기 대기 기록 · 이 런타임이
+// 쥔 미완 · 되돌리기를 기다리는 작업의 행)일 수 있다 - 그 행으로 담김을 띄우면 뒤따른 지우기가 담긴 대화를 지웠다.
+//   자동 저장  줄에서 그 행을 본다. 지울 차례면 그 지우기를 먼저 끝내고 새로 담는다(옛 철회를 무르지 않는다). 아니면 행이
+//             아직 있는지 확인하고 표식을 남긴 뒤에만 kept 다. 쓰기는 줄 밖에서 한다 - 한 답변을 담는 동안 다음 답변이
+//             막히지 않는다(설계 N1).
+//   손 담기    사용자가 남기기로 한 것이다(설계 2-10). 다만 지울 차례였던 행은 앞선 지우기가 원문만 지우고 멈췄을 수 있어서
+//             (원문 -> 페이지 -> 행 순서), 같은 본문으로 원문을 되살린 뒤에만 표식을 남기고 담김이다. 못 되살리면 던진다.
+// 표식이 선 행은 이 런타임의 되돌리기 · 비우기가 지우지 않고, 그 뒤에 끊긴 작업의 되돌리기는 기기에 다시 적지도 않는다 -
+// 적었다가 앱이 꺼지면 다음 실행의 비우기가 남긴 행을 지운다.
+//
+// ## 줄의 시간 상한 (게이트 r260919 재게이트 GA-1814-3)
+//
+// 줄의 일 하나는 OWNER_LANE_TASK_TIMEOUT_MS 안에 끝나야 한다. 넘기면 줄은 다음 일로 넘어가고 그 일은 신호로 끊긴다 - 늦게
+// 돌아와도 새 요청을 보내지 않는다. 이미 보낸 삭제 요청은 거둘 수 없으므로 그 행은 "지우는 중"(deletingNow)으로 남는다. 그
+// 동안 손 담기 · 자동 저장은 그 행으로 담김을 띄우지 않고(남는다고 말할 수 없다), 비우기도 건너뛴다. 기기 기록은 남아 다음
+// 비우기가 다시 한다. 비우기는 한 건씩 줄에 선다 - 멈춘 한 건이 같은 계정의 손 담기를 상한 한 번보다 오래 붙잡지 않는다.
 //
 // ⚠ 확인하지 않은 것: 운영 Supabase 에서 클라이언트가 정한 id 로 INSERT 가 되는지, 끊긴 fetch 뒤 서버가 커밋하는지,
 // 없는 경로 Storage remove 가 빈 목록인지 404 오류인지(둘 다 "없음" 으로 읽는다), RN 실기의 백그라운드 동작.
@@ -80,14 +100,14 @@
 
 import * as Crypto from "expo-crypto";
 
-import { abortError } from "../async/abort";
+import { abortError, throwIfAborted } from "../async/abort";
 import { captureAccountOwnerLease, isCurrentAccountEpoch, subscribeAccountTransition } from "../auth/account-epoch";
 import { beginAccountSessionLease, type PendingAccountSessionLease } from "../auth/account-session-lease";
 import { getSupabaseClient } from "../supabase/client";
 import { readPrivacyPrefs } from "../supabase/privacy";
 import { captureFromMarkdown, type CaptureJournal, type CaptureResult } from "../wiki/capture";
 import { deleteCapturedSource } from "../wiki/delete-captured-source";
-import { deleteRawClipping, rawClippingPath } from "../wiki/storage";
+import { deleteRawClipping, rawClippingPath, uploadRawClipping } from "../wiki/storage";
 import {
   autosaveConsentFor,
   beginAutosaveConsentRead,
@@ -96,6 +116,7 @@ import {
 } from "./autosave-consent";
 import {
   forgetAutosaveUndo,
+  isAutosaveUndoRecorded,
   listAutosaveUndo,
   rememberAutosaveUndo,
   type AutosaveUndoRecord,
@@ -157,6 +178,23 @@ interface Job {
 /** 대기 기록을 비우는 쪽이 한 런타임에서 한 건에 시도하는 횟수. 다음 앱 실행에서 다시 센다. */
 const MAX_DRAIN_ATTEMPTS = 3;
 
+/**
+ * 계정 줄에 선 일 하나가 줄을 쥘 수 있는 시간 (게이트 r260919 재게이트 GA-1814-3). 줄의 일 하나는 대화 한 건의 원격 왕복이다:
+ * 손 담기 capture 는 요청 다섯 안팎(후보 · 중복 기록 · 행 읽기 · 원문 · INSERT)에 원문 되살리기 하나, 지우기 한 건은 일곱
+ * 안팎(행 확인 · 행 읽기 · 원문 · 페이지 목록 · 페이지 · 행 · 남은 행 확인)이다. 정상 연결에서 몇 초, 느린 연결(요청 하나
+ * 3초)에서도 25초 안쪽이라 30초는 정상 일을 끊지 않는다. 그보다 오래 걸린 일은 멈춘 것으로 보고 줄을 넘긴다 - RN fetch 에는
+ * 기본 시간 상한이 없어 응답 없는 요청 하나가 계정 줄 전체를 붙잡을 수 있었다(RN fetch 의 실제 동작은 확인하지 않았다).
+ * 30초는 손 담기가 "담는 중" 으로 기다리는 윗선으로도 쓰인다.
+ */
+export const OWNER_LANE_TASK_TIMEOUT_MS = 30_000;
+
+/**
+ * 자동 저장이 정확 중복을 만나 다시 담는 capture 의 윗선. 보통은 둘이다: 지울 차례인 행을 만나 그 지우기를 끝내고(첫 번째),
+ * 새 행으로 담는다(두 번째). 그 사이 같은 짝이 다른 곳에서 다시 담기면 세 번째가 그 행을 만나 표식으로 끝난다. 그 너머는
+ * 무언가가 같은 짝을 계속 되살리고 있다는 뜻이라 저장 실패로 끝낸다(무한히 돌지 않는다).
+ */
+const MAX_DUPLICATE_CAPTURES = 3;
+
 const liveJobs = new Map<KeepableTurn, Job>();
 const keptReplies = new WeakSet<KeepableTurn>();
 const manualHolds = new Set<KeepableTurn>();
@@ -165,8 +203,16 @@ const undoInFlight = new Set<string>();
 const drainAttempts = new Map<string, number>();
 /** 계정마다 지우기와 손 담기가 서는 줄의 꼬리(inOwnerLane). */
 const ownerLanes = new Map<string, Promise<void>>();
-/** 손 담기가 정확 중복으로 돌려받은 행(undoKey). 이 런타임의 되돌리기는 이 행을 지우지 않는다. */
-const keptByHand = new Set<string>();
+/**
+ * 담김으로 끝난 정확 중복의 행(undoKey) - 손 담기가 돌려받았거나, 자동 저장이 지울 차례가 아님을 확인하고 돌려받은 행이다.
+ * 이 런타임의 되돌리기 · 비우기는 이 행을 지우지 않고, 되돌리기는 기기에 다시 적지도 않는다.
+ */
+const keptRows = new Set<string>();
+/**
+ * 줄 안에서 지우는 중인 행(undoKey). 줄은 한 번에 일 하나라서, 새 일이 이 표식을 보면 시간 상한을 넘겨 줄을 넘긴 옛 일이 아직
+ * 그 행을 지우는 중이다(보낸 삭제는 거둘 수 없다). 그 행은 남는다고 말할 수 없고, 비우기도 건너뛴다. 삭제가 돌아오면 빠진다.
+ */
+const deletingNow = new Set<string>();
 /**
  * 되돌리기를 끝내지 못했고 기기에도 못 남겨 undo_unrecorded 로 끝난 작업(undoKey). 비우기가 기기 기록과 함께 돈다.
  * recorded 는 그 뒤 비우기가 기록을 적는 데 성공했는가다. 다 지우면 reply 에 cancelled 를 알려 화면 안내를 거둔다.
@@ -197,12 +243,15 @@ function notify(update: AutosaveJobUpdate): void {
 }
 
 /**
- * 이 계정의 지우기(작업의 되돌리기 · 대기 기록 비우기)와 손 담기를 이 런타임에서 한 줄로 세운다. 앞의 실패가 뒤를 막지
- * 않는다. 줄 안의 일은 같은 계정의 줄을 다시 기다리지 않는다 - 기다리면 서로를 기다린다.
+ * 이 계정의 지우기(작업의 되돌리기 · 대기 기록 비우기 한 건)와 손 담기 · 정확 중복 조정을 이 런타임에서 한 줄로 세운다. 앞의
+ * 실패가 뒤를 막지 않는다. 줄 안의 일은 같은 계정의 줄을 다시 기다리지 않는다 - 기다리면 서로를 기다린다.
+ *
+ * 일 하나는 시간 상한(OWNER_LANE_TASK_TIMEOUT_MS) 안에서 돈다. 넘기면 신호를 끊고 거절하며 줄은 다음 일로 넘어간다. 일은 await
+ * 뒤마다 그 신호를 보고(throwIfAborted) 늦게 돌아와도 더 나아가지 않는다.
  */
-function inOwnerLane<T>(ownerId: string, work: () => Promise<T>): Promise<T> {
+function inOwnerLane<T>(ownerId: string, work: (signal: AbortSignal) => Promise<T>): Promise<T> {
   const previous = ownerLanes.get(ownerId) ?? Promise.resolve();
-  const result = previous.then(work);
+  const result = previous.then(() => withinLaneLimit(work));
   const tail = result.then(
     () => undefined,
     () => undefined,
@@ -212,6 +261,34 @@ function inOwnerLane<T>(ownerId: string, work: () => Promise<T>): Promise<T> {
     if (ownerLanes.get(ownerId) === tail) ownerLanes.delete(ownerId);
   });
   return result;
+}
+
+const LANE_TIMEOUT_MESSAGE = "autosave-lane-timeout";
+
+/** 줄의 일 하나를 시간 상한 안에서 돌린다. 상한을 넘기면 신호를 끊고 거절한다. 늦게 끝난 일의 결과는 버린다. */
+function withinLaneLimit<T>(work: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const controller = new AbortController();
+  return new Promise<T>((resolve, reject) => {
+    const timer: unknown = setTimeout(() => {
+      controller.abort();
+      reject(new Error(LANE_TIMEOUT_MESSAGE));
+    }, OWNER_LANE_TASK_TIMEOUT_MS);
+    // 노드(테스트)에서는 이 타이머 하나 때문에 프로세스가 남지 않게 한다. RN · 웹의 타이머는 숫자라 해당 없다.
+    (timer as { unref?: () => void } | null)?.unref?.();
+    const settle = (): void => clearTimeout(timer as ReturnType<typeof setTimeout>);
+    Promise.resolve()
+      .then(() => work(controller.signal))
+      .then(
+        (value) => {
+          settle();
+          resolve(value);
+        },
+        (error: unknown) => {
+          settle();
+          reject(error);
+        },
+      );
+  });
 }
 
 /** 작업이 끊겼는가. 오류 이름이 아니라 신호로 가른다(규칙 6). */
@@ -312,7 +389,24 @@ async function run(job: Job): Promise<AutosaveTerminalPhase> {
   try {
     await checkConsentOnServer(job);
     setPhase(job, "writing");
-    await captureFromMarkdown({
+    await captureSettled(job);
+    written = true;
+  } catch (error) {
+    failure = error;
+  }
+  if (isCancelled(job)) return afterCancel(job, undoPlan(job.journal, failure));
+  if (written) return "kept";
+  return afterFailure(job, failure);
+}
+
+/**
+ * 담는다. 정확 중복이면 돌려받은 행을 계정 줄에서 조정한 뒤에만 끝난다(게이트 r260919 재게이트 GA-1814-1 · GZ-1814-3): 지울
+ * 차례인 행이면 그 지우기를 먼저 끝내고 동의를 다시 본 뒤 새로 담고, 아니면 행이 아직 있는지 보고 표식을 남긴다. capture 는
+ * 줄 밖에서 보낸다 - 같은 계정의 다른 답변을 막지 않는다. 다시 담아도 이름표(sourceId · 원문 키 · journal)는 같다(규칙 5).
+ */
+async function captureSettled(job: Job): Promise<void> {
+  for (let attempt = 1; ; attempt += 1) {
+    const kept = await captureFromMarkdown({
       userId: job.ownerId,
       rawMd: job.rawMd,
       kindOverride: "self_knowledge",
@@ -324,13 +418,67 @@ async function run(job: Job): Promise<AutosaveTerminalPhase> {
       journal: job.journal,
       insertIgnoresSignal: true,
     });
-    written = true;
-  } catch (error) {
-    failure = error;
+    if (kept.deduped !== "exact_duplicate") return;
+    const survivor: AutosaveUndoRecord = { ownerId: job.ownerId, sourceId: String(kept.source.id).toLowerCase() };
+    const settled = await inOwnerLane(job.ownerId, (signal) => settleDuplicate(job, survivor, kept, signal));
+    if (settled === "kept") return;
+    if (attempt >= MAX_DUPLICATE_CAPTURES) throw new Error("autosave-duplicate-unsettled");
+    // 지울 차례였던 행을 지웠거나 이미 없었다. 새로 담기 전에 동의를 다시 본다 - 그 사이 거뒀으면 신호가 끊겨 capture 가 멈춘다.
+    if (!stillConsented(job)) cancelForConsent(job);
   }
-  if (isCancelled(job)) return afterCancel(job, undoPlan(job.journal, failure));
-  if (written) return "kept";
-  return afterFailure(job, failure);
+}
+
+/**
+ * 자동 저장이 정확 중복으로 돌려받은 행을 줄 안에서 조정한다. kept 면 그 행으로 담김이고(표식을 남겼다), again 이면 그 행이
+ * 없거나 지웠으니 다시 담는다. 지우는 중이거나 지울 차례인지 모르거나 지우지 못하면 던진다(저장 실패).
+ */
+async function settleDuplicate(
+  job: Job,
+  survivor: AutosaveUndoRecord,
+  kept: CaptureResult,
+  signal: AbortSignal,
+): Promise<"kept" | "again"> {
+  job.lease.assertCurrent();
+  const key = undoKey(survivor);
+  if (keptRows.has(key)) return "kept";
+  if (deletingNow.has(key)) throw new Error("autosave-deletion-in-flight");
+  // 자동 저장이 쓴 행만 되돌리기 대기에 오른다(원문 키가 chat-<그 행 id>). 그 밖의 행은 지울 차례일 수 없다.
+  const pending = isAutosaveRow(survivor, kept) ? await deletionPending(survivor) : false;
+  throwIfAborted(signal);
+  if (pending === null) throw new Error("autosave-undo-state-unknown");
+  if (pending) {
+    // 철회로 지울 차례인 행이다. 그 철회를 무르지 않는다 - 지우기를 먼저 끝내고 새로 담는다.
+    if (!(await clearPendingUndo(survivor, signal))) throw new Error("autosave-duplicate-pending");
+    return "again";
+  }
+  // 줄 밖의 capture 가 본 뒤에 앞선 비우기가 그 행을 지웠을 수 있다. 아직 있을 때만 표식을 남긴다.
+  const present = await sourceRowExists(survivor);
+  throwIfAborted(signal);
+  job.lease.assertCurrent();
+  if (present === null) throw new Error("autosave-duplicate-unconfirmed");
+  if (!present) return "again";
+  keptRows.add(key);
+  return "kept";
+}
+
+/** 이 행이 자동 저장이 쓴 행인가 - 원문 키가 그 행 id 로 만든 chat-<id> 다(규칙 5). 대기 기록에는 이런 행만 오른다. */
+function isAutosaveRow(record: AutosaveUndoRecord, kept: CaptureResult): boolean {
+  return kept.source.storage_path === rawClippingPath(record.ownerId, chatStorageKey(record.sourceId));
+}
+
+/**
+ * 이 행이 철회로 지워질 차례인가. 되돌리기가 줄을 기다리는 중 · 기기에 못 남겨 이 런타임이 쥔 것 · 철회로 끊겼는데 아직
+ * 되돌리기 전인 작업의 행 · 기기 대기 기록이면 true. 기기 기록을 읽지 못하면 모름(null)이다 - 모름을 "아니다" 로 읽지 않는다.
+ */
+async function deletionPending(record: AutosaveUndoRecord): Promise<boolean | null> {
+  const key = undoKey(record);
+  if (undoInFlight.has(key) || unfinishedUndos.has(key)) return true;
+  for (const job of liveJobs.values()) {
+    if (job.ownerId !== record.ownerId || job.sourceId !== record.sourceId) continue;
+    // 철회로 끊긴 작업은 끝나면 자기 행을 지운다. 계정 전환으로 끊긴 작업은 지우지 않는다(afterCancel).
+    if (job.cancelReason !== null && job.cancelReason !== "owner_changed") return true;
+  }
+  return isAutosaveUndoRecorded(record);
 }
 
 /** C1. 서버의 최신 동의를 읽고 관측으로 반영한 뒤, 시작할 때와 같은 동의일 때만 넘어간다. */
@@ -371,14 +519,28 @@ async function undo(job: Job, plan: Exclude<UndoPlan, "none">): Promise<Autosave
   setPhase(job, "undoing");
   const record: AutosaveUndoRecord = { ownerId: job.ownerId, sourceId: job.sourceId };
   const key = undoKey(record);
+  // 이 행은 담김으로 끝난 정확 중복이다(손 담기가 이겼거나 자동 저장이 돌려받았다). 지우지 않고 기기에 적지도 않는다 - 적은 뒤
+  // 줄을 기다리다 앱이 꺼지면 다음 실행의 비우기가 남긴 행을 지운다(재게이트 GA-1814-1: 표식을 내구성 있게).
+  if (keptRows.has(key)) return "cancelled";
   undoInFlight.add(key);
+  let recorded = false;
   try {
     // 줄에 서기 전에 적는다 - 기다리는 사이에 앱이 꺼져도 그 계정이 돌아오면 이어서 지운다.
-    const recorded = await rememberAutosaveUndo(record);
-    return await inOwnerLane(job.ownerId, () => undoInLane(job, record, plan, recorded));
+    recorded = await rememberAutosaveUndo(record);
+    return await inOwnerLane(job.ownerId, (signal) => undoInLane(job, record, plan, recorded, signal));
+  } catch {
+    // 줄에서 시간 상한을 넘겼다(재게이트 GA-1814-3). 늦게 끝날 수 있는 지우기는 기다리지 않는다 - 적어 두었으면 다음 비우기가
+    // 확인하고, 못 적었으면 이 런타임이 쥔다.
+    return recorded ? "undo_pending" : holdUnrecorded(job, record);
   } finally {
     undoInFlight.delete(key);
   }
+}
+
+/** 되돌리기를 끝내지 못했고 기기에도 못 남겼다. 이 런타임이 쥐고 비우기가 적기와 지우기를 다시 한다. */
+function holdUnrecorded(job: Job, record: AutosaveUndoRecord): AutosaveTerminalPhase {
+  unfinishedUndos.set(undoKey(record), { record, reply: job.reply, recorded: false });
+  return "undo_unrecorded";
 }
 
 /** 줄 안에서 지운다. 지웠으면 cancelled, 기기에 적어 두고 못 지웠으면 undo_pending, 적지도 못했으면 undo_unrecorded. */
@@ -387,29 +549,73 @@ async function undoInLane(
   record: AutosaveUndoRecord,
   plan: Exclude<UndoPlan, "none">,
   recorded: boolean,
+  signal: AbortSignal,
 ): Promise<AutosaveTerminalPhase> {
-  const key = undoKey(record);
-  if (keptByHand.has(key)) {
+  if (keptRows.has(undoKey(record))) {
     // 줄을 기다리는 사이 사용자가 이 행을 손으로 남겼다. 남긴 것을 지우지 않는다.
     await forgetAutosaveUndo(record);
     return "cancelled";
   }
-  if (await undoWrites(record, plan)) {
+  if (await deleteTracked(record, plan, signal)) {
+    throwIfAborted(signal);
     await forgetAutosaveUndo(record);
     return "cancelled";
   }
+  throwIfAborted(signal);
   if (recorded || (await rememberAutosaveUndo(record))) return "undo_pending";
-  unfinishedUndos.set(key, { record, reply: job.reply, recorded: false });
-  return "undo_unrecorded";
+  throwIfAborted(signal);
+  return holdUnrecorded(job, record);
 }
 
-/** 한 작업이 쓴 것을 지운다. 그 계정이 끝까지 공개돼 있었고 남은 것이 없으면 true. */
-async function undoWrites(record: AutosaveUndoRecord, plan: Exclude<UndoPlan, "none">): Promise<boolean> {
+/**
+ * 줄 안에서 한 행을 지운다. 지우는 동안 그 행은 지우는 중(deletingNow)이다 - 시간 상한을 넘겨 줄을 넘겨도 삭제 요청이 돌아올
+ * 때까지. 다른 일이 이미 그 행을 지우는 중이면 겹쳐 보내지 않는다(false).
+ */
+async function deleteTracked(
+  record: AutosaveUndoRecord,
+  plan: Exclude<UndoPlan, "none">,
+  signal: AbortSignal,
+): Promise<boolean> {
+  const key = undoKey(record);
+  if (deletingNow.has(key)) return false;
+  deletingNow.add(key);
+  try {
+    return await undoWrites(record, plan, signal);
+  } finally {
+    deletingNow.delete(key);
+  }
+}
+
+/**
+ * 지울 차례인 행을 줄 안에서 지운다. 다 지웠으면 기록에서 빼고(빼지 못해도 행은 이미 없다 - 남은 기록은 다음 비우기가
+ * 확인만 하고 뺀다), 아직 삭제하지 못했다고 알린 답변이 있으면 거둔다. 다 지웠으면 true.
+ */
+async function clearPendingUndo(record: AutosaveUndoRecord, signal: AbortSignal): Promise<boolean> {
+  if (!(await deleteTracked(record, "probe", signal))) return false;
+  throwIfAborted(signal);
+  const key = undoKey(record);
+  drainAttempts.delete(key);
+  await forgetAutosaveUndo(record);
+  const unfinished = unfinishedUndos.get(key);
+  if (unfinished) {
+    unfinishedUndos.delete(key);
+    notify({ ownerId: record.ownerId, reply: unfinished.reply, sourceId: record.sourceId, phase: "cancelled" });
+  }
+  return true;
+}
+
+/** 한 작업이 쓴 것을 지운다. 그 계정이 끝까지 공개돼 있었고 남은 것이 없으면 true. 줄의 신호가 끊기면 더 보내지 않는다. */
+async function undoWrites(
+  record: AutosaveUndoRecord,
+  plan: Exclude<UndoPlan, "none">,
+  signal: AbortSignal,
+): Promise<boolean> {
   const owner = captureAccountOwnerLease(record.ownerId);
   if (!owner) return false;
   let target = plan;
   if (target === "probe") {
     const found = await sourceRowExists(record);
+    throwIfAborted(signal);
     if (found === null || !owner.isCurrent()) return false;
     target = found ? "row" : "raw";
   }
@@ -527,16 +733,33 @@ export function holdTurnForManualKeep(reply: KeepableTurn): (() => void) | null 
  * 지우지 않게 표식을 남기고, 되돌리기 대기 기록에서 뺀다. 빼지 못하면 던진다 - 다음 실행의 비우기가 그 행을 지울 수
  * 있으니 담겼다고 말할 수 없다.
  *
- * 줄을 기다리는 사이 계정이 바뀌었으면 capture 를 보내지 않고 던진다. 손 담기는 계정 전환으로만 끊긴다(설계 2-10).
+ * 누른 순간의 계정 임대를 쥐고 줄에 선다. 줄을 기다리는 사이 계정이 바뀌었으면 - A -> B -> A 로 돌아왔어도 - capture 를
+ * 보내지 않고 던진다(재게이트 GZ-1814-4). 손 담기는 계정 전환으로만 끊긴다(설계 2-10).
+ *
+ * 지울 차례였던 행을 정확 중복으로 돌려받으면 앞선 지우기가 원문만 지우고 멈췄을 수 있다(원문 -> 페이지 -> 행 순서). 같은 본문으로
+ * 원문을 되살린 뒤에만 남긴다 - 행이 있다는 것만으로 담김이라 하지 않는다(재게이트 GZ-1814-2). 시간 상한을 넘긴 옛 일이 그 행을
+ * 아직 지우는 중이면 남는다고 말할 수 없어 던진다(재게이트 GA-1814-3).
  */
 export function runManualKeep(ownerId: string, capture: () => Promise<CaptureResult>): Promise<CaptureResult> {
-  return inOwnerLane(ownerId, async () => {
-    if (!captureAccountOwnerLease(ownerId)) throw new Error("autosave-owner-not-current");
+  const owner = captureAccountOwnerLease(ownerId);
+  if (!owner) return Promise.reject(new Error("autosave-owner-not-current"));
+  return inOwnerLane(ownerId, async (signal) => {
+    if (!owner.isCurrent()) throw new Error("autosave-owner-not-current");
     const kept = await capture();
+    throwIfAborted(signal);
     if (kept.deduped !== "exact_duplicate") return kept;
     const record: AutosaveUndoRecord = { ownerId, sourceId: String(kept.source.id).toLowerCase() };
+    // 자동 저장이 쓴 행이 아니면 되돌리기 대기에 오를 수 없다 - 조정할 것이 없다.
+    if (!isAutosaveRow(record, kept)) return kept;
     const key = undoKey(record);
-    keptByHand.add(key);
+    if (deletingNow.has(key)) throw new Error("autosave-deletion-in-flight");
+    if (!keptRows.has(key) && (await deletionPending(record)) !== false) {
+      // 지울 차례였던 행이다(기기 기록을 못 읽어 모를 때도 같다). 원문을 되살린 뒤에만 남긴다.
+      throwIfAborted(signal);
+      if (!owner.isCurrent() || !(await restoreRawCopy(record, kept))) throw new Error("autosave-body-not-restored");
+      throwIfAborted(signal);
+    }
+    keptRows.add(key);
     const unfinished = unfinishedUndos.get(key);
     if (unfinished) {
       // 아직 삭제하지 못했다고 알린 답변이 있으면 거둔다. 이제 지우지 않는다.
@@ -548,48 +771,60 @@ export function runManualKeep(ownerId: string, capture: () => Promise<CaptureRes
   });
 }
 
+/** 자동 저장이 쓴 행의 원문을 capture 가 해시한 그 본문으로 되살린다(덮어쓰기). 정확 중복이라 본문이 같다. 되살렸으면 true. */
+async function restoreRawCopy(record: AutosaveUndoRecord, kept: CaptureResult): Promise<boolean> {
+  try {
+    await uploadRawClipping(record.ownerId, chatStorageKey(record.sourceId), kept.body, { overwrite: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * 이 계정에 남은 되돌리기를 마저 한다. 그 계정이 공개돼 있을 때만 돈다. 부를 때: 그 계정이 다시 공개됐을 때 ·
- * 앱이 앞으로 왔을 때(대화 화면이 부른다). 한 건이 실패하면 기록을 남기고 다음 건으로 간다. 비우기 전체가 손 담기와
- * 한 줄에 선다 - 목록을 읽은 뒤 손 담기가 뺀 행을 지우지 않는다.
+ * 앱이 앞으로 왔을 때(대화 화면이 부른다). 한 건이 실패하면 기록을 남기고 다음 건으로 간다.
+ *
+ * 한 건씩 줄에 선다(재게이트 GA-1814-3) - 멈춘 한 건이 같은 계정의 손 담기를 상한 한 번보다 오래 붙잡지 않는다. 목록은 한 번
+ * 읽고 각 건은 줄 안에서 다시 본다(표식 · 되돌리기 중 · 지우는 중) - 목록을 읽은 뒤 손 담기가 남긴 행을 지우지 않는다.
  */
 export function drainAutosaveUndoQueue(ownerId: string): Promise<void> {
   if (!captureAccountOwnerLease(ownerId)) return Promise.resolve();
-  return inOwnerLane(ownerId, () => drainInLane(ownerId));
+  return drainRecords(ownerId);
 }
 
-async function drainInLane(ownerId: string): Promise<void> {
-  if (!captureAccountOwnerLease(ownerId)) return;
+async function drainRecords(ownerId: string): Promise<void> {
   for (const record of await pendingUndos(ownerId)) {
-    const key = undoKey(record);
-    if (undoInFlight.has(key)) continue;
-    const unfinished = unfinishedUndos.get(key);
-    if (keptByHand.has(key)) {
-      // 사용자가 손으로 남긴 행이다. 지우지 않고 기록에서만 뺀다.
-      if ((await forgetAutosaveUndo(record)) && unfinished) unfinishedUndos.delete(key);
-      continue;
-    }
-    // 기기에 못 남긴 것은 먼저 다시 적어 본다. 이번에도 못 지우면 다음 실행이 이어받을 단서가 된다.
-    if (unfinished && !unfinished.recorded && (await rememberAutosaveUndo(record))) unfinished.recorded = true;
-    // 아직 삭제하지 못했다고 알린 것은 돌아올 때마다 다시 지워 본다(안내가 그렇게 말한다). 나머지는 한 런타임에 세 번.
-    if (!unfinished && (drainAttempts.get(key) ?? 0) >= MAX_DRAIN_ATTEMPTS) continue;
-    undoInFlight.add(key);
-    try {
-      if (await undoWrites(record, "probe")) {
-        drainAttempts.delete(key);
-        await forgetAutosaveUndo(record);
-        if (unfinished) {
-          unfinishedUndos.delete(key);
-          notify({ ownerId, reply: unfinished.reply, sourceId: record.sourceId, phase: "cancelled" });
-        }
-      } else if (captureAccountOwnerLease(ownerId)) {
-        drainAttempts.set(key, (drainAttempts.get(key) ?? 0) + 1);
-      }
-    } finally {
-      undoInFlight.delete(key);
-    }
     if (!captureAccountOwnerLease(ownerId)) return;
+    try {
+      await inOwnerLane(ownerId, (signal) => drainOne(ownerId, record, signal));
+    } catch {
+      // 시간 상한을 넘긴 한 건이다. 기록은 남아 있어 다음 비우기가 다시 한다.
+    }
   }
+}
+
+async function drainOne(ownerId: string, record: AutosaveUndoRecord, signal: AbortSignal): Promise<void> {
+  if (!captureAccountOwnerLease(ownerId)) return;
+  const key = undoKey(record);
+  // 작업의 되돌리기가 맡고 있거나(줄을 기다리는 중), 시간 상한을 넘긴 옛 일이 아직 지우는 중이다.
+  if (undoInFlight.has(key) || deletingNow.has(key)) return;
+  const unfinished = unfinishedUndos.get(key);
+  if (keptRows.has(key)) {
+    // 사용자가 남긴 행이다. 지우지 않고 기록에서만 뺀다.
+    if ((await forgetAutosaveUndo(record)) && unfinished) unfinishedUndos.delete(key);
+    return;
+  }
+  // 목록은 줄 밖에서 읽었다. 그 사이 다른 일(자동 저장의 정확 중복 조정 · 앞선 비우기)이 이미 지우고 기록에서 뺐으면 할 일이 없다.
+  if (!unfinished && (await isAutosaveUndoRecorded(record)) === false) return;
+  throwIfAborted(signal);
+  // 기기에 못 남긴 것은 먼저 다시 적어 본다. 이번에도 못 지우면 다음 실행이 이어받을 단서가 된다.
+  if (unfinished && !unfinished.recorded && (await rememberAutosaveUndo(record))) unfinished.recorded = true;
+  throwIfAborted(signal);
+  // 아직 삭제하지 못했다고 알린 것은 돌아올 때마다 다시 지워 본다(안내가 그렇게 말한다). 나머지는 한 런타임에 세 번.
+  if (!unfinished && (drainAttempts.get(key) ?? 0) >= MAX_DRAIN_ATTEMPTS) return;
+  if (await clearPendingUndo(record, signal)) return;
+  if (captureAccountOwnerLease(ownerId)) drainAttempts.set(key, (drainAttempts.get(key) ?? 0) + 1);
 }
 
 /** 기기 기록에, 기기에 못 남겨 이 런타임만 아는 것을 더한다. */
@@ -615,6 +850,7 @@ export function __resetAutosaveRunnerForTests(): void {
   undoInFlight.clear();
   drainAttempts.clear();
   ownerLanes.clear();
-  keptByHand.clear();
+  keptRows.clear();
+  deletingNow.clear();
   unfinishedUndos.clear();
 }

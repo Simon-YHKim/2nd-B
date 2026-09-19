@@ -12,8 +12,13 @@
 // 부르는 쪽이 무엇을 더 들고 와도 적는 것은 두 필드뿐이다(serialize).
 //
 // 쓰기는 계정 삭제와 한 줄로 선다(runAccountLocalMutation). 삭제 표식이 선 계정에는 적지 않는다. 키는 계정마다
-// 따로다. 저장소는 웹 localStorage, 네이티브 AsyncStorage, 둘 다 없으면 이 런타임의 메모리다. 암호화 저장소를
+// 따로다. 저장소는 웹 localStorage, 네이티브 AsyncStorage, 둘 다 없거나 접근이 막히면 이 런타임의 메모리다. 암호화 저장소를
 // 쓰지 않는 이유: 담는 것이 사용자 글이 아니라 id 둘이다(capture/draft.ts 는 본문이라 암호화한다).
+//
+// 메모리는 기기 기록이 아니다 (게이트 r260919 재게이트 GZ-1814-1). 전에는 localStorage 접근자가 던지면(SecurityError) 메모리에
+// 쓰고 true 로 답했다 - 실행기는 그 답을 "앱을 다시 시작해도 남는다" 로 읽고 조용히 끝냈는데, 저장소가 돌아오면 디스크만 읽어서
+// 그 기록을 다시 보지 못했다. 지금은 영속 저장소에 쓴 것만 true 다. 메모리에만 쓴 적기 · 빼기는 false 이고, 적혀 있는지를 묻는
+// isAutosaveUndoRecorded 는 영속 저장소를 못 읽으면 모름(null)으로 답한다.
 //
 // 계정 삭제 뒤 로컬 정리(account/local-purge.ts)가 이 키를 지운다(purgeAutosaveUndoForDeletedAccount, PR 1814
 // 재설계 C5). 정리는 삭제 표식을 먼저 세우므로 그 뒤로는 이 계정에 다시 적지 않는다.
@@ -85,29 +90,53 @@ function nativeStorage(): AsyncStorageLike | null {
   }
 }
 
-async function readRaw(key: string): Promise<string | null> {
-  const web = webStorage();
-  if (web) return web.getItem(key);
-  const native = nativeStorage();
-  if (native) return native.getItem(key);
-  return memory.get(key) ?? null;
+/** 읽고 쓰는 곳 하나. durable 은 앱을 다시 시작해도 남는 저장소(웹 · 네이티브)인가다 - 메모리는 false. */
+interface UndoStore {
+  readonly durable: boolean;
+  read(key: string): Promise<string | null>;
+  write(key: string, value: string | null): Promise<void>;
 }
 
-async function writeRaw(key: string, value: string | null): Promise<void> {
+/** 지금 쓸 곳을 한 번 고른다. 한 번의 읽고-고치고-쓰기는 같은 곳에서 읽고 같은 곳에 쓴다. */
+function pickStore(): UndoStore {
   const web = webStorage();
   if (web) {
-    if (value === null) web.removeItem(key);
-    else web.setItem(key, value);
-    return;
+    return {
+      durable: true,
+      read: async (key) => web.getItem(key),
+      write: async (key, value) => {
+        if (value === null) web.removeItem(key);
+        else web.setItem(key, value);
+      },
+    };
   }
   const native = nativeStorage();
   if (native) {
-    if (value === null) await native.removeItem(key);
-    else await native.setItem(key, value);
-    return;
+    return {
+      durable: true,
+      read: (key) => native.getItem(key),
+      write: async (key, value) => {
+        if (value === null) await native.removeItem(key);
+        else await native.setItem(key, value);
+      },
+    };
   }
-  if (value === null) memory.delete(key);
-  else memory.set(key, value);
+  return {
+    durable: false,
+    read: async (key) => memory.get(key) ?? null,
+    write: async (key, value) => {
+      if (value === null) memory.delete(key);
+      else memory.set(key, value);
+    },
+  };
+}
+
+async function readRaw(key: string): Promise<string | null> {
+  return pickStore().read(key);
+}
+
+async function writeRaw(key: string, value: string | null): Promise<void> {
+  await pickStore().write(key, value);
 }
 
 function isRecord(record: AutosaveUndoRecord): boolean {
@@ -158,7 +187,10 @@ function serially<T>(ownerId: string, work: () => Promise<T>): Promise<T> {
   return result;
 }
 
-/** 읽고-고치고-쓴다. change 가 null 을 돌려주면 쓰지 않고 false 다. 쓰기가 실패해도 false 다. */
+/**
+ * 읽고-고치고-쓴다. change 가 null 을 돌려주면 쓰지 않고 false 다. 쓰기가 실패해도, 영속 저장소가 없어 메모리에만 썼어도
+ * false 다(재게이트 GZ-1814-1).
+ */
 function update(
   record: AutosaveUndoRecord,
   change: (records: AutosaveUndoRecord[]) => AutosaveUndoRecord[] | null,
@@ -167,10 +199,11 @@ function update(
   return serially(record.ownerId, async () => {
     const guarded = await runAccountLocalMutation(record.ownerId, async () => {
       const key = autosaveUndoStorageKey(record.ownerId);
-      const next = change(parse(record.ownerId, await readRaw(key)));
+      const store = pickStore();
+      const next = change(parse(record.ownerId, await store.read(key)));
       if (next === null) return false;
-      await writeRaw(key, next.length > 0 ? serialize(next) : null);
-      return true;
+      await store.write(key, next.length > 0 ? serialize(next) : null);
+      return store.durable;
     });
     return guarded.executed && guarded.value;
   }).catch(() => false);
@@ -187,8 +220,24 @@ export async function listAutosaveUndo(ownerId: string): Promise<AutosaveUndoRec
 }
 
 /**
+ * 이 기록이 앱을 다시 시작해도 남는 저장소에 적혀 있는가. 적혀 있으면 true, 읽었는데 없으면 false(깨진 값은 비우기와 같이 빈
+ * 목록으로 본다), 영속 저장소가 없거나 막혀 읽지 못하면 모름(null)이다 - 모름은 없음이 아니다(재게이트 GZ-1814-1). 같은
+ * 계정의 쓰기와 한 줄로 서서, 먼저 부른 적기 · 빼기가 끝난 뒤의 값을 본다.
+ */
+export function isAutosaveUndoRecorded(record: AutosaveUndoRecord): Promise<boolean | null> {
+  if (!isRecord(record)) return Promise.resolve(false);
+  return serially(record.ownerId, async () => {
+    if (isAccountLocalDeletionFencedInMemory(record.ownerId)) return null;
+    const store = pickStore();
+    if (!store.durable) return null;
+    const records = parse(record.ownerId, await store.read(autosaveUndoStorageKey(record.ownerId)));
+    return records.some((known) => known.sourceId === record.sourceId);
+  }).catch(() => null);
+}
+
+/**
  * 되돌리기를 시작하기 전에 적는다. 적었으면(이미 있었으면) true. 삭제 표식이 선 계정 · 모양이 틀린 기록 · 건수 상한 ·
- * 저장 실패는 false 다.
+ * 저장 실패 · 영속 저장소 없음(메모리에만 씀)은 false 다.
  */
 export function rememberAutosaveUndo(record: AutosaveUndoRecord): Promise<boolean> {
   return update(record, (records) => {
@@ -200,7 +249,8 @@ export function rememberAutosaveUndo(record: AutosaveUndoRecord): Promise<boolea
 
 /**
  * 다 지웠거나, 사용자가 그 자료를 손으로 남기기로 했을 때 뺀다. 뺐거나 원래 없으면 true. 삭제 표식이 선 계정 · 저장
- * 실패는 false 다. 모양이 틀린 기록은 적힌 적이 없어서(적을 때 같은 검사를 지난다) 뺄 것도 없다 - true 다.
+ * 실패 · 영속 저장소 없음(디스크의 기록에 닿지 못함)은 false 다. 모양이 틀린 기록은 적힌 적이 없어서(적을 때 같은 검사를
+ * 지난다) 뺄 것도 없다 - true 다.
  */
 export function forgetAutosaveUndo(record: AutosaveUndoRecord): Promise<boolean> {
   if (!isRecord(record)) return Promise.resolve(true);

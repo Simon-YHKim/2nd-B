@@ -183,5 +183,5 @@
   "chatSaveNoticeBody": "Nyalakan penyimpanan obrolan di pengaturan privasi untuk menyimpannya. Yang diucapkan sebelumnya tidak tersimpan.",
   "chatSaveNoticeOpen": "Buka pengaturan",
   "chatSaveNoticeDismiss": "Tutup",
-  "chatSaveNotDeleted": "Salinan tersimpan percakapan ini belum terhapus. Kami akan mencoba lagi saat kamu kembali ke aplikasi. Jika masih ada di Arsip, kamu bisa menghapusnya di sana."
+  "chatSaveNotDeleted": "Salinan tersimpan percakapan ini belum terhapus. Selama aplikasi masih terbuka, kami akan mencoba lagi setiap kali kamu kembali ke obrolan ini. Jika masih ada di Wiki, kamu bisa menghapusnya di sana."
 }

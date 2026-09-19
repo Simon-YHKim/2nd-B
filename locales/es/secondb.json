@@ -183,5 +183,5 @@
   "chatSaveNoticeBody": "Activa el guardado de chats en privacidad para conservarla. Lo dicho antes de activarlo no se guarda.",
   "chatSaveNoticeOpen": "Abrir ajustes",
   "chatSaveNoticeDismiss": "Cerrar",
-  "chatSaveNotDeleted": "Aún no se ha eliminado la copia guardada de esta conversación. Lo intentaremos de nuevo cuando vuelvas a la app. Si sigue en Archivo, puedes eliminarla allí."
+  "chatSaveNotDeleted": "Aún no se ha eliminado la copia guardada de esta conversación. Mientras la app esté abierta, lo intentaremos de nuevo cada vez que vuelvas a este chat. Si sigue en Wiki, puedes eliminarla allí."
 }
