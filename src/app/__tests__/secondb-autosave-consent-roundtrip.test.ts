@@ -1546,7 +1546,7 @@ describe("실행기 배선 (PR 1814 재설계 C5)", () => {
     });
   });
 
-  test("되돌리기 대기 기록은 화면이 뜰 때와 앱이 앞으로 올 때 비우고, 도는 동안 겹친 부름은 하나로 합친다", async () => {
+  test("되돌리기 대기 기록은 화면이 뜰 때와 앱이 앞으로 올 때 비우고, 도는 동안 겹친 부름은 끝난 뒤 한 번으로 합친다", async () => {
     mockServer.prefs.set(OWNER, { chat_autosave: true });
     const firstId = "3f0c9a52-8a1d-4b1e-9c2f-6d7e8f9a0b1c";
     const secondId = "7b1e2d3c-4a5b-4c6d-8e9f-0a1b2c3d4e5f";
@@ -1569,9 +1569,11 @@ describe("실행기 배선 (PR 1814 재설계 C5)", () => {
     chat.appState.emit("active");
     await remove.reached;
     chat.appState.emit("active"); // 비우는 도중에 한 번 더
+    expect(drains()).toBe(2); // 겹쳐 돌지 않는다
     remove.release();
     await settle();
-    expect({ drains: drains(), objects: mockServer.objects.size }).toEqual({ drains: 2, objects: 0 });
+    // 겹친 부름은 버리지 않고 끝난 뒤 한 번 더 돈다(4차 재게이트 G3A-1814-1) - 여기서는 지울 것이 남지 않았다.
+    expect({ drains: drains(), objects: mockServer.objects.size }).toEqual({ drains: 3, objects: 0 });
     expect(localValues.get(autosaveUndoStorageKey(OWNER))).toBeUndefined();
   });
 
@@ -1613,7 +1615,7 @@ describe("실행기 배선 (PR 1814 재설계 C5)", () => {
     });
   });
 
-  test("초점 복귀도 같은 합치기를 쓴다: 비우는 도중 초점이 다시 돌아오거나 앱이 앞으로 와도 비우기가 겹쳐 돌지 않는다", async () => {
+  test("초점 복귀도 같은 합치기를 쓴다: 비우는 도중 초점이 다시 돌아오거나 앱이 앞으로 와도 비우기가 겹쳐 돌지 않고, 겹친 부름 둘은 끝난 뒤 한 번으로 합친다", async () => {
     mockServer.prefs.set(OWNER, { chat_autosave: true });
     const chat = await mountChat();
     const drains = (): number => chat.runnerCalls.filter((name) => name === "drainAutosaveUndoQueue").length;
@@ -1628,11 +1630,56 @@ describe("실행기 배선 (PR 1814 재설계 C5)", () => {
     await remove.reached;
     await chat.focus(); // 비우는 도중에 다시 돌아온다
     chat.appState.emit("active"); // 앱도 앞으로 온다
+    expect(drains()).toBe(2); // 겹쳐 돌지 않는다
+    remove.release();
+    await focusing;
+    await settle();
+    expect({ drains: drains(), objects: mockServer.objects.size }).toEqual({ drains: 3, objects: 0 });
+    expect(localValues.get(autosaveUndoStorageKey(OWNER))).toBeUndefined();
+  });
+
+  test("비우는 도중 돌아온 초점 복귀를 버리지 않는다: 도는 비우기가 목록을 읽은 뒤 생긴 대기 기록도 그 비우기가 끝난 뒤 한 번 더 돌아 지운다 (4차 재게이트 G3A-1814-1)", async () => {
+    // 게이트 재현 순서: 첫 비우기가 목록을 읽고 첫 삭제를 보낸 채 멈춘다 -> 새 대기 기록 B 가 생긴다 -> 설정 · 위키에서 대화
+    // 화면으로 돌아온다(초점 복귀) -> 그 부름이 "도는 중" 이라 버려져, 첫 비우기가 끝나도 B 는 다음 계기까지 남았다.
+    mockServer.prefs.set(OWNER, { chat_autosave: true });
+    const chat = await mountChat();
+    const drains = (): number => chat.runnerCalls.filter((name) => name === "drainAutosaveUndoQueue").length;
+    expect(drains()).toBe(1); // 화면이 뜰 때(기록 없음)
+
+    const firstId = "3f0c9a52-8a1d-4b1e-9c2f-6d7e8f9a0b1c";
+    const laterId = "7b1e2d3c-4a5b-4c6d-8e9f-0a1b2c3d4e5f";
+    mockServer.objects.set(`${OWNER}/chat-${firstId}.md`, "left behind");
+    expect(await rememberAutosaveUndo({ ownerId: OWNER, sourceId: firstId })).toBe(true);
+    const remove = hold("remove");
+    const focusing = chat.focus(); // 초점 복귀 - 비우기가 목록(첫 기록 하나)을 읽고 지우기 시작한다
+    await remove.reached;
+    mockServer.objects.set(`${OWNER}/chat-${laterId}.md`, "left behind");
+    expect(await rememberAutosaveUndo({ ownerId: OWNER, sourceId: laterId })).toBe(true); // 목록을 읽은 뒤 생긴 기록
+    await chat.focus(); // 비우는 도중에 다시 돌아온다
+    expect(drains()).toBe(2);
+    remove.release();
+    await focusing;
+    await settle();
+    expect({ drains: drains(), objects: [...mockServer.objects.keys()] }).toEqual({ drains: 3, objects: [] });
+    expect(localValues.get(autosaveUndoStorageKey(OWNER))).toBeUndefined();
+  });
+
+  test("화면이 내려간 뒤에는 도는 동안 겹친 부름이 있었어도 한 번 더 돌지 않는다 - 다음 비우기는 화면이 다시 뜰 때다", async () => {
+    mockServer.prefs.set(OWNER, { chat_autosave: true });
+    const chat = await mountChat();
+    const drains = (): number => chat.runnerCalls.filter((name) => name === "drainAutosaveUndoQueue").length;
+    const leftId = "3f0c9a52-8a1d-4b1e-9c2f-6d7e8f9a0b1c";
+    mockServer.objects.set(`${OWNER}/chat-${leftId}.md`, "left behind");
+    expect(await rememberAutosaveUndo({ ownerId: OWNER, sourceId: leftId })).toBe(true);
+    const remove = hold("remove");
+    const focusing = chat.focus();
+    await remove.reached;
+    await chat.focus(); // 비우는 도중에 다시 돌아온다
+    chat.unmount(); // 그리고 화면이 내려간다
     remove.release();
     await focusing;
     await settle();
     expect({ drains: drains(), objects: mockServer.objects.size }).toEqual({ drains: 2, objects: 0 });
-    expect(localValues.get(autosaveUndoStorageKey(OWNER))).toBeUndefined();
   });
 
   test("손 담기가 쓰기 전에 멈춘 채 시간 상한이 지나면 실패 안내를 띄우고, 그 뒤에는 원문도 행도 나가지 않는다 (3차 재게이트 G2A-1814-1)", async () => {

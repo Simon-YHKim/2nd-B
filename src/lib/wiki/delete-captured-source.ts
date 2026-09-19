@@ -40,7 +40,15 @@
 // ⚠ 보안 경계는 이 함수가 아니라 RLS 다. 여기서 거는 user_id 와 경로 접두사 확인은 두 번째 울타리다.
 // 로그에는 실패 사실만 남긴다. 경로와 id 는 사용자 데이터를 가리키고, Storage 오류 문구에 경로가
 // 섞여 올 수 있다.
-// 검사: `src/lib/wiki/__tests__/delete-captured-source.test.ts`
+//
+// 사용자가 지우는 길은 조정하는 쪽을 지난다 (4차 재게이트 G3Z-1814-1). 대화 자동 저장 실행기
+// (chat/autosave-runner.ts)는 같은 자료의 원문을 되살리는 업로드를 보낼 수 있고, 그 업로드는 거둘 수 없다.
+// 그 업로드가 나가 있는 동안 기록 상세가 여기서 바로 지우면 늦게 도착한 업로드가 행 없는 원문을 만든다 -
+// 앱 어디에도 보이지 않고 지울 곳도 없다. 그래서 실행기가 불러올 때 coordinateCapturedSourceDeletes 로
+// 자기 계정 줄을 걸고, 그 뒤로 deleteCapturedSource 는 그 줄에서 돈다. 실행기를 불러오지 않은 런타임에는
+// 되살리는 업로드도 없어서 바로 지운다. 이 파일이 실행기를 import 하지 않는 것은 실행기가 이 파일을
+// import 하기 때문이다(require cycle).
+// 검사: `src/lib/wiki/__tests__/delete-captured-source.test.ts` · 조정된 길은 `src/lib/chat/__tests__/autosave-runner.test.ts`
 
 import { getSupabaseClient } from "../supabase/client";
 import { invalidateDomainLevels } from "../persona/load-domain-levels";
@@ -49,11 +57,31 @@ import { deleteRawClipping } from "./storage";
 
 export type DeleteCapturedSourceOutcome = "deleted" | "not_deleted" | "raw_removed" | "partly_deleted";
 
+/** 사용자의 한 건 삭제를 받아 조정하는 쪽(대화 자동 저장 실행기의 계정 줄). */
+export type CapturedSourceDeleteCoordinator = (userId: string, sourceId: string) => Promise<DeleteCapturedSourceOutcome>;
+
+let coordinator: CapturedSourceDeleteCoordinator | null = null;
+
+/** 사용자의 한 건 삭제를 조정하는 쪽을 건다. 대화 자동 저장 실행기가 불러올 때 한 번 건다(머리 주석). */
+export function coordinateCapturedSourceDeletes(next: CapturedSourceDeleteCoordinator): void {
+  coordinator = next;
+}
+
 function warnWithoutDetails(message: string): void {
   if (typeof console !== "undefined") console.warn(message);
 }
 
-export async function deleteCapturedSource(userId: string, sourceId: string): Promise<DeleteCapturedSourceOutcome> {
+/**
+ * 사용자가 담아 둔 자료 한 건을 지운다 - 기록 상세가 부른다. 조정하는 쪽이 걸려 있으면 그 줄에서 돈다: 원문을 되살리는
+ * 업로드가 나가 있는 자료는 지운 것으로 끝내지 않고(not_deleted, 아무것도 지우지 않았다) 업로드가 돌아온 뒤 마저 지우며,
+ * 줄의 시간 상한을 넘기면 던진다(무엇을 지웠는지 모른다 - 화면은 일반 실패 안내다).
+ */
+export function deleteCapturedSource(userId: string, sourceId: string): Promise<DeleteCapturedSourceOutcome> {
+  return coordinator ? coordinator(userId, sourceId) : removeCapturedSource(userId, sourceId);
+}
+
+/** 지금 지운다. 조정하는 쪽이 자기 줄 안에서 부른다 - 화면은 deleteCapturedSource 를 부른다. */
+export async function removeCapturedSource(userId: string, sourceId: string): Promise<DeleteCapturedSourceOutcome> {
   const supabase = getSupabaseClient();
 
   let path: string | null;

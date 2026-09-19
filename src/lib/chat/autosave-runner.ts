@@ -105,6 +105,17 @@
 // 원문만 남는다. 끝난 쓰기의 결과는 버린다(표식 · 대기 기록 변화 없음, 화면은 이미 실패 안내다). 그 안내가 "담기 결과를 확인하지
 // 못했다 · 위키를 확인한 뒤 다시 담아 달라" 라서 늦게 남은 행과 어긋나지 않고, 다시 누르면 정확 중복으로 그 한 행이 담긴다.
 //
+// ## 사용자가 직접 지울 때 (4차 재게이트 G3Z-1814-1)
+//
+// 기록 상세의 한 건 삭제(deleteCapturedSource)도 이 줄에 선다. 그 삭제가 줄 밖에서 돌던 때는 손 담기가 원문을 되살리는 업로드를
+// 보내 둔 사이에 사용자가 그 자료를 지우면, 삭제는 끝났다고 답하고 늦게 도착한 업로드가 행 없는 원문을 만들었다. 이 모듈이
+// 불러와질 때 그 함수에 자기 줄을 건다(coordinateCapturedSourceDeletes) - 반대 방향 import 는 require cycle 이다.
+//   · 줄 안의 손 담기가 되살리는 중이면 그 손 담기가 끝난 뒤에 지운다.
+//   · 사용자의 삭제는 그 전에 손으로 남긴 표식보다 나중의 뜻이다. 표식을 거두고 지운다.
+//   · 시간 상한을 넘긴 옛 손 담기의 되살리기가 아직 나가 있으면 지운 것으로 끝내지 않는다(not_deleted - 아무것도 지우지 않았다).
+//     지울 차례로 적어 두고(대기 기록), 업로드가 돌아오면 그 행을 줄에서 다시 봐 마저 지운다. 그 사이 다시 손으로 남기면 그 뜻이 이긴다.
+//   · 지우는 동안 그 행은 지우는 중(deletingNow)이다 - 손 담기 · 자동 저장이 그 행으로 담김을 띄우지 않는다.
+//
 // ⚠ 확인하지 않은 것: 운영 Supabase 에서 클라이언트가 정한 id 로 INSERT 가 되는지, 끊긴 fetch 뒤 서버가 커밋하는지,
 // 없는 경로 Storage remove 가 빈 목록인지 404 오류인지(둘 다 "없음" 으로 읽는다), RN 실기의 백그라운드 동작.
 // ⚠ 보안 경계가 아니다. 서버는 chat_autosave 를 쓰기에서 강제하지 않는다(서버 몫, 설계 S2).
@@ -117,7 +128,11 @@ import { beginAccountSessionLease, type PendingAccountSessionLease } from "../au
 import { getSupabaseClient } from "../supabase/client";
 import { readPrivacyPrefs } from "../supabase/privacy";
 import { captureFromMarkdown, type CaptureJournal, type CaptureResult } from "../wiki/capture";
-import { deleteCapturedSource } from "../wiki/delete-captured-source";
+import {
+  coordinateCapturedSourceDeletes,
+  removeCapturedSource,
+  type DeleteCapturedSourceOutcome,
+} from "../wiki/delete-captured-source";
 import { deleteRawClipping, rawClippingPath, uploadRawClipping } from "../wiki/storage";
 import {
   autosaveConsentFor,
@@ -226,15 +241,17 @@ const keptRows = new Set<string>();
 const deletingNow = new Set<string>();
 /**
  * 손 담기가 원문을 되살리는 업로드를 보내 두고 아직 돌아오지 않은 행(undoKey) (3차 재게이트 G2Z-1814-1). writes 는 나가 있는
- * 업로드 수, outlivedLane 은 그중 줄이 시간 상한으로 기다리지 않고 넘어간 것이 있었는가다. 이 표식이 있는 행은 어느 지우기도 지우지
- * 않는다 - 늦게 도착한 업로드가 지운 원문을 다시 만든다. 마지막 업로드가 돌아오면 빠지고, 줄을 넘긴 것이 있었으면 그 행을 다시 본다.
+ * 업로드 수, outlivedLane 은 그중 줄이 시간 상한으로 기다리지 않고 넘어간 것이 있었는가다(사용자가 그 사이 지우기로 해도 세운다 -
+ * 돌아온 뒤 다시 봐야 한다). 이 표식이 있는 행은 어느 지우기도 지우지 않는다 - 늦게 도착한 업로드가 지운 원문을 다시 만든다. 마지막
+ * 업로드가 돌아오면 빠지고, outlivedLane 이면 그 행을 다시 본다.
  */
 const restoringNow = new Map<string, { writes: number; outlivedLane: boolean }>();
 /**
- * 되돌리기를 끝내지 못했고 기기에도 못 남겨 undo_unrecorded 로 끝난 작업(undoKey). 비우기가 기기 기록과 함께 돈다.
- * recorded 는 그 뒤 비우기가 기록을 적는 데 성공했는가다. 다 지우면 reply 에 cancelled 를 알려 화면 안내를 거둔다.
+ * 지울 차례인데 기기에 못 남겨 이 런타임만 아는 행(undoKey). 되돌리기를 끝내지 못하고 undo_unrecorded 로 끝난 작업이 남기고, 사용자가
+ * 되살리기가 나가 있는 자료를 지우기로 했는데 기록을 못 적었을 때도 남긴다(reply 없음). 비우기가 기기 기록과 함께 돈다. recorded 는 그 뒤
+ * 비우기가 기록을 적는 데 성공했는가다. 다 지우면 reply 에 cancelled 를 알려 화면 안내를 거둔다.
  */
-const unfinishedUndos = new Map<string, { record: AutosaveUndoRecord; reply: KeepableTurn; recorded: boolean }>();
+const unfinishedUndos = new Map<string, { record: AutosaveUndoRecord; reply: KeepableTurn | null; recorded: boolean }>();
 
 /** 원문 키. 업로드와 되돌리기가 같은 함수로 만든다. */
 function chatStorageKey(sourceId: string): string {
@@ -612,15 +629,20 @@ async function deleteTracked(
 async function clearPendingUndo(record: AutosaveUndoRecord, signal: AbortSignal): Promise<boolean> {
   if (!(await deleteTracked(record, "probe", signal))) return false;
   throwIfAborted(signal);
+  await forgetRemoved(record);
+  return true;
+}
+
+/** 다 지운 행을 기록에서 뺀다(빼지 못해도 행은 이미 없다). 아직 삭제하지 못했다고 알린 답변이 있으면 거둔다. */
+async function forgetRemoved(record: AutosaveUndoRecord): Promise<void> {
   const key = undoKey(record);
   drainAttempts.delete(key);
   await forgetAutosaveUndo(record);
   const unfinished = unfinishedUndos.get(key);
   if (unfinished) {
     unfinishedUndos.delete(key);
-    notify({ ownerId: record.ownerId, reply: unfinished.reply, sourceId: record.sourceId, phase: "cancelled" });
+    if (unfinished.reply) notify({ ownerId: record.ownerId, reply: unfinished.reply, sourceId: record.sourceId, phase: "cancelled" });
   }
-  return true;
 }
 
 /** 한 작업이 쓴 것을 지운다. 그 계정이 끝까지 공개돼 있었고 남은 것이 없으면 true. 줄의 신호가 끊기면 더 보내지 않는다. */
@@ -639,7 +661,8 @@ async function undoWrites(
     target = found ? "row" : "raw";
   }
   if (target === "row") {
-    const outcome = await deleteCapturedSource(record.ownerId, record.sourceId);
+    // 이미 줄 안이다 - 조정된 deleteCapturedSource 를 부르면 이 줄을 다시 기다린다.
+    const outcome = await removeCapturedSource(record.ownerId, record.sourceId);
     return owner.isCurrent() && outcome === "deleted";
   }
   const gone = await removeRawCopy(record);
@@ -789,7 +812,7 @@ export function runManualKeep(
     if (unfinished) {
       // 아직 삭제하지 못했다고 알린 답변이 있으면 거둔다. 이제 지우지 않는다.
       unfinishedUndos.delete(key);
-      notify({ ownerId, reply: unfinished.reply, sourceId: record.sourceId, phase: "cancelled" });
+      if (unfinished.reply) notify({ ownerId, reply: unfinished.reply, sourceId: record.sourceId, phase: "cancelled" });
     }
     if (!(await forgetAutosaveUndo(record))) throw new Error("autosave-undo-not-forgotten");
     return kept;
@@ -858,6 +881,51 @@ function settleAfterLateRestore(record: AutosaveUndoRecord): Promise<void> {
   if (!captureAccountOwnerLease(record.ownerId)) return Promise.resolve();
   return inOwnerLane(record.ownerId, (signal) => drainOne(record.ownerId, record, signal)).catch(() => undefined);
 }
+
+/**
+ * 사용자가 담아 둔 자료 한 건을 지운다 - 기록 상세의 삭제가 deleteCapturedSource 로 부르면 여기로 온다 (4차 재게이트 G3Z-1814-1). 손 담기 ·
+ * 되돌리기 · 비우기와 같은 계정 줄에 서서, 줄 안의 손 담기가 원문을 되살리는 중이면 그 손 담기가 끝난 뒤에 지운다.
+ *
+ * 사용자의 삭제는 그 전에 손으로 남긴 표식보다 나중의 뜻이라 표식을 거둔다. 시간 상한을 넘긴 옛 손 담기의 되살리기가 아직 나가
+ * 있으면 지금 지워도 늦게 도착한 업로드가 원문만 되살린다 - 지운 것으로 끝내지 않고(not_deleted, 아무것도 지우지 않았다) 지울 차례로
+ * 적어 둔다. 업로드가 돌아오면 settleAfterLateRestore 가 비우기 한 건과 같은 판정으로 마저 지운다. 그 사이 다시 손으로 남기면 표식이
+ * 서고 기록이 빠져 그 뜻이 이긴다. 기기에 못 적으면 이 런타임이 쥔다(unfinishedUndos, 알릴 답변 없음).
+ *
+ * 지우는 동안 그 행은 지우는 중(deletingNow)이다 - 시간 상한을 넘겨 줄을 넘겨도 삭제 요청이 돌아올 때까지 손 담기 · 자동 저장이 그
+ * 행으로 담김을 띄우지 않는다. 다른 일이 이미 그 행을 지우는 중이면 겹쳐 보내지 않는다(not_deleted). 시간 상한을 넘기면 던진다.
+ */
+function runManualDelete(ownerId: string, sourceId: string): Promise<DeleteCapturedSourceOutcome> {
+  const owner = captureAccountOwnerLease(ownerId);
+  if (!owner) return Promise.resolve("not_deleted");
+  const record: AutosaveUndoRecord = { ownerId, sourceId: sourceId.toLowerCase() };
+  const key = undoKey(record);
+  return inOwnerLane(ownerId, async (signal) => {
+    if (!owner.isCurrent()) return "not_deleted";
+    keptRows.delete(key);
+    const restoring = restoringNow.get(key);
+    if (restoring) {
+      restoring.outlivedLane = true;
+      drainAttempts.delete(key);
+      const recorded = await rememberAutosaveUndo(record);
+      if (!recorded && !unfinishedUndos.has(key)) unfinishedUndos.set(key, { record, reply: null, recorded: false });
+      return "not_deleted";
+    }
+    if (deletingNow.has(key)) return "not_deleted";
+    deletingNow.add(key);
+    let outcome: DeleteCapturedSourceOutcome;
+    try {
+      outcome = await removeCapturedSource(record.ownerId, record.sourceId);
+    } finally {
+      deletingNow.delete(key);
+    }
+    throwIfAborted(signal);
+    if (outcome === "deleted" && owner.isCurrent()) await forgetRemoved(record);
+    return outcome;
+  });
+}
+
+// 이 모듈이 있는 런타임에서는 사용자의 한 건 삭제가 이 줄을 지난다(머리 주석 "사용자가 직접 지울 때").
+coordinateCapturedSourceDeletes(runManualDelete);
 
 /**
  * 이 계정에 남은 되돌리기를 마저 한다. 그 계정이 공개돼 있을 때만 돈다. 부를 때(대화 화면이 부른다): 이 계정으로 화면이 뜰 때 ·

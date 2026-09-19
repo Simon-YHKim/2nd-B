@@ -940,7 +940,8 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
 
   // 되돌리기를 끝내지 못한 자동 저장(대기 기록)을 마저 지운다 - 이 계정으로 이 화면이 뜰 때 · 다른 화면에서 대화 화면으로
   // 돌아올 때 · 앱이 앞으로 올 때. 실행기가 계정 공개와 진행 중인 건을 다시 보므로 겹쳐 불러도 같은 것을 두 번 지우지 않고,
-  // 여기서는 셋 모두 같은 drain 을 불러 도는 동안 들어온 부름을 하나로 합친다.
+  // 여기서는 셋 모두 같은 drain 을 불러 한 번에 하나만 돈다. 도는 동안 들어온 부름은 버리지 않고 끝난 뒤 한 번으로 합쳐 돈다 - 도는
+  // 비우기는 목록을 시작할 때 한 번 읽어서, 그 뒤에 생긴 기록은 버린 부름과 함께 다음 계기까지 남았다(4차 재게이트 G3A-1814-1).
   // "돌아올 때" 는 Stack 에 남은 채 초점만 돌아오는 경우다(설정 · 위키에서 뒤로). 그때는 화면이 다시 뜨지 않아 이 effect 가 다시
   // 돌지 않고, 앱도 앞에 있어 AppState 도 오지 않는다 - 그래서 초점 복귀(useFocusRefetch)에도 건다. 아직 삭제하지 못했다는 안내가
   // "대화 화면으로 돌아올 때마다 다시 삭제해 볼게요" 라고 약속하고, 그 안내가 사용자를 위키로 보낸다(3차 재게이트 G2Z-1814-3).
@@ -951,13 +952,20 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     if (!userId) return;
     const ownerId = userId;
     let draining = false;
+    let again = false;
+    let live = true;
     const drain = (): void => {
-      if (draining) return;
+      if (draining) {
+        again = true;
+        return;
+      }
       draining = true;
+      again = false;
       void drainAutosaveUndoQueue(ownerId)
         .catch(() => undefined)
         .finally(() => {
           draining = false;
+          if (again && live) drain();
         });
     };
     drainUndoRef.current = drain;
@@ -966,6 +974,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
       if (state === "active") drain();
     });
     return () => {
+      live = false;
       appState.remove();
       if (drainUndoRef.current === drain) drainUndoRef.current = null;
     };

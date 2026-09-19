@@ -281,6 +281,7 @@ import {
 } from "../../auth/account-epoch";
 import { readPrivacyPrefs, savePrivacyPref } from "../../supabase/privacy";
 import { captureFromMarkdown, type CaptureJournal } from "../../wiki/capture";
+import { deleteCapturedSource } from "../../wiki/delete-captured-source";
 import {
   __resetAutosaveConsentForTests,
   autosaveConsentFor,
@@ -1774,6 +1775,185 @@ describe("재게이트 잔여 (게이트 r260919 재게이트 GA-1814-1~3 · GZ-
         });
       },
     );
+  });
+
+  describe("4차 재게이트 G3Z-1814-1: 기록 상세의 한 건 삭제도 원문 되살리기와 같은 계정 줄을 지난다", () => {
+    // 게이트 재현 순서(같은 계정 · 같은 런타임): 철회의 삭제가 한 번 실패해 대기 기록이 남은 행 -> 같은 대화를 손으로 담는다(정확
+    // 중복이라 원문을 되살리는 업로드를 보낸다) -> 그 업로드가 나가 있는 동안 사용자가 기록 상세에서 그 자료를 지운다(deleted) ->
+    // 늦게 도착한 업로드가 행도 대기 기록도 없는 원문만 되살렸다. 기록 상세의 삭제가 계정 줄과 되살리기 표식(restoringNow)을 거치지
+    // 않았다. 기대: 되살리기가 나가 있는 행의 삭제는 확정하지 않고 업로드가 돌아온 뒤 다시 본다. 사용자의 삭제는 그 전의 손 담기를
+    // 이기고(나중에 반드시 지워진다), 그 뒤에 다시 손으로 남기면 그 뜻이 이긴다.
+    // 여기서 부르는 deleteCapturedSource 는 기록 상세 화면(handleDeleteSource)이 부르는 바로 그 함수다.
+    const late = (promise: Promise<unknown>): Promise<string> =>
+      promise.then(
+        (value) => (typeof value === "string" ? value : "kept"),
+        (error: Error) => error.message,
+      );
+
+    /** 대기 기록이 남은 행(짝 1)을 손으로 다시 담아, 원문을 되살리는 업로드가 나가 있는 채 줄의 시간 상한이 지난 자리. */
+    async function restoreOutlivesLane(): Promise<{ id: string; release: () => void }> {
+      expect(typeof LANE_TIMEOUT_MS).toBe("number");
+      const old = await pendingUndo();
+      fakeTimers();
+      const upload = hold("upload"); // 되살리는 업로드가 돌아오지 않는다
+      const outcome = late(handKeep(1));
+      await upload.reached;
+      jest.advanceTimersByTime(LANE_TIMEOUT_MS ?? 0);
+      expect(await outcome).toBe("autosave-lane-timeout"); // 화면은 담기 실패 안내다
+      return { id: old.handle.sourceId, release: upload.release };
+    }
+
+    test("되살리는 업로드가 나가 있는 동안 기록 상세에서 지우면, 그 손 담기가 끝난 뒤에 지워 원문도 행도 대기 기록도 남지 않는다", async () => {
+      const old = await pendingUndo();
+      const id = old.handle.sourceId;
+      const upload = hold("upload"); // 손 담기가 원문을 되살리는 업로드
+      const keeping = late(handKeep(1));
+      await upload.reached;
+      const deleting = late(deleteCapturedSource(OWNER, id));
+      await spin();
+      // 지우기는 계정 줄에서 손 담기를 기다린다 - 업로드가 돌아오기 전에는 아무것도 지우지 않는다.
+      expect({ row: hasRow(id), raw: hasRaw(id) }).toEqual({ row: true, raw: true });
+      upload.release();
+      expect({ keep: await keeping, deleted: await deleting }).toEqual({ keep: "kept", deleted: "deleted" });
+      await drainAutosaveUndoQueue(OWNER);
+      expect({ row: hasRow(id), raw: hasRaw(id), queue: queued() }).toEqual({ row: false, raw: false, queue: [] });
+    });
+
+    test("줄을 넘긴 되살리기가 아직 나가 있을 때 지우면 지운 것으로 끝내지 않고(삭제하지 못함), 업로드가 돌아온 뒤 마저 지운다 - 사이에 다시 담아 남긴 것보다 나중의 삭제가 이긴다", async () => {
+      const { id, release } = await restoreOutlivesLane();
+      const again = await handKeep(1); // 두 번째 되살리기는 바로 돌아와 그 행을 남겼다
+      expect({ deduped: again.deduped, id: again.source.id, queue: queued() }).toEqual({ deduped: "exact_duplicate", id, queue: [] });
+      const deleted = await late(deleteCapturedSource(OWNER, id));
+      expect({ deleted, row: hasRow(id), raw: hasRaw(id), queue: queued() }).toEqual({
+        deleted: "not_deleted",
+        row: true,
+        raw: true,
+        queue: [{ ownerId: OWNER, sourceId: id }],
+      });
+      release(); // 첫 되살리기가 늦게 도착한다
+      await spin();
+      jest.useRealTimers();
+      expect({ row: hasRow(id), raw: hasRaw(id), queue: queued() }).toEqual({ row: false, raw: false, queue: [] });
+    });
+
+    test("지우기를 미룬 뒤 같은 대화를 다시 손으로 담아 남기면, 늦은 업로드가 돌아와도 지우지 않는다 - 나중의 뜻이 이긴다", async () => {
+      const { id, release } = await restoreOutlivesLane();
+      expect(await late(deleteCapturedSource(OWNER, id))).toBe("not_deleted");
+      const again = await handKeep(1);
+      expect({ deduped: again.deduped, id: again.source.id }).toEqual({ deduped: "exact_duplicate", id });
+      release();
+      await spin();
+      jest.useRealTimers();
+      await drainAutosaveUndoQueue(OWNER);
+      expect({ row: hasRow(id), raw: hasRaw(id), queue: queued() }).toEqual({ row: true, raw: true, queue: [] });
+    });
+
+    test("되살리기가 나가 있는 행만 미룬다 - 그동안 다른 자료 한 건은 그대로 지운다", async () => {
+      const { id, release } = await restoreOutlivesLane();
+      const other = await handKeep(2); // 손으로 담은 다른 대화
+      const otherId = String(other.source.id);
+      const otherPath = String(other.source.storage_path);
+      expect(await late(deleteCapturedSource(OWNER, otherId))).toBe("deleted");
+      expect({
+        otherRow: mockServer.sources.some((row) => row.id === otherId),
+        otherRaw: mockServer.objects.has(otherPath),
+        row: hasRow(id),
+      }).toEqual({ otherRow: false, otherRaw: false, row: true });
+      release();
+      await spin();
+      jest.useRealTimers();
+      expect({ row: hasRow(id), raw: hasRaw(id), queue: queued() }).toEqual({ row: false, raw: false, queue: [] });
+    });
+
+    test("기록 상세의 지우기가 시간 상한을 넘겨 줄을 넘겨도, 그 행을 지우는 동안에는 같은 대화의 손 담기가 그 행으로 담김을 띄우지 않는다", async () => {
+      expect(typeof LANE_TIMEOUT_MS).toBe("number");
+      const saved = start(1, await consentOn());
+      expect(await saved.handle.settled).toBe("kept"); // 자동으로 담긴 대화
+      const id = saved.handle.sourceId;
+      fakeTimers();
+      const rowDelete = hold("rowDelete"); // 기록 상세의 지우기가 행 삭제에서 돌아오지 않는다
+      const deleting = late(deleteCapturedSource(OWNER, id));
+      await rowDelete.reached;
+      jest.advanceTimersByTime(LANE_TIMEOUT_MS ?? 0);
+      const kept = await late(handKeep(1)); // 같은 대화를 손으로 담는다 - 행은 아직 있다
+      rowDelete.release();
+      const deleted = await deleting;
+      await spin();
+      jest.useRealTimers();
+      expect({ deleted, kept, row: hasRow(id), raw: hasRaw(id) }).toEqual({
+        deleted: "autosave-lane-timeout",
+        kept: "autosave-deletion-in-flight",
+        row: false,
+        raw: false,
+      });
+    });
+
+    test("이번 실행에서 비우기가 세 번 실패해 더 시도하지 않던 행도, 사용자가 지우기로 하면 되살리기가 돌아온 뒤 지운다", async () => {
+      expect(typeof LANE_TIMEOUT_MS).toBe("number");
+      const old = await pendingUndo();
+      const id = old.handle.sourceId;
+      mockServer.serverError.set("remove", 3);
+      for (let round = 0; round < 3; round += 1) await drainAutosaveUndoQueue(OWNER); // 세 번 다 원문 삭제에서 실패
+      expect({ row: hasRow(id), queue: queued() }).toEqual({ row: true, queue: [{ ownerId: OWNER, sourceId: id }] });
+      fakeTimers();
+      const upload = hold("upload");
+      const keeping = late(handKeep(1));
+      await upload.reached;
+      jest.advanceTimersByTime(LANE_TIMEOUT_MS ?? 0);
+      expect(await keeping).toBe("autosave-lane-timeout");
+      expect(await late(deleteCapturedSource(OWNER, id))).toBe("not_deleted");
+      upload.release();
+      await spin();
+      jest.useRealTimers();
+      expect({ row: hasRow(id), raw: hasRaw(id), queue: queued() }).toEqual({ row: false, raw: false, queue: [] });
+    });
+
+    test("지우기를 미룰 때 기기에 적지 못하면 이 런타임이 쥐고, 업로드가 돌아온 뒤 마저 지운다", async () => {
+      const { id, release } = await restoreOutlivesLane();
+      await handKeep(1); // 두 번째 되살리기로 남긴 행 - 대기 기록은 빠졌다
+      const store = globalThis.localStorage as unknown as { setItem: (key: string, value: string) => void };
+      const setItem = store.setItem;
+      store.setItem = () => {
+        throw new Error("QuotaExceededError");
+      };
+      let deleted: string;
+      try {
+        deleted = await late(deleteCapturedSource(OWNER, id));
+      } finally {
+        store.setItem = setItem;
+      }
+      expect({ deleted, queue: queued() }).toEqual({ deleted: "not_deleted", queue: [] }); // 기기에는 없다
+      release();
+      await spin();
+      jest.useRealTimers();
+      expect({ row: hasRow(id), raw: hasRaw(id), queue: queued() }).toEqual({ row: false, raw: false, queue: [] });
+    });
+
+    test("아직 삭제하지 못했다고 알린 자동 저장을 기록 상세에서 지우면, 지운 뒤 그 안내를 거두고(cancelled) 대기 기록도 남기지 않는다", async () => {
+      const { job, release } = await atWait("J4");
+      await savePrivacyPref(OWNER, "chat_autosave", false);
+      const store = globalThis.localStorage as unknown as { setItem: (key: string, value: string) => void };
+      const setItem = store.setItem;
+      store.setItem = () => {
+        throw new Error("QuotaExceededError");
+      };
+      mockServer.serverError.set("remove", 1);
+      try {
+        release();
+        expect(await job.handle.settled).toBe("undo_unrecorded"); // 화면은 "아직 삭제하지 못했어요" 다
+      } finally {
+        store.setItem = setItem;
+      }
+      const id = job.handle.sourceId;
+      const deleted = await late(deleteCapturedSource(OWNER, id));
+      expect({ deleted, last: job.phases[job.phases.length - 1], row: hasRow(id), raw: hasRaw(id), queue: queued() }).toEqual({
+        deleted: "deleted",
+        last: "cancelled",
+        row: false,
+        raw: false,
+        queue: [],
+      });
+    });
   });
 });
 
