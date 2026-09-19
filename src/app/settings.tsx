@@ -334,7 +334,7 @@ function SettingsActionButton({
   full = true,
   selected,
 }: SettingsActionButtonProps) {
-  const [held, setHeld] = useState(false);
+  const [held, setHeld] = useState(false); // the pixel wrapper View it restyles keeps collapsable={false} so press/release never reparents its children, as in PixelPressable (2eb6266b)
   const isDisabled = disabled || loading;
   const labelColor = isDisabled
     ? BTN_DISABLED_LABEL
@@ -364,7 +364,7 @@ function SettingsActionButton({
         onPressOut={() => setHeld(false)}
         style={[styles.pixelButtonRoot, full ? styles.settingsButtonFull : null, style]}
       >
-        <View style={held ? styles.pixelButtonHeld : null}>
+        <View collapsable={false} style={held ? styles.pixelButtonHeld : null}>
           <PixelSurface
             variant={isDisabled ? "frame" : "bevel"}
             pressed={held && !isDisabled}
