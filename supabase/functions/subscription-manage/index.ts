@@ -65,7 +65,8 @@ import { createCheckoutBinding } from '../_shared/paddle-checkout-binding.ts';
 import {
   JsonBodyError,
   SUBSCRIPTION_MANAGE_JSON_BODY_LIMIT_BYTES,
-  readJsonObject,
+  SUBSCRIPTION_MANAGE_JSON_MAX_DEPTH,
+  readStrictJsonObject,
 } from '../_shared/request-json.ts';
 
 const ALLOWED_ORIGINS = new Set<string>([
@@ -283,7 +284,8 @@ Deno.serve(async (req: Request) => {
 
   let body: ManageBody;
   try {
-    const parsedBody = await readJsonObject(req, SUBSCRIPTION_MANAGE_JSON_BODY_LIMIT_BYTES);
+    // Strict: a repeated `action` key must not let JSON.parse pick the last one.
+    const parsedBody = await readStrictJsonObject(req, SUBSCRIPTION_MANAGE_JSON_BODY_LIMIT_BYTES, SUBSCRIPTION_MANAGE_JSON_MAX_DEPTH);
     const validatedBody = parseManageBody(parsedBody);
     if (!validatedBody) return jsonResponse(req, { error: 'invalid_body' }, 400);
     body = validatedBody;
@@ -293,6 +295,9 @@ Deno.serve(async (req: Request) => {
         error: error.code,
         max: error.maxBytes,
       }, 413);
+    }
+    if (error instanceof JsonBodyError && error.code === 'unsupported_media_type') {
+      return jsonResponse(req, { error: error.code }, 415);
     }
     return jsonResponse(req, { error: 'invalid_body' }, 400);
   }

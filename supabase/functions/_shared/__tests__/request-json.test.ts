@@ -6,16 +6,26 @@ import {
   LLM_PROXY_JSON_BODY_LIMIT_BYTES,
   OAUTH_JSON_BODY_LIMIT_BYTES,
   PADDLE_WEBHOOK_BODY_LIMIT_BYTES,
+  PADDLE_WEBHOOK_JSON_MAX_DEPTH,
   PEER_RESPONSE_JSON_BODY_LIMIT_BYTES,
   RSS_PROXY_JSON_BODY_LIMIT_BYTES,
   SUBSCRIPTION_MANAGE_JSON_BODY_LIMIT_BYTES,
+  SUBSCRIPTION_MANAGE_JSON_MAX_DEPTH,
+  hasJsonContentType,
+  parseStrictJson,
   readBodyBytes,
   readJsonObject,
+  readStrictJsonObject,
 } from '../request-json';
 
 function streamedRequest(
   chunks: Uint8Array[],
-  options: { contentLength?: string; onCancel?: () => void; onPull?: () => void } = {},
+  options: {
+    contentLength?: string;
+    contentType?: string;
+    onCancel?: () => void;
+    onPull?: () => void;
+  } = {},
 ): Request {
   const stream = new ReadableStream<Uint8Array>({
     pull(controller) {
@@ -31,6 +41,9 @@ function streamedRequest(
   const headers = new Headers();
   if (options.contentLength !== undefined) {
     headers.set('content-length', options.contentLength);
+  }
+  if (options.contentType !== undefined) {
+    headers.set('content-type', options.contentType);
   }
   return { body: stream, headers } as Request;
 }
@@ -268,6 +281,154 @@ describe('readJsonObject', () => {
   });
 });
 
+function strictJsonErrorCode(text: string, maxDepth: number): string | null {
+  try {
+    parseStrictJson(text, maxDepth);
+    return null;
+  } catch (error) {
+    return error instanceof JsonBodyError ? error.code : 'not_a_json_body_error';
+  }
+}
+
+describe('parseStrictJson', () => {
+  it('returns exactly what JSON.parse returns for unambiguous JSON', () => {
+    const text = ' {"a":[1,-0.5,2e3,true,false,null,"q\\"}]\\\\"],"b":{"c":"\\u00e9\\n"},"d":[]} ';
+    expect(parseStrictJson(text, 2)).toEqual(JSON.parse(text));
+  });
+
+  it.each(['0', '-0', '1e5', '1E+5', '0.25', '"x"', 'true', 'false', 'null', '[]', '{}'])(
+    'accepts the JSON value %p',
+    (text) => {
+      expect(parseStrictJson(text, 1)).toEqual(JSON.parse(text));
+    },
+  );
+
+  it.each([
+    ['a repeated key', '{"a":1,"a":2}'],
+    ['an escaped spelling of the same key', '{"a":1,"\\u0061":2}'],
+    ['a repeated key in a nested object', '{"outer":{"k":1,"k":1}}'],
+    ['a repeated __proto__ key', '{"__proto__":1,"__proto__":2}'],
+  ])('rejects %s', (_label, text) => {
+    expect(strictJsonErrorCode(text, 8)).toBe('duplicate_json_key');
+  });
+
+  it('allows the same key in sibling objects and key-like text inside strings', () => {
+    expect(strictJsonErrorCode('[{"a":1},{"a":2}]', 8)).toBeNull();
+    expect(strictJsonErrorCode('{"a":"\\"a\\":1,{[","b":"a"}', 8)).toBeNull();
+  });
+
+  it('counts object and array nesting against the limit, top level included', () => {
+    expect(strictJsonErrorCode('{"a":{"b":[]}}', 3)).toBeNull();
+    expect(strictJsonErrorCode('{"a":{"b":[{}]}}', 3)).toBe('json_too_deep');
+    expect(strictJsonErrorCode('[[[1]]]', 3)).toBeNull();
+    expect(strictJsonErrorCode('[[[[1]]]]', 3)).toBe('json_too_deep');
+    expect(strictJsonErrorCode('{"a":"{{{{{{"}', 1)).toBeNull();
+  });
+
+  it.each([
+    '', ' ', '{"a":1,}', '[1,]', '{a:1}', "{'a':1}", '01', '1.', '-', '+1', 'NaN',
+    '"\\x"', '"\\u12"', '"unterminated', '"tab\there"', '{"a":1} {}', '{"a" 1}', 'tru', 'nul',
+  ])('rejects what JSON.parse rejects: %p', (text) => {
+    expect(() => JSON.parse(text)).toThrow();
+    expect(strictJsonErrorCode(text, 8)).toBe('invalid_json');
+  });
+
+  it('rejects a depth limit that is not a positive integer', () => {
+    expect(() => parseStrictJson('{}', 0)).toThrow(RangeError);
+    expect(() => parseStrictJson('{}', 1.5)).toThrow(RangeError);
+  });
+});
+
+describe('hasJsonContentType', () => {
+  const withContentType = (...values: string[]) => {
+    const headers = new Headers();
+    for (const value of values) headers.append('content-type', value);
+    return headers;
+  };
+
+  it.each([
+    'application/json',
+    'Application/JSON',
+    'application/json; charset=utf-8',
+    'application/json;charset=UTF-8',
+    'application/json; charset="utf-8"',
+  ])('accepts %p', (value) => {
+    expect(hasJsonContentType(withContentType(value))).toBe(true);
+  });
+
+  it.each([
+    'text/plain',
+    'text/plain;charset=UTF-8',
+    'application/x-www-form-urlencoded',
+    'multipart/form-data; boundary=x',
+    'application/jsonp',
+    'application/json-patch+json',
+    'application/json; charset=iso-8859-1',
+    'application/json; charset=utf-8; boundary=x',
+    `application/json;${' '.repeat(120)}charset=utf-8`,
+  ])('rejects %p', (value) => {
+    expect(hasJsonContentType(withContentType(value))).toBe(false);
+  });
+
+  it('rejects a missing header and a header sent twice', () => {
+    expect(hasJsonContentType(new Headers())).toBe(false);
+    expect(hasJsonContentType(withContentType('application/json', 'application/json'))).toBe(false);
+  });
+});
+
+describe('readStrictJsonObject', () => {
+  it('parses a JSON object sent with the JSON media type', async () => {
+    const request = streamedRequest([bytes('{"action":"cancel"}')], {
+      contentType: 'application/json',
+    });
+
+    await expect(readStrictJsonObject(request, 64, 1)).resolves.toEqual({ action: 'cancel' });
+  });
+
+  it.each(['text/plain', undefined])(
+    'answers media type %p before pulling the body',
+    async (contentType) => {
+      let pulls = 0;
+      let cancelled = false;
+      const request = streamedRequest([bytes('{"action":"cancel"}')], {
+        contentType,
+        onPull: () => { pulls += 1; },
+        onCancel: () => { cancelled = true; },
+      });
+
+      await expect(readStrictJsonObject(request, 64, 1)).rejects.toMatchObject({
+        code: 'unsupported_media_type',
+      });
+      expect(pulls).toBe(0);
+      expect(cancelled).toBe(true);
+    },
+  );
+
+  it.each([
+    ['a duplicate key', '{"action":"cancel","action":"refund_request"}', 'duplicate_json_key'],
+    ['nesting past the limit', '{"action":{"nested":true}}', 'json_too_deep'],
+    ['a top-level array', '[]', 'invalid_json'],
+    ['malformed JSON', '{"action":', 'invalid_json'],
+  ])('rejects %s', async (_label, text, code) => {
+    const request = streamedRequest([bytes(text)], { contentType: 'application/json' });
+
+    await expect(readStrictJsonObject(request, 64, 1)).rejects.toMatchObject({ code });
+  });
+
+  it('keeps the byte cap and rejects malformed UTF-8', async () => {
+    await expect(readStrictJsonObject(
+      streamedRequest([bytes('{"action":"cancel"}')], { contentType: 'application/json' }),
+      8,
+      1,
+    )).rejects.toMatchObject({ code: 'request_body_too_large', maxBytes: 8 });
+    await expect(readStrictJsonObject(
+      streamedRequest([new Uint8Array([0x7b, 0xff, 0x7d])], { contentType: 'application/json' }),
+      8,
+      1,
+    )).rejects.toMatchObject({ code: 'invalid_json' });
+  });
+});
+
 describe('Edge Function request-body caps', () => {
   it('keeps multimodal LLM and small public payload limits explicit', () => {
     expect(LLM_PROXY_JSON_BODY_LIMIT_BYTES).toBe(8 * 1024 * 1024);
@@ -276,6 +437,11 @@ describe('Edge Function request-body caps', () => {
     expect(RSS_PROXY_JSON_BODY_LIMIT_BYTES).toBe(4 * 1024);
     expect(SUBSCRIPTION_MANAGE_JSON_BODY_LIMIT_BYTES).toBe(4 * 1024);
     expect(PADDLE_WEBHOOK_BODY_LIMIT_BYTES).toBe(1024 * 1024);
+  });
+
+  it('keeps JSON nesting limits explicit', () => {
+    expect(PADDLE_WEBHOOK_JSON_MAX_DEPTH).toBe(32);
+    expect(SUBSCRIPTION_MANAGE_JSON_MAX_DEPTH).toBe(4);
   });
 
   // LLM proxies use their stricter shared reader, which also bounds upstream
@@ -315,12 +481,27 @@ describe('Edge Function request-body caps', () => {
 
   it.each([
     ['rss-proxy/index.ts', 'RSS_PROXY_JSON_BODY_LIMIT_BYTES'],
-    ['subscription-manage/index.ts', 'SUBSCRIPTION_MANAGE_JSON_BODY_LIMIT_BYTES'],
   ])('%s uses the streamed JSON parser with %s', (relativePath, limitName) => {
     const source = readFileSync(resolve(__dirname, '..', '..', relativePath), 'utf8');
 
     expect(source).toContain(`readJsonObject(req, ${limitName})`);
     expect(source).toContain("error.code === 'request_body_too_large'");
+    expect(source).not.toMatch(/await\s+req\.json\s*\(/);
+  });
+
+  it.each([
+    [
+      'subscription-manage/index.ts',
+      'SUBSCRIPTION_MANAGE_JSON_BODY_LIMIT_BYTES',
+      'SUBSCRIPTION_MANAGE_JSON_MAX_DEPTH',
+    ],
+  ])('%s uses the strict JSON reader with %s and %s', (relativePath, limitName, depthName) => {
+    const source = readFileSync(resolve(__dirname, '..', '..', relativePath), 'utf8');
+
+    expect(source).toContain(`readStrictJsonObject(req, ${limitName}, ${depthName})`);
+    expect(source).toContain("error.code === 'request_body_too_large'");
+    expect(source).toMatch(/error\.code === 'unsupported_media_type'[\s\S]{0,160}?415/);
+    expect(source).not.toMatch(/\breadJsonObject\s*\(/);
     expect(source).not.toMatch(/await\s+req\.json\s*\(/);
   });
 
