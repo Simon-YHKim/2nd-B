@@ -761,3 +761,164 @@ describe("auth v2 storage and mutation boundary", () => {
     expect(JSON.parse(storage.getItem(runtimeA.storageKey) ?? "null").user.id).toBe("user-b");
   });
 });
+
+describe("a runtime retired during its v1 -> v2 migration (KZ-1840-1)", () => {
+  // The migration writes the storage directly, not through the fenced storage
+  // the runtime hands its client. A consented reset can retire the runtime
+  // while a retried migration sits between two of those writes. It ends there
+  // and leaves the move to the live runtime, which still waits for it on M.
+  type Keys = ReturnType<typeof authStorageKeysForUrl>;
+
+  const pairsOf = (keys: Keys): Array<[string, string]> => [
+    [keys.v1Primary, keys.v2Primary],
+    [`${keys.v1Primary}-code-verifier`, `${keys.v2Primary}-code-verifier`],
+    [`${keys.v1Primary}-user`, `${keys.v2Primary}-user`],
+    [LEGACY_RECOVERY_PROOF_KEY, RECOVERY_PROOF_KEY],
+    [LEGACY_RECOVERY_PENDING_KEY, RECOVERY_PENDING_KEY],
+  ];
+  const copiesOf = (keys: Keys) => pairsOf(keys).map(([, revised]) => `set:${revised}`);
+  const removalsOf = (keys: Keys) => pairsOf(keys).map(([legacy]) => `remove:${legacy}`);
+  const VALUES = ["session-a", "verifier-a", "user-a", "proof-a", "pending-a"];
+
+  function seedLegacyBundle(storage: MemoryStorage, keys: Keys): void {
+    pairsOf(keys).forEach(([legacy], index) => storage.setItem(legacy, VALUES[index]));
+  }
+
+  /** Where each value sits, [v1, v2], plus the completion marker. */
+  function bundleOnDisk(storage: MemoryStorage, keys: Keys) {
+    return {
+      pairs: pairsOf(keys).map(([legacy, revised]) => [storage.getItem(legacy), storage.getItem(revised)]),
+      marker: storage.getItem(keys.migrationTombstone),
+    };
+  }
+  const MIGRATED = { pairs: VALUES.map((value) => [null, value]), marker: "1" };
+
+  /** One runtime's window onto the shared storage. It logs that runtime's calls
+   *  and can stop once at one of them until the gate opens: a read before it
+   *  answers, a removal after it is done. */
+  function windowOnto(
+    shared: MemoryStorage,
+    log: string[],
+    pause?: { op: "get" | "remove"; key: string; gate: Promise<void> },
+  ): SupportedStorage & { reached(): boolean } {
+    let reached = false;
+    const stopHere = async (op: "get" | "remove", key: string) => {
+      if (!pause || reached || pause.op !== op || pause.key !== key) return;
+      reached = true;
+      await pause.gate;
+    };
+    return {
+      reached: () => reached,
+      async getItem(key) {
+        log.push(`get:${key}`);
+        await stopHere("get", key);
+        return shared.getItem(key);
+      },
+      async setItem(key, value) {
+        log.push(`set:${key}`);
+        shared.setItem(key, value);
+      },
+      async removeItem(key) {
+        log.push(`remove:${key}`);
+        shared.removeItem(key);
+        await stopHere("remove", key);
+      },
+    };
+  }
+
+  async function flush(rounds = 10): Promise<void> {
+    for (let round = 0; round < rounds; round += 1) {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+  }
+
+  async function isPending(promise: Promise<unknown>): Promise<boolean> {
+    const marker = {};
+    const winner = await Promise.race([
+      promise,
+      new Promise((resolve) => setImmediate(() => resolve(marker))),
+    ]);
+    return winner === marker;
+  }
+
+  const writesIn = (log: string[]) => log.filter((entry) => !entry.startsWith("get:"));
+
+  test.each([
+    {
+      point: "while it waits on the v2 read of a pair it would copy",
+      slug: "copy",
+      pause: (keys: Keys) => ({ op: "get" as const, key: keys.v2Primary }),
+      retiredWrites: (_keys: Keys): string[] => [],
+    },
+    {
+      point: "while one of its v1 removals is in flight",
+      slug: "remove",
+      pause: (keys: Keys) => ({ op: "remove" as const, key: keys.v1Primary }),
+      retiredWrites: (keys: Keys) => [...copiesOf(keys), `remove:${keys.v1Primary}`],
+    },
+    {
+      point: "while its last v1 removal is in flight, before the completion marker",
+      slug: "marker",
+      pause: (_keys: Keys) => ({ op: "remove" as const, key: LEGACY_RECOVERY_PENDING_KEY }),
+      retiredWrites: (keys: Keys) => [...copiesOf(keys), ...removalsOf(keys)],
+    },
+  ])("retired $point, it writes nothing more and the live runtime finishes behind M", async ({
+    slug,
+    pause,
+    retiredWrites,
+  }) => {
+    const url = `https://kz1840-${slug}.supabase.co`;
+    const keys = authStorageKeysForUrl(url);
+    const shared = new MemoryStorage();
+    seedLegacyBundle(shared, keys);
+    let openGate!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      openGate = resolve;
+    });
+    const retiringLog: string[] = [];
+    const retiringWindow = windowOnto(shared, retiringLog, { ...pause(keys), gate });
+    const retiring = createAuthStorageRuntime({ url, storage: retiringWindow, web: false });
+    const retiringReady = retiring.ready();
+    await flush();
+    const stoppedMidMigration = retiringWindow.reached() && (await isPending(retiringReady));
+    retiring.retire();
+
+    const liveLog: string[] = [];
+    const live = createAuthStorageRuntime({ url, storage: windowOnto(shared, liveLog), web: false });
+    const liveReady = live.ready();
+    await flush();
+    const liveWaitedOnM = (await isPending(liveReady)) && liveLog.length === 0;
+
+    openGate();
+    await expect(retiringReady).resolves.toBeUndefined();
+    await liveReady;
+
+    expect(stoppedMidMigration).toBe(true);
+    expect(liveWaitedOnM).toBe(true);
+    expect(writesIn(retiringLog)).toEqual(retiredWrites(keys));
+    expect(bundleOnDisk(shared, keys)).toEqual(MIGRATED);
+  });
+
+  test("retired before it ever migrates, its ready() leaves the storage alone and the live runtime migrates", async () => {
+    const url = "https://kz1840-entry.supabase.co";
+    const keys = authStorageKeysForUrl(url);
+    const shared = new MemoryStorage();
+    seedLegacyBundle(shared, keys);
+    const retiringLog: string[] = [];
+    const retiring = createAuthStorageRuntime({
+      url,
+      storage: windowOnto(shared, retiringLog),
+      web: false,
+    });
+    retiring.retire();
+
+    await expect(retiring.ready()).resolves.toBeUndefined();
+    await expect(retiring.storage?.getItem(keys.v2Primary)).resolves.toBeNull();
+    expect(retiringLog).toEqual([]);
+    expect(bundleOnDisk(shared, keys).marker).toBeNull();
+
+    const live = createAuthStorageRuntime({ url, storage: windowOnto(shared, []), web: false });
+    await live.ready();
+    expect(bundleOnDisk(shared, keys)).toEqual(MIGRATED);
+  });
+});
