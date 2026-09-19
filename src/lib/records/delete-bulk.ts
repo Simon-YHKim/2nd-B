@@ -1,7 +1,7 @@
 // Bulk + scoped record deletion. All operations are RLS-scoped to
 // auth.uid() so the userId argument is belt-and-suspenders alongside
-// the policy. Each helper returns the affected row count so the UI
-// can show 'Deleted N records'.
+// the policy. Each helper returns the affected row count so the UI can show
+// 'Deleted N records'. Sources go with their raw-clippings originals (wiki/source-erasure).
 
 import { getSupabaseClient } from "../supabase/client";
 import { invalidateDomainLevels } from "../persona/load-domain-levels";
@@ -12,6 +12,7 @@ import {
   type AuthSessionExpectation,
 } from "../auth/session-mutation";
 import { installAccountLocalDeletionFence } from "../account/local-deletion-fence";
+import { eraseRawClippingFolder, eraseSourcesWithRawClippings, type SourceErasure } from "../wiki/source-erasure";
 
 /** Delete every record belonging to the user. Returns affected count. */
 export async function deleteAllRecords(userId: string): Promise<number> {
@@ -79,17 +80,14 @@ export async function deleteRecordsByIds(userId: string, ids: string[]): Promise
 
 /** Delete every wiki page (cascades wiki_links). Sources are untouched. */
 /** Delete specific sources by id (import-hub 철회 — removes the derived rows
- *  a ratified import created). Owner-scoped. */
+ *  a ratified import created) together with their raw-clippings originals,
+ *  raw first (wiki/source-erasure.ts). Owner-scoped. A row a wiki page still
+ *  points at is left in place with its original, so the count comes up short
+ *  and the callers' findSurvivingSourceIds check reports it - the same outcome
+ *  the row delete used to reach by failing on the source_kind_pair CHECK. */
 export async function deleteSourcesByIds(userId: string, ids: string[]): Promise<number> {
   if (ids.length === 0) return 0;
-  const supabase = getSupabaseClient();
-  const { count, error } = await supabase
-    .from("sources")
-    .delete({ count: "exact" })
-    .eq("user_id", userId)
-    .in("id", ids);
-  if (error) throw error;
-  return count ?? 0;
+  return (await eraseSourcesWithRawClippings(userId, { ids })).deleted;
 }
 
 /** Which of these source ids still exist for this owner.
@@ -122,22 +120,23 @@ export async function deleteAllWikiPages(userId: string): Promise<number> {
   return count ?? 0;
 }
 
-/** Delete every un-ingested source. Promoted sources need their wiki
- *  page deleted first (the wiki_pages_source_kind_pair CHECK blocks
- *  source deletion while a kind='source' page references it). */
-export async function deleteUningestedSources(userId: string): Promise<number> {
-  const supabase = getSupabaseClient();
-  const { count, error } = await supabase
-    .from("sources")
-    .delete({ count: "exact" })
-    .eq("user_id", userId)
-    .eq("ingested", false);
-  if (error) throw error;
-  return count ?? 0;
+/** Delete every un-ingested source with its raw-clippings original, raw first
+ *  so a failure leaves the row to retry from (wiki/source-erasure.ts). A row a
+ *  kind='source' wiki page still points at is already organized into the wiki,
+ *  whatever its flag says, and the wiki_pages_source_kind_pair CHECK blocks its
+ *  delete: it keeps its original too and is counted in `kept`. It used to fail
+ *  the whole bulk delete. The settings screen reports `kept` next to the count,
+ *  never as a plain "deleted" toast. Throws when a row it should have deleted
+ *  is still there. */
+export async function deleteUningestedSources(userId: string): Promise<SourceErasure> {
+  return eraseSourcesWithRawClippings(userId, { uningested: true });
 }
 
-/** Delete every source (after wiki pages are deleted). Safe-order:
- *  call deleteAllWikiPages first when you want a full wipe. */
+/** Delete every source (after wiki pages are deleted), then empty the owner's
+ *  raw-clippings folder, rows first: with every row gone the folder listing is
+ *  itself what a retry resumes from (wiki/source-erasure.ts). Throws while any
+ *  object remains, so the wipe never reports done over a leftover original.
+ *  Safe-order: call deleteAllWikiPages first when you want a full wipe. */
 export async function deleteAllSources(userId: string): Promise<number> {
   const supabase = getSupabaseClient();
   const { count, error } = await supabase
@@ -145,6 +144,7 @@ export async function deleteAllSources(userId: string): Promise<number> {
     .delete({ count: "exact" })
     .eq("user_id", userId);
   if (error) throw error;
+  await eraseRawClippingFolder(userId);
   return count ?? 0;
 }
 
@@ -188,12 +188,12 @@ export async function deleteAllOwnedClipperTemplates(userId: string): Promise<nu
 //   consent_records (0031, append-only ledger), ai_audit_log (0004).
 // A content wipe keeps the account, so it intentionally leaves those in place.
 
-/** Content wipe (keeps the account): wiki pages -> sources -> records ->
- *  chat_usage -> self_contexts -> owned clipper templates. Order matters for
- *  the source_id pair CHECK on wiki_pages. The derived tables are best-effort:
- *  a failure on one (e.g. RLS) is logged and skipped so the wipe still clears
- *  the rest. RLS-protected derived data (personas/memorized_patterns/xp) is
- *  only erased by full account deletion — see requestAccountDeletion. */
+/** Content wipe (keeps the account): wiki pages -> sources and their
+ *  raw-clippings folder -> records -> chat_usage -> self_contexts -> owned
+ *  clipper templates. Order matters for the source_id pair CHECK on wiki_pages.
+ *  The derived tables are best-effort: a failure on one (e.g. RLS) is logged
+ *  and skipped so the wipe still clears the rest. RLS-protected derived data
+ *  (personas/memorized_patterns/xp) is only erased by requestAccountDeletion. */
 export async function deleteAllUserData(userId: string): Promise<{
   records: number;
   sources: number;

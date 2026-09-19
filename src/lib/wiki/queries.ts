@@ -10,6 +10,7 @@
 // always equal auth.uid() (otherwise RLS rejects the operation).
 
 import { getSupabaseClient } from "../supabase/client";
+import { eraseSourcesWithRawClippings } from "./source-erasure";
 import { diffWikiLinks } from "./link-diff";
 import { extractWikilinkSlugs } from "./wikilinks";
 import type { RelationType, SourceKind, SourceRow, WikiPageKind, WikiPageRow } from "./types";
@@ -135,24 +136,23 @@ export async function markSourceIngested(userId: string, sourceId: string): Prom
 }
 
 /**
- * Delete a source row. wiki_pages.source_id is ON DELETE SET NULL, but
- * the wiki_pages_source_kind_pair CHECK constraint requires kind='source'
- * ⇔ source_id IS NOT NULL. So sources that have been promoted to a
- * wiki page CAN'T be cleanly deleted without first deleting the wiki page.
- * The inbox UI only exposes the delete action on un-ingested rows.
+ * Delete a source row together with its raw-clippings original, raw first so
+ * a failed Storage call leaves the row (and its storage_path) to retry from
+ * (wiki/source-erasure.ts, R28 2026-09-20). This used to delete the row only
+ * and leave the .md in Storage, where the account export still listed it.
  *
- * Storage cleanup (deleting the .md from raw-clippings) is not automated
- * here — operator can prune Storage manually or via a scheduled Edge
- * Function later.
+ * wiki_pages.source_id is ON DELETE SET NULL, but the
+ * wiki_pages_source_kind_pair CHECK requires kind='source' ⇔ source_id IS NOT
+ * NULL, so a source promoted to a wiki page CAN'T be deleted without first
+ * deleting the wiki page. Such a source is left untouched, original included,
+ * and this throws, as the row delete used to. A source that is already gone
+ * is not an error.
+ *
+ * The inbox UI only exposes the delete action on un-ingested rows.
  */
 export async function deleteSource(userId: string, sourceId: string): Promise<void> {
-  const supabase = getSupabaseClient();
-  const { error } = await supabase
-    .from("sources")
-    .delete()
-    .eq("user_id", userId)
-    .eq("id", sourceId);
-  if (error) throw error;
+  const { kept } = await eraseSourcesWithRawClippings(userId, { ids: [sourceId] });
+  if (kept > 0) throw new Error("source is still referenced by a wiki page");
 }
 
 /** Sources whose Storage upload failed at capture time (frontmatter carries
