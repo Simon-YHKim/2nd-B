@@ -39,9 +39,10 @@ import {
   addImportHistory,
   getImportHistory,
   removeImportHistory,
+  withdrawImportHistoryEntry,
   type ImportHistoryEntry,
 } from "@/lib/import/history";
-import { createdSourceIds, withoutSharedSourceIds } from "@/lib/import/history-ownership";
+import { createdSourceIds, importWithdrawalJudge } from "@/lib/import/history-ownership";
 import { getEnv } from "@/lib/env";
 import { getGoogleAccessToken } from "@/lib/google/gisToken";
 import { fetchCalendarEvents, googleEventsToIcs, GOOGLE_CALENDAR_READONLY_SCOPE } from "@/lib/google/calendar";
@@ -136,6 +137,9 @@ export function ImportHubScreen() {
   const [history, setHistory] = useState<ImportHistoryEntry[]>([]);
   const [gErr, setGErr] = useState<string | null>(null);
   const [histErr, setHistErr] = useState<string | null>(null);
+  // How many rows the last withdrawal left in place because they were not that
+  // entry's own (0 = none). Without it a withdrawal that kept a row read as a full one.
+  const [histKept, setHistKept] = useState(0);
   const googleClientId = getEnv().EXPO_PUBLIC_GOOGLE_CLIENT_ID;
 
   const t = (k: string) => COPY(ko)[k] ?? k;
@@ -313,6 +317,9 @@ export function ImportHubScreen() {
             (bookedTxns > 0 ? `${t("txns")} ${bookedTxns} · ` : "") +
             `${t("appts")} ${s.appointments} · ${t("places")} ${s.places + s.events} · ${t("raw")} 0`,
           sourceIds: createdIds,
+          // Every id here is a row this import created, so its withdrawal may delete
+          // them all without asking whose they are (history-ownership.ts).
+          owned: true,
         });
       }
       setAlreadyImported(logged ? 0 : chosen.length);
@@ -378,6 +385,7 @@ export function ImportHubScreen() {
     // strand the imported rows as unrevokable while telling the user they were
     // withdrawn (the exact false-assurance this screen exists to prevent).
     setHistErr(null);
+    setHistKept(0);
     let entry = history.find((h) => h.id === id);
     // med#30: signed out we cannot delete the server rows this import created —
     // wiping only the local log would LOOK like a withdrawal while the data
@@ -386,29 +394,41 @@ export function ImportHubScreen() {
       setHistErr(t("revokeNeedsSignIn"));
       return;
     }
-    if (entry && userId && entry.sourceIds.length > 0) {
-      try {
-        // The log is shared with /import, and an entry this screen logged before
-        // 2026-09-20 can point at a row another entry points at too. That row belongs
-        // to the other entry: withdraw only the rows no other entry points at, judged
-        // on the log as it is now (a read failure keeps the entry, below).
-        entry = withoutSharedSourceIds(entry, await getImportHistory(userId));
-        const removed = await deleteSourcesByIds(userId, entry.sourceIds);
-        // Same as the deep-space shell: a short delete is only a false assurance
-        // if rows are still there, and the count cannot say. Ask when it is short.
-        if (
-          removed < entry.sourceIds.length &&
-          (await findSurvivingSourceIds(userId, entry.sourceIds)).length > 0
-        ) {
-          setHistErr(t("revokeFailed"));
-          return;
-        }
-      } catch {
+    if (!userId) return;
+    try {
+      // The log is shared with /import, and the log decides, not this screen's list.
+      // An entry logged before 2026-09-20 can point at a row another import created,
+      // so only the rows that are provably this entry's own are deleted
+      // (history-ownership.ts). One withdrawal runs at a time per account, across
+      // tabs, from reading the log to removing the entry, and a log that cannot be
+      // read stops it before anything is deleted.
+      const outcome = await withdrawImportHistoryEntry(
+        userId,
+        id,
+        importWithdrawalJudge(userId, findSurvivingSourceIds),
+        async (own) => {
+          entry = own;
+          const removed = await deleteSourcesByIds(userId, entry.sourceIds);
+          // Same as the deep-space shell: a short delete is only a false assurance
+          // if rows are still there, and the count cannot say. Ask when it is short.
+          if (
+            removed < entry.sourceIds.length &&
+            (await findSurvivingSourceIds(userId, entry.sourceIds)).length > 0
+          ) {
+            return false;
+          }
+          return removeImportHistory(userId, entry.id);
+        },
+      );
+      if (!outcome.withdrawn) {
         setHistErr(t("revokeFailed"));
         return;
       }
+      setHistKept(outcome.kept);
+    } catch {
+      setHistErr(t("revokeFailed"));
+      return;
     }
-    await removeImportHistory(userId, id);
     // Imported data left the record — a sad beat on the head.
     reactExpression("sad");
     setHistory(await getImportHistory(userId));
@@ -682,6 +702,14 @@ export function ImportHubScreen() {
     return (
       <View style={styles.section}>
         {histErr ? <OpsState variant="error" title={t("errTitle")} body={histErr} /> : null}
+        {histKept > 0 ? (
+          // Outside the list: the entry that kept them may have been the last one.
+          <View style={styles.noteCard}>
+            <Text variant="body" style={styles.noteText}>
+              {i18n.t("deepspace:ds.import.revokeKept", { count: histKept })}
+            </Text>
+          </View>
+        ) : null}
         {history.length === 0 ? (
           <OpsState variant="empty" title={t("emptyTitle")} body={t("emptyBody")} ctaLabel={t("pickSource")} onCta={() => setStep("hub")} />
         ) : (
@@ -741,7 +769,7 @@ function COPY(ko: boolean): Record<string, string> {
         done: "완료", appts: "약속", places: "장소", notes: "노트", watches: "시청", txns: "거래", raw: "원문", pickToApply: "반영할 항목 고르기",
         sensitiveExcluded: "민감 · 기본 제외", applyN: "고른 {n}건 기록에 반영",
         emptyTitle: "아직 가져온 게 없어요", emptyBody: "소스를 골라 시작해요", pickSource: "소스 고르기",
-        delete: "삭제", historyFine: "삭제는 임포트한 원본을 제거해요. 임포트로 만들어진 인물·가계부 항목은 관계·가계부 화면에서 지울 수 있어요. 미성년 계정은 통신·위치 임포트가 서버에서 잠겨 있어요.",
+        delete: "삭제", historyFine: "삭제는 이 임포트가 만든 원본을 제거해요. 다른 곳에서도 들여온 원본은 남겨요. 임포트로 만들어진 인물·가계부 항목은 관계·가계부 화면에서 지울 수 있어요. 미성년 계정은 통신·위치 임포트가 서버에서 잠겨 있어요.",
         revokeFailed: "철회하지 못했어요. 잠시 후 다시 시도해 주세요.", revokeNeedsSignIn: "로그인 후 철회할 수 있어요. 서버에 남은 데이터까지 함께 지워야 해서요.",
       }
     : {
@@ -768,7 +796,7 @@ function COPY(ko: boolean): Record<string, string> {
         done: "Done", appts: "Plans", places: "Places", notes: "Notes", watches: "Watches", txns: "Entries", raw: "Raw", pickToApply: "Pick what to apply",
         sensitiveExcluded: "sensitive · excluded by default", applyN: "Apply {n} to records",
         emptyTitle: "Nothing imported yet", emptyBody: "Pick a source to start", pickSource: "Pick a source",
-        delete: "Delete", historyFine: "Delete removes the imported source. People and ledger entries created from an import can be removed in the Relationships and Ledger screens. Comms/location import is server-locked for minor accounts.",
+        delete: "Delete", historyFine: "Delete removes the source this import created; a source also brought in elsewhere stays. People and ledger entries created from an import can be removed in the Relationships and Ledger screens. Comms/location import is server-locked for minor accounts.",
         revokeFailed: "Couldn't withdraw. Try again shortly.", revokeNeedsSignIn: "Sign in to withdraw - the server-side rows must be deleted together.",
       };
 }

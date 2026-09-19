@@ -901,6 +901,8 @@
       "revoke": "Retirar importación",
       "fileSource": "Importación de archivo",
       "revokeFailed": "No se pudo revocar. Inténtalo de nuevo en un momento.",
+      "revokeKept": "Se conservó {{count}} fuente que también se importó por otro lado.",
+      "revokeKept_plural": "Se conservaron {{count}} fuentes que también se importaron por otro lado.",
       "healthErrUnavailable": "Este dispositivo no puede conectarse a una app de salud. No se registró nada.",
       "healthErrDenied": "Se rechazó el acceso a salud, así que no se registró nada. Puedes permitirlo en los ajustes del dispositivo.",
       "healthErrEmpty": "Hoy no hay actividad para añadir.",

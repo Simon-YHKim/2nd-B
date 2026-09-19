@@ -901,6 +901,8 @@
       "revoke": "Remove import",
       "fileSource": "File import",
       "revokeFailed": "Couldn't remove the imported data. Try again shortly.",
+      "revokeKept": "Kept {{count}} source that was also brought in elsewhere.",
+      "revokeKept_plural": "Kept {{count}} sources that were also brought in elsewhere.",
       "healthErrUnavailable": "This device can't connect to a health app. Nothing was recorded.",
       "healthErrDenied": "Health access was declined, so nothing was recorded. You can allow it in your device settings.",
       "healthErrEmpty": "No health activity to add today.",

@@ -33,9 +33,10 @@ import {
   addImportHistory,
   getImportHistory,
   removeImportHistory,
+  withdrawImportHistoryEntry,
   type ImportHistoryEntry,
 } from "@/lib/import/history";
-import { withoutSharedSourceIds } from "@/lib/import/history-ownership";
+import { importWithdrawalJudge } from "@/lib/import/history-ownership";
 import { deleteSourcesByIds, findSurvivingSourceIds } from "@/lib/records/delete-bulk";
 
 // 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
@@ -252,6 +253,8 @@ export function DeepSpaceImportScreen() {
   // file imports here show up in the same withdrawal list. No seeded fake rows.
   const [history, setHistory] = useState<ImportHistoryEntry[]>([]);
   const [revokeErr, setRevokeErr] = useState<string | null>(null);
+  // Rows the last withdrawal left in place because they were not that entry's own.
+  const [revokeKept, setRevokeKept] = useState(0);
 
   useEffect(() => {
     if (!userId) return;
@@ -313,6 +316,8 @@ export function DeepSpaceImportScreen() {
           atIso: new Date().toISOString(),
           summary: t("ds.import.summaryPieces", { count: tally.imported }),
           sourceIds: createdIds,
+          // Every id here is a row this import created (history-ownership.ts).
+          owned: true,
         });
         setHistory(await getImportHistory(userId));
       }
@@ -330,32 +335,44 @@ export function DeepSpaceImportScreen() {
   async function revokeImport(entry: ImportHistoryEntry) {
     if (!userId) return;
     setRevokeErr(null);
-    if (entry.sourceIds.length > 0) {
-      try {
-        // The log is shared with the hub, and a hub entry logged before 2026-09-20 can
-        // point at a row another entry points at too. That row belongs to the other
-        // entry: withdraw only the rows no other entry points at, judged on the log as
-        // it is now (a read failure keeps the entry, below).
-        entry = withoutSharedSourceIds(entry, await getImportHistory(userId));
-        const removed = await deleteSourcesByIds(userId, entry.sourceIds);
-        // A short delete is not a failure on its own: the ids may already be
-        // gone. It is a failure only if any are still there, and that is exactly
-        // what the count cannot tell us. The comment above promises to keep the
-        // pointer for rows that still exist, so ask - but only when the count
-        // came up short, so the ordinary withdrawal costs no extra query.
-        if (
-          removed < entry.sourceIds.length &&
-          (await findSurvivingSourceIds(userId, entry.sourceIds)).length > 0
-        ) {
-          setRevokeErr(t("ds.import.revokeFailed"));
-          return;
-        }
-      } catch {
+    setRevokeKept(0);
+    try {
+      // The log is shared with the hub, and the log decides, not this screen's list.
+      // A hub entry logged before 2026-09-20 can point at a row another import created,
+      // so only the rows that are provably this entry's own are deleted
+      // (history-ownership.ts). One withdrawal runs at a time per account, across tabs,
+      // from reading the log to removing the entry, and a log that cannot be read stops
+      // it before anything is deleted.
+      const outcome = await withdrawImportHistoryEntry(
+        userId,
+        entry.id,
+        importWithdrawalJudge(userId, findSurvivingSourceIds),
+        async (own) => {
+          entry = own;
+          const removed = await deleteSourcesByIds(userId, entry.sourceIds);
+          // A short delete is not a failure on its own: the ids may already be
+          // gone. It is a failure only if any are still there, and that is exactly
+          // what the count cannot tell us. The comment above promises to keep the
+          // pointer for rows that still exist, so ask - but only when the count
+          // came up short, so the ordinary withdrawal costs no extra query.
+          if (
+            removed < entry.sourceIds.length &&
+            (await findSurvivingSourceIds(userId, entry.sourceIds)).length > 0
+          ) {
+            return false;
+          }
+          return removeImportHistory(userId, entry.id);
+        },
+      );
+      if (!outcome.withdrawn) {
         setRevokeErr(t("ds.import.revokeFailed"));
         return;
       }
+      setRevokeKept(outcome.kept);
+    } catch {
+      setRevokeErr(t("ds.import.revokeFailed"));
+      return;
     }
-    await removeImportHistory(userId, entry.id);
     setHistory(await getImportHistory(userId));
   }
 
@@ -609,7 +626,14 @@ export function DeepSpaceImportScreen() {
             ))}
           </MdCard>
 
-          {/* history */}
+          {/* history. The kept note sits outside it: the entry that kept rows may have been the last. */}
+          {revokeKept > 0 ? (
+            <MdCard variant="filled" style={s.resultCard}>
+              <RNText style={[m3TextStyle("bodyMedium"), s.resultText]}>
+                {t("ds.import.revokeKept", { count: revokeKept })}
+              </RNText>
+            </MdCard>
+          ) : null}
           {history.length > 0 ? (
             <>
               <RNText style={[m3TextStyle("titleSmall"), s.sectionLabel]}>{t("ds.import.historyTitle")}</RNText>

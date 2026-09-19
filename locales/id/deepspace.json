@@ -901,6 +901,8 @@
       "revoke": "Cabut",
       "fileSource": "Impor file",
       "revokeFailed": "Tidak bisa mencabut. Coba lagi sebentar lagi.",
+      "revokeKept": "{{count}} sumber yang juga diimpor dari tempat lain tetap disimpan.",
+      "revokeKept_plural": "{{count}} sumber yang juga diimpor dari tempat lain tetap disimpan.",
       "healthErrUnavailable": "Perangkat ini tidak dapat terhubung ke aplikasi kesehatan. Tidak ada yang dicatat.",
       "healthErrDenied": "Akses kesehatan ditolak, jadi tidak ada yang dicatat. Kamu bisa mengizinkannya di pengaturan perangkat.",
       "healthErrEmpty": "Tidak ada aktivitas kesehatan untuk dicerminkan hari ini.",

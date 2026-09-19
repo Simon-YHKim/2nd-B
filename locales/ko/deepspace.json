@@ -901,6 +901,8 @@
       "revoke": "철회",
       "fileSource": "파일 가져오기",
       "revokeFailed": "철회하지 못했어요. 잠시 후 다시 시도해 주세요.",
+      "revokeKept": "다른 곳에서도 들여온 원본 {{count}}개는 남겨 뒀어요.",
+      "revokeKept_plural": "다른 곳에서도 들여온 원본 {{count}}개는 남겨 뒀어요.",
       "healthErrUnavailable": "이 기기에서는 건강 앱에 연결할 수 없어요. 기록한 내용은 없어요.",
       "healthErrDenied": "건강 데이터 접근 권한이 없어 기록하지 않았어요. 기기 설정에서 허용할 수 있어요.",
       "healthErrEmpty": "오늘 반영할 건강 활동이 없어요.",

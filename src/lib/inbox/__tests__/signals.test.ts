@@ -313,7 +313,8 @@ describe("legacy preservation and pixel registration", () => {
     // 맞췄다. inbox 와 무관하다. 동작은 minor-lock-unknown-age.test.ts 가 지킨다.
     //
     // 2026-09-20 재고정 - vibe r260919 r32 · 가져오기 철회가 다른 이력이 가리키는 행을 지우지 않게 좁히는 판정 한 줄 · inbox 와 무관.
-    expect(sha(source)).toBe("16e11c5858735d05bb9307f221efd10a3614cff8909cd02c9e3d7a04a2b2d061");
+    // 2026-09-20 재고정 - vibe r260919 r35 · 철회를 계정마다 한 줄로 세우는 연산(withdrawImportHistoryEntry)으로 옮기고, 새 항목에 owned 표지 · 남긴 행 알림 한 줄 · inbox 와 무관.
+    expect(sha(source)).toBe("43b4174d033e8c2900ec80ba576c43218e9f80ff3874628210f94f6f51331149");
   });
 
   test("keeps InboxLegacy and its styles byte-stable while routing deep-space directly", () => {

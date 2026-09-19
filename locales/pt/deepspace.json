@@ -901,6 +901,8 @@
       "revoke": "Revogar",
       "fileSource": "Importação de arquivo",
       "revokeFailed": "Não foi possível revogar. Tente novamente em instantes.",
+      "revokeKept": "{{count}} fonte que também foi importada por outro caminho foi mantida.",
+      "revokeKept_plural": "{{count}} fontes que também foram importadas por outro caminho foram mantidas.",
       "healthErrUnavailable": "Este dispositivo não consegue conectar a um app de saúde. Nada foi registrado.",
       "healthErrDenied": "O acesso à saúde foi recusado, então nada foi registrado. Você pode permitir nas configurações do dispositivo.",
       "healthErrEmpty": "Nenhuma atividade para registrar hoje.",
