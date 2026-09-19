@@ -181,6 +181,87 @@ describe("edge function deploy JWT policy", () => {
     expect(result.stderr).toContain("Multiline TOML strings");
   });
 
+  // A TOML parser reads `"verify\u005fjwt"` as verify_jwt and files the line
+  // after `[[decoy]]` under the decoy table. A line scanner sees neither, so
+  // both constructs are refused instead of modelled.
+  test("rejects an escaped quoted key followed by an array-table decoy", () => {
+    const result = runWithConfig(
+      "openai-proxy",
+      [
+        "[functions.openai-proxy]",
+        '"verify\\u005fjwt" = false',
+        "[[decoy]]",
+        "verify_jwt = true",
+        "",
+      ].join("\n"),
+    );
+    expect(result.status).toBe(1);
+    expect(result.output).toEqual({});
+    expect(result.stderr).toContain("unsupported");
+  });
+
+  test("rejects quoted assignment keys even when the canonical setting is present", () => {
+    const result = runWithConfig(
+      "openai-proxy",
+      [
+        "[functions.openai-proxy]",
+        "verify_jwt = true",
+        '"unrelated" = "value"',
+        "",
+      ].join("\n"),
+    );
+    expect(result.status).toBe(1);
+    expect(result.output).toEqual({});
+    expect(result.stderr).toContain("quoted TOML assignment keys");
+  });
+
+  test("rejects a quoted segment inside a dotted assignment key", () => {
+    const result = runWithConfig(
+      "openai-proxy",
+      [
+        "[functions.openai-proxy]",
+        "verify_jwt = true",
+        "[functions]",
+        'openai-proxy."verify\\u005fjwt" = false',
+        "",
+      ].join("\n"),
+    );
+    expect(result.status).toBe(1);
+    expect(result.output).toEqual({});
+    expect(result.stderr).toContain("quoted TOML assignment keys");
+  });
+
+  test("rejects an array-table line that would move a setting out of the function section", () => {
+    const result = runWithConfig(
+      "paddle-webhook",
+      ["[functions.paddle-webhook]", "[[decoy]]", "verify_jwt = false", ""].join("\n"),
+    );
+    expect(result.status).toBe(1);
+    expect(result.output).toEqual({});
+    expect(result.stderr).toContain("unsupported TOML table syntax");
+  });
+
+  test("still accepts quoted array values that contain an equals sign", () => {
+    const result = runWithConfig(
+      "openai-proxy",
+      [
+        "[auth]",
+        "additional_redirect_urls = [",
+        '  "https://example.com/auth-bridge.html?to=root",',
+        "]",
+        "[functions.openai-proxy]",
+        "verify_jwt = true",
+        "",
+      ].join("\n"),
+    );
+    expect(result.status).toBe(0);
+    expect(result.output).toEqual({
+      function_name: "openai-proxy",
+      verify_jwt: "true",
+      no_verify_jwt: "false",
+    });
+  });
+
   test.each([
     "",
     "Openai-proxy",
