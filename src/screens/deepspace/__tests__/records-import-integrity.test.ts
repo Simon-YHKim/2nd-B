@@ -187,7 +187,9 @@ describe("import withdrawal integrity", () => {
     expect(src).not.toContain("addImportHistory({");
     // Revoke actually withdraws (delete rows + remove log), not a local filter.
     expect(src).toContain("deleteSourcesByIds(userId, entry.sourceIds)");
-    expect(src).toContain("removeImportHistory(userId, entry.id)");
+    // The entry leaves the log in history.ts, in one write with any promotion (vibe r260919
+    // L2Z-1841-2), so the screen hands it the withdrawal. Matched in code with comments removed.
+    expect(src.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "")).toContain("withdrawImportHistoryEntry(");
     expect(src).not.toContain("xs.filter((x) => x.id !== h.id)");
   });
 });

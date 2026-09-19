@@ -32,11 +32,11 @@ import { splitImportNotes } from "@/lib/wiki/import-notes";
 import {
   addImportHistory,
   getImportHistory,
-  removeImportHistory,
   withdrawImportHistoryEntry,
   type ImportHistoryEntry,
+  type ImportWithdrawalKept,
 } from "@/lib/import/history";
-import { importWithdrawalJudge } from "@/lib/import/history-ownership";
+import { importWithdrawalJudge, keptNotice } from "@/lib/import/history-ownership";
 import { deleteSourcesByIds, findSurvivingSourceIds } from "@/lib/records/delete-bulk";
 
 // 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
@@ -253,8 +253,9 @@ export function DeepSpaceImportScreen() {
   // file imports here show up in the same withdrawal list. No seeded fake rows.
   const [history, setHistory] = useState<ImportHistoryEntry[]>([]);
   const [revokeErr, setRevokeErr] = useState<string | null>(null);
-  // Rows the last withdrawal left in place because they were not that entry's own.
-  const [revokeKept, setRevokeKept] = useState(0);
+  // Rows the last withdrawal left in place because they were not provably that entry's
+  // own, by why (null = none yet).
+  const [revokeKept, setRevokeKept] = useState<ImportWithdrawalKept | null>(null);
 
   useEffect(() => {
     if (!userId) return;
@@ -335,14 +336,15 @@ export function DeepSpaceImportScreen() {
   async function revokeImport(entry: ImportHistoryEntry) {
     if (!userId) return;
     setRevokeErr(null);
-    setRevokeKept(0);
+    setRevokeKept(null);
     try {
       // The log is shared with the hub, and the log decides, not this screen's list.
       // A hub entry logged before 2026-09-20 can point at a row another import created,
       // so only the rows that are provably this entry's own are deleted
       // (history-ownership.ts). One withdrawal runs at a time per account, across tabs,
-      // from reading the log to removing the entry, and a log that cannot be read stops
-      // it before anything is deleted.
+      // from reading the log to removing the entry, in the session it started in and
+      // within a deadline; a log that cannot be read, an account switch, or a server
+      // that does not answer stops it and the entry stays (history.ts).
       const outcome = await withdrawImportHistoryEntry(
         userId,
         entry.id,
@@ -361,11 +363,16 @@ export function DeepSpaceImportScreen() {
           ) {
             return false;
           }
-          return removeImportHistory(userId, entry.id);
+          // The entry leaves the log in history.ts, in one write with any promotion.
+          return true;
         },
       );
       if (!outcome.withdrawn) {
-        setRevokeErr(t("ds.import.revokeFailed"));
+        // A browser without Web Locks cannot line up two tabs' withdrawals, so it
+        // withdraws nothing there and says so, rather than risk a row with no pointer.
+        setRevokeErr(
+          t(outcome.reason === "unserialized" ? "ds.import.revokeUnserialized" : "ds.import.revokeFailed"),
+        );
         return;
       }
       setRevokeKept(outcome.kept);
@@ -627,10 +634,10 @@ export function DeepSpaceImportScreen() {
           </MdCard>
 
           {/* history. The kept note sits outside it: the entry that kept rows may have been the last. */}
-          {revokeKept > 0 ? (
+          {keptNotice(revokeKept).length > 0 ? (
             <MdCard variant="filled" style={s.resultCard}>
               <RNText style={[m3TextStyle("bodyMedium"), s.resultText]}>
-                {t("ds.import.revokeKept", { count: revokeKept })}
+                {keptNotice(revokeKept).map((line) => t(line.key, { count: line.count })).join(" ")}
               </RNText>
             </MdCard>
           ) : null}

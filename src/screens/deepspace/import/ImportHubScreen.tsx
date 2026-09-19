@@ -38,11 +38,11 @@ import { ratifyLedgerEntries, type LedgerRatifyResult } from "@/lib/import/ledge
 import {
   addImportHistory,
   getImportHistory,
-  removeImportHistory,
   withdrawImportHistoryEntry,
   type ImportHistoryEntry,
+  type ImportWithdrawalKept,
 } from "@/lib/import/history";
-import { createdSourceIds, importWithdrawalJudge } from "@/lib/import/history-ownership";
+import { createdSourceIds, importWithdrawalJudge, keptNotice } from "@/lib/import/history-ownership";
 import { getEnv } from "@/lib/env";
 import { getGoogleAccessToken } from "@/lib/google/gisToken";
 import { fetchCalendarEvents, googleEventsToIcs, GOOGLE_CALENDAR_READONLY_SCOPE } from "@/lib/google/calendar";
@@ -137,9 +137,10 @@ export function ImportHubScreen() {
   const [history, setHistory] = useState<ImportHistoryEntry[]>([]);
   const [gErr, setGErr] = useState<string | null>(null);
   const [histErr, setHistErr] = useState<string | null>(null);
-  // How many rows the last withdrawal left in place because they were not that
-  // entry's own (0 = none). Without it a withdrawal that kept a row read as a full one.
-  const [histKept, setHistKept] = useState(0);
+  // The rows the last withdrawal left in place because they were not provably that
+  // entry's own, by why (null = none yet). Without it a withdrawal that kept a row read
+  // as a full one.
+  const [histKept, setHistKept] = useState<ImportWithdrawalKept | null>(null);
   const googleClientId = getEnv().EXPO_PUBLIC_GOOGLE_CLIENT_ID;
 
   const t = (k: string) => COPY(ko)[k] ?? k;
@@ -385,7 +386,7 @@ export function ImportHubScreen() {
     // strand the imported rows as unrevokable while telling the user they were
     // withdrawn (the exact false-assurance this screen exists to prevent).
     setHistErr(null);
-    setHistKept(0);
+    setHistKept(null);
     let entry = history.find((h) => h.id === id);
     // med#30: signed out we cannot delete the server rows this import created —
     // wiping only the local log would LOOK like a withdrawal while the data
@@ -400,8 +401,9 @@ export function ImportHubScreen() {
       // An entry logged before 2026-09-20 can point at a row another import created,
       // so only the rows that are provably this entry's own are deleted
       // (history-ownership.ts). One withdrawal runs at a time per account, across
-      // tabs, from reading the log to removing the entry, and a log that cannot be
-      // read stops it before anything is deleted.
+      // tabs, from reading the log to removing the entry, in the session it started
+      // in and within a deadline; a log that cannot be read, an account switch, or a
+      // server that does not answer stops it and the entry stays (history.ts).
       const outcome = await withdrawImportHistoryEntry(
         userId,
         id,
@@ -417,11 +419,18 @@ export function ImportHubScreen() {
           ) {
             return false;
           }
-          return removeImportHistory(userId, entry.id);
+          // The entry leaves the log in history.ts, in one write with any promotion.
+          return true;
         },
       );
       if (!outcome.withdrawn) {
-        setHistErr(t("revokeFailed"));
+        // A browser without Web Locks cannot line up two tabs' withdrawals, so it
+        // withdraws nothing there and says so, rather than risk a row with no pointer.
+        setHistErr(
+          outcome.reason === "unserialized"
+            ? i18n.t("deepspace:ds.import.revokeUnserialized")
+            : t("revokeFailed"),
+        );
         return;
       }
       setHistKept(outcome.kept);
@@ -699,14 +708,15 @@ export function ImportHubScreen() {
   }
 
   function renderHistory() {
+    const kept = keptNotice(histKept);
     return (
       <View style={styles.section}>
         {histErr ? <OpsState variant="error" title={t("errTitle")} body={histErr} /> : null}
-        {histKept > 0 ? (
+        {kept.length > 0 ? (
           // Outside the list: the entry that kept them may have been the last one.
           <View style={styles.noteCard}>
             <Text variant="body" style={styles.noteText}>
-              {i18n.t("deepspace:ds.import.revokeKept", { count: histKept })}
+              {kept.map((line) => i18n.t(`deepspace:${line.key}`, { count: line.count })).join(" ")}
             </Text>
           </View>
         ) : null}
@@ -769,7 +779,7 @@ function COPY(ko: boolean): Record<string, string> {
         done: "완료", appts: "약속", places: "장소", notes: "노트", watches: "시청", txns: "거래", raw: "원문", pickToApply: "반영할 항목 고르기",
         sensitiveExcluded: "민감 · 기본 제외", applyN: "고른 {n}건 기록에 반영",
         emptyTitle: "아직 가져온 게 없어요", emptyBody: "소스를 골라 시작해요", pickSource: "소스 고르기",
-        delete: "삭제", historyFine: "삭제는 이 임포트가 만든 원본을 제거해요. 다른 곳에서도 들여온 원본은 남겨요. 임포트로 만들어진 인물·가계부 항목은 관계·가계부 화면에서 지울 수 있어요. 미성년 계정은 통신·위치 임포트가 서버에서 잠겨 있어요.",
+        delete: "삭제", historyFine: "삭제는 이 임포트가 만든 원본을 제거해요. 이 임포트가 만들었다고 확인되지 않은 원본은 남기고, 남긴 까닭을 알려 드려요. 임포트로 만들어진 인물·가계부 항목은 관계·가계부 화면에서 지울 수 있어요. 미성년 계정은 통신·위치 임포트가 서버에서 잠겨 있어요.",
         revokeFailed: "철회하지 못했어요. 잠시 후 다시 시도해 주세요.", revokeNeedsSignIn: "로그인 후 철회할 수 있어요. 서버에 남은 데이터까지 함께 지워야 해서요.",
       }
     : {
@@ -796,7 +806,7 @@ function COPY(ko: boolean): Record<string, string> {
         done: "Done", appts: "Plans", places: "Places", notes: "Notes", watches: "Watches", txns: "Entries", raw: "Raw", pickToApply: "Pick what to apply",
         sensitiveExcluded: "sensitive · excluded by default", applyN: "Apply {n} to records",
         emptyTitle: "Nothing imported yet", emptyBody: "Pick a source to start", pickSource: "Pick a source",
-        delete: "Delete", historyFine: "Delete removes the source this import created; a source also brought in elsewhere stays. People and ledger entries created from an import can be removed in the Relationships and Ledger screens. Comms/location import is server-locked for minor accounts.",
+        delete: "Delete", historyFine: "Delete removes the source this import created. A source it can't confirm this import created stays, and you're told why. People and ledger entries created from an import can be removed in the Relationships and Ledger screens. Comms/location import is server-locked for minor accounts.",
         revokeFailed: "Couldn't withdraw. Try again shortly.", revokeNeedsSignIn: "Sign in to withdraw - the server-side rows must be deleted together.",
       };
 }

@@ -1,9 +1,10 @@
-// 가져오기 철회를 두 화면의 실제 핸들러로 돌린다 - 저장소 · 잠금 · 판정은 진짜 모듈이다.
+// 가져오기 철회를 두 화면의 실제 핸들러로 돌린다 - 저장소 · 잠금 · 판정 · 세션은 진짜 모듈이다.
 //
 // 화면을 렌더하지 않고 실제 핸들러 선언을 AST 로 떼어 inert 컨텍스트에서 돌린다. 그
 // 컨텍스트에 넣는 이력 모듈(history.ts)과 판정 모듈(history-ownership.ts)은 진짜다:
-// 저장소(웹 AsyncStorage · 네이티브 암호화 저장소)와 서버(sources 행 · ingest_log)만
-// 대역이다. 탭 둘은 같은 저장소와 같은 Web Lock 관리자를 나눠 쓰는 모듈 인스턴스 둘이다.
+// 저장소(웹 AsyncStorage · 네이티브 암호화 저장소)와 서버(sources 행 · ingest_log · 인증
+// 세션)만 대역이다. 인증 변경 잠금(M)도 진짜 런타임(session-mutation.ts)이다. 탭 둘은 같은
+// 저장소와 같은 Web Lock 관리자를 나눠 쓰는 모듈 인스턴스 둘이다.
 //
 // 이 파일이 지키는 것 (vibe r260919):
 //   - r29 §3-6  같은 선택을 두 번 비준하면 두 번째 항목이 첫 가져오기의 행을 가리켰다.
@@ -14,13 +15,24 @@
 //               동시 철회가 행은 남기고 두 포인터를 다 없앴다.
 //   - LZ-1841-2 웹의 로그 읽기 실패가 빈 로그가 되어 판정과 로그 재작성의 근거가 됐다.
 //   - LZ-1841-3 남긴 행이 있는 철회도 "원본 제거" 처럼 끝났다.
+//   - 2차 재게이트 (E:/Coding Infra/reports/vibe-r260919/regate-1841-{artifact,bizlogic}-r2):
+//     L2A-1841-1  Web Locks 가 없는 브라우저의 두 탭 철회가 다시 행만 남기고 포인터를 다 없앴다.
+//     L2A-1841-2 · L2Z-1841-1  기다리는 동안 · 삭제하는 사이 계정이 바뀌면 RLS 의 빈 답을 "이미
+//                지워졌다" 로 읽고 이전 계정의 포인터를 없앴다.
+//     L2Z-1841-2  항목 제거와 주인 올리기가 따로 저장돼, 두 번째 저장 실패가 승격을 영영 잃었다.
+//     L2A-1841-3 · L2Z-1841-3  보존 기한을 기기 시계로 쟀다.
+//     L2A-1841-4  서버 호출에 기한이 없어 답 없는 요청 하나가 계정의 다음 철회를 모두 막았다.
+//     L2Z-1841-4  남김 안내가 까닭과 무관하게 "다른 곳에서도 들여온" 이라고 단정했다.
 
-// ── 대역: 저장소와 서버 (import 보다 먼저 - jest.mock 팩토리가 이 이름들을 쓴다) ──────
+// ── 대역: 저장소 · 서버 · 인증 (import 보다 먼저 - jest.mock 팩토리가 이 이름들을 쓴다) ────
 const mockStore = new Map<string, string>();
 const mockStorage = {
   /** 로그 키 읽기 순번(1부터) 가운데 실패시킬 것. */
   failLogReads: new Set<number>(),
   logReads: 0,
+  /** 로그 키 쓰기 순번(1부터) 가운데 실패시킬 것. */
+  failLogWrites: new Set<number>(),
+  logWrites: 0,
   getItem: async (key: string) => {
     if (key === "import.history:user-a") {
       mockStorage.logReads += 1;
@@ -29,6 +41,10 @@ const mockStorage = {
     return mockStore.get(key) ?? null;
   },
   setItem: async (key: string, value: string) => {
+    if (key === "import.history:user-a") {
+      mockStorage.logWrites += 1;
+      if (mockStorage.failLogWrites.has(mockStorage.logWrites)) throw new Error("storage write failed");
+    }
     mockStore.set(key, value);
   },
   removeItem: async (key: string) => {
@@ -38,7 +54,23 @@ const mockStorage = {
 const mockServer = {
   /** ingest_log: 행마다 정확 중복으로 건넨 기록 수 (capture.ts 가 건네기 전에 적는다). */
   drops: new Map<string, number>(),
+  /** ingest_log 질의 수. */
   queries: 0,
+  /** sources 행: id → 본문. world() 가 채운다. */
+  rows: new Map<string, string>(),
+  /** sources.captured_at (서버 시계, 0022 default now()). */
+  born: new Map<string, string>(),
+  /** ingest_log 질의가 답하지 않는다 - 끊어야(abort) 끝난다. */
+  stallIngestLog: false,
+  /** 끊긴 질의 수. */
+  aborted: 0,
+  /** 서버 질의가 나갈 때마다 부른다(표 이름). */
+  onQuery: null as ((table: string) => void) | null,
+};
+/** 살아 있는 인증 세션. 계정 전환은 이것을 바꾼다. RLS 는 이 세션의 사용자만 보여 준다. */
+const mockAuth = {
+  session: null as { user: { id: string }; access_token: string } | null,
+  runtime: null as unknown,
 };
 /** 서버 삭제 단계에 거는 장벽. 고치기 전 코드도 지나는 자리라 두 코드를 같은 순서로 멈춘다. */
 const barrier = {
@@ -49,23 +81,67 @@ const barrier = {
 
 jest.mock("@react-native-async-storage/async-storage", () => ({ __esModule: true, default: mockStorage }));
 jest.mock("@/lib/storage/encrypted-native-storage", () => ({ getEncryptedNativeStorage: () => mockStorage }));
+jest.mock("@/lib/auth/session-mutation", () => ({
+  ...jest.requireActual("@/lib/auth/session-mutation"),
+  getAuthStorageRuntime: () => mockAuth.runtime,
+}));
 jest.mock("@/lib/supabase/client", () => ({
   getSupabaseClient: () => ({
-    from: () => {
+    auth: {
+      getSession: async () => ({ data: { session: mockAuth.session }, error: null }),
+    },
+    // PostgREST 질의 대역: 걸린 거름만 기억했다가 await 될 때 답한다. RLS(user_id = auth.uid())
+    // 는 살아 있는 세션의 사용자로 판다 - 다른 계정의 세션에서는 아무것도 안 보인다.
+    from: (table: string) => {
       const filters: Record<string, unknown> = {};
+      let signal: AbortSignal | undefined;
+      const answer = async () => {
+        if (table === "ingest_log") mockServer.queries += 1;
+        mockServer.onQuery?.(table);
+        if (table === "ingest_log" && mockServer.stallIngestLog) {
+          await new Promise<never>((_, reject) => {
+            signal?.addEventListener("abort", () => {
+              mockServer.aborted += 1;
+              reject(Object.assign(new Error("The operation was aborted."), { name: "AbortError" }));
+            });
+          });
+        }
+        const visible = mockAuth.session?.user.id === filters.user_id;
+        if (table === "ingest_log") {
+          const count = visible && filters.stage === "exact_duplicate"
+            ? mockServer.drops.get(String(filters.survivor_id)) ?? 0
+            : 0;
+          const limit = typeof filters.limit === "number" ? filters.limit : count;
+          return { data: Array.from({ length: Math.min(count, limit) }, (_, i) => ({ id: `drop-${i}` })), error: null };
+        }
+        if (table === "sources") {
+          const ids = Array.isArray(filters.id) ? (filters.id as string[]) : [];
+          const data = visible
+            ? ids.filter((id) => mockServer.rows.has(id)).map((id) => ({ id, captured_at: mockServer.born.get(id) ?? null }))
+            : [];
+          return { data, error: null };
+        }
+        return { data: [], error: null };
+      };
       const builder = {
         select: () => builder,
         eq: (column: string, value: unknown) => {
           filters[column] = value;
           return builder;
         },
-        limit: async (n: number) => {
-          mockServer.queries += 1;
-          const count = filters.user_id === "user-a" && filters.stage === "exact_duplicate"
-            ? mockServer.drops.get(String(filters.survivor_id)) ?? 0
-            : 0;
-          return { data: Array.from({ length: Math.min(count, n) }, (_, i) => ({ id: `drop-${i}` })), error: null };
+        in: (column: string, value: unknown) => {
+          filters[column] = value;
+          return builder;
         },
+        limit: (n: number) => {
+          filters.limit = n;
+          return builder;
+        },
+        abortSignal: (value: AbortSignal) => {
+          signal = value;
+          return builder;
+        },
+        then: (resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) => answer().then(resolve, reject),
       };
       return builder;
     },
@@ -77,6 +153,7 @@ import path from "node:path";
 import i18next from "i18next";
 import ts from "typescript";
 
+import { createAuthStorageRuntime } from "@/lib/auth/session-mutation";
 import { buildProposals, proposalsToMarkdown, type ImportOutcome } from "@/lib/import/proposals";
 import enDeepspace from "../../../../locales/en/deepspace.json";
 import koDeepspace from "../../../../locales/ko/deepspace.json";
@@ -145,6 +222,7 @@ function extract(which: keyof typeof SCREENS, context: Record<string, unknown>) 
 const OWNER = "user-a";
 const LOG_KEY = `import.history:${OWNER}`;
 const NOW = Date.parse("2026-09-20T12:00:00.000Z");
+const DAY = 24 * 60 * 60 * 1000;
 
 type Entry = {
   id: string;
@@ -168,6 +246,19 @@ const legacy = (id: string, sourceIds: string[]): Entry => ({
 /** 이 고침 뒤에 적힌 항목: 가져오기가 만든 행만 들고 owned 표지를 단다. */
 const owned = (id: string, sourceIds: string[]): Entry => ({ ...legacy(id, sourceIds), owned: true });
 
+/** 서명은 보지 않는 JWT. 서버가 발급한 토큰처럼 session_id 와 exp 를 싣는다. */
+function jwt(claims: Record<string, unknown>): string {
+  const part = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
+  return `${part({ alg: "HS256", typ: "JWT" })}.${part(claims)}.signature`;
+}
+/** 한 사용자의 세션. exp 는 NOW 뒤 한 시간(서버가 막 발급한 토큰). */
+function sessionOf(userId: string, claims: Record<string, unknown> = {}) {
+  return {
+    user: { id: userId },
+    access_token: jwt({ sub: userId, session_id: `session-${userId}`, exp: Math.floor(NOW / 1000) + 3600, ...claims }),
+  };
+}
+
 type HistoryModule = typeof import("@/lib/import/history");
 type OwnershipModule = typeof import("@/lib/import/history-ownership");
 interface Tab {
@@ -187,12 +278,16 @@ function openTab(): Tab {
   return tab;
 }
 
+/** navigator.locks 대역: 같은 이름의 요청을 콜백 promise 가 끝날 때까지 줄 세운다.
+ *  request(name, callback) 과 request(name, options, callback) 둘 다 받는다. */
 class SerialLockManager {
   private readonly tails = new Map<string, Promise<void>>();
 
-  request<T>(name: string, callback: () => Promise<T> | T): Promise<T> {
+  request<T>(name: string, ...args: unknown[]): Promise<T> {
+    const callback = (typeof args[0] === "function" ? args[0] : args[1]) as
+      (lock: { name: string; mode: string }) => Promise<T> | T;
     const previous = this.tails.get(name) ?? Promise.resolve();
-    const result = previous.catch(() => undefined).then(callback);
+    const result = previous.catch(() => undefined).then(() => callback({ name, mode: "exclusive" }));
     const tail = result.then(() => undefined, () => undefined);
     this.tails.set(name, tail);
     void tail.finally(() => {
@@ -242,10 +337,13 @@ afterAll(() => {
 });
 
 beforeEach(() => {
-  // 판정은 항목 시각을 '지금' 과 비교한다(정확 중복 기록의 보관 기한). 지금을 고정한다.
+  // 비준 테스트의 항목 id 는 Date.now() 다. 판정은 기기 시계를 쓰지 않는다 - 그것도 여기서 본다.
   jest.spyOn(Date, "now").mockReturnValue(NOW);
 });
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => {
+  jest.useRealTimers();
+  jest.restoreAllMocks();
+});
 
 const NOTES = "# 첫 노트\n본문 하나\n\n# 둘째 노트\n본문 둘";
 
@@ -268,6 +366,8 @@ function financeOutcome(): ImportOutcome {
 interface WorldOptions {
   /** 서버의 sources 행. */
   rows?: string[];
+  /** 행의 captured_at(서버 시계). 없으면 NOW 열흘 전. */
+  born?: Record<string, string>;
   /** 이 기기의 이력 로그(최신이 앞). */
   log?: Entry[];
   /** ingest_log: 행마다 정확 중복으로 건넨 기록 수. */
@@ -275,32 +375,59 @@ interface WorldOptions {
   runtime?: Runtime;
   tabs?: number;
   outcome?: ImportOutcome;
+  /** 살아 있는 세션. 없으면 OWNER 의 세션. */
+  session?: { user: { id: string }; access_token: string } | null;
   /** 삭제가 돌려주는 개수를 덮어쓴다(일부만 지워진 경우). */
   deleted?: number;
   /** 되읽기가 돌려주는 남은 행을 덮어쓴다. */
   surviving?: string[];
   deleteThrows?: boolean;
+  survivingThrows?: boolean;
+  /** 이 행을 지우는 요청은 답하지 않는다. */
+  deleteHangsFor?: string[];
+  /** 서버 도우미가 #1839 의 runBoundToOwnerSession 처럼 인증 변경 잠금(M) 안에서 돈다. */
+  boundHelpers?: boolean;
 }
+
+type AuthRuntime = { runMutation<T>(fn: () => Promise<T> | T): Promise<T> };
 
 function world(options: WorldOptions = {}) {
   mockStore.clear();
   fenceStore.clear();
   mockStorage.failLogReads.clear();
   mockStorage.logReads = 0;
+  mockStorage.failLogWrites.clear();
+  mockStorage.logWrites = 0;
   mockServer.drops = new Map(Object.entries(options.drops ?? {}));
   mockServer.queries = 0;
+  mockServer.stallIngestLog = false;
+  mockServer.aborted = 0;
+  mockServer.onQuery = null;
   barrier.deletes = 0;
   barrier.gate = null;
   barrier.onDelete = null;
-  setRuntime(options.runtime ?? "web");
+  const runtime = options.runtime ?? "web";
+  setRuntime(runtime);
   if (options.log) mockStore.set(LOG_KEY, JSON.stringify(options.log));
+  mockAuth.session = options.session === undefined ? sessionOf(OWNER) : options.session;
+  // 진짜 인증 런타임: 웹이면 navigator.locks, 아니면 프로세스 잠금. 탭들이 함께 쓴다.
+  mockAuth.runtime = createAuthStorageRuntime({
+    url: "https://proj.supabase.co",
+    storage: undefined,
+    web: runtime !== "native",
+  });
+  const authRuntime = mockAuth.runtime as AuthRuntime;
 
   const rows = new Map<string, string>((options.rows ?? []).map((id) => [id, `body of ${id}`]));
+  mockServer.rows = rows;
+  mockServer.born = new Map(
+    (options.rows ?? []).map((id) => [id, options.born?.[id] ?? new Date(NOW - 10 * DAY).toISOString()]),
+  );
   const outcome = options.outcome ?? buildProposals("markdown", NOTES);
   const tabs = Array.from({ length: options.tabs ?? 1 }, () => openTab());
   const state = {
     errors: [] as unknown[],
-    kept: [] as number[],
+    kept: [] as unknown[],
     deleteAsked: [] as string[],
     surviveQueries: 0,
     alreadyImported: [] as unknown[],
@@ -309,24 +436,32 @@ function world(options: WorldOptions = {}) {
   const note = (value: unknown) => {
     if (value !== null && value !== false) state.errors.push(value);
   };
+  /** RLS: 살아 있는 세션의 사용자 행만 보인다. */
+  const visible = (userId: string) => mockAuth.session?.user.id === userId;
+  const bound = <T>(fn: () => Promise<T>): Promise<T> => (options.boundHelpers ? authRuntime.runMutation(fn) : fn());
   const server = {
-    deleteSourcesByIds: async (userId: string, ids: string[]) => {
+    deleteSourcesByIds: (userId: string, ids: string[]) => bound(async () => {
       expect(userId).toBe(OWNER);
       barrier.deletes += 1;
       barrier.onDelete?.();
       if (barrier.gate) await barrier.gate;
       if (ids.length === 0) return 0;
+      if (ids.some((id) => options.deleteHangsFor?.includes(id))) return new Promise<number>(() => undefined);
       if (options.deleteThrows) throw new Error("network");
+      // 다른 계정의 세션: RLS 가 이 행들을 가려 0 행이 지워진다 - 오류가 아니다.
+      if (!visible(userId)) return 0;
       state.deleteAsked.push(...ids);
       let removed = 0;
       for (const id of ids) if (rows.delete(id)) removed += 1;
       return options.deleted ?? removed;
-    },
-    findSurvivingSourceIds: async (userId: string, ids: string[]) => {
+    }),
+    findSurvivingSourceIds: (userId: string, ids: string[]) => bound(async () => {
       expect(userId).toBe(OWNER);
       state.surviveQueries += 1;
+      if (options.survivingThrows) throw new Error("network");
+      if (!visible(userId)) return [];
       return options.surviving ?? ids.filter((id) => rows.has(id));
-    },
+    }),
   };
   // 핸들러는 탭의 실제 두 모듈이 내보내는 것을 그대로 본다. 대역은 서버 둘과 화면 상태뿐이다.
   const withdrawal = (tab: Tab, screenHistory: Entry[]): Record<string, unknown> => ({
@@ -336,10 +471,11 @@ function world(options: WorldOptions = {}) {
     ko: true,
     history: screenHistory,
     t: (key: string) => key,
+    i18n: { t: (key: string) => key },
     setRevokeErr: note,
     setHistErr: note,
-    setRevokeKept: (n: number) => state.kept.push(n),
-    setHistKept: (n: number) => state.kept.push(n),
+    setRevokeKept: (value: unknown) => state.kept.push(value),
+    setHistKept: (value: unknown) => state.kept.push(value),
     setHistory: () => undefined,
     reactExpression: () => undefined,
     ...server,
@@ -372,6 +508,7 @@ function world(options: WorldOptions = {}) {
     created += 1;
     const id = `row-${created}`;
     rows.set(id, rawMd);
+    mockServer.born.set(id, new Date(NOW).toISOString());
     return { source: { id, title: "import" }, deduped: null };
   };
 
@@ -435,8 +572,30 @@ function world(options: WorldOptions = {}) {
   return { rows, state, log, revoke, ratify, pickFiles, tabs };
 }
 
-const lastKept = (state: { kept: number[] }) => state.kept[state.kept.length - 1];
+/** 철회 뒤 화면이 받은 '남긴 행' 값. 고치기 전에는 수, 지금은 까닭별 묶음이다. 수로 줄여 비교한다. */
+const keptTotal = (value: unknown): number => {
+  if (typeof value === "number") return value;
+  if (value && typeof value === "object") {
+    const kept = value as { shared?: number; unconfirmed?: number };
+    return (kept.shared ?? 0) + (kept.unconfirmed ?? 0);
+  }
+  return 0;
+};
+const lastKept = (state: { kept: unknown[] }) => keptTotal(state.kept[state.kept.length - 1]);
+/** 까닭별 묶음 그대로. */
+const lastKeptValue = (state: { kept: unknown[] }) => state.kept[state.kept.length - 1];
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
+/** 몇 차례 차례를 넘겨도 끝나지 않으면 false - 교착 · 무한 대기를 몇 밀리초 안에 잡는다. */
+async function settles(work: Promise<unknown>, turns = 50): Promise<boolean> {
+  let done = false;
+  void work.then(() => {
+    done = true;
+  }, () => {
+    done = true;
+  });
+  for (let i = 0; i < turns && !done; i += 1) await flush();
+  return done;
+}
 
 // ── 삭제가 짧을 때 (기존 불변식) ─────────────────────────────────────────────────
 //
@@ -577,8 +736,12 @@ describe.each(["deepspace", "hub"] as const)("%s 화면의 철회 - 옛 허브 �
 
   test("남길 행은 남기고, 이미 없어진 자기 행은 실패로 세지 않는다", async () => {
     // 개수가 짧을 때의 되읽기는 지우려던 행만 묻는다. 남기기로 한 R 까지 물으면 R 이
-    // '남아 있다' 로 나와서 멀쩡한 철회가 실패로 끝난다.
-    const w = world({ rows: ["r"], log: [legacy("e2", ["r", "s"]), legacy("e1", ["r"])], drops: { r: 1 } });
+    // '남아 있다' 로 나와서 멀쩡한 철회가 실패로 끝난다. S 는 판정 뒤 · 지우기 직전에
+    // 다른 곳에서 지워졌다(판정할 때 없던 행은 날짜를 못 읽어 애초에 지우러 가지 않는다).
+    const w = world({ rows: ["r", "s"], log: [legacy("e2", ["r", "s"]), legacy("e1", ["r"])], drops: { r: 1 } });
+    barrier.onDelete = () => {
+      w.rows.delete("s");
+    };
     await w.revoke(which, "e2");
     expect(w.rows.has("r")).toBe(true);
     expect(w.state.deleteAsked).toEqual(["s"]);
@@ -689,8 +852,9 @@ describe("두 철회가 겹칠 때 (LZ-1841-1)", () => {
 
   test("철회한 항목이 (줄 없는 탭의 낡은 쓰기로) 되살아나면 남은 쪽을 주인으로 올리지 않는다", async () => {
     // 주인 올리기의 전제는 "철회한 항목이 로그를 떠났다" 다. 떠난 직후 다른 탭이 낡은
-    // 로그를 통째로 다시 쓰면 e2 가 돌아온다. 그때 e1 을 주인으로 올리면 e1 의 철회가
-    // 아직 목록에 있는 e2 의 R 을 지운다.
+    // 로그를 통째로 다시 쓰면 e2 가 돌아온다. 그때 e1 이 주인으로 남아 있으면 e1 의 철회가
+    // 아직 목록에 있는 e2 의 R 을 지운다. 주인 올리기는 e2 를 빼는 바로 그 쓰기에 실려서,
+    // 낡은 쓰기가 둘을 함께 되돌린다.
     const w = world({ rows: ["r"], log: [legacy("e2", ["r"]), legacy("e1", ["r"])], drops: { r: 1 } });
     const stale = mockStore.get(LOG_KEY)!;
     const setItem = mockStorage.setItem;
@@ -710,18 +874,6 @@ describe("두 철회가 겹칠 때 (LZ-1841-1)", () => {
     }
     expect(w.rows.has("r")).toBe(true);
     expect(w.log()).toEqual([legacy("e2", ["r"]), legacy("e1", ["r"])]);
-  });
-
-  test("Web Locks 가 없는 브라우저의 두 탭은 줄 세울 수 없다 - 그때도 지운 척하지 않고 남긴 것을 알린다", async () => {
-    // 남는 한계: 두 탭이 서로를 보고 둘 다 R 을 남긴다. 로그 쓰기도 탭 사이에 줄이 없어
-    // 결과 로그는 두 쓰기가 겹친 모양에 따라 달라진다(빈 로그 또는 되살아난 한 항목) -
-    // 그래서 로그 모양은 여기서 박지 않는다. 박는 것은 거짓 확신이 없다는 것: R 은
-    // 지워지지 않았고, 두 철회 모두 남겼다고 말했다.
-    const { w, deletesWhileHeld } = await overlap("web-without-locks", 2);
-    expect(deletesWhileHeld).toBe(2);
-    expect(w.rows.has("r")).toBe(true);
-    expect(w.state.errors).toEqual([]);
-    expect(w.state.kept.filter((n) => n > 0)).toEqual([1, 1]);
   });
 });
 
@@ -765,6 +917,289 @@ describe.each(["deepspace", "hub"] as const)("%s 화면의 철회 - 로그를 �
     await w.revoke(which, "p");
     expect(w.log().map((e) => e.id)).toEqual(["e1"]);
     expect(w.state.errors.length).toBe(1);
+  });
+});
+
+// ── Web Locks 가 없는 브라우저 (L2A-1841-1) ────────────────────────────────────────
+//
+// 게이트 재현(2차): Web Locks 가 없으면 탭 사이 줄이 없다. 1차 고침의 탭마다 큐는 다른 탭을
+// 못 보므로 두 탭의 E2 · E1 철회가 다시 서로를 보고 R 을 남긴 뒤 각자 항목을 빼서, 행 R 만
+// 남고 포인터는 사라졌다. 줄을 세울 수 없으면 철회하지 않는다: 행도 항목도 그대로 두고 알린다.
+
+describe("Web Locks 가 없는 브라우저 (L2A-1841-1)", () => {
+  test("게이트 재현: 두 탭의 철회가 겹쳐도 R 과 두 포인터가 다 남고, 둘 다 철회하지 않았다고 알린다", async () => {
+    const w = world({
+      runtime: "web-without-locks",
+      tabs: 2,
+      rows: ["r"],
+      log: [legacy("e2", ["r"]), legacy("e1", ["r"])],
+      drops: { r: 1 },
+    });
+    await Promise.all([w.revoke("hub", "e2", { tab: 0 }), w.revoke("deepspace", "e1", { tab: 1 })]);
+    expect(w.rows.has("r")).toBe(true);
+    expect(w.log()).toEqual([legacy("e2", ["r"]), legacy("e1", ["r"])]);
+    expect(barrier.deletes).toBe(0);
+    expect([...w.state.errors].sort()).toEqual(["deepspace:ds.import.revokeUnserialized", "ds.import.revokeUnserialized"]);
+  });
+
+  test.each(["deepspace", "hub"] as const)("%s: 자기 행만 든 새 항목도 서버에 아무것도 보내지 않고 그대로 둔다", async (which) => {
+    const w = world({ runtime: "web-without-locks", rows: ["a"], log: [owned("p", ["a"])] });
+    await w.revoke(which, "p");
+    expect(w.rows.has("a")).toBe(true);
+    expect(w.log().map((e) => e.id)).toEqual(["p"]);
+    expect(barrier.deletes).toBe(0);
+    expect(w.state.errors).toHaveLength(1);
+    expect(String(w.state.errors[0])).toContain("revokeUnserialized");
+  });
+});
+
+// ── 계정이 바뀌면 (L2A-1841-2 · L2Z-1841-1) ──────────────────────────────────────
+//
+// 게이트 재현(2차): 철회가 인증 세션에 묶이지 않았다. 다른 계정의 세션에서 RLS 는 이전
+// 계정의 행을 가리므로 삭제는 0 행, 되읽기는 빈 목록이다 - 오류가 아니라 정상 응답이다.
+// 화면은 그것을 "이미 없는 행" 으로 읽고 이전 계정의 포인터를 지웠다. 행은 서버에 남았다.
+// 이제 철회는 차례를 받자마자 세션을 고정하고, 서버에 다녀올 때마다 그 세션인지 본다.
+
+describe.each(["deepspace", "hub"] as const)("%s 화면의 철회 - 계정이 바뀌면 (L2A-1841-2 · L2Z-1841-1)", (which) => {
+  test("게이트 재현: 삭제하는 사이 계정이 바뀌면 빈 답을 '지워졌다' 로 읽지 않는다 - 항목을 남기고 알린다", async () => {
+    const w = world({ rows: ["a"], log: [owned("p", ["a"])] });
+    barrier.onDelete = () => {
+      mockAuth.session = sessionOf("user-b");
+    };
+    await w.revoke(which, "p");
+    expect(w.rows.has("a")).toBe(true);
+    expect(w.log().map((e) => e.id)).toEqual(["p"]);
+    expect(w.state.errors).toHaveLength(1);
+    // 다시 A 로 로그인했다(새 세션). 다시 누르면 끝난다.
+    barrier.onDelete = null;
+    mockAuth.session = sessionOf(OWNER, { session_id: "session-user-a-2" });
+    await w.revoke(which, "p");
+    expect(w.rows.has("a")).toBe(false);
+    expect(w.log()).toEqual([]);
+    expect(w.state.errors).toHaveLength(1);
+  });
+
+  test("판정 질의 사이 계정이 바뀌면 그 판정으로 지우지 않는다", async () => {
+    // B 의 세션에서 ingest_log 는 기록 0 건으로 답한다. 그대로 믿으면 E2 가 A 의 첫 가져오기
+    // 행 R 을 '자기 것' 으로 판정한다.
+    const w = world({ rows: ["r"], log: [legacy("e2", ["r"])], drops: { r: 1 } });
+    mockServer.onQuery = (table) => {
+      if (table === "ingest_log") mockAuth.session = sessionOf("user-b");
+    };
+    await w.revoke(which, "e2");
+    expect(w.state.deleteAsked).toEqual([]);
+    expect(w.rows.has("r")).toBe(true);
+    expect(w.log().map((e) => e.id)).toEqual(["e2"]);
+    expect(w.state.errors).toHaveLength(1);
+  });
+
+  test.each(["web", "native"] as const)(
+    "게이트 재현 %s: 앞 철회를 기다리는 동안 계정이 바뀌면, 기다리던 철회는 서버에 아무것도 보내지 않는다",
+    async (runtime) => {
+      const w = world({ runtime, rows: ["a", "b"], log: [owned("p", ["a"]), owned("q", ["b"])] });
+      let release!: () => void;
+      barrier.gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let reached!: () => void;
+      const firstDeleting = new Promise<void>((resolve) => {
+        reached = resolve;
+      });
+      barrier.onDelete = () => reached();
+      const first = w.revoke(which, "p");
+      await firstDeleting;
+      const second = w.revoke(which, "q");
+      for (let i = 0; i < 20; i += 1) await flush();
+      expect(barrier.deletes).toBe(1);
+      // 두 번째가 차례를 기다리는 동안 다른 탭에서 B 로 로그인했다.
+      mockAuth.session = sessionOf("user-b");
+      barrier.gate = null;
+      release();
+      await Promise.allSettled([first, second]);
+      // 두 번째는 차례를 받자마자 B 를 보고 멈췄다 - 삭제 단계에 오지 않았다.
+      expect(barrier.deletes).toBe(1);
+      expect(w.rows.has("a")).toBe(true);
+      expect(w.rows.has("b")).toBe(true);
+      expect(w.log().map((e) => e.id)).toEqual(["p", "q"]);
+      expect(w.state.errors).toHaveLength(2);
+    },
+  );
+
+  test("로그인 세션이 없으면 아무것도 지우지 않는다", async () => {
+    const w = world({ rows: ["a"], log: [owned("p", ["a"])], session: null });
+    await w.revoke(which, "p");
+    expect(barrier.deletes).toBe(0);
+    expect(w.log().map((e) => e.id)).toEqual(["p"]);
+    expect(w.state.errors).toHaveLength(1);
+  });
+});
+
+describe("#1839 과 함께 - 서버 도우미가 스스로 인증 변경 잠금(M)을 잡아도", () => {
+  // #1839 는 deleteSourcesByIds · findSurvivingSourceIds 를 M 안에서 돌게 바꾼다
+  // (runBoundToOwnerSession). M 은 겹쳐 잡을 수 없다 - 철회가 M 을 쥔 채 그 도우미를 부르면
+  // 둘이 서로를 기다린다. 철회는 확인할 때만 M 을 잠깐 잡는다.
+  test.each(["web", "native"] as const)("%s: 1+1 철회가 교착 없이 끝나고 R 이 지워진다", async (runtime) => {
+    const w = world({ runtime, rows: ["r"], log: [legacy("e2", ["r"]), legacy("e1", ["r"])], drops: { r: 1 }, boundHelpers: true });
+    expect(await settles(w.revoke("hub", "e2"))).toBe(true);
+    expect(w.log()).toEqual([{ ...legacy("e1", ["r"]), owned: true }]);
+    expect(await settles(w.revoke("deepspace", "e1"))).toBe(true);
+    expect(w.rows.has("r")).toBe(false);
+    expect(w.log()).toEqual([]);
+    expect(w.state.errors).toEqual([]);
+  });
+});
+
+// ── 항목 제거와 주인 올리기는 한 번에 (L2Z-1841-2) ──────────────────────────────────
+//
+// 게이트 재현(2차): E2 철회는 항목 제거를 저장한 뒤 E1 승격을 따로 저장했고, 두 번째 저장의
+// 실패를 삼켰다. E1 은 옛 항목으로 남아 자기 철회에서 R 을 남기고 사라졌다 - 저장 한 번의
+// 장애가 정상 1+1 철회를 영영 끝낼 수 없게 했다. 이제 둘은 한 번의 읽기-수정-쓰기다.
+
+describe.each(["deepspace", "hub"] as const)("%s 화면의 철회 - 저장이 실패하면 (L2Z-1841-2)", (which) => {
+  test.each([1, 2])("게이트 재현: 로그 쓰기 %i 번째가 실패해도 승격을 잃지 않는다 - 결국 R 이 지워진다", async (failAt) => {
+    const w = world({ rows: ["r"], log: [legacy("e2", ["r"]), legacy("e1", ["r"])], drops: { r: 1 } });
+    mockStorage.failLogWrites.add(failAt);
+    await w.revoke(which, "e2");
+    mockStorage.failLogWrites.clear();
+    // 실패한 철회는 e2 를 그대로 둔다 - 다시 누른다.
+    if (w.log().some((e) => e.id === "e2")) await w.revoke(which, "e2");
+    expect(w.log()).toEqual([{ ...legacy("e1", ["r"]), owned: true }]);
+    await w.revoke(which, "e1");
+    expect(w.rows.has("r")).toBe(false);
+    expect(w.log()).toEqual([]);
+  });
+
+  test("쓰기가 실패하면 로그는 그대로고, 철회는 실패로 알린다", async () => {
+    const w = world({ rows: ["r"], log: [legacy("e2", ["r"]), legacy("e1", ["r"])], drops: { r: 1 } });
+    mockStorage.failLogWrites.add(1);
+    await w.revoke(which, "e2");
+    expect(w.log()).toEqual([legacy("e2", ["r"]), legacy("e1", ["r"])]);
+    expect(w.state.errors).toHaveLength(1);
+    expect(w.rows.has("r")).toBe(true);
+  });
+});
+
+// ── 기한 (L2A-1841-4) ──────────────────────────────────────────────────────────
+//
+// 게이트 재현(2차): 철회의 차례는 서버 호출 내내 잡혀 있는데 호출에 기한이 없었다. 답하지
+// 않는 요청 하나가 차례를 놓지 않아 같은 계정의 다음 철회가 모두 기다렸다. 이제 철회 하나에
+// 기한 하나(30초): 넘기면 실패로 끝내고 항목은 남긴다. 판정 질의는 끊고(abort), 끊을 수 없는
+// 삭제는 늦게 도착해도 괜찮다 - 그 행들은 그 항목의 것이고, 항목은 남아 다시 누르면 끝난다.
+
+describe.each(["deepspace", "hub"] as const)("%s 화면의 철회 - 답하지 않는 서버 (L2A-1841-4)", (which) => {
+  beforeEach(() => {
+    jest.useFakeTimers({ doNotFake: ["Date", "setImmediate", "nextTick", "queueMicrotask"] });
+  });
+
+  test("게이트 재현: 삭제가 답하지 않으면 기한 뒤 실패로 끝나고, 다음 철회가 차례를 받는다", async () => {
+    const w = world({ rows: ["a", "b"], log: [owned("p", ["a"]), owned("q", ["b"])], deleteHangsFor: ["a"] });
+    const first = w.revoke(which, "p");
+    for (let i = 0; i < 20; i += 1) await flush();
+    jest.advanceTimersByTime(30_000);
+    expect(await settles(first)).toBe(true);
+    expect(w.log().map((e) => e.id)).toEqual(["p", "q"]);
+    expect(w.state.errors).toHaveLength(1);
+    expect(await settles(w.revoke(which, "q"))).toBe(true);
+    expect(w.rows.has("b")).toBe(false);
+    expect(w.log().map((e) => e.id)).toEqual(["p"]);
+    expect(w.state.errors).toHaveLength(1);
+  });
+
+  test("판정 질의가 답하지 않으면 기한에 끊고(abort) 아무것도 지우지 않는다", async () => {
+    const w = world({ rows: ["r"], log: [legacy("e2", ["r"])] });
+    mockServer.stallIngestLog = true;
+    const first = w.revoke(which, "e2");
+    for (let i = 0; i < 20; i += 1) await flush();
+    jest.advanceTimersByTime(30_000);
+    expect(await settles(first)).toBe(true);
+    expect(mockServer.aborted).toBeGreaterThan(0);
+    expect(w.state.deleteAsked).toEqual([]);
+    expect(w.rows.has("r")).toBe(true);
+    expect(w.log().map((e) => e.id)).toEqual(["e2"]);
+    expect(w.state.errors).toHaveLength(1);
+  });
+
+  test("기한 안에 끝나면 아무것도 끊지 않는다", async () => {
+    const w = world({ rows: ["a"], log: [owned("p", ["a"])] });
+    await w.revoke(which, "p");
+    jest.advanceTimersByTime(60_000);
+    expect(w.log()).toEqual([]);
+    expect(w.state.errors).toEqual([]);
+  });
+});
+
+// ── 보존 기한은 서버 시계로 (L2A-1841-3 · L2Z-1841-3) ──────────────────────────────
+//
+// 게이트 재현(2차): 정확 중복 기록은 1년 뒤 정리된다(0056 정의 · 0067 이 매일 밤 실행). 옛
+// 판정은 그 기한을 항목의 atIso(적을 때의 기기 시계)와 지금의 기기 시계로 쟀다. 적을 때 시계가
+// 앞서 있었거나 지금 뒤로 가 있으면, 기록이 이미 정리된 행을 '기록 0 건 = 건네진 적 없음 =
+// 내 것' 으로 읽고 지웠다. 이제 행의 captured_at 과 토큰의 만료 시각 - 둘 다 서버 시계 - 만 쓴다.
+
+describe.each(["deepspace", "hub"] as const)("%s 화면의 철회 - 보존 기한 (L2A-1841-3 · L2Z-1841-3)", (which) => {
+  test("게이트 재현: 서버 시계로 기한을 넘긴 행은, 기기 시계가 최근이라고 해도 기록 0 건을 증명으로 쓰지 않는다", async () => {
+    // E2 는 R 을 정확 중복으로 건네받은 옛 항목이다. 그 기록은 보존 기한이 지나 정리됐다.
+    // 항목의 atIso 는 어제다 - 적을 때 기기 시계가 크게 앞서 있었다.
+    const w = world({
+      rows: ["r"],
+      log: [legacy("e2", ["r"])],
+      drops: { r: 0 },
+      born: { r: new Date(NOW - 400 * DAY).toISOString() },
+    });
+    await w.revoke(which, "e2");
+    expect(w.rows.has("r")).toBe(true);
+    expect(w.state.deleteAsked).toEqual([]);
+    expect(w.state.errors).toEqual([]);
+    expect(lastKeptValue(w.state)).toEqual({ shared: 0, unconfirmed: 1, uncertain: false });
+  });
+
+  test("토큰의 만료 시각을 읽지 못하면 기한을 모른다 - 기록 0 건이어도 남긴다", async () => {
+    const w = world({
+      rows: ["r"],
+      log: [legacy("e2", ["r"])],
+      drops: { r: 0 },
+      session: sessionOf(OWNER, { exp: undefined }),
+    });
+    await w.revoke(which, "e2");
+    expect(w.rows.has("r")).toBe(true);
+    expect(lastKeptValue(w.state)).toEqual({ shared: 0, unconfirmed: 1, uncertain: false });
+  });
+
+  test("기기 시계가 크게 틀려도(1년 뒤) 서버 기준으로 기한 안이면 정당한 옛 철회는 지운다", async () => {
+    jest.spyOn(Date, "now").mockReturnValue(NOW + 400 * DAY);
+    const w = world({ rows: ["r"], log: [legacy("e2", ["r"])], drops: { r: 0 } });
+    await w.revoke(which, "e2");
+    expect(w.rows.has("r")).toBe(false);
+    expect(w.log()).toEqual([]);
+    expect(w.state.errors).toEqual([]);
+  });
+});
+
+// ── 남긴 까닭 (L2Z-1841-4) ───────────────────────────────────────────────────────
+//
+// 게이트 지적(2차): 남김 안내가 "다른 곳에서도 들여온 원본" 이라고 단정했는데, 그중에는 소유를
+// 확인하지 못해 남긴 행도 있었다. 안내는 결과(이번 철회에서 지우지 않은 원본)를 말하고 까닭을
+// 나눈다. 남은 것을 되짚지 못하면 그 수가 확인되지 않았다는 것도 말한다.
+
+describe.each(["deepspace", "hub"] as const)("%s 화면의 철회 - 남긴 까닭 (L2Z-1841-4)", (which) => {
+  test("다른 가져오기도 들여온 행과, 이 가져오기만의 것인지 확인하지 못한 행을 나눠 센다", async () => {
+    const w = world({
+      rows: ["r", "old"],
+      log: [legacy("e2", ["r", "old"])],
+      drops: { r: 1, old: 0 },
+      born: { old: new Date(NOW - 400 * DAY).toISOString() },
+    });
+    await w.revoke(which, "e2");
+    expect(w.rows.has("r")).toBe(true);
+    expect(w.rows.has("old")).toBe(true);
+    expect(lastKeptValue(w.state)).toEqual({ shared: 1, unconfirmed: 1, uncertain: false });
+  });
+
+  test("남은 행을 되짚지 못하면 수가 확인되지 않았다고 표시한다", async () => {
+    const w = world({ rows: ["r"], log: [legacy("e2", ["r"])], drops: { r: 1 }, survivingThrows: true });
+    await w.revoke(which, "e2");
+    expect(w.log()).toEqual([]);
+    expect(w.state.errors).toEqual([]);
+    expect(lastKeptValue(w.state)).toEqual({ shared: 1, unconfirmed: 0, uncertain: true });
   });
 });
 
@@ -922,12 +1357,14 @@ test("비준 알림은 허브 첫 화면에 파일 가져오기의 결과 줄 �
   expect(hub(0).filter((text) => text.includes(added))).toEqual([]);
 });
 
-test("남긴 행 알림은 허브 이력 화면에 그려지고, 0 이면 그리지 않는다 (LZ-1841-3)", async () => {
+test("남긴 행 알림은 허브 이력 화면에 까닭별로 그려지고, 남긴 것이 없으면 그리지 않는다 (LZ-1841-3 · L2Z-1841-4)", async () => {
   // 목록이 비어도 그린다 - 남긴 철회가 마지막 항목이었을 수 있다.
   const i18n = await appI18n();
-  const historyView = (histKept: number) =>
+  const tab = openTab();
+  const historyView = (histKept: unknown) =>
     texts(
       (extract("hubHistory", {
+        ...tab.ownership,
         React,
         i18n,
         histKept,
@@ -942,15 +1379,28 @@ test("남긴 행 알림은 허브 이력 화면에 그려지고, 0 이면 그리
         removeHistory: () => undefined,
         setStep: () => undefined,
       }) as unknown as () => unknown)(),
-    );
+    ).join("\n");
+  const line = (key: string, count?: number) => i18n.t(`deepspace:ds.import.${key}`, { count });
 
-  expect(i18n.exists("deepspace:ds.import.revokeKept")).toBe(true);
-  expect(historyView(1)).toContain(i18n.t("deepspace:ds.import.revokeKept", { count: 1 }));
+  // 키가 번들에 없으면 줄이 키 이름 그대로 그려진다.
+  for (const key of ["revokeKeptShared", "revokeKeptUnconfirmed", "revokeKeptUncertain", "revokeUnserialized"]) {
+    expect(i18n.exists(`deepspace:ds.import.${key}`)).toBe(true);
+  }
+  const both = historyView({ shared: 1, unconfirmed: 2, uncertain: false });
+  expect(both).toContain(line("revokeKeptShared", 1));
+  expect(both).toContain(line("revokeKeptUnconfirmed", 2));
+  expect(both).not.toContain(line("revokeKeptUncertain"));
+
   await i18n.changeLanguage("en");
-  expect(historyView(3)).toContain(i18n.t("deepspace:ds.import.revokeKept", { count: 3 }));
-  expect(i18n.t("deepspace:ds.import.revokeKept", { count: 3 })).not.toBe(
-    i18n.t("deepspace:ds.import.revokeKept", { count: 1 }),
-  );
-  const kept = i18n.t("deepspace:ds.import.revokeKept", { count: 0 });
-  expect(historyView(0).filter((text) => text === kept)).toEqual([]);
+  expect(line("revokeKeptShared", 3)).not.toBe(line("revokeKeptShared", 1));
+  const unchecked = historyView({ shared: 0, unconfirmed: 3, uncertain: true });
+  expect(unchecked).toContain(line("revokeKeptUnconfirmed", 3));
+  expect(unchecked).toContain(line("revokeKeptUncertain"));
+  expect(unchecked).not.toContain(line("revokeKeptShared", 3));
+
+  // 남긴 것이 없으면 알림 카드가 없다 - '확인하지 못했다' 만 떠 있는 일도 없다.
+  const nothing = historyView(null);
+  expect(historyView({ shared: 0, unconfirmed: 0, uncertain: true })).toBe(nothing);
+  for (const key of ["revokeKeptShared", "revokeKeptUnconfirmed"]) expect(nothing).not.toContain(line(key, 0));
+  expect(nothing).not.toContain(line("revokeKeptUncertain"));
 });
