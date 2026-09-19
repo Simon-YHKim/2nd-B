@@ -3,7 +3,7 @@
 **덮어쓰기 파일.** 네 절만 — 완료 / 진행중 / 다음 / 막힌 것.
 결정은 여기 쓰지 않는다. `DECISIONS.md` 가 소유한다(append-only · 09-13~09-16 은 기간 보관 파일 `DECISIONS-2026-09-*.md`). 지난 판의 경과는 git 이력과 DECISIONS 에 있다 — 이번 판은 **지금 상태만** 남겼다.
 
-최종 갱신 **2026-09-19 11:31 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/claude-disk-260913` · 브랜치 `claude/vibe-r260919b`
+최종 갱신 **2026-09-19 11:48 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/claude-disk-260913` · 브랜치 `claude/vibe-r260919b`
 소유자: 이 세션(09-13 `ttl-work-9a` 와 두 세션 합의, Simon 지명 아님). Simon 이 다르게 정하면 그게 이긴다. 다른 세션은 `DECISIONS.md` 에만 쓸 것.
 
 📊 보고서 (최신 위)
@@ -29,7 +29,7 @@
 
 ## 진행중
 
-활성 워커 **1** (11:31 KST) — **r14-boot-exit** `ctx_aedfc1071b45`(`claude-fable-5-1` @max · run `run_e3a3e38558ab` · 워크트리 `fix-auth-boot-exit-260919`): 저장소 읽기 + 로컬 로그아웃 이중 실패 때의 출구, 결정 시트 1번 추천안 ① A″(연속 3회 콜드 스타트 뒤 기존 복구 동의 화면) **draft 까지** — Simon 이 시트에서 고르지 않았으므로 머지는 Simon 확인 뒤. 수확 = G8 kill → worker-release → terminal close → 원장 → DECISIONS.
+활성 워커 **1** (11:31 KST) — **r14-boot-exit** `ctx_aedfc1071b45`(`claude-fable-5-1` @max · run `run_e3a3e38558ab` · 워크트리 `fix-auth-boot-exit-260919`): 저장소 읽기 + 로컬 로그아웃 이중 실패 때의 출구, 결정 시트 1번 추천안 ① A″(연속 3회 콜드 스타트 뒤 기존 복구 동의 화면) **Simon 확정(11:4x, 시트 1번 ①)** — N=3 · draft → 보안 두 레인 통과 뒤 머지. 수확 = G8 kill → worker-release → terminal close → 원장 → DECISIONS.
 
 게이트 대기 draft PR 11개 — #1819 · #1810 · #1814 · #1825~#1831 · **#1833**(Android 두 번째 실행 멈춤 수정, CI 초록).
 
@@ -59,7 +59,7 @@ claude 주간 82%(리셋 09-19 13:00) → 코딩은 fable 버킷(0%)으로. ⚠ 
 구제본 `E:/Coding Infra/_rescue/ttl-work-260913-1554/`. 공유 폴더라 손대지 않는다.
 
 ### 5. 스킬 · 도구
-- /vibe C-realtime 레인 복구(grok 잔액 · gemini 워커 경로) · gstack 업그레이드는 게이트 라운드 뒤(시트 2번 미응답 → 추천대로).
+- /vibe C-realtime 레인 복구(grok 잔액 · gemini 워커 경로). gstack 은 1.87.4.0 으로 올렸다(Simon 확정 11:4x) — `/cso` 는 이 PC 에서 not assessed(VS 2022 Build Tools 필요).
 - 게시 워크플로 · PR CI 가 게시물 CSP 검사(`verify:web`)를 안 돌린다(SEC-2 발견).
 - Orca 1.4.200 은 에뮬레이터에 GPU 옵션을 안 넘긴다 — AVD 설정으로 우회 중(`E:/Coding Infra/tools/avd-guard/`).
 
