@@ -34,6 +34,11 @@ const mockDb = {
   sourceDeleteErrors: 0,
   /** 이름 붙은 요청 하나를 붙잡는다(mockGate). before 는 실행 전에, after 는 실행한 뒤 응답을 붙잡는다. */
   gates: new Map<string, { when: "before" | "after"; reached: () => void; released: Promise<void> }>(),
+  /**
+   * 공유 클라이언트가 지금 쥔 세션(auth-js). 요청은 보낸 순간의 값으로 서버에서 실행된다(RLS): 다른 계정 세션의 요청은 이 계정의 행 ·
+   * 페이지 · 폴더를 보지 못한다(0행 · 빈 목록, 오류 없음). CHECK 제약은 RLS 와 무관하게 모든 행을 본다.
+   */
+  session: null as string | null,
 };
 
 /** 이름 붙은 문을 지나 실행한다. before 문은 풀릴 때 실행하고, after 문은 바로 실행한 뒤 응답만 풀릴 때 돌려준다. */
@@ -61,9 +66,11 @@ function mockQuery(table: "sources" | "wiki_pages") {
   let listing = false;
   const filters: ((row: MockRow) => boolean)[] = [];
   const gateName = (): string => (op === "select" && listing ? "list pending" : `${op} ${table}`);
-  const run = (): { data: MockRow[] | null; error: { message: string; code?: string } | null; count?: number | null } => {
+  const run = (
+    session: string | null,
+  ): { data: MockRow[] | null; error: { message: string; code?: string } | null; count?: number | null } => {
     const rows = mockDb[table];
-    const hit = rows.filter((row) => filters.every((keep) => keep(row)));
+    const hit = rows.filter((row) => row.user_id === session && filters.every((keep) => keep(row)));
     if (op === "select") {
       if (table === "sources" && mockDb.lookupFails) return { data: null, error: { message: "lookup failed" } };
       // 고른 열만 돌려준다. 조회가 frontmatter 를 고르지 않으면 행 안의 본문 사본을 볼 수 없어야 한다.
@@ -135,13 +142,16 @@ function mockQuery(table: "sources" | "wiki_pages") {
     order: () => builder,
     limit: () => builder,
     maybeSingle: async () => {
-      const result = await mockThrough(gateName(), run);
+      const session = mockDb.session;
+      const result = await mockThrough(gateName(), () => run(session));
       return { data: result.data?.[0] ?? null, error: result.error };
     },
-    then: (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) =>
-      Promise.resolve()
-        .then(() => mockThrough(gateName(), run))
-        .then(resolve, reject),
+    then: (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) => {
+      const session = mockDb.session;
+      return Promise.resolve()
+        .then(() => mockThrough(gateName(), () => run(session)))
+        .then(resolve, reject);
+    },
   };
   return builder;
 }
@@ -150,13 +160,16 @@ const mockClient = {
   from: (table: "sources" | "wiki_pages") => mockQuery(table),
   storage: {
     from: () => ({
-      remove: async (paths: string[]) => {
-        mockDb.writes.push("storage remove");
-        if (mockDb.storageFails) return { data: null, error: { message: `remove failed: ${paths.join(",")}` } };
-        // 이미 없는 경로는 오류가 아니라 지운 목록에서 빠지는 것으로 둔다. Supabase 문서는 remove 가
-        // "지운 파일" 의 목록을 돌려준다고 적는다. ⚠ 실 Storage 로는 확인하지 않았다.
-        const removed = paths.filter((path) => mockDb.objects.delete(path));
-        return { data: removed.map((name) => ({ name })), error: null };
+      remove: (paths: string[]) => {
+        const session = mockDb.session;
+        return mockThrough("storage remove", () => {
+          mockDb.writes.push("storage remove");
+          if (mockDb.storageFails) return { data: null, error: { message: `remove failed: ${paths.join(",")}` } };
+          // 이미 없는 경로는 오류가 아니라 지운 목록에서 빠지는 것으로 둔다. Supabase 문서는 remove 가
+          // "지운 파일" 의 목록을 돌려준다고 적는다. ⚠ 실 Storage 로는 확인하지 않았다. 다른 계정 폴더도 같다(보이지 않는다).
+          const removed = paths.filter((path) => path.startsWith(`${session}/`) && mockDb.objects.delete(path));
+          return { data: removed.map((name) => ({ name })), error: null };
+        });
       },
       // 승격이 행 안의 본문을 원문으로 되살린다. before 문에 붙잡히면 객체는 풀릴 때 생긴다(나가 있는 업로드).
       upload: (path: string, _content: string, options?: { upsert?: boolean }) =>
@@ -173,6 +186,7 @@ const mockClient = {
 jest.mock("../../supabase/client", () => ({ getSupabaseClient: () => mockClient }));
 jest.mock("../../persona/load-domain-levels", () => ({ invalidateDomainLevels: jest.fn() }));
 
+import { __resetAccountEpochForTests, beginAccountOwnerTransition, noteResolvedOwner } from "../../auth/account-epoch";
 import { deleteCapturedSource } from "../delete-captured-source";
 import * as capturedSourceModule from "../delete-captured-source";
 import { promotePendingUploads } from "../promote-pending";
@@ -196,9 +210,13 @@ beforeEach(() => {
   mockDb.denySourceDelete = false;
   mockDb.sourceDeleteErrors = 0;
   mockDb.gates = new Map();
+  mockDb.session = OWNER;
   // 이 런타임의 행 표식(지우는 중 · 지운 행 · 되살리는 중)도 비운다 - 테스트마다 같은 id(src-1)를 다시 쓴다.
   (capturedSourceModule as { __resetCapturedSourceRowsForTests?: () => void }).__resetCapturedSourceRowsForTests?.();
   invalidateDomainLevels.mockClear();
+  // 지우기는 공개된 계정의 임대를 쥐고 시작한다(6차 재게이트 G5Z-1814-1). 앱에서는 AuthContext 가 공개할 때마다 부른다.
+  __resetAccountEpochForTests();
+  noteResolvedOwner(OWNER);
 });
 
 /** console.warn 을 조용히 받아 적으며 돌린다. */
@@ -814,5 +832,206 @@ describe("승격 되살리기와 한 건 삭제는 한 행에서 엇갈리지 �
     expect(await quietly(() => deleteCapturedSource(OWNER, "src-1"))).toEqual({ result: "not_deleted", logged: "" });
     expect(await promotePendingUploads(OWNER)).toEqual({ pending: 1, promoted: 1 });
     expect({ rows: mockDb.sources.length, objects: [...mockDb.objects] }).toEqual({ rows: 1, objects: [PATH] });
+  });
+});
+
+// ── 삭제를 시작한 계정의 임대 (6차 재게이트 G5Z-1814-1 · G5Z-1814-2) ──────────────────────────────────────
+//
+// 공유 클라이언트는 요청마다 그 순간의 세션 토큰을 쓴다. 삭제 도중 계정이 바뀌면 그다음 요청은 이 계정의 행을 보지 못해 "0행 · 남은 행
+// 없음" 으로 온다. 그것을 "지웠다" 로 읽으면 살아 있는 행을 이 런타임이 지운 행으로 적어, 그 계정이 돌아와도 그 행의 승격 · 손 담기 복구가
+// 거절됐다(실행기 테스트가 게이트 재현 A · B 를 돌린다). 여기는 실행기 없는 런타임이다: 전환 뒤에는 새 요청을 보내지 않고, 없음은 삭제를
+// 시작한 계정 임대가 살아 있을 때만 믿는다. 지운 행 수(count > 0)는 어느 세션의 응답이든 사실이다 - 이 계정의 토큰으로만 이 계정의 행을
+// 지울 수 있다(RLS 는 숨길 뿐 지어내지 않는다).
+
+describe("삭제를 시작한 계정의 임대 (6차 재게이트 G5Z-1814-1 · G5Z-1814-2, 실행기 없는 런타임)", () => {
+  const OTHER = "user-b";
+  /** auth-js 가 B 로 바뀐다 - 그다음 요청은 B 의 토큰으로 나가고, AuthContext 는 전환 hold 를 건다. */
+  function switchTo(owner: string): void {
+    mockDb.session = owner;
+    beginAccountOwnerTransition(owner);
+  }
+  const state = () => ({
+    writes: mockDb.writes,
+    rows: mockDb.sources.map((row) => row.id),
+    pages: mockDb.wiki_pages.map((page) => page.id),
+    objects: [...mockDb.objects],
+    removed: capturedSourceModule.capturedSourceRemoved(OWNER, "src-1"),
+  });
+
+  test("계정이 바뀌는 중이거나 공개된 계정이 없으면 아무 요청도 보내지 않는다 - not_deleted", async () => {
+    mockDb.sources = [{ ...SOURCE }];
+    const from = jest.spyOn(mockClient, "from");
+    try {
+      switchTo(OTHER);
+      expect(await deleteCapturedSource(OWNER, "src-1")).toBe("not_deleted");
+      __resetAccountEpochForTests(); // 로그인 전 - 공개된 계정이 없다
+      expect(await deleteCapturedSource(OWNER, "src-1")).toBe("not_deleted");
+      expect(from).not.toHaveBeenCalled();
+    } finally {
+      from.mockRestore();
+    }
+    expect(state()).toEqual({ writes: [], rows: ["src-1"], pages: [], objects: [PATH], removed: false });
+  });
+
+  test("원문 삭제의 응답 전에 계정이 바뀌면 페이지 · 행 요청을 보내지 않고 지운 행으로 적지 않는다 - 원문을 지웠다고도 하지 않는다(not_deleted)", async () => {
+    mockDb.sources = [{ ...SOURCE, ingested: true }];
+    mockDb.wiki_pages = [{ ...PAGE }];
+    const remove = mockGate("storage remove", "after"); // A 의 원문 삭제는 서버에서 실행됐고 응답만 늦다
+    const deleting = deleteCapturedSource(OWNER, "src-1");
+    await remove.reached;
+    switchTo(OTHER);
+    remove.release();
+    expect(await deleting).toBe("not_deleted");
+    expect(state()).toEqual({ writes: ["storage remove"], rows: ["src-1"], pages: ["page-1"], objects: [], removed: false });
+  });
+
+  test("페이지 목록의 응답 뒤에 계정이 바뀌어 있으면 페이지를 지우지 않고 멈춘다 - 원문을 지운 것까지만 말한다(raw_removed)", async () => {
+    mockDb.sources = [{ ...SOURCE, ingested: true }];
+    mockDb.wiki_pages = [{ ...PAGE }];
+    const listing = mockGate("select wiki_pages", "after");
+    const deleting = deleteCapturedSource(OWNER, "src-1");
+    await listing.reached;
+    switchTo(OTHER);
+    listing.release();
+    expect(await deleting).toBe("raw_removed");
+    expect(state()).toEqual({ writes: ["storage remove"], rows: ["src-1"], pages: ["page-1"], objects: [], removed: false });
+  });
+
+  test("행을 읽은 뒤 계정이 바뀌어 있으면 원문 삭제를 보내지 않는다 - 아무것도 지우지 않았다", async () => {
+    mockDb.sources = [{ ...SOURCE }];
+    const lookup = mockGate("select sources", "after");
+    const deleting = deleteCapturedSource(OWNER, "src-1");
+    await lookup.reached;
+    switchTo(OTHER);
+    lookup.release();
+    expect(await deleting).toBe("not_deleted");
+    expect(state()).toEqual({ writes: [], rows: ["src-1"], pages: [], objects: [PATH], removed: false });
+  });
+
+  test("페이지 삭제가 이 계정 세션으로 나간 뒤 계정이 바뀌면 지운 페이지 수는 사실이라 partly_deleted 로 멈춘다 - 행 요청은 보내지 않는다", async () => {
+    mockDb.sources = [{ ...SOURCE, storage_path: null, ingested: true }];
+    mockDb.wiki_pages = [{ ...PAGE }];
+    const pageDelete = mockGate("delete wiki_pages", "after");
+    const deleting = deleteCapturedSource(OWNER, "src-1");
+    await pageDelete.reached;
+    switchTo(OTHER);
+    pageDelete.release();
+    expect(await deleting).toBe("partly_deleted");
+    expect({ rows: state().rows, pages: state().pages, removed: state().removed, rowWrites: mockDb.writes.filter((w) => w.startsWith("delete sources")) }).toEqual({
+      rows: ["src-1"],
+      pages: [],
+      removed: false,
+      rowWrites: [],
+    });
+  });
+
+  test("토큰이 먼저 바뀌어 페이지 삭제가 다른 세션으로 나가고 전환 알림이 그 응답 전에 오면, 0 을 지운 것으로 치지 않는다 - not_deleted", async () => {
+    mockDb.sources = [{ ...SOURCE, storage_path: null, ingested: true }];
+    mockDb.wiki_pages = [{ ...PAGE }];
+    const listing = mockGate("select wiki_pages", "after");
+    const deleting = deleteCapturedSource(OWNER, "src-1");
+    await listing.reached;
+    mockDb.session = OTHER; // auth-js 는 이미 B 다 - AuthContext 의 전환 알림(임대가 끊기는 때)은 아직이다
+    const pageDelete = mockGate("delete wiki_pages", "after");
+    listing.release();
+    await pageDelete.reached; // B 세션의 페이지 삭제는 A 의 페이지를 보지 못했다(0행)
+    beginAccountOwnerTransition(OTHER);
+    pageDelete.release();
+    expect(await deleting).toBe("not_deleted");
+    expect({ rows: state().rows, pages: state().pages, removed: state().removed }).toEqual({ rows: ["src-1"], pages: ["page-1"], removed: false });
+  });
+
+  test("행 삭제가 0행으로 온 뒤 계정이 바뀌어 있으면 남은 행 확인을 보내지 않는다 - 지웠다고 하지 않고 지운 행으로 적지 않는다", async () => {
+    mockDb.sources = [{ ...SOURCE }];
+    mockDb.denySourceDelete = true; // 행 삭제가 0행으로 온다
+    const rowDelete = mockGate("delete sources", "after");
+    const deleting = deleteCapturedSource(OWNER, "src-1");
+    await rowDelete.reached;
+    switchTo(OTHER);
+    const from = jest.spyOn(mockClient, "from");
+    try {
+      rowDelete.release();
+      expect(await deleting).toBe("raw_removed");
+      expect(from).not.toHaveBeenCalled();
+    } finally {
+      from.mockRestore();
+    }
+    expect(state()).toEqual({
+      writes: ["storage remove", "delete sources (0 rows)"],
+      rows: ["src-1"],
+      pages: [],
+      objects: [],
+      removed: false,
+    });
+  });
+
+  test("토큰이 먼저 바뀌어 남은 행 확인이 다른 세션으로 나가고 전환 알림이 그 응답 전에 오면, '없다' 를 믿지 않는다 - 지운 행으로 적지 않는다", async () => {
+    mockDb.sources = [{ ...SOURCE }];
+    mockDb.denySourceDelete = true; // 이 계정 세션의 행 삭제가 0행으로 온다(행은 남아 있다)
+    const rowDelete = mockGate("delete sources", "after");
+    const deleting = deleteCapturedSource(OWNER, "src-1");
+    await rowDelete.reached;
+    mockDb.session = OTHER; // auth-js 는 이미 B 다 - 전환 알림은 아직이다
+    const survivor = mockGate("select sources", "after");
+    rowDelete.release();
+    await survivor.reached; // B 세션의 남은 행 확인은 A 의 행을 보지 못했다(없음)
+    beginAccountOwnerTransition(OTHER);
+    survivor.release();
+    expect(await deleting).toBe("raw_removed");
+    expect({ rows: state().rows, removed: state().removed }).toEqual({ rows: ["src-1"], removed: false });
+  });
+
+  test("대조: 행 삭제가 이 계정 세션으로 나간 뒤 계정이 바뀌어도 지운 행 수는 사실이다 - deleted 로 끝나고 지운 행으로 적는다", async () => {
+    mockDb.sources = [{ ...SOURCE }];
+    const rowDelete = mockGate("delete sources", "after");
+    const deleting = deleteCapturedSource(OWNER, "src-1");
+    await rowDelete.reached;
+    switchTo(OTHER);
+    rowDelete.release();
+    expect(await deleting).toBe("deleted");
+    expect(state()).toEqual({ writes: ["storage remove", "delete sources"], rows: [], pages: [], objects: [], removed: true });
+  });
+
+  test("승격이 그 행을 되살리는 동안 기다리다 계정이 바뀌면 아무 요청도 보내지 않는다(승격 대기 뒤) - 행과 되살린 원문이 남는다", async () => {
+    mockDb.sources = [pendingSource()];
+    mockDb.objects = new Set();
+    const flagClear = mockGate("update sources", "before"); // 승격이 원문을 올린 뒤 행의 표식을 지우는 중이다
+    const promoting = promotePendingUploads(OWNER);
+    await flagClear.reached;
+    const deleting = deleteCapturedSource(OWNER, "src-1");
+    await flush();
+    switchTo(OTHER);
+    const from = jest.spyOn(mockClient, "from");
+    try {
+      flagClear.release();
+      expect(await promoting).toEqual({ pending: 1, promoted: 1 });
+      expect(await deleting).toBe("not_deleted");
+      expect(from).not.toHaveBeenCalled();
+    } finally {
+      from.mockRestore();
+    }
+    expect(state()).toEqual({ writes: ["storage upload", "update sources"], rows: ["src-1"], pages: [], objects: [PATH], removed: false });
+  });
+
+  test("G5Z-1814-2: 지우는 중(capturedSourceRemoving)은 삭제가 나가 있는 동안만 참이고 계정마다 따로다 - 다 지운 뒤에는 지운 행만 참이다", async () => {
+    const removing = (capturedSourceModule as { capturedSourceRemoving?: (userId: string, sourceId: string) => boolean })
+      .capturedSourceRemoving;
+    expect(typeof removing).toBe("function");
+    const read = (userId: string, sourceId: string): boolean => removing?.(userId, sourceId) ?? false;
+    mockDb.sources = [{ ...SOURCE }];
+    const rowDelete = mockGate("delete sources", "before");
+    const deleting = deleteCapturedSource(OWNER, "src-1");
+    await rowDelete.reached;
+    const during = {
+      removing: read(OWNER, "SRC-1"),
+      otherOwner: read(OTHER, "src-1"),
+      removed: capturedSourceModule.capturedSourceRemoved(OWNER, "src-1"),
+    };
+    rowDelete.release();
+    expect(await deleting).toBe("deleted");
+    expect({ during, after: { removing: read(OWNER, "src-1"), removed: capturedSourceModule.capturedSourceRemoved(OWNER, "src-1") } }).toEqual({
+      during: { removing: true, otherOwner: false, removed: false },
+      after: { removing: false, removed: true },
+    });
   });
 });

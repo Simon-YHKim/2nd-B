@@ -58,8 +58,22 @@
 //   · 승격이 그 행을 되살리는 중이면(restoring) 삭제는 표식을 먼저 세우고(새 승격은 건너뛴다) 그 되살리기가
 //     끝난 뒤에 지운다.
 // 다른 탭 · 다른 기기의 승격과 삭제는 이 표식을 모른다(서버 S3 몫).
+//
+// 삭제를 시작한 계정의 임대로 지운다 (6차 재게이트 G5Z-1814-1). 공유 클라이언트는 요청마다 그 순간의 세션 토큰을 쓴다. 삭제 도중 계정이
+// 바뀌면 그다음 요청은 이 계정의 행을 보지 못해 "0행 · 남은 행 없음" 으로 온다. 그것을 "지웠다" 로 읽어 살아 있는 행을 지운 행(removed)으로
+// 적었더니, 그 계정이 돌아와도 이 런타임 내내 그 행의 승격 · 손 담기 복구가 거절됐다. 그래서
+//   · 시작할 때 그 계정의 임대(captureAccountOwnerLease)를 쥔다. 쥘 수 없으면(전환 중 · 공개된 계정 없음) 아무것도 보내지 않는다.
+//   · 요청을 보내기 전마다(승격을 기다린 뒤 포함) 임대를 다시 본다. 끊겼으면 새 요청을 보내지 않고 그때까지 안 것으로 답한다.
+//   · 요청이 돌아온 뒤에도 본다. 끊겨 있으면 그 요청이 어느 세션으로 나갔는지 모른다 - 원문 · 페이지 삭제의 "오류 없음" 도, 행 삭제의 0행과
+//     남은 행 없음도 지웠다는 뜻이 아니다. 지운 행 수(count > 0)만은 어느 세션의 응답이든 사실이다 - 이 계정의 행은 이 계정의 토큰으로만
+//     지워진다(RLS 는 숨길 뿐 지어내지 않는다).
+// 그래서 지운 행 표식은 행을 지웠다는 것이 사실일 때만 선다. 전환이 끼면 답은 raw_removed · partly_deleted · not_deleted 중 그때까지 안
+// 것이고(표식 없음) 다시 시도하는 뜻은 그대로다 - 행이 남아 있어 그 계정이 돌아와 다시 지우면 이어서 지운다.
+// ⚠ 임대는 AuthContext 가 전환을 알리는 순간(account-epoch) 끊긴다. auth-js 가 세션을 바꾼 뒤 그 알림 전의 틈은 이 모듈이 닫지 못한다 -
+//   실행기와 같은 한계이고, 요청을 세션 id 에 묶는 것은 계정 삭제의 session-mutation 계약 몫이다.
 // 검사: `src/lib/wiki/__tests__/delete-captured-source.test.ts` · 조정된 길은 `src/lib/chat/__tests__/autosave-runner.test.ts`
 
+import { captureAccountOwnerLease, type AccountOwnerLease } from "../auth/account-epoch";
 import { getSupabaseClient } from "../supabase/client";
 import { invalidateDomainLevels } from "../persona/load-domain-levels";
 import { deleteWikiPage } from "./queries";
@@ -92,6 +106,14 @@ function rowKey(userId: string, sourceId: string): string {
 /** 이 런타임이 그 행을 다 지웠는가. 정확 중복으로 돌려받은 행이 그 뒤에 지워졌는지 가를 때 쓴다(대화 자동 저장 실행기). */
 export function capturedSourceRemoved(userId: string, sourceId: string): boolean {
   return removed.has(rowKey(userId, sourceId));
+}
+
+/**
+ * 이 런타임이 그 행을 지우는 중인가 (6차 재게이트 G5Z-1814-2). 대화 자동 저장 실행기를 불러오기 전에 시작한 삭제는 실행기의 표식에 없다 -
+ * 실행기는 정확 중복으로 돌려받은 행이 지우는 중인지 이것으로도 본다. 다 지운 행은 capturedSourceRemoved 다(서로 대신하지 않는다).
+ */
+export function capturedSourceRemoving(userId: string, sourceId: string): boolean {
+  return removing.has(rowKey(userId, sourceId));
 }
 
 /**
@@ -150,14 +172,20 @@ export function deleteCapturedSource(userId: string, sourceId: string): Promise<
 
 /**
  * 지금 지운다. 조정하는 쪽이 자기 줄 안에서 부른다 - 화면은 deleteCapturedSource 를 부른다. 지우는 동안 그 행은 지우는 중이고(승격이
- * 건너뛴다), 승격이 그 행을 되살리는 중이면 그 일이 끝난 뒤에 지운다(머리 주석 "승격의 되살리기와는 행마다").
+ * 건너뛴다), 승격이 그 행을 되살리는 중이면 그 일이 끝난 뒤에 지운다(머리 주석 "승격의 되살리기와는 행마다"). 시작할 때 쥔 계정 임대로만
+ * 보내고, 그 계정이 공개돼 있지 않으면 아무것도 보내지 않고 not_deleted 다(머리 주석 "삭제를 시작한 계정의 임대로").
  */
 export async function removeCapturedSource(userId: string, sourceId: string): Promise<DeleteCapturedSourceOutcome> {
+  const owner = captureAccountOwnerLease(userId);
+  if (!owner) return "not_deleted";
   const key = rowKey(userId, sourceId);
   removing.set(key, (removing.get(key) ?? 0) + 1);
   try {
     await restoresSettled(key);
-    const outcome = await removeNow(userId, sourceId);
+    // 승격을 기다리는 사이 계정이 바뀌었으면 아무것도 보내지 않는다.
+    if (!owner.isCurrent()) return "not_deleted";
+    const outcome = await removeNow(userId, sourceId, owner);
+    // deleted 는 행을 지웠다는 것이 사실일 때만 온다 - 다른 세션에 안 보였을 뿐인 행을 지운 행으로 적지 않는다(G5Z-1814-1).
     if (outcome === "deleted") removed.add(key);
     return outcome;
   } finally {
@@ -167,7 +195,7 @@ export async function removeCapturedSource(userId: string, sourceId: string): Pr
   }
 }
 
-async function removeNow(userId: string, sourceId: string): Promise<DeleteCapturedSourceOutcome> {
+async function removeNow(userId: string, sourceId: string, owner: AccountOwnerLease): Promise<DeleteCapturedSourceOutcome> {
   const supabase = getSupabaseClient();
 
   let path: string | null;
@@ -198,6 +226,7 @@ async function removeNow(userId: string, sourceId: string): Promise<DeleteCaptur
       warnWithoutDetails("[wiki] captured source not deleted; raw clipping is outside the owner folder");
       return "not_deleted";
     }
+    if (!owner.isCurrent()) return "not_deleted";
     try {
       await deleteRawClipping(path);
     } catch {
@@ -205,10 +234,15 @@ async function removeNow(userId: string, sourceId: string): Promise<DeleteCaptur
       return "not_deleted";
     }
   }
+  // 원문 삭제가 이 계정 세션으로 나갔는지는 돌아온 뒤에도 임대가 그대로일 때만 안다 - 다른 세션의 삭제는 이 폴더를 못 지우는데도 오류 없이
+  // 온다. 모르면 원문을 지웠다고 하지 않는다(not_deleted 는 "원문은 이미 없을 수 있다" 를 품는다). 페이지 목록도 보내지 않는다.
+  if (!owner.isCurrent()) return "not_deleted";
 
-  // 여기서부터 실패하면 무엇을 이미 지웠는지로 답이 갈린다. 본문 사본이 행에 있으면 행이 남는 한 원문도 남은 것이다.
+  // 여기서부터 실패하면 무엇을 이미 지웠는지로 답이 갈린다. 본문 사본이 행에 있으면 행이 남는 한 원문도 남은 것이다. 계정이 바뀌어 멈출 때도
+  // 같은 답이다(그때까지 안 것).
   const rawRemoved = Boolean(path) && !hasInlineCopy;
   let pageRemoved = false;
+  const soFar = (): DeleteCapturedSourceOutcome => (rawRemoved ? "raw_removed" : pageRemoved ? "partly_deleted" : "not_deleted");
   try {
     const { data: pages, error: pagesError } = await supabase
       .from("wiki_pages")
@@ -217,17 +251,23 @@ async function removeNow(userId: string, sourceId: string): Promise<DeleteCaptur
       .eq("source_id", sourceId);
     if (pagesError) throw pagesError;
     for (const page of (pages ?? []) as { id: string }[]) {
-      await deleteWikiPage(userId, page.id);
-      pageRemoved = true;
+      if (!owner.isCurrent()) return soFar();
+      const gone = await deleteWikiPage(userId, page.id);
+      // 지운 페이지 수도 어느 세션의 응답이든 사실이다. 0 은 이 계정 세션일 때만 "이미 없다" 다 - 돌아온 뒤 계정이 바뀌어 있으면 지웠다고
+      // 치지 않고 아래에서 멈춘다.
+      if (gone > 0 || owner.isCurrent()) pageRemoved = true;
     }
 
+    if (!owner.isCurrent()) return soFar();
     const { count, error: deleteError } = await supabase
       .from("sources")
       .delete({ count: "exact" })
       .eq("user_id", userId)
       .eq("id", sourceId);
     if (deleteError) throw deleteError;
+    // 지운 행 수(count > 0)는 어느 세션의 응답이든 사실이다. 0행은 "이 세션에 안 보인다" 일 수 있다 - 남은 행을 이 계정 세션으로 확인한다.
     if (!count) {
+      if (!owner.isCurrent()) return soFar();
       const { data: survivor, error: survivorError } = await supabase
         .from("sources")
         .select("id")
@@ -236,6 +276,8 @@ async function removeNow(userId: string, sourceId: string): Promise<DeleteCaptur
         .maybeSingle();
       if (survivorError) throw survivorError;
       if (survivor) throw new Error("captured-source-not-deleted");
+      // 남은 행이 안 보인다는 답도 그 확인이 이 계정 세션으로 나갔을 때만 "없다" 다.
+      if (!owner.isCurrent()) return soFar();
     }
   } catch {
     // 행 단계의 실패는 원인을 로그에 남기지 않고 화면에서 따로 말하지도 않는다 (r3as M1).
@@ -244,7 +286,7 @@ async function removeNow(userId: string, sourceId: string): Promise<DeleteCaptur
     // CHECK 23514 로 막는다. 그 원인을 기기 로그에 적거나 구분해 말하면 남의 계정 데이터가 있다는
     // 신호가 된다 - 연결이 끊긴 실패와 같은 답으로 닫는다. 남의 행은 여기서 지우지 않는다.
     // 스키마 보강(소유자를 포함한 복합 FK)은 서버 후속이다(PR #1814).
-    return rawRemoved ? "raw_removed" : pageRemoved ? "partly_deleted" : "not_deleted";
+    return soFar();
   }
   // 도메인 태그가 붙은 자료였다면 별 밝기가 바뀐다. deleteRecord 와 같은 자세다.
   invalidateDomainLevels(userId);

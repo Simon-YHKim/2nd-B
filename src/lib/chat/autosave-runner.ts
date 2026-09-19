@@ -126,6 +126,13 @@
 // 담기는 담김이라 하지 않는다. ⚠ 보낸 삭제가 응답 없이 멈추면 화면의 확인 창도 멈춘다(supabase 클라이언트에 fetch 상한이 없다 -
 // 4차 이전과 같은 동작, 후속).
 //
+// ## 지운 행 표식과 지우는 중 (6차 재게이트 G5Z-1814-1 · G5Z-1814-2)
+//
+// 지운 행 표식(capturedSourceRemoved)은 행을 지웠다는 것이 사실일 때만 선다 - 삭제를 시작한 계정 임대가 살아 있는 채 없음을 확인했거나 지운
+// 행 수가 돌아왔을 때다. 삭제 도중 계정이 바뀌어 다른 세션에 안 보였을 뿐인 행을 지운 행으로 적었더니 그 계정이 돌아와도 손 담기 복구와 승격이
+// 거절됐다(delete-captured-source.ts 머리 주석). 지우는 중은 이 실행기의 표식(deletingNow)과 공통 행 표식(capturedSourceRemoving)을 함께
+// 본다 - 이 모듈을 불러오기 전에 기록 상세에서 시작한 삭제는 줄을 거치지 않아 공통 표식에만 있다(화면 모듈은 처음 그릴 때 평가된다).
+//
 // ⚠ 확인하지 않은 것: 운영 Supabase 에서 클라이언트가 정한 id 로 INSERT 가 되는지, 끊긴 fetch 뒤 서버가 커밋하는지,
 // 없는 경로 Storage remove 가 빈 목록인지 404 오류인지(둘 다 "없음" 으로 읽는다), RN 실기의 백그라운드 동작.
 // ⚠ 보안 경계가 아니다. 서버는 chat_autosave 를 쓰기에서 강제하지 않는다(서버 몫, 설계 S2).
@@ -146,6 +153,7 @@ import { captureFromMarkdown, type CaptureJournal, type CaptureResult } from "..
 import {
   __resetCapturedSourceRowsForTests,
   capturedSourceRemoved,
+  capturedSourceRemoving,
   coordinateCapturedSourceDeletes,
   removeCapturedSource,
   type DeleteCapturedSourceOutcome,
@@ -492,7 +500,10 @@ async function settleDuplicate(
   job.lease.assertCurrent();
   const key = undoKey(survivor);
   if (keptRows.has(key)) return "kept";
-  if (deletingNow.has(key)) throw new Error("autosave-deletion-in-flight");
+  // 이 실행기를 불러오기 전에 시작한 삭제는 deletingNow 에 없다 - 공통 행 표식도 본다(6차 재게이트 G5Z-1814-2).
+  if (deletingNow.has(key) || capturedSourceRemoving(survivor.ownerId, survivor.sourceId)) {
+    throw new Error("autosave-deletion-in-flight");
+  }
   // 자동 저장이 쓴 행만 되돌리기 대기에 오른다(원문 키가 chat-<그 행 id>). 그 밖의 행은 지울 차례일 수 없다.
   const pending = isAutosaveRow(survivor, kept) ? await deletionPending(survivor) : false;
   throwIfAborted(signal);
@@ -818,8 +829,11 @@ export function runManualKeep(
     const record: AutosaveUndoRecord = { ownerId, sourceId: String(kept.source.id).toLowerCase() };
     const key = undoKey(record);
     // 지우는 중이거나 이 런타임이 이미 지운 행은 - 자동 저장이 쓴 행이든 손으로 담은 행이든 - 남는다고 말할 수 없다(5차 재게이트
-    // G4Z-1814-2). 정확 중복은 capture 가 행을 읽은 순간의 답이라 그 뒤에 끝난 삭제를 모른다.
-    if (deletingNow.has(key) || capturedSourceRemoved(ownerId, record.sourceId)) throw new Error("autosave-deletion-in-flight");
+    // G4Z-1814-2). 정확 중복은 capture 가 행을 읽은 순간의 답이라 그 뒤에 끝난 삭제를 모른다. 지우는 중은 이 실행기의 표식과 공통 행
+    // 표식 둘 다 본다 - 이 실행기를 불러오기 전에 시작한 삭제는 공통 표식에만 있다(6차 재게이트 G5Z-1814-2).
+    if (deletingNow.has(key) || capturedSourceRemoving(ownerId, record.sourceId) || capturedSourceRemoved(ownerId, record.sourceId)) {
+      throw new Error("autosave-deletion-in-flight");
+    }
     // 자동 저장이 쓴 행이 아니면 되돌리기 대기에 오를 수 없다 - 조정할 것이 없다.
     if (!isAutosaveRow(record, kept)) return kept;
     if (!keptRows.has(key)) {

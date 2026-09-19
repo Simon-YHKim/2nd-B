@@ -2462,6 +2462,226 @@ describe("재게이트 잔여 (게이트 r260919 재게이트 GA-1814-1~3 · GZ-
       });
     });
   });
+
+  describe("6차 재게이트 G5Z-1814-1 · G5Z-1814-2: 지운 행 표식은 삭제를 시작한 계정 임대로 없음을 확인했을 때만 서고, 지우는 중은 실행기를 불러온 순서와 무관하다", () => {
+    // G5Z-1814-1 게이트 재현(같은 런타임): 기록 상세의 삭제가 원문 요청을 A 세션으로 보낸 뒤 auth-js 가 B 로 바뀐다 -> 그다음 페이지 · 행
+    // 요청이 B 세션으로 나가 A 의 행을 보지 못했다(행 삭제 0행 · 남은 행 없음) -> 그 "안 보인다" 를 "지웠다" 로 읽어 살아 있는 A 의 행을 이
+    // 런타임이 지운 행으로 적었고 -> A 가 돌아와도 그 행의 손 담기 복구(재현 A)와 승격(재현 B)이 거절됐다. 기대: 전환 뒤에는 새 요청을 보내지
+    // 않고, 지운 행 표식은 삭제를 시작한 계정 임대가 살아 있는 채 없음을 확인했을 때만 선다. 지운 행 수(count > 0)는 어느 세션의 응답이든 사실이다.
+    // G5Z-1814-2 게이트 재현(최초 로드): 실행기를 불러오기 전에 시작한 기록 상세 삭제는 실행기의 지우는 중(deletingNow)에 없다 -> 같은 대화를
+    // 손으로 담으면 지우는 중인 행을 정확 중복으로 받아 담김이라 했다. 기대: 공통 행 모듈의 지우는 중(capturedSourceRemoving)을 본다.
+    const late = (promise: Promise<unknown>): Promise<string> =>
+      promise.then(
+        (value) => (typeof value === "string" ? value : "kept"),
+        (error: Error) => error.message,
+      );
+    const removedMark = (id: string): boolean => capturedSourceModule.capturedSourceRemoved(OWNER, id);
+    /** 그 세션으로 서버에 닿은 요청들. */
+    const sentAs = (session: string): Label[] =>
+      mockServer.arrived.filter((request) => request.session === session).map((request) => request.label);
+
+    test.each([
+      ["줄의 시간 상한 없이", false],
+      ["줄의 시간 상한이 지난 뒤", true],
+    ] as const)(
+      "G5Z-1814-1 게이트 재현 A (%s): 원문 삭제가 나간 뒤 계정이 바뀌면 B 세션으로 요청을 보내지 않고 A 의 행을 지운 행으로 적지 않는다 - A 가 돌아와 같은 대화를 손으로 담으면 원문을 되살리고 담긴다",
+      async (_order, timedOut) => {
+        expect(typeof LANE_TIMEOUT_MS).toBe("number");
+        const old = await pendingUndo(); // 철회된 자동 저장 - 첫 원문 삭제가 실패해 행 · 원문 · 대기 기록이 남았다
+        const id = old.handle.sourceId;
+        if (timedOut) fakeTimers();
+        const remove = hold("remove"); // 기록 상세의 삭제 - 원문 요청이 A 세션으로 나갔다
+        const deleting = late(deleteCapturedSource(OWNER, id));
+        await remove.reached;
+        if (timedOut) {
+          jest.advanceTimersByTime(LANE_TIMEOUT_MS ?? 0);
+          await spin();
+        }
+        switchAccount(OTHER); // auth-js 가 B 로 바뀐다
+        remove.release(); // 이미 보낸 A 의 원문 삭제는 A 의 원문을 지운다
+        const outcome = await deleting;
+        await spin();
+        jest.useRealTimers();
+        expect({ outcome, asB: sentAs(OTHER), row: hasRow(id), raw: hasRaw(id), removed: removedMark(id), queue: queued() }).toEqual({
+          outcome: "not_deleted",
+          asB: [],
+          row: true,
+          raw: false,
+          removed: false,
+          queue: [{ ownerId: OWNER, sourceId: id }],
+        });
+        switchAccount(OWNER); // A 가 다시 공개된다
+        const kept = await late(handKeep(1)); // 같은 대화를 손으로 담는다 - 지울 차례였던 행이라 원문을 되살린 뒤 남긴다
+        expect({ kept, row: hasRow(id), raw: hasRaw(id), queue: queued() }).toEqual({ kept: "kept", row: true, raw: true, queue: [] });
+      },
+    );
+
+    test("G5Z-1814-1 게이트 재현 B: 같은 전환 뒤 A 로 돌아오면 승격이 행 안에 든 본문을 원문으로 되살린다 - 살아 있는 행을 지운 행으로 적지 않았다", async () => {
+      mockServer.serverError.set("upload", 1); // 업로드가 실패해 본문이 행 안에 든 동의된 자동 저장
+      const job = start(1, await consentOn());
+      expect(await job.handle.settled).toBe("kept");
+      const id = job.handle.sourceId;
+      const remove = hold("remove");
+      const deleting = late(deleteCapturedSource(OWNER, id));
+      await remove.reached;
+      switchAccount(OTHER);
+      remove.release();
+      const outcome = await deleting;
+      await spin();
+      expect({ outcome, asB: sentAs(OTHER), row: hasRow(id), removed: removedMark(id) }).toEqual({
+        outcome: "not_deleted",
+        asB: [],
+        row: true,
+        removed: false,
+      });
+      switchAccount(OWNER);
+      const uploads = count("upload");
+      const promoted = await promotePendingUploads(OWNER);
+      expect({ promoted, newUploads: count("upload") - uploads, row: hasRow(id), raw: hasRaw(id) }).toEqual({
+        promoted: { pending: 1, promoted: 1 },
+        newUploads: 1,
+        row: true,
+        raw: true,
+      });
+    });
+
+    test("대조(지운 행 수는 사실이다): 행 삭제가 A 세션으로 나간 뒤에 계정이 바뀌어도 deleted 로 끝나고 지운 행으로 적는다 - 삭제 전에 읽은 승격 목록이 행 없는 원문을 만들지 않는다", async () => {
+      mockServer.serverError.set("upload", 1);
+      const job = start(1, await consentOn());
+      expect(await job.handle.settled).toBe("kept");
+      const id = job.handle.sourceId;
+      const listing = holdAnswer("getSource"); // 승격은 삭제 전에 보류 행을 읽었고, 그 답은 늦게 온다
+      const stale = promotePendingUploads(OWNER);
+      await listing.reached;
+      const rowDelete = hold("rowDelete"); // 행 삭제가 A 세션으로 나갔다
+      const deleting = late(deleteCapturedSource(OWNER, id));
+      await rowDelete.reached;
+      switchAccount(OTHER);
+      rowDelete.release(); // A 의 토큰으로만 A 의 행을 지울 수 있다 - 1행이 지워졌다는 답은 전환과 무관하게 사실이다
+      const outcome = await deleting;
+      switchAccount(OWNER);
+      const uploads = count("upload");
+      listing.release();
+      const promoted = await stale;
+      await spin();
+      expect({ outcome, removed: removedMark(id), promoted, newUploads: count("upload") - uploads, row: hasRow(id), raw: hasRaw(id) }).toEqual({
+        outcome: "deleted",
+        removed: true,
+        promoted: { pending: 1, promoted: 0 },
+        newUploads: 0,
+        row: false,
+        raw: false,
+      });
+    });
+
+    type RunnerModule = typeof import("../autosave-runner");
+    interface FreshRuntime {
+      rows: typeof import("../../wiki/delete-captured-source");
+      capture: typeof captureFromMarkdown;
+      /** 대화 화면을 처음 열 때처럼 실행기를 불러온다. 불러오는 순간 한 건 삭제에 계정 줄을 건다. */
+      loadRunner: () => RunnerModule;
+      /** 그 레지스트리의 모듈 하나(동의 저장소 · privacy). */
+      load: <T>(path: string) => T;
+    }
+
+    /**
+     * 실행기를 아직 불러오지 않은 런타임 - 새 모듈 레지스트리(jest.isolateModulesAsync)다. 앱은 화면 모듈을 처음 그릴 때 평가한다(6차 게이트가
+     * expo-router 56.2.12 production/sync 로 확인: 기록 상세 경로를 불러와도 대화 화면 모듈은 평가되지 않는다). 서버 목은 같은 것을 쓴다.
+     */
+    async function freshRuntime(run: (runtime: FreshRuntime) => Promise<void>): Promise<void> {
+      await jest.isolateModulesAsync(async () => {
+        const epoch = require("../../auth/account-epoch") as typeof import("../../auth/account-epoch");
+        epoch.noteResolvedOwner(OWNER);
+        const rowsModule = require("../../wiki/delete-captured-source") as typeof import("../../wiki/delete-captured-source");
+        const capture = (require("../../wiki/capture") as typeof import("../../wiki/capture")).captureFromMarkdown;
+        await run({
+          rows: rowsModule,
+          capture,
+          loadRunner: () => require("../autosave-runner") as RunnerModule,
+          load: <T,>(path: string) => require(path) as T,
+        });
+      });
+    }
+
+    test.each([
+      ["실행기를 불러오기 전에 시작한 삭제 (cold)", "cold"],
+      ["대조: 실행기를 먼저 불러온 런타임 (warm)", "warm"],
+    ] as const)(
+      "G5Z-1814-2 게이트 재현 - %s: 지우는 중인 자료와 같은 대화를 손으로 담아도 담김이라 말하지 않고, 삭제가 끝나면 새로 담긴다",
+      async (_order, order) => {
+        expect(typeof LANE_TIMEOUT_MS).toBe("number");
+        await freshRuntime(async ({ rows, capture, loadRunner }) => {
+          const keep = (runner: RunnerModule): Promise<unknown> =>
+            runner.runManualKeep(OWNER, (fence) =>
+              capture({
+                userId: OWNER,
+                rawMd: exchange(1),
+                kindOverride: "self_knowledge",
+                userTags: [CHAT_KEEP_TAG],
+                signal: fence.signal,
+                journal: fence.journal,
+              }),
+            );
+          // 앞선 손 담기(일반 자료)
+          const saved = await capture({ userId: OWNER, rawMd: exchange(1), kindOverride: "self_knowledge", userTags: [CHAT_KEEP_TAG] });
+          const id = String(saved.source.id);
+          const path = String(saved.source.storage_path);
+          fakeTimers();
+          let runner: RunnerModule | null = order === "warm" ? loadRunner() : null;
+          const remove = hold("remove"); // 기록 상세의 삭제 - 원문 삭제가 돌아오지 않는다
+          const deleting = late(rows.deleteCapturedSource(OWNER, id));
+          await remove.reached;
+          if (order === "warm") jest.advanceTimersByTime(LANE_TIMEOUT_MS ?? 0); // 줄은 상한에서 다음 일로 넘어간다
+          runner ??= loadRunner(); // cold: 대화 화면을 처음 연다 - 실행기가 이제 불러와진다
+          const kept = await late(keep(runner)); // 같은 대화를 손으로 담는다(정확 중복)
+          expect({ kept, row: hasRow(id), raw: mockServer.objects.has(path) }).toEqual({
+            kept: "autosave-deletion-in-flight",
+            row: true,
+            raw: true,
+          });
+          remove.release();
+          expect(await deleting).toBe("deleted");
+          await spin();
+          jest.useRealTimers();
+          expect({ row: hasRow(id), raw: mockServer.objects.has(path) }).toEqual({ row: false, raw: false });
+          const again = (await keep(runner)) as { deduped: unknown }; // 삭제가 끝난 뒤에는 새로 담긴다
+          expect({ deduped: again.deduped, rows: mockServer.sources.length, objects: mockServer.objects.size }).toEqual({
+            deduped: null,
+            rows: 1,
+            objects: 1,
+          });
+        });
+      },
+    );
+
+    test("G5Z-1814-2 같은 부류(자동 저장): 실행기를 불러오기 전에 시작한 삭제가 나가 있는 자료를 자동 저장이 정확 중복으로 돌려받아도 담김이라 하지 않는다", async () => {
+      await freshRuntime(async ({ rows, capture, loadRunner, load }) => {
+        const saved = await capture({ userId: OWNER, rawMd: exchange(1), kindOverride: "self_knowledge", userTags: [CHAT_KEEP_TAG] });
+        const id = String(saved.source.id);
+        const remove = hold("remove");
+        const deleting = late(rows.deleteCapturedSource(OWNER, id));
+        await remove.reached;
+        const runner = loadRunner();
+        const consent = load<typeof import("../autosave-consent")>("../autosave-consent");
+        const privacy = load<typeof import("../../supabase/privacy")>("../../supabase/privacy");
+        const read = consent.beginAutosaveConsentRead(OWNER);
+        expect(consent.finishAutosaveConsentRead(read, await privacy.readPrivacyPrefs(OWNER))).toBe(true);
+        const reply: KeepableTurn = { role: "secondb", text: "answer 1" };
+        const handle = runner.startAutosaveJob({
+          ownerId: OWNER,
+          reply,
+          askedGeneration: consent.autosaveConsentFor(OWNER).generation,
+          rawMd: exchange(1),
+        });
+        if (handle === null) throw new Error("작업이 시작되지 않았다");
+        const phase = await handle.settled;
+        expect({ phase, turn: runner.autosaveTurnPhase(reply), row: hasRow(id) }).toEqual({ phase: "failed", turn: null, row: true });
+        remove.release();
+        expect(await deleting).toBe("deleted");
+        expect({ row: hasRow(id), rows: mockServer.sources.length }).toEqual({ row: false, rows: 0 });
+      });
+    });
+  });
 });
 
 describe("재게이트 잔여 - 경계 두 곳 (작업의 되돌리기 시간 상한 · 대기 기록을 읽지 못할 때)", () => {
