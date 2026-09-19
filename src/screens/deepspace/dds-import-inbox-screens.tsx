@@ -35,6 +35,7 @@ import {
   removeImportHistory,
   type ImportHistoryEntry,
 } from "@/lib/import/history";
+import { withoutSharedSourceIds } from "@/lib/import/history-ownership";
 import { deleteSourcesByIds, findSurvivingSourceIds } from "@/lib/records/delete-bulk";
 
 // 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
@@ -331,6 +332,11 @@ export function DeepSpaceImportScreen() {
     setRevokeErr(null);
     if (entry.sourceIds.length > 0) {
       try {
+        // The log is shared with the hub, and a hub entry logged before 2026-09-20 can
+        // point at a row another entry points at too. That row belongs to the other
+        // entry: withdraw only the rows no other entry points at, judged on the log as
+        // it is now (a read failure keeps the entry, below).
+        entry = withoutSharedSourceIds(entry, await getImportHistory(userId));
         const removed = await deleteSourcesByIds(userId, entry.sourceIds);
         // A short delete is not a failure on its own: the ids may already be
         // gone. It is a failure only if any are still there, and that is exactly

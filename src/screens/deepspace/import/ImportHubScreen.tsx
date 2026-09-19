@@ -41,6 +41,7 @@ import {
   removeImportHistory,
   type ImportHistoryEntry,
 } from "@/lib/import/history";
+import { createdSourceIds, withoutSharedSourceIds } from "@/lib/import/history-ownership";
 import { getEnv } from "@/lib/env";
 import { getGoogleAccessToken } from "@/lib/google/gisToken";
 import { fetchCalendarEvents, googleEventsToIcs, GOOGLE_CALENDAR_READONLY_SCOPE } from "@/lib/google/calendar";
@@ -120,6 +121,10 @@ export function ImportHubScreen() {
   // resolved counts. null = no warning; inserted===0 = total failure (safe to
   // advise re-import); inserted>0 = partial (re-import would double-book).
   const [ledgerWarn, setLedgerWarn] = useState<LedgerRatifyResult | null>(null);
+  // How many chosen items the last ratify found already imported, with nothing new
+  // to log (0 = it logged). Without it that ratify ended like a success that left no
+  // history line behind.
+  const [alreadyImported, setAlreadyImported] = useState(0);
   const [active, setActive] = useState<ImportSource | null>(null);
   const [paste, setPaste] = useState("");
   const [outcome, setOutcome] = useState<ImportOutcome | null>(null);
@@ -288,18 +293,29 @@ export function ImportHubScreen() {
         const failedTxns = booked ? booked.failed : attempted;
         if (failedTxns > 0) setLedgerWarn({ inserted: bookedTxns, failed: failedTxns });
       }
-      await addImportHistory(userId, {
-        id: `${Date.now()}`,
-        sourceKey: active.key,
-        name: name(active),
-        atIso: new Date().toISOString(),
-        summary:
-          (s.notes > 0 ? `${t("notes")} ${s.notes} · ` : "") +
-          (s.watches > 0 ? `${t("watches")} ${s.watches} · ` : "") +
-          (bookedTxns > 0 ? `${t("txns")} ${bookedTxns} · ` : "") +
-          `${t("appts")} ${s.appointments} · ${t("places")} ${s.places + s.events} · ${t("raw")} 0`,
-        sourceIds: [result.source.id],
-      });
+      // An exact duplicate hands back the row an EARLIER import created and writes
+      // nothing, so the entry logs only rows this import created - as the file import
+      // does. Logging the duplicate made withdrawing this entry delete the earlier
+      // import's row (vibe r260919 r29 §3-6). Transactions booked just now are new
+      // rows either way (re-importing is how a failed booking is retried), so they
+      // still get a line.
+      const createdIds = createdSourceIds(result);
+      const logged = createdIds.length > 0 || bookedTxns > 0;
+      if (logged) {
+        await addImportHistory(userId, {
+          id: `${Date.now()}`,
+          sourceKey: active.key,
+          name: name(active),
+          atIso: new Date().toISOString(),
+          summary:
+            (s.notes > 0 ? `${t("notes")} ${s.notes} · ` : "") +
+            (s.watches > 0 ? `${t("watches")} ${s.watches} · ` : "") +
+            (bookedTxns > 0 ? `${t("txns")} ${bookedTxns} · ` : "") +
+            `${t("appts")} ${s.appointments} · ${t("places")} ${s.places + s.events} · ${t("raw")} 0`,
+          sourceIds: createdIds,
+        });
+      }
+      setAlreadyImported(logged ? 0 : chosen.length);
       // P0④: the consent sheet the user just walked finally leaves a ledger row
       // (consent_records). Best-effort — the import itself already landed.
       void recordImportConsent({
@@ -362,7 +378,7 @@ export function ImportHubScreen() {
     // strand the imported rows as unrevokable while telling the user they were
     // withdrawn (the exact false-assurance this screen exists to prevent).
     setHistErr(null);
-    const entry = history.find((h) => h.id === id);
+    let entry = history.find((h) => h.id === id);
     // med#30: signed out we cannot delete the server rows this import created —
     // wiping only the local log would LOOK like a withdrawal while the data
     // stays on the server (the exact false assurance documented above).
@@ -372,6 +388,11 @@ export function ImportHubScreen() {
     }
     if (entry && userId && entry.sourceIds.length > 0) {
       try {
+        // The log is shared with /import, and an entry this screen logged before
+        // 2026-09-20 can point at a row another entry points at too. That row belongs
+        // to the other entry: withdraw only the rows no other entry points at, judged
+        // on the log as it is now (a read failure keeps the entry, below).
+        entry = withoutSharedSourceIds(entry, await getImportHistory(userId));
         const removed = await deleteSourcesByIds(userId, entry.sourceIds);
         // Same as the deep-space shell: a short delete is only a false assurance
         // if rows are still there, and the count cannot say. Ask when it is short.
@@ -446,6 +467,16 @@ export function ImportHubScreen() {
                     .replace("{inserted}", String(ledgerWarn.inserted))
             }
           />
+        ) : null}
+        {alreadyImported > 0 ? (
+          // The file import's result line for the same outcome: nothing added, N
+          // duplicates. N is what the user chose - the hub bundles the choice into one
+          // note, so "1 duplicate" would read as if only one of them were.
+          <View style={styles.noteCard}>
+            <Text variant="body" style={styles.noteText}>
+              {`${i18n.t("deepspace:ds.import.resultAdded", { count: 0 })} · ${i18n.t("deepspace:ds.import.resultDuplicate", { count: alreadyImported })}`}
+            </Text>
+          </View>
         ) : null}
         {tiers.map((tier) => (
           <View key={tier} style={styles.section}>
