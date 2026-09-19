@@ -8,6 +8,7 @@ import {
   PADDLE_WEBHOOK_BODY_LIMIT_BYTES,
   PADDLE_WEBHOOK_JSON_MAX_DEPTH,
   PEER_RESPONSE_JSON_BODY_LIMIT_BYTES,
+  PUBLIC_DATA_PROXY_JSON_MAX_DEPTH,
   RSS_PROXY_JSON_BODY_LIMIT_BYTES,
   SUBSCRIPTION_MANAGE_JSON_BODY_LIMIT_BYTES,
   SUBSCRIPTION_MANAGE_JSON_MAX_DEPTH,
@@ -442,6 +443,7 @@ describe('Edge Function request-body caps', () => {
   it('keeps JSON nesting limits explicit', () => {
     expect(PADDLE_WEBHOOK_JSON_MAX_DEPTH).toBe(32);
     expect(SUBSCRIPTION_MANAGE_JSON_MAX_DEPTH).toBe(4);
+    expect(PUBLIC_DATA_PROXY_JSON_MAX_DEPTH).toBe(3);
   });
 
   // LLM proxies use their stricter shared reader, which also bounds upstream
@@ -495,12 +497,17 @@ describe('Edge Function request-body caps', () => {
       'SUBSCRIPTION_MANAGE_JSON_BODY_LIMIT_BYTES',
       'SUBSCRIPTION_MANAGE_JSON_MAX_DEPTH',
     ],
+    [
+      'public-data-proxy/index.ts',
+      'PUBLIC_DATA_PROXY_JSON_BODY_LIMIT_BYTES',
+      'PUBLIC_DATA_PROXY_JSON_MAX_DEPTH',
+    ],
   ])('%s uses the strict JSON reader with %s and %s', (relativePath, limitName, depthName) => {
     const source = readFileSync(resolve(__dirname, '..', '..', relativePath), 'utf8');
 
     expect(source).toContain(`readStrictJsonObject(req, ${limitName}, ${depthName})`);
-    expect(source).toContain("error.code === 'request_body_too_large'");
-    expect(source).toMatch(/error\.code === 'unsupported_media_type'[\s\S]{0,160}?415/);
+    expect(source).toMatch(/error\.code === ['"]request_body_too_large['"]/);
+    expect(source).toMatch(/error\.code === ['"]unsupported_media_type['"][\s\S]{0,160}?415/);
     expect(source).not.toMatch(/\breadJsonObject\s*\(/);
     expect(source).not.toMatch(/await\s+req\.json\s*\(/);
   });
