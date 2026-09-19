@@ -69,6 +69,10 @@ export interface AuthStorageRuntime {
   readonly storage: SupportedStorage | undefined;
   readonly sdkLock: LockFunc;
   ready(): Promise<void>;
+  /** Fence this runtime's storage for good: reads answer null, writes and
+   *  removes are dropped. Its locks keep working, so an SDK call that already
+   *  holds S still finishes and still orders the fresh runtime behind it. */
+  retire(): void;
   /** Acquire S around a 2.106.1 SDK writer that does not acquire S itself. */
   runSdkUnlockedWriter<T>(fn: () => MaybePromise<T>): Promise<T>;
   runMutation<T>(
@@ -141,6 +145,7 @@ export function createAuthStorageRuntime(
       ? (options.navigatorLockRequest ?? browserLockRequest())
       : null;
   let readyPromise: Promise<void> | null = null;
+  let retired = false;
   let verifiedMutationDepth = 0;
 
   type GuardedOutcome<T> =
@@ -262,18 +267,26 @@ export function createAuthStorageRuntime(
     return readyPromise;
   };
 
+  // A consented storage reset retires this runtime in the same turn it queues
+  // the wipe, and the retiring client may still be mid-refresh (R27,
+  // 2026-09-20). No await separates a check from its adapter call, so a call
+  // that passes the check was queued in an earlier turn, ahead of the wipe,
+  // which waits for it and removes it. Every later call is dropped.
   const gatedStorage: SupportedStorage | undefined = options.storage
     ? {
         async getItem(key: string) {
           await ready();
+          if (retired) return null;
           return storageGet(options.storage as SupportedStorage, key);
         },
         async setItem(key: string, value: string) {
           await ready();
+          if (retired) return;
           await storageSet(options.storage as SupportedStorage, key, value);
         },
         async removeItem(key: string) {
           await ready();
+          if (retired) return;
           await storageRemove(options.storage as SupportedStorage, key);
         },
       }
@@ -291,6 +304,9 @@ export function createAuthStorageRuntime(
     storage: gatedStorage,
     sdkLock,
     ready,
+    retire() {
+      retired = true;
+    },
     async runSdkUnlockedWriter<T>(fn: () => MaybePromise<T>): Promise<T> {
       return sdkLock(`lock:${keys.v2Primary}`, -1, async () => await fn());
     },
@@ -367,10 +383,19 @@ export function getAuthStorageRuntime(): AuthStorageRuntime {
   return productionRuntime;
 }
 
+/** Fence the production runtime's storage without replacing it. The consented
+ * reset calls this in the same turn it queues its wipe, so a refresh the
+ * retiring client began before consent cannot save after the wipe. */
+export function retireAuthStorageRuntime(): void {
+  productionRuntime?.retire();
+}
+
 /** Retire the production runtime after an explicitly-consented local recovery.
- * Existing callers may finish only on their already-invalidated client epoch;
- * every new caller receives a fresh migration/lock boundary. */
+ * Existing callers may finish only on their already-invalidated client epoch,
+ * and only their locks still work: their storage is fenced. Every new caller
+ * receives a fresh migration/lock boundary. */
 export function resetAuthStorageRuntime(): void {
+  productionRuntime?.retire();
   productionRuntime = null;
 }
 
