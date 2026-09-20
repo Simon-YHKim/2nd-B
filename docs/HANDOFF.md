@@ -102,7 +102,7 @@ r46 이 넣은 `has_function_privilege('authenticated', …) = false` 는 CI scr
 - **B-EX-02**: **"0189 와 0190 을 함께 넘기면 된다"는 충분하지 않다.** Supabase CLI 2.116.0 은
   파일마다 각각 트랜잭션을 돌리고 바깥 트랜잭션이 없다. 중간 상태에서
   `erase_my_data('content') → status=ok` 가 실행으로 확인됐다.
-  처방 후보: ① 두 파일을 **한 psql 세션의 한 트랜잭션**으로 수동 적용 ② 적용 직전
+  대응책 후보: ① 두 파일을 **한 psql 세션의 한 트랜잭션**으로 수동 적용 ② 적용 직전
   `ALTER DEFAULT PRIVILEGES … REVOKE EXECUTE ON FUNCTIONS` 로 바닥을 잠시 걷었다 복원.
   생성물 게이트는 **0189:403 에도 authenticated 를 추가**하는 세 번째 안을 냈는데,
   그건 머지된 마이그레이션 수정이라 **Simon 확인 없이 하지 않는다.**
@@ -133,7 +133,7 @@ codex 게이트 둘이 **프롬프트를 입력창에 쥔 채** 안 떴다. 겉�
 양식 · 약관 · DPIA 가 전부 이 값을 인용하므로 그 넷이 이 답을 기다린다.
 결정 시트는 Simon 에게 전달됐다(선택 4건).
 
-그다음이 **r50 묶음 다섯**: B-EX-01 처방 · `ANDROID_QA_GUIDELINES.md:38-39` 재정정(이 문서는
+그다음이 **r50 묶음 다섯**: B-EX-01 대응책 · `ANDROID_QA_GUIDELINES.md:38-39` 재정정(이 문서는
 연속 두 번 틀렸다) · `AccountScope` 우회 가드 · `DeepSpaceDesignScreens.tsx:219` 의
 `useWikiGraphData` 사본 울타리 · `storage-recovery.ts:12` 법무 인용 오기
 (실제 인용 대상은 `AuthContext.tsx:53·153` 이다 — 그 주석을 믿고 AuthContext 를 편집하면
