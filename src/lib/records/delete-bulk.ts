@@ -182,11 +182,11 @@ export async function deleteAllOwnedClipperTemplates(userId: string): Promise<nu
   return count ?? 0;
 }
 
-// Tables a client CANNOT erase (no DELETE RLS policy) and that therefore only
-// disappear via the service-role public.users cascade in requestAccountDeletion:
-//   personas (0008), memorized_patterns (0017), xp_events (0019),
-//   consent_records (0031, append-only ledger), ai_audit_log (0004).
-// A content wipe keeps the account, so it intentionally leaves those in place.
+// Tables a content wipe leaves in place. Superseded as the source of truth by
+// db/erasure-registry.json (every table with an owner column, CI-checked against
+// db/migrations). Two claims that stood here were measured wrong on 2026-09-20:
+// personas IS owner-deletable (personas_owner_all FOR ALL, 0009:53-57), and
+// ai_audit_log does not cascade (0011:20-27 set its FK to ON DELETE SET NULL).
 
 /** Content wipe (keeps the account): wiki pages -> sources -> records ->
  *  chat_usage -> self_contexts -> owned clipper templates. Order matters for
