@@ -55,7 +55,10 @@ remote Supabase, real Gemini API calls) are deferred to Sprint 1.
 > **Age-gate jurisdiction (current, 2026-09-21):** the self-consent floor is **per
 > country** - `resolveJurisdiction()` reads the device region and applies a 63-country
 > table (statutory 13-20, clamped up to 14); a country we cannot place gets **18**, not KR 14.
-> Accurate non-KR gates (US COPPA under-13, EU GDPR Art.8) ship in a follow-up PR.
+> That client table is live now - it is not the follow-up. What is: **residence
+> self-report** (the device region is a user setting, not proof of residence),
+> **counsel sign-off** on the table, and **per-country enforcement on the server** -
+> the authoritative DB floor is still country-blind 14.
 > See `docs/CONSTRAINTS.md` C10 and `src/lib/auth/consent-age.ts`.
 
 ## Quick start

@@ -50,7 +50,7 @@ _시행일: 2026-08-16 · 최종 개정: 2026-08-16_
 
 ### 제4조 (회원가입 및 계정)
 ① 이용자는 이메일 또는 소셜 로그인(Google, Apple, Kakao, Naver 등)으로 가입할 수 있습니다.
-② **연령 요건**: 직접 가입할 수 있는 최소 연령은 **이용자의 국가에 따라 다르며, 어느 국가에서도 만 14세 미만은 직접 가입할 수 없습니다.** 회사가 해당 국가의 기준을 보유하고 있지 않거나 이용자의 국가를 확인할 수 없는 경우에는 만 18세를 적용합니다. 실제로 적용되는 연령은 가입 화면에 표시됩니다. 만 14세 미만 아동은 법정대리인의 동의가 확인된 경우에 한하여 이용할 수 있습니다(관련 법령 및 회사 정책에 따른 단계적 적용).
+② **연령 요건**: 만 14세 이상만 직접 가입할 수 있습니다. 만 14세 미만 아동은 법정대리인의 동의가 확인된 경우에 한하여 이용할 수 있습니다(관련 법령 및 회사 정책에 따른 단계적 적용).
 ③ 이용자는 계정 정보를 정확히 제공·유지할 책임이 있으며, 계정의 관리 책임은 이용자에게 있습니다.
 ④ 한 이용자가 복수 경로로 가입한 경우 계정 연결·통합 정책은 서비스 내 안내에 따릅니다.
 
@@ -115,7 +115,7 @@ The Service is an AI-assisted personal tool that helps users accumulate records 
 (1) These Terms take effect when posted in the Service. (2) The Company may amend them within the bounds of applicable law, giving prior notice of the effective date and reason; changes unfavorable to users are notified 30 days in advance.
 
 ### 4. Accounts & eligibility
-(1) Users may sign up by email or social login (Google, Apple, Kakao, Naver, etc.). (2) **Age**: the minimum age to register directly **depends on your country, and is never below 14.** Where the Company does not hold a figure for your country, or cannot determine your country, 18 applies. The age actually applied is shown on the sign-up screen. Children under 14 may use the Service only where verifiable guardian consent is obtained (phased per law and Company policy). (3) Users must provide accurate account information and are responsible for safeguarding their account. (4) Where one person registers via multiple methods, account-linking follows the in-Service guidance.
+(1) Users may sign up by email or social login (Google, Apple, Kakao, Naver, etc.). (2) **Age**: only users aged 14+ may register directly; children under 14 may use the Service only where verifiable guardian consent is obtained (phased per law and Company policy). (3) Users must provide accurate account information and are responsible for safeguarding their account. (4) Where one person registers via multiple methods, account-linking follows the in-Service guidance.
 
 ### 5. Paid services & billing
 (1) The Service offers a free tier and paid subscription tiers; features, limits, and prices are shown at checkout (VAT included: Voyager ₩9,900/mo · North Star ₩19,900/mo (coming soon) · yearly = 10x monthly (2 months free)). (2) **Seller/billing**: paid subscriptions are sold and processed by **Paddle.com Market Limited ("Paddle") as Merchant of Record**; Paddle's buyer terms also apply. (3) **Auto-renewal**: subscriptions auto-renew at the shown cadence until cancelled, charging the payment method on file; you may cancel any time before the next renewal. (4) **Payment methods**: card, KakaoPay, NaverPay, and others offered at checkout.

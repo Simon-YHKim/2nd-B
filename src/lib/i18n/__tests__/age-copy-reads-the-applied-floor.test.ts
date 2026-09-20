@@ -29,6 +29,8 @@ jest.mock("@/lib/env", () => ({
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import * as ts from "typescript";
+
 const LOCALES = ["en", "ko", "es", "pt", "id"] as const;
 
 /** auth.json 안에서 실효 하한을 말하는 자리 전부. */
@@ -128,6 +130,9 @@ describe("연령 문구는 실제로 적용된 층을 말한다", () => {
     ["TH", 20, "표에 있는 나라 - 표 값이 간다"],
     ["DE", 16, "같은 EU 라도 나라마다 다르다"],
     ["KR", 14, "한국은 14 로 그대로"],
+    // 표 값(13)과 실효 값(14)이 갈리는 유일한 계열이다. 이 행이 없으면 표 값이
+    // 화면으로 새도 초록이다 - r56 비즈로직 게이트가 변이로 증명했다(R56-BIZ-02).
+    ["US", 14, "법정 13 을 제품 하한 14 로 올린 값이 간다 - 13 이 보이면 새는 것"],
     [null, 18, "지역을 못 읽으면 폴백 18 - KR 14 가 아니다"],
   ])("지역 %s -> 화면이 %i 을 그린다 (%s)", (region, expected, _why) => {
     const { minAge, gateFloor, t } = initWithRegion(region as string | null);
@@ -171,13 +176,34 @@ describe("연령 문구는 실제로 적용된 층을 말한다", () => {
   });
 
   it("차단된 사용자의 스크린리더 힌트도 같은 숫자를 읽는다", () => {
-    // BirthDateField 의 accessibilityHint 는 status 와 무관하게 늘
-    // signUp.birthDateHelper 다. 즉 **막힌 사람이 듣는 문장**이 이것이고,
-    // 게이트가 "보조기술이 읽는 상태 라벨도 같은 잘못된 값" 이라고 한 자리다.
+    // ⚠ 여기서 키를 **이름으로** 그려 보기만 하면 "그 키가 화면에 실제로 물려
+    // 있는가" 는 안 보는 것이다. r56 생성물 게이트가 그걸 변이로 증명했다 -
+    // `BirthDateField.tsx:57` 의 hint 를 `passwordHint` 로 바꿔도 이 파일은
+    // 10/10 초록이었다(F-02). 파일 해시로 봉인하는 것은 답이 아니다. 해시는
+    // 무관한 편집에도 울고, 정상적으로 갱신하고 나면 틀린 바인딩을 다시 놓친다.
+    //
+    // 렌더러가 이 저장소에 없어서(`auth-bootstrap-settlement.test.ts:13-14`)
+    // 두 쪽을 갈라 문다. **둘이 같은 it 안에 있어야** 합쳐서 한 문장이 된다:
+    //   (가) 화면이 그 키를 hint 로 쓰는가 - JSX 속성을 AST 로 읽는다.
+    //   (나) 그 키가 TH 에서 20 을 그리는가 - 실제 초기화로 그린다.
+    const src = readFileSync(join(process.cwd(), "src/components/auth/BirthDateField.tsx"), "utf8");
+    const sf = ts.createSourceFile("BirthDateField.tsx", src, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    const bound: string[] = [];
+    const walk = (node: ts.Node): void => {
+      if (ts.isJsxAttribute(node) && node.name.getText() === "accessibilityHint") {
+        bound.push(node.initializer ? node.initializer.getText() : "(초기화 없음)");
+      }
+      ts.forEachChild(node, walk);
+    };
+    walk(sf);
+    // 한 자리여야 한다. 늘어나면 어느 것이 보조기술에 가는지 이 검사가 모른다.
+    expect(bound).toEqual(['{t("signUp.birthDateHelper")}']);
+
     const { t } = initWithRegion("TH");
     const hint = t("auth:signUp.birthDateHelper");
     expect(hint).toContain("20");
     expect(hint).not.toContain("14");
+    expect(hint).not.toContain("{{minAge}}");
   });
 
   it("주소 공급자가 이름을 넣어도 minAge 가 살아남는다", () => {
