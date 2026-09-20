@@ -122,6 +122,97 @@ export function stripSqlComments(sql: string): string {
   return out;
 }
 
+/**
+ * Blank out every stretch of SQL that Postgres would NEVER execute as DDL,
+ * keeping the byte length so statement offsets stay comparable.
+ *
+ * WHY THIS EXISTS. `stripSqlComments` copies a string literal through with its
+ * contents intact, and copies a dollar-quoted body through whole -- comments and
+ * all. So text that merely *mentions* DDL was indistinguishable from DDL, and
+ * the r40 gate proved it: one log line
+ *
+ *   RAISE NOTICE 'CREATE POLICY ghost ON notes FOR ALL TO authenticated USING (false);';
+ *
+ * registered a policy event for a table that has no policy at all, and G3 --
+ * the rule that exists to stop a DELETE from matching 0 rows and reporting
+ * success (F1) -- blessed it. A guard that reads prose as schema is not a guard.
+ *
+ * THE DISTINCTION THIS FUNCTION MAKES EXPLICITLY. Two things look alike inside
+ * `$tag$ ... $tag$` and must not be treated alike:
+ *
+ *   executable   `DO $mig$ BEGIN CREATE POLICY p ON t ...; END $mig$;`
+ *                -> real DDL. 0048/0051/0097 and friends write policies this
+ *                   way, so the body is DESCENDED INTO and still parsed.
+ *   inert        `RAISE NOTICE 'CREATE POLICY ...'` / `-- CREATE POLICY ...`
+ *                -> data and prose. Blanked, wherever they sit, including
+ *                   inside that same executable body.
+ *
+ * So the rule is not "skip dollar bodies" and not "blank dollar bodies": it is
+ * recurse into them and apply the same inert/executable split one level down.
+ * Nested tags (`$mig$ ... $p$ ... $p$ ... $mig$`) recurse the same way.
+ *
+ * Length is preserved exactly -- a literal becomes `'` + spaces + `'`, a comment
+ * becomes spaces -- because `replayMigrations` sorts events by match offset and
+ * a shifting offset would reorder statements that Postgres does not reorder.
+ */
+export function maskInertSql(sql: string): string {
+  let out = "";
+  let i = 0;
+  while (i < sql.length) {
+    const dollar = matchDollarTag(sql, i);
+    if (dollar) {
+      const end = sql.indexOf(dollar, i + dollar.length);
+      if (end === -1) {
+        // Unterminated tag. Keep descending rather than bailing: the remaining
+        // text is still the body, and blanking it wholesale would hide DDL.
+        out += dollar + maskInertSql(sql.slice(i + dollar.length));
+        return out;
+      }
+      out += dollar + maskInertSql(sql.slice(i + dollar.length, end)) + dollar;
+      i = end + dollar.length;
+      continue;
+    }
+    if (sql[i] === "'") {
+      const end = findSingleQuoteEnd(sql, i);
+      // `closed` is true for every well-formed literal; the false branch only
+      // happens on malformed SQL, where dropping the trailing quote would make
+      // the paren scanners swallow the rest of the file.
+      const closed = end - i >= 2 && sql[end - 1] === "'";
+      out += "'" + " ".repeat(Math.max(end - i - (closed ? 2 : 1), 0)) + (closed ? "'" : "");
+      i = end;
+      continue;
+    }
+    // Comments INSIDE a dollar body reach here (stripSqlComments already took
+    // the top-level ones). `-- CREATE POLICY ...` in a DO block is the same
+    // false green as the string-literal case, one syntax over.
+    if (sql.startsWith("--", i)) {
+      const nl = sql.indexOf("\n", i);
+      const stop = nl === -1 ? sql.length : nl;
+      out += " ".repeat(stop - i);
+      i = stop;
+      continue;
+    }
+    if (sql.startsWith("/*", i)) {
+      const close = sql.indexOf("*/", i + 2);
+      const stop = close === -1 ? sql.length : close + 2;
+      out += " ".repeat(stop - i);
+      i = stop;
+      continue;
+    }
+    out += sql[i];
+    i += 1;
+  }
+  return out;
+}
+
+/** The one string `replayMigrations` scans for DDL: comments gone, inert text
+ *  blanked, executable dollar bodies still readable. Composed here rather than
+ *  folded into `stripSqlComments` so each pass keeps one job, and so a caller
+ *  that wants the raw body (tests do) can still get it. */
+export function stripForDdlScan(sql: string): string {
+  return maskInertSql(stripSqlComments(sql));
+}
+
 function matchDollarTag(sql: string, i: number): string | null {
   if (sql[i] !== "$") return null;
   const m = /^\$[A-Za-z_][A-Za-z0-9_]*\$|^\$\$/.exec(sql.slice(i));
@@ -210,8 +301,111 @@ function ownerEvidence(columnName: string, definition: string): OwnerColumn | nu
   return { name: columnName, evidence };
 }
 
-/** Final RLS policy state for one policy name on one table. */
-export type PolicyState = { command: string; roles: string; file: string };
+/** Final RLS policy state for one policy name on one table.
+ *
+ *  `using` is the verbatim USING expression, or null when the policy has none.
+ *  It is here because a policy HEADER answers the wrong question: `FOR ALL TO
+ *  authenticated USING (false)` reads exactly like an owner-delete policy and
+ *  lets through no rows at all. The r40 gate mutated a real policy to
+ *  `USING (false)` and G3 stayed green, which is defect F1 wearing a policy
+ *  name. A policy with no USING is just as suspect in the other direction:
+ *  Postgres leaves its row filter unset, so a FOR ALL policy without one would
+ *  let the caller delete everyone's rows. Both cases need the expression. */
+export type PolicyState = { command: string; roles: string; using: string | null; file: string };
+
+/** Every privilege `GRANT ALL` on a table expands to. */
+const ALL_TABLE_PRIVILEGES = ["select", "insert", "update", "delete", "truncate", "references", "trigger"];
+
+/** The grantees whose table privileges decide whether an END USER can delete.
+ *  `service_role` and `supabase_auth_admin` are deliberately absent: they
+ *  bypass RLS and are never the owner-facing path the registry classifies. */
+export const ACL_GRANTEES = ["anon", "authenticated", "public"] as const;
+
+/**
+ * What every new table in `public` already carries before a single migration
+ * runs, because Supabase's ALTER DEFAULT PRIVILEGES put it there.
+ *
+ * This is NOT in db/migrations and cannot be: the platform sets it up. The repo
+ * says so in as many words at 0113_notices.sql:99-100 -- "anon is named
+ * explicitly because Supabase default privileges auto-GRANT to it on every new
+ * table, and the app ships a public anon key" -- and the REVOKE-then-GRANT
+ * pattern in 0092/0097/0113 only makes sense against this baseline. Start from
+ * an empty set instead and every one of those REVOKEs becomes a no-op while 25
+ * of the 26 erasable tables turn red for a privilege nobody took away.
+ *
+ * PUBLIC starts empty: Postgres grants the pseudo-role nothing on a table.
+ *
+ * WHY A STATIC BASELINE AND NOT THE CI CATALOG. The obvious alternative is to
+ * ask the scratch database (`has_table_privilege`). Measured 2026-09-20: the
+ * Supabase compatibility stub in .github/workflows/supabase-dry-run.yml creates
+ * the four roles and grants them USAGE on auth/storage and nothing whatever on
+ * public tables, so has_table_privilege() there would report FALSE for all 26
+ * and be measuring the stub. Adding a blanket GRANT to the stub to fix that
+ * would make the assertion measure the line above it. So the honest static
+ * model is a REVOKE DETECTOR: it answers "did a migration take DELETE away",
+ * which is exactly the mutation the r40 gate walked through G3 untouched.
+ */
+const SUPABASE_DEFAULT_TABLE_PRIVILEGES: Record<string, string[]> = {
+  anon: [...ALL_TABLE_PRIVILEGES],
+  authenticated: [...ALL_TABLE_PRIVILEGES],
+  public: [],
+};
+
+/** Object kinds a GRANT/REVOKE can name that are not tables. Matched as a
+ *  safety net under the `ON <name>` pattern so `GRANT EXECUTE ON FUNCTION ...`
+ *  and `GRANT USAGE ON SCHEMA ...` can never be read as a table grant. */
+const NON_TABLE_GRANT_OBJECTS = new Set([
+  "function", "schema", "sequence", "database", "type", "domain", "routine",
+  "procedure", "tablespace", "foreign", "large", "all", "language", "parameter",
+]);
+
+function normalizeSqlName(raw: string): string {
+  return raw.trim().replace(/^public\s*\.\s*/i, "").replace(/^"|"$/g, "").toLowerCase();
+}
+
+/** Split a GRANT/REVOKE privilege list into verbs, expanding ALL.
+ *
+ *  A column-qualified entry (`INSERT (id, email)`) is dropped: DELETE has no
+ *  column form, so it can never decide this question, and reading 0139's
+ *  `GRANT INSERT (id, email, ...) ON public.users` as a table-wide INSERT would
+ *  be simply wrong. Split is top-level so the column list stays one token. */
+function parsePrivilegeList(raw: string): string[] {
+  const out: string[] = [];
+  for (const item of splitTopLevel(raw)) {
+    const token = item.trim().toLowerCase();
+    if (!token) continue;
+    if (token.includes("(")) continue;
+    if (token === "all" || token === "all privileges") {
+      out.push(...ALL_TABLE_PRIVILEGES);
+      continue;
+    }
+    out.push(token);
+  }
+  return out;
+}
+
+/**
+ * Can an end user DELETE rows of this table at the GRANT level?
+ *
+ * RLS and table privileges are two independent gates and a delete needs to pass
+ * both. G3 used to look only at the first, so a bare
+ * `REVOKE DELETE ON TABLE public.notes FROM authenticated` left the policy
+ * standing, the guard green, and every DELETE matching 0 rows -- F1 again, from
+ * the side the policy cannot see (r40 gate, M2).
+ *
+ * `authenticated` OR PUBLIC, because a grant to the pseudo-role reaches every
+ * role, and a REVOKE from one of the two does not touch the other.
+ */
+export function ownerRoleCanDelete(replay: SchemaReplay, table: string): boolean {
+  const byGrantee = replay.tablePrivileges.get(table);
+  // Absent means no migration ever granted or revoked on it, so the Supabase
+  // default still stands. Absence is not "no privileges".
+  if (!byGrantee) return true;
+  return (
+    (byGrantee.get("authenticated")?.has("delete") ?? false) ||
+    (byGrantee.get("public")?.has("delete") ?? false)
+  );
+}
 
 /** A surviving foreign key, as the replay below reconstructs it.
  *
@@ -233,6 +427,11 @@ export type SchemaReplay = {
   /** table -> policy name -> state. Only surviving policies are present. */
   policies: Map<string, Map<string, PolicyState>>;
   foreignKeys: ForeignKeyEdge[];
+  /** table -> grantee -> privileges held after the last GRANT/REVOKE in apply
+   *  order. A table ABSENT from this map was never named by either, so it still
+   *  stands at the Supabase default -- read it through `ownerRoleCanDelete`,
+   *  never by treating a missing entry as "no privileges". */
+  tablePrivileges: Map<string, Map<string, Set<string>>>;
 };
 
 type ReplayEvent = { at: number; apply: () => void };
@@ -276,6 +475,7 @@ export function replayMigrations(migrationsDir: string): SchemaReplay {
 
   const tables = new Map<string, DiscoveredTable>();
   const policies = new Map<string, Map<string, PolicyState>>();
+  const tablePrivileges = new Map<string, Map<string, Set<string>>>();
   let foreignKeys: ForeignKeyEdge[] = [];
 
   const policySlot = (table: string): Map<string, PolicyState> => {
@@ -283,6 +483,19 @@ export function replayMigrations(migrationsDir: string): SchemaReplay {
     if (existing) return existing;
     const fresh = new Map<string, PolicyState>();
     policies.set(table, fresh);
+    return fresh;
+  };
+
+  /** Seeded with the Supabase default the first time a GRANT or REVOKE names
+   *  the table, so a REVOKE has something to take away. */
+  const privSlot = (table: string): Map<string, Set<string>> => {
+    const existing = tablePrivileges.get(table);
+    if (existing) return existing;
+    const fresh = new Map<string, Set<string>>();
+    for (const grantee of ACL_GRANTEES) {
+      fresh.set(grantee, new Set(SUPABASE_DEFAULT_TABLE_PRIVILEGES[grantee]));
+    }
+    tablePrivileges.set(table, fresh);
     return fresh;
   };
 
@@ -296,14 +509,17 @@ export function replayMigrations(migrationsDir: string): SchemaReplay {
   };
 
   const dropTable = (table: string): void => {
-    // Postgres takes the policies and the constraints with the table.
+    // Postgres takes the policies, the constraints AND the grants with the
+    // table. Clearing the privilege slot matters: a re-created table gets fresh
+    // default privileges, so a REVOKE before the DROP must not outlive it.
     tables.delete(table);
     policies.delete(table);
+    tablePrivileges.delete(table);
     foreignKeys = foreignKeys.filter((fk) => fk.child !== table && fk.parent !== table);
   };
 
   for (const file of files) {
-    const sql = stripSqlComments(readFileSync(join(migrationsDir, file), "utf8"));
+    const sql = stripForDdlScan(readFileSync(join(migrationsDir, file), "utf8"));
     const events: ReplayEvent[] = [];
     let m: RegExpExecArray | null;
 
@@ -507,9 +723,13 @@ export function replayMigrations(migrationsDir: string): SchemaReplay {
     }
 
     // The tail is bounded because a policy body can be long; everything we need
-    // (FOR <cmd>, TO <roles>) sits before the first USING / WITH CHECK.
+    // (FOR <cmd>, TO <roles>) sits before the first USING / WITH CHECK. The
+    // terminator is CAPTURED (m[4]) rather than discarded, because which one
+    // ended the header tells us whether a USING expression follows -- and that
+    // expression, not the header, is what decides which rows the policy lets
+    // through (r40 gate, M2).
     const createPolicyRe =
-      /\bcreate\s+policy\s+"?([A-Za-z_][\w]*)"?\s+on\s+(?:(?:public|storage)\s*\.\s*)?"?([A-Za-z_][\w]*)"?([\s\S]{0,240}?)(?:using|with\s+check|;|\$p\$)/gi;
+      /\bcreate\s+policy\s+"?([A-Za-z_][\w]*)"?\s+on\s+(?:(?:public|storage)\s*\.\s*)?"?([A-Za-z_][\w]*)"?([\s\S]{0,240}?)(using|with\s+check|;|\$p\$)/gi;
     while ((m = createPolicyRe.exec(sql)) !== null) {
       const name = m[1].toLowerCase();
       const table = m[2].toLowerCase();
@@ -517,14 +737,73 @@ export function replayMigrations(migrationsDir: string): SchemaReplay {
       // Postgres defaults an unqualified policy to FOR ALL.
       const command = (/\bfor\s+(all|select|insert|update|delete)\b/i.exec(tail)?.[1] ?? "all").toLowerCase();
       const roles = (/\bto\s+([a-z_,\s]+)/i.exec(tail)?.[1] ?? "public").trim();
-      events.push({ at: m.index, apply: () => { policySlot(table).set(name, { command, roles, file }); } });
+      // Read the whole parenthesised expression with the paren matcher, not a
+      // bounded regex: a real USING can nest parens, NOT EXISTS and sub-selects
+      // (0097's clipper_templates_read does all three), and a truncated
+      // expression is worse than none -- it would normalise to something the
+      // allowlist might accept.
+      let using: string | null = null;
+      if (/^using$/i.test(m[4])) {
+        const afterUsing = m.index + m[0].length;
+        const open = sql.indexOf("(", afterUsing);
+        // Only whitespace may sit between `USING` and its `(`; anything else
+        // means the `(` belongs to a later statement.
+        if (open !== -1 && sql.slice(afterUsing, open).trim() === "") {
+          const close = matchParen(sql, open);
+          if (close !== -1) using = sql.slice(open + 1, close);
+        }
+      }
+      events.push({ at: m.index, apply: () => { policySlot(table).set(name, { command, roles, using, file }); } });
+    }
+
+    // GRANT / REVOKE on a TABLE, replayed in the same ordered event stream.
+    //
+    // WHY IT IS HERE AT ALL. RLS answers "which rows", the grant answers
+    // "may you at all", and a DELETE needs both. G3 read only the policy, so
+    // the r40 gate slipped `REVOKE DELETE ON TABLE public.notes FROM
+    // authenticated` past it with the policy still in place: the guard stayed
+    // green on a table whose every DELETE now matches 0 rows.
+    //
+    // WHY IN ORDER. 0092/0097/0113 all write REVOKE ALL and then GRANT the
+    // exact verbs back. Read out of order, the REVOKE wins and template_blocks
+    // -- which really can be deleted by its owner -- turns red.
+    //
+    // Only `public` tables are matched. `ON FUNCTION|SCHEMA|SEQUENCE|...` is
+    // excluded by the shape of the pattern and again by NON_TABLE_GRANT_OBJECTS,
+    // and storage.* is out of the registry's scope by design.
+    const aclRe =
+      /\b(grant|revoke)\s+(?:grant\s+option\s+for\s+)?((?:[a-z]+(?:\s+privileges)?(?:\s*\([^)]*\))?\s*,\s*)*[a-z]+(?:\s+privileges)?(?:\s*\([^)]*\))?)\s+on\s+(?:table\s+)?((?:(?:public\s*\.\s*)?"?[A-Za-z_][\w]*"?\s*,\s*)*(?:public\s*\.\s*)?"?[A-Za-z_][\w]*"?)\s+(?:to|from)\s+((?:"?[A-Za-z_][\w]*"?\s*,\s*)*"?[A-Za-z_][\w]*"?)/gi;
+    while ((m = aclRe.exec(sql)) !== null) {
+      const verb = m[1].toLowerCase();
+      const privileges = parsePrivilegeList(m[2]);
+      const names = m[3].split(",").map(normalizeSqlName).filter(Boolean);
+      const grantees = m[4].split(",").map(normalizeSqlName).filter(Boolean);
+      if (privileges.length === 0 || names.length === 0 || grantees.length === 0) continue;
+      if (names.some((n) => NON_TABLE_GRANT_OBJECTS.has(n))) continue;
+      events.push({
+        at: m.index,
+        apply: () => {
+          for (const table of names) {
+            const slot = privSlot(table);
+            for (const grantee of grantees) {
+              const held = slot.get(grantee);
+              // service_role / supabase_auth_admin are not tracked on purpose.
+              if (!held) continue;
+              for (const privilege of privileges) {
+                if (verb === "grant") held.add(privilege);
+                else held.delete(privilege);
+              }
+            }
+          }
+        },
+      });
     }
 
     events.sort((a, b) => a.at - b.at);
     for (const e of events) e.apply();
   }
 
-  return { tables, policies, foreignKeys };
+  return { tables, policies, foreignKeys, tablePrivileges };
 }
 
 /** Parse every db/migrations/*.sql in apply order and return the public tables

@@ -11,12 +11,16 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
   discoverOwnedTables,
+  maskInertSql,
+  ownerRoleCanDelete,
   renderRegistrySql,
   replayMigrations,
+  stripForDdlScan,
   stripSqlComments,
   type Registry,
 } from "../generate-erasure-registry";
-import { collectErasureRegistryErrors } from "../check-erasure-registry";
+import { collectErasureRegistryErrors, isOwnerBoundUsing } from "../check-erasure-registry";
+import { loadRegistry, migrationsDir } from "../generate-erasure-registry";
 
 const REPO_ROOT = resolve(__dirname, "../..");
 
@@ -74,10 +78,10 @@ function baseRegistry(): Registry {
 
 /** A tree the guard accepts, apart from G6 (which names five real ledgers that
  *  a synthetic fixture has no reason to contain). Callers filter by rule. */
-function makeTree(registry: Registry = baseRegistry(), extraSql?: string): string {
+function makeTree(registry: Registry = baseRegistry(), extraSql?: string, baseSql: string = BASE_SQL): string {
   const root = mkdtempSync(join(tmpdir(), "erasure-guard-"));
   mkdirSync(join(root, "db", "migrations"), { recursive: true });
-  writeFileSync(join(root, "db", "migrations", "0001_base.sql"), BASE_SQL, "utf8");
+  writeFileSync(join(root, "db", "migrations", "0001_base.sql"), baseSql, "utf8");
   if (extraSql) writeFileSync(join(root, "db", "migrations", "0100_extra.sql"), extraSql, "utf8");
   writeFileSync(join(root, "db", "erasure-registry.json"), JSON.stringify(registry, null, 2), "utf8");
   writeFileSync(
@@ -488,6 +492,323 @@ describe("check:erasure-registry -- against the real repository", () => {
       expect(after[0]).toMatch(/^G1 unclassified_probe/);
     } finally {
       rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// r40 gate, M1 and M2. Three mutations went through G3 untouched, all three
+// wearing a correct-looking policy header: DDL that existed only as text, a
+// `USING (false)` that admits no rows, and a revoked table-level DELETE grant.
+// Each gets a negative control (mutated -> red) AND a positive control
+// (the same construct, genuinely correct -> green), because a rule that says no
+// to everything is not a guard either.
+// ---------------------------------------------------------------------------
+
+/** The gate's own M1 repro: a table with NO policy whatsoever, whose only
+ *  `CREATE POLICY` is the text of a log line inside a DO block. */
+const GHOST_POLICY_SQL = `
+CREATE TABLE IF NOT EXISTS ghosts (
+  id      uuid PRIMARY KEY,
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE
+);
+DO $mig$
+BEGIN
+  RAISE NOTICE 'CREATE POLICY ghost ON ghosts FOR ALL TO authenticated USING (user_id = auth.uid());';
+END
+$mig$;
+`;
+
+/** The same DO block, but the DDL is real this time. */
+const REAL_DO_POLICY_SQL = `
+CREATE TABLE IF NOT EXISTS ghosts (
+  id      uuid PRIMARY KEY,
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE
+);
+DO $mig$
+BEGIN
+  CREATE POLICY ghost ON ghosts FOR ALL TO authenticated USING (user_id = auth.uid());
+END
+$mig$;
+`;
+
+function withGhost(entry: Record<string, unknown>): Registry {
+  const registry = baseRegistry();
+  (registry.tables as Record<string, unknown>).ghosts = entry;
+  return registry;
+}
+
+const GHOST_ERASABLE = { owner: "user_id", class: "client_erasable", order: 30, reason: "테스트용 소유자 데이터다." };
+
+describe("maskInertSql -- inert text is not schema (r40 M1)", () => {
+  test("blanks a string literal's contents and keeps the byte length", () => {
+    const sql = "SELECT 'CREATE POLICY p ON t';";
+    const masked = maskInertSql(sql);
+    expect(masked).toHaveLength(sql.length);
+    expect(masked).not.toContain("CREATE POLICY");
+    expect(masked.startsWith("SELECT '")).toBe(true);
+    expect(masked.endsWith("';")).toBe(true);
+  });
+
+  test("descends INTO a dollar body: real DDL survives, a literal inside it does not", () => {
+    const masked = maskInertSql(
+      "DO $mig$ BEGIN CREATE POLICY real ON t FOR ALL TO authenticated USING (user_id = auth.uid()); RAISE NOTICE 'DROP POLICY real ON t'; END $mig$;",
+    );
+    expect(masked).toContain("CREATE POLICY real ON t");
+    expect(masked).not.toContain("DROP POLICY real ON t");
+  });
+
+  test("a -- comment inside a dollar body is blanked too (stripSqlComments cannot reach it)", () => {
+    const body = "DO $mig$ BEGIN -- CREATE POLICY commented ON t FOR ALL TO authenticated\n  PERFORM 1;\nEND $mig$;";
+    expect(stripSqlComments(body)).toContain("CREATE POLICY commented");
+    expect(stripForDdlScan(body)).not.toContain("CREATE POLICY commented");
+  });
+
+  test("nested dollar tags recurse rather than terminate the scan", () => {
+    const masked = maskInertSql("DO $mig$ BEGIN EXECUTE $p$ CREATE POLICY inner ON t $p$; RAISE NOTICE 'CREATE POLICY faked ON t'; END $mig$;");
+    expect(masked).toContain("CREATE POLICY inner ON t");
+    expect(masked).not.toContain("CREATE POLICY faked");
+  });
+
+  test("an escaped quote inside a literal does not end it early", () => {
+    const sql = "SELECT 'it''s CREATE POLICY p ON t' , 1;";
+    const masked = maskInertSql(sql);
+    expect(masked).toHaveLength(sql.length);
+    expect(masked).not.toContain("CREATE POLICY");
+    expect(masked.trimEnd().endsWith(", 1;")).toBe(true);
+  });
+});
+
+describe("check:erasure-registry -- G3 reads rows, not headers (r40 M1/M2)", () => {
+  let root = "";
+  afterEach(() => {
+    if (root) rmSync(root, { recursive: true, force: true });
+    root = "";
+  });
+
+  test("M1 negative control: a policy that exists only inside RAISE NOTICE is not a policy", () => {
+    root = makeTree(withGhost(GHOST_ERASABLE), GHOST_POLICY_SQL);
+    const fired = rulesFired(root, "G3");
+    expect(fired).toHaveLength(1);
+    expect(fired[0]).toContain("ghosts");
+    expect(fired[0]).toContain("no DELETE or ALL policy");
+  });
+
+  test("M1 positive control: the same DO block with real DDL is accepted", () => {
+    root = makeTree(withGhost(GHOST_ERASABLE), REAL_DO_POLICY_SQL);
+    expect(rulesFired(root, "G3")).toEqual([]);
+  });
+
+  test("M1 sibling: a commented-out CREATE POLICY inside a DO block is not a policy either", () => {
+    root = makeTree(
+      withGhost(GHOST_ERASABLE),
+      `
+      CREATE TABLE IF NOT EXISTS ghosts (
+        id      uuid PRIMARY KEY,
+        user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE
+      );
+      DO $mig$
+      BEGIN
+        -- CREATE POLICY ghost ON ghosts FOR ALL TO authenticated USING (user_id = auth.uid());
+        PERFORM 1;
+      END
+      $mig$;
+      `,
+    );
+    const fired = rulesFired(root, "G3");
+    expect(fired).toHaveLength(1);
+    expect(fired[0]).toContain("no DELETE or ALL policy");
+  });
+
+  test("M2 baseline: the unmutated fixture's owner policy passes the USING allowlist", () => {
+    root = makeTree();
+    expect(rulesFired(root, "G3")).toEqual([]);
+  });
+
+  test("M2 mutation: USING (false) has the right header and admits no rows", () => {
+    root = makeTree(
+      baseRegistry(),
+      undefined,
+      BASE_SQL.replace(
+        "CREATE POLICY notes_owner_all ON notes FOR ALL TO authenticated USING (user_id = auth.uid());",
+        "CREATE POLICY notes_owner_all ON notes FOR ALL TO authenticated USING (false) WITH CHECK (false);",
+      ),
+    );
+    const fired = rulesFired(root, "G3");
+    expect(fired).toHaveLength(1);
+    expect(fired[0]).toContain("notes");
+    expect(fired[0]).toContain("USING (false)");
+    expect(fired[0]).toContain('binds');
+  });
+
+  test("M2 mutation: a FOR ALL policy with no USING at all is not owner-bound", () => {
+    root = makeTree(
+      baseRegistry(),
+      undefined,
+      BASE_SQL.replace(
+        "CREATE POLICY notes_owner_all ON notes FOR ALL TO authenticated USING (user_id = auth.uid());",
+        "CREATE POLICY notes_owner_all ON notes FOR ALL TO authenticated WITH CHECK (user_id = auth.uid());",
+      ),
+    );
+    const fired = rulesFired(root, "G3");
+    expect(fired).toHaveLength(1);
+    expect(fired[0]).toContain("<absent>");
+  });
+
+  test("M2 mutation: a USING that widens past the owner's own rows is rejected", () => {
+    root = makeTree(
+      baseRegistry(),
+      undefined,
+      BASE_SQL.replace(
+        "CREATE POLICY notes_owner_all ON notes FOR ALL TO authenticated USING (user_id = auth.uid());",
+        "CREATE POLICY notes_owner_all ON notes FOR ALL TO authenticated USING (user_id = auth.uid() OR body IS NOT NULL);",
+      ),
+    );
+    expect(rulesFired(root, "G3")).toHaveLength(1);
+  });
+
+  test("M2 positive control: every shape the 26 real tables use is accepted", () => {
+    for (const shape of [
+      "user_id = auth.uid()",
+      "user_id = (select auth.uid())",
+      "(select auth.uid()) = user_id",
+      "(user_id = auth.uid())",
+      "((select auth.uid()) = user_id)",
+    ]) {
+      expect(isOwnerBoundUsing(shape, "user_id")).toBe(true);
+    }
+    for (const shape of ["false", "true", "user_id = auth.uid() or is_shared", "other_id = auth.uid()", "user_id = auth.jwt()"]) {
+      expect(isOwnerBoundUsing(shape, "user_id")).toBe(false);
+    }
+    expect(isOwnerBoundUsing(null, "user_id")).toBe(false);
+    // The parens in `(a) = (b)` do not enclose the expression and must not be
+    // stripped into `a) = (b`.
+    expect(isOwnerBoundUsing("(user_id) = (auth.uid())", "user_id")).toBe(false);
+  });
+
+  test("M2 mutation: REVOKE DELETE leaves a perfect policy that can still delete nothing", () => {
+    root = makeTree(baseRegistry(), "REVOKE DELETE ON TABLE public.notes FROM authenticated;");
+    const fired = rulesFired(root, "G3");
+    expect(fired).toHaveLength(1);
+    expect(fired[0]).toContain("TABLE-level DELETE privilege");
+  });
+
+  test("M2 mutation: REVOKE ALL is caught too, and from PUBLIC alone is not enough to save it", () => {
+    root = makeTree(baseRegistry(), `
+      REVOKE ALL ON TABLE public.notes FROM anon, authenticated;
+      GRANT SELECT, INSERT ON TABLE public.notes TO authenticated;
+    `);
+    expect(rulesFired(root, "G3")).toHaveLength(1);
+  });
+
+  test("M2 positive control: the REVOKE ALL then GRANT-back pattern (0097 template_blocks) stays green", () => {
+    root = makeTree(baseRegistry(), `
+      REVOKE ALL ON TABLE public.notes FROM anon, authenticated;
+      GRANT SELECT, INSERT, DELETE ON TABLE public.notes TO authenticated;
+    `);
+    expect(rulesFired(root, "G3")).toEqual([]);
+  });
+
+  test("M2 positive control: a GRANT to PUBLIC restores the delete path", () => {
+    root = makeTree(baseRegistry(), `
+      REVOKE DELETE ON TABLE public.notes FROM authenticated;
+      GRANT DELETE ON TABLE public.notes TO PUBLIC;
+    `);
+    expect(rulesFired(root, "G3")).toEqual([]);
+  });
+
+  test("the ACL replay is ordered, not last-regex-wins", () => {
+    const revokeThenGrant = makeTree(baseRegistry(), `
+      REVOKE ALL ON TABLE public.notes FROM authenticated;
+      GRANT DELETE ON TABLE public.notes TO authenticated;
+    `);
+    const grantThenRevoke = makeTree(baseRegistry(), `
+      GRANT DELETE ON TABLE public.notes TO authenticated;
+      REVOKE ALL ON TABLE public.notes FROM authenticated;
+    `);
+    try {
+      expect(ownerRoleCanDelete(replayMigrations(join(revokeThenGrant, "db", "migrations")), "notes")).toBe(true);
+      expect(ownerRoleCanDelete(replayMigrations(join(grantThenRevoke, "db", "migrations")), "notes")).toBe(false);
+    } finally {
+      rmSync(revokeThenGrant, { recursive: true, force: true });
+      rmSync(grantThenRevoke, { recursive: true, force: true });
+    }
+  });
+
+  test("a column-qualified GRANT is not read as a table privilege", () => {
+    // `GRANT INSERT (id) ON users` (0139's shape) must not be split into a
+    // table-wide INSERT, and REVOKE DELETE must still be the deciding verb.
+    root = makeTree(baseRegistry(), `
+      REVOKE DELETE ON TABLE public.notes FROM authenticated;
+      GRANT INSERT (id, body) ON TABLE public.notes TO authenticated;
+    `);
+    expect(rulesFired(root, "G3")).toHaveLength(1);
+  });
+
+  test("a GRANT on a FUNCTION or SCHEMA never touches table privileges", () => {
+    root = makeTree(baseRegistry(), `
+      REVOKE EXECUTE ON FUNCTION public.notes FROM authenticated;
+      GRANT USAGE ON SCHEMA notes TO authenticated;
+    `);
+    expect(rulesFired(root, "G3")).toEqual([]);
+  });
+
+  test("a DROP TABLE resets the grants, so a pre-DROP revoke does not outlive it", () => {
+    root = makeTree(baseRegistry(), `
+      REVOKE DELETE ON TABLE public.notes FROM authenticated;
+      DROP TABLE IF EXISTS public.notes;
+      CREATE TABLE notes (
+        id      uuid PRIMARY KEY,
+        user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        body    text
+      );
+      CREATE POLICY notes_owner_all ON notes FOR ALL TO authenticated USING (user_id = auth.uid());
+    `);
+    expect(rulesFired(root, "G3")).toEqual([]);
+  });
+});
+
+describe("the real registry still classifies the same 66 rows (r40 M1/M2)", () => {
+  test("all 26 client_erasable tables are owner-bound and still hold the DELETE grant", () => {
+    const replay = replayMigrations(migrationsDir(REPO_ROOT));
+    const registry = loadRegistry(REPO_ROOT);
+    const erasable = Object.entries(registry.tables).filter(([, e]) => e.class === "client_erasable");
+    expect(erasable).toHaveLength(26);
+
+    const shapes = new Set<string>();
+    for (const [table, entry] of erasable) {
+      const policies = [...(replay.policies.get(table) ?? new Map())].filter(
+        ([, state]) => state.command === "delete" || state.command === "all",
+      );
+      expect(policies.length).toBeGreaterThan(0);
+      const bound = policies.filter(([, state]) => isOwnerBoundUsing(state.using, entry.owner));
+      // Named in the message so a future failure says WHICH table drifted.
+      expect(bound.map(([name]) => `${table}:${name}`).length).toBeGreaterThan(0);
+      for (const [, state] of bound) shapes.add(String(state.using).replace(entry.owner, "<owner>"));
+      expect(ownerRoleCanDelete(replay, table)).toBe(true);
+    }
+
+    // The allowlist was derived from exactly these three spellings. A fourth
+    // showing up is the signal to re-read the allowlist comment, not to widen
+    // it silently.
+    expect([...shapes].sort()).toEqual([
+      "(select auth.uid()) = <owner>",
+      "<owner> = (select auth.uid())",
+      "<owner> = auth.uid()",
+    ]);
+  });
+
+  test("the 13 account_delete_only tables still have no owner delete path", () => {
+    const replay = replayMigrations(migrationsDir(REPO_ROOT));
+    const registry = loadRegistry(REPO_ROOT);
+    const kept = Object.entries(registry.tables).filter(([, e]) => e.class === "account_delete_only");
+    expect(kept).toHaveLength(13);
+    for (const [table] of kept) {
+      const policies = [...(replay.policies.get(table) ?? new Map())].filter(
+        ([, state]) =>
+          (state.command === "delete" || state.command === "all") && /authenticated|public/.test(state.roles),
+      );
+      expect(policies.map(([name]) => `${table}:${name}`)).toEqual([]);
     }
   });
 });
