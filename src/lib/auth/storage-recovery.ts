@@ -187,10 +187,36 @@ export async function attemptEncryptedNativeStorageRecovery(
   // it: the plaintext counter sits outside the encrypted store and the wipe does
   // not reach it. Best-effort by contract - a counter that cannot be cleared
   // must never turn a finished recovery into a failure.
-  try {
-    await dependencies.clearPersistence();
-  } catch {
+  //
+  // Fired, not awaited. Everything above this line is bounded by
+  // ENCRYPTED_STORAGE_RECOVERY_TIMEOUT_MS. This step never was, and it is the last
+  // thing standing between a reset that has already succeeded and the caller being
+  // told so.
+  //
+  // Being outside that deadline is NOT the same as being unbounded, and the earlier
+  // wording here said it was. The shipped dependency is bounded: clearFailClosedColdStarts()
+  // puts its one remove() through fail-closed-persistence's `bounded()`, which answers
+  // within FAIL_CLOSED_COUNTER_IO_TIMEOUT_MS (2 s) whatever the store does. What it is
+  // not is free: that 2 s is serial (the module funnels every counter call through one
+  // `storageTail` queue, so anything already queued is added to it) and it is spent
+  // AFTER the outcome is known, on a result nobody reads. Measured with a remove() that
+  // never answers: 2,009 ms before this change, 0 ms after.
+  //
+  // The unbounded case is reachable through the dependency seam rather than through the
+  // default wiring - this module's own tests inject one - and a `catch` does not cover it:
+  // a catch covers a call that REJECTS, not one that never answers. Holding there would
+  // leave the attempt unsettled after the reset had already SUCCEEDED, and the gate has no
+  // way back from that: storage-recovery-gate.tsx keeps `working` true with its button
+  // disabled, and AuthContext hands every later attempt the same unsettled promise
+  // (`storageRecoveryAttemptRef`), which it only clears when that promise settles.
+  // fail-closed-persistence.ts says the same of its sibling call: "the provider fires it
+  // without awaiting".
+  //
+  // The `.catch` is required, not decorative: this module's own tests reject this
+  // dependency, and an unawaited rejection with no handler is an unhandled
+  // rejection rather than the silent best-effort the contract above promises.
+  void dependencies.clearPersistence().catch(() => {
     // The next settled bootstrap clears it again.
-  }
+  });
   return "recovered";
 }

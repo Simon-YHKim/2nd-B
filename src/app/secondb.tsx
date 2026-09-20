@@ -43,6 +43,7 @@ import {
   beginAccountSessionLease,
   type PendingAccountSessionLease,
 } from "@/lib/auth/account-session-lease";
+import { captureAccountOwnerLease } from "@/lib/auth/account-epoch";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { chatAutosaveAllowed } from "@/lib/chat/autosave";
 import { shouldShowChatSaveNotice, useChatSaveNoticeDismissed } from "@/lib/chat/save-notice";
@@ -1094,6 +1095,48 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
         : "textMuted";
   const compactModeLabel = chatMode === "divergent" ? "New angle" : "Analysis";
 
+  // -- One citation tap, one implementation ---------------------------------
+  // Citations are wiki-page slugs (lib/chat/sources.ts). Resolve the slug to a
+  // page id and deep-link it through /wiki?focusPageId, which the shipped wiki
+  // screen reads (dds-wiki-records-screens.tsx). A miss - no sign-in, an unknown
+  // slug, a failed query - still lands on the wiki list, which is what the tap
+  // used to do unconditionally.
+  //
+  // Hoisted out of the two drawers on purpose. The deep-space chrome resolved
+  // (med#23) while the legacy chrome carried a "once a slug->page resolver
+  // exists" note beside a bare router.push("/wiki") - a logic fork inside a file
+  // whose own header (line 216) promises the two chromes differ in CHROME only.
+  // The fork is now structurally impossible: both drawers call this.
+  //
+  // The lookup is async, so the tap outlives the account that made it. Supabase can
+  // publish owner A -> owner B with no signed-out frame (AuthContext supports that
+  // publication), and a continuation that still calls router.push moves B's app because
+  // of A's tap. This is not a read of A's writing - /wiki re-queries under B's user id
+  // and the query is owner-filtered - it is B's screen being taken somewhere B did not
+  // ask to go. So the owner lease is captured at tap time and both continuations check
+  // it, the same shape lib/ops uses around its permission prompts. A null lease means
+  // the published owner has already moved, so the tap is dropped rather than falling
+  // back to the list: landing B on the wiki list is the same wrong move, quieter.
+  const openCitedPage = (slug: string) => {
+    setRefDrawer(null);
+    if (!userId) {
+      router.push("/wiki");
+      return;
+    }
+    const lease = captureAccountOwnerLease(userId);
+    if (!lease) return;
+    void getWikiPage(userId, slug)
+      .then((page) => {
+        if (!lease.isCurrent()) return;
+        if (page) router.push({ pathname: "/wiki", params: { focusPageId: page.id } });
+        else router.push("/wiki");
+      })
+      .catch(() => {
+        if (lease.isCurrent()) router.push("/wiki");
+      });
+  };
+
+
   // ── Deep-space chrome (real composer + real answers + citations + states) ──
   // Same engine (turns / handleSend / sendChatMessage / parseSourceCitations /
   // canSend) as the legacy branch; only the visual shell differs. Crisis/C9/C3
@@ -1535,23 +1578,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                   <Pressable
                     key={slug}
                     style={ds.drawerCard}
-                    onPress={() => {
-                      // med#23: citations are wiki-page slugs — resolve to the
-                      // page id (getWikiPage) and deep-link it via the same
-                      // /wiki?focusPageId mechanism the digest fix uses. A
-                      // failed resolve still lands on the wiki list.
-                      setRefDrawer(null);
-                      if (!userId) {
-                        router.push("/wiki");
-                        return;
-                      }
-                      void getWikiPage(userId, slug)
-                        .then((page) => {
-                          if (page) router.push({ pathname: "/wiki", params: { focusPageId: page.id } });
-                          else router.push("/wiki");
-                        })
-                        .catch(() => router.push("/wiki"));
-                    }}
+                    onPress={() => openCitedPage(slug)}
                     accessibilityRole="button"
                     accessibilityLabel={formatSourceCitationLabel(slug)}
                   >
@@ -1973,14 +2000,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                   key={slug}
                   title={formatSourceCitationLabel(slug)}
                   meta={t("reference_piece_meta")}
-                  onPress={() => {
-                    // Citations are wiki-page slugs. Route to the 위키 tab (which
-                    // lists the wiki pages) rather than /records, so the user lands
-                    // where the cited page actually lives.
-                    // TODO: once a slug->page resolver exists, deep-link the page.
-                    setRefDrawer(null);
-                    router.push("/wiki");
-                  }}
+                  onPress={() => openCitedPage(slug)}
                 />
               ))}
             </ScrollView>
