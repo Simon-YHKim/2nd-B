@@ -334,11 +334,39 @@ jobs:
       #            there; the control is what says so out loud.
       #   fixed    the file as shipped: rollback, re-push. No ledger row of the
       #            pair may survive the rollback, no client role may hold EXECUTE
-      #            afterwards, and everything 0189 and 0190 own (ledger, ACL,
-      #            function body, COMMENT, registry rows, table ACL and RLS) must
-      #            equal what it was before the rollback. That last comparison is
-      #            what catches the NEXT migration that leans on these two objects
-      #            and is left out of the rollback's list.
+      #            afterwards, and everything that hangs off the two objects must
+      #            equal what it was before the rollback: the ledger, the function
+      #            (owner, ACL, definition, COMMENT), the registry rows, the table
+      #            (owner, ACL, RLS, its columns with their defaults, ACLs and
+      #            comments, constraints, indexes, policies, triggers), and
+      #            whatever else pg_depend hangs off either object. DROP takes all
+      #            of it without a word, so a LATER migration that adds any of it
+      #            and is left out of the rollback's list loses it to the round
+      #            trip. That comparison is what says so.
+      #   sight    ...provided it can SEE the thing. It used to make that claim
+      #            while reading six facts. MEASURED 2026-09-21 00:28 KST, scratch
+      #            PostgreSQL 18.3, one statement at a time inside a rolled-back
+      #            transaction: the old line did not move for a new constraint,
+      #            index, policy, trigger, rule or statistics object, a table or
+      #            column COMMENT, a column grant, FORCE ROW LEVEL SECURITY, a
+      #            column default, or a dropped NOT NULL: 12 of the 22 kinds
+      #            tried (r50 artifact gate, B-NEW-01). So each kind is applied to
+      #            the clone BEFORE the rollback, in a transaction that is rolled
+      #            back, and the fingerprint has to move. Where an object is seen
+      #            twice (by its own part and by the pg_depend net), it is asked
+      #            for more: two definitions of it must give two fingerprints. One
+      #            that does not is BLIND, and BLIND is a red, for the control's
+      #            reason one layer down: a comparison that cannot see a loss
+      #            stays green about it forever.
+      #            The gate's own counter-example, ADD COLUMN, was the one kind
+      #            the old line did see (its row hash is over r::text, which
+      #            carries every column). It leads the list all the same: it is
+      #            the statement the finding is known by.
+      #
+      # The half of this rule that needs no database lives in
+      # src/lib/privacy/__tests__/erasure-registry-migration.test.ts. It reads every
+      # migration, keeps only the SQL that executes, and requires each file that
+      # names either object to be in the rollback's list.
       #
       # Every failure is reported before the step exits, so one run shows the whole
       # shape of a regression rather than its first symptom.
@@ -396,19 +424,106 @@ jobs:
           can_execute() { # <db> <role>
             sql "$1" "SELECT pg_catalog.has_function_privilege('$2', 'public.erase_my_data(text)', 'EXECUTE')"
           }
-          fingerprint() { # <db>  -- everything 0189 and 0190 own, on one line
-            sql "$1" "SELECT pg_catalog.concat_ws(' ',
-                        'ledger=' || (SELECT pg_catalog.md5(pg_catalog.string_agg(m.version || ':' || COALESCE(m.name, ''), ',' ORDER BY m.version))
-                                      FROM supabase_migrations.schema_migrations AS m),
-                        'acl=' || COALESCE((SELECT p.proacl::text FROM pg_catalog.pg_proc AS p
-                                            WHERE p.oid = pg_catalog.to_regprocedure('public.erase_my_data(text)')), '(no function)'),
-                        'body=' || COALESCE(pg_catalog.md5(pg_catalog.pg_get_functiondef(pg_catalog.to_regprocedure('public.erase_my_data(text)'))), '(no function)'),
-                        'comment=' || COALESCE(pg_catalog.md5(pg_catalog.obj_description(pg_catalog.to_regprocedure('public.erase_my_data(text)'), 'pg_proc')), '(none)'),
-                        'registry=' || COALESCE((SELECT pg_catalog.count(*) || ':' || pg_catalog.md5(pg_catalog.string_agg(r::text, ',' ORDER BY r.table_name))
-                                                 FROM public.erasure_registry AS r), '(no table)'),
-                        'table=' || COALESCE((SELECT COALESCE(c.relacl::text, '(default)') || ' rls=' || c.relrowsecurity
-                                              FROM pg_catalog.pg_class AS c
-                                              WHERE c.oid = pg_catalog.to_regclass('public.erasure_registry')), '(no table)'))"
+          # Everything that hangs off the two objects, one fact per line, in a form
+          # that survives DROP + CREATE: names and definitions, never an OID. ACLs
+          # are sorted, because the order of the entries is the order of the GRANTs
+          # and says nothing about who holds what. The last part is the net under
+          # the named ones: whatever else pg_depend hangs off either object (a
+          # rule, a statistics object, a view). It repeats the constraints, which
+          # hang off the table too. That costs lines, and buys a net with no
+          # exclusion list to go stale. Internal dependencies do stay out of it:
+          # the TOAST table is one, and its name carries the OID of a table the
+          # round trip re-creates.
+          owned_state="$(cat <<'SQL'
+          WITH reg AS (SELECT pg_catalog.to_regclass('public.erasure_registry') AS oid),
+               fn AS (SELECT pg_catalog.to_regprocedure('public.erase_my_data(text)') AS oid)
+          SELECT fact.line
+          FROM (
+            SELECT 1 AS part, 0 AS pos,
+                   'ledger ' || pg_catalog.md5(pg_catalog.string_agg(m.version || ':' || COALESCE(m.name, ''), ',' ORDER BY m.version)) AS line
+            FROM supabase_migrations.schema_migrations AS m
+            UNION ALL
+            SELECT 2, 0,
+                   'function ' || COALESCE((
+                     SELECT 'owner=' || pg_catalog.pg_get_userbyid(p.proowner)
+                            || ' acl=' || COALESCE((SELECT pg_catalog.string_agg(a::text, ',' ORDER BY a::text)
+                                                    FROM pg_catalog.unnest(p.proacl) AS a), '(default)')
+                            || ' definition=' || pg_catalog.md5(pg_catalog.pg_get_functiondef(p.oid))
+                            || ' comment=' || COALESCE(pg_catalog.md5(pg_catalog.obj_description(p.oid, 'pg_proc')), '(none)')
+                     FROM pg_catalog.pg_proc AS p, fn
+                     WHERE p.oid = fn.oid), '(absent)')
+            UNION ALL
+            SELECT 3, 0,
+                   'table ' || COALESCE((
+                     SELECT 'owner=' || pg_catalog.pg_get_userbyid(c.relowner)
+                            || ' acl=' || COALESCE((SELECT pg_catalog.string_agg(a::text, ',' ORDER BY a::text)
+                                                    FROM pg_catalog.unnest(c.relacl) AS a), '(default)')
+                            || ' rls=' || c.relrowsecurity || ' force_rls=' || c.relforcerowsecurity
+                            || ' persistence=' || c.relpersistence::text || ' replica_identity=' || c.relreplident::text
+                            || ' options=' || COALESCE(c.reloptions::text, '(none)')
+                            || ' comment=' || COALESCE(pg_catalog.md5(pg_catalog.obj_description(c.oid, 'pg_class')), '(none)')
+                     FROM pg_catalog.pg_class AS c, reg
+                     WHERE c.oid = reg.oid), '(absent)')
+            UNION ALL
+            SELECT 4, 0,
+                   'rows ' || COALESCE((SELECT pg_catalog.count(*) || ':' || pg_catalog.md5(pg_catalog.string_agg(r::text, ',' ORDER BY r.table_name))
+                                        FROM public.erasure_registry AS r), '(none)')
+            UNION ALL
+            SELECT 5, a.attnum,
+                   'column ' || pg_catalog.row_number() OVER (ORDER BY a.attnum) || ' ' || a.attname
+                   || ' ' || pg_catalog.format_type(a.atttypid, a.atttypmod)
+                   || ' not_null=' || a.attnotnull
+                   || ' default=' || COALESCE(pg_catalog.pg_get_expr(d.adbin, d.adrelid), '(none)')
+                   || ' identity=' || CASE a.attidentity WHEN '' THEN '(none)' ELSE a.attidentity::text END
+                   || ' generated=' || CASE a.attgenerated WHEN '' THEN '(none)' ELSE a.attgenerated::text END
+                   || ' collation=' || a.attcollation::pg_catalog.regcollation::text
+                   || ' acl=' || COALESCE((SELECT pg_catalog.string_agg(x::text, ',' ORDER BY x::text)
+                                           FROM pg_catalog.unnest(a.attacl) AS x), '(default)')
+                   || ' comment=' || COALESCE(pg_catalog.md5(pg_catalog.col_description(a.attrelid, a.attnum)), '(none)')
+            FROM reg
+            JOIN pg_catalog.pg_attribute AS a ON a.attrelid = reg.oid AND a.attnum > 0 AND NOT a.attisdropped
+            LEFT JOIN pg_catalog.pg_attrdef AS d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+            UNION ALL
+            SELECT 6, 0,
+                   'constraint ' || k.conname || ' ' || pg_catalog.pg_get_constraintdef(k.oid)
+                   || ' comment=' || COALESCE(pg_catalog.md5(pg_catalog.obj_description(k.oid, 'pg_constraint')), '(none)')
+            FROM reg
+            JOIN pg_catalog.pg_constraint AS k ON k.conrelid = reg.oid
+            UNION ALL
+            SELECT 7, 0,
+                   'index ' || pg_catalog.pg_get_indexdef(i.indexrelid) || ' valid=' || i.indisvalid
+                   || ' comment=' || COALESCE(pg_catalog.md5(pg_catalog.obj_description(i.indexrelid, 'pg_class')), '(none)')
+            FROM reg
+            JOIN pg_catalog.pg_index AS i ON i.indrelid = reg.oid
+            UNION ALL
+            SELECT 8, 0,
+                   'policy ' || p.polname || ' command=' || p.polcmd::text || ' permissive=' || p.polpermissive
+                   || ' roles=' || COALESCE((SELECT pg_catalog.string_agg(named.role_name, ',' ORDER BY named.role_name)
+                                             FROM (SELECT CASE WHEN member = 0 THEN 'public' ELSE pg_catalog.pg_get_userbyid(member) END AS role_name
+                                                   FROM pg_catalog.unnest(p.polroles) AS member) AS named), '(none)')
+                   || ' using=' || COALESCE(pg_catalog.pg_get_expr(p.polqual, p.polrelid), '(none)')
+                   || ' check=' || COALESCE(pg_catalog.pg_get_expr(p.polwithcheck, p.polrelid), '(none)')
+            FROM reg
+            JOIN pg_catalog.pg_policy AS p ON p.polrelid = reg.oid
+            UNION ALL
+            SELECT 9, 0,
+                   'trigger ' || pg_catalog.pg_get_triggerdef(t.oid) || ' enabled=' || t.tgenabled::text
+            FROM reg
+            JOIN pg_catalog.pg_trigger AS t ON t.tgrelid = reg.oid AND NOT t.tgisinternal
+            UNION ALL
+            SELECT DISTINCT 10, 0,
+                   'hangs_off ' || pg_catalog.pg_describe_object(d.classid, d.objid, d.objsubid)
+            FROM pg_catalog.pg_depend AS d, reg, fn
+            WHERE d.deptype <> 'i'
+              AND ((d.refclassid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = reg.oid)
+                   OR (d.refclassid = 'pg_catalog.pg_proc'::pg_catalog.regclass AND d.refobjid = fn.oid))
+          ) AS fact
+          WHERE fact.line IS NOT NULL
+          ORDER BY fact.part, fact.pos, fact.line
+          SQL
+          )"
+          fingerprint() { # <db>
+            sql "$1" "$owned_state"
           }
 
           failed=0
@@ -457,6 +572,86 @@ jobs:
           echo "== fixed: $down as shipped"
           clone rollback_probe_fixed
           before="$(fingerprint rollback_probe_fixed)"
+          echo "fixed: what hangs off erase_my_data and erasure_registry before the rollback"
+          sed 's/^/  /' <<< "$before"
+
+          echo "== sight: can that list see what a later migration would hang there?"
+          probed() { # <one statement>  -- the fingerprint with it applied, then rolled back
+            psql -X -q -h localhost -U postgres -d rollback_probe_fixed -v ON_ERROR_STOP=1 -At \
+              -c 'BEGIN' -c "$1" -c "$owned_state" -c 'ROLLBACK'
+          }
+          sees() { # <what> <one statement a later migration could run>
+            local moved
+            if ! moved="$(probed "$2")"; then
+              fail "the sight probe for $1 could not run: $2"
+            elif [[ "$moved" == "$before" ]]; then
+              fail "BLIND to $1. The fingerprint did not move when this ran: $2. A later migration that does the same and is left out of the list in $down loses it to the rollback's DROP, and the comparison below stays green about it. Add the fact to owned_state."
+            else
+              echo "sight: sees $1"
+            fi
+          }
+          # MEASURED 2026-09-21 00:48 KST: with the whole policy part cut out of
+          # owned_state, sees "a policy" still passed. Creating an object moves
+          # TWO parts, its own and the pg_depend net at the end, so the net alone
+          # kept the probe green while nothing read the policy's USING clause any
+          # more. (A new column is seen twice the same way: by its own line and by
+          # the row hash, which is over r::text.) What only the named part can do
+          # is tell two DEFINITIONS of one object apart, so that is what it is
+          # asked: the same name, defined two ways, must give two fingerprints.
+          tells_apart() { # <what> <one statement> <the same object, defined differently>
+            local one other
+            if ! one="$(probed "$2")" || ! other="$(probed "$3")"; then
+              fail "the sight probe for $1 could not run: $2 / $3"
+            elif [[ "$one" == "$before" || "$one" == "$other" ]]; then
+              fail "BLIND to the definition of $1. These two give the same fingerprint: [$2] and [$3]. A later migration that re-defines it and is left out of the list in $down loses the new definition to the rollback's DROP, and the comparison below stays green about it. Put the definition back into owned_state."
+            else
+              echo "sight: tells apart two definitions of $1"
+            fi
+          }
+          # A probe has to move the fingerprint on TODAY's schema and on next year's, so
+          # none of them may be something a real migration would do. MEASURED 2026-09-21
+          # 00:39 KST: the first column probe was the gate's statement verbatim (ADD COLUMN
+          # deletion_generation), and the run that mattered most went red on it. A 0191
+          # that really adds that column, correctly listed in the rollback, met "column
+          # already exists". Hence one reserved name (rollback_probe), grants that go to
+          # anon (authenticated is who S3-C / S3-D will open the RPC to, and a GRANT that
+          # is already there moves nothing), and values no one would choose.
+          tells_apart "a column" \
+            "ALTER TABLE public.erasure_registry ADD COLUMN rollback_probe bigint NOT NULL DEFAULT 0" \
+            "ALTER TABLE public.erasure_registry ADD COLUMN rollback_probe integer NOT NULL DEFAULT 0"
+          tells_apart "a constraint" \
+            "ALTER TABLE public.erasure_registry ADD CONSTRAINT rollback_probe CHECK (table_name <> '')" \
+            "ALTER TABLE public.erasure_registry ADD CONSTRAINT rollback_probe CHECK (table_name <> 'rollback probe')"
+          tells_apart "an index" \
+            "CREATE INDEX rollback_probe ON public.erasure_registry (table_name)" \
+            "CREATE INDEX rollback_probe ON public.erasure_registry (table_name) WHERE table_name <> ''"
+          tells_apart "a policy" \
+            "CREATE POLICY rollback_probe ON public.erasure_registry FOR SELECT TO anon USING (false)" \
+            "CREATE POLICY rollback_probe ON public.erasure_registry FOR SELECT TO anon USING (true)"
+          tells_apart "a trigger" \
+            "CREATE TRIGGER rollback_probe BEFORE UPDATE ON public.erasure_registry FOR EACH ROW EXECUTE FUNCTION pg_catalog.suppress_redundant_updates_trigger()" \
+            "CREATE TRIGGER rollback_probe BEFORE UPDATE ON public.erasure_registry FOR EACH ROW WHEN (OLD.table_name <> '') EXECUTE FUNCTION pg_catalog.suppress_redundant_updates_trigger()"
+          sees "a rule" "CREATE RULE rollback_probe AS ON DELETE TO public.erasure_registry DO INSTEAD NOTHING"
+          sees "a statistics object" "CREATE STATISTICS public.rollback_probe ON (pg_catalog.length(table_name)) FROM public.erasure_registry"
+          sees "the table's owner" "ALTER TABLE public.erasure_registry OWNER TO anon"
+          sees "the table's comment" "COMMENT ON TABLE public.erasure_registry IS 'rollback probe'"
+          sees "a column's comment" "COMMENT ON COLUMN public.erasure_registry.table_name IS 'rollback probe'"
+          sees "a table grant" "GRANT TRUNCATE ON public.erasure_registry TO anon"
+          sees "a column grant" "GRANT REFERENCES (table_name) ON public.erasure_registry TO anon"
+          sees "row security switched off" "ALTER TABLE public.erasure_registry DISABLE ROW LEVEL SECURITY"
+          sees "row security forced, or unforced" "DO \$flip\$ BEGIN IF (SELECT c.relforcerowsecurity FROM pg_catalog.pg_class AS c WHERE c.oid = pg_catalog.to_regclass('public.erasure_registry')) THEN ALTER TABLE public.erasure_registry NO FORCE ROW LEVEL SECURITY; ELSE ALTER TABLE public.erasure_registry FORCE ROW LEVEL SECURITY; END IF; END \$flip\$"
+          sees "a column default" "ALTER TABLE public.erasure_registry ALTER COLUMN table_name SET DEFAULT 'rollback probe'"
+          sees "a dropped NOT NULL" "ALTER TABLE public.erasure_registry ALTER COLUMN reason DROP NOT NULL"
+          sees "the registry rows" "DELETE FROM public.erasure_registry"
+          sees "the function's owner" "ALTER FUNCTION public.erase_my_data(text) OWNER TO anon"
+          sees "the function's settings" "ALTER FUNCTION public.erase_my_data(text) SET statement_timeout = '190189ms'"
+          sees "a function grant" "GRANT EXECUTE ON FUNCTION public.erase_my_data(text) TO anon"
+          sees "the function's comment" "COMMENT ON FUNCTION public.erase_my_data(text) IS 'rollback probe'"
+          sees "a ledger row" "UPDATE supabase_migrations.schema_migrations SET name = name || '_probe' WHERE name = 'lock_erase_my_data_authenticated'"
+          if [[ "$(fingerprint rollback_probe_fixed)" != "$before" ]]; then
+            fail "the sight probes left something behind. Each one runs inside a transaction that is rolled back, and the fingerprint no longer equals the one taken before them, so the comparison below starts from a state no migration produced."
+          fi
+
           roll_back rollback_probe_fixed
           after_rollback="$(ledger_pair rollback_probe_fixed)"
           if [[ "$after_rollback" != "(none)" ]]; then
@@ -473,10 +668,11 @@ jobs:
             fi
           done
           echo "fixed: ledger after the rollback [$after_rollback] -> EXECUTE after the re-push: $verdict"
-          echo "fixed: before  $before"
-          echo "fixed: after   $after"
           if [[ "$before" != "$after" ]]; then
-            fail "rollback + re-push did not restore what 0189 and 0190 own (compare the two 'fixed:' lines above). A migration that alters erase_my_data or erasure_registry loses its effect to the rollback's DROP, so its ledger row has to go too: fix $down in the same PR."
+            fail "rollback + re-push did not restore what hangs off erase_my_data and erasure_registry ('<' is before the rollback, '>' is after the re-push). A migration that alters either object loses its effect to the rollback's DROP, so its ledger row has to go too: fix $down in the same PR."
+            diff <(printf '%s\n' "$before") <(printf '%s\n' "$after") | sed 's/^/  /' >&2 || true
+          else
+            echo "fixed: after the re-push, all $(wc -l <<< "$before" | tr -d ' ') facts are what they were"
           fi
 
           if (( failed )); then

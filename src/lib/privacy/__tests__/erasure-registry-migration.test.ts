@@ -26,6 +26,7 @@ import {
   extractRegistrySql,
   loadRegistry,
   renderRegistrySql,
+  stripForDdlScan,
 } from "../../../../scripts/generate-erasure-registry";
 
 const ROOT = resolve(__dirname, "../../../..");
@@ -45,6 +46,60 @@ const raw = readFileSync(join(MIGRATIONS, FILE), "utf8");
 const code = stripSqlComments(raw);
 const lockRaw = readFileSync(join(MIGRATIONS, LOCK_FILE), "utf8");
 const lockCode = stripSqlComments(lockRaw);
+
+// The ledger name is not typed a second time anywhere below: it is what the
+// pinned CLI derives from the FILE name (pkg/migration/file.go at v2.116.0:
+// `^([0-9]+)_(.*)\.sql$`, Name = group 2), and supabase-dry-run.yml re-reads it
+// from the ledger after every push. Rename a migration and this follows.
+const ledgerName = (file: string): string => {
+  const match = /^[0-9]+_(.*)\.sql$/.exec(file);
+  if (!match) throw new Error(`not a migration file name: ${file}`);
+  return match[1];
+};
+
+type Migration = { file: string; sql: string };
+
+/** Every numbered migration, in apply order. `db/migrations/*.sql` is a
+ *  non-recursive glob, so rollback/ stays out, as it does for the CLI. */
+const migrationsOnDisk = (): Migration[] =>
+  readdirSync(MIGRATIONS)
+    .filter((f) => f.endsWith(".sql"))
+    .sort()
+    .map((file) => ({ file, sql: readFileSync(join(MIGRATIONS, file), "utf8") }));
+
+// Does a migration LEAN on the two objects 0189 creates? "Lean" = its SQL names
+// one of them where Postgres would execute it. rollback/0189_down.sql DROPs both,
+// and a DROP takes everything hung on the object with it (a column, a policy, a
+// trigger, a re-defined body, a GRANT, a registry row), so the migration that hung
+// it there has to be re-applied by the next push, which happens only if its
+// ledger row goes too.
+//
+// The reading is `stripForDdlScan`, the discriminator the erasure-registry guard
+// already stands on (scripts/generate-erasure-registry.ts): comments go, string
+// literals and inert dollar bodies (RAISE NOTICE $m$...$m$, COMMENT ... IS) are
+// blanked, and the bodies that DO run (DO, a function's AS, EXECUTE $p$...$p$)
+// are descended into. This file's own stripSqlComments is not enough here: it
+// keeps a comment that trails code on the same line, and it keeps every literal,
+// so a file that only TALKS about erase_my_data would be told to join the
+// rollback. A rule that cries wolf gets switched off, and then it guards nothing.
+//
+// Names, not statement kinds. A list of "the statements that modify a table"
+// would be one more list to forget an entry of; any executed mention is cheaper
+// to get right, and its one cost is stated in the test below.
+const LEANED_ON = /erase_my_data|erasure_registry/i;
+const leansOnErasureObjects = (sql: string): boolean => LEANED_ON.test(stripForDdlScan(sql));
+const rollbackSetFor = (migrations: readonly Migration[]): string[] =>
+  migrations.filter((m) => leansOnErasureObjects(m.sql)).map((m) => ledgerName(m.file));
+
+/** The names the rollback's DELETE actually receives (c_names), comments gone. */
+const rollbackLedgerNames = (): string[] => {
+  const down = stripSqlComments(readFileSync(join(MIGRATIONS, "rollback", "0189_down.sql"), "utf8"));
+  const declared = /c_names\s+constant\s+text\[\]\s*:=\s*ARRAY\[([^\]]*)\]/.exec(down);
+  if (!declared) throw new Error("rollback/0189_down.sql no longer declares c_names");
+  // Trailing comments go first, so a name that survives only in a remark beside
+  // the array cannot stand in for one the DELETE actually receives.
+  return [...declared[1].replace(/--.*$/gm, "").matchAll(/'([^']+)'/g)].map((m) => m[1]);
+};
 
 describe(`${FILE} -- structure`, () => {
   test("the migration number is not reused", () => {
@@ -365,26 +420,15 @@ describe(`${FILE} -- structure`, () => {
     // with no database, the moment the second name leaves the set.
     const down = stripSqlComments(readFileSync(join(MIGRATIONS, "rollback", "0189_down.sql"), "utf8"));
 
-    // Not typed a second time: the ledger name is what the pinned CLI derives
-    // from the FILE name (pkg/migration/file.go at v2.116.0: `^([0-9]+)_(.*)\.sql$`,
-    // Name = group 2), and supabase-dry-run.yml re-reads it from the ledger after
-    // every push. Rename either migration and this follows.
-    const ledgerName = (file: string): string => {
-      const match = /^[0-9]+_(.*)\.sql$/.exec(file);
-      if (!match) throw new Error(`not a migration file name: ${file}`);
-      return match[1];
-    };
+    // The ledger names come from the FILE names (ledgerName, at the top).
     const expected = [FILE, LOCK_FILE].map(ledgerName);
     expect(expected).toEqual(["erasure_registry", "lock_erase_my_data_authenticated"]);
 
-    const declared = /c_names\s+constant\s+text\[\]\s*:=\s*ARRAY\[([^\]]*)\]/.exec(down);
-    expect(declared).not.toBeNull();
-    // Trailing comments go first, so a name that survives only in a remark beside
-    // the array cannot stand in for one the DELETE actually receives.
-    const names = [...(declared?.[1] ?? "").replace(/--.*$/gm, "").matchAll(/'([^']+)'/g)].map(
-      (m) => m[1],
-    );
-    expect(names).toEqual(expected);
+    // These two at least. The list grows with every later migration that leans on
+    // the same objects, and the next test is what makes it grow; pinning it to
+    // exactly two here would turn that growth red.
+    const names = rollbackLedgerNames();
+    expect(names).toEqual(expect.arrayContaining(expected));
 
     // Naming both is not deleting both. Measured: with the array intact and this
     // predicate put back to `m.name = 'erasure_registry'`, the file's own NOTICE
@@ -408,6 +452,130 @@ describe(`${FILE} -- structure`, () => {
     expect(deleteAt).toBeLessThan(commitAt);
     expect(down.match(/^[ \t]*BEGIN;/gm)).toHaveLength(1);
     expect(down.match(/^[ \t]*COMMIT;/gm)).toHaveLength(1);
+  });
+
+  test("...and the NEXT migration that leans on either object cannot be left out of that list", () => {
+    // r50 artifact gate, B-NEW-01. The test above knew two names and the rollback
+    // knows two names, so a third migration was nobody's job to notice. The
+    // gate's counter-example: a later 0191 runs
+    //   ALTER TABLE public.erasure_registry ADD COLUMN deletion_generation ...
+    // and is not added to c_names. The rollback drops the table and the column
+    // with it, 0191's ledger row stays, the next push skips 0191, and the fence
+    // is gone under a ledger that reads as complete. It is the 0190 hole again,
+    // one migration later.
+    //
+    // So the list is no longer compared with two names typed here. It is compared
+    // with what the migrations on disk say: every file whose EXECUTED SQL names
+    // either object (leansOnErasureObjects, at the top) must be in c_names, and
+    // c_names may hold nothing else. The author of the next such migration meets
+    // this in `npm run verify`, with no database, before anything is pushed.
+    //
+    // What to do when it goes red: add the ledger name to c_names in
+    // rollback/0189_down.sql, in the same PR. Listed means RE-APPLIED after a
+    // rollback, so the file has to survive being applied twice; the workflow's
+    // round trip is what proves that it does, against a real database.
+    const names = rollbackLedgerNames();
+    const onDisk = migrationsOnDisk();
+    const required = rollbackSetFor(onDisk);
+
+    // Not vacuous: the reading finds the two files that are known to lean. A
+    // discriminator that blanked everything would otherwise agree with an empty
+    // list.
+    expect(required).toEqual(expect.arrayContaining([FILE, LOCK_FILE].map(ledgerName)));
+    expect(new Set(names).size).toBe(names.length);
+    // The keys are the message.
+    expect({
+      leansOnTheTwoObjectsButItsLedgerRowSurvivesTheRollback: required.filter((n) => !names.includes(n)),
+      listedInTheRollbackButNoSuchMigrationLeans: names.filter((n) => !required.includes(n)),
+    }).toEqual({
+      leansOnTheTwoObjectsButItsLedgerRowSurvivesTheRollback: [],
+      listedInTheRollbackButNoSuchMigrationLeans: [],
+    });
+
+    // The control, fixed here so the rule is shown to bite on every run and not
+    // only on the day it was written: the gate's statement, in a file that does
+    // not exist, under a name no real migration will take. The rule must demand
+    // that name. It says nothing about the shipped list, on purpose. MEASURED
+    // 2026-09-21 00:59 KST: the first version used the gate's own file name and
+    // also asserted that c_names did NOT hold 'erasure_generation'. With a real
+    // 0191_erasure_generation.sql on disk and correctly listed, that line was the
+    // only red in the suite: a control that fails the author who did it right.
+    // (Same run, the other direction: that file on disk and NOT listed turns the
+    // assertion above red, and it names the file.)
+    const gateCounterExample: Migration = {
+      file: "9999_rollback_rule_control.sql",
+      sql: "ALTER TABLE public.erasure_registry ADD COLUMN deletion_generation bigint NOT NULL DEFAULT 0;\n",
+    };
+    expect(rollbackSetFor([...onDisk, gateCounterExample])).toEqual([...required, "rollback_rule_control"]);
+    // ...and a later file that only TALKS about the two objects demands nothing.
+    const talksAboutThem: Migration = {
+      file: "9998_rollback_rule_prose.sql",
+      sql: [
+        "-- erase_my_data sweeps this table once it is in erasure_registry.",
+        "CREATE TABLE public.notes (id uuid PRIMARY KEY); -- not in erasure_registry yet",
+        "COMMENT ON TABLE public.notes IS 'erase_my_data does not reach this table yet';",
+        "",
+      ].join("\n"),
+    };
+    expect(rollbackSetFor([...onDisk, talksAboutThem])).toEqual(required);
+  });
+
+  test("...reading the SQL that executes, not what a file says about it", () => {
+    // Both directions are pinned, because the rule can fail in both. Missing a
+    // real reference is the hole above. Flagging prose is how a rule gets deleted:
+    // the third time a comment turns CI red, someone removes the check.
+    const leans: Array<[string, string]> = [
+      ["the gate's counter-example", "ALTER TABLE public.erasure_registry ADD COLUMN deletion_generation bigint NOT NULL DEFAULT 0;"],
+      [
+        "a re-defined body (the fence that S3-C / S3-D will add)",
+        "CREATE OR REPLACE FUNCTION public.erase_my_data(p_scope text) RETURNS jsonb LANGUAGE plpgsql AS $fn$ BEGIN RETURN NULL; END $fn$;",
+      ],
+      ["the grant that opens the RPC", "GRANT EXECUTE ON FUNCTION public.erase_my_data(text) TO authenticated;"],
+      ["a registry row", "INSERT INTO public.erasure_registry (table_name, owner_column, class, reason) VALUES ('notes', 'user_id', 'retained', 'r');"],
+      ["lower case, unqualified, quoted", 'alter table "erasure_registry" enable row level security;'],
+      ["inside a DO body", "DO $mig$ BEGIN ALTER TABLE public.erasure_registry FORCE ROW LEVEL SECURITY; END $mig$;"],
+      [
+        "dynamic SQL in a dollar body, which EXECUTE runs",
+        "DO $mig$ BEGIN EXECUTE $p$CREATE POLICY registry_read ON public.erasure_registry FOR SELECT TO service_role USING (true)$p$; END $mig$;",
+      ],
+      // A derived name counts, on purpose: this is how a statement reaches the
+      // table without spelling it. The cost is that an unrelated object NAMED
+      // after the two (public.erasure_registry_audit) is asked to join the list
+      // as well. That errs toward a re-apply, which the round trip then proves
+      // harmless or refuses; the other error is silent.
+      ["a derived name", "ALTER INDEX public.erasure_registry_pkey SET (fillfactor = 90);"],
+    ];
+    const talks: Array<[string, string]> = [
+      ["a line comment", "-- erase_my_data stays locked until the fence exists (0190)\nCREATE TABLE public.notes (id uuid);"],
+      ["a comment that trails code on its line", "CREATE TABLE public.notes (id uuid); -- erasure_registry: not registered yet"],
+      ["a block comment", "/* see public.erase_my_data(text)\n   and public.erasure_registry */\nCREATE TABLE public.notes (id uuid);"],
+      ["a comment inside a DO body", "DO $mig$\nBEGIN\n  -- ALTER TABLE public.erasure_registry ADD COLUMN g bigint;\n  PERFORM 1;\nEND $mig$;"],
+      ["a log line", "DO $mig$ BEGIN RAISE NOTICE 'erase_my_data is untouched by this migration'; END $mig$;"],
+      ["a log line that quotes DDL", "DO $mig$ BEGIN RAISE NOTICE $m$ALTER TABLE public.erasure_registry ADD COLUMN g bigint$m$; END $mig$;"],
+      ["another object's COMMENT", "COMMENT ON TABLE public.notes IS 'not in erasure_registry yet';"],
+      ["another object's COMMENT, dollar-quoted", "COMMENT ON TABLE public.notes IS $c$erase_my_data does not reach this$c$;"],
+      // A READ of the lock, the way 0190 verifies itself. It hangs nothing on the
+      // function, so nothing of it is lost to the DROP, and a file that only
+      // checks has no reason to be applied twice.
+      [
+        "a privilege check",
+        "DO $chk$ BEGIN IF pg_catalog.has_function_privilege('authenticated', 'public.erase_my_data(text)', 'EXECUTE') THEN RAISE EXCEPTION 'open'; END IF; END $chk$;",
+      ],
+    ];
+    expect(leans.filter(([, sql]) => !leansOnErasureObjects(sql)).map(([what]) => what)).toEqual([]);
+    expect(talks.filter(([, sql]) => leansOnErasureObjects(sql)).map(([what]) => what)).toEqual([]);
+
+    // The edge of what a reading of the text can decide, written down rather
+    // than left to be found. SQL assembled at RUN time out of string literals is
+    // invisible here: the same literal is a log line in one file and a statement
+    // in the next, and blanking literals is what keeps the list above quiet. That
+    // half belongs to the workflow's round trip, which compares the catalog, and
+    // the catalog does not care how a statement was spelled. MEASURED 2026-09-21,
+    // scratch PostgreSQL 18.3 + the pinned CLI: a 0191 that adds the column
+    // through EXECUTE '...' passes this file and turns the round trip red.
+    const assembledAtRunTime =
+      "DO $mig$ BEGIN EXECUTE 'ALTER TABLE public.erasure_registry ADD COLUMN deletion_generation bigint NOT NULL DEFAULT 0'; END $mig$;";
+    expect(leansOnErasureObjects(assembledAtRunTime)).toBe(false);
   });
 
   test("...and CI replays rollback + re-push on a real database, behind a control that can see the hole", () => {
@@ -457,5 +625,87 @@ describe(`${FILE} -- structure`, () => {
     );
     expect(step).toMatch(/if \[\[ "\$before" != "\$after" \]\]; then\s+fail /);
     expect(step).toMatch(/if \(\( failed \)\); then\s+exit 1/);
+
+    // r50 artifact gate, B-NEW-01, the database half. "The state" used to be six
+    // facts (ledger hash, function ACL, body, COMMENT, registry rows, table ACL
+    // and RLS), and the step's header claimed it would catch the next migration
+    // that leans on the two objects. MEASURED 2026-09-21 00:28 KST, one statement
+    // at a time in a rolled-back transaction: it did not move for 12 kinds of 22
+    // (a constraint, an index, a policy, a trigger, a rule, a statistics object,
+    // a table or column COMMENT, a column grant, FORCE RLS, a column default, a
+    // dropped NOT NULL). So it now reads the catalog of both objects...
+    for (const source of [
+      "p.proowner",
+      "c.relowner",
+      "pg_catalog.pg_attribute",
+      "pg_catalog.pg_attrdef",
+      "pg_catalog.pg_constraint",
+      "pg_catalog.pg_index",
+      "pg_catalog.pg_policy",
+      "pg_catalog.pg_trigger",
+      "pg_catalog.pg_depend",
+    ]) {
+      expect(step).toContain(source);
+    }
+    // ...and, same idea as the control, it has to SHOW that it can see a kind
+    // before its silence about that kind means anything. Each probe applies one
+    // statement a later migration could run, reads the SAME query the comparison
+    // reads, inside a transaction that is rolled back, BEFORE the rollback under
+    // test. A fingerprint that does not move is BLIND, and BLIND is a failure.
+    //
+    // The first probe is the gate's statement under a reserved name. MEASURED
+    // 2026-09-21 00:39 KST: spelled verbatim (deletion_generation) it collided
+    // with a 0191 that really adds that column and was correctly listed, and the
+    // one run that had to be green was red with "column already exists". A probe
+    // must not be something a real migration would do.
+    const beforeAt = step.indexOf('before="$(fingerprint rollback_probe_fixed)"');
+    const firstProbeAt = step.indexOf('tells_apart "a column"');
+    const rollbackUnderTestAt = step.indexOf("roll_back rollback_probe_fixed");
+    expect(beforeAt).toBeGreaterThanOrEqual(0);
+    expect(firstProbeAt).toBeGreaterThan(beforeAt);
+    expect(rollbackUnderTestAt).toBeGreaterThan(firstProbeAt);
+    const probes = step.slice(firstProbeAt, rollbackUnderTestAt);
+    expect(probes).toContain(
+      '"ALTER TABLE public.erasure_registry ADD COLUMN rollback_probe bigint NOT NULL DEFAULT 0"',
+    );
+    expect(probes).not.toMatch(/\bdeletion_generation\b/);
+    // authenticated is who S3-C / S3-D will open the RPC to. A probe that grants
+    // what is already granted moves nothing and reads as BLIND.
+    expect(probes).not.toMatch(/\bTO authenticated\b/);
+
+    // One query, read by the comparison and by every probe.
+    expect(step).toMatch(/fingerprint\(\) \{[^\r\n]*\s+sql "\$1" "\$owned_state"/);
+    expect(step).toMatch(/-c 'BEGIN' -c "\$1" -c "\$owned_state" -c 'ROLLBACK'/);
+    expect(step).toMatch(/if ! moved="\$\(probed "\$2"\)"; then/);
+    expect(step).toMatch(/elif \[\[ "\$moved" == "\$before" \]\]; then\s+fail "BLIND to /);
+
+    // MEASURED 2026-09-21 00:48 KST, and the reason there are two kinds of probe:
+    // with the whole policy part cut out of the query, a probe that CREATES a
+    // policy still passed. A new object moves its own part and the pg_depend net,
+    // so the net alone kept it green while nothing read a USING clause any more.
+    // What only the named part can do is tell two DEFINITIONS of one object apart.
+    // (A new column is seen twice as well: by its line and by the row hash.)
+    expect(step).toMatch(/if ! one="\$\(probed "\$2"\)" \|\| ! other="\$\(probed "\$3"\)"; then/);
+    expect(step).toMatch(
+      /elif \[\[ "\$one" == "\$before" \|\| "\$one" == "\$other" \]\]; then\s+fail "BLIND to the definition of /,
+    );
+    for (const kind of ["a column", "a constraint", "an index", "a policy", "a trigger"]) {
+      expect(probes).toContain(`tells_apart "${kind}" `);
+    }
+    // The rest of what the gate named, by name. (The step probes more; these are
+    // the ones whose absence would re-open the finding.)
+    for (const kind of [
+      "the table's owner",
+      "the table's comment",
+      "the function's owner",
+      "the function's settings",
+    ]) {
+      expect(probes).toContain(`sees "${kind}" "`);
+    }
+    // A probe that leaked would make every later probe "see" the leak instead of
+    // its own statement, so the list is checked against the baseline once more.
+    expect(step).toMatch(
+      /if \[\[ "\$\(fingerprint rollback_probe_fixed\)" != "\$before" \]\]; then\s+fail "the sight probes left something behind/,
+    );
   });
 });
