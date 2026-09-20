@@ -99,6 +99,7 @@ import {
   seedAddressDefault,
 } from "@/lib/persona/use-address";
 import { LOCALE_PACK_ATTACHED_EVENT, openGateWhenSettledOrTimedOut } from "./pack-gate";
+import { digitalConsentAge, resolveJurisdiction } from "../auth/consent-age";
 
 export const NAMESPACES = ["common", "auth", "safety", "consent", "capture", "community", "inbox", "secondb", "plans", "wiki", "support", "data", "esm", "formats", "insights", "research", "recordDetail", "theme", "import", "notFound", "ops", "profile", "permissions", "settings", "iden", "home", "deepspace", "peer", "attachment", "audit", "big-five", "brightness", "core-brain", "imagine", "interview", "ipip-neo", "manual", "persona", "privacy", "ratifications", "records", "review", "rlss", "trinity", "index"] as const;
 export type Namespace = (typeof NAMESPACES)[number];
@@ -241,7 +242,19 @@ export function initI18n(): typeof i18next {
     fallbackLng: "en",
     ns: [...NAMESPACES],
     defaultNS: "common",
-    interpolation: { escapeValue: false },
+    // The age copy is per country since r53, so a screen must never announce a
+    // number the sign-up gate does not actually enforce. `minAge` is supplied
+    // here, once, from the SAME seam the gate reads
+    // (`src/lib/supabase/auth.ts` builds MIN_SELF_CONSENT_AGE from this call),
+    // rather than threaded through the ~8 call sites that render the strings.
+    // Doing it at the call sites would have missed the ones that take no props
+    // at all: BirthDateField's accessibilityHint is the screen-reader copy for
+    // a BLOCKED user, and it is exactly the string that was lying before.
+    // A key that passes its own {{minAge}} still wins; this is only the default.
+    interpolation: {
+      escapeValue: false,
+      defaultVariables: { minAge: digitalConsentAge(resolveJurisdiction()) },
+    },
     // Address interpolation changes need existing useTranslation consumers to
     // rerender, but must not impersonate languageChanged: that event persists
     // the locale as an explicit preference below.

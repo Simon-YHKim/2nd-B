@@ -65,19 +65,19 @@ void migrateLegacyRoutineNotifications().catch(() => {
   }
 });
 
-// C10 age tiers: adult users and 14-17 minors self-consent and register
-// directly. Under PIPA, legal-representative consent is mandatory only below 14
-// (Article 22-2); users 14+ may consent themselves under the general provisions
-// (Articles 15/17/22) with age-appropriate notice. Under 14 requires verifiable
-// guardian consent (added in a later PR); until then they are blocked here.
-// Sourced from the jurisdiction matrix (task F) via the single resolveJurisdiction()
-// seam (defaults to KR until a real country signal exists), so the live floor is the
-// KR value (14) unless an operator pins EXPO_PUBLIC_JURISDICTION for QA.
+// C10 age tiers: adults and self-consenting minors register directly. Under PIPA,
+// legal-representative consent is mandatory only below 14 (Article 22-2); 14+ may
+// consent themselves under Articles 15/17/22. Under 14 needs verifiable guardian
+// consent (later PR); until then they are blocked here. 2026-09-21: this is NO
+// longer "KR 14" -- resolveJurisdiction() reads the device region and answers that
+// country's row from a 63-country table (13..20), falling back to 18, NOT KR, when
+// the country is unreadable. Read this constant; never restate it as a literal. It
+// is a CLIENT floor -- the server trigger is a country-blind `< 14` (0050 / 0149).
 export const MIN_SELF_CONSENT_AGE = digitalConsentAge(resolveJurisdiction());
 
 export class AgeGateError extends Error {
-  constructor() {
-    super("Users under 14 cannot register without guardian consent.");
+  constructor(minAge: number = MIN_SELF_CONSENT_AGE) {
+    super(`Users under ${minAge} cannot register without guardian consent.`);
     this.name = "AgeGateError";
   }
 }
@@ -231,7 +231,7 @@ async function checkPasswordRange(password: string, controller: AbortController)
 }
 
 // birthDate format: ISO date (YYYY-MM-DD), parsed in local time by dayjs. Returns whole
-// years elapsed. The sign-up floor (MIN_SELF_CONSENT_AGE = 14) is applied by
+// years elapsed. The sign-up floor (MIN_SELF_CONSENT_AGE, per country) is applied by
 // the callers above; the DB no longer hard-codes an age CHECK (0028 relaxed the
 // legacy adult-only rule to a sanity range).
 const ISO_BIRTH_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;

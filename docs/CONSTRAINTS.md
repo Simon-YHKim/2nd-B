@@ -96,7 +96,7 @@ The jest suite asserts the call order via mock spy.
 ## C10 — Age-tiered registration + guardian consent (phased)
 
 Sign-up requires `birth_date`, which sets an **age tier**:
-- **Adult (≥18)** and **self-consent minor (14–17)** register directly. Under PIPA, legal-representative consent is mandated only *below 14* (Article 22-2); users 14+ self-consent under the general provisions (Articles 15/17/22) with age-appropriate notice.
+- **Adult (≥18)** and **self-consent minors** register directly. ⚠ **[RE-READ 2026-09-21]** the floor is **per country** (63-country table, statutory 13–20, clamped up to 14; **18** when the country cannot be placed) - it is *not* a flat 14–17 band any more. Under PIPA, legal-representative consent is mandated only *below 14* (Article 22-2); users at or above the applied floor self-consent under the general provisions (Articles 15/17/22) with age-appropriate notice.
 - **Under-14** require **verifiable guardian consent** (PIPA Article 22-2; the US COPPA
   threshold is separately *under-13* — global rollout branches **per country** via the
   63-country table in `src/lib/auth/consent-age-table.ts`, applied by

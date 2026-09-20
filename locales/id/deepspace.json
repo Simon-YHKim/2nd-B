@@ -157,7 +157,7 @@
     "haveAccount": "Sudah punya akun? Masuk",
     "forgotPassword": "Lupa kata sandi?",
     "or": "atau",
-    "ageNotice": "Kamu bisa membuat akun jika berusia 14 tahun atau lebih.",
+    "ageNotice": "Kamu bisa membuat akun jika berusia {{minAge}} tahun atau lebih.",
     "brandLabel": "2ND-BRAIN",
     "signInTitle": "Masuk ke 2nd-Brain",
     "signInEncrypt": "Kamu bisa mengubah pengaturan privasi kapan saja.",

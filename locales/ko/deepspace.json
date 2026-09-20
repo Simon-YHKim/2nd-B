@@ -157,7 +157,7 @@
     "haveAccount": "이미 계정이 있으신가요? 로그인",
     "forgotPassword": "비밀번호를 잊으셨나요?",
     "or": "또는",
-    "ageNotice": "만 14세 이상부터 가입할 수 있어요.",
+    "ageNotice": "만 {{minAge}}세 이상부터 가입할 수 있어요.",
     "brandLabel": "2ND-BRAIN",
     "signInTitle": "2nd-Brain 로그인",
     "signInEncrypt": "개인정보 설정은 언제든 바꿀 수 있어요.",
