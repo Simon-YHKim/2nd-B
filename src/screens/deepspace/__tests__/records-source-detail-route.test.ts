@@ -208,11 +208,18 @@ describe("deep-space records source detail routing", () => {
     // lines (+1,811 / +40): a `useRef` and a `getWikiPageById` import specifier, the
     // rewritten focus effect and its two new state holders, a `listedPages` memo, and
     // three call sites reading that memo instead of `pages` -- plus their comments.
-    // Verified before re-pinning: the OLD digest recomputes byte-for-byte from HEAD's
-    // copy of this file, so this change is the only delta in the slice.
+    //
+    // Re-pinned again 2026-09-20 (R49): the row that effect fetches is now carried with
+    // the account it was fetched for, the honour guard is keyed on the (account, id)
+    // pair instead of the id alone, and the default-open row is chosen from what the
+    // view can actually draw rather than from any non-null id. Slice 10,217 -> 11,609
+    // chars / 217 -> 237 lines (+1,392 / +20), all of it inside those three edits and
+    // their comments. Verified before re-pinning: the R48 digest below recomputes
+    // byte-for-byte from HEAD's copy of this file, so this change is the only delta in
+    // the slice.
     //   git show HEAD:src/screens/deepspace/dds-wiki-records-screens.tsx
     //     | slice from "export function DeepSpaceWikiScreen()" -> sha256
-    //     = caa3ad24cbf6497c7958454a0b68b239e0b9faebfa658980687de5cc0d75008a  (matches)
-    expect(sha256(wiki)).toBe("0b269d67992b803d9c6093032b2101b7d373c6c6cb811d0522d372e1f14eae19");
+    //     = 0b269d67992b803d9c6093032b2101b7d373c6c6cb811d0522d372e1f14eae19  (matches)
+    expect(sha256(wiki)).toBe("677ed103ab26600b77ae9084ce8fa5c67dd71940b9cec7151298aeac0c0bf870");
   });
 });

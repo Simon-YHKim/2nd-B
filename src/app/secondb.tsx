@@ -43,6 +43,7 @@ import {
   beginAccountSessionLease,
   type PendingAccountSessionLease,
 } from "@/lib/auth/account-session-lease";
+import { captureAccountOwnerLease } from "@/lib/auth/account-epoch";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { chatAutosaveAllowed } from "@/lib/chat/autosave";
 import { shouldShowChatSaveNotice, useChatSaveNoticeDismissed } from "@/lib/chat/save-notice";
@@ -1106,18 +1107,33 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // exists" note beside a bare router.push("/wiki") - a logic fork inside a file
   // whose own header (line 216) promises the two chromes differ in CHROME only.
   // The fork is now structurally impossible: both drawers call this.
+  //
+  // The lookup is async, so the tap outlives the account that made it. Supabase can
+  // publish owner A -> owner B with no signed-out frame (AuthContext supports that
+  // publication), and a continuation that still calls router.push moves B's app because
+  // of A's tap. This is not a read of A's writing - /wiki re-queries under B's user id
+  // and the query is owner-filtered - it is B's screen being taken somewhere B did not
+  // ask to go. So the owner lease is captured at tap time and both continuations check
+  // it, the same shape lib/ops uses around its permission prompts. A null lease means
+  // the published owner has already moved, so the tap is dropped rather than falling
+  // back to the list: landing B on the wiki list is the same wrong move, quieter.
   const openCitedPage = (slug: string) => {
     setRefDrawer(null);
     if (!userId) {
       router.push("/wiki");
       return;
     }
+    const lease = captureAccountOwnerLease(userId);
+    if (!lease) return;
     void getWikiPage(userId, slug)
       .then((page) => {
+        if (!lease.isCurrent()) return;
         if (page) router.push({ pathname: "/wiki", params: { focusPageId: page.id } });
         else router.push("/wiki");
       })
-      .catch(() => router.push("/wiki"));
+      .catch(() => {
+        if (lease.isCurrent()) router.push("/wiki");
+      });
   };
 
 

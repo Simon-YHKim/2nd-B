@@ -31,11 +31,35 @@
 ## 4. 생태계 & 생명주기 (Lifecycle & Permissions)
 - **하드웨어 백버튼 (BackHandler) 필수 연동**: 커스텀 모달이나 바텀시트가 열려 있을 때 안드로이드 시스템 뒤로가기 버튼을 누르면 화면이 닫혀야 합니다. 연동하지 않으면 앱이 강제 종료되거나 스택이 꼬입니다.
 - **백그라운드 타이머 누수**: `setInterval`을 사용했다면 컴포넌트 해제 시 무조건 `clearInterval`을 보장하여 App Standby 모드에서의 CPU 낭비를 차단하세요.
-- **권한 누락 방지 (Permissions)**: 미디어·카메라·캘린더·건강 접근 시 `app.json` 의 `plugins` 에
-  해당 라이브러리의 권한 **설명 문구**를 반드시 채우세요. 비어 있으면 Android 13+ 기기에서 튕김 및
-  스토어 리젝이 발생합니다. 우리 저장소는 `expo-image-picker` 에 `photosPermission`·`cameraPermission`,
+- **권한 누락 방지 (Permissions)**: 미디어·카메라·캘린더·건강 접근은 **플랫폼마다 계약이 다릅니다.**
+  `app.json` `plugins` 의 권한 **설명 문구**(`photosPermission`·`cameraPermission`·`microphonePermission`)는
+  **iOS 전용**입니다 — 그대로 `NSPhotoLibraryUsageDescription`·`NSCameraUsageDescription`·
+  `NSMicrophoneUsageDescription` 로 들어갑니다. **Android 권한은 플러그인이 따로 선언합니다**
+  (`expo-image-picker` 가 선언하는 것은 `RECORD_AUDIO` 하나). Android 에서 이 키들이 의미를 갖는 경우는
+  값이 **명시적 `false`** 일 때뿐이고, 그건 문구가 아니라 **그 권한을 차단하라는 지시**입니다.
+  우리 저장소는 `expo-image-picker` 에 `photosPermission`·`cameraPermission`,
   `expo-calendar`·`expo-audio`·healthkit 에 각각의 문구가 이미 들어 있습니다(`app.json` `plugins`).
-  > ⚠ **정정 (2026-09-20) — 이 줄은 원래 "`READ_MEDIA_IMAGES` 권한을 누락하면"이라고 적혀 있었습니다.
+  > ⚠ **정정 A (2026-09-20) · 설명 문구 — 이 줄은 원래 "설명 문구가 비어 있으면 Android 13+ 기기에서 튕김 및
+  > 스토어 리젝이 발생합니다"라고 적혀 있었습니다. 두 군데가 틀렸습니다.**
+  >
+  > ① **그 문자열은 Android 에 닿지 않습니다.** 설치된 플러그인의 `withAndroidImagePickerPermissions`
+  >   를 문구 있는 설정과 없는 설정으로 각각 호출하면 android 결과가 **같습니다**
+  >   (`{"permissions":["android.permission.RECORD_AUDIO"]}`, 2026-09-20 R48 게이트 실측).
+  > ② **문구를 빼도 "비어" 있지 않습니다.** 플러그인에 기본 문구가 있습니다
+  >   (`node_modules/expo-image-picker/plugin/src/withImagePicker.ts` 의 `CAMERA_USAGE`·
+  >   `MICROPHONE_USAGE`·`READ_PHOTOS_USAGE`, 그리고 `createPermissionsPlugin` 호출부).
+  >
+  > 즉 문구 누락은 **iOS 심사** 문제이지 Android 크래시의 원인이 아닙니다. 같은 오진이
+  > `expo-calendar`·`expo-audio`·healthkit 에도 그대로 적용됩니다 — 네 플러그인 모두 문자열은
+  > iOS 전용이고, Android 쪽은 각 플러그인의 무조건 선언과 `expo.android.permissions` 배열이
+  > 정합니다. Android 권한 결함을 진단할 때 이 줄을 근거로 인용하지 마세요.
+  >
+  > ⛔ **이 사실을 읽고 `app.json` 을 "정리"하지 마세요.** plugins 의 문구 옵션을 지우면
+  > iOS 폴백 순서(`plugins 옵션` → `ios.infoPlist` → 플러그인 기본값)에서 1순위가 사라져
+  > **실제 출시되는 iOS 권한 문구가 조용히 바뀝니다**(`scripts/__tests__/ios-permission-source.test.ts`
+  > 가 이중 선언을 막고 있는 이유). `app.json` 은 EAS 지문 소스라 네이티브 재빌드도 따라옵니다.
+  >
+  > ⚠ **정정 B (2026-09-20) · `READ_MEDIA_IMAGES` — 이 줄은 원래 "`READ_MEDIA_IMAGES` 권한을 누락하면"이라고 적혀 있었습니다.
   > 그 문장이 오진을 재생산했습니다.** R47 버그 목록(#50)이 "app.json 에 `READ_MEDIA_IMAGES` 가 없다"를
   > 이 줄 하나를 근거로 결함이라고 적었는데, **그 부재는 의도된 결정입니다.**
   >

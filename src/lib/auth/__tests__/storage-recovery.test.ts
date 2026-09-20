@@ -283,12 +283,18 @@ describe("a consented reset that stops answering", () => {
 
   test("a streak clear that never answers cannot hold the finished reset open", async () => {
     // Every step ahead of this one is inside the deadline. The streak clear is not,
-    // and a try/catch does not cover a call that simply never answers - it covers a
-    // call that REJECTS. Holding here left the attempt unsettled after the reset had
-    // already SUCCEEDED, and there is no way back from that: the gate keeps `working`
-    // true with its button disabled (storage-recovery-gate.tsx), and AuthContext hands
-    // every later attempt the same unsettled promise, which it only clears when that
-    // promise settles (storageRecoveryAttemptRef).
+    // so its wait is added to a reset whose outcome is already known.
+    //
+    // What this test injects is not the shipped default. clearFailClosedColdStarts()
+    // bounds its own remove() at FAIL_CLOSED_COUNTER_IO_TIMEOUT_MS (2 s), so the
+    // default path answers late, not never. This is a contract check on the DEPENDENCY
+    // SEAM: a try/catch does not cover a call that simply never answers - it covers a
+    // call that REJECTS - so any substituted clear that stalls would leave the attempt
+    // unsettled after the reset had already SUCCEEDED, and there is no way back from
+    // that: the gate keeps `working` true with its button disabled
+    // (storage-recovery-gate.tsx), and AuthContext hands every later attempt the same
+    // unsettled promise, which it only clears when that promise settles
+    // (storageRecoveryAttemptRef).
     //
     // Deliberately neutral about HOW the step is bounded, so it still describes the
     // symptom if the implementation changes: fired-and-forgotten, raced, or given its
