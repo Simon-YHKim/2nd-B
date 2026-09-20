@@ -301,6 +301,16 @@ jobs:
           ROLLBACK;
           SQL
           done
+      # 0189's erase_my_data() is a destructive SECURITY DEFINER function, so it
+      # is the one thing in this repo that must not be tested by reading its
+      # source. The r38 gate measured 37 green string assertions over a function
+      # whose receipt SELECT raised 42883 on every call (a schema-qualified
+      # COALESCE) and rolled the whole deletion back. This step is the call.
+      # Same scratch DB, same psql, no new secret, permission, or network reach.
+      - name: Exercise content-erasure RPC isolation, refusals and receipt
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/erasure_registry_regression.sql
       - name: Exercise public-data quota contract
         env:
           PGPASSWORD: postgres
