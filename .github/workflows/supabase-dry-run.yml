@@ -295,6 +295,196 @@ jobs:
             END IF;
           END $$;
           SQL
+      # db/migrations/rollback/0189_down.sql is run by hand, mid-incident, and the
+      # next `db push` is then trusted to put everything back. Nothing exercised
+      # that path, and it was broken. The rollback deleted only its OWN ledger row
+      # (name = 'erasure_registry'); 0190's row stayed, so the re-push re-created
+      # erase_my_data from 0189 and SKIPPED the revoke in 0190. The function came
+      # back with the platform default, authenticated=X, under a ledger that read
+      # as fully applied (r49: two gates reproduced it separately, B-K01 and
+      # B-EX-01).
+      #
+      # MEASURED 2026-09-20 22:26 KST, scratch PostgreSQL 18.3, THIS pinned CLI:
+      #   after the old rollback a plain `supabase db push` FAILS ("Found local
+      #   migration files to be inserted before the last migration on remote
+      #   database") and the CLI itself suggests `--include-all`, which is also the
+      #   flag this job pushes with. Following that advice re-applies 0189 alone:
+      #   proacl {postgres=X,authenticated=X,service_role=X}, authenticated = t.
+      #   With both rows deleted there is nothing out of order, and 0189 then 0190
+      #   re-apply: {postgres=X,service_role=X}, authenticated = f.
+      #
+      # Both halves run, on throwaway clones of the database the step above just
+      # pushed, so no later lane sees any of it. It sits HERE, not at the end,
+      # because the clone is then exactly what the CLI pushed and nothing else: a
+      # lane that one day commits residue cannot turn this red for a reason that
+      # has nothing to do with rollback.
+      #
+      #   control  the pre-fix end state, rebuilt by STATE rather than by editing
+      #            the file's text: run the rollback, put 0190's ledger row back,
+      #            re-push. erase_my_data MUST come back executable by
+      #            authenticated. If it comes back locked, this database cannot show
+      #            the hole at all (no function default-privilege floor, or the CLI
+      #            stopped skipping applied versions) and a green below would be
+      #            the vacuous kind the floor in the first step exists to end. So
+      #            the control failing to OPEN is a red, and it runs first.
+      #            MEASURED 2026-09-20 on a scratch DB built without that floor:
+      #            the PRE-FIX file, the one that re-opens the function on prod,
+      #            reads public=f anon=f authenticated=f after the round trip.
+      #            The privilege check alone cannot tell the two files apart
+      #            there; the control is what says so out loud.
+      #   fixed    the file as shipped: rollback, re-push. No ledger row of the
+      #            pair may survive the rollback, no client role may hold EXECUTE
+      #            afterwards, and everything 0189 and 0190 own (ledger, ACL,
+      #            function body, COMMENT, registry rows, table ACL and RLS) must
+      #            equal what it was before the rollback. That last comparison is
+      #            what catches the NEXT migration that leans on these two objects
+      #            and is left out of the rollback's list.
+      #
+      # Every failure is reported before the step exits, so one run shows the whole
+      # shape of a regression rather than its first symptom.
+      - name: Exercise the 0189 rollback round trip
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+
+          # The target psql already resolves in every step of this job: PGPORT and
+          # PGDATABASE when set, else 5432/postgres. The host is always localhost,
+          # so like the push above this reaches the job-local server and nothing
+          # else. The fallbacks let the step be replayed as written against a
+          # local scratch cluster on another port.
+          port="${PGPORT:-5432}"
+          source_db="${PGDATABASE:-postgres}"
+          down="db/migrations/rollback/0189_down.sql"
+          pair="erasure_registry lock_erase_my_data_authenticated"
+
+          staged_project="$(mktemp -d)"
+          trap 'rm -rf -- "$staged_project"' EXIT
+          supabase init --workdir "$staged_project"
+          mkdir -p -- "$staged_project/supabase/migrations"
+          for f in db/migrations/*.sql; do
+            base="${f##*/}"
+            version="${base%%_*}"
+            if (( 10#$version >= 147 )); then
+              cp -- "$f" "$staged_project/supabase/migrations/"
+            fi
+          done
+
+          sql() { # <db> <one statement>
+            psql -X -q -h localhost -U postgres -d "$1" -v ON_ERROR_STOP=1 -Atc "$2"
+          }
+          clone() { # <name>
+            sql "$source_db" "DROP DATABASE IF EXISTS $1"
+            sql "$source_db" "CREATE DATABASE $1 TEMPLATE $source_db"
+          }
+          roll_back() { # <db>
+            psql -X -h localhost -U postgres -d "$1" -v ON_ERROR_STOP=1 -f "$down"
+          }
+          push_again() { # <db>  -- the same command the step above pushes with
+            supabase db push \
+              --db-url "postgresql://postgres:postgres@localhost:${port}/$1?sslmode=disable" \
+              --workdir "$staged_project" \
+              --include-all \
+              --skip-vault \
+              --yes
+          }
+          ledger_pair() { # <db>
+            sql "$1" "SELECT COALESCE(pg_catalog.string_agg(m.name, ' ' ORDER BY m.version), '(none)')
+                      FROM supabase_migrations.schema_migrations AS m
+                      WHERE m.name IN ('erasure_registry', 'lock_erase_my_data_authenticated')"
+          }
+          can_execute() { # <db> <role>
+            sql "$1" "SELECT pg_catalog.has_function_privilege('$2', 'public.erase_my_data(text)', 'EXECUTE')"
+          }
+          fingerprint() { # <db>  -- everything 0189 and 0190 own, on one line
+            sql "$1" "SELECT pg_catalog.concat_ws(' ',
+                        'ledger=' || (SELECT pg_catalog.md5(pg_catalog.string_agg(m.version || ':' || COALESCE(m.name, ''), ',' ORDER BY m.version))
+                                      FROM supabase_migrations.schema_migrations AS m),
+                        'acl=' || COALESCE((SELECT p.proacl::text FROM pg_catalog.pg_proc AS p
+                                            WHERE p.oid = pg_catalog.to_regprocedure('public.erase_my_data(text)')), '(no function)'),
+                        'body=' || COALESCE(pg_catalog.md5(pg_catalog.pg_get_functiondef(pg_catalog.to_regprocedure('public.erase_my_data(text)'))), '(no function)'),
+                        'comment=' || COALESCE(pg_catalog.md5(pg_catalog.obj_description(pg_catalog.to_regprocedure('public.erase_my_data(text)'), 'pg_proc')), '(none)'),
+                        'registry=' || COALESCE((SELECT pg_catalog.count(*) || ':' || pg_catalog.md5(pg_catalog.string_agg(r::text, ',' ORDER BY r.table_name))
+                                                 FROM public.erasure_registry AS r), '(no table)'),
+                        'table=' || COALESCE((SELECT COALESCE(c.relacl::text, '(default)') || ' rls=' || c.relrowsecurity
+                                              FROM pg_catalog.pg_class AS c
+                                              WHERE c.oid = pg_catalog.to_regclass('public.erasure_registry')), '(no table)'))"
+          }
+
+          failed=0
+          fail() {
+            echo "rollback round trip FAILED: $*" >&2
+            failed=1
+          }
+
+          # The shipped state this lane starts from. Without it there is nothing to
+          # come back TO, so stop rather than compare against a wrong baseline.
+          if [[ "$(ledger_pair "$source_db")" != "$pair" ]]; then
+            echo "rollback round trip cannot start: expected the ledger rows [$pair] after the push, found [$(ledger_pair "$source_db")]" >&2
+            exit 1
+          fi
+          for role in public anon authenticated; do
+            if [[ "$(can_execute "$source_db" "$role")" != "f" ]]; then
+              echo "rollback round trip cannot start: $role already holds EXECUTE on erase_my_data before any rollback" >&2
+              exit 1
+            fi
+          done
+
+          echo "== control: the rollback, with 0190's ledger row put back (the pre-fix end state)"
+          clone rollback_probe_control
+          sql rollback_probe_control "CREATE TABLE supabase_migrations.rollback_probe_kept AS
+                                      SELECT * FROM supabase_migrations.schema_migrations
+                                      WHERE name = 'lock_erase_my_data_authenticated'"
+          roll_back rollback_probe_control
+          # ON CONFLICT: if the rollback under test leaves the row in place (the very
+          # regression this lane is for), the control still builds the same state
+          # and the verdict comes from the "fixed" half, with a message that says so.
+          sql rollback_probe_control "INSERT INTO supabase_migrations.schema_migrations
+                                      SELECT * FROM supabase_migrations.rollback_probe_kept
+                                      ON CONFLICT (version) DO NOTHING"
+          sql rollback_probe_control "DROP TABLE supabase_migrations.rollback_probe_kept"
+          control_ledger="$(ledger_pair rollback_probe_control)"
+          push_again rollback_probe_control
+          control_open="$(can_execute rollback_probe_control authenticated)"
+          echo "control: ledger before the re-push [$control_ledger] -> authenticated EXECUTE after it = $control_open"
+          if [[ "$control_ledger" != "lock_erase_my_data_authenticated" ]]; then
+            fail "the control did not reach the pre-fix state: ledger held [$control_ledger], expected only lock_erase_my_data_authenticated"
+          fi
+          if [[ "$control_open" != "t" ]]; then
+            fail "VACUOUS. With 0190's ledger row left behind, erase_my_data should come back executable by authenticated, and it did not (authenticated EXECUTE = $control_open). This database cannot show the hole, so the verdict below proves nothing. Either the function default-privilege floor is missing (see \"Seed Supabase compatibility layer\") or the CLI no longer skips an applied version."
+          fi
+
+          echo "== fixed: $down as shipped"
+          clone rollback_probe_fixed
+          before="$(fingerprint rollback_probe_fixed)"
+          roll_back rollback_probe_fixed
+          after_rollback="$(ledger_pair rollback_probe_fixed)"
+          if [[ "$after_rollback" != "(none)" ]]; then
+            fail "$down left [$after_rollback] in the migration ledger. 0189 and 0190 are one set: the DROP FUNCTION takes 0190's revoke with it, so a surviving 0190 row makes the next push skip the revoke and re-create erase_my_data open to authenticated."
+          fi
+          push_again rollback_probe_fixed
+          after="$(fingerprint rollback_probe_fixed)"
+          verdict=""
+          for role in public anon authenticated; do
+            held="$(can_execute rollback_probe_fixed "$role")"
+            verdict+="$role=$held "
+            if [[ "$held" != "f" ]]; then
+              fail "after rollback + re-push, $role can EXECUTE erase_my_data. It ships locked until a per-user delete fence exists (0190), and a rollback must not be the way it opens."
+            fi
+          done
+          echo "fixed: ledger after the rollback [$after_rollback] -> EXECUTE after the re-push: $verdict"
+          echo "fixed: before  $before"
+          echo "fixed: after   $after"
+          if [[ "$before" != "$after" ]]; then
+            fail "rollback + re-push did not restore what 0189 and 0190 own (compare the two 'fixed:' lines above). A migration that alters erase_my_data or erasure_registry loses its effect to the rollback's DROP, so its ledger row has to go too: fix $down in the same PR."
+          fi
+
+          if (( failed )); then
+            exit 1
+          fi
+          sql "$source_db" "DROP DATABASE rollback_probe_control"
+          sql "$source_db" "DROP DATABASE rollback_probe_fixed"
+          echo "rollback round trip: the control re-opened, the shipped rollback did not, and the state came back identical"
       - name: Reject account-deletion policies when Storage RLS is disabled
         env:
           PGPASSWORD: postgres

@@ -4,6 +4,12 @@
 -- iterate `db/migrations/*.sql`, a non-recursive glob, so this file in a
 -- subdirectory is never picked up. Run it BY HAND and only deliberately.
 --
+-- One place does run it, by explicit path and never against the job's own
+-- database: supabase-dry-run.yml, "Exercise the 0189 rollback round trip", feeds
+-- it to psql on a throwaway CLONE and then pushes again, to prove that a
+-- rollback followed by a push brings erase_my_data back LOCKED. So a change here
+-- is exercised by CI. See "두 행은 한 벌이다" below for what that step caught.
+--
 -- ─────────────────────── 되돌리면 무엇이 되살아나는가 ───────────────────────
 --
 -- 0189 는 기능을 켜지 않았다. 표 하나와 함수 하나를 놓았을 뿐이고, 이 커밋 시점에
@@ -49,10 +55,12 @@
 --         않는다. 손으로 psql 에 먹이므로 감싸 줄 사람이 없고, 감싸지 않으면
 --         위의 반쪽 상태가 그대로 남는다. 금지의 목적은 "한 번만 감싸라" 이지
 --         "감싸지 마라" 가 아니다.
---     (b) 검사가 여기를 볼 수 없다. supabase-dry-run.yml:161 의
---         `for f in db/migrations/*.sql` 은 하위 디렉터리로 내려가지 않는
---         glob 이고, :179 의 금지 검사는 그 배열만 돈다. 그래서 0135·0136·0137
---         이 BEGIN 을 달고도 CI 가 초록이다.
+--     (b) 검사가 여기를 볼 수 없다. supabase-dry-run.yml 의 "Apply staged
+--         migrations" 단계가 도는 `for f in db/migrations/*.sql` 은 하위
+--         디렉터리로 내려가지 않는 glob 이고, 같은 단계의 금지 검사
+--         (transaction_re)는 그 배열만 돈다. 그래서 0135·0136·0137 이 BEGIN 을
+--         달고도 CI 가 초록이다. (줄 번호로 적지 않는다: 161 · 179 라고 적혀
+--         있었는데 r49 가 그 위에 바닥 44줄을 넣으면서 둘 다 틀린 줄이 됐다.)
 --
 -- ─────────────────────── 마이그레이션 이력 ───────────────────────
 --
@@ -66,14 +74,73 @@
 --   대신 조건부로 처리하고 무엇을 지웠는지 NOTICE 로 남긴다.
 --
 -- ⚠ version 이 아니라 **name 으로 지운다.** 네 자리 0189 는 CI 스크래치 규약이고
---   (supabase-dry-run.yml:187-190) 운영 번들은 단조 증가 timestamp version 을
---   따로 받는다. 파일 이름의 첫 밑줄 뒤 - 즉 `erasure_registry` - 는 번호를
---   갈아도 그대로다. CLI 가 ledger 의 name 칸에 넣는 값이 바로 그것이다.
+--   (supabase-dry-run.yml, "Four-digit 0147+ versions are a CI-scratch convention
+--   only") 운영 번들은 단조 증가 timestamp version 을 따로 받는다. 파일 이름의 첫
+--   밑줄 뒤 - 즉 `erasure_registry` - 는 번호를 갈아도 그대로다. CLI 가 ledger 의
+--   name 칸에 넣는 값이 바로 그것이다.
+--   확인한 근거 둘 (2026-09-20): CLI 2.116.0 의 pkg/migration/file.go 가 파일 이름을
+--   `^([0-9]+)_(.*)\.sql$` 로 갈라 둘째 묶음을 Name 으로 쓰고, supabase-dry-run.yml 의
+--   push 단계가 매번 ledger 의 name 을 `${base#*_}` 에서 `.sql` 을 뗀 값과 대조한다.
+--   그래서 0190 의 name 은 `lock_erase_my_data_authenticated` 다.
 --
 -- 이력을 지우면 같은 마이그레이션이 다음 push 에서 **다시 적용된다.** 그게
 -- 의도다. 다시 적용되면 안 되는 상황(전환을 아예 접은 경우)이라면 이 파일을
 -- 돌리기 전에 저장소에서 마이그레이션 파일 자체를 빼야 한다. 이력만 남겨
 -- 재적용을 막는 방법은 쓰지 않는다 - DB 상태와 이력이 어긋난 채로 굳는다.
+--
+-- ─────────────────────── 두 행은 한 벌이다 (0189 + 0190) ───────────────────────
+--
+-- 이 파일은 ledger 에서 **두 행**을 지운다: `erasure_registry`(0189) 와
+-- `lock_erase_my_data_authenticated`(0190). 2026-09-20 까지는 자기 행 하나만
+-- 지웠고, 그게 구멍이었다 (r49 게이트 둘이 각자 재현했다: B-K01 · B-EX-01).
+--
+-- 왜 한 벌인가. 0189 는 함수를 만들고 PUBLIC · anon 만 회수한다. Supabase 는
+-- public 의 새 함수마다 authenticated 에게 EXECUTE 를 **이름으로** 주므로 0189
+-- 만으로는 함수가 열려 있고, 잠금을 완성하는 것은 0190 의 REVOKE 다. 그런데 0190 이
+-- 잠근 것은 **그 함수 객체**다. 아래 DROP FUNCTION 이 객체를 지우면 0190 의 효과
+-- (ACL · COMMENT)도 함께 사라지고, 다시 만들어진 함수는 플랫폼 기본값
+-- (authenticated=X)을 새로 받는다. 그러니 0189 를 되돌린다는 것은 0190 도
+-- 되돌린다는 뜻이고, ledger 도 그렇게 말해야 한다. 0190 행만 남으면 "잠금은
+-- 적용됨" 이라는 기록이 잠글 대상 없이 남는다.
+--
+-- 하나만 지우면 무슨 일이 나는가. 실측 2026-09-20 22:26 KST - 임시 PostgreSQL
+-- 18.3 · 함수 default privilege 바닥 있음 · **실물 Supabase CLI 2.116.0**
+-- (supabase-dry-run.yml 이 고정한 버전. B-K01 은 자기 재현이 CLI 없이 ledger 대로
+-- 0189 만 psql 로 다시 적용한 것이라고 한정해 뒀다. 아래는 CLI 로 돌린 것이다):
+--   1) 되돌린 뒤 ledger 에는 0190:lock_erase_my_data_authenticated 만 남는다.
+--   2) 옵션 없는 `supabase db push` 는 **실패한다** (rc=1): "Found local migration
+--      files to be inserted before the last migration on remote database."
+--      그리고 CLI 가 스스로 권한다: "Rerun the command with --include-all flag".
+--   3) 그 권고대로 `--include-all` 을 붙이면 (이 저장소의 CI 가 쓰는 명령이기도
+--      하다) **0189 만** 다시 적용되고 0190 은 적용된 것으로 보고 건너뛴다.
+--   4) 끝 상태: proacl {postgres=X,authenticated=X,service_role=X} ·
+--      has_function_privilege('authenticated', ...) = true. 그런데 ledger 에는 두
+--      행이 다 있어서 **멀쩡해 보인다.** 0190 이 닫은 F-02 가 기록에 흔적 없이
+--      되살아난다 - 사고 대응 중에 CLI 의 안내를 그대로 따른 결과로.
+-- 두 행을 함께 지우면 2) 의 실패부터 없다. 둘 다 remote 의 마지막 version 뒤에
+-- 오는 평범한 pending 이 되어, 옵션 없는 `db push` 가 0189 → 0190 순서로 다시
+-- 적용한다 (같은 조건에서 실측).
+--
+-- 같은 트랜잭션에서 지운다. DROP 과 두 DELETE 사이 어디서 끊겨도 위 1) 의 상태
+-- ("함수는 없는데 0190 은 적용됨")가 남지 않아야 하기 때문이다.
+--
+-- 옛 파일을 이미 돌린 DB 도 이 파일로 고친다 (같은 조건에서 실측). DDL 이 전부
+-- IF EXISTS 라 다시 돌려도 되고, 0190 행만 남아 있으면 그 행을 지운다. 이미 3) 까지
+-- 가서 함수가 열린 채 되살아난 DB 라면 함수와 두 행을 다 걷어내므로 다음 push 가
+-- 잠긴 채로 다시 세운다.
+--
+-- ⚠ 0190 의 머리말(66-72행)은 이 함정을 "후속으로 남겼다" 고 적고 있다. 이 절이
+--   그 후속이다. 0190 은 머지된 마이그레이션이라 그 문장은 고치지 않는다.
+--
+-- ⚠ 아래 목록은 "0189 가 만든 두 객체에 **기대는** 마이그레이션 전부" 이고 지금은
+--   0190 하나다. 나중에 erase_my_data 를 다시 정의하거나 GRANT 하는 마이그레이션,
+--   erasure_registry 에 행을 넣는 마이그레이션이 생기면 그 효과도 아래 DROP 과 함께
+--   사라진다. 그 행이 ledger 에 남으면 같은 구멍이 다른 모양으로 난다 (예: 삭제
+--   울타리를 넣은 새 함수 본문이 조용히 0189 의 옛 본문으로 돌아간다). 그런
+--   마이그레이션은 **같은 PR 에서** 이 파일을 함께 고친다 - 대개는 목록에 name 을
+--   더하는 것이지만, 통째로 다시 적용해도 되는 파일인지 먼저 볼 것.
+--   supabase-dry-run.yml 의 "Exercise the 0189 rollback round trip" 단계가
+--   되돌리기 + 다시 밀기 뒤의 상태를 되돌리기 전과 대조하므로, 잊으면 CI 가 빨강이다.
 
 BEGIN;
 
@@ -103,43 +170,73 @@ $rollback_guard$;
 
 DROP TABLE IF EXISTS public.erasure_registry;
 
--- 이력 정리. 여기까지 왔으면 DB 에는 0189 의 흔적이 없다. ledger 에만 남아
--- 있으면 다음 db push 가 이 마이그레이션을 건너뛴다.
+-- 이력 정리. 여기까지 왔으면 DB 에는 0189 의 흔적도 0190 의 흔적도 없다 (0190 이
+-- 바꾼 것은 위에서 지운 함수의 ACL 과 COMMENT 뿐이다). ledger 에만 남아 있으면
+-- 다음 db push 가 그 마이그레이션을 건너뛴다. 왜 둘을 함께 지우는지는 머리말
+-- "두 행은 한 벌이다" 에 있다.
 DO $rollback_ledger$
 DECLARE
-  v_versions text;
-  v_removed  bigint;
+  c_names constant text[] := ARRAY[
+    'erasure_registry',                  -- 0189
+    'lock_erase_my_data_authenticated'   -- 0190: 0189 가 만든 함수의 잠금을 완성한다
+  ];
+  v_found   text;
+  v_absent  text;
+  v_removed bigint;
 BEGIN
   IF to_regclass('supabase_migrations.schema_migrations') IS NULL THEN
     RAISE NOTICE '0189 rollback: supabase_migrations.schema_migrations 가 없다 (CLI 가 적용하지 않은 DB) - 이력 정리 없음';
     RETURN;
   END IF;
 
-  SELECT pg_catalog.string_agg(m.version, ', ' ORDER BY m.version)
-    INTO v_versions
+  SELECT pg_catalog.string_agg(m.name || ' (version ' || m.version || ')', ', ' ORDER BY m.version)
+    INTO v_found
   FROM supabase_migrations.schema_migrations AS m
-  WHERE m.name = 'erasure_registry';
+  WHERE m.name = ANY (c_names);
 
-  IF v_versions IS NULL THEN
-    RAISE NOTICE '0189 rollback: ledger 에 erasure_registry 행이 없다 - 정리할 이력 없음';
+  IF v_found IS NULL THEN
+    RAISE NOTICE '0189 rollback: ledger 에 % 행이 하나도 없다 - 정리할 이력 없음', c_names;
     RETURN;
   END IF;
 
+  SELECT pg_catalog.string_agg(n.name, ', ' ORDER BY n.name)
+    INTO v_absent
+  FROM pg_catalog.unnest(c_names) AS n(name)
+  WHERE NOT EXISTS (
+    SELECT 1 FROM supabase_migrations.schema_migrations AS m WHERE m.name = n.name
+  );
+
   DELETE FROM supabase_migrations.schema_migrations AS m
-  WHERE m.name = 'erasure_registry';
+  WHERE m.name = ANY (c_names);
   GET DIAGNOSTICS v_removed = ROW_COUNT;
 
-  RAISE NOTICE '0189 rollback: ledger 에서 erasure_registry % 행을 지웠다 (version %). 다음 db push 가 이 마이그레이션을 다시 적용한다.',
-    v_removed, v_versions;
+  RAISE NOTICE '0189 rollback: ledger 에서 % 행을 지웠다: %. 다음 db push 가 함께 다시 적용한다.',
+    v_removed, v_found;
+
+  -- 한 벌 중 일부만 있었다. 아직 적용된 적이 없는 것이면 해롭지 않다 (다음 push 가
+  -- 적용한다). 위험한 경우는 그 마이그레이션이 **다른 name 으로** 기록돼 있을
+  -- 때다: 이 파일은 name 으로 찾으므로 그 행을 못 보고 남기고, 남은 행이 곧
+  -- 머리말의 구멍이다. name 과 무관하게 내용으로 찾는 조회를 함께 알려 준다.
+  IF v_absent IS NOT NULL THEN
+    RAISE WARNING '0189 rollback: ledger 에 이 name 의 행이 없었다: %. 아직 적용되지 않은 것이면 괜찮다. 다른 name 으로 기록돼 있다면 그 행을 손으로 지워야 한다 - 남아 있으면 다음 push 가 그 마이그레이션을 건너뛰고, 0190 의 경우 erase_my_data 가 authenticated=X 로 되살아난다. 내용으로 찾기: SELECT version, name FROM supabase_migrations.schema_migrations WHERE statements::text LIKE ''%%erase_my_data%%'' OR statements::text LIKE ''%%erasure_registry%%'';',
+      v_absent;
+  END IF;
 END;
 $rollback_ledger$;
 
 COMMIT;
 
--- 돌린 뒤 확인할 것 (셋 다 손으로):
+-- 돌린 뒤 확인할 것 (손으로):
 --   1) SELECT to_regprocedure('public.erase_my_data(text)');            -> NULL
 --   2) SELECT to_regclass('public.erasure_registry');                   -> NULL
 --   3) SELECT version, name FROM supabase_migrations.schema_migrations
---        WHERE name = 'erasure_registry';                               -> 0 행
+--        WHERE name IN ('erasure_registry',
+--                       'lock_erase_my_data_authenticated');            -> 0 행
 -- 셋 중 하나라도 어긋나면 COMMIT 이 나지 않은 것이다. 트랜잭션이라 중간 상태는
 -- 없으므로, 오류 메시지를 보고 같은 파일을 다시 돌리면 된다.
+--
+-- 그리고 **다시 민 뒤에** 하나 더:
+--   4) SELECT has_function_privilege('authenticated',
+--               'public.erase_my_data(text)', 'EXECUTE');               -> false
+--      true 면 0190 이 건너뛰어진 것이다 (머리말 "두 행은 한 벌이다"). 3) 의 조회를
+--      name 대신 위 WARNING 의 내용 조회로 다시 해서 남은 행을 찾는다.

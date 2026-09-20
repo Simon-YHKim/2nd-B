@@ -348,4 +348,114 @@ describe(`${FILE} -- structure`, () => {
     // `db/migrations/*.sql` is non-recursive, so the twin is never applied.
     expect(readdirSync(MIGRATIONS).filter((f) => f.endsWith(".sql"))).not.toContain("0189_down.sql");
   });
+
+  test("the rollback clears BOTH ledger rows, inside the transaction that drops the function", () => {
+    // 0190 locks the function OBJECT that 0189 creates, so dropping the function
+    // takes 0190's revoke with it. The rollback used to delete only its own
+    // ledger row (name = 'erasure_registry'). 0190's row survived, the next push
+    // re-created the function from 0189 and SKIPPED 0190, and erase_my_data came
+    // back with the platform default: authenticated=X, under a ledger that read as
+    // fully applied (r49, two gates separately: B-K01 and B-EX-01). Measured
+    // 2026-09-20 with the pinned CLI 2.116.0: a plain `db push` refuses the
+    // out-of-order 0189 and itself suggests `--include-all`; taking that advice
+    // is what re-opens the function.
+    //
+    // The behaviour is proved against a real database by the workflow step pinned
+    // in the next test. This is the cheap half: it goes red in `npm run verify`,
+    // with no database, the moment the second name leaves the set.
+    const down = stripSqlComments(readFileSync(join(MIGRATIONS, "rollback", "0189_down.sql"), "utf8"));
+
+    // Not typed a second time: the ledger name is what the pinned CLI derives
+    // from the FILE name (pkg/migration/file.go at v2.116.0: `^([0-9]+)_(.*)\.sql$`,
+    // Name = group 2), and supabase-dry-run.yml re-reads it from the ledger after
+    // every push. Rename either migration and this follows.
+    const ledgerName = (file: string): string => {
+      const match = /^[0-9]+_(.*)\.sql$/.exec(file);
+      if (!match) throw new Error(`not a migration file name: ${file}`);
+      return match[1];
+    };
+    const expected = [FILE, LOCK_FILE].map(ledgerName);
+    expect(expected).toEqual(["erasure_registry", "lock_erase_my_data_authenticated"]);
+
+    const declared = /c_names\s+constant\s+text\[\]\s*:=\s*ARRAY\[([^\]]*)\]/.exec(down);
+    expect(declared).not.toBeNull();
+    // Trailing comments go first, so a name that survives only in a remark beside
+    // the array cannot stand in for one the DELETE actually receives.
+    const names = [...(declared?.[1] ?? "").replace(/--.*$/gm, "").matchAll(/'([^']+)'/g)].map(
+      (m) => m[1],
+    );
+    expect(names).toEqual(expected);
+
+    // Naming both is not deleting both. Measured: with the array intact and this
+    // predicate put back to `m.name = 'erasure_registry'`, the file's own NOTICE
+    // still LISTS both names as deleted (the list is read from the array) beside
+    // a row count of 1, and 0190's row survives.
+    const deletes = [
+      ...down.matchAll(/DELETE\s+FROM\s+supabase_migrations\.schema_migrations[^;]*;/gi),
+    ].map((m) => m[0]);
+    expect(deletes).toHaveLength(1);
+    expect(deletes[0]).toMatch(/WHERE\s+m\.name\s*=\s*ANY\s*\(\s*c_names\s*\)\s*;$/);
+
+    // One transaction, in this order. Cut anywhere between the DROP and the DELETE
+    // and what is left is "no function, 0190 recorded as applied": the hole.
+    const beginAt = down.search(/^[ \t]*BEGIN;/m);
+    const dropAt = down.search(/DROP FUNCTION IF EXISTS public\.erase_my_data\(text\);/);
+    const deleteAt = down.search(/DELETE\s+FROM\s+supabase_migrations\.schema_migrations/i);
+    const commitAt = down.search(/^[ \t]*COMMIT;/m);
+    expect(Math.min(beginAt, dropAt, deleteAt, commitAt)).toBeGreaterThanOrEqual(0);
+    expect(beginAt).toBeLessThan(dropAt);
+    expect(dropAt).toBeLessThan(deleteAt);
+    expect(deleteAt).toBeLessThan(commitAt);
+    expect(down.match(/^[ \t]*BEGIN;/gm)).toHaveLength(1);
+    expect(down.match(/^[ \t]*COMMIT;/gm)).toHaveLength(1);
+  });
+
+  test("...and CI replays rollback + re-push on a real database, behind a control that can see the hole", () => {
+    // Reading the rollback's text cannot show what the NEXT push does; only a push
+    // can. So supabase-dry-run.yml runs the shipped file against a clone of the
+    // pushed scratch database and pushes again with the pinned CLI. Pinned here so
+    // the step cannot quietly disappear, be pointed at a copy of the file, or lose
+    // the half that keeps it honest.
+    //
+    // That half is the control. It rebuilds the pre-fix end state (0190's ledger
+    // row left behind) and REQUIRES erase_my_data to come back open. On a database
+    // with no function default-privilege floor it comes back locked whatever the
+    // rollback does, and "locked after the round trip" would then be green for a
+    // reason no file caused, which is exactly how 0189 shipped its lock claim.
+    //
+    // `#` comment lines only. The floor test above also strips lines that open
+    // with `--`, as SQL comments. Measured while writing this test: over a shell
+    // step that removes the CLI's own flags, because `--include-all \` sits alone
+    // on its line, and the assertion below went red with the flag in plain sight.
+    // This step carries no SQL comment, so nothing is lost by leaving `--` alone.
+    const workflow = readFileSync(join(ROOT, ".github", "workflows", "supabase-dry-run.yml"), "utf8")
+      .replace(/^\s*#.*$/gm, "");
+    const pushAt = workflow.indexOf("- name: Apply staged migrations (0147+) through Supabase CLI");
+    const tripAt = workflow.indexOf("- name: Exercise the 0189 rollback round trip");
+    expect(pushAt).toBeGreaterThanOrEqual(0);
+    expect(tripAt).toBeGreaterThan(pushAt);
+    const nextAt = workflow.indexOf("\n      - name:", tripAt + 1);
+    const step = workflow.slice(tripAt, nextAt === -1 ? undefined : nextAt);
+
+    // The SHIPPED file, by path, fed to psql the way an operator would.
+    expect(step).toContain('down="db/migrations/rollback/0189_down.sql"');
+    expect(step).toMatch(/psql [^\r\n]*-f "\$down"/);
+    // Pushed again by the pinned CLI with this job's own flags, not re-applied by hand.
+    expect(step).toMatch(/supabase db push[\s\S]{0,240}--include-all/);
+
+    // The control comes first, and failing to OPEN is a failure.
+    const vacuousAt = step.indexOf("VACUOUS");
+    const fixedAt = step.indexOf("clone rollback_probe_fixed");
+    expect(vacuousAt).toBeGreaterThanOrEqual(0);
+    expect(fixedAt).toBeGreaterThan(vacuousAt);
+    expect(step).toMatch(/if \[\[ "\$control_open" != "t" \]\]; then\s+fail "VACUOUS/);
+
+    // After the re-push: all three client roles are read, and the state 0189 and
+    // 0190 own is compared with what it was before the rollback.
+    expect(step).toMatch(
+      /for role in public anon authenticated; do\s+held="\$\(can_execute rollback_probe_fixed "\$role"\)"/,
+    );
+    expect(step).toMatch(/if \[\[ "\$before" != "\$after" \]\]; then\s+fail /);
+    expect(step).toMatch(/if \(\( failed \)\); then\s+exit 1/);
+  });
 });
