@@ -638,7 +638,12 @@ describe("check:erasure-registry -- G3 reads rows, not headers (r40 M1/M2)", () 
     expect(fired).toHaveLength(1);
     expect(fired[0]).toContain("notes");
     expect(fired[0]).toContain("USING (false)");
-    expect(fired[0]).toContain('binds');
+    // r42: a constant row filter is no longer judged ("this admits nothing, so
+    // the owner cannot delete") but FAILED CLOSED. What `USING (false)` does
+    // depends on the other policies on the table, and that composition is the
+    // thing this guard stopped claiming to know.
+    expect(fired[0]).toMatch(/^G3c /);
+    expect(fired[0]).toContain("erasure_registry_regression.sql");
   });
 
   test("M2 mutation: a FOR ALL policy with no USING at all is not owner-bound", () => {
@@ -810,5 +815,304 @@ describe("the real registry still classifies the same 66 rows (r40 M1/M2)", () =
       );
       expect(policies.map(([name]) => `${table}:${name}`)).toEqual([]);
     }
+  });
+});
+
+// ===========================================================================
+// r42 -- THE BOUNDARY MOVED, AND THIS IS THE TABLE THAT HOLDS IT
+// ===========================================================================
+//
+// Three review rounds closed the exact SQL spellings they were shown and the
+// next round found equivalent ones. Every entry below is a mutation one of
+// those rounds walked through the guard GREEN. Each must now end in one of two
+// states, never a third:
+//
+//   RED          the static text contradicts the registry outright
+//   FAIL CLOSED  the static text cannot answer, so the guard says so and names
+//                db/tests/erasure_registry_regression.sql
+//
+// A silent pass is the failure mode this table exists to make impossible, so
+// every row asserts which rule fired as well as that one did, and each row is
+// preceded by its own green baseline (the no-op mutation trap: a "red" that
+// was never green proves nothing).
+describe("check:erasure-registry -- every mutation the r40/r41 gates walked through (r42)", () => {
+  let root = "";
+  afterEach(() => {
+    if (root) rmSync(root, { recursive: true, force: true });
+    root = "";
+  });
+
+  /** notes gains its own SELECT policy beside the FOR ALL one, which is the
+   *  real shape of clipper_templates and template_blocks. */
+  const WITH_SELECT_POLICY = `${BASE_SQL}
+CREATE POLICY notes_owner_select ON notes FOR SELECT TO authenticated USING (user_id = auth.uid());
+`;
+
+  /** 0102's shape: a DO block that builds an ALTER POLICY out of pg_policies
+   *  and executes it. It names no table, so nothing static can bound its
+   *  reach -- which is why the guard stopped judging policy EXPRESSIONS. */
+  const DYNAMIC_ALTER_0102 = `
+DO $rewrite$
+DECLARE
+  r    record;
+  stmt text;
+BEGIN
+  FOR r IN SELECT schemaname, tablename, policyname, qual FROM pg_policies WHERE schemaname = 'public'
+  LOOP
+    stmt := format('ALTER POLICY %I ON %I.%I', r.policyname, r.schemaname, r.tablename);
+    stmt := stmt || ' USING (' || r.qual || ')';
+    EXECUTE stmt;
+  END LOOP;
+END
+$rewrite$;
+`;
+
+  function green(sql?: string, baseSql: string = BASE_SQL): string[] {
+    const probe = makeTree(baseRegistry(), sql, baseSql);
+    try {
+      return rulesFired(probe, "G3");
+    } finally {
+      rmSync(probe, { recursive: true, force: true });
+    }
+  }
+
+  /** Green baseline, then exactly one change, then the rule that must fire. */
+  function mutate(opts: {
+    baseline?: string;
+    baseSql?: string;
+    mutation: string;
+    rule: "G3a" | "G3b" | "G3c";
+    says: string;
+  }): void {
+    expect(green(opts.baseline, opts.baseSql)).toEqual([]);
+    root = makeTree(baseRegistry(), `${opts.baseline ?? ""}\n${opts.mutation}`, opts.baseSql);
+    const fired = rulesFired(root, "G3");
+    // `some`, not `every`: a mutation may legitimately trip two rules at once.
+    // `EXECUTE $p$DROP POLICY ...$p$` is both unmodelled (G3c) and, because a
+    // dollar body opened by EXECUTE really is code, replayed as a DROP (G3b).
+    // Two reds are a stronger result than one; zero is the only failure.
+    expect(fired.some((e) => e.startsWith(opts.rule))).toBe(true);
+    expect(fired.join(" | ")).toContain(opts.says);
+    if (opts.rule === "G3c") {
+      expect(fired.filter((e) => e.startsWith("G3c")).join(" | ")).toContain("erasure_registry_regression.sql");
+    }
+  }
+
+  // -- forged policies: text that mentions DDL is not DDL -------------------
+
+  test("[1] a policy forged in a single-quoted RAISE NOTICE does not replace the real one", () => {
+    mutate({
+      mutation: `
+        DROP POLICY notes_owner_all ON notes;
+        DO $x$ BEGIN
+          RAISE NOTICE 'CREATE POLICY notes_owner_all ON notes FOR ALL TO authenticated USING (user_id = auth.uid());';
+        END $x$;`,
+      rule: "G3b",
+      says: "no DELETE or ALL policy",
+    });
+  });
+
+  test("[2] and the same forgery in a DOLLAR-quoted NOTICE body (r41 gate F3)", () => {
+    mutate({
+      mutation: `
+        DROP POLICY notes_owner_all ON notes;
+        DO $x$ BEGIN
+          RAISE NOTICE $msg$CREATE POLICY notes_owner_all ON notes FOR ALL TO authenticated USING (user_id = auth.uid());$msg$;
+        END $x$;`,
+      rule: "G3b",
+      says: "no DELETE or ALL policy",
+    });
+  });
+
+  test("[3] and in a dollar-quoted VARIABLE initialiser (r41 gate F3)", () => {
+    mutate({
+      mutation: `
+        DROP POLICY notes_owner_all ON notes;
+        DO $x$
+        DECLARE example text := $msg$CREATE POLICY notes_owner_all ON notes FOR ALL TO authenticated USING (user_id = auth.uid());$msg$;
+        BEGIN
+          RAISE NOTICE '%', example;
+        END $x$;`,
+      rule: "G3b",
+      says: "no DELETE or ALL policy",
+    });
+  });
+
+  // -- ALTER POLICY: modelled in its literal form ---------------------------
+
+  test("[4] ALTER POLICY inverting the owner test is a contradiction, not a pass (r41 gate F1)", () => {
+    mutate({
+      mutation: `ALTER POLICY notes_owner_all ON public.notes USING (user_id <> auth.uid());`,
+      rule: "G3a",
+      says: "binds something other than",
+    });
+  });
+
+  test("[5] ALTER POLICY ... TO anon takes the owner's delete path away", () => {
+    mutate({
+      mutation: `ALTER POLICY notes_owner_all ON public.notes TO anon;`,
+      rule: "G3b",
+      says: "no DELETE or ALL policy",
+    });
+  });
+
+  test("[6] ALTER POLICY ... USING (false) fails closed on the constant", () => {
+    mutate({
+      mutation: `ALTER POLICY notes_owner_all ON public.notes USING (false);`,
+      rule: "G3c",
+      says: "constant row filter USING (false)",
+    });
+  });
+
+  // -- policy COMPOSITION: never modelled, always fail closed ---------------
+
+  test("[7] a second permissive policy is ORed in by Postgres, so the guard stops (r41 gate F1)", () => {
+    mutate({
+      mutation: `CREATE POLICY notes_broad ON public.notes FOR ALL TO authenticated USING (true);`,
+      rule: "G3c",
+      says: "permissive policies reach DELETE",
+    });
+  });
+
+  test("[8] AS RESTRICTIVE is ANDed on top, so the guard stops (r41 gate F1)", () => {
+    mutate({
+      mutation: `CREATE POLICY notes_deny ON public.notes AS RESTRICTIVE FOR DELETE TO authenticated USING (false);`,
+      rule: "G3c",
+      says: "AS RESTRICTIVE",
+    });
+  });
+
+  test("[9] narrowing the SELECT policy is caught although DELETE is untouched (r41 gate F1)", () => {
+    mutate({
+      baseSql: WITH_SELECT_POLICY,
+      mutation: `
+        DROP POLICY notes_owner_select ON public.notes;
+        CREATE POLICY notes_owner_select ON public.notes FOR SELECT TO authenticated USING (false);`,
+      rule: "G3c",
+      says: "constant row filter USING (false)",
+    });
+  });
+
+  // -- dynamic DDL, in any quoting ------------------------------------------
+
+  test("[10] EXECUTE of a SINGLE-quoted DROP POLICY fails closed (r41 gate M1)", () => {
+    mutate({
+      mutation: `DO $x$ BEGIN EXECUTE 'DROP POLICY notes_owner_all ON public.notes'; END $x$;`,
+      rule: "G3c",
+      says: "dynamic-ddl",
+    });
+  });
+
+  test("[11] EXECUTE of a DOLLAR-quoted DROP POLICY fails closed", () => {
+    mutate({
+      mutation: `DO $x$ BEGIN EXECUTE $p$DROP POLICY notes_owner_all ON public.notes$p$; END $x$;`,
+      rule: "G3c",
+      says: "dynamic-ddl",
+    });
+  });
+
+  test("[12] EXECUTE format(...) that builds a REVOKE fails closed", () => {
+    mutate({
+      mutation: `DO $x$ BEGIN EXECUTE format('REVOKE DELETE ON public.notes FROM %I', 'authenticated'); END $x$;`,
+      rule: "G3c",
+      says: "dynamic-ddl",
+    });
+  });
+
+  // -- privileges -----------------------------------------------------------
+
+  test("[13] a per-table REVOKE DELETE still goes red (r40 gate M2, kept)", () => {
+    mutate({
+      mutation: `REVOKE DELETE ON public.notes FROM authenticated;`,
+      rule: "G3b",
+      says: "TABLE-level DELETE privilege",
+    });
+  });
+
+  test("[14] REVOKE SELECT ends owner deletion too, because the WHERE reads the owner column", () => {
+    mutate({
+      mutation: `REVOKE SELECT ON public.notes FROM authenticated;`,
+      rule: "G3b",
+      says: "TABLE-level SELECT privilege",
+    });
+  });
+
+  test("[15] REVOKE ... ON ALL TABLES IN SCHEMA public fails closed (r41 gate M3)", () => {
+    mutate({
+      mutation: `REVOKE DELETE ON ALL TABLES IN SCHEMA public FROM PUBLIC, authenticated;`,
+      rule: "G3c",
+      says: "schema-wide-acl",
+    });
+  });
+
+  test("[16] REVOKE USAGE ON SCHEMA public fails closed (r41 gate F2)", () => {
+    mutate({
+      mutation: `REVOKE USAGE ON SCHEMA public FROM PUBLIC, authenticated;`,
+      rule: "G3c",
+      says: "schema-wide-acl",
+    });
+  });
+
+  test("[17] a role whose NAME merely contains 'authenticated' is a different role (r41 gate M2)", () => {
+    mutate({
+      mutation: `
+        DROP POLICY notes_owner_all ON public.notes;
+        CREATE POLICY notes_owner_all ON public.notes FOR ALL TO not_authenticated USING (user_id = auth.uid());`,
+      rule: "G3b",
+      says: "no DELETE or ALL policy",
+    });
+  });
+
+  // -- the exemption, and its own mutation ----------------------------------
+
+  test("[18] 0102's expression-only dynamic ALTER POLICY is exempt, counted and NOT silent", () => {
+    expect(green(DYNAMIC_ALTER_0102)).toEqual([]);
+    root = makeTree(baseRegistry(), DYNAMIC_ALTER_0102);
+    const replay = replayMigrations(join(root, "db", "migrations"));
+    expect(replay.beyondModel).toEqual([]);
+    expect(replay.expressionOnlyRewrites).toHaveLength(1);
+    expect(replay.expressionOnlyRewrites[0].detail).toContain("ALTER POLICY");
+  });
+
+  test("[19] ...and the moment that same statement can also change the ROLE, it fails closed", () => {
+    mutate({
+      mutation: DYNAMIC_ALTER_0102.replace(
+        "stmt := stmt || ' USING (' || r.qual || ')';",
+        "stmt := stmt || ' TO anon';",
+      ),
+      rule: "G3c",
+      says: "dynamic-ddl",
+    });
+  });
+
+  // -- false REDS the gates also found. A guard that cries wolf gets widened,
+  //    and a widened guard is how the holes above got in.
+
+  test("[20] REVOKE GRANT OPTION FOR DELETE leaves DELETE itself, and must stay green (r41 gate F2)", () => {
+    expect(green(`REVOKE GRANT OPTION FOR DELETE ON public.notes FROM authenticated;`)).toEqual([]);
+  });
+
+  test("[21] dynamic DDL aimed outside the registry (storage.objects, a FUNCTION) stays green", () => {
+    expect(
+      green(`
+        DO $x$ BEGIN
+          EXECUTE $p$CREATE POLICY raw_owner ON storage.objects FOR SELECT TO authenticated USING (true)$p$;
+          EXECUTE 'REVOKE EXECUTE ON FUNCTION public.some_fn(text) FROM anon';
+        END $x$;`),
+    ).toEqual([]);
+  });
+
+  test("[22] a real CREATE POLICY inside a DO block is still read as DDL", () => {
+    expect(
+      green(`
+        DROP POLICY notes_owner_all ON notes;
+        DO $mig$ BEGIN
+          CREATE POLICY notes_owner_all ON notes FOR ALL TO authenticated USING (user_id = auth.uid());
+        END $mig$;`),
+    ).toEqual([]);
+  });
+
+  test("[23] an ALTER POLICY that only re-spells auth.uid() is not a contradiction", () => {
+    expect(green(`ALTER POLICY notes_owner_all ON public.notes USING (user_id = (select auth.uid()));`)).toEqual([]);
   });
 });

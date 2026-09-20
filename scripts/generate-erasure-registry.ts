@@ -151,29 +151,65 @@ export function stripSqlComments(sql: string): string {
  * recurse into them and apply the same inert/executable split one level down.
  * Nested tags (`$mig$ ... $p$ ... $p$ ... $mig$`) recurse the same way.
  *
+ * AND THE DOLLAR TAG DOES NOT DECIDE IT -- THE TOKEN IN FRONT OF IT DOES.
+ * `$tag$ ... $tag$` is Postgres' *string literal* syntax. Whether its contents
+ * are code depends entirely on where the literal sits, and the r41 gate (F3)
+ * measured this hole by writing the single-quote false green one syntax over:
+ *
+ *   DROP POLICY records_owner_all ON public.records;
+ *   DO $x$ BEGIN RAISE NOTICE $msg$CREATE POLICY records_owner_all ...$msg$; END $x$;
+ *
+ * The policy is really gone; the guard saw the NOTICE text and replayed it as a
+ * CREATE. `DECLARE example text := $msg$CREATE POLICY ...$msg$` did the same.
+ * So a dollar body counts as code only when the preceding keyword makes it
+ * code: `DO $$...$$`, a function body `... AS $$...$$`, or a dynamic
+ * `EXECUTE $p$...$p$` (which is how 0074/0186/0188 write the storage policies).
+ * Anywhere else -- RAISE, an assignment, a comparison, a function argument,
+ * COMMENT ON ... IS -- the body is data and is blanked like a quoted literal.
+ *
  * Length is preserved exactly -- a literal becomes `'` + spaces + `'`, a comment
  * becomes spaces -- because `replayMigrations` sorts events by match offset and
  * a shifting offset would reorder statements that Postgres does not reorder.
  */
 export function maskInertSql(sql: string): string {
+  return maskInertRange(sql, 0, sql.length);
+}
+
+/** `DO`, a function body's `AS`, and `EXECUTE` are the three places a
+ *  dollar-quoted literal is executed rather than read. Matched against the text
+ *  immediately before the opening tag. */
+const EXECUTABLE_DOLLAR_PREFIX = /(?:\bdo\b(?:\s+language\s+[a-z_]+)?|\bas\b|\bexecute\b)\s*$/i;
+
+function opensExecutableBody(sql: string, tagStart: number): boolean {
+  return EXECUTABLE_DOLLAR_PREFIX.test(sql.slice(Math.max(0, tagStart - 120), tagStart));
+}
+
+/** Masks `sql[from, to)` and returns a string of exactly `to - from` characters.
+ *  Takes the whole buffer rather than a slice so the dollar-tag rule above can
+ *  look at the token in front of a tag even when that token sits in an
+ *  enclosing body. */
+function maskInertRange(sql: string, from: number, to: number): string {
   let out = "";
-  let i = 0;
-  while (i < sql.length) {
+  let i = from;
+  while (i < to) {
     const dollar = matchDollarTag(sql, i);
     if (dollar) {
-      const end = sql.indexOf(dollar, i + dollar.length);
-      if (end === -1) {
-        // Unterminated tag. Keep descending rather than bailing: the remaining
-        // text is still the body, and blanking it wholesale would hide DDL.
-        out += dollar + maskInertSql(sql.slice(i + dollar.length));
-        return out;
-      }
-      out += dollar + maskInertSql(sql.slice(i + dollar.length, end)) + dollar;
-      i = end + dollar.length;
+      const found = sql.indexOf(dollar, i + dollar.length);
+      // Unterminated (or terminated outside this range): the rest of the range
+      // is the body. Keep going rather than bailing -- blanking it wholesale
+      // would hide DDL, and returning early would lose the tail.
+      const closed = found !== -1 && found + dollar.length <= to;
+      const bodyFrom = i + dollar.length;
+      const bodyTo = closed ? found : to;
+      const body = opensExecutableBody(sql, i)
+        ? maskInertRange(sql, bodyFrom, bodyTo)
+        : " ".repeat(Math.max(bodyTo - bodyFrom, 0));
+      out += dollar + body + (closed ? dollar : "");
+      i = closed ? found + dollar.length : to;
       continue;
     }
     if (sql[i] === "'") {
-      const end = findSingleQuoteEnd(sql, i);
+      const end = Math.min(findSingleQuoteEnd(sql, i), to);
       // `closed` is true for every well-formed literal; the false branch only
       // happens on malformed SQL, where dropping the trailing quote would make
       // the paren scanners swallow the rest of the file.
@@ -187,14 +223,14 @@ export function maskInertSql(sql: string): string {
     // false green as the string-literal case, one syntax over.
     if (sql.startsWith("--", i)) {
       const nl = sql.indexOf("\n", i);
-      const stop = nl === -1 ? sql.length : nl;
+      const stop = Math.min(nl === -1 ? to : nl, to);
       out += " ".repeat(stop - i);
       i = stop;
       continue;
     }
     if (sql.startsWith("/*", i)) {
       const close = sql.indexOf("*/", i + 2);
-      const stop = close === -1 ? sql.length : close + 2;
+      const stop = Math.min(close === -1 ? to : close + 2, to);
       out += " ".repeat(stop - i);
       i = stop;
       continue;
@@ -310,8 +346,54 @@ function ownerEvidence(columnName: string, definition: string): OwnerColumn | nu
  *  `USING (false)` and G3 stayed green, which is defect F1 wearing a policy
  *  name. A policy with no USING is just as suspect in the other direction:
  *  Postgres leaves its row filter unset, so a FOR ALL policy without one would
- *  let the caller delete everyone's rows. Both cases need the expression. */
-export type PolicyState = { command: string; roles: string; using: string | null; file: string };
+ *  let the caller delete everyone's rows. Both cases need the expression.
+ *
+ *  `permissive` is false for `AS RESTRICTIVE`. Postgres ORs the permissive
+ *  policies together and then ANDs every restrictive one on top, so a single
+ *  restrictive policy can veto rows that an owner policy admits -- and a second
+ *  permissive policy can hand back rows the owner policy excludes. Neither
+ *  composition is modelled here; both are reported as beyond the model and
+ *  decided by the catalog test instead (r41 gate F1).
+ *
+ *  `usingUnreadable` is true when the header said USING but the expression
+ *  could not be extracted. That must never read as "no USING": one means the
+ *  parser failed, the other means Postgres leaves the row filter unset. */
+export type PolicyState = {
+  command: string;
+  roles: string;
+  using: string | null;
+  file: string;
+  permissive: boolean;
+  usingUnreadable: boolean;
+};
+
+/** Something in db/migrations that changes policy or privilege state in a way
+ *  this parser does not model. It is never dropped silently: `check:erasure-registry`
+ *  turns each one into a failure that hands the question to the catalog test.
+ *
+ *  `tables` is the set of registry tables the statement demonstrably names;
+ *  `null` means the target could not be bounded at all (a dynamic identifier,
+ *  a schema-wide grant), which is strictly worse than naming one table. */
+export type BeyondModel = {
+  kind: "restrictive-policy" | "multiple-delete-policies" | "schema-wide-acl" | "dynamic-ddl" | "unreadable-using";
+  file: string;
+  detail: string;
+  tables: string[] | null;
+};
+
+/** A dynamic statement whose literal fragments prove it can only rewrite policy
+ *  EXPRESSIONS. See `classifyDynamicDdl`. */
+export type ExpressionOnlyRewrite = { file: string; detail: string };
+
+/** Exact-token role match. `/authenticated/.test(roles)` also accepts
+ *  `not_authenticated`, which is a different role with different privileges --
+ *  measured as a false green by the r41 artifact gate (M2). */
+export function policyRolesInclude(roles: string, wanted: string): boolean {
+  return roles
+    .split(",")
+    .map((r) => r.trim().replace(/^"|"$/g, "").toLowerCase())
+    .includes(wanted);
+}
 
 /** Every privilege `GRANT ALL` on a table expands to. */
 const ALL_TABLE_PRIVILEGES = ["select", "insert", "update", "delete", "truncate", "references", "trigger"];
@@ -397,13 +479,33 @@ function parsePrivilegeList(raw: string): string[] {
  * role, and a REVOKE from one of the two does not touch the other.
  */
 export function ownerRoleCanDelete(replay: SchemaReplay, table: string): boolean {
+  return ownerRoleHolds(replay, table, "delete");
+}
+
+/**
+ * ...and SELECT, which is not a nicety.
+ *
+ * `DELETE FROM t WHERE owner = auth.uid()` READS `owner`. Postgres' "Policies
+ * Applied by Command Type" table marks DELETE's SELECT/ALL USING clause
+ * applicable exactly when the command "requires read access to the existing
+ * row (for example, a WHERE ... that refers to columns of the relation)", and
+ * the privilege gate mirrors it: without SELECT the statement raises 42501.
+ * So `REVOKE SELECT ON public.records FROM authenticated` silently ends owner
+ * deletion while leaving every DELETE policy and DELETE grant in place -- a
+ * false green the r41 gate measured (F2, `revoke_select GREEN`).
+ */
+export function ownerRoleCanSelect(replay: SchemaReplay, table: string): boolean {
+  return ownerRoleHolds(replay, table, "select");
+}
+
+function ownerRoleHolds(replay: SchemaReplay, table: string, privilege: string): boolean {
   const byGrantee = replay.tablePrivileges.get(table);
   // Absent means no migration ever granted or revoked on it, so the Supabase
   // default still stands. Absence is not "no privileges".
   if (!byGrantee) return true;
   return (
-    (byGrantee.get("authenticated")?.has("delete") ?? false) ||
-    (byGrantee.get("public")?.has("delete") ?? false)
+    (byGrantee.get("authenticated")?.has(privilege) ?? false) ||
+    (byGrantee.get("public")?.has(privilege) ?? false)
   );
 }
 
@@ -432,9 +534,255 @@ export type SchemaReplay = {
    *  stands at the Supabase default -- read it through `ownerRoleCanDelete`,
    *  never by treating a missing entry as "no privileges". */
   tablePrivileges: Map<string, Map<string, Set<string>>>;
+  /** Statements this parser does not model. `check:erasure-registry` fails on
+   *  any of them that could reach a `client_erasable` table. */
+  beyondModel: BeyondModel[];
+  /** Dynamic statements proven to rewrite only policy EXPRESSIONS. Exempt,
+   *  because the guard no longer judges expressions -- but counted and printed,
+   *  never silent. */
+  expressionOnlyRewrites: ExpressionOnlyRewrite[];
 };
 
 type ReplayEvent = { at: number; apply: () => void };
+
+// ---------------------------------------------------------------------------
+// Dynamic DDL. `EXECUTE <string>` is how a migration runs SQL the file does not
+// literally contain, and it is invisible to every regex in `replayMigrations`.
+// ---------------------------------------------------------------------------
+
+/** Keywords that make a dynamic payload capable of changing a delete path. */
+const REGISTRY_DDL_KEYWORDS = /\bpolicy\b|\bgrant\b|\brevoke\b|\brow\s+level\s+security\b|\bdrop\s+table\b|\balter\s+table\b/i;
+
+/** Statements whose reach cannot be bounded to named tables at all.
+ *
+ *  `GRANT ... ON SCHEMA x` is deliberately NOT here: granting schema usage is
+ *  purely additive and never touches a table privilege. `REVOKE ... ON SCHEMA`
+ *  is, because without USAGE on the schema every DELETE on every table in it
+ *  raises 42501 while each per-table grant still looks intact -- the r41 gate's
+ *  `revoke_schema GREEN`. `ON ALL TABLES IN SCHEMA` and
+ *  `ALTER DEFAULT PRIVILEGES` move table privileges in bulk in either
+ *  direction (gate F2 / M3). */
+const UNBOUNDED_ACL =
+  /\b(?:grant|revoke)\b[^;]{0,160}?\bon\s+all\s+\w+\s+in\s+schema\b|\balter\s+default\s+privileges\b|\brevoke\b[^;]{0,160}?\bon\s+schema\b/i;
+
+/**
+ * The bodies a migration EXECUTES at apply time.
+ *
+ * A `CREATE FUNCTION ... AS $$ ... $$` body is deliberately not one of them.
+ * Defining a function that could run dynamic DDL is not running it, and 0015
+ * defines `admin_exec_sql(text)` whose body is a bare `EXECUTE sql_text` --
+ * unbounded by construction, service_role-only, and dropped again by 0016. A
+ * scanner that could not tell "defined" from "executed" would fail this guard
+ * forever on a function that no longer exists.
+ */
+function executedBlocks(sql: string): { body: string; at: number }[] {
+  const out: { body: string; at: number }[] = [];
+  const re = /\bdo\s+(?:language\s+[a-z_]+\s+)?(\$[A-Za-z_][A-Za-z0-9_]*\$|\$\$)/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(sql)) !== null) {
+    const tag = m[1];
+    const from = m.index + m[0].length;
+    const end = sql.indexOf(tag, from);
+    out.push({ body: sql.slice(from, end === -1 ? sql.length : end), at: m.index });
+  }
+  return out;
+}
+
+/** Every literal fragment assigned to `name` inside one block, in source order.
+ *  0102 builds its statement as `stmt := format('ALTER POLICY %I ON %I.%I', ...)`
+ *  then appends `' USING ('`, so the fragments -- not the final value -- are
+ *  what says which OPERATION it can perform. */
+function assignedLiterals(body: string, name: string): string[] {
+  const out: string[] = [];
+  const re = new RegExp(String.raw`\b` + name + String.raw`\s*:=\s*([^;]*);`, "gi");
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(body)) !== null) {
+    const lit = /'((?:[^']|'')*)'/g;
+    let q: RegExpExecArray | null;
+    while ((q = lit.exec(m[1])) !== null) out.push(q[1].replace(/''/g, "'"));
+  }
+  return out;
+}
+
+/**
+ * Every `EXECUTE <payload>` a block runs, with the payload's literal fragments.
+ *
+ * ONE PASS, AND IT CONSUMES THE PAYLOAD. A regex sweep for `\bexecute\b` finds
+ * the word again INSIDE the string it just read -- `EXECUTE 'REVOKE EXECUTE ON
+ * FUNCTION ...'` has two -- and the second match reads `ON FUNCTION ...` as an
+ * unresolvable identifier, which fails closed on a statement the first match
+ * had already cleared. Measured on 0015 while writing this.
+ *
+ * `GRANT EXECUTE` / `REVOKE EXECUTE` are privilege verbs, not dynamic SQL, and
+ * are skipped by looking at the word in front (0074, 0141, 0186).
+ */
+function collectExecutePayloads(body: string): { fragments: string[]; resolved: boolean }[] {
+  const out: { fragments: string[]; resolved: boolean }[] = [];
+  let i = 0;
+  while (i < body.length) {
+    // Skip over literals so the word inside one is never read as a keyword.
+    // `has_function_privilege('anon', '...', 'EXECUTE')` in 0141 is the case
+    // that makes this necessary.
+    if (body[i] === "'") {
+      i = findSingleQuoteEnd(body, i);
+      continue;
+    }
+    // stripSqlComments only takes the TOP-LEVEL ones, so a `-- ... via EXECUTE
+    // so` note inside a DO body still reaches here (0074).
+    if (body.startsWith("--", i)) {
+      const nl = body.indexOf("\n", i);
+      i = nl === -1 ? body.length : nl + 1;
+      continue;
+    }
+    if (body.startsWith("/*", i)) {
+      const close = body.indexOf("*/", i + 2);
+      i = close === -1 ? body.length : close + 2;
+      continue;
+    }
+    const skipTag = matchDollarTag(body, i);
+    if (skipTag) {
+      const end = body.indexOf(skipTag, i + skipTag.length);
+      i = end === -1 ? body.length : end + skipTag.length;
+      continue;
+    }
+    const kw = /^execute\b\s*/i.exec(body.slice(i));
+    if (!kw || (i > 0 && /[\w$]/.test(body[i - 1]))) {
+      i += 1;
+      continue;
+    }
+    // `GRANT EXECUTE` / `REVOKE EXECUTE` are privilege verbs, not dynamic SQL.
+    if (/\b(grant|revoke|no)\s*$/i.test(body.slice(Math.max(0, i - 24), i))) {
+      i += kw[0].length;
+      continue;
+    }
+
+    const at = i + kw[0].length;
+    const rest = body.slice(at);
+    let consumed: number;
+    let payload: { fragments: string[]; resolved: boolean };
+
+    const tag = matchDollarTag(rest, 0);
+    // `format(...)` may be schema-qualified: 0186 writes `pg_catalog.format(`.
+    const fmt = /^(?:[a-z_]\w*\s*\.\s*)?format\s*\(\s*(?=')/i.exec(rest);
+    const ident = /^([A-Za-z_][\w]*)/.exec(rest);
+    if (rest.startsWith("'")) {
+      const end = findSingleQuoteEnd(rest, 0);
+      payload = { fragments: [rest.slice(1, Math.max(1, end - 1)).replace(/''/g, "'")], resolved: true };
+      consumed = end;
+    } else if (tag) {
+      const end = rest.indexOf(tag, tag.length);
+      payload = { fragments: [rest.slice(tag.length, end === -1 ? rest.length : end)], resolved: true };
+      consumed = end === -1 ? rest.length : end + tag.length;
+    } else if (fmt) {
+      const q = fmt[0].length;
+      const end = findSingleQuoteEnd(rest, q);
+      payload = { fragments: [rest.slice(q + 1, Math.max(q + 1, end - 1)).replace(/''/g, "'")], resolved: true };
+      consumed = end;
+    } else if (ident) {
+      const fragments = assignedLiterals(body, ident[1]);
+      payload = { fragments, resolved: fragments.length > 0 };
+      consumed = ident[0].length;
+    } else {
+      payload = { fragments: [], resolved: false };
+      consumed = 1;
+    }
+
+    out.push(payload);
+    i = at + Math.max(consumed, 1);
+  }
+  return out;
+}
+
+/** Which registry-shaped tables a payload names, and whether its reach is
+ *  bounded at all. `%I` placeholders and schema-wide grants are unbounded. */
+function dynamicTargets(text: string): { named: string[]; unbounded: boolean } {
+  if (UNBOUNDED_ACL.test(text)) return { named: [], unbounded: true };
+  const named: string[] = [];
+  let unbounded = false;
+  const re = /\bon\s+(?:table\s+)?([^\s,;()]+)/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    const raw = m[1].toLowerCase().replace(/[;"]/g, "");
+    const head = raw.split(".")[0];
+    if (NON_TABLE_GRANT_OBJECTS.has(head)) continue;
+    if (raw.includes("%")) {
+      unbounded = true;
+      continue;
+    }
+    const parts = raw.split(".");
+    // storage.* and auth.* are outside the registry by design.
+    if (parts.length === 2 && parts[0] !== "public") continue;
+    const name = parts[parts.length - 1];
+    if (!/^[a-z_][\w]*$/.test(name)) {
+      unbounded = true;
+      continue;
+    }
+    named.push(name);
+  }
+  return { named, unbounded };
+}
+
+/**
+ * Can this dynamic payload do anything except rewrite a policy's USING /
+ * WITH CHECK expression?
+ *
+ * WHY THE EXEMPTION EXISTS, AND WHY IT IS NOT A WAIVER. 0102 rewrites every
+ * policy in `public` that calls `auth.uid()` into the initplan-hoisted
+ * `(select auth.uid())` spelling, by reading pg_policies at run time and
+ * issuing `ALTER POLICY %I ON %I.%I USING (...)`. Its target set is genuinely
+ * unbounded -- it names no table -- so nothing static can say which policies
+ * it touched. That is precisely why this guard no longer judges policy
+ * EXPRESSIONS: the sentence "the final USING binds the owner to the caller"
+ * has not been readable from db/migrations since 0102 landed, and the three
+ * spellings a previous version of this guard enshrined were read off CREATE
+ * statements that 0102 had already rewritten in the database.
+ *
+ * A statement that can only change expressions therefore cannot invalidate
+ * anything the static guard still asserts. It is counted and printed, never
+ * silent, and the moment its fragments gain a `TO`, a `DROP`, a `CREATE` or a
+ * `GRANT`/`REVOKE` it stops qualifying and fails closed.
+ */
+function isExpressionOnlyPolicyRewrite(text: string): boolean {
+  if (!/^alter\s+policy\b/i.test(text)) return false;
+  if (/\b(create|drop|grant|revoke|truncate|rename|enable|disable|force)\b/i.test(text)) return false;
+  const afterTarget = text.replace(/^alter\s+policy[\s\S]*?\bon\b\s*\S*/i, "");
+  if (/\bto\b/i.test(afterTarget)) return false;
+  return afterTarget.replace(/\busing\b|\bwith\s+check\b/gi, "").replace(/[\s()]/g, "") === "";
+}
+
+export type DynamicDdlVerdict =
+  | { kind: "out-of-scope" }
+  | { kind: "expression-only"; detail: string }
+  | { kind: "beyond"; detail: string; tables: string[] | null };
+
+/** The parenthesised expression that follows a `USING` keyword ending at
+ *  `after`, or null when it cannot be read.
+ *
+ *  Read with the paren matcher rather than a bounded regex: a real USING nests
+ *  parens, NOT EXISTS and sub-selects (0097's clipper_templates_read does all
+ *  three), and a truncated expression is worse than none -- it would normalise
+ *  to something an allowlist might accept. Null here means UNREADABLE, which
+ *  the caller must keep distinct from "the policy has no USING". */
+function readUsingExpression(sql: string, after: number): string | null {
+  const open = sql.indexOf("(", after);
+  // Only whitespace may sit between `USING` and its `(`; anything else means
+  // the `(` belongs to a later statement.
+  if (open === -1 || sql.slice(after, open).trim() !== "") return null;
+  const close = matchParen(sql, open);
+  return close === -1 ? null : sql.slice(open + 1, close);
+}
+
+export function classifyDynamicDdl(fragments: string[], resolved: boolean): DynamicDdlVerdict {
+  const text = fragments.join(" ").replace(/\s+/g, " ").trim();
+  if (!resolved) {
+    return { kind: "beyond", detail: "EXECUTE of a value this parser cannot read", tables: null };
+  }
+  if (!REGISTRY_DDL_KEYWORDS.test(text)) return { kind: "out-of-scope" };
+  const targets = dynamicTargets(text);
+  if (!targets.unbounded && targets.named.length === 0) return { kind: "out-of-scope" };
+  if (isExpressionOnlyPolicyRewrite(text)) return { kind: "expression-only", detail: text.slice(0, 160) };
+  return { kind: "beyond", detail: text.slice(0, 200), tables: targets.unbounded ? null : targets.named };
+}
 
 function parseOnDelete(tail: string): ForeignKeyEdge["onDelete"] {
   const m = /\bon\s+delete\s+(cascade|set\s+null|set\s+default|restrict|no\s+action)/i.exec(tail);
@@ -467,6 +815,29 @@ function parseColumnList(raw: string | undefined): string[] {
  * order. stripSqlComments does not preserve byte offsets (a comment collapses
  * to one space), which is fine: offsets only ever need to be comparable to one
  * another WITHIN a file, and they are, because one strip feeds all of them.
+ *
+ * ---------------------------------------------------------------------------
+ * WHAT COUNTS AS "BEYOND THE MODEL" (added 2026-09-20 after the r41 gates).
+ *
+ * Three gates in a row walked standard PostgreSQL past this replay while it
+ * stayed green, and every one of them was the same mistake: the parser met a
+ * construct it does not implement and CARRIED ON with its previous belief.
+ * `ALTER POLICY ... USING (user_id <> auth.uid())` left the old CREATE's `=`
+ * in place; a second `FOR ALL USING (true)` was ORed in by Postgres and
+ * ignored here; `AS RESTRICTIVE ... USING (false)` was ANDed on and ignored
+ * here; `EXECUTE 'DROP POLICY ...'` removed the policy in the database and
+ * nothing at all in the model.
+ *
+ * Implementing SQL semantics is the wrong answer to that -- the gate that
+ * found it said so in as many words: "a boundary that explicitly FAILS on the
+ * syntax it does not model and hands the verdict to a real catalog / role test
+ * is smaller and verifiable". So this replay now models what it can
+ * (`ALTER POLICY` in its literal form) and RECORDS what it cannot in
+ * `beyondModel`, and `check:erasure-registry` turns each record into a
+ * failure. The delete verdict itself now lives in
+ * db/tests/erasure_registry_regression.sql, which deletes real rows as the
+ * real `authenticated` role.
+ * ---------------------------------------------------------------------------
  */
 export function replayMigrations(migrationsDir: string): SchemaReplay {
   const files = readdirSync(migrationsDir)
@@ -476,6 +847,8 @@ export function replayMigrations(migrationsDir: string): SchemaReplay {
   const tables = new Map<string, DiscoveredTable>();
   const policies = new Map<string, Map<string, PolicyState>>();
   const tablePrivileges = new Map<string, Map<string, Set<string>>>();
+  const beyondModel: BeyondModel[] = [];
+  const expressionOnlyRewrites: ExpressionOnlyRewrite[] = [];
   let foreignKeys: ForeignKeyEdge[] = [];
 
   const policySlot = (table: string): Map<string, PolicyState> => {
@@ -519,9 +892,40 @@ export function replayMigrations(migrationsDir: string): SchemaReplay {
   };
 
   for (const file of files) {
-    const sql = stripForDdlScan(readFileSync(join(migrationsDir, file), "utf8"));
+    const raw = stripSqlComments(readFileSync(join(migrationsDir, file), "utf8"));
+    const sql = maskInertSql(raw);
     const events: ReplayEvent[] = [];
     let m: RegExpExecArray | null;
+
+    // Dynamic DDL, read from the UNMASKED text: the payload lives inside the
+    // very literals `maskInertSql` blanks, which is exactly why the r41
+    // artifact gate's `EXECUTE 'DROP POLICY ...'` vanished (M1).
+    for (const block of executedBlocks(raw)) {
+      for (const payload of collectExecutePayloads(block.body)) {
+        const verdict = classifyDynamicDdl(payload.fragments, payload.resolved);
+        if (verdict.kind === "out-of-scope") continue;
+        if (verdict.kind === "expression-only") {
+          expressionOnlyRewrites.push({ file, detail: verdict.detail });
+          continue;
+        }
+        beyondModel.push({ kind: "dynamic-ddl", file, detail: verdict.detail, tables: verdict.tables });
+      }
+    }
+
+    // Schema-wide GRANT / REVOKE and ALTER DEFAULT PRIVILEGES. These change
+    // every table at once, so the per-table ACL replay below cannot see them
+    // and `ownerRoleCanDelete` keeps answering from a baseline the statement
+    // has already moved (r41 gate F2 / M3).
+    const schemaWideRe = new RegExp(UNBOUNDED_ACL.source, "gi");
+    while ((m = schemaWideRe.exec(sql)) !== null) {
+      const at = m.index;
+      beyondModel.push({
+        kind: "schema-wide-acl",
+        file,
+        detail: sql.slice(Math.max(0, at - 40), at + 80).replace(/\s+/g, " ").trim(),
+        tables: null,
+      });
+    }
 
     // `UNLOGGED` is a durable table and must be parsed; `TEMP`/`TEMPORARY` are
     // session-scoped (0135 creates one) and can never be a user's data. Spelling
@@ -743,17 +1147,66 @@ export function replayMigrations(migrationsDir: string): SchemaReplay {
       // expression is worse than none -- it would normalise to something the
       // allowlist might accept.
       let using: string | null = null;
+      let usingUnreadable = false;
       if (/^using$/i.test(m[4])) {
-        const afterUsing = m.index + m[0].length;
-        const open = sql.indexOf("(", afterUsing);
-        // Only whitespace may sit between `USING` and its `(`; anything else
-        // means the `(` belongs to a later statement.
-        if (open !== -1 && sql.slice(afterUsing, open).trim() === "") {
-          const close = matchParen(sql, open);
-          if (close !== -1) using = sql.slice(open + 1, close);
-        }
+        using = readUsingExpression(sql, m.index + m[0].length);
+        usingUnreadable = using === null;
       }
-      events.push({ at: m.index, apply: () => { policySlot(table).set(name, { command, roles, using, file }); } });
+      // `AS RESTRICTIVE` is ANDed on top of the permissive set instead of being
+      // ORed into it, so it can veto rows an owner policy admits. Recorded, not
+      // modelled -- the checker fails closed on it.
+      const permissive = !/\bas\s+restrictive\b/i.test(tail);
+      events.push({
+        at: m.index,
+        apply: () => {
+          policySlot(table).set(name, { command, roles, using, file, permissive, usingUnreadable });
+        },
+      });
+    }
+
+    // ALTER POLICY, in its literal form. The r41 gates walked
+    // `ALTER POLICY p ON t USING (user_id <> auth.uid())` and
+    // `ALTER POLICY p ON t TO anon` straight through this replay, because it
+    // modelled only CREATE and DROP and therefore kept believing the original
+    // CREATE. Postgres rewrites the live policy in place; so does this now.
+    // (The DYNAMIC form -- 0102 -- cannot be modelled and is handled above.)
+    const alterPolicyRe =
+      /\balter\s+policy\s+"?([A-Za-z_][\w]*)"?\s+on\s+(?:(?:public|storage)\s*\.\s*)?"?([A-Za-z_][\w]*)"?([\s\S]{0,240}?)(using|with\s+check|rename\s+to|;)/gi;
+    while ((m = alterPolicyRe.exec(sql)) !== null) {
+      const name = m[1].toLowerCase();
+      const table = m[2].toLowerCase();
+      const tail = m[3];
+      const terminator = m[4].toLowerCase().replace(/\s+/g, " ");
+      const roles = /\bto\s+([a-z_,\s"]+)/i.exec(tail)?.[1]?.trim() ?? null;
+      const renamed = terminator === "rename to"
+        ? /^\s*"?([A-Za-z_][\w]*)"?/.exec(sql.slice(m.index + m[0].length))?.[1]?.toLowerCase() ?? null
+        : null;
+      let using: string | null = null;
+      let usingUnreadable = false;
+      if (terminator === "using") {
+        using = readUsingExpression(sql, m.index + m[0].length);
+        usingUnreadable = using === null;
+      }
+      events.push({
+        at: m.index,
+        apply: () => {
+          const slot = policySlot(table);
+          const current = slot.get(name);
+          if (!current) return; // ALTER of a policy this replay never saw created
+          if (renamed) {
+            slot.delete(name);
+            slot.set(renamed, { ...current, file });
+            return;
+          }
+          slot.set(name, {
+            ...current,
+            file,
+            roles: roles ?? current.roles,
+            using: terminator === "using" ? using : current.using,
+            usingUnreadable: terminator === "using" ? usingUnreadable : current.usingUnreadable,
+          });
+        },
+      });
     }
 
     // GRANT / REVOKE on a TABLE, replayed in the same ordered event stream.
@@ -771,13 +1224,20 @@ export function replayMigrations(migrationsDir: string): SchemaReplay {
     // Only `public` tables are matched. `ON FUNCTION|SCHEMA|SEQUENCE|...` is
     // excluded by the shape of the pattern and again by NON_TABLE_GRANT_OBJECTS,
     // and storage.* is out of the registry's scope by design.
+    //
+    // `GRANT OPTION FOR` is CAPTURED and skipped, not swallowed:
+    // `REVOKE GRANT OPTION FOR DELETE ...` takes away the right to re-grant
+    // DELETE and leaves DELETE itself in place. Folding it into the privilege
+    // list made the model delete the privilege and turn a working table red
+    // (r41 gate F2, `grant_option_only RED`).
     const aclRe =
-      /\b(grant|revoke)\s+(?:grant\s+option\s+for\s+)?((?:[a-z]+(?:\s+privileges)?(?:\s*\([^)]*\))?\s*,\s*)*[a-z]+(?:\s+privileges)?(?:\s*\([^)]*\))?)\s+on\s+(?:table\s+)?((?:(?:public\s*\.\s*)?"?[A-Za-z_][\w]*"?\s*,\s*)*(?:public\s*\.\s*)?"?[A-Za-z_][\w]*"?)\s+(?:to|from)\s+((?:"?[A-Za-z_][\w]*"?\s*,\s*)*"?[A-Za-z_][\w]*"?)/gi;
+      /\b(grant|revoke)\s+(grant\s+option\s+for\s+)?((?:[a-z]+(?:\s+privileges)?(?:\s*\([^)]*\))?\s*,\s*)*[a-z]+(?:\s+privileges)?(?:\s*\([^)]*\))?)\s+on\s+(?:table\s+)?((?:(?:public\s*\.\s*)?"?[A-Za-z_][\w]*"?\s*,\s*)*(?:public\s*\.\s*)?"?[A-Za-z_][\w]*"?)\s+(?:to|from)\s+((?:"?[A-Za-z_][\w]*"?\s*,\s*)*"?[A-Za-z_][\w]*"?)/gi;
     while ((m = aclRe.exec(sql)) !== null) {
+      if (m[2]) continue;
       const verb = m[1].toLowerCase();
-      const privileges = parsePrivilegeList(m[2]);
-      const names = m[3].split(",").map(normalizeSqlName).filter(Boolean);
-      const grantees = m[4].split(",").map(normalizeSqlName).filter(Boolean);
+      const privileges = parsePrivilegeList(m[3]);
+      const names = m[4].split(",").map(normalizeSqlName).filter(Boolean);
+      const grantees = m[5].split(",").map(normalizeSqlName).filter(Boolean);
       if (privileges.length === 0 || names.length === 0 || grantees.length === 0) continue;
       if (names.some((n) => NON_TABLE_GRANT_OBJECTS.has(n))) continue;
       events.push({
@@ -803,7 +1263,7 @@ export function replayMigrations(migrationsDir: string): SchemaReplay {
     for (const e of events) e.apply();
   }
 
-  return { tables, policies, foreignKeys, tablePrivileges };
+  return { tables, policies, foreignKeys, tablePrivileges, beyondModel, expressionOnlyRewrites };
 }
 
 /** Parse every db/migrations/*.sql in apply order and return the public tables

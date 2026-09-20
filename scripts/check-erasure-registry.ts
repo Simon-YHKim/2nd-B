@@ -17,10 +17,10 @@
 //
 //   G1 completeness    every public table with an owner column is classified   (F4)
 //   G2 no stale rows   every classified table still exists                     (drift)
-//   G3 delete really   client_erasable really CAN be deleted by its owner:    (F1)
-//                      a DELETE/ALL policy exists, its USING binds the
-//                      registry's owner column to auth.uid(), and the
-//                      table-level DELETE grant is still there
+//   G3 no contradiction  db/migrations does not CONTRADICT client_erasable,   (F1)
+//                        and does not hide the question in syntax this parser
+//                        cannot model. It no longer claims the owner CAN
+//                        delete -- see "WHERE THE DELETE VERDICT LIVES" below.
 //   G4 policy match    account_delete_only really has neither                  (F4/F2)
 //   G5 well-formed     reason present, owner column real, delete order sane
 //   G6 retention       the retention ledgers are never erasure targets
@@ -43,13 +43,53 @@
 // stated in the failure text: prod is behind main, so a policy added after the
 // last applied migration is true here and not yet true there.
 //
-// G3 grew two parts on 2026-09-20 after the r40 gate, which walked three
-// mutations straight through it. All three had the right policy HEADER:
-// `USING (false)`, a `REVOKE DELETE ... FROM authenticated`, and a policy that
-// existed only as text inside `RAISE NOTICE '...'`. The header is not the
-// contract -- "the owner could already delete this table" is -- and after the
-// cutover a SECURITY DEFINER function bypasses RLS entirely, so this static
-// classification becomes the only thing left holding that sentence up.
+// ===========================================================================
+// WHERE THE DELETE VERDICT LIVES (boundary moved 2026-09-20, r42)
+// ===========================================================================
+//
+// For three review rounds G3 answered the question "CAN the owner delete this
+// table?", and for three rounds ordinary PostgreSQL walked past it green:
+//
+//   r40  `USING (false)` · `REVOKE DELETE` · a policy that existed only inside
+//        `RAISE NOTICE '...'`
+//   r41  `ALTER POLICY ... USING (user_id <> auth.uid())` (the parser kept
+//        believing the original CREATE's `=`) · a second `FOR ALL USING (true)`
+//        that Postgres ORs in · `AS RESTRICTIVE ... USING (false)` that
+//        Postgres ANDs on · a narrowed SELECT policy · `EXECUTE 'DROP POLICY'`
+//        in single quotes · `REVOKE ... ON ALL TABLES IN SCHEMA public`
+//
+// Each round closed the exact spellings it was shown and the next round found
+// equivalent ones, because the question was never answerable from text. The
+// r41 authorization gate said so in its own conclusion: "a boundary that
+// explicitly FAILS on the syntax it does not model, and hands the decision to
+// a real catalog / role test, is smaller and verifiable."
+//
+// AND THE REPO ALREADY PROVED IT. 0102_rls_wrap_auth_uid.sql reads pg_policies
+// at run time and issues `ALTER POLICY %I ON %I.%I USING (...)` for every
+// policy in `public` that calls auth.uid(). It names no table. So the sentence
+// "the final USING of this table's delete policy is <x>" has not been readable
+// from db/migrations since 0102 landed -- and the three USING spellings a
+// previous version of this file enshrined as an allowlist were read off CREATE
+// statements that 0102 had already rewritten in the database.
+//
+//   STATIC GUARD (this file)        CATALOG TEST (db/tests/erasure_registry_regression.sql)
+//   ------------------------        -----------------------------------------------------
+//   G1 every owned table is         for each of the 26 client_erasable tables, as the real
+//      classified                   `authenticated` role with A's JWT claim:
+//   G2 no stale rows                  (1) DELETE of B's row affects 0 rows and B's row survives
+//   G5 well-formed entries            (2) DELETE of A's own row affects exactly 1 row
+//   G6 retention ledgers kept       Policy composition, RESTRICTIVE, role inheritance, the
+//   G7 seed == JSON                 table ACL and 0102's live rewrite are all INSIDE that
+//   G8/G9 FK order + cascades       observation, whatever syntax produced them.
+//   G3 no contradiction, and
+//      FAIL CLOSED on anything
+//      beyond the model
+//
+// WHAT G3 NO LONGER ASSERTS, in as many words: that the FINAL EFFECTIVE policy
+// set permits the owner to delete. It asserts only that db/migrations does not
+// contradict the claim and does not put it out of reach. When it cannot tell,
+// it fails and names the catalog test. A guard that answers "I cannot tell" is
+// worth more than one that answers "yes" from evidence it does not have.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -61,6 +101,8 @@ import {
   renderRegistrySql,
   replayMigrations,
   ownerRoleCanDelete,
+  ownerRoleCanSelect,
+  policyRolesInclude,
   ERASURE_CLASSES,
   REGISTRY_PATH,
   type ErasureClass,
@@ -103,13 +145,14 @@ const MUST_BE_RETAINED = [
  * introduced for performance; it is the same value, so it normalises away. The
  * operand order does not matter either, so both sides are accepted.
  *
- * IT IS AN ALLOWLIST, AND A NEW SHAPE IS A FAILURE. That direction is the whole
- * point. `USING (false)` is a new shape. So is
- * `USING (user_id = auth.uid() OR is_shared)`, and so is a policy with no USING
- * at all -- and each one means the DELETE no longer matches exactly the
- * caller's own rows, which is the single sentence the `client_erasable` class
- * asserts. A guard that widened itself to fit whatever it found would have
- * blessed all three. Widening this list is a deliberate edit with a reason.
+ * WHAT THIS LIST IS NOW FOR (changed 2026-09-20, r42). It is no longer the
+ * evidence that the owner can delete -- the catalog test is. It is a
+ * CONTRADICTION DETECTOR: if the parser can read the final USING and that text
+ * does NOT bind the owner to the caller, db/migrations and the registry are
+ * saying different things and one of them is wrong. `USING (false)`,
+ * `USING (user_id <> auth.uid())` and a policy with no USING at all are each a
+ * contradiction in that sense. An expression the parser CANNOT read is not a
+ * pass and not a contradiction: it is G3c, fail closed.
  */
 function normalizeUsingExpression(expr: string): string {
   const collapsed = expr
@@ -172,11 +215,25 @@ function ownerDeletePolicies(
   for (const [name, state] of policies.get(table) ?? new Map<string, PolicyState>()) {
     if (state.command !== "delete" && state.command !== "all") continue;
     // service_role bypasses RLS anyway; a policy scoped only to it is not an
-    // owner-facing delete path.
-    if (!/authenticated|public/.test(state.roles)) continue;
+    // owner-facing delete path. Matched as whole tokens: `/authenticated/` also
+    // accepts the DIFFERENT role `not_authenticated` (r41 artifact gate, M2).
+    if (!policyRolesInclude(state.roles, "authenticated") && !policyRolesInclude(state.roles, "public")) continue;
     found.push({ name, state });
   }
   return found;
+}
+
+/** A row filter that is a constant admits either nothing or everything, and on
+ *  an erasable table neither is ever right: `USING (false)` is the chat_usage
+ *  defect (F1) and `USING (true)` hands the caller every other user's rows once
+ *  Postgres ORs it into the permissive set. Both are reported as beyond the
+ *  model rather than judged, because what the constant DOES depends on the
+ *  other policies on the table -- which is exactly what this guard stopped
+ *  claiming to know. */
+function constantUsing(using: string | null): string | null {
+  if (typeof using !== "string") return null;
+  const normalized = normalizeUsingExpression(using);
+  return normalized === "true" || normalized === "false" ? normalized : null;
 }
 
 function isErasureClass(value: unknown): value is ErasureClass {
@@ -259,36 +316,92 @@ export function collectErasureRegistryErrors(root: string): string[] {
 
     const deletable = ownerDeletePolicies(policies, table);
 
-    // G3 -- the F1 check, in three parts, because there are three independent
-    // ways for a DELETE to match 0 rows while every name on the page looks
-    // right: no policy, a policy that admits no rows, and a revoked grant.
+    // G3 -- not "can the owner delete" any more. Three narrower questions:
+    //   a  does db/migrations CONTRADICT client_erasable?
+    //   b  has the declared delete path been taken away outright?
+    //   c  is the answer hidden in syntax this parser does not model?
+    // (c) is the new one and is the point of the redesign: it FAILS instead of
+    // carrying on, and names the test that can actually decide.
     if (entry.class === "client_erasable") {
+      const sendToCatalog = (why: string): void => {
+        errors.push(
+          `G3c ${table}: ${why} This parser does not model that, and the delete verdict is no longer ` +
+            `its to give. Decide it in db/tests/erasure_registry_regression.sql, which deletes real ` +
+            `rows as the real \`authenticated\` role and is run by the "Exercise content-erasure RPC" ` +
+            `step of .github/workflows/supabase-dry-run.yml. If the statement is genuinely safe, the ` +
+            `way to say so is an observation there, not a wider regex here.`,
+        );
+      };
+
+      // G3b -- the declaration is gone. Two independent gates, both text-level.
       if (deletable.length === 0) {
         errors.push(
-          `G3 ${table} is client_erasable but db/migrations leaves it with no DELETE or ALL policy ` +
-            `for authenticated. That is the chat_usage defect (F1): the DELETE would match 0 rows ` +
-            `and report success. Either add the policy in a migration, or reclassify.`,
-        );
-      } else if (!deletable.some((p) => isOwnerBoundUsing(p.state.using, entry.owner))) {
-        errors.push(
-          `G3 ${table} is client_erasable and does have a DELETE/ALL policy, but none of them binds ` +
-            `"${entry.owner}" to the caller. Final USING: ` +
-            `${deletable.map((p) => `${p.name} USING (${p.state.using ?? "<absent>"}) @ ${p.state.file}`).join(" | ")}. ` +
-            `Allowed shapes: \`${entry.owner} = auth.uid()\` or \`auth.uid() = ${entry.owner}\` ` +
-            `(\`(select auth.uid())\` counts as \`auth.uid()\`). A policy header is not a row filter -- ` +
-            `\`USING (false)\` has the same header and erases nothing (F1), and an absent USING would ` +
-            `let the caller delete everyone's rows. If a new shape is genuinely right, widen the ` +
-            `allowlist in scripts/check-erasure-registry.ts on purpose and say why.`,
+          `G3b ${table} is client_erasable but db/migrations leaves it with no DELETE or ALL policy ` +
+            `for authenticated or PUBLIC. That is the chat_usage defect (F1): the DELETE would match ` +
+            `0 rows and report success. Either add the policy in a migration, or reclassify.`,
         );
       }
-      if (!ownerRoleCanDelete(replay, table)) {
+      for (const gate of [
+        { held: ownerRoleCanDelete(replay, table), verb: "DELETE" },
+        // SELECT is not a nicety: `DELETE ... WHERE owner = auth.uid()` reads
+        // the owner column, so Postgres applies the SELECT policy and the
+        // SELECT privilege to it (r41 gate F2, `revoke_select GREEN`).
+        { held: ownerRoleCanSelect(replay, table), verb: "SELECT" },
+      ]) {
+        if (gate.held) continue;
         errors.push(
-          `G3 ${table} is client_erasable, but db/migrations leaves the TABLE-level DELETE privilege ` +
-            `revoked from both authenticated and PUBLIC. RLS and GRANT are two separate gates and a ` +
-            `delete has to pass both, so this one raises 42501 or matches 0 rows however good the ` +
-            `policy is. 0097's template_blocks is the pattern to follow: REVOKE ALL, then GRANT back ` +
-            `the exact verbs (SELECT, INSERT, DELETE). Add the grant in a migration, or reclassify.`,
+          `G3b ${table} is client_erasable, but db/migrations leaves the TABLE-level ${gate.verb} ` +
+            `privilege revoked from both authenticated and PUBLIC. RLS and GRANT are two separate ` +
+            `gates and a delete has to pass both, so this one raises 42501 or matches 0 rows however ` +
+            `good the policy is. 0097's template_blocks is the pattern to follow: REVOKE ALL, then ` +
+            `GRANT back the exact verbs (SELECT, INSERT, DELETE). Add the grant, or reclassify.`,
         );
+      }
+
+      // G3c -- composition this parser does not implement.
+      const permissiveDeletes = deletable.filter((p) => p.state.permissive);
+      if (permissiveDeletes.length > 1) {
+        sendToCatalog(
+          `${permissiveDeletes.length} permissive policies reach DELETE ` +
+            `(${permissiveDeletes.map((p) => `${p.name} @ ${p.state.file}`).join(", ")}), and Postgres ORs ` +
+            `them together, so a second one can hand back rows the owner policy excludes.`,
+        );
+      }
+      for (const [name, state] of policies.get(table) ?? new Map<string, PolicyState>()) {
+        if (!state.permissive) {
+          sendToCatalog(
+            `policy ${name} (@ ${state.file}) is AS RESTRICTIVE, which Postgres ANDs on top of the ` +
+              `permissive set and can veto rows the owner policy admits.`,
+          );
+        }
+        if (state.usingUnreadable) {
+          sendToCatalog(`policy ${name} (@ ${state.file}) has a USING clause this parser could not read.`);
+        }
+        const constant = constantUsing(state.using);
+        if (constant !== null) {
+          sendToCatalog(
+            `policy ${name} (@ ${state.file}) has the constant row filter USING (${constant}), which ` +
+              `admits ${constant === "false" ? "no rows at all" : "every row in the table"} regardless of owner.`,
+          );
+        }
+      }
+
+      // G3a -- an unambiguous contradiction. Exactly one readable permissive
+      // DELETE policy whose text says something other than "my own rows".
+      if (permissiveDeletes.length === 1 && !permissiveDeletes[0].state.usingUnreadable) {
+        const only = permissiveDeletes[0];
+        if (constantUsing(only.state.using) === null && !isOwnerBoundUsing(only.state.using, entry.owner)) {
+          errors.push(
+            `G3a ${table} is classified client_erasable, but its only DELETE/ALL policy binds ` +
+              `something other than "${entry.owner}" to the caller: ${only.name} ` +
+              `USING (${only.state.using ?? "<absent>"}) @ ${only.state.file}. ` +
+              `Recognised shapes: \`${entry.owner} = auth.uid()\` or \`auth.uid() = ${entry.owner}\` ` +
+              `(\`(select auth.uid())\` counts as \`auth.uid()\`). An absent USING is included on ` +
+              `purpose: Postgres leaves the row filter unset, so a FOR ALL policy without one lets the ` +
+              `caller delete everyone. This is a contradiction between db/migrations and ` +
+              `${REGISTRY_PATH}, not a verdict on what the database will do -- fix whichever is wrong.`,
+          );
+        }
       }
     }
 
@@ -300,6 +413,31 @@ export function collectErasureRegistryErrors(root: string): string[] {
           `Classify it client_erasable, or retained with a written reason.`,
       );
     }
+  }
+
+  // G3c, file scope -- statements whose reach is not a single table.
+  //
+  // A dynamic `EXECUTE 'DROP POLICY ...'` and a
+  // `REVOKE DELETE ON ALL TABLES IN SCHEMA public` both leave the per-table
+  // replay above completely unchanged, so every rule that reads it stays green
+  // while the database has moved (r41 artifact gate M1/M3). They are reported
+  // here rather than judged, because what they did is a catalog question.
+  const erasableTables = new Set(
+    Object.entries(registry.tables)
+      .filter(([, e]) => e.class === "client_erasable")
+      .map(([t]) => t),
+  );
+  for (const beyond of replay.beyondModel) {
+    const hit = beyond.tables === null ? null : beyond.tables.filter((t) => erasableTables.has(t));
+    if (hit !== null && hit.length === 0) continue; // names only tables outside the registry
+    errors.push(
+      `G3c ${beyond.file} contains a statement this parser does not model (${beyond.kind}), ` +
+        `reaching ${hit === null ? "an UNBOUNDED set of tables" : hit.join(", ")}: ${beyond.detail}. ` +
+        `Silently carrying on from the previous belief is exactly how the last three review rounds ` +
+        `passed a schema that had changed underneath them. Decide it in ` +
+        `db/tests/erasure_registry_regression.sql instead, or write the statement in a literal form ` +
+        `(a plain CREATE/DROP POLICY, a per-table GRANT/REVOKE) that the replay can read.`,
+    );
   }
 
   // G6 -- the retention ledgers.
@@ -426,10 +564,21 @@ function main(): void {
   const registry = loadRegistry(root);
   const counts: Record<string, number> = {};
   for (const e of Object.values(registry.tables)) counts[e.class] = (counts[e.class] ?? 0) + 1;
+  const replay = replayMigrations(migrationsDir(root));
   console.log(
     `ERASURE PASS  ${discoverOwnedTables(migrationsDir(root)).length} owner-column tables, ` +
       `all classified (${ERASURE_CLASSES.map((c) => `${c} ${counts[c] ?? 0}`).join(", ")}); ` +
-      `policy match + 0189 seed parity verified.`,
+      `no contradiction, nothing beyond the model, 0189 seed parity verified.`,
+  );
+  // Printed, never silent. These are the statements the guard deliberately does
+  // NOT judge; if this line ever grows, the thing it exempts grew too.
+  console.log(
+    `              delete verdict: db/tests/erasure_registry_regression.sql ` +
+      `(${counts.client_erasable ?? 0} tables observed as the authenticated role).` +
+      (replay.expressionOnlyRewrites.length > 0
+        ? ` Exempt as expression-only policy rewrites: ` +
+          `${replay.expressionOnlyRewrites.map((r) => r.file).join(", ")}.`
+        : ""),
   );
 }
 

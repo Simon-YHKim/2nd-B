@@ -37,6 +37,11 @@
 --      access to it turns this RPC into "delete any table")
 --   7  the registry's cascade claims match pg_constraint, and no kept table
 --      cascades without saying so (the catalog-side twin of guards G8/G9)
+--   8  THE DELETE VERDICT ITSELF. For every one of the client_erasable tables,
+--      as the real `authenticated` role carrying A's JWT: A cannot delete B's
+--      row (0 rows, and B's row survives) and CAN delete its own (exactly the
+--      rows it owns). This is the assertion the static guard used to make from
+--      policy text and no longer does -- see the boundary note below.
 --
 -- STYLE. Each block is self-contained: BEGIN ... ROLLBACK, so the file leaves
 -- no rows behind and blocks may run in any order. Assertions RAISE EXCEPTION
@@ -816,4 +821,283 @@ END;
 $seven$;
 ROLLBACK;
 
-SELECT 'ERASURE REGRESSION PASS  erase_my_data: strict assertions, authenticated call, isolation, refusals without reflection, public receipt contract, measured row deltas, atomicity, registry ACL, catalog cascade parity' AS result;
+
+----------------------------------------------------------------------
+-- (8) THE DELETE VERDICT, MEASURED INSTEAD OF PARSED.
+--
+-- WHY THIS BLOCK EXISTS. `client_erasable` means one sentence: "the owner of
+-- this row can delete it, and nobody else's row goes with it." For three
+-- review rounds that sentence was checked by reading db/migrations, and three
+-- times ordinary PostgreSQL walked past the reader while it stayed green --
+-- `ALTER POLICY ... USING (user_id <> auth.uid())`, a second permissive
+-- `USING (true)` that Postgres ORs in, `AS RESTRICTIVE ... USING (false)` that
+-- it ANDs on, a narrowed SELECT policy, `EXECUTE 'DROP POLICY ...'` in single
+-- quotes, `REVOKE ... ON ALL TABLES IN SCHEMA public`. Each round closed the
+-- spellings it was shown; the next round brought equivalent ones.
+--
+-- The repo had already proved the reader could not win. 0102_rls_wrap_auth_uid
+-- reads pg_policies at run time and issues `ALTER POLICY %I ON %I.%I USING
+-- (...)` against every policy in `public` that calls auth.uid(). It names no
+-- table, so "the final USING of this table's delete policy is <x>" has not
+-- been readable from db/migrations since it landed -- and the USING spellings
+-- the guard used to enshrine were read off CREATE statements that 0102 had
+-- already rewritten in the database.
+--
+-- So the verdict moved here. scripts/check-erasure-registry.ts now asserts
+-- only what text can support and FAILS CLOSED on syntax it cannot model; this
+-- block deletes real rows as the real role and watches what happens. Policy
+-- composition, RESTRICTIVE, role inheritance, the table ACL, schema-wide
+-- grants and 0102's live rewrite are all inside the observation, whatever
+-- syntax produced them.
+--
+-- TWO OBSERVATIONS PER TABLE, IN THIS ORDER, and the order is the point:
+--   (i)  A tries to delete B's row FIRST, while it is still there. 0 rows
+--        affected, and B's row still present afterwards. Doing this after A's
+--        own DELETE would make "0" unfalsifiable -- there would be nothing
+--        left for either of them to match.
+--   (ii) then A deletes its own rows: exactly as many as A owns. A table whose
+--        policy admits nothing (`USING (false)`, a revoked grant, a
+--        restrictive veto) returns 0 here and fails.
+--
+-- COVERAGE IS STRUCTURAL, NOT A LIST. The loop reads public.erasure_registry,
+-- which guard G7 pins byte-identical to db/erasure-registry.json. A new
+-- client_erasable table therefore enters this loop automatically, and if the
+-- fixture below has no row for it the block fails with "no fixture row" rather
+-- than skipping it quietly. A table this test does not observe is a table that
+-- falls back to the static guard, and that is the hole this design closes.
+----------------------------------------------------------------------
+
+\set uid_c '33333333-3333-4333-8333-3333333333cc'
+
+BEGIN;
+
+CREATE OR REPLACE FUNCTION pg_temp.erasure_owner_rows(p_uid uuid, p_tag text, p_other uuid)
+RETURNS void
+LANGUAGE plpgsql
+AS $owner_rows$
+DECLARE
+  v_page_1  uuid := pg_catalog.gen_random_uuid();
+  v_page_2  uuid := pg_catalog.gen_random_uuid();
+  v_entity  uuid := pg_catalog.gen_random_uuid();
+  v_entity2 uuid := pg_catalog.gen_random_uuid();
+  v_card    uuid := pg_catalog.gen_random_uuid();
+  v_routine uuid := pg_catalog.gen_random_uuid();
+BEGIN
+  -- Parents first. The delete ORDER is the reverse concern and is asserted by
+  -- G8; here the only requirement is that every FK is satisfiable.
+  INSERT INTO public.wiki_pages (id, user_id, slug, kind, title) VALUES
+    (v_page_1, p_uid, p_tag || '-page-1', 'concept', 'page 1'),
+    (v_page_2, p_uid, p_tag || '-page-2', 'concept', 'page 2');
+  INSERT INTO public.wiki_links (user_id, from_page, to_page) VALUES (p_uid, v_page_1, v_page_2);
+
+  INSERT INTO public.sources (user_id, kind, title, storage_path)
+    VALUES (p_uid, 'article', p_tag || ' source', 'raw/' || p_tag || '.md');
+  INSERT INTO public.records (user_id, kind, body) VALUES (p_uid, 'note', p_tag || ' record');
+  INSERT INTO public.self_contexts (user_id, context_kind, label) VALUES (p_uid, 'work', p_tag || ' context');
+  INSERT INTO public.personas (user_id, version, traits) VALUES (p_uid, 1, '{}'::jsonb);
+
+  INSERT INTO public.persona_entity (id, user_id, label, name) VALUES
+    (v_entity,  p_uid, p_tag || ' entity 1', p_tag || '-e1'),
+    (v_entity2, p_uid, p_tag || ' entity 2', p_tag || '-e2');
+  INSERT INTO public.persona_relation (user_id, src, dst, rel_type)
+    VALUES (p_uid, v_entity, v_entity2, 'knows');
+  INSERT INTO public.persona_reasoning_trace (user_id, entity_id, step, source)
+    VALUES (p_uid, v_entity, 1, 'test');
+
+  INSERT INTO public.star_tier_history (user_id, star_id, level) VALUES (p_uid, 'seven:now', 2);
+
+  INSERT INTO public.srs_cards (id, user_id, front, back, due)
+    VALUES (v_card, p_uid, 'front', 'back', pg_catalog.now());
+  INSERT INTO public.srs_reviews (card_id, user_id, rating, reviewed_on)
+    VALUES (v_card, p_uid, 3, CURRENT_DATE);
+
+  INSERT INTO public.health_samples (user_id, source, metric_type, value, unit, started_at)
+    VALUES (p_uid, 'manual', 'steps', 100, 'count', pg_catalog.now());
+  INSERT INTO public.esm_responses (user_id, prompt_kind) VALUES (p_uid, 'energy');
+  INSERT INTO public.relation_people (user_id, display_name) VALUES (p_uid, p_tag || ' friend');
+  INSERT INTO public.recreation_items (user_id, title) VALUES (p_uid, p_tag || ' hobby');
+
+  INSERT INTO public.ops_routines (id, user_id, domain_id, title)
+    VALUES (v_routine, p_uid, 'health', p_tag || ' routine');
+  INSERT INTO public.ops_routine_logs (routine_id, user_id, completed_on)
+    VALUES (v_routine, p_uid, CURRENT_DATE);
+  INSERT INTO public.ops_ledger (user_id, kind, amount_krw) VALUES (p_uid, 'expense', 1000);
+  INSERT INTO public.ops_reading (user_id, volume_id, title) VALUES (p_uid, p_tag || '-vol', 'a book');
+  INSERT INTO public.ops_milestones (user_id, domain_id, title) VALUES (p_uid, 'health', p_tag || ' milestone');
+  INSERT INTO public.ops_meal_plan (user_id, plan_date, slot, title)
+    VALUES (p_uid, CURRENT_DATE, 'lunch', p_tag || ' lunch');
+  INSERT INTO public.ops_daily_brief (user_id, day) VALUES (p_uid, CURRENT_DATE);
+
+  -- template_blocks is owned by blocker_id and forbids self-blocks, so it
+  -- needs a third user to point at.
+  INSERT INTO public.template_blocks (blocker_id, blocked_owner_id) VALUES (p_uid, p_other);
+  INSERT INTO public.clipper_templates (owner_id, slug, base_kind)
+    VALUES (p_uid, p_tag || '-template', 'article');
+  INSERT INTO public.testimonials (user_id, body, locale, consent_given_at)
+    VALUES (p_uid, p_tag || ' says hello', 'ko', pg_catalog.now());
+END;
+$owner_rows$;
+
+INSERT INTO auth.users (id, email) VALUES
+  (:'uid_a', 'erasure-a@example.com'),
+  (:'uid_b', 'erasure-b@example.com'),
+  (:'uid_c', 'erasure-c@example.com');
+
+-- health_import is ON deliberately. health_samples carries a BEFORE INSERT
+-- backstop (0100, re-defined by 0128) that refuses a row unless the owner is an
+-- adult who has opted in, so without this the fixture cannot create the health
+-- row and the table would report "no fixture row" -- i.e. drop out of the
+-- observation. The birth date makes the age gate (0050) derive
+-- minor_tier = 'adult'; the clamp only rewrites prefs for minor_self rows.
+INSERT INTO public.users (id, email, birth_date, privacy_prefs) VALUES
+  (:'uid_a', 'erasure-a@example.com', '1990-01-01', '{"health_import": true}'::jsonb),
+  (:'uid_b', 'erasure-b@example.com', '1990-01-01', '{"health_import": true}'::jsonb),
+  (:'uid_c', 'erasure-c@example.com', '1990-01-01', '{}'::jsonb);
+
+SELECT pg_temp.erasure_owner_rows(:'uid_a', 'a', :'uid_c');
+SELECT pg_temp.erasure_owner_rows(:'uid_b', 'b', :'uid_c');
+
+SET LOCAL request.jwt.claim.sub = :'uid_a';
+
+DO $eight$
+DECLARE
+  v_a        uuid := '11111111-1111-4111-8111-1111111111aa';
+  v_b        uuid := '22222222-2222-4222-8222-2222222222bb';
+  r          record;
+  v_a_before bigint;
+  v_b_before bigint;
+  v_b_after  bigint;
+  v_other    bigint;
+  v_own      bigint;
+  v_visited  int := 0;
+  v_expected int;
+  v_no_rls   text;
+BEGIN
+  -- A table with RLS switched off answers both observations below by accident:
+  -- `authenticated` would hold the privilege and no policy would filter it.
+  -- Check the flag itself so a disabled table is a failure, not a pass.
+  SELECT pg_catalog.string_agg(c.relname, ', ' ORDER BY c.relname)
+    INTO v_no_rls
+  FROM public.erasure_registry AS reg
+  JOIN pg_catalog.pg_class     AS c ON c.relname = reg.table_name
+  JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace AND n.nspname = 'public'
+  WHERE reg.class = 'client_erasable' AND NOT c.relrowsecurity;
+
+  IF v_no_rls IS NOT NULL THEN
+    RAISE EXCEPTION
+      'erasure regression FAILED (8): client_erasable table(s) with ROW LEVEL SECURITY disabled: %', v_no_rls;
+  END IF;
+
+  FOR r IN
+    SELECT table_name, owner_column, delete_order
+      FROM public.erasure_registry
+     WHERE class = 'client_erasable'
+     ORDER BY delete_order
+  LOOP
+    v_visited := v_visited + 1;
+
+    EXECUTE pg_catalog.format('SELECT pg_catalog.count(*) FROM public.%I WHERE %I = $1',
+                              r.table_name, r.owner_column)
+      INTO v_a_before USING v_a;
+    EXECUTE pg_catalog.format('SELECT pg_catalog.count(*) FROM public.%I WHERE %I = $1',
+                              r.table_name, r.owner_column)
+      INTO v_b_before USING v_b;
+
+    -- The fixture is the coverage guarantee. A table with no row for either
+    -- user would make both observations vacuous, so say so loudly instead.
+    IF v_a_before < 1 OR v_b_before < 1 THEN
+      RAISE EXCEPTION
+        'erasure regression FAILED (8): no fixture row for %.% (A=%, B=%). '
+        'It is client_erasable, so this test must observe it -- add it to '
+        'pg_temp.erasure_owner_rows() rather than letting it fall back to the static guard.',
+        r.table_name, r.owner_column, v_a_before, v_b_before;
+    END IF;
+
+    SET LOCAL ROLE authenticated;
+
+    -- (i) B's row is not A's to delete, and it is still there to try.
+    EXECUTE pg_catalog.format('DELETE FROM public.%I WHERE %I = $1', r.table_name, r.owner_column)
+      USING v_b;
+    GET DIAGNOSTICS v_other = ROW_COUNT;
+
+    -- (ii) A's own rows are.
+    EXECUTE pg_catalog.format('DELETE FROM public.%I WHERE %I = $1', r.table_name, r.owner_column)
+      USING v_a;
+    GET DIAGNOSTICS v_own = ROW_COUNT;
+
+    RESET ROLE;
+
+    IF v_other <> 0 THEN
+      RAISE EXCEPTION
+        'erasure regression FAILED (8): as authenticated, A deleted % row(s) of B from public.% '
+        '(owner column %). One user''s erasure must never reach another user''s rows.',
+        v_other, r.table_name, r.owner_column;
+    END IF;
+
+    EXECUTE pg_catalog.format('SELECT pg_catalog.count(*) FROM public.%I WHERE %I = $1',
+                              r.table_name, r.owner_column)
+      INTO v_b_after USING v_b;
+    IF v_b_after <> v_b_before THEN
+      RAISE EXCEPTION
+        'erasure regression FAILED (8): B had % row(s) in public.% before A''s DELETE and % after, '
+        'although the DELETE itself reported 0 rows.',
+        v_b_before, r.table_name, v_b_after;
+    END IF;
+
+    IF v_own <> v_a_before THEN
+      RAISE EXCEPTION
+        'erasure regression FAILED (8): public.% is classified client_erasable, but as the real '
+        '`authenticated` role A deleted % of its own % row(s). That is the chat_usage defect (F1): '
+        'RLS and table privileges filter rows, they do not raise, so a wipe that erased nothing '
+        'reports success. Check the FINAL policy set (pg_policies, including RESTRICTIVE ones) and '
+        'the table ACL for %.',
+        r.table_name, v_own, v_a_before, r.table_name;
+    END IF;
+  END LOOP;
+
+  SELECT pg_catalog.count(*) INTO v_expected
+    FROM public.erasure_registry WHERE class = 'client_erasable';
+  IF v_visited <> v_expected THEN
+    RAISE EXCEPTION 'erasure regression FAILED (8): observed % of % client_erasable tables', v_visited, v_expected;
+  END IF;
+
+  RAISE NOTICE 'erasure regression (8): % client_erasable tables observed as the authenticated role', v_visited;
+END;
+$eight$;
+ROLLBACK;
+
+----------------------------------------------------------------------
+-- (8b) THE MEASUREMENT THAT RETIRED THE STATIC USING CHECK.
+--
+-- Not an assertion -- a number, printed, so the claim in the boundary note
+-- above is checkable from a CI log instead of taken on trust. The static guard
+-- used to read the USING text out of each table's CREATE POLICY and match it
+-- against three spellings. This counts how many of those same policies the
+-- DATABASE now renders differently, because 0102 rewrote them in place. Every
+-- row of difference is a row where the file and the catalog disagreed and the
+-- file was the one being believed.
+----------------------------------------------------------------------
+
+BEGIN;
+DO $eight_b$
+DECLARE
+  v_total   int;
+  v_wrapped int;
+BEGIN
+  SELECT pg_catalog.count(*),
+         pg_catalog.count(*) FILTER (WHERE p.qual LIKE '%SELECT auth.uid()%')
+    INTO v_total, v_wrapped
+  FROM pg_catalog.pg_policies AS p
+  JOIN public.erasure_registry AS reg
+    ON reg.table_name = p.tablename AND reg.class = 'client_erasable'
+  WHERE p.schemaname = 'public' AND p.cmd IN ('ALL', 'DELETE');
+
+  RAISE NOTICE
+    'erasure regression (8b): % of % live DELETE/ALL policies on client_erasable tables carry the '
+    '0102 initplan rewrite, which no CREATE POLICY in db/migrations spells',
+    v_wrapped, v_total;
+END;
+$eight_b$;
+ROLLBACK;
+
+SELECT 'ERASURE REGRESSION PASS  erase_my_data: strict assertions, authenticated call, isolation, refusals without reflection, public receipt contract, measured row deltas, atomicity, registry ACL, catalog cascade parity, and every client_erasable table observed as the authenticated role (own row deleted, other user''s row refused)' AS result;

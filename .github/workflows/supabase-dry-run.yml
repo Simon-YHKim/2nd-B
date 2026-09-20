@@ -123,6 +123,28 @@ jobs:
           GRANT USAGE ON SCHEMA storage TO authenticated;
           GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE storage.objects TO authenticated;
           GRANT EXECUTE ON FUNCTION storage.foldername(text) TO authenticated;
+
+          -- The last piece of the platform this stub was missing: Supabase
+          -- ships ALTER DEFAULT PRIVILEGES that auto-GRANT anon and
+          -- authenticated everything on every new table in `public`. The repo
+          -- says so at 0113_notices.sql:99-100, and the REVOKE-then-GRANT-back
+          -- pattern in 0092/0097/0113/0141/0175/0176/0177 only makes sense
+          -- against that baseline.
+          --
+          -- WHY IT HAS TO BE HERE AND NOT IN THE TEST. Without it the scratch
+          -- database gives `authenticated` no privilege on any public table,
+          -- so `SET ROLE authenticated; DELETE FROM public.records ...` raises
+          -- 42501 for a reason no migration caused, and the erasure
+          -- regression's per-table observation would be measuring this stub
+          -- instead of the schema. Granting it inside the test just before the
+          -- assertion would be worse still -- it would paint over whatever a
+          -- migration had revoked. Installed BEFORE the migrations run, it is
+          -- the real starting state, and a REVOKE in a migration still bites.
+          --
+          -- This is a scratch container that is destroyed with the job. It
+          -- adds no secret, no network reach and no workflow permission.
+          ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated;
+          GRANT USAGE ON SCHEMA public TO anon, authenticated;
           SQL
       - name: Apply baseline migrations (0001-0146) in order
         env:
