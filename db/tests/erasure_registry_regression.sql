@@ -23,12 +23,14 @@
 --      a null or missing field fails rather than passing (r39 gate R1)
 --   L  THE SHIPPED LOCK: `authenticated` holds no EXECUTE on the RPC, read
 --      off the catalog AND measured by a real call that must come back
---      42501. 0189 ships the function locked (8th artifact gate M1: the
+--      42501. 0189 + 0190 ship the function locked (8th artifact gate M1: the
 --      sweep is sequential, so a second session of the same user can write
 --      into a table it already passed and `status=ok` is then false). This
 --      block runs BEFORE assertion (1), which grants ITSELF execute inside
 --      its own rolled-back transaction, so the test's privilege is never
---      mistaken for the shipped one
+--      mistaken for the shipped one. It first PROVES the database has the
+--      Supabase default privileges for functions, because without them the
+--      lock reads as present whether or not it is (R48 artifact gate F-02)
 --   1  a normal call, made as the `authenticated` role, succeeds and deletes
 --      only the caller's rows (B survives)
 --   2  anon and a NULL auth.uid() are refused (28000) and nothing is deleted
@@ -270,12 +272,36 @@ $zero$;
 ----------------------------------------------------------------------
 -- L  THE SHIPPED LOCK. `authenticated` cannot call erase_my_data at all.
 --
---    0189 REVOKEs EXECUTE from PUBLIC and anon, and grants it to NOBODY. The
---    RPC ships locked. The reason is the 8th artifact gate's M1: the sweep is
---    sequential over 26 tables, ROW EXCLUSIVE does not exclude a concurrent
---    INSERT, so a SECOND SESSION OF THE SAME USER can commit a row into a
---    table the sweep has already passed -- and then `status=ok` is a false
---    receipt. 0189 section 5 states the condition for opening it.
+--    0189 REVOKEs EXECUTE from PUBLIC and anon; 0190 REVOKEs it from
+--    authenticated. No client role holds it: the RPC ships locked. The reason
+--    is the 8th artifact gate's M1: the sweep is sequential over 26 tables,
+--    ROW EXCLUSIVE does not exclude a concurrent INSERT, so a SECOND SESSION OF
+--    THE SAME USER can commit a row into a table the sweep has already passed
+--    -- and then `status=ok` is a false receipt. 0189 section 5 states the
+--    condition for opening it.
+--
+--    ⚠ THIS BLOCK WAS GREEN WHILE THE LOCK DID NOT EXIST (R48 artifact gate
+--    F-02, 2026-09-20). 0189 alone was described here as "grants it to NOBODY".
+--    That is true of 0189's text and false of the platform: Supabase's default
+--    privileges grant EXECUTE on every new public function to anon,
+--    authenticated and service_role BY NAME (0036:11-13 recorded prod's ACL
+--    after a PUBLIC-only revoke: all three still there), so
+--    `REVOKE ... FROM PUBLIC, anon` leaves authenticated=X standing.
+--    The scratch DB had no such defaults, so authenticated held nothing here
+--    for a reason no migration caused, and the catalog assertion below passed
+--    with or without the revoke that matters. MEASURED on a scratch PostgreSQL
+--    18.3 with 0001-0189 applied: without the floor the ACL is
+--    {postgres=X/postgres} and this block is green; with it the ACL is
+--    {postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}
+--    and this block is red until 0190 applies.
+--
+--    So the floor is now installed by the workflow BEFORE the first migration
+--    (supabase-dry-run.yml, "Seed Supabase compatibility layer"), and the first
+--    thing this block does is PROVE IT IS THERE, by creating a function the way
+--    a migration would and reading what the database stamped on it. On a
+--    database without the floor this block refuses to draw a conclusion and
+--    goes red -- in CI if those lines are ever dropped, and on anyone's local
+--    scratch instance, which is where the vacuous green was last reported.
 --
 --    ⚠ THE ORDER OF THIS FILE IS PART OF THE ASSERTION. Block (1) below
 --    GRANTS ITSELF EXECUTE inside its own transaction, because it still has
@@ -294,11 +320,55 @@ $zero$;
 
 BEGIN;
 
+DO $lock_floor$
+DECLARE
+  v_owner   name;
+  v_role    text;
+  v_by_name boolean;
+BEGIN
+  -- Default privileges belong to the role that CREATES the object, so the probe
+  -- is created as whoever created erase_my_data. (postgres in CI: a no-op.)
+  SELECT r.rolname INTO STRICT v_owner
+    FROM pg_catalog.pg_proc  AS p
+    JOIN pg_catalog.pg_roles AS r ON r.oid = p.proowner
+   WHERE p.oid = 'public.erase_my_data(text)'::pg_catalog.regprocedure;
+
+  EXECUTE pg_catalog.format('SET LOCAL ROLE %I', v_owner);
+  CREATE FUNCTION public.erasure_lock_floor_probe() RETURNS integer
+    LANGUAGE sql AS 'SELECT 1';
+  RESET ROLE;
+
+  -- BY NAME, not has_function_privilege(): every new function is executable by
+  -- everyone through PUBLIC, floor or no floor, so the effective answer cannot
+  -- tell the two databases apart. The explicit ACL entry can. Both roles the
+  -- assertions below draw a conclusion about must be there; PUBLIC needs no
+  -- floor, PostgreSQL grants it itself.
+  FOREACH v_role IN ARRAY ARRAY['authenticated', 'anon']
+  LOOP
+    SELECT EXISTS (
+      SELECT 1
+        FROM pg_catalog.pg_proc AS p,
+             LATERAL pg_catalog.aclexplode(p.proacl) AS a
+       WHERE p.oid = 'public.erasure_lock_floor_probe()'::pg_catalog.regprocedure
+         AND a.grantee = v_role::pg_catalog.regrole
+         AND a.privilege_type = 'EXECUTE'
+    ) INTO v_by_name;
+
+    IF NOT v_by_name THEN
+      RAISE EXCEPTION 'erasure regression FAILED (L): this database does not reproduce the Supabase default privileges for functions -- a function just created in public by "%" carries no by-name EXECUTE for %. Without that floor, "% holds no EXECUTE on erase_my_data" is true of any function whose migration revokes PUBLIC, whether or not it revokes %, so the lock assertions below would be green for a reason no migration caused (R48 artifact gate F-02). Install the floor before the first migration: see "Seed Supabase compatibility layer" in .github/workflows/supabase-dry-run.yml',
+        v_owner, v_role, v_role, v_role;
+    END IF;
+  END LOOP;
+
+  DROP FUNCTION public.erasure_lock_floor_probe();
+END;
+$lock_floor$;
+
 DO $lock$
 BEGIN
   IF pg_catalog.has_function_privilege(
        'authenticated', 'public.erase_my_data(text)', 'EXECUTE') THEN
-    RAISE EXCEPTION 'erasure regression FAILED: authenticated holds EXECUTE on erase_my_data -- 0189 must ship it LOCKED until a per-user delete fence exists (8th artifact gate M1)';
+    RAISE EXCEPTION 'erasure regression FAILED: authenticated holds EXECUTE on erase_my_data -- 0190 must revoke it, because the platform grants it by name and 0189 revokes only PUBLIC and anon. It ships LOCKED until a per-user delete fence exists (8th artifact gate M1; R48 artifact gate F-02)';
   END IF;
   -- anon and PUBLIC in the same breath, so one block states the whole shipped
   -- ACL. (2b) measures anon's refusal behaviourally; this is the catalog side.
@@ -1962,6 +2032,6 @@ ROLLBACK;
 -- both returned the same numbers table by table; then (8c) and (8d) raise
 -- unless their counter-examples are refused in all three runs. With
 -- `ON ERROR STOP` set, this line is unreachable if any of that failed.
-SELECT 'ERASURE REGRESSION PASS  erase_my_data: SHIPS LOCKED (authenticated holds no EXECUTE - asserted on the catalog AND by a refused real call, before this file grants itself one inside a rolled-back transaction), strict assertions, authenticated call, isolation, refusals without reflection, public receipt contract, measured row deltas, atomicity, registry ACL, catalog cascade parity, and every client_erasable table observed as the authenticated role with EACH OF ITS FOUR QUESTIONS INSIDE ITS OWN ROLLED-BACK SAVEPOINT (own row deleted, other user''s row refused, '
+SELECT 'ERASURE REGRESSION PASS  erase_my_data: SHIPS LOCKED (authenticated holds no EXECUTE - asserted on the catalog AND by a refused real call, on a database first PROVEN to stamp the Supabase by-name EXECUTE defaults on a new function, before this file grants itself one inside a rolled-back transaction), strict assertions, authenticated call, isolation, refusals without reflection, public receipt contract, measured row deltas, atomicity, registry ACL, catalog cascade parity, and every client_erasable table observed as the authenticated role with EACH OF ITS FOUR QUESTIONS INSIDE ITS OWN ROLLED-BACK SAVEPOINT (own row deleted, other user''s row refused, '
     || (SELECT pg_catalog.count(*) FROM public.erasure_registry WHERE class = 'client_erasable')::text
     || ' tables unconditional-delete probed BOTH from the untouched fixture and after A''s own rows were gone), the whole sweep RE-RUN IN REVERSE delete_order AND WITH THE FOUR QUESTIONS REVERSED with identical numbers per table, the r43 F1 inherited-role cross-table conditional DELETE policy refused in all three runs, and the r44 F1 CASCADE-child conditional DELETE policy measured invisible to the old question and caught by the new one' AS result;

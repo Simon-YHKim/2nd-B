@@ -1,4 +1,6 @@
-// Static structural assertions for db/migrations/0189_erasure_registry.sql.
+// Static structural assertions for db/migrations/0189_erasure_registry.sql, and
+// for 0190_lock_erase_my_data_authenticated.sql, which completes the lock 0189
+// claimed and did not have (see LOCK_FILE below).
 //
 // Behaviour is exercised against a real database by
 // db/tests/erasure_registry_regression.sql, which supabase-dry-run runs on the
@@ -29,10 +31,20 @@ import {
 const ROOT = resolve(__dirname, "../../../..");
 const MIGRATIONS = join(ROOT, "db", "migrations");
 const FILE = "0189_erasure_registry.sql";
+// 0189 described the RPC as shipping locked and revoked only PUBLIC and anon.
+// Supabase grants EXECUTE on every new public function to `authenticated` BY
+// NAME, so that revoke left it callable (R48 artifact gate F-02). 0189 was
+// already merged, so the correction is a new number.
+const LOCK_FILE = "0190_lock_erase_my_data_authenticated.sql";
+
+/** Comments must not be able to satisfy an assertion about behaviour. */
+const stripSqlComments = (sql: string): string =>
+  sql.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*--.*$/gm, "");
 
 const raw = readFileSync(join(MIGRATIONS, FILE), "utf8");
-/** Comments must not be able to satisfy an assertion about behaviour. */
-const code = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*--.*$/gm, "");
+const code = stripSqlComments(raw);
+const lockRaw = readFileSync(join(MIGRATIONS, LOCK_FILE), "utf8");
+const lockCode = stripSqlComments(lockRaw);
 
 describe(`${FILE} -- structure`, () => {
   test("the migration number is not reused", () => {
@@ -191,11 +203,43 @@ describe(`${FILE} -- structure`, () => {
     expect(workflow).toMatch(/db\/tests\/erasure_registry_regression\.sql/);
   });
 
-  test("the RPC ships LOCKED: EXECUTE revoked, and granted to nobody", () => {
+  test("the RPC ships LOCKED: no client role holds EXECUTE, authenticated included", () => {
     expect(code).toMatch(
       /REVOKE EXECUTE ON FUNCTION public\.erase_my_data\(text\) FROM PUBLIC, anon;/,
     );
-    // ...and no grant back. Not to `authenticated` either. This line used to assert
+    // That line alone is NOT a lock, and this test used to say it was. Supabase's
+    // default privileges grant EXECUTE on every new public function to anon,
+    // authenticated and service_role BY NAME (0036:11-13 recorded prod's ACL after
+    // a PUBLIC-only revoke: all three still there), so revoking PUBLIC and anon
+    // leaves `authenticated=X` standing. The
+    // R48 artifact gate (F-02) caught it before 0189 reached prod; 0190 is the
+    // revoke that was missing, and it restates all three so the shipped ACL can
+    // be read off one file.
+    expect(lockCode).toMatch(
+      /REVOKE EXECUTE ON FUNCTION public\.erase_my_data\(text\) FROM PUBLIC, anon, authenticated;/,
+    );
+    // Across the two files, every client role is named in a REVOKE. Computed from
+    // the statements rather than pinned to one spelling, so splitting the revoke
+    // stays green and dropping a role does not.
+    const revoked = new Set(
+      [...`${code}\n${lockCode}`.matchAll(
+        /REVOKE\s+(?:ALL|EXECUTE)\s+ON\s+FUNCTION\s+public\.erase_my_data\(text\)\s+FROM\s+([^;]+);/gi,
+      )].flatMap((m) => m[1].split(",").map((role) => role.trim().toLowerCase())),
+    );
+    expect([...revoked]).toEqual(expect.arrayContaining(["public", "anon", "authenticated"]));
+    // ...and 0190 refuses to finish applying unless that is the end state. On prod
+    // the floor exists, so this check is the one place the lock is verified
+    // against the real platform rather than a reproduction of it.
+    expect(lockCode).toMatch(
+      /has_function_privilege\('authenticated', 'public\.erase_my_data\(text\)', 'EXECUTE'\)[\s\S]{0,400}RAISE EXCEPTION/,
+    );
+    // 0190 is CLI-managed like 0189: no top-level transaction, number not reused.
+    expect(
+      lockRaw.match(/^[ \t]*(BEGIN([ \t]+(WORK|TRANSACTION))?|COMMIT([ \t]+WORK)?)[ \t]*;/gim),
+    ).toBeNull();
+    expect(readdirSync(MIGRATIONS).filter((f) => /^0190_/.test(f))).toEqual([LOCK_FILE]);
+
+    // ...and no grant back, in ANY migration. This line used to assert
     // that the GRANT was PRESENT; the 8th artifact gate (2026-09-20, M1) is why it
     // now asserts the opposite. erase_my_data walks 26 tables in delete_order, and
     // the ROW EXCLUSIVE lock a DELETE takes does not exclude a concurrent INSERT --
@@ -209,9 +253,68 @@ describe(`${FILE} -- structure`, () => {
     // same file, and that stays. db/tests/erasure_registry_regression.sql block (L)
     // asserts the same lock against a real catalog AND a real refused call; this is
     // the cheap half, and the half that goes red the moment the grant is typed back.
-    expect(code).not.toMatch(/GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\.erase_my_data/i);
+    //
+    // Every migration is read, not just these two: the grant that reopens the RPC
+    // would arrive in a LATER file. When S3-C / S3-D land and it is opened on
+    // purpose, this assertion is changed in that same PR.
+    const granting = readdirSync(MIGRATIONS)
+      .filter((f) => f.endsWith(".sql"))
+      .filter((f) =>
+        /GRANT\s+(?:ALL|EXECUTE)[^;]*\bON\s+FUNCTION\s+public\.erase_my_data\b/i.test(
+          stripSqlComments(readFileSync(join(MIGRATIONS, f), "utf8")),
+        ),
+      );
+    expect(granting).toEqual([]);
     // Rule A of check:definer-grants, asserted here too so a local edit fails fast.
     expect(code).not.toMatch(/GRANT\s+EXECUTE\s+ON\s+FUNCTION[^;]*\bTO\b[^;]*\banon\b/i);
+    expect(lockCode).not.toMatch(/GRANT\s+EXECUTE\s+ON\s+FUNCTION[^;]*\bTO\b[^;]*\banon\b/i);
+  });
+
+  test("...and the lock assertion cannot pass on a database that has no floor", () => {
+    // Why the missing revoke was invisible (R48 artifact gate F-02). Block (L) of
+    // the DB regression asserted has_function_privilege('authenticated', ...) =
+    // false, but the CI scratch database created the roles and none of Supabase's
+    // default privileges. With no by-name grant to take away, that assertion was
+    // true of ANY function whose migration revoked PUBLIC -- it stayed green with
+    // the authenticated revoke absent. Measured on a scratch PostgreSQL 18.3 with
+    // 0001-0189 applied: no floor -> ACL {postgres=X/postgres}, block (L) green;
+    // floor -> {postgres=X/postgres,authenticated=X/postgres,
+    // service_role=X/postgres}, block (L) red until 0190.
+    //
+    // Two pins, because either half alone can rot silently:
+    //   1. the workflow installs the floor BEFORE the first migration is applied
+    //      (a default privilege is stamped at CREATE time and never afterwards);
+    //   2. block (L) proves the floor exists before it concludes anything, so a
+    //      floor-less database is RED rather than vacuously green.
+    // Line comments only (SQL `--` and YAML `#`). The block-comment half of
+    // stripSqlComments must not run over YAML: `db/migrations/*.sql` opens a
+    // "comment" that swallows everything up to the next `*/` -- measured, it
+    // deleted the very statement this test looks for.
+    const workflow = readFileSync(join(ROOT, ".github", "workflows", "supabase-dry-run.yml"), "utf8")
+      .replace(/^\s*(--|#).*$/gm, "");
+    const floorAt = workflow.search(
+      /ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public\s+GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role;/,
+    );
+    const firstApplyAt = workflow.indexOf("Apply baseline migrations");
+    expect(floorAt).toBeGreaterThanOrEqual(0);
+    expect(firstApplyAt).toBeGreaterThanOrEqual(0);
+    expect(floorAt).toBeLessThan(firstApplyAt);
+
+    const regression = stripSqlComments(
+      readFileSync(join(ROOT, "db", "tests", "erasure_registry_regression.sql"), "utf8"),
+    );
+    const probeAt = regression.indexOf("CREATE FUNCTION public.erasure_lock_floor_probe()");
+    const verdictAt = regression.search(
+      /has_function_privilege\(\s*'authenticated', 'public\.erase_my_data\(text\)', 'EXECUTE'\)/,
+    );
+    expect(probeAt).toBeGreaterThanOrEqual(0);
+    expect(verdictAt).toBeGreaterThanOrEqual(0);
+    expect(probeAt).toBeLessThan(verdictAt);
+    // BY NAME: through PUBLIC every new function is executable by everyone, floor
+    // or no floor, so has_function_privilege() on the probe could not tell the
+    // two databases apart. The explicit ACL entry can.
+    expect(regression).toMatch(/aclexplode\(p\.proacl\)/);
+    expect(regression).toMatch(/does not reproduce the Supabase default privileges for functions/);
   });
 
   test("the registry table is unreachable from the client", () => {
