@@ -8,9 +8,31 @@ import { getSupabaseClient, resetSupabaseClient } from "../supabase/client";
 import { clearFailClosedColdStarts } from "./fail-closed-persistence";
 import { getAuthStorageRuntime, retireAuthStorageRuntime } from "./session-mutation";
 
-// AuthContext reaches the storage-recovery gate through this one module. Its
-// import block is also cited by line from docs/legal, so the persistence exit
-// joins the existing specifier lines instead of adding an import statement.
+// AuthContext reaches the storage-recovery gate through this one module, so the
+// persistence exit joins the existing specifier lines rather than adding another
+// import statement. That is a local tidiness point, not a legal constraint.
+//
+// ⚠ It used to be written as one - "Its import block is also cited by line from
+// docs/legal". That is not true of THIS file: nothing under docs/ cites
+// storage-recovery.ts at all, by line or otherwise. The block that IS cited by
+// line is the one in AuthContext.tsx importing from "../supabase/auth", cited by
+// docs/legal/DPIA-2ndB-minors-draft.md - which also cites that file's
+// MINOR_AGE_CEILING declaration and the isMinor comparison that reads it.
+//
+// Written without line numbers on purpose. A number here would be a citation
+// that nothing audits - comment-citations.test.ts only registers a citation
+// written as a full repo path - so it would rot exactly like the sentence it
+// replaces.
+//
+// The real risk runs the other way round, and it is uneven. Of those three
+// citations, two are symbol-checked: dpia-crisis-rail-anchors.test.ts pins
+// MINOR_AGE_CEILING to its cited line, so drifting that one goes red. The
+// import-block citation is not pinned to anything. legal-doc-citations.test.ts
+// checks only that a cited file exists, that the number is inside it, and that
+// the line is not blank or a lone closing brace - never that the line still
+// holds what the document says. So an edit ABOVE that import block moves it
+// silently. Edit AuthContext.tsx line-neutrally, or move the numbers in the same
+// commit.
 export {
   clearFailClosedColdStarts,
   escalateFailClosedLockIfPersistent,

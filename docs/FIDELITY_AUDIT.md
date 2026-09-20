@@ -339,7 +339,7 @@ Priority key: P1 = blocker view (>=2 blockers or MISSING), P2 = generic/missing 
     - current: Text-only filename display
 
 ### `/records` - PARTIAL (effort M, P3)
-- impl: `src/screens/deepspace/DeepSpaceDesignScreens.tsx:985-1062`
+- impl: `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1009-1086`
 - legacy only in fallback: True
 - recommendation: Merge records + sources data using similar pattern to legacy mergeEvidence() and update RECORD_KIND_FILTERS to match 5 canonical types (全/글/링크/사진/할일). Add search Input component between SecondbStatusHeader and FilterChip row. Align UI component to canon chatbox pattern if time permits (M priority: data integration is critical, UI refinement is secondary).
 - gaps:
@@ -450,7 +450,7 @@ Priority key: P1 = blocker view (>=2 blockers or MISSING), P2 = generic/missing 
     - current: sourceRow borderColor fixed to deepSpace.cardLine (line 483) regardless of tier
 
 ### `/ops` - PARTIAL (effort M, P3)
-- impl: `src/screens/deepspace/DeepSpaceDesignScreens.tsx:2007-2317`
+- impl: `src/screens/deepspace/DeepSpaceDesignScreens.tsx:2031-2341`
 - deep-space view: `DeepSpaceOpsScreen`
 - canon: `legacy/design/ops-wiki.dc.html`
 - legacy only in fallback: True

@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import * as ts from "typescript";
 
 const ROOT = resolve(__dirname, "../../..");
 const AUTH = readFileSync(resolve(ROOT, "src/lib/auth/AuthContext.tsx"), "utf8").replace(
@@ -103,5 +104,157 @@ describe("root account scene boundary wiring", () => {
     expect(resolver).toContain("ACCOUNT_RESET_RETRY_RENDER_PASSES");
     expect(resolver).toContain("ACCOUNT_RESET_MAX_ATTEMPTS");
     expect(resolver).toContain("setResetPass((pass) => pass + 1)");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The boundary is a DEFAULT, and a default is something a route can opt out of.
+//
+// `screenLayout` on the navigator is what puts every product scene inside
+// <AccountScope>. expo-router resolves a scene's wrapper as
+//
+//     screen.layout ?? config.layout ?? screenLayout
+//
+// so ONE `<Stack.Screen name="secondb" layout={...} />`, or one
+// `<Stack.Group screenLayout={...}>`, takes that route out of the account
+// boundary - and every assertion in the test above still passes, because they
+// read the navigator's own props and never look at the routes.
+//
+// That is the hole this block closes. It checks the route tree itself, and it
+// executes the real resolver expression out of the installed expo-router so the
+// premise ("an override really would win") is measured rather than asserted.
+// ---------------------------------------------------------------------------
+
+const LAYOUT_AST = ts.createSourceFile(
+  "src/app/_layout.tsx",
+  LAYOUT,
+  ts.ScriptTarget.Latest,
+  true,
+  ts.ScriptKind.TSX,
+);
+
+type JsxTag = ts.JsxOpeningElement | ts.JsxSelfClosingElement;
+
+function jsxElements(): JsxTag[] {
+  const found: JsxTag[] = [];
+  const walk = (node: ts.Node): void => {
+    if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) found.push(node);
+    node.forEachChild(walk);
+  };
+  walk(LAYOUT_AST);
+  return found;
+}
+
+const tagOf = (el: JsxTag): string => el.tagName.getText(LAYOUT_AST);
+
+function attribute(el: JsxTag, name: string): ts.JsxAttribute | undefined {
+  return el.attributes.properties.find(
+    (p): p is ts.JsxAttribute => ts.isJsxAttribute(p) && p.name.getText(LAYOUT_AST) === name,
+  );
+}
+
+/** `name="secondb"` -> `secondb`; anything else -> the raw tag, so a failure
+ *  still names the offender instead of printing `undefined`. */
+function routeLabel(el: JsxTag): string {
+  const nameAttr = attribute(el, "name");
+  const init = nameAttr?.initializer;
+  if (init && ts.isStringLiteral(init)) return init.text;
+  return el.getText(LAYOUT_AST).split("\n")[0];
+}
+
+// The props that displace the navigator default, per the resolver pinned below.
+// `layout` is the per-Screen one; `screenLayout` is the per-Group one.
+const OVERRIDE_PROPS = ["layout", "screenLayout"];
+
+describe("no product route opts out of the account boundary", () => {
+  const routeElements = jsxElements().filter((el) => tagOf(el).startsWith("Stack."));
+
+  test("the route roster was actually read", () => {
+    // A tree-walk that silently matched nothing would report "0 overrides" and
+    // pass forever. The root layout declares the whole app's routes, so this
+    // floor is far below the real count (37 at the time of writing) and still
+    // catches a walker that stopped working.
+    expect(routeElements.length).toBeGreaterThanOrEqual(30);
+    const screens = routeElements.filter((el) => tagOf(el) === "Stack.Screen");
+    expect(screens.length).toBeGreaterThanOrEqual(30);
+    // ...and these are the routes, not some other Stack: every Screen names
+    // itself. Mapped to a label first - comparing AST nodes prints 40k lines of
+    // diff, which is a guard nobody reads. A Group carries no `name` and is
+    // deliberately not held to this.
+    expect(screens.filter((el) => attribute(el, "name") === undefined).map(routeLabel)).toEqual([]);
+  });
+
+  test("no Stack.Screen or Stack.Group carries its own layout", () => {
+    const escapes = routeElements
+      .filter((el) => OVERRIDE_PROPS.some((prop) => attribute(el, prop) !== undefined))
+      .map((el) => `${tagOf(el)} name=${routeLabel(el)}`);
+    // Not a style rule. Each entry here is a route that renders OUTSIDE
+    // <AccountScope> and therefore keeps the previous account's mounted state
+    // across an A -> B publication. If a route genuinely needs its own layout,
+    // it has to wrap AccountScope itself, and this list is where that is argued.
+    expect(escapes).toEqual([]);
+  });
+
+  test("exactly one element in the file sets a scene wrapper, and it is <Stack>", () => {
+    const setters = jsxElements().filter((el) => attribute(el, "screenLayout") !== undefined);
+    expect(setters.map(tagOf)).toEqual(["Stack"]);
+    // The single setter must not also carry `layout`, which would shadow it.
+    expect(attribute(setters[0], "layout")).toBeUndefined();
+
+    // And what it sets is the AccountScope wrapper, executed rather than matched
+    // as a string: transpiling the real attribute expression and calling it with
+    // a stand-in React shows the scene really does land inside AccountScope.
+    const initializer = attribute(setters[0], "screenLayout")?.initializer;
+    if (!initializer || !ts.isJsxExpression(initializer) || !initializer.expression) {
+      throw new Error("screenLayout is no longer an inline expression");
+    }
+    const js = ts.transpileModule(`exports.f = (${initializer.expression.getText(LAYOUT_AST)});`, {
+      compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React },
+    }).outputText;
+    interface Node {
+      type: unknown;
+      children: unknown[];
+    }
+    const exported: { f?: (args: { children: unknown; route: { name: string } }) => Node } = {};
+    new Function("exports", "React", "ProfileProbeScope", "AccountScope", js)(
+      exported,
+      { createElement: (type: unknown, _p: unknown, ...children: unknown[]) => ({ type, children }) },
+      "ProfileProbeScope",
+      "AccountScope",
+    );
+    const tree = exported.f!({ children: "SCENE", route: { name: "secondb" } });
+    expect(tree.type).toBe("ProfileProbeScope");
+    const inner = tree.children[0] as Node;
+    expect(inner.type).toBe("AccountScope");
+    expect(inner.children).toEqual(["SCENE"]);
+  });
+
+  test("the installed router really does let a route override the default", () => {
+    // The premise, taken from the shipped resolver instead of from memory. If a
+    // future expo-router drops per-screen layouts, the test above becomes
+    // unnecessary rather than wrong - and this is where that would surface.
+    const descriptors = readFileSync(
+      resolve(ROOT, "node_modules/expo-router/build/react-navigation/core/useDescriptors.js"),
+      "utf8",
+    );
+    const start = descriptors.indexOf("const layout = ");
+    expect(start).toBeGreaterThan(-1);
+    const expression = descriptors.slice(start + "const layout = ".length, descriptors.indexOf(";", start));
+    expect(expression).toContain("screen.layout");
+    expect(expression).toContain("config.layout");
+    expect(expression).toContain("screenLayout");
+
+    // Executed, with the real text: a Screen's `layout` beats a Group's, and a
+    // Group's beats the navigator default. Either one silently replaces the
+    // AccountScope wrapper proven above.
+    const resolveLayout = new Function(
+      "screen",
+      "config",
+      "screenLayout",
+      `return (${expression});`,
+    ) as (s: unknown, c: unknown, d: unknown) => unknown;
+    expect(resolveLayout({ layout: "PER_SCREEN" }, {}, "DEFAULT")).toBe("PER_SCREEN");
+    expect(resolveLayout({}, { layout: "PER_GROUP" }, "DEFAULT")).toBe("PER_GROUP");
+    expect(resolveLayout({}, {}, "DEFAULT")).toBe("DEFAULT");
   });
 });
