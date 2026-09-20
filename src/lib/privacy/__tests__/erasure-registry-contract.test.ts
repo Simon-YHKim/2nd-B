@@ -106,8 +106,40 @@ describe("erasure registry -- content", () => {
     expect(order("persona_relation")).toBeLessThan(order("persona_entity"));
     expect(order("persona_reasoning_trace")).toBeLessThan(order("persona_entity"));
     expect(order("ops_routine_logs")).toBeLessThan(order("ops_routines"));
-    expect(order("template_blocks")).toBeLessThan(order("clipper_templates"));
     expect(order("wiki_links")).toBeLessThan(order("sources"));
+
+    // The pair this list used to miss. wiki_links references wiki_pages ON
+    // DELETE CASCADE twice (wiki_links_from_fk / wiki_links_to_fk, 0022), so
+    // ordering it after its parent let the cascade empty it first and the
+    // receipt reported wiki_links: 0 for rows it had just destroyed (r38 F2).
+    // `wiki_links < sources` above passed anyway -- 11 < 20 -- which is why a
+    // hand-written list is not enough and G8 now derives every such pair from
+    // the migrations. This line stays as the named regression.
+    expect(order("wiki_links")).toBeLessThan(order("wiki_pages"));
+
+    // NOT a parent/child pair: template_blocks is (id, blocker_id,
+    // blocked_owner_id, created_at) and has no clipper_templates FK at all
+    // (0097:41-48) -- the registry reason used to claim one. The order is
+    // harmless, so it is pinned here only to stop it drifting on a false
+    // premise; nothing in the schema requires it.
+    expect(order("template_blocks")).toBeLessThan(order("clipper_templates"));
+  });
+
+  test("a table the receipt calls kept is not one a cascade destroys", () => {
+    // The F3 shape: content_reports keeps its class (a reporter still has no
+    // DELETE path) but declares the parent that takes it along, so the RPC
+    // reports it under `cascaded` rather than `kept`. G9 derives this from the
+    // FKs; this test pins the one instance the schema has today.
+    expect(registry.tables.content_reports.class).toBe("account_delete_only");
+    expect(registry.tables.content_reports.cascadesFrom).toBe("clipper_templates");
+
+    // Only kept tables carry the field, and only where a cascade is real.
+    for (const [table, entry] of Object.entries(registry.tables)) {
+      if (entry.cascadesFrom === undefined) continue;
+      expect(entry.class).not.toBe("client_erasable");
+      expect(registry.tables[entry.cascadesFrom].class).toBe("client_erasable");
+      expect(table).not.toBe(entry.cascadesFrom);
+    }
   });
 
   test("everything delete-bulk.ts erases today is still accounted for", () => {

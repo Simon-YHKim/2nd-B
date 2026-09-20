@@ -115,7 +115,8 @@
     "content_reports": {
       "owner": "reporter_id",
       "class": "account_delete_only",
-      "reason": "UGC 신고 원장에 소유자 DELETE 정책이 없다(0097). 신고자가 지우면 조정 근거가 사라지기 때문이다."
+      "cascadesFrom": "clipper_templates",
+      "reason": "UGC 신고 원장에 소유자 DELETE 정책이 없다(0097). 신고자가 지우면 조정 근거가 사라지기 때문이다. ⚠ 그래도 콘텐츠 삭제가 이 표를 완전히 비껴가지는 않는다: content_reports.template_id 가 clipper_templates 를 ON DELETE CASCADE 로 물고 있어(0097:59) 지워진 템플릿에 달린 신고는 - 신고자가 남이어도 - 함께 사라진다. 이 PR 이전부터 있던 동작이라 여기서 바꾸지 않고, 영수증에 사실대로 적는다(G9). 신고 원장을 살릴지(=FK 를 SET NULL 로) 는 미결이다."
     },
     "credit_backfill_0135": {
       "owner": "user_id",
@@ -352,7 +353,7 @@
       "owner": "blocker_id",
       "class": "client_erasable",
       "order": 70,
-      "reason": "내가 건 템플릿 차단 목록. 내 설정이고 owner_delete 정책이 있다(0097). clipper_templates 를 CASCADE 로 물고 있어 먼저 지운다."
+      "reason": "내가 건 템플릿 차단 목록. 내 설정이고 owner_delete 정책이 있다(0097). ⚠ 여기 'clipper_templates 를 CASCADE 로 물고 있어 먼저 지운다' 고 적혀 있었는데 사실이 아니다 - 이 표는 (id, blocker_id, blocked_owner_id, created_at) 뿐이고 template_id 열도 clipper_templates FK 도 없다(0097:41-48). 두 FK 는 전부 users 를 향한다. 71 보다 앞선 70 이라는 순서 자체는 무해하지만 근거가 지어낸 것이었다. 실제 clipper_templates 의 CASCADE 자식은 content_reports 와 clipper_template_moderation 둘이다."
     },
     "testimonials": {
       "owner": "user_id",
@@ -378,14 +379,14 @@
     "wiki_links": {
       "owner": "user_id",
       "class": "client_erasable",
-      "order": 11,
-      "reason": "위키 페이지 사이의 연결. wiki_pages 를 CASCADE 로 물고 있지만 순서를 명시해 둔다(0022)."
+      "order": 9,
+      "reason": "위키 페이지 사이의 연결. wiki_pages 를 ON DELETE CASCADE 로 물고 있어서(0022 wiki_links_from_fk·wiki_links_to_fk) 반드시 부모보다 먼저 지운다 - 나중에 지우면 이미 연쇄로 사라진 뒤라 ROW_COUNT 가 0 이 되고 영수증이 '원래 없었다' 고 거짓말한다(G8)."
     },
     "wiki_pages": {
       "owner": "user_id",
       "class": "client_erasable",
       "order": 10,
-      "reason": "LLM 위키의 페이지 본문. source_kind_pair CHECK 때문에 sources 보다 먼저 지워야 한다(0022)."
+      "reason": "LLM 위키의 페이지 본문. source_kind_pair CHECK 때문에 sources 보다 먼저 지워야 하고, wiki_links 가 이 표를 CASCADE 로 물고 있어 그쪽이 더 먼저다(0022)."
     },
     "xp_events": {
       "owner": "user_id",

@@ -210,20 +210,102 @@ function ownerEvidence(columnName: string, definition: string): OwnerColumn | nu
   return { name: columnName, evidence };
 }
 
-/** Parse every db/migrations/*.sql in apply order and return the public tables
- *  that carry at least one per-user owner column, minus tables a later
- *  migration dropped. */
-export function discoverOwnedTables(migrationsDir: string): DiscoveredTable[] {
+/** Final RLS policy state for one policy name on one table. */
+export type PolicyState = { command: string; roles: string; file: string };
+
+/** A surviving foreign key, as the replay below reconstructs it.
+ *
+ *  `onDelete` is what makes an edge matter to the erasure registry: a CASCADE
+ *  child of a deleted parent disappears without any explicit DELETE naming it,
+ *  so neither its ROW_COUNT nor its "kept" classification can be believed
+ *  unless something checks the edge. That is rules G8 and G9. */
+export type ForeignKeyEdge = {
+  child: string;
+  childColumns: string[];
+  parent: string;
+  onDelete: "cascade" | "set null" | "set default" | "restrict" | "no action";
+  definedIn: string;
+  constraintName: string | null;
+};
+
+export type SchemaReplay = {
+  tables: Map<string, DiscoveredTable>;
+  /** table -> policy name -> state. Only surviving policies are present. */
+  policies: Map<string, Map<string, PolicyState>>;
+  foreignKeys: ForeignKeyEdge[];
+};
+
+type ReplayEvent = { at: number; apply: () => void };
+
+function parseOnDelete(tail: string): ForeignKeyEdge["onDelete"] {
+  const m = /\bon\s+delete\s+(cascade|set\s+null|set\s+default|restrict|no\s+action)/i.exec(tail);
+  if (!m) return "no action"; // the SQL default
+  return m[1].toLowerCase().replace(/\s+/g, " ") as ForeignKeyEdge["onDelete"];
+}
+
+function parseColumnList(raw: string | undefined): string[] {
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((c) => c.trim().replace(/^"|"$/g, "").toLowerCase())
+    .filter(Boolean);
+}
+
+/**
+ * Replay every db/migrations/*.sql **in statement order** and return the final
+ * schema state the registry is checked against.
+ *
+ * WHY STATEMENT ORDER. The previous shape processed one regex kind at a time --
+ * every CREATE TABLE in a file, then every ALTER, then every DROP; and for
+ * policies, every DROP POLICY and then every CREATE POLICY. The winner was the
+ * order the regexes happened to run in, not the order Postgres would execute.
+ * So `DROP TABLE x; CREATE TABLE x (...)` reported x as gone and
+ * `CREATE POLICY p; DROP POLICY p` reported p as alive -- both false green, and
+ * both re-open exactly the holes (F1, F4) this inventory exists to close.
+ *
+ * Every regex below therefore runs over the SAME stripped string and its match
+ * `.index` becomes an event offset; the events are sorted once and applied in
+ * order. stripSqlComments does not preserve byte offsets (a comment collapses
+ * to one space), which is fine: offsets only ever need to be comparable to one
+ * another WITHIN a file, and they are, because one strip feeds all of them.
+ */
+export function replayMigrations(migrationsDir: string): SchemaReplay {
   const files = readdirSync(migrationsDir)
     .filter((f) => f.endsWith(".sql"))
     .sort();
 
-  const found = new Map<string, DiscoveredTable>();
-  const dropped = new Set<string>();
+  const tables = new Map<string, DiscoveredTable>();
+  const policies = new Map<string, Map<string, PolicyState>>();
+  let foreignKeys: ForeignKeyEdge[] = [];
+
+  const policySlot = (table: string): Map<string, PolicyState> => {
+    const existing = policies.get(table);
+    if (existing) return existing;
+    const fresh = new Map<string, PolicyState>();
+    policies.set(table, fresh);
+    return fresh;
+  };
+
+  const addOwner = (table: string, file: string, owner: OwnerColumn): void => {
+    const existing = tables.get(table);
+    if (existing) {
+      if (!existing.ownerColumns.some((c) => c.name === owner.name)) existing.ownerColumns.push(owner);
+    } else {
+      tables.set(table, { table, definedIn: file, ownerColumns: [owner] });
+    }
+  };
+
+  const dropTable = (table: string): void => {
+    // Postgres takes the policies and the constraints with the table.
+    tables.delete(table);
+    policies.delete(table);
+    foreignKeys = foreignKeys.filter((fk) => fk.child !== table && fk.parent !== table);
+  };
 
   for (const file of files) {
-    const raw = readFileSync(join(migrationsDir, file), "utf8");
-    const sql = stripSqlComments(raw);
+    const sql = stripSqlComments(readFileSync(join(migrationsDir, file), "utf8"));
+    const events: ReplayEvent[] = [];
+    let m: RegExpExecArray | null;
 
     // `UNLOGGED` is a durable table and must be parsed; `TEMP`/`TEMPORARY` are
     // session-scoped (0135 creates one) and can never be a user's data. Spelling
@@ -232,60 +314,193 @@ export function discoverOwnedTables(migrationsDir: string): DiscoveredTable[] {
     // silence, which is the exact failure (F4) this inventory exists to stop.
     const createRe =
       /\bcreate\s+(?:unlogged\s+)?table\s+(?:if\s+not\s+exists\s+)?(?:("?)([A-Za-z_][\w]*)\1\s*\.\s*)?("?)([A-Za-z_][\w]*)\3\s*\(/gi;
-    let m: RegExpExecArray | null;
     while ((m = createRe.exec(sql)) !== null) {
       const schema = (m[2] ?? "public").toLowerCase();
       const table = m[4].toLowerCase();
-      if (schema !== "public") continue;
       const open = sql.indexOf("(", m.index + m[0].length - 1);
       const close = matchParen(sql, open);
       if (close === -1) continue;
       createRe.lastIndex = close + 1;
+      if (schema !== "public") continue;
       const body = sql.slice(open + 1, close);
+      const at = m.index;
 
       const ownerColumns: OwnerColumn[] = [];
+      const edges: ForeignKeyEdge[] = [];
       for (const part of splitTopLevel(body)) {
         const trimmed = part.trim();
         if (!trimmed) continue;
         const nameMatch = /^"?([A-Za-z_][\w]*)"?\s+([\s\S]*)$/.exec(trimmed);
         if (!nameMatch) continue;
-        const columnName = nameMatch[1].toLowerCase();
-        if (CONSTRAINT_STARTERS.has(columnName)) continue;
-        const owner = ownerEvidence(columnName, nameMatch[2]);
+        const head = nameMatch[1].toLowerCase();
+        const rest = nameMatch[2];
+
+        if (CONSTRAINT_STARTERS.has(head)) {
+          // Table-level: [CONSTRAINT n] FOREIGN KEY (a, b) REFERENCES p (x, y) ...
+          const fk =
+            /\bforeign\s+key\s*\(([^)]*)\)\s*references\s+(?:(?:public)\s*\.\s*)?"?([A-Za-z_][\w]*)"?\s*(?:\(([^)]*)\))?([\s\S]*)$/i.exec(
+              trimmed,
+            );
+          if (fk) {
+            const named = /^constraint\s+"?([A-Za-z_][\w]*)"?/i.exec(trimmed);
+            edges.push({
+              child: table,
+              childColumns: parseColumnList(fk[1]),
+              parent: fk[2].toLowerCase(),
+              onDelete: parseOnDelete(fk[4]),
+              definedIn: file,
+              constraintName: named ? named[1].toLowerCase() : null,
+            });
+          }
+          continue;
+        }
+
+        const owner = ownerEvidence(head, rest);
         if (owner) ownerColumns.push(owner);
+
+        // Column-level: col type REFERENCES p (x) ON DELETE ...
+        const inline =
+          /\breferences\s+(?:(?:public)\s*\.\s*)?"?([A-Za-z_][\w]*)"?\s*(?:\(([^)]*)\))?([\s\S]*)$/i.exec(rest);
+        if (inline) {
+          edges.push({
+            child: table,
+            childColumns: [head],
+            parent: inline[1].toLowerCase(),
+            onDelete: parseOnDelete(inline[3]),
+            definedIn: file,
+            constraintName: null,
+          });
+        }
       }
 
-      const existing = found.get(table);
-      if (existing) {
-        for (const col of ownerColumns) {
-          if (!existing.ownerColumns.some((c) => c.name === col.name)) existing.ownerColumns.push(col);
-        }
-      } else if (ownerColumns.length > 0) {
-        found.set(table, { table, definedIn: file, ownerColumns });
-      }
+      events.push({
+        at,
+        apply: () => {
+          // `CREATE TABLE IF NOT EXISTS` over a live table is a no-op in
+          // Postgres, so merge rather than reset; a real re-create only ever
+          // follows a DROP, which already cleared the slot.
+          const existing = tables.get(table);
+          if (existing) {
+            for (const col of ownerColumns) {
+              if (!existing.ownerColumns.some((c) => c.name === col.name)) existing.ownerColumns.push(col);
+            }
+          } else if (ownerColumns.length > 0) {
+            tables.set(table, { table, definedIn: file, ownerColumns: [...ownerColumns] });
+          }
+          for (const edge of edges) {
+            if (!foreignKeys.some((f) => f.child === edge.child && f.parent === edge.parent
+                && f.childColumns.join(",") === edge.childColumns.join(","))) {
+              foreignKeys.push(edge);
+            }
+          }
+        },
+      });
     }
 
     // An owner column bolted on after the fact still makes the table user-owned.
-    const alterRe =
+    const alterAddColumnRe =
       /\balter\s+table\s+(?:if\s+exists\s+)?(?:(?:public)\s*\.\s*)?("?)([A-Za-z_][\w]*)\1\s+add\s+column\s+(?:if\s+not\s+exists\s+)?("?)([A-Za-z_][\w]*)\3([^;]*)/gi;
-    while ((m = alterRe.exec(sql)) !== null) {
+    while ((m = alterAddColumnRe.exec(sql)) !== null) {
       const table = m[2].toLowerCase();
-      const owner = ownerEvidence(m[4].toLowerCase(), m[5]);
-      if (!owner) continue;
-      const existing = found.get(table);
-      if (existing) {
-        if (!existing.ownerColumns.some((c) => c.name === owner.name)) existing.ownerColumns.push(owner);
-      } else {
-        found.set(table, { table, definedIn: file, ownerColumns: [owner] });
-      }
+      const columnName = m[4].toLowerCase();
+      const owner = ownerEvidence(columnName, m[5]);
+      const rest = m[5];
+      const at = m.index;
+      events.push({
+        at,
+        apply: () => {
+          if (owner) addOwner(table, file, owner);
+          const inline =
+            /\breferences\s+(?:(?:public)\s*\.\s*)?"?([A-Za-z_][\w]*)"?\s*(?:\(([^)]*)\))?([\s\S]*)$/i.exec(rest);
+          if (inline) {
+            foreignKeys.push({
+              child: table,
+              childColumns: [columnName],
+              parent: inline[1].toLowerCase(),
+              onDelete: parseOnDelete(inline[3]),
+              definedIn: file,
+              constraintName: null,
+            });
+          }
+        },
+      });
     }
 
-    const dropRe = /\bdrop\s+table\s+(?:if\s+exists\s+)?(?:(?:public)\s*\.\s*)?("?)([A-Za-z_][\w]*)\1/gi;
-    while ((m = dropRe.exec(sql)) !== null) dropped.add(m[2].toLowerCase());
+    // ALTER TABLE t ADD [CONSTRAINT n] FOREIGN KEY (...) REFERENCES p (...) ...
+    const alterAddFkRe =
+      /\balter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?(?:(?:public)\s*\.\s*)?"?([A-Za-z_][\w]*)"?\s+add\s+(?:constraint\s+"?([A-Za-z_][\w]*)"?\s+)?foreign\s+key\s*\(([^)]*)\)\s*references\s+(?:(?:public)\s*\.\s*)?"?([A-Za-z_][\w]*)"?\s*(?:\(([^)]*)\))?([^;]*)/gi;
+    while ((m = alterAddFkRe.exec(sql)) !== null) {
+      const edge: ForeignKeyEdge = {
+        child: m[1].toLowerCase(),
+        childColumns: parseColumnList(m[3]),
+        parent: m[4].toLowerCase(),
+        onDelete: parseOnDelete(m[6]),
+        definedIn: file,
+        constraintName: m[2] ? m[2].toLowerCase() : null,
+      };
+      events.push({ at: m.index, apply: () => { foreignKeys.push(edge); } });
+    }
+
+    // ALTER TABLE t DROP CONSTRAINT [IF EXISTS] n
+    const alterDropConstraintRe =
+      /\balter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?(?:(?:public)\s*\.\s*)?"?([A-Za-z_][\w]*)"?\s+drop\s+constraint\s+(?:if\s+exists\s+)?"?([A-Za-z_][\w]*)"?/gi;
+    while ((m = alterDropConstraintRe.exec(sql)) !== null) {
+      const child = m[1].toLowerCase();
+      const name = m[2].toLowerCase();
+      events.push({
+        at: m.index,
+        apply: () => {
+          foreignKeys = foreignKeys.filter((fk) => !(fk.child === child && fk.constraintName === name));
+        },
+      });
+    }
+
+    // `DROP TABLE a, b;` drops both; matching only the first name is how a
+    // table walks back into the inventory after it is gone.
+    const dropTableRe =
+      /\bdrop\s+table\s+(?:if\s+exists\s+)?((?:(?:public\s*\.\s*)?"?[A-Za-z_][\w]*"?\s*,\s*)*(?:public\s*\.\s*)?"?[A-Za-z_][\w]*"?)/gi;
+    while ((m = dropTableRe.exec(sql)) !== null) {
+      const names = m[1]
+        .split(",")
+        .map((n) => n.trim().replace(/^public\s*\.\s*/i, "").replace(/^"|"$/g, "").toLowerCase())
+        .filter(Boolean);
+      events.push({ at: m.index, apply: () => { for (const n of names) dropTable(n); } });
+    }
+
+    const dropPolicyRe =
+      /\bdrop\s+policy\s+(?:if\s+exists\s+)?"?([A-Za-z_][\w]*)"?\s+on\s+(?:(?:public|storage)\s*\.\s*)?"?([A-Za-z_][\w]*)"?/gi;
+    while ((m = dropPolicyRe.exec(sql)) !== null) {
+      const name = m[1].toLowerCase();
+      const table = m[2].toLowerCase();
+      events.push({ at: m.index, apply: () => { policySlot(table).delete(name); } });
+    }
+
+    // The tail is bounded because a policy body can be long; everything we need
+    // (FOR <cmd>, TO <roles>) sits before the first USING / WITH CHECK.
+    const createPolicyRe =
+      /\bcreate\s+policy\s+"?([A-Za-z_][\w]*)"?\s+on\s+(?:(?:public|storage)\s*\.\s*)?"?([A-Za-z_][\w]*)"?([\s\S]{0,240}?)(?:using|with\s+check|;|\$p\$)/gi;
+    while ((m = createPolicyRe.exec(sql)) !== null) {
+      const name = m[1].toLowerCase();
+      const table = m[2].toLowerCase();
+      const tail = m[3];
+      // Postgres defaults an unqualified policy to FOR ALL.
+      const command = (/\bfor\s+(all|select|insert|update|delete)\b/i.exec(tail)?.[1] ?? "all").toLowerCase();
+      const roles = (/\bto\s+([a-z_,\s]+)/i.exec(tail)?.[1] ?? "public").trim();
+      events.push({ at: m.index, apply: () => { policySlot(table).set(name, { command, roles, file }); } });
+    }
+
+    events.sort((a, b) => a.at - b.at);
+    for (const e of events) e.apply();
   }
 
-  return [...found.values()]
-    .filter((t) => !dropped.has(t.table))
+  return { tables, policies, foreignKeys };
+}
+
+/** Parse every db/migrations/*.sql in apply order and return the public tables
+ *  that carry at least one per-user owner column, minus tables a later
+ *  migration dropped. */
+export function discoverOwnedTables(migrationsDir: string): DiscoveredTable[] {
+  return [...replayMigrations(migrationsDir).tables.values()]
     .filter((t) => !(t.table in NOT_A_USER_TABLE))
     .sort((a, b) => a.table.localeCompare(b.table));
 }
@@ -311,8 +526,14 @@ export type RegistryEntry = {
   class: ErasureClass;
   /** Only for `client_erasable`: FK and CHECK constraints make the order real.
    *  wiki_pages must go before sources (wiki_pages_source_kind_pair), children
-   *  before parents. */
+   *  before parents (G8). */
   order?: number;
+  /** Set only on a KEPT table (`retained` / `account_delete_only`) that an
+   *  ON DELETE CASCADE from an erased parent empties anyway. Naming the parent
+   *  is not a reclassification -- the table keeps its class and gains no DELETE
+   *  policy. It moves the row out of the receipt's `kept` list into `cascaded`,
+   *  so the receipt stops calling a destroyed table kept (G9). */
+  cascadesFrom?: string;
   reason: string;
 };
 
@@ -359,29 +580,32 @@ export function renderRegistrySql(registry: Registry): string {
   const rows = names.map((name) => {
     const e = registry.tables[name];
     const order = e.class === "client_erasable" ? String(e.order) : "NULL";
-    return `    (${sqlLiteral(name)}, ${sqlLiteral(e.owner)}, ${sqlLiteral(e.class)}, ${order}, ${sqlLiteral(e.reason)})`;
+    const cascade = e.cascadesFrom === undefined ? "NULL" : sqlLiteral(e.cascadesFrom);
+    return `    (${sqlLiteral(name)}, ${sqlLiteral(e.owner)}, ${sqlLiteral(e.class)}, ${order}, ${cascade}, ${sqlLiteral(e.reason)})`;
   });
   return [
     SQL_BEGIN_MARKER,
     "-- 손으로 고치지 않는다. db/erasure-registry.json 을 고치고",
     "--   npx tsx scripts/generate-erasure-registry.ts --sql",
     "-- 를 돌려 이 블록을 통째로 갈아 끼운다. check:erasure-registry 가 대조한다.",
-    "WITH incoming (table_name, owner_column, class, delete_order, reason) AS (",
+    "WITH incoming (table_name, owner_column, class, delete_order, cascades_from, reason) AS (",
     "  VALUES",
     rows.join(",\n"),
     "),",
     "upserted AS (",
-    "  INSERT INTO public.erasure_registry AS r (table_name, owner_column, class, delete_order, reason)",
+    "  INSERT INTO public.erasure_registry AS r (table_name, owner_column, class, delete_order, cascades_from, reason)",
         // delete_order is cast explicitly: a VALUES column whose entries are all
     // untyped NULL resolves to text, which would only break on the day every
     // registered table is retained. Cheaper to never depend on the inference.
-    "  SELECT i.table_name, i.owner_column, i.class, i.delete_order::int, i.reason",
+    // cascades_from is text already, so its all-NULL case needs no such cast.
+    "  SELECT i.table_name, i.owner_column, i.class, i.delete_order::int, i.cascades_from, i.reason",
     "  FROM incoming AS i",
     "  ON CONFLICT (table_name) DO UPDATE",
-    "    SET owner_column = EXCLUDED.owner_column,",
-    "        class        = EXCLUDED.class,",
-    "        delete_order = EXCLUDED.delete_order,",
-    "        reason       = EXCLUDED.reason",
+    "    SET owner_column  = EXCLUDED.owner_column,",
+    "        class         = EXCLUDED.class,",
+    "        delete_order  = EXCLUDED.delete_order,",
+    "        cascades_from = EXCLUDED.cascades_from,",
+    "        reason        = EXCLUDED.reason",
     "  RETURNING r.table_name",
     ")",
     "DELETE FROM public.erasure_registry AS r",

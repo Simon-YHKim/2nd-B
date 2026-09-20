@@ -22,12 +22,25 @@
 //   G5 well-formed     reason present, owner column real, delete order sane
 //   G6 retention       the retention ledgers are never erasure targets
 //   G7 one original    0189's seed block is byte-identical to a fresh render
+//   G8 cascade order   a CASCADE child is deleted before its parent           (F2)
+//   G9 cascade honesty a kept table that a CASCADE empties says so            (F3)
+//
+// G8/G9 were added on 2026-09-20 after the r38 gate. Both are about the RECEIPT
+// telling the truth, and both come from the same blind spot: the registry only
+// ever looked at what an explicit DELETE names, while a foreign key removes rows
+// nobody named. G8: wiki_links sat AFTER its parent wiki_pages, so the cascade
+// emptied it first and its ROW_COUNT came back 0 -- the F1 shape again, this time
+// inside the receipt. G9: content_reports was reported as "kept" while
+// clipper_templates took it along, and a reporter cannot even delete their own
+// report (0097 grants authenticated SELECT, INSERT only), so the row vanished by
+// someone else's hand. Neither rule changes what is deleted; they force the
+// registry to state what the schema already does.
 //
 // G3/G4 read the migrations, not production. That is the honest limit and it is
 // stated in the failure text: prod is behind main, so a policy added after the
 // last applied migration is true here and not yet true there.
 
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   discoverOwnedTables,
@@ -35,10 +48,12 @@ import {
   loadRegistry,
   migrationsDir,
   renderRegistrySql,
-  stripSqlComments,
+  replayMigrations,
   ERASURE_CLASSES,
   REGISTRY_PATH,
   type ErasureClass,
+  type ForeignKeyEdge,
+  type PolicyState,
   type Registry,
 } from "./generate-erasure-registry";
 
@@ -56,57 +71,12 @@ const MUST_BE_RETAINED = [
   "paddle_webhook_events",
 ];
 
-type PolicyState = { command: string; roles: string; file: string };
-
-/**
- * Final RLS policy state per table, replaying db/migrations in apply order.
- *
- * A policy name can be dropped and recreated across migrations (0025 does this
- * to chat_usage; 0102 rewrote the whole schema for the initplan wrap), so the
- * LAST statement for a given (table, policy name) wins. Reading only CREATE
- * statements would report chat_usage as deletable, which is exactly the wrong
- * answer.
- */
-function finalPolicies(MIGRATIONS: string): Map<string, Map<string, PolicyState | null>> {
-  const byTable = new Map<string, Map<string, PolicyState | null>>();
-  const slot = (table: string): Map<string, PolicyState | null> => {
-    const existing = byTable.get(table);
-    if (existing) return existing;
-    const fresh = new Map<string, PolicyState | null>();
-    byTable.set(table, fresh);
-    return fresh;
-  };
-
-  for (const file of readdirSync(MIGRATIONS).filter((f) => f.endsWith(".sql")).sort()) {
-    const sql = stripSqlComments(readFileSync(join(MIGRATIONS, file), "utf8"));
-
-    const dropRe =
-      /\bdrop\s+policy\s+(?:if\s+exists\s+)?"?([A-Za-z_][\w]*)"?\s+on\s+(?:(?:public|storage)\s*\.\s*)?"?([A-Za-z_][\w]*)"?/gi;
-    let m: RegExpExecArray | null;
-    while ((m = dropRe.exec(sql)) !== null) slot(m[2].toLowerCase()).set(m[1].toLowerCase(), null);
-
-    // The tail is bounded because a policy body can be long; everything we need
-    // (FOR <cmd>, TO <roles>) sits before the first USING / WITH CHECK.
-    const createRe =
-      /\bcreate\s+policy\s+"?([A-Za-z_][\w]*)"?\s+on\s+(?:(?:public|storage)\s*\.\s*)?"?([A-Za-z_][\w]*)"?([\s\S]{0,240}?)(?:using|with\s+check|;|\$p\$)/gi;
-    while ((m = createRe.exec(sql)) !== null) {
-      const tail = m[3];
-      // Postgres defaults an unqualified policy to FOR ALL.
-      const command = (/\bfor\s+(all|select|insert|update|delete)\b/i.exec(tail)?.[1] ?? "all").toLowerCase();
-      const roles = (/\bto\s+([a-z_,\s]+)/i.exec(tail)?.[1] ?? "public").trim();
-      slot(m[2].toLowerCase()).set(m[1].toLowerCase(), { command, roles, file });
-    }
-  }
-  return byTable;
-}
-
 function ownerDeletePolicies(
-  policies: Map<string, Map<string, PolicyState | null>>,
+  policies: Map<string, Map<string, PolicyState>>,
   table: string,
 ): { name: string; state: PolicyState }[] {
   const found: { name: string; state: PolicyState }[] = [];
-  for (const [name, state] of policies.get(table) ?? new Map<string, PolicyState | null>()) {
-    if (state === null) continue;
+  for (const [name, state] of policies.get(table) ?? new Map<string, PolicyState>()) {
     if (state.command !== "delete" && state.command !== "all") continue;
     // service_role bypasses RLS anyway; a policy scoped only to it is not an
     // owner-facing delete path.
@@ -128,6 +98,7 @@ function isErasureClass(value: unknown): value is ErasureClass {
 export function collectErasureRegistryErrors(root: string): string[] {
   const MIGRATIONS = migrationsDir(root);
   const errors: string[] = [];
+  const replay = replayMigrations(MIGRATIONS);
   const discovered = discoverOwnedTables(MIGRATIONS);
   const discoveredByName = new Map(discovered.map((d) => [d.table, d]));
 
@@ -138,7 +109,7 @@ export function collectErasureRegistryErrors(root: string): string[] {
     return [`${REGISTRY_PATH} could not be read: ${String(e)}`];
   }
 
-  const policies = finalPolicies(MIGRATIONS);
+  const policies = replay.policies;
 
   // G1 -- a new user-owned table must be classified before it can merge.
   for (const d of discovered) {
@@ -224,6 +195,78 @@ export function collectErasureRegistryErrors(root: string): string[] {
       errors.push(
         `G6 ${table} is classified ${entry.class}. It is a retention ledger and must be retained ` +
           `(docs/S3-SERVER-DELETION.md 6).`,
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // G8 / G9 -- the edges no explicit DELETE names.
+  //
+  // erase_my_data issues one DELETE per client_erasable row and reports its
+  // ROW_COUNT. A foreign key can remove rows either BEFORE that DELETE runs
+  // (making the count 0) or from a table the registry promised to keep. Both
+  // are receipt lies, and neither is visible from policies alone -- which is
+  // all G3/G4 look at. So these two rules read the FKs out of the migrations.
+  //
+  // Only ON DELETE CASCADE counts. SET NULL leaves the row in place: it is why
+  // ops_routine_logs (60) may legally sit after health_samples (53), and a rule
+  // that flagged every inverted order would fire on it falsely.
+  // ---------------------------------------------------------------------
+  const cascadesIntoErasable: ForeignKeyEdge[] = replay.foreignKeys.filter(
+    (fk) => fk.onDelete === "cascade" && registry.tables[fk.parent]?.class === "client_erasable",
+  );
+
+  for (const fk of cascadesIntoErasable) {
+    const parent = registry.tables[fk.parent];
+    const child = registry.tables[fk.child];
+
+    // G8 -- both ends erasable: the child must go first or its count is a lie.
+    if (child?.class === "client_erasable") {
+      if (typeof child.order !== "number" || typeof parent.order !== "number") continue; // G5 has it
+      if (child.order >= parent.order) {
+        errors.push(
+          `G8 ${fk.child} (delete order ${child.order}) is deleted at or after its parent ` +
+            `${fk.parent} (${parent.order}), but ${fk.child}.${fk.childColumns.join(", ")} references it ` +
+            `ON DELETE CASCADE (${fk.definedIn}). The cascade empties ${fk.child} first, so its own ` +
+            `DELETE matches 0 rows and the receipt reports "there were none" for rows it just destroyed. ` +
+            `Give ${fk.child} a delete order below ${parent.order}.`,
+        );
+      }
+      continue;
+    }
+
+    // G9 -- the child is kept, yet the parent takes it along. Say so, or the
+    // receipt calls a destroyed table "kept".
+    if (!child) continue; // no owner column, so out of registry scope (G1/G2 own that)
+    if (child.cascadesFrom !== fk.parent) {
+      errors.push(
+        `G9 ${fk.child} is classified ${child.class} (the receipt reports it as kept), but ` +
+          `${fk.child}.${fk.childColumns.join(", ")} references ${fk.parent} ON DELETE CASCADE ` +
+          `(${fk.definedIn}) and ${fk.parent} IS erased by content deletion. Those rows go too. ` +
+          `Add "cascadesFrom": "${fk.parent}" to ${fk.child} in ${REGISTRY_PATH} so the receipt ` +
+          `reports it honestly, or change the FK in a migration. Do not silently reclassify it: ` +
+          `that would hand a new DELETE path to someone who never had one.`,
+      );
+    }
+  }
+
+  // ...and the same rule from the other side: a declared cascade that the
+  // schema does not actually have is a comforting fiction, which is worse than
+  // no claim at all.
+  for (const [table, entry] of Object.entries(registry.tables)) {
+    if (entry.cascadesFrom === undefined) continue;
+    const real = cascadesIntoErasable.some((fk) => fk.child === table && fk.parent === entry.cascadesFrom);
+    if (!real) {
+      errors.push(
+        `G9 ${table} declares cascadesFrom "${entry.cascadesFrom}", but db/migrations has no ` +
+          `ON DELETE CASCADE foreign key from ${table} to an erased ${entry.cascadesFrom}. ` +
+          `Remove the claim or fix the target.`,
+      );
+    }
+    if (entry.class === "client_erasable") {
+      errors.push(
+        `G9 ${table} is client_erasable, so it is deleted explicitly and ordered by G8; ` +
+          `cascadesFrom is only for tables the receipt would otherwise call kept.`,
       );
     }
   }
