@@ -84,6 +84,15 @@ BEGIN
   VALUES ('cccc0000-0000-4000-8000-00000000c001', p_a, 'a-template', 'article');
   INSERT INTO public.content_reports (template_id, reporter_id, reason)
   VALUES ('cccc0000-0000-4000-8000-00000000c001', p_b, 'spam');
+
+  -- Two retention ledgers the erasure path must never touch: the PIPA consent
+  -- record and the C3 audit ledger. Without rows here, "consent_records is in
+  -- kept[]" is a string check against the registry itself and stays green while
+  -- the rows are destroyed.
+  INSERT INTO public.consent_records (user_id, age_band, consent_version, policy_version, terms_version, locale)
+  VALUES (p_a, 'adult', 'v1', 'v1', 'v1', 'ko');
+  INSERT INTO public.ai_audit_log (user_id, prompt_hash, output_hash, model_used, vertex_backend, safety_zone, latency_ms)
+  VALUES (p_a, 'deadbeef', 'cafebabe', 'test-model', false, 'green', 1);
 END;
 $fixture$;
 
@@ -161,10 +170,44 @@ BEGIN
              WHERE c ->> 'table' = 'content_reports' AND c ->> 'removed_with' = 'clipper_templates'),
     'content_reports is missing from cascaded[] with removed_with = clipper_templates');
 
-  -- Retention ledgers stay in kept, where the receipt promises they are.
+  -- Retention ledgers stay in kept, where the receipt promises they are...
   PERFORM pg_temp.expect(
     EXISTS (SELECT 1 FROM pg_catalog.jsonb_array_elements(v_r -> 'kept') AS k WHERE k ->> 'table' = 'consent_records'),
     'consent_records is not reported as kept');
+
+  -- ...and the ROWS are still there. Asserting only that the string appears in
+  -- kept[] tests the registry against itself: widen the delete loop to cover a
+  -- retained table and the name still shows up in kept while the rows burn.
+  -- That is the F1/F3 failure at the C3/PIPA boundary, so check the table.
+  PERFORM pg_temp.expect((SELECT count(*) FROM public.consent_records WHERE user_id = '11111111-1111-4111-8111-1111111111aa') = 1,
+    'a retention ledger lost rows to content erasure');
+  PERFORM pg_temp.expect((SELECT count(*) FROM public.ai_audit_log WHERE user_id = '11111111-1111-4111-8111-1111111111aa') = 1,
+    'ai_audit_log (hard constraint C3) lost rows to content erasure');
+
+  -- Content deletion keeps the account. Scope 'content' and scope 'account' are
+  -- different paths on purpose (design F5); if this call ever starts taking the
+  -- profile with it, the user loses far more than they asked to lose.
+  PERFORM pg_temp.expect((SELECT count(*) FROM public.users WHERE id = '11111111-1111-4111-8111-1111111111aa') = 1,
+    'erase_my_data(content) deleted the caller''s account row');
+  PERFORM pg_temp.expect((SELECT count(*) FROM auth.users WHERE id = '11111111-1111-4111-8111-1111111111aa') = 1,
+    'erase_my_data(content) deleted the caller''s auth.users row');
+
+  -- Every client_erasable table is reported, and nothing else is. Only four of
+  -- the 26 carry fixture rows, so without this a regression that drops one from
+  -- the loop is invisible: its rows are never created, so nothing misses them.
+  -- The receipt's own key set is what makes all 26 observable.
+  PERFORM pg_temp.expect(
+    (SELECT count(*) FROM pg_catalog.jsonb_object_keys(v_r -> 'deleted'))
+      = (SELECT count(*) FROM public.erasure_registry WHERE class = 'client_erasable'),
+    format('receipt reports %s tables, the registry lists %s client_erasable',
+           (SELECT count(*) FROM pg_catalog.jsonb_object_keys(v_r -> 'deleted')),
+           (SELECT count(*) FROM public.erasure_registry WHERE class = 'client_erasable')));
+  PERFORM pg_temp.expect(
+    NOT EXISTS (
+      SELECT 1 FROM pg_catalog.jsonb_object_keys(v_r -> 'deleted') AS k(name)
+      WHERE NOT EXISTS (SELECT 1 FROM public.erasure_registry r
+                         WHERE r.table_name = k.name AND r.class = 'client_erasable')),
+    'the receipt reports a deletion for a table the registry does not class as client_erasable');
 END;
 $one$;
 ROLLBACK;
@@ -206,15 +249,23 @@ DECLARE
   v_before bigint := (SELECT count(*) FROM public.wiki_pages);
 BEGIN
   -- (b) the anon role. EXECUTE is revoked from PUBLIC and anon (0189), so this
-  -- fails at the permission check (42501) rather than inside the function.
-  -- Either refusal is acceptable; deleting anything is not.
+  -- must fail at the PERMISSION check.
+  --
+  -- ⚠ The claim is specifically 42501, and the claim only means something with
+  -- a valid JWT claim set. Written the obvious way - switch to anon, accept
+  -- `insufficient_privilege OR 28000` - the assertion cannot fail: with no
+  -- claim, auth.uid() is NULL and the function raises 28000 from inside no
+  -- matter who may execute it, so `GRANT EXECUTE ... TO anon` passes too
+  -- (measured: it did). Set the claim first, then the only remaining reason to
+  -- be refused is the ACL.
+  PERFORM pg_catalog.set_config('request.jwt.claim.sub', '11111111-1111-4111-8111-1111111111aa', true);
   BEGIN
     SET LOCAL ROLE anon;
     PERFORM public.erase_my_data('content');
     RESET ROLE;
-    RAISE EXCEPTION 'erasure regression FAILED: anon was allowed to call erase_my_data';
+    RAISE EXCEPTION 'erasure regression FAILED: anon holds EXECUTE on erase_my_data (0189 must revoke it)';
   EXCEPTION
-    WHEN insufficient_privilege OR sqlstate '28000' THEN
+    WHEN insufficient_privilege THEN
       RESET ROLE;
   END;
   RESET ROLE;
@@ -380,6 +431,14 @@ BEGIN
 
   PERFORM pg_temp.expect((SELECT count(*) FROM public.erasure_registry) = v_rows,
     'erasure_registry changed while proving it could not be changed');
+
+  -- The two CHECKs are what stop a hand-edited row from becoming a delete
+  -- instruction: an order on a kept table, or a cascade claim on an erasable one.
+  PERFORM pg_temp.expect(
+    (SELECT count(*) FROM pg_catalog.pg_constraint
+      WHERE conrelid = 'public.erasure_registry'::regclass AND contype = 'c'
+        AND conname IN ('erasure_registry_order_pair', 'erasure_registry_cascade_is_for_kept')) = 2,
+    'erasure_registry lost one of its CHECK constraints');
 END;
 $six$;
 ROLLBACK;
@@ -408,6 +467,10 @@ BEGIN
   FROM pg_catalog.pg_constraint AS k
   JOIN pg_catalog.pg_class AS ch ON ch.oid = k.conrelid
   JOIN pg_catalog.pg_class AS pa ON pa.oid = k.confrelid
+  -- Both ends must be the public tables the registry names. Joining on bare
+  -- relname would let a same-named table in auth/storage answer for one of them.
+  JOIN pg_catalog.pg_namespace AS chn ON chn.oid = ch.relnamespace AND chn.nspname = 'public'
+  JOIN pg_catalog.pg_namespace AS pan ON pan.oid = pa.relnamespace AND pan.nspname = 'public'
   JOIN public.erasure_registry AS parent ON parent.table_name = pa.relname AND parent.class = 'client_erasable'
   JOIN public.erasure_registry AS child  ON child.table_name  = ch.relname AND child.class  = 'client_erasable'
   WHERE k.contype = 'f'
@@ -424,6 +487,8 @@ BEGIN
   FROM pg_catalog.pg_constraint AS k
   JOIN pg_catalog.pg_class AS ch ON ch.oid = k.conrelid
   JOIN pg_catalog.pg_class AS pa ON pa.oid = k.confrelid
+  JOIN pg_catalog.pg_namespace AS chn ON chn.oid = ch.relnamespace AND chn.nspname = 'public'
+  JOIN pg_catalog.pg_namespace AS pan ON pan.oid = pa.relnamespace AND pan.nspname = 'public'
   JOIN public.erasure_registry AS parent ON parent.table_name = pa.relname AND parent.class = 'client_erasable'
   JOIN public.erasure_registry AS child  ON child.table_name  = ch.relname AND child.class <> 'client_erasable'
   WHERE k.contype = 'f'
@@ -446,6 +511,8 @@ BEGIN
       FROM pg_catalog.pg_constraint AS k
       JOIN pg_catalog.pg_class AS ch ON ch.oid = k.conrelid
       JOIN pg_catalog.pg_class AS pa ON pa.oid = k.confrelid
+      JOIN pg_catalog.pg_namespace AS chn ON chn.oid = ch.relnamespace AND chn.nspname = 'public'
+      JOIN pg_catalog.pg_namespace AS pan ON pan.oid = pa.relnamespace AND pan.nspname = 'public'
       WHERE k.contype = 'f' AND k.confdeltype = 'c'
         AND ch.relname = r.table_name AND pa.relname = r.cascades_from
     );

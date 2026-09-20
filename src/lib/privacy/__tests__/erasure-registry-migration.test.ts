@@ -93,6 +93,10 @@ describe(`${FILE} -- structure`, () => {
     expect(code).toMatch(/FILTER \(WHERE r\.cascades_from IS NULL\)/);
     expect(code).toMatch(/FILTER \(WHERE r\.cascades_from IS NOT NULL\)/);
     expect(code).toMatch(/'removed_with',\s*r\.cascades_from/);
+    // ...and it says WHICH rows. Naming the table alone reads as "the whole
+    // table went", which is untrue: the caller's reports on OTHER people's
+    // templates survive.
+    expect(code).toMatch(/'removed',\s*'rows_referencing_' \|\| r\.cascades_from/);
     // A client_erasable row is deleted explicitly, so it can never be cascaded.
     expect(code).toMatch(/cascades_from IS NULL OR class <> 'client_erasable'/);
   });

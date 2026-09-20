@@ -288,6 +288,54 @@ describe("replayMigrations -- statement order, not regex order", () => {
     expect(found).not.toContain("probe_b");
   });
 
+  // One ALTER TABLE statement can carry several comma-separated clauses, and
+  // this repo writes them that way (0186 adds two FKs in one statement). Reading
+  // the statement with a single `([^;]*)` tail attributes every later clause to
+  // the first one. Found by adversarial review of this change, not by the gate;
+  // before the fix the parser reported knowledge_sources.verified_by -> users as
+  // NO ACTION where pg_constraint says SET NULL.
+  test("every clause of a multi-clause ALTER TABLE is read on its own", () => {
+    root = makeTree(baseRegistry(), `
+      CREATE TABLE public.kid (a_id uuid, b_id uuid, user_id uuid NOT NULL REFERENCES users(id));
+      ALTER TABLE public.kid
+        ADD CONSTRAINT kid_a_fk FOREIGN KEY (a_id) REFERENCES public.notes (id),
+        ADD CONSTRAINT kid_b_fk FOREIGN KEY (b_id) REFERENCES public.notes (id) ON DELETE CASCADE;
+    `);
+    const fks = replayMigrations(join(root, "db", "migrations")).foreignKeys
+      .filter((f) => f.child === "kid" && f.parent === "notes");
+    expect(fks.map((f) => `${f.constraintName}:${f.onDelete}`).sort()).toEqual([
+      "kid_a_fk:no action", // its own clause has no ON DELETE...
+      "kid_b_fk:cascade", // ...and must not inherit the next clause's
+    ]);
+  });
+
+  test("a multi-clause ADD COLUMN credits each column with its own definition", () => {
+    // The dangerous direction: crediting user_id's `uuid ... REFERENCES users`
+    // to session_id makes the guard name session_id as the only owner candidate
+    // and reject the correct one. An owner column that is not the owner makes
+    // every DELETE match 0 rows -- defect F1, reintroduced through the guard.
+    root = makeTree(baseRegistry(), `
+      CREATE TABLE public.chat_turns (id uuid PRIMARY KEY);
+      ALTER TABLE public.chat_turns
+        ADD COLUMN IF NOT EXISTS session_id uuid,
+        ADD COLUMN IF NOT EXISTS user_id    uuid NOT NULL REFERENCES public.users (id) ON DELETE CASCADE;
+    `);
+    const found = replayMigrations(join(root, "db", "migrations")).tables.get("chat_turns");
+    expect(found?.ownerColumns.map((c) => c.name)).toEqual(["user_id"]);
+  });
+
+  test("ALTER TABLE ONLY ... ADD COLUMN still puts the table in the inventory", () => {
+    // ONLY was accepted by the FK and DROP CONSTRAINT patterns but not by
+    // ADD COLUMN, so a table whose owner column arrived that way was invisible
+    // to G1 -- unclassified, and silently outside the delete list (F4).
+    root = makeTree(baseRegistry(), `
+      CREATE TABLE public.mood_notes (id uuid PRIMARY KEY);
+      ALTER TABLE ONLY public.mood_notes
+        ADD COLUMN user_id uuid NOT NULL REFERENCES public.users (id) ON DELETE CASCADE;
+    `);
+    expect(discoverOwnedTables(join(root, "db", "migrations")).map((t) => t.table)).toContain("mood_notes");
+  });
+
   test("the foreign keys it reports carry the right ON DELETE action", () => {
     root = makeTree();
     const intoNotes = replayMigrations(join(root, "db", "migrations")).foreignKeys

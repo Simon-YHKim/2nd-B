@@ -313,6 +313,11 @@ BEGIN
           'class',        r.class,
           -- 이 표를 데려가는 부모. 사용자에게 "왜 사라졌나" 의 답이다.
           'removed_with', r.cascades_from,
+          -- ⚠ 표 전체가 아니라 그 부모를 가리키던 행만이다. content_reports 로
+          --   말하면, 내가 지운 템플릿에 달린 신고는 사라지지만 내가 *남의*
+          --   템플릿에 남긴 신고는 남는다. 'table' 만 적으면 표를 통째로
+          --   지웠다고 읽히므로 범위를 함께 적는다.
+          'removed',      'rows_referencing_' || r.cascades_from,
           'reason',       r.reason
         )
         ORDER BY r.class, r.table_name
@@ -323,10 +328,22 @@ BEGIN
   FROM public.erasure_registry AS r
   WHERE r.class <> 'client_erasable';
 
+  -- ⚠ deleted_total 은 위 DELETE 들의 ROW_COUNT 합이다. FK 연쇄로 사라진 행은
+  --   세지 않는다. 즉 "이 호출로 public 에서 사라진 행 수" 가 아니라
+  --   "명시 DELETE 가 직접 지운 행 수" 다. 실측(2026-09-20): 템플릿 2개(둘 다 신고됨)
+  --   + 소스 1개를 가진 사용자에서 이 값이 3인데 실제로는 7행이 사라졌다
+  --   (신고 2 + 조정 집계 2 가 연쇄). 연쇄까지 세려면 표마다 사전 계수가 필요하고
+  --   그건 별도 작업이다. 지금은 뜻을 좁게 적어 두는 쪽이 정직하다.
+  --
+  -- ⚠ 같은 이유로 deleted[table] 도 "내 행 중 이 DELETE 가 지운 수" 다.
+  --   부모가 CASCADE 로 데려간 **남의** 자식 행은 여기 안 잡힌다
+  --   (persona_relation·srs_reviews 는 소유자 열이 FK 에 들어 있지 않아서 그렇다).
+  --   이 PR 이전부터의 동작이고 이번에 바꾸지 않았다 - 적어만 둔다.
   RETURN pg_catalog.jsonb_build_object(
     'scope',         p_scope,
     'erased_at',     pg_catalog.to_jsonb(pg_catalog.clock_timestamp()),
     'deleted',       v_counts,
+    -- 이름이 뜻을 넘어서지 않게: 직접 삭제 합계다.
     'deleted_total', v_total,
     'kept',          v_kept,
     'cascaded',      v_cascaded

@@ -397,62 +397,93 @@ export function replayMigrations(migrationsDir: string): SchemaReplay {
       });
     }
 
-    // An owner column bolted on after the fact still makes the table user-owned.
-    const alterAddColumnRe =
-      /\balter\s+table\s+(?:if\s+exists\s+)?(?:(?:public)\s*\.\s*)?("?)([A-Za-z_][\w]*)\1\s+add\s+column\s+(?:if\s+not\s+exists\s+)?("?)([A-Za-z_][\w]*)\3([^;]*)/gi;
-    while ((m = alterAddColumnRe.exec(sql)) !== null) {
-      const table = m[2].toLowerCase();
-      const columnName = m[4].toLowerCase();
-      const owner = ownerEvidence(columnName, m[5]);
-      const rest = m[5];
+    // ALTER TABLE, clause by clause.
+    //
+    // ⚠ ONE statement can carry SEVERAL comma-separated clauses, and this repo
+    // writes them that way (0186:43-47 adds two FKs in one statement; 0177 and
+    // 0187 do the same with CHECKs). Matching `ALTER TABLE t ADD ... ([^;]*)`
+    // once per statement therefore reads the FIRST clause and swallows the rest
+    // INTO ITS OWN TAIL -- so a later clause's FK is invisible, and worse, a
+    // later clause's `ON DELETE CASCADE` gets attributed to the first one.
+    // Measured before this was fixed: the parser reported
+    // knowledge_sources.verified_by -> users as NO ACTION where pg_constraint
+    // says SET NULL, because 0186 writes it as the second clause.
+    //
+    // The same tail bug hit ADD COLUMN, and there it is worse than invisible:
+    // `ADD COLUMN session_id uuid, ADD COLUMN user_id uuid REFERENCES users(id)`
+    // credited user_id's evidence to session_id, so the guard would reject the
+    // correct owner column and accept the wrong one -- and an owner column that
+    // is not the owner makes every DELETE match 0 rows, which is defect F1 again.
+    //
+    // So: match the statement, split its body on top-level commas, and read each
+    // clause on its own. `only` is accepted here too; leaving it off ADD COLUMN
+    // (while the FK and DROP CONSTRAINT patterns had it) silently dropped whole
+    // tables out of the inventory.
+    const alterRe =
+      /\balter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?(?:(?:public)\s*\.\s*)?"?([A-Za-z_][\w]*)"?\s+([^;]*)/gi;
+    while ((m = alterRe.exec(sql)) !== null) {
+      const table = m[1].toLowerCase();
       const at = m.index;
-      events.push({
-        at,
-        apply: () => {
-          if (owner) addOwner(table, file, owner);
+      for (const clause of splitTopLevel(m[2])) {
+        const trimmed = clause.trim();
+        if (!trimmed) continue;
+
+        const addColumn =
+          /^add\s+column\s+(?:if\s+not\s+exists\s+)?"?([A-Za-z_][\w]*)"?([\s\S]*)$/i.exec(trimmed);
+        if (addColumn) {
+          const columnName = addColumn[1].toLowerCase();
+          const rest = addColumn[2];
+          const owner = ownerEvidence(columnName, rest);
           const inline =
-            /\breferences\s+(?:(?:public)\s*\.\s*)?"?([A-Za-z_][\w]*)"?\s*(?:\(([^)]*)\))?([\s\S]*)$/i.exec(rest);
-          if (inline) {
-            foreignKeys.push({
-              child: table,
-              childColumns: [columnName],
-              parent: inline[1].toLowerCase(),
-              onDelete: parseOnDelete(inline[3]),
-              definedIn: file,
-              constraintName: null,
-            });
-          }
-        },
-      });
-    }
+            /references\s+(?:(?:public)\s*\.\s*)?"?([A-Za-z_][\w]*)"?\s*(?:\(([^)]*)\))?([\s\S]*)$/i.exec(rest);
+          events.push({
+            at,
+            apply: () => {
+              if (owner) addOwner(table, file, owner);
+              if (inline) {
+                foreignKeys.push({
+                  child: table,
+                  childColumns: [columnName],
+                  parent: inline[1].toLowerCase(),
+                  onDelete: parseOnDelete(inline[3]),
+                  definedIn: file,
+                  constraintName: null,
+                });
+              }
+            },
+          });
+          continue;
+        }
 
-    // ALTER TABLE t ADD [CONSTRAINT n] FOREIGN KEY (...) REFERENCES p (...) ...
-    const alterAddFkRe =
-      /\balter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?(?:(?:public)\s*\.\s*)?"?([A-Za-z_][\w]*)"?\s+add\s+(?:constraint\s+"?([A-Za-z_][\w]*)"?\s+)?foreign\s+key\s*\(([^)]*)\)\s*references\s+(?:(?:public)\s*\.\s*)?"?([A-Za-z_][\w]*)"?\s*(?:\(([^)]*)\))?([^;]*)/gi;
-    while ((m = alterAddFkRe.exec(sql)) !== null) {
-      const edge: ForeignKeyEdge = {
-        child: m[1].toLowerCase(),
-        childColumns: parseColumnList(m[3]),
-        parent: m[4].toLowerCase(),
-        onDelete: parseOnDelete(m[6]),
-        definedIn: file,
-        constraintName: m[2] ? m[2].toLowerCase() : null,
-      };
-      events.push({ at: m.index, apply: () => { foreignKeys.push(edge); } });
-    }
+        const addFk =
+          /^add\s+(?:constraint\s+"?([A-Za-z_][\w]*)"?\s+)?foreign\s+key\s*\(([^)]*)\)\s*references\s+(?:(?:public)\s*\.\s*)?"?([A-Za-z_][\w]*)"?\s*(?:\(([^)]*)\))?([\s\S]*)$/i.exec(
+            trimmed,
+          );
+        if (addFk) {
+          const edge: ForeignKeyEdge = {
+            child: table,
+            childColumns: parseColumnList(addFk[2]),
+            parent: addFk[3].toLowerCase(),
+            onDelete: parseOnDelete(addFk[5]),
+            definedIn: file,
+            constraintName: addFk[1] ? addFk[1].toLowerCase() : null,
+          };
+          events.push({ at, apply: () => { foreignKeys.push(edge); } });
+          continue;
+        }
 
-    // ALTER TABLE t DROP CONSTRAINT [IF EXISTS] n
-    const alterDropConstraintRe =
-      /\balter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?(?:(?:public)\s*\.\s*)?"?([A-Za-z_][\w]*)"?\s+drop\s+constraint\s+(?:if\s+exists\s+)?"?([A-Za-z_][\w]*)"?/gi;
-    while ((m = alterDropConstraintRe.exec(sql)) !== null) {
-      const child = m[1].toLowerCase();
-      const name = m[2].toLowerCase();
-      events.push({
-        at: m.index,
-        apply: () => {
-          foreignKeys = foreignKeys.filter((fk) => !(fk.child === child && fk.constraintName === name));
-        },
-      });
+        const dropConstraint =
+          /^drop\s+constraint\s+(?:if\s+exists\s+)?"?([A-Za-z_][\w]*)"?/i.exec(trimmed);
+        if (dropConstraint) {
+          const name = dropConstraint[1].toLowerCase();
+          events.push({
+            at,
+            apply: () => {
+              foreignKeys = foreignKeys.filter((fk) => !(fk.child === table && fk.constraintName === name));
+            },
+          });
+        }
+      }
     }
 
     // `DROP TABLE a, b;` drops both; matching only the first name is how a
