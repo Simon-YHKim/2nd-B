@@ -187,10 +187,23 @@ export async function attemptEncryptedNativeStorageRecovery(
   // it: the plaintext counter sits outside the encrypted store and the wipe does
   // not reach it. Best-effort by contract - a counter that cannot be cleared
   // must never turn a finished recovery into a failure.
-  try {
-    await dependencies.clearPersistence();
-  } catch {
+  //
+  // Fired, not awaited. Everything above this line is bounded by
+  // ENCRYPTED_STORAGE_RECOVERY_TIMEOUT_MS; this step was not, and it is the one
+  // place left where the whole gate could hang. A `catch` only covers a call that
+  // REJECTS. One that never answers held this promise open, and the gate has no
+  // way back from that: storage-recovery-gate.tsx keeps `working` true and its
+  // button disabled, and AuthContext hands every later attempt the same unsettled
+  // promise (`storageRecoveryAttemptRef`), which is only cleared when it settles.
+  // So a stalled counter write would have removed the retry path entirely, for a
+  // step whose result nobody reads. fail-closed-persistence.ts says the same of
+  // its sibling call: "the provider fires it without awaiting".
+  //
+  // The `.catch` is required, not decorative: this module's own tests reject this
+  // dependency, and an unawaited rejection with no handler is an unhandled
+  // rejection rather than the silent best-effort the contract above promises.
+  void dependencies.clearPersistence().catch(() => {
     // The next settled bootstrap clears it again.
-  }
+  });
   return "recovered";
 }

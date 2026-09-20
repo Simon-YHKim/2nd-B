@@ -281,6 +281,37 @@ describe("a consented reset that stops answering", () => {
     expect(clearPersistence).not.toHaveBeenCalled();
   });
 
+  test("a streak clear that never answers cannot hold the finished reset open", async () => {
+    // Every step ahead of this one is inside the deadline. The streak clear is not,
+    // and a try/catch does not cover a call that simply never answers - it covers a
+    // call that REJECTS. Holding here left the attempt unsettled after the reset had
+    // already SUCCEEDED, and there is no way back from that: the gate keeps `working`
+    // true with its button disabled (storage-recovery-gate.tsx), and AuthContext hands
+    // every later attempt the same unsettled promise, which it only clears when that
+    // promise settles (storageRecoveryAttemptRef).
+    //
+    // Deliberately neutral about HOW the step is bounded, so it still describes the
+    // symptom if the implementation changes: fired-and-forgotten, raced, or given its
+    // own deadline all satisfy it.
+    clearPersistence.mockImplementationOnce(never);
+    const attempt = watch(attemptEncryptedNativeStorageRecovery(CONSENT, dependencies));
+
+    await jest.advanceTimersByTimeAsync(60_000);
+    expect(attempt).toEqual({ settled: true, value: "recovered" });
+    // Still attempted exactly once - bounding the wait must not skip the work.
+    expect(clearPersistence).toHaveBeenCalledTimes(1);
+  });
+
+  test("a streak clear that rejects still reports the reset it did not affect", async () => {
+    // Best-effort by contract. A counter that cannot be cleared must never turn a
+    // finished recovery into a failure, and must not surface as an unhandled
+    // rejection either now that the call is no longer awaited.
+    clearPersistence.mockRejectedValueOnce(new Error("counter_unavailable"));
+    const attempt = watch(attemptEncryptedNativeStorageRecovery(CONSENT, dependencies));
+
+    await jest.advanceTimersByTimeAsync(0);
+    expect(attempt).toEqual({ settled: true, value: "recovered" });
+  });
   test("a wipe that finishes after the deadline changes nothing behind the failure", async () => {
     let finish: () => void = () => undefined;
     recoverStorage.mockImplementationOnce(

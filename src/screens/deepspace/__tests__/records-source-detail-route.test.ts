@@ -202,6 +202,17 @@ describe("deep-space records source detail routing", () => {
       // the neighbouring renderer alone -- only the baseline moved.
       "af7dca5422fa20f4ddf5bc5be1dd2d082178abf124c97bf6f892e79cc9ed1143",
     );
-    expect(sha256(wiki)).toBe("caa3ad24cbf6497c7958454a0b68b239e0b9faebfa658980687de5cc0d75008a");
+    // Re-pinned 2026-09-20 (R48): the wiki screen now honours a ?focusPageId= that names
+    // a page outside the 200-row slice it loads -- the RAG citation path can cite one,
+    // and the old effect dropped it silently. Slice 8,406 -> 10,217 chars / 177 -> 217
+    // lines (+1,811 / +40): a `useRef` and a `getWikiPageById` import specifier, the
+    // rewritten focus effect and its two new state holders, a `listedPages` memo, and
+    // three call sites reading that memo instead of `pages` -- plus their comments.
+    // Verified before re-pinning: the OLD digest recomputes byte-for-byte from HEAD's
+    // copy of this file, so this change is the only delta in the slice.
+    //   git show HEAD:src/screens/deepspace/dds-wiki-records-screens.tsx
+    //     | slice from "export function DeepSpaceWikiScreen()" -> sha256
+    //     = caa3ad24cbf6497c7958454a0b68b239e0b9faebfa658980687de5cc0d75008a  (matches)
+    expect(sha256(wiki)).toBe("0b269d67992b803d9c6093032b2101b7d373c6c6cb811d0522d372e1f14eae19");
   });
 });

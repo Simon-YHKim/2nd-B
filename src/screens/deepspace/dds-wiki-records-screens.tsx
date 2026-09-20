@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { FlatList, Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -27,7 +27,7 @@ import { listRecentRecords } from "@/lib/records/create";
 import { buildRecordsGraph } from "@/lib/records/records-graph";
 import { selectRecordsForSafeGraph } from "@/lib/records/records-graph-layout";
 import { listSourcePieces } from "@/lib/records/source-pieces";
-import { listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
+import { getWikiPageById, listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
 import type { WikiPageRow } from "@/lib/wiki/types";
 import { buildDeepWikiView, type WikiEdge } from "./wiki-graph-view";
 import { buildRecordsTimeline, type TimelineLabels, type TimelineRecord } from "./records-timeline";
@@ -687,30 +687,70 @@ export function DeepSpaceWikiScreen() {
   // tapping a node twice opens it back in the list (progressive disclosure).
   const [wikiView, setWikiView] = useState<"list" | "graph">("list");
 
+  // A page this screen never loaded. The list is the 200 most recently updated rows
+  // (useWikiGraphData above), and a SecondB citation can name a page well outside that
+  // window: the RAG path retrieves by vector neighbourhood (lib/chat/rag.ts), which has
+  // no recency floor at all. Pinning an id that is not in `pages` pins nothing, so the
+  // deep link used to land silently on the default row - the source card opening
+  // something that is not the source. The absent row is fetched by id and carried
+  // alongside the list instead.
+  const [linkedPage, setLinkedPage] = useState<WikiPageRow | null>(null);
+  // Honoured once per ID, not once per screen. The old guard was `expandedId !== null`,
+  // which meant the second citation opened from the same mounted /wiki - after any row
+  // had been expanded, including by the deep link itself - was dropped without a trace.
+  const honouredFocusRef = useRef<string | null>(null);
+
   // A ?focusPageId= deep link opens that page. Must sit ABOVE the early returns below --
   // a hook after a conditional return breaks the hook order (react-hooks/rules-of-hooks
-  // caught this). Only fires once the pages have loaded and only if the id is really in
-  // the list: a stale or foreign id falls back to the default (first page) rather than
-  // leaving every row collapsed.
+  // caught this). A stale or foreign id still falls back to the default (first page)
+  // rather than leaving every row collapsed.
   useEffect(() => {
-    if (!focusPageId || expandedId !== null) return;
-    if (!pages.some((p) => p.id === focusPageId)) return;
-    setExpandedId(focusPageId);
-  }, [focusPageId, expandedId, pages]);
+    if (!focusPageId || honouredFocusRef.current === focusPageId) return;
+    if (pages.some((p) => p.id === focusPageId)) {
+      honouredFocusRef.current = focusPageId;
+      setExpandedId(focusPageId);
+      return;
+    }
+    // Absent from the list. Wait for the load to settle before concluding that -- an
+    // id asked for mid-fetch is not yet known to be missing.
+    if (loading || !userId) return;
+    honouredFocusRef.current = focusPageId;
+    let alive = true;
+    void getWikiPageById(userId, focusPageId)
+      .then((page) => {
+        if (!alive || !page) return;
+        setLinkedPage(page);
+        setExpandedId(page.id);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [focusPageId, pages, loading, userId]);
+
+  // The fetched row joins the list for every downstream reader, so the tag chips, the
+  // graph and the row list all agree about what exists.
+  const listedPages = useMemo(
+    () =>
+      linkedPage && !pages.some((p) => p.id === linkedPage.id)
+        ? [linkedPage, ...pages]
+        : pages,
+    [pages, linkedPage],
+  );
 
   // The page the user asked to open is pinned into the list: the graph draws every page but
   // the list keeps only the top 12 by connection count, so opening a sparsely-linked node
   // used to land on a list that did not contain it.
   const view = useMemo(
-    () => buildDeepWikiView(pages, edges, { activeTag, pinnedId: expandedId }),
-    [pages, edges, activeTag, expandedId],
+    () => buildDeepWikiView(listedPages, edges, { activeTag, pinnedId: expandedId }),
+    [listedPages, edges, activeTag, expandedId],
   );
   const graphPages = useMemo(
     () =>
-      pages
+      listedPages
         .filter((p) => activeTag === null || p.tags.includes(activeTag))
         .map((p) => ({ id: p.id, title: p.title.trim() || p.slug, kind: p.kind })),
-    [pages, activeTag],
+    [listedPages, activeTag],
   );
 
   if (authLoading) {
