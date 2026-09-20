@@ -35,8 +35,10 @@
   `app.json` `plugins` 의 권한 **설명 문구**(`photosPermission`·`cameraPermission`·`microphonePermission`)는
   **iOS 전용**입니다 — 그대로 `NSPhotoLibraryUsageDescription`·`NSCameraUsageDescription`·
   `NSMicrophoneUsageDescription` 로 들어갑니다. **Android 권한은 플러그인이 따로 선언합니다**
-  (`expo-image-picker` 가 선언하는 것은 `RECORD_AUDIO` 하나). Android 에서 이 키들이 의미를 갖는 경우는
-  값이 **명시적 `false`** 일 때뿐이고, 그건 문구가 아니라 **그 권한을 차단하라는 지시**입니다.
+  (`expo-image-picker` 가 선언하는 것은 `RECORD_AUDIO` 하나). Android 에서 값이 의미를 갖는 키는
+  `cameraPermission` 과 `microphonePermission` **둘뿐**이고, 그때도 문구가 아니라 **`false` = 그 권한을
+  차단하라는 지시**입니다. `photosPermission` 은 **`false` 를 포함해 iOS 전용**이라 Android 결과를
+  전혀 바꾸지 않습니다 — 아래 정정 C 의 실측표를 보세요.
   우리 저장소는 `expo-image-picker` 에 `photosPermission`·`cameraPermission`,
   `expo-calendar`·`expo-audio`·healthkit 에 각각의 문구가 이미 들어 있습니다(`app.json` `plugins`).
   > ⚠ **정정 A (2026-09-20) · 설명 문구 — 이 줄은 원래 "설명 문구가 비어 있으면 Android 13+ 기기에서 튕김 및
@@ -51,13 +53,57 @@
   >
   > 즉 문구 누락은 **iOS 심사** 문제이지 Android 크래시의 원인이 아닙니다. 같은 오진이
   > `expo-calendar`·`expo-audio`·healthkit 에도 그대로 적용됩니다 — 네 플러그인 모두 문자열은
-  > iOS 전용이고, Android 쪽은 각 플러그인의 무조건 선언과 `expo.android.permissions` 배열이
-  > 정합니다. Android 권한 결함을 진단할 때 이 줄을 근거로 인용하지 마세요.
+  > iOS 전용이고, Android 쪽은 각 플러그인의 **Android 전용 옵션이 정하는** 선언과
+  > `expo.android.permissions` 배열이 정합니다(그 선언은 무조건이 아닙니다 — 정정 C 의 둘째 표).
+  > Android 권한 결함을 진단할 때 이 줄을 근거로 인용하지 마세요.
   >
   > ⛔ **이 사실을 읽고 `app.json` 을 "정리"하지 마세요.** plugins 의 문구 옵션을 지우면
   > iOS 폴백 순서(`plugins 옵션` → `ios.infoPlist` → 플러그인 기본값)에서 1순위가 사라져
   > **실제 출시되는 iOS 권한 문구가 조용히 바뀝니다**(`scripts/__tests__/ios-permission-source.test.ts`
   > 가 이중 선언을 막고 있는 이유). `app.json` 은 EAS 지문 소스라 네이티브 재빌드도 따라옵니다.
+  >
+  > ⚠ **정정 C (2026-09-20 · R50) — 세 키를 한 묶음으로 쓰지 마세요. 이 줄은 두 번 틀렸습니다.**
+  > 정정 A 직후 이 자리는 "이 키들의 명시적 `false` 가 Android 차단 지시"라고 적었는데,
+  > **`photosPermission` 은 거기 들어가지 않습니다.** 설치된 플러그인의 Android 함수는 인자에서
+  > `cameraPermission` 과 `microphonePermission` **둘만** 구조 분해하고 차단 목록에도 그 둘만 넣습니다
+  > (`node_modules/expo-image-picker/plugin/src/withImagePicker.ts` 의
+  > `withAndroidImagePickerPermissions`). `photosPermission` 은 같은 파일에서 iOS
+  > `NSPhotoLibraryUsageDescription` 으로만 흘러갑니다.
+  >
+  > 설치본을 **우리 `app.json` 의 `expo.android` 를 베이스로** 직접 호출해 받은 표입니다
+  > (2026-09-20 R50 실측). 그 베이스에는 `CAMERA`·`RECORD_AUDIO` 를 포함한 권한 **9개**가 있습니다:
+  >
+  > | `app.json` plugin 옵션 | `expo.android.permissions` 결과 |
+  > |---|---|
+  > | `{}` | 9개 그대로 |
+  > | `{photosPermission:false}` | 9개 그대로 — `{}` 와 **완전히 동일** |
+  > | 세 키 모두 문구 | 9개 그대로 — `{}` 와 **완전히 동일** |
+  > | `{cameraPermission:false}` | **`CAMERA` 가 빠진 8개** (+ manifest 에 `CAMERA tools:node="remove"`) |
+  > | `{microphonePermission:false}` | **`RECORD_AUDIO` 가 빠진 8개** (+ manifest 에 `RECORD_AUDIO tools:node="remove"`) |
+  >
+  > ⚠ **베이스를 빈 `android: {}` 로 잡고 재면 답이 달라집니다 — R50 의 첫 측정이 그렇게 재서**
+  > **"`cameraPermission:false` 는 배열을 바꾸지 않는다"는 틀린 줄을 하나 더 썼습니다.**
+  > `withBlockedPermissions` 는 `config.android.permissions` 가 **이미 있을 때만** 그 배열을 걸러냅니다
+  > (`node_modules/@expo/config-plugins/build/android/Permissions.js`). 빈 베이스에는 거를 배열이 없어
+  > 차단이 manifest 에만 보이고, `microphonePermission:false` 의 결과도 `[]` 가 아니라 **`undefined`**
+  > 입니다. **우리 저장소에는 그 9개가 실재하므로 위 표가 우리 답입니다.** 권한을 잴 때는 베이스를
+  > 반드시 실제 `app.json` 으로 두세요.
+  >
+  > **"Android 는 무조건 선언한다"도 모든 플러그인에 일반화할 수 없습니다.** 같은 방식으로 실행한
+  > 설치본 `expo-audio` 는 옵션에 따라 선언이 달라집니다:
+  >
+  > | `expo-audio` 옵션 | `android.permissions` |
+  > |---|---|
+  > | 플러그인 기본값 | `RECORD_AUDIO` · `MODIFY_AUDIO_SETTINGS` · `FOREGROUND_SERVICE` · `FOREGROUND_SERVICE_MEDIA_PLAYBACK` |
+  > | `{recordAudioAndroid:false}` | `RECORD_AUDIO` 가 **빠집니다** |
+  > | `{enableBackgroundRecording:true}` | `POST_NOTIFICATIONS` · `FOREGROUND_SERVICE_MICROPHONE` 이 **붙습니다** |
+  > | **우리 `app.json`** (`enableBackgroundPlayback:false`) | `RECORD_AUDIO` · `MODIFY_AUDIO_SETTINGS` **둘뿐** |
+  >
+  > 즉 우리 앱의 실제 expo-audio 선언은 기본값의 넷이 아니라 **둘**입니다. 플러그인별 Android 옵션을
+  > 읽지 않고 "무조건 선언"으로 진단하면 없는 권한을 있다고 세게 됩니다.
+  >
+  > 두 표 모두 `src/lib/release/__tests__/android-qa-guidelines.test.ts` 가 **플러그인을 실제로
+  > 실행해서** 지킵니다. 문서만 고치면 네 번째로 틀립니다.
   >
   > ⚠ **정정 B (2026-09-20) · `READ_MEDIA_IMAGES` — 이 줄은 원래 "`READ_MEDIA_IMAGES` 권한을 누락하면"이라고 적혀 있었습니다.
   > 그 문장이 오진을 재생산했습니다.** R47 버그 목록(#50)이 "app.json 에 `READ_MEDIA_IMAGES` 가 없다"를
