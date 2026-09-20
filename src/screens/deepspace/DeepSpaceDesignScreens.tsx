@@ -213,13 +213,35 @@ function dsRecencyLabels(t: Tx): RecencyLabels {
 
 type Row = { label: string; value?: string; onPress?: () => void; on?: boolean; disabled?: boolean };
 
+/** Wiki rows, kept with the account they were fetched for.
+ *
+ *  The twin of this type in dds-wiki-records-screens.tsx, deliberately duplicated
+ *  rather than shared: these two loaders feed different screens with different
+ *  visual and data contracts, and merging them is its own change. What is copied
+ *  here is the FENCE, not the screens.
+ *
+ *  Supabase can publish owner A -> owner B with no signed-out frame in between, and
+ *  AuthContext supports that publication on purpose. The scene boundary in
+ *  app/_layout.tsx remounts every product scene on an account epoch, so in the
+ *  shipped tree this state is thrown away before B can read it - that boundary is
+ *  the real defence and this is not a claim that it is broken. But it lives in
+ *  another file and applies per route, so a screen ever mounted outside it would
+ *  read the previous account's rows with nothing here to stop it. */
+interface OwnedWikiRows {
+  ownerId: string | null;
+  pages: WikiPageRow[];
+  edges: WikiEdge[];
+}
+
+/** Shared so an owner mismatch returns a stable reference and costs no re-render. */
+const NO_WIKI_ROWS: OwnedWikiRows = { ownerId: null, pages: [], edges: [] };
+
 // Shared loader for the two graph-backed deep-space screens (/wiki + /research).
 // Mirrors what the legacy /wiki loads: pages + the full edge set, both bounded.
 // A links failure degrades to a zero-edge graph rather than blanking the screen.
 function useWikiGraphData() {
   const { userId, loading: authLoading } = useAuth();
-  const [pages, setPages] = useState<WikiPageRow[]>([]);
-  const [edges, setEdges] = useState<WikiEdge[]>([]);
+  const [held, setHeld] = useState<OwnedWikiRows>(NO_WIKI_ROWS);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -232,13 +254,11 @@ function useWikiGraphData() {
     ])
       .then(([p, e]) => {
         if (!alive) return;
-        setPages(p);
-        setEdges(e);
+        setHeld({ ownerId: userId, pages: p, edges: e });
       })
       .catch(() => {
         if (!alive) return;
-        setPages([]);
-        setEdges([]);
+        setHeld({ ownerId: userId, pages: [], edges: [] });
       })
       .finally(() => {
         if (alive) setLoading(false);
@@ -248,7 +268,11 @@ function useWikiGraphData() {
     };
   }, [userId]);
 
-  return { userId, authLoading, pages, edges, loading };
+  // Read back only for the owner they were loaded under. The effect above overwrites
+  // `held` only once the network answers, so without this the previous account's rows
+  // would be what the screen draws for the whole refetch window.
+  const owned = held.ownerId !== null && held.ownerId === userId ? held : NO_WIKI_ROWS;
+  return { userId, authLoading, pages: owned.pages, edges: owned.edges, loading };
 }
 
 // TODO(loading): the standalone ActivityIndicator blocks below (inline loaders
