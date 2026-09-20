@@ -19,9 +19,28 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import ts from "typescript";
 
-const ROOT = process.cwd();
-const LOCALES = join(ROOT, "locales");
-const SRC = join(ROOT, "src");
+// A guard that only ever passes is indistinguishable from no guard, so this
+// one's test plants a file with an em dash and proves the guard goes red on it.
+// It used to plant that file in the repo's own `src/`, and that raced with the
+// rest of the jest run: 86 suites enumerate `src/**`, and one that listed the
+// probe and then read it after the guard's test deleted it died on ENOENT.
+//
+// Measured 2026-09-21: two consecutive `npm run verify` runs went red, on two
+// DIFFERENT suites (`canon-icon-crash.test.ts:202` then
+// `lenses/__tests__/migration-readiness.test.ts`), for exactly that reason;
+// `--runInBand` was green both times. `src/lib/persona/__tests__/one-seven.test.ts:68`
+// had already patched one consumer by name, which fixes that one suite and
+// leaves the other 85.
+//
+// So the scan root is a seam: the test points it at a temp tree and never
+// touches the real one. **The exclusion list is still resolved against the
+// repo**, because a stale exemption is a fact about this repo, not about
+// whatever tree is being scanned.
+const REPO_ROOT = process.cwd();
+const SCAN_ROOT = process.env.EMDASH_GUARD_SCAN_ROOT ?? REPO_ROOT;
+const ROOT = SCAN_ROOT;
+const LOCALES = join(SCAN_ROOT, "locales");
+const SRC = join(SCAN_ROOT, "src");
 const EM_DASH = "—";
 
 /**
@@ -120,7 +139,7 @@ for (const file of sourceFiles(SRC)) {
 // stale exemption is how a guard quietly stops guarding.
 const stale = Object.keys(EXCLUDED).filter((rel) => {
   try {
-    return !statSync(join(ROOT, rel)).isFile();
+    return !statSync(join(REPO_ROOT, rel)).isFile();
   } catch {
     return true;
   }
@@ -139,6 +158,9 @@ if (hits.length > 0 || stale.length > 0) {
   }
   process.exit(1);
 }
+// An overridden run says so. Otherwise a green line from a scan of some other
+// tree reads exactly like a green line from a scan of this one.
 console.log(
-  `DESIGN PASS  no em dashes (U+2014) in locale strings or in ${scanned} scanned source files (${Object.keys(EXCLUDED).length} declared non-copy modules skipped)`,
+  `DESIGN PASS  no em dashes (U+2014) in locale strings or in ${scanned} scanned source files (${Object.keys(EXCLUDED).length} declared non-copy modules skipped)`
+    + (SCAN_ROOT === REPO_ROOT ? "" : `  [scan root overridden: ${SCAN_ROOT}]`),
 );
