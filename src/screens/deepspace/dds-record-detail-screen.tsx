@@ -53,6 +53,7 @@ import { m3 } from "@/lib/theme/m3";
 import { reactExpression } from "@/lib/companion/expression";
 import { generateSourcePage } from "@/lib/wiki/phase2";
 import { promotePendingUploads } from "@/lib/wiki/promote-pending";
+import { deleteCapturedSource } from "@/lib/wiki/delete-captured-source";
 
 import { relatedByTag, type TimelineRecord } from "./records-timeline";
 
@@ -398,11 +399,14 @@ export function DeepSpaceRecordDetailScreen() {
     [],
   );
 
-  const announceActionError = useCallback(() => {
-    const message = t("deepspace:recordDetail.actionFailed");
-    setActionError(message);
-    AccessibilityInfo.announceForAccessibility(message);
-  }, [t]);
+  // 기본은 저장 실패 문구다. 자료 삭제는 무엇이 남았는지를 따로 말한다(r3as F-02).
+  const announceActionError = useCallback(
+    (message: string = t("deepspace:recordDetail.actionFailed")) => {
+      setActionError(message);
+      AccessibilityInfo.announceForAccessibility(message);
+    },
+    [t],
+  );
 
   useEffect(() => {
     locksRef.current = { edit: null, tags: null, delete: null, promote: null };
@@ -699,6 +703,7 @@ export function DeepSpaceRecordDetailScreen() {
   const promoteToWiki = useCallback(async () => {
     if (
       locksRef.current.promote ||
+      locksRef.current.delete ||
       promoted ||
       primary.status !== "ready" ||
       primary.identity !== identity ||
@@ -727,6 +732,56 @@ export function DeepSpaceRecordDetailScreen() {
       if (isCurrent(identity)) setPromoting(false);
     }
   }, [announceActionError, identity, isCurrent, primary, promoted, recordId, t, userId]);
+
+  // 담아 둔 자료(source) 한 건 삭제 (Q-260914-01 B, 2026-09-14). 대화 자동 저장이 쓰는 곳이
+  // sources 이고 담긴 대화가 보이는 곳이 이 화면이라, 여기 없으면 배송 앱에는 자동 저장을
+  // 한 건씩 되돌릴 길이 없다. 순서(원문 -> 승격 페이지 -> 행)는 delete-captured-source.ts
+  // 가 지고, 이 화면은 확인 창을 거쳐서만 부른다. 잠금은 record 삭제와 같은 delete 칸을 쓴다.
+  const handleDeleteSource = useCallback(async () => {
+    if (
+      locksRef.current.delete ||
+      primary.status !== "ready" ||
+      primary.identity !== identity ||
+      primary.piece.origin !== "source" ||
+      !userId ||
+      !recordId ||
+      !identity
+    )
+      return;
+    locksRef.current.delete = identity;
+    setDeleting(true);
+    setActionError(null);
+    try {
+      const sourceId = recordId.startsWith(SOURCE_ID_PREFIX)
+        ? recordId.slice(SOURCE_ID_PREFIX.length)
+        : recordId;
+      const outcome = await deleteCapturedSource(userId, sourceId);
+      if (!isCurrent(identity)) return;
+      if (outcome !== "deleted") {
+        // 지워지지 않았거나 일부만 지워졌다(r3as F-02). 성공처럼 뒤로 가지 않고 확인 창에 머문다. 원문을 이미
+        // 지웠으면 그 사실을 말한다 - "자료가 아직 남아 있다" 고 하면 되돌릴 수 없게 사라진 원문이 아직 있다고
+        // 믿게 된다(r3as2 R3AS2-03). 다시 시도하면 끝난다고 약속하지 않는다: 원인에 따라 서버가 고쳐질 때까지
+        // 매번 막힌다. 원인(다른 계정 · 제약 · id)은 어느 문구도 말하지 않는다.
+        announceActionError(
+          t(
+            outcome === "raw_removed"
+              ? "deepspace:recordDetail.deleteSourceRawRemoved"
+              : outcome === "partly_deleted"
+                ? "deepspace:recordDetail.deleteSourcePartial"
+                : "deepspace:recordDetail.deleteSourceFailed",
+          ),
+        );
+        return;
+      }
+      reactExpression("sad");
+      router.canGoBack() ? router.back() : router.replace("/records");
+    } catch {
+      if (isCurrent(identity)) announceActionError();
+    } finally {
+      if (locksRef.current.delete === identity) locksRef.current.delete = null;
+      if (isCurrent(identity)) setDeleting(false);
+    }
+  }, [announceActionError, identity, isCurrent, primary, recordId, t, userId]);
 
   const readyPiece =
     primary.status === "ready" && primary.identity === identity ? primary.piece : null;
@@ -1138,35 +1193,57 @@ export function DeepSpaceRecordDetailScreen() {
           ) : null}
 
           {source ? (
-            <PixelPressable
-              onPress={() => void promoteToWiki()}
-              disabled={promoting || promoted}
-              accessibilityLabel={
-                promoted
-                  ? t("deepspace:ds.wikiRecords.wikiPageMade")
-                  : t("deepspace:ds.wikiRecords.makeWikiPage")
-              }
-              accessibilityState={{ busy: promoting }}
-              fullWidth
-              background={promoting || promoted ? m3.disabled.primary : m3.color.primary}
-              contentStyle={styles.actionContent}
-            >
-              <PixelGlyph
-                name={promoted ? "check" : "book"}
-                color={promoting || promoted ? m3.disabled.onPrimary : m3.color.onPrimary}
-                size={24}
-              />
-              <RNText
-                style={[
-                  m3TextStyle("labelLarge"),
-                  { color: promoting || promoted ? m3.disabled.onPrimary : m3.color.onPrimary },
-                ]}
+            <View style={styles.stackActions}>
+              {/* 지우는 동안에는 승격을 누를 수 없다(PR 1814 설계 N4). 승격은 먼저 보류된 원문 업로드를 마저 올리는데,
+                  삭제가 원문을 지운 뒤 행을 지우기 전에 그 업로드가 돌면 지운 원문이 되살아난다. */}
+              <PixelPressable
+                onPress={() => void promoteToWiki()}
+                disabled={deleting || promoting || promoted}
+                accessibilityLabel={
+                  promoted
+                    ? t("deepspace:ds.wikiRecords.wikiPageMade")
+                    : t("deepspace:ds.wikiRecords.makeWikiPage")
+                }
+                accessibilityState={{ busy: promoting }}
+                fullWidth
+                background={deleting || promoting || promoted ? m3.disabled.primary : m3.color.primary}
+                contentStyle={styles.actionContent}
               >
-                {promoted
-                  ? t("deepspace:ds.wikiRecords.wikiPageMade")
-                  : t("deepspace:ds.wikiRecords.makeWikiPage")}
-              </RNText>
-            </PixelPressable>
+                <PixelGlyph
+                  name={promoted ? "check" : "book"}
+                  color={deleting || promoting || promoted ? m3.disabled.onPrimary : m3.color.onPrimary}
+                  size={24}
+                />
+                <RNText
+                  style={[
+                    m3TextStyle("labelLarge"),
+                    { color: deleting || promoting || promoted ? m3.disabled.onPrimary : m3.color.onPrimary },
+                  ]}
+                >
+                  {promoted
+                    ? t("deepspace:ds.wikiRecords.wikiPageMade")
+                    : t("deepspace:ds.wikiRecords.makeWikiPage")}
+                </RNText>
+              </PixelPressable>
+              {/* 담긴 자료 한 건 삭제. 편집·이동은 record 전용이라 여기 없고, 삭제만 연다. */}
+              <PixelPressable
+                variant="frame"
+                onPress={() => {
+                  setActionError(null);
+                  setConfirmingDelete(true);
+                }}
+                disabled={deleting || promoting}
+                accessibilityLabel={t("deepspace:recordDetail.a11yDeleteSource")}
+                fullWidth
+                background={m3.color.errorContainer}
+                contentStyle={styles.actionContent}
+              >
+                <PixelGlyph name="trash" color={m3.color.error} size={24} />
+                <RNText style={[m3TextStyle("labelLarge"), styles.dangerLabel]}>
+                  {t("deepspace:recordDetail.deleteConfirm")}
+                </RNText>
+              </PixelPressable>
+            </View>
           ) : (
             <View style={styles.stackActions}>
               {canEdit ? (
@@ -1221,6 +1298,69 @@ export function DeepSpaceRecordDetailScreen() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* 담긴 자료(source) 삭제 확인. record 확인 창과 따로 둔다: 문구가 다르고(위키
+          페이지와 원문이 함께 지워진다), record 쪽 창과 이동 창은 record 전용이다. */}
+      {source ? (
+        <PremiumModal
+          visible={confirmingDelete}
+          onClose={closeDelete}
+          accessibilityLabel={t("deepspace:recordDetail.deleteSourceConfirmTitle")}
+        >
+          <PixelSurface variant="bevel" contentStyle={styles.modalContent}>
+            <PixelGlyph name="trash" color={m3.color.error} size={48} />
+            <RNText
+              accessibilityRole="header"
+              style={[m3TextStyle("titleLarge"), styles.modalTitle]}
+            >
+              {t("deepspace:recordDetail.deleteSourceConfirmTitle")}
+            </RNText>
+            <RNText style={[m3TextStyle("bodyMedium"), styles.stateBody]}>
+              {t("deepspace:recordDetail.deleteSourceConfirmBody")}
+            </RNText>
+            {actionError ? (
+              <RNText
+                accessibilityRole="alert"
+                style={[m3TextStyle("bodySmall"), styles.errorText]}
+              >
+                {actionError}
+              </RNText>
+            ) : null}
+            <View style={styles.stackActions}>
+              <PixelPressable
+                variant="frame"
+                onPress={closeDelete}
+                disabled={deleting}
+                accessibilityLabel={t("deepspace:recordDetail.deleteCancel")}
+                fullWidth
+                contentStyle={styles.centerButton}
+              >
+                <RNText style={[m3TextStyle("labelLarge"), styles.secondaryLabel]}>
+                  {t("deepspace:recordDetail.deleteCancel")}
+                </RNText>
+              </PixelPressable>
+              <PixelPressable
+                onPress={() => void handleDeleteSource()}
+                disabled={deleting}
+                accessibilityLabel={t("deepspace:recordDetail.deleteConfirm")}
+                accessibilityState={{ busy: deleting }}
+                fullWidth
+                background={deleting ? m3.disabled.primary : m3.color.errorContainer}
+                contentStyle={styles.centerButton}
+              >
+                <RNText
+                  style={[
+                    m3TextStyle("labelLarge"),
+                    { color: deleting ? m3.disabled.onPrimary : m3.color.onErrorContainer },
+                  ]}
+                >
+                  {t("deepspace:recordDetail.deleteConfirm")}
+                </RNText>
+              </PixelPressable>
+            </View>
+          </PixelSurface>
+        </PremiumModal>
+      ) : null}
 
       {source ? null : (
         <>

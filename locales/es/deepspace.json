@@ -25,7 +25,8 @@
     "backlinks": "Registros enlazados {{count}}",
     "connections": "Enlaces {{count}}",
     "viewList": "Lista",
-    "viewGraph": "Grafo"
+    "viewGraph": "Grafo",
+    "deleteFailed": "No se pudo eliminar esta página. Inténtalo de nuevo."
   },
   "research": {
     "title": "Encontrar conexiones",
@@ -128,6 +129,12 @@
     "deleteConfirmBody": "Esto no se puede deshacer.",
     "deleteCancel": "Cancelar",
     "deleteConfirm": "Eliminar",
+    "a11yDeleteSource": "Eliminar este contenido guardado",
+    "deleteSourceConfirmTitle": "¿Eliminar este contenido guardado?",
+    "deleteSourceConfirmBody": "Se eliminarán el texto guardado y cualquier página wiki creada a partir de él. Esto no se puede deshacer.",
+    "deleteSourceFailed": "No se pudo eliminar este contenido guardado. Inténtalo de nuevo.",
+    "deleteSourcePartial": "Solo se eliminó una parte, y puede que la limpieza de los registros relacionados no haya terminado. Puede que no termine aunque lo intentes de nuevo.",
+    "deleteSourceRawRemoved": "El texto guardado se eliminó, pero puede que la limpieza de los registros relacionados no haya terminado. Puede que no termine aunque lo intentes de nuevo.",
     "editSave": "Guardar",
     "actionFailed": "No se pudo guardar el cambio. Revisa tu conexión e inténtalo de nuevo.",
     "assessmentBody": "Estas son tus respuestas al cuestionario. El resultado se muestra en la pantalla del test.",
@@ -218,7 +225,12 @@
     "none": "0 elementos",
     "footer": "El tratamiento y almacenamiento de los datos depende de cada función. Consulta su aviso de uso de datos.",
     "dataReview": "Revisión de mis datos",
-    "open": "Abrir"
+    "open": "Abrir",
+    "chatSaveSection": "Guardado de chats",
+    "chatSaveLoading": "Cargando ajustes…",
+    "chatSaveError": "No se pudo guardar este ajuste. Inténtalo de nuevo.",
+    "prefsLoadError": "No se pudieron cargar tus ajustes, así que ahora no se pueden cambiar.",
+    "prefsRetry": "Volver a cargar"
   },
   "support": {
     "title": "Soporte",

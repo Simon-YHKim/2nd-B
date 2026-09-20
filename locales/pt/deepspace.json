@@ -25,7 +25,8 @@
     "backlinks": "Registros vinculados {{count}}",
     "connections": "Conexões {{count}}",
     "viewList": "Lista",
-    "viewGraph": "Mapa"
+    "viewGraph": "Mapa",
+    "deleteFailed": "Não foi possível excluir esta página. Tente de novo."
   },
   "research": {
     "title": "Encontrar conexões",
@@ -128,6 +129,12 @@
     "deleteConfirmBody": "Isso não pode ser desfeito.",
     "deleteCancel": "Cancelar",
     "deleteConfirm": "Excluir",
+    "a11yDeleteSource": "Excluir este conteúdo salvo",
+    "deleteSourceConfirmTitle": "Excluir este conteúdo salvo?",
+    "deleteSourceConfirmBody": "O texto salvo e qualquer página wiki criada a partir dele serão excluídos. Isso não pode ser desfeito.",
+    "deleteSourceFailed": "Não foi possível excluir este conteúdo salvo. Tente de novo.",
+    "deleteSourcePartial": "Só uma parte foi excluída, e a limpeza dos registros relacionados pode não ter terminado. Pode não terminar mesmo se você tentar de novo.",
+    "deleteSourceRawRemoved": "O texto salvo foi excluído, mas a limpeza dos registros relacionados pode não ter terminado. Pode não terminar mesmo se você tentar de novo.",
     "editSave": "Salvar",
     "actionFailed": "Não foi possível salvar a alteração. Verifique sua conexão e tente novamente.",
     "assessmentBody": "Respostas que você deu ao questionário. Veja a análise na tela de resultados.",
@@ -218,7 +225,12 @@
     "none": "0 itens",
     "footer": "O tratamento e armazenamento dos dados depende de cada função. Consulte o aviso de uso de dados.",
     "dataReview": "Revisão dos meus dados",
-    "open": "Abrir"
+    "open": "Abrir",
+    "chatSaveSection": "Salvamento de conversas",
+    "chatSaveLoading": "Carregando ajustes…",
+    "chatSaveError": "Não foi possível salvar este ajuste. Tente de novo.",
+    "prefsLoadError": "Não foi possível carregar seus ajustes, então eles não podem ser alterados agora.",
+    "prefsRetry": "Carregar de novo"
   },
   "support": {
     "title": "Suporte",

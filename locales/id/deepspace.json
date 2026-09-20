@@ -25,7 +25,8 @@
     "backlinks": "Catatan tertaut {{count}}",
     "connections": "Tautan {{count}}",
     "viewList": "Daftar",
-    "viewGraph": "Graf"
+    "viewGraph": "Graf",
+    "deleteFailed": "Halaman ini gagal dihapus. Coba lagi."
   },
   "research": {
     "title": "Cari keterkaitan",
@@ -128,6 +129,12 @@
     "deleteConfirmBody": "Ini tidak bisa dibatalkan.",
     "deleteCancel": "Batal",
     "deleteConfirm": "Hapus",
+    "a11yDeleteSource": "Hapus konten tersimpan ini",
+    "deleteSourceConfirmTitle": "Hapus konten tersimpan ini?",
+    "deleteSourceConfirmBody": "Teks tersimpan dan halaman wiki yang dibuat darinya akan dihapus. Ini tidak bisa dibatalkan.",
+    "deleteSourceFailed": "Konten tersimpan ini gagal dihapus. Coba lagi.",
+    "deleteSourcePartial": "Baru sebagian yang terhapus, dan pembersihan catatan terkait mungkin belum selesai. Mencoba lagi pun mungkin tidak menyelesaikannya.",
+    "deleteSourceRawRemoved": "Teks tersimpan sudah dihapus, tetapi pembersihan catatan terkait mungkin belum selesai. Mencoba lagi pun mungkin tidak menyelesaikannya.",
     "editSave": "Simpan",
     "actionFailed": "Perubahan gagal disimpan. Periksa koneksimu dan coba lagi.",
     "assessmentBody": "Jawaban mentah dari survei laporan diri. Hasil yang tertata ada di layarnya sendiri.",
@@ -218,7 +225,12 @@
     "none": "0 item",
     "footer": "Cara data diproses dan disimpan bergantung pada fiturnya. Baca penjelasan penggunaan data pada fitur tersebut.",
     "dataReview": "Tinjauan data saya",
-    "open": "Buka"
+    "open": "Buka",
+    "chatSaveSection": "Penyimpanan obrolan",
+    "chatSaveLoading": "Memuat pengaturan…",
+    "chatSaveError": "Pengaturan ini gagal disimpan. Coba lagi.",
+    "prefsLoadError": "Pengaturanmu gagal dimuat, jadi belum bisa diubah sekarang.",
+    "prefsRetry": "Muat ulang"
   },
   "support": {
     "title": "Dukungan",

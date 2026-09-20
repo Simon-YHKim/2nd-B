@@ -13,8 +13,8 @@
 //     buttons. The modal is dismissed via localStorage so it doesn't
 //     reappear every session.
 
-import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, Modal, View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Pressable, Animated, TextInput } from "react-native";
+import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { AccessibilityInfo, AppState, Modal, View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Pressable, Animated, TextInput } from "react-native";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useLocalSearchParams, usePathname } from "expo-router";
@@ -36,7 +36,10 @@ import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelScrim } from "@/components/pixel/PixelDither";
 import { canShowRewardedAds } from "@/lib/ads/policy";
 import { canCompleteRewardedWatch } from "@/lib/ads/rewarded";
-import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
+import { readPrivacyPrefs } from "@/lib/supabase/privacy";
+import { subscribePrivacyPrefsSaved } from "@/lib/privacy/pref-changes";
+import { subscribeAccountTransition } from "@/lib/auth/account-epoch";
+import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
@@ -45,6 +48,20 @@ import {
 } from "@/lib/auth/account-session-lease";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { chatAutosaveAllowed } from "@/lib/chat/autosave";
+import {
+  autosaveConsentFor,
+  beginAutosaveConsentRead,
+  finishAutosaveConsentRead,
+  subscribeAutosaveConsent,
+} from "@/lib/chat/autosave-consent";
+import {
+  autosaveTurnPhase,
+  drainAutosaveUndoQueue,
+  holdTurnForManualKeep,
+  runManualKeep,
+  startAutosaveJob,
+  subscribeAutosaveJobs,
+} from "@/lib/chat/autosave-runner";
 import { shouldShowChatSaveNotice, useChatSaveNoticeDismissed } from "@/lib/chat/save-notice";
 import { classifyInput } from "@/lib/safety/classifier";
 import { currentDisplayName } from "@/lib/persona/use-address";
@@ -54,7 +71,9 @@ import {
   exchangeMarkdown,
   exchangeTopic,
   findPrompt,
+  findPromptIndex,
   isKeepable,
+  type KeepableTurn,
 } from "@/lib/chat/keep-exchange";
 import { useProgression } from "@/lib/progression/useProgression";
 import { sendChatMessage } from "@/lib/chat/conversation";
@@ -532,6 +551,38 @@ const ChatComposer = memo(
   }),
 );
 
+/**
+ * 대화 자동 저장 동의를 화면이 읽는 구독 (useSyncExternalStore). 동의 저장소의 변화와 계정 전환을 함께 듣는다.
+ * 저장소는 계정이 바뀐 것을 다음에 불릴 때 알아채고 비우므로, 전환 알림 안에서 한 번 읽어 두어야 렌더 도중에
+ * 비우지 않는다.
+ */
+function subscribeChatAutosaveConsent(onChange: () => void): () => void {
+  const stopConsent = subscribeAutosaveConsent(onChange);
+  const stopTransition = subscribeAccountTransition(onChange);
+  return () => {
+    stopConsent();
+    stopTransition();
+  };
+}
+
+/** 자동 저장이 이 답변을 확인하거나 쓰는 중인가. 되돌리는 중은 담는 중으로 보이지 않는다(칩은 잠긴다). */
+function autosaveIsKeeping(turn: KeepableTurn): boolean {
+  const phase = autosaveTurnPhase(turn);
+  return phase === "checking" || phase === "writing";
+}
+
+/**
+ * 담긴 대화의 위기 안내 (C9). 이 경로는 LLM 을 안 타므로 서버 분류가 걸리지 않는다. 로컬 렉시콘 분류기를 직접
+ * 돌린다(비용 0). 다른 저장 화면과 같은 자세다 - 안내 없는 저장 경로를 하나 만들지 않기 위해서다. 손 담기와
+ * 자동 저장이 이 함수 하나를 지난다. 두 경로가 갈라지면 안내가 한쪽에만 붙는다.
+ */
+function keepCrisisHotline(body: string, locale: "en" | "ko", isMinor: boolean | null): HotlineId | null {
+  if (classifyInput(body, locale, { minor: isMinor === true }).zone === "red") {
+    return locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988";
+  }
+  return null;
+}
+
 export default function SecondBChat() {
   return <SecondBChatBody variant={isDeepSpaceUI() ? "deep-space" : "legacy"} />;
 }
@@ -587,12 +638,19 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   //
   // 페르소나 파생(제안->비준)은 이 변경과 무관하게 그대로다. 여기서 바뀌는 것은
   // **보관**이지 앱이 사용자를 대신해 내리는 결정이 아니다.
-  const [keptIdx, setKeptIdx] = useState<Set<number>>(new Set());
-  const [keeping, setKeeping] = useState<number | null>(null);
+  // 담긴 턴 · 담는 중인 턴 · 실패 안내는 인덱스가 아니라 턴 객체에 붙인다 (r3as2 R3AS2-02, 2026-09-14).
+  // 인덱스로 기억했더니 "새 대화" 가 목록을 비운 뒤 같은 인덱스에 온 다른 답변이 이미 담긴 것으로 막혔다.
+  // 담는 중도 턴마다다 (PR 1814 재설계 C5, 2026-09-17). 화면에 하나뿐이던 담는 중 표시는 저장 하나가 끝날
+  // 때까지 다음 답변의 자동 저장을 막았고, 막힌 답변은 다시 보지 않아 놓쳤다(설계 N1). 손 담기는 여기에,
+  // 자동 저장은 실행기(autosaveTurnPhase)에 있다.
+  const [keptTurns, setKeptTurns] = useState<ReadonlySet<ChatTurn>>(() => new Set());
+  const [keepingTurns, setKeepingTurns] = useState<ReadonlySet<ChatTurn>>(() => new Set());
   // 담기 실패는 복사 실패와 같은 자세로 화면에 남긴다. 복사와 달리 타이머로
   // 지우지 않는다 - "확인해 보라"는 안내라서 사용자가 다시 누를 때까지 보여야
   // 한다.
-  const [keepNotice, setKeepNotice] = useState<{ i: number; ok: boolean } | null>(null);
+  // notDeleted: 철회한 자동 저장을 지우지도 기기에 적지도 못했다(undo_unrecorded). 같은 자리에 "아직 삭제하지
+  // 못했다" 를 띄우고, 실행기가 다 지웠다고 알리면 거둔다(게이트 r260919 DA-1814-2).
+  const [keepNotice, setKeepNotice] = useState<{ turn: ChatTurn; ok: boolean; notDeleted?: true } | null>(null);
   // 저장 경로에도 위기 안내가 필요하다. 이 화면의 C9 는 지금까지 전송 경로
   // (sendChatMessage -> callLlm)에만 있었는데, createRecord 도 저장할 때마다
   // 로컬 렉시콘 분류를 돌리고 레드존을 followup 으로 알려준다. 다른 저장 화면
@@ -603,55 +661,75 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     hotline: "GLOBAL_988",
   });
 
-  // 담겼는지를 호출자에게 돌려준다. 자동 담기가 실패를 알아야 표시를 되돌릴 수
-  // 있고, 그래야 한 번의 일시적 실패로 그 턴이 영구히 빠지지 않는다.
+  // 오간 짝 한 벌을 기록 본문으로 만든다. 손 담기와 자동 저장이 같은 본문을 쓴다 - 둘이 다르면 같은 대화를
+  // 담아도 중복으로 걸러지지 않는다.
+  function exchangeAt(list: readonly ChatTurn[], index: number): { body: string; rawMd: string } {
+    const reply = list[index];
+    const prompt = findPrompt(list, index);
+    const speaker = isCharacterChat ? persona.name[locale] : t("title");
+    const body = composeExchangeBody({ prompt, reply: reply.text, speaker }, locale);
+    return { body, rawMd: exchangeMarkdown(exchangeTopic(prompt, reply.text), body) };
+  }
+
+  // 손 담기(담기 칩). 담겼는지를 호출자에게 돌려준다.
   async function keepExchange(index: number): Promise<boolean> {
-    if (!userId || keeping !== null || keptIdx.has(index)) return false;
     const reply = turns[index];
-    if (!reply || !isKeepable(reply)) return false;
-    setKeeping(index);
+    if (!userId || !reply || keptTurns.has(reply) || keepingTurns.has(reply)) return false;
+    if (!isKeepable(reply)) return false;
+    // 턴별 잠금. 자동 저장이 이 답변을 확인 · 쓰기 · 되돌리는 중이면 받지 않는다 - 같은 짝이 두 번 capture 에
+    // 들어가지 않는다. 다른 답변은 막지 않는다.
+    const releaseTurn = holdTurnForManualKeep(reply);
+    if (!releaseTurn) return false;
+    const ownerId = userId;
+    setKeepingTurns((prev) => new Set(prev).add(reply));
     // 이 턴의 지난 실패만 지운다. 무조건 null 로 밀면 자동 담기가 다른 턴을
     // 성공시키는 순간 아직 읽지도 않은 실패 안내가 사라진다 - 이번 회차가
     // 없애려는 바로 그 조용함이다.
-    setKeepNotice((prev) => (prev?.i === index ? null : prev));
+    setKeepNotice((prev) => (prev?.turn === reply ? null : prev));
     try {
-      const prompt = findPrompt(turns, index);
-      const speaker = isCharacterChat ? persona.name[locale] : t("title");
-      const topic = exchangeTopic(prompt, reply.text);
-      const body = composeExchangeBody({ prompt, reply: reply.text, speaker }, locale);
+      const { body, rawMd } = exchangeAt(turns, index);
       // 위키 클립으로 저장한다(records 가 아니라). 그래야 exportUserWiki 를 타고
       // 다음 대화와 비서 제안이 이걸 읽는다 - keep-exchange.ts 의 설명 참조.
       // captureFromMarkdown 은 LLM 을 부르지 않고, 중복 담기는 dedup 이 흡수한다.
-      await captureFromMarkdown({
-        userId,
-        rawMd: exchangeMarkdown(topic, body),
-        // 사용자가 남긴 자기 지식이다. URL 에서 유추한 종류로 떨어지면 안 된다.
-        kindOverride: "self_knowledge",
-        // domain: 태그를 붙이지 않는다. 대화를 담았다고 그 영역을 더 아는 것은
-        // 아니므로 별 밝기를 건드리면 안 된다 (정직한 밝기 규칙).
-        userTags: [CHAT_KEEP_TAG],
-      });
-      setKeptIdx((prev) => new Set(prev).add(index));
-      // C9: 이 경로는 LLM 을 안 타므로 서버 분류가 걸리지 않는다. 로컬 렉시콘
-      // 분류기를 직접 돌린다(비용 0). 다른 저장 화면과 같은 자세를 유지한다 -
-      // 안내 없는 저장 경로를 하나 만들지 않기 위해서다.
-      if (classifyInput(body, locale, { minor: isMinor === true }).zone === "red") {
-        setKeepCrisis({
-          visible: true,
-          hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988",
-        });
-      }
+      //
+      // capture 는 실행기의 계정 줄(runManualKeep) 안에서 돈다 - 되돌리기를 비우는 쪽과 한 줄이다(게이트 r260919
+      // DA-1814-1 · DZ-1814-3). 비우기가 먼저면 다 지운 뒤에 새 행으로 담고, 같은 짝이 이미 행으로 있으면(정확 중복)
+      // 실행기가 그 행을 되돌리기 대기 기록에서 빼고 이 런타임의 되돌리기가 지우지 않게 한다(설계 2-10). 빼지 못하면
+      // 던지고, 아래 catch 가 실패 안내를 띄운다 - 담김은 대기 기록에서 뺀 것을 확인한 뒤에만 띄운다.
+      // 실행기가 건네는 울타리(signal · journal)를 capture 에 그대로 넘긴다(3차 재게이트 G2A-1814-1). 줄의 시간 상한으로 실패
+      // 안내가 뜬 뒤에는 새 쓰기가 나가지 않는다 - 이미 보낸 쓰기만 끝까지 가서 행과 원문이 함께 남는다.
+      await runManualKeep(ownerId, (fence) =>
+        captureFromMarkdown({
+          userId: ownerId,
+          rawMd,
+          // 사용자가 남긴 자기 지식이다. URL 에서 유추한 종류로 떨어지면 안 된다.
+          kindOverride: "self_knowledge",
+          // domain: 태그를 붙이지 않는다. 대화를 담았다고 그 영역을 더 아는 것은
+          // 아니므로 별 밝기를 건드리면 안 된다 (정직한 밝기 규칙).
+          userTags: [CHAT_KEEP_TAG],
+          signal: fence.signal,
+          journal: fence.journal,
+        }),
+      );
+      setKeptTurns((prev) => new Set(prev).add(reply));
+      const hotline = keepCrisisHotline(body, locale, isMinor);
+      if (hotline) setKeepCrisis({ visible: true, hotline });
       return true;
     } catch (e) {
       // 조용히 넘기지 않는다. 쓰기가 어디까지 갔는지 우리는 모르므로 "담기지
       // 않았다"고 단정하지 않고, 확인할 자리를 알려 준다 (Round21 가져오기와
       // 같은 규율).
-      setKeepNotice({ i: index, ok: false });
+      setKeepNotice({ turn: reply, ok: false });
       AccessibilityInfo.announceForAccessibility(t("keepFailed"));
       if (typeof console !== "undefined") console.warn("[secondb] keep failed", (e as Error).message);
       return false;
     } finally {
-      setKeeping(null);
+      releaseTurn();
+      setKeepingTurns((prev) => {
+        const next = new Set(prev);
+        next.delete(reply);
+        return next;
+      });
     }
   }
   // The draft now lives inside ChatComposer (keystroke isolation); the parent
@@ -743,59 +821,176 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // pathname, tier/minor from context.
   const pathname = usePathname();
   const [adsConsent, setAdsConsent] = useState<boolean | null>(null);
-  // 대화 자동 저장 동의 (chat_autosave). 같은 fetch 로 읽는다 - 왕복을 하나 더
-  // 만들 이유가 없다. null 은 "아직 모른다" 이고, 그 상태에서는 자동 저장이
+  // 대화 자동 저장 동의 (chat_autosave). null 은 "아직 모른다" 이고, 그 상태에서는 자동 저장이
   // 돌지 않는다(fail-closed). 광고 동의와 같은 자세다.
-  const [autosaveConsent, setAutosaveConsent] = useState<boolean | null>(null);
+  //
+  // 동의는 이 화면이 아니라 계정에 산다 (PR 1814 재설계 C5, 2026-09-17). 이 화면은 동의를 ref 넷(값 · 세대 · 소식
+  // 구독 표식 · 개정 번호)으로 들고 있었고, 그 모양이 틈을 차례로 낳았다(r3as H1 · r3as2 R2-M1 · R3AS2-01 ·
+  // r3as3 R3AS3-M1). 규칙은 이제 lib/chat/autosave-consent.ts 한 곳에 있다: 관측은 나간 순서로 가르고, 읽기
+  // 실패는 관측이 아니며, 같은 앱의 끄기는 누른 순간 반영된다. 이 화면은 그 값을 읽기만 한다.
+  const autosaveConsent = useSyncExternalStore(
+    subscribeChatAutosaveConsent,
+    () => (userId ? autosaveConsentFor(userId).value : null),
+    () => null,
+  );
+  // 질문 턴 -> 그 질문을 보낸 순간의 동의 세대. 동의가 켜져 있을 때 보낸 질문만 적힌다 (r3as2 R2-H1). 자동
+  // 담기는 답변 하나가 아니라 짝으로 판단한다 - 답변을 앞선 질문과 함께 저장하기 때문이다. 켜기
+  // 전(꺼짐 · 모름)에 보낸 질문은 사라질 거라 생각하고 한 말이라, 그 답이 켠 뒤에 도착해도 담지 않는다. 화면에
+  // 남아 있던 과거 턴도 같은 규칙으로 빠진다. 턴 객체로 기억하므로 "새 대화" 가 목록을 비워도 섞이지 않는다.
+  const autosaveAskedRef = useRef<WeakMap<ChatTurn, number>>(new WeakMap());
+  // 자동 저장에 넘긴 답변 -> 그 짝의 본문. 담겼다는 알림이 오면 이 본문으로 위기 분류를 돌린다.
+  const autosaveBodiesRef = useRef<WeakMap<ChatTurn, string>>(new WeakMap());
+  // 같은 앱의 설정 저장 소식이 올 때마다 오른다. 그보다 먼저 나간 읽기의 광고 동의는 낡았다(r3as2 R2-M1 과 같은 규칙).
+  const prefsRevisionRef = useRef(0);
+  // 자동 저장 작업의 상태가 바뀌면 다시 그린다. 담기 칩이 그 상태(autosaveTurnPhase)를 읽는다.
+  const [, setAutosaveRender] = useState(0);
+  const [prefsReadKey, setPrefsReadKey] = useState(0);
+  useFocusRefetch(() => setPrefsReadKey((k) => k + 1), Boolean(userId));
   // 대화가 남지 않는다는 사실을 한 번만 알린다 (Simon 결정 B1).
   const { dismissed: saveNoticeDismissed, dismiss: dismissSaveNotice } = useChatSaveNoticeDismissed();
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
-    fetchPrivacyPrefs(userId)
-      .then((prefs) => {
-        if (cancelled) return;
-        setAdsConsent(prefs.ads === true);
-        setAutosaveConsent(prefs.chat_autosave === true);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setAdsConsent(false); // fetch failure = no rewarded entry
-        setAutosaveConsent(false); // 읽지 못하면 저장하지 않는다
-      });
+    const revision = prefsRevisionRef.current;
+    // 나가기 전에 순번을 받는다. 늦게 돌아온 옛 값은 그 사이 반영된 더 새로운 관측(저장 소식 · 담기 직전 확인)을
+    // 덮지 못한다. 못 읽은 것은 꺼짐이 아니다 - 저장소는 알던 값을 그대로 둔다(r3as2 R2-M1). 화면이 내려간 뒤에
+    // 도착해도 같은 계정의 관측이라 반영한다. 계정이 바뀌었으면 저장소가 버린다.
+    const consentRead = beginAutosaveConsentRead(userId);
+    void readPrivacyPrefs(userId).then((read) => {
+      finishAutosaveConsentRead(consentRead, read);
+      if (cancelled || prefsRevisionRef.current !== revision) return;
+      setAdsConsent(read.ok ? read.prefs.ads === true : false); // read failure = no rewarded entry
+    });
     return () => {
       cancelled = true;
     };
+  }, [userId, prefsReadKey]);
+
+  // 같은 앱에서 설정 저장이 성공하면 광고 동의를 바로 반영한다. 대화 저장 동의는 동의 저장소가 같은 소식을
+  // 듣는다 - 설정 화면에 있는 동안에도 이 화면은 답변을 받는다(r3as H1).
+  useEffect(() => {
+    if (!userId) return;
+    return subscribePrivacyPrefsSaved((savedUserId, prefs) => {
+      if (savedUserId !== userId) return;
+      prefsRevisionRef.current += 1;
+      setAdsConsent(prefs.ads === true);
+    });
   }, [userId]);
 
-  // 자동 저장: 동의가 켜져 있으면 새로 도착한 답변을 담는다.
+  // 자동 저장의 결과를 받는다 (PR 1814 재설계 C5). 담겼으면 담김 표시와 위기 안내(C9), 실패했으면 손 담기와
+  // 같은 실패 안내다. 취소와 되돌리기 대기는 아무것도 띄우지 않는다 - 동의를 거둬 멈춘 저장을 실패로 보이지
+  // 않는다. 이 화면 계정의 알림만 받는다. 구독을 풀어도(화면 이탈) 작업은 끝까지 간다 - 취소 사유가 아니다.
   //
-  // keepExchange 를 그대로 재사용한다 - 수동 경로와 자동 경로가 다른 코드를 타면
-  // 위기 안내(C9)나 dedup 같은 것이 한쪽에만 붙는 사고가 난다. 여기서는 "무엇을
-  // 담을지" 만 정하고 담는 방법은 하나로 둔다.
+  // 하나만 예외다(게이트 r260919 DA-1814-2). 거둔 저장을 지우지도 기기에 적지도 못했으면(undo_unrecorded) 조용히 두지
+  // 않는다 - 앱이 꺼지면 다시 지울 단서가 없다. 아직 삭제하지 못했다고 알리고, 실행기가 다 지웠다고(cancelled) 알리면
+  // 그 안내만 거둔다. 담기 실패 안내를 빌려 쓰지 않는다: 그 뒷절 "다시 담아 주세요" 는 지우길 원한 사용자에게 반대다.
+  useEffect(() => {
+    if (!userId) return;
+    return subscribeAutosaveJobs((update) => {
+      if (update.ownerId !== userId) return;
+      const reply = update.reply as ChatTurn;
+      if (update.phase === "kept") {
+        setKeptTurns((prev) => (prev.has(reply) ? prev : new Set(prev).add(reply)));
+        const body = autosaveBodiesRef.current.get(reply);
+        const hotline = body === undefined ? null : keepCrisisHotline(body, locale, isMinor);
+        if (hotline) setKeepCrisis({ visible: true, hotline });
+      } else if (update.phase === "failed") {
+        setKeepNotice({ turn: reply, ok: false });
+        AccessibilityInfo.announceForAccessibility(t("keepFailed"));
+      } else if (update.phase === "undo_unrecorded") {
+        setKeepNotice({ turn: reply, ok: false, notDeleted: true });
+        AccessibilityInfo.announceForAccessibility(t("chatSaveNotDeleted"));
+      } else if (update.phase === "cancelled") {
+        setKeepNotice((prev) => (prev?.turn === reply && prev.notDeleted ? null : prev));
+      }
+      setAutosaveRender((n) => n + 1);
+    });
+  }, [userId, locale, isMinor, t]);
+
+  // 자동 저장: 동의가 켜져 있으면 새로 도착한 답변을 실행기에 넘긴다.
+  //
+  // 이 화면은 "무엇을 담을지" 만 정한다. 동의 확인부터 저장이 끝날 때까지는 실행기(lib/chat/autosave-runner.ts)가
+  // 한 수명으로 쥔다 - 확인을 통과한 저장이 같은 앱에서 끈 뒤에도 원문과 행을 새로 보내던 틈(r3as3 R3AS3-H1 · A01)이
+  // 거기서 닫힌다. 본문과 위기 안내는 손 담기와 같은 함수(exchangeAt · keepCrisisHotline)를 지난다.
   //
   // 마지막 담을 수 있는 턴 하나만 본다. 화면에 남아 있는 과거 대화까지 소급해서
   // 담지 않는다 - 동의를 켜기 **전에** 오간 말은 사용자가 사라질 거라 생각하고
   // 한 말이다. 그걸 소급 저장하면 동의의 의미가 없어진다.
-  const autoKeptRef = useRef<Set<number>>(new Set());
+  //
+  // 담는 중은 답변마다다. 한 답변이 저장되는 동안 도착한 다음 답변도 바로 넘긴다(설계 N1).
   useEffect(() => {
-    if (!chatAutosaveAllowed(autosaveConsent)) return;
-    if (!userId || keeping !== null) return;
+    if (!userId || !chatAutosaveAllowed(autosaveConsent)) return;
     const idx = turns.length - 1;
     const last = turns[idx];
-    if (!last || !isKeepable(last)) return;
-    if (autoKeptRef.current.has(idx) || keptIdx.has(idx)) return;
-    autoKeptRef.current.add(idx);
-    // 실패하면 표시를 되돌린다. 되돌리지 않으면 일시적인 실패 한 번에 그 턴이
-    // 영구히 빠지고, 동의를 명시적으로 켠 사용자가 정확히 손해를 본다. 되돌림이
-    // 자동 재시도를 보장하지는 않는다 - 수동 담기 칩이 다시 열릴 뿐이다.
-    void keepExchange(idx).then((kept) => {
-      if (!kept) autoKeptRef.current.delete(idx);
-    });
-    // keepExchange 는 setState 로 keptIdx 를 갱신하므로 의존성에 넣으면 루프가
-    // 된다. autoKeptRef 가 중복 실행을 막는 실제 가드다.
+    if (!last || !isKeepable(last) || keptTurns.has(last)) return;
+    // 자격은 짝으로 본다(r3as2 R2-H1). 본문에 함께 넣는 그 질문(findPrompt 와 같은 자리)이 지금과 같은 동의
+    // 세대에서 켜진 채 보내졌어야 한다. 켜기 전에 보낸 질문의 답, 화면에 남아 있던 과거 턴, 그 사이 끄고 다시 켠
+    // 질문의 답, 짝이 없는 답변(질문이 새 대화로 비워진 뒤 도착한 것)은 넘기지 않는다. 담기 칩은 남는다.
+    const promptIdx = findPromptIndex(turns, idx);
+    const asked = promptIdx < 0 ? undefined : autosaveAskedRef.current.get(turns[promptIdx]);
+    if (asked === undefined || asked !== autosaveConsentFor(userId).generation) return;
+    const { body, rawMd } = exchangeAt(turns, idx);
+    autosaveBodiesRef.current.set(last, body);
+    // 실행기가 시작 조건(동의 · 세대 · 계정 공개 · 턴 잠금)을 한 번 더 본다. 이미 맡았거나 담긴 답변이면 시작하지 않는다.
+    startAutosaveJob({ ownerId: userId, reply: last, askedGeneration: asked, rawMd });
+    // 작업 상태로 다시 그려도 이 effect 는 다시 돌지 않는다. 확인을 못 읽었거나 실패한 마지막 답변은 화면에
+    // 돌아왔을 때(prefsReadKey, 본문이 읽지 않는 방아쇠) 한 번 더 본다 - 스스로 다시 시도하지 않는다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [turns, autosaveConsent, userId]);
+  }, [turns, autosaveConsent, userId, prefsReadKey]);
+
+  // 되돌리기를 끝내지 못한 자동 저장(대기 기록)을 마저 지운다 - 이 계정으로 이 화면이 뜰 때 · 다른 화면에서 대화 화면으로
+  // 돌아올 때 · 앱이 앞으로 올 때. 실행기가 계정 공개와 진행 중인 건을 다시 보므로 겹쳐 불러도 같은 것을 두 번 지우지 않고,
+  // 여기서는 셋 모두 같은 drain 을 불러 한 번에 하나만 돈다. 도는 동안 들어온 부름은 버리지 않고 끝난 뒤 한 번으로 합쳐 돈다 - 도는
+  // 비우기는 목록을 시작할 때 한 번 읽어서, 그 뒤에 생긴 기록은 버린 부름과 함께 다음 계기까지 남았다(4차 재게이트 G3A-1814-1).
+  // "돌아올 때" 는 Stack 에 남은 채 초점만 돌아오는 경우다(설정 · 위키에서 뒤로). 그때는 화면이 다시 뜨지 않아 이 effect 가 다시
+  // 돌지 않고, 앱도 앞에 있어 AppState 도 오지 않는다 - 그래서 초점 복귀(useFocusRefetch)에도 건다. 아직 삭제하지 못했다는 안내가
+  // "대화 화면으로 돌아올 때마다 다시 삭제해 볼게요" 라고 약속하고, 그 안내가 사용자를 위키로 보낸다(3차 재게이트 G2Z-1814-3).
+  // ⚠ 이 화면이 떠 있을 때만 돈다. 계정이 바뀌면 루트가 경로를 처음으로 되돌리므로, 그 계정의 대기 기록은 대화
+  // 화면을 다시 열 때 비워진다.
+  const drainUndoRef = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    if (!userId) return;
+    const ownerId = userId;
+    let draining = false;
+    let again = false;
+    let live = true;
+    const drain = (): void => {
+      if (draining) {
+        again = true;
+        return;
+      }
+      draining = true;
+      again = false;
+      void drainAutosaveUndoQueue(ownerId)
+        .catch(() => undefined)
+        .finally(() => {
+          draining = false;
+          if (again && live) drain();
+        });
+    };
+    drainUndoRef.current = drain;
+    drain();
+    const appState = AppState.addEventListener("change", (state) => {
+      if (state === "active") drain();
+    });
+    return () => {
+      live = false;
+      appState.remove();
+      if (drainUndoRef.current === drain) drainUndoRef.current = null;
+    };
+  }, [userId]);
+  useFocusRefetch(() => drainUndoRef.current?.(), Boolean(userId));
+
+  // "새 대화" 두 버튼(deep-space 와 레거시 화면)이 함께 쓰는 한 곳 (r3as2 R3AS2-02). 목록만 비우면 담긴
+  // 표시와 실패 안내가 다음 대화의 같은 자리로 넘어간다.
+  //
+  // 진행 중인 자동 저장에는 아무것도 알리지 않는다 (Simon 결정 D-1 ②, 2026-09-16). 동의가 켜진 채 오간 짝은
+  // 화면을 비워도 끝까지 저장된다 - 새 대화는 취소 사유가 아니다. 지우려면 기록 화면에서 한 건씩 지운다.
+  function startNewConversation() {
+    setTurns([]);
+    setKeptTurns(new Set());
+    setKeepNotice(null);
+  }
 
   // Capability first (Simon B-decision): a build that cannot complete a watch
   // renders no CTA at all -- policy answers WHO may watch, capability answers
@@ -940,7 +1135,13 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
       if (msg.length === 0) return false;
 
       setSending(true);
-      setTurns((prev) => [...prev, { role: "user", text: msg }]);
+      const question: ChatTurn = { role: "user", text: msg };
+      // 이 질문을 보내는 순간 자동 담기 동의가 켜져 있었는지를 질문 턴에 적는다(r3as2 R2-H1). 켜기 전에 보낸
+      // 질문의 답은 켠 뒤에 도착해도 자동으로 담지 않는다. 동의 저장소를 그 자리에서 읽으므로(렌더 뒤에 온 끄기
+      // 의도까지 본다) useCallback 의존성은 늘지 않는다.
+      const consentAtSend = autosaveConsentFor(userId);
+      if (consentAtSend.value === true) autosaveAskedRef.current.set(question, consentAtSend.generation);
+      setTurns((prev) => [...prev, question]);
       void (async () => {
         // AI 응답 대기: every mounted head holds the thinking face (eyes drift
         // up-side) until the reply lands — released in finally either way.
@@ -1133,7 +1334,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
             </Text>
             {hasTurns ? (
               <Pressable
-                onPress={() => setTurns([])}
+                onPress={startNewConversation}
                 hitSlop={14}
                 style={ds.clearLink}
                 accessibilityRole="button"
@@ -1229,19 +1430,23 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                       <Pressable
                         style={ds.keepChip}
                         onPress={() => void keepExchange(i)}
-                        disabled={keeping !== null || keptIdx.has(i)}
+                        disabled={keepingTurns.has(turn) || keptTurns.has(turn) || autosaveTurnPhase(turn) !== null}
                         hitSlop={8}
                         accessibilityRole="button"
-                        accessibilityLabel={keptIdx.has(i) ? t("keptToWiki") : t("keepToWiki")}
+                        accessibilityLabel={keptTurns.has(turn) ? t("keptToWiki") : t("keepToWiki")}
                       >
                         <Text style={ds.keepChipText}>
-                          {keptIdx.has(i) ? t("keptToWiki") : keeping === i ? t("keeping") : t("keepToWiki")}
+                          {keptTurns.has(turn)
+                            ? t("keptToWiki")
+                            : keepingTurns.has(turn) || autosaveIsKeeping(turn)
+                              ? t("keeping")
+                              : t("keepToWiki")}
                         </Text>
                       </Pressable>
                     ) : null}
-                    {keepNotice?.i === i && !keepNotice.ok ? (
+                    {keepNotice?.turn === turn && !keepNotice.ok ? (
                       <Text variant="caption" color="textSubtle" accessibilityLiveRegion="polite">
-                        {t("keepFailed")}
+                        {t(keepNotice.notDeleted ? "chatSaveNotDeleted" : "keepFailed")}
                       </Text>
                     ) : null}
                     {/* 트위비 3-branch (P5f): next-step candidates. Tap = prefill
@@ -1301,7 +1506,9 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                 <Pressable
                   onPress={() => {
                     dismissSaveNotice();
-                    router.push("/privacy");
+                    // 설정 화면 맨 위가 아니라 대화 저장 카드로 보낸다(Q-260914-01). 받는 쪽은
+                    // 배송 개인정보 화면(DeepSpacePrivacyDesignScreen)의 focusPref 다.
+                    router.push({ pathname: "/privacy", params: { focusPref: "chat_autosave" } });
                   }}
                   hitSlop={8}
                   accessibilityRole="button"
@@ -1651,7 +1858,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
           </Text>
           {hasTurns ? (
             <Pressable
-              onPress={() => setTurns([])}
+              onPress={startNewConversation}
               style={styles.clearChatLink}
               hitSlop={14}
               accessibilityRole="button"

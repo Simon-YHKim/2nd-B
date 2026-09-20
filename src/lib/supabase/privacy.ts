@@ -9,6 +9,7 @@
 import { getSupabaseClient } from "./client";
 import { recordHealthImportConsent } from "./consent";
 import { resolvePrivacyPrefs, PRIVACY_PREF_KEYS, type PrivacyPrefs } from "../privacy/prefs";
+import { publishPrivacyPrefsIntent, publishPrivacyPrefsSaved, publishPrivacyPrefsSaveFailed } from "../privacy/pref-changes";
 
 export async function fetchPrivacyPrefs(userId: string): Promise<PrivacyPrefs> {
   try {
@@ -29,9 +30,61 @@ export async function fetchPrivacyPrefs(userId: string): Promise<PrivacyPrefs> {
   }
 }
 
+/** A switch-drawing read: `ok: false` means the prefs could not be read, not that they are off. */
+export type PrivacyPrefsRead = { ok: true; prefs: PrivacyPrefs } | { ok: false };
+
+/**
+ * r3as F-04: the read a settings switch is drawn from. fetchPrivacyPrefs above resolves
+ * every failure to all-off defaults - the right posture for a gate (cannot read -> do not
+ * act) and the wrong one for a switch: the settings screen would show OFF to a user whose
+ * saved value is ON, and a tap would then save ON instead of withdrawing. This keeps
+ * "could not read" apart so the caller can draw no value and offer a retry instead.
+ */
+export async function readPrivacyPrefs(userId: string): Promise<PrivacyPrefsRead> {
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from("users")
+      .select("privacy_prefs")
+      .eq("id", userId)
+      .maybeSingle();
+    if (error) return prefsReadFailed("query_error");
+    const stored = (data?.privacy_prefs as Record<string, unknown> | null | undefined) ?? null;
+    return { ok: true, prefs: resolvePrivacyPrefs(stored) };
+  } catch {
+    return prefsReadFailed("request_failed");
+  }
+}
+
+/**
+ * r3as2 R3AS2-04: the chat screen runs readPrivacyPrefs right before every automatic save, so
+ * this line is written to the device log on a hot path. A remote error message is not ours to
+ * copy there - an SDK or a proxy can put request detail in it - so only a fixed category is.
+ */
+function prefsReadFailed(category: "query_error" | "request_failed"): PrivacyPrefsRead {
+  if (typeof console !== "undefined") {
+    console.warn("[privacy] prefs read failed; no value is shown as saved", category);
+  }
+  return { ok: false };
+}
+
 export interface SavePrivacyPrefsOptions {
   /** Stamped onto the consent_records row when a sensitive-data pref is granted. */
   locale?: "en" | "ko";
+}
+
+/**
+ * PR #1814 redesign C2: a save's round trips, up to its commit. If they throw, nobody can tell
+ * whether the write landed, so `failed` runs before the rethrow - a listener that took the
+ * intent (the chat autosave consent store takes a withdrawal at once) must not keep it as saved.
+ */
+async function untilCommitted<T>(failed: () => void, roundTrips: () => Promise<T>): Promise<T> {
+  try {
+    return await roundTrips();
+  } catch (e) {
+    failed();
+    throw e;
+  }
 }
 
 export async function savePrivacyPrefs(
@@ -40,12 +93,24 @@ export async function savePrivacyPrefs(
   options: SavePrivacyPrefsOptions = {},
 ): Promise<void> {
   const supabase = getSupabaseClient();
-  // D-3: snapshot the before-state so we can append a consent-change row per
-  // toggled key after the write. fetchPrivacyPrefs is fail-soft (never throws),
-  // so this can't block the save; a read miss resolves to all-off defaults.
-  const before = await fetchPrivacyPrefs(userId);
-  const { error } = await supabase.from("users").update({ privacy_prefs: prefs }).eq("id", userId);
-  if (error) throw error;
+  // PR #1814 redesign C2: announce before the first round trip, so a withdrawal this whole object
+  // carries (chat_autosave false) is taken before either request leaves (see pref-changes.ts).
+  const intent = publishPrivacyPrefsIntent(userId, prefs);
+  const before = await untilCommitted(
+    () => publishPrivacyPrefsSaveFailed(intent),
+    async () => {
+      // D-3: snapshot the before-state so we can append a consent-change row per
+      // toggled key after the write. fetchPrivacyPrefs is fail-soft (never throws),
+      // so this can't block the save; a read miss resolves to all-off defaults.
+      const snapshot = await fetchPrivacyPrefs(userId);
+      const { error } = await supabase.from("users").update({ privacy_prefs: prefs }).eq("id", userId);
+      if (error) throw error;
+      return snapshot;
+    },
+  );
+  // r3as H1: tell still-mounted screens what was just written (the chat screen stays in
+  // the Stack behind /privacy), before the best-effort ledger append below.
+  publishPrivacyPrefsSaved(userId, prefs, intent);
   // Append only AFTER a successful write (a failed save recorded no consent
   // change). Best-effort and never rethrows, so the change ledger can't break
   // the settings save.
@@ -73,6 +138,70 @@ export async function savePrivacyPrefs(
       locale: options.locale ?? "en",
     });
   }
+}
+
+/**
+ * r3as F-01: save ONE key over the prefs stored right now, not over the caller's copy.
+ *
+ * savePrivacyPrefs writes whatever whole object it is handed. A settings screen hands it
+ * the object it loaded, so a later save wrote that stale object back over a withdrawal
+ * made from another device or tab and brought it back to life - and because `before` is
+ * read fresh, the ledger diff even logged a grant nobody gave. Here the caller names the
+ * key and the value; what is written is the latest stored prefs with only that key
+ * changed, so the ledger diff can only ever contain that key.
+ *
+ * What this does NOT close: a withdrawal that lands between this read and this write is
+ * still overwritten. Closing that needs an owner-bound RPC that changes the key
+ * atomically on the server (PR #1814 server follow-up). This narrows the window from
+ * "since the screen loaded" to one round trip.
+ *
+ * A failed read throws instead of falling back to defaults: merging one key into all-off
+ * defaults would be a save that quietly turns every other key off. Keys this build does
+ * not know are kept as stored.
+ */
+export async function savePrivacyPref(
+  userId: string,
+  key: keyof PrivacyPrefs,
+  value: boolean,
+  options: SavePrivacyPrefsOptions = {},
+): Promise<PrivacyPrefs> {
+  const supabase = getSupabaseClient();
+  const change: Partial<PrivacyPrefs> = {};
+  change[key] = value;
+  // PR #1814 redesign C2: as in savePrivacyPrefs, the intent goes out before the read below.
+  const intent = publishPrivacyPrefsIntent(userId, change);
+  const { before, written } = await untilCommitted(
+    () => publishPrivacyPrefsSaveFailed(intent),
+    async () => {
+      const { data, error: readError } = await supabase
+        .from("users")
+        .select("privacy_prefs")
+        .eq("id", userId)
+        .maybeSingle();
+      if (readError) throw readError;
+      const raw: unknown = data?.privacy_prefs;
+      const stored = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+      const next = { ...stored, [key]: value };
+      const { error } = await supabase.from("users").update({ privacy_prefs: next }).eq("id", userId);
+      if (error) throw error;
+      return { before: resolvePrivacyPrefs(stored), written: next };
+    },
+  );
+  const after = resolvePrivacyPrefs(written);
+  publishPrivacyPrefsSaved(userId, after, intent); // r3as H1, as in savePrivacyPrefs
+  // Same ledger rows and sensitive-data record as savePrivacyPrefs, on the same edges.
+  await recordConsentChanges(userId, before, after);
+  if (key === "health_import" && before.health_import === false && after.health_import === true) {
+    // As in savePrivacyPrefs: minors cannot reach this edge (server clamp 0050, not in
+    // MINOR_PROMOTABLE_KEYS, 0128 rejects their rows), so the record is an adult one.
+    await recordHealthImportConsent({
+      userId,
+      ageBand: "adult",
+      minorTier: "adult",
+      locale: options.locale ?? "en",
+    });
+  }
+  return after;
 }
 
 /**

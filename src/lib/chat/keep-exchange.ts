@@ -49,14 +49,25 @@ export function isKeepable(turn: KeepableTurn): boolean {
  * 있어서(예: 답변 뒤에 이어지는 안내) 바로 앞만 보면 짝을 놓친다.
  */
 export function findPrompt(turns: readonly KeepableTurn[], replyIndex: number): string | null {
+  const i = findPromptIndex(turns, replyIndex);
+  return i < 0 ? null : turns[i].text.trim();
+}
+
+/**
+ * findPrompt 가 짝으로 고르는 사용자 발화의 자리. 없으면 -1.
+ *
+ * r3as2 R2-H1 (2026-09-14): 자동 담기는 답변 하나가 아니라 이 짝의 자격을 본다 - 질문을 보낸 순간 동의가
+ * 켜져 있었는가. 판단하는 질문과 저장되는 질문이 같은 턴이어야 하므로 고르는 규칙을 여기 하나로 둔다.
+ */
+export function findPromptIndex(turns: readonly KeepableTurn[], replyIndex: number): number {
   for (let i = replyIndex - 1; i >= 0; i--) {
     const t = turns[i];
-    if (t.role === "user" && t.text.trim().length > 0) return t.text.trim();
+    if (t.role === "user" && t.text.trim().length > 0) return i;
     // 다른 사용자 발화를 만나기 전에 또 다른 담을 수 있는 답변을 만나면,
     // 그 답변이 이 짝의 주인이므로 여기서 멈춘다.
-    if (isKeepable(t)) return null;
+    if (isKeepable(t)) return -1;
   }
-  return null;
+  return -1;
 }
 
 function clip(text: string, max: number): string {

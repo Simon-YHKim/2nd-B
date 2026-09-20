@@ -1,4 +1,5 @@
 import { purgeCaptureDraftsForDeletedAccount } from "../capture/draft";
+import { purgeAutosaveUndoForDeletedAccount } from "../chat/autosave-undo-queue";
 import { purgeImportHistoryForDeletedAccount } from "../import/history";
 import { purgeAuditWriteOutboxForOwner } from "../llm/audit-write-outbox";
 import { purgeNoticeLastSeenForDeletedAccount } from "../notices/last-seen";
@@ -34,6 +35,7 @@ export async function purgeDeletedAccountLocalData(userId: string): Promise<Loca
     const fenceAcknowledged = await installAccountLocalDeletionFence(owner);
     const results = await Promise.all([
       observe(() => purgeCaptureDraftsForDeletedAccount(owner)),
+      observe(() => purgeAutosaveUndoForDeletedAccount(owner)),
       observe(() => purgeImportHistoryForDeletedAccount(owner)),
       observe(() => purgeGithubUsernameForDeletedAccount(owner)),
       observe(() => purgeAuditWriteOutboxForOwner(owner)),

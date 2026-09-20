@@ -84,7 +84,9 @@ describe("대화 -> 위키 배선", () => {
     // 이 경로는 LLM 을 안 타므로 서버 분류가 걸리지 않는다. 로컬 렉시콘
     // 분류기를 직접 돌려야 다른 저장 화면과 같은 자세가 된다. 이게 없으면
     // 안내 없는 저장 경로가 하나 생긴다.
-    const handler = keepHandlerBody();
+    // PR 1814 재설계 C5: 판정은 손 담기와 자동 저장이 함께 쓰는 keepCrisisHotline 에 있다.
+    expect(keepHandlerBody()).toContain("keepCrisisHotline(body, locale, isMinor)");
+    const handler = stripComments(SRC.slice(SRC.indexOf("function keepCrisisHotline("), SRC.indexOf("export default function SecondBChat()")));
     expect(handler).toContain("classifyInput(");
     expect(handler).toContain('=== "red"');
     expect(handler).toContain("KR_1388");
@@ -94,7 +96,8 @@ describe("대화 -> 위키 배선", () => {
   it("같은 답변을 두 번 담지 못한다", () => {
     // 두 번 누르면 같은 대화가 기록에 두 번 들어가고, 그건 나중에 읽을 때
     // 같은 말을 두 번 한 것처럼 보인다.
-    expect(SRC).toContain("keptIdx");
-    expect(SRC).toContain("keptIdx.has(index)");
+    // r3as2 R3AS2-02: 인덱스가 아니라 턴 객체로 막는다. 인덱스로 막았더니 "새 대화" 뒤 같은 인덱스에 온
+    // 다른 답변까지 이미 담긴 것으로 막혔다.
+    expect(keepHandlerBody()).toContain("keptTurns.has(reply)");
   });
 });

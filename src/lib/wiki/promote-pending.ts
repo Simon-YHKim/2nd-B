@@ -9,7 +9,16 @@
 // promotePendingUploads re-uploads pending bodies and clears the flags.
 // Called opportunistically (inbox load); every step is best-effort and
 // bounded, so a still-broken bucket just means "try again next time".
+//
+// It re-uploads EVERY pending row of the account, not just the one on screen,
+// so each row's upload + flag clear runs as one step guarded against that
+// row's deletion (restoreCapturedSourceBody, delete-captured-source.ts): a row
+// this runtime is deleting or has deleted is skipped - the listing may predate
+// the delete - and a delete of the row waits until the step is over. Without
+// it a late upload re-created the raw copy of a deleted row: an object with no
+// row, invisible in the app and impossible to delete (re-gate G4Z-1814-1).
 
+import { restoreCapturedSourceBody } from "./delete-captured-source";
 import { listStoragePendingSources, updateSourceFrontmatter } from "./queries";
 import { storageSafeSlug } from "./slug";
 import { rawClippingPath, uploadRawClipping } from "./storage";
@@ -42,25 +51,31 @@ export async function promotePendingUploads(userId: string): Promise<PromoteResu
     // to the ASCII-safe key instead and repoint storage_path in the same write.
     const slug = storageSafeSlug(storedSlug);
     const healedPath = slug === storedSlug ? undefined : rawClippingPath(userId, slug);
-    try {
-      // overwrite: the original upload may have actually landed (client-side
-      // timeout after a server-side success) — promotion must be idempotent.
-      await uploadRawClipping(userId, slug, body, { overwrite: true });
-    } catch {
-      continue; // Storage still unavailable — keep the fallback, retry later.
-    }
-    const { _storage_pending, _body_fallback, ...rest } = fm;
-    void _storage_pending;
-    void _body_fallback;
-    try {
-      if (healedPath) await updateSourceFrontmatter(userId, row.id, rest, healedPath);
-      else await updateSourceFrontmatter(userId, row.id, rest);
-      promoted++;
-    } catch (e) {
-      // Upload landed but the flag didn't clear — next run re-uploads the
-      // same body (idempotent overwrite), so nothing is lost.
-      if (typeof console !== "undefined") console.warn("[promote-pending] flag clear failed", e);
-    }
+    let cleared = false;
+    // The flag clear belongs to the guarded step too: a healed row is repointed
+    // at the new path there, and a delete must read that path, not the old one.
+    await restoreCapturedSourceBody(userId, row.id, async () => {
+      try {
+        // overwrite: the original upload may have actually landed (client-side
+        // timeout after a server-side success) — promotion must be idempotent.
+        await uploadRawClipping(userId, slug, body, { overwrite: true });
+      } catch {
+        return; // Storage still unavailable — keep the fallback, retry later.
+      }
+      const { _storage_pending, _body_fallback, ...rest } = fm;
+      void _storage_pending;
+      void _body_fallback;
+      try {
+        if (healedPath) await updateSourceFrontmatter(userId, row.id, rest, healedPath);
+        else await updateSourceFrontmatter(userId, row.id, rest);
+        cleared = true;
+      } catch (e) {
+        // Upload landed but the flag didn't clear — next run re-uploads the
+        // same body (idempotent overwrite), so nothing is lost.
+        if (typeof console !== "undefined") console.warn("[promote-pending] flag clear failed", e);
+      }
+    });
+    if (cleared) promoted++;
   }
   return { pending: rows.length, promoted };
 }

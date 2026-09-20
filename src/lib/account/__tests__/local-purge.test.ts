@@ -48,8 +48,24 @@ import {
   LOCAL_PURGE_TIMEOUT_MS,
   purgeDeletedAccountLocalData,
 } from "../local-purge";
+import { autosaveUndoStorageKey } from "../../chat/autosave-undo-queue";
+
+// 대화 자동 저장의 되돌리기 대기 기록(PR 1814 재설계)은 목으로 바꾸지 않는다. 실제 모듈이 웹 저장소에서 키를
+// 지우는지를 이 진입점으로 본다 - 정리 목록에서 빠지거나 다른 키를 지우면 빨갛다.
+const localValues = new Map<string, string>();
+beforeAll(() => {
+  (globalThis as { localStorage?: unknown }).localStorage = {
+    getItem: (key: string) => localValues.get(key) ?? null,
+    setItem: (key: string, value: string) => void localValues.set(key, String(value)),
+    removeItem: (key: string) => void localValues.delete(key),
+  };
+});
+afterAll(() => {
+  delete (globalThis as { localStorage?: unknown }).localStorage;
+});
 
 beforeEach(() => {
+  localValues.clear();
   mockInstallFence.mockReset().mockResolvedValue(true);
   mockNotificationPurge.mockReset().mockResolvedValue(undefined);
   for (const purge of [
@@ -85,6 +101,16 @@ describe("purgeDeletedAccountLocalData", () => {
       expect(purge).toHaveBeenCalledWith("owner-a");
     }
     expect(mockNotificationPurge).toHaveBeenCalledWith("owner-a");
+  });
+
+  test("removes the chat autosave undo queue of the deleted owner and keeps another owner's", async () => {
+    const queued = (owner: string) => JSON.stringify([{ ownerId: owner, sourceId: "3f0c9a52-8a1d-4b1e-9c2f-6d7e8f9a0b1c" }]);
+    expect(autosaveUndoStorageKey("owner-a")).toBe("chat.autosaveUndo.v1.owner-a");
+    localValues.set("chat.autosaveUndo.v1.owner-a", queued("owner-a"));
+    localValues.set("chat.autosaveUndo.v1.owner-b", queued("owner-b"));
+
+    await expect(purgeDeletedAccountLocalData("owner-a")).resolves.toBe("complete");
+    expect([...localValues.keys()]).toEqual(["chat.autosaveUndo.v1.owner-b"]);
   });
 
   test("reports unconfirmed without skipping the remaining purges", async () => {
