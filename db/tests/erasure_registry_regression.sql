@@ -38,18 +38,26 @@
 --   7  the registry's cascade claims match pg_constraint, and no kept table
 --      cascades without saying so (the catalog-side twin of guards G8/G9)
 --   8  THE DELETE VERDICT ITSELF. For every one of the client_erasable tables,
---      as the real `authenticated` role carrying A's JWT: A cannot delete B's
---      row (0 rows, and B's row survives), CAN delete its own (exactly the
---      rows it owns), and -- once its own rows are gone -- cannot reach a
---      single row with `DELETE FROM <table> WHERE true`, a statement that
---      names no column and so gets no help from the SELECT policy. This is
---      the assertion the static guard used to make from policy text and no
---      longer does -- see the boundary note below. Each table is observed
---      inside its OWN rolled-back savepoint, and the whole sweep is repeated
---      in reverse delete_order and must produce identical numbers
+--      as the real `authenticated` role carrying A's JWT, FOUR questions are
+--      asked and EACH ONE starts from the original fixture: A cannot delete
+--      B's row (0 rows, and B's row survives); A CAN delete its own (exactly
+--      the rows it owns); `DELETE FROM <table> WHERE true` asked with nothing
+--      deleted yet reaches A's own rows and NO MORE; and the same column-free
+--      statement asked once A's own rows are gone reaches nothing at all. A
+--      statement that names no column gets no help from the SELECT policy.
+--      This is the assertion the static guard used to make from policy text
+--      and no longer does -- see the boundary note below. Each QUESTION is
+--      observed inside its OWN rolled-back savepoint, and the sweep is run
+--      three times -- ascending delete_order, descending, and with the four
+--      questions asked in reverse -- which must produce identical numbers
 --   8c the same sweep against the r43 F1 counter-example -- an inherited-role
---      DELETE policy whose USING reads another registry table -- which it must
---      REFUSE in both directions. Block (8) proves the schema; (8c) proves (8)
+--      DELETE policy whose USING reads ANOTHER registry table -- which it must
+--      REFUSE in all three. Block (8) proves the schema; (8c) proves (8)
+--   8d and against the r44 F1 counter-example -- an inherited-role DELETE
+--      policy whose USING reads the CASCADE CHILD of the table it guards, so
+--      that A's own delete switches it off. Per-table isolation cannot see it
+--      and per-question isolation must; (8d) proves that too, by measuring
+--      both answers on the same policy
 --
 -- STYLE. Each block is self-contained: BEGIN ... ROLLBACK, so the file leaves
 -- no rows behind and blocks may run in any order. Assertions RAISE EXCEPTION
@@ -858,40 +866,53 @@ ROLLBACK;
 -- inside the observation, whatever syntax produced them. The table ACL is NOT:
 -- this block installs a floor for it, so that verdict is G3b (see below).
 --
--- THREE OBSERVATIONS PER TABLE, IN THIS ORDER, and the order is the point:
---   (i)   A tries to delete B's row FIRST, while it is still there. 0 rows
---         affected, and B's row still present afterwards. Doing this after A's
---         own DELETE would make "0" unfalsifiable -- there would be nothing
---         left for either of them to match.
---   (ii)  then A deletes its own rows: exactly as many as A owns. A table whose
---         policy admits nothing (`USING (false)`, a revoked grant, a
---         restrictive veto) returns 0 here and fails.
---   (iii) then the same question with no column named at all -- see the long
---         note inside pg_temp.erasure_observe_table().
+-- FOUR QUESTIONS PER TABLE, AND EVERY ONE OF THEM ASKED FROM THE ORIGINAL
+-- FIXTURE. The questions are numbered, not ordered: no answer may depend on
+-- another answer having been measured first.
+--   (1) A tries to delete B's rows. 0 rows affected, and B's rows still
+--       present afterwards.
+--   (2) A deletes its own rows: exactly as many as A owns. A table whose
+--       policy admits nothing (`USING (false)`, a revoked grant, a
+--       restrictive veto) returns 0 here and fails.
+--   (3) `DELETE FROM <table> WHERE true`, asked with NOTHING deleted yet. It
+--       names no column, so no SELECT policy narrows it -- and in a correct
+--       tree it reaches exactly A's own rows and leaves B's alone.
+--   (4) the same column-free statement, asked once A's own rows are gone. Now
+--       every row it could reach belongs to someone else, so it must reach
+--       none. See the long note inside pg_temp.erasure_ask().
 --
--- ...AND EACH TABLE IS OBSERVED FROM THE ORIGINAL FIXTURE STATE, which is the
--- r43 authorisation gate's F1 and the reason this block is now three functions
--- instead of one loop. The previous version deleted A's rows FOR REAL at (ii)
--- and only unwound at the very end, so table N was judged against a database
--- that tables 1..N-1 had already emptied. A DELETE policy that reads ANOTHER
--- table -- `USING (EXISTS (SELECT 1 FROM public.sources WHERE user_id =
--- auth.uid()))` on public.records -- is therefore wide when erase_my_data
--- really runs and narrow by the time this test looks, because `sources`
--- (delete_order 20) is gone before `records` (30) is reached. The gate proved
--- it by execution: the same initial data, the same extracted blocks, B's
--- records row really deleted -- and this block green.
+-- (3) AND (4) ARE NOT THE SAME QUESTION, and the r44 authorisation gate (F1)
+-- is the reason both are here. The previous version had only (4), and it ran
+-- in the SAME subtransaction as (1) and (2) -- so A's own DELETE had already
+-- happened when it was asked. Deleting A's rows takes A's CASCADE CHILDREN
+-- with them, and a DELETE policy whose USING reads those children is therefore
+-- WIDE while a real client calls erase_my_data and NARROW by the time this
+-- test looks. The gate reproduced it by execution on public.srs_cards, whose
+-- srs_reviews are ON DELETE CASCADE (0051_srs_cards.sql:58): a permissive
+-- policy admitting every card while A has any review let `DELETE FROM
+-- public.srs_cards WHERE true` take B's card for real -- and this block was
+-- green. Per-TABLE isolation could not see it, because the state that hid it
+-- was destroyed INSIDE the table's own observation. Block (8d) installs that
+-- policy and measures both answers on it.
 --
--- So every mutation a table's observation makes, A's own DELETE included, now
--- happens inside a subtransaction that is ALWAYS unwound before the next table
--- is touched (pg_temp.erasure_observe_table). Nothing leaks forward.
+-- ...WHICH IS WHY THE SUBTRANSACTION IS NOW PER QUESTION. Every mutation a
+-- question makes, A's own DELETE included, happens inside a subtransaction
+-- that is ALWAYS unwound before the next question is asked
+-- (pg_temp.erasure_observe_table). That subsumes the r43 gate's F1 -- a policy
+-- reading ANOTHER registry table, such as `USING (EXISTS (SELECT 1 FROM
+-- public.sources WHERE user_id = auth.uid()))` on public.records, which used to
+-- be judged after `sources` (delete_order 20) had been emptied on the way to
+-- `records` (30). Nothing leaks forward, between tables or within one.
 --
--- THE PROOF THAT NOTHING LEAKS IS EXECUTED, NOT ASSERTED: the whole sweep runs
--- TWICE, once by ascending delete_order and once by descending, and the two
--- runs must return byte-identical numbers for every table. Order-independence
--- is a property only an isolated observation has; drop the subtransaction and
--- the two runs disagree the moment any policy reads a second table. Block (8c)
--- below then installs the gate's actual counter-example and requires BOTH
--- directions to refuse it.
+-- THE PROOF THAT NOTHING LEAKS IS EXECUTED, NOT ASSERTED: the sweep runs THREE
+-- times -- ascending delete_order, descending, and ascending with the four
+-- questions asked in reverse -- and all three must return identical numbers for
+-- every table. The first pair is order-independence across TABLES; the second
+-- is order-independence across QUESTIONS, which the r43 round claimed in prose
+-- and did not measure. Drop either subtransaction and the runs disagree the
+-- moment any policy reads a second table or its own children. Blocks (8c) and
+-- (8d) below then install the two actual counter-examples and require every one
+-- of the three runs to refuse them.
 --
 -- COVERAGE IS STRUCTURAL, NOT A LIST. The loop reads public.erasure_registry,
 -- which guard G7 pins byte-identical to db/erasure-registry.json. A new
@@ -973,38 +994,172 @@ END;
 $owner_rows$;
 
 -- ---------------------------------------------------------------------
--- ONE TABLE'S OBSERVATION, AND EVERY ROW IT TOUCHES PUT BACK.
+-- ONE QUESTION, ASKED FROM THE ORIGINAL FIXTURE, AND EVERY ROW PUT BACK.
 --
--- The three DELETEs below are real. They run inside a subtransaction whose
--- EXCEPTION clause is reached on EVERY path: the success path raises a sentinel
--- on purpose. PL/pgSQL rolls a block's database changes back when its EXCEPTION
+-- The DELETEs below are real. They run inside a subtransaction whose EXCEPTION
+-- clause is reached on EVERY path: the success path raises a sentinel on
+-- purpose. PL/pgSQL rolls a block's database changes back when its EXCEPTION
 -- clause catches, while local variables keep the values they held at the moment
 -- of the error (PostgreSQL manual 43.6.8) -- which is how the measurement
--- survives its own rollback. So the caller gets the numbers and the next table
--- gets the original fixture. That second half is the r43 authorisation gate's
--- F1: the previous version left A's rows deleted for the rest of the sweep, and
--- a DELETE policy that reads another table was judged after that other table
--- had already been emptied.
+-- survives its own rollback.
+--
+-- WHY THIS IS A FUNCTION OF ONE QUESTION. The r43 round put each TABLE in its
+-- own subtransaction and asked three questions inside it, sequentially. That
+-- closed the leak between tables and left the one INSIDE a table wide open,
+-- which is the r44 authorisation gate's F1: the second question really deletes
+-- A's rows, Postgres really takes A's CASCADE children with them, and the third
+-- question is then asked of a database where a policy reading those children
+-- has switched itself off. Asking each question through a function body makes
+-- the isolation structural rather than remembered -- there is no order in which
+-- these four can be asked that lets one of them see another's writes, because
+-- each one's writes are gone before it returns.
+--
+-- The role is set INSIDE the subtransaction too. `SET LOCAL ROLE` is undone
+-- when the subtransaction aborts, so no question can inherit another's role,
+-- and `SET LOCAL request.jwt.claim.sub` (set at the outer transaction level)
+-- survives all of them, which is what keeps `auth.uid()` answering A.
 --
 -- Failure is never silent. `v_stage` records how far the block got, so a raise
 -- from a real statement is reported with its SQLSTATE and its stage, and only
 -- the sentinel at stage 'done' is swallowed.
 -- ---------------------------------------------------------------------
 
+CREATE OR REPLACE FUNCTION pg_temp.erasure_ask(
+  p_table text, p_owner text, p_a uuid, p_b uuid, p_q int)
+RETURNS jsonb
+LANGUAGE plpgsql
+AS $ask$
+DECLARE
+  v_n       bigint;
+  v_b_after bigint;
+  v_stage   text := 'start';
+  v_answer  jsonb;
+BEGIN
+  BEGIN
+    SET LOCAL ROLE authenticated;
+
+    CASE p_q
+      -- (1) B's rows are not A's to delete, and they are still there to try.
+      WHEN 1 THEN
+        v_stage := 'delete-other';
+        EXECUTE pg_catalog.format('DELETE FROM public.%I WHERE %I = $1', p_table, p_owner)
+          USING p_b;
+        GET DIAGNOSTICS v_n = ROW_COUNT;
+
+      -- (2) A's own rows are.
+      WHEN 2 THEN
+        v_stage := 'delete-own';
+        EXECUTE pg_catalog.format('DELETE FROM public.%I WHERE %I = $1', p_table, p_owner)
+          USING p_a;
+        GET DIAGNOSTICS v_n = ROW_COUNT;
+
+      -- (3) THE SAME QUESTION, ASKED WITHOUT NAMING A COLUMN -- AND ASKED
+      -- FIRST, BEFORE ANYTHING HAS BEEN DELETED.
+      --
+      -- (1) and (2) both say `WHERE <owner> = $1`. That reference to a column
+      -- makes Postgres apply the table's SELECT policy ON TOP OF its DELETE
+      -- policy, so (1) answers 0 rows EVEN IF THE DELETE POLICY IS WIDER. The
+      -- r42 authorisation gate proved it by execution on PostgreSQL 18.3,
+      -- against this very block, with a DELETE path the static guard also
+      -- passes because the role is not named `authenticated`:
+      --
+      --   CREATE ROLE review_group;  GRANT review_group TO authenticated;
+      --   CREATE POLICY review_extra ON public.records
+      --     FOR DELETE TO review_group USING (user_id IS NOT NULL);
+      --
+      -- (1) still reported 0 rows and B still survived -- and
+      -- `DELETE FROM public.records WHERE true` deleted B's row.
+      --
+      -- `WHERE true` names no column, so no SELECT policy narrows it, and role
+      -- inheritance, RESTRICTIVE policies and the permissive OR are all inside
+      -- the answer whatever spelling produced them. Asked here, with the
+      -- fixture untouched, a correct tree answers with exactly the rows A owns
+      -- and leaves B's alone. Asked at (4) instead -- which is how the r43
+      -- round asked it, and only there -- a policy that READS A'S OWN CASCADE
+      -- CHILDREN has already been switched off by A's own DELETE, and the
+      -- answer is 0 for the wrong reason (r44 authorisation gate F1, block 8d).
+      WHEN 3 THEN
+        v_stage := 'probe-unconditional-fresh';
+        EXECUTE pg_catalog.format('DELETE FROM public.%I WHERE true', p_table);
+        GET DIAGNOSTICS v_n = ROW_COUNT;
+
+      -- (4) ...and the same statement once A's own rows are gone, which is the
+      -- complementary half: now every row it CAN reach belongs to someone else,
+      -- so it must reach none. A policy that only OPENS after A's rows go --
+      -- the mirror image of (3)'s -- is invisible to (3) and caught here. Both
+      -- deletes are this question's own, inside this question's subtransaction.
+      --
+      -- Neither (3) nor (4) can cascade out of the observation: the 14 inbound
+      -- FKs to these tables are CASCADE or SET NULL and there is no BEFORE /
+      -- AFTER DELETE trigger on any of them, so an error is itself a finding
+      -- rather than noise. One CHECK could still raise:
+      -- wiki_pages_source_kind_pair (0022_wiki_rag.sql:61) forbids a
+      -- kind='source' page with a NULL source_id, and deleting `sources` nulls
+      -- that column through ON DELETE SET NULL. Today's fixture inserts only
+      -- kind='concept' pages, so it cannot fire; if one day it does, the
+      -- handler below reports the SQLSTATE instead of hiding it.
+      ELSE
+        v_stage := 'delete-own-before-probe';
+        EXECUTE pg_catalog.format('DELETE FROM public.%I WHERE %I = $1', p_table, p_owner)
+          USING p_a;
+        v_stage := 'probe-unconditional-after-own';
+        EXECUTE pg_catalog.format('DELETE FROM public.%I WHERE true', p_table);
+        GET DIAGNOSTICS v_n = ROW_COUNT;
+    END CASE;
+
+    RESET ROLE;
+    v_stage := 'recount-other';
+    EXECUTE pg_catalog.format('SELECT pg_catalog.count(*) FROM public.%I WHERE %I = $1',
+                              p_table, p_owner)
+      INTO v_b_after USING p_b;
+
+    v_answer := CASE p_q
+      WHEN 1 THEN pg_catalog.jsonb_build_object('deleted_other', v_n, 'b_after_other', v_b_after)
+      WHEN 2 THEN pg_catalog.jsonb_build_object('deleted_own', v_n, 'b_after_own', v_b_after)
+      WHEN 3 THEN pg_catalog.jsonb_build_object('unconditional_fresh', v_n, 'b_after_fresh', v_b_after)
+      ELSE        pg_catalog.jsonb_build_object('unconditional', v_n, 'b_after_probe', v_b_after)
+    END;
+
+    -- Unwind. Caught two lines down and discarded; never reaches the caller.
+    v_stage := 'done';
+    RAISE EXCEPTION 'erasure regression (8): per-question observation rollback';
+  EXCEPTION
+    WHEN OTHERS THEN
+      IF v_stage <> 'done' THEN
+        RAISE EXCEPTION
+          'erasure regression FAILED (8): question % on public.% raised % (%) at stage "%" as the '
+          '`authenticated` role. Either the statement is refused for a reason this test does not '
+          'model, or it reached rows it should never have reached and a referential action rejected '
+          'the result. Both are findings -- do not silence this by narrowing the observation.',
+          p_q, p_table, SQLSTATE, SQLERRM, v_stage;
+      END IF;
+  END;
+
+  RETURN v_answer;
+END;
+$ask$;
+
+-- ---------------------------------------------------------------------
+-- ONE TABLE'S OBSERVATION: THE FOUR QUESTIONS, IN THE ORDER ASKED FOR.
+--
+-- `p_order` is a permutation, and it exists so that "the order does not matter"
+-- can be EXECUTED rather than asserted: the driver runs the whole sweep once
+-- with 1,2,3,4 and once with 4,3,2,1 and demands the same numbers. A question
+-- silently not asked would be a silent pass, so the permutation is validated
+-- here -- out of range, repeated, or short, and this raises.
+-- ---------------------------------------------------------------------
+
 CREATE OR REPLACE FUNCTION pg_temp.erasure_observe_table(
-  p_table text, p_owner text, p_a uuid, p_b uuid)
+  p_table text, p_owner text, p_a uuid, p_b uuid, p_order int[])
 RETURNS jsonb
 LANGUAGE plpgsql
 AS $observe$
 DECLARE
   v_a_before bigint;
   v_b_before bigint;
-  v_other    bigint;
-  v_own      bigint;
-  v_b_after  bigint;
-  v_wide     bigint;
-  v_b_probe  bigint;
-  v_stage    text := 'count';
+  v_q        int;
+  v_seen     int[] := ARRAY[]::int[];
+  v_out      jsonb;
 BEGIN
   EXECUTE pg_catalog.format('SELECT pg_catalog.count(*) FROM public.%I WHERE %I = $1',
                             p_table, p_owner)
@@ -1023,106 +1178,49 @@ BEGIN
       p_table, p_owner, v_a_before, v_b_before;
   END IF;
 
-  BEGIN
-    SET LOCAL ROLE authenticated;
+  IF p_order IS NULL OR pg_catalog.array_length(p_order, 1) IS NULL THEN
+    RAISE EXCEPTION
+      'erasure regression FAILED (8): public.% was asked no questions at all. An empty order is '
+      'not an observation.', p_table;
+  END IF;
 
-    -- (i) B's row is not A's to delete, and it is still there to try.
-    v_stage := 'delete-other';
-    EXECUTE pg_catalog.format('DELETE FROM public.%I WHERE %I = $1', p_table, p_owner)
-      USING p_b;
-    GET DIAGNOSTICS v_other = ROW_COUNT;
+  v_out := pg_catalog.jsonb_build_object('a_before', v_a_before, 'b_before', v_b_before);
 
-    -- (ii) A's own rows are.
-    v_stage := 'delete-own';
-    EXECUTE pg_catalog.format('DELETE FROM public.%I WHERE %I = $1', p_table, p_owner)
-      USING p_a;
-    GET DIAGNOSTICS v_own = ROW_COUNT;
+  FOREACH v_q IN ARRAY p_order LOOP
+    IF v_q < 1 OR v_q > 4 THEN
+      RAISE EXCEPTION
+        'erasure regression FAILED (8): % is not one of the four questions asked of public.%.',
+        v_q, p_table;
+    END IF;
+    IF v_q = ANY (v_seen) THEN
+      RAISE EXCEPTION
+        'erasure regression FAILED (8): question % was asked twice of public.%. Each question is '
+        'measured once, from the original fixture; asking one twice would hide the second answer '
+        'behind the first.', v_q, p_table;
+    END IF;
+    v_seen := v_seen || v_q;
+    -- Each call is its own subtransaction, so this loop cannot carry a row from
+    -- one question into the next whichever way round `p_order` puts them.
+    v_out := v_out || pg_temp.erasure_ask(p_table, p_owner, p_a, p_b, v_q);
+  END LOOP;
 
-    RESET ROLE;
-    v_stage := 'recount-other';
-    EXECUTE pg_catalog.format('SELECT pg_catalog.count(*) FROM public.%I WHERE %I = $1',
-                              p_table, p_owner)
-      INTO v_b_after USING p_b;
-
-    -- (iii) THE SAME QUESTION, ASKED WITHOUT NAMING A COLUMN.
-    --
-    -- (i) and (ii) both say `WHERE <owner> = $1`. That reference to a column
-    -- makes Postgres apply the table's SELECT policy ON TOP OF its DELETE
-    -- policy, so an owner-bound SELECT policy answers (i) with 0 rows EVEN IF
-    -- THE DELETE POLICY IS WIDER. The r42 authorisation gate proved it by
-    -- execution on PostgreSQL 18.3, against this very block, with a DELETE
-    -- path the static guard also passes because the role is not named
-    -- `authenticated`:
-    --
-    --   CREATE ROLE review_group;  GRANT review_group TO authenticated;
-    --   CREATE POLICY review_extra ON public.records
-    --     FOR DELETE TO review_group USING (user_id IS NOT NULL);
-    --
-    -- (i) still reported 0 rows and B still survived -- and
-    -- `DELETE FROM public.records WHERE true` deleted B's row.
-    --
-    -- `WHERE true` names no column, so no SELECT policy narrows it, and role
-    -- inheritance, RESTRICTIVE policies and the permissive OR are all inside
-    -- the answer whatever spelling produced them. A's own rows are gone by the
-    -- time this runs -- gone WITHIN THIS SUBTRANSACTION, which is the point --
-    -- so in a correct tree it must match NOTHING: every row it CAN reach
-    -- belongs to someone else. That also means it cannot cascade: the 14
-    -- inbound FKs to these tables are CASCADE or SET NULL and there is no
-    -- BEFORE/AFTER DELETE trigger on any of them, so an error here is itself a
-    -- finding rather than noise. One CHECK could still raise:
-    -- wiki_pages_source_kind_pair (0022_wiki_rag.sql:61) forbids a
-    -- kind='source' page with a NULL source_id, and deleting `sources` nulls
-    -- that column through ON DELETE SET NULL. Today's fixture inserts only
-    -- kind='concept' pages, so it cannot fire; if one day it does, the handler
-    -- below reports the SQLSTATE instead of hiding it.
-    v_stage := 'probe-unconditional';
-    SET LOCAL ROLE authenticated;
-    EXECUTE pg_catalog.format('DELETE FROM public.%I WHERE true', p_table);
-    GET DIAGNOSTICS v_wide = ROW_COUNT;
-
-    RESET ROLE;
-    v_stage := 'recount-after-probe';
-    EXECUTE pg_catalog.format('SELECT pg_catalog.count(*) FROM public.%I WHERE %I = $1',
-                              p_table, p_owner)
-      INTO v_b_probe USING p_b;
-
-    -- Unwind. Caught two lines down and discarded; never reaches the caller.
-    v_stage := 'done';
-    RAISE EXCEPTION 'erasure regression (8): per-table observation rollback';
-  EXCEPTION
-    WHEN OTHERS THEN
-      IF v_stage <> 'done' THEN
-        RAISE EXCEPTION
-          'erasure regression FAILED (8): observing public.% raised % (%) at stage "%" as the '
-          '`authenticated` role. Either the statement is refused for a reason this test does not '
-          'model, or it reached rows it should never have reached and a referential action rejected '
-          'the result. Both are findings -- do not silence this by narrowing the observation.',
-          p_table, SQLSTATE, SQLERRM, v_stage;
-      END IF;
-  END;
-
-  RETURN pg_catalog.jsonb_build_object(
-    'a_before', v_a_before,
-    'b_before', v_b_before,
-    'deleted_other', v_other,
-    'deleted_own', v_own,
-    'b_after_other', v_b_after,
-    'unconditional', v_wide,
-    'b_after_probe', v_b_probe);
+  RETURN v_out;
 END;
 $observe$;
 
 -- ---------------------------------------------------------------------
 -- THE WHOLE SWEEP, IN ONE DIRECTION, WITH EVERY VERDICT.
 --
--- Returns one jsonb entry per table so the caller can run it twice and compare.
--- Reversing `delete_order` must not change a single number: that is the only
--- executable statement of "no table's observation depends on another table's
--- state", and it goes red the moment the subtransaction above is removed.
+-- Returns one jsonb entry per table so the caller can run it three times and
+-- compare. Reversing `delete_order` must not change a single number, and
+-- neither must reversing the QUESTION order: those are the only executable
+-- statements of "no table's observation depends on another table's state" and
+-- "no question's answer depends on another question's writes". They go red the
+-- moment either subtransaction above is removed.
 -- ---------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION pg_temp.erasure_observe_all(
-  p_reverse boolean, p_a uuid, p_b uuid)
+  p_reverse boolean, p_a uuid, p_b uuid, p_order int[])
 RETURNS jsonb
 LANGUAGE plpgsql
 AS $sweep$
@@ -1131,24 +1229,35 @@ DECLARE
   v_row jsonb;
   v_out jsonb := '{}'::jsonb;
 BEGIN
+  IF pg_catalog.array_length(p_order, 1) IS DISTINCT FROM 4 THEN
+    RAISE EXCEPTION
+      'erasure regression FAILED (8): a sweep must ask all four questions of every table, and this '
+      'one was given %. A sweep that drops a question reports fewer keys and every comparison '
+      'against it silently weakens.', COALESCE(pg_catalog.array_length(p_order, 1), 0);
+  END IF;
+
   FOR r IN
     SELECT table_name, owner_column, delete_order
       FROM public.erasure_registry
      WHERE class = 'client_erasable'
      ORDER BY CASE WHEN p_reverse THEN -delete_order ELSE delete_order END
   LOOP
-    v_row := pg_temp.erasure_observe_table(r.table_name, r.owner_column, p_a, p_b);
+    v_row := pg_temp.erasure_observe_table(r.table_name, r.owner_column, p_a, p_b, p_order);
 
     -- Every comparison below is an IF on a number, and an IF on NULL does not
     -- fire. A missing measurement would therefore be a SILENT PASS, so demand
-    -- that all seven came back as numbers before believing any of them.
+    -- that all ten came back as numbers before believing any of them -- the
+    -- count as well as the type, because a question that never ran contributes
+    -- no key at all rather than a null one.
     IF v_row IS NULL
        OR (SELECT pg_catalog.count(*) FROM pg_catalog.jsonb_each(v_row) AS e(k, v)
-            WHERE pg_catalog.jsonb_typeof(v) <> 'number') > 0 THEN
+            WHERE pg_catalog.jsonb_typeof(v) <> 'number') > 0
+       OR (SELECT pg_catalog.count(*) FROM pg_catalog.jsonb_object_keys(v_row) AS e(k)) <> 10 THEN
       RAISE EXCEPTION
         'erasure regression FAILED (8): the observation of public.% came back incomplete (%). '
-        'A missing number would make every comparison below NULL, and an IF on NULL does not '
-        'fire -- which is a silent pass, not a verdict.',
+        'Ten numbers are expected, one pair per question plus the two pre-counts. A missing number '
+        'would make every comparison below NULL, and an IF on NULL does not fire -- which is a '
+        'silent pass, not a verdict.',
         r.table_name, COALESCE(v_row::text, '<null>');
     END IF;
 
@@ -1176,19 +1285,40 @@ BEGIN
         r.table_name, (v_row->>'deleted_own')::bigint, (v_row->>'a_before')::bigint, r.table_name;
     END IF;
 
+    IF (v_row->>'b_after_own')::bigint <> (v_row->>'b_before')::bigint THEN
+      RAISE EXCEPTION
+        'erasure regression FAILED (8): A deleted its own row(s) from public.% and B was left '
+        'holding % of its % row(s). A''s erasure took someone else''s data with it -- through a '
+        'cascade, a trigger, or a policy that reached further than the WHERE clause says.',
+        r.table_name, (v_row->>'b_after_own')::bigint, (v_row->>'b_before')::bigint;
+    END IF;
+
+    IF (v_row->>'unconditional_fresh')::bigint <> (v_row->>'a_before')::bigint
+       OR (v_row->>'b_after_fresh')::bigint <> (v_row->>'b_before')::bigint THEN
+      RAISE EXCEPTION
+        'erasure regression FAILED (8): as the `authenticated` role, `DELETE FROM public.% WHERE true` '
+        'asked with NOTHING deleted yet matched % row(s) where A owns %, and left B holding % of its '
+        '% row(s). This question is asked from the untouched fixture on purpose. It names no column, '
+        'so Postgres applies no SELECT policy and every DELETE path is inside the answer -- including '
+        'one reaching `authenticated` through an inherited role, which no policy-text check reads '
+        '(r42 authorisation gate F1); one whose USING reads a DIFFERENT table (r43 F1); and one whose '
+        'USING reads this table''s OWN CASCADE CHILDREN, which A''s own DELETE would have taken away '
+        'before the question could be asked (r44 F1). Read pg_policies for %, every role that '
+        '`authenticated` is a member of included.',
+        r.table_name, (v_row->>'unconditional_fresh')::bigint, (v_row->>'a_before')::bigint,
+        (v_row->>'b_after_fresh')::bigint, (v_row->>'b_before')::bigint, r.table_name;
+    END IF;
+
     IF (v_row->>'unconditional')::bigint <> 0
        OR (v_row->>'b_after_probe')::bigint <> (v_row->>'b_before')::bigint THEN
       RAISE EXCEPTION
         'erasure regression FAILED (8): as the `authenticated` role, `DELETE FROM public.% WHERE true` '
-        'matched % row(s) and left B holding % of its % row(s). A''s own rows were already deleted '
-        'inside this table''s own subtransaction, so every row that statement can reach belongs to '
-        'another user. Observations (i) and (ii) cannot see this: they name the owner column, which '
-        'makes Postgres apply the SELECT policy as well, and an owner-bound SELECT policy hides a '
-        'DELETE policy that is wider -- including one reaching `authenticated` through an inherited '
-        'role, which no policy-text check reads (r42 authorisation gate F1), and including one whose '
-        'USING reads a DIFFERENT table that an earlier iteration used to have emptied (r43 '
-        'authorisation gate F1). Read pg_policies for %, every role that `authenticated` is a member '
-        'of included.',
+        'asked once A''s own rows were gone matched % row(s) and left B holding % of its % row(s). '
+        'Every row that statement could still reach belongs to another user. This is the mirror of '
+        'the question above -- it catches a DELETE path that OPENS once A''s rows go, which asking '
+        'from the untouched fixture cannot see -- and both deletes happened inside this question''s '
+        'own subtransaction. Read pg_policies for %, every role that `authenticated` is a member of '
+        'included.',
         r.table_name, (v_row->>'unconditional')::bigint, (v_row->>'b_after_probe')::bigint,
         (v_row->>'b_before')::bigint, r.table_name;
     END IF;
@@ -1364,8 +1494,10 @@ DECLARE
   v_no_rls   text;
   v_forward  jsonb;
   v_reverse  jsonb;
+  v_qreverse jsonb;
   v_visited  int;
   v_probed   int;
+  v_fresh    int;
   v_expected int;
   v_diff     text;
 BEGIN
@@ -1384,20 +1516,32 @@ BEGIN
       'erasure regression FAILED (8): client_erasable table(s) with ROW LEVEL SECURITY disabled: %', v_no_rls;
   END IF;
 
-  -- Ascending delete_order, then descending. Both sweeps see every table in the
-  -- ORIGINAL fixture state, because pg_temp.erasure_observe_table() unwinds
-  -- each table's DELETEs before the next table is touched.
-  v_forward := pg_temp.erasure_observe_all(false, v_a, v_b);
-  v_reverse := pg_temp.erasure_observe_all(true,  v_a, v_b);
+  -- THREE SWEEPS, TWO AXES. Ascending delete_order, then descending -- both
+  -- asking the four questions as 1,2,3,4 -- and then ascending again asking
+  -- them as 4,3,2,1. Every sweep sees every table in the ORIGINAL fixture
+  -- state, and every question sees it too, because pg_temp.erasure_ask()
+  -- unwinds its own DELETEs before it returns.
+  v_forward  := pg_temp.erasure_observe_all(false, v_a, v_b, ARRAY[1, 2, 3, 4]);
+  v_reverse  := pg_temp.erasure_observe_all(true,  v_a, v_b, ARRAY[1, 2, 3, 4]);
+  v_qreverse := pg_temp.erasure_observe_all(false, v_a, v_b, ARRAY[4, 3, 2, 1]);
 
-  -- THE ORDER-INDEPENDENCE ASSERTION, and it is not decoration. It is the only
-  -- executable form of "no table's verdict depends on another table's rows",
-  -- which is exactly what the r43 authorisation gate (F1) exploited: a DELETE
-  -- policy reading `sources` was wide when erase_my_data really runs and narrow
-  -- by the time the old loop reached `records`, because the loop had emptied
-  -- `sources` on the way. Remove the per-table subtransaction and these two
-  -- jsonb documents stop matching. Block (8c) below installs that very policy
-  -- and requires BOTH directions to refuse it.
+  -- THE ORDER-INDEPENDENCE ASSERTIONS, and they are not decoration. They are
+  -- the only executable forms of "no table's verdict depends on another
+  -- table's rows" and "no question's answer depends on another question's
+  -- writes" -- the two things the r43 and r44 authorisation gates (both F1)
+  -- exploited in turn. r43: a DELETE policy reading `sources` was wide when
+  -- erase_my_data really runs and narrow by the time the old loop reached
+  -- `records`, because the loop had emptied `sources` on the way. r44: a DELETE
+  -- policy reading `srs_reviews` was wide until the observation's OWN second
+  -- question deleted A's `srs_cards` and cascaded those reviews away. Remove
+  -- either subtransaction and these documents stop matching. Blocks (8c) and
+  -- (8d) below install those two policies and require all three sweeps to
+  -- refuse them.
+  --
+  -- The two comparisons are separate on purpose: collapsing them would let one
+  -- axis stand in for the other, and it was exactly such a substitution --
+  -- table order read as evidence of question order -- that the r43 round's
+  -- prose made and the r44 gate disproved.
   IF v_forward <> v_reverse THEN
     SELECT pg_catalog.string_agg(
              pg_catalog.format('%s: ascending %s vs descending %s', t.k, v_forward -> t.k, v_reverse -> t.k),
@@ -1409,8 +1553,24 @@ BEGIN
       'erasure regression FAILED (8): the same sweep produced different numbers in ascending and '
       'descending delete_order, so at least one table''s observation depends on another table''s '
       'rows: %. Every observation must start from the original fixture -- that is what the '
-      'per-table subtransaction in pg_temp.erasure_observe_table() is for (r43 authorisation '
+      'per-question subtransaction in pg_temp.erasure_ask() is for (r43 authorisation '
       'gate F1).', COALESCE(v_diff, '<key sets differ>');
+  END IF;
+
+  IF v_forward <> v_qreverse THEN
+    SELECT pg_catalog.string_agg(
+             pg_catalog.format('%s: questions 1,2,3,4 %s vs 4,3,2,1 %s', t.k, v_forward -> t.k, v_qreverse -> t.k),
+             '; ' ORDER BY t.k)
+      INTO v_diff
+    FROM pg_catalog.jsonb_object_keys(v_forward) AS t(k)
+    WHERE (v_forward -> t.k) IS DISTINCT FROM (v_qreverse -> t.k);
+    RAISE EXCEPTION
+      'erasure regression FAILED (8): asking the four questions in reverse produced different '
+      'numbers, so at least one question''s answer depends on another question having run first: '
+      '%. That is the r44 authorisation gate''s F1 -- A''s own DELETE takes A''s CASCADE children '
+      'with it, and a policy that reads those children answers differently on either side of it. '
+      'Each question must start from the original fixture, which is what the subtransaction in '
+      'pg_temp.erasure_ask() is for.', COALESCE(v_diff, '<key sets differ>');
   END IF;
 
   SELECT pg_catalog.count(*) INTO v_expected
@@ -1418,12 +1578,18 @@ BEGIN
   SELECT pg_catalog.count(*) INTO v_visited
     FROM pg_catalog.jsonb_object_keys(v_forward) AS t(k);
   -- Counted from the DATA, not from a loop variable, and separately from
-  -- v_visited on purpose: a table observed without its column-free probe is a
-  -- coverage hole of its own, and it is the number the PASS line reprints.
-  -- Counting them together would let one stand in for the other.
+  -- v_visited on purpose: a table observed without its column-free probes is a
+  -- coverage hole of its own, and they are the numbers the PASS line reprints.
+  -- Counting them together would let one stand in for the other -- and the two
+  -- probes are counted apart from each other for the same reason: question (3)
+  -- and question (4) ask the same statement of two different states, and it is
+  -- (3) that the r44 gate showed was missing.
   SELECT pg_catalog.count(*) INTO v_probed
     FROM pg_catalog.jsonb_each(v_forward) AS e(k, v)
    WHERE pg_catalog.jsonb_typeof(v -> 'unconditional') = 'number';
+  SELECT pg_catalog.count(*) INTO v_fresh
+    FROM pg_catalog.jsonb_each(v_forward) AS e(k, v)
+   WHERE pg_catalog.jsonb_typeof(v -> 'unconditional_fresh') = 'number';
 
   IF v_visited <> v_expected THEN
     RAISE EXCEPTION 'erasure regression FAILED (8): observed % of % client_erasable tables', v_visited, v_expected;
@@ -1431,12 +1597,21 @@ BEGIN
   IF v_probed <> v_expected THEN
     RAISE EXCEPTION 'erasure regression FAILED (8): unconditional-delete probed % of % client_erasable tables', v_probed, v_expected;
   END IF;
+  IF v_fresh <> v_expected THEN
+    RAISE EXCEPTION
+      'erasure regression FAILED (8): the untouched-fixture unconditional probe ran on % of % '
+      'client_erasable tables. It is question (3), and it is the only one that can see a DELETE '
+      'policy which A''s own erasure switches off (r44 authorisation gate F1).',
+      v_fresh, v_expected;
+  END IF;
 
   RAISE NOTICE 'erasure regression (8): % client_erasable tables observed as the authenticated role, '
-               'each inside its own rolled-back savepoint; % of them also probed with a column-free '
-               'DELETE ... WHERE true; and the whole sweep re-run in reverse delete_order produced '
-               'identical numbers for all % tables (% per-table observations in total)',
-               v_visited, v_probed, v_visited, v_visited * 2;
+               'EACH QUESTION inside its own rolled-back savepoint; % probed with a column-free '
+               'DELETE ... WHERE true from the UNTOUCHED fixture and % with the same statement once '
+               'A''s own rows were gone; and the sweep re-run in reverse delete_order AND with the '
+               'four questions reversed produced identical numbers for all % tables '
+               '(% question observations in total)',
+               v_visited, v_fresh, v_probed, v_visited, v_visited * 4 * 3;
 END;
 $eight$;
 
@@ -1448,7 +1623,7 @@ $eight$;
 -- load-bearing. This installs the r43 authorisation gate's F1 mutation FOR REAL
 -- -- in the same transaction, on the same fixture, which block (8) left
 -- untouched because it put every row back -- and requires the sweep to refuse
--- it in BOTH delete_order directions.
+-- it in ALL THREE of the runs block (8) makes.
 --
 --   CREATE ROLE erasure_review_probe;
 --   GRANT erasure_review_probe TO authenticated;
@@ -1459,11 +1634,11 @@ $eight$;
 --   * the role is not `authenticated`, so no policy-TEXT check reads it -- and
 --     `authenticated` inherits it (r42 authorisation gate F1);
 --   * the owner-bound SELECT policy on `records` still hides it from
---     observations (i) and (ii), so only the column-free probe can see it;
+--     questions (1) and (2), so only a column-free probe can see it;
 --   * its USING reads `sources`, whose delete_order (20) is BELOW `records`
 --     (30). The OLD loop had already deleted A's sources by the time it judged
 --     `records`, so ASCENDING order was GREEN and only DESCENDING was RED. That
---     asymmetry is the finding, and it is why this block asserts both.
+--     asymmetry is the finding, and it is why this block asserts every run.
 --
 -- The role and the policy are created inside this file's transaction and the
 -- final ROLLBACK removes them; they are also dropped explicitly below so no
@@ -1475,7 +1650,7 @@ DECLARE
   v_a      uuid := '11111111-1111-4111-8111-1111111111aa';
   v_b      uuid := '22222222-2222-4222-8222-2222222222bb';
   v_may    boolean;
-  v_rev    boolean;
+  v_run    record;
   v_failed text[] := ARRAY[]::text[];
 BEGIN
   -- Fail closed rather than skip: a run that cannot create the role cannot make
@@ -1496,15 +1671,21 @@ BEGIN
     FOR DELETE TO erasure_review_probe
     USING (EXISTS (SELECT 1 FROM public.sources AS s WHERE s.user_id = (SELECT auth.uid())));
 
-  FOR v_rev IN SELECT d.x FROM (VALUES (false), (true)) AS d(x) LOOP
+  -- The same three runs block (8) makes, named, so a failure says WHICH one.
+  FOR v_run IN
+    SELECT d.label, d.rev, d.ord
+      FROM (VALUES ('ascending',        false, ARRAY[1, 2, 3, 4]),
+                   ('descending',       true,  ARRAY[1, 2, 3, 4]),
+                   ('questions 4,3,2,1', false, ARRAY[4, 3, 2, 1])) AS d(label, rev, ord)
+  LOOP
     BEGIN
-      PERFORM pg_temp.erasure_observe_all(v_rev, v_a, v_b);
-      v_failed := v_failed || ('descending=' || v_rev::text || ': the sweep did NOT refuse it')::text;
+      PERFORM pg_temp.erasure_observe_all(v_run.rev, v_a, v_b, v_run.ord);
+      v_failed := v_failed || (v_run.label || ': the sweep did NOT refuse it')::text;
     EXCEPTION
       WHEN OTHERS THEN
         IF SQLERRM NOT LIKE '%DELETE FROM public.records WHERE true%' THEN
           v_failed := v_failed ||
-            ('descending=' || v_rev::text || ': refused for the wrong reason: ' || SQLERRM)::text;
+            (v_run.label || ': refused for the wrong reason: ' || SQLERRM)::text;
         END IF;
     END;
   END LOOP;
@@ -1517,16 +1698,124 @@ BEGIN
     RAISE EXCEPTION
       'erasure regression FAILED (8c): the cross-table conditional DELETE policy of r43 '
       'authorisation gate F1 was not caught: %. Block (8) therefore does not observe what it '
-      'claims to, and the isolation in pg_temp.erasure_observe_table() is not doing its job.',
+      'claims to, and the isolation in pg_temp.erasure_ask() is not doing its job.',
       pg_catalog.array_to_string(v_failed, ' | ');
   END IF;
 
   RAISE NOTICE 'erasure regression (8c): the r43 F1 inherited-role, cross-table conditional DELETE '
-               'policy on public.records was refused in BOTH delete_order directions, by the '
-               'column-free probe, with A''s public.sources rows still present -- which is only '
-               'true because each table is observed inside its own rolled-back savepoint';
+               'policy on public.records was refused in ALL THREE runs -- both delete_order '
+               'directions and the reversed question order -- by a column-free probe, with A''s '
+               'public.sources rows still present, which is only true because every question is '
+               'asked inside its own rolled-back savepoint';
 END;
 $eight_c$;
+
+----------------------------------------------------------------------
+-- (8d) THE COUNTER-EXAMPLE THE PER-TABLE SAVEPOINT COULD NOT SEE.
+--
+-- (8c) proves isolation BETWEEN tables. This proves isolation between
+-- QUESTIONS, and it is the r44 authorisation gate's F1 installed for real.
+--
+--   CREATE ROLE erasure_cascade_probe;
+--   GRANT erasure_cascade_probe TO authenticated;
+--   CREATE POLICY ... ON public.srs_cards FOR DELETE TO erasure_cascade_probe
+--     USING (EXISTS (SELECT 1 FROM public.srs_reviews WHERE user_id = (SELECT auth.uid())));
+--
+-- Everything that made (8c) invisible to a policy-text check is here too -- an
+-- inherited role, an owner-bound SELECT policy hiding it from the questions
+-- that name a column -- plus the one property that defeated the r43 design:
+-- the table it reads is its OWN CASCADE CHILD. srs_reviews.card_id REFERENCES
+-- srs_cards(id) ON DELETE CASCADE (0051_srs_cards.sql:58), so the moment A
+-- deletes A's cards, A's reviews go with them and this policy closes. Putting
+-- each TABLE in a savepoint does not help: the state that hid the policy was
+-- destroyed inside srs_cards' own observation, by srs_cards' own question.
+--
+-- SO THIS BLOCK MEASURES BOTH ANSWERS ON ONE POLICY rather than only asserting
+-- the refusal. Question (4) alone -- the r43 design -- is asked first and must
+-- come back CLEAN; question (3) alone must come back RED. A single number
+-- separating them is the whole argument for the change, and if a later edit
+-- makes (4) catch it too, the numbers say so instead of the prose.
+----------------------------------------------------------------------
+
+DO $eight_d$
+DECLARE
+  v_a       uuid := '11111111-1111-4111-8111-1111111111aa';
+  v_b       uuid := '22222222-2222-4222-8222-2222222222bb';
+  v_run     record;
+  v_after   jsonb;
+  v_fresh   jsonb;
+  v_failed  text[] := ARRAY[]::text[];
+BEGIN
+  CREATE ROLE erasure_cascade_probe;
+  GRANT erasure_cascade_probe TO authenticated;
+  CREATE POLICY erasure_r44_f1_probe ON public.srs_cards
+    FOR DELETE TO erasure_cascade_probe
+    USING (EXISTS (SELECT 1 FROM public.srs_reviews AS r WHERE r.user_id = (SELECT auth.uid())));
+
+  -- THE OLD DESIGN'S ANSWER, on this exact policy and this exact fixture.
+  v_after := pg_temp.erasure_observe_table('srs_cards', 'user_id', v_a, v_b, ARRAY[4]);
+  IF (v_after->>'unconditional')::bigint <> 0
+     OR (v_after->>'b_after_probe')::bigint <> (v_after->>'b_before')::bigint THEN
+    v_failed := v_failed ||
+      ('question (4) unexpectedly caught it (' || v_after::text || '); this block no longer '
+       || 'demonstrates what it claims and its premise must be rechecked')::text;
+  END IF;
+
+  -- THE NEW QUESTION'S ANSWER, same policy, same fixture, nothing deleted yet.
+  v_fresh := pg_temp.erasure_observe_table('srs_cards', 'user_id', v_a, v_b, ARRAY[3]);
+  IF (v_fresh->>'unconditional_fresh')::bigint
+       <= (v_fresh->>'a_before')::bigint THEN
+    v_failed := v_failed ||
+      ('question (3) did NOT reach past A''s own rows (' || v_fresh::text || ')')::text;
+  END IF;
+  IF (v_fresh->>'b_after_fresh')::bigint >= (v_fresh->>'b_before')::bigint THEN
+    v_failed := v_failed ||
+      ('question (3) left B''s rows intact (' || v_fresh::text || '), so the policy did not '
+       || 'reach them and this is not the r44 F1 shape')::text;
+  END IF;
+
+  -- ...and the full sweep must refuse it in all three runs, for THIS table.
+  FOR v_run IN
+    SELECT d.label, d.rev, d.ord
+      FROM (VALUES ('ascending',        false, ARRAY[1, 2, 3, 4]),
+                   ('descending',       true,  ARRAY[1, 2, 3, 4]),
+                   ('questions 4,3,2,1', false, ARRAY[4, 3, 2, 1])) AS d(label, rev, ord)
+  LOOP
+    BEGIN
+      PERFORM pg_temp.erasure_observe_all(v_run.rev, v_a, v_b, v_run.ord);
+      v_failed := v_failed || (v_run.label || ': the sweep did NOT refuse it')::text;
+    EXCEPTION
+      WHEN OTHERS THEN
+        IF SQLERRM NOT LIKE '%DELETE FROM public.srs_cards WHERE true%' THEN
+          v_failed := v_failed ||
+            (v_run.label || ': refused for the wrong reason: ' || SQLERRM)::text;
+        END IF;
+    END;
+  END LOOP;
+
+  DROP POLICY erasure_r44_f1_probe ON public.srs_cards;
+  REVOKE erasure_cascade_probe FROM authenticated;
+  DROP ROLE erasure_cascade_probe;
+
+  IF pg_catalog.array_length(v_failed, 1) > 0 THEN
+    RAISE EXCEPTION
+      'erasure regression FAILED (8d): the CASCADE-child conditional DELETE policy of r44 '
+      'authorisation gate F1 was not handled as claimed: %. Per-question isolation is what this '
+      'block exists to prove; without it the r43 design reports 0 for the wrong reason.',
+      pg_catalog.array_to_string(v_failed, ' | ');
+  END IF;
+
+  RAISE NOTICE 'erasure regression (8d): the r44 F1 inherited-role DELETE policy reading '
+               'public.srs_cards'' OWN CASCADE CHILD was INVISIBLE to question (4) '
+               '(unconditional=%, B kept %/%) and caught by question (3) '
+               '(unconditional_fresh=% where A owns %, B left with %/%) -- and the full sweep '
+               'refused it in all three runs',
+               (v_after->>'unconditional')::bigint,
+               (v_after->>'b_after_probe')::bigint, (v_after->>'b_before')::bigint,
+               (v_fresh->>'unconditional_fresh')::bigint, (v_fresh->>'a_before')::bigint,
+               (v_fresh->>'b_after_fresh')::bigint, (v_fresh->>'b_before')::bigint;
+END;
+$eight_d$;
 ROLLBACK;
 
 ----------------------------------------------------------------------
@@ -1565,10 +1854,11 @@ ROLLBACK;
 
 -- The count below is read from the registry, not from block (8) -- a ROLLBACK
 -- cannot carry a counter out. It is not a free-floating number even so: block
--- (8) raises unless v_visited AND v_probed each equal exactly this count, and
--- unless the reverse-order sweep returned the same numbers table by table; then
--- (8c) raises unless the counter-example is refused in both directions. With
+-- (8) raises unless v_visited, v_probed AND v_fresh each equal exactly this
+-- count, and unless the reverse-TABLE-order and reverse-QUESTION-order sweeps
+-- both returned the same numbers table by table; then (8c) and (8d) raise
+-- unless their counter-examples are refused in all three runs. With
 -- `ON ERROR STOP` set, this line is unreachable if any of that failed.
-SELECT 'ERASURE REGRESSION PASS  erase_my_data: strict assertions, authenticated call, isolation, refusals without reflection, public receipt contract, measured row deltas, atomicity, registry ACL, catalog cascade parity, and every client_erasable table observed as the authenticated role INSIDE ITS OWN ROLLED-BACK SAVEPOINT (own row deleted, other user''s row refused, '
+SELECT 'ERASURE REGRESSION PASS  erase_my_data: strict assertions, authenticated call, isolation, refusals without reflection, public receipt contract, measured row deltas, atomicity, registry ACL, catalog cascade parity, and every client_erasable table observed as the authenticated role with EACH OF ITS FOUR QUESTIONS INSIDE ITS OWN ROLLED-BACK SAVEPOINT (own row deleted, other user''s row refused, '
     || (SELECT pg_catalog.count(*) FROM public.erasure_registry WHERE class = 'client_erasable')::text
-    || ' tables unconditional-delete probed), the whole sweep RE-RUN IN REVERSE delete_order with identical numbers per table, and the r43 F1 inherited-role cross-table conditional DELETE policy refused in both directions' AS result;
+    || ' tables unconditional-delete probed BOTH from the untouched fixture and after A''s own rows were gone), the whole sweep RE-RUN IN REVERSE delete_order AND WITH THE FOUR QUESTIONS REVERSED with identical numbers per table, the r43 F1 inherited-role cross-table conditional DELETE policy refused in all three runs, and the r44 F1 CASCADE-child conditional DELETE policy measured invisible to the old question and caught by the new one' AS result;

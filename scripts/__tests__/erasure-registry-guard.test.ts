@@ -1573,3 +1573,192 @@ describe("G10 -- the catalog test's privilege floor may not grant back what a mi
     expect(pinLine?.[1]).toBe("");
   });
 });
+
+// ---------------------------------------------------------------------------
+// r44 gates, F1/F2/F3 and M1. Three mutations walked through the static lane
+// GREEN, and two of them took the catalog lane with them: the tracker keyed
+// routines by their BARE NAME, so a DROP naming a signature that does not exist
+// deleted the live body and a same-named routine in another schema stood in for
+// it; and `DO '...'` -- PostgreSQL's plain-string spelling of an anonymous
+// block -- was not read at all, which is how the gate's own counter-example
+// slipped past G3c the role grant it needed.
+//
+// These cases live in their own describe because `mutate()` above is scoped to
+// the r42 block; `fired()` below is the same idea in three lines, and it keeps
+// the [41]+ numbering in file order.
+// ---------------------------------------------------------------------------
+
+describe("routine identity and the DO spelling (r44 artifact M1 / authorisation F2, F3)", () => {
+  /** G3 verdicts for BASE_SQL plus one extra migration, and optionally more. */
+  function fired(sql: string, moreSql: Record<string, string> = {}): string[] {
+    const probe = makeTree(baseRegistry(), sql, BASE_SQL, "0100_extra.sql", moreSql);
+    try {
+      return rulesFired(probe, "G3");
+    } finally {
+      rmSync(probe, { recursive: true, force: true });
+    }
+  }
+
+  /** The live body: it REVOKEs DELETE on an erasable table from `authenticated`,
+   *  which both lanes must see. Written once so every case below differs from
+   *  the others in exactly one thing. */
+  const LIVE = [
+    "CREATE FUNCTION public.sig_probe(p text) RETURNS void LANGUAGE plpgsql AS $s$",
+    "BEGIN",
+    "  EXECUTE 'REVOKE DELETE ON public.notes FROM authenticated';",
+    "END",
+    "$s$;",
+    "",
+  ].join("\n");
+
+  test("[41] dropping a signature that does not exist does not delete the one that does", () => {
+    // THE r44 ARTIFACT GATE'S M1, verbatim. `DROP FUNCTION IF EXISTS f(integer)`
+    // is a no-op in PostgreSQL when the only f takes text -- it skips the
+    // missing overload and leaves the live one alone. The old tracker deleted
+    // the NAME, so the call below resolved to nothing: G3b never saw the
+    // REVOKE, the G10 pin stayed empty, and the regression SQL's privilege
+    // floor then granted DELETE back, so the catalog lane could not see it
+    // either. One missing identity, both lanes false green.
+    expect(fired(LIVE)).toEqual([]); // defining is still not running
+    expect(
+      fired(`${LIVE}DROP FUNCTION IF EXISTS public.sig_probe(integer);\nSELECT public.sig_probe('x'::text);`).join(
+        " | ",
+      ),
+    ).toContain("dynamic-ddl");
+
+    // The control that proves the SIGNATURE is doing the work and not the mere
+    // presence of a DROP: drop the one that IS live and the call resolves to
+    // nothing, exactly as Postgres would have raised there.
+    expect(
+      fired(`${LIVE}DROP FUNCTION IF EXISTS public.sig_probe(text);\nSELECT public.sig_probe('x'::text);`),
+    ).toEqual([]);
+
+    // ...and a signature-less DROP takes every overload, which is what Postgres
+    // does -- it errors when there is more than one, so a migration cannot mean
+    // anything else by it.
+    expect(fired(`${LIVE}DROP FUNCTION public.sig_probe;\nSELECT public.sig_probe('x'::text);`)).toEqual([]);
+
+    // Type modifiers are not part of a routine's identity, so `numeric(10,2)`
+    // and `numeric` name the same argument and this DROP really does land.
+    const MOD = [
+      "CREATE FUNCTION public.mod_probe(p numeric(10,2)) RETURNS void LANGUAGE plpgsql AS $m$",
+      "BEGIN",
+      "  EXECUTE 'REVOKE DELETE ON public.notes FROM authenticated';",
+      "END",
+      "$m$;",
+      "",
+    ].join("\n");
+    expect(fired(`${MOD}DROP FUNCTION public.mod_probe(numeric);\nSELECT public.mod_probe(1);`)).toEqual([]);
+  });
+
+  test("[42] a second overload does not replace the first, and a call reaches both", () => {
+    // THE r44 AUTHORISATION GATE'S F3. `ovl_probe()` and `ovl_probe(integer)`
+    // are two routines. The tracker treated the second CREATE as a replacement,
+    // so it inspected the harmless body and reported `[]` while the dangerous
+    // one was the one being called. Resolving WHICH overload a call means needs
+    // SQL type inference, so the tracker collects them all instead -- an
+    // over-approximation that can only add a report, never remove one.
+    const OVERLOAD = [
+      "CREATE FUNCTION public.ovl_probe() RETURNS void LANGUAGE plpgsql AS $a$",
+      "BEGIN",
+      "  EXECUTE 'REVOKE DELETE ON public.notes FROM authenticated';",
+      "END",
+      "$a$;",
+      "CREATE FUNCTION public.ovl_probe(x integer) RETURNS void LANGUAGE plpgsql AS $b$",
+      "BEGIN",
+      "  NULL;",
+      "END",
+      "$b$;",
+      "",
+    ].join("\n");
+    expect(fired(`${OVERLOAD}SELECT public.ovl_probe();`).join(" | ")).toContain("dynamic-ddl");
+    // Which overload the call names is not what saves it either.
+    expect(fired(`${OVERLOAD}SELECT public.ovl_probe(1);`).join(" | ")).toContain("dynamic-ddl");
+    // The negative control -- only the harmless body exists -- stays green, so
+    // this is not a rule that says no to every overload.
+    expect(
+      fired(
+        [
+          "CREATE FUNCTION public.ovl_quiet(x integer) RETURNS void LANGUAGE plpgsql AS $b$",
+          "BEGIN",
+          "  NULL;",
+          "END",
+          "$b$;",
+          "SELECT public.ovl_quiet(1);",
+        ].join("\n"),
+      ),
+    ).toEqual([]);
+  });
+
+  test("[43] a same-named routine in ANOTHER schema is another routine", () => {
+    // The gate's `schema_collision` control. Nothing in this parser used to
+    // keep a schema, so `review.sig_probe()` overwrote `public.sig_probe` and
+    // an explicit `SELECT public.sig_probe(...)` was judged against the wrong
+    // body.
+    const HARMLESS = [
+      "CREATE SCHEMA IF NOT EXISTS review;",
+      LIVE,
+      "CREATE FUNCTION review.sig_probe(p text) RETURNS void LANGUAGE plpgsql AS $q$",
+      "BEGIN",
+      "  NULL;",
+      "END",
+      "$q$;",
+      "",
+    ].join("\n");
+    expect(fired(`${HARMLESS}SELECT public.sig_probe('x'::text);`).join(" | ")).toContain("dynamic-ddl");
+    // ...and calling the OTHER one really is calling the other one.
+    expect(fired(`${HARMLESS}SELECT review.sig_probe('x'::text);`)).toEqual([]);
+  });
+
+  test("[44] `DO '...'` is an executable block, and it fails closed", () => {
+    // THE r44 AUTHORISATION GATE'S F2. PostgreSQL takes DO's code argument as a
+    // plain string literal; the dollar spelling is a convenience, not a
+    // requirement. `doBlocks` accepted the dollar spelling only, AND
+    // `maskInertSql` blanks single-quoted text -- so a REVOKE written this way
+    // was invisible to the dynamic-DDL lane, the ACL replay and the
+    // role-membership scan at once. The gate used exactly that to smuggle in
+    // the `GRANT anon TO authenticated` its F1 counter-example needed, which a
+    // plain `GRANT` would have been refused for.
+    expect(fired(`DO 'BEGIN EXECUTE ''REVOKE DELETE ON public.notes FROM authenticated''; END';`).join(" | ")).toContain(
+      "dynamic-ddl",
+    );
+    // The role grant itself, which is the half that mattered to F1.
+    expect(fired(`DO 'BEGIN EXECUTE ''GRANT anon TO authenticated''; END';`).join(" | ")).toContain("dynamic-ddl");
+
+    // It is reported for what it IS, not only for what it carries: the rest of
+    // the replay still reads `maskInertSql` output, which cannot see inside a
+    // single-quoted body, so even an empty one goes to the catalog test.
+    // Reading a body is not the same as modelling it.
+    expect(fired(`DO 'BEGIN NULL; END';`).join(" | ")).toContain("DO '...'");
+    // `LANGUAGE` in front changes nothing.
+    expect(fired(`DO LANGUAGE plpgsql 'BEGIN NULL; END';`).join(" | ")).toContain("DO '...'");
+    // `E'...'` carries escapes this parser does not decode, so its body is
+    // recorded as unread rather than half-read.
+    expect(fired(`DO E'BEGIN NULL; END';`).join(" | ")).toContain("not read at all");
+
+    // The positive control: the dollar spelling of the SAME empty block is
+    // modelled, and stays green. Without it the cases above would pass just as
+    // well on a rule that refused every DO.
+    expect(fired(`DO $q$ BEGIN NULL; END $q$;`)).toEqual([]);
+
+    // And db/migrations contains none today, which is why this costs the real
+    // tree nothing. It is the floor under the next spelling, not a ratchet.
+    expect(replayMigrations(migrationsDir(REPO_ROOT)).routineIdentity.quotedDo).toBe(0);
+  });
+
+  test("[45] the real corpus really does exercise signature keying", () => {
+    // A rule tested only on fixtures is a rule that might be keying on nothing.
+    // These are measurements of db/migrations, reprinted by the PASS line, and
+    // they say the distinction is load-bearing on the tree that ships: names
+    // really are redefined, overloads really do coexist, and every argument
+    // list was read -- a signature this parser could not read would show up
+    // here, and it would be a definition no DROP can ever remove.
+    const stats = replayMigrations(migrationsDir(REPO_ROOT)).routineIdentity;
+    expect(stats.definitions).toBeGreaterThan(100);
+    expect(stats.identities).toBeGreaterThan(0);
+    expect(stats.identities).toBeLessThan(stats.definitions); // replacements really happen
+    expect(stats.overloadedNames).toBeGreaterThan(0); // and so do real overloads
+    expect(stats.signatureless).toBe(0);
+    expect(collectErasureRegistryErrors(REPO_ROOT)).toEqual([]);
+  });
+});

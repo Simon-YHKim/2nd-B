@@ -562,6 +562,9 @@ export type SchemaReplay = {
    *  because the guard no longer judges expressions -- but counted and printed,
    *  never silent. */
   expressionOnlyRewrites: ExpressionOnlyRewrite[];
+  /** Evidence that routine identity was tracked by SIGNATURE and not by bare
+   *  name. Printed by `check:erasure-registry`. */
+  routineIdentity: RoutineIdentityStats;
 };
 
 type ReplayEvent = { at: number; apply: () => void };
@@ -644,9 +647,20 @@ const OPAQUE_FRAGMENT = "<?>";
 
 /** One `CREATE [OR REPLACE] FUNCTION|PROCEDURE`, as the tracker remembers it.
  *  `body === null` means the parser could not read it -- distinct from an empty
- *  body, and the reason `advance()` can fail closed on a call. */
+ *  body, and the reason `advance()` can fail closed on a call.
+ *
+ *  `schema` + `name` + `signature` is the IDENTITY, and it is not decoration --
+ *  see `routineSignature`. `signature === null` means the argument list could
+ *  not be read; such a definition matches no DROP and therefore survives, which
+ *  is the over-approximating direction. `kind` is carried for the message only:
+ *  pg_proc is keyed by (namespace, name, argtypes) regardless of prokind, so a
+ *  FUNCTION and a PROCEDURE with one signature cannot both exist and keying on
+ *  it would model a state Postgres cannot reach. */
 type RoutineDefinition = {
+  schema: string;
   name: string;
+  kind: "function" | "procedure";
+  signature: string | null;
   body: string | null;
   file: string;
   at: number;
@@ -657,16 +671,217 @@ type RoutineDefinition = {
 /** A call site that resolved to a routine whose body this parser cannot read. */
 type UnreadableInvocation = { routine: string; definedIn: string; at: number };
 
-/** `DO $tag$ ... $tag$` -- the bodies a file runs without naming a routine. */
-function doBlocks(sql: string): { body: string; at: number }[] {
-  const out: { body: string; at: number }[] = [];
-  const re = /\bdo\s+(?:language\s+[a-z_]+\s+)?(\$[A-Za-z_][A-Za-z0-9_]*\$|\$\$)/gi;
+/** A `DO` this parser will not model as a readable body. */
+type UnmodelledDo = { at: number; detail: string };
+
+/** What the routine tracker actually tracked, printed by the PASS line so
+ *  "keyed by signature" is a number in a CI log rather than a claim. */
+export type RoutineIdentityStats = {
+  /** `CREATE [OR REPLACE] FUNCTION|PROCEDURE` statements read. */
+  definitions: number;
+  /** Distinct `schema.name(argtypes)` identities -- the key the tracker uses.
+   *  Equal to `definitions` only if nothing was ever replaced. */
+  identities: number;
+  /** `schema.name` keys that held more than one live overload at once. */
+  overloadedNames: number;
+  /** Definitions whose argument list this parser would not claim to read. */
+  signatureless: number;
+  /** `DO '...'` blocks -- each one reported beyond the model. */
+  quotedDo: number;
+};
+
+/**
+ * ROUTINE IDENTITY, NORMALISED THE WAY POSTGRES DOES IT.
+ *
+ * `public.f(text)` and `public.f(integer)` are two routines. The tracker used
+ * to key on the bare lowercase NAME, so the second CREATE replaced the first
+ * and `DROP FUNCTION IF EXISTS public.f(integer)` deleted the live `f(text)`.
+ * The r44 artifact gate (M1) and authorisation gate (F3) both reproduced it by
+ * execution: a migration that REVOKEs DELETE from inside `f(text)`, calls it,
+ * and drops a NON-EXISTENT `f(integer)` on the way past, went GREEN on the
+ * static lane AND left the G10 pin empty, so the regression SQL's ACL floor
+ * handed the DB lane the privileges the migration had just taken away. One
+ * missing identity, both lanes false green.
+ *
+ * A routine's identity is its schema, its name and the TYPES of its identity
+ * arguments -- IN, INOUT and VARIADIC. Argument NAMES, DEFAULT expressions, OUT
+ * arguments and type MODIFIERS (`numeric(10,2)`, `vector(768)`) are all outside
+ * it; PostgreSQL strips the modifier when it records `proargtypes`, which is
+ * why `DROP FUNCTION match_records(uuid, vector, integer, uuid)` drops
+ * `match_records(uuid, vector(768), int, uuid)`.
+ *
+ * WHAT IT DOES WHEN IT CANNOT READ THE LIST: it returns null, and null is a
+ * FAIL-CLOSED value here rather than a skip. A definition with a null signature
+ * is matched by no signature-bearing DROP, so it stays live and its body keeps
+ * being collected on every call of that name. Getting the types wrong therefore
+ * costs a duplicate report, never a missed one -- which is why this stops at a
+ * normaliser instead of growing into a type resolver. The gate asked for that
+ * boundary in as many words: refuse clearly rather than widen the regex.
+ */
+const TYPE_LEADING_WORDS = new Set([
+  "double",
+  "character",
+  "bit",
+  "timestamp",
+  "time",
+  "national",
+  "interval",
+]);
+
+/** Postgres spellings that mean the same type. Anything absent is left alone:
+ *  an unrecognised spelling can only fail to match a DROP, which keeps the
+ *  definition alive. */
+const TYPE_ALIASES: Record<string, string> = {
+  int: "integer",
+  int4: "integer",
+  int2: "smallint",
+  int8: "bigint",
+  serial: "integer",
+  bigserial: "bigint",
+  bool: "boolean",
+  varchar: "character varying",
+  char: "character",
+  float4: "real",
+  float8: "double precision",
+  decimal: "numeric",
+  timestamptz: "timestamp with time zone",
+  timetz: "time with time zone",
+};
+
+/** Split on TOP-LEVEL commas: `numeric(10,2)` and `text[]` are one argument. */
+function splitTopLevelCommas(text: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (ch === "(" || ch === "[") depth += 1;
+    else if (ch === ")" || ch === "]") depth -= 1;
+    else if (ch === "'") {
+      i = findSingleQuoteEnd(text, i) - 1;
+    } else if (ch === "," && depth === 0) {
+      out.push(text.slice(start, i));
+      start = i + 1;
+    }
+  }
+  out.push(text.slice(start));
+  return out.filter((a) => a.trim().length > 0);
+}
+
+/** One argument's TYPE, or null when this parser will not claim to know it. */
+function argumentType(arg: string): string | null {
+  let text = arg.replace(/\s+/g, " ").trim();
+  if (text.length === 0) return null;
+
+  // Mode. OUT arguments are not part of the identity at all.
+  const mode = /^(in|out|inout|variadic)\s+/i.exec(text);
+  if (mode) {
+    if (mode[1].toLowerCase() === "out") return "";
+    text = text.slice(mode[0].length);
+  }
+
+  // DEFAULT expression, in either spelling. Cut at the first top-level one.
+  let depth = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (ch === "(" || ch === "[") depth += 1;
+    else if (ch === ")" || ch === "]") depth -= 1;
+    else if (ch === "'") i = findSingleQuoteEnd(text, i) - 1;
+    else if (depth === 0 && ch === "=") {
+      text = text.slice(0, i);
+      break;
+    } else if (depth === 0 && /^\sdefault\s/i.test(text.slice(i, i + 9))) {
+      text = text.slice(0, i);
+      break;
+    }
+  }
+  text = text.trim();
+  if (text.length === 0) return null;
+
+  // `[ argname ] argtype`. argname is exactly one bare identifier, and a word
+  // that can START a multi-word type is read as the type, not as a name.
+  const head = /^([A-Za-z_]\w*)\s+(?=\S)/.exec(text);
+  if (head && !TYPE_LEADING_WORDS.has(head[1].toLowerCase())) text = text.slice(head[0].length);
+
+  let type = text.toLowerCase().trim();
+  const array = /(\[\s*\d*\s*\]|\s+array(\s*\[\s*\d*\s*\])?)+$/.exec(type);
+  if (array) type = type.slice(0, array.index).trim();
+  type = type.replace(/\s*\([^()]*\)\s*$/, "").trim(); // type modifier
+  if (type.length === 0) return null;
+  type = TYPE_ALIASES[type] ?? type;
+  return array ? `${type}[]` : type;
+}
+
+/** `(a uuid, b text DEFAULT null)` -> `uuid,text`. Null when unreadable.
+ *
+ *  Depends on the caller having run `stripSqlComments` first, which
+ *  `replayMigrations` does: 0087, 0115 and 0129 all write `p_tier text, -- NULL
+ *  = leave it alone` INSIDE the argument list, and a `--` surviving to here
+ *  would swallow the rest of the line. */
+function routineSignature(args: string): string | null {
+  const parts = splitTopLevelCommas(args);
+  const types: string[] = [];
+  for (const part of parts) {
+    const type = argumentType(part);
+    if (type === null) return null;
+    if (type === "") continue; // OUT argument
+    types.push(type);
+  }
+  return types.join(",");
+}
+
+/** `schema.name(types)` -- the key everything below is stored under. */
+function routineKey(schema: string, name: string): string {
+  return `${schema}.${name}`;
+}
+
+/** `DO $tag$ ... $tag$` -- the bodies a file runs without naming a routine.
+ *
+ *  ...AND `DO '...'` TOO, WHICH USED TO BE INVISIBLE. PostgreSQL takes the code
+ *  argument of DO as a plain string literal; the dollar spelling is a
+ *  convenience, not a requirement (SQL command DO). This function accepted the
+ *  dollar spelling only, so `DO 'BEGIN EXECUTE ''REVOKE DELETE ON public.records
+ *  FROM authenticated''; END'` ran a REVOKE that no lane of this guard saw --
+ *  `maskInertSql` blanks single-quoted text, so the ACL replay and the
+ *  role-membership scan are blind to it as well. The r44 authorisation gate (F2)
+ *  reproduced both halves: the statement went GREEN, and it used the same
+ *  spelling to slip the role grant that its F1 counter-example needed.
+ *
+ *  The body is now READ -- so `collectExecutePayloads` can name the tables it
+ *  reaches -- and the block is reported REGARDLESS, because the rest of the
+ *  replay (the ACL scan, the policy scan, the role scan) still runs over the
+ *  masked text and still cannot see inside it. `dollar: false` is what carries
+ *  that to the caller. A body this function cannot read at all is reported with
+ *  `body: null`. 0 single-quoted DO blocks exist in db/migrations today
+ *  (measured 2026-09-20), so this costs the current tree nothing; it is the
+ *  floor under the next one. */
+function doBlocks(sql: string): { body: string | null; at: number; dollar: boolean }[] {
+  const out: { body: string | null; at: number; dollar: boolean }[] = [];
+  const re = /\bdo\s+(?:language\s+[a-z_]+\s+)?(\$[A-Za-z_][A-Za-z0-9_]*\$|\$\$|[eEuU]?')/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(sql)) !== null) {
     const tag = m[1];
     const from = m.index + m[0].length;
+    if (tag.endsWith("'")) {
+      // `E'...'` and `U&'...'` carry backslash / unicode escapes this parser
+      // does not decode, so their body is recorded as unread rather than
+      // half-read. A plain `'...'` unescapes `''` and is readable.
+      if (tag.length > 1) {
+        out.push({ body: null, at: m.index, dollar: false });
+        continue;
+      }
+      const close = findSingleQuoteEnd(sql, from - 1); // index AFTER the closing quote
+      const closed = close - (from - 1) >= 2 && sql[close - 1] === "'";
+      out.push({
+        body: closed ? sql.slice(from, close - 1).replace(/''/g, "'") : null,
+        at: m.index,
+        dollar: false,
+      });
+      re.lastIndex = Math.max(close, re.lastIndex);
+      continue;
+    }
     const end = sql.indexOf(tag, from);
-    out.push({ body: sql.slice(from, end === -1 ? sql.length : end), at: m.index });
+    out.push({ body: sql.slice(from, end === -1 ? sql.length : end), at: m.index, dollar: true });
   }
   return out;
 }
@@ -734,7 +949,7 @@ function routineBodySpan(
 function definedRoutines(sql: string): Omit<RoutineDefinition, "file">[] {
   const out: Omit<RoutineDefinition, "file">[] = [];
   const re =
-    /\bcreate\s+(?:or\s+replace\s+)?(?:function|procedure)\s+(?:"?[A-Za-z_][\w]*"?\s*\.\s*)?"?([A-Za-z_][\w]*)"?\s*\(/gi;
+    /\bcreate\s+(?:or\s+replace\s+)?(function|procedure)\s+(?:"?([A-Za-z_][\w]*)"?\s*\.\s*)?"?([A-Za-z_][\w]*)"?\s*\(/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(sql)) !== null) {
     const openParen = m.index + m[0].length - 1;
@@ -742,7 +957,10 @@ function definedRoutines(sql: string): Omit<RoutineDefinition, "file">[] {
     if (closeParen === -1) continue;
     const span = routineBodySpan(sql, closeParen + 1);
     out.push({
-      name: m[1].toLowerCase(),
+      schema: (m[2] ?? "public").toLowerCase(),
+      name: m[3].toLowerCase(),
+      kind: m[1].toLowerCase() === "procedure" ? "procedure" : "function",
+      signature: routineSignature(sql.slice(openParen + 1, closeParen)),
       body: span.body,
       at: m.index,
       from: span.from,
@@ -756,14 +974,46 @@ function definedRoutines(sql: string): Omit<RoutineDefinition, "file">[] {
 /** Every `DROP FUNCTION|PROCEDURE`, including the comma-separated form. A drop
  *  this misses would only leave a stale definition behind -- an
  *  over-approximation, which for a fail-closed guard is the safe direction. */
-function droppedRoutines(sql: string): { name: string; at: number }[] {
-  const out: { name: string; at: number }[] = [];
+function droppedRoutines(
+  sql: string,
+): { schema: string; name: string; hasSignature: boolean; signature: string | null; at: number }[] {
+  const out: {
+    schema: string;
+    name: string;
+    hasSignature: boolean;
+    signature: string | null;
+    at: number;
+  }[] = [];
   const re = /\bdrop\s+(?:function|procedure)\s+(?:if\s+exists\s+)?([^;]{0,400})/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(sql)) !== null) {
-    const nameRe = /(?:"?[A-Za-z_][\w]*"?\s*\.\s*)?"?([A-Za-z_][\w]*)"?\s*(?:\(|,|$)/g;
+    const list = m[1];
+    const nameRe = /(?:"?([A-Za-z_][\w]*)"?\s*\.\s*)?"?([A-Za-z_][\w]*)"?\s*(\(|,|$)/g;
     let n: RegExpExecArray | null;
-    while ((n = nameRe.exec(m[1])) !== null) out.push({ name: n[1].toLowerCase(), at: m.index });
+    while ((n = nameRe.exec(list)) !== null) {
+      // `DROP FUNCTION f(integer)` drops ONE overload; `DROP FUNCTION f` drops
+      // the only one, and Postgres errors when there is more than one -- so a
+      // signature-less drop taking every overload is what the database does.
+      // A signature this parser could not READ (`signature === null` while
+      // `hasSignature`) drops nothing at all: guessing wrong would delete a live
+      // body, and a stale body only ever adds a report.
+      let signature: string | null = null;
+      const hasSignature = n[3] === "(";
+      if (hasSignature) {
+        const open = n.index + n[0].length - 1;
+        const close = matchParen(list, open);
+        if (close === -1) continue;
+        signature = routineSignature(list.slice(open + 1, close));
+        nameRe.lastIndex = close + 1;
+      }
+      out.push({
+        schema: (n[1] ?? "public").toLowerCase(),
+        name: n[2].toLowerCase(),
+        hasSignature,
+        signature,
+        at: m.index,
+      });
+    }
   }
   return out;
 }
@@ -781,20 +1031,25 @@ function callSites(
   sql: string,
   candidates: Set<string>,
   ownSpans: Map<string, { from: number; to: number }[]>,
-): { name: string; at: number }[] {
-  const out: { name: string; at: number }[] = [];
+): { key: string; name: string; at: number }[] {
+  const out: { key: string; name: string; at: number }[] = [];
   if (candidates.size === 0) return out;
-  const re = /(?:"?[A-Za-z_][\w]*"?\s*\.\s*)?"?([A-Za-z_][\w]*)"?\s*\(/g;
+  const re = /(?:"?([A-Za-z_][\w]*)"?\s*\.\s*)?"?([A-Za-z_][\w]*)"?\s*\(/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(sql)) !== null) {
-    const name = m[1].toLowerCase();
-    if (!candidates.has(name)) continue;
-    if ((ownSpans.get(name) ?? []).some((s) => m!.index >= s.from && m!.index < s.to)) continue;
+    const name = m[2].toLowerCase();
+    // `review.review_probe()` is not `public.review_probe()`. The tracker used
+    // to key on the bare name, so a harmless same-named routine in ANOTHER
+    // schema stood in for the live one (r44 authorisation gate F3,
+    // schema_collision).
+    const key = routineKey((m[1] ?? "public").toLowerCase(), name);
+    if (!candidates.has(key)) continue;
+    if ((ownSpans.get(key) ?? []).some((s) => m!.index >= s.from && m!.index < s.to)) continue;
     const before = sql.slice(Math.max(0, m.index - 64), m.index);
     const namesIt = /\b(?:function|procedure)\s+(?:if\s+exists\s+)?(?:"?[A-Za-z_][\w]*"?\s*\.\s*)?$/i.test(before);
     const attaches = /\bexecute\s+(?:function|procedure)\s+(?:"?[A-Za-z_][\w]*"?\s*\.\s*)?$/i.test(before);
     if (namesIt && !attaches) continue;
-    out.push({ name, at: m.index });
+    out.push({ key, name, at: m.index });
   }
   return out;
 }
@@ -804,26 +1059,101 @@ function callSites(
  *  file are ordered by offset, so a call ABOVE the definition that would satisfy
  *  it stays unresolved -- Postgres would have raised there too. */
 function routineTracker(): {
-  advance: (file: string, sql: string) => { executed: { body: string; at: number }[]; unreadable: UnreadableInvocation[] };
+  advance: (
+    file: string,
+    sql: string,
+  ) => {
+    executed: { body: string; at: number }[];
+    unreadable: UnreadableInvocation[];
+    unmodelledDo: UnmodelledDo[];
+  };
+  stats: () => RoutineIdentityStats;
 } {
-  const known = new Map<string, RoutineDefinition>();
+  // schema.name -> EVERY live overload, because `f(text)` and `f(integer)` are
+  // two routines and a call names only one of them by spelling. Resolving WHICH
+  // one needs SQL type inference, so the tracker does the conservative thing
+  // instead and collects them all: it can add a fail-closed report, never
+  // remove one, and it is the difference between seeing the r44 M1 / F3
+  // mutations and replaying the harmless overload in place of the live body.
+  const known = new Map<string, RoutineDefinition[]>();
+  const identities = new Set<string>();
+  const overloadedNames = new Set<string>();
+  let definitions = 0;
+  let signatureless = 0;
+  let quotedDo = 0;
+
+  const put = (def: RoutineDefinition): void => {
+    const key = routineKey(def.schema, def.name);
+    const live = known.get(key) ?? [];
+    // CREATE OR REPLACE lands on the same identity; a different argument list
+    // is a SECOND routine and both stay live. A definition whose signature this
+    // parser could not read replaces nothing, so nothing is lost to a guess.
+    const next =
+      def.signature === null ? live : live.filter((d) => d.signature !== def.signature);
+    known.set(key, [...next, def]);
+    identities.add(`${key}(${def.signature ?? "?"})`);
+    if ((known.get(key) ?? []).length > 1) overloadedNames.add(key);
+  };
+
   return {
+    stats: () => ({
+      definitions,
+      identities: identities.size,
+      overloadedNames: overloadedNames.size,
+      signatureless,
+      quotedDo,
+    }),
     advance(file, sql) {
-      const executed = doBlocks(sql);
+      const executed: { body: string; at: number }[] = [];
       const unreadable: UnreadableInvocation[] = [];
+      const unmodelledDo: UnmodelledDo[] = [];
+
+      for (const block of doBlocks(sql)) {
+        if (block.body !== null) executed.push({ body: block.body, at: block.at });
+        if (block.dollar) continue;
+        quotedDo += 1;
+        unmodelledDo.push({
+          at: block.at,
+          detail: block.body === null
+            ? "runs a `DO` whose code argument is an escape-string or unterminated literal, so its body was not read at all"
+            : "runs a `DO '...'`; its body is read for dynamic DDL, but the ACL, policy and role-membership scans all run over `maskInertSql` output, which blanks single-quoted text",
+        });
+      }
 
       const defs: RoutineDefinition[] = definedRoutines(sql).map((d) => ({ ...d, file }));
+      definitions += defs.length;
+      signatureless += defs.filter((d) => d.signature === null).length;
       const ownSpans = new Map<string, { from: number; to: number }[]>();
       for (const d of defs) {
-        ownSpans.set(d.name, [...(ownSpans.get(d.name) ?? []), { from: d.from, to: d.to }]);
+        const key = routineKey(d.schema, d.name);
+        ownSpans.set(key, [...(ownSpans.get(key) ?? []), { from: d.from, to: d.to }]);
       }
-      const candidates = new Set<string>([...known.keys(), ...defs.map((d) => d.name)]);
+      const candidates = new Set<string>([
+        ...known.keys(),
+        ...defs.map((d) => routineKey(d.schema, d.name)),
+      ]);
 
       const events: { at: number; rank: number; apply: () => void }[] = [];
-      for (const d of defs) events.push({ at: d.at, rank: 0, apply: () => void known.set(d.name, d) });
+      for (const d of defs) events.push({ at: d.at, rank: 0, apply: () => put(d) });
       for (const d of droppedRoutines(sql)) {
-        if (!candidates.has(d.name)) continue;
-        events.push({ at: d.at, rank: 0, apply: () => void known.delete(d.name) });
+        const key = routineKey(d.schema, d.name);
+        if (!candidates.has(key)) continue;
+        events.push({
+          at: d.at,
+          rank: 0,
+          apply: () => {
+            const live = known.get(key);
+            if (!live) return;
+            // No signature: Postgres takes the only overload and errors when
+            // there is more than one, so taking them all is what it does. A
+            // signature it could not read takes NOTHING -- the r44 M1 drop
+            // named `(integer)` while `(text)` was the one running.
+            if (!d.hasSignature) known.delete(key);
+            else if (d.signature !== null) {
+              known.set(key, live.filter((x) => x.signature !== d.signature));
+            }
+          },
+        });
       }
       const collected = new Set<string>();
       for (const call of callSites(sql, candidates, ownSpans)) {
@@ -831,22 +1161,26 @@ function routineTracker(): {
           at: call.at,
           rank: 1,
           apply: () => {
-            const def = known.get(call.name);
-            if (!def) return; // not defined yet, or already dropped
-            const key = `${def.file}:${def.at}`;
-            if (collected.has(key)) return; // one report per body per file
-            collected.add(key);
-            if (def.body === null) {
-              unreadable.push({ routine: def.name, definedIn: def.file, at: call.at });
-              return;
+            for (const def of known.get(call.key) ?? []) {
+              const key = `${def.file}:${def.at}`;
+              if (collected.has(key)) continue; // one report per body per file
+              collected.add(key);
+              if (def.body === null) {
+                unreadable.push({
+                  routine: `${def.schema}.${def.name}(${def.signature ?? "?"})`,
+                  definedIn: def.file,
+                  at: call.at,
+                });
+                continue;
+              }
+              executed.push({ body: def.body, at: call.at });
             }
-            executed.push({ body: def.body, at: call.at });
           },
         });
       }
       events.sort((a, b) => a.at - b.at || a.rank - b.rank);
       for (const e of events) e.apply();
-      return { executed, unreadable };
+      return { executed, unreadable, unmodelledDo };
     },
   };
 }
@@ -1327,10 +1661,19 @@ export function replayMigrations(migrationsDir: string): SchemaReplay {
         kind: "dynamic-ddl",
         file,
         detail:
-          `calls ${call.routine}(), defined in ${call.definedIn} with a body this parser cannot ` +
+          `calls ${call.routine}, defined in ${call.definedIn} with a body this parser cannot ` +
           `read (not dollar-quoted and not \`AS '...'\`), so whatever it EXECUTEs is unknown`,
         tables: null,
       });
+    }
+    // A `DO` written with a single-quoted code argument. Its body IS read above
+    // so the dynamic-DDL classifier can name tables, but the ACL, policy and
+    // role scans below read `maskInertSql` output, which blanks it -- so the
+    // block is handed to the catalog test rather than believed (r44
+    // authorisation gate F2). This is the fail-closed answer the gate asked for
+    // in place of a second masking rule.
+    for (const block of running.unmodelledDo) {
+      beyondModel.push({ kind: "dynamic-ddl", file, detail: block.detail, tables: null });
     }
     for (const block of running.executed) {
       const source: DynamicDdlSource = {
@@ -1787,7 +2130,15 @@ export function replayMigrations(migrationsDir: string): SchemaReplay {
     for (const e of events) e.apply();
   }
 
-  return { tables, policies, foreignKeys, tablePrivileges, beyondModel, expressionOnlyRewrites };
+  return {
+    tables,
+    policies,
+    foreignKeys,
+    tablePrivileges,
+    beyondModel,
+    expressionOnlyRewrites,
+    routineIdentity: routines.stats(),
+  };
 }
 
 /** Parse every db/migrations/*.sql in apply order and return the public tables

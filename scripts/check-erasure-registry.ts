@@ -459,7 +459,7 @@ export function collectErasureRegistryErrors(root: string): string[] {
     // G4 -- the F4 check, from the other side.
     if (entry.class === "account_delete_only" && deletable.length > 0) {
       errors.push(
-        `G4 ${table} is account_delete_only but the owner CAN delete it ` +
+        `G4 ${table} is account_delete_only but a policy DECLARES an owner delete path ` +
           `(${deletable.map((p) => `${p.name} FOR ${p.state.command.toUpperCase()} @ ${p.state.file}`).join(", ")}). ` +
           `Classify it client_erasable, or retained with a written reason.`,
       );
@@ -712,9 +712,23 @@ function main(): void {
   );
   // Printed, never silent. These are the statements the guard deliberately does
   // NOT judge; if this line ever grows, the thing it exempts grew too.
+  // What the replay actually keyed on, so "routines are tracked by signature"
+  // is a number in a CI log rather than a claim (r44 artifact gate M1 /
+  // authorisation gate F3). `identities < definitions` means replacements were
+  // folded; `overloaded` > 0 means the distinction is load-bearing on this
+  // tree; `unread argument lists` must stay 0, because such a definition
+  // matches no DROP and can never be retired.
+  const ri = replay.routineIdentity;
+  console.log(
+    `              routine identity: ${ri.definitions} CREATE FUNCTION/PROCEDURE tracked as ` +
+      `${ri.identities} schema.name(argtypes) signatures, ${ri.overloadedNames} name(s) holding ` +
+      `more than one live overload, ${ri.signatureless} unread argument list(s), ` +
+      `${ri.quotedDo} single-quoted DO block(s).`,
+  );
   console.log(
     `              delete verdict: db/tests/erasure_registry_regression.sql ` +
-      `(${counts.client_erasable ?? 0} tables observed as the authenticated role).` +
+      `(${counts.client_erasable ?? 0} tables observed as the authenticated role, each question ` +
+      `inside its own rolled-back savepoint).` +
       (replay.expressionOnlyRewrites.length > 0
         ? ` Exempt as expression-only policy rewrites: ` +
           `${replay.expressionOnlyRewrites.map((r) => r.file).join(", ")}.`
