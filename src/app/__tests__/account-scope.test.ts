@@ -166,6 +166,66 @@ function routeLabel(el: JsxTag): string {
 // `layout` is the per-Screen one; `screenLayout` is the per-Group one.
 const OVERRIDE_PROPS = ["layout", "screenLayout"];
 
+/** Every way this element sets one of `OVERRIDE_PROPS`, named so a failure says
+ *  which prop and how it arrived.
+ *
+ *  Spreads count, and that is the whole point of this function. `attribute()`
+ *  above sees only explicit JSX attributes, and `{...{ layout: f }}` is the same
+ *  prop by the time the resolver pinned below reads it. Measured by the 09-20
+ *  gate on this very suite: the explicit mutation turned it red, the
+ *  byte-equivalent spread mutation left it green 9/9, and the shipped resolver
+ *  returned the private scene for both. A guard that reads half of the syntax
+ *  is not a guard.
+ *
+ *  A spread nobody can read statically is reported as well. "I could not tell"
+ *  is not "it is clean" - the only honest answer is to make the route say it in
+ *  the open. `_layout.tsx` carries no JSX spread attribute at all today
+ *  (measured: 0 across its 37 Stack elements), so this costs the current tree
+ *  nothing; a spread of a readable object that does NOT name a wrapper prop
+ *  stays allowed, which is what keeps this from being a style rule. */
+function overridesOn(el: JsxTag, src: ts.SourceFile): string[] {
+  const found: string[] = [];
+  for (const prop of el.attributes.properties) {
+    if (ts.isJsxAttribute(prop)) {
+      const name = prop.name.getText(src);
+      if (OVERRIDE_PROPS.includes(name)) found.push(name);
+      continue;
+    }
+    if (!ts.isJsxSpreadAttribute(prop)) continue;
+    const keys = spreadKeys(prop.expression, src);
+    if (keys === null) {
+      found.push("...(" + prop.expression.getText(src) + ") - unreadable");
+      continue;
+    }
+    for (const key of keys) if (OVERRIDE_PROPS.includes(key)) found.push("...{ " + key + " }");
+  }
+  return found;
+}
+
+/** The prop names an expression contributes when spread, or `null` when reading
+ *  cannot decide. Only an object literal whose every key is a plain name can be
+ *  decided; an identifier, a call, a conditional or a computed key cannot, and
+ *  a nested spread is only as readable as what it spreads. */
+function spreadKeys(expr: ts.Expression, src: ts.SourceFile): string[] | null {
+  if (!ts.isObjectLiteralExpression(expr)) return null;
+  const keys: string[] = [];
+  for (const member of expr.properties) {
+    if (ts.isSpreadAssignment(member)) {
+      const nested = spreadKeys(member.expression, src);
+      if (nested === null) return null;
+      keys.push(...nested);
+      continue;
+    }
+    const name = member.name;
+    if (name && (ts.isIdentifier(name) || ts.isStringLiteral(name))) {
+      keys.push(name.text);
+      continue;
+    }
+    return null;
+  }
+  return keys;
+}
+
 describe("no product route opts out of the account boundary", () => {
   const routeElements = jsxElements().filter((el) => tagOf(el).startsWith("Stack."));
 
@@ -185,9 +245,9 @@ describe("no product route opts out of the account boundary", () => {
   });
 
   test("no Stack.Screen or Stack.Group carries its own layout", () => {
-    const escapes = routeElements
-      .filter((el) => OVERRIDE_PROPS.some((prop) => attribute(el, prop) !== undefined))
-      .map((el) => `${tagOf(el)} name=${routeLabel(el)}`);
+    const escapes = routeElements.flatMap((el) =>
+      overridesOn(el, LAYOUT_AST).map((how) => `${tagOf(el)} name=${routeLabel(el)} sets ${how}`),
+    );
     // Not a style rule. Each entry here is a route that renders OUTSIDE
     // <AccountScope> and therefore keeps the previous account's mounted state
     // across an A -> B publication. If a route genuinely needs its own layout,
@@ -196,10 +256,14 @@ describe("no product route opts out of the account boundary", () => {
   });
 
   test("exactly one element in the file sets a scene wrapper, and it is <Stack>", () => {
-    const setters = jsxElements().filter((el) => attribute(el, "screenLayout") !== undefined);
-    expect(setters.map(tagOf)).toEqual(["Stack"]);
-    // The single setter must not also carry `layout`, which would shadow it.
-    expect(attribute(setters[0], "layout")).toBeUndefined();
+    // Counted over EVERY element in the file and over BOTH syntaxes: exactly one
+    // element sets exactly one wrapper prop, and it names it in the open. That
+    // single expectation also carries what used to be a separate assertion -
+    // the setter must not additionally carry `layout`, which would shadow it.
+    const setters = jsxElements().filter((el) => overridesOn(el, LAYOUT_AST).length > 0);
+    expect(setters.map((el) => `${tagOf(el)} ${overridesOn(el, LAYOUT_AST).join(" + ")}`)).toEqual([
+      "Stack screenLayout",
+    ]);
 
     // And what it sets is the AccountScope wrapper, executed rather than matched
     // as a string: transpiling the real attribute expression and calling it with
@@ -256,5 +320,117 @@ describe("no product route opts out of the account boundary", () => {
     expect(resolveLayout({ layout: "PER_SCREEN" }, {}, "DEFAULT")).toBe("PER_SCREEN");
     expect(resolveLayout({}, { layout: "PER_GROUP" }, "DEFAULT")).toBe("PER_GROUP");
     expect(resolveLayout({}, {}, "DEFAULT")).toBe("DEFAULT");
+  });
+});
+
+/** The scan above, exercised on synthetic routes instead of on the real tree.
+ *
+ *  The real tree is clean, so every assertion over it reads the same whether the
+ *  scan works or has stopped working. That is how the spread hole survived: the
+ *  suite reported "0 escapes" on a tree that had none, which a scan seeing
+ *  nothing at all also reports. These cases are the ones that tell the two
+ *  apart, so they are written as routes rather than as unit fixtures.
+ *
+ *  Measured, so the block is not read as more than it is: disabling the spread
+ *  branch of `overridesOn` turns exactly TWO of the five tests below red - "a
+ *  spread carrying the same prop" and "a spread nobody can read statically".
+ *  The clean-route case returns `[]` either way (a blind scan returns `[]` too;
+ *  M4 in the round's mutation log is what exercises it for real), and the
+ *  resolver case measures expo-router, not this scan. The anti-vacuity proof
+ *  rests on those two. */
+describe("the override scan reads spread props, not only explicit attributes", () => {
+  const scan = (tsx: string): string[] => {
+    const file = ts.createSourceFile("probe.tsx", tsx, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    const found: string[] = [];
+    const walk = (node: ts.Node): void => {
+      if (
+        (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
+        node.tagName.getText(file).startsWith("Stack.")
+      ) {
+        found.push(...overridesOn(node, file));
+      }
+      node.forEachChild(walk);
+    };
+    walk(file);
+    return found;
+  };
+
+  test("a clean route stays clean, and so does a readable unrelated spread", () => {
+    // The second one is the false-red this guard must not produce: spreading is
+    // not the offence, spreading a WRAPPER prop is.
+    expect(scan('<Stack.Screen name="secondb" />')).toEqual([]);
+    expect(scan('<Stack.Screen name="wiki" {...{ options: fadeTransition }} />')).toEqual([]);
+  });
+
+  test("an explicit wrapper prop is caught - the half that already worked", () => {
+    expect(scan("<Stack.Screen name=\"secondb\" layout={({ children }) => children} />")).toEqual([
+      "layout",
+    ]);
+    expect(scan("<Stack.Group screenLayout={Passthrough} />")).toEqual(["screenLayout"]);
+  });
+
+  test("a spread carrying the same prop is caught too - the half that did not", () => {
+    // Byte-for-byte the gate's bypass. Before this change the same route came
+    // back `[]` from the scan and the whole suite stayed green.
+    expect(
+      scan("<Stack.Screen name=\"secondb\" {...{ layout: ({ children }) => children }} />"),
+    ).toEqual(["...{ layout }"]);
+    expect(scan("<Stack.Group {...{ screenLayout: Passthrough }} />")).toEqual([
+      "...{ screenLayout }",
+    ]);
+  });
+
+  test("a spread nobody can read statically is reported, not assumed clean", () => {
+    expect(scan('<Stack.Screen name="secondb" {...rest} />')).toEqual(["...(rest) - unreadable"]);
+    expect(scan('<Stack.Screen name="secondb" {...makeProps()} />')).toEqual([
+      "...(makeProps()) - unreadable",
+    ]);
+    // Readable on the outside, opaque one level in. Answering "clean" here would
+    // hand the bypass straight back.
+    expect(scan('<Stack.Screen name="secondb" {...{ ...BASE, options: o }} />')).toEqual([
+      "...({ ...BASE, options: o }) - unreadable",
+    ]);
+  });
+
+  test("the spread form really does reach the resolver, so the catch is not cosmetic", () => {
+    // Executed, not argued. Compile the spread route, read the props React would
+    // actually receive, and feed them to the SAME resolver text lifted out of the
+    // installed expo-router above. A catch that fired on syntax the router then
+    // ignored would be a style rule wearing a boundary's clothes.
+    const js = ts.transpileModule(
+      'exports.el = <Stack.Screen name="secondb" {...{ layout: "PRIVATE_SCENE" }} />;',
+      {
+        compilerOptions: {
+          module: ts.ModuleKind.CommonJS,
+          target: ts.ScriptTarget.ES2020,
+          jsx: ts.JsxEmit.React,
+        },
+      },
+    ).outputText;
+    const out: { el?: { props: Record<string, unknown> } } = {};
+    new Function("exports", "React", "Stack", js)(
+      out,
+      { createElement: (_type: unknown, props: Record<string, unknown>) => ({ props }) },
+      { Screen: "Stack.Screen" },
+    );
+    expect(Object.keys(out.el!.props)).toEqual(["name", "layout"]);
+
+    const descriptors = readFileSync(
+      resolve(ROOT, "node_modules/expo-router/build/react-navigation/core/useDescriptors.js"),
+      "utf8",
+    );
+    const start = descriptors.indexOf("const layout = ");
+    expect(start).toBeGreaterThan(-1);
+    const expression = descriptors.slice(
+      start + "const layout = ".length,
+      descriptors.indexOf(";", start),
+    );
+    const resolveLayout = new Function(
+      "screen",
+      "config",
+      "screenLayout",
+      `return (${expression});`,
+    ) as (s: unknown, c: unknown, d: unknown) => unknown;
+    expect(resolveLayout(out.el!.props, {}, "ACCOUNT_SCOPE")).toBe("PRIVATE_SCENE");
   });
 });

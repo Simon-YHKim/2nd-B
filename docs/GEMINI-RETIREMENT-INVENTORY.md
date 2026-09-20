@@ -18,6 +18,15 @@
 > 표의 `default` 30 은 클라이언트 lib 와 엣지 함수 내부를 합친 수라 위 11과 1:1 이 아니다. 남는 것 —
 > 엣지 함수 내부 기본값 · `MODEL_*` · `literal`·`proxy-name`·`direct-sdk` — 은 2단계(프록시 삭제 PR)
 > 에서 유니언과 함께 정리한다.
+>
+> ⚠ **표의 줄 번호는 전부 `afeb0718` 기준이다. 현재 HEAD 로 옮기지 말 것.**
+> 2026-09-20 에 한 세션이 `DeepSpaceDesignScreens.tsx` 의 `+24` 줄 이동을 이 표에도 적용해
+> `:962`→`:986`, `:1010`→`:1034` 로 바꿨다. **그 둘은 원래 맞던 인용이었다** — 옮긴 자리에는
+> 각각 embedding backfill 인자와 빈 줄이 있다(2026-09-21 실측). 게다가 인용한 리터럴 자체가
+> HEAD 에는 없다 — `recommendationVendorLabel()`·`embedVendorLabel()` 로 바뀌어 한국어 리터럴
+> 일치 **0건**이다. 즉 이 표는 현황이 아니라 08-30 스냅샷이고, 여기의 좌표는 그 SHA 에서만
+> 읽힌다(`git show afeb0718:<path>`). 그래서 각 인용에 `(afeb0718)` 을 붙였다 — **떼지 말 것.**
+> `src/lib/legal/__tests__/doc-citations-name-their-subject.test.ts` 가 이 표시와 헤더의 SHA 를 같이 지킨다.
 
 ## 종류별 수
 
@@ -155,8 +164,8 @@
 | `src/lib/wiki/capture-file.ts:46` | // This list mirrors ALLOWED_AUDIO_MIME in supabase/functions/gemini-proxy. ... const AUDIO_MIMES = new Set([" | re-point the mirror to openai-proxy's audio allowlist and diff the set (a picker that accepts what the proxy rejects fails at the last step) | 예 |
 | `src/lib/wiki/capture-file.ts:66` | // Derived from MAX_AUDIO_BASE64_LEN (4,100,000) in gemini-proxy ... export const MAX_AUDIO_FILE_BYTES = 3_000 | re-derive from openai-proxy's audio base64 cap; the test that pins the arithmetic must be updated with it | 예 |
 | `src/lib/wiki/context-pack.ts:34` | geminiGems: 4000,  (PACK_TARGET_LIMITS; also L5,11,51,72,160,227 — header budget for pasting the pack into Gem | keep — Gemini Gems is an external consumer format for the user's exported context pack, not our vendor | 예 |
-| `src/screens/deepspace/DeepSpaceDesignScreens.tsx:986` | "켜기 전에 알아두세요. 추천을 켜면 당신의 기록 묶음이 분석을 위해 Gemini로 전송돼요(해외에서 처리)…" / "Your records are sent to Gemini for analysis | reword the /ops recommendation consent lead to name the actual processor (OpenAI) or a vendor-neutral 'AI 서버(해외)'; this is a PIPA overseas-t | 예 |
-| `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1034` | "…변환을 위해 기록 텍스트가 Gemini(해외)로 전송됩니다…" / "…record text is sent to Gemini (processed overseas)…" (L1011) | reword the embeddings consent lead the same way (EMBED_VENDOR=openai) | 예 |
+| `src/screens/deepspace/DeepSpaceDesignScreens.tsx:962` (afeb0718) | "켜기 전에 알아두세요. 추천을 켜면 당신의 기록 묶음이 분석을 위해 Gemini로 전송돼요(해외에서 처리)…" / "Your records are sent to Gemini for analysis | reword the /ops recommendation consent lead to name the actual processor (OpenAI) or a vendor-neutral 'AI 서버(해외)'; this is a PIPA overseas-t | 예 |
+| `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1010` (afeb0718) | "…변환을 위해 기록 텍스트가 Gemini(해외)로 전송됩니다…" / "…record text is sent to Gemini (processed overseas)…" (L1011) | reword the embeddings consent lead the same way (EMBED_VENDOR=openai) | 예 |
 | `src/screens/deepspace/museum/AiMuseumScreen.tsx:63` | { date: "2023", ko: ["Gemini", "구글의 멀티모달 응전."], en: ["Gemini", "Google's natively multimodal answer."] }, | keep — AI-history exhibit content, not a dependency | 예 |
 | `supabase/functions/claude-proxy/index.ts:521` | vertex_backend: false,  (openai-proxy:479/849, xai-proxy:497, llm-proxy-common.ts:270) | keep — the column stays | 예 |
 | `supabase/functions/export-account/index.ts:137` | gemini_spend_daily: 'internal cost accounting, not personal content',  (EXCLUDED manifest; also line 23) | keep — shared cap table, do not rename; the exclusion reason text is vendor-neutral | 예 |

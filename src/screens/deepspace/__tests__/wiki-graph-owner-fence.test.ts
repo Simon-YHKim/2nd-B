@@ -3,11 +3,19 @@
 // There are two loaders in the deep-space tree with the same body: the one in
 // dds-wiki-records-screens.tsx, fenced by #1849 and covered by
 // src/lib/chat/__tests__/citation-opens-the-cited-page.test.ts, and this one in
-// DeepSpaceDesignScreens.tsx, read by DeepSpaceDomainsScreen and the /research
-// screen. The fence went to one of them, so this file holds the other to the
-// same contract - same shape of test, same question:
+// DeepSpaceDesignScreens.tsx, read by DeepSpaceGraphDesignScreen (/graph,
+// DeepSpaceDesignScreens.tsx:372) and DeepSpaceDomainsScreen (:3209). The fence
+// went to one of them, so this file holds the other to the same contract - same
+// shape of test, same question:
 //
 //   rows fetched for account A must not be readable once B is the owner.
+//
+// This header used to name /research as the second reader. It is not one:
+// DeepSpaceResearchScreen (:2251) says in its own comment at :2254 that it USED
+// TO read this hook and now loads records instead (listRecentRecords ->
+// recordsToResearchGraph). Nothing here reaches that screen, and reading this
+// suite as cover for it would be reading a guarantee that was never made. If
+// /research needs the same fence, it needs its own test against its own loader.
 //
 // The two loaders are deliberately NOT merged; the fence is what is copied, not
 // the screens. So the coverage is copied too, rather than shared through an
@@ -182,7 +190,7 @@ function build(reads: string[]): Loader {
   return new Function(...Object.keys(bindings), js)(...Object.values(bindings)) as Loader;
 }
 
-describe("the /research + domains loader belongs to the account that loaded it", () => {
+describe("the /graph + domains loader belongs to the account that loaded it", () => {
   test("the lifted pieces are the real ones", () => {
     // The lift is only worth something if it found the loader and not some other
     // statement that happens to contain the words.
