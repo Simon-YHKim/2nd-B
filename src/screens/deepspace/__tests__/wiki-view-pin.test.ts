@@ -96,8 +96,16 @@ describe("the wiki screen pins the page it expanded", () => {
   ).replace(/\r\n/g, "\n");
 
   test("buildDeepWikiView receives expandedId as the pin", () => {
-    expect(src).toMatch(/buildDeepWikiView\(pages, edges, \{ activeTag, pinnedId: expandedId \}\)/);
+    // Re-pinned 2026-09-20 (R48): `pages` -> `listedPages`. The first argument is a
+    // RENAME, not a new one - the screen now feeds the loaded slice plus any page it
+    // had to fetch by id because the deep link named one outside that slice
+    // (citation-opens-the-cited-page.test.ts). Pinning the raw slice here would have
+    // held the screen at the shape that dropped those links. The contract this test
+    // exists for is unchanged: the screen must pass the expanded id as the pin.
+    expect(src).toMatch(
+      /buildDeepWikiView\(listedPages, edges, \{ activeTag, pinnedId: expandedId \}\)/,
+    );
     // And expandedId is in the memo deps, or the pin would go stale the moment it mattered.
-    expect(src).toMatch(/\[pages, edges, activeTag, expandedId\]/);
+    expect(src).toMatch(/\[listedPages, edges, activeTag, expandedId\]/);
   });
 });
