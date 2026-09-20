@@ -26,7 +26,126 @@
 블록부터 그 달의 보관 파일(부분이 있으면 번호가 가장 큰 것) 맨 위로 옮긴다.
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-20 저녁(정정: 원래 '09-21 새벽' 으로 적혀 있었다 — 쓸 때 시계가 +6h40m 앞섬) / 삭제를 서버가 소유하게 만든 PR 을 8회차 게이트 끝에 머지했다 · 출시는 `global` 로 간다
+## Latest — 2026-09-20 밤 / 게이트가 찾은 것을 닫았고, 우리 검사가 무엇을 증명한 적 없는지 알아냈다
+
+### 결론
+
+R48 게이트가 낸 발견을 r49 가 닫았고, r49 게이트 둘이 통과시켰다. 머지 넷:
+`c0b6e0b6`(기록 정정) · `48e1e9f1`(#1851 · `0190`) · `3b787951`(#1849) · #1852(기록).
+
+**이 밤의 값어치는 수정이 아니라 발견이다.** #1847 은 `erase_my_data` 를 "잠근 채
+배송한다"고 적었는데 **사실이 아니었고**, 그걸 지킨다던 회귀 단언은 **CI 에서 공허하게
+초록**이었다. 두 가지를 한 번에 고쳤다.
+
+### 무엇이 틀렸나 — 실측
+
+`REVOKE EXECUTE ... FROM PUBLIC, anon` 은 **`authenticated` 를 막지 못한다.** Supabase 의
+default privileges 가 새 함수마다 세 역할에 **이름으로** EXECUTE 를 주기 때문이다
+(`scripts/check-definer-grants.ts:3-8` 이 **이미 그렇게 적고 있었다** — 몰랐던 게 아니라
+규칙 B 가 `anon` 만 강제하고 있었다).
+
+운영 읽기 전용 대조(2026-09-20 20:0x KST · `zoacryukmdeivmolvyhj`):
+
+| 확인 | 값 |
+|---|---|
+| public 함수 중 `proacl` 에 `authenticated=X` 가 명시된 것 | **242 / 291** |
+| `FROM anon` 만 REVOKE 한 함수 6개의 authenticated EXECUTE | **6/6 = true** |
+| 운영에 적용된 `0189` | **0건**(함수도 없음) |
+
+살아 있는 구멍이었던 적은 없다 — 0189 가 운영에 올라간 적이 없다.
+
+### 검사가 공허했던 이유, 그리고 고친 방법
+
+r46 이 넣은 `has_function_privilege('authenticated', …) = false` 는 CI scratch DB 에서
+**REVOKE 가 없어도 false** 였다. 부트스트랩이 role 만 만들고 위 default privileges 를
+깔지 않았기 때문이다. **바닥이 없으면 단언이 아무것도 증명하지 않는다.**
+
+`#1851` 이 세 겹으로 닫았다:
+
+1. `.github/workflows/supabase-dry-run.yml` Seed 끝(첫 마이그레이션 **전**)에
+   `ALTER DEFAULT PRIVILEGES … GRANT EXECUTE ON FUNCTIONS TO anon, authenticated`.
+2. 회귀 블록 (L)이 프로브 함수의 `aclexplode(proacl)` 로 **바닥의 실재를 먼저 증명**한
+   뒤에만 결론을 낸다. 바닥이 없으면 초록이 아니라 **빨강**이다.
+3. `0190` 이 `FROM PUBLIC, anon, authenticated` 를 걷고, **적용 시점에 스스로 끝 상태를
+   확인하는 `DO` 블록**을 둔다(클라이언트 역할이 하나라도 남으면 마이그레이션이 멈춘다).
+
+변이 8변종을 임시 PostgreSQL 18.3 에서 돌린 출력 전문이
+`E:/Coding Infra/reports/vibe-r260920/r49-lock-erase-authenticated/result.md` 에 있다.
+핵심 한 줄: **바닥 OFF + REVOKE 제거 → 초록이고 `SHIPS LOCKED` 를 인쇄한다(= main 의 그때 상태).**
+
+⚠ `service_role` 은 **일부러 안 걷었다.** 주장은 "아무에게도 없다"가 아니라
+**"클라이언트 역할(PUBLIC·anon·authenticated)에게 없다"** 이다. 이 문장을 넓혀 인용하지 말 것.
+
+### #1849 — F-01 은 라이브 유출이 아니다. 그렇게 적지 말 것
+
+게이트 둘이 **정반대로 판정했고 둘 다 부분적으로 옳았다.** 생성물은 위키 화면
+**본체 로직**을 봤고(본체만 떼어 A→B 를 먹이면 `listedPages=['a-out','b-in']` 로 재현),
+비즈로직은 **배송된 트리**를 봤다(`_layout.tsx` 의 `AccountScope` 가 계정 epoch 마다
+전 제품 화면을 리마운트해 그 상태가 B 에게 읽히기 전에 폐기된다).
+
+본체를 고쳤고, **"오늘의 라이브 유출을 막았다"고는 적지 않는다.** 비즈로직 게이트도
+같은 판정을 명시했다. 다만 그 껍데기 방어는 **강제되지 않는다** —
+`<Stack.Screen layout={…}>`·`<Stack.Group>` 로 우회해도 `account-scope.test.ts` 는
+네비게이터 문자열만 봐서 울지 않는다(A-EX-01).
+
+발주는 `linkedPage` 한 행만 울타리였는데 워커가 범위를 넓혔다: 같은 화면의
+`pages`/`edges` 가 계정이 바뀌어도 초기화되지 않고 네트워크가 답할 때까지 **이전 계정의
+200행 전체**를 그리고 있었다. 한 행만 막고 "계정 울타리"라고 적으면 다음 세션이 믿는다.
+
+### 다음 사람이 반드시 알아야 할 것 — 적용 순서
+
+**두 medium 이 열려 있다. 코드가 아니라 적용 절차 문제다.**
+
+- **B-EX-01**: `rollback/0189_down.sql:118-133` 이 ledger 에서 `erasure_registry` **한 행만**
+  지운다. 되돌린 뒤 `db push` 하면 0189 만 재적용되고 0190 은 "이미 적용됨"으로 건너뛰어
+  **함수가 열린 채 되살아난다.** 게이트 둘이 각각 재현했다.
+- **B-EX-02**: **"0189 와 0190 을 함께 넘기면 된다"는 충분하지 않다.** Supabase CLI 2.116.0 은
+  파일마다 각각 트랜잭션을 돌리고 바깥 트랜잭션이 없다. 중간 상태에서
+  `erase_my_data('content') → status=ok` 가 실행으로 확인됐다.
+  대응책 후보: ① 두 파일을 **한 psql 세션의 한 트랜잭션**으로 수동 적용 ② 적용 직전
+  `ALTER DEFAULT PRIVILEGES … REVOKE EXECUTE ON FUNCTIONS` 로 바닥을 잠시 걷었다 복원.
+  생성물 게이트는 **0189:403 에도 authenticated 를 추가**하는 세 번째 안을 냈는데,
+  그건 머지된 마이그레이션 수정이라 **Simon 확인 없이 하지 않는다.**
+
+지금 당장의 위험은 낮다 — 운영에 0189·0190 둘 다 미적용이고
+**`erase_my_data` 를 부르는 클라이언트 코드가 `src/`·`supabase/` 에 0건**이다.
+
+### 기록 결함 하나를 고쳤다
+
+`DECISIONS.md` 의 `26.09.21` 다섯 줄은 **오기**였다. 그 줄들이 든 커밋 `9d2f1b8b` 의
+author 시각은 **2026-09-20 19:26 KST** 이고, #1847 머지(`623cb0a9`)는 **09-20 19:20** 이다.
+쓸 때 시계가 약 **+6시간 40분** 앞섰다. append-only 라 원문은 두고 정정 줄을 덧붙였고,
+`STATE.md` 와 이 파일의 헤더는 고쳤다.
+**잡는 법: 의심되는 줄이 든 커밋의 author 시각과 대조한다.**
+시각은 `powershell -NoProfile -Command "(Get-Date).ToString('yyyy-MM-dd HH:mm:ss')"` 로만 잰다.
+
+### Orca 함정 하나
+
+codex 게이트 둘이 **프롬프트를 입력창에 쥔 채** 안 떴다. 겉으로는 세 증상으로 보였다
+(`ok=True` + `nudge: 터미널 핸들 없음` / `cli_failed rc=1` / `task_not_startable … blocked`).
+**원인은 하나**고, `/vibe` 의 자동 nudge 가 `worker-list` 에서만 핸들을 찾다가 그 목록이
+비어 조용히 건너뛴 것이다. `orca terminal list` 에서 **제목이 워크트리 이름뿐이고
+상태줄에 레인·effort 가 찍힌** 터미널을 찾아 `terminal send --enter` 하나로 둘 다 시작했다.
+
+### 다음 1개
+
+**법역 결정(Simon 대기)** — 나라를 모를 때의 가입 하한. 스토어 연령 등급 · 데이터 안전
+양식 · 약관 · DPIA 가 전부 이 값을 인용하므로 그 넷이 이 답을 기다린다.
+결정 시트는 Simon 에게 전달됐다(선택 4건).
+
+그다음이 **r50 묶음 다섯**: B-EX-01 대응책 · `ANDROID_QA_GUIDELINES.md:38-39` 재정정(이 문서는
+연속 두 번 틀렸다) · `AccountScope` 우회 가드 · `DeepSpaceDesignScreens.tsx:219` 의
+`useWikiGraphData` 사본 울타리 · `storage-recovery.ts:12` 법무 인용 오기
+(실제 인용 대상은 `AuthContext.tsx:53·153` 이다 — 그 주석을 믿고 AuthContext 를 편집하면
+법무 인용이 조용히 밀린다).
+
+### 보고서
+
+- `E:/Coding Infra/reports/vibe-r260920/r49-*/` — 워커 2 · 게이트 2
+- `r48-jurisdiction/findings.md` — 법역 조사 371줄(11개 시장 + EU 31개국 1차 원문)
+- 법역 결정 시트 HTML — Simon 전달본(99.7KB · 외부 참조 0)
+
+## 2026-09-20 저녁(정정: 원래 '09-21 새벽' 으로 적혀 있었다 — 쓸 때 시계가 +6h40m 앞섬) / 삭제를 서버가 소유하게 만든 PR 을 8회차 게이트 끝에 머지했다 · 출시는 `global` 로 간다
 
 ### 결론
 
