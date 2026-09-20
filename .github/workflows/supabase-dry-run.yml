@@ -123,6 +123,50 @@ jobs:
           GRANT USAGE ON SCHEMA storage TO authenticated;
           GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE storage.objects TO authenticated;
           GRANT EXECUTE ON FUNCTION storage.foldername(text) TO authenticated;
+
+          -- Supabase's default privileges for FUNCTIONS in `public`. This must
+          -- stand BEFORE the first migration, because a default privilege is
+          -- stamped on a function when it is created and never afterwards.
+          --
+          -- Prod creates every public function with EXECUTE already granted, BY
+          -- NAME, to anon, authenticated and service_role. The repo measured it:
+          -- after 0035:85 revoked PUBLIC and nothing else, prod's ACL was
+          -- {postgres=X,anon=X,authenticated=X,service_role=X}
+          -- (0036_lock_bump_gemini_spend.sql:11-13), and 0082 and
+          -- scripts/check-definer-grants.ts:3-8 say the same. Vanilla Postgres
+          -- grants PUBLIC and nobody by name, so until 2026-09-20 this scratch
+          -- DB had no such floor, and every `NOT has_function_privilege(
+          -- 'authenticated', ...)` in this job was true of ANY function whose
+          -- migration revoked PUBLIC -- whether or not it revoked authenticated.
+          -- That is how 0189 shipped `REVOKE ... FROM PUBLIC, anon` on
+          -- erase_my_data as "locked" with the lock assertion green, while the
+          -- same text on prod leaves authenticated=X (R48 artifact gate F-02;
+          -- 0190 is the correction).
+          --
+          -- MEASURED 2026-09-20, scratch PostgreSQL 18.3, whole tree applied and
+          -- every lane of this job replayed except the CLI push and the SSV lane
+          -- (which refuses to run outside Actions):
+          --   floor, authenticated revoke removed    -> erasure lane RED, ACL
+          --     {postgres=X,authenticated=X,service_role=X} -- prod's shape
+          --   no floor, authenticated revoke removed -> erasure lane GREEN, ACL
+          --     {postgres=X} -- the vacuous pass this floor exists to end
+          --   floor, tree as shipped                 -> every replayed lane green;
+          --     the apply-time ACL checks in 0141 and 0172-0185 all still hold,
+          --     so the floor changes the verdict of nothing else.
+          --
+          -- FOR ROLE postgres is spelled out because default privileges belong
+          -- to the role that CREATES the object, and every migration in this job
+          -- is applied as postgres (psql -U postgres, and the CLI's db-url).
+          -- db/tests/erasure_registry_regression.sql block (L) creates a probe
+          -- function and refuses to draw a conclusion if this floor is absent,
+          -- so deleting these lines turns that lane red instead of vacuous.
+          --
+          -- FUNCTIONS only, on purpose. The TABLE defaults are not reproducible
+          -- here: 0179 asserts at apply time that authenticated holds no write
+          -- privilege on ai_audit_log, and nothing revokes it before 0181
+          -- (db/tests/erasure_registry_regression.sql, "The privilege FLOOR").
+          ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+            GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role;
           SQL
       - name: Apply baseline migrations (0001-0146) in order
         env:
