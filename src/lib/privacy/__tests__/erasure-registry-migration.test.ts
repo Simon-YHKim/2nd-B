@@ -191,11 +191,25 @@ describe(`${FILE} -- structure`, () => {
     expect(workflow).toMatch(/db\/tests\/erasure_registry_regression\.sql/);
   });
 
-  test("anon EXECUTE is revoked in this same file (Supabase auto-grants it)", () => {
+  test("the RPC ships LOCKED: EXECUTE revoked, and granted to nobody", () => {
     expect(code).toMatch(
       /REVOKE EXECUTE ON FUNCTION public\.erase_my_data\(text\) FROM PUBLIC, anon;/,
     );
-    expect(code).toMatch(/GRANT EXECUTE ON FUNCTION public\.erase_my_data\(text\) TO authenticated;/);
+    // ...and no grant back. Not to `authenticated` either. This line used to assert
+    // that the GRANT was PRESENT; the 8th artifact gate (2026-09-20, M1) is why it
+    // now asserts the opposite. erase_my_data walks 26 tables in delete_order, and
+    // the ROW EXCLUSIVE lock a DELETE takes does not exclude a concurrent INSERT --
+    // so a SECOND SESSION OF THE SAME USER can commit a row into a table the sweep
+    // has already passed. That row survives, the sweep never learns of it, and the
+    // `status=ok` receipt is then false. It opens when a per-user delete fence and
+    // generation land (S3-C / S3-D) and a two-session regression shows the late
+    // INSERT refused or the call retried.
+    //
+    // Rule B of check:definer-grants is untouched: it wants the REVOKE above in the
+    // same file, and that stays. db/tests/erasure_registry_regression.sql block (L)
+    // asserts the same lock against a real catalog AND a real refused call; this is
+    // the cheap half, and the half that goes red the moment the grant is typed back.
+    expect(code).not.toMatch(/GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\.erase_my_data/i);
     // Rule A of check:definer-grants, asserted here too so a local edit fails fast.
     expect(code).not.toMatch(/GRANT\s+EXECUTE\s+ON\s+FUNCTION[^;]*\bTO\b[^;]*\banon\b/i);
   });

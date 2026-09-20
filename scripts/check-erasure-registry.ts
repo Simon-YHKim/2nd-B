@@ -93,6 +93,106 @@
 // contradict the claim and does not put it out of reach. When it cannot tell,
 // it fails and names the catalog test. A guard that answers "I cannot tell" is
 // worth more than one that answers "yes" from evidence it does not have.
+//
+// ===========================================================================
+// WHAT A GREEN RUN PROVES, AND WHAT IT DOES NOT (scope stated 2026-09-20, r46)
+// ===========================================================================
+//
+// Eight review rounds ended with two gates saying the same thing in different
+// words: the rules hold, the CLAIM around them was too wide. This block is the
+// claim, written so nobody has to reconstruct it from the rules.
+//
+// IT PROVES, over db/migrations text plus db/erasure-registry.json:
+//   - completeness and no drift: every public table with an owner column is
+//     classified, every classified table still exists           (G1, G2)
+//   - seed parity: 0189's seed block is byte-identical to a fresh render of
+//     the JSON, so the file and the shipped registry cannot diverge    (G7)
+//   - FK order and cascade honesty: a CASCADE child is deleted before its
+//     parent, and a kept table a CASCADE empties says so        (G8, G9)
+//   - policy INSIDE THE MODEL: db/migrations does not CONTRADICT a
+//     client_erasable row, and FAILS CLOSED on syntax this parser cannot
+//     model                                                           (G3)
+//   - ACL consistency: the catalog test's privilege floor reproduces the
+//     Supabase default and never grants back a privilege a migration
+//     revoked, measured against a pinned list                        (G10)
+//   - well-formedness, account_delete_only really having neither policy, and
+//     the retention ledgers never being targets              (G5, G4, G6)
+//
+// IT DOES NOT PROVE THAT AN OWNER CAN ACTUALLY DELETE THEIR OWN DATA.
+// That is not statically provable in this repo, and since r42 this file does
+// not pretend otherwise -- 0102_rls_wrap_auth_uid.sql rewrites every
+// auth.uid() policy in `public` at run time and names no table, so "the final
+// USING of this table's delete policy is <x>" has not been readable from
+// db/migrations since it landed. The delete verdict belongs to
+// db/tests/erasure_registry_regression.sql block (8) and its (8c)/(8d)
+// counter-examples, which observe real DELETEs as the real `authenticated`
+// role against a real catalog.
+//
+// AND THAT OBSERVATION HAS KNOWN BLIND SPOTS. Measured, not guessed:
+//
+//   A8  CROSS-SCHEMA POLICY COLLISION -- CONFIRMED, not theoretical. The
+//       policy regexes accept `public.` and `storage.` but key the slot on the
+//       BARE table name, so `storage.records` overwrites `public.records`. The
+//       8th business-logic gate reproduced it on PostgreSQL 18.3: a dangerous
+//       direct DELETE policy change went through both lanes (deleted = 2, B's
+//       marker kept = 0).
+//   A6  `DO U&'...'` IS NOT FAIL-CLOSED. An earlier write-up said such bodies
+//       are reported unread. They are not. The literal pattern is `[eEuU]?'`,
+//       which does not accept the `&` of `U&'`, so the branch that would
+//       report it is never reached: a REVOKE hidden in one is silently missed,
+//       the floor then grants the privilege back, and the sweep comes up
+//       green. `DO E'...'` does go red. More generally, "a spelling nothing
+//       could read" is not by itself refused -- only the spellings that reach
+//       the fail-closed branch are.
+//   M1  CONCURRENT WRITES DURING THE SEQUENTIAL SWEEP. erase_my_data walks 26
+//       tables in delete_order, and the ROW EXCLUSIVE lock a DELETE takes does
+//       not exclude a concurrent INSERT, so a second session of the SAME user
+//       can commit a row into a table the sweep has already passed and
+//       `status=ok` is then a false receipt. This is why 0189 ships the RPC
+//       with no EXECUTE grant at all (its section 5 states the condition for
+//       opening it).
+//   A5  `DO '...'` is read but not modelled: fail-closed, and blunt -- an
+//       unbounded report carrying no table names.
+//   A4  `ownSpans` is keyed on schema.name and not on a signature, so a call
+//       from one overload into another of the same name is discarded as
+//       recursion.
+//   A1-A3, A9, A10  overload resolution, DROPs of signatures the parser could
+//       not read, type-normalisation heuristics, extensions and later-firing
+//       triggers and app-called SECURITY DEFINER functions, and a PASS line
+//       that prints counts rather than names.
+//   B1-B12  the catalog lane's own limits: four FIXED questions; one fixture
+//       row per user per table; only the 26 client_erasable tables observed
+//       (retained 27 and account_delete_only 13 get no catalog verdict at
+//       all); only the `authenticated` role; DELETE asked and not
+//       UPDATE/SELECT; the counter-example installed in one table; 2 of 24
+//       question orders actually run; no whole-database diff around a
+//       question; and a CI scratch database whose extensions, search_path and
+//       role attributes are NOT Supabase production.
+//   OWNERSHIP IS READ OFF A COLUMN NAME. `community_blocks` and
+//       `template_blocks` key on blocker_id, `knowledge_sources` on
+//       added_by / verified_by, `informant_consents` on subject_user_id. A
+//       uuid column is not by itself proof that the row belongs to that user.
+//   FOREIGN KEYS THAT DO NOT CARRY THE OWNER COLUMN. content_reports,
+//       srs_reviews and persona_relation can take ANOTHER user's child row
+//       along when an owner deletes a parent. "no other user's row ever
+//       disappears" is not something this repo currently guarantees, and
+//       predates this registry.
+//   G8 DOES NOT MODEL EVERY ORDERING DEPENDENCY. The
+//       wiki_pages_source_kind_pair CHECK (0022) forces wiki_pages before
+//       sources even though that FK is SET NULL; that family is outside the
+//       order guard.
+//   BOTH LANES READ THE SAME MIGRATION TEXT. Anything neither parser reads and
+//       no fixture exercises is invisible to both at once.
+//
+// THIS LIST IS NOT COMPLETE. Three rounds in a row closed one spelling and the
+// next round found an equivalent one, so there is no basis for asserting there
+// is no fourth. The durable fix is to read the catalog itself (pg_proc,
+// pg_policies) instead of matching syntax; that is a separate change.
+//
+// THEREFORE: DO NOT CITE A GREEN RUN OF THIS CHECK AS A PASS THAT PROVES
+// DELETION AUTHORISATION IN GENERAL. It proves the registry is complete and
+// consistent with what the migration text says. Whether the delete really
+// happens is the catalog test's verdict, carrying the blind spots above.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";

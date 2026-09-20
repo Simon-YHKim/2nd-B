@@ -21,6 +21,14 @@
 -- WHAT IT ASSERTS
 --   0  the assertion helper itself rejects FALSE *and* NULL, and a receipt with
 --      a null or missing field fails rather than passing (r39 gate R1)
+--   L  THE SHIPPED LOCK: `authenticated` holds no EXECUTE on the RPC, read
+--      off the catalog AND measured by a real call that must come back
+--      42501. 0189 ships the function locked (8th artifact gate M1: the
+--      sweep is sequential, so a second session of the same user can write
+--      into a table it already passed and `status=ok` is then false). This
+--      block runs BEFORE assertion (1), which grants ITSELF execute inside
+--      its own rolled-back transaction, so the test's privilege is never
+--      mistaken for the shipped one
 --   1  a normal call, made as the `authenticated` role, succeeds and deletes
 --      only the caller's rows (B survives)
 --   2  anon and a NULL auth.uid() are refused (28000) and nothing is deleted
@@ -260,6 +268,90 @@ END;
 $zero$;
 
 ----------------------------------------------------------------------
+-- L  THE SHIPPED LOCK. `authenticated` cannot call erase_my_data at all.
+--
+--    0189 REVOKEs EXECUTE from PUBLIC and anon, and grants it to NOBODY. The
+--    RPC ships locked. The reason is the 8th artifact gate's M1: the sweep is
+--    sequential over 26 tables, ROW EXCLUSIVE does not exclude a concurrent
+--    INSERT, so a SECOND SESSION OF THE SAME USER can commit a row into a
+--    table the sweep has already passed -- and then `status=ok` is a false
+--    receipt. 0189 section 5 states the condition for opening it.
+--
+--    ⚠ THE ORDER OF THIS FILE IS PART OF THE ASSERTION. Block (1) below
+--    GRANTS ITSELF EXECUTE inside its own transaction, because it still has
+--    to make a real authenticated call. That grant belongs to the test, not
+--    to the product. This block runs FIRST, in a transaction that contains no
+--    grant at all, so the test's own privilege can never be mistaken for the
+--    shipped one. 0150's dormant complete_profile_signup_consent already has
+--    this shape in supabase-dry-run.yml: prove the denial, then reopen inside
+--    the transaction that ROLLBACKs.
+--
+--    BOTH HALVES ARE ASSERTED. This file has twice been shown that a catalog
+--    read can be true for a reason no migration caused (the privilege FLOOR
+--    note below is the long version). So the ACL is read, AND the call is
+--    actually made and must come back 42501.
+----------------------------------------------------------------------
+
+BEGIN;
+
+DO $lock$
+BEGIN
+  IF pg_catalog.has_function_privilege(
+       'authenticated', 'public.erase_my_data(text)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'erasure regression FAILED: authenticated holds EXECUTE on erase_my_data -- 0189 must ship it LOCKED until a per-user delete fence exists (8th artifact gate M1)';
+  END IF;
+  -- anon and PUBLIC in the same breath, so one block states the whole shipped
+  -- ACL. (2b) measures anon's refusal behaviourally; this is the catalog side.
+  IF pg_catalog.has_function_privilege(
+       'anon', 'public.erase_my_data(text)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'erasure regression FAILED: anon holds EXECUTE on erase_my_data (0189 must revoke it)';
+  END IF;
+  IF pg_catalog.has_function_privilege(
+       'public', 'public.erase_my_data(text)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'erasure regression FAILED: PUBLIC holds EXECUTE on erase_my_data (0189 must revoke it)';
+  END IF;
+END;
+$lock$;
+
+DO $lock_call$
+DECLARE
+  v_refused boolean := false;
+BEGIN
+  -- A 42501 only means "the ACL on this function" if the caller could have got
+  -- that far. MEASURED 2026-09-20 while writing this block: on a scratch database
+  -- whose `public` schema carried no USAGE for `authenticated`, the call below
+  -- came back 42501 WITH THE GRANT PUT BACK -- a green assertion that was
+  -- measuring the harness. So read the one privilege standing between the role
+  -- and the function, and refuse to draw a conclusion without it. (The message
+  -- itself is not assertable: psql localises it.)
+  IF NOT pg_catalog.has_schema_privilege(
+       'authenticated', 'public', 'USAGE') THEN
+    RAISE EXCEPTION 'erasure regression FAILED: authenticated holds no USAGE on schema public, so a refusal from the call below would not be about erase_my_data';
+  END IF;
+
+  -- Set a valid claim FIRST. With no claim, auth.uid() is NULL and the function
+  -- raises 28000 from the inside no matter who may execute it, so the assertion
+  -- would pass with the grant put back. (2b) measured exactly that trap.
+  PERFORM pg_catalog.set_config('request.jwt.claim.sub',
+    '11111111-1111-4111-8111-1111111111aa', true);
+  BEGIN
+    SET LOCAL ROLE authenticated;
+    PERFORM public.erase_my_data('content');
+    RESET ROLE;
+  EXCEPTION
+    WHEN insufficient_privilege THEN
+      RESET ROLE;
+      v_refused := true;
+  END;
+  RESET ROLE;
+  PERFORM pg_temp.expect(v_refused,
+    'authenticated was able to CALL erase_my_data: the RPC did not ship locked');
+END;
+$lock_call$;
+
+ROLLBACK;
+
+----------------------------------------------------------------------
 -- 1 + 4  A normal call: only A's rows go, the receipt says only what the
 --        public contract allows it to say, and its total equals a measured
 --        before/after delta rather than its own arithmetic.
@@ -267,13 +359,20 @@ $zero$;
 -- ⚠ THE CALL RUNS AS `authenticated`, NOT AS postgres.
 --   psql drives this file as the superuser, and until r39 the call inherited
 --   that: the JWT claim was set to A but the caller was postgres. So the one
---   thing `GRANT EXECUTE ... TO authenticated` exists to make possible was
---   never exercised -- revoke that grant and every block here still passed
+--   thing an EXECUTE grant to `authenticated` exists to make possible was
+--   never exercised -- take the grant away and every block here still passed
 --   (measured 2026-09-20 on a scratch PostgreSQL 18.3: the old shape returned
---   status "ok" under the revoke; this shape raises `permission denied for
+--   status "ok" with no grant; this shape raises `permission denied for
 --   function erase_my_data`). The fixture is still built as postgres, because
 --   RLS would otherwise stop the test writing B's rows; only the call itself
 --   changes role, and RESET ROLE hands the transaction straight back.
+--
+-- ⚠ AND THE GRANT IS THIS TEST'S OWN. 0189 ships the RPC locked (its section 5
+--   says why: the 8th gate's M1 concurrent-write hole). Block (L) above has
+--   already asserted, in a transaction with no grant in it, that the shipped
+--   state refuses `authenticated`. Only then does this block reopen the
+--   function for the length of its own transaction, exactly as
+--   supabase-dry-run.yml does for 0150's dormant RPC. ROLLBACK takes it back.
 ----------------------------------------------------------------------
 
 BEGIN;
@@ -287,6 +386,10 @@ CREATE TEMP TABLE probe ON COMMIT DROP AS
 
 CREATE TEMP TABLE receipt (r jsonb) ON COMMIT DROP;
 GRANT INSERT ON receipt TO authenticated;
+
+-- The test's own EXECUTE grant. Shipped state = no grant, and block (L)
+-- asserted that one transaction ago; the ROLLBACK below takes this back.
+GRANT EXECUTE ON FUNCTION public.erase_my_data(text) TO authenticated;
 
 SET LOCAL ROLE authenticated;
 INSERT INTO receipt SELECT public.erase_my_data('content');
@@ -1859,6 +1962,6 @@ ROLLBACK;
 -- both returned the same numbers table by table; then (8c) and (8d) raise
 -- unless their counter-examples are refused in all three runs. With
 -- `ON ERROR STOP` set, this line is unreachable if any of that failed.
-SELECT 'ERASURE REGRESSION PASS  erase_my_data: strict assertions, authenticated call, isolation, refusals without reflection, public receipt contract, measured row deltas, atomicity, registry ACL, catalog cascade parity, and every client_erasable table observed as the authenticated role with EACH OF ITS FOUR QUESTIONS INSIDE ITS OWN ROLLED-BACK SAVEPOINT (own row deleted, other user''s row refused, '
+SELECT 'ERASURE REGRESSION PASS  erase_my_data: SHIPS LOCKED (authenticated holds no EXECUTE - asserted on the catalog AND by a refused real call, before this file grants itself one inside a rolled-back transaction), strict assertions, authenticated call, isolation, refusals without reflection, public receipt contract, measured row deltas, atomicity, registry ACL, catalog cascade parity, and every client_erasable table observed as the authenticated role with EACH OF ITS FOUR QUESTIONS INSIDE ITS OWN ROLLED-BACK SAVEPOINT (own row deleted, other user''s row refused, '
     || (SELECT pg_catalog.count(*) FROM public.erasure_registry WHERE class = 'client_erasable')::text
     || ' tables unconditional-delete probed BOTH from the untouched fixture and after A''s own rows were gone), the whole sweep RE-RUN IN REVERSE delete_order AND WITH THE FOUR QUESTIONS REVERSED with identical numbers per table, the r43 F1 inherited-role cross-table conditional DELETE policy refused in all three runs, and the r44 F1 CASCADE-child conditional DELETE policy measured invisible to the old question and caught by the new one' AS result;

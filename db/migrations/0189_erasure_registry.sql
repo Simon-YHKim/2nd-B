@@ -375,10 +375,32 @@ $erase_my_data$;
 -- 5. 권한. Supabase 는 새 함수에 anon EXECUTE 를 자동으로 준다.
 --    PUBLIC 에서만 회수하면 anon 의 명시적 부여가 그대로 남는다 (0036 · 0082).
 --    scripts/check-definer-grants.ts 규칙 B 가 이 줄을 강제한다.
+--
+--    ⚠ authenticated 에게도 EXECUTE 를 주지 않는다. 이 함수는 잠긴 채 배송된다.
+--    (생성물 안전성 게이트 8차 M1, 2026-09-20 · Simon 확정 ①: 주장을 줄이고 머지하되
+--     RPC 는 잠가 둔다.)
+--
+--    왜 주지 않나. 이 함수는 등록부의 client_erasable 26표를 delete_order 순서로
+--    하나씩 지운 뒤 무조건 status='ok' 영수증을 돌려준다. 사용자별 writer fence 도,
+--    삭제 세대 표식도, 마지막 재검사도 없다. PostgreSQL 에서 DELETE 가 잡는
+--    ROW EXCLUSIVE 잠금은 같은 표에 대한 동시 INSERT 의 잠금과 호환되므로, sweep 이
+--    도는 동안 같은 사용자의 다른 세션이 이미 지나간 표(예: records, delete_order 30)
+--    에 행을 커밋할 수 있다. 그 행은 살아남고 sweep 은 그것을 모른 채 끝나서,
+--    "콘텐츠 삭제 완료" 영수증이 거짓이 된다. 남의 행을 건드리는 문제가 아니라
+--    삭제 약속 자체와 충돌하는 문제다.
+--
+--    언제 여나. 사용자별 삭제 울타리와 세대(설계서 S3-C · S3-D)가 들어와 모든
+--    owner-data writer 가 그것을 공유하고, 두 세션 회귀가 "이미 지나간 표로의 INSERT
+--    가 거절되거나 호출이 재시도/실패한다"를 실행으로 보인 뒤에 연다.
+--
+--    회귀는 계속 이 RPC 를 실행한다. db/tests/erasure_registry_regression.sql 이
+--    배송 상태(authenticated 는 EXECUTE 없음)를 카탈로그와 실제 호출 양쪽으로 먼저
+--    단언한 뒤, 자기 트랜잭션 안에서 스스로 권한을 주고 ROLLBACK 으로 되돌린다.
+--    0150 의 complete_profile_signup_consent 가 이미 같은 모양이다
+--    (.github/workflows/supabase-dry-run.yml).
 ----------------------------------------------------------------------
 
 REVOKE EXECUTE ON FUNCTION public.erase_my_data(text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.erase_my_data(text) TO authenticated;
 
 COMMENT ON FUNCTION public.erase_my_data(text) IS
   '콘텐츠 삭제(계정 유지). 대상은 public.erasure_registry 의 client_erasable 행이다. 반환은 공개 영수증(receipt_version·scope·executed_at·status·count_semantics·direct_deleted_total·outcomes)이고 표 이름·class·사유는 담지 않는다 - 그 상세는 등록부 표에만 있고 service_role 만 읽는다. direct_deleted_total 은 명시 DELETE 의 행수 합이라 FK 연쇄로 사라진 행은 빠져 있다(count_semantics = direct_only).';
