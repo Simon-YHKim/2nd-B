@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { FlatList, Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -27,7 +27,7 @@ import { listRecentRecords } from "@/lib/records/create";
 import { buildRecordsGraph } from "@/lib/records/records-graph";
 import { selectRecordsForSafeGraph } from "@/lib/records/records-graph-layout";
 import { listSourcePieces } from "@/lib/records/source-pieces";
-import { listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
+import { getWikiPageById, listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
 import type { WikiPageRow } from "@/lib/wiki/types";
 import { buildDeepWikiView, type WikiEdge } from "./wiki-graph-view";
 import { buildRecordsTimeline, type TimelineLabels, type TimelineRecord } from "./records-timeline";
@@ -53,10 +53,30 @@ function dsTimeLabels(t: Tx): TimelineLabels {
     fallbackTitle: t("time.recordFallback"),
   };
 }
+
+/** Wiki rows, kept with the account they were fetched for.
+ *
+ *  Supabase can publish owner A -> owner B with no signed-out frame in between, and
+ *  AuthContext supports that publication on purpose. The scene boundary in
+ *  app/_layout.tsx remounts every product scene on an account epoch, so in the shipped
+ *  tree this state is thrown away before B can read it - that boundary is the real
+ *  defence and this is not a claim that it is broken. But it lives in another file and
+ *  applies per route, so a screen that is ever mounted outside it would read the
+ *  previous account's rows with nothing in this file to stop it. Holding the owner id
+ *  beside the rows makes the answer local: rows are readable only by the account they
+ *  were loaded under. */
+interface OwnedWikiRows {
+  ownerId: string | null;
+  pages: WikiPageRow[];
+  edges: WikiEdge[];
+}
+
+/** Shared so an owner mismatch returns a stable reference and costs no re-render. */
+const NO_WIKI_ROWS: OwnedWikiRows = { ownerId: null, pages: [], edges: [] };
+
 function useWikiGraphData() {
   const { userId, loading: authLoading } = useAuth();
-  const [pages, setPages] = useState<WikiPageRow[]>([]);
-  const [edges, setEdges] = useState<WikiEdge[]>([]);
+  const [held, setHeld] = useState<OwnedWikiRows>(NO_WIKI_ROWS);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -69,13 +89,11 @@ function useWikiGraphData() {
     ])
       .then(([p, e]) => {
         if (!alive) return;
-        setPages(p);
-        setEdges(e);
+        setHeld({ ownerId: userId, pages: p, edges: e });
       })
       .catch(() => {
         if (!alive) return;
-        setPages([]);
-        setEdges([]);
+        setHeld({ ownerId: userId, pages: [], edges: [] });
       })
       .finally(() => {
         if (alive) setLoading(false);
@@ -85,7 +103,11 @@ function useWikiGraphData() {
     };
   }, [userId]);
 
-  return { userId, authLoading, pages, edges, loading };
+  // Read back only for the owner they were loaded under. The effect above overwrites
+  // `held` only once the network answers, so without this the previous account's rows
+  // would be what the screen draws for the whole refetch window.
+  const owned = held.ownerId !== null && held.ownerId === userId ? held : NO_WIKI_ROWS;
+  return { userId, authLoading, pages: owned.pages, edges: owned.edges, loading };
 }
 
 function GraphLoading() {
@@ -687,30 +709,85 @@ export function DeepSpaceWikiScreen() {
   // tapping a node twice opens it back in the list (progressive disclosure).
   const [wikiView, setWikiView] = useState<"list" | "graph">("list");
 
+  // A page this screen never loaded. The list is the 200 most recently updated rows
+  // (useWikiGraphData above), and a SecondB citation can name a page well outside that
+  // window: the RAG path retrieves by vector neighbourhood (lib/chat/rag.ts), which has
+  // no recency floor at all. Pinning an id that is not in `pages` pins nothing, so the
+  // deep link used to land silently on the default row - the source card opening
+  // something that is not the source. The absent row is fetched by id and carried
+  // alongside the list instead.
+  //
+  // Carried WITH the account it was fetched for, for the reason OwnedWikiRows gives:
+  // one row of someone's own writing is still their writing, and a bare WikiPageRow
+  // here would be readable by whoever the next published owner turns out to be.
+  const [linkedPage, setLinkedPage] = useState<{ ownerId: string; page: WikiPageRow } | null>(null);
+  // Honoured once per (account, ID) pair, not once per screen. The old guard was
+  // `expandedId !== null`, which meant the second citation opened from the same mounted
+  // /wiki - after any row had been expanded, including by the deep link itself - was
+  // dropped without a trace. The account half is what stops a focus honoured for one
+  // owner from silencing the same id for the next one.
+  const honouredFocusRef = useRef<{ ownerId: string; focusPageId: string } | null>(null);
+
   // A ?focusPageId= deep link opens that page. Must sit ABOVE the early returns below --
   // a hook after a conditional return breaks the hook order (react-hooks/rules-of-hooks
-  // caught this). Only fires once the pages have loaded and only if the id is really in
-  // the list: a stale or foreign id falls back to the default (first page) rather than
-  // leaving every row collapsed.
+  // caught this). A stale or foreign id still falls back to the default (first page)
+  // rather than leaving every row collapsed.
   useEffect(() => {
-    if (!focusPageId || expandedId !== null) return;
-    if (!pages.some((p) => p.id === focusPageId)) return;
-    setExpandedId(focusPageId);
-  }, [focusPageId, expandedId, pages]);
+    if (!userId || !focusPageId) return;
+    // The pair, held as two fields rather than one joined key: a UUID is opaque and a
+    // separator that happens to appear in one would silently merge two different pairs.
+    const honoured = honouredFocusRef.current;
+    if (honoured && honoured.ownerId === userId && honoured.focusPageId === focusPageId) return;
+    const honour = { ownerId: userId, focusPageId };
+    if (pages.some((p) => p.id === focusPageId)) {
+      honouredFocusRef.current = honour;
+      setExpandedId(focusPageId);
+      return;
+    }
+    // Absent from the list. Wait for the load to settle before concluding that -- an
+    // id asked for mid-fetch is not yet known to be missing.
+    if (loading) return;
+    honouredFocusRef.current = honour;
+    let alive = true;
+    void getWikiPageById(userId, focusPageId)
+      .then((page) => {
+        if (!alive || !page) return;
+        setLinkedPage({ ownerId: userId, page });
+        setExpandedId(page.id);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [focusPageId, pages, loading, userId]);
+
+  // The fetched row joins the list for every downstream reader, so the tag chips, the
+  // graph and the row list all agree about what exists -- but only for the account it
+  // was fetched for. `pages` is already fenced the same way by useWikiGraphData, so an
+  // owner that does not match reads an empty library rather than the last one's.
+  const listedPages = useMemo(
+    () =>
+      linkedPage &&
+      linkedPage.ownerId === userId &&
+      !pages.some((p) => p.id === linkedPage.page.id)
+        ? [linkedPage.page, ...pages]
+        : pages,
+    [pages, linkedPage, userId],
+  );
 
   // The page the user asked to open is pinned into the list: the graph draws every page but
   // the list keeps only the top 12 by connection count, so opening a sparsely-linked node
   // used to land on a list that did not contain it.
   const view = useMemo(
-    () => buildDeepWikiView(pages, edges, { activeTag, pinnedId: expandedId }),
-    [pages, edges, activeTag, expandedId],
+    () => buildDeepWikiView(listedPages, edges, { activeTag, pinnedId: expandedId }),
+    [listedPages, edges, activeTag, expandedId],
   );
   const graphPages = useMemo(
     () =>
-      pages
+      listedPages
         .filter((p) => activeTag === null || p.tags.includes(activeTag))
         .map((p) => ({ id: p.id, title: p.title.trim() || p.slug, kind: p.kind })),
-    [pages, activeTag],
+    [listedPages, activeTag],
   );
 
   if (authLoading) {
@@ -724,8 +801,13 @@ export function DeepSpaceWikiScreen() {
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
-  // Default the first page open when nothing is explicitly toggled.
-  const openId = expandedId ?? view.pages[0]?.id ?? null;
+  // Default the first page open when nothing is explicitly toggled. An id that is not in
+  // the current view is not a toggle -- it is left over. That happens when a tag filter
+  // hides the open row, and it is also what an account swap leaves behind, so the
+  // fallback is keyed on what is actually drawable rather than on the id being non-null.
+  const openId = view.pages.some((p) => p.id === expandedId)
+    ? expandedId
+    : (view.pages[0]?.id ?? null);
 
   // rev2 records: the companion FLOATS over the surface (sb-app), so the body
   // clears its height instead of being pushed by a header band.
