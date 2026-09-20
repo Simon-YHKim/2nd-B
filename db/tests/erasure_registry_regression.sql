@@ -19,11 +19,19 @@
 -- and assertion (1) below is that call.
 --
 -- WHAT IT ASSERTS
---   1  a normal call succeeds and deletes only the caller's rows (B survives)
+--   0  the assertion helper itself rejects FALSE *and* NULL, and a receipt with
+--      a null or missing field fails rather than passing (r39 gate R1)
+--   1  a normal call, made as the `authenticated` role, succeeds and deletes
+--      only the caller's rows (B survives)
 --   2  anon and a NULL auth.uid() are refused (28000) and nothing is deleted
---   3  an unknown scope is refused (22023) and nothing is deleted
---   4  per-table counts equal the rows actually removed, INCLUDING a table that
---      a cascade empties (wiki_links -- the F2 defect)
+--   3  an unknown scope is refused (22023), nothing is deleted, and the refusal
+--      does not echo the caller's scope string back (r39 gate finding 4)
+--   4  the receipt is the public contract and nothing more: an exact top-level
+--      key set, no internal table name / class / reason / parent anywhere in it,
+--      and direct_deleted_total equal to the caller's real before/after row
+--      delta across every client_erasable table -- while the delta across ALL
+--      registry tables is strictly larger, which is what makes
+--      count_semantics = 'direct_only' a true statement and not a hope
 --   5  a failure in one table rolls the whole call back, all-or-nothing
 --   6  `authenticated` cannot write the registry (it is the delete list; write
 --      access to it turns this RPC into "delete any table")
@@ -101,26 +109,178 @@ RETURNS void
 LANGUAGE plpgsql
 AS $expect$
 BEGIN
-  IF NOT p_ok THEN
+  -- IS DISTINCT FROM TRUE, not NOT. `IF NOT p_ok` runs its body only when the
+  -- condition is TRUE, and `NOT NULL` is NULL -- so a NULL argument was
+  -- ACCEPTED. That is not a theoretical hole: every receipt assertion below
+  -- compares a JSON extraction, and `->>` on a missing key or a JSON null
+  -- yields NULL, which makes the whole comparison NULL. The gate that exists
+  -- to catch a lying receipt count was passing a NULL count. Measured by the
+  -- r39 authorization gate on a scratch PostgreSQL against this exact helper:
+  --   NULL_BOOLEAN ACCEPTED exit=0
+  --   NULL_WIKI_LINKS ACCEPTED exit=0
+  --   MISSING_DELETED_TOTAL ACCEPTED exit=0
+  --   FALSE_CONTROL REJECTED exit=3
+  -- Block 0 below is that measurement, kept as a standing test.
+  IF p_ok IS DISTINCT FROM TRUE THEN
     RAISE EXCEPTION 'erasure regression FAILED: %', p_what;
   END IF;
 END;
 $expect$;
 
 ----------------------------------------------------------------------
--- 1 + 4  A normal call: only A's rows go, and every per-table count equals
---        the rows that actually disappeared.
+-- Row-count probes. They read the registry rather than a hand-written list,
+-- so they cover all 26 client_erasable tables and not just the four the
+-- fixture populates. Run as the superuser that drives this file; the call
+-- under test is the only thing that runs as `authenticated`.
+----------------------------------------------------------------------
+
+-- Rows in every client_erasable table that belong to one user.
+CREATE OR REPLACE FUNCTION pg_temp.owned_rows(p_uid uuid)
+RETURNS bigint
+LANGUAGE plpgsql
+AS $owned_rows$
+DECLARE
+  v_row   record;
+  v_n     bigint;
+  v_total bigint := 0;
+BEGIN
+  FOR v_row IN
+    SELECT table_name, owner_column FROM public.erasure_registry
+    WHERE class = 'client_erasable' ORDER BY table_name
+  LOOP
+    EXECUTE format('SELECT count(*) FROM public.%I WHERE %I = $1',
+                   v_row.table_name, v_row.owner_column)
+      INTO v_n USING p_uid;
+    v_total := v_total + v_n;
+  END LOOP;
+  RETURN v_total;
+END;
+$owned_rows$;
+
+-- Rows in EVERY registry table, whoever owns them. The difference between this
+-- and owned_rows() is where the cascade hides: rows that belong to other people
+-- and disappear anyway because their parent was the caller's.
+CREATE OR REPLACE FUNCTION pg_temp.registry_rows()
+RETURNS bigint
+LANGUAGE plpgsql
+AS $registry_rows$
+DECLARE
+  v_row   record;
+  v_n     bigint;
+  v_total bigint := 0;
+BEGIN
+  FOR v_row IN SELECT table_name FROM public.erasure_registry ORDER BY table_name
+  LOOP
+    EXECUTE format('SELECT count(*) FROM public.%I', v_row.table_name) INTO v_n;
+    v_total := v_total + v_n;
+  END LOOP;
+  RETURN v_total;
+END;
+$registry_rows$;
+
+----------------------------------------------------------------------
+-- 0  The assertion helper is itself under test.
+--
+--    Every other block in this file is worth exactly as much as pg_temp.expect
+--    is strict. When it tolerated NULL, a receipt that omitted a field or set
+--    it to JSON null passed every count assertion below. So: FALSE must be
+--    rejected, NULL must be rejected, and the two JSON shapes that produce NULL
+--    -- a null value and a missing key -- must each fail.
+--
+--    The shape of each probe: call expect() with the bad input; if it returns,
+--    raise 22000 (data_exception), which the handler for raise_exception (P0001,
+--    what expect() throws) does NOT catch, so it propagates and fails the file.
+----------------------------------------------------------------------
+
+DO $zero$
+BEGIN
+  -- FALSE is rejected. The control: proves the handler below is catching a real
+  -- rejection rather than expect() never running.
+  BEGIN
+    PERFORM pg_temp.expect(false, 'control: FALSE must be rejected');
+    RAISE EXCEPTION USING ERRCODE = '22000',
+      MESSAGE = 'erasure regression FAILED: pg_temp.expect accepted FALSE';
+  EXCEPTION WHEN raise_exception THEN NULL;
+  END;
+
+  -- NULL is rejected. This is the r39 R1 defect.
+  BEGIN
+    PERFORM pg_temp.expect(NULL, 'control: NULL must be rejected');
+    RAISE EXCEPTION USING ERRCODE = '22000',
+      MESSAGE = 'erasure regression FAILED: pg_temp.expect accepted NULL -- the NULL-tolerant IF is back, and every receipt assertion in this file is vacuous';
+  EXCEPTION WHEN raise_exception THEN NULL;
+  END;
+
+  -- A receipt field set to JSON null. `->>` yields SQL NULL, the comparison is
+  -- NULL, and the assertion used to pass.
+  BEGIN
+    PERFORM pg_temp.expect(
+      ('{"outcomes":{"direct_deleted":null}}'::jsonb -> 'outcomes' ->> 'direct_deleted') = '2',
+      'control: a JSON null receipt value must be rejected');
+    RAISE EXCEPTION USING ERRCODE = '22000',
+      MESSAGE = 'erasure regression FAILED: a JSON null receipt value was accepted';
+  EXCEPTION WHEN raise_exception THEN NULL;
+  END;
+
+  -- A receipt field that is absent entirely.
+  BEGIN
+    PERFORM pg_temp.expect(
+      ('{}'::jsonb ->> 'direct_deleted_total')::bigint = 6,
+      'control: a missing receipt field must be rejected');
+    RAISE EXCEPTION USING ERRCODE = '22000',
+      MESSAGE = 'erasure regression FAILED: a missing receipt field was accepted';
+  EXCEPTION WHEN raise_exception THEN NULL;
+  END;
+
+  -- ...and TRUE still passes, or the helper rejects everything and the whole
+  -- file is green for the wrong reason.
+  PERFORM pg_temp.expect(true, 'control: TRUE must pass');
+END;
+$zero$;
+
+----------------------------------------------------------------------
+-- 1 + 4  A normal call: only A's rows go, the receipt says only what the
+--        public contract allows it to say, and its total equals a measured
+--        before/after delta rather than its own arithmetic.
+--
+-- ⚠ THE CALL RUNS AS `authenticated`, NOT AS postgres.
+--   psql drives this file as the superuser, and until r39 the call inherited
+--   that: the JWT claim was set to A but the caller was postgres. So the one
+--   thing `GRANT EXECUTE ... TO authenticated` exists to make possible was
+--   never exercised -- revoke that grant and every block here still passed
+--   (measured 2026-09-20 on a scratch PostgreSQL 18.3: the old shape returned
+--   status "ok" under the revoke; this shape raises `permission denied for
+--   function erase_my_data`). The fixture is still built as postgres, because
+--   RLS would otherwise stop the test writing B's rows; only the call itself
+--   changes role, and RESET ROLE hands the transaction straight back.
 ----------------------------------------------------------------------
 
 BEGIN;
 SELECT pg_temp.erasure_fixture(:'uid_a', :'uid_b');
 SET LOCAL request.jwt.claim.sub = :'uid_a';
 
-CREATE TEMP TABLE receipt ON COMMIT DROP AS SELECT public.erase_my_data('content') AS r;
+-- Measured BEFORE, over the registry rather than over a list written by hand.
+CREATE TEMP TABLE probe ON COMMIT DROP AS
+  SELECT pg_temp.owned_rows(:'uid_a'::uuid) AS owned_before,
+         pg_temp.registry_rows()            AS all_before;
+
+CREATE TEMP TABLE receipt (r jsonb) ON COMMIT DROP;
+GRANT INSERT ON receipt TO authenticated;
+
+SET LOCAL ROLE authenticated;
+INSERT INTO receipt SELECT public.erase_my_data('content');
+RESET ROLE;
 
 DO $one$
 DECLARE
-  v_r jsonb := (SELECT r FROM receipt);
+  v_r            jsonb  := (SELECT r FROM receipt);
+  v_text         text   := v_r::text;
+  v_owned_before bigint := (SELECT owned_before FROM probe);
+  v_all_before   bigint := (SELECT all_before   FROM probe);
+  v_owned_after  bigint := pg_temp.owned_rows('11111111-1111-4111-8111-1111111111aa');
+  v_all_after    bigint := pg_temp.registry_rows();
+  v_total        bigint;
+  v_leak         text;
 BEGIN
   -- (1) the caller's rows are gone...
   PERFORM pg_temp.expect((SELECT count(*) FROM public.wiki_pages WHERE user_id = '11111111-1111-4111-8111-1111111111aa') = 0,
@@ -138,46 +298,114 @@ BEGIN
   PERFORM pg_temp.expect((SELECT count(*) FROM public.records WHERE user_id = '22222222-2222-4222-8222-2222222222bb') = 1,
     'B records were destroyed by A''s erasure');
 
-  -- (4) the receipt counts what really went. wiki_links is the one that lied:
-  -- it read 0 while two rows were destroyed by the cascade from wiki_pages.
-  PERFORM pg_temp.expect((v_r -> 'deleted' ->> 'wiki_pages') = '2',
-    format('receipt wiki_pages should be 2, got %s', v_r -> 'deleted' ->> 'wiki_pages'));
-  PERFORM pg_temp.expect((v_r -> 'deleted' ->> 'wiki_links') = '2',
-    format('receipt wiki_links should be 2, got %s -- the parent cascade emptied it before its own DELETE ran (F2)',
-           v_r -> 'deleted' ->> 'wiki_links'));
-  PERFORM pg_temp.expect((v_r -> 'deleted' ->> 'records') = '1',
-    format('receipt records should be 1, got %s', v_r -> 'deleted' ->> 'records'));
-  PERFORM pg_temp.expect((v_r -> 'deleted' ->> 'clipper_templates') = '1',
-    format('receipt clipper_templates should be 1, got %s', v_r -> 'deleted' ->> 'clipper_templates'));
+  ------------------------------------------------------------------
+  -- (4a) THE RECEIPT IS A PUBLIC CONTRACT. An exact key set, checked as a
+  --      whitelist rather than a blacklist: a blacklist only forbids the
+  --      leaks someone already thought of, and the leak this replaced was
+  --      exactly the one nobody had thought of (r39 gate finding 1 -- kept[]
+  --      and cascaded[] handed every authenticated caller the raw names of
+  --      the retention, billing and audit ledgers, the stated reason each
+  --      one is protected, the FK parent that destroys it, and the
+  --      migration numbers inside those reasons).
+  ------------------------------------------------------------------
+  PERFORM pg_temp.expect(
+    (SELECT pg_catalog.array_agg(k ORDER BY k) FROM pg_catalog.jsonb_object_keys(v_r) AS k)
+      = ARRAY['count_semantics', 'direct_deleted_total', 'executed_at',
+              'outcomes', 'receipt_version', 'scope', 'status'],
+    format('receipt key set changed; got %s', (SELECT pg_catalog.array_agg(k ORDER BY k)
+                                                 FROM pg_catalog.jsonb_object_keys(v_r) AS k)));
+  PERFORM pg_temp.expect(
+    NOT EXISTS (
+      SELECT 1 FROM pg_catalog.jsonb_array_elements(v_r -> 'outcomes') AS o,
+                    pg_catalog.jsonb_object_keys(o) AS k
+       WHERE k NOT IN ('outcome', 'categories', 'direct_deleted')),
+    'an outcome entry carries a key outside the public contract');
 
-  -- deleted_total is the sum of the per-table counts, so a table that reports 0
-  -- while destroying rows understates it too.
-  PERFORM pg_temp.expect((v_r ->> 'deleted_total')::bigint = 6,
-    format('deleted_total should be 6 (2 pages + 2 links + 1 record + 1 template), got %s', v_r ->> 'deleted_total'));
+  -- ...and no internal name reaches the caller. Driven off the registry, so a
+  -- future table is covered the day it is added rather than the day someone
+  -- remembers to extend a hand-written list.
+  SELECT pg_catalog.string_agg(r.table_name, ', ' ORDER BY r.table_name) INTO v_leak
+    FROM public.erasure_registry AS r
+   WHERE pg_catalog.strpos(v_text, r.table_name) > 0;
+  PERFORM pg_temp.expect(v_leak IS NULL,
+    format('the receipt names internal tables: %s', v_leak));
+  PERFORM pg_temp.expect(
+    pg_catalog.strpos(v_text, 'client_erasable') = 0
+      AND pg_catalog.strpos(v_text, 'account_delete_only') = 0
+      AND pg_catalog.strpos(v_text, 'retained') = 0,
+    'the receipt leaks the registry''s internal class values');
+  -- `r.reason <> ''` is load-bearing: strpos(anything, '') is 1, so an empty
+  -- reason would make this assertion fail for a table that leaks nothing.
+  SELECT pg_catalog.string_agg(r.table_name, ', ' ORDER BY r.table_name) INTO v_leak
+    FROM public.erasure_registry AS r
+   WHERE r.reason <> ''
+     AND pg_catalog.strpos(v_text, pg_catalog.left(r.reason, 12)) > 0;
+  PERFORM pg_temp.expect(v_leak IS NULL,
+    format('the receipt leaks the registry''s stated reasons: %s', v_leak));
+
+  ------------------------------------------------------------------
+  -- (4b) THE TOTAL IS MEASURED, NOT BELIEVED.
+  --
+  --      The old assertion read the receipt's own per-table numbers and added
+  --      them up -- which is the receipt checking its own arithmetic. Here the
+  --      number the function returns is compared against a before/after count
+  --      taken over EVERY client_erasable table by the probes above. That is
+  --      what catches F2 generally: if any table were ordered after a parent
+  --      that cascades into it, its own DELETE would report 0 while the rows
+  --      were already gone, the returned sum would drop, and the measured
+  --      delta would not.
+  ------------------------------------------------------------------
+  v_total := (v_r ->> 'direct_deleted_total')::bigint;
+  PERFORM pg_temp.expect(v_owned_before = 6,
+    format('fixture assumption broken: A should own 6 erasable rows, has %s', v_owned_before));
+  PERFORM pg_temp.expect(v_owned_after = 0,
+    format('A still owns %s rows in client_erasable tables after erasure', v_owned_after));
+  PERFORM pg_temp.expect(v_total = v_owned_before - v_owned_after,
+    format('direct_deleted_total is %s but %s of the caller''s rows actually disappeared',
+           v_total, v_owned_before - v_owned_after));
+
+  -- ...and `count_semantics: direct_only` is a true statement about it. MORE
+  -- rows left the database than the receipt counts, because B's report went
+  -- with A's template. Asserting the gap -- rather than only documenting it --
+  -- is what stops the name `direct_deleted_total` from quietly becoming a
+  -- claim about the whole database again (r39 gate finding 2).
+  PERFORM pg_temp.expect(v_r ->> 'count_semantics' = 'direct_only',
+    format('count_semantics should be direct_only, got %s', v_r ->> 'count_semantics'));
+  PERFORM pg_temp.expect(v_all_before - v_all_after = 7,
+    format('7 rows should have left the registry''s tables, %s did', v_all_before - v_all_after));
+  PERFORM pg_temp.expect(v_all_before - v_all_after > v_total,
+    format('the cascade gap vanished: %s rows left, the receipt counts %s. Either the cascade fixture stopped cascading, or the receipt started counting more than its own DELETEs -- in which case direct_only is now the wrong label',
+           v_all_before - v_all_after, v_total));
 
   PERFORM pg_temp.expect(v_r ->> 'scope' = 'content', 'receipt scope is not content');
-  PERFORM pg_temp.expect(pg_catalog.jsonb_typeof(v_r -> 'kept') = 'array', 'receipt kept is not an array');
+  PERFORM pg_temp.expect(v_r ->> 'status' = 'ok', 'receipt status is not ok');
+  PERFORM pg_temp.expect((v_r ->> 'receipt_version')::int = 1,
+    format('receipt_version should be 1, got %s', v_r ->> 'receipt_version'));
 
-  -- (F3) B's report is gone, taken by the cascade from A's template. It must
-  -- therefore NOT be reported as kept, and it must be named in cascaded[].
+  -- (F3) B's report is gone, taken by the cascade from A's template. The
+  -- receipt must therefore count it under removed_with_parent and not under
+  -- kept. It is no longer NAMED anywhere -- the name was the leak -- so the
+  -- assertion is on the counts, tied back to the registry, plus the row itself.
   PERFORM pg_temp.expect((SELECT count(*) FROM public.content_reports WHERE reporter_id = '22222222-2222-4222-8222-2222222222bb') = 0,
     'fixture assumption broken: B''s report should have cascaded away with A''s template');
   PERFORM pg_temp.expect(
-    NOT EXISTS (SELECT 1 FROM pg_catalog.jsonb_array_elements(v_r -> 'kept') AS k WHERE k ->> 'table' = 'content_reports'),
-    'content_reports is reported as kept, but the cascade destroyed it (F3)');
+    (SELECT o ->> 'categories' FROM pg_catalog.jsonb_array_elements(v_r -> 'outcomes') AS o
+      WHERE o ->> 'outcome' = 'removed_with_parent')::bigint
+      = (SELECT count(*) FROM public.erasure_registry WHERE cascades_from IS NOT NULL),
+    'removed_with_parent does not count the registry''s cascade rows');
   PERFORM pg_temp.expect(
-    EXISTS (SELECT 1 FROM pg_catalog.jsonb_array_elements(v_r -> 'cascaded') AS c
-             WHERE c ->> 'table' = 'content_reports' AND c ->> 'removed_with' = 'clipper_templates'),
-    'content_reports is missing from cascaded[] with removed_with = clipper_templates');
-
-  -- Retention ledgers stay in kept, where the receipt promises they are...
+    (SELECT count(*) FROM public.erasure_registry WHERE cascades_from IS NOT NULL) >= 1,
+    'the registry declares no cascade at all, so the F3 split is untested here');
   PERFORM pg_temp.expect(
-    EXISTS (SELECT 1 FROM pg_catalog.jsonb_array_elements(v_r -> 'kept') AS k WHERE k ->> 'table' = 'consent_records'),
-    'consent_records is not reported as kept');
+    (SELECT o ->> 'categories' FROM pg_catalog.jsonb_array_elements(v_r -> 'outcomes') AS o
+      WHERE o ->> 'outcome' = 'kept')::bigint
+      = (SELECT count(*) FROM public.erasure_registry
+          WHERE class <> 'client_erasable' AND cascades_from IS NULL),
+    'kept counts a table a cascade destroys, or drops one it does not (F3)');
 
-  -- ...and the ROWS are still there. Asserting only that the string appears in
-  -- kept[] tests the registry against itself: widen the delete loop to cover a
-  -- retained table and the name still shows up in kept while the rows burn.
+  -- Retention ledger ROWS are still there. Counting them under `kept` would
+  -- test the registry against itself: widen the delete loop to cover a
+  -- retained table and the count still says kept while the rows burn.
   -- That is the F1/F3 failure at the C3/PIPA boundary, so check the table.
   PERFORM pg_temp.expect((SELECT count(*) FROM public.consent_records WHERE user_id = '11111111-1111-4111-8111-1111111111aa') = 1,
     'a retention ledger lost rows to content erasure');
@@ -192,22 +420,47 @@ BEGIN
   PERFORM pg_temp.expect((SELECT count(*) FROM auth.users WHERE id = '11111111-1111-4111-8111-1111111111aa') = 1,
     'erase_my_data(content) deleted the caller''s auth.users row');
 
-  -- Every client_erasable table is reported, and nothing else is. Only four of
-  -- the 26 carry fixture rows, so without this a regression that drops one from
-  -- the loop is invisible: its rows are never created, so nothing misses them.
-  -- The receipt's own key set is what makes all 26 observable.
+  -- Every client_erasable table is visited, and only those. Four of the 26
+  -- carry fixture rows, so without this a regression that drops one from the
+  -- loop is invisible: its rows are never created, so nothing misses them.
+  --
+  -- ⚠ This used to count the receipt's per-table KEYS, which is why the old
+  --   receipt had to expose them. It does not any more, so the count comes
+  --   from the loop itself (`categories` under the `erased` outcome). Same
+  --   property, no names: the registry is what it is compared against, and
+  --   this file reads the registry directly as the superuser driving it -- a
+  --   privilege the RPC's callers deliberately do not have.
+  --
+  -- ⚠ Written with a strict `=` against a subquery, not NOT EXISTS over a
+  --   jsonb path. Two assertions here previously FAILED OPEN: NOT EXISTS over
+  --   jsonb_array_elements/jsonb_object_keys of an ABSENT key iterates zero
+  --   rows and goes green, so a receipt that dropped the key entirely passed
+  --   the test that existed to police it.
   PERFORM pg_temp.expect(
-    (SELECT count(*) FROM pg_catalog.jsonb_object_keys(v_r -> 'deleted'))
+    (SELECT o ->> 'categories' FROM pg_catalog.jsonb_array_elements(v_r -> 'outcomes') AS o
+      WHERE o ->> 'outcome' = 'erased')::bigint
       = (SELECT count(*) FROM public.erasure_registry WHERE class = 'client_erasable'),
-    format('receipt reports %s tables, the registry lists %s client_erasable',
-           (SELECT count(*) FROM pg_catalog.jsonb_object_keys(v_r -> 'deleted')),
+    format('the loop visited %s categories, the registry lists %s client_erasable',
+           (SELECT o ->> 'categories' FROM pg_catalog.jsonb_array_elements(v_r -> 'outcomes') AS o
+             WHERE o ->> 'outcome' = 'erased'),
            (SELECT count(*) FROM public.erasure_registry WHERE class = 'client_erasable')));
+
+  -- The three outcome buckets are the whole registry, once each. A table that
+  -- fell out of every bucket -- or into two -- would otherwise be silent.
   PERFORM pg_temp.expect(
-    NOT EXISTS (
-      SELECT 1 FROM pg_catalog.jsonb_object_keys(v_r -> 'deleted') AS k(name)
-      WHERE NOT EXISTS (SELECT 1 FROM public.erasure_registry r
-                         WHERE r.table_name = k.name AND r.class = 'client_erasable')),
-    'the receipt reports a deletion for a table the registry does not class as client_erasable');
+    (SELECT pg_catalog.sum((o ->> 'categories')::bigint)
+       FROM pg_catalog.jsonb_array_elements(v_r -> 'outcomes') AS o)
+      = (SELECT count(*) FROM public.erasure_registry),
+    'the outcome buckets do not add up to the registry');
+  PERFORM pg_temp.expect(
+    (SELECT pg_catalog.array_agg(o ->> 'outcome' ORDER BY o ->> 'outcome')
+       FROM pg_catalog.jsonb_array_elements(v_r -> 'outcomes') AS o)
+      = ARRAY['erased', 'kept', 'removed_with_parent'],
+    'the receipt''s outcome buckets changed');
+  PERFORM pg_temp.expect(
+    (SELECT o ->> 'direct_deleted' FROM pg_catalog.jsonb_array_elements(v_r -> 'outcomes') AS o
+      WHERE o ->> 'outcome' = 'erased')::bigint = v_total,
+    'the erased bucket disagrees with direct_deleted_total');
 END;
 $one$;
 ROLLBACK;
@@ -287,6 +540,9 @@ DO $three$
 DECLARE
   v_before bigint := (SELECT count(*) FROM public.wiki_pages);
   v_state  text;
+  -- Built with chr(10) rather than an E'' escape so the newline survives every
+  -- layer between here and psql intact.
+  v_probe  text := 'unknown_scope' || pg_catalog.chr(10) || 'reflected-marker-2f6c1d';
 BEGIN
   FOREACH v_state IN ARRAY ARRAY['account', 'everything', ''] LOOP
     BEGIN
@@ -304,6 +560,22 @@ BEGIN
     RAISE EXCEPTION 'erasure regression FAILED: a NULL scope was accepted';
   EXCEPTION
     WHEN sqlstate '22023' THEN NULL;
+  END;
+
+  -- ...and the refusal does not read the caller's string back out. `RAISE
+  -- EXCEPTION '... %', p_scope` put untrusted input into both the error
+  -- response and the database's own error log, where a token would then be
+  -- retained and a newline would split a log line in two (r39 gate finding 4).
+  -- The caller already knows what it sent, so there is nothing to give back.
+  BEGIN
+    PERFORM public.erase_my_data(v_probe);
+    RAISE EXCEPTION 'erasure regression FAILED: the marker scope was accepted';
+  EXCEPTION
+    WHEN sqlstate '22023' THEN
+      PERFORM pg_temp.expect(pg_catalog.strpos(SQLERRM, 'reflected-marker-2f6c1d') = 0,
+        format('the refusal echoed the caller''s scope string back: %s', SQLERRM));
+      PERFORM pg_temp.expect(pg_catalog.strpos(SQLERRM, pg_catalog.chr(10)) = 0,
+        'the refusal message carries a newline from caller input');
   END;
 
   PERFORM pg_temp.expect((SELECT count(*) FROM public.wiki_pages) = v_before,
@@ -544,4 +816,4 @@ END;
 $seven$;
 ROLLBACK;
 
-SELECT 'ERASURE REGRESSION PASS  erase_my_data: isolation, refusals, per-table counts, atomicity, registry ACL, catalog cascade parity' AS result;
+SELECT 'ERASURE REGRESSION PASS  erase_my_data: strict assertions, authenticated call, isolation, refusals without reflection, public receipt contract, measured row deltas, atomicity, registry ACL, catalog cascade parity' AS result;

@@ -219,11 +219,23 @@ $registry_check$;
 ----------------------------------------------------------------------
 -- 4. erase_my_data(p_scope).
 --
--- 반환은 영수증이다 (설계서 I2 · I3). 표별 삭제 행수와, 남긴 표 + 그 사유를
--- 같이 돌려준다. 클라이언트가 받은 0 하나로는 "없었다" 와 "못 지웠다" 를
--- 구분할 수 없다는 것이 F1 의 교훈이라, 둘을 서로 다른 칸에 넣는다:
---   deleted[table] = n  -> 지울 수 있는 표였고 n 행 지웠다 (n=0 이면 원래 없었다)
---   kept[]              -> 애초에 대상이 아니다. class 와 사유가 함께 붙는다
+-- 반환은 영수증이다 (설계서 I2 · I3). 무엇을 · 언제 · 됐는지 · 얼마나 를
+-- 돌려주고, 결과를 세 묶음으로 나눠 개수만 센다:
+--   erased              -> 대상이었고 실제로 지웠다
+--   kept                -> 애초에 대상이 아니고 아무것도 건드리지 않았다
+--   removed_with_parent -> 대상이 아니었지만 지워지는 부모와 함께 사라졌다
+--
+-- ⚠ 묶음에 표 이름 · class · 사유는 담지 않는다. 예전 영수증은 담았고, 그건
+--   authenticated 면 누구나 부르는 RPC 가 내부 스키마와 통제 근거를 통째로
+--   읽어주는 것이었다 (r39 생성물 게이트 발견 1). 자세한 근거는 아래 RETURN
+--   앞의 "영수증은 공개 계약이다" 블록에 있다.
+--
+-- ⚠ 클라이언트가 받은 0 하나로는 "없었다" 와 "못 지웠다" 를 구분할 수 없다는
+--   것이 F1 의 교훈이었다. 그 구분을 여기서는 개수가 아니라 **경로**가 진다:
+--   이 함수는 SECURITY DEFINER 라 RLS 가 행을 걸러내지 않으므로, 0 은
+--   "정책이 막았다" 가 아니라 "원래 없었다" 뿐이다 (F1 의 chat_usage 는
+--   클라이언트 경로에서 RLS 가 조용히 걸러 항상 0 이었다). 막히는 경우는
+--   0 이 아니라 예외이고, 그러면 호출 전체가 롤백된다.
 --
 -- SECURITY DEFINER 는 RLS 를 우회한다. 그래서 소유자 범위를 좁히는 것은
 -- 정책이 아니라 이 함수 안의 `WHERE <owner> = auth.uid()` 뿐이고,
@@ -244,13 +256,14 @@ SECURITY DEFINER
 SET search_path = ''
 AS $erase_my_data$
 DECLARE
-  v_uid       uuid := auth.uid();
-  v_row       record;
-  v_deleted   bigint;
-  v_counts    jsonb := '{}'::jsonb;
-  v_kept      jsonb;
-  v_cascaded  jsonb;
-  v_total     bigint := 0;
+  v_uid        uuid := auth.uid();
+  v_row        record;
+  v_deleted    bigint;
+  v_total      bigint := 0;
+  -- 아래 셋은 영수증의 공개 집계다. 이름이 아니라 개수만 담는다 (5절 참조).
+  v_erased_n   bigint := 0;
+  v_kept_n     bigint;
+  v_cascaded_n bigint;
 BEGIN
   IF v_uid IS NULL THEN
     RAISE EXCEPTION 'erase_my_data requires an authenticated caller'
@@ -260,9 +273,17 @@ BEGIN
   -- 지금은 콘텐츠 삭제 하나뿐이다. 계정 삭제는 다른 길이고 건강하다 (설계서 F5):
   -- public.users -> auth.users 연쇄가 45개 표를 데려가고 보존 대상만 SET NULL 이다.
   -- 그 경로를 이 함수로 끌어오지 않는다.
+  --
+  -- ⚠ 거절 문구에 p_scope 를 끼워 넣지 않는다. 이 값은 신뢰하지 않은 입력이고
+  --   RAISE 의 메시지는 응답과 DB 오류 로그 양쪽에 그대로 들어간다. 토큰이나
+  --   줄바꿈·제어문자를 담아 보내면 그게 로그에 보존되거나 로그 줄을 쪼갠다
+  --   (r39 생성물 게이트 발견 4). 어떤 scope 였는지는 호출자가 이미 알고 있으므로
+  --   돌려줄 이유도 없다. 고정 문구 + SQLSTATE 만 준다.
   IF p_scope IS DISTINCT FROM 'content' THEN
-    RAISE EXCEPTION 'erase_my_data: unknown scope %', p_scope
-      USING ERRCODE = '22023';
+    RAISE EXCEPTION USING
+      ERRCODE = '22023',
+      MESSAGE = 'erase_my_data: unknown scope',
+      HINT    = 'the only supported scope is content';
   END IF;
 
   FOR v_row IN
@@ -275,78 +296,77 @@ BEGIN
       'DELETE FROM public.%I WHERE %I = $1', v_row.table_name, v_row.owner_column
     ) USING v_uid;
     GET DIAGNOSTICS v_deleted = ROW_COUNT;
-    v_counts := v_counts || pg_catalog.jsonb_build_object(v_row.table_name, v_deleted);
-    v_total  := v_total + v_deleted;
+    v_total    := v_total + v_deleted;
+    v_erased_n := v_erased_n + 1;
   END LOOP;
 
-  -- ⚠ COALESCE 는 스키마 한정하지 않는다. 함수가 아니라 SQL 조건식이라
-  --   pg_catalog.coalesce(...) 는 그 이름의 일반 함수를 찾고, 그런 함수는
-  --   카탈로그에 없다 -> 42883 이 나고 영수증 SELECT 에서 삭제 전체가 롤백된다
-  --   (PostgreSQL 18.3 실측: function pg_catalog.coalesce(jsonb, jsonb) does not exist).
-  --   search_path='' 는 이것을 요구하지 않는다 - 조건식은 이름 해석을 거치지 않는다.
-  --   같은 함정: CASE · NULLIF · GREATEST · LEAST · EXTRACT · OVERLAY 의 SQL 구문형.
-  --   반대로 아래 jsonb_agg · jsonb_build_object 는 진짜 함수라 한정이 필수다.
-  -- 대상이 아닌 표를 한 칸이 아니라 두 칸으로 나눈다.
-  --   kept[]     -> 정말로 남는다. 아무것도 이 행들을 건드리지 않는다.
-  --   cascaded[] -> 남기기로 분류했지만 지워지는 부모를 ON DELETE CASCADE 로
-  --                 물고 있어서 그 부모에 달린 행은 함께 사라진다.
-  -- 둘을 한 칸에 담으면 파괴된 표를 "남겼다" 고 적게 된다 (r38 게이트 F3:
+  -- 대상이 아닌 표를 한 칸이 아니라 두 칸으로 나눈다. 이름은 내보내지 않고
+  -- 개수만 센다 (아래 "영수증은 공개 계약이다" 참조).
+  --   kept                -> 정말로 남는다. 아무것도 이 행들을 건드리지 않는다.
+  --   removed_with_parent -> 남기기로 분류했지만 지워지는 부모를 ON DELETE CASCADE
+  --                          로 물고 있어서 그 부모에 달린 행은 함께 사라진다.
+  -- 둘을 한 칸에 담으면 파괴된 표를 "남겼다" 고 세게 된다 (r38 게이트 F3:
   -- content_reports 가 clipper_templates 와 함께 사라지면서 kept 에 있었다).
   -- 어느 칸에 들어갈지는 등록부의 cascades_from 이 정하고, 그 값이 실제 FK 와
   -- 맞는지는 위 DO 블록이 pg_constraint 로, 정적으로는 가드 G9 가 지킨다.
+  --
+  -- count 는 진짜 집계 함수라 search_path='' 아래에서 한정이 필수다. 반대로
+  -- FILTER 는 SQL 구문이라 한정할 대상이 아니다 (COALESCE·CASE·NULLIF·GREATEST·
+  -- LEAST·EXTRACT·OVERLAY 와 같은 부류 - r38 게이트 F1 이 여기서 42883 을 냈다).
   SELECT
-    COALESCE(
-      pg_catalog.jsonb_agg(
-        pg_catalog.jsonb_build_object(
-          'table',  r.table_name,
-          'class',  r.class,
-          'reason', r.reason
-        )
-        ORDER BY r.class, r.table_name
-      ) FILTER (WHERE r.cascades_from IS NULL),
-      '[]'::jsonb
-    ),
-    COALESCE(
-      pg_catalog.jsonb_agg(
-        pg_catalog.jsonb_build_object(
-          'table',        r.table_name,
-          'class',        r.class,
-          -- 이 표를 데려가는 부모. 사용자에게 "왜 사라졌나" 의 답이다.
-          'removed_with', r.cascades_from,
-          -- ⚠ 표 전체가 아니라 그 부모를 가리키던 행만이다. content_reports 로
-          --   말하면, 내가 지운 템플릿에 달린 신고는 사라지지만 내가 *남의*
-          --   템플릿에 남긴 신고는 남는다. 'table' 만 적으면 표를 통째로
-          --   지웠다고 읽히므로 범위를 함께 적는다.
-          'removed',      'rows_referencing_' || r.cascades_from,
-          'reason',       r.reason
-        )
-        ORDER BY r.class, r.table_name
-      ) FILTER (WHERE r.cascades_from IS NOT NULL),
-      '[]'::jsonb
-    )
-    INTO v_kept, v_cascaded
+    pg_catalog.count(*) FILTER (WHERE r.cascades_from IS NULL),
+    pg_catalog.count(*) FILTER (WHERE r.cascades_from IS NOT NULL)
+    INTO v_kept_n, v_cascaded_n
   FROM public.erasure_registry AS r
   WHERE r.class <> 'client_erasable';
 
-  -- ⚠ deleted_total 은 위 DELETE 들의 ROW_COUNT 합이다. FK 연쇄로 사라진 행은
-  --   세지 않는다. 즉 "이 호출로 public 에서 사라진 행 수" 가 아니라
-  --   "명시 DELETE 가 직접 지운 행 수" 다. 실측(2026-09-20): 템플릿 2개(둘 다 신고됨)
-  --   + 소스 1개를 가진 사용자에서 이 값이 3인데 실제로는 7행이 사라졌다
-  --   (신고 2 + 조정 집계 2 가 연쇄). 연쇄까지 세려면 표마다 사전 계수가 필요하고
-  --   그건 별도 작업이다. 지금은 뜻을 좁게 적어 두는 쪽이 정직하다.
+  ------------------------------------------------------------------
+  -- 영수증은 공개 계약이다 (r39 생성물 게이트 발견 1·2).
   --
-  -- ⚠ 같은 이유로 deleted[table] 도 "내 행 중 이 DELETE 가 지운 수" 다.
-  --   부모가 CASCADE 로 데려간 **남의** 자식 행은 여기 안 잡힌다
-  --   (persona_relation·srs_reviews 는 소유자 열이 FK 에 들어 있지 않아서 그렇다).
-  --   이 PR 이전부터의 동작이고 이번에 바꾸지 않았다 - 적어만 둔다.
+  -- 이 RPC 는 authenticated 면 누구나 부를 수 있다. 예전 영수증은 kept[]·
+  -- cascaded[] 에 원시 table_name · class · reason · cascades_from 을 그대로
+  -- 담았다. 즉 한 번의 호출로 보존 원장 · 과금 쿼터 · 감사 표의 **이름**,
+  -- 그것들을 지우지 않는 **이유**, FK 부모 관계, 사유 문장 안의 마이그레이션
+  -- 번호까지 전부 읽혔다. 내 데이터를 지우는 데 필요한 정보가 아니라
+  -- 스키마 정찰용 정보다. 그래서 반환에서 뺀다.
+  --
+  -- 내부 상세를 볼 길이 사라지는 것은 아니다. 그 상세는 원래
+  -- public.erasure_registry 에 그대로 있고, 그 표는 anon·authenticated 에게
+  -- 전부 회수돼 있으며 service_role(관리자)만 읽는다. 즉 "관리자 전용 경로"는
+  -- 이미 존재한다 - 새로 만들 것이 아니라 RPC 가 그걸 복창하지 않으면 된다.
+  --
+  -- 남기는 것은 넷뿐이다: 무엇을 했나(scope) · 언제(executed_at) · 됐나(status) ·
+  -- 얼마나(direct_deleted_total + 결과 묶음별 개수).
+  --
+  -- ⚠ direct_deleted_total 은 위 DELETE 들의 ROW_COUNT 합이다. FK 연쇄로 사라진
+  --   행은 세지 않는다. 예전 이름 deleted_total 은 "지워진 전체" 로 읽히는데
+  --   그건 사실이 아니었다 - 회귀 fixture 에서만 해도 이 값이 6 인 호출이 실제로는
+  --   7 행을 없앤다(남의 content_reports 1 행이 템플릿과 함께 연쇄). 주석에만
+  --   적어 두는 것으로는 부족하다: 응답을 받는 쪽은 주석을 읽지 않는다. 그래서
+  --   이름(direct_*)과 count_semantics 로 계약에 박고, DB 회귀가 호출 전후 실제
+  --   행수 차이와 이 값을 같이 재서 그 차이를 단언한다.
+  --
+  -- receipt_version 은 소비자가 모양 변화를 감지할 수 있게 하는 손잡이다.
+  -- 필드를 빼거나 뜻을 바꾸면 올린다.
+  ------------------------------------------------------------------
   RETURN pg_catalog.jsonb_build_object(
-    'scope',         p_scope,
-    'erased_at',     pg_catalog.to_jsonb(pg_catalog.clock_timestamp()),
-    'deleted',       v_counts,
-    -- 이름이 뜻을 넘어서지 않게: 직접 삭제 합계다.
-    'deleted_total', v_total,
-    'kept',          v_kept,
-    'cascaded',      v_cascaded
+    'receipt_version',      1,
+    -- 위 게이트가 'content' 아닌 값을 전부 막았으므로 이 자리에 오는 값은
+    -- 호출자가 보낸 원문이 아니라 통과한 유일한 리터럴이다.
+    'scope',                p_scope,
+    'executed_at',          pg_catalog.to_jsonb(pg_catalog.clock_timestamp()),
+    -- 실패는 영수증을 돌려주지 않는다. 예외를 던지고 호출 전체가 롤백된다.
+    'status',               'ok',
+    'count_semantics',      'direct_only',
+    'direct_deleted_total', v_total,
+    'outcomes', pg_catalog.jsonb_build_array(
+      pg_catalog.jsonb_build_object(
+        'outcome', 'erased',              'categories', v_erased_n, 'direct_deleted', v_total),
+      pg_catalog.jsonb_build_object(
+        'outcome', 'kept',                'categories', v_kept_n),
+      pg_catalog.jsonb_build_object(
+        'outcome', 'removed_with_parent', 'categories', v_cascaded_n)
+    )
   );
 END;
 $erase_my_data$;
@@ -361,4 +381,4 @@ REVOKE EXECUTE ON FUNCTION public.erase_my_data(text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.erase_my_data(text) TO authenticated;
 
 COMMENT ON FUNCTION public.erase_my_data(text) IS
-  '콘텐츠 삭제(계정 유지). 대상은 public.erasure_registry 의 client_erasable 행이고, 반환은 표별 행수 + 남긴 표와 사유가 담긴 영수증이다.';
+  '콘텐츠 삭제(계정 유지). 대상은 public.erasure_registry 의 client_erasable 행이다. 반환은 공개 영수증(receipt_version·scope·executed_at·status·count_semantics·direct_deleted_total·outcomes)이고 표 이름·class·사유는 담지 않는다 - 그 상세는 등록부 표에만 있고 service_role 만 읽는다. direct_deleted_total 은 명시 DELETE 의 행수 합이라 FK 연쇄로 사라진 행은 빠져 있다(count_semantics = direct_only).';

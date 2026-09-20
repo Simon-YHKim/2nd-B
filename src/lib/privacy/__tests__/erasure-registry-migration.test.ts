@@ -76,27 +76,73 @@ describe(`${FILE} -- structure`, () => {
     expect(code).toMatch(/p_scope IS DISTINCT FROM 'content'[\s\S]{0,160}RAISE EXCEPTION/);
   });
 
-  test("the receipt separates 'deleted n rows' from 'was never a target'", () => {
-    expect(code).toMatch(/'deleted',\s*v_counts/);
-    expect(code).toMatch(/'kept',\s*v_kept/);
+  test("the receipt is a versioned public contract, not the registry read aloud", () => {
+    // r39 gate finding 1. The receipt used to hand every `authenticated` caller
+    // the raw table names of the retention, billing and audit ledgers, the
+    // stated reason each one is protected, the FK parent that destroys it, and
+    // the migration numbers embedded in those reasons. None of that is needed
+    // to erase your own content; all of it is reconnaissance. The detail still
+    // exists -- in public.erasure_registry, which anon and authenticated have
+    // no rights on at all, so service_role is already the admin-only path.
+    for (const key of [
+      "'receipt_version'",
+      "'scope'",
+      "'executed_at'",
+      "'status'",
+      "'count_semantics'",
+      "'direct_deleted_total'",
+      "'outcomes'",
+    ]) {
+      expect(code).toContain(key);
+    }
     expect(code).toMatch(/GET DIAGNOSTICS v_deleted = ROW_COUNT/);
-    // The kept list must carry the reason, or it is not a receipt.
-    expect(code).toMatch(/'reason',\s*r\.reason/);
     expect(code).toMatch(/WHERE r\.class <> 'client_erasable'/);
+
+    // ...and the keys that carried the names are gone. Asserted as absences
+    // because that is what the finding was: a present field, not a wrong one.
+    const receipt = code.slice(code.indexOf("RETURN pg_catalog.jsonb_build_object"));
+    expect(receipt).not.toMatch(/'table',/);
+    expect(receipt).not.toMatch(/r\.table_name/);
+    expect(receipt).not.toMatch(/r\.class/);
+    expect(receipt).not.toMatch(/r\.reason/);
+    expect(receipt).not.toMatch(/r\.cascades_from/);
+  });
+
+  test("...and the total's name matches what it counts", () => {
+    // r39 gate finding 2. `deleted_total` read as "rows deleted" and was not:
+    // it is the sum of the explicit DELETEs' ROW_COUNT, and FK cascades take
+    // rows it never sees. The regression fixture is itself the counter-example
+    // -- 6 returned, 7 rows gone. A comment could not fix that, because the
+    // consumer of a network response does not read comments. The name and an
+    // explicit count_semantics can.
+    expect(code).toMatch(/'direct_deleted_total',\s*v_total/);
+    expect(code).toMatch(/'count_semantics',\s*'direct_only'/);
+    expect(code).toMatch(/'receipt_version',\s*1/);
+    expect(code).not.toMatch(/'deleted_total'/);
+    expect(code).not.toMatch(/'erased_at'/);
+  });
+
+  test("the refusal does not echo the caller's scope back", () => {
+    // r39 gate finding 4: `RAISE EXCEPTION '... %', p_scope` put untrusted
+    // input into the error response AND the database error log, where a token
+    // would be retained and a newline would split a log line.
+    expect(code).toMatch(/MESSAGE\s*=\s*'erase_my_data: unknown scope'/);
+    expect(code).not.toMatch(/unknown scope %/);
   });
 
   test("...and separates both from 'a cascade took it anyway'", () => {
     // r38 F3: content_reports was reported as kept while clipper_templates took
     // it with it. Three buckets, not two -- and the split is driven by
     // cascades_from, so it cannot drift from the registry.
-    expect(code).toMatch(/'cascaded',\s*v_cascaded/);
+    // Three buckets, not two, and the split is still driven by cascades_from,
+    // so it cannot drift from the registry. What changed in r39 is that the
+    // buckets carry COUNTS instead of names -- "one category went with its
+    // parent", not "content_reports went with clipper_templates".
+    expect(code).toMatch(/'outcome',\s*'erased'/);
+    expect(code).toMatch(/'outcome',\s*'kept'/);
+    expect(code).toMatch(/'outcome',\s*'removed_with_parent'/);
     expect(code).toMatch(/FILTER \(WHERE r\.cascades_from IS NULL\)/);
     expect(code).toMatch(/FILTER \(WHERE r\.cascades_from IS NOT NULL\)/);
-    expect(code).toMatch(/'removed_with',\s*r\.cascades_from/);
-    // ...and it says WHICH rows. Naming the table alone reads as "the whole
-    // table went", which is untrue: the caller's reports on OTHER people's
-    // templates survive.
-    expect(code).toMatch(/'removed',\s*'rows_referencing_' \|\| r\.cascades_from/);
     // A client_erasable row is deleted explicitly, so it can never be cascaded.
     expect(code).toMatch(/cascades_from IS NULL OR class <> 'client_erasable'/);
   });
@@ -120,8 +166,13 @@ describe(`${FILE} -- structure`, () => {
     ];
     const offenders = constructs.filter((c) => new RegExp(`pg_catalog\\.${c}\\s*\\(`, "i").test(code));
     expect(offenders).toEqual([]);
-    // ...and the one the gate found is written bare.
-    expect(code).toMatch(/SELECT\s*\n\s*COALESCE\(/);
+    // ...and the other half of the same lesson: a REAL function in that same
+    // SELECT still must be qualified. The receipt SELECT that raised 42883 no
+    // longer uses COALESCE at all (r39 dropped the two jsonb_agg branches for
+    // two counts), so the pairing is asserted on what replaced it. FILTER is
+    // syntax and is bare; count() is a function and is not.
+    expect(code).toMatch(/pg_catalog\.count\(\*\) FILTER/);
+    expect(code).not.toMatch(/pg_catalog\.filter/i);
   });
 
   test("apply-time check: a declared cascade must exist in pg_constraint", () => {

@@ -32,8 +32,8 @@
   "measuredAt": "2026-09-20 KST",
   "classes": {
     "client_erasable": "콘텐츠 삭제가 지운다. order 순서대로 지운다(FK·CHECK 때문에 순서가 있다).",
-    "retained": "콘텐츠 삭제가 일부러 남긴다. 영수증에 '남긴 것' 으로 사유와 함께 적힌다.",
-    "account_delete_only": "소유자에게 삭제 경로가 없다. 계정 삭제 연쇄로만 사라진다. 영수증에 그렇게 적힌다."
+    "retained": "콘텐츠 삭제가 일부러 남긴다. 영수증은 '남긴 것' 묶음의 개수로만 센다 - 표 이름도 아래 reason 도 반환하지 않는다(r39 게이트 발견 1).",
+    "account_delete_only": "소유자에게 삭제 경로가 없다. 계정 삭제 연쇄로만 사라진다. 영수증에서는 retained 와 같은 묶음에 세어지고, 지워지는 부모를 무는 행(cascadesFrom)만 따로 센다."
   },
   "tables": {
     "account_export_rate_limits": {
