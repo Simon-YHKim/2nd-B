@@ -3,8 +3,7 @@
 **덮어쓰기 파일.** 네 절만 — 완료 / 진행중 / 다음 / 막힌 것.
 결정은 여기 쓰지 않는다. `DECISIONS.md` 가 소유한다(append-only · 09-13~09-19 는 기간 보관 파일 `DECISIONS-2026-09-*.md`).
 
-최종 갱신 **2026-09-20 22:00 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/claude-disk-260913` · 브랜치 `claude/records-260920d`
-⚠ 앞선 기록의 `09-21` 날짜들은 **오기다**(쓸 때 시계가 +6h40m 앞섰다). 실제로는 전부 **09-20 저녁**이다 — `DECISIONS.md` 의 정정 줄 참조.
+최종 갱신 **2026-09-21 03:40 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/qa-integration-260920` · 브랜치 `claude/records-260921b`
 소유자: 이 세션(09-13 `ttl-work-9a` 와 두 세션 합의, Simon 지명 아님). Simon 이 다르게 정하면 그게 이긴다. 다른 세션은 `DECISIONS.md` 에만 쓸 것.
 
 📊 보고서 (최신 위)
@@ -12,57 +11,57 @@
 - **Simon 집행 카드 3장**(DB 백업 비밀값 · PostgREST 버전 · Paddle Content-Type): <https://claude.ai/artifact/YYEwq9tfHN6W7qyyWdpTQz>
 - 09-19 밤 라운드 보고 (등급 M · 결정 7건 + 이월 Q-S1 — **Q-S1 은 09-20 에 global 로 닫힘**): <https://claude.ai/artifact/H7KGVqSjXj27NxEVdhQXWs>
 - Android 재실행 멈춤 보고 (09-19 오전): <https://claude.ai/artifact/8qYXcdSTkMYNzUaN5ZXfbh>
-- 새벽 정리 결정 시트 v3 (09-17 · DB 백업 카드): <https://claude.ai/artifact/WKmnvY5gMQ3MrxFs8uwwCw>
-- 워커 산출물: `E:/Coding Infra/reports/vibe-r260919/`(r13~r37) · `vibe-r260920/`(r38~r48 · 게이트 8회차) · 콘솔 과제서 `E:/2ndB/.bots/`
+- 워커 산출물: `E:/Coding Infra/reports/vibe-r260920/`(r38~r57 · 게이트 · 법역 조사 · 페르소나)
 
 ---
 
 ## 완료
 
-- **Simon 결정 8건 집행**(09-20 08:45 확정) — 1·4 는 PR #1847 로 착지, 3 은 이미 적용 중, 2·5·6·7 은 아래 '다음'·'막힌 것'.
-- **PR #1847 머지 `623cb0a9`**(09-20 19:20 · git author 시각) — 삭제 등록부 66행(client_erasable 26 / retained 27 / account_delete_only 13) · `erase_my_data` RPC(**권한 0 으로 배송 · SHIPS LOCKED**) · 공개 영수증 계약 · CI 실DB 회귀(26표 전수 · 무조건 DELETE 탐침 · 양방향 sweep) · 정적 가드(G1~G10) · 한계 전량 명시. 게이트 **8회차**(인가 · 생성물 각 8회) 뒤 Simon 확정 ① 로 머지.
-- **Q-S1(출시 법역) 닫힘 → `global`**(Simon, 09-20 저녁). 이월 3회차 질문이었다.
-- **출시 차단 실측 41행**(막음 7 · 불명 17 · 안막음 17) · **버그 인벤토리 51행**(닿음 26).
-- **HANDOFF 기간 굴리기** — 활성 79KB(블록 4개를 `handoff/HANDOFF-2026-09.md` 로 원문 이동 · 블록 수 32 보존) · `DECISIONS.md` 3차 분할(09-19 → 기간 파일).
-- **R48 게이트 둘 착지** — 생성물 high 1 · medium 1 · low 1 / 비즈로직 신규 C·H·M **0** · low 2. PR #1849 는 CI 3종 초록이지만 **머지 보류**(high 먼저).
-- **법역 조사 완료**(r48 · fable @max · 371줄 · 11개 시장 + EU 31개국 1차 원문). 코드 주석 둘을 뒤집었다: "DEFAULT 16 이 가장 보수적"(→ 인도 18 · 인니 17) · Paddle 약관 연령 조항 0건. **결정 시트 발행 → Simon 대기.**
-- **F-02 운영 실측 확인** — `REVOKE ... FROM PUBLIC, anon` 은 authenticated 를 막지 못한다(함수 291개 중 242개가 `authenticated=X`; anon 만 REVOKE 한 6개 전부 실행 가능). **0189 는 운영에 미적용**이라 아직 살아 있는 구멍은 아니다.
-- **PR #1850 · #1851 머지** — 기록 정정(`c0b6e0b6`) · `0190` authenticated 잠금 + CI 바닥/프로브(`48e1e9f1`). #1849 는 CI 대기 중.
-- **r49 게이트 둘 착지** — 신규 medium 이상 **0**(신규 low 1). 두 게이트가 각자 임시 PostgreSQL 18.3 을 세워 변이 (가)와 B-K01 을 **독립 재현**했다.
-- QA 산출물은 main `585aac5f` 기준(웹 8765 · 사전 릴리스 `qa-260920-585aac5f`) — **그 뒤 머지 2건(#1846 · #1847)은 미반영**.
+- **0.9.0 컷 · 머지** — `8f7743c4`(#1857). v0.8.0 이후 **172개**(머지 커밋 제외) 중 **69개(40%)** 가 보안 · 법무 · 인증 · 가드(법무 28 · 보안 18 · 가드 12 · 인증 11). `app.json` version 한 줄 + `CHANGELOG.md` 뿐 — `versionCode`·`buildNumber` 는 EAS 가 소유한다(`appVersionSource: remote`). CHANGELOG 의 주장은 전부 커밋으로 확인했다.
+- **나라별 가입 연령 착지** — `225cf7eb`(#1855). 3덩어리 → **63개국 표**(값 있는 행의 1차 출처 100%). 나라를 못 놓으면 **18**(KR 14 아님). 표는 **생성물**(`consent-age-table.ts` — 원본 `age-table.json` 의 sha256 이 머리에 박혀 있다). 화면 문구도 **그 사람에게 실제 적용된 나이**를 말한다(5개 로케일 × 6키, `i18n/index.ts` 한 곳에서 주입).
+- **재게이트 두 판 완주** — #1855 는 신규 medium 3 · low 2 를 닫고 머지. #1853 은 신규 medium 2 가 나와 **세 번째 라운드 유통기한 발동**(아래 진행중).
+- **로컬호스트 갱신** — <http://127.0.0.1:8765/2nd-B/> 가 **0.9.0 의 main**(`8f7743c4`)을 서빙한다. `expo export --clear` rc=0 · 347파일 · root/legal 200 · 공유 카드 메타 확인.
+- **PR #1849 · #1850 · #1851 · #1852 · #1854 · #1856 머지** — 인용이 여는 문서 · 동의한 초기화의 마지막 단계 · `0190` authenticated 잠금 + CI 바닥/프로브 · Android 권한 규칙 좁히기 + 라우트/위키 계정 울타리 · 기록.
+- **F-02 운영 실측** — `REVOKE ... FROM PUBLIC, anon` 은 authenticated 를 막지 못한다(함수 291개 중 242개가 `authenticated=X`). **0189 는 운영 미적용**이라 아직 살아 있는 구멍은 아니다.
+- **DB 백업은 살아났다** — 09-20 22:39 성공(1.6MB). ⚠ 이전 실패 원인은 비밀값 부재가 아니라 **풀러 5432 연결 실패**였다(내가 "비밀값 0개"라고 보고한 것은 틀렸다). **복구 훈련은 아직 안 했다.**
 
 ## 진행중
 
-워커 0 · 콘솔 봇 2기 대기.
-- **다음 라운드(r50) 후보 다섯**이 대기 중이다 — `DECISIONS.md` 의 "다음 라운드 묶음 다섯" 줄 참조. 그중 B-EX-01(rollback ledger)만 medium 이고 나머지 넷은 low·구조 개선이다.
-- **Grok Bot 콘솔 과제서 2장**(한 줄씩 보내면 시작): Play Console `vb-a53e2ef2` · App Store Connect `vb-dbaec979`. 회수는 `make_bot_spec.py --collect`.
+워커 2 · 클라우드 빌드 3 · 콘솔 봇 4기 대기.
+
+- **R57 — #1853 규칙 축소**(fable @max · 워크트리 `s3-erasure-260920`). 게이트 둘이 수렴한 판정대로 *일반화된 정적 의존 추론*을 걷어내고 DB 왕복으로 줄인다. 함께 닫을 것: 무관 migration 재실행 허용 · 소유 시퀀스의 `RESTART WITH` 상태와 **ACL** 이 fingerprint 밖. 끝나면 게이트 둘 재기동.
+- **R54 — 페르소나 시뮬레이션**(opus · 워크트리 `gate-review-260919`). 유아~90대 첫 실행 · 핵심 루프 · 접근성 · 문화 축.
+- **EAS 빌드 3건**(유료 · 클라우드): APK `35529329922` · AAB `35529336717` · IPA `35529343237`. 끝나면 `github-release.yml` 에 세 build id 를 넣어 Release 에 단다.
+- **Grok Bot 콘솔 과제서 4장**(한 줄씩 보내면 시작): Play Console `vb-a53e2ef2` · App Store Connect `vb-dbaec979` · PostgREST `vb-9a66f449` · Paddle `vb-a58737aa`.
 
 ## 다음 (하나만)
 
-**global 출시의 실제 경로 셋을 연다** — ① DPIA 완성 · 서명(사람) ② 법역 신호 보정(코드 — 조사 결과를 받아 폴백 · 매핑 결정) ③ 백업 복구(Simon 카드). 나머지 차단 넷은 '그 기능을 켤 때' 조건이라 출시를 막지 않는다.
+**세 빌드가 끝나면 `github-release.yml` 을 `profile=paired` 로 디스패치해 APK · AAB · IPA 를 0.9.0 Release 에 단다.** 그게 이번 목표의 마지막 칸이다.
 
 ## 막힌 것
 
 ### 1. Simon 이 직접 해야 풀리는 것
-- ⛔ **DB 백업 비밀값 2개**(`Backup` 환경 · 09-14~09-19 6회 연속 실패 · 마지막 성공 09-12). 결정 5(운영 원문 폐기)가 여기 걸려 있다.
-- **PostgREST 버전 확인** → 14.18 미만이면 업그레이드(결정 6).
-- **Paddle 샌드박스 `Content-Type` 관측**(결정 7) — ⚠ 우리 엔드포인트로 쏘면 IP 목록 때문에 안 된다. 대시보드 전송 기록에서 읽는다.
-- **콘솔 과제서 2장 전달**(위 진행중) · `grok` 로그인 + xAI 잔액(402).
+- **DB 백업 복구 훈련** — 백업은 09-20 22:39 부터 다시 성공한다. 받아서 복원해 본 적은 없다. 복구가 안 되는 백업은 백업이 아니다.
+- **`backup_age.key` 가 안전한 곳에 있는지 확인** · 떠도는 저장소 비밀값 `BACKUP_AGE_PUBLIC_KEY` 를 지울지 결정.
+- **PostgREST 버전 확인** → 14.18 미만이면 업그레이드 · **Paddle 샌드박스 `Content-Type` 관측**(대시보드 전송 기록에서 읽는다).
+- **콘솔 과제서 4장 전달**(위) · `grok` 로그인 + xAI 잔액(402).
 
 ### 2. Simon 결정 대기 (코드가 기다린다)
-- **미매핑 국가 폴백** — 지금은 미인식 → KR(14). global 이면 일본 · 브라질 · 인도 등의 14세가 한국 기준으로 자기동의한다. 선택지는 조사 결과와 함께 올린다.
+- **약관 판본 라운드** — 약관 본문의 연령 자격 서술은 **아직 옛 문장**이다. 고치려면 새 판본 + signup revision + 서버 허용 튜플(`0150` `email-v3`) 마이그레이션이 **한 단위로** 움직여야 한다. `locales/*/consent.json:29,37` 의 "14 to 17"·"14 or older" 도 같은 묶음. ⚠ **`CONSENT_VERSION` 을 바꿔도 기존 가입자 재고지는 자동으로 안 걸린다**(`consent.ts:55-58,84-85`) — 재고지는 별개 결정이다.
+- **거주국 자기신고 UI** — 지역은 기기 설정이지 거주 증명이 아니다. 출시 전에 물어야 폴백 18 의 과잉 차단과 "읽혔지만 틀린 지역"을 둘 다 닫는다.
 - **미성년 결제 게이트 강도** — `src/lib/billing/` 에 연령 참조 0건. F5(2026-08-16)는 "열되 보호장치" 인데 강도 미확정.
 - **전체 삭제 뒤 남는 데이터**(personas 등) · **신고 원장 연쇄 삭제**(Q-260920-01) · **영수증 공개 카테고리**.
 
 ### 3. 보안 담당 트랙(운영 승격)
-운영 draft 7개 · Edge 09-07 배포본 · Rewarded SSV 순서 · LLM 동의 v2 조건. ⚠ 그리고 **public 실표 68개 중 56개가 anon · authenticated 에 TRUNCATE 를 허용**한다(09-20 실측 · 도달 경로는 미확인 = 방어 깊이 결손). 권한 회수는 마이그레이션이라 이 트랙 소유다.
+운영 draft 7개 · Edge 09-07 배포본 · Rewarded SSV 순서 · LLM 동의 v2 조건. ⚠ **public 실표 68개 중 56개가 anon · authenticated 에 TRUNCATE 를 허용**한다(09-20 실측 · 도달 경로는 미확인 = 방어 깊이 결손). 권한 회수는 마이그레이션이라 이 트랙 소유다.
 
 ### 4. 후속(코디네이터)
+- **병렬 jest 레이스** — `check-no-emdash.test.ts:24` 의 임시 프로브를 `src/**` 열거 스위트가 집어 `ENOENT` 로 죽는다. `--runInBand` 는 767/9,838 초록. `one-seven.test.ts:68` 이 **같은 함정을 이미 이름으로 제외**하고 있다 — 계열 수정은 별도 PR.
 - #1814 · #1839 를 서버 설계(S3) 위에서 다시 만든다(#1814 는 8차 회귀 `93152b9e` 되돌리기부터).
 - #1847 이 남긴 별도 작업: A8 교차 스키마 정책 충돌 · A6 `U&'...'` 미 fail-closed · 서버 울타리(S3-C)가 들어오면 RPC GRANT 를 연다.
 - Android 규율 15건 이상은 **미판정 grep 후보** — 파일을 열어 판정하는 라운드 필요.
 
 ### 5. 기록이 사실과 다른 것 · 주인이 따로 있어 남긴 것
-- TTL-Work `CLAUDE.md` — 웹 배포를 gh-pages 라 적는다(→ `actions/deploy-pages`) · **법역 판정이 항상 KR 이라 적는다(→ 기기 지역을 읽는다. 미매핑만 KR)**.
+- TTL-Work `CLAUDE.md` — 웹 배포를 gh-pages 라 적는다(→ `actions/deploy-pages`). ⚠ **"법역 판정이 항상 KR" 서술은 #1855 에서 취소선 정정됐다** — 더 이상 이 목록의 항목이 아니다.
 - `fix/security*` 로컬 브랜치 47개 · 공유 스태시 22 · `_rescue/ttl-work-260913-1554/` — 손대지 않음.
-- **남긴 것**: QA APK 빌드 환경 `qa-apk-260920`(실제 node_modules) · 웹 QA `qa-integration-260920`(정션 · 8765) · 버그 수정 `fix-bugs-260921`(정션 · 작업 중) · 기록 `claude-disk-260913`.
+- **남긴 것**: QA APK 빌드 환경 `qa-apk-260920`(실제 node_modules) · 웹 QA + 기록 `qa-integration-260920`(정션 · 8765 · 이 세션이 쓰는 중) · 게이트/페르소나 `gate-review-260919` · 삭제 등록부 `s3-erasure-260920`(R57 작업 중) · `claude-disk-260913`.
