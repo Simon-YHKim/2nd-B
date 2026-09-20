@@ -3,7 +3,7 @@
 **덮어쓰기 파일.** 네 절만 — 완료 / 진행중 / 다음 / 막힌 것.
 결정은 여기 쓰지 않는다. `DECISIONS.md` 가 소유한다(append-only · 09-13~09-19 는 기간 보관 파일 `DECISIONS-2026-09-*.md`).
 
-최종 갱신 **2026-09-20 20:16 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/claude-disk-260913` · 브랜치 `claude/records-260920c`
+최종 갱신 **2026-09-20 22:00 KST** · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/claude-disk-260913` · 브랜치 `claude/records-260920d`
 ⚠ 앞선 기록의 `09-21` 날짜들은 **오기다**(쓸 때 시계가 +6h40m 앞섰다). 실제로는 전부 **09-20 저녁**이다 — `DECISIONS.md` 의 정정 줄 참조.
 소유자: 이 세션(09-13 `ttl-work-9a` 와 두 세션 합의, Simon 지명 아님). Simon 이 다르게 정하면 그게 이긴다. 다른 세션은 `DECISIONS.md` 에만 쓸 것.
 
@@ -27,13 +27,14 @@
 - **R48 게이트 둘 착지** — 생성물 high 1 · medium 1 · low 1 / 비즈로직 신규 C·H·M **0** · low 2. PR #1849 는 CI 3종 초록이지만 **머지 보류**(high 먼저).
 - **법역 조사 완료**(r48 · fable @max · 371줄 · 11개 시장 + EU 31개국 1차 원문). 코드 주석 둘을 뒤집었다: "DEFAULT 16 이 가장 보수적"(→ 인도 18 · 인니 17) · Paddle 약관 연령 조항 0건. **결정 시트 발행 → Simon 대기.**
 - **F-02 운영 실측 확인** — `REVOKE ... FROM PUBLIC, anon` 은 authenticated 를 막지 못한다(함수 291개 중 242개가 `authenticated=X`; anon 만 REVOKE 한 6개 전부 실행 가능). **0189 는 운영에 미적용**이라 아직 살아 있는 구멍은 아니다.
+- **PR #1850 · #1851 머지** — 기록 정정(`c0b6e0b6`) · `0190` authenticated 잠금 + CI 바닥/프로브(`48e1e9f1`). #1849 는 CI 대기 중.
+- **r49 게이트 둘 착지** — 신규 medium 이상 **0**(신규 low 1). 두 게이트가 각자 임시 PostgreSQL 18.3 을 세워 변이 (가)와 B-K01 을 **독립 재현**했다.
 - QA 산출물은 main `585aac5f` 기준(웹 8765 · 사전 릴리스 `qa-260920-585aac5f`) — **그 뒤 머지 2건(#1846 · #1847)은 미반영**.
 
 ## 진행중
 
-워커 2기(r49) · 콘솔 봇 2기 대기.
-- **`r49-wiki-owner-fence`**(opus @ultracode · 워크트리 `fix-bugs-260921` · PR #1849) — R48 생성물 게이트의 **high 1**(계정 A→B 전환 뒤 A 의 위키 행이 B 화면에 남음) + OBS-01 + F-03(변이가 살아남은 공허한 인용 테스트) + BL-01·BL-02(문서·주석 사실 오류). 고친 뒤 머지.
-- **`r49-lock-erase-authenticated`**(fable @max · 워크트리 `s3-erasure-260920` · 브랜치 `claude/lock-erase-authenticated-260920`) — 새 마이그레이션 **0190** 으로 `erase_my_data` 를 authenticated 에서도 REVOKE + **CI scratch DB 에 Supabase default privilege 바닥을 깔아** 단언을 공허하지 않게. `0189` 는 고치지 않는다.
+워커 0 · 콘솔 봇 2기 대기.
+- **다음 라운드(r50) 후보 다섯**이 대기 중이다 — `DECISIONS.md` 의 "다음 라운드 묶음 다섯" 줄 참조. 그중 B-EX-01(rollback ledger)만 medium 이고 나머지 넷은 low·구조 개선이다.
 - **Grok Bot 콘솔 과제서 2장**(한 줄씩 보내면 시작): Play Console `vb-a53e2ef2` · App Store Connect `vb-dbaec979`. 회수는 `make_bot_spec.py --collect`.
 
 ## 다음 (하나만)
