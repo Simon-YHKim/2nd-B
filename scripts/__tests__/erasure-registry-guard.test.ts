@@ -1115,4 +1115,136 @@ $rewrite$;
   test("[23] an ALTER POLICY that only re-spells auth.uid() is not a contradiction", () => {
     expect(green(`ALTER POLICY notes_owner_all ON public.notes USING (user_id = (select auth.uid()));`)).toEqual([]);
   });
+
+  // -- r43: the two paths the r42 artifact gate walked through green ---------
+  //
+  // Both are "the parser could not follow the execution path and carried on",
+  // which is the same family as [10]-[12] and [18]-[19]. Each gate case is
+  // paired with the control that must NOT move, because the fix for a false
+  // green is only worth having if it does not manufacture a false red.
+
+  test("[24] a function CREATEd and then CALLED in the same migration is executed code (r42 artifact gate M1)", () => {
+    mutate({
+      mutation: `
+        CREATE OR REPLACE FUNCTION public.notes_probe() RETURNS void
+        LANGUAGE plpgsql AS $body$
+        BEGIN
+          EXECUTE 'ALTER POLICY notes_owner_all ON public.notes TO anon';
+        END;
+        $body$;
+        SELECT public.notes_probe();
+        DROP FUNCTION public.notes_probe();`,
+      rule: "G3c",
+      says: "dynamic-ddl",
+    });
+  });
+
+  test("[25] ...but DEFINING one and never calling it is not, which is 0015's admin_exec_sql", () => {
+    expect(
+      green(`
+        CREATE OR REPLACE FUNCTION public.notes_unused() RETURNS void
+        LANGUAGE plpgsql AS $body$
+        BEGIN
+          EXECUTE 'ALTER POLICY notes_owner_all ON public.notes TO anon';
+        END;
+        $body$;
+        REVOKE EXECUTE ON FUNCTION public.notes_unused() FROM anon;
+        DROP FUNCTION public.notes_unused();`),
+    ).toEqual([]);
+  });
+
+  test("[26] attaching it as a TRIGGER counts as running it -- any DML reaches the body from there", () => {
+    mutate({
+      mutation: `
+        CREATE OR REPLACE FUNCTION public.notes_trg() RETURNS trigger
+        LANGUAGE plpgsql AS $body$
+        BEGIN
+          EXECUTE 'ALTER POLICY notes_owner_all ON public.notes TO anon';
+          RETURN NEW;
+        END;
+        $body$;
+        CREATE TRIGGER notes_t AFTER INSERT ON public.notes
+          FOR EACH ROW EXECUTE FUNCTION public.notes_trg();`,
+      rule: "G3c",
+      says: "dynamic-ddl",
+    });
+  });
+
+  test("[27] a DECLARE-initialised variable that appends ` TO anon` is followed, not ignored (r42 artifact gate M1)", () => {
+    mutate({
+      mutation: `
+        DO $x$
+        DECLARE
+          stmt        text;
+          role_clause text := ' TO anon';
+        BEGIN
+          stmt := 'ALTER POLICY notes_owner_all ON public.notes' || role_clause;
+          EXECUTE stmt;
+        END
+        $x$;`,
+      rule: "G3c",
+      says: "dynamic-ddl",
+    });
+  });
+
+  test("[28] and a value it cannot follow at all, appended outside the USING parens, fails closed", () => {
+    // A RECORD FIELD, deliberately: it carries no literal of its own, so the
+    // previous version saw only the ALTER POLICY half, read the payload as a
+    // bare target with nothing after it, and EXEMPTED it. The same shape with
+    // a `current_setting('x')` suffix was already red by accident -- the stray
+    // 'x' literal landed in the fragment list -- and an accident is not a
+    // property worth resting a guard on.
+    mutate({
+      mutation: `
+        DO $x$
+        DECLARE
+          stmt text;
+          r    record;
+        BEGIN
+          stmt := 'ALTER POLICY notes_owner_all ON public.notes' || r.extra;
+          EXECUTE stmt;
+        END
+        $x$;`,
+      rule: "G3c",
+      says: "dynamic-ddl",
+    });
+  });
+
+  test("[29] THE LIMIT, pinned so it is a measured fact and not a guess: a value spliced strictly INSIDE the USING parens is still exempt", () => {
+    // 0102's shape, and the one thing a static reader cannot do is evaluate it.
+    // 0102 itself is sound because pg_policies renders `qual` through
+    // pg_get_expr, which cannot emit an unbalanced parenthesis -- an argument
+    // that lives outside this file. Anything ELSE spliced there inherits the
+    // exemption, so this test exists to make that visible rather than silent.
+    const INSIDE_PARENS = `
+DO $x$
+DECLARE
+  stmt text;
+  r    record;
+BEGIN
+  stmt := 'ALTER POLICY notes_owner_all ON public.notes USING (' || r.qual || ')';
+  EXECUTE stmt;
+END
+$x$;
+`;
+    expect(green(INSIDE_PARENS)).toEqual([]);
+    root = makeTree(baseRegistry(), INSIDE_PARENS);
+    const replay = replayMigrations(join(root, "db", "migrations"));
+    expect(replay.beyondModel).toEqual([]);
+    expect(replay.expressionOnlyRewrites).toHaveLength(1);
+  });
+
+  test("[30] the F2 pair, asserted TOGETHER: only the static replay can tell these two apart (r42 authorisation gate F2)", () => {
+    // In a database with no platform default privileges -- which is every CI
+    // scratch DB, because the stub cannot install them without breaking 0179 --
+    // these two statements leave BYTE-IDENTICAL ACLs: revoking a privilege the
+    // role never held is a no-op either way. So the catalog test in
+    // db/tests/erasure_registry_regression.sql cannot be the one to tell them
+    // apart, and this guard has to be. Split across two tests they read as
+    // unrelated; the pairing IS the contract.
+    expect(green(`REVOKE GRANT OPTION FOR DELETE ON public.notes FROM authenticated;`)).toEqual([]);
+    root = makeTree(baseRegistry(), `REVOKE DELETE ON public.notes FROM authenticated;`);
+    const fired = rulesFired(root, "G3b");
+    expect(fired.join(" | ")).toContain("TABLE-level DELETE privilege");
+  });
 });

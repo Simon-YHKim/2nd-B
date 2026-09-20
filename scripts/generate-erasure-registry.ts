@@ -565,15 +565,39 @@ const REGISTRY_DDL_KEYWORDS = /\bpolicy\b|\bgrant\b|\brevoke\b|\brow\s+level\s+s
 const UNBOUNDED_ACL =
   /\b(?:grant|revoke)\b[^;]{0,160}?\bon\s+all\s+\w+\s+in\s+schema\b|\balter\s+default\s+privileges\b|\brevoke\b[^;]{0,160}?\bon\s+schema\b/i;
 
+/** Where a fragment could not be read as a literal, the assembled payload keeps
+ *  its POSITION with this marker instead of dropping it. It holds no letters,
+ *  so it can never satisfy a keyword test, and `dynamicTargets` already rejects
+ *  it as a table name, so a payload that splices one into an `ON <target>`
+ *  position comes out unbounded rather than green. */
+const OPAQUE_FRAGMENT = "<?>";
+
 /**
  * The bodies a migration EXECUTES at apply time.
  *
- * A `CREATE FUNCTION ... AS $$ ... $$` body is deliberately not one of them.
- * Defining a function that could run dynamic DDL is not running it, and 0015
- * defines `admin_exec_sql(text)` whose body is a bare `EXECUTE sql_text` --
- * unbounded by construction, service_role-only, and dropped again by 0016. A
+ * TWO KINDS, AND THE SECOND ONE IS WHY THIS COMMENT CHANGED (r42 artifact gate,
+ * M1). `DO $tag$ ... $tag$` is the obvious kind. The other is a function the
+ * file DEFINES AND THEN RUNS: `CREATE FUNCTION f() ... EXECUTE 'ALTER POLICY
+ * records_owner_all ON public.records TO anon'` followed by `SELECT f();`
+ * changes the policy's role exactly as a DO block would, and the gate walked
+ * that shape through this guard with `g3=[] beyond=[] exempt=[]`. A
+ * `CREATE TRIGGER ... EXECUTE FUNCTION f()` counts as running it too: from that
+ * statement on, any DML reaches the body.
+ *
+ * DEFINING IS STILL NOT RUNNING. 0015 defines `admin_exec_sql(text)` whose body
+ * is a bare `EXECUTE sql_text` -- unbounded by construction, service_role-only,
+ * and dropped again by 0016. Nothing calls it, so it is not collected; a
  * scanner that could not tell "defined" from "executed" would fail this guard
- * forever on a function that no longer exists.
+ * forever on a function that no longer exists. Naming a function as the OBJECT
+ * of a GRANT / REVOKE / DROP / COMMENT is not calling it either, which is what
+ * keeps 0015's own `EXECUTE 'REVOKE EXECUTE ON FUNCTION public.admin_exec_sql
+ * (text) FROM anon'` from reading as a call.
+ *
+ * Measured across all 172 migrations on 2026-09-20: exactly two function bodies
+ * contain dynamic EXECUTE at all -- 0015's and 0189's `erase_my_data` -- and
+ * neither is invoked by the file that defines it. So this addition collects
+ * nothing today. That is the point: it is here for the migration that has not
+ * been written yet, and an empty result now is what proves it costs nothing.
  */
 function executedBlocks(sql: string): { body: string; at: number }[] {
   const out: { body: string; at: number }[] = [];
@@ -585,21 +609,152 @@ function executedBlocks(sql: string): { body: string; at: number }[] {
     const end = sql.indexOf(tag, from);
     out.push({ body: sql.slice(from, end === -1 ? sql.length : end), at: m.index });
   }
+  for (const routine of definedRoutines(sql)) {
+    if (!fileInvokes(sql, routine.name, routine.from, routine.to)) continue;
+    out.push({ body: routine.body, at: routine.at });
+  }
   return out;
 }
 
-/** Every literal fragment assigned to `name` inside one block, in source order.
- *  0102 builds its statement as `stmt := format('ALTER POLICY %I ON %I.%I', ...)`
- *  then appends `' USING ('`, so the fragments -- not the final value -- are
- *  what says which OPERATION it can perform. */
-function assignedLiterals(body: string, name: string): string[] {
+/** Every `CREATE [OR REPLACE] FUNCTION|PROCEDURE` in the file, with the span of
+ *  its dollar-quoted body. `re.lastIndex` jumps past each body so a definition
+ *  quoted inside another one cannot be read twice. */
+function definedRoutines(sql: string): { name: string; body: string; at: number; from: number; to: number }[] {
+  const out: { name: string; body: string; at: number; from: number; to: number }[] = [];
+  const re =
+    /\bcreate\s+(?:or\s+replace\s+)?(?:function|procedure)\s+(?:"?[A-Za-z_][\w]*"?\s*\.\s*)?"?([A-Za-z_][\w]*)"?\s*\(/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(sql)) !== null) {
+    const open = /(\$[A-Za-z_][A-Za-z0-9_]*\$|\$\$)/g;
+    open.lastIndex = m.index;
+    const tag = open.exec(sql);
+    if (!tag) continue;
+    const from = tag.index + tag[0].length;
+    const end = sql.indexOf(tag[0], from);
+    if (end === -1) continue;
+    out.push({ name: m[1], body: sql.slice(from, end), at: m.index, from, to: end });
+    re.lastIndex = end;
+  }
+  return out;
+}
+
+/** Does anything OUTSIDE the routine's own body actually run it?
+ *
+ *  `CREATE FUNCTION f(`, `DROP FUNCTION f(`, `REVOKE EXECUTE ON FUNCTION f(` and
+ *  `COMMENT ON FUNCTION f(` all name it as an object. `EXECUTE FUNCTION f()`
+ *  inside a CREATE TRIGGER is the one place that spelling means the opposite, so
+ *  it is excluded from the exclusion. */
+function fileInvokes(sql: string, name: string, bodyFrom: number, bodyTo: number): boolean {
+  const re = new RegExp(String.raw`(?:"?[A-Za-z_][\w]*"?\s*\.\s*)?"?` + name + String.raw`"?\s*\(`, "gi");
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(sql)) !== null) {
+    if (m.index >= bodyFrom && m.index < bodyTo) continue; // recursion inside itself
+    const before = sql.slice(Math.max(0, m.index - 64), m.index);
+    const namesIt = /\b(?:function|procedure)\s+(?:"?[A-Za-z_][\w]*"?\s*\.\s*)?$/i.test(before);
+    const attaches = /\bexecute\s+(?:function|procedure)\s+(?:"?[A-Za-z_][\w]*"?\s*\.\s*)?$/i.test(before);
+    if (namesIt && !attaches) continue;
+    return true;
+  }
+  return false;
+}
+
+/** Split a PL/pgSQL expression on its TOP-LEVEL `||`. Parentheses, string
+ *  literals and dollar quotes are stepped over whole, so `format('a || b', x)`
+ *  is ONE operand and `'a' || f(b || c)` is two. */
+function splitConcat(expr: string): string[] {
   const out: string[] = [];
-  const re = new RegExp(String.raw`\b` + name + String.raw`\s*:=\s*([^;]*);`, "gi");
+  let depth = 0;
+  let start = 0;
+  let i = 0;
+  while (i < expr.length) {
+    if (expr[i] === "'") {
+      i = findSingleQuoteEnd(expr, i);
+      continue;
+    }
+    const tag = matchDollarTag(expr, i);
+    if (tag) {
+      const end = expr.indexOf(tag, i + tag.length);
+      i = end === -1 ? expr.length : end + tag.length;
+      continue;
+    }
+    if (expr[i] === "(") depth += 1;
+    else if (expr[i] === ")") depth -= 1;
+    else if (depth === 0 && expr[i] === "|" && expr[i + 1] === "|") {
+      out.push(expr.slice(start, i));
+      i += 2;
+      start = i;
+      continue;
+    }
+    i += 1;
+  }
+  out.push(expr.slice(start));
+  return out.map((o) => o.trim()).filter((o) => o.length > 0);
+}
+
+/**
+ * Every fragment assembled into `name` inside one block, IN SOURCE ORDER, with
+ * `OPAQUE_FRAGMENT` standing where a value could not be read.
+ *
+ * WHY NOT JUST "the literals", which is what this used to collect. 0102 builds
+ * its statement as `stmt := format('ALTER POLICY %I ON %I.%I', ...)` and then
+ * appends `' USING (' || new_qual || ')'`, so the fragments -- not the final
+ * value -- are what says which OPERATION it can perform. Keeping only the
+ * literals made every NON-literal operand invisible, and the r42 artifact gate
+ * used exactly that:
+ *
+ *   role_clause text := ' TO anon';
+ *   stmt := 'ALTER POLICY records_owner_all ON public.records' || role_clause;
+ *   EXECUTE stmt;
+ *
+ * read as a bare `ALTER POLICY <target>` and was EXEMPTED as an expression-only
+ * rewrite, while the database moved the policy to `anon`.
+ *
+ * Two things close it. A local variable is FOLLOWED -- `role_clause`'s own
+ * literal is spliced in where it belongs, and the ` TO ` becomes visible to
+ * every test downstream. Anything else (a record field like 0102's `r.qual`, a
+ * function result) becomes an OPAQUE_FRAGMENT that KEEPS ITS POSITION, which is
+ * what lets `isExpressionOnlyPolicyRewrite` insist it sits inside a parenthesis
+ * the literals themselves opened and closed.
+ *
+ * The DECLARE form counts as an assignment: `role_clause text := ' TO anon'`
+ * and `role_clause := ' TO anon'` are the same statement with the type written
+ * once, and reading only the second is how the gate's variable stayed hidden.
+ */
+function assembleFragments(body: string, name: string, seen: Set<string> = new Set<string>()): string[] {
+  const out: string[] = [];
+  const next = new Set(seen);
+  next.add(name.toLowerCase());
+  const re = new RegExp(
+    String.raw`\b` + name + String.raw`\b(?:\s+[A-Za-z_][\w]*(?:\s*\([^)]*\))?(?:\s*\[\s*\])?)?\s*:=\s*([^;]*);`,
+    "gi",
+  );
   let m: RegExpExecArray | null;
   while ((m = re.exec(body)) !== null) {
-    const lit = /'((?:[^']|'')*)'/g;
-    let q: RegExpExecArray | null;
-    while ((q = lit.exec(m[1])) !== null) out.push(q[1].replace(/''/g, "'"));
+    for (const operand of splitConcat(m[1])) {
+      const lit = /^'((?:[^']|'')*)'$/.exec(operand);
+      if (lit) {
+        out.push(lit[1].replace(/''/g, "'"));
+        continue;
+      }
+      const tag = matchDollarTag(operand, 0);
+      if (tag && operand.length >= tag.length * 2 && operand.endsWith(tag)) {
+        out.push(operand.slice(tag.length, operand.length - tag.length));
+        continue;
+      }
+      const fmt = /^(?:[A-Za-z_]\w*\s*\.\s*)?format\s*\(\s*'((?:[^']|'')*)'/i.exec(operand);
+      if (fmt) {
+        out.push(fmt[1].replace(/''/g, "'"));
+        continue;
+      }
+      const ident = /^"?([A-Za-z_][\w]*)"?$/.exec(operand);
+      if (ident) {
+        if (next.has(ident[1].toLowerCase())) continue; // self-reference: already collected
+        const nested = assembleFragments(body, ident[1], next);
+        out.push(...(nested.length > 0 ? nested : [OPAQUE_FRAGMENT]));
+        continue;
+      }
+      out.push(OPAQUE_FRAGMENT);
+    }
   }
   return out;
 }
@@ -679,8 +834,11 @@ function collectExecutePayloads(body: string): { fragments: string[]; resolved: 
       payload = { fragments: [rest.slice(q + 1, Math.max(q + 1, end - 1)).replace(/''/g, "'")], resolved: true };
       consumed = end;
     } else if (ident) {
-      const fragments = assignedLiterals(body, ident[1]);
-      payload = { fragments, resolved: fragments.length > 0 };
+      // `resolved` means A LITERAL WAS ACTUALLY READ, not "something came
+      // back". A payload assembled entirely out of values this parser cannot
+      // follow is the `EXECUTE sql_text` case and must fail closed.
+      const fragments = assembleFragments(body, ident[1]);
+      payload = { fragments, resolved: fragments.some((f) => f !== OPAQUE_FRAGMENT) };
       consumed = ident[0].length;
     } else {
       payload = { fragments: [], resolved: false };
@@ -741,13 +899,43 @@ function dynamicTargets(text: string): { named: string[]; unbounded: boolean } {
  * anything the static guard still asserts. It is counted and printed, never
  * silent, and the moment its fragments gain a `TO`, a `DROP`, a `CREATE` or a
  * `GRANT`/`REVOKE` it stops qualifying and fails closed.
+ *
+ * WHAT IT STILL CANNOT SEE, stated rather than left to be discovered: a value
+ * spliced strictly inside the USING parenthesis is taken on trust, because
+ * evaluating it is the one thing a static reader cannot do. 0102 is sound
+ * there for a reason outside this file -- pg_policies renders `qual` through
+ * pg_get_expr, which cannot emit an unbalanced parenthesis -- and a future
+ * migration that splices an unchecked string into the same position would be
+ * exempted on the same terms. Everywhere ELSE in the payload, including the
+ * clause position the r42 gate used, an unreadable value now fails closed.
  */
 function isExpressionOnlyPolicyRewrite(text: string): boolean {
   if (!/^alter\s+policy\b/i.test(text)) return false;
   if (/\b(create|drop|grant|revoke|truncate|rename|enable|disable|force)\b/i.test(text)) return false;
   const afterTarget = text.replace(/^alter\s+policy[\s\S]*?\bon\b\s*\S*/i, "");
   if (/\bto\b/i.test(afterTarget)) return false;
-  return afterTarget.replace(/\busing\b|\bwith\s+check\b/gi, "").replace(/[\s()]/g, "") === "";
+  // An OPAQUE_FRAGMENT is a value this parser could not read, and the r42
+  // artifact gate's second reproduction is what this loop answers: a payload
+  // assembled as `'ALTER POLICY x ON public.y' || role_clause` used to be
+  // exempted because only the literal half was looked at. A value is tolerable
+  // ONLY where it cannot BE structure -- strictly inside a parenthesis that the
+  // LITERALS themselves opened and closed, which is 0102's `' USING (' ||
+  // new_qual || ')'` and nothing else. At depth 0 it could be a whole clause,
+  // so it fails closed.
+  let depth = 0;
+  let cleaned = "";
+  for (let i = 0; i < afterTarget.length; i += 1) {
+    if (afterTarget.startsWith(OPAQUE_FRAGMENT, i)) {
+      if (depth < 1) return false;
+      i += OPAQUE_FRAGMENT.length - 1;
+      continue;
+    }
+    const ch = afterTarget[i];
+    if (ch === "(") depth += 1;
+    else if (ch === ")") depth -= 1;
+    cleaned += ch;
+  }
+  return cleaned.replace(/\busing\b|\bwith\s+check\b/gi, "").replace(/[\s()]/g, "") === "";
 }
 
 export type DynamicDdlVerdict =

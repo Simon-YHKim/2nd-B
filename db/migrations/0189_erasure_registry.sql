@@ -242,7 +242,7 @@ $registry_check$;
 -- auth.uid() 가 NULL 이면 아무 일도 하기 전에 예외를 던진다.
 --
 -- 그럼에도 등록부의 client_erasable 집합은 "소유자가 스스로 지울 수 있는 것" 과
--- 같게 유지한다 (check:erasure-registry G3). DEFINER 가 무엇이든 지울 수 있다는
+-- 같게 유지한다 (근거는 db/tests/erasure_registry_regression.sql 블록 8). 무엇이든 지울 수 있다는
 -- 사실은 이 RPC 가 보존 원장을 지우는 뒷문이 되어도 된다는 뜻이 아니다.
 --
 -- search_path 는 '' 로 고정한다. 그래서 아래 모든 참조가 스키마 한정이다.
