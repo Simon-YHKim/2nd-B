@@ -938,6 +938,60 @@ BEGIN
 END;
 $owner_rows$;
 
+-- ---------------------------------------------------------------------
+-- The platform baseline, installed WHERE AND ONLY WHERE the platform is what
+-- would apply. Read this before changing it: the condition is the whole
+-- argument.
+--
+-- Supabase ships ALTER DEFAULT PRIVILEGES that auto-GRANT anon and
+-- authenticated everything on every new table in `public`. The repo says so at
+-- 0113_notices.sql:99-100, and the REVOKE-then-GRANT-back pattern in
+-- 0092/0097/0113/0141/0175/0176/0177 only makes sense against that baseline.
+-- The CI compatibility stub does not have it, so `SET ROLE authenticated;
+-- DELETE FROM public.records ...` would raise 42501 for a reason no migration
+-- caused, and the observation below would be measuring the stub.
+--
+-- A blanket GRANT here would be worse than useless -- it would paint over
+-- whatever a migration revoked, which is the one thing this test exists to
+-- catch. `relacl IS NULL` is what makes it honest: in PostgreSQL that means NO
+-- GRANT OR REVOKE HAS EVER NAMED THIS TABLE, so the platform default is
+-- exactly what governs it. The instant a migration touches a table's
+-- privileges -- 0097's `REVOKE ALL ... GRANT SELECT, INSERT, DELETE` on
+-- template_blocks, or a bare `REVOKE DELETE` -- relacl stops being NULL and
+-- this loop skips it, leaving the migration's ACL to be measured as written.
+-- Measured 2026-09-20 over the 26 client_erasable tables: 25 untouched, 1
+-- (template_blocks) carrying 0097's explicit grants.
+--
+-- It is also transaction-scoped. Installing it in the workflow stub instead
+-- was tried and rejected on evidence: run 35489071018 showed 0179's own
+-- postcondition ("anon and authenticated hold no INSERT/UPDATE/DELETE on
+-- ai_audit_log or crisis_events") fails the moment the defaults exist, because
+-- NO migration ever revokes table privileges on those two tables. That is a
+-- real finding about 0179 and prod, and it is not this file's to fix.
+-- ---------------------------------------------------------------------
+
+DO $baseline$
+DECLARE
+  r     record;
+  v_set int := 0;
+BEGIN
+  FOR r IN
+    SELECT c.relname
+      FROM pg_catalog.pg_class     AS c
+      JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace
+      JOIN public.erasure_registry AS reg
+        ON reg.table_name = c.relname AND reg.class = 'client_erasable'
+     WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relacl IS NULL
+  LOOP
+    EXECUTE pg_catalog.format(
+      'GRANT SELECT, INSERT, UPDATE, DELETE ON public.%I TO anon, authenticated', r.relname);
+    v_set := v_set + 1;
+  END LOOP;
+  RAISE NOTICE 'erasure regression (8): Supabase default privileges installed on % registry table(s) '
+               'that no migration had granted or revoked', v_set;
+END;
+$baseline$;
+
 INSERT INTO auth.users (id, email) VALUES
   (:'uid_a', 'erasure-a@example.com'),
   (:'uid_b', 'erasure-b@example.com'),
