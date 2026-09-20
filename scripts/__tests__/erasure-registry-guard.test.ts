@@ -78,11 +78,26 @@ function baseRegistry(): Registry {
 
 /** A tree the guard accepts, apart from G6 (which names five real ledgers that
  *  a synthetic fixture has no reason to contain). Callers filter by rule. */
-function makeTree(registry: Registry = baseRegistry(), extraSql?: string, baseSql: string = BASE_SQL): string {
+function makeTree(
+  registry: Registry = baseRegistry(),
+  extraSql?: string,
+  baseSql: string = BASE_SQL,
+  // The FILE NAME the mutation lands in, because one exemption is now scoped to
+  // a named migration: an opaque value spliced inside a dynamic `USING (...)` is
+  // trusted in 0102_rls_wrap_auth_uid.sql and nowhere else (r43 artifact gate
+  // M2). A mutation that has to be somewhere specific says so here.
+  extraName: string = "0100_extra.sql",
+  // Extra migrations beyond the first, for the cross-FILE shapes: a routine
+  // defined in one migration and called in a later one (r43 artifact gate M1).
+  moreSql: Record<string, string> = {},
+): string {
   const root = mkdtempSync(join(tmpdir(), "erasure-guard-"));
   mkdirSync(join(root, "db", "migrations"), { recursive: true });
   writeFileSync(join(root, "db", "migrations", "0001_base.sql"), baseSql, "utf8");
-  if (extraSql) writeFileSync(join(root, "db", "migrations", "0100_extra.sql"), extraSql, "utf8");
+  if (extraSql) writeFileSync(join(root, "db", "migrations", extraName), extraSql, "utf8");
+  for (const [name, body] of Object.entries(moreSql)) {
+    writeFileSync(join(root, "db", "migrations", name), body, "utf8");
+  }
   writeFileSync(join(root, "db", "erasure-registry.json"), JSON.stringify(registry, null, 2), "utf8");
   writeFileSync(
     join(root, "db", "migrations", "0189_erasure_registry.sql"),
@@ -867,8 +882,13 @@ END
 $rewrite$;
 `;
 
-  function green(sql?: string, baseSql: string = BASE_SQL): string[] {
-    const probe = makeTree(baseRegistry(), sql, baseSql);
+  function green(
+    sql?: string,
+    baseSql: string = BASE_SQL,
+    extraName: string = "0100_extra.sql",
+    moreSql: Record<string, string> = {},
+  ): string[] {
+    const probe = makeTree(baseRegistry(), sql, baseSql, extraName, moreSql);
     try {
       return rulesFired(probe, "G3");
     } finally {
@@ -1065,13 +1085,28 @@ $rewrite$;
 
   // -- the exemption, and its own mutation ----------------------------------
 
-  test("[18] 0102's expression-only dynamic ALTER POLICY is exempt, counted and NOT silent", () => {
-    expect(green(DYNAMIC_ALTER_0102)).toEqual([]);
-    root = makeTree(baseRegistry(), DYNAMIC_ALTER_0102);
+  /** The file the exemption is scoped to. `green(sql, base, ZERO_ONE_ZERO_TWO)`
+   *  therefore asks "would 0102 be exempt", and `green(sql)` asks "would anyone
+   *  else be" -- two different questions since the r43 artifact gate (M2). */
+  const ZERO_ONE_ZERO_TWO = "0102_rls_wrap_auth_uid.sql";
+
+  test("[18] 0102's expression-only dynamic ALTER POLICY is exempt, counted and NOT silent -- and exempt ONLY there", () => {
+    expect(green(DYNAMIC_ALTER_0102, BASE_SQL, ZERO_ONE_ZERO_TWO)).toEqual([]);
+    root = makeTree(baseRegistry(), DYNAMIC_ALTER_0102, BASE_SQL, ZERO_ONE_ZERO_TWO);
     const replay = replayMigrations(join(root, "db", "migrations"));
     expect(replay.beyondModel).toEqual([]);
     expect(replay.expressionOnlyRewrites).toHaveLength(1);
     expect(replay.expressionOnlyRewrites[0].detail).toContain("ALTER POLICY");
+    rmSync(root, { recursive: true, force: true });
+    root = "";
+
+    // THE SAME BYTES IN ANOTHER MIGRATION ARE REFUSED. This assertion is the
+    // r43 artifact gate's M2: the exemption rests entirely on the value's
+    // provenance, and "some migration does what 0102 does" is not provenance.
+    // Measured 2026-09-20: 0102 is the only migration in db/migrations that
+    // issues a dynamic ALTER POLICY at all, so this narrowing exempts nothing
+    // that used to be exempt.
+    expect(green(DYNAMIC_ALTER_0102).join(" | ")).toContain("dynamic-ddl");
   });
 
   test("[19] ...and the moment that same statement can also change the ROLE, it fails closed", () => {
@@ -1210,12 +1245,21 @@ $rewrite$;
     });
   });
 
-  test("[29] THE LIMIT, pinned so it is a measured fact and not a guess: a value spliced strictly INSIDE the USING parens is still exempt", () => {
-    // 0102's shape, and the one thing a static reader cannot do is evaluate it.
-    // 0102 itself is sound because pg_policies renders `qual` through
-    // pg_get_expr, which cannot emit an unbalanced parenthesis -- an argument
-    // that lives outside this file. Anything ELSE spliced there inherits the
-    // exemption, so this test exists to make that visible rather than silent.
+  test("[29] the opaque-USING exemption is 0102's ALONE -- the same payload anywhere else fails closed", () => {
+    // A value spliced strictly inside the USING parens is the one thing a
+    // static reader cannot evaluate, so the exemption can only ever be as good
+    // as the value's PROVENANCE. 0102's provenance is the whole argument: the
+    // value is `r.qual` read back from pg_policies, which renders it through
+    // pg_get_expr and therefore cannot emit an unbalanced parenthesis or a
+    // second clause.
+    //
+    // A PREVIOUS VERSION OF THIS TEST PINNED THE OPPOSITE -- it asserted
+    // `green(...) = []` and `expressionOnlyRewrites = 1` for this payload in an
+    // arbitrary migration, and the r43 artifact gate (M2) used exactly that to
+    // walk a DORMANT TRIGGER through: `current_setting('app.policy_qual')`
+    // spliced into the same position, attached to a trigger that CI never
+    // fires, so the catalog lane cannot see it either. Both lanes green on a
+    // policy that widens to every row at the next UPDATE.
     const INSIDE_PARENS = `
 DO $x$
 DECLARE
@@ -1227,11 +1271,33 @@ BEGIN
 END
 $x$;
 `;
-    expect(green(INSIDE_PARENS)).toEqual([]);
-    root = makeTree(baseRegistry(), INSIDE_PARENS);
-    const replay = replayMigrations(join(root, "db", "migrations"));
-    expect(replay.beyondModel).toEqual([]);
-    expect(replay.expressionOnlyRewrites).toHaveLength(1);
+    // Anywhere but 0102: red, and it names the catalog test.
+    mutate({ mutation: INSIDE_PARENS, rule: "G3c", says: "dynamic-ddl" });
+
+    // In 0102, and reading pg_policies: exempt, counted, printed -- unchanged.
+    expect(green(DYNAMIC_ALTER_0102, BASE_SQL, ZERO_ONE_ZERO_TWO)).toEqual([]);
+
+    // ...and THE FILE NAME IS NOT THE WHOLE TEST. 0102 is trusted because of
+    // where its value comes from, so the same position filled from somewhere
+    // else -- a bare record field, or `current_setting('app.q')` -- is red even
+    // inside 0102. Otherwise "put it in 0102" would simply be the new bypass.
+    expect(green(INSIDE_PARENS, BASE_SQL, ZERO_ONE_ZERO_TWO).join(" | ")).toContain("dynamic-ddl");
+    root = makeTree(
+      baseRegistry(),
+      `
+DO $x$
+DECLARE
+  stmt text;
+BEGIN
+  stmt := 'ALTER POLICY notes_owner_all ON public.notes USING (' || pg_catalog.current_setting('app.q') || ')';
+  EXECUTE stmt;
+END
+$x$;
+`,
+      BASE_SQL,
+      ZERO_ONE_ZERO_TWO,
+    );
+    expect(rulesFired(root, "G3c").join(" | ")).toContain("dynamic-ddl");
   });
 
   test("[30] the F2 pair, asserted TOGETHER: only the static replay can tell these two apart (r42 authorisation gate F2)", () => {
@@ -1246,5 +1312,264 @@ $x$;
     root = makeTree(baseRegistry(), `REVOKE DELETE ON public.notes FROM authenticated;`);
     const fired = rulesFired(root, "G3b");
     expect(fired.join(" | ")).toContain("TABLE-level DELETE privilege");
+  });
+
+  // -- r43: the ACL spelling, the execution path, and the floor -------------
+
+  test("[31] the F2 pair AGAIN, quoted -- `\"public\".\"notes\"` revokes exactly what `public.notes` does", () => {
+    // The r43 authorisation gate (F2) ran both statements and measured
+    // `bare_revoke RED` / `quoted_schema_revoke GREEN errors=[] canDelete=true`:
+    // the ACL pattern required the literal unquoted `public.`, so the quoted
+    // form took DELETE away in the database and nothing at all in the model.
+    // Paired with the GRANT OPTION control for the same reason [30] gives --
+    // the two spellings must stay on OPPOSITE sides of the verdict.
+    for (const quoted of [
+      `REVOKE DELETE ON "public"."notes" FROM authenticated;`,
+      `REVOKE DELETE ON "public".notes FROM authenticated;`,
+      `REVOKE DELETE ON TABLE public."notes" FROM authenticated;`,
+    ]) {
+      const probe = makeTree(baseRegistry(), quoted);
+      try {
+        expect(rulesFired(probe, "G3b").join(" | ")).toContain("TABLE-level DELETE privilege");
+      } finally {
+        rmSync(probe, { recursive: true, force: true });
+      }
+    }
+    expect(green(`REVOKE SELECT ON "public"."notes" FROM authenticated;`).join(" | ")).toContain(
+      "TABLE-level SELECT privilege",
+    );
+    // ...and the no-op keeps taking nothing away, in the quoted form too.
+    expect(green(`REVOKE GRANT OPTION FOR DELETE ON "public"."notes" FROM authenticated;`)).toEqual([]);
+  });
+
+  test("[32] a GRANT/REVOKE spelling NEITHER pattern reads is refused, not ignored", () => {
+    // The lesson of r40/r41/r42/r43 read from the other end: widening a regex
+    // closes the spelling it was shown and nothing else. So an ACL statement
+    // that names a table-shaped object and does not parse is now a question for
+    // the catalog test. Measured over db/migrations on 2026-09-20: 85 statements
+    // name a table, 85 parse, so this rule adds no failure to the real tree --
+    // it is the floor under the NEXT spelling.
+    mutate({
+      mutation: `REVOKE DELETE ON postgres.public.notes FROM authenticated;`,
+      rule: "G3c",
+      says: "unparsed-acl",
+    });
+    // Object kinds that are not tables stay out of scope, or every migration
+    // would turn red: 483 of the 568 GRANT/REVOKEs in db/migrations are
+    // `ON FUNCTION`.
+    expect(green(`GRANT EXECUTE ON FUNCTION public.note_count(uuid) TO authenticated;`)).toEqual([]);
+    expect(green(`GRANT USAGE ON SCHEMA public TO authenticated;`)).toEqual([]);
+    expect(green(`GRANT USAGE, SELECT ON SEQUENCE public.notes_seq TO authenticated;`)).toEqual([]);
+  });
+
+  test("[33] role membership is reported, because it is what makes a policy for ANOTHER role a delete path", () => {
+    // `CREATE ROLE review_group; GRANT review_group TO authenticated;` plus a
+    // policy `FOR DELETE TO review_group` is the r42/r43 authorisation gate F1
+    // counter-example. Every piece of it is ordinary PostgreSQL and NONE of it
+    // is readable from the policy text, so all three are reported: the role, the
+    // membership, and the policy scoped to a role this guard cannot place.
+    mutate({ mutation: `CREATE ROLE review_group;`, rule: "G3c", says: "role-membership" });
+    mutate({ mutation: `GRANT review_group TO authenticated;`, rule: "G3c", says: "role-membership" });
+    mutate({
+      mutation: `CREATE POLICY notes_review_extra ON notes FOR DELETE TO review_group
+  USING (EXISTS (SELECT 1 FROM note_links AS mine WHERE mine.user_id = auth.uid()));`,
+      rule: "G3c",
+      says: "review_group",
+    });
+    // The four Supabase roles stay silent, or every table would be a question:
+    // `authenticated` and PUBLIC are judged outright, and `anon` /
+    // `service_role` are peers of `authenticated` under `authenticator`, never
+    // its parents.
+    // `USING (true)` would trip the pre-existing constant-filter rule and prove
+    // nothing about roles, so the control carries the owner-bound filter.
+    expect(
+      green(`CREATE POLICY notes_svc ON notes FOR DELETE TO service_role USING (user_id = auth.uid());`),
+    ).toEqual([]);
+    expect(green(`CREATE POLICY notes_anon ON notes FOR DELETE TO anon USING (user_id = auth.uid());`)).toEqual([]);
+  });
+
+  test("[34] a routine defined in ONE migration and run by a LATER one is still run", () => {
+    // The r43 artifact gate (M1) reproduced this twice and got `errors=[] GREEN`
+    // both times, because `executedBlocks` took a single file's text: the
+    // definition in 0187 and the call in 0188 were unrelated strings. Not a
+    // hypothetical shape here -- 41 of db/migrations' 124 routine names are
+    // redefined in a later file and `billing_request_role` is called from 22.
+    const DEFINE = `
+CREATE FUNCTION public.cross_probe() RETURNS void LANGUAGE plpgsql AS $x$
+BEGIN
+  EXECUTE 'REVOKE DELETE ON public.notes FROM authenticated';
+END
+$x$;
+`;
+    expect(green(DEFINE, BASE_SQL, "0100_extra.sql", { "0101_call.sql": `SELECT public.cross_probe();` }).join(" | ")).toContain(
+      "dynamic-ddl",
+    );
+    // ...and by a trigger attached in a later file, which reaches the body at
+    // the next DML rather than at apply time.
+    expect(
+      green(DEFINE, BASE_SQL, "0100_extra.sql", {
+        "0101_attach.sql": `CREATE TRIGGER probe_t AFTER UPDATE ON notes FOR EACH ROW EXECUTE FUNCTION public.cross_probe();`,
+      }).join(" | "),
+    ).toContain("dynamic-ddl");
+
+    // DEFINING IS STILL NOT RUNNING -- 0015's admin_exec_sql depends on it.
+    expect(green(DEFINE)).toEqual([]);
+    // ...and a routine dropped BEFORE the call is not running either. Ordering
+    // inside and across files is the whole point of the tracker.
+    expect(
+      green(DEFINE, BASE_SQL, "0100_extra.sql", {
+        "0101_drop.sql": `DROP FUNCTION public.cross_probe();`,
+        "0102_call.sql": `SELECT public.cross_probe();`,
+      }),
+    ).toEqual([]);
+  });
+
+  test("[35] a body written `AS '...'` is a body, and a body this parser cannot read fails closed", () => {
+    // PostgreSQL's original spelling. The previous version looked for a dollar
+    // tag and `continue`d when there was none, so a valid single-quoted function
+    // body vanished -- the r43 artifact gate's third reproduction, GREEN. Worse,
+    // the tag search was not bounded to the CREATE statement, so such a routine
+    // would have ADOPTED the next dollar-quoted block in the file as its body.
+    const SINGLE_QUOTED = `
+CREATE FUNCTION public.sq_probe() RETURNS void LANGUAGE plpgsql AS
+'BEGIN EXECUTE ''REVOKE DELETE ON public.notes FROM authenticated''; END;';
+SELECT public.sq_probe();
+`;
+    mutate({ mutation: SINGLE_QUOTED, rule: "G3c", says: "dynamic-ddl" });
+    // Across files as well.
+    expect(
+      green(
+        `CREATE FUNCTION public.sq2_probe() RETURNS void LANGUAGE plpgsql AS
+'BEGIN EXECUTE ''REVOKE DELETE ON public.notes FROM authenticated''; END;';`,
+        BASE_SQL,
+        "0100_extra.sql",
+        { "0101_call.sql": `SELECT public.sq2_probe();` },
+      ).join(" | "),
+    ).toContain("dynamic-ddl");
+
+    // A form it can read NEITHER way -- the SQL-standard `RETURN expr` body --
+    // is refused when something calls it, and silent when nothing does. "I
+    // cannot read this" must not become "this is fine".
+    mutate({
+      mutation: `CREATE FUNCTION public.atomic_probe(p int) RETURNS int LANGUAGE sql RETURN p + 1;
+SELECT public.atomic_probe(1);`,
+      rule: "G3c",
+      says: "cannot",
+    });
+    expect(green(`CREATE FUNCTION public.atomic_quiet(p int) RETURNS int LANGUAGE sql RETURN p + 1;`)).toEqual([]);
+
+    // A header clause carrying a quoted value is not a body: `SET search_path =
+    // ''` must not be read as one, or the real dollar-quoted body below it is
+    // lost. 0189's own erase_my_data has exactly this shape.
+    mutate({
+      mutation: `CREATE FUNCTION public.hdr_probe() RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $h$
+BEGIN
+  EXECUTE 'REVOKE DELETE ON public.notes FROM authenticated';
+END
+$h$;
+SELECT public.hdr_probe();`,
+      rule: "G3c",
+      says: "dynamic-ddl",
+    });
+  });
+
+  test("[36] the dormant-trigger shape the r43 gate used: an opaque USING that CI never fires", () => {
+    // The combination is what made it invisible to BOTH lanes: the payload is
+    // exempt statically (an opaque value inside the USING parens), and the
+    // trigger does not fire while the migrations are applied, so the catalog
+    // regression afterwards observes only the PRE-change policy. Scoping the
+    // exemption to 0102 is what closes it.
+    mutate({
+      mutation: `
+CREATE FUNCTION public.dorm_probe() RETURNS trigger LANGUAGE plpgsql AS $t$
+DECLARE stmt text;
+BEGIN
+  stmt := 'ALTER POLICY notes_owner_all ON public.notes USING (' || pg_catalog.current_setting('app.policy_qual') || ')';
+  EXECUTE stmt;
+  RETURN NEW;
+END
+$t$;
+CREATE TRIGGER dorm_t AFTER UPDATE ON notes FOR EACH ROW EXECUTE FUNCTION public.dorm_probe();`,
+      rule: "G3c",
+      says: "dynamic-ddl",
+    });
+  });
+});
+
+describe("G10 -- the catalog test's privilege floor may not grant back what a migration revoked (r43)", () => {
+  let root = "";
+  afterEach(() => {
+    if (root) rmSync(root, { recursive: true, force: true });
+    root = "";
+  });
+
+  /** A tree that also carries the one line of db/tests/... that G10 owns. */
+  function treeWithPin(pin: string | null, extraSql?: string): string {
+    const built = makeTree(baseRegistry(), extraSql);
+    mkdirSync(join(built, "db", "tests"), { recursive: true });
+    writeFileSync(
+      join(built, "db", "tests", "erasure_registry_regression.sql"),
+      pin === null
+        ? `DO $baseline$\nDECLARE\n  v_revoked_pin text := '';\nBEGIN\nEND;\n$baseline$;\n`
+        : `DO $baseline$\nDECLARE\n  v_revoked_pin text := '${pin}'; -- G10-ACL-PIN\nBEGIN\nEND;\n$baseline$;\n`,
+      "utf8",
+    );
+    return built;
+  }
+
+  test("[37] an empty pin is correct only while db/migrations revokes nothing", () => {
+    // WHY THIS RULE EXISTS. The catalog test installs a privilege floor because
+    // the CI database has no Supabase ALTER DEFAULT PRIVILEGES. Two versions of
+    // that floor were disproved by execution, the second one by the r43 gates:
+    // a migration that really revokes DELETE leaves the CI stub in the same
+    // state as one that revokes nothing, so a floor reading
+    // `has_table_privilege` GRANTED IT BACK and the revocation became invisible
+    // in the catalog lane as well. The floor therefore subtracts only what THIS
+    // rule recomputes from the migration text.
+    root = treeWithPin("");
+    expect(rulesFired(root, "G10")).toEqual([]);
+    rmSync(root, { recursive: true, force: true });
+
+    // A pin claiming a revocation that db/migrations does not contain would
+    // make the floor revoke a privilege that is still granted -- a healthy
+    // table turned red, the r41 F2 failure from the other side.
+    root = treeWithPin("notes.delete");
+    expect(rulesFired(root, "G10").join(" | ")).toContain("db/migrations leaves nothing revoked");
+  });
+
+  test("[38] a real REVOKE makes the pin stale, and BOTH lanes say so", () => {
+    root = treeWithPin("", `REVOKE DELETE ON "public"."notes" FROM authenticated;`);
+    const errors = collectErasureRegistryErrors(root);
+    // The text lane: the privilege is gone.
+    expect(errors.filter((e) => e.startsWith("G3b")).join(" | ")).toContain("TABLE-level DELETE privilege");
+    // The floor lane: and the floor is not allowed to put it back.
+    expect(errors.filter((e) => e.startsWith("G10")).join(" | ")).toContain("Set it to 'notes.delete'");
+
+    // Updating the pin instead is the OTHER acceptable state -- G10 goes quiet,
+    // the floor revokes DELETE again, and block (8) of the catalog test fails on
+    // the row count. There is no third option where the revocation disappears.
+    rmSync(root, { recursive: true, force: true });
+    root = treeWithPin("notes.delete", `REVOKE DELETE ON "public"."notes" FROM authenticated;`);
+    expect(rulesFired(root, "G10")).toEqual([]);
+    expect(rulesFired(root, "G3b").join(" | ")).toContain("TABLE-level DELETE privilege");
+  });
+
+  test("[39] losing the pin line is a failure, not a default", () => {
+    root = treeWithPin(null);
+    expect(rulesFired(root, "G10").join(" | ")).toContain("G10-ACL-PIN");
+  });
+
+  test("[40] the real tree: the pin is empty, and that is a measurement", () => {
+    // All 26 client_erasable tables still hold SELECT and DELETE for
+    // `authenticated` after the full replay -- only 2 of the 26 are named by any
+    // GRANT/REVOKE at all. An empty pin therefore means the floor reproduces the
+    // Supabase default and subtracts nothing, which is the strongest state this
+    // rule can report.
+    expect(collectErasureRegistryErrors(REPO_ROOT).filter((e) => e.startsWith("G10"))).toEqual([]);
+    const pinLine = readFileSync(join(REPO_ROOT, "db", "tests", "erasure_registry_regression.sql"), "utf8").match(
+      /v_revoked_pin\s+text\s*:=\s*'([^']*)';\s*--\s*G10-ACL-PIN/,
+    );
+    expect(pinLine).not.toBeNull();
+    expect(pinLine?.[1]).toBe("");
   });
 });

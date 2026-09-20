@@ -375,7 +375,24 @@ export type PolicyState = {
  *  `null` means the target could not be bounded at all (a dynamic identifier,
  *  a schema-wide grant), which is strictly worse than naming one table. */
 export type BeyondModel = {
-  kind: "restrictive-policy" | "multiple-delete-policies" | "schema-wide-acl" | "dynamic-ddl" | "unreadable-using";
+  kind:
+    | "restrictive-policy"
+    | "multiple-delete-policies"
+    | "schema-wide-acl"
+    | "dynamic-ddl"
+    | "unreadable-using"
+    // A GRANT / REVOKE naming a table in a spelling `aclRe` does not read. It
+    // used to be dropped in silence, which is how `REVOKE DELETE ON
+    // "public"."records" FROM authenticated` stayed green (r43 authorisation
+    // gate F2): the ACL replay never saw it, so ownerRoleCanDelete kept
+    // answering from the Supabase default.
+    | "unparsed-acl"
+    // `CREATE ROLE` / `GRANT <role> TO <role>`. Role membership is what makes a
+    // policy scoped to some third role reach `authenticated`, and no policy
+    // text says so (r42 / r43 authorisation gate F1). db/migrations contains
+    // neither statement today (measured 2026-09-20), so this costs nothing
+    // until one appears.
+    | "role-membership";
   file: string;
   detail: string;
   tables: string[] | null;
@@ -442,7 +459,11 @@ const NON_TABLE_GRANT_OBJECTS = new Set([
 ]);
 
 function normalizeSqlName(raw: string): string {
-  return raw.trim().replace(/^public\s*\.\s*/i, "").replace(/^"|"$/g, "").toLowerCase();
+  // `"public"."records"` is the same table as `public.records`, and reading only
+  // the second spelling is how a real `REVOKE DELETE` stayed green through two
+  // gates (r43 authorisation gate F2). The quotes come off the schema as well
+  // as the table.
+  return raw.trim().replace(/^"?public"?\s*\.\s*/i, "").replace(/^"|"$/g, "").toLowerCase();
 }
 
 /** Split a GRANT/REVOKE privilege list into verbs, expanding ALL.
@@ -575,14 +596,26 @@ const OPAQUE_FRAGMENT = "<?>";
 /**
  * The bodies a migration EXECUTES at apply time.
  *
- * TWO KINDS, AND THE SECOND ONE IS WHY THIS COMMENT CHANGED (r42 artifact gate,
- * M1). `DO $tag$ ... $tag$` is the obvious kind. The other is a function the
- * file DEFINES AND THEN RUNS: `CREATE FUNCTION f() ... EXECUTE 'ALTER POLICY
+ * THREE KINDS, AND THE THIRD IS WHY THIS IS CORPUS-WIDE (r43 artifact gate, M1).
+ * `DO $tag$ ... $tag$` is the obvious kind. The second is a function the file
+ * DEFINES AND THEN RUNS: `CREATE FUNCTION f() ... EXECUTE 'ALTER POLICY
  * records_owner_all ON public.records TO anon'` followed by `SELECT f();`
- * changes the policy's role exactly as a DO block would, and the gate walked
+ * changes the policy's role exactly as a DO block would, and the r42 gate walked
  * that shape through this guard with `g3=[] beyond=[] exempt=[]`. A
  * `CREATE TRIGGER ... EXECUTE FUNCTION f()` counts as running it too: from that
  * statement on, any DML reaches the body.
+ *
+ * The third is a function ONE migration defines and a LATER migration runs. The
+ * previous version took a single file's text, so a definition in 0187 and a
+ * `SELECT public.cross_probe()` in 0188 were two unrelated strings and the body
+ * vanished -- the r43 artifact gate reproduced it twice, once as a direct call
+ * and once as a trigger attachment, and got `errors=[] GREEN` both times. This
+ * is not a hypothetical shape in this repo: measured across all 172 migrations
+ * on 2026-09-20 there are 199 routine definitions under 124 distinct names, 41
+ * of those names are redefined in a LATER file, 19 are dropped, and cross-file
+ * invocation is the norm rather than the exception (`billing_request_role` is
+ * called from 22 other files). So the tracker below replays definitions,
+ * replacements, drops and calls IN APPLY ORDER across the whole corpus.
  *
  * DEFINING IS STILL NOT RUNNING. 0015 defines `admin_exec_sql(text)` whose body
  * is a bare `EXECUTE sql_text` -- unbounded by construction, service_role-only,
@@ -595,11 +628,37 @@ const OPAQUE_FRAGMENT = "<?>";
  *
  * Measured across all 172 migrations on 2026-09-20: exactly two function bodies
  * contain dynamic EXECUTE at all -- 0015's and 0189's `erase_my_data` -- and
- * neither is invoked by the file that defines it. So this addition collects
- * nothing today. That is the point: it is here for the migration that has not
- * been written yet, and an empty result now is what proves it costs nothing.
+ * NEITHER is invoked from any file, its own included. So going corpus-wide
+ * collects no new payload today. That is the point: it is here for the migration
+ * that has not been written yet, and an empty result now is what proves it costs
+ * nothing.
+ *
+ * AND A BODY IT CANNOT READ IS NOT SILENCE ANY MORE. `definedRoutines` used to
+ * find the body by looking for a dollar tag and `continue`ing when there was
+ * none, which dropped PostgreSQL's original `AS '...'` spelling on the floor --
+ * a valid function body, reproduced GREEN by the r43 gate. It now reads that
+ * form too, and when it can read NEITHER (the SQL-standard `RETURN expr` /
+ * `BEGIN ATOMIC` bodies, or `LANGUAGE c AS 'file','symbol'`) it records the
+ * routine with a null body, so a later CALL fails closed instead of vanishing.
  */
-function executedBlocks(sql: string): { body: string; at: number }[] {
+
+/** One `CREATE [OR REPLACE] FUNCTION|PROCEDURE`, as the tracker remembers it.
+ *  `body === null` means the parser could not read it -- distinct from an empty
+ *  body, and the reason `advance()` can fail closed on a call. */
+type RoutineDefinition = {
+  name: string;
+  body: string | null;
+  file: string;
+  at: number;
+  from: number;
+  to: number;
+};
+
+/** A call site that resolved to a routine whose body this parser cannot read. */
+type UnreadableInvocation = { routine: string; definedIn: string; at: number };
+
+/** `DO $tag$ ... $tag$` -- the bodies a file runs without naming a routine. */
+function doBlocks(sql: string): { body: string; at: number }[] {
   const out: { body: string; at: number }[] = [];
   const re = /\bdo\s+(?:language\s+[a-z_]+\s+)?(\$[A-Za-z_][A-Za-z0-9_]*\$|\$\$)/gi;
   let m: RegExpExecArray | null;
@@ -609,53 +668,187 @@ function executedBlocks(sql: string): { body: string; at: number }[] {
     const end = sql.indexOf(tag, from);
     out.push({ body: sql.slice(from, end === -1 ? sql.length : end), at: m.index });
   }
-  for (const routine of definedRoutines(sql)) {
-    if (!fileInvokes(sql, routine.name, routine.from, routine.to)) continue;
-    out.push({ body: routine.body, at: routine.at });
-  }
   return out;
 }
 
+/**
+ * Where a routine keeps its body, scanning forward from the end of its argument
+ * list and stopping at the statement's own semicolon.
+ *
+ * WHY A BOUNDED SCAN. The previous version searched for a dollar tag from the
+ * CREATE onwards with NO upper bound (`open.lastIndex = m.index; open.exec(sql)`
+ * runs to end of file). So the first routine in this repo with a non-dollar body
+ * would not merely have been skipped: it would have adopted the NEXT
+ * dollar-quoted block in the file -- another routine's body, or a DO body -- as
+ * its own, and `re.lastIndex = end` would then have skipped every definition in
+ * between. 199/199 routines in db/migrations are dollar-quoted today, so nothing
+ * ever hit it. It was still a latent false green, and a bounded scan costs the
+ * same.
+ *
+ * Header clauses are STEPPED OVER rather than pattern-matched, because the list
+ * is open-ended (`SECURITY DEFINER`, `SET search_path = ''`, `STABLE`, `COST`,
+ * `LANGUAGE sql`, `PARALLEL SAFE`). Single-quoted text is skipped whole, so
+ * `SET search_path = ''` cannot be mistaken for a body and a `;` inside a
+ * literal cannot end the statement early. Only a quote the `AS` keyword itself
+ * introduces is read as a body.
+ */
+function routineBodySpan(
+  sql: string,
+  from: number,
+): { from: number; to: number; body: string | null; end: number } {
+  let i = from;
+  while (i < sql.length) {
+    const ch = sql[i];
+    if (ch === ";") return { from: i, to: i, body: null, end: i + 1 };
+    const tag = matchDollarTag(sql, i);
+    if (tag) {
+      const bodyFrom = i + tag.length;
+      const end = sql.indexOf(tag, bodyFrom);
+      if (end === -1) return { from: bodyFrom, to: sql.length, body: null, end: sql.length };
+      return { from: bodyFrom, to: end, body: sql.slice(bodyFrom, end), end: end + tag.length };
+    }
+    if (ch === "'") {
+      const close = findSingleQuoteEnd(sql, i); // index AFTER the closing quote
+      if (/\bas\s*$/i.test(sql.slice(Math.max(0, i - 12), i))) {
+        // PostgreSQL's original spelling. `''` is an escaped quote inside it.
+        // `LANGUAGE c AS 'file','symbol'` also lands here; its "body" is a file
+        // name, which carries no SQL, and a payload scan of it finds nothing.
+        return {
+          from: i + 1,
+          to: close - 1,
+          body: sql.slice(i + 1, close - 1).replace(/''/g, "'"),
+          end: close,
+        };
+      }
+      i = close;
+      continue;
+    }
+    i += 1;
+  }
+  return { from: sql.length, to: sql.length, body: null, end: sql.length };
+}
+
 /** Every `CREATE [OR REPLACE] FUNCTION|PROCEDURE` in the file, with the span of
- *  its dollar-quoted body. `re.lastIndex` jumps past each body so a definition
- *  quoted inside another one cannot be read twice. */
-function definedRoutines(sql: string): { name: string; body: string; at: number; from: number; to: number }[] {
-  const out: { name: string; body: string; at: number; from: number; to: number }[] = [];
+ *  its body. `re.lastIndex` jumps past each body so a definition quoted inside
+ *  another one cannot be read twice. */
+function definedRoutines(sql: string): Omit<RoutineDefinition, "file">[] {
+  const out: Omit<RoutineDefinition, "file">[] = [];
   const re =
     /\bcreate\s+(?:or\s+replace\s+)?(?:function|procedure)\s+(?:"?[A-Za-z_][\w]*"?\s*\.\s*)?"?([A-Za-z_][\w]*)"?\s*\(/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(sql)) !== null) {
-    const open = /(\$[A-Za-z_][A-Za-z0-9_]*\$|\$\$)/g;
-    open.lastIndex = m.index;
-    const tag = open.exec(sql);
-    if (!tag) continue;
-    const from = tag.index + tag[0].length;
-    const end = sql.indexOf(tag[0], from);
-    if (end === -1) continue;
-    out.push({ name: m[1], body: sql.slice(from, end), at: m.index, from, to: end });
-    re.lastIndex = end;
+    const openParen = m.index + m[0].length - 1;
+    const closeParen = matchParen(sql, openParen);
+    if (closeParen === -1) continue;
+    const span = routineBodySpan(sql, closeParen + 1);
+    out.push({
+      name: m[1].toLowerCase(),
+      body: span.body,
+      at: m.index,
+      from: span.from,
+      to: span.to,
+    });
+    re.lastIndex = Math.max(span.end, re.lastIndex);
   }
   return out;
 }
 
-/** Does anything OUTSIDE the routine's own body actually run it?
+/** Every `DROP FUNCTION|PROCEDURE`, including the comma-separated form. A drop
+ *  this misses would only leave a stale definition behind -- an
+ *  over-approximation, which for a fail-closed guard is the safe direction. */
+function droppedRoutines(sql: string): { name: string; at: number }[] {
+  const out: { name: string; at: number }[] = [];
+  const re = /\bdrop\s+(?:function|procedure)\s+(?:if\s+exists\s+)?([^;]{0,400})/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(sql)) !== null) {
+    const nameRe = /(?:"?[A-Za-z_][\w]*"?\s*\.\s*)?"?([A-Za-z_][\w]*)"?\s*(?:\(|,|$)/g;
+    let n: RegExpExecArray | null;
+    while ((n = nameRe.exec(m[1])) !== null) out.push({ name: n[1].toLowerCase(), at: m.index });
+  }
+  return out;
+}
+
+/** Call sites in the file for any of `candidates`.
  *
  *  `CREATE FUNCTION f(`, `DROP FUNCTION f(`, `REVOKE EXECUTE ON FUNCTION f(` and
  *  `COMMENT ON FUNCTION f(` all name it as an object. `EXECUTE FUNCTION f()`
  *  inside a CREATE TRIGGER is the one place that spelling means the opposite, so
- *  it is excluded from the exclusion. */
-function fileInvokes(sql: string, name: string, bodyFrom: number, bodyTo: number): boolean {
-  const re = new RegExp(String.raw`(?:"?[A-Za-z_][\w]*"?\s*\.\s*)?"?` + name + String.raw`"?\s*\(`, "gi");
+ *  it is excluded from the exclusion. A call inside the routine's OWN body is
+ *  recursion, not an invocation; a call inside a DIFFERENT routine's body is
+ *  counted, which over-approximates on purpose -- it can only add fail-closed
+ *  reports, never remove one. */
+function callSites(
+  sql: string,
+  candidates: Set<string>,
+  ownSpans: Map<string, { from: number; to: number }[]>,
+): { name: string; at: number }[] {
+  const out: { name: string; at: number }[] = [];
+  if (candidates.size === 0) return out;
+  const re = /(?:"?[A-Za-z_][\w]*"?\s*\.\s*)?"?([A-Za-z_][\w]*)"?\s*\(/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(sql)) !== null) {
-    if (m.index >= bodyFrom && m.index < bodyTo) continue; // recursion inside itself
+    const name = m[1].toLowerCase();
+    if (!candidates.has(name)) continue;
+    if ((ownSpans.get(name) ?? []).some((s) => m!.index >= s.from && m!.index < s.to)) continue;
     const before = sql.slice(Math.max(0, m.index - 64), m.index);
-    const namesIt = /\b(?:function|procedure)\s+(?:"?[A-Za-z_][\w]*"?\s*\.\s*)?$/i.test(before);
+    const namesIt = /\b(?:function|procedure)\s+(?:if\s+exists\s+)?(?:"?[A-Za-z_][\w]*"?\s*\.\s*)?$/i.test(before);
     const attaches = /\bexecute\s+(?:function|procedure)\s+(?:"?[A-Za-z_][\w]*"?\s*\.\s*)?$/i.test(before);
     if (namesIt && !attaches) continue;
-    return true;
+    out.push({ name, at: m.index });
   }
-  return false;
+  return out;
+}
+
+/** A corpus-wide view of which routine bodies are live, advanced one migration
+ *  at a time in apply order. Definitions, replacements, drops and calls inside a
+ *  file are ordered by offset, so a call ABOVE the definition that would satisfy
+ *  it stays unresolved -- Postgres would have raised there too. */
+function routineTracker(): {
+  advance: (file: string, sql: string) => { executed: { body: string; at: number }[]; unreadable: UnreadableInvocation[] };
+} {
+  const known = new Map<string, RoutineDefinition>();
+  return {
+    advance(file, sql) {
+      const executed = doBlocks(sql);
+      const unreadable: UnreadableInvocation[] = [];
+
+      const defs: RoutineDefinition[] = definedRoutines(sql).map((d) => ({ ...d, file }));
+      const ownSpans = new Map<string, { from: number; to: number }[]>();
+      for (const d of defs) {
+        ownSpans.set(d.name, [...(ownSpans.get(d.name) ?? []), { from: d.from, to: d.to }]);
+      }
+      const candidates = new Set<string>([...known.keys(), ...defs.map((d) => d.name)]);
+
+      const events: { at: number; rank: number; apply: () => void }[] = [];
+      for (const d of defs) events.push({ at: d.at, rank: 0, apply: () => void known.set(d.name, d) });
+      for (const d of droppedRoutines(sql)) {
+        if (!candidates.has(d.name)) continue;
+        events.push({ at: d.at, rank: 0, apply: () => void known.delete(d.name) });
+      }
+      const collected = new Set<string>();
+      for (const call of callSites(sql, candidates, ownSpans)) {
+        events.push({
+          at: call.at,
+          rank: 1,
+          apply: () => {
+            const def = known.get(call.name);
+            if (!def) return; // not defined yet, or already dropped
+            const key = `${def.file}:${def.at}`;
+            if (collected.has(key)) return; // one report per body per file
+            collected.add(key);
+            if (def.body === null) {
+              unreadable.push({ routine: def.name, definedIn: def.file, at: call.at });
+              return;
+            }
+            executed.push({ body: def.body, at: call.at });
+          },
+        });
+      }
+      events.sort((a, b) => a.at - b.at || a.rank - b.rank);
+      for (const e of events) e.apply();
+      return { executed, unreadable };
+    },
+  };
 }
 
 /** Split a PL/pgSQL expression on its TOP-LEVEL `||`. Parentheses, string
@@ -909,7 +1102,7 @@ function dynamicTargets(text: string): { named: string[]; unbounded: boolean } {
  * exempted on the same terms. Everywhere ELSE in the payload, including the
  * clause position the r42 gate used, an unreadable value now fails closed.
  */
-function isExpressionOnlyPolicyRewrite(text: string): boolean {
+function isExpressionOnlyPolicyRewrite(text: string, source: DynamicDdlSource): boolean {
   if (!/^alter\s+policy\b/i.test(text)) return false;
   if (/\b(create|drop|grant|revoke|truncate|rename|enable|disable|force)\b/i.test(text)) return false;
   const afterTarget = text.replace(/^alter\s+policy[\s\S]*?\bon\b\s*\S*/i, "");
@@ -924,9 +1117,11 @@ function isExpressionOnlyPolicyRewrite(text: string): boolean {
   // so it fails closed.
   let depth = 0;
   let cleaned = "";
+  let opaque = false;
   for (let i = 0; i < afterTarget.length; i += 1) {
     if (afterTarget.startsWith(OPAQUE_FRAGMENT, i)) {
       if (depth < 1) return false;
+      opaque = true;
       i += OPAQUE_FRAGMENT.length - 1;
       continue;
     }
@@ -935,8 +1130,33 @@ function isExpressionOnlyPolicyRewrite(text: string): boolean {
     else if (ch === ")") depth -= 1;
     cleaned += ch;
   }
-  return cleaned.replace(/\busing\b|\bwith\s+check\b/gi, "").replace(/[\s()]/g, "") === "";
+  if (cleaned.replace(/\busing\b|\bwith\s+check\b/gi, "").replace(/[\s()]/g, "") !== "") return false;
+  // AND IF THE EXPRESSION CONTAINS A VALUE, IT IS 0102's OR IT FAILS CLOSED.
+  // Everything above is structural; this is the one judgement that rests on a
+  // fact outside the payload. Nothing static can evaluate a spliced value, so
+  // the exemption can only ever be as good as its PROVENANCE, and 0102's
+  // provenance is the whole argument: the value is `r.qual` read back from
+  // pg_policies, which renders it through pg_get_expr and therefore cannot emit
+  // an unbalanced parenthesis or a second clause. A different migration
+  // splicing `current_setting('app.policy_qual')` into the same position has no
+  // such guarantee -- and worse, it can lie dormant in a trigger that CI never
+  // fires, so the catalog lane cannot see it either (r43 artifact gate M2).
+  // Measured 2026-09-20: 0102 is the ONLY migration that issues a dynamic ALTER
+  // POLICY at all, so narrowing this exempts nothing that was exempt before.
+  if (!opaque) return true;
+  return source.file === EXPRESSION_REWRITE_MIGRATION && source.readsPgPolicies;
 }
+
+/** The one migration whose opaque USING value is exempt, named rather than
+ *  described. 0102_rls_wrap_auth_uid.sql reads pg_policies at run time and
+ *  rewrites every `auth.uid()` policy in `public` into the initplan-hoisted
+ *  `(select auth.uid())` form. */
+const EXPRESSION_REWRITE_MIGRATION = "0102_rls_wrap_auth_uid.sql";
+
+/** Where a dynamic payload came from. `readsPgPolicies` is read off the body
+ *  that EXECUTEs it, not off the payload: the payload is the concatenation, and
+ *  the provenance of the value spliced into it is a property of the block. */
+export type DynamicDdlSource = { file: string; readsPgPolicies: boolean };
 
 export type DynamicDdlVerdict =
   | { kind: "out-of-scope" }
@@ -960,7 +1180,13 @@ function readUsingExpression(sql: string, after: number): string | null {
   return close === -1 ? null : sql.slice(open + 1, close);
 }
 
-export function classifyDynamicDdl(fragments: string[], resolved: boolean): DynamicDdlVerdict {
+export function classifyDynamicDdl(
+  fragments: string[],
+  resolved: boolean,
+  // Defaulted so a caller that cannot name the provenance gets the STRICT
+  // answer: an unknown file is not 0102, so an opaque expression fails closed.
+  source: DynamicDdlSource = { file: "", readsPgPolicies: false },
+): DynamicDdlVerdict {
   const text = fragments.join(" ").replace(/\s+/g, " ").trim();
   if (!resolved) {
     return { kind: "beyond", detail: "EXECUTE of a value this parser cannot read", tables: null };
@@ -968,7 +1194,7 @@ export function classifyDynamicDdl(fragments: string[], resolved: boolean): Dyna
   if (!REGISTRY_DDL_KEYWORDS.test(text)) return { kind: "out-of-scope" };
   const targets = dynamicTargets(text);
   if (!targets.unbounded && targets.named.length === 0) return { kind: "out-of-scope" };
-  if (isExpressionOnlyPolicyRewrite(text)) return { kind: "expression-only", detail: text.slice(0, 160) };
+  if (isExpressionOnlyPolicyRewrite(text, source)) return { kind: "expression-only", detail: text.slice(0, 160) };
   return { kind: "beyond", detail: text.slice(0, 200), tables: targets.unbounded ? null : targets.named };
 }
 
@@ -1038,6 +1264,10 @@ export function replayMigrations(migrationsDir: string): SchemaReplay {
   const beyondModel: BeyondModel[] = [];
   const expressionOnlyRewrites: ExpressionOnlyRewrite[] = [];
   let foreignKeys: ForeignKeyEdge[] = [];
+  // Advanced once per file, in apply order, so a routine defined in one
+  // migration and called in a later one is the same routine (r43 artifact gate,
+  // M1). It has to live outside the loop for that to be true.
+  const routines = routineTracker();
 
   const policySlot = (table: string): Map<string, PolicyState> => {
     const existing = policies.get(table);
@@ -1088,9 +1318,30 @@ export function replayMigrations(migrationsDir: string): SchemaReplay {
     // Dynamic DDL, read from the UNMASKED text: the payload lives inside the
     // very literals `maskInertSql` blanks, which is exactly why the r41
     // artifact gate's `EXECUTE 'DROP POLICY ...'` vanished (M1).
-    for (const block of executedBlocks(raw)) {
+    const running = routines.advance(file, raw);
+    // A call this parser resolved to a routine whose BODY it could not read. It
+    // cannot say the body is harmless and it will not assume it, so the question
+    // goes to the catalog test with an unbounded target set.
+    for (const call of running.unreadable) {
+      beyondModel.push({
+        kind: "dynamic-ddl",
+        file,
+        detail:
+          `calls ${call.routine}(), defined in ${call.definedIn} with a body this parser cannot ` +
+          `read (not dollar-quoted and not \`AS '...'\`), so whatever it EXECUTEs is unknown`,
+        tables: null,
+      });
+    }
+    for (const block of running.executed) {
+      const source: DynamicDdlSource = {
+        file,
+        // 0102's exempt value is `r.qual` read back from pg_policies. Asked of
+        // the BLOCK, because the payload is only the concatenation and cannot
+        // show where its opaque half came from.
+        readsPgPolicies: /\bpg_policies\b/i.test(block.body),
+      };
       for (const payload of collectExecutePayloads(block.body)) {
-        const verdict = classifyDynamicDdl(payload.fragments, payload.resolved);
+        const verdict = classifyDynamicDdl(payload.fragments, payload.resolved, source);
         if (verdict.kind === "out-of-scope") continue;
         if (verdict.kind === "expression-only") {
           expressionOnlyRewrites.push({ file, detail: verdict.detail });
@@ -1418,9 +1669,25 @@ export function replayMigrations(migrationsDir: string): SchemaReplay {
     // DELETE and leaves DELETE itself in place. Folding it into the privilege
     // list made the model delete the privilege and turn a working table red
     // (r41 gate F2, `grant_option_only RED`).
+    //
+    // THE SCHEMA MAY BE QUOTED, and reading only one spelling was the hole.
+    // `REVOKE DELETE ON "public"."records" FROM authenticated` and
+    // `REVOKE DELETE ON public.records FROM authenticated` take exactly the same
+    // privilege away; the r43 authorisation gate (F2) ran both and got
+    // `bare_revoke RED` / `quoted_schema_revoke GREEN errors=[] canDelete=true`.
+    // Widening the pattern is only half the answer, though -- there is always
+    // another spelling -- so the loop below it REFUSES anything this one could
+    // not read, instead of carrying on from the Supabase default.
     const aclRe =
-      /\b(grant|revoke)\s+(grant\s+option\s+for\s+)?((?:[a-z]+(?:\s+privileges)?(?:\s*\([^)]*\))?\s*,\s*)*[a-z]+(?:\s+privileges)?(?:\s*\([^)]*\))?)\s+on\s+(?:table\s+)?((?:(?:public\s*\.\s*)?"?[A-Za-z_][\w]*"?\s*,\s*)*(?:public\s*\.\s*)?"?[A-Za-z_][\w]*"?)\s+(?:to|from)\s+((?:"?[A-Za-z_][\w]*"?\s*,\s*)*"?[A-Za-z_][\w]*"?)/gi;
+      /\b(grant|revoke)\s+(grant\s+option\s+for\s+)?((?:[a-z]+(?:\s+privileges)?(?:\s*\([^)]*\))?\s*,\s*)*[a-z]+(?:\s+privileges)?(?:\s*\([^)]*\))?)\s+on\s+(?:table\s+)?((?:(?:"?public"?\s*\.\s*)?"?[A-Za-z_][\w]*"?\s*,\s*)*(?:"?public"?\s*\.\s*)?"?[A-Za-z_][\w]*"?)\s+(?:to|from)\s+((?:"?[A-Za-z_][\w]*"?\s*,\s*)*"?[A-Za-z_][\w]*"?)/gi;
+    // Every offset the pattern DID reach, so the detector after it can tell
+    // "read and deliberately not applied" (a column-qualified `GRANT INSERT
+    // (id, email)`, a `GRANT OPTION FOR`, a grantee this replay does not track)
+    // from "not read at all". There are 7 of the former in db/migrations and 0
+    // of the latter today (measured 2026-09-20).
+    const aclParsedAt = new Set<number>();
     while ((m = aclRe.exec(sql)) !== null) {
+      aclParsedAt.add(m.index);
       if (m[2]) continue;
       const verb = m[1].toLowerCase();
       const privileges = parsePrivilegeList(m[3]);
@@ -1444,6 +1711,75 @@ export function replayMigrations(migrationsDir: string): SchemaReplay {
             }
           }
         },
+      });
+    }
+
+    // ...AND EVERY OTHER GRANT / REVOKE, REFUSED RATHER THAN IGNORED.
+    //
+    // This is the rule the last three rounds kept re-learning from the other
+    // end: widening a regex closes the spelling it was shown and nothing else.
+    // So each `GRANT`/`REVOKE` keyword in the file is classified, and anything
+    // that names a table-shaped object without `aclRe` having read it becomes a
+    // question for the catalog test. `ON FUNCTION|SCHEMA|SEQUENCE|...` is out of
+    // scope by object kind; `ON ALL TABLES IN SCHEMA` and `ALTER DEFAULT
+    // PRIVILEGES` are already reported above as schema-wide; a GRANT with no
+    // `ON` at all is role membership, which is what lets a policy scoped to a
+    // third role reach `authenticated`.
+    //
+    // Measured over all 172 migrations on 2026-09-20: 568 GRANT/REVOKE
+    // statements, 483 `ON FUNCTION`, 85 naming a table, 85/85 read by `aclRe`,
+    // and 0 role-membership grants. This adds no failure to today's tree -- it
+    // is the floor under the next spelling.
+    const aclKeywordRe = /\b(grant|revoke)\b/gi;
+    while ((m = aclKeywordRe.exec(sql)) !== null) {
+      if (aclParsedAt.has(m.index)) continue;
+      const semicolon = sql.indexOf(";", m.index);
+      const statement = sql
+        .slice(m.index, semicolon === -1 ? sql.length : semicolon)
+        .replace(/\s+/g, " ")
+        .trim();
+      // `REVOKE GRANT OPTION FOR ...` matches this pattern twice; the inner
+      // `GRANT` is part of a statement `aclRe` already read at the outer offset.
+      if (/^grant\s+option\s+for\b/i.test(statement)) continue;
+      const objectKind = /\bon\s+(?:all\s+\w+\s+in\s+schema\b|(\w+))/i.exec(statement);
+      if (objectKind === null) {
+        // No `ON` clause: `GRANT <role> TO <role>` (or `REVOKE <role> FROM`).
+        // Only reported when it really is a role grant -- `GRANT ... ON` split
+        // across the `;` boundary cannot happen, because a statement ends there.
+        if (/^(?:grant|revoke)\s+[\w",\s]+\s+(?:to|from)\s+[\w",\s]+$/i.test(statement)) {
+          beyondModel.push({
+            kind: "role-membership",
+            file,
+            detail: statement.slice(0, 200),
+            tables: null,
+          });
+        }
+        continue;
+      }
+      if (objectKind[1] === undefined) continue; // ON ALL ... IN SCHEMA: reported above
+      const head = objectKind[1].toLowerCase();
+      if (NON_TABLE_GRANT_OBJECTS.has(head)) continue;
+      if (/\bon\s+schema\b/i.test(statement)) continue; // reported above
+      beyondModel.push({
+        kind: "unparsed-acl",
+        file,
+        detail: statement.slice(0, 200),
+        tables: null,
+      });
+    }
+
+    // A new role is the other half of role membership: `CREATE ROLE x` on its
+    // own changes nothing, but it is the statement that makes the next
+    // `GRANT x TO authenticated` possible, and a policy `TO x` then reaches
+    // every authenticated caller while its text names a role no check reads
+    // (r42 / r43 authorisation gate F1). 0 occurrences in db/migrations today.
+    const roleRe = /\bcreate\s+(?:role|user|group)\s+(?!mapping\b)[\s\S]{0,80}?(?=;|$)/gi;
+    while ((m = roleRe.exec(sql)) !== null) {
+      beyondModel.push({
+        kind: "role-membership",
+        file,
+        detail: m[0].replace(/\s+/g, " ").trim().slice(0, 200),
+        tables: null,
       });
     }
 

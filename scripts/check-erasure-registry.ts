@@ -27,6 +27,9 @@
 //   G7 one original    0189's seed block is byte-identical to a fresh render
 //   G8 cascade order   a CASCADE child is deleted before its parent           (F2)
 //   G9 cascade honesty a kept table that a CASCADE empties says so            (F3)
+//   G10 floor honesty  the catalog test's privilege floor reproduces the      (F1)
+//                      Supabase default and never grants back a privilege
+//                      db/migrations revoked -- see the long note at the rule
 //
 // G8/G9 were added on 2026-09-20 after the r38 gate. Both are about the RECEIPT
 // telling the truth, and both come from the same blind spot: the registry only
@@ -78,9 +81,9 @@
 //      classified                   `authenticated` role with A's JWT claim:
 //   G2 no stale rows                  (1) DELETE of B's row affects 0 rows and B's row survives
 //   G5 well-formed entries            (2) DELETE of A's own row affects exactly 1 row
-//   G6 retention ledgers kept       Policy composition, RESTRICTIVE, role inheritance, the
-//   G7 seed == JSON                 table ACL and 0102's live rewrite are all INSIDE that
-//   G8/G9 FK order + cascades       observation, whatever syntax produced them.
+//   G6 retention ledgers kept       Policy composition, RESTRICTIVE, role inheritance and
+//   G7 seed == JSON                 0102's live rewrite are INSIDE that observation; the
+//   G8/G9 FK order + cascades       table ACL is NOT -- that verdict is G3b + G10.
 //   G3 no contradiction, and
 //      FAIL CLOSED on anything
 //      beyond the model
@@ -113,6 +116,16 @@ import {
 
 /** The migration that carries the DB-side copy of the registry. */
 const REGISTRY_MIGRATION = "0189_erasure_registry.sql";
+
+/** The catalog test, and the file G10 keeps honest. */
+const REGRESSION_SQL = join("db", "tests", "erasure_registry_regression.sql");
+
+/** The marker on the one line in REGRESSION_SQL that G10 owns. */
+const ACL_PIN_RE = /v_revoked_pin\s+text\s*:=\s*'([^']*)';\s*--\s*G10-ACL-PIN/;
+
+/** The two verbs block (8) of the catalog test depends on, and therefore the
+ *  only two whose loss the privilege floor must not paper over. */
+const FLOOR_PRIVILEGES = ["select", "delete"] as const;
 
 /** Ledgers the erasure path must never target. The dispatch and
  *  docs/S3-SERVER-DELETION.md 6 both name these five; pinning them here means a
@@ -358,6 +371,44 @@ export function collectErasureRegistryErrors(root: string): string[] {
         );
       }
 
+      // G3c -- A DELETE PATH SCOPED TO A ROLE THIS GUARD CANNOT PLACE.
+      //
+      // `ownerDeletePolicies` keeps only policies naming `authenticated` or
+      // PUBLIC, which is right for G3a/G3b -- those two authorise, so they must
+      // read the owner-facing path and nothing else. But it means a policy
+      // `FOR DELETE TO review_group` drops out of BOTH lists: G3a has nothing
+      // to contradict, G3b sees the owner policy and is satisfied, and the
+      // "2 permissive policies reach DELETE" branch below never counts it. The
+      // r42 authorisation gate (F1) walked exactly that through, and the r43
+      // gate did it again with a cross-table USING. `GRANT review_group TO
+      // authenticated` is one line in a migration and NOTHING IN THE POLICY
+      // TEXT SAYS IT. So a delete path scoped to a role whose membership this
+      // guard cannot resolve is reported, not skipped.
+      //
+      // The four below are the Supabase roles: `authenticated` and PUBLIC are
+      // already judged, `anon` and `service_role` are peers of `authenticated`
+      // under `authenticator` and never its parents. Anything else is a
+      // question. Measured 2026-09-20: of 116 CREATE POLICY statements in
+      // db/migrations exactly one names another role (`supabase_auth_admin`, on
+      // `user_roles`, which is not client_erasable), and db/migrations contains
+      // no CREATE ROLE and no role-membership GRANT at all -- both of which
+      // replayMigrations now reports in its own right.
+      const PLACEABLE_ROLES = ["authenticated", "public", "anon", "service_role"];
+      for (const [name, state] of policies.get(table) ?? new Map<string, PolicyState>()) {
+        if (state.command !== "delete" && state.command !== "all") continue;
+        const unplaceable = state.roles
+          .split(",")
+          .map((r) => r.trim().replace(/^"|"$/g, "").toLowerCase())
+          .filter((r) => r.length > 0 && !PLACEABLE_ROLES.includes(r));
+        if (unplaceable.length === 0) continue;
+        sendToCatalog(
+          `policy ${name} (@ ${state.file}) reaches ${state.command.toUpperCase()} for the role(s) ` +
+            `${unplaceable.join(", ")}, and whether \`authenticated\` is a member of them is not in ` +
+            `any policy text -- one \`GRANT ${unplaceable[0]} TO authenticated\` makes this a delete ` +
+            `path for every signed-in caller, and Postgres ORs it into the permissive set.`,
+        );
+      }
+
       // G3c -- composition this parser does not implement.
       const permissiveDeletes = deletable.filter((p) => p.state.permissive);
       if (permissiveDeletes.length > 1) {
@@ -438,6 +489,95 @@ export function collectErasureRegistryErrors(root: string): string[] {
         `db/tests/erasure_registry_regression.sql instead, or write the statement in a literal form ` +
         `(a plain CREATE/DROP POLICY, a per-table GRANT/REVOKE) that the replay can read.`,
     );
+  }
+
+  // ---------------------------------------------------------------------
+  // G10 -- THE PRIVILEGE FLOOR MAY NOT REVIVE WHAT A MIGRATION REVOKED.
+  //
+  // Block (8) of the catalog test deletes rows as the real `authenticated`
+  // role, and the CI database has no Supabase ALTER DEFAULT PRIVILEGES, so the
+  // test installs a floor first or every DELETE raises 42501 for a reason no
+  // migration caused. Two versions of that floor were disproved by execution.
+  // `relacl IS NULL` skipped tables that `REVOKE GRANT OPTION FOR DELETE` had
+  // merely touched (r41 gate F2). `has_table_privilege(...)` then did the
+  // opposite: a migration that REALLY revokes DELETE leaves the CI stub in the
+  // same state as one that revokes nothing -- there was nothing to take -- so
+  // the floor GRANTED IT BACK and the revocation was invisible in the catalog
+  // lane as well as (until this round) the text lane. Post-hoc the catalog
+  // cannot separate the two cases at all: both leave byte-identical ACLs.
+  //
+  // So the floor stopped reading the catalog. It reproduces the platform
+  // default unconditionally and then re-applies a list of revocations pinned in
+  // the test file -- and THIS rule is what keeps that list equal to what
+  // db/migrations actually says, by recomputing it from the same replay that
+  // answers G3b. Neither lane can mask a REVOKE any more:
+  //
+  //   real `REVOKE DELETE` (quoted or not)  -> G3b red AND G10 red (pin stale)
+  //   pin updated to match instead          -> floor revokes it again, (8) red
+  //   `REVOKE GRANT OPTION FOR DELETE`      -> takes nothing, both lanes green
+  //
+  // The expected list is EMPTY today, and that is a measurement, not a
+  // convenience: all 26 client_erasable tables still hold SELECT and DELETE for
+  // `authenticated` after the full replay (only 2 of the 26 are named by any
+  // GRANT/REVOKE at all). An empty pin is the strongest state this rule can
+  // report -- it means the floor reproduces the default and subtracts nothing.
+  // ---------------------------------------------------------------------
+  const expectedPin: string[] = [];
+  for (const table of [...erasableTables].sort()) {
+    const byGrantee = replay.tablePrivileges.get(table);
+    for (const privilege of FLOOR_PRIVILEGES) {
+      // Absent means no migration ever named the table, so the Supabase default
+      // still stands -- absence is not "no privileges" (ownerRoleHolds says the
+      // same). `authenticated` specifically, because that is the grantee the
+      // floor installs and the role block (8) becomes.
+      const held = byGrantee === undefined ? true : (byGrantee.get("authenticated")?.has(privilege) ?? false);
+      if (!held) expectedPin.push(`${table}.${privilege}`);
+    }
+  }
+  const regressionPath = join(root, REGRESSION_SQL);
+  let regressionSql: string | null = null;
+  try {
+    regressionSql = readFileSync(regressionPath, "utf8");
+  } catch {
+    regressionSql = null;
+  }
+  if (regressionSql === null) {
+    if (expectedPin.length > 0) {
+      errors.push(
+        `G10 ${REGRESSION_SQL} could not be read, so the privilege floor it installs cannot be ` +
+          `checked -- and db/migrations DOES revoke ${expectedPin.join(", ")} from authenticated. ` +
+          `An unchecked floor would grant those back and hide the revocation from the catalog lane.`,
+      );
+    }
+  } else {
+    const pinned = ACL_PIN_RE.exec(regressionSql);
+    if (pinned === null) {
+      errors.push(
+        `G10 ${REGRESSION_SQL} no longer carries its \`v_revoked_pin text := '...'; -- G10-ACL-PIN\` ` +
+          `line. That line is what stops the privilege floor from granting back a privilege ` +
+          `db/migrations revoked; without it this rule cannot check the floor and the floor is the ` +
+          `only reason block (8) can delete anything at all. Restore the line (expected value: ` +
+          `'${expectedPin.join(",")}').`,
+      );
+    } else {
+      const actual = pinned[1]
+        .split(",")
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean)
+        .sort();
+      const expected = [...expectedPin].sort();
+      if (actual.join(",") !== expected.join(",")) {
+        errors.push(
+          `G10 the G10-ACL-PIN in ${REGRESSION_SQL} says "${actual.join(",")}" but db/migrations ` +
+            `leaves ${expected.length === 0 ? "nothing" : expected.join(", ")} revoked from ` +
+            `authenticated on a client_erasable table. The pin is the privilege floor's ONLY ` +
+            `instruction to subtract something, so a stale one either revives a privilege a ` +
+            `migration took away -- hiding it from block (8) exactly as the r43 gates measured -- ` +
+            `or revokes one that is still granted and turns a healthy table red. Set it to ` +
+            `'${expected.join(",")}'.`,
+        );
+      }
+    }
   }
 
   // G6 -- the retention ledgers.
