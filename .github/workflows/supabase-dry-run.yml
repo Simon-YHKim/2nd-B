@@ -337,9 +337,11 @@ jobs:
       #            afterwards, and everything that hangs off the two objects must
       #            equal what it was before the rollback: the ledger, the function
       #            (owner, ACL, definition, COMMENT), the registry rows, the table
-      #            (owner, ACL, RLS, its columns with their defaults, ACLs and
-      #            comments, constraints, indexes, policies, triggers), and
-      #            whatever else pg_depend hangs off either object. DROP takes all
+      #            (owner, ACL, and its whole catalog row), its columns (defaults,
+      #            ACLs, comments, and their whole catalog rows), constraints,
+      #            indexes (and theirs), policies, triggers, the sequences its
+      #            columns own, rules, statistics objects, the comments on any of
+      #            those, and whatever else pg_depend hangs off either object. DROP takes all
       #            of it without a word, so a LATER migration that adds any of it
       #            and is left out of the rollback's list loses it to the round
       #            trip. That comparison is what says so.
@@ -365,8 +367,29 @@ jobs:
       #
       # The half of this rule that needs no database lives in
       # src/lib/privacy/__tests__/erasure-registry-migration.test.ts. It reads every
-      # migration, keeps only the SQL that executes, and requires each file that
-      # names either object to be in the rollback's list.
+      # migration from 0189 on, keeps only the SQL that executes (restoring what is
+      # assembled at run time wherever that is a constant), and requires each file
+      # that names either object to be in the rollback's list.
+      #
+      # The two halves are blind in different directions, which is the reason to
+      # keep both. That one catches ANY KIND of change, as long as it can read the
+      # statement; it cannot follow a name through a variable or into a helper
+      # function. This one does not care how a statement was spelled; it sees only
+      # the catalog facts owned_state reads. A change is lost without a red only
+      # where BOTH are blind, and r52's artifact gate found exactly that corner
+      # (B-NEW-01: EXECUTE format(...) x a column's statistics target). Both sides
+      # of it are closed here: owned_state reads whole catalog rows, and the other
+      # half no longer lets SQL it cannot restore pass in silence. What is left is
+      # a change that goes through a function defined in an earlier migration AND
+      # lands in a catalog this query does not read (a publication's row filter or
+      # column list, a security label, an event trigger). That corner is stated,
+      # not closed.
+      #
+      # When the comparison below goes red the fix is an entry in that file's
+      # c_names, and the other half ACCEPTS such an entry: its reading is a lower
+      # bound. It used to demand the list hold nothing it had not found itself, so
+      # the author who did what this step says was failed by the other one (r52
+      # bizlogic gate, B-R52-N01).
       #
       # Every failure is reported before the step exits, so one run shows the whole
       # shape of a regression rather than its first symptom.
@@ -429,11 +452,29 @@ jobs:
           # are sorted, because the order of the entries is the order of the GRANTs
           # and says nothing about who holds what. The last part is the net under
           # the named ones: whatever else pg_depend hangs off either object (a
-          # rule, a statistics object, a view). It repeats the constraints, which
-          # hang off the table too. That costs lines, and buys a net with no
-          # exclusion list to go stale. Internal dependencies do stay out of it:
-          # the TOAST table is one, and its name carries the OID of a table the
-          # round trip re-creates.
+          # view, a publication). It repeats the constraints, which hang off the
+          # table too. That costs lines, and buys a net with no exclusion list to
+          # go stale. Internal dependencies do stay out of it: the TOAST table is
+          # one, and its name carries the OID of a table the round trip re-creates.
+          #
+          # WHOLE ROWS, where a row is what holds the properties. The column line
+          # used to name eight of pg_attribute's columns, and a statistics target, a
+          # storage mode, a compression method and the per-column options are four
+          # it did not name: SET STATISTICS moved the catalog and not this
+          # fingerprint (r52 artifact gate, B-NEW-01; reproduced here 2026-09-21
+          # 01:59 KST, both halves green). Naming those four would leave a list with
+          # a fifth missing. So the row is read WHOLE and the columns taken OUT are
+          # the named ones: what a re-created table cannot keep (its OIDs, its file),
+          # what the autovacuum rewrites on its own schedule (page and tuple counts,
+          # the frozen-xid marks, the has-index style hints), and the ACLs, which
+          # are printed sorted on the line above. The two lists fail differently.
+          # One that names what to READ goes stale in silence. One that names what
+          # to SKIP goes stale as a red diff that prints the key: a catalog column a
+          # future server adds is compared until someone says it should not be.
+          # One key to a line (`column table_name .attstattarget=1000`), so that the
+          # diff names the property that moved. MEASURED 2026-09-21 02:17 KST with
+          # the row printed as one JSON value: the red was right and unreadable, two
+          # 500-character lines that differed in their last twenty.
           owned_state="$(cat <<'SQL'
           WITH reg AS (SELECT pg_catalog.to_regclass('public.erasure_registry') AS oid),
                fn AS (SELECT pg_catalog.to_regprocedure('public.erase_my_data(text)') AS oid)
@@ -461,9 +502,20 @@ jobs:
                             || ' rls=' || c.relrowsecurity || ' force_rls=' || c.relforcerowsecurity
                             || ' persistence=' || c.relpersistence::text || ' replica_identity=' || c.relreplident::text
                             || ' options=' || COALESCE(c.reloptions::text, '(none)')
+                            || ' toast_options=' || COALESCE((SELECT t.reloptions::text FROM pg_catalog.pg_class AS t WHERE t.oid = c.reltoastrelid), '(none)')
                             || ' comment=' || COALESCE(pg_catalog.md5(pg_catalog.obj_description(c.oid, 'pg_class')), '(none)')
                      FROM pg_catalog.pg_class AS c, reg
                      WHERE c.oid = reg.oid), '(absent)')
+            UNION ALL
+            SELECT 3, 1,
+                   'table .' || kv.key || '=' || COALESCE(kv.value, '(null)')
+            FROM reg
+            JOIN pg_catalog.pg_class AS c ON c.oid = reg.oid
+            CROSS JOIN LATERAL pg_catalog.jsonb_each_text(pg_catalog.to_jsonb(c) - ARRAY[
+              'oid', 'reltype', 'relfilenode', 'reltoastrelid', 'relrewrite',
+              'relpages', 'reltuples', 'relallvisible', 'relallfrozen', 'relfrozenxid', 'relminmxid',
+              'relhasindex', 'relhasrules', 'relhastriggers', 'relhassubclass',
+              'relacl']) AS kv
             UNION ALL
             SELECT 4, 0,
                    'rows ' || COALESCE((SELECT pg_catalog.count(*) || ':' || pg_catalog.md5(pg_catalog.string_agg(r::text, ',' ORDER BY r.table_name))
@@ -484,6 +536,12 @@ jobs:
             JOIN pg_catalog.pg_attribute AS a ON a.attrelid = reg.oid AND a.attnum > 0 AND NOT a.attisdropped
             LEFT JOIN pg_catalog.pg_attrdef AS d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
             UNION ALL
+            SELECT 5, a.attnum,
+                   'column ' || a.attname || ' .' || kv.key || '=' || COALESCE(kv.value, '(null)')
+            FROM reg
+            JOIN pg_catalog.pg_attribute AS a ON a.attrelid = reg.oid AND a.attnum > 0 AND NOT a.attisdropped
+            CROSS JOIN LATERAL pg_catalog.jsonb_each_text(pg_catalog.to_jsonb(a) - ARRAY['attrelid', 'attnum', 'attacl']) AS kv
+            UNION ALL
             SELECT 6, 0,
                    'constraint ' || k.conname || ' ' || pg_catalog.pg_get_constraintdef(k.oid)
                    || ' comment=' || COALESCE(pg_catalog.md5(pg_catalog.obj_description(k.oid, 'pg_constraint')), '(none)')
@@ -495,6 +553,23 @@ jobs:
                    || ' comment=' || COALESCE(pg_catalog.md5(pg_catalog.obj_description(i.indexrelid, 'pg_class')), '(none)')
             FROM reg
             JOIN pg_catalog.pg_index AS i ON i.indrelid = reg.oid
+            UNION ALL
+            SELECT 7, 1,
+                   'index ' || x.relname || ' .' || kv.key || '=' || COALESCE(kv.value, '(null)')
+            FROM reg
+            JOIN pg_catalog.pg_index AS i ON i.indrelid = reg.oid
+            JOIN pg_catalog.pg_class AS x ON x.oid = i.indexrelid
+            CROSS JOIN LATERAL pg_catalog.jsonb_each_text(pg_catalog.to_jsonb(i) - ARRAY[
+              'indexrelid', 'indrelid', 'indcheckxmin',
+              'indkey', 'indcollation', 'indclass', 'indoption', 'indexprs', 'indpred']) AS kv
+            UNION ALL
+            SELECT 7, 2,
+                   'index ' || x.relname || ' column ' || ia.attnum || ' .' || kv.key || '=' || COALESCE(kv.value, '(null)')
+            FROM reg
+            JOIN pg_catalog.pg_index AS i ON i.indrelid = reg.oid
+            JOIN pg_catalog.pg_class AS x ON x.oid = i.indexrelid
+            JOIN pg_catalog.pg_attribute AS ia ON ia.attrelid = i.indexrelid AND ia.attnum > 0
+            CROSS JOIN LATERAL pg_catalog.jsonb_each_text(pg_catalog.to_jsonb(ia) - ARRAY['attrelid', 'attnum', 'attacl']) AS kv
             UNION ALL
             SELECT 8, 0,
                    'policy ' || p.polname || ' command=' || p.polcmd::text || ' permissive=' || p.polpermissive
@@ -511,7 +586,38 @@ jobs:
             FROM reg
             JOIN pg_catalog.pg_trigger AS t ON t.tgrelid = reg.oid AND NOT t.tgisinternal
             UNION ALL
-            SELECT DISTINCT 10, 0,
+            SELECT DISTINCT 9, 1,
+                   'sequence ' || sc.relname || ' .' || kv.key || '=' || COALESCE(kv.value, '(null)')
+            FROM reg
+            JOIN pg_catalog.pg_depend AS d ON d.refclassid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = reg.oid
+                                          AND d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass
+            JOIN pg_catalog.pg_class AS sc ON sc.oid = d.objid AND sc.relkind = 'S'
+            JOIN pg_catalog.pg_sequence AS s ON s.seqrelid = sc.oid
+            CROSS JOIN LATERAL pg_catalog.jsonb_each_text(pg_catalog.to_jsonb(s) - ARRAY['seqrelid']) AS kv
+            UNION ALL
+            SELECT 10, 0,
+                   'rule ' || pg_catalog.pg_get_ruledef(r.oid) || ' enabled=' || r.ev_enabled::text
+            FROM reg
+            JOIN pg_catalog.pg_rewrite AS r ON r.ev_class = reg.oid
+            UNION ALL
+            SELECT 11, 0,
+                   'statistics ' || pg_catalog.pg_get_statisticsobjdef(s.oid)
+                   || ' target=' || COALESCE(s.stxstattarget::text, '(default)')
+            FROM reg
+            JOIN pg_catalog.pg_statistic_ext AS s ON s.stxrelid = reg.oid
+            UNION ALL
+            SELECT DISTINCT 12, 0,
+                   'comment_on ' || pg_catalog.pg_describe_object(d.classid, d.objid, d.objsubid)
+                   || ' ' || pg_catalog.md5(described.description)
+            FROM pg_catalog.pg_depend AS d
+            JOIN pg_catalog.pg_description AS described
+              ON described.classoid = d.classid AND described.objoid = d.objid AND described.objsubid = d.objsubid,
+                 reg, fn
+            WHERE d.deptype <> 'i'
+              AND ((d.refclassid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = reg.oid)
+                   OR (d.refclassid = 'pg_catalog.pg_proc'::pg_catalog.regclass AND d.refobjid = fn.oid))
+            UNION ALL
+            SELECT DISTINCT 13, 0,
                    'hangs_off ' || pg_catalog.pg_describe_object(d.classid, d.objid, d.objsubid)
             FROM pg_catalog.pg_depend AS d, reg, fn
             WHERE d.deptype <> 'i'
@@ -631,8 +737,48 @@ jobs:
           tells_apart "a trigger" \
             "CREATE TRIGGER rollback_probe BEFORE UPDATE ON public.erasure_registry FOR EACH ROW EXECUTE FUNCTION pg_catalog.suppress_redundant_updates_trigger()" \
             "CREATE TRIGGER rollback_probe BEFORE UPDATE ON public.erasure_registry FOR EACH ROW WHEN (OLD.table_name <> '') EXECUTE FUNCTION pg_catalog.suppress_redundant_updates_trigger()"
-          sees "a rule" "CREATE RULE rollback_probe AS ON DELETE TO public.erasure_registry DO INSTEAD NOTHING"
-          sees "a statistics object" "CREATE STATISTICS public.rollback_probe ON (pg_catalog.length(table_name)) FROM public.erasure_registry"
+          tells_apart "a rule" \
+            "CREATE RULE rollback_probe AS ON DELETE TO public.erasure_registry DO INSTEAD NOTHING" \
+            "CREATE RULE rollback_probe AS ON DELETE TO public.erasure_registry DO ALSO NOTHING"
+          tells_apart "a statistics object" \
+            "CREATE STATISTICS public.rollback_probe ON (pg_catalog.length(table_name)) FROM public.erasure_registry" \
+            "CREATE STATISTICS public.rollback_probe ON (pg_catalog.upper(table_name)) FROM public.erasure_registry"
+          # The same object twice, the second time with one more statement after it:
+          # the property is what has to tell the two apart, not the object's arrival.
+          tells_apart "a trigger that is switched off" \
+            "CREATE TRIGGER rollback_probe BEFORE UPDATE ON public.erasure_registry FOR EACH ROW EXECUTE FUNCTION pg_catalog.suppress_redundant_updates_trigger()" \
+            "CREATE TRIGGER rollback_probe BEFORE UPDATE ON public.erasure_registry FOR EACH ROW EXECUTE FUNCTION pg_catalog.suppress_redundant_updates_trigger(); ALTER TABLE public.erasure_registry DISABLE TRIGGER rollback_probe"
+          tells_apart "the index the table is clustered on" \
+            "CREATE INDEX rollback_probe ON public.erasure_registry (table_name)" \
+            "CREATE INDEX rollback_probe ON public.erasure_registry (table_name); ALTER TABLE public.erasure_registry CLUSTER ON rollback_probe"
+          tells_apart "an index column's statistics target" \
+            "CREATE INDEX rollback_probe ON public.erasure_registry (pg_catalog.lower(table_name))" \
+            "CREATE INDEX rollback_probe ON public.erasure_registry (pg_catalog.lower(table_name)); ALTER INDEX public.rollback_probe ALTER COLUMN 1 SET STATISTICS 9189"
+          # An identity column's sequence hangs off the table INTERNALLY, which is the
+          # one kind of dependency the net at the end leaves out (it has to: the TOAST
+          # table is internal too, and is named after an OID). MEASURED 2026-09-21
+          # 02:29 KST: SET INCREMENT BY moved pg_sequence and nothing here. The
+          # generation counter S3-C / S3-D will add is the column this is about.
+          tells_apart "the sequence behind a column"             "ALTER TABLE public.erasure_registry ADD COLUMN rollback_probe bigint GENERATED BY DEFAULT AS IDENTITY"             "ALTER TABLE public.erasure_registry ADD COLUMN rollback_probe bigint GENERATED BY DEFAULT AS IDENTITY; ALTER TABLE public.erasure_registry ALTER COLUMN rollback_probe SET INCREMENT BY 7"
+          tells_apart "a comment on something that hangs off the table" \
+            "CREATE POLICY rollback_probe ON public.erasure_registry FOR SELECT TO anon USING (false); COMMENT ON POLICY rollback_probe ON public.erasure_registry IS 'rollback probe'" \
+            "CREATE POLICY rollback_probe ON public.erasure_registry FOR SELECT TO anon USING (false); COMMENT ON POLICY rollback_probe ON public.erasure_registry IS 'another rollback probe'"
+          # r52 artifact gate, B-NEW-01: the four column facts nobody collected. The
+          # first is the gate's statement. A property with one slot cannot be probed
+          # under a reserved NAME, so it gets a value no migration would choose, or
+          # (two of them have only a handful of values) whichever value it does not
+          # hold now: a probe that sets what is already set moves nothing and would
+          # read as BLIND on the day a real migration picks the same one.
+          sees "a column's statistics target" "ALTER TABLE public.erasure_registry ALTER COLUMN table_name SET STATISTICS 9189"
+          sees "a column's storage mode" "DO \$flip\$ BEGIN IF (SELECT a.attstorage FROM pg_catalog.pg_attribute AS a WHERE a.attrelid = pg_catalog.to_regclass('public.erasure_registry') AND a.attname = 'table_name') = 'e' THEN ALTER TABLE public.erasure_registry ALTER COLUMN table_name SET STORAGE MAIN; ELSE ALTER TABLE public.erasure_registry ALTER COLUMN table_name SET STORAGE EXTERNAL; END IF; END \$flip\$"
+          sees "a column's compression method" "DO \$flip\$ BEGIN IF (SELECT a.attcompression FROM pg_catalog.pg_attribute AS a WHERE a.attrelid = pg_catalog.to_regclass('public.erasure_registry') AND a.attname = 'table_name') = 'p' THEN ALTER TABLE public.erasure_registry ALTER COLUMN table_name SET COMPRESSION default; ELSE ALTER TABLE public.erasure_registry ALTER COLUMN table_name SET COMPRESSION pglz; END IF; END \$flip\$"
+          sees "a column's options" "ALTER TABLE public.erasure_registry ALTER COLUMN table_name SET (n_distinct = -0.190189)"
+          # ...and one that nobody named at all, in the gate's list or this one. It is
+          # here to show what reading the whole row buys: inheritance is recorded on
+          # the COLUMN (attislocal, attinhcount), and no line of this query says so.
+          sees "a column the table now inherits" "CREATE TABLE public.rollback_probe_parent (table_name text); ALTER TABLE public.erasure_registry INHERIT public.rollback_probe_parent"
+          sees "the table's storage parameters" "ALTER TABLE public.erasure_registry SET (autovacuum_analyze_threshold = 190189)"
+          sees "the TOAST table's storage parameters" "ALTER TABLE public.erasure_registry SET (toast.autovacuum_vacuum_threshold = 190189)"
           sees "the table's owner" "ALTER TABLE public.erasure_registry OWNER TO anon"
           sees "the table's comment" "COMMENT ON TABLE public.erasure_registry IS 'rollback probe'"
           sees "a column's comment" "COMMENT ON COLUMN public.erasure_registry.table_name IS 'rollback probe'"
@@ -669,7 +815,7 @@ jobs:
           done
           echo "fixed: ledger after the rollback [$after_rollback] -> EXECUTE after the re-push: $verdict"
           if [[ "$before" != "$after" ]]; then
-            fail "rollback + re-push did not restore what hangs off erase_my_data and erasure_registry ('<' is before the rollback, '>' is after the re-push). A migration that alters either object loses its effect to the rollback's DROP, so its ledger row has to go too: fix $down in the same PR."
+            fail "rollback + re-push did not restore what hangs off erase_my_data and erasure_registry ('<' is before the rollback, '>' is after the re-push). A migration that alters either object loses its effect to the rollback's DROP, so its ledger row has to go too. In the same PR, add it to c_names in $down, one entry on its own line with the file's number and the reason beside it:   'its_ledger_name',  -- NNNN: what it hangs on the two objects   (npm run verify reads that remark, and accepts a name its own reading of the SQL could not find: this comparison is how such a name is found)."
             diff <(printf '%s\n' "$before") <(printf '%s\n' "$after") | sed 's/^/  /' >&2 || true
           else
             echo "fixed: after the re-push, all $(wc -l <<< "$before" | tr -d ' ') facts are what they were"

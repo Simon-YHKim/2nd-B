@@ -249,6 +249,186 @@ export function stripForDdlScan(sql: string): string {
   return maskInertSql(stripSqlComments(sql));
 }
 
+/** One piece of SQL a file hands to the server at RUN time: restored to text
+ *  when it is a constant, and named as unread when it is not. */
+export type RunTimeSql = { restored: true; sql: string } | { restored: false; excerpt: string };
+
+/**
+ * The SQL a file ASSEMBLES AND RUNS, restored to text wherever it is a constant.
+ *
+ * WHY THIS EXISTS. `stripForDdlScan` blanks every single-quoted literal, and it
+ * has to: the same literal is a log line in one file and a statement in the
+ * next. So `EXECUTE 'ALTER TABLE public.erasure_registry ...'` read as no
+ * mention of the table at all, and so did the two spellings one step further
+ * out, `'ALTER TABLE public.' || 'erasure_' || 'registry ...'` and
+ * `format('ALTER TABLE public.%I ...', 'erasure_registry')`. The r52 gates ran
+ * all three (B-NEW-01, B-R52-N01). What decides whether a literal runs is, once
+ * more, the token in front of it, and after EXECUTE it is a statement.
+ *
+ * WHY NOT `collectExecutePayloads`, which already reads EXECUTE. That one
+ * answers "which OPERATION can this perform": it keeps format()'s FIRST
+ * argument, because the verb is there, and carries an operand it cannot read as
+ * a placeholder. This one answers "what does it NAME", and the name is in
+ * format()'s OTHER arguments. It also has to know when it has not read
+ * everything, because its caller turns that into a question for a person
+ * instead of into silence.
+ *
+ * ALL OR NOTHING. A payload is `restored` only when every operand is a constant
+ * this reader evaluates: a plain literal, a dollar-quoted one, a number, `||`,
+ * parentheses, and format() over such arguments with %s, %I, %L and %% (a
+ * position like %2$I is read, a width or a flag is not). A variable, a record
+ * field, any other function call, a cast, an E'' string: not restored, and the
+ * caller gets the statement so it can say which one. No partial credit -- a
+ * half-read payload is what the r42 gate walked through in this file.
+ *
+ * A quoted DO body and a quoted function body (`DO '...'`, `... AS '...'`) are
+ * the same case under another keyword and are restored the same way. The
+ * dollar-quoted form is already descended into by maskInertSql; the quoted form
+ * used to be blanked like any other literal.
+ *
+ * The result is text, not a verdict: read it again with stripForDdlScan, and
+ * with this function, because run-time SQL can assemble run-time SQL.
+ */
+export function readRunTimeSql(sql: string): RunTimeSql[] {
+  const base = stripSqlComments(sql);
+  // Same length as `base`, so an offset found in one is an offset in the other.
+  // Keywords are looked for in the masked text (a word inside a log line is not
+  // a keyword); what follows them is read from `base`, where literals survive.
+  const masked = maskInertSql(base);
+  const out: RunTimeSql[] = [];
+  const unread = (from: number): RunTimeSql => {
+    const stop = base.indexOf(";", from);
+    const text = base.slice(from, stop === -1 ? base.length : stop).replace(/\s+/g, " ").trim();
+    return { restored: false, excerpt: text.length > 160 ? `${text.slice(0, 157)}...` : text };
+  };
+  const keyword = /\b(execute|do|as)\b/gi;
+  let m: RegExpExecArray | null;
+  while ((m = keyword.exec(masked)) !== null) {
+    const word = m[1].toLowerCase();
+    let at = skipBlankSql(base, m.index + m[0].length);
+    if (word !== "execute") {
+      if (word === "do") {
+        const language = /^language\s+[a-z_]+/i.exec(base.slice(at));
+        if (language) at = skipBlankSql(base, at + language[0].length);
+      }
+      // `DO $$...$$` and `AS $$...$$` are already readable, and `x AS y` is an alias.
+      if (base[at] === "'") {
+        const body = readConstantOperand(base, at);
+        out.push(body ? { restored: true, sql: body.value } : unread(m.index));
+      } else if (/^(?:[eEbBxXnN]|[uU]&)'/.test(base.slice(at, at + 3))) {
+        out.push(unread(m.index)); // a body in a string syntax this reader does not decode
+      }
+      continue;
+    }
+    // Not dynamic SQL: the privilege (`GRANT EXECUTE ON ...`) and the trigger
+    // clause (`EXECUTE FUNCTION f()`). Neither word can open a payload.
+    if (/^(?:on|function|procedure)\b/i.test(base.slice(at))) continue;
+    const payload = readConstantExpression(base, at);
+    const after = payload ? base.slice(skipBlankSql(base, payload.end)) : "";
+    // EXECUTE <string> [INTO ...] [USING ...] ;   and   FOR r IN EXECUTE <string> LOOP
+    if (payload && /^(?:;|$|into\b|using\b|loop\b)/i.test(after)) out.push({ restored: true, sql: payload.value });
+    else out.push(unread(m.index));
+  }
+  return out;
+}
+
+/** Whitespace, and the comments stripSqlComments leaves inside a dollar body. */
+function skipBlankSql(sql: string, from: number): number {
+  let i = from;
+  while (i < sql.length) {
+    if (/\s/.test(sql[i])) i += 1;
+    else if (sql.startsWith("--", i)) {
+      const nl = sql.indexOf("\n", i);
+      i = nl === -1 ? sql.length : nl + 1;
+    } else if (sql.startsWith("/*", i)) {
+      const close = sql.indexOf("*/", i + 2);
+      i = close === -1 ? sql.length : close + 2;
+    } else break;
+  }
+  return i;
+}
+
+/** operand ( `||` operand )*, every operand a constant. Null when any is not. */
+function readConstantExpression(sql: string, from: number): { value: string; end: number } | null {
+  let value = "";
+  let at = from;
+  for (;;) {
+    const operand = readConstantOperand(sql, skipBlankSql(sql, at));
+    if (!operand) return null;
+    value += operand.value;
+    at = operand.end;
+    const next = skipBlankSql(sql, at);
+    if (!sql.startsWith("||", next)) return { value, end: at };
+    at = next + 2;
+  }
+}
+
+function readConstantOperand(sql: string, at: number): { value: string; end: number } | null {
+  if (sql[at] === "'") {
+    const end = findSingleQuoteEnd(sql, at);
+    if (end - at < 2 || sql[end - 1] !== "'") return null; // unterminated
+    return { value: sql.slice(at + 1, end - 1).replace(/''/g, "'"), end };
+  }
+  const tag = matchDollarTag(sql, at);
+  if (tag) {
+    const close = sql.indexOf(tag, at + tag.length);
+    return close === -1 ? null : { value: sql.slice(at + tag.length, close), end: close + tag.length };
+  }
+  const number = /^[0-9]+(?:\.[0-9]+)?(?![\w.])/.exec(sql.slice(at));
+  if (number) return { value: number[0], end: at + number[0].length };
+  if (sql[at] === "(") {
+    const inner = readConstantExpression(sql, at + 1);
+    if (!inner) return null;
+    const close = skipBlankSql(sql, inner.end);
+    return sql[close] === ")" ? { value: inner.value, end: close + 1 } : null;
+  }
+  const call = /^(?:pg_catalog\s*\.\s*)?format\s*\(/i.exec(sql.slice(at));
+  if (!call) return null;
+  const args: string[] = [];
+  let i = at + call[0].length;
+  for (;;) {
+    const arg = readConstantExpression(sql, i);
+    if (!arg) return null; // a variable, VARIADIC, a nested call: not a constant
+    args.push(arg.value);
+    i = skipBlankSql(sql, arg.end);
+    if (sql[i] === ",") i += 1;
+    else if (sql[i] === ")") break;
+    else return null; // a cast, an operator other than ||
+  }
+  const value = applyConstantFormat(args[0], args.slice(1));
+  return value === null ? null : { value, end: i + 1 };
+}
+
+/** Postgres' format() over constant arguments. %s, %I, %L, %%, and a position
+ *  (`%2$I`); after a positioned one the next unpositioned takes the argument
+ *  that follows it, as the server does. A width or a flag returns null: reading
+ *  it wrong would be worse than saying it was not read. */
+function applyConstantFormat(template: string, args: string[]): string | null {
+  let out = "";
+  let next = 0;
+  for (let i = 0; i < template.length; i += 1) {
+    if (template[i] !== "%") {
+      out += template[i];
+      continue;
+    }
+    const spec = /^%(?:([0-9]+)\$)?([sIL%])/.exec(template.slice(i));
+    if (!spec) return null;
+    i += spec[0].length - 1;
+    if (spec[2] === "%") {
+      out += "%";
+      continue;
+    }
+    const index = spec[1] === undefined ? next : Number(spec[1]) - 1;
+    if (index < 0 || index >= args.length) return null;
+    next = index + 1;
+    const arg = args[index];
+    if (spec[2] === "s") out += arg;
+    else if (spec[2] === "L") out += `'${arg.replace(/'/g, "''")}'`;
+    else out += /^[a-z_][a-z0-9_$]*$/.test(arg) ? arg : `"${arg.replace(/"/g, '""')}"`;
+  }
+  return out;
+}
+
 function matchDollarTag(sql: string, i: number): string | null {
   if (sql[i] !== "$") return null;
   const m = /^\$[A-Za-z_][A-Za-z0-9_]*\$|^\$\$/.exec(sql.slice(i));

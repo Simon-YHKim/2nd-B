@@ -25,6 +25,7 @@ import { join, resolve } from "node:path";
 import {
   extractRegistrySql,
   loadRegistry,
+  readRunTimeSql,
   renderRegistrySql,
   stripForDdlScan,
 } from "../../../../scripts/generate-erasure-registry";
@@ -87,18 +88,162 @@ const migrationsOnDisk = (): Migration[] =>
 // would be one more list to forget an entry of; any executed mention is cheaper
 // to get right, and its one cost is stated in the test below.
 const LEANED_ON = /erase_my_data|erasure_registry/i;
-const leansOnErasureObjects = (sql: string): boolean => LEANED_ON.test(stripForDdlScan(sql));
+
+// What a reading of the text can say, and what it has to hand to a person.
+//
+// `leans` is a LOWER BOUND and nothing else. It is every file this reader can SEE
+// leaning, and r52's two gates are the record of what happens when it is treated
+// as the whole set. One side (B-NEW-01): SQL assembled at run time was blanked
+// with every other literal, so a file could lean in three spellings and read as
+// silent. The other (B-R52-N01): the list in the rollback was required to hold
+// NOTHING beyond what this reader found, so the author who listed such a file
+// (because the workflow's round trip had just told them to) was failed for it.
+// Same mistake, seen from both ends: "not seen" was taken to mean "not there".
+//
+// So run-time SQL is now restored wherever it is a constant (readRunTimeSql) and
+// read like the rest, and where it is NOT a constant the file is not waved
+// through either: `cannotRead` carries the statement, and someone has to say which
+// way it goes (judgeRollbackList below).
+type Reading = { leans: boolean; cannotRead: string[] };
+const readMigrationSql = (sql: string, depth = 0): Reading => {
+  let leans = LEANED_ON.test(stripForDdlScan(sql));
+  const cannotRead: string[] = [];
+  for (const piece of readRunTimeSql(sql)) {
+    if (!piece.restored) cannotRead.push(piece.excerpt);
+    // Run-time SQL can assemble run-time SQL. Three levels is more than any real
+    // migration nests; past that it is handed to a person like any other unread.
+    else if (depth === 3) cannotRead.push("run-time SQL nested four levels deep");
+    else {
+      const inner = readMigrationSql(piece.sql, depth + 1);
+      leans = leans || inner.leans;
+      cannotRead.push(...inner.cannotRead);
+    }
+  }
+  return { leans, cannotRead };
+};
+const leansOnErasureObjects = (sql: string): boolean => readMigrationSql(sql).leans;
+
+// Only a file that runs AFTER the two objects exist can hang anything on them. One
+// that sorts before 0189 can at most name them inside a function body that runs
+// later, and re-applying that file would put nothing back. It is also what keeps
+// `cannotRead` answerable: 0015, 0083 and 0102 run SQL no reader can restore, and
+// none of them could have touched a table that did not exist yet.
+const numberOf = (file: string): number => Number(/^([0-9]+)_/.exec(file)?.[1]);
+const fromTheObjectsOn = (migrations: readonly Migration[]): Migration[] =>
+  migrations.filter((m) => numberOf(m.file) >= numberOf(FILE));
 const rollbackSetFor = (migrations: readonly Migration[]): string[] =>
-  migrations.filter((m) => leansOnErasureObjects(m.sql)).map((m) => ledgerName(m.file));
+  fromTheObjectsOn(migrations).filter((m) => leansOnErasureObjects(m.sql)).map((m) => ledgerName(m.file));
+
+const DOWN_FILE = join(MIGRATIONS, "rollback", "0189_down.sql");
 
 /** The names the rollback's DELETE actually receives (c_names), comments gone. */
 const rollbackLedgerNames = (): string[] => {
-  const down = stripSqlComments(readFileSync(join(MIGRATIONS, "rollback", "0189_down.sql"), "utf8"));
+  const down = stripSqlComments(readFileSync(DOWN_FILE, "utf8"));
   const declared = /c_names\s+constant\s+text\[\]\s*:=\s*ARRAY\[([^\]]*)\]/.exec(down);
   if (!declared) throw new Error("rollback/0189_down.sql no longer declares c_names");
   // Trailing comments go first, so a name that survives only in a remark beside
   // the array cannot stand in for one the DELETE actually receives.
   return [...declared[1].replace(/--.*$/gm, "").matchAll(/'([^']+)'/g)].map((m) => m[1]);
+};
+
+// c_names as it is WRITTEN: one entry per line, and beside each name the number
+// of the file it stands for and why its row goes:
+//     'ledger_name',   -- 0191: what it hangs on the two objects
+//
+// WHY A REMARK IS READ AT ALL, in a file that says comments must not satisfy an
+// assertion about behaviour. No behaviour is read from it: which rows the DELETE
+// receives still comes from rollbackLedgerNames, comments gone. The remark is the
+// price of admission that replaced the rule B-R52-N01 removed. With nothing in
+// its place the list would take any name at all, and a name that does not belong
+// there is not harmless: its migration is re-applied by the push that follows a
+// rollback, mid-incident. So an entry has to say what it is. The NUMBER is the
+// half a machine can hold it to (it must be the file that answers to that name),
+// and the sentence is for whoever runs this file by hand and wonders why a row
+// they have never heard of is being deleted. It sits HERE, not in a map in this
+// test, because that reader never opens this test.
+type Listed = { name: string; number: number | null; why: string; line: string };
+const parseRollbackList = (downRaw: string): Listed[] => {
+  const lines = downRaw.split(/\r?\n/);
+  const open = lines.findIndex((l) => /^\s*c_names\s+constant\s+text\[\]\s*:=\s*ARRAY\[\s*$/.test(l));
+  const close = lines.findIndex((l, i) => i > open && /^\s*\];/.test(l));
+  if (open === -1 || close === -1) {
+    throw new Error("rollback/0189_down.sql: c_names is no longer `ARRAY[` + one entry per line + `];`");
+  }
+  return lines
+    .slice(open + 1, close)
+    .filter((l) => l.trim() !== "")
+    .map((l) => {
+      const entry = /^\s*'([^']+)'\s*,?\s*(?:--\s*(?:([0-9]{4}):)?\s*(.*?))?\s*$/.exec(l);
+      if (!entry) return { name: l.trim(), number: null, why: "", line: l.trim() };
+      return { name: entry[1], number: entry[2] ? Number(entry[2]) : null, why: entry[3] ?? "", line: l.trim() };
+    });
+};
+const rollbackList = (): Listed[] => parseRollbackList(readFileSync(DOWN_FILE, "utf8"));
+const saysWhy = (why: string): boolean => why.replace(/\s+/g, "").length >= 10;
+
+// The other thing a person may have to say. A migration from 0189 on whose
+// run-time SQL could not be restored, and which does NOT touch either object,
+// is named here with the reason, so that "nobody looked" and "somebody looked and
+// it is clear" stop being the same silence. File name -> why. It is held to the
+// same standard as c_names: an entry for a file that needs no such statement is
+// an error, not a comfort.
+//
+// Wrong about it? Then the file leans, the rollback loses what it hung there, and
+// the workflow's round trip is what says so. This is the cheap half.
+const READ_BY_A_PERSON_AND_DOES_NOT_LEAN: Readonly<Record<string, string>> = {};
+
+// The rule, as a function of its three inputs, so that each direction can be shown
+// to bite on inputs that are not on disk today. Every key is a message, and every
+// value has to be empty.
+const judgeRollbackList = (
+  migrations: readonly Migration[],
+  listed: readonly Listed[],
+  clear: Readonly<Record<string, string>>,
+) => {
+  const later = fromTheObjectsOn(migrations);
+  const read = new Map(later.map((m) => [m.file, readMigrationSql(m.sql)]));
+  const names = listed.map((l) => l.name);
+  const answersTo = (name: string): Migration[] => later.filter((m) => ledgerName(m.file) === name);
+  return {
+    // required ⊆ c_names. This direction is the hole, and it is the only one in
+    // which the reader's finding is binding.
+    leansOnTheTwoObjectsButItsLedgerRowSurvivesTheRollback: later
+      .filter((m) => read.get(m.file)?.leans && !names.includes(ledgerName(m.file)))
+      .map((m) => `${m.file}: add to c_names ->  '${ledgerName(m.file)}',  -- ${m.file.slice(0, 4)}: <what it hangs on them>`),
+    // Not read is not the same as not there. Either list answers it.
+    runsSqlNoReaderCanRestoreAndNobodyHasSaidWhetherItLeans: later
+      .filter((m) => {
+        const r = read.get(m.file);
+        return r && !r.leans && r.cannotRead.length > 0 && !names.includes(ledgerName(m.file)) && !(m.file in clear);
+      })
+      .map(
+        (m) =>
+          `${m.file}: cannot restore ->  ${read.get(m.file)?.cannotRead[0]}  <- if it touches either object, add to c_names ->  ` +
+          `'${ledgerName(m.file)}',  -- ${m.file.slice(0, 4)}: <what it hangs on them>  ; if it does not, name the file in ` +
+          "READ_BY_A_PERSON_AND_DOES_NOT_LEAN with the reason",
+      ),
+    // c_names ⊆ required is GONE, on purpose: a person may know more than this
+    // reader (the round trip told them, or the statement goes through a helper).
+    // What is left is what keeps the list from taking just anything.
+    listedButNoMigrationFrom0189OnAnswersToThatName: names.filter((n) => answersTo(n).length === 0),
+    listedWithoutTheNumberOfItsFileAndAReason: listed
+      .filter((l) => answersTo(l.name).length > 0)
+      .filter((l) => !answersTo(l.name).some((m) => numberOf(m.file) === l.number) || !saysWhy(l.why))
+      .map((l) => l.line),
+    listedTwice: names.filter((n, i) => names.indexOf(n) !== i),
+    saidNotToLeanButThatIsNotWhatTheFileShows: Object.keys(clear).filter((file) => {
+      const r = read.get(file);
+      return !r || r.leans || r.cannotRead.length === 0 || names.includes(ledgerName(file)) || !saysWhy(clear[file]);
+    }),
+  };
+};
+const NOTHING_TO_SAY = {
+  leansOnTheTwoObjectsButItsLedgerRowSurvivesTheRollback: [],
+  runsSqlNoReaderCanRestoreAndNobodyHasSaidWhetherItLeans: [],
+  listedButNoMigrationFrom0189OnAnswersToThatName: [],
+  listedWithoutTheNumberOfItsFileAndAReason: [],
+  listedTwice: [],
+  saidNotToLeanButThatIsNotWhatTheFileShows: [],
 };
 
 describe(`${FILE} -- structure`, () => {
@@ -465,16 +610,17 @@ describe(`${FILE} -- structure`, () => {
     // one migration later.
     //
     // So the list is no longer compared with two names typed here. It is compared
-    // with what the migrations on disk say: every file whose EXECUTED SQL names
-    // either object (leansOnErasureObjects, at the top) must be in c_names, and
-    // c_names may hold nothing else. The author of the next such migration meets
-    // this in `npm run verify`, with no database, before anything is pushed.
+    // with what the migrations on disk say: every file from 0189 on whose EXECUTED
+    // SQL names either object (leansOnErasureObjects, at the top) must be in
+    // c_names. The author of the next such migration meets this in `npm run
+    // verify`, with no database, before anything is pushed.
     //
-    // What to do when it goes red: add the ledger name to c_names in
+    // What to do when it goes red: the failure prints the line to add to c_names in
     // rollback/0189_down.sql, in the same PR. Listed means RE-APPLIED after a
     // rollback, so the file has to survive being applied twice; the workflow's
     // round trip is what proves that it does, against a real database.
     const names = rollbackLedgerNames();
+    const listed = rollbackList();
     const onDisk = migrationsOnDisk();
     const required = rollbackSetFor(onDisk);
 
@@ -482,15 +628,12 @@ describe(`${FILE} -- structure`, () => {
     // discriminator that blanked everything would otherwise agree with an empty
     // list.
     expect(required).toEqual(expect.arrayContaining([FILE, LOCK_FILE].map(ledgerName)));
-    expect(new Set(names).size).toBe(names.length);
+    // The remarks are read off the same entries the DELETE receives, in order. A
+    // name that exists only in a comment, or two names sharing one line and one
+    // remark, shows up here as a difference.
+    expect(listed.map((l) => l.name)).toEqual(names);
     // The keys are the message.
-    expect({
-      leansOnTheTwoObjectsButItsLedgerRowSurvivesTheRollback: required.filter((n) => !names.includes(n)),
-      listedInTheRollbackButNoSuchMigrationLeans: names.filter((n) => !required.includes(n)),
-    }).toEqual({
-      leansOnTheTwoObjectsButItsLedgerRowSurvivesTheRollback: [],
-      listedInTheRollbackButNoSuchMigrationLeans: [],
-    });
+    expect(judgeRollbackList(onDisk, listed, READ_BY_A_PERSON_AND_DOES_NOT_LEAN)).toEqual(NOTHING_TO_SAY);
 
     // The control, fixed here so the rule is shown to bite on every run and not
     // only on the day it was written: the gate's statement, in a file that does
@@ -520,6 +663,156 @@ describe(`${FILE} -- structure`, () => {
     expect(rollbackSetFor([...onDisk, talksAboutThem])).toEqual(required);
   });
 
+  test("...in BOTH directions: what the reader cannot see may be listed, what nobody vouches for may not", () => {
+    // r52, two gates, one design seen from its two ends.
+    //
+    //   B-R52-N01 (false red). The workflow's round trip ends its failure with "fix
+    //   the rollback's list in the same PR". The author of a 0191 that reaches the
+    //   table through EXECUTE format(...) did exactly that, and THIS file failed
+    //   them: it required c_names to hold nothing its own reader had not found,
+    //   and its reader could not read that statement. Two checks, opposite orders.
+    //
+    //   B-NEW-01 (false green). The same unreadable statement, setting something
+    //   the round trip's fingerprint did not collect (a column's statistics
+    //   target): this file said nothing, the database said nothing.
+    //
+    // Both come from reading "the reader did not find it" as "it is not there". So
+    // the bound now runs one way only (required ⊆ c_names), what the reader cannot
+    // restore is a question put to a person instead of a silence, and what a person
+    // adds has to say which file it is and why. All of it on inputs that are not on
+    // disk, so each direction is shown to bite on every run.
+    const onDisk = migrationsOnDisk();
+    const raw = readFileSync(DOWN_FILE, "utf8");
+    const listedWith = (...entries: string[]): Listed[] =>
+      parseRollbackList(raw.replace(/^([ \t]*)\];/m, `${entries.map((e) => `    ${e}`).join("\n")}\n$1];`));
+    expect(listedWith()).toEqual(rollbackList());
+    // Every verdict below is read as what the made-up input ADDED to the verdict on
+    // today's tree, not as the whole of it. MEASURED 2026-09-21 02:17 KST, first
+    // version: with a real 0191 on disk and left out of the list, this test went
+    // red as well as the one above, repeating its message under another name; and
+    // the day a real migration is put on READ_BY_A_PERSON_AND_DOES_NOT_LEAN, a
+    // version that judged against an empty map would have failed the author who
+    // did it right. r52 learned that about controls once already. What is wrong
+    // with the tree is the test above's to say, once.
+    type Verdict = ReturnType<typeof judgeRollbackList>;
+    const today = judgeRollbackList(onDisk, rollbackList(), READ_BY_A_PERSON_AND_DOES_NOT_LEAN);
+    const verdict = (extra: Migration[], listed: Listed[], clear: Record<string, string> = {}): Verdict => {
+      const v = judgeRollbackList([...onDisk, ...extra], listed, { ...READ_BY_A_PERSON_AND_DOES_NOT_LEAN, ...clear });
+      for (const key of Object.keys(v) as Array<keyof Verdict>) v[key] = v[key].filter((item) => !today[key].includes(item));
+      return v;
+    };
+
+    // The artifact gate's statement, verbatim, under a name no real migration takes.
+    // THE PINNED MUTATION: left out of the list, something has to be red, and this
+    // half now is (the round trip's `sees "a column's statistics target"` is the
+    // other half, against a real catalog).
+    const statistics: Migration = {
+      file: "9997_rollback_rule_statistics.sql",
+      sql: [
+        "DO $m$",
+        "BEGIN",
+        "  EXECUTE format(",
+        "    'ALTER TABLE public.%I ALTER COLUMN table_name SET STATISTICS 1000',",
+        "    'erasure_registry'",
+        "  );",
+        "END $m$;",
+        "",
+      ].join("\n"),
+    };
+    expect(verdict([statistics], rollbackList())).toEqual({
+      ...NOTHING_TO_SAY,
+      leansOnTheTwoObjectsButItsLedgerRowSurvivesTheRollback: [
+        "9997_rollback_rule_statistics.sql: add to c_names ->  'rollback_rule_statistics',  -- 9997: <what it hangs on them>",
+      ],
+    });
+    // ...and listed the way that message says, nothing is. This is the line that
+    // was red for the author who did it right.
+    const listedStatistics = "'rollback_rule_statistics',  -- 9997: sets a statistics target on a registry column at run time";
+    expect(verdict([statistics], listedWith(listedStatistics))).toEqual(NOTHING_TO_SAY);
+
+    // What no reader can restore: the table's name arrives in a variable. Silence
+    // here was the static half of B-NEW-01.
+    const unread: Migration = {
+      file: "9996_rollback_rule_unread.sql",
+      sql: [
+        "DO $m$",
+        "DECLARE r record;",
+        "BEGIN",
+        "  FOR r IN SELECT c.relname FROM pg_catalog.pg_class AS c WHERE c.relrowsecurity LOOP",
+        "    EXECUTE format('ALTER TABLE public.%I FORCE ROW LEVEL SECURITY', r.relname);",
+        "  END LOOP;",
+        "END $m$;",
+        "",
+      ].join("\n"),
+    };
+    expect(verdict([unread], rollbackList())).toEqual({
+      ...NOTHING_TO_SAY,
+      runsSqlNoReaderCanRestoreAndNobodyHasSaidWhetherItLeans: [
+        "9996_rollback_rule_unread.sql: cannot restore ->  EXECUTE format('ALTER TABLE public.%I FORCE ROW LEVEL SECURITY', r.relname)" +
+          "  <- if it touches either object, add to c_names ->  'rollback_rule_unread',  -- 9996: <what it hangs on them>" +
+          "  ; if it does not, name the file in READ_BY_A_PERSON_AND_DOES_NOT_LEAN with the reason",
+      ],
+    });
+    // Either answer settles it. Listed: B-R52-N01 exactly, a dependency only the
+    // database could find, accepted here because a person wrote down what it is.
+    const listedUnread = "'rollback_rule_unread',  -- 9996: forces row security on every RLS table, the registry included";
+    expect(verdict([unread], listedWith(listedUnread))).toEqual(NOTHING_TO_SAY);
+    const clear = { "9996_rollback_rule_unread.sql": "loops over storage buckets only; no table in public is touched" };
+    expect(verdict([unread], rollbackList(), clear)).toEqual(NOTHING_TO_SAY);
+    // Both answers at once is no answer.
+    expect(verdict([unread], listedWith(listedUnread), clear).saidNotToLeanButThatIsNotWhatTheFileShows).toEqual([
+      "9996_rollback_rule_unread.sql",
+    ]);
+
+    // The other end: the list does not take just anything. A listed migration is
+    // RE-APPLIED by the push that follows a rollback, so a name with nothing behind
+    // it is a migration run twice, mid-incident, for a reason nobody wrote down.
+    const unrelated: Migration = {
+      file: "9995_rollback_rule_unrelated.sql",
+      sql: "CREATE TABLE public.notes (id uuid PRIMARY KEY);\n",
+    };
+    const why = "a sentence that reads like a reason";
+    const refused = (listed: Listed[], extra: Migration[] = [unrelated]) => {
+      const v = verdict(extra, listed);
+      return Object.entries(v).filter(([, items]) => items.length > 0).map(([key]) => key);
+    };
+    // No migration answers to it.
+    expect(refused(listedWith(`'no_such_migration',  -- 9995: ${why}`))).toEqual([
+      "listedButNoMigrationFrom0189OnAnswersToThatName",
+    ]);
+    // One does, and it ran before either object existed (0188, a real file).
+    expect(refused(listedWith(`'raw_clippings_deleted_account_fence',  -- 0188: ${why}`))).toEqual([
+      "listedButNoMigrationFrom0189OnAnswersToThatName",
+    ]);
+    // A real later file, and nothing said about it.
+    expect(refused(listedWith("'rollback_rule_unrelated'"))).toEqual(["listedWithoutTheNumberOfItsFileAndAReason"]);
+    expect(refused(listedWith("'rollback_rule_unrelated',  -- 9995"))).toEqual(["listedWithoutTheNumberOfItsFileAndAReason"]);
+    expect(refused(listedWith("'rollback_rule_unrelated',  -- 9995: because"))).toEqual([
+      "listedWithoutTheNumberOfItsFileAndAReason",
+    ]);
+    // ...or the remark of the line above, copied down with its number.
+    expect(refused(listedWith(`'rollback_rule_unrelated',  -- 0190: ${why}`))).toEqual([
+      "listedWithoutTheNumberOfItsFileAndAReason",
+    ]);
+    expect(refused(listedWith(`'rollback_rule_unrelated',  -- 9995: ${why}`, `'rollback_rule_unrelated',  -- 9995: ${why}`))).toEqual([
+      "listedTwice",
+    ]);
+    // With its number and a reason it is accepted, and that is as far as a reading
+    // of text can go: whether the reason is TRUE is not decidable here. What such an
+    // entry costs is a re-apply, and the round trip proves that harmless or refuses.
+    expect(refused(listedWith(`'rollback_rule_unrelated',  -- 9995: ${why}`))).toEqual([]);
+
+    // The second list is held to the same standard: only a file that really runs
+    // SQL this reader could not restore, and does not lean, belongs on it.
+    const saidClear = (file: string, extra: Migration[]) =>
+      verdict(extra, rollbackList(), { [file]: why }).saidNotToLeanButThatIsNotWhatTheFileShows;
+    expect(saidClear("9995_rollback_rule_unrelated.sql", [unrelated])).toEqual(["9995_rollback_rule_unrelated.sql"]);
+    expect(saidClear("9997_rollback_rule_statistics.sql", [statistics])).toEqual(["9997_rollback_rule_statistics.sql"]);
+    expect(saidClear("9994_not_on_disk.sql", [])).toEqual(["9994_not_on_disk.sql"]);
+    expect(verdict([unread], rollbackList(), { "9996_rollback_rule_unread.sql": "because" })
+      .saidNotToLeanButThatIsNotWhatTheFileShows).toEqual(["9996_rollback_rule_unread.sql"]);
+  });
+
   test("...reading the SQL that executes, not what a file says about it", () => {
     // Both directions are pinned, because the rule can fail in both. Missing a
     // real reference is the hole above. Flagging prose is how a rule gets deleted:
@@ -544,6 +837,38 @@ describe(`${FILE} -- structure`, () => {
       // as well. That errs toward a re-apply, which the round trip then proves
       // harmless or refuses; the other error is silent.
       ["a derived name", "ALTER INDEX public.erasure_registry_pkey SET (fillfactor = 90);"],
+      // SQL assembled at RUN time, wherever it is a constant. These read as
+      // silence until r52: every literal was blanked, and after EXECUTE a literal
+      // is the statement. The first three are the spellings the gates ran.
+      [
+        "run-time SQL in one literal",
+        "DO $mig$ BEGIN EXECUTE 'ALTER TABLE public.erasure_registry ADD COLUMN deletion_generation bigint NOT NULL DEFAULT 0'; END $mig$;",
+      ],
+      [
+        "run-time SQL, literals joined",
+        "DO $mig$ BEGIN EXECUTE 'ALTER TABLE public.' || 'erasure_' || 'registry ADD COLUMN deletion_generation bigint'; END $mig$;",
+      ],
+      [
+        "run-time SQL through format(), the name an argument",
+        "DO $mig$\nBEGIN\n  EXECUTE format(\n    'ALTER TABLE public.%I ADD COLUMN deletion_generation bigint NOT NULL DEFAULT 0',\n    'erasure_registry'\n  );\nEND $mig$;",
+      ],
+      [
+        "...the name itself in two arguments",
+        "DO $mig$ BEGIN EXECUTE pg_catalog.format('ALTER TABLE public.%I%s FORCE ROW LEVEL SECURITY', 'erasure_', 'registry'); END $mig$;",
+      ],
+      [
+        "...arguments taken by position",
+        "DO $mig$ BEGIN EXECUTE format('GRANT EXECUTE ON FUNCTION public.%2$s(%1$s) TO anon', 'text', 'erase_my_data'); END $mig$;",
+      ],
+      [
+        "...an argument that is itself joined",
+        "DO $mig$ BEGIN EXECUTE format('ALTER TABLE %s ENABLE ROW LEVEL SECURITY', ('public.' || 'erasure_registry')); END $mig$;",
+      ],
+      ["a DO body in quotes instead of dollars", "DO 'BEGIN ALTER TABLE public.erasure_registry FORCE ROW LEVEL SECURITY; END';"],
+      [
+        "run-time SQL that assembles run-time SQL",
+        "DO $mig$ BEGIN EXECUTE 'DO $x$ BEGIN EXECUTE ''ALTER TABLE public.erasure_registry FORCE ROW LEVEL SECURITY''; END $x$'; END $mig$;",
+      ],
     ];
     const talks: Array<[string, string]> = [
       ["a line comment", "-- erase_my_data stays locked until the fence exists (0190)\nCREATE TABLE public.notes (id uuid);"],
@@ -561,21 +886,73 @@ describe(`${FILE} -- structure`, () => {
         "a privilege check",
         "DO $chk$ BEGIN IF pg_catalog.has_function_privilege('authenticated', 'public.erase_my_data(text)', 'EXECUTE') THEN RAISE EXCEPTION 'open'; END IF; END $chk$;",
       ],
+      // Restoring run-time SQL must not bring the prose back with it. What is
+      // restored is read again by the same discriminator, so a literal INSIDE the
+      // statement is still a literal, and a format() that is never executed is
+      // still an argument.
+      ["run-time SQL about another table", "DO $mig$ BEGIN EXECUTE format('ALTER TABLE public.%I ADD COLUMN g bigint', 'notes'); END $mig$;"],
+      [
+        "run-time SQL whose own literal mentions them",
+        "DO $mig$ BEGIN EXECUTE 'COMMENT ON TABLE public.notes IS ''not in erasure_registry yet'''; END $mig$;",
+      ],
+      [
+        "...or takes the mention as a quoted argument",
+        "DO $mig$ BEGIN EXECUTE format('COMMENT ON TABLE public.notes IS %L', 'erase_my_data does not reach this'); END $mig$;",
+      ],
+      ["a format() that is logged, not executed", "DO $mig$ BEGIN RAISE NOTICE '%', format('ALTER TABLE public.%I', 'erasure_registry'); END $mig$;"],
     ];
     expect(leans.filter(([, sql]) => !leansOnErasureObjects(sql)).map(([what]) => what)).toEqual([]);
     expect(talks.filter(([, sql]) => leansOnErasureObjects(sql)).map(([what]) => what)).toEqual([]);
+    // None of the above is left unread: a file is asked about (see the test before
+    // this one) only for a statement that really could not be restored.
+    expect([...leans, ...talks].filter(([, sql]) => readMigrationSql(sql).cannotRead.length > 0).map(([what]) => what)).toEqual([]);
 
-    // The edge of what a reading of the text can decide, written down rather
-    // than left to be found. SQL assembled at RUN time out of string literals is
-    // invisible here: the same literal is a log line in one file and a statement
-    // in the next, and blanking literals is what keeps the list above quiet. That
-    // half belongs to the workflow's round trip, which compares the catalog, and
-    // the catalog does not care how a statement was spelled. MEASURED 2026-09-21,
-    // scratch PostgreSQL 18.3 + the pinned CLI: a 0191 that adds the column
-    // through EXECUTE '...' passes this file and turns the round trip red.
-    const assembledAtRunTime =
-      "DO $mig$ BEGIN EXECUTE 'ALTER TABLE public.erasure_registry ADD COLUMN deletion_generation bigint NOT NULL DEFAULT 0'; END $mig$;";
-    expect(leansOnErasureObjects(assembledAtRunTime)).toBe(false);
+    // The edge of what a reading of the text can decide, written down rather than
+    // left to be found. It used to sit one step further in: until r52 this block
+    // asserted that EXECUTE '...' was INVISIBLE here and left it to the workflow's
+    // round trip. Both gates answered that the same day. A limit handed to the
+    // other half is a hole wherever the other half has a limit too (B-NEW-01), and
+    // it made this file reject the author who listed such a migration (B-R52-N01).
+    //
+    // So the edge is no longer a silence. What cannot be restored to a constant is
+    // REPORTED, and the test before this one turns that into a question for a
+    // person. All or nothing: one operand that is not a constant and the whole
+    // statement is unread, however much of it was legible.
+    const unread: Array<[string, string]> = [
+      ["a variable", "DO $mig$ DECLARE stmt text := 'x'; BEGIN EXECUTE stmt; END $mig$;"],
+      ["a literal joined to a variable", "DO $mig$ BEGIN EXECUTE 'ALTER TABLE public.' || v_table || ' FORCE ROW LEVEL SECURITY'; END $mig$;"],
+      ["format() over a record field", "DO $mig$ BEGIN EXECUTE format('ALTER TABLE public.%I FORCE ROW LEVEL SECURITY', r.relname); END $mig$;"],
+      ["format() over another call", "DO $mig$ BEGIN EXECUTE format('ALTER TABLE %s FORCE ROW LEVEL SECURITY', quote_ident('erasure_registry')); END $mig$;"],
+      ["a width in format()", "DO $mig$ BEGIN EXECUTE format('SELECT %-10s', 'x'); END $mig$;"],
+      ["too few arguments", "DO $mig$ BEGIN EXECUTE format('ALTER TABLE public.%I OWNER TO %I', 'notes'); END $mig$;"],
+      ["a cast", "DO $mig$ BEGIN EXECUTE 'SELECT 1'::text; END $mig$;"],
+      ["an escape string", "DO $mig$ BEGIN EXECUTE E'SELECT 1'; END $mig$;"],
+      ["a prepared statement", "PREPARE p AS SELECT 1; EXECUTE p;"],
+    ];
+    expect(unread.filter(([, sql]) => readMigrationSql(sql).cannotRead.length !== 1).map(([what]) => what)).toEqual([]);
+    // ...and the word EXECUTE is not always dynamic SQL. Asking a person about a
+    // GRANT would be the cry of wolf this rule cannot afford.
+    const notRunTimeSql: Array<[string, string]> = [
+      ["the privilege", "GRANT EXECUTE ON FUNCTION public.touch() TO authenticated; REVOKE EXECUTE ON FUNCTION public.touch() FROM PUBLIC;"],
+      ["default privileges", "ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;"],
+      ["a trigger's clause", "CREATE TRIGGER t BEFORE UPDATE ON public.notes FOR EACH ROW EXECUTE FUNCTION public.touch();"],
+      ["the word in a literal", "DO $chk$ BEGIN IF pg_catalog.has_function_privilege('anon', 'public.touch()', 'EXECUTE') THEN RAISE EXCEPTION 'open'; END IF; END $chk$;"],
+      ["the word in a comment", "DO $mig$\nBEGIN\n  -- built via EXECUTE so the policy name can vary\n  PERFORM 1;\nEND $mig$;"],
+    ];
+    expect(notRunTimeSql.filter(([, sql]) => readRunTimeSql(sql).length > 0).map(([what]) => what)).toEqual([]);
+    // What follows a restored statement is part of reading it right.
+    const restoredWhole: Array<[string, string, string]> = [
+      ["USING", "DO $mig$ BEGIN EXECUTE 'SELECT cron.unschedule($1)' USING 'job'; END $mig$;", "SELECT cron.unschedule($1)"],
+      ["INTO", "DO $mig$ DECLARE n int; BEGIN EXECUTE 'SELECT 1' INTO n; END $mig$;", "SELECT 1"],
+      ["a loop", "DO $mig$ DECLARE r record; BEGIN FOR r IN EXECUTE 'SELECT 1 AS n' LOOP NULL; END LOOP; END $mig$;", "SELECT 1 AS n"],
+      ["a quote inside the literal", "DO $mig$ BEGIN EXECUTE 'SELECT ''a'''; END $mig$;", "SELECT 'a'"],
+      ["%% and %L", "DO $mig$ BEGIN EXECUTE format('SELECT %L LIKE ''a%%''', 'it''s'); END $mig$;", "SELECT 'it''s' LIKE 'a%'"],
+    ];
+    expect(
+      restoredWhole
+        .filter(([, sql, want]) => JSON.stringify(readRunTimeSql(sql)) !== JSON.stringify([{ restored: true, sql: want }]))
+        .map(([what]) => what),
+    ).toEqual([]);
   });
 
   test("...and CI replays rollback + re-push on a real database, behind a control that can see the hole", () => {
@@ -702,6 +1079,84 @@ describe(`${FILE} -- structure`, () => {
     ]) {
       expect(probes).toContain(`sees "${kind}" "`);
     }
+    // r52 artifact gate, B-NEW-01, the database half. The column line named eight
+    // of pg_attribute's columns; a statistics target, a storage mode, a compression
+    // method and the per-column options are four it did not, so SET STATISTICS
+    // moved the catalog and not the fingerprint. REPRODUCED 2026-09-21 01:59 KST on
+    // the pre-fix step, scratch PostgreSQL 18.3 + the pinned CLI: a 0191 that sets
+    // it through EXECUTE format(...), left out of the list, passed this file 24/24
+    // AND the round trip (rc=0). Four more names would be a list with a fifth
+    // missing, so the row is read whole and what is taken OUT is named. A list of
+    // what to skip goes stale as a red diff that prints the key; a list of what to
+    // read goes stale in silence, which is what happened.
+    // One key to a line, so the diff names the property that moved.
+    expect(step).toContain(
+      "CROSS JOIN LATERAL pg_catalog.jsonb_each_text(pg_catalog.to_jsonb(a) - ARRAY['attrelid', 'attnum', 'attacl']) AS kv",
+    );
+    expect(step).toContain("'column ' || a.attname || ' .' || kv.key || '=' || COALESCE(kv.value, '(null)')");
+    expect(step).toMatch(/jsonb_each_text\(pg_catalog\.to_jsonb\(c\) - ARRAY\[[^\]]*'relfilenode'[^\]]*'reltuples'[^\]]*'relacl'\]\) AS kv/);
+    expect(step).toMatch(/jsonb_each_text\(pg_catalog\.to_jsonb\(i\) - ARRAY\[[^\]]*'indexrelid'[^\]]*\]\) AS kv/);
+    // Nothing a later migration can SET may be among the keys taken out. These
+    // are the ones the gate named, and the flags the probes below flip.
+    const takenOut = [...step.matchAll(/to_jsonb\([a-z]+\) - ARRAY\[([^\]]*)\]/g)].flatMap((m) =>
+      [...m[1].matchAll(/'([a-z_]+)'/g)].map((key) => key[1]),
+    );
+    expect(takenOut.length).toBeGreaterThan(0);
+    for (const settable of [
+      "attstattarget", "attstorage", "attcompression", "attoptions", "attislocal", "attinhcount", "attnotnull",
+      "reloptions", "relpersistence", "relreplident", "relrowsecurity", "relforcerowsecurity", "relam", "reltablespace",
+      "indisclustered", "indisreplident", "indisvalid",
+    ]) {
+      expect(takenOut).not.toContain(settable);
+    }
+    // The four, each shown to move the fingerprint, the gate's own statement first.
+    for (const kind of [
+      "a column's statistics target",
+      "a column's storage mode",
+      "a column's compression method",
+      "a column's options",
+    ]) {
+      expect(probes).toContain(`sees "${kind}" "`);
+    }
+    expect(probes).toContain(
+      'sees "a column\'s statistics target" "ALTER TABLE public.erasure_registry ALTER COLUMN table_name SET STATISTICS ',
+    );
+    // ...and the objects that used to be seen only as ARRIVALS, by the pg_depend
+    // net: a rule or a statistics object re-defined under the same name did not
+    // move anything. Their definitions are read now, and so is a comment on
+    // whatever hangs off the table (a policy's, a trigger's).
+    // Also read now: the sequence behind an identity or serial column. It hangs
+    // off the table INTERNALLY, the one kind of dependency the net leaves out, so
+    // its parameters were invisible (MEASURED 2026-09-21 02:29 KST, pre-fix query:
+    // SET INCREMENT BY 7, fingerprint identical). The generation counter that
+    // S3-C / S3-D will add is the column this is about.
+    // The whole JOIN, not the catalog's name. MEASURED 2026-09-21 02:33 KST: with
+    // only the name pinned, a part re-pointed at `pg_catalog.pg_sequences_gone`
+    // still satisfied toContain("pg_catalog.pg_sequence"), because one string was
+    // the front of the other.
+    for (const source of [
+      "JOIN pg_catalog.pg_rewrite AS r ON r.ev_class = reg.oid",
+      "JOIN pg_catalog.pg_statistic_ext AS s ON s.stxrelid = reg.oid",
+      "JOIN pg_catalog.pg_description AS described",
+      "JOIN pg_catalog.pg_sequence AS s ON s.seqrelid = sc.oid",
+    ]) {
+      expect(step).toContain(source);
+    }
+    for (const kind of [
+      "a rule",
+      "a statistics object",
+      "a trigger that is switched off",
+      "the index the table is clustered on",
+      "an index column's statistics target",
+      "the sequence behind a column",
+      "a comment on something that hangs off the table",
+    ]) {
+      expect(probes).toContain(`tells_apart "${kind}" `);
+    }
+    // The red that sends the author to c_names says how an entry is written,
+    // because the other half of this rule now reads the remark beside it.
+    expect(step).toMatch(/if \[\[ "\$before" != "\$after" \]\]; then\s+fail "[^"\r\n]*'its_ledger_name',  -- NNNN: /);
+
     // A probe that leaked would make every later probe "see" the leak instead of
     // its own statement, so the list is checked against the baseline once more.
     expect(step).toMatch(
