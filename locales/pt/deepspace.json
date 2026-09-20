@@ -157,7 +157,7 @@
     "haveAccount": "Já tem uma conta? Entrar",
     "forgotPassword": "Esqueceu a senha?",
     "or": "ou",
-    "ageNotice": "Você pode criar uma conta se tiver 14 anos ou mais.",
+    "ageNotice": "Você pode criar uma conta se tiver {{minAge}} anos ou mais.",
     "brandLabel": "2ND-BRAIN",
     "signInTitle": "Entre no 2nd-Brain",
     "signInEncrypt": "Você pode mudar as configurações de privacidade quando quiser.",

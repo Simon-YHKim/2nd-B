@@ -4,6 +4,17 @@
 // users.birth_date is the third line; this test makes sure we never even
 // attempt the INSERT for a blocked age.
 
+// r53: 자기동의 층이 나라별로 바뀜고, jest 의 expo-localization 목은 지역을 안 준다.
+// 이 수트가 보는 것은 **한국의 게이트**(14 미만 차단 · 15세는 통과)라 기기를 KR 로
+// 박고 시작한다. 호이스팅되는 jest.mock 이어야 MIN_SELF_CONSENT_AGE 계산 전에 들어간다.
+// 지역을 못 읽는 기기에서는 같은 15세가 폴백 18 에 막힌다 — consent-age.ts 헤더의 "남기는 구멍".
+jest.mock("expo-localization", () => ({
+  getLocales: () => [
+    { languageTag: "ko-KR", languageCode: "ko", regionCode: "KR", textDirection: "ltr" },
+  ],
+  getCalendars: () => [{ calendar: "gregory", timeZone: "Asia/Seoul", uses24hourClock: true }],
+}));
+
 jest.mock("../client", () => {
   // Detect any unexpected DB activity for under-14 inputs so the C10 contract
   // doesn't silently degrade if the function reorders its checks.
