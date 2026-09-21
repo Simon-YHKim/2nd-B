@@ -8,6 +8,10 @@ name: GitHub Release (APK + AAB + IPA)
 on:
   workflow_dispatch:
     inputs:
+      release_commit:
+        description: "Full main commit SHA used by all three finished EAS builds"
+        required: true
+        type: string
       profile:
         description: "Release contract (paired APK + AAB + IPA only)"
         required: true
@@ -58,6 +62,7 @@ jobs:
       - name: Checkout exact release target
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          ref: ${{ inputs.release_commit }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -73,9 +78,10 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
-      - name: Require the current main commit
+      - name: Require the release commit to be an exact main ancestor
         env:
           RELEASE_PROFILE: ${{ inputs.profile }}
+          RELEASE_COMMIT: ${{ inputs.release_commit }}
         run: |
           set -euo pipefail
           if [ "$RELEASE_PROFILE" != paired ]; then
@@ -83,12 +89,20 @@ jobs:
             exit 1
           fi
           if [ "$GITHUB_REF" != refs/heads/main ]; then
-            echo "::error::A GitHub release can only target refs/heads/main."
+            echo "::error::The release workflow must be dispatched from refs/heads/main."
             exit 1
           fi
-          git fetch --no-tags origin main
-          if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
-            echo "::error::The workflow commit is not the current origin/main head."
+          if ! printf '%s' "$RELEASE_COMMIT" | grep -qE '^[0-9a-fA-F]{40}$'; then
+            echo "::error::release_commit must be a full 40-character Git SHA."
+            exit 1
+          fi
+          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+          if [ "$(git rev-parse HEAD)" != "${RELEASE_COMMIT,,}" ]; then
+            echo "::error::The checkout does not match release_commit."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$RELEASE_COMMIT" origin/main; then
+            echo "::error::release_commit is not an ancestor of the current origin/main."
             exit 1
           fi
 
@@ -119,7 +133,7 @@ jobs:
           PREVIEW_BUILD_ID: ${{ inputs.preview_build_id }}
           PRODUCTION_BUILD_ID: ${{ inputs.production_build_id }}
           IOS_BUILD_ID: ${{ inputs.ios_build_id }}
-          EXPECTED_COMMIT: ${{ github.sha }}
+          EXPECTED_COMMIT: ${{ inputs.release_commit }}
         run: |
           set -euo pipefail
           if [ -z "${EXPO_TOKEN:-}" ]; then
@@ -314,7 +328,7 @@ jobs:
           PRODUCTION_CHANNEL="$(node -p "require('$RUNNER_TEMP/validated-builds.json').production.channel")"
           IOS_CHANNEL="$(node -p "require('$RUNNER_TEMP/validated-builds.json').ios.channel")"
           IOS_BUNDLE_ID="$(node -p "require('$RUNNER_TEMP/validated-builds.json').ios.appIdentifier")"
-          SHORT_SHA="${GITHUB_SHA:0:12}"
+          SHORT_SHA="${EXPECTED_COMMIT:0:12}"
           PREVIEW_FILE="2nd-Brain-v$VERSION-preview-vc$PREVIEW_CODE-$SHORT_SHA.apk"
           PRODUCTION_FILE="2nd-Brain-v$VERSION-production-vc$PRODUCTION_CODE-$SHORT_SHA.aab"
           IOS_FILE="2nd-Brain-v$VERSION-production-build$IOS_BUILD_NUMBER-$SHORT_SHA.ipa"
@@ -568,6 +582,7 @@ jobs:
           PREVIEW_BUILD_ID: ${{ inputs.preview_build_id }}
           PRODUCTION_BUILD_ID: ${{ inputs.production_build_id }}
           IOS_BUILD_ID: ${{ inputs.ios_build_id }}
+          RELEASE_COMMIT: ${{ inputs.release_commit }}
         run: |
           set -euo pipefail
           if awk -v v="## [$VERSION]" 'index($0, v) == 1 {found=1} END {exit !found}' CHANGELOG.md; then
@@ -596,7 +611,7 @@ jobs:
             `| Production AAB | \`${process.env.PRODUCTION_BUILD_ID}\` | versionCode \`${process.env.PRODUCTION_CODE}\` | \`${process.env.PRODUCTION_CHANNEL} / ${process.env.PRODUCTION_RUNTIME}\` | SDK \`${a.minSdkVersion} / ${a.targetSdkVersion} / ${a.compileSdkVersion}\` | Billing \`${a.billingLibrary}\` | \`${process.env.PRODUCTION_HASH}\` |`,
             `| Production IPA | \`${process.env.IOS_BUILD_ID}\` | buildNumber \`${process.env.IOS_BUILD_NUMBER}\` | \`${process.env.IOS_CHANNEL} / ${process.env.IOS_RUNTIME}\` | bundle \`${process.env.IOS_BUNDLE_ID}\` | App Store profile, expires \`${process.env.IOS_PROFILE_EXPIRES}\` | \`${process.env.IOS_HASH}\` |`,
             "",
-            `Target commit: \`${process.env.GITHUB_SHA}\``,
+            `Target commit: \`${process.env.RELEASE_COMMIT}\``,
             "",
             "This release remains a draft until its install/store checks are reviewed.",
           ].join("\n"));
@@ -616,6 +631,7 @@ jobs:
           PRODUCTION_HASH: ${{ steps.artifacts.outputs.production_hash }}
           IOS_HASH: ${{ steps.artifacts.outputs.ios_hash }}
           EXPECT_PRERELEASE: ${{ inputs.prerelease }}
+          RELEASE_COMMIT: ${{ inputs.release_commit }}
         run: |
           set -euo pipefail
           RESOLVED_VERSION="$(node -p "require('./app.json').expo.version")"
@@ -663,7 +679,7 @@ jobs:
           fi
 
           if [ "$TAG_EXISTS" = true ]; then
-            if [ "${TAG_SHA,,}" != "${GITHUB_SHA,,}" ]; then
+            if [ "${TAG_SHA,,}" != "${RELEASE_COMMIT,,}" ]; then
               echo "::error::Existing tag $TAG targets a different commit."
               exit 1
             fi
@@ -681,7 +697,7 @@ jobs:
             throw new Error(`existing assets differ: ${JSON.stringify(actual)}`);
           }
           if (release.name !== `2nd-Brain ${process.env.VERSION}`) throw new Error("existing release title differs");
-          if (release.target_commitish.toLowerCase() !== process.env.GITHUB_SHA.toLowerCase()) {
+          if (release.target_commitish.toLowerCase() !== process.env.RELEASE_COMMIT.toLowerCase()) {
             throw new Error("existing release target commit differs");
           }
           if (release.body !== fs.readFileSync("RELEASE_NOTES.md", "utf8")) {
@@ -706,7 +722,7 @@ jobs:
             # RELEASE_NOTES.md is authoritative; --generate-notes is deliberately
             # not executed because generated text would make an exact rerun mutable.
             ARGS=(release create "$TAG" "$PREVIEW_FILE" "$PRODUCTION_FILE" "$IOS_FILE" SHA256SUMS.txt
-                  --title "2nd-Brain $VERSION" --target "$GITHUB_SHA" --draft
+                  --title "2nd-Brain $VERSION" --target "$RELEASE_COMMIT" --draft
                   --notes-file RELEASE_NOTES.md)
             if [ "${{ inputs.prerelease }}" = "true" ]; then ARGS+=(--prerelease); fi
             # One create invocation receives every asset. A failed partial create
@@ -715,8 +731,12 @@ jobs:
               echo "::error::Could not refresh origin/main immediately before GitHub Release creation."
               exit 1
             fi
-            if [ "$(git rev-parse HEAD)" != "$GITHUB_SHA" ] || [ "$(git rev-parse origin/main)" != "$GITHUB_SHA" ]; then
-              echo "::error::origin/main advanced before GitHub Release creation; no tag or draft was created."
+            if [ "$(git rev-parse HEAD)" != "${RELEASE_COMMIT,,}" ]; then
+              echo "::error::The release checkout changed before GitHub Release creation."
+              exit 1
+            fi
+            if ! git merge-base --is-ancestor "$RELEASE_COMMIT" origin/main; then
+              echo "::error::release_commit is no longer on origin/main; no tag or draft was created."
               exit 1
             fi
             gh "${ARGS[@]}"
@@ -729,12 +749,12 @@ jobs:
             #
             # What binds the release to the commit while it is still a draft is
             # target_commitish, and the node check below asserts it equals
-            # GITHUB_SHA. The tag is checked here only if one somehow already
+            # RELEASE_COMMIT. The tag is checked here only if one somehow already
             # exists -- then it must still point at this commit.
             CREATED_TAG_SHA="$(git ls-remote --tags origin "refs/tags/$TAG" | awk 'NR==1 {print $1}')"
             CREATED_PEELED_SHA="$(git ls-remote --tags origin "refs/tags/$TAG^{}" | awk 'NR==1 {print $1}')"
             CREATED_TAG_SHA="${CREATED_PEELED_SHA:-$CREATED_TAG_SHA}"
-            if [ -n "$CREATED_TAG_SHA" ] && [ "${CREATED_TAG_SHA,,}" != "${GITHUB_SHA,,}" ]; then
+            if [ -n "$CREATED_TAG_SHA" ] && [ "${CREATED_TAG_SHA,,}" != "${RELEASE_COMMIT,,}" ]; then
               echo "::error::Tag $TAG already exists and does not resolve to the requested commit."
               exit 1
             fi
@@ -759,7 +779,7 @@ jobs:
             !release.draft ||
             Boolean(release.prerelease) !== (process.env.EXPECT_PRERELEASE === "true") ||
             release.name !== `2nd-Brain ${process.env.VERSION}` ||
-            release.target_commitish.toLowerCase() !== process.env.GITHUB_SHA.toLowerCase() ||
+            release.target_commitish.toLowerCase() !== process.env.RELEASE_COMMIT.toLowerCase() ||
             release.body !== fs.readFileSync("RELEASE_NOTES.md", "utf8") ||
             JSON.stringify(actual) !== JSON.stringify(expected)
           ) {
@@ -783,7 +803,7 @@ jobs:
             echo "### GitHub draft release"
             echo
             echo "- Result: \`$RESULT\`"
-            echo "- Tag: \`$TAG\` at \`$GITHUB_SHA\`"
+            echo "- Tag: \`$TAG\` at \`$RELEASE_COMMIT\`"
             echo "- Preview APK: \`$PREVIEW_FILE\`"
             echo "- Production AAB: \`$PRODUCTION_FILE\`"
             echo "- Production IPA: \`$IOS_FILE\`"

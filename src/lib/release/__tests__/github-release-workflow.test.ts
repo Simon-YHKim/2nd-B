@@ -65,6 +65,27 @@ describe("the workflow can actually publish", () => {
 });
 
 describe("the tag cannot disagree with the binary", () => {
+  test("the release target is the exact build commit on main", () => {
+    const guard = runOf("Require the release commit");
+    const artifacts = runOf("Get the build artifact");
+    const publish = runOf("Create the GitHub Release");
+
+    expect(RAW).toMatch(/^ {6}release_commit:$/m);
+    expect(RAW).toMatch(/release_commit:[\s\S]*?required: true[\s\S]*?type: string/);
+    expect(stepOf("Checkout exact release target")).toContain(
+      "ref: ${{ inputs.release_commit }}",
+    );
+    expect(guard).toContain('RELEASE_COMMIT: ${{ inputs.release_commit }}');
+    expect(guard).toContain("^[0-9a-fA-F]{40}$");
+    expect(guard).toContain('git merge-base --is-ancestor "$RELEASE_COMMIT" origin/main');
+    expect(guard).toContain('"$(git rev-parse HEAD)" != "${RELEASE_COMMIT,,}"');
+    expect(artifacts).toContain('EXPECTED_COMMIT: ${{ inputs.release_commit }}');
+    expect(publish).toContain('RELEASE_COMMIT: ${{ inputs.release_commit }}');
+    expect(publish).toContain('--target "$RELEASE_COMMIT"');
+    expect(publish).toContain('git merge-base --is-ancestor "$RELEASE_COMMIT" origin/main');
+    expect(publish).not.toContain('--target "$GITHUB_SHA"');
+  });
+
   test("the version is read from app.json, not typed as an input", () => {
     const run = runOf("Resolve version");
     expect(run).toContain("require('./app.json').expo.version");
@@ -94,11 +115,11 @@ describe("the tag cannot disagree with the binary", () => {
     // below it. A tag is only checked when one already exists.
     const run = runOf("Resolve version");
     expect(run).toContain(
-      'if [ -n "$CREATED_TAG_SHA" ] && [ "${CREATED_TAG_SHA,,}" != "${GITHUB_SHA,,}" ]',
+      'if [ -n "$CREATED_TAG_SHA" ] && [ "${CREATED_TAG_SHA,,}" != "${RELEASE_COMMIT,,}" ]',
     );
     expect(run).not.toContain("Created tag does not resolve to the requested commit.");
     expect(run).toContain(
-      "release.target_commitish.toLowerCase() !== process.env.GITHUB_SHA.toLowerCase()",
+      "release.target_commitish.toLowerCase() !== process.env.RELEASE_COMMIT.toLowerCase()",
     );
   });
 
