@@ -57,31 +57,24 @@ env:
   APPLE_TEAM_ID: "7CP84WS5C6"
 
 jobs:
-  release:
+  release-policy:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    environment: production
     steps:
-      - name: Checkout exact release target
+      - name: Checkout release target for policy-only validation
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ inputs.release_commit }}
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Setup Node 22
+      - name: Setup Node 22 for policy-only validation
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
           cache: "npm"
 
-      - name: Setup Java 17 for bundletool
-        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
-        with:
-          distribution: "temurin"
-          java-version: "17"
-
-      - name: Require the release commit to be an exact main ancestor
+      - name: Require the policy checkout to be an exact main ancestor
         env:
           RELEASE_PROFILE: ${{ inputs.profile }}
           RELEASE_COMMIT: ${{ inputs.release_commit }}
@@ -101,7 +94,7 @@ jobs:
           fi
           git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
           if [ "$(git rev-parse HEAD)" != "${RELEASE_COMMIT,,}" ]; then
-            echo "::error::The checkout does not match release_commit."
+            echo "::error::The policy checkout does not match release_commit."
             exit 1
           fi
           if ! git merge-base --is-ancestor "$RELEASE_COMMIT" origin/main; then
@@ -109,56 +102,89 @@ jobs:
             exit 1
           fi
 
-      - name: Materialize the release state helper from the workflow commit
+      # This is the only job that executes the historical release checkout.
+      # It receives no Production environment, EAS token, signer identity, or
+      # GitHub App credential, and none of its files or outputs cross the job.
+      - name: Install historical dependencies without protected credentials
+        run: npm ci --legacy-peer-deps
+
+      - name: Verify historical OTA/native runtime policy
+        run: npm run check:ota-runtime
+
+  release:
+    needs: release-policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: production
+    steps:
+      - name: Checkout workflow tooling commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Setup Java 17 for bundletool
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Require release data and workflow tooling to be exact main ancestors
         env:
+          RELEASE_PROFILE: ${{ inputs.profile }}
+          RELEASE_COMMIT: ${{ inputs.release_commit }}
           TOOLING_COMMIT: ${{ github.sha }}
         run: |
           set -euo pipefail
+          if [ "$RELEASE_PROFILE" != paired ]; then
+            echo "::error::Only the paired APK + AAB + IPA release contract is supported."
+            exit 1
+          fi
+          if [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo "::error::The release workflow must be dispatched from refs/heads/main."
+            exit 1
+          fi
+          if ! printf '%s' "$RELEASE_COMMIT" | grep -qE '^[0-9a-fA-F]{40}$'; then
+            echo "::error::release_commit must be a full 40-character Git SHA."
+            exit 1
+          fi
           if ! printf '%s' "$TOOLING_COMMIT" | grep -qE '^[0-9a-fA-F]{40}$'; then
             echo "::error::The workflow tooling commit is not a full Git SHA."
+            exit 1
+          fi
+          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+          if [ "$(git rev-parse HEAD)" != "${TOOLING_COMMIT,,}" ]; then
+            echo "::error::The privileged checkout does not match the workflow tooling commit."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$RELEASE_COMMIT" origin/main; then
+            echo "::error::release_commit is not an ancestor of the current origin/main."
             exit 1
           fi
           if ! git merge-base --is-ancestor "$TOOLING_COMMIT" origin/main; then
             echo "::error::The workflow tooling commit is not on current origin/main."
             exit 1
           fi
-          tooling_dir="$GITHUB_WORKSPACE/.release-tooling"
-          mkdir -p "$tooling_dir"
-          helper="$tooling_dir/github-release-state.js"
-          apk_verifier="$tooling_dir/check-apk-target-sdk.js"
-          signature_verifier="$tooling_dir/check-android-release-signatures.js"
-          git show "${TOOLING_COMMIT}:scripts/github-release-state.js" > "$helper"
-          git show "${TOOLING_COMMIT}:scripts/check-apk-target-sdk.js" > "$apk_verifier"
-          git show "${TOOLING_COMMIT}:scripts/check-android-release-signatures.js" > "$signature_verifier"
-          for script in "$helper" "$apk_verifier" "$signature_verifier"; do
-            test -s "$script"
-            node --check "$script"
-          done
+          git cat-file -e "$RELEASE_COMMIT^{commit}"
+
+          release_source="$(mktemp -d "$RUNNER_TEMP/release-source.XXXXXX")"
+          git show "$RELEASE_COMMIT:app.json" > "$release_source/app.json"
+          git show "$RELEASE_COMMIT:CHANGELOG.md" > "$release_source/CHANGELOG.md"
+          node -e 'JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"))' "$release_source/app.json"
           {
-            printf 'RELEASE_STATE_HELPER=%s\n' "$helper"
-            printf 'APK_VERIFIER=%s\n' "$apk_verifier"
-            printf 'SIGNATURE_VERIFIER=%s\n' "$signature_verifier"
+            printf 'RELEASE_APP_JSON=%s\n' "$release_source/app.json"
+            printf 'RELEASE_CHANGELOG=%s\n' "$release_source/CHANGELOG.md"
           } >> "$GITHUB_ENV"
 
-      - name: Require protected release app configuration
-        env:
-          RELEASE_APP_CLIENT_ID: ${{ vars.RELEASE_APP_CLIENT_ID }}
-          RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-        run: |
-          set -euo pipefail
-          if [ -z "${RELEASE_APP_CLIENT_ID:-}" ] || [ -z "${RELEASE_APP_PRIVATE_KEY:-}" ]; then
-            echo "::error::Protected Production release app configuration is missing."
-            exit 1
-          fi
-
-      - name: Install dependencies
+      - name: Install trusted workflow dependencies
         run: npm ci --legacy-peer-deps
-
-      - name: Self-test Android artifact verifier
-        run: node "$APK_VERIFIER" --self-test
-
-      - name: Verify OTA/native runtime policy
-        run: npm run check:ota-runtime
 
       - name: Install pinned bundletool verifier
         run: |
@@ -179,6 +205,7 @@ jobs:
           PRODUCTION_BUILD_ID: ${{ inputs.production_build_id }}
           IOS_BUILD_ID: ${{ inputs.ios_build_id }}
           EXPECTED_COMMIT: ${{ inputs.release_commit }}
+          TOOLING_COMMIT: ${{ github.sha }}
         run: |
           set -euo pipefail
           if [ -z "${EXPO_TOKEN:-}" ]; then
@@ -207,7 +234,7 @@ jobs:
 
           node - "$PREVIEW_JSON" "$PRODUCTION_JSON" "$IOS_JSON" "$RUNNER_TEMP/validated-builds.json" <<'NODE'
           const fs = require("node:fs");
-          const config = require("./app.json").expo;
+          const config = JSON.parse(fs.readFileSync(process.env.RELEASE_APP_JSON, "utf8")).expo;
           const [previewPath, productionPath, iosPath, outputPath] = process.argv.slice(2);
           const expectedCommit = process.env.EXPECTED_COMMIT.toLowerCase();
           const expectedProject = config.extra?.eas?.projectId;
@@ -394,8 +421,19 @@ jobs:
           done
 
           # EAS authentication is finished. Do not expose its token to local
-          # artifact parsers even though those parsers are pinned above.
+          # artifact parsers. Materialize the verifier only now, after all
+          # package and EAS code has finished, from the protected workflow commit.
           unset EXPO_TOKEN
+          tooling_dir="$(mktemp -d "$RUNNER_TEMP/release-apk-verifier.XXXXXX")"
+          APK_VERIFIER="$tooling_dir/check-apk-target-sdk.js"
+          apk_source="scripts/check-apk-target-sdk.js"
+          git show "${TOOLING_COMMIT}:${apk_source}" > "$APK_VERIFIER"
+          apk_blob="$(git rev-parse "${TOOLING_COMMIT}:${apk_source}")"
+          test -s "$APK_VERIFIER"
+          node --check "$APK_VERIFIER"
+          chmod 0500 "$APK_VERIFIER"
+          test "$(git hash-object "$APK_VERIFIER")" = "$apk_blob"
+          node "$APK_VERIFIER" --self-test
           PREVIEW_META="$(node "$APK_VERIFIER" --json "$PREVIEW_FILE")"
           PRODUCTION_META="$(node "$APK_VERIFIER" --json "$PRODUCTION_FILE")"
           export PREVIEW_META PRODUCTION_META PREVIEW_CODE PRODUCTION_CODE VERSION
@@ -600,8 +638,18 @@ jobs:
         env:
           ANDROID_APK_SIGNER_SHA256: ${{ secrets.ANDROID_APK_SIGNER_SHA256 }}
           ANDROID_AAB_SIGNER_SHA256: ${{ secrets.ANDROID_AAB_SIGNER_SHA256 }}
+          TOOLING_COMMIT: ${{ github.sha }}
         run: |
           set -euo pipefail
+          tooling_dir="$(mktemp -d "$RUNNER_TEMP/release-signature-verifier.XXXXXX")"
+          SIGNATURE_VERIFIER="$tooling_dir/check-android-release-signatures.js"
+          signature_source="scripts/check-android-release-signatures.js"
+          git show "${TOOLING_COMMIT}:${signature_source}" > "$SIGNATURE_VERIFIER"
+          signature_blob="$(git rev-parse "${TOOLING_COMMIT}:${signature_source}")"
+          test -s "$SIGNATURE_VERIFIER"
+          node --check "$SIGNATURE_VERIFIER"
+          chmod 0500 "$SIGNATURE_VERIFIER"
+          test "$(git hash-object "$SIGNATURE_VERIFIER")" = "$signature_blob"
           node "$SIGNATURE_VERIFIER" verify \
             "$RUNNER_TEMP/apk-signature.txt" \
             "$RUNNER_TEMP/aab-signature.txt" \
@@ -633,12 +681,12 @@ jobs:
           RELEASE_COMMIT: ${{ inputs.release_commit }}
         run: |
           set -euo pipefail
-          if awk -v v="## [$VERSION]" 'index($0, v) == 1 {found=1} END {exit !found}' CHANGELOG.md; then
+          if awk -v v="## [$VERSION]" 'index($0, v) == 1 {found=1} END {exit !found}' "$RELEASE_CHANGELOG"; then
             awk -v v="## [$VERSION]" '
               index($0, v) == 1 {inside=1; next}
               inside && /^## \[/ {exit}
               inside {print}
-            ' CHANGELOG.md > RELEASE_NOTES.md
+            ' "$RELEASE_CHANGELOG" > RELEASE_NOTES.md
           else
             printf 'Release %s\n' "$VERSION" > RELEASE_NOTES.md
           fi
@@ -664,6 +712,36 @@ jobs:
             "This release remains a draft until its install/store checks are reviewed.",
           ].join("\n"));
           NODE
+
+      - name: Materialize release state helper after artifact verification
+        env:
+          TOOLING_COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          tooling_dir="$(mktemp -d "$RUNNER_TEMP/release-state-helper.XXXXXX")"
+          helper="$tooling_dir/github-release-state.js"
+          helper_source="scripts/github-release-state.js"
+          git show "${TOOLING_COMMIT}:${helper_source}" > "$helper"
+          helper_blob="$(git rev-parse "${TOOLING_COMMIT}:${helper_source}")"
+          test -s "$helper"
+          node --check "$helper"
+          chmod 0500 "$helper"
+          test "$(git hash-object "$helper")" = "$helper_blob"
+          {
+            printf 'RELEASE_STATE_HELPER=%s\n' "$helper"
+            printf 'RELEASE_STATE_HELPER_BLOB=%s\n' "$helper_blob"
+          } >> "$GITHUB_ENV"
+
+      - name: Require protected release app configuration
+        env:
+          RELEASE_APP_CLIENT_ID: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RELEASE_APP_CLIENT_ID:-}" ] || [ -z "${RELEASE_APP_PRIVATE_KEY:-}" ]; then
+            echo "::error::Protected Production release app configuration is missing."
+            exit 1
+          fi
 
       # The Create Release API requires Workflows: write when target_commitish
       # differs from main under .github/workflows. GITHUB_TOKEN cannot receive
@@ -698,7 +776,8 @@ jobs:
           RELEASE_COMMIT: ${{ inputs.release_commit }}
         run: |
           set -euo pipefail
-          RESOLVED_VERSION="$(node -p "require('./app.json').expo.version")"
+          test "$(git hash-object "$RELEASE_STATE_HELPER")" = "$RELEASE_STATE_HELPER_BLOB"
+          RESOLVED_VERSION="$(node -p "JSON.parse(require('node:fs').readFileSync(process.env.RELEASE_APP_JSON, 'utf8')).expo.version")"
           if [ "$RESOLVED_VERSION" != "$VERSION" ]; then
             echo "::error::Resolved app.json version differs from the verified artifacts."
             exit 1
@@ -854,8 +933,8 @@ jobs:
               echo "::error::Could not refresh origin/main immediately before GitHub Release creation."
               exit 1
             fi
-            if [ "$(git rev-parse HEAD)" != "${RELEASE_COMMIT,,}" ]; then
-              echo "::error::The release checkout changed before GitHub Release creation."
+            if [ "$(git rev-parse HEAD)" != "${WORKFLOW_COMMIT,,}" ]; then
+              echo "::error::The privileged workflow checkout changed before GitHub Release creation."
               exit 1
             fi
             if ! git merge-base --is-ancestor "$RELEASE_COMMIT" origin/main; then
@@ -864,6 +943,19 @@ jobs:
             fi
             if ! git merge-base --is-ancestor "$WORKFLOW_COMMIT" origin/main; then
               echo "::error::The dispatched workflow commit is no longer on origin/main."
+              exit 1
+            fi
+            PRECREATE_RELEASE_JSON="$RUNNER_TEMP/precreate-release.json"
+            discover_and_fetch_release "$PRECREATE_RELEASE_JSON"
+            if [ -n "$FETCHED_RELEASE_ID" ]; then
+              echo "::error::A release for $TAG appeared after discovery; no mutation was attempted."
+              exit 1
+            fi
+            PRECREATE_TAG_LINE="$(git ls-remote --tags origin "refs/tags/$TAG" | awk 'NR==1 {print $1}')"
+            PRECREATE_PEELED_LINE="$(git ls-remote --tags origin "refs/tags/$TAG^{}" | awk 'NR==1 {print $1}')"
+            PRECREATE_TAG_SHA="${PRECREATE_PEELED_LINE:-$PRECREATE_TAG_LINE}"
+            if [ -n "$PRECREATE_TAG_SHA" ]; then
+              echo "::error::Tag $TAG appeared immediately before creation; no draft was created."
               exit 1
             fi
             gh "${ARGS[@]}"

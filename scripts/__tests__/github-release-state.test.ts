@@ -1,3 +1,8 @@
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 type ReleaseAsset = {
   id: number;
   name: string;
@@ -47,6 +52,7 @@ const loadReleaseState = () =>
   };
 
 const SHA = "8f7743c4c5b6f716945eaa5a713beedb3ee12e5f";
+const SCRIPT = join(__dirname, "..", "github-release-state.js");
 
 const exactRelease = (overrides: Partial<GitHubRelease> = {}): GitHubRelease => ({
   id: 901,
@@ -105,6 +111,45 @@ describe("GitHub draft discovery", () => {
     expect(() =>
       selectReleaseId([[exactRelease()], [exactRelease({ id: 902 })]], "v0.9.0"),
     ).toThrow("multiple matching releases: 2");
+  });
+
+  test.each([
+    ["a non-object row", [[null]], "is not an object"],
+    ["a missing tag_name", [[{ id: 901 }]], "invalid tag_name"],
+    ["an empty tag_name", [[{ id: 901, tag_name: "" }]], "invalid tag_name"],
+    ["a string id", [[{ id: "901", tag_name: "v0.9.0" }]], "invalid id"],
+    ["a zero id", [[{ id: 0, tag_name: "v0.9.0" }]], "invalid id"],
+  ])("rejects %s instead of interpreting it as absence", (_label, pages, message) => {
+    const { selectReleaseId } = loadReleaseState();
+    expect(() => selectReleaseId(pages, "v0.9.0")).toThrow(message);
+  });
+
+  test("rejects a malformed row even when another page has a valid match", () => {
+    const { selectReleaseId } = loadReleaseState();
+    expect(() => selectReleaseId([[exactRelease()], [{ id: 902 }]], "v0.9.0")).toThrow(
+      "invalid tag_name",
+    );
+  });
+
+  test("the CLI adapter also fails closed on a malformed list response", () => {
+    const directory = mkdtempSync(join(tmpdir(), "github-release-state-"));
+    const releaseList = join(directory, "releases.json");
+    try {
+      writeFileSync(releaseList, JSON.stringify([[{ id: 901 }]]));
+      const result = spawnSync(process.execPath, [SCRIPT, "select-id"], {
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          RELEASE_LIST_JSON: releaseList,
+          TAG: "v0.9.0",
+        },
+      });
+      expect(result.status).toBe(1);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain("invalid tag_name");
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 });
 

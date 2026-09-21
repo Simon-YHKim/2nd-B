@@ -42,6 +42,33 @@ const runOf = stepOf;
 const occurrences = (text: string, fragment: string) => text.split(fragment).length - 1;
 
 describe("the workflow can actually publish", () => {
+  test("historical code runs in a credential-free job and cannot reach privileged tooling", () => {
+    const policyAt = RAW.indexOf("  release-policy:");
+    const releaseAt = RAW.indexOf("\n  release:", policyAt);
+    const policy = RAW.slice(policyAt, releaseAt);
+    const release = RAW.slice(releaseAt);
+
+    expect(policyAt).toBeGreaterThanOrEqual(0);
+    expect(releaseAt).toBeGreaterThan(policyAt);
+    expect(policy).toContain("ref: ${{ inputs.release_commit }}");
+    expect(policy).toContain("npm run check:ota-runtime");
+    expect(policy).not.toContain("environment: production");
+    expect(policy).not.toContain("secrets.");
+    expect(policy).not.toContain("GITHUB_OUTPUT");
+    expect(release).toMatch(/^ {4}needs: release-policy$/m);
+    expect(stepOf("Checkout workflow tooling commit")).toContain("ref: ${{ github.sha }}");
+    expect(release).not.toContain("npm run check:ota-runtime");
+    expect(RAW.indexOf("- name: Materialize release state helper after artifact verification")).toBeGreaterThan(
+      RAW.indexOf("- name: Get the build artifacts"),
+    );
+    expect(RAW.indexOf("- name: Require protected release app configuration")).toBeGreaterThan(
+      RAW.indexOf("- name: Materialize release state helper after artifact verification"),
+    );
+    expect(RAW.indexOf("- name: Mint a short-lived release app token")).toBeGreaterThan(
+      RAW.indexOf("- name: Require protected release app configuration"),
+    );
+  });
+
   test("the default token is read-only and release mutation uses a scoped app token", () => {
     const preflight = stepOf("Require protected release app configuration");
     const token = stepOf("Mint a short-lived release app token");
@@ -82,19 +109,24 @@ describe("the workflow can actually publish", () => {
 
 describe("the tag cannot disagree with the binary", () => {
   test("the release target is the exact build commit on main", () => {
-    const guard = runOf("Require the release commit");
+    const policyGuard = runOf("Require the policy checkout");
+    const guard = runOf("Require release data and workflow tooling");
     const artifacts = runOf("Get the build artifact");
     const publish = runOf("Create the GitHub Release");
 
     expect(RAW).toMatch(/^ {6}release_commit:$/m);
     expect(RAW).toMatch(/release_commit:[\s\S]*?required: true[\s\S]*?type: string/);
-    expect(stepOf("Checkout exact release target")).toContain(
+    expect(stepOf("Checkout release target for policy-only validation")).toContain(
       "ref: ${{ inputs.release_commit }}",
     );
+    expect(stepOf("Checkout workflow tooling commit")).toContain("ref: ${{ github.sha }}");
+    expect(policyGuard).toContain('"$(git rev-parse HEAD)" != "${RELEASE_COMMIT,,}"');
     expect(guard).toContain('RELEASE_COMMIT: ${{ inputs.release_commit }}');
+    expect(guard).toContain('TOOLING_COMMIT: ${{ github.sha }}');
     expect(guard).toContain("^[0-9a-fA-F]{40}$");
     expect(guard).toContain('git merge-base --is-ancestor "$RELEASE_COMMIT" origin/main');
-    expect(guard).toContain('"$(git rev-parse HEAD)" != "${RELEASE_COMMIT,,}"');
+    expect(guard).toContain('"$(git rev-parse HEAD)" != "${TOOLING_COMMIT,,}"');
+    expect(guard).toContain('git show "$RELEASE_COMMIT:app.json"');
     expect(artifacts).toContain('EXPECTED_COMMIT: ${{ inputs.release_commit }}');
     expect(publish).toContain('RELEASE_COMMIT: ${{ inputs.release_commit }}');
     expect(publish).toContain('--target "$RELEASE_COMMIT"');
@@ -104,7 +136,10 @@ describe("the tag cannot disagree with the binary", () => {
 
   test("the version is read from app.json, not typed as an input", () => {
     const run = runOf("Resolve version");
-    expect(run).toContain("require('./app.json').expo.version");
+    expect(run).toContain("process.env.RELEASE_APP_JSON");
+    expect(runOf("Require release data and workflow tooling")).toContain(
+      'git show "$RELEASE_COMMIT:app.json"',
+    );
     expect(run).toContain("TAG=\"v$VERSION\"");
     // No version/tag input exists to be typed wrongly.
     const inputs = [...RAW.matchAll(/^ {6}([a-z_]+):$/gm)].map((x) => x[1]);
@@ -138,18 +173,18 @@ describe("the tag cannot disagree with the binary", () => {
   });
 
   test("the state helper is pinned to the workflow commit, not the older release checkout", () => {
-    const helper = stepOf("Materialize the release state helper");
+    const helper = stepOf("Materialize release state helper after artifact verification");
     const publish = runOf("Create the GitHub Release");
 
     expect(helper).toContain("TOOLING_COMMIT: ${{ github.sha }}");
-    expect(helper).toContain('git show "${TOOLING_COMMIT}:scripts/github-release-state.js"');
-    expect(helper).toContain('node --check "$script"');
+    expect(helper).toContain('tooling_dir="$(mktemp -d "$RUNNER_TEMP/release-state-helper.XXXXXX")"');
+    expect(helper).toContain('git show "${TOOLING_COMMIT}:${helper_source}"');
+    expect(helper).toContain('node --check "$helper"');
+    expect(helper).toContain('test "$(git hash-object "$helper")" = "$helper_blob"');
+    expect(helper).toContain("RELEASE_STATE_HELPER_BLOB=");
     expect(helper).toContain("RELEASE_STATE_HELPER=");
-    expect(helper).toContain("APK_VERIFIER=");
-    expect(helper).toContain("SIGNATURE_VERIFIER=");
-    expect(helper).toContain("scripts/check-apk-target-sdk.js");
-    expect(helper).toContain("scripts/check-android-release-signatures.js");
     expect(helper).toContain('>> "$GITHUB_ENV"');
+    expect(publish).toContain('test "$(git hash-object "$RELEASE_STATE_HELPER")" = "$RELEASE_STATE_HELPER_BLOB"');
     expect(publish).not.toContain("node scripts/github-release-state.js");
   });
 
@@ -209,6 +244,11 @@ describe("the tag cannot disagree with the binary", () => {
     expect(run).toMatch(
       /git fetch --no-tags origin[\s\S]*git merge-base --is-ancestor "\$WORKFLOW_COMMIT" origin\/main[\s\S]*gh "\$\{ARGS\[@\]\}"/,
     );
+    expect(run).toMatch(
+      /discover_and_fetch_release "\$PRECREATE_RELEASE_JSON"[\s\S]*PRECREATE_TAG_SHA=[\s\S]*gh "\$\{ARGS\[@\]\}"/,
+    );
+    expect(run).toContain("A release for $TAG appeared after discovery; no mutation was attempted.");
+    expect(run).toContain("Tag $TAG appeared immediately before creation; no draft was created.");
   });
 
   test("draft readback uses release and asset IDs, never the published-only tag endpoint", () => {
@@ -271,7 +311,12 @@ describe("the asset is a real build", () => {
 
     expect(artifacts).toContain('node "$APK_VERIFIER" --json "$PREVIEW_FILE"');
     expect(artifacts).toContain('node "$APK_VERIFIER" --json "$PRODUCTION_FILE"');
+    expect(artifacts).toMatch(
+      /unset EXPO_TOKEN[\s\S]*git show "\$\{TOOLING_COMMIT\}:\$\{apk_source\}"[\s\S]*node "\$APK_VERIFIER" --self-test/,
+    );
     expect(artifacts).not.toContain("node scripts/check-apk-target-sdk.js");
+    expect(signatures).toContain('git show "${TOOLING_COMMIT}:${signature_source}"');
+    expect(signatures).toContain('test "$(git hash-object "$SIGNATURE_VERIFIER")" = "$signature_blob"');
     expect(signatures).toContain('node "$SIGNATURE_VERIFIER" verify');
     expect(signatures).not.toContain("node scripts/check-android-release-signatures.js");
   });
@@ -361,11 +406,20 @@ describe("the release says what it is", () => {
   });
 
   test("notes come from the changelog when there is a section", () => {
-    expect(runOf("Extract release notes")).toContain("CHANGELOG.md");
-    // And when there is no section, the release still gets a body rather than
-    // an empty one. That fallback lives in the create step.
-    expect(runOf("Create the GitHub Release")).toContain("--generate-notes");
-    expect(runOf("Create the GitHub Release")).toContain("--notes-file RELEASE_NOTES.md");
+    const notes = runOf("Extract release notes");
+    const publish = runOf("Create the GitHub Release");
+    const executablePublish = publish
+      .split("\n")
+      .filter((line) => !line.trimStart().startsWith("#"))
+      .join("\n");
+
+    expect(notes).toContain("$RELEASE_CHANGELOG");
+    // A missing section still produces a deterministic notes file. Generated
+    // notes are intentionally absent from executable lines because they would
+    // make an exact rerun mutable.
+    expect(notes).toContain("printf 'Release %s\\n'");
+    expect(executablePublish).not.toContain("--generate-notes");
+    expect(executablePublish).toContain("--notes-file RELEASE_NOTES.md");
   });
 });
 

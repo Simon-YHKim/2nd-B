@@ -19,7 +19,19 @@ function selectReleaseId(pages, tag) {
     throw new Error("release tag is invalid");
   }
 
-  const matches = pages.flat().filter((release) => isRecord(release) && release.tag_name === tag);
+  const releases = pages.flat();
+  for (const [index, release] of releases.entries()) {
+    if (!isRecord(release)) {
+      throw new Error(`release list row ${index} is not an object`);
+    }
+    if (typeof release.tag_name !== "string" || release.tag_name.length === 0) {
+      throw new Error(`release list row ${index} has an invalid tag_name`);
+    }
+    if (!Number.isSafeInteger(release.id) || release.id <= 0) {
+      throw new Error(`release list row ${index} has an invalid id`);
+    }
+  }
+  const matches = releases.filter((release) => release.tag_name === tag);
   if (matches.length > 1) {
     throw new Error(`multiple matching releases: ${matches.length}`);
   }
