@@ -286,6 +286,14 @@ export type RunTimeSql = { restored: true; sql: string } | { restored: false; ex
  * dollar-quoted form is already descended into by maskInertSql; the quoted form
  * used to be blanked like any other literal.
  *
+ * ...and all or nothing applies to them as well. It did not (r55 bizlogic gate,
+ * B-R55-N03): SQL lets a string constant continue in a second literal after a
+ * line break, so `DO 'BEGIN'` + newline + `' EXECUTE ...; END'` runs as one body.
+ * This reader restored `BEGIN`, reported the body as read, and asked nobody about
+ * the rest. A body is now `restored` only when what follows its literal is the
+ * rest of a statement; a second literal, or anything else this reader has no
+ * reading for, makes the whole body unread.
+ *
  * The result is text, not a verdict: read it again with stripForDdlScan, and
  * with this function, because run-time SQL can assemble run-time SQL.
  */
@@ -314,7 +322,16 @@ export function readRunTimeSql(sql: string): RunTimeSql[] {
       // `DO $$...$$` and `AS $$...$$` are already readable, and `x AS y` is an alias.
       if (base[at] === "'") {
         const body = readConstantOperand(base, at);
-        out.push(body ? { restored: true, sql: body.value } : unread(m.index));
+        // A body is ONE string constant, never an expression, so nothing that
+        // follows it can add to it except a continuation literal. What may
+        // follow a body that was read whole: the end of the statement, another
+        // word of it (LANGUAGE, a function option), or the `,` / `)` of the two
+        // other places `AS '...'` is legal (a C function's link symbol, COPY's
+        // legacy options). A quote is the continuation; it and everything not
+        // listed here hand the body over as unread.
+        const after = body ? base.slice(skipBlankSql(base, body.end)) : "";
+        if (body && /^(?:;|$|,|\)|[a-z_])/i.test(after)) out.push({ restored: true, sql: body.value });
+        else out.push(unread(m.index));
       } else if (/^(?:[eEbBxXnN]|[uU]&)'/.test(base.slice(at, at + 3))) {
         out.push(unread(m.index)); // a body in a string syntax this reader does not decode
       }

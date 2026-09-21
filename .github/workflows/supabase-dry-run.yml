@@ -340,11 +340,13 @@ jobs:
       #            (owner, ACL, and its whole catalog row), its columns (defaults,
       #            ACLs, comments, and their whole catalog rows), constraints,
       #            indexes (and theirs), policies, triggers, the sequences its
-      #            columns own, rules, statistics objects, the comments on any of
-      #            those, and whatever else pg_depend hangs off either object. DROP takes all
-      #            of it without a word, so a LATER migration that adds any of it
-      #            and is left out of the rollback's list loses it to the round
-      #            trip. That comparison is what says so.
+      #            columns own (parameters, owner, ACL, comment, catalog row, and
+      #            where each one stands), rules, statistics objects, the comments
+      #            on any of those, and whatever else pg_depend hangs off either
+      #            object. DROP takes all of it without a word, so a LATER
+      #            migration that adds any of it and is left out of the rollback's
+      #            list loses it to the round trip. That comparison is what says
+      #            so, FOR WHAT IT READS: see "not collected" below.
       #   sight    ...provided it can SEE the thing. It used to make that claim
       #            while reading six facts. MEASURED 2026-09-21 00:28 KST, scratch
       #            PostgreSQL 18.3, one statement at a time inside a rolled-back
@@ -365,31 +367,79 @@ jobs:
       #            carries every column). It leads the list all the same: it is
       #            the statement the finding is known by.
       #
-      # The half of this rule that needs no database lives in
-      # src/lib/privacy/__tests__/erasure-registry-migration.test.ts. It reads every
-      # migration from 0189 on, keeps only the SQL that executes (restoring what is
-      # assembled at run time wherever that is a constant), and requires each file
-      # that names either object to be in the rollback's list.
+      #   need     ...and that every row the rollback deletes HAD to be deleted. Put
+      #            one back, push again: if everything still comes back, that
+      #            migration is on the list for no reason this database can show,
+      #            and it would be re-applied mid-incident all the same. Red.
       #
-      # The two halves are blind in different directions, which is the reason to
-      # keep both. That one catches ANY KIND of change, as long as it can read the
-      # statement; it cannot follow a name through a variable or into a helper
-      # function. This one does not care how a statement was spelled; it sees only
-      # the catalog facts owned_state reads. A change is lost without a red only
-      # where BOTH are blind, and r52's artifact gate found exactly that corner
-      # (B-NEW-01: EXECUTE format(...) x a column's statistics target). Both sides
-      # of it are closed here: owned_state reads whole catalog rows, and the other
-      # half no longer lets SQL it cannot restore pass in silence. What is left is
-      # a change that goes through a function defined in an earlier migration AND
-      # lands in a catalog this query does not read (a publication's row filter or
-      # column list, a security label, an event trigger). That corner is stated,
-      # not closed.
+      # WHAT THIS STEP SAYS, AND WHAT IT DOES NOT. This is the third round on this
+      # rule (r50, r52, r55). Each round closed the hole it was shown and opened one
+      # of a new kind while closing it, so in this one the CLAIM was cut down to
+      # what a run actually shows, and the rest is listed instead of implied.
       #
-      # When the comparison below goes red the fix is an entry in that file's
-      # c_names, and the other half ACCEPTS such an entry: its reading is a lower
-      # bound. It used to demand the list hold nothing it had not found itself, so
-      # the author who did what this step says was failed by the other one (r52
-      # bizlogic gate, B-R52-N01).
+      # It says two things about c_names, the rollback's list, and both only AS FAR
+      # AS owned_state READS:
+      #   enough   nothing owned_state reads is lost to rollback + re-push ("fixed");
+      #   needed   no row on the list could have been left off it ("need").
+      # It does NOT say that re-applying a listed migration is harmless. It used to:
+      # "whether the reason is true is not decidable here; the round trip proves
+      # that harmless or refuses" stood in the other half, and a remark of ten
+      # characters beside an entry was what admitted it. r55's two gates ran the
+      # counter-example (B-R55-N01; artifact gate, finding 2): a migration that
+      # touches neither object, listed with 'xxxxxxxxxx' beside it, green on both
+      # sides, re-applied, a counter in another table 1 -> 2, fingerprint identical.
+      # "need" now refuses THAT entry. It cannot refuse a migration that is needed
+      # and ALSO does something else: see the first line of "not collected".
+      #
+      # NOT COLLECTED. Known, and not a complete list: two gates each found a line
+      # of it the other had not, which is the evidence that nobody has all of it.
+      # MEASURED 2026-09-21 03:50 KST, scratch PostgreSQL 18.3, two definitions of
+      # one thing under this exact query: "same" means a loss here is NOT seen.
+      #   - any row of any table other than erasure_registry, and any object that
+      #     does not hang off the two. A listed migration is re-applied WHOLE, so
+      #     whatever else it does happens twice, and nothing here looks. Re-apply
+      #     safety of a migration added to c_names is reviewed in the PR that adds
+      #     it, against that migration's own SQL. It is not shown by this step.
+      #   - a publication's row filter and its column list for the table: same. (The
+      #     table JOINING a publication is seen, by the pg_depend net.)
+      #   - the owner of a statistics object: same.
+      #   - security labels on either object, a column or an owned sequence:
+      #     pg_seclabel is not read. Not measured: no label provider is loaded on
+      #     the scratch server. One is on Supabase (pgsodium).
+      #   - of a sequence, only one that pg_depend hangs off the table, and of where
+      #     it stands, last_value and is_called (not log_cnt).
+      #   - what "need" calls needed is "differs when left out". WHY it differs is
+      #     not examined.
+      #
+      # THE OTHER HALF IS NOT A GATE ON THE LIST, and no longer reads as one.
+      # src/lib/privacy/__tests__/erasure-registry-migration.test.ts runs in `npm run
+      # verify` with no database. It reads every migration from 0189 on, keeps the
+      # SQL that executes (restoring run-time SQL wherever it is a constant), and
+      # makes sure a PERSON HAS ACCOUNTED FOR each file that names either object, or
+      # that runs SQL it cannot restore: the file is in c_names, or it is on that
+      # test's list of files whose ledger row may stay. It is an early prompt,
+      # before anything is pushed. It proves neither answer; this step judges the
+      # list. It used to do more, in both directions. It bounded the list from
+      # above (r52 bizlogic gate, B-R52-N01: it failed the author who listed what
+      # this step had just told them to), then admitted entries by their remark
+      # (r55, above). And its "must be listed" was binding, which the "need" half
+      # cannot live with: a file can NAME the two objects and hang nothing on them
+      # that re-applying the others does not already restore (the first of two
+      # CREATE OR REPLACE of erase_my_data; a table called erasure_registry_audit;
+      # a DO block that only reads the registry). Binding on one side and refused
+      # on the other is a red with no way out, which is B-R52-N01 again.
+      #
+      # WHERE A CHANGE IS STILL LOST WITHOUT A RED: where nobody is prompted AND
+      # owned_state does not read the fact. "Nobody is prompted" is wider than this
+      # comment used to say. It named one case, "a change that goes through a
+      # function defined in an earlier migration". r55's counter-example needed no
+      # helper and no variable: GRANT USAGE ON SEQUENCE public.generation_counter_seq
+      # is plain SQL that spells neither name, because what hangs off the two
+      # objects has names of its own (a sequence, an index, a constraint). The
+      # reader looks for two names; it is silent about every statement that does
+      # not need them. Add to that a person's wrong "its row may stay" about a file
+      # they WERE asked about. Both meet a red here only if owned_state reads what
+      # was lost. That corner is stated, not closed.
       #
       # Every failure is reported before the step exits, so one run shows the whole
       # shape of a regression rather than its first symptom.
@@ -447,7 +497,7 @@ jobs:
           can_execute() { # <db> <role>
             sql "$1" "SELECT pg_catalog.has_function_privilege('$2', 'public.erase_my_data(text)', 'EXECUTE')"
           }
-          # Everything that hangs off the two objects, one fact per line, in a form
+          # Collected state of the two objects, one fact per line, in a form
           # that survives DROP + CREATE: names and definitions, never an OID. ACLs
           # are sorted, because the order of the entries is the order of the GRANTs
           # and says nothing about who holds what. The last part is the net under
@@ -475,9 +525,31 @@ jobs:
           # diff names the property that moved. MEASURED 2026-09-21 02:17 KST with
           # the row printed as one JSON value: the red was right and unreadable, two
           # 500-character lines that differed in their last twenty.
+          #
+          # SEQUENCES, three ways, because a sequence keeps what it is in three places
+          # and the first version of this part read one of them (r55, two gates, one
+          # family each). pg_sequence holds the PARAMETERS. The sequence's own
+          # pg_class row holds its owner and its ACL: a plain GRANT USAGE ON SEQUENCE
+          # names neither of the two objects, so the other half of this rule says
+          # nothing, and the round trip lost the grant with an identical fingerprint
+          # (B-R55-N02). And WHERE IT STANDS is in neither catalog: last_value and
+          # is_called live in the sequence relation itself. pg_sequences would not
+          # do: it reports last_value as NULL until the first nextval(), so RESTART
+          # WITH 42 and RESTART WITH 73 read the same (artifact gate, finding 1;
+          # MEASURED: states 42:false and 73:false, one fingerprint). The relation
+          # has to be read by name, so the name is quoted by format('%I.%I') and the
+          # one-row SELECT goes through query_to_xml, which keeps all of this one
+          # statement. log_cnt stays out: it counts WAL prefetch, not values.
           owned_state="$(cat <<'SQL'
           WITH reg AS (SELECT pg_catalog.to_regclass('public.erasure_registry') AS oid),
-               fn AS (SELECT pg_catalog.to_regprocedure('public.erase_my_data(text)') AS oid)
+               fn AS (SELECT pg_catalog.to_regprocedure('public.erase_my_data(text)') AS oid),
+               owned_seq AS (
+                 SELECT DISTINCT sc.oid, n.nspname, sc.relname
+                 FROM reg
+                 JOIN pg_catalog.pg_depend AS d ON d.refclassid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = reg.oid
+                                               AND d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass
+                 JOIN pg_catalog.pg_class AS sc ON sc.oid = d.objid AND sc.relkind = 'S'
+                 JOIN pg_catalog.pg_namespace AS n ON n.oid = sc.relnamespace)
           SELECT fact.line
           FROM (
             SELECT 1 AS part, 0 AS pos,
@@ -586,14 +658,40 @@ jobs:
             FROM reg
             JOIN pg_catalog.pg_trigger AS t ON t.tgrelid = reg.oid AND NOT t.tgisinternal
             UNION ALL
-            SELECT DISTINCT 9, 1,
-                   'sequence ' || sc.relname || ' .' || kv.key || '=' || COALESCE(kv.value, '(null)')
-            FROM reg
-            JOIN pg_catalog.pg_depend AS d ON d.refclassid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = reg.oid
-                                          AND d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass
-            JOIN pg_catalog.pg_class AS sc ON sc.oid = d.objid AND sc.relkind = 'S'
+            SELECT 9, 1,
+                   'sequence ' || sc.nspname || '.' || sc.relname || ' .' || kv.key || '=' || COALESCE(kv.value, '(null)')
+            FROM owned_seq AS sc
             JOIN pg_catalog.pg_sequence AS s ON s.seqrelid = sc.oid
             CROSS JOIN LATERAL pg_catalog.jsonb_each_text(pg_catalog.to_jsonb(s) - ARRAY['seqrelid']) AS kv
+            UNION ALL
+            SELECT 9, 2,
+                   'sequence ' || sc.nspname || '.' || sc.relname
+                   || ' owner=' || pg_catalog.pg_get_userbyid(c.relowner)
+                   || ' acl=' || COALESCE((SELECT pg_catalog.string_agg(a::text, ',' ORDER BY a::text)
+                                           FROM pg_catalog.unnest(c.relacl) AS a), '(default)')
+                   || ' comment=' || COALESCE(pg_catalog.md5(pg_catalog.obj_description(c.oid, 'pg_class')), '(none)')
+            FROM owned_seq AS sc
+            JOIN pg_catalog.pg_class AS c ON c.oid = sc.oid
+            UNION ALL
+            SELECT 9, 3,
+                   'sequence ' || sc.nspname || '.' || sc.relname || ' relation .' || kv.key || '=' || COALESCE(kv.value, '(null)')
+            FROM owned_seq AS sc
+            JOIN pg_catalog.pg_class AS c ON c.oid = sc.oid
+            CROSS JOIN LATERAL pg_catalog.jsonb_each_text(pg_catalog.to_jsonb(c) - ARRAY[
+              'oid', 'reltype', 'relfilenode', 'reltoastrelid', 'relrewrite',
+              'relpages', 'reltuples', 'relallvisible', 'relallfrozen', 'relfrozenxid', 'relminmxid',
+              'relhasindex', 'relhasrules', 'relhastriggers', 'relhassubclass',
+              'relacl']) AS kv
+            UNION ALL
+            SELECT 9, 4,
+                   'sequence ' || sc.nspname || '.' || sc.relname || ' stands at .' || slot.key || '='
+                   || COALESCE(pg_catalog.substring(standing.one_row, '<' || slot.key || '>([^<]*)</' || slot.key || '>'), '(unread)')
+            FROM owned_seq AS sc
+            CROSS JOIN LATERAL (
+              SELECT pg_catalog.query_to_xml(
+                       pg_catalog.format('SELECT last_value, is_called FROM %I.%I', sc.nspname, sc.relname),
+                       false, true, '')::text AS one_row) AS standing
+            CROSS JOIN (VALUES ('last_value'), ('is_called')) AS slot(key)
             UNION ALL
             SELECT 10, 0,
                    'rule ' || pg_catalog.pg_get_ruledef(r.oid) || ' enabled=' || r.ev_enabled::text
@@ -759,7 +857,22 @@ jobs:
           # table is internal too, and is named after an OID). MEASURED 2026-09-21
           # 02:29 KST: SET INCREMENT BY moved pg_sequence and nothing here. The
           # generation counter S3-C / S3-D will add is the column this is about.
-          tells_apart "the sequence behind a column"             "ALTER TABLE public.erasure_registry ADD COLUMN rollback_probe bigint GENERATED BY DEFAULT AS IDENTITY"             "ALTER TABLE public.erasure_registry ADD COLUMN rollback_probe bigint GENERATED BY DEFAULT AS IDENTITY; ALTER TABLE public.erasure_registry ALTER COLUMN rollback_probe SET INCREMENT BY 7"
+          #
+          # Three probes, one for each place a sequence keeps what it is (see the
+          # note above owned_state). The first used to stand for all three and only
+          # bites on the parameters. r55's two gates found the other two from
+          # opposite ends: where it STANDS (42 against 73: both leave pg_sequence
+          # untouched and both read NULL in pg_sequences, so nothing short of the
+          # relation's own row tells them apart) and who may USE it.
+          tells_apart "the parameters of the sequence behind a column" \
+            "ALTER TABLE public.erasure_registry ADD COLUMN rollback_probe bigint GENERATED BY DEFAULT AS IDENTITY" \
+            "ALTER TABLE public.erasure_registry ADD COLUMN rollback_probe bigint GENERATED BY DEFAULT AS IDENTITY; ALTER TABLE public.erasure_registry ALTER COLUMN rollback_probe SET INCREMENT BY 7"
+          tells_apart "where the sequence behind a column stands" \
+            "ALTER TABLE public.erasure_registry ADD COLUMN rollback_probe bigint GENERATED BY DEFAULT AS IDENTITY; ALTER TABLE public.erasure_registry ALTER COLUMN rollback_probe RESTART WITH 42" \
+            "ALTER TABLE public.erasure_registry ADD COLUMN rollback_probe bigint GENERATED BY DEFAULT AS IDENTITY; ALTER TABLE public.erasure_registry ALTER COLUMN rollback_probe RESTART WITH 73"
+          tells_apart "a grant on the sequence behind a column" \
+            "ALTER TABLE public.erasure_registry ADD COLUMN rollback_probe bigint GENERATED BY DEFAULT AS IDENTITY (SEQUENCE NAME public.rollback_probe_seq)" \
+            "ALTER TABLE public.erasure_registry ADD COLUMN rollback_probe bigint GENERATED BY DEFAULT AS IDENTITY (SEQUENCE NAME public.rollback_probe_seq); GRANT USAGE ON SEQUENCE public.rollback_probe_seq TO anon"
           tells_apart "a comment on something that hangs off the table" \
             "CREATE POLICY rollback_probe ON public.erasure_registry FOR SELECT TO anon USING (false); COMMENT ON POLICY rollback_probe ON public.erasure_registry IS 'rollback probe'" \
             "CREATE POLICY rollback_probe ON public.erasure_registry FOR SELECT TO anon USING (false); COMMENT ON POLICY rollback_probe ON public.erasure_registry IS 'another rollback probe'"
@@ -798,11 +911,26 @@ jobs:
             fail "the sight probes left something behind. Each one runs inside a transaction that is rolled back, and the fingerprint no longer equals the one taken before them, so the comparison below starts from a state no migration produced."
           fi
 
+          ledger_names() { # <db>  -- one line, so it reads the same through a CRLF psql
+            sql "$1" "SELECT COALESCE(pg_catalog.string_agg(m.name, ' ' ORDER BY m.version), '')
+                      FROM supabase_migrations.schema_migrations AS m"
+          }
+          ledger_before_rollback="$(ledger_names rollback_probe_fixed)"
           roll_back rollback_probe_fixed
           after_rollback="$(ledger_pair rollback_probe_fixed)"
           if [[ "$after_rollback" != "(none)" ]]; then
             fail "$down left [$after_rollback] in the migration ledger. 0189 and 0190 are one set: the DROP FUNCTION takes 0190's revoke with it, so a surviving 0190 row makes the next push skip the revoke and re-create erase_my_data open to authenticated."
           fi
+          # What the shipped file DID to this ledger, not what its text says: the rows
+          # that were there before it ran and are not there now. The "need" half
+          # below asks its question of each of them.
+          ledger_after_rollback=" $(ledger_names rollback_probe_fixed) "
+          deleted_by_the_rollback=""
+          for name in $ledger_before_rollback; do
+            if [[ "$ledger_after_rollback" != *" $name "* ]]; then
+              deleted_by_the_rollback+="$name "
+            fi
+          done
           push_again rollback_probe_fixed
           after="$(fingerprint rollback_probe_fixed)"
           verdict=""
@@ -815,18 +943,92 @@ jobs:
           done
           echo "fixed: ledger after the rollback [$after_rollback] -> EXECUTE after the re-push: $verdict"
           if [[ "$before" != "$after" ]]; then
-            fail "rollback + re-push did not restore what hangs off erase_my_data and erasure_registry ('<' is before the rollback, '>' is after the re-push). A migration that alters either object loses its effect to the rollback's DROP, so its ledger row has to go too. In the same PR, add it to c_names in $down, one entry on its own line with the file's number and the reason beside it:   'its_ledger_name',  -- NNNN: what it hangs on the two objects   (npm run verify reads that remark, and accepts a name its own reading of the SQL could not find: this comparison is how such a name is found)."
+            fail "rollback + re-push did not restore what hangs off erase_my_data and erasure_registry ('<' is before the rollback, '>' is after the re-push). A migration that alters either object loses its effect to the rollback's DROP, so its ledger row has to go too. In the same PR, add its ledger name to c_names in $down. By that file's convention an entry sits on its own line with the file's number and what it hangs there beside it:   'its_ledger_name',  -- NNNN: what it hangs on the two objects   That remark is for whoever runs the file by hand. It is documentation and nothing reads it as evidence: what admits an entry is this comparison going green with it, and the 'need' half below staying green."
             diff <(printf '%s\n' "$before") <(printf '%s\n' "$after") | sed 's/^/  /' >&2 || true
           else
             echo "fixed: after the re-push, all $(wc -l <<< "$before" | tr -d ' ') facts are what they were"
           fi
 
+          echo "== need: is every ledger row the rollback deletes one the re-push needs gone?"
+          # The comparison above holds the list to a LOWER bound: leave out a row that
+          # had to go and something does not come back. Nothing held it to an upper
+          # one. A remark beside each entry was meant to (its file's number and ten
+          # characters of reason, read by npm run verify), and r55's two gates showed
+          # what that is worth: a migration that touches neither object, listed with
+          # 'xxxxxxxxxx' beside it, passed both halves, was re-applied by the push
+          # that follows a rollback, and took a counter in another table from 1 to 2
+          # under an identical fingerprint (B-R55-N01; artifact gate, finding 2). A
+          # sentence is not evidence. So each row the rollback deleted is asked the
+          # only question a database can answer about it: put THAT ONE ROW back, as
+          # if it had been left off the list, and push again. If everything
+          # owned_state reads still comes back, nothing visible here needs that
+          # migration re-applied, and it is on the list for no reason this step can
+          # check: red. A push that fails outright is an answer too (leave 0189's
+          # row and 0190 has no function to revoke from), and so is a missing object.
+          #
+          # This is the control's move, for every row instead of 0190's alone. The
+          # control stays because it asks for more than "differs": it demands the
+          # SPECIFIC difference that is the hole (authenticated = t), and says
+          # VACUOUS when this database cannot show it.
+          #
+          # What "needed" does NOT say: that re-applying is HARMLESS. A needed
+          # migration is re-applied whole, and whatever else it does, to any table
+          # that is not erasure_registry, happens twice. See "not collected" above.
+          needs() { # <ledger name>
+            local pushed state
+            if [[ ! "$1" =~ ^[A-Za-z0-9_]+$ ]]; then
+              fail "cannot ask whether [$1] is needed: the name goes into SQL text here, so only letters, digits and _ are taken."
+              return
+            fi
+            clone rollback_probe_need
+            sql rollback_probe_need "CREATE TABLE supabase_migrations.rollback_probe_kept AS
+                                     SELECT * FROM supabase_migrations.schema_migrations
+                                     WHERE name = '$1'"
+            roll_back rollback_probe_need
+            sql rollback_probe_need "INSERT INTO supabase_migrations.schema_migrations
+                                     SELECT * FROM supabase_migrations.rollback_probe_kept
+                                     ON CONFLICT (version) DO NOTHING"
+            sql rollback_probe_need "DROP TABLE supabase_migrations.rollback_probe_kept"
+            echo "need: '$1' left in the ledger, everything else as the rollback leaves it. A push that fails below is an answer, not an accident."
+            if push_again rollback_probe_need; then
+              pushed="the re-push ran"
+            else
+              pushed="the re-push FAILED"
+            fi
+            if [[ "$(sql rollback_probe_need "SELECT pg_catalog.to_regclass('public.erasure_registry') IS NOT NULL
+                                                  AND pg_catalog.to_regprocedure('public.erase_my_data(text)') IS NOT NULL")" == "t" ]]; then
+              state="$(fingerprint rollback_probe_need)"
+            else
+              state="(erase_my_data or erasure_registry is absent)"
+            fi
+            if [[ "$state" == "$before" ]]; then
+              fail "UNNEEDED in c_names: '$1'. $down deletes its ledger row, so the push that follows a rollback applies that migration a second time, mid-incident. With that one row LEFT IN PLACE, $pushed and all $(wc -l <<< "$before" | tr -d ' ') facts about erase_my_data and erasure_registry still came back, so nothing this step can see needs it re-applied. Either (a) it hangs nothing on the two objects: take it out of c_names, whatever the remark beside it says; or (b) it does, and owned_state is BLIND to what it hangs there: add that fact to owned_state with a sight probe, and this goes green with the entry in place. Do not settle (b) by removing the entry: the thing it hangs there is then lost to the next rollback, in silence."
+            else
+              echo "need: '$1' has to go. With its row left in place, $pushed and this did not come back:"
+              diff <(printf '%s\n' "$before") <(printf '%s\n' "$state") | sed 's/^/  /' | head -n 6 || true
+            fi
+          }
+          if [[ -z "$deleted_by_the_rollback" ]]; then
+            fail "$down deleted no ledger row at all, so there was nothing to ask the necessity question of."
+          fi
+          for name in $deleted_by_the_rollback; do
+            needs "$name"
+          done
+
+          # ON FAILURE THE CLONES ARE LEFT WHERE THEY ARE, on purpose (r55 bizlogic
+          # gate, N04: this used to be true and unsaid). The EXIT trap above removes
+          # the staging directory and nothing else. In CI a clone lives in the job's
+          # own service container, no later step runs after a red one, and the
+          # container goes with the job. In a local replay the clone is the evidence:
+          # it is the database the red message is about. The next run starts by
+          # dropping all three (clone() is DROP DATABASE IF EXISTS, then CREATE).
           if (( failed )); then
             exit 1
           fi
           sql "$source_db" "DROP DATABASE rollback_probe_control"
           sql "$source_db" "DROP DATABASE rollback_probe_fixed"
-          echo "rollback round trip: the control re-opened, the shipped rollback did not, and the state came back identical"
+          sql "$source_db" "DROP DATABASE rollback_probe_need"
+          echo "rollback round trip: the control re-opened, the shipped rollback did not, the state came back identical, and every row the rollback deletes (${deleted_by_the_rollback% }) had to go"
       - name: Reject account-deletion policies when Storage RLS is disabled
         env:
           PGPASSWORD: postgres
