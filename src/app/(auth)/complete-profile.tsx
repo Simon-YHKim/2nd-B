@@ -11,6 +11,7 @@ import { PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { BirthDateField } from "@/components/auth/BirthDateField";
+import { ResidenceCountryField } from "@/components/auth/ResidenceCountryField";
 import { GoalField, NameField } from "@/components/auth/ProfileIntakeFields";
 import { saveNorthstar } from "@/lib/persona/northstar";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
@@ -18,7 +19,12 @@ import type { HotlineId } from "@/lib/safety/lexicon";
 import { deepSpace, deepSpaceSpacing, flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
-import { ageInYears, ensureUserProfile, AgeGateError, EmailInUseError, signOut, MIN_SELF_CONSENT_AGE } from "@/lib/supabase/auth";
+import { ageInYears, ensureUserProfile, AgeGateError, EmailInUseError, signOut } from "@/lib/supabase/auth";
+import { digitalConsentAge, resolveJurisdiction } from "@/lib/auth/consent-age";
+import {
+  resolveRegistrationConsentFloor,
+  type ResidenceCountrySelection,
+} from "@/lib/auth/residence-jurisdiction";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRetry";
@@ -51,6 +57,8 @@ function CompleteProfileBody() {
   const { userId, hasProfile, loading, refresh, profileProbeFailed } = useAuth();
   const rootNavigationRef = useNavigationContainerRef();
   const [birthDate, setBirthDate] = useState("");
+  const [residenceCountry, setResidenceCountry] =
+    useState<ResidenceCountrySelection | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [goal, setGoal] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -71,13 +79,22 @@ function CompleteProfileBody() {
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const kbHeight = useKeyboard();
 
+  const detectedConsentFloor = useMemo(() => resolveJurisdiction(), []);
+  const residenceRequired = detectedConsentFloor.source === "region-unreadable";
+  const registrationConsentFloor = useMemo(
+    () => resolveRegistrationConsentFloor(residenceCountry, detectedConsentFloor),
+    [detectedConsentFloor, residenceCountry],
+  );
+  const residenceReady = registrationConsentFloor !== null;
+  const minConsentAge = digitalConsentAge(registrationConsentFloor ?? detectedConsentFloor);
+
   const age = ageInYears(birthDate);
-  const isMinorAge = age >= MIN_SELF_CONSENT_AGE && age < ADULT_AGE;
+  const isMinorAge = age >= minConsentAge && age < ADULT_AGE;
   // The reference frame shows a 3/4 mock-profile counter, but the production
   // gate has exactly two required truths: an eligible DOB and every required
   // consent acknowledgement. Optional name/goal fields must never inflate or
   // block this progress indicator.
-  const ageReady = age >= MIN_SELF_CONSENT_AGE;
+  const ageReady = residenceReady && age >= minConsentAge;
   const consentReady = allRequiredAcksChecked(consent);
   const requiredProgress = Number(ageReady) + Number(consentReady);
   const canSubmit = useMemo(() => {
@@ -156,7 +173,7 @@ function CompleteProfileBody() {
     setSubmitting(true);
     try {
       const result = await submitCompleteProfile({
-        ensureProfile: () => ensureUserProfile({ birthDate, locale, displayName }),
+        ensureProfile: () => ensureUserProfile({ birthDate, locale, displayName, residenceCountry }),
         // Record the consent the user just gave, awaited before navigation so
         // a web router.replace can't cancel the in-flight write (see sign-up).
         // Still best-effort: a failure logs at error level, never blocks entry.
@@ -239,9 +256,9 @@ function CompleteProfileBody() {
         // The flow deliberately did NOT sign out yet: the toast must paint
         // while the screen is still mounted (a refresh would flip userId to
         // null and the guard above would unmount it instantly).
-        setToast({ tone: "danger", message: t("errors.ageGate") });
+        setToast({ tone: "danger", message: t("errors.ageGate", { minAge: minConsentAge }) });
         await new Promise((resolve) => setTimeout(resolve, 900));
-        // C10: now sign the under-14 session out and settle the context, then
+        // C10: now sign the under-floor session out and settle the context, then
         // land on /sign-in directly — routing via "/" with a not-yet-settled
         // session is what redirect-warred with IntroGate (E2E-2). If the
         // sign-out failed the session is still live, so stay on the form.
@@ -319,13 +336,30 @@ function CompleteProfileBody() {
           </PixelSurface>
 
           <PixelSurface variant="frame" style={styles.fieldSurface} contentStyle={styles.fieldSurfaceContent}>
-            <BirthDateField value={birthDate} onChange={setBirthDate} />
+            {residenceRequired ? (
+              <ResidenceCountryField
+                value={residenceCountry}
+                onChange={setResidenceCountry}
+                minAge={minConsentAge}
+                disabled={submitting || cancelling}
+              />
+            ) : null}
+
+            <BirthDateField
+              value={birthDate}
+              onChange={setBirthDate}
+              minAge={minConsentAge}
+            />
 
             {birthDate.length > 0 ? (
               <View style={styles.checklist}>
                 <ChecklistItem
                   ok={ageReady}
-                  label={ageReady ? t("signUp.checkAge") : t("signUp.checkAgeBlocked")}
+                  label={
+                    ageReady
+                      ? t("signUp.checkAge", { minAge: minConsentAge })
+                      : t("signUp.checkAgeBlocked", { minAge: minConsentAge })
+                  }
                 />
               </View>
             ) : null}

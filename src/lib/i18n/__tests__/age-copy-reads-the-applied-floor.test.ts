@@ -197,7 +197,7 @@ describe("연령 문구는 실제로 적용된 층을 말한다", () => {
     };
     walk(sf);
     // 한 자리여야 한다. 늘어나면 어느 것이 보조기술에 가는지 이 검사가 모른다.
-    expect(bound).toEqual(['{t("signUp.birthDateHelper")}']);
+    expect(bound).toEqual(['{t("signUp.birthDateHelper", { minAge })}']);
 
     const { t } = initWithRegion("TH");
     const hint = t("auth:signUp.birthDateHelper");

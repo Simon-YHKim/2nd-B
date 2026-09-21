@@ -4,6 +4,7 @@ import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { BirthDateField } from "@/components/auth/BirthDateField";
+import { ResidenceCountryField } from "@/components/auth/ResidenceCountryField";
 import { SecondbHead } from "@/components/deepspace";
 import { PixelGateShell, PixelPressable, PixelSurface } from "@/components/pixel";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
@@ -14,7 +15,7 @@ import {
   type ConsentSelections,
 } from "@/lib/auth/consent-selections";
 import { useSignUpForm } from "@/lib/auth/useSignUpForm";
-import { ageInYears, MIN_SELF_CONSENT_AGE, type OAuthProvider } from "@/lib/supabase/auth";
+import { ageInYears, type OAuthProvider } from "@/lib/supabase/auth";
 import { m3 } from "@/lib/theme/m3";
 
 const PROVIDER_KEY: Record<OAuthProvider, string> = {
@@ -59,8 +60,13 @@ export function DeepSpaceSignUpDesignScreen() {
     setPassword,
     birthDate,
     setBirthDate,
+    residenceCountry,
+    setResidenceCountry,
     consent,
     setConsent,
+    residenceRequired,
+    residenceReady,
+    minConsentAge,
     isMinorAge,
     canSubmit,
     oauthSubmitting,
@@ -114,8 +120,9 @@ export function DeepSpaceSignUpDesignScreen() {
   const actionBusy = submitting || oauthSubmitting || confirmVerifying;
   const formLocked = actionBusy || confirmSentTo !== null;
   const submitDisabled = !canSubmit || actionBusy;
-  const birthOk = ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE;
-  const showChecklist = email.length > 0 || password.length > 0 || birthDate.length > 0;
+  const birthOk = residenceReady && ageInYears(birthDate) >= minConsentAge;
+  const showChecklist =
+    email.length > 0 || password.length > 0 || birthDate.length > 0 || residenceCountry !== null;
 
   return (
     <PixelGateShell scrollRef={scrollRef} contentContainerStyle={styles.shell}>
@@ -165,7 +172,9 @@ export function DeepSpaceSignUpDesignScreen() {
         </PixelSurface>
         <Text style={styles.title}>{t("deepspace:auth.signUpTitle")}</Text>
         <Text style={styles.lead}>{t("deepspace:auth.signUpLead")}</Text>
-        <Text style={styles.ageNotice}>{t("deepspace:auth.ageNotice")}</Text>
+        <Text style={styles.ageNotice}>
+          {t("deepspace:auth.ageNotice", { minAge: minConsentAge })}
+        </Text>
       </PixelSurface>
 
       {confirmSentTo ? (
@@ -313,8 +322,21 @@ export function DeepSpaceSignUpDesignScreen() {
         </PixelSurface>
         <Text style={styles.helper}>{t("auth:signUp.passwordHelper")}</Text>
 
+        {residenceRequired ? (
+          <ResidenceCountryField
+            value={residenceCountry}
+            onChange={setResidenceCountry}
+            minAge={minConsentAge}
+            disabled={formLocked}
+          />
+        ) : null}
+
         <View pointerEvents={formLocked ? "none" : "auto"}>
-          <BirthDateField value={birthDate} onChange={setBirthDate} />
+          <BirthDateField
+            value={birthDate}
+            onChange={setBirthDate}
+            minAge={minConsentAge}
+          />
         </View>
 
         {showChecklist ? (
@@ -337,7 +359,11 @@ export function DeepSpaceSignUpDesignScreen() {
             />
             <StatusRow
               ok={birthOk}
-              label={birthOk ? t("auth:signUp.checkAge") : t("auth:signUp.checkAgeBlocked")}
+              label={
+                birthOk
+                  ? t("auth:signUp.checkAge", { minAge: minConsentAge })
+                  : t("auth:signUp.checkAgeBlocked", { minAge: minConsentAge })
+              }
             />
           </View>
         ) : null}

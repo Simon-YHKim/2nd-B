@@ -7,6 +7,10 @@
 import dayjs from "dayjs";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { digitalConsentAge, resolveJurisdiction } from "../auth/consent-age";
+import {
+  resolveRegistrationConsentFloor,
+  type ResidenceCountrySelection,
+} from "../auth/residence-jurisdiction";
 import { allRequiredAcksChecked, type ConsentSelections } from "../auth/consent-selections";
 import {
   assertRecoveryOperationCurrentInsideMutation,
@@ -80,6 +84,22 @@ export class AgeGateError extends Error {
     super(`Users under ${minAge} cannot register without guardian consent.`);
     this.name = "AgeGateError";
   }
+}
+
+/** The device region was unreadable and the registration form has not recovered it yet. */
+export class ResidenceCountryRequiredError extends Error {
+  constructor() {
+    super("Country of residence is required when the device region is unavailable.");
+    this.name = "ResidenceCountryRequiredError";
+  }
+}
+
+function registrationConsentAge(
+  residenceCountry?: ResidenceCountrySelection | null,
+): number {
+  const floor = resolveRegistrationConsentFloor(residenceCountry);
+  if (!floor) throw new ResidenceCountryRequiredError();
+  return digitalConsentAge(floor);
 }
 
 // The email already belongs to ANOTHER auth identity (a different sign-in
@@ -272,6 +292,8 @@ export interface SignUpArgs {
   password: string;
   birthDate: string; // YYYY-MM-DD
   locale?: "en" | "ko";
+  /** Used only when the device region is unreadable; never persisted. */
+  residenceCountry?: ResidenceCountrySelection | null;
   /** Explicit acknowledgements collected by ConsentNotice. They are copied to
    *  auth metadata so the DB can atomically create the profile + immutable
    *  consent row only after the email address is confirmed. */
@@ -293,7 +315,8 @@ export type SignUpResult =
     };
 
 export async function signUpWithEmail(args: SignUpArgs): Promise<SignUpResult> {
-  if (ageInYears(args.birthDate) < MIN_SELF_CONSENT_AGE) throw new AgeGateError();
+  const minConsentAge = registrationConsentAge(args.residenceCountry);
+  if (ageInYears(args.birthDate) < minConsentAge) throw new AgeGateError(minConsentAge);
   if (!allRequiredAcksChecked(args.consent)) {
     throw new Error("Required consent acknowledgements are missing.");
   }
@@ -1600,6 +1623,8 @@ export async function completeNaverOAuth(params: NaverCallbackParams): Promise<{
 export interface CompleteProfileArgs {
   birthDate: string;
   locale: "en" | "ko";
+  /** Used only when the device region is unreadable; never persisted. */
+  residenceCountry?: ResidenceCountrySelection | null;
   /**
    * What the user wants to be called (0127, L4). Optional: onboarding must not
    * become a wall, and a nameless account still works everywhere -- the IDEN
@@ -1614,7 +1639,8 @@ export interface CompleteProfileResult {
 }
 
 export async function ensureUserProfile(args: CompleteProfileArgs): Promise<CompleteProfileResult> {
-  if (ageInYears(args.birthDate) < MIN_SELF_CONSENT_AGE) throw new AgeGateError();
+  const minConsentAge = registrationConsentAge(args.residenceCountry);
+  if (ageInYears(args.birthDate) < minConsentAge) throw new AgeGateError(minConsentAge);
 
   return runAuthSessionMutation(async () => {
     const supabase = getSupabaseClient();
