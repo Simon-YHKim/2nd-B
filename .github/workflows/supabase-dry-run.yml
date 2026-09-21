@@ -761,6 +761,24 @@ jobs:
             failed=1
           }
 
+          # Execute the exact NULL/empty distinction against the job's PostgreSQL,
+          # rather than letting a text assertion stand in for ACL semantics.
+          acl_sentinels="$(sql "$source_db" "SELECT pg_catalog.string_agg(
+            CASE WHEN fixture.acl IS NULL THEN '(default)'
+                 WHEN pg_catalog.cardinality(fixture.acl) = 0 THEN '(empty)'
+                 ELSE '(entries)'
+            END,
+            '|' ORDER BY fixture.ord)
+          FROM (VALUES
+            (1, NULL::pg_catalog.aclitem[]),
+            (2, ARRAY[]::pg_catalog.aclitem[])
+          ) AS fixture(ord, acl)")"
+          if [[ "$acl_sentinels" != "(default)|(empty)" ]]; then
+            echo "rollback round trip cannot start: ACL default/empty fixture collapsed to [$acl_sentinels]" >&2
+            exit 1
+          fi
+          echo "ACL sentinel fixture: default and explicit empty remain distinct"
+
           # The shipped state this lane starts from. Without it there is nothing to
           # come back TO, so stop rather than compare against a wrong baseline.
           if [[ "$(ledger_pair "$source_db")" != "$pair" ]]; then

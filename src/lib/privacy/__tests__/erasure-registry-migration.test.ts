@@ -20,6 +20,7 @@
 // bypasses RLS, so `auth.uid()` is not a convenience here - it is the ONLY
 // thing that keeps `erase_my_data` from deleting somebody else's rows.
 
+import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {
@@ -38,6 +39,38 @@ const FILE = "0189_erasure_registry.sql";
 // NAME, so that revoke left it callable (R48 artifact gate F-02). 0189 was
 // already merged, so the correction is a new number.
 const LOCK_FILE = "0190_lock_erase_my_data_authenticated.sql";
+
+const rollbackWorkflowBash = (): string => {
+  const workflow = readFileSync(join(ROOT, ".github", "workflows", "supabase-dry-run.yml"), "utf8").replace(
+    /\r\n/g,
+    "\n",
+  );
+  const stepAt = workflow.indexOf("- name: Exercise the 0189 rollback round trip");
+  const nextAt = workflow.indexOf("\n      - name:", stepAt + 1);
+  const step = workflow.slice(stepAt, nextAt === -1 ? undefined : nextAt);
+  const runMarker = "\n        run: |\n";
+  const runAt = step.indexOf(runMarker);
+  if (stepAt < 0 || runAt < 0) throw new Error("rollback workflow Bash step not found");
+  return step
+    .slice(runAt + runMarker.length)
+    .split("\n")
+    .map((line) => (line.startsWith("          ") ? line.slice(10) : line))
+    .join("\n");
+};
+
+const bashFunction = (body: string, name: string, nextMarker: string): string => {
+  const start = body.indexOf(`${name}() {`);
+  const end = body.indexOf(`\n${nextMarker}`, start);
+  if (start < 0 || end < 0) throw new Error(`${name} Bash function not found`);
+  return body.slice(start, end);
+};
+
+const runBash = (script: string) =>
+  spawnSync("bash", ["-s"], {
+    cwd: ROOT,
+    input: script,
+    encoding: "utf8",
+  });
 
 /** Comments must not be able to satisfy an assertion about behaviour. */
 const stripSqlComments = (sql: string): string =>
@@ -955,6 +988,11 @@ describe(`${FILE} -- structure`, () => {
         "DO $mig$ BEGIN EXECUTE format('ALTER TABLE public.%I%s FORCE ROW LEVEL SECURITY', 'erasure_', 'registry'); END $mig$;",
         "ALTER TABLE public.erasure_registry FORCE ROW LEVEL SECURITY",
       ],
+      [
+        "%I follows the PostgreSQL 16 target when a newer keyword is an ordinary fragment",
+        "DO $mig$ BEGIN EXECUTE format('ALTER TABLE public.%I%s FORCE ROW LEVEL SECURITY', 'json', '_tail'); END $mig$;",
+        "ALTER TABLE public.json_tail FORCE ROW LEVEL SECURITY",
+      ],
       // ...and a quoted body that IS whole stays read: what follows it is the rest of
       // its own statement. Refusing these would be the cry of wolf again.
       ["a quoted DO body, then its language", "DO 'BEGIN PERFORM 1; END' LANGUAGE plpgsql;", "BEGIN PERFORM 1; END"],
@@ -1265,5 +1303,126 @@ describe(`${FILE} -- structure`, () => {
     expect(step).toMatch(
       /if \[\[ "\$\(fingerprint "\$fixed_db"\)" != "\$before" \]\]; then\s+fail "the sight probes left something behind/,
     );
+  });
+});
+
+describe("rollback round-trip executable shell contracts", () => {
+  const workflowBash = rollbackWorkflowBash();
+  const needs = bashFunction(workflowBash, "needs", 'if [[ -z "$deleted_by_the_rollback" ]]');
+  const clone = bashFunction(workflowBash, "clone", "roll_back() {");
+
+  test("an unrelated push failure is inconclusive and never triggers recovery", () => {
+    const result = runBash(`
+set -uo pipefail
+${needs}
+staged_project="$(mktemp -d)"
+trap 'rm -rf -- "$staged_project"' EXIT
+need_db=rollback_need_test
+need_index=0
+before=baseline
+down=unused.sql
+failed=0
+push_count=0
+fail() { printf 'FAIL:%s\n' "$*" >&2; failed=1; }
+clone() { :; }
+roll_back() { :; }
+sql() {
+  if [[ "$2" == *"to_regclass"* ]]; then printf 't\n'; fi
+}
+fingerprint() { printf '%s\n' "$before"; }
+push_again() {
+  push_count=$((push_count + 1))
+  printf 'network unavailable\n'
+  return 42
+}
+needs erasure_registry
+printf 'RESULT failed=%s pushes=%s\n' "$failed" "$push_count"
+`);
+
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(0);
+    expect(`${result.stdout}${result.stderr}`).toContain("INCONCLUSIVE necessity check");
+    expect(result.stdout).toContain("RESULT failed=1 pushes=1");
+  });
+
+  test("only the exact 0190/42883 failure can recover to a causal green", () => {
+    const result = runBash(`
+set -uo pipefail
+${needs}
+staged_project="$(mktemp -d)"
+trap 'rm -rf -- "$staged_project"' EXIT
+need_db=rollback_need_test
+need_index=0
+before=baseline
+down=unused.sql
+failed=0
+push_count=0
+fail() { printf 'FAIL:%s\n' "$*" >&2; failed=1; }
+clone() { :; }
+roll_back() { :; }
+sql() {
+  if [[ "$2" == *"to_regclass"* ]]; then printf 't\n'; fi
+}
+fingerprint() { printf '%s\n' "$before"; }
+push_again() {
+  push_count=$((push_count + 1))
+  if (( push_count == 1 )); then
+    printf '%s\n' \
+      'Applying migration 0190_lock_erase_my_data_authenticated.sql' \
+      'function public.erase_my_data(text) does not exist' \
+      'SQLSTATE 42883'
+    return 42
+  fi
+  return 0
+}
+needs erasure_registry
+printf 'RESULT failed=%s pushes=%s\n' "$failed" "$push_count"
+`);
+
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(0);
+    expect(`${result.stdout}${result.stderr}`).toContain("is causally necessary");
+    expect(result.stdout).toContain("RESULT failed=0 pushes=2");
+  });
+
+  test("a pre-existing clone is refused and never becomes run-owned", () => {
+    const result = runBash(`
+set -o pipefail
+${clone}
+source_db=postgres
+created_clones=()
+create_calls=0
+collision=1
+sql() {
+  if [[ "$2" == "SELECT pg_catalog.count"* ]]; then
+    printf '%s\n' "$collision"
+  elif [[ "$2" == "CREATE DATABASE "* ]]; then
+    create_calls=$((create_calls + 1))
+  fi
+}
+set +e
+clone occupied
+occupied_rc=$?
+set -e
+printf 'COLLISION rc=%s owned=%s creates=%s\n' "$occupied_rc" "\${#created_clones[@]}" "$create_calls"
+collision=0
+clone fresh
+printf 'SUCCESS owned=%s name=%s creates=%s\n' "\${#created_clones[@]}" "\${created_clones[0]}" "$create_calls"
+`);
+
+    expect(result.error).toBeUndefined();
+    if (result.status !== 0) {
+      throw new Error(`clone harness exited ${result.status}: ${result.stderr}${result.stdout}`);
+    }
+    expect(result.stderr).toContain("refuses to replace pre-existing database [occupied]");
+    expect(result.stdout).toContain("COLLISION rc=1 owned=0 creates=0");
+    expect(result.stdout).toContain("SUCCESS owned=1 name=fresh creates=1");
+  });
+
+  test("the real-database lane executes the default-versus-empty ACL fixture", () => {
+    expect(workflowBash).toContain("ACL sentinel fixture: default and explicit empty remain distinct");
+    expect(workflowBash).toContain("NULL::pg_catalog.aclitem[]");
+    expect(workflowBash).toContain("ARRAY[]::pg_catalog.aclitem[]");
+    expect(workflowBash).toContain('if [[ "$acl_sentinels" != "(default)|(empty)" ]]');
   });
 });
