@@ -41,18 +41,28 @@ function stepOf(fragment: string): string {
 const runOf = stepOf;
 const occurrences = (text: string, fragment: string) => text.split(fragment).length - 1;
 
-function releaseStateArm(run: string, state: string): string {
-  const match = run.match(new RegExp(`^\\s*${state}\\)\\n([\\s\\S]*?)^\\s*;;`, "m"));
-  if (!match) throw new Error(`release state arm not found: ${state}`);
-  return match[1];
-}
-
 describe("the workflow can actually publish", () => {
-  test("it has contents: write", () => {
-    // Without it, `gh release create` 403s after the build has already been
-    // paid for and downloaded. The whole run is wasted at the last step.
+  test("the default token is read-only and release mutation uses a scoped app token", () => {
+    const preflight = stepOf("Require protected release app configuration");
+    const token = stepOf("Mint a short-lived release app token");
+    const publish = runOf("Create the GitHub Release");
+
     expect(RAW).toMatch(/^permissions:$/m);
-    expect(RAW).toMatch(/^ {2}contents: write$/m);
+    expect(RAW).toMatch(/^ {2}contents: read$/m);
+    expect(RAW).not.toMatch(/^ {2}contents: write$/m);
+    expect(token).toContain(
+      "actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1",
+    );
+    expect(token).toContain("client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}");
+    expect(token).toContain("private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}");
+    expect(token).toContain("permission-contents: write");
+    expect(token).toContain("permission-workflows: write");
+    expect(token).toContain("repositories: ${{ github.event.repository.name }}");
+    expect(preflight).toContain("RELEASE_APP_CLIENT_ID: ${{ vars.RELEASE_APP_CLIENT_ID }}");
+    expect(preflight).toContain("RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}");
+    expect(preflight).toContain("Protected Production release app configuration is missing");
+    expect(publish).toContain("GH_TOKEN: ${{ steps.release-app-token.outputs.token }}");
+    expect(publish).not.toContain("GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}");
   });
 
   test("it is manual only", () => {
@@ -107,8 +117,7 @@ describe("the tag cannot disagree with the binary", () => {
     // Re-releasing a tag replaces a binary someone may already have installed
     // from that link, with no trace that it changed.
     const run = runOf("Resolve version");
-    expect(releaseStateArm(run, "true:true")).toContain("exit 1");
-    expect(releaseStateArm(run, "true:false")).toContain("exit 1");
+    expect(run).toContain('node "$RELEASE_STATE_HELPER" state');
     expect(run).not.toMatch(/gh release (?:delete|upload)/);
   });
 
@@ -125,12 +134,26 @@ describe("the tag cannot disagree with the binary", () => {
     const run = runOf("Resolve version");
     expect(run).toContain('if [ -n "$CREATED_TAG_SHA" ]; then');
     expect(run).not.toContain("Created tag does not resolve to the requested commit.");
-    expect(run).toContain(
-      "release.target_commitish.toLowerCase() !== process.env.RELEASE_COMMIT.toLowerCase()",
-    );
+    expect(run).toContain('node "$RELEASE_STATE_HELPER" verify');
   });
 
-  test("a draft is found by listing, because looking it up by tag returns 404", () => {
+  test("the state helper is pinned to the workflow commit, not the older release checkout", () => {
+    const helper = stepOf("Materialize the release state helper");
+    const publish = runOf("Create the GitHub Release");
+
+    expect(helper).toContain("TOOLING_COMMIT: ${{ github.sha }}");
+    expect(helper).toContain('git show "${TOOLING_COMMIT}:scripts/github-release-state.js"');
+    expect(helper).toContain('node --check "$script"');
+    expect(helper).toContain("RELEASE_STATE_HELPER=");
+    expect(helper).toContain("APK_VERIFIER=");
+    expect(helper).toContain("SIGNATURE_VERIFIER=");
+    expect(helper).toContain("scripts/check-apk-target-sdk.js");
+    expect(helper).toContain("scripts/check-android-release-signatures.js");
+    expect(helper).toContain('>> "$GITHUB_ENV"');
+    expect(publish).not.toContain("node scripts/github-release-state.js");
+  });
+
+  test("a draft is discovered by listing and then fetched by release ID", () => {
     // GET /releases/tags/{tag} only matches PUBLISHED releases. Both places
     // that read the release used it, so a draft was invisible: the existence
     // probe concluded "no release" and would create a second one, and the
@@ -140,10 +163,11 @@ describe("the tag cannot disagree with the binary", () => {
     expect(run).not.toContain("releases/tags/$TAG");
     expect((run.match(/releases\?per_page=100/g) ?? []).length).toBe(1);
     expect(run).toContain("--paginate --slurp");
-    expect(run).toContain("pages.flat()");
-    expect(run).toContain('fetch_release_by_tag "$RELEASE_JSON"');
-    expect(run).toContain('fetch_release_by_tag "$CREATED_RELEASE_JSON"');
-    expect(run).toContain("matches.length > 1");
+    expect(run).toContain('node "$RELEASE_STATE_HELPER" select-id');
+    expect(run).toContain('discover_and_fetch_release "$RELEASE_JSON"');
+    expect(run).toContain('discover_and_fetch_release "$CREATED_RELEASE_JSON"');
+    expect(run).toContain('"repos/$GITHUB_REPOSITORY/releases/$release_id"');
+    expect(run).toContain('node "$RELEASE_STATE_HELPER" assert-identity');
     expect(run).not.toContain("| .[0] // empty");
   });
 
@@ -151,11 +175,40 @@ describe("the tag cannot disagree with the binary", () => {
     const run = runOf("Create the GitHub Release");
 
     expect(run).not.toContain('[ "$TAG_EXISTS" != "$RELEASE_EXISTS" ]');
-    expect(releaseStateArm(run, "false:true")).toContain("RELEASE_STATE=verify-existing");
-    expect(releaseStateArm(run, "false:false")).toContain("RELEASE_STATE=create");
+    expect(run).toContain('node "$RELEASE_STATE_HELPER" state');
     expect(run).toContain('if [ "$RELEASE_STATE" = verify-existing ]; then');
     expect(run).toContain("Exact immutable draft rerun verified; no GitHub state changed.");
-    expect(run).toContain('if (!release.draft) throw new Error("existing release is not a draft")');
+    expect(run).toContain('verify_release_metadata "$RELEASE_JSON" "$RELEASE_ID"');
+  });
+
+  test("success re-reads the same release ID and absent tag after asset verification", () => {
+    const run = runOf("Create the GitHub Release");
+    const start = run.indexOf("final_recheck() {");
+    const end = run.indexOf("\n          RELEASE_JSON=", start);
+    const recheck = run.slice(start, end);
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(recheck).toContain('discover_and_fetch_release "$fresh_release_json"');
+    expect(recheck).toContain('[ "$FETCHED_RELEASE_ID" != "$expected_release_id" ]');
+    expect(recheck).toContain('verify_release_metadata "$fresh_release_json" "$expected_release_id"');
+    expect(recheck).toContain("assert-assets-unchanged");
+    expect(recheck).toContain('git ls-remote --tags origin "refs/tags/$TAG"');
+    expect(recheck).toContain('FINAL_RELEASE_JSON="$fresh_release_json"');
+    expect(occurrences(run, 'final_recheck "$')).toBe(2);
+    expect(run).toMatch(
+      /verify_release_assets "\$RELEASE_JSON"[\s\S]*final_recheck "\$RELEASE_ID"/,
+    );
+    expect(run).toMatch(
+      /verify_release_assets "\$CREATED_RELEASE_JSON"[\s\S]*final_recheck "\$CREATED_RELEASE_ID"/,
+    );
+  });
+
+  test("the workflow definition remains on main immediately before create", () => {
+    const run = runOf("Create the GitHub Release");
+    expect(run).toContain("WORKFLOW_COMMIT: ${{ github.sha }}");
+    expect(run).toMatch(
+      /git fetch --no-tags origin[\s\S]*git merge-base --is-ancestor "\$WORKFLOW_COMMIT" origin\/main[\s\S]*gh "\$\{ARGS\[@\]\}"/,
+    );
   });
 
   test("draft readback uses release and asset IDs, never the published-only tag endpoint", () => {
@@ -164,18 +217,17 @@ describe("the tag cannot disagree with the binary", () => {
     expect(run).not.toContain('gh release download "$TAG"');
     expect(run).not.toContain('gh release view "$TAG"');
     expect(run).toContain('"Accept: application/octet-stream"');
+    expect(run).toContain('"repos/$GITHUB_REPOSITORY/releases/$release_id"');
     expect(run).toContain('releases/assets/$asset_id');
-    expect(run).toContain("release.html_url");
+    expect(run).toContain(".html_url");
   });
 
   test("gh calls carry GH_REPO", () => {
     // `gh` does not read GITHUB_REPOSITORY on its own; a job that omits this
     // fails at the first gh call, and here that is the release itself.
-    for (const name of ["Resolve version", "Create the GitHub Release"]) {
-      const block = stepOf(name);
-      expect(block).toMatch(/GH_REPO: \$\{\{ github\.repository \}\}/);
-      expect(block).toMatch(/GH_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/);
-    }
+    const block = stepOf("Create the GitHub Release");
+    expect(block).toMatch(/GH_REPO: \$\{\{ github\.repository \}\}/);
+    expect(block).toContain("GH_TOKEN: ${{ steps.release-app-token.outputs.token }}");
   });
 });
 
@@ -211,6 +263,17 @@ describe("the asset is a real build", () => {
     expect(run).toContain("REUSE_BUILD_ID");
     expect(run).toMatch(/build:view "\$REUSE_BUILD_ID"/);
     expect(run).toContain("no new build started");
+  });
+
+  test("secret-bearing verification runs tooling from the workflow commit", () => {
+    const artifacts = runOf("Get the build artifact");
+    const signatures = runOf("Verify protected Android signer identities");
+
+    expect(artifacts).toContain('node "$APK_VERIFIER" --json "$PREVIEW_FILE"');
+    expect(artifacts).toContain('node "$APK_VERIFIER" --json "$PRODUCTION_FILE"');
+    expect(artifacts).not.toContain("node scripts/check-apk-target-sdk.js");
+    expect(signatures).toContain('node "$SIGNATURE_VERIFIER" verify');
+    expect(signatures).not.toContain("node scripts/check-android-release-signatures.js");
   });
 });
 
@@ -265,10 +328,9 @@ describe("the release is one verified cross-platform set", () => {
     const publishRun = runOf("Create the GitHub Release");
     expect(artifactRun).toContain('IOS_HASH="$(sha256sum "$IOS_FILE"');
     expect(artifactRun).toMatch(/SHA256SUMS\.txt[\s\S]*ios_file=\$IOS_FILE/);
-    expect(publishRun).toContain('process.env.IOS_FILE, "SHA256SUMS.txt"');
+    expect(publishRun).toContain('node "$RELEASE_STATE_HELPER" verify');
     expect(publishRun).toContain('"$IOS_FILE" SHA256SUMS.txt');
     expect(publishRun).toContain('"$IOS_HASH"');
-    expect(occurrences(publishRun, 'process.env.IOS_FILE, "SHA256SUMS.txt"')).toBe(1);
     expect(publishRun).toContain('download_release_asset "$release_json" "$IOS_FILE"');
     expect(publishRun).toContain('sha256sum "$download_dir/$IOS_FILE"');
   });

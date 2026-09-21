@@ -4,6 +4,9 @@ name: GitHub Release (APK + AAB + IPA)
 # It never starts a paid build and never deletes/replaces a tag, release, or
 # asset. A rerun is accepted only when the tag target and all four assets are
 # byte-for-byte identical.
+# Production must provide RELEASE_APP_CLIENT_ID as an environment variable and
+# RELEASE_APP_PRIVATE_KEY as an environment secret. The installed GitHub App is
+# limited to this repository with Contents: write and Workflows: write.
 
 on:
   workflow_dispatch:
@@ -38,7 +41,7 @@ on:
         default: false
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   # The version tag is read from the checked-out app.json, so serialize every
@@ -106,11 +109,53 @@ jobs:
             exit 1
           fi
 
+      - name: Materialize the release state helper from the workflow commit
+        env:
+          TOOLING_COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if ! printf '%s' "$TOOLING_COMMIT" | grep -qE '^[0-9a-fA-F]{40}$'; then
+            echo "::error::The workflow tooling commit is not a full Git SHA."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$TOOLING_COMMIT" origin/main; then
+            echo "::error::The workflow tooling commit is not on current origin/main."
+            exit 1
+          fi
+          tooling_dir="$GITHUB_WORKSPACE/.release-tooling"
+          mkdir -p "$tooling_dir"
+          helper="$tooling_dir/github-release-state.js"
+          apk_verifier="$tooling_dir/check-apk-target-sdk.js"
+          signature_verifier="$tooling_dir/check-android-release-signatures.js"
+          git show "${TOOLING_COMMIT}:scripts/github-release-state.js" > "$helper"
+          git show "${TOOLING_COMMIT}:scripts/check-apk-target-sdk.js" > "$apk_verifier"
+          git show "${TOOLING_COMMIT}:scripts/check-android-release-signatures.js" > "$signature_verifier"
+          for script in "$helper" "$apk_verifier" "$signature_verifier"; do
+            test -s "$script"
+            node --check "$script"
+          done
+          {
+            printf 'RELEASE_STATE_HELPER=%s\n' "$helper"
+            printf 'APK_VERIFIER=%s\n' "$apk_verifier"
+            printf 'SIGNATURE_VERIFIER=%s\n' "$signature_verifier"
+          } >> "$GITHUB_ENV"
+
+      - name: Require protected release app configuration
+        env:
+          RELEASE_APP_CLIENT_ID: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RELEASE_APP_CLIENT_ID:-}" ] || [ -z "${RELEASE_APP_PRIVATE_KEY:-}" ]; then
+            echo "::error::Protected Production release app configuration is missing."
+            exit 1
+          fi
+
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
       - name: Self-test Android artifact verifier
-        run: node scripts/check-apk-target-sdk.js --self-test
+        run: node "$APK_VERIFIER" --self-test
 
       - name: Verify OTA/native runtime policy
         run: npm run check:ota-runtime
@@ -348,8 +393,11 @@ jobs:
             fi
           done
 
-          PREVIEW_META="$(node scripts/check-apk-target-sdk.js --json "$PREVIEW_FILE")"
-          PRODUCTION_META="$(node scripts/check-apk-target-sdk.js --json "$PRODUCTION_FILE")"
+          # EAS authentication is finished. Do not expose its token to local
+          # artifact parsers even though those parsers are pinned above.
+          unset EXPO_TOKEN
+          PREVIEW_META="$(node "$APK_VERIFIER" --json "$PREVIEW_FILE")"
+          PRODUCTION_META="$(node "$APK_VERIFIER" --json "$PRODUCTION_FILE")"
           export PREVIEW_META PRODUCTION_META PREVIEW_CODE PRODUCTION_CODE VERSION
           node <<'NODE'
           for (const [role, raw, code] of [
@@ -554,7 +602,7 @@ jobs:
           ANDROID_AAB_SIGNER_SHA256: ${{ secrets.ANDROID_AAB_SIGNER_SHA256 }}
         run: |
           set -euo pipefail
-          node scripts/check-android-release-signatures.js verify \
+          node "$SIGNATURE_VERIFIER" verify \
             "$RUNNER_TEMP/apk-signature.txt" \
             "$RUNNER_TEMP/aab-signature.txt" \
             "$RUNNER_TEMP/aab-certificate.txt" \
@@ -617,11 +665,27 @@ jobs:
           ].join("\n"));
           NODE
 
+      # The Create Release API requires Workflows: write when target_commitish
+      # differs from main under .github/workflows. GITHUB_TOKEN cannot receive
+      # that permission, so mint one short-lived, single-repository app token
+      # only after every artifact has already passed verification.
+      - name: Mint a short-lived release app token
+        id: release-app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-workflows: write
+
       - name: Resolve version and Create the GitHub Release once or verify exact idempotent rerun
         id: publish
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.release-app-token.outputs.token }}
           GH_REPO: ${{ github.repository }}
+          WORKFLOW_COMMIT: ${{ github.sha }}
           TAG: ${{ steps.artifacts.outputs.tag }}
           VERSION: ${{ steps.artifacts.outputs.version }}
           PREVIEW_FILE: ${{ steps.artifacts.outputs.preview_file }}
@@ -646,65 +710,49 @@ jobs:
           TAG_LINE="$(git ls-remote --tags origin "refs/tags/$TAG" | awk 'NR==1 {print $1}')"
           PEELED_LINE="$(git ls-remote --tags origin "refs/tags/$TAG^{}" | awk 'NR==1 {print $1}')"
           TAG_SHA="${PEELED_LINE:-$TAG_LINE}"
-          select_release_by_tag() {
-            local release_list_json="$1"
-            local release_json="$2"
-            RELEASE_LIST_JSON="$release_list_json" RELEASE_JSON="$release_json" TAG="$TAG" node <<'NODE'
-          const fs = require("node:fs");
-          const pages = JSON.parse(fs.readFileSync(process.env.RELEASE_LIST_JSON, "utf8"));
-          if (!Array.isArray(pages) || !pages.every(Array.isArray)) {
-            throw new Error("GitHub paginated releases response is not an array of arrays");
-          }
-          const releases = pages.flat();
-          const matches = releases.filter((release) => release?.tag_name === process.env.TAG);
-          if (matches.length > 1) throw new Error(`multiple matching releases: ${matches.length}`);
-          fs.writeFileSync(process.env.RELEASE_JSON, matches.length === 1 ? JSON.stringify(matches[0]) : "");
-          NODE
-          }
-
-          fetch_release_by_tag() {
+          discover_and_fetch_release() {
             local release_json="$1"
             local release_list_json="$release_json.list"
-            # Listed, not looked up by tag. GET /releases/tags/{tag} only
-            # matches PUBLISHED releases; the list endpoint includes drafts.
+            local release_id
+            FETCHED_RELEASE_ID=""
+            : > "$release_json"
+            # The list endpoint includes drafts while GET /releases/tags/{tag}
+            # matches published releases only. Use the list solely to discover
+            # one immutable ID, then read all trusted metadata by that ID.
             if ! gh api --method GET --paginate --slurp \
               "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
               > "$release_list_json" 2> "$RUNNER_TEMP/release-api.err"; then
               echo "::error::Could not determine whether the GitHub release exists."
               return 1
             fi
-            select_release_by_tag "$release_list_json" "$release_json"
+            if ! release_id="$(
+              RELEASE_LIST_JSON="$release_list_json" TAG="$TAG" \
+                node "$RELEASE_STATE_HELPER" select-id
+            )"; then
+              echo "::error::Could not select a unique GitHub release for $TAG."
+              return 1
+            fi
+            if [ -z "$release_id" ]; then return 0; fi
+            if [[ ! "$release_id" =~ ^[0-9]+$ ]]; then
+              echo "::error::Discovered GitHub release ID is invalid."
+              return 1
+            fi
+            if ! gh api --method GET \
+              "repos/$GITHUB_REPOSITORY/releases/$release_id" \
+              > "$release_json" 2> "$RUNNER_TEMP/release-id-api.err"; then
+              echo "::error::Could not read GitHub release ID $release_id."
+              return 1
+            fi
+            RELEASE_JSON="$release_json" RELEASE_ID="$release_id" TAG="$TAG" \
+              node "$RELEASE_STATE_HELPER" assert-identity
+            FETCHED_RELEASE_ID="$release_id"
           }
 
           verify_release_metadata() {
             local release_json="$1"
-            RELEASE_JSON="$release_json" TAG="$TAG" node <<'NODE'
-          const release = require(process.env.RELEASE_JSON);
-          const fs = require("node:fs");
-          const expected = [process.env.PREVIEW_FILE, process.env.PRODUCTION_FILE, process.env.IOS_FILE, "SHA256SUMS.txt"].sort();
-          const actual = (release.assets || []).map((asset) => asset.name).sort();
-          if (!Number.isSafeInteger(release.id) || release.id <= 0) throw new Error("release id is invalid");
-          if (release.tag_name !== process.env.TAG) throw new Error("release tag name differs");
-          if (!release.draft) throw new Error("existing release is not a draft");
-          if (release.published_at !== null) throw new Error("draft release has a published timestamp");
-          if (Boolean(release.prerelease) !== (process.env.EXPECT_PRERELEASE === "true")) {
-            throw new Error("existing release prerelease flag differs");
-          }
-          if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-            throw new Error(`existing assets differ: ${JSON.stringify(actual)}`);
-          }
-          if (release.name !== `2nd-Brain ${process.env.VERSION}`) throw new Error("existing release title differs");
-          if (release.target_commitish.toLowerCase() !== process.env.RELEASE_COMMIT.toLowerCase()) {
-            throw new Error("existing release target commit differs");
-          }
-          if (release.body !== fs.readFileSync("RELEASE_NOTES.md", "utf8")) {
-            throw new Error("existing release notes differ");
-          }
-          const url = new URL(release.html_url);
-          if (url.protocol !== "https:" || url.hostname !== "github.com") {
-            throw new Error("release html_url is not an HTTPS github.com URL");
-          }
-          NODE
+            local release_id="$2"
+            RELEASE_JSON="$release_json" RELEASE_ID="$release_id" TAG="$TAG" \
+              node "$RELEASE_STATE_HELPER" verify
           }
 
           download_release_asset() {
@@ -749,39 +797,48 @@ jobs:
             printf '%s' "$body" | grep -Fq "$IOS_HASH"
           }
 
+          final_recheck() {
+            local expected_release_id="$1"
+            local original_release_json="$2"
+            local fresh_release_json="$3"
+            local final_tag_line final_peeled_line final_tag_sha
+            discover_and_fetch_release "$fresh_release_json"
+            if [ "$FETCHED_RELEASE_ID" != "$expected_release_id" ]; then
+              echo "::error::The final release ID differs from the verified draft."
+              return 1
+            fi
+            verify_release_metadata "$fresh_release_json" "$expected_release_id"
+            EXPECTED_RELEASE_JSON="$original_release_json" RELEASE_JSON="$fresh_release_json" \
+              node "$RELEASE_STATE_HELPER" assert-assets-unchanged
+            final_tag_line="$(git ls-remote --tags origin "refs/tags/$TAG" | awk 'NR==1 {print $1}')"
+            final_peeled_line="$(git ls-remote --tags origin "refs/tags/$TAG^{}" | awk 'NR==1 {print $1}')"
+            final_tag_sha="${final_peeled_line:-$final_tag_line}"
+            if [ -n "$final_tag_sha" ]; then
+              echo "::error::Tag $TAG appeared before the immutable draft verification completed."
+              return 1
+            fi
+            FINAL_RELEASE_JSON="$fresh_release_json"
+          }
+
           RELEASE_JSON="$RUNNER_TEMP/existing-release.json"
-          fetch_release_by_tag "$RELEASE_JSON"
-          if [ -s "$RELEASE_JSON" ]; then RELEASE_EXISTS=true; else RELEASE_EXISTS=false; fi
+          discover_and_fetch_release "$RELEASE_JSON"
+          RELEASE_ID="$FETCHED_RELEASE_ID"
+          if [ -n "$RELEASE_ID" ]; then RELEASE_EXISTS=true; else RELEASE_EXISTS=false; fi
           if [ -n "$TAG_SHA" ]; then TAG_EXISTS=true; else TAG_EXISTS=false; fi
 
           # A normal draft has no ref. Encode every tag/release combination so
           # no future edit can accidentally treat a partial state as creatable.
-          case "$TAG_EXISTS:$RELEASE_EXISTS" in
-            true:true)
-              echo "::error::Tag $TAG and a release already exist. Refusing to overwrite or reinterpret them."
-              exit 1
-              ;;
-            true:false)
-              echo "::error::Tag $TAG exists with no release. Refusing to mutate partial external state."
-              exit 1
-              ;;
-            false:true)
-              RELEASE_STATE=verify-existing
-              ;;
-            false:false)
-              RELEASE_STATE=create
-              ;;
-            *)
-              echo "::error::Invalid tag/release state."
-              exit 1
-              ;;
-          esac
+          RELEASE_STATE="$(
+            TAG_EXISTS="$TAG_EXISTS" RELEASE_EXISTS="$RELEASE_EXISTS" \
+              node "$RELEASE_STATE_HELPER" state
+          )"
 
           if [ "$RELEASE_STATE" = verify-existing ]; then
-            verify_release_metadata "$RELEASE_JSON"
+            verify_release_metadata "$RELEASE_JSON" "$RELEASE_ID"
             verify_release_assets "$RELEASE_JSON"
+            FINAL_EXISTING_RELEASE_JSON="$RUNNER_TEMP/final-existing-release.json"
+            final_recheck "$RELEASE_ID" "$RELEASE_JSON" "$FINAL_EXISTING_RELEASE_JSON"
             RESULT=verified-existing
-            FINAL_RELEASE_JSON="$RELEASE_JSON"
             echo "result=$RESULT" >> "$GITHUB_OUTPUT"
             echo "Exact immutable draft rerun verified; no GitHub state changed."
           else
@@ -805,6 +862,10 @@ jobs:
               echo "::error::release_commit is no longer on origin/main; no tag or draft was created."
               exit 1
             fi
+            if ! git merge-base --is-ancestor "$WORKFLOW_COMMIT" origin/main; then
+              echo "::error::The dispatched workflow commit is no longer on origin/main."
+              exit 1
+            fi
             gh "${ARGS[@]}"
             RESULT=created-draft
             # A draft release has NO tag. GitHub creates the ref only when the
@@ -813,7 +874,7 @@ jobs:
             # draft and all four assets had been created correctly.
             #
             # What binds the release to the commit while it is still a draft is
-            # target_commitish, and the node check below asserts it equals
+            # target_commitish, and the shared verifier below asserts it equals
             # RELEASE_COMMIT. Any tag appearing here is an external-state race,
             # so the workflow fails closed rather than interpreting it.
             CREATED_TAG_SHA="$(git ls-remote --tags origin "refs/tags/$TAG" | awk 'NR==1 {print $1}')"
@@ -824,14 +885,16 @@ jobs:
               exit 1
             fi
             CREATED_RELEASE_JSON="$RUNNER_TEMP/created-release.json"
-            fetch_release_by_tag "$CREATED_RELEASE_JSON"
-            if [ ! -s "$CREATED_RELEASE_JSON" ]; then
+            discover_and_fetch_release "$CREATED_RELEASE_JSON"
+            CREATED_RELEASE_ID="$FETCHED_RELEASE_ID"
+            if [ -z "$CREATED_RELEASE_ID" ]; then
               echo "::error::The draft release for $TAG was created but could not be read back."
               exit 1
             fi
-            verify_release_metadata "$CREATED_RELEASE_JSON"
+            verify_release_metadata "$CREATED_RELEASE_JSON" "$CREATED_RELEASE_ID"
             verify_release_assets "$CREATED_RELEASE_JSON"
-            FINAL_RELEASE_JSON="$CREATED_RELEASE_JSON"
+            FINAL_CREATED_RELEASE_JSON="$RUNNER_TEMP/final-created-release.json"
+            final_recheck "$CREATED_RELEASE_ID" "$CREATED_RELEASE_JSON" "$FINAL_CREATED_RELEASE_JSON"
             echo "result=$RESULT" >> "$GITHUB_OUTPUT"
           fi
 
