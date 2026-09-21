@@ -646,50 +646,47 @@ jobs:
           TAG_LINE="$(git ls-remote --tags origin "refs/tags/$TAG" | awk 'NR==1 {print $1}')"
           PEELED_LINE="$(git ls-remote --tags origin "refs/tags/$TAG^{}" | awk 'NR==1 {print $1}')"
           TAG_SHA="${PEELED_LINE:-$TAG_LINE}"
-          RELEASE_JSON="$RUNNER_TEMP/existing-release.json"
-          # Listed, not looked up by tag. GET /releases/tags/{tag} only matches
-          # PUBLISHED releases, so a leftover draft answered 404 and read as
-          # "no release exists" -- and the job then created a second draft. The
-          # list endpoint returns drafts to a token with push access, so a draft
-          # is seen and the tag/release disagreement below catches it.
-          set +e
-          gh api --method GET "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
-            --jq "map(select(.tag_name == \"$TAG\")) | .[0] // empty" \
-            > "$RELEASE_JSON" 2> "$RUNNER_TEMP/release-api.err"
-          API_CODE=$?
-          set -e
-          if [ "$API_CODE" -ne 0 ]; then
-            echo "::error::Could not determine whether the GitHub release exists."
-            exit 1
-          fi
-          if [ -s "$RELEASE_JSON" ]; then
-            RELEASE_EXISTS=true
-          else
-            RELEASE_EXISTS=false
-          fi
-          if [ -n "$TAG_SHA" ]; then TAG_EXISTS=true; else TAG_EXISTS=false; fi
+          select_release_by_tag() {
+            local release_list_json="$1"
+            local release_json="$2"
+            RELEASE_LIST_JSON="$release_list_json" RELEASE_JSON="$release_json" TAG="$TAG" node <<'NODE'
+          const fs = require("node:fs");
+          const pages = JSON.parse(fs.readFileSync(process.env.RELEASE_LIST_JSON, "utf8"));
+          if (!Array.isArray(pages) || !pages.every(Array.isArray)) {
+            throw new Error("GitHub paginated releases response is not an array of arrays");
+          }
+          const releases = pages.flat();
+          const matches = releases.filter((release) => release?.tag_name === process.env.TAG);
+          if (matches.length > 1) throw new Error(`multiple matching releases: ${matches.length}`);
+          fs.writeFileSync(process.env.RELEASE_JSON, matches.length === 1 ? JSON.stringify(matches[0]) : "");
+          NODE
+          }
 
-          if [ "$TAG_EXISTS" != "$RELEASE_EXISTS" ]; then
-            if [ "$RELEASE_EXISTS" = true ]; then
-              echo "::error::A release for $TAG exists without a tag, i.e. an unpublished draft from an earlier run. Publish it or delete it, then re-run; this job will not create a second one."
-            else
-              echo "::error::Tag $TAG exists with no release. Refusing to mutate partial external state."
+          fetch_release_by_tag() {
+            local release_json="$1"
+            local release_list_json="$release_json.list"
+            # Listed, not looked up by tag. GET /releases/tags/{tag} only
+            # matches PUBLISHED releases; the list endpoint includes drafts.
+            if ! gh api --method GET --paginate --slurp \
+              "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+              > "$release_list_json" 2> "$RUNNER_TEMP/release-api.err"; then
+              echo "::error::Could not determine whether the GitHub release exists."
+              return 1
             fi
-            exit 1
-          fi
+            select_release_by_tag "$release_list_json" "$release_json"
+          }
 
-          if [ "$TAG_EXISTS" = true ]; then
-            if [ "${TAG_SHA,,}" != "${RELEASE_COMMIT,,}" ]; then
-              echo "::error::Existing tag $TAG targets a different commit."
-              exit 1
-            fi
-            export RELEASE_JSON PREVIEW_FILE PRODUCTION_FILE IOS_FILE
-            node <<'NODE'
+          verify_release_metadata() {
+            local release_json="$1"
+            RELEASE_JSON="$release_json" TAG="$TAG" node <<'NODE'
           const release = require(process.env.RELEASE_JSON);
           const fs = require("node:fs");
           const expected = [process.env.PREVIEW_FILE, process.env.PRODUCTION_FILE, process.env.IOS_FILE, "SHA256SUMS.txt"].sort();
-          const actual = (release.assets || []).map((a) => a.name).sort();
+          const actual = (release.assets || []).map((asset) => asset.name).sort();
+          if (!Number.isSafeInteger(release.id) || release.id <= 0) throw new Error("release id is invalid");
+          if (release.tag_name !== process.env.TAG) throw new Error("release tag name differs");
           if (!release.draft) throw new Error("existing release is not a draft");
+          if (release.published_at !== null) throw new Error("draft release has a published timestamp");
           if (Boolean(release.prerelease) !== (process.env.EXPECT_PRERELEASE === "true")) {
             throw new Error("existing release prerelease flag differs");
           }
@@ -703,21 +700,90 @@ jobs:
           if (release.body !== fs.readFileSync("RELEASE_NOTES.md", "utf8")) {
             throw new Error("existing release notes differ");
           }
+          const url = new URL(release.html_url);
+          if (url.protocol !== "https:" || url.hostname !== "github.com") {
+            throw new Error("release html_url is not an HTTPS github.com URL");
+          }
           NODE
-            EXISTING_DIR="$(mktemp -d)"
-            gh release download "$TAG" --dir "$EXISTING_DIR" \
-              --pattern "$PREVIEW_FILE" --pattern "$PRODUCTION_FILE" --pattern "$IOS_FILE" --pattern SHA256SUMS.txt
-            test "$(sha256sum "$EXISTING_DIR/$PREVIEW_FILE" | awk '{print $1}')" = "$PREVIEW_HASH"
-            test "$(sha256sum "$EXISTING_DIR/$PRODUCTION_FILE" | awk '{print $1}')" = "$PRODUCTION_HASH"
-            test "$(sha256sum "$EXISTING_DIR/$IOS_FILE" | awk '{print $1}')" = "$IOS_HASH"
-            cmp --silent SHA256SUMS.txt "$EXISTING_DIR/SHA256SUMS.txt"
-            BODY="$(node -p "require(process.env.RELEASE_JSON).body || ''")"
-            printf '%s' "$BODY" | grep -Fq "$PREVIEW_HASH"
-            printf '%s' "$BODY" | grep -Fq "$PRODUCTION_HASH"
-            printf '%s' "$BODY" | grep -Fq "$IOS_HASH"
+          }
+
+          download_release_asset() {
+            local release_json="$1"
+            local asset_name="$2"
+            local output_path="$3"
+            local asset_id
+            asset_id="$(
+              RELEASE_JSON="$release_json" ASSET_NAME="$asset_name" node <<'NODE'
+          const release = require(process.env.RELEASE_JSON);
+          const matches = (release.assets || []).filter((asset) => asset.name === process.env.ASSET_NAME);
+          if (matches.length !== 1) throw new Error(`asset match count differs: ${matches.length}`);
+          const assetId = matches[0].id;
+          if (!Number.isSafeInteger(assetId) || assetId <= 0) throw new Error("asset id is invalid");
+          process.stdout.write(String(assetId));
+          NODE
+            )"
+            if [[ ! "$asset_id" =~ ^[0-9]+$ ]]; then
+              echo "::error::Could not resolve a trusted asset id for $asset_name."
+              return 1
+            fi
+            gh api --method GET -H "Accept: application/octet-stream" \
+              "repos/$GITHUB_REPOSITORY/releases/assets/$asset_id" > "$output_path"
+          }
+
+          verify_release_assets() {
+            local release_json="$1"
+            local download_dir
+            download_dir="$(mktemp -d)"
+            download_release_asset "$release_json" "$PREVIEW_FILE" "$download_dir/$PREVIEW_FILE"
+            download_release_asset "$release_json" "$PRODUCTION_FILE" "$download_dir/$PRODUCTION_FILE"
+            download_release_asset "$release_json" "$IOS_FILE" "$download_dir/$IOS_FILE"
+            download_release_asset "$release_json" "SHA256SUMS.txt" "$download_dir/SHA256SUMS.txt"
+            test "$(sha256sum "$download_dir/$PREVIEW_FILE" | awk '{print $1}')" = "$PREVIEW_HASH"
+            test "$(sha256sum "$download_dir/$PRODUCTION_FILE" | awk '{print $1}')" = "$PRODUCTION_HASH"
+            test "$(sha256sum "$download_dir/$IOS_FILE" | awk '{print $1}')" = "$IOS_HASH"
+            cmp --silent SHA256SUMS.txt "$download_dir/SHA256SUMS.txt"
+            local body
+            body="$(RELEASE_JSON="$release_json" node -p "require(process.env.RELEASE_JSON).body || ''")"
+            printf '%s' "$body" | grep -Fq "$PREVIEW_HASH"
+            printf '%s' "$body" | grep -Fq "$PRODUCTION_HASH"
+            printf '%s' "$body" | grep -Fq "$IOS_HASH"
+          }
+
+          RELEASE_JSON="$RUNNER_TEMP/existing-release.json"
+          fetch_release_by_tag "$RELEASE_JSON"
+          if [ -s "$RELEASE_JSON" ]; then RELEASE_EXISTS=true; else RELEASE_EXISTS=false; fi
+          if [ -n "$TAG_SHA" ]; then TAG_EXISTS=true; else TAG_EXISTS=false; fi
+
+          # A normal draft has no ref. Encode every tag/release combination so
+          # no future edit can accidentally treat a partial state as creatable.
+          case "$TAG_EXISTS:$RELEASE_EXISTS" in
+            true:true)
+              echo "::error::Tag $TAG and a release already exist. Refusing to overwrite or reinterpret them."
+              exit 1
+              ;;
+            true:false)
+              echo "::error::Tag $TAG exists with no release. Refusing to mutate partial external state."
+              exit 1
+              ;;
+            false:true)
+              RELEASE_STATE=verify-existing
+              ;;
+            false:false)
+              RELEASE_STATE=create
+              ;;
+            *)
+              echo "::error::Invalid tag/release state."
+              exit 1
+              ;;
+          esac
+
+          if [ "$RELEASE_STATE" = verify-existing ]; then
+            verify_release_metadata "$RELEASE_JSON"
+            verify_release_assets "$RELEASE_JSON"
             RESULT=verified-existing
+            FINAL_RELEASE_JSON="$RELEASE_JSON"
             echo "result=$RESULT" >> "$GITHUB_OUTPUT"
-            echo "Exact immutable rerun verified; no GitHub state changed."
+            echo "Exact immutable draft rerun verified; no GitHub state changed."
           else
             # RELEASE_NOTES.md is authoritative; --generate-notes is deliberately
             # not executed because generated text would make an exact rerun mutable.
@@ -741,7 +807,6 @@ jobs:
             fi
             gh "${ARGS[@]}"
             RESULT=created-draft
-            echo "result=$RESULT" >> "$GITHUB_OUTPUT"
             # A draft release has NO tag. GitHub creates the ref only when the
             # draft is published, so requiring one here could never pass: the
             # v0.7.0 release (2026-09-07) died on exactly this line after the
@@ -749,56 +814,28 @@ jobs:
             #
             # What binds the release to the commit while it is still a draft is
             # target_commitish, and the node check below asserts it equals
-            # RELEASE_COMMIT. The tag is checked here only if one somehow already
-            # exists -- then it must still point at this commit.
+            # RELEASE_COMMIT. Any tag appearing here is an external-state race,
+            # so the workflow fails closed rather than interpreting it.
             CREATED_TAG_SHA="$(git ls-remote --tags origin "refs/tags/$TAG" | awk 'NR==1 {print $1}')"
             CREATED_PEELED_SHA="$(git ls-remote --tags origin "refs/tags/$TAG^{}" | awk 'NR==1 {print $1}')"
             CREATED_TAG_SHA="${CREATED_PEELED_SHA:-$CREATED_TAG_SHA}"
-            if [ -n "$CREATED_TAG_SHA" ] && [ "${CREATED_TAG_SHA,,}" != "${RELEASE_COMMIT,,}" ]; then
-              echo "::error::Tag $TAG already exists and does not resolve to the requested commit."
+            if [ -n "$CREATED_TAG_SHA" ]; then
+              echo "::error::Draft creation unexpectedly produced or raced with tag $TAG."
               exit 1
             fi
-            # Same reason as the existence probe above: the release we just made
-            # is a draft, so it has no tag and GET /releases/tags/{tag} answers
-            # 404. That 404 killed the v0.7.1 release after the draft and all
-            # four assets were already correct (2026-09-07).
-            gh api --method GET "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
-              --jq "map(select(.tag_name == \"$TAG\")) | .[0] // empty" \
-              > "$RUNNER_TEMP/created-release.json"
-            if [ ! -s "$RUNNER_TEMP/created-release.json" ]; then
+            CREATED_RELEASE_JSON="$RUNNER_TEMP/created-release.json"
+            fetch_release_by_tag "$CREATED_RELEASE_JSON"
+            if [ ! -s "$CREATED_RELEASE_JSON" ]; then
               echo "::error::The draft release for $TAG was created but could not be read back."
               exit 1
             fi
-            export CREATED_RELEASE_JSON="$RUNNER_TEMP/created-release.json" PREVIEW_FILE PRODUCTION_FILE IOS_FILE
-            node <<'NODE'
-          const release = require(process.env.CREATED_RELEASE_JSON);
-          const fs = require("node:fs");
-          const expected = [process.env.PREVIEW_FILE, process.env.PRODUCTION_FILE, process.env.IOS_FILE, "SHA256SUMS.txt"].sort();
-          const actual = (release.assets || []).map((a) => a.name).sort();
-          if (
-            !release.draft ||
-            Boolean(release.prerelease) !== (process.env.EXPECT_PRERELEASE === "true") ||
-            release.name !== `2nd-Brain ${process.env.VERSION}` ||
-            release.target_commitish.toLowerCase() !== process.env.RELEASE_COMMIT.toLowerCase() ||
-            release.body !== fs.readFileSync("RELEASE_NOTES.md", "utf8") ||
-            JSON.stringify(actual) !== JSON.stringify(expected)
-          ) {
-            throw new Error("created draft release did not retain the exact asset set");
-          }
-          NODE
-            CREATED_DIR="$(mktemp -d)"
-            gh release download "$TAG" --dir "$CREATED_DIR" \
-              --pattern "$PREVIEW_FILE" --pattern "$PRODUCTION_FILE" --pattern "$IOS_FILE" --pattern SHA256SUMS.txt
-            test "$(sha256sum "$CREATED_DIR/$PREVIEW_FILE" | awk '{print $1}')" = "$PREVIEW_HASH"
-            test "$(sha256sum "$CREATED_DIR/$PRODUCTION_FILE" | awk '{print $1}')" = "$PRODUCTION_HASH"
-            test "$(sha256sum "$CREATED_DIR/$IOS_FILE" | awk '{print $1}')" = "$IOS_HASH"
-            cmp --silent SHA256SUMS.txt "$CREATED_DIR/SHA256SUMS.txt"
+            verify_release_metadata "$CREATED_RELEASE_JSON"
+            verify_release_assets "$CREATED_RELEASE_JSON"
+            FINAL_RELEASE_JSON="$CREATED_RELEASE_JSON"
+            echo "result=$RESULT" >> "$GITHUB_OUTPUT"
           fi
 
-          URL="$(gh release view "$TAG" --json url --jq .url)" || {
-            echo "::error::Created or existing release cannot be read back."
-            exit 1
-          }
+          URL="$(RELEASE_JSON="$FINAL_RELEASE_JSON" node -p "require(process.env.RELEASE_JSON).html_url")"
           {
             echo "### GitHub draft release"
             echo

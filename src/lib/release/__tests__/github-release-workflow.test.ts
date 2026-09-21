@@ -41,6 +41,12 @@ function stepOf(fragment: string): string {
 const runOf = stepOf;
 const occurrences = (text: string, fragment: string) => text.split(fragment).length - 1;
 
+function releaseStateArm(run: string, state: string): string {
+  const match = run.match(new RegExp(`^\\s*${state}\\)\\n([\\s\\S]*?)^\\s*;;`, "m"));
+  if (!match) throw new Error(`release state arm not found: ${state}`);
+  return match[1];
+}
+
 describe("the workflow can actually publish", () => {
   test("it has contents: write", () => {
     // Without it, `gh release create` 403s after the build has already been
@@ -101,7 +107,9 @@ describe("the tag cannot disagree with the binary", () => {
     // Re-releasing a tag replaces a binary someone may already have installed
     // from that link, with no trace that it changed.
     const run = runOf("Resolve version");
-    expect(run).toMatch(/gh release view "\$TAG"[\s\S]*?exit 1/);
+    expect(releaseStateArm(run, "true:true")).toContain("exit 1");
+    expect(releaseStateArm(run, "true:false")).toContain("exit 1");
+    expect(run).not.toMatch(/gh release (?:delete|upload)/);
   });
 
   test("a draft is not asked for the tag a draft cannot have", () => {
@@ -112,11 +120,10 @@ describe("the tag cannot disagree with the binary", () => {
     // and the release had to be finished by hand.
     //
     // What binds a draft to its commit is target_commitish, which is asserted
-    // below it. A tag is only checked when one already exists.
+    // below it. Any tag appearing while the release is still a draft is an
+    // unexpected external-state race and must fail closed.
     const run = runOf("Resolve version");
-    expect(run).toContain(
-      'if [ -n "$CREATED_TAG_SHA" ] && [ "${CREATED_TAG_SHA,,}" != "${RELEASE_COMMIT,,}" ]',
-    );
+    expect(run).toContain('if [ -n "$CREATED_TAG_SHA" ]; then');
     expect(run).not.toContain("Created tag does not resolve to the requested commit.");
     expect(run).toContain(
       "release.target_commitish.toLowerCase() !== process.env.RELEASE_COMMIT.toLowerCase()",
@@ -131,10 +138,34 @@ describe("the tag cannot disagree with the binary", () => {
     // the v0.7.1 release on 2026-09-07, one line after the tag check above.
     const run = runOf("Resolve version");
     expect(run).not.toContain("releases/tags/$TAG");
-    expect((run.match(/releases\?per_page=100/g) ?? []).length).toBe(2);
-    expect(run).toContain('map(select(.tag_name == \\"$TAG\\")) | .[0] // empty');
-    // A leftover draft must stop the job, not be silently replaced.
-    expect(run).toContain("an unpublished draft from an earlier run");
+    expect((run.match(/releases\?per_page=100/g) ?? []).length).toBe(1);
+    expect(run).toContain("--paginate --slurp");
+    expect(run).toContain("pages.flat()");
+    expect(run).toContain('fetch_release_by_tag "$RELEASE_JSON"');
+    expect(run).toContain('fetch_release_by_tag "$CREATED_RELEASE_JSON"');
+    expect(run).toContain("matches.length > 1");
+    expect(run).not.toContain("| .[0] // empty");
+  });
+
+  test("an exact no-tag draft is an immutable rerun, while every tag state fails closed", () => {
+    const run = runOf("Create the GitHub Release");
+
+    expect(run).not.toContain('[ "$TAG_EXISTS" != "$RELEASE_EXISTS" ]');
+    expect(releaseStateArm(run, "false:true")).toContain("RELEASE_STATE=verify-existing");
+    expect(releaseStateArm(run, "false:false")).toContain("RELEASE_STATE=create");
+    expect(run).toContain('if [ "$RELEASE_STATE" = verify-existing ]; then');
+    expect(run).toContain("Exact immutable draft rerun verified; no GitHub state changed.");
+    expect(run).toContain('if (!release.draft) throw new Error("existing release is not a draft")');
+  });
+
+  test("draft readback uses release and asset IDs, never the published-only tag endpoint", () => {
+    const run = runOf("Create the GitHub Release");
+
+    expect(run).not.toContain('gh release download "$TAG"');
+    expect(run).not.toContain('gh release view "$TAG"');
+    expect(run).toContain('"Accept: application/octet-stream"');
+    expect(run).toContain('releases/assets/$asset_id');
+    expect(run).toContain("release.html_url");
   });
 
   test("gh calls carry GH_REPO", () => {
@@ -235,13 +266,11 @@ describe("the release is one verified cross-platform set", () => {
     expect(artifactRun).toContain('IOS_HASH="$(sha256sum "$IOS_FILE"');
     expect(artifactRun).toMatch(/SHA256SUMS\.txt[\s\S]*ios_file=\$IOS_FILE/);
     expect(publishRun).toContain('process.env.IOS_FILE, "SHA256SUMS.txt"');
-    expect(publishRun).toContain('--pattern "$IOS_FILE"');
     expect(publishRun).toContain('"$IOS_FILE" SHA256SUMS.txt');
     expect(publishRun).toContain('"$IOS_HASH"');
-    expect(occurrences(publishRun, 'process.env.IOS_FILE, "SHA256SUMS.txt"')).toBe(2);
-    expect(occurrences(publishRun, '--pattern "$IOS_FILE"')).toBe(2);
-    expect(occurrences(publishRun, 'sha256sum "$EXISTING_DIR/$IOS_FILE"')).toBe(1);
-    expect(occurrences(publishRun, 'sha256sum "$CREATED_DIR/$IOS_FILE"')).toBe(1);
+    expect(occurrences(publishRun, 'process.env.IOS_FILE, "SHA256SUMS.txt"')).toBe(1);
+    expect(publishRun).toContain('download_release_asset "$release_json" "$IOS_FILE"');
+    expect(publishRun).toContain('sha256sum "$download_dir/$IOS_FILE"');
   });
 
   test("artifact downloads cannot redirect away from HTTPS", () => {
