@@ -458,6 +458,14 @@ jobs:
           source_db="${PGDATABASE:-postgres}"
           down="db/migrations/rollback/0189_down.sql"
           pair="erasure_registry lock_erase_my_data_authenticated"
+          run_token="${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$_${RANDOM}"
+          control_db="rollback_control_${run_token}"
+          fixed_db="rollback_fixed_${run_token}"
+          need_db="rollback_need_${run_token}"
+          if [[ ! "$source_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+            echo "rollback round trip refuses unsafe source database name [$source_db]" >&2
+            exit 1
+          fi
 
           staged_project="$(mktemp -d)"
           trap 'rm -rf -- "$staged_project"' EXIT
@@ -474,9 +482,18 @@ jobs:
           sql() { # <db> <one statement>
             psql -X -q -h localhost -U postgres -d "$1" -v ON_ERROR_STOP=1 -Atc "$2"
           }
+          created_clones=()
           clone() { # <name>
-            sql "$source_db" "DROP DATABASE IF EXISTS $1"
+            if [[ ! "$1" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+              echo "rollback round trip refuses unsafe clone database name [$1]" >&2
+              return 1
+            fi
+            if [[ "$(sql "$source_db" "SELECT pg_catalog.count(*) FROM pg_catalog.pg_database WHERE datname = '$1'")" != "0" ]]; then
+              echo "rollback round trip refuses to replace pre-existing database [$1]" >&2
+              return 1
+            fi
             sql "$source_db" "CREATE DATABASE $1 TEMPLATE $source_db"
+            created_clones+=("$1")
           }
           roll_back() { # <db>
             psql -X -h localhost -U postgres -d "$1" -v ON_ERROR_STOP=1 -f "$down"
@@ -559,8 +576,10 @@ jobs:
             SELECT 2, 0,
                    'function ' || COALESCE((
                      SELECT 'owner=' || pg_catalog.pg_get_userbyid(p.proowner)
-                            || ' acl=' || COALESCE((SELECT pg_catalog.string_agg(a::text, ',' ORDER BY a::text)
-                                                    FROM pg_catalog.unnest(p.proacl) AS a), '(default)')
+                            || ' acl=' || CASE WHEN p.proacl IS NULL THEN '(default)'
+                                              WHEN pg_catalog.cardinality(p.proacl) = 0 THEN '(empty)'
+                                              ELSE (SELECT pg_catalog.string_agg(a::text, ',' ORDER BY a::text)
+                                                    FROM pg_catalog.unnest(p.proacl) AS a) END
                             || ' definition=' || pg_catalog.md5(pg_catalog.pg_get_functiondef(p.oid))
                             || ' comment=' || COALESCE(pg_catalog.md5(pg_catalog.obj_description(p.oid, 'pg_proc')), '(none)')
                      FROM pg_catalog.pg_proc AS p, fn
@@ -569,8 +588,10 @@ jobs:
             SELECT 3, 0,
                    'table ' || COALESCE((
                      SELECT 'owner=' || pg_catalog.pg_get_userbyid(c.relowner)
-                            || ' acl=' || COALESCE((SELECT pg_catalog.string_agg(a::text, ',' ORDER BY a::text)
-                                                    FROM pg_catalog.unnest(c.relacl) AS a), '(default)')
+                            || ' acl=' || CASE WHEN c.relacl IS NULL THEN '(default)'
+                                              WHEN pg_catalog.cardinality(c.relacl) = 0 THEN '(empty)'
+                                              ELSE (SELECT pg_catalog.string_agg(a::text, ',' ORDER BY a::text)
+                                                    FROM pg_catalog.unnest(c.relacl) AS a) END
                             || ' rls=' || c.relrowsecurity || ' force_rls=' || c.relforcerowsecurity
                             || ' persistence=' || c.relpersistence::text || ' replica_identity=' || c.relreplident::text
                             || ' options=' || COALESCE(c.reloptions::text, '(none)')
@@ -601,8 +622,10 @@ jobs:
                    || ' identity=' || CASE a.attidentity WHEN '' THEN '(none)' ELSE a.attidentity::text END
                    || ' generated=' || CASE a.attgenerated WHEN '' THEN '(none)' ELSE a.attgenerated::text END
                    || ' collation=' || a.attcollation::pg_catalog.regcollation::text
-                   || ' acl=' || COALESCE((SELECT pg_catalog.string_agg(x::text, ',' ORDER BY x::text)
-                                           FROM pg_catalog.unnest(a.attacl) AS x), '(default)')
+                   || ' acl=' || CASE WHEN a.attacl IS NULL THEN '(default)'
+                                      WHEN pg_catalog.cardinality(a.attacl) = 0 THEN '(empty)'
+                                      ELSE (SELECT pg_catalog.string_agg(x::text, ',' ORDER BY x::text)
+                                            FROM pg_catalog.unnest(a.attacl) AS x) END
                    || ' comment=' || COALESCE(pg_catalog.md5(pg_catalog.col_description(a.attrelid, a.attnum)), '(none)')
             FROM reg
             JOIN pg_catalog.pg_attribute AS a ON a.attrelid = reg.oid AND a.attnum > 0 AND NOT a.attisdropped
@@ -667,8 +690,10 @@ jobs:
             SELECT 9, 2,
                    'sequence ' || sc.nspname || '.' || sc.relname
                    || ' owner=' || pg_catalog.pg_get_userbyid(c.relowner)
-                   || ' acl=' || COALESCE((SELECT pg_catalog.string_agg(a::text, ',' ORDER BY a::text)
-                                           FROM pg_catalog.unnest(c.relacl) AS a), '(default)')
+                   || ' acl=' || CASE WHEN c.relacl IS NULL THEN '(default)'
+                                      WHEN pg_catalog.cardinality(c.relacl) = 0 THEN '(empty)'
+                                      ELSE (SELECT pg_catalog.string_agg(a::text, ',' ORDER BY a::text)
+                                            FROM pg_catalog.unnest(c.relacl) AS a) END
                    || ' comment=' || COALESCE(pg_catalog.md5(pg_catalog.obj_description(c.oid, 'pg_class')), '(none)')
             FROM owned_seq AS sc
             JOIN pg_catalog.pg_class AS c ON c.oid = sc.oid
@@ -750,21 +775,21 @@ jobs:
           done
 
           echo "== control: the rollback, with 0190's ledger row put back (the pre-fix end state)"
-          clone rollback_probe_control
-          sql rollback_probe_control "CREATE TABLE supabase_migrations.rollback_probe_kept AS
-                                      SELECT * FROM supabase_migrations.schema_migrations
-                                      WHERE name = 'lock_erase_my_data_authenticated'"
-          roll_back rollback_probe_control
+          clone "$control_db"
+          sql "$control_db" "CREATE TABLE supabase_migrations.rollback_probe_kept AS
+                             SELECT * FROM supabase_migrations.schema_migrations
+                             WHERE name = 'lock_erase_my_data_authenticated'"
+          roll_back "$control_db"
           # ON CONFLICT: if the rollback under test leaves the row in place (the very
           # regression this lane is for), the control still builds the same state
           # and the verdict comes from the "fixed" half, with a message that says so.
-          sql rollback_probe_control "INSERT INTO supabase_migrations.schema_migrations
-                                      SELECT * FROM supabase_migrations.rollback_probe_kept
-                                      ON CONFLICT (version) DO NOTHING"
-          sql rollback_probe_control "DROP TABLE supabase_migrations.rollback_probe_kept"
-          control_ledger="$(ledger_pair rollback_probe_control)"
-          push_again rollback_probe_control
-          control_open="$(can_execute rollback_probe_control authenticated)"
+          sql "$control_db" "INSERT INTO supabase_migrations.schema_migrations
+                             SELECT * FROM supabase_migrations.rollback_probe_kept
+                             ON CONFLICT (version) DO NOTHING"
+          sql "$control_db" "DROP TABLE supabase_migrations.rollback_probe_kept"
+          control_ledger="$(ledger_pair "$control_db")"
+          push_again "$control_db"
+          control_open="$(can_execute "$control_db" authenticated)"
           echo "control: ledger before the re-push [$control_ledger] -> authenticated EXECUTE after it = $control_open"
           if [[ "$control_ledger" != "lock_erase_my_data_authenticated" ]]; then
             fail "the control did not reach the pre-fix state: ledger held [$control_ledger], expected only lock_erase_my_data_authenticated"
@@ -774,14 +799,14 @@ jobs:
           fi
 
           echo "== fixed: $down as shipped"
-          clone rollback_probe_fixed
-          before="$(fingerprint rollback_probe_fixed)"
+          clone "$fixed_db"
+          before="$(fingerprint "$fixed_db")"
           echo "fixed: what hangs off erase_my_data and erasure_registry before the rollback"
           sed 's/^/  /' <<< "$before"
 
           echo "== sight: can that list see what a later migration would hang there?"
           probed() { # <one statement>  -- the fingerprint with it applied, then rolled back
-            psql -X -q -h localhost -U postgres -d rollback_probe_fixed -v ON_ERROR_STOP=1 -At \
+            psql -X -q -h localhost -U postgres -d "$fixed_db" -v ON_ERROR_STOP=1 -At \
               -c 'BEGIN' -c "$1" -c "$owned_state" -c 'ROLLBACK'
           }
           sees() { # <what> <one statement a later migration could run>
@@ -907,7 +932,7 @@ jobs:
           sees "a function grant" "GRANT EXECUTE ON FUNCTION public.erase_my_data(text) TO anon"
           sees "the function's comment" "COMMENT ON FUNCTION public.erase_my_data(text) IS 'rollback probe'"
           sees "a ledger row" "UPDATE supabase_migrations.schema_migrations SET name = name || '_probe' WHERE name = 'lock_erase_my_data_authenticated'"
-          if [[ "$(fingerprint rollback_probe_fixed)" != "$before" ]]; then
+          if [[ "$(fingerprint "$fixed_db")" != "$before" ]]; then
             fail "the sight probes left something behind. Each one runs inside a transaction that is rolled back, and the fingerprint no longer equals the one taken before them, so the comparison below starts from a state no migration produced."
           fi
 
@@ -915,27 +940,27 @@ jobs:
             sql "$1" "SELECT COALESCE(pg_catalog.string_agg(m.name, ' ' ORDER BY m.version), '')
                       FROM supabase_migrations.schema_migrations AS m"
           }
-          ledger_before_rollback="$(ledger_names rollback_probe_fixed)"
-          roll_back rollback_probe_fixed
-          after_rollback="$(ledger_pair rollback_probe_fixed)"
+          ledger_before_rollback="$(ledger_names "$fixed_db")"
+          roll_back "$fixed_db"
+          after_rollback="$(ledger_pair "$fixed_db")"
           if [[ "$after_rollback" != "(none)" ]]; then
             fail "$down left [$after_rollback] in the migration ledger. 0189 and 0190 are one set: the DROP FUNCTION takes 0190's revoke with it, so a surviving 0190 row makes the next push skip the revoke and re-create erase_my_data open to authenticated."
           fi
           # What the shipped file DID to this ledger, not what its text says: the rows
           # that were there before it ran and are not there now. The "need" half
           # below asks its question of each of them.
-          ledger_after_rollback=" $(ledger_names rollback_probe_fixed) "
+          ledger_after_rollback=" $(ledger_names "$fixed_db") "
           deleted_by_the_rollback=""
           for name in $ledger_before_rollback; do
             if [[ "$ledger_after_rollback" != *" $name "* ]]; then
               deleted_by_the_rollback+="$name "
             fi
           done
-          push_again rollback_probe_fixed
-          after="$(fingerprint rollback_probe_fixed)"
+          push_again "$fixed_db"
+          after="$(fingerprint "$fixed_db")"
           verdict=""
           for role in public anon authenticated; do
-            held="$(can_execute rollback_probe_fixed "$role")"
+            held="$(can_execute "$fixed_db" "$role")"
             verdict+="$role=$held "
             if [[ "$held" != "f" ]]; then
               fail "after rollback + re-push, $role can EXECUTE erase_my_data. It ships locked until a per-user delete fence exists (0190), and a rollback must not be the way it opens."
@@ -963,8 +988,10 @@ jobs:
           # if it had been left off the list, and push again. If everything
           # owned_state reads still comes back, nothing visible here needs that
           # migration re-applied, and it is on the list for no reason this step can
-          # check: red. A push that fails outright is an answer too (leave 0189's
-          # row and 0190 has no function to revoke from), and so is a missing object.
+          # check: red. A push failure is evidence only when it is the exact causal
+          # 0190/42883 failure produced by retaining 0189's row. Every other failure
+          # is inconclusive and red; the causal case must recover after that one row
+          # is removed before the gate may call it necessary.
           #
           # This is the control's move, for every row instead of 0190's alone. The
           # control stays because it asks for more than "differs": it demands the
@@ -974,37 +1001,74 @@ jobs:
           # What "needed" does NOT say: that re-applying is HARMLESS. A needed
           # migration is re-applied whole, and whatever else it does, to any table
           # that is not erasure_registry, happens twice. See "not collected" above.
+          need_index=0
           needs() { # <ledger name>
-            local pushed state
+            local case_db push_log push_rc state
             if [[ ! "$1" =~ ^[A-Za-z0-9_]+$ ]]; then
               fail "cannot ask whether [$1] is needed: the name goes into SQL text here, so only letters, digits and _ are taken."
               return
             fi
-            clone rollback_probe_need
-            sql rollback_probe_need "CREATE TABLE supabase_migrations.rollback_probe_kept AS
-                                     SELECT * FROM supabase_migrations.schema_migrations
-                                     WHERE name = '$1'"
-            roll_back rollback_probe_need
-            sql rollback_probe_need "INSERT INTO supabase_migrations.schema_migrations
-                                     SELECT * FROM supabase_migrations.rollback_probe_kept
-                                     ON CONFLICT (version) DO NOTHING"
-            sql rollback_probe_need "DROP TABLE supabase_migrations.rollback_probe_kept"
-            echo "need: '$1' left in the ledger, everything else as the rollback leaves it. A push that fails below is an answer, not an accident."
-            if push_again rollback_probe_need; then
-              pushed="the re-push ran"
+            need_index=$((need_index + 1))
+            case_db="${need_db}_${need_index}"
+            clone "$case_db"
+            sql "$case_db" "CREATE TABLE supabase_migrations.rollback_probe_kept AS
+                            SELECT * FROM supabase_migrations.schema_migrations
+                            WHERE name = '$1'"
+            roll_back "$case_db"
+            sql "$case_db" "INSERT INTO supabase_migrations.schema_migrations
+                            SELECT * FROM supabase_migrations.rollback_probe_kept
+                            ON CONFLICT (version) DO NOTHING"
+            sql "$case_db" "DROP TABLE supabase_migrations.rollback_probe_kept"
+            echo "need: '$1' left in the ledger, everything else as the rollback leaves it."
+            push_log="$staged_project/need-$1.log"
+            if push_again "$case_db" >"$push_log" 2>&1; then
+              push_rc=0
             else
-              pushed="the re-push FAILED"
+              push_rc=$?
             fi
-            if [[ "$(sql rollback_probe_need "SELECT pg_catalog.to_regclass('public.erasure_registry') IS NOT NULL
-                                                  AND pg_catalog.to_regprocedure('public.erase_my_data(text)') IS NOT NULL")" == "t" ]]; then
-              state="$(fingerprint rollback_probe_need)"
+            cat "$push_log"
+
+            if (( push_rc != 0 )); then
+              if [[ "$1" != "erasure_registry" ]] \
+                || ! grep -Fq "Applying migration 0190_lock_erase_my_data_authenticated.sql" "$push_log" \
+                || ! grep -Fq "function public.erase_my_data(text) does not exist" "$push_log" \
+                || ! grep -Fq "SQLSTATE 42883" "$push_log"; then
+                fail "INCONCLUSIVE necessity check: '$1' re-push exited $push_rc without the exact causal 0190 missing-function signature. Infrastructure, CLI, authentication, timeout, and unrelated SQL failures are never evidence that a ledger row belongs in c_names."
+                return
+              fi
+
+              echo "need: '$1' produced the expected 0190/42883 failure; remove only that retained row and require recovery."
+              sql "$case_db" "DELETE FROM supabase_migrations.schema_migrations
+                              WHERE name = '$1'"
+              if ! push_again "$case_db"; then
+                fail "CAUSALITY recovery failed: '$1' had the expected 0190/42883 error, but deleting only its retained ledger row did not make the re-push succeed."
+                return
+              fi
+              if [[ "$(sql "$case_db" "SELECT pg_catalog.to_regclass('public.erasure_registry') IS NOT NULL
+                                             AND pg_catalog.to_regprocedure('public.erase_my_data(text)') IS NOT NULL")" == "t" ]]; then
+                state="$(fingerprint "$case_db")"
+              else
+                state="(erase_my_data or erasure_registry is absent after causal recovery)"
+              fi
+              if [[ "$state" != "$before" ]]; then
+                fail "CAUSALITY recovery mismatch: deleting '$1' repaired the expected push failure, but the recovered state still differs from the pre-rollback fingerprint."
+                diff <(printf '%s\n' "$before") <(printf '%s\n' "$state") | sed 's/^/  /' | head -n 6 || true
+              else
+                echo "need: '$1' is causally necessary: its retained row produced the exact failure and removing it restored all collected state."
+              fi
+              return
+            fi
+
+            if [[ "$(sql "$case_db" "SELECT pg_catalog.to_regclass('public.erasure_registry') IS NOT NULL
+                                           AND pg_catalog.to_regprocedure('public.erase_my_data(text)') IS NOT NULL")" == "t" ]]; then
+              state="$(fingerprint "$case_db")"
             else
               state="(erase_my_data or erasure_registry is absent)"
             fi
             if [[ "$state" == "$before" ]]; then
-              fail "UNNEEDED in c_names: '$1'. $down deletes its ledger row, so the push that follows a rollback applies that migration a second time, mid-incident. With that one row LEFT IN PLACE, $pushed and all $(wc -l <<< "$before" | tr -d ' ') facts about erase_my_data and erasure_registry still came back, so nothing this step can see needs it re-applied. Either (a) it hangs nothing on the two objects: take it out of c_names, whatever the remark beside it says; or (b) it does, and owned_state is BLIND to what it hangs there: add that fact to owned_state with a sight probe, and this goes green with the entry in place. Do not settle (b) by removing the entry: the thing it hangs there is then lost to the next rollback, in silence."
+              fail "UNNEEDED in c_names: '$1'. $down deletes its ledger row, so the push that follows a rollback applies that migration a second time, mid-incident. With that one row LEFT IN PLACE, the re-push ran and all $(wc -l <<< "$before" | tr -d ' ') facts about erase_my_data and erasure_registry still came back, so nothing this step can see needs it re-applied. Either (a) it hangs nothing on the two objects: take it out of c_names, whatever the remark beside it says; or (b) it does, and owned_state is BLIND to what it hangs there: add that fact to owned_state with a sight probe, and this goes green with the entry in place. Do not settle (b) by removing the entry: the thing it hangs there is then lost to the next rollback, in silence."
             else
-              echo "need: '$1' has to go. With its row left in place, $pushed and this did not come back:"
+              echo "need: '$1' has to go. With its row left in place, the re-push ran and this did not come back:"
               diff <(printf '%s\n' "$before") <(printf '%s\n' "$state") | sed 's/^/  /' | head -n 6 || true
             fi
           }
@@ -1015,19 +1079,17 @@ jobs:
             needs "$name"
           done
 
-          # ON FAILURE THE CLONES ARE LEFT WHERE THEY ARE, on purpose (r55 bizlogic
-          # gate, N04: this used to be true and unsaid). The EXIT trap above removes
-          # the staging directory and nothing else. In CI a clone lives in the job's
-          # own service container, no later step runs after a red one, and the
-          # container goes with the job. In a local replay the clone is the evidence:
-          # it is the database the red message is about. The next run starts by
-          # dropping all three (clone() is DROP DATABASE IF EXISTS, then CREATE).
+          # ON FAILURE THE RUN-UNIQUE CLONES ARE LEFT WHERE THEY ARE, on purpose.
+          # The EXIT trap above removes the staging directory and nothing else. In
+          # CI a clone lives in the job's own service container and disappears with
+          # it. In a local replay the unique clone is the evidence; no later run
+          # guesses that it owns the database or deletes it pre-emptively.
           if (( failed )); then
             exit 1
           fi
-          sql "$source_db" "DROP DATABASE rollback_probe_control"
-          sql "$source_db" "DROP DATABASE rollback_probe_fixed"
-          sql "$source_db" "DROP DATABASE rollback_probe_need"
+          for clone_db in "${created_clones[@]}"; do
+            sql "$source_db" "DROP DATABASE $clone_db"
+          done
           echo "rollback round trip: the control re-opened, the shipped rollback did not, the state came back identical, and every row the rollback deletes (${deleted_by_the_rollback% }) had to go"
       - name: Reject account-deletion policies when Storage RLS is disabled
         env:

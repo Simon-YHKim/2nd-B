@@ -945,6 +945,16 @@ describe(`${FILE} -- structure`, () => {
       ["a loop", "DO $mig$ DECLARE r record; BEGIN FOR r IN EXECUTE 'SELECT 1 AS n' LOOP NULL; END LOOP; END $mig$;", "SELECT 1 AS n"],
       ["a quote inside the literal", "DO $mig$ BEGIN EXECUTE 'SELECT ''a'''; END $mig$;", "SELECT 'a'"],
       ["%% and %L", "DO $mig$ BEGIN EXECUTE format('SELECT %L LIKE ''a%%''', 'it''s'); END $mig$;", "SELECT 'it''s' LIKE 'a%'"],
+      [
+        "%I quotes a reserved identifier",
+        "DO $mig$ BEGIN EXECUTE format('ALTER TABLE public.%I RENAME TO note', 'user'); END $mig$;",
+        'ALTER TABLE public."user" RENAME TO note',
+      ],
+      [
+        "%I keeps an ordinary fragment bare when %s continues its identifier",
+        "DO $mig$ BEGIN EXECUTE format('ALTER TABLE public.%I%s FORCE ROW LEVEL SECURITY', 'erasure_', 'registry'); END $mig$;",
+        "ALTER TABLE public.erasure_registry FORCE ROW LEVEL SECURITY",
+      ],
       // ...and a quoted body that IS whole stays read: what follows it is the rest of
       // its own statement. Refusing these would be the cry of wolf again.
       ["a quoted DO body, then its language", "DO 'BEGIN PERFORM 1; END' LANGUAGE plpgsql;", "BEGIN PERFORM 1; END"],
@@ -992,7 +1002,7 @@ describe(`${FILE} -- structure`, () => {
 
     // The control comes first, and failing to OPEN is a failure.
     const vacuousAt = step.indexOf("VACUOUS");
-    const fixedAt = step.indexOf("clone rollback_probe_fixed");
+    const fixedAt = step.indexOf('clone "$fixed_db"');
     expect(vacuousAt).toBeGreaterThanOrEqual(0);
     expect(fixedAt).toBeGreaterThan(vacuousAt);
     expect(step).toMatch(/if \[\[ "\$control_open" != "t" \]\]; then\s+fail "VACUOUS/);
@@ -1000,7 +1010,7 @@ describe(`${FILE} -- structure`, () => {
     // After the re-push: all three client roles are read, and the state 0189 and
     // 0190 own is compared with what it was before the rollback.
     expect(step).toMatch(
-      /for role in public anon authenticated; do\s+held="\$\(can_execute rollback_probe_fixed "\$role"\)"/,
+      /for role in public anon authenticated; do\s+held="\$\(can_execute "\$fixed_db" "\$role"\)"/,
     );
     expect(step).toMatch(/if \[\[ "\$before" != "\$after" \]\]; then\s+fail /);
     expect(step).toMatch(/if \(\( failed \)\); then\s+exit 1/);
@@ -1037,9 +1047,9 @@ describe(`${FILE} -- structure`, () => {
     // with a 0191 that really adds that column and was correctly listed, and the
     // one run that had to be green was red with "column already exists". A probe
     // must not be something a real migration would do.
-    const beforeAt = step.indexOf('before="$(fingerprint rollback_probe_fixed)"');
+    const beforeAt = step.indexOf('before="$(fingerprint "$fixed_db")"');
     const firstProbeAt = step.indexOf('tells_apart "a column"');
-    const rollbackUnderTestAt = step.indexOf("roll_back rollback_probe_fixed");
+    const rollbackUnderTestAt = step.indexOf('roll_back "$fixed_db"');
     expect(beforeAt).toBeGreaterThanOrEqual(0);
     expect(firstProbeAt).toBeGreaterThan(beforeAt);
     expect(rollbackUnderTestAt).toBeGreaterThan(firstProbeAt);
@@ -1162,9 +1172,11 @@ describe(`${FILE} -- structure`, () => {
     // 2. the relation's own catalog row: owner and ACL (sorted) on one line, the rest
     // of the row a key to a line. The table's line has the same ACL expression, so
     // the pin starts at the word that makes it the SEQUENCE's.
-    expect(step).toMatch(
-      /'sequence ' \|\| sc\.nspname \|\| '\.' \|\| sc\.relname\s+\|\| ' owner=' \|\| pg_catalog\.pg_get_userbyid\(c\.relowner\)\s+\|\| ' acl=' \|\| COALESCE\(\(SELECT pg_catalog\.string_agg\(a::text, ',' ORDER BY a::text\)\s+FROM pg_catalog\.unnest\(c\.relacl\) AS a\), '\(default\)'\)/,
-    );
+    for (const acl of ["p.proacl", "a.attacl", "c.relacl"]) {
+      expect(step).toContain(`CASE WHEN ${acl} IS NULL THEN '(default)'`);
+      expect(step).toContain(`WHEN pg_catalog.cardinality(${acl}) = 0 THEN '(empty)'`);
+    }
+    expect(step.split("CASE WHEN c.relacl IS NULL THEN '(default)'").length - 1).toBe(2);
     expect(step).toMatch(/' relation \.' \|\| kv\.key[^\r\n]*\s+FROM owned_seq AS sc\s+JOIN pg_catalog\.pg_class AS c ON c\.oid = sc\.oid/);
     // A slot that could not be read must not read as EQUAL to another that could
     // not: it prints "(unread)", both definitions then match, and that is BLIND.
@@ -1206,38 +1218,52 @@ describe(`${FILE} -- structure`, () => {
     const comparedAt = step.indexOf('if [[ "$before" != "$after" ]]; then');
     expect(comparedAt).toBeGreaterThan(rollbackUnderTestAt);
     expect(needAt).toBeGreaterThan(comparedAt);
-    expect(step).toMatch(/ledger_before_rollback="\$\(ledger_names rollback_probe_fixed\)"\s+roll_back rollback_probe_fixed/);
+    expect(step).toMatch(/ledger_before_rollback="\$\(ledger_names "\$fixed_db"\)"\s+roll_back "\$fixed_db"/);
     expect(step).toMatch(
       /for name in \$ledger_before_rollback; do\s+if \[\[ "\$ledger_after_rollback" != \*" \$name "\* \]\]; then\s+deleted_by_the_rollback\+="\$name "/,
     );
     const need = step.slice(needAt);
-    expect(need).toMatch(/clone rollback_probe_need\s+sql rollback_probe_need "CREATE TABLE supabase_migrations\.rollback_probe_kept AS/);
-    expect(need).toMatch(/WHERE name = '\$1'"\s+roll_back rollback_probe_need\s+sql rollback_probe_need "INSERT INTO supabase_migrations\.schema_migrations/);
-    // A push that fails is an answer (leave 0189's row and 0190 has nothing to
-    // revoke from), so it must not end the step under `set -e`.
-    expect(need).toMatch(/if push_again rollback_probe_need; then/);
+    expect(need).toMatch(/clone "\$case_db"\s+sql "\$case_db" "CREATE TABLE supabase_migrations\.rollback_probe_kept AS/);
+    expect(need).toMatch(/WHERE name = '\$1'"\s+roll_back "\$case_db"\s+sql "\$case_db" "INSERT INTO supabase_migrations\.schema_migrations/);
+    // A failed push is evidence only when it is the exact causal 0190/42883
+    // failure. Infrastructure and unrelated SQL failures are inconclusive and
+    // red; the causal case must become green after removing that retained row.
+    expect(need).toMatch(/if push_again "\$case_db" >"\$push_log" 2>&1; then\s+push_rc=0\s+else\s+push_rc=\$\?/);
+    expect(need).toContain('grep -Fq "Applying migration 0190_lock_erase_my_data_authenticated.sql" "$push_log"');
+    expect(need).toContain('grep -Fq "function public.erase_my_data(text) does not exist" "$push_log"');
+    expect(need).toContain('grep -Fq "SQLSTATE 42883" "$push_log"');
+    expect(need).toMatch(/fail "INCONCLUSIVE necessity check:/);
+    expect(need).toMatch(/DELETE FROM supabase_migrations\.schema_migrations\s+WHERE name = '\$1'/);
+    expect(need).toMatch(/if ! push_again "\$case_db"; then\s+fail "CAUSALITY recovery failed:/);
+    expect(need).toMatch(/if \[\[ "\$state" != "\$before" \]\]; then\s+fail "CAUSALITY recovery mismatch:/);
     // The same query as the comparison, and only when both objects are there to read.
-    expect(need).toMatch(/state="\$\(fingerprint rollback_probe_need\)"/);
+    expect(need).toMatch(/state="\$\(fingerprint "\$case_db"\)"/);
     expect(need).toMatch(/if \[\[ "\$state" == "\$before" \]\]; then\s+fail "UNNEEDED in c_names: /);
     expect(need).toMatch(/for name in \$deleted_by_the_rollback; do\s+needs "\$name"\s+done/);
     // Asking nothing is not a pass.
     expect(need).toMatch(/if \[\[ -z "\$deleted_by_the_rollback" \]\]; then\s+fail /);
-    // All three clones go on the way out of a green run. On a red one they stay,
-    // and the step says so where it happens (r55 bizlogic gate, N04).
-    for (const db of ["rollback_probe_control", "rollback_probe_fixed", "rollback_probe_need"]) {
-      expect(need).toContain(`sql "$source_db" "DROP DATABASE ${db}"`);
-    }
+    // Every run gets collision-checked names and drops only databases this run
+    // recorded as created. A local database with an old probe name is never
+    // pre-emptively destroyed.
+    expect(step).toContain('run_token="${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$_${RANDOM}"');
+    expect(step).toContain('control_db="rollback_control_${run_token}"');
+    expect(step).toContain('fixed_db="rollback_fixed_${run_token}"');
+    expect(step).toContain('need_db="rollback_need_${run_token}"');
+    expect(step).not.toContain("DROP DATABASE IF EXISTS");
+    expect(step).toContain('created_clones+=("$1")');
+    expect(step).toMatch(/SELECT pg_catalog\.count\(\*\) FROM pg_catalog\.pg_database WHERE datname = '\$1'/);
+    expect(need).toMatch(/for clone_db in "\$\{created_clones\[@\]\}"; do\s+sql "\$source_db" "DROP DATABASE \$clone_db"\s+done/);
     // What this step does not collect is written in the workflow, not implied. Read
     // from the file as it is: every other pin in this test reads it with its
     // comments gone, and these two are comments.
     const asWritten = readFileSync(join(ROOT, ".github", "workflows", "supabase-dry-run.yml"), "utf8");
     expect(asWritten).toContain("# NOT COLLECTED.");
-    expect(asWritten).toContain("# ON FAILURE THE CLONES ARE LEFT WHERE THEY ARE, on purpose");
+    expect(asWritten).toContain("# ON FAILURE THE RUN-UNIQUE CLONES ARE LEFT WHERE THEY ARE, on purpose.");
 
     // A probe that leaked would make every later probe "see" the leak instead of
     // its own statement, so the list is checked against the baseline once more.
     expect(step).toMatch(
-      /if \[\[ "\$\(fingerprint rollback_probe_fixed\)" != "\$before" \]\]; then\s+fail "the sight probes left something behind/,
+      /if \[\[ "\$\(fingerprint "\$fixed_db"\)" != "\$before" \]\]; then\s+fail "the sight probes left something behind/,
     );
   });
 });

@@ -416,6 +416,24 @@ function readConstantOperand(sql: string, at: number): { value: string; end: num
   return value === null ? null : { value, end: i + 1 };
 }
 
+// PostgreSQL 18 parser/kwlist.h entries whose category is not
+// UNRESERVED_KEYWORD. quote_ident()/format('%I') quotes these even when they
+// otherwise match the lowercase identifier grammar. Keeping the pinned server
+// list here preserves mixed formats such as %I%s, where quoting every ordinary
+// fragment would change the reconstructed SQL.
+const PG18_IDENTIFIERS_REQUIRING_QUOTES = new Set(
+  `all analyse analyze and any array as asc asymmetric authorization between bigint binary bit boolean both case cast char character check coalesce collate collation column concurrently constraint create cross current_catalog current_date current_role current_schema current_time current_timestamp current_user dec decimal default deferrable desc distinct do else end except exists extract false fetch float for foreign freeze from full grant greatest group grouping having ilike in initially inner inout int integer intersect interval into is isnull join json json_array json_arrayagg json_exists json_object json_objectagg json_query json_scalar json_serialize json_table json_value lateral leading least left like limit localtime localtimestamp merge_action national natural nchar none normalize not notnull null nullif numeric offset on only or order out outer overlaps overlay placing position precision primary real references returning right row select session_user setof similar smallint some substring symmetric system_user table tablesample then time timestamp to trailing treat trim true union unique user using values varchar variadic verbose when where window with xmlattributes xmlconcat xmlelement xmlexists xmlforest xmlnamespaces xmlparse xmlpi xmlroot xmlserialize xmltable`.split(
+    /\s+/,
+  ),
+);
+
+function quoteConstantIdentifier(value: string): string {
+  const canStayBare =
+    /^[a-z_][a-z0-9_$]*$/.test(value) &&
+    !PG18_IDENTIFIERS_REQUIRING_QUOTES.has(value);
+  return canStayBare ? value : `"${value.replace(/"/g, '""')}"`;
+}
+
 /** Postgres' format() over constant arguments. %s, %I, %L, %%, and a position
  *  (`%2$I`); after a positioned one the next unpositioned takes the argument
  *  that follows it, as the server does. A width or a flag returns null: reading
@@ -441,7 +459,7 @@ function applyConstantFormat(template: string, args: string[]): string | null {
     const arg = args[index];
     if (spec[2] === "s") out += arg;
     else if (spec[2] === "L") out += `'${arg.replace(/'/g, "''")}'`;
-    else out += /^[a-z_][a-z0-9_$]*$/.test(arg) ? arg : `"${arg.replace(/"/g, '""')}"`;
+    else out += quoteConstantIdentifier(arg);
   }
   return out;
 }
