@@ -67,6 +67,8 @@ const C = "src/lib/safety/classifier.ts";
 const P = "src/lib/privacy/prefs.ts";
 const R = "src/lib/ops/recommend.ts";
 const A = "src/lib/auth/consent-age.ts";
+// r53(2026-09-21): 연령 표가 consent-age.ts 밖으로 나갔다 - 생성물이라 따로 산다.
+const CAT = "src/lib/auth/consent-age-table.ts";
 const D = "supabase/functions/delete-account/index.ts";
 const DS = "supabase/functions/delete-account/storage-erasure.ts";
 const X = "supabase/functions/export-account/index.ts";
@@ -120,8 +122,8 @@ const ANCHORS: Anchor[] = [
     why: "스냅샷을 신뢰하지 않는 데이터로 감싸는 자리. 클립된 페이지가 프롬프트를 조종하지 못한다는 주장." },
   { cite: `${R}:199-273`, symbol: "recommendForDomain",
     why: "추천이 무엇을 프로파일링하는지 - 그 함수 자체." },
-  { cite: `${A}:28-33`, symbol: "DIGITAL_CONSENT_AGE",
-    why: "어느 나라 동의 연령이 적용되는가 - 미성년 DPIA 에서 이보다 무거운 표는 없다." },
+  { cite: `${CAT}:61-125`, symbol: "CONSENT_AGE_TABLE",
+    why: "어느 나라 동의 연령이 적용되는가 - 미성년 DPIA 에서 이보다 무거운 표는 없다. r53 전에는 consent-age.ts:28-33 의 DIGITAL_CONSENT_AGE 네 칸이었고, 지금은 63개국 표다." },
   { cite: `${DS}:149-173`, symbol: "confirmed.size !== requested.size",
     why: "지움 결과의 이름 집합이 요청 집합과 정확히 같은지 관측하는 자리. 개수만 같거나 일부만 지워졌는데도 '지워졌다'고 주장하지 못하게 한다." },
   { cite: `${DS}:95-116`, symbol: "listingResponse.error",
@@ -195,7 +197,7 @@ const ANCHORS: Anchor[] = [
     why: "동의 ack 셋이 **실제로 원장 행에 실리는** 자리. 일곱 자리가 '수집·기록된다'로 고쳐졌고, 그 주장이 서는 곳이 여기다. 주석이 아니라 쓰기다." },
   { cite: "src/lib/supabase/consent.ts:14-21", symbol: "WIRED at sign-up", evidence: "comment",
     why: "동의 기록이 UI 수집 **뒤에** 쓰인다는 불변식의 기록. 문서가 이 주석을 'still read null (stale)' 이라고 인용했었다." },
-  { cite: `${A}:8-12`, symbol: "the country signal landed", evidence: "comment",
+  { cite: `${A}:57-66`, symbol: "the country signal landed", evidence: "comment",
     why: "관할 신호가 **언제** 붙었는지의 날짜 기록. 문서가 세 자리에서 '신호 없음'을 주장하며 **바로 이 범위를 인용**하고 있었다 - 인용된 줄이 인용한 주장을 반증하는 상태였다. 주장 자체가 '코드가 이 날짜를 적어 두었다' 라서 주석이 근거다." },
   { cite: `${P}:103-105`, symbol: "were pruned", evidence: "comment",
     why: "문서가 credit 하던 `llm_training`/`persona_export`/`persona_share` 가 **왜 없는지**의 기록. 없는 설정을 통제로 적는 것을 막는다(회차 45 의 부류)." },
@@ -212,8 +214,8 @@ const ANCHORS: Anchor[] = [
     why: "법무 검토 날짜가 실제로 사는 자리. 문서가 이 상수를 `lexicon.ts:331`(한국어 금지어 목록의 한 줄)에도 인용하고 있었고, 같은 상수를 두 줄에 인용하면 하나는 반드시 틀리다." },
   { cite: "src/lib/safety/lexicon.ts:372-375", symbol: "ANALYSIS_JURISDICTION_FORBIDDEN",
     why: "관할별 목록이 자동 게이트에 안 붙어 있다는 주장의 대상. 문서는 스캔 면제 목록의 한 줄을 가리키고 있었다." },
-  { cite: `${A}:108-121`, symbol: "deviceRegionCode",
-    why: "그 표에 실제로 닿는 해석기. 2026-08-16 에 기기 지역 신호가 붙었는데 문서는 다섯 자리에서 '신호 없음'이라 적고 있었다." },
+  { cite: `${A}:234-241`, symbol: "deviceRegionCode",
+    why: "그 표에 실제로 닿는 해석기. 2026-08-16 에 기기 지역 신호가 붙었는데 문서는 다섯 자리에서 '신호 없음'이라 적고 있었다. r53 이후 이 함수는 버킷 이름이 아니라 **나라 + 그 나라의 층**을 돌려준다." },
 ];
 
 function slice(cite: string): { file: string; text: string; lines: number } {

@@ -157,7 +157,7 @@
     "haveAccount": "Already have an account? Sign in",
     "forgotPassword": "Forgot password?",
     "or": "or",
-    "ageNotice": "You can create an account if you are 14 or older.",
+    "ageNotice": "You can create an account if you are {{minAge}} or older.",
     "brandLabel": "2ND-BRAIN",
     "signInTitle": "Sign in to 2nd-Brain",
     "signInEncrypt": "You can change your privacy settings at any time.",
