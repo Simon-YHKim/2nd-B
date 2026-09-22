@@ -110,16 +110,19 @@ Enforcement (phased rollout):
   `guardian_consents` table (per-user RLS); `0029` locks `guardian_consents`; **`0030`
   adds the authoritative `enforce_user_age_tier()` BEFORE INSERT trigger that rejects
   under-14 server-side — the real gate. `users_birth_date_sane` (0028) is only a sanity backstop.**
-- **Client — done:** `auth.ts` gates at `MIN_SELF_CONSENT_AGE`, which is **resolved per
-  country** (14 in KR, 16 in DE, 18 when the country is unknown — see the table below).
+- **Client — done:** registration resolves a country-specific floor (14 in KR, 16 in DE;
+  see the table below). A readable device region is authoritative for this client gate.
+  When it is unreadable, both email sign-up and OAuth profile completion require a
+  residence selection; a researched country uses its row and "not listed" uses 18.
   Minors at or above that floor and adults register directly; anyone below it still
   throws `AgeGateError` pending the guardian-consent flow.
 - **Safety — done (#134):** the minor flag threads from `AuthContext.isMinor`
   through the record/chat/interview/LLM chain. KO minors route to 1388 + 109,
   adults to the unified 109 line (1393 retired 2024-01), EN to 988.
 
-**Jurisdiction — the client reads a 63-country table, the server does not
-(measured 2026-09-08; table landed 2026-09-21, r53):**
+**Jurisdiction — the client reads a 63-country table and recovers an unreadable
+region at registration; the server does neither (measured 2026-09-08; table landed
+2026-09-21, recovery landed 2026-09-22):**
 
 ~~the app does not yet collect a reliable country/jurisdiction signal (locale
 `en`/`ko` is not a country). Until country detection lands, **all users are gated
@@ -129,11 +132,11 @@ on the KR rule (self-consent floor 14, PIPA Article 22-2)** via
 
 **Both halves of that were false.** The signal landed 2026-08-16 —
 `resolveJurisdiction()` reads the device region (`src/lib/auth/device-region.ts`)
-— and the client gate is not pinned to KR: `src/lib/supabase/auth.ts:76`
-computes `MIN_SELF_CONSENT_AGE = digitalConsentAge(resolveJurisdiction())`, so
-`signUp` / `signUpWithEmail` throw `AgeGateError` at the *resolved* floor
-(`src/lib/supabase/auth.ts:296`, `src/lib/supabase/auth.ts:1617`). The three
-`auth.ts` line numbers this paragraph used to carry (33, 176, 860) had all drifted.
+— and the client gate is not pinned to KR. Registration passes through
+`resolveRegistrationConsentFloor()`: a readable device region keeps its resolved
+floor, while an unreadable one remains blocked until the form supplies a residence
+selection. Both low-level registration mutations enforce the resulting floor before
+calling auth or the database.
 
 ⚠ **2026-09-21 (r53) — the four buckets are gone, and so is the 16.** This section
 said the resolved floor was ~~KR 14 · US 13 · EU 16 · unknown 16~~ and that an
@@ -153,7 +156,7 @@ knowing:
 
 | layer | branches by country? | floor it enforces |
 |---|---|---|
-| client (`src/lib/supabase/auth.ts:296`, `src/lib/supabase/auth.ts:1617`) | **yes, per country** | the table value clamped up to the server floor: KR 14 · US 14 (statute 13) · FR 15 · DE 16 · TH 20 · **unknown 18** |
+| client registration (`src/lib/supabase/auth.ts`) | **yes, per country** | readable device region, or required residence choice when unreadable: KR 14 · US 14 (statute 13) · FR 15 · DE 16 · TH 20 · **not listed 18** |
 | server (`0086`, `0148`, `0149` — 5 call sites) | **no** | `< 14`, hard-coded |
 
 **No migration reads a jurisdiction or country at all** — `jurisdiction` 0 files,
@@ -164,23 +167,20 @@ So the server floor is 14 everywhere, and this section itself calls
 the server trigger "the real gate" — correctly, because the client check is
 skippable by calling the RPC directly.
 
-**Consequence:** a 14-15 year old in a 16-country, or anyone 14-17 whose country is
-unknown, is refused by our own client table but accepted by the authoritative server
-gate. Every floor above 14 is therefore advisory, not enforced. The reverse also
-holds and is why the table stores the statutory value separately from the effective
-one: the 12 rows at 13 (US, GB, SG and nine more) are inert today because the server
-rejects under-14 regardless, and they come back the day that floor moves.
+**Consequence:** a user below a country floor above 14 (for example 15 in a
+16-country, or 19 in Thailand) is refused by the client but can still be accepted by
+the authoritative server gate through a direct call. Every floor above 14 is therefore
+advisory, not enforced. The reverse also holds and is why the table stores the
+statutory value separately from the effective one: the 12 rows at 13 (US, GB, SG and
+nine more) are inert today because the server rejects under-14 regardless, and they
+come back the day that floor moves.
 
-**The hole this leaves, stated plainly.** A fallback cannot fix an unreadable region:
-that user could be from any country in the table. Today they get 18, which means
-**a 14-17 year old on the web whose region the platform does not report cannot sign
-up** — Korean users included. Nobody is actually blocked right now (the app has never
-shipped to a store and web usage is effectively nil), but this must close before
-launch, and it closes by *learning the country*, not by lowering the number: ask for
-residence **only when the region is unreadable**, apply that country's row, and send
-"not listed" to the fallback. `FloorSource` already separates the three cases
-(`country-row` / `country-no-row` / `region-unreadable`) so that round can tell which
-users to ask.
+**Unreadable-region registration gap — closed 2026-09-22.** The two registration
+paths ask for residence **only when the device region is unreadable**, apply a selected
+table row, and send "not listed" or an unexpected value to the 18 fallback. A readable
+device region cannot be weakened by form state. This is still a self-declared client
+signal, is not persisted, and does not repair the server's global 14 floor; those are
+separate authority/data-model decisions.
 
 **Rows have an expiry.** 14 of the 63 carry `watch: true` — legislation is moving
 (Portugal 13→16 passed a first-reading vote, Spain and Italy 14→16, Norway 13→15,

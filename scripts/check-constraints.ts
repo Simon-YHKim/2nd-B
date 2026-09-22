@@ -776,7 +776,9 @@ results.push(
       completeProfile.includes("PremiumToast") &&
       completeProfile.includes("toastWrap") &&
       completeProfile.includes('t("errors.completeProfileSaveFailed")') &&
-      completeProfile.includes("setToast({ tone: \"danger\", message: t(\"errors.ageGate\") })") &&
+      completeProfile.includes(
+        'setToast({ tone: "danger", message: t("errors.ageGate", { minAge: minConsentAge }) })',
+      ) &&
       audit.includes("PremiumToast") &&
       audit.includes("toastWrap") &&
       audit.includes("Couldn't save your answer. Your answer is still here, so try again.") &&
@@ -1097,7 +1099,7 @@ results.push(
       signUp.includes('accessibilityRole="image"') &&
       signUp.includes('accessibilityLabel={t("auth:common.entryArtwork")}') &&
       birthDateField.includes('accessibilityLabel={t("signUp.birthDate")}') &&
-      birthDateField.includes('accessibilityHint={t("signUp.birthDateHelper")}') &&
+      birthDateField.includes('accessibilityHint={t("signUp.birthDateHelper", { minAge })}') &&
       completeProfile.includes('accessibilityRole="image"') &&
       completeProfile.includes('accessibilityLabel={t("common.entryArtwork")}') &&
       completeProfile.includes('accessibilityHint={t("completeProfile.submitHint")}') &&

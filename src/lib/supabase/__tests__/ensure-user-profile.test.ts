@@ -5,6 +5,17 @@
 // defence) and an email collision surfaces as the typed EmailInUseError the
 // screen turns into the "use your original sign-in method" exit.
 
+// This suite isolates post-gate database outcomes. Pin a readable region so
+// the separate unreadable-region recovery suite owns that prerequisite.
+jest.mock("expo-localization", () => ({
+  getLocales: () => [
+    { languageTag: "ko-KR", languageCode: "ko", regionCode: "KR", textDirection: "ltr" },
+  ],
+  getCalendars: () => [
+    { calendar: "gregory", timeZone: "Asia/Seoul", uses24hourClock: true },
+  ],
+}));
+
 import { __setSupabaseClientForTests } from "../client";
 import { EmailInUseError, ensureUserProfile, isUniqueViolation } from "../auth";
 

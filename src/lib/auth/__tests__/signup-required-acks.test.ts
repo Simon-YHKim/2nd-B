@@ -156,7 +156,7 @@ describe("PIXEL-CLAY sign-up renderer", () => {
     expect(screen).toContain('keyboardType="email-address"');
     expect(screen).toContain("secureTextEntry");
     expect(screen).toContain("<BirthDateField");
-    expect(screen).toContain("ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE");
+    expect(screen).toContain("ageInYears(birthDate) >= minConsentAge");
     expect(screen).toContain('autoComplete="one-time-code"');
     expect(screen).toContain('textContentType="oneTimeCode"');
     expect(screen).toContain("canVerifyConfirmCode");
@@ -232,7 +232,8 @@ describe("sign-up authority and preservation boundaries", () => {
     );
     expect(canSubmit).toContain('email.includes("@")');
     expect(canSubmit).toContain("password.length >= 8");
-    expect(canSubmit).toContain("ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE");
+    expect(canSubmit).toContain("residenceReady &&");
+    expect(canSubmit).toContain("ageInYears(birthDate) >= minConsentAge");
     expect(canSubmit).toContain("allRequiredAcksChecked(consent)");
     expect(canSubmit).toContain("!loading");
     expect(canSubmit).toContain("!userId");
@@ -262,10 +263,11 @@ describe("sign-up authority and preservation boundaries", () => {
   // 옛 값은 5b6bbe71 분기점 파일이고, main 이 그 뒤 f42f4db2(C2·C6 대회 제약과
   // judge 이메일 경로 은퇴)와 be629d2b 를 얹었다. 병합 결과는 셋 다 main 과
   // 바이트 동일이라 "이 PR 이 레거시·공용 폼을 안 건드렸다"는 뜻은 그대로다.
-  // ConsentNotice·BirthDateField 는 분기 이후 안 바뀌어 값이 그대로다.
+  // ConsentNotice 는 분기 이후 그대로다. BirthDateField 는 2026-09-22 C10
+  // unreadable-region 복구에서 선택한 나라의 동적 하한을 받도록 의도적으로 바뀌었다.
   // 2026-09-07: dds-auth-screens digest 하나만 재고정했다. ConsentCheckRow 에
   // 웹 스페이스키 배선(import 1 + prop 1)이 들어갔기 때문이다. legacy · styles ·
-  // ConsentNotice · BirthDateField 넷은 값이 그대로 = 안 건드렸다.
+  // ConsentNotice 경계는 그대로고 BirthDateField 는 위 C10 변경으로 재고정했다.
   // 2026-09-13: dds-auth-screens 에 reset-password bootstrap 재시도 표면만
   // 추가해 그 digest 만 재고정했다. 나머지 네 경계는 그대로다.
   test("preserves legacy renderer and shared form boundaries while pinning the auth renderer", () => {
@@ -288,7 +290,7 @@ describe("sign-up authority and preservation boundaries", () => {
       "60a019c22ceec84ad550f06568763225b82839bc0e743f382aabea233e4ae170",
     );
     expect(sha256(read("src/components/auth/BirthDateField.tsx"))).toBe(
-      "9909f26cc188219376e9aeca9a9e46481c74d8d95042a56abfe4858ade4dba0f",
+      "7f995e7a8031b7761aa44fdc1dc373ff6397b4071d80df22a112534c29cc0848",
     );
   });
 

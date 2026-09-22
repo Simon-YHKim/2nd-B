@@ -32,7 +32,7 @@ describe("/complete-profile PIXEL-CLAY profilesetup contract", () => {
   });
 
   test("counts only the two real entry gates, never optional mock profile fields", () => {
-    expect(source).toContain("const ageReady = age >= MIN_SELF_CONSENT_AGE");
+    expect(source).toContain("const ageReady = residenceReady && age >= minConsentAge");
     expect(source).toContain("const consentReady = allRequiredAcksChecked(consent)");
     expect(source).toContain("const requiredProgress = Number(ageReady) + Number(consentReady)");
     expect(source).toMatch(/userId !== null &&\s*ageReady &&\s*consentReady &&\s*!submitting/);
@@ -44,7 +44,9 @@ describe("/complete-profile PIXEL-CLAY profilesetup contract", () => {
   });
 
   test("keeps C10, consent recording, auth settlement, and navigation intact", () => {
-    expect(source).toContain("ensureUserProfile({ birthDate, locale, displayName })");
+    expect(source).toContain(
+      "ensureUserProfile({ birthDate, locale, displayName, residenceCountry })",
+    );
     expect(source).toContain("buildSignUpConsentArgs({ userId, isMinor: isMinorAge, locale, selections: consent })");
     expect(source).toContain("<ConsentNotice minor={isMinorAge} value={consent} onChange={setConsent} />");
     expect(source).toContain("submitCompleteProfile({");

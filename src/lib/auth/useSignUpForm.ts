@@ -29,9 +29,13 @@ import {
   AgeGateError,
   BreachedPasswordError,
   ExistingAccountLikelyError,
-  MIN_SELF_CONSENT_AGE,
   type OAuthProvider,
 } from "@/lib/supabase/auth";
+import { digitalConsentAge, resolveJurisdiction } from "@/lib/auth/consent-age";
+import {
+  resolveRegistrationConsentFloor,
+  type ResidenceCountrySelection,
+} from "@/lib/auth/residence-jurisdiction";
 import {
   emptyConsentSelections,
   allRequiredAcksChecked,
@@ -120,9 +124,14 @@ export interface UseSignUpForm {
   setPassword: (value: string) => void;
   birthDate: string;
   setBirthDate: (value: string) => void;
+  residenceCountry: ResidenceCountrySelection | null;
+  setResidenceCountry: (value: ResidenceCountrySelection) => void;
   consent: ConsentSelections;
   setConsent: (next: ConsentSelections) => void;
   // derived
+  residenceRequired: boolean;
+  residenceReady: boolean;
+  minConsentAge: number;
   isMinorAge: boolean;
   canSubmit: boolean;
   oauthSubmitting: boolean;
@@ -152,6 +161,8 @@ export function useSignUpForm(): UseSignUpForm {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [birthDate, setBirthDate] = useState("");
+  const [residenceCountry, setResidenceCountry] =
+    useState<ResidenceCountrySelection | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [oauthSubmitting, setOauthSubmitting] = useState(false);
   // Judge accounts (C6) get a 900ms welcome toast before entering; this flag
@@ -179,6 +190,17 @@ export function useSignUpForm(): UseSignUpForm {
   const actionLockRef = useRef<SignUpActionLock>(createSignUpActionLock());
   const mountedRef = useRef(true);
   const judgeRouteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const detectedConsentFloor = useMemo(() => resolveJurisdiction(), []);
+  const residenceRequired = detectedConsentFloor.source === "region-unreadable";
+  const registrationConsentFloor = useMemo(
+    () => resolveRegistrationConsentFloor(residenceCountry, detectedConsentFloor),
+    [detectedConsentFloor, residenceCountry],
+  );
+  const residenceReady = registrationConsentFloor !== null;
+  // Before the required choice, keep the conservative unreadable-region value
+  // in copy while submission remains closed. A selected row then repaints the
+  // DOB copy and gate with that row's exact effective age.
+  const minConsentAge = digitalConsentAge(registrationConsentFloor ?? detectedConsentFloor);
 
   useEffect(() => {
     // The confirm-email state is the screen's current status, not a transient
@@ -250,16 +272,17 @@ export function useSignUpForm(): UseSignUpForm {
     return () => sub.remove();
   }, []);
 
-  // A valid DOB in the 14-17 band drives the high-privacy notice variant and
+  // A valid DOB between the applied floor and 17 drives the high-privacy notice variant and
   // the minor_self consent band.
   const age = ageInYears(birthDate);
-  const isMinorAge = age >= MIN_SELF_CONSENT_AGE && age < ADULT_AGE;
+  const isMinorAge = age >= minConsentAge && age < ADULT_AGE;
 
   const canSubmit = useMemo(() => {
     return (
       email.includes("@") &&
       password.length >= 8 &&
-      ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE &&
+      residenceReady &&
+      ageInYears(birthDate) >= minConsentAge &&
       allRequiredAcksChecked(consent) &&
       !loading &&
       !userId &&
@@ -279,6 +302,8 @@ export function useSignUpForm(): UseSignUpForm {
     loading,
     oauthSubmitting,
     password,
+    residenceReady,
+    minConsentAge,
     submitting,
     userId,
   ]);
@@ -309,7 +334,15 @@ export function useSignUpForm(): UseSignUpForm {
     setExistingAccountHelp(false);
     try {
       const result = await submitSignUp({
-        signUp: () => signUpWithEmail({ email: email.trim(), password, birthDate, locale, consent }),
+        signUp: () =>
+          signUpWithEmail({
+            email: email.trim(),
+            password,
+            birthDate,
+            locale,
+            residenceCountry,
+            consent,
+          }),
         // Record the consent the user just gave. Awaited BEFORE navigating: on
         // web a router.replace tears down the page and cancels an in-flight
         // fire-and-forget request, which could silently drop the PIPA consent
@@ -349,7 +382,7 @@ export function useSignUpForm(): UseSignUpForm {
         return;
       }
       if (result.kind === "ageGate") {
-        setToast({ tone: "danger", message: t("errors.ageGate") });
+        setToast({ tone: "danger", message: t("errors.ageGate", { minAge: minConsentAge }) });
         return;
       }
       if (result.kind === "breachedPassword") {
@@ -369,7 +402,19 @@ export function useSignUpForm(): UseSignUpForm {
       releaseSignUpAction(actionLockRef.current, "email", owner);
       if (current && mountedRef.current) setSubmitting(false);
     }
-  }, [birthDate, canSubmit, consent, email, isMinorAge, locale, password, refresh, t]);
+  }, [
+    birthDate,
+    canSubmit,
+    consent,
+    email,
+    isMinorAge,
+    locale,
+    minConsentAge,
+    password,
+    refresh,
+    residenceCountry,
+    t,
+  ]);
 
   // Verifies the mailed 6-digit confirmation code (verifySignUpCode). Success
   // establishes the session server-side; refresh() settles the context (the
@@ -517,8 +562,13 @@ export function useSignUpForm(): UseSignUpForm {
     setPassword,
     birthDate,
     setBirthDate,
+    residenceCountry,
+    setResidenceCountry,
     consent,
     setConsent,
+    residenceRequired,
+    residenceReady,
+    minConsentAge,
     isMinorAge,
     canSubmit,
     oauthSubmitting,
