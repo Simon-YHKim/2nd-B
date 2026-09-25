@@ -33,7 +33,7 @@
 - 22:56:34 KST, 기준 `ed2e54c8`. 검토 브랜치 `fix/qa-harness-integrated-260925`,
   워크트리 `E:/2ndB/.worktrees/qa-harness-integrated-260925`. Observatory 원본과 보완
   작업트리를 SHA-256 snapshot으로 보존한 뒤 통합했다. 원래 작업트리는 유지한다.
-- `npm run verify`: **806 suites / 10,323 tests PASS**, UI 계약 76개, cycle 0.
+- `npm run verify`: **806 suites / 10,324 tests PASS**, UI 계약 76개, cycle 0.
   lint는 오류 0·경고 71개다. `verify:web` **127개 문서 PASS**, Edge 공통 코드 타입 PASS.
   첫 전체 실행에서 낡은 AST 테스트 호스트 11건이 실패했으며 새 lease/session 연결로
   고친 뒤 전체 재실행이 통과했다. 실패 로그도 보존했다.
@@ -43,6 +43,8 @@
 - 담은 대화 본문 누락, 자동 저장 철회·소급 저장, Polaris 승인 덮어쓰기·근거 불일치·
   원본 삭제 경합을 수정했다. Paddle 환경/DB/가격/계정/CSP, GA4 동의·성공 시점,
   광고 SSV·플랫폼 단위, 처리방침/email-v4 가입 계약을 통합했다. 로컬 실제 SQL 통과.
+- [Draft PR #1865](https://github.com/Simon-YHKim/2nd-B/pull/1865)에 커밋·push했다.
+  서버 선행 조건 때문에 Draft를 유지하며 병합·운영 배포는 실행하지 않았다.
 - **운영 적용 전이다.** 신규 가입 status RPC는 현재 서버에 없어 게시가 차단된다.
   Polaris와 가입 SQL은 미번호 draft다. DB·Edge·기능 활성화는 콘솔 소유이며,
   [서버 선행 순서](SESSION-OWNERSHIP.md)를 마치기 전 병합하지 않는다.

@@ -1161,10 +1161,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Account deletion, Paddle, peer-response, and rewarded SSV drafts
-          # are applied by their behavioral regression lanes. Consent, Naver,
-          # and RSS have no separate SQL fixture, so execute every statement
-          # against the scratch schema and roll it back before the next draft.
+          # Other drafts have behavioral lanes. Execute these against the main
+          # scratch schema and roll back each draft together with its prerequisite;
+          # the signup lane's separate database cannot supply this dependency.
           drafts=(
             db/migration-drafts/UNNUMBERED_effective_llm_consent_current_contract.sql
             db/migration-drafts/UNNUMBERED_oauth_naver_rate_limit_completion.sql
@@ -1172,9 +1171,14 @@ jobs:
           )
 
           for draft in "${drafts[@]}"; do
+            prerequisite_sql=""
+            if [[ "$draft" == "db/migration-drafts/UNNUMBERED_effective_llm_consent_current_contract.sql" ]]; then
+              prerequisite_sql='\i db/migration-drafts/UNNUMBERED_signup_consent_admob_20260925.sql'
+            fi
             echo "Dry-running $draft"
             psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 <<SQL
           BEGIN;
+          $prerequisite_sql
           \i $draft
           ROLLBACK;
           SQL

@@ -67,6 +67,17 @@ describe("scratch PostgreSQL coverage for inactive security drafts", () => {
     expect(step).toMatch(/psql -X[\s\S]*BEGIN;[\s\S]*\\i \$draft[\s\S]*ROLLBACK;/);
   });
 
+  test("applies the effective-consent prerequisite only inside its rollback transaction", () => {
+    const step = workflow.slice(
+      workflow.indexOf("- name: Dry-run standalone security migration drafts"),
+      workflow.indexOf("- name: Exercise content-erasure RPC isolation"),
+    );
+    expect(step).toMatch(/for draft in "\$\{drafts\[@\]\}"; do\s+prerequisite_sql=""/);
+    expect(step).toMatch(/if \[\[ "\$draft" == "db\/migration-drafts\/UNNUMBERED_effective_llm_consent_current_contract\.sql" \]\]; then\s+prerequisite_sql='\\i db\/migration-drafts\/UNNUMBERED_signup_consent_admob_20260925\.sql'\s+fi/);
+    expect(step).toMatch(/<<SQL\s+BEGIN;\s+\$prerequisite_sql\s+\\i \$draft\s+ROLLBACK;\s+SQL/);
+    expect(step).not.toMatch(/\bCOMMIT\s*;/);
+  });
+
   test.each(Object.entries(behaviorDrafts))(
     "executes %s from its behavioral scratch lane",
     (draft, { runner, workflowInvocation }) => {

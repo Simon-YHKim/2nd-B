@@ -13,7 +13,7 @@ does not establish end-to-end completion or production rollout.
 | Paddle sandbox | Fixed environment, isolated DB, checkout/price/binding/refund separation, signed event and rejection tests | Fixed deployment environment, DB/price/binding scope and browser CSP implemented. Billing 17 suites / 507 tests and CSP 23 tests pass; real sandbox payment and DB canaries remain. |
 | GA4 conversion | Actual success timing, settled consent, account/revocation fences, approved fields and transaction deduplication | Implemented; 36 suites / 535 tests pass after account and unresolved-profile review fixes. No production analytics delivery asserted. |
 | Privacy revision | Accurate source document, generated surfaces, new consent revision and compatible server tuple, migration regression | 2026-09-25 policy + email-v4 revision and backward-compatible SQL draft implemented. Real local SQL tests pass; old consent is not rewritten. Production status RPC is absent, so release is gated. |
-| Integration and delivery | Preserved source changes, a reviewable integrated branch, full verify and web export, concrete PR/release evidence | Snapshots imported without conflicts into fix/qa-harness-integrated-260925 on ed2e54c8. Full verify passes (806 suites / 10,323 tests); web export passes (127 documents). Reviewed commit and draft PR delivery are next. |
+| Integration and delivery | Preserved source changes, a reviewable integrated branch, full verify and web export, concrete PR/release evidence | Snapshots imported without conflicts into fix/qa-harness-integrated-260925 on ed2e54c8. Full verify passes (806 suites / 10,324 tests); web export passes (127 documents). Committed and pushed as [Draft PR #1865](https://github.com/Simon-YHKim/2nd-B/pull/1865); server prerequisites block merge. |
 | Operating state | Reviewed migration/Edge/client sequence, observed deployed contracts, canary and rollback criteria | Production untouched. No local test substitutes for operating evidence. |
 
 ## Work ownership
@@ -128,7 +128,7 @@ Local build-only web exports remain available before server rollout.
 
 ## Final integrated verification
 
-- `npm run verify`: exit 0, 806 suites / 10,323 tests, 76 UI contract checks,
+- `npm run verify`: exit 0, 806 suites / 10,324 tests, 76 UI contract checks,
   zero runtime require cycles. ESLint reports 71 warnings and zero errors;
   canonical data validation reports 16 existing icon fallback warnings.
 - `npm run verify:web`: exit 0, 127 Expo documents pass emitted CSP checks.
@@ -152,3 +152,31 @@ Local build-only web exports remain available before server rollout.
   headless Chrome checks pass with loaded font, no overflow and no page errors.
 - Complete logs: integration worktree `Output/integration-260925/`. First
   failed run is preserved separately from `verify-final.log`.
+
+## Concurrent GUI source after the integration cutoff
+
+A post-PR read-only comparison found later Observatory camera-remote and
+star-photography work after the captured snapshot (same original HEAD, new
+uncommitted deltas). CAMERA-REMOTE-260925-PLAN reports its own 793-suite pass;
+STAR-PHOTO-260925-PLAN describes a further active sequence. Those are separate
+GUI revisions, not evidence for this PR. Their source was preserved in the
+original worktree; this PR represents the frozen snapshot recorded above.
+Coordinate that owner's final snapshot before a later GUI merge and recheck
+StarDestination/TelescopeControls/ConstellationHome rather than overwriting
+either worktree. Current fixes and server rollout dependencies remain here.
+
+## Remote SQL dependency correction
+
+The initial PR checks on 69f21772 passed verify (806 / 10,323) and web export.
+SQL dry-run failed because the standalone effective-consent draft expects
+email-v4, while its main scratch DB still had 0150. The separate signup fixture
+database correctly passed but could not supply that dependency.
+
+The workflow now applies the signup prerequisite only inside that draft's
+BEGIN/ROLLBACK transaction and clears the per-iteration prerequisite. Actual
+local PostgreSQL reproduced the original failure, then passed the combined
+application and confirmed rollback restored v3 with no v4/status/effective
+contract left behind. Thirteen draft-wiring tests and shell/YAML checks pass.
+Final `npm run verify` after this correction: exit 0, 806 suites / 10,324 tests.
+See `Output/integration-260925/verify-ci-fix.log`; the first successful run and
+the remote failure logs are preserved alongside it. Remote rerun is required.
