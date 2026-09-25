@@ -28,22 +28,22 @@
 **⚠ `HANDOFF-2026-09.md`(p1)는 92KB 로 찼다 — 09 월 블록은 `-p2` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-26 / 서버 인계·웹 QA
+## Latest — 2026-09-26 / 잔여 검증·운영 인계
 
-[실제 Deno 14개 통과](qa/EDGE-RUNTIME-260926.md). [최신 서버 인계](qa/SERVER-FIRST-1865-260926-REV2.md). [웹 QA](qa/WEB-RESUME-260926.html) 로그인 수정 확인. [Android APK](qa/ANDROID-AUDIO-RUNTIME-260926.md) 빌드·설치 PASS/실행 미검증. Grok 보류.
+[잔여 작업·운영 감사](qa/REMAINING-WORK-260926.html). PR #1865 CI·첫 기록 브라우저 PASS. 운영 계약 미적용·전체 DB 리허설 미실행·Android 앱 실행 미검증. Grok 보류.
 
 ## 2026-09-26 / 관측소 녹음 오디오
 
 - 녹음 효과음·로드 대기·중단·셔터 사전 준비를 통합했다.
 - [검증과 재현](qa/AUDIO-INTEGRATION-260926.md). 운영 미적용·Grok 보류.
 
-## Latest — 2026-09-26 / 삭제 등록부 후속 승격 보완
+## 2026-09-26 / 삭제 등록부 후속 승격 보완
 
 - 새 표 4개의 분류와 registry-only 초안, 역사 0189를 보존하는 G7을 추가했다.
 - 실제 SQL 및 70표 정적 승격 검증 통과. 전체 catalog·CLI 왕복은 실제 승격 후 확인한다.
 - [승격 절차](qa/ERASURE-FORWARD-260926.md). 서버 승인 유지·Grok 보류·운영 미적용.
 
-## Latest — 2026-09-26 / 재동의·철회 화면과 서버 계약 구현
+## 2026-09-26 / 재동의·철회 화면과 서버 계약 구현
 
 - 같은 PR #1865에 서비스 동의 writer/status/coverage, `/service-consent` 화면,
   collect/enforce 및 동의 오류의 provider 재시도 차단을 구현했다.

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>2ndB PR #1865 잔여 작업과 운영 인계 · 2026-09-26</title>
+<style>
+:root{color-scheme:light dark;--bg:#f8fafc;--text:#18243a;--muted:#526179;--accent:#285dbb}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 system-ui,sans-serif}main{max-width:980px;margin:auto;padding:28px 20px 56px}h1{font-size:1.8rem;line-height:1.28}h2{font-size:1.25rem;margin-top:30px}.muted,small{color:var(--muted)}.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.card,details{border:1px solid var(--muted);border-radius:9px;padding:15px}.card strong{display:block;font-size:1.25rem;color:var(--accent)}table{width:100%;border-collapse:collapse}th,td{padding:10px 8px;text-align:left;vertical-align:top;border-bottom:1px solid var(--muted)}th{font-weight:650}a{color:var(--accent)}code{overflow-wrap:anywhere}summary{cursor:pointer;font-weight:650}:focus-visible{outline:3px solid var(--accent);outline-offset:3px}svg{display:block;max-width:100%;height:auto}@media(prefers-color-scheme:dark){:root{--bg:#111827;--text:#e5ecf8;--muted:#aab9d0;--accent:#9abfff}}@media(max-width:640px){.cards{grid-template-columns:1fr}th,td{padding:8px 4px}}
+</style></head><body><main>
+<p class="muted">2ndB · 2026-09-26 04:13:43 KST · 코딩 세션 기록</p>
+<h1>PR #1865는 코드 검증을 통과했고 운영 서버 적용을 기다립니다</h1>
+<p>웹 첫 기록 안내의 실제 브라우저 흐름을 보완 검증했습니다. 운영 Supabase는 읽기 전용으로 확인했으며, 새 서버 계약은 아직 없습니다. Draft PR과 클라이언트 공개는 서버 검증 전 상태로 유지합니다.</p>
+<section class="cards" aria-label="핵심 상태">
+<div class="card"><strong>4 / 4 PASS</strong>PR #1865 원격 CI: lint·verify·SQL·web export</div>
+<div class="card"><strong>브라우저 PASS</strong>첫 기록 3/4 → 4/4 → 완료 → 홈, 재등장 없음</div>
+<div class="card"><strong>운영 미적용</strong>가입 RPC 404 · service-consent 함수 없음</div>
+</section>
+<h2>이번 확인</h2>
+<table><thead><tr><th scope="col">대상</th><th scope="col">증거와 해석</th></tr></thead><tbody>
+<tr><th scope="row">첫 기록 GUI</th><td>Microsoft Edge, 425×812, reduced motion, QA 로그인. 메모 입력 3/4 → 담기로 가기 4/4 → 담기 → 완료 → 별자리로 가기. 첫날 TTFV가 한 번 끼어든 후 홈 도착. <code>coachmarks.home.v1.seenAt</code> 저장, 홈의 1/4 재등장 없음, 페이지 예외 0. <strong>기록 INSERT만 정확한 본문을 검사한 가짜 성공 응답</strong>으로 대체했고 <code>award_xp</code> 쓰기를 차단했습니다. 운영 DB 지속성은 증명하지 않습니다. 로컬 증거: <code>Output/web-resume-260926/coach-save-results.json</code> 및 <code>screenshots/coach-save-*.png</code>.</td></tr>
+<tr><th scope="row">통합 코드</th><td>소스 HEAD <code>164cfadef65daa6786e5b98d62d61edec5458511</code>. 로컬 전체 <code>npm run verify -- --runInBand</code> 818 suites / 10,682 tests PASS. 동일 HEAD 원격 lint·verify·SQL·web export PASS. 102개 원본 Git blob과 Edge 진입점 11개의 서버 소스 목록은 <a href="SERVER-FIRST-1865-260926-REV2.md">고정 인계서</a>에 있습니다.</td></tr>
+<tr><th scope="row">운영 Supabase</th><td>인증된 커넥터로 조회만 수행. Migration 원장 148건, 마지막 <code>0150_signup_consent_contract_20260902</code>; 새 0172/0177/0189/0190 및 후속 초안 적용 기록 없음. Edge 15개 중 <code>service-consent</code> 없음, <code>rewarded-ssv</code> v86. 신규 표와 <code>signup_consent_contract_status</code> 등 RPC 부재. 공개 anon 조회에서 가입 RPC HTTP 404 재확인. 시크릿·플래그의 존재는 이 도구로 확인할 수 없었습니다.</td></tr>
+<tr><th scope="row">DB 리허설</th><td>173개 역사 SQL과 8개 번호 미확정 초안의 통합 적용·CLI ledger·rollback 왕복은 <strong>실행하지 못했습니다</strong>. 로컬 PostgreSQL 18에 필수 pgvector가 없고 Supabase CLI 및 실행 중 Docker daemon도 없었습니다. 기존 70표 결과는 정적 projection이며 실제 DB 검증이 아닙니다. 로컬 진단: <code>Output/local-migration-rehearsal-260926/assessment.json</code>.</td></tr>
+<tr><th scope="row">Android</th><td>오프라인 x86_64 APK 빌드 818 tasks, 설치·AVD 부팅 PASS. 앱 로그인·카메라·오디오 실행은 미검증. 당시 Metro 상태 조회와 dev-client 재실행이 자동 승인 검토에서 <code>blocked by policy</code>로 거절됐고 상세 사유는 제공되지 않았습니다. <a href="ANDROID-AUDIO-RUNTIME-260926.md">별도 기록</a>.</td></tr>
+</tbody></table>
+<h2>서버 선행 적용의 순서</h2>
+<svg viewBox="0 0 900 128" role="img" aria-label="콘솔 담당 수락, 운영 읽기 감사, 번호 예약과 격리 클론, 기능 OFF 및 drain, DB와 Edge 적용, 제한 canary, 클라이언트 게시 순서">
+<g fill="none" stroke="currentColor" stroke-width="2"><path d="M117 58h22m102 0h22m102 0h22m102 0h22m102 0h22m102 0h22"/></g>
+<g fill="var(--bg)" stroke="var(--accent)" stroke-width="2"><rect x="3" y="29" width="114" height="58" rx="8"/><rect x="139" y="29" width="102" height="58" rx="8"/><rect x="263" y="29" width="102" height="58" rx="8"/><rect x="387" y="29" width="102" height="58" rx="8"/><rect x="511" y="29" width="102" height="58" rx="8"/><rect x="635" y="29" width="102" height="58" rx="8"/><rect x="759" y="29" width="135" height="58" rx="8"/></g>
+<g fill="var(--text)" text-anchor="middle" font-size="14"><text x="60" y="54">콘솔 담당</text><text x="60" y="72">수락</text><text x="190" y="54">운영 원장</text><text x="190" y="72">읽기 감사</text><text x="314" y="54">번호·clone</text><text x="314" y="72">검증</text><text x="438" y="54">OFF·drain</text><text x="562" y="54">DB·Edge</text><text x="686" y="54">제한 canary</text><text x="826" y="54">게시 가드</text><text x="826" y="72">통과 후 공개</text></g></svg>
+<p>서버 선행 적용은 사용자가 승인했습니다. <a href="../SESSION-OWNERSHIP.md">SESSION-OWNERSHIP</a>에 따라 운영 DB·Edge·시크릿·플래그는 별도 콘솔 세션 소유입니다. 이 세션은 콘솔 담당 수락을 확인하지 못했고 운영 쓰기를 하지 않았습니다. 초안 8개는 번호 예약과 <code>db/erasure-registry.json</code> forward additions 및 <code>rollback/0189_down.sql</code>의 registry-only 반영 전이므로 현재 HEAD 그대로 전체 ledger 왕복을 통과한다고 주장할 수 없습니다.</p>
+<details><summary>남은 작업과 완료 조건</summary>
+<ol>
+<li><strong>콘솔 담당:</strong> 원장·함수 서명/ACL·표·Edge 버전·설정 존재를 운영에서 읽고 번호를 예약한다. 격리 clone에서 통합 SQL·등록부·rollback·CLI ledger 왕복을 통과시킨다.</li>
+<li><strong>콘솔 담당:</strong> Reward/Paddle을 기능별 OFF·drain한 뒤 DB와 고정 소스 Edge를 적용한다. 서비스 동의 collect coverage와 canary, Paddle sandbox, Reward SSV 검증 후에만 해당 기능을 연다.</li>
+<li><strong>코딩 세션:</strong> 가입 RPC와 이메일 확인의 정확한 게시 가드, 서버 coverage/canary 확인 뒤 클라이언트 공개를 결정한다. 실제 Android 로그인·카메라·오디오, 실모델 인용 품질, GA4 전송도 남는다.</li>
+<li><strong>Grok 후속:</strong> 이전 사용자 보류 지시를 유지하고 별도 재개 답변을 기다린다. 기존 전달 영수증의 nonce를 중복 전송하지 않는다.</li>
+</ol></details>
+<p><a href="WEB-RESUME-260926.html">웹 전체 QA</a> · <a href="SERVER-FIRST-1865-260926-REV2.md">서버 인계</a> · <a href="https://github.com/Simon-YHKim/2nd-B/pull/1865">Draft PR #1865</a></p>
+</main></body></html>
