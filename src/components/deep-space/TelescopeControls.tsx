@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, AppState, PanResponder, Platform, StyleSheet, Text, View } from 'react-native';
+import { Animated, AppState, PanResponder, Platform, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import Svg, { Rect } from 'react-native-svg';
@@ -17,6 +17,10 @@ const STICK_SIZE = 64;
 const THUMB_SIZE = 28;
 const TRAVEL = (STICK_SIZE - THUMB_SIZE) / 2;
 const DEFAULT_STOPS = [1, 2, 3, 5];
+// React Native Web accepts these CSS properties; native ViewStyle omits them.
+const WEB_GESTURE_STYLE: ViewStyle & { userSelect: 'none'; touchAction: 'none' } = {
+  userSelect: 'none', touchAction: 'none',
+};
 type KeyEvent = { key: string; preventDefault: () => void };
 
 /** PTZ input: zoom is absolute position; the spring stick commands velocity. */
@@ -120,7 +124,7 @@ export function TelescopeControls({ zoom, minZoom, maxZoom, zoomStops = DEFAULT_
   };
   const major = [...new Set([minZoom, ...zoomStops.filter(value => value > minZoom && value < maxZoom), maxZoom])].sort((a, b) => a - b);
   return (
-    <View style={[styles.root, Platform.OS === 'web' && { userSelect: 'none', touchAction: 'none' }]} accessibilityLabel={t('telescope.label')} testID="telescope-remote">
+    <View style={[styles.root, Platform.OS === 'web' && WEB_GESTURE_STYLE]} accessibilityLabel={t('telescope.label')} testID="telescope-remote">
       <View style={styles.direction}>
         <View {...stick.panHandlers} style={styles.joystick} testID="telescope-joystick"
           accessible accessibilityRole="adjustable" accessibilityLabel={t('telescope.joystick')} accessibilityHint={t('telescope.joystickHint')}

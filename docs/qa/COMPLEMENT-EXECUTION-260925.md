@@ -261,3 +261,31 @@ separate gates. Logs are in `Output/integration-260925/gui-*.log`,
 - `npm run verify:web`: 127 documents PASS (`followup-web.log`). Android
   Hermes export exit 0 (`followup-android.log`); actual Deno/device checks remain
   unperformed. The final source is ready for a new remote CI run on the PR.
+
+
+### Remote CI portability correction
+
+The pushed `4e90bc81` passed SQL CI. Its verify job rejected an inline web-only
+`userSelect` property in native `ViewStyle`, although the local shared-module
+checkout passed TypeScript. Replaced the inline object with an explicitly
+intersected native/web style type, still applied only on web; CSS values and
+interaction behavior are unchanged. No dependency/type suppression was added.
+The failed job log is preserved as `followup-ci-verify-job.log`. A full local
+portable-style rerun and new-head remote CI are required before calling this
+correction verified; the prior local pass is not the remote result.
+
+
+The root cause is generated `expo-env.d.ts`: local Expo exports create this
+ignored file, which loads Expo's React Native Web declaration augmentation;
+the CI verify checkout has not generated it. A separate TypeScript Program
+excluded that declaration and reproduced TS2769 with the original component,
+then returned zero diagnostics with the explicit web/native intersection.
+Evidence: `Output/integration-260925/native-style-typecheck.log` (before/after).
+The generated file, shared dependencies and compiler gates were not changed.
+
+
+Final portable-style `npm run verify -- --runInBand` rerun: **810 suites /
+10,414 tests PASS**, exit 0, completed 2026-09-26 KST. Log:
+`Output/integration-260925/followup-verify-portable.log`. Web/Android/browser
+behavior was verified before this type-only correction; new-head CI remains
+the source of truth for the clean Linux checkout.
