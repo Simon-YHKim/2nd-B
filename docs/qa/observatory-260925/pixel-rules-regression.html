@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Observatory 픽셀 규칙 회귀 수정</title>
+<style>
+:root{--text:#1a2430;--muted:#516170;--accent:#005da8;color-scheme:light dark}body{font:16px/1.65 system-ui,sans-serif;color:var(--text);background:Canvas;max-width:850px;margin:32px auto;padding:0 20px}h1{font-size:1.6rem}article,details{border:1px solid var(--muted);padding:16px;margin:16px 0}summary{cursor:pointer;color:var(--accent);font-weight:700}summary:focus-visible{outline:3px solid var(--accent);outline-offset:5px}small{color:var(--muted)}svg{width:100%;max-width:620px;height:auto}text{fill:var(--text);font:16px system-ui}rect,line{stroke:var(--accent);fill:none;stroke-width:2}code{overflow-wrap:anywhere}@media(prefers-color-scheme:dark){:root{--text:#e2e9f0;--muted:#a1b2c1;--accent:#79c3ff}}
+</style>
+<main>
+<h1>Observatory 픽셀 규칙 회귀 수정</h1>
+<small>2026-09-25 18:49:09 KST · 로컬 검증 · 배포 없음</small>
+<article aria-label="결과 요약">원본 대비 신규 위반 4건 해결. 검사 <strong>146 PASS</strong>, 관련 테스트 <strong>28 PASS</strong>, 수정 파일 ESLint PASS. baseline 및 원본 워크트리 변경 없음.</article>
+<svg viewBox="0 0 620 90" role="img" aria-label="원본 146건에서 신규 4건으로 150건이 되었고 수정 후 146건으로 복귀했다">
+<rect x="2" y="10" width="170" height="60"/><text x="26" y="47">원본 146 PASS</text>
+<line x1="172" y1="40" x2="224" y2="40"/><text x="183" y="28">+4</text>
+<rect x="224" y="10" width="170" height="60"/><text x="244" y="47">수정 전 150 FAIL</text>
+<line x1="394" y1="40" x2="446" y2="40"/><text x="405" y="28">−4</text>
+<rect x="446" y="10" width="170" height="60"/><text x="465" y="47">수정 후 146 PASS</text>
+</svg>
+<details><summary>원인과 최소 수정</summary>
+<p><code>PIXEL_RULES_LIST=1</code>의 파일별 집계를 원본 <code>localhost-260921-287e56f1</code>과 비교했다. 다른 파일별 집계 차이는 없었다.</p>
+<ul><li><code>StarDestination.tsx</code>: Easing.inOut·Easing.cubic 2건을 기존 <code>pixelStepsFor(duration)</code>으로 교체했다. 확대 440ms/복귀 320ms 및 모션 줄이기 0ms를 유지한다. 각각 11/8단계, 단계당 40ms다.</li>
+<li>같은 화면의 Galmuri 이름 18px를 native 2배인 24px로 변경하고 lineHeight를 30으로 맞췄다.</li>
+<li><code>TelescopeControls.tsx</code>의 GalmuriMono 화살표 20px를 24px로 변경했다. 다른 담당자가 작업하는 audio hook은 수정하지 않았다.</li></ul>
+</details>
+<details><summary>검증 증거와 미검증 경계</summary>
+<p>신규 <code>observatory-pixel-rules.test.ts</code> 3개가 수정 전 실패하고 수정 후 통과했다. constellation-polaris-dominance, telescope-controls, pixel-steps를 포함한 4 suites/28 tests가 통과했다.</p>
+<p><code>npm run check:pixel-rules</code>: 곡선 도형 0, 래칫 146 PASS. 변경 파일 ESLint PASS. <code>scripts/check-pixel-rules.ts</code> diff 없음.</p>
+<p>브라우저와 서버는 root 담당자 소유이므로 조작하지 않았다. 수정 후 확대 애니메이션·글자 크기의 시각 확인과 native 기기 검증은 이 보고서의 검증 범위 밖이다.</p>
+</details>
+</main>
+</html>

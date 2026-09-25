@@ -5,6 +5,8 @@
   "private": true,
   "scripts": {
     "postinstall": "patch-package --error-on-warn",
+    "eas-build-pre-install": "node scripts/check-signup-consent-deployment.cjs --eas-build",
+    "check:signup-deployment": "node scripts/check-signup-consent-deployment.cjs",
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",

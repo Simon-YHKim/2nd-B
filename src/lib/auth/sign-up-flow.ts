@@ -43,6 +43,8 @@ export interface SignUpFlowDeps {
    *  (true: the row was just inserted) before any navigation decision reads
    *  it. Skipping this is exactly the E2E-4 bounce. */
   refreshAuth: () => Promise<void>;
+  /** Optional observation after successful entry; never participates in auth. */
+  onEntered?: (created: boolean, userId: string) => void;
   /** Error discriminators, injectable so tests need no real error classes. */
   isAgeGateError: (e: unknown) => boolean;
   isBreachedPasswordError: (e: unknown) => boolean;
@@ -94,6 +96,7 @@ export async function submitSignUp(deps: SignUpFlowDeps): Promise<SignUpSubmitRe
     // /complete-profile, whose own submit re-refreshes — the dead-end cannot
     // reproduce.)
     await deps.refreshAuth();
+    try { deps.onEntered?.(result.created, result.userId); } catch { /* observation cannot block entry */ }
     return { kind: "entered", judgeMode: result.judgeMode, consentRecorded };
   } catch (e) {
     if (deps.isAgeGateError(e)) return { kind: "ageGate" };

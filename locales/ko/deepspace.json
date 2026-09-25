@@ -1,4 +1,16 @@
 {
+  "telescope": {
+    "label": "망원경 조작",
+    "up": "망원경 위로",
+    "down": "망원경 아래로",
+    "left": "망원경 왼쪽으로",
+    "right": "망원경 오른쪽으로",
+    "reset": "전체 별자리로 돌아가기",
+    "dial": "배율 다이얼",
+    "hint": "다이얼을 돌리거나 확대, 축소 버튼을 누르세요.",
+    "phone": "내 대시보드 열기",
+    "phoneLabel": "내 폰"
+  },
   "time": {
     "today": "오늘",
     "yesterday": "어제",
@@ -139,7 +151,7 @@
   },
   "auth": {
     "appName": "2nd-Brain",
-    "signInLead": "기록을 모아 나를 알아가고, 세컨비와 이야기해 보세요.",
+    "signInLead": "AI 시대의 자산은 나 자신. 기록이 쌓여 나의 북극성이 됩니다.",
     "signIn": "로그인",
     "createAccount": "계정 만들기",
     "signUpTitle": "시작하기",
@@ -159,8 +171,7 @@
     "or": "또는",
     "ageNotice": "만 {{minAge}}세 이상부터 가입할 수 있어요.",
     "brandLabel": "2ND-BRAIN",
-    "signInTitle": "2nd-Brain 로그인",
-    "signInEncrypt": "개인정보 설정은 언제든 바꿀 수 있어요.",
+    "signInTitle": "다시 만나 반갑습니다",
     "emailContinue": "이메일로 계속하기",
     "signUpPrompt": "처음이신가요?",
     "legalConsent": "계속하면 서비스 약관과 개인정보 처리방침에 동의하게 됩니다.",
@@ -689,14 +700,19 @@
     "starsFallback": "별 개수를 불러오지 못해 기본 개수로 표시했어요."
   },
   "coachmarks": {
-    "step1": "여기는 별자리예요",
-    "step2": "별을 눌러보세요",
-    "step3": "떠오르면 담기",
-    "step4": "설정에서 다른 도구도 볼 수 있어요",
+    "homeStep": "세컨비를 눌러 첫 기록을 시작해요.",
+    "formatStep": "먼저 메모를 선택해요. 한 줄이면 충분해요.",
+    "inputStep": "지금 떠오른 생각을 적어보세요. 완성된 문장일 필요는 없어요.",
+    "saveStep": "마지막으로 담기를 눌러 내 첫 기록을 남겨요.",
+    "doneStep": "첫 기록을 남겼어요. 이제 별자리로 돌아가 확인해요.",
+    "targetHint": "강조된 곳을 직접 눌러 다음 단계로 가요.",
+    "inputHint": "한 글자 이상 적으면 담기 단계로 갈 수 있어요.",
+    "doneHint": "저장 성공을 확인했어요.",
+    "inputReady": "담기로 가기",
+    "goHome": "별자리로 가기",
+    "doneCount": "완료",
     "secondbName": "세컨비",
-    "dontShowAgain": "다시 보지 않기",
-    "start": "시작하기",
-    "next": "다음"
+    "dontShowAgain": "다시 보지 않기"
   },
   "museum": {
     "title": "AI 뮤지엄",

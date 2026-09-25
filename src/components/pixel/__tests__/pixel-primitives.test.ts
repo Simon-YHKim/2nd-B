@@ -30,6 +30,15 @@ const FILES = [
   "press.ts",
 ];
 
+test("shared button forwards selection and toggle states to the web DOM", () => {
+  const src = read("PixelPressable.tsx");
+  for (const state of ["selected", "checked", "expanded", "busy"]) {
+    expect(src).toContain(`aria-${state}={accessibilityState?.${state}}`);
+  }
+  expect(src).toContain('aria-disabled={disabled}');
+  expect(src).toContain('accessibilityState={{ ...accessibilityState, disabled }}');
+});
+
 describe("절대 규칙이 프리미티브에 박혀 있다", () => {
   test.each(FILES)("%s 에 hex 리터럴이 없다 (규칙 7)", (f) => {
     expect(read(f)).not.toMatch(/#[0-9a-fA-F]{6}\b/);

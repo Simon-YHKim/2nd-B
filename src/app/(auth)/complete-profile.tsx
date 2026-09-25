@@ -26,6 +26,7 @@ import {
   type ResidenceCountrySelection,
 } from "@/lib/auth/residence-jurisdiction";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { observeAuthConversion } from "@/lib/analytics/auth-conversions";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRetry";
 import { ConsentNotice } from "@/components/consent/ConsentNotice";
@@ -190,6 +191,7 @@ function CompleteProfileBody() {
               // 도달하지 않는 분기지만 타입은 만족시켜야 하므로 "안 썼다"를 준다.
               Promise.resolve(false),
         refreshAuth: refresh,
+        onEntered: (created) => { if (userId) void observeAuthConversion(userId, created ? "sign_up" : "login"); },
         signOutUser: signOut,
         isAgeGateError: (e) => e instanceof AgeGateError,
         isEmailInUseError: (e) => e instanceof EmailInUseError,

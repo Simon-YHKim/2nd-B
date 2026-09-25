@@ -1,7 +1,7 @@
 // Global background-task dock (Claude Design loading.dc.html, D).
 // Mounted once in app/_layout. Visible only while a task runs in the background,
-// so the user keeps using the app uninterrupted: a rotating ring AROUND a small
-// breathing SecondB + "{task} · 백그라운드 · 약 Ns". Tap to collapse to just the
+// so the user keeps using the app uninterrupted: a rotating ring around the
+// shared North Star + "{task} · 백그라운드 · 약 Ns". Tap to collapse to just the
 // ring (the ▾ affordance is a real toggle, not a dead control). Non-blocking;
 // sits above the tab bar. Token-only, copy follows shipped locales.
 
@@ -16,7 +16,7 @@ import { useTranslation } from "react-i18next";
 import { deepSpace, deepSpaceSpacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { Text } from "@/components/ui/Text";
-import { SecondbHead } from "@/components/deepspace/SecondbHead";
+import { LoadingPolaris } from "@/components/deepspace/LoadingPolaris";
 import { useTaskStatus } from "@/lib/tasks/store";
 
 const BACKGROUND_DOCK_COPY = {
@@ -105,7 +105,7 @@ export function BackgroundTaskDock() {
               })()}
             </Svg>
           </Animated.View>
-          <SecondbHead size={18} mood="neutral" />
+          <LoadingPolaris size={18} accessibilityLabel={copy.label} />
         </View>
         {!collapsed ? (
           <>

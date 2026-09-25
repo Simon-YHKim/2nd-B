@@ -36,14 +36,14 @@
   },
   "menu": {
     "graph": "Graf",
-    "capture": "Simpan",
+    "capture": "Klip",
     "secondb": "SecondB",
     "profile": "Aku"
   },
   "ds": {
     "dock": {
       "home": "Beranda",
-      "capture": "Simpan",
+      "capture": "Klip",
       "chat": "SecondB",
       "ops": "Asisten",
       "account": "Aku",
@@ -116,14 +116,22 @@
       "bubble": {
         "introTag": "Perkenalan",
         "intro": "Halo, aku SecondB. Ketuk kepalaku untuk membuka pilihan.",
+        "tipTag": "Tips",
+        "tip1": "Ketuk bintang untuk melihat catatan dari bagian hidup itu.",
+        "tip2": "Gunakan Tambah di bilah bawah untuk menyimpan catatan baru.",
+        "tip3": "Bintang Utaramu merangkum catatan menjadi satu kalimat yang bisa kamu ubah.",
+        "next": "Berikutnya",
+        "openMenu": "Menu fitur",
         "menuTag": "SecondB",
         "menu": "Apa yang ingin kamu lakukan?",
         "travel": "Jelajahi",
         "later": "Nanti",
+        "returnToSky": "Kembali ke rasi bintang",
         "chatbot": "Chatbot",
         "assistant": "Asisten"
       },
       "star": {
+        "entryAfter": "Simpan catatan pertama di {{star}} untuk membuka bintang ini.",
         "career": {
           "line": "Apa yang sudah kamu bangun dan kumpulkan?"
         },
@@ -143,25 +151,25 @@
           "line": "Apa yang membuatku bisa beristirahat?"
         },
         "profile": {
-          "line": "Nama, tujuan, dan informasi tentang dirimu. Bintang makin terang saat profilmu makin lengkap."
+          "line": "Catat nama, tujuan, dan keseharianmu. Kedua jalur dimulai di sini."
         },
         "infancy": {
-          "line": "Ingatan paling awal. Satu sensasi saja sudah cukup untuk memulai."
+          "line": "Catat kenangan awal dan cerita orang lain tentang masa kecilmu."
         },
         "school": {
-          "line": "Usia 7 sampai 19. Ruang kelas, teman, dirimu saat itu."
+          "line": "Catat sekolah, teman, dan dirimu saat berusia 7 hingga 19 tahun."
         },
         "twenties": {
-          "line": "Pilihan-pilihan di usia dua puluhan. Apa yang kamu pegang, apa yang kamu lepas?"
+          "line": "Catat pilihan, hubungan, dan perubahanmu di usia dua puluhan."
         },
         "later": {
-          "line": "Tiga puluhan dan sesudahnya. Yang sudah mantap dan yang masih bergerak."
+          "line": "Catat keseharian, hubungan, dan perubahanmu sejak usia tiga puluhan."
         },
         "work": {
-          "line": "Kamu saat bekerja. Berapa pun usiamu, sosokmu di dalam pekerjaan."
+          "line": "Catat peran, kebiasaan, dan pengalamanmu saat bekerja."
         },
         "now": {
-          "line": "Kamu, sekarang. Ke mana pikiranmu belakangan ini?"
+          "line": "Catat minat, pilihan, dan hari-harimu saat ini."
         }
       },
       "museumEntry": "Museum AI",

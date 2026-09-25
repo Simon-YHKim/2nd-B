@@ -26,6 +26,7 @@ import {
 } from "./loop-check";
 import { INJECTION_GUARD, wrapUntrusted } from "../llm/untrusted";
 import { scaffoldQuestion, shouldScaffold } from "./stuck";
+import { answerDisposition, canCreditAnswer, currentScene } from "./continuity";
 
 /**
  * 인터뷰가 다루는 자리. **북두칠성 일곱 중 인터뷰가 있는 여섯과 1:1** 이다
@@ -75,6 +76,9 @@ export interface InterviewTurn {
   layer?: DrillLayer;
   /** Period this turn sits under. A turn can switch period when user changes focus. */
   period?: LifePeriod;
+  /** Session-only metadata, no change to stored transcript/schema. */
+  sceneStart?: boolean;
+  answered?: boolean;
 }
 
 /** A user's coverage across 25 cells (5 periods × 5 layers). Each cell is the
@@ -208,6 +212,7 @@ export function isPeriodComplete(c: Coverage, period: LifePeriod): boolean {
  */
 export type NextMove =
   | { kind: "drill"; layer: DrillLayer }
+  | { kind: "finish" }
   /** 사용자가 이 층을 못 답했다. **내려가지 않고** 같은 층을 더 쉬운
    *  각도로 다시 묻는다. 그 칸은 여전히 빈 칸이다(`stuck.ts`). */
   | { kind: "scaffold"; layer: DrillLayer }
@@ -223,7 +228,33 @@ export function nextMove(
   stuck: { layer: DrillLayer; streak: number } | null = null,
   /** 발판을 다 썼는데도 막혀서 더 묻지 않기로 한 층들. */
   abandoned: readonly DrillLayer[] = [],
+  thread?: { history: readonly InterviewTurn[]; locale: "en" | "ko"; concreteOnly?: boolean },
 ): NextMove {
+  if (thread) {
+    const scene = currentScene(thread.history);
+    const answers = scene.filter((turn) => turn.role === "user");
+    const last = answers[answers.length - 1];
+    // A refusal and exhausted scaffolds end questioning; empty cells are not a reason
+    // to revisit a declined topic. No obligation to reach all five layers.
+    if (last && answerDisposition(last.text, thread.locale) === "stop") return { kind: "finish" };
+    if (answers.length >= 8 || abandoned.length === DRILL_LAYERS.length) return { kind: "finish" };
+    if (stuck) return shouldScaffold(stuck.streak)
+      ? { kind: "scaffold", layer: stuck.layer }
+      : { kind: "finish" };
+    if (thread.concreteOnly) return answers.length >= 4
+      ? { kind: "finish" }
+      : { kind: "drill", layer: "fact" };
+    // Past sessions may have every cell filled. A new event still starts with its own
+    // scene, and follows its own answers. No cumulative coverage drives this path.
+    const sceneCoverage = emptyCoverage();
+    for (const turn of answers) {
+      if (turn.layer && turn.answered !== false && canCreditAnswer(turn.text, turn.layer, thread.locale)) {
+        sceneCoverage[period][turn.layer] += 1;
+      }
+    }
+    if (isPeriodComplete(sceneCoverage, period)) return { kind: "finish" };
+    return { kind: "drill", layer: nextLayerSuggestion(sceneCoverage, period, abandoned) };
+  }
   const loops = detectLoops(recentEntries, now);
   if (loops.length > 0) {
     // 문자 새 원소 비율이 가장 낮은 후보 하나를 선택한다. 의미나 위험의 순위가 아니다.
@@ -300,6 +331,8 @@ function buildSystemPrompt(
       "말투는 쉬운 일상어와 자연스러운 해요체를 씁니다. 상투적인 칭찬·공감이나 추상적인 비유 없이 바로 묻고, 층·단계 같은 내부 용어를 질문에 드러내지 마세요.",
       "비밀이나 말하기 불편한 일을 요구하지 마세요. 기억나지 않는 내용을 상상해서 채우게 하지 마세요. 직접 기억한 것과 나중에 들은 이야기를 구분하세요. 사용자가 답하지 않겠다고 하면 그 뜻을 존중하는 것이 깊이 단계보다 우선합니다.",
       "2) 사용자의 마지막 답에 직접 이어붙입니다 — 답의 어느 부분을 더 듣고 싶은지 명확히 합니다.",
+      "같은 장면의 사람·행동·사용자 표현을 이어갑니다. 질문에서 사용자의 '제가·나는' 같은 1인칭을 인터뷰어 자신의 말처럼 재사용하지 않습니다. 사용자 말로 명확히 인용하거나 주어를 생략합니다. 답에 없는 사건이나 속마음을 지어내지 않습니다. 짧아도 구체적인 답이면 충분합니다. 다른 장면으로 넘어가려면 사용자의 선택이 먼저입니다.",
+      "감정은 말하고 싶은 범위에서만 묻습니다. 숨겨진 진실·더 솔직한 답을 요구하거나 공개 정도를 칭찬하지 않습니다. 감정 대신 그때 한 행동을 이야기해도 되고, 건너뛰거나 여기서 저장해도 됩니다.",
       "3) 진단·조언·해석은 절대 하지 않습니다. 그저 더 듣는 다음 질문만.",
       "4) 사용자가 '그만' 같은 신호를 보내면, '여기서 멈춰도 좋아요'로 마무리합니다.",
       "5) 위기 신호(자해·자살·학대)가 보이면 즉시 한국 109(자살예방) 안내로 전환합니다.",
@@ -307,7 +340,7 @@ function buildSystemPrompt(
       // "방금 말한 것 중에서 가장 살아 있는 느낌은?" 을 L2 와 L3 에 똑같이 냈다.
       // 층을 내려가는 것이 이 기능의 전부인데 그러면 남는 것이 없다.
       "6) **이미 물어본 질문을 다시 하지 않습니다.** 위 기록에 있는 질문과 같은 뜻이면 다른 각도로 묻습니다.",
-      `7) 이번 질문은 반드시 **${layerLabel}** 을 겨냥합니다 — ${layerGuide[nextLayer]}. 앞 단계로 되돌아가지 않습니다.`,
+      `7) 이번 질문은 반드시 **${layerLabel}** 을 겨냥합니다 — ${layerGuide[nextLayer]}. 단, 답이 부족하면 같은 장면의 한 가지 구체적 내용만 확인하고 의미나 믿음을 앞서 단정하지 않습니다.`,
       ...(scaffold
         ? [
             // 8 은 실측 후 추가(2026-08-24). 사용자가 "잘 모르겠는데" 라고 했는데
@@ -351,11 +384,13 @@ function buildSystemPrompt(
     "Use plain, conversational language. Ask directly without canned praise, stock empathy, elaborate metaphors, or internal layer labels.",
     "Do not ask for secrets or uncomfortable disclosures. Do not ask the user to imagine missing memories. Distinguish direct memories from stories heard later. Respecting a choice not to answer takes priority over reaching a depth layer.",
     "2) Anchor directly on the user's last answer — make clear which part you want to hear more about.",
+    "Stay with the same scene, people, actions, and the user's own wording. In questions, do not reuse the user's first-person I/me as the interviewer's voice. Clearly quote it as the user's words, or refer to the user without taking over their first person. Do not invent events or hidden feelings. A short specific answer is sufficient. Change scenes only when the user chooses to.",
+    "Invite feelings only if they want to share. Never seek hidden truths, demand greater honesty, or praise disclosure. They may describe a concrete action instead, skip, or stop and save at any time.",
     "3) NEVER diagnose, advise, or interpret. Just the next question that elicits more.",
     "4) If the user signals 'stop' or 'enough', close warmly: 'It's okay to pause here.'",
     "5) If you detect crisis signals (self-harm, suicide, abuse), pivot immediately to US 988 hotline guidance.",
     "6) **Never repeat a question you already asked.** If the transcript above already covers it, come at it from a different angle.",
-    `7) This question MUST target **${layerLabel}** -- ${layerGuide[nextLayer]}. Do not fall back to an earlier layer.`,
+    `7) This question MUST target **${layerLabel}** -- ${layerGuide[nextLayer]}. If the scene is still unclear, ask for one concrete detail; do not assume a meaning or belief.`,
     ...(scaffold
       ? [
           "8) **The user just said they don't know.** Ask the SAME layer again from an easier angle. "
@@ -380,7 +415,7 @@ function buildSystemPrompt(
 // The transcript is stored user material — fence it (was raw until 2026-07-26).
 function buildUserPrompt(history: InterviewTurn[]): string {
   const transcript = history
-    .map((t) => (t.role === "interviewer" ? `Q: ${t.text}` : `A: ${t.text}`))
+    .map((t) => (t.role === "interviewer" ? `Q (${t.layer ?? "choice"}): ${t.text}` : `A (${t.layer ?? "choice"}): ${t.text}`))
     .join("\n");
   return wrapUntrusted("interview_transcript", transcript);
 }
@@ -404,13 +439,8 @@ export interface ProbeResult {
    * 직전 답이 **실제로** 어느 층에 닿았는지에 대한 모델의 판정. 닿은 데가 없으면
    * `null`. 직전 답이 아예 없으면 `undefined`.
    *
-   * ⚠ 이 값은 **깎는 데만 쓴다.** 3단계 프롬프트의 S1(분류)은 처음부터 있었는데
-   * 결과가 여기 안 실려서 버려지고 있었다(2026-08-24 실측). 되살리되 규율을 둔다 --
-   * 모델이 "닿았다"고 해도 그것만으로 칸을 채우지 않고, **"안 닿았다"고 할 때만**
-   * 결정론적 판정 위에 얹어 크레딧을 물린다.
-   *
-   * 이유: 밝기가 부풀면 거짓말이 되고 덜 차면 그냥 덜 찬 것이다. 모델에게 줄 수
-   * 있는 권한은 거부권까지다. `isNonAnswer`(결정론적)는 그대로 바닥으로 남는다.
+   * 화면은 결정론적 적합성과 이 판정이 모두 확인된 뒤에만 물었던 층을 더한다.
+   * 모델이 다른 층을 지목하거나 판정이 없으면 더하지 않는다. 저장 원문은 그대로다.
    */
   answeredLayer?: DrillLayer | null;
 }
@@ -443,7 +473,7 @@ export async function nextProbe(
     locale,
     purpose: "interview_probe",
     system: buildSystemPrompt(period, locale, layer, scaffoldStreak > 0, askedLayer),
-    user: buildUserPrompt(history),
+    user: buildUserPrompt(currentScene(history)),
     minor,
     responseSchema: PROBE_SCHEMA,
   });
@@ -535,8 +565,7 @@ function lastAskedLayer(history: readonly InterviewTurn[]): DrillLayer | null {
   return null;
 }
 
-/** 모델의 분류를 읽는다. **모르겠으면 `undefined`** -- 판단을 안 한 것과 "안 닿았다"는
- *  다르다. 전자는 크레딧을 그대로 두고, 후자만 물린다. */
+/** Missing and negative judgements stay distinct; neither can confirm coverage. */
 function readAnsweredLayer(parsed: ProbeReply | null): DrillLayer | null | undefined {
   const v = parsed?.answeredLayer;
   if (typeof v !== "string") return undefined;
@@ -556,23 +585,40 @@ function readAnsweredLayer(parsed: ProbeReply | null): DrillLayer | null | undef
  * 여기서는 **이미 물은 것과 사실상 같으면 버린다.** 그 자리에는 그 층을 겨냥한
  * 고정 질문이 들어간다 -- 한 번 더 LLM 을 부르는 것보다 싸고 결과가 예측 가능하다.
  */
-function usableQuestion(
+export function usableQuestion(
   candidate: string,
   history: readonly InterviewTurn[],
   layer: DrillLayer,
   locale: "en" | "ko",
   scaffoldStreak = 0,
 ): string {
-  const norm = (v: string) => v.replace(/\s+/g, " ").trim().toLowerCase();
+  const norm = (v: string) => v.replace(/[\p{P}\p{S}]+/gu, "").replace(/\s+/g, " ").trim().toLowerCase();
   const asked = new Set(
     history.filter((turn) => turn.role === "interviewer").map((turn) => norm(turn.text)),
   );
-  if (candidate.length > 0 && !asked.has(norm(candidate))) return candidate;
+  const repeated = (question: string) => {
+    const normalized = norm(question);
+    if (asked.has(normalized)) return true;
+    // Small wording edits do not make a new question. This detects near copies,
+    // not semantic equivalence; the prompt still owns meaning-level repetition.
+    const grams = (text: string) => new Set(Array.from({ length: Math.max(0, text.length - 2) }, (_, i) => text.slice(i, i + 3)));
+    const candidateGrams = grams(normalized);
+    return [...asked].some((previous) => {
+      if (normalized.length < 16 || previous.length < 16) return false;
+      const previousGrams = grams(previous);
+      const overlap = [...candidateGrams].filter((gram) => previousGrams.has(gram)).length;
+      return (2 * overlap) / (candidateGrams.size + previousGrams.size) >= 0.88;
+    });
+  };
+  if (candidate.length > 0 && candidate.length <= 320 && (candidate.match(/[?？]/g)?.length ?? 0) <= 1
+    && !candidate.startsWith("{") && !candidate.startsWith("```") && !repeated(candidate)) return candidate;
   // 발판일 때 같은 층의 원래 질문을 돌려주면 방금 못 답한 그 질문을 그대로
   // 다시 묻게 된다. 발판은 발판용 문장이 따로 있다.
-  return scaffoldStreak > 0
-    ? scaffoldQuestion(layer, locale, scaffoldStreak)
-    : LAYER_FALLBACK[locale][layer];
+  const fallbacks = scaffoldStreak > 0
+    ? [scaffoldQuestion(layer, locale, scaffoldStreak), LAYER_FALLBACK[locale][layer]]
+    : [LAYER_FALLBACK[locale][layer], scaffoldQuestion(layer, locale, 1), scaffoldQuestion(layer, locale, 2)];
+  // An exhausted fallback pool ends this thread instead of asking the same thing again.
+  return fallbacks.find((question) => !repeated(question)) ?? "";
 }
 
 /**
@@ -584,17 +630,17 @@ function usableQuestion(
  */
 const LAYER_FALLBACK: Record<"en" | "ko", Record<DrillLayer, string>> = {
   ko: {
-    fact: "그때 그 자리에 누가 있었고 무슨 일이 있었는지, 한 장면만 더 말해 줄 수 있을까요?",
-    feeling: "그 순간 몸에서는 어떤 느낌이 들었어요?",
-    meaning: "그 일이 본인에게 무엇을 보여줬다고 생각하세요?",
+    fact: "말씀한 장면에서 직접 했던 행동 하나가 기억나나요?",
+    feeling: "말씀한 그 순간에 어떤 기분이 들었는지, 말하고 싶은 만큼만 들려주실래요?",
+    meaning: "말씀한 일에서 본인에게 중요했던 부분은 무엇인가요?",
     belief: "그 경험이 남긴 생각이 있다면, 본인이나 사람들에 대해 어떤 거였어요?",
-    echo: "그 생각이 요즘 어떤 선택에서 다시 나타나나요?",
+    echo: "그때의 생각이 요즘 선택에도 이어지는 부분이 있나요?",
   },
   en: {
-    fact: "Can you give me one more piece of that scene: who was there, what was happening?",
-    feeling: "What did that moment feel like in your body?",
-    meaning: "What do you think that showed you?",
+    fact: "What is one action you remember taking in the scene you described?",
+    feeling: "If you want to share, what feeling stands out from that moment?",
+    meaning: "What part of what happened mattered to you?",
     belief: "If it left you with a belief about yourself or about people, what was it?",
-    echo: "Where does that belief show up in a choice you make now?",
+    echo: "Does that thought connect to any choice you make now?",
   },
 };

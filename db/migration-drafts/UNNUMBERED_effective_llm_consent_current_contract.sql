@@ -25,6 +25,8 @@
 
 SET LOCAL lock_timeout = '10s';
 
+-- Requires the promoted signup-consent AdMob 20260925 contract first.
+-- Existing email-v3 receipts remain historical, never promoted to email-v4.
 -- Pin this migration to the exact document tuple it was reviewed against.
 -- A missing dependency or a future contract bump must abort promotion instead
 -- of silently turning every runtime lookup into false/403.
@@ -35,9 +37,9 @@ DECLARE
 BEGIN
   SELECT count(*)
     INTO matching_contracts
-    FROM public.signup_consent_contract('email-v3') AS contract
+    FROM public.signup_consent_contract('email-v4') AS contract
    WHERE contract.consent_version = '2026-09-07'
-     AND contract.policy_version = '2026-09-07'
+     AND contract.policy_version = '2026-09-25'
      AND contract.terms_version = '2026-08-16'
      AND contract.confirmation_eligible IS TRUE;
 
@@ -70,7 +72,7 @@ CREATE TABLE public.llm_consent_receipts (
   user_id uuid NOT NULL
     REFERENCES public.users(id) ON DELETE CASCADE,
   contract_revision text NOT NULL
-    CHECK (contract_revision IN ('email-v2', 'complete-profile-v1', 'email-v3')),
+    CHECK (contract_revision IN ('email-v2', 'complete-profile-v1', 'email-v3', 'email-v4')),
   recorded_at timestamptz NOT NULL DEFAULT now()
 );
 
@@ -108,9 +110,10 @@ BEGIN
     INTO matched_revision
     FROM (
       VALUES
-        ('email-v3'::text, 1),
-        ('email-v2'::text, 2),
-        ('complete-profile-v1'::text, 3)
+        ('email-v4'::text, 1),
+        ('email-v3'::text, 2),
+        ('email-v2'::text, 3),
+        ('complete-profile-v1'::text, 4)
     ) AS candidate(revision, priority)
     CROSS JOIN LATERAL public.signup_consent_contract(candidate.revision) AS contract
    WHERE NEW.required_ack IS TRUE
@@ -186,7 +189,7 @@ BEGIN
         JOIN public.llm_consent_receipts provenance
           ON provenance.consent_record_id = c.id
          AND provenance.user_id = c.user_id
-         AND provenance.contract_revision = 'email-v3'
+         AND provenance.contract_revision = 'email-v4'
        WHERE c.user_id = p_user_id
          AND pg_catalog.jsonb_typeof(c.purposes) = 'array'
          AND c.purposes @> '["service"]'::jsonb
@@ -197,7 +200,7 @@ BEGIN
       SELECT contract.consent_version,
              contract.policy_version,
              contract.terms_version
-        FROM public.signup_consent_contract('email-v3') AS contract
+        FROM public.signup_consent_contract('email-v4') AS contract
        WHERE contract.confirmation_eligible IS TRUE
     ),
     known_pref_keys(pref_key) AS (

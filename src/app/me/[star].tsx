@@ -40,6 +40,8 @@ import {
 } from "@/lib/interview/probe";
 import { coveredDrillLayers, meStarStaticParams } from "@/lib/nav/me-star-route";
 import { a11yValue } from "@/lib/a11y/accessibility-value";
+import { loadSevenLevels } from "@/lib/persona/load-seven-levels";
+import { starEntryStatus, type StarEntryStatus } from "@/lib/persona/star-entry-tracks";
 
 interface Summary {
   /** 이 별에서 판 칸 수 (0~5). 인터뷰가 없는 별은 null. */
@@ -81,6 +83,7 @@ export default function StarSummaryRoute() {
   const { star } = useLocalSearchParams<{ star?: string }>();
   const { userId, loading, age } = useAuth();
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [entry, setEntry] = useState<StarEntryStatus | null>(null);
 
   const id: SevenStarId | null =
     typeof star === "string" && isSevenStarId(star) ? star : null;
@@ -89,8 +92,13 @@ export default function StarSummaryRoute() {
 
   const load = useCallback(async () => {
     if (!userId || !meta) return;
-    setSummary(await loadSummary(userId, meta.period));
-  }, [userId, meta]);
+    const [nextSummary, { starLevels }] = await Promise.all([
+      loadSummary(userId, meta.period),
+      loadSevenLevels(userId),
+    ]);
+    setSummary(nextSummary);
+    setEntry(starEntryStatus(meta.id, starLevels, age));
+  }, [userId, meta, age]);
 
   useEffect(() => {
     void load();
@@ -150,6 +158,13 @@ export default function StarSummaryRoute() {
           </>
         ) : (
           <>
+            {entry?.kind === "previous" ? (
+              <MdCard variant="outlined" style={styles.card}>
+                <Text style={[m3TextStyle("bodyMedium"), styles.muted]}>
+                  {t("ds.home.star.entryAfter", { star: t(`ds.star.${entry.prerequisite}`) })}
+                </Text>
+              </MdCard>
+            ) : null}
             <MdCard variant="outlined" style={styles.card}>
               {summary === null ? (
                 <Text style={[m3TextStyle("bodyMedium"), styles.muted]}>{t("ds.star.loading")}</Text>
@@ -216,14 +231,17 @@ export default function StarSummaryRoute() {
               )}
             </MdCard>
 
-            <MdButton
-              label={summary && (summary.cells ?? 0) > 0 ? t("ds.star.continue") : t("ds.star.start")}
-              variant="filled"
-              onPress={() =>
-                router.push({ pathname: "/interview", params: { period: meta.period ?? "now" } })
-              }
-              style={styles.cta}
-            />
+            {entry?.kind !== "previous" ? (
+              <MdButton
+                label={summary && (summary.cells ?? 0) > 0 ? t("ds.star.continue") : t("ds.star.start")}
+                variant="filled"
+                disabled={entry === null}
+                onPress={() =>
+                  router.push({ pathname: "/interview", params: { period: meta.period ?? "now" } })
+                }
+                style={styles.cta}
+              />
+            ) : null}
           </>
         )}
       </ScrollView>

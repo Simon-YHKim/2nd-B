@@ -80,6 +80,7 @@ type LoadingModule = {
   }) => OpeningPlan;
   openingSceneForFrame?: (frame: number) => ScenePlan;
   pixelUnitScale?: (pixelRatio: number) => number;
+  fullscreenPixelUnit?: (pixelRatio: number, viewportWidth: number) => number;
   createOpeningTicker?: (startedAtMs: number, onTick: (elapsedMs: number) => void) => () => void;
   deliverContinueOnce?: (gate: { current: boolean }, onContinue?: () => void) => void;
   RleCell?: React.ComponentType<{ rects: RectRun[]; width: number; height: number }>;
@@ -233,6 +234,7 @@ function loadLoadingModule(platform: "ios" | "web" = "ios"): LoadingModule {
         View: host("view"),
         Platform: { OS: platform },
         PixelRatio: { get: () => (platform === "web" ? 3 : 2.625) },
+        useWindowDimensions: () => ({ width: 390, height: 844, scale: 3, fontScale: 1 }),
         StyleSheet: { create: <T,>(styles: T) => styles },
       };
     }
@@ -365,6 +367,30 @@ describe("HustleK opening v2 integer renderer", () => {
     const physicalPixels = module.pixelUnitScale(dpr) * dpr;
     expect(physicalPixels).toBeGreaterThanOrEqual(1);
     expect(Number.isInteger(physicalPixels)).toBe(true);
+  });
+
+  test.each([
+    { dpr: 1, viewportWidth: 520 },
+    { dpr: 2.625, viewportWidth: 390 },
+    { dpr: 3, viewportWidth: 430 },
+  ])("$viewportWidth CSS px viewport fills the screen with integer physical pixels at DPR $dpr", ({ dpr, viewportWidth }) => {
+    const module = loadLoadingModule();
+    if (!module.fullscreenPixelUnit) throw new Error("LoadingScreen must export fullscreenPixelUnit");
+    const unit = module.fullscreenPixelUnit(dpr, viewportWidth);
+    const physicalPixelsPerSourceUnit = unit * dpr;
+    const widthRatio = (320 * unit) / viewportWidth;
+    expect(Number.isInteger(physicalPixelsPerSourceUnit)).toBe(true);
+    expect(widthRatio).toBeGreaterThanOrEqual(0.85);
+    expect(widthRatio).toBeLessThanOrEqual(1.25);
+  });
+
+  test("the stage and transition veil own the full viewport instead of a fixed 320x260 card", () => {
+    const source = readFileSync(LOADING_SCREEN, "utf8");
+    expect(source).toContain("style={styles.stage}");
+    expect(source).toContain("height: viewportHeight * veilRatio");
+    expect(source).toContain('width: "100%"');
+    expect(source).toContain('height: "100%"');
+    expect(source).not.toContain("style={[styles.stage, { width: STAGE_WIDTH * unit, height: STAGE_HEIGHT * unit }]}");
   });
 
   test.each(["ios", "web"] as const)("%s renders SVG rects and never a bitmap image", (platform) => {

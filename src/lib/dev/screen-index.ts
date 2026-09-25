@@ -411,6 +411,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
   {
     title: "개인 비서",
     screens: [
+      { file: "dashboard", href: "/dashboard", label: "나의 휴대전화", auth: true },
       // 게이트가 라우트에서 화면으로 모였다 — research·insights·import 와 같은 모양이다.
       {
         file: "ops",

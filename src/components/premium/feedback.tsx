@@ -146,11 +146,8 @@ function StateShell({ glyph, title, body, action }: { glyph: ReactNode; title: s
 /**
  * ONE loading state, everywhere.
  *
- * This used to blink a pixel-dot matrix — a leftover of the legacy cosmic-pixel
- * skin — across ~39 screens, while the constellation home showed the breathing
- * 세컨비 head and other places showed a bare system spinner. Same app, three
- * different waits. It now renders the exact loader the home renders, so every
- * call site unifies without a single one being touched.
+ * Every route uses the shared North Star loader, so a cold refresh and an
+ * in-screen data wait show the same loading identity.
  *
  * Empty/error states keep StateShell + their v3 art; only the WAIT is unified.
  */

@@ -899,6 +899,19 @@ export async function buildPersona(
   // 이사했다. 옛 축 D9 넛지는 이 시점의 마지막 행에서 동결된다 -- 의도다.
 
   // Persist for later reuse (RAG export, etc).
+  // The explicitly generated/ratified role cards share this versioned persona
+  // row. A legacy /persona rebuild must not silently erase those decisions.
+  const { data: previousRow } = await supabase
+    .from("personas")
+    .select("patterns")
+    .eq("user_id", userId)
+    .eq("version", 1)
+    .maybeSingle();
+  const previousPatterns = (previousRow as { patterns?: Record<string, unknown> } | null)?.patterns;
+  const savedRoles = previousPatterns?.role_cards_v1;
+  const persistedPatterns = typeof savedRoles === "string"
+    ? { ...persona.patterns, role_cards_v1: savedRoles }
+    : persona.patterns;
   await supabase
     .from("personas")
     .upsert(
@@ -907,7 +920,7 @@ export async function buildPersona(
         version: 1,
         traits,
         values: persona.values,
-        patterns: persona.patterns,
+        patterns: persistedPatterns,
         markdown_export: persona.markdownExport,
       },
       { onConflict: "user_id,version" },

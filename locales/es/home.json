@@ -36,14 +36,14 @@
   },
   "menu": {
     "graph": "Grafo",
-    "capture": "Capturar",
+    "capture": "Recortes",
     "secondb": "SecondB",
     "profile": "Yo"
   },
   "ds": {
     "dock": {
       "home": "Inicio",
-      "capture": "Capturar",
+      "capture": "Recortes",
       "chat": "SecondB",
       "ops": "Asistente",
       "account": "Yo",
@@ -116,14 +116,22 @@
       "bubble": {
         "introTag": "Presentación",
         "intro": "Soy SecondB. Toca mi cabeza para abrir el chat y el asistente.",
+        "tipTag": "Consejo",
+        "tip1": "Pulsa una estrella para revisar los registros de esa etapa de tu vida.",
+        "tip2": "Usa Añadir en la barra inferior para guardar un registro nuevo.",
+        "tip3": "Tu Estrella Polar reúne tus registros en una frase que puedes revisar.",
+        "next": "Siguiente",
+        "openMenu": "Menú de funciones",
         "menuTag": "SecondB",
         "menu": "¿Qué quieres hacer?",
         "travel": "Viajar",
         "later": "Luego",
+        "returnToSky": "Volver a la constelación",
         "chatbot": "Chatbot",
         "assistant": "Asistente"
       },
       "star": {
+        "entryAfter": "Guarda tu primera entrada en {{star}} para abrir esta estrella.",
         "career": {
           "line": "¿Qué has construido y acumulado?"
         },
@@ -143,25 +151,25 @@
           "line": "¿Qué me permite descansar?"
         },
         "profile": {
-          "line": "Añade tu nombre, tu meta y cómo te ven los demás. La estrella brilla más cuando completas información."
+          "line": "Registra tu nombre, tus metas y tu vida diaria. Aquí empiezan los dos caminos."
         },
         "infancy": {
-          "line": "Empieza por la primera escena que recuerdes."
+          "line": "Registra tus primeros recuerdos y lo que otros te contaron de tu infancia."
         },
         "school": {
-          "line": "De los 7 a los 19 años. Aulas, amigos, quien eras entonces."
+          "line": "Registra la escuela, las amistades y cómo eras entre los 7 y los 19 años."
         },
         "twenties": {
-          "line": "¿Qué decisiones tomaste a los veinte?"
+          "line": "Registra tus decisiones, relaciones y cambios durante tus veinte."
         },
         "later": {
-          "line": "¿Qué cambió a partir de los treinta?"
+          "line": "Registra la vida diaria, las relaciones y tus cambios desde los treinta."
         },
         "work": {
-          "line": "¿Cómo eres en el trabajo?"
+          "line": "Registra tus funciones, hábitos y experiencias en el trabajo."
         },
         "now": {
-          "line": "Tú, ahora. ¿Dónde ha estado tu cabeza últimamente?"
+          "line": "Registra tus intereses, decisiones y días de ahora."
         }
       },
       "museumEntry": "Museo de la IA",

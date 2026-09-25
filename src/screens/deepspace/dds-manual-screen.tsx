@@ -48,7 +48,7 @@ export function DeepSpaceManualScreen() {
             <PixelGlyph name="arrowBack" color={m3.color.onSurface} size={24} />
           </PixelPressable>
           <RNText accessibilityRole="header" style={[m3TextStyle("titleLarge"), styles.title]}>
-            {t("manual.title")}
+            {t("title")}
           </RNText>
         </View>
 

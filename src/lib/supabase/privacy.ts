@@ -9,6 +9,7 @@
 import { getSupabaseClient } from "./client";
 import { recordHealthImportConsent } from "./consent";
 import { resolvePrivacyPrefs, PRIVACY_PREF_KEYS, type PrivacyPrefs } from "../privacy/prefs";
+import { beginPrivacyChange, commitPrivacyChange } from "../privacy/changes";
 
 export async function fetchPrivacyPrefs(userId: string): Promise<PrivacyPrefs> {
   try {
@@ -39,6 +40,7 @@ export async function savePrivacyPrefs(
   prefs: PrivacyPrefs,
   options: SavePrivacyPrefsOptions = {},
 ): Promise<void> {
+  const revision = beginPrivacyChange(userId, prefs);
   const supabase = getSupabaseClient();
   // D-3: snapshot the before-state so we can append a consent-change row per
   // toggled key after the write. fetchPrivacyPrefs is fail-soft (never throws),
@@ -46,6 +48,7 @@ export async function savePrivacyPrefs(
   const before = await fetchPrivacyPrefs(userId);
   const { error } = await supabase.from("users").update({ privacy_prefs: prefs }).eq("id", userId);
   if (error) throw error;
+  commitPrivacyChange(userId, revision, prefs);
   // Append only AFTER a successful write (a failed save recorded no consent
   // change). Best-effort and never rethrows, so the change ledger can't break
   // the settings save.

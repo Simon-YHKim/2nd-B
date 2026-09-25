@@ -77,7 +77,7 @@ describe("대화 화면 배선", () => {
 
   it("자동 경로가 수동 경로와 같은 함수를 쓴다", () => {
     // 두 경로가 갈라지면 위기 안내(C9)나 dedup 이 한쪽에만 붙는다.
-    expect(screen).toContain("void keepExchange(idx)");
+    expect(screen).toContain("save(idx, (signal) => keepExchange(idx, signal), findPromptIndex(turns, idx) ?? idx)");
   });
 
   it("동의 이전 대화를 소급해서 담지 않는다", () => {

@@ -71,6 +71,17 @@ describe("PIXEL-CLAY settings screen contract", () => {
     expect(source).toContain('styles.disclosureHeaderPressed');
   });
 
+  test("language and data deletion disclosures use the same raised icon-row pattern as settings links", () => {
+    const disclosure = source.slice(source.indexOf("function DisclosureSection("), source.indexOf("export default function Settings()"));
+    expect(disclosure).toContain('variant="bevel"');
+    expect(disclosure).toContain("<M3IconBadge");
+    expect(disclosure).toContain("m3Styles.pixelRow");
+    expect(disclosure).toContain("accessibilityState={{ expanded }}");
+    expect(disclosure).toContain("styles.pixelDisclosureBody");
+    expect(source).toMatch(/<DisclosureSection[\s\S]*?title=\{t\("language.title"\)\}[\s\S]*?icon="article"/);
+    expect(source).toMatch(/<DisclosureSection[\s\S]*?title=\{t\("deleteData"\)\}[\s\S]*?icon="trash"/);
+  });
+
   test("retains the destructive wizard, confirmation phrase, busy lock, and feedback modals", () => {
     for (const operation of [
       "deleteRecordsByKind",

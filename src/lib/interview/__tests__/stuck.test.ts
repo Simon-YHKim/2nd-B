@@ -185,7 +185,7 @@ describe("⚠ 층을 정하는 곳은 하나다 (실행해서 잡은 두 번째 
   const SCREEN = readFileSync(join(__dirname, "..", "..", "..", "app", "interview.tsx"), "utf8");
 
   it("화면이 nextProbe 에 move.layer 를 항상 넘긴다", () => {
-    expect(SCREEN).toContain("0, move.layer,");
+    expect(SCREEN).toContain('0, move.kind === "finish" ? credited : move.layer,');
     // 발판은 nextProbe 앞에서 반환하고, 평상시에도 nextMove가 고른 층을 넘긴다.
     expect(SCREEN).not.toContain("isScaffold ? move.layer : null");
   });

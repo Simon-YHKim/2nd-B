@@ -3,13 +3,17 @@
  * Pure-layout (graph-layout.ts, deterministic) rendered as SVG on the deep-space
  * sky: node size = degree, color = page kind (concept cyan / entity violet /
  * source mint), labels only on the biggest hubs + the selection (density rule).
- * Zoom = +/- buttons around the selected node (no gesture dependency); tapping
+ * Telescope jog and focus dial move the view; tapping
  * a node selects it, tapping it again opens the page (progressive disclosure).
  */
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, StyleSheet, View } from "react-native";
-import Svg, { G, Line, Text as SvgText } from "react-native-svg";
+import { Platform, StyleSheet, View } from "react-native";
+import Svg, { G, Line, Rect, Text as SvgText } from "react-native-svg";
+
+import { TelescopeControls } from "./TelescopeControls";
+import { jogTelescopeCamera, telescopeZoom } from "@/lib/motion/telescope-controls";
+import { zoomRecordsGraphCamera } from "@/lib/records/records-graph-layout";
 
 import { PixelNodeSvg } from "@/components/pixel/PixelStarSvg";
 
@@ -31,7 +35,7 @@ const wgAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.accent.s
 
 const CANVAS = 1000;
 const LABELED_HUBS = 8;
-const ZOOMS = [1, 1.6, 2.6] as const;
+const MAX_ZOOM = 2.6;
 
 export interface WikiGraphPage {
   id: string;
@@ -57,7 +61,8 @@ export function WikiGraph({
 }) {
   const { t } = useTranslation("deepspace");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [zoomIdx, setZoomIdx] = useState(0);
+  const [camera, setCamera] = useState({ x: 0, y: 0, zoom: 1 });
+  const [canvasWidth, setCanvasWidth] = useState(320);
 
   const layout = useMemo(
     () => layoutWikiGraph(pages.map((p) => p.id), edges),
@@ -77,13 +82,11 @@ export function WikiGraph({
     [layout],
   );
 
-  const zoom = ZOOMS[zoomIdx];
-  const focus = selectedId ? byId.get(selectedId) : undefined;
-  const cx = (focus?.x ?? 0.5) * CANVAS;
-  const cy = (focus?.y ?? 0.5) * CANVAS;
+  const zoom = camera.zoom;
   const span = CANVAS / zoom;
-  const vbX = Math.min(Math.max(cx - span / 2, 0), CANVAS - span);
-  const vbY = Math.min(Math.max(cy - span / 2, 0), CANVAS - span);
+  const hitSize = 44 * span / Math.max(1, canvasWidth);
+  const vbX = camera.x;
+  const vbY = camera.y;
 
   const selectNode = (id: string) => {
     if (selectedId === id) onOpenPage(id);
@@ -94,7 +97,7 @@ export function WikiGraph({
 
   return (
     <View style={styles.root}>
-      <View style={styles.canvasWrap}>
+      <View style={styles.canvasWrap} onLayout={(event) => setCanvasWidth(event.nativeEvent.layout.width)}>
         <Svg
           width="100%"
           height="100%"
@@ -140,7 +143,23 @@ export function WikiGraph({
                   cy={node.y * CANVAS}
                   r={r}
                   fill={wgAlpha(KIND_COLOR[page.kind], node.degree > 0 ? 0.9 : 0.45)}
-                  onPress={() => selectNode(node.id)}
+                />
+                <Rect
+                  x={node.x * CANVAS - hitSize / 2}
+                  y={node.y * CANVAS - hitSize / 2}
+                  width={hitSize}
+                  height={hitSize}
+                  fill="transparent"
+                  {...(Platform.OS === "web" ? {
+                    onPress: null as never,
+                    onClick: () => selectNode(node.id),
+                    onKeyDown: (event: { key: string; preventDefault: () => void }) => {
+                      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectNode(node.id); }
+                    },
+                    forwardedRef: (element: SVGElement | null) => element?.setAttribute("role", "button"),
+                    tabIndex: 0,
+                    "aria-label": page.title,
+                  } : { onPress: () => selectNode(node.id), accessible: true, accessibilityLabel: page.title })}
                 />
                 {hubIds.has(node.id) || isSelected ? (
                   <SvgText
@@ -160,25 +179,14 @@ export function WikiGraph({
       </View>
 
       <View style={styles.controls}>
-        <Pressable
-          onPress={() => setZoomIdx((z) => Math.max(0, z - 1))}
-          hitSlop={10}
-          style={styles.zoomBtn}
-          accessibilityRole="button"
-          accessibilityLabel={t("deepspace:wikiGraph.a11yZoomOut")}
-        >
-          <Text style={styles.zoomBtnText}>-</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => setZoomIdx((z) => Math.min(ZOOMS.length - 1, z + 1))}
-          hitSlop={10}
-          style={styles.zoomBtn}
-          accessibilityRole="button"
-          accessibilityLabel={t("deepspace:wikiGraph.a11yZoomIn")}
-        >
-          <Text style={styles.zoomBtnText}>+</Text>
-        </Pressable>
-        <Text variant="caption" color="textSubtle" style={styles.hint} numberOfLines={1}>
+        <TelescopeControls
+          zoom={zoom}
+          maxZoom={MAX_ZOOM}
+          onJog={(dx, dy) => setCamera((current) => jogTelescopeCamera(current, dx, dy, { width: CANVAS, height: CANVAS }))}
+          onTurn={(turns) => setCamera((current) => zoomRecordsGraphCamera(current, telescopeZoom(current.zoom, turns, MAX_ZOOM), 0.5, 0.5, { width: CANVAS, height: CANVAS }))}
+          onReset={() => setCamera({ x: 0, y: 0, zoom: 1 })}
+        />
+        <Text variant="caption" color="textSubtle" style={styles.hint}>
           {selected
             ? t("deepspace:wikiGraph.hintSelected", { title: selected.title })
             : t("deepspace:wikiGraph.hintDefault")}
@@ -217,16 +225,6 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   controls: { flexDirection: "row", alignItems: "center", gap: 8 },
-  zoomBtn: {
-    minWidth: 44,
-    minHeight: 44,
-    borderRadius: 0,
-    borderWidth: 1,
-    borderColor: wgAlpha(deepSpace.accentDim, 0.4),
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  zoomBtnText: { color: deepSpace.textHi, fontSize: 18, lineHeight: 22 },
   hint: { flex: 1, minWidth: 0 },
   legend: { flexDirection: "row", gap: 14 },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },

@@ -244,6 +244,7 @@ jest.mock("react-native", () => ({
   Modal: "Modal",
   Pressable: "Pressable",
   TouchableOpacity: "TouchableOpacity",
+  Platform: { OS: "web" },
   StyleSheet: { create: (styles: unknown) => styles, absoluteFill: {} },
 }));
 jest.mock("react-native-svg", () => ({ Svg: "Svg", Rect: "Rect", G: "G" }));
@@ -291,6 +292,12 @@ jest.mock("@/lib/supabase/client", () => ({ getSupabaseClient: () => mockSupabas
 // /digest 조건부 문(2026-09-01 Q2-2)의 보조 조회 — mount 스냅샷 로드와 분리된
 // 별도 이펙트다. 여기서는 빈 목록으로 고정해 문이 닫힌 상태를 렌더한다.
 jest.mock("@/lib/wiki/queries", () => ({ listInferredLinkDetails: async () => [] }));
+jest.mock("@/lib/persona/polaris-quota", () => ({ loadPolarisQuota: async () => ({ available: false, introRemaining: null, tier: null }) }));
+jest.mock("@/lib/persona/role-cards", () => ({
+  loadRoleCards: async () => [], claimQaPolarisAuto: async () => false,
+  proposeRoleCards: (...args: unknown[]) => mockForbiddenLlm(...args),
+  ratifyRoleCard: (...args: unknown[]) => mockMutationWriter("ratifyRoleCard", ...args),
+}));
 jest.mock("@/lib/persona/build", () => {
   const actual = jest.requireActual<typeof import("../persona/build")>("@/lib/persona/build");
   mockRealLoadPersonaSnapshot = actual.loadPersonaSnapshot;
@@ -414,12 +421,17 @@ beforeAll(() => {
       if (!mockActiveHarness) throw new Error("useEffect called outside HookHarness render");
       mockActiveHarness.useEffect(effect, deps);
     }) as typeof React.useEffect);
+    const refSpy = jest.spyOn(React, "useRef").mockImplementation(((initial: unknown) => {
+      if (!mockActiveHarness) throw new Error("useRef called outside HookHarness render");
+      return mockActiveHarness.useState({ current: initial })[0];
+    }) as typeof React.useRef);
     const CoreBrain = jest.requireActual("../../app/core-brain").default as () => ReactElement;
     const screen = CoreBrain().type as () => ReactElement;
     renderCoreBrainScreen = (harness) => harness.render(screen);
     restoreReactHooks = () => {
       stateSpy.mockRestore();
       effectSpy.mockRestore();
+      refSpy.mockRestore();
     };
   } catch (error) {
     const detail = error instanceof Error ? `${error.name}: ${error.message}\n${error.stack ?? ""}` : String(error);
@@ -537,7 +549,7 @@ describe("Core Brain rendered read-only lifecycle", () => {
 
     expect(deck).not.toBeNull();
     const pages = deck?.props.pages as { key: string; body: ReactElement }[];
-    expect(pages.map((page) => page.key)).toEqual(["role", "portrait", "evidence"]);
+    expect(pages.map((page) => page.key)).toEqual(["role", "categories", "portrait", "evidence"]);
     const pageText = renderedText(pages.map((page) => page.body));
     expect(pageText).toContain("Previously saved result");
     expect(pageText).toContain("source was not recorded");
@@ -564,10 +576,11 @@ describe("Core Brain rendered read-only lifecycle", () => {
     expect(role.key).toBe("role");
     expect(role.title).toBe("polaris");
     expect(roleBodyProps.style).toMatchObject({ flexGrow: 1, justifyContent: "center" });
-    expect(findElements(role.body, (element) => element.type === "Text")).toHaveLength(1);
+    expect(findElements(role.body, (element) => element.type === "Text")).toHaveLength(3);
     expect(findElements(role.body, (element) => element.type === "Svg")).toHaveLength(1);
     expect(findElements(role.body, (element) => element.type === "PixelStarSvg")).toHaveLength(10);
-    expect(renderedText(role.body).trim()).toBe("currentBrightness");
+    expect(renderedText(role.body)).toContain("currentBrightness");
+    expect(renderedText(role.body)).toContain("roleEmpty");
     expect(renderedText(role.body)).not.toContain("BIG FIVE");
     expect(renderedText(role.body)).not.toContain("My brightest side is");
     assertNoMutationEgress();
@@ -592,7 +605,7 @@ describe("Core Brain rendered read-only lifecycle", () => {
     expect(mockLoadLatestStrengths).toHaveBeenCalledTimes(1);
     expect(mockLoadLatestStrengths).toHaveBeenLastCalledWith(mockSupabase, "u1");
     expect(renderedText(initialPages[0].body)).not.toContain("Curiosity");
-    expect(renderedText(initialPages[1].body)).toContain("strengthsCheck: Curiosity");
+    expect(renderedText(initialPages.find((page) => page.key === "portrait")?.body)).toContain("strengthsCheck: Curiosity");
     mockFocus.current?.callback();
     renderCoreBrainScreen(harness);
     harness.flushEffects();
@@ -605,8 +618,8 @@ describe("Core Brain rendered read-only lifecycle", () => {
     expect(mockLoadPersonaSnapshot).toHaveBeenCalledTimes(1);
     expect(mockLoadLatestStrengths).toHaveBeenCalledTimes(2);
     expect(mockLoadLatestStrengths).toHaveBeenLastCalledWith(mockSupabase, "u1");
-    expect(renderedText(refreshedPages[1].body)).toContain("strengthsCheck: Grit");
-    expect(renderedText(refreshedPages[1].body)).not.toContain("Curiosity");
+    expect(renderedText(refreshedPages.find((page) => page.key === "portrait")?.body)).toContain("strengthsCheck: Grit");
+    expect(renderedText(refreshedPages.find((page) => page.key === "portrait")?.body)).not.toContain("Curiosity");
     assertNoMutationEgress();
   });
 

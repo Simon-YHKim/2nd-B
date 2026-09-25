@@ -109,6 +109,11 @@ export function PixelPressable({
       accessibilityHint={accessibilityHint}
       accessibilityLanguage={accessibilityLanguage}
       accessibilityState={{ ...accessibilityState, disabled }}
+      aria-disabled={disabled}
+      aria-selected={accessibilityState?.selected}
+      aria-checked={accessibilityState?.checked}
+      aria-expanded={accessibilityState?.expanded}
+      aria-busy={accessibilityState?.busy}
       style={[styles.root, fullWidth && styles.fullWidth, rootStyle]}
     >
       <View

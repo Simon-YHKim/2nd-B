@@ -73,6 +73,7 @@ jobs:
       artifact_content_sha256: ${{ steps.content-digest.outputs.artifact_content_sha256 }}
       mode: ${{ steps.gate.outputs.mode }}
       public_config_sha256: ${{ steps.web-build.outputs.public_config_sha256 }}
+      signup_target_sha256: ${{ steps.web-build.outputs.signup_target_sha256 }}
       source_sha: ${{ steps.gate.outputs.source_sha }}
     steps:
       - name: Resolve and validate the requested immutable source
@@ -356,6 +357,7 @@ jobs:
           # NOT and never appears here: it lives in Supabase edge secrets only
           # (repo constraint 4).
           EXPO_PUBLIC_PADDLE_CLIENT_TOKEN: ${{ vars.EXPO_PUBLIC_PADDLE_CLIENT_TOKEN }}
+          EXPO_PUBLIC_PADDLE_ENVIRONMENT: ${{ vars.EXPO_PUBLIC_PADDLE_ENVIRONMENT || 'production' }}
           EXPO_PUBLIC_PADDLE_PRICE_CORTEX_MONTHLY: ${{ vars.EXPO_PUBLIC_PADDLE_PRICE_CORTEX_MONTHLY }}
           EXPO_PUBLIC_PADDLE_PRICE_CORTEX_YEARLY: ${{ vars.EXPO_PUBLIC_PADDLE_PRICE_CORTEX_YEARLY }}
           EXPO_PUBLIC_PADDLE_PRICE_BRAIN_MONTHLY: ${{ vars.EXPO_PUBLIC_PADDLE_PRICE_BRAIN_MONTHLY }}
@@ -417,6 +419,9 @@ jobs:
           # so `expo export` emits correctly-prefixed asset AND client-router
           # paths. No manual sed patching needed (that only fixed asset URLs
           # and left the router unaware of the subpath — the root-URL 404 bug).
+          if [ "$BUILD_MODE" = "publish" ]; then
+            node scripts/check-signup-consent-deployment.cjs
+          fi
           npx expo export --platform web --output-dir dist
           npm run build:static
 
@@ -778,6 +783,18 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
           ref: ${{ github.sha }}
+
+      - name: Setup Node 22 for the deployed signup contract check
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+
+      - name: Recheck deployed signup contract after Production approval
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          SIGNUP_EXPECTED_TARGET_SHA256: ${{ needs.build.outputs.signup_target_sha256 }}
+        run: node scripts/check-signup-consent-deployment.cjs
 
       - name: Revalidate exact SHA immediately before official Pages deployment
         env:

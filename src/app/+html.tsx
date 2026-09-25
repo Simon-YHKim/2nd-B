@@ -16,7 +16,7 @@ import {
   SITE_SHARE_IMAGE,
   SITE_TITLE,
 } from "@/lib/site-meta";
-import { GITHUB_PAGES_CSP, WEB_REFERRER_POLICY } from "@/lib/web-security-policy";
+import { webDocumentCsp, WEB_REFERRER_POLICY } from "@/lib/web-security-policy";
 
 // Reset inline so the rule lands in the first paint. The dark background
 // matches cosmic.space950 (Deep Space Ink) so the white flash that would
@@ -78,7 +78,11 @@ export default function Root({ children }: PropsWithChildren) {
       <head>
         {/* GitHub Pages cannot set project response headers. Keep this first so
             the browser sees the policy before any resource-loading element. */}
-        <meta httpEquiv="Content-Security-Policy" content={GITHUB_PAGES_CSP} />
+        <meta httpEquiv="Content-Security-Policy" content={webDocumentCsp(process.env.NODE_ENV === "development", {
+          paddleEnvironment: process.env.EXPO_PUBLIC_PADDLE_ENVIRONMENT,
+          supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
+          paddleClientToken: process.env.EXPO_PUBLIC_PADDLE_CLIENT_TOKEN,
+        })} />
         <meta name="referrer" content={WEB_REFERRER_POLICY} />
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />

@@ -1,4 +1,16 @@
 {
+  "telescope": {
+    "label": "Controles do telescópio",
+    "up": "Apontar para cima",
+    "down": "Apontar para baixo",
+    "left": "Apontar à esquerda",
+    "right": "Apontar à direita",
+    "reset": "Voltar ao céu completo",
+    "dial": "Seletor de ampliação",
+    "hint": "Gire o seletor ou use os botões de mais e menos.",
+    "phone": "Abrir meu painel",
+    "phoneLabel": "Meu celular"
+  },
   "time": {
     "today": "Hoje",
     "yesterday": "Ontem",
@@ -139,7 +151,7 @@
   },
   "auth": {
     "appName": "2nd-Brain",
-    "signInLead": "Entre para ver seus registros e seu resumo na Estrela Polar.",
+    "signInLead": "Na era da IA, o ativo é você. Seus registros formam sua Estrela Polar.",
     "signIn": "Entrar",
     "createAccount": "Criar conta",
     "signUpTitle": "Começar",
@@ -159,8 +171,7 @@
     "or": "ou",
     "ageNotice": "Você pode criar uma conta se tiver {{minAge}} anos ou mais.",
     "brandLabel": "2ND-BRAIN",
-    "signInTitle": "Entre no 2nd-Brain",
-    "signInEncrypt": "Você pode mudar as configurações de privacidade quando quiser.",
+    "signInTitle": "Que bom te ver de novo",
     "emailContinue": "Continuar com e-mail",
     "signUpPrompt": "Primeira vez?",
     "legalConsent": "Ao continuar, você concorda com os Termos de Serviço e a Política de Privacidade.",
@@ -689,14 +700,19 @@
     "starsFallback": "Não conseguimos ler suas estrelas; desenhamos o padrão."
   },
   "coachmarks": {
-    "step1": "Esta é a sua constelação",
-    "step2": "Toque em uma estrela",
-    "step3": "Quando algo vier à mente, guarde",
-    "step4": "Há mais ferramentas nas configurações",
+    "homeStep": "Toque no SecondB para iniciar seu primeiro registro.",
+    "formatStep": "Primeiro escolha Memorando. Uma linha é suficiente.",
+    "inputStep": "Escreva o que está pensando. Não precisa ser uma frase completa.",
+    "saveStep": "Por fim, toque em Salvar para criar seu primeiro registro.",
+    "doneStep": "Seu primeiro registro foi salvo. Volte à constelação para vê-lo.",
+    "targetHint": "Toque no controle destacado para continuar.",
+    "inputHint": "Escreva pelo menos um caractere para continuar até Salvar.",
+    "doneHint": "O registro foi salvo com sucesso.",
+    "inputReady": "Ir para Salvar",
+    "goHome": "Ir para a constelação",
+    "doneCount": "Concluído",
     "secondbName": "SecondB",
-    "dontShowAgain": "Não mostrar novamente",
-    "start": "Começar",
-    "next": "Próximo"
+    "dontShowAgain": "Não mostrar novamente"
   },
   "museum": {
     "title": "Museu da IA",

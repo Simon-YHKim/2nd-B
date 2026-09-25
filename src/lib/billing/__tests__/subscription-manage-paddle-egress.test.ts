@@ -14,10 +14,23 @@ import { join } from "node:path";
 import ts from "typescript";
 
 import * as requestJson from "../../../../supabase/functions/_shared/request-json";
+import * as paddleEnvironment from "../../../../supabase/functions/_shared/paddle-environment";
+import * as checkoutBindings from "../../../../supabase/functions/_shared/paddle-checkout-binding";
+import { webcrypto } from "node:crypto";
 
 const FUNCTIONS = join(__dirname, "..", "..", "..", "..", "supabase", "functions");
 const USER_ID = "8a6b2f1e-3c4d-4e5f-8a9b-0c1d2e3f4a5b";
-const API_KEY = "test-paddle-api-key";
+const API_KEY = `pdl_live_apikey_${"a".repeat(26)}_${"b".repeat(22)}_abc`;
+const SANDBOX_API_KEY = API_KEY.replace("_live_", "_sdbx_");
+const PRICE = `pri_${"a".repeat(26)}`;
+const BINDING_SECRET = "fixture-checkout-binding-secret-no-real-value";
+const SANDBOX_ENV = {
+  PADDLE_ENVIRONMENT: "sandbox",
+  PADDLE_SANDBOX_SUPABASE_URL: "https://sandbox.supabase.co",
+  PADDLE_LIVE_SUPABASE_URL: "https://live.supabase.co",
+  SUPABASE_URL: "https://sandbox.supabase.co",
+  PADDLE_API_KEY: SANDBOX_API_KEY,
+};
 
 type Handler = (req: Request) => Promise<Response>;
 type RpcCall = { name: string; args: Record<string, unknown> };
@@ -67,6 +80,8 @@ function loadHandler(env: Record<string, string | undefined>, fetchImpl: FetchIm
     SUPABASE_SERVICE_ROLE_KEY: "test-service-role",
     PADDLE_SELF_SERVICE_ENABLED: "1",
     PADDLE_API_KEY: API_KEY,
+    PADDLE_CHECKOUT_BINDING_SECRET: BINDING_SECRET,
+    PADDLE_PRICE_CORTEX: PRICE,
     ...env,
   };
   let handler: Handler | null = null;
@@ -82,7 +97,8 @@ function loadHandler(env: Record<string, string | undefined>, fetchImpl: FetchIm
     if (id === "jsr:@supabase/functions-js/edge-runtime.d.ts") return {};
     if (id === "jsr:@supabase/supabase-js@2") return { createClient: () => client };
     if (id === "../_shared/request-json.ts") return requestJson;
-    if (id === "../_shared/paddle-checkout-binding.ts") return { createCheckoutBinding: jest.fn() };
+    if (id === "../_shared/paddle-environment.ts") return paddleEnvironment;
+    if (id === "../_shared/paddle-checkout-binding.ts") return checkoutBindings;
     if (id === "../_shared/paddle-api-boundary.ts") {
       return evaluate(join(FUNCTIONS, "_shared", "paddle-api-boundary.ts"), (inner) => {
         if (inner === "./request-json.ts") return requestJson;
@@ -125,6 +141,7 @@ let consoleError: jest.SpyInstance;
 let consoleWarn: jest.SpyInstance;
 
 beforeEach(() => {
+  Object.defineProperty(globalThis, "crypto", { value: webcrypto, configurable: true });
   consoleError = jest.spyOn(console, "error").mockImplementation(() => undefined);
   consoleWarn = jest.spyOn(console, "warn").mockImplementation(() => undefined);
 });
@@ -135,6 +152,51 @@ afterEach(() => {
 });
 
 describe("subscription-manage Paddle egress", () => {
+  it.each([
+    { PADDLE_API_KEY: SANDBOX_API_KEY },
+    { PADDLE_API_KEY: `live_${"a".repeat(27)}` },
+    { PADDLE_API_BASE: "https://sandbox-api.paddle.com" },
+  ])("refuses a crossed environment or a client token before money egress: %#", async (env) => {
+    const { handler, fetchMock, rpcCalls } = loadHandler(env, async () => paddleReply('{}'));
+    await handler(refundRequest());
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(settlement(rpcCalls).p_outcome).toBe("misconfigured");
+  });
+
+  it("mints a sandbox binding only for its own configured price and project", async () => {
+    const { handler, fetchMock } = loadHandler(SANDBOX_ENV, async () => paddleReply('{}'));
+    const request = (body: unknown) => new Request("https://sandbox.supabase.co/functions/v1/subscription-manage?env=production", {
+      method: "POST", headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    for (const body of [
+      { action: "checkout_binding" },
+      { action: "checkout_binding", price_id: PRICE, paddle_environment: "production" },
+      { action: "checkout_binding", price_id: `pri_${"z".repeat(26)}`, paddle_environment: "sandbox" },
+    ]) expect((await handler(request(body))).status).toBe(400);
+
+    const response = await handler(request({ action: "checkout_binding", price_id: PRICE, paddle_environment: "sandbox" }));
+    expect(response.status).toBe(200);
+    const binding = await response.json();
+    const scope = { environment: "sandbox" as const, audience: SANDBOX_ENV.SUPABASE_URL, price_id: PRICE };
+    expect(binding).toMatchObject({ version: 2, ...scope, user_id: USER_ID });
+    await expect(checkoutBindings.verifyCheckoutBinding(binding, BINDING_SECRET, undefined, scope)).resolves.toBe(USER_ID);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses sandbox money actions against the live database before any RPC or egress", async () => {
+    const { handler, fetchMock, rpcCalls } = loadHandler({
+      PADDLE_ENVIRONMENT: "sandbox",
+      PADDLE_SANDBOX_SUPABASE_URL: "https://sandbox.supabase.co",
+      PADDLE_LIVE_SUPABASE_URL: "https://live.supabase.co",
+      SUPABASE_URL: "https://live.supabase.co",
+    }, async () => paddleReply('{"data":{"id":"adj_01"}}'));
+    const response = await handler(refundRequest());
+    expect(response.status).toBe(503);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(rpcCalls).toEqual([]);
+  });
+
   it.each([
     "https://paddle.attacker.example",
     "http://api.paddle.com",
@@ -164,7 +226,9 @@ describe("subscription-manage Paddle egress", () => {
     [undefined, "https://api.paddle.com/adjustments"],
     ["https://sandbox-api.paddle.com/", "https://sandbox-api.paddle.com/adjustments"],
   ])("still reaches Paddle when PADDLE_API_BASE is %j", async (base, endpoint) => {
-    const { handler, fetchMock, rpcCalls } = loadHandler({ PADDLE_API_BASE: base }, async () =>
+    const { handler, fetchMock, rpcCalls } = loadHandler({ PADDLE_API_BASE: base,
+      ...(base?.includes("sandbox") ? SANDBOX_ENV : {}),
+    }, async () =>
       paddleReply('{"data":{"id":"adj_01"}}'),
     );
 
@@ -173,7 +237,7 @@ describe("subscription-manage Paddle egress", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toBe(endpoint);
-    expect((init.headers as Record<string, string>).authorization).toBe(`Bearer ${API_KEY}`);
+    expect((init.headers as Record<string, string>).authorization).toBe(`Bearer ${base?.includes("sandbox") ? SANDBOX_API_KEY : API_KEY}`);
     // A redirect must not carry the bearer to a URL the pin never checked.
     expect(init.redirect).toBe("error");
     await expect(response.json()).resolves.toMatchObject({

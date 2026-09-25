@@ -172,3 +172,7 @@ supabase/.temp/
 
 # Compiled Python caches (scripts/*.py). One .pyc was tracked by mistake until 2026-09-06 (audit D8-15).
 __pycache__/
+
+# Local observatory QA bundles, process logs and full test output (not release artifacts).
+.expo-observatory*
+.qa-observatory*

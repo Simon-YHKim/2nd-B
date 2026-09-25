@@ -13,7 +13,7 @@
  * (document-global svg ids) never clashes across instances.
  */
 import { forwardRef, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
-import { AccessibilityInfo, type DimensionValue, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { AccessibilityInfo, Keyboard, type DimensionValue, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { router, useLocalSearchParams } from "expo-router";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
@@ -41,6 +41,12 @@ import { SEVEN_STARS, isUnlived } from "@/lib/persona/seven-stars";
 import { loadSeenAggregate, type SeenAggregateRow } from "@/lib/peer/invite";
 import { callLlm } from "@/lib/llm/boundary";
 import { IMAGINE_SEEDS, type ImagineSeedIcon } from "./imagine-seeds";
+import { FirstRecordCoachmark } from "./FirstRecordCoachmark";
+import { markCoachmarksSeen } from "@/lib/onboarding/coachmarks-gate";
+import {
+  advanceFirstRecordCoach,
+  type FirstRecordCoachStep,
+} from "@/lib/onboarding/first-record-coach";
 
 /**
  * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
@@ -249,8 +255,8 @@ function CaptureTile({
   );
 }
 
-export function CaptureView() {
-  const { t, i18n } = useTranslation(["home", "capture"]);
+export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: boolean } = {}) {
+  const { t, i18n } = useTranslation(["home", "capture", "deepspace"]);
   const { userId, isMinor } = useAuth();
   const locale = i18n.language === "ko" ? "ko" : "en";
   // rev2 P4a (device QA 2026-07-02) + clone-audit 06-capture: the deep-space 담기
@@ -264,6 +270,13 @@ export function CaptureView() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(false);
+  const [coachStep, setCoachStep] = useState<FirstRecordCoachStep | null>(
+    firstRecordCoach ? "format" : null,
+  );
+  const scrollRef = useRef<ScrollView>(null);
+  const memoCoachTargetRef = useRef<View>(null);
+  const inputCoachTargetRef = useRef<View>(null);
+  const saveCoachTargetRef = useRef<View>(null);
   // Crisis safety net (parity with the journal path): createRecord runs the
   // local crisis lexicon on every note save; a red zone must surface the same
   // locale/minor-aware hotline here as everywhere else, not a silent "saved".
@@ -282,6 +295,27 @@ export function CaptureView() {
         ? cleanTodos.length > 0
         : text.trim().length > 0;
   const canSave = userId != null && hasContent && !saving;
+
+  useEffect(() => {
+    if (!firstRecordCoach) setCoachStep(null);
+    else setCoachStep((current) => current ?? "format");
+  }, [firstRecordCoach]);
+
+  const stopCoach = () => {
+    markCoachmarksSeen();
+    setCoachStep(null);
+  };
+
+  const showSaveCoach = () => {
+    if (!text.trim()) return;
+    Keyboard.dismiss();
+    setCoachStep((current) =>
+      current ? advanceFirstRecordCoach(current, "input-confirmed") : current,
+    );
+    [80, 260].forEach((delay) =>
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), delay),
+    );
+  };
 
   const dirty = () => {
     if (saved) setSaved(false);
@@ -341,6 +375,16 @@ export function CaptureView() {
         setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
       }
       setSaved(true);
+      if (firstRecordCoach) {
+        markCoachmarksSeen();
+        // The real save button can be used before the guide's input confirmation.
+        // Read the latest step so a skip during the request stays dismissed.
+        setCoachStep((current) =>
+          current === null || res.followup?.zone === "red"
+            ? null
+            : advanceFirstRecordCoach(current, "save-succeeded"),
+        );
+      }
       // WCAG 4.1.3 status message: the saved outcome is otherwise only a button
       // label/state change, silent to a screen reader. Announce it.
       AccessibilityInfo.announceForAccessibility(t("ds.capture.saved"));
@@ -366,13 +410,31 @@ export function CaptureView() {
   const f = (key: string) => t("ds.capture." + key);
   const saveLabel = saving ? f("saving") : saved ? f("saved") : f("save");
 
+  const coachTargetRef =
+    coachStep === "format"
+      ? memoCoachTargetRef
+      : coachStep === "input"
+        ? inputCoachTargetRef
+        : saveCoachTargetRef;
+  const coachCount = coachStep === "done" ? t("deepspace:coachmarks.doneCount") : `${coachStep === "format" ? 2 : coachStep === "input" ? 3 : 4}/4`;
+  const coachMessage =
+    coachStep === "format"
+      ? t("deepspace:coachmarks.formatStep")
+      : coachStep === "input"
+        ? t("deepspace:coachmarks.inputStep")
+        : coachStep === "save"
+          ? t("deepspace:coachmarks.saveStep")
+          : t("deepspace:coachmarks.doneStep");
+
   return (
-    <ScrollView
-      style={styles.capScroll}
-      contentContainerStyle={styles.capBody}
-      keyboardShouldPersistTaps="handled"
-      automaticallyAdjustKeyboardInsets
-    >
+    <View style={styles.capCoachRoot}>
+      <ScrollView
+        ref={scrollRef}
+        style={styles.capScroll}
+        contentContainerStyle={styles.capBody}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+      >
       {/* The reference uses five fixed square tiles, not a scrolling chip row. */}
       <View style={styles.capModeRow} accessibilityRole="tablist">
         {CAPTURE_MODE_ROW.map((m) => {
@@ -398,7 +460,11 @@ export function CaptureView() {
       {mode === "text" ? (
         <>
           <View style={styles.capFormatRow} accessibilityRole="radiogroup">
-            <View style={styles.capFormatCell}>
+            <View
+              ref={memoCoachTargetRef}
+              collapsable={false}
+              style={styles.capFormatCell}
+            >
               <CaptureTile
                 role="radio"
                 selected={textFormat === "free"}
@@ -408,6 +474,9 @@ export function CaptureView() {
                 onPress={() => {
                   setTextFormat("free");
                   dirty();
+                  setCoachStep((current) =>
+                    current ? advanceFirstRecordCoach(current, "memo-selected") : current,
+                  );
                 }}
               />
             </View>
@@ -427,19 +496,21 @@ export function CaptureView() {
           </View>
           {textFormat === "free" ? (
             <View style={styles.capForm}>
-              <TextInput
-                value={text}
-                onChangeText={(next) => {
-                  setText(next);
-                  dirty();
-                }}
-                placeholder={f("fields.what.hint")}
-                placeholderTextColor={m3.color.onSurfaceVariant}
-                multiline
-                textAlignVertical="top"
-                style={[styles.capFieldInput, styles.capFreeInput]}
-                accessibilityLabel={t("capture:modes.memo.label")}
-              />
+              <View ref={inputCoachTargetRef} collapsable={false}>
+                <TextInput
+                  value={text}
+                  onChangeText={(next) => {
+                    setText(next);
+                    dirty();
+                  }}
+                  placeholder={f("fields.what.hint")}
+                  placeholderTextColor={m3.color.onSurfaceVariant}
+                  multiline
+                  textAlignVertical="top"
+                  style={[styles.capFieldInput, styles.capFreeInput]}
+                  accessibilityLabel={t("capture:modes.memo.label")}
+                />
+              </View>
             </View>
           ) : (
             <View style={styles.capForm}>
@@ -584,7 +655,7 @@ export function CaptureView() {
         </View>
       )}
 
-      <View style={styles.capSubmit}>
+      <View ref={saveCoachTargetRef} collapsable={false} style={styles.capSubmit}>
         <CaptureTile
           role="button"
           selected={canSave || saving || saved}
@@ -616,7 +687,33 @@ export function CaptureView() {
         hotline={crisis.hotline}
         onClose={() => setCrisis((c) => ({ ...c, visible: false }))}
       />
-    </ScrollView>
+      </ScrollView>
+      {coachStep ? (
+        <FirstRecordCoachmark
+          targetRef={coachTargetRef}
+          countLabel={coachCount}
+          message={coachMessage}
+          hint={
+            coachStep === "input"
+              ? t("deepspace:coachmarks.inputHint")
+              : coachStep === "done"
+                ? t("deepspace:coachmarks.doneHint")
+                : t("deepspace:coachmarks.targetHint")
+          }
+          skipLabel={coachStep === "done" ? undefined : t("deepspace:coachmarks.dontShowAgain")}
+          actionLabel={
+            coachStep === "input" && text.trim()
+              ? t("deepspace:coachmarks.inputReady")
+              : coachStep === "done"
+                ? t("deepspace:coachmarks.goHome")
+                : undefined
+          }
+          onSkip={stopCoach}
+          onAction={coachStep === "done" ? () => router.replace("/") : showSaveCoach}
+          refreshKey={`${coachStep}:${textFormat}:${canSave}`}
+        />
+      ) : null}
+    </View>
   );
 }
 
@@ -1952,6 +2049,7 @@ const styles = StyleSheet.create({
   pixelTitle: { color: deepSpace.accentBright, fontSize: 16, fontFamily: fontFamilies.readable, fontWeight: "700" },
 
   // ── 담기 / Capture (M3 track, clone-audit 06-capture) ──────────────────────
+  capCoachRoot: { flex: 1, minHeight: 0 },
   capScroll: { flex: 1 },
   capBody: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 20 },
   capModeRow: { flexDirection: "row", gap: 4 },

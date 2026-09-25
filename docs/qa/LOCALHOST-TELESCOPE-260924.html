@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2ndB 로컬호스트 화면 검증 · 2026-09-24</title>
+  <style>
+    :root { color-scheme: light dark; --accent:#4a67b6; --text:#202a38; --muted:#657186; --surface:#f4f6fa; }
+    @media (prefers-color-scheme:dark) { :root { --accent:#abc4ff; --text:#eaf0fa; --muted:#aab6c9; --surface:#1b2434; } }
+    body { max-width:900px; margin:auto; padding:28px 20px 64px; font:16px/1.6 system-ui,sans-serif; color:var(--text); }
+    h1,h2 { line-height:1.25; } a { color:var(--accent); } :focus-visible { outline:3px solid var(--accent); outline-offset:3px; }
+    .meta { color:var(--muted); } .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin:24px 0; }
+    .card,details { background:var(--surface); padding:16px; border-radius:12px; } .card strong { display:block; font-size:1.2rem; }
+    details { margin:12px 0; } summary { cursor:pointer; font-weight:700; } table { width:100%; border-collapse:collapse; margin-top:12px; }
+    th,td { padding:9px 6px; border-bottom:1px solid var(--muted); text-align:left; vertical-align:top; } code { overflow-wrap:anywhere; }
+  </style>
+</head>
+<body>
+  <h1>로컬호스트 화면 · 망원경 조작 개선</h1>
+  <p class="meta">2026-09-24 15:37:40 KST · 실행 워크트리: <code>localhost-260921-287e56f1</code> · <code>localhost:8081</code></p>
+  <div class="cards" aria-label="결과 요약">
+    <div class="card"><strong>3개 화면</strong>스크랩 · 세컨비 · 기록 그래프</div>
+    <div class="card"><strong>9,925 / 9,925</strong>단일 프로세스 전체 테스트 통과</div>
+    <div class="card"><strong>브라우저 오류 0</strong>Orca 콘솔 최근 50건 기준</div>
+  </div>
+  <details open><summary>변경 내용</summary>
+    <table><thead><tr><th>위치</th><th>결과</th></tr></thead><tbody>
+      <tr><td>하단 내비게이션</td><td>“담기” 메뉴 이름을 “스크랩”으로 변경. 저장 동작 버튼 “담기”는 유지.</td></tr>
+      <tr><td>세컨비 대화</td><td>상단 캐릭터 말풍선을 없애고 대화 상대 선택을 창의 첫 행으로 이동.</td></tr>
+      <tr><td>기록 그래프</td><td>축소·확대·연결선 제어를 하단 한 행으로 배치. 카메라는 그래프 바깥 하늘까지 이동 가능.</td></tr>
+      <tr><td>망원경 조작</td><td>핀치의 이동하는 중심 아래 동일한 별을 유지하고, 드래그·확대 시작에 조용한 조절 틱을 재생.</td></tr>
+    </tbody></table>
+  </details>
+  <details><summary>검증과 남은 위험</summary>
+    <p>타입 검사, 번역 키 검사, 대상 ESLint, 그래프 회귀 테스트, 단일 프로세스 전체 테스트를 통과했다. Orca에서 세컨비 선택기 최상단 배치, 스크랩 탭 표기, 그래프 하단 제어와 휠 확대를 확인했다.</p>
+    <p>기본 병렬 <code>npm run verify</code>의 마지막 Jest 단계는 임시 생성 파일 경합으로 1개 스위트가 실패했으나, 해당 스위트 단독 및 전체 Jest 단일 프로세스 실행은 통과했다. Expo 진단은 기존 SDK 버전 불일치와 Hermes 경고를 보고했다. 실제 Android/iOS 터치 및 소리 청취는 이번 검증에 포함되지 않았다.</p>
+  </details>
+</body>
+</html>

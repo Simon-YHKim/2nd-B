@@ -1,4 +1,16 @@
 {
+  "telescope": {
+    "label": "Telescope controls",
+    "up": "Aim telescope up",
+    "down": "Aim telescope down",
+    "left": "Aim telescope left",
+    "right": "Aim telescope right",
+    "reset": "Return to the full sky",
+    "dial": "Magnification dial",
+    "hint": "Turn the dial, or use the plus and minus buttons.",
+    "phone": "Open my dashboard",
+    "phoneLabel": "My phone"
+  },
   "time": {
     "today": "Today",
     "yesterday": "Yesterday",
@@ -139,7 +151,7 @@
   },
   "auth": {
     "appName": "2nd-Brain",
-    "signInLead": "Keep records, learn about yourself and talk with SecondB.",
+    "signInLead": "In the AI era, the asset is you. Your records add up to your North Star.",
     "signIn": "Sign in",
     "createAccount": "Create account",
     "signUpTitle": "Get started",
@@ -159,8 +171,7 @@
     "or": "or",
     "ageNotice": "You can create an account if you are {{minAge}} or older.",
     "brandLabel": "2ND-BRAIN",
-    "signInTitle": "Sign in to 2nd-Brain",
-    "signInEncrypt": "You can change your privacy settings at any time.",
+    "signInTitle": "Good to see you again",
     "emailContinue": "Continue with email",
     "signUpPrompt": "New here?",
     "legalConsent": "By continuing, you agree to the Terms of Service and Privacy Policy.",
@@ -689,14 +700,19 @@
     "starsFallback": "Couldn't load the star count. Using the default count."
   },
   "coachmarks": {
-    "step1": "This is your constellation",
-    "step2": "Tap a star",
-    "step3": "When it comes to mind, capture it",
-    "step4": "More tools live in settings",
+    "homeStep": "Tap SecondB to start your first record.",
+    "formatStep": "Choose Memo first. One line is enough.",
+    "inputStep": "Write the thought on your mind. It does not need to be a complete sentence.",
+    "saveStep": "Now tap Save to leave your first record.",
+    "doneStep": "Your first record is saved. Return to the constellation to see it.",
+    "targetHint": "Tap the highlighted control to continue.",
+    "inputHint": "Write at least one character to continue to Save.",
+    "doneHint": "The save completed successfully.",
+    "inputReady": "Go to Save",
+    "goHome": "Go to constellation",
+    "doneCount": "Done",
     "secondbName": "SecondB",
-    "dontShowAgain": "Don't show again",
-    "start": "Start",
-    "next": "Next"
+    "dontShowAgain": "Don't show again"
   },
   "museum": {
     "title": "AI Museum",

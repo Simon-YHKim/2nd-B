@@ -173,6 +173,12 @@
   }
  },
  "actualRoutes": {
+  "/dashboard": {
+   "strategy": "redesign",
+   "references": [],
+   "implementation": "실제 인터뷰·루틴·가져온 기록을 휴대전화형 PIXEL-CLAY 대시보드에 모으고 출처·마지막 가져오기·권한 상태를 구분한다.",
+   "doneWhen": "빈 상태·읽기 실패·동의 철회·미지원 연결을 정직하게 표시하고 실제 루틴 실행과 기존 가져오기·설정 경로가 검증된다."
+  },
   "/oauth-callback": {
    "strategy": "state-only",
    "references": [],

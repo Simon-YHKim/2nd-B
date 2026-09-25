@@ -65,17 +65,19 @@ describe("엔진이 분류를 실어 돌려준다", () => {
   });
 });
 
-describe("⚠ 모델은 깎기만 한다 (이 변경의 핵심 비대칭)", () => {
-  it("화면이 null 일 때만 되돌린다", () => {
-    expect(SCREEN).toContain("if (credited && probe.answeredLayer === null)");
-    expect(SCREEN).toContain("decrementCoverage(cov, period, credited)");
+describe("확인 전에는 가산하지 않고 모델 혼자 층을 올리지 않는다", () => {
+  it("결정론적 후보와 모델 판정이 둘 다 있어야 반영한다", () => {
+    expect(SCREEN).toContain("confirmedAnswer(lastAnswer.text, credited, locale, probe.answeredLayer)");
+    expect(SCREEN).toContain("if (credited && confirmed) setCoverage(incrementCoverage(cov, period, credited))");
+    expect(SCREEN).not.toContain("decrementCoverage(");
   });
 
   it("모델의 '닿았다'로 칸을 채우는 경로가 없다", () => {
-    // incrementCoverage 는 오직 제출 시점의 결정론적 판정에서만 불려야 한다.
+    // Submission does not pre-credit; the model cannot select a different layer.
     const incs = SCREEN.match(/incrementCoverage\(/g) ?? [];
     expect(incs).toHaveLength(1);
-    expect(SCREEN).toContain("pendingLayer && !blocked ? incrementCoverage(coverage, period, pendingLayer)");
+    expect(SCREEN).toContain("const nextCoverage = coverage;");
+    expect(SCREEN).toContain("!canCreditAnswer(text, pendingLayer, locale)");
     // answeredLayer 로 칸을 올리는 코드가 있으면 비대칭이 깨진다.
     expect(SCREEN).not.toMatch(/incrementCoverage\([^)]*answeredLayer/);
   });

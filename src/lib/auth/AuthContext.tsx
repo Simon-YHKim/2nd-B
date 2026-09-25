@@ -6,6 +6,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { getSupabaseClient } from "../supabase/client";
+import { observeAuthConversion, publishAnalyticsProfileGate } from "../analytics/auth-conversions";
 import {
   ageInYears,
   consumeCurrentWebAuthCallback,
@@ -306,6 +307,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
+    let freshWebCallbackUserId: string | null = null;
     const effectEpoch = authClientEpoch;
     const isCurrentEffect = () => !cancelled
       && authClientEpochRef.current === effectEpoch
@@ -367,6 +369,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const lastProbe = lastProbeRef.current;
       if (userId === lastUserIdRef.current && lastProbe !== null) {
         noteResolvedOwner(userId);
+        publishAnalyticsProfileGate(userId, lastProbe.isMinor);
         setState({
           userId,
           hasProfile: lastProbe.hasProfile,
@@ -389,6 +392,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!isCurrentEffect() || gen !== probeGenRef.current) return;
         lastProbeRef.current = refreshed;
         noteResolvedOwner(userId);
+        publishAnalyticsProfileGate(userId, refreshed.isMinor);
         setState({
           userId,
           hasProfile: refreshed.hasProfile,
@@ -402,6 +406,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       // First resolve for this user: mark loading until we know the profile.
       noteResolvedOwner(userId);
+      publishAnalyticsProfileGate(userId, null);
       setState({ userId, hasProfile: null, isMinor: null, age: null, profileProbeFailed: false, sessionUnavailable: false, loading: true });
       const probe = await probeProfile(
         userId,
@@ -419,6 +424,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       lastUserIdRef.current = userId;
       lastProbeRef.current = probe;
       noteResolvedOwner(userId);
+      publishAnalyticsProfileGate(userId, probe.isMinor);
       setState({
         userId,
         hasProfile: probe.hasProfile,
@@ -756,6 +762,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const armedPending = await armWebRecoveryPendingFromLocation();
         const callback = await consumeCurrentWebAuthCallback(armedPending);
+        if (callback && callback.type !== "recovery") freshWebCallbackUserId = callback.userId;
         // Web accepts PKCE only. consumeCurrentWebAuthCallback has already
         // committed recovery session + proof + own pending clear under M;
         // activation below only publishes that durable owner to React.
@@ -1029,7 +1036,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         rawSessionLoad,
         isCancelled: () => !isCurrentEffect(),
         setRecoveryReady,
-        resolveSession,
+        resolveSession: async (resolvedUserId) => {
+          await resolveSession(resolvedUserId);
+          // Only an explicitly consumed callback can produce this login.
+          // INITIAL_SESSION, refresh, tab focus, and repeated SIGNED_IN do not.
+          const callbackUserId = freshWebCallbackUserId;
+          freshWebCallbackUserId = null;
+          if (callbackUserId && resolvedUserId === callbackUserId && !proof &&
+            isCurrentEffect() && lastUserIdRef.current === callbackUserId && lastProbeRef.current?.hasProfile) {
+            void observeAuthConversion(callbackUserId, "login", undefined, true);
+          }
+        },
         publishSessionUnavailable,
         isRecoveryPendingInMemory,
         currentRecoveryProof: () => recoveryProofRef.current,
@@ -1187,6 +1204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     lastUserIdRef.current = uid;
     lastProbeRef.current = probe;
     noteResolvedOwner(uid);
+    publishAnalyticsProfileGate(uid, probe.isMinor);
     setState({
       userId: uid,
       hasProfile: probe.hasProfile,

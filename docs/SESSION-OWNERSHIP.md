@@ -102,11 +102,29 @@ migration과 현재 Edge 함수가 모두 정상인 상태를 만든 뒤에만 �
 교체할 수 없다. 공개 앱이 새 서버 계약보다 먼저 광고를 열지 않도록 아래 순서를 지킨다.
 
 1. **server OFF:** 콘솔 세션이 운영 `REWARD_SSV_ENABLED=0`을 확인한다. 공개 client의
-   `EXPO_PUBLIC_REWARD_SSV`도 unset/false로 유지한다.
-2. **DB:** 당시의 다음 번호를 원격 재조회·예약·push한 뒤
+   `EXPO_PUBLIC_REWARD_SSV`도 unset/false로 유지한다. 기존 Edge invocation·광고 콜백의
+   in-flight가 0인지 로그로 확인한다. 거래 원장 0건이나 티켓 테이블 부재로 drain을 대신하지 않는다.
+2. **DB:** 운영 이력·함수 본문·ACL로 `0172_reward_authorization_hardening.sql`의
+   서버 전용 지급 권한과 현재 사용자 자격 검사를 확인한다. 미적용이면 기존 기반 함수·원장을
+   확인한 뒤 선행 적용한다. 이어 `0177_reward_ssv_tickets.sql` 또는 동등한 티켓 계약을
+   적용한다. 당시의 다음 번호를 원격 재조회·예약·push한 뒤
    `UNNUMBERED_reward_ssv_hardening.sql`을 번호가 붙은 migration으로 적용하고 DB 회귀를 확인한다.
-3. **Edge:** `REWARD_SSV_AD_UNIT_ID`를 운영 실유닛으로 설정하고 새 `rewarded-ssv Edge`를
-   배포한다. 아직 `REWARD_SSV_ENABLED=0`이므로 공개 요청은 503으로 닫혀 있어야 한다.
+   **0177 단독 상태에서 활성화하지 않는다.** 0177의 티켓은 10분이고 hardening과 새 Edge는
+   20분 계약이다. 아래 네 RPC의 정확한 시그니처와 `service_role` 전용 실행 권한을 확인한다.
+   - `claim_reward_ssv_issue_rate_limit(uuid)`
+   - `issue_reward_ssv_ticket(uuid,text,text,text,integer,text)`
+   - `claim_reward_ssv_callback_attempt(text,text,text,integer,text)`
+   - `settle_reward_ssv_ticket_v2(text,text,text,integer,text)`
+   기존 `consume_reward_ssv_ticket(text,uuid,text,text,integer,text)`와
+   `grant_chat_ad_bonus(uuid)`·`bump_reward_credits_if_under_cap(uuid,text,integer)`는
+   공개 역할과 `service_role` 모두 실행할 수 없어야 한다. 함수 이름 존재만으로 0172 적용을
+   판정하지 않는다. 이 검증을 마치기 전에는 새 Edge를 배포하지 않는다.
+3. **Edge:** `REWARD_SSV_AD_UNIT_IDS`에 Android/iOS 실유닛을 쉼표로 구분해 최대 두 개
+   설정하고 새 `rewarded-ssv Edge`를 배포한다. 전체 ID 또는 숫자 접미사를 허용하지만
+   티켓 발급·서명 콜백·DB 비교는 모두 숫자 접미사로 정규화한다. 단일 변수
+   `REWARD_SSV_AD_UNIT_ID`는 복수 변수가 없을 때만 호환한다. 아직 `REWARD_SSV_ENABLED=0`이므로
+   티켓 발급·보상 콜백은 503으로 닫혀 있어야 한다. 사용자·티켓 필드가 모두 없는 AdMob
+   콘솔 확인 요청만 Google 서명 검증 후 200(`verification_only`)으로 응답하며 DB에 접근하지 않는다.
 4. **공개 client capability OFF:** 배포된 앱의 `EXPO_PUBLIC_REWARD_SSV`는 계속 unset/false이고,
    실유닛이 없는 빌드도 `canCompleteRewardedWatch()`에서 닫히는지 확인한다.
 5. **제한 canary:** 콘솔 세션이 감시 창에서만 `REWARD_SSV_ENABLED=1`로 전환한다. 공개 앱은
@@ -116,12 +134,56 @@ migration과 현재 Edge 함수가 모두 정상인 상태를 만든 뒤에만 �
    하나라도 실패하면 즉시 `REWARD_SSV_ENABLED=0`으로 되돌리고 server를 roll-forward한다.
    이미 적용한 DB를 되감는 `DB down migration`은 실행하지 않는다.
 7. **client activation:** 서버가 유지 상태임을 재확인한 뒤에만 공개 빌드에
-   `EXPO_PUBLIC_REWARD_SSV=true`와 검증된 `EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID`를 함께 넣는다.
-   이 공개 ad unit은 Edge의 `REWARD_SSV_AD_UNIT_ID`와 정확히 같아야 한다. 불일치·누락·
-   Google test unit이면 capability가 fail-closed인 것을 release 전에 확인한다.
+   `EXPO_PUBLIC_REWARD_SSV=true`와 플랫폼별 전체 ID
+   `EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_ANDROID` / `EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_IOS`를 넣는다.
+   Android만 전용 변수가 아예 없을 때 기존 `EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID`로 호환하며,
+   iOS는 Android 값을 재사용하지 않는다. 각 ID의 숫자 접미사가 서버 허용목록에 있어야 한다.
+   새 클라이언트는 POST `{kind, ad_unit_id}`로 실제 표시할 단위를 지정하며 서버가 티켓에
+   그 단위를 결속한다. 구 `{kind}` 요청은 서버 유닛이 하나일 때만 허용된다. 불일치·누락·
+   Google test unit이면 광고가 열리지 않는지 release 전에 확인한다.
+
+전체 ID를 저장하던 이전 티켓은 새 숫자 ID와 호환되지 않는다. 전환 전 광고를 닫고
+발급된 티켓의 20분 유효기간 및 소비 후 1일 exact-retry 창이 지난 뒤 잔여 요청이 없는지
+확인한다. DB 행을 일괄 수정해서 맞추지 않는다. 새 Edge와 클라이언트 배포가 끝나도
+위 canary와 별도 운영 승인 전에는 두 플래그를 켜지 않는다.
+
+2026-09-25 01:24 KST Relay 회신(`vb-2e14b97d`)은 운영 Edge **v86**이 기존 직접 지급
+구현이고 `reward_ssv_tickets`·`issue_reward_ssv_ticket`이 없다고 보고했다. 이 관측이
+여전히 유효하면 티켓 대기 창은 해당 없음으로 기록할 수 있지만, 구 방식 콜백의 drain과
+0172 → 0177 → hardening 계약 확인은 필요하다. 이 수치는 콘솔 세션의 당시 관측이며
+현재 상태나 이번 코딩 세션의 DB 직접 조회 결과로 간주하지 않는다.
 
 운영 DB 적용, Edge 배포, 서버 플래그 전환은 모두 **콘솔 세션 소유**다. 코딩 세션은 번호
 없는 draft와 검증 자료만 넘기며, 콘솔 완료 증거 없이 공개 client activation을 승인하지 않는다.
+
+#### 2026-09-25 통합 QA: 가입·Polaris·Paddle의 서버 선행 조건
+
+`fix/qa-harness-integrated-260925`는 아래 계약을 포함한다. 코드 검증과 운영 적용을
+구분하며, 새 클라이언트의 활성화 전에 콘솔 증거를 확인한다.
+
+- **가입:** `UNNUMBERED_signup_consent_admob_20260925.sql`을 0148/0149/0150의
+  후속으로 번호 예약·적용한다. `signup_consent_contract_status()`의 email-v4 및
+  consent/policy/terms 판본과 confirmation ready를 확인하고 실제 이메일 확인을 검증한다.
+  과거 v2/v3 튜플과 기존 원장은 유지한다. Web publish·production EAS build·OTA는
+  공개 상태 RPC가 현재 클라이언트와 일치하지 않으면 실패한다. 코딩 세션의 2026-09-25
+  조회에서는 해당 RPC가 아직 없었으며, 로컬 build-only는 이 상태에서도 가능하다.
+- **Polaris:** 0189·0190 및 번호를 예약한 account-deletion completion fence가 선행한다.
+  `UNNUMBERED_polaris_generation_allowance.sql`을 번호로 승격할 때 canonical erasure
+  registry·forward gate·rollback coverage도 함께 갱신한다. 기존 0189를 수정하지 않는다.
+  콘텐츠 삭제 후에도 lifetime 사용 원장은 보존하고 근거·역할 카드를 제거하며,
+  계정 삭제는 원장을 CASCADE로 지운다. DB `enabled=false`와 `ratify_polaris_role_card`
+  준비 → OpenAI의 예약 근거·정산 wrapper 및 나머지 세 proxy의 공유 거부 가드 배포
+  → 클라이언트 → 예약/정산/승인/삭제 경합 canary → enabled 순서다.
+- **서비스 동의 v2:** 제공자 호출 전 게이트와, 호출 중 철회를 정산 직전에 재검사하는
+  처리를 구분한다. 후자는 아직 없으므로 verified-consent 활성화의 남은 조건이다.
+  chat_autosave/analytics 동의를 Polaris 서비스 동의로 대신 해석하지 않는다.
+- **Paddle:** 위 refund OFF/drain 절차를 우선하며, v2 webhook verifier →
+  subscription-manage signer → 웹 빌드 순서다. 서로 다른 Supabase 프로젝트와
+  환경별 키·가격·binding을 사용한다. [sandbox runbook](PADDLE-SANDBOX-RUNBOOK.md)의
+  실제 결제·갱신·환불·운영 원장 무변경 확인 전에는 종단 검증 완료로 기록하지 않는다.
+
+[실행 기록](qa/COMPLEMENT-EXECUTION-260925.md)에 로컬 SQL·브라우저·하네스 증거와
+미실행 항목을 구분했다. 위 운영 작업은 이번 코딩 세션에서 실행하지 않았다.
 
 **마이그레이션 파일 작성은 원래 코딩 세션 몫이다.** 콘솔 세션이 쓴 적이 있다
 (`0131`, 어드바이저가 잡은 인덱스 누락). 사람이 승인하면 가능하지만 **쓴 사실을

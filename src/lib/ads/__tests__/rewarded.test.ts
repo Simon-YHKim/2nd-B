@@ -56,8 +56,13 @@ const REASONING_OPTIONS = { ssvCustomData: USER_ID };
 const CHAT_OPTIONS = { ssvCustomData: `${USER_ID}|chat` };
 const TEST_AD_UNIT = "ca-app-pub-3940256099942544/5224354917";
 const LIVE_AD_UNIT = "ca-app-pub-1234567890123456/1234567890";
+const ANDROID_AD_UNIT = "ca-app-pub-1234567890123456/2345678901";
+const IOS_AD_UNIT = "ca-app-pub-1234567890123456/3456789012";
 const ORIGINAL_SSV = process.env.EXPO_PUBLIC_REWARD_SSV;
 const ORIGINAL_REWARDED_UNIT = process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID;
+const ORIGINAL_ANDROID_UNIT = process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_ANDROID;
+const ORIGINAL_IOS_UNIT = process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_IOS;
+const { Platform } = jest.requireMock("react-native") as { Platform: { OS: string } };
 const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 const flushMicrotasks = async () => {
   for (let i = 0; i < 20; i += 1) await Promise.resolve();
@@ -83,6 +88,9 @@ beforeEach(() => {
   (globalThis as { __DEV__?: boolean }).__DEV__ = true;
   process.env.EXPO_PUBLIC_REWARD_SSV = "true";
   delete process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID;
+  delete process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_ANDROID;
+  delete process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_IOS;
+  Platform.OS = "android";
   for (const key of Object.keys(listeners)) delete listeners[key];
   unsubscribers.length = 0;
   jest.clearAllMocks();
@@ -106,6 +114,16 @@ afterAll(() => {
   } else {
     process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID = ORIGINAL_REWARDED_UNIT;
   }
+  if (ORIGINAL_ANDROID_UNIT === undefined) {
+    delete process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_ANDROID;
+  } else {
+    process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_ANDROID = ORIGINAL_ANDROID_UNIT;
+  }
+  if (ORIGINAL_IOS_UNIT === undefined) {
+    delete process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_IOS;
+  } else {
+    process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_IOS = ORIGINAL_IOS_UNIT;
+  }
 });
 
 describe("showRewardedAd SSV ticket boundary", () => {
@@ -120,7 +138,7 @@ describe("showRewardedAd SSV ticket boundary", () => {
     expect(mockInvoke).toHaveBeenCalledWith("rewarded-ssv", {
       method: "POST",
       headers: { Authorization: `Bearer ${ACCESS_TOKEN}` },
-      body: { kind },
+      body: { kind, ad_unit_id: TEST_AD_UNIT },
       signal: expect.anything(),
     });
     expect(mockInvoke.mock.invocationCallOrder[0]).toBeLessThan(
@@ -480,7 +498,7 @@ describe("showRewardedAd gates and SDK lifecycle", () => {
     expect(mockGetSession).not.toHaveBeenCalled();
   });
 
-  test("production capability uses the validated live ad unit", async () => {
+  test("Android retains the legacy live ad unit when its platform setting is absent", async () => {
     const global = globalThis as { __DEV__?: boolean };
     global.__DEV__ = false;
     process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID = LIVE_AD_UNIT;
@@ -488,11 +506,82 @@ describe("showRewardedAd gates and SDK lifecycle", () => {
     expect(canCompleteRewardedWatch()).toBe(true);
     const result = showRewardedAd(REASONING_OPTIONS);
     await flush();
+    fire("closed");
+    await expect(result).resolves.toEqual({ completed: false });
 
     expect(createForAdRequest).toHaveBeenCalledWith(LIVE_AD_UNIT, {
       serverSideVerificationOptions: { customData: TICKET },
     });
+    expect(mockInvoke).toHaveBeenCalledWith("rewarded-ssv", expect.objectContaining({
+      body: { kind: "reasoning", ad_unit_id: LIVE_AD_UNIT },
+    }));
+  });
+
+  test.each([
+    ["android", ANDROID_AD_UNIT],
+    ["ios", IOS_AD_UNIT],
+  ])("%s uses its platform unit for both ticket issuance and the displayed ad", async (platform, unitId) => {
+    (globalThis as { __DEV__?: boolean }).__DEV__ = false;
+    Platform.OS = platform;
+    process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID = LIVE_AD_UNIT;
+    process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_ANDROID = ANDROID_AD_UNIT;
+    process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_IOS = IOS_AD_UNIT;
+
+    const result = showRewardedAd(CHAT_OPTIONS);
+    await flush();
     fire("closed");
     await expect(result).resolves.toEqual({ completed: false });
+
+    expect(canCompleteRewardedWatch()).toBe(true);
+    expect(mockInvoke).toHaveBeenCalledWith("rewarded-ssv", expect.objectContaining({
+      body: { kind: "chat", ad_unit_id: unitId },
+    }));
+    expect(createForAdRequest).toHaveBeenCalledWith(unitId, {
+      serverSideVerificationOptions: { customData: TICKET },
+    });
+  });
+
+  test("iOS without its own unit fails closed even when Android and legacy units exist", async () => {
+    (globalThis as { __DEV__?: boolean }).__DEV__ = false;
+    Platform.OS = "ios";
+    process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID = LIVE_AD_UNIT;
+    process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_ANDROID = ANDROID_AD_UNIT;
+
+    const result = showRewardedAd(REASONING_OPTIONS);
+    await flush();
+    fire("closed");
+    await expect(result).resolves.toEqual({ completed: false });
+
+    expect(canCompleteRewardedWatch()).toBe(false);
+    expect(ensureUmpConsent).not.toHaveBeenCalled();
+    expect(mockInvoke).not.toHaveBeenCalled();
+    expect(createForAdRequest).not.toHaveBeenCalled();
+  });
+
+  describe.each(["android", "ios"])("%s platform unit validation", (platform) => {
+    test.each([
+      "",
+      "ca-app-pub-123/456",
+      ` ${LIVE_AD_UNIT}`,
+      TEST_AD_UNIT,
+      "ca-app-pub-3940256099942544/1712485313",
+      "ca-app-pub-3940256099942544/1033173712",
+    ])("rejects an explicit invalid unit without falling back to legacy: %#", async (unitId) => {
+      (globalThis as { __DEV__?: boolean }).__DEV__ = false;
+      Platform.OS = platform;
+      process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID = LIVE_AD_UNIT;
+      process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_ANDROID = unitId;
+      process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_IOS = unitId;
+
+      const result = showRewardedAd(REASONING_OPTIONS);
+      await flush();
+      fire("closed");
+      await expect(result).resolves.toEqual({ completed: false });
+
+      expect(canCompleteRewardedWatch()).toBe(false);
+      expect(ensureUmpConsent).not.toHaveBeenCalled();
+      expect(mockInvoke).not.toHaveBeenCalled();
+      expect(createForAdRequest).not.toHaveBeenCalled();
+    });
   });
 });

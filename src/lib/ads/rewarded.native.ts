@@ -26,10 +26,7 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 const ACCESS_TOKEN_PATTERN = /^[A-Za-z0-9._~-]{1,8192}$/;
 const TICKET_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const ADMOB_REWARDED_UNIT_PATTERN = /^ca-app-pub-\d{16}\/\d{10}$/;
-const GOOGLE_TEST_REWARDED_UNITS = new Set([
-  "ca-app-pub-3940256099942544/5224354917", // Android
-  "ca-app-pub-3940256099942544/1712485313", // iOS
-]);
+const GOOGLE_TEST_PUBLISHER_PREFIX = "ca-app-pub-3940256099942544/";
 const TICKET_TIMEOUT_MS = 5_000;
 const SESSION_FENCE_TIMEOUT_MS = 5_000;
 const LOAD_TIMEOUT_MS = 20_000;
@@ -59,12 +56,19 @@ export function isRewardedAdSdkAvailable(): boolean {
 function rewardedAdUnitId(sdk: GoogleMobileAdsModule): string | null {
   if (__DEV__) return sdk.TestIds.REWARDED;
 
-  const configured = process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID;
+  // The legacy unit belongs to Android. An explicit invalid platform value
+  // must fail closed instead of silently selecting a different placement.
+  const configured = Platform.OS === "ios"
+    ? process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_IOS
+    : Platform.OS === "android"
+      ? process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_ANDROID ??
+        process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID
+      : undefined;
   if (
     typeof configured !== "string" ||
     !ADMOB_REWARDED_UNIT_PATTERN.test(configured) ||
     configured === sdk.TestIds.REWARDED ||
-    GOOGLE_TEST_REWARDED_UNITS.has(configured)
+    configured.startsWith(GOOGLE_TEST_PUBLISHER_PREFIX)
   ) {
     return null;
   }
@@ -136,7 +140,7 @@ async function sessionStillOwns(userId: string): Promise<boolean> {
   }
 }
 
-async function acquireRewardTicket(hint: PlacementHint): Promise<RewardTicket | null> {
+async function acquireRewardTicket(hint: PlacementHint, unitId: string): Promise<RewardTicket | null> {
   const requestedAt = Date.now();
   const controller = new AbortController();
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -165,7 +169,7 @@ async function acquireRewardTicket(hint: PlacementHint): Promise<RewardTicket | 
     const { data, error } = await client.functions.invoke("rewarded-ssv", {
       method: "POST",
       headers: { Authorization: `Bearer ${accessToken}` },
-      body: { kind },
+      body: { kind, ad_unit_id: unitId },
       signal: controller.signal,
     });
     if (controller.signal.aborted || error) return null;
@@ -200,7 +204,7 @@ export async function showRewardedAd(opts?: ShowRewardedAdOptions): Promise<Rewa
     );
     if (!consent.canRequestAds || !(await ensureAdsInitialized())) return { completed: false };
 
-    const ticket = await acquireRewardTicket(hint);
+    const ticket = await acquireRewardTicket(hint, unitId);
     if (!ticket) return { completed: false };
     if (!(await sessionStillOwns(ticket.userId))) return { completed: false };
     if (!hasShowDeliveryBudget(ticket)) return { completed: false };

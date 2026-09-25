@@ -1,4 +1,4 @@
-// Home coachmarks gate (rev2 Screen-Spec 04): the 4-step spotlight guide shows
+// First-record coach gate (rev2 Screen-Spec 04): the cross-route guide starts
 // ONCE on the first visit to the constellation home, and can be brought back
 // from settings ("코치마크 리셋", Screen-Spec 09). Mirrors ttfv-gate.ts: web
 // localStorage (sync), native AsyncStorage (one-tick hydrate), in-memory
@@ -17,6 +17,11 @@ interface AsyncStorageLike {
 
 let memorySeen = false;
 let memoryHydrated = false;
+const coachmarkListeners = new Set<(due: boolean) => void>();
+
+function publishCoachmarksDue(due: boolean): void {
+  for (const listener of coachmarkListeners) listener(due);
+}
 
 function ls(): Storage | null {
   try {
@@ -45,6 +50,7 @@ export function markCoachmarksSeen(): void {
   const at = new Date().toISOString();
   memorySeen = true;
   memoryHydrated = true;
+  publishCoachmarksDue(false);
   ls()?.setItem(COACHMARKS_SEEN_KEY, at);
   const storage = nativeStorage();
   if (storage)
@@ -53,10 +59,11 @@ export function markCoachmarksSeen(): void {
     });
 }
 
-/** Settings "코치마크 리셋": the guide shows again on the next home visit. */
+/** Settings "코치마크 리셋": first-record coaching starts on the next home visit. */
 export function resetCoachmarks(): void {
   memorySeen = false;
   memoryHydrated = true;
+  publishCoachmarksDue(true);
   ls()?.removeItem(COACHMARKS_SEEN_KEY);
   const storage = nativeStorage();
   if (storage)
@@ -70,7 +77,7 @@ export function resetCoachmarks(): void {
  *   null  = native persistence still hydrating (render nothing yet — the home
  *           stays interactive underneath, no loader needed for an overlay)
  *   false = already seen
- *   true  = show the 4-step guide
+ *   true  = start the first-record guide from the live SecondB head
  */
 export function useCoachmarksGate(): boolean | null {
   const [state, setState] = useState<boolean | null>(() => {
@@ -79,6 +86,17 @@ export function useCoachmarksGate(): boolean | null {
     if (memoryHydrated) return !memorySeen;
     return nativeStorage() ? null : true;
   });
+
+  // The home can stay mounted underneath /capture. A successful first-record
+  // save must therefore close that already-mounted overlay immediately instead
+  // of waiting for a remount that may never happen in the router stack.
+  useEffect(() => {
+    const listener = (due: boolean) => setState(due);
+    coachmarkListeners.add(listener);
+    return () => {
+      coachmarkListeners.delete(listener);
+    };
+  }, []);
 
   useEffect(() => {
     if (state !== null) return;
@@ -94,6 +112,12 @@ export function useCoachmarksGate(): boolean | null {
       .getItem(COACHMARKS_SEEN_KEY)
       .then((seenVal) => {
         if (cancelled) return;
+        // A mark/reset can finish while the first native read is in flight.
+        // In that case memory is newer than the read that just returned.
+        if (memoryHydrated) {
+          setState(!memorySeen);
+          return;
+        }
         memorySeen = !!seenVal;
         memoryHydrated = true;
         setState(!memorySeen);
@@ -115,4 +139,5 @@ export function useCoachmarksGate(): boolean | null {
 export function __resetCoachmarksGateForTests(): void {
   memorySeen = false;
   memoryHydrated = false;
+  coachmarkListeners.clear();
 }

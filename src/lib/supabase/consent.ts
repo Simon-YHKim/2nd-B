@@ -18,7 +18,7 @@
 // Both entry flows collect and both write, but the write does not always live
 // in the screen file, so name all four sites:
 //   collect  <ConsentBlock>             src/screens/deepspace/dds-sign-up-screen.tsx:372
-//                                       src/app/(auth)/complete-profile.tsx:367
+//                                       src/app/(auth)/complete-profile.tsx:369
 //            <ConsentNotice>
 //
 // ⚠ 2026-09-08: 이 줄은 `sign-up.tsx:219` 을 가리키고 있었다 - `<ConsentNotice>` 가
@@ -27,8 +27,8 @@
 // 배송되는 가입 화면은 `<ConsentBlock>` 을 그리고, `signup-required-acks.test.ts`
 // 가 **그 화면을 읽어서** 필수 ack 이 전부 렌더되는지 본다. 두 진입 화면이 서로
 // 다른 컴포넌트를 쓴다 - 같은 이름일 거라고 넘겨짚은 것이 이 오류의 전부다.
-//   write    recordConsentBestEffort(   src/lib/auth/useSignUpForm.ts:352
-//                                       src/app/(auth)/complete-profile.tsx:186
+//   write    recordConsentBestEffort(   src/lib/auth/useSignUpForm.ts:353
+//                                       src/app/(auth)/complete-profile.tsx:187
 //
 // ⚠ 2026-09-08: this comment used to cite `sign-up.tsx:103` and
 // `complete-profile.tsx:90`. Neither line was right (:103 is a back-chevron
@@ -62,9 +62,9 @@ import { getSupabaseClient } from "./client";
 
 // 판본 상수 셋은 한 벌로 움직인다. 하나만 올리면 원장이 가리키는 판과 화면에
 // 뜨는 판이 어긋나고, 그 어긋남은 예외도 안 나고 검사도 안 걸리며 그냥 거짓 기록이
-// 된다. 아래 세 값과 0150 의 email-v3 튜플, 그리고
+// 된다. 아래 세 값과 현재 email-v4 서버 튜플, 그리고
 // verified-email-consent-ledger.test.ts 의 FROZEN_SIGNUP_REVISION_TUPLES 가
-// 같은 날짜를 말해야 한다 — 그 검사가 이 규율의 집행자다.
+// 같은 문서 판을 가리켜야 한다. 0150의 email-v3는 과거 판으로 보존한다.
 //
 // 2026-09-07: 09-02 개정안과 09-04 사실 정정을 하나로 합친 판이다. 두 판본은
 // 사슬이 아니라 같은 08-30 판에서 갈라진 평행 개정이었고, 어느 쪽도 다른 쪽을
@@ -84,7 +84,10 @@ import { getSupabaseClient } from "./client";
 // ⚠ 이 값들을 올려도 **기존 계정에는 닿지 않는다.** 재동의 흐름은 별도 작업이고,
 // 알려진 공백이다: 기존 계정은 새 판을 다시 안내받지 않는다.
 export const CONSENT_VERSION = "2026-09-07" as const;
-export const PRIVACY_POLICY_VERSION = "2026-09-07" as const;
+// 2026-09-25: optional AdMob advance disclosure. The required notice and terms
+// are unchanged. email-v4 maps this exact tuple server-side; older receipts
+// remain historical and are never upgraded into advertising consent.
+export const PRIVACY_POLICY_VERSION = "2026-09-25" as const;
 export const TERMS_VERSION = "2026-08-16" as const;
 
 export type ConsentAgeBand = "minor_self" | "adult";

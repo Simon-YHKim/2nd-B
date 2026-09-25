@@ -80,6 +80,8 @@ const AT = "src/lib/analytics/__tests__/analytics.test.ts";
 const LR = "scripts/check-legal-review.ts";
 
 const ANCHORS: Anchor[] = [
+  { cite: "src/lib/analytics/auth-conversions.ts:47", symbol: "requiresGuardianConsent(age, resolveJurisdiction())",
+    why: "분석 동의의 관할별 연령 게이트를 실제로 적용하는 자리. AuthContext 연동 추출 후 이전 layout 좌표를 재사용하지 않는다." },
   { cite: `${S}:436-466`, symbol: "fixedCrisisResponse",
     why: "위기 응답이 사람이 쓴 고정 템플릿이라는 주장의 근거. 어긋나면 의미 분류기 프롬프트를 읽게 된다." },
   { cite: `${S}:305-418`, symbol: "classifySafety",
@@ -132,17 +134,17 @@ const ANCHORS: Anchor[] = [
     why: "Art.20 이식성이 실제로 무엇을 담아 오는가. 6.1.3 이 '빠져 있다'고 나열하던 여덟 범주가 바로 이 목록이다." },
   { cite: `${X}:359-389`, symbol: "gemini_spend_daily",
     why: "일부러 뺀 저장소 목록. 빼는 것 자체가 아니라 **응답에 적어 돌려준다는 것**이 통제이고, 실제 제외 매니페스트가 근거다." },
-  { cite: `${W}:240`, symbol: "includeRecords",
+  { cite: `${W}:245`, symbol: "includeRecords",
     why: "저널이 기본으로 안 실린다는 주장의 **실제 근거** - 그 삼항 연산이 없으면 기본값이 무의미하다." },
   { cite: `${AT}:96-131`, symbol: "remain inert",
     why: "Sentry 가 **일부러** 닫혀 있다는 주장의 근거. 문서가 '설정됐으나 안 쓴다'가 아니라 '울타리가 있고 조건이 적혀 있다'고 말하려면 그 울타리를 지키는 검사가 실재해야 한다." },
-  { cite: `${AC}:153`, symbol: "MINOR_AGE_CEILING",
+  { cite: `${AC}:154`, symbol: "MINOR_AGE_CEILING",
     why: "미성년 여부가 실제로 정해지는 비교. 이 문서 전체가 이 한 줄 위에 서 있다." },
   { cite: `${AD}:58`, symbol: "input.isMinor !== false",
     why: "미성년에게 광고가 안 나간다는 주장의 fail-closed 지점 - null 도 막는다는 것이 주장의 내용이다." },
   { cite: `${AD}:11-13`, symbol: "NEVER see ads", evidence: "comment",
     why: "그 규칙을 코드가 스스로 적어 둔 자리 - 주장 자체가 '코드가 이렇게 적어 두었다'라서 주석이 근거다." },
-  { cite: `${CV}:338`, symbol: "SYSTEM_PROMPT_HEADER",
+  { cite: `${CV}:345`, symbol: "SYSTEM_PROMPT_HEADER",
     why: "대화 프롬프트가 실제로 조립되는 자리 - 무엇이 모델에 들어가는지의 근거." },
   { cite: "src/lib/ops/recommend.ts:199-207", symbol: "recommendationsAllowed(input.minor",
     why: "엔진이 호출부와 **독립적으로** 게이트를 다시 본다는 주장의 근거. 493행이 '통제가 어느 한 화면에 기대지 않는다'고 말하는 근거가 이 한 줄이다 - 화면 잠금이 사라져도 스냅샷이 LLM 에 안 간다." },
@@ -169,7 +171,7 @@ const ANCHORS: Anchor[] = [
   //   던져진 적이 없다 - `shadow-screens.test.ts` 가 그 질문을 맡는다.
   { cite: `${D}:188-198`, symbol: "claims.sub !== authUser.id",
     why: "지울 계정을 클라이언트가 못 고른다는 IDOR 주장의 근거." },
-  { cite: "src/lib/analytics/index.ts:245-252", symbol: "isMinor === false",
+  { cite: "src/lib/analytics/index.ts:254-261", symbol: "isMinor === false",
     why: "미성년에게 제품 분석이 안 붙는다는 주장의 **실제 게이트**. 문서는 세 자리에서 `:74`(AnalyticsEvent 타입 유니온)를 가리키고 있었다 - 타입 선언은 아무도 막지 않는다. ⚠ 심볼로 함수 이름 `canLoadProductAnalytics` 를 쓰려다 바꿨다: 회차 51·53 의 교훈대로 **이름은 그 이름이 가리키는 것이 바뀌어도 살아남는다.** 주장의 내용은 술어다." },
   { cite: "scripts/check-mascot-voice.ts:13-17", symbol: "personas.secondb.greeting",
     why: "의인화 가드가 **바로 그 키를 이름으로 지켜본다**는 근거. 문서는 '유일한 가드는 어휘 렉시콘'이라고 적어 이 게이트를 부정하고 있었다 - 회차 50 의 부류(있는 통제를 없다고 적기)." },
@@ -193,7 +195,7 @@ const ANCHORS: Anchor[] = [
     why: "⚠ 회차 57 이 이 키를 '더 이상 존재하지 않는다'고 적었다가 58 에서 정정한 자리. 클라이언트 키 목록에서는 가지쳐졌지만 **서버 트리거는 여전히 쓴다** - 읽을 때 버려질 뿐이다. 둘은 구분되는 상태다." },
   { cite: "src/lib/auth/consent-selections.ts:20-21", symbol: "sensitiveData",
     why: "PIPA §23 별도 동의가 실제로 별개 항목으로 수집된다는 주장. 서비스 동의에 묻어 가지 않는다는 것이 주장의 내용이다." },
-  { cite: "src/lib/supabase/consent.ts:132-134", symbol: "sensitive_data_ack",
+  { cite: "src/lib/supabase/consent.ts:135-137", symbol: "sensitive_data_ack",
     why: "동의 ack 셋이 **실제로 원장 행에 실리는** 자리. 일곱 자리가 '수집·기록된다'로 고쳐졌고, 그 주장이 서는 곳이 여기다. 주석이 아니라 쓰기다." },
   { cite: "src/lib/supabase/consent.ts:14-21", symbol: "WIRED at sign-up", evidence: "comment",
     why: "동의 기록이 UI 수집 **뒤에** 쓰인다는 불변식의 기록. 문서가 이 주석을 'still read null (stale)' 이라고 인용했었다." },
@@ -206,7 +208,7 @@ const ANCHORS: Anchor[] = [
   // **맞는 함수 이름을 죽은 사본에 고정한 것**이라, 지키는 대상이 없었다.
   // 배송되는 위키 화면(`dds-wiki-records-screens.tsx`)에는 마크다운 내보내기 자체가
   // 없다 - 그 사실은 legal-citations-not-in-dead-renderers.test.ts 가 지킨다.
-  { cite: `${CV}:293-296`, symbol: "wiki_snapshot",
+  { cite: `${CV}:303`, symbol: "wiki_snapshot",
     why: "스냅샷이 실제로 신뢰하지 않는 데이터로 감싸지는 자리. 문서는 프롬프트 문자열 블록을 가리키고 있었다." },
   { cite: `${R}:54`, symbol: "SNAPSHOT_CHAR_LIMIT",
     why: "600자 캡의 실제 상수. 문서는 임베딩 벤더 라벨 주석을 가리키고 있었다." },

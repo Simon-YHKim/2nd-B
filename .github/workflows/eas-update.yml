@@ -1002,6 +1002,14 @@ jobs:
               echo "::error::origin/main advanced before $platform OTA publish; no publish was attempted for this platform."
               exit 1
             fi
+            # Use the same resolved EAS environment as the imminent update.
+            # A client with a newer privacy/signup tuple cannot precede its DB.
+            if ! npx --yes "eas-cli@$EAS_CLI_VERSION" env:exec "$CHANNEL" \
+              'node scripts/check-signup-consent-deployment.cjs' \
+              --non-interactive > "$RUNNER_TEMP/signup-contract-$platform.log" 2>&1; then
+              echo "::error::Deployed signup contract is not ready for this OTA client; no publish attempted."
+              exit 1
+            fi
             UPDATE_JSON="$RUNNER_TEMP/eas-update-$platform.json"
             if ! npx --yes "eas-cli@$EAS_CLI_VERSION" update \
               --platform "$platform" \

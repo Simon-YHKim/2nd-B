@@ -220,6 +220,12 @@ describe("analytics — no-op when no keys configured", () => {
     );
   });
 
+  test("unknown callback fields cannot enter analytics through a typed event", () => {
+    expect(cleanAnalyticsEventProps(capture({
+      action: "saved", mode: "memo", email: "private@example.invalid", user_id: "private-owner",
+    }))).toEqual({ action: "saved", mode: "memo" });
+  });
+
   test("PIPA/C10 gate requires confirmed adult age and explicit consent", () => {
     expect(canLoadProductAnalytics(true)).toBe(false);
     expect(canLoadProductAnalytics(false)).toBe(false);

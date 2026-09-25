@@ -11,6 +11,8 @@ import { join } from "node:path";
 import ts from "typescript";
 
 import * as requestJson from "../../../../supabase/functions/_shared/request-json";
+import * as paddleEnvironment from "../../../../supabase/functions/_shared/paddle-environment";
+import * as checkoutBindings from "../../../../supabase/functions/_shared/paddle-checkout-binding";
 
 const ROOT = join(__dirname, "..", "..", "..", "..");
 const source = readFileSync(
@@ -139,7 +141,7 @@ describe("paddle-webhook refund adjustments", () => {
 
 describe("paddle-webhook checkout ownership", () => {
   test("verifies the complete HMAC binding and never trusts raw custom_data.user_id", () => {
-    expect(code).toMatch(/verifyCheckoutBindingWithSecrets\(data\.custom_data, bindingSecrets\)/);
+    expect(code).toMatch(/verifyCheckoutBindingWithSecrets\(data\.custom_data, bindingSecrets, undefined,/);
     expect(code).not.toMatch(/const userId = data\.custom_data\?\.user_id/);
     expect(code).toMatch(/p_user_id: resolvedUserId/);
   });
@@ -283,6 +285,8 @@ type RpcReply = { data: unknown; error: { message: string } | null };
 type RpcImplementation = (name: string, args: Record<string, unknown>) => Promise<RpcReply>;
 type EdgeHandler = (request: Request) => Promise<Response>;
 type RuntimeOptions = {
+  env?: Record<string, string | undefined>;
+  realBinding?: boolean;
   bindingUserId?: string | null;
   anchorRows?: Array<{ user_id: unknown }>;
   conflictingOwnerRows?: Array<{ user_id: unknown }>;
@@ -327,7 +331,8 @@ function loadRuntimeHandler(implementation: RpcImplementation, options: RuntimeO
   ];
   let ownerQueryIndex = 0;
   const from = jest.fn(() => ownerQueries[ownerQueryIndex++] ?? ownerQueries[1]);
-  const verifyBinding = jest.fn(async () => options.bindingUserId ?? null);
+  const verifyBinding = jest.fn(async (...args: Parameters<typeof checkoutBindings.verifyCheckoutBindingWithSecrets>) =>
+    options.realBinding ? checkoutBindings.verifyCheckoutBindingWithSecrets(...args) : options.bindingUserId ?? null);
   let handler: EdgeHandler | null = null;
   const deno = {
     env: {
@@ -339,6 +344,7 @@ function loadRuntimeHandler(implementation: RpcImplementation, options: RuntimeO
         PADDLE_PRICE_CORTEX: "pri_cortex",
         SUPABASE_URL: "https://example.invalid",
         SUPABASE_SERVICE_ROLE_KEY: "test-service-role",
+        ...options.env,
       })[name],
     },
     serve: (value: EdgeHandler) => { handler = value; },
@@ -361,6 +367,7 @@ function loadRuntimeHandler(implementation: RpcImplementation, options: RuntimeO
       if (id === "../_shared/paddle-checkout-binding.ts") {
         return { verifyCheckoutBindingWithSecrets: verifyBinding };
       }
+      if (id === "../_shared/paddle-environment.ts") return paddleEnvironment;
       throw new Error(`Unexpected edge dependency: ${id}`);
     },
     loaded,
@@ -413,6 +420,7 @@ function signedAdjustment(
 function signedBillingEvent(
   customData: unknown,
   eventId = "evt_subscription_1",
+  priceId = "pri_cortex",
 ): Request {
   const payload = {
     event_id: eventId,
@@ -422,7 +430,7 @@ function signedBillingEvent(
       id: "sub_ownership_1",
       status: "active",
       custom_data: customData,
-      items: [{ price: { id: "pri_cortex" } }],
+      items: [{ price: { id: priceId } }],
       current_billing_period: { ends_at: "2026-10-10T01:02:03.000Z" },
     },
   };
@@ -454,6 +462,48 @@ describe("paddle-webhook ownership runtime", () => {
   const USER_ID = "11111111-1111-4111-8111-111111111111";
   const OTHER_USER_ID = "22222222-2222-4222-8222-222222222222";
 
+  test("an isolated sandbox subscription grants only with a matching real scoped HMAC", async () => {
+    Object.defineProperty(globalThis, "crypto", { value: webcrypto, configurable: true });
+    const price = `pri_${"a".repeat(26)}`;
+    const secret = "runtime-checkout-binding-secret-32-bytes";
+    const scope = { environment: "sandbox" as const, audience: "https://sandbox.supabase.co", price_id: price };
+    const env = { PADDLE_ENVIRONMENT: "sandbox", SUPABASE_URL: scope.audience,
+      PADDLE_SANDBOX_SUPABASE_URL: scope.audience, PADDLE_LIVE_SUPABASE_URL: "https://live.supabase.co",
+      PADDLE_PRICE_CORTEX: price,
+    };
+    const binding = await checkoutBindings.createCheckoutBinding(secret, USER_ID, { scope });
+    const good = loadRuntimeHandler(okRpc, { env, realBinding: true });
+    expect((await good.handler(signedBillingEvent(binding, "evt_sandbox", price))).status).toBe(200);
+    expect(good.rpc.mock.calls.find(([name]) => name === "apply_billing_event")?.[1]).toMatchObject({
+      p_user_id: USER_ID, p_tier: "cortex",
+    });
+
+    for (const changed of [
+      { ...binding, environment: "production" }, { ...binding, audience: "https://live.supabase.co" },
+    ]) {
+      const bad = loadRuntimeHandler(okRpc, { env, realBinding: true, anchorRows: [{ user_id: USER_ID }] });
+      expect((await bad.handler(signedBillingEvent(changed, "evt_crossed", price))).status).toBe(403);
+      expect(bad.rpc).not.toHaveBeenCalled();
+      expect(bad.from).not.toHaveBeenCalled();
+    }
+    const legacy = await checkoutBindings.createCheckoutBinding(secret, USER_ID);
+    const bad = loadRuntimeHandler(okRpc, { env, realBinding: true });
+    expect((await bad.handler(signedBillingEvent(legacy, "evt_legacy", price))).status).toBe(403);
+    expect(bad.rpc).not.toHaveBeenCalled();
+  });
+
+  test("sandbox callbacks cannot write refunds or entitlements into the live database", async () => {
+    const { handler, rpc, from } = loadRuntimeHandler(okRpc, { env: {
+      PADDLE_ENVIRONMENT: "sandbox",
+      PADDLE_SANDBOX_SUPABASE_URL: "https://sandbox.supabase.co",
+      PADDLE_LIVE_SUPABASE_URL: "https://live.supabase.co",
+      SUPABASE_URL: "https://live.supabase.co",
+    } });
+    expect((await handler(signedAdjustment())).status).toBe(503);
+    expect(rpc).not.toHaveBeenCalled();
+    expect(from).not.toHaveBeenCalled();
+  });
+
   test("applies a new subscription to the cryptographically verified owner", async () => {
     const { handler, rpc, verifyBinding } = loadRuntimeHandler(okRpc, {
       bindingUserId: USER_ID,
@@ -465,6 +515,8 @@ describe("paddle-webhook ownership runtime", () => {
     expect(verifyBinding).toHaveBeenCalledWith(
       { signed: "fixture" },
       ["runtime-checkout-binding-secret-32-bytes"],
+      undefined,
+      { environment: "production", audience: "https://example.invalid", price_id: "pri_cortex" },
     );
     expect(rpc.mock.calls.find(([name]) => name === "apply_billing_event")?.[1]).toMatchObject({
       p_user_id: USER_ID,

@@ -47,7 +47,7 @@ describe("deep-space records source detail routing", () => {
     expect(RECORDS_SRC).toContain("sourceId: s.sourceId");
     expect(RECORDS_SRC).toContain("onPress={openRecord}");
     expect(RECORDS_SRC).toContain("params: recordRouteParams(record)");
-    expect(RECORDS_SRC).toContain("recordRouteParamsById(id, records)");
+    expect(RECORDS_SRC).toContain("recordRouteParamsById(id, graphSourceRecords)");
     expect(RECORDS_SRC).toContain("r.id === id || r.sourceId === id");
   });
 
@@ -200,7 +200,10 @@ describe("deep-space records source detail routing", () => {
       // ListHeaderComponent). Verified before changing: the merged records slice is
       // byte-identical to #1521's, so this still proves the detail extraction left
       // the neighbouring renderer alone -- only the baseline moved.
-      "af7dca5422fa20f4ddf5bc5be1dd2d082178abf124c97bf6f892e79cc9ed1143",
+      // Polaris role-card integration intentionally changes the neighboring
+      // records renderer; pin its new exact slice so future unrelated edits
+      // still require an explicit review.
+      "9be2bc0fba47aaacdb791b0366fb0ea218a3c4236e9f3b278630450aeaf526d7",
     );
     // Re-pinned 2026-09-20 (R48): the wiki screen now honours a ?focusPageId= that names
     // a page outside the 200-row slice it loads -- the RAG citation path can cite one,

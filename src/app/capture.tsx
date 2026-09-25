@@ -160,6 +160,7 @@ import {
   withSelectedLifeArea,
   type LifeAreaId,
 } from "@/lib/capture/life-area-intent";
+import { FIRST_RECORD_COACH_PARAM } from "@/lib/onboarding/first-record-coach";
 
 // 이 넷은 크롬 라벨(칩·모드·버튼)이지 읽는 글이 아니다.
 //
@@ -366,7 +367,9 @@ export default function Capture() {
     title?: string;
     mode?: string;
     tag?: string;
+    coach?: string;
   }>();
+  const firstRecordCoach = captureParams.coach === FIRST_RECORD_COACH_PARAM;
   const hasFullCaptureParams =
     normalizeSharedCaptureParams({
       url: captureParams.url,
@@ -402,7 +405,7 @@ export default function Capture() {
     }
     return (
       <DeepSpaceScreen active="capture" header="none" variant="windowed">
-        <CaptureView />
+        <CaptureView firstRecordCoach={firstRecordCoach} />
       </DeepSpaceScreen>
     );
   }

@@ -60,6 +60,7 @@ export function DeepSpaceScreen({
   personaTint,
   header = "companion",
   variant = "fullbleed",
+  showSharedSky = false,
   title,
   onBack,
   action,
@@ -80,6 +81,8 @@ export function DeepSpaceScreen({
    *  top app bar floating over it (museum/exhibit/star; blur approximated —
    *  expo-blur would be a native dep and break the OTA runtime pin). */
   variant?: "fullbleed" | "windowed" | "museumLike";
+  /** Immersive screens may expose the shared seeded constellation sky directly. */
+  showSharedSky?: boolean;
   /** Windowed sub-screens: M3 top app bar title + back (TopAppBar). */
   title?: string;
   onBack?: () => void;
@@ -171,7 +174,7 @@ export function DeepSpaceScreen({
               accessibilityLabel={characterLabel}
             />
           ) : null}
-          <View style={styles.body}>
+          <View style={[styles.body, showSharedSky && styles.bodyOpenSky]}>
             {children}
             {header === "floating" ? (
               // rev2 records: the graph stays full-bleed and the companion
@@ -193,6 +196,8 @@ export function DeepSpaceScreen({
       <MdNavBar
         active={active}
         items={dockItems}
+        buttonLike
+        style={styles.buttonDock}
         onSelect={(tab) => {
           const target = TAB_ROUTE[tab as DeepSpaceTab];
           // Sub-screens highlight their owning root tab. Tapping that highlighted
@@ -210,6 +215,11 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     backgroundColor: shellAlpha(deepSpace.bgEdge, 0.5),
+  },
+  bodyOpenSky: { backgroundColor: "transparent" },
+  buttonDock: {
+    backgroundColor: m3.color.surfaceContainerHigh,
+    borderTopColor: m3.color.surfaceBright,
   },
   floatingHeader: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 6 },
   // Content clears the ~56dp bar zone (no blur, so "under the scrim" would

@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 
 import { useAuth } from "@/lib/auth/AuthContext";
+import { observeAuthConversion } from "@/lib/analytics/auth-conversions";
 import {
   isNaverEnabled,
   isProviderEnabled,
@@ -70,7 +71,7 @@ export interface UseSignInForm {
 
 export function useSignInForm(): UseSignInForm {
   const { t } = useTranslation(["auth", "common"]);
-  const { userId, loading } = useAuth();
+  const { userId, loading, refresh } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -157,7 +158,9 @@ export function useSignInForm(): UseSignInForm {
   const handleSubmit = useCallback(async () => {
     setSubmitting(true);
     try {
-      await signInWithEmail(email.trim(), password);
+      const result = await signInWithEmail(email.trim(), password);
+      await refresh();
+      void observeAuthConversion(result.userId, "login", "email");
       // AuthContext picks up the new session; IntroGate plays the cell
       // LoadingScreen and then mounts the Stack. Route to /index so the
       // post-loading hand-off lands on the graph view (the new main).
@@ -169,7 +172,7 @@ export function useSignInForm(): UseSignInForm {
     } finally {
       setSubmitting(false);
     }
-  }, [email, password, t]);
+  }, [email, password, refresh, t]);
 
   const handleForgotPassword = useCallback(async () => {
     setResetHelpVisible(true);

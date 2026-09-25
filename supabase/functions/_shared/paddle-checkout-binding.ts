@@ -3,6 +3,22 @@ export interface PaddleCheckoutBindingData {
   issued_at: number;
   nonce: string;
   signature: string;
+  version?: 2;
+  environment?: 'production' | 'sandbox';
+  audience?: string;
+  price_id?: string;
+}
+
+export interface PaddleCheckoutScope {
+  environment: 'production' | 'sandbox';
+  audience: string;
+  price_id: string;
+}
+
+function validScope(scope: PaddleCheckoutScope): boolean {
+  return (scope.environment === 'production' || scope.environment === 'sandbox')
+    && /^https?:\/\/[^\s]{1,240}$/.test(scope.audience)
+    && /^pri_[a-z0-9]{26}$/.test(scope.price_id);
 }
 
 const MIN_SECRET_LENGTH = 32;
@@ -30,6 +46,7 @@ async function signatureFor(
   userId: string,
   issuedAt: number,
   nonce: string,
+  scope?: PaddleCheckoutScope,
 ): Promise<string> {
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
@@ -42,7 +59,9 @@ async function signatureFor(
   const signature = await crypto.subtle.sign(
     'HMAC',
     key,
-    encoder.encode(`v1:${userId}:${issuedAt}:${nonce}`),
+    encoder.encode(scope
+      ? JSON.stringify(['v2', userId, issuedAt, nonce, scope.environment, scope.audience, scope.price_id])
+      : `v1:${userId}:${issuedAt}:${nonce}`),
   );
   return bytesToHex(new Uint8Array(signature));
 }
@@ -50,29 +69,42 @@ async function signatureFor(
 export async function createCheckoutBinding(
   secret: string,
   userId: string,
-  options: { issuedAt?: number; nonceBytes?: Uint8Array } = {},
+  options: { issuedAt?: number; nonceBytes?: Uint8Array; scope?: PaddleCheckoutScope } = {},
 ): Promise<PaddleCheckoutBindingData> {
   if (secret.length < MIN_SECRET_LENGTH) throw new Error('checkout binding secret is too short');
   if (!USER_ID_RE.test(userId)) throw new Error('checkout binding user id is invalid');
+  if (options.scope && !validScope(options.scope)) throw new Error('checkout binding scope is invalid');
   const issuedAt = options.issuedAt ?? Math.floor(Date.now() / 1000);
   const nonceBytes = options.nonceBytes ?? crypto.getRandomValues(new Uint8Array(16));
   if (!Number.isSafeInteger(issuedAt) || nonceBytes.byteLength !== 16) {
     throw new Error('checkout binding input is invalid');
   }
   const nonce = bytesToHex(nonceBytes);
-  const signature = await signatureFor(secret, userId, issuedAt, nonce);
-  return { user_id: userId, issued_at: issuedAt, nonce, signature };
+  const signature = await signatureFor(secret, userId, issuedAt, nonce, options.scope);
+  return { user_id: userId, issued_at: issuedAt, nonce, signature,
+    ...(options.scope ? { version: 2 as const, ...options.scope } : {}),
+  };
 }
 
 export async function verifyCheckoutBinding(
   value: unknown,
   secret: string,
   nowSeconds = Math.floor(Date.now() / 1000),
+  expectedScope?: PaddleCheckoutScope,
 ): Promise<string | null> {
   if (secret.length < MIN_SECRET_LENGTH || !value || typeof value !== 'object' || Array.isArray(value)) {
     return null;
   }
   const binding = value as Record<string, unknown>;
+  let scope: PaddleCheckoutScope | undefined;
+  if ('version' in binding || 'environment' in binding || 'audience' in binding || 'price_id' in binding) {
+    if (binding.version !== 2 || !expectedScope || !validScope(expectedScope)
+      || binding.environment !== expectedScope.environment || binding.audience !== expectedScope.audience
+      || binding.price_id !== expectedScope.price_id) return null;
+    scope = expectedScope;
+  } else if (expectedScope?.environment === 'sandbox') {
+    return null;
+  }
   const userId = typeof binding.user_id === 'string' ? binding.user_id : '';
   const issuedAt = binding.issued_at;
   const nonce = typeof binding.nonce === 'string' ? binding.nonce : '';
@@ -86,7 +118,7 @@ export async function verifyCheckoutBinding(
   ) return null;
   const ageSeconds = nowSeconds - (issuedAt as number);
   if (ageSeconds < -MAX_FUTURE_SKEW_SECONDS || ageSeconds > MAX_AGE_SECONDS) return null;
-  const expected = await signatureFor(secret, userId, issuedAt as number, nonce);
+  const expected = await signatureFor(secret, userId, issuedAt as number, nonce, scope);
   return timingSafeEqualHex(expected, signature) ? userId : null;
 }
 
@@ -94,12 +126,13 @@ export async function verifyCheckoutBindingWithSecrets(
   value: unknown,
   secrets: readonly string[],
   nowSeconds = Math.floor(Date.now() / 1000),
+  expectedScope?: PaddleCheckoutScope,
 ): Promise<string | null> {
   let verifiedUserId: string | null = null;
   // Check every configured candidate so request timing does not disclose
   // whether the current or previous rotation secret signed the binding.
   for (const secret of secrets) {
-    const candidate = await verifyCheckoutBinding(value, secret, nowSeconds);
+    const candidate = await verifyCheckoutBinding(value, secret, nowSeconds, expectedScope);
     if (verifiedUserId === null && candidate !== null) verifiedUserId = candidate;
   }
   return verifiedUserId;

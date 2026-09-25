@@ -38,6 +38,7 @@
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { POLARIS_RESPONSE_SCHEMA, runPolarisGeneration } from '../_shared/polaris-generation.ts';
 import {
   BRAIN_RANK,
   LlmBodyError,
@@ -342,7 +343,7 @@ function effortToMaxTokens(clampedEffort: string): number {
   }
 }
 
-Deno.serve(async (req: Request) => {
+async function handleOpenAi(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return corsPreflight(req);
   if (req.method !== 'POST') return jsonResponse(req, { error: 'method_not_allowed' }, 405);
 
@@ -1117,4 +1118,36 @@ Deno.serve(async (req: Request) => {
   }
 
   return jsonResponse(req, { text, modelUsed, latencyMs, audited });
+}
+
+Deno.serve(async (req: Request) => {
+  if (req.method !== 'POST') return handleOpenAi(req);
+  // Bounded parsing is also used by the ordinary handler. A clone preserves
+  // its existing input/safety/audit behavior for every other purpose.
+  let body: Record<string, unknown>;
+  try { body = await readLlmProxyJsonObject(req.clone()); }
+  catch { return handleOpenAi(req); }
+  if (body.purpose !== 'persona_synthesis') return handleOpenAi(req);
+  const userId = userIdFromJwt(req.headers.get('authorization') ?? '');
+  const generationId = body.polarisGenerationId;
+  if (!userId || typeof generationId !== 'string' || !/^[0-9a-f-]{36}$/i.test(generationId)) {
+    return jsonResponse(req,{error:'polaris_reservation_required'},403);
+  }
+  const url = Deno.env.get('SUPABASE_URL');
+  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!url || !key) return jsonResponse(req,{error:'polaris_unavailable'},503);
+  const admin = createClient(url,key,{auth:{autoRefreshToken:false,persistSession:false}});
+  try {
+    const response = await runPolarisGeneration((name,args) => admin.rpc(name,args),userId,generationId,(prompt) => {
+      const headers = new Headers(req.headers);
+      headers.delete('content-length');
+      return handleOpenAi(new Request(req.url,{method:'POST',headers,signal:req.signal,body:JSON.stringify({
+        purpose:'persona_synthesis',system:prompt.system,user:prompt.user,
+        responseSchema:POLARIS_RESPONSE_SCHEMA,effort:'high',
+      })}));
+    },body.polarisLocale === 'ko' ? 'ko' : 'en');
+    // Error responses from the settlement helper need the same CORS envelope.
+    if (!response.ok) return jsonResponse(req,await response.json(),response.status);
+    return response;
+  } catch { return jsonResponse(req,{error:'polaris_unavailable'},503); }
 });

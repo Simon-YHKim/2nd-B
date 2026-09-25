@@ -8,6 +8,8 @@ const workflow = read(".github/workflows/supabase-dry-run.yml");
 const accountDeletionRegression = read("db/tests/account_deletion_completion_fence_regression.sql");
 const peerRegression = read("db/tests/peer_response_rate_limit_regression.sql");
 const rewardRunner = read("scripts/check-reward-ssv-db.sh");
+const polarisRegression = read("db/migration-drafts/tests/polaris-generation-contract.sql");
+const signupBootstrap = read("db/tests/signup_consent_admob_bootstrap.sql");
 
 const drafts = readdirSync(join(ROOT, "db", "migration-drafts"))
   .filter((name) => /^UNNUMBERED_.*\.sql$/.test(name))
@@ -20,6 +22,14 @@ const standaloneDrafts = [
 ] as const;
 
 const behaviorDrafts = {
+  "UNNUMBERED_signup_consent_admob_20260925.sql": {
+    runner: signupBootstrap,
+    workflowInvocation: "node scripts/test-signup-consent-sql.mjs 5432 signup_local signup_test_ci",
+  },
+  "UNNUMBERED_polaris_generation_allowance.sql": {
+    runner: polarisRegression,
+    workflowInvocation: "node scripts/test-polaris-sql.mjs 5432 polaris_local polaris_test_ci",
+  },
   "UNNUMBERED_account_deletion_completion_fence.sql": {
     runner: accountDeletionRegression,
     workflowInvocation: "-f db/tests/account_deletion_completion_fence_regression.sql",
@@ -98,5 +108,15 @@ describe("scratch PostgreSQL coverage for inactive security drafts", () => {
       accountDeletionDraft.indexOf('DROP POLICY IF EXISTS "raw_clippings_owner_select"'),
     );
     expect(storagePolicies).not.toContain("FROM public.users");
+  });
+
+  test("runs the signup behavior fixture against the real historical routines", () => {
+    expect(workflow).toContain('"scripts/test-signup-consent-sql.mjs"');
+    expect(read("scripts/test-signup-consent-sql.mjs"))
+      .toContain('"db/tests/signup_consent_admob_bootstrap.sql"');
+    expect(signupBootstrap).toContain("\\ir ../migrations/0148_verified_email_signup_consent_ledger.sql");
+    expect(signupBootstrap).toContain("\\ir ../migrations/0149_atomic_complete_profile_signup_consent.sql");
+    expect(signupBootstrap).toContain("\\ir ../migrations/0150_signup_consent_contract_20260902.sql");
+    expect(signupBootstrap).toContain("\\ir signup_consent_admob_regression.sql");
   });
 });

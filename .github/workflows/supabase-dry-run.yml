@@ -7,6 +7,8 @@ on:
       - "db/migration-drafts/**"
       - "db/tests/**"
       - "scripts/check-reward-ssv-db.sh"
+      - "scripts/test-polaris-sql.mjs"
+      - "scripts/test-signup-consent-sql.mjs"
       - ".github/workflows/supabase-dry-run.yml"
 
 # Least privilege: this workflow only reads the repo (checkout + local tooling).
@@ -41,6 +43,24 @@ jobs:
           --health-retries 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Exercise Polaris allowance and concurrent reservation contract
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h 127.0.0.1 -U postgres -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE polaris_local LOGIN SUPERUSER PASSWORD 'postgres';
+          CREATE DATABASE polaris_test_ci OWNER polaris_local;
+          SQL
+          node scripts/test-polaris-sql.mjs 5432 polaris_local polaris_test_ci
+      - name: Exercise signup consent forward contract
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -X -h 127.0.0.1 -U postgres -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE signup_local LOGIN SUPERUSER PASSWORD 'postgres';
+          CREATE DATABASE signup_test_ci OWNER signup_local;
+          SQL
+          node scripts/test-signup-consent-sql.mjs 5432 signup_local signup_test_ci
       - name: Seed Supabase compatibility layer (auth, roles, and storage stubs)
         env:
           PGPASSWORD: postgres

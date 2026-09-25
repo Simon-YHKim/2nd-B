@@ -49,9 +49,15 @@ export function isKeepable(turn: KeepableTurn): boolean {
  * 있어서(예: 답변 뒤에 이어지는 안내) 바로 앞만 보면 짝을 놓친다.
  */
 export function findPrompt(turns: readonly KeepableTurn[], replyIndex: number): string | null {
+  const index = findPromptIndex(turns, replyIndex);
+  return index === null ? null : turns[index].text.trim();
+}
+
+/** The pair's first turn also has to follow the autosave consent boundary. */
+export function findPromptIndex(turns: readonly KeepableTurn[], replyIndex: number): number | null {
   for (let i = replyIndex - 1; i >= 0; i--) {
     const t = turns[i];
-    if (t.role === "user" && t.text.trim().length > 0) return t.text.trim();
+    if (t.role === "user" && t.text.trim().length > 0) return i;
     // 다른 사용자 발화를 만나기 전에 또 다른 담을 수 있는 답변을 만나면,
     // 그 답변이 이 짝의 주인이므로 여기서 멈춘다.
     if (isKeepable(t)) return null;

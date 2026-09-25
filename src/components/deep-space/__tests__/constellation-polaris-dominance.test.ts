@@ -28,6 +28,10 @@ const SRC = readFileSync(
   join(__dirname, "..", "ConstellationHome.tsx"),
   "utf8",
 ).replace(/\r\n/g, "\n");
+const DIALOGUE_SRC = readFileSync(
+  join(__dirname, "..", "JrpgDialogueBox.tsx"),
+  "utf8",
+).replace(/\r\n/g, "\n");
 
 /** The value of a top-level `const NAME = <number>;` in the renderer. */
 function coeff(name: string): number {
@@ -41,17 +45,13 @@ const polarisMid = coeff("POLARIS_MID_R");
 const polarisHalo = coeff("POLARIS_HALO_R");
 
 const domainCore = coeff("DOMAIN_CORE_R");
-const focusMult = coeff("DOMAIN_FOCUS_MULT");
 const haloRest = coeff("DOMAIN_HALO_MULT_REST");
-const haloFocus = coeff("DOMAIN_HALO_MULT_FOCUS");
 const homeHeadSize = coeff("HOME_HEAD_SIZE");
 const neuralOuterMax = coeff("NEURAL_NODE_OUTER_MAX");
 const neuralInnerMax = coeff("NEURAL_NODE_INNER_MAX");
 
 // On-screen coefficients (× k) for a domain star's core and its halo.
-const focusedCore = domainCore * focusMult;
 const restingCore = domainCore;
-const focusedHalo = focusedCore * haloFocus;
 const restingHalo = restingCore * haloRest;
 
 // A phone-ish stage: boxW 340 -> k = 340/380. The drawn span matters because
@@ -60,14 +60,20 @@ const K = 340 / 380;
 const drawn = (c: number) => pixelStarSpan(c * K);
 
 describe("북극성 stays dominant over every domain star (Visual Tier)", () => {
-  it("keeps even a FOCUSED domain core smaller than the Polaris core", () => {
-    expect(focusedCore).toBeLessThan(polarisCore);
-    expect(drawn(focusedCore)).toBeLessThan(drawn(polarisCore));
-  });
-
-  it("keeps even a FOCUSED domain halo smaller than the Polaris halo", () => {
-    expect(focusedHalo).toBeLessThan(polarisHalo);
-    expect(drawn(focusedHalo)).toBeLessThan(drawn(polarisHalo));
+  it("keeps one world and one physical star body throughout camera travel", () => {
+    // Simon 2026-09-25: neighbours travel out of view, never unmount on tap.
+    expect(SRC).toContain("{visualFocusId ? (");
+    expect(SRC).toContain("<StarDestination");
+    expect(SRC).not.toContain("stage && !visualFocusId");
+    expect(SRC).toContain('testID="star-camera-world"');
+    expect(SRC).toContain('<G key={s.id} testID={`star-body-${s.id}`}');
+    const destination = readFileSync(join(__dirname, "..", "StarDestination.tsx"), "utf8");
+    expect(destination).not.toContain("REV2_STARS");
+    expect(destination).not.toContain("POLARIS");
+    expect(destination).not.toContain("PixelStarSvg");
+    expect(destination).not.toContain("<Svg");
+    expect(destination).toContain("onReturned");
+    expect(destination).toContain("hardwareBackPress");
   });
 
   it("keeps every RESTING domain below Polaris as well", () => {
@@ -75,15 +81,6 @@ describe("북극성 stays dominant over every domain star (Visual Tier)", () => 
     expect(restingHalo).toBeLessThan(polarisHalo);
     expect(drawn(restingCore)).toBeLessThan(drawn(polarisCore));
     expect(drawn(restingHalo)).toBeLessThan(drawn(polarisHalo));
-  });
-
-  it("still promotes a tapped domain above its resting size (selection feedback)", () => {
-    expect(focusedCore).toBeGreaterThan(restingCore);
-    expect(focusedHalo).toBeGreaterThan(restingHalo);
-    // Rounding must not eat the promotion — if both round to the same star,
-    // tapping does nothing visible even though the numbers differ.
-    expect(drawn(focusedCore)).toBeGreaterThan(drawn(restingCore));
-    expect(drawn(focusedHalo)).toBeGreaterThan(drawn(restingHalo));
   });
 
   it("keeps the Polaris colour bands ordered outward (halo > mid > core)", () => {
@@ -125,7 +122,7 @@ describe("the home stage uses discrete PIXEL-CLAY surfaces", () => {
     expect(SRC).toContain(
       '<Rect x={0} y={0} width={w} height={h} fill={m3.accent.stageFloor} />',
     );
-    expect(SRC).toContain("backgroundColor: m3.accent.stageFloor");
+    expect(DIALOGUE_SRC).toContain("background={m3.accent.stageFloor}");
     expect(SRC).not.toContain("backgroundColor: homeAlpha(");
   });
 

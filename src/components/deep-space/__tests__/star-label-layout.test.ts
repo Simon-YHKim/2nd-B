@@ -722,11 +722,14 @@ describe("화면 배선", () => {
     expect(labelsBlock).toContain("numberOfLines={label.maxLines}");
     expect(labelsBlock).toContain("label.frame");
     // 북극성 이름표 폭도 별 이름표 자리에 따라 정해지므로 같은 계산에서 나온 값을 쓴다.
-    expect(labelsBlock).toContain("style={[styles.polarisLabel, starLabels.polaris]}");
+    expect(labelsBlock).toContain("style={[styles.polarisLabel, starLabels.polaris,");
+    expect(labelsBlock).toContain("scale: Animated.divide(1, worldZoom)");
     expect(labelsBlock).not.toContain("left: px(s.x) - 40");
     // 테스트가 장애물로 쓰는 코어 크기와 화면이 넘기는 값이 같아야 한다.
     expect(SRC).toContain("coreHalfSpan: pixelStarSpan(DOMAIN_CORE_R * k * DOMAIN_FOCUS_MULT)");
-    expect(SRC).toContain("const boxW = Math.min(380, winW - 24);");
+    expect(SRC).toContain("const boxW = Math.min(");
+    expect(SRC).toContain("winW - 24,");
+    expect(SRC).toContain("constellationHeightBudget * (VBW / (VBH + VB_TOP)),");
     expect(SRC).toContain("const k = boxW / 380;");
     expect(SRC).toContain("const u = boxW / VBW;");
     expect(SRC).toContain("const boxH = (VBH + VB_TOP) * u;");

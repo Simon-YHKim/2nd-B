@@ -636,7 +636,8 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   // is only reached when EXPO_PUBLIC_LLM_VENDOR is unset. On the reasoning
   // (pro) tier the legacy EXPO_PUBLIC_REASONING_PROVIDER seam gets the last
   // word when the axis resolves gemini (routing.ts, opts.reasoningTier).
-  const vendorSeat = resolveVendorForPurpose(input.purpose, input.image != null, {
+  // Polaris reservations are currently settled only by openai-proxy.
+  const vendorSeat = input.purpose === "persona_synthesis" ? "openai" : resolveVendorForPurpose(input.purpose, input.image != null, {
     reasoningTier: tier === "pro",
   });
   // effort applies on the reasoning (pro) tier, and on non-Gemini vendor seats
@@ -670,9 +671,13 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     // 'advisor' purpose flows through callAdvisor(), not callLlm(). For
     // any unknown purpose, fall back to a generic offline-preview reply.
     const mockTable = MOCK_RESPONSES as Record<string, Record<"en" | "ko", string>>;
-    const text =
+    let text =
       mockTable[input.purpose]?.[input.locale] ??
       (input.locale === "ko" ? "지금은 오프라인 미리보기예요." : "This is an offline preview.");
+    if (input.purpose === "interview_probe") {
+      const { mockInterviewProbe } = await import("../interview/mock-probe");
+      text = mockInterviewProbe(input.system ?? "", input.user, input.locale);
+    }
     const latencyMs = Date.now() - t0;
     const outputSafety = classifyInput(text, input.locale, { minor: input.minor });
     const audit = {
@@ -727,6 +732,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       // the proxy's tier-aware cap + effort clamp are the hard ceilings.
       purpose: input.purpose,
       // Optional image payload for multimodal OCR / vision prompts.
+      ...(input.polarisGenerationId ? { polarisGenerationId: input.polarisGenerationId, polarisLocale: input.locale } : {}),
       ...(input.image ? { image: input.image } : {}),
       // Structured-output schema (e.g. phase1). The proxy sets
       // responseMimeType=application/json + responseSchema when present so
@@ -774,7 +780,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     // guard: retrying the proxy that just failed is not a failover.
     const failoverTarget = failoverVendor();
     const failoverFn = failoverTarget === "none" ? null : proxyFnForVendor(failoverTarget);
-    if (error && failoverFn && failoverFn !== primaryFn) {
+    if (error && input.purpose !== "persona_synthesis" && failoverFn && failoverFn !== primaryFn) {
       const vendorCrisis = await inspectProxyCrisisRejection(error);
       fence();
       if (vendorCrisis.route) {

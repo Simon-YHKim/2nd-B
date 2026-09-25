@@ -46,7 +46,7 @@ describe("SSV callback wiring", () => {
     const adAt = native.indexOf("RewardedAd.createForAdRequest");
     expect(native).toMatch(/auth\.getSession\(\)/);
     expect(native).toMatch(/Authorization:\s*`Bearer \$\{accessToken\}`/);
-    expect(native).toMatch(/body:\s*\{ kind \}/);
+    expect(native).toMatch(/body:\s*\{ kind, ad_unit_id: unitId \}/);
     expect(ticketAt).toBeGreaterThan(0);
     expect(ticketAt).toBeLessThan(adAt);
     expect(native).toMatch(/serverSideVerificationOptions:\s*\{\s*customData:\s*ticket\.customData/);

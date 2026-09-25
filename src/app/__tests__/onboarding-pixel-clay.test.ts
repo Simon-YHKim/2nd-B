@@ -9,7 +9,9 @@ const FLOWS = JSON.parse(
     path.resolve(__dirname, "..", "..", "..", "public", "proto", "data", "screens", "flows.json"),
     "utf8",
   ),
-) as { onboardingSlides: { body: string }[] };
+) as {
+  onboardingSlides: { tag: string; title: string; icon: string; body: string }[];
+};
 
 function functionBody(name: string): string {
   const start = SRC.indexOf(`function ${name}(`);
@@ -35,35 +37,49 @@ describe("/onboarding PIXEL-CLAY handoff contract", () => {
     expect(SRC).toMatch(/loading \|\| onboardingComplete === null/);
   });
 
-  test("keeps all four canon slides and Android Back walks one slide backward", () => {
+  test("keeps three focused canon slides and Android Back walks one slide backward", () => {
     expect(SRC).toContain("canonFlows.onboardingSlides");
     expect(SRC).toContain("const AUTH_STEP = SLIDES.length;");
+    expect(FLOWS.onboardingSlides).toHaveLength(3);
     expect(SRC).toContain('BackHandler.addEventListener("hardwareBackPress"');
     expect(SRC).toMatch(/if \(step > 0\)[\s\S]{0,100}setStep\(\(current\) => current - 1\)/);
   });
 
-  test("names the current seven stars without framing the six life areas as stars", () => {
+  test("introduces the current seven-star model with concrete starting examples", () => {
     const koBody = FLOWS.onboardingSlides[1]?.body ?? "";
     const enBody =
       SRC.match(/tag: "Getting to know you",[\s\S]*?body: "([^"]+)"/)?.[1] ?? "";
 
-    for (const star of ["프로필", "영유아기", "학창시절", "20대", "30대 이후", "직장", "지금"]) {
+    expect(FLOWS.onboardingSlides[1]?.title).toContain("일곱 별");
+    for (const star of ["학창시절", "직장", "지금"]) {
       expect(koBody).toContain(star);
     }
-    for (const star of [
-      "Profile",
-      "early childhood",
-      "school years",
-      "20s",
-      "30s and beyond",
-      "work",
-      "now",
-    ]) {
+    expect(SRC).toContain("across seven stars");
+    for (const star of ["School years", "work", "now"]) {
       expect(enBody).toContain(star);
     }
 
     expect(koBody).not.toMatch(/커리어|재정|관계|건강|성장|휴식/);
     expect(enBody).not.toMatch(/Career|money|relationships|health|growth|rest/);
+  });
+
+  test("removes AI-principles teaching and keeps user approval as the final product message", () => {
+    const canonCopy = JSON.stringify(FLOWS.onboardingSlides);
+
+    expect(FLOWS.onboardingSlides[2]).toEqual({
+      tag: "내가 결정하기",
+      title: "AI의 요약은\n내가 확인해요",
+      icon: "check_circle",
+      body: "나에 대한 요약은 제안이에요.\n내가 승인해야 반영돼요.",
+    });
+    expect(SRC).toContain('tag: "Your choice"');
+    expect(SRC).toContain('title: "AI summaries need\\nyour approval"');
+    expect(SRC).toContain('body: "A summary about you is a proposal.\\nIt is applied only if you approve it."');
+
+    for (const removed of ["AI의 원리", "AI 뮤지엄", "함께 배우기", "Learning together", "AI Museum"]) {
+      expect(canonCopy).not.toContain(removed);
+      expect(SRC).not.toContain(removed);
+    }
   });
 
   test("the final handoff exposes the real sign-up and sign-in boundaries", () => {

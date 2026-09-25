@@ -18,6 +18,7 @@ import { router } from "expo-router";
 import { useURL } from "expo-linking";
 
 import { useAuth } from "@/lib/auth/AuthContext";
+import { observeAuthConversion } from "@/lib/analytics/auth-conversions";
 import {
   ageInYears,
   consumeAuthCallbackUrl,
@@ -353,6 +354,7 @@ export function useSignUpForm(): UseSignUpForm {
             buildSignUpConsentArgs({ userId: newUserId, isMinor: isMinorAge, locale, selections: consent }),
           ),
         refreshAuth: refresh,
+        onEntered: (created, enteredUserId) => { void observeAuthConversion(enteredUserId, created ? "sign_up" : "login", "email"); },
         isAgeGateError: (e) => e instanceof AgeGateError,
         isBreachedPasswordError: (e) => e instanceof BreachedPasswordError,
         isExistingAccountLikelyError: (e) => e instanceof ExistingAccountLikelyError,

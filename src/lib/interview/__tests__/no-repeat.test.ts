@@ -11,7 +11,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { DRILL_LAYERS, LAYER_LABEL } from "../probe";
+import { DRILL_LAYERS, LAYER_LABEL, usableQuestion } from "../probe";
 
 const SRC = readFileSync(join(__dirname, "..", "probe.ts"), "utf8").replace(/\r\n/g, "\n");
 
@@ -55,7 +55,8 @@ describe("모델이 반복해도 화면에는 안 나간다", () => {
 
   it("모델 응답을 그대로 쓰는 경로가 남아 있다 (항상 대체하지 않는다)", () => {
     // 방어가 과하면 LLM 질문이 영영 안 나간다. 후보가 새것이면 그대로 쓴다.
-    expect(SRC).toContain("if (candidate.length > 0 && !asked.has(norm(candidate))) return candidate;");
+    const candidate = "What did you choose to do next?";
+    expect(usableQuestion(candidate, [], "fact", "en")).toBe(candidate);
   });
 
   it("공백·대소문자 차이만으로는 새 질문이 아니다", () => {
