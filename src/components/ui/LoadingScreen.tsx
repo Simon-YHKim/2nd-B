@@ -411,7 +411,12 @@ interface Props {
 
 export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
   const { t } = useTranslation("common");
-  const reducedMotion = useReducedMotionPref();
+  const prefersReducedMotion = useReducedMotionPref();
+  // Static web export cannot know matchMedia or a persisted lite-mode choice.
+  // Keep its frame 0 on the first client render, then honor the preference.
+  const [webHydrated, setWebHydrated] = useState(Platform.OS !== "web");
+  useEffect(() => { setWebHydrated(true); }, []);
+  const reducedMotion = webHydrated && prefersReducedMotion;
   const startedAt = useRef(Date.now());
   const stopTickerRef = useRef<(() => void) | null>(null);
   const continuedRef = useRef(false);

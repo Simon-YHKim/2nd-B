@@ -214,7 +214,7 @@ function host(tag: string): React.ComponentType<Record<string, unknown>> {
   };
 }
 
-function loadLoadingModule(platform: "ios" | "web" = "ios"): LoadingModule {
+function loadLoadingModule(platform: "ios" | "web" = "ios", reducedMotion = false): LoadingModule {
   const source = readFileSync(LOADING_SCREEN, "utf8");
   const output = ts.transpileModule(source, {
     compilerOptions: {
@@ -240,7 +240,7 @@ function loadLoadingModule(platform: "ios" | "web" = "ios"): LoadingModule {
     }
     if (id === "react-native-svg") return { Svg: host("svg"), Rect: host("rect") };
     if (id === "react-i18next") return { useTranslation: () => ({ t: (key: string) => key }) };
-    if (id === "@/lib/motion/use-reduced-motion") return { useReducedMotionPref: () => false };
+    if (id === "@/lib/motion/use-reduced-motion") return { useReducedMotionPref: () => reducedMotion };
     if (id === "@/lib/theme/tokens") {
       return {
         deepSpace: {
@@ -408,6 +408,17 @@ describe("HustleK opening v2 integer renderer", () => {
     if (platform === "web") expect(cellMarkup).toContain('shape-rendering="crispEdges"');
     else expect(cellMarkup).not.toContain("shape-rendering");
     expect(readFileSync(LOADING_SCREEN, "utf8")).not.toMatch(/expo-image|<Image\b|\.png["']/i);
+  });
+
+  test("web first paint matches static export with reduced motion enabled", () => {
+    const screen = (reducedMotion: boolean, platform: "web" | "ios") => {
+      const component = loadLoadingModule(platform, reducedMotion).LoadingScreen;
+      if (!component) throw new Error("LoadingScreen export missing");
+      return renderToStaticMarkup(React.createElement(component, { ready: true }));
+    };
+
+    expect(sha256(Buffer.from(screen(true, "web")))).toBe(sha256(Buffer.from(screen(false, "web"))));
+    expect(sha256(Buffer.from(screen(true, "ios")))).not.toBe(sha256(Buffer.from(screen(false, "ios"))));
   });
 });
 
