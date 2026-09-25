@@ -223,13 +223,26 @@ BEGIN
   RETURN v_snapshot;
 END $$;
 
-CREATE FUNCTION public.settle_polaris_generation(p_user_id uuid,p_generation_id uuid,p_cards jsonb) RETURNS boolean
+-- NULL token preserves the flag-off service caller contract. When verified
+-- consent is enabled, Edge passes its SERVER-captured token, never a body field.
+-- Apply the consent snapshot draft before enabling that Edge gate. A service
+-- caller omitting the token remains inside the existing privileged boundary.
+CREATE FUNCTION public.settle_polaris_generation(p_user_id uuid,p_generation_id uuid,p_cards jsonb,
+  p_expected_consent_token text DEFAULT NULL) RETURNS boolean
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
-DECLARE v_row public.polaris_generations%ROWTYPE; v_old jsonb; v_next jsonb; v_card jsonb;
+DECLARE v_row public.polaris_generations%ROWTYPE; v_old jsonb; v_next jsonb; v_card jsonb; v_consent jsonb;
 BEGIN
   -- Failure/refund remains possible after the deletion fence. New content does not.
   IF p_cards IS NOT NULL THEN PERFORM public.assert_polaris_account_active(p_user_id); END IF;
   PERFORM pg_advisory_xact_lock(hashtext('polaris:' || p_user_id::text));
+  IF p_cards IS NOT NULL AND p_expected_consent_token IS NOT NULL THEN
+    v_consent := public.effective_llm_consent_snapshot_v2(p_user_id);
+    IF p_expected_consent_token !~ '^[0-9a-f]{64}$'
+      OR v_consent->>'allowed' IS DISTINCT FROM 'true'
+      OR v_consent->>'token' IS DISTINCT FROM p_expected_consent_token THEN
+      RAISE EXCEPTION 'llm_consent_changed' USING ERRCODE='42501';
+    END IF;
+  END IF;
   SELECT * INTO v_row FROM public.polaris_generations WHERE id=p_generation_id AND user_id=p_user_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'polaris_reservation_required'; END IF;
   IF v_row.status='completed' THEN RETURN true; END IF;
@@ -366,5 +379,5 @@ REVOKE ALL ON FUNCTION public.polaris_generation_status(uuid) FROM PUBLIC,anon;
 REVOKE ALL ON FUNCTION public.reserve_polaris_generation(uuid,text) FROM PUBLIC,anon;
 REVOKE ALL ON FUNCTION public.cancel_polaris_generation(uuid,uuid) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.polaris_generation_status(uuid),public.reserve_polaris_generation(uuid,text),public.cancel_polaris_generation(uuid,uuid) TO authenticated;
-REVOKE ALL ON FUNCTION public.claim_polaris_generation(uuid,uuid),public.settle_polaris_generation(uuid,uuid,jsonb) FROM PUBLIC,anon,authenticated;
-GRANT EXECUTE ON FUNCTION public.claim_polaris_generation(uuid,uuid),public.settle_polaris_generation(uuid,uuid,jsonb) TO service_role;
+REVOKE ALL ON FUNCTION public.claim_polaris_generation(uuid,uuid),public.settle_polaris_generation(uuid,uuid,jsonb,text) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_polaris_generation(uuid,uuid),public.settle_polaris_generation(uuid,uuid,jsonb,text) TO service_role;

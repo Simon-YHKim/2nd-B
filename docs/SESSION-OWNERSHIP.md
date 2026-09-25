@@ -174,9 +174,14 @@ migration과 현재 Edge 함수가 모두 정상인 상태를 만든 뒤에만 �
   계정 삭제는 원장을 CASCADE로 지운다. DB `enabled=false`와 `ratify_polaris_role_card`
   준비 → OpenAI의 예약 근거·정산 wrapper 및 나머지 세 proxy의 공유 거부 가드 배포
   → 클라이언트 → 예약/정산/승인/삭제 경합 canary → enabled 순서다.
-- **서비스 동의 v2:** 제공자 호출 전 게이트와, 호출 중 철회를 정산 직전에 재검사하는
-  처리를 구분한다. 후자는 아직 없으므로 verified-consent 활성화의 남은 조건이다.
-  chat_autosave/analytics 동의를 Polaris 서비스 동의로 대신 해석하지 않는다.
+- **서비스 동의 v2:** 후속 코드가 `effective_llm_consent_snapshot_v2`로 제공자 호출 전후의
+  같은 영수증·변경 번호를 검사한다. Polaris는 같은 token을 4인수 정산에 넘겨 SQL 잠금 아래
+  재검사한다. OFF에서는 새 조회 없이 기존 3인수 정산과 호환된다. 활성화 전에는 snapshot
+  RPC와 새 정산, 서버 소유 재동의·철회 writer/UI 및 현재 계약 영수증의 활성 계정 coverage가
+  모두 준비돼야 한다. 과거 행을 backfill하지 않는다. 이미 구 draft가 적용된 운영에는 fresh
+  CREATE 초안을 재적용하지 않고 실제 서명을 확인한 forward migration을 따로 준비한다.
+  제공자 비용과 완료된 정산은 유지하며, 최종 DB 검사와 HTTP 전달의 원자성은 보장하지 않는다.
+  chat_autosave/analytics 설정의 기존 의미를 새 서비스 동의로 바꾸지 않는다.
 - **Paddle:** 위 refund OFF/drain 절차를 우선하며, v2 webhook verifier →
   subscription-manage signer → 웹 빌드 순서다. 서로 다른 Supabase 프로젝트와
   환경별 키·가격·binding을 사용한다. [sandbox runbook](PADDLE-SANDBOX-RUNBOOK.md)의

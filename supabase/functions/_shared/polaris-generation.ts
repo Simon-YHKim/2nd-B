@@ -2,6 +2,7 @@
 // the server. The client cannot mint a successful generation or refund a live one.
 import { FORBIDDEN_TERMS, ANALYSIS_UNIVERSAL_FORBIDDEN } from '../../../src/lib/safety/lexicon.ts';
 import { INJECTION_GUARD, sanitizeUntrusted } from '../../../src/lib/llm/untrusted.ts';
+import { captureLlmConsent, recheckLlmConsent, type LlmConsentLease, type LlmConsentDenial } from './llm-consent.ts';
 
 type Rpc = (name: string, args: Record<string, unknown>) => PromiseLike<{ data?: unknown; error?: unknown }>;
 type Evidence = { id: string; domain: string; excerpt: string };
@@ -69,13 +70,18 @@ export function groundedPolarisCards(text: string, evidence: readonly Evidence[]
 /** Call once, with a claimed reservation. finally refunds every non-success. */
 export async function runPolarisGeneration(
   rpc: Rpc, userId: string, generationId: string,
-  handle: (prompt: PolarisPrompt) => Promise<Response>,
+  handle: (prompt: PolarisPrompt, lease?: LlmConsentLease) => Promise<Response>,
   locale: 'en' | 'ko' = 'en',
+  consent: { required: boolean; onWithheld?: () => Promise<void> } = { required: false },
 ): Promise<Response> {
   const args = { p_user_id:userId,p_generation_id:generationId };
   const claim = await rpc('claim_polaris_generation',args);
   if (claim.error || !Array.isArray(claim.data)) return Response.json({error:'polaris_reservation_required'},{status:403});
   let settled = false;
+  const withhold = async (denial: LlmConsentDenial) => {
+    await consent.onWithheld?.();
+    return Response.json({ error: denial.error }, { status: denial.status });
+  };
   try {
     const evidence = claim.data as Evidence[];
     if (!evidence.length || evidence.length > 18 || evidence.some((row) =>
@@ -85,14 +91,30 @@ export async function runPolarisGeneration(
     }
     // SQL binds these excerpts to the reserved content hashes. Client-supplied
     // prompts are never used for metered generations or their evidence links.
-    const response = await handle(snapshotPrompt(evidence,locale));
+    const captured = await captureLlmConsent(rpc,userId,consent.required);
+    if (captured.denial) return withhold(captured.denial);
+    const lease = captured.lease;
+    const prompt = snapshotPrompt(evidence,locale);
+    const response = await handle(prompt,lease);
     if (!response.ok) return response;
     const body = await response.clone().json() as { text?: unknown };
     const cards = groundedPolarisCards(typeof body.text === 'string' ? body.text : '',claim.data as Evidence[]);
     if (!cards.length) return Response.json({error:'polaris_no_grounded_result'},{status:502});
-    const result = await rpc('settle_polaris_generation',{...args,p_cards:cards});
+    const denial = await recheckLlmConsent(rpc,lease);
+    if (denial) return withhold(denial);
+    const result = await rpc('settle_polaris_generation',{...args,p_cards:cards,
+      ...(lease.required ? {p_expected_consent_token:lease.token} : {}),
+    });
+    const error = result.error as {code?:unknown;message?:unknown} | null | undefined;
+    if (error?.code === '42501' && error.message === 'llm_consent_changed') {
+      return withhold({error:'consent_required',status:403});
+    }
     if (result.error || result.data !== true) return Response.json({error:'polaris_settlement_failed'},{status:503});
     settled = true;
+    // A committed draft is not undone by a later withdrawal. Withhold the HTTP
+    // result, preserving the completed product settlement and actual vendor cost.
+    const afterSettlement = await recheckLlmConsent(rpc,lease);
+    if (afterSettlement) return withhold(afterSettlement);
     return response;
   } finally {
     if (!settled) await rpc('settle_polaris_generation',{...args,p_cards:null});

@@ -48,6 +48,7 @@
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { captureLlmConsent, recheckLlmConsent, markConsentWithheld } from '../_shared/llm-consent.ts';
 // D-27 attribution plus the shared server-owned purpose policy. The remaining
 // crisis/auth/cap plumbing stays inlined until its own deploy-verified migration.
 import {
@@ -432,22 +433,9 @@ Deno.serve(async (req: Request) => {
   // yet a shipped re-consent surface. Enforce only after the v2 provenance
   // migration, server-owned writer, and active-account coverage preflight are
   // complete. A premature flag fails closed because a missing v2 RPC is 503.
-  if (Deno.env.get('LLM_REQUIRE_VERIFIED_CONSENT') === 'true') {
-    try {
-      const { data: consentOk, error: consentErr } = await supabaseAdmin.rpc(
-        'effective_llm_consent_v2',
-        { p_user_id: userId },
-      );
-      if (consentErr) {
-        console.error('[gemini-proxy] verified consent lookup failed');
-        return jsonResponse(req, { error: 'consent_check_unavailable' }, 503);
-      }
-      if (consentOk !== true) return jsonResponse(req, { error: 'consent_required' }, 403);
-    } catch {
-      console.error('[gemini-proxy] verified consent lookup threw');
-      return jsonResponse(req, { error: 'consent_check_unavailable' }, 503);
-    }
-  }
+  const consent = await captureLlmConsent(capacityRpc, userId, Deno.env.get('LLM_REQUIRE_VERIFIED_CONSENT') === 'true');
+  if (consent.denial) return jsonResponse(req, { error: consent.denial.error }, consent.denial.status);
+  const consentLease = consent.lease;
 
   const readEffectiveTierRank = async (): Promise<number | null> => {
     try {
@@ -655,9 +643,11 @@ Deno.serve(async (req: Request) => {
       return jsonResponse(req, { error: 'embed_shape_mismatch' }, 502);
     }
 
+    const consentAuditId = crypto.randomUUID();
     let audited = false;
     try {
       const { error: auditErr } = await supabaseAdmin.from('ai_audit_log').insert({
+        id: consentAuditId,
         user_id: userId,
         event_source: 'server_verified',
         prompt_hash: djb2(texts.join(' ')),
@@ -678,6 +668,12 @@ Deno.serve(async (req: Request) => {
       if (auditErr) console.warn('[gemini-proxy] embed audit insert failed:', auditErr.message);
     } catch (e) {
       console.warn('[gemini-proxy] embed audit insert threw:', String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE));
+    }
+
+    const consentDenial = await recheckLlmConsent(capacityRpc, consentLease);
+    if (consentDenial) {
+      await markConsentWithheld(supabaseAdmin, userId, consentAuditId, EMBED_MODEL);
+      return jsonResponse(req, { error: consentDenial.error }, consentDenial.status);
     }
 
     return jsonResponse(req, { vectors, modelUsed: EMBED_MODEL, latencyMs, audited });
@@ -1153,9 +1149,11 @@ Deno.serve(async (req: Request) => {
           : '';
   const geminiTotalTokens =
     Number((data?.usageMetadata as { totalTokenCount?: number } | undefined)?.totalTokenCount) || null;
+  const consentAuditId = crypto.randomUUID();
   let audited = false;
   try {
     const { error: auditErr } = await supabaseAdmin.from('ai_audit_log').insert({
+      id: consentAuditId,
       user_id: userId,
       event_source: 'server_verified',
       prompt_hash: djb2(`${systemText ?? ''}${userText}`),
@@ -1188,6 +1186,12 @@ Deno.serve(async (req: Request) => {
   }
   if (finishReason === 'MAX_TOKENS') {
     return jsonResponse(req, { error: 'upstream_truncated', reason: 'max_tokens' }, 502);
+  }
+
+  const consentDenial = await recheckLlmConsent(capacityRpc, consentLease);
+  if (consentDenial) {
+    await markConsentWithheld(supabaseAdmin, userId, consentAuditId, modelUsed);
+    return jsonResponse(req, { error: consentDenial.error }, consentDenial.status);
   }
 
   return jsonResponse(req, { text, modelUsed, latencyMs, audited });

@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 const root = join(process.cwd(), "supabase/functions");
 const proxies = ["claude-proxy", "gemini-proxy", "openai-proxy", "xai-proxy"] as const;
+const consentHelper = readFileSync(join(root, "_shared/llm-consent.ts"), "utf8");
 
 describe.each(proxies)("%s staged consent and entitlement boundary", (proxy) => {
   const source = readFileSync(join(root, proxy, "index.ts"), "utf8");
@@ -19,32 +20,29 @@ describe.each(proxies)("%s staged consent and entitlement boundary", (proxy) => 
     expect(body).toBeGreaterThan(apiKey);
   });
 
-  test("uses only the provenance-backed v2 RPC behind an explicit rollout flag", () => {
+  test("uses only the provenance-backed snapshot behind an explicit rollout flag", () => {
     const rollout = source.indexOf("Deno.env.get('LLM_REQUIRE_VERIFIED_CONSENT') === 'true'");
-    const gate = source.indexOf("'effective_llm_consent_v2'", rollout);
 
     expect(rollout).toBeGreaterThan(-1);
-    expect(gate).toBeGreaterThan(rollout);
-    expect(source.match(/'effective_llm_consent_v2'/g)).toHaveLength(1);
+    expect(source).toContain("captureLlmConsent(capacityRpc, userId, Deno.env.get('LLM_REQUIRE_VERIFIED_CONSENT') === 'true')");
+    expect(consentHelper.match(/'effective_llm_consent_snapshot_v2'/g)).toHaveLength(1);
+    expect(source).not.toContain("'effective_llm_consent_v2'");
     expect(source.match(/'effective_llm_consent'/g)).toBeNull();
-    expect(source).toMatch(/'effective_llm_consent_v2',[\s\S]*?p_user_id: userId/);
+    expect(consentHelper).toMatch(/'effective_llm_consent_snapshot_v2',[\s\S]*?p_user_id: userId/);
     expect(source).not.toContain("LLM_REQUIRE_CONSENT");
     expect(source).not.toMatch(/\.from\(['"]consent_records['"]\)/);
-    expect(source).not.toMatch(/consentOk\s*!==\s*false/);
+    expect(source).toContain("await recheckLlmConsent(capacityRpc, consentLease)");
   });
 
-  test("denies v2 false, RPC errors, and missing RPCs before tier, spend, and egress", () => {
-    const rollout = source.indexOf("Deno.env.get('LLM_REQUIRE_VERIFIED_CONSENT') === 'true'");
-    const gate = source.indexOf("'effective_llm_consent_v2'", rollout);
+  test("honors the shared denial before tier, spend, and egress", () => {
+    const gate = source.indexOf("const consent =");
     const tier = source.indexOf("'effective_subscription_tier'", gate);
     const spend = source.indexOf("'bump_gemini_spend'", gate);
     const egress = source.indexOf("await fetch(", gate);
     const consentBlock = source.slice(gate, tier);
 
-    expect(gate).toBeGreaterThan(rollout);
-    expect(consentBlock).toMatch(/if \(consentErr\)[\s\S]*consent_check_unavailable[\s\S]*503/);
-    expect(consentBlock).toMatch(/consentOk !== true[\s\S]*consent_required[\s\S]*403/);
-    expect(consentBlock).toMatch(/catch[\s\S]*consent_check_unavailable[\s\S]*503/);
+    expect(gate).toBeGreaterThan(-1);
+    expect(consentBlock).toContain("if (consent.denial) return jsonResponse(req, { error: consent.denial.error }, consent.denial.status)");
     expect(tier).toBeGreaterThan(gate);
     expect(spend).toBeGreaterThan(tier);
     expect(egress).toBeGreaterThan(spend);

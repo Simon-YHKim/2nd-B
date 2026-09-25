@@ -234,3 +234,4 @@ BEGIN
 END $$;
 SELECT 'PASS: record/content/account erasure, quota-preserving cleanup, late callback and existing deletion fence' AS erasure_result;
 SELECT 'PASS: Polaris lifetime two, shared plan, no-charge failures, idempotency, owner and service grants' AS result;
+-- @LOAD_CONSENT_SNAPSHOT_TEST@

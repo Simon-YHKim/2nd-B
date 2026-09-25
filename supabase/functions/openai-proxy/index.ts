@@ -38,6 +38,7 @@
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { captureLlmConsent, recheckLlmConsent, markConsentWithheld, type LlmConsentLease } from '../_shared/llm-consent.ts';
 import { POLARIS_RESPONSE_SCHEMA, runPolarisGeneration } from '../_shared/polaris-generation.ts';
 import {
   BRAIN_RANK,
@@ -343,7 +344,10 @@ function effortToMaxTokens(clampedEffort: string): number {
   }
 }
 
-async function handleOpenAi(req: Request): Promise<Response> {
+async function handleOpenAi(
+  req: Request, serverLease?: LlmConsentLease,
+  onProviderAudit?: (auditId: string, model: string) => void,
+): Promise<Response> {
   if (req.method === 'OPTIONS') return corsPreflight(req);
   if (req.method !== 'POST') return jsonResponse(req, { error: 'method_not_allowed' }, 405);
 
@@ -407,21 +411,15 @@ async function handleOpenAi(req: Request): Promise<Response> {
   // yet a shipped re-consent surface. Enforce only after the v2 provenance
   // migration, server-owned writer, and active-account coverage preflight are
   // complete. A premature flag fails closed because a missing v2 RPC is 503.
-  if (Deno.env.get('LLM_REQUIRE_VERIFIED_CONSENT') === 'true') {
-    try {
-      const { data: consentOk, error: consentErr } = await supabaseAdmin.rpc(
-        'effective_llm_consent_v2',
-        { p_user_id: userId },
-      );
-      if (consentErr) {
-        console.error('[openai-proxy] verified consent lookup failed');
-        return jsonResponse(req, { error: 'consent_check_unavailable' }, 503);
-      }
-      if (consentOk !== true) return jsonResponse(req, { error: 'consent_required' }, 403);
-    } catch {
-      console.error('[openai-proxy] verified consent lookup threw');
-      return jsonResponse(req, { error: 'consent_check_unavailable' }, 503);
-    }
+  const consent = serverLease
+    ? { lease: serverLease }
+    : await captureLlmConsent(capacityRpc, userId, Deno.env.get('LLM_REQUIRE_VERIFIED_CONSENT') === 'true');
+  if (consent.denial) return jsonResponse(req, { error: consent.denial.error }, consent.denial.status);
+  const consentLease = consent.lease;
+  if (consentLease.userId !== userId) return jsonResponse(req, { error: 'consent_required' }, 403);
+  if (serverLease) {
+    const denial = await recheckLlmConsent(capacityRpc, consentLease);
+    if (denial) return jsonResponse(req, { error: denial.error }, denial.status);
   }
 
   const readEffectiveTierRank = async (): Promise<number | null> => {
@@ -645,9 +643,11 @@ async function handleOpenAi(req: Request): Promise<Response> {
       }, 502);
     }
 
+    const consentAuditId = crypto.randomUUID();
     let embedAudited = false;
     try {
       const { error: auditErr } = await supabaseAdmin.from('ai_audit_log').insert({
+        id: consentAuditId,
         user_id: userId,
         event_source: 'server_verified',
         prompt_hash: djb2(texts.join(' ')),
@@ -663,6 +663,12 @@ async function handleOpenAi(req: Request): Promise<Response> {
       embedAudited = !auditErr;
     } catch (e) {
       console.warn('[openai-proxy] embed audit insert threw:', String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE));
+    }
+
+    const consentDenial = await recheckLlmConsent(capacityRpc, consentLease);
+    if (consentDenial) {
+      await markConsentWithheld(supabaseAdmin, userId, consentAuditId, embedModel);
+      return jsonResponse(req, { error: consentDenial.error }, consentDenial.status);
     }
 
     return jsonResponse(req, { vectors, modelUsed: embedModel, latencyMs: embedLatencyMs, audited: embedAudited });
@@ -1086,9 +1092,11 @@ async function handleOpenAi(req: Request): Promise<Response> {
   // C3: write the audit row server-side (parity with the sibling proxies).
   // D-27: usage tokens (OpenAI returns usage.total_tokens incl. reasoning).
   const openaiTotalTokens = Number(data?.usage?.total_tokens) || null;
+  const consentAuditId = crypto.randomUUID();
   let audited = false;
   try {
     const { error: auditErr } = await supabaseAdmin.from('ai_audit_log').insert({
+      id: consentAuditId,
       user_id: userId,
       event_source: 'server_verified',
       prompt_hash: djb2(`${systemText ?? ''}${userText}`),
@@ -1117,6 +1125,13 @@ async function handleOpenAi(req: Request): Promise<Response> {
     return jsonResponse(req, { error: 'upstream_truncated', modelUsed, latencyMs }, 502);
   }
 
+  onProviderAudit?.(consentAuditId, modelUsed);
+  const consentDenial = await recheckLlmConsent(capacityRpc, consentLease);
+  if (consentDenial) {
+    await markConsentWithheld(supabaseAdmin, userId, consentAuditId, modelUsed);
+    return jsonResponse(req, { error: consentDenial.error }, consentDenial.status);
+  }
+
   return jsonResponse(req, { text, modelUsed, latencyMs, audited });
 }
 
@@ -1137,15 +1152,22 @@ Deno.serve(async (req: Request) => {
   const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!url || !key) return jsonResponse(req,{error:'polaris_unavailable'},503);
   const admin = createClient(url,key,{auth:{autoRefreshToken:false,persistSession:false}});
+  const consentRequired = Deno.env.get('LLM_REQUIRE_VERIFIED_CONSENT') === 'true';
+  let providerAudit: { id: string; model: string } | undefined;
   try {
-    const response = await runPolarisGeneration((name,args) => admin.rpc(name,args),userId,generationId,(prompt) => {
+    const response = await runPolarisGeneration((name,args) => admin.rpc(name,args),userId,generationId,(prompt,lease) => {
       const headers = new Headers(req.headers);
       headers.delete('content-length');
       return handleOpenAi(new Request(req.url,{method:'POST',headers,signal:req.signal,body:JSON.stringify({
         purpose:'persona_synthesis',system:prompt.system,user:prompt.user,
         responseSchema:POLARIS_RESPONSE_SCHEMA,effort:'high',
-      })}));
-    },body.polarisLocale === 'ko' ? 'ko' : 'en');
+      })}),lease,(id,model) => { providerAudit = {id,model}; });
+    },body.polarisLocale === 'ko' ? 'ko' : 'en',{
+      required:consentRequired,
+      onWithheld:async () => {
+        if (providerAudit) await markConsentWithheld(admin,userId,providerAudit.id,providerAudit.model);
+      },
+    });
     // Error responses from the settlement helper need the same CORS envelope.
     if (!response.ok) return jsonResponse(req,await response.json(),response.status);
     return response;

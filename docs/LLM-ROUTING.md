@@ -61,6 +61,24 @@
 > 순서가 끝나기 전에는 이 변수를 설정하지 않는다. 과거 행은 안전하게 구분할 수 없어
 > backfill하지 않는다. 변수를 너무 일찍 켜면 v2 RPC 누락/거부가 503/403으로 fail-closed 된다.
 >
+> **Provider 처리 중 철회 경계 (2026-09-25, 아직 미활성).** 네 프록시는 같은 rollout 값으로
+> `effective_llm_consent_snapshot_v2`의 `{allowed, token}`을 호출 전과 성공 응답 직전에 확인한다.
+> 동의 없음·token 변경은 403, 조회 실패·잘못된 응답은 503이며 텍스트·음성 전사·벡터를 반환하지 않는다.
+> token은 신뢰된 최신 service receipt와 해당 receipt가 선택한 privacy key·계정 상태의 변경 번호를
+> 묶으므로 FALSE→TRUE도 이전 요청을 되살리지 않는다. 선택하지 않은 privacy key의 의미를 확장하지 않는다.
+> OFF일 때 이 RPC를 부르지 않는다. boolean v2 RPC는 호환용으로 남고 활성화에는 snapshot 계약도 필요하다.
+>
+> 이미 보낸 provider 입력·발생한 비용은 취소할 수 없다. spend/capacity 정산과 실제 model·token·hash
+> 감사 한 행은 유지하며 보류 시 같은 행의 model에 `+consent_withheld`를 best-effort로 붙인다.
+> 추가 감사 행으로 호출 수를 부풀리지 않는다. marker 기록 실패도 결과 차단을 풀지 않으며 원문·동의 token·
+> RPC 예외를 진단에 남기지 않는다. 이미 기록된 출력의 안전 분류도 유지한다.
+>
+> Polaris는 서버 내부에서 같은 token을 정산까지 전달한다. SQL이 같은 동의 상태를 잠금 아래 다시
+> 확인하기 전에는 카드 저장·성공 정산을 하지 않는다. 실패 시 제품 예약만 환불하고 provider 비용은 유지한다.
+> SQL 성공 commit 후 철회가 관측되면 HTTP 결과를 차단하되 이미 저장·정산한 초안을 되돌리지 않는다.
+> 최종 DB 확인과 실제 네트워크 전달을 하나의 원자적 동작으로 만들 수 없으므로 그 짧은 경계는 남는다.
+> optional 정산 token은 service-only 신뢰 경계이며, 활성 Edge는 token을 생략하거나 클라이언트에서 받지 않는다.
+>
 > ### ⚠ 9월 Gemini 폐기에서 스위치로는 안 되는 두 곳 (실측 2026-08-23)
 >
 > 스위치 네 개를 다 켜도 **`gemini-proxy` 를 하드코딩한 경로가 둘 남는다.**
