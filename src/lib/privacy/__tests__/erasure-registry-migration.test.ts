@@ -27,9 +27,9 @@ import {
   extractRegistrySql,
   loadRegistry,
   readRunTimeSql,
-  renderRegistrySql,
   stripForDdlScan,
 } from "../../../../scripts/generate-erasure-registry";
+import { collectErasureSeedHistoryErrors } from "../../../../scripts/erasure-registry-forward";
 
 const ROOT = resolve(__dirname, "../../../..");
 const MIGRATIONS = join(ROOT, "db", "migrations");
@@ -549,10 +549,10 @@ describe(`${FILE} -- structure`, () => {
     expect(code).toMatch(/RAISE EXCEPTION 'erasure_registry names columns that do not exist/);
   });
 
-  test("the seed block is a render of db/erasure-registry.json, not a second copy", () => {
+  test("the historical seed and declared forwards render the canonical registry", () => {
     const embedded = extractRegistrySql(raw);
     expect(embedded).not.toBeNull();
-    expect(embedded?.replace(/\r\n/g, "\n")).toBe(renderRegistrySql(loadRegistry(ROOT)));
+    expect(collectErasureSeedHistoryErrors(ROOT, loadRegistry(ROOT))).toEqual([]);
   });
 
   test("a rollback twin exists and is outside the apply glob", () => {

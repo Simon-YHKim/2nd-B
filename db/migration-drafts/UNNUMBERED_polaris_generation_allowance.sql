@@ -53,14 +53,10 @@ DO $$ BEGIN
     RAISE EXCEPTION 'polaris_erasure_rpc_must_remain_locked';
   END IF;
 END $$;
--- Lifetime quota/idempotency facts survive a content wipe, like reasoning
--- allowances. The record-delete trigger below removes all source hashes and
--- derived Polaris cards. Terminal account deletion cascades this ledger.
-INSERT INTO public.erasure_registry(table_name,owner_column,class,reason)
-VALUES('polaris_generations','user_id','retained',
-  'Polaris lifetime allowance and request replay ledger. Content deletion clears evidence hashes and derived cards, fails and refunds active requests; terminal account deletion cascades the ledger.')
-ON CONFLICT(table_name) DO UPDATE SET owner_column=EXCLUDED.owner_column,class=EXCLUDED.class,
-  reason=EXCLUDED.reason,delete_order=NULL,cascades_from=NULL;
+-- Registry installation is separate from provisioning so the 0189 rollback
+-- can replay only its registry-only forward migration, leaving these tables,
+-- functions and lifetime allowance facts intact. Apply the service-contract
+-- erasure registry draft after all its prerequisite tables exist, before enable.
 
 CREATE FUNCTION public.assert_polaris_account_active(p_user_id uuid) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$

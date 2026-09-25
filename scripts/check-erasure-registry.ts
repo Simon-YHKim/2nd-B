@@ -24,7 +24,7 @@
 //   G4 policy match    account_delete_only really has neither                  (F4/F2)
 //   G5 well-formed     reason present, owner column real, delete order sane
 //   G6 retention       the retention ledgers are never erasure targets
-//   G7 one original    0189's seed block is byte-identical to a fresh render
+//   G7 one original    Historical seed and declared forwards match the JSON;
 //   G8 cascade order   a CASCADE child is deleted before its parent           (F2)
 //   G9 cascade honesty a kept table that a CASCADE empties says so            (F3)
 //   G10 floor honesty  the catalog test's privilege floor reproduces the      (F1)
@@ -82,7 +82,7 @@
 //   G2 no stale rows                  (1) DELETE of B's row affects 0 rows and B's row survives
 //   G5 well-formed entries            (2) DELETE of A's own row affects exactly 1 row
 //   G6 retention ledgers kept       Policy composition, RESTRICTIVE, role inheritance and
-//   G7 seed == JSON                 0102's live rewrite are INSIDE that observation; the
+//   G7 seed + forwards == JSON      0102's live rewrite are INSIDE that observation; the
 //   G8/G9 FK order + cascades       table ACL is NOT -- that verdict is G3b + G10.
 //   G3 no contradiction, and
 //      FAIL CLOSED on anything
@@ -105,8 +105,8 @@
 // IT PROVES, over db/migrations text plus db/erasure-registry.json:
 //   - completeness and no drift: every public table with an owner column is
 //     classified, every classified table still exists           (G1, G2)
-//   - seed parity: 0189's seed block is byte-identical to a fresh render of
-//     the JSON, so the file and the shipped registry cannot diverge    (G7)
+//   - seed parity: 0189 renders the historical subset; declared additions-only
+//     forwards render the remaining canonical rows without rewriting 0189 (G7)
 //   - FK order and cascade honesty: a CASCADE child is deleted before its
 //     parent, and a kept table a CASCADE empties says so        (G8, G9)
 //   - policy INSIDE THE MODEL: db/migrations does not CONTRADICT a
@@ -196,12 +196,11 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { collectErasureSeedHistoryErrors } from "./erasure-registry-forward";
 import {
   discoverOwnedTables,
-  extractRegistrySql,
   loadRegistry,
   migrationsDir,
-  renderRegistrySql,
   replayMigrations,
   ownerRoleCanDelete,
   ownerRoleCanSelect,
@@ -213,9 +212,6 @@ import {
   type PolicyState,
   type Registry,
 } from "./generate-erasure-registry";
-
-/** The migration that carries the DB-side copy of the registry. */
-const REGISTRY_MIGRATION = "0189_erasure_registry.sql";
 
 /** The catalog test, and the file G10 keeps honest. */
 const REGRESSION_SQL = join("db", "tests", "erasure_registry_regression.sql");
@@ -765,30 +761,9 @@ export function collectErasureRegistryErrors(root: string): string[] {
     }
   }
 
-  // G7 -- one original. The DB copy is a render of the JSON or it is nothing.
-  const migrationPath = join(MIGRATIONS, REGISTRY_MIGRATION);
-  let migrationSql: string | null = null;
-  try {
-    migrationSql = readFileSync(migrationPath, "utf8");
-  } catch {
-    errors.push(`G7 db/migrations/${REGISTRY_MIGRATION} is missing; the registry has no DB copy.`);
-  }
-  if (migrationSql !== null) {
-    const embedded = extractRegistrySql(migrationSql);
-    const expected = renderRegistrySql(registry);
-    if (embedded === null) {
-      errors.push(
-        `G7 db/migrations/${REGISTRY_MIGRATION} has no generated block. Insert the output of ` +
-          `\`npx tsx scripts/generate-erasure-registry.ts --sql\` between its markers.`,
-      );
-    } else if (embedded.replace(/\r\n/g, "\n") !== expected) {
-      errors.push(
-        `G7 the seed block in db/migrations/${REGISTRY_MIGRATION} no longer matches ${REGISTRY_PATH}. ` +
-          `Regenerate it: \`npx tsx scripts/generate-erasure-registry.ts --sql\`. ` +
-          `Two copies of one fact always end up disagreeing; that is the point of this rule.`,
-      );
-    }
-  }
+  // G7 keeps the historical seed and each declared additions-only forward
+  // migration tied to the current canonical rows, without rewriting 0189.
+  errors.push(...collectErasureSeedHistoryErrors(root, registry));
 
   return errors;
 }
@@ -808,7 +783,7 @@ function main(): void {
   console.log(
     `ERASURE PASS  ${discoverOwnedTables(migrationsDir(root)).length} owner-column tables, ` +
       `all classified (${ERASURE_CLASSES.map((c) => `${c} ${counts[c] ?? 0}`).join(", ")}); ` +
-      `no contradiction, nothing beyond the model, 0189 seed parity verified.`,
+      `no contradiction, nothing beyond the model, historical seed and forward additions parity verified.`,
   );
   // Printed, never silent. These are the statements the guard deliberately does
   // NOT judge; if this line ever grows, the thing it exempts grew too.

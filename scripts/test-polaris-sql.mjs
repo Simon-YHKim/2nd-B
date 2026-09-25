@@ -30,6 +30,19 @@ const billingRole = readFileSync(resolve(root,"db/migrations/0118_billing_refund
 const emailTrigger = readFileSync(resolve(root,"db/migrations/0086_require_email_confirmation.sql"),"utf8")
   .match(/CREATE TRIGGER trg_complete_verified_email_signup\s[\s\S]*?EXECUTE FUNCTION public\.complete_verified_email_signup\(\);/)?.[0];
 if (!billingRole || !emailTrigger) throw new Error("Missing actual consent role/trigger helpers");
+const registryFixture = resolve(root,"db/migration-drafts/tests/service-contract-erasure-registry.sql");
+const rewardRateTable = readFileSync(resolve(root,"db/migration-drafts/UNNUMBERED_reward_ssv_hardening.sql"),"utf8")
+  .match(/CREATE TABLE IF NOT EXISTS public\.reward_ssv_issue_rate_limits \([\s\S]*?FROM PUBLIC, anon, authenticated, service_role;/)?.[0];
+const baseRegistrySeed = erasure.match(/-- <<< erasure-registry:generated[\s\S]*?-- <<< \/erasure-registry:generated >>>/)?.[0];
+const polarisProvisioning = readFileSync(resolve(root,"db/migration-drafts/UNNUMBERED_polaris_generation_allowance.sql"),"utf8");
+if (!rewardRateTable || !baseRegistrySeed) throw new Error("Missing actual rate-table/registry seed contracts");
+const registrySql = readFileSync(registryFixture,"utf8")
+  .replace("-- @LOAD_ACTUAL_REWARD_RATE_TABLE@",() => rewardRateTable)
+  .replace("-- @LOAD_ACTUAL_REGISTRY_FORWARD@",() => readFileSync(resolve(root,"db/migration-drafts/UNNUMBERED_service_contract_erasure_registry.sql"),"utf8"))
+  .replace("-- @LOAD_ACTUAL_BASE_REGISTRY_SEED@",() => baseRegistrySeed)
+  .replace("-- @RECREATE_ACTUAL_ERASURE_OBJECTS@",() => `${erasureTable}\n${erasureRpc}`)
+  .replace("-- @REPLAY_POLARIS_PROVISIONING@",() => `EXECUTE $provisioning$${polarisProvisioning}$provisioning$;`)
+  .replace(/^\\ir (.+)$/gm, (_match,path) => `\\ir '${resolve(dirname(registryFixture),path).replaceAll("\\","/")}'`);
 const consentSql = readFileSync(consentFixture,"utf8")
   .replace("-- @LOAD_ACTUAL_CONSENT_HELPERS@",() => `${billingRole}\n${emailTrigger}`)
   .replace(/^\\ir (.+)$/gm, (_match,path) => `\\ir '${resolve(dirname(consentFixture),path).replaceAll("\\","/")}'`)
@@ -39,7 +52,7 @@ const sql = readFileSync(fixture,"utf8")
   .replace("-- @LOAD_LATEST_CREDIT_CONTRACT@",() => latestFunctions)
   .replace("-- @LOAD_ERASURE_CONTRACT@",() => `${erasureTable}\n${erasureRpc}\n${tombstone}`)
   .replace(/^\\ir (.+)$/gm, (_match,path) => `\\ir '${resolve(dirname(fixture),path).replaceAll("\\","/")}'`)
-  .replace("-- @LOAD_CONSENT_SNAPSHOT_TEST@",() => consentSql);
+  .replace("-- @LOAD_CONSENT_SNAPSHOT_TEST@",() => `${consentSql}\n${registrySql}`);
 // PGHOSTADDR/PGSERVICE can override -h. Keep only the disposable local password;
 // -X also prevents psqlrc from issuing a separate connection or SQL command.
 const env = Object.fromEntries(Object.entries(process.env)

@@ -241,7 +241,9 @@ describe("check:erasure-registry -- each rule fails on its own mutation", () => 
     writeFileSync(path, readFileSync(path, "utf8").replace("'client_erasable'", "'retained'"), "utf8");
     const fired = rulesFired(root, "G7");
     expect(fired).toHaveLength(1);
-    expect(fired[0]).toContain("--sql");
+    // Published 0189 is historical. A later table addition must not prompt an
+    // operator to replace that migration with a new full-registry seed.
+    expect(fired[0]).toContain("Preserve 0189");
   });
 });
 

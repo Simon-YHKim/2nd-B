@@ -23,6 +23,10 @@ const standaloneDrafts = [
 ] as const;
 
 const behaviorDrafts = {
+  "UNNUMBERED_service_contract_erasure_registry.sql": {
+    runner: read("db/migration-drafts/tests/service-contract-erasure-registry.sql"),
+    workflowInvocation: "node scripts/test-polaris-sql.mjs 5432 polaris_local polaris_test_ci",
+  },
   "UNNUMBERED_llm_service_consent_management.sql": {
     runner: serviceConsentRegression,
     workflowInvocation: "node scripts/test-polaris-sql.mjs 5432 polaris_local polaris_test_ci",

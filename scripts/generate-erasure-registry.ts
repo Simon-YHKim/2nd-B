@@ -1803,9 +1803,11 @@ function parseColumnList(raw: string | undefined): string[] {
  * real `authenticated` role.
  * ---------------------------------------------------------------------------
  */
-export function replayMigrations(migrationsDir: string): SchemaReplay {
+export function replayMigrations(migrationsDir: string, beforeFile?: string): SchemaReplay {
   const files = readdirSync(migrationsDir)
-    .filter((f) => f.endsWith(".sql"))
+    // Forward registry additions must see their owner columns at apply time,
+    // using the same replay as the full inventory, before this exact filename.
+    .filter((f) => f.endsWith(".sql") && (beforeFile === undefined || f < beforeFile))
     .sort();
 
   const tables = new Map<string, DiscoveredTable>();

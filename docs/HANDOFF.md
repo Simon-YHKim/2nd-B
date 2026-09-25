@@ -28,6 +28,12 @@
 **⚠ `HANDOFF-2026-09.md`(p1)는 92KB 로 찼다 — 09 월 블록은 `-p2` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
+## Latest — 2026-09-26 / 삭제 등록부 후속 승격 보완
+
+- 새 표 4개의 분류와 registry-only 초안, 역사 0189를 보존하는 G7을 추가했다.
+- 실제 SQL 및 70표 정적 승격 검증 통과. 전체 catalog·CLI 왕복은 실제 승격 후 확인한다.
+- [승격 절차](qa/ERASURE-FORWARD-260926.md). 서버 승인 유지·Grok 보류·운영 미적용.
+
 ## Latest — 2026-09-26 / 재동의·철회 화면과 서버 계약 구현
 
 - 같은 PR #1865에 서비스 동의 writer/status/coverage, `/service-consent` 화면,
