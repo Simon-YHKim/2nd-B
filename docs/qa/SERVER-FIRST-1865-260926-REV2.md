@@ -17,7 +17,12 @@
 `paddle-webhook`, `rewarded-ssv`, `service-consent`, `subscription-manage`, `xai-proxy`다.
 이번 런타임 검사에서 잘못된 SDK 경로가 드러난 `oauth-naver`, `rss-proxy`를 추가해
 **인계 목록은 11개**다. 두 보완 함수는 각자의 운영 배포 여부를 확인하고 별도로
-교체 순서를 정한다. `npm run check:edge-runtime`은 저장소의 **14개 전체**를 검사하지만,
+교체 순서를 정한다. [운영 읽기 전용 사전 점검](CONSOLE-PREFLIGHT-1865-260926.md)에서
+두 새 함수가 이 목록 **밖**의 `UNNUMBERED_oauth_naver_rate_limit_completion.sql`,
+`UNNUMBERED_rss_proxy_quota.sql`이 제공하는 RPC를 호출한다는 점을 확인했다.
+해당 SQL을 번호 배정·리허설·적용하기 전에는 두 함수를 배포하지 않는다. 따라서
+11개는 배포 일괄 묶음이 아니라 소스 인벤토리다.
+`npm run check:edge-runtime`은 저장소의 **14개 전체**를 검사하지만,
 검사를 통과했다는 이유로 나머지 3개 함수까지 이 패키지에 포함하지는 않는다.
 
 기존 [f39652ac 인계](SERVER-FIRST-1865-260926.md)와 그 94파일 목록은 역사 기록이다.
@@ -52,7 +57,8 @@
    맞는 forward migration을 검토한다. 사용 중인 웹훅/SSV는 반드시 OFF·drain 후 교체한다.
 3. 폐기 가능한 clone에서 승격된 번호, 전체 catalog와 CLI rollback·ledger 왕복을
    검사한다. 운영에서는 적용 후 읽기 전용 확인과 한정 canary만 수행한다.
-4. Edge를 이 목록의 소스 SHA에 맞춰 배포하고 배포 version·시각·canary·coverage를
+4. 의존 SQL이 준비된 Edge만 이 목록의 소스 SHA에 맞춰 단계별 배포하고
+   `oauth-naver`·`rss-proxy`는 별도 초안 승격 전까지 보류한다. 배포 version·시각·canary·coverage를
    기록한다. 동의는 collect canary에서 uncovered/blocked가 0임을 확인한 뒤 enforce한다.
 5. 서버 증거와 게시 가드가 모두 통과한 뒤에만 클라이언트 변수/머지를 활성화한다.
    실패 시 기능 플래그를 OFF로 유지하고 각 절차의 roll-forward를 따른다.

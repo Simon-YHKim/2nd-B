@@ -28,9 +28,10 @@
 **⚠ `HANDOFF-2026-09.md`(p1)는 92KB 로 찼다 — 09 월 블록은 `-p2` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-26 / 잔여 검증·운영 인계
+## Latest — 2026-09-26 / Orca 콘솔 발주·운영 NO-GO
 
-[잔여 작업·운영 감사](qa/REMAINING-WORK-260926.html). PR #1865 CI·첫 기록 브라우저 PASS. 운영 계약 미적용·전체 DB 리허설 미실행·Android 앱 실행 미검증. Grok 보류.
+PR #1865 CI·GUI PASS. Orca 콘솔 감사 **NO-GO**: 번호·백업·clone·OAuth/RSS SQL
+미준비. 운영 쓰기·공개 없음, Grok 보류. [근거](qa/CONSOLE-PREFLIGHT-1865-260926.md).
 
 ## 2026-09-26 / 관측소 녹음 오디오
 
