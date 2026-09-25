@@ -30,7 +30,7 @@
 
 ## Latest — 2026-09-26 / 서버 인계·웹 QA
 
-[실제 Deno 14개 통과](qa/EDGE-RUNTIME-260926.md). [최신 서버 인계](qa/SERVER-FIRST-1865-260926-REV2.md). [웹 QA](qa/WEB-RESUME-260926.html)에서 로그인 hydration 수정 확인. Grok 보류.
+[실제 Deno 14개 통과](qa/EDGE-RUNTIME-260926.md). [최신 서버 인계](qa/SERVER-FIRST-1865-260926-REV2.md). [웹 QA](qa/WEB-RESUME-260926.html) 로그인 수정 확인. [Android APK](qa/ANDROID-AUDIO-RUNTIME-260926.md) 빌드·설치 PASS/실행 미검증. Grok 보류.
 
 ## 2026-09-26 / 관측소 녹음 오디오
 
