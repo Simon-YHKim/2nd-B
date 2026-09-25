@@ -2,7 +2,7 @@
 // the server. The client cannot mint a successful generation or refund a live one.
 import { FORBIDDEN_TERMS, ANALYSIS_UNIVERSAL_FORBIDDEN } from '../../../src/lib/safety/lexicon.ts';
 import { INJECTION_GUARD, sanitizeUntrusted } from '../../../src/lib/llm/untrusted.ts';
-import { captureLlmConsent, recheckLlmConsent, type LlmConsentLease, type LlmConsentDenial } from './llm-consent.ts';
+import { captureLlmConsent, recheckLlmConsent, type LlmConsentLease, type LlmConsentDenial, type LlmConsentMode } from './llm-consent.ts';
 
 type Rpc = (name: string, args: Record<string, unknown>) => PromiseLike<{ data?: unknown; error?: unknown }>;
 type Evidence = { id: string; domain: string; excerpt: string };
@@ -72,7 +72,7 @@ export async function runPolarisGeneration(
   rpc: Rpc, userId: string, generationId: string,
   handle: (prompt: PolarisPrompt, lease?: LlmConsentLease) => Promise<Response>,
   locale: 'en' | 'ko' = 'en',
-  consent: { required: boolean; onWithheld?: () => Promise<void> } = { required: false },
+  consent: { mode: LlmConsentMode | null; onWithheld?: () => Promise<void> } = { mode: 'off' },
 ): Promise<Response> {
   const args = { p_user_id:userId,p_generation_id:generationId };
   const claim = await rpc('claim_polaris_generation',args);
@@ -91,7 +91,7 @@ export async function runPolarisGeneration(
     }
     // SQL binds these excerpts to the reserved content hashes. Client-supplied
     // prompts are never used for metered generations or their evidence links.
-    const captured = await captureLlmConsent(rpc,userId,consent.required);
+    const captured = await captureLlmConsent(rpc,userId,consent.mode);
     if (captured.denial) return withhold(captured.denial);
     const lease = captured.lease;
     const prompt = snapshotPrompt(evidence,locale);
@@ -103,7 +103,8 @@ export async function runPolarisGeneration(
     const denial = await recheckLlmConsent(rpc,lease);
     if (denial) return withhold(denial);
     const result = await rpc('settle_polaris_generation',{...args,p_cards:cards,
-      ...(lease.required ? {p_expected_consent_token:lease.token} : {}),
+      ...(lease.mode !== 'off' ? {p_expected_consent_token:lease.token} : {}),
+      ...(lease.mode === 'collect' ? {p_allow_legacy_consent:true} : {}),
     });
     const error = result.error as {code?:unknown;message?:unknown} | null | undefined;
     if (error?.code === '42501' && error.message === 'llm_consent_changed') {

@@ -69,10 +69,10 @@ BEGIN
   INSERT INTO public.consent_changes(user_id,pref_key,event_type) VALUES(u,'chat_autosave','grant');
   after_token := public.effective_llm_consent_snapshot_v2(u)->>'token';
   IF after_token IS NULL OR after_token=before_token THEN RAISE EXCEPTION 'relevant change event did not invalidate token'; END IF;
-  IF has_function_privilege('anon','public.effective_llm_consent_snapshot_v2(uuid)','EXECUTE')
-    OR has_function_privilege('authenticated','public.effective_llm_consent_snapshot_v2(uuid)','EXECUTE')
+  IF has_function_privilege('anon','public.effective_llm_consent_snapshot_v2(uuid,boolean)','EXECUTE')
+    OR has_function_privilege('authenticated','public.effective_llm_consent_snapshot_v2(uuid,boolean)','EXECUTE')
     OR has_function_privilege('service_role','public.invalidate_llm_consent_snapshot()','EXECUTE')
-    OR NOT has_function_privilege('service_role','public.effective_llm_consent_snapshot_v2(uuid)','EXECUTE') THEN
+    OR NOT has_function_privilege('service_role','public.effective_llm_consent_snapshot_v2(uuid,boolean)','EXECUTE') THEN
     RAISE EXCEPTION 'snapshot/invalidation ACL boundary failed';
   END IF;
 END $$;
@@ -115,3 +115,4 @@ BEGIN
   IF NOT public.settle_polaris_generation(u,generation,jsonb_build_array(card),newer) THEN RAISE EXCEPTION 'current token settlement failed'; END IF;
 END $$;
 SELECT 'PASS: trusted negative events, server receipt ordering, direct ABA, relevant event invalidation, token settlement and private grants' AS consent_result;
+-- @LOAD_SERVICE_CONSENT_MANAGEMENT_TEST@

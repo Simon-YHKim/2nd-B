@@ -32,7 +32,9 @@ const emailTrigger = readFileSync(resolve(root,"db/migrations/0086_require_email
 if (!billingRole || !emailTrigger) throw new Error("Missing actual consent role/trigger helpers");
 const consentSql = readFileSync(consentFixture,"utf8")
   .replace("-- @LOAD_ACTUAL_CONSENT_HELPERS@",() => `${billingRole}\n${emailTrigger}`)
-  .replace(/^\\ir (.+)$/gm, (_match,path) => `\\ir '${resolve(dirname(consentFixture),path).replaceAll("\\","/")}'`);
+  .replace(/^\\ir (.+)$/gm, (_match,path) => `\\ir '${resolve(dirname(consentFixture),path).replaceAll("\\","/")}'`)
+  .replace("-- @LOAD_SERVICE_CONSENT_MANAGEMENT_TEST@",() => readFileSync(resolve(root,"db/migration-drafts/tests/llm-service-consent-management-contract.sql"),"utf8")
+    .replace(/^\\ir (.+)$/gm, (_match,path) => `\\ir '${resolve(dirname(consentFixture),path).replaceAll("\\","/")}'`));
 const sql = readFileSync(fixture,"utf8")
   .replace("-- @LOAD_LATEST_CREDIT_CONTRACT@",() => latestFunctions)
   .replace("-- @LOAD_ERASURE_CONTRACT@",() => `${erasureTable}\n${erasureRpc}\n${tombstone}`)
@@ -240,4 +242,74 @@ if (process.exitCode === 0) {
     AND NOT EXISTS(SELECT 1 FROM public.personas WHERE user_id='${deletedUser}');`);
   if (deletedCheck.code!==0 || !deletedCheck.out.trim().endsWith("t") || (await snapshot(deletedUser)).allowed) throw new Error("Account cascade retained consent/evidence state");
   process.stdout.write("PASS: existing account-deletion fence serializes with token settlement and cascades private receipts\n");
+
+  const managementUser = "88888888-8888-4888-8888-888888888888";
+  const requiredAcks = JSON.stringify({service:true,llmProcessing:true,overseasTransfer:true,sensitiveData:true,safetyNotice:true});
+  const managementStatus = async subject => {
+    const result = await query(`SELECT public.llm_service_consent_status('${subject}');`);
+    mustPass([result],"Management status failed");
+    return JSON.parse(result.out.trim().split("\n").at(-1));
+  };
+  const managementWrite = (subject,token,action) => `SELECT public.write_llm_service_consent('${subject}','service-v1','${token}',
+    '${action}',$acks$${action==="grant" ? requiredAcks : "{}"}$acks$::jsonb,'en');`;
+  const managementBefore = await managementStatus(managementUser);
+  const receiptCountBefore = await query(`SELECT count(*) FROM public.llm_consent_receipts WHERE user_id='${managementUser}';`);
+  const concurrentWrites = await Promise.all(["grant","revoke"].map(action =>
+    query(`BEGIN; ${managementWrite(managementUser,managementBefore.change_token,action)} SELECT pg_sleep(0.15); COMMIT;`)));
+  const receiptCountAfter = await query(`SELECT count(*) FROM public.llm_consent_receipts WHERE user_id='${managementUser}';`);
+  if (concurrentWrites.filter(r=>r.code===0).length!==1 ||
+      !concurrentWrites.find(r=>r.code!==0)?.err.includes("llm_service_consent_changed") ||
+      Number(receiptCountAfter.out.trim().split("\n").at(-1))!==Number(receiptCountBefore.out.trim().split("\n").at(-1))+1) {
+    throw new Error("Concurrent management CAS did not append exactly one receipt");
+  }
+  process.stdout.write("PASS: concurrent explicit grant/revoke with one displayed CAS appends exactly one trusted receipt\n");
+
+  const collectGrantUser = "aaaa1111-1111-4111-8111-111111111111";
+  const collectRevokeUser = "bbbb2222-2222-4222-8222-222222222222";
+  for (const [subject,action] of [[collectGrantUser,"grant"],[collectRevokeUser,"revoke"]]) {
+    const recordId = action==="grant" ? "aaaa1111-aaaa-4aaa-8aaa-aaaaaaaaaaaa" : "bbbb2222-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    mustPass([await query(`INSERT INTO auth.users(id,email,email_confirmed_at) VALUES('${subject}','fixture@example.invalid',now());
+      INSERT INTO public.users(id,birth_date,minor_tier) VALUES('${subject}','2000-01-01','adult');
+      INSERT INTO public.records(id,user_id,kind,audit_period,tags,body) VALUES('${recordId}','${subject}','audit_response','work',ARRAY['interview'],'Collection lease input.');`)],"Collection fixture failed");
+    const legacyResult = await query(`SELECT public.effective_llm_consent_snapshot_v2('${subject}',true);`);
+    mustPass([legacyResult],"Legacy snapshot failed");
+    const legacyToken = JSON.parse(legacyResult.out.trim().split("\n").at(-1)).token;
+    if (!legacyToken || (await snapshot(subject)).allowed) throw new Error("Strict and collect modes did not differ for uncovered account");
+    const cards = JSON.stringify([{...oldCard,evidenceRefs:[`record:${recordId}`]}]);
+    if (action==="grant") {
+      const allowedGeneration = await reserveConsent(subject,"collection-before-receipt");
+      mustPass([await query(`SELECT public.settle_polaris_generation('${subject}','${allowedGeneration}',$cards$${cards}$cards$::jsonb,'${legacyToken}',true);`)],"Collect legacy settlement failed");
+    }
+    const interruptedGeneration = await reserveConsent(subject,`collection-first-${action}`);
+    const before = await managementStatus(subject);
+    mustPass([await query(managementWrite(subject,before.change_token,action))],"First explicit consent action failed");
+    const staleSettlement = await query(`SELECT public.settle_polaris_generation('${subject}','${interruptedGeneration}',$cards$${cards}$cards$::jsonb,'${legacyToken}',true);`);
+    if (staleSettlement.code===0 || !staleSettlement.err.includes("llm_consent_changed")) throw new Error(`First ${action} left a legacy request valid`);
+    mustPass([await query(`SELECT public.settle_polaris_generation('${subject}','${interruptedGeneration}',NULL);`)],"Interrupted collect generation failed to refund");
+    const after = await query(`SELECT public.effective_llm_consent_snapshot_v2('${subject}',true);`);
+    const current = JSON.parse(after.out.trim().split("\n").at(-1));
+    if (current.allowed!==(action==="grant") || current.token===legacyToken) throw new Error("Collect fell back after trusted receipt");
+    const interruptedStatus = await query(`SELECT status FROM public.polaris_generations WHERE id='${interruptedGeneration}';`);
+    if (!interruptedStatus.out.trim().endsWith("failed")) throw new Error("Consent-invalidated collection generation was not refunded");
+  }
+  process.stdout.write("PASS: collect-only legacy settlement succeeds; first grant/revoke invalidates captured lease and refunds denied persistence\n");
+
+  const deleteBefore = await managementStatus(managementUser);
+  const [managementDeleted,managementSaved] = await Promise.all([
+    query(`BEGIN; SELECT pg_advisory_xact_lock(hashtextextended('${managementUser}',260913));
+      INSERT INTO public.account_deletion_tombstones(user_id,session_id) VALUES('${managementUser}',gen_random_uuid());
+      DELETE FROM auth.users WHERE id='${managementUser}'; SELECT pg_sleep(0.15); COMMIT;`),
+    query(`BEGIN; ${managementWrite(managementUser,deleteBefore.change_token,"grant")} SELECT pg_sleep(0.15); COMMIT;`),
+  ]);
+  if (managementDeleted.code!==0 || (managementSaved.code!==0 && !managementSaved.err.includes("llm_service_consent_account_unavailable"))) {
+    throw new Error(`Management/deletion lock order failed: ${managementDeleted.err} ${managementSaved.err}`);
+  }
+  const managementDeletedCheck = await query(`SELECT NOT EXISTS(SELECT 1 FROM public.llm_consent_receipts WHERE user_id='${managementUser}')
+    AND NOT EXISTS(SELECT 1 FROM public.consent_records WHERE user_id='${managementUser}')
+    AND NOT EXISTS(SELECT 1 FROM public.consent_changes WHERE user_id='${managementUser}');`);
+  const postDeleteWrite = await query(managementWrite(managementUser,deleteBefore.change_token,"grant"));
+  if (!managementDeletedCheck.out.trim().endsWith("t") || postDeleteWrite.code===0 || !postDeleteWrite.err.includes("llm_service_consent_account_unavailable")) {
+    throw new Error("Deleted account retained or recreated consent state");
+  }
+  process.stdout.write("PASS: management writer and account deletion serialize without deadlock; cascade and durable fence prevent consent resurrection\n");
 }

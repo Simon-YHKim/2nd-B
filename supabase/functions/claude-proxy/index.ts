@@ -37,7 +37,7 @@
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { captureLlmConsent, recheckLlmConsent, markConsentWithheld } from '../_shared/llm-consent.ts';
+import { captureLlmConsent, resolveLlmConsentMode, recheckLlmConsent, markConsentWithheld } from '../_shared/llm-consent.ts';
 import {
   BRAIN_RANK,
   LlmBodyError,
@@ -279,7 +279,7 @@ Deno.serve(async (req: Request) => {
   // yet a shipped re-consent surface. Enforce only after the v2 provenance
   // migration, server-owned writer, and active-account coverage preflight are
   // complete. A premature flag fails closed because a missing v2 RPC is 503.
-  const consent = await captureLlmConsent(capacityRpc, userId, Deno.env.get('LLM_REQUIRE_VERIFIED_CONSENT') === 'true');
+  const consent = await captureLlmConsent(capacityRpc, userId, resolveLlmConsentMode((name) => Deno.env.get(name)));
   if (consent.denial) return jsonResponse(req, { error: consent.denial.error }, consent.denial.status);
   const consentLease = consent.lease;
 

@@ -200,5 +200,38 @@
       "dismissHint": "Closes this result without requesting account deletion again.",
       "dismissPendingHint": "Available after the local sign-out attempt ends."
     }
+  },
+  "serviceControl": {
+    "title": "AI processing consent",
+    "intro": "Review or withdraw permission to use your content for AI features. Your records and other privacy settings stay as they are.",
+    "loading": "Checking consent…",
+    "loadError": "Consent controls are unavailable. No change has been confirmed. Please try again later.",
+    "saveError": "We could not confirm the change. Check the current status before trying again.",
+    "conflict": "The consent status changed. Reload it and review your choices again.",
+    "saved": "Your consent has been recorded.",
+    "withdrawn": "Your AI processing consent has been withdrawn.",
+    "reload": "Check current status",
+    "states": {
+      "uncovered": "Please review the current documents.",
+      "granted": "Current consent recorded",
+      "revoked": "AI processing consent withdrawn",
+      "blocked": "AI processing is unavailable for this account."
+    },
+    "collect": "Your existing access remains available while current consent is collected. Withdrawing here stops future AI requests.",
+    "updateRequired": "Update the app to review the current documents before agreeing. You can still withdraw consent here.",
+    "ineligible": "This account cannot renew consent right now. Check your account details or contact support.",
+    "review": "Review and agree",
+    "versions": "Consent {{consent}} · Privacy {{policy}} · Terms {{terms}}",
+    "agree": "Save my consent",
+    "cancel": "Cancel",
+    "withdraw": "Withdraw AI processing consent",
+    "withdrawHelp": "Withdrawing stops new AI requests, including conversations, analysis, transcription and record indexing, until you agree again. It does not delete your records.",
+    "limits": "Content already sent to a provider cannot be recalled. Completed results and existing records are not deleted by this control.",
+    "policy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "consent_required": "AI processing needs your current consent. Review it in consent settings, then send your request again.",
+    "consent_check_unavailable": "We could not check your AI processing consent. Check its status before trying again.",
+    "blockedHelp": "Your other consent choices still apply. Review your privacy settings if AI processing remains unavailable.",
+    "privacySettings": "Open privacy settings"
   }
 }

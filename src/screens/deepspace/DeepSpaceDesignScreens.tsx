@@ -1032,6 +1032,10 @@ export function DeepSpacePrivacyDesignScreen() {
       <SecondbStatusHeader text={t("privacy.status")} tip={t("privacy.tip")} />
       <Text variant="body" style={styles.lead}>{t("privacy.lead")}</Text>
 
+      <Card>
+        <Action label={consentT("serviceControl.title")} value={t("privacy.view")} onPress={() => router.push("/service-consent")} />
+      </Card>
+
       {/* 한눈에 / At a glance (canonGaps.privacyFacts) — icon + label + value. */}
       <Card>
         <Text variant="caption" style={styles.section}>{ko ? "한눈에" : "At a glance"}</Text>

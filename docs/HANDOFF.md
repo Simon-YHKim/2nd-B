@@ -28,7 +28,20 @@
 **⚠ `HANDOFF-2026-09.md`(p1)는 92KB 로 찼다 — 09 월 블록은 `-p2` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-25 / 동의 철회·후속 GUI 통합 완료 · 서버 승인 기록
+## Latest — 2026-09-26 / 재동의·철회 화면과 서버 계약 구현
+
+- 같은 PR #1865에 서비스 동의 writer/status/coverage, `/service-consent` 화면,
+  collect/enforce 및 동의 오류의 provider 재시도 차단을 구현했다.
+- 실제 SQL, Edge handler, 계정 전환·CAS·선택 동의 보존 회귀와 320/425/768px
+  브라우저 검증을 수행했다. 브라우저 동의 응답은 fixture이며 운영 저장은 아니다.
+- [최신 보고서](qa/service-consent-260926.html) · [계약과 적용 순서](qa/SERVICE-CONSENT-260926.md).
+  전체 814 suites / 10,606 tests와 웹 128문서 PASS. 원격 CI는 PR의 해당 head에서 확인한다.
+- 서버 승인 유지·Grok 보류·운영 미적용. 기존 21641bda 패키지와 혼합하지 않는다.
+  운영 coverage·canary·Paddle/모델/GA4/실기기 검증은 남는다.
+
+---
+
+## 2026-09-25 / 동의 철회·후속 GUI 통합 완료 · 서버 승인 기록
 
 - 2026-09-25 23:51:32 KST. 같은 통합 브랜치에서 후속 GUI 46개 파일을 SHA-256 snapshot과
   3-way로 통합했다. 원본 Observatory 및 첫 기록 안내 수정은 보존했다.

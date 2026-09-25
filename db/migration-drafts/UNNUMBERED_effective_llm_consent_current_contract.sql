@@ -13,24 +13,28 @@
 -- inserts never receive a provenance receipt.
 --
 -- No historical backfill is safe: old server rows and client-forged rows are
--- indistinguishable. Keep LLM_REQUIRE_VERIFIED_CONSENT unset until a reviewed
--- server-owned re-consent writer and UI have populated current receipts for
--- every account intended to retain LLM access. Before activation, a read-only
--- coverage query must show zero uncovered active accounts; then canary the v2
--- RPC before the console owner sets the flag. Applying this draft alone does
--- not activate the proxy gate.
+-- indistinguishable. Keep LLM_CONSENT_MODE off until ALL proxy bundles and the
+-- management Edge have been deployed and canaried against these SQL contracts.
+-- Collect temporarily permits only never-covered accounts; every new trusted
+-- receipt is enforced immediately. Before enforce (or the old strict flag),
+-- the management draft's read-only coverage must show zero uncovered/blocked
+-- active accounts, with intentional withdrawals reported separately. Applying
+-- this draft alone does not activate the proxy gate or management writer.
 --
 -- Snapshot v2 adds a service-only {allowed,token} API. Tokens bind the latest
 -- SERVER INSERT order and its relevant state revision, so direct preference
 -- OFF/ON transitions cannot reuse an in-flight permission. Negative required
 -- acknowledgements have writer provenance too and supersede older grants.
--- No new preference, client writer, re-consent UI or historical backfill is
--- introduced. The future trusted writer must append canonical service events;
+-- No new preference or historical backfill is introduced. The separate
+-- management draft appends canonical service events through a trusted writer;
 -- it must not mutate existing append-only receipts or call a locking snapshot
 -- while retaining an inverse lock order from an unrelated transaction.
+-- A legacy collect token is owner-bound and invalidates on the first trusted
+-- receipt. With no receipt/revision yet, it does not promise account-status ABA
+-- invalidation. No service-consent withdrawal can succeed while mode is off.
 --
 -- For atomic Polaris persistence, the service caller supplies its captured
--- token to the four-argument settlement contract. Flag-off NULL-token calls
+-- token and collection mode to the settlement contract. Off NULL-token calls
 -- remain the privileged legacy path. A post-commit HTTP denial does not undo
 -- a completed generation or its product allowance. Already-dispatched input
 -- cannot be recalled. Deployment alone must not enable verified consent.
@@ -90,6 +94,8 @@ CREATE TABLE public.llm_consent_receipts (
     CHECK (contract_revision IN ('email-v2', 'complete-profile-v1', 'email-v3', 'email-v4')),
   receipt_order bigint GENERATED ALWAYS AS IDENTITY UNIQUE,
   state_revision bigint NOT NULL DEFAULT 0 CHECK (state_revision >= 0),
+  -- Management reconsent preserves the original optional-event boundary.
+  optional_consents_since timestamptz,
   recorded_at timestamptz NOT NULL DEFAULT now()
 );
 
@@ -219,32 +225,13 @@ CREATE TRIGGER invalidate_llm_consent_user AFTER UPDATE OF privacy_prefs,account
 CREATE TRIGGER invalidate_llm_consent_event AFTER INSERT ON public.consent_changes
   FOR EACH ROW EXECUTE FUNCTION public.invalidate_llm_consent_snapshot();
 
-CREATE OR REPLACE FUNCTION public.effective_llm_consent_snapshot_v2(p_user_id uuid)
-RETURNS jsonb
-LANGUAGE plpgsql
-VOLATILE
-SECURITY DEFINER
-SET search_path = ''
-AS $$
-DECLARE consent_allowed boolean; consent_token text;
-BEGIN
-  IF p_user_id IS NULL
-     OR public.billing_request_role() IS DISTINCT FROM 'service_role' THEN
-    RETURN jsonb_build_object('allowed',false,'token',NULL);
-  END IF;
-
-  -- The users row is the common serialization point: preference UPDATEs hold
-  -- it, and new receipt/event INSERTs acquire its FK KEY SHARE. Lock before
-  -- receipt rows so every invalidation writer uses the same order.
-  PERFORM 1 FROM public.users WHERE id=p_user_id FOR UPDATE;
-  IF NOT FOUND THEN RETURN jsonb_build_object('allowed',false,'token',NULL); END IF;
-  PERFORM 1 FROM public.llm_consent_receipts provenance
-    JOIN public.consent_records c ON c.id=provenance.consent_record_id
-    WHERE provenance.user_id=p_user_id
-    ORDER BY provenance.receipt_order DESC LIMIT 1 FOR SHARE OF provenance,c;
-
+-- A private, read-only decision is shared by locking snapshots and aggregate
+-- rollout coverage. It never substitutes historical/client-authored rows.
+CREATE FUNCTION public.llm_consent_current_decision(p_user_id uuid)
+RETURNS TABLE(allowed boolean,token text) LANGUAGE sql STABLE SET search_path = '' AS $$
     WITH latest_service AS (
       SELECT c.id, provenance.state_revision,
+             COALESCE(provenance.optional_consents_since,c.created_at) AS optional_since,
              c.user_id,
              c.required_ack,
              c.llm_processing_ack,
@@ -297,25 +284,52 @@ BEGIN
                  FROM public.consent_changes cc
                 WHERE cc.user_id = c.user_id
                   AND cc.pref_key = r.pref_key
-                  AND cc.created_at >= c.created_at
+                  AND cc.created_at >= c.optional_since
                 ORDER BY cc.created_at DESC, cc.id DESC
                 LIMIT 1
              ), false)
        )
       , encode(sha256(convert_to(c.id::text||':'||c.state_revision::text,'UTF8')),'hex')
-      INTO consent_allowed,consent_token
+
       FROM latest_service c
       JOIN public.users u ON u.id = c.user_id
       CROSS JOIN current_contract contract
   ;
+$$;
+REVOKE ALL ON FUNCTION public.llm_consent_current_decision(uuid) FROM PUBLIC,anon,authenticated,service_role;
+
+CREATE OR REPLACE FUNCTION public.effective_llm_consent_snapshot_v2(
+  p_user_id uuid,p_allow_legacy boolean DEFAULT false)
+RETURNS jsonb LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = '' AS $$
+DECLARE consent_allowed boolean; consent_token text;
+BEGIN
+  IF p_user_id IS NULL OR public.billing_request_role() IS DISTINCT FROM 'service_role' THEN
+    RETURN jsonb_build_object('allowed',false,'token',NULL);
+  END IF;
+  -- All writers serialize through users before touching the latest receipt.
+  PERFORM 1 FROM public.users WHERE id=p_user_id FOR UPDATE;
+  IF NOT FOUND THEN RETURN jsonb_build_object('allowed',false,'token',NULL); END IF;
+  PERFORM 1 FROM public.llm_consent_receipts provenance
+    JOIN public.consent_records c ON c.id=provenance.consent_record_id
+    WHERE provenance.user_id=p_user_id
+    ORDER BY provenance.receipt_order DESC LIMIT 1 FOR SHARE OF provenance,c;
+  IF NOT FOUND AND p_allow_legacy IS TRUE THEN
+    SELECT account_status IS NOT DISTINCT FROM 'active' INTO consent_allowed
+      FROM public.users WHERE id=p_user_id;
+    -- Collection allows only a never-covered account. Any trusted receipt,
+    -- including an obsolete contract or a negative event, disables fallback.
+    consent_token := encode(sha256(convert_to('llm-legacy-v1:'||p_user_id::text,'UTF8')),'hex');
+  ELSE
+    SELECT d.allowed,d.token INTO consent_allowed,consent_token
+      FROM public.llm_consent_current_decision(p_user_id) d;
+  END IF;
   RETURN jsonb_build_object('allowed',COALESCE(consent_allowed,false),
     'token',CASE WHEN consent_allowed THEN consent_token ELSE NULL END);
 END;
 $$;
-
-REVOKE ALL ON FUNCTION public.effective_llm_consent_snapshot_v2(uuid)
+REVOKE ALL ON FUNCTION public.effective_llm_consent_snapshot_v2(uuid,boolean)
   FROM PUBLIC,anon,authenticated,service_role;
-GRANT EXECUTE ON FUNCTION public.effective_llm_consent_snapshot_v2(uuid) TO service_role;
+GRANT EXECUTE ON FUNCTION public.effective_llm_consent_snapshot_v2(uuid,boolean) TO service_role;
 
 -- Boolean compatibility: callers that have not adopted a per-request token
 -- still get the same fail-closed answer. The snapshot RPC surfaces errors.
@@ -341,9 +355,9 @@ BEGIN
      OR has_function_privilege('anon', 'public.effective_llm_consent_v2(uuid)', 'EXECUTE')
      OR has_function_privilege('authenticated', 'public.effective_llm_consent_v2(uuid)', 'EXECUTE')
      OR NOT has_function_privilege('service_role', 'public.effective_llm_consent_v2(uuid)', 'EXECUTE')
-     OR has_function_privilege('anon', 'public.effective_llm_consent_snapshot_v2(uuid)', 'EXECUTE')
-     OR has_function_privilege('authenticated', 'public.effective_llm_consent_snapshot_v2(uuid)', 'EXECUTE')
-     OR NOT has_function_privilege('service_role', 'public.effective_llm_consent_snapshot_v2(uuid)', 'EXECUTE')
+     OR has_function_privilege('anon', 'public.effective_llm_consent_snapshot_v2(uuid,boolean)', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'public.effective_llm_consent_snapshot_v2(uuid,boolean)', 'EXECUTE')
+     OR NOT has_function_privilege('service_role', 'public.effective_llm_consent_snapshot_v2(uuid,boolean)', 'EXECUTE')
      OR has_sequence_privilege('authenticated', 'public.llm_consent_receipts_receipt_order_seq', 'UPDATE')
      OR NOT EXISTS (
        SELECT 1

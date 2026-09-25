@@ -765,6 +765,13 @@
       "route": "rlss"
     },
     {
+      "id": "service-consent",
+      "component": null,
+      "appOnly": true,
+      "title": "AI 처리 동의",
+      "route": "service-consent"
+    },
+    {
       "id": "side-project",
       "component": null,
       "appOnly": true,

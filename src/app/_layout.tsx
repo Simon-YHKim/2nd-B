@@ -244,6 +244,7 @@ export default function RootLayout() {
               <Stack.Screen name="mbti" />
               <Stack.Screen name="settings" />
               <Stack.Screen name="privacy" />
+              <Stack.Screen name="service-consent" />
               <Stack.Screen name="account" />
               <Stack.Screen name="import" />
               <Stack.Screen name="interview" />

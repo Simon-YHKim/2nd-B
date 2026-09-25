@@ -21,6 +21,8 @@ function host(vendor: Vendor, mode: Mode = "text") {
   let snapshot: Snapshot = { data: { allowed: true, token } };
   let snapshotThrows = false;
   let required = true;
+  let consentMode: string | undefined;
+  let legacy = false;
   let duringProvider = () => {};
   let duringAudit = () => {};
   let updateFails = false;
@@ -35,6 +37,9 @@ function host(vendor: Vendor, mode: Mode = "text") {
     if (name === "effective_llm_consent_snapshot_v2") {
       duringSnapshot(++snapshotCount);
       if (snapshotThrows) throw new Error("private RPC token/body");
+      if (legacy) return args.p_allow_legacy === true
+        ? { data: { allowed: true, token: "c".repeat(64) } }
+        : { data: { allowed: false, token: null } };
       return snapshot;
     }
     if (name === "effective_subscription_tier") return { data: "free" };
@@ -80,6 +85,7 @@ function host(vendor: Vendor, mode: Mode = "text") {
   });
   const env = (key: string) => {
     if (key === "LLM_REQUIRE_VERIFIED_CONSENT") return String(required);
+    if (key === "LLM_CONSENT_MODE") return consentMode;
     if (key === "EMBED_EGRESS_ENABLED") return "true";
     if (key === "ENABLE_XAI_PROXY") return "true";
     if (key === "SUPABASE_URL") return "https://fixture.invalid";
@@ -117,13 +123,16 @@ function host(vendor: Vendor, mode: Mode = "text") {
       authorization: `Bearer fixture.${Buffer.from(JSON.stringify({ sub: userId, role: "authenticated" })).toString("base64url")}.fixture`,
       "content-type": "application/json", origin: "http://localhost:8081",
     }, body: JSON.stringify(body) })),
-    withdraw: () => { snapshot = { data: { allowed: false, token: null } }; },
+    withdraw: () => { legacy = false; snapshot = { data: { allowed: false, token: null } }; },
+    grant: () => { legacy = false; snapshot = { data: { allowed: true, token } }; },
     aba: () => { snapshot = { data: { allowed: true, token: "b".repeat(64) } }; },
     fail: () => { snapshot = { error: { message: "private RPC token/body" } }; },
     throwLookup: () => { snapshotThrows = true; },
     setSnapshot: (value: unknown) => { snapshot = { data: value }; },
     flagOff: () => { required = false; },
     flagOn: () => { required = true; },
+    setMode: (value: string | undefined) => { required = false; consentMode = value; },
+    legacy: () => { legacy = true; },
     onProvider: (callback: () => void) => { duringProvider = callback; },
     onAudit: (callback: () => void) => { duringAudit = callback; },
     failAuditUpdate: () => { updateFails = true; },
@@ -170,6 +179,44 @@ describe.each(routes)("%s %s consent during provider work", (vendor, mode) => {
     fixture.flagOff(); fixture.fail();
     expect((await fixture.run()).status).toBe(200);
     expect(fixture.rpc.mock.calls.some(([name]) => name.includes("consent"))).toBe(false);
+  });
+  it("collect permits an uncovered legacy account with a stable token", async () => {
+    const fixture = host(vendor, mode); fixture.setMode("collect"); fixture.legacy();
+    expect((await fixture.run()).status).toBe(200);
+    expect(fixture.rpc.mock.calls.filter(([name]) => name === "effective_llm_consent_snapshot_v2")).toEqual([
+      ["effective_llm_consent_snapshot_v2", { p_user_id: userId, p_allow_legacy: true }],
+      ["effective_llm_consent_snapshot_v2", { p_user_id: userId, p_allow_legacy: true }],
+    ]);
+  });
+  it.each(["withdraw", "grant"] as const)("collect invalidates legacy work when its first %s is recorded", async (transition) => {
+    const fixture = host(vendor, mode); fixture.setMode("collect"); fixture.legacy(); fixture.onProvider(fixture[transition]);
+    expect((await fixture.run()).status).toBe(403);
+    expect(fixture.fetch).toHaveBeenCalledTimes(1);
+  });
+  it("collect enforces an already recorded withdrawal before provider work", async () => {
+    const fixture = host(vendor, mode); fixture.setMode("collect"); fixture.withdraw();
+    expect((await fixture.run()).status).toBe(403);
+    expect(fixture.fetch).not.toHaveBeenCalled();
+  });
+  it.each(["aba", "fail", "throwLookup"] as const)("collect also protects an existing grant from provider-time %s", async (transition) => {
+    const fixture = host(vendor, mode); fixture.setMode("collect"); fixture.onProvider(fixture[transition]);
+    expect((await fixture.run()).status).toBe(transition === "aba" ? 403 : 503);
+    expect(fixture.fetch).toHaveBeenCalledTimes(1);
+    expect(fixture.auditRows).toHaveLength(1);
+    expect(fixture.rpc.mock.calls.some(([name]) => name === "refund_gemini_spend")).toBe(false);
+  });
+  it("enforce blocks uncovered accounts; the old true flag cannot be weakened by collect", async () => {
+    for (const explicit of ["enforce", "collect", "off"]) {
+      const fixture = host(vendor, mode); fixture.setMode(explicit); fixture.legacy();
+      if (explicit !== "enforce") fixture.flagOn();
+      expect((await fixture.run()).status).toBe(403);
+      expect(fixture.fetch).not.toHaveBeenCalled();
+    }
+  });
+  it("invalid consent mode fails closed without provider work", async () => {
+    const fixture = host(vendor, mode); fixture.setMode("typo");
+    expect((await fixture.run()).status).toBe(503);
+    expect(fixture.fetch).not.toHaveBeenCalled();
   });
 });
 
@@ -232,6 +279,19 @@ describe("Polaris same consent lease across provider and settlement", () => {
     expect((await fixture.run()).status).toBe(200);
     expect(fixture.rpc.mock.calls.some(([name]) => name.includes("consent"))).toBe(false);
     expect(fixture.rpc.mock.calls.find(([name]) => name === "settle_polaris_generation")?.[1]).not.toHaveProperty("p_expected_consent_token");
+  });
+  it("settles legacy collect work with its token and explicit SQL legacy allowance", async () => {
+    const fixture = host("openai", "polaris"); fixture.setMode("collect"); fixture.legacy();
+    expect((await fixture.run()).status).toBe(200);
+    expect(fixture.rpc.mock.calls.find(([name]) => name === "settle_polaris_generation")?.[1]).toEqual(expect.objectContaining({
+      p_expected_consent_token: "c".repeat(64), p_allow_legacy_consent: true,
+    }));
+  });
+  it("refunds legacy collect work if the user first revokes during the provider call", async () => {
+    const fixture = host("openai", "polaris"); fixture.setMode("collect"); fixture.legacy(); fixture.onProvider(fixture.withdraw);
+    expect((await fixture.run()).status).toBe(403);
+    expect(fixture.rpc).toHaveBeenLastCalledWith("settle_polaris_generation", { p_user_id: userId, p_generation_id: userId, p_cards: null });
+    expect(fixture.rpc.mock.calls.some(([name]) => name === "refund_gemini_spend")).toBe(false);
   });
 });
 

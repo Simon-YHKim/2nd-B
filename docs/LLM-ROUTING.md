@@ -52,14 +52,18 @@
 > | **xAI** | 추론 12 + 대화 (라우팅되면) | `grok-4` 계열 | 기본값으로는 아무것도 안 감. 서버 `ENABLE_XAI_PROXY=true` 전에는 503으로 닫힘 |
 > | **Gemini** | 미설정 시 전부 | — | **9월 폐기 예정** |
 >
-> ### 검증된 동의 gate 활성화 순서 (2026-09-13)
+> ### 검증된 동의 gate 활성화 순서 (2026-09-26)
 >
 > `LLM_REQUIRE_VERIFIED_CONSENT` 는 기본 OFF 다. 과거 `consent_records` 는 authenticated
-> self-insert를 허용했으므로 값만으로 서버 writer provenance를 증명할 수 없고, 기존 계정용
-> 재동의 화면도 아직 없다. 따라서 `effective_llm_consent_v2` provenance 마이그레이션 →
-> 서버 소유 재동의 writer와 UI → 활성 계정 미커버 0건 read-only 확인 → 네 프록시 canary
-> 순서가 끝나기 전에는 이 변수를 설정하지 않는다. 과거 행은 안전하게 구분할 수 없어
-> backfill하지 않는다. 변수를 너무 일찍 켜면 v2 RPC 누락/거부가 503/403으로 fail-closed 된다.
+> self-insert를 허용했으므로 값만으로 서버 writer provenance를 증명할 수 없다. 이제 서버 소유
+> writer와 `/service-consent` 화면은 구현했으며 배포 전이다. `LLM_CONSENT_MODE=off`는 기존
+> no-RPC 상태를 보존하고 관리 쓰기를 거부한다. `collect`는 신뢰 영수증 없는 기존 계정만 잠정 허용하며
+> 첫 동의·철회 이후에는 현재 receipt와 token을 강제한다. 따라서 수집 중 철회도 실효성이 있다.
+> `enforce`는 잠정 허용을 제거한다. 구 strict=true는 off/collect 설정으로 약화되지 않는다.
+> 잘못된 mode는 503으로 닫힌다. 과거 행은 안전하게 구분할 수 없어 backfill하지 않는다.
+> 전역 LLM 차단·이전 요청 drain → DB/네 proxy 배포·collect canary → 관리 Edge/UI 확인 → 이용 재개.
+> enforce 전에는 `llm_service_consent_coverage()`의 uncovered/blocked active 계정이 모두 0이어야 한다.
+> 명시 철회 계정은 별도 집계한다. [서비스 동의 운영 계약](qa/SERVICE-CONSENT-260926.md)이 적용 순서의 정본이다.
 >
 > **Provider 처리 중 철회 경계 (2026-09-25, 아직 미활성).** 네 프록시는 같은 rollout 값으로
 > `effective_llm_consent_snapshot_v2`의 `{allowed, token}`을 호출 전과 성공 응답 직전에 확인한다.
@@ -78,6 +82,10 @@
 > SQL 성공 commit 후 철회가 관측되면 HTTP 결과를 차단하되 이미 저장·정산한 초안을 되돌리지 않는다.
 > 최종 DB 확인과 실제 네트워크 전달을 하나의 원자적 동작으로 만들 수 없으므로 그 짧은 경계는 남는다.
 > optional 정산 token은 service-only 신뢰 경계이며, 활성 Edge는 token을 생략하거나 클라이언트에서 받지 않는다.
+> collect에서만 `p_allow_legacy=true`를 snapshot/5인수 정산에 전달한다. 신뢰 영수증 없는 계정의
+> legacy token은 첫 영수증이 생기면 무효화된다. 영수증 생성 전의 계정 상태 ABA까지 보장하지 않는다.
+> 앱은 `consent_required`/`consent_check_unavailable` 오류를 다른 제공자로 재시도하지 않는다.
+> 대화·북극성 화면은 동의 설정으로 연결하며, 동의 후 이전 요청을 자동 재전송하지 않는다.
 >
 > ### ⚠ 9월 Gemini 폐기에서 스위치로는 안 되는 두 곳 (실측 2026-08-23)
 >

@@ -21,10 +21,10 @@ describe.each(proxies)("%s staged consent and entitlement boundary", (proxy) => 
   });
 
   test("uses only the provenance-backed snapshot behind an explicit rollout flag", () => {
-    const rollout = source.indexOf("Deno.env.get('LLM_REQUIRE_VERIFIED_CONSENT') === 'true'");
+    const rollout = source.indexOf("resolveLlmConsentMode((name) => Deno.env.get(name))");
 
     expect(rollout).toBeGreaterThan(-1);
-    expect(source).toContain("captureLlmConsent(capacityRpc, userId, Deno.env.get('LLM_REQUIRE_VERIFIED_CONSENT') === 'true')");
+    expect(source).toContain("captureLlmConsent(capacityRpc, userId, resolveLlmConsentMode((name) => Deno.env.get(name)))");
     expect(consentHelper.match(/'effective_llm_consent_snapshot_v2'/g)).toHaveLength(1);
     expect(source).not.toContain("'effective_llm_consent_v2'");
     expect(source.match(/'effective_llm_consent'/g)).toBeNull();

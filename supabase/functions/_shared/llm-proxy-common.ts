@@ -487,10 +487,12 @@ function decodeJsonObject(bytes: Uint8Array, code: LlmBodyErrorCode): Record<str
   }
 }
 
-export async function readLlmProxyJsonObject(req: Request): Promise<Record<string, unknown>> {
+export async function readLlmProxyJsonObject(
+  req: Request, maxBytes = LLM_PROXY_JSON_BODY_LIMIT_BYTES,
+): Promise<Record<string, unknown>> {
   const bytes = await readBoundedBody(
     req,
-    LLM_PROXY_JSON_BODY_LIMIT_BYTES,
+    maxBytes,
     'request_body_too_large',
     'invalid_json',
     LLM_PROXY_REQUEST_BODY_TIMEOUT_MS,

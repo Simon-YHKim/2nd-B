@@ -17,6 +17,7 @@ import { useTranslation } from "react-i18next";
 import { Redirect, router, type Href } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
+import { ServiceConsentLink } from "@/components/consent/ServiceConsentLink";
 import { Button } from "@/components/ui/Button";
 import {
   PremiumAppShell,
@@ -188,6 +189,7 @@ export default function CoreBrain() {
 
 function CoreBrainScreen() {
   const { t, i18n } = useTranslation("core-brain");
+  const { t: consentT } = useTranslation("consent");
   // 별 이름은 홈 별자리와 **같은 키**에서 읽는다 -- 두 화면이 갈라지면
   // 사용자는 같은 별을 다른 이름으로 두 번 배우게 된다.
   const { t: tHome } = useTranslation("home");
@@ -696,9 +698,14 @@ function CoreBrainScreen() {
               </Text>
             ) : null}
             {roleError ? (
+              <View style={dsDeck.pageBody}>
               <Text variant="caption" color="textMuted">
-                {t(roleErrorCode === "polaris_limit_exceeded" ? "generationLimit" : roleErrorCode === "polaris_live_required" ? "generationLiveRequired" : roleErrorCode === "polaris_no_evidence" ? "generationNoEvidence" : "roleLoadError")}
+                {roleErrorCode === "consent_required" || roleErrorCode === "consent_check_unavailable"
+                  ? consentT(`serviceControl.${roleErrorCode}`)
+                  : t(roleErrorCode === "polaris_limit_exceeded" ? "generationLimit" : roleErrorCode === "polaris_live_required" ? "generationLiveRequired" : roleErrorCode === "polaris_no_evidence" ? "generationNoEvidence" : "roleLoadError")}
               </Text>
+              {roleErrorCode === "consent_required" || roleErrorCode === "consent_check_unavailable" ? <ServiceConsentLink /> : null}
+              </View>
             ) : null}
             <MdButton
               variant="tonal"

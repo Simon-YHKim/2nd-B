@@ -10,11 +10,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect } from "expo-router";
+import { Redirect, router } from "expo-router";
 
 import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { PreferenceToggleRow } from "@/components/ui/PreferenceToggle";
+import { MdButton } from "@/components/m3";
 import { cosmic, radii, semantic, spacing, flattenAlpha } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
@@ -170,6 +171,7 @@ function PrivacyLegacy() {
           </Text>
         ) : null}
 
+        <MdButton label={t("serviceControl.title")} variant="outlined" onPress={() => router.push("/service-consent")} />
         <View style={styles.section}>
           <Text variant="caption" color="brand" style={[styles.sectionEyebrow, eyebrowTracking]}>
             {t("privacy.sectionLabel")}

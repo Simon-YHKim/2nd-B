@@ -289,3 +289,42 @@ Final portable-style `npm run verify -- --runInBand` rerun: **810 suites /
 `Output/integration-260925/followup-verify-portable.log`. Web/Android/browser
 behavior was verified before this type-only correction; new-head CI remains
 the source of truth for the clean Linux checkout.
+
+## 2026-09-26: service reconsent and withdrawal
+
+The later follow-up implements the trusted management writer/status/coverage,
+the `/service-consent` UI and collect/enforce proxy modes. Consent refusals stop
+provider failover. Optional refusals survive a new service receipt, and a grant
+can therefore be saved while the effective state remains blocked. The captured
+account epoch, five explicit ACKs, current document tuple and compare-and-swap
+token prevent stale or repeated submissions.
+
+- Real PostgreSQL management/ACL/CAS/coverage, concurrent writers and account
+  deletion, collect invalidation and Polaris refund passed (`green3.log`).
+- Edge/local handler scope: 316 tests; provider failover scope: 69 tests;
+  consent client/TSX handler scope: 48 tests. These are overlapping scopes,
+  not additional tests to add to the full-suite total.
+- Browser: 320/425/768px, five ACKs, one write for repeated clicks, revoke,
+  conflict/reload and privacy entry. Management responses are local fixtures;
+  the shared QA login is real. No production consent write or model call.
+- Static web: 128 documents; Android Hermes export passed. No APK/device or
+  actual Deno check is implied. Local Deno/SDK-shim strict typing passed.
+- Full gates exposed untranslated-consent policy, a route count, missing
+  canon/dock registrations and a Korean word-joiner escape. Restored the EN
+  fallback and original escape, registered the new route in the real canon
+  and nav, and updated the explicit route count. The failing logs are kept.
+- The independent legal review corrected 25 current source citations without
+  changing prose or historical citations; all 50 legal tests passed.
+
+Final full rerun: **814 suites / 10,606 tests PASS**, UI contract 76, require
+cycles 0, lint errors 0 and existing warnings 71. The log is
+`Output/service-consent-260926/verify.log`; static export passes 128 documents
+in `web.log`. The final browser rerun also checks that the floating home-back
+chip is absent. Whole-repository results are recorded in the
+[current report](service-consent-260926.html); exact-head remote CI is in
+[PR #1865](https://github.com/Simon-YHKim/2nd-B/pull/1865).
+[The current contract/runbook](SERVICE-CONSENT-260926.md) explains deployment,
+drain, per-proxy canaries, real-account coverage and roll-forward. The approved
+21641bda package remains pinned; these later sources must not be mixed into it.
+Server approval persists, Grok delivery remains deferred, and no production
+migration, Edge deployment, flag activation or merge has occurred.

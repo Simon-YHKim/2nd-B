@@ -10,6 +10,7 @@ const peerRegression = read("db/tests/peer_response_rate_limit_regression.sql");
 const rewardRunner = read("scripts/check-reward-ssv-db.sh");
 const polarisRegression = read("db/migration-drafts/tests/polaris-generation-contract.sql");
 const signupBootstrap = read("db/tests/signup_consent_admob_bootstrap.sql");
+const serviceConsentRegression = read("db/migration-drafts/tests/llm-service-consent-management-contract.sql");
 
 const drafts = readdirSync(join(ROOT, "db", "migration-drafts"))
   .filter((name) => /^UNNUMBERED_.*\.sql$/.test(name))
@@ -22,6 +23,10 @@ const standaloneDrafts = [
 ] as const;
 
 const behaviorDrafts = {
+  "UNNUMBERED_llm_service_consent_management.sql": {
+    runner: serviceConsentRegression,
+    workflowInvocation: "node scripts/test-polaris-sql.mjs 5432 polaris_local polaris_test_ci",
+  },
   "UNNUMBERED_signup_consent_admob_20260925.sql": {
     runner: signupBootstrap,
     workflowInvocation: "node scripts/test-signup-consent-sql.mjs 5432 signup_local signup_test_ci",

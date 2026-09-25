@@ -63,7 +63,8 @@ import { useProgression } from "@/lib/progression/useProgression";
 import { sendChatMessage } from "@/lib/chat/conversation";
 import { writeClipboardText } from "@/lib/capture/clipboard";
 import { getWikiPage } from "@/lib/wiki/queries";
-import { transcribeAudio } from "@/lib/llm/boundary";
+import { LlmConsentError, transcribeAudio, type LlmConsentErrorCode } from "@/lib/llm/boundary";
+import { ServiceConsentLink } from "@/components/consent/ServiceConsentLink";
 import { isAbortError } from "@/lib/async/abort";
 import {
   createRecorderLifecycle,
@@ -149,6 +150,7 @@ interface ChatTurn {
    *  Excluded from the conversation history sent back to the model so it isn't
    *  mis-grounded as something SecondB actually said. */
   synthetic?: boolean;
+  consentError?: LlmConsentErrorCode;
 }
 
 type ChatMode = "analytic" | "divergent";
@@ -542,6 +544,7 @@ export default function SecondBChat() {
 function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   const isDeepSpace = variant === "deep-space";
   const { t, i18n } = useTranslation("secondb");
+  const { t: consentT } = useTranslation("consent");
   const { userId, loading: authLoading, isMinor, hasProfile, profileProbeFailed, refresh } = useAuth();
   const progression = useProgression();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
@@ -1034,8 +1037,9 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
             }
           }
         } catch (e) {
-          const failText = t("replyFailed");
-          setTurns((prev) => [...prev, { role: "secondb", text: failText, synthetic: true }]);
+          const consentError = e instanceof LlmConsentError ? e.code : undefined;
+          const failText = consentError ? consentT(`serviceControl.${consentError}`) : t("replyFailed");
+          setTurns((prev) => [...prev, { role: "secondb", text: failText, synthetic: true, consentError }]);
           reactExpression("negative");
           if (typeof console !== "undefined") console.warn("[secondb] sendChatMessage error", (e as Error).message);
         } finally {
@@ -1058,6 +1062,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
       limit,
       companion,
       t,
+      consentT,
     ],
   );
 
@@ -1331,6 +1336,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                         {turn.text}
                       </Text>
                     </Pressable>
+                    {turn.consentError ? <ServiceConsentLink /> : null}
                     {copyNotice?.i === i ? (
                       <Text variant="caption" color="textSubtle" accessibilityLiveRegion="polite">
                         {t(copyNotice.ok ? "copied" : "copyFailed")}
@@ -1845,6 +1851,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                       {turn.text}
                     </Text>
                   </Pressable>
+                  {turn.consentError ? <ServiceConsentLink /> : null}
                   {copyNotice?.i === i ? (
                     <Text variant="caption" color="textSubtle" accessibilityLiveRegion="polite">
                       {t(copyNotice.ok ? "copied" : "copyFailed")}

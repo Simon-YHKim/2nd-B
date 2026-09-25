@@ -38,7 +38,7 @@
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { captureLlmConsent, recheckLlmConsent, markConsentWithheld, type LlmConsentLease } from '../_shared/llm-consent.ts';
+import { captureLlmConsent, resolveLlmConsentMode, recheckLlmConsent, markConsentWithheld, type LlmConsentLease } from '../_shared/llm-consent.ts';
 import { POLARIS_RESPONSE_SCHEMA, runPolarisGeneration } from '../_shared/polaris-generation.ts';
 import {
   BRAIN_RANK,
@@ -413,7 +413,7 @@ async function handleOpenAi(
   // complete. A premature flag fails closed because a missing v2 RPC is 503.
   const consent = serverLease
     ? { lease: serverLease }
-    : await captureLlmConsent(capacityRpc, userId, Deno.env.get('LLM_REQUIRE_VERIFIED_CONSENT') === 'true');
+    : await captureLlmConsent(capacityRpc, userId, resolveLlmConsentMode((name) => Deno.env.get(name)));
   if (consent.denial) return jsonResponse(req, { error: consent.denial.error }, consent.denial.status);
   const consentLease = consent.lease;
   if (consentLease.userId !== userId) return jsonResponse(req, { error: 'consent_required' }, 403);
@@ -1152,7 +1152,7 @@ Deno.serve(async (req: Request) => {
   const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!url || !key) return jsonResponse(req,{error:'polaris_unavailable'},503);
   const admin = createClient(url,key,{auth:{autoRefreshToken:false,persistSession:false}});
-  const consentRequired = Deno.env.get('LLM_REQUIRE_VERIFIED_CONSENT') === 'true';
+  const consentMode = resolveLlmConsentMode((name) => Deno.env.get(name));
   let providerAudit: { id: string; model: string } | undefined;
   try {
     const response = await runPolarisGeneration((name,args) => admin.rpc(name,args),userId,generationId,(prompt,lease) => {
@@ -1163,7 +1163,7 @@ Deno.serve(async (req: Request) => {
         responseSchema:POLARIS_RESPONSE_SCHEMA,effort:'high',
       })}),lease,(id,model) => { providerAudit = {id,model}; });
     },body.polarisLocale === 'ko' ? 'ko' : 'en',{
-      required:consentRequired,
+      mode:consentMode,
       onWithheld:async () => {
         if (providerAudit) await markConsentWithheld(admin,userId,providerAudit.id,providerAudit.model);
       },

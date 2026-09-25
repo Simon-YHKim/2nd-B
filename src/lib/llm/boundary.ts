@@ -383,6 +383,36 @@ type ProxyCrisisDecision = {
   confirmedMarker: boolean;
 };
 
+export type LlmConsentErrorCode = "consent_required" | "consent_check_unavailable";
+
+/** A server consent refusal is terminal across providers, including collect mode. */
+export class LlmConsentError extends Error {
+  constructor(readonly code: LlmConsentErrorCode) {
+    super(code);
+    this.name = "LlmConsentError";
+  }
+}
+
+async function inspectProxyConsentRejection(error: unknown): Promise<LlmConsentError | null> {
+  if (!error || typeof error !== "object") return null;
+  const ctx = (error as { context?: { status?: number; clone?: () => { json?: () => Promise<unknown> }; json?: () => Promise<unknown> } }).context;
+  if (!ctx || (ctx.status !== 403 && ctx.status !== 503)) return null;
+  try {
+    // Supabase FunctionsHttpError and captured-session errors expose Response.
+    // Preserve its body for other error handling; keep only the allowlisted code.
+    const target = typeof ctx.clone === "function" ? ctx.clone() : ctx;
+    if (typeof target.json !== "function") return null;
+    const body: unknown = await target.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) return null;
+    const code = (body as { error?: unknown }).error;
+    return code === "consent_required" || code === "consent_check_unavailable"
+      ? new LlmConsentError(code)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 // C9 fallback (2026-06-10 audit follow-up): gemini-proxy is the second,
 // server-authoritative crisis gate. When a crisis phrasing slips past the
 // client lexicon but the proxy's hasCrisisTerm catches it, functions.invoke
@@ -764,11 +794,16 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
             signal,
           });
       fence();
+      if (result.error) {
+        const consentError = await inspectProxyConsentRejection(result.error);
+        fence();
+        if (consentError) throw consentError;
+      }
       return result;
     };
     const t0 = Date.now();
     let { data, error } = await invokeProxy(primaryFn);
-    // D-26 outage failover: a vendor seat that fails for any NON-CRISIS reason
+    // D-26 outage failover: a vendor seat that fails outside crisis/consent gates
     // falls back ONCE to its Phase 1 assignment (gemini-proxy) — "each vendor
     // row's outage fallback is that row's Phase 1 assignment". A crisis 422 is
     // handled below and never retried (all proxies share the same gate, so a
@@ -1603,10 +1638,18 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
       effort,
     };
     const primaryFn = proxyFnForVendor(reasoningProvider);
+    const invokeProxy = async (functionName: string) => {
+      const result = await supabase.functions.invoke(functionName, { body: proxyBody });
+      if (result.error) {
+        const consentError = await inspectProxyConsentRejection(result.error);
+        if (consentError) throw consentError;
+      }
+      return result;
+    };
     const t0 = Date.now();
-    let { data, error } = await supabase.functions.invoke(primaryFn, { body: proxyBody });
+    let { data, error } = await invokeProxy(primaryFn);
     // D-26 outage failover (parity with callLlm): a vendor-seat failure that
-    // is NOT a crisis 422 retries ONCE on the Phase 1 route (gemini-proxy).
+    // is outside crisis/consent gates retries ONCE on the configured route.
     const failoverTarget = failoverVendor();
     const failoverFn = failoverTarget === "none" ? null : proxyFnForVendor(failoverTarget);
     if (error && failoverFn && failoverFn !== primaryFn) {
@@ -1626,7 +1669,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
       // See the note at the other failover site: this value is what the audit
       // records, so it has to follow the target.
       servedByProvider = failoverTarget as LlmVendor;
-      ({ data, error } = await supabase.functions.invoke(failoverFn, { body: proxyBody }));
+      ({ data, error } = await invokeProxy(failoverFn));
     }
     latencyMs = Date.now() - t0;
     if (error) {

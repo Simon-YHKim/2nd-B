@@ -546,6 +546,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       { file: "data", href: "/data", label: "데이터 관리", auth: true },
       { file: "permissions", href: "/permissions", label: "권한 관리" },
       { file: "privacy", href: "/privacy", label: "개인정보 한눈에", auth: true },
+      { file: "service-consent", href: "/service-consent", label: "AI 처리 동의", auth: true },
       { file: "processing-log", href: "/processing-log", label: "데이터 처리 기록", auth: true },
       { file: "notices", href: "/notices", label: "공지", auth: true },
       { file: "support", href: "/support", label: "지원", auth: true },

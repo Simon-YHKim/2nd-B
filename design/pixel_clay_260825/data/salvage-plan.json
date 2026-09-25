@@ -336,7 +336,13 @@
    "implementation": "앱 밖으로 가져가는 데이터와 공유 경계를 account 패턴으로 정리한다.",
    "doneWhen": "실제 export/share 목적지와 취소 상태가 검증된다."
   },
-  "/processing-log": {
+    "/service-consent": {
+      "strategy": "derive-pattern",
+      "references": [],
+      "implementation": "기존 개인정보 설정의 카드·버튼·체크 항목 패턴으로 AI 동의 상태와 재동의/철회를 표시한다. 문서 확인은 펼친 뒤 제공하고 서버 미활성·조회 실패·충돌을 성공과 구분한다.",
+      "doneWhen": "/privacy 양쪽 렌더러에서 진입하고 명시적 5개 동의, 철회, 중복 클릭, 계정 전환, 저장 실패 후 재확인과 좁은 화면의 스크롤이 검증된다."
+    },
+    "/processing-log": {
    "strategy": "derive-pattern",
    "references": [],
    "implementation": "AI 처리 기록 목록을 기존 목록/카드 패턴에서 파생한다. 전용 디자인 프레임이 번들에 없다.",

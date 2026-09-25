@@ -6068,7 +6068,9 @@ test('salvage plan classifies every non-direct frame and production route exactl
   // 하지만 여기서는 새 화면 하나가 곧 근거다 (salvage-plan 의 /sources 항목).
   // 24 -> 25 (2026-09-25): /dashboard is an app-only phone dashboard with no
   // matching prototype frame; salvage-plan records its explicit redesign.
-  assert.equal(expectedActualHrefs.length, 25);
+  // 25 -> 26 (2026-09-26): /service-consent adds the current consent receipt,
+  // explicit reconsent, and withdrawal flow using existing privacy patterns.
+  assert.equal(expectedActualHrefs.length, 26);
   assert.equal(salvage.actualRoutes['/dashboard'].strategy, 'redesign');
   assert.deepEqual(Object.keys(salvage.actualRoutes).sort(), expectedActualHrefs);
   for (const [href, plan] of Object.entries(salvage.actualRoutes)) {
