@@ -26,6 +26,7 @@ export function createCameraRemote(options: {
   zoom: number; minZoom: number; maxZoom: number;
   onZoom: (zoom: number) => void;
   onMove: (dx: number, dy: number) => void;
+  onMotionChange?: (moving: boolean) => void;
   requestFrame: (callback: (time: number) => void) => number;
   cancelFrame: (id: number) => void;
 }) {
@@ -33,6 +34,10 @@ export function createCameraRemote(options: {
   let zoomPending = false;
   let velocity = ZERO, target = ZERO;
   let frame: number | null = null, previousTime: number | null = null;
+  let audibleMotion = false;
+  const notifyMotion = (active: boolean) => {
+    if (active !== audibleMotion) { audibleMotion = active; options.onMotionChange?.(active); }
+  };
   const moving = () => target.x !== 0 || target.y !== 0;
   const cancel = () => {
     if (frame !== null) options.cancelFrame(frame);
@@ -46,23 +51,25 @@ export function createCameraRemote(options: {
     if (moving()) {
       const alpha = 1 - Math.exp(-dt / 0.07);
       velocity = { x: velocity.x + (target.x - velocity.x) * alpha, y: velocity.y + (target.y - velocity.y) * alpha };
-      options.onMove(velocity.x * 0.55 * dt, velocity.y * 0.55 * dt);
+      if (dt > 0) { notifyMotion(true); options.onMove(velocity.x * 0.55 * dt, velocity.y * 0.55 * dt); }
     }
     if (zoomPending) {
+      const before = currentZoom;
       currentZoom += (targetZoom - currentZoom) * (1 - Math.exp(-dt / 0.045));
       if (Math.abs(targetZoom - currentZoom) < 0.001) { currentZoom = targetZoom; zoomPending = false; }
-      options.onZoom(currentZoom);
+      if (currentZoom !== before) { notifyMotion(true); options.onZoom(currentZoom); }
     }
-    if (moving() || zoomPending) schedule(); else previousTime = null;
+    if (moving() || zoomPending) schedule(); else { previousTime = null; notifyMotion(false); }
   }
   const stopPanTilt = () => {
     target = ZERO; velocity = ZERO;
-    if (!zoomPending) cancel();
+    if (!zoomPending) { cancel(); notifyMotion(false); }
   };
   return {
     setZoom(value: number) {
       if (!Number.isFinite(value)) return;
       targetZoom = Math.max(options.minZoom, Math.min(options.maxZoom, value));
+      if (targetZoom === currentZoom) { zoomPending = false; if (!moving()) { cancel(); notifyMotion(false); } return; }
       zoomPending = true; schedule();
     },
     syncZoom(value: number) { if (!zoomPending) currentZoom = targetZoom = value; },
@@ -76,6 +83,7 @@ export function createCameraRemote(options: {
     stop() {
       cancel(); target = ZERO; velocity = ZERO;
       targetZoom = currentZoom; zoomPending = false;
+      notifyMotion(false);
     },
   };
 }

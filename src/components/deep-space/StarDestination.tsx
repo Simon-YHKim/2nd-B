@@ -36,7 +36,7 @@ function CameraTransition({ active, progress, reducedMotion, onReturned, onReady
       onDone: done,
     });
   }, [active, progress, reducedMotion]);
-  return reducedMotion ? null : <CameraCue key={phase} phase={phase} />;
+  return reducedMotion ? null : <CameraCue phase={phase} />;
 }
 
 /** Camera HUD only. The original world owns the star and all of its light. */

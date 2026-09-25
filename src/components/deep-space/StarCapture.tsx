@@ -4,20 +4,25 @@ import { useTranslation } from 'react-i18next';
 import { useReducedMotionPref } from '@/lib/motion/use-reduced-motion';
 import { pixelStepsFor } from '@/lib/motion/pixel-physical';
 import { CAMERA_SHUTTER, runCameraSequence } from '@/lib/motion/camera-sequence';
-import { CameraCue } from './CameraCue';
+import { useUiSoundControl } from '@/lib/audio/use-ui-sound';
 
 // Android stacking order, not a decorative shadow (ANDROID_QA_GUIDELINES).
 const SHUTTER_LAYER = 100;
+const SHUTTER = require('../../../assets/audio/observatory-shutter.wav');
 
-/** A single exposure. Navigation belongs to the completed animation, never a timer. */
-export function StarCapture({ onComplete, onCancel }: { onComplete: () => void; onCancel: () => void }) {
+/** Prepare during the approach; one exposure reuses that player without delaying navigation. */
+export function StarCapture({ active, onComplete, onCancel }: { active: boolean; onComplete: () => void; onCancel: () => void }) {
   const { t } = useTranslation('deepspace');
   const reducedMotion = useReducedMotionPref();
   const progress = useRef(new Animated.Value(0)).current;
+  const { play, stop: stopSound } = useUiSoundControl(SHUTTER, { volume: 0.2, minIntervalMs: 0 });
   const callbacks = useRef({ onComplete, onCancel });
   callbacks.current = { onComplete, onCancel };
   useEffect(() => {
+    if (!active) return;
     if (reducedMotion) { callbacks.current.onComplete(); return; }
+    progress.setValue(0);
+    play();
     let live = true;
     const stop = runCameraSequence(CAMERA_SHUTTER, {
       animate: ({ to, duration }, complete) => {
@@ -28,9 +33,9 @@ export function StarCapture({ onComplete, onCancel }: { onComplete: () => void; 
         return animation;
       },
       onStep: () => {},
-      onDone: () => { if (live) { live = false; callbacks.current.onComplete(); } },
+      onDone: () => { if (live) { live = false; stopSound(); callbacks.current.onComplete(); } },
     });
-    const cancel = () => { if (live) { live = false; stop(); callbacks.current.onCancel(); } };
+    const cancel = () => { if (live) { live = false; stop(); stopSound(); callbacks.current.onCancel(); } };
     const back = BackHandler.addEventListener('hardwareBackPress', () => { cancel(); return true; });
     const app = AppState.addEventListener('change', state => { if (state !== 'active') cancel(); });
     const blur = Platform.OS === 'android' ? AppState.addEventListener('blur', cancel) : undefined;
@@ -42,18 +47,17 @@ export function StarCapture({ onComplete, onCancel }: { onComplete: () => void; 
       document.addEventListener('visibilitychange', visibility);
     }
     return () => {
-      live = false; stop(); back.remove(); app.remove(); blur?.remove();
+      live = false; stop(); stopSound(); back.remove(); app.remove(); blur?.remove();
       if (Platform.OS === 'web') {
         window.removeEventListener('blur', cancel);
         window.removeEventListener('keydown', keydown);
         document.removeEventListener('visibilitychange', visibility);
       }
     };
-  }, [progress, reducedMotion]);
-  if (reducedMotion) return null;
+  }, [active, play, progress, reducedMotion, stopSound]);
+  if (!active || reducedMotion) return null;
   return (
     <View testID="star-camera-shutter" style={[StyleSheet.absoluteFill, styles.overlay]} accessibilityViewIsModal accessibilityLabel={t('camera.shutter')} onStartShouldSetResponder={() => true}>
-      <CameraCue phase="shutter" />
       <Animated.View testID="star-camera-flash" pointerEvents="none" style={[StyleSheet.absoluteFill, styles.flash, {
         opacity: progress.interpolate({ inputRange: [0, 0.22, 0.6, 1], outputRange: [0, 0.65, 0.24, 0] }),
       }]} />

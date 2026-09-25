@@ -28,7 +28,7 @@ describe("observatory PIXEL-CLAY regression", () => {
   test('camera reversal releases its audio and cancels stale focus locks', () => {
     expect(destination).toContain('<CameraTransition key={`${active}:${reducedMotion}`}');
     expect(destination).toContain('return runCameraSequence(');
-    expect(destination).toContain('reducedMotion ? null : <CameraCue key={phase} phase={phase} />');
+    expect(destination).toContain('reducedMotion ? null : <CameraCue phase={phase} />');
     expect(destination).not.toContain('setTimeout');
   });
 
@@ -42,7 +42,9 @@ describe("observatory PIXEL-CLAY regression", () => {
     expect(capture).not.toContain('setTimeout');
     expect(home).toContain('!cameraReady || captureId !== null');
     expect(home).toContain('if (!captureLock.current || !homeActive.current) return');
-    expect(home).toContain('{homeFocused && captureId ? (');
+    expect(home).toContain('{homeFocused && visualFocusId ? (');
+    expect(home).toContain('active={captureId === visualFocusId}');
+    expect(home).toContain('key={visualFocusId}');
   });
 
   test.each([

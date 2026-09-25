@@ -10,9 +10,10 @@ import { m3 } from '@/lib/theme/m3';
 import { createCameraRemote, joystickInput, zoomFromPosition, zoomToPosition } from '@/lib/motion/camera-remote';
 import { a11yValue } from '@/lib/a11y/accessibility-value';
 import { useUiSound } from '@/lib/audio/use-ui-sound';
+import { useMotionSound } from '@/lib/audio/use-motion-sound';
 import { useReducedMotionPref } from '@/lib/motion/use-reduced-motion';
 
-const TICK = require('../../../assets/audio/jrpg-text-blip.mp3');
+const TICK = require('../../../assets/audio/observatory-ratchet.wav');
 const STICK_SIZE = 64;
 const THUMB_SIZE = 28;
 const TRAVEL = (STICK_SIZE - THUMB_SIZE) / 2;
@@ -34,7 +35,11 @@ export function TelescopeControls({ zoom, minZoom, maxZoom, zoomStops = DEFAULT_
   const reducedMotion = useReducedMotionPref();
   const actions = useRef({ onMove, onZoom, onReset, zoom, enabled });
   actions.current = { onMove, onZoom, onReset, zoom, enabled };
-  const tick = useUiSound(TICK, { volume: 0.045, playbackRate: 0.55, minIntervalMs: 160 });
+  const playTick = useUiSound(TICK, { volume: 0.08, minIntervalMs: 160 });
+  const tick = () => { if (!reducedMotion) playTick(); };
+  const motionSound = useMotionSound();
+  const sound = useRef(motionSound);
+  sound.current = motionSound;
   const knob = useRef(new Animated.ValueXY()).current;
   const [speed, setSpeed] = useState(0);
   const [railWidth, setRailWidth] = useState(100);
@@ -47,6 +52,7 @@ export function TelescopeControls({ zoom, minZoom, maxZoom, zoomStops = DEFAULT_
     zoom: actions.current.zoom, minZoom, maxZoom,
     onZoom: value => actions.current.onZoom(value),
     onMove: (x, y) => actions.current.onMove(x, y),
+    onMotionChange: active => sound.current(active),
     requestFrame: callback => requestAnimationFrame(callback), cancelFrame: id => cancelAnimationFrame(id),
   }), [minZoom, maxZoom]);
   useEffect(() => { remote.syncZoom(zoom); }, [remote, zoom]);
@@ -97,26 +103,26 @@ export function TelescopeControls({ zoom, minZoom, maxZoom, zoomStops = DEFAULT_
     onPanResponderGrant: (event, gesture) => {
       const { locationX, locationY } = event.nativeEvent;
       centre.current = { x: gesture.x0 - locationX + STICK_SIZE / 2, y: gesture.y0 - locationY + STICK_SIZE / 2 };
-      aim((locationX - STICK_SIZE / 2) / TRAVEL, (locationY - STICK_SIZE / 2) / TRAVEL); tick();
+      aim((locationX - STICK_SIZE / 2) / TRAVEL, (locationY - STICK_SIZE / 2) / TRAVEL);
     },
     onPanResponderMove: (_event, gesture) => { if (held.current) aim((gesture.moveX - centre.current.x) / TRAVEL, (gesture.moveY - centre.current.y) / TRAVEL); },
     onPanResponderRelease: stopStick,
     onPanResponderTerminate: failSafeStop,
-  }), [aim, failSafeStop, stopStick, tick]);
+  }), [aim, failSafeStop, stopStick]);
   const slider = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => actions.current.enabled,
     onMoveShouldSetPanResponder: () => actions.current.enabled,
     onPanResponderGrant: (event, gesture) => {
       sliderHeld.current = true;
       rail.current.x = gesture.x0 - event.nativeEvent.locationX;
-      remote.setZoom(zoomFromPosition(event.nativeEvent.locationX / rail.current.width, minZoom, maxZoom)); tick();
+      remote.setZoom(zoomFromPosition(event.nativeEvent.locationX / rail.current.width, minZoom, maxZoom));
     },
     onPanResponderMove: (_event, gesture) => { if (sliderHeld.current) remote.setZoom(zoomFromPosition((gesture.moveX - rail.current.x) / rail.current.width, minZoom, maxZoom)); },
     onPanResponderRelease: () => { sliderHeld.current = false; /* Zoom retains its position. */ },
     onPanResponderTerminate: failSafeStop,
-  }), [failSafeStop, maxZoom, minZoom, remote, tick]);
+  }), [failSafeStop, maxZoom, minZoom, remote]);
   const position = zoomToPosition(zoom, minZoom, maxZoom);
-  const changeZoom = (delta: number) => { if (enabled) { remote.setZoom(zoomFromPosition(position + delta, minZoom, maxZoom)); tick(); } };
+  const changeZoom = (delta: number) => { if (enabled) remote.setZoom(zoomFromPosition(position + delta, minZoom, maxZoom)); };
   const keyboardAim = () => {
     const x = Number(keys.current.has('ArrowRight')) - Number(keys.current.has('ArrowLeft'));
     const y = Number(keys.current.has('ArrowDown')) - Number(keys.current.has('ArrowUp'));
@@ -135,6 +141,7 @@ export function TelescopeControls({ zoom, minZoom, maxZoom, zoomStops = DEFAULT_
             const x = actionName === 'right' ? 1 : actionName === 'left' ? -1 : 0;
             const y = actionName === 'down' || actionName === 'decrement' ? 1 : actionName === 'up' || actionName === 'increment' ? -1 : 0;
             onMove(x * 0.03, y * 0.03);
+            tick();
           }}
           {...(Platform.OS === 'web' ? {
             tabIndex: enabled ? 0 : -1,

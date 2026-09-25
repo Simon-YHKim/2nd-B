@@ -1,21 +1,41 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { AppState, Platform } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { useUiSound } from '@/lib/audio/use-ui-sound';
+import { useMotionSound } from '@/lib/audio/use-motion-sound';
 import type { CameraPhase } from '@/lib/motion/camera-sequence';
 
-const SWEEP = require('../../../assets/audio/telescope-zoom.mp3');
-const CUES = {
-  aim: { source: require('../../../assets/audio/camera-aim.mp3'), volume: 0.2, playbackRate: 1 },
-  zoom: { source: SWEEP, volume: 0.12, playbackRate: 0.95 },
-  focus: { source: require('../../../assets/audio/camera-focus.mp3'), volume: 0.2, playbackRate: 1 },
-  ready: { source: require('../../../assets/audio/jrpg-text-blip.mp3'), volume: 0.16, playbackRate: 1.25 },
-  return: { source: SWEEP, volume: 0.12, playbackRate: 1.3 },
-  shutter: { source: require('../../../assets/audio/camera-shutter.mp3'), volume: 0.22, playbackRate: 1 },
-} satisfies Record<CameraPhase, { source: number; volume: number; playbackRate: number }>;
+const FOCUS = require('../../../assets/audio/observatory-focus-lock.wav');
 
-/** Keyed by phase so cancellation releases the previous player and pending seek. */
+/** Aim and zoom share one uninterrupted rhythm, followed by the focus-lock recording. */
 export function CameraCue({ phase }: { phase: CameraPhase }) {
-  const cue = CUES[phase];
-  const play = useUiSound(cue.source, { ...cue, minIntervalMs: 0 });
-  useEffect(() => { play(); }, [play]);
+  const [cancelled, setCancelled] = useState(false);
+  useFocusEffect(useCallback(() => {
+    // Cancelling a journey's audio is permanent; returning to the app cannot
+    // replay a stale focus-lock cue. A new journey mounts a new CameraCue.
+    const stop = () => setCancelled(true);
+    const visibility = () => { if (document.hidden) stop(); };
+    if (AppState.currentState === 'background' || AppState.currentState === 'inactive') stop();
+    const app = AppState.addEventListener('change', state => { if (state !== 'active') stop(); });
+    const androidBlur = Platform.OS === 'android' ? AppState.addEventListener('blur', stop) : undefined;
+    if (Platform.OS === 'web') {
+      visibility(); window.addEventListener('blur', stop); document.addEventListener('visibilitychange', visibility);
+    }
+    return () => {
+      stop(); app.remove(); androidBlur?.remove();
+      if (Platform.OS === 'web') {
+        window.removeEventListener('blur', stop); document.removeEventListener('visibilitychange', visibility);
+      }
+    };
+  }, []));
+  return cancelled ? null : <ActiveCameraCue phase={phase} />;
+}
+
+function ActiveCameraCue({ phase }: { phase: CameraPhase }) {
+  const motor = useMotionSound();
+  const moving = phase === 'aim' || phase === 'zoom' || phase === 'return';
+  useEffect(() => { motor(moving); return () => motor(false); }, [motor, moving]);
+  const play = useUiSound(FOCUS, { volume: 0.18, minIntervalMs: 0 });
+  useEffect(() => { if (phase === 'ready') play(); }, [phase, play]);
   return null;
 }

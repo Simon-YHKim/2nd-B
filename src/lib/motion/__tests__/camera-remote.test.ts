@@ -6,8 +6,9 @@ function harness() {
   let now = 0;
   const onMove = jest.fn();
   const onZoom = jest.fn();
+  const onMotionChange = jest.fn();
   const remote = createCameraRemote({
-    zoom: 1, minZoom: 0.5, maxZoom: 5, onMove, onZoom,
+    zoom: 1, minZoom: 0.5, maxZoom: 5, onMove, onZoom, onMotionChange,
     requestFrame: cb => { frames.set(++id, cb); return id; },
     cancelFrame: key => { frames.delete(key); },
   });
@@ -17,7 +18,7 @@ function harness() {
       const queued = [...frames.values()]; frames.clear(); queued.forEach(cb => cb(now));
     }
   };
-  return { remote, onMove, onZoom, frames, advance };
+  return { remote, onMove, onZoom, onMotionChange, frames, advance };
 }
 
 test('absolute zoom uses supplied endpoints, logarithmic spacing and round trips', () => {
@@ -99,4 +100,28 @@ test('hold distance is frame-rate independent and background gaps cannot telepor
   expect(Math.abs(sum(a) - sum(b))).toBeLessThan(0.015);
   a.advance(1, 90000);
   expect(a.onMove.mock.calls.at(-1)![0]).toBeLessThanOrEqual(0.55 * 0.05);
+});
+
+test('motion audio follows actual frames, remains through zoom settling and stops once', () => {
+  const h = harness();
+  h.remote.setPanTiltVelocity(1, -1); h.remote.setZoom(3);
+  expect(h.onMotionChange).not.toHaveBeenCalled();
+  h.advance(3); expect(h.onMotionChange.mock.calls).toEqual([[true]]);
+  h.remote.stopPanTilt(); expect(h.onMotionChange.mock.calls).toEqual([[true]]);
+  h.advance(); expect(h.onMotionChange.mock.calls).toEqual([[true], [false]]);
+});
+
+test('neutral, repeated zoom and clamped zoom endpoints stay silent', () => {
+  const h = harness();
+  h.remote.setPanTiltVelocity(0, 0); h.remote.setZoom(1); h.advance();
+  expect(h.onMotionChange).not.toHaveBeenCalled();
+  h.remote.setZoom(10); h.advance(); h.onMotionChange.mockClear();
+  h.remote.setZoom(6); h.advance();
+  expect(h.onMotionChange).not.toHaveBeenCalled();
+});
+
+test('stop cuts loop state immediately and no later frame can restart it', () => {
+  const h = harness();
+  h.remote.setPanTiltVelocity(-1, 1); h.advance(4); h.remote.stop(); h.advance();
+  expect(h.onMotionChange.mock.calls).toEqual([[true], [false]]);
 });

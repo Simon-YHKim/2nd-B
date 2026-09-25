@@ -5,6 +5,11 @@ export interface UiSoundOptions {
   updateIntervalMs?: number;
 }
 
+export interface UiSoundControl {
+  play: () => void;
+  stop: () => void;
+}
+
 export function reportUiSoundError(error: unknown): void {
   const name = typeof error === "object" && error !== null && "name" in error ? error.name : undefined;
   if (name === "AbortError" || name === "NotAllowedError") return;
@@ -17,32 +22,74 @@ type SoundMedia = Pick<HTMLAudioElement, "volume" | "playbackRate" | "currentTim
  * so catching the wrapper cannot handle a pause during pending playback. */
 export function createUiSoundPlayer(media: SoundMedia, options: UiSoundOptions) {
   let disposed = false;
-  let pending = false;
+  let generation = 0;
+  let pending: number | null = null;
   let lastPlayedAt = Number.NEGATIVE_INFINITY;
   media.volume = options.volume;
   media.playbackRate = options.playbackRate ?? 1;
+  const stop = () => { generation++; pending = null; media.pause(); };
 
   return {
     async play(): Promise<void> {
       const now = Date.now();
-      if (disposed || pending || now - lastPlayedAt < options.minIntervalMs) return;
+      if (disposed || pending !== null || now - lastPlayedAt < options.minIntervalMs) return;
       lastPlayedAt = now;
-      pending = true;
+      const ticket = ++generation;
+      pending = ticket;
       try {
         media.currentTime = 0;
         await media.play();
       } catch (error) {
         reportUiSoundError(error);
       } finally {
-        pending = false;
+        if (pending === ticket) pending = null;
       }
     },
+    stop,
     dispose(): void {
       if (disposed) return;
       disposed = true;
-      media.pause();
+      stop();
       media.removeAttribute("src");
       media.load();
     },
+  };
+}
+
+/** Queue at most one cue while its own native source loads. Stop permanently
+ * invalidates that request and any outstanding seek, without replay on focus. */
+export function createNativeUiSoundPlayer(driver: {
+  rewind: () => Promise<void>;
+  play: () => void;
+  pause: () => void;
+}, minIntervalMs: number) {
+  let ready = false, queued = false, disposed = false, generation = 0;
+  let pending: number | null = null;
+  let lastPlayedAt = Number.NEGATIVE_INFINITY;
+  const start = async () => {
+    if (!ready || !queued || disposed) return;
+    queued = false;
+    const ticket = ++generation;
+    pending = ticket;
+    try {
+      await driver.rewind();
+      if (!disposed && ready && ticket === generation) driver.play();
+    } catch (error) { reportUiSoundError(error); }
+    finally { if (pending === ticket) pending = null; }
+  };
+  const stop = () => { generation++; queued = false; pending = null; driver.pause(); };
+  return {
+    play() {
+      const now = Date.now();
+      if (disposed || queued || pending !== null || now - lastPlayedAt < minIntervalMs) return;
+      lastPlayedAt = now; queued = true; void start();
+    },
+    setReady(value: boolean) {
+      if (disposed || ready === value) return;
+      ready = value;
+      if (value) void start(); else stop();
+    },
+    stop,
+    dispose() { if (disposed) return; disposed = true; stop(); },
   };
 }

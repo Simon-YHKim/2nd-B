@@ -1294,13 +1294,16 @@ export function ConstellationHome({
         onClose={() => setLimitSheetVisible(false)}
         onChanged={() => void refreshReasoningStatus()}
       />
-      {homeFocused && captureId ? (
+      {homeFocused && visualFocusId ? (
         <StarCapture
+          key={visualFocusId}
+          active={captureId === visualFocusId}
           onCancel={() => { captureLock.current = false; setCaptureId(null); }}
           onComplete={() => {
             if (!captureLock.current || !homeActive.current) return;
-            captureLock.current = false;
             const id = captureId;
+            if (!id) return;
+            captureLock.current = false;
             setCaptureId(null);
             setVisualFocusId(null);
             setCameraReady(false);

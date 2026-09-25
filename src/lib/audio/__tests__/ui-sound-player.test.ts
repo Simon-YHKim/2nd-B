@@ -81,6 +81,18 @@ describe("local UI sound playback", () => {
     await playback;
   });
 
+  test("a cancelled old play cannot clear the newer pending play", async () => {
+    const media = mediaFixture();
+    const finish: Array<() => void> = [];
+    media.play.mockImplementation(() => new Promise<void>((resolve) => { finish.push(resolve); }));
+    const player = createUiSoundPlayer(media, { ...options, minIntervalMs: 0 });
+    const old = player.play(); player.stop(); const current = player.play();
+    finish[0](); await old; await player.play();
+    expect(media.play).toHaveBeenCalledTimes(2);
+    finish[1](); await current;
+    expect(warning).not.toHaveBeenCalled();
+  });
+
   test("preserves the chosen volume, pitch and tick rate", async () => {
     const media = mediaFixture();
     const now = jest.spyOn(Date, "now").mockReturnValue(1_000);
@@ -117,7 +129,7 @@ describe("local UI sound playback", () => {
     expect(web).not.toContain("unhandledrejection");
     const native = readFileSync(path.join(root, "src/lib/audio/use-ui-sound.ts"), "utf8");
     expect(native).toContain("keepAudioSessionActive: false");
-    expect(native).toContain("downloadFirst: true");
-    expect(native).toContain("lifecycle.current.generation === generation");
+    // Native readiness, source replacement and release order run against the
+    // installed SDK hook in ui-sound-hooks.test.ts.
   });
 });

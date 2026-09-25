@@ -98,16 +98,31 @@ Rebuild: `python scripts/build-dither-tiles.py`.
 
 ## Bundled audio (assets/audio/)
 
+- `observatory-ratchet.wav`, `observatory-focus-lock.wav`, `observatory-shutter.wav`:
+  active observatory camera sounds since 2026-09-26, edited from **actual CC0
+  recordings**, not synthesized. Ratchet: [Ratchet.wav by romulofs](https://freesound.org/people/romulofs/sounds/127533/).
+  Focus double beep and mechanical shutter: [Nice Canon Beep & Shutter Click by amoyssiadis](https://freesound.org/people/amoyssiadis/sounds/851925/).
+  Both source pages declare [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
+  Sources are their openly published HQ MP3 previews, not the login-only original
+  downloads. Derivatives are mono 22.05 kHz PCM WAV: 160/200/290 ms,
+  7,100/8,864/12,834 bytes. One softened ratchet click plus silence loops at
+  160 ms per cycle during pan/tilt, zoom settling and automatic aim/zoom/return.
+  A focus-lock double beep plays at completion; shutter plays on exposure.
+  Filtering, short fades and level normalization preserve the recorded timbre.
+  Exact source URLs, hashes and edit recipes: `assets/audio/RECORDED-SOURCES.json`;
+  processing script: `scripts/prepare-recorded-camera-sfx.cjs`.
+
 - `camera-aim.mp3`, `camera-focus.mp3`, `camera-shutter.mp3`: original procedural
-  camera servo, focus adjustment, and shutter cues. Created locally with
+  camera servo, focus adjustment, and shutter cues, **superseded and not used by
+  the camera as of 2026-09-26**. Preserved from the earlier iteration. Created locally with
   `scripts/build-camera-sfx.cjs` (deterministic sine/noise synthesis, then ffmpeg
   MP3 encoding). No recordings, external samples, paid API or third-party audio
   licenses. Mono 22.05 kHz, 64 kbps; source lengths 420/360/280 ms. Quiet playback
   is phase-scoped and suppressed with reduced motion. The generator refuses to
   overwrite existing assets.
 
-- `telescope-zoom.mp3`: short 0.57s camera-motion sweep, played quietly with
-  different rates for approach and retreat; focus lock reuses the UI blip below.
+- `telescope-zoom.mp3`: legacy 0.57s camera-motion sweep, **superseded and not used
+  by the camera as of 2026-09-26**. Preserved from the earlier iteration.
   Unmodified `whoosh-short.mp3` from the installed `media-use` SFX bundle. Its
   bundled `CREDITS.md` identifies Pixabay and the
   [Pixabay Content License](https://pixabay.com/service/license-summary/).

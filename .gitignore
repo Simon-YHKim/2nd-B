@@ -176,3 +176,6 @@ __pycache__/
 # Local observatory QA bundles, process logs and full test output (not release artifacts).
 .expo-observatory*
 .qa-observatory*
+
+# Downloaded media previews and processing ledger. Shipped audio + provenance live in assets/audio/.
+.media/
