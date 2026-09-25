@@ -34,11 +34,14 @@ describe('selected-star camera', () => {
       expect(flight.zoom[0]).toBe(camera.zoom);
       expect(flight.x[0]).toBe(-camera.x * camera.zoom);
       expect(flight.y[0]).toBe(-camera.y * camera.zoom);
-      for (const i of [1, 2, 3]) {
+      for (const i of [1, 2, 3, 4]) {
         expect(flight.worldCentre.x + flight.x[i] + (point.x - world.width / 2) * flight.zoom[i]).toBeCloseTo(flight.centre.x);
         expect(flight.worldCentre.y + flight.y[i] + (point.y - world.height / 2) * flight.zoom[i]).toBeCloseTo(flight.centre.y);
       }
-      expect(26 * flight.zoom[3]).toBeCloseTo(starDestinationFrame(viewport).diameter);
+      expect(flight.zoom[1]).toBe(camera.zoom); // Aim before zoom.
+      expect(flight.zoom[3]).toBeCloseTo(flight.zoom[2] * 1.025); // Focus breathing.
+      expect(flight.zoom[4]).toBe(flight.zoom[2]); // No permanent extra enlargement.
+      expect(26 * flight.zoom[4]).toBeCloseTo(starDestinationFrame(viewport).diameter);
     },
   );
 

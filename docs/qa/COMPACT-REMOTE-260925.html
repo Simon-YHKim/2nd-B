@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2ndB 망원경 조작 패널 축소</title>
+<style>
+:root{color-scheme:light dark;--bg:#f4f6fc;--text:#172037;--muted:#526079;--accent:#315fc5}
+@media(prefers-color-scheme:dark){:root{--bg:#101727;--text:#e5ebfa;--muted:#a7b6d0;--accent:#91b9ff}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.65 system-ui,sans-serif}
+main{max-width:850px;margin:auto;padding:32px 20px}h1{font-size:28px;line-height:1.3}h2{font-size:19px}p{margin:12px 0}
+.muted{color:var(--muted)}.cards{display:flex;gap:12px;flex-wrap:wrap;margin:24px 0}.card{flex:1;min-width:180px;border:1px solid var(--muted);padding:16px}
+.card strong{display:block;color:var(--accent);font-size:25px}svg{width:100%;height:auto;color:var(--accent)}text{fill:var(--text);font:16px system-ui,sans-serif}
+details{border-top:1px solid var(--muted);padding:16px 0}summary{cursor:pointer;font-weight:600}a{color:var(--accent)}a:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:5px}
+table{border-collapse:collapse;width:100%;font-size:14px}td,th{padding:10px 6px;text-align:left;border-bottom:1px solid var(--muted)}code{overflow-wrap:anywhere}li{margin:6px 0}
+</style>
+<main>
+<p class="muted">2ndB · 공유 RN/Expo UI · 2026-09-25 23:31:08 KST</p>
+<h1>관측 공간을 넓히는 한 줄 조작부</h1>
+<p>방향·기울기 조이스틱과 W/T 줌을 나란히 배치했습니다. 픽셀 스타일을 유지하면서 중복 설명과 별도 초기화 칸을 정리했습니다.</p>
+<div class="cards"><div class="card">패널 높이<strong>202 → 102px</strong>약 50% 감소</div><div class="card">조작 배치<strong>한 줄</strong>조이스틱 + W/T·슬라이더</div><div class="card">버튼 터치 영역<strong>44px 이상</strong>작은 화면에서도 유지</div></div>
+<svg viewBox="0 0 760 170" role="img" aria-labelledby="layout-title layout-desc">
+<title id="layout-title">새 조작부의 가로 배치</title><desc id="layout-desc">왼쪽에 작은 방향 조이스틱, 오른쪽에 축소 버튼, 배율 및 초기화 버튼, 확대 버튼과 아래 줌 슬라이더가 배치된다.</desc>
+<g fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="12" width="744" height="146"/><rect x="26" y="34" width="80" height="80"/><path d="M38 74H94M66 46V102"/><rect x="54" y="62" width="24" height="24"/><rect x="135" y="28" width="72" height="58"/><rect x="217" y="28" width="417" height="58"/><rect x="644" y="28" width="88" height="58"/><path d="M157 114H708M157 103V125M432 103V125M708 103V125"/><rect x="416" y="103" width="8" height="22"/></g>
+<text x="66" y="140" text-anchor="middle">방향</text><text x="171" y="64" text-anchor="middle">W</text><text x="425" y="64" text-anchor="middle">1.00× · 누르면 초기화</text><text x="688" y="64" text-anchor="middle">T</text><text x="430" y="145" text-anchor="middle">줌 슬라이더</text>
+</svg>
+<details open><summary>적용 범위</summary><ul><li><code>TelescopeControls</code>: 조이스틱 112 → 64px. 배율 표시와 전체 보기 복귀 버튼 통합.</li><li>별자리 하단의 고정 최소 높이를 제거하고 실제 패널 높이로 관측 영역 계산. ‘내 폰’ 버튼은 옆에 유지.</li><li>기록 그래프와 위키 그래프에도 같은 공통 컴포넌트 적용.</li><li>이동 속도 곡선, W/T 절대 배율, 손을 놓을 때 정지, 카메라 촬영 순서는 유지.</li></ul></details>
+<details open><summary>검증 상태</summary><table><thead><tr><th>검증</th><th>결과</th></tr></thead><tbody>
+<tr><td>320 / 425 / 768px 조작·배치</td><td>통과 · 패널 236 / 341 / 360 × 102px · 버튼 44px 이상</td></tr>
+<tr><td>마우스·터치·키보드·취소·화면 이탈 정지</td><td>통과 · 홈·기록·위키 · 페이지 예외 0</td></tr>
+<tr><td>별 선택·빛 정렬·복귀·효과음·동작 줄이기</td><td>세 화면 크기 통과 · 페이지 예외 0</td></tr>
+<tr><td>전체 verify · 직렬 실행</td><td>795 suites / 10,062 tests 통과 · lint 오류 0, 기존 경고 72</td></tr>
+<tr><td>Android Hermes export</td><td>통과 · APK 설치/실기기 검증은 아님</td></tr>
+</tbody></table></details>
+<details><summary>검증 방식과 남은 범위</summary><p>localhost:8081을 실제 Edge 엔진으로 실행한 자동 UI 검사입니다. 마우스·터치 이벤트·키보드와 화면 경계를 검사합니다. 위키 데이터는 브라우저 내부 fixture이며 서버 기록을 추가하지 않았습니다.</p><p>첫 병렬 verify 실행은 임시 emdash 검사 파일이 생성·삭제되는 도중 다른 검사가 읽는 경합으로 2개 suite가 실패했습니다. 전체 게이트를 <code>npm run verify -- --runInBand</code>로 재실행해 통과했습니다. 제품 코드에 이 문제를 우회하는 변경은 넣지 않았습니다.</p><p>기존 Expo 의존성 정합성 경고는 남아 있습니다. 의존성 추가·업그레이드, 서버 변경, AI 호출, commit/push/배포는 하지 않았습니다. Android/iOS 실기기에서 최종 터치감 확인은 남아 있습니다.</p></details>
+<details><summary>재현 자료</summary><p><code>docs/qa/observatory-260925/remote-control-check.cjs</code><br><code>docs/qa/observatory-260925/star-camera-check.cjs</code><br><code>.expo/compact-remote-browser.log</code><br><code>.expo/compact-remote-camera.log</code><br><code>.expo/compact-remote-verify-serial.log</code><br><code>.expo/compact-remote-android.log</code></p><p>대상: <code>observatory-260925</code> / <code>codex/observatory-dashboard-260925</code></p></details>
+<p><a href="http://localhost:8081/">로컬 별자리 화면 열기</a></p>
+</main>
+</html>

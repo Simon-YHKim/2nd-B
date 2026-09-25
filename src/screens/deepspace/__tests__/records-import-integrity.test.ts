@@ -114,7 +114,7 @@ describe("PIXEL-CLAY records root composition", () => {
     expect(graph).toContain('element?.setAttribute("role", "button")');
     expect(graph).toContain("onClick: () => selectNode(");
     expect(graph).toContain("<TelescopeControls");
-    expect(graph).toContain("jogTelescopeCamera(cameraRef.current");
+    expect(graph).toContain("moveTelescopeCamera(cameraRef.current");
     expect(graph).not.toContain("<GestureDetector");
     expect(graph).not.toContain('addEventListener("wheel"');
     expect(graph).not.toContain('addEventListener("pointermove"');

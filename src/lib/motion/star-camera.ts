@@ -1,7 +1,7 @@
 type Point = { x: number; y: number };
 type Viewport = { width: number; height: number };
 
-export const STAR_CAMERA_STOPS = [0, 0.4, 0.8, 1];
+export const STAR_CAMERA_STOPS = [0, 0.4, 0.8, 0.9, 1];
 
 /** One world camera. Its first keyframe is exactly the current jog/dial pose. */
 export function starCameraFlight(
@@ -23,12 +23,15 @@ export function starCameraFlight(
   });
   const aim = pan(camera.zoom);
   const end = pan(zoom);
+  // Lens breathing stays centred: the star and its light are one physical body.
+  const focusZoom = zoom * 1.025;
+  const focus = pan(focusZoom);
   return {
     ...frame, worldCentre,
     origin: { x: worldCentre.x + start.x + relative.x * camera.zoom, y: worldCentre.y + start.y + relative.y * camera.zoom },
-    x: [start.x, aim.x, end.x, end.x],
-    y: [start.y, aim.y, end.y, end.y],
-    zoom: [camera.zoom, camera.zoom, zoom, zoom],
+    x: [start.x, aim.x, end.x, focus.x, end.x],
+    y: [start.y, aim.y, end.y, focus.y, end.y],
+    zoom: [camera.zoom, camera.zoom, zoom, focusZoom, zoom],
   };
 }
 

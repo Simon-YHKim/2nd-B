@@ -1,4 +1,12 @@
 {
+  "camera": {
+    "aim": "Apuntando a la estrella",
+    "zoom": "Acercando la estrella",
+    "focus": "Ajustando el enfoque",
+    "ready": "Enfoque fijado · Listo para viajar",
+    "return": "Volviendo a la constelación",
+    "shutter": "Tomando una foto"
+  },
   "telescope": {
     "label": "Controles del telescopio",
     "up": "Apuntar arriba",
@@ -7,7 +15,13 @@
     "right": "Apuntar a la derecha",
     "reset": "Volver al cielo completo",
     "dial": "Dial de aumento",
-    "hint": "Gira el dial o usa los botones más y menos.",
+    "hint": "W amplía el campo de visión y T acerca la imagen. Al soltar, se mantiene el aumento.",
+    "slider": "Control deslizante de aumento",
+    "joystick": "Joystick de giro e inclinación",
+    "joystickHint": "Empuja hacia donde quieras moverte. Cuanto más lo alejes del centro, más rápido se moverá. Suelta para detenerte. Con teclado, mantén pulsadas las flechas.",
+    "panTilt": "Giro / Incl.",
+    "stopped": "Detenido",
+    "speed": "Vel. {{value}}%",
     "phone": "Abrir mi panel",
     "phoneLabel": "Mi móvil"
   },

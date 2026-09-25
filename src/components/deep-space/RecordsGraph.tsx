@@ -13,7 +13,7 @@ import { Platform, StyleSheet, View } from "react-native";
 import Svg, { G, Rect, Text as SvgText } from "react-native-svg";
 
 import { TelescopeControls } from "./TelescopeControls";
-import { jogTelescopeCamera, telescopeZoom } from "@/lib/motion/telescope-controls";
+import { moveTelescopeCamera } from "@/lib/motion/camera-remote";
 
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelPressable } from "@/components/pixel/PixelPressable";
@@ -93,6 +93,7 @@ export function RecordsGraph({
   const [camera, setCamera] = useState<RecordsGraphCamera>({ zoom: 1, x: 0, y: 0 });
   const cameraRef = useRef(camera);
   const [canvasSize, setCanvasSize] = useState({ width: 390, height: 390 });
+  const [controlsHeight, setControlsHeight] = useState(118);
   // Adaptive default follows the link density of this bounded visual subset.
   // Initial only — a manual toggle wins.
   const linkCount = useMemo(() => linkEdgeCount(graph), [graph]);
@@ -294,12 +295,13 @@ export function RecordsGraph({
         </Svg>
       </View>
 
-      <View style={styles.controls}>
+      <View style={styles.controls} onLayout={({ nativeEvent: { layout } }) => setControlsHeight(layout.height)}>
         <TelescopeControls
           zoom={zoom}
+          minZoom={1}
           maxZoom={RECORDS_GRAPH_MAX_ZOOM}
-          onJog={(dx, dy) => commitCamera(jogTelescopeCamera(cameraRef.current, dx, dy, viewport))}
-          onTurn={(turns) => commitCamera(zoomRecordsGraphCamera(cameraRef.current, telescopeZoom(cameraRef.current.zoom, turns, RECORDS_GRAPH_MAX_ZOOM), 0.5, 0.5, viewport))}
+          onMove={(dx, dy) => commitCamera(moveTelescopeCamera(cameraRef.current, dx, dy, viewport))}
+          onZoom={(zoom) => commitCamera(zoomRecordsGraphCamera(cameraRef.current, zoom, 0.5, 0.5, viewport))}
           onReset={() => commitCamera({ zoom: 1, x: 0, y: 0 })}
         />
         <PixelPressable
@@ -315,14 +317,14 @@ export function RecordsGraph({
       </View>
 
       {selected && selected.kind === "record" ? (
-        <PixelSurface variant="frame" style={styles.selection} contentStyle={styles.selectionContent}>
+        <PixelSurface variant="frame" style={[styles.selection, { bottom: controlsHeight + 8 }]} contentStyle={styles.selectionContent}>
           <Text variant="caption" color="textSubtle" numberOfLines={1}>
             {t("deepspace:recordsGraph.hintSelected", { label: selected.label })}
           </Text>
         </PixelSurface>
       ) : null}
       {selected && selected.kind === "persona" ? (
-        <PixelSurface variant="frame" style={styles.selection} contentStyle={styles.selectionContent}>
+        <PixelSurface variant="frame" style={[styles.selection, { bottom: controlsHeight + 8 }]} contentStyle={styles.selectionContent}>
           <Text variant="caption" color="textSubtle" numberOfLines={2}>
             {selected.summary}
           </Text>
@@ -342,6 +344,6 @@ const styles = StyleSheet.create({
   },
   controls: { paddingHorizontal: 12, paddingVertical: 8, alignItems: "flex-end", justifyContent: "space-between", flexDirection: "row", gap: 8 },
   iconButtonContent: { width: 44, minHeight: 44, paddingHorizontal: 0, paddingVertical: 0, alignItems: "center", justifyContent: "center" },
-  selection: { position: "absolute", left: 16, right: 16, bottom: 152, zIndex: 6 },
+  selection: { position: "absolute", left: 16, right: 16, zIndex: 6 },
   selectionContent: { minHeight: 44, justifyContent: "center" },
 });

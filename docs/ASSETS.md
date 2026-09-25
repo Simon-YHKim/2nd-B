@@ -98,6 +98,14 @@ Rebuild: `python scripts/build-dither-tiles.py`.
 
 ## Bundled audio (assets/audio/)
 
+- `camera-aim.mp3`, `camera-focus.mp3`, `camera-shutter.mp3`: original procedural
+  camera servo, focus adjustment, and shutter cues. Created locally with
+  `scripts/build-camera-sfx.cjs` (deterministic sine/noise synthesis, then ffmpeg
+  MP3 encoding). No recordings, external samples, paid API or third-party audio
+  licenses. Mono 22.05 kHz, 64 kbps; source lengths 420/360/280 ms. Quiet playback
+  is phase-scoped and suppressed with reduced motion. The generator refuses to
+  overwrite existing assets.
+
 - `telescope-zoom.mp3`: short 0.57s camera-motion sweep, played quietly with
   different rates for approach and retreat; focus lock reuses the UI blip below.
   Unmodified `whoosh-short.mp3` from the installed `media-use` SFX bundle. Its

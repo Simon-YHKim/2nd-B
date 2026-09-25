@@ -3,7 +3,7 @@
  * Pure-layout (graph-layout.ts, deterministic) rendered as SVG on the deep-space
  * sky: node size = degree, color = page kind (concept cyan / entity violet /
  * source mint), labels only on the biggest hubs + the selection (density rule).
- * Telescope jog and focus dial move the view; tapping
+ * A velocity joystick and absolute zoom slider move the view; tapping
  * a node selects it, tapping it again opens the page (progressive disclosure).
  */
 import { useMemo, useState } from "react";
@@ -12,7 +12,7 @@ import { Platform, StyleSheet, View } from "react-native";
 import Svg, { G, Line, Rect, Text as SvgText } from "react-native-svg";
 
 import { TelescopeControls } from "./TelescopeControls";
-import { jogTelescopeCamera, telescopeZoom } from "@/lib/motion/telescope-controls";
+import { moveTelescopeCamera } from "@/lib/motion/camera-remote";
 import { zoomRecordsGraphCamera } from "@/lib/records/records-graph-layout";
 
 import { PixelNodeSvg } from "@/components/pixel/PixelStarSvg";
@@ -181,9 +181,10 @@ export function WikiGraph({
       <View style={styles.controls}>
         <TelescopeControls
           zoom={zoom}
+          minZoom={1}
           maxZoom={MAX_ZOOM}
-          onJog={(dx, dy) => setCamera((current) => jogTelescopeCamera(current, dx, dy, { width: CANVAS, height: CANVAS }))}
-          onTurn={(turns) => setCamera((current) => zoomRecordsGraphCamera(current, telescopeZoom(current.zoom, turns, MAX_ZOOM), 0.5, 0.5, { width: CANVAS, height: CANVAS }))}
+          onMove={(dx, dy) => setCamera((current) => moveTelescopeCamera(current, dx, dy, { width: CANVAS, height: CANVAS }))}
+          onZoom={(zoom) => setCamera((current) => zoomRecordsGraphCamera(current, zoom, 0.5, 0.5, { width: CANVAS, height: CANVAS }))}
           onReset={() => setCamera({ x: 0, y: 0, zoom: 1 })}
         />
         <Text variant="caption" color="textSubtle" style={styles.hint}>
@@ -224,8 +225,8 @@ const styles = StyleSheet.create({
     backgroundColor: wgAlpha(deepSpace.bgMid, 0.35),
     overflow: "hidden",
   },
-  controls: { flexDirection: "row", alignItems: "center", gap: 8 },
-  hint: { flex: 1, minWidth: 0 },
+  controls: { alignItems: "stretch", gap: 8 },
+  hint: { minWidth: 0 },
   legend: { flexDirection: "row", gap: 14 },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
   legendDot: { width: 8, height: 8, borderRadius: 0 },

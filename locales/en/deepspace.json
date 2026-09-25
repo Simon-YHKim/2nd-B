@@ -1,4 +1,12 @@
 {
+  "camera": {
+    "aim": "Aiming at the star",
+    "zoom": "Zooming in",
+    "focus": "Adjusting focus",
+    "ready": "Focus locked · Ready to travel",
+    "return": "Returning to the constellation",
+    "shutter": "Taking a photo"
+  },
   "telescope": {
     "label": "Telescope controls",
     "up": "Aim telescope up",
@@ -7,7 +15,13 @@
     "right": "Aim telescope right",
     "reset": "Return to the full sky",
     "dial": "Magnification dial",
-    "hint": "Turn the dial, or use the plus and minus buttons.",
+    "hint": "W widens the view, T brings it closer. Release to keep the zoom setting.",
+    "slider": "Zoom magnification slider",
+    "joystick": "Pan and tilt joystick",
+    "joystickHint": "Push toward the direction to travel. Push farther to move faster; release to stop. On a keyboard, hold the arrow keys.",
+    "panTilt": "Pan / Tilt",
+    "stopped": "Stopped",
+    "speed": "Speed {{value}}%",
     "phone": "Open my dashboard",
     "phoneLabel": "My phone"
   },

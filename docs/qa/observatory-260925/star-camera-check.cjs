@@ -46,15 +46,20 @@ const qa = Object.fromEntries(readFileSync('.env.test', 'utf8').split(/\r?\n/).f
     if (page.url().includes('/ttfv')) await page.goto('http://localhost:8081/');
     await page.getByRole('button', { name: '지금', exact: true }).waitFor();
     const coach = page.getByRole('button', { name: '다시 보지 않기', exact: true });
-    if (await coach.count()) await coach.click();
+    try { await coach.waitFor({ timeout: 10000 }); await coach.click(); } catch { /* already dismissed */ }
     const dismiss = page.getByRole('button', { name: '공지 닫기', exact: true });
-    try { await dismiss.waitFor({ timeout: 2500 }); await dismiss.click({ position: { x: 4, y: 4 } }); } catch { /* no notice */ }
+    try { await dismiss.waitFor({ timeout: 10000 }); await dismiss.click({ position: { x: 4, y: 4 } }); } catch { /* no notice */ }
     for (const width of [425, 320, 768]) {
       await page.setViewportSize({ width, height: 812 });
       if (width === 320) {
         await page.getByRole('button', { name: '확대', exact: true }).click();
+        await page.waitForTimeout(200);
         await page.getByRole('button', { name: '확대', exact: true }).click();
-        await page.getByRole('button', { name: '망원경 오른쪽으로', exact: true }).click();
+        await page.waitForTimeout(250);
+        await page.getByTestId('telescope-joystick').focus();
+        await page.keyboard.down('ArrowRight');
+        await page.waitForTimeout(140);
+        await page.keyboard.up('ArrowRight');
       }
       const id = width === 768 ? 'profile' : 'now';
       const name = width === 768 ? '프로필' : '지금';
@@ -77,7 +82,7 @@ const qa = Object.fromEntries(readFileSync('.env.test', 'utf8').split(/\r?\n/).f
             dx: (halo.x + halo.width / 2) - (core.x + core.width / 2),
             dy: (halo.y + halo.height / 2) - (core.y + core.height / 2),
           });
-          if (performance.now() - started < 1450) requestAnimationFrame(sample);
+          if (performance.now() - started < 1900) requestAnimationFrame(sample);
         };
         sample();
       }, id);
@@ -85,7 +90,7 @@ const qa = Object.fromEntries(readFileSync('.env.test', 'utf8').split(/\r?\n/).f
       await page.waitForTimeout(220);
       const movingSky = await page.getByTestId('star-camera-sky').evaluate(el => getComputedStyle(el).transform);
       if (width === 425) await page.screenshot({ path: path.join(__dirname, 'star-continuity-moving.png') });
-      await page.waitForTimeout(1100);
+      await page.getByTestId('star-camera-phase-ready').waitFor();
       const settledSky = await page.getByTestId('star-camera-sky').evaluate(el => getComputedStyle(el).transform);
       assert.notEqual(movingSky, settledSky, 'background aim/roll progresses');
       const frame = await page.getByTestId('star-destination').boundingBox();

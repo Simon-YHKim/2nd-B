@@ -21,9 +21,10 @@ import Svg, { Defs, G, Pattern, Rect } from "react-native-svg";
 
 import { TelescopeControls } from "./TelescopeControls";
 import { StarDestination } from "./StarDestination";
+import { StarCapture } from "./StarCapture";
 import { STAR_CAMERA_STOPS, starCameraAim, starCameraFlight } from "@/lib/motion/star-camera";
 import { PixelPressable } from "../pixel/PixelPressable";
-import { jogTelescopeCamera, telescopeZoom } from "@/lib/motion/telescope-controls";
+import { moveTelescopeCamera } from "@/lib/motion/camera-remote";
 
 import { PixelStarSvg } from "../pixel/PixelStarSvg";
 import { pixelStarSpan } from "../pixel/pixel-star";
@@ -642,9 +643,10 @@ export function ConstellationHome({
   // Reserve the dialogue stage first, then center the constellation in the
   // remaining space. Height also constrains the scale on short screens so the
   // stars never collide with the dialogue panel.
+  const [instrumentHeight, setInstrumentHeight] = useState(110);
   const dialogueStageHeight = DIALOGUE_STAGE_HEIGHT * Math.min(Math.max(fontScale, 1), 1.35);
   const constellationHeightBudget = stage
-    ? Math.max(120, stage.h - dialogueStageHeight - 52 - 144)
+    ? Math.max(120, stage.h - dialogueStageHeight - 52 - instrumentHeight)
     : Number.POSITIVE_INFINITY;
   const boxW = Math.min(
     380,
@@ -687,8 +689,22 @@ export function ConstellationHome({
   const [camera, setCamera] = useState({ x: 0, y: 0, zoom: 1 });
   const [skySize, setSkySize] = useState({ width: winW, height: boxH });
   const [visualFocusId, setVisualFocusId] = useState<HomeStarId | null>(null);
-  const [instrumentHeight, setInstrumentHeight] = useState(140);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [captureId, setCaptureId] = useState<HomeStarId | null>(null);
+  const captureLock = useRef(false);
+  const homeActive = useRef(homeFocused);
+  homeActive.current = homeFocused;
   const destinationProgress = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (homeFocused) return;
+    captureLock.current = false;
+    setCaptureId(null);
+    setCameraReady(false);
+    setVisualFocusId(null);
+    destinationProgress.stopAnimation();
+    destinationProgress.setValue(0);
+    setBubble(current => current.kind === 'star' ? { kind: 'intro' } : current);
+  }, [destinationProgress, homeFocused]);
   const selectedStar = REV2_STARS.find((s) => s.id === visualFocusId);
   const starRadius = pixelStarSpan(DOMAIN_CORE_R * k * DOMAIN_HALO_MULT_REST);
   const flight = starCameraFlight(
@@ -1030,6 +1046,7 @@ export function ConstellationHome({
                 <Pressable
                   disabled={!!visualFocusId}
                   onPress={() => {
+                    setCameraReady(false);
                     setVisualFocusId(s.id);
                     setBubble({ kind: "star", id: s.id });
                     // The domain card opens at the BOTTOM of the screen with no
@@ -1060,6 +1077,7 @@ export function ConstellationHome({
             size={skySize}
             onReturn={() => setBubble({ kind: "intro" })}
             onReturned={() => setVisualFocusId(null)}
+            onReady={() => setCameraReady(true)}
           />
         ) : null}
         </View>
@@ -1067,9 +1085,10 @@ export function ConstellationHome({
           <View style={styles.instrumentRow} onLayout={({ nativeEvent: { layout } }) => setInstrumentHeight(layout.height)}>
             <TelescopeControls
               zoom={camera.zoom}
+              minZoom={1}
               maxZoom={3}
-              onJog={(dx, dy) => setCamera((current) => jogTelescopeCamera(current, dx, dy, { width: boxW, height: boxH }))}
-              onTurn={(turns) => setCamera((current) => ({ ...current, zoom: telescopeZoom(current.zoom, turns, 3) }))}
+              onMove={(dx, dy) => setCamera((current) => moveTelescopeCamera(current, dx, dy, { width: skySize.width, height: skySize.height - instrumentHeight }))}
+              onZoom={(zoom) => setCamera((current) => ({ ...current, zoom }))}
               onReset={() => setCamera({ x: 0, y: 0, zoom: 1 })}
             />
             <PixelPressable
@@ -1223,17 +1242,18 @@ export function ConstellationHome({
                 <MdButton
                   label={t("ds.home.bubble.travel")}
                   variant="filled"
-                  disabled={selectedEntry?.kind !== "available"}
+                  disabled={selectedEntry?.kind !== "available" || !cameraReady || captureId !== null}
                   style={styles.dialogueAction}
                   hitSlop={DIALOGUE_ACTION_HIT_SLOP}
                   onPress={() => {
-                    const id = bubble.id;
-                    setBubble({ kind: "intro" });
-                    onStarTravel(id);
+                    if (!cameraReady || selectedEntry?.kind !== 'available' || captureLock.current) return;
+                    captureLock.current = true;
+                    setCaptureId(bubble.id);
                   }}
                 />
                 <MdButton
                   label={t("ds.home.bubble.later")}
+                  disabled={captureId !== null}
                   variant="text"
                   style={styles.dialogueAction}
                   hitSlop={DIALOGUE_ACTION_HIT_SLOP}
@@ -1274,6 +1294,22 @@ export function ConstellationHome({
         onClose={() => setLimitSheetVisible(false)}
         onChanged={() => void refreshReasoningStatus()}
       />
+      {homeFocused && captureId ? (
+        <StarCapture
+          onCancel={() => { captureLock.current = false; setCaptureId(null); }}
+          onComplete={() => {
+            if (!captureLock.current || !homeActive.current) return;
+            captureLock.current = false;
+            const id = captureId;
+            setCaptureId(null);
+            setVisualFocusId(null);
+            setCameraReady(false);
+            destinationProgress.setValue(0);
+            setBubble({ kind: 'intro' });
+            onStarTravel(id);
+          }}
+        />
+      ) : null}
     </View>
   );
 }
@@ -1387,7 +1423,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   skyViewport: { flex: 1, width: "100%", minHeight: 0, alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  instrumentRow: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", paddingHorizontal: 12, paddingVertical: 4, minHeight: 140 },
+  instrumentRow: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, paddingHorizontal: 12, paddingVertical: 4 },
   phoneButton: { width: 48, minHeight: 72, paddingHorizontal: 4, paddingVertical: 4, alignItems: "center", gap: 4 },
   phoneScreen: { width: 28, height: 40, borderWidth: 2, borderColor: m3.color.outline, backgroundColor: m3.color.surface, padding: 3, gap: 5 },
   phoneSpeaker: { alignSelf: "center", width: 10, height: 2, backgroundColor: m3.color.onSurfaceVariant },

@@ -1,45 +1,46 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, BackHandler, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { PixelPressable } from '@/components/pixel/PixelPressable';
 import { useReducedMotionPref } from '@/lib/motion/use-reduced-motion';
 import { pixelStepsFor } from '@/lib/motion/pixel-physical';
-import { starDestinationFrame } from '@/lib/motion/star-camera';
-import { useUiSound } from '@/lib/audio/use-ui-sound';
+import { STAR_CAMERA_STOPS, starDestinationFrame } from '@/lib/motion/star-camera';
+import { CAMERA_APPROACH, CAMERA_RETURN, runCameraSequence, type CameraPhase } from '@/lib/motion/camera-sequence';
+import { CameraCue } from './CameraCue';
 import { m3 } from '@/lib/theme/m3';
 
-const CAMERA_SWEEP = require('../../../assets/audio/telescope-zoom.mp3');
-const FOCUS_CLICK = require('../../../assets/audio/jrpg-text-blip.mp3');
-
 /** Keyed per direction: reversing releases the old sound and pending native seek. */
-function CameraTransition({ active, progress, reducedMotion, onReturned }: {
+function CameraTransition({ active, progress, reducedMotion, onReturned, onReady, onPhase }: {
   active: boolean; progress: Animated.Value; reducedMotion: boolean; onReturned: () => void;
+  onReady: () => void; onPhase: (phase: CameraPhase) => void;
 }) {
-  const sweep = useUiSound(CAMERA_SWEEP, { volume: 0.12, playbackRate: active ? 0.95 : 1.3, minIntervalMs: 0 });
-  const lock = useUiSound(FOCUS_CLICK, { volume: 0.16, playbackRate: 1.25, minIntervalMs: 0 });
-  const callbacks = useRef({ sweep, lock, onReturned });
-  callbacks.current = { sweep, lock, onReturned };
+  const [phase, setPhase] = useState<CameraPhase>(active ? 'aim' : 'return');
+  const callbacks = useRef({ onReturned, onReady, onPhase });
+  callbacks.current = { onReturned, onReady, onPhase };
   useEffect(() => {
-    let live = true;
-    const duration = reducedMotion ? 0 : active ? 960 : 640;
-    const animation = Animated.timing(progress, {
-      toValue: active ? 1 : 0,
-      duration,
-      easing: pixelStepsFor(duration),
-      useNativeDriver: Platform.OS !== 'web',
+    const updatePhase = (next: CameraPhase) => { setPhase(next); callbacks.current.onPhase(next); };
+    const done = () => {
+      if (active) { updatePhase('ready'); callbacks.current.onReady(); }
+      else callbacks.current.onReturned();
+    };
+    if (reducedMotion) { progress.setValue(active ? 1 : 0); done(); return; }
+    return runCameraSequence(active ? CAMERA_APPROACH : CAMERA_RETURN, {
+      animate: ({ to, duration }, complete) => {
+        const animation = Animated.timing(progress, {
+          toValue: to, duration, easing: pixelStepsFor(duration), useNativeDriver: Platform.OS !== 'web',
+        });
+        animation.start(({ finished }) => complete(finished));
+        return animation;
+      },
+      onStep: updatePhase,
+      onDone: done,
     });
-    if (!reducedMotion) callbacks.current.sweep();
-    animation.start(({ finished }) => {
-      if (!live || !finished) return;
-      if (!active) callbacks.current.onReturned();
-      else if (!reducedMotion) callbacks.current.lock();
-    });
-    return () => { live = false; animation.stop(); };
   }, [active, progress, reducedMotion]);
-  return null;
+  return reducedMotion ? null : <CameraCue key={phase} phase={phase} />;
 }
 
 /** Camera HUD only. The original world owns the star and all of its light. */
-export function StarDestination({ active, progress, name, returnLabel, origin, originRadius, size, onReturn, onReturned }: {
+export function StarDestination({ active, progress, name, returnLabel, origin, originRadius, size, onReturn, onReturned, onReady }: {
   active: boolean;
   progress: Animated.Value;
   name: string;
@@ -49,8 +50,11 @@ export function StarDestination({ active, progress, name, returnLabel, origin, o
   size: { width: number; height: number };
   onReturn: () => void;
   onReturned: () => void;
+  onReady: () => void;
 }) {
+  const { t } = useTranslation('deepspace');
   const reducedMotion = useReducedMotionPref();
+  const [phase, setPhase] = useState<CameraPhase>('aim');
   const callbacks = useRef({ onReturn, onReturned });
   callbacks.current = { onReturn, onReturned };
   useEffect(() => {
@@ -62,7 +66,7 @@ export function StarDestination({ active, progress, name, returnLabel, origin, o
   const initialScale = originRadius / radius;
   return (
     <View style={StyleSheet.absoluteFill} testID="star-destination">
-      <CameraTransition key={`${active}:${reducedMotion}`} active={active} progress={progress} reducedMotion={reducedMotion} onReturned={onReturned} />
+      <CameraTransition key={`${active}:${reducedMotion}`} active={active} progress={progress} reducedMotion={reducedMotion} onReturned={onReturned} onReady={onReady} onPhase={setPhase} />
       <Pressable
         style={StyleSheet.absoluteFill}
         accessibilityRole="button"
@@ -84,7 +88,7 @@ export function StarDestination({ active, progress, name, returnLabel, origin, o
           transform: [
             { translateX: progress.interpolate({ inputRange: [0, 0.4, 1], outputRange: [origin.x - centre.x, 0, 0] }) },
             { translateY: progress.interpolate({ inputRange: [0, 0.4, 1], outputRange: [origin.y - centre.y, 0, 0] }) },
-            { scale: progress.interpolate({ inputRange: [0, 0.4, 0.8, 1], outputRange: [initialScale, initialScale, 1, 1] }) },
+            { scale: progress.interpolate({ inputRange: STAR_CAMERA_STOPS, outputRange: [initialScale, initialScale, 1, 1.025, 1] }) },
           ],
         }}
       />
@@ -92,19 +96,22 @@ export function StarDestination({ active, progress, name, returnLabel, origin, o
       <Animated.View testID="star-camera-reticle" pointerEvents="none" style={{
         position: 'absolute', left: centre.x - radius - 12, top: centre.y - radius - 12,
         width: diameter + 24, height: diameter + 24,
-        transform: [{ scale: progress.interpolate({ inputRange: [0, 0.8, 1], outputRange: [1.2, 1.2, 1] }) }],
+        transform: [{ scale: progress.interpolate({ inputRange: [0, 0.4, 0.8, 0.88, 0.94, 1], outputRange: [1.3, 1.2, 1.2, 0.96, 1.04, 1] }) }],
       }}>
-        <View style={[styles.bracket, styles.topLeft]} />
-        <View style={[styles.bracket, styles.topRight]} />
-        <View style={[styles.bracket, styles.bottomLeft]} />
-        <View style={[styles.bracket, styles.bottomRight]} />
+        <View style={[styles.bracket, styles.topLeft, phase === 'ready' && styles.locked]} />
+        <View style={[styles.bracket, styles.topRight, phase === 'ready' && styles.locked]} />
+        <View style={[styles.bracket, styles.bottomLeft, phase === 'ready' && styles.locked]} />
+        <View style={[styles.bracket, styles.bottomRight, phase === 'ready' && styles.locked]} />
       </Animated.View>
+      <Text testID={`star-camera-phase-${phase}`} pointerEvents="none" accessibilityLiveRegion="polite" style={[styles.phase, { top: centre.y + radius + 32 }]}>{t(`camera.${phase}`)}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   bracket: { position: 'absolute', width: 12, height: 12, borderColor: m3.accent.star },
+  locked: { borderColor: m3.color.onSurface, borderWidth: 3 },
+  phase: { position: 'absolute', left: 12, right: 12, textAlign: 'center', fontFamily: m3.font.brand, fontSize: 12, lineHeight: 18, color: m3.color.onSurface },
   topLeft: { left: 0, top: 0, borderLeftWidth: 2, borderTopWidth: 2 },
   topRight: { right: 0, top: 0, borderRightWidth: 2, borderTopWidth: 2 },
   bottomLeft: { left: 0, bottom: 0, borderLeftWidth: 2, borderBottomWidth: 2 },
