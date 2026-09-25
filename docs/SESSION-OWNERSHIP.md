@@ -52,7 +52,10 @@
    `paddle-webhook`에 동일한 current 값으로 설정하고 previous 관련 두 변수는 비워 둔다.
 4. `subscription-manage`을 먼저 배포하고 인증된 사용자에게만 짧은 checkout binding이 발급되는지
    확인한다.
-5. 새 Paddle client token으로 binding-aware 클라이언트를 배포한다.
+5. 새 Paddle client token을 넣은 binding-aware 클라이언트를 격리된 preview에서만 검증한다.
+   **공개 게시는 아직 하지 않는다.** 가입 선행 migration(0148/0149/0150 및 email-v4 후속)을
+   적용하고 `signup_consent_contract_status()`가 게시할 클라이언트의 정확한 계약과 실제
+   확인 동작을 반환해야 한다. 현재 이 공개 RPC는 404이므로 게시 가드는 닫혀 있다.
 6. 기존 client token을 폐기하고 더는 구 클라이언트가 checkout을 열 수 없는지 확인한다.
 7. 이미 열린 legacy checkout을 조정하거나 종료하고, 서명 없는 결제의 소유권을 운영자가
    reconciliation할 수 있게 목록을 고정한다.
@@ -66,6 +69,9 @@
     로그 확인을 같은 창에서 수행하며, 하나라도 실패하면 즉시 `PADDLE_WEBHOOK_ENABLED`를 다시 끈다.
 12. 모든 운영 canary가 통과한 경우에만 `PADDLE_WEBHOOK_ENABLED=1`을 유지한다. 실패 시에는
     비활성 상태를 유지하고 아래 roll-forward 절차를 따른다.
+13. 가입 계약과 나머지 서버 좌석·컬럼·Edge의 적용 및 canary가 모두 확인된 뒤에만
+    binding-aware 공개 클라이언트를 게시한다. 6단계에서 기존 token을 폐기했으므로,
+    이전 설치 앱의 checkout은 이 전환 창 동안 열리지 않는다.
 
 운영 이후 checkout-binding 키 교체는 한 개 signer와 두 개 verifier의 순서를 따른다.
 먼저 `paddle-webhook`의 current를 new, previous를 old로 먼저 설정하고

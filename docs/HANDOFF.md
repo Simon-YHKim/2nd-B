@@ -28,9 +28,9 @@
 **⚠ `HANDOFF-2026-09.md`(p1)는 92KB 로 찼다 — 09 월 블록은 `-p2` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-26 / Edge import 수정
+## Latest — 2026-09-26 / 서버 인계·웹 QA
 
-[실제 Deno 14개 통과](qa/EDGE-RUNTIME-260926.md). 구 서버 manifest는 재고정 필요.
+[실제 Deno 14개 통과](qa/EDGE-RUNTIME-260926.md). [최신 서버 인계](qa/SERVER-FIRST-1865-260926-REV2.md). [웹 QA](qa/WEB-RESUME-260926.html)에서 로그인 hydration 수정 확인. Grok 보류.
 
 ## 2026-09-26 / 관측소 녹음 오디오
 

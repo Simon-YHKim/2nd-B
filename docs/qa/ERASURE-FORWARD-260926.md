@@ -53,9 +53,11 @@
    ledger 이름을 추가한다. Polaris provisioning은 넣지 않는다. Polaris의 등록부 읽기
    preflight는 `erasure-registry-migration.test.ts`의
    `LOOKED_AT_AND_ITS_LEDGER_ROW_MAY_STAY`에 실제 파일명과 이유로 검토 기록한다.
-6. 승격 후 전체 verify와 실제 catalog·Supabase CLI rollback 왕복을 실행한다.
-   registry 70행, 제품 데이터 불변, `erase_my_data(text)`의 공개 실행 차단, ledger 재생을
-   확인한다. 아래 정적 projection과 좁은 SQL fixture는 이 최종 검증을 대신하지 않는다.
+6. **폐기 가능한 격리 clone/CI scratch에서만** 전체 migration 적용과 Supabase CLI
+   rollback·ledger 왕복을 실행한다. 여기서 registry 70행, 제품 데이터 불변,
+   `erase_my_data(text)`의 공개 실행 차단, ledger 재생을 확인한다. 운영에서는 적용 후
+   **읽기 전용** catalog·ACL·registry 확인과 전체 verify만 수행한다. 운영 DB에 rollback
+   SQL을 실행하지 않는다. 아래 정적 projection과 좁은 SQL fixture는 clone 검증을 대신하지 않는다.
 7. SQL과 Edge를 고정 source SHA에서 배포하고 version·시각·canary 결과를 기록한다.
    완료 증거 전에는 공개 클라이언트나 서버 기능 플래그를 활성화하지 않는다.
 
