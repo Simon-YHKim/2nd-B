@@ -25,7 +25,7 @@ const sqlCode = stripComments(SQL);
 describe("rss-proxy authenticated request boundary", () => {
   test("keeps the gateway gate and verifies the bearer with Supabase Auth", () => {
     expect(CONFIG).toMatch(/\[functions\.rss-proxy\][\s\S]*?verify_jwt\s*=\s*true/);
-    expect(edgeCode).toMatch(/jsr:@supabase\/supabase-js@2\.106\.1/);
+    expect(edgeCode).toMatch(/npm:@supabase\/supabase-js@2\.106\.1/);
     expect(edgeCode).toMatch(/createClient\(supabaseUrl,\s*serviceRoleKey/);
     expect(edgeCode).toMatch(/admin\.auth\.getUser\(accessToken\)/);
     expect(edgeCode).toMatch(/authError\s*\|\|\s*!authUser/);

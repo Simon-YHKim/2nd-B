@@ -43,6 +43,11 @@ const APPROVED_ACTIONS = {
     tag: "v1",
     count: 1,
   },
+  "denoland/setup-deno": {
+    sha: "22d081ff2d3a40755e97629de92e3bcbfa7cf2ed",
+    tag: "v2",
+    count: 1,
+  },
 } as const;
 
 const PGVECTOR_PG16_IMAGE =

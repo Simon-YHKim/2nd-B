@@ -2,7 +2,7 @@
 // caller; request data can neither select a user nor weaken deletion checks.
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
-import { createClient } from 'jsr:@supabase/supabase-js@2.106.1';
+import { createClient } from 'npm:@supabase/supabase-js@2.106.1';
 import { deleteAuthUserWithReconciliation } from './delete-auth-user.ts';
 import { eraseRawClippings } from './storage-erasure.ts';
 

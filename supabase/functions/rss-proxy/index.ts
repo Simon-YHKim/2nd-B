@@ -3,7 +3,7 @@
 // decoded upstream stream is capped before it becomes a string.
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
-import { createClient } from 'jsr:@supabase/supabase-js@2.106.1';
+import { createClient } from 'npm:@supabase/supabase-js@2.106.1';
 import {
   JsonBodyError,
   RSS_PROXY_JSON_BODY_LIMIT_BYTES,

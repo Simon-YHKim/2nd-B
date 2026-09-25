@@ -13,6 +13,7 @@
     "web": "expo start --web",
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
+    "check:edge-runtime": "node scripts/check-edge-runtime.mjs",
     "test": "jest",
     "check:i18n": "tsx scripts/check-i18n-keys.ts",
     "check:lexicon": "tsx scripts/check-forbidden-lexicon.ts",

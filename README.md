@@ -93,12 +93,17 @@ are superseded and must not be used.)
 ```bash
 npm run lint               # ESLint (C1: blocks foreign LLM SDKs)
 npm run type-check         # tsc --noEmit
+npm run check:edge-runtime # real Edge imports/types; requires Deno 2.9.7
 npm run check:i18n         # C7 EN/KO key parity
 npm run check:lexicon      # forbidden vocabulary scan
 npm run check:llm-boundary # @google/genai stays in gemini.ts
 npm run check:constraints  # hard-constraint aggregate
 npm test                   # jest (C9 ordering, C3 audit insertion)
 ```
+
+CI also runs `check:edge-runtime` with pinned Deno 2.9.7. It downloads public
+dependencies but never executes handlers. Set `DENO_BINARY` to use an isolated
+binary. This check does not prove hosted Supabase runtime or deployment parity.
 
 ## Bundled assets and licenses
 

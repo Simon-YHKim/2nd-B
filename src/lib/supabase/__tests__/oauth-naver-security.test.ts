@@ -791,7 +791,7 @@ describe("oauth-naver durable server boundary", () => {
   });
 
   test("source has hard egress/body limits and no scan, raw PII response, detail, or logs", () => {
-    expect(edgeSource).toContain("jsr:@supabase/supabase-js@2.106.1");
+    expect(edgeSource).toContain("npm:@supabase/supabase-js@2.106.1");
     expect(edgeSource).toContain("UPSTREAM_TIMEOUT_MS = 5_000");
     expect(edgeSource).toContain("redirect: 'error'");
     expect(edgeSource).toContain("readJsonObject(req, OAUTH_JSON_BODY_LIMIT_BYTES)");
