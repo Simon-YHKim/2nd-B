@@ -4,6 +4,7 @@
 
 jest.mock("react-native", () => ({ Platform: { OS: "android" } }));
 
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 // The real UMP flow lives in the .native variant since the P0-1 platform
@@ -53,17 +54,65 @@ describe("UMP consent seam (fail-closed)", () => {
     expect(src).toContain('require("expo-tracking-transparency")');
   });
 
-  test("app.json carries the AdMob plugin with both app ids (decision (a): public literals)", () => {
-    const appJson = JSON.parse(readFileSync(path.resolve(__dirname, "../../../../app.json"), "utf8")) as {
+  test("legal hold excludes the native AdMob SDK on Android and iOS", () => {
+    const root = path.resolve(__dirname, "../../../..");
+    const appJson = JSON.parse(readFileSync(path.join(root, "app.json"), "utf8")) as {
       expo: { plugins: Array<string | [string, Record<string, unknown>]> };
     };
-    const entry = appJson.expo.plugins.find(
-      (p): p is [string, Record<string, unknown>] => Array.isArray(p) && p[0] === "react-native-google-mobile-ads",
+    expect(appJson.expo.plugins.some(
+      (p) => p === "react-native-google-mobile-ads" ||
+        (Array.isArray(p) && p[0] === "react-native-google-mobile-ads"),
+    )).toBe(false);
+
+    const nativeConfig = require("../../../../react-native.config.js") as {
+      dependencies: Record<string, { platforms?: { android?: null; ios?: null } }>;
+    };
+    expect(nativeConfig.dependencies["react-native-google-mobile-ads"]?.platforms).toEqual({
+      android: null,
+      ios: null,
+    });
+
+    const packageJson = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")) as {
+      expo?: { autolinking?: { exclude?: string[] } };
+    };
+    expect(packageJson.expo?.autolinking?.exclude).toContain("react-native-google-mobile-ads");
+
+    // Check the build tool's resolved output: a null RN CLI override alone
+    // does not exclude this library from Expo 56 autolinking.
+    const autolinkingCli = path.join(
+      root, "node_modules", "expo-modules-autolinking", "bin", "expo-modules-autolinking.js",
     );
-    expect(entry).toBeDefined();
-    const cfg = entry?.[1] ?? {};
-    expect(String(cfg.androidAppId)).toMatch(/^ca-app-pub-\d{16}~\d{10}$/);
-    expect(String(cfg.iosAppId)).toMatch(/^ca-app-pub-\d{16}~\d{10}$/);
-    expect(cfg.delayAppMeasurementInit).toBe(true);
+    for (const platform of ["android", "ios"]) {
+      const output = execFileSync(
+        process.execPath,
+        [autolinkingCli, "react-native-config", "--platform", platform, "--json"],
+        { cwd: root, encoding: "utf8" },
+      );
+      const resolved = JSON.parse(output) as { dependencies: Record<string, unknown> };
+      expect(resolved.dependencies).not.toHaveProperty("react-native-google-mobile-ads");
+    }
+  });
+
+  test("missing native module fails closed even if the legal gate later opens", async () => {
+    jest.doMock("../legal-readiness", () => ({ adNetworkPublicationReady: () => true }));
+    jest.doMock("react-native-google-mobile-ads", () => {
+      throw new Error("native module excluded from this build");
+    });
+    try {
+      await jest.isolateModulesAsync(async () => {
+        const consent = await import("../consent.native");
+        const rewarded = await import("../rewarded.native");
+        await expect(consent.ensureUmpConsent()).resolves.toEqual({ canRequestAds: false });
+        await expect(consent.ensureAdsInitialized()).resolves.toBe(false);
+        expect(rewarded.isRewardedAdSdkAvailable()).toBe(false);
+        expect(rewarded.canCompleteRewardedWatch()).toBe(false);
+        await expect(rewarded.showRewardedAd({
+          ssvCustomData: "00000000-0000-4000-8000-000000000001",
+        })).resolves.toEqual({ completed: false });
+      });
+    } finally {
+      jest.dontMock("react-native-google-mobile-ads");
+      jest.dontMock("../legal-readiness");
+    }
   });
 });
