@@ -28,7 +28,46 @@
 **⚠ `HANDOFF-2026-09.md`(p1)는 92KB 로 찼다 — 09 월 블록은 `-p2` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-25 / 0.9.0 후속 PR 세 건 병합 · 빌드 검증 · Orca 인수 종료
+## Latest — 2026-09-26 13:51 / 운영 보상 서버가 main 보다 앞서 나갔다 · 0172 가 빠졌고 켜는 값이 틀려서 지금은 꺼져 있다
+
+### 어디까지 왔나
+
+- 이 블록 작성 전 `origin/main` 은 `ed2e54c8`. PR [#1865](https://github.com/Simon-YHKim/2nd-B/pull/1865)(draft, `fix/qa-harness-integrated-260925`) head 는 `2a28b5fb`.
+- **2026-09-26 12:24~12:29 KST, Grok 봇 팀이 Simon GO 로 운영을 바꿨다** (근거는 저장소 밖 버스 `E:/2ndB/.bots/*/outbox/vb-simon-go-*.result.md`):
+  - DB: `0177_reward_ssv_tickets` 와 `db/migration-drafts/UNNUMBERED_reward_ssv_hardening.sql` 를 `apply_migration` 으로 적용했다. 원장 이름은 **번호 없는** `reward_ssv_tickets`(`20260926031508`) · `reward_ssv_hardening`(`20260926031610`)이다.
+  - Edge `rewarded-ssv` v86 → v88(중간 v87 에 PLACEHOLDER 가 잠깐 올라갔다가 교체됐다).
+  - AdMob Android 보상 단위의 SSV 콜백 URL 을 저장했다(Verify 200 을 받은 뒤).
+  - Edge secret `REWARD_SSV_ENABLED` 를 설정했다.
+- 코딩 LLM 이 이를 저장소·운영과 대조했다. 운영 쓰기는 없고 읽기 전용 조회만 했다. 다른 워크트리는 건드리지 않았다.
+  1. **SQL 바이트는 main 과 같다**(CR 제거 sha256 앞 12자: 0177 `d6262793126d`, hardening `4a637061a237`). **Edge v88 소스는 main 판이 아니라 #1865 head 판이다**(`index.ts` `39141c23fd3e`, `reward-contract.ts` `8c075243ed14`. main 판은 `568b472d3456` / `e347e7eb2be5`).
+  2. **보상 서버는 지금 꺼져 있다.** v88 은 `REWARD_SSV_ENABLED` 가 정확히 `'1'` 일 때만 켜진다(#1865 `supabase/functions/rewarded-ssv/index.ts:228`). 설정된 값의 다이제스트는 `true` 라벨과 일치한다(Keys 봇 13:47 대조, 값 원문은 안 봤다). 프로브 응답도 503 `disabled` 다. 클라 변수는 `EXPO_PUBLIC_REWARD_SSV=true`, 서버 변수는 `REWARD_SSV_ENABLED=1` 로 **글자가 다르다.** 이 함정이 그대로 밟혔다.
+  3. **0172 가 운영에 없다.** hardening 은 "0172·0177 이 적용됐어야 한다" 는 전제 검사를 갖고 있다. 그런데 그 검사가 보는 것은 0172 의 ACL 절반뿐이다. 운영에는 **원장 밖에서** `grant_chat_ad_bonus(uuid)` · `bump_reward_credits_if_under_cap` 의 `authenticated` EXECUTE 만 회수된 상태가 있었다(09-25 01:32 에 이미 그 상태였다는 봇 기록이 있다. 누가 언제 했는지는 모른다). 그래서 검사가 통과했다. 저장소 순서대로 재생하면 hardening 은 이 전제 검사에서 **실패한다.**
+  4. **로컬 재생이 운영과 일치한다.** PostgreSQL 18 스크래치에 main 0001~0146, 운영 원장 순서의 0147·0165·0188·0148·0149·0150, 원장 밖 회수, 0177, hardening 을 올렸다. 보상 함수 13개의 ACL 과 주석을 뺀 본문 md5 가 운영과 **13/13 같다.** 그 위에서 확인한 것은 셋이다.
+     - 티켓 발급 뒤 광고 동의를 끄고 콜백이 오면 **그래도 지급된다**(추론 +2, 채팅 +2). 0177 주석의 "나중 동의·등급 변경도 fail-closed" 는 0172 가 있어야 성립한다.
+     - 0172 를 지금 얹으면 오류 없이 들어간다. 결과는 설계 순서(0172→0177→hardening)와 **13/13 같은 지문**이 되고, 동의 철회 뒤 콜백은 지급하지 않는다.
+     - 0172 가 service_role 에서 회수하는 옛 지급 함수 2개를 부르는 Edge 는 main·#1865 어디에도 없다.
+     - 하네스·출력: `E:/Coding Infra/reports/vibe-r260926/r0172-prod-order/` (`out/behave-results.txt` · `out/fp-*.txt`).
+- Grok 인계서의 Ask 1~3 에 대한 판정:
+  - Ask 1(AdMob 개인정보처리방침 세 사본)·Ask 3(`_ANDROID`/`_IOS` 단위 env)은 **이미 #1865 안에 있다.** 새 PR 을 만들지 않았다. #1865 의 처리방침 시행일은 `2026-09-25` 로 박혀 있으니 게시 시점에 다시 정해야 한다.
+  - Ask 2(`a72c0265` 를 observatory 에 체리픽)는 **하지 않는다.** `a72c0265` 는 291 파일짜리 통합 커밋이다. 그리고 observatory 의 wiring 테스트 "불일치" 는 그 워크트리 자기 홈 화면(`secondb-dialogue-launcher`)에 맞춘 것이었다. 봇 보고서에는 두 워크트리 이름이 뒤바뀌어 있었다.
+
+### 다음 작업 큐
+
+| # | 작업 | 누가 | 권장 |
+|---|---|---|---|
+| A | **0172 적용**: `apply_migration(name=0172_reward_authorization_hardening, query=<main 파일 바이트>)` → 지문 조회로 기대 13줄과 대조 → 그 뒤에만 `REWARD_SSV_ENABLED=1` 제한 카나리아(서명·변조·재전송) | Simon GO · 콘솔 세션 | ⭐ 켜기 전 필수. 기대 지문과 조회문은 버스 `relay/inbox/vb-11c495b1.md` 에 있다 |
+| B | #1865 머지 전에는 `deploy-edge-function.yml` 로 `rewarded-ssv` 를 **디스패치하지 말 것.** 기본 브랜치(main) 판으로 되돌아간다 | 모두 | 머지 뒤에 해제 |
+| C | hardening 번호 예약 때 "후보 0196 = 운영 원장 `reward_ssv_hardening` @ 2026-09-26 12:16 KST" 를, 0177 은 "원장 `reward_ssv_tickets`" 를 매핑표에 적는다. **재적용 금지** | #1865 주인 | 원장 이름이 파일 stem 과 달라서, 이름으로 대조하면 '미적용' 으로 오판된다 |
+| D | 원장 밖 ACL 회수의 출처를 찾아 기록한다(마이그레이션으로 흡수할지 결정) | 콘솔 세션 | 보상 함수 13개 기준으로 재생과 운영의 차이는 이것 하나였다 |
+| E | observatory · localhost · grok-qa-complement 워크트리는 **원격에 브랜치가 없다.** observatory 에만 #1865 와 다르거나 #1865 에 없는 미커밋 파일이 97개(72+25) 있다 | 각 워크트리 주인 | 코딩 LLM 은 남의 dirty 트리를 건드리지 않았다 |
+
+### 협업 채널 (Grok 봇 ↔ 코딩 LLM)
+
+- 코딩 전용 봇이 없어서, Relay 가 `E:/2ndB/.bots/relay/inbox/` 에 "Coding LLM" 앞 포인터를 넣는다(오늘 `vb-a8f1c301`). 코딩 LLM 은 `relay/outbox/<nonce>.result.md` 로 회신한다. 인계서는 저장소 밖 `E:/2ndB/docs/drafts/coding-llm-handoff-2026-09-26.md` 에 있다.
+- 이번 세션이 사용자 지시로 직접 발행한 과제는 `vb-68cdfca0`(ENABLED 다이제스트 판정, 회신 받음)과 `vb-11c495b1`(재생 결과를 STATUS 에 반영하고 0172 를 GO 후보 1순위로)이다. guarded `execute_bot` 어댑터는 쓰지 않았다(인증서·과금 증거가 없어서).
+- 정정: `vb-a8f1c301` 회신과 `vb-68cdfca0` 에 적은 작성 시각 13:58 은 틀렸다. 실제 게시는 13:42 KST 다. `vb-11c495b1` 안에서도 정정했다.
+
+## 2026-09-25 / 0.9.0 후속 PR 세 건 병합 · 빌드 검증 · Orca 인수 종료
 
 ### 어디까지 왔나
 
