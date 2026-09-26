@@ -28,7 +28,7 @@ type LegacyFileInfo =
       size: number;
       modificationTime: number;
     }
-  | { exists: false; uri: string; isDirectory: false };
+  | { exists: false; uri?: string; isDirectory: false };
 
 interface LegacyFileSystem {
   cacheDirectory: string | null;
@@ -55,10 +55,13 @@ function isNativeRuntime(): boolean {
 function isLegacyFileInfo(value: unknown): value is LegacyFileInfo {
   if (typeof value !== "object" || value === null) return false;
   const info = value as Record<string, unknown>;
-  if (typeof info.uri !== "string" || typeof info.isDirectory !== "boolean") return false;
-  if (info.exists === false) return info.isDirectory === false;
+  if (info.exists === false) {
+    return info.isDirectory === false && (info.uri === undefined || typeof info.uri === "string");
+  }
   return (
     info.exists === true &&
+    typeof info.uri === "string" &&
+    typeof info.isDirectory === "boolean" &&
     typeof info.size === "number" &&
     Number.isSafeInteger(info.size) &&
     info.size >= 0 &&
