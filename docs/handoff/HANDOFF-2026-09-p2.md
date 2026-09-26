@@ -8,6 +8,279 @@
 
 ---
 
+## 2026-09-19 오전 / main 의 Android 빌드가 두 번째 실행부터 멈추던 결함을 고쳤다(#1833) — 머지는 오늘 밤 게이트 뒤
+
+### 결론
+
+- **#1807(09-13 보안 통합) 이후 main 의 모든 Android 빌드는 두 번째 실행부터 "Loading" 에서 영원히 멈춘다.** 첫 실행은 문제없이 열려서 부팅 확인으로는 안 보였다(09-18 공개 QA 빌드도 해당). 원인: `src/lib/storage/encrypted-native-storage.ts:905` 가 expo-crypto `AESSealedData.fromCombined` 에 base64 **문자열**을 넘긴다 — Android 는 바이트 전용(upstream `AesCryptoModule.kt:80`), iOS 는 문자열도 받는다(`AesCryptoModule.swift:78`). 복호화 실패 → fail-closed → 로컬 로그아웃도 같은 저장소라 실패 → `if (!closed) return` 으로 #1815 로더가 안 풀린다. 테스트 mock 이 "문자열이어야 한다"를 강제해 CI 는 초록이었다. iOS · 설치본 v0.8.0 · 웹은 무관.
+- **수정은 draft PR [#1833](https://github.com/Simon-YHKim/2nd-B/pull/1833)** (`5931f140` · 2파일 · verify rc=0 · CI 초록): 봉인 값을 바이트로 풀어 넘긴다. 에뮬레이터 실측: 수정 전 100% 재현(재부팅 불필요 — force-stop 뒤 재실행만으로) → 수정 뒤 재실행 · 재부팅 정상 · **깨진 기기에 덮어 설치하면 데이터 삭제 없이 복구**.
+- **공개 QA 빌드 [`qa-260919-640db5bd`](https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-260919-640db5bd)** = main `a690b742` + 머지 대기 PR 11개(#1833 포함) · 테스트 키 · versionCode 40(v0.8.0 은 51 이라 그 위에 덮어 설치 안 됨). 09-18 QA 릴리스 안내문은 새 릴리스를 가리킨다.
+- **남은 구조 구멍** — 저장소 읽기와 로컬 로그아웃이 **둘 다** 실패하면 여전히 출구가 없다(암호문 손상 · 키스토어 장애). Simon 이 결정 시트에서 고르지 않은 채 "남은 작업 모두 진행해"(09-19 11:2x)라 해서, 코디네이터가 추천안 ① A″(연속 3회 콜드 스타트 이중 실패 뒤에만 기존 복구 동의 화면)로 **draft 구현을 발주**했다(r14 · `claude/fix-auth-boot-exit-260919`). **머지는 Simon 확인 뒤.**
+
+### 머지 대기 draft PR — 전부 보안 게이트 두 레인 대기
+
+#1819 네이티브 부팅 · #1810 홈 별 이름 · #1814 자동 저장 재설계 · #1825 U5+U6 · #1826 U2+U3 · #1827 U4 · #1828 U1 · #1829 U7 · #1830 U8(#1829 위) · #1831 N1(#1828 위) · **#1833 Android 복호화** · r14 출구(Simon 확인 필요).
+머지 전 확인 3건은 끝났다(#1825 · #1827 · #1829 코멘트): `secrets list -o json` 값 = 평문 SHA-256 · 운영 `PADDLE_API_BASE` 미설정 → 기본값 · Paddle 응답 `application/json`. 웹훅 요청의 Content-Type 은 간접 근거만(샌드박스 1회 — Simon).
+⚠ **main 은 strict 보호**(필수 체크 `verify` + 최신 브랜치만 머지). BEHIND 인 PR 에 `gh pr merge --squash` 는 **머지되지 않고** 안내만 낸다 — `--auto` 를 쓰고 `state=MERGED` 를 확인한 뒤 다음으로 간다.
+
+### 막힌 것
+
+| 무엇 | 왜 | 풀리는 조건 |
+|---|---|---|
+| 보안 게이트 두 레인 · 머지 | codex 주간 99% | **09-19 19:47 KST 리셋** — 이 세션에 19:53 자기 예약(세션이 죽었으면 다음 세션이 손으로) |
+| **DB 백업** | `Backup` 환경 비밀값 2개(`BACKUP_PGDUMP_DATABASE_URL` · `BACKUP_PGDUMP_AGE_PUBLIC_KEY`) 빈 값 — 09-13 부터 매일 실패 · 마지막 성공 09-12 · 보존 14일 | **Simon — 09-26 쯤 복원본 0** |
+| r14 출구 머지 | 결정 시트 1번 미응답 | Simon 확인 |
+| JWT 서버 조치(D3) · Paddle 샌드박스 · 출시 법역 Q-S1 · Grok 계정 · gstack 업그레이드 시점 | 사람 몫 | Simon |
+
+### 다음 단일 작업 (19:47 KST 뒤)
+
+1. `orca account list --json` 으로 codex 리셋 확인 → `python ~/.claude/skills/vibe/scripts/check_tooling.py`(codex 0.155.1 이 09-19 11:2x 기준 최신).
+2. 게이트 두 레인(daybreak @xhigh 생성물 · astra @xhigh 인가)을 **#1833 부터** 돌린다. 코딩 레인이 claude 라 G1 충족.
+3. 통과분 머지(쌓인 순서 #1828→#1831 · #1829→#1830). #1819 머지 전에는 main 에 `[ota]`/`[release]` 커밋 · Android 릴리스 금지.
+4. 머지 뒤 main push 진단 APK 로 **설치 → 실행 → force-stop → 재실행**까지 본다(첫 실행만 보면 이번 결함을 못 잡는다).
+
+### 로컬 QA 환경 (09-19 11:26 KST)
+
+- 웹: <http://127.0.0.1:8765/2nd-B/> — 워크트리 `qa-integration-260918` 의 `dist/`(브랜치 `qa/integration-260919` = `640db5bd`) · 서버 `qa_static_server.js`(재부팅하면 꺼진다).
+- 에뮬레이터: Orca 의 `2ndB_Codex_API36_260727`(emulator-5554)에는 **v0.8.0** · `Pixel_9_Pro_XL` 에는 **QA 빌드 `640db5bd`**. Orca 1.4.200 은 에뮬레이터에 GPU 옵션을 안 넘겨 AVD 설정으로 우회 중(`E:/Coding Infra/tools/avd-guard/` · 시작프로그램 감시자).
+- 로컬 APK 빌드: `python "E:/Coding Infra/tools/qa_apk_build.py" --wt <워크트리> --abi x86_64|arm64-v8a --tag <이름> [--skip-prebuild]`.
+
+### 증거
+
+- 보고서: <https://claude.ai/artifact/8qYXcdSTkMYNzUaN5ZXfbh>(Android 멈춤 · 결정 2건) · `E:/Coding Infra/reports/vibe-r260919/r13-boot-hang/result.md` · QA 캡처 `E:/Coding Infra/reports/qa-260919/`.
+- 결정 원장: `DECISIONS.md` 26.09.17 ~ 26.09.19 줄(09-13 ~ 09-16 은 `DECISIONS-2026-09-*.md` 보관) · 현황 `STATE.md`.
+- 메모리: `reference_2ndb_android_relaunch_check` · `reference_2ndb_android_qc` · `feedback_2ndb_automerge`.
+
+```text
+2nd-Brain 09-19 게이트 라운드를 이어받아라.
+
+1. E:/2ndB 의 git common dir 이 E:/2ndB/.git 인지 확인하고 CLAUDE.md · docs/HANDOFF.md Latest · DECISIONS.md 26.09.19 줄 · STATE.md 를 먼저 읽어라.
+2. codex 주간 쿼터(usedPercent + resetsAt)가 풀렸는지 확인하라. 안 풀렸으면 게이트를 띄우지 마라.
+3. /vibe 로 게이트 두 레인을 #1833 부터 draft PR 들에 돌려라. critical/high 0 · CI 초록이면 --auto squash 머지 뒤 state=MERGED 를 확인하라.
+4. r14 출구 PR 은 Simon 확인 없이 머지하지 마라.
+5. 머지 뒤 main 진단 APK 로 설치 → 실행 → force-stop → 재실행을 확인하고 DECISIONS 에 적어라.
+6. DB 백업 비밀값 · JWT 서버 조치 · 운영 쓰기는 Simon/보안 담당 몫이다 — 대신 실행하지 마라.
+```
+
+---
+
+## 2026-09-14 오후 / 안드로이드 두 결함의 원인을 좁혔고 수정은 draft PR #1819 — 게이트는 codex 리셋 뒤
+
+### 결론
+
+- **main 안드로이드 설치본은 켜자마자 멈춘다**(main 진단 APK `dbe4c1ab` 4/4 · `18ef7f43` 1/1, "Cannot read property 'add' of undefined"). 원인은 `e1fec159`(09-08)가 웹 탭 제목용 vendored `Helmet` 을 플랫폼 구분 없이 그린 것(`src/app/_layout.tsx`). **사용자 영향 0**: 최신 Release v0.8.0 = 09-07, 09-08 이후 OTA 발행 0회. ⚠ **수정이 main 에 들어가기 전에는 `[ota]`/`[release]` 커밋 · main 안드로이드 릴리스 금지.**
+- **온보딩 Continue 뒤 백지(T1a 항목 1)** 는 v0.8.0 에서 재현되는 네이티브 결함이다. 기전(H1′): `PixelPressable` 누름/뗌 때 layout-only 래퍼의 평탄화가 바뀌어 자식이 재부모화되고, 그 커밋이 같은 제스처의 화면 제거(`router.replace`)와 한 마운트 배치로 병합되면 react-native-screens 제거 전환 때문에 `addViewAt … already has a parent` → RN 호스트 파괴. 실측: 탭 2/3 · 누른 채 떼기 3/3 · **키보드 ENTER 0/3** · 애니메이터 0 에서 2/3 · Ready 직후 탭 2/2.
+- **수정은 draft PR [#1819](https://github.com/Simon-YHKim/2nd-B/pull/1819)** (HEAD `f7dcf30c`, 커밋 4 · verify rc=0 752 스위트 / 9,049 테스트 · CI 초록 · **머지 안 함**): Helmet 웹 전용 · `PixelPressable` 래퍼 `collapsable={false}` · 같은 누름 래퍼 5곳(설정 로그아웃 · 전체 삭제 경로 포함) · 저장소 전체 AST 재발 가드.
+- **로그인 직후 `JWT issued at future`**(에뮬 로그인 24회 중 6): 시계 차가 아니라 PostgREST 시각 캐시로 보인다(Supabase 사건 `6q5902p2xd9f`, v14.18 리전별 적용 중 · 우리 프로젝트 해당은 추정). v0.8.0 · 09-07 웹은 재시도가 없어 로더에 멈출 수 있다. main #1811 재시도는 아직 어디에도 안 나갔다.
+
+### 막힌 것
+
+| 무엇 | 왜 | 풀리는 조건 |
+|---|---|---|
+| PR #1819 보안 게이트 둘 · 머지 | 게이트 두 레인(daybreak · astra)이 codex 주간 87% — /vibe G5 85% 금지선 | **토 19:47 KST 리셋** 또는 Simon 이 결정 시트 D2 ② 확정 |
+| #1814 · #1810 · 후속 넷 | 같은 게이트 막힘 + Simon 결정(Q-260914-03 · Q-260914-02 · Q-260914-01 정정) | 리셋 + 결정 |
+| JWT 서버 조치 | 운영 확인 · 지원 요청 · 재시작은 사람 몫 | 보안 담당/Simon — 결정 시트 D3 |
+| main 웹 게시 | Simon 결정 D1(보안 담당 확인 뒤) | 결정 |
+
+결정 시트(15판): <https://claude.ai/code/artifact/6d5c0c58-e6cd-46b7-b1e6-84233a1bd04f>
+
+### 다음 단일 작업 (리셋 뒤)
+
+1. `orca account list --json` 으로 codex `weekly.usedPercent` 와 `updatedAt` 을 **함께** 확인(낡은 값은 미확인 취급).
+2. PR #1819 에 생성물 게이트(`gpt-daybreak-blue-latest` @xhigh) · 인가 게이트(`gpt-6-astra` @xhigh)를 띄운다 — 코딩 워커가 claude 라 G1 충족. codex 워커는 기동 뒤 입력창에 프롬프트가 걸려 있을 수 있으니 20초 뒤 Enter + 화면 `Working` 확인.
+3. critical/high 0 · CI 초록이면 `gh pr ready` → `gh pr merge --squash --match-head-commit <HEAD>` (BEHIND 면 update-branch 뒤 CI 재대기).
+4. 머지 뒤 main push 진단 APK(`android-release.yml` artifact)로 N0 부팅 3 · N1 Continue 탭 ≥3 · N2 누른 채 떼기 ≥3 · N3 Go to constellation ≥2 · N4 재기동 대조 2 · N5 설정 로그아웃. 절차: `E:/Coding Infra/reports/vibe-r260914/r4-t1a-e1/result.md`.
+
+### 증거
+
+- 보고서: `E:/Coding Infra/reports/vibe-r260914/` 의 `r4-t1a-onboarding` · `r4-t1a-addviewat` · `r4-t1a-e1` · `r5-jwt-future` (`result.md`).
+- 결정 원장: `DECISIONS.md` 26.09.14 09:11 ~ 14:51 줄 · 현황: `STATE.md`.
+- 메모리: `reference_2ndb_android_emu_dead`(누름/뗌 가르는 법 · 진단 APK 부팅 검사) · `reference_supabase_jwt_issued_at_future` · `reference_2ndb_legal_citation_line_drift`.
+
+```text
+2nd-Brain 안드로이드 수정 PR #1819 를 이어받아라.
+
+1. E:/2ndB 의 git common dir 이 E:/2ndB/.git 인지 확인하고 CLAUDE.md · docs/HANDOFF.md Latest · DECISIONS.md 26.09.14 줄을 먼저 읽어라.
+2. PR #1819 상태(draft · HEAD · CI)와 codex 주간 쿼터(usedPercent + updatedAt)를 재조회하라. 85% 이상이거나 값이 낡았으면 게이트를 띄우지 마라.
+3. 게이트 둘(daybreak @xhigh · astra @xhigh)을 /vibe 로 띄우고 critical/high 0 · CI 초록이면 match-head-commit 으로 squash 머지하라.
+4. 머지 전에는 main 에 [ota]/[release] 커밋 · 안드로이드 릴리스 금지.
+5. 머지 뒤 main 진단 APK 로 N0~N5 를 r4-t1a-e1/result.md 절차대로 재고 결과를 DECISIONS 에 적어라.
+6. JWT 서버 조치(결정 시트 D3)와 운영 쓰기는 보안 담당/Simon 몫이다 — 대신 실행하지 마라.
+```
+
+---
+
+## 2026-09-14 / 보안 W1–W8 Git 통합 완료 — 운영 활성화는 별도 hold
+
+### 결론
+
+- 코드 PR **[#1807](https://github.com/Simon-YHKim/2nd-B/pull/1807)** 이 merge commit
+  `18ef7f43cf735bc65e46da5c11334a9f688b475e`으로 `main`에 들어갔다.
+- 중복 PKCE PR **[#1800](https://github.com/Simon-YHKim/2nd-B/pull/1800)** 은 `main`의
+  PKCE + OTP-only recovery template/proof 경계를 확인하고 superseded로 닫았다. 브랜치는 보존했다.
+- GitHub CI는 `lint` · `verify` · `web-export-smoke` · `sql` **4/4 성공**이다. `sql`은 아래
+  번호 없는 draft 7개를 scratch PostgreSQL에서 실제 실행하고 rollback했다.
+- 로컬 최종 검증은 `npm run verify` **740 suites / 8,865 tests**, `npm run verify:web`
+  **126 static routes**, `npm audit` **취약점 0**이다. 런타임 require cycle도 0이다.
+- D1 재고는 **35 branches / 95 occurrences**, evidence gap 0, 추가로 옮길 actionable patch 0이다.
+  상세 Wave 기록은 아래 `2026-09-13 — 보안 W1–W8 로컬 통합 인계` 절에 있다.
+- 이 결과는 **Git 소스 통합 완료**다. 운영 DB·Edge·Auth·secret·flag·Pages·live unit·canary·
+  postflight는 실행하지 않았으므로 현재 상태는 **`productionComplete=false`**다.
+
+### Simon 결정 D1–D5 반영
+
+1. **D1** — 보안 재고를 W1–W8 큰 덩어리 순서로 전수 검토하고 #1807로 통합했다.
+2. **D2** — Reward 자가지급 RPC의 운영 revoke는 이전 실행 기록만 있다. 이번 작업에서 재실행하거나
+   운영 catalog로 재검증하지 않았다. 중복 실행하지 말고 catalog postflight로만 확인한다.
+3. **D3** — `src/lib/supabase/client.ts`의 PKCE와 OTP-only recovery template/proof 경계가 함께 통합됐다.
+4. **D4** — 낡은 Edge 함수의 운영 재배포는 미실행이며 광고 런치 전 필수다.
+5. **D5** — Codex 전역 업데이트는 사후 승인됐다. 앞으로도 막혔을 때만 수행하고 사후 보고한다.
+
+### 운영에 아직 적용되지 않은 DB draft 7개
+
+1. `UNNUMBERED_account_deletion_completion_fence.sql`
+2. `UNNUMBERED_effective_llm_consent_current_contract.sql`
+3. `UNNUMBERED_oauth_naver_rate_limit_completion.sql`
+4. `UNNUMBERED_paddle_refund_consequence_integrity.sql`
+5. `UNNUMBERED_peer_response_rate_limit.sql`
+6. `UNNUMBERED_reward_ssv_hardening.sql`
+7. `UNNUMBERED_rss_proxy_quota.sql`
+
+임의 번호를 붙이지 않는다. 모든 remote ref의 migration 번호를 다시 스캔하고 `max+1`을 예약한 뒤
+reservation branch를 즉시 push한다. 각 draft는 behavior fixture와 rollout gate를 통과한 뒤에만
+승격한다. 서버 활성화와 운영 쓰기는 계속 console owner 소유다.
+
+### 다음 작업 큐
+
+| # | 작업 | 판정 |
+|---|---|---|
+| A | remote migration 전수 스캔과 번호 예약 | **다음 단일 안전 작업** |
+| B | Consent/Naver/RSS behavior fixture, Storage 2-connection race, Paddle 단일 `ON_ERROR_STOP` transaction, Deno-native check | 운영 전 필수 |
+| C | console owner preflight → DB/Edge/Auth 순차 적용 | 별도 승인·중단 조건 준수 |
+| D | Android/iOS live-unit QA → 제한 canary → postflight | 끝날 때까지 `productionComplete=false` |
+
+### 증거와 새 세션 시작점
+
+- 완료 보고서: `E:/2ndB/Output/260914_2ndB_security_pr_merge_handoff.html`
+- 복사용 프롬프트: `E:/2ndB/Output/260914_2ndB_security_new_session_prompt.txt`
+- Git 정본: 이 `docs/HANDOFF.md`
+
+```text
+2nd-Brain 보안 W1–W8 인계를 이어받아라.
+
+1. E:/2ndB의 git common dir가 E:/2ndB/.git인지 확인하고 현재 checkout의 CLAUDE.md,
+   session-start 정본, 최신 origin/main의 docs/HANDOFF.md Latest를 먼저 읽어라.
+2. 최신 origin/main에서 E:/2ndB/.worktrees 아래 깨끗한 격리 worktree를 만들어라.
+   정본 main이나 다른 세션 worktree를 편집하지 마라.
+3. #1807의 merged 상태·merge SHA·CI 4개 성공과 main key files를 재조회하라.
+4. #1800은 중복 PKCE PR이다. PKCE와 OTP-only recovery 경계 및 superseded closed 상태를 확인하라.
+5. 7개 UNNUMBERED draft에 번호를 추측하지 마라. 모든 remote migration 번호를 재스캔하고
+   max+1 reservation branch를 즉시 push하라.
+6. 운영 DB·Edge·Auth·secret·flag·Pages·canary·live-unit은 console owner와 별도 승인 영역이다.
+7. Reward RPC revoke는 기존 실행 기록만 있다. 재실행하지 말고 catalog postflight로 확인하라.
+8. behavior fixture, Storage race, Paddle transaction, Deno-native check를 rollout gate로 완료하라.
+9. DB/Edge/Auth/Android/iOS/canary/postflight 전에는 productionComplete=false이며
+   “보안 완료”라고 보고하지 마라.
+10. Git의 docs/HANDOFF.md가 정본이고 Output 보고서와 local state JSON은 보조 증거다.
+11. 첫 응답에 현재 main SHA, merged PR, CI 4개 상태, console hold, 다음 단일 안전 작업을 보고하라.
+```
+
+---
+
+## 2026-09-13 / 디스크 정리 끝(17곳 · 21.9 GB) — 재부팅 뒤 에뮬레이터 화면 검증
+
+**재부팅 직후 새 세션이 이 블록 하나로 이어받게 썼다.** Simon 이 정리 뒤 컴퓨터를 한 번 껐다 켠다 — 떠 있던 claude · codex · 에뮬레이터는 전부 내려간다.
+
+### 어디까지 왔나
+
+- main HEAD: `586abb25` (이 블록을 담은 PR 머지 전 기준)
+- 이번 세션: 디스크 정리 1·2차 끝. PR 은 이 인계 하나(브랜치 `claude/disk-cleanup-260913`)
+- 📊 보고서: <https://claude.ai/code/artifact/db1d3e47-8280-426f-95d3-1cf67f2baf97> (요약 · 상세 · 결정 · 할 일 · 히스토리)
+- 디스크(18:58 KST): **C: 24.8 → 28.6 GB · E: 22.4 → 35.5 GB 여유.** 지운 파일 크기 21.85 GiB
+- 공용 `E:/2ndB/node_modules`: **747 → 747**(대상마다 정션 해제 뒤 · 삭제 뒤 두 번 셈) · `expo/package.json` 있음
+- `STATE.md` 소유자: 이 세션(ttl-work-rev2-1c). ttl-work-9a 가 19:2x 에 넘겼다 — Simon 지명이 아니라 두 세션 합의(A7 은 여전히 Simon 몫)
+
+### 무엇을 지웠나 — Simon 이 목록을 두 번 보고 승인
+
+| 차수 | 대상 | 크기 |
+|---|---|---|
+| 1차 18:14~18:20 | 워크트리 12(pixelclay-260905 · runbook-1749 · capture-diag-260908 · 작은 것 9) + 미등록 클론 `portable-handoff-clone-260830-235814` | 7.7 GiB |
+| 2차 18:50~18:57 | Orca Design(C:) · vibe-native-prep-260906 · vibe-clay-integration-260906(Orca 터미널 8개 닫고) · `E:/2ndB/android` 캐시 8폴더(07-04 이전) | 14.2 GiB |
+
+로컬 브랜치는 하나도 안 지웠다. android 는 `app/build/outputs`(APK) · `src` · gradle 설정 · `debug.keystore` 를 남겼다.
+
+### 구제본 — 지우지 말 것 (전부 저장소 밖)
+
+```
+E:/Coding Infra/_rescue/worktrees-260913-1807/     1차 · RESCUE_OK 13 · deleted.json · README
+E:/Coding Infra/_rescue/worktrees-260913-1825-r2/  2차 · Design 미도달 커밋 9개 번들(verify 통과) · Output 421MB · 세션 ID 4
+E:/Coding Infra/_rescue/skills-260913-1753/        ~/.claude/skills 의 vibe · simon-handoff 복사본 (git 에 없다)
+E:/Coding Infra/_rescue/tools/cleanup-260913/      survey_v2 · rescue · delete 스크립트 + 조사 원본 JSON
+```
+
+⚠ `pixelclay-260905/ignored.tar` 안의 `.env` 는 시크릿이다. ⚠ `tar -tf` 는 경로 공백 때문에 셸에서 0건을 낸다 — python `tarfile` 로 볼 것.
+지운 워크트리의 에이전트 세션은 다른 폴더에서 다시 열 수 있다: claude `4c781d42` · `5815969b` / codex `01a07681` · `01a07682` (전체 ID 는 2차 README).
+
+### 손대지 않은 것과 이유
+
+| 무엇 | 크기 | 이유 |
+|---|---|---|
+| security-* 104곳 | 16.8 GiB | 보안담당 소유. **이 기계에만 있는 커밋 162개**(37곳 합집합, 18:1x). 인계의 114 는 15:42 값 |
+| TTL-Work | 15.2 GiB | claude 8 · codex 5 가동, 미커밋 771(구제본 있음) |
+| `.npm-security-landing-260906` | 1.04 GiB | 등록 안 된 npm 사본. Simon 이 이번에 고르지 않음 |
+| session-start-260906 | 0.15 GiB | `docs/session-start/setup.md` 가 이름으로 지목한 공유 자료 편집 워크트리 |
+| prod-workflow-ref-gates-260913 | 0.15 GiB | codex 완료 작업, origin 에 없는 커밋 2 |
+| handoff-split-260913 · legacy-archive-integrity-260913 | 0.3 GiB | 6시간 안 활동. handoff-split 은 ttl-work-9a 가 "clean · main 과 0줄 차이"라 알렸다 → 다음 라운드 후보 |
+
+⚠ 선점 기록 `RELEASE-INTEGRATE-260906`(active, 주인 ttl-work-a1)은 **오늘 지운 vibe-native-prep-260906 을 가리킨다.** 남의 기록이라 고치지 않았다 — 그 워크트리를 찾지 말 것.
+워크트리 수가 121(17:05) → 117(19:2x) 로 4개만 준 것은 모순이 아니다. 같은 구간에 `*-260913` 워크트리가 45 → 55 로 10개 늘었다(보안 세션). 등록됐는데 경로가 없는 워크트리는 0건이다.
+
+### 인계 수치 정정 셋 (다음 세션이 헛수고하지 않도록)
+
+- "위험 40곳 · 53.9GB" → **44곳 · 39.9GB.** 조사 도구가 E:/2ndB 를 잴 때 `.worktrees/*` 를 한 번 더 셌다
+- 조사 도구의 `git status` 가 index.lock 을 잡았다. 두 버그 모두 ttl-work-9a 가 19:2x 에 `_rescue/tools/survey_worktrees.py` 에서 고쳤다(`.worktrees` 제외 · `--no-optional-locks`). ignored 파일 크기는 `survey_v2.py` 만 센다
+- 보안 미푸시 114 → **162**(합집합, 18:1x). 계속 는다 — 인용할 때 잰 시각을 붙일 것
+
+### 다음 작업 큐
+
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **안드로이드 에뮬레이터 화면 검증** — 재부팅이 5일째 굳어 있던 에뮬을 풀었다 | M | ⭐ 볼 화면 6곳과 근거는 바로 아래 "새 워크트리로 넘긴다" 블록의 표. x86_64 에뮬은 `preview-emulator` 프로필로 빌드 |
+| B | 보안담당에게 커밋 162개 push 요청 | S | Simon → 보안담당. 보안 워크트리 정리의 선행(보고서 Q-260913-02) |
+| C | `/vibe` · `/simon-handoff` 를 SimonK-stack 에 커밋 | S | Simon 승인 필요(Q-260913-03). 지금은 복사본뿐 |
+| D | TTL-Work 미커밋 771건 처분 | L | 각 작업 주인. 구제본 `_rescue/ttl-work-260913-1554` |
+| E | 남은 정리 후보 — C: Orca codex 세션 기록 중복 7.9GB 등(Q-260906-04 ≈11GB) · handoff-split-260913 | S | Simon 선택 |
+
+### 적용 중인 정책 (영구) — 이번에 더한 것
+
+1. **파일 삭제는 실행 직전 목록을 다시 보여 주고 승인받는다**(DECISIONS D7 조건). 1·2차 모두 그렇게 했다
+2. **워크트리 삭제는 폴더 삭제 + `git worktree remove <없는 경로>`.** `orca worktree rm` 은 로컬 브랜치 삭제까지 시도한다(help 원문) · `--force` · `prune` 은 쓰지 않는다. Orca 카드는 스스로 사라진다
+3. **사용 중 판정은 같은 부모 안에서 이름 바꾸기로 한다.** `orca terminal close --all` 의 `terminal_stop_live` 는 "남았다"도 "끝났다"도 아니다 — 폴더를 쥔 프로세스를 psutil 로 따로 센다
+4. **codex 활동은 rollout 파일 하나로 판정하지 않는다.** 같은 ID 가 여러 날짜 폴더와 `AppData/Roaming/orca/codex-runtime-home` 에 흩어져 있다
+
+앞 블록의 정책 1~7 은 그대로 유효하다.
+
+### 검증
+
+```bash
+git -C E:/2ndB worktree list | wc -l                  # 117 전후 (보안 세션이 계속 늘린다)
+ls -A E:/2ndB/node_modules | wc -l                    # 747
+grep -c '^## Latest' docs/HANDOFF.md                  # 1
+cat E:/2ndB/.git/2ndb-session-state/DISK-CLEANUP-260913.json   # status done
+```
+
+### 다음 세션 시작하는 법 (재부팅 뒤)
+
+```bash
+git -C E:/2ndB fetch origin main
+git -C E:/2ndB worktree add .worktrees/<이름>-260914 -b claude/<주제>-260914 origin/main
+# node_modules 정션은 PowerShell 스크립트 파일로 New-Item -ItemType Junction 후 reparse 속성 확인 (CLAUDE.md "Worktrees & branches")
+cat STATE.md ; head -150 docs/HANDOFF.md ; tail -12 DECISIONS.md
+adb devices                                           # 비었으면 에뮬부터 띄운다
+```
+
+---
+
 ## 2026-09-13 / 새 워크트리로 넘긴다 — 첫 일은 디스크, 그다음은 에뮬레이터 화면 검증
 
 **이 블록 하나로 다른 워크트리에서 처음부터 일할 수 있게 썼다.** 앞 블록을 안 읽어도 된다.
