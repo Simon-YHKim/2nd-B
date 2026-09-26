@@ -37,8 +37,7 @@ describe("QA one-shot automatic generation claim", () => {
   });
   beforeEach(() => {
     storage.clear(); mockGetUser.mockReset(); mockSelect.mockClear(); mockEq.mockClear();
-    // This is service-internal and MUST NOT be used by an authenticated client.
-    mockRpc.mockReset().mockResolvedValue({ data: null, error: { message: "permission denied", status: 403 } });
+    mockRpc.mockReset().mockResolvedValue({ data: { available: true, intro_remaining: 2, tier: "brain" }, error: null });
     mockReadUser.mockReset().mockImplementation(async (id: string) => ({
       data: { id, subscription_tier: "brain", subscription_expires_at: null }, error: null,
     }));
@@ -48,18 +47,27 @@ describe("QA one-shot automatic generation claim", () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "qa-once", email: "qa.ai.b18807@example.com" } } });
     expect(await Promise.all([claimQaPolarisAuto("qa-once", false, true), claimQaPolarisAuto("qa-once", false, true)]))
       .toEqual([true, false]);
-    expect(storage.get("polaris.qa-auto.v1:qa-once")).toBe("attempted");
+    expect(storage.get("polaris.qa-auto.v2:qa-once")).toBe("attempted");
     expect(await claimQaPolarisAuto("qa-once", false, true)).toBe(false);
     expect(mockSelect).toHaveBeenCalledWith("users", "id, subscription_tier, subscription_expires_at");
     expect(mockEq).toHaveBeenCalledWith("id", "qa-once");
-    expect(mockRpc).not.toHaveBeenCalled();
+    expect(mockRpc).toHaveBeenCalledWith("polaris_generation_status", { p_user_id: "qa-once" });
+  });
+
+  it("keeps the one-shot available until the server reservation contract exists", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "qa-wait", email: "qa.ai.b18807@example.com" } } });
+    mockRpc.mockResolvedValueOnce({ data: null, error: { message: "missing RPC", status: 404 } });
+    expect(await claimQaPolarisAuto("qa-wait", false, true)).toBe(false);
+    expect(storage.size).toBe(0);
+    expect(await claimQaPolarisAuto("qa-wait", false, true)).toBe(true);
+    expect(storage.get("polaris.qa-auto.v2:qa-wait")).toBe("attempted");
   });
 
   it("rechecks persistent attempt state after asynchronous authentication", async () => {
     let resolveAuth!: (value: unknown) => void;
     mockGetUser.mockImplementation(() => new Promise((resolve) => { resolveAuth = resolve; }));
     const claim = claimQaPolarisAuto("qa-race", false, true);
-    storage.set("polaris.qa-auto.v1:qa-race", "attempted");
+    storage.set("polaris.qa-auto.v2:qa-race", "attempted");
     resolveAuth({ data: { user: { id: "qa-race", email: "qa.ai.b18807@example.com" } } });
     expect(await claim).toBe(false);
   });

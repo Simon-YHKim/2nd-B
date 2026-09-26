@@ -380,7 +380,7 @@ function CoreBrainScreen() {
       setRolePending(true);
       setRoleError(false);
       try {
-        const next = await proposeRoleCards(userId, locale, isMinor, { qaAuto: true });
+        const next = await proposeRoleCards(userId, locale, isMinor);
         if (alive && currentUser.current === userId) { setRoleCards(next); setRoleCardsUserId(userId); }
       } catch (error) {
         if (alive && currentUser.current === userId) { setRoleError(true); setRoleErrorCode(error instanceof Error ? error.message : ""); }

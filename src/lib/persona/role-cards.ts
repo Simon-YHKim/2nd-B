@@ -94,7 +94,9 @@ const qaClaims = new Set<string>();
 /** One automatic QA attempt across route mounts/reloads; never a quota ledger. */
 export async function claimQaPolarisAuto(userId: string, hasCards: boolean, hasEvidence: boolean): Promise<boolean> {
   if (!__DEV__ || typeof window === "undefined" || getEnv().EXPO_PUBLIC_LLM_MODE !== "live" || qaClaims.has(userId)) return false;
-  const storageKey = `polaris.qa-auto.v1:${userId}`;
+  // v1 could be consumed before the reservation RPC existed. v2 starts only
+  // after the server reports an available generation.
+  const storageKey = `polaris.qa-auto.v2:${userId}`;
   try {
     if (window.localStorage.getItem(storageKey)) return false;
     const client = getSupabaseClient();
@@ -111,6 +113,9 @@ export async function claimQaPolarisAuto(userId: string, hasCards: boolean, hasE
     if (authError || error || !isQaPolarisAutoEligible({ dev: __DEV__, userId, sessionUserId: auth.user?.id,
       email: auth.user?.email, tier, hasCards, hasEvidence,
       attempted: qaClaims.has(userId) || Boolean(window.localStorage.getItem(storageKey)) })) return false;
+    // The new Edge path requires a server reservation. Wait for that contract
+    // instead of consuming the QA attempt against an undeployed status RPC.
+    if (!(await loadPolarisQuota(userId)).available || qaClaims.has(userId) || window.localStorage.getItem(storageKey)) return false;
     window.localStorage.setItem(storageKey, "attempted");
     qaClaims.add(userId);
     return true;
@@ -152,14 +157,11 @@ export function roleInputFromInterviews(
 
 export async function proposeRoleCards(
   userId: string, locale: "en" | "ko", minor = false,
-  options: { qaAuto?: boolean } = {},
 ): Promise<RoleCard[]> {
   if (!userId) return [];
   if (getEnv().EXPO_PUBLIC_LLM_MODE !== "live") throw new Error("polaris_live_required");
   const quota = await loadPolarisQuota(userId);
-  if (!quota.available && !(options.qaAuto && __DEV__ && qaClaims.delete(userId))) {
-    throw new Error("polaris_unavailable");
-  }
+  if (!quota.available) throw new Error("polaris_unavailable");
   const previous = await loadRoleCards(userId);
   const { data, error } = await getSupabaseClient().from("records")
     .select("id, audit_period, body, tags")
