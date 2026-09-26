@@ -23,6 +23,15 @@ ALTER TABLE public.ai_audit_log FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.crisis_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.crisis_events FORCE ROW LEVEL SECURITY;
 
+-- Supabase grants table DML (including TRUNCATE) to anon/authenticated by
+-- default. RLS alone does not protect TRUNCATE, and this migration must pass
+-- its own privilege postcondition before 0181 can repeat the lockdown.
+-- Keep service_role table grants for existing Edge writers.
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
+  ON public.ai_audit_log FROM PUBLIC, anon, authenticated;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
+  ON public.crisis_events FROM PUBLIC, anon, authenticated;
+
 DO $constraints$
 BEGIN
   IF NOT EXISTS (
@@ -279,10 +288,12 @@ BEGIN
         WHERE i.indexrelid =
           'public.crisis_events_owner_outbox_event_unique'::regclass
      ), false)
-     OR has_table_privilege('anon', 'public.ai_audit_log', 'INSERT,UPDATE,DELETE,TRUNCATE')
-     OR has_table_privilege('authenticated', 'public.ai_audit_log', 'INSERT,UPDATE,DELETE,TRUNCATE')
-     OR has_table_privilege('anon', 'public.crisis_events', 'INSERT,UPDATE,DELETE,TRUNCATE')
-     OR has_table_privilege('authenticated', 'public.crisis_events', 'INSERT,UPDATE,DELETE,TRUNCATE')
+     OR has_table_privilege('anon', 'public.ai_audit_log', 'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+     OR has_table_privilege('authenticated', 'public.ai_audit_log', 'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+     OR has_table_privilege('anon', 'public.crisis_events', 'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+     OR has_table_privilege('authenticated', 'public.crisis_events', 'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+     OR NOT has_table_privilege('service_role', 'public.ai_audit_log', 'INSERT')
+     OR NOT has_table_privilege('service_role', 'public.crisis_events', 'INSERT')
      OR has_function_privilege(
        'anon',
        'public.log_ai_audit_once(text,text,text,text,boolean,text,integer,text,text,text)',
