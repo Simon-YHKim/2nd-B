@@ -17,7 +17,6 @@ const drafts = readdirSync(join(ROOT, "db", "migration-drafts"))
   .sort();
 
 const standaloneDrafts = [
-  "UNNUMBERED_oauth_naver_rate_limit_completion.sql",
   "UNNUMBERED_rss_proxy_quota.sql",
 ] as const;
 
@@ -30,6 +29,7 @@ const promoted = [
   ["0196", "reward_ssv_hardening"],
   ["0197", "paddle_refund_consequence_integrity"],
   ["0198", "service_contract_erasure_registry"],
+  ["0199", "oauth_naver_rate_limit_completion"],
 ] as const;
 
 const behaviorDrafts = {
@@ -73,7 +73,8 @@ describe("scratch PostgreSQL coverage for inactive security drafts", () => {
   test("accounts for every unnumbered draft exactly once", () => {
     expect(drafts).toEqual(
       [...standaloneDrafts, ...Object.keys(behaviorDrafts),
-        "UNNUMBERED_effective_llm_consent_current_contract.sql"].sort(),
+        "UNNUMBERED_effective_llm_consent_current_contract.sql",
+        "UNNUMBERED_oauth_naver_rate_limit_completion.sql"].sort(),
     );
   });
 
@@ -101,6 +102,15 @@ describe("scratch PostgreSQL coverage for inactive security drafts", () => {
     expect(step).toContain(`db/migration-drafts/${draft}`);
     expect(step).toContain('for draft in "${drafts[@]}"; do');
     expect(step).toMatch(/psql -X[\s\S]*BEGIN;[\s\S]*\\i \$draft[\s\S]*ROLLBACK;/);
+  });
+
+  test("exercises the numbered Naver limiter without persisting scratch calls", () => {
+    const regression = read("db/tests/oauth_naver_rate_limit_completion_regression.sql");
+    expect(workflow).toContain("-f db/tests/oauth_naver_rate_limit_completion_regression.sql");
+    expect(regression).toContain("global rejection allocated peer rows");
+    expect(regression).toContain("rejected peer spent global quota");
+    expect(regression).toContain("OAuth state was not single-use");
+    expect(regression).toMatch(/^BEGIN;[\s\S]*ROLLBACK;\s*$/m);
   });
 
   test("does not reapply the promoted effective-consent draft after numbered replay", () => {

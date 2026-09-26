@@ -320,7 +320,7 @@ jobs:
           PGPASSWORD: postgres
         run: |
           set -euo pipefail
-          # The staged CLI push above already executed 0191-0198 once in order.
+          # The staged CLI push above already executed 0191-0199 once in order.
           # Keep the retained draft fixtures byte-identical to those numbered
           # files, then inspect the resulting scratch schema without replaying
           # provisioning or rewriting the ledger.
@@ -332,7 +332,8 @@ jobs:
             0195:polaris_generation_allowance \
             0196:reward_ssv_hardening \
             0197:paddle_refund_consequence_integrity \
-            0198:service_contract_erasure_registry; do
+            0198:service_contract_erasure_registry \
+            0199:oauth_naver_rate_limit_completion; do
             version="${mapping%%:*}"
             stem="${mapping#*:}"
             if ! cmp -s "db/migration-drafts/UNNUMBERED_${stem}.sql" "db/migrations/${version}_${stem}.sql"; then
@@ -353,7 +354,8 @@ jobs:
                   ('0195', 'polaris_generation_allowance'),
                   ('0196', 'reward_ssv_hardening'),
                   ('0197', 'paddle_refund_consequence_integrity'),
-                  ('0198', 'service_contract_erasure_registry'))) <> 8
+                  ('0198', 'service_contract_erasure_registry'),
+                  ('0199', 'oauth_naver_rate_limit_completion'))) <> 9
                OR (SELECT count(*) FROM public.erasure_registry) <> 70
                OR (SELECT count(*) FROM public.erasure_registry WHERE table_name IN (
                  'account_deletion_tombstones', 'llm_consent_receipts',
@@ -378,7 +380,7 @@ jobs:
           $verify$;
           ROLLBACK;
           SQL
-          echo "PASS: eight numbered migrations executed once by CLI; draft bytes, 70 registry rows, contracts and ACL verified"
+          echo "PASS: nine numbered migrations executed once by CLI; draft bytes, 70 registry rows, contracts and ACL verified"
       # db/migrations/rollback/0189_down.sql is run by hand, mid-incident, and the
       # next `db push` is then trusted to put everything back. Nothing exercised
       # that path, and it was broken. The rollback deleted only its OWN ledger row
@@ -1230,16 +1232,19 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/account_deletion_completion_fence_regression.sql
+      - name: Exercise numbered Naver OAuth limiter on scratch schema
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/oauth_naver_rate_limit_completion_regression.sql
       - name: Dry-run standalone security migration drafts
         env:
           PGPASSWORD: postgres
         run: |
           set -euo pipefail
 
-          # The promoted consent draft already ran in the numbered CLI push.
-          # Only these two still-unnumbered drafts run against this scratch DB.
+          # The promoted consent and OAuth drafts already ran in the numbered CLI push.
+          # Only the RSS draft still needs a standalone transaction on this scratch DB.
           drafts=(
-            db/migration-drafts/UNNUMBERED_oauth_naver_rate_limit_completion.sql
             db/migration-drafts/UNNUMBERED_rss_proxy_quota.sql
           )
 
