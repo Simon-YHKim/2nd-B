@@ -319,6 +319,11 @@
       "class": "retained",
       "reason": "광고 transaction_id 기준 재생 방지 원장. 지우면 한 번의 시청을 월 상한까지 반복 적립할 수 있다(0079)."
     },
+    "rss_proxy_quota_daily": {
+      "owner": "user_id",
+      "class": "retained",
+      "reason": "RSS proxy per-user UTC-day quota. Content deletion must not reset the 40-call limit; account deletion cascades through public.users."
+    },
     "self_contexts": {
       "owner": "user_id",
       "class": "client_erasable",
@@ -420,6 +425,9 @@
       "llm_consent_receipts",
       "polaris_generations",
       "reward_ssv_issue_rate_limits"
+    ],
+    "0201_rss_proxy_erasure_registry.sql": [
+      "rss_proxy_quota_daily"
     ]
   }
 }

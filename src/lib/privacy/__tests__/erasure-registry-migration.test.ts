@@ -583,9 +583,10 @@ describe(`${FILE} -- structure`, () => {
     const expected = [FILE, LOCK_FILE].map(ledgerName);
     expect(expected).toEqual(["erasure_registry", "lock_erase_my_data_authenticated"]);
 
-    // 0198 adds four rows to the registry object that this rollback drops.
-    // Its ledger row must be removed so the next push restores those rows.
+    // 0198 and 0201 add rows to the registry object that this rollback drops.
+    // Their ledger rows must be removed so the next push restores those rows.
     expected.push("service_contract_erasure_registry");
+    expected.push("rss_proxy_erasure_registry");
     // The list grows with every later migration that leans on these objects.
     const names = rollbackLedgerNames();
     expect(names).toEqual(expect.arrayContaining(expected));

@@ -320,7 +320,7 @@ jobs:
           PGPASSWORD: postgres
         run: |
           set -euo pipefail
-          # The staged CLI push above already executed 0191-0199 once in order.
+          # The staged CLI push above already executed 0191-0201 once in order.
           # Keep the retained draft fixtures byte-identical to those numbered
           # files, then inspect the resulting scratch schema without replaying
           # provisioning or rewriting the ledger.
@@ -333,7 +333,8 @@ jobs:
             0196:reward_ssv_hardening \
             0197:paddle_refund_consequence_integrity \
             0198:service_contract_erasure_registry \
-            0199:oauth_naver_rate_limit_completion; do
+            0199:oauth_naver_rate_limit_completion \
+            0200:rss_proxy_quota; do
             version="${mapping%%:*}"
             stem="${mapping#*:}"
             if ! cmp -s "db/migration-drafts/UNNUMBERED_${stem}.sql" "db/migrations/${version}_${stem}.sql"; then
@@ -355,8 +356,10 @@ jobs:
                   ('0196', 'reward_ssv_hardening'),
                   ('0197', 'paddle_refund_consequence_integrity'),
                   ('0198', 'service_contract_erasure_registry'),
-                  ('0199', 'oauth_naver_rate_limit_completion'))) <> 9
-               OR (SELECT count(*) FROM public.erasure_registry) <> 70
+                  ('0199', 'oauth_naver_rate_limit_completion'),
+                  ('0200', 'rss_proxy_quota'),
+                  ('0201', 'rss_proxy_erasure_registry'))) <> 11
+               OR (SELECT count(*) FROM public.erasure_registry) <> 71
                OR (SELECT count(*) FROM public.erasure_registry WHERE table_name IN (
                  'account_deletion_tombstones', 'llm_consent_receipts',
                  'polaris_generations', 'reward_ssv_issue_rate_limits')) <> 4
@@ -364,6 +367,11 @@ jobs:
                OR to_regclass('public.llm_consent_receipts') IS NULL
                OR to_regclass('public.polaris_generations') IS NULL
                OR to_regclass('public.reward_ssv_issue_rate_limits') IS NULL
+               OR to_regclass('public.rss_proxy_quota_daily') IS NULL
+               OR to_regclass('public.rss_proxy_global_quota_daily') IS NULL
+               OR to_regprocedure('public.consume_rss_proxy_quota(uuid)') IS NULL
+               OR (SELECT count(*) FROM public.erasure_registry
+                   WHERE table_name = 'rss_proxy_quota_daily' AND class = 'retained') <> 1
                OR to_regprocedure('public.signup_consent_contract_status()') IS NULL
                OR to_regprocedure('public.llm_service_consent_status(uuid)') IS NULL
                OR to_regprocedure('public.settle_reward_ssv_ticket_v2(text,text,text,integer,text)') IS NULL
@@ -380,7 +388,7 @@ jobs:
           $verify$;
           ROLLBACK;
           SQL
-          echo "PASS: nine numbered migrations executed once by CLI; draft bytes, 70 registry rows, contracts and ACL verified"
+          echo "PASS: eleven numbered migrations executed once by CLI; draft bytes, 71 registry rows, contracts and ACL verified"
       # db/migrations/rollback/0189_down.sql is run by hand, mid-incident, and the
       # next `db push` is then trusted to put everything back. Nothing exercised
       # that path, and it was broken. The rollback deleted only its OWN ledger row
@@ -543,7 +551,7 @@ jobs:
           port="${PGPORT:-5432}"
           source_db="${PGDATABASE:-postgres}"
           down="db/migrations/rollback/0189_down.sql"
-          pair="erasure_registry lock_erase_my_data_authenticated service_contract_erasure_registry"
+          pair="erasure_registry lock_erase_my_data_authenticated service_contract_erasure_registry rss_proxy_erasure_registry"
           run_token="${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$_${RANDOM}"
           control_db="rollback_control_${run_token}"
           fixed_db="rollback_fixed_${run_token}"
@@ -596,7 +604,7 @@ jobs:
             sql "$1" "SELECT COALESCE(pg_catalog.string_agg(m.name, ' ' ORDER BY m.version), '(none)')
                       FROM supabase_migrations.schema_migrations AS m
                       WHERE m.name IN ('erasure_registry', 'lock_erase_my_data_authenticated',
-                                       'service_contract_erasure_registry')"
+                                       'service_contract_erasure_registry', 'rss_proxy_erasure_registry')"
           }
           can_execute() { # <db> <role>
             sql "$1" "SELECT pg_catalog.has_function_privilege('$2', 'public.erase_my_data(text)', 'EXECUTE')"
@@ -879,12 +887,13 @@ jobs:
             fi
           done
 
-          echo "== control: retain 0190 and the registry forward, then replay only 0189"
+          echo "== control: retain 0190 and both registry forwards, then replay only 0189"
           clone "$control_db"
           sql "$control_db" "CREATE TABLE supabase_migrations.rollback_probe_kept AS
                              SELECT * FROM supabase_migrations.schema_migrations
                              WHERE name IN ('lock_erase_my_data_authenticated',
-                                            'service_contract_erasure_registry')"
+                                            'service_contract_erasure_registry',
+                                            'rss_proxy_erasure_registry')"
           roll_back "$control_db"
           # ON CONFLICT: if the rollback under test leaves the row in place (the very
           # regression this lane is for), the control still builds the same state
@@ -897,8 +906,8 @@ jobs:
           push_again "$control_db"
           control_open="$(can_execute "$control_db" authenticated)"
           echo "control: ledger before the re-push [$control_ledger] -> authenticated EXECUTE after it = $control_open"
-          if [[ "$control_ledger" != "lock_erase_my_data_authenticated service_contract_erasure_registry" ]]; then
-            fail "the control did not reach the pre-fix state: ledger held [$control_ledger], expected 0190 and the registry forward"
+          if [[ "$control_ledger" != "lock_erase_my_data_authenticated service_contract_erasure_registry rss_proxy_erasure_registry" ]]; then
+            fail "the control did not reach the pre-fix state: ledger held [$control_ledger], expected 0190 and both registry forwards"
           fi
           if [[ "$control_open" != "t" ]]; then
             fail "VACUOUS. With 0190's ledger row left behind, erase_my_data should come back executable by authenticated, and it did not (authenticated EXECUTE = $control_open). This database cannot show the hole, so the verdict below proves nothing. Either the function default-privilege floor is missing (see \"Seed Supabase compatibility layer\") or the CLI no longer skips an applied version."
@@ -1236,26 +1245,10 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/oauth_naver_rate_limit_completion_regression.sql
-      - name: Dry-run standalone security migration drafts
+      - name: Exercise numbered RSS quota and account deletion on scratch schema
         env:
           PGPASSWORD: postgres
-        run: |
-          set -euo pipefail
-
-          # The promoted consent and OAuth drafts already ran in the numbered CLI push.
-          # Only the RSS draft still needs a standalone transaction on this scratch DB.
-          drafts=(
-            db/migration-drafts/UNNUMBERED_rss_proxy_quota.sql
-          )
-
-          for draft in "${drafts[@]}"; do
-            echo "Dry-running $draft"
-            psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 <<SQL
-          BEGIN;
-          \i $draft
-          ROLLBACK;
-          SQL
-          done
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/rss_proxy_quota_regression.sql
       # 0189's erase_my_data() is a destructive SECURITY DEFINER function, so it
       # is the one thing in this repo that must not be tested by reading its
       # source. The r38 gate measured 37 green string assertions over a function
