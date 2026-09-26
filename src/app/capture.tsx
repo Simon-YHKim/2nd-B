@@ -4684,8 +4684,13 @@ const styles = StyleSheet.create({
     ...pixelShadowStyle(),
   },
   modeTab: {
-    flex: 1,
+    // Give wrapped native rows a stable tab width and height so the help
+    // text below stays clear of the selected tab.
+    flexBasis: "21%",
+    flexGrow: 1,
+    flexShrink: 0,
     minWidth: 72,
+    minHeight: 64,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.xs,
     borderRadius: gameboy.radius,
@@ -4699,14 +4704,14 @@ const styles = StyleSheet.create({
     borderWidth: gameboy.borderWidth,
     borderColor: semantic.border,
     borderRadius: gameboy.radius,
-    minHeight: 48,
+    minHeight: 64,
   },
   modeMoreTabExpanded: { borderColor: semantic.brand },
   modeGlyph: { width: 24, height: 24 },
   modeLabel: { color: semantic.textMuted, fontSize: capSize(typography.sizes.xs, 12), fontWeight: capWeight("600"), fontFamily: capFont(12, "500") },
   modeLabelActive: { color: semantic.background, fontWeight: capWeight("700"), fontFamily: capFont(12, "700") },
   modeMoreLabel: { color: semantic.brand, fontSize: capSize(typography.sizes.sm, 12), fontWeight: capWeight("700"), fontFamily: capFont(12, "700") },
-  modeHelp: { lineHeight: 18, marginTop: -spacing.xs },
+  modeHelp: { lineHeight: 18, marginTop: spacing.xs },
   fieldGroup: {
     gap: spacing.xs,
     backgroundColor: semantic.surface,
