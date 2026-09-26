@@ -12,13 +12,10 @@
 // down. Migrations go first, the function second; this gate makes that order
 // something the deploy checks rather than something a person remembers.
 //
-// What counts as a dependency. A quoted identifier in the function's source
-// (index.ts plus every file it reaches through relative imports) that
-// names a public function or table created by db/migrations or
-// db/migration-drafts. Call syntax is not parsed on purpose: the proxies reach
-// RPCs through wrappers (executeRpc('name'), client.rpc(name, args)) that a
-// call-shape match would miss. A name dropped by a later migration no longer
-// counts as defined.
+// The source inventory follows relative imports. It matches referenced public
+// objects from migrations and drafts, plus known computed RPC names. The live
+// query checks the source signature, named arguments, service_role EXECUTE and
+// added columns used by Edge writes, not merely a same-named object.
 //
 // Modes:
 //   list   <slug>                  JSON { functions: [...], tables: [...] }
@@ -76,10 +73,63 @@ function quotedIdentifiers(text) {
   return names;
 }
 
+// The capacity helper assembles these two names at runtime. Reject any new
+// interpolated RPC name until its finite expansion is reviewed here.
+const DYNAMIC_RPCS = new Map([
+  ["`${transition}_llm_proxy_capacity`", ["settle_llm_proxy_capacity", "release_llm_proxy_capacity"]],
+]);
+
+function argumentsAfterOpenParen(sql, start) {
+  let depth = 1;
+  let quote = "";
+  const parts = [];
+  let partStart = start;
+  for (let index = start; index < sql.length; index += 1) {
+    const char = sql[index];
+    if (quote) {
+      if (char === quote) {
+        if (sql[index + 1] === quote) index += 1;
+        else quote = "";
+      }
+      continue;
+    }
+    if (char === "'" || char === '"') { quote = char; continue; }
+    if (char === "(") depth += 1;
+    if (char === ")") depth -= 1;
+    if ((char === "," && depth === 1) || depth === 0) {
+      parts.push(sql.slice(partStart, index).trim());
+      partStart = index + 1;
+    }
+    if (depth === 0) return parts.filter(Boolean);
+  }
+  fail("unclosed-function-arguments");
+}
+
+function functionContract(sql, start) {
+  const parameters = argumentsAfterOpenParen(sql, start);
+  const types = [];
+  const argNames = [];
+  for (const parameter of parameters) {
+    const withoutDefault = parameter.replace(/\s+(?:default\b|=)[\s\S]*$/i, "").trim();
+    const mode = withoutDefault.match(/^(inout|out|in|variadic)\s+/i)?.[1]?.toLowerCase();
+    if (mode === "out") continue;
+    const declaration = withoutDefault.replace(/^(?:inout|out|in|variadic)\s+/i, "");
+    const match = declaration.match(/^([a-z_][a-z0-9_]*)\s+([\s\S]+)$/i);
+    if (!match || !IDENT.test(match[1])) fail(`unsupported-function-argument-${declaration.slice(0, 80)}`);
+    const type = match[2].trim().replace(/\s+/g, " ").replace(/\(\s*\d+(?:\s*,\s*\d+)?\s*\)/g, "");
+    if (!/^[a-z_][a-z0-9_.\[\] ]*$/i.test(type)) fail(`unsupported-function-type-${type.slice(0, 80)}`);
+    argNames.push(match[1].toLowerCase());
+    types.push(type.toLowerCase());
+  }
+  return { signature: types.join(","), argNames };
+}
+
 // Public functions and tables the migrations leave defined, in file order.
 export function definedObjects() {
   const functions = new Set();
   const tables = new Set();
+  const columns = new Set();
+  const functionContracts = new Map();
   // Drafts only add names: a draft's DROP has not happened anywhere yet, and
   // letting it delete a live name would silently exempt that name from the gate.
   const files = [];
@@ -97,6 +147,8 @@ export function definedObjects() {
     [new RegExp(String.raw`create\s+(?:unlogged\s+)?table\s+(?:if\s+not\s+exists\s+)?${obj}`, "gi"), tables, true],
     [new RegExp(String.raw`drop\s+table\s+(?:if\s+exists\s+)?${obj}`, "gi"), tables, false],
   ];
+  const alterTablePattern = /alter\s+table\s+(?:if\s+exists\s+)?public\.([a-z_][a-z0-9_]*)\s+([\s\S]*?);/gi;
+  const columnActionPattern = /\b(add|drop)\s+column\s+(?:if\s+(?:not\s+)?exists\s+)?([a-z_][a-z0-9_]*)/gi;
   for (const { file, draft } of files) {
     const sql = readFileSync(file, "utf8").replace(/--[^\n]*/g, "");
     const events = [];
@@ -104,47 +156,101 @@ export function definedObjects() {
       if (draft && !add) continue;
       for (const match of sql.matchAll(regex)) {
         if (match[2] && match[2].toLowerCase() !== "public") continue; // other schemas
-        events.push({ at: match.index, set, add, name: match[3].toLowerCase() });
+        const contract = set === functions && add ? functionContract(sql, match.index + match[0].length) : null;
+        events.push({ at: match.index, set, add, name: match[3].toLowerCase(), contract });
+      }
+    }
+    for (const match of sql.matchAll(alterTablePattern)) {
+      for (const action of match[2].matchAll(columnActionPattern)) {
+        const add = action[1].toLowerCase() === "add";
+        if (!draft || add) {
+          events.push({ at: match.index + action.index, set: columns, add, name: `${match[1].toLowerCase()}.${action[2].toLowerCase()}` });
+        }
       }
     }
     for (const event of events.sort((a, b) => a.at - b.at)) {
       if (event.add) event.set.add(event.name);
       else event.set.delete(event.name);
+      if (event.set === functions) {
+        if (!event.add) functionContracts.delete(event.name);
+        else {
+          const contracts = functionContracts.get(event.name) ?? new Map();
+          contracts.set(event.contract.signature, { name: event.name, ...event.contract });
+          functionContracts.set(event.name, contracts);
+        }
+      }
     }
   }
-  return { functions, tables };
+  return { functions, tables, columns, functionContracts };
 }
 
 export function dependencies(slug) {
   if (!SLUG.test(slug)) fail("invalid-function-slug");
   const mentioned = new Set();
-  for (const file of sourceFiles(slug)) {
-    for (const name of quotedIdentifiers(readFileSync(file, "utf8"))) mentioned.add(name);
+  const sources = sourceFiles(slug).map((file) => readFileSync(file, "utf8"));
+  for (const source of sources) {
+    for (const name of quotedIdentifiers(source)) mentioned.add(name);
+    for (const match of source.matchAll(/\b(?:rpc|executeRpc)\s*\(\s*(`[^`]*\$\{[^`]*`)/g)) {
+      const names = DYNAMIC_RPCS.get(match[1]);
+      if (!names) fail(`unreviewed-dynamic-rpc-${slug}`);
+      for (const name of names) mentioned.add(name);
+    }
   }
   const defined = definedObjects();
+  const functions = [...mentioned].filter((name) => defined.functions.has(name)).sort();
+  const functionContracts = functions.flatMap((name) => {
+    const contracts = defined.functionContracts.get(name);
+    if (!contracts?.size) fail(`function-contract-missing-${name}`);
+    return [...contracts.values()];
+  });
+  const columns = [...defined.columns].filter((qualified) => {
+    const [table, column] = qualified.split(".");
+    const tableUse = new RegExp(`\\.from\\s*\\(\\s*['"]${table}['"]\\s*\\)`);
+    const columnUse = new RegExp(`\\b${column}\\s*:`);
+    return sources.some((source) => tableUse.test(source) && columnUse.test(source));
+  }).sort();
   return {
-    functions: [...mentioned].filter((n) => defined.functions.has(n)).sort(),
+    functions,
     tables: [...mentioned].filter((n) => defined.tables.has(n)).sort(),
+    columns,
+    functionContracts,
   };
 }
 
 export function requestBody(deps) {
   const rows = [
-    ...deps.functions.map((name) => ({ kind: "function", name })),
+    ...deps.functionContracts.map(({ name, signature, argNames }) => ({ kind: "function", name, signature, arg_names: argNames })),
     ...deps.tables.map((name) => ({ kind: "table", name })),
+    ...deps.columns.map((name) => ({ kind: "column", name })),
   ];
-  for (const row of rows) if (!IDENT.test(row.name)) fail(`invalid-identifier-${row.name}`);
+  for (const row of rows) {
+    const identifiers = row.kind === "column" ? row.name.split(".") : [row.name];
+    if (!identifiers.every((identifier) => IDENT.test(identifier))) fail(`invalid-identifier-${row.name}`);
+  }
   const json = JSON.stringify(rows);
   const query = [
-    "select req.kind, req.name,",
+    "select req.kind, case when req.kind = 'function'",
+    "  then req.name || '(' || req.signature || ')' else req.name end as name,",
     "  case req.kind",
     "    when 'function' then exists (",
     "      select 1 from pg_catalog.pg_proc p",
     "      join pg_catalog.pg_namespace n on n.oid = p.pronamespace",
-    "      where n.nspname = 'public' and p.proname = req.name)",
-    "    when 'table' then pg_catalog.to_regclass('public.' || pg_catalog.quote_ident(req.name)) is not null",
+    "      where n.nspname = 'public' and p.proname = req.name",
+    "        and p.oid = pg_catalog.to_regprocedure('public.' || pg_catalog.quote_ident(req.name) || '(' || req.signature || ')')",
+    "        and coalesce(pg_catalog.to_jsonb(p.proargnames[1:p.pronargs]), '[]'::jsonb) = req.arg_names",
+    "        and pg_catalog.has_function_privilege('service_role', p.oid, 'EXECUTE'))",
+    "    when 'table' then exists (",
+    "      select 1 from pg_catalog.pg_class c",
+    "      join pg_catalog.pg_namespace n on n.oid = c.relnamespace",
+    "      where n.nspname = 'public' and c.relname = req.name and c.relkind in ('r', 'p'))",
+    "    when 'column' then exists (",
+    "      select 1 from pg_catalog.pg_attribute a",
+    "      join pg_catalog.pg_class c on c.oid = a.attrelid",
+    "      join pg_catalog.pg_namespace n on n.oid = c.relnamespace",
+    "      where n.nspname = 'public' and c.relname = pg_catalog.split_part(req.name, '.', 1)",
+    "        and a.attname = pg_catalog.split_part(req.name, '.', 2) and a.attnum > 0 and not a.attisdropped)",
     "  end as present",
-    `from pg_catalog.jsonb_to_recordset($deps$${json}$deps$::jsonb) as req(kind text, name text)`,
+    `from pg_catalog.jsonb_to_recordset($deps$${json}$deps$::jsonb) as req(kind text, name text, signature text, arg_names jsonb)`,
     "order by req.kind, req.name",
   ].join("\n");
   return { query };
@@ -153,8 +259,9 @@ export function requestBody(deps) {
 export function verify(deps, response) {
   if (!Array.isArray(response)) return { ok: false, reason: "response-not-array" };
   const expected = [
-    ...deps.functions.map((name) => `function:${name}`),
+    ...deps.functionContracts.map(({ name, signature }) => `function:${name}(${signature})`),
     ...deps.tables.map((name) => `table:${name}`),
+    ...deps.columns.map((name) => `column:${name}`),
   ];
   const present = new Set();
   const seen = new Set();
@@ -163,6 +270,7 @@ export function verify(deps, response) {
       return { ok: false, reason: "response-row-shape" };
     }
     const key = `${row.kind}:${row.name}`;
+    if (seen.has(key)) return { ok: false, reason: "response-duplicate-dependency" };
     seen.add(key);
     if (row.present === true) present.add(key);
   }
@@ -194,7 +302,7 @@ function main() {
       const detail = result.missing?.length ? `: ${result.missing.join(", ")}` : "";
       fail(`${result.reason}${detail}. Apply the migrations that create these first, then deploy.`);
     }
-    process.stdout.write(`${slug}: ${deps.functions.length} function(s) and ${deps.tables.length} table(s) present\n`);
+    process.stdout.write(`${slug}: ${deps.functionContracts.length} function(s), ${deps.tables.length} table(s), and ${deps.columns.length} column(s) present\n`);
   } else {
     fail(`unknown-mode-${mode}`);
   }

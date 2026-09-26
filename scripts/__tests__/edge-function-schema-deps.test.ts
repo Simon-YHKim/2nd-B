@@ -33,6 +33,7 @@ describe("edge schema dependency gate", () => {
     fixture = mkdtempSync(path.join(tmpdir(), "edge-schema-deps-"));
     write(fixture, "db/migrations/0001_base.sql", [
       "create table public.records (id uuid);",
+      "alter table public.records add column if not exists event_source text, add column if not exists key_combo text;",
       "create or replace function public.consume_quota(p uuid) returns boolean language sql as $$ select true $$;",
       "create function public.old_helper() returns void language sql as $$ $$;",
       "create function auth.not_public() returns void language sql as $$ $$;",
@@ -50,6 +51,7 @@ describe("edge schema dependency gate", () => {
       "import { call } from '../_shared/common.ts';",
       "import 'jsr:@supabase/functions-js/edge-runtime.d.ts';",
       "const t = \"records\";",
+      "const audit = client.from('records').insert({ event_source: 'server_verified', key_combo: 'fixture' });",
       "const gone = 'old_helper';",
       "const auth = 'not_public';",
       "// a comment naming consume_quota without quotes does not matter",
@@ -65,6 +67,11 @@ describe("edge schema dependency gate", () => {
     expect(JSON.parse(out.stdout)).toEqual({
       functions: ["consume_quota", "draft_only"],
       tables: ["records"],
+      columns: ["records.event_source", "records.key_combo"],
+      functionContracts: [
+        { name: "consume_quota", signature: "uuid", argNames: ["p"] },
+        { name: "draft_only", signature: "uuid", argNames: ["p"] },
+      ],
     });
   });
 
@@ -78,9 +85,15 @@ describe("edge schema dependency gate", () => {
   it("builds a read-only query that carries every dependency", () => {
     const body = JSON.parse(run(["query", "demo"], fixture).stdout);
     expect(Object.keys(body)).toEqual(["query"]);
-    expect(body.query).toMatch(/^select req\.kind, req\.name,/);
+    expect(body.query).toMatch(/^select req\.kind, case when req\.kind = 'function'/);
     expect(body.query).not.toMatch(/\b(insert|update|delete|drop|alter|create|grant|revoke)\b/i);
     for (const name of ["consume_quota", "draft_only", "records"]) expect(body.query).toContain(`"${name}"`);
+    expect(body.query).toContain('"records.event_source"');
+    expect(body.query).toContain('"records.key_combo"');
+    expect(body.query).toContain("to_regprocedure");
+    expect(body.query).toContain("has_function_privilege('service_role'");
+    expect(body.query).toContain("p.proargnames[1:p.pronargs]");
+    expect(body.query).toContain("pg_catalog.pg_attribute");
   });
 
   function verifyWith(rows: unknown) {
@@ -90,27 +103,45 @@ describe("edge schema dependency gate", () => {
   }
 
   const allPresent = [
-    { kind: "function", name: "consume_quota", present: true },
-    { kind: "function", name: "draft_only", present: true },
+    { kind: "function", name: "consume_quota(uuid)", present: true },
+    { kind: "function", name: "draft_only(uuid)", present: true },
     { kind: "table", name: "records", present: true },
+    { kind: "column", name: "records.event_source", present: true },
+    { kind: "column", name: "records.key_combo", present: true },
   ];
 
   it("passes only when every dependency is present", () => {
     const out = verifyWith(allPresent);
     expect(out.status).toBe(0);
-    expect(out.stdout).toContain("demo: 2 function(s) and 1 table(s) present");
+    expect(out.stdout).toContain("demo: 2 function(s), 1 table(s), and 2 column(s) present");
   });
 
   it("names what is missing and stops the deploy", () => {
-    const out = verifyWith(allPresent.map((r) => (r.name === "consume_quota" ? { ...r, present: false } : r)));
+    const out = verifyWith(allPresent.map((r) => (r.name === "consume_quota(uuid)" ? { ...r, present: false } : r)));
     expect(out.status).toBe(1);
-    expect(out.stderr).toContain(`${ERROR}missing-in-production: function:consume_quota`);
+    expect(out.stderr).toContain(`${ERROR}missing-in-production: function:consume_quota(uuid)`);
+  });
+
+  it("rejects an old table without the new column", () => {
+    const out = verifyWith(allPresent.map((r) => (r.kind === "column" ? { ...r, present: false } : r)));
+    expect(out.status).toBe(1);
+    expect(out.stderr).toContain("column:records.event_source");
+  });
+
+  it("rejects a same-name RPC with the wrong signature or no service_role grant", () => {
+    // The catalog query reports false when to_regprocedure or has_function_privilege fails.
+    const wrongSignature = verifyWith(allPresent.map((r) => (r.name === "consume_quota(uuid)" ? { ...r, present: false } : r)));
+    const noGrant = verifyWith(allPresent.map((r) => (r.name === "draft_only(uuid)" ? { ...r, present: false } : r)));
+    expect(wrongSignature.status).toBe(1);
+    expect(noGrant.status).toBe(1);
+    expect(noGrant.stderr).toContain("function:draft_only(uuid)");
   });
 
   it.each([
     ["an empty answer", []],
     ["a dropped row", allPresent.slice(1)],
     ["an extra row", [...allPresent, { kind: "table", name: "users", present: true }]],
+    ["a duplicate row", [...allPresent, allPresent[0]]],
     ["a non-array", { rows: allPresent }],
     ["a malformed row", [{ kind: "function" }, ...allPresent.slice(1)]],
     ["present as a string", allPresent.map((r) => ({ ...r, present: "true" }))],
@@ -145,14 +176,30 @@ describe("edge schema dependency gate", () => {
     expect(out.status).toBe(1);
     expect(out.stderr).toContain("import-escapes-repository");
   });
+
+  it("rejects a new interpolated RPC until its possible names are reviewed", () => {
+    write(fixture, "supabase/functions/demo/index.ts", "executeRpc(`${kind}_quota`, {});\n");
+    const out = run(["list", "demo"], fixture);
+    expect(out.status).toBe(1);
+    expect(out.stderr).toContain("unreviewed-dynamic-rpc");
+  });
 });
 
 describe("edge schema dependency gate on the real repository", () => {
   it("sees the capacity RPCs the LLM proxies reach through the shared wrapper", () => {
     const deps = JSON.parse(run(["list", "openai-proxy"]).stdout);
     expect(deps.functions).toEqual(
-      expect.arrayContaining(["reserve_llm_proxy_capacity", "consume_llm_proxy_purpose_quota", "claim_reasoning_proxy_call"]),
+      expect.arrayContaining(["reserve_llm_proxy_capacity", "settle_llm_proxy_capacity", "release_llm_proxy_capacity", "consume_llm_proxy_purpose_quota", "claim_reasoning_proxy_call"]),
     );
+    expect(deps.columns).toContain("ai_audit_log.event_source");
+    expect(deps.columns).toContain("ai_audit_log.key_combo");
+    expect(deps.columns).toEqual(expect.arrayContaining([
+      "ai_audit_log.purpose", "ai_audit_log.reasoning_vendor", "ai_audit_log.reasoning_effort", "ai_audit_log.total_tokens",
+    ]));
+    expect(deps.functionContracts).toEqual(expect.arrayContaining([
+      { name: "settle_llm_proxy_capacity", signature: "uuid", argNames: ["p_reservation_id"] },
+      { name: "release_llm_proxy_capacity", signature: "uuid", argNames: ["p_reservation_id"] },
+    ]));
   });
 
   it("sees the Naver sign-in RPCs called through the client.rpc(name) helper", () => {
@@ -160,6 +207,19 @@ describe("edge schema dependency gate on the real repository", () => {
     expect(deps.functions).toEqual(
       expect.arrayContaining(["issue_oauth_naver_state", "consume_oauth_naver_state", "consume_oauth_naver_rate_limit"]),
     );
+  });
+
+  it("can derive exact contracts for every deployable Edge function", () => {
+    const slugs = ["claude-proxy", "delete-account", "export-account", "gemini-proxy", "oauth-naver", "openai-proxy", "paddle-webhook", "peer-respond", "public-data-proxy", "rewarded-ssv", "rss-proxy", "service-consent", "subscription-manage", "xai-proxy"];
+    for (const slug of slugs) {
+      const out = run(["list", slug]);
+      expect(out.status).toBe(0);
+      const deps = JSON.parse(out.stdout);
+      expect(deps.functionContracts).toHaveLength(deps.functions.length);
+      for (const contract of deps.functionContracts) {
+        expect(contract.argNames).toHaveLength(contract.signature ? contract.signature.split(",").length : 0);
+      }
+    }
   });
 });
 

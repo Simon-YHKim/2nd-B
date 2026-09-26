@@ -80,10 +80,12 @@ jobs:
 
       # Migrations first, the function second. The function's source names
       # public functions and tables that db/migrations or db/migration-drafts
-      # create; every one of them must already exist in production, or the
-      # deploy stops here. On 2026-09-26 main's proxies named 19 objects that
-      # production did not have (they fail closed), so one dispatch of main
-      # would have taken them down. The query goes to the read-only endpoint
+      # create, plus added columns used by Edge writes. The check requires each
+      # RPC's migration-defined signature, named arguments and service_role EXECUTE grant;
+      # a same-named but incompatible object cannot pass. On 2026-09-26 main's
+      # proxies named 19 objects that production did not have (they fail closed),
+      # so one dispatch of main would have taken them down. The query goes to
+      # the read-only endpoint
       # (it runs as supabase_read_only_user), is built from identifiers the
       # script validates, and any failure to answer stops the deploy.
       - name: Check production has the schema this function calls
