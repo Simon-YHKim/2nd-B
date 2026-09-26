@@ -105,9 +105,9 @@ let initialized = false;
 
 /**
  * Initialize the Google Mobile Ads SDK once per process. Call AFTER
- * ensureUmpConsent() resolves canRequestAds -- Google's recommended order,
- * so no ad infrastructure spins up for users without a consent signal.
- * delayAppMeasurementInit (app.json) keeps app start free of ad-SDK work.
+ * ensureUmpConsent() resolves canRequestAds -- Google's recommended order.
+ * The native SDK is excluded from builds during the legal hold because a JS
+ * gate alone cannot control native process-start providers.
  */
 export async function ensureAdsInitialized(): Promise<boolean> {
   if (!adNetworkPublicationReady()) return false;
