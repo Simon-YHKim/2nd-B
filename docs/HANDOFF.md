@@ -28,13 +28,19 @@
 **⚠ `HANDOFF-2026-09.md`(p1)는 92KB 로 찼다 — 09 월 블록은 `-p2` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-26 14:36 / PowerShell 복구 후 SQL 번호 승격 작업 중
+## Latest — 2026-09-26 14:57 / 서버 SQL 8개 번호 승격 · PR 원격 4/4 PASS
+
+- Draft PR [#1865](https://github.com/Simon-YHKim/2nd-B/pull/1865)의 head `7217d4d5`에 초안 원문 Git blob과 같은 0191–0198 번호 SQL을 push했다. 정본 삭제 등록부 +4행/forward additions, 0189 rollback의 registry-only 원장 재생, SQL CI 중복 실행 방지를 함께 반영했다. [번호·해시·운영 alias 대응표](qa/SERVER-PROMOTION-260926.md) · [HTML 잔여 작업](qa/REMAINING-WORK-260926.html). 기존 고정 인계 manifest는 바꾸지 않았다.
+- 로컬 `npm run verify -- --runInBand` **818 suites / 10,684 Jest tests**, UI 76 PASS, lint 오류 0·기존 경고 71. 원격 [SQL](https://github.com/Simon-YHKim/2nd-B/actions/runs/36222133872)은 181개 번호 SQL의 fresh 적용, 등록부 70행·8개 원장 행, 0189 롤백/CLI 재적용, Reward·Paddle 회귀를 포함해 PASS. [CI verify·web export](https://github.com/Simon-YHKim/2nd-B/actions/runs/36222133905)와 PR 제목 검사도 PASS. 이 문서 후속 커밋의 원격 검사는 별도로 확인한다.
+- **운영 추가 적용·공개는 NO-GO.** 운영에 이미 `reward_ssv_tickets`·`reward_ssv_hardening` alias가 있고 0172는 두 번 기록됐다. 두 번째 0172 뒤 13개 함수 본문·ACL 지문은 설계 기대값과 일치했지만 중복 원인과 최신 Edge/flag·콜백은 미확인이다. Reward SQL 재적용·운영 일괄 `db push` 금지. 복구 가능한 백업의 격리 복원, 실제 원장 alias 화해, 나머지 번호 SQL의 실데이터 리허설은 콘솔 소유자가 완료해야 한다. 유료 개발 브랜치는 사용자 결정대로 만들지 않았다. Grok 후속 전달도 사용자 결정대로 보류한다.
+
+## 2026-09-26 14:36 / PowerShell 복구 후 SQL 번호 승격 작업 중
 
 - Codex 다운그레이드 뒤 PowerShell 실행 문제가 해소됐다는 사용자 안내를 반영했다. 통합 워크트리 `fix/qa-harness-integrated-260925`에서 원문 바이트 그대로 초안 8개를 후보 `0191`~`0198` 번호 SQL로 복사했고, 삭제 등록부 네 행·`forwardAdditions`와 0189 롤백 재생 목록을 연결했다. **아직 검증·push 완료나 번호 예약을 선언하지 않는다.** [승격·운영 원장 대응표](qa/SERVER-PROMOTION-260926.md).
 - 인증된 읽기 전용 재조회에서는 두 번째 0172 적용 뒤 보상 함수 본문·ACL 지문이 설계 순서의 기대값과 **13/13 일치**했다. 이는 0172 중복 원장의 원인이나 현행 플래그·콜백 성공을 증명하지 않는다. `rewarded-ssv` Edge는 약 14:28 조회에서 v91이었다. 아래 v89 기록은 당시 스냅샷이다.
 - 운영의 0177·hardening은 번호 없는 timestamp/name 원장으로 이미 적용됐고 0172는 두 번 기록됐다. 승격된 번호 SQL을 이유로 Reward를 재적용하거나 운영에서 일괄 `db push` 하지 말 것. 콘솔 소유자의 원장 alias·백업/복원·격리 리허설, 최신 Edge/flag 확인 전 공개 가드는 유지한다. Grok 후속 전달은 사용자 결정대로 보류다.
 
-## Latest — 2026-09-26 14:15 / 0172 중복 원장 발견 · Reward 재적용 금지
+## 2026-09-26 14:15 / 0172 중복 원장 발견 · Reward 재적용 금지
 
 - 코딩 세션의 인증된 Supabase **읽기 전용** 조회에서 `0172_reward_authorization_hardening` 원장 행이 `20260926050258`와 `20260926050638` 두 개 확인됐다. 각 SQL은 9639/9640바이트이고 공백 제외 MD5는 동일하다. 두 번째 적용 뒤 함수 지문과 플래그·실제 기능은 재검증하지 않았다.
 - Edge 함수 목록의 `rewarded-ssv`는 v89로, 아래 13:51 기록의 v88보다 최신이다. 현재 활성화 상태를 이 조회만으로 판정하지 않는다.
