@@ -136,7 +136,12 @@ prove this September artifact or the latest migration ledger is restorable.
 The paid development branch remains declined; Docker's local daemon is stopped.
 The live cost quote for a new scratch project in the existing 2ndB organization
 (`Learner-thepoorman's Org`) is $0/month. No project was created; its creation,
-restore of production user data, and later deletion await a separate user decision.
+restore of production user data, and later deletion were approved by Simon.
+The 2026-09-26 Orca preflight stopped before project creation because the age
+private key was unavailable in the locked KeePassXC vault, and an authenticated
+temporary-project DB connection and deletion route were not available. See
+[the preflight report](BACKUP-RESTORE-PREFLIGHT-260926.html). No plaintext dump
+or temporary project was created.
 An isolated restore with the private key and a compatible Supabase scratch
 environment is still required before production migration writes.
 

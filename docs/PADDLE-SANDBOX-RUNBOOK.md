@@ -90,6 +90,12 @@ Sandbox 정책에서는 운영 Supabase와 운영 Paddle 결제 호스트도 제
 
 아래 외부 작업은 콘솔 세션 소유다. 새 서비스 생성·배포·결제에는 해당 승인 절차를 따른다.
 
+2026-09-26 읽기 전용 비용 조회에서 기존 2ndB Free 조직의 새 프로젝트 견적은
+USD 0/월이고, 활성 프로젝트는 `2nd-brain` 1개였다. [Supabase Free 한도](https://supabase.com/docs/guides/platform/billing-faq)는
+활성 프로젝트 2개이므로, 승인된 **백업 복원 드릴용** 임시 프로젝트와 별도
+Paddle sandbox 프로젝트를 동시에 활성화하지 않는다. 복원 드릴 정리 후 별도
+Paddle 프로젝트의 실제 생성 가능 여부·권한과 승인을 다시 확인한다.
+
 1. 별도 DB에 현재 migration 기반과 필요한 billing RPC를 준비한다. 저장소의
    `UNNUMBERED_paddle_refund_consequence_integrity.sql` 적용/번호 규칙 및 strict webhook
    전환 조건은 [SESSION-OWNERSHIP.md](SESSION-OWNERSHIP.md)의 Paddle 절을 그대로 따른다.
@@ -142,6 +148,13 @@ npx jest --runInBand --runTestsByPath @billingTests
 외부 요청/DB를 fake로 대체한 handler 검사, 실제 HMAC, 환경/가격 경계, SDK mock을 실행한다.
 네트워크·실제 Paddle·실DB에는 연결하지 않는다. 별도 SDK callback/동의 분석 검사는
 `paddle-checkout-analytics.test.ts` 및 analytics 검사에서 수행한다.
+
+2026-09-26 재점검에서 billing 17개 suite와 HTML CSP 1개 suite, 총 530개
+테스트가 통과했다. 현재 셸과 `.env.test`에는 sandbox 및 서버 Paddle 설정이
+없다(값은 조회하거나 기록하지 않음). 따라서 이 결과는 실제 checkout·서명 webhook·
+갱신·환불 또는 격리 DB 원장 검증을 대신하지 않는다. 로컬 재실행 기록은
+`Output/paddle-sandbox-readiness-260926-jest.log`와
+`Output/paddle-sandbox-readiness-260926.json`에 있다(gitignored).
 
 남은 운영 증거는 별도 Supabase 배포 식별자, sandbox notification 설정, test token/가격
 일치, SDK Test Mode 표시, 결제/갱신/환불 원장과 운영 DB 무변경 결과다.
