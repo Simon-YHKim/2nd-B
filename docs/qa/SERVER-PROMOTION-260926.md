@@ -58,8 +58,8 @@ recorded. Recheck the current version and flag before any canary.
 
 The Supabase CLI will not equate these timestamp/name rows with new four-digit
 source filenames automatically. **Do not run a bulk production `db push` or
-reapply Reward SQL.** The console owner must first capture a restorable backup,
-prove a restore on an isolated clone, reconcile each ledger alias and the
+reapply Reward SQL.** The console owner must prove that the current encrypted
+backup restores on an isolated clone, reconcile each ledger alias and the
 remaining numbered prerequisites, and execute the reviewed per-file plan from a
 fixed commit. The declined paid development branch is not assumed available.
 Keep public AdMob and client features OFF until their own canaries pass. The
@@ -84,7 +84,8 @@ The three checked legacy grant/consume RPCs exist but none of those three roles
 can execute them. Both Reward tables exist; issued and consumed ticket counts
 were zero. The Edge list still showed `rewarded-ssv` v91 with `updated_at`
 12:23:51 KST. These checks support the source-to-ledger map; they do not prove
-the live secret value, signed callback canary, or a restorable backup.
+the live secret value, signed callback canary, or that the current encrypted
+backup can be restored.
 
 The live Paddle preflight counted four webhook rows, zero adjustment source or
 legacy consequence rows, and zero self-service billing rows. This reduces the
@@ -95,8 +96,23 @@ tables were still absent. Supabase listed no development branches. No production
 write was made in this recheck. Draft PR #1865 head `d506ad6d` had all four
 required checks passing (lint, SQL, verify, web export).
 
+### Encrypted backup evidence, 2026-09-26
+
+The existing [daily backup workflow](../../.github/workflows/db-backup.yml)
+ran on 2026-09-26 06:44–06:47 KST: `pg_dump`, age encryption, and artifact upload
+all passed in [run 36193185108](https://github.com/Simon-YHKim/2nd-B/actions/runs/36193185108).
+GitHub lists artifact `db-backup-36193185108` (1,589,743 bytes), unexpired until
+2026-10-09 21:47 UTC. The Backup environment lists the dedicated DB URL and age
+public-key **secret names**; their values were not read. This establishes a
+current encrypted dump artifact, not a restore test. The older
+[restore runbook](../DB-RESTORE-RUNBOOK.md) records an August drill, which cannot
+prove this September artifact or the latest migration ledger is restorable.
+The paid development branch remains declined; Docker's local daemon is stopped.
+An isolated restore with the private key and a compatible Supabase scratch
+environment is still required before production migration writes.
+
 Scratch CI replays all numbered files on a fresh PostgreSQL database. It proves
 source order and contracts only; it cannot establish compatibility with live
-data, a restorable production backup, the current Edge secrets, or device and
-payment behavior. See [live remaining work](REMAINING-WORK-260926.html) and
+data, restoration of the current production backup, current Edge secrets,
+or device and payment behavior. See [live remaining work](REMAINING-WORK-260926.html) and
 [session ownership](../SESSION-OWNERSHIP.md).
