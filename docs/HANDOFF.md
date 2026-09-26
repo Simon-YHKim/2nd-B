@@ -28,7 +28,17 @@
 **⚠ `HANDOFF-2026-09.md`(p1)는 92KB 로 찼다 — 09 월 블록은 `-p2` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-26 16:50 / Draft PR 최신 웹 GUI 실측
+## Latest — 2026-09-26 17:33 / Android 로그인 후 오디오 RedBox 재현·수정본 재기동
+
+- 별도 Android 전용 AVD에서 기존 APK의 네이티브 입력과 PR 최신 소스의 동일성을 Git 내용으로 확인하고, 최신 JS 번들(3285 modules)을 Metro 8084로 로드했다. QA 계정 로그인 뒤 온보딩 Continue에서 `Cannot assign to property 'playbackRate' which has only a getter` RedBox가 발생해 홈 진입이 막혔다. 증거는 로컬 `Output/runtime-validation-260926/latest-runtime-result.json`·`latest-31-after-continue.png`·`latest-playbackrate-log.txt`(전용 `native-260926` 워크트리)에 보존했다.
+- 원인은 `src/lib/audio/use-ui-sound.ts`의 속성 대입이다. 설치된 expo-audio 56.0.12의 Android `playbackRate`는 getter만 있고 `setPlaybackRate(rate)`가 변경 함수다. 통합 PR 트리에서 메서드 호출로 바꾸고 getter 전용 Android/iOS mock 회귀 테스트를 추가했다. 변경 전 테스트는 같은 TypeError로 실패했고 변경 후 전체 `npm run verify -- --runInBand`가 818 suites·10,686 tests·UI 76개 PASS였다. 수정된 JS로 AVD를 재기동해 후속 First Record 화면과 `secondbrain:///` 별자리 홈을 RedBox 없이 표시했다(`native-260926/Output/runtime-validation-260926/fix-08-deeplink-root.png`). 기록 확정은 운영 DB 쓰기 가능성 때문에 누르지 않았고 카메라·오디오 출력도 미검증이다. 전용 AVD·Metro는 정리하고 공용 8081은 유지한다.
+
+## 2026-09-26 17:09 / AdMob 법률 결정과 PR 동의 판본 대조
+
+- 저장소 밖 최신 결정 `E:/2ndB/docs/drafts/privacy-admob-simon-decisions-2026-09-26.md`(16:00 KST)는 시행일 **2026-09-26**, Q4 AdSense 행 제외, Q6 광고 스위치 국외 이전 고지 포함, Q5 AdMob 처리위탁/제3자 제공 분류 **보류**를 기록한다. 16:11 KST 법률 체크 초안은 Q5를 #1865 머지 차단으로 분류한다. 두 문서는 코드·DB에 자동 반영된 것이 아니다.
+- Draft PR #1865의 처리방침 세 사본과 `PRIVACY_POLICY_VERSION`, 가입 0191·서비스 동의 0194 SQL의 판본은 여전히 **2026-09-25**이다. 광고 스위치의 현재 문구는 국외 이전의 항목·국가·시기/방법·수신자 연락처·목적/보유기간·거부 효과를 한 화면에서 고지하지 않는다. [개인정보 보호법 제28조의8 제2항](https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1033215841)의 고지 항목과 대조했다. Q5 결정과 정확한 고지 문구를 확정한 뒤 세 사본·앱 판본·두 SQL 계약·스위치 UI·테스트를 **같은 회차**로 갱신해야 한다. 지금은 날짜만 바꾸거나 광고를 켜거나 PR을 머지하지 않는다. [HTML 잔여 작업](qa/REMAINING-WORK-260926.html).
+
+## 2026-09-26 16:50 / Draft PR 최신 웹 GUI 실측
 
 - Draft PR #1865의 검증 head `8cecd849`로 새 웹 export를 만들어 QA 계정의 로그인·화면 이동을 실행했다. 320·425·768px의 28개 화면 점검에서 pageerror 0, 가로 넘침 0, 깨진 이미지 0이었다. 첫 로컬 export의 랜딩 번들 누락 404 세 건은 CI와 같은 `esbuild` 번들을 넣은 뒤 3개 너비에서 오류 0으로 재검증했다. 남은 `service-consent` 404 세 건은 서버 계약 미배포를 확인한 것이며 UI는 재시도 안내를 표시한다. [HTML 보고서](qa/REMAINING-WORK-260926.html).
 - 같은 최신 코드의 `/core-brain`에서 운영 `polaris_generation_status`가 HTTP 404인 실제 조건을 확인했다. 425px 화면에서 `기록으로 페르소나 제안 받기` 버튼은 비활성이고 “생성 기능 설정을 기다리고 있어요” 문구가 보인다. 생성·쓰기 요청 0, pageerror 0. 결과와 화면은 로컬 `Output/web-resume-260926/qa-latest-core-only-results.json` 및 `screenshots/latest-core-action-425.png`에 있다. 이는 모델 생성 품질 검증이 아니다. 운영 추가 SQL·클라이언트 공개 NO-GO, 격리 복원 승인 대기, Grok 후속 보류는 유지한다.
