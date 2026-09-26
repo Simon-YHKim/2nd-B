@@ -1282,6 +1282,23 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/account_deletion_managed_storage_preflight.sql
+      - name: Exercise numbered 0192 ledger alias on scratch schema
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          # Only the disposable CI database is modified. The real preflight
+          # stays read-only and must also accept the managed apply_migration
+          # timestamp/name pair, not just the CLI's 0192/bare-stem pair.
+          restore_ledger() {
+            psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -c \
+              "UPDATE supabase_migrations.schema_migrations SET version='0192', name='account_deletion_completion_fence' WHERE version='20990101000000' AND name='0192_account_deletion_completion_fence'"
+          }
+          trap restore_ledger EXIT
+          changed="$(psql -X -h localhost -U postgres -At -v ON_ERROR_STOP=1 -c \
+            "WITH moved AS (UPDATE supabase_migrations.schema_migrations SET version='20990101000000', name='0192_account_deletion_completion_fence' WHERE version='0192' AND name='account_deletion_completion_fence' RETURNING 1) SELECT count(*) FROM moved")"
+          test "$changed" = 1
+          psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/account_deletion_managed_storage_preflight.sql
       - name: Exercise numbered Naver OAuth limiter on scratch schema
         env:
           PGPASSWORD: postgres

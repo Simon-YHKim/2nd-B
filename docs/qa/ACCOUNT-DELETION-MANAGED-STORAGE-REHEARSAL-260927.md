@@ -35,8 +35,14 @@ or service-role keys into a report or terminal transcript.
      -f db/tests/account_deletion_managed_storage_preflight.sql
    ```
 
-   The script refuses missing `0192` ledger/name, bucket policy, RLS, trigger,
-   tombstone, or service-only RPC grants. Save the output showing actual
+   The script accepts exactly one nonempty 0192 ledger row in either documented
+   form: CLI scratch `(0192, account_deletion_completion_fence)` or the managed
+   clone's timestamped `(<14-digit version>, 0192_account_deletion_completion_fence)`.
+   The latter is the expected result for this managed rehearsal. Duplicate,
+   empty, or differently versioned/name rows are **NO-GO** until reconciled;
+   do not edit the ledger merely to satisfy the preflight. The script also
+   refuses missing bucket policy, RLS, trigger, tombstone, or service-only RPC
+   grants. Save the output showing actual
    `storage.objects` columns and all four policy expressions. Compare those
    expressions and the ledger SQL with the pinned numbered source; a catalog
    presence check alone does not prove semantic equality. In particular, the
