@@ -28,7 +28,17 @@
 **⚠ `HANDOFF-2026-09.md`(p1)는 92KB 로 찼다 — 09 월 블록은 `-p2` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-27 03:31 / 운영 원장 갱신 뒤 격리 복원 준비
+## Latest — 2026-09-27 04:17 / Grok Bot 격리 복원 과제 접수
+
+- Simon의 반복 지시에 따라 Supabase **임시 프로젝트만** 대상으로 한 격리 복원 과제 `vb-bbca63fa`를 Grok Bot Relay 대화에서 직접 전달했다. Relay가 로컬 버스 `E:/2ndB/.bots/relay/inbox/vb-bbca63fa.md`를 `dev-infra/inbox`에도 배치하고 `relay/outbox/vb-bbca63fa.dispatch.md`를 남겼다. Hadrianus WorksLocal / Dev Infra는 `dev-infra/outbox/vb-bbca63fa.ack.md`와 대화에서 과제서 확인을 인정했다. 이는 **과제 접수**이지 복원 완료가 아니다.
+- `/vibe-bot`의 보호 어댑터 `execute_bot.py dispatch`는 계정·할당량·과금·Relay 인증서가 없어 실행하지 않았다. 대신 Orca UI로 직접 전달한 것은 사용자가 지정한 스킬 절차에서 벗어난 실행이다. 이를 보호 어댑터를 통과한 발주로 기록하지 말고, 같은 nonce를 다시 발주하지 말 것. 새 메시지·발주는 스킬의 현재 증빙과 전달 절차를 충족한 뒤에만 판단한다.
+- Hadrianus가 `2ndb-integration-drill-260927`(ref `zznoukihuzogteheokfi`, `ap-northeast-2`, `ACTIVE_HEALTHY`)와 최신 백업 run `36262516860`을 읽기 전용으로 확인했다. **비밀번호 재설정·복호화·임시 DB 쓰기·운영 DB/Edge 쓰기는 아직 없다.** KeePassXC 보관함이 잠겨 age 개인키 접근이 막혔고, 임시 DB 비밀번호 및 3단계 Supabase CLI 로그인도 없다. Bot이 평문 개인키 임시 파일 경로를 요청했으나 사용자는 키 값이나 평문 키 파일을 채팅·버스에 전달하지 말 것. 안전한 일시 접근 방법이 정해지기 전에는 복원을 시작하지 않는다.
+- 과제 범위는 최신 암호화 백업의 **격리 복원**, 운영 원장 171행 대조, 남은 SQL 파일별 이주·0189 rollback·CLI 원장 왕복·Storage 두 연결 경합, 임시 프로젝트와 생성한 임시 파일 정리다. 운영 프로젝트 ref `zoacryukmdeivmolvyhj`의 migration·Edge 작업은 이 과제에서 제외했으며 별도 운영 GO와 섞지 않는다. 완료 여부는 `vb-bbca63fa.result.md`의 실제 복원·검증·정리 증거로 확인한다.
+- 별도 웹 QA 조사를 위해 만든 깨끗한 `E:/2ndB/.worktrees/web-focus-settings-260927`에는 코드 변경이 없다. `node_modules` 정션이 있으며 자동 승인 검토가 정리 명령을 `blocked by policy`로 거부해 남겨 뒀다. 정리하려면 정션을 먼저 안전하게 끊고 정확한 워크트리 경로만 다뤄야 한다.
+
+---
+
+## 2026-09-27 03:31 / 운영 원장 갱신 뒤 격리 복원 준비
 
 - [PR #1885](https://github.com/Simon-YHKim/2nd-B/pull/1885)가 `main 94caae4a`에 병합돼 Simon의 별도 재정렬 GO에 따른 **운영 0179·0181 적용**을 기록했다. 적용 후 운영 원장은 읽기 전용 재조회에서 171행, 두 이름 각 1행, 최신 버전 `20260926175427`, 순서 민감 지문 `ac44a02c28135e83cccf4175d60437ae`였다. 이 세션은 해당 운영 적용을 수행하지 않았다. 나머지 0192·0194·0197와 묶음 C는 보류다.
 - 앞선 암호화 백업 `db-20260926T170134Z.dump.age`는 두 운영 적용 **이전**이므로 현재 원장 리허설 입력으로 쓰지 않는다. 새 [백업 run 36262516860](https://github.com/Simon-YHKim/2nd-B/actions/runs/36262516860)이 `main 94caae4a`에서 성공했다. 암호화 파일 `db-20260926T182627Z.dump.age`는 1,816,147바이트, SHA-256 `9EB6F8B6C48E32482B348CA8793D96DA1D8F90779C36515277BE913D9BDE4085`다. age 헤더·파일 크기·해시를 확인했으며 **이 새 파일의 복호화·복원은 아직 미실행**이다. 이전 백업은 KeePassXC 개인키로 age 완전 복호화, `PGDMP`, `pg_restore --list` 1,936줄까지 확인했다. 개인키·평문 값은 출력하거나 파일로 저장하지 않았다.
