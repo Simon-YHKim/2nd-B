@@ -1278,6 +1278,10 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/account_deletion_completion_fence_regression.sql
+      - name: Parse managed Storage read-only preflight on scratch schema
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/account_deletion_managed_storage_preflight.sql
       - name: Exercise numbered Naver OAuth limiter on scratch schema
         env:
           PGPASSWORD: postgres
