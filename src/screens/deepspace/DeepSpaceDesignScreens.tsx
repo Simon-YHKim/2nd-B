@@ -806,6 +806,10 @@ export function DeepSpacePrivacyDesignScreen() {
     key: Extract<PrivacyPrefKey, "external_analytics" | "ads">,
     next: boolean,
   ) {
+    // The historical ads preference cannot become a new third-party/overseas
+    // transfer consent. While the disclosure is incomplete, allow withdrawal
+    // of an old choice but never save a new opt-in.
+    if (key === "ads" && next) return;
     if (
       !userId ||
       minorRef.current ||
@@ -1102,29 +1106,22 @@ export function DeepSpacePrivacyDesignScreen() {
               disabled={minor || busy}
               onPress={() => void toggleExternalPreference("external_analytics", !analyticsOn)}
             />
-            {/* Platform-neutral consent copy (Simon pick, 2안, 2026-07-21):
-                the same privacy_prefs.ads value gates web AND native, so a
-                web-scoped label was a consent-specificity gap (#1116 T2).
-                The data-transfer promise is conditional on WATCHING; builds
-                that cannot complete a watch never reach it (#1120 gate). */}
+            {/* Historical preference only. AdMob third-party disclosure and
+                overseas transfer require a new versioned consent flow. */}
             <Toggle
-              label={ko ? "광고 허용" : "Allow ads"}
+              label={consentT("privacy.keys.ads.label")}
               value={
                 minor
                   ? ko
                     ? "만 18세 미만 잠금"
                     : "Locked under 18"
                   : adsOn
-                    ? ko
-                      ? "성인 무료 계정 전용. 광고 시청 시 광고 식별 데이터가 Google에 전달돼요"
-                      : "Adult free accounts only. Watching sends ad identifiers to Google"
-                    : ko
-                      ? "꺼짐"
-                      : "Off"
+                    ? consentT("privacy.keys.ads.savedDesc")
+                    : consentT("privacy.keys.ads.desc")
               }
               on={!minor && adsOn}
-              disabled={minor || busy}
-              onPress={() => void toggleExternalPreference("ads", !adsOn)}
+              disabled={minor || busy || !adsOn}
+              onPress={() => { if (adsOn) void toggleExternalPreference("ads", false); }}
             />
           </>
         )}

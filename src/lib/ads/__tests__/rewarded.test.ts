@@ -9,6 +9,12 @@ jest.mock("../consent", () => ({
   ensureAdsInitialized: jest.fn(async () => true),
 }));
 
+// Exercise the SSV lifecycle as though the legal rollout were complete;
+// the current production hold is separately asserted below.
+jest.mock("../legal-readiness", () => ({
+  adNetworkPublicationReady: jest.fn(() => true),
+}));
+
 const mockGetSession = jest.fn();
 const mockInvoke = jest.fn();
 const mockRpc = jest.fn();
@@ -47,6 +53,7 @@ jest.mock("react-native-google-mobile-ads", () => ({
 
 import { canCompleteRewardedWatch, showRewardedAd } from "../rewarded.native";
 import { ensureAdsInitialized, ensureUmpConsent } from "../consent";
+import { adNetworkPublicationReady } from "../legal-readiness";
 
 const USER_ID = "123e4567-e89b-42d3-a456-426614174000";
 const OTHER_USER_ID = "223e4567-e89b-42d3-a456-426614174000";
@@ -94,6 +101,7 @@ beforeEach(() => {
   for (const key of Object.keys(listeners)) delete listeners[key];
   unsubscribers.length = 0;
   jest.clearAllMocks();
+  (adNetworkPublicationReady as jest.Mock).mockReturnValue(true);
   mockGetSession.mockReset();
   mockInvoke.mockReset();
   mockRpc.mockReset();
@@ -430,6 +438,16 @@ describe("showRewardedAd SSV ticket boundary", () => {
 });
 
 describe("showRewardedAd gates and SDK lifecycle", () => {
+  test("legal hold blocks direct SDK entry before UMP, ticket issuance, or ad creation", async () => {
+    (adNetworkPublicationReady as jest.Mock).mockReturnValue(false);
+
+    expect(canCompleteRewardedWatch()).toBe(false);
+    await expect(showRewardedAd(REASONING_OPTIONS)).resolves.toEqual({ completed: false });
+    expect(ensureUmpConsent).not.toHaveBeenCalled();
+    expect(mockGetSession).not.toHaveBeenCalled();
+    expect(createForAdRequest).not.toHaveBeenCalled();
+  });
+
   test("SSV disabled fails before consent, ticket acquisition, or ad creation", async () => {
     delete process.env.EXPO_PUBLIC_REWARD_SSV;
     const result = showRewardedAd(REASONING_OPTIONS);

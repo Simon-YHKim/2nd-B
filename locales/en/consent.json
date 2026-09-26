@@ -64,15 +64,16 @@
     "subtitle": "Sharing, profiling, analytics, and model training all start off.",
     "speech": "Your records stay private unless you turn on a control. Teens stay locked to high-privacy.",
     "trustTitle": "Default: private and off",
-    "trustBody": "Your entries are stored encrypted. Ads never appear unless you turn them on yourself, and even then your entries are never used for ads. 2nd-Brain does not sell your data.",
+    "trustBody": "Your entries are stored encrypted. Ads are currently disabled, and your entries are not used for ads. 2nd-Brain does not sell your data.",
     "sectionLabel": "Privacy controls",
     "minorLockNote": "You are on a teen account, so high-privacy stays on. Long-term memory is the only switch you can turn on.",
     "saveError": "Could not save that change. Please try again.",
     "lockedTag": "Locked",
     "keys": {
       "ads": {
-        "label": "Ads",
-        "desc": "Allow ads while on the free plan. Off means no ads at all."
+        "label": "Ads setting (currently unavailable)",
+        "desc": "Ad sharing and overseas transfer details are being prepared. Ads cannot be turned on yet.",
+        "savedDesc": "An older choice is saved, but ads are off. It is not new ad consent; you can turn it off."
       },
       "ops_push": {
         "label": "Send routines",

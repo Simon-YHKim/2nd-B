@@ -140,7 +140,7 @@ const ANCHORS: Anchor[] = [
     why: "Sentry 가 **일부러** 닫혀 있다는 주장의 근거. 문서가 '설정됐으나 안 쓴다'가 아니라 '울타리가 있고 조건이 적혀 있다'고 말하려면 그 울타리를 지키는 검사가 실재해야 한다." },
   { cite: `${AC}:154`, symbol: "MINOR_AGE_CEILING",
     why: "미성년 여부가 실제로 정해지는 비교. 이 문서 전체가 이 한 줄 위에 서 있다." },
-  { cite: `${AD}:58`, symbol: "input.isMinor !== false",
+  { cite: `${AD}:60`, symbol: "input.isMinor !== false",
     why: "미성년에게 광고가 안 나간다는 주장의 fail-closed 지점 - null 도 막는다는 것이 주장의 내용이다." },
   { cite: `${AD}:11-13`, symbol: "NEVER see ads", evidence: "comment",
     why: "그 규칙을 코드가 스스로 적어 둔 자리 - 주장 자체가 '코드가 이렇게 적어 두었다'라서 주석이 근거다." },

@@ -1,6 +1,6 @@
 // Fail-closed contract for the UMP seam (session X, docs/admob-ump-plan_260718.html).
-// The SDK is absent under jest, so these pin the exact posture the app ships
-// with until the native module is present: no consent signal, no ad request.
+// The legal publication gate is currently closed, so these pin the posture
+// even when a native SDK is available: no consent signal, no ad request.
 
 jest.mock("react-native", () => ({ Platform: { OS: "android" } }));
 
@@ -11,11 +11,11 @@ import path from "node:path";
 import { ensureUmpConsent, ensureAdsInitialized } from "../consent.native";
 
 describe("UMP consent seam (fail-closed)", () => {
-  test("SDK absent: consent resolves canRequestAds:false", async () => {
+  test("legal hold: consent resolves canRequestAds:false", async () => {
     await expect(ensureUmpConsent()).resolves.toEqual({ canRequestAds: false });
   });
 
-  test("SDK absent: initialize reports false, never throws", async () => {
+  test("legal hold: initialize reports false, never throws", async () => {
     await expect(ensureAdsInitialized()).resolves.toBe(false);
   });
 
@@ -35,8 +35,8 @@ describe("UMP consent seam (fail-closed)", () => {
     expect(src).toContain("info.canRequestAds === true");
     // ...and the native SDK may only be pulled lazily inside functions.
     expect(src).not.toMatch(/^import .*react-native-google-mobile-ads/m);
-    // The app-level gate stays in policy.ts; this module must not import it
-    // (composition happens in the caller, in gate order: policy -> UMP).
+    // The caller's policy gate and this module's defense gate share only the
+    // legal-readiness leaf; neither consent module imports policy.ts.
     expect(src).not.toMatch(/from "\.\/policy"/);
   });
 

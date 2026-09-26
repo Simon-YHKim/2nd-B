@@ -280,7 +280,7 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/lib/wiki/phase1.ts": 7,
   "src/lib/wiki/propose-template.ts": 15,
   "src/lib/wiki/template-validate.ts": 2,
-  "src/screens/deepspace/DeepSpaceDesignScreens.tsx": 69,
+  "src/screens/deepspace/DeepSpaceDesignScreens.tsx": 66,
   "src/screens/deepspace/dds-record-detail-screen.tsx": 4,
   "src/screens/deepspace/dds-wiki-records-screens.tsx": 4,
   "src/screens/deepspace/growth/WeeklyGrowthScreen.tsx": 14,

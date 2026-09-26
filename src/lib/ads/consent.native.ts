@@ -18,6 +18,7 @@
 
 import { Platform } from "react-native";
 
+import { adNetworkPublicationReady } from "./legal-readiness";
 import type { UmpConsentResult } from "./types";
 
 export type { UmpConsentResult } from "./types";
@@ -76,6 +77,7 @@ async function ensureTrackingAuthorization(): Promise<void> {
 }
 
 export async function ensureUmpConsent(opts?: { debugGeographyEea?: boolean }): Promise<UmpConsentResult> {
+  if (!adNetworkPublicationReady()) return { canRequestAds: false };
   const sdk = loadSdk();
   if (!sdk?.AdsConsent) return { canRequestAds: false };
   // Ask for tracking authorization before the first ad request of the session,
@@ -108,6 +110,7 @@ let initialized = false;
  * delayAppMeasurementInit (app.json) keeps app start free of ad-SDK work.
  */
 export async function ensureAdsInitialized(): Promise<boolean> {
+  if (!adNetworkPublicationReady()) return false;
   const sdk = loadSdk();
   if (!sdk?.default) return false;
   if (initialized) return true;

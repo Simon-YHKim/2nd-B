@@ -92,6 +92,9 @@ function PrivacyLegacy() {
 
   const onToggle = useCallback(
     (key: PrivacyPrefKey, next: boolean) => {
+      // This historical switch can only withdraw an old choice. A future
+      // specific AdMob consent must be collected through a separate flow.
+      if (key === "ads" && next) return;
       if (!userId) return;
       if (!isPrivacyPrefEditable(key, minor)) return;
       // Compose from prefsRef (kept current each render + updated synchronously
@@ -181,13 +184,16 @@ function PrivacyLegacy() {
               promise — so they are replaced by the honest statement below. */}
           {VISIBLE_PRIVACY_KEYS.map((key) => {
             const editable = isPrivacyPrefEditable(key, minor);
+            const heldAds = key === "ads";
             return (
               <PreferenceToggleRow
                 key={key}
                 label={t(`privacy.keys.${key}.label`)}
-                description={t(`privacy.keys.${key}.desc`)}
+                description={heldAds
+                  ? t(prefs.ads ? "privacy.keys.ads.savedDesc" : "privacy.keys.ads.desc")
+                  : t(`privacy.keys.${key}.desc`)}
                 value={prefs[key]}
-                disabled={!ready || !editable}
+                disabled={!ready || !editable || (heldAds && !prefs.ads)}
                 muted={!editable}
                 lockedLabel={!editable ? t("privacy.lockedTag") : undefined}
                 onValueChange={(v) => {

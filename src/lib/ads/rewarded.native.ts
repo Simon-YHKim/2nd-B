@@ -13,6 +13,7 @@ import { Platform } from "react-native";
 import { withTimeout } from "../async/with-timeout";
 import { getSupabaseClient } from "../supabase/client";
 import { ensureAdsInitialized, ensureUmpConsent } from "./consent";
+import { adNetworkPublicationReady } from "./legal-readiness";
 import type { RewardedResult, ShowRewardedAdOptions } from "./types";
 
 export type { RewardedResult, ShowRewardedAdOptions } from "./types";
@@ -50,6 +51,7 @@ function loadSdk(): GoogleMobileAdsModule | null {
 
 /** Whether the rewarded-ad SDK is present in this build (Expo Go/jest: no). */
 export function isRewardedAdSdkAvailable(): boolean {
+  if (!adNetworkPublicationReady()) return false;
   return loadSdk() !== null;
 }
 
@@ -80,6 +82,7 @@ function rewardedAdUnitId(sdk: GoogleMobileAdsModule): string | null {
  * Keep this strict so a typo such as TRUE cannot expose a locally-paid path.
  */
 export function canCompleteRewardedWatch(): boolean {
+  if (!adNetworkPublicationReady()) return false;
   if (process.env.EXPO_PUBLIC_REWARD_SSV !== "true") return false;
   const sdk = loadSdk();
   return sdk !== null && rewardedAdUnitId(sdk) !== null;
@@ -190,6 +193,7 @@ async function acquireRewardTicket(hint: PlacementHint, unitId: string): Promise
  * acquired after consent/SDK initialization but before ad construction/show.
  */
 export async function showRewardedAd(opts?: ShowRewardedAdOptions): Promise<RewardedResult> {
+  if (!adNetworkPublicationReady()) return { completed: false };
   const hint = parsePlacementHint(opts?.ssvCustomData);
   if (!hint) return { completed: false };
 
