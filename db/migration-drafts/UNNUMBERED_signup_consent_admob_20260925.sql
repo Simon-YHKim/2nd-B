@@ -1,5 +1,5 @@
 -- INACTIVE DRAFT. Reserve a fresh migration number before approved promotion.
--- Apply and verify this server contract BEFORE publishing the 2026-09-25
+-- Apply and verify this server contract BEFORE publishing the 2026-09-26
 -- privacy policy/client. Older clients retain their original document tuple.
 -- This does not backfill consent, enable ads, or grant optional ad consent.
 -- The public status RPC reads the actual private resolver and current trigger
@@ -56,7 +56,7 @@ AS $contract$
     ('email-v2'::text, '2026-08-16'::text, '2026-08-30'::text, '2026-08-16'::text, true),
     ('complete-profile-v1'::text, '2026-08-16'::text, '2026-08-30'::text, '2026-08-16'::text, false),
     ('email-v3'::text, '2026-09-07'::text, '2026-09-07'::text, '2026-08-16'::text, true),
-    ('email-v4'::text, '2026-09-07'::text, '2026-09-25'::text, '2026-08-16'::text, true)
+    ('email-v4'::text, '2026-09-07'::text, '2026-09-26'::text, '2026-08-16'::text, true)
   ) AS contract(signup_revision, consent_version, policy_version, terms_version, confirmation_eligible)
   WHERE contract.signup_revision = p_revision
 $contract$;
@@ -116,7 +116,7 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM public.signup_consent_contract_status()
     WHERE signup_revision = 'email-v4' AND consent_version = '2026-09-07'
-      AND policy_version = '2026-09-25' AND terms_version = '2026-08-16'
+      AND policy_version = '2026-09-26' AND terms_version = '2026-08-16'
       AND confirmation_eligible IS TRUE AND confirmation_ready IS TRUE
   ) THEN
     RAISE EXCEPTION 'signup_consent_contract_not_ready' USING ERRCODE = '55000';

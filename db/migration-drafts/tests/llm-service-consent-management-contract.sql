@@ -60,7 +60,7 @@ BEGIN
     u,'service-v1',token,'grant',acks,'ko'),'40001','llm_service_consent_changed');
   SELECT c.* INTO rec FROM public.consent_records c JOIN public.llm_consent_receipts p ON p.consent_record_id=c.id
     WHERE p.user_id=u ORDER BY p.receipt_order DESC LIMIT 1;
-  IF rec.locale<>'ko' OR rec.age_band<>'adult' OR rec.policy_version<>'2026-09-25'
+  IF rec.locale<>'ko' OR rec.age_band<>'adult' OR rec.policy_version<>'2026-09-26'
     OR rec.optional_consents<>'{}'::jsonb OR rec.ip_hash IS NOT NULL OR rec.ua_hash IS NOT NULL THEN
     RAISE EXCEPTION 'writer accepted invented metadata/optional grants'; END IF;
   token:=saved->>'change_token';
@@ -94,7 +94,7 @@ END $$;
 -- earlier withdrawal ledger boundary, even when a stale prefs row says true.
 INSERT INTO public.consent_records(user_id,age_band,minor_tier,consent_version,policy_version,terms_version,
   purposes,required_ack,optional_consents,llm_processing_ack,overseas_transfer_ack,sensitive_data_ack,safety_notice_ack,locale,created_at)
-VALUES('88888888-8888-4888-8888-888888888888','adult','adult','2026-09-07','2026-09-25','2026-08-16',
+VALUES('88888888-8888-4888-8888-888888888888','adult','adult','2026-09-07','2026-09-26','2026-08-16',
   '["service"]',true,'{"chat_autosave":true}',true,true,true,true,'en','2026-01-01');
 INSERT INTO public.consent_changes(user_id,pref_key,event_type,created_at)
   VALUES('88888888-8888-4888-8888-888888888888','chat_autosave','revoke','2026-02-01');

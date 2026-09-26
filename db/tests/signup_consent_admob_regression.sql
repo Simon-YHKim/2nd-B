@@ -16,7 +16,7 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM public.signup_consent_contract_status()
     WHERE signup_revision = 'email-v4' AND consent_version = '2026-09-07'
-      AND policy_version = '2026-09-25' AND terms_version = '2026-08-16'
+      AND policy_version = '2026-09-26' AND terms_version = '2026-08-16'
       AND confirmation_eligible AND confirmation_ready
   ) THEN RAISE EXCEPTION 'new contract is not ready'; END IF;
 
@@ -39,7 +39,7 @@ BEGIN
       CONTINUE;
     END IF;
     expected_policy := CASE revision WHEN 'email-v2' THEN '2026-08-30'
-      WHEN 'email-v3' THEN '2026-09-07' ELSE '2026-09-25' END;
+      WHEN 'email-v3' THEN '2026-09-07' ELSE '2026-09-26' END;
     IF NOT EXISTS (SELECT 1 FROM public.consent_records
       WHERE user_id = subject AND policy_version = expected_policy
         AND terms_version = '2026-08-16' AND purposes = '["service"]'::jsonb

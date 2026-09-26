@@ -10,7 +10,7 @@ const draft = existsSync(draftPath) ? readFileSync(draftPath, "utf8") : "";
 
 describe("AdMob disclosure and append-only signup contract", () => {
   test("ships the same new policy version without treating it as optional-ad consent", () => {
-    expect(PRIVACY_POLICY_VERSION).toBe("2026-09-25");
+    expect(PRIVACY_POLICY_VERSION).toBe("2026-09-26");
     expect(CONSENT_VERSION).toBe("2026-09-07");
     expect(TERMS_VERSION).toBe("2026-08-16");
     expect(PRIVACY_DOC.body).toContain("Google AdMob");
@@ -26,7 +26,7 @@ describe("AdMob disclosure and append-only signup contract", () => {
     const historical = readFileSync(resolve(root, "db/migrations/0150_signup_consent_contract_20260902.sql"), "utf8");
     const tuple = /\('(?:email-v2|email-v3|complete-profile-v1)'::text,[^\n]+\)/g;
     for (const row of historical.match(tuple) ?? []) expect(draft).toContain(row);
-    expect(draft).toContain("('email-v4'::text, '2026-09-07'::text, '2026-09-25'::text, '2026-08-16'::text, true)");
+    expect(draft).toContain("('email-v4'::text, '2026-09-07'::text, '2026-09-26'::text, '2026-08-16'::text, true)");
     expect(draft).toContain("INACTIVE DRAFT");
     expect(draft).toContain("signup_consent_contract_not_ready");
     expect(draft).not.toMatch(/\b(?:UPDATE|INSERT INTO|DELETE FROM)\s+(?:public\.)?consent_records/i);
