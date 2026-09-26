@@ -263,7 +263,7 @@ describe("visible trust copy", () => {
     expect(text).not.toContain("첫 별가루를 남기면 길이 조금씩 켜져요");
     expect(text).not.toMatch(/light(s)? the graph|길이 (조금씩 )?켜/);
     // 첫 실행 안내 자체는 있어야 한다 - 없으면 "약속 안 함"이 공허해진다.
-    expect(shell).toContain("useCoachmarksGate()");
+    expect(shell).toContain("useCoachmarksGate(");
   });
 
   test("sign-in exposes account creation as a route and reset as inline help", () => {

@@ -25,10 +25,10 @@ describe("home CTA design-system wiring", () => {
   test("첫 실행 안내는 코치마크가 진다", () => {
     const shell = readRepoFile("src/components/deep-space/DeepSpaceShell.tsx");
 
-    expect(shell).toContain("useCoachmarksGate()");
-    expect(shell).toContain("setCoachmarksDismissed");
-    // 닫는 길이 있어야 안내다 - 없으면 그냥 막는 것이다.
-    expect(countMatches(shell, /coachmarksDismissed/g)).toBeGreaterThanOrEqual(2);
+    expect(shell).toContain("useCoachmarksGate(");
+    expect(shell).toContain("<HomeCoachmarks");
+    // 닫기는 소유자별 seen 기록으로 홈과 기록 화면에 즉시 반영된다.
+    expect(countMatches(shell, /coachmarksDue === true/g)).toBeGreaterThanOrEqual(2);
   });
 
   test("레거시 홈의 CTA 배선은 돌아오지 않았다", () => {
