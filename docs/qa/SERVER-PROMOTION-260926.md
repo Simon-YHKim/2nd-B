@@ -1,5 +1,7 @@
 # Server-first SQL numbering and live-ledger reconciliation
 
+> 최신 운영 재조회(2026-09-27 00:26 KST): 원장은 **169행**이다. 새 17행은 현재 Git SQL과 공백 제거 MD5가 일치하지만 일부 Edge 계약은 여전히 없다. [새 스냅샷과 NO-GO 근거](PRODUCTION-SERVER-STATUS-260927.html)를 우선 읽는다. 아래 152행·객체 부재 기록은 9월 26일 당시 스냅샷이다.
+
 2026-09-26 KST. Draft PR #1865; `0191`–`0198` source commit `3fd677df`,
 `0199` reservation `322dd5dd`, `0200`–`0201` reservation `f2866049`.
 This is a source and scratch-CI map, **not an
