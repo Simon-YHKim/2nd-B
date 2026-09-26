@@ -33,7 +33,7 @@
 - 작성 기준 `origin/main d5ba498c`. [PR #1865](https://github.com/Simon-YHKim/2nd-B/pull/1865)는 2026-09-26 23:05 KST `fe3bdade`로 **이미 병합됐다**. 아래 과거 블록의 Draft·머지 보류 문장은 당시 상태다. Simon의 Q5 처리위탁(안 A)·시행일 2026-09-26 결정이 반영됐지만, **운영 광고·클라이언트 공개 승인이나 서버 적용 증거는 아니다**. `src/lib/ads/legal-readiness.ts`의 광고 게시 게이트는 `false`다.
 - 로컬 `E:/2ndB/docs/drafts/admob-q5-third-party-review-260926.md`의 Q5 독립 검토는 안 A와 다른 의견이다. [Google 공식 설명](https://support.google.com/admob/answer/7666366?hl=ko)은 광고 처리에서 Google과 게시자가 독립적으로 결정하고 일부 기능에서만 수탁자 역할을 한다고 한다. 사용자 결정을 임의 변경하지 않는다. 광고 ON 전 계약 법인·수신 범위·이전 국가·보유기간·별도 동의와 실제 송신을 확인한다.
 - [Draft PR #1889](https://github.com/Simon-YHKim/2nd-B/pull/1889) `9a9884e0`은 #1814의 0행 삭제 확인에서 취소되지 않는 인증 SDK 잠금을 제거했다. 로컬 `npm run verify` UI 76/76·Jest 759 suites/9,352 tests와 원격 CI 3/3 통과. #1814는 main과 충돌 중이고 S3 서버 영수증 계약이 없으며, #1839도 서버 계약 전 Draft다. 둘 다 활성화·병합하지 않는다.
-- 격리 복원은 바로 아래 04:46 부분 결과가 최신 확인이다. Simon의 “좀더 기다려봐”에 따라 이 세션은 Grok Bot에 추가 메시지를 보내거나 Supabase를 조작하지 않았다. 임시 프로젝트의 실제 사용자 데이터 사본 정리와 미완료 복원·경합 검증은 Bot 후속 증거를 기다린다.
+- 격리 복원은 아래 04:46 부분 결과에 그쳤다. 다만 별도 Simon GO에 따른 Hadrianus의 `vb-bbca63fa-cleanup` 결과(05:21 KST)는 임시 프로젝트 `zznoukihuzogteheokfi` **삭제 완료**를 보고한다. 삭제 직후 MCP 프로젝트 목록에서 해당 ref가 사라졌고 PC·box의 평문/키/접속 파일 잔여 0건을 재확인했다고 한다. `dev-infra/outbox`와 `relay/outbox` 결과 사본의 SHA-256은 일치한다. 이 코딩 세션은 Supabase에 직접 접근하거나 Bot에 추가 지시를 보내지 않았다. 복원 오류·CLI 원장 왕복·Storage 경합은 해결되지 않았으므로 **통합 리허설 완료는 아니다**.
 
 ---
 
