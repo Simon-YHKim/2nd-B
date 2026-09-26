@@ -28,7 +28,12 @@
 **⚠ `HANDOFF-2026-09.md`(p1)는 92KB 로 찼다 — 09 월 블록은 `-p2` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-26 16:19 / 보상 서버 적용 후 백업 확보 · 복원 대기
+## Latest — 2026-09-26 16:50 / Draft PR 최신 웹 GUI 실측
+
+- Draft PR #1865의 검증 head `8cecd849`로 새 웹 export를 만들어 QA 계정의 로그인·화면 이동을 실행했다. 320·425·768px의 28개 화면 점검에서 pageerror 0, 가로 넘침 0, 깨진 이미지 0이었다. 첫 로컬 export의 랜딩 번들 누락 404 세 건은 CI와 같은 `esbuild` 번들을 넣은 뒤 3개 너비에서 오류 0으로 재검증했다. 남은 `service-consent` 404 세 건은 서버 계약 미배포를 확인한 것이며 UI는 재시도 안내를 표시한다. [HTML 보고서](qa/REMAINING-WORK-260926.html).
+- 같은 최신 코드의 `/core-brain`에서 운영 `polaris_generation_status`가 HTTP 404인 실제 조건을 확인했다. 425px 화면에서 `기록으로 페르소나 제안 받기` 버튼은 비활성이고 “생성 기능 설정을 기다리고 있어요” 문구가 보인다. 생성·쓰기 요청 0, pageerror 0. 결과와 화면은 로컬 `Output/web-resume-260926/qa-latest-core-only-results.json` 및 `screenshots/latest-core-action-425.png`에 있다. 이는 모델 생성 품질 검증이 아니다. 운영 추가 SQL·클라이언트 공개 NO-GO, 격리 복원 승인 대기, Grok 후속 보류는 유지한다.
+
+## 2026-09-26 16:19 / 보상 서버 적용 후 백업 확보 · 복원 대기
 
 - 보상 서버 스위치가 14:19 KST에 켜진 뒤 [수동 암호화 백업](https://github.com/Simon-YHKim/2nd-B/actions/runs/36226292412)을 16:16–16:19 KST에 한 번 실행했다. `pg_dump`·age 암호화·업로드가 모두 PASS이고, 아티팩트 `db-backup-36226292412`는 1,629,137바이트 ZIP으로 10월 10일 16:19 KST까지 보관된다. 다운로드한 `.age` 파일의 헤더와 SHA-256을 확인했지만 복호화·격리 복원은 아직 하지 않았다. 아래 06:44–06:47 백업은 보상 적용 **이전** 스냅샷이다. [상세와 복원 게이트](qa/SERVER-PROMOTION-260926.md).
 - 같은 조직(`Learner-thepoorman's Org`)의 격리 Supabase 프로젝트 비용 조회 결과는 월 **$0**이다. 프로젝트 생성·운영 데이터 복원·드릴 종료 후 삭제는 별도 사용자 결정 대기 중이며, 프로젝트는 만들지 않았다. 유료 개발 브랜치 보류와 Grok 후속 전달 보류도 유지한다.
