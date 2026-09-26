@@ -28,7 +28,18 @@
 **⚠ `HANDOFF-2026-09.md`(p1)는 92KB 로 찼다 — 09 월 블록은 `-p2` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-27 02:09 / 격리 리허설 도구·릴리스 시작 검사
+## Latest — 2026-09-27 02:40 / 통합 복원 대기·릴리스 QA 후속
+
+- [PR #1881](https://github.com/Simon-YHKim/2nd-B/pull/1881)은 새 API 36 AVD의 x86_64 로컬 릴리스 APK에서 AdMob 표시 SDK 제외와 로그인 전 앱 UID의 네트워크 시도를 기록했다. 목적지와 호출 SDK는 미확인이고 EAS 출고본도 아니므로 광고 ON·클라이언트 공개 판단은 그대로 보류한다. [실측 범위](qa/ADMOB-STARTUP-NETWORK-260926.md).
+- [PR #1883](https://github.com/Simon-YHKim/2nd-B/pull/1883)은 첫 기록 안내의 완료·수동 다시 보기를 계정별로 분리하고 서버의 기록/출처 ID 존재를 확인하도록 수정했다. CI 3/3 통과 후 `main 0480b304`에 병합됐다. 새 브라우저 원점에서 QA 계정 로그인과 기존 기록 존재는 확인했으나 로컬 `/onboarding` 경계 때문에 홈 1/4 표시 자체와 실기기 동작은 미검증이다. 구 전역 완료 키는 계정에 귀속할 수 없어 이관하지 않는다.
+- [PR #1882](https://github.com/Simon-YHKim/2nd-B/pull/1882)는 0192 관리형 Storage preflight가 CLI 스크래치 원장과 14자리 버전·번호 포함 관리형 원장 이름을 각각 정확히 판정하도록 보완했다. 최신 `main` 통합 후 로컬 `npm run verify` 822 suites·10,733 tests, 원격 CI 4/4 통과, `main f005c98d` 병합. 관리형 Storage의 실제 복원·경합 검사는 아직 실행하지 않았다.
+- Simon은 같은 Supabase Free 조직의 **새 임시 프로젝트에서 운영 데이터·원장을 반영한 통합 리허설과 삭제**를 승인했다. 최신 암호화 백업 [run 36257521076](https://github.com/Simon-YHKim/2nd-B/actions/runs/36257521076)의 파일명은 `db-20260926T170134Z.dump.age`다. 콘솔 담당은 운영 원장 169행의 대조 지문과 CLI v2.116.0을 준비했지만 KeePassXC 보관함이 잠겨 있어 **새 임시 프로젝트 0개·복호화 평문 0개·운영 쓰기 0건**이다. 사용자 잠금 해제 뒤 파일별 SQL·0189 rollback·CLI 원장 왕복·Storage 두 연결 경합을 격리 환경에서 검증하고 임시 프로젝트를 삭제한다. 원장 alias가 예상과 다르면 편집해 통과시키지 않고 중단·화해한다.
+- 공개 사이트의 `/2nd-B/manifest.webmanifest`는 9/27 읽기 전용 재조회에서 HTTP 200과 유효한 매니페스트 본문을 반환했다. 다른 세션의 미커밋 대시보드 QA에서 본 404는 `localhost:8081` 관찰로, 현재 공개 사이트 오류의 증거가 아니다. 이 확인만으로 인증 뒤 웹 흐름·최신 `main` 게시 완료를 주장하지 않는다. 대시보드 의도 차이와 초점 경고는 그 소유 작업트리에서 후속 검토한다.
+- 격리 파이프 시험에서 만든 임의 바이너리·임의 키는 `E:/2ndB/.worktrees/prod-audit-0179-0181-260927/Output/restore-rehearsal-260927/tools/pipe-test`에 남았다. 자동 승인 검토가 삭제를 `blocked by policy`로 거부해 재시도하지 않았다. 운영 평문은 없다. 운영 DB·Edge 적용은 이번 격리 승인에 포함되지 않으며 별도 GO가 필요하다. Anthropic 키 회전은 이 세션이 수행하지 않고, 기존 Grok 초안 후속도 Simon 지시대로 보류한다.
+
+---
+
+## 2026-09-27 02:09 / 격리 리허설 도구·릴리스 시작 검사
 
 - [PR #1879](https://github.com/Simon-YHKim/2nd-B/pull/1879)가 `main 5f00c005`에 병합돼 0192 관리형 Storage의 두 연결 경합·API 검사 절차가 준비됐다. 실제 격리 리허설은 아직 실행하지 않았으며 0192/0194 운영 적용은 NO-GO다. 콘솔 사전점검에서 SQL preflight의 0192 원장 이름이 계획된 번호 포함 이름과 달라 거짓 실패하는 문제가 발견돼 코딩 담당의 수정 전에는 해당 preflight를 실행하지 않는다.
 - [PR #1880](https://github.com/Simon-YHKim/2nd-B/pull/1880)이 `main e935c08e`에 병합돼 arm64 로컬 릴리스 APK의 AdMob 제외 증거를 기록했다. 이어 새 API 36 AVD에 x86_64 로컬 릴리스 APK를 설치해 로그인 전 시작 단계를 검사했다. 차단 규칙 아래 첫 실행과 재시작 각각 앱 UID IPv4 34건·IPv6 68건의 네트워크 **시도**가 있었고, AdMob Provider·광고 표시 클래스는 없었다. 목적지와 송신 주체 SDK는 미확인이다. [상세 증거](qa/ADMOB-STARTUP-NETWORK-260926.md); 광고 ON·클라이언트 공개 게이트 유지.
@@ -36,7 +47,7 @@
 
 ---
 
-## Latest — 2026-09-27 01:38 / 0179 권한 보완·AdMob 로컬 릴리스 검사
+## 2026-09-27 01:38 / 0179 권한 보완·AdMob 로컬 릴리스 검사
 
 - [PR #1878](https://github.com/Simon-YHKim/2nd-B/pull/1878)이 `main 5c95b6d6`에 병합됐다. 운영에서 `anon`·`authenticated`가 `ai_audit_log`·`crisis_events`에 가진 `TRUNCATE` 등 권한 때문에 0179 후조건이 실패한 원인을 재현하고, 0179 안에서 불필요한 권한을 회수했다. 로컬 `npm run verify` 821 suites·10,719 tests와 원격 CI 4/4가 통과했다. 운영 DB에는 0179·0181을 재적용하지 않았다. 기존 승인 순서의 실패 중단 조건이 발동했고, 운영 데이터·원장을 반영한 통합 격리 리허설과 새 GO 전에는 운영 적용 NO-GO다.
 - [AdMob 시작 검사](qa/ADMOB-STARTUP-NETWORK-260926.md)를 PR #1876의 정확한 소스 `88e4b67c`에서 만든 로컬 Android 릴리스 APK로 확장했다. `:app:assembleRelease` 성공, APK SHA-256 `4A697FF68AD2E00E95AED5A859D1B58948698C81E1DB249C112048C1B45FFB24`. APK 매니페스트의 AdMob Provider·앱 ID 및 DEX 광고 표시 SDK 클래스는 0개다. 별도 `AdvertisingIdClient`와 AD_ID 권한은 Expo 추적 투명성·RevenueCat·Firebase Analytics의 경유 의존성으로 남는다. 이 빌드는 EAS 출고 산출물도 초기 네트워크 무송신 증거도 아니다. 광고 ON과 클라이언트 공개 게이트는 유지한다.
@@ -44,7 +55,7 @@
 
 ---
 
-## Latest — 2026-09-27 00:28 / 운영 원장 169행·부분 적용 확인
+## 2026-09-27 00:28 / 운영 원장 169행·부분 적용 확인
 
 ### 새로 확인한 운영 상태
 - 인증된 읽기 전용 원장 재조회에서 운영 migration이 이전 152행에서 **169행**으로 증가했다. 9/26 원장 버전 `20260926145115`–`20260926151400`의 17행은 모두 현재 Git 동명 SQL과 공백 제거 MD5가 일치하고 각 원장에 `statements` 1개가 있다. 이름·해시 일치는 운영 데이터 이주와 전체 catalog의 성공 증거가 아니다. [17행·현재 Edge 의존성 HTML](qa/PRODUCTION-SERVER-STATUS-260927.html).
