@@ -11,7 +11,7 @@
 
 | 덮는 기간 | 파일 | 블록 | 크기 |
 |---|---|---|---|
-| 2026-09-08 ~ 2026-09-13 | [handoff/HANDOFF-2026-09-p2.md](handoff/HANDOFF-2026-09-p2.md) | 3 | 16KB |
+| 2026-09-08 ~ 2026-09-13 | [handoff/HANDOFF-2026-09-p2.md](handoff/HANDOFF-2026-09-p2.md) | 5 | 25KB |
 | 2026-09-01 ~ 2026-09-08 (+09-13 인계 1) | [handoff/HANDOFF-2026-09.md](handoff/HANDOFF-2026-09.md) | 18 | 92KB |
 | 2026-08-25 ~ 2026-08-30 | [handoff/HANDOFF-2026-08-p4.md](handoff/HANDOFF-2026-08-p4.md) | 11 | 89KB |
 | 2026-08-23 ~ 2026-08-25 | [handoff/HANDOFF-2026-08-p3.md](handoff/HANDOFF-2026-08-p3.md) | 21 | 85KB |
@@ -28,7 +28,46 @@
 **⚠ `HANDOFF-2026-09.md`(p1)는 92KB 로 찼다 — 09 월 블록은 `-p2` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-26 / Orca 콘솔 발주·운영 NO-GO
+## Latest — 2026-09-26 13:51 / 운영 보상 서버가 main 보다 앞서 나갔다 · 0172 가 빠졌고 켜는 값이 틀려서 지금은 꺼져 있다
+
+### 어디까지 왔나
+
+- 이 블록 작성 전 `origin/main` 은 `ed2e54c8`. PR [#1865](https://github.com/Simon-YHKim/2nd-B/pull/1865)(draft, `fix/qa-harness-integrated-260925`) head 는 `2a28b5fb`.
+- **2026-09-26 12:24~12:29 KST, Grok 봇 팀이 Simon GO 로 운영을 바꿨다** (근거는 저장소 밖 버스 `E:/2ndB/.bots/*/outbox/vb-simon-go-*.result.md`):
+  - DB: `0177_reward_ssv_tickets` 와 `db/migration-drafts/UNNUMBERED_reward_ssv_hardening.sql` 를 `apply_migration` 으로 적용했다. 원장 이름은 **번호 없는** `reward_ssv_tickets`(`20260926031508`) · `reward_ssv_hardening`(`20260926031610`)이다.
+  - Edge `rewarded-ssv` v86 → v88(중간 v87 에 PLACEHOLDER 가 잠깐 올라갔다가 교체됐다).
+  - AdMob Android 보상 단위의 SSV 콜백 URL 을 저장했다(Verify 200 을 받은 뒤).
+  - Edge secret `REWARD_SSV_ENABLED` 를 설정했다.
+- 코딩 LLM 이 이를 저장소·운영과 대조했다. 운영 쓰기는 없고 읽기 전용 조회만 했다. 다른 워크트리는 건드리지 않았다.
+  1. **SQL 바이트는 main 과 같다**(CR 제거 sha256 앞 12자: 0177 `d6262793126d`, hardening `4a637061a237`). **Edge v88 소스는 main 판이 아니라 #1865 head 판이다**(`index.ts` `39141c23fd3e`, `reward-contract.ts` `8c075243ed14`. main 판은 `568b472d3456` / `e347e7eb2be5`).
+  2. **보상 서버는 지금 꺼져 있다.** v88 은 `REWARD_SSV_ENABLED` 가 정확히 `'1'` 일 때만 켜진다(#1865 `supabase/functions/rewarded-ssv/index.ts:228`). 설정된 값의 다이제스트는 `true` 라벨과 일치한다(Keys 봇 13:47 대조, 값 원문은 안 봤다). 프로브 응답도 503 `disabled` 다. 클라 변수는 `EXPO_PUBLIC_REWARD_SSV=true`, 서버 변수는 `REWARD_SSV_ENABLED=1` 로 **글자가 다르다.** 이 함정이 그대로 밟혔다.
+  3. **0172 가 운영에 없다.** hardening 은 "0172·0177 이 적용됐어야 한다" 는 전제 검사를 갖고 있다. 그런데 그 검사가 보는 것은 0172 의 ACL 절반뿐이다. 운영에는 **원장 밖에서** `grant_chat_ad_bonus(uuid)` · `bump_reward_credits_if_under_cap` 의 `authenticated` EXECUTE 만 회수된 상태가 있었다(09-25 01:32 에 이미 그 상태였다는 봇 기록이 있다. 누가 언제 했는지는 모른다). 그래서 검사가 통과했다. 저장소 순서대로 재생하면 hardening 은 이 전제 검사에서 **실패한다.**
+  4. **로컬 재생이 운영과 일치한다.** PostgreSQL 18 스크래치에 main 0001~0146, 운영 원장 순서의 0147·0165·0188·0148·0149·0150, 원장 밖 회수, 0177, hardening 을 올렸다. 보상 함수 13개의 ACL 과 주석을 뺀 본문 md5 가 운영과 **13/13 같다.** 그 위에서 확인한 것은 셋이다.
+     - 티켓 발급 뒤 광고 동의를 끄고 콜백이 오면 **그래도 지급된다**(추론 +2, 채팅 +2). 0177 주석의 "나중 동의·등급 변경도 fail-closed" 는 0172 가 있어야 성립한다.
+     - 0172 를 지금 얹으면 오류 없이 들어간다. 결과는 설계 순서(0172→0177→hardening)와 **13/13 같은 지문**이 되고, 동의 철회 뒤 콜백은 지급하지 않는다.
+     - 0172 가 service_role 에서 회수하는 옛 지급 함수 2개를 부르는 Edge 는 main·#1865 어디에도 없다.
+     - 하네스·출력: `E:/Coding Infra/reports/vibe-r260926/r0172-prod-order/` (`out/behave-results.txt` · `out/fp-*.txt`).
+- Grok 인계서의 Ask 1~3 에 대한 판정:
+  - Ask 1(AdMob 개인정보처리방침 세 사본)·Ask 3(`_ANDROID`/`_IOS` 단위 env)은 **이미 #1865 안에 있다.** 새 PR 을 만들지 않았다. #1865 의 처리방침 시행일은 `2026-09-25` 로 박혀 있으니 게시 시점에 다시 정해야 한다.
+  - Ask 2(`a72c0265` 를 observatory 에 체리픽)는 **하지 않는다.** `a72c0265` 는 291 파일짜리 통합 커밋이다. 그리고 observatory 의 wiring 테스트 "불일치" 는 그 워크트리 자기 홈 화면(`secondb-dialogue-launcher`)에 맞춘 것이었다. 봇 보고서에는 두 워크트리 이름이 뒤바뀌어 있었다.
+
+### 다음 작업 큐
+
+| # | 작업 | 누가 | 권장 |
+|---|---|---|---|
+| A | **0172 적용**: `apply_migration(name=0172_reward_authorization_hardening, query=<main 파일 바이트>)` → 지문 조회로 기대 13줄과 대조 → 그 뒤에만 `REWARD_SSV_ENABLED=1` 제한 카나리아(서명·변조·재전송) | Simon GO · 콘솔 세션 | ⭐ 켜기 전 필수. 기대 지문과 조회문은 버스 `relay/inbox/vb-11c495b1.md` 에 있다 |
+| B | #1865 머지 전에는 `deploy-edge-function.yml` 로 `rewarded-ssv` 를 **디스패치하지 말 것.** 기본 브랜치(main) 판으로 되돌아간다 | 모두 | 머지 뒤에 해제 |
+| C | hardening 번호 예약 때 "후보 0196 = 운영 원장 `reward_ssv_hardening` @ 2026-09-26 12:16 KST" 를, 0177 은 "원장 `reward_ssv_tickets`" 를 매핑표에 적는다. **재적용 금지** | #1865 주인 | 원장 이름이 파일 stem 과 달라서, 이름으로 대조하면 '미적용' 으로 오판된다 |
+| D | 원장 밖 ACL 회수의 출처를 찾아 기록한다(마이그레이션으로 흡수할지 결정) | 콘솔 세션 | 보상 함수 13개 기준으로 재생과 운영의 차이는 이것 하나였다 |
+| E | observatory · localhost · grok-qa-complement 워크트리는 **원격에 브랜치가 없다.** observatory 에만 #1865 와 다르거나 #1865 에 없는 미커밋 파일이 97개(72+25) 있다 | 각 워크트리 주인 | 코딩 LLM 은 남의 dirty 트리를 건드리지 않았다 |
+
+### 협업 채널 (Grok 봇 ↔ 코딩 LLM)
+
+- 코딩 전용 봇이 없어서, Relay 가 `E:/2ndB/.bots/relay/inbox/` 에 "Coding LLM" 앞 포인터를 넣는다(오늘 `vb-a8f1c301`). 코딩 LLM 은 `relay/outbox/<nonce>.result.md` 로 회신한다. 인계서는 저장소 밖 `E:/2ndB/docs/drafts/coding-llm-handoff-2026-09-26.md` 에 있다.
+- 이번 세션이 사용자 지시로 직접 발행한 과제는 `vb-68cdfca0`(ENABLED 다이제스트 판정, 회신 받음)과 `vb-11c495b1`(재생 결과를 STATUS 에 반영하고 0172 를 GO 후보 1순위로)이다. guarded `execute_bot` 어댑터는 쓰지 않았다(인증서·과금 증거가 없어서).
+- 정정: `vb-a8f1c301` 회신과 `vb-68cdfca0` 에 적은 작성 시각 13:58 은 틀렸다. 실제 게시는 13:42 KST 다. `vb-11c495b1` 안에서도 정정했다.
+
+## 2026-09-26 / Orca 콘솔 발주·운영 NO-GO
 
 PR #1865 CI·GUI PASS. Orca 콘솔 감사 **NO-GO**: 번호·백업·clone·OAuth/RSS SQL 미준비. 운영 쓰기·공개 없음, Grok 보류. [근거](qa/CONSOLE-PREFLIGHT-1865-260926.md).
 
@@ -1185,154 +1224,3 @@ cat STATE.md          # 현황 — 여기부터
 cat docs/HANDOFF.md   # 이 블록
 tail -30 DECISIONS.md # 오늘 결정 5줄
 ```
-
----
-
-## 2026-09-13 / 빌드가 재현되지 않아 게시가 반반이었다 — 고쳤다 (#1795)
-
-> 발행: Claude Code (워크트리 `font-holes-260906`, 기준 main `af5ede12` → `361d8280`).
-> 이 세션은 결정 시트 260913 의 Simon 회신 8건을 집행하던 중 워크트리 이관 지시로 닫힌다.
-
-### 무엇을 고쳤나
-
-웹 게시 게이트는 **승인한 digest** 와 **방금 빌드한 digest** 를 대조한다. 그 대조는 빌드가
-재현된다는 전제 위에 서 있었는데, 재현되지 않았다. 같은 커밋의 push 빌드를 `gh run rerun`
-으로 다시 돌리면 digest 가 달라졌고, 두 산출물(351파일)을 풀어 보니 모든 JS 청크 해시가
-달랐다. 39바이트짜리 청크가 원인을 그대로 보여줬다:
-
-```
-빌드 A:  __d(function(g,r,i,a,m,e,d){},3496,[]);
-빌드 B:  __d(function(g,r,i,a,m,e,d){},2375,[]);
-```
-
-Metro 기본 id 팩토리는 **순번 카운터**다 — id 가 "어느 모듈인가"가 아니라 **"언제 닿였는가"**
-를 담고, 그래프 순회는 워커 프로세스에 흩어져 돈다.
-
-**배출 순서도 같은 것에 매달려 있었다.** 두 직렬화기가 모듈을 id 로 정렬하는데
-(`metro/.../baseJSBundle.js:38`, `@expo/metro-config/.../serializeChunks.js:getSortedModules`)
-**id 를 순회 순서로 매긴 다음** 정렬하므로 정렬이 무의미했다. 그래서 id 를 경로에 고정하면
-**id 와 순서가 한 번에** 잡힌다 — 정렬이 드디어 순회와 무관한 기준을 갖는다.
-
-`metro-module-id.js` 가 프로젝트 루트 기준 **상대 경로**를 해시한다(31비트, 충돌 시 두 경로를
-이름으로 대며 throw). 상대 경로인 이유는 같은 커밋이 CI 러너·정본·워크트리 십여 개에서,
-Windows 와 Linux 양쪽에서 빌드되기 때문이다.
-
-### ⚠ 지문 소스 여부는 추측하지 말고 이 값으로 볼 것
-
-```
-@expo/fingerprint 0.19.5 · platform android · 소스 190개 (file 119 / dir 66 / contents 5)
-루트 소스: .easignore .gitignore android assets/images/*4
-           config-plugins/withAndroidAbiFilter.js eas.json google-services.json patches
-contents:  expoAutolinkingConfig:android expoConfig package:react-native
-           packageJson:scripts rncoreAutolinkingConfig:android
-metro.config.js  없음        babel.config.js  없음
-```
-
-즉 `metro.config.js` 는 **지문 소스가 아니다.** 런타임 버전이 안 움직이므로 설치된 빌드의
-OTA 호환이 깨지지 않는다. 청크 해시는 한 번 전부 바뀌고, 웹 export 는 내용 주소라 흡수한다.
-
-### 낡아 있던 서술 6건 (기억으로 그리면 안 되는 이유)
-
-5일 만에 목록을 다시 재니 여섯이 이미 끝나 있었다.
-
-| 미결이라고 적혀 있던 것 | 실측 |
-|---|---|
-| 엣지 함수 9개 배포 | **완료** — 09-07 13:07 에 8건 + 이후 2건, 전부 success |
-| 항목 4 og:image 절대 주소 | **해결** — 라이브 HTML 에 존재 |
-| 동의 스택 6건(#1587~#1593) | **종결** — #1589 머지, 5건 클로즈 |
-| 초안 PR 25개(Q-260906-02) | **종결** — 열린 PR 0건 |
-| `0188` 운영 적용 필요 | **이미 적용됨** — `raw_clippings_owner_insert`/`update` 에 존재 검사가 붙어 있다 |
-| 고아 객체 정리 필요 | **고아 0건** — 버킷 1개 · 객체 3개 · 240B, 전부 실재 사용자 |
-
-`export-delivery.ts`·`export-session.ts` 도 main 에 있다(테스트까지). "어느 ref 에도 없는
-유일본" 서술은 낡았다.
-
-### 남긴 것 (다음 워크트리)
-
-`DECISIONS.md` 의 "결정 시트 260913" 절에 Simon 회신 8건과 그중 무엇이 이미 닫혔는지가
-전부 있다. 실행 대기는 넷이다.
-
-1. **게시** — D4 가 고쳐졌으니 이제 정적에 덜 의존한다. 머지 후 push 빌드를 `gh run rerun`
-   해서 digest 가 같은지 **먼저 확인**할 것. 그게 재현성의 진짜 증명이고, 애초에 결함을 잡은 방법이다.
-2. **D3 HANDOFF 기간 분할** — 승인됐다. 단 **여러 세션이 prepend 중이 아닐 때** 할 것.
-3. **D7 정리 묶음 6건** — 기본값 승인됨. 파일 삭제 건은 실행 직전 목록 재확인.
-4. **D6 en 라운드 착지** — 회귀 2건 제외. 태그 `haeyo-5lang-snapshot`.
-5. **D5 MFDS 고객센터 문의** — 로그인 필요. CLI 가 대리하지 않는다(§7). §4 작업 카드 몫.
-
-### ⚠ `STATE.md` 는 덮어쓰기 파일인데 쓰는 세션이 여럿이다
-
-지침 §0-1 이 경고한 그대로다 — 두 번째 쓰기가 첫 번째를 지운다. 지금 소유자는
-`runbook-260907` 세션이고, 이 세션은 **건드리지 않았다.** 병렬 세션은 append-only 인
-`DECISIONS.md` 에만 쓰는 것이 안전하다.
-
-
-## 2026-09-13 / 레거시 은퇴가 되살리기로 방향을 바꿨다 — 그리고 Phase 1 이 배송에서 끊겨 있었다
-
-**이 워크트리(`runbook-260907`)는 여기서 닫는다**(Simon 지시). 내 브랜치는 전부 origin 에
-있다(미푸시 0). 상태는 `STATE.md`, 결정은 `DECISIONS.md` 가 갖는다 — 여기 중복해 적지 않는다.
-
-### 한 줄
-
-가져온 자료를 읽어 요약과 되새김 질문 넷을 만드는 단계(**Phase 1**)에 **배송 호출부가 0건**
-이었다. 코드는 전부 있었고, 검사도 전부 초록이었다.
-
-### 왜 아무도 못 봤나 — 네 겹이 겹쳤다
-
-```
-runPhase1 호출부        2곳, 둘 다 죽은 반쪽 안 (src/app/inbox.tsx:452 · src/app/wiki.tsx:318)
-배송 megafile          listSources · generateSourcePage · runPhase1 을 import 만 하고 안 씀
-eslint no-unused-vars  "warn" 이라 CI 가 안 섬
-/import 화면 주석       "imported notes land in the inbox for Phase 1/2 later ($0)"
-                       — 그 "나중" 이 오지 않았다
-```
-
-**Phase 2(위키 페이지 만들기)는 멀쩡했다** — 기록 상세와 자동 승격에서 부른다. 끊긴 것은
-읽는 단계 하나뿐이다. 그래서 "AI 가 내 자료로 아무것도 안 한다"와 "코드는 다 있다"가 동시에
-참이었다.
-
-### 고친 것 (#1796)
-
-`/sources` 신설 — 미리보기 펼치기 · 요약과 질문 넷 만들기/보기 · 위키 페이지 만들기.
-알림 허브에는 **한 줄 신호**만 얹고 누르면 화면 전환한다(목록을 허브에 넣으면 145줄 허브가
-858줄 목록이 된다 — 화면 하나에 메시지 하나 · O-7).
-
-`/wiki?focusSourceId=` 점프는 **일부러 안 넣었다.** 배송 위키는 `focusPageId` 를 읽어서 그
-파라미터는 받는 사람이 없다(#1782 이 고아 파라미터 셋 중 하나로 기록). 받는 쪽을 먼저 만든
-뒤에 잇는다.
-
-새 검사 `src/lib/wiki/__tests__/phase1-has-a-shipping-caller.test.ts` 가 이 구멍을 지킨다.
-쓰다가 **매달린 import 를 일곱 개 더** 찾았다 — 손으로 셋, 검사가 일곱, 한 파일에 열.
-**손으로 세면 늘 모자란다.** 변이 검증 7/7(물어야 할 넷은 물고, 자기 산문·로그 문자열·주석
-셋은 안 흔들린다).
-
-### 방향이 바뀌었다 — 은퇴 중단, 되살리기 집중 (Simon 결정 Q10)
-
-Q3 에서 `capture`(4,636줄)를 다음 은퇴 묶음으로 골랐는데 **전제가 반증됐다. capture 는
-배송된다** — `capture-full.tsx:6,14,18` 이 두 트랙 모두에서 `CaptureLegacy` 를 그리고,
-Web Share Target 이 `/capture` 로 들어온다. 이름의 `Legacy` 는 **트랙 이름이지 상태가 아니다**
-(`formats.tsx` 에서 한 번, 여기서 또 한 번 걸렸다).
-
-→ **은퇴 후보를 줄 수로 고르지 말 것.** 가장 큰 파일이 가장 살아 있었다.
-
-남은 죽은 핀 37(`wiki` 29 · `inbox` 8)은 은퇴가 아니라 **되살리기로** 해소된다. 배송 화면이
-계약을 갖게 되면 검사가 그쪽을 가리킨다.
-
-### 이미 끝나 있던 것 — `/ops`
-
-Q4 가 "인용 갱신 후 은퇴를 이어간다" 였는데 **09-08 에 이미 끝났다.** `src/app/ops.tsx` 는
-12줄 래퍼고 레거시 반쪽이 없으며 `legacy/screens/ops.tsx` 로 나갔다. DPIA 인용도 그때
-재조준됐다(`dpia-crisis-rail-anchors.test.ts:147`). **다시 파지 말 것.**
-
-### 다음 사람에게 (순서는 `STATE.md` 가 정본)
-
-1. **P1 — 배송 홈이 `highlightRecordId` 를 읽게 한다.** 보내는 곳 둘, 읽는 곳은 아카이브된
-   홈뿐이다. Simon 이 "받는 쪽부터" 로 순서를 지정했다.
-2. Q11 — `/import` 붙여넣기 상자 + 우리 분류기(Simon "둘 다"). `$0` 주석은 #1796 에서 이미
-   정정했다. 붙여넣은 것도 소스가 되니 `/sources` 가 그대로 받는다.
-3. P2 `/data` 묶음(Q8 + Q7③) → P3 위키 삭제·검색·지표(Q7 ①②④) → P4 기록 상세 셋(Q6 ①②③).
-
-### ⚠ 이 파일이 708KB 다
-
-9,378줄. 지침의 100KB 상한을 7배 넘겼다. **요약하지 말고 기간으로 쪼갤 것**
-(`docs/handoff/HANDOFF-2026H2.md`). 워크트리를 닫는 중에 즉흥으로 할 일이 아니라 손대지
-않았다 — 새 워크트리의 첫 작업 후보다.
