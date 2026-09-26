@@ -1,8 +1,9 @@
 # GitHub Actions credential boundaries
 
 이 문서는 자동 백업과 모델 최신화 workflow가 기대하는 GitHub environment 설정 계약이다.
-YAML만 병합해도 environment policy나 secret이 생기지는 않는다. **아직 provisioning 전**이며,
-아래 콘솔 설정이 끝날 때까지 두 workflow는 필요한 값이 비어 실패하도록 설계돼 있다.
+YAML만 병합해도 environment policy나 secret이 생기지는 않는다. 현재 설정은 아래
+계약과 별도로 GitHub API에서 재확인해야 한다. 필요한 값이 비어 있으면 두 workflow는
+실패하도록 설계돼 있다.
 
 ## Environment 계약
 
@@ -11,6 +12,17 @@ YAML만 병합해도 environment policy나 secret이 생기지는 않는다. **�
 | `Backup`               | branch `main`만 | 없음     | `BACKUP_PGDUMP_DATABASE_URL`, `BACKUP_PGDUMP_AGE_PUBLIC_KEY`                                                                                                      |
 | `ModelRefreshReadOnly` | branch `main`만 | 없음     | `MODEL_REFRESH_ANTHROPIC_API_KEY`, `MODEL_REFRESH_OPENAI_API_KEY`, 선택 `MODEL_REFRESH_XAI_API_KEY`                                                               |
 | `Production`           | branch `main`만 | 필수     | `PRODUCTION_ANTHROPIC_API_KEY`, `PRODUCTION_OPENAI_API_KEY`, 선택 `PRODUCTION_XAI_API_KEY`, `PRODUCTION_SUPABASE_ACCESS_TOKEN`, `PRODUCTION_SUPABASE_PROJECT_REF` |
+
+### 2026-09-26 16:00 KST 실측 상태
+
+Orca 콘솔 작업 `run_96f6b59c55e4` / `ctx_cf18e2f35bd7`가 GitHub API의
+`Backup`·`ModelRefreshReadOnly` 정책을 `custom_branch_policies=true`와
+`branch:main` 한 개씩으로 설정했다. 두 환경 모두 태그 규칙과 필수 검토자가 없다.
+`Backup` 환경에는 위 두 백업 secret **이름**이 있고,
+`ModelRefreshReadOnly`에는 secret이 아직 없다. `Production`은 기존
+`branch:main` 한 개와 Simon 필수 검토자가 사전·사후 동일했다. secret 값은
+조회하지 않았고, DB·Edge·workflow·수동 백업 실행은 없었다. 콘솔 작업자는
+완료 후 종료됐다. 값의 존재나 정책만으로 복원 가능성을 증명하지 않는다.
 
 `Backup`은 매일 사람 없이 실행돼야 하므로 required reviewer를 두지 않는다. DB URI는
 `postgres` 소유자나 쓰기 가능한 서비스 계정이 아니라 pg_dump 전용 역할이어야 한다.

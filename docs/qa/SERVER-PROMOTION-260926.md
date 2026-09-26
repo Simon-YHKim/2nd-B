@@ -111,6 +111,14 @@ The paid development branch remains declined; Docker's local daemon is stopped.
 An isolated restore with the private key and a compatible Supabase scratch
 environment is still required before production migration writes.
 
+The same-day console policy dispatch `run_96f6b59c55e4` /
+`ctx_cf18e2f35bd7` set the GitHub `Backup` and `ModelRefreshReadOnly`
+environments to custom branch policy `main` only. Independent API reads found
+exactly one branch rule and no tag rules in each; the `Production` environment
+kept its existing `main` rule and required reviewer. The dispatch did not read
+secret values or trigger a backup. See the
+[credential boundary status](../GITHUB-ACTIONS-CREDENTIAL-BOUNDARIES.md).
+
 Scratch CI replays all numbered files on a fresh PostgreSQL database. It proves
 source order and contracts only; it cannot establish compatibility with live
 data, restoration of the current production backup, current Edge secrets,
