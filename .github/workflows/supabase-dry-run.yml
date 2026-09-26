@@ -181,10 +181,10 @@ jobs:
           -- function and refuses to draw a conclusion if this floor is absent,
           -- so deleting these lines turns that lane red instead of vacuous.
           --
-          -- FUNCTIONS only, on purpose. The TABLE defaults are not reproducible
-          -- here: 0179 asserts at apply time that authenticated holds no write
-          -- privilege on ai_audit_log, and nothing revokes it before 0181
-          -- (db/tests/erasure_registry_regression.sql, "The privilege FLOOR").
+          -- FUNCTIONS only here. The targeted audit TABLE grants are installed
+          -- after baseline replay, immediately before the staged CLI push. That
+          -- reproduces production's existing-table ACL at the 0179 boundary
+          -- without changing the unrelated baseline table fixtures.
           ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
             GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role;
           SQL
@@ -205,6 +205,29 @@ jobs:
               psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f "$f"
             fi
           done
+      - name: Reproduce production audit table grants before 0179
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 <<'SQL'
+          -- Production public-table defaults grant these rights by name. Earlier
+          -- migrations created both tables without revoking them; 0181's REVOKE
+          -- is too late to make 0179 pass. Start the staged replay from the
+          -- production ACL so 0179's own postcondition tests the repair.
+          GRANT ALL ON TABLE public.ai_audit_log, public.crisis_events
+            TO anon, authenticated, service_role;
+          DO $precondition$
+          BEGIN
+            IF NOT has_table_privilege('anon', 'public.ai_audit_log', 'TRUNCATE')
+               OR NOT has_table_privilege('authenticated', 'public.ai_audit_log', 'TRUNCATE')
+               OR NOT has_table_privilege('anon', 'public.crisis_events', 'TRUNCATE')
+               OR NOT has_table_privilege('authenticated', 'public.crisis_events', 'TRUNCATE') THEN
+              RAISE EXCEPTION 'production audit grant fixture missing before 0179';
+            END IF;
+          END
+          $precondition$;
+          SQL
       # Pin the executable because its statement splitting and migration-ledger
       # writes are part of this test contract, not an ambient runner detail.
       - uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1 # v1
@@ -1255,6 +1278,10 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/account_deletion_completion_fence_regression.sql
+      - name: Parse managed Storage read-only preflight on scratch schema
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/account_deletion_managed_storage_preflight.sql
       - name: Exercise numbered Naver OAuth limiter on scratch schema
         env:
           PGPASSWORD: postgres
