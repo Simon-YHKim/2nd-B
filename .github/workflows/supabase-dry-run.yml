@@ -315,6 +315,83 @@ jobs:
             END IF;
           END $$;
           SQL
+      - name: Apply cumulative server-first drafts on an isolated scratch clone
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          # Reuse the rollback lane's TEMPLATE clone pattern after all 173
+          # numbered migrations. The service container is disposable; leave the
+          # uniquely named clone until that container is torn down.
+          # This proves a fresh-schema SQL transaction, not production data,
+          # Supabase's timestamp ledger, Edge secrets, or the unreserved numbers.
+          unset PGHOSTADDR PGSERVICE PGHOST PGPORT PGUSER PGDATABASE
+          if [[ ! "${GITHUB_RUN_ID:-}" =~ ^[0-9]+$ || ! "${GITHUB_RUN_ATTEMPT:-}" =~ ^[0-9]+$ ]]; then
+            echo "cumulative draft check requires a GitHub Actions scratch run" >&2
+            exit 1
+          fi
+          draft_db="draft_cumulative_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}"
+          sql() { # <database> <one SQL statement>; loopback and CI-only password
+            psql -X --no-password -qAt -h 127.0.0.1 -p 5432 -U postgres -d "$1" \
+              -v ON_ERROR_STOP=1 -c "$2"
+          }
+          if [[ "$(sql postgres "SELECT count(*) FROM pg_catalog.pg_database WHERE datname='$draft_db'")" != "0" ]]; then
+            echo "refusing to replace pre-existing scratch database [$draft_db]" >&2
+            exit 1
+          fi
+          if [[ "$(sql postgres 'SELECT count(*) FROM public.erasure_registry')" != "66" ]]; then
+            echo "numbered migration baseline no longer has 66 registry rows" >&2
+            exit 1
+          fi
+          ledger_sql="SELECT md5(coalesce(string_agg(row_to_json(m)::text, '|' ORDER BY m.version, m.name), '')) FROM supabase_migrations.schema_migrations AS m"
+          ledger_before="$(sql postgres "$ledger_sql")"
+          sql postgres "CREATE DATABASE $draft_db TEMPLATE postgres"
+
+          # One transaction preserves SET LOCAL in the drafts and prevents a
+          # partial package from passing. A failed preflight aborts this lane.
+          psql -X --no-password -h 127.0.0.1 -p 5432 -U postgres -d "$draft_db" \
+            -v ON_ERROR_STOP=1 <<'SQL'
+          BEGIN;
+          \i db/migration-drafts/UNNUMBERED_signup_consent_admob_20260925.sql
+          \i db/migration-drafts/UNNUMBERED_account_deletion_completion_fence.sql
+          \i db/migration-drafts/UNNUMBERED_effective_llm_consent_current_contract.sql
+          \i db/migration-drafts/UNNUMBERED_llm_service_consent_management.sql
+          \i db/migration-drafts/UNNUMBERED_polaris_generation_allowance.sql
+          \i db/migration-drafts/UNNUMBERED_reward_ssv_hardening.sql
+          \i db/migration-drafts/UNNUMBERED_paddle_refund_consequence_integrity.sql
+          \i db/migration-drafts/UNNUMBERED_service_contract_erasure_registry.sql
+          DO $verify$
+          BEGIN
+            IF (SELECT count(*) FROM public.erasure_registry) <> 70
+               OR (SELECT count(*) FROM public.erasure_registry WHERE table_name IN (
+                 'account_deletion_tombstones', 'llm_consent_receipts',
+                 'polaris_generations', 'reward_ssv_issue_rate_limits')) <> 4
+               OR to_regclass('public.account_deletion_tombstones') IS NULL
+               OR to_regclass('public.llm_consent_receipts') IS NULL
+               OR to_regclass('public.polaris_generations') IS NULL
+               OR to_regclass('public.reward_ssv_issue_rate_limits') IS NULL
+               OR to_regprocedure('public.signup_consent_contract_status()') IS NULL
+               OR to_regprocedure('public.llm_service_consent_status(uuid)') IS NULL
+               OR to_regprocedure('public.settle_reward_ssv_ticket_v2(text,text,text,integer,text)') IS NULL
+               OR NOT EXISTS (SELECT 1 FROM information_schema.columns
+                 WHERE table_schema='public' AND table_name='paddle_webhook_events'
+                   AND column_name='refund_consequence_adjustment_id')
+               OR (SELECT enabled FROM public.polaris_generation_config WHERE singleton) IS DISTINCT FROM false
+               OR has_function_privilege('authenticated','public.erase_my_data(text)','EXECUTE')
+               OR NOT has_function_privilege('service_role','public.llm_service_consent_status(uuid)','EXECUTE')
+            THEN
+              RAISE EXCEPTION 'cumulative server-first draft contract failed';
+            END IF;
+          END
+          $verify$;
+          COMMIT;
+          SQL
+
+          if [[ "$(sql "$draft_db" "$ledger_sql")" != "$ledger_before" ]]; then
+            echo "cumulative draft SQL unexpectedly changed the CLI migration ledger" >&2
+            exit 1
+          fi
+          echo "PASS: eight drafts applied together on a fresh scratch clone; 70 registry rows, contracts and ACL verified; numbered ledger unchanged"
       # db/migrations/rollback/0189_down.sql is run by hand, mid-incident, and the
       # next `db push` is then trusted to put everything back. Nothing exercised
       # that path, and it was broken. The rollback deleted only its OWN ledger row
