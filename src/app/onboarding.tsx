@@ -1,4 +1,4 @@
-// First-run onboarding stays a PRE-AUTH four-slide carousel. Its final frame is
+// First-run onboarding stays a PRE-AUTH three-slide carousel. Its final frame is
 // only a handoff: date-of-birth input, consent, storage, and age-tier decisions
 // remain owned by the real /sign-up and /complete-profile boundaries (C10).
 
@@ -31,22 +31,17 @@ const SLIDE_EN: { tag: string; title: string; body: string }[] = [
   {
     tag: "2ND-BRAIN",
     title: "An AI that gets\nto know you",
-    body: "SecondB is curious about the stardust that makes you up. Show your stardust and tell it who you are!",
+    body: "SecondB uses your notes\nto help organize your thoughts\nand plan your day.",
   },
   {
     tag: "Getting to know you",
-    title: "Scattered days\nbecome a constellation",
-    body: "Profile, early childhood, school years, your 20s, 30s and beyond, work, and now: seven stars for getting to know yourself at a glance.",
+    title: "Tell your story\nacross seven stars",
+    body: "School years, work, or now:\nchoose a star to start with.",
   },
   {
-    tag: "Helping alongside you",
-    title: "It helps\nas much as it knows",
-    body: "The more it knows you, the better it assists: spending, rest, daily plans, all tuned to you.",
-  },
-  {
-    tag: "Learning together",
-    title: "Learn how the\nAI works, too",
-    body: "What SecondB writes about you is a proposal; you decide what stays. The AI Museum unpacks how it works, simply.",
+    tag: "Your choice",
+    title: "AI summaries need\nyour approval",
+    body: "A summary about you is a proposal.\nIt is applied only if you approve it.",
   },
 ];
 

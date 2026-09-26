@@ -23,7 +23,7 @@ import {
   type DomainId,
 } from "../persona/domain-stars";
 
-export type RecordsGraphNodeKind = "polaris" | "domain" | "record";
+export type RecordsGraphNodeKind = "polaris" | "domain" | "persona" | "record";
 export type RecordsGraphEdgeKind = "spine" | "branch" | "link";
 
 export interface RecordsGraphNode {
@@ -32,6 +32,10 @@ export interface RecordsGraphNode {
   label: string;
   /** present on domain + record nodes (the star the record hangs under) */
   domain?: DomainId;
+  /** Role-card graph only: stable slot and owning role, not a lifestyle domain. */
+  personaIndex?: number;
+  personaId?: string;
+  summary?: string;
 }
 
 export interface RecordsGraphEdge {
@@ -55,6 +59,14 @@ export interface GraphRecord {
   tags?: string[] | null;
 }
 
+export interface GraphRoleCard {
+  id: string;
+  label: string;
+  summary: string;
+  status: "proposed" | "ratified";
+  evidenceRefs: readonly string[];
+}
+
 export interface BuildRecordsGraphOptions {
   locale?: "en" | "ko";
   /** render all 7 stars even if a star has no records (default false: only stars
@@ -76,6 +88,7 @@ export interface BuildRecordsGraphOptions {
 }
 
 const POLARIS_ID = "polaris";
+const POLARIS_LABEL_KO = "북극성";
 const DEFAULT_MAX_LINKS = 400;
 
 /** The record's domain from its reserved `domain:<slug>` tag; 'collect' fallback. */
@@ -112,7 +125,7 @@ export function buildRecordsGraph(
   const starName = (id: DomainId) => (opts.labels ? opts.labels.star(id) : starLabel(id, locale));
 
   const nodes: RecordsGraphNode[] = [
-    { id: POLARIS_ID, kind: "polaris", label: opts.labels?.polaris ?? (locale === "ko" ? "북극성" : "North Star") },
+    { id: POLARIS_ID, kind: "polaris", label: opts.labels?.polaris ?? (locale === "ko" ? POLARIS_LABEL_KO : "North Star") },
   ];
   const edges: RecordsGraphEdge[] = [];
 
@@ -160,6 +173,41 @@ export function buildRecordsGraph(
     }
   }
 
+  return { nodes, edges };
+}
+
+/** Polaris → approved role cards → the saved records actually cited by each.
+ * Unapproved proposals never masquerade as established second-tier stars. */
+export function buildRoleRecordsGraph(
+  records: readonly GraphRecord[],
+  cards: readonly GraphRoleCard[],
+  locale: "en" | "ko" = "ko",
+  polarisLabel?: string,
+): RecordsGraph {
+  const nodes: RecordsGraphNode[] = [{
+    id: POLARIS_ID, kind: "polaris", label: polarisLabel ?? (locale === "ko" ? POLARIS_LABEL_KO : "North Star"),
+  }];
+  const edges: RecordsGraphEdge[] = [];
+  const byId = new Map(records.map((record) => [record.id, record]));
+  const seenRecords = new Set<string>();
+  cards.filter((card) => card.status === "ratified").slice(0, 3).forEach((card, index) => {
+    const cited = card.evidenceRefs
+      .map((ref) => ref.startsWith("record:") ? ref.slice(7) : "")
+      .filter((recordId) => byId.has(recordId))
+      .slice(0, 3);
+    if (cited.length === 0) return;
+    const id = `persona:${card.id}`;
+    nodes.push({ id, kind: "persona", label: card.label, summary: card.summary, personaIndex: index });
+    edges.push({ a: POLARIS_ID, b: id, kind: "spine" });
+    for (const recordId of cited) {
+      const record = byId.get(recordId)!;
+      if (!seenRecords.has(recordId)) {
+        nodes.push({ id: recordId, kind: "record", label: recordLabel(record, locale), personaId: id, personaIndex: index });
+        seenRecords.add(recordId);
+      }
+      edges.push({ a: id, b: recordId, kind: "branch" });
+    }
+  });
   return { nodes, edges };
 }
 

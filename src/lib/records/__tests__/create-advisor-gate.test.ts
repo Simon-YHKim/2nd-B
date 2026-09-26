@@ -633,7 +633,7 @@ describe("capture 화면 — domainIntent 배선 (source contract)", () => {
     expect(wrapper).toContain("useState(hasFullCaptureParams)");
     expect(wrapper).toContain("hasFullCaptureParams || fullCaptureActive");
     expect(wrapper).toContain("<CaptureLegacy />");
-    expect(wrapper).toContain("<CaptureView />");
+    expect(wrapper).toContain("<CaptureView firstRecordCoach={firstRecordCoach} />");
     expect(wrapper).not.toContain("sharedEverRef.current =");
   });
 

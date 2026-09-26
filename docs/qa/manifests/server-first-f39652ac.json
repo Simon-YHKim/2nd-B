@@ -1,0 +1,1467 @@
+{
+  "schema_version": 2,
+  "source_commit": "f39652acbe642f5807d54ad2df1b1547d300be3f",
+  "source_pr": "https://github.com/Simon-YHKim/2nd-B/pull/1865",
+  "package_status": "Local source inventory only; not delivery, deployment, activation or production verification evidence",
+  "hash_contract": "SHA-256 over exact raw git show <explicit commit>:<path> blob bytes; no text or newline normalization",
+  "reproduction": {
+    "script": "Output/server-readiness-260926/build-manifest.cjs",
+    "script_sha256": "2ca9ccb3163316446cd64f7503a15d5b2afdc1b3eebef4075408e834c0dedb50",
+    "typescript_version": "6.0.3",
+    "explicit_additional_seeds": [
+      "docs/HANDOFF.md",
+      "docs/LLM-ROUTING.md",
+      "src/lib/persona/__tests__/polaris-server.test.ts"
+    ],
+    "output_reproducibility": "Deterministic for the same explicit commit, baseline bytes, script and TypeScript version; no current timestamp or worktree source input"
+  },
+  "baseline_inventory": {
+    "path": "Output/integration-260925/server-first-21641bda-manifest.json",
+    "source_commit": "21641bda3fc839ba2fbf042c821b25688cf51dae",
+    "files": 58,
+    "manifest_sha256": "3f8bcadd00df8f12e02fa2dae1027d717b0e055dbd08277dbe13ec3ea1538f3a",
+    "use": "Path inventory only; every listed file is read again from source_commit, never copied from the old package"
+  },
+  "historical_anchors": [
+    "db/migrations/0008_personas.sql",
+    "db/migrations/0031_consent_records.sql",
+    "db/migrations/0062_consent_changes.sql",
+    "db/migrations/0086_require_email_confirmation.sql",
+    "db/migrations/0118_billing_refund_reconciliation.sql",
+    "db/migrations/0130_safety_notice_ack.sql",
+    "db/migrations/0134_credit_ledger.sql",
+    "db/migrations/0135_credit_cutover.sql"
+  ],
+  "edge_entrypoints": [
+    "supabase/functions/claude-proxy/index.ts",
+    "supabase/functions/delete-account/index.ts",
+    "supabase/functions/gemini-proxy/index.ts",
+    "supabase/functions/openai-proxy/index.ts",
+    "supabase/functions/paddle-webhook/index.ts",
+    "supabase/functions/rewarded-ssv/index.ts",
+    "supabase/functions/service-consent/index.ts",
+    "supabase/functions/subscription-manage/index.ts",
+    "supabase/functions/xai-proxy/index.ts"
+  ],
+  "edge_closure": {
+    "method": "TypeScript AST: static import/export, import-equals, literal dynamic import, import type/typeof import, literal require",
+    "local_files": [
+      "src/lib/llm/untrusted.ts",
+      "src/lib/safety/lexicon.ts",
+      "supabase/functions/_shared/axis-key-name.ts",
+      "supabase/functions/_shared/llm-consent.ts",
+      "supabase/functions/_shared/llm-proxy-common.ts",
+      "supabase/functions/_shared/paddle-api-boundary.ts",
+      "supabase/functions/_shared/paddle-checkout-binding.ts",
+      "supabase/functions/_shared/paddle-environment.ts",
+      "supabase/functions/_shared/polaris-generation.ts",
+      "supabase/functions/_shared/request-json.ts",
+      "supabase/functions/claude-proxy/index.ts",
+      "supabase/functions/delete-account/delete-auth-user.ts",
+      "supabase/functions/delete-account/index.ts",
+      "supabase/functions/delete-account/storage-erasure.ts",
+      "supabase/functions/gemini-proxy/index.ts",
+      "supabase/functions/openai-proxy/index.ts",
+      "supabase/functions/paddle-webhook/index.ts",
+      "supabase/functions/rewarded-ssv/index.ts",
+      "supabase/functions/rewarded-ssv/reward-contract.ts",
+      "supabase/functions/rewarded-ssv/verifier-key-cache.ts",
+      "supabase/functions/service-consent/index.ts",
+      "supabase/functions/subscription-manage/index.ts",
+      "supabase/functions/xai-proxy/index.ts"
+    ],
+    "imports": [
+      {
+        "from": "supabase/functions/_shared/llm-proxy-common.ts",
+        "line": 13,
+        "kind": "import",
+        "specifier": "./axis-key-name.ts",
+        "resolution": "local",
+        "path": "supabase/functions/_shared/axis-key-name.ts"
+      },
+      {
+        "from": "supabase/functions/_shared/paddle-api-boundary.ts",
+        "line": 14,
+        "kind": "import",
+        "specifier": "./request-json.ts",
+        "resolution": "local",
+        "path": "supabase/functions/_shared/request-json.ts"
+      },
+      {
+        "from": "supabase/functions/_shared/polaris-generation.ts",
+        "line": 3,
+        "kind": "import",
+        "specifier": "../../../src/lib/safety/lexicon.ts",
+        "resolution": "local",
+        "path": "src/lib/safety/lexicon.ts"
+      },
+      {
+        "from": "supabase/functions/_shared/polaris-generation.ts",
+        "line": 4,
+        "kind": "import",
+        "specifier": "../../../src/lib/llm/untrusted.ts",
+        "resolution": "local",
+        "path": "src/lib/llm/untrusted.ts"
+      },
+      {
+        "from": "supabase/functions/_shared/polaris-generation.ts",
+        "line": 5,
+        "kind": "import",
+        "specifier": "./llm-consent.ts",
+        "resolution": "local",
+        "path": "supabase/functions/_shared/llm-consent.ts"
+      },
+      {
+        "from": "supabase/functions/claude-proxy/index.ts",
+        "line": 38,
+        "kind": "import",
+        "specifier": "jsr:@supabase/functions-js/edge-runtime.d.ts",
+        "resolution": "external",
+        "downloaded": false
+      },
+      {
+        "from": "supabase/functions/claude-proxy/index.ts",
+        "line": 39,
+        "kind": "import",
+        "specifier": "jsr:@supabase/supabase-js@2",
+        "resolution": "external",
+        "downloaded": false
+      },
+      {
+        "from": "supabase/functions/claude-proxy/index.ts",
+        "line": 40,
+        "kind": "import",
+        "specifier": "../_shared/llm-consent.ts",
+        "resolution": "local",
+        "path": "supabase/functions/_shared/llm-consent.ts"
+      },
+      {
+        "from": "supabase/functions/claude-proxy/index.ts",
+        "line": 41,
+        "kind": "import",
+        "specifier": "../_shared/llm-proxy-common.ts",
+        "resolution": "local",
+        "path": "supabase/functions/_shared/llm-proxy-common.ts"
+      },
+      {
+        "from": "supabase/functions/delete-account/index.ts",
+        "line": 4,
+        "kind": "import",
+        "specifier": "jsr:@supabase/functions-js/edge-runtime.d.ts",
+        "resolution": "external",
+        "downloaded": false
+      },
+      {
+        "from": "supabase/functions/delete-account/index.ts",
+        "line": 5,
+        "kind": "import",
+        "specifier": "jsr:@supabase/supabase-js@2.106.1",
+        "resolution": "external",
+        "downloaded": false
+      },
+      {
+        "from": "supabase/functions/delete-account/index.ts",
+        "line": 6,
+        "kind": "import",
+        "specifier": "./delete-auth-user.ts",
+        "resolution": "local",
+        "path": "supabase/functions/delete-account/delete-auth-user.ts"
+      },
+      {
+        "from": "supabase/functions/delete-account/index.ts",
+        "line": 7,
+        "kind": "import",
+        "specifier": "./storage-erasure.ts",
+        "resolution": "local",
+        "path": "supabase/functions/delete-account/storage-erasure.ts"
+      },
+      {
+        "from": "supabase/functions/gemini-proxy/index.ts",
+        "line": 49,
+        "kind": "import",
+        "specifier": "jsr:@supabase/functions-js/edge-runtime.d.ts",
+        "resolution": "external",
+        "downloaded": false
+      },
+      {
+        "from": "supabase/functions/gemini-proxy/index.ts",
+        "line": 50,
+        "kind": "import",
+        "specifier": "jsr:@supabase/supabase-js@2",
+        "resolution": "external",
+        "downloaded": false
+      },
+      {
+        "from": "supabase/functions/gemini-proxy/index.ts",
+        "line": 51,
+        "kind": "import",
+        "specifier": "../_shared/llm-consent.ts",
+        "resolution": "local",
+        "path": "supabase/functions/_shared/llm-consent.ts"
+      },
+      {
+        "from": "supabase/functions/gemini-proxy/index.ts",
+        "line": 54,
+        "kind": "import",
+        "specifier": "../_shared/llm-proxy-common.ts",
+        "resolution": "local",
+        "path": "supabase/functions/_shared/llm-proxy-common.ts"
+      },
+      {
+        "from": "supabase/functions/openai-proxy/index.ts",
+        "line": 39,
+        "kind": "import",
+        "specifier": "jsr:@supabase/functions-js/edge-runtime.d.ts",
+        "resolution": "external",
+        "downloaded": false
+      },
+      {
+        "from": "supabase/functions/openai-proxy/index.ts",
+        "line": 40,
+        "kind": "import",
+        "specifier": "jsr:@supabase/supabase-js@2",
+        "resolution": "external",
+        "downloaded": false
+      },
+      {
+        "from": "supabase/functions/openai-proxy/index.ts",
+        "line": 41,
+        "kind": "import",
+        "specifier": "../_shared/llm-consent.ts",
+        "resolution": "local",
+        "path": "supabase/functions/_shared/llm-consent.ts"
+      },
+      {
+        "from": "supabase/functions/openai-proxy/index.ts",
+        "line": 42,
+        "kind": "import",
+        "specifier": "../_shared/polaris-generation.ts",
+        "resolution": "local",
+        "path": "supabase/functions/_shared/polaris-generation.ts"
+      },
+      {
+        "from": "supabase/functions/openai-proxy/index.ts",
+        "line": 43,
+        "kind": "import",
+        "specifier": "../_shared/llm-proxy-common.ts",
+        "resolution": "local",
+        "path": "supabase/functions/_shared/llm-proxy-common.ts"
+      },
+      {
+        "from": "supabase/functions/paddle-webhook/index.ts",
+        "line": 31,
+        "kind": "import",
+        "specifier": "https://esm.sh/@supabase/supabase-js@2",
+        "resolution": "external",
+        "downloaded": false
+      },
+      {
+        "from": "supabase/functions/paddle-webhook/index.ts",
+        "line": 32,
+        "kind": "import",
+        "specifier": "../_shared/paddle-checkout-binding.ts",
+        "resolution": "local",
+        "path": "supabase/functions/_shared/paddle-checkout-binding.ts"
+      },
+      {
+        "from": "supabase/functions/paddle-webhook/index.ts",
+        "line": 33,
+        "kind": "import",
+        "specifier": "../_shared/paddle-environment.ts",
+        "resolution": "local",
+        "path": "supabase/functions/_shared/paddle-environment.ts"
+      },
+      {
+        "from": "supabase/functions/paddle-webhook/index.ts",
+        "line": 34,
+        "kind": "import",
+        "specifier": "../_shared/request-json.ts",
+        "resolution": "local",
+        "path": "supabase/functions/_shared/request-json.ts"
+      },
+      {
+        "from": "supabase/functions/rewarded-ssv/index.ts",
+        "line": 6,
+        "kind": "import",
+        "specifier": "https://esm.sh/@supabase/supabase-js@2",
+        "resolution": "external",
+        "downloaded": false
+      },
+      {
+        "from": "supabase/functions/rewarded-ssv/index.ts",
+        "line": 7,
+        "kind": "import",
+        "specifier": "./reward-contract.ts",
+        "resolution": "local",
+        "path": "supabase/functions/rewarded-ssv/reward-contract.ts"
+      },
+      {
+        "from": "supabase/functions/rewarded-ssv/index.ts",
+        "line": 22,
+        "kind": "import",
+        "specifier": "./verifier-key-cache.ts",
+        "resolution": "local",
+        "path": "supabase/functions/rewarded-ssv/verifier-key-cache.ts"
+      },
+      {
+        "from": "supabase/functions/service-consent/index.ts",
+        "line": 3,
+        "kind": "import",
+        "specifier": "jsr:@supabase/functions-js/edge-runtime.d.ts",
+        "resolution": "external",
+        "downloaded": false
+      },
+      {
+        "from": "supabase/functions/service-consent/index.ts",
+        "line": 4,
+        "kind": "import",
+        "specifier": "jsr:@supabase/supabase-js@2",
+        "resolution": "external",
+        "downloaded": false
+      },
+      {
+        "from": "supabase/functions/service-consent/index.ts",
+        "line": 5,
+        "kind": "import",
+        "specifier": "../_shared/llm-consent.ts",
+        "resolution": "local",
+        "path": "supabase/functions/_shared/llm-consent.ts"
+      },
+      {
+        "from": "supabase/functions/service-consent/index.ts",
+        "line": 6,
+        "kind": "import",
+        "specifier": "../_shared/llm-proxy-common.ts",
+        "resolution": "local",
+        "path": "supabase/functions/_shared/llm-proxy-common.ts"
+      },
+      {
+        "from": "supabase/functions/subscription-manage/index.ts",
+        "line": 59,
+        "kind": "import",
+        "specifier": "jsr:@supabase/functions-js/edge-runtime.d.ts",
+        "resolution": "external",
+        "downloaded": false
+      },
+      {
+        "from": "supabase/functions/subscription-manage/index.ts",
+        "line": 60,
+        "kind": "import",
+        "specifier": "jsr:@supabase/supabase-js@2",
+        "resolution": "external",
+        "downloaded": false
+      },
+      {
+        "from": "supabase/functions/subscription-manage/index.ts",
+        "line": 61,
+        "kind": "import",
+        "specifier": "../_shared/paddle-api-boundary.ts",
+        "resolution": "local",
+        "path": "supabase/functions/_shared/paddle-api-boundary.ts"
+      },
+      {
+        "from": "supabase/functions/subscription-manage/index.ts",
+        "line": 65,
+        "kind": "import",
+        "specifier": "../_shared/paddle-checkout-binding.ts",
+        "resolution": "local",
+        "path": "supabase/functions/_shared/paddle-checkout-binding.ts"
+      },
+      {
+        "from": "supabase/functions/subscription-manage/index.ts",
+        "line": 66,
+        "kind": "import",
+        "specifier": "../_shared/paddle-environment.ts",
+        "resolution": "local",
+        "path": "supabase/functions/_shared/paddle-environment.ts"
+      },
+      {
+        "from": "supabase/functions/subscription-manage/index.ts",
+        "line": 67,
+        "kind": "import",
+        "specifier": "../_shared/request-json.ts",
+        "resolution": "local",
+        "path": "supabase/functions/_shared/request-json.ts"
+      },
+      {
+        "from": "supabase/functions/xai-proxy/index.ts",
+        "line": 44,
+        "kind": "import",
+        "specifier": "jsr:@supabase/functions-js/edge-runtime.d.ts",
+        "resolution": "external",
+        "downloaded": false
+      },
+      {
+        "from": "supabase/functions/xai-proxy/index.ts",
+        "line": 45,
+        "kind": "import",
+        "specifier": "jsr:@supabase/supabase-js@2",
+        "resolution": "external",
+        "downloaded": false
+      },
+      {
+        "from": "supabase/functions/xai-proxy/index.ts",
+        "line": 46,
+        "kind": "import",
+        "specifier": "../_shared/llm-consent.ts",
+        "resolution": "local",
+        "path": "supabase/functions/_shared/llm-consent.ts"
+      },
+      {
+        "from": "supabase/functions/xai-proxy/index.ts",
+        "line": 47,
+        "kind": "import",
+        "specifier": "../_shared/llm-proxy-common.ts",
+        "resolution": "local",
+        "path": "supabase/functions/_shared/llm-proxy-common.ts"
+      }
+    ],
+    "external_specifiers": [
+      "https://esm.sh/@supabase/supabase-js@2",
+      "jsr:@supabase/functions-js/edge-runtime.d.ts",
+      "jsr:@supabase/supabase-js@2",
+      "jsr:@supabase/supabase-js@2.106.1"
+    ],
+    "limitations": "External dependencies are not downloaded or validated; not a deployed Deno bundle. Computed imports, unresolved local paths and import-map/bare aliases are errors. SQL/function calls and non-import runtime assets are not inferred."
+  },
+  "inventory_sha256": "0da8c19960c182cf95b38f765f52ccc984798a61262b48f8965de31884a65bd3",
+  "inventory_hash_format": "UTF-8 concat of path + NUL + raw-file-sha256 + LF, sorted by path code units",
+  "file_count": 94,
+  "files": [
+    {
+      "path": ".github/workflows/supabase-dry-run.yml",
+      "git_blob": "d5316e9a33cdacb50fa5c2e1686a2c3a51886245",
+      "git_mode": "100644",
+      "bytes": 130132,
+      "sha256": "f4c1d9322be01a47993768c412c65be32da817dee9a4531d49c53b6fff23f187",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "verification_sources"
+      ]
+    },
+    {
+      "path": "db/README.md",
+      "git_blob": "66d99518926d2bfe2f71c39e9a5205e30bc54e6c",
+      "git_mode": "100644",
+      "bytes": 1699,
+      "sha256": "2f32b1c19d6f874b53465b684073141f5d419f3fd17f7d19714effaa79921238",
+      "groups": [
+        "erasure_readiness_followup"
+      ]
+    },
+    {
+      "path": "db/erasure-registry.json",
+      "git_blob": "a9d3bc3d204f4027825d30e91aba4f5f87563d8e",
+      "git_mode": "100644",
+      "bytes": 20770,
+      "sha256": "ccd4bb3e526c44927da10635a528517fc75fbd0432d205ded8a741f48942770f",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "configuration_and_promotion_guards"
+      ]
+    },
+    {
+      "path": "db/migration-drafts/UNNUMBERED_account_deletion_completion_fence.sql",
+      "git_blob": "3b7e3e8504c2adfb15cabb5e9d9ab604c3e90a8d",
+      "git_mode": "100644",
+      "bytes": 9517,
+      "sha256": "9ecee8a61fec82fa707b0873a251472da0979b3d9b39e2536a7c97ed5c286cef",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "migration_drafts"
+      ]
+    },
+    {
+      "path": "db/migration-drafts/UNNUMBERED_effective_llm_consent_current_contract.sql",
+      "git_blob": "33e5510f83f0ebba0269ebc0202443f6208e06fb",
+      "git_mode": "100644",
+      "bytes": 17380,
+      "sha256": "9403b773bc02539b8b17ca57a948c5b016fc6f2dc954a6895da84965f68e51a3",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "migration_drafts"
+      ]
+    },
+    {
+      "path": "db/migration-drafts/UNNUMBERED_llm_service_consent_management.sql",
+      "git_blob": "3c70b49bced084bed836538828a9c5d055023c01",
+      "git_mode": "100644",
+      "bytes": 11664,
+      "sha256": "5ea93e1165b357daff9a8d3c44f55e9b4e4f9aeb1a1f7b973a7b3d853cdddc36",
+      "groups": [
+        "service_consent_followup"
+      ]
+    },
+    {
+      "path": "db/migration-drafts/UNNUMBERED_paddle_refund_consequence_integrity.sql",
+      "git_blob": "32eff7e0439b4e236fee56286f8cd358640cf3ba",
+      "git_mode": "100644",
+      "bytes": 62477,
+      "sha256": "94d2b1f38673555e57b94d7b7b12b19391989e45fad28c1fce3a104207473e61",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "migration_drafts"
+      ]
+    },
+    {
+      "path": "db/migration-drafts/UNNUMBERED_polaris_generation_allowance.sql",
+      "git_blob": "090826ed157068172a110920e94870cabc077b59",
+      "git_mode": "100644",
+      "bytes": 23446,
+      "sha256": "0c11f829d35c1a4357753e0d30d4d775076e2aa5869f9fb66403f276027cb7fd",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "erasure_readiness_followup",
+        "migration_drafts"
+      ]
+    },
+    {
+      "path": "db/migration-drafts/UNNUMBERED_reward_ssv_hardening.sql",
+      "git_blob": "180e18d2a7c9cd6dbaf181d13b1a3b78ca8fcf71",
+      "git_mode": "100644",
+      "bytes": 25810,
+      "sha256": "4a637061a2374666c6a5e3322340db6c58fdd7e2806c0beee79dc9ce3dd1246d",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "migration_drafts"
+      ]
+    },
+    {
+      "path": "db/migration-drafts/UNNUMBERED_service_contract_erasure_registry.sql",
+      "git_blob": "24192899dcfb9946975d7af92a326045263e4b95",
+      "git_mode": "100644",
+      "bytes": 3526,
+      "sha256": "51a5b807cbbdaa6d4064d77fe7e2ed016a5df3ba7534f60f4e8dd8d2297b9b3e",
+      "groups": [
+        "erasure_readiness_followup"
+      ]
+    },
+    {
+      "path": "db/migration-drafts/UNNUMBERED_signup_consent_admob_20260925.sql",
+      "git_blob": "c80704a3c82a5af88b411b7918e69c5585275a82",
+      "git_mode": "100644",
+      "bytes": 6074,
+      "sha256": "7a21c7ee2795487e5c46e0f75647e248293ca64812be1b2ac5e9d057df9fa9f8",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "migration_drafts"
+      ]
+    },
+    {
+      "path": "db/migration-drafts/service-contract-erasure-entries.json",
+      "git_blob": "5bec1f8acaba7ff963d26ac777dafc645b335013",
+      "git_mode": "100644",
+      "bytes": 1322,
+      "sha256": "1eebe9173298614649c3ef7fdce243061654325676c476344c6223fecb5daa02",
+      "groups": [
+        "erasure_readiness_followup"
+      ]
+    },
+    {
+      "path": "db/migration-drafts/tests/llm-consent-snapshot-contract.sql",
+      "git_blob": "5b7e47f1cfb8c0107fe27d42e23ba121acbda603",
+      "git_mode": "100644",
+      "bytes": 8888,
+      "sha256": "caf8885737b7f4ef9f67ab3cc59daf186a14ac19f5f7531bca4b4fd5c32b864b",
+      "groups": [
+        "service_consent_followup"
+      ]
+    },
+    {
+      "path": "db/migration-drafts/tests/llm-service-consent-management-contract.sql",
+      "git_blob": "f12dfb47e48f0886a94acb27f6019ceb96346a0a",
+      "git_mode": "100644",
+      "bytes": 12597,
+      "sha256": "72ccebad032b610ef73284e5e40f02be9279d8cf3229ac8b23b1877b50b4a350",
+      "groups": [
+        "service_consent_followup"
+      ]
+    },
+    {
+      "path": "db/migration-drafts/tests/polaris-generation-contract.sql",
+      "git_blob": "e5e2db9bdfe1fa59b4f79d30afa0dcd2327f7952",
+      "git_mode": "100644",
+      "bytes": 17515,
+      "sha256": "27f844bb05f940b8e36dfe4b8fdc010c09b88c0c56cb8fb029708a9eb4ad97ae",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "verification_sources"
+      ]
+    },
+    {
+      "path": "db/migration-drafts/tests/service-contract-erasure-registry.sql",
+      "git_blob": "2f20950bce62a77f0a3956ad3b4a1c71bbeac921",
+      "git_mode": "100644",
+      "bytes": 10616,
+      "sha256": "885db332b66c8692b5543b78ddc531c00761215f2f6824df66ed45b867618184",
+      "groups": [
+        "erasure_readiness_followup"
+      ]
+    },
+    {
+      "path": "db/migrations/0008_personas.sql",
+      "git_blob": "c5ff4918e05c999964851f88ea95ac9436553ed4",
+      "git_mode": "100644",
+      "bytes": 687,
+      "sha256": "423bbede5cce5a80d6761908675cafafa46532af7996322b2a9dc6f15389b9c8",
+      "groups": [
+        "historical_prerequisite_anchor"
+      ]
+    },
+    {
+      "path": "db/migrations/0031_consent_records.sql",
+      "git_blob": "f331b0136bfb640966aacbcba0ef4a6af4c7adaa",
+      "git_mode": "100644",
+      "bytes": 3118,
+      "sha256": "3c35fbc8cd89497d5e2cc48843a8a0913b0f2e672b6aec9053bc8927f904fae5",
+      "groups": [
+        "historical_prerequisite_anchor"
+      ]
+    },
+    {
+      "path": "db/migrations/0062_consent_changes.sql",
+      "git_blob": "dffaf368fe34094c221727a1885bbc2b9ad49ad5",
+      "git_mode": "100644",
+      "bytes": 3121,
+      "sha256": "d5cae5f97788d5f5f1f2abc845321ee9e0cd3fc281a3060cbf93c3096ee6dce4",
+      "groups": [
+        "historical_prerequisite_anchor"
+      ]
+    },
+    {
+      "path": "db/migrations/0086_require_email_confirmation.sql",
+      "git_blob": "1980055646d690fd3c78d26fcfeb95acec50de92",
+      "git_mode": "100644",
+      "bytes": 4960,
+      "sha256": "056c8f9c578dd85b2856ff75b77abc1f324cb42e5595adbff61110fd37da40ab",
+      "groups": [
+        "historical_prerequisite_anchor"
+      ]
+    },
+    {
+      "path": "db/migrations/0118_billing_refund_reconciliation.sql",
+      "git_blob": "ba647e33f1091512b68e3b6405f2a9ac75669c89",
+      "git_mode": "100644",
+      "bytes": 15485,
+      "sha256": "af379ab5602ca53b9bee6d0a807fccd633af3b549836c47041d0e2dbf5449ad0",
+      "groups": [
+        "historical_prerequisite_anchor"
+      ]
+    },
+    {
+      "path": "db/migrations/0130_safety_notice_ack.sql",
+      "git_blob": "bfe8dc3e7e2d9c1413e33044f334bfa715fa7580",
+      "git_mode": "100644",
+      "bytes": 1673,
+      "sha256": "827cafa06048b862ccf66a5c6fc9ff92e0ac25095271c8178791219adeb17d73",
+      "groups": [
+        "historical_prerequisite_anchor"
+      ]
+    },
+    {
+      "path": "db/migrations/0134_credit_ledger.sql",
+      "git_blob": "2c0b9a9f2c435349ebd634ddbd18d4f7e9cbdee9",
+      "git_mode": "100644",
+      "bytes": 34365,
+      "sha256": "6ec6ecfbeccae0cfefeb20cba6f47f5363a9e8539b63feb7f688d8c083db9fa6",
+      "groups": [
+        "historical_prerequisite_anchor"
+      ]
+    },
+    {
+      "path": "db/migrations/0135_credit_cutover.sql",
+      "git_blob": "1beb5ce3d3c6db12fceba21c147622f48e7cb4fc",
+      "git_mode": "100644",
+      "bytes": 61863,
+      "sha256": "311cf99562c5a0b2ba4bad4e8866f11f10362bba5477504b114a8e7277fb3aef",
+      "groups": [
+        "historical_prerequisite_anchor"
+      ]
+    },
+    {
+      "path": "db/migrations/0148_verified_email_signup_consent_ledger.sql",
+      "git_blob": "bc92a035450fbc19890a54128d2b0eed4abd6dca",
+      "git_mode": "100644",
+      "bytes": 6986,
+      "sha256": "75dc5b57366fde5e27aed43ddf0b7541eef5c11a1e356ead9f328dd2429065a9",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "numbered_prerequisite_anchors"
+      ]
+    },
+    {
+      "path": "db/migrations/0149_atomic_complete_profile_signup_consent.sql",
+      "git_blob": "0715b9d6b8ca7e6e5469f3aa6fd03b04f50fe0bf",
+      "git_mode": "100644",
+      "bytes": 21475,
+      "sha256": "b39426686e7c998a3c1bfca313c286f13b5a4b75af3e554840ee1a480c50f1f0",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "numbered_prerequisite_anchors"
+      ]
+    },
+    {
+      "path": "db/migrations/0150_signup_consent_contract_20260902.sql",
+      "git_blob": "66b3eab2b2b579944f0fab4f206095eee70aad47",
+      "git_mode": "100644",
+      "bytes": 2938,
+      "sha256": "4972b109dcd89a47d56fc2196a3845e6ad176497a0bc56d53c48491abf7f7100",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "numbered_prerequisite_anchors"
+      ]
+    },
+    {
+      "path": "db/migrations/0172_reward_authorization_hardening.sql",
+      "git_blob": "571640a97970bc54cfae9f7c70a5bf3d97feaeb3",
+      "git_mode": "100644",
+      "bytes": 9767,
+      "sha256": "0f0618136558bac2a5fb8f80c7761a4a39f74dbf9a21d7449d2b573c6efa9fa5",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "numbered_prerequisite_anchors"
+      ]
+    },
+    {
+      "path": "db/migrations/0177_reward_ssv_tickets.sql",
+      "git_blob": "3f7331c2d48fd3e536226125c7a26569ed737e70",
+      "git_mode": "100644",
+      "bytes": 11541,
+      "sha256": "d6262793126d2d847e1c26231aa047c516dc2410505fab87b54fdce00814908c",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "numbered_prerequisite_anchors"
+      ]
+    },
+    {
+      "path": "db/migrations/0189_erasure_registry.sql",
+      "git_blob": "5ce7010b4b9f58281ababee40f6e7ae9f74ffc47",
+      "git_mode": "100644",
+      "bytes": 34040,
+      "sha256": "3e00640102b8a0027372db076729991ef240652bfb2cc31a8db02e0613c3dbba",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "numbered_prerequisite_anchors"
+      ]
+    },
+    {
+      "path": "db/migrations/0190_lock_erase_my_data_authenticated.sql",
+      "git_blob": "1249302b495809e01c003222ea8ab141e5285aed",
+      "git_mode": "100644",
+      "bytes": 8291,
+      "sha256": "bc40a0ffbe68c5d4d127820b041dc1f4d59e6aff5e2fce38df2f8e608971b36c",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "numbered_prerequisite_anchors"
+      ]
+    },
+    {
+      "path": "db/migrations/rollback/0189_down.sql",
+      "git_blob": "3839455d08f1b01603182a3ca6f3b430209d00f1",
+      "git_mode": "100644",
+      "bytes": 20760,
+      "sha256": "7ace19826def72a619adc3d6a6d557988e3617016db7966b47615d9f8dee72ad",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "configuration_and_promotion_guards"
+      ]
+    },
+    {
+      "path": "db/tests/account_deletion_completion_fence_regression.sql",
+      "git_blob": "c0e081049c26cd9ed95a352129be46ac292e3f28",
+      "git_mode": "100644",
+      "bytes": 5613,
+      "sha256": "2dfe8fb5d4eca17e50acfb209f04c2daa9602fbb712cabd290af1532c12ff135",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "verification_sources"
+      ]
+    },
+    {
+      "path": "db/tests/erasure_registry_regression.sql",
+      "git_blob": "4a08d598acac62d81c40af9b48caf54b99151df5",
+      "git_mode": "100644",
+      "bytes": 107269,
+      "sha256": "ceb34967c5cd47e0c7307696a8aad81506e84856e054117cc2ba16a3f121ebd3",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "verification_sources"
+      ]
+    },
+    {
+      "path": "db/tests/paddle_refund_consequence_regression.sql",
+      "git_blob": "623e58648c007d912bbdea891eb4392de2b9d568",
+      "git_mode": "100644",
+      "bytes": 31282,
+      "sha256": "c8fcc810fdb6d108c5b0cb6d85f6ea5e923cd2358cd9eb908b7a88427371102c",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "verification_sources"
+      ]
+    },
+    {
+      "path": "db/tests/paddle_refund_duplicate_preflight_fixture.sql",
+      "git_blob": "c185e143c01913216f07187d75c30cd426279a2c",
+      "git_mode": "100644",
+      "bytes": 2310,
+      "sha256": "f000d71b7a1992db40753e7be4540ed9ebc13b02452c5d55ceb3e7a267f6c9e4",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "verification_sources"
+      ]
+    },
+    {
+      "path": "db/tests/signup_consent_admob_bootstrap.sql",
+      "git_blob": "d4f3e68edef10af0756d24bbcd7f1c2fc5ec65dc",
+      "git_mode": "100644",
+      "bytes": 3206,
+      "sha256": "3c3c7ba20bd886fd9d293317786980a06e764efeb5a804ec49f5bc8cc0e31e10",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "verification_sources"
+      ]
+    },
+    {
+      "path": "db/tests/signup_consent_admob_regression.sql",
+      "git_blob": "cc2eb554d7d1cf7d86f34ca5bcb35a5ede5e5526",
+      "git_mode": "100644",
+      "bytes": 5230,
+      "sha256": "e8c037765c23fb9b7b8ce1a7e838558be6a5235204cc7ee67583e72cfd107008",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "verification_sources"
+      ]
+    },
+    {
+      "path": "docs/HANDOFF.md",
+      "git_blob": "e50bfe6f991fe208abaab13991c6750a93bb78d4",
+      "git_mode": "100644",
+      "bytes": 100442,
+      "sha256": "8c3a69e718747a2d6edbf5113508216b80861a1789ab4861bde0864643667528",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "explicit_additional_seed",
+        "reviewed_instructions"
+      ]
+    },
+    {
+      "path": "docs/LLM-ROUTING.md",
+      "git_blob": "34f24f5c18605ddd21aee6a2a893a7f093ce2d9e",
+      "git_mode": "100644",
+      "bytes": 50196,
+      "sha256": "9ac2b99c93c89cc25bdb254d5ffbd722754e593ca0daa0b1884a80b9df890da4",
+      "groups": [
+        "explicit_additional_seed"
+      ]
+    },
+    {
+      "path": "docs/PADDLE-SANDBOX-RUNBOOK.md",
+      "git_blob": "a60ede7719447561f5e964425c3d240ef3ff8475",
+      "git_mode": "100644",
+      "bytes": 11969,
+      "sha256": "7e92b9dab0f5936cfddc548c5bc688d51ddbe6bdb3db93181e3e127f2843355e",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "reviewed_instructions"
+      ]
+    },
+    {
+      "path": "docs/SESSION-OWNERSHIP.md",
+      "git_blob": "637ecdd50b4e5d7df2a7f69cab5d3e090b2e1b65",
+      "git_mode": "100644",
+      "bytes": 20653,
+      "sha256": "212eb032209f30d73401b7d005bc79dd2bc3b66110fae07dd4339d7cec9f5c22",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "reviewed_instructions"
+      ]
+    },
+    {
+      "path": "docs/qa/COMPLEMENT-EXECUTION-260925.md",
+      "git_blob": "5569f069a1404647fa0cbd97dedd6f589cec4f40",
+      "git_mode": "100644",
+      "bytes": 22262,
+      "sha256": "0fdc32487ed7dafe2cf576ef3d875dfea5ce05e0877964de5abd6877a1bb2601",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "reviewed_instructions"
+      ]
+    },
+    {
+      "path": "docs/qa/ERASURE-FORWARD-260926.md",
+      "git_blob": "5c759999292adea181fcf902d5c4e4975f172a53",
+      "git_mode": "100644",
+      "bytes": 6688,
+      "sha256": "a9079e92ad9766764426aeba1dce504408136cea0c7c54983ac2d3246485682a",
+      "groups": [
+        "erasure_readiness_followup"
+      ]
+    },
+    {
+      "path": "docs/qa/SERVICE-CONSENT-260926.md",
+      "git_blob": "457b6fa92916621796c891e42dff6fd30e49c294",
+      "git_mode": "100644",
+      "bytes": 8561,
+      "sha256": "c06f5127f48e0df7f2f712a34d7a1b8f956321e32a5bfa56582340158113b526",
+      "groups": [
+        "service_consent_followup"
+      ]
+    },
+    {
+      "path": "scripts/__tests__/erasure-registry-forward.test.ts",
+      "git_blob": "247fff37fb66b5b2e0344e43dd350c5c50053016",
+      "git_mode": "100644",
+      "bytes": 8904,
+      "sha256": "90c1da45c28f6711615739a9b0ad86a401aa5b2dc0390e02a350efd0d3d379ea",
+      "groups": [
+        "erasure_readiness_followup"
+      ]
+    },
+    {
+      "path": "scripts/__tests__/erasure-registry-guard.test.ts",
+      "git_blob": "25d6fad62e67c09c7b1bc46529d0f1d530b2564a",
+      "git_mode": "100644",
+      "bytes": 77781,
+      "sha256": "a93a3bd7480bbf09374e6d2f0e33dc215a421226963e1ba67c440e9011f783e2",
+      "groups": [
+        "erasure_readiness_followup"
+      ]
+    },
+    {
+      "path": "scripts/__tests__/supabase-security-drafts.test.ts",
+      "git_blob": "54ac9cfe703b001935497049eec8cc93fb39bfb5",
+      "git_mode": "100644",
+      "bytes": 7150,
+      "sha256": "8d8b0a0448e139ac306df3d4306c5d29e3251e6a02df667e1448c1e4b6ca35ce",
+      "groups": [
+        "erasure_readiness_followup"
+      ]
+    },
+    {
+      "path": "scripts/check-definer-grants.ts",
+      "git_blob": "c34f4bc94e403a63132d0e96736e70e119b38a28",
+      "git_mode": "100644",
+      "bytes": 8475,
+      "sha256": "a28780b43959b0d257cdc53f75278b92931cd345ce0936ebd7fbc87ee491a415",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "configuration_and_promotion_guards"
+      ]
+    },
+    {
+      "path": "scripts/check-erasure-registry.ts",
+      "git_blob": "00c5b356d2d7fb9bcf12d05bda0e06e587b050c3",
+      "git_mode": "100644",
+      "bytes": 43947,
+      "sha256": "0c087980c4013d547bf6db9b83be45301455650bb85f7a0b41bf06f92989c5d3",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "configuration_and_promotion_guards",
+        "erasure_readiness_followup"
+      ]
+    },
+    {
+      "path": "scripts/check-reward-ssv-db.sh",
+      "git_blob": "64388b2afdf92a65c334236de95cbad7c051a32f",
+      "git_mode": "100644",
+      "bytes": 17066,
+      "sha256": "e488e7aa69a1ec54ca9c27acaba8ecd7ef524ed7b2a25f7b398e459a887d0f8e",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "verification_sources"
+      ]
+    },
+    {
+      "path": "scripts/check-signup-consent-deployment.cjs",
+      "git_blob": "2e0327423ca7755b566f32aff17a82d4a61cc87b",
+      "git_mode": "100644",
+      "bytes": 5015,
+      "sha256": "c91a534678d09aa3fcea847ec3c48736e474321dac6cc8a4489136e80847e70f",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "configuration_and_promotion_guards"
+      ]
+    },
+    {
+      "path": "scripts/erasure-registry-forward.ts",
+      "git_blob": "0363127e4e3dc3045c54f6c1ba2fa6ce72c1f96f",
+      "git_mode": "100644",
+      "bytes": 8481,
+      "sha256": "2b77190804e0d291e170e055033ad0bf00f504c277f56a0687f7dfdc467efda2",
+      "groups": [
+        "erasure_readiness_followup"
+      ]
+    },
+    {
+      "path": "scripts/generate-erasure-registry.ts",
+      "git_blob": "2475e76af965ff226d8692a6abd6b738b78363b0",
+      "git_mode": "100644",
+      "bytes": 115221,
+      "sha256": "b91b9f3dd479314b606cc12a0dd3c2299dc4a72c680fdb4c53e7d160dd732f2f",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "configuration_and_promotion_guards",
+        "erasure_readiness_followup"
+      ]
+    },
+    {
+      "path": "scripts/test-polaris-sql.mjs",
+      "git_blob": "b08bc51245775dd7325d4d1462e01f5911a84553",
+      "git_mode": "100644",
+      "bytes": 30183,
+      "sha256": "188e414029d071188f44aec85cd359e60fab8fb280e24249afb95de06a0ea175",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "erasure_readiness_followup",
+        "verification_sources"
+      ]
+    },
+    {
+      "path": "scripts/test-signup-consent-sql.mjs",
+      "git_blob": "e33f46665ee7b140d5c2d345b63c2f80153af6ec",
+      "git_mode": "100644",
+      "bytes": 2019,
+      "sha256": "46192ab8322f3e9b2f26fdf63ed66e39c399f12a7e769149d36c9d07af4eacd2",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "verification_sources"
+      ]
+    },
+    {
+      "path": "src/app/service-consent.tsx",
+      "git_blob": "e78a9228e9feb6fb55653a53972b55182c17268f",
+      "git_mode": "100644",
+      "bytes": 8939,
+      "sha256": "43262657ae2e2488d27955ecb2eeb811b5bf47d81ae4d06288e80814484bc857",
+      "groups": [
+        "service_consent_followup"
+      ]
+    },
+    {
+      "path": "src/components/consent/ServiceConsentLink.tsx",
+      "git_blob": "2a1362ec7f6addbcb0ebad6d2976ff1aa7d3f692",
+      "git_mode": "100644",
+      "bytes": 339,
+      "sha256": "4f161e6b0eb94fa0cad0c4759e8f6597d99635c52da0e91f77af750cc7b39df6",
+      "groups": [
+        "service_consent_followup"
+      ]
+    },
+    {
+      "path": "src/lib/llm/__tests__/consent-failover.test.ts",
+      "git_blob": "8904d45c3ce7b49c135d5bf1362216740b0ac57c",
+      "git_mode": "100644",
+      "bytes": 6409,
+      "sha256": "e34a380aa5e58f9b0550dd8f7c6bf8f4c56318a7769b14a7e92ae3ea3db96623",
+      "groups": [
+        "service_consent_followup"
+      ]
+    },
+    {
+      "path": "src/lib/llm/__tests__/llm-proxy-consent-boundary.test.ts",
+      "git_blob": "fa3ce3314c009c121783f80c4b0328089776a299",
+      "git_mode": "100644",
+      "bytes": 4146,
+      "sha256": "019275ca5f646a87191b8366c154c8bbaa9581a4184b1c3c0284a6b7e1d1cf6e",
+      "groups": [
+        "service_consent_followup"
+      ]
+    },
+    {
+      "path": "src/lib/llm/__tests__/llm-proxy-consent-execution.test.ts",
+      "git_blob": "fdc2d9fe51cfdb929a4a42d2905dce8e0c245153",
+      "git_mode": "100644",
+      "bytes": 19832,
+      "sha256": "83514960519987752937ff488e18ba70fdeb892186e32d7ae3cfe68563963952",
+      "groups": [
+        "service_consent_followup"
+      ]
+    },
+    {
+      "path": "src/lib/llm/__tests__/service-consent-edge.test.ts",
+      "git_blob": "ba1b6672e859f45242faaeffc099dc8b023f216a",
+      "git_mode": "100644",
+      "bytes": 9563,
+      "sha256": "48e673d551ace82f1a5e8ce3945eb1e7706263b85b31bd62bdbe53fbd8bd5ab0",
+      "groups": [
+        "service_consent_followup"
+      ]
+    },
+    {
+      "path": "src/lib/llm/boundary.ts",
+      "git_blob": "60e37aa2f7f633c7ed4f5b41db89949fe54fb6f1",
+      "git_mode": "100644",
+      "bytes": 78853,
+      "sha256": "4bd80c4379c8c08da98741791d6bc3204969f2b766c0ce4b0e57445cdf353dd4",
+      "groups": [
+        "service_consent_followup"
+      ]
+    },
+    {
+      "path": "src/lib/llm/untrusted.ts",
+      "git_blob": "45ced876865f46689eda2747f1566d8cb207d727",
+      "git_mode": "100644",
+      "bytes": 3344,
+      "sha256": "d900d14c911e24fd4d08c340d2f89343b16f77ac52502c352b510722cd2e26e8",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "edge_import_closure",
+        "edge_local_import_dependencies"
+      ]
+    },
+    {
+      "path": "src/lib/persona/__tests__/polaris-server.test.ts",
+      "git_blob": "66741043d2d44382c29f26da2bed71d6e5850aac",
+      "git_mode": "100644",
+      "bytes": 7643,
+      "sha256": "908e5bce94d6127a80eab5c4bbbe55bafb5aaa5312d604c1d43d03dae2d449c3",
+      "groups": [
+        "explicit_additional_seed"
+      ]
+    },
+    {
+      "path": "src/lib/privacy/__tests__/erasure-registry-migration.test.ts",
+      "git_blob": "a7a5669f9b48487626f952725c00a402dece5bdf",
+      "git_mode": "100644",
+      "bytes": 83308,
+      "sha256": "41b73bf50c0ff916f370861fc8a8df50ef4a6b7e89e9aed14782facb72ed48df",
+      "groups": [
+        "erasure_readiness_followup"
+      ]
+    },
+    {
+      "path": "src/lib/privacy/__tests__/service-consent-screen.test.ts",
+      "git_blob": "d81931b126e96e31a8695ff32e193b03838b9ebb",
+      "git_mode": "100644",
+      "bytes": 18983,
+      "sha256": "2bbddf79d70544070131c6ac19ffc09128324ff8e6cfd9c4f3735654939ab831",
+      "groups": [
+        "service_consent_followup"
+      ]
+    },
+    {
+      "path": "src/lib/privacy/__tests__/service-consent.test.ts",
+      "git_blob": "6eae72290fa75b30bd6e6e526b1f6d4bda7017cd",
+      "git_mode": "100644",
+      "bytes": 9035,
+      "sha256": "dc5686cb9c4f60ff8caada27a83ac0ae14df0abf572b644863ea1ee1c470fcf6",
+      "groups": [
+        "service_consent_followup"
+      ]
+    },
+    {
+      "path": "src/lib/privacy/service-consent.ts",
+      "git_blob": "3d2a6a14d9f27296864b22adadd3cc5570b36572",
+      "git_mode": "100644",
+      "bytes": 5961,
+      "sha256": "6e97e409eeeb85df5a4943079ad55510138b0fc63bfe993e0632c6406786a69f",
+      "groups": [
+        "service_consent_followup"
+      ]
+    },
+    {
+      "path": "src/lib/safety/lexicon.ts",
+      "git_blob": "1afdd7eacd4a1db6b2478cd694f8bc29e7f7510b",
+      "git_mode": "100644",
+      "bytes": 19619,
+      "sha256": "8595d810bcb0a0598a24880f6ae5944b3295b2c01a85acbbf9ec932b68bc6952",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "edge_import_closure",
+        "edge_local_import_dependencies"
+      ]
+    },
+    {
+      "path": "src/lib/supabase/auth.ts",
+      "git_blob": "b527a583b4030ebde9fa58343367c9908f0de8fe",
+      "git_mode": "100644",
+      "bytes": 69411,
+      "sha256": "d69095e8621f245e5640a9fb2b607ee92787f3dda0d7fb6d58671fff33980251",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "configuration_and_promotion_guards"
+      ]
+    },
+    {
+      "path": "src/lib/supabase/consent.ts",
+      "git_blob": "3d11a4abd9938c07487d82dd707429f9ff613b41",
+      "git_mode": "100644",
+      "bytes": 14274,
+      "sha256": "f2a15e00c79943d7534239e5cac7609f56d82a9f605471f4d61351be2e98e9eb",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "configuration_and_promotion_guards"
+      ]
+    },
+    {
+      "path": "supabase/config.toml",
+      "git_blob": "796981b3d029351f2a3fdab8b8cab6b3c69f414b",
+      "git_mode": "100644",
+      "bytes": 9130,
+      "sha256": "7658263814bb8bcb6d31de9341f25d06d79b0b54961a89a10f608a7e87b3b806",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "configuration_and_promotion_guards"
+      ]
+    },
+    {
+      "path": "supabase/functions/_shared/axis-key-name.ts",
+      "git_blob": "277ea4ee2daba4df88a4d1156097a628e089663d",
+      "git_mode": "100644",
+      "bytes": 6859,
+      "sha256": "4b58dbc8d3c43a171037ab1c87832c2f4542bad3868beab551b4b23b4ae625ce",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "edge_import_closure",
+        "edge_local_import_dependencies"
+      ]
+    },
+    {
+      "path": "supabase/functions/_shared/llm-consent.ts",
+      "git_blob": "19ffe561e6db960a1a6f9a024129a4d7ed0064ba",
+      "git_mode": "100644",
+      "bytes": 3644,
+      "sha256": "2994b2630dd91a92e3ec8e47231d5e9af5b7dfa685d0d16f5bba017132a9369d",
+      "groups": [
+        "edge_import_closure",
+        "service_consent_followup"
+      ]
+    },
+    {
+      "path": "supabase/functions/_shared/llm-proxy-common.ts",
+      "git_blob": "64bdc78b59f154f157e9c43f3a779ca242f5bc9b",
+      "git_mode": "100644",
+      "bytes": 39649,
+      "sha256": "80fc26905121489ea69e8d76aaeceed2fec44aa1dda5edbeebf011356f45f754",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "edge_import_closure",
+        "edge_local_import_dependencies"
+      ]
+    },
+    {
+      "path": "supabase/functions/_shared/paddle-api-boundary.ts",
+      "git_blob": "e20e77d0c7a3dd781ec03a6895b761bf69ac1513",
+      "git_mode": "100644",
+      "bytes": 4930,
+      "sha256": "0d0f84b0a94319fdb51ea3343afa05c27cb001fdab64a415c293235237b09aa2",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "edge_import_closure",
+        "edge_local_import_dependencies"
+      ]
+    },
+    {
+      "path": "supabase/functions/_shared/paddle-checkout-binding.ts",
+      "git_blob": "34ebdd24e62aa26c2b538c43c0af467c10e4002f",
+      "git_mode": "100644",
+      "bytes": 5333,
+      "sha256": "3f5025a0546d4924dcc24ec977949fe9410e358c62c7ab3660c55e99b31232ce",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "edge_import_closure",
+        "edge_local_import_dependencies"
+      ]
+    },
+    {
+      "path": "supabase/functions/_shared/paddle-environment.ts",
+      "git_blob": "3f7eebcab2eabc33ad58873723cd682688a17f74",
+      "git_mode": "100644",
+      "bytes": 2607,
+      "sha256": "8072809ac73a09ae7fb31d176b064a20128bc9f0028c118be69668d12408c5ef",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "edge_import_closure",
+        "edge_local_import_dependencies"
+      ]
+    },
+    {
+      "path": "supabase/functions/_shared/polaris-generation.ts",
+      "git_blob": "d4cbb3a1007cec2a105622a8f50dd08fbb650d70",
+      "git_mode": "100644",
+      "bytes": 7820,
+      "sha256": "f3920d69848bf2d71f40331e3bad8deadeae3441a27ba6616715f39adacce714",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "edge_import_closure",
+        "edge_local_import_dependencies"
+      ]
+    },
+    {
+      "path": "supabase/functions/_shared/request-json.ts",
+      "git_blob": "07ffde13a61698946a439763a72829c47d6650e5",
+      "git_mode": "100644",
+      "bytes": 10668,
+      "sha256": "85f9df84917f741063334f009b47d25bed2b97bba6da8d17710651cdef847ed4",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "edge_import_closure",
+        "edge_local_import_dependencies"
+      ]
+    },
+    {
+      "path": "supabase/functions/claude-proxy/index.ts",
+      "git_blob": "352195688c453a2857a9a431080ba2bdeed69918",
+      "git_mode": "100644",
+      "bytes": 28734,
+      "sha256": "f8dde164a9bec2c157b9a375c717d952f661bdea4f8709a48bfc9c19101eeb6a",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "edge_entrypoint",
+        "edge_entrypoints",
+        "edge_import_closure"
+      ]
+    },
+    {
+      "path": "supabase/functions/delete-account/delete-auth-user.ts",
+      "git_blob": "e2f253e82e6219e02380a865802487f396f862ec",
+      "git_mode": "100644",
+      "bytes": 2001,
+      "sha256": "63e0f9cee170a902066cdf5ccb4a05df967d59e57a3d22b16737bbb2a88feff4",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "edge_import_closure",
+        "edge_local_import_dependencies"
+      ]
+    },
+    {
+      "path": "supabase/functions/delete-account/index.ts",
+      "git_blob": "57283b6ef61b26ef5dc189cf8665bcb85d000a4f",
+      "git_mode": "100644",
+      "bytes": 9815,
+      "sha256": "382161e080d8e979425a12d1e5c8f7fc316434efd5f7dc875bff59461b7f0820",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "edge_entrypoint",
+        "edge_entrypoints",
+        "edge_import_closure"
+      ]
+    },
+    {
+      "path": "supabase/functions/delete-account/storage-erasure.ts",
+      "git_blob": "bd596507991f5b8b662863d0cde9e64d2b3763b2",
+      "git_mode": "100644",
+      "bytes": 5604,
+      "sha256": "a6c1e5036221cefa705d1ea4f10ff63acabeedf440214e9502276f1ccb82a15f",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "edge_import_closure",
+        "edge_local_import_dependencies"
+      ]
+    },
+    {
+      "path": "supabase/functions/gemini-proxy/index.ts",
+      "git_blob": "712420080ad96c2c459a28ef21a3c500b41ddfdd",
+      "git_mode": "100644",
+      "bytes": 56619,
+      "sha256": "1aa90b1ff01d0e321740d72d39bca5c1c7a4848910297f6611efb3ccca37e7a8",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "edge_entrypoint",
+        "edge_entrypoints",
+        "edge_import_closure"
+      ]
+    },
+    {
+      "path": "supabase/functions/openai-proxy/index.ts",
+      "git_blob": "c598a2b23b98476449b74187134495c885d7cb14",
+      "git_mode": "100644",
+      "bytes": 54207,
+      "sha256": "a1968a64c31c68895e5edf26aeac63661123626a637557033290a36299a93d24",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "edge_entrypoint",
+        "edge_entrypoints",
+        "edge_import_closure"
+      ]
+    },
+    {
+      "path": "supabase/functions/paddle-webhook/index.ts",
+      "git_blob": "9caaacf197d25e44f329c7d8a4d10ab12577b516",
+      "git_mode": "100644",
+      "bytes": 48356,
+      "sha256": "115411bc9b0728cefa5a61b885557acd3ff28f019dd9d8e5ab8e8d628926e70a",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "edge_entrypoint",
+        "edge_entrypoints",
+        "edge_import_closure"
+      ]
+    },
+    {
+      "path": "supabase/functions/rewarded-ssv/index.ts",
+      "git_blob": "537f14a980b2e2939d75b4096b6fc760b6f3c448",
+      "git_mode": "100644",
+      "bytes": 12573,
+      "sha256": "39141c23fd3e787661617d417759c04a3e3d36f3ff1bf063228cd4385e4fb23b",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "edge_entrypoint",
+        "edge_entrypoints",
+        "edge_import_closure"
+      ]
+    },
+    {
+      "path": "supabase/functions/rewarded-ssv/reward-contract.ts",
+      "git_blob": "33a741d4ff626df9665a6b4f4ff75bd3bc978a3c",
+      "git_mode": "100644",
+      "bytes": 9621,
+      "sha256": "8c075243ed1477b9dc065e33702d2bc38b7b32a4d1ae132759d12b8af54b987a",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "edge_import_closure",
+        "edge_local_import_dependencies"
+      ]
+    },
+    {
+      "path": "supabase/functions/rewarded-ssv/verifier-key-cache.ts",
+      "git_blob": "fdfe739451f3baf283bc30d5d00f428aed099d69",
+      "git_mode": "100644",
+      "bytes": 8437,
+      "sha256": "4a48228b4fe56ba2e04ece61224e88ca4a335a2c54100be7095b3cf647ddc7aa",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "edge_import_closure",
+        "edge_local_import_dependencies"
+      ]
+    },
+    {
+      "path": "supabase/functions/service-consent/index.ts",
+      "git_blob": "021158b5675aba2813223c2d0eb41d22789cfa74",
+      "git_mode": "100644",
+      "bytes": 5296,
+      "sha256": "5eb10e46d41ddf865049349a97a9d093caf174efea6e21313d683ba059a664f5",
+      "groups": [
+        "edge_entrypoint",
+        "edge_import_closure",
+        "service_consent_followup"
+      ]
+    },
+    {
+      "path": "supabase/functions/subscription-manage/index.ts",
+      "git_blob": "5a7ba920d52c2fdab52d5df02a789f1de5db75d7",
+      "git_mode": "100644",
+      "bytes": 25889,
+      "sha256": "2164a364a3d21da42a75dc45910d8d416116c674425da1029d7e704d519fd966",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "edge_entrypoint",
+        "edge_entrypoints",
+        "edge_import_closure"
+      ]
+    },
+    {
+      "path": "supabase/functions/xai-proxy/index.ts",
+      "git_blob": "0d2bc660f709880f7dd797a23efc951ba0049677",
+      "git_mode": "100644",
+      "bytes": 28908,
+      "sha256": "49926d7a35d15181f1c7c9e66001f0b2b368db4951606bbd3e0a840916b1f699",
+      "groups": [
+        "baseline_21641bda_inventory",
+        "edge_entrypoint",
+        "edge_entrypoints",
+        "edge_import_closure"
+      ]
+    }
+  ]
+}

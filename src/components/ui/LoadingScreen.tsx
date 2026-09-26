@@ -12,6 +12,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
   type ViewStyle,
 } from "react-native";
@@ -190,6 +191,20 @@ export function pixelUnitScale(pixelRatio: number): number {
   return physicalPixelsPerUnit / safeRatio;
 }
 
+export function fullscreenPixelUnit(pixelRatio: number, viewportWidth: number): number {
+  const safeRatio = Number.isFinite(pixelRatio) && pixelRatio > 0 ? pixelRatio : 1;
+  const safeWidth =
+    Number.isFinite(viewportWidth) && viewportWidth > 0 ? viewportWidth : STAGE_WIDTH;
+  const desiredPhysicalPixelsPerUnit = (safeWidth * safeRatio) / STAGE_WIDTH;
+  const physicalPixelsPerUnit = Math.max(1, Math.round(desiredPhysicalPixelsPerUnit));
+  return physicalPixelsPerUnit / safeRatio;
+}
+
+function snapToPhysicalPixel(value: number, pixelRatio: number): number {
+  const safeRatio = Number.isFinite(pixelRatio) && pixelRatio > 0 ? pixelRatio : 1;
+  return Math.round(value * safeRatio) / safeRatio;
+}
+
 export function createOpeningTicker(
   startedAtMs: number,
   onTick: (elapsedMs: number) => void,
@@ -211,11 +226,17 @@ interface RleCellProps {
   rects: RectRun[];
   width: number;
   height: number;
+  unit?: number;
   style?: ViewStyle;
 }
 
-export function RleCell({ rects, width, height, style }: RleCellProps) {
-  const unit = pixelUnitScale(PixelRatio.get());
+export function RleCell({
+  rects,
+  width,
+  height,
+  unit = pixelUnitScale(PixelRatio.get()),
+  style,
+}: RleCellProps) {
   const crispProps = Platform.OS === "web" ? { shapeRendering: "crispEdges" as const } : {};
 
   return (
@@ -251,6 +272,7 @@ function CharacterCell({ plan, unit }: { plan: CharacterPlan; unit: number }) {
       rects={rects}
       width={CHARACTER_CELL}
       height={CHARACTER_CELL}
+      unit={unit}
       style={{
         left: (plan.centerX - CHARACTER_CELL / 2) * unit,
         top: (GROUND_Y - CHARACTER_FLOOR) * unit,
@@ -289,64 +311,92 @@ function Polaris({ size, unit }: { size: number; unit: number }) {
 
 function OpeningStage({ frame }: { frame: number }) {
   const scene = openingSceneForFrame(frame);
-  const unit = pixelUnitScale(PixelRatio.get());
+  const pixelRatio = PixelRatio.get();
+  const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
+  const unit = fullscreenPixelUnit(pixelRatio, viewportWidth);
+  const canvasWidth = STAGE_WIDTH * unit;
+  const canvasHeight = STAGE_HEIGHT * unit;
+  const canvasLeft = snapToPhysicalPixel((viewportWidth - canvasWidth) / 2, pixelRatio);
+  const canvasTop = snapToPhysicalPixel((viewportHeight - canvasHeight) / 2, pixelRatio);
+  const veilRatio = scene.veilHeight / STAGE_HEIGHT;
 
   return (
     <View
-      style={[styles.stage, { width: STAGE_WIDTH * unit, height: STAGE_HEIGHT * unit }]}
+      style={styles.stage}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
-      <View style={[styles.skyTop, { width: STAGE_WIDTH * unit, height: 88 * unit }]} />
-      <View style={[styles.skyMiddle, { top: 88 * unit, width: STAGE_WIDTH * unit, height: 88 * unit }]} />
-      <View style={[styles.skyBottom, { top: 176 * unit, width: STAGE_WIDTH * unit, height: 84 * unit }]} />
-      {SKY_STARS.map(([left, top, size]) => (
-        <View
-          key={left + "-" + top}
-          style={[
-            styles.skyStar,
-            { left: left * unit, top: top * unit, width: size * unit, height: size * unit },
-          ]}
-        />
-      ))}
+      <View pointerEvents="none" style={styles.skyBands}>
+        <View style={styles.skyTop} />
+        <View style={styles.skyMiddle} />
+        <View style={styles.skyBottom} />
+      </View>
 
       <View
         pointerEvents="none"
         style={[
-          styles.world,
-          { top: scene.cameraTop * unit, width: STAGE_WIDTH * unit, height: 360 * unit },
+          styles.sceneCanvas,
+          { left: canvasLeft, top: canvasTop, width: canvasWidth, height: canvasHeight },
         ]}
       >
-        <Polaris size={scene.polarisSize} unit={unit} />
+        {SKY_STARS.map(([left, top, size]) => (
+          <View
+            key={left + "-" + top}
+            style={[
+              styles.skyStar,
+              { left: left * unit, top: top * unit, width: size * unit, height: size * unit },
+            ]}
+          />
+        ))}
+
         <View
           style={[
-            styles.groundLine,
-            { top: GROUND_Y * unit, width: STAGE_WIDTH * unit, height: 4 * unit },
+            styles.world,
+            { top: scene.cameraTop * unit, width: canvasWidth, height: 360 * unit },
           ]}
-        />
-        <View
-          style={[
-            styles.groundBand,
-            { top: (GROUND_Y + 4) * unit, width: STAGE_WIDTH * unit, height: 136 * unit },
-          ]}
-        />
-        <RleCell
-          rects={openingAtlas.t}
-          width={TELESCOPE_CELL}
-          height={TELESCOPE_CELL}
-          style={{
-            left: (NORTH_X - TELESCOPE_CELL / 2) * unit,
-            top: (GROUND_Y - TELESCOPE_FLOOR) * unit,
-          }}
-        />
-        {scene.character ? <CharacterCell plan={scene.character} unit={unit} /> : null}
+        >
+          <Polaris size={scene.polarisSize} unit={unit} />
+          <View
+            style={[
+              styles.groundLine,
+              {
+                left: -canvasLeft,
+                top: GROUND_Y * unit,
+                width: viewportWidth,
+                height: 4 * unit,
+              },
+            ]}
+          />
+          <View
+            style={[
+              styles.groundBand,
+              {
+                left: -canvasLeft,
+                top: (GROUND_Y + 4) * unit,
+                width: viewportWidth,
+                height: Math.max(136 * unit, viewportHeight),
+              },
+            ]}
+          />
+          <RleCell
+            rects={openingAtlas.t}
+            width={TELESCOPE_CELL}
+            height={TELESCOPE_CELL}
+            unit={unit}
+            style={{
+              left: (NORTH_X - TELESCOPE_CELL / 2) * unit,
+              top: (GROUND_Y - TELESCOPE_FLOOR) * unit,
+            }}
+          />
+          {scene.character ? <CharacterCell plan={scene.character} unit={unit} /> : null}
+        </View>
       </View>
 
-      {scene.veilHeight > 0 ? (
+      {veilRatio > 0 ? (
         <View
           style={[
             styles.veil,
-            { width: STAGE_WIDTH * unit, height: scene.veilHeight * unit },
+            { width: "100%", height: viewportHeight * veilRatio },
           ]}
         />
       ) : null}
@@ -361,7 +411,12 @@ interface Props {
 
 export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
   const { t } = useTranslation("common");
-  const reducedMotion = useReducedMotionPref();
+  const prefersReducedMotion = useReducedMotionPref();
+  // Static web export cannot know matchMedia or a persisted lite-mode choice.
+  // Keep its frame 0 on the first client render, then honor the preference.
+  const [webHydrated, setWebHydrated] = useState(Platform.OS !== "web");
+  useEffect(() => { setWebHydrated(true); }, []);
+  const reducedMotion = webHydrated && prefersReducedMotion;
   const startedAt = useRef(Date.now());
   const stopTickerRef = useRef<(() => void) | null>(null);
   const continuedRef = useRef(false);
@@ -435,24 +490,34 @@ const styles = StyleSheet.create({
     backgroundColor: deepSpace.bgEdge,
   },
   stage: {
+    flex: 1,
+    alignSelf: "stretch",
+    width: "100%",
+    height: "100%",
     overflow: "hidden",
     backgroundColor: deepSpace.bgEdge,
   },
-  skyTop: {
+  skyBands: {
     position: "absolute",
-    left: 0,
     top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
+  skyTop: {
+    flex: 88,
     backgroundColor: deepSpace.bgGlow,
   },
   skyMiddle: {
-    position: "absolute",
-    left: 0,
+    flex: 88,
     backgroundColor: deepSpace.bgMid,
   },
   skyBottom: {
-    position: "absolute",
-    left: 0,
+    flex: 84,
     backgroundColor: deepSpace.bgEdge,
+  },
+  sceneCanvas: {
+    position: "absolute",
   },
   skyStar: {
     position: "absolute",
@@ -493,12 +558,15 @@ const styles = StyleSheet.create({
     backgroundColor: deepSpace.bgEdge,
   },
   hint: {
+    position: "absolute",
+    right: 24,
+    bottom: 32,
+    left: 24,
     color: deepSpace.textHi,
     fontFamily: fontFamilies.pixelKo,
     fontSize: typography.sizes.xs,
     lineHeight: 16,
     textAlign: "center",
-    marginTop: 16,
     paddingBottom: 2,
   },
 });

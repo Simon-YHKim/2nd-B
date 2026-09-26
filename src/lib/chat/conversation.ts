@@ -14,6 +14,7 @@
 // inbox.
 
 import { callLlm } from "@/lib/llm/boundary";
+import { tLocale } from "@/lib/i18n/text";
 import { INJECTION_GUARD, sanitizeUntrusted } from "@/lib/llm/untrusted";
 import { classifyInput } from "@/lib/safety/classifier";
 import { promptSafeName } from "@/lib/persona/address";
@@ -84,7 +85,8 @@ export interface SendMessageInput {
 export interface SendMessageBlocked {
   status: "blocked";
   reason: "limit_reached";
-  limit: number;
+  /** Null when the server rejects below the local cap without reporting its cap. */
+  limit: number | null;
   used: number;
   upgradeTo: SubscriptionTier | null;
   /** Localized hint string ready for direct display. */
@@ -251,8 +253,8 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
     ragBlock
       ? // RAG hit: pages come from retrieval; keep only a slim sources list so
         // "what did I clip" questions still see the inbox.
-        { locale: input.locale, bodyCharLimit: 600, pageLimit: 0, sourceLimit: 40 }
-      : { locale: input.locale, bodyCharLimit: 600, pageLimit: 50, sourceLimit: 100 },
+        { locale: input.locale, bodyCharLimit: 600, pageLimit: 0, sourceLimit: 40, includeSavedConversations: true }
+      : { locale: input.locale, bodyCharLimit: 600, pageLimit: 50, sourceLimit: 100, includeSavedConversations: true },
   );
 
   // Atomic check-and-bump (codex R2): the RPC inserts/increments the row
@@ -271,13 +273,18 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
     if (e instanceof ChatLimitExceededError) {
       const detail = await readChatUsageDetail(input.userId, day);
       const check = checkChatLimit(input.tier, detail.used, detail.adBonus);
+      // FORCE_TIER and a stale client tier do not change the server's cap.
+      // Its rejection carries no cap value: when our local check still allows
+      // sending, do not label that rejection as exhaustion of the local cap.
       return {
         status: "blocked",
         reason: "limit_reached",
-        limit: check.limit,
+        limit: check.allowed ? null : check.limit,
         used: check.used,
         upgradeTo: check.upgradeTo,
-        hint: BLOCKED_HINT[input.locale](check.limit, check.upgradeTo),
+        hint: check.allowed
+          ? tLocale(input.locale, "secondb", "serverLimitReached")
+          : BLOCKED_HINT[input.locale](check.limit, check.upgradeTo),
       };
     }
     throw e;

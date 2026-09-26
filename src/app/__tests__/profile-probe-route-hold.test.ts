@@ -470,7 +470,14 @@ describe("로그인된 사용자의 답을 기다리는 동안 /records 는 마�
   });
 });
 
-describe("세션 주인이 없는 동안은 지금 그대로다", () => {
+describe("세션 주인이 없어도 콜드 스타트 오프닝이 먼저다", () => {
+  test("오프닝 완료 상태는 영구 저장하지 않고 현재 앱 실행에만 둔다", () => {
+    const source = LAYOUT.getFullText();
+    expect(source).toContain("let introPlayedThisRuntime = false;");
+    expect(source).not.toContain("sessionStorage");
+    expect(source).not.toContain("introAlreadyPlayedNative");
+  });
+
   test("부트스트랩, 인트로를 본 탭: 자식을 그리고 Records 는 userId 가 없어 읽지 않는다", async () => {
     const mounted = await mount({ auth: BOOTSTRAP, route: RECORDS_ROUTE });
     expect(mounted.components).toEqual(SCENE_MOUNTED);
@@ -483,9 +490,30 @@ describe("세션 주인이 없는 동안은 지금 그대로다", () => {
     expect(mounted.hosts).toEqual([{ name: "LoadingScreen", props: expect.objectContaining({ ready: false }) }]);
   });
 
-  test.each([true, false])("로그아웃(introDone=%s): 로그인 화면으로 가는 길이라 자식을 그린다", async (introDone) => {
-    const mounted = await mount({ auth: SIGNED_OUT, route: RECORDS_ROUTE, introDone });
-    expect(mounted.components).toEqual(SCENE_MOUNTED);
+  test("로그아웃 콜드 스타트: 로그인 화면보다 준비 완료 오프닝을 먼저 그린다", async () => {
+    const mounted = await mount({ auth: SIGNED_OUT, route: SIGN_IN, introDone: false, scene: "exempt" });
+    expect(mounted.hosts).toEqual([
+      { name: "LoadingScreen", props: expect.objectContaining({ ready: true }) },
+    ]);
+    expect(mounted.components).toEqual(["IntroGate"]);
+  });
+
+  test("인증 복구가 진행 중이면 오프닝이 그 로딩 시간을 흡수한다", async () => {
+    const mounted = await mount({
+      auth: { ...BOOTSTRAP, recoveryReady: false },
+      route: SIGN_IN,
+      introDone: false,
+      scene: "exempt",
+    });
+    expect(mounted.hosts).toEqual([
+      { name: "LoadingScreen", props: expect.objectContaining({ ready: false }) },
+    ]);
+    expect(mounted.components).toEqual(["IntroGate"]);
+  });
+
+  test("이번 실행에서 오프닝을 마친 뒤에는 로그인 화면을 그대로 그린다", async () => {
+    const mounted = await mount({ auth: SIGNED_OUT, route: SIGN_IN, introDone: true, scene: "exempt" });
+    expect(mounted.components).toEqual(["IntroGate", "ProfileProbeScope", "AccountScope", "ExemptScene"]);
     expect(mounted.reads.records).toEqual([]);
   });
 });

@@ -11,7 +11,7 @@
 
 | 덮는 기간 | 파일 | 블록 | 크기 |
 |---|---|---|---|
-| 2026-09-08 ~ 2026-09-13 | [handoff/HANDOFF-2026-09-p2.md](handoff/HANDOFF-2026-09-p2.md) | 3 | 16KB |
+| 2026-09-08 ~ 2026-09-13 | [handoff/HANDOFF-2026-09-p2.md](handoff/HANDOFF-2026-09-p2.md) | 7 | 48KB |
 | 2026-09-01 ~ 2026-09-08 (+09-13 인계 1) | [handoff/HANDOFF-2026-09.md](handoff/HANDOFF-2026-09.md) | 18 | 92KB |
 | 2026-08-25 ~ 2026-08-30 | [handoff/HANDOFF-2026-08-p4.md](handoff/HANDOFF-2026-08-p4.md) | 11 | 89KB |
 | 2026-08-23 ~ 2026-08-25 | [handoff/HANDOFF-2026-08-p3.md](handoff/HANDOFF-2026-08-p3.md) | 21 | 85KB |
@@ -28,13 +28,82 @@
 **⚠ `HANDOFF-2026-09.md`(p1)는 92KB 로 찼다 — 09 월 블록은 `-p2` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-26 14:49 / 보상 서버가 켜졌다 (Simon GO) · 봇 협업 규칙을 스킬에 넣었다
+## Latest — 2026-09-26 20:52 / Android 음성 Stop 수정·게이트 유지
+
+- Android 제품 Record→Stop에서 React Native의 `ArrayBuffer` 기반 `Blob` 거부로 전사가 실패했다. `6cede82d`는 제한 크기 읽기 후 중단 가능한 청크 base64 변환으로 수정했고, 동일 AVD에서 오프라인 mock 전사 문구 표시·임시 음성 파일 삭제를 확인했다. 원격 DB·Edge 쓰기와 유료 호출 0건, 기록 저장 미실행. [화면과 검증 범위](qa/ANDROID-VOICE-CANCEL-260926.md).
+- PR #1865는 Draft다. 문서 게이트 정정 `16850053`의 로컬 전체 verify(820 suites·10,691 Jest tests·UI 76)와 원격 CI 4/4는 통과했다. 음성 수정 `6cede82d`의 집중 Jest 19/19·TypeScript·대상 ESLint와 통합 전체 verify(820 suites·10,693 Jest tests·UI 76)는 통과했다. 새 CI는 대기 중이다.
+- AdMob은 Q5 제3자 제공 중심 판단과 활성화 차단을 유지한다. 백업 전체 격리 복원 드릴은 승인됐지만 KeePassXC 개인키·임시 DB 접속·삭제 경로가 없어 프로젝트 생성 전 중단됐다. Paddle sandbox는 별도 프로젝트·설정·거래 증거가 없어 미완료다. Grok 후속 전달은 보류한다.
+
+## 2026-09-26 20:17 / 격리 복원 사전 차단·AdMob Q5 분류
+
+- AdMob Q5 자체 검토는 광고 SDK 송신을 **제3자 제공 중심**으로 분류했다. Google의 독립적 광고 처리 목적과 대법원 2016도13263 기준을 대조했고, [근거 초안](drafts/admob-q5-third-party-review-260926.md)에 법률·SDK 자료와 미확인 항목을 기록했다. `00e02e59`는 기존 `ads=true`·UMP를 새 동의로 인정하지 않고 웹/보상 광고·네이티브 UMP/SDK 호출을 차단하며 설정 화면은 과거 ON의 OFF만 허용한다. 현재 AdMob 계약 법인·이전 국가·보유기간을 몰라 처리방침 세 사본·판본·동의 SQL을 올리지 않았다. 새 별도 동의·실기기 초기 네트워크 검증 전까지 광고 ON·Draft 머지는 NO-GO다. 전체 `npm run verify`는 820 suites·10,691 tests와 UI 76 PASS였다.
+- 사용자는 같은 Free 조직에서 임시 Supabase 프로젝트를 만들고 보상 적용 후 암호화 백업을 복호화·격리 복원·검증한 뒤 프로젝트와 로컬 평문을 삭제하는 전체 드릴을 승인했다. Orca 콘솔 Run `run_9e4033e7f735`는 백업 SHA-256 일치·월 USD 0 비용·활성 프로젝트 1개를 확인했다. 그러나 age 개인키는 잠긴 KeePassXC에 있고 임시 DB 접속·삭제 권한이 검증되지 않아 **프로젝트 생성 전 중단**했다. 평문·임시 프로젝트·운영 쓰기 0건, 복원 성공 증거는 없다. [사전 점검 HTML](qa/BACKUP-RESTORE-PREFLIGHT-260926.html). 사용자에게 로컬 보관함·대시보드 준비를 요청했다.
+- 코딩 PR #1865에서 `0199_oauth_naver_rate_limit_completion.sql`(초안 바이트 동일), `0200_rss_proxy_quota.sql`(초안 바이트 동일), `0201_rss_proxy_erasure_registry.sql`(정본 등록부 생성 블록)을 번호 예약·push했다. RSS 사용자별 일일 쿼터는 콘텐츠 삭제로 초기화하면 안 되는 `retained` 71번째 행이며, 계정 삭제는 `public.users` FK로 연쇄 삭제한다. 0189 rollback 목록에는 등록부 전용 `0201`만 더하고 제품 표 생성 `0200`은 넣지 않았다. [번호·해시·의존성](qa/SERVER-PROMOTION-260926.md). 집중 Jest 54개와 등록부 검사, 전체 `npm run verify -- --runInBand` 818 suites·10,685 tests·UI 76 PASS. 원격 [SQL 리허설](https://github.com/Simon-YHKim/2nd-B/actions/runs/36233386382)의 0199·0200·0201 및 rollback 왕복을 포함한 4개 검사도 모두 PASS.
+- 읽기 전용 운영 카탈로그에 `0183`의 OAuth 테이블·제한 함수와 RSS 사용자 쿼터 테이블·RPC가 아직 없다. `0199`는 `0183` 선행 없이 적용할 수 없다. 운영 백업 격리 복원·실데이터 이주 리허설, 원장 alias 대응, Edge/flag 확인 전 추가 운영 적용은 NO-GO다. 무료 Supabase 격리 프로젝트의 전체 복원 드릴은 사용자가 승인했다. 개인키·임시 DB 접속·삭제 경로가 확인될 때까지 생성은 보류하고 Grok 후속은 보류한다.
+- 로컬 Chrome의 실제 분석 모듈/CSP 계측에서 합성 GA4 ID로 `gtag.js` 200과 성인·동의·런타임 ON의 `/g/collect` 시도를 확인했다. 수집 요청은 모두 네트워크 전송 전에 차단했다. 동의 OFF·런타임 OFF·미성년·철회·Paddle sandbox는 수집 시도 0건이었다(`scripts/qa/ga4-network-smoke.cjs`). 운영 GA4 수신·Paddle 실거래를 증명하지 않는다. Android 음성 Stop은 전사·audit DB 쓰기로 이어져 무쓰기 조건에서 누르지 않았다. 당시 오프라인 AVD 재기동은 자동 승인 검토가 사유 없이 거부됐고 제품 화면에서 녹음을 시작하지 않았다. 전용 AVD/Metro는 정리했다.
+- 현재 `ae24b6e1` 웹 export에서 QA 계정 33화면(320/425/768px)의 pageerror·가로 넘침·깨진 이미지가 각각 0건이고, 320/425px 음성 녹음 시작·사진 카메라 버튼 4개는 스크롤 후 클릭 가능했다. 미배포 service-consent 404×3·Polaris 상태 404×1은 실패/대기 UI로 처리됐다. [웹 스크린샷과 범위](qa/REMAINING-WORK-260926.html). 별도 Android API 36 격리 fixture에서는 네이티브 Start→Cancel 뒤 임시 파일 부재를 확인했고 외부 기본 네트워크는 none 상태였다. Expo의 missing-file 응답에 `uri`가 없는 것을 정리 실패로 오판하던 `owned-temp` 검사를 고쳤다. 변경 후 전체 `npm run verify -- --runInBand`는 818 suites·10,686 tests·UI 76 PASS. [AVD 전후 증거·제한](qa/ANDROID-VOICE-CANCEL-260926.md). 앱 화면의 Stop→전사·DB·오디오 품질은 미검증이다.
+- 19:46 KST 최신 PR JS `55f24cf3`을 실제 Android 제품 `/capture-full?mode=voice`에 로드해 QA 로그인→Record→`Recording...`→`To do` 탭 취소를 확인했다. 녹음 중 `.m4a` 1개가 생겼고 취소 뒤 `cache/Audio`가 비었으며 `[audio]` 경고·전사 요청은 0건이었다. 인증 POST 1회와 읽기 요청만 전달하는 로컬 프록시를 사용했고 전용 AVD·Metro·프록시를 종료했다. Stop→전사·저장·음질·실기기는 여전히 미검증이다. [제품 화면·상세 증거](qa/ANDROID-VOICE-CANCEL-260926.md).
+- 19:30 KST Supabase 인증 읽기 전용 재조회에서 운영 migration 원장은 152행 그대로다. `polaris_generation_status`·가입 상태·서비스 동의 snapshot RPC, Naver OAuth·RSS 쿼터 선행 객체와 `service-consent` Edge는 여전히 없다. 암호화 백업 artifact·로컬 `.age` 크기/헤더/해시는 일치하고 age·pg_restore 및 KeePassXC 보관함 파일도 존재하지만 개인키 항목 접근·복호화·복원은 확인되지 않았다. 격리 프로젝트는 만들지 않았고 콘솔 담당의 키·DB 접속·삭제 경로 확인이 남는다. 추가 운영 적용 NO-GO와 Grok 후속 보류를 유지한다.
+
+## 2026-09-26 18:05 / Android 캡처 탭 겹침 수정·운영 읽기 재확인
+
+- 같은 Android API 36 AVD(1440×3120/560dpi)의 사진·음성 캡처 화면에서 선택 탭이 안내 문구를 덮는 현상을 재현했다. `src/app/capture.tsx`의 줄바꿈 탭에 명시적 basis·최소 높이를 주고 안내의 음수 여백을 없앴다. 수정된 JS로 두 화면을 재기동하니 탭·`Show less`·안내가 분리됐다. 수치 bounds는 UIAutomator 타임아웃으로 확보하지 못했다. [동일 기기 전후 스크린샷과 범위](qa/ANDROID-CAPTURE-LAYOUT-260926.md). 카메라 권한 후 시스템 프리뷰까지만 열었고 마이크 권한은 거부했다. 촬영·OCR·녹음·전사·저장·효과음 출력은 검증하지 않았다. 전용 AVD/Metro는 종료했고 공용 8081은 유지했다.
+- 별도 QA의 과거 Polaris mock 감사에서는 `persona_narrative` 1건·`persona_synthesis` 2건과 `role_cards_v1` 부재가 당시 mock 분기로 설명된다. 현 통합 코드의 mock 응답은 합성 카드를 만들지 않고 `polaris_live_required`로 멈춘다. 과거 실제 생성 실패의 HTTP 응답·예외가 없으므로 원인은 특정할 수 없고, audit 행이 없다는 사실만으로 공급자 호출이 없었다고 결론 내리지 않는다. 현 운영 `polaris_generation_status` 404에서는 생성 CTA가 비활성이다.
+- Supabase 읽기 전용 재조회에서 migration 152행의 마지막 네 행은 보상 alias 2개와 중복 0172 두 행 그대로다. `service-consent` Edge는 없고 `rewarded-ssv` v91의 수정 시각은 12:23:51 KST 그대로다. `Learner-thepoorman's Org`는 Free 플랜이고 새 프로젝트 비용 재조회는 월 **$0**이다. 격리 프로젝트 생성·암호화 백업 복원·삭제는 별도 사용자 결정 대기이며 아무것도 생성하지 않았다. 운영 추가 SQL·Edge 배포/공개는 NO-GO, Grok 후속 전달은 보류다.
+
+## 2026-09-26 17:33 / Android 로그인 후 오디오 RedBox 재현·수정본 재기동
+
+- 별도 Android 전용 AVD에서 기존 APK의 네이티브 입력과 PR 최신 소스의 동일성을 Git 내용으로 확인하고, 최신 JS 번들(3285 modules)을 Metro 8084로 로드했다. QA 계정 로그인 뒤 온보딩 Continue에서 `Cannot assign to property 'playbackRate' which has only a getter` RedBox가 발생해 홈 진입이 막혔다. 증거는 로컬 `Output/runtime-validation-260926/latest-runtime-result.json`·`latest-31-after-continue.png`·`latest-playbackrate-log.txt`(전용 `native-260926` 워크트리)에 보존했다.
+- 원인은 `src/lib/audio/use-ui-sound.ts`의 속성 대입이다. 설치된 expo-audio 56.0.12의 Android `playbackRate`는 getter만 있고 `setPlaybackRate(rate)`가 변경 함수다. 통합 PR 트리에서 메서드 호출로 바꾸고 getter 전용 Android/iOS mock 회귀 테스트를 추가했다. 변경 전 테스트는 같은 TypeError로 실패했고 변경 후 전체 `npm run verify -- --runInBand`가 818 suites·10,686 tests·UI 76개 PASS였다. 수정된 JS로 AVD를 재기동해 후속 First Record 화면과 `secondbrain:///` 별자리 홈을 RedBox 없이 표시했다(`native-260926/Output/runtime-validation-260926/fix-08-deeplink-root.png`). 기록 확정은 운영 DB 쓰기 가능성 때문에 누르지 않았고 카메라·오디오 출력도 미검증이다. 전용 AVD·Metro는 정리하고 공용 8081은 유지한다.
+
+## 2026-09-26 17:09 / AdMob 법률 결정과 PR 동의 판본 대조
+
+- 저장소 밖 최신 결정 `E:/2ndB/docs/drafts/privacy-admob-simon-decisions-2026-09-26.md`(16:00 KST)는 시행일 **2026-09-26**, Q4 AdSense 행 제외, Q6 광고 스위치 국외 이전 고지 포함, Q5 AdMob 처리위탁/제3자 제공 분류 **보류**를 기록한다. 16:11 KST 법률 체크 초안은 Q5를 #1865 머지 차단으로 분류한다. 두 문서는 코드·DB에 자동 반영된 것이 아니다.
+- Draft PR #1865의 처리방침 세 사본과 `PRIVACY_POLICY_VERSION`, 가입 0191·서비스 동의 0194 SQL의 판본은 여전히 **2026-09-25**이다. 광고 스위치의 현재 문구는 국외 이전의 항목·국가·시기/방법·수신자 연락처·목적/보유기간·거부 효과를 한 화면에서 고지하지 않는다. [개인정보 보호법 제28조의8 제2항](https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1033215841)의 고지 항목과 대조했다. Q5 결정과 정확한 고지 문구를 확정한 뒤 세 사본·앱 판본·두 SQL 계약·스위치 UI·테스트를 **같은 회차**로 갱신해야 한다. 지금은 날짜만 바꾸거나 광고를 켜거나 PR을 머지하지 않는다. [HTML 잔여 작업](qa/REMAINING-WORK-260926.html).
+
+## 2026-09-26 16:50 / Draft PR 최신 웹 GUI 실측
+
+- Draft PR #1865의 검증 head `8cecd849`로 새 웹 export를 만들어 QA 계정의 로그인·화면 이동을 실행했다. 320·425·768px의 28개 화면 점검에서 pageerror 0, 가로 넘침 0, 깨진 이미지 0이었다. 첫 로컬 export의 랜딩 번들 누락 404 세 건은 CI와 같은 `esbuild` 번들을 넣은 뒤 3개 너비에서 오류 0으로 재검증했다. 남은 `service-consent` 404 세 건은 서버 계약 미배포를 확인한 것이며 UI는 재시도 안내를 표시한다. [HTML 보고서](qa/REMAINING-WORK-260926.html).
+- 같은 최신 코드의 `/core-brain`에서 운영 `polaris_generation_status`가 HTTP 404인 실제 조건을 확인했다. 425px 화면에서 `기록으로 페르소나 제안 받기` 버튼은 비활성이고 “생성 기능 설정을 기다리고 있어요” 문구가 보인다. 생성·쓰기 요청 0, pageerror 0. 결과와 화면은 로컬 `Output/web-resume-260926/qa-latest-core-only-results.json` 및 `screenshots/latest-core-action-425.png`에 있다. 이는 모델 생성 품질 검증이 아니다. 운영 추가 SQL·클라이언트 공개 NO-GO, 격리 복원 승인 대기, Grok 후속 보류는 유지한다.
+
+## 2026-09-26 16:19 / 보상 서버 적용 후 백업 확보 · 복원 대기
+
+- 보상 서버 스위치가 14:19 KST에 켜진 뒤 [수동 암호화 백업](https://github.com/Simon-YHKim/2nd-B/actions/runs/36226292412)을 16:16–16:19 KST에 한 번 실행했다. `pg_dump`·age 암호화·업로드가 모두 PASS이고, 아티팩트 `db-backup-36226292412`는 1,629,137바이트 ZIP으로 10월 10일 16:19 KST까지 보관된다. 다운로드한 `.age` 파일의 헤더와 SHA-256을 확인했지만 복호화·격리 복원은 아직 하지 않았다. 아래 06:44–06:47 백업은 보상 적용 **이전** 스냅샷이다. [상세와 복원 게이트](qa/SERVER-PROMOTION-260926.md).
+- 같은 조직(`Learner-thepoorman's Org`)의 격리 Supabase 프로젝트 비용 조회 결과는 월 **$0**이다. 프로젝트 생성·운영 데이터 복원·드릴 종료 후 삭제는 별도 사용자 결정 대기 중이며, 프로젝트는 만들지 않았다. 유료 개발 브랜치 보류와 Grok 후속 전달 보류도 유지한다.
+- Draft [PR #1865](https://github.com/Simon-YHKim/2nd-B/pull/1865)의 코드·문서 head `1520721e`는 원격 [SQL](https://github.com/Simon-YHKim/2nd-B/actions/runs/36226061143)·[verify/web](https://github.com/Simon-YHKim/2nd-B/actions/runs/36226061190)·[제목 검사](https://github.com/Simon-YHKim/2nd-B/actions/runs/36226061165)가 PASS다. 이번 인수 문서 후속 커밋의 CI는 별도로 확인한다. 운영 추가 SQL 적용과 클라이언트 공개는 NO-GO다.
+
+## 2026-09-26 15:19 / #1865 운영 읽기 감사 · 최종 CI 확인
+
+- PR #1865의 `7217d4d5`에서 0191–0198 번호 SQL, 삭제 등록부·0189 rollback·SQL CI 전환이 원격 4개 검사 PASS다([SQL](https://github.com/Simon-YHKim/2nd-B/actions/runs/36222133872) · [verify/web](https://github.com/Simon-YHKim/2nd-B/actions/runs/36222133905)). 최신 main `fe20ad03`의 운영 기록을 이 통합 브랜치에 포함한다. 게시·운영 일괄 `db push`는 여전히 하지 않는다.
+- main #1868은 Simon GO로 14:19부터 `REWARD_SSV_ENABLED=1`이라고 기록한다. 인증 없는 POST 401은 스위치 통과를 확인한 증거이고, 14:29까지 실사용 호출 0건이다. 광고 ON과 서명·변조·재전송 카나리아는 별도이며 아직 완료 증거가 없다. 0172 중복 두 행은 동일 GO가 두 경로로 전달돼 생겼고, 재적용·원장 정리 금지다. Edge 목록 v91의 `updated_at`은 12:23:51 그대로라 새 배포로 해석하지 않는다.
+- 최신 운영 상태가 아래 14:57·14:36·14:15 블록의 플래그 미확인/서버 OFF 가능성보다 우선한다. 콘솔 소유자는 Reward alias와 남은 번호 SQL의 실제 원장·백업 복원·격리 리허설을 확인한다. Grok 후속 전달은 사용자 보류를 유지한다.
+- 인증된 읽기 전용 재조회: 운영 원장 152행이고 마지막 네 행은 `reward_ssv_tickets`, `reward_ssv_hardening`, 중복 0172 두 행 그대로다. Git SQL과 공백 제외 본문 MD5는 세 파일 모두 일치하고, 0196은 원문 MD5도 일치한다. Reward 신규 RPC 4개는 `service_role`만 실행 가능하고 확인한 구 RPC 3개는 공개 역할·`service_role` 모두 실행 불가. 티켓 발급·소비 0건, Paddle 이벤트 4건 중 adjustment·legacy consequence 0건, self-service 청구 0건. Edge v91의 수정 시각은 여전히 12:23:51이고, 가입·동의·삭제·Polaris 신규 객체와 개발 브랜치는 없다. [SQL 원문·운영 대조](qa/SERVER-PROMOTION-260926.md).
+- Draft PR #1865 최종 head `67e9cab0`의 원격 lint·SQL·verify·web export **4/4 PASS**를 다시 확인했다. [일일 암호화 백업](https://github.com/Simon-YHKim/2nd-B/actions/runs/36193185108)은 09-26 성공했고 아티팩트가 남아 있다. Orca 콘솔 작업은 Backup·ModelRefreshReadOnly 환경을 main 전용 정책으로 고쳤다([자격증명 경계](GITHUB-ACTIONS-CREDENTIAL-BOUNDARIES.md)). 이번 백업의 격리 복원·나머지 SQL의 실데이터 리허설·Reward 서명 카나리아는 미완료다. 이 조회는 운영 쓰기를 하지 않았다.
+
+## 2026-09-26 14:57 / 서버 SQL 8개 번호 승격 · PR 원격 4/4 PASS
+
+- Draft PR [#1865](https://github.com/Simon-YHKim/2nd-B/pull/1865)의 head `7217d4d5`에 초안 원문 Git blob과 같은 0191–0198 번호 SQL을 push했다. 정본 삭제 등록부 +4행/forward additions, 0189 rollback의 registry-only 원장 재생, SQL CI 중복 실행 방지를 함께 반영했다. [번호·해시·운영 alias 대응표](qa/SERVER-PROMOTION-260926.md) · [HTML 잔여 작업](qa/REMAINING-WORK-260926.html). 기존 고정 인계 manifest는 바꾸지 않았다.
+- 로컬 `npm run verify -- --runInBand` **818 suites / 10,684 Jest tests**, UI 76 PASS, lint 오류 0·기존 경고 71. 원격 [SQL](https://github.com/Simon-YHKim/2nd-B/actions/runs/36222133872)은 181개 번호 SQL의 fresh 적용, 등록부 70행·8개 원장 행, 0189 롤백/CLI 재적용, Reward·Paddle 회귀를 포함해 PASS. [CI verify·web export](https://github.com/Simon-YHKim/2nd-B/actions/runs/36222133905)와 PR 제목 검사도 PASS. 이 문서 후속 커밋의 원격 검사는 별도로 확인한다.
+- **운영 추가 적용·공개는 NO-GO.** 운영에 이미 `reward_ssv_tickets`·`reward_ssv_hardening` alias가 있고 0172는 두 번 기록됐다. 두 번째 0172 뒤 13개 함수 본문·ACL 지문은 설계 기대값과 일치했지만 중복 원인과 최신 Edge/flag·콜백은 미확인이다. Reward SQL 재적용·운영 일괄 `db push` 금지. 복구 가능한 백업의 격리 복원, 실제 원장 alias 화해, 나머지 번호 SQL의 실데이터 리허설은 콘솔 소유자가 완료해야 한다. 유료 개발 브랜치는 사용자 결정대로 만들지 않았다. Grok 후속 전달도 사용자 결정대로 보류한다.
+
+## 2026-09-26 14:49 / 보상 서버가 켜졌다 (Simon GO) · 봇 협업 규칙을 스킬에 넣었다
 
 - 아래 14:06 블록의 "보상 서버는 여전히 꺼져 있다"는 **14:19 부터 틀렸다.** Simon GO 로 `REWARD_SSV_ENABLED=1`(Clavius). 인증 없는 POST 가 401 이라 켜진 것이 확인되고, 14:29 까지 실사용 호출은 0 이다.
 - 0172 는 원장에 **두 줄**(`050258` 코딩 LLM · `050638` Hadrianus)이다. 같은 GO 가 두 경로로 와서 생겼다. 바이트가 같다. 재적용·원장 정리 금지.
 - Edge `rewarded-ssv` 목록 번호는 91 이지만 `updated_at` 은 12:23:51 그대로다(#1865 판). 재배포는 없었다.
 - 다음: 카나리아 주체(QA 빌드·테스트 계정) 미정 · 광고 ON 별도 GO · #1865 머지 전 `rewarded-ssv` 디스패치 금지.
 - 봇 협업 규칙은 SimonK-stack #50(`c4d5c95a`) `vibe-bot/references/relay-handshake.md`. **증명된 Simon GO(`simon-go-attested-*`)는 되묻지 않는다.** 이 파일은 98KB 라 다음 블록 전에 가장 오래된 블록을 `handoff/HANDOFF-2026-09-p2.md` 로 옮길 것.
+## 2026-09-26 14:36 / PowerShell 복구 후 SQL 번호 승격 작업 중
+
+- Codex 다운그레이드 뒤 PowerShell 실행 문제가 해소됐다는 사용자 안내를 반영했다. 통합 워크트리 `fix/qa-harness-integrated-260925`에서 원문 바이트 그대로 초안 8개를 후보 `0191`~`0198` 번호 SQL로 복사했고, 삭제 등록부 네 행·`forwardAdditions`와 0189 롤백 재생 목록을 연결했다. **아직 검증·push 완료나 번호 예약을 선언하지 않는다.** [승격·운영 원장 대응표](qa/SERVER-PROMOTION-260926.md).
+- 인증된 읽기 전용 재조회에서는 두 번째 0172 적용 뒤 보상 함수 본문·ACL 지문이 설계 순서의 기대값과 **13/13 일치**했다. 이는 0172 중복 원장의 원인이나 현행 플래그·콜백 성공을 증명하지 않는다. `rewarded-ssv` Edge는 약 14:28 조회에서 v91이었다. 아래 v89 기록은 당시 스냅샷이다.
+- 운영의 0177·hardening은 번호 없는 timestamp/name 원장으로 이미 적용됐고 0172는 두 번 기록됐다. 승격된 번호 SQL을 이유로 Reward를 재적용하거나 운영에서 일괄 `db push` 하지 말 것. 콘솔 소유자의 원장 alias·백업/복원·격리 리허설, 최신 Edge/flag 확인 전 공개 가드는 유지한다. Grok 후속 전달은 사용자 결정대로 보류다.
+
+## 2026-09-26 14:15 / 0172 중복 원장 발견 · Reward 재적용 금지
+
+- 코딩 세션의 인증된 Supabase **읽기 전용** 조회에서 `0172_reward_authorization_hardening` 원장 행이 `20260926050258`와 `20260926050638` 두 개 확인됐다. 각 SQL은 9639/9640바이트이고 공백 제외 MD5는 동일하다. 두 번째 적용 뒤 함수 지문과 플래그·실제 기능은 재검증하지 않았다.
+- Edge 함수 목록의 `rewarded-ssv`는 v89로, 아래 13:51 기록의 v88보다 최신이다. 현재 활성화 상태를 이 조회만으로 판정하지 않는다.
+- **콘솔 담당 확인 전 0172·0177·hardening 재적용과 Reward 활성화·카나리아는 보류한다.** 중복 원장 원인, 두 번째 적용 뒤 13개 함수 지문·ACL, v89 소스와 서버 플래그를 대조한다. [PR #1865 잔여 작업](qa/REMAINING-WORK-260926.html). 이 코딩 세션은 운영 쓰기·Grok 후속 발송을 하지 않았다.
 
 ## 2026-09-26 14:06 / 0172 를 운영에 적용했다 (Simon GO) · 보상 서버는 여전히 꺼져 있다
 
@@ -91,6 +160,158 @@
 - 코딩 전용 봇이 없어서, Relay 가 `E:/2ndB/.bots/relay/inbox/` 에 "Coding LLM" 앞 포인터를 넣는다(오늘 `vb-a8f1c301`). 코딩 LLM 은 `relay/outbox/<nonce>.result.md` 로 회신한다. 인계서는 저장소 밖 `E:/2ndB/docs/drafts/coding-llm-handoff-2026-09-26.md` 에 있다.
 - 이번 세션이 사용자 지시로 직접 발행한 과제는 `vb-68cdfca0`(ENABLED 다이제스트 판정, 회신 받음)과 `vb-11c495b1`(재생 결과를 STATUS 에 반영하고 0172 를 GO 후보 1순위로)이다. guarded `execute_bot` 어댑터는 쓰지 않았다(인증서·과금 증거가 없어서).
 - 정정: `vb-a8f1c301` 회신과 `vb-68cdfca0` 에 적은 작성 시각 13:58 은 틀렸다. 실제 게시는 13:42 KST 다. `vb-11c495b1` 안에서도 정정했다.
+
+## 2026-09-26 / Orca 콘솔 발주·운영 NO-GO
+
+PR #1865 CI·GUI PASS. Orca 콘솔 감사 **NO-GO**: 번호·백업·clone·OAuth/RSS SQL 미준비. 운영 쓰기·공개 없음, Grok 보류. [근거](qa/CONSOLE-PREFLIGHT-1865-260926.md).
+
+## 2026-09-26 / 관측소 녹음 오디오
+
+- 녹음 효과음·로드 대기·중단·셔터 사전 준비를 통합했다.
+- [검증과 재현](qa/AUDIO-INTEGRATION-260926.md). 운영 미적용·Grok 보류.
+
+## 2026-09-26 / 삭제 등록부 후속 승격 보완
+
+- 새 표 4개의 분류와 registry-only 초안, 역사 0189를 보존하는 G7을 추가했다.
+- 실제 SQL 및 70표 정적 승격 검증 통과. 전체 catalog·CLI 왕복은 실제 승격 후 확인한다.
+- [승격 절차](qa/ERASURE-FORWARD-260926.md). 서버 승인 유지·Grok 보류·운영 미적용.
+
+## 2026-09-26 / 재동의·철회 화면과 서버 계약 구현
+
+- 같은 PR #1865에 서비스 동의 writer/status/coverage, `/service-consent` 화면,
+  collect/enforce 및 동의 오류의 provider 재시도 차단을 구현했다.
+- 실제 SQL, Edge handler, 계정 전환·CAS·선택 동의 보존 회귀와 320/425/768px
+  브라우저 검증을 수행했다. 브라우저 동의 응답은 fixture이며 운영 저장은 아니다.
+- [최신 보고서](qa/service-consent-260926.html) · [계약과 적용 순서](qa/SERVICE-CONSENT-260926.md).
+  전체 814 suites / 10,606 tests와 웹 128문서 PASS. 원격 CI는 PR의 해당 head에서 확인한다.
+- 서버 승인 유지·Grok 보류·운영 미적용. 기존 21641bda 패키지와 혼합하지 않는다.
+  운영 coverage·canary·Paddle/모델/GA4/실기기 검증은 남는다.
+
+---
+
+## 2026-09-25 / 동의 철회·후속 GUI 통합 완료 · 서버 승인 기록
+
+- 2026-09-25 23:51:32 KST. 같은 통합 브랜치에서 후속 GUI 46개 파일을 SHA-256 snapshot과
+  3-way로 통합했다. 원본 Observatory 및 첫 기록 안내 수정은 보존했다.
+- 별도 8082 브라우저에서 320/425/768px 조작·촬영·취소·단일 이동·모션 줄이기 통과.
+  페이지 예외 0, LLM 요청 0. 검사 후 자체 서버만 종료했고 기존 8081은 유지했다.
+- 네 proxy의 서비스 동의를 호출 전후 같은 영수증·변경 번호로 검사한다. SQL은
+  OFF→ON, 서버 작성 거절 영수증, Polaris 정산·환급·삭제 경합을 처리한다.
+  실제 제공자 비용·감사 행은 보존한다. 기존 DB→HTTP 전달 사이의 경계는 남는다.
+- 전체 **810 suites / 10,414 tests PASS**, 린트 오류 0·경고 71, 웹 **127문서 PASS**,
+  Android Hermes export 및 로컬 Edge 타입 검사 PASS. 실제 PostgreSQL 동시성 회귀 통과.
+  최초 전체 검사의 문서 인용 1건 실패를 고쳤고 실패 로그와 최종 로그를 모두 보존했다.
+  후속 원격 CI에서 웹 전용 CSS 타입 오류를 발견해 명시적 web/native 교차 타입으로 수정했다.
+  4e90bc81의 SQL CI는 통과했으며 새 head의 CI 결과는 PR에서 별도로 확인한다.
+- **서버 선행 적용 승인 받음.** Grok 후속 보류는 유지한다. 콘솔 역할이 Grok 작업을
+  가리킴을 설명했다. 새 번호 예약·Bot 전달·운영 DB 변경·Edge 배포는 아직 없다.
+  재동의·철회 writer/UI와 활성 계정 coverage 등 verified-consent 활성화 조건도 남는다.
+- [PR #1865](https://github.com/Simon-YHKim/2nd-B/pull/1865)는 Draft 유지.
+  [통합 보고서](qa/qa-harness-integrated-260925.html) ·
+  [후속 검증](qa/COMPLEMENT-EXECUTION-260925.md) ·
+  [고정 소스 서버 인계 패키지](qa/SERVER-FIRST-1865-260925.md).
+  인계 패키지의 21641bda와 새 동의 후속 코드를 혼합 배포하지 않는다.
+
+---
+
+## 2026-09-25 / GUI·AI 하네스 통합 검증 · 서버 선행 대기
+
+- 22:56:34 KST, 기준 `ed2e54c8`. 검토 브랜치 `fix/qa-harness-integrated-260925`,
+  워크트리 `E:/2ndB/.worktrees/qa-harness-integrated-260925`. Observatory 원본과 보완
+  작업트리를 SHA-256 snapshot으로 보존한 뒤 통합했다. 원래 작업트리는 유지한다.
+- `npm run verify`: **806 suites / 10,324 tests PASS**, UI 계약 76개, cycle 0.
+  lint는 오류 0·경고 71개다. `verify:web` **127개 문서 PASS**, Edge 공통 코드 타입 PASS.
+  첫 전체 실행에서 낡은 AST 테스트 호스트 11건이 실패했으며 새 lease/session 연결로
+  고친 뒤 전체 재실행이 통과했다. 실패 로그도 보존했다.
+- 실제 기존 8081 GUI 5개 화면 HTTP 200·오류 0·425px 넘침 0. QA 서버는 Brain,
+  역할 카드 승인 1·제안 2개였다. 합성 QA 기록 1건을 실제 저장해 완료 안내를 확인했다.
+  추가 LLM 호출은 없다. 홈 재접속 안내 숨김은 온보딩 redirect로 별도 미검증이다.
+- 담은 대화 본문 누락, 자동 저장 철회·소급 저장, Polaris 승인 덮어쓰기·근거 불일치·
+  원본 삭제 경합을 수정했다. Paddle 환경/DB/가격/계정/CSP, GA4 동의·성공 시점,
+  광고 SSV·플랫폼 단위, 처리방침/email-v4 가입 계약을 통합했다. 로컬 실제 SQL 통과.
+- [Draft PR #1865](https://github.com/Simon-YHKim/2nd-B/pull/1865)에 커밋·push했다.
+  서버 선행 조건 때문에 Draft를 유지하며 병합·운영 배포는 실행하지 않았다.
+- **운영 적용 전이다.** 신규 가입 status RPC는 현재 서버에 없어 게시가 차단된다.
+  Polaris와 가입 SQL은 미번호 draft다. DB·Edge·기능 활성화는 콘솔 소유이며,
+  [서버 선행 순서](SESSION-OWNERSHIP.md)를 마치기 전 병합하지 않는다.
+  실제 Paddle sandbox 결제·갱신·환불, 일반 사용자 생성·실모델 인용·GA4 수신·
+  실기기 확인이 남았다. 서비스 동의 v2 호출 중 철회 재검증도 활성화 조건이다.
+- Grok 후속 `vb-243be209`는 사용자 지시로 **나중에** 처리한다. 재전송·대기하지 않는다.
+  [통합 보고서](qa/qa-harness-integrated-260925.html) ·
+  [검증 기록](qa/COMPLEMENT-EXECUTION-260925.md) ·
+  [Paddle runbook](PADDLE-SANDBOX-RUNBOOK.md). 로그는 통합 트리 `Output/`에 있다.
+
+---
+
+## 2026-09-25 / Grok 회신 반영 · 실제 GUI 코치마크 수정
+
+- 20:17 KST 후속 점검. `origin/main`은 여전히 `ed2e54c8`. 광고·한도 보완 작업트리는
+  `grok-qa-complement-260925`이며 기존 774 suites / 9,971 tests 및 웹 126문서 통과는
+  아래 새벽 코드 범위의 검증이다. 이번 GUI 수정은 다른 미커밋 기능 위에 적용했다.
+- Grok Relay `vb-2e14b97d`의 01:27 회신을 수신·nonce 대조했다. 네 코드 경로 검토에서
+  결함을 보고하지 않았지만 테스트 재실행·콘솔 스크린샷은 없다. 01:24 운영 관측은
+  rewarded Edge v86 구 직접 지급 방식, 티켓 테이블·발급 RPC 없음이었다. 현재 상태로
+  단정하지 않는다. `SESSION-OWNERSHIP.md`에 0172 → 0177 → 번호 예약한 hardening,
+  네 RPC와 ACL 및 구 콜백 drain을 명시했다. 관련 migration 계약 검사 10개 통과.
+- 다른 GPT QA는 16:41 갱신됐다. 승인된 계정 초기화·서버 Brain, 입력 기록 9건,
+  참고 기록 8건, 모의 생성과 실제 생성 실패를 구분해 보고한다. 그 기능은
+  `localhost-260921-287e56f1`의 미커밋 GUI다. 18:16 이후 현재 8081은
+  `observatory-260925`로 교체됐다. 두 브랜치의 페르소나·quota 구현을 혼동하지 않는다.
+- 코치마크는 입력 단계에서 실제 저장 버튼을 누르면 완료가 빠졌고, 저장 대기 중
+  건너뛰면 완료 후 다시 나타났다. 실제 저장 성공을 기준으로 처리하고 최신 상태를 읽게
+  수정했다. QA 당시 localhost 및 동일 소스였던 현재 observatory에 작은 패치만 적용했다.
+  각 작업트리 관련 5 suites / 22 tests·타입 검사·변경 파일 lint 통과.
+  새 원점의 재등장은 localStorage 범위이며 계정 동기화를 추가한 것은 아니다.
+- localhost의 역할 카드 생성에 read/build/synthesize/persist 단계와 허용 분류·HTTP 상태만
+  남기는 진단을 추가했다. 기존 번역 UI를 유지하고 원문·토큰·cause를 로그/오류에 보유하지 않는다.
+  21개 테스트·타입 검사 통과. 기존 lint 경고 1건은 보존. 실제 live 실패 원인은 미확정이며
+  관측 개선을 생성 성공으로 보고하지 않는다. observatory의 별도 역할 카드 구현은 변경하지 않았다.
+- GUI 기존 변경의 원본 바이트·SHA256은 `Output/grok-qa-260925/coachmark-before`,
+  `persona-before`, `observatory-coachmark-before`에 있다. 이번 변경만 담은
+  [코치마크 패치](qa/patches/first-record-coach-260925.patch),
+  [페르소나 진단 패치](qa/patches/persona-diagnostics-260925.patch)와
+  [상세 결과](qa/grok-qa-complement-260925.html)를 참고한다. 기존 QA 원본·DB·프로세스는
+  변경하지 않았다. 현재 변경은 미커밋이며 push·병합·운영 배포를 실행하지 않았다.
+- 신규 후속 과제 `vb-243be209`는 20:14 Relay 수신함에 게시했다. 기존 회신을 재전송한
+  것이 아니다. 운영 persona 목적 계약·실패 상태 및 AdMob 미확인 항목을 읽기 전용으로 요청했다.
+  `E:/2ndB/.bots/relay/outbox/vb-243be209.result.md`의 정확한 nonce를 대조해 이어간다.
+
+---
+
+## 2026-09-25 / Grok 초안 대조 · 광고 SSV 및 AI 한도 안내 보완
+
+- 작성 2026-09-25 01:06:50 KST. 기준 `origin/main` `ed2e54c8`. 전용 워크트리
+  `E:/2ndB/.worktrees/grok-qa-complement-260925`, 브랜치 `fix/grok-qa-complement-260925`.
+  현재 변경은 로컬 미커밋이며 push·PR·병합·운영 배포는 실행하지 않았다.
+- Grok의 `E:/2ndB/docs/drafts` 초안 3개를 대조했다. 플랫폼별 광고 ID 선택, 숫자형
+  SSV 콜백 정규화, 실제 광고 단위와 티켓 결속을 수정했다. 콘솔 확인용 무주체 요청은
+  서명을 검증하고 보상·DB 접근 없이 응답한다. isolate당 60초 4건·동시 1건 제한.
+- 실제 free 서버 한도가 거절하는데 클라이언트 Brain 250회 소진이라고 알리는 문제를
+  재현·수정했다. 서버 cap이 미제공이면 `limit:null` 및 계정 한도 안내를 반환한다.
+  5개 언어 번역과 변경된 코드 위치를 인용하는 DPIA 문서·검사도 갱신했다.
+- 최종 `npm run verify` 종료코드 0: 774 suites / 9,971 tests, UI 계약 76개,
+  require cycle 0. `npm run verify:web`: 126개 문서 PASS. Edge 별도 타입 검사 PASS.
+  첫 실행의 DB 셸 테스트 일시 실패 1건은 단독 및 최종 전체 재실행에서 통과했으며 원인은 미확정.
+- 공개 웹은 새 Chrome에서 HTTP 200·로그인 화면·pageerror 0건. 로그인 후 동작 및 서빙
+  소스 SHA 검증을 뜻하지 않는다. 다른 GPT QA 문서는 미입력·AI 미호출 상태였고
+  `127.0.0.1:8081`은 이번 조회에서 연결 거부였다. 기존 QA 파일·계정 데이터를 변경하지 않았다.
+- Paddle sandbox는 요청 query만 나누면 운영 DB를 갱신하므로 그대로 구현하지 않았다.
+  GA4는 동의 로딩과 auth 성공 지점·PII 허용 필드·중복 계약이 필요하다. 처리방침은
+  본문과 판본·signup revision·서버 허용 튜플을 한 단위로 진행해야 한다.
+- Grok 과제 nonce `vb-2e14b97d`는 사용자의 준비 완료 확인 및 전달 지시에 따라
+  2026-09-25 01:17:26 KST `E:/2ndB/.bots/relay/inbox/`에 게시했다. 코드 검토 워크트리와
+  QA 원본 경로를 포함했다. 수신 확인·결과 회신은 아직 없으며 중복 발송하지 않는다.
+  기존 planner `NO_ELIGIBLE_ROUTE` 기록은 보존했고 guarded adapter 실행·계정/요금 검증으로
+  기록하지 않았다. 전달 근거와 파일 해시는 `Output/grok-qa-260925/bot-delivery-receipt.json`.
+  회신 경로는 `E:/2ndB/.bots/relay/outbox/vb-2e14b97d.result.md`.
+  같은 벤더 리뷰는 받았지만 다른 벤더 리뷰는 회신 대기다.
+- [보완 보고서와 QA 판정표](qa/grok-qa-complement-260925.html).
+  검사 로그·경로 판정·화면은 `Output/grok-qa-260925/`(gitignored)에 있다.
+  운영 담당은 [SSV 전환 절차](SESSION-OWNERSHIP.md)의 티켓 drain·서버 선행·canary를 따른다.
+  다음 실제 AI QA는 원문→위키→인용, 동의 철회, 승인 전 미확정, 안전 차단, 목적별 호출
+  수와 실제 서버 등급을 각각 증명해야 한다. UI 8동작을 AI 8호출로 세지 않는다.
+
+---
 
 ## 2026-09-25 / 0.9.0 후속 PR 세 건 병합 · 빌드 검증 · Orca 인수 종료
 
@@ -711,540 +932,3 @@ adb devices                                           # 비었으면 에뮬부�
 ```
 
 ---
-## 2026-09-13 / 새 워크트리로 넘긴다 — 첫 일은 디스크, 그다음은 에뮬레이터 화면 검증
-
-**이 블록 하나로 다른 워크트리에서 처음부터 일할 수 있게 썼다.** 앞 블록을 안 읽어도 된다.
-
-### 어디까지 왔나
-
-- main HEAD: `93849c42`
-- 이번 세션 머지: **#1801**(HANDOFF 732KB → 기간 분할) · **#1802**(인수인계·현황·결정 원장 갱신)
-- 열린 PR: **#1800**(PKCE) 하나 — CI 3/3 초록, **머지 조건이 코드리뷰가 아니라 에뮬 로그인 5종 확인**이고 그 담당이 없다
-- 검사: `npm run verify` CI 초록 · `/vibe` selftest **132 PASS / 0 FAIL**
-- 디스크: **C: 24.9GB · E: 23.2GB 남음** (17:05 KST) — 그래서 첫 일이 정리다
-
-### 📊 결정용 보고서 (먼저 읽을 것)
-
-**<https://claude.ai/code/artifact/ad6208ec-285e-4f81-b0ef-da4f69a14060>**
-
-요약/결정 8건/상세/할 일/히스토리 5탭. 코딩 지식 없이도 읽히게 썼다. 다른 세션이
-**작업 결정을 내리는 근거**로 쓰라고 Simon 이 지시했다(09-13 17:0x). 메모 사이드바의
-`[메모 → 프롬프트 복사]` 가 회신 프롬프트를 조립해 준다.
-
----
-
-### 첫 작업 — 디스크 정리 (Simon 지시, 09-13 17:0x)
-
-> *"현재 작업중인 codex 세션을 제외하고서는 모두 정리해서 하드의 용량을 정리하는 작업부터 시작하게 하자."*
-
-### 실측 (2026-09-13 17:05 KST · 워크트리 121개)
-
-| 분류 | 개수 | 크기 | 처분 |
-|---|---|---|---|
-| **dirty>0 또는 unpushed>0** | 40 | 53.9 GB | ⛔ **지우면 사라진다** |
-| dirty=0 · unpushed=0 | 81 | 12.8 GB | 후보 — 단 아래 예외 |
-| 그중 `security-*` 계열 | 65 | — | ⛔ **소유자가 보안담당이다** |
-| **진짜 정리 가능** | **16** | **~2.5 GB** | 아래 목록 |
-
-`node_modules` 는 121개 중 **105개가 이미 정션**이라 잘 관리돼 있다. 실물은 7개뿐이고
-그중 6개가 회수 대상(**~6 GB**) — 정본 `E:/2ndB/node_modules` 는 **남겨야 한다**(모두가 이걸 가리킨다).
-
-```
-실물 node_modules 7개:
-  E:/2ndB                                     ← 정본. 건드리지 말 것
-  C:/Users/202502/orca/workspaces/2ndB/Design ← Orca 워크스페이스. 소유자 확인 후
-  .worktrees/2ndB/TTL-Work                    ← dirty 771 (구제 완료, 아래 참조)
-  .worktrees/2ndB/pixelclay-260905            ← clean
-  .worktrees/2ndB/vibe-native-prep-260906     ← clean · 572.8MB 로 최대
-  .worktrees/runbook-1749                     ← clean
-  .worktrees/security-static-supply-fix2-260913 ← unpush 35 ⛔
-```
-
-### ⛔ 지우기 전에 반드시 — 순서를 지킬 것
-
-**2026-09-13 에 TTL-Work 하나에서만 미커밋 771건이 나왔고, 기록은 "남은 워크트리 0"이라
-적고 있었다.** 목록 없이 지우면 그게 반복된다.
-
-```
-① 조사   python "E:/Coding Infra/_rescue/tools/survey_worktrees.py"   (읽기만 · 121개 전수)
-② 구제   dirty>0 또는 unpushed>0 인 것은 먼저 스냅샷 (아래 절차)
-③ 삭제   ①②를 통과한 것만
-```
-
-**구제 절차** (TTL-Work 에 실제로 쓴 것 — 재사용 가능):
-
-```bash
-# 공유 워크트리에서는 git add/commit/checkout/stash/clean 을 쓰지 않는다.
-# 통째로 뜨려면: python "E:/Coding Infra/_rescue/tools/rescue_ttlwork.py" (SRC 만 바꾼다)
-git -C <worktree> diff HEAD --binary > <dest>/tracked.patch
-git -C <worktree> status --porcelain | grep '^?? ' | sed 's/^?? //' \
-  | grep -vE '^(Output/|node_modules|dist/|\.expo/)' > /tmp/untracked.txt
-tar -C <worktree> -cf <dest>/untracked.tar -T /tmp/untracked.txt
-# 전후로 dirty 개수가 같은지 확인한다
-```
-
-**삭제 절차** — `git worktree remove --force` 를 **쓰지 않는다**:
-
-```bash
-# 정션을 먼저 끊는다. 안 끊으면 정션을 따라가 공용 node_modules 를 지운다(전례 있음)
-cmd /c rmdir "E:\2ndB\.worktrees\<name>\node_modules"      # 정션이면 rmdir
-git -C E:/2ndB worktree remove .worktrees/<name>            # --force 없이
-git -C E:/2ndB worktree prune
-```
-
-### 건드리면 안 되는 것 — 실측 근거
-
-| 무엇 | 왜 |
-|---|---|
-| **`security-*` 워크트리 99개** | 09-13 09:00 에 Simon 이 **보안 담당에게 직접 이관**했다. 브랜치 처분·머지·삭제 금지. **33개에 미푸시 커밋이 있고 최대 101개**다 |
-| **지금 작업 중인 것** | 09-13 16:58·16:41·16:28 에 커밋이 찍혔다. 17:05 기준 **최근 6시간 안에 커밋된 워크트리가 36개** — 살아 있다 |
-| **codex 세션** | 프로세스 8개 가동 중(CPU 113s·110s·58s·25s). Simon 이 명시적으로 제외하라고 했다 |
-| **`E:/2ndB/node_modules`** | 정본. 105개 워크트리가 이걸 가리킨다 |
-| **스태시 22개** | 공유다. 내용 미평가 상태로 넘겨져 있다. `git stash drop` 금지 |
-
-### 이미 구제해 둔 것 — 다시 뜨지 말 것
-
-```
-E:/Coding Infra/_rescue/ttl-work-260913-1554/
-  tracked.patch    3,966,891 B   수정 577파일 (audit-write-outbox 725줄 재작성본 포함)
-  untracked.tar  140,789,760 B   951파일 (docs/quality 34 포함)
-  README.md · status.txt
-기준 HEAD bcd051ae · origin/main ebf7a04a (당시)
-```
-
-⚠ `tar -tf` 가 셸에서 **0건**을 낸다(경로에 공백). 빈 아카이브가 **아니다** — python 으로 951파일 확인했다.
-⚠ tar 만 보면 절반을 놓친다. **추적 파일 수정분은 patch 쪽**에 있다.
-⚠ 저장소 **밖**에 뒀다 — 앞선 백업 둘(`.worktrees/_backup/ttl-work-260907-*`)은 워크트리 안이라
-정리하면 **백업까지 같이 사라진다.**
-
-**TTL-Work 는 이제 지워도 되는가?** 구제본은 떴지만 **처분 판단은 안 했다.** 771건 중
-무엇이 완성이고 무엇이 폐기인지는 각 작업의 소유자만 안다. **지우기 전에 소유자 확인.**
-(단 구제본이 있으므로 잘못 지워도 복구 가능하다 — 그게 이 스냅샷의 목적이다.)
-
----
-
-### 그다음 — 에뮬레이터로 화면 검증 (Simon 지시)
-
-> *"아이폰, 안드로이드 폰 에뮬레이터를 적극 이용해서 화면 검증까지 할수 있게"*
-
-### 안드로이드 — **된다. 지금 붙어 있다**
-
-```
-adb devices        → emulator-5554  device
-AVD 6개            2ndB_Codex_API36_260727 · 2ndB_Codex_Debug_API36_260831
-                   2ndB_Codex_Release_API36_260902 · 2ndB_Copy_260906
-                   2ndB_QA_009 · Pixel_9_Pro_XL
-SDK                C:\Users\202502\AppData\Local\Android\Sdk
-앱 id              com.simonk.secondbrain
-```
-
-⚠ **17:12 KST 에 `adb shell` 이 응답하지 않았다**(120초 초과). `adb devices` 는 `device` 로
-보이는데 셸이 안 열린다 = **에뮬이 5일째 떠 있어서 굳었을 가능성**. 첫 명령이 걸리면
-에뮬을 재시작하고 시작할 것:
-
-```bash
-adb -s emulator-5554 emu kill
-emulator -avd Pixel_9_Pro_XL -no-snapshot-load &   # 또는 2ndB_QA_009
-adb wait-for-device && adb shell getprop sys.boot_completed   # 1 이 나올 때까지
-```
-
-⚠ **arm64 전용 출시 APK 는 x86_64 에뮬에서 안 돈다.** 에뮬용은 `preview-emulator`
-프로필로 따로 빌드한다(`eas.json` 에 있다). 이 함정으로 "에뮬 QA 불가"라고 한 달간
-잘못 적혀 있었다 — 09-08 에 정정됐다.
-
-### 아이폰 — **이 기계에서는 시뮬레이터가 불가능하다. 솔직히 적는다**
-
-```
-uname -s   MINGW64_NT-10.0-26200     (Windows)
-xcrun      없음
-simctl     없음
-```
-
-iOS 시뮬레이터는 **macOS + Xcode 가 있어야만** 돈다. 이 기계에는 없다.
-"아이폰 에뮬레이터로 검증하라"는 지시를 그대로 실행할 방법이 없으므로, **대신 쓸 수 있는
-셋을 순서대로** 적는다:
-
-| | 방법 | 무엇이 검증되나 | 필요한 것 |
-|---|---|---|---|
-| ① | **실기 iPhone + Expo dev client** (`npx expo start`, 같은 LAN 에서 QR) | 진짜 iOS 런타임·제스처·안전영역 전부 | Simon 의 iPhone 1대. **가장 빠르다** |
-| ② | **EAS Build → TestFlight** | 실제 배포본과 같은 빌드 | Apple 계정 동작. 설정은 이미 있다 — `ascAppId 6792266942` · `appleTeamId 7CP84WS5C6` (`eas.json` submit.production) |
-| ③ | **웹을 iPhone 뷰포트로** (Playwright/CDP, 390×844 등) | 레이아웃·잘림·대비만. **iOS 런타임은 아니다** | 없음. 지금 바로 가능 |
-
-⚠ `eas.json` 에 **`ios-simulator` 빌드 프로필이 있다** — 그건 EAS 의 macOS 머신에서
-*빌드*는 되지만 **여기서 *실행*은 안 된다.** 프로필이 있다고 "여기서 된다"로 읽지 말 것.
-
-**권고**: ③으로 레이아웃을 먼저 훑고(비용 0), 진짜 판정이 필요한 화면만 ① 또는 ②로 올린다.
-
-### 화면 검증에서 먼저 볼 것 — 근거 있는 후보
-
-| 화면 | 무엇을 볼 것 | 근거 |
-|---|---|---|
-| 온보딩 Continue 직후 | **백지 + 강제 종료**(3회 중 2회, 자력 복구 없음) | Fabric `addViewAt … View already has a parent` → ReactHost 파괴. 기전 확정·컴포넌트 미확정. 09-08 이후 main 에 관련 커밋 0건 |
-| `/account` · `/data` | 프로필 프로브 8초 타임아웃 시 **재시도 없는 스피너** | `account.tsx:43-53` · `data.tsx:149` 에 `onRetry` 0건. 대조군 `dds-audit-screen.tsx:289-296` 에는 있다 |
-| `/privacy` | 안심 문구가 **안 보이는 것이 맞는지** 눈으로 | 승인된 5개 언어 문구가 번들에 있는데 `PrivacyLegacy()` 분기라 배포 4곳 전부 안 탄다 |
-| 영어 담기 실패 | 안내가 **화면에 없는 버튼 이름**을 부른다 | `en.keepToWiki`="Save to wiki" vs `en.keepFailed`="tap **Keep to wiki**" |
-| 홈 별 라벨(영어) | "Thirties and after" 잘림 | `ConstellationHome` 라벨 `numberOfLines={1}` + 폭 80px 고정. 한국어는 안 남 |
-| OAuth 로그인 5종 | **#1800 머지의 실제 게이트** | 소셜 5종 통과를 확인해야 PKCE 를 넣는다. 되돌리기가 "PR revert" 가 아니라 설치된 앱의 로그인이다 |
-
----
-
-### 다음 작업 큐
-
-| # | 작업 | 크기 | 권장 |
-|---|---|---|---|
-| A | **디스크 정리** — 조사 → 구제 → 삭제 (위 순서) | M | ⭐ Simon 이 "첫 일"로 지정. 남은 공간이 23GB 다 |
-| B | **에뮬레이터 화면 검증** — 안드로이드부터, iPhone 은 ①③ 경로 | M | ⭐ 위 6개 후보에 근거가 다 붙어 있다 |
-| C | 구제본 771건 **처분**(완성/폐기 가르기) | L | 유일본이다. 소유자 확인 필요 |
-| D | 배송 홈이 `highlightRecordId` 를 읽게 | M | Simon 이 "받는 쪽부터"로 순서 지정. 되살리기 큐 전체의 선행 |
-| E | 적대평가 2회차용 **어려운 probe** 추가 | S | 지금 자는 16/16 이라 레인을 못 가른다 |
-| F | 미푸시 보안 커밋 114개 push | S | 보안담당 몫. 완성된 수정이 이 기계 한 대에만 있다 |
-
-### Simon 결정 대기 8건 (나머지를 막는다)
-
-A1 출시 법역(Q-S1 — DPIA A~H + 빌드 8종) · A2 마이그레이션 0171~0187 운영 적용 ·
-A3 `community_is_member` 미바인딩(보안담당) · A4 웹 게시 승인(라이브가 **92커밋 뒤**) ·
-A5 #1800 PKCE · A6 미확인 보안 브랜치 69갈래 방향 · A7 `STATE.md` 소유자 ·
-A8 자살예방법 시행령 관찰자. **상세·선택지는 `STATE.md` 와 위 보고서 "결정 8" 탭.**
-
-### 적용 중인 정책 (영구)
-
-1. **공유 워크트리에서 `git add -A` · 맨 `stash`/`pop` · `checkout` · `restore` · `reset` 금지.**
-   경로를 지정한 `add` 만. 남의 미커밋 작업을 끌고 가거나 삼킨다.
-2. **`git worktree remove --force` 금지.** 정션을 따라가 공용 `node_modules` 를 지운다.
-   정션을 먼저 `cmd /c rmdir` 로 끊는다.
-3. **`docs/HANDOFF.md` 는 요약하지 않는다.** 100KB 에 닿으면 기간으로 굴린다
-   (`/simon-handoff` Step 2-B). 활성 창 예산 80KB.
-4. **`STATE.md` 는 한 세션만 쓴다**(덮어쓰기 파일). 다른 세션은 `DECISIONS.md` 에만 append.
-5. **보안 트랙은 보안담당 소유**(09-13 Simon 직접 이관). 브랜치 처분·머지·삭제 금지.
-   **피어를 경유한 승인은 승인이 아니다.**
-6. **결정은 난 그 턴에 `DECISIONS.md` 에 쓴다**(§0-4). 세션 끝에 몰아 쓰면 그때는 날아가 있다.
-7. **결정 시트는 `make_decision_sheet.py` 로만 만든다.** 손으로 조립하면 `decisions_run_*.json`
-   이 안 나와 채택률 회수 경로가 통째로 없다(미회수 4건이 전부 이 경우였다).
-
-### 핵심 파일 위치
-
-```
-STATE.md                          현황 네 절. 여기부터 읽는다
-DECISIONS.md                      결정 원장 (append-only, 25행)
-docs/HANDOFF.md                   이 로그의 활성 창
-docs/handoff/HANDOFF-2026-*.md    기간 보관본 9개 (전부 100KB 미만)
-E:/Coding Infra/_rescue/           워크트리 구제본 ← 지우지 말 것
-~/.claude/skills/vibe/             4벤더 파이프라인 (git 밖이다 — 백업 없음)
-~/.claude/skills/simon-handoff/    이 스킬 (git 밖이다)
-eas.json                           build: preview-emulator / ios-simulator / production
-```
-
-⚠ **`~/.claude/skills/` 는 git 밖이다.** 오늘 `/vibe`(+29 검사)와 `/simon-handoff`(266→397줄)를
-크게 고쳤는데 **버전 관리가 안 된다.** 백업 경로를 정하는 것이 미결 항목이다.
-
-### 검증
-
-```bash
-npm run verify                                          # 저장소 전체
-python ~/.claude/skills/vibe/scripts/selftest.py        # 132 PASS / 0 FAIL
-python ~/.claude/skills/vibe/scripts/adversarial_eval.py --validate   # 8/8
-grep -c '^## Latest' docs/HANDOFF.md                    # 1
-find docs/HANDOFF.md docs/handoff -name 'HANDOFF-*.md' -size +100k    # 0건
-adb devices                                             # emulator-5554 device
-```
-
-### 다음 세션 시작하는 법
-
-```bash
-# 1) 새 워크트리에서 (공유 워크트리에 들어가지 말 것)
-git -C E:/2ndB worktree add .worktrees/<내이름>-260914 -b claude/<주제>-260914 origin/main
-cd E:/2ndB/.worktrees/<내이름>-260914
-cmd //c mklink /J node_modules E:\2ndB\node_modules      # 정션. 실물 복사 금지
-
-# 2) 읽기 순서
-cat STATE.md ; cat docs/HANDOFF.md ; tail -30 DECISIONS.md
-# 결정 근거는 보고서: https://claude.ai/code/artifact/ad6208ec-285e-4f81-b0ef-da4f69a14060
-
-# 3) A 작업(디스크 정리)부터 — 조사 → 구제 → 삭제 순서를 지킬 것
-```
-
----
-## 2026-09-13 / 감사 두 번을 돌렸더니, 기록이 "0"이라 적은 자리에 771건이 있었다
-
-### 어디까지 왔나
-- main HEAD: `ebf7a04a` (이 블록을 쓰는 시점)
-- 이번 세션 머지된 PR: **#1801** docs(handoff): 732KB 로그를 기간 파일로 분할
-- 열린 PR: **#1800**(PKCE) 하나 — CI 3/3 초록, 머지 조건이 코드리뷰가 아니라 **에뮬 검증**인데 담당이 없다
-- 검사: `/vibe` selftest **132 PASS / 0 FAIL**(103 → 132, 적대평가 검사 29개 추가)
-
-### 무엇을 했나
-
-**① `docs/HANDOFF.md` 가 상한을 7.3배 넘고 있었다 → 기간으로 쪼갰다 (#1801)**
-
-732,210B. 지침 §2 의 단일 파일 상한은 100KB 고, §0-1 이 처분까지 정해뒀다 —
-**"요약하지 말고 기간으로 쪼갠다. 압축은 선택지가 아니다."**
-
-§7 의 예시는 반기(`YYYYHn`)지만 2026-07·08·09 가 각각 226·307·110KB 라 반기로 묶으면
-한 파일이 640KB 가 된다. **예시를 따르면 그 예시가 지키려는 규칙이 깨진다.** 월을 썼고,
-월도 넘치면 부분(`-pN`, p1 이 가장 오래된 쪽)으로 더 쪼갰다. 부분 번호를 오래된 쪽부터
-매기는 이유는 굴림 때 기존 파일 이름이 안 밀리게 하려는 것이다.
-
-무손실은 git 오브젝트 수준에서 확인했다 — **137블록 → 137블록 · 소실 0 · 추가 0**,
-제목 변경 2건(Latest 강등·승격)뿐. 재정렬도 중복 제거도 안 했다. 이 로그에는 날짜 역순이
-아닌 자리가 실제로 있고 그것도 기록이며, **원본부터 완전히 같은 본문이 두 번 있는 블록**이
-있어서 무손실 검증은 유일성이 아니라 **개수 보존**으로 해야 했다.
-
-곁가지: `## Latest` 가 **2026-09-06 블록**에 붙어 있었고 그 위에 09-13 블록이 **넷** 있었다.
-규약대로 Latest 를 찾는 세션은 일주일 낡은 판을 최신 현황으로 읽었다. 강등 규칙은 스킬에
-처음부터 있었다 — **없던 것은 검사였다.** `/simon-handoff` 에 Step 2-C 로 넣었다.
-
-**② `/vibe` 적대평가가 껍데기였다 → 메우고 돌렸다**
-
-지난 라운드에 "만들었다"고 보고한 것의 두 곳이 비어 있었다:
-- `--run` 이 "아직 수동 단계다"만 찍고 끝났다 — 실행 코드가 없었다
-- `truth_post` 가 **선언만 있고 구현이 없었다** — 세는 문제에 파일 목록이 정답으로 들어가고,
-  부재 확인 문제는 `cat-file -e` 의 종료코드 1 이 "정답 생성 실패"로 처리돼 **없는 파일을
-  확인하는 문제인데 파일이 없다는 사실이 오류가 됐다.**
-
-지금은 8 probe 전부 기계로 정답이 나오고(`8/8 통과`), 손으로 박아둔 정답 `manual:` 둘은
-생성기(`eval/truth/*.py`)로 바꿨다 — 핀은 저장소가 바뀌어도 안 바뀌니 언젠가 반드시 거짓이
-되고, 그때 평가가 **조용히 거꾸로 채점한다.**
-
-1회차를 라이브로 돌렸다(`ae_260913_144139`): 8 probe · 24 호출 · 원장 16행 · **16/16 정답** ·
-G10 위반 0. ⚠ **이건 좋은 결과가 아니다** — 전 레인이 다 맞혔다는 건 이 자가 레인을 못
-가른다는 뜻이다. 사람이 매번 알아채길 기대하지 않게 `--report` 가 직접 말하게 했다.
-
-실행 경로는 **Orca 워커가 아니라 벤더 CLI 직행**이다(`claude -p` · `codex exec` ·
-`agy --print` · `grok -p`). 그래서 라우팅 표의 "grok·gemini 는 effort 지정 불가"가 여기에는
-해당하지 않는다 — 그건 Orca 가 `--model` 을 거부한다는 뜻이고 CLI 에는 둘 다 있다.
-**이 사실로 표를 고치지 말 것. 표는 워커 경로를 적는다.**
-
-프리플라이트에서 벤더 둘이 죽어 있었다: **grok 402(잔액 소진)** · gemini 단독 CLI 는
-`IneligibleTierError`(→ `agy` 로만 닿는다). **쿼터 %로는 둘 다 여유 있어 보인다** —
-못 쓰는 이유가 쿼터가 아니기 때문이다. 가드 **G12** 로 박았다.
-
-**③ 감사 두 번 — 1차가 빠뜨린 축을 2차가 메웠다**
-
-1차(서브에이전트 24): 세션 8개 + 횡단 6종 → 182건 수집 → 적대 검증 → 마스터 TODO.
-완결성 비판이 1차의 구멍을 잡았다 — **세션간 대화 528건(발신 20세션)과 Simon 프롬프트
-원장 1,223행을 통째로 안 훑었다.** Simon 이 명시적으로 요구한 축인데 셋 중 '결정'만 봤다.
-
-2차(서브에이전트 12)에서 **소실 임박 6건이 나왔다. 1차에는 하나도 없었다.**
-
-### ⛔ 지금 가장 위험한 것 — 기록이 "0"이라 적은 자리
-
-```
-공유 워크트리 TTL-Work:  수정 575 · 미추적 196(132.7MB) · 스태시 22   @09-13 15:54 KST
-docs/HANDOFF.md 서술:    "미push 커밋 0, 남은 워크트리 0"
-```
-
-그 기록을 믿고 정리하면 사라지는 것 — `audit-write-outbox.ts` **725줄 재작성본**(main 과 다른 판) ·
-`purge-local-data.ts`(main 에 부재, 계정 삭제 영수증 경로) · Round21 회귀 310줄 ·
-`docs/quality/` 33파일 36MB(품질 회차 195발견의 **유일한 재현 근거**) ·
-`SignInStorageRecoveryCard.tsx` · `batches.json`.
-
-**구제 스냅샷을 떴다. 판단 없이 보존만 했다:**
-
-```
-E:/Coding Infra/_rescue/ttl-work-260913-1554/
-  tracked.patch    3,966,891 B   수정 577파일 (725줄 재작성본은 여기)
-  untracked.tar  140,789,760 B   951파일 (docs/quality 34 포함)
-  README.md · status.txt
-```
-
-`git add`·`commit`·`checkout`·`stash`·`clean` 을 **하나도 쓰지 않았다** — 공유 워크트리라
-인덱스를 건드리면 다른 세션의 작업을 갈아탄다. 스냅샷 전후로 `196 / 575` 가 그대로임을 확인했다.
-
-⚠ 저장소 **밖**에 뒀다. 앞선 백업 둘(`.worktrees/_backup/ttl-work-260907-*`)은 워크트리 안에
-있어서 워크트리를 정리하면 백업까지 같이 사라진다.
-⚠ `tar -tf` 가 셸에서 **0건**을 낸다(경로에 공백). 빈 아카이브가 아니다 — python 으로 확인할 것.
-
-**남은 일은 보존이 아니라 처분이다.** 어느 것이 완성이고 어느 것이 폐기인지는 각 작업의
-소유자만 안다. 이 세션은 판단하지 않았다.
-
-### 다음 작업 큐
-
-| # | 작업 | 크기 | 권장 |
-|---|---|---|---|
-| A | **구제 스냅샷 771건 처분** — 소유자별로 완성/폐기를 가른다 | L | ⭐ 유일본이고 되돌릴 수 없다 |
-| B | P1 — 배송 홈이 `highlightRecordId` 를 읽게 | M | Simon 이 "받는 쪽부터"로 순서 지정 |
-| C | 적대평가 2회차용 **어려운 probe** 추가 | S | 지금 자는 16/16 이라 아무것도 못 가른다 |
-| D | 기록 정정 4건(아래 "기록이 사실과 다른 것") | S | 다음 세션의 헛수고를 막는다 |
-
-### Simon 결정 대기 8건
-
-A1 출시 법역(Q-S1, DPIA A~H + 빌드 8종을 막음) · A2 마이그레이션 0171~0187 운영 적용 ·
-A3 `community_is_member` 미바인딩(보안담당) · A4 웹 게시 승인(라이브가 **92커밋 뒤**) ·
-A5 PR #1800 PKCE · A6 미확인 보안 브랜치 69갈래 방향 · A7 `STATE.md` 소유자 ·
-A8 자살예방법 시행령 관찰자. 상세는 `STATE.md`.
-
-### 기록이 사실과 다른 것 — 다음 세션이 헛수고하지 않도록
-
-- 활성 창이 **0148·0149·0150 을 "적용 대기"** 로 적는다 → 운영 적용 완료(09-07 20:07~20:11 UTC).
-- 이 워크트리의 `CLAUDE.md` 는 웹 배포를 **gh-pages** 라 적는다 → main 은 `actions/deploy-pages`(#1657).
-  여기서 시작하는 세션이 낡은 쪽을 프로젝트 지침으로 읽는다.
-- `docs/WEB-PUBLISH-RUNBOOK.md` 가 게시 재현성을 **"Simon 확인 사항"** 으로 남긴다 → D4 로 닫혔고 #1795 가 고쳤다.
-- `docs/handoff/HANDOFF-2026-08-p4.md:1348` 이 `auth.uid()` 없는 함수 **"0건 · 수정 불요"** 라
-  적는다 → 같은 문단이 반례를 이름으로 적고 있다(A3).
-
-### 검증
-```bash
-npm run verify                                   # 저장소
-python ~/.claude/skills/vibe/scripts/selftest.py # 132 PASS / 0 FAIL
-grep -c '^## Latest' docs/HANDOFF.md             # 1
-find docs/HANDOFF.md docs/handoff -name 'HANDOFF-*.md' -size +100k   # 0건
-```
-
-### 다음 세션 시작하는 법
-```bash
-git fetch origin main && git pull origin main
-cat STATE.md          # 현황 — 여기부터
-cat docs/HANDOFF.md   # 이 블록
-tail -30 DECISIONS.md # 오늘 결정 5줄
-```
-
----
-
-## 2026-09-13 / 빌드가 재현되지 않아 게시가 반반이었다 — 고쳤다 (#1795)
-
-> 발행: Claude Code (워크트리 `font-holes-260906`, 기준 main `af5ede12` → `361d8280`).
-> 이 세션은 결정 시트 260913 의 Simon 회신 8건을 집행하던 중 워크트리 이관 지시로 닫힌다.
-
-### 무엇을 고쳤나
-
-웹 게시 게이트는 **승인한 digest** 와 **방금 빌드한 digest** 를 대조한다. 그 대조는 빌드가
-재현된다는 전제 위에 서 있었는데, 재현되지 않았다. 같은 커밋의 push 빌드를 `gh run rerun`
-으로 다시 돌리면 digest 가 달라졌고, 두 산출물(351파일)을 풀어 보니 모든 JS 청크 해시가
-달랐다. 39바이트짜리 청크가 원인을 그대로 보여줬다:
-
-```
-빌드 A:  __d(function(g,r,i,a,m,e,d){},3496,[]);
-빌드 B:  __d(function(g,r,i,a,m,e,d){},2375,[]);
-```
-
-Metro 기본 id 팩토리는 **순번 카운터**다 — id 가 "어느 모듈인가"가 아니라 **"언제 닿였는가"**
-를 담고, 그래프 순회는 워커 프로세스에 흩어져 돈다.
-
-**배출 순서도 같은 것에 매달려 있었다.** 두 직렬화기가 모듈을 id 로 정렬하는데
-(`metro/.../baseJSBundle.js:38`, `@expo/metro-config/.../serializeChunks.js:getSortedModules`)
-**id 를 순회 순서로 매긴 다음** 정렬하므로 정렬이 무의미했다. 그래서 id 를 경로에 고정하면
-**id 와 순서가 한 번에** 잡힌다 — 정렬이 드디어 순회와 무관한 기준을 갖는다.
-
-`metro-module-id.js` 가 프로젝트 루트 기준 **상대 경로**를 해시한다(31비트, 충돌 시 두 경로를
-이름으로 대며 throw). 상대 경로인 이유는 같은 커밋이 CI 러너·정본·워크트리 십여 개에서,
-Windows 와 Linux 양쪽에서 빌드되기 때문이다.
-
-### ⚠ 지문 소스 여부는 추측하지 말고 이 값으로 볼 것
-
-```
-@expo/fingerprint 0.19.5 · platform android · 소스 190개 (file 119 / dir 66 / contents 5)
-루트 소스: .easignore .gitignore android assets/images/*4
-           config-plugins/withAndroidAbiFilter.js eas.json google-services.json patches
-contents:  expoAutolinkingConfig:android expoConfig package:react-native
-           packageJson:scripts rncoreAutolinkingConfig:android
-metro.config.js  없음        babel.config.js  없음
-```
-
-즉 `metro.config.js` 는 **지문 소스가 아니다.** 런타임 버전이 안 움직이므로 설치된 빌드의
-OTA 호환이 깨지지 않는다. 청크 해시는 한 번 전부 바뀌고, 웹 export 는 내용 주소라 흡수한다.
-
-### 낡아 있던 서술 6건 (기억으로 그리면 안 되는 이유)
-
-5일 만에 목록을 다시 재니 여섯이 이미 끝나 있었다.
-
-| 미결이라고 적혀 있던 것 | 실측 |
-|---|---|
-| 엣지 함수 9개 배포 | **완료** — 09-07 13:07 에 8건 + 이후 2건, 전부 success |
-| 항목 4 og:image 절대 주소 | **해결** — 라이브 HTML 에 존재 |
-| 동의 스택 6건(#1587~#1593) | **종결** — #1589 머지, 5건 클로즈 |
-| 초안 PR 25개(Q-260906-02) | **종결** — 열린 PR 0건 |
-| `0188` 운영 적용 필요 | **이미 적용됨** — `raw_clippings_owner_insert`/`update` 에 존재 검사가 붙어 있다 |
-| 고아 객체 정리 필요 | **고아 0건** — 버킷 1개 · 객체 3개 · 240B, 전부 실재 사용자 |
-
-`export-delivery.ts`·`export-session.ts` 도 main 에 있다(테스트까지). "어느 ref 에도 없는
-유일본" 서술은 낡았다.
-
-### 남긴 것 (다음 워크트리)
-
-`DECISIONS.md` 의 "결정 시트 260913" 절에 Simon 회신 8건과 그중 무엇이 이미 닫혔는지가
-전부 있다. 실행 대기는 넷이다.
-
-1. **게시** — D4 가 고쳐졌으니 이제 정적에 덜 의존한다. 머지 후 push 빌드를 `gh run rerun`
-   해서 digest 가 같은지 **먼저 확인**할 것. 그게 재현성의 진짜 증명이고, 애초에 결함을 잡은 방법이다.
-2. **D3 HANDOFF 기간 분할** — 승인됐다. 단 **여러 세션이 prepend 중이 아닐 때** 할 것.
-3. **D7 정리 묶음 6건** — 기본값 승인됨. 파일 삭제 건은 실행 직전 목록 재확인.
-4. **D6 en 라운드 착지** — 회귀 2건 제외. 태그 `haeyo-5lang-snapshot`.
-5. **D5 MFDS 고객센터 문의** — 로그인 필요. CLI 가 대리하지 않는다(§7). §4 작업 카드 몫.
-
-### ⚠ `STATE.md` 는 덮어쓰기 파일인데 쓰는 세션이 여럿이다
-
-지침 §0-1 이 경고한 그대로다 — 두 번째 쓰기가 첫 번째를 지운다. 지금 소유자는
-`runbook-260907` 세션이고, 이 세션은 **건드리지 않았다.** 병렬 세션은 append-only 인
-`DECISIONS.md` 에만 쓰는 것이 안전하다.
-
-
-## 2026-09-13 / 레거시 은퇴가 되살리기로 방향을 바꿨다 — 그리고 Phase 1 이 배송에서 끊겨 있었다
-
-**이 워크트리(`runbook-260907`)는 여기서 닫는다**(Simon 지시). 내 브랜치는 전부 origin 에
-있다(미푸시 0). 상태는 `STATE.md`, 결정은 `DECISIONS.md` 가 갖는다 — 여기 중복해 적지 않는다.
-
-### 한 줄
-
-가져온 자료를 읽어 요약과 되새김 질문 넷을 만드는 단계(**Phase 1**)에 **배송 호출부가 0건**
-이었다. 코드는 전부 있었고, 검사도 전부 초록이었다.
-
-### 왜 아무도 못 봤나 — 네 겹이 겹쳤다
-
-```
-runPhase1 호출부        2곳, 둘 다 죽은 반쪽 안 (src/app/inbox.tsx:452 · src/app/wiki.tsx:318)
-배송 megafile          listSources · generateSourcePage · runPhase1 을 import 만 하고 안 씀
-eslint no-unused-vars  "warn" 이라 CI 가 안 섬
-/import 화면 주석       "imported notes land in the inbox for Phase 1/2 later ($0)"
-                       — 그 "나중" 이 오지 않았다
-```
-
-**Phase 2(위키 페이지 만들기)는 멀쩡했다** — 기록 상세와 자동 승격에서 부른다. 끊긴 것은
-읽는 단계 하나뿐이다. 그래서 "AI 가 내 자료로 아무것도 안 한다"와 "코드는 다 있다"가 동시에
-참이었다.
-
-### 고친 것 (#1796)
-
-`/sources` 신설 — 미리보기 펼치기 · 요약과 질문 넷 만들기/보기 · 위키 페이지 만들기.
-알림 허브에는 **한 줄 신호**만 얹고 누르면 화면 전환한다(목록을 허브에 넣으면 145줄 허브가
-858줄 목록이 된다 — 화면 하나에 메시지 하나 · O-7).
-
-`/wiki?focusSourceId=` 점프는 **일부러 안 넣었다.** 배송 위키는 `focusPageId` 를 읽어서 그
-파라미터는 받는 사람이 없다(#1782 이 고아 파라미터 셋 중 하나로 기록). 받는 쪽을 먼저 만든
-뒤에 잇는다.
-
-새 검사 `src/lib/wiki/__tests__/phase1-has-a-shipping-caller.test.ts` 가 이 구멍을 지킨다.
-쓰다가 **매달린 import 를 일곱 개 더** 찾았다 — 손으로 셋, 검사가 일곱, 한 파일에 열.
-**손으로 세면 늘 모자란다.** 변이 검증 7/7(물어야 할 넷은 물고, 자기 산문·로그 문자열·주석
-셋은 안 흔들린다).
-
-### 방향이 바뀌었다 — 은퇴 중단, 되살리기 집중 (Simon 결정 Q10)
-
-Q3 에서 `capture`(4,636줄)를 다음 은퇴 묶음으로 골랐는데 **전제가 반증됐다. capture 는
-배송된다** — `capture-full.tsx:6,14,18` 이 두 트랙 모두에서 `CaptureLegacy` 를 그리고,
-Web Share Target 이 `/capture` 로 들어온다. 이름의 `Legacy` 는 **트랙 이름이지 상태가 아니다**
-(`formats.tsx` 에서 한 번, 여기서 또 한 번 걸렸다).
-
-→ **은퇴 후보를 줄 수로 고르지 말 것.** 가장 큰 파일이 가장 살아 있었다.
-
-남은 죽은 핀 37(`wiki` 29 · `inbox` 8)은 은퇴가 아니라 **되살리기로** 해소된다. 배송 화면이
-계약을 갖게 되면 검사가 그쪽을 가리킨다.
-
-### 이미 끝나 있던 것 — `/ops`
-
-Q4 가 "인용 갱신 후 은퇴를 이어간다" 였는데 **09-08 에 이미 끝났다.** `src/app/ops.tsx` 는
-12줄 래퍼고 레거시 반쪽이 없으며 `legacy/screens/ops.tsx` 로 나갔다. DPIA 인용도 그때
-재조준됐다(`dpia-crisis-rail-anchors.test.ts:147`). **다시 파지 말 것.**
-
-### 다음 사람에게 (순서는 `STATE.md` 가 정본)
-
-1. **P1 — 배송 홈이 `highlightRecordId` 를 읽게 한다.** 보내는 곳 둘, 읽는 곳은 아카이브된
-   홈뿐이다. Simon 이 "받는 쪽부터" 로 순서를 지정했다.
-2. Q11 — `/import` 붙여넣기 상자 + 우리 분류기(Simon "둘 다"). `$0` 주석은 #1796 에서 이미
-   정정했다. 붙여넣은 것도 소스가 되니 `/sources` 가 그대로 받는다.
-3. P2 `/data` 묶음(Q8 + Q7③) → P3 위키 삭제·검색·지표(Q7 ①②④) → P4 기록 상세 셋(Q6 ①②③).
-
-### ⚠ 이 파일이 708KB 다
-
-9,378줄. 지침의 100KB 상한을 7배 넘겼다. **요약하지 말고 기간으로 쪼갤 것**
-(`docs/handoff/HANDOFF-2026H2.md`). 워크트리를 닫는 중에 즉흥으로 할 일이 아니라 손대지
-않았다 — 새 워크트리의 첫 작업 후보다.

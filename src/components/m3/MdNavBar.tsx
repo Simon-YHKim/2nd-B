@@ -26,12 +26,27 @@ export interface MdNavBarProps {
   active: string;
   onSelect: (key: string) => void;
   bottomInset?: number;
+  buttonLike?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
-export function MdNavBar({ items, active, onSelect, bottomInset = 0, style }: MdNavBarProps) {
+export function MdNavBar({
+  items,
+  active,
+  onSelect,
+  bottomInset = 0,
+  buttonLike = false,
+  style,
+}: MdNavBarProps) {
   return (
-    <View style={[styles.bar, { paddingBottom: m3.spacing.s2 + bottomInset }, style]}>
+    <View
+      style={[
+        styles.bar,
+        buttonLike && styles.buttonBar,
+        { paddingBottom: m3.spacing.s2 + bottomInset },
+        style,
+      ]}
+    >
       {items.map((item) => {
         const on = item.key === active;
         const pillBg = item.center ? m3.color.tertiaryContainer : m3.color.secondaryContainer;
@@ -43,7 +58,14 @@ export function MdNavBar({ items, active, onSelect, bottomInset = 0, style }: Md
         // the tab layout lives on a View and the Pressable inside is a plain
         // touch surface with an android_ripple state layer (#698 idiom).
         return (
-          <View key={item.key} style={styles.tab}>
+          <View
+            key={item.key}
+            style={[
+              styles.tab,
+              buttonLike && styles.buttonTab,
+              buttonLike && on && styles.buttonTabActive,
+            ]}
+          >
             <Pressable
               onPress={() => onSelect(item.key)}
               accessibilityRole="tab"
@@ -53,7 +75,13 @@ export function MdNavBar({ items, active, onSelect, bottomInset = 0, style }: Md
               android_ripple={{ color: m3.color.secondaryContainer, borderless: true }}
               style={styles.press}
             >
-              <View style={[styles.indicator, item.center && styles.indicatorCenter, on && { backgroundColor: pillBg }]}>
+              <View
+                style={[
+                  styles.indicator,
+                  item.center && styles.indicatorCenter,
+                  on && { backgroundColor: buttonLike ? undefined : pillBg },
+                ]}
+              >
                 {item.icon(iconColor)}
               </View>
               <Text
@@ -86,7 +114,31 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: m3.color.surfaceVariant,
   },
+  buttonBar: {
+    gap: m3.spacing.s2,
+    paddingTop: m3.spacing.s2,
+  },
   tab: { flex: 1, minHeight: 52, justifyContent: "center" },
+  buttonTab: {
+    minWidth: 0,
+    overflow: "hidden",
+    backgroundColor: m3.color.surfaceContainer,
+    borderTopWidth: m3.spacing.s1,
+    borderLeftWidth: m3.spacing.s1,
+    borderBottomWidth: m3.spacing.s1,
+    borderRightWidth: m3.spacing.s1,
+    borderTopColor: m3.color.surfaceBright,
+    borderLeftColor: m3.color.surfaceBright,
+    borderBottomColor: m3.color.surface,
+    borderRightColor: m3.color.surface,
+  },
+  buttonTabActive: {
+    backgroundColor: m3.color.primaryContainer,
+    borderTopColor: m3.color.surface,
+    borderLeftColor: m3.color.surface,
+    borderBottomColor: m3.color.surfaceBright,
+    borderRightColor: m3.color.surfaceBright,
+  },
   press: { alignItems: "center", gap: m3.spacing.s1, justifyContent: "center", minHeight: 52 },
   indicator: {
     width: 64,

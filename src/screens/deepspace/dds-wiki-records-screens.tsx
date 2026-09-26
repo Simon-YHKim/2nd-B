@@ -11,6 +11,7 @@ import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 import { m3 } from "@/lib/theme/m3";
 import { stripDomainTags } from "@/lib/persona/domain-stars";
+import { loadRoleCards, roleEvidenceIds, type RoleCard } from "@/lib/persona/role-cards";
 import { ddsStyles as styles } from "./dds-styles";
 import { Text } from "@/components/ui/Text";
 // Button / PremiumModal / SecondbHead left with DeepSpaceRecordDetailScreen when
@@ -23,9 +24,8 @@ import { RecordsGraph } from "@/components/deep-space/RecordsGraph";
 import { SegBtn } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
-import { listRecentRecords } from "@/lib/records/create";
-import { buildRecordsGraph } from "@/lib/records/records-graph";
-import { selectRecordsForSafeGraph } from "@/lib/records/records-graph-layout";
+import { listRecentRecords, listRecordsByIds } from "@/lib/records/create";
+import { buildRoleRecordsGraph } from "@/lib/records/records-graph";
 import { listSourcePieces } from "@/lib/records/source-pieces";
 import { getWikiPageById, listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
 import type { WikiPageRow } from "@/lib/wiki/types";
@@ -286,6 +286,9 @@ export function DeepSpaceRecordsScreen() {
     return null;
   }, [tagFilter]);
   const [records, setRecords] = useState<RecordsTimelineRecord[]>([]);
+  const [roleCards, setRoleCards] = useState<RoleCard[]>([]);
+  const [roleEvidenceRecords, setRoleEvidenceRecords] = useState<RecordsTimelineRecord[]>([]);
+  const [roleCardsUserId, setRoleCardsUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   // Bumped to re-run the load: on focus re-entry (useFocusRefetch) and on the
@@ -364,6 +367,28 @@ export function DeepSpaceRecordsScreen() {
   // double-loads on first render.
   useFocusRefetch(() => setReloadKey((k) => k + 1), Boolean(userId));
 
+  useEffect(() => {
+    if (!userId) return;
+    let alive = true;
+    loadRoleCards(userId).then(async (cards) => {
+      const evidence = await listRecordsByIds(userId, roleEvidenceIds(cards)).catch(() => []);
+      if (alive) {
+        setRoleCards(cards);
+        setRoleEvidenceRecords(evidence as RecordsTimelineRecord[]);
+        setRoleCardsUserId(userId);
+      }
+    }).catch(() => {
+      if (alive) {
+        setRoleCards([]);
+        setRoleEvidenceRecords([]);
+        setRoleCardsUserId(userId);
+      }
+    });
+    return () => { alive = false; };
+  }, [userId, reloadKey]);
+  const visibleRoleCards = roleCardsUserId === userId ? roleCards : [];
+  const visibleRoleEvidence = roleCardsUserId === userId ? roleEvidenceRecords : [];
+
   // Stable across renders so the memoized RecordCard's onPress prop does not
   // change (React.memo keeps unchanged rows from re-rendering on filter taps).
   const openRecord = useCallback(
@@ -390,21 +415,24 @@ export function DeepSpaceRecordsScreen() {
     if (typeFilter === "unfiled") return scoped.filter(isUnfiled);
     return scoped.filter((r) => recordType(r) === typeFilter);
   }, [scoped, typeFilter]);
-  const graphRecords = useMemo(() => selectRecordsForSafeGraph(filtered), [filtered]);
-  // D-27 Phase 1b: the map runs on the user's real merged records+sources set.
-  // Build only while graph view is visible, and cap the visual node-set above;
-  // the complete archive remains available in the FlatList.
+  // The second tier now comes from user-approved Polaris role cards. The graph
+  // cites real saved records; unapproved proposals are visible only in Polaris.
+  const graphSourceRecords = useMemo(() => {
+    if (view !== "graph") return [];
+    if (tagFilter.length > 0 || typeFilter !== "all") return filtered;
+    const byId = new Map(filtered.map((record) => [record.id, record]));
+    visibleRoleEvidence.forEach((record) => byId.set(record.id, record));
+    return [...byId.values()];
+  }, [view, tagFilter, typeFilter, filtered, visibleRoleEvidence]);
   const recordsGraph = useMemo(
     () =>
-      buildRecordsGraph(view === "graph" ? graphRecords : [], {
-        locale: isKo ? "ko" : "en",
-        labels: {
-          polaris: t("home:ds.home.polaris"),
-          star: (id) => t(`home:ds.home.domainName.${id}`),
-          untitled: t("deepspace:recordsGraph.untitled"),
-        },
-      }),
-    [graphRecords, isKo, view, t],
+      buildRoleRecordsGraph(
+        graphSourceRecords,
+        visibleRoleCards,
+        isKo ? "ko" : "en",
+        t("home:ds.home.polaris"),
+      ),
+    [graphSourceRecords, visibleRoleCards, isKo, t],
   );
 
   const renderRecord = useCallback(
@@ -422,15 +450,15 @@ export function DeepSpaceRecordsScreen() {
 
   if (authLoading) {
     return (
-      <DeepSpaceScreen active="wiki" header="none">
+      <DeepSpaceScreen active="wiki" header="none" showSharedSky={view === "graph"}>
         <View style={rStyles.centerState}><GraphLoading /></View>
       </DeepSpaceScreen>
     );
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
-  const graphCount = graphRecords.length;
-  const graphCountText = `${graphCount}${graphCount < filtered.length ? ` / ${filtered.length}` : ""} ${t("domains.unit")}`;
+  const graphCount = recordsGraph.nodes.filter((node) => node.kind === "record").length;
+  const graphCountText = `${graphCount}${graphCount < graphSourceRecords.length ? ` / ${graphSourceRecords.length}` : ""} ${t("domains.unit")}`;
 
   // The list header keeps the title, triage, and filters together inside the
   // FlatList. Graph mode uses the compact absolute rail below instead.
@@ -514,7 +542,7 @@ export function DeepSpaceRecordsScreen() {
   );
 
   return (
-    <DeepSpaceScreen active="wiki" header="none">
+    <DeepSpaceScreen active="wiki" header="none" showSharedSky={view === "graph"}>
       {view === "list" ? (
         <View style={rStyles.listPane}>
           {/* The records list is virtualized (FlatList) and is the ONLY vertical
@@ -575,11 +603,25 @@ export function DeepSpaceRecordsScreen() {
             <View style={rStyles.centerState}>{errorState}</View>
           ) : loading ? (
             <View style={rStyles.centerState}><GraphLoading /></View>
-          ) : filtered.length > 0 ? (
+          ) : graphSourceRecords.length > 0 && recordsGraph.nodes.some((node) => node.kind === "persona") ? (
             <RecordsGraph
               graph={recordsGraph}
-              onOpenRecord={(id) => router.push({ pathname: "/record/[id]", params: recordRouteParamsById(id, records) })}
+              onOpenRecord={(id) => router.push({ pathname: "/record/[id]", params: recordRouteParamsById(id, graphSourceRecords) })}
+              onOpenPersona={() => router.push("/core-brain")}
             />
+          ) : graphSourceRecords.length > 0 ? (
+            <View style={rStyles.centerState}>
+              <View style={styles.wikiPageOpen}>
+                <Text variant="body" style={styles.wikiBody}>
+                  {visibleRoleCards.some((card) => card.status === "ratified")
+                    ? t("core-brain:roleGraphFiltered")
+                    : t("core-brain:roleGraphEmpty")}
+                </Text>
+                <Pressable style={styles.primary} onPress={() => router.push("/core-brain")} accessibilityRole="button">
+                  <Text variant="caption" style={styles.primaryText}>{t("core-brain:roleOpenPolaris")}</Text>
+                </Pressable>
+              </View>
+            </View>
           ) : (
             <View style={rStyles.centerState}>
               <View style={styles.wikiPageOpen}>

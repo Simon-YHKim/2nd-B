@@ -96,6 +96,47 @@ screen.
 
 Rebuild: `python scripts/build-dither-tiles.py`.
 
+## Bundled audio (assets/audio/)
+
+- `observatory-ratchet.wav`, `observatory-focus-lock.wav`, `observatory-shutter.wav`:
+  active observatory camera sounds since 2026-09-26, edited from **actual CC0
+  recordings**, not synthesized. Ratchet: [Ratchet.wav by romulofs](https://freesound.org/people/romulofs/sounds/127533/).
+  Focus double beep and mechanical shutter: [Nice Canon Beep & Shutter Click by amoyssiadis](https://freesound.org/people/amoyssiadis/sounds/851925/).
+  Both source pages declare [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
+  Sources are their openly published HQ MP3 previews, not the login-only original
+  downloads. Derivatives are mono 22.05 kHz PCM WAV: 160/200/290 ms,
+  7,100/8,864/12,834 bytes. One softened ratchet click plus silence loops at
+  160 ms per cycle during pan/tilt, zoom settling and automatic aim/zoom/return.
+  A focus-lock double beep plays at completion; shutter plays on exposure.
+  Filtering, short fades and level normalization preserve the recorded timbre.
+  Exact source URLs, hashes and edit recipes: `assets/audio/RECORDED-SOURCES.json`;
+  processing script: `scripts/prepare-recorded-camera-sfx.cjs`.
+
+- `camera-aim.mp3`, `camera-focus.mp3`, `camera-shutter.mp3`: original procedural
+  camera servo, focus adjustment, and shutter cues, **superseded and not used by
+  the camera as of 2026-09-26**. Preserved from the earlier iteration. Created locally with
+  `scripts/build-camera-sfx.cjs` (deterministic sine/noise synthesis, then ffmpeg
+  MP3 encoding). No recordings, external samples, paid API or third-party audio
+  licenses. Mono 22.05 kHz, 64 kbps; source lengths 420/360/280 ms. Quiet playback
+  is phase-scoped and suppressed with reduced motion. The generator refuses to
+  overwrite existing assets.
+
+- `telescope-zoom.mp3`: legacy 0.57s camera-motion sweep, **superseded and not used
+  by the camera as of 2026-09-26**. Preserved from the earlier iteration.
+  Unmodified `whoosh-short.mp3` from the installed `media-use` SFX bundle. Its
+  bundled `CREDITS.md` identifies Pixabay and the
+  [Pixabay Content License](https://pixabay.com/service/license-summary/).
+  18,390 bytes; SHA-256
+  `c2efd9d902a59bf9ec5019035d7deadd17762136896b6e3cb6dd99ea50997a30`.
+
+- `jrpg-text-blip.mp3` — 75ms mono UI blip used by the constellation home's
+  typewriter dialogue. It is a trimmed, filtered, and volume-reduced derivative
+  of the `click.mp3` sound bundled with Codex `media-use`; the source is from
+  Pixabay and is used under the
+  [Pixabay Content License](https://pixabay.com/service/license-summary/).
+  The shipped file is 1,010 bytes at 22.05kHz; SHA-256
+  `e3bf89d81485cc20014ca8396d0fcc5a152e608d625a57ee65ef947a0499ee57`.
+
 ## Bundled generated art (AI-generated, in-window)
 
 **How it was made.** Every image below was produced with OpenAI GPT
@@ -147,6 +188,11 @@ decoded-pixel hashes, exact silhouettes and floor anchors, canonical bytes, and
 the committed JSON SHA-256
 `b599f379db85305b0a2aa82db3f87d7682bc70e59369186bcdcac7c65a79664f`.
 The runtime renders the JSON as SVG rectangles and decodes no opening bitmap.
+`src/components/ui/LoadingScreen.tsx` owns that renderer, and
+`src/app/_layout.tsx` runs it as the cold-start boot gate before either the
+sign-in landing or an authenticated route. Authentication, encrypted-storage
+recovery, and the first profile probe continue while the opening plays; a
+signed-out-to-signed-in transition in the same runtime does not replay it.
 
 **In the repository but not in the build.** Working images also live under
 `docs/` (clone-audit captures, flow thumbnails, QA evidence) and `design/`

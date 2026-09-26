@@ -56,7 +56,7 @@ describe("delete-account Edge boundary", () => {
   });
 
   test("fences writes, flat-enumerates all raw storage, then deletes Auth", () => {
-    expect(code).toMatch(/jsr:@supabase\/supabase-js@2\.106\.1/);
+    expect(code).toMatch(/npm:@supabase\/supabase-js@2\.106\.1/);
     expect(code).toMatch(/STORAGE_PAGE_SIZE = 1000/);
     expect(code).toMatch(/MAX_STORAGE_OPERATIONS_PER_SWEEP = 4/);
     expect(code).toMatch(/MAX_STORAGE_PATH_BYTES = 1024/);

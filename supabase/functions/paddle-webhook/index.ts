@@ -30,6 +30,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { verifyCheckoutBindingWithSecrets } from '../_shared/paddle-checkout-binding.ts';
+import { readPaddleDeployment, paddlePriceAllowed } from '../_shared/paddle-environment.ts';
 import {
   JsonBodyError,
   PADDLE_WEBHOOK_BODY_LIMIT_BYTES,
@@ -497,6 +498,12 @@ function previousBindingSecretForVerification(
 Deno.serve(async (req: Request) => {
   // FAIL CLOSED until explicitly enabled + validated.
   if (Deno.env.get('PADDLE_WEBHOOK_ENABLED') !== '1') return json({ error: 'disabled' }, 503);
+  let deployment: ReturnType<typeof readPaddleDeployment>;
+  try {
+    deployment = readPaddleDeployment((name) => Deno.env.get(name));
+  } catch {
+    return json({ error: 'paddle_environment_misconfigured' }, 503);
+  }
   const secret = Deno.env.get('PADDLE_WEBHOOK_SECRET');
   if (!secret) return json({ error: 'misconfigured' }, 503);
 
@@ -861,7 +868,22 @@ Deno.serve(async (req: Request) => {
     if (previousBindingSecret && !acceptedPreviousBindingSecret) {
       console.error('[paddle-webhook][ALERT] previous_checkout_binding_secret_ignored');
     }
-    const signedUserId = await verifyCheckoutBindingWithSecrets(data.custom_data, bindingSecrets);
+    // Reject another deployment's scope even when a historical owner anchor
+    // exists. Expired same-deployment renewals may still use that DB anchor.
+    const custom = isJsonRecord(data.custom_data) ? data.custom_data : null;
+    if (custom && (deployment.environment === 'sandbox' || 'version' in custom
+      || 'environment' in custom || 'audience' in custom || 'price_id' in custom)
+      && (custom.version !== 2 || custom.environment !== deployment.environment
+        || custom.audience !== deployment.audience)) {
+      return json({ error: 'checkout_scope_mismatch' }, 403);
+    }
+    if (deployment.environment === 'sandbox' && firstPriceId !== undefined
+      && !paddlePriceAllowed((name) => Deno.env.get(name), firstPriceId)) {
+      return json({ error: 'checkout_price_mismatch' }, 403);
+    }
+    const signedUserId = await verifyCheckoutBindingWithSecrets(data.custom_data, bindingSecrets, undefined, {
+      environment: deployment.environment, audience: deployment.audience, price_id: firstPriceId ?? '',
+    });
 
     // Paddle object identity (0115). On subscription.* the event's own object IS
     // the subscription; on transaction.* it is the transaction and the

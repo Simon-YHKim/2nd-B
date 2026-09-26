@@ -388,6 +388,20 @@ export async function listRecentRecords(userId: string, limit = 500) {
   return data ?? [];
 }
 
+/** Fetch Polaris-cited records by id, including evidence older than the
+ *  timeline's 90-day window. Ownership is scoped here as well as by RLS. */
+export async function listRecordsByIds(userId: string, ids: readonly string[]) {
+  const uniqueIds = [...new Set(ids)].filter((id) => /^[0-9a-f-]{36}$/i.test(id)).slice(0, 60);
+  if (!userId || uniqueIds.length === 0) return [];
+  const { data, error } = await getSupabaseClient()
+    .from("records")
+    .select("id, kind, body, ai_followup, topic, summary, conclusion, tags, created_at, structured")
+    .eq("user_id", userId)
+    .in("id", uniqueIds);
+  if (error) throw error;
+  return data ?? [];
+}
+
 // Read a single record by id (deep-space /record detail). RLS scopes to
 // auth.uid(); the explicit user_id keeps the index-friendly WHERE first.
 // Returns null when the id doesn't exist or isn't the caller's.

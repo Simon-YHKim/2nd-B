@@ -93,7 +93,7 @@ describe("keep-all sweep wraps short Korean display copy", () => {
   test("swept components import keepAllKo", () => {
     for (const file of [
       "components/deep-space/SecondbStatusHeader.tsx",
-      "components/deep-space/HomeCoachmarks.tsx",
+      "components/deep-space/FirstRecordCoachmark.tsx",
       "components/deep-space/AxisCheck.tsx",
     ]) {
       expect(read(file)).toContain('from "@/lib/i18n/keep-all"');

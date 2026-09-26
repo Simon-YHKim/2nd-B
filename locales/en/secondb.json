@@ -10,6 +10,7 @@
   "clearChatHint": "Clears the current conversation",
   "viewPlans": "View plans",
   "viewPlansHint": "Opens the plans screen",
+  "serverLimitReached": "This account has reached today's chat limit. Limits reset at midnight KST.",
   "intro_title": "Ask SecondB",
   "intro_body": "SecondB answers using your saved wiki pages. Tap a page name in an answer to read the source. Try \"What topics did I write about most this month?\"",
   "reference_piece_meta": "referenced piece",

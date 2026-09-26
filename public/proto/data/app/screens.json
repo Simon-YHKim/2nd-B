@@ -541,6 +541,13 @@
       "route": "community/join/[token]"
     },
     {
+      "id": "dashboard",
+      "component": null,
+      "appOnly": true,
+      "title": "나의 휴대전화",
+      "route": "dashboard"
+    },
+    {
       "id": "data",
       "component": null,
       "appOnly": true,
@@ -756,6 +763,13 @@
       "appOnly": true,
       "title": "삶의 만족도 (RLSS)",
       "route": "rlss"
+    },
+    {
+      "id": "service-consent",
+      "component": null,
+      "appOnly": true,
+      "title": "AI 처리 동의",
+      "route": "service-consent"
     },
     {
       "id": "side-project",

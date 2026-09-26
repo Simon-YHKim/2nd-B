@@ -128,12 +128,12 @@ describe("legal document snapshots", () => {
     }
   });
 
-  test("2026-09-07 revision: version alignment and technically honest sections 4-5", () => {
+  test("2026-09-26 policy keeps the required notice and prior technical disclosures", () => {
     const md = readFileSync(resolve(ROOT, "docs/legal/privacy-policy.md"), "utf8");
     // md, app snapshot, and the consent writer all carry the same date.
-    expect(md).toContain("_시행일: 2026-09-07 · 최종 개정: 2026-09-07_");
-    expect(PRIVACY_DOC.body).toContain("시행일: 2026-09-07");
-    expect(PRIVACY_POLICY_VERSION).toBe("2026-09-07");
+    expect(md).toContain("_시행일: 2026-09-26 · 최종 개정: 2026-09-26_");
+    expect(PRIVACY_DOC.body).toContain("시행일: 2026-09-26");
+    expect(PRIVACY_POLICY_VERSION).toBe("2026-09-26");
     // #1589 revises the sign-up consent notice itself (ackOverseas and
     // overseasTransfer.body), so the notice version moves with the policy:
     // final tuple = consent 09-02 / policy 09-02 / terms 08-16.

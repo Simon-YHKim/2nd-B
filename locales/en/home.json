@@ -36,14 +36,14 @@
   },
   "menu": {
     "graph": "Graph",
-    "capture": "Capture",
+    "capture": "Scrap",
     "secondb": "SecondB",
     "profile": "Me"
   },
   "ds": {
     "dock": {
       "home": "Home",
-      "capture": "Capture",
+      "capture": "Scrap",
       "chat": "SecondB",
       "ops": "Assistant",
       "account": "Me",
@@ -116,14 +116,22 @@
       "bubble": {
         "introTag": "Intro",
         "intro": "I'm SecondB. Tap my head to open the chat and assistant menus.",
+        "tipTag": "Quick tip",
+        "tip1": "Tap a star to review the records from that part of your life.",
+        "tip2": "Use Add in the bottom bar to save a new record right away.",
+        "tip3": "Your North Star brings your records into one sentence you can revise.",
+        "next": "Next",
+        "openMenu": "Feature menu",
         "menuTag": "SecondB",
         "menu": "What would you like to do?",
         "travel": "Travel",
         "later": "Later",
+        "returnToSky": "Return to the constellation",
         "chatbot": "Chatbot",
         "assistant": "Assistant"
       },
       "star": {
+        "entryAfter": "Save your first entry in {{star}} to unlock this star.",
         "career": {
           "line": "What have you built and gathered?"
         },
@@ -143,25 +151,25 @@
           "line": "What helps you rest?"
         },
         "profile": {
-          "line": "Add your name, goal, and how others see you. This star gets brighter as you fill it in."
+          "line": "Record your name, goals, and daily context. Both paths start here."
         },
         "infancy": {
-          "line": "Start with the earliest scene you remember."
+          "line": "Record early memories and stories others told you about your infancy."
         },
         "school": {
-          "line": "Ages 7 to 19. Classrooms, friends, who you were then."
+          "line": "Record school, friends, learning, and who you were from ages 7 to 19."
         },
         "twenties": {
-          "line": "What choices did you make in your twenties?"
+          "line": "Record your choices, relationships, and changes in your twenties."
         },
         "later": {
-          "line": "What changed in your thirties and after?"
+          "line": "Record daily life, relationships, and changes from your thirties on."
         },
         "work": {
-          "line": "What are you like at work?"
+          "line": "Record your roles, habits, and experiences at work."
         },
         "now": {
-          "line": "You, now. Where has your mind been lately?"
+          "line": "Record what interests you, your choices, and your days right now."
         }
       },
       "museumEntry": "AI museum",

@@ -9,14 +9,15 @@
 // 밝아진 동네 · 자주 보이는 나의 모습 · 이걸 만든 별가루들 · 다음 한 걸음 ·
 // 세컨비에게 이 중심으로 묻기.
 
-import React, { useEffect, useState, type ReactNode } from "react";
+import React, { useEffect, useRef, useState, type ReactNode } from "react";
 import { subscribeFontStyle } from "@/lib/settings/readable-font";
-import { View, StyleSheet, ScrollView, Modal, Pressable, TouchableOpacity } from "react-native";
+import { View, StyleSheet, ScrollView, Modal, Platform, Pressable, TouchableOpacity } from "react-native";
 import { Rect, Svg } from "react-native-svg";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, type Href } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
+import { ServiceConsentLink } from "@/components/consent/ServiceConsentLink";
 import { Button } from "@/components/ui/Button";
 import {
   PremiumAppShell,
@@ -32,6 +33,7 @@ import { PixelStarSvg } from "@/components/pixel/PixelStarSvg";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { PolarisDeck, type PolarisDeckPage } from "@/components/deep-space/PolarisDeck";
+import { PolarisCategorySlots } from "@/components/deep-space/PolarisCategorySlots";
 import { MdButton, m3TextStyle } from "@/components/m3";
 import { m3, m3BrightnessBand } from "@/lib/theme/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -58,6 +60,8 @@ import { brightnessVisual, brightnessBand, type BrightnessBand } from "@/lib/per
 import { buildCenterCards, type CenterCard } from "@/lib/persona/center";
 import { mergeEvidence, evidenceTypeLabel, type EvidenceShard, type OriginShard, type RawRecordRow, type RawSourceRow } from "@/lib/persona/evidence";
 import { buildSelfPortrait } from "@/lib/persona/self-portrait";
+import { claimQaPolarisAuto, loadRoleCards, proposeRoleCards, ratifyRoleCard, type RoleCard } from "@/lib/persona/role-cards";
+import { loadPolarisQuota, type PolarisQuota } from "@/lib/persona/polaris-quota";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { IslandArt } from "@/components/art/IslandArt";
 import { CORE_VILLAGE_UI } from "@/lib/village-ui";
@@ -185,6 +189,7 @@ export default function CoreBrain() {
 
 function CoreBrainScreen() {
   const { t, i18n } = useTranslation("core-brain");
+  const { t: consentT } = useTranslation("consent");
   // 별 이름은 홈 별자리와 **같은 키**에서 읽는다 -- 두 화면이 갈라지면
   // 사용자는 같은 별을 다른 이름으로 두 번 배우게 된다.
   const { t: tHome } = useTranslation("home");
@@ -206,6 +211,15 @@ function CoreBrainScreen() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [pendingLinkCount, setPendingLinkCount] = useState(0);
   const [portraitSignals, setPortraitSignals] = useState<SelfPortraitSignals | null>(null);
+  const [roleCards, setRoleCards] = useState<RoleCard[]>([]);
+  const [roleCardsUserId, setRoleCardsUserId] = useState<string | null>(null);
+  const [rolePending, setRolePending] = useState(false);
+  const [roleError, setRoleError] = useState(false);
+  const [roleErrorCode, setRoleErrorCode] = useState("");
+  const [quota, setQuota] = useState<PolarisQuota | null>(null);
+  const roleBusy = useRef(false);
+  const currentUser = useRef(userId);
+  currentUser.current = userId;
   const { moment: companionMoment, fire: fireCompanion } = useCompanionMoment();
 
   useEffect(() => {
@@ -337,6 +351,79 @@ function CoreBrainScreen() {
     };
   }, [loading, userId, hasProfile, isMinor, reloadKey, evidenceReloadKey]);
 
+  useEffect(() => {
+    if (loading || !userId || hasProfile !== true || isMinor === null) return;
+    let cancelled = false;
+    setQuota(null);
+    void loadPolarisQuota(userId).then((next) => { if (!cancelled) setQuota(next); });
+    loadRoleCards(userId).then((cards) => {
+      if (!cancelled) {
+        setRoleCards(cards);
+        setRoleCardsUserId(userId);
+      }
+    }).catch(() => {
+      if (!cancelled) setRoleError(true);
+    });
+    return () => { cancelled = true; };
+  }, [loading, userId, hasProfile, isMinor, reloadKey, evidenceReloadKey]);
+
+  // Simon explicitly authorized one dev-only draft for the existing QA
+  // account. Everyone else's mount path remains read-only. No auto approval.
+  useEffect(() => {
+    if (loading || !userId || isMinor === null || hasProfile !== true ||
+        resolvedUserId !== userId || roleCardsUserId !== userId || roleBusy.current) return;
+    let alive = true;
+    void (async () => {
+      const claimed = await claimQaPolarisAuto(userId, roleCards.length > 0, evidence.length > 0);
+      if (!claimed || !alive || currentUser.current !== userId || roleBusy.current) return;
+      roleBusy.current = true;
+      setRolePending(true);
+      setRoleError(false);
+      try {
+        const next = await proposeRoleCards(userId, locale, isMinor);
+        if (alive && currentUser.current === userId) { setRoleCards(next); setRoleCardsUserId(userId); }
+      } catch (error) {
+        if (alive && currentUser.current === userId) { setRoleError(true); setRoleErrorCode(error instanceof Error ? error.message : ""); }
+      } finally {
+        roleBusy.current = false;
+        if (currentUser.current === userId) setRolePending(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, [loading, userId, isMinor, hasProfile, resolvedUserId, roleCardsUserId, roleCards.length, evidence.length, locale]);
+
+  const generateRoles = async () => {
+    if (!userId || isMinor === null || roleBusy.current || !quota?.available) return;
+    roleBusy.current = true;
+    setRolePending(true);
+    setRoleError(false);
+    try {
+      const next = await proposeRoleCards(userId, locale, isMinor);
+      if (currentUser.current === userId) { setRoleCards(next); setRoleCardsUserId(userId); setQuota(await loadPolarisQuota(userId)); }
+    } catch (error) {
+      if (currentUser.current === userId) { setRoleError(true); setRoleErrorCode(error instanceof Error ? error.message : ""); }
+    } finally {
+      roleBusy.current = false;
+      setRolePending(false);
+    }
+  };
+
+  const approveRole = async (card: RoleCard) => {
+    if (!userId || roleBusy.current) return;
+    roleBusy.current = true;
+    setRolePending(true);
+    setRoleError(false);
+    try {
+      const next = await ratifyRoleCard(userId, card);
+      if (currentUser.current === userId) { setRoleCards(next); setRoleCardsUserId(userId); }
+    } catch {
+      if (currentUser.current === userId) setRoleError(true);
+    } finally {
+      roleBusy.current = false;
+      setRolePending(false);
+    }
+  };
+
   if (loading) {
     return (
       <CoreShell>
@@ -403,6 +490,8 @@ function CoreBrainScreen() {
     const dimStarColor = m3.starLadder.rest[0];
     return (
       <CoreShell>
+        <PolarisDeck isKo={locale === "ko"} pages={[
+          { key: "empty", title: t("polaris"), body: (
         <View style={styles.center}>
           <View style={styles.lockedConstellation}>
             <IslandArt id="core" size={120} />
@@ -436,11 +525,14 @@ function CoreBrainScreen() {
             />
           </View>
         </View>
+          ) },
+          { key: "categories", title: t("categoryTitle"), body: <PolarisCategorySlots cards={[]} /> },
+        ]} />
       </CoreShell>
     );
   }
 
-  const hasUnrecordedProvenance = persona ? hasUnrecordedPersonaProvenance(persona) : false;
+  const visibleRoleCards = roleCardsUserId === userId ? roleCards : [];
   const cards = persona ? buildCoreCenterCards(persona, locale) : [];
   const direction = cards.find((c) => c.id === "direction");
   const neighborhood = cards.find((c) => c.id === "neighborhood");
@@ -549,7 +641,7 @@ function CoreBrainScreen() {
                 width="100%"
                 height={132}
                 viewBox="0 0 190 132"
-                accessible
+                {...(Platform.OS === "web" ? {} : { accessible: true })}
                 accessibilityRole="image"
                 accessibilityLabel={
                   locale === "ko"
@@ -583,6 +675,47 @@ function CoreBrainScreen() {
               </Svg>
             </View>
             <Text style={dsDeck.roleStatement}>{t("currentBrightness")}</Text>
+            {visibleRoleCards.map((card) => (
+              <View key={card.id} style={{ gap: 6, marginTop: 12 }}>
+                <Text variant="heading">{card.label}</Text>
+                <Text variant="body">{card.summary}</Text>
+                <Text variant="caption" color="textMuted">
+                  {`${t(card.status === "ratified" ? "roleStatusRatified" : "roleStatusProposed")} · ${t("roleEvidenceMeta", { level: card.claimStrength, n: card.evidenceRefs.length })}`}
+                </Text>
+                {card.status === "proposed" ? (
+                  <MdButton
+                    variant="outlined"
+                    label={t("roleApprove")}
+                    disabled={rolePending}
+                    onPress={() => void approveRole(card)}
+                  />
+                ) : null}
+              </View>
+            ))}
+            {visibleRoleCards.length === 0 ? (
+              <Text variant="caption" color="textMuted">
+                {t("roleEmpty")}
+              </Text>
+            ) : null}
+            {roleError ? (
+              <View style={dsDeck.pageBody}>
+              <Text variant="caption" color="textMuted">
+                {roleErrorCode === "consent_required" || roleErrorCode === "consent_check_unavailable"
+                  ? consentT(`serviceControl.${roleErrorCode}`)
+                  : t(roleErrorCode === "polaris_limit_exceeded" ? "generationLimit" : roleErrorCode === "polaris_live_required" ? "generationLiveRequired" : roleErrorCode === "polaris_no_evidence" ? "generationNoEvidence" : "roleLoadError")}
+              </Text>
+              {roleErrorCode === "consent_required" || roleErrorCode === "consent_check_unavailable" ? <ServiceConsentLink /> : null}
+              </View>
+            ) : null}
+            <MdButton
+              variant="tonal"
+              label={t(rolePending ? "generationRunning" : "roleSuggest")}
+              disabled={rolePending || !quota?.available}
+              onPress={() => void generateRoles()}
+            />
+            <Text variant="caption" color="textMuted">
+              {t(quota?.available ? "generationAllowance" : "generationUnavailable", { n: quota?.introRemaining })}
+            </Text>
             <MdButton
               variant="filled"
               label={t("editNorthStar")}
@@ -591,6 +724,12 @@ function CoreBrainScreen() {
             />
           </View>
         ),
+      },
+      {
+        key: "categories",
+        title: t("categoryTitle"),
+        accent: cosmic.soulViolet,
+        body: <View style={dsDeck.pageBody}><PolarisCategorySlots cards={visibleRoleCards} /></View>,
       },
       {
         key: "portrait",

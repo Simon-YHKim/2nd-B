@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>2ndB · 별 촬영 전환 검증</title>
+<style>
+:root{color-scheme:light dark;--bg:#f5f7fa;--text:#172138;--muted:#526079;--accent:#245cc4;--panel:#fff}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.7 system-ui,sans-serif}main{max-width:900px;margin:auto;padding:36px 22px}h1{font-size:30px;line-height:1.3;margin:8px 0 16px}h2{font-size:21px}p{margin:10px 0}.muted,small{color:var(--muted)}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:24px 0}.card,details,.flow{background:var(--panel);border:1px solid var(--muted);padding:18px}.card strong{display:block;color:var(--accent);font-size:26px}details{margin:14px 0}summary{cursor:pointer;font-weight:650}a{color:var(--accent)}:focus-visible{outline:3px solid var(--accent);outline-offset:4px}code{overflow-wrap:anywhere}svg{width:100%;height:auto;color:var(--accent)}svg text{font-family:system-ui,sans-serif;fill:var(--text)}li{margin:6px 0}.status{border-left:4px solid var(--accent);padding-left:16px}@media(prefers-color-scheme:dark){:root{--bg:#0a0e18;--text:#eaf0fa;--muted:#a7b4cc;--accent:#8cbaff;--panel:#141b2e}}@media(max-width:580px){.cards{grid-template-columns:1fr}.card strong{font-size:22px}main{padding:24px 16px}}
+</style></head><body><main>
+<p class="muted">2ndB · 별자리 관측 UX · 2026-09-25 23:10:34 KST</p>
+<h1>별을 찾아 초점을 맞추고,<br>촬영한 뒤 여행합니다.</h1>
+<p>별 선택을 위치 정렬 → 확대 → 초점 고정으로 분리했습니다. <strong>여행하기</strong>를 누르면 셔터음과 한 번의 플래시가 나오고, 플래시가 끝난 뒤 해당 별 화면으로 이동합니다.</p>
+<div class="cards" aria-label="핵심 결과">
+<div class="card"><strong>1.28초</strong>정렬·확대·초점의 순차 연출</div>
+<div class="card"><strong>0.42초</strong>셔터 플래시 완료 후 진입</div>
+<div class="card"><strong>중복 이동 0</strong>연속 클릭·취소·화면 이탈 검증</div>
+</div>
+<section class="flow" aria-labelledby="flow-title"><h2 id="flow-title">사용자가 보는 순서</h2>
+<svg viewBox="0 0 780 150" role="img" aria-labelledby="flow-svg-title"><title id="flow-svg-title">위치 정렬, 확대, 초점 고정 후 여행하기를 누르면 셔터 플래시를 거쳐 별 화면으로 진입</title>
+<g fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="12" width="128" height="78"/><rect x="164" y="12" width="128" height="78"/><rect x="326" y="12" width="128" height="78"/><rect x="488" y="12" width="128" height="78"/><rect x="650" y="12" width="128" height="78"/><path d="M130 51h34m128 0h34m128 0h34m128 0h34"/></g>
+<g text-anchor="middle" font-size="17"><text x="66" y="43">위치 정렬</text><text x="228" y="43">렌즈 확대</text><text x="390" y="43">초점 고정</text><text x="552" y="43">찰각 + 플래시</text><text x="714" y="43">별 화면 진입</text></g>
+<g text-anchor="middle" font-size="13"><text x="66" y="69">420ms · 구동음</text><text x="228" y="69">500ms · 이동음</text><text x="390" y="69">360ms · 초점음</text><text x="552" y="69">420ms · 셔터음</text><text x="714" y="69">완료 콜백에서 이동</text><text x="471" y="127">↑ 초점 고정 후 ‘여행하기’</text></g>
+</svg></section>
+<details open><summary>연출과 안전 처리</summary><ul>
+<li>현재 조그·줌 위치에서 출발합니다. 주변 별은 갑자기 제거하지 않고 같은 공간에 유지합니다.</li>
+<li>초점 조정 시 조준틀이 수축·미세 재조정되고, 별은 중심을 유지한 채 2.5%만 잠시 커졌다 돌아옵니다. 최종 크기는 기존 절반 크기 설정을 유지합니다.</li>
+<li>별과 빛은 같은 카메라 변환을 공유합니다. 실제 블러 대신 픽셀 조준틀과 렌즈 움직임으로 초점을 표현합니다.</li>
+<li>초점·별 진입 조건을 충족해야 여행할 수 있습니다. 촬영 중 중복 입력은 차단합니다.</li>
+<li>Esc·뒤로가기·창 이탈·앱 비활성화·화면 이탈 시 촬영을 취소합니다. 취소된 애니메이션은 나중에 화면을 이동시키지 않습니다.</li>
+<li>동작 줄이기에서는 카메라 이동·플래시·카메라 효과음을 생략하고 즉시 진입합니다.</li>
+</ul></details>
+<details open><summary>실행한 검증</summary><ul>
+<li>순서·취소·중복 완료·카메라 좌표·UI 연결 검사: 관련 19개 테스트 통과.</li>
+<li>Edge 실제 브라우저: aim → zoom → focus → ready 순서, 확대 전 위치 정렬, 중심을 유지하는 초점 조정, 단계별 MP3 재생 확인.</li>
+<li>셔터 플래시가 표시되는 동안 URL은 홈을 유지하고 완료 후 <code>/me/profile</code>로 한 번만 이동. Esc·창 blur·설정 화면 이탈·동작 줄이기 검사 통과.</li>
+<li>320·425·768px에서 별·빛 중심 일치, 최종 크기, 빈 공간 터치 복귀, 현재 카메라 위치 보존 검사 통과. 두 브라우저 검사 모두 페이지 예외 <code>[]</code>.</li>
+<li id="full-check">전체 <code>npm run verify</code> 통과: 794 suites / 10,060 tests. 타입·번역·안전·픽셀 규칙·런타임 순환 의존성 검사 포함. Lint는 오류 0개, 기존 경고 72개.</li>
+<li id="native-check">최종 코드의 Android Hermes 번들 생성 통과: <code>.expo/star-photo-android</code>. APK 설치·실기기 검증을 뜻하지 않습니다.</li>
+</ul><p>브라우저 드라이버가 준비되지 않아 기존 Playwright/Edge 검증기를 사용했습니다. QA 로그인 외 기록 생성·AI 호출·계정 변경은 하지 않았습니다.</p></details>
+<details><summary>증거와 구현 위치</summary><ul>
+<li><a href="observatory-260925/star-photo-ready.png">초점 고정 화면</a> · <a href="observatory-260925/star-photo-flash.png">촬영 플래시 화면</a></li>
+<li><code>src/components/deep-space/StarDestination.tsx</code>: 위치·확대·초점 단계와 조준틀.</li>
+<li><code>StarCapture.tsx</code>, <code>CameraCue.tsx</code>: 한 번의 노출, 취소 처리, 단계별 사운드.</li>
+<li><code>src/lib/motion/camera-sequence.ts</code>, <code>star-camera.ts</code>: 완료 기반 순서 제어와 카메라 좌표.</li>
+<li><code>docs/qa/observatory-260925/star-photo-check.cjs</code>, <code>star-camera-check.cjs</code>: 재현 가능한 브라우저 검사.</li>
+<li>실행 로그: <code>.expo/star-photo-{verify,browser,continuity,android}.log</code>.</li>
+</ul></details>
+<details><summary>사운드 출처·남은 검증</summary><p>구동·초점·셔터 MP3는 외부 녹음이나 유료 API 없이 로컬에서 절차적으로 합성한 원본입니다. 3개 합계 약 10.5KiB, 22.05kHz mono. 생성기 <code>scripts/build-camera-sfx.cjs</code>와 자산 장부 <code>docs/ASSETS.md</code>에 기록했습니다. 기존 줌·UI 블립은 출처가 기록된 기존 자산을 재사용합니다.</p><p>Android 실기기에서 음량·기기별 재생 지연·하드웨어 뒤로가기는 미검증입니다. 번들 생성은 APK 설치 검증이 아닙니다. 기존 Expo 의존성 정합성 경고는 이번 UI 변경과 별도입니다. 새 의존성·실제 카메라 권한·운영 배포는 없습니다.</p></details>
+<p class="status">확인: <a href="http://localhost:8081/">로컬 별자리 화면</a>에서 별을 선택하고, 초점 고정 후 <strong>여행하기</strong>를 눌러보세요.</p>
+<footer class="muted"><small>작업 브랜치 codex/observatory-dashboard-260925 · 기존 변경 보존 · commit/push/배포 없음.<br>karpathy-guidelines로 범위를 제한하고 building-native-ui로 공통 앱 코드·픽셀 모션·Android 번들을 검증했습니다.</small></footer>
+</main></body></html>

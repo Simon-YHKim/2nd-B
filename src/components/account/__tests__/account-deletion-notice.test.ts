@@ -61,7 +61,7 @@ function routeRenderer(path: string, functionName: string) {
     // deep-space 로그인 화면의 로딩 가지가 쓰는 픽셀 셸 조각들. 이 하네스가
     // 만들어진 뒤에 들어온 것들이라 스텁이 없었다.
     PixelGateShell: "PixelGateShell", PixelSurface: "PixelSurface",
-    SecondbHead: "SecondbHead", Text: "Text",
+    SignInPolaris: "SignInPolaris", LoadingPolaris: "LoadingPolaris", Text: "Text",
     useAccountDeletionNotice: hook, AccountDeletionNoticePanel: "AccountDeletionNoticePanel",
     AuthShell: "AuthShell", View: "View", ScrollView: "ScrollView", InlineLoader: "InlineLoader",
     Redirect: "Redirect", styles: { root: {}, scroll: {} }, Platform: { OS: "web" },

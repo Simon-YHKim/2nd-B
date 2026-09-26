@@ -1,6 +1,8 @@
 // Play flagged vc 38 (2026-09-01) for FOREGROUND_SERVICE_MEDIA_PLAYBACK and
-// demanded a "media playback" declaration. The app never plays media —
-// expo-audio is used for RECORDING only — so declaring it would be false.
+// demanded a "media playback" declaration. The app never plays sustained or
+// background media —
+// expo-audio records and plays one short foreground UI blip. Neither path is
+// sustained background playback, so declaring media playback would be false.
 //
 // The source is expo-audio's own config plugin, not a transitive AAR:
 // node_modules/expo-audio/plugin/build/withAudio.js defaults
@@ -41,7 +43,7 @@ const pluginProps = (name: string): Record<string, unknown> | undefined => {
   return entry?.[1];
 };
 
-describe("expo-audio is configured for recording, not playback", () => {
+describe("expo-audio is configured without background playback", () => {
   test("background playback is turned off at the plugin", () => {
     // This is the fix. Without it the plugin adds both the permission and the
     // mediaPlayback foreground service, and Play asks us to declare a feature

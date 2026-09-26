@@ -7,7 +7,8 @@
  * Rendered only when EXPO_PUBLIC_UI=deep-space; the legacy track is untouched.
  * Keeps the post-auth gate.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { View } from "react-native";
 import { Redirect, router, useFocusEffect } from "expo-router";
 
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -19,6 +20,7 @@ import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useOnboardingComplete } from "@/lib/onboarding/state";
 import { useAutoTriggerTTFV } from "@/lib/onboarding/ttfv-gate";
 import { useCoachmarksGate } from "@/lib/onboarding/coachmarks-gate";
+import { FIRST_RECORD_COACH_PARAM } from "@/lib/onboarding/first-record-coach";
 import { DeepSpaceScreen } from "./DeepSpaceScreen";
 import { ConstellationHome, type HomeStarId } from "./ConstellationHome";
 import { HomeCoachmarks } from "./HomeCoachmarks";
@@ -45,12 +47,11 @@ export function DeepSpaceShell() {
   // excludes it by id). It gets its own small read; a failure leaves it at L1,
   // which is the honest reading of "we could not see anything".
 
-  // Home coachmarks (Screen-Spec 04): the 4-step spotlight shows once on the
-  // first home visit; 다시 보지 않기/시작하기 persist the seen flag, and the
-  // settings 코치마크 리셋 brings it back. Dismissal is local state so the
-  // overlay drops immediately without waiting on storage.
+  // The home coachmark is the first step of a cross-route task coach. Its real
+  // target is measured from the live SecondB head, then /capture owns steps 2-4.
   const coachmarksDue = useCoachmarksGate();
   const [coachmarksDismissed, setCoachmarksDismissed] = useState(false);
+  const coachHeadTargetRef = useRef<View>(null);
   useEffect(() => {
     // Wait for the auth session restore (`loading`) as well as the userId:
     // firing on userId alone raced the token attach at boot, so the Supabase
@@ -128,6 +129,11 @@ export function DeepSpaceShell() {
         // 더 이상 별이 아니다. 그 대시보드로 가는 입구가 **세컨비 머리**다 --
         // 별자리에서 머리를 터치하면 대화창이 그것을 펴 보인다.
         onChatPress={() => router.push("/secondb?panel=dashboard")}
+        coachFirstRecord={coachmarksDue === true && !coachmarksDismissed}
+        coachHeadTargetRef={coachHeadTargetRef}
+        onCoachHeadPress={() =>
+          router.push({ pathname: "/capture", params: { coach: FIRST_RECORD_COACH_PARAM } })
+        }
         onOpsPress={() => router.push("/ops")}
         onBellPress={() => router.push("/inbox")}
         onMuseumPress={() => router.push("/museum")}
@@ -136,7 +142,10 @@ export function DeepSpaceShell() {
         northStarBrightness={northStarBrightness}
       />
       {coachmarksDue === true && !coachmarksDismissed ? (
-        <HomeCoachmarks onDone={() => setCoachmarksDismissed(true)} />
+        <HomeCoachmarks
+          targetRef={coachHeadTargetRef}
+          onDone={() => setCoachmarksDismissed(true)}
+        />
       ) : null}
     </DeepSpaceScreen>
   );

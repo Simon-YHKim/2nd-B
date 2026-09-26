@@ -27,9 +27,9 @@ import {
   extractRegistrySql,
   loadRegistry,
   readRunTimeSql,
-  renderRegistrySql,
   stripForDdlScan,
 } from "../../../../scripts/generate-erasure-registry";
+import { collectErasureSeedHistoryErrors } from "../../../../scripts/erasure-registry-forward";
 
 const ROOT = resolve(__dirname, "../../../..");
 const MIGRATIONS = join(ROOT, "db", "migrations");
@@ -549,10 +549,10 @@ describe(`${FILE} -- structure`, () => {
     expect(code).toMatch(/RAISE EXCEPTION 'erasure_registry names columns that do not exist/);
   });
 
-  test("the seed block is a render of db/erasure-registry.json, not a second copy", () => {
+  test("the historical seed and declared forwards render the canonical registry", () => {
     const embedded = extractRegistrySql(raw);
     expect(embedded).not.toBeNull();
-    expect(embedded?.replace(/\r\n/g, "\n")).toBe(renderRegistrySql(loadRegistry(ROOT)));
+    expect(collectErasureSeedHistoryErrors(ROOT, loadRegistry(ROOT))).toEqual([]);
   });
 
   test("a rollback twin exists and is outside the apply glob", () => {
@@ -563,7 +563,7 @@ describe(`${FILE} -- structure`, () => {
     expect(readdirSync(MIGRATIONS).filter((f) => f.endsWith(".sql"))).not.toContain("0189_down.sql");
   });
 
-  test("the rollback clears BOTH ledger rows, inside the transaction that drops the function", () => {
+  test("the rollback clears the base, lock and forward ledger rows in one transaction", () => {
     // 0190 locks the function OBJECT that 0189 creates, so dropping the function
     // takes 0190's revoke with it. The rollback used to delete only its own
     // ledger row (name = 'erasure_registry'). 0190's row survived, the next push
@@ -583,9 +583,11 @@ describe(`${FILE} -- structure`, () => {
     const expected = [FILE, LOCK_FILE].map(ledgerName);
     expect(expected).toEqual(["erasure_registry", "lock_erase_my_data_authenticated"]);
 
-    // These two at least. The list grows with every later migration that leans on
-    // the same objects, and the next test is what makes it grow; pinning it to
-    // exactly two here would turn that growth red.
+    // 0198 and 0201 add rows to the registry object that this rollback drops.
+    // Their ledger rows must be removed so the next push restores those rows.
+    expected.push("service_contract_erasure_registry");
+    expected.push("rss_proxy_erasure_registry");
+    // The list grows with every later migration that leans on these objects.
     const names = rollbackLedgerNames();
     expect(names).toEqual(expect.arrayContaining(expected));
 

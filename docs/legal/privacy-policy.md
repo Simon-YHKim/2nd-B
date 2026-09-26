@@ -1,6 +1,6 @@
 # 개인정보처리방침 · Privacy Policy
 
-_시행일: 2026-09-07 · 최종 개정: 2026-09-07_
+_시행일: 2026-09-26 · 최종 개정: 2026-09-26_
 
 ---
 
@@ -20,11 +20,17 @@ _시행일: 2026-09-07 · 최종 개정: 2026-09-07_
 
 **민감정보 처리 고지**: 위 건강·활동 데이터는 「개인정보 보호법」상 **민감정보**로 별도 동의를 받아 처리합니다. 이 데이터는 앱 내 루틴 자동 완료 표시와 이용자 본인의 건강 기록 표시("오늘의 건강 기록") 목적으로만 쓰이며, **건강·활동 측정값은 어떠한 AI 제공자에게도 전송하지 않고 외부 제3자 제공이나 광고·판매에 사용하지 않습니다.** 이용자는 언제든 열람·내보내기·삭제할 수 있습니다.
 
+**광고(선택, 활성화 전 안내)**: 광고는 현재 비활성입니다. 활성화 시 성인 무료 이용자가 광고를 켠 경우에만 Google AdMob SDK가 광고 식별자 등 기기 식별자, 광고 노출·클릭·시청 정보, 앱 상호작용, 진단·성능 정보, IP 주소와 대략적 위치를 처리할 수 있습니다. 회사는 보상 확인을 위한 거래 ID·계정 ID·적립 시각과 임시 티켓·발급 제한 정보를 처리합니다. 새 보상 경로는 계정 ID 대신 불투명한 일회용 티켓만 Google에 전달하며, 기록 본문·대화 내용·이메일을 광고 요청에 넣지 않습니다.
+
 ### 2. 수집·이용 목적
 회원 식별 및 계정 관리, 서비스 제공 및 개인화(AI 처리 포함), 음성·오디오의 텍스트 전사, 이용자 기록에 기반한 **자동화된 요약·정리·시각화**(제10조), 유료 구독 결제·정산, 고객지원, 서비스 개선 및 보안, 법령상 의무 이행.
 
+광고 기능 활성화 시에는 별도로 동의한 이용자의 광고 제공·보상 확인·중복 및 부정 지급 방지를 위해 광고 관련 정보를 처리합니다.
+
 ### 3. 보유 및 이용 기간
 ① 원칙적으로 **회원 탈퇴 시 지체 없이 파기**합니다. ② 다만 관련 법령이 정한 기간 동안 보관합니다: **계약·청약철회 및 대금결제·재화공급 기록 5년, 소비자 불만·분쟁처리 기록 3년, 표시·광고 기록 6개월**(전자상거래법). 로그인 기록은 통신비밀보호법에 따라 3개월 이상 보관할 수 있습니다. ③ 위 기간 경과 또는 목적 달성 시 지체 없이 파기합니다.
+
+보상 거래 기록과 계정별 발급 제한 정보는 계정 삭제 시 함께 삭제합니다. 새 보상 경로의 티켓은 원문 대신 해시를 저장하며, 미사용 티켓은 20분 유효기간 만료 후, 사용한 티켓은 소비 후 1일이 지나면 정리 대상이 됩니다. 정리는 발급 시와 예약 작업으로 수행하므로 해당 시각에 즉시 삭제된다는 뜻은 아닙니다. 광고 제공자가 처리하는 정보의 보관 기준은 해당 제공자의 고지를 따르며, 회사가 그 보관기간을 대신 정하지 않습니다.
 
 ### 4. 개인정보의 제3자 제공 및 처리위탁
 회사는 서비스 제공을 위해 아래와 같이 개인정보 처리를 위탁하며, 수탁사는 목적 범위 내에서만 처리합니다:
@@ -43,6 +49,8 @@ _시행일: 2026-09-07 · 최종 개정: 2026-09-07_
 
 **결제(독립 판매자)**: 유료 결제는 회사의 수탁사가 아니라 **판매자(Merchant of Record)인 Paddle**이 자기 책임으로 처리합니다. 결제 과정에서 Paddle은 이메일·국가·선택 상품·가격·통화·결제 상태 등의 거래 정보를 수집하고, 회사는 결제 결과와 구독 상태를 계정에 연결하기 위한 내부 계정 식별자(user_id)를 custom data로 제공합니다. 적용되는 Paddle 법인은 Paddle.com Market Limited(영국) 또는 Paddle.com Inc.(미국)이며, Paddle의 개인정보처리방침이 함께 적용됩니다.
 
+**광고 제공자(Google AdMob, 활성화 전 안내)**: Google LLC(Google AdMob)에 광고 게재·동의 관리(UMP)·보상형 광고 서버 확인(SSV)을 위한 **개인정보 처리위탁**을 합니다. 처리 위탁 목적 외 이용은 Google 정책에 따릅니다. Google의 광고 SDK·동의 도구(UMP)·보상 확인 콜백을 사용할 예정입니다. 실제 계약상 수신자와 처리 역할, 국외 이전 국가·항목·목적·보유기간을 확인하여 별도로 고지하고 필요한 선택 동의 절차를 완료하기 전에는 광고를 활성화하지 않습니다. 이 방침에 대한 확인은 광고 동의를 대신하지 않습니다.
+
 ### 5. 개인정보의 국외 이전
 Supabase Edge Functions와 OpenAI·Anthropic 등 서비스 제공에 필요한 일부 수탁사는 국외에서 개인정보를 처리할 수 있습니다. 회사는 이 필수 국외 처리위탁을 「개인정보 보호법」 제28조의8 제1항 제3호에 해당하는 것으로 보고 이 방침으로 고지합니다. 가입 화면에서 필수 국외 처리 항목을 확인하지 않으면 가입을 완료할 수 없습니다. 가입 후 앞으로의 서비스 이용과 국외 처리를 중단하려면 계정 삭제를 요청할 수 있습니다. 사용 통계와 유료 결제처럼 이용자가 선택하는 처리의 거부 효과는 아래 각 항목에 따릅니다.
 
@@ -58,8 +66,12 @@ Supabase Edge Functions와 OpenAI·Anthropic 등 서비스 제공에 필요한 �
 
 **결제(Paddle)**: 유료 결제를 선택하면 이메일·국가·선택 상품·가격·통화·결제 상태 등의 거래 정보와 결제 결과를 계정에 연결하기 위한 내부 계정 식별자(user_id)가 적용되는 판매자(Merchant of Record)인 Paddle.com Market Limited(영국) 또는 Paddle.com Inc.(미국)로 TLS 전송됩니다. 목적은 결제·환불·세금 처리와 거래·구독 상태의 계정 연결입니다. user_id는 Paddle transaction의 custom data로 저장되며, 구독과 이후 갱신·변경 거래에 복사될 수 있습니다. Paddle은 거래 자료를 관계가 지속되는 기간과 적용 법령상 허용·요구되는 기간, 관련 청구·조사·분쟁 기간 동안 보관합니다(문의: privacy@paddle.com). 이 처리를 거부하면 유료 결제와 구독 상태의 계정 연결을 완료할 수 없지만 무료 기능은 계속 이용할 수 있습니다.
 
+**광고(Google AdMob)**: 현재 광고 관련 국외 이전을 활성화하지 않았습니다. 광고 활성화 전 제4조의 수신자·이전 조건을 확인해 이 방침과 광고 선택 화면에 반영합니다. 광고 설정은 기본적으로 꺼져 있으며, 유료 구독자·미성년자·나이 미확인 이용자에게는 광고를 표시하지 않습니다. 앱의 광고 선택과 Google UMP의 광고 요청 허용 여부를 각각 확인하며, UMP가 필요한 경우 동의 화면을 표시합니다. iOS에서는 광고 요청 전 추적 허용 여부를 묻습니다. 추적 허용을 거절했다는 사실만으로 모든 광고 데이터 처리가 중단되는 것은 아닙니다. 광고를 끄면 이후 앱에서 새 광고를 요청하지 않으며, 이미 시작된 SDK 처리와 이미 전달된 데이터에는 Google의 정책이 적용됩니다. 광고에 동의하지 않아도 기본 서비스를 이용할 수 있고, 광고 시청으로 얻는 추가 이용 횟수만 받을 수 없습니다. [Google 광고 기술 안내](https://policies.google.com/technologies/ads)와 [SDK 데이터 공개 안내](https://developers.google.com/admob/ios/privacy/data-disclosure)를 함께 확인할 수 있습니다.
+
 ### 6. 정보주체의 권리
 이용자(및 법정대리인)는 언제든 개인정보 **열람·정정·삭제·처리정지**를 요구할 수 있습니다. 서비스는 앱 내에서 **계정 삭제 및 데이터 내보내기** 기능을 제공하며, kim0405@hayangzip.com 으로도 요청할 수 있습니다.
+
+광고 선택은 개인정보 설정에서 변경할 수 있습니다. 기기의 광고 식별자·추적 허용 설정도 운영체제가 제공하는 방법으로 변경할 수 있습니다.
 
 ### 7. 만 14세 미만 아동
 회사는 원칙적으로 만 14세 미만 아동의 개인정보를 수집하지 않으며, 불가피한 경우 법정대리인의 동의를 확인한 후에만 처리합니다(단계적 적용).
@@ -82,6 +94,7 @@ Supabase Edge Functions와 OpenAI·Anthropic 등 서비스 제공에 필요한 �
 본 방침은 법령·서비스 변경에 따라 개정될 수 있으며, 개정 시 시행일·변경내용을 서비스 내 공지합니다. 변경 전후를 비교할 수 있도록 개정 이력을 아래 제12조에 남깁니다.
 
 ### 12. 개정 이력
+2026-09-26 개정에서는 비활성 광고 기능의 수집 항목·보상 기록·티켓 보관과 별도 선택을 안내했습니다. 기존 이용자의 동의를 새 광고 동의로 전환하지 않습니다.
 | 시행일 | 변경 내용 |
 |---|---|
 | 2026-09-07 | **09-02 개정안과 09-04 사실 정정을 하나로 합쳤습니다.** 제4조에 **Anthropic PBC**(Claude API)를 별도 수탁사로 명시하고, Supabase를 **서울 주 저장소 + 리전 미고정 Edge Functions**(API·함수 로그 1일)로 정정했으며, **Paddle을 회사의 수탁사가 아닌 판매자(Merchant of Record)** 로 구분하고 결제 결과를 계정에 연결하는 내부 식별자(user_id)가 custom data로 전달된다는 사실을 적었습니다. **Sentry**는 비활성화 변경이 배포된 뒤의 새 번들은 초기화하지 않으나 구버전 앱·미재시작 앱·미새로고침 웹 세션은 계속 전송할 수 있다는 사실을 적었습니다. GA4 이전 항목(가명 클라이언트·기기 식별자, 쿠키·로컬 저장소 식별자, 대략적 위치, IP)과 보유기간(사용자·이벤트 수준 최대 14개월, 표준 집계 보고서는 예외)을 명시했습니다. **건강·활동 측정값은 어떠한 AI 제공자에게도 전송하지 않습니다.** 09-04 판이 추가한 RevenueCat 행은 앱 내 구매 활성화 전 선고지로 유지합니다. 다만 **앱의 Firebase Analytics·Microsoft Clarity 는 "동의 시 수집"이 아니라 현재 코드에서 비활성화되어 있어 수집하지 않습니다** — 동의 여부보다 위에서 꺼져 있으므로 09-04 판의 해당 서술을 이 판에서 정정합니다. |
@@ -107,11 +120,17 @@ Hayang Production (sole proprietorship, Representative: Bae Soha; Anyang-si, Gye
 
 **Sensitive-data notice**: the health and activity data above is **sensitive data** under Korea's PIPA and is processed with separate consent. It is used only for in-app routine auto-completion and to show your own health records ("Today's health records"); **health and activity measurements are not sent to any AI provider, shared with external third parties, or used for advertising or sale.** You may view, export, or delete it at any time.
 
+**Advertising (optional, advance notice)**: ads are currently disabled. If enabled, Google AdMob may process device identifiers including advertising identifiers, ad views/clicks, app interactions, diagnostic/performance data, IP address and approximate location, only for adult free-tier users who turn ads on. The Company processes transaction IDs, account IDs, credit timestamps, temporary tickets and issuance-limit information for reward verification. The new reward path sends an opaque one-time ticket to Google instead of an account ID; ad requests do not include record bodies, conversations or email addresses.
+
 ### 2. Purposes
 Member identification and account management; service provision and personalization (including AI processing); transcription of voice/audio into text; **automated summarization, organization, and visualization** based on your records (Section 10); paid-subscription billing/settlement; customer support; service improvement and security; compliance with legal obligations.
 
+If ads are enabled, ad-related information is processed to serve ads, verify rewards and prevent duplicate or fraudulent grants for users who separately opt in.
+
 ### 3. Retention
 (1) In principle, data is **destroyed without delay upon account closure**. (2) Certain records are retained for statutory periods: **contract/withdrawal and payment/supply records 5 years, consumer complaint/dispute records 3 years, ad/display records 6 months** (Korean e-commerce law); access logs may be kept 3+ months (Protection of Communications Secrets Act). (3) Data is destroyed without delay once the period lapses or the purpose is fulfilled.
+
+Reward transaction records and account-level issuance-limit information are deleted with the account. The new reward path stores ticket hashes instead of raw tickets. Unused tickets become eligible for removal after their 20-minute expiry; used tickets become eligible one day after redemption. Cleanup runs during issuance and through scheduled jobs, so deletion is not guaranteed at that exact instant. The advertising provider's own notices govern its retention; the Company does not set that period on its behalf.
 
 ### 4. Third-party sharing & processing entrustment
 The Company entrusts processing as below; processors act only within the stated purpose:
@@ -130,6 +149,8 @@ The Company entrusts processing as below; processors act only within the stated 
 
 **Payments (independent seller)**: paid purchases are processed by **Paddle as the Merchant of Record** on its own responsibility, rather than as a processor of the Company. During checkout, Paddle collects transaction data such as email, country, selected product, price, currency, and payment status, and the Company provides an internal account identifier (user_id) as custom data to link the payment result and subscription status to the account. The applicable Paddle entity is Paddle.com Market Limited (United Kingdom) or Paddle.com Inc. (United States), and Paddle's privacy policy also applies.
 
+**Advertising provider (Google AdMob, advance notice)**: We **entrust** personal data processing to Google LLC (Google AdMob) for serving ads, consent management (UMP), and rewarded-ad server-side verification (SSV). Any use outside that purpose follows Google’s policies. The planned integration uses Google's ads SDK, consent tool (UMP) and reward-verification callbacks. Ads will remain disabled until the contractual recipient and processing role, transfer countries, data, purposes and retention have been confirmed and separately disclosed, and the required optional-consent process is in place. Acknowledging this policy does not grant advertising consent.
+
 ### 5. Overseas transfer
 Some processors needed to provide the Service, including Supabase Edge Functions, OpenAI, and Anthropic, may process personal data abroad. The Company treats this essential overseas processing entrustment as falling under Article 28-8(1)3 of Korea's PIPA and discloses it through this policy. If you do not acknowledge the required overseas processing at sign-up, you cannot complete sign-up. After sign-up, you may request account deletion to stop future use of the Service and future overseas processing. The effects of declining user-selected processing, such as usage statistics and paid purchases, are described below.
 
@@ -145,8 +166,12 @@ Per each provider's published policies (subject to change by each provider): Ope
 
 **Payments (Paddle)**: if you choose a paid purchase, transaction data such as email, country, selected product, price, currency, and payment status, together with the internal account identifier (user_id) used to link the payment result to your account, is transferred over TLS to the applicable Merchant of Record, Paddle.com Market Limited (United Kingdom) or Paddle.com Inc. (United States). The purposes are payment, refund, and tax processing and linking transaction and subscription status to the account. The user_id is stored as custom data on the Paddle transaction and may be copied to the subscription and later renewal or change transactions. Paddle retains transaction data while its relationship with you continues and for periods permitted or required by applicable law, including periods connected with claims, investigations, or disputes (contact: privacy@paddle.com). If you decline this processing, you cannot complete a paid purchase or link subscription status to your account, but you may continue to use the free features.
 
+**Advertising (Google AdMob)**: advertising transfers have not been enabled. Before activation, the recipient and transfer conditions described in Section 4 will be confirmed and reflected in this policy and the advertising-choice screen. Ads are off by default and are not shown to paid subscribers, minors or users whose age is unknown. The app checks its advertising choice and Google's UMP permission separately; UMP shows a consent form when required. iOS asks for tracking permission before an ad request. Declining tracking does not by itself stop all advertising-data processing. Turning ads off prevents new app-driven ad requests; Google's policies continue to apply to SDK processing already started and data already received. Declining ads does not limit the basic Service; only extra uses earned by watching ads are unavailable. See [Google's advertising notice](https://policies.google.com/technologies/ads) and [SDK data disclosure](https://developers.google.com/admob/ios/privacy/data-disclosure).
+
 ### 6. Your rights
 You (and legal representatives) may request **access, correction, deletion, or suspension of processing** at any time. The Service provides **in-app account deletion and data export**, and you may also contact kim0405@hayangzip.com.
+
+You can change your advertising choice in Privacy settings and use your operating system's controls for advertising identifiers and tracking permission.
 
 ### 7. Children under 14
 The Company generally does not collect personal data of children under 14 and, where unavoidable, processes it only after verifying guardian consent (phased rollout).
@@ -169,6 +194,7 @@ Access-rights management with row-level access control (RLS), TLS encryption in 
 This policy may be revised per law/service changes; revisions (effective date and content) will be announced in the Service. A revision history is kept in Section 12 so you can compare what changed.
 
 ### 12. Revision history
+The 2026-09-26 revision describes data collection, reward records, ticket retention and separate choice for the disabled advertising feature. Existing consent is not converted into advertising consent.
 | Effective | What changed |
 |---|---|
 | 2026-09-07 | **Merged the 09-02 revision with the 09-04 factual correction.** Section 4 now names **Anthropic PBC** (Claude API) as a separate processor, restates Supabase as **primary storage in Seoul plus non-region-pinned Edge Functions** (API and function logs retained one day), and separates **Paddle as the Merchant of Record rather than a processor**, disclosing that the internal account identifier (user_id) is passed as custom data to link payment results to the account. **Sentry**: new bundles built after the disable change do not initialize it, but older apps, apps not yet restarted, and web sessions not yet refreshed may keep transmitting. GA4 transfer items (pseudonymous client and device identifiers, cookie and local-storage identifiers, approximate location, IP) and retention (up to 14 months at user and event level; standard aggregate reports are exempt) are now stated. **Health and activity measurements are not sent to any AI provider.** The RevenueCat row added in the 09-04 revision is kept as advance disclosure ahead of enabling in-app purchases. However, **Firebase Analytics and Microsoft Clarity in the app are not "collected upon consent": they are disabled in the current code and collect nothing** - the switch sits above consent, so this revision corrects that part of the 09-04 wording. |

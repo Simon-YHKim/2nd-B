@@ -7,6 +7,7 @@ import {
   VERCEL_CSP,
   WEB_CSP_DIRECTIVES,
   WEB_REFERRER_POLICY,
+  webDocumentCsp,
 } from "../../lib/web-security-policy";
 
 const ROOT = resolve(__dirname, "../../..");
@@ -25,6 +26,69 @@ function vercelCsp(): string {
 }
 
 describe("web document security policy", () => {
+  const sandbox = {
+    paddleEnvironment: "sandbox",
+    supabaseUrl: "https://isolatedsandbox.supabase.co",
+    paddleClientToken: `test_${"a".repeat(27)}`,
+  };
+  const configuredCsp = (config: Record<string, string | undefined>): string =>
+    webDocumentCsp(false, config);
+
+  test("sandbox permits only its configured DB and the SDK's exact sandbox origins", () => {
+    const csp = configuredCsp(sandbox);
+    expect(csp).toContain("https://isolatedsandbox.supabase.co");
+    expect(csp).toContain("wss://isolatedsandbox.supabase.co");
+    expect(csp).toContain("https://sandbox-api.paddle.com");
+    expect(csp).toContain("https://sandbox-buy.paddle.com");
+    expect(csp).toContain("https://sandbox-create-checkout.paddle.com");
+    expect(csp).toContain("https://sandbox-cdn.paddle.com/paddle/v2/assets/css/paddle.css");
+    expect(csp).toContain("https://sandbox-cdn.paddle.com/paddle/v2/error.html");
+    expect(csp).toContain("https://cdn.paddle.com/paddle/v2/paddle.js");
+    expect(csp).not.toContain("zoacryukmdeivmolvyhj.supabase.co");
+    expect(csp).not.toMatch(/https:\/\/(?:api|buy|create-checkout|vendors)\.paddle\.com/);
+    expect(csp).not.toMatch(/(?:^|\s)\*(?:\s|;|$)|:\/\/\*\.|(?:^|\s)https:(?:\s|;|$)/);
+    expect(csp).not.toContain("'unsafe-eval'");
+  });
+
+  test.each([
+    { supabaseUrl: undefined }, { supabaseUrl: "" },
+    { supabaseUrl: "https://zoacryukmdeivmolvyhj.supabase.co" },
+    { supabaseUrl: "http://isolatedsandbox.supabase.co" },
+    { supabaseUrl: "https://isolatedsandbox.supabase.co.attacker.test" },
+    { supabaseUrl: "https://user:pass@isolatedsandbox.supabase.co" },
+    { supabaseUrl: "https://isolatedsandbox.supabase.co:444" },
+    { supabaseUrl: "https://isolatedsandbox.supabase.co/path" },
+    { supabaseUrl: "https://isolatedsandbox.supabase.co?env=sandbox" },
+    { supabaseUrl: "https://isolatedsandbox.supabase.co#fragment" },
+    { paddleClientToken: undefined }, { paddleClientToken: "test_bad" },
+    { paddleClientToken: `live_${"a".repeat(27)}` },
+    { paddleEnvironment: "unknown" }, { paddleEnvironment: "" },
+  ])("invalid sandbox config cannot authorize either billing environment: %#", (override) => {
+    const csp = configuredCsp({ ...sandbox, ...override });
+    expect(csp).not.toMatch(/(?:supabase|paddle)\.com|\.supabase\.co/);
+    expect(csp).toContain("default-src 'none'");
+  });
+
+  test("production policy ignores alternative DB config and never admits sandbox hosts", () => {
+    expect(configuredCsp({ ...sandbox, paddleEnvironment: "production" })).toBe(GITHUB_PAGES_CSP);
+    expect(configuredCsp({ ...sandbox, paddleEnvironment: undefined })).toBe(GITHUB_PAGES_CSP);
+    expect(GITHUB_PAGES_CSP).not.toContain("sandbox-");
+    expect(VERCEL_CSP).not.toContain("sandbox-");
+  });
+
+  test("the document supplies build-time sandbox config without reading a request URL", () => {
+    expect(HTML_SOURCE).toContain("paddleEnvironment: process.env.EXPO_PUBLIC_PADDLE_ENVIRONMENT");
+    expect(HTML_SOURCE).toContain("supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL");
+    expect(HTML_SOURCE).toContain("paddleClientToken: process.env.EXPO_PUBLIC_PADDLE_CLIENT_TOKEN");
+    expect(HTML_SOURCE).not.toContain("window.location");
+    expect(HTML_SOURCE).not.toContain("URLSearchParams");
+  });
+
+  test("Metro eval is development-only and exports keep the production policy", () => {
+    expect(webDocumentCsp(true)).toContain("'unsafe-eval'");
+    expect(webDocumentCsp(false)).toBe(GITHUB_PAGES_CSP);
+    expect(webDocumentCsp(true).replace(" 'unsafe-eval'", "")).toBe(GITHUB_PAGES_CSP);
+  });
   test("the GitHub Pages document starts with CSP and referrer meta controls", () => {
     const head = HTML_SOURCE.slice(
       HTML_SOURCE.indexOf("<head>"),
@@ -35,7 +99,7 @@ describe("web document security policy", () => {
     expect(cspAt).toBeLessThan(head.indexOf('charSet="utf-8"'));
     expect(cspAt).toBeLessThan(head.indexOf("<link"));
     expect(cspAt).toBeLessThan(head.indexOf("<style"));
-    expect(head).toContain("content={GITHUB_PAGES_CSP}");
+    expect(head).toContain('content={webDocumentCsp(process.env.NODE_ENV === "development", {');
     expect(head).toContain('name="referrer" content={WEB_REFERRER_POLICY}');
     expect(WEB_REFERRER_POLICY).toBe("strict-origin-when-cross-origin");
   });

@@ -1,5 +1,6 @@
 import {
   buildRecordsGraph,
+  buildRoleRecordsGraph,
   initialTagLinksVisible,
   linkEdgeCount,
   recordDomain,
@@ -19,6 +20,36 @@ describe("recordDomain", () => {
     expect(recordDomain(["goals"])).toBe("collect");
     expect(recordDomain(["domain:not-a-star"])).toBe("collect");
     expect(recordDomain(null)).toBe("collect");
+  });
+});
+
+describe("approved Polaris role graph", () => {
+  const evidenceId = "11111111-1111-4111-8111-111111111111";
+  const card = {
+    id: "builder", label: "만드는 사람", summary: "기록에서 확인한 역할",
+    status: "ratified" as const, evidenceRefs: [`record:${evidenceId}`],
+  };
+
+  it("connects an approved role to Polaris and its real evidence record", () => {
+    const graph = buildRoleRecordsGraph([{ id: evidenceId, topic: "첫 기록" }], [card], "ko");
+    expect(graph.nodes.map((node) => node.kind)).toEqual(["polaris", "persona", "record"]);
+    expect(graph.nodes.find((node) => node.kind === "persona")?.label).toBe("만드는 사람");
+    expect(graph.edges).toEqual([
+      { a: "polaris", b: "persona:builder", kind: "spine" },
+      { a: "persona:builder", b: evidenceId, kind: "branch" },
+    ]);
+  });
+
+  it("never renders a proposed card as an approved second-tier star", () => {
+    const graph = buildRoleRecordsGraph([{ id: evidenceId }], [{ ...card, status: "proposed" }]);
+    expect(graph.nodes).toEqual([{ id: "polaris", kind: "polaris", label: "북극성" }]);
+    expect(graph.edges).toEqual([]);
+  });
+
+  it("does not fabricate missing cited records", () => {
+    const graph = buildRoleRecordsGraph([], [card]);
+    expect(graph.nodes).toHaveLength(1);
+    expect(graph.edges).toEqual([]);
   });
 });
 

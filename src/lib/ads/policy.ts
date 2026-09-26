@@ -12,9 +12,9 @@
 //      would be the legal minimum (AdMob child-directed ad settings / KR
 //      정보통신망법), but a self-knowledge app showing ads to minors burns
 //      trust for negligible revenue — full suppression is the product call.
-//   3. No ads without explicit ads consent (PIPA/GDPR: personalization needs
-//      opt-in; we suppress entirely rather than serve non-personalized to
-//      keep the consent story simple and honest).
+//   3. No ads until the specific third-party disclosure and overseas-transfer
+//      consent flow is published. The historical adsConsent boolean alone is
+//      not legal authorization for an ad network request.
 //   4. ALLOW-list, not a deny-list: ads may render ONLY on the routes named
 //      below. A new route is ad-free by default — a deny-list would make
 //      every future screen ad-eligible until someone remembered to add it
@@ -26,6 +26,7 @@
 
 import { getEnv } from "../env";
 import type { SubscriptionTier } from "../progression/entitlements";
+import { adNetworkPublicationReady } from "./legal-readiness";
 
 /** The ONLY routes where an ad slot may render (rule 4). Prefix match. */
 export const AD_ALLOWED_ROUTE_PREFIXES: readonly string[] = ["/records"];
@@ -48,6 +49,7 @@ export function isAdAllowedRoute(route: string): boolean {
 /** Build-level switch: both the flag AND a configured AdSense client are
  *  required on web. Native (AdMob) ships in the native build track. */
 export function adsConfigured(): boolean {
+  if (!adNetworkPublicationReady()) return false;
   const env = getEnv();
   return env.EXPO_PUBLIC_ENABLE_ADS === true && !!env.EXPO_PUBLIC_ADSENSE_CLIENT;
 }
@@ -83,6 +85,7 @@ export function isRewardedAdAllowedRoute(route: string): boolean {
  *  via the native AdMob SDK, so the web AdSense client is irrelevant here;
  *  SDK/ad-unit availability is rewarded.ts's own seam (fail-closed, #1068). */
 export function rewardedAdsConfigured(): boolean {
+  if (!adNetworkPublicationReady()) return false;
   const env = getEnv();
   return env.EXPO_PUBLIC_ENABLE_ADS === true;
 }

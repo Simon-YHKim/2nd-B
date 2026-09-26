@@ -319,6 +319,11 @@
       "class": "retained",
       "reason": "광고 transaction_id 기준 재생 방지 원장. 지우면 한 번의 시청을 월 상한까지 반복 적립할 수 있다(0079)."
     },
+    "rss_proxy_quota_daily": {
+      "owner": "user_id",
+      "class": "retained",
+      "reason": "RSS proxy per-user UTC-day quota. Content deletion must not reset the 40-call limit; account deletion cascades through public.users."
+    },
     "self_contexts": {
       "owner": "user_id",
       "class": "client_erasable",
@@ -392,6 +397,37 @@
       "owner": "user_id",
       "class": "account_delete_only",
       "reason": "소유자에게 SELECT 만 열려 있다(0019 · 설계서 F3). 계정 삭제 연쇄로만 사라진다."
+    },
+    "account_deletion_tombstones": {
+      "owner": "user_id",
+      "class": "retained",
+      "reason": "Durable account-deletion fence. Content deletion leaves it unchanged; it intentionally survives account deletion without an auth FK so late requests cannot recreate deleted account data."
+    },
+    "llm_consent_receipts": {
+      "owner": "user_id",
+      "class": "retained",
+      "reason": "Private provenance and withdrawal state for the retained consent_records ledger. Content deletion preserves it and cannot restore collect-mode legacy access; deletion of the account or source consent record cascades the receipt."
+    },
+    "polaris_generations": {
+      "owner": "user_id",
+      "class": "retained",
+      "reason": "Polaris lifetime allowance and request replay ledger. Content deletion clears evidence hashes and derived cards, fails and refunds active requests; terminal account deletion cascades the ledger."
+    },
+    "reward_ssv_issue_rate_limits": {
+      "owner": "user_id",
+      "class": "retained",
+      "reason": "Bounded rewarded-ticket issuance counter. Content deletion must not reset the issuance limit; account deletion cascades the counter through public.users."
     }
+  },
+  "forwardAdditions": {
+    "0198_service_contract_erasure_registry.sql": [
+      "account_deletion_tombstones",
+      "llm_consent_receipts",
+      "polaris_generations",
+      "reward_ssv_issue_rate_limits"
+    ],
+    "0201_rss_proxy_erasure_registry.sql": [
+      "rss_proxy_quota_daily"
+    ]
   }
 }

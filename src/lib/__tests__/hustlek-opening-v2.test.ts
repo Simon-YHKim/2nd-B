@@ -80,6 +80,7 @@ type LoadingModule = {
   }) => OpeningPlan;
   openingSceneForFrame?: (frame: number) => ScenePlan;
   pixelUnitScale?: (pixelRatio: number) => number;
+  fullscreenPixelUnit?: (pixelRatio: number, viewportWidth: number) => number;
   createOpeningTicker?: (startedAtMs: number, onTick: (elapsedMs: number) => void) => () => void;
   deliverContinueOnce?: (gate: { current: boolean }, onContinue?: () => void) => void;
   RleCell?: React.ComponentType<{ rects: RectRun[]; width: number; height: number }>;
@@ -213,7 +214,7 @@ function host(tag: string): React.ComponentType<Record<string, unknown>> {
   };
 }
 
-function loadLoadingModule(platform: "ios" | "web" = "ios"): LoadingModule {
+function loadLoadingModule(platform: "ios" | "web" = "ios", reducedMotion = false): LoadingModule {
   const source = readFileSync(LOADING_SCREEN, "utf8");
   const output = ts.transpileModule(source, {
     compilerOptions: {
@@ -233,12 +234,13 @@ function loadLoadingModule(platform: "ios" | "web" = "ios"): LoadingModule {
         View: host("view"),
         Platform: { OS: platform },
         PixelRatio: { get: () => (platform === "web" ? 3 : 2.625) },
+        useWindowDimensions: () => ({ width: 390, height: 844, scale: 3, fontScale: 1 }),
         StyleSheet: { create: <T,>(styles: T) => styles },
       };
     }
     if (id === "react-native-svg") return { Svg: host("svg"), Rect: host("rect") };
     if (id === "react-i18next") return { useTranslation: () => ({ t: (key: string) => key }) };
-    if (id === "@/lib/motion/use-reduced-motion") return { useReducedMotionPref: () => false };
+    if (id === "@/lib/motion/use-reduced-motion") return { useReducedMotionPref: () => reducedMotion };
     if (id === "@/lib/theme/tokens") {
       return {
         deepSpace: {
@@ -367,6 +369,30 @@ describe("HustleK opening v2 integer renderer", () => {
     expect(Number.isInteger(physicalPixels)).toBe(true);
   });
 
+  test.each([
+    { dpr: 1, viewportWidth: 520 },
+    { dpr: 2.625, viewportWidth: 390 },
+    { dpr: 3, viewportWidth: 430 },
+  ])("$viewportWidth CSS px viewport fills the screen with integer physical pixels at DPR $dpr", ({ dpr, viewportWidth }) => {
+    const module = loadLoadingModule();
+    if (!module.fullscreenPixelUnit) throw new Error("LoadingScreen must export fullscreenPixelUnit");
+    const unit = module.fullscreenPixelUnit(dpr, viewportWidth);
+    const physicalPixelsPerSourceUnit = unit * dpr;
+    const widthRatio = (320 * unit) / viewportWidth;
+    expect(Number.isInteger(physicalPixelsPerSourceUnit)).toBe(true);
+    expect(widthRatio).toBeGreaterThanOrEqual(0.85);
+    expect(widthRatio).toBeLessThanOrEqual(1.25);
+  });
+
+  test("the stage and transition veil own the full viewport instead of a fixed 320x260 card", () => {
+    const source = readFileSync(LOADING_SCREEN, "utf8");
+    expect(source).toContain("style={styles.stage}");
+    expect(source).toContain("height: viewportHeight * veilRatio");
+    expect(source).toContain('width: "100%"');
+    expect(source).toContain('height: "100%"');
+    expect(source).not.toContain("style={[styles.stage, { width: STAGE_WIDTH * unit, height: STAGE_HEIGHT * unit }]}");
+  });
+
   test.each(["ios", "web"] as const)("%s renders SVG rects and never a bitmap image", (platform) => {
     const module = loadLoadingModule(platform);
     const atlas = readAtlas();
@@ -382,6 +408,17 @@ describe("HustleK opening v2 integer renderer", () => {
     if (platform === "web") expect(cellMarkup).toContain('shape-rendering="crispEdges"');
     else expect(cellMarkup).not.toContain("shape-rendering");
     expect(readFileSync(LOADING_SCREEN, "utf8")).not.toMatch(/expo-image|<Image\b|\.png["']/i);
+  });
+
+  test("web first paint matches static export with reduced motion enabled", () => {
+    const screen = (reducedMotion: boolean, platform: "web" | "ios") => {
+      const component = loadLoadingModule(platform, reducedMotion).LoadingScreen;
+      if (!component) throw new Error("LoadingScreen export missing");
+      return renderToStaticMarkup(React.createElement(component, { ready: true }));
+    };
+
+    expect(sha256(Buffer.from(screen(true, "web")))).toBe(sha256(Buffer.from(screen(false, "web"))));
+    expect(sha256(Buffer.from(screen(true, "ios")))).not.toBe(sha256(Buffer.from(screen(false, "ios"))));
   });
 });
 

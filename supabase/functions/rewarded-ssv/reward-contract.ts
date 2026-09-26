@@ -5,7 +5,7 @@ export const REWARD_PER_WATCH = 2;
 export type RewardKind = 'reasoning' | 'chat';
 
 export type RewardContractConfig = {
-  adUnitId: string;
+  adUnitIds: string[];
   rewardAmount: number;
   rewardItem: string;
 };
@@ -110,18 +110,31 @@ export function parseSignedSsvQuery(rawQuery: string): SignedSsvQuery | null {
   return { signedContent: decodeURIComponent(signedContent), params, signature, keyId };
 }
 
+// Google sends the numeric unit suffix in SSV; native SDKs require the full ID.
+// Normalize both ticket issuance and callback settlement to the same DB value.
+export function normalizeAdUnitId(value: string): string | null {
+  if (value.startsWith('ca-app-pub-3940256099942544/')) return null;
+  const match = /^(?:ca-app-pub-[0-9]{16}\/)?([0-9]{10})$/.exec(value);
+  const id = match?.[1];
+  if (!id || id === '5224354917' || id === '1712485313') return null;
+  return id;
+}
+
 export function readRewardContractConfig(getEnv: EnvReader): RewardContractConfig | null {
-  const adUnitId = (getEnv('REWARD_SSV_AD_UNIT_ID') ?? '').trim();
+  const configured = getEnv('REWARD_SSV_AD_UNIT_IDS') ?? getEnv('REWARD_SSV_AD_UNIT_ID') ?? '';
+  if (configured.length > 512) return null;
+  const adUnitIds = configured.split(',').map((value) => normalizeAdUnitId(value.trim()));
   const rewardAmountRaw = (getEnv('REWARD_SSV_REWARD_AMOUNT') ?? '').trim();
   const rewardItem = (getEnv('REWARD_SSV_REWARD_ITEM') ?? '').trim();
   if (
-    !safeServerText(adUnitId, 256) ||
+    adUnitIds.length > 2 || adUnitIds.some((id) => id === null) ||
+    new Set(adUnitIds).size !== adUnitIds.length ||
     !safeServerText(rewardItem, 64) ||
     !/^[1-9][0-9]{0,8}$/.test(rewardAmountRaw)
   ) return null;
   const rewardAmount = Number(rewardAmountRaw);
   if (!Number.isSafeInteger(rewardAmount) || rewardAmount !== REWARD_PER_WATCH) return null;
-  return { adUnitId, rewardAmount, rewardItem };
+  return { adUnitIds: adUnitIds as string[], rewardAmount, rewardItem };
 }
 
 export function parseRewardCallback(
@@ -129,7 +142,7 @@ export function parseRewardCallback(
   config: RewardContractConfig,
 ): RewardCallback | null {
   const adNetwork = params.get('ad_network');
-  const adUnitId = params.get('ad_unit');
+  const adUnitId = normalizeAdUnitId(params.get('ad_unit') ?? '');
   const ticket = params.get('custom_data');
   const rewardAmountRaw = params.get('reward_amount');
   const rewardItem = params.get('reward_item');
@@ -138,7 +151,7 @@ export function parseRewardCallback(
 
   if (
     !adNetwork || !/^(?:0|[1-9][0-9]{0,19})$/.test(adNetwork) ||
-    adUnitId !== config.adUnitId ||
+    !adUnitId || !config.adUnitIds.includes(adUnitId) ||
     !ticket || !TICKET_PATTERN.test(ticket) ||
     rewardAmountRaw !== String(config.rewardAmount) ||
     rewardItem !== config.rewardItem ||

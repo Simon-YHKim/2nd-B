@@ -190,6 +190,13 @@ describe("shared per-purpose paid-egress quota client", () => {
           error: null,
         }));
 
+        if (purpose === "persona_synthesis" && provider !== "openai") {
+          await expect(api.consumeLlmPurposeQuota(rpc, "user-id", provider, purpose))
+            .resolves.toEqual({ ok: false, reason: "unavailable" });
+          expect(rpc).not.toHaveBeenCalled();
+          continue;
+        }
+
         await expect(api.consumeLlmPurposeQuota(rpc, "user-id", provider, purpose))
           .resolves.toEqual({ ok: true, protected: true, used: 2, limit: 5 });
         expect(rpc).toHaveBeenCalledTimes(1);

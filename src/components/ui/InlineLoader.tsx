@@ -1,10 +1,9 @@
 // Branded inline loader for in-screen / inter-route loading (graph-ux #3).
-// Renders the deep-space canon loader (breathing SecondB head + cyan dots,
-// Claude Design loading.dc.html "A/dots") on the canon deep-space backdrop, so
+// Renders the shared filling/twinkling North Star on the canon deep-space backdrop, so
 // route transitions and per-screen auth/data waits read as *our* loading screen
 // — not a bare system spinner, and not the legacy violet orb. Self-contained:
-// the dots loader only needs the global i18n instance (initialised at module
-// load) and the head asset, so it is safe to render before app context is ready.
+// the loader only needs the global i18n instance (initialised at module load),
+// so it is safe to render before app context is ready.
 
 import { StyleSheet, View } from "react-native";
 import i18next from "i18next";

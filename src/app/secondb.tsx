@@ -43,9 +43,10 @@ import {
   beginAccountSessionLease,
   type PendingAccountSessionLease,
 } from "@/lib/auth/account-session-lease";
-import { captureAccountOwnerLease } from "@/lib/auth/account-epoch";
+import { captureAccountOwnerLease, subscribeAccountTransition } from "@/lib/auth/account-epoch";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { chatAutosaveAllowed } from "@/lib/chat/autosave";
+import { createChatAutosaveSession } from "@/lib/chat/autosave-session";
 import { shouldShowChatSaveNotice, useChatSaveNoticeDismissed } from "@/lib/chat/save-notice";
 import { classifyInput } from "@/lib/safety/classifier";
 import { currentDisplayName } from "@/lib/persona/use-address";
@@ -55,13 +56,15 @@ import {
   exchangeMarkdown,
   exchangeTopic,
   findPrompt,
+  findPromptIndex,
   isKeepable,
 } from "@/lib/chat/keep-exchange";
 import { useProgression } from "@/lib/progression/useProgression";
 import { sendChatMessage } from "@/lib/chat/conversation";
 import { writeClipboardText } from "@/lib/capture/clipboard";
 import { getWikiPage } from "@/lib/wiki/queries";
-import { transcribeAudio } from "@/lib/llm/boundary";
+import { LlmConsentError, transcribeAudio, type LlmConsentErrorCode } from "@/lib/llm/boundary";
+import { ServiceConsentLink } from "@/components/consent/ServiceConsentLink";
 import { isAbortError } from "@/lib/async/abort";
 import {
   createRecorderLifecycle,
@@ -147,6 +150,7 @@ interface ChatTurn {
    *  Excluded from the conversation history sent back to the model so it isn't
    *  mis-grounded as something SecondB actually said. */
   synthetic?: boolean;
+  consentError?: LlmConsentErrorCode;
 }
 
 type ChatMode = "analytic" | "divergent";
@@ -540,6 +544,7 @@ export default function SecondBChat() {
 function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   const isDeepSpace = variant === "deep-space";
   const { t, i18n } = useTranslation("secondb");
+  const { t: consentT } = useTranslation("consent");
   const { userId, loading: authLoading, isMinor, hasProfile, profileProbeFailed, refresh } = useAuth();
   const progression = useProgression();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
@@ -606,10 +611,16 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
 
   // 담겼는지를 호출자에게 돌려준다. 자동 담기가 실패를 알아야 표시를 되돌릴 수
   // 있고, 그래야 한 번의 일시적 실패로 그 턴이 영구히 빠지지 않는다.
-  async function keepExchange(index: number): Promise<boolean> {
+  async function keepExchange(index: number, signal?: AbortSignal): Promise<boolean> {
     if (!userId || keeping !== null || keptIdx.has(index)) return false;
+    const lease = captureAccountOwnerLease(userId);
+    if (!lease || signal?.aborted) return false;
     const reply = turns[index];
     if (!reply || !isKeepable(reply)) return false;
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    signal?.addEventListener("abort", abort);
+    const unsubscribe = subscribeAccountTransition(() => { if (!lease.isCurrent()) abort(); });
     setKeeping(index);
     // 이 턴의 지난 실패만 지운다. 무조건 null 로 밀면 자동 담기가 다른 턴을
     // 성공시키는 순간 아직 읽지도 않은 실패 안내가 사라진다 - 이번 회차가
@@ -625,6 +636,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
       // captureFromMarkdown 은 LLM 을 부르지 않고, 중복 담기는 dedup 이 흡수한다.
       await captureFromMarkdown({
         userId,
+        signal: controller.signal,
         rawMd: exchangeMarkdown(topic, body),
         // 사용자가 남긴 자기 지식이다. URL 에서 유추한 종류로 떨어지면 안 된다.
         kindOverride: "self_knowledge",
@@ -632,6 +644,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
         // 아니므로 별 밝기를 건드리면 안 된다 (정직한 밝기 규칙).
         userTags: [CHAT_KEEP_TAG],
       });
+      if (!lease.isCurrent() || controller.signal.aborted) return false;
       setKeptIdx((prev) => new Set(prev).add(index));
       // C9: 이 경로는 LLM 을 안 타므로 서버 분류가 걸리지 않는다. 로컬 렉시콘
       // 분류기를 직접 돌린다(비용 0). 다른 저장 화면과 같은 자세를 유지한다 -
@@ -644,6 +657,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
       }
       return true;
     } catch (e) {
+      if (!lease.isCurrent() || controller.signal.aborted) return false;
       // 조용히 넘기지 않는다. 쓰기가 어디까지 갔는지 우리는 모르므로 "담기지
       // 않았다"고 단정하지 않고, 확인할 자리를 알려 준다 (Round21 가져오기와
       // 같은 규율).
@@ -652,7 +666,9 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
       if (typeof console !== "undefined") console.warn("[secondb] keep failed", (e as Error).message);
       return false;
     } finally {
-      setKeeping(null);
+      unsubscribe();
+      signal?.removeEventListener("abort", abort);
+      if (lease.isCurrent()) setKeeping(null);
     }
   }
   // The draft now lives inside ChatComposer (keystroke isolation); the parent
@@ -748,24 +764,31 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // 만들 이유가 없다. null 은 "아직 모른다" 이고, 그 상태에서는 자동 저장이
   // 돌지 않는다(fail-closed). 광고 동의와 같은 자세다.
   const [autosaveConsent, setAutosaveConsent] = useState<boolean | null>(null);
+  const turnsRef = useRef(turns);
+  turnsRef.current = turns;
+  const autosaveSessionRef = useRef<ReturnType<typeof createChatAutosaveSession> | null>(null);
   // 대화가 남지 않는다는 사실을 한 번만 알린다 (Simon 결정 B1).
   const { dismissed: saveNoticeDismissed, dismiss: dismissSaveNotice } = useChatSaveNoticeDismissed();
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
+    setAutosaveConsent(false);
+    const session = createChatAutosaveSession(userId, () => turnsRef.current.length, setAutosaveConsent);
+    autosaveSessionRef.current = session;
+    void session.hydrate();
     fetchPrivacyPrefs(userId)
       .then((prefs) => {
         if (cancelled) return;
         setAdsConsent(prefs.ads === true);
-        setAutosaveConsent(prefs.chat_autosave === true);
       })
       .catch(() => {
         if (cancelled) return;
         setAdsConsent(false); // fetch failure = no rewarded entry
-        setAutosaveConsent(false); // 읽지 못하면 저장하지 않는다
       });
     return () => {
       cancelled = true;
+      session.stop();
+      if (autosaveSessionRef.current === session) autosaveSessionRef.current = null;
     };
   }, [userId]);
 
@@ -778,24 +801,19 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // 마지막 담을 수 있는 턴 하나만 본다. 화면에 남아 있는 과거 대화까지 소급해서
   // 담지 않는다 - 동의를 켜기 **전에** 오간 말은 사용자가 사라질 거라 생각하고
   // 한 말이다. 그걸 소급 저장하면 동의의 의미가 없어진다.
-  const autoKeptRef = useRef<Set<number>>(new Set());
   useEffect(() => {
     if (!chatAutosaveAllowed(autosaveConsent)) return;
     if (!userId || keeping !== null) return;
     const idx = turns.length - 1;
     const last = turns[idx];
     if (!last || !isKeepable(last)) return;
-    if (autoKeptRef.current.has(idx) || keptIdx.has(idx)) return;
-    autoKeptRef.current.add(idx);
+    if (keptIdx.has(idx)) return;
     // 실패하면 표시를 되돌린다. 되돌리지 않으면 일시적인 실패 한 번에 그 턴이
     // 영구히 빠지고, 동의를 명시적으로 켠 사용자가 정확히 손해를 본다. 되돌림이
     // 자동 재시도를 보장하지는 않는다 - 수동 담기 칩이 다시 열릴 뿐이다.
-    void keepExchange(idx).then((kept) => {
-      if (!kept) autoKeptRef.current.delete(idx);
-    });
+    void autosaveSessionRef.current?.save(idx, (signal) => keepExchange(idx, signal), findPromptIndex(turns, idx) ?? idx);
     // keepExchange 는 setState 로 keptIdx 를 갱신하므로 의존성에 넣으면 루프가
-    // 된다. autoKeptRef 가 중복 실행을 막는 실제 가드다.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // 된다. The session owns duplicate suppression and consent/account fences.
   }, [turns, autosaveConsent, userId]);
 
   // Capability first (Simon B-decision): a build that cannot complete a watch
@@ -1019,8 +1037,9 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
             }
           }
         } catch (e) {
-          const failText = t("replyFailed");
-          setTurns((prev) => [...prev, { role: "secondb", text: failText, synthetic: true }]);
+          const consentError = e instanceof LlmConsentError ? e.code : undefined;
+          const failText = consentError ? consentT(`serviceControl.${consentError}`) : t("replyFailed");
+          setTurns((prev) => [...prev, { role: "secondb", text: failText, synthetic: true, consentError }]);
           reactExpression("negative");
           if (typeof console !== "undefined") console.warn("[secondb] sendChatMessage error", (e as Error).message);
         } finally {
@@ -1043,6 +1062,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
       limit,
       companion,
       t,
+      consentT,
     ],
   );
 
@@ -1154,12 +1174,87 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     const lensName = isCharacterChat ? persona.name[locale] : t(`rev2.${rev2Persona}.lensName`);
     const inkOnAccent = m3.accent.onAccentInk; // reference send/mic glyph ink on the accent fill
     return (
-      <DeepSpaceScreen active="chat" variant="windowed" personaTint={isCharacterChat ? undefined : rev2Persona}>
+      <DeepSpaceScreen active="chat" variant="windowed" header="none">
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={keyboardBehavior}
           keyboardVerticalOffset={keyboardVerticalOffset}
         >
+          {/* The lens selector is the first thing in the chat window; the
+              companion greeting previously occupying this space is gone. */}
+          {!isCharacterChat ? (
+            <View style={ds.toggleRow} accessibilityLabel={t("rev2.selectorA11y")}>
+              {REV2_PERSONA_IDS.map((id) => {
+                const on = rev2Persona === id;
+                const accent = rev2PersonaAccent(id);
+                const locked = id !== "secondb" && !personaAllowed(effectiveTier, id as "meta" | "twi");
+                const lockPlan = id === "meta" ? t("rev2.lockVoyager") : t("rev2.lockNorthstar");
+                return (
+                  <Pressable
+                    key={id}
+                    onPress={() => (locked ? router.push(`/plans?from=persona_${id}`) : selectRev2Persona(id))}
+                    style={[
+                      ds.lensBtn,
+                      { borderColor: on ? accent : m3.color.outlineVariant },
+                      on ? { backgroundColor: rev2PersonaSoftBg(id) } : null,
+                      locked ? { borderColor: LOCKED_CHIP_BORDER } : null,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: on, disabled: locked }}
+                    aria-pressed={on}
+                    accessibilityLabel={
+                      locked
+                        ? `${t(`rev2.${id}.lensName`)} · ${t("rev2.lockedA11y", { plan: lockPlan })}`
+                        : `${t(`rev2.${id}.lensName`)} · ${t(`rev2.${id}.role`)}`
+                    }
+                  >
+                    <Text style={[ds.lensName, { color: locked ? LOCKED_CHIP_INK : on ? rev2PersonaOnSoft(id) : m3.color.onSurfaceVariant }]}>
+                      {t(`rev2.${id}.lensName`)}
+                    </Text>
+                    <Text style={[ds.lensTag, { color: locked ? LOCKED_CHIP_INK : on ? accent : m3.color.onSurfaceVariant }]}>
+                      {locked ? lockPlan : t(`rev2.${id}.tag`)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : (
+            <View style={ds.toggleRow}>
+              <Pressable
+                onPress={() => setChatMode("analytic")}
+                style={[
+                  ds.lensBtn,
+                  { borderColor: chatMode === "analytic" ? lensAccent : m3.color.outlineVariant },
+                  chatMode === "analytic" ? { backgroundColor: lensSoftBg } : null,
+                ]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: chatMode === "analytic" }}
+                aria-pressed={chatMode === "analytic"}
+                accessibilityLabel={t("analysisMode")}
+              >
+                <Text style={[ds.lensName, { color: chatMode === "analytic" ? lensOnSoft : m3.color.onSurfaceVariant }]}>
+                  {t("analysisChip")}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setChatMode("divergent")}
+                style={[
+                  ds.lensBtn,
+                  { borderColor: chatMode === "divergent" ? lensAccent : m3.color.outlineVariant },
+                  chatMode === "divergent" ? { backgroundColor: lensSoftBg } : null,
+                ]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: chatMode === "divergent" }}
+                aria-pressed={chatMode === "divergent"}
+                accessibilityLabel={t("newAngleMode")}
+              >
+                <Text style={[ds.lensName, { color: chatMode === "divergent" ? lensOnSoft : m3.color.onSurfaceVariant }]}>
+                  {t("newAngleChip")}
+                </Text>
+              </Pressable>
+            </View>
+          )}
+
           {/* persona banner (reference ChatScreen header): status dot + mono tag +
               wrapping lens description, tinted by the selected lens. Usage counter
               and clear affordance ride the right edge. */}
@@ -1241,6 +1336,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                         {turn.text}
                       </Text>
                     </Pressable>
+                    {turn.consentError ? <ServiceConsentLink /> : null}
                     {copyNotice?.i === i ? (
                       <Text variant="caption" color="textSubtle" accessibilityLiveRegion="polite">
                         {t(copyNotice.ok ? "copied" : "copyFailed")}
@@ -1404,85 +1500,6 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
               <Text style={ds.limitLinkText}>{t("viewPlans")}</Text>
             </Pressable>
           ) : null}
-
-          {/* persona toggle (reference ChatScreen): 3 equal lenses. Selecting one
-              recolors the whole surface and switches who answers next. Character
-              chat (legacy roster) keeps the 분석/새 관점 mode toggle instead. */}
-          {!isCharacterChat ? (
-            <View style={ds.toggleRow} accessibilityLabel={t("rev2.selectorA11y")}>
-              {REV2_PERSONA_IDS.map((id) => {
-                const on = rev2Persona === id;
-                const accent = rev2PersonaAccent(id);
-                // Phase 4 paid personas: 메타비 = plus+, 트위비 = pro. Judges comp
-                // to pro (C6, mirrors the 0088 server rule). A locked tap goes to
-                // /plans — the persona itself stays visible (honest, no dead end).
-                const locked = id !== "secondb" && !personaAllowed(effectiveTier, id as "meta" | "twi");
-                const lockPlan = id === "meta" ? t("rev2.lockVoyager") : t("rev2.lockNorthstar");
-                return (
-                  <Pressable
-                    key={id}
-                    onPress={() => (locked ? router.push(`/plans?from=persona_${id}`) : selectRev2Persona(id))}
-                    style={[
-                      ds.lensBtn,
-                      { borderColor: on ? accent : m3.color.outlineVariant },
-                      on ? { backgroundColor: rev2PersonaSoftBg(id) } : null,
-                      locked ? { borderColor: LOCKED_CHIP_BORDER } : null,
-                    ]}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: on, disabled: locked }}
-                    aria-pressed={on}
-                    accessibilityLabel={
-                      locked
-                        ? `${t(`rev2.${id}.lensName`)} · ${t("rev2.lockedA11y", { plan: lockPlan })}`
-                        : `${t(`rev2.${id}.lensName`)} · ${t(`rev2.${id}.role`)}`
-                    }
-                  >
-                    <Text style={[ds.lensName, { color: locked ? LOCKED_CHIP_INK : on ? rev2PersonaOnSoft(id) : m3.color.onSurfaceVariant }]}>
-                      {t(`rev2.${id}.lensName`)}
-                    </Text>
-                    <Text style={[ds.lensTag, { color: locked ? LOCKED_CHIP_INK : on ? accent : m3.color.onSurfaceVariant }]}>
-                      {locked ? lockPlan : t(`rev2.${id}.tag`)}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ) : (
-            <View style={ds.toggleRow}>
-              <Pressable
-                onPress={() => setChatMode("analytic")}
-                style={[
-                  ds.lensBtn,
-                  { borderColor: chatMode === "analytic" ? lensAccent : m3.color.outlineVariant },
-                  chatMode === "analytic" ? { backgroundColor: lensSoftBg } : null,
-                ]}
-                accessibilityRole="button"
-                accessibilityState={{ selected: chatMode === "analytic" }}
-                aria-pressed={chatMode === "analytic"}
-                accessibilityLabel={t("analysisMode")}
-              >
-                <Text style={[ds.lensName, { color: chatMode === "analytic" ? lensOnSoft : m3.color.onSurfaceVariant }]}>
-                  {t("analysisChip")}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setChatMode("divergent")}
-                style={[
-                  ds.lensBtn,
-                  { borderColor: chatMode === "divergent" ? lensAccent : m3.color.outlineVariant },
-                  chatMode === "divergent" ? { backgroundColor: lensSoftBg } : null,
-                ]}
-                accessibilityRole="button"
-                accessibilityState={{ selected: chatMode === "divergent" }}
-                aria-pressed={chatMode === "divergent"}
-                accessibilityLabel={t("newAngleMode")}
-              >
-                <Text style={[ds.lensName, { color: chatMode === "divergent" ? lensOnSoft : m3.color.onSurfaceVariant }]}>
-                  {t("newAngleChip")}
-                </Text>
-              </Pressable>
-            </View>
-          )}
 
           {/* input bar (reference ChatScreen): a rounded pill holding the text
               field + inline mic, then a separate 48px round send button that
@@ -1834,6 +1851,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                       {turn.text}
                     </Text>
                   </Pressable>
+                  {turn.consentError ? <ServiceConsentLink /> : null}
                   {copyNotice?.i === i ? (
                     <Text variant="caption" color="textSubtle" accessibilityLiveRegion="polite">
                       {t(copyNotice.ok ? "copied" : "copyFailed")}

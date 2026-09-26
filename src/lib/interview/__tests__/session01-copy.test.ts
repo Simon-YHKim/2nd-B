@@ -17,14 +17,15 @@ const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8").replace(/\r\
 const LOCALES = ["en", "ko", "es", "pt", "id"] as const;
 
 describe("① 인트로 선언", () => {
-  it("다섯 로케일에 drill.intro 가 있고 '모르겠다' 취지를 나른다", () => {
+  it("다섯 로케일에 자율적인 답변 범위와 종료 선택이 있다", () => {
     for (const loc of LOCALES) {
       const d = JSON.parse(read(`locales/${loc}/interview.json`)) as { drill: Record<string, string> };
       expect(typeof d.drill.intro).toBe("string");
       expect(d.drill.intro.length).toBeGreaterThan(10);
     }
     const ko = JSON.parse(read("locales/ko/interview.json")) as { drill: Record<string, string> };
-    expect(ko.drill.intro).toContain("모르겠다");
+    expect(ko.drill.intro).toContain("말하고 싶은 만큼");
+    expect(ko.drill.intro).toContain("언제든");
   });
 
   it("화면이 그 키를 실제로 그린다", () => {
@@ -33,9 +34,10 @@ describe("① 인트로 선언", () => {
 });
 
 describe("② 발판 문구", () => {
-  it("scaffoldNote 가 '모르겠다도 데이터' 취지를 나른다 (ko)", () => {
+  it("모르는 답을 데이터로 설득하지 않고 건너뛰기를 안내한다 (ko)", () => {
     const ko = JSON.parse(read("locales/ko/interview.json")) as { drill: Record<string, string> };
-    expect(ko.drill.scaffoldNote).toContain("데이터");
+    expect(ko.drill.scaffoldNote).toContain("몰라도 괜찮아요");
+    expect(ko.drill.scaffoldNote).toContain("건너뛰어도");
   });
 });
 

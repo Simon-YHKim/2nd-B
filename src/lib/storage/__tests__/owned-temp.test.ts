@@ -36,8 +36,9 @@ function fileInfo(
   };
 }
 
-function missingInfo(uri = TARGET) {
-  return { exists: false, uri, isDirectory: false };
+function missingInfo() {
+  // Expo Android omits uri from the result for a missing file.
+  return { exists: false, isDirectory: false };
 }
 
 async function acquire(uri = TARGET): Promise<OwnedTempFileLease> {
@@ -150,6 +151,16 @@ describe("leaseOwnedTempFile target boundary", () => {
 
   test("fails closed on malformed native inspection data", async () => {
     mockGetInfoAsync.mockResolvedValue({});
+
+    await expect(leaseOwnedTempFile(TARGET)).resolves.toEqual({
+      ok: false,
+      error: "inspect_failed",
+    });
+    expect(mockDeleteAsync).not.toHaveBeenCalled();
+  });
+
+  test("rejects a malformed missing-file result", async () => {
+    mockGetInfoAsync.mockResolvedValue({ exists: false, uri: 7, isDirectory: false });
 
     await expect(leaseOwnedTempFile(TARGET)).resolves.toEqual({
       ok: false,

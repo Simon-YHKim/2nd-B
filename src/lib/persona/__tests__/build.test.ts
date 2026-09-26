@@ -624,6 +624,19 @@ describe("buildPersona", () => {
     expect((personaUpsert?.opts as { onConflict: string }).onConflict).toBe("user_id,version");
   });
 
+  test("a persona rebuild keeps previously approved role cards", async () => {
+    tableFixtures["records:select"] = { data: [], error: null };
+    tableFixtures["memorized_patterns:select"] = { data: [], error: null };
+    tableFixtures["personas:select"] = {
+      data: [{ patterns: { role_cards_v1: '[{"id":"builder","status":"ratified"}]' } }],
+      error: null,
+    };
+    await buildPersona("u1", "en");
+    const upsert = upsertCalls.find((call) => call.table === "personas");
+    expect((upsert?.payload as { patterns?: Record<string, string> }).patterns?.role_cards_v1)
+      .toContain('"status":"ratified"');
+  });
+
   test("C1 contract: a garbage LLM reply never moves persona scores (instrument layer decides)", async () => {
     // BFI present -> traits + star1 come from the validated instrument, not the LLM.
     tableFixtures["records:select"] = {

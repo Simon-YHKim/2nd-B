@@ -12,11 +12,19 @@
  * (PIXEL-CLAY 규칙 4 · Simon 결정 2026-08-27). 프로토타입의 곱셈
  * 0.36 + L/5×0.64 는 m3.starLadder 안에 미리 합성돼 있다.
  */
-import { Fragment, memo, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
-import { AccessibilityInfo, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
-import { router } from "expo-router";
-import Svg, { Defs, Pattern, Rect } from "react-native-svg";
+import { AccessibilityInfo, Animated, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { router, useFocusEffect } from "expo-router";
+import { useUiSound } from "@/lib/audio/use-ui-sound";
+import Svg, { Defs, G, Pattern, Rect } from "react-native-svg";
+
+import { TelescopeControls } from "./TelescopeControls";
+import { StarDestination } from "./StarDestination";
+import { StarCapture } from "./StarCapture";
+import { STAR_CAMERA_STOPS, starCameraAim, starCameraFlight } from "@/lib/motion/star-camera";
+import { PixelPressable } from "../pixel/PixelPressable";
+import { moveTelescopeCamera } from "@/lib/motion/camera-remote";
 
 import { PixelStarSvg } from "../pixel/PixelStarSvg";
 import { pixelStarSpan } from "../pixel/pixel-star";
@@ -37,9 +45,11 @@ import { flattenAlpha } from "@/lib/theme/tokens";
 import { m3, m3BrightnessBand } from "@/lib/theme/m3";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { stepPolyline, stepQuad } from "@/components/pixel/pixel-line";
-import { keepAllKo } from "@/lib/i18n/keep-all";
 import { fontFamilies } from "@/theme/typography";
+import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
+import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { type LadderLevel } from "@/lib/persona/brightness";
+import { starEntryStatus } from "@/lib/persona/star-entry-tracks";
 import {
   DITHER_TILE,
   LADDER_ON_CELLS,
@@ -49,6 +59,7 @@ import { MdButton } from "@/components/m3";
 import { ReasoningLimitSheet } from "./ReasoningLimitSheet";
 import { SecondbHead } from "./SecondbHead";
 import { SbStarfield } from "./SbStarfield";
+import { JrpgDialogueBox, useJrpgTypewriter } from "./JrpgDialogueBox";
 
 // 누가 일곱인지는 `lib/persona/home-stars.ts` 가 갖는다 (북극성 화면도 같은
 // 일곱을 보여줘야 해서 컴포넌트 밖으로 뺐다). 좌표는 여기 남는다.
@@ -130,7 +141,10 @@ const NEURAL_NODE_OUTER_MAX = 6;
 const NEURAL_NODE_INNER_MAX = 2;
 
 /** Keep SecondB present while the constellation remains the screen's one hero graphic. */
-const HOME_HEAD_SIZE = 152;
+const HOME_HEAD_SIZE = 96;
+const DIALOGUE_STAGE_HEIGHT = 136;
+const DIALOGUE_ACTION_HIT_SLOP = 6;
+const DIALOGUE_BLIP = require("../../../assets/audio/jrpg-text-blip.mp3");
 
 /**
  * 선 색 — 원래 `homeAlpha(…, 0.34)` 였다. 미리 합성해 불투명 색으로 둔다(규칙 4).
@@ -138,6 +152,12 @@ const HOME_HEAD_SIZE = 152;
  */
 const DIPPER_LINK_FILL = flattenAlpha(m3.accent.dipperLine, 0.34, m3.accent.stageFloor);
 const GUIDE_LINK_FILL = flattenAlpha(m3.accent.moodNeutral, 0.45, m3.accent.stageFloor);
+// Keep the star silhouette continuous at L1. The 5-step dither now changes
+// the halo's tone instead of leaving isolated bright pixels on empty sky.
+const DOMAIN_HALO_BASE = flattenAlpha(m3.accent.starCore, 0.36, m3.accent.stageFloor);
+const DOMAIN_HALO_LIGHT = flattenAlpha(m3.accent.starCore, 0.48, m3.accent.stageFloor);
+const POLARIS_HALO_BASE = flattenAlpha(m3.accent.polarisGlow, 0.36, m3.accent.stageFloor);
+const POLARIS_HALO_LIGHT = flattenAlpha(m3.accent.polarisGlow, 0.48, m3.accent.stageFloor);
 
 // 뮤지엄 is a curated surface, not a data domain — fixed at the prototype's L4.
 
@@ -155,12 +175,30 @@ function ladderIndex(level: LadderLevel): number {
 
 type BubbleState =
   | { kind: "intro" }
+  | { kind: "tip"; index: number }
   | { kind: "reasoning" }
   | { kind: "menu" }
   | { kind: "star"; id: HomeStarId };
 
 type ReasoningBubbleMode = "available" | "automatic" | "running" | "depleted";
 type HomeReasoningLocale = "en" | "ko" | "es" | "pt" | "id";
+
+const HOME_TIP_KEYS = [
+  "ds.home.bubble.tip1",
+  "ds.home.bubble.tip2",
+  "ds.home.bubble.tip3",
+] as const;
+
+function nextHomeBubble(current: BubbleState): BubbleState {
+  if (current.kind === "intro") return { kind: "tip", index: 0 };
+  if (current.kind === "tip") {
+    return current.index + 1 < HOME_TIP_KEYS.length
+      ? { kind: "tip", index: current.index + 1 }
+      : { kind: "reasoning" };
+  }
+  if (current.kind === "reasoning") return { kind: "menu" };
+  return { kind: "intro" };
+}
 
 const HOME_REASONING_COPY: Record<
   HomeReasoningLocale,
@@ -264,6 +302,65 @@ function homeReasoningLocale(language: string | undefined): HomeReasoningLocale 
   if (code.startsWith("pt")) return "pt";
   if (code.startsWith("id")) return "id";
   return "en";
+}
+
+function NoticeTicker({ text, reducedMotion, onPress }: {
+  text: string;
+  reducedMotion: boolean;
+  onPress: () => void;
+}) {
+  const offset = useRef(new Animated.Value(0)).current;
+  const [trackWidth, setTrackWidth] = useState(0);
+  const [textWidth, setTextWidth] = useState(0);
+
+  useEffect(() => {
+    offset.stopAnimation();
+    if (reducedMotion || trackWidth === 0 || textWidth === 0) {
+      offset.setValue(0);
+      return;
+    }
+    const startX = Math.max(0, trackWidth - 48);
+    const duration = Math.max(6000, Math.round((startX + textWidth) * 30));
+    let active = true;
+    let current: ReturnType<typeof Animated.timing> | null = null;
+    const run = () => {
+      offset.setValue(startX);
+      current = Animated.timing(offset, {
+        toValue: -textWidth,
+        duration,
+        easing: pixelStepsFor(duration),
+        useNativeDriver: Platform.OS !== "web",
+      });
+      current.start(({ finished }) => { if (active && finished) run(); });
+    };
+    run();
+    return () => {
+      active = false;
+      current?.stop();
+    };
+  }, [offset, reducedMotion, text, textWidth, trackWidth]);
+
+  return (
+    <Pressable
+      style={styles.tickerPress}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={text}
+      hitSlop={{ top: 2, bottom: 2 }}
+    >
+      <View style={styles.tickerTrack} onLayout={(event) => setTrackWidth(Math.round(event.nativeEvent.layout.width))}>
+        {reducedMotion ? (
+          <Text style={styles.tickerText} numberOfLines={1}>{text}</Text>
+        ) : (
+          <Animated.View style={[styles.tickerMotion, { transform: [{ translateX: offset }] }]}>
+            <Text style={styles.tickerText} numberOfLines={1} onLayout={(event) => setTextWidth(Math.round(event.nativeEvent.layout.width))}>
+              {text}
+            </Text>
+          </Animated.View>
+        )}
+      </View>
+    </Pressable>
+  );
 }
 
 // Static t=0 frame of the prototype's neural field (seed 99173, mulberry32):
@@ -442,12 +539,14 @@ const POLARIS_HALO_R = 23;
 const DOMAIN_CORE_R = 8;
 const DOMAIN_FOCUS_MULT = 1.3;
 const DOMAIN_HALO_MULT_REST = 1.6;
-const DOMAIN_HALO_MULT_FOCUS = 1.7;
 
 export function ConstellationHome({
   onStarTravel,
   onPolarisPress,
   onChatPress,
+  coachFirstRecord = false,
+  coachHeadTargetRef,
+  onCoachHeadPress,
   onOpsPress,
   onBellPress,
   onMuseumPress,
@@ -461,6 +560,10 @@ export function ConstellationHome({
   onPolarisPress: () => void;
   /** Head-tap menu actions (prototype bubble buttons 챗봇 / 비서). */
   onChatPress: () => void;
+  /** First-run task coach: the live head becomes step 1's only active target. */
+  coachFirstRecord?: boolean;
+  coachHeadTargetRef?: RefObject<View | null>;
+  onCoachHeadPress?: () => void;
   onOpsPress: () => void;
   /** 뮤지엄 corner chip. The museum lost its home star to `profile`, so this is
    *  the ONLY forward entry point to /museum in the app — the swap and this chip
@@ -481,8 +584,8 @@ export function ConstellationHome({
   // 북극성 밝기(0..1 연속)를 사다리 한 칸으로 떨어뜨린다.
   // ⚠ 손실이 있는 변환이다 — Simon 결정 2026-08-27 에서 감수하기로 한 부분.
   const polarisBand = m3BrightnessBand(northStarBrightness);
-  const { t, i18n } = useTranslation("home");
-  const { userId, isMinor } = useAuth();
+  const { t, i18n } = useTranslation(["home", "deepspace"]);
+  const { userId, isMinor, age } = useAuth();
   const reasoningCopy = HOME_REASONING_COPY[homeReasoningLocale(i18n.language)];
   const noticeCenter = useNoticeCenter(userId);
   const coachmarksDue = useCoachmarksGate();
@@ -493,6 +596,7 @@ export function ConstellationHome({
   const [stage, setStage] = useState<{ w: number; h: number } | null>(null);
   const [autoNoticeDismissed, setAutoNoticeDismissed] = useState(false);
   const [manualNoticeVisible, setManualNoticeVisible] = useState(false);
+  const [homeFocused, setHomeFocused] = useState(false);
   const [reasoningStatus, setReasoningStatus] = useState<{
     automatic: boolean;
     /** Run gate: weekly base + monthly reward credits (what CAN still run). */
@@ -503,6 +607,13 @@ export function ConstellationHome({
     rewardCredits: number;
   }>({ automatic: false, remaining: null, baseRemaining: null, rewardCredits: 0 });
   const [limitSheetVisible, setLimitSheetVisible] = useState(false);
+
+  // Home stays mounted behind capture. Keep its notice Modal off other routes,
+  // including the first-record coach's completion screen.
+  useFocusEffect(useCallback(() => {
+    setHomeFocused(true);
+    return () => setHomeFocused(false);
+  }, []));
 
   const refreshReasoningStatus = useCallback(async () => {
     if (!userId) {
@@ -529,9 +640,19 @@ export function ConstellationHome({
     if (bubble.kind === "reasoning") void refreshReasoningStatus();
   }, [bubble.kind, refreshReasoningStatus, task.phase]);
 
-  // Constellation box: prototype 380×312 (280×230 space), shrunk to fit narrow
-  // screens; k scales the prototype's screen-px values proportionally.
-  const boxW = Math.min(380, winW - 24);
+  // Reserve the dialogue stage first, then center the constellation in the
+  // remaining space. Height also constrains the scale on short screens so the
+  // stars never collide with the dialogue panel.
+  const [instrumentHeight, setInstrumentHeight] = useState(110);
+  const dialogueStageHeight = DIALOGUE_STAGE_HEIGHT * Math.min(Math.max(fontScale, 1), 1.35);
+  const constellationHeightBudget = stage
+    ? Math.max(120, stage.h - dialogueStageHeight - 52 - instrumentHeight)
+    : Number.POSITIVE_INFINITY;
+  const boxW = Math.min(
+    380,
+    winW - 24,
+    constellationHeightBudget * (VBW / (VBH + VB_TOP)),
+  );
   const k = boxW / 380;
   const u = boxW / VBW; // box px per viewBox unit
   const boxH = (VBH + VB_TOP) * u;
@@ -564,15 +685,49 @@ export function ConstellationHome({
   const kindOf = (id: HomeStarId) => (id === "profile" ? t("ds.home.kind.profile") : t("ds.home.kind.domain"));
 
   const focusedId = bubble.kind === "star" ? bubble.id : null;
-  // The canonical asset stays recognizable at 152px while remaining below 40%
-  // of the reference canvas. At 200px it displaced the constellation as the
-  // screen's hero graphic and contradicted the one-message/one-graphic rule.
-  const headSize = HOME_HEAD_SIZE;
+  const reducedMotion = useReducedMotionPref();
+  const [camera, setCamera] = useState({ x: 0, y: 0, zoom: 1 });
+  const [skySize, setSkySize] = useState({ width: winW, height: boxH });
+  const [visualFocusId, setVisualFocusId] = useState<HomeStarId | null>(null);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [captureId, setCaptureId] = useState<HomeStarId | null>(null);
+  const captureLock = useRef(false);
+  const homeActive = useRef(homeFocused);
+  homeActive.current = homeFocused;
+  const destinationProgress = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (homeFocused) return;
+    captureLock.current = false;
+    setCaptureId(null);
+    setCameraReady(false);
+    setVisualFocusId(null);
+    destinationProgress.stopAnimation();
+    destinationProgress.setValue(0);
+    setBubble(current => current.kind === 'star' ? { kind: 'intro' } : current);
+  }, [destinationProgress, homeFocused]);
+  const selectedStar = REV2_STARS.find((s) => s.id === visualFocusId);
+  const starRadius = pixelStarSpan(DOMAIN_CORE_R * k * DOMAIN_HALO_MULT_REST);
+  const flight = starCameraFlight(
+    selectedStar ? { x: Math.round(px(selectedStar.x)), y: Math.round(py(selectedStar.y)) } : { x: boxW / 2, y: boxH / 2 },
+    camera, { width: boxW, height: boxH }, skySize, instrumentHeight, starRadius,
+  );
+  const cameraAim = starCameraAim(flight.origin, skySize);
+  const worldX = visualFocusId ? destinationProgress.interpolate({ inputRange: STAR_CAMERA_STOPS, outputRange: flight.x }) : -camera.x * camera.zoom;
+  const worldY = visualFocusId ? destinationProgress.interpolate({ inputRange: STAR_CAMERA_STOPS, outputRange: flight.y }) : -camera.y * camera.zoom;
+  const worldZoom = visualFocusId ? destinationProgress.interpolate({ inputRange: STAR_CAMERA_STOPS, outputRange: flight.zoom }) : camera.zoom;
+  const selectedEntry = focusedId ? starEntryStatus(focusedId, starLevels, age) : null;
+  const playDialogueBlip = useUiSound(DIALOGUE_BLIP, {
+    volume: 0.08,
+    minIntervalMs: 72,
+    updateIntervalMs: 1_000,
+  });
 
   const bubbleTag =
     bubble.kind === "reasoning"
       ? reasoningCopy.reasoningTag
-      : bubble.kind === "menu"
+      : bubble.kind === "tip"
+        ? t("ds.home.bubble.tipTag")
+        : bubble.kind === "menu"
           ? t("ds.home.bubble.menuTag")
           : bubble.kind === "star"
             ? kindOf(bubble.id)
@@ -593,11 +748,33 @@ export function ConstellationHome({
                 : reasoningStatus.baseRemaining !== null && reasoningStatus.baseRemaining > 0
                   ? reasoningCopy.baseLeft(reasoningStatus.baseRemaining)
                   : reasoningCopy.rewardLeft(reasoningStatus.rewardCredits)
-      : bubble.kind === "menu"
+      : bubble.kind === "tip"
+        ? t(HOME_TIP_KEYS[bubble.index] ?? HOME_TIP_KEYS[0])
+        : bubble.kind === "menu"
           ? t("ds.home.bubble.menu")
           : bubble.kind === "star"
-            ? t(`ds.home.star.${bubble.id}.line`)
+            ? `${t(`ds.home.star.${bubble.id}.line`)}${selectedEntry?.kind === "previous"
+              ? ` ${t("ds.home.star.entryAfter", { star: starName(selectedEntry.prerequisite) })}`
+              : selectedEntry?.kind === "unlived"
+                ? ` ${t("ds.star.lockedBody")}`
+                : ""}`
             : t("ds.home.bubble.intro");
+  const dialogue = useJrpgTypewriter({
+    text: bubbleLine,
+    reducedMotion,
+    onBlip: playDialogueBlip,
+  });
+  const advanceDialogue = useCallback(() => {
+    if (coachFirstRecord) {
+      onCoachHeadPress?.();
+      return;
+    }
+    if (!dialogue.isComplete) {
+      dialogue.reveal();
+      return;
+    }
+    setBubble(nextHomeBubble);
+  }, [coachFirstRecord, dialogue.isComplete, dialogue.reveal, onCoachHeadPress]);
   // The popup is driven by popupNotice, NOT by unreadCount. Once the notices
   // table exists an unread `minor` row also raises unreadCount, and minor is
   // explicitly not allowed to interrupt - keying the gate off the count would
@@ -618,6 +795,13 @@ export function ConstellationHome({
       noticeCenter.notices[0] ??
       null)
     : null;
+  const tickerText = manualNotice
+    ? `${reasoningCopy.notices} · ${manualNotice.title[homeReasoningLocale(i18n.language) === "ko" ? "ko" : "en"]}`
+    : null;
+  const openNotice = () => {
+    setBubble({ kind: "intro" });
+    setManualNoticeVisible(true);
+  };
   const shownNotice = manualNoticeVisible ? manualNotice : autoNotice;
   const dismissNotice = () => {
     setAutoNoticeDismissed(true);
@@ -636,78 +820,85 @@ export function ConstellationHome({
   return (
     <View style={styles.root} onLayout={(e) => setStage({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
       {/* Opaque stage floor, shared starfield and static neural field. */}
-      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      <Animated.View testID="star-camera-sky" pointerEvents="none" style={[StyleSheet.absoluteFill, { transform: [
+        { translateX: destinationProgress.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, cameraAim.x, cameraAim.x] }) },
+        { translateY: destinationProgress.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, cameraAim.y, cameraAim.y] }) },
+        { rotate: destinationProgress.interpolate({ inputRange: [0, 0.4, 0.8, 1], outputRange: ['0deg', `${cameraAim.roll}deg`, '0deg', '0deg'] }) },
+        { scale: destinationProgress.interpolate({ inputRange: [0, 0.4, 0.8, 1], outputRange: [1, 1.08, 1.28, 1.28] }) },
+      ] }]}>
         {stage ? <NeuralFieldBackdrop w={stage.w} h={stage.h} /> : null}
         <SbStarfield />
-      </View>
+      </Animated.View>
 
-      {/* home inbox bell (sb-app "home inbox bell": 40dp chip, 4dp under the
-          status inset, orange unread dot). LAYOUT NOTE (PR 680): Fabric Android
-          drops styles given to Pressable, so the chip visual/position live on
-          a View and the Pressable inside is a bare touch surface. */}
-      <View style={styles.bell}>
-        <Pressable
-          onPress={onBellPress}
-          accessibilityRole="button"
-          accessibilityLabel={t("ds.home.inbox")}
-          hitSlop={14}
-        >
-          <PixelGlyph name="notifications" color={m3.accent.bellGlyph} size={20} />
-        </Pressable>
-        {hasUnread ? <View pointerEvents="none" style={styles.bellDot} /> : null}
-      </View>
+      {/* The four home controls share one bar. Keep the chip visuals on Views:
+          Fabric Android can drop styles applied directly to Pressable. */}
+      <View style={styles.topBar}>
+        <View style={styles.topBarStart}>
+          <View style={styles.bell}>
+            <Pressable
+              onPress={onBellPress}
+              accessibilityRole="button"
+              accessibilityLabel={t("ds.home.inbox")}
+              hitSlop={14}
+            >
+              <PixelGlyph name="notifications" color={m3.accent.bellGlyph} size={20} />
+            </Pressable>
+            {hasUnread ? <View pointerEvents="none" style={styles.bellDot} /> : null}
+          </View>
 
-      {/* 뮤지엄 chip, sitting beside the inbox bell. Not a star any more: the AI
-          museum is a curated place you visit, and a star that never moved off a
-          hardcoded L4 was teaching the sky to lie. */}
-      <View style={styles.museumChip}>
-        <Pressable
-          onPress={onMuseumPress}
-          accessibilityRole="button"
-          accessibilityLabel={t("ds.home.museumEntry")}
-          hitSlop={14}
-        >
-          <PixelGlyph name="account_balance" color={m3.accent.bellGlyph} size={20} />
-        </Pressable>
-      </View>
+          <View style={styles.museumChip}>
+            <Pressable
+              onPress={onMuseumPress}
+              accessibilityRole="button"
+              accessibilityLabel={t("ds.home.museumEntry")}
+              hitSlop={14}
+            >
+              <PixelGlyph name="account_balance" color={m3.accent.bellGlyph} size={20} />
+            </Pressable>
+          </View>
 
-      {/* 커뮤니티, beside the museum. Hidden for minors and while the age is
-          still unknown: the screen itself is adults-only and fail-closed, so an
-          affordance that always bounces would be a worse answer than no
-          affordance. */}
-      {isMinor === false ? (
-        <View style={styles.communityChip}>
+          {/* Community stays hidden until the user's adult status is known. */}
+          {isMinor === false ? (
+            <View style={styles.communityChip}>
+              <Pressable
+                onPress={onCommunityPress}
+                accessibilityRole="button"
+                accessibilityLabel={t("ds.home.communityEntry")}
+                hitSlop={14}
+              >
+                <PixelGlyph name="groups" color={m3.accent.bellGlyph} size={20} />
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
+
+        {tickerText ? (
+          <NoticeTicker key={tickerText} text={tickerText} reducedMotion={reducedMotion} onPress={openNotice} />
+        ) : null}
+
+        {/* Campaign notice keeps its own persisted unread signal. */}
+        <View style={styles.noticeBell}>
           <Pressable
-            onPress={onCommunityPress}
+            onPress={openNotice}
             accessibilityRole="button"
-            accessibilityLabel={t("ds.home.communityEntry")}
+            accessibilityLabel={reasoningCopy.notices}
             hitSlop={14}
           >
-            <PixelGlyph name="groups" color={m3.accent.bellGlyph} size={20} />
+            <PixelGlyph name="campaign" color={m3.color.primary} size={20} />
           </Pressable>
+          {noticeCenter.unreadCount > 0 ? <View pointerEvents="none" style={styles.bellDot} /> : null}
         </View>
-      ) : null}
-
-      {/* Campaign is distinct from the inbox bell: it owns product news and
-          keeps the unread signal tied to a real persisted latest-notice ID. */}
-      <View style={styles.noticeBell}>
-        <Pressable
-          onPress={() => {
-            setBubble({ kind: "intro" });
-            setManualNoticeVisible(true);
-          }}
-          accessibilityRole="button"
-          accessibilityLabel={reasoningCopy.notices}
-          hitSlop={14}
-        >
-          <PixelGlyph name="campaign" color={m3.color.primary} size={20} />
-        </Pressable>
-        {noticeCenter.unreadCount > 0 ? <View pointerEvents="none" style={styles.bellDot} /> : null}
       </View>
 
-      {/* constellation block (sb-home: flex 1, box centered, 84px top clearance) */}
+      {/* The instrument stage keeps controls clear of SecondB and the root dock. */}
       <View style={styles.constellationBlock}>
-        <View style={{ width: boxW, height: boxH }}>
+        <View style={styles.skyViewport} onLayout={({ nativeEvent: { layout } }) => setSkySize({ width: layout.width, height: layout.height })}>
+        {/* Keep the SAME world mounted throughout approach and retreat. Only
+            its camera changes; neighbours leave through the viewport edges. */}
+        <Animated.View testID="star-camera-world" pointerEvents={visualFocusId ? "none" : "auto"}
+          aria-hidden={!!visualFocusId} accessibilityElementsHidden={!!visualFocusId} importantForAccessibility={visualFocusId ? "no-hide-descendants" : "auto"}
+          style={{ position: "absolute", left: (skySize.width - boxW) / 2, top: (skySize.height - instrumentHeight - boxH) / 2,
+            width: boxW, height: boxH, transform: [{ translateX: worldX }, { translateY: worldY }, { scale: worldZoom }] }}>
           <Svg width={boxW} height={boxH} pointerEvents="none">
             <Defs>
               {/* 광채는 알파 그라디언트가 아니라 **디더**다 (PIXEL-CLAY 규칙 4:
@@ -729,8 +920,9 @@ export function ConstellationHome({
                   width={DITHER_TILE}
                   height={DITHER_TILE}
                 >
+                  <Rect x={0} y={0} width={DITHER_TILE} height={DITHER_TILE} fill={DOMAIN_HALO_BASE} />
                   {ladderDitherCells(i + 1).map((c, j) => (
-                    <Rect key={j} x={c.x} y={c.y} width={1} height={1} fill={m3.accent.starCore} />
+                    <Rect key={j} x={c.x} y={c.y} width={1} height={1} fill={DOMAIN_HALO_LIGHT} />
                   ))}
                 </Pattern>
               ))}
@@ -744,8 +936,9 @@ export function ConstellationHome({
                   width={DITHER_TILE}
                   height={DITHER_TILE}
                 >
+                  <Rect x={0} y={0} width={DITHER_TILE} height={DITHER_TILE} fill={POLARIS_HALO_BASE} />
                   {ladderDitherCells(i + 1).map((c, j) => (
-                    <Rect key={j} x={c.x} y={c.y} width={1} height={1} fill={m3.accent.polarisGlow} />
+                    <Rect key={j} x={c.x} y={c.y} width={1} height={1} fill={POLARIS_HALO_LIGHT} />
                   ))}
                 </Pattern>
               ))}
@@ -772,15 +965,14 @@ export function ConstellationHome({
             {REV2_STARS.map((s) => {
               const on = focusedId === s.id;
               const li = ladderIndex(levelOf(s.id));
-              // Visual Tier: a tapped (focused) domain star is promoted but must
-              // stay BELOW 북극성. Enforced by constellation-polaris-dominance.test.ts.
-              const dotR = DOMAIN_CORE_R * k * (on ? DOMAIN_FOCUS_MULT : 1);
+              // Halo and core are one physical body under the world camera.
+              const dotR = DOMAIN_CORE_R * k;
               return (
-                <Fragment key={s.id}>
+                <G key={s.id} testID={`star-body-${s.id}`}>
                   <PixelStarSvg
                     cx={px(s.x)}
                     cy={py(s.y)}
-                    r={dotR * (on ? DOMAIN_HALO_MULT_FOCUS : DOMAIN_HALO_MULT_REST)}
+                    r={dotR * DOMAIN_HALO_MULT_REST}
                     fill={`url(#ds-star-l${li})`}
                   />
                   <PixelStarSvg
@@ -789,7 +981,7 @@ export function ConstellationHome({
                     r={dotR}
                     fill={on ? m3.starLadder.focus[li] : m3.starLadder.rest[li]}
                   />
-                </Fragment>
+                </G>
               );
             })}
           </Svg>
@@ -804,30 +996,33 @@ export function ConstellationHome({
             const on = focusedId === s.id;
             const label = starLabels.stars[s.id];
             return (
-              <Text
+              <Animated.Text
                 key={`label-${s.id}`}
                 accessible={false}
                 importantForAccessibility="no-hide-descendants"
                 numberOfLines={label.maxLines}
-                style={[styles.starLabel, label.frame, on && { color: m3.accent.starFocus }]}
+                pointerEvents="none"
+                style={[styles.starLabel, label.frame, on && { color: m3.accent.starFocus }, { transform: [{ scale: Animated.divide(1, worldZoom) }] }]}
               >
                 {starName(s.id)}
-              </Text>
+              </Animated.Text>
             );
           })}
-          <Text
+          <Animated.Text
+            pointerEvents="none"
             accessible={false}
             importantForAccessibility="no-hide-descendants"
             numberOfLines={1}
-            style={[styles.polarisLabel, starLabels.polaris]}
+            style={[styles.polarisLabel, starLabels.polaris, { transform: [{ scale: Animated.divide(1, worldZoom) }] }]}
           >
             {t("ds.home.polaris")}
-          </Text>
+          </Animated.Text>
 
           {/* tap targets — LAYOUT NOTE (PR 680): positioning lives on Views;
               each Pressable inside is a bare full-size touch surface. */}
           <View style={[styles.hit, { left: px(POLARIS.x) - 28, top: py(POLARIS.y) - 28, width: 56, height: 56 }]}>
             <Pressable
+              disabled={!!visualFocusId}
               onPress={() => {
                 setBubble({ kind: "intro" });
                 onPolarisPress();
@@ -849,7 +1044,10 @@ export function ConstellationHome({
                 style={[styles.hit, { left: px(s.x) - half, top: py(s.y) - half, width: hitSize, height: hitSize }]}
               >
                 <Pressable
+                  disabled={!!visualFocusId}
                   onPress={() => {
+                    setCameraReady(false);
+                    setVisualFocusId(s.id);
                     setBubble({ kind: "star", id: s.id });
                     // The domain card opens at the BOTTOM of the screen with no
                     // focus move; announce so a screen-reader user knows the tap
@@ -867,41 +1065,94 @@ export function ConstellationHome({
               </View>
             );
           })}
+        </Animated.View>
+        {visualFocusId ? (
+          <StarDestination
+            active={focusedId !== null}
+            progress={destinationProgress}
+            name={starName(visualFocusId)}
+            returnLabel={t("ds.home.bubble.returnToSky")}
+            origin={flight.origin}
+            originRadius={starRadius * camera.zoom}
+            size={skySize}
+            onReturn={() => setBubble({ kind: "intro" })}
+            onReturned={() => setVisualFocusId(null)}
+            onReady={() => setCameraReady(true)}
+          />
+        ) : null}
         </View>
+        {!visualFocusId ? (
+          <View style={styles.instrumentRow} onLayout={({ nativeEvent: { layout } }) => setInstrumentHeight(layout.height)}>
+            <TelescopeControls
+              zoom={camera.zoom}
+              minZoom={1}
+              maxZoom={3}
+              onMove={(dx, dy) => setCamera((current) => moveTelescopeCamera(current, dx, dy, { width: skySize.width, height: skySize.height - instrumentHeight }))}
+              onZoom={(zoom) => setCamera((current) => ({ ...current, zoom }))}
+              onReset={() => setCamera({ x: 0, y: 0, zoom: 1 })}
+            />
+            <PixelPressable
+              onPress={() => router.push("/dashboard")}
+              accessibilityLabel={t("deepspace:telescope.phone")}
+              contentStyle={styles.phoneButton}
+            >
+              <View style={styles.phoneScreen}>
+                <View style={styles.phoneSpeaker} />
+                <View style={styles.phoneApps}>
+                  {[0, 1, 2, 3].map((key) => <View key={key} style={styles.phoneApp} />)}
+                </View>
+              </View>
+              <Text style={styles.phoneCaption}>{t("deepspace:telescope.phoneLabel")}</Text>
+            </PixelPressable>
+          </View>
+        ) : null}
       </View>
 
-      {/* head + bubble block (sb-home HeadBubble: head pinned above center,
-          bubble grows downward from just below the head) */}
-      <View style={styles.headBlock}>
-        <View style={[styles.headAnchor, { marginTop: -104 - headSize / 2 }]}>
-          <Pressable
-            onPress={() =>
-              setBubble((current) =>
-                current.kind === "intro"
-                  ? { kind: "reasoning" }
-                  : current.kind === "reasoning"
-                    ? { kind: "menu" }
-                    : { kind: "intro" },
-              )
-            }
-            accessibilityRole="button"
-            accessibilityLabel={t("ds.home.headA11y")}
-          >
-            <SecondbHead size={headSize} mood="neutral" track />
-          </Pressable>
-        </View>
-        <View style={[styles.bubbleAnchor, { marginTop: -104 + headSize / 2 - 6 }]}>
-          <View style={styles.bubble}>
-            <View style={styles.bubbleCaret} />
-            <Text style={styles.bubbleTag}>{bubbleTag}</Text>
-            {/* keepAllKo joins Hangul words with U+2060 so the short bubble copy
-                wraps at spaces (Android breaks mid-word otherwise); the screen
-                reader gets the untouched string as accessibilityLabel. */}
-            {bubbleTitle ? (
-              <Text style={styles.bubbleTitle} accessibilityLabel={bubbleTitle}>{keepAllKo(bubbleTitle)}</Text>
-            ) : null}
-            <Text style={styles.bubbleLine} accessibilityLabel={bubbleLine}>{keepAllKo(bubbleLine)}</Text>
-            {bubble.kind === "reasoning" ? (
+      {/* JRPG dialogue stage: SecondB becomes a framed portrait beside the copy.
+          The live portrait remains the first-record coach target. */}
+      <View style={[styles.headBlock, { minHeight: dialogueStageHeight }]}>
+        <View style={styles.dialogueAnchor}>
+          <JrpgDialogueBox
+            speaker={t("ds.dock.chat")}
+            tag={bubbleTag}
+            title={bubbleTitle}
+            fullText={bubbleLine}
+            displayedText={dialogue.displayedText}
+            isComplete={dialogue.isComplete}
+            onReveal={dialogue.reveal}
+            onAdvance={advanceDialogue}
+            portrait={(
+              <View ref={coachHeadTargetRef} collapsable={false}>
+                <Pressable
+                  onPress={advanceDialogue}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("ds.home.headA11y")}
+                  accessibilityHint={
+                    coachFirstRecord ? t("deepspace:coachmarks.homeStep") : undefined
+                  }
+                >
+                  <SecondbHead size={HOME_HEAD_SIZE} mood="neutral" track />
+                </Pressable>
+              </View>
+            )}
+            actions={bubble.kind === "tip" ? (
+              <View style={styles.bubbleActions}>
+                <MdButton
+                  label={t("ds.home.bubble.next")}
+                  variant="filled"
+                  style={styles.dialogueAction}
+                  hitSlop={DIALOGUE_ACTION_HIT_SLOP}
+                  onPress={() => setBubble(nextHomeBubble)}
+                />
+                <MdButton
+                  label={t("ds.home.bubble.openMenu")}
+                  variant="tonal"
+                  style={styles.dialogueAction}
+                  hitSlop={DIALOGUE_ACTION_HIT_SLOP}
+                  onPress={() => setBubble({ kind: "menu" })}
+                />
+              </View>
+            ) : bubble.kind === "reasoning" ? (
               <View style={styles.bubbleActions}>
                 {reasoningMode === "depleted" ? (
                   <>
@@ -913,6 +1164,8 @@ export function ConstellationHome({
                       <MdButton
                         label={reasoningCopy.adReward(REWARD_PER_WATCH)}
                         variant="filled"
+                        style={styles.dialogueAction}
+                        hitSlop={DIALOGUE_ACTION_HIT_SLOP}
                         onPress={() => {
                           setBubble({ kind: "intro" });
                           setLimitSheetVisible(true);
@@ -922,6 +1175,8 @@ export function ConstellationHome({
                     <MdButton
                       label={reasoningCopy.viewPlans}
                       variant="tonal"
+                      style={styles.dialogueAction}
+                      hitSlop={DIALOGUE_ACTION_HIT_SLOP}
                       onPress={() => {
                         setBubble({ kind: "intro" });
                         router.push("/plans?from=reasoning_limit");
@@ -937,6 +1192,8 @@ export function ConstellationHome({
                           : reasoningCopy.chooseItems
                       }
                       variant="filled"
+                      style={styles.dialogueAction}
+                      hitSlop={DIALOGUE_ACTION_HIT_SLOP}
                       onPress={() => {
                         setBubble({ kind: "intro" });
                         router.push("/reasoning");
@@ -946,6 +1203,8 @@ export function ConstellationHome({
                       <MdButton
                         label={reasoningCopy.automaticButton}
                         variant="tonal"
+                        style={styles.dialogueAction}
+                        hitSlop={DIALOGUE_ACTION_HIT_SLOP}
                         onPress={() => {
                           setBubble({ kind: "intro" });
                           router.push("/reasoning");
@@ -955,12 +1214,13 @@ export function ConstellationHome({
                   </>
                 )}
               </View>
-            ) : null}
-            {bubble.kind === "menu" ? (
+            ) : bubble.kind === "menu" ? (
               <View style={styles.bubbleActions}>
                 <MdButton
                   label={t("ds.home.bubble.chatbot")}
                   variant="filled"
+                  style={styles.dialogueAction}
+                  hitSlop={DIALOGUE_ACTION_HIT_SLOP}
                   onPress={() => {
                     setBubble({ kind: "intro" });
                     onChatPress();
@@ -969,33 +1229,44 @@ export function ConstellationHome({
                 <MdButton
                   label={t("ds.home.bubble.assistant")}
                   variant="tonal"
+                  style={styles.dialogueAction}
+                  hitSlop={DIALOGUE_ACTION_HIT_SLOP}
                   onPress={() => {
                     setBubble({ kind: "intro" });
                     onOpsPress();
                   }}
                 />
               </View>
-            ) : null}
-            {bubble.kind === "star" ? (
+            ) : bubble.kind === "star" ? (
               <View style={styles.bubbleActions}>
                 <MdButton
                   label={t("ds.home.bubble.travel")}
                   variant="filled"
+                  disabled={selectedEntry?.kind !== "available" || !cameraReady || captureId !== null}
+                  style={styles.dialogueAction}
+                  hitSlop={DIALOGUE_ACTION_HIT_SLOP}
                   onPress={() => {
-                    const id = bubble.id;
-                    setBubble({ kind: "intro" });
-                    onStarTravel(id);
+                    if (!cameraReady || selectedEntry?.kind !== 'available' || captureLock.current) return;
+                    captureLock.current = true;
+                    setCaptureId(bubble.id);
                   }}
                 />
-                <MdButton label={t("ds.home.bubble.later")} variant="text" onPress={() => setBubble({ kind: "intro" })} />
+                <MdButton
+                  label={t("ds.home.bubble.later")}
+                  disabled={captureId !== null}
+                  variant="text"
+                  style={styles.dialogueAction}
+                  hitSlop={DIALOGUE_ACTION_HIT_SLOP}
+                  onPress={() => setBubble({ kind: "intro" })}
+                />
               </View>
-            ) : null}
-          </View>
+            ) : undefined}
+          />
         </View>
       </View>
       {shownNotice ? (
         <NoticeDialog
-          visible={autoNoticeVisible || manualNoticeVisible}
+          visible={homeFocused && (autoNoticeVisible || manualNoticeVisible)}
           notice={shownNotice}
           index={0}
           showPager={false}
@@ -1023,17 +1294,82 @@ export function ConstellationHome({
         onClose={() => setLimitSheetVisible(false)}
         onChanged={() => void refreshReasoningStatus()}
       />
+      {homeFocused && visualFocusId ? (
+        <StarCapture
+          key={visualFocusId}
+          active={captureId === visualFocusId}
+          onCancel={() => { captureLock.current = false; setCaptureId(null); }}
+          onComplete={() => {
+            if (!captureLock.current || !homeActive.current) return;
+            const id = captureId;
+            if (!id) return;
+            captureLock.current = false;
+            setCaptureId(null);
+            setVisualFocusId(null);
+            setCameraReady(false);
+            destinationProgress.setValue(0);
+            setBubble({ kind: 'intro' });
+            onStarTravel(id);
+          }}
+        />
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  bell: {
+  topBar: {
     position: "absolute",
-    top: 4,
-    left: 16,
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 52,
     zIndex: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    borderBottomWidth: 2,
+    borderBottomColor: m3.color.surfaceBright,
+    backgroundColor: m3.color.surfaceContainer,
+  },
+  topBarStart: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  tickerPress: {
+    flex: 1,
+    minWidth: 0,
+    height: 40,
+    marginHorizontal: 8,
+    justifyContent: "center",
+  },
+  tickerTrack: {
+    height: 32,
+    overflow: "hidden",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: m3.color.outline,
+    backgroundColor: m3.color.surface,
+  },
+  tickerMotion: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
+  },
+  tickerText: {
+    flexShrink: 0,
+    paddingHorizontal: 6,
+    paddingBottom: 2,
+    color: m3.accent.bellGlyph,
+    fontFamily: m3.font.mono,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  bell: {
     width: 40,
     height: 40,
     borderRadius: 0,
@@ -1043,10 +1379,6 @@ const styles = StyleSheet.create({
     ...m3.elevation.level2,
   },
   noticeBell: {
-    position: "absolute",
-    top: 4,
-    right: 16,
-    zIndex: 8,
     width: 40,
     height: 40,
     borderRadius: 0,
@@ -1058,10 +1390,6 @@ const styles = StyleSheet.create({
     ...m3.elevation.level2,
   },
   museumChip: {
-    position: "absolute",
-    top: 4,
-    left: 64,
-    zIndex: 8,
     width: 40,
     height: 40,
     borderRadius: 0,
@@ -1071,10 +1399,6 @@ const styles = StyleSheet.create({
     ...m3.elevation.level2,
   },
   communityChip: {
-    position: "absolute",
-    top: 4,
-    left: 112,
-    zIndex: 8,
     width: 40,
     height: 40,
     borderRadius: 0,
@@ -1097,10 +1421,18 @@ const styles = StyleSheet.create({
     minHeight: 0,
     alignItems: "center",
     justifyContent: "center",
-    paddingTop: 40,
-    paddingHorizontal: 12,
+    paddingTop: 52,
     zIndex: 3,
+    overflow: "hidden",
   },
+  skyViewport: { flex: 1, width: "100%", minHeight: 0, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  instrumentRow: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, paddingHorizontal: 12, paddingVertical: 4 },
+  phoneButton: { width: 48, minHeight: 72, paddingHorizontal: 4, paddingVertical: 4, alignItems: "center", gap: 4 },
+  phoneScreen: { width: 28, height: 40, borderWidth: 2, borderColor: m3.color.outline, backgroundColor: m3.color.surface, padding: 3, gap: 5 },
+  phoneSpeaker: { alignSelf: "center", width: 10, height: 2, backgroundColor: m3.color.onSurfaceVariant },
+  phoneApps: { flexDirection: "row", flexWrap: "wrap", gap: 3 },
+  phoneApp: { width: 6, height: 6, backgroundColor: m3.color.primary },
+  phoneCaption: { fontFamily: m3.font.mono, fontSize: 10, lineHeight: 16, color: m3.color.onSurface },
   // left/top/width/fontSize/lineHeight of both labels come from star-label-layout.ts.
   starLabel: {
     position: "absolute",
@@ -1119,67 +1451,27 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.readable,
   },
   hit: { position: "absolute" },
-  headBlock: { flex: 1, minHeight: 0, zIndex: 5 },
-  headAnchor: {
+  headBlock: { flexGrow: 0, flexShrink: 0, zIndex: 5 },
+  dialogueAnchor: {
     position: "absolute",
     left: 0,
     right: 0,
-    top: "50%",
+    bottom: 0,
     alignItems: "center",
+    paddingHorizontal: m3.spacing.s3,
   },
-  bubbleAnchor: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: "50%",
+  bubbleActions: {
+    minWidth: 0,
+    alignSelf: "stretch",
     alignItems: "center",
-    paddingHorizontal: 16,
+    flexDirection: "row",
+    gap: m3.spacing.s3,
+    justifyContent: "center",
   },
-  bubble: {
-    width: "100%",
-    maxWidth: 268,
-    borderRadius: 0,
-    borderWidth: 1,
-    borderColor: m3.color.primary,
-    backgroundColor: m3.accent.stageFloor,
-    paddingVertical: 13,
-    paddingHorizontal: 16,
-    alignItems: "center",
+  dialogueAction: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 32,
+    paddingHorizontal: m3.spacing.s1,
   },
-  bubbleCaret: {
-    position: "absolute",
-    top: -7,
-    alignSelf: "center",
-    width: 12,
-    height: 12,
-    backgroundColor: m3.accent.stageFloor,
-    borderLeftWidth: 1,
-    borderTopWidth: 1,
-    borderColor: m3.color.primary,
-    transform: [{ rotate: "45deg" }],
-  },
-  bubbleTag: {
-    fontFamily: m3.font.mono,
-    // 격자 밖 9px 은 Galmuri 에서 조용히 흐려진다(PRD §2-4). tracking 도
-    // 정수로 -- 비트맵 얼굴은 소수 자간에서 글자마다 반 픽셀씩 밀린다.
-    fontSize: 10,
-    letterSpacing: 1,
-    color: homeAlpha(m3.accent.moodNeutral, 0.9),
-    marginBottom: 6,
-  },
-  bubbleTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: m3.accent.starFocus,
-    marginBottom: 5,
-    fontFamily: fontFamilies.readable,
-  },
-  bubbleLine: {
-    fontSize: 13.5,
-    lineHeight: 20,
-    color: m3.accent.bubbleText,
-    textAlign: "center",
-    fontFamily: fontFamilies.readable,
-  },
-  bubbleActions: { flexDirection: "column", gap: 8, marginTop: 12, justifyContent: "center" },
 });

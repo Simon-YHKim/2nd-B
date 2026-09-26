@@ -55,22 +55,21 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { livedPeriods, resolveInterviewRoutePeriod } from "@/lib/interview/periods";
 import { DrillProgress } from "@/components/ui/DrillProgress";
 import { isNonAnswer, scaffoldQuestion, shouldScaffold, MAX_SCAFFOLDS_PER_LAYER } from "@/lib/interview/stuck";
+import { answerDisposition, canCreditAnswer, confirmedAnswer, currentScene } from "@/lib/interview/continuity";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { createRecord } from "@/lib/records/create";
 import { addCoverage, loadCoverage } from "@/lib/interview/coverage-store";
 import { loadSevenLevels } from "@/lib/persona/load-seven-levels";
+import { starEntryStatus, type StarEntryStatus } from "@/lib/persona/star-entry-tracks";
 import { recordSevenTiers } from "@/lib/persona/seven-tier-history";
 import { m3 } from "@/lib/theme/m3";
 import { spacing } from "@/lib/theme/tokens";
 import {
-  LAYER_LABEL,
-  PERIOD_LABEL,
   seedQuestion,
   emptyCoverage,
   DRILL_LAYERS,
   LIFE_PERIODS,
   incrementCoverage,
-  decrementCoverage,
   nextMove,
   nextProbe,
   type Coverage,
@@ -178,12 +177,60 @@ export default function InterviewRoute() {
   // URL의 시기가 바뀌면 세션 전체를 갈아 끼운다. turns/coverage/started가 다른
   // 시기의 대화와 섞이지 않고, 저장 시기 역시 이 prop 하나로 고정된다.
   return (
-    <InterviewSession
+    <TrackGatedInterview
       key={`${resolution.period}:${growthOrigin ? "domain-growth" : "default"}`}
       period={resolution.period}
       growthOrigin={growthOrigin}
+      userId={userId}
+      age={age}
     />
   );
+}
+
+function TrackGatedInterview({
+  period,
+  growthOrigin,
+  userId,
+  age,
+}: {
+  period: LifePeriod;
+  growthOrigin: boolean;
+  userId: string;
+  age: number | null;
+}) {
+  const { t } = useTranslation("interview");
+  const { t: homeT } = useTranslation("home");
+  const [entry, setEntry] = useState<StarEntryStatus | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    setEntry(null);
+    void loadSevenLevels(userId).then(({ starLevels }) => {
+      if (alive) setEntry(starEntryStatus(period, starLevels, age));
+    });
+    return () => { alive = false; };
+  }, [userId, period, age]);
+
+  if (!entry) {
+    return <InterviewFrame><View style={styles.center}><PremiumLoadingState message={t("loading")} /></View></InterviewFrame>;
+  }
+  if (entry.kind !== "available") {
+    return (
+      <InterviewFrame>
+        <View style={[styles.center, styles.routeState]}>
+          <MdCard variant="outlined" style={styles.lockedCard}>
+            <Text style={[m3TextStyle("titleMedium"), styles.saveTitle]}>{homeT(`ds.star.${period}`)}</Text>
+            <Text style={[m3TextStyle("bodyMedium"), styles.note]}>
+              {entry.kind === "unlived"
+                ? homeT("ds.star.lockedBody")
+                : homeT("ds.home.star.entryAfter", { star: homeT(`ds.star.${entry.prerequisite}`) })}
+            </Text>
+          </MdCard>
+        </View>
+      </InterviewFrame>
+    );
+  }
+  return <InterviewSession period={period} growthOrigin={growthOrigin} />;
 }
 
 function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growthOrigin: boolean }) {
@@ -218,6 +265,9 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   /** 이번 질문에 딸린 **말문 후보**. 누르면 보내지 않고 입력창을 채운다. */
   const [openers, setOpeners] = useState<string[]>([]);
   const [done, setDone] = useState(false);
+  const ended = useRef(false);
+  const [concreteOnly, setConcreteOnly] = useState(false);
+  const [coverageReady, setCoverageReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: "success" | "danger" } | null>(null);
@@ -228,6 +278,19 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   });
   const crisisRouting = useRef(false);
   const scrollRef = useRef<ScrollView>(null);
+
+  const finish = useCallback(() => {
+    ended.current = true;
+    setBusy(false);
+    setDone(true);
+    setPendingLayer(null);
+    setOpeners([]);
+  }, []);
+
+  useEffect(() => {
+    ended.current = false;
+    return () => { ended.current = true; };
+  }, []);
 
   useEffect(() => {
     if (!toast) return;
@@ -276,14 +339,20 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
       /** 직전 턴에서 못 답한 층과 그 층에서의 연속 횟수. */
       stuck: { layer: DrillLayer; streak: number } | null = null,
       giveUp: DrillLayer[] = [],
-      /** 방금 크레딧을 준 층. 모델이 거부하면 이 칸을 되돌린다. */
+      /** Local sufficiency passed; credit still waits for the model's confirmation. */
       credited: DrillLayer | null = null,
     ) => {
-      if (!userId) return;
+      if (!userId || ended.current) return;
       setBusy(true);
       setNotice(null);
       try {
-        const move = nextMove(cov, period, entriesOf(history), new Date(), stuck, giveUp);
+        const move = nextMove(cov, period, entriesOf(history), new Date(), stuck, giveUp, {
+          history, locale, concreteOnly,
+        });
+        if (move.kind === "finish" && !credited) {
+          finish();
+          return;
+        }
         if (move.kind === "loopCheck") {
           // LLM 을 부르지 않는다. 질문이 이미 정해져 있고(리서치 원문), 여기서
           // 더 캐묻는 것이 문제이므로 방향을 바꾸는 것 자체가 답이다.
@@ -320,39 +389,53 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         // 고른 층을 후속 질문 경계가 다시 고르면 방금 포기한 칸으로 되돌아갈 수 있다.
         const probe = await nextProbe(
           userId, locale, period, history, cov, isMinor === true,
-          0, move.layer,
+          0, move.kind === "finish" ? credited : move.layer,
         );
+        // Stop/save can be selected while this request is in flight.
+        if (ended.current) return;
         if (probe.zone === "red") {
           // C9: 텍스트가 아니라 핫라인. 대화는 여기서 멈춘다.
           setCrisis({ visible: true, hotline: hotlineFor() });
           return;
         }
-        // ⚠ 모델의 **거부권**. 직전 답이 그 층에 안 닿았다고 하면 방금 준 크레딧을
-        // 물린다. 반대는 없다 — 모델이 "닿았다"고 해도 그것만으로 칸을 채우지 않는다.
-        // (`isNonAnswer` 가 이미 결정론적 바닥이고, 모델은 그 위에서 깎기만 한다.)
-        //
-        // 이렇게 두는 이유: 밝기가 **부풀면** 거짓말이 되고 **덜 차면** 그냥 덜 찬
-        // 것이다. 그래서 모델에게 줄 수 있는 권한은 여기까지다. "이게 지금
-        // 드릴다운이야??" 같은 메타 항의를 잡는 것이 이 경로다.
-        if (credited && probe.answeredLayer === null) {
-          const undone = decrementCoverage(cov, period, credited);
-          const streak = (stuck?.streak ?? 0) + 1;
-          setCoverage(undone);
+        const lastAnswer = history[history.length - 1];
+        const confirmed = credited && lastAnswer
+          ? confirmedAnswer(lastAnswer.text, credited, locale, probe.answeredLayer)
+          : false;
+        const assessed = history.map((turn, index) => index === history.length - 1 && turn.role === "user"
+          ? { ...turn, answered: Boolean(confirmed) }
+          : turn);
+        // Nothing is added on a sparse answer, missing judgement, failure, or stop.
+        // The model cannot award another layer or override the local gate.
+        if (credited && confirmed) setCoverage(incrementCoverage(cov, period, credited));
+        if (move.kind === "finish") {
+          setTurns(assessed);
+          finish();
+          return;
+        }
+        if (credited && !confirmed) {
+          const streak = currentScene(history).filter((turn) => turn.role === "user"
+            && turn.layer === credited && turn.answered === false).length + 1;
           setStuckStreak(streak);
           if (shouldScaffold(streak)) {
             setTurns([
-              ...history,
+              ...assessed,
               { role: "interviewer", text: scaffoldQuestion(credited, locale, streak), layer: credited, period },
             ]);
             setPendingLayer(credited);
             setNotice(t("drill.scaffoldNote"));
             return;
           }
-          // 발판을 다 썼다. 모델이 낸 질문을 그대로 쓰되 그 층은 포기한다.
-          setAbandoned((prev) => (prev.includes(credited) ? prev : [...prev, credited]));
-          setStuckStreak(0);
+          setTurns(assessed);
+          finish();
+          return;
         }
-        setTurns([...history, { role: "interviewer", text: probe.question, layer: probe.layer, period }]);
+        if (!probe.question) {
+          setTurns(assessed);
+          finish();
+          return;
+        }
+        setTurns([...assessed, { role: "interviewer", text: probe.question, layer: probe.layer, period }]);
         setPendingLayer(probe.layer);
         setOpeners(probe.openers);
       } catch {
@@ -361,7 +444,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         setBusy(false);
       }
     },
-    [userId, period, locale, isMinor, entriesOf, hotlineFor, t],
+    [userId, period, locale, isMinor, entriesOf, hotlineFor, t, concreteOnly, finish],
   );
 
   // 첫 질문은 **LLM 을 부르지 않는다.**
@@ -381,13 +464,14 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     // 0건이었다. 예전 일반 문구(`drill.opening`)는 "어느 시기를 해볼까요?" 라고
     // 되묻는 것이었는데, 시기는 이제 `/audit` 에서 고르고 오므로 질문이 중복된다.
     // 여전히 **모델을 부르지 않는다** -- 고정 표에서 꺼낸다.
-    setTurns([{ role: "interviewer", text: seedQuestion(period, locale), layer: "fact", period }]);
+    setTurns([{ role: "interviewer", text: seedQuestion(period, locale), layer: "fact", period, sceneStart: true }]);
     setPendingLayer("fact");
     // 지난 세션까지 판 자리를 이어받는다. 안 그러면 매번 처음부터 다시 파고,
     // 등급은 한 세션 안에서만 오르내린다(그게 지금까지의 상태였다).
     void loadCoverage(userId).then((stored) => {
       baseCoverage.current = stored;
       setCoverage(stored);
+      setCoverageReady(true);
     });
   }, [userId, period, locale]);
 
@@ -401,7 +485,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   // 곧바로 그 말을 보낸다 — 상태 갱신은 다음 렌더에나 반영돼서, 그 사이에 보내면
   // 직전 draft(대개 빈 문자열)가 나간다.
   async function send(override?: string) {
-    if (!userId) return;
+    if (!userId || busy || ended.current || !coverageReady) return;
     const text = (override ?? draft).trim();
     if (text.length === 0) {
       setNotice(t("drill.emptyAnswer"));
@@ -427,6 +511,17 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
       }
       return;
     }
+    const disposition = answerDisposition(text, locale);
+    if (disposition === "stop") {
+      setTurns([...turns, { role: "user", text, period, answered: false }]);
+      setDraft("");
+      finish();
+      return;
+    }
+    if (disposition === "skip") {
+      changeAngle("skip");
+      return;
+    }
     // 답변이 붙는 층은 **직전 질문이 겨냥한 층**이다. 되묻기였다면 층이 없다 --
     // 그건 깊이를 판 것이 아니라 방향을 바꾼 것이므로 coverage 를 올리지 않는다.
     const answered: InterviewTurn = { role: "user", text, layer: pendingLayer ?? undefined, period };
@@ -441,9 +536,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     //
     // 판정은 결정론적이고(`stuck.ts`) 보수적이다 -- 사용자가 스스로 포기를
     // 말했을 때만 안 셀다. 밝기가 LLM 의 기분에 달려서는 안 되기 때문이다.
-    const blocked = pendingLayer !== null && isBlockedAnswer(text);
-    const nextCoverage =
-      pendingLayer && !blocked ? incrementCoverage(coverage, period, pendingLayer) : coverage;
+    const blocked = pendingLayer !== null && (isBlockedAnswer(text) || !canCreditAnswer(text, pendingLayer, locale));
+    const nextCoverage = coverage;
     const nextStreak = blocked ? stuckStreak + 1 : 0;
     const stuck = blocked && pendingLayer ? { layer: pendingLayer, streak: nextStreak } : null;
     // 발판을 두 번 줘도 막햘다. 이 층은 이번 대화에서 더 묻지 않는다 -- 칸은
@@ -462,10 +556,29 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     setOpeners([]);
     setPendingLayer(null);
     if (nextTurns.filter((turn) => turn.role === "user").length >= MAX_TURNS) {
-      setDone(true);
+      finish();
       return;
     }
     await ask(nextTurns, nextCoverage, stuck, nextAbandoned, blocked ? null : pendingLayer);
+  }
+
+  function changeAngle(choice: "skip" | "concrete") {
+    if (busy || ended.current) return;
+    // Bound local choices too; a series of skipped prompts must not loop forever.
+    if (turns.filter((turn) => turn.role === "interviewer").length >= MAX_TURNS) {
+      finish();
+      return;
+    }
+    const text = t(choice === "skip" ? "drill.anotherScene" : "drill.concreteQuestion");
+    if (choice === "concrete" && currentScene(turns).some((turn) => turn.text === text)) return;
+    setTurns([...turns, { role: "interviewer", text, layer: "fact", period, sceneStart: choice === "skip" }]);
+    setConcreteOnly(choice === "concrete");
+    setPendingLayer("fact");
+    setStuckStreak(0);
+    setAbandoned([]);
+    setDraft("");
+    setOpeners([]);
+    setNotice(null);
   }
 
   async function keepIt() {
@@ -563,6 +676,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
                 label={t("approve")}
                 variant="filled"
                 loading={saving}
+                disabled={busy || userTurns === 0}
                 onPress={() => void keepIt()}
                 icon={<Glyph name="check" color={m3.color.onPrimary} size={18} />}
                 style={styles.actionButton}
@@ -601,7 +715,6 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
               <Text style={[m3TextStyle("labelMedium"), styles.turnLabel]}>
                 {t("drill.turnLabel", {
                   n: userTurns + 1,
-                  layer: `${PERIOD_LABEL[locale][period]} · ${LAYER_LABEL[locale][pendingLayer]}`,
                 })}
               </Text>
             ) : null}
@@ -640,6 +753,16 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
                     {t("drill.dontKnow")}
                   </Text>
                 </Pressable>
+                <Pressable onPress={() => changeAngle("skip")} style={styles.answerChip}
+                  accessibilityRole="button" accessibilityLabel={t("drill.skip")}>
+                  <Text style={[m3TextStyle("labelMedium"), styles.answerChipText]}>{t("drill.skip")}</Text>
+                </Pressable>
+                {!concreteOnly ? (
+                  <Pressable onPress={() => changeAngle("concrete")} style={styles.answerChip}
+                    accessibilityRole="button" accessibilityLabel={t("drill.concrete")}>
+                    <Text style={[m3TextStyle("labelMedium"), styles.answerChipText]}>{t("drill.concrete")}</Text>
+                  </Pressable>
+                ) : null}
               </View>
             ) : null}
 
@@ -649,7 +772,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
               placeholder={t("drill.placeholder")}
               placeholderTextColor={m3.color.onSurfaceVariant}
               multiline
-              editable={!busy}
+              editable={!busy && coverageReady}
               style={[m3TextStyle("bodyMedium"), styles.input]}
               accessibilityLabel={t("drill.placeholder")}
             />
@@ -658,14 +781,14 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
               <MdButton
                 label={t("drill.send")}
                 variant="filled"
-                disabled={busy}
+                disabled={busy || !coverageReady}
                 onPress={() => void send()}
                 icon={<Glyph name="send" color={m3.color.onPrimary} size={18} />}
                 style={styles.actionButton}
               />
-              {userTurns > 0 ? (
+              {started.current ? (
                 <Pressable
-                  onPress={() => setDone(true)}
+                  onPress={finish}
                   style={[styles.answerChip, styles.actionButton]}
                   accessibilityRole="button"
                   accessibilityLabel={t("drill.enough")}

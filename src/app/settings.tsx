@@ -417,6 +417,7 @@ function Button(props: SettingsActionButtonProps) {
 
 type DisclosureSectionProps = {
   title: string;
+  icon: string;
   expanded: boolean;
   onToggle: () => void;
   tone?: "brand" | "warning";
@@ -425,6 +426,7 @@ type DisclosureSectionProps = {
 
 function DisclosureSection({
   title,
+  icon,
   expanded,
   onToggle,
   tone = "brand",
@@ -445,11 +447,7 @@ function DisclosureSection({
         onPressOut={() => setHeld(false)}
         style={[
           styles.disclosureHeader,
-          held
-            ? pixel
-              ? styles.pixelDisclosureHeaderPressed
-              : styles.disclosureHeaderPressed
-            : null,
+          held ? styles.disclosureHeaderPressed : null,
         ]}
       >
         <Text variant="caption" color={textColor} style={styles.sectionEyebrow}>
@@ -466,13 +464,31 @@ function DisclosureSection({
   if (pixel) {
     return (
       <PixelSurface
-        variant="frame"
-        background={m3.color.surfaceContainer}
+        variant="bevel"
         style={styles.pixelDisclosure}
         contentStyle={styles.pixelDisclosureContent}
       >
-        <View pointerEvents="none" style={[styles.pixelDisclosureTone, { backgroundColor: borderStartColor }]} />
-        {contents}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={title}
+          accessibilityState={{ expanded }}
+          onPress={onToggle}
+          onPressIn={() => setHeld(true)}
+          onPressOut={() => setHeld(false)}
+          style={[m3Styles.row, m3Styles.pixelRow, held ? styles.pixelDisclosureHeaderPressed : null]}
+        >
+          <M3IconBadge icon={icon} active={false} />
+          <RNText style={[m3Styles.rowLabel, m3Styles.pixelRowLabel, styles.pixelDisclosureTitle, tone === "warning" ? styles.pixelDisclosureWarning : null]}>
+            {title}
+          </RNText>
+          <M3Icon name={expanded ? "expand_less" : "expand_more"} size={20} color={m3.color.onSurfaceVariant} />
+        </Pressable>
+        {expanded ? (
+          <>
+            <M3Divider />
+            <View style={[styles.disclosureBody, styles.pixelDisclosureBody]}>{children}</View>
+          </>
+        ) : null}
       </PixelSurface>
     );
   }
@@ -480,6 +496,21 @@ function DisclosureSection({
   return (
     <View style={[styles.section, { borderStartColor }]}>
       {contents}
+    </View>
+  );
+}
+
+// Keep this wrapper outside Settings so a local state update does not remount
+// the ScrollView and reset its position to the top.
+function SettingsChrome({ children }: { children: ReactNode }) {
+  return isDeepSpaceUI() ? (
+    <DeepSpaceScreen active="settings" header="none" variant="windowed">
+      {children}
+    </DeepSpaceScreen>
+  ) : (
+    <View style={styles.screen}>
+      <View style={styles.glow} pointerEvents="none" />
+      {children}
     </View>
   );
 }
@@ -719,24 +750,10 @@ export default function Settings() {
     }
   }
 
-  // rev2: settings is a windowed ROOT tab — the dock stays visible, no top bar
-  // and no companion header (sb-app §4: companion is capture/chat/records only).
-  const Chrome = ({ children }: { children: ReactNode }) =>
-    isDeepSpaceUI() ? (
-      <DeepSpaceScreen active="settings" header="none" variant="windowed">
-        {children}
-      </DeepSpaceScreen>
-    ) : (
-      <View style={styles.screen}>
-        <View style={styles.glow} pointerEvents="none" />
-        {children}
-      </View>
-    );
-
   const newSurfaceCopy = SETTINGS_SURFACE_COPY[displayLocale];
 
   return (
-    <Chrome>
+    <SettingsChrome>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView
           contentContainerStyle={[styles.scroll, isDeepSpaceUI() ? styles.pixelScroll : null]}
@@ -983,6 +1000,7 @@ export default function Settings() {
           // signed-in users (auth screens had a toggle, settings had none).
           // Renders from AVAILABLE_UI_LOCALES - options appear as packs ship.
           title={t("language.title")}
+          icon="article"
           expanded={openDisclosures.language}
           onToggle={() => toggleDisclosure("language")}
         >
@@ -1033,6 +1051,7 @@ export default function Settings() {
           // Was titled identically to the nav.data button above (two controls,
           // same name, different destinations — audit confusion finding).
           title={t("deleteData")}
+          icon="trash"
           expanded={openDisclosures.data}
           onToggle={() => toggleDisclosure("data")}
           tone="warning"
@@ -1343,7 +1362,7 @@ export default function Settings() {
           ) : null}
         </View>
       </PremiumModal>
-    </Chrome>
+    </SettingsChrome>
   );
 }
 
@@ -1448,18 +1467,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   pixelDisclosure: { alignSelf: "stretch", marginTop: m3.spacing.s5 },
-  pixelDisclosureContent: {
-    position: "relative",
-    paddingHorizontal: m3.spacing.s6,
-    paddingVertical: m3.spacing.s4,
-  },
-  pixelDisclosureTone: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    left: 0,
-    width: m3.spacing.s1,
-  },
+  pixelDisclosureContent: { paddingHorizontal: 0, paddingVertical: 0 },
+  pixelDisclosureTitle: { flex: 1, minWidth: 0 },
+  pixelDisclosureWarning: { color: semantic.warning },
+  pixelDisclosureBody: { paddingHorizontal: m3.spacing.s6, paddingVertical: m3.spacing.s4 },
   destructiveGroup: {
     gap: spacing.sm,
     paddingTop: spacing.sm,

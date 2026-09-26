@@ -13,7 +13,7 @@ describe("PIXEL-CLAY /capture screen contract", () => {
 
   test("keeps the production route on the shared shell without legacy companion chrome", () => {
     expect(route).toContain('<DeepSpaceScreen active="capture" header="none" variant="windowed">');
-    expect(route).toContain("<CaptureView />");
+    expect(route).toContain("<CaptureView firstRecordCoach={firstRecordCoach} />");
   });
 
   test("matches the reference hierarchy with five tiles and two text formats", () => {

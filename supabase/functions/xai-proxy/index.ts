@@ -43,6 +43,7 @@
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { captureLlmConsent, resolveLlmConsentMode, recheckLlmConsent, markConsentWithheld } from '../_shared/llm-consent.ts';
 import {
   BRAIN_RANK,
   LlmBodyError,
@@ -316,22 +317,9 @@ Deno.serve(async (req: Request) => {
   // yet a shipped re-consent surface. Enforce only after the v2 provenance
   // migration, server-owned writer, and active-account coverage preflight are
   // complete. A premature flag fails closed because a missing v2 RPC is 503.
-  if (Deno.env.get('LLM_REQUIRE_VERIFIED_CONSENT') === 'true') {
-    try {
-      const { data: consentOk, error: consentErr } = await supabaseAdmin.rpc(
-        'effective_llm_consent_v2',
-        { p_user_id: userId },
-      );
-      if (consentErr) {
-        console.error('[xai-proxy] verified consent lookup failed');
-        return jsonResponse(req, { error: 'consent_check_unavailable' }, 503);
-      }
-      if (consentOk !== true) return jsonResponse(req, { error: 'consent_required' }, 403);
-    } catch {
-      console.error('[xai-proxy] verified consent lookup threw');
-      return jsonResponse(req, { error: 'consent_check_unavailable' }, 503);
-    }
-  }
+  const consent = await captureLlmConsent(capacityRpc, userId, resolveLlmConsentMode((name) => Deno.env.get(name)));
+  if (consent.denial) return jsonResponse(req, { error: consent.denial.error }, consent.denial.status);
+  const consentLease = consent.lease;
 
   // EFFECTIVE tier (0088), not the raw column: the raw one stays 'brain' after
   // expiry until the cancel webhook lands. The lookup also selects the daily
@@ -634,9 +622,11 @@ Deno.serve(async (req: Request) => {
   // ONLY place the vendor of a call is recorded, and it is how the first live
   // Grok call will be confirmed: reasoning_vendor = 'xai'.
   const totalTokens = Number(data?.usage?.total_tokens) || null;
+  const consentAuditId = crypto.randomUUID();
   let audited = false;
   try {
     const { error: auditErr } = await supabaseAdmin.from('ai_audit_log').insert({
+      id: consentAuditId,
       user_id: userId,
       event_source: 'server_verified',
       prompt_hash: djb2(`${systemText ?? ''}${userText}`),
@@ -665,6 +655,12 @@ Deno.serve(async (req: Request) => {
   }
   if (truncated) {
     return jsonResponse(req, { error: 'upstream_truncated', modelUsed, latencyMs }, 502);
+  }
+
+  const consentDenial = await recheckLlmConsent(capacityRpc, consentLease);
+  if (consentDenial) {
+    await markConsentWithheld(supabaseAdmin, userId, consentAuditId, modelUsed);
+    return jsonResponse(req, { error: consentDenial.error }, consentDenial.status);
   }
 
   return jsonResponse(req, { text, modelUsed, latencyMs, audited });

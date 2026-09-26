@@ -1,16 +1,18 @@
 import { useRef, useState } from "react";
 import { Platform, StyleSheet, Text, TextInput, View } from "react-native";
 import { Redirect, router } from "expo-router";
+import Svg, { Rect } from "react-native-svg";
 import {
   AccountDeletionNoticePanel,
   useAccountDeletionNotice,
 } from "@/components/account/AccountDeletionNotice";
 import { useTranslation } from "react-i18next";
 
-import { SecondbHead } from "@/components/deepspace";
 import { BusinessFooter } from "@/components/deepspace/BusinessFooter";
+import { LoadingPolaris } from "@/components/deepspace/LoadingPolaris";
 import { PixelGateShell, PixelPressable, PixelSurface } from "@/components/pixel";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { PixelStarSvg } from "@/components/pixel/PixelStarSvg";
 import { type OAuthProvider } from "@/lib/supabase/auth";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useSignInForm } from "@/lib/auth/useSignInForm";
@@ -20,27 +22,115 @@ import {
 } from "@/lib/auth/sign-in-screen-contract";
 import { m3 } from "@/lib/theme/m3";
 
-const PROVIDER_KEY: Record<OAuthProvider, string> = {
+const SIGN_IN_PROVIDERS = ["google", "apple", "github"] as const satisfies readonly OAuthProvider[];
+
+type SignInProvider = (typeof SIGN_IN_PROVIDERS)[number];
+type PixelBrandCell = readonly [
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  fill?: string,
+];
+
+const PROVIDER_KEY: Record<SignInProvider, string> = {
   google: "auth:signIn.continueWithGoogle",
   apple: "auth:signIn.continueWithApple",
-  kakao: "auth:signIn.continueWithKakao",
-  facebook: "auth:signIn.continueWithFacebook",
   github: "auth:signIn.continueWithGithub",
 };
 
-const PROVIDER_MONOGRAM: Record<OAuthProvider | "naver", string> = {
-  google: "G",
-  apple: "A",
-  kakao: "K",
-  facebook: "f",
-  github: "GH",
-  naver: "N",
+// PIXEL-CLAY v4 시안의 실제 브랜드 실루엣을 16 x 16 정수 격자로 옮겼다.
+// Google의 네 색은 앱 팔레트가 아니라 브랜드 식별에 필요한 고정 색상이다.
+const PIXEL_BRAND_CELLS: Record<SignInProvider, readonly PixelBrandCell[]> = {
+  google: [
+    [5, 2, 6, 2, "#EA4335"],
+    [3, 4, 2, 1, "#EA4335"],
+    [11, 4, 2, 1, "#EA4335"],
+    [2, 5, 2, 4, "#FBBC05"],
+    [2, 9, 2, 2, "#34A853"],
+    [3, 11, 2, 1, "#34A853"],
+    [5, 12, 6, 2, "#34A853"],
+    [8, 7, 6, 2, "#4285F4"],
+    [12, 9, 2, 2, "#4285F4"],
+    [11, 11, 2, 1, "#4285F4"],
+  ],
+  apple: [
+    [9, 0, 3, 1],
+    [10, 1, 2, 1],
+    [8, 2, 1, 1],
+    [4, 3, 3, 1],
+    [9, 3, 3, 1],
+    [3, 4, 9, 1],
+    [2, 5, 9, 3],
+    [2, 8, 11, 2],
+    [3, 10, 10, 2],
+    [4, 12, 8, 1],
+    [5, 13, 2, 1],
+    [9, 13, 2, 1],
+  ],
+  github: [
+    [3, 1, 2, 1],
+    [11, 1, 2, 1],
+    [3, 2, 3, 1],
+    [10, 2, 3, 1],
+    [3, 3, 10, 1],
+    [2, 4, 12, 1],
+    [1, 5, 14, 4],
+    [2, 9, 12, 1],
+    [3, 10, 10, 1],
+    [4, 11, 3, 1],
+    [9, 11, 3, 1],
+    [0, 10, 2, 1],
+    [0, 11, 1, 1],
+  ],
 };
 
 type FocusedField = "email" | "password" | null;
 
+function ProviderBrandIcon({ provider }: { provider: SignInProvider }) {
+  return (
+    <Svg width={32} height={32} viewBox="0 0 16 16">
+      {PIXEL_BRAND_CELLS[provider].map(([x, y, width, height, fill], index) => (
+        <Rect
+          // 각 브랜드의 셀 목록은 정적이며 순서도 고정돼 있다.
+          key={`${provider}-${index}`}
+          x={x}
+          y={y}
+          width={width}
+          height={height}
+          fill={fill ?? m3.color.onSurface}
+        />
+      ))}
+    </Svg>
+  );
+}
+
+function PolarisLayer({ radius, fill }: { radius: number; fill: string }) {
+  return (
+    <Svg width={112} height={112} viewBox="0 0 112 112">
+      <PixelStarSvg cx={56} cy={56} r={radius} fill={fill} />
+    </Svg>
+  );
+}
+
+function SignInPolaris({ label }: { label: string }) {
+  return (
+    <View accessibilityRole="image" accessibilityLabel={label} style={styles.polarisGraphic}>
+      <View style={styles.polarisLayer}>
+        <PolarisLayer radius={44} fill={m3.accent.polarisEdge} />
+      </View>
+      <View style={styles.polarisLayer}>
+        <PolarisLayer radius={28} fill={m3.accent.polaris} />
+      </View>
+      <View style={styles.polarisLayer}>
+        <PolarisLayer radius={10} fill={m3.accent.skyStarWhite} />
+      </View>
+    </View>
+  );
+}
+
 export function DeepSpaceSignInDesignScreen() {
-  const { t } = useTranslation(["deepspace", "auth", "common", "settings"]);
+  const { t } = useTranslation(["deepspace", "auth", "common", "settings", "home"]);
   const {
     userId,
     loading,
@@ -55,10 +145,8 @@ export function DeepSpaceSignInDesignScreen() {
     canSubmit,
     toast,
     visibleProviders,
-    naverEnabled,
     handleSubmit,
     handleOAuth,
-    handleNaver,
   } = useSignInForm();
   // AUTH-01: startup can end without ever classifying the session. That is not
   // "signed out" - it is unknown - so the form is shown with an explicit,
@@ -79,11 +167,7 @@ export function DeepSpaceSignInDesignScreen() {
     return (
       <PixelGateShell contentContainerStyle={styles.loadingShell}>
         <View style={styles.loadingHero}>
-          <PixelSurface variant="inset" style={styles.headFrame} contentStyle={styles.headContent}>
-            <View accessibilityRole="image" accessibilityLabel={t("auth:common.entryArtwork")}>
-              <SecondbHead size={72} mood="neutral" />
-            </View>
-          </PixelSurface>
+          <LoadingPolaris size={112} accessibilityLabel={t("home:ds.home.polaris")} />
           <Text style={styles.brand}>{t("deepspace:auth.brandLabel")}</Text>
           <PixelSurface variant="frame" contentStyle={styles.loadingSurface}>
             <Text style={styles.helper}>{t("auth:common.checking")}</Text>
@@ -96,36 +180,27 @@ export function DeepSpaceSignInDesignScreen() {
 
   const authBusy = submitting || oauthSubmitting;
   const submitDisabled = !canSubmit || oauthSubmitting;
+  const signInProviders = SIGN_IN_PROVIDERS.filter((provider) =>
+    visibleProviders.includes(provider),
+  );
 
   async function submit(): Promise<void> {
     if (submitDisabled) return;
     await runAuthActionOnce(actionLock, handleSubmit);
   }
 
-  async function startProvider(provider: OAuthProvider): Promise<void> {
+  async function startProvider(provider: SignInProvider): Promise<void> {
     if (authBusy) return;
     await runAuthActionOnce(actionLock, () => handleOAuth(provider));
-  }
-
-  async function startNaver(): Promise<void> {
-    if (authBusy) return;
-    await runAuthActionOnce(actionLock, handleNaver);
   }
 
   return (
     <PixelGateShell contentContainerStyle={styles.shell}>
       <View style={styles.hero}>
-        <PixelSurface variant="inset" style={styles.headFrame} contentStyle={styles.headContent}>
-          <View accessibilityRole="image" accessibilityLabel={t("auth:common.entryArtwork")}>
-            <SecondbHead size={72} mood="neutral" />
-          </View>
-        </PixelSurface>
+        <SignInPolaris label={t("home:ds.home.polaris")} />
         <Text style={styles.brand}>{t("deepspace:auth.brandLabel")}</Text>
         <Text style={styles.title}>{t("deepspace:auth.signInTitle")}</Text>
         <Text style={styles.lead}>{t("deepspace:auth.signInLead")}</Text>
-        {/* 이 두 줄이 비로그인 웹 진입의 첫 화면 카피다. 추출하면서 encrypt
-            줄이 빠져 있었다 — 5로케일에 다 있는 키라 빠지면 고아가 된다. */}
-        <Text style={styles.lead}>{t("deepspace:auth.signInEncrypt")}</Text>
       </View>
 
       {sessionUnavailable ? (
@@ -152,7 +227,7 @@ export function DeepSpaceSignInDesignScreen() {
         </View>
       ) : null}
 
-      <PixelSurface variant="frame" style={styles.formSurface} contentStyle={styles.form}>
+      <View style={[styles.formSurface, styles.form]}>
         <Text style={styles.label}>{t("auth:signIn.email")}</Text>
         <PixelSurface
           variant="inset"
@@ -250,7 +325,7 @@ export function DeepSpaceSignInDesignScreen() {
         </PixelSurface>
 
         <PixelPressable
-          variant={submitDisabled ? "inset" : "bevel"}
+          variant="bevel"
           onPress={() => void submit()}
           disabled={submitDisabled}
           accessibilityLabel={t("auth:signIn.submit")}
@@ -270,7 +345,7 @@ export function DeepSpaceSignInDesignScreen() {
         </PixelPressable>
 
         <PixelPressable
-          variant="frame"
+          variant="bevel"
           onPress={() => router.push(resetPasswordHref(email))}
           disabled={authBusy}
           accessibilityRole="link"
@@ -283,7 +358,7 @@ export function DeepSpaceSignInDesignScreen() {
           <PixelGlyph name="arrowForward" color={m3.color.primary} size={16} />
         </PixelPressable>
 
-        {visibleProviders.length > 0 || naverEnabled ? (
+        {signInProviders.length > 0 ? (
           <>
             <View style={styles.dividerRow}>
               <View style={styles.dividerCell} />
@@ -291,7 +366,7 @@ export function DeepSpaceSignInDesignScreen() {
               <View style={styles.dividerCell} />
             </View>
             <View style={styles.providers}>
-              {visibleProviders.map((provider) => (
+              {signInProviders.map((provider) => (
                 <PixelPressable
                   key={provider}
                   variant="bevel"
@@ -302,49 +377,37 @@ export function DeepSpaceSignInDesignScreen() {
                   rootStyle={styles.providerRoot}
                   contentStyle={styles.providerContent}
                 >
-                  <Text style={styles.providerMark}>{PROVIDER_MONOGRAM[provider]}</Text>
+                  <ProviderBrandIcon provider={provider} />
                   <Text style={styles.providerText}>{t(PROVIDER_KEY[provider])}</Text>
                 </PixelPressable>
               ))}
-              {naverEnabled ? (
-                <PixelPressable
-                  variant="bevel"
-                  onPress={() => void startNaver()}
-                  disabled={authBusy}
-                  accessibilityLabel={t("auth:signIn.continueWithNaver")}
-                  accessibilityState={{ busy: oauthSubmitting }}
-                  rootStyle={styles.providerRoot}
-                  contentStyle={styles.providerContent}
-                >
-                  <Text style={styles.providerMark}>{PROVIDER_MONOGRAM.naver}</Text>
-                  <Text style={styles.providerText}>{t("auth:signIn.continueWithNaver")}</Text>
-                </PixelPressable>
-              ) : null}
             </View>
           </>
         ) : null}
-      </PixelSurface>
+      </View>
 
-      <PixelPressable
-        variant="bevel"
-        onPress={() => router.push("/sign-up")}
-        disabled={authBusy}
-        accessibilityRole="link"
-        accessibilityLabel={t("auth:signIn.signUpLink")}
-        accessibilityHint={t("auth:signIn.signUpHint")}
-        fullWidth
-        contentStyle={styles.signUpContent}
-      >
-        <View style={styles.signUpCopy}>
-          <Text style={styles.helper}>{t("auth:signIn.noAccount")}</Text>
-          <Text style={styles.signUpText}>{t("auth:signIn.signUpLink")}</Text>
-        </View>
-        <PixelGlyph name="arrowForward" color={m3.color.primary} size={24} />
-      </PixelPressable>
+      <View style={styles.actionInset}>
+        <PixelPressable
+          variant="bevel"
+          onPress={() => router.push("/sign-up")}
+          disabled={authBusy}
+          accessibilityRole="link"
+          accessibilityLabel={t("auth:signIn.signUpLink")}
+          accessibilityHint={t("auth:signIn.signUpHint")}
+          fullWidth
+          contentStyle={styles.signUpContent}
+        >
+          <View style={styles.signUpCopy}>
+            <Text style={styles.helper}>{t("auth:signIn.noAccount")}</Text>
+            <Text style={styles.signUpText}>{t("auth:signIn.signUpLink")}</Text>
+          </View>
+          <PixelGlyph name="arrowForward" color={m3.color.primary} size={24} />
+        </PixelPressable>
+      </View>
 
-      <PixelSurface variant="flat" contentStyle={styles.legal}>
+      <View style={styles.legal}>
         <Text style={styles.legalLead}>{t("deepspace:auth.legalConsent")}</Text>
-        <View style={styles.legalLinks}>
+        <View style={[styles.legalLinks, styles.actionInset]}>
           <LegalLink
             label={t("deepspace:ds.plans.legalTerms")}
             onPress={() => router.push("/terms")}
@@ -364,7 +427,7 @@ export function DeepSpaceSignInDesignScreen() {
             들어낼 때 같이 딸려오지 않아서 통합 중에 되살렸다 — 빠지면 로그인
             화면에서 사업자 정보 고지가 조용히 사라진다. */}
         <BusinessFooter />
-      </PixelSurface>
+      </View>
 
       {toast ? (
         <View
@@ -404,7 +467,7 @@ export function DeepSpaceSignInDesignScreen() {
 function LegalLink({ label, onPress }: { label: string; onPress: () => void }) {
   return (
     <PixelPressable
-      variant="frame"
+      variant="bevel"
       onPress={onPress}
       accessibilityRole="link"
       accessibilityLabel={label}
@@ -433,8 +496,13 @@ const styles = StyleSheet.create({
   loadingHero: { alignItems: "center", gap: m3.spacing.s4 },
   loadingSurface: { minHeight: m3.minTouch, alignItems: "center", justifyContent: "center" },
   hero: { alignItems: "center", gap: m3.spacing.s2 },
-  headFrame: { width: 96, height: 96 },
-  headContent: { flex: 1, alignItems: "center", justifyContent: "center", padding: m3.spacing.s2 },
+  polarisGraphic: { width: 112, height: 112, alignItems: "center", justifyContent: "center" },
+  polarisLayer: {
+    position: "absolute",
+    inset: 0,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   brand: {
     color: m3.color.primary,
     fontFamily: m3.font.mono,
@@ -533,15 +601,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: m3.spacing.s3,
   },
-  providerMark: {
-    minWidth: 24,
-    color: m3.color.primary,
-    fontFamily: m3.font.mono,
-    fontSize: m3.type.labelLarge.size,
-    lineHeight: m3.type.labelLarge.line,
-    fontWeight: "700",
-    textAlign: "center",
-  },
   providerText: {
     flex: 1,
     flexShrink: 1,
@@ -571,6 +630,7 @@ const styles = StyleSheet.create({
     lineHeight: m3.type.labelLarge.line,
     fontWeight: "700",
   },
+  actionInset: { alignSelf: "stretch", paddingHorizontal: m3.spacing.s4 },
   legal: { gap: m3.spacing.s3, paddingHorizontal: 0 },
   legalLead: {
     color: m3.color.onSurfaceVariant,

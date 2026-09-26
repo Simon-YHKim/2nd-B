@@ -105,6 +105,67 @@ export function serializeCsp(directives: readonly Directive[]): string {
 // `frame-ancestors` is intentionally absent: browsers ignore it in a meta CSP.
 export const GITHUB_PAGES_CSP = serializeCsp(WEB_CSP_DIRECTIVES);
 
+export interface WebDocumentCspConfig {
+  paddleEnvironment?: string;
+  supabaseUrl?: string;
+  paddleClientToken?: string;
+}
+
+const PRODUCTION_SUPABASE_ORIGIN = "https://zoacryukmdeivmolvyhj.supabase.co";
+const BILLING_SOURCES = new Set([
+  PRODUCTION_SUPABASE_ORIGIN, "wss://zoacryukmdeivmolvyhj.supabase.co",
+  "https://cdn.paddle.com/paddle/v2/paddle.js", "https://cdn.paddle.com",
+  "https://api.paddle.com", "https://buy.paddle.com",
+  "https://create-checkout.paddle.com", "https://vendors.paddle.com",
+]);
+
+function sandboxOrigin(config: WebDocumentCspConfig): string | null {
+  if (config.paddleEnvironment !== "sandbox" || !/^test_[a-zA-Z0-9]{27}$/.test(config.paddleClientToken ?? "")) return null;
+  try {
+    const url = new URL(config.supabaseUrl ?? "");
+    if (url.protocol !== "https:" || !/^[a-z0-9]{1,63}\.supabase\.co$/.test(url.hostname) ||
+      url.username || url.password || url.port || url.pathname !== "/" || url.search || url.hash ||
+      url.origin === PRODUCTION_SUPABASE_ORIGIN ||
+      (config.supabaseUrl !== url.origin && config.supabaseUrl !== `${url.origin}/`)) return null;
+    return url.origin;
+  } catch {
+    return null;
+  }
+}
+
+function configuredDirectives(config: WebDocumentCspConfig): readonly Directive[] {
+  // Production constants and the Vercel header remain the reviewed baseline.
+  // A request query can never select a CSP environment: +html passes build vars.
+  if (config.paddleEnvironment === undefined || config.paddleEnvironment === "production") return WEB_CSP_DIRECTIVES;
+  const origin = sandboxOrigin(config);
+  return WEB_CSP_DIRECTIVES.map(([name, ...sources]): Directive => {
+    const allowed = sources.filter((source) => !BILLING_SOURCES.has(source));
+    // Invalid/partial sandbox configuration authorizes neither DB nor billing
+    // environment. In particular, it must not silently regain production access.
+    if (!origin) return [name, ...allowed];
+    // Exact sandbox endpoints verified in the official CDN's environment map:
+    // https://cdn.paddle.com/paddle/v2/paddle.js (2026-09-25).
+    const extra: Record<string, string[]> = {
+      "script-src": ["https://cdn.paddle.com/paddle/v2/paddle.js"],
+      "style-src": ["https://sandbox-cdn.paddle.com/paddle/v2/assets/css/paddle.css"],
+      "img-src": ["https://sandbox-cdn.paddle.com/paddle/v2/assets/images/"],
+      "connect-src": [origin, origin.replace("https:", "wss:"),
+        "https://sandbox-api.paddle.com", "https://sandbox-buy.paddle.com",
+        "https://sandbox-create-checkout.paddle.com"],
+      "frame-src": ["https://sandbox-buy.paddle.com", "https://sandbox-cdn.paddle.com/paddle/v2/error.html"],
+    };
+    return [name, ...allowed, ...(extra[name] ?? [])];
+  });
+}
+
+/** Metro evaluates hot-update modules only in development. Never export this policy. */
+export function webDocumentCsp(development: boolean, config: WebDocumentCspConfig = {}): string {
+  const directives = configuredDirectives(config);
+  return serializeCsp(directives.map((directive): Directive =>
+    development && directive[0] === "script-src" ? [...directive, "'unsafe-eval'"] : directive,
+  ));
+}
+
 // Vercel is not the production host, but a real response header can enforce the
 // framing control that HTML meta cannot express.
 export const VERCEL_CSP = `${GITHUB_PAGES_CSP}; frame-ancestors 'none'`;

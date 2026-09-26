@@ -132,8 +132,8 @@
 -- ⚠ 0190 의 머리말(66-72행)은 이 함정을 "후속으로 남겼다" 고 적고 있다. 이 절이
 --   그 후속이다. 0190 은 머지된 마이그레이션이라 그 문장은 고치지 않는다.
 --
--- ⚠ 아래 목록은 "0189 가 만든 두 객체에 **기대는** 마이그레이션 전부" 이고 지금은
---   0190 하나다. 나중에 erase_my_data 를 다시 정의하거나 GRANT 하는 마이그레이션,
+-- ⚠ 아래 목록은 "0189 가 만든 두 객체에 **기대는** 마이그레이션 전부" 이고 현재는
+--   0190 · 0198 · 0201 이다. 나중에 erase_my_data 를 다시 정의하거나 GRANT 하는 마이그레이션,
 --   erasure_registry 에 행을 넣는 마이그레이션이 생기면 그 효과도 아래 DROP 과 함께
 --   사라진다. 그 행이 ledger 에 남으면 같은 구멍이 다른 모양으로 난다 (예: 삭제
 --   울타리를 넣은 새 함수 본문이 조용히 0189 의 옛 본문으로 돌아간다). 그런
@@ -216,10 +216,10 @@ $rollback_guard$;
 
 DROP TABLE IF EXISTS public.erasure_registry;
 
--- 이력 정리. 여기까지 왔으면 DB 에는 0189 의 흔적도 0190 의 흔적도 없다 (0190 이
--- 바꾼 것은 위에서 지운 함수의 ACL 과 COMMENT 뿐이다). ledger 에만 남아 있으면
--- 다음 db push 가 그 마이그레이션을 건너뛴다. 왜 둘을 함께 지우는지는 머리말
--- "두 행은 한 벌이다" 에 있다.
+-- 이력 정리. 여기까지 왔으면 DB 에는 0189·0190·0198·0201 의 대상 객체가 없다. 0190 은
+-- 위에서 지운 함수의 ACL·COMMENT 를, 0198 은 등록부의 네 행을, 0201 은 RSS 쿼터 한 행을 만들었다. ledger 에만 남아 있으면
+-- 다음 db push 가 그 마이그레이션을 건너뛴다. 0189·0190 의 결합 이유는 머리말
+-- "두 행은 한 벌이다" 에 있고, 0198·0201 은 삭제된 등록부 행의 재생에 필요하다.
 DO $rollback_ledger$
 DECLARE
   -- 한 줄에 하나, 이름 옆에 `-- <파일 번호>: <두 객체에 무엇을 매다는가>`. 손으로 돌리는
@@ -227,7 +227,9 @@ DECLARE
   -- 항목이 목록에 있어도 되는지는 CI 의 왕복 단계가 실제 DB 에서 판정한다.
   c_names constant text[] := ARRAY[
     'erasure_registry',                  -- 0189: 두 객체(erase_my_data · erasure_registry)를 만든다
-    'lock_erase_my_data_authenticated'   -- 0190: 0189 가 만든 함수의 잠금을 완성한다 (REVOKE · COMMENT)
+    'lock_erase_my_data_authenticated',  -- 0190: 0189 가 만든 함수의 잠금을 완성한다 (REVOKE · COMMENT)
+    'service_contract_erasure_registry', -- 0198: 0189 등록부에 새 서비스 계약 표 네 행을 더한다
+    'rss_proxy_erasure_registry'         -- 0201: RSS 사용자별 쿼터의 등록부 한 행을 더한다
   ];
   v_found   text;
   v_absent  text;

@@ -11,6 +11,7 @@ import {
   RECORDS_GRAPH_SVG_PRIMITIVE_BUDGET,
   budgetRecordsGraphEdgeCells,
   layoutRecordsGraph,
+  recordsGraphViewport,
   selectRecordsForSafeGraph,
 } from "../../../lib/records/records-graph-layout";
 
@@ -24,6 +25,7 @@ const read = (rel: string): string => readFileSync(join(ROOT, rel), "utf8");
 
 const RECORDS = "src/screens/deepspace/dds-wiki-records-screens.tsx";
 const RECORDS_GRAPH = "src/components/deep-space/RecordsGraph.tsx";
+const DEEP_SPACE_SCREEN = "src/components/deep-space/DeepSpaceScreen.tsx";
 const IMPORT_HUB = "src/screens/deepspace/import/ImportHubScreen.tsx";
 const IMPORT_INBOX = "src/screens/deepspace/dds-import-inbox-screens.tsx";
 
@@ -56,7 +58,7 @@ describe("records screen honest error state + focus refetch + virtualized list",
     expect(src).toContain("ListEmptyComponent");
     expect(src).toContain("renderItem={renderRecord}");
     // The old synchronous full-list mount is gone.
-    expect(src).not.toContain("filtered.map(");
+    expect(src).not.toMatch(/filtered\.map\([^)]*=>\s*<RecordCard/);
     // Row is memoized so filter-chip taps do not re-render unchanged cards.
     expect(src).toContain("const RecordCard = memo(");
   });
@@ -66,6 +68,14 @@ describe("PIXEL-CLAY records root composition", () => {
   const src = read(RECORDS);
   const graph = read(RECORDS_GRAPH);
 
+  it("reveals the shared constellation sky behind the graph without duplicating its SVG", () => {
+    const shell = read(DEEP_SPACE_SCREEN);
+    expect(src).toContain('showSharedSky={view === "graph"}');
+    expect(shell).toContain('<SbStarfield cosmic />');
+    expect(shell).toContain('showSharedSky && styles.bodyOpenSky');
+    expect(graph).not.toContain("<SbStarfield");
+  });
+
   it("opens on the real connection graph while keeping the complete FlatList one tap away", () => {
     expect(src).toContain('useState<"list" | "graph">("graph")');
     expect(src).toContain('onPress={() => setView("list")}');
@@ -74,8 +84,12 @@ describe("PIXEL-CLAY records root composition", () => {
   });
 
   it("bounds only the visual graph, never the archive data source", () => {
-    expect(src).toContain("selectRecordsForSafeGraph(filtered)");
-    expect(src).toContain("graphCount < filtered.length");
+    expect(src).toContain("buildRoleRecordsGraph(");
+    expect(src).toContain('if (view !== "graph") return [];');
+    expect(src).toContain('listRecordsByIds(userId, roleEvidenceIds(cards))');
+    expect(src).toMatch(/buildRoleRecordsGraph\(\s+graphSourceRecords,/);
+    expect(src).toContain('recordsGraph.nodes.filter((node) => node.kind === "record").length');
+    expect(src).toContain("graphCount < graphSourceRecords.length");
     expect(src).toContain("accessibilityLabel={graphCountText}");
     expect(src).not.toContain("setRecords(merged.slice(");
   });
@@ -90,10 +104,20 @@ describe("PIXEL-CLAY records root composition", () => {
     expect(graph).not.toContain("<Line");
     expect(graph).toContain("width: 44, minHeight: 44");
     expect(graph).toContain("root: { flex: 1, minHeight: 0 }");
-    expect(graph).toContain("const hitTargetSize = (44 * span) / canvasExtent;");
+    expect(graph).toContain("const hitTargetSize = (44 * spanX) / canvasSize.width;");
+    expect(graph).toContain("viewBox={`${vbX} ${vbY} ${spanX} ${spanY}`}");
+    expect(graph).toContain("const p = projected[node.id];");
     expect(graph).toContain('fill="transparent"');
     expect(graph).toContain("accessible");
-    expect(graph).toContain("accessibilityLabel={node.label}");
+    expect(graph).toContain("accessibilityLabel: node.label");
+    expect(graph).toContain('"aria-label": node.label');
+    expect(graph).toContain('element?.setAttribute("role", "button")');
+    expect(graph).toContain("onClick: () => selectNode(");
+    expect(graph).toContain("<TelescopeControls");
+    expect(graph).toContain("moveTelescopeCamera(cameraRef.current");
+    expect(graph).not.toContain("<GestureDetector");
+    expect(graph).not.toContain('addEventListener("wheel"');
+    expect(graph).not.toContain('addEventListener("pointermove"');
     expect(graph).toContain('accessibilityRole="switch"');
     expect(graph).toContain("accessibilityState={{ checked: showTagLinks }}");
   });
@@ -121,7 +145,7 @@ describe("PIXEL-CLAY records root composition", () => {
     expect(graph).toContain("const AUTO_RECORD_LABEL_LIMIT = 7;");
     expect(graph).toContain('graph.nodes.filter((node) => node.kind === "record").length');
     expect(graph).toContain("recordNodeCount <= AUTO_RECORD_LABEL_LIMIT");
-    expect(graph).toContain("isPolaris || isDomain || isSelected ||");
+    expect(graph).toContain("isPolaris || isBranchStar || isSelected ||");
   });
 
   it("selects three newest records per domain on non-overlapping 44dp lattice slots", () => {
@@ -160,6 +184,22 @@ describe("PIXEL-CLAY records root composition", () => {
         expect(axisGap + Number.EPSILON).toBeGreaterThanOrEqual(hitSpan);
       }
     }
+  });
+
+  it("projects the radial graph across a portrait viewport without stretching stars", () => {
+    const viewport = recordsGraphViewport(425, 747);
+    expect(viewport.height / viewport.width).toBeCloseTo(747 / 425);
+
+    const top = viewport.project({ x: 0.5, y: 0.08 });
+    const bottom = viewport.project({ x: 0.5, y: 0.92 });
+    const physicalY = (y: number) => (y / viewport.height) * 747;
+    expect(physicalY(top.y)).toBeGreaterThan(72);
+    expect(physicalY(bottom.y)).toBeGreaterThan(650);
+    expect(physicalY(bottom.y)).toBeLessThan(725);
+
+    const square = recordsGraphViewport(390, 390);
+    expect(square.width).toBe(square.height);
+    expect(square.project({ x: 0.5, y: 0.5 }).x).toBe(square.width / 2);
   });
 });
 

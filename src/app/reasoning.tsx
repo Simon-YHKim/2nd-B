@@ -7,6 +7,7 @@ import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { SecondbHead } from "@/components/deepspace/SecondbHead";
+import { LoadingPolaris } from "@/components/deepspace/LoadingPolaris";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import { MdButton } from "@/components/m3";
 import { InlineLoader } from "@/components/ui/InlineLoader";
@@ -1139,6 +1140,14 @@ export default function ReasoningScreen() {
       : selectedItems.length === 0
         ? 0
         : completedCount / selectedItems.length;
+  const progressTitle =
+    phase === "done"
+      ? ko
+        ? "별을 모두 이었어요"
+        : "All items are connected"
+      : ko
+        ? "별을 잇는 중이에요"
+        : "Connecting your stars";
 
   // Split display (spec 결정 5 + 계약 13): weekly base and monthly reward are
   // separate ledgers with separate reset instants — never merge them into one
@@ -1294,23 +1303,24 @@ export default function ReasoningScreen() {
               {phase === "running" || phase === "done" ? (
                 <View style={styles.progressCard}>
                   <View style={styles.progressHead}>
-                    {/* Spec D: the ONE running graphic is the head + a
-                        constant-speed orbit ring (never percent-scaled). */}
+                    {/* The running graphic uses the same North Star as every
+                        other wait; the completed state returns to SecondB. */}
                     <View style={styles.orbitWrap}>
                       {phase === "running" ? (
                         <Animated.View style={[styles.orbitRing, { transform: [{ rotate: orbitSpin }] }]} />
                       ) : null}
-                      <SecondbHead size={52} mood={phase === "done" ? "positive" : "neutral"} />
+                      {phase === "running" ? (
+                        <LoadingPolaris
+                          size={52}
+                          accessibilityLabel={progressTitle}
+                        />
+                      ) : (
+                        <SecondbHead size={52} mood={phase === "done" ? "positive" : "neutral"} />
+                      )}
                     </View>
                     <View style={styles.rowCopy}>
                       <RNText style={styles.progressTitle}>
-                        {phase === "done"
-                          ? ko
-                            ? "별을 모두 이었어요"
-                            : "All items are connected"
-                          : ko
-                            ? "별을 잇는 중이에요"
-                            : "Connecting your stars"}
+                        {progressTitle}
                       </RNText>
                       <RNText style={styles.rowSub}>
                         {phase === "done"

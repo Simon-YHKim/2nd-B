@@ -53,6 +53,8 @@ export const DEEP_SPACE_DOCK_PATHS = [
   "/manual",
   "/permissions",
   "/privacy",
+  // AI 처리 동의 — 개인정보 화면에서 열리며 windowed dock + 자체 뒤로를 쓴다.
+  "/service-consent",
   // 개인정보 처리 기록 — windowed dock + 자체 M3 top-app-bar back.
   "/processing-log",
   "/research",

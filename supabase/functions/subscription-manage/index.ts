@@ -46,10 +46,11 @@
 // SECRETS (supabase secrets set):
 //   PADDLE_API_KEY               server-side Paddle API key. NEVER in git.
 //   PADDLE_SELF_SERVICE_ENABLED  '1' to turn the endpoint on. Fails closed otherwise.
-//   PADDLE_API_BASE              optional; defaults to https://api.paddle.com
-//                                (set to https://sandbox-api.paddle.com to test).
-//                                Any other value settles the claim as
-//                                misconfigured and nothing is sent.
+//   PADDLE_ENVIRONMENT           deployment-owned production (default) or sandbox.
+//   PADDLE_API_BASE              optional; must match that environment's API root.
+//   PADDLE_SANDBOX_SUPABASE_URL  sandbox-only target pin; must match SUPABASE_URL
+//                                and differ from PADDLE_LIVE_SUPABASE_URL.
+//                                See docs/PADDLE-SANDBOX-RUNBOOK.md.
 //   PADDLE_SELF_SERVICE_DRYRUN   '1' to exercise the whole path (eligibility,
 //                                ledger, idempotency) WITHOUT calling Paddle.
 //   PADDLE_CHECKOUT_BINDING_SECRET server-only HMAC key shared with the webhook.
@@ -62,6 +63,7 @@ import {
   readPaddleApiResponse,
 } from '../_shared/paddle-api-boundary.ts';
 import { createCheckoutBinding } from '../_shared/paddle-checkout-binding.ts';
+import { readPaddleDeployment, paddleApiKeyMatches, paddlePriceAllowed } from '../_shared/paddle-environment.ts';
 import {
   JsonBodyError,
   SUBSCRIPTION_MANAGE_JSON_BODY_LIMIT_BYTES,
@@ -155,9 +157,11 @@ type EffectiveFrom = 'next_billing_period' | 'immediately';
 interface ManageBody {
   action: Action;
   effective_from?: EffectiveFrom;
+  price_id?: string;
+  paddle_environment?: 'production' | 'sandbox';
 }
 
-const MANAGE_BODY_KEYS = new Set(['action', 'effective_from']);
+const MANAGE_BODY_KEYS = new Set(['action', 'effective_from', 'price_id', 'paddle_environment']);
 
 function parseManageBody(value: unknown): ManageBody | null {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
@@ -168,6 +172,12 @@ function parseManageBody(value: unknown): ManageBody | null {
     return null;
   }
   if (action !== 'cancel' && 'effective_from' in value) return null;
+  if ('price_id' in body || 'paddle_environment' in body) {
+    if (action !== 'checkout_binding' || typeof body.price_id !== 'string'
+      || !/^pri_[a-z0-9]{26}$/.test(body.price_id)
+      || (body.paddle_environment !== 'production' && body.paddle_environment !== 'sandbox')) return null;
+    return { action, price_id: body.price_id, paddle_environment: body.paddle_environment };
+  }
   const effectiveFrom = body.effective_from;
   if (
     effectiveFrom !== undefined
@@ -200,16 +210,19 @@ async function callPaddle(path: string, body: unknown, idempotencyKey: string): 
   // The API key below is a bearer token, so the endpoint is built on the pinned
   // Paddle roots first. The configured value is never echoed back or logged.
   let endpoint: string;
+  const apiKey = Deno.env.get('PADDLE_API_KEY') ?? '';
   try {
-    endpoint = buildPaddleApiUrl(Deno.env.get('PADDLE_API_BASE'), path);
+    const deployment = readPaddleDeployment((name) => Deno.env.get(name));
+    endpoint = buildPaddleApiUrl(Deno.env.get('PADDLE_API_BASE') ?? deployment.apiBase, path);
+    if (new URL(endpoint).origin !== deployment.apiBase) throw new Error('invalid_paddle_api_base');
+    if (!paddleApiKeyMatches(apiKey, deployment.environment)) throw new Error('invalid_paddle_api_key');
   } catch (e) {
-    const error = e instanceof Error && e.message === 'invalid_paddle_api_path'
-      ? 'invalid_paddle_api_path'
+    const error = e instanceof Error && ['invalid_paddle_api_path', 'invalid_paddle_api_key'].includes(e.message)
+      ? e.message
       : 'invalid_paddle_api_base';
     return { ok: false, status: 0, ref: null, error, misconfigured: true };
   }
 
-  const apiKey = Deno.env.get('PADDLE_API_KEY') ?? '';
   let res: Response;
   try {
     res = await fetch(endpoint, {
@@ -263,6 +276,12 @@ Deno.serve(async (req: Request) => {
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!supabaseUrl || !serviceRoleKey) {
     return jsonResponse(req, { error: 'server_misconfigured_supabase_env' }, 500);
+  }
+  let deployment: ReturnType<typeof readPaddleDeployment>;
+  try {
+    deployment = readPaddleDeployment((name) => Deno.env.get(name));
+  } catch {
+    return jsonResponse(req, { error: 'paddle_environment_misconfigured' }, 503);
   }
   const admin = createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -337,12 +356,26 @@ Deno.serve(async (req: Request) => {
   // account that receives an entitlement. Bind the live Auth user to a nonce
   // with a server-only HMAC; paddle-webhook verifies the complete object.
   if (action === 'checkout_binding') {
+    // Old production clients can finish their v1 checkout rollout. Sandbox
+    // always requires the selected price and the expected environment.
+    if (body.price_id === undefined && deployment.environment === 'sandbox') {
+      return jsonResponse(req, { error: 'checkout_scope_required' }, 400);
+    }
+    if (body.price_id !== undefined && (body.paddle_environment !== deployment.environment
+      || !paddlePriceAllowed((name) => Deno.env.get(name), body.price_id))) {
+      return jsonResponse(req, { error: 'checkout_scope_mismatch' }, 400);
+    }
     const bindingSecret = Deno.env.get('PADDLE_CHECKOUT_BINDING_SECRET') ?? '';
     if (bindingSecret.length < 32) {
       console.error('[subscription-manage] checkout binding secret unavailable');
       return jsonResponse(req, { error: 'checkout_binding_unavailable' }, 503);
     }
     try {
+      if (body.price_id !== undefined) {
+        return jsonResponse(req, await createCheckoutBinding(bindingSecret, userId, {
+          scope: { environment: deployment.environment, audience: deployment.audience, price_id: body.price_id },
+        }));
+      }
       return jsonResponse(req, await createCheckoutBinding(bindingSecret, userId));
     } catch {
       console.error('[subscription-manage] checkout binding creation failed');

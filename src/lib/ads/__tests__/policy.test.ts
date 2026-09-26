@@ -15,7 +15,14 @@ jest.mock("../../env", () => ({
   })),
 }));
 
+// Existing eligibility rules are tested under a hypothetical completed legal
+// rollout. The real publication gate is pinned closed in legal-hold.test.ts.
+jest.mock("../legal-readiness", () => ({
+  adNetworkPublicationReady: jest.fn(() => true),
+}));
+
 import { getEnv } from "../../env";
+import { adNetworkPublicationReady } from "../legal-readiness";
 
 function eligible(overrides: Partial<AdEligibilityInput> = {}): AdEligibilityInput {
   return {
@@ -28,6 +35,11 @@ function eligible(overrides: Partial<AdEligibilityInput> = {}): AdEligibilityInp
 }
 
 describe("canShowAds", () => {
+  test("legal hold blocks a legacy ads=true preference even when build flags are on", () => {
+    (adNetworkPublicationReady as jest.Mock).mockReturnValueOnce(false);
+    expect(canShowAds(eligible())).toBe(false);
+  });
+
   test("free adult with consent on an allowed route: allowed", () => {
     expect(canShowAds(eligible())).toBe(true);
   });
@@ -95,6 +107,11 @@ describe("canShowRewardedAds", () => {
       ...overrides,
     };
   }
+
+  test("legal hold blocks a legacy ads=true preference even when build flags are on", () => {
+    (adNetworkPublicationReady as jest.Mock).mockReturnValueOnce(false);
+    expect(canShowRewardedAds(rewardedEligible())).toBe(false);
+  });
 
   test("free adult with consent on an allowed route: /plans, /secondb, home, /reasoning", () => {
     expect(canShowRewardedAds(rewardedEligible())).toBe(true);

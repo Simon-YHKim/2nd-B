@@ -35,7 +35,7 @@ describe("reasoning execution isolation", () => {
     const rewardIndex = home.indexOf(rewardLabel);
     const guardEndIndex = home.indexOf(") : null}", rewardIndex);
 
-    expect(home).toContain("const { userId, isMinor } = useAuth();");
+    expect(home).toMatch(/const \{ userId, isMinor(?:, age)? \} = useAuth\(\);/);
     expect(guardIndex).toBeGreaterThan(-1);
     expect(rewardIndex).toBeGreaterThan(guardIndex);
     expect(rewardIndex - guardIndex).toBeLessThan(500);

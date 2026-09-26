@@ -2,3 +2,5 @@
 /assets/deepspace/hustlek-opening-v2.json text eol=lf
 /scripts/build-hustlek-opening-v2.py text eol=lf
 /.claude/hooks/*.sh text eol=lf
+# A unified patch represents an empty context line with one required space.
+/docs/qa/patches/*.patch whitespace=-blank-at-eol

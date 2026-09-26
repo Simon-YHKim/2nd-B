@@ -14,6 +14,9 @@ import { joinFrontmatter } from "./frontmatter";
 import { listSources, listWikiPages } from "./queries";
 import { getSupabaseClient } from "../supabase/client";
 import { stripDomainTags } from "../persona/domain-stars";
+import { CHAT_KEEP_TAG } from "../chat/keep-exchange";
+import { downloadRawClipping } from "./storage";
+import { classifyInputAnyLocale } from "../safety/classifier";
 import type { SourceKind, SourceRow, WikiPageKind, WikiPageRow } from "./types";
 
 // P2-2 (persona sim): journal/note records are the user's MOST personal data,
@@ -210,6 +213,8 @@ export function composeWikiExport(
 }
 
 export interface ExportUserWikiOpts extends ComposeOpts {
+  /** Chat context only: read explicitly kept exchanges, never ordinary source bodies. */
+  includeSavedConversations?: boolean;
   /** Cap on pages fetched. Defaults to 500. */
   pageLimit?: number;
   /** Cap on sources fetched. Defaults to 500. */
@@ -239,5 +244,23 @@ export async function exportUserWiki(userId: string, opts: ExportUserWikiOpts = 
     listSources(userId, { kinds: opts.sourceKinds, limit: opts.sourceLimit ?? 500 }),
     opts.includeRecords ? listRecordsForExport(userId, opts.recordLimit ?? 500) : Promise.resolve(undefined),
   ]);
-  return composeWikiExport(pages, sources, opts, records);
+  const exported = composeWikiExport(pages, sources, opts, records);
+  if (!opts.includeSavedConversations) return exported;
+  const promotedIds = new Set(pages.map((page) => page.source_id));
+  const kept = sources.filter((source) => source.kind === "self_knowledge" &&
+    source.tags.includes(CHAT_KEEP_TAG) && !promotedIds.has(source.id)).slice(0, 8);
+  const blocks = await Promise.all(kept.map(async (source) => {
+    // The source row is owner-scoped; also refuse a foreign Storage pointer.
+    const stored = source.storage_path.startsWith(`${userId}/`)
+      ? await downloadRawClipping(source.storage_path).catch(() => null) : null;
+    const fallback = source.frontmatter?._body_fallback;
+    const body = stored ?? (typeof fallback === "string" ? fallback : null);
+    if (!body || classifyInputAnyLocale(body, opts.locale ?? "en").zone === "red") return null;
+    // These are saved transcripts, not wiki pages. No invented slug/citation.
+    const clipped = body.slice(0, Math.min(opts.bodyCharLimit ?? 600, 2000));
+    return `### ${source.title}\n\n${clipped}`;
+  }));
+  const present = blocks.filter((block): block is string => block !== null);
+  if (present.length) exported.prompt += `\n## Saved conversations (user words and generated replies; not wiki pages)\n\n${present.join("\n\n")}`;
+  return exported;
 }

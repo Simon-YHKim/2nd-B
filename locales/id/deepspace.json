@@ -1,4 +1,30 @@
 {
+  "camera": {
+    "aim": "Mengarahkan ke bintang",
+    "zoom": "Memperbesar bintang",
+    "focus": "Menyesuaikan fokus",
+    "ready": "Fokus terkunci · Siap berkunjung",
+    "return": "Kembali ke rasi bintang",
+    "shutter": "Memotret"
+  },
+  "telescope": {
+    "label": "Kontrol teleskop",
+    "up": "Arahkan ke atas",
+    "down": "Arahkan ke bawah",
+    "left": "Arahkan ke kiri",
+    "right": "Arahkan ke kanan",
+    "reset": "Kembali ke seluruh langit",
+    "dial": "Dial perbesaran",
+    "hint": "W memperlebar pandangan, T mendekatkan gambar. Lepaskan untuk mempertahankan perbesaran.",
+    "slider": "Penggeser perbesaran",
+    "joystick": "Joystick arah dan kemiringan",
+    "joystickHint": "Dorong ke arah tujuan. Semakin jauh dari tengah, semakin cepat gerakannya. Lepaskan untuk berhenti. Di papan ketik, tahan tombol panah.",
+    "panTilt": "Arah / Sudut",
+    "stopped": "Berhenti",
+    "speed": "Laju {{value}}%",
+    "phone": "Buka dasbor saya",
+    "phoneLabel": "Ponsel saya"
+  },
   "time": {
     "today": "Hari ini",
     "yesterday": "Kemarin",
@@ -139,7 +165,7 @@
   },
   "auth": {
     "appName": "2nd-Brain",
-    "signInLead": "Simpan catatan tentang dirimu dan rangkum di Bintang Utara.",
+    "signInLead": "Di era AI, asetnya adalah kamu. Catatanmu menumpuk menjadi Bintang Utaramu.",
     "signIn": "Masuk",
     "createAccount": "Buat akun",
     "signUpTitle": "Mulai",
@@ -159,8 +185,7 @@
     "or": "atau",
     "ageNotice": "Kamu bisa membuat akun jika berusia {{minAge}} tahun atau lebih.",
     "brandLabel": "2ND-BRAIN",
-    "signInTitle": "Masuk ke 2nd-Brain",
-    "signInEncrypt": "Kamu bisa mengubah pengaturan privasi kapan saja.",
+    "signInTitle": "Senang bertemu lagi",
     "emailContinue": "Lanjut dengan email",
     "signUpPrompt": "Baru di sini?",
     "legalConsent": "Dengan melanjutkan, kamu menyetujui Ketentuan Layanan dan Kebijakan Privasi.",
@@ -689,14 +714,19 @@
     "starsFallback": "Tidak bisa membaca bintangmu; jadi kami gambar versi bawaannya."
   },
   "coachmarks": {
-    "step1": "Ini rasi bintangmu",
-    "step2": "Ketuk sebuah bintang",
-    "step3": "Saat sesuatu terlintas, simpanlah",
-    "step4": "Ada lebih banyak alat di pengaturan",
+    "homeStep": "Ketuk SecondB untuk memulai catatan pertamamu.",
+    "formatStep": "Pilih Memo terlebih dahulu. Satu baris sudah cukup.",
+    "inputStep": "Tulis pikiranmu saat ini. Tidak harus berupa kalimat lengkap.",
+    "saveStep": "Terakhir, ketuk Simpan untuk membuat catatan pertamamu.",
+    "doneStep": "Catatan pertamamu sudah tersimpan. Kembali ke rasi untuk melihatnya.",
+    "targetHint": "Ketuk kontrol yang disorot untuk melanjutkan.",
+    "inputHint": "Tulis setidaknya satu karakter untuk lanjut ke Simpan.",
+    "doneHint": "Catatan berhasil disimpan.",
+    "inputReady": "Ke Simpan",
+    "goHome": "Ke rasi bintang",
+    "doneCount": "Selesai",
     "secondbName": "SecondB",
-    "dontShowAgain": "Jangan tampilkan lagi",
-    "start": "Mulai",
-    "next": "Berikutnya"
+    "dontShowAgain": "Jangan tampilkan lagi"
   },
   "museum": {
     "title": "Museum AI",

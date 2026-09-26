@@ -1,6 +1,26 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import ts from "typescript";
+import {
+  __resetAccountEpochForTests,
+  beginAccountOwnerTransition,
+  captureAccountOwnerLease,
+  noteResolvedOwner,
+  subscribeAccountTransition,
+} from "../../lib/auth/account-epoch";
+import { createChatAutosaveSession } from "../../lib/chat/autosave-session";
+import { findPromptIndex } from "../../lib/chat/keep-exchange";
+import { resetPrivacyChangesForTests } from "../../lib/privacy/changes";
+
+jest.mock("../../lib/supabase/privacy", () => ({
+  fetchPrivacyPrefs: async () => ({ chat_autosave: true }),
+}));
+
+beforeEach(() => {
+  __resetAccountEpochForTests();
+  resetPrivacyChangesForTests();
+  noteResolvedOwner("local-owner");
+});
 
 // 담기가 실패했을 때 화면이 아무 말도 하지 않는 문제를 잡는다.
 //
@@ -11,7 +31,8 @@ import ts from "typescript";
 //
 // secondb.tsx 는 2,400줄이라 화면 전체를 inert 로 돌릴 수 없다. 대신 실제 선언
 // (keepExchange 함수와 자동 담기 useEffect)만 AST 로 떼어 실행한다. 재구현이
-// 아니라 실제 본문이고, 저장/인증/모델 경계는 하나도 로드되지 않는다.
+// 아니라 실제 본문이다. Account/consent fences are real; storage and privacy
+// reads are inert fixtures, and no authentication or model request is made.
 const FILE = resolve(__dirname, "../secondb.tsx");
 const SOURCE = readFileSync(FILE, "utf8");
 const AST = ts.createSourceFile(FILE, SOURCE, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
@@ -78,6 +99,8 @@ function keepHost(options: { capture?: () => Promise<unknown>; kept?: Set<number
   const state: Host["state"] = { kept: new Set(options.kept ?? []), keeping: [], notice: [], announced: [], crisis: [], captures: [], warnings: [], current: options.notice ?? null };
   const bindings = {
     userId: "local-owner",
+    captureAccountOwnerLease,
+    subscribeAccountTransition,
     keeping: options.keeping ?? null,
     keptIdx: state.kept,
     turns: [PROMPT, REPLY, PROMPT, REPLY],
@@ -182,46 +205,75 @@ describe("담기 실패를 화면이 말한다", () => {
     await host.keep(1);
     expect(host.state.crisis).toEqual([]);
   });
+
+  test("계정이 바뀐 뒤 늦게 끝난 담기는 새 화면에 성공이나 실패 안내를 남기지 않는다", async () => {
+    let finish!: () => void;
+    const capture = new Promise<void>((resolve) => { finish = resolve; });
+    const host = keepHost({ capture: () => capture });
+    const keeping = host.keep(1);
+    const payload = host.state.captures[0] as { signal: AbortSignal };
+    beginAccountOwnerTransition("next-owner");
+    expect(payload.signal.aborted).toBe(true);
+    finish();
+    await expect(keeping).resolves.toBe(false);
+    expect(host.state.kept.has(1)).toBe(false);
+    expect(host.state.notice.filter(Boolean)).toEqual([]);
+    expect(host.state.announced).toEqual([]);
+  });
 });
 
 describe("자동 담기는 실패를 삼키지 않는다", () => {
-  function autosaveHost(ok: boolean) {
-    const ref = { current: new Set<number>() };
+  async function autosaveHost(ok: boolean) {
     const calls: number[] = [];
+    let count = 0;
+    const session = createChatAutosaveSession("local-owner", () => count, () => {});
+    await session.hydrate();
+    count = 2; // Both turns arrive after consent has been resolved.
+    let pending = Promise.resolve(false);
     const bindings = {
       useEffect: (fn: () => void) => { fn(); },
       chatAutosaveAllowed: () => true,
-      autosaveConsent: { chat_autosave: true },
+      autosaveConsent: true,
       userId: "local-owner",
       keeping: null,
       turns: [PROMPT, REPLY],
       isKeepable: (turn: { role: string }) => turn.role === "secondb",
-      autoKeptRef: ref,
+      autosaveSessionRef: { current: {
+        save: (...args: Parameters<typeof session.save>) => {
+          pending = session.save(...args);
+          return pending;
+        },
+      } },
       keptIdx: new Set<number>(),
+      findPromptIndex,
       keepExchange: async (index: number) => { calls.push(index); return ok; },
     };
-    run(findEffect("autoKeptRef"), "", bindings);
-    return { ref, calls };
+    const rerun = async () => {
+      run(findEffect("autosaveSessionRef.current?.save"), "", bindings);
+      await pending;
+    };
+    await rerun();
+    return { rerun, calls, stop: () => session.stop() };
   }
 
   test("동의가 켜져 있으면 마지막 담을 수 있는 턴을 한 번 담는다", async () => {
-    const host = autosaveHost(true);
-    await Promise.resolve();
+    const host = await autosaveHost(true);
     expect(host.calls).toEqual([1]);
+    host.stop();
   });
 
   test("성공하면 다시 담지 않도록 표시가 남는다", async () => {
-    const host = autosaveHost(true);
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(host.ref.current.has(1)).toBe(true);
+    const host = await autosaveHost(true);
+    await host.rerun();
+    expect(host.calls).toEqual([1]);
+    host.stop();
   });
 
   test("실패하면 표시를 되돌려 다시 담을 수 있게 한다", async () => {
-    const host = autosaveHost(false);
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(host.ref.current.has(1)).toBe(false);
+    const host = await autosaveHost(false);
+    await host.rerun();
+    expect(host.calls).toEqual([1, 1]);
+    host.stop();
   });
 });
 

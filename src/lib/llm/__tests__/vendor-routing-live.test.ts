@@ -90,6 +90,20 @@ const SWITCHES = [
 ] as const;
 
 describe("D-26 vendor routing — live edge-path wiring", () => {
+  test("Polaris carries its reservation to OpenAI even with a different vendor override", async () => {
+    process.env.EXPO_PUBLIC_LLM_VENDOR = "claude";
+    mockInvoke.mockResolvedValueOnce(okPayload("gpt-5.4"));
+    await callLlm({userId:"u1",locale:"en",purpose:"persona_synthesis",user:"Saved interview evidence.",polarisGenerationId:"11111111-1111-4111-8111-111111111111"});
+    expect(mockInvoke).toHaveBeenCalledTimes(1);
+    expect(mockInvoke.mock.calls[0][0]).toBe("openai-proxy");
+    expect(mockInvoke.mock.calls[0][1].body.polarisGenerationId).toBe("11111111-1111-4111-8111-111111111111");
+  });
+  test("Polaris does not dispatch an unmetered failover after a server failure", async () => {
+    process.env.EXPO_PUBLIC_FAILOVER_VENDOR = "claude";
+    mockInvoke.mockResolvedValueOnce({data:null,error:{context:{status:503,json:async()=>({error:"polaris_unavailable"})}}});
+    await expect(callLlm({userId:"u1",locale:"en",purpose:"persona_synthesis",user:"Saved evidence.",polarisGenerationId:"11111111-1111-4111-8111-111111111111"})).rejects.toBeDefined();
+    expect(mockInvoke).toHaveBeenCalledTimes(1);
+  });
   beforeEach(async () => {
     await resetAuditWriteOutboxForTests();
     mockInvoke.mockReset();

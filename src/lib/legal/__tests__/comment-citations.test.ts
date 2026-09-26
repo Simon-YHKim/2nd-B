@@ -100,19 +100,19 @@ const CITES: CommentCite[] = [
   },
   {
     from: "src/lib/supabase/consent.ts",
-    cite: "src/app/(auth)/complete-profile.tsx:367",
+    cite: "src/app/(auth)/complete-profile.tsx:369",
     symbol: "<ConsentNotice",
     why: "같은 것의 두 번째 진입 화면. ⚠ 이 줄이 :308 에서 밀린 채 방치돼 있었다.",
   },
   {
     from: "src/lib/supabase/consent.ts",
-    cite: "src/lib/auth/useSignUpForm.ts:352",
+    cite: "src/lib/auth/useSignUpForm.ts:353",
     symbol: "recordConsentBestEffort(",
     why: "원장에 **쓰는** 자리. 화면 파일이 아니라 화면의 훅에 있다는 것이 이 주석의 요점.",
   },
   {
     from: "src/lib/supabase/consent.ts",
-    cite: "src/app/(auth)/complete-profile.tsx:186",
+    cite: "src/app/(auth)/complete-profile.tsx:187",
     symbol: "recordConsentBestEffort(",
     why: "두 번째 쓰기 자리. ⚠ 이 줄도 :161 에서 밀린 채 방치돼 있었다.",
   },

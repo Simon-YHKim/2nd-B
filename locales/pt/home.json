@@ -36,14 +36,14 @@
   },
   "menu": {
     "graph": "Mapa",
-    "capture": "Capturar",
+    "capture": "Recortes",
     "secondb": "SecondB",
     "profile": "Eu"
   },
   "ds": {
     "dock": {
       "home": "Início",
-      "capture": "Capturar",
+      "capture": "Recortes",
       "chat": "SecondB",
       "ops": "Assistente",
       "account": "Eu",
@@ -116,14 +116,22 @@
       "bubble": {
         "introTag": "Apresentação",
         "intro": "Olá, eu sou o SecondB. Toque na minha cabeça e eu ajudo.",
+        "tipTag": "Dica",
+        "tip1": "Toque em uma estrela para rever os registros dessa fase da sua vida.",
+        "tip2": "Use Adicionar na barra inferior para salvar um novo registro.",
+        "tip3": "Sua Estrela do Norte reúne seus registros em uma frase que você pode revisar.",
+        "next": "Próxima",
+        "openMenu": "Menu de recursos",
         "menuTag": "SecondB",
         "menu": "Como posso ajudar?",
         "travel": "Viajar",
         "later": "Depois",
+        "returnToSky": "Voltar à constelação",
         "chatbot": "Chatbot",
         "assistant": "Assistente"
       },
       "star": {
+        "entryAfter": "Salve seu primeiro registro em {{star}} para abrir esta estrela.",
         "career": {
           "line": "Que trabalhos e projetos você já fez?"
         },
@@ -143,25 +151,25 @@
           "line": "O que me deixa descansar?"
         },
         "profile": {
-          "line": "Seu nome, sua meta e como outras pessoas veem você. Preencha o que quiser apresentar."
+          "line": "Registre seu nome, suas metas e seu dia a dia. Os dois caminhos começam aqui."
         },
         "infancy": {
-          "line": "As primeiras lembranças. Uma sensação já basta para começar."
+          "line": "Registre suas primeiras lembranças e histórias sobre sua infância."
         },
         "school": {
-          "line": "Dos 7 aos 19 anos. Salas de aula, amigos, quem você era então."
+          "line": "Registre escola, amizades e quem você era dos 7 aos 19 anos."
         },
         "twenties": {
-          "line": "Que escolhas você fez nos seus vinte anos? O que decidiu continuar ou deixar?"
+          "line": "Registre escolhas, relações e mudanças durante seus vinte anos."
         },
         "later": {
-          "line": "Dos trinta em diante. O que ficou estável e o que mudou?"
+          "line": "Registre rotina, relações e mudanças a partir dos trinta anos."
         },
         "work": {
-          "line": "Conte sobre seu trabalho em qualquer fase da vida."
+          "line": "Registre seus papéis, hábitos e experiências no trabalho."
         },
         "now": {
-          "line": "O que tem ocupado seus pensamentos ultimamente?"
+          "line": "Registre seus interesses, escolhas e dias de agora."
         }
       },
       "museumEntry": "Museu da IA",

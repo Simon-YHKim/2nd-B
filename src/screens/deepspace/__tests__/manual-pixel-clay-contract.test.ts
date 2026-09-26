@@ -113,6 +113,12 @@ describe("사용 안내서가 앱이 제공하는 모든 언어로 풀린다", (
 });
 
 describe("PIXEL-CLAY /manual renderer contract", () => {
+  test("resolves the localized title from the manual namespace", () => {
+    const source = read(SCREEN);
+    expect(source).toContain('{t("title")}');
+    expect(source).not.toContain('{t("manual.title")}');
+  });
+
   test("stays public and uses a real TextInput search with one expanded section", () => {
     const source = read(SCREEN);
     expect(source).toContain("<TextInput");

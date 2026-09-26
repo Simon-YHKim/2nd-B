@@ -1,5 +1,10 @@
 # Database Migrations
 
+For the inactive service-contract drafts and erasure registry promotion, follow
+[the forward-migration runbook](../docs/qa/ERASURE-FORWARD-260926.md). New registry
+rows use a separate additions-only migration and `forwardAdditions` metadata;
+preserve the historical 0189 seed. Reserve real numbers through the console owner.
+
 SQL files in `migrations/` apply in numeric order. They are designed to be
 idempotent (`IF NOT EXISTS` where possible) and to dry-run against a vanilla
 Postgres 16 container without Supabase running.

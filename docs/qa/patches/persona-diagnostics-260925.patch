@@ -1,0 +1,307 @@
+--- a/src/lib/persona/role-cards.ts
++++ b/src/lib/persona/role-cards.ts
+@@ -13,6 +13,38 @@
+ export interface RoleCard extends SynthesizedPersona {
+   evidenceRefs: string[];
+   status: "proposed" | "ratified";
++}
++
++type RoleGenerationStage = "read" | "build" | "synthesize" | "persist";
++type RoleGenerationClassification = "authentication" | "permission" | "rate_limit" |
++  "service_unavailable" | "database" | "network" | "unknown";
++
++// Keep diagnostic metadata only. Provider/DB errors can contain private input,
++// response bodies, or credentials, so never retain their message or cause.
++export class RoleGenerationError extends Error {
++  readonly httpStatus: number | null;
++  readonly classification: RoleGenerationClassification;
++
++  constructor(readonly stage: RoleGenerationStage, original: unknown) {
++    super("Persona role generation failed");
++    this.name = "RoleGenerationError";
++    const source = original && typeof original === "object"
++      ? original as { status?: unknown; context?: unknown; code?: unknown; name?: unknown }
++      : {};
++    const context = source.context && typeof source.context === "object"
++      ? source.context as { status?: unknown } : {};
++    const status = source.status ?? context.status;
++    this.httpStatus = typeof status === "number" && Number.isInteger(status) && status >= 400 && status <= 599
++      ? status : null;
++    if (this.httpStatus === 401 || source.code === "PGRST301") this.classification = "authentication";
++    else if (this.httpStatus === 403 || source.code === "42501") this.classification = "permission";
++    else if (this.httpStatus === 429) this.classification = "rate_limit";
++    else if (this.httpStatus !== null && this.httpStatus >= 500) this.classification = "service_unavailable";
++    else if (source.code === "42P01" || source.code === "42703" || source.code === "PGRST202" || source.code === "PGRST204") {
++      this.classification = "database";
++    } else if (source.name === "FunctionsFetchError") this.classification = "network";
++    else this.classification = "unknown";
++  }
+ }
+ 
+ interface InterviewRow {
+@@ -112,51 +144,59 @@
+   userId: string, locale: "en" | "ko", minor = false,
+ ): Promise<RoleCard[]> {
+   if (!userId) return [];
+-  const previous = await loadRoleCards(userId);
+-  const { data, error } = await getSupabaseClient().from("records")
+-    .select("id, audit_period, body, tags")
+-    .eq("user_id", userId).eq("kind", "audit_response")
+-    .order("created_at", { ascending: false }).limit(120);
+-  if (error) throw error;
+-  const rows = (data ?? []) as InterviewRow[];
+-  if (!rows.some((row) => isSevenStarId(row.audit_period ?? "") && row.tags?.includes("interview") && row.body?.trim())) {
+-    return previous;
+-  }
+-  const [levels, persona] = await Promise.all([
+-    loadSevenLevels(userId),
+-    buildPersona(userId, locale, minor),
+-  ]);
+-  const input = roleInputFromInterviews(rows, levels.starLevels, persona, previous.filter((p) => p.status === "ratified"));
+-  if (input.domainSummaries.length === 0 || input.constructEstimates.length === 0) return previous;
+-  const proposed = await synthesizePersonas(userId, input, locale, minor);
+-  if (proposed.length === 0) return previous;
+-  const byStar = new Map<SevenStarId, string[]>();
+-  for (const row of rows) {
+-    if (!isSevenStarId(row.audit_period ?? "") || !row.tags?.includes("interview")) continue;
+-    const star = row.audit_period as SevenStarId;
+-    const refs = byStar.get(star) ?? [];
+-    refs.push(`record:${row.id}`);
+-    byStar.set(star, refs);
+-  }
+-  const cards: RoleCard[] = proposed.map((p) => {
+-    const existing = previous.find((old) => old.id === p.id && old.label === p.label && old.summary === p.summary);
+-    return {
+-      ...p,
+-      evidenceRefs: [...new Set(p.evidence.domains.flatMap((id) => byStar.get(id as SevenStarId) ?? []))].slice(0, 20),
+-      status: existing?.status === "ratified" ? "ratified" as const : "proposed" as const,
+-    };
+-  }).filter((p) => p.evidenceRefs.length > 0);
+-  if (cards.length === 0) return previous;
+-  // Re-synthesis may reword or omit a role. That is a new *proposal*, never
+-  // permission to erase or silently rewrite an already approved self-model.
+-  const retained = previous.filter((old) => old.status === "ratified" &&
+-    !cards.some((next) => next.id === old.id && next.status === "ratified"));
+-  const next = [
+-    ...retained,
+-    ...cards.filter((card) => !retained.some((old) => old.id === card.id)),
+-  ].slice(0, 3);
+-  await writeRoleCards(userId, next);
+-  return next;
++  let stage: RoleGenerationStage = "read";
++  try {
++    const previous = await loadRoleCards(userId);
++    const { data, error } = await getSupabaseClient().from("records")
++      .select("id, audit_period, body, tags")
++      .eq("user_id", userId).eq("kind", "audit_response")
++      .order("created_at", { ascending: false }).limit(120);
++    if (error) throw error;
++    const rows = (data ?? []) as InterviewRow[];
++    if (!rows.some((row) => isSevenStarId(row.audit_period ?? "") && row.tags?.includes("interview") && row.body?.trim())) {
++      return previous;
++    }
++    stage = "build";
++    const [levels, persona] = await Promise.all([
++      loadSevenLevels(userId),
++      buildPersona(userId, locale, minor),
++    ]);
++    const input = roleInputFromInterviews(rows, levels.starLevels, persona, previous.filter((p) => p.status === "ratified"));
++    if (input.domainSummaries.length === 0 || input.constructEstimates.length === 0) return previous;
++    stage = "synthesize";
++    const proposed = await synthesizePersonas(userId, input, locale, minor);
++    if (proposed.length === 0) return previous;
++    const byStar = new Map<SevenStarId, string[]>();
++    for (const row of rows) {
++      if (!isSevenStarId(row.audit_period ?? "") || !row.tags?.includes("interview")) continue;
++      const star = row.audit_period as SevenStarId;
++      const refs = byStar.get(star) ?? [];
++      refs.push(`record:${row.id}`);
++      byStar.set(star, refs);
++    }
++    const cards: RoleCard[] = proposed.map((p) => {
++      const existing = previous.find((old) => old.id === p.id && old.label === p.label && old.summary === p.summary);
++      return {
++        ...p,
++        evidenceRefs: [...new Set(p.evidence.domains.flatMap((id) => byStar.get(id as SevenStarId) ?? []))].slice(0, 20),
++        status: existing?.status === "ratified" ? "ratified" as const : "proposed" as const,
++      };
++    }).filter((p) => p.evidenceRefs.length > 0);
++    if (cards.length === 0) return previous;
++    // Re-synthesis may reword or omit a role. That is a new *proposal*, never
++    // permission to erase or silently rewrite an already approved self-model.
++    const retained = previous.filter((old) => old.status === "ratified" &&
++      !cards.some((next) => next.id === old.id && next.status === "ratified"));
++    const next = [
++      ...retained,
++      ...cards.filter((card) => !retained.some((old) => old.id === card.id)),
++    ].slice(0, 3);
++    stage = "persist";
++    await writeRoleCards(userId, next);
++    return next;
++  } catch (error) {
++    throw new RoleGenerationError(stage, error);
++  }
+ }
+ 
+ export async function ratifyRoleCard(userId: string, cardId: string): Promise<RoleCard[]> {
+--- a/src/lib/persona/__tests__/role-cards.test.ts
++++ b/src/lib/persona/__tests__/role-cards.test.ts
+@@ -1,9 +1,19 @@
+-import { loadRoleCards, parseRoleCards, ratifyRoleCard, roleEvidenceIds, roleInputFromInterviews } from "../role-cards";
++import { loadRoleCards, parseRoleCards, proposeRoleCards, ratifyRoleCard, roleEvidenceIds, roleInputFromInterviews } from "../role-cards";
+ import type { PersonaCard } from "../build";
+ import type { SevenStarId } from "../seven-stars";
+ import type { LadderLevel } from "../brightness";
+ 
+ let mockStoredPatterns: Record<string, unknown> = {};
++let mockReadError: unknown = null;
++let mockRecordsError: unknown = null;
++let mockWriteError: unknown = null;
++let mockWriteCount = 0;
++const mockBuildPersona = jest.fn();
++const mockLoadSevenLevels = jest.fn();
++const mockSynthesizePersonas = jest.fn();
++jest.mock("../build", () => ({ buildPersona: (...args: unknown[]) => mockBuildPersona(...args) }));
++jest.mock("../load-seven-levels", () => ({ loadSevenLevels: (...args: unknown[]) => mockLoadSevenLevels(...args) }));
++jest.mock("../persona-synthesis", () => ({ synthesizePersonas: (...args: unknown[]) => mockSynthesizePersonas(...args) }));
+ jest.mock("../../supabase/client", () => ({
+   getSupabaseClient: () => ({
+     from: () => {
+@@ -12,17 +22,26 @@
+       return {
+         select() { return this; },
+         eq() { return this; },
++        order() { return this; },
++        async limit() {
++          return { data: [{
++            id: "11111111-1111-4111-8111-111111111111", audit_period: "work",
++            body: "I build things with my team.", tags: ["interview"],
++          }], error: mockRecordsError };
++        },
+         update(payload: { patterns: Record<string, unknown> }) {
++          mockWriteCount += 1;
+           pending = payload.patterns;
+           writing = true;
+           return this;
+         },
+         async maybeSingle() {
+           if (writing) {
++            if (mockWriteError) return { data: null, error: mockWriteError };
+             mockStoredPatterns = pending ?? {};
+             return { data: { user_id: "u1" }, error: null };
+           }
+-          return { data: { patterns: mockStoredPatterns }, error: null };
++          return { data: { patterns: mockStoredPatterns }, error: mockReadError };
+         },
+       };
+     },
+@@ -84,6 +103,84 @@
+   });
+ });
+ 
++describe("role-card generation diagnostics", () => {
++  beforeEach(() => {
++    jest.clearAllMocks();
++    mockStoredPatterns = { summary: "keep me" };
++    mockReadError = mockRecordsError = mockWriteError = null;
++    mockWriteCount = 0;
++    mockBuildPersona.mockResolvedValue(persona);
++    mockLoadSevenLevels.mockResolvedValue({ starLevels: levels });
++    mockSynthesizePersonas.mockResolvedValue([{
++      id: "builder", label: "Builder", summary: "Builds", strengths: [], advice: "",
++      evidence: { domains: ["work"], constructs: ["openness"] }, claimStrength: 2,
++    }]);
++  });
++
++  it.each([
++    ["patterns", "read"], ["records", "read"], ["levels", "build"],
++    ["persona", "build"], ["synthesis", "synthesize"], ["storage", "persist"],
++  ] as const)("sanitizes %s failure and stops subsequent stages", async (failure, stage) => {
++    const sensitive = "synthetic-private-record-and-token";
++    const original = Object.assign(new Error(sensitive), {
++      status: 503, cause: sensitive, token: sensitive, body: sensitive,
++    });
++    if (failure === "patterns") mockReadError = original;
++    if (failure === "records") mockRecordsError = original;
++    if (failure === "levels") mockLoadSevenLevels.mockRejectedValue(original);
++    if (failure === "persona") mockBuildPersona.mockRejectedValue(original);
++    if (failure === "synthesis") mockSynthesizePersonas.mockRejectedValue(original);
++    if (failure === "storage") mockWriteError = original;
++
++    const caught = await proposeRoleCards("u1", "en").catch((error: unknown) => error);
++    expect(caught).toMatchObject({
++      name: "RoleGenerationError", stage, classification: "service_unavailable", httpStatus: 503,
++    });
++    expect(caught).not.toBe(original);
++    expect(String(caught)).not.toContain(sensitive);
++    expect(JSON.stringify(caught)).not.toContain(sensitive);
++    expect((caught as Error).stack).not.toContain(sensitive);
++    expect(caught).not.toHaveProperty("cause");
++    expect(caught).not.toHaveProperty("token");
++    expect(caught).not.toHaveProperty("body");
++    expect(mockBuildPersona).toHaveBeenCalledTimes(stage === "read" ? 0 : 1);
++    expect(mockLoadSevenLevels).toHaveBeenCalledTimes(stage === "read" ? 0 : 1);
++    expect(mockSynthesizePersonas).toHaveBeenCalledTimes(stage === "read" || stage === "build" ? 0 : 1);
++    expect(mockWriteCount).toBe(stage === "persist" ? 1 : 0);
++    expect(mockStoredPatterns).toEqual({ summary: "keep me" });
++  });
++
++  it.each([
++    [{ context: { status: 401 } }, "authentication", 401],
++    [{ status: 403 }, "permission", 403],
++    [{ context: { status: 429 } }, "rate_limit", 429],
++    [{ code: "42P01" }, "database", null],
++    [{ name: "FunctionsFetchError" }, "network", null],
++    [{ status: "503", code: "private-unrecognized-code" }, "unknown", null],
++    [{ status: 503.5 }, "unknown", null],
++    [{ status: 200 }, "unknown", null],
++    ["private-raw-string", "unknown", null],
++  ])("keeps only an allowlisted classification and valid HTTP error status: %j", async (original, classification, httpStatus) => {
++    mockReadError = original;
++    await expect(proposeRoleCards("u1", "en")).rejects.toMatchObject({
++      name: "RoleGenerationError", stage: "read", classification, httpStatus,
++    });
++  });
++
++  it("preserves successful generation and explicit approval semantics", async () => {
++    const cards = await proposeRoleCards("u1", "ko", true);
++    expect(cards).toHaveLength(1);
++    expect(cards[0]).toMatchObject({
++      id: "builder", status: "proposed", evidenceRefs: ["record:11111111-1111-4111-8111-111111111111"],
++    });
++    expect(mockBuildPersona).toHaveBeenCalledWith("u1", "ko", true);
++    expect(mockSynthesizePersonas).toHaveBeenCalledWith("u1", expect.any(Object), "ko", true);
++    expect(mockWriteCount).toBe(1);
++    expect(await loadRoleCards("u1")).toEqual(cards);
++    expect(mockStoredPatterns.summary).toBe("keep me");
++  });
++});
++
+ describe("role-card approval storage", () => {
+   beforeEach(() => { mockStoredPatterns = {}; });
+ 
+--- a/src/app/core-brain.tsx
++++ b/src/app/core-brain.tsx
+@@ -58,7 +58,7 @@
+ import { buildCenterCards, type CenterCard } from "@/lib/persona/center";
+ import { mergeEvidence, evidenceTypeLabel, type EvidenceShard, type OriginShard, type RawRecordRow, type RawSourceRow } from "@/lib/persona/evidence";
+ import { buildSelfPortrait } from "@/lib/persona/self-portrait";
+-import { loadRoleCards, proposeRoleCards, ratifyRoleCard, type RoleCard } from "@/lib/persona/role-cards";
++import { loadRoleCards, proposeRoleCards, ratifyRoleCard, RoleGenerationError, type RoleCard } from "@/lib/persona/role-cards";
+ import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
+ import { IslandArt } from "@/components/art/IslandArt";
+ import { CORE_VILLAGE_UI } from "@/lib/village-ui";
+@@ -363,7 +363,12 @@
+     try {
+       setRoleCards(await proposeRoleCards(userId, locale, isMinor));
+       setRoleCardsUserId(userId);
+-    } catch {
++    } catch (error) {
++      if (__DEV__ && error instanceof RoleGenerationError) {
++        console.warn("[persona] role generation failed", {
++          stage: error.stage, classification: error.classification, httpStatus: error.httpStatus,
++        });
++      }
+       setRoleError(true);
+     } finally {
+       setRolePending(false);

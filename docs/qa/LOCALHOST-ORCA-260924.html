@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>2ndB 로컬호스트 Orca 화면 검증 · 2026-09-24</title>
+<style>
+:root{color-scheme:light dark;--ink:#182334;--muted:#536172;--accent:#2467a6;--surface:#f6f8fb;--line:#bac6d5}
+@media(prefers-color-scheme:dark){:root{--ink:#e9eef5;--muted:#aebace;--accent:#8fc5f1;--surface:#151e2b;--line:#485469}}
+*{box-sizing:border-box}body{margin:0;background:var(--surface);color:var(--ink);font:15px/1.6 system-ui,sans-serif}main{max-width:1040px;margin:auto;padding:28px 20px 70px}h1{font-size:clamp(1.7rem,3vw,2.3rem);line-height:1.25;margin:.3em 0}h2{margin:2em 0 .5em;font-size:1.3rem}.eyebrow,.meta{color:var(--muted)}.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:22px 0}.metric{border:1px solid var(--line);padding:15px;background:var(--surface)}.metric strong{display:block;font-size:1.6rem;line-height:1.2;color:var(--accent)}.metric span{font-size:.9rem;color:var(--muted)}details{border-top:1px solid var(--line);padding:12px 0}summary{cursor:pointer;font-weight:650}summary:hover{color:var(--accent)}a{color:var(--accent)}a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px}table{border-collapse:collapse;width:100%;font-size:.9rem}th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}th{position:sticky;top:0;background:var(--surface)}code{font:inherit;overflow-wrap:anywhere}.table-wrap{max-height:620px;overflow:auto;border:1px solid var(--line)}.flow{display:block;width:100%;height:auto;max-width:760px;margin:12px auto}.note{color:var(--muted)}ul{padding-left:1.4em}li+li{margin-top:.3em}@media(max-width:600px){main{padding:20px 14px 50px}th,td{padding:6px 4px;font-size:.78rem}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<main>
+<header>
+<p class="eyebrow">2ndB · localhost:8081 · Orca Browser QA</p>
+<h1>코치마크 완료 흐름 복구와 로컬 화면 검증</h1>
+<p>2026-09-24 13:41:59 KST · 실제 서비스 중인 작업트리: <code>codex/localhost-screen-debug-260921</code></p>
+</header>
+<section class="summary" aria-label="검증 요약">
+<div class="metric"><strong>112 / 115</strong><span>개발자 목록 진입 경로 방문</span></div>
+<div class="metric"><strong>3건</strong><span>발견·수정한 화면 결함</span></div>
+<div class="metric"><strong>9,923</strong><span>전체 검증 테스트 통과</span></div>
+<div class="metric"><strong>3건</strong><span>외부 계약 경로 안전상 제외</span></div>
+</section>
+<section>
+<h2>첫 기록 코치마크</h2>
+<p>수정 전: 저장 직후 백그라운드 홈의 공지 모달이 완료 화면 위에 나타나 진행을 가렸습니다. 수정 후: 홈이 포커스된 동안에만 공지 모달을 열어, 기록 완료와 별자리 복귀를 막지 않습니다.</p>
+<svg class="flow" viewBox="0 0 760 76" role="img" aria-label="홈 세컨비, 메모 선택, 기록 입력, 저장, 별자리 복귀 순서">
+<path d="M75 36H685" fill="none" stroke="var(--line)" stroke-width="3"/>
+<g fill="var(--surface)" stroke="var(--accent)" stroke-width="2"><circle cx="76" cy="36" r="17"/><circle cx="226" cy="36" r="17"/><circle cx="376" cy="36" r="17"/><circle cx="526" cy="36" r="17"/><circle cx="676" cy="36" r="17"/></g>
+<g fill="var(--ink)" font-size="12" text-anchor="middle" font-family="system-ui,sans-serif"><text x="76" y="68">세컨비</text><text x="226" y="68">메모</text><text x="376" y="68">입력</text><text x="526" y="68">저장</text><text x="676" y="68">별자리</text></g>
+</svg>
+<p class="note">QA 계정에 테스트 메모 2건을 저장해 전후 흐름을 확인했습니다. 사용자 데이터 삭제는 하지 않았습니다.</p>
+</section>
+<section>
+<h2>발견과 처리</h2>
+<details open><summary>수정 완료 · 공지창이 코치마크를 가림</summary><p><code>ConstellationHome</code>이 다른 라우트 뒤에 남아 있어도 공지 <code>Modal</code>을 열던 문제입니다. 홈 라우트 포커스를 표시 조건으로 추가했습니다. 회귀 테스트는 수정 전 실패, 수정 후 통과했고 Orca에서 저장→복귀를 재검증했습니다.</p></details>
+<details><summary>수정 완료 · 사용 안내서 제목이 번역 키로 표시</summary><p><code>/manual</code> 상단에 <code>manual.title</code>이 노출됐습니다. 기본 번역 묶음이 <code>manual</code>인 화면에서 <code>t("title")</code>을 사용하도록 고쳤고, 한국어 제목이 브라우저에 표시되는지 확인했습니다.</p></details>
+<details><summary>수정 완료 · 읽은 공지가 새로고침마다 재표시</summary><p>서버와 공유 저장소에는 읽음 기록이 있었지만 홈 화면의 React Compiler 캐시에는 빈 집합이 남았습니다. 읽음 상태 변경 번호를 <code>snapshotReadIds(userId, readRevision)</code>의 실제 입력으로 전달해 캐시를 무효화했습니다. 수정 전에는 같은 중요 공지가 새로고침마다 열렸고, 수정 후 두 차례 연속 새로고침에서 열리지 않았습니다.</p></details>
+<details><summary>주의 · 장시간 화면 순회 중 개발 서버 메모리 종료</summary><p>반복적인 전체 페이지 이동을 약 48분 수행한 기존 Expo 서버가 Node 기본 힙 한도 약 4GB에 도달해 종료됐습니다. 힙 상한 6GB로 재시작했고 <code>localhost:8081</code> 응답과 영향을 받은 경로를 재확인했습니다. 메모리 증가의 근본 원인은 별도 조사 대상입니다.</p></details>
+<details><summary>추가 조사 · 기록 그래프 연결선 스위치 접근성</summary><p><code>/records</code>의 ‘태그 연결선 표시’는 클릭하면 베벨 색이 바뀌어 시각적 토글은 작동하지만, 웹 DOM의 <code>role="switch"</code> 요소에는 <code>aria-checked</code>가 없고 Orca 접근성 스냅샷은 계속 <code>checked=false</code>로 표시했습니다. 상태를 보조기기에 올바르게 전달하는지는 별도 수정·검증이 필요합니다.</p></details>
+<details><summary>범위 · 화면 진입과 기능 검증은 다릅니다</summary><p>112개는 접근 가능한 화면·변형 경로의 진입 확인입니다. 상호작용은 코치마크 전 단계, 하단 탭, 기록 그래프 확대·목록, 홈 공지와 읽음 유지, 안내서 제목을 확인했습니다. 유료 AI 실행, 결제, 계정 변경, 데이터 삭제, 외부 전송, 파일·마이크 권한, 모든 화면의 모든 버튼은 실행하지 않았습니다. 개발 콘솔에는 React Native Web의 접근성 prop/이벤트 핸들러 경고가 남았습니다.</p></details>
+</section>
+<section>
+<h2>진입 경로 표</h2>
+<p>아래 결과의 ‘진입’은 화면 도착과 초기 렌더를, ‘연결/정규화’는 의도된 리다이렉트 또는 쿼리 정리를 뜻합니다. 일부 데이터 화면은 비어 있는 상태로 표시될 수 있습니다.</p>
+<details><summary>방문한 112개 경로 전체 보기</summary><div class="table-wrap"><table><thead><tr><th>입력 경로</th><th>관찰된 경로</th><th>결과</th></tr></thead><tbody>
+<tr><td><code>/</code></td><td><code>/</code></td><td>진입</td></tr>
+<tr><td><code>/account</code></td><td><code>/account</code></td><td>진입</td></tr>
+<tr><td><code>/attachment</code></td><td><code>/attachment</code></td><td>진입</td></tr>
+<tr><td><code>/audit</code></td><td><code>/audit</code></td><td>진입</td></tr>
+<tr><td><code>/audit?screener=1</code></td><td><code>/audit?screener=1</code></td><td>진입</td></tr>
+<tr><td><code>/beyond</code></td><td><code>/beyond</code></td><td>진입</td></tr>
+<tr><td><code>/big-five</code></td><td><code>/big-five</code></td><td>진입</td></tr>
+<tr><td><code>/brightness</code></td><td><code>/brightness</code></td><td>진입</td></tr>
+<tr><td><code>/call-reflection</code></td><td><code>/call-reflection</code></td><td>진입</td></tr>
+<tr><td><code>/canon</code></td><td><code>/canon</code></td><td>진입</td></tr>
+<tr><td><code>/capture</code></td><td><code>/capture</code></td><td>진입</td></tr>
+<tr><td><code>/capture-full</code></td><td><code>/capture-full</code></td><td>진입</td></tr>
+<tr><td><code>/capture-full?mode=file</code></td><td><code>/capture-full?mode=file</code></td><td>진입</td></tr>
+<tr><td><code>/capture-full?mode=fourw</code></td><td><code>/capture-full?mode=fourw</code></td><td>진입</td></tr>
+<tr><td><code>/capture-full?mode=journal</code></td><td><code>/capture-full?mode=journal</code></td><td>진입</td></tr>
+<tr><td><code>/capture-full?mode=linkclip</code></td><td><code>/capture-full</code></td><td>연결/정규화</td></tr>
+<tr><td><code>/capture-full?mode=memo</code></td><td><code>/capture-full?mode=memo</code></td><td>진입</td></tr>
+<tr><td><code>/capture-full?mode=ocr</code></td><td><code>/capture-full?mode=ocr</code></td><td>진입</td></tr>
+<tr><td><code>/capture-full?mode=todo</code></td><td><code>/capture-full?mode=todo</code></td><td>진입</td></tr>
+<tr><td><code>/capture-full?mode=voice</code></td><td><code>/capture-full?mode=voice</code></td><td>진입</td></tr>
+<tr><td><code>/capture?entry=firstRun</code></td><td><code>/capture?entry=firstRun</code></td><td>진입</td></tr>
+<tr><td><code>/career</code></td><td><code>/career</code></td><td>진입</td></tr>
+<tr><td><code>/career-drilldown</code></td><td><code>/career-drilldown</code></td><td>진입</td></tr>
+<tr><td><code>/career-input</code></td><td><code>/career-input</code></td><td>진입</td></tr>
+<tr><td><code>/change-password</code></td><td><code>/change-password</code></td><td>진입</td></tr>
+<tr><td><code>/community</code></td><td><code>/community</code></td><td>진입</td></tr>
+<tr><td><code>/community/sample</code></td><td><code>/community/sample</code></td><td>진입</td></tr>
+<tr><td><code>/complete-profile</code></td><td><code>/</code></td><td>연결/정규화</td></tr>
+<tr><td><code>/consent-notice</code></td><td><code>/consent-notice</code></td><td>진입</td></tr>
+<tr><td><code>/core-brain</code></td><td><code>/core-brain</code></td><td>진입</td></tr>
+<tr><td><code>/data</code></td><td><code>/data</code></td><td>진입</td></tr>
+<tr><td><code>/deepspace-flowmap</code></td><td><code>/deepspace-flowmap</code></td><td>진입</td></tr>
+<tr><td><code>/deepspace-home</code></td><td><code>/deepspace-home</code></td><td>진입</td></tr>
+<tr><td><code>/deepspace-hub</code></td><td><code>/deepspace-hub</code></td><td>진입</td></tr>
+<tr><td><code>/deepspace-preview</code></td><td><code>/deepspace-preview</code></td><td>진입</td></tr>
+<tr><td><code>/dev-screens</code></td><td><code>/dev-screens</code></td><td>진입</td></tr>
+<tr><td><code>/digest</code></td><td><code>/digest</code></td><td>진입</td></tr>
+<tr><td><code>/discover</code></td><td><code>/discover</code></td><td>진입</td></tr>
+<tr><td><code>/esm</code></td><td><code>/esm</code></td><td>진입</td></tr>
+<tr><td><code>/focus</code></td><td><code>/focus</code></td><td>진입</td></tr>
+<tr><td><code>/formats</code></td><td><code>/formats</code></td><td>진입</td></tr>
+<tr><td><code>/formats?view=export</code></td><td><code>/formats?view=export</code></td><td>진입</td></tr>
+<tr><td><code>/graph</code></td><td><code>/graph</code></td><td>진입</td></tr>
+<tr><td><code>/growth</code></td><td><code>/growth</code></td><td>진입</td></tr>
+<tr><td><code>/iden</code></td><td><code>/iden</code></td><td>진입</td></tr>
+<tr><td><code>/imagine</code></td><td><code>/imagine</code></td><td>진입</td></tr>
+<tr><td><code>/import</code></td><td><code>/import</code></td><td>진입</td></tr>
+<tr><td><code>/import-hub</code></td><td><code>/import-hub</code></td><td>진입</td></tr>
+<tr><td><code>/inbox</code></td><td><code>/inbox</code></td><td>진입</td></tr>
+<tr><td><code>/insights</code></td><td><code>/insights</code></td><td>진입</td></tr>
+<tr><td><code>/integrations</code></td><td><code>/integrations</code></td><td>진입</td></tr>
+<tr><td><code>/interview</code></td><td><code>/interview</code></td><td>진입</td></tr>
+<tr><td><code>/ipip-neo</code></td><td><code>/ipip-neo</code></td><td>진입</td></tr>
+<tr><td><code>/jarvis</code></td><td><code>/secondb</code></td><td>연결/정규화</td></tr>
+<tr><td><code>/journal</code></td><td><code>/capture</code></td><td>연결/정규화</td></tr>
+<tr><td><code>/ledger</code></td><td><code>/ledger</code></td><td>진입</td></tr>
+<tr><td><code>/manual</code></td><td><code>/manual</code></td><td>진입</td></tr>
+<tr><td><code>/mbti</code></td><td><code>/core-brain</code></td><td>연결/정규화</td></tr>
+<tr><td><code>/me/school</code></td><td><code>/me/school</code></td><td>진입</td></tr>
+<tr><td><code>/meals</code></td><td><code>/meals</code></td><td>진입</td></tr>
+<tr><td><code>/milestones</code></td><td><code>/milestones</code></td><td>진입</td></tr>
+<tr><td><code>/motivation</code></td><td><code>/motivation</code></td><td>진입</td></tr>
+<tr><td><code>/museum</code></td><td><code>/museum</code></td><td>진입</td></tr>
+<tr><td><code>/northstar</code></td><td><code>/northstar</code></td><td>진입</td></tr>
+<tr><td><code>/notices</code></td><td><code>/notices</code></td><td>진입</td></tr>
+<tr><td><code>/onboarding</code></td><td><code>/</code></td><td>연결/정규화</td></tr>
+<tr><td><code>/ops</code></td><td><code>/ops</code></td><td>진입</td></tr>
+<tr><td><code>/peer-invites</code></td><td><code>/peer-invites</code></td><td>진입</td></tr>
+<tr><td><code>/people</code></td><td><code>/people</code></td><td>진입</td></tr>
+<tr><td><code>/permissions</code></td><td><code>/permissions</code></td><td>진입</td></tr>
+<tr><td><code>/persona</code></td><td><code>/core-brain</code></td><td>연결/정규화</td></tr>
+<tr><td><code>/plans</code></td><td><code>/plans</code></td><td>진입</td></tr>
+<tr><td><code>/privacy</code></td><td><code>/privacy</code></td><td>진입</td></tr>
+<tr><td><code>/privacy-policy</code></td><td><code>/privacy-policy</code></td><td>진입</td></tr>
+<tr><td><code>/processing-log</code></td><td><code>/processing-log</code></td><td>진입</td></tr>
+<tr><td><code>/profile</code></td><td><code>/profile</code></td><td>진입</td></tr>
+<tr><td><code>/profile-details</code></td><td><code>/profile-details</code></td><td>진입</td></tr>
+<tr><td><code>/ratifications</code></td><td><code>/ratifications</code></td><td>진입</td></tr>
+<tr><td><code>/reading</code></td><td><code>/reading</code></td><td>진입</td></tr>
+<tr><td><code>/reasoning</code></td><td><code>/reasoning</code></td><td>진입</td></tr>
+<tr><td><code>/record/sample</code></td><td><code>/record/sample</code></td><td>진입</td></tr>
+<tr><td><code>/records</code></td><td><code>/records</code></td><td>진입</td></tr>
+<tr><td><code>/refund</code></td><td><code>/refund</code></td><td>진입</td></tr>
+<tr><td><code>/reminders</code></td><td><code>/reminders</code></td><td>진입</td></tr>
+<tr><td><code>/research</code></td><td><code>/research</code></td><td>진입</td></tr>
+<tr><td><code>/reset-password</code></td><td><code>/reset-password</code></td><td>진입</td></tr>
+<tr><td><code>/rest</code></td><td><code>/rest</code></td><td>진입</td></tr>
+<tr><td><code>/review</code></td><td><code>/review</code></td><td>진입</td></tr>
+<tr><td><code>/rlss</code></td><td><code>/rlss</code></td><td>진입</td></tr>
+<tr><td><code>/secondb</code></td><td><code>/secondb</code></td><td>진입</td></tr>
+<tr><td><code>/secondb?fromNode=%EC%BB%A4%EB%A6%AC%EC%96%B4</code></td><td><code>/secondb?fromNode=%EC%BB%A4%EB%A6%AC%EC%96%B4</code></td><td>진입</td></tr>
+<tr><td><code>/secondb?mode=divergent</code></td><td><code>/secondb?mode=divergent</code></td><td>진입</td></tr>
+<tr><td><code>/secondb?panel=dashboard</code></td><td><code>/secondb?panel=dashboard</code></td><td>진입</td></tr>
+<tr><td><code>/seen</code></td><td><code>/seen</code></td><td>진입</td></tr>
+<tr><td><code>/settings</code></td><td><code>/settings</code></td><td>진입</td></tr>
+<tr><td><code>/share-card</code></td><td><code>/share-card</code></td><td>진입</td></tr>
+<tr><td><code>/side-project</code></td><td><code>/side-project</code></td><td>진입</td></tr>
+<tr><td><code>/sign-in</code></td><td><code>/</code></td><td>연결/정규화</td></tr>
+<tr><td><code>/sign-up</code></td><td><code>/</code></td><td>연결/정규화</td></tr>
+<tr><td><code>/sources</code></td><td><code>/sources</code></td><td>진입</td></tr>
+<tr><td><code>/srs</code></td><td><code>/srs</code></td><td>진입</td></tr>
+<tr><td><code>/star/career</code></td><td><code>/star/career</code></td><td>진입</td></tr>
+<tr><td><code>/strengths</code></td><td><code>/strengths</code></td><td>진입</td></tr>
+<tr><td><code>/subscription</code></td><td><code>/subscription</code></td><td>진입</td></tr>
+<tr><td><code>/support</code></td><td><code>/support</code></td><td>진입</td></tr>
+<tr><td><code>/terms</code></td><td><code>/terms</code></td><td>진입</td></tr>
+<tr><td><code>/theme</code></td><td><code>/theme</code></td><td>진입</td></tr>
+<tr><td><code>/trends</code></td><td><code>/trends</code></td><td>진입</td></tr>
+<tr><td><code>/trinity</code></td><td><code>/trinity</code></td><td>진입</td></tr>
+<tr><td><code>/ttfv</code></td><td><code>/ttfv</code></td><td>진입</td></tr>
+<tr><td><code>/values</code></td><td><code>/values</code></td><td>진입</td></tr>
+<tr><td><code>/wiki</code></td><td><code>/wiki</code></td><td>진입</td></tr>
+</tbody></table></div></details>
+<details><summary>미방문 3개 외부 계약 경로</summary><ul><li><code>/community/join/sample</code> — 초대 토큰 딥링크</li><li><code>/peer/sample</code> — 외부 응답 토큰</li><li><code>/oauth-callback</code> — 인증 콜백</li></ul><p>샘플 토큰으로 계약 경로를 실행하면 의도하지 않은 인증·가입·응답 상태를 만들 수 있어 개발자 목록의 안전 정책대로 제외했습니다.</p></details>
+</section>
+<section>
+<h2>검증 명령과 상태</h2>
+<ul><li><code>npm run verify</code> — 통과: 778개 테스트 묶음, 9,923개 테스트.</li><li>Orca 실제 브라우저 — 코치마크 1/4→완료→별자리 복귀 통과; 공지 읽음 후 새로고침 2회 통과.</li><li><code>http://localhost:8081/</code> — 재가동 후 HTTP 200 확인.</li><li>운영 배포·커밋·푸시는 수행하지 않았습니다.</li></ul>
+</section>
+<footer class="meta"><p>이 보고서는 로컬 작업트리의 QA 시점 기록입니다. 전체 기능 완료 판정이 아니라 안전한 화면 진입과 핵심 흐름 검증 결과입니다.</p></footer>
+</main>
+</body>
+</html>

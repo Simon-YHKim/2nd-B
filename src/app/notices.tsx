@@ -24,10 +24,10 @@ import { readNoticeSeenId, writeNoticeSeenId } from "@/lib/notices/last-seen";
 import { renderableBlocks } from "@/lib/notices/markdown";
 import {
   addReadId,
-  getReadIds,
   getRevision,
   loadPersistedReadIds,
   mergeReadIds,
+  snapshotReadIds,
   subscribe,
 } from "@/lib/notices/read-store";
 import { fetchNotices, fetchReadNoticeIds, markNoticeRead } from "@/lib/notices/remote";
@@ -210,7 +210,7 @@ export function useNoticeCenter(userId: string | null) {
   useEffect(() => subscribe(() => setReadRevision(getRevision())), []);
   const readIds = useMemo(
     // readRevision is the dependency that matters; the store mutates in place.
-    () => new Set(getReadIds(userId)),
+    () => snapshotReadIds(userId, readRevision),
     [userId, readRevision],
   );
 

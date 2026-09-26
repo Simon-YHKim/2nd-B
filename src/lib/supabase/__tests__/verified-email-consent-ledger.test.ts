@@ -37,6 +37,12 @@ const FROZEN_SIGNUP_REVISION_TUPLES = {
     termsVersion: "2026-08-16",
     confirmationEligible: true,
   },
+  "email-v4": {
+    consentVersion: "2026-09-07",
+    policyVersion: "2026-09-26",
+    termsVersion: "2026-08-16",
+    confirmationEligible: true,
+  },
 } as const;
 
 const migrations = readdirSync(migrationDir)
@@ -46,6 +52,15 @@ const migrations = readdirSync(migrationDir)
     const sql = readFileSync(join(migrationDir, name), "utf8").split(CR).join("");
     return { name, exec: sql.replace(/^\s*--.*$/gm, "") };
   });
+
+// Validate the release candidate overlay without rewriting a shipped migration.
+// Production publication separately requires the live status RPC to match it.
+const policyDraftName = "UNNUMBERED_signup_consent_admob_20260925.sql";
+migrations.push({
+  name: policyDraftName,
+  exec: readFileSync(join(process.cwd(), "db", "migration-drafts", policyDraftName), "utf8")
+    .split(CR).join("").replace(/^\s*--.*$/gm, ""),
+});
 
 function lastPatternMatch(source: string, pattern: RegExp) {
   const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
@@ -148,8 +163,9 @@ describe("verified-email consent ledger", () => {
   });
 
   test("keeps current and historical email revisions confirmation-eligible", () => {
-    expect(authSignupRevision()).toBe("email-v3");
-    expect(contractTuple(authSignupRevision() as "email-v3").confirmationEligible).toBe(true);
+    expect(authSignupRevision()).toBe("email-v4");
+    expect(contractTuple(authSignupRevision() as "email-v4").confirmationEligible).toBe(true);
+    expect(contractTuple("email-v3").confirmationEligible).toBe(true);
     expect(contractTuple("email-v2").confirmationEligible).toBe(true);
     expect(contractTuple("complete-profile-v1").confirmationEligible).toBe(false);
     expect(AUTH).toMatch(/signup_flow:\s*VERIFIED_EMAIL_SIGNUP_REVISION/);

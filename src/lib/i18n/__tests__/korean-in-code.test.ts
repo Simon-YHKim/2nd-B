@@ -65,6 +65,7 @@ const KOREAN_BY_DESIGN: Record<string, string> = {
   "src/lib/ops/recommend.ts": "LLM 시스템 프롬프트",
   "src/lib/ops/daily-brief.ts": "LLM 시스템 프롬프트",
   "src/lib/persona/profile-details.ts": "LLM 프롬프트용 필드 설명",
+  "src/lib/persona/persona-synthesis.ts": "LLM 페르소나 합성 시스템 프롬프트 — UI 카피가 아니고 모델 동작 계약",
 
   // ── 개념 이름: 데이터에 가깝다 ──
   "src/lib/persona/domain-stars.ts": "생활 도메인 이름 (개념 정본)",
@@ -234,7 +235,10 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/lib/iden/load-persisted-iden.ts": 12,
   "src/lib/iden/render-html.ts": 8,
   "src/lib/import/proposals.ts": 19,
-  "src/lib/interview/probe.ts": 56,
+  // 2026-09-25: two KO/EN paired scene-continuity and voluntary-disclosure prompt rules.
+  "src/lib/interview/probe.ts": 58,
+  // Offline-only layer fixtures; all five questions have an explicit English branch.
+  "src/lib/interview/mock-probe.ts": 5,
   "src/lib/interview/stuck.ts": 10,
   "src/lib/journal/daily-prompts.ts": 15,
   "src/lib/knowledge/retrieve.ts": 30,
@@ -253,7 +257,6 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/lib/persona/mbti.ts": 80,
   "src/lib/persona/motivation-survey.ts": 22,
   "src/lib/persona/northstar.ts": 6,
-  "src/lib/persona/persona-synthesis.ts": 8,
   "src/lib/persona/proposal-display.ts": 11,
   "src/lib/persona/propose-self-model.ts": 9,
   "src/lib/persona/reflection-scaffold.ts": 4,
@@ -277,7 +280,7 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/lib/wiki/phase1.ts": 7,
   "src/lib/wiki/propose-template.ts": 15,
   "src/lib/wiki/template-validate.ts": 2,
-  "src/screens/deepspace/DeepSpaceDesignScreens.tsx": 69,
+  "src/screens/deepspace/DeepSpaceDesignScreens.tsx": 66,
   "src/screens/deepspace/dds-record-detail-screen.tsx": 4,
   "src/screens/deepspace/dds-wiki-records-screens.tsx": 4,
   "src/screens/deepspace/growth/WeeklyGrowthScreen.tsx": 14,
