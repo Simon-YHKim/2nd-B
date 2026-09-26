@@ -28,7 +28,22 @@
 **⚠ `HANDOFF-2026-09.md`(p1)는 92KB 로 찼다 — 09 월 블록은 `-p2` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-26 23:05 / #1865 병합·격리 복원 완료·운영 게이트
+## Latest — 2026-09-27 00:11 / 공개 웹 실측·Edge 스키마 게이트·운영 보류
+
+### 이번 확인과 변경
+- [PR #1871](https://github.com/Simon-YHKim/2nd-B/pull/1871)이 `main`의 `6ada6ce1`에 병합됐다. [공개 웹 실측 보고서](qa/LIVE-WEB-STATUS-260926.html)는 현재 공개 로그인 화면의 425×812·1440×900 렌더링에서 pageerror·동일 출처 4xx/5xx·가로 넘침 0을 기록한다. 인증 뒤 흐름은 확인하지 않았다. Pages는 `gh-pages`의 오래된 `16368d66`을 제공하고, 최신 `main`의 웹 빌드는 성공했지만 publish는 건너뛰었다. 서버·법률 게이트 전 공개 배포는 보류한다.
+- [PR #1872](https://github.com/Simon-YHKim/2nd-B/pull/1872)가 `main`의 `08a5745a`에 병합됐다. Edge 배포 직전의 스키마 검사는 실제 RPC 서명·인자명·`service_role` 실행 권한·사용 컬럼까지 확인한다. 로컬 전체 `npm run verify` 821 suites·10,718 tests, 집중 25/25, 원격 CI 3/3 PASS. 읽기 전용 운영 카탈로그 SELECT에서 `rewarded-ssv` 4/4 충족, `openai-proxy` 22개 중 5개 미충족으로 배포가 차단될 상태임을 확인했다. 운영 배포는 하지 않았다.
+- 운영 재조회에서 migration 원장 152행, 보상 alias 두 행과 0172 중복 두 행, `rewarded-ssv` v91이 유지된다. 0191–0201 묶음은 추가 적용 전이며, 확인한 0183·0191·0192·0193·0195·0200 객체는 없다. Edge 플래그·시크릿 존재는 현 도구로 확인하지 못했다. 운영 SQL 일괄 push와 추가 Edge·클라이언트 공개는 **NO-GO**다.
+- 9/26 도구 출력의 Anthropic 키에 대해 Simon은 이 세션이 회전하지 말고, 실제 키 작업이 필요하면 Grok Bot이 맡도록 지시했다. `origin/main` 추적 파일·Git 이력·현재 TTL QA 파일의 리터럴 `sk-ant-` 패턴 검사에서는 일치가 없었다. 코드에 키가 노출된 증거는 없으며, 기존 최신 블록의 회전 항목은 현재 지시로 대체한다. 키 값은 기록하지 않는다. 기존 Grok 초안 후속 전달 보류는 유지한다.
+
+### 남은 게이트
+1. 콘솔 담당: 운영 데이터·원장을 반영한 0191–0201 격리 리허설, 0172·보상 alias 재적용 방지, 플래그·시크릿 이름 확인, Reward 서명·변조·재전송 canary와 Paddle OFF·drain·sandbox.
+2. 광고·법률: AdMob 수신 법인·이전 국가·보유기간, 별도 동의와 릴리스 빌드 초기 네트워크 확인 후에만 광고 활성화 판단.
+3. QA: Android 촬영·OCR·음성 Stop→실전사·저장·효과음, Polaris 실모델 인용·GA4 수신, 대시보드의 의도 대비 UX 차이를 각 소유 작업 트리에서 검증한다. 공개 웹의 현재 `main` 기능은 서버·게시 게이트 후 다시 확인한다.
+
+---
+
+## 2026-09-26 23:05 / #1865 병합·격리 복원 완료·운영 게이트
 
 ### 어디까지 왔나
 - `origin/main`의 `fe3bdade`에 [PR #1865](https://github.com/Simon-YHKim/2nd-B/pull/1865)가 병합됐다. 병합 전 최종 head `cc942f1c`의 lint·SQL·verify·web export **4/4 PASS**, 로컬 `npm run verify` 820 suites·10,693 Jest tests·UI 76 PASS. 이 인수 문서 PR은 앱 코드·DB 마이그레이션을 포함하지 않는다.
