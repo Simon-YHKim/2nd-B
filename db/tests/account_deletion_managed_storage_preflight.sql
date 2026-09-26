@@ -8,16 +8,33 @@ DECLARE
   bucket record;
   objects_oid oid := to_regclass('storage.objects');
   tombstone_oid oid := to_regclass('public.account_deletion_tombstones');
+  ledger_rows integer;
+  supported_ledger_rows integer;
+  nonempty_ledger_rows integer;
 BEGIN
   IF to_regclass('storage.buckets') IS NULL OR objects_oid IS NULL THEN
     RAISE EXCEPTION 'managed_storage_schema_missing';
   END IF;
-  IF to_regclass('supabase_migrations.schema_migrations') IS NULL
-     OR NOT EXISTS (
-       SELECT 1 FROM supabase_migrations.schema_migrations
-       WHERE name = 'account_deletion_completion_fence'
-     ) THEN
+  IF to_regclass('supabase_migrations.schema_migrations') IS NULL THEN
     RAISE EXCEPTION '0192_migration_ledger_missing';
+  END IF;
+  -- CLI scratch records version 0192 with the bare stem. The managed clone's
+  -- apply_migration plan records a timestamp version with the numbered stem.
+  -- Exactly one nonempty row in one documented form is required. A duplicate
+  -- or renamed/empty row needs reconciliation; never edit the ledger to pass.
+  SELECT count(*),
+         count(*) FILTER (WHERE
+           (m.version = '0192' AND m.name = 'account_deletion_completion_fence')
+           OR (m.version ~ '^[0-9]{14}$'
+               AND m.name = '0192_account_deletion_completion_fence')),
+         count(*) FILTER (WHERE cardinality(m.statements) > 0)
+    INTO ledger_rows, supported_ledger_rows, nonempty_ledger_rows
+  FROM supabase_migrations.schema_migrations AS m
+  WHERE m.name IN ('account_deletion_completion_fence',
+                   '0192_account_deletion_completion_fence');
+  IF ledger_rows <> 1 OR supported_ledger_rows <> 1
+     OR nonempty_ledger_rows <> 1 THEN
+    RAISE EXCEPTION '0192_migration_ledger_missing_or_ambiguous';
   END IF;
   IF tombstone_oid IS NULL
      OR to_regprocedure('public.begin_account_deletion(uuid,uuid,timestamptz)') IS NULL
@@ -113,7 +130,9 @@ SELECT version, name, cardinality(statements) AS statement_count,
     AS normalized_sql_md5
 FROM supabase_migrations.schema_migrations
 WHERE name IN ('account_deletion_completion_fence',
-               'llm_service_consent_management')
+               '0192_account_deletion_completion_fence',
+               'llm_service_consent_management',
+               '0194_llm_service_consent_management')
 ORDER BY version;
 
 SELECT to_regprocedure('public.llm_service_consent_status(uuid)') IS NOT NULL
