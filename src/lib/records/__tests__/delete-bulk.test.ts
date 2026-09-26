@@ -39,7 +39,16 @@ jest.mock("../../supabase/client", () => {
     };
     return chain;
   });
-  const mock = { from, auth: { getSession, refreshSession }, functions: { invoke } };
+  // The content wipe now empties the raw-clippings folder after the source rows
+  // (wiki/source-erasure.ts). An empty folder here; delete-bulk-raw-clippings.test.ts
+  // exercises the sweep itself.
+  const storage = {
+    from: () => ({
+      list: async () => ({ data: [], error: null }),
+      remove: async () => ({ data: [], error: null }),
+    }),
+  };
+  const mock = { from, storage, auth: { getSession, refreshSession }, functions: { invoke } };
   return {
     getSupabaseClient: () => mock,
     __tablesDeleted: tablesDeleted,

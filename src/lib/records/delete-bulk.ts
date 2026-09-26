@@ -1,7 +1,7 @@
 // Bulk + scoped record deletion. All operations are RLS-scoped to
 // auth.uid() so the userId argument is belt-and-suspenders alongside
-// the policy. Each helper returns the affected row count so the UI
-// can show 'Deleted N records'.
+// the policy. Each helper returns the affected row count so the UI can show
+// 'Deleted N records'. Sources go with their raw-clippings originals (wiki/source-erasure).
 
 import { getSupabaseClient } from "../supabase/client";
 import { invalidateDomainLevels } from "../persona/load-domain-levels";
@@ -12,6 +12,7 @@ import {
   type AuthSessionExpectation,
 } from "../auth/session-mutation";
 import { installAccountLocalDeletionFence } from "../account/local-deletion-fence";
+import { eraseRawClippingFolder, eraseSourcesWithRawClippings, runBoundToOwnerSession, type SessionGuard, type SourceErasure } from "../wiki/source-erasure";
 
 /** Delete every record belonging to the user. Returns affected count. */
 export async function deleteAllRecords(userId: string): Promise<number> {
@@ -79,17 +80,14 @@ export async function deleteRecordsByIds(userId: string, ids: string[]): Promise
 
 /** Delete every wiki page (cascades wiki_links). Sources are untouched. */
 /** Delete specific sources by id (import-hub 철회 — removes the derived rows
- *  a ratified import created). Owner-scoped. */
+ *  a ratified import created) together with their raw-clippings originals,
+ *  raw first (wiki/source-erasure.ts). Owner-scoped. A row a wiki page still
+ *  points at is left in place with its original, so the count comes up short
+ *  and the callers' findSurvivingSourceIds check reports it - the same outcome
+ *  the row delete used to reach by failing on the source_kind_pair CHECK. */
 export async function deleteSourcesByIds(userId: string, ids: string[]): Promise<number> {
   if (ids.length === 0) return 0;
-  const supabase = getSupabaseClient();
-  const { count, error } = await supabase
-    .from("sources")
-    .delete({ count: "exact" })
-    .eq("user_id", userId)
-    .in("id", ids);
-  if (error) throw error;
-  return count ?? 0;
+  return (await eraseSourcesWithRawClippings(userId, { ids })).deleted;
 }
 
 /** Which of these source ids still exist for this owner.
@@ -102,14 +100,14 @@ export async function deleteSourcesByIds(userId: string, ids: string[]): Promise
  *  came up short, so the ordinary withdrawal costs no extra query. */
 export async function findSurvivingSourceIds(userId: string, ids: string[]): Promise<string[]> {
   if (ids.length === 0) return [];
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase
-    .from("sources")
-    .select("id")
-    .eq("user_id", userId)
-    .in("id", ids);
-  if (error) throw error;
-  return ((data ?? []) as { id: string }[]).map((row) => row.id);
+  // Bound to the session that asks (R30, JA-1839-3): under another session RLS hides these rows and an
+  // empty answer would read as "withdrawn", dropping the only pointer to rows that still exist.
+  return runBoundToOwnerSession(userId, async (guard) => {
+    const { data, error } = await getSupabaseClient().from("sources").select("id").eq("user_id", userId).in("id", ids);
+    await guard();
+    if (error) throw error;
+    return ((data ?? []) as { id: string }[]).map((row) => row.id);
+  });
 }
 
 export async function deleteAllWikiPages(userId: string): Promise<number> {
@@ -122,30 +120,32 @@ export async function deleteAllWikiPages(userId: string): Promise<number> {
   return count ?? 0;
 }
 
-/** Delete every un-ingested source. Promoted sources need their wiki
- *  page deleted first (the wiki_pages_source_kind_pair CHECK blocks
- *  source deletion while a kind='source' page references it). */
-export async function deleteUningestedSources(userId: string): Promise<number> {
-  const supabase = getSupabaseClient();
-  const { count, error } = await supabase
-    .from("sources")
-    .delete({ count: "exact" })
-    .eq("user_id", userId)
-    .eq("ingested", false);
-  if (error) throw error;
-  return count ?? 0;
+/** Delete every un-ingested source with its raw-clippings original, raw first
+ *  so a failure leaves the row to retry from (wiki/source-erasure.ts). A row a
+ *  kind='source' wiki page still points at is already organized into the wiki,
+ *  whatever its flag says, and the wiki_pages_source_kind_pair CHECK blocks its
+ *  delete: it keeps its original too and is counted in `kept`. It used to fail
+ *  the whole bulk delete. The settings screen reports `kept` next to the count,
+ *  never as a plain "deleted" toast. Throws when a row it should have deleted
+ *  is still there, when rows are left in place (SourceErasureIncompleteError) or the session changed. */
+export async function deleteUningestedSources(userId: string): Promise<SourceErasure> {
+  return eraseSourcesWithRawClippings(userId, { uningested: true });
 }
 
-/** Delete every source (after wiki pages are deleted). Safe-order:
- *  call deleteAllWikiPages first when you want a full wipe. */
+/** Delete every source (after wiki pages are deleted), then empty the owner's
+ *  raw-clippings folder, rows first: with every row gone the folder listing is
+ *  itself what a retry resumes from (wiki/source-erasure.ts). Throws while any
+ *  object remains, so the wipe never reports done over a leftover original.
+ *  Safe-order: call deleteAllWikiPages first when you want a full wipe. Bound
+ *  to the session that starts it, like every eraser here (R30, JA-1839-3): an
+ *  account switch mid-call ends it as AuthSessionOwnerChangedError, never as a
+ *  count RLS shrank to zero. */
 export async function deleteAllSources(userId: string): Promise<number> {
-  const supabase = getSupabaseClient();
-  const { count, error } = await supabase
-    .from("sources")
-    .delete({ count: "exact" })
-    .eq("user_id", userId);
-  if (error) throw error;
-  return count ?? 0;
+  return runBoundToOwnerSession(userId, async (guard) => {
+    const count = await deleteSourceRowsInSession(userId, guard);
+    await eraseRawClippingFolder(userId, guard);
+    return count;
+  });
 }
 
 /** Delete chat_usage rows so the daily quota resets to zero. */
@@ -188,12 +188,12 @@ export async function deleteAllOwnedClipperTemplates(userId: string): Promise<nu
 // personas IS owner-deletable (personas_owner_all FOR ALL, 0009:53-57), and
 // ai_audit_log does not cascade (0011:20-27 set its FK to ON DELETE SET NULL).
 
-/** Content wipe (keeps the account): wiki pages -> sources -> records ->
- *  chat_usage -> self_contexts -> owned clipper templates. Order matters for
- *  the source_id pair CHECK on wiki_pages. The derived tables are best-effort:
- *  a failure on one (e.g. RLS) is logged and skipped so the wipe still clears
- *  the rest. RLS-protected derived data (personas/memorized_patterns/xp) is
- *  only erased by full account deletion — see requestAccountDeletion. */
+/** Content wipe (keeps the account): wiki pages -> sources and their
+ *  raw-clippings folder -> records -> chat_usage -> self_contexts -> owned
+ *  clipper templates. Order matters for the source_id pair CHECK on wiki_pages.
+ *  The derived tables are best-effort: a failure on one (e.g. RLS) is logged
+ *  and skipped so the wipe still clears the rest. RLS-protected derived data
+ *  (personas/memorized_patterns/xp) is only erased by requestAccountDeletion. */
 export async function deleteAllUserData(userId: string): Promise<{
   records: number;
   sources: number;
@@ -202,16 +202,16 @@ export async function deleteAllUserData(userId: string): Promise<{
   selfContexts: number;
   clipperTemplates: number;
 }> {
-  const wikiPages = await deleteAllWikiPages(userId);
-  const sources = await deleteAllSources(userId);
-  const records = await deleteAllRecords(userId);
-  const chatUsage = await deleteAllChatUsage(userId);
-  const selfContexts = await bestEffort(() => deleteAllSelfContexts(userId), "self_contexts");
-  const clipperTemplates = await bestEffort(
-    () => deleteAllOwnedClipperTemplates(userId),
-    "clipper_templates",
-  );
-  return { records, sources, wikiPages, chatUsage, selfContexts, clipperTemplates };
+  // Bound to the session that started it (R30, JA-1839-3 · JZ-1839-2): every step
+  // runs inside the auth mutation lock and re-reads the live session after each
+  // request, so an account switch mid-wipe ends it as a failure instead of letting
+  // RLS answer "nothing here" for rows it can no longer see. The raw-clippings
+  // sweep is the one step whose failure does not stop the later ones: an object it
+  // cannot remove must not keep records from ever being wiped (JZ-1839-1). The
+  // call still ends in that error, so the screen never reports done over it.
+  // The steps live in wipeContentInSession at the end of this file, below the
+  // account-deletion lines the DPIA cites by number.
+  return runBoundToOwnerSession(userId, (guard) => wipeContentInSession(userId, guard));
 }
 
 async function bestEffort(fn: () => Promise<number>, label: string): Promise<number> {
@@ -420,4 +420,53 @@ export async function requestAccountDeletion(
 
     throw new Error("account deletion retry bound exhausted");
   }, { requireCrossTab: true });
+}
+
+// --- content wipe steps (R30) -------------------------------------------------
+// Below requestAccountDeletion on purpose: the DPIA cites the lines above by
+// number, so new code goes after them.
+
+/** The sources rows only; the folder sweep follows (deleteAllSources,
+ *  wipeContentInSession). Call inside runBoundToOwnerSession. */
+async function deleteSourceRowsInSession(userId: string, guard: SessionGuard): Promise<number> {
+  const { count, error } = await getSupabaseClient()
+    .from("sources")
+    .delete({ count: "exact" })
+    .eq("user_id", userId);
+  await guard();
+  if (error) throw error;
+  return count ?? 0;
+}
+
+/** deleteAllUserData's steps, in order, each checked against the session that
+ *  started the wipe. A raw-clippings sweep failure is held until the end so an
+ *  object the sweep cannot remove never stops the records from being wiped; a
+ *  session change is not held - it stops the wipe where it is. */
+async function wipeContentInSession(
+  userId: string,
+  guard: SessionGuard,
+): Promise<Awaited<ReturnType<typeof deleteAllUserData>>> {
+  const wikiPages = await deleteAllWikiPages(userId);
+  await guard();
+  const sources = await deleteSourceRowsInSession(userId, guard);
+  let rawClippingsFailure: unknown = null;
+  try {
+    await eraseRawClippingFolder(userId, guard);
+  } catch (e) {
+    if (e instanceof AuthSessionOwnerChangedError) throw e;
+    rawClippingsFailure = e;
+  }
+  const records = await deleteAllRecords(userId);
+  await guard();
+  const chatUsage = await deleteAllChatUsage(userId);
+  await guard();
+  const selfContexts = await bestEffort(() => deleteAllSelfContexts(userId), "self_contexts");
+  await guard();
+  const clipperTemplates = await bestEffort(
+    () => deleteAllOwnedClipperTemplates(userId),
+    "clipper_templates",
+  );
+  await guard();
+  if (rawClippingsFailure !== null) throw rawClippingsFailure;
+  return { records, sources, wikiPages, chatUsage, selfContexts, clipperTemplates };
 }

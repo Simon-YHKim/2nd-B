@@ -77,6 +77,29 @@ jest.mock("../../supabase/client", () => ({
   }),
 }));
 
+// R30 (JA-1839-2): the __phase1__ write goes through writeSourceFrontmatter
+// (wiki/source-erasure.ts), which re-reads the row and writes only while the
+// claim markers are what that read saw. The mock below hands the change
+// function the fixture's frontmatter as that fresh read and feeds its output to
+// the same updateBody / updateEqId / updateEqUserId spies the direct UPDATE
+// used to hit, so the assertions on what gets written are unchanged. The
+// conditional write itself (and a delete's claim landing in phase1's
+// read->write gap) runs against a stateful fake in
+// src/lib/records/__tests__/delete-bulk-raw-clippings.test.ts.
+jest.mock("../source-erasure", () => ({
+  writeSourceFrontmatter: jest.fn(
+    async (userId: string, sourceId: string, change: (current: Record<string, unknown>) => Record<string, unknown>) => {
+      captured.push({ fn: "writeSourceFrontmatter", args: [userId, sourceId] });
+      if (fixtures.writeError) throw fixtures.writeError;
+      const fresh = (fixtures.fresh ?? fixtures.source) as { frontmatter?: Record<string, unknown> } | null | undefined;
+      updateBody({ frontmatter: change(fresh?.frontmatter ?? {}) });
+      updateEqId(sourceId);
+      updateEqUserId(userId);
+      return true;
+    },
+  ),
+}));
+
 import { readPhase1, runPhase1 } from "../phase1";
 // Reference a banned term from the lexicon rather than spelling one out, so this
 // test file stays clean for the forbidden-lexicon CI scan (wiki/__tests__ is not
@@ -167,8 +190,9 @@ describe("runPhase1 — orchestration", () => {
       "callLlm",
       // Re-read the frontmatter right before the write (wave-3 concurrency fix)
       // so the pre-LLM snapshot can't clobber a concurrent frontmatter update.
-      "getSource",
-      "update",
+      // Both the re-read and the write now happen inside writeSourceFrontmatter,
+      // which also keeps any claim marker set in between (R30).
+      "writeSourceFrontmatter",
     ]);
     expect(r.summary).toBe("A summary.");
     expect(r.questions).toHaveLength(4);
@@ -311,5 +335,39 @@ describe("runPhase1 — §1 ingest normalization fields", () => {
     });
     const r = await runPhase1({ userId: "u1", sourceId: "s1", locale: "en" });
     expect(r.category).toBeUndefined();
+  });
+});
+
+describe("runPhase1 - the __phase1__ write and a delete's claim (R30, JA-1839-2)", () => {
+  beforeEach(resetOrchestration);
+
+  const source = {
+    id: "s1",
+    user_id: "u1",
+    title: "Claimed",
+    storage_path: "u1/claimed.md",
+    frontmatter: { existing: "field" },
+  };
+
+  test("the write starts from the fresh read and keeps its claim markers as they are", async () => {
+    fixtures.source = source;
+    const claim = { token: "gen-1", at: "2026-09-20T01:00:00.000Z" };
+    fixtures.fresh = { frontmatter: { existing: "field", _generating: claim } };
+
+    await runPhase1({ userId: "u1", sourceId: "s1", locale: "en" });
+
+    expect(updateBody).toHaveBeenCalledWith({
+      frontmatter: expect.objectContaining({ existing: "field", _generating: claim, __phase1__: expect.any(Object) }),
+    });
+  });
+
+  test("a capture a delete has claimed is not written to - the refusal reaches the caller", async () => {
+    fixtures.source = source;
+    fixtures.writeError = Object.assign(new Error("source s1 is being erased"), { name: "SourceErasingError" });
+
+    await expect(runPhase1({ userId: "u1", sourceId: "s1", locale: "en" })).rejects.toMatchObject({
+      name: "SourceErasingError",
+    });
+    expect(updateBody).not.toHaveBeenCalled();
   });
 });
