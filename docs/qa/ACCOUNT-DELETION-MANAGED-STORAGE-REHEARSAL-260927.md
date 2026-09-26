@@ -39,7 +39,11 @@ or service-role keys into a report or terminal transcript.
    tombstone, or service-only RPC grants. Save the output showing actual
    `storage.objects` columns and all four policy expressions. Compare those
    expressions and the ledger SQL with the pinned numbered source; a catalog
-   presence check alone does not prove semantic equality.
+   presence check alone does not prove semantic equality. In particular, the
+   `additional_required_insert_column` result must be empty before using the
+   three-column direct INSERT in race 2. A row there means the managed schema
+   requires other values and the SQL below will fail **before** it exercises
+   the deletion trigger; do not count that failure as a pass.
 3. `0194_llm_service_consent_management.sql` is **after `0192`**. Its first `DO`
    block requires `public.account_deletion_tombstones`; its status and writer
    RPCs take the same owner-keyed shared advisory lock before profile/receipt
@@ -168,7 +172,8 @@ SELECT public.begin_account_deletion(:'u2'::uuid, :'s2'::uuid, now());
 
 In W, start an authenticated insert of a *new* B path. This directly exercises
 the managed Storage DB trigger, but it is not a substitute for the API smoke
-check below. A successful INSERT is a failure of this rehearsal; immediately
+check below. Run it only if `additional_required_insert_column` was empty. A
+successful INSERT is a failure of this rehearsal; immediately
 `ROLLBACK` W if that happens.
 
 ```sql
@@ -208,7 +213,12 @@ SELECT NOT EXISTS(SELECT 1 FROM storage.objects
 
 Another 42501 error,
 timeout, or a zero-row policy outcome is **not** a pass; investigate the actual
-managed schema and RLS/trigger path.
+managed schema and RLS/trigger path. If the managed schema needs other
+non-default columns, stop this SQL race as **unverified** and revise the fixture
+for that exact schema in the isolated project. An API upload while D holds the
+fence can additionally show the end-to-end wait/rejection, but its result alone
+does not identify the DB backend lock holder and does not replace the
+`pg_blocking_pids` evidence required here.
 
 ## API rejection, cleanup and release evidence
 

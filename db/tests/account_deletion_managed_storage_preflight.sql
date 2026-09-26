@@ -92,6 +92,16 @@ FROM information_schema.columns
 WHERE table_schema = 'storage' AND table_name IN ('objects', 'buckets')
 ORDER BY table_name, ordinal_position;
 
+-- Any row here means the runbook's three-column metadata INSERT cannot be
+-- used as written. This does not invalidate the trigger or the API probe.
+SELECT column_name, data_type AS additional_required_insert_column
+FROM information_schema.columns
+WHERE table_schema = 'storage' AND table_name = 'objects'
+  AND is_nullable = 'NO' AND column_default IS NULL
+  AND is_generated = 'NEVER' AND identity_generation IS NULL
+  AND column_name NOT IN ('id', 'bucket_id', 'name')
+ORDER BY column_name;
+
 SELECT policyname, cmd, roles, qual, with_check
 FROM pg_policies
 WHERE schemaname = 'storage' AND tablename = 'objects'
