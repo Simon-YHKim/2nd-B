@@ -32,3 +32,10 @@ Simon의 2026-09-26 결정은 Q5를 **처리위탁(안 A)**으로 채택했다. 
 - APK의 AndroidManifest를 `apkanalyzer manifest print`로 검사했다. `MobileAdsInitProvider`, `com.google.android.gms.ads` 및 `ca-app-pub-` 일치 항목이 각각 0개다. `apkanalyzer dex packages --defined-only`의 `com.google.android.gms.ads` 아래 정의된 클래스는 `ads.identifier`의 `AdvertisingIdClient`와 보조 클래스 3개뿐이며 광고 표시 SDK 클래스는 없었다. APK ZIP 항목의 AdMob/GMA 네이티브 라이브러리 이름 일치도 0개다.
 - **광고 식별자 지원은 남아 있다.** 매니페스트에는 `com.google.android.gms.permission.AD_ID`와 `android.permission.ACCESS_ADSERVICES_AD_ID`가 있다. `play-services-ads-identifier:18.0.1`은 `expo-tracking-transparency`, RevenueCat Purchases, Firebase Analytics를 통해 들어온다. 따라서 이 검사는 AdMob 표시 SDK 제외를 입증하지만, 다른 SDK의 광고 ID 접근이나 동의 전 네트워크 무송신을 입증하지 않는다.
 - 이 로컬 APK에서 앱 UID·Google Play Services UID의 시작 단계 네트워크 관찰은 수행하지 않았다. 출고용 EAS APK/AAB의 동일한 패키지 검사와 통제된 기기 네트워크 검사, 계정별 법률 항목·별도 동의 확인 전까지 광고 ON과 클라이언트 공개 게이트는 유지한다.
+
+## 2026-09-27 x86_64 릴리스 시작 단계 검사
+
+- 위 arm64 검사와 같은 앱 소스에서 x86_64 로컬 `:app:assembleRelease`를 완료했다. APK는 69,124,278바이트, SHA-256 `4E8504156F96EABC75117BA14D840E8F58E89F3EF971E63FC92398B3F25560E4`, v2 서명 유효다. APK에 AdMob Provider·앱 ID가 없고, `com.google.android.gms.ads` 아래 정의된 클래스 4개는 모두 `ads.identifier`에 속한다. 빌드 HEAD `13bb2adf`와 현재 `main e935c08e` 사이 앱 소스 차이는 0파일이다.
+- 새 API 36 x86_64 AVD를 읽기 전용으로 실행해 앱을 처음 설치했다. 계정 로그인·광고 동의·광고 요청 없이 [로그인 화면](admob-release-network-260927/login-startup.png)이 표시됐고, `MainActivity`가 전면에 있었다. 앱 UID `10216`과 Google Play Services UID `10145`의 IPv4·IPv6 OUTPUT에 REJECT 규칙을 둔 뒤 실행했다.
+- 첫 실행의 약 20초 창에서 앱 UID 규칙은 IPv4 **34건**, IPv6 **68건**을 차단했다. 앱을 강제 종료하고 다시 실행한 약 20초 창에서도 증가분은 각각 **34건**, **68건**이었다. 두 번째 창에 추가한 에뮬레이터 호스트 `10.0.2.0/24`, IPv4 loopback, IPv6 loopback/link-local/ULA 분류 규칙은 모두 0건이었다. Google Play Services UID에도 차단 카운터가 있었으나 시스템 자체 활동과 앱 유발 활동을 구분할 수 없다.
+- 따라서 **동의 전 앱 UID의 네트워크 시도 0은 성립하지 않는다.** 이 검사는 목적지·요청 내용·SDK 귀속을 캡처하지 않았고, 차단된 두 UID의 실제 외부 전달은 없었다. AdMob 표시 SDK 부재는 별도의 정적 패키지 증거이며 이 패킷을 AdMob으로 귀속하지 않는다. 검사가 끝난 뒤 추가한 방화벽 규칙을 모두 제거하고 AVD를 종료했다. 출고 EAS 바이너리와 기타 UID를 포함한 실제 초기 송신 정책은 별도 검증 대상이다.
