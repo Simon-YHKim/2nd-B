@@ -28,7 +28,13 @@
 **⚠ `HANDOFF-2026-09.md`(p1)는 92KB 로 찼다 — 09 월 블록은 `-p2` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-26 20:17 / 격리 복원 사전 차단·AdMob Q5 분류
+## Latest — 2026-09-26 20:52 / Android 음성 Stop 수정·게이트 유지
+
+- Android 제품 Record→Stop에서 React Native의 `ArrayBuffer` 기반 `Blob` 거부로 전사가 실패했다. `6cede82d`는 제한 크기 읽기 후 중단 가능한 청크 base64 변환으로 수정했고, 동일 AVD에서 오프라인 mock 전사 문구 표시·임시 음성 파일 삭제를 확인했다. 원격 DB·Edge 쓰기와 유료 호출 0건, 기록 저장 미실행. [화면과 검증 범위](qa/ANDROID-VOICE-CANCEL-260926.md).
+- PR #1865는 Draft다. 문서 게이트 정정 `16850053`의 로컬 전체 verify(820 suites·10,691 Jest tests·UI 76)와 원격 CI 4/4는 통과했다. 음성 수정 `6cede82d`의 집중 Jest 19/19·TypeScript·대상 ESLint와 통합 전체 verify(820 suites·10,693 Jest tests·UI 76)는 통과했다. 새 CI는 대기 중이다.
+- AdMob은 Q5 제3자 제공 중심 판단과 활성화 차단을 유지한다. 백업 전체 격리 복원 드릴은 승인됐지만 KeePassXC 개인키·임시 DB 접속·삭제 경로가 없어 프로젝트 생성 전 중단됐다. Paddle sandbox는 별도 프로젝트·설정·거래 증거가 없어 미완료다. Grok 후속 전달은 보류한다.
+
+## 2026-09-26 20:17 / 격리 복원 사전 차단·AdMob Q5 분류
 
 - AdMob Q5 자체 검토는 광고 SDK 송신을 **제3자 제공 중심**으로 분류했다. Google의 독립적 광고 처리 목적과 대법원 2016도13263 기준을 대조했고, [근거 초안](drafts/admob-q5-third-party-review-260926.md)에 법률·SDK 자료와 미확인 항목을 기록했다. `00e02e59`는 기존 `ads=true`·UMP를 새 동의로 인정하지 않고 웹/보상 광고·네이티브 UMP/SDK 호출을 차단하며 설정 화면은 과거 ON의 OFF만 허용한다. 현재 AdMob 계약 법인·이전 국가·보유기간을 몰라 처리방침 세 사본·판본·동의 SQL을 올리지 않았다. 새 별도 동의·실기기 초기 네트워크 검증 전까지 광고 ON·Draft 머지는 NO-GO다. 전체 `npm run verify`는 820 suites·10,691 tests와 UI 76 PASS였다.
 - 사용자는 같은 Free 조직에서 임시 Supabase 프로젝트를 만들고 보상 적용 후 암호화 백업을 복호화·격리 복원·검증한 뒤 프로젝트와 로컬 평문을 삭제하는 전체 드릴을 승인했다. Orca 콘솔 Run `run_9e4033e7f735`는 백업 SHA-256 일치·월 USD 0 비용·활성 프로젝트 1개를 확인했다. 그러나 age 개인키는 잠긴 KeePassXC에 있고 임시 DB 접속·삭제 권한이 검증되지 않아 **프로젝트 생성 전 중단**했다. 평문·임시 프로젝트·운영 쓰기 0건, 복원 성공 증거는 없다. [사전 점검 HTML](qa/BACKUP-RESTORE-PREFLIGHT-260926.html). 사용자에게 로컬 보관함·대시보드 준비를 요청했다.

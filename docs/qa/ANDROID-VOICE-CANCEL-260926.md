@@ -61,11 +61,29 @@ AVD는 비행기 모드였고 기본 외부 네트워크가 없었다. ADB rever
 8095·프록시 8096은 종료했고 공용 8081은 유지했다. 상세 결과는
 `E:/2ndB/.worktrees/native-product-qa-260926/Output/product-capture-260926/result.md`에 있다.
 
+## 제품 Stop → mock 전사 후속 확인 — 20:50 KST
+
+실제 제품 화면의 **Record → Stop and transcribe**에서 기존 코드는 녹음 파일을
+제한 크기로 읽은 뒤 React Native가 지원하지 않는 `ArrayBuffer` 기반 `Blob`을
+만들어 전사 전에 실패했다. `recording-uri.ts`에서 이미 크기 검증된 바이트를
+중단 가능한 청크 단위로 base64 인코딩하도록 수정했다. React Native의 Blob
+거부, 이진 바이트·패딩·청크 경계, 청크 사이 계정 중단을 회귀 테스트로 추가했다.
+
+동일 Android API 36 AVD에서 수정본을 다시 실행해 [녹음 중 화면](android-voice-stop-260926/recording.png)과
+[mock 전사 문장이 편집 상자에 채워진 화면](android-voice-stop-260926/mock-transcript.png)을 확인했다.
+Stop 뒤 `cache/Audio`는 비어 있었고 Metro 음성 경고는 0건이었다. 앱의
+`log_ai_audit` 1건은 로컬 프록시가 원격 전달 없이 204로 응답했다. 다른 DB·Edge
+쓰기와 유료 모델 호출은 0건이었다. 프록시 사전 차단 probe는 앱 요청 집계에서
+분리했다. **Save piece는 누르지 않았다.** 소유 워크트리 커밋 `ba827355`를
+PR #1865에 통합한 커밋은 `6cede82d`다. 집중 Jest 19/19, TypeScript,
+대상 ESLint, `git diff --check`가 통과했다.
+
 ## 범위
 
 이 검증은 실제 네이티브 녹음기와 제품의 수명주기·임시 파일 정리 모듈을 사용한다.
-제품 화면의 **Start→Cancel**도 후속 확인했다. **Stop → 전사·저장**, 오디오 품질과
-가청 출력, 실기기 전체 경로는 검증하지 않았다. 첫 AVD·전용 Metro·포트
+제품 화면의 **Start→Cancel**과 **Record→Stop→오프라인 mock 전사**를 후속 확인했다.
+실제 모델 전사 품질·기록 저장·오디오 품질과 가청 출력·실기기 전체 경로는
+검증하지 않았다. 첫 AVD·전용 Metro·포트
 8095/5580/5581은 종료했고 공용 8081은 건드리지 않았다. 첫 fixture 상세 결과는
 `E:/2ndB/.worktrees/native-260926/Output/voice-local-fixture-260926/result.json`에 있다.
 전용 워크트리에는 fixture용 `node_modules` junction이 남아 있으므로,
