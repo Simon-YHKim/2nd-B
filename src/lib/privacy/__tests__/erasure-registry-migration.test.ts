@@ -418,10 +418,18 @@ describe(`${FILE} -- structure`, () => {
   });
 
   test("the RPC ships LOCKED: no client role holds EXECUTE, authenticated included", () => {
+    // B-EX-02 (Simon decision 3, 2026-09-26): 0189 itself now revokes
+    // authenticated too. Migrations commit file by file, so a 0189 that left
+    // authenticated to 0190 opened a window in which a signed-in user could run
+    // erase_my_data; revoking in the file that creates the function closes it
+    // however the files are applied. Line 403 is cited as "0189:403".
     expect(code).toMatch(
-      /REVOKE EXECUTE ON FUNCTION public\.erase_my_data\(text\) FROM PUBLIC, anon;/,
+      /REVOKE EXECUTE ON FUNCTION public\.erase_my_data\(text\) FROM PUBLIC, anon, authenticated;/,
     );
-    // That line alone is NOT a lock, and this test used to say it was. Supabase's
+    expect(raw.split(/\r?\n/)[402]).toBe(
+      "REVOKE EXECUTE ON FUNCTION public.erase_my_data(text) FROM PUBLIC, anon, authenticated;",
+    );
+    // The older line alone was NOT a lock, and this test used to say it was. Supabase's
     // default privileges grant EXECUTE on every new public function to anon,
     // authenticated and service_role BY NAME (0036:11-13 recorded prod's ACL after
     // a PUBLIC-only revoke: all three still there), so revoking PUBLIC and anon
