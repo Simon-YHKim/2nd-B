@@ -65,6 +65,36 @@ fixed commit. The declined paid development branch is not assumed available.
 Keep public AdMob and client features OFF until their own canaries pass. The
 Reward server switch is already ON under the separate, recorded Simon GO.
 
+### Authenticated read-only recheck, 2026-09-26 15:19 KST
+
+The Supabase project `2nd-brain` still had 152 migration rows. The last four
+were the two Reward aliases and the two 0172 rows above; no 0191–0198 source
+name appeared. The aliases were compared with **Git blob** SQL, rather than the
+Windows checkout's line endings:
+
+| Local source → live ledger name | Local / live bytes | Exact MD5 | Whitespace-stripped MD5 |
+| --- | ---: | --- | --- |
+| 0177 → `reward_ssv_tickets` | 11541 / 11540 | differs | `e703cf9ddec3eb636cec9752574ae28a` matches |
+| 0196 → `reward_ssv_hardening` | 25810 / 25810 | `a4d87d82fd7e8bda4f0cf3c1f930b025` matches | `9d9afb5a9489309e8cace1c04cb2222c` matches |
+| 0172 → first and second 0172 rows | 9767 / 9765, 9766 | differs | `e6a302e6a6937f8cf78d88944030bf06` matches both |
+
+The four current Reward RPCs (issue, issue limit, callback claim, settlement)
+exist and are executable by `service_role`, not `anon` or `authenticated`.
+The three checked legacy grant/consume RPCs exist but none of those three roles
+can execute them. Both Reward tables exist; issued and consumed ticket counts
+were zero. The Edge list still showed `rewarded-ssv` v91 with `updated_at`
+12:23:51 KST. These checks support the source-to-ledger map; they do not prove
+the live secret value, signed callback canary, or a restorable backup.
+
+The live Paddle preflight counted four webhook rows, zero adjustment source or
+legacy consequence rows, and zero self-service billing rows. This reduces the
+known historical mapping risk for 0197; it does not prove a safe write window
+or full compatibility with production data. `signup_consent_contract_status`,
+`llm_consent_receipts`, account-deletion tombstones, and Polaris generation
+tables were still absent. Supabase listed no development branches. No production
+write was made in this recheck. Draft PR #1865 head `d506ad6d` had all four
+required checks passing (lint, SQL, verify, web export).
+
 Scratch CI replays all numbered files on a fresh PostgreSQL database. It proves
 source order and contracts only; it cannot establish compatibility with live
 data, a restorable production backup, the current Edge secrets, or device and
