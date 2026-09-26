@@ -28,12 +28,14 @@
 **⚠ `HANDOFF-2026-09.md`(p1)는 92KB 로 찼다 — 09 월 블록은 `-p2` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-26 19:14 / Naver·RSS 번호 SQL과 웹·Android 후속 QA
+## Latest — 2026-09-26 19:46 / 제품 음성 취소 QA·서버 선행 조건 재확인
 
 - 코딩 PR #1865에서 `0199_oauth_naver_rate_limit_completion.sql`(초안 바이트 동일), `0200_rss_proxy_quota.sql`(초안 바이트 동일), `0201_rss_proxy_erasure_registry.sql`(정본 등록부 생성 블록)을 번호 예약·push했다. RSS 사용자별 일일 쿼터는 콘텐츠 삭제로 초기화하면 안 되는 `retained` 71번째 행이며, 계정 삭제는 `public.users` FK로 연쇄 삭제한다. 0189 rollback 목록에는 등록부 전용 `0201`만 더하고 제품 표 생성 `0200`은 넣지 않았다. [번호·해시·의존성](qa/SERVER-PROMOTION-260926.md). 집중 Jest 54개와 등록부 검사, 전체 `npm run verify -- --runInBand` 818 suites·10,685 tests·UI 76 PASS. 원격 [SQL 리허설](https://github.com/Simon-YHKim/2nd-B/actions/runs/36233386382)의 0199·0200·0201 및 rollback 왕복을 포함한 4개 검사도 모두 PASS.
 - 읽기 전용 운영 카탈로그에 `0183`의 OAuth 테이블·제한 함수와 RSS 사용자 쿼터 테이블·RPC가 아직 없다. `0199`는 `0183` 선행 없이 적용할 수 없다. 운영 백업 격리 복원·실데이터 이주 리허설, 원장 alias 대응, Edge/flag 확인 전 추가 운영 적용은 NO-GO다. 무료 Supabase 격리 프로젝트의 생성·복원·삭제는 사용자 별도 결정 대기, Grok 후속은 보류다.
 - 로컬 Chrome의 실제 분석 모듈/CSP 계측에서 합성 GA4 ID로 `gtag.js` 200과 성인·동의·런타임 ON의 `/g/collect` 시도를 확인했다. 수집 요청은 모두 네트워크 전송 전에 차단했다. 동의 OFF·런타임 OFF·미성년·철회·Paddle sandbox는 수집 시도 0건이었다(`scripts/qa/ga4-network-smoke.cjs`). 운영 GA4 수신·Paddle 실거래를 증명하지 않는다. Android 음성 Stop은 전사·audit DB 쓰기로 이어져 무쓰기 조건에서 누르지 않았다. 당시 오프라인 AVD 재기동은 자동 승인 검토가 사유 없이 거부됐고 제품 화면에서 녹음을 시작하지 않았다. 전용 AVD/Metro는 정리했다.
 - 현재 `ae24b6e1` 웹 export에서 QA 계정 33화면(320/425/768px)의 pageerror·가로 넘침·깨진 이미지가 각각 0건이고, 320/425px 음성 녹음 시작·사진 카메라 버튼 4개는 스크롤 후 클릭 가능했다. 미배포 service-consent 404×3·Polaris 상태 404×1은 실패/대기 UI로 처리됐다. [웹 스크린샷과 범위](qa/REMAINING-WORK-260926.html). 별도 Android API 36 격리 fixture에서는 네이티브 Start→Cancel 뒤 임시 파일 부재를 확인했고 외부 기본 네트워크는 none 상태였다. Expo의 missing-file 응답에 `uri`가 없는 것을 정리 실패로 오판하던 `owned-temp` 검사를 고쳤다. 변경 후 전체 `npm run verify -- --runInBand`는 818 suites·10,686 tests·UI 76 PASS. [AVD 전후 증거·제한](qa/ANDROID-VOICE-CANCEL-260926.md). 앱 화면의 Stop→전사·DB·오디오 품질은 미검증이다.
+- 19:46 KST 최신 PR JS `55f24cf3`을 실제 Android 제품 `/capture-full?mode=voice`에 로드해 QA 로그인→Record→`Recording...`→`To do` 탭 취소를 확인했다. 녹음 중 `.m4a` 1개가 생겼고 취소 뒤 `cache/Audio`가 비었으며 `[audio]` 경고·전사 요청은 0건이었다. 인증 POST 1회와 읽기 요청만 전달하는 로컬 프록시를 사용했고 전용 AVD·Metro·프록시를 종료했다. Stop→전사·저장·음질·실기기는 여전히 미검증이다. [제품 화면·상세 증거](qa/ANDROID-VOICE-CANCEL-260926.md).
+- 19:30 KST Supabase 인증 읽기 전용 재조회에서 운영 migration 원장은 152행 그대로다. `polaris_generation_status`·가입 상태·서비스 동의 snapshot RPC, Naver OAuth·RSS 쿼터 선행 객체와 `service-consent` Edge는 여전히 없다. 암호화 백업 artifact·로컬 `.age` 크기/헤더/해시는 일치하고 age·pg_restore 및 KeePassXC 보관함 파일도 존재하지만 개인키 항목 접근·복호화·복원은 확인되지 않았다. 격리 프로젝트는 만들지 않았고 별도 생성 결정 및 콘솔 담당의 키 확인이 남는다. 추가 운영 적용 NO-GO와 Grok 후속 보류를 유지한다.
 
 ## 2026-09-26 18:05 / Android 캡처 탭 겹침 수정·운영 읽기 재확인
 

@@ -39,12 +39,34 @@ Expo Android `expo-file-system/legacy.getInfoAsync`는 파일이 없으면
 전용 워크트리에서 `owned-temp` Jest **41/41**, TypeScript, 대상 ESLint,
 `git diff --check`가 통과했다.
 
+## 제품 화면 후속 확인 — 19:46 KST
+
+최신 PR JS `55f24cf3`을 기존 native debug APK에 로드해 별도 Android API 36
+AVD의 실제 `/capture-full?mode=voice` 화면을 열었다. 저장소의 QA 계정으로
+로그인한 뒤 **Record**를 누르자 `Recording...`과 `Stop and transcribe`가
+보였고 앱의 `cache/Audio`에 `.m4a` 파일 1개(확인 시 159,549바이트)가
+생겼다. 녹음 중 **To do** 탭으로 전환해 제품 취소 경로를 실행한 뒤
+`cache/Audio` 목록은 `.`·`..`만 남았다. Metro의 `[audio]` 경고와 전사
+요청은 0건이었다.
+
+| 장면 | 제품 화면 |
+| --- | --- |
+| 녹음 중 | [product-recording.png](android-voice-cancel-260926/product-recording.png) |
+| 탭 전환으로 취소한 뒤 | [product-cancelled.png](android-voice-cancel-260926/product-cancelled.png) |
+
+AVD는 비행기 모드였고 기본 외부 네트워크가 없었다. ADB reverse로 연결한
+로컬 프록시는 QA 로그인 `POST /auth/v1/token` 1건과 GET/HEAD 읽기만
+전달했고, 별도 사전 차단 probe의 `POST /rest/v1/users`는 403으로 막았다.
+제품에서 DB 쓰기·Edge·유료 API 요청은 관찰되지 않았다. 전용 AVD·Metro
+8095·프록시 8096은 종료했고 공용 8081은 유지했다. 상세 결과는
+`E:/2ndB/.worktrees/native-product-qa-260926/Output/product-capture-260926/result.md`에 있다.
+
 ## 범위
 
 이 검증은 실제 네이티브 녹음기와 제품의 수명주기·임시 파일 정리 모듈을 사용한다.
-제품 `/capture-full` 화면의 녹음 조작, Stop → 전사·저장, 오디오 품질과 가청 출력,
-실기기 전체 경로는 검증하지 않았다. AVD·전용 Metro·포트 8095/5580/5581은
-종료했고 공용 8081은 건드리지 않았다. 로컬 상세 결과는
+제품 화면의 **Start→Cancel**도 후속 확인했다. **Stop → 전사·저장**, 오디오 품질과
+가청 출력, 실기기 전체 경로는 검증하지 않았다. 첫 AVD·전용 Metro·포트
+8095/5580/5581은 종료했고 공용 8081은 건드리지 않았다. 첫 fixture 상세 결과는
 `E:/2ndB/.worktrees/native-260926/Output/voice-local-fixture-260926/result.json`에 있다.
 전용 워크트리에는 fixture용 `node_modules` junction이 남아 있으므로,
 워크트리 재귀 삭제 전에 그 연결을 먼저 분리해야 한다.
