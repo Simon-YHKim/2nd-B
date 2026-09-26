@@ -78,6 +78,37 @@ jobs:
             exit 1
           fi
 
+      # Migrations first, the function second. The function's source names
+      # public functions and tables that db/migrations or db/migration-drafts
+      # create; every one of them must already exist in production, or the
+      # deploy stops here. On 2026-09-26 main's proxies named 19 objects that
+      # production did not have (they fail closed), so one dispatch of main
+      # would have taken them down. The query goes to the read-only endpoint
+      # (it runs as supabase_read_only_user), is built from identifiers the
+      # script validates, and any failure to answer stops the deploy.
+      - name: Check production has the schema this function calls
+        env:
+          FUNCTION_SLUG: ${{ steps.policy.outputs.function_name }}
+          PROJECT_REF: ${{ secrets.PRODUCTION_SUPABASE_PROJECT_REF }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          node scripts/check-edge-function-schema-deps.mjs list "$FUNCTION_SLUG"
+          node scripts/check-edge-function-schema-deps.mjs query "$FUNCTION_SLUG" > schema-deps-request.json
+          status="$(curl -sS -o schema-deps-response.json -w '%{http_code}' \
+            -X POST "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query/read-only" \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            --data-binary @schema-deps-request.json)" || status="000"
+          case "$status" in
+            200|201) ;;
+            *)
+              echo "::error title=Edge deploy schema gate::schema-dependency-query-failed-${status}"
+              exit 1
+              ;;
+          esac
+          node scripts/check-edge-function-schema-deps.mjs verify "$FUNCTION_SLUG" schema-deps-response.json
+
       - name: Setup pinned Supabase CLI
         uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1 # v1
         with:
