@@ -73,6 +73,7 @@ function recordingApi(): RecordingApi {
 }
 
 const originalFetch = globalThis.fetch;
+const originalBlob = globalThis.Blob;
 const originalFileReader = globalThis.FileReader;
 
 beforeEach(() => {
@@ -98,6 +99,11 @@ beforeEach(() => {
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
+  Object.defineProperty(globalThis, "Blob", {
+    configurable: true,
+    value: originalBlob,
+    writable: true,
+  });
   Object.defineProperty(globalThis, "FileReader", {
     configurable: true,
     value: originalFileReader,
@@ -388,24 +394,25 @@ describe("owned recorder temp lifecycle", () => {
 });
 
 describe("bounded recording read", () => {
-  test("reads local audio through the bounded byte reader", async () => {
+  test("encodes bounded bytes without React Native's unsupported ArrayBuffer Blob", async () => {
     const directFetch = jest.fn().mockResolvedValue({
       blob: () => Promise.resolve({ type: "audio/webm" }),
     });
     globalThis.fetch = directFetch as unknown as typeof fetch;
-    class LegacyFileReader {
-      result: string | null = null;
-      error: Error | null = null;
-      onerror: (() => void) | null = null;
-      onload: (() => void) | null = null;
-      readAsDataURL(): void {
-        this.result = "data:audio/webm;base64,YWJj";
-        this.onload?.();
-      }
-    }
+    const unsupportedBlob = jest.fn(() => {
+      throw new Error("Creating blobs from ArrayBuffer parts is not supported");
+    });
+    const unsupportedReader = jest.fn(() => {
+      throw new Error("FileReader must not be needed for bounded bytes");
+    });
+    Object.defineProperty(globalThis, "Blob", {
+      configurable: true,
+      value: unsupportedBlob,
+      writable: true,
+    });
     Object.defineProperty(globalThis, "FileReader", {
       configurable: true,
-      value: LegacyFileReader,
+      value: unsupportedReader,
       writable: true,
     });
     const api = recordingApi();
@@ -428,6 +435,56 @@ describe("bounded recording read", () => {
       "file:///app-cache/voice.webm",
     );
     expect(directFetch).not.toHaveBeenCalled();
+    expect(unsupportedBlob).not.toHaveBeenCalled();
+    expect(unsupportedReader).not.toHaveBeenCalled();
+  });
+
+  test("base64 preserves binary bytes, padding, and a multi-chunk boundary", async () => {
+    const api = recordingApi();
+    const samples = [
+      new Uint8Array([]),
+      new Uint8Array([0]),
+      new Uint8Array([255, 1]),
+      new Uint8Array([0, 128, 255]),
+      Uint8Array.from({ length: 48 * 1024 + 5 }, (_, index) => index % 256),
+    ];
+    for (const bytes of samples) {
+      boundedReadMock.fetchBoundedLocalBytes.mockResolvedValueOnce(bytes);
+      await expect(api.recordingUriToBase64(
+        "file:///app-cache/binary.m4a",
+        "audio/mp4",
+        bytes.length,
+      )).resolves.toEqual({
+        base64: Buffer.from(bytes).toString("base64"),
+        mimeType: "audio/mp4",
+      });
+    }
+  });
+
+  test("stops encoding between bounded chunks when the owner signal aborts", async () => {
+    const bytes = new Uint8Array(48 * 1024 + 3).fill(255);
+    boundedReadMock.fetchBoundedLocalBytes.mockResolvedValue(bytes);
+    const owner = new AbortController();
+    const realSetTimeout = globalThis.setTimeout;
+    let yielded = 0;
+    const timer = jest.spyOn(globalThis, "setTimeout").mockImplementation((callback, delay) => {
+      if (delay === 0) {
+        yielded += 1;
+        owner.abort();
+      }
+      return realSetTimeout(callback, delay);
+    });
+    try {
+      await expect(recordingApi().recordingUriToBase64(
+        "file:///app-cache/owner-a.m4a",
+        "audio/mp4",
+        bytes.length,
+        owner.signal,
+      )).rejects.toMatchObject({ name: "AbortError" });
+    } finally {
+      timer.mockRestore();
+    }
+    expect(yielded).toBe(1);
   });
 
   test("aborts an A-owned read synchronously when the account changes to B", async () => {
