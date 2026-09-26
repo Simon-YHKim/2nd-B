@@ -572,6 +572,20 @@ jobs:
               cp -- "$f" "$staged_project/supabase/migrations/"
             fi
           done
+          # Since B-EX-02 (Simon decision 3, 2026-09-26) 0189 revokes authenticated
+          # itself, so replaying 0189 without 0190 no longer opens erase_my_data and
+          # the control below could never show the hole. What this lane guards is the
+          # rollback's ledger discipline (0189 and 0190 are one set), not 0189's own
+          # line. So the staged copy it replays is the pre-decision 0189, which left
+          # authenticated to 0190. Only this lane's copy changes; the database it
+          # starts from was built from the real file by the push above.
+          staged_0189="$staged_project/supabase/migrations/0189_erasure_registry.sql"
+          sed -i -E 's/^(REVOKE EXECUTE ON FUNCTION public\.erase_my_data\(text\) FROM PUBLIC, anon), authenticated;(\r?)$/\1;\2/' "$staged_0189"
+          if [[ "$(grep -c '^REVOKE EXECUTE ON FUNCTION public.erase_my_data(text) FROM PUBLIC, anon;' "$staged_0189")" != "1" ]] \
+            || grep -q '^REVOKE EXECUTE ON FUNCTION public.erase_my_data(text) FROM PUBLIC, anon, authenticated;' "$staged_0189"; then
+            echo "rollback round trip cannot stage the pre-decision 0189: expected exactly one REVOKE line to lose 'authenticated'" >&2
+            exit 1
+          fi
 
           sql() { # <db> <one statement>
             psql -X -q -h localhost -U postgres -d "$1" -v ON_ERROR_STOP=1 -Atc "$2"
